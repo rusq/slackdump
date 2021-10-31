@@ -3,14 +3,23 @@ Slack Dumper
 ============
 Purpose: dump slack messages, users and files using browser token and cookie.
 
-This library is "fit-for-purpose" quality, can't say it's ready for
-production, as it lacks most of the unit tests, but will do for ad-hoc
+Typical usecase scenarios:
+
+* You want to archive your private convesations from slack but the administrator
+  does not allow you to install applications.
+
+* You are allowed to install applications in Slack but don't want to use the
+  "cloud" tools for privacy concerns - god knows what those third party apps are
+  retaining in their "clouds".
+
+The library is "fit-for-purpose" quality and provided AS-IS.  Can't say it's
+ready for production, as it lacks most of the unit tests, but will do for ad-hoc
 use.
 
 Usage
 =====
 
-1. Download the ``slackdump`` for your operating system.
+1. Download the archive from the Releases page for your operating system.
 2. Unpack
 3. Run ``slackdump -h`` to see help.
 
