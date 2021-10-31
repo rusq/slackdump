@@ -13,3 +13,14 @@
 
 # Dependency directories (remove the comment below to include it)
 # vendor/
+.DS_Store
+*.json
+*.yaml
+json/*
+examples/*
+experiments/*
+secrets.*
+cmd/slackdump/slackdump
+cmd/sdconv/sdconv
+*~
+.env
