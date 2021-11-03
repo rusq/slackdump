@@ -20,7 +20,6 @@ type Channels struct {
 // the type of messages to fetch.  See github.com/rusq/slack docs for possible
 // values
 func (sd *SlackDumper) getChannels(chanTypes []string) (*Channels, error) {
-
 	throttle := getThrottler(slackTier2)
 
 	if chanTypes == nil {
@@ -29,7 +28,7 @@ func (sd *SlackDumper) getChannels(chanTypes []string) (*Channels, error) {
 
 	params := &slack.GetConversationsParameters{Types: chanTypes}
 	allChannels := make([]slack.Channel, 0, 50)
-	for i := 0; i <= 2; i++ {
+	for {
 		chans, nextcur, err := sd.api.GetConversations(params)
 		if err != nil {
 			return nil, err
@@ -81,7 +80,7 @@ func (cs Channels) ToText(w io.Writer) (err error) {
 func (sd *SlackDumper) whoThisChannelFor(channel *slack.Channel) (who string) {
 	switch {
 	case channel.IsIM:
-		who = "@" + sd.UserForID[channel.User].Name
+		who = "@" + sd.username(channel.User)
 	case channel.IsMpIM:
 		who = strings.Replace(channel.Purpose.Value, " messaging with", "", -1)
 	case channel.IsPrivate:
@@ -103,4 +102,12 @@ func (sd *SlackDumper) IsChannel(c string) (ok bool) {
 		}
 	}
 	return
+}
+
+func (sd *SlackDumper) username(id string) string {
+	user, ok := sd.UserForID[id]
+	if !ok {
+		return "<external>:" + id
+	}
+	return user.Name
 }

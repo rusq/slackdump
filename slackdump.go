@@ -37,15 +37,17 @@ func New(token string, cookie string) (*SlackDumper, error) {
 	var chans *Channels
 
 	go func() {
+		defer close(errC)
 		var err error
 		chanTypes := allChanTypes
+		log.Println("> caching channels, might take a while...")
 		chans, err = sd.getChannels(chanTypes)
 		if err != nil {
 			errC <- err
 		}
-		close(errC)
 	}()
 
+	log.Println("> caching users...")
 	if _, err := sd.GetUsers(); err != nil {
 		return nil, fmt.Errorf("error fetching users: %s", err)
 	}

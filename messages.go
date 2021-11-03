@@ -60,7 +60,7 @@ func (m *Messages) GetUserForMessage(msg *slack.Message) string {
 	}
 
 	if userid != "" {
-		return m.SD.UserForID[userid].Name
+		return m.SD.username(userid)
 	}
 
 	return ""
