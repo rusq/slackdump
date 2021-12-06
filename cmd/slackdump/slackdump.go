@@ -37,6 +37,11 @@ type output struct {
 	format   string
 }
 
+func (out output) validFormat() bool {
+	return out.format != "" && (out.format == outputTypeJSON ||
+		out.format == outputTypeText)
+}
+
 type slackCreds struct {
 	token  string
 	cookie string
@@ -136,8 +141,7 @@ func checkParameters() (params, error) {
 		return p, fmt.Errorf("no list flags specified and no channels to export")
 	}
 
-	if p.output.format != "" && (p.output.format == outputTypeJSON ||
-		p.output.format == outputTypeText) {
+	if !p.output.validFormat() {
 		return p, fmt.Errorf("invalid output type: %q, must use one of %v", p.output.format, []string{outputTypeJSON, outputTypeText})
 	}
 
