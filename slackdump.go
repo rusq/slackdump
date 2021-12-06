@@ -1,6 +1,7 @@
 package slackdump
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"log"
@@ -26,8 +27,9 @@ type Reporter interface {
 	ToText(w io.Writer) error
 }
 
-// New creates new client and fills the structure with data
-func New(token string, cookie string) (*SlackDumper, error) {
+// New creates new client and populates the internal cache of users and channels
+// for lookups.
+func New(ctx context.Context, token string, cookie string) (*SlackDumper, error) {
 	var err error
 	sd := &SlackDumper{
 		api: slack.New(token, slack.OptionCookie(cookie)),
@@ -41,7 +43,7 @@ func New(token string, cookie string) (*SlackDumper, error) {
 		var err error
 		chanTypes := allChanTypes
 		log.Println("> caching channels, might take a while...")
-		chans, err = sd.getChannels(chanTypes)
+		chans, err = sd.getChannels(ctx, chanTypes)
 		if err != nil {
 			errC <- err
 		}
@@ -71,7 +73,7 @@ func (sd *SlackDumper) IsDeletedUser(id string) bool {
 }
 
 // DumpMessages fetches messages from the specified channel
-func (sd *SlackDumper) DumpMessages(channelID string, dumpFiles bool) (*Messages, error) {
+func (sd *SlackDumper) DumpMessages(ctx context.Context, channelID string, dumpFiles bool) (*Messages, error) {
 
 	params := &slack.GetConversationHistoryParameters{
 		ChannelID: channelID,
@@ -87,9 +89,9 @@ func (sd *SlackDumper) DumpMessages(channelID string, dumpFiles bool) (*Messages
 		}()
 	}
 
-	throttle := getThrottler(slackTier3)
+	limiter := newLimiter(tier3)
 	allMessages := make([]slack.Message, 0, 2000)
-LOOP:
+
 	for i := 1; ; i++ {
 		select {
 		case err := <-errC:
@@ -97,30 +99,32 @@ LOOP:
 			close(filesC)
 			<-done
 			return nil, err
-		case <-throttle:
-			hist, err := sd.api.GetConversationHistory(params)
-			if err != nil {
-				return nil, err
-			}
-
-			allMessages = append(allMessages, hist.Messages...)
-			if dumpFiles {
-				// place files in download queue
-				chunk := sd.getFilesFromChunk(hist.Messages)
-				for i := range chunk {
-					filesC <- &chunk[i]
-				}
-			}
-
-			log.Printf("request #%d, fetched: %d, total: %d\n",
-				i, len(hist.Messages), len(allMessages))
-
-			if !hist.HasMore {
-				break LOOP
-			}
-
-			params.Cursor = hist.ResponseMetaData.NextCursor
+		default:
 		}
+		hist, err := sd.api.GetConversationHistory(params)
+		if err != nil {
+			return nil, err
+		}
+
+		allMessages = append(allMessages, hist.Messages...)
+		if dumpFiles {
+			// place files in download queue
+			chunk := sd.getFilesFromChunk(hist.Messages)
+			for i := range chunk {
+				filesC <- &chunk[i]
+			}
+		}
+
+		log.Printf("request #%d, fetched: %d, total: %d\n",
+			i, len(hist.Messages), len(allMessages))
+
+		if !hist.HasMore {
+			break
+		}
+
+		params.Cursor = hist.ResponseMetaData.NextCursor
+
+		limiter.Wait(ctx)
 	}
 
 	sort.Slice(allMessages, func(i, j int) bool {

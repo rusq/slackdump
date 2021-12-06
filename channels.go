@@ -1,6 +1,7 @@
 package slackdump
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -19,8 +20,8 @@ type Channels struct {
 // getChannels list all conversations for a user.  `chanTypes` specifies
 // the type of messages to fetch.  See github.com/rusq/slack docs for possible
 // values
-func (sd *SlackDumper) getChannels(chanTypes []string) (*Channels, error) {
-	throttle := getThrottler(slackTier2)
+func (sd *SlackDumper) getChannels(ctx context.Context, chanTypes []string) (*Channels, error) {
+	limiter := newLimiter(tier2)
 
 	if chanTypes == nil {
 		chanTypes = allChanTypes
@@ -38,7 +39,7 @@ func (sd *SlackDumper) getChannels(chanTypes []string) (*Channels, error) {
 			break
 		}
 		params.Cursor = nextcur
-		<-throttle
+		limiter.Wait(ctx)
 	}
 	return &Channels{Channels: allChannels, SD: sd}, nil
 }
@@ -46,14 +47,14 @@ func (sd *SlackDumper) getChannels(chanTypes []string) (*Channels, error) {
 // GetChannels list all conversations for a user.  `chanTypes` specifies
 // the type of messages to fetch.  See github.com/rusq/slack docs for possible
 // values
-func (sd *SlackDumper) GetChannels(chanTypes []string) (*Channels, error) {
-	if chanTypes == nil {
-		return &Channels{Channels: sd.Channels, SD: sd}, nil
+func (sd *SlackDumper) GetChannels(ctx context.Context, chanTypes ...string) (*Channels, error) {
+	if chanTypes != nil {
+		return sd.getChannels(ctx, chanTypes)
 	}
-	return sd.getChannels(chanTypes)
+	return &Channels{Channels: sd.Channels, SD: sd}, nil
 }
 
-// ToText outputs Channels cs to io.Writer w in Text format
+// ToText outputs Channels cs to io.Writer w in Text format.
 func (cs Channels) ToText(w io.Writer) (err error) {
 	const strFormat = "%s\t%s\t%s\t%s\n"
 	writer := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
@@ -92,16 +93,16 @@ func (sd *SlackDumper) whoThisChannelFor(channel *slack.Channel) (who string) {
 }
 
 // IsChannel checks if such a channel exists, returns true if it does
-func (sd *SlackDumper) IsChannel(c string) (ok bool) {
+func (sd *SlackDumper) IsChannel(c string) bool {
 	if c == "" {
-		return
+		return false
 	}
 	for i := range sd.Channels {
 		if sd.Channels[i].ID == c {
 			return true
 		}
 	}
-	return
+	return false
 }
 
 func (sd *SlackDumper) username(id string) string {
