@@ -1,16 +1,19 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"log"
 	"os"
+	"os/signal"
 	"sync"
 
-	"github.com/rusq/slackdump"
 	"github.com/joho/godotenv"
+	"github.com/rusq/slackdump"
 )
 
 const (
@@ -60,26 +63,39 @@ func main() {
 	flag.Parse()
 
 	if err := checkParameters(); err != nil {
+		flag.Usage()
 		log.Fatal(err)
 	}
 
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer stop()
+
+	if err := run(ctx); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func run(ctx context.Context) error {
 	if *flagChannels || *flagUsers {
 		output, err := getOutputHandle(*outputFile)
 		if err != nil {
-			log.Fatal(err)
+			return err
 		}
 		defer output.Close()
 
-		if err = fetchData(output, *outputType); err != nil {
-			log.Fatal(err)
+		if err = fetchData(ctx, output, *outputType); err != nil {
+			return err
 		}
 	} else if len(flag.Args()) > 0 {
-		n, err := dumpChannels(flag.Args())
+		n, err := dumpChannels(context.Background(), flag.Args())
 		if err != nil {
-			log.Fatal(err)
+			return err
 		}
 		log.Printf("job finished, dumped %d channels", n)
+	} else {
+		return errors.New("nothing to do")
 	}
+	return nil
 }
 
 func checkParameters() error {
@@ -110,9 +126,9 @@ func checkParameters() error {
 	return nil
 }
 
-func fetchData(output io.Writer, outputType string) error {
+func fetchData(ctx context.Context, output io.Writer, outputType string) error {
 	log.Print("initializing...")
-	sd, err := slackdump.New(*tokenID, *cookie)
+	sd, err := slackdump.New(ctx, *tokenID, *cookie)
 	if err != nil {
 		return err
 	}
@@ -122,7 +138,7 @@ func fetchData(output io.Writer, outputType string) error {
 	var rep slackdump.Reporter
 	switch {
 	case *flagChannels:
-		rep, err = sd.GetChannels(nil)
+		rep, err = sd.GetChannels(context.Background())
 		if err != nil {
 			return err
 		}
@@ -147,18 +163,18 @@ func fetchData(output io.Writer, outputType string) error {
 	return nil
 }
 
-func dumpChannels(chans []string) (int, error) {
+func dumpChannels(ctx context.Context, chans []string) (int, error) {
 	var n int
 
-	sd, err := slackdump.New(*tokenID, *cookie)
+	sd, err := slackdump.New(ctx, *tokenID, *cookie)
 	if err != nil {
 		return 0, err
 	}
-	for _, c := range flag.Args() {
-		log.Printf("dumping channel: %q", c)
+	for _, ch := range flag.Args() {
+		log.Printf("dumping channel: %q", ch)
 
-		if err := dumpChannel(c, sd); err != nil {
-			log.Printf("channel %q: %s", c, err)
+		if err := dumpChannel(ctx, sd, ch); err != nil {
+			log.Printf("channel %q: %s", ch, err)
 			continue
 		}
 
@@ -167,7 +183,7 @@ func dumpChannels(chans []string) (int, error) {
 	return n, nil
 }
 
-func dumpChannel(c string, sd *slackdump.SlackDumper) error {
+func dumpChannel(ctx context.Context, sd *slackdump.SlackDumper, c string) error {
 	var wg sync.WaitGroup
 	f, err := os.Create(c + ".json")
 	if err != nil {
@@ -175,7 +191,7 @@ func dumpChannel(c string, sd *slackdump.SlackDumper) error {
 	}
 	defer f.Close()
 
-	m, err := sd.DumpMessages(c, *flagDumpFiles)
+	m, err := sd.DumpMessages(ctx, c, *flagDumpFiles)
 	if err != nil {
 		return err
 	}

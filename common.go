@@ -5,19 +5,27 @@ import (
 	"strings"
 	"time"
 	"unicode/utf8"
+
+	"golang.org/x/time/rate"
 )
+
+// tier represents rate limit tier:
+// https://api.slack.com/docs/rate-limits
+type slackTier int8
 
 const (
-	slackTier1 = 4   //per Minute
-	slackTier2 = 35  //per Minute
-	slackTier3 = 70  //per Minute
-	slackTier4 = 130 //per Minute
+	// defined as events per minute
+	tier1 slackTier = 1
+	tier2 slackTier = 20
+	tier3 slackTier = 50
+	tier4 slackTier = 100
 )
 
-// getThrottler returns throttler with rateLimit requests per minute
-func getThrottler(rateLimit time.Duration) <-chan time.Time {
-	rate := time.Minute / rateLimit
-	return time.Tick(rate)
+// newLimiter returns throttler with rateLimit requests per minute
+func newLimiter(st slackTier) *rate.Limiter {
+	callsPerSec := float64(st) / 60.0
+	l := rate.NewLimiter(rate.Limit(callsPerSec), 1)
+	return l
 }
 
 func fromSlackTime(timestamp string) (time.Time, error) {
