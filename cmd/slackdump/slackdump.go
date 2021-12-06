@@ -122,13 +122,15 @@ func checkParameters() (params, error) {
 		flag.StringVar(&p.creds.cookie, "cookie", os.Getenv("COOKIE"), "d= cookie value")
 		flag.Parse()
 
+		os.Unsetenv("SLACK_TOKEN")
+		os.Unsetenv("COOKIE")
+
 		p.channelsToExport = flag.Args()
 	}
 
 	if !p.creds.valid() {
 		return p, fmt.Errorf("slack token or cookie not specified")
 	}
-	os.Unsetenv("SLACK_TOKEN")
 
 	if len(p.channelsToExport) == 0 && !p.list.present() {
 		return p, fmt.Errorf("no list flags specified and no channels to export")
