@@ -46,6 +46,9 @@ TOKEN
 #. Grab the **token:** value (it starts with ``xoxc-``), by right
    clicking the value and choosing "Copy Value".
 
+**If you don't see the token value** in Poogle Chrome - switch to `Payload` tab,
+your token is waiting for you there.
+
 COOKIE
 ++++++
 
