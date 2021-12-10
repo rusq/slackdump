@@ -10,6 +10,8 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"path/filepath"
+	"strings"
 
 	"github.com/joho/godotenv"
 	"github.com/rusq/slackdump"
@@ -18,6 +20,9 @@ import (
 const (
 	outputTypeJSON = "json"
 	outputTypeText = "text"
+
+	slackTokenEnv  = "SLACK_TOKEN"
+	slackCookieEnv = "COOKIE"
 )
 
 var _ = godotenv.Load()
@@ -60,21 +65,8 @@ func (lf listFlags) present() bool {
 	return lf.users || lf.channels
 }
 
-func init() {
-	flag.Usage = func() {
-		fmt.Fprintf(
-			flag.CommandLine.Output(),
-			"Slackdump dumps messages and files from slack using the provided api token.\n"+
-				"Will create a number of files having the channel_id as a name.\n"+
-				"Files are downloaded into a respective folder with channel_id\n\n"+
-				"Usage: %s [flags] [channel_id1 ... channel_idN]\n",
-			os.Args[0])
-		flag.PrintDefaults()
-	}
-}
-
 func main() {
-	params, err := checkParameters()
+	params, err := checkParameters(os.Args[1:])
 	if err != nil {
 		flag.Usage()
 		log.Fatal(err)
@@ -113,36 +105,48 @@ func createFile(filename string) (f io.WriteCloser, err error) {
 	return os.Create(filename)
 }
 
-func checkParameters() (params, error) {
-	var p params
-	// flags
-	{
-		flag.BoolVar(&p.list.channels, "c", false, "list channels (aka conversations) and their IDs for export.")
-		flag.BoolVar(&p.list.users, "u", false, "list users and their IDs. ")
-		flag.BoolVar(&p.dumpFiles, "f", false, "enable files download")
-		flag.StringVar(&p.output.filename, "o", "-", "output `filename` for users and channels.  Use '-' for standard\noutput.")
-		flag.StringVar(&p.output.format, "r", "", "report `format`.  One of 'json' or 'text'")
-		flag.StringVar(&p.creds.token, "t", os.Getenv("SLACK_TOKEN"), "Specify slack `API_token`, get it here:\nhttps://api.slack.com/custom-integrations/legacy-tokens\n"+
-			"It is also possible to define SLACK_TOKEN environment variable.")
-		flag.StringVar(&p.creds.cookie, "cookie", os.Getenv("COOKIE"), "d= cookie value")
-		flag.Parse()
-
-		os.Unsetenv("SLACK_TOKEN")
-		os.Unsetenv("COOKIE")
-
-		p.channelsToExport = flag.Args()
+func checkParameters(args []string) (params, error) {
+	fs := flag.NewFlagSet("", flag.ExitOnError)
+	fs.Usage = func() {
+		fmt.Fprintf(
+			flag.CommandLine.Output(),
+			"Slackdump dumps messages and files from slack using the provided api token.\n"+
+				"Will create a number of files having the channel_id as a name.\n"+
+				"Files are downloaded into a respective folder with channel_id name\n\n"+
+				"Usage:  %s [flags] [channel_id1 ... channel_idN]\n\n",
+			filepath.Base(os.Args[0]))
+		fs.PrintDefaults()
 	}
 
+	var p params
+	fs.BoolVar(&p.list.channels, "c", false, "list channels (aka conversations) and their IDs for export.")
+	fs.BoolVar(&p.list.users, "u", false, "list users and their IDs. ")
+	fs.BoolVar(&p.dumpFiles, "f", false, "enable files download")
+	fs.StringVar(&p.output.filename, "o", "-", "output `filename` for users and channels.  Use '-' for standard\noutput.")
+	fs.StringVar(&p.output.format, "r", "", "report `format`.  One of 'json' or 'text'")
+	fs.StringVar(&p.creds.token, "t", os.Getenv(slackTokenEnv), "Specify slack `API_token`, (environment: "+slackTokenEnv+")")
+	fs.StringVar(&p.creds.cookie, "cookie", os.Getenv(slackCookieEnv), "d= cookie `value` (environment: "+slackCookieEnv+")")
+	fs.Parse(args)
+
+	os.Unsetenv(slackTokenEnv)
+	os.Unsetenv(slackCookieEnv)
+
+	p.channelsToExport = fs.Args()
+
+	return p, p.validate()
+}
+
+func (p *params) validate() error {
 	if !p.creds.valid() {
-		return p, fmt.Errorf("slack token or cookie not specified")
+		return fmt.Errorf("slack token or cookie not specified")
 	}
 
 	if len(p.channelsToExport) == 0 && !p.list.present() {
-		return p, fmt.Errorf("no list flags specified and no channels to export")
+		return fmt.Errorf("no list flags specified and no channels to export")
 	}
 
-	if !p.output.validFormat() {
-		return p, fmt.Errorf("invalid output type: %q, must use one of %v", p.output.format, []string{outputTypeJSON, outputTypeText})
+	if !p.list.present() && !p.output.validFormat() {
+		return fmt.Errorf("invalid output type: %q, must use one of %v", p.output.format, []string{outputTypeJSON, outputTypeText})
 	}
 
 	// channels and users listings will be in the text format (if not specified otherwise)
@@ -153,8 +157,9 @@ func checkParameters() (params, error) {
 			p.output.format = outputTypeJSON
 		}
 	}
+	p.creds.cookie = strings.TrimPrefix(p.creds.cookie, "d=")
 
-	return p, nil
+	return nil
 }
 
 func listEntities(ctx context.Context, output output, creds slackCreds, list listFlags) error {

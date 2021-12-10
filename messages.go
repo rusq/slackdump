@@ -9,16 +9,20 @@ import (
 	"github.com/slack-go/slack"
 )
 
-// Messages keeps slice of messages
+// minMsgTimeApart defines the time interval in minutes to separate group
+// of messages from a single user in the conversation.  This increases the
+// readability of the text output.
+const minMsgTimeApart = 2
+
+// Messages keeps the slice of messages.
 type Messages struct {
 	Messages  []slack.Message
 	ChannelID string
 	SD        *SlackDumper
 }
 
-// ToText outputs Messages m to io.Writer w in Text format
-func (m Messages) ToText(w io.Writer) (err error) {
-	const minMsgTimeApart = 2 //minutes
+// ToText outputs Messages m to io.Writer w in text format.
+func (m *Messages) ToText(w io.Writer) (err error) {
 	writer := bufio.NewWriter(w)
 	defer writer.Flush()
 
