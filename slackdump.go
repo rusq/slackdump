@@ -2,6 +2,7 @@ package slackdump
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -137,6 +138,17 @@ func (sd *SlackDumper) DumpMessages(ctx context.Context, channelID string, dumpF
 	}
 
 	return &Messages{Messages: allMessages, ChannelID: channelID, SD: sd}, nil
+}
+
+// ErrNoThread is the error indicating that error is not a threaded message.
+var ErrNoThread = errors.New("message has no thread")
+
+// DumpThread retrieves all messages in the thread and returns them as a slice of messages.
+func (sd *SlackDumper) DumpThread(m *slack.Message) ([]slack.Message, error) {
+	if m.ThreadTimestamp == "" {
+		return nil, ErrNoThread
+	}
+	panic("implement me")
 }
 
 // UpdateUserMap updates user[id]->*User mapping from the current Users slice.
