@@ -2,7 +2,6 @@ package slackdump
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -13,12 +12,18 @@ import (
 
 // SlackDumper stores basic session parameters.
 type SlackDumper struct {
-	api *slack.Client
+	client *slack.Client
 
 	// Users contains the list of users and populated on NewSlackDumper
 	Users     Users                  `json:"users"`
 	Channels  []slack.Channel        `json:"channels"`
 	UserForID map[string]*slack.User `json:"-"`
+
+	options options
+}
+
+type options struct {
+	dumpfiles bool
 }
 
 var allChanTypes = []string{"mpim", "im", "public_channel", "private_channel"}
@@ -28,13 +33,25 @@ type Reporter interface {
 	ToText(w io.Writer) error
 }
 
+type Option func(*SlackDumper)
+
+func DumpFiles(b bool) Option {
+	return func(sd *SlackDumper) {
+		sd.options.dumpfiles = b
+	}
+}
+
 // New creates new client and populates the internal cache of users and channels
 // for lookups.
-func New(ctx context.Context, token string, cookie string) (*SlackDumper, error) {
+func New(ctx context.Context, token string, cookie string, opts ...Option) (*SlackDumper, error) {
 	var err error
 	sd := &SlackDumper{
-		api: slack.New(token, slack.OptionCookie(cookie)),
+		client: slack.New(token, slack.OptionCookie(cookie)),
 	}
+	for _, opt := range opts {
+		opt(sd)
+	}
+
 	errC := make(chan error, 1)
 
 	var chans *Channels
@@ -74,7 +91,7 @@ func (sd *SlackDumper) IsDeletedUser(id string) bool {
 }
 
 // DumpMessages fetches messages from the specified channel
-func (sd *SlackDumper) DumpMessages(ctx context.Context, channelID string, dumpFiles bool) (*Messages, error) {
+func (sd *SlackDumper) DumpMessages(ctx context.Context, channelID string) (*Channel, error) {
 
 	params := &slack.GetConversationHistoryParameters{
 		ChannelID: channelID,
@@ -84,14 +101,14 @@ func (sd *SlackDumper) DumpMessages(ctx context.Context, channelID string, dumpF
 	done := make(chan bool)
 	errC := make(chan error, 1)
 
-	if dumpFiles {
+	if sd.options.dumpfiles {
 		go func() {
 			errC <- sd.fileDownloader(channelID, filesC, done)
 		}()
 	}
 
 	limiter := newLimiter(tier3)
-	allMessages := make([]slack.Message, 0, 2000)
+	allMessages := make([]Message, 0, 2000)
 
 	for i := 1; ; i++ {
 		select {
@@ -102,28 +119,26 @@ func (sd *SlackDumper) DumpMessages(ctx context.Context, channelID string, dumpF
 			return nil, err
 		default:
 		}
-		hist, err := sd.api.GetConversationHistory(params)
+		resp, err := sd.client.GetConversationHistoryContext(ctx, params)
 		if err != nil {
 			return nil, err
 		}
+		messages := sd.convertMsgs(resp.Messages)
 
-		allMessages = append(allMessages, hist.Messages...)
-		if dumpFiles {
-			// place files in download queue
-			chunk := sd.getFilesFromChunk(hist.Messages)
-			for i := range chunk {
-				filesC <- &chunk[i]
-			}
+		if err := sd.populateThreads(ctx, messages, channelID); err != nil {
+			return nil, err
 		}
+		sd.extractFiles(filesC, messages)
+		allMessages = append(allMessages, messages...)
 
 		log.Printf("request #%d, fetched: %d, total: %d\n",
-			i, len(hist.Messages), len(allMessages))
+			i, len(resp.Messages), len(allMessages))
 
-		if !hist.HasMore {
+		if !resp.HasMore {
 			break
 		}
 
-		params.Cursor = hist.ResponseMetaData.NextCursor
+		params.Cursor = resp.ResponseMetaData.NextCursor
 
 		limiter.Wait(ctx)
 	}
@@ -132,23 +147,67 @@ func (sd *SlackDumper) DumpMessages(ctx context.Context, channelID string, dumpF
 		return allMessages[i].Timestamp < allMessages[j].Timestamp
 	})
 
-	if dumpFiles {
+	if sd.options.dumpfiles {
 		close(filesC)
 		<-done
 	}
 
-	return &Messages{Messages: allMessages, ChannelID: channelID, SD: sd}, nil
+	return &Channel{Messages: allMessages, ID: channelID}, nil
 }
 
-// ErrNoThread is the error indicating that error is not a threaded message.
-var ErrNoThread = errors.New("message has no thread")
-
-// DumpThread retrieves all messages in the thread and returns them as a slice of messages.
-func (sd *SlackDumper) DumpThread(m *slack.Message) ([]slack.Message, error) {
-	if m.ThreadTimestamp == "" {
-		return nil, ErrNoThread
+func (sd *SlackDumper) convertMsgs(sm []slack.Message) []Message {
+	msgs := make([]Message, len(sm))
+	for i := range sm {
+		msgs[i].Message = sm[i]
 	}
-	panic("implement me")
+	return msgs
+}
+
+func (sd *SlackDumper) extractFiles(filesC chan<- *slack.File, msgs []Message) {
+	if !sd.options.dumpfiles {
+		return
+	}
+	// place files in download queue
+	chunk := sd.getFilesFromChunk(msgs)
+	for i := range chunk {
+		filesC <- &chunk[i]
+	}
+}
+
+func (sd *SlackDumper) populateThreads(ctx context.Context, msgs []Message, channelID string) error {
+	for i := range msgs {
+		if msgs[i].ThreadTimestamp == "" {
+			continue
+		}
+		threadMsgs, err := sd.dumpThread(ctx, channelID, msgs[i].ThreadTimestamp)
+		if err != nil {
+			return err
+		}
+		msgs[i].ThreadReplies = threadMsgs
+	}
+	return nil
+}
+
+// dumpThread retrieves all messages in the thread and returns them as a slice of messages.
+func (sd *SlackDumper) dumpThread(ctx context.Context, channelID string, threadTS string) ([]Message, error) {
+	var thread []Message
+
+	var cursor string
+	for {
+		msgs, hasmore, nextCursor, err := sd.client.GetConversationRepliesContext(
+			ctx,
+			&slack.GetConversationRepliesParameters{ChannelID: channelID, Timestamp: threadTS, Cursor: cursor},
+		)
+		if err != nil {
+			return nil, err
+		}
+		thread = append(thread, sd.convertMsgs(msgs[1:])...) // exclude the first message of the thread, as it's the same as the parent.
+		if !hasmore {
+			break
+		}
+		cursor = nextCursor
+	}
+	return thread, nil
 }
 
 // UpdateUserMap updates user[id]->*User mapping from the current Users slice.

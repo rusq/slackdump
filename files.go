@@ -19,18 +19,23 @@ type Files struct {
 }
 
 // GetFilesFromMessages returns files from the conversation
-func (sd *SlackDumper) GetFilesFromMessages(m *Messages) *Files {
+func (sd *SlackDumper) GetFilesFromMessages(ch *Channel) *Files {
 	return &Files{
-		Files:     sd.getFilesFromChunk(m.Messages),
-		ChannelID: m.ChannelID,
+		Files:     sd.getFilesFromChunk(ch.Messages),
+		ChannelID: ch.ID,
 		SD:        sd}
 }
 
-func (sd *SlackDumper) getFilesFromChunk(m []slack.Message) []slack.File {
-	files := make([]slack.File, 0, 2)
+func (sd *SlackDumper) getFilesFromChunk(m []Message) []slack.File {
+	var files []slack.File
+
 	for i := range m {
 		if m[i].Files != nil {
 			files = append(files, m[i].Files...)
+		}
+		// include threaded files
+		for _, reply := range m[i].ThreadReplies {
+			files = append(files, reply.Files...)
 		}
 	}
 	return files
@@ -45,7 +50,7 @@ func (sd *SlackDumper) SaveFileTo(dir string, f *slack.File) (int64, error) {
 	}
 	defer file.Close()
 
-	if err := sd.api.GetFile(f.URLPrivateDownload, file); err != nil {
+	if err := sd.client.GetFile(f.URLPrivateDownload, file); err != nil {
 		return 0, errors.WithStack(err)
 	}
 

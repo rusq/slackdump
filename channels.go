@@ -30,7 +30,7 @@ func (sd *SlackDumper) getChannels(ctx context.Context, chanTypes []string) (*Ch
 	params := &slack.GetConversationsParameters{Types: chanTypes}
 	allChannels := make([]slack.Channel, 0, 50)
 	for {
-		chans, nextcur, err := sd.api.GetConversations(params)
+		chans, nextcur, err := sd.client.GetConversations(params)
 		if err != nil {
 			return nil, err
 		}

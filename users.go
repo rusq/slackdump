@@ -18,7 +18,7 @@ type Users struct {
 // GetUsers retrieve all users and refresh structure User information
 func (sd *SlackDumper) GetUsers() (*Users, error) {
 	var err error
-	users, err := sd.api.GetUsers()
+	users, err := sd.client.GetUsers()
 	if err != nil {
 		return nil, err
 	}

@@ -14,21 +14,26 @@ import (
 // readability of the text output.
 const minMsgTimeApart = 2
 
-// Messages keeps the slice of messages.
-type Messages struct {
-	Messages  []slack.Message
-	ChannelID string
-	SD        *SlackDumper
+// Channel keeps the slice of messages.
+type Channel struct {
+	Messages []Message
+	ID       string
+}
+
+type Message struct {
+	slack.Message
+	ThreadReplies []Message `json:"slackdump_thread_replies,omitempty"`
 }
 
 // ToText outputs Messages m to io.Writer w in text format.
-func (m *Messages) ToText(w io.Writer) (err error) {
+func (m Channel) ToText(sd *SlackDumper, w io.Writer) (err error) {
 	writer := bufio.NewWriter(w)
 	defer writer.Flush()
 
-	var prevMsg = slack.Message{}
-	var prevTime = time.Time{}
-	// var lastMsgFrom string
+	var (
+		prevMsg  Message
+		prevTime time.Time
+	)
 	for _, message := range m.Messages {
 		t, err := fromSlackTime(message.Timestamp)
 		if err != nil {
@@ -42,7 +47,7 @@ func (m *Messages) ToText(w io.Writer) (err error) {
 		} else {
 			writer.WriteString(fmt.Sprintf(
 				"\n> %s @ %s:\n%s\n",
-				m.GetUserForMessage(&message),
+				sd.GetUserForMessage(&message),
 				t.Format("02/01/2006 15:04:05 Z0700"),
 				message.Text,
 			))
@@ -55,7 +60,7 @@ func (m *Messages) ToText(w io.Writer) (err error) {
 }
 
 // GetUserForMessage returns username for the message
-func (m *Messages) GetUserForMessage(msg *slack.Message) string {
+func (sd *SlackDumper) GetUserForMessage(msg *Message) string {
 	var userid string
 	if msg.Comment != nil {
 		userid = msg.Comment.User
@@ -64,7 +69,7 @@ func (m *Messages) GetUserForMessage(msg *slack.Message) string {
 	}
 
 	if userid != "" {
-		return m.SD.username(userid)
+		return sd.username(userid)
 	}
 
 	return ""
