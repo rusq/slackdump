@@ -30,7 +30,7 @@ func (sd *SlackDumper) GetUsers() (*Users, error) {
 	}
 	// recalculating userForID
 	sd.Users.Users = users
-	sd.UserForID = sd.Users.MakeUserIDIndex()
+	sd.UserForID = sd.Users.IndexByID()
 
 	return &Users{Users: users, SD: sd}, err
 }
@@ -70,8 +70,8 @@ func (us Users) ToText(w io.Writer) (err error) {
 	return
 }
 
-// MakeUserIDIndex returns the userID map to relevant *slack.User
-func (us *Users) MakeUserIDIndex() map[string]*slack.User {
+// IndexByID returns the userID map to relevant *slack.User
+func (us *Users) IndexByID() map[string]*slack.User {
 	var usermap = make(map[string]*slack.User, len(us.Users))
 	// that's for readability
 	var userlist = &us.Users

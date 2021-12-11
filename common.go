@@ -11,18 +11,18 @@ import (
 
 // tier represents rate limit tier:
 // https://api.slack.com/docs/rate-limits
-type slackTier int8
+type tier int8
 
 const (
 	// defined as events per minute
-	tier1 slackTier = 1
-	tier2 slackTier = 20
-	tier3 slackTier = 50
-	tier4 slackTier = 100
+	tier1 tier = 1
+	tier2 tier = 20
+	tier3 tier = 50
+	tier4 tier = 100
 )
 
 // newLimiter returns throttler with rateLimit requests per minute
-func newLimiter(st slackTier) *rate.Limiter {
+func newLimiter(st tier) *rate.Limiter {
 	callsPerSec := float64(st) / 60.0
 	l := rate.NewLimiter(rate.Limit(callsPerSec), 1)
 	return l

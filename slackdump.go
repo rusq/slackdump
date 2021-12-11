@@ -8,6 +8,7 @@ import (
 	"sort"
 
 	"github.com/slack-go/slack"
+	"golang.org/x/time/rate"
 )
 
 // SlackDumper stores basic session parameters.
@@ -108,7 +109,7 @@ func (sd *SlackDumper) DumpMessages(ctx context.Context, channelID string) (*Cha
 	}
 
 	limiter := newLimiter(tier3)
-	allMessages := make([]Message, 0, 2000)
+	var messages []Message
 
 	for i := 1; ; i++ {
 		select {
@@ -123,16 +124,16 @@ func (sd *SlackDumper) DumpMessages(ctx context.Context, channelID string) (*Cha
 		if err != nil {
 			return nil, err
 		}
-		messages := sd.convertMsgs(resp.Messages)
+		chunk := sd.convertMsgs(resp.Messages)
 
-		if err := sd.populateThreads(ctx, messages, channelID); err != nil {
+		if err := sd.populateThreads(ctx, chunk, channelID, limiter); err != nil {
 			return nil, err
 		}
-		sd.extractFiles(filesC, messages)
-		allMessages = append(allMessages, messages...)
+		sd.extractFiles(filesC, chunk)
+		messages = append(messages, chunk...)
 
 		log.Printf("request #%d, fetched: %d, total: %d\n",
-			i, len(resp.Messages), len(allMessages))
+			i, len(resp.Messages), len(messages))
 
 		if !resp.HasMore {
 			break
@@ -143,8 +144,8 @@ func (sd *SlackDumper) DumpMessages(ctx context.Context, channelID string) (*Cha
 		limiter.Wait(ctx)
 	}
 
-	sort.Slice(allMessages, func(i, j int) bool {
-		return allMessages[i].Timestamp < allMessages[j].Timestamp
+	sort.Slice(messages, func(i, j int) bool {
+		return messages[i].Timestamp < messages[j].Timestamp
 	})
 
 	if sd.options.dumpfiles {
@@ -152,7 +153,7 @@ func (sd *SlackDumper) DumpMessages(ctx context.Context, channelID string) (*Cha
 		<-done
 	}
 
-	return &Channel{Messages: allMessages, ID: channelID}, nil
+	return &Channel{Messages: messages, ID: channelID}, nil
 }
 
 func (sd *SlackDumper) convertMsgs(sm []slack.Message) []Message {
@@ -174,12 +175,12 @@ func (sd *SlackDumper) extractFiles(filesC chan<- *slack.File, msgs []Message) {
 	}
 }
 
-func (sd *SlackDumper) populateThreads(ctx context.Context, msgs []Message, channelID string) error {
+func (sd *SlackDumper) populateThreads(ctx context.Context, msgs []Message, channelID string, l *rate.Limiter) error {
 	for i := range msgs {
 		if msgs[i].ThreadTimestamp == "" {
 			continue
 		}
-		threadMsgs, err := sd.dumpThread(ctx, channelID, msgs[i].ThreadTimestamp)
+		threadMsgs, err := sd.dumpThread(ctx, channelID, msgs[i].ThreadTimestamp, l)
 		if err != nil {
 			return err
 		}
@@ -189,7 +190,7 @@ func (sd *SlackDumper) populateThreads(ctx context.Context, msgs []Message, chan
 }
 
 // dumpThread retrieves all messages in the thread and returns them as a slice of messages.
-func (sd *SlackDumper) dumpThread(ctx context.Context, channelID string, threadTS string) ([]Message, error) {
+func (sd *SlackDumper) dumpThread(ctx context.Context, channelID string, threadTS string, l *rate.Limiter) ([]Message, error) {
 	var thread []Message
 
 	var cursor string
@@ -206,6 +207,7 @@ func (sd *SlackDumper) dumpThread(ctx context.Context, channelID string, threadT
 			break
 		}
 		cursor = nextCursor
+		l.Wait(ctx)
 	}
 	return thread, nil
 }
@@ -215,6 +217,6 @@ func (sd *SlackDumper) UpdateUserMap() error {
 	if sd.Users.Len() == 0 {
 		return fmt.Errorf("no users loaded")
 	}
-	sd.UserForID = sd.Users.MakeUserIDIndex()
+	sd.UserForID = sd.Users.IndexByID()
 	return nil
 }
