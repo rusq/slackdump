@@ -144,10 +144,7 @@ func (p *params) validate() error {
 	if len(p.channelsToExport) == 0 && !p.list.present() {
 		return fmt.Errorf("no list flags specified and no channels to export")
 	}
-
-	if !p.list.present() && !p.output.validFormat() {
-		return fmt.Errorf("invalid output type: %q, must use one of %v", p.output.format, []string{outputTypeJSON, outputTypeText})
-	}
+	p.creds.cookie = strings.TrimPrefix(p.creds.cookie, "d=")
 
 	// channels and users listings will be in the text format (if not specified otherwise)
 	if p.output.format == "" {
@@ -157,7 +154,10 @@ func (p *params) validate() error {
 			p.output.format = outputTypeJSON
 		}
 	}
-	p.creds.cookie = strings.TrimPrefix(p.creds.cookie, "d=")
+
+	if !p.list.present() && !p.output.validFormat() {
+		return fmt.Errorf("invalid output type: %q, must use one of %v", p.output.format, []string{outputTypeJSON, outputTypeText})
+	}
 
 	return nil
 }
@@ -204,7 +204,7 @@ func listEntities(ctx context.Context, output output, creds slackCreds, list lis
 }
 
 func dumpChannels(ctx context.Context, creds slackCreds, ids []string, dumpfiles bool, generateText bool) (int, error) {
-	sd, err := slackdump.New(ctx, creds.token, creds.cookie)
+	sd, err := slackdump.New(ctx, creds.token, creds.cookie, slackdump.DumpFiles(dumpfiles))
 	if err != nil {
 		return 0, err
 	}
@@ -213,7 +213,7 @@ func dumpChannels(ctx context.Context, creds slackCreds, ids []string, dumpfiles
 	for _, ch := range ids {
 		log.Printf("dumping channel: %q", ch)
 
-		if err := dumpOneChannel(ctx, sd, ch, dumpfiles, generateText); err != nil {
+		if err := dumpOneChannel(ctx, sd, ch, generateText); err != nil {
 			log.Printf("channel %q: %s", ch, err)
 			continue
 		}
@@ -223,14 +223,14 @@ func dumpChannels(ctx context.Context, creds slackCreds, ids []string, dumpfiles
 	return total, nil
 }
 
-func dumpOneChannel(ctx context.Context, sd *slackdump.SlackDumper, id string, dumpfiles bool, generateText bool) error {
+func dumpOneChannel(ctx context.Context, sd *slackdump.SlackDumper, id string, generateText bool) error {
 	f, err := os.Create(id + ".json")
 	if err != nil {
 		return err
 	}
 	defer f.Close()
 
-	m, err := sd.DumpMessages(ctx, id, dumpfiles)
+	m, err := sd.DumpMessages(ctx, id)
 	if err != nil {
 		return err
 	}
@@ -240,7 +240,7 @@ func dumpOneChannel(ctx context.Context, sd *slackdump.SlackDumper, id string, d
 		return err
 	}
 	if generateText {
-		if err := formatTextFile(m, id); err != nil {
+		if err := formatTextFile(sd, m, id); err != nil {
 			log.Printf("error creating text file: %s", err)
 		}
 	}
@@ -248,7 +248,7 @@ func dumpOneChannel(ctx context.Context, sd *slackdump.SlackDumper, id string, d
 	return nil
 }
 
-func formatTextFile(m *slackdump.Messages, id string) error {
+func formatTextFile(sd *slackdump.SlackDumper, m *slackdump.Channel, id string) error {
 	log.Printf("generating %s.txt", id)
 	t, err := os.Create(id + ".txt")
 	if err != nil {
@@ -256,5 +256,5 @@ func formatTextFile(m *slackdump.Messages, id string) error {
 	}
 	defer t.Close()
 
-	return m.ToText(t)
+	return m.ToText(sd, t)
 }

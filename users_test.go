@@ -24,7 +24,7 @@ func TestUsers_MakeUserIDIndex(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := tt.us.MakeUserIDIndex(); !reflect.DeepEqual(got, tt.want) {
+			if got := tt.us.IndexByID(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("Users.MakeUserIDIndex() = %v, want %v", got, tt.want)
 			}
 		})
