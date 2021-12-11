@@ -41,7 +41,7 @@ func (sd *SlackDumper) filesFromMessages(m []Message) []slack.File {
 	return files
 }
 
-// SaveFileTo saves file to the specified directory
+// SaveFileTo saves file to the specified directory.
 func (sd *SlackDumper) SaveFileTo(dir string, f *slack.File) (int64, error) {
 	filePath := filepath.Join(dir, filename(f))
 	file, err := os.Create(filePath)
@@ -62,68 +62,78 @@ func filename(f *slack.File) string {
 	return fmt.Sprintf("%s-%s", f.ID, f.Name)
 }
 
-func (sd *SlackDumper) fileDownloader(dir string, files <-chan *slack.File, done chan<- bool) error {
-	const parallelDls = 4
+// fileDownloader will downloadstarts an sd.numDownloaders goroutines to
+// download files in parallel.  It will download any files that were received on toDownload channel,
+// and will close "done" once all downloads are complete.
+func (sd *SlackDumper) fileDownloader(dir string, toDownload <-chan *slack.File) (chan struct{}, error) {
+	done := make(chan struct{})
 
-	var wg sync.WaitGroup
-	dlQ := make(chan *slack.File)
-	stop := make(chan bool)
-
-	// downloaded contains file ids that already been downloaded,
-	// so we don't download the same file twice
-	downloaded := make(map[string]bool)
-
-	defer close(done)
+	if !sd.options.dumpfiles {
+		// terminating if dumpfiles is not enabled.
+		close(done)
+		return done, nil
+	}
 
 	if err := os.Mkdir(dir, 0777); err != nil {
 		if !os.IsExist(err) {
 			// channels done is closed by defer
-			return err
+			return done, err
 		}
 	}
 
-	worker := func(fs <-chan *slack.File) {
-	LOOP:
-		for {
-			select {
-			case file := <-fs:
-				// download file
-				log.Printf("saving %s, size: %d", filename(file), file.Size)
-				n, err := sd.SaveFileTo(dir, file)
-				if err != nil {
-					log.Printf("error saving %q: %s", filename(file), err)
-				}
-				log.Printf("file %s saved: %d bytes written", filename(file), n)
-			case <-stop:
-				break LOOP
+	var wg sync.WaitGroup
+	go func() {
+		// create workers
+		for i := 0; i < sd.options.workers; i++ {
+			wg.Add(1)
+			go func() {
+				sd.worker(dir, seenFilter(toDownload))
+				wg.Done()
+			}()
+		}
+	}()
+
+	// sentinel
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+
+	return done, nil
+}
+
+func (sd *SlackDumper) worker(dir string, filesC <-chan *slack.File) {
+	for file := range filesC {
+		// download file
+		log.Printf("saving %s, size: %d", filename(file), file.Size)
+		n, err := sd.SaveFileTo(dir, file)
+		if err != nil {
+			log.Printf("error saving %q: %s", filename(file), err)
+		}
+		log.Printf("file %s saved: %d bytes written", filename(file), n)
+	}
+}
+
+// seenFilter filters the files from filesC to ensure that no duplicates
+// are downloaded.
+func seenFilter(filesC <-chan *slack.File) <-chan *slack.File {
+	dlQ := make(chan *slack.File)
+	go func() {
+		// closing stop will lead to all worker goroutines to terminate.
+		defer close(dlQ)
+
+		// seen contains file ids that already been seen,
+		// so we don't download the same file twice
+		seen := make(map[string]bool)
+		// files queue must be closed by the caller (see DumpToDir.(1))
+		for f := range filesC {
+			if _, ok := seen[f.ID]; ok {
+				log.Printf("already seen %s, skipping", filename(f))
+				continue
 			}
+			seen[f.ID] = true
+			dlQ <- f
 		}
-		wg.Done()
-	}
-
-	// create workers
-	for i := 0; i < parallelDls; i++ {
-		wg.Add(1)
-		go worker(dlQ)
-	}
-
-	// files queue must be closed on the sender side (see DumpToDir.(1))
-	for f := range files {
-		_, ok := downloaded[f.ID]
-		if ok {
-			log.Printf("already seen %s, skipping", filename(f))
-			continue
-		}
-		dlQ <- f
-		downloaded[f.ID] = true
-	}
-
-	// closing stop will terminate all workers (1)
-	close(stop)
-	// workers mark all WorkGroups as done (2)
-	wg.Wait()
-	// we send the signal to caller that we're done too
-	done <- true
-
-	return nil
+	}()
+	return dlQ
 }
