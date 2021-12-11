@@ -91,7 +91,7 @@ func (sd *SlackDumper) IsDeletedUser(id string) bool {
 	return thisUser.Deleted
 }
 
-// DumpMessages fetches messages from the specified channel
+// DumpMessages fetches messages from the conversation identified by channelID.
 func (sd *SlackDumper) DumpMessages(ctx context.Context, channelID string) (*Channel, error) {
 
 	params := &slack.GetConversationHistoryParameters{
@@ -156,6 +156,7 @@ func (sd *SlackDumper) DumpMessages(ctx context.Context, channelID string) (*Cha
 	return &Channel{Messages: messages, ID: channelID}, nil
 }
 
+// convertMsgs converts a slice of slack.Message to []Message.
 func (sd *SlackDumper) convertMsgs(sm []slack.Message) []Message {
 	msgs := make([]Message, len(sm))
 	for i := range sm {
@@ -164,17 +165,22 @@ func (sd *SlackDumper) convertMsgs(sm []slack.Message) []Message {
 	return msgs
 }
 
+// extractFiles scans the messages and sends all the files discovered to the filesC.
 func (sd *SlackDumper) extractFiles(filesC chan<- *slack.File, msgs []Message) {
 	if !sd.options.dumpfiles {
 		return
 	}
 	// place files in download queue
-	chunk := sd.getFilesFromChunk(msgs)
+	chunk := sd.filesFromMessages(msgs)
 	for i := range chunk {
 		filesC <- &chunk[i]
 	}
 }
 
+// populateThreads scans the message slice for threads, if and when it
+// discovers the message with ThreadTimestamp, it fetches all messages in that
+// thread updating them to the msgs slice.
+// ref: https://api.slack.com/messaging/retrieving
 func (sd *SlackDumper) populateThreads(ctx context.Context, msgs []Message, channelID string, l *rate.Limiter) error {
 	for i := range msgs {
 		if msgs[i].ThreadTimestamp == "" {
@@ -189,7 +195,8 @@ func (sd *SlackDumper) populateThreads(ctx context.Context, msgs []Message, chan
 	return nil
 }
 
-// dumpThread retrieves all messages in the thread and returns them as a slice of messages.
+// dumpThread retrieves all messages in the thread and returns them as a slice
+// of messages.
 func (sd *SlackDumper) dumpThread(ctx context.Context, channelID string, threadTS string, l *rate.Limiter) ([]Message, error) {
 	var thread []Message
 
@@ -210,13 +217,4 @@ func (sd *SlackDumper) dumpThread(ctx context.Context, channelID string, threadT
 		l.Wait(ctx)
 	}
 	return thread, nil
-}
-
-// UpdateUserMap updates user[id]->*User mapping from the current Users slice.
-func (sd *SlackDumper) UpdateUserMap() error {
-	if sd.Users.Len() == 0 {
-		return fmt.Errorf("no users loaded")
-	}
-	sd.UserForID = sd.Users.IndexByID()
-	return nil
 }
