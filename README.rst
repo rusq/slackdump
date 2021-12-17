@@ -1,6 +1,9 @@
 ============
 Slack Dumper
 ============
+
+[Buy me a cup of tea](https://www.paypal.com/donate/?hosted_button_id=GUHCLSM7E54ZW)
+
 Purpose: dump slack messages, users and files using browser token and cookie.
 
 Typical usecase scenarios:
