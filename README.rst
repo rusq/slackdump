@@ -24,7 +24,8 @@ Usage
 
 1. Download the archive from the Releases page for your operating system. (NOTE: **MacOS users** should download ``darwin`` release file).
 2. Unpack
-3. Run ``slackdump -h`` to see help.
+3. Change directory to where you have unpacked the archive.
+3. Run ``./slackdump -h`` to see help.
 
 How to authenticate
 -------------------
