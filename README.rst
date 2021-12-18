@@ -3,6 +3,7 @@ Slack Dumper
 ============
 
 `Buy me a cup of tea`_
+
 `Join discussion`_
 
 Purpose: dump slack messages, users and files using browser token and cookie.
