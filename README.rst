@@ -3,6 +3,7 @@ Slack Dumper
 ============
 
 `Buy me a cup of tea`_
+`Join discussion`_
 
 Purpose: dump slack messages, users and files using browser token and cookie.
 
@@ -169,3 +170,4 @@ A: Go get the new Cookie from the browser.
 
 .. _Application: https://stackoverflow.com/questions/12908881/how-to-copy-cookies-in-google-chrome
 .. _`Buy me a cup of tea`: https://www.paypal.com/donate/?hosted_button_id=GUHCLSM7E54ZW
+.. _`Join discussion`: https://t.me/slackdump
