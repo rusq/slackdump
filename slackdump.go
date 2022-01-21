@@ -4,9 +4,11 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"log"
 	"runtime"
+	"runtime/trace"
 	"sort"
+
+	"github.com/rusq/dlog"
 
 	"github.com/slack-go/slack"
 	"golang.org/x/time/rate"
@@ -80,14 +82,14 @@ func New(ctx context.Context, token string, cookie string, opts ...Option) (*Sla
 
 		var err error
 		chanTypes := allChanTypes
-		log.Println("> caching channels, might take a while...")
+		dlog.Println("> caching channels, might take a while...")
 		chans, err = sd.getChannels(ctx, chanTypes)
 		if err != nil {
 			errC <- err
 		}
 	}()
 
-	log.Println("> caching users...")
+	dlog.Println("> caching users...")
 	if _, err := sd.GetUsers(); err != nil {
 		return nil, fmt.Errorf("error fetching users: %s", err)
 	}
@@ -112,14 +114,17 @@ func (sd *SlackDumper) IsDeletedUser(id string) bool {
 
 // DumpMessages fetches messages from the conversation identified by channelID.
 func (sd *SlackDumper) DumpMessages(ctx context.Context, channelID string) (*Channel, error) {
+	ctx, task := trace.NewTask(ctx, "DumpMessages")
+	defer task.End()
+
 	var filesC = make(chan *slack.File, 20)
 
-	dlDoneC, err := sd.fileDownloader(channelID, filesC)
+	limiter := newLimiter(tier3)
+
+	dlDoneC, err := sd.fileDownloader(ctx, limiter, channelID, filesC)
 	if err != nil {
 		return nil, err
 	}
-
-	limiter := newLimiter(tier3)
 
 	var (
 		messages []Message
@@ -138,13 +143,13 @@ func (sd *SlackDumper) DumpMessages(ctx context.Context, channelID string) (*Cha
 		}
 
 		chunk := sd.convertMsgs(resp.Messages)
-		if err := sd.populateThreads(ctx, chunk, channelID, limiter); err != nil {
+		if err := sd.populateThreads(ctx, limiter, chunk, channelID); err != nil {
 			return nil, err
 		}
 		sd.pipeFiles(filesC, chunk)
 		messages = append(messages, chunk...)
 
-		log.Printf("request #%d, fetched: %d, total: %d\n",
+		dlog.Printf("request #%d, fetched: %d, total: %d\n",
 			i, len(resp.Messages), len(messages))
 
 		if !resp.HasMore {
@@ -194,12 +199,12 @@ func (sd *SlackDumper) pipeFiles(filesC chan<- *slack.File, msgs []Message) {
 // thread updating them to the msgs slice.
 //
 // ref: https://api.slack.com/messaging/retrieving
-func (sd *SlackDumper) populateThreads(ctx context.Context, msgs []Message, channelID string, l *rate.Limiter) error {
+func (sd *SlackDumper) populateThreads(ctx context.Context, l *rate.Limiter, msgs []Message, channelID string) error {
 	for i := range msgs {
 		if msgs[i].ThreadTimestamp == "" {
 			continue
 		}
-		threadMsgs, err := sd.dumpThread(ctx, channelID, msgs[i].ThreadTimestamp, l)
+		threadMsgs, err := sd.dumpThread(ctx, l, channelID, msgs[i].ThreadTimestamp)
 		if err != nil {
 			return err
 		}
@@ -210,7 +215,7 @@ func (sd *SlackDumper) populateThreads(ctx context.Context, msgs []Message, chan
 
 // dumpThread retrieves all messages in the thread and returns them as a slice
 // of messages.
-func (sd *SlackDumper) dumpThread(ctx context.Context, channelID string, threadTS string, l *rate.Limiter) ([]Message, error) {
+func (sd *SlackDumper) dumpThread(ctx context.Context, l *rate.Limiter, channelID string, threadTS string) ([]Message, error) {
 	var thread []Message
 
 	var cursor string
@@ -227,7 +232,10 @@ func (sd *SlackDumper) dumpThread(ctx context.Context, channelID string, threadT
 			break
 		}
 		cursor = nextCursor
-		l.Wait(ctx)
+
+		trace.WithRegion(ctx, "limiter.thread", func() {
+			l.Wait(ctx)
+		})
 	}
 	return thread, nil
 }

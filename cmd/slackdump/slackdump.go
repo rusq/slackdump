@@ -7,13 +7,15 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"os/signal"
 	"path/filepath"
 	"strings"
 
+	"github.com/rusq/slackdump/internal/tracer"
+
 	"github.com/joho/godotenv"
+	"github.com/rusq/dlog"
 	"github.com/rusq/slackdump"
 )
 
@@ -40,6 +42,8 @@ type params struct {
 
 	channelsToExport []string
 	dumpFiles        bool
+
+	traceFile string // trace file
 }
 
 type output struct {
@@ -75,20 +79,32 @@ func main() {
 
 	params, err := parseCmdLine(os.Args[1:])
 	if err != nil {
-		flag.Usage()
-		log.Fatal(err)
+		dlog.Fatal(err)
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 
 	if err := run(ctx, params); err != nil {
-		log.Fatal(err)
+		dlog.Fatal(err)
 	}
 }
 
 // run runs the dumper.
 func run(ctx context.Context, p params) error {
+	if p.traceFile != "" {
+		dlog.Println("enabling trace, will write to %q", p.traceFile)
+		trc := tracer.New(p.traceFile)
+		if err := trc.Start(); err != nil {
+			return err
+		}
+		defer func() {
+			if err := trc.End(); err != nil {
+				dlog.Printf("failed to write the trace file: %s", err)
+			}
+		}()
+	}
+
 	if p.list.channels || p.list.users {
 		if err := listEntities(ctx, p.output, p.creds, p.list); err != nil {
 			return err
@@ -98,7 +114,7 @@ func run(ctx context.Context, p params) error {
 		if err != nil {
 			return err
 		}
-		log.Printf("job finished, dumped %d channels", n)
+		dlog.Printf("job finished, dumped %d channels", n)
 	} else {
 		return errors.New("nothing to do")
 	}
@@ -144,10 +160,14 @@ func parseCmdLine(args []string) (params, error) {
 	fs.StringVar(&p.output.format, "r", "", "report `format`.  One of 'json' or 'text'")
 	fs.StringVar(&p.creds.token, "t", os.Getenv(slackTokenEnv), "Specify slack `API_token`, (environment: "+slackTokenEnv+")")
 	fs.StringVar(&p.creds.cookie, "cookie", os.Getenv(slackCookieEnv), "d= cookie `value` (environment: "+slackCookieEnv+")")
-	fs.Parse(args)
+	fs.StringVar(&p.traceFile, "trace", os.Getenv("TRACE_FILE"), "trace `file` (optional)")
 
 	os.Unsetenv(slackTokenEnv)
 	os.Unsetenv(slackCookieEnv)
+
+	if err := fs.Parse(args); err != nil {
+		return p, err
+	}
 
 	p.channelsToExport = fs.Args()
 
@@ -189,13 +209,13 @@ func listEntities(ctx context.Context, output output, creds slackCreds, list lis
 	}
 	defer w.Close()
 
-	log.Print("initializing...")
+	dlog.Print("initializing...")
 	sd, err := slackdump.New(ctx, creds.token, creds.cookie)
 	if err != nil {
 		return err
 	}
 
-	log.Print("retrieving data...")
+	dlog.Print("retrieving data...")
 
 	var rep slackdump.Reporter
 	switch {
@@ -210,7 +230,7 @@ func listEntities(ctx context.Context, output output, creds slackCreds, list lis
 		return fmt.Errorf("don't know what to do")
 	}
 
-	log.Print("done")
+	dlog.Print("done")
 	switch output.format {
 	case outputTypeText:
 		return rep.ToText(w)
@@ -246,10 +266,10 @@ func dumpChannels(ctx context.Context, creds slackCreds, ids []string, dumpfiles
 
 	var total int
 	for _, ch := range ids {
-		log.Printf("dumping channel: %q", ch)
+		dlog.Printf("dumping channel: %q", ch)
 
 		if err := dumpOneChannel(ctx, sd, ch, generateText); err != nil {
-			log.Printf("channel %q: %s", ch, err)
+			dlog.Printf("channel %q: %s", ch, err)
 			continue
 		}
 
@@ -278,7 +298,7 @@ func dumpOneChannel(ctx context.Context, sd *slackdump.SlackDumper, id string, g
 	}
 	if generateText {
 		if err := formatTextFile(sd, m, id); err != nil {
-			log.Printf("error creating text file: %s", err)
+			dlog.Printf("error creating text file: %s", err)
 		}
 	}
 
@@ -286,7 +306,7 @@ func dumpOneChannel(ctx context.Context, sd *slackdump.SlackDumper, id string, g
 }
 
 func formatTextFile(sd *slackdump.SlackDumper, m *slackdump.Channel, id string) error {
-	log.Printf("generating %s.txt", id)
+	dlog.Printf("generating %s.txt", id)
 	t, err := os.Create(id + ".txt")
 	if err != nil {
 		return err
