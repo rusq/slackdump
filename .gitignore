@@ -14,7 +14,14 @@
 
 # Dependency directories (remove the comment below to include it)
 # vendor/
+
+# IDE
+.idea
+
+#OS junk
 .DS_Store
+
+# temporary files and the rest of the crap
 *.json
 *.yaml
 json/*
