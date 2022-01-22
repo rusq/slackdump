@@ -3,8 +3,9 @@ SHELL=/bin/sh
 CMD=./cmd/slackdump
 OUTPUT=slackdump
 EXECUTABLE=slackdump
+BUILD=$(shell git describe --tags)
 
-LDFLAGS="-s -w"
+LDFLAGS="-s -w -X main.build=$(BUILD)"
 OSES=linux darwin windows
 DISTFILES=README.rst LICENSE
 ZIPFILES=$(foreach s,$(OSES),$(OUTPUT)-$s.zip)

@@ -27,6 +27,8 @@ const (
 	slackCookieEnv = "COOKIE"
 )
 
+var build = "dev"
+
 // secrets defines the names of the supported secret files that we load our
 // secrets from.  Inexperienced windows users might have bad experience trying
 // to create .env file with the notepad as it will battle for having the
@@ -44,6 +46,7 @@ type params struct {
 	dumpFiles        bool
 
 	traceFile string // trace file
+	version   bool
 }
 
 type output struct {
@@ -80,6 +83,10 @@ func main() {
 	params, err := parseCmdLine(os.Args[1:])
 	if err != nil {
 		dlog.Fatal(err)
+	}
+	if params.version {
+		fmt.Println(build)
+		return
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
@@ -144,11 +151,12 @@ func parseCmdLine(args []string) (params, error) {
 	fs.Usage = func() {
 		fmt.Fprintf(
 			flag.CommandLine.Output(),
-			"Slackdump dumps messages and files from slack using the provided api token.\n"+
+			"Slackdump, %s"+
+				"Slackdump dumps messages and files from slack using the provided api token.\n"+
 				"Will create a number of files having the channel_id as a name.\n"+
 				"Files are downloaded into a respective folder with channel_id name\n\n"+
 				"Usage:  %s [flags] [channel_id1 ... channel_idN]\n\n",
-			filepath.Base(os.Args[0]))
+			build, filepath.Base(os.Args[0]))
 		fs.PrintDefaults()
 	}
 
@@ -161,6 +169,7 @@ func parseCmdLine(args []string) (params, error) {
 	fs.StringVar(&p.creds.token, "t", os.Getenv(slackTokenEnv), "Specify slack `API_token`, (environment: "+slackTokenEnv+")")
 	fs.StringVar(&p.creds.cookie, "cookie", os.Getenv(slackCookieEnv), "d= cookie `value` (environment: "+slackCookieEnv+")")
 	fs.StringVar(&p.traceFile, "trace", os.Getenv("TRACE_FILE"), "trace `file` (optional)")
+	fs.BoolVar(&p.version, "V", false, "print version and exit")
 
 	os.Unsetenv(slackTokenEnv)
 	os.Unsetenv(slackCookieEnv)
@@ -176,6 +185,10 @@ func parseCmdLine(args []string) (params, error) {
 
 // validate checks if the command line parameters have valid values.
 func (p *params) validate() error {
+	if p.version {
+		return nil
+	}
+
 	if !p.creds.valid() {
 		return fmt.Errorf("slack token or cookie not specified")
 	}
