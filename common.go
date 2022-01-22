@@ -15,10 +15,11 @@ type tier int8
 
 const (
 	// defined as events per minute
-	tier1 tier = 1
-	tier2 tier = 20
-	tier3 tier = 50
-	tier4 tier = 100
+	tier1  tier = 1
+	tier2  tier = 20
+	tier3  tier = 50
+	tier4  tier = 100
+	noTier tier = 0
 )
 
 // newLimiter returns throttler with rateLimit requests per minute

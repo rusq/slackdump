@@ -147,9 +147,14 @@ func (sd *SlackDumper) DumpMessages(ctx context.Context, channelID string) (*Cha
 
 	var filesC = make(chan *slack.File, 20)
 
-	limiter := newLimiter(tier3)
+	var (
+		// slack rate limits are per method, so we're safe to use different limiters for different mehtods.
+		convLimiter   = newLimiter(tier3)
+		threadLimiter = newLimiter(tier3)
+		dlLimiter     = newLimiter(noTier) // go-slack/slack just sends the Post to the file endpoint, so this should work.
+	)
 
-	dlDoneC, err := sd.fileDownloader(ctx, limiter, channelID, filesC)
+	dlDoneC, err := sd.fileDownloader(ctx, dlLimiter, channelID, filesC)
 	if err != nil {
 		return nil, err
 	}
@@ -160,7 +165,7 @@ func (sd *SlackDumper) DumpMessages(ctx context.Context, channelID string) (*Cha
 	)
 	for i := 1; ; i++ {
 		var resp *slack.GetConversationHistoryResponse
-		if err := withRetry(ctx, limiter, sd.options.conversationRetries, func() error {
+		if err := withRetry(ctx, convLimiter, sd.options.conversationRetries, func() error {
 			var err error
 			resp, err = sd.client.GetConversationHistoryContext(
 				ctx,
@@ -175,7 +180,7 @@ func (sd *SlackDumper) DumpMessages(ctx context.Context, channelID string) (*Cha
 		}
 
 		chunk := sd.convertMsgs(resp.Messages)
-		if err := sd.populateThreads(ctx, limiter, chunk, channelID); err != nil {
+		if err := sd.populateThreads(ctx, threadLimiter, chunk, channelID); err != nil {
 			return nil, err
 		}
 		sd.pipeFiles(filesC, chunk)
@@ -190,7 +195,7 @@ func (sd *SlackDumper) DumpMessages(ctx context.Context, channelID string) (*Cha
 
 		cursor = resp.ResponseMetaData.NextCursor
 
-		limiter.Wait(ctx)
+		convLimiter.Wait(ctx)
 	}
 
 	sort.Slice(messages, func(i, j int) bool {
