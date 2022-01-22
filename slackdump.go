@@ -194,8 +194,6 @@ func (sd *SlackDumper) DumpMessages(ctx context.Context, channelID string) (*Cha
 		}
 
 		cursor = resp.ResponseMetaData.NextCursor
-
-		convLimiter.Wait(ctx)
 	}
 
 	sort.Slice(messages, func(i, j int) bool {
@@ -257,10 +255,6 @@ func (sd *SlackDumper) dumpThread(ctx context.Context, l *rate.Limiter, channelI
 
 	var cursor string
 	for {
-		trace.WithRegion(ctx, "limiter.thread", func() {
-			l.Wait(ctx)
-		})
-
 		var (
 			msgs       []slack.Message
 			hasmore    bool
@@ -294,7 +288,7 @@ var ErrRetryFailed = errors.New("callback was not able to complete without error
 func withRetry(ctx context.Context, l *rate.Limiter, maxAttempts int, fn func() error) error {
 	var ok bool
 	for attempt := 0; attempt < maxAttempts; attempt++ {
-		trace.WithRegion(ctx, "limiter.file", func() {
+		trace.WithRegion(ctx, "withRetry.wait", func() {
 			l.Wait(ctx)
 		})
 
