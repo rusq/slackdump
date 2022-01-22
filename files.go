@@ -1,15 +1,21 @@
 package slackdump
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
 	"path/filepath"
 	"sync"
 
-	"github.com/pkg/errors"
+	"github.com/rusq/dlog"
+
+	"golang.org/x/time/rate"
+
 	"github.com/slack-go/slack"
 )
+
+const maxDownloadAttempts = 3
 
 // Files structure is used for downloading conversation files.
 type Files struct {
@@ -42,7 +48,7 @@ func (sd *SlackDumper) filesFromMessages(m []Message) []slack.File {
 }
 
 // SaveFileTo saves file to the specified directory.
-func (sd *SlackDumper) SaveFileTo(dir string, f *slack.File) (int64, error) {
+func (sd *SlackDumper) SaveFileTo(ctx context.Context, l *rate.Limiter, dir string, f *slack.File) (int64, error) {
 	filePath := filepath.Join(dir, filename(f))
 	file, err := os.Create(filePath)
 	if err != nil {
@@ -50,8 +56,10 @@ func (sd *SlackDumper) SaveFileTo(dir string, f *slack.File) (int64, error) {
 	}
 	defer file.Close()
 
-	if err := sd.client.GetFile(f.URLPrivateDownload, file); err != nil {
-		return 0, errors.WithStack(err)
+	if err := withRetry(ctx, l, maxDownloadAttempts, func() error {
+		return sd.client.GetFile(f.URLPrivateDownload, file)
+	}); err != nil {
+		return 0, err
 	}
 
 	return int64(f.Size), nil
@@ -62,10 +70,11 @@ func filename(f *slack.File) string {
 	return fmt.Sprintf("%s-%s", f.ID, f.Name)
 }
 
-// fileDownloader will downloadstarts an sd.numDownloaders goroutines to
-// download files in parallel.  It will download any files that were received on toDownload channel,
-// and will close "done" once all downloads are complete.
-func (sd *SlackDumper) fileDownloader(dir string, toDownload <-chan *slack.File) (chan struct{}, error) {
+// fileDownloader will starts sd.options.worker goroutines to download files in
+// parallel. It will download any file that is received on toDownload channel.
+// It returns the "done" channel and an error, the "done" channel will be closed
+// once all downloads are completed.
+func (sd *SlackDumper) fileDownloader(ctx context.Context, l *rate.Limiter, dir string, toDownload <-chan *slack.File) (chan struct{}, error) {
 	done := make(chan struct{})
 
 	if !sd.options.dumpfiles {
@@ -87,7 +96,7 @@ func (sd *SlackDumper) fileDownloader(dir string, toDownload <-chan *slack.File)
 		for i := 0; i < sd.options.workers; i++ {
 			wg.Add(1)
 			go func() {
-				sd.worker(dir, seenFilter(toDownload))
+				sd.worker(ctx, l, dir, seenFilter(toDownload))
 				wg.Done()
 			}()
 		}
@@ -102,15 +111,15 @@ func (sd *SlackDumper) fileDownloader(dir string, toDownload <-chan *slack.File)
 	return done, nil
 }
 
-func (sd *SlackDumper) worker(dir string, filesC <-chan *slack.File) {
+func (sd *SlackDumper) worker(ctx context.Context, l *rate.Limiter, dir string, filesC <-chan *slack.File) {
 	for file := range filesC {
 		// download file
-		log.Printf("saving %s, size: %d", filename(file), file.Size)
-		n, err := sd.SaveFileTo(dir, file)
+		dlog.Printf("saving %s, size: %d", filename(file), file.Size)
+		n, err := sd.SaveFileTo(ctx, l, dir, file)
 		if err != nil {
-			log.Printf("error saving %q: %s", filename(file), err)
+			dlog.Printf("error saving %q: %s", filename(file), err)
 		}
-		log.Printf("file %s saved: %d bytes written", filename(file), n)
+		dlog.Printf("file %s saved: %d bytes written", filename(file), n)
 	}
 }
 

@@ -1,6 +1,12 @@
 #!/bin/sh
 OSES="windows linux darwin"
 
+mkdir -p dist
+
 for os in $OSES; do
-	make slackdump-${os}.zip
+  f=slackdump-${os}.zip
+	make "$f"
+	mv "$f" dist/
 done
+
+

@@ -81,7 +81,7 @@ func Test_checkParameters(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := checkParameters(tt.args.args)
+			got, err := parseCmdLine(tt.args.args)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("checkParameters() error = %v, wantErr %v", err, tt.wantErr)
 				return
