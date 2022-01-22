@@ -27,6 +27,7 @@
 json/*
 examples/*
 experiments/*
+dist/*
 secrets.*
 cmd/slackdump/slackdump
 cmd/sdconv/sdconv

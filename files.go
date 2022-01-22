@@ -70,9 +70,10 @@ func filename(f *slack.File) string {
 	return fmt.Sprintf("%s-%s", f.ID, f.Name)
 }
 
-// fileDownloader will starts sd.options.worker goroutines to withRetry files in
-// parallel. It will withRetry any files that were received on toDownload channel,
-// and will close "done" once all downloads are complete.
+// fileDownloader will starts sd.options.worker goroutines to download files in
+// parallel. It will download any file that is received on toDownload channel.
+// It returns the "done" channel and an error, the "done" channel will be closed
+// once all downloads are completed.
 func (sd *SlackDumper) fileDownloader(ctx context.Context, l *rate.Limiter, dir string, toDownload <-chan *slack.File) (chan struct{}, error) {
 	done := make(chan struct{})
 
