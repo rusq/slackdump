@@ -30,8 +30,10 @@ type SlackDumper struct {
 }
 
 type options struct {
-	dumpfiles bool
-	workers   int
+	dumpfiles             bool
+	workers               int
+	conversationRetries   int
+	downloadRetryAttempts int
 }
 
 var allChanTypes = []string{"mpim", "im", "public_channel", "private_channel"}
@@ -43,9 +45,30 @@ type Reporter interface {
 
 type Option func(*SlackDumper)
 
+// DumpFiles controls the file download behaviour.
 func DumpFiles(b bool) Option {
 	return func(sd *SlackDumper) {
 		sd.options.dumpfiles = b
+	}
+}
+
+// RetryThreads sets the number of attempts when dumping conversations and
+// threads, and getting rate limited.
+func RetryThreads(attempts int) Option {
+	return func(sd *SlackDumper) {
+		if attempts > 0 {
+			sd.options.conversationRetries = attempts
+		}
+	}
+}
+
+// RetryDownloads sets the number of attempts to download a file when getting
+// rate limited.
+func RetryDownloads(attempts int) Option {
+	return func(sd *SlackDumper) {
+		if attempts > 0 {
+			sd.options.downloadRetryAttempts = attempts
+		}
 	}
 }
 
@@ -69,7 +92,9 @@ func New(ctx context.Context, token string, cookie string, opts ...Option) (*Sla
 	sd := &SlackDumper{
 		client: slack.New(token, slack.OptionCookie(cookie)),
 		options: options{
-			workers: defNumWorkers,
+			workers:               defNumWorkers,
+			conversationRetries:   3,
+			downloadRetryAttempts: 3,
 		},
 	}
 	for _, opt := range opts {
@@ -134,14 +159,18 @@ func (sd *SlackDumper) DumpMessages(ctx context.Context, channelID string) (*Cha
 		cursor   string
 	)
 	for i := 1; ; i++ {
-		resp, err := sd.client.GetConversationHistoryContext(
-			ctx,
-			&slack.GetConversationHistoryParameters{
-				ChannelID: channelID,
-				Cursor:    cursor,
-			},
-		)
-		if err != nil {
+		var resp *slack.GetConversationHistoryResponse
+		if err := withRetry(ctx, limiter, sd.options.conversationRetries, func() error {
+			var err error
+			resp, err = sd.client.GetConversationHistoryContext(
+				ctx,
+				&slack.GetConversationHistoryParameters{
+					ChannelID: channelID,
+					Cursor:    cursor,
+				},
+			)
+			return err
+		}); err != nil {
 			return nil, err
 		}
 
@@ -223,22 +252,31 @@ func (sd *SlackDumper) dumpThread(ctx context.Context, l *rate.Limiter, channelI
 
 	var cursor string
 	for {
-		msgs, hasmore, nextCursor, err := sd.client.GetConversationRepliesContext(
-			ctx,
-			&slack.GetConversationRepliesParameters{ChannelID: channelID, Timestamp: threadTS, Cursor: cursor},
+		trace.WithRegion(ctx, "limiter.thread", func() {
+			l.Wait(ctx)
+		})
+
+		var (
+			msgs       []slack.Message
+			hasmore    bool
+			nextCursor string
 		)
-		if err != nil {
+		if err := withRetry(ctx, l, sd.options.conversationRetries, func() error {
+			var err error
+			msgs, hasmore, nextCursor, err = sd.client.GetConversationRepliesContext(
+				ctx,
+				&slack.GetConversationRepliesParameters{ChannelID: channelID, Timestamp: threadTS, Cursor: cursor},
+			)
+			return err
+		}); err != nil {
 			return nil, err
 		}
+
 		thread = append(thread, sd.convertMsgs(msgs[1:])...) // exclude the first message of the thread, as it's the same as the parent.
 		if !hasmore {
 			break
 		}
 		cursor = nextCursor
-
-		trace.WithRegion(ctx, "limiter.thread", func() {
-			l.Wait(ctx)
-		})
 	}
 	return thread, nil
 }
