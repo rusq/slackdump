@@ -7,6 +7,9 @@ import (
 	"runtime"
 	"runtime/trace"
 	"sort"
+	"time"
+
+	"github.com/pkg/errors"
 
 	"github.com/rusq/dlog"
 
@@ -238,4 +241,37 @@ func (sd *SlackDumper) dumpThread(ctx context.Context, l *rate.Limiter, channelI
 		})
 	}
 	return thread, nil
+}
+
+var ErrRetryFailed = errors.New("callback was not able to complete without errors within the allowed retries count")
+
+// withRetry will run the callback function fn. If the function returns
+// slack.RateLimitedError, it will delay, and then call it again up to
+// maxAttempts times. It will return an error if it runs out of attempts.
+func withRetry(ctx context.Context, l *rate.Limiter, maxAttempts int, fn func() error) error {
+	var ok bool
+	for attempt := 0; attempt < maxAttempts; attempt++ {
+		trace.WithRegion(ctx, "limiter.file", func() {
+			l.Wait(ctx)
+		})
+
+		err := fn()
+		if err == nil {
+			ok = true
+			break
+		}
+
+		trace.Logf(ctx, "error", "slackRetry: %s", err)
+		var rle *slack.RateLimitedError
+		if !errors.As(err, &rle) {
+			return errors.WithStack(err)
+		}
+
+		trace.Logf(ctx, "info", "got rate limited, sleeping %s", rle.RetryAfter)
+		time.Sleep(rle.RetryAfter)
+	}
+	if !ok {
+		return ErrRetryFailed
+	}
+	return nil
 }

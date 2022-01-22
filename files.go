@@ -6,14 +6,16 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"runtime/trace"
 	"sync"
+
+	"github.com/rusq/dlog"
 
 	"golang.org/x/time/rate"
 
-	"github.com/pkg/errors"
 	"github.com/slack-go/slack"
 )
+
+const maxDownloadAttempts = 3
 
 // Files structure is used for downloading conversation files.
 type Files struct {
@@ -53,13 +55,12 @@ func (sd *SlackDumper) SaveFileTo(ctx context.Context, l *rate.Limiter, dir stri
 		return 0, err
 	}
 	defer file.Close()
-	if err := sd.client.GetFile(f.URLPrivateDownload, file); err != nil {
-		return 0, errors.WithStack(err)
-	}
 
-	trace.WithRegion(ctx, "limiter.file", func() {
-		l.Wait(ctx)
-	})
+	if err := withRetry(ctx, l, maxDownloadAttempts, func() error {
+		return sd.client.GetFile(f.URLPrivateDownload, file)
+	}); err != nil {
+		return 0, err
+	}
 
 	return int64(f.Size), nil
 }
@@ -69,8 +70,8 @@ func filename(f *slack.File) string {
 	return fmt.Sprintf("%s-%s", f.ID, f.Name)
 }
 
-// fileDownloader will downloadstarts an sd.numDownloaders goroutines to
-// download files in parallel.  It will download any files that were received on toDownload channel,
+// fileDownloader will starts sd.options.worker goroutines to withRetry files in
+// parallel. It will withRetry any files that were received on toDownload channel,
 // and will close "done" once all downloads are complete.
 func (sd *SlackDumper) fileDownloader(ctx context.Context, l *rate.Limiter, dir string, toDownload <-chan *slack.File) (chan struct{}, error) {
 	done := make(chan struct{})
@@ -112,12 +113,12 @@ func (sd *SlackDumper) fileDownloader(ctx context.Context, l *rate.Limiter, dir 
 func (sd *SlackDumper) worker(ctx context.Context, l *rate.Limiter, dir string, filesC <-chan *slack.File) {
 	for file := range filesC {
 		// download file
-		log.Printf("saving %s, size: %d", filename(file), file.Size)
+		dlog.Printf("saving %s, size: %d", filename(file), file.Size)
 		n, err := sd.SaveFileTo(ctx, l, dir, file)
 		if err != nil {
-			log.Printf("error saving %q: %s", filename(file), err)
+			dlog.Printf("error saving %q: %s", filename(file), err)
 		}
-		log.Printf("file %s saved: %d bytes written", filename(file), n)
+		dlog.Printf("file %s saved: %d bytes written", filename(file), n)
 	}
 }
 
