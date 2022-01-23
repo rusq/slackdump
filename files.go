@@ -15,22 +15,6 @@ import (
 	"github.com/slack-go/slack"
 )
 
-const maxDownloadAttempts = 3
-
-// Files structure is used for downloading conversation files.
-type Files struct {
-	Files     []slack.File
-	ChannelID string
-}
-
-// ChannelFiles returns files from the conversation.
-func (sd *SlackDumper) ChannelFiles(ch *Channel) *Files {
-	return &Files{
-		Files:     sd.filesFromMessages(ch.Messages),
-		ChannelID: ch.ID,
-	}
-}
-
 // filesFromMessages extracts files from messages slice.
 func (sd *SlackDumper) filesFromMessages(m []Message) []slack.File {
 	var files []slack.File
@@ -47,8 +31,13 @@ func (sd *SlackDumper) filesFromMessages(m []Message) []slack.File {
 	return files
 }
 
-// SaveFileTo saves file to the specified directory.
-func (sd *SlackDumper) SaveFileTo(ctx context.Context, l *rate.Limiter, dir string, f *slack.File) (int64, error) {
+// SaveFileTo saves a single file to the specified directory.
+func (sd *SlackDumper) SaveFileTo(ctx context.Context, dir string, f *slack.File) (int64, error) {
+	return sd.saveFileWithLimiter(ctx, newLimiter(noTier), dir, f)
+}
+
+// saveFileWithLimiter saves the file to specified directory, it will use the provided limiter l for throttling.
+func (sd *SlackDumper) saveFileWithLimiter(ctx context.Context, l *rate.Limiter, dir string, f *slack.File) (int64, error) {
 	filePath := filepath.Join(dir, filename(f))
 	file, err := os.Create(filePath)
 	if err != nil {
@@ -56,7 +45,7 @@ func (sd *SlackDumper) SaveFileTo(ctx context.Context, l *rate.Limiter, dir stri
 	}
 	defer file.Close()
 
-	if err := withRetry(ctx, l, maxDownloadAttempts, func() error {
+	if err := withRetry(ctx, l, sd.options.downloadRetries, func() error {
 		return sd.client.GetFile(f.URLPrivateDownload, file)
 	}); err != nil {
 		return 0, err
@@ -70,11 +59,11 @@ func filename(f *slack.File) string {
 	return fmt.Sprintf("%s-%s", f.ID, f.Name)
 }
 
-// fileDownloader will starts sd.options.worker goroutines to download files in
-// parallel. It will download any file that is received on toDownload channel.
-// It returns the "done" channel and an error, the "done" channel will be closed
+// newFileDownloader starts sd.options.worker goroutines to download files in
+// parallel. It will download any file that is received on toDownload channel. It
+// returns the "done" channel and an error, the "done" channel will be closed
 // once all downloads are completed.
-func (sd *SlackDumper) fileDownloader(ctx context.Context, l *rate.Limiter, dir string, toDownload <-chan *slack.File) (chan struct{}, error) {
+func (sd *SlackDumper) newFileDownloader(ctx context.Context, l *rate.Limiter, dir string, toDownload <-chan *slack.File) (chan struct{}, error) {
 	done := make(chan struct{})
 
 	if !sd.options.dumpfiles {
@@ -115,7 +104,7 @@ func (sd *SlackDumper) worker(ctx context.Context, l *rate.Limiter, dir string, 
 	for file := range filesC {
 		// download file
 		dlog.Printf("saving %s, size: %d", filename(file), file.Size)
-		n, err := sd.SaveFileTo(ctx, l, dir, file)
+		n, err := sd.saveFileWithLimiter(ctx, l, dir, file)
 		if err != nil {
 			dlog.Printf("error saving %q: %s", filename(file), err)
 		}

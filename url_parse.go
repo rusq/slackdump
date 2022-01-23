@@ -10,15 +10,15 @@ import (
 
 type URLInfo struct {
 	Channel string
-	Thread  int64
+	Thread  string
 }
 
 func (u URLInfo) IsThread() bool {
-	return u.Thread > 0
+	return u.Thread != ""
 }
 
 func (u URLInfo) IsValid() bool {
-	return u.Channel != "" || (u.Channel != "" && u.Thread > 0)
+	return u.Channel != "" || (u.Channel != "" && u.Thread != "")
 }
 
 var errUnsupportedURL = errors.New("unsuuported URL type")
@@ -36,7 +36,7 @@ func ParseURL(slackURL string) (*URLInfo, error) {
 	}
 
 	parts := strings.Split(strings.TrimPrefix(uri.Path, "/"), "/")
-	if !strings.EqualFold(parts[0], "archives") {
+	if !strings.EqualFold(parts[0], "archives") || len(parts) < 2 || parts[1] == "" {
 		return nil, errUnsupportedURL
 	}
 
@@ -47,11 +47,10 @@ func ParseURL(slackURL string) (*URLInfo, error) {
 		if len(parts[2]) == 0 || parts[2][0] != 'p' {
 			return nil, errUnsupportedURL
 		}
-		thread, err := strconv.ParseInt(parts[2][1:], 10, 64)
-		if err != nil {
+		if _, err := strconv.ParseInt(parts[2][1:], 10, 64); err != nil {
 			return nil, errors.WithStack(err)
 		}
-		ui.Thread = thread
+		ui.Thread = parts[2][1:]
 		fallthrough
 	case 2:
 		// channel

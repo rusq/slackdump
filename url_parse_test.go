@@ -24,7 +24,7 @@ func TestParseURL(t *testing.T) {
 		{
 			name:    "thread",
 			args:    args{"https://ora600.slack.com/archives/CHM82GF99/p1577694990000400"},
-			want:    &URLInfo{Channel: "CHM82GF99", Thread: 1577694990000400},
+			want:    &URLInfo{Channel: "CHM82GF99", Thread: "1577694990000400"},
 			wantErr: false,
 		},
 		{
@@ -32,6 +32,24 @@ func TestParseURL(t *testing.T) {
 			args:    args{"https://ora600.slack.com/archives/DL98HT3QA"},
 			want:    &URLInfo{Channel: "DL98HT3QA"},
 			wantErr: false,
+		},
+		{
+			name:    "Invalid url",
+			args:    args{"https://example.com"},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name:    "invalid slack url",
+			args:    args{"https://app.slack.com/client/THX2HTY8U/CHM82GF99/thread/CHM82GF99-1577694990.000400"},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name:    "malformed",
+			args:    args{"https://ora600.slack.com/archives/"},
+			want:    nil,
+			wantErr: true,
 		},
 	}
 	for _, tt := range tests {

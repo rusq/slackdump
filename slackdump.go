@@ -30,10 +30,10 @@ type SlackDumper struct {
 }
 
 type options struct {
-	dumpfiles             bool
-	workers               int
-	conversationRetries   int
-	downloadRetryAttempts int
+	dumpfiles           bool
+	workers             int
+	conversationRetries int
+	downloadRetries     int
 }
 
 var allChanTypes = []string{"mpim", "im", "public_channel", "private_channel"}
@@ -67,7 +67,7 @@ func RetryThreads(attempts int) Option {
 func RetryDownloads(attempts int) Option {
 	return func(sd *SlackDumper) {
 		if attempts > 0 {
-			sd.options.downloadRetryAttempts = attempts
+			sd.options.downloadRetries = attempts
 		}
 	}
 }
@@ -92,9 +92,9 @@ func New(ctx context.Context, token string, cookie string, opts ...Option) (*Sla
 	sd := &SlackDumper{
 		client: slack.New(token, slack.OptionCookie(cookie)),
 		options: options{
-			workers:               defNumWorkers,
-			conversationRetries:   3,
-			downloadRetryAttempts: 3,
+			workers:             defNumWorkers,
+			conversationRetries: 3,
+			downloadRetries:     3,
 		},
 	}
 	for _, opt := range opts {
@@ -154,7 +154,7 @@ func (sd *SlackDumper) DumpMessages(ctx context.Context, channelID string) (*Cha
 		dlLimiter     = newLimiter(noTier) // go-slack/slack just sends the Post to the file endpoint, so this should work.
 	)
 
-	dlDoneC, err := sd.fileDownloader(ctx, dlLimiter, channelID, filesC)
+	dlDoneC, err := sd.newFileDownloader(ctx, dlLimiter, channelID, filesC)
 	if err != nil {
 		return nil, err
 	}
@@ -248,8 +248,8 @@ func (sd *SlackDumper) populateThreads(ctx context.Context, l *rate.Limiter, msg
 	return nil
 }
 
-// dumpThread retrieves all messages in the thread and returns them as a slice
-// of messages.
+// dumpThread retrieves all messages in the thread and returns them as a slice of
+// messages.
 func (sd *SlackDumper) dumpThread(ctx context.Context, l *rate.Limiter, channelID string, threadTS string) ([]Message, error) {
 	var thread []Message
 

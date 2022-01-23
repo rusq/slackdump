@@ -92,20 +92,15 @@ func (sd *SlackDumper) whoThisChannelFor(channel *slack.Channel) (who string) {
 	return who
 }
 
-// IsChannel checks if such a channel exists, returns true if it does
-func (sd *SlackDumper) IsChannel(c string) bool {
-	if c == "" {
-		return false
-	}
-	for i := range sd.Channels {
-		if sd.Channels[i].ID == c {
-			return true
-		}
-	}
-	return false
-}
-
+// username tries to resolve the username by ID. If the internal users map is not
+// initialised, it will return the ID, otherwise, if the user is not found in
+// cache, it will assume that the user is external, and return the ID with
+// "external" prefix.
 func (sd *SlackDumper) username(id string) string {
+	if sd.UserForID == nil {
+		// no user cache, use the IDs.
+		return id
+	}
 	user, ok := sd.UserForID[id]
 	if !ok {
 		return "<external>:" + id
