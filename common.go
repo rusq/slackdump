@@ -15,7 +15,7 @@ type tier int
 
 const (
 	// base throttling defined as events per minute
-	tier1  tier = 10
+	tier1  tier = 1
 	tier2  tier = 20
 	tier3  tier = 50
 	tier4  tier = 100
