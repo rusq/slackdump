@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"runtime/trace"
 	"strings"
 	"text/tabwriter"
 
@@ -21,7 +22,10 @@ type Channels struct {
 // the type of messages to fetch.  See github.com/rusq/slack docs for possible
 // values
 func (sd *SlackDumper) getChannels(ctx context.Context, chanTypes []string) (*Channels, error) {
-	limiter := newLimiter(tier2)
+	ctx, task := trace.NewTask(ctx, "getChannels")
+	defer task.End()
+
+	limiter := newLimiter(tier2, sd.options.limiterBoost)
 
 	if chanTypes == nil {
 		chanTypes = allChanTypes
@@ -30,8 +34,18 @@ func (sd *SlackDumper) getChannels(ctx context.Context, chanTypes []string) (*Ch
 	params := &slack.GetConversationsParameters{Types: chanTypes}
 	allChannels := make([]slack.Channel, 0, 50)
 	for {
-		chans, nextcur, err := sd.client.GetConversations(params)
-		if err != nil {
+		var (
+			chans   []slack.Channel
+			nextcur string
+		)
+		if err := withRetry(ctx, limiter, sd.options.conversationRetries, func() error {
+			var err error
+			trace.WithRegion(ctx, "GetConversations", func() {
+				chans, nextcur, err = sd.client.GetConversations(params)
+			})
+			return err
+
+		}); err != nil {
 			return nil, err
 		}
 		allChannels = append(allChannels, chans...)

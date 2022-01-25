@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime/trace"
 	"sync"
 
 	"github.com/rusq/dlog"
@@ -31,7 +32,7 @@ func (sd *SlackDumper) filesFromMessages(m []Message) []slack.File {
 
 // SaveFileTo saves a single file to the specified directory.
 func (sd *SlackDumper) SaveFileTo(ctx context.Context, dir string, f *slack.File) (int64, error) {
-	return sd.saveFileWithLimiter(ctx, newLimiter(noTier), dir, f)
+	return sd.saveFileWithLimiter(ctx, newLimiter(noTier, 0), dir, f)
 }
 
 // saveFileWithLimiter saves the file to specified directory, it will use the provided limiter l for throttling.
@@ -44,6 +45,9 @@ func (sd *SlackDumper) saveFileWithLimiter(ctx context.Context, l *rate.Limiter,
 	defer file.Close()
 
 	if err := withRetry(ctx, l, sd.options.downloadRetries, func() error {
+		region := trace.StartRegion(ctx, "GetFile")
+		defer region.End()
+
 		return sd.client.GetFile(f.URLPrivateDownload, file)
 	}); err != nil {
 		return 0, err

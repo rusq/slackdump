@@ -8,6 +8,8 @@ type Config struct {
 
 	ChannelIDs   []string
 	IncludeFiles bool
+
+	Boost int
 }
 
 type Output struct {
