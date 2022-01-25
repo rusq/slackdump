@@ -34,7 +34,8 @@ type options struct {
 	workers             int
 	conversationRetries int
 	downloadRetries     int
-	limiterBoost        int
+	limiterBoost        uint
+	limiterBurst        uint
 }
 
 var allChanTypes = []string{"mpim", "im", "public_channel", "private_channel"}
@@ -78,11 +79,16 @@ func RetryDownloads(attempts int) Option {
 // events per minute will be calculated like this:
 //
 //   events_per_sec =  (<slack_tier_epm> + <eventsPerMin>) / 60.0
-func LimiterBoost(eventsPerMin int) Option {
+func LimiterBoost(eventsPerMin uint) Option {
 	return func(sd *SlackDumper) {
-		if eventsPerMin >= 0 {
-			sd.options.limiterBoost = eventsPerMin
-		}
+		sd.options.limiterBoost = eventsPerMin
+	}
+}
+
+// LimiterBurst allows to set the limiter burst value.
+func LimiterBurst(eventsPerSec uint) Option {
+	return func(sd *SlackDumper) {
+		sd.options.limiterBurst = eventsPerSec
 	}
 }
 
@@ -109,6 +115,8 @@ func New(ctx context.Context, token string, cookie string, opts ...Option) (*Sla
 			workers:             defNumWorkers,
 			conversationRetries: 3,
 			downloadRetries:     3,
+			limiterBoost:        0,
+			limiterBurst:        1,
 		},
 	}
 	for _, opt := range opts {
@@ -154,6 +162,10 @@ func (sd *SlackDumper) IsDeletedUser(id string) bool {
 	return thisUser.Deleted
 }
 
+func (sd *SlackDumper) limiter(t tier) *rate.Limiter {
+	return newLimiter(t, sd.options.limiterBurst, int(sd.options.limiterBoost))
+}
+
 // DumpMessages fetches messages from the conversation identified by channelID.
 func (sd *SlackDumper) DumpMessages(ctx context.Context, channelID string) (*Channel, error) {
 	ctx, task := trace.NewTask(ctx, "DumpMessages")
@@ -163,9 +175,9 @@ func (sd *SlackDumper) DumpMessages(ctx context.Context, channelID string) (*Cha
 
 	var (
 		// slack rate limits are per method, so we're safe to use different limiters for different mehtods.
-		convLimiter   = newLimiter(tier3, sd.options.limiterBoost)
-		threadLimiter = newLimiter(tier3, sd.options.limiterBoost)
-		dlLimiter     = newLimiter(noTier, sd.options.limiterBoost) // go-slack/slack just sends the Post to the file endpoint, so this should work.
+		convLimiter   = sd.limiter(tier3)
+		threadLimiter = sd.limiter(tier3)
+		dlLimiter     = sd.limiter(noTier) // go-slack/slack just sends the Post to the file endpoint, so this should work.
 	)
 
 	dlDoneC, err := sd.newFileDownloader(ctx, dlLimiter, channelID, filesC)

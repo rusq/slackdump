@@ -24,9 +24,9 @@ const (
 
 // newLimiter returns throttler with rateLimit requests per minute.
 // optionally caller may specify the boost
-func newLimiter(t tier, boost int) *rate.Limiter {
+func newLimiter(t tier, burst uint, boost int) *rate.Limiter {
 	callsPerSec := float64(int(t)+boost) / 60.0
-	l := rate.NewLimiter(rate.Limit(callsPerSec), 1)
+	l := rate.NewLimiter(rate.Limit(callsPerSec), int(burst))
 	return l
 }
 

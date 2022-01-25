@@ -9,7 +9,8 @@ type Config struct {
 	ChannelIDs   []string
 	IncludeFiles bool
 
-	Boost int
+	Boost uint
+	Burst uint
 }
 
 type Output struct {

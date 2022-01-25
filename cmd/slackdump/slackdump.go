@@ -20,6 +20,11 @@ const (
 	slackCookieEnv = "COOKIE"
 )
 
+const (
+	defBoost = 120 // this seemed to be a safe value to use without getting rate limited after 1000 messages with threads.
+	defBurst = 1
+)
+
 var build = "dev"
 
 // secrets defines the names of the supported secret files that we load our
@@ -105,7 +110,8 @@ func parseCmdLine(args []string) (params, error) {
 	fs.BoolVar(&p.appCfg.ListFlags.Channels, "c", false, "ListFlags channels (aka conversations) and their IDs for export.")
 	fs.BoolVar(&p.appCfg.ListFlags.Users, "u", false, "ListFlags users and their IDs. ")
 	fs.BoolVar(&p.appCfg.IncludeFiles, "f", false, "enable files download")
-	fs.IntVar(&p.appCfg.Boost, "limiter-boost", 120, "rate limiter boost in `events` per minute, will be added to the\nbase slack tier event per minute value.")
+	fs.UintVar(&p.appCfg.Boost, "limiter-boost", defBoost, "rate limiter boost in `events` per minute, will be added to the\nbase slack tier event per minute value.")
+	fs.UintVar(&p.appCfg.Burst, "limiter-burst", defBurst, "allow up to `N` burst events per second.  Default value is safe.")
 	fs.StringVar(&p.appCfg.Output.Filename, "o", "-", "Output `filename` for users and channels.  Use '-' for standard\nOutput.")
 	fs.StringVar(&p.appCfg.Output.Format, "r", "", "report `format`.  One of 'json' or 'text'")
 	fs.StringVar(&p.appCfg.Creds.Token, "t", os.Getenv(slackTokenEnv), "Specify slack `API_token`, (environment: "+slackTokenEnv+")")
