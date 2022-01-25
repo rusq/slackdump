@@ -20,6 +20,7 @@ type Channel struct {
 	ID       string
 }
 
+// Message is the internal representation of message with thread.
 type Message struct {
 	slack.Message
 	ThreadReplies []Message `json:"slackdump_thread_replies,omitempty"`

@@ -9,10 +9,8 @@ import (
 	"sync"
 
 	"github.com/rusq/dlog"
-
-	"golang.org/x/time/rate"
-
 	"github.com/slack-go/slack"
+	"golang.org/x/time/rate"
 )
 
 // filesFromMessages extracts files from messages slice.
