@@ -45,6 +45,7 @@ type params struct {
 	channelsToExport []string
 	dumpFiles        bool
 
+	boost     int
 	traceFile string // trace file
 	version   bool
 }
@@ -100,7 +101,7 @@ func main() {
 // run runs the dumper.
 func run(ctx context.Context, p params) error {
 	if p.traceFile != "" {
-		dlog.Println("enabling trace, will write to %q", p.traceFile)
+		dlog.Printf("enabling trace, will write to %q", p.traceFile)
 		trc := tracer.New(p.traceFile)
 		if err := trc.Start(); err != nil {
 			return err

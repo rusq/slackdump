@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime/trace"
 	"sync"
 
 	"github.com/rusq/dlog"
@@ -57,6 +58,9 @@ func (sd *SlackDumper) SaveFileTo(ctx context.Context, l *rate.Limiter, dir stri
 	defer file.Close()
 
 	if err := withRetry(ctx, l, maxDownloadAttempts, func() error {
+		region := trace.StartRegion(ctx, "GetFile")
+		defer region.End()
+
 		return sd.client.GetFile(f.URLPrivateDownload, file)
 	}); err != nil {
 		return 0, err

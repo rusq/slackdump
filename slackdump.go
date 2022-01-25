@@ -34,6 +34,7 @@ type options struct {
 	workers               int
 	conversationRetries   int
 	downloadRetryAttempts int
+	limiterBoost          int
 }
 
 var allChanTypes = []string{"mpim", "im", "public_channel", "private_channel"}
@@ -68,6 +69,19 @@ func RetryDownloads(attempts int) Option {
 	return func(sd *SlackDumper) {
 		if attempts > 0 {
 			sd.options.downloadRetryAttempts = attempts
+		}
+	}
+}
+
+// LimiterBoost allows to deliver a magic kick to the limiter, to override the
+// base slack tier limits.  The resulting
+// events per minute will be calculated like this:
+//
+//   events_per_sec =  (<slack_tier_epm> + <eventsPerMin>) / 60.0
+func LimiterBoost(eventsPerMin int) Option {
+	return func(sd *SlackDumper) {
+		if eventsPerMin >= 0 {
+			sd.options.limiterBoost = eventsPerMin
 		}
 	}
 }
@@ -149,9 +163,9 @@ func (sd *SlackDumper) DumpMessages(ctx context.Context, channelID string) (*Cha
 
 	var (
 		// slack rate limits are per method, so we're safe to use different limiters for different mehtods.
-		convLimiter   = newLimiter(tier3)
-		threadLimiter = newLimiter(tier3)
-		dlLimiter     = newLimiter(noTier) // go-slack/slack just sends the Post to the file endpoint, so this should work.
+		convLimiter   = newLimiter(tier3, sd.options.limiterBoost)
+		threadLimiter = newLimiter(tier3, sd.options.limiterBoost)
+		dlLimiter     = newLimiter(noTier, sd.options.limiterBoost) // go-slack/slack just sends the Post to the file endpoint, so this should work.
 	)
 
 	dlDoneC, err := sd.fileDownloader(ctx, dlLimiter, channelID, filesC)
@@ -167,27 +181,30 @@ func (sd *SlackDumper) DumpMessages(ctx context.Context, channelID string) (*Cha
 		var resp *slack.GetConversationHistoryResponse
 		if err := withRetry(ctx, convLimiter, sd.options.conversationRetries, func() error {
 			var err error
-			resp, err = sd.client.GetConversationHistoryContext(
-				ctx,
-				&slack.GetConversationHistoryParameters{
-					ChannelID: channelID,
-					Cursor:    cursor,
-				},
-			)
+			trace.WithRegion(ctx, "GetConversationHistoryContext", func() {
+				resp, err = sd.client.GetConversationHistoryContext(
+					ctx,
+					&slack.GetConversationHistoryParameters{
+						ChannelID: channelID,
+						Cursor:    cursor,
+					},
+				)
+			})
 			return err
 		}); err != nil {
 			return nil, err
 		}
 
 		chunk := sd.convertMsgs(resp.Messages)
-		if err := sd.populateThreads(ctx, threadLimiter, chunk, channelID); err != nil {
+		threads, err := sd.populateThreads(ctx, threadLimiter, chunk, channelID)
+		if err != nil {
 			return nil, err
 		}
 		sd.pipeFiles(filesC, chunk)
 		messages = append(messages, chunk...)
 
-		dlog.Printf("request #%d, fetched: %d, total: %d\n",
-			i, len(resp.Messages), len(messages))
+		dlog.Printf("request #%5d, fetched: %4d, (with threads: %4d) total: %8d\n",
+			i, len(resp.Messages), threads, len(messages))
 
 		if !resp.HasMore {
 			break
@@ -231,21 +248,24 @@ func (sd *SlackDumper) pipeFiles(filesC chan<- *slack.File, msgs []Message) {
 
 // populateThreads scans the message slice for threads, if and when it
 // discovers the message with ThreadTimestamp, it fetches all messages in that
-// thread updating them to the msgs slice.
+// thread updating them to the msgs slice.  Returns the count of messages that
+// contained threads.
 //
 // ref: https://api.slack.com/messaging/retrieving
-func (sd *SlackDumper) populateThreads(ctx context.Context, l *rate.Limiter, msgs []Message, channelID string) error {
+func (sd *SlackDumper) populateThreads(ctx context.Context, l *rate.Limiter, msgs []Message, channelID string) (int, error) {
+	total := 0
 	for i := range msgs {
 		if msgs[i].ThreadTimestamp == "" {
 			continue
 		}
 		threadMsgs, err := sd.dumpThread(ctx, l, channelID, msgs[i].ThreadTimestamp)
 		if err != nil {
-			return err
+			return total, err
 		}
 		msgs[i].ThreadReplies = threadMsgs
+		total++
 	}
-	return nil
+	return total, nil
 }
 
 // dumpThread retrieves all messages in the thread and returns them as a slice
@@ -262,10 +282,12 @@ func (sd *SlackDumper) dumpThread(ctx context.Context, l *rate.Limiter, channelI
 		)
 		if err := withRetry(ctx, l, sd.options.conversationRetries, func() error {
 			var err error
-			msgs, hasmore, nextCursor, err = sd.client.GetConversationRepliesContext(
-				ctx,
-				&slack.GetConversationRepliesParameters{ChannelID: channelID, Timestamp: threadTS, Cursor: cursor},
-			)
+			trace.WithRegion(ctx, "GetConversationRepliesContext", func() {
+				msgs, hasmore, nextCursor, err = sd.client.GetConversationRepliesContext(
+					ctx,
+					&slack.GetConversationRepliesParameters{ChannelID: channelID, Timestamp: threadTS, Cursor: cursor},
+				)
+			})
 			return err
 		}); err != nil {
 			return nil, err
@@ -304,7 +326,10 @@ func withRetry(ctx context.Context, l *rate.Limiter, maxAttempts int, fn func() 
 			return errors.WithStack(err)
 		}
 
-		trace.Logf(ctx, "info", "got rate limited, sleeping %s", rle.RetryAfter)
+		msg := fmt.Sprintf("got rate limited, sleeping %s", rle.RetryAfter)
+		trace.Log(ctx, "info", msg)
+		dlog.Debug(msg)
+
 		time.Sleep(rle.RetryAfter)
 	}
 	if !ok {
