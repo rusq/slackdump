@@ -10,13 +10,10 @@ import (
 )
 
 // Users keeps slice of users
-type Users struct {
-	Users []slack.User
-	SD    *SlackDumper
-}
+type Users []slack.User
 
 // GetUsers retrieve all users and refresh structure User information
-func (sd *SlackDumper) GetUsers() (*Users, error) {
+func (sd *SlackDumper) GetUsers() (Users, error) {
 	var err error
 	users, err := sd.client.GetUsers()
 	if err != nil {
@@ -29,10 +26,10 @@ func (sd *SlackDumper) GetUsers() (*Users, error) {
 		err = fmt.Errorf("couldn't fetch users")
 	}
 	// recalculating userForID
-	sd.Users.Users = users
+	sd.Users = users
 	sd.UserForID = sd.Users.IndexByID()
 
-	return &Users{Users: users, SD: sd}, err
+	return users, err
 }
 
 // ToText outputs Users us to io.Writer w in Text format
@@ -42,11 +39,11 @@ func (us Users) ToText(w io.Writer) (err error) {
 	writer := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
 	defer writer.Flush()
 
-	var names = make([]string, 0, len(us.Users))
-	var usermap = make(map[string]*slack.User, len(us.Users))
-	for i := range us.Users {
-		names = append(names, us.Users[i].Name)
-		usermap[us.Users[i].Name] = &us.Users[i]
+	var names = make([]string, 0, len(us))
+	var usermap = make(map[string]*slack.User, len(us))
+	for i := range us {
+		names = append(names, us[i].Name)
+		usermap[us[i].Name] = &us[i]
 	}
 	sort.Strings(names)
 
@@ -71,19 +68,17 @@ func (us Users) ToText(w io.Writer) (err error) {
 }
 
 // IndexByID returns the userID map to relevant *slack.User
-func (us *Users) IndexByID() map[string]*slack.User {
-	var usermap = make(map[string]*slack.User, len(us.Users))
-	// that's for readability
-	var userlist = &us.Users
+func (us Users) IndexByID() map[string]*slack.User {
+	var usermap = make(map[string]*slack.User, len(us))
 
-	for i := range *userlist {
-		usermap[(*userlist)[i].ID] = &(*userlist)[i]
+	for i := range us {
+		usermap[(us)[i].ID] = &us[i]
 	}
 
 	return usermap
 }
 
-// Len returns length of underlying []slack.Users slice
-func (us *Users) Len() int {
-	return len(us.Users)
+// Len returns the user count
+func (us Users) Len() int {
+	return len(us)
 }

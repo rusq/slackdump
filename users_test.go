@@ -8,18 +8,18 @@ import (
 )
 
 func TestUsers_MakeUserIDIndex(t *testing.T) {
-	users := Users{Users: []slack.User{
+	users := []slack.User{
 		{ID: "USLACKBOT", Name: "slackbot"},
 		{ID: "USER2", Name: "User 2"},
-	}}
+	}
 	tests := []struct {
 		name string
-		us   *Users
+		us   Users
 		want map[string]*slack.User
 	}{
-		{"test 1", &users, map[string]*slack.User{
-			"USLACKBOT": &users.Users[0],
-			"USER2":     &users.Users[1],
+		{"test 1", users, map[string]*slack.User{
+			"USLACKBOT": &users[0],
+			"USER2":     &users[1],
 		}},
 	}
 	for _, tt := range tests {

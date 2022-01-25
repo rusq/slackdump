@@ -3,6 +3,8 @@ package main
 import (
 	"testing"
 
+	"github.com/rusq/slackdump/internal/app"
+
 	"github.com/stretchr/testify/assert"
 )
 
@@ -17,18 +19,18 @@ func Test_output_validFormat(t *testing.T) {
 		want   bool
 	}{
 		{"empty", fields{}, false},
-		{"empty", fields{format: outputTypeJSON}, true},
-		{"empty", fields{format: outputTypeText}, true},
+		{"empty", fields{format: app.OutputTypeJSON}, true},
+		{"empty", fields{format: app.OutputTypeText}, true},
 		{"empty", fields{format: "wtf"}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			out := output{
-				filename: tt.fields.filename,
-				format:   tt.fields.format,
+			out := app.Output{
+				Filename: tt.fields.filename,
+				Format:   tt.fields.format,
 			}
-			if got := out.validFormat(); got != tt.want {
-				t.Errorf("output.validFormat() = %v, want %v", got, tt.want)
+			if got := out.FormatValid(); got != tt.want {
+				t.Errorf("Output.validFormat() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -47,35 +49,35 @@ func Test_checkParameters(t *testing.T) {
 		{
 			"channels",
 			args{[]string{"-c", "-t", "x", "-cookie", "d"}},
-			params{
-				list: listFlags{
-					users:    false,
-					channels: true,
+			params{appCfg: app.Config{
+				ListFlags: app.ListFlags{
+					Users:    false,
+					Channels: true,
 				},
-				creds: slackCreds{
-					token:  "x",
-					cookie: "d",
+				Creds: app.SlackCreds{
+					Token:  "x",
+					Cookie: "d",
 				},
-				output:           output{filename: "-", format: "text"},
-				channelsToExport: []string{},
-			},
+				Output:     app.Output{Filename: "-", Format: "text"},
+				ChannelIDs: []string{},
+			}},
 			false,
 		},
 		{
 			"users",
 			args{[]string{"-u", "-t", "x", "-cookie", "d"}},
-			params{
-				list: listFlags{
-					channels: false,
-					users:    true,
+			params{appCfg: app.Config{
+				ListFlags: app.ListFlags{
+					Channels: false,
+					Users:    true,
 				},
-				creds: slackCreds{
-					token:  "x",
-					cookie: "d",
+				Creds: app.SlackCreds{
+					Token:  "x",
+					Cookie: "d",
 				},
-				output:           output{filename: "-", format: "text"},
-				channelsToExport: []string{},
-			},
+				Output:     app.Output{Filename: "-", Format: "text"},
+				ChannelIDs: []string{},
+			}},
 			false,
 		},
 	}

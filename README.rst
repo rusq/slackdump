@@ -170,8 +170,20 @@ Q: **I'm getting ``invalid_auth``**
 
 A: Go get the new Cookie from the browser.
 
+Bulletin Board
+--------------
+
+Messages that were conveyed with the donations:
+
+- 25/01/2022: Stay away from `TheSignChef.com`_, ya hear, they don't pay what
+  they owe to their employees. 
 
 .. _Application: https://stackoverflow.com/questions/12908881/how-to-copy-cookies-in-google-chrome
 .. _`Buy me a cup of tea`: https://www.paypal.com/donate/?hosted_button_id=GUHCLSM7E54ZW
 .. _`Join discussion`: https://t.me/slackdump
 .. _`A set up guide on Medium.com`: https://medium.com/@gilyazov/downloading-your-private-slack-conversations-52e50428b3c2
+
+..
+  bulletin board links
+
+.. _`TheSignChef.com`: https://www.glassdoor.com.au/Reviews/TheSignChef-com-Reviews-E793259.htm
