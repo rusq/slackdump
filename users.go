@@ -1,20 +1,60 @@
 package slackdump
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 	"io"
+	"os"
+	"runtime/trace"
 	"sort"
 	"text/tabwriter"
+	"time"
 
+	"github.com/pkg/errors"
+	"github.com/rusq/dlog"
 	"github.com/slack-go/slack"
+)
+
+// cache lifetime
+const (
+	cacheValidFor     = 4 * time.Hour
+	userCacheFilename = "users.json"
 )
 
 // Users keeps slice of users
 type Users []slack.User
 
 // GetUsers retrieve all users and refresh structure User information
-func (sd *SlackDumper) GetUsers() (Users, error) {
-	var err error
+func (sd *SlackDumper) GetUsers(ctx context.Context) (Users, error) {
+	// TODO: validate that the cache is from the same workspace, it can be done by team ID.
+	ctx, task := trace.NewTask(ctx, "GetUsers")
+	defer task.End()
+
+	users, err := sd.loadUserCache(userCacheFilename)
+	if err != nil {
+		if os.IsNotExist(err) {
+			dlog.Println("  caching users for the first time")
+		} else {
+			dlog.Println("  failed to load cache, it will be recreated: %s", err)
+		}
+		users, err = sd.fetchUsers(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if err := sd.saveUserCache(userCacheFilename, users); err != nil {
+			dlog.Println("error saving user cache to %q: %s, but nevermind, let's continue", userCacheFilename, err)
+		}
+	}
+
+	sd.Users = users
+	sd.UserIndex = sd.Users.IndexByID()
+
+	return users, err
+}
+
+// fetchUsers fetches users from the API.
+func (sd *SlackDumper) fetchUsers(ctx context.Context) (Users, error) {
 	users, err := sd.client.GetUsers()
 	if err != nil {
 		return nil, err
@@ -23,13 +63,59 @@ func (sd *SlackDumper) GetUsers() (Users, error) {
 	// is not propagated properly, so we'll check for number of users.  There
 	// should be at least one (slackbot).
 	if len(users) == 0 {
-		err = fmt.Errorf("couldn't fetch users")
+		return nil, fmt.Errorf("couldn't fetch users")
 	}
-	// recalculating userForID
-	sd.Users = users
-	sd.UserForID = sd.Users.IndexByID()
+	return users, nil
+}
 
-	return users, err
+// loadUsers tries to load the users from the file
+func (sd *SlackDumper) loadUserCache(filename string) (Users, error) {
+	if err := sd.validateUserCache(filename); err != nil {
+		return nil, err
+	}
+	f, err := os.Open(filename)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	dec := json.NewDecoder(f)
+	var uu Users
+	if err := dec.Decode(&uu); err != nil {
+		return nil, err
+	}
+	return uu, nil
+}
+
+func (*SlackDumper) saveUserCache(filename string, uu Users) error {
+	f, err := os.Create("users.json")
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	enc := json.NewEncoder(f)
+	enc.SetIndent("", "  ")
+	if err := enc.Encode(uu); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (*SlackDumper) validateUserCache(filename string) error {
+	if filename == "" {
+		return errors.New("no user cache filename")
+	}
+	fi, err := os.Stat(filename)
+	if err != nil {
+		return err
+	}
+	if fi.Size() == 0 {
+		return errors.New("empty user cache")
+	}
+	if time.Since(fi.ModTime()) > cacheValidFor {
+		return errors.New("user cache expired")
+	}
+	return nil
 }
 
 // ToText outputs Users us to io.Writer w in Text format
