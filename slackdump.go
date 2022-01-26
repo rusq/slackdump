@@ -17,25 +17,31 @@ import (
 	"golang.org/x/time/rate"
 )
 
+const (
+	defLimiterBoost       = 0
+	defLimiterBurst       = 1
+	defConversationPerReq = 200
+)
+
 // SlackDumper stores basic session parameters.
 type SlackDumper struct {
 	client *slack.Client
 
 	// Users contains the list of users and populated on NewSlackDumper
 	Users     Users                  `json:"users"`
-	Channels  []slack.Channel        `json:"channels"`
-	UserForID map[string]*slack.User `json:"-"`
+	UserIndex map[string]*slack.User `json:"-"`
 
 	options options
 }
 
 type options struct {
-	dumpfiles           bool
-	workers             int
-	conversationRetries int
-	downloadRetries     int
-	limiterBoost        uint
-	limiterBurst        uint
+	dumpfiles               bool
+	workers                 int
+	conversationRetries     int
+	downloadRetries         int
+	conversationsPerRequest int
+	limiterBoost            uint
+	limiterBurst            uint
 }
 
 var allChanTypes = []string{"mpim", "im", "public_channel", "private_channel"}
@@ -112,50 +118,29 @@ func New(ctx context.Context, token string, cookie string, opts ...Option) (*Sla
 	sd := &SlackDumper{
 		client: slack.New(token, slack.OptionCookie(cookie)),
 		options: options{
-			workers:             defNumWorkers,
-			conversationRetries: 3,
-			downloadRetries:     3,
-			limiterBoost:        0,
-			limiterBurst:        1,
+			workers:                 defNumWorkers,
+			conversationRetries:     3,
+			downloadRetries:         3,
+			limiterBoost:            defLimiterBoost,
+			limiterBurst:            defLimiterBurst,
+			conversationsPerRequest: defConversationPerReq,
 		},
 	}
 	for _, opt := range opts {
 		opt(sd)
 	}
 
-	errC := make(chan error, 1)
-
-	var chans *Channels
-
-	go func() {
-		defer close(errC)
-
-		var err error
-		chanTypes := allChanTypes
-		dlog.Println("> caching channels, might take a while...")
-		chans, err = sd.getChannels(ctx, chanTypes)
-		if err != nil {
-			errC <- err
-		}
-	}()
-
 	dlog.Println("> caching users...")
-	if _, err := sd.GetUsers(); err != nil {
+	if _, err := sd.GetUsers(ctx); err != nil {
 		return nil, fmt.Errorf("error fetching users: %s", err)
 	}
-
-	if err := <-errC; err != nil {
-		return nil, fmt.Errorf("error fetching channels: %s", err)
-	}
-
-	sd.Channels = chans.Channels
 
 	return sd, nil
 }
 
 // IsDeletedUser checks if the user is deleted and returns appropriate value
 func (sd *SlackDumper) IsDeletedUser(id string) bool {
-	thisUser, ok := sd.UserForID[id]
+	thisUser, ok := sd.UserIndex[id]
 	if !ok {
 		return false
 	}
@@ -199,6 +184,7 @@ func (sd *SlackDumper) DumpMessages(ctx context.Context, channelID string) (*Cha
 					&slack.GetConversationHistoryParameters{
 						ChannelID: channelID,
 						Cursor:    cursor,
+						Limit:     sd.options.conversationsPerRequest,
 					},
 				)
 			})

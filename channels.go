@@ -62,10 +62,7 @@ func (sd *SlackDumper) getChannels(ctx context.Context, chanTypes []string) (*Ch
 // the type of messages to fetch.  See github.com/rusq/slack docs for possible
 // values
 func (sd *SlackDumper) GetChannels(ctx context.Context, chanTypes ...string) (*Channels, error) {
-	if chanTypes != nil {
-		return sd.getChannels(ctx, chanTypes)
-	}
-	return &Channels{Channels: sd.Channels, SD: sd}, nil
+	return sd.getChannels(ctx, chanTypes)
 }
 
 // ToText outputs Channels cs to io.Writer w in Text format.
@@ -111,11 +108,11 @@ func (sd *SlackDumper) whoThisChannelFor(channel *slack.Channel) (who string) {
 // cache, it will assume that the user is external, and return the ID with
 // "external" prefix.
 func (sd *SlackDumper) username(id string) string {
-	if sd.UserForID == nil {
+	if sd.UserIndex == nil {
 		// no user cache, use the IDs.
 		return id
 	}
-	user, ok := sd.UserForID[id]
+	user, ok := sd.UserIndex[id]
 	if !ok {
 		return "<external>:" + id
 	}

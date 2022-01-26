@@ -31,31 +31,36 @@ func (m Channel) ToText(sd *SlackDumper, w io.Writer) (err error) {
 	writer := bufio.NewWriter(w)
 	defer writer.Flush()
 
+	return generateText(w, sd, m.Messages, "")
+}
+
+func generateText(w io.Writer, sd *SlackDumper, m []Message, prefix string) error {
 	var (
 		prevMsg  Message
 		prevTime time.Time
 	)
-	for _, message := range m.Messages {
+	for _, message := range m {
 		t, err := fromSlackTime(message.Timestamp)
 		if err != nil {
 			return err
 		}
 		diff := t.Sub(prevTime)
 		if prevMsg.User == message.User && diff.Minutes() < minMsgTimeApart {
-			writer.WriteString(fmt.Sprintf(
-				"%s\n", message.Text,
-			))
+			fmt.Fprintf(w, prefix+"%s\n", message.Text)
 		} else {
-			writer.WriteString(fmt.Sprintf(
-				"\n> %s @ %s:\n%s\n",
+			fmt.Fprintf(w, prefix+"\n"+prefix+"> %s @ %s:\n%s\n",
 				sd.GetUserForMessage(&message),
 				t.Format("02/01/2006 15:04:05 Z0700"),
-				message.Text,
-			))
+				prefix+message.Text,
+			)
+		}
+		if len(message.ThreadReplies) > 0 {
+			if err := generateText(w, sd, message.ThreadReplies, "|   "); err != nil {
+				return err
+			}
 		}
 		prevMsg = message
 		prevTime = t
-
 	}
 	return nil
 }
