@@ -17,6 +17,12 @@ import (
 	"golang.org/x/time/rate"
 )
 
+const (
+	defLimiterBoost       = 0
+	defLimiterBurst       = 1
+	defConversationPerReq = 200
+)
+
 // SlackDumper stores basic session parameters.
 type SlackDumper struct {
 	client *slack.Client
@@ -115,9 +121,9 @@ func New(ctx context.Context, token string, cookie string, opts ...Option) (*Sla
 			workers:                 defNumWorkers,
 			conversationRetries:     3,
 			downloadRetries:         3,
-			limiterBoost:            0,
-			limiterBurst:            1,
-			conversationsPerRequest: 200,
+			limiterBoost:            defLimiterBoost,
+			limiterBurst:            defLimiterBurst,
+			conversationsPerRequest: defConversationPerReq,
 		},
 	}
 	for _, opt := range opts {

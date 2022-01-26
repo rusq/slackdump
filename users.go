@@ -36,14 +36,14 @@ func (sd *SlackDumper) GetUsers(ctx context.Context) (Users, error) {
 		if os.IsNotExist(err) {
 			dlog.Println("  caching users for the first time")
 		} else {
-			dlog.Println("  failed to load cache, it will be recreated: %s", err)
+			dlog.Printf("  failed to load cache, it will be recreated: %s", err)
 		}
 		users, err = sd.fetchUsers(ctx)
 		if err != nil {
 			return nil, err
 		}
 		if err := sd.saveUserCache(userCacheFilename, users); err != nil {
-			dlog.Println("error saving user cache to %q: %s, but nevermind, let's continue", userCacheFilename, err)
+			dlog.Printf("error saving user cache to %q: %s, but nevermind, let's continue", userCacheFilename, err)
 		}
 	}
 
