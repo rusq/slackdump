@@ -20,7 +20,8 @@ import (
 )
 
 //go:generate mockgen -destination internal/mock_os/mock_os.go os FileInfo
-//go:generate mockgen -source slackdump.go -package slackdump -destination clienter_mock.go -mock_names clienter=mockClienter
+//go:generate sh -c "mockgen -source slackdump.go -destination clienter_mock.go -package slackdump -mock_names clienter=mockClienter"
+//go:generate sed -i ~ "s/NewmockClienter/newmockClienter/g" clienter_mock.go
 
 // SlackDumper stores basic session parameters.
 type SlackDumper struct {
@@ -33,6 +34,8 @@ type SlackDumper struct {
 	options options
 }
 
+// clienter is the interface with some functions of slack.Client with the sole
+// purpose of mocking in tests (see client_mock.go)
 type clienter interface {
 	GetConversationHistoryContext(ctx context.Context, params *slack.GetConversationHistoryParameters) (*slack.GetConversationHistoryResponse, error)
 	GetConversationRepliesContext(ctx context.Context, params *slack.GetConversationRepliesParameters) (msgs []slack.Message, hasMore bool, nextCursor string, err error)
