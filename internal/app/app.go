@@ -91,6 +91,7 @@ func (app *App) dump(ctx context.Context, input Input) (int, error) {
 	total := 0
 	if err := input.producer(func(s string) error {
 		if err := app.dumpOne(ctx, s, dumpFn); err != nil {
+			dlog.Printf("error processing: %q (conversation will be skipped): %s", s, err)
 			return errSkip
 		}
 		total++

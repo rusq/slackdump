@@ -50,7 +50,7 @@ func ParseURL(slackURL string) (*URLInfo, error) {
 		if _, err := strconv.ParseInt(parts[2][1:], 10, 64); err != nil {
 			return nil, errors.WithStack(err)
 		}
-		ui.Thread = parts[2][1:]
+		ui.Thread = parts[2][1:11] + "." + parts[2][11:]
 		fallthrough
 	case 2:
 		// channel

@@ -236,6 +236,27 @@ func (sd *SlackDumper) DumpThread(ctx context.Context, channelID, threadTS strin
 	if err != nil {
 		return nil, err
 	}
+
+	// get first message of the thread
+	var firstMsg []Message
+	if err := withRetry(ctx, sd.limiter(tier3), sd.options.conversationRetries, func() error {
+		resp, err := sd.client.GetConversationHistoryContext(ctx, &slack.GetConversationHistoryParameters{
+			ChannelID: channelID,
+			Latest:    threadTS,
+			Limit:     1,
+			Inclusive: true,
+		})
+		if err != nil {
+			dlog.Debugf("unable to get the first message for channel %q thread TS %q", channelID, threadTS)
+			return errors.WithStack(err)
+		}
+		firstMsg = sd.convertMsgs(resp.Messages)
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+	threadMsgs = append(firstMsg, threadMsgs...)
+
 	sd.pipeFiles(filesC, threadMsgs)
 	if sd.options.dumpfiles {
 		close(filesC)

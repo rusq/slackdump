@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"time"
 
 	"github.com/rusq/slackdump/internal/app"
 	"github.com/rusq/slackdump/internal/tracer"
@@ -39,6 +40,7 @@ type params struct {
 
 	traceFile    string // trace file
 	printVersion bool
+	verbose      bool
 }
 
 func main() {
@@ -52,12 +54,19 @@ func main() {
 		fmt.Println(build)
 		return
 	}
+	if params.verbose {
+		dlog.SetDebug(true)
+	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 
 	if err := run(ctx, params); err != nil {
-		dlog.Fatal(err)
+		if params.verbose {
+			dlog.Fatalf("%+v", err)
+		} else {
+			dlog.Fatal(err)
+		}
 	}
 }
 
@@ -123,8 +132,13 @@ func parseCmdLine(args []string) (params, error) {
 	fs.StringVar(&p.appCfg.Output.Filename, "o", "-", "Output `filename` for users and channels.  Use '-' for standard\nOutput.")
 	fs.StringVar(&p.appCfg.Output.Format, "r", "", "report `format`.  One of 'json' or 'text'")
 
+	fs.DurationVar(&p.appCfg.MaxUserCacheAge, "user-cache-age", 4*time.Hour, "user cache lifetime `duration`. Set this to 0 to disable cache")
+	fs.StringVar(&p.appCfg.UserCacheFilename, "user-cache-file", "users.json", "user cache file`name`")
+
+	// main parameters
 	fs.StringVar(&p.traceFile, "trace", os.Getenv("TRACE_FILE"), "trace `file` (optional)")
 	fs.BoolVar(&p.printVersion, "V", false, "print version and exit")
+	fs.BoolVar(&p.verbose, "v", false, "verbose messages")
 
 	os.Unsetenv(slackTokenEnv)
 	os.Unsetenv(slackCookieEnv)

@@ -24,7 +24,7 @@ func TestParseURL(t *testing.T) {
 		{
 			name:    "thread",
 			args:    args{"https://ora600.slack.com/archives/CHM82GF99/p1577694990000400"},
-			want:    &URLInfo{Channel: "CHM82GF99", Thread: "1577694990000400"},
+			want:    &URLInfo{Channel: "CHM82GF99", Thread: "1577694990.000400"},
 			wantErr: false,
 		},
 		{
