@@ -5,7 +5,10 @@ import (
 	"fmt"
 	"io"
 	"runtime/trace"
+	"strconv"
+	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/pkg/errors"
 
@@ -25,6 +28,19 @@ type SlackDumper struct {
 
 	options options
 }
+
+// tier represents rate limit tier:
+// https://api.slack.com/docs/rate-limits
+type tier int
+
+const (
+	// base throttling defined as events per minute
+	tier1  tier = 1
+	tier2  tier = 20
+	tier3  tier = 50
+	tier4  tier = 100
+	noTier tier = 0
+)
 
 var allChanTypes = []string{"mpim", "im", "public_channel", "private_channel"}
 
@@ -52,15 +68,6 @@ func New(ctx context.Context, token string, cookie string, opts ...Option) (*Sla
 	return sd, nil
 }
 
-// IsDeletedUser checks if the user is deleted and returns appropriate value
-func (sd *SlackDumper) IsDeletedUser(id string) bool {
-	thisUser, ok := sd.UserIndex[id]
-	if !ok {
-		return false
-	}
-	return thisUser.Deleted
-}
-
 func (sd *SlackDumper) limiter(t tier) *rate.Limiter {
 	return newLimiter(t, sd.options.limiterBurst, int(sd.options.limiterBoost))
 }
@@ -77,7 +84,7 @@ func (sd *SlackDumper) pipeFiles(filesC chan<- *slack.File, msgs []Message) {
 	}
 }
 
-var ErrRetryFailed = errors.New("callback was not able to complete without errors within the allowed retries count")
+var ErrRetryFailed = errors.New("callback was not able to complete without errors within the allowed number of retries")
 
 // withRetry will run the callback function fn. If the function returns
 // slack.RateLimitedError, it will delay, and then call it again up to
@@ -111,4 +118,40 @@ func withRetry(ctx context.Context, l *rate.Limiter, maxAttempts int, fn func() 
 		return ErrRetryFailed
 	}
 	return nil
+}
+
+// newLimiter returns throttler with rateLimit requests per minute.
+// optionally caller may specify the boost
+func newLimiter(t tier, burst uint, boost int) *rate.Limiter {
+	callsPerSec := float64(int(t)+boost) / 60.0
+	l := rate.NewLimiter(rate.Limit(callsPerSec), int(burst))
+	return l
+}
+
+func fromSlackTime(timestamp string) (time.Time, error) {
+	strTime := strings.Split(timestamp, ".")
+	var hi, lo int64
+
+	hi, err := strconv.ParseInt(strTime[0], 10, 64)
+	if err != nil {
+		return time.Time{}, err
+	}
+	if len(strTime) > 1 {
+		lo, err = strconv.ParseInt(strTime[1], 10, 64)
+		if err != nil {
+			return time.Time{}, err
+		}
+	}
+	t := time.Unix(hi, lo).UTC()
+	return t, nil
+}
+
+func maxStringLength(strings []string) (maxlen int) {
+	for i := range strings {
+		l := utf8.RuneCountInString(strings[i])
+		if l > maxlen {
+			maxlen = l
+		}
+	}
+	return
 }

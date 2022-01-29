@@ -160,3 +160,12 @@ func (us Users) IndexByID() map[string]*slack.User {
 func (us Users) Len() int {
 	return len(us)
 }
+
+// IsDeletedUser checks if the user is deleted and returns appropriate value
+func (sd *SlackDumper) IsDeletedUser(id string) bool {
+	thisUser, ok := sd.UserIndex[id]
+	if !ok {
+		return false
+	}
+	return thisUser.Deleted
+}
