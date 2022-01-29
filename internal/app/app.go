@@ -196,7 +196,10 @@ func (app *App) fetchEntity(ctx context.Context, listFlags ListFlags) (rep slack
 			return
 		}
 	case listFlags.Users:
-		rep = app.sd.Users
+		rep, err = app.sd.GetUsers(ctx)
+		if err != nil {
+			return
+		}
 	default:
 		err = errors.New("nothing to do")
 	}
@@ -207,7 +210,7 @@ func (app *App) fetchEntity(ctx context.Context, listFlags ListFlags) (rep slack
 func (app *App) formatEntity(w io.Writer, rep slackdump.Reporter, output Output) error {
 	switch output.Format {
 	case OutputTypeText:
-		return rep.ToText(w)
+		return rep.ToText(app.sd, w)
 	case OutputTypeJSON:
 		enc := json.NewEncoder(w)
 		return enc.Encode(rep)

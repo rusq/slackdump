@@ -2,11 +2,17 @@ package slackdump
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"io"
+	"runtime/trace"
+	"sort"
 	"time"
 
+	"github.com/pkg/errors"
+	"github.com/rusq/dlog"
 	"github.com/slack-go/slack"
+	"golang.org/x/time/rate"
 )
 
 // minMsgTimeApart defines the time interval in minutes to separate group
@@ -16,8 +22,12 @@ const minMsgTimeApart = 2
 
 // Channel keeps the slice of messages.
 type Channel struct {
-	Messages []Message
-	ID       string
+	Messages []Message `json:"messages"`
+	// ID is the channel ID.
+	ID string `json:"channel_id"`
+	// ThreadTS is a thread timestamp.  If it's not empty, it means that it's a
+	// dump of a thread, not a channel.
+	ThreadTS string `json:"thread_ts,omitempty"`
 }
 
 // Message is the internal representation of message with thread.
@@ -48,8 +58,8 @@ func generateText(w io.Writer, sd *SlackDumper, m []Message, prefix string) erro
 		if prevMsg.User == message.User && diff.Minutes() < minMsgTimeApart {
 			fmt.Fprintf(w, prefix+"%s\n", message.Text)
 		} else {
-			fmt.Fprintf(w, prefix+"\n"+prefix+"> %s @ %s:\n%s\n",
-				sd.GetUserForMessage(&message),
+			fmt.Fprintf(w, prefix+"\n"+prefix+"> %s [%s] @ %s:\n%s\n",
+				sd.GetUserForMessage(&message), message.User,
 				t.Format("02/01/2006 15:04:05 Z0700"),
 				prefix+message.Text,
 			)
@@ -79,4 +89,173 @@ func (sd *SlackDumper) GetUserForMessage(msg *Message) string {
 	}
 
 	return ""
+}
+
+func sortMessages(msgs []Message) {
+	sort.Slice(msgs, func(i, j int) bool {
+		return msgs[i].Timestamp < msgs[j].Timestamp
+	})
+}
+
+// populateThreads scans the message slice for threads, if and when it
+// discovers the message with ThreadTimestamp, it fetches all messages in that
+// thread updating them to the msgs slice.  Returns the count of messages that
+// contained threads.
+//
+// ref: https://api.slack.com/messaging/retrieving
+func (sd *SlackDumper) populateThreads(ctx context.Context, l *rate.Limiter, msgs []Message, channelID string) (int, error) {
+	total := 0
+	for i := range msgs {
+		if msgs[i].ThreadTimestamp == "" {
+			continue
+		}
+		threadMsgs, err := sd.dumpThread(ctx, l, channelID, msgs[i].ThreadTimestamp)
+		if err != nil {
+			return total, err
+		}
+		msgs[i].ThreadReplies = threadMsgs
+		total++
+	}
+	return total, nil
+}
+
+func (sd *SlackDumper) DumpThread(ctx context.Context, channelID, threadTS string) (*Channel, error) {
+	if threadTS == "" || channelID == "" {
+		return nil, errors.New("internal error: channelID and threadTS are empty")
+	}
+
+	msgs, err := sd.dumpThread(ctx, sd.limiter(tier3), channelID, threadTS)
+	if err != nil {
+		return nil, err
+	}
+	var filesC = make(chan *slack.File, 20)
+	dlDoneC, err := sd.newFileDownloader(ctx, sd.limiter(noTier), channelID, filesC)
+	if err != nil {
+		return nil, err
+	}
+	sd.pipeFiles(filesC, msgs)
+	if sd.options.dumpfiles {
+		close(filesC)
+		<-dlDoneC
+	}
+
+	sortMessages(msgs)
+
+	return &Channel{
+		Messages: msgs,
+		ID:       channelID,
+		ThreadTS: threadTS,
+	}, nil
+}
+
+// dumpThread retrieves all messages in the thread and returns them as a slice of
+// messages.
+func (sd *SlackDumper) dumpThread(ctx context.Context, l *rate.Limiter, channelID string, threadTS string) ([]Message, error) {
+	var thread []Message
+
+	var cursor string
+	for {
+		var (
+			msgs       []slack.Message
+			hasmore    bool
+			nextCursor string
+		)
+		if err := withRetry(ctx, l, sd.options.conversationRetries, func() error {
+			var err error
+			trace.WithRegion(ctx, "GetConversationRepliesContext", func() {
+				msgs, hasmore, nextCursor, err = sd.client.GetConversationRepliesContext(
+					ctx,
+					&slack.GetConversationRepliesParameters{ChannelID: channelID, Timestamp: threadTS, Cursor: cursor},
+				)
+			})
+			return err
+		}); err != nil {
+			return nil, err
+		}
+
+		thread = append(thread, sd.convertMsgs(msgs[1:])...) // exclude the first message of the thread, as it's the same as the parent.
+		if !hasmore {
+			break
+		}
+		cursor = nextCursor
+	}
+	return thread, nil
+}
+
+// DumpMessages fetches messages from the conversation identified by channelID.
+func (sd *SlackDumper) DumpMessages(ctx context.Context, channelID string) (*Channel, error) {
+	ctx, task := trace.NewTask(ctx, "DumpMessages")
+	defer task.End()
+
+	var (
+		// slack rate limits are per method, so we're safe to use different limiters for different mehtods.
+		convLimiter   = sd.limiter(tier3)
+		threadLimiter = sd.limiter(tier3)
+		dlLimiter     = sd.limiter(noTier) // go-slack/slack just sends the Post to the file endpoint, so this should work.
+	)
+
+	var filesC = make(chan *slack.File, 20)
+	dlDoneC, err := sd.newFileDownloader(ctx, dlLimiter, channelID, filesC)
+	if err != nil {
+		return nil, err
+	}
+
+	var (
+		messages []Message
+		cursor   string
+	)
+	for i := 1; ; i++ {
+		var resp *slack.GetConversationHistoryResponse
+		if err := withRetry(ctx, convLimiter, sd.options.conversationRetries, func() error {
+			var err error
+			trace.WithRegion(ctx, "GetConversationHistoryContext", func() {
+				resp, err = sd.client.GetConversationHistoryContext(
+					ctx,
+					&slack.GetConversationHistoryParameters{
+						ChannelID: channelID,
+						Cursor:    cursor,
+						Limit:     sd.options.conversationsPerRequest,
+					},
+				)
+			})
+			return err
+		}); err != nil {
+			return nil, err
+		}
+
+		chunk := sd.convertMsgs(resp.Messages)
+		threads, err := sd.populateThreads(ctx, threadLimiter, chunk, channelID)
+		if err != nil {
+			return nil, err
+		}
+		sd.pipeFiles(filesC, chunk)
+		messages = append(messages, chunk...)
+
+		dlog.Printf("request #%5d, fetched: %4d, (with threads: %4d) total: %8d\n",
+			i, len(resp.Messages), threads, len(messages))
+
+		if !resp.HasMore {
+			break
+		}
+
+		cursor = resp.ResponseMetaData.NextCursor
+	}
+
+	if sd.options.dumpfiles {
+		close(filesC)
+		<-dlDoneC
+	}
+
+	sortMessages(messages)
+
+	return &Channel{Messages: messages, ID: channelID}, nil
+}
+
+// convertMsgs converts a slice of slack.Message to []Message.
+func (sd *SlackDumper) convertMsgs(sm []slack.Message) []Message {
+	msgs := make([]Message, len(sm))
+	for i := range sm {
+		msgs[i].Message = sm[i]
+	}
+	return msgs
 }

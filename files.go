@@ -84,7 +84,7 @@ func (sd *SlackDumper) newFileDownloader(ctx context.Context, l *rate.Limiter, d
 	var wg sync.WaitGroup
 	go func() {
 		// create workers
-		for i := 0; i < sd.options.workers; i++ {
+		for i := 0; i < sd.options.downloadWorkers; i++ {
 			wg.Add(1)
 			go func() {
 				sd.worker(ctx, l, dir, seenFilter(toDownload))

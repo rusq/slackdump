@@ -13,15 +13,12 @@ import (
 )
 
 // Channels keeps slice of channels
-type Channels struct {
-	Channels []slack.Channel
-	SD       *SlackDumper
-}
+type Channels []slack.Channel
 
 // getChannels list all conversations for a user.  `chanTypes` specifies
 // the type of messages to fetch.  See github.com/rusq/slack docs for possible
 // values
-func (sd *SlackDumper) getChannels(ctx context.Context, chanTypes []string) (*Channels, error) {
+func (sd *SlackDumper) getChannels(ctx context.Context, chanTypes []string) (Channels, error) {
 	ctx, task := trace.NewTask(ctx, "getChannels")
 	defer task.End()
 
@@ -55,34 +52,34 @@ func (sd *SlackDumper) getChannels(ctx context.Context, chanTypes []string) (*Ch
 		params.Cursor = nextcur
 		limiter.Wait(ctx)
 	}
-	return &Channels{Channels: allChannels, SD: sd}, nil
+	return allChannels, nil
 }
 
 // GetChannels list all conversations for a user.  `chanTypes` specifies
 // the type of messages to fetch.  See github.com/rusq/slack docs for possible
 // values
-func (sd *SlackDumper) GetChannels(ctx context.Context, chanTypes ...string) (*Channels, error) {
+func (sd *SlackDumper) GetChannels(ctx context.Context, chanTypes ...string) (Channels, error) {
 	return sd.getChannels(ctx, chanTypes)
 }
 
 // ToText outputs Channels cs to io.Writer w in Text format.
-func (cs Channels) ToText(w io.Writer) (err error) {
+func (cs Channels) ToText(sd *SlackDumper, w io.Writer) (err error) {
 	const strFormat = "%s\t%s\t%s\t%s\n"
 	writer := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
 	defer writer.Flush()
 	fmt.Fprintf(writer, strFormat, "ID", "Arch", "Saved", "What")
-	for i := range cs.Channels {
-		who := cs.SD.whoThisChannelFor(&cs.Channels[i])
+	for i, ch := range cs {
+		who := sd.whoThisChannelFor(&ch)
 		archived := "-"
-		if cs.Channels[i].IsArchived || cs.SD.IsDeletedUser(cs.Channels[i].User) {
+		if cs[i].IsArchived || sd.IsDeletedUser(ch.User) {
 			archived = "arch"
 		}
 		saved := "-"
-		if _, err := os.Stat(cs.Channels[i].ID + ".json"); err == nil {
+		if _, err := os.Stat(ch.ID + ".json"); err == nil {
 			saved = "saved"
 		}
 
-		fmt.Fprintf(writer, strFormat, cs.Channels[i].ID, archived, saved, who)
+		fmt.Fprintf(writer, strFormat, ch.ID, archived, saved, who)
 	}
 	return nil
 }

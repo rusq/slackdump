@@ -16,22 +16,16 @@ import (
 	"github.com/slack-go/slack"
 )
 
-// cache lifetime
-const (
-	cacheValidFor     = 4 * time.Hour
-	userCacheFilename = "users.json"
-)
-
 // Users keeps slice of users
 type Users []slack.User
 
-// GetUsers retrieve all users and refresh structure User information
+// GetUsers retrieves all users either from cache or from the API.
 func (sd *SlackDumper) GetUsers(ctx context.Context) (Users, error) {
 	// TODO: validate that the cache is from the same workspace, it can be done by team ID.
 	ctx, task := trace.NewTask(ctx, "GetUsers")
 	defer task.End()
 
-	users, err := sd.loadUserCache(userCacheFilename)
+	users, err := sd.loadUserCache(sd.options.userCacheFilename)
 	if err != nil {
 		if os.IsNotExist(err) {
 			dlog.Println("  caching users for the first time")
@@ -42,8 +36,8 @@ func (sd *SlackDumper) GetUsers(ctx context.Context) (Users, error) {
 		if err != nil {
 			return nil, err
 		}
-		if err := sd.saveUserCache(userCacheFilename, users); err != nil {
-			dlog.Printf("error saving user cache to %q: %s, but nevermind, let's continue", userCacheFilename, err)
+		if err := sd.saveUserCache(sd.options.userCacheFilename, users); err != nil {
+			dlog.Printf("error saving user cache to %q: %s, but nevermind, let's continue", sd.options.userCacheFilename, err)
 		}
 	}
 
@@ -101,7 +95,7 @@ func (*SlackDumper) saveUserCache(filename string, uu Users) error {
 	return nil
 }
 
-func (*SlackDumper) validateUserCache(filename string) error {
+func (sd *SlackDumper) validateUserCache(filename string) error {
 	if filename == "" {
 		return errors.New("no user cache filename")
 	}
@@ -112,15 +106,14 @@ func (*SlackDumper) validateUserCache(filename string) error {
 	if fi.Size() == 0 {
 		return errors.New("empty user cache")
 	}
-	if time.Since(fi.ModTime()) > cacheValidFor {
+	if time.Since(fi.ModTime()) > sd.options.maxUserCacheAge {
 		return errors.New("user cache expired")
 	}
 	return nil
 }
 
 // ToText outputs Users us to io.Writer w in Text format
-func (us Users) ToText(w io.Writer) (err error) {
-	//const strFormat = "%-*s (id: %8s) %3s %8s\n"
+func (us Users) ToText(sd *SlackDumper, w io.Writer) (err error) {
 	const strFormat = "%s\t%s\t%s\t%s\n"
 	writer := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
 	defer writer.Flush()
@@ -133,7 +126,6 @@ func (us Users) ToText(w io.Writer) (err error) {
 	}
 	sort.Strings(names)
 
-	// maxNameLen := maxStringLength(names)
 	// header
 	fmt.Fprintf(writer, strFormat, "Name", "ID", "Bot?", "Deleted?")
 	fmt.Fprintf(writer, strFormat, "", "", "", "")

@@ -4,9 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"runtime"
 	"runtime/trace"
-	"sort"
 	"time"
 
 	"github.com/pkg/errors"
@@ -15,12 +13,6 @@ import (
 
 	"github.com/slack-go/slack"
 	"golang.org/x/time/rate"
-)
-
-const (
-	defLimiterBoost       = 0
-	defLimiterBurst       = 1
-	defConversationPerReq = 200
 )
 
 // SlackDumper stores basic session parameters.
@@ -34,97 +26,19 @@ type SlackDumper struct {
 	options options
 }
 
-type options struct {
-	dumpfiles               bool
-	workers                 int
-	conversationRetries     int
-	downloadRetries         int
-	conversationsPerRequest int
-	limiterBoost            uint
-	limiterBurst            uint
-}
-
 var allChanTypes = []string{"mpim", "im", "public_channel", "private_channel"}
 
 // Reporter is an interface defining output functions
 type Reporter interface {
-	ToText(w io.Writer) error
-}
-
-type Option func(*SlackDumper)
-
-// DumpFiles controls the file download behaviour.
-func DumpFiles(b bool) Option {
-	return func(sd *SlackDumper) {
-		sd.options.dumpfiles = b
-	}
-}
-
-// RetryThreads sets the number of attempts when dumping conversations and
-// threads, and getting rate limited.
-func RetryThreads(attempts int) Option {
-	return func(sd *SlackDumper) {
-		if attempts > 0 {
-			sd.options.conversationRetries = attempts
-		}
-	}
-}
-
-// RetryDownloads sets the number of attempts to download a file when getting
-// rate limited.
-func RetryDownloads(attempts int) Option {
-	return func(sd *SlackDumper) {
-		if attempts > 0 {
-			sd.options.downloadRetries = attempts
-		}
-	}
-}
-
-// LimiterBoost allows to deliver a magic kick to the limiter, to override the
-// base slack tier limits.  The resulting
-// events per minute will be calculated like this:
-//
-//   events_per_sec =  (<slack_tier_epm> + <eventsPerMin>) / 60.0
-func LimiterBoost(eventsPerMin uint) Option {
-	return func(sd *SlackDumper) {
-		sd.options.limiterBoost = eventsPerMin
-	}
-}
-
-// LimiterBurst allows to set the limiter burst value.
-func LimiterBurst(eventsPerSec uint) Option {
-	return func(sd *SlackDumper) {
-		sd.options.limiterBurst = eventsPerSec
-	}
-}
-
-const defNumWorkers = 4 // seems reasonable
-
-// NumWorkers allows to set the number of file download workers. n should be in
-// range [1, NumCPU]. If not in range, will be reset to a defNumWorkers number,
-// which seems reasonable.
-func NumWorkers(n int) Option {
-	return func(sd *SlackDumper) {
-		if n < 1 || runtime.NumCPU() < n {
-			n = defNumWorkers
-		}
-		sd.options.workers = n
-	}
+	ToText(sd *SlackDumper, w io.Writer) error
 }
 
 // New creates new client and populates the internal cache of users and channels
 // for lookups.
 func New(ctx context.Context, token string, cookie string, opts ...Option) (*SlackDumper, error) {
 	sd := &SlackDumper{
-		client: slack.New(token, slack.OptionCookie(cookie)),
-		options: options{
-			workers:                 defNumWorkers,
-			conversationRetries:     3,
-			downloadRetries:         3,
-			limiterBoost:            defLimiterBoost,
-			limiterBurst:            defLimiterBurst,
-			conversationsPerRequest: defConversationPerReq,
-		},
+		client:  slack.New(token, slack.OptionCookie(cookie)),
+		options: defOptions,
 	}
 	for _, opt := range opts {
 		opt(sd)
@@ -151,87 +65,6 @@ func (sd *SlackDumper) limiter(t tier) *rate.Limiter {
 	return newLimiter(t, sd.options.limiterBurst, int(sd.options.limiterBoost))
 }
 
-// DumpMessages fetches messages from the conversation identified by channelID.
-func (sd *SlackDumper) DumpMessages(ctx context.Context, channelID string) (*Channel, error) {
-	ctx, task := trace.NewTask(ctx, "DumpMessages")
-	defer task.End()
-
-	var filesC = make(chan *slack.File, 20)
-
-	var (
-		// slack rate limits are per method, so we're safe to use different limiters for different mehtods.
-		convLimiter   = sd.limiter(tier3)
-		threadLimiter = sd.limiter(tier3)
-		dlLimiter     = sd.limiter(noTier) // go-slack/slack just sends the Post to the file endpoint, so this should work.
-	)
-
-	dlDoneC, err := sd.newFileDownloader(ctx, dlLimiter, channelID, filesC)
-	if err != nil {
-		return nil, err
-	}
-
-	var (
-		messages []Message
-		cursor   string
-	)
-	for i := 1; ; i++ {
-		var resp *slack.GetConversationHistoryResponse
-		if err := withRetry(ctx, convLimiter, sd.options.conversationRetries, func() error {
-			var err error
-			trace.WithRegion(ctx, "GetConversationHistoryContext", func() {
-				resp, err = sd.client.GetConversationHistoryContext(
-					ctx,
-					&slack.GetConversationHistoryParameters{
-						ChannelID: channelID,
-						Cursor:    cursor,
-						Limit:     sd.options.conversationsPerRequest,
-					},
-				)
-			})
-			return err
-		}); err != nil {
-			return nil, err
-		}
-
-		chunk := sd.convertMsgs(resp.Messages)
-		threads, err := sd.populateThreads(ctx, threadLimiter, chunk, channelID)
-		if err != nil {
-			return nil, err
-		}
-		sd.pipeFiles(filesC, chunk)
-		messages = append(messages, chunk...)
-
-		dlog.Printf("request #%5d, fetched: %4d, (with threads: %4d) total: %8d\n",
-			i, len(resp.Messages), threads, len(messages))
-
-		if !resp.HasMore {
-			break
-		}
-
-		cursor = resp.ResponseMetaData.NextCursor
-	}
-
-	sort.Slice(messages, func(i, j int) bool {
-		return messages[i].Timestamp < messages[j].Timestamp
-	})
-
-	if sd.options.dumpfiles {
-		close(filesC)
-		<-dlDoneC
-	}
-
-	return &Channel{Messages: messages, ID: channelID}, nil
-}
-
-// convertMsgs converts a slice of slack.Message to []Message.
-func (sd *SlackDumper) convertMsgs(sm []slack.Message) []Message {
-	msgs := make([]Message, len(sm))
-	for i := range sm {
-		msgs[i].Message = sm[i]
-	}
-	return msgs
-}
-
 // pipeFiles scans the messages and sends all the files discovered to the filesC.
 func (sd *SlackDumper) pipeFiles(filesC chan<- *slack.File, msgs []Message) {
 	if !sd.options.dumpfiles {
@@ -242,62 +75,6 @@ func (sd *SlackDumper) pipeFiles(filesC chan<- *slack.File, msgs []Message) {
 	for i := range fileChunk {
 		filesC <- &fileChunk[i]
 	}
-}
-
-// populateThreads scans the message slice for threads, if and when it
-// discovers the message with ThreadTimestamp, it fetches all messages in that
-// thread updating them to the msgs slice.  Returns the count of messages that
-// contained threads.
-//
-// ref: https://api.slack.com/messaging/retrieving
-func (sd *SlackDumper) populateThreads(ctx context.Context, l *rate.Limiter, msgs []Message, channelID string) (int, error) {
-	total := 0
-	for i := range msgs {
-		if msgs[i].ThreadTimestamp == "" {
-			continue
-		}
-		threadMsgs, err := sd.dumpThread(ctx, l, channelID, msgs[i].ThreadTimestamp)
-		if err != nil {
-			return total, err
-		}
-		msgs[i].ThreadReplies = threadMsgs
-		total++
-	}
-	return total, nil
-}
-
-// dumpThread retrieves all messages in the thread and returns them as a slice of
-// messages.
-func (sd *SlackDumper) dumpThread(ctx context.Context, l *rate.Limiter, channelID string, threadTS string) ([]Message, error) {
-	var thread []Message
-
-	var cursor string
-	for {
-		var (
-			msgs       []slack.Message
-			hasmore    bool
-			nextCursor string
-		)
-		if err := withRetry(ctx, l, sd.options.conversationRetries, func() error {
-			var err error
-			trace.WithRegion(ctx, "GetConversationRepliesContext", func() {
-				msgs, hasmore, nextCursor, err = sd.client.GetConversationRepliesContext(
-					ctx,
-					&slack.GetConversationRepliesParameters{ChannelID: channelID, Timestamp: threadTS, Cursor: cursor},
-				)
-			})
-			return err
-		}); err != nil {
-			return nil, err
-		}
-
-		thread = append(thread, sd.convertMsgs(msgs[1:])...) // exclude the first message of the thread, as it's the same as the parent.
-		if !hasmore {
-			break
-		}
-		cursor = nextCursor
-	}
-	return thread, nil
 }
 
 var ErrRetryFailed = errors.New("callback was not able to complete without errors within the allowed retries count")
