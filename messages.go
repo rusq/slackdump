@@ -114,7 +114,7 @@ func (sd *SlackDumper) DumpMessages(ctx context.Context, channelID string) (*Con
 					},
 				)
 			})
-			return err
+			return errors.WithStack(err)
 		}); err != nil {
 			return nil, err
 		}
@@ -238,24 +238,11 @@ func (sd *SlackDumper) DumpThread(ctx context.Context, channelID, threadTS strin
 	}
 
 	// get first message of the thread
-	var firstMsg []Message
-	if err := withRetry(ctx, sd.limiter(tier3), sd.options.conversationRetries, func() error {
-		resp, err := sd.client.GetConversationHistoryContext(ctx, &slack.GetConversationHistoryParameters{
-			ChannelID: channelID,
-			Latest:    threadTS,
-			Limit:     1,
-			Inclusive: true,
-		})
-		if err != nil {
-			dlog.Debugf("unable to get the first message for channel %q thread TS %q", channelID, threadTS)
-			return errors.WithStack(err)
-		}
-		firstMsg = sd.convertMsgs(resp.Messages)
-		return nil
-	}); err != nil {
+	leadMsg, err := sd.threadLeadMessage(ctx, sd.limiter(tier3), channelID, threadTS)
+	if err != nil {
 		return nil, err
 	}
-	threadMsgs = append(firstMsg, threadMsgs...)
+	threadMsgs = append([]Message{leadMsg}, threadMsgs...)
 
 	sd.pipeFiles(filesC, threadMsgs)
 	if sd.options.dumpfiles {
@@ -272,8 +259,34 @@ func (sd *SlackDumper) DumpThread(ctx context.Context, channelID, threadTS strin
 	}, nil
 }
 
+// threadLeadMessage gets the leading message for the thread.  When
+// Conversation.Replies is called, it won't have the leading message (the one
+// which has started the conversation), so this should be called to get the
+// first message.
+func (sd *SlackDumper) threadLeadMessage(ctx context.Context, l *rate.Limiter, channelID, threadTS string) (Message, error) {
+	var leadMsg Message
+	if err := withRetry(ctx, l, sd.options.conversationRetries, func() error {
+		resp, err := sd.client.GetConversationHistoryContext(ctx, &slack.GetConversationHistoryParameters{
+			ChannelID: channelID,
+			Latest:    threadTS,
+			Limit:     1,
+			Inclusive: true,
+		})
+		if err != nil {
+			dlog.Debugf("unable to get the first message for channel %q thread TS %q", channelID, threadTS)
+			return errors.WithStack(err)
+		}
+		leadMsg = sd.convertMsgs(resp.Messages)[0]
+		return nil
+	}); err != nil {
+		return Message{}, err
+	}
+	return leadMsg, nil
+}
+
 // dumpThread retrieves all messages in the thread and returns them as a slice of
-// messages.
+// messages.  It will not retrieve the leading message of the thread (the one that is in the main channel).  In order to retrieve
+// the leading message, call getLeadMessage.
 func (sd *SlackDumper) dumpThread(ctx context.Context, l *rate.Limiter, channelID string, threadTS string) ([]Message, error) {
 	var thread []Message
 
@@ -292,7 +305,7 @@ func (sd *SlackDumper) dumpThread(ctx context.Context, l *rate.Limiter, channelI
 					&slack.GetConversationRepliesParameters{ChannelID: channelID, Timestamp: threadTS, Cursor: cursor},
 				)
 			})
-			return err
+			return errors.WithStack(err)
 		}); err != nil {
 			return nil, err
 		}

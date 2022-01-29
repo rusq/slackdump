@@ -22,8 +22,10 @@ const (
 )
 
 const (
-	defBoost = 120 // this seemed to be a safe value to use without getting rate limited after 1000 messages with threads.
-	defBurst = 1
+	defBoost         = 120 // this seemed to be a safe value to use without getting rate limited after 1000 messages with threads.
+	defBurst         = 1
+	defCacheLifetime = 4 * time.Hour
+	defUserCacheFile = "users.json"
 )
 
 var build = "dev"
@@ -124,7 +126,7 @@ func parseCmdLine(args []string) (params, error) {
 
 	fs.BoolVar(&p.appCfg.Input.DownloadFiles, "f", false, "enable files download")
 	fs.BoolVar(&p.appCfg.Input.TreatAsURL, "url", false, "treads the input as URLs instead of IDs")
-	fs.StringVar(&p.appCfg.Input.Filename, "list-file", "", "file with Channel IDs or URLs to download, one per line")
+	fs.StringVar(&p.appCfg.Input.Filename, "i", "", "specify `input file` with Channel IDs or URLs to be used instead of giving the list on the command line, one per line.\nUse \"-\" to read the file from STDIN.")
 
 	fs.UintVar(&p.appCfg.Boost, "limiter-boost", defBoost, "rate limiter boost in `events` per minute, will be added to the\nbase slack tier event per minute value.")
 	fs.UintVar(&p.appCfg.Burst, "limiter-burst", defBurst, "allow up to `N` burst events per second.  Default value is safe.")
@@ -132,8 +134,8 @@ func parseCmdLine(args []string) (params, error) {
 	fs.StringVar(&p.appCfg.Output.Filename, "o", "-", "Output `filename` for users and channels.  Use '-' for standard\nOutput.")
 	fs.StringVar(&p.appCfg.Output.Format, "r", "", "report `format`.  One of 'json' or 'text'")
 
-	fs.DurationVar(&p.appCfg.MaxUserCacheAge, "user-cache-age", 4*time.Hour, "user cache lifetime `duration`. Set this to 0 to disable cache")
-	fs.StringVar(&p.appCfg.UserCacheFilename, "user-cache-file", "users.json", "user cache file`name`")
+	fs.DurationVar(&p.appCfg.MaxUserCacheAge, "user-cache-age", defCacheLifetime, "user cache lifetime `duration`. Set this to 0 to disable cache")
+	fs.StringVar(&p.appCfg.UserCacheFilename, "user-cache-file", defUserCacheFile, "user cache file`name`")
 
 	// main parameters
 	fs.StringVar(&p.traceFile, "trace", os.Getenv("TRACE_FILE"), "trace `file` (optional)")

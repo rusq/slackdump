@@ -168,13 +168,23 @@ func (app *App) listEntities(ctx context.Context) error {
 }
 
 // createFile creates the file, or opens the Stdout, if the filename is "-".
-// It will return an error, if the things go pear-shaped.
+// It will return an error, if things go pear-shaped.
 func createFile(filename string) (f io.WriteCloser, err error) {
 	if filename == "-" {
 		f = os.Stdout
 		return
 	}
 	return os.Create(filename)
+}
+
+// openFile opens the file, or opens the Stdin, if the filename is "-".
+// It will return an error, if shit happens.
+func openFile(filename string) (f io.ReadCloser, err error) {
+	if filename == "-" {
+		f = os.Stdin
+		return
+	}
+	return os.Open(filename)
 }
 
 // fetchEntity retrieves the data from the API according to the ListFlags.

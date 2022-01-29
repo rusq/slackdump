@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"strings"
 	"time"
 )
@@ -64,7 +63,7 @@ func (in Input) fileProducer(fn func(string) error) error {
 	if !in.IsValid() {
 		return ErrInvalidInput
 	}
-	f, err := os.Open(in.Filename)
+	f, err := openFile(in.Filename)
 	if err != nil {
 		return err
 	}
