@@ -15,19 +15,35 @@ import (
 	"golang.org/x/time/rate"
 )
 
-// minMsgTimeApart defines the time interval in minutes to separate group
-// of messages from a single user in the conversation.  This increases the
-// readability of the text output.
-const minMsgTimeApart = 2
+const (
+	// minMsgTimeApart defines the time interval in minutes to separate group
+	// of messages from a single user in the conversation.  This increases the
+	// readability of the text output.
+	minMsgTimeApart = 2
+	// files channel buffer size. I don't know, i just like 20, doesn't really matter.
+	filesCbufSz = 20
+)
 
 // Channel keeps the slice of messages.
-type Channel struct {
+//
+// Deprecated: use Conversation instead.
+type Channel = Conversation
+
+// Conversation keeps the slice of messages.
+type Conversation struct {
 	Messages []Message `json:"messages"`
 	// ID is the channel ID.
 	ID string `json:"channel_id"`
 	// ThreadTS is a thread timestamp.  If it's not empty, it means that it's a
 	// dump of a thread, not a channel.
 	ThreadTS string `json:"thread_ts,omitempty"`
+}
+
+func (c Conversation) String() string {
+	if c.ThreadTS == "" {
+		return c.ID
+	}
+	return c.ID + "-" + c.ThreadTS
 }
 
 // Message is the internal representation of message with thread.
@@ -37,11 +53,98 @@ type Message struct {
 }
 
 // ToText outputs Messages m to io.Writer w in text format.
-func (m Channel) ToText(sd *SlackDumper, w io.Writer) (err error) {
+func (m Conversation) ToText(sd *SlackDumper, w io.Writer) (err error) {
 	writer := bufio.NewWriter(w)
 	defer writer.Flush()
 
 	return generateText(w, sd, m.Messages, "")
+}
+
+// DumpURL dumps messages from the slack URL, it supports conversations and individual threads.
+func (sd *SlackDumper) DumpURL(ctx context.Context, slackURL string) (*Conversation, error) {
+	ui, err := ParseURL(slackURL)
+	if err != nil {
+		return nil, err
+	}
+	if !ui.IsValid() {
+		return nil, fmt.Errorf("invalid URL: %q", slackURL)
+	}
+
+	if ui.IsThread() {
+		return sd.DumpThread(ctx, ui.Channel, ui.Thread)
+	} else {
+		return sd.DumpMessages(ctx, ui.Channel)
+	}
+	// unreachable
+}
+
+// DumpMessages fetches messages from the conversation identified by channelID.
+func (sd *SlackDumper) DumpMessages(ctx context.Context, channelID string) (*Conversation, error) {
+	ctx, task := trace.NewTask(ctx, "DumpMessages")
+	defer task.End()
+
+	var (
+		// slack rate limits are per method, so we're safe to use different limiters for different mehtods.
+		convLimiter   = sd.limiter(tier3)
+		threadLimiter = sd.limiter(tier3)
+		dlLimiter     = sd.limiter(noTier) // go-slack/slack just sends the Post to the file endpoint, so this should work.
+	)
+
+	var filesC = make(chan *slack.File, filesCbufSz)
+	dlDoneC, err := sd.newFileDownloader(ctx, dlLimiter, channelID, filesC)
+	if err != nil {
+		return nil, err
+	}
+
+	var (
+		messages []Message
+		cursor   string
+	)
+	for i := 1; ; i++ {
+		var resp *slack.GetConversationHistoryResponse
+		if err := withRetry(ctx, convLimiter, sd.options.conversationRetries, func() error {
+			var err error
+			trace.WithRegion(ctx, "GetConversationHistoryContext", func() {
+				resp, err = sd.client.GetConversationHistoryContext(
+					ctx,
+					&slack.GetConversationHistoryParameters{
+						ChannelID: channelID,
+						Cursor:    cursor,
+						Limit:     sd.options.conversationsPerRequest,
+					},
+				)
+			})
+			return err
+		}); err != nil {
+			return nil, err
+		}
+
+		chunk := sd.convertMsgs(resp.Messages)
+		threads, err := sd.populateThreads(ctx, threadLimiter, chunk, channelID)
+		if err != nil {
+			return nil, err
+		}
+		sd.pipeFiles(filesC, chunk)
+		messages = append(messages, chunk...)
+
+		dlog.Printf("request #%5d, fetched: %4d, (with threads: %4d) total: %8d\n",
+			i, len(resp.Messages), threads, len(messages))
+
+		if !resp.HasMore {
+			break
+		}
+
+		cursor = resp.ResponseMetaData.NextCursor
+	}
+
+	if sd.options.dumpfiles {
+		close(filesC)
+		<-dlDoneC
+	}
+
+	sortMessages(messages)
+
+	return &Conversation{Messages: messages, ID: channelID}, nil
 }
 
 func generateText(w io.Writer, sd *SlackDumper, m []Message, prefix string) error {
@@ -119,30 +222,30 @@ func (sd *SlackDumper) populateThreads(ctx context.Context, l *rate.Limiter, msg
 	return total, nil
 }
 
-func (sd *SlackDumper) DumpThread(ctx context.Context, channelID, threadTS string) (*Channel, error) {
+func (sd *SlackDumper) DumpThread(ctx context.Context, channelID, threadTS string) (*Conversation, error) {
 	if threadTS == "" || channelID == "" {
 		return nil, errors.New("internal error: channelID and threadTS are empty")
 	}
 
-	msgs, err := sd.dumpThread(ctx, sd.limiter(tier3), channelID, threadTS)
+	threadMsgs, err := sd.dumpThread(ctx, sd.limiter(tier3), channelID, threadTS)
 	if err != nil {
 		return nil, err
 	}
-	var filesC = make(chan *slack.File, 20)
+	var filesC = make(chan *slack.File, filesCbufSz)
 	dlDoneC, err := sd.newFileDownloader(ctx, sd.limiter(noTier), channelID, filesC)
 	if err != nil {
 		return nil, err
 	}
-	sd.pipeFiles(filesC, msgs)
+	sd.pipeFiles(filesC, threadMsgs)
 	if sd.options.dumpfiles {
 		close(filesC)
 		<-dlDoneC
 	}
 
-	sortMessages(msgs)
+	sortMessages(threadMsgs)
 
-	return &Channel{
-		Messages: msgs,
+	return &Conversation{
+		Messages: threadMsgs,
 		ID:       channelID,
 		ThreadTS: threadTS,
 	}, nil
@@ -180,75 +283,6 @@ func (sd *SlackDumper) dumpThread(ctx context.Context, l *rate.Limiter, channelI
 		cursor = nextCursor
 	}
 	return thread, nil
-}
-
-// DumpMessages fetches messages from the conversation identified by channelID.
-func (sd *SlackDumper) DumpMessages(ctx context.Context, channelID string) (*Channel, error) {
-	ctx, task := trace.NewTask(ctx, "DumpMessages")
-	defer task.End()
-
-	var (
-		// slack rate limits are per method, so we're safe to use different limiters for different mehtods.
-		convLimiter   = sd.limiter(tier3)
-		threadLimiter = sd.limiter(tier3)
-		dlLimiter     = sd.limiter(noTier) // go-slack/slack just sends the Post to the file endpoint, so this should work.
-	)
-
-	var filesC = make(chan *slack.File, 20)
-	dlDoneC, err := sd.newFileDownloader(ctx, dlLimiter, channelID, filesC)
-	if err != nil {
-		return nil, err
-	}
-
-	var (
-		messages []Message
-		cursor   string
-	)
-	for i := 1; ; i++ {
-		var resp *slack.GetConversationHistoryResponse
-		if err := withRetry(ctx, convLimiter, sd.options.conversationRetries, func() error {
-			var err error
-			trace.WithRegion(ctx, "GetConversationHistoryContext", func() {
-				resp, err = sd.client.GetConversationHistoryContext(
-					ctx,
-					&slack.GetConversationHistoryParameters{
-						ChannelID: channelID,
-						Cursor:    cursor,
-						Limit:     sd.options.conversationsPerRequest,
-					},
-				)
-			})
-			return err
-		}); err != nil {
-			return nil, err
-		}
-
-		chunk := sd.convertMsgs(resp.Messages)
-		threads, err := sd.populateThreads(ctx, threadLimiter, chunk, channelID)
-		if err != nil {
-			return nil, err
-		}
-		sd.pipeFiles(filesC, chunk)
-		messages = append(messages, chunk...)
-
-		dlog.Printf("request #%5d, fetched: %4d, (with threads: %4d) total: %8d\n",
-			i, len(resp.Messages), threads, len(messages))
-
-		if !resp.HasMore {
-			break
-		}
-
-		cursor = resp.ResponseMetaData.NextCursor
-	}
-
-	if sd.options.dumpfiles {
-		close(filesC)
-		<-dlDoneC
-	}
-
-	sortMessages(messages)
-
-	return &Channel{Messages: messages, ID: channelID}, nil
 }
 
 // convertMsgs converts a slice of slack.Message to []Message.

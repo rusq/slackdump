@@ -35,8 +35,8 @@ var defOptions = options{
 // Option is the signature of the option-setting function.
 type Option func(*SlackDumper)
 
-// DumpFiles enables or disables the conversation/thread file downloads.
-func DumpFiles(b bool) Option {
+// DownloadFiles enables or disables the conversation/thread file downloads.
+func DownloadFiles(b bool) Option {
 	return func(sd *SlackDumper) {
 		sd.options.dumpfiles = b
 	}

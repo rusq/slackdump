@@ -4,10 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"os"
-	"strings"
 
 	"github.com/rusq/dlog"
 	"github.com/rusq/slackdump"
@@ -35,8 +33,11 @@ func (app *App) init(ctx context.Context) error {
 		ctx,
 		app.cfg.Creds.Token,
 		app.cfg.Creds.Cookie,
-		slackdump.DumpFiles(app.cfg.IncludeFiles),
+		slackdump.DownloadFiles(app.cfg.Input.DownloadFiles),
 		slackdump.LimiterBoost(app.cfg.Boost),
+		slackdump.LimiterBurst(app.cfg.Burst),
+		slackdump.MaxUserCacheAge(app.cfg.MaxUserCacheAge),
+		slackdump.UserCacheFilename(app.cfg.UserCacheFilename),
 	)
 	if err != nil {
 		return err
@@ -52,47 +53,20 @@ func (app *App) Run(ctx context.Context) error {
 
 	if app.cfg.ListFlags.FlagsPresent() {
 		return app.listEntities(ctx)
-	}
-
-	n, err := app.dumpChannels(ctx, app.cfg.ChannelIDs)
-	if err != nil {
-		return err
-	}
-	dlog.Printf("job finished, dumped %d channels", n)
-	return nil
-}
-
-// Validate checks if the command line parameters have valid values.
-func (p *Config) Validate() error {
-	if !p.Creds.Valid() {
-		return fmt.Errorf("slack token or cookie not specified")
-	}
-
-	if len(p.ChannelIDs) == 0 && !p.ListFlags.FlagsPresent() {
-		return fmt.Errorf("no ListFlags flags specified and no channels to export")
-	}
-	p.Creds.Cookie = strings.TrimPrefix(p.Creds.Cookie, "d=")
-
-	// channels and users listings will be in the text format (if not specified otherwise)
-	if p.Output.Format == "" {
-		if p.ListFlags.FlagsPresent() {
-			p.Output.Format = OutputTypeText
-		} else {
-			p.Output.Format = OutputTypeJSON
+	} else {
+		n, err := app.dump(ctx, app.cfg.Input)
+		if err != nil {
+			return err
 		}
+		dlog.Printf("job finished, dumped %d channels", n)
 	}
-
-	if !p.ListFlags.FlagsPresent() && !p.Output.FormatValid() {
-		return fmt.Errorf("invalid Output type: %q, must use one of %v", p.Output.Format, []string{OutputTypeJSON, OutputTypeText})
-	}
-
 	return nil
 }
 
-// dumpChannels dumps the channels with ids, if dumpfiles is true, it will save
-// the files into a respective directory with ID of the channel as the name.  If
-// generateText is true, it will additionally format the conversation as text
-// file and write it to <ID>.txt file.
+// dump dumps the input, if dumpfiles is true, it will save the files into a
+// respective directory with ID of the channel as the name.  If generateText is
+// true, it will additionally format the conversation as text file and write it
+// to <ID>.txt file.
 //
 // The result of the work of this function, for each channel ID, the following
 // files will be created:
@@ -104,41 +78,56 @@ func (p *Config) Validate() error {
 //    +--<ID>.json - json file with conversation and users
 //    +--<ID>.txt  - formatted conversation in text format, if generateText is true.
 //
-func (app *App) dumpChannels(ctx context.Context, ids []string) (int, error) {
-	var total int
-	for _, ch := range ids {
-		dlog.Printf("dumping channel: %q", ch)
-
-		if err := app.dumpOneChannel(ctx, ch); err != nil {
-			dlog.Printf("channel %q: %s", ch, err)
-			continue
+func (app *App) dump(ctx context.Context, input Input) (int, error) {
+	if !input.IsValid() {
+		return 0, errors.New("no valid input")
+	}
+	var dumpFn dumpFunc
+	if input.TreatAsURL {
+		dumpFn = app.sd.DumpURL
+	} else {
+		dumpFn = app.sd.DumpMessages
+	}
+	total := 0
+	if err := input.producer(func(s string) error {
+		if err := app.dumpOne(ctx, s, dumpFn); err != nil {
+			return errSkip
 		}
-
 		total++
+		return nil
+	}); err != nil {
+		return total, err
 	}
 	return total, nil
 }
 
+type dumpFunc func(context.Context, string) (*slackdump.Conversation, error)
+
 // dumpOneChannel dumps just one channel having ID = id.  If generateText is
 // true, it will also generate a ID.txt text file.
-func (app *App) dumpOneChannel(ctx context.Context, id string) error {
-	f, err := os.Create(id + ".json")
+func (app *App) dumpOne(ctx context.Context, s string, fn dumpFunc) error {
+	cnv, err := fn(ctx, s)
+	if err != nil {
+		return err
+	}
+
+	return app.writeFile(cnv.String(), cnv)
+}
+
+func (app *App) writeFile(name string, cnv *slackdump.Conversation) error {
+	f, err := os.Create(name + ".json")
 	if err != nil {
 		return err
 	}
 	defer f.Close()
 
-	m, err := app.sd.DumpMessages(ctx, id)
-	if err != nil {
-		return err
-	}
 	enc := json.NewEncoder(f)
 	enc.SetIndent("", "  ")
-	if err := enc.Encode(m); err != nil {
+	if err := enc.Encode(cnv); err != nil {
 		return err
 	}
 	if app.cfg.Output.IsText() {
-		if err := app.saveText(m.ID+".txt", m); err != nil {
+		if err := app.saveText(name+".txt", cnv); err != nil {
 			dlog.Printf("error creating text file: %s", err)
 		}
 	}
@@ -146,7 +135,7 @@ func (app *App) dumpOneChannel(ctx context.Context, id string) error {
 	return nil
 }
 
-func (app *App) saveText(filename string, m *slackdump.Channel) error {
+func (app *App) saveText(filename string, m *slackdump.Conversation) error {
 	dlog.Printf("generating %s", filename)
 	f, err := os.Create(filename)
 	if err != nil {

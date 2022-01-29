@@ -107,15 +107,22 @@ func parseCmdLine(args []string) (params, error) {
 	}
 
 	var p params
-	fs.BoolVar(&p.appCfg.ListFlags.Channels, "c", false, "ListFlags channels (aka conversations) and their IDs for export.")
-	fs.BoolVar(&p.appCfg.ListFlags.Users, "u", false, "ListFlags users and their IDs. ")
-	fs.BoolVar(&p.appCfg.IncludeFiles, "f", false, "enable files download")
-	fs.UintVar(&p.appCfg.Boost, "limiter-boost", defBoost, "rate limiter boost in `events` per minute, will be added to the\nbase slack tier event per minute value.")
-	fs.UintVar(&p.appCfg.Burst, "limiter-burst", defBurst, "allow up to `N` burst events per second.  Default value is safe.")
-	fs.StringVar(&p.appCfg.Output.Filename, "o", "-", "Output `filename` for users and channels.  Use '-' for standard\nOutput.")
-	fs.StringVar(&p.appCfg.Output.Format, "r", "", "report `format`.  One of 'json' or 'text'")
 	fs.StringVar(&p.appCfg.Creds.Token, "t", os.Getenv(slackTokenEnv), "Specify slack `API_token`, (environment: "+slackTokenEnv+")")
 	fs.StringVar(&p.appCfg.Creds.Cookie, "cookie", os.Getenv(slackCookieEnv), "d= cookie `value` (environment: "+slackCookieEnv+")")
+
+	fs.BoolVar(&p.appCfg.ListFlags.Channels, "c", false, "list channels (aka conversations) and their IDs for export.")
+	fs.BoolVar(&p.appCfg.ListFlags.Users, "u", false, "list users and their IDs. ")
+
+	fs.BoolVar(&p.appCfg.Input.DownloadFiles, "f", false, "enable files download")
+	fs.BoolVar(&p.appCfg.Input.TreatAsURL, "url", false, "treads the input as URLs instead of IDs")
+	fs.StringVar(&p.appCfg.Input.Filename, "list-file", "", "file with Channel IDs or URLs to download, one per line")
+
+	fs.UintVar(&p.appCfg.Boost, "limiter-boost", defBoost, "rate limiter boost in `events` per minute, will be added to the\nbase slack tier event per minute value.")
+	fs.UintVar(&p.appCfg.Burst, "limiter-burst", defBurst, "allow up to `N` burst events per second.  Default value is safe.")
+
+	fs.StringVar(&p.appCfg.Output.Filename, "o", "-", "Output `filename` for users and channels.  Use '-' for standard\nOutput.")
+	fs.StringVar(&p.appCfg.Output.Format, "r", "", "report `format`.  One of 'json' or 'text'")
+
 	fs.StringVar(&p.traceFile, "trace", os.Getenv("TRACE_FILE"), "trace `file` (optional)")
 	fs.BoolVar(&p.printVersion, "V", false, "print version and exit")
 
@@ -126,7 +133,7 @@ func parseCmdLine(args []string) (params, error) {
 		return p, err
 	}
 
-	p.appCfg.ChannelIDs = fs.Args()
+	p.appCfg.Input.List = fs.Args()
 
 	return p, p.validate()
 }
