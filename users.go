@@ -9,6 +9,7 @@ import (
 	"runtime/trace"
 	"sort"
 	"text/tabwriter"
+	"time"
 
 	"github.com/rusq/dlog"
 	"github.com/slack-go/slack"
@@ -23,7 +24,7 @@ func (sd *SlackDumper) GetUsers(ctx context.Context) (Users, error) {
 	ctx, task := trace.NewTask(ctx, "GetUsers")
 	defer task.End()
 
-	users, err := sd.loadUserCache(sd.options.userCacheFilename)
+	users, err := sd.loadUserCache(sd.options.userCacheFilename, sd.options.maxUserCacheAge)
 	if err != nil {
 		if os.IsNotExist(err) {
 			dlog.Println("  caching users for the first time")
@@ -58,8 +59,8 @@ func (sd *SlackDumper) fetchUsers(ctx context.Context) (Users, error) {
 }
 
 // loadUsers tries to load the users from the file
-func (sd *SlackDumper) loadUserCache(filename string) (Users, error) {
-	if err := checkCacheFile(filename, sd.options.maxUserCacheAge); err != nil {
+func (*SlackDumper) loadUserCache(filename string, maxAge time.Duration) (Users, error) {
+	if err := checkCacheFile(filename, maxAge); err != nil {
 		return nil, err
 	}
 	f, err := os.Open(filename)

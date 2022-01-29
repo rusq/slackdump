@@ -172,6 +172,7 @@ func TestSlackDumper_loadUserCache(t *testing.T) {
 	}
 	type args struct {
 		filename string
+		maxAge   time.Duration
 	}
 	tests := []struct {
 		name    string
@@ -180,17 +181,31 @@ func TestSlackDumper_loadUserCache(t *testing.T) {
 		want    Users
 		wantErr bool
 	}{
-		// TODO: Add test cases.
+		{
+			"loads the cache ok",
+			fields{},
+			args{gimmeTempFileWithUsers(t), 5 * time.Hour},
+			testUsers,
+			false,
+		},
+		{
+			"no data",
+			fields{},
+			args{gimmeTempFile(t), 5 * time.Hour},
+			nil,
+			true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			defer os.Remove(tt.args.filename)
 			sd := &SlackDumper{
 				client:    tt.fields.client,
 				Users:     tt.fields.Users,
 				UserIndex: tt.fields.UserIndex,
 				options:   tt.fields.options,
 			}
-			got, err := sd.loadUserCache(tt.args.filename)
+			got, err := sd.loadUserCache(tt.args.filename, tt.args.maxAge)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("SlackDumper.loadUserCache() error = %v, wantErr %v", err, tt.wantErr)
 				return
