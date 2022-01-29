@@ -6,7 +6,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang/mock/gomock"
 	"github.com/pkg/errors"
+	"github.com/rusq/slackdump/internal/mock_os"
 	"github.com/slack-go/slack"
 	"golang.org/x/time/rate"
 )
@@ -197,5 +199,77 @@ func retryFn(numAttempts int, retryAfter time.Duration, err error) func() error 
 			return &slack.RateLimitedError{RetryAfter: retryAfter}
 		}
 		return err
+	}
+}
+
+func Test_validateFileStats(t *testing.T) {
+	type args struct {
+		maxAge time.Duration
+	}
+	tests := []struct {
+		name     string
+		args     args
+		expectFn func(mfi *mock_os.MockFileInfo)
+		wantErr  bool
+	}{
+		{
+			"ok",
+			args{5 * time.Hour},
+			func(mfi *mock_os.MockFileInfo) {
+				mfi.EXPECT().IsDir().Return(false)
+				mfi.EXPECT().Size().Return(int64(42))
+				mfi.EXPECT().ModTime().Return(time.Now())
+			},
+			false,
+		},
+		{
+			"is dir",
+			args{5 * time.Hour},
+			func(mfi *mock_os.MockFileInfo) {
+				mfi.EXPECT().IsDir().Return(true)
+			},
+			true,
+		},
+		{
+			"too smol",
+			args{5 * time.Hour},
+			func(mfi *mock_os.MockFileInfo) {
+				mfi.EXPECT().IsDir().Return(false)
+				mfi.EXPECT().Size().Return(int64(0))
+			},
+			true,
+		},
+		{
+			"too old",
+			args{5 * time.Hour},
+			func(mfi *mock_os.MockFileInfo) {
+				mfi.EXPECT().IsDir().Return(false)
+				mfi.EXPECT().Size().Return(int64(42))
+				mfi.EXPECT().ModTime().Return(time.Now().Add(-10 * time.Hour))
+			},
+			true,
+		},
+		{
+			"disabled",
+			args{0 * time.Hour},
+			func(mfi *mock_os.MockFileInfo) {
+				mfi.EXPECT().IsDir().Return(false)
+				mfi.EXPECT().Size().Return(int64(42))
+				mfi.EXPECT().ModTime().Return(time.Now().Add(-1 * time.Nanosecond))
+			},
+			true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			mfi := mock_os.NewMockFileInfo(ctrl)
+
+			tt.expectFn(mfi)
+
+			if err := validateFileStats(mfi, tt.args.maxAge); (err != nil) != tt.wantErr {
+				t.Errorf("validateFileStats() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
 	}
 }

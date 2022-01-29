@@ -71,7 +71,7 @@ func (cs Channels) ToText(sd *SlackDumper, w io.Writer) (err error) {
 	for i, ch := range cs {
 		who := sd.whoThisChannelFor(&ch)
 		archived := "-"
-		if cs[i].IsArchived || sd.IsDeletedUser(ch.User) {
+		if cs[i].IsArchived || sd.IsUserDeleted(ch.User) {
 			archived = "arch"
 		}
 		saved := "-"

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
 	"runtime/trace"
 	"strconv"
 	"strings"
@@ -18,15 +19,26 @@ import (
 	"golang.org/x/time/rate"
 )
 
+//go:generate mockgen -destination internal/mock_os/mock_os.go os FileInfo
+//go:generate mockgen -source slackdump.go -package slackdump -destination clienter_mock.go -mock_names clienter=mockClienter
+
 // SlackDumper stores basic session parameters.
 type SlackDumper struct {
-	client *slack.Client
+	client clienter
 
 	// Users contains the list of users and populated on NewSlackDumper
 	Users     Users                  `json:"users"`
 	UserIndex map[string]*slack.User `json:"-"`
 
 	options options
+}
+
+type clienter interface {
+	GetConversationHistoryContext(ctx context.Context, params *slack.GetConversationHistoryParameters) (*slack.GetConversationHistoryResponse, error)
+	GetConversationRepliesContext(ctx context.Context, params *slack.GetConversationRepliesParameters) (msgs []slack.Message, hasMore bool, nextCursor string, err error)
+	GetConversations(params *slack.GetConversationsParameters) (channels []slack.Channel, nextCursor string, err error)
+	GetFile(downloadURL string, writer io.Writer) error
+	GetUsers() ([]slack.User, error)
 }
 
 // tier represents rate limit tier:
@@ -61,9 +73,13 @@ func New(ctx context.Context, token string, cookie string, opts ...Option) (*Sla
 	}
 
 	dlog.Println("> caching users...")
-	if _, err := sd.GetUsers(ctx); err != nil {
+	users, err := sd.GetUsers(ctx)
+	if err != nil {
 		return nil, fmt.Errorf("error fetching users: %s", err)
 	}
+
+	sd.Users = users
+	sd.UserIndex = users.IndexByID()
 
 	return sd, nil
 }
@@ -154,4 +170,29 @@ func maxStringLength(strings []string) (maxlen int) {
 		}
 	}
 	return
+}
+
+func checkCacheFile(filename string, maxAge time.Duration) error {
+	if filename == "" {
+		return errors.New("no cache filename")
+	}
+	fi, err := os.Stat(filename)
+	if err != nil {
+		return err
+	}
+
+	return validateFileStats(fi, maxAge)
+}
+
+func validateFileStats(fi os.FileInfo, maxAge time.Duration) error {
+	if fi.IsDir() {
+		return errors.New("cache file is a directory")
+	}
+	if fi.Size() == 0 {
+		return errors.New("empty cache file")
+	}
+	if time.Since(fi.ModTime()) > maxAge {
+		return errors.New("cache expired")
+	}
+	return nil
 }
