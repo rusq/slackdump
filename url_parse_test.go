@@ -24,8 +24,26 @@ func TestParseURL(t *testing.T) {
 		{
 			name:    "thread",
 			args:    args{"https://ora600.slack.com/archives/CHM82GF99/p1577694990000400"},
-			want:    &URLInfo{Channel: "CHM82GF99", Thread: "1577694990.000400"},
+			want:    &URLInfo{Channel: "CHM82GF99", ThreadTS: "1577694990.000400"},
 			wantErr: false,
+		},
+		{
+			name:    "thread with extra data in the URL",
+			args:    args{"https://ora600.slack.com/archives/CHM82GF99/p1577694990000400/xxxx"},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name:    "malformed thread id",
+			args:    args{"https://ora600.slack.com/archives/CHM82GF99/1577694990000400"},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name:    "invalid thread id",
+			args:    args{"https://ora600.slack.com/archives/CHM82GF99/p15776949900x0400"},
+			want:    nil,
+			wantErr: true,
 		},
 		{
 			name:    "DM",
@@ -51,6 +69,24 @@ func TestParseURL(t *testing.T) {
 			want:    nil,
 			wantErr: true,
 		},
+		{
+			name:    "not a url",
+			args:    args{"C123454321"},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name:    "empty",
+			args:    args{""},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name:    "binary junk",
+			args:    args{"\x02"},
+			want:    nil,
+			wantErr: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -61,6 +97,59 @@ func TestParseURL(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("ParseURL() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestURLInfo_IsThread(t *testing.T) {
+	type fields struct {
+		Channel  string
+		ThreadTS string
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   bool
+	}{
+		{"yes", fields{Channel: "x", ThreadTS: "x"}, true},
+		{"no", fields{Channel: "x", ThreadTS: ""}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			u := URLInfo{
+				Channel:  tt.fields.Channel,
+				ThreadTS: tt.fields.ThreadTS,
+			}
+			if got := u.IsThread(); got != tt.want {
+				t.Errorf("URLInfo.IsThread() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestURLInfo_IsValid(t *testing.T) {
+	type fields struct {
+		Channel  string
+		ThreadTS string
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   bool
+	}{
+		{"channel", fields{Channel: "x"}, true},
+		{"thread", fields{Channel: "x", ThreadTS: "y"}, true},
+		{"invalid", fields{ThreadTS: "y"}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			u := URLInfo{
+				Channel:  tt.fields.Channel,
+				ThreadTS: tt.fields.ThreadTS,
+			}
+			if got := u.IsValid(); got != tt.want {
+				t.Errorf("URLInfo.IsValid() = %v, want %v", got, tt.want)
 			}
 		})
 	}

@@ -71,7 +71,7 @@ func (sd *SlackDumper) DumpURL(ctx context.Context, slackURL string) (*Conversat
 	}
 
 	if ui.IsThread() {
-		return sd.DumpThread(ctx, ui.Channel, ui.Thread)
+		return sd.DumpThread(ctx, ui.Channel, ui.ThreadTS)
 	} else {
 		return sd.DumpMessages(ctx, ui.Channel)
 	}
@@ -87,7 +87,7 @@ func (sd *SlackDumper) DumpMessages(ctx context.Context, channelID string) (*Con
 		// slack rate limits are per method, so we're safe to use different limiters for different mehtods.
 		convLimiter   = sd.limiter(tier3)
 		threadLimiter = sd.limiter(tier3)
-		dlLimiter     = sd.limiter(noTier) // go-slack/slack just sends the Post to the file endpoint, so this should work.
+		dlLimiter     = sd.limiter(noTier) // go-slack/slack.GetFile sends the GET request to the file endpoint, so this should work.
 	)
 
 	var filesC = make(chan *slack.File, filesCbufSz)
@@ -162,7 +162,7 @@ func generateText(w io.Writer, sd *SlackDumper, m []Message, prefix string) erro
 			fmt.Fprintf(w, prefix+"%s\n", message.Text)
 		} else {
 			fmt.Fprintf(w, prefix+"\n"+prefix+"> %s [%s] @ %s:\n%s\n",
-				sd.GetUserForMessage(&message), message.User,
+				sd.SenderName(&message), message.User,
 				t.Format("02/01/2006 15:04:05 Z0700"),
 				prefix+message.Text,
 			)
@@ -178,8 +178,8 @@ func generateText(w io.Writer, sd *SlackDumper, m []Message, prefix string) erro
 	return nil
 }
 
-// GetUserForMessage returns username for the message
-func (sd *SlackDumper) GetUserForMessage(msg *Message) string {
+// SenderName returns username for the message
+func (sd *SlackDumper) SenderName(msg *Message) string {
 	var userid string
 	if msg.Comment != nil {
 		userid = msg.Comment.User
@@ -284,9 +284,10 @@ func (sd *SlackDumper) threadLeadMessage(ctx context.Context, l *rate.Limiter, c
 	return leadMsg, nil
 }
 
-// dumpThread retrieves all messages in the thread and returns them as a slice of
-// messages.  It will not retrieve the leading message of the thread (the one that is in the main channel).  In order to retrieve
-// the leading message, call getLeadMessage.
+// dumpThread retrieves all messages in the thread and returns them as a slice
+// of messages.  It will not retrieve the leading (or parent) message of the
+// thread (the one that is in the main channel).  In order to retrieve the
+// leading message, call getLeadMessage.
 func (sd *SlackDumper) dumpThread(ctx context.Context, l *rate.Limiter, channelID string, threadTS string) ([]Message, error) {
 	var thread []Message
 
