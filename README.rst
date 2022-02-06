@@ -19,9 +19,16 @@ Typical usecase scenarios:
   "cloud" tools for privacy concerns - god knows what those third party apps are
   retaining in their "clouds".
 
-The library is "fit-for-purpose" quality and provided AS-IS.  Can't say it's
-ready for production, as it lacks most of the unit tests, but will do for ad-hoc
-use.
+The library is "fit-for-purpose" quality and provided AS-IS.  Can't
+say it's ready for production, as it lacks most of the unit tests, but
+will do for ad-hoc use.
+
+Slackdump can operate in two modes: URL mode - when it expects to see
+the URLs as an input, and ID mode - when it expects to see
+Conversation IDs as the input.
+
+Default mode of operation is the ID mode.  Switching between modes is
+done using ``-url`` command line flag.
 
 Usage
 =====
@@ -72,7 +79,8 @@ Setting up the application
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 #. Create the file named ``.env`` next to where the slackdump
-   executable in any text editor.
+   executable in any text editor.  Alternatively the file can
+   be named ``secrets.txt`` or ``.env.txt``.
 #. Add the token and cookie values to it. End result
    should look like this::
 
@@ -84,6 +92,21 @@ Setting up the application
 
 Dumping conversations
 ~~~~~~~~~~~~~~~~~~~~~
+
+As it was already mentioned in the introduction, Slackdump supports
+two ways of providing the conversation IDs that you want to save:
+
+- **By ID**: it expects to see Conversation IDs.
+- **By URL**: it expects to see URLs.  You can get URL by choosing
+  "Copy Link" in the Slack on the channel or thread.
+
+IDs or URLs can be passed on the command line or read from a file
+(using the ``-i`` command line flag), in that file, every ID or URL
+should be placed on a separate line.
+
+  
+By ID
++++++
 
 Firstly, dump the channel list to choose what you want to dump::
 
@@ -113,7 +136,7 @@ you want the convesation to be saved to a text file as well, use the
 ``-r text`` command line parameter.  See example below.
 
 Example
-+++++++
+^^^^^^^
 
 Say, you want to dump convesations with @alice and @bob to the text
 files and also want to save all the files that you all shared in those
@@ -127,6 +150,47 @@ convesations::
                |     +----------------: save files
                +----------------------: text file output
 
+By URL
+++++++
+
+Conversation:
+
+1. In Slack, right click on the conversation you want to dump (in the
+   channel navigation pane on the left)
+2. Choose "Copy link".
+
+Thread:
+
+1. In Slack, open the thread that you want to dump.
+2. The thread opens to the right of the main conversation window
+3. On the first message of the thread, click on three vertical dots menu (not sure how it's properly called), choose "Copy link"
+
+Run the slackdump in the URL mode and provide the URL::
+
+  slackdump -f -url https://xxxxxx.slack.com/archives/CHM82GX00/p1577694990000400
+                ---
+	         |
+		 +---: Enables the URL mode.
+
+
+Reading data from the file
+++++++++++++++++++++++++++
+Slackdump can read the list of the channels or URLs to dump from the file.
+
+1. Create the file that will contain all the necessary IDs or URLs,
+   I'll use "links.txt" in the example.
+2. Copy/paste all the IDs into that file, one per line.
+3. Run slackdump with "-i" command line flag.  "-i" stands for
+   "input"::
+
+     slackdump -i links.txt -url
+               ------------  ---
+	           |          |
+		   |          +---: Enables the URL mode.
+		   +--------------: instructs slackdump to use the file input
+
+"-url" flag should only be used, if the file contains URLs.
+		   
 Dumping users
 ~~~~~~~~~~~~~
 
