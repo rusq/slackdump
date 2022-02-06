@@ -11,6 +11,7 @@ import (
 	"text/tabwriter"
 	"time"
 
+	"github.com/pkg/errors"
 	"github.com/rusq/dlog"
 	"github.com/slack-go/slack"
 )
@@ -65,14 +66,14 @@ func (*SlackDumper) loadUserCache(filename string, maxAge time.Duration) (Users,
 	}
 	f, err := os.Open(filename)
 	if err != nil {
-		return nil, err
+		return nil, errors.WithStack(err)
 	}
 	defer f.Close()
 
 	dec := json.NewDecoder(f)
 	var uu Users
 	if err := dec.Decode(&uu); err != nil {
-		return nil, err
+		return nil, errors.WithStack(err)
 	}
 	return uu, nil
 }
@@ -80,20 +81,20 @@ func (*SlackDumper) loadUserCache(filename string, maxAge time.Duration) (Users,
 func (sd *SlackDumper) saveUserCache(filename string, uu Users) error {
 	f, err := os.Create(filename)
 	if err != nil {
-		return err
+		return errors.WithStack(err)
 	}
 	defer f.Close()
 
 	enc := json.NewEncoder(f)
 	enc.SetIndent("", "  ")
 	if err := enc.Encode(uu); err != nil {
-		return err
+		return errors.WithStack(err)
 	}
 	return nil
 }
 
 // ToText outputs Users us to io.Writer w in Text format
-func (us Users) ToText(_ *SlackDumper, w io.Writer) (err error) {
+func (us Users) ToText(_ *SlackDumper, w io.Writer) error {
 	const strFormat = "%s\t%s\t%s\t%s\n"
 	writer := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
 	defer writer.Flush()
@@ -107,9 +108,14 @@ func (us Users) ToText(_ *SlackDumper, w io.Writer) (err error) {
 	sort.Strings(names)
 
 	// header
-	fmt.Fprintf(writer, strFormat, "Name", "ID", "Bot?", "Deleted?")
-	fmt.Fprintf(writer, strFormat, "", "", "", "")
+	if _, err := fmt.Fprintf(writer, strFormat, "Name", "ID", "Bot?", "Deleted?"); err != nil {
+		return errors.WithStack(err)
+	}
+	if _, err := fmt.Fprintf(writer, strFormat, "", "", "", ""); err != nil {
+		return errors.WithStack(err)
+	}
 
+	// data
 	for _, name := range names {
 		var deleted, bot string
 		if usermap[name].Deleted {
@@ -119,10 +125,13 @@ func (us Users) ToText(_ *SlackDumper, w io.Writer) (err error) {
 			bot = "bot"
 		}
 
-		fmt.Fprintf(writer, strFormat,
+		_, err := fmt.Fprintf(writer, strFormat,
 			name, usermap[name].ID, bot, deleted)
+		if err != nil {
+			return errors.WithStack(err)
+		}
 	}
-	return
+	return nil
 }
 
 // IndexByID returns the userID map to relevant *slack.User

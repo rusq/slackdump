@@ -16,6 +16,13 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+var testUsers = Users{
+	{ID: "LOL1", Name: "yippi", Deleted: false},
+	{ID: "DELD", Name: "ka", Deleted: true},
+	{ID: "LOL3", Name: "yay", Deleted: false},
+	{ID: "LOL4", Name: "motherfucker", Deleted: false, IsBot: true},
+}
+
 func TestUsers_IndexByID(t *testing.T) {
 	users := []slack.User{
 		{ID: "USLACKBOT", Name: "slackbot"},
@@ -38,13 +45,6 @@ func TestUsers_IndexByID(t *testing.T) {
 			}
 		})
 	}
-}
-
-var testUsers = Users{
-	{ID: "LOL1", Name: "yippi", Deleted: false},
-	{ID: "DELD", Name: "ka", Deleted: true},
-	{ID: "LOL3", Name: "yay", Deleted: false},
-	{ID: "LOL4", Name: "motherfucker", Deleted: false},
 }
 
 func TestSlackDumper_IsUserDeleted(t *testing.T) {
@@ -121,7 +121,7 @@ func TestUsers_ToText(t *testing.T) {
 			"test user list",
 			testUsers,
 			args{nil},
-			"Name          ID    Bot?  Deleted?\n                          \nka            DELD        deleted\nmotherfucker  LOL4        \nyay           LOL3        \nyippi         LOL1        \n",
+			"Name          ID    Bot?  Deleted?\n                          \nka            DELD        deleted\nmotherfucker  LOL4  bot   \nyay           LOL3        \nyippi         LOL1        \n",
 			false,
 		},
 	}
