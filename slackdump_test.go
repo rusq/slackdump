@@ -2,6 +2,7 @@ package slackdump
 
 import (
 	"context"
+	"math"
 	"reflect"
 	"testing"
 	"time"
@@ -10,6 +11,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rusq/slackdump/internal/mock_os"
 	"github.com/slack-go/slack"
+	"github.com/stretchr/testify/assert"
 	"golang.org/x/time/rate"
 )
 
@@ -270,6 +272,88 @@ func Test_validateFileStats(t *testing.T) {
 			if err := validateFileStats(mfi, tt.args.maxAge); (err != nil) != tt.wantErr {
 				t.Errorf("validateFileStats() error = %v, wantErr %v", err, tt.wantErr)
 			}
+		})
+	}
+}
+
+func Test_checkCacheFile(t *testing.T) {
+	type args struct {
+		filename string
+		maxAge   time.Duration
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+	}{
+		{
+			"empty filename is an error",
+			args{"", 1 * time.Hour},
+			true,
+		},
+		// the rest is handled by validateFileStats
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := checkCacheFile(tt.args.filename, tt.args.maxAge); (err != nil) != tt.wantErr {
+				t.Errorf("checkCacheFile() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func Test_newLimiter(t *testing.T) {
+	type args struct {
+		t     tier
+		burst uint
+		boost int
+	}
+	tests := []struct {
+		name      string
+		args      args
+		wantDelay time.Duration
+	}{
+		{
+			"tier test",
+			args{
+				tier3,
+				1,
+				0,
+			},
+			time.Duration(math.Round(60.0/float64(tier3)*1000.0)) * time.Millisecond, // 6/5 sec
+		},
+		{
+			"burst 2",
+			args{
+				tier3,
+				2,
+				0,
+			},
+			1 * time.Millisecond,
+		},
+		{
+			"boost 70",
+			args{
+				tier3,
+				1,
+				70,
+			},
+			time.Duration(math.Round(60.0/float64(tier3+70)*1000.0)) * time.Millisecond, // 500 msec
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+
+			got := newLimiter(tt.args.t, tt.args.burst, tt.args.boost)
+
+			got.Wait(context.Background()) // prime
+
+			start := time.Now()
+			err := got.Wait(context.Background())
+			stop := time.Now()
+
+			assert.NoError(t, err)
+			assert.WithinDurationf(t, start.Add(tt.wantDelay), stop, 10*time.Millisecond, "delayed for: %s, expected: %s", stop.Sub(start), tt.wantDelay)
 		})
 	}
 }
