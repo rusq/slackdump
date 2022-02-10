@@ -23,12 +23,8 @@ The library is "fit-for-purpose" quality and provided AS-IS.  Can't
 say it's ready for production, as it lacks most of the unit tests, but
 will do for ad-hoc use.
 
-Slackdump can operate in two modes: URL mode - when it expects to see
-the URLs as an input, and ID mode - when it expects to see
-Conversation IDs as the input.
-
-Default mode of operation is the ID mode.  Switching between modes is
-done using ``-url`` command line flag.
+Slackdump accepts two types of input: URL link of the channel or
+thread, or ID of the channel.
 
 Usage
 =====
@@ -102,11 +98,11 @@ two ways of providing the conversation IDs that you want to save:
 
 IDs or URLs can be passed on the command line or read from a file
 (using the ``-i`` command line flag), in that file, every ID or URL
-should be placed on a separate line.
-
+should be placed on a separate line.  Slackdump can automatically
+detect the type of input.
   
-By ID
-+++++
+Providing the list on the command line
+++++++++++++++++++++++++++++++++++++++
 
 Firstly, dump the channel list to choose what you want to dump::
 
@@ -142,54 +138,54 @@ Say, you want to dump convesations with @alice and @bob to the text
 files and also want to save all the files that you all shared in those
 convesations::
 
-  slackdump -r text -f DNF3XXXXX DLY4XXXXX
-       	    ------- -- --------- ---------
-               |     |    |         |
-               |     |    |         +-: @alice
-               |     |    +-----------: @bob
-               |     +----------------: save files
-               +----------------------: text file output
+  slackdump -r text -f DNF3XXXXX DLY4XXXXX https://....
+       	    ━━━┯━━━ ━┯ ━━━┯━━━━━ ━━━┯━━━━━ ━━━━┯━━━━━┅┅ 
+               │     │    │         │          │
+               │     │    │         ╰─: @alice │
+               │     │    ╰───────────: @bob   ┊
+               │     ╰────────────────: save files
+               ╰──────────────────────: text file output
+           thread or conversation URL :────────╯
 
-By URL
-++++++
-
-Conversation:
-
+Conversation URL:
+	       
+To get the conversation URL link, use this simple trick that they
+won't teach you at school:
+	       
 1. In Slack, right click on the conversation you want to dump (in the
    channel navigation pane on the left)
 2. Choose "Copy link".
 
-Thread:
+Thread URL:
 
 1. In Slack, open the thread that you want to dump.
 2. The thread opens to the right of the main conversation window
 3. On the first message of the thread, click on three vertical dots menu (not sure how it's properly called), choose "Copy link"
 
-Run the slackdump in the URL mode and provide the URL::
+Run the slackdump and provide the URL link as an input::
 
-  slackdump -f -url https://xxxxxx.slack.com/archives/CHM82GX00/p1577694990000400
-                ---
-	         |
-		 +---: Enables the URL mode.
-
+  slackdump -f  https://xxxxxx.slack.com/archives/CHM82GX00/p1577694990000400
+            ━┯  ━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+	     │        ╰─────: URL of the thread
+	     ╰──────────────: save files
+	     
 
 Reading data from the file
 ++++++++++++++++++++++++++
-Slackdump can read the list of the channels or URLs to dump from the file.
 
-1. Create the file that will contain all the necessary IDs or URLs,
-   I'll use "links.txt" in the example.
-2. Copy/paste all the IDs into that file, one per line.
+Slackdump can read the list of the channels and URLs to dump from the
+file.
+
+1. Create the file that will contain all the necessary IDs and/or
+   URLs, I'll use "links.txt" in the example.
+2. Copy/paste all the IDs and URLs into that file, one per line.
 3. Run slackdump with "-i" command line flag.  "-i" stands for
    "input"::
 
-     slackdump -i links.txt -url
-               ------------  ---
-	           |          |
-		   |          +---: Enables the URL mode.
-		   +--------------: instructs slackdump to use the file input
-
-"-url" flag should only be used, if the file contains URLs.
+     slackdump -i links.txt
+               ━━━━┯━━━━━━━
+	           │        
+		   ╰───────: instructs slackdump to use the file input
 		   
 Dumping users
 ~~~~~~~~~~~~~
@@ -197,6 +193,20 @@ Dumping users
 To view all users, run::
 
   slackdump -u
+
+By default, slackdump exports users in text format.  If you need to
+output json, use ``-r json`` flag.
+
+Dumping chanels
+~~~~~~~~~~~~~~~
+
+To view channels, that are visible to your account, including group
+conversations, archived chats and public channels, run::
+
+  slackdump -c
+
+By default, slackdump exports users in text format.  If you need to
+output json, use ``-r json`` flag.
 
 	       
 As a library
@@ -233,6 +243,7 @@ browser Slack session.  See Usage in the top of the file.
 Q: **I'm getting ``invalid_auth``**
 
 A: Go get the new Cookie from the browser.
+
 
 Bulletin Board
 --------------

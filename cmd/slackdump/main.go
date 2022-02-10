@@ -125,7 +125,6 @@ func parseCmdLine(args []string) (params, error) {
 	fs.BoolVar(&p.appCfg.ListFlags.Users, "u", false, "list users and their IDs. ")
 
 	fs.BoolVar(&p.appCfg.Input.DownloadFiles, "f", false, "enable files download")
-	fs.BoolVar(&p.appCfg.Input.TreatAsURL, "url", false, "treats the input as URLs instead of IDs")
 	fs.StringVar(&p.appCfg.Input.Filename, "i", "", "specify the `input file` with Channel IDs or URLs to be used instead of giving the list on the command line, one per line.\nUse \"-\" to read input from STDIN.")
 	fs.StringVar(&p.appCfg.Output.Filename, "o", "-", "Output `filename` for users and channels.  Use '-' for standard\nOutput.")
 	fs.StringVar(&p.appCfg.Output.Format, "r", "", "report `format`.  One of 'json' or 'text'")

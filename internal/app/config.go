@@ -30,7 +30,6 @@ type Output struct {
 type Input struct {
 	List          []string // Input list
 	Filename      string   // filename containing the list of Conversation IDs or URLs to download.
-	TreatAsURL    bool     // if true, the files will be fetched as well.
 	DownloadFiles bool     // if true, the input is treated as URLs instead of conversation IDs
 }
 

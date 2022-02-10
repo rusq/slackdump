@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"os"
+	"strings"
 
 	"github.com/rusq/dlog"
 	"github.com/rusq/slackdump"
@@ -82,15 +83,10 @@ func (app *App) dump(ctx context.Context, input Input) (int, error) {
 	if !input.IsValid() {
 		return 0, errors.New("no valid input")
 	}
-	var dumpFn dumpFunc
-	if input.TreatAsURL {
-		dumpFn = app.sd.DumpURL
-	} else {
-		dumpFn = app.sd.DumpMessages
-	}
+
 	total := 0
 	if err := input.producer(func(s string) error {
-		if err := app.dumpOne(ctx, s, dumpFn); err != nil {
+		if err := app.dumpOne(ctx, s, app.newDumpFunc(s)); err != nil {
 			dlog.Printf("error processing: %q (conversation will be skipped): %s", s, err)
 			return errSkip
 		}
@@ -100,6 +96,14 @@ func (app *App) dump(ctx context.Context, input Input) (int, error) {
 		return total, err
 	}
 	return total, nil
+}
+
+func (app *App) newDumpFunc(s string) dumpFunc {
+	if strings.HasPrefix(strings.ToLower(s), "https://") {
+		return app.sd.DumpURL
+	} else {
+		return app.sd.DumpMessages
+	}
 }
 
 type dumpFunc func(context.Context, string) (*slackdump.Conversation, error)

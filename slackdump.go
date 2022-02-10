@@ -50,11 +50,12 @@ type tier int
 
 const (
 	// base throttling defined as events per minute
-	tier1  tier = 1
-	tier2  tier = 20
-	tier3  tier = 50
-	tier4  tier = 100
-	noTier tier = 0
+	noTier tier = 0 // no tier is applied
+
+	tier1 tier = 1
+	tier2 tier = 20
+	tier3 tier = 50
+	tier4 tier = 100
 )
 
 var allChanTypes = []string{"mpim", "im", "public_channel", "private_channel"}

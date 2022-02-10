@@ -15,6 +15,9 @@ import (
 	"golang.org/x/time/rate"
 )
 
+// time format for text output.
+const textTimeFmt = "02/01/2006 15:04:05 Z0700"
+
 const (
 	// minMsgTimeApart defines the time interval in minutes to separate group
 	// of messages from a single user in the conversation.  This increases the
@@ -54,10 +57,10 @@ type Message struct {
 
 // ToText outputs Messages m to io.Writer w in text format.
 func (m Conversation) ToText(sd *SlackDumper, w io.Writer) (err error) {
-	writer := bufio.NewWriter(w)
-	defer writer.Flush()
+	buf := bufio.NewWriter(w)
+	defer buf.Flush()
 
-	return generateText(w, sd, m.Messages, "")
+	return sd.generateText(w, m.Messages, "")
 }
 
 // DumpURL dumps messages from the slack URL, it supports conversations and individual threads.
@@ -147,7 +150,7 @@ func (sd *SlackDumper) DumpMessages(ctx context.Context, channelID string) (*Con
 	return &Conversation{Messages: messages, ID: channelID}, nil
 }
 
-func generateText(w io.Writer, sd *SlackDumper, m []Message, prefix string) error {
+func (sd *SlackDumper) generateText(w io.Writer, m []Message, prefix string) error {
 	var (
 		prevMsg  Message
 		prevTime time.Time
@@ -163,12 +166,12 @@ func generateText(w io.Writer, sd *SlackDumper, m []Message, prefix string) erro
 		} else {
 			fmt.Fprintf(w, prefix+"\n"+prefix+"> %s [%s] @ %s:\n%s\n",
 				sd.SenderName(&message), message.User,
-				t.Format("02/01/2006 15:04:05 Z0700"),
+				t.Format(textTimeFmt),
 				prefix+message.Text,
 			)
 		}
 		if len(message.ThreadReplies) > 0 {
-			if err := generateText(w, sd, message.ThreadReplies, "|   "); err != nil {
+			if err := sd.generateText(w, message.ThreadReplies, "|   "); err != nil {
 				return err
 			}
 		}

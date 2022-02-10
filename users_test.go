@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"io/ioutil"
 	"os"
 	"reflect"
 	"testing"
@@ -144,7 +143,7 @@ func TestSlackDumper_saveUserCache(t *testing.T) {
 	// test saving file works
 	sd := SlackDumper{}
 
-	testFile, err := ioutil.TempFile("", "")
+	testFile, err := os.CreateTemp("", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -360,7 +359,7 @@ func TestSlackDumper_GetUsers(t *testing.T) {
 }
 
 func gimmeTempFile(t *testing.T) string {
-	f, err := ioutil.TempFile("", "")
+	f, err := os.CreateTemp("", "")
 	if err != nil {
 		t.Fatal(err)
 	}
