@@ -76,7 +76,7 @@ func New(ctx context.Context, token string, cookie string, opts ...Option) (*Sla
 		opt(sd)
 	}
 
-	dlog.Println("> caching users...")
+	dlog.Println("> checking user cache...")
 	users, err := sd.GetUsers(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching users: %s", err)

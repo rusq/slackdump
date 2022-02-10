@@ -65,6 +65,11 @@ func (m Conversation) ToText(sd *SlackDumper, w io.Writer) (err error) {
 
 // DumpURL dumps messages from the slack URL, it supports conversations and individual threads.
 func (sd *SlackDumper) DumpURL(ctx context.Context, slackURL string) (*Conversation, error) {
+	ctx, task := trace.NewTask(ctx, "DumpURL")
+	defer task.End()
+
+	trace.Logf(ctx, "info", "slackURL: %q", slackURL)
+
 	ui, err := ParseURL(slackURL)
 	if err != nil {
 		return nil, err
@@ -85,6 +90,8 @@ func (sd *SlackDumper) DumpURL(ctx context.Context, slackURL string) (*Conversat
 func (sd *SlackDumper) DumpMessages(ctx context.Context, channelID string) (*Conversation, error) {
 	ctx, task := trace.NewTask(ctx, "DumpMessages")
 	defer task.End()
+
+	trace.Logf(ctx, "info", "channelID: %q", channelID)
 
 	var (
 		// slack rate limits are per method, so we're safe to use different limiters for different mehtods.
@@ -141,6 +148,7 @@ func (sd *SlackDumper) DumpMessages(ctx context.Context, channelID string) (*Con
 	}
 
 	if sd.options.dumpfiles {
+		trace.Log(ctx, "info", "closing files channel")
 		close(filesC)
 		<-dlDoneC
 	}

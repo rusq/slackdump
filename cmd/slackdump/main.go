@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"runtime/trace"
 	"time"
 
 	"github.com/rusq/slackdump/internal/app"
@@ -87,12 +88,24 @@ func run(ctx context.Context, p params) error {
 		}()
 	}
 
-	app, err := app.New(p.appCfg)
+	ctx, task := trace.NewTask(ctx, "main.run")
+	defer task.End()
+
+	application, err := app.New(p.appCfg)
 	if err != nil {
+		trace.Logf(ctx, "error", "app.New: %s", err.Error())
 		return err
 	}
 
-	return app.Run(ctx)
+	// deleting creds to avoid logging them in the trace.
+	p.appCfg.Creds = app.SlackCreds{}
+	trace.Logf(ctx, "info", "params: input: %+v", p)
+
+	if err := application.Run(ctx); err != nil {
+		trace.Logf(ctx, "error", "app.Run: %s", err.Error())
+		return err
+	}
+	return nil
 }
 
 // loadSecrets load secrets from the files in secrets slice.
