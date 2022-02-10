@@ -4,9 +4,9 @@ Slack Dumper
 
 `Buy me a cup of tea`_
 
-`Join discussion`_
+`Join the discussion`_
 
-`A set up guide on Medium.com`_
+`Read the set up guide on Medium.com`_
 
 Purpose: dump slack messages, users and files using browser token and cookie.
 
@@ -255,8 +255,8 @@ Messages that were conveyed with the donations:
 
 .. _Application: https://stackoverflow.com/questions/12908881/how-to-copy-cookies-in-google-chrome
 .. _`Buy me a cup of tea`: https://www.paypal.com/donate/?hosted_button_id=GUHCLSM7E54ZW
-.. _`Join discussion`: https://t.me/slackdump
-.. _`A set up guide on Medium.com`: https://medium.com/@gilyazov/downloading-your-private-slack-conversations-52e50428b3c2
+.. _`Join the discussion`: https://t.me/slackdump
+.. _`Read the set up guide on Medium.com`: https://medium.com/@gilyazov/downloading-your-private-slack-conversations-52e50428b3c2
 
 ..
   bulletin board links
