@@ -70,7 +70,7 @@ func (sd *SlackDumper) DumpURL(ctx context.Context, slackURL string) (*Conversat
 
 	trace.Logf(ctx, "info", "slackURL: %q", slackURL)
 
-	ui, err := ParseURL(slackURL)
+	ui, err := parseURL(slackURL)
 	if err != nil {
 		return nil, err
 	}
@@ -270,6 +270,8 @@ func (sd *SlackDumper) DumpThread(ctx context.Context, channelID, threadTS strin
 	}, nil
 }
 
+var errNotOK = errors.New("response not OK")
+
 // threadLeadMessage gets the leading message for the thread.  When
 // Conversation.Replies is called, it won't have the leading message (the one
 // which has started the conversation), so this should be called to get the
@@ -286,6 +288,10 @@ func (sd *SlackDumper) threadLeadMessage(ctx context.Context, l *rate.Limiter, c
 		if err != nil {
 			dlog.Debugf("unable to get the first message for channel %q thread TS %q", channelID, threadTS)
 			return errors.WithStack(err)
+		}
+		if !resp.Ok {
+			dlog.Debug("reponse not OK")
+			return errNotOK
 		}
 		leadMsg = sd.convertMsgs(resp.Messages)[0]
 		return nil
@@ -332,7 +338,7 @@ func (sd *SlackDumper) dumpThread(ctx context.Context, l *rate.Limiter, channelI
 }
 
 // convertMsgs converts a slice of slack.Message to []Message.
-func (sd *SlackDumper) convertMsgs(sm []slack.Message) []Message {
+func (*SlackDumper) convertMsgs(sm []slack.Message) []Message {
 	msgs := make([]Message, len(sm))
 	for i := range sm {
 		msgs[i].Message = sm[i]

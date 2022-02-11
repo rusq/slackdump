@@ -12,19 +12,19 @@ func TestParseURL(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    args
-		want    *URLInfo
+		want    *urlInfo
 		wantErr bool
 	}{
 		{
 			name:    "channel",
 			args:    args{"https://ora600.slack.com/archives/CHM82GF99"},
-			want:    &URLInfo{Channel: "CHM82GF99"},
+			want:    &urlInfo{Channel: "CHM82GF99"},
 			wantErr: false,
 		},
 		{
 			name:    "thread",
 			args:    args{"https://ora600.slack.com/archives/CHM82GF99/p1577694990000400"},
-			want:    &URLInfo{Channel: "CHM82GF99", ThreadTS: "1577694990.000400"},
+			want:    &urlInfo{Channel: "CHM82GF99", ThreadTS: "1577694990.000400"},
 			wantErr: false,
 		},
 		{
@@ -48,7 +48,7 @@ func TestParseURL(t *testing.T) {
 		{
 			name:    "DM",
 			args:    args{"https://ora600.slack.com/archives/DL98HT3QA"},
-			want:    &URLInfo{Channel: "DL98HT3QA"},
+			want:    &urlInfo{Channel: "DL98HT3QA"},
 			wantErr: false,
 		},
 		{
@@ -90,7 +90,7 @@ func TestParseURL(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := ParseURL(tt.args.slackURL)
+			got, err := parseURL(tt.args.slackURL)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ParseURL() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -117,7 +117,7 @@ func TestURLInfo_IsThread(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			u := URLInfo{
+			u := urlInfo{
 				Channel:  tt.fields.Channel,
 				ThreadTS: tt.fields.ThreadTS,
 			}
@@ -144,7 +144,7 @@ func TestURLInfo_IsValid(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			u := URLInfo{
+			u := urlInfo{
 				Channel:  tt.fields.Channel,
 				ThreadTS: tt.fields.ThreadTS,
 			}

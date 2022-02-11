@@ -19,6 +19,8 @@ import (
 	"golang.org/x/time/rate"
 )
 
+const defNumAttempts = 3 // default number of attempts for withRetry.
+
 //go:generate mockgen -destination internal/mock_os/mock_os.go os FileInfo
 //go:generate sh -c "mockgen -source slackdump.go -destination clienter_mock.go -package slackdump -mock_names clienter=mockClienter"
 //go:generate sed -i ~ "s/NewmockClienter/newmockClienter/g" clienter_mock.go
@@ -111,6 +113,9 @@ var ErrRetryFailed = errors.New("callback was not able to complete without error
 // maxAttempts times. It will return an error if it runs out of attempts.
 func withRetry(ctx context.Context, l *rate.Limiter, maxAttempts int, fn func() error) error {
 	var ok bool
+	if maxAttempts == 0 {
+		maxAttempts = defNumAttempts
+	}
 	for attempt := 0; attempt < maxAttempts; attempt++ {
 		trace.WithRegion(ctx, "withRetry.wait", func() {
 			l.Wait(ctx)

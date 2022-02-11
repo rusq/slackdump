@@ -8,22 +8,22 @@ import (
 	"github.com/pkg/errors"
 )
 
-type URLInfo struct {
+type urlInfo struct {
 	Channel  string
 	ThreadTS string
 }
 
-func (u URLInfo) IsThread() bool {
+func (u urlInfo) IsThread() bool {
 	return u.ThreadTS != ""
 }
 
-func (u URLInfo) IsValid() bool {
+func (u urlInfo) IsValid() bool {
 	return u.Channel != "" || (u.Channel != "" && u.ThreadTS != "")
 }
 
 var errUnsupportedURL = errors.New("unsuuported URL type")
 
-func ParseURL(slackURL string) (*URLInfo, error) {
+func parseURL(slackURL string) (*urlInfo, error) {
 	if slackURL == "" {
 		return nil, errors.New("no url provided")
 	}
@@ -40,7 +40,7 @@ func ParseURL(slackURL string) (*URLInfo, error) {
 		return nil, errUnsupportedURL
 	}
 
-	var ui URLInfo
+	var ui urlInfo
 	switch len(parts) {
 	case 3:
 		//thread
