@@ -74,6 +74,9 @@ func (in Input) fileProducer(fn func(string) error) error {
 // iterScanner iterates over the reader r, reading it line by line, and calls fn
 // for each line.
 func (in Input) iterScanner(r io.Reader, fn func(string) error) error {
+	if !in.IsValid() {
+		return ErrInvalidInput
+	}
 	scanner := bufio.NewScanner(r)
 	for scanner.Scan() {
 		if err := fn(scanner.Text()); err != nil {

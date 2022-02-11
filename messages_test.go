@@ -54,10 +54,14 @@ func Test_sortMessages(t *testing.T) {
 	}
 }
 
+var (
+	testMsg1 = slack.Message{Msg: slack.Msg{ClientMsgID: "a", Type: "x"}}
+	testMsg2 = slack.Message{Msg: slack.Msg{ClientMsgID: "b", Type: "y"}}
+	testMsg3 = slack.Message{Msg: slack.Msg{ClientMsgID: "c", Type: "z"}}
+)
+
 func TestSlackDumper_convertMsgs(t *testing.T) {
-	testMsg := slack.Message{Msg: slack.Msg{ClientMsgID: "a", Type: "x"}}
-	testMsg2 := slack.Message{Msg: slack.Msg{ClientMsgID: "b", Type: "y"}}
-	testMsg3 := slack.Message{Msg: slack.Msg{ClientMsgID: "c", Type: "z"}}
+
 	type args struct {
 		sm []slack.Message
 	}
@@ -69,12 +73,12 @@ func TestSlackDumper_convertMsgs(t *testing.T) {
 		{
 			"ok",
 			args{[]slack.Message{
-				testMsg,
+				testMsg1,
 				testMsg2,
 				testMsg3,
 			}},
 			[]Message{
-				{Message: testMsg},
+				{Message: testMsg1},
 				{Message: testMsg2},
 				{Message: testMsg3},
 			},
@@ -90,7 +94,7 @@ func TestSlackDumper_convertMsgs(t *testing.T) {
 	}
 }
 
-func TestSlackDumper_threadLeadMessage(t *testing.T) {
+func TestSlackDumper_DumpMessages(t *testing.T) {
 	type fields struct {
 		Users     Users
 		UserIndex map[string]*slack.User
@@ -98,46 +102,49 @@ func TestSlackDumper_threadLeadMessage(t *testing.T) {
 	}
 	type args struct {
 		ctx       context.Context
-		l         *rate.Limiter
 		channelID string
-		threadTS  string
 	}
 	tests := []struct {
 		name     string
 		fields   fields
 		args     args
 		expectFn func(c *mockClienter)
-		want     Message
+		want     *Conversation
 		wantErr  bool
 	}{
 		{
 			"all ok",
 			fields{},
-			args{context.Background(), newLimiter(noTier, 1, 0), "CHANNEL", "THREADTS"},
+			args{context.Background(), "CHANNEL"},
 			func(c *mockClienter) {
 				c.EXPECT().GetConversationHistoryContext(
 					gomock.Any(),
 					&slack.GetConversationHistoryParameters{
 						ChannelID: "CHANNEL",
-						Latest:    "THREADTS",
-						Limit:     1,
-						Inclusive: true,
 					}).Return(
 					&slack.GetConversationHistoryResponse{
 						SlackResponse: slack.SlackResponse{Ok: true},
 						Messages: []slack.Message{
-							{Msg: slack.Msg{ClientMsgID: "X", Type: "Y"}},
+							testMsg1,
+							testMsg2,
+							testMsg3,
 						},
 					},
 					nil)
 			},
-			Message{Message: slack.Message{Msg: slack.Msg{ClientMsgID: "X", Type: "Y"}}},
+			&Conversation{
+				ID: "CHANNEL",
+				Messages: []Message{
+					{Message: testMsg1},
+					{Message: testMsg2},
+					{Message: testMsg3},
+				}},
 			false,
 		},
 		{
 			"resp not ok",
 			fields{},
-			args{context.Background(), newLimiter(noTier, 1, 0), "CHANNEL", "THREADTS"},
+			args{context.Background(), "CHANNEL"},
 			func(c *mockClienter) {
 				c.EXPECT().GetConversationHistoryContext(
 					gomock.Any(),
@@ -148,13 +155,13 @@ func TestSlackDumper_threadLeadMessage(t *testing.T) {
 					},
 					nil)
 			},
-			Message{},
+			nil,
 			true,
 		},
 		{
 			"sudden bleep bloop error",
 			fields{},
-			args{context.Background(), newLimiter(noTier, 1, 0), "CHANNEL", "THREADTS"},
+			args{context.Background(), "CHANNEL"},
 			func(c *mockClienter) {
 				c.EXPECT().GetConversationHistoryContext(
 					gomock.Any(),
@@ -163,7 +170,7 @@ func TestSlackDumper_threadLeadMessage(t *testing.T) {
 					nil,
 					errors.New("bleep bloop gtfo"))
 			},
-			Message{},
+			nil,
 			true,
 		},
 	}
@@ -180,14 +187,131 @@ func TestSlackDumper_threadLeadMessage(t *testing.T) {
 				UserIndex: tt.fields.UserIndex,
 				options:   tt.fields.options,
 			}
-			got, err := sd.threadLeadMessage(tt.args.ctx, tt.args.l, tt.args.channelID, tt.args.threadTS)
+			got, err := sd.DumpMessages(tt.args.ctx, tt.args.channelID)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("SlackDumper.threadLeadMessage() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("SlackDumper.DumpMessages() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("SlackDumper.threadLeadMessage() = %v, want %v", got, tt.want)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestSlackDumper_dumpThread(t *testing.T) {
+	type fields struct {
+		Users     Users
+		UserIndex map[string]*slack.User
+		options   options
+	}
+	type args struct {
+		ctx       context.Context
+		l         *rate.Limiter
+		channelID string
+		threadTS  string
+	}
+	tests := []struct {
+		name     string
+		fields   fields
+		args     args
+		expectFn func(*mockClienter)
+		want     []Message
+		wantErr  bool
+	}{
+		{
+			"ok",
+			fields{},
+			args{context.Background(), newLimiter(noTier, 1, 0), "CHANNEL", "THREAD"},
+			func(mc *mockClienter) {
+				mc.EXPECT().
+					GetConversationRepliesContext(
+						gomock.Any(),
+						&slack.GetConversationRepliesParameters{ChannelID: "CHANNEL", Timestamp: "THREAD"},
+					).
+					Return(
+						[]slack.Message{testMsg1, testMsg2, testMsg3},
+						false,
+						"",
+						nil,
+					).
+					Times(1)
+			},
+			[]Message{{Message: testMsg1}, {Message: testMsg2}, {Message: testMsg3}},
+			false,
+		},
+		{
+			"iterating over",
+			fields{},
+			args{context.Background(), newLimiter(noTier, 1, 0), "CHANNEL", "THREAD"},
+			func(mc *mockClienter) {
+				mc.EXPECT().
+					GetConversationRepliesContext(
+						gomock.Any(),
+						&slack.GetConversationRepliesParameters{ChannelID: "CHANNEL", Timestamp: "THREAD"},
+					).
+					Return(
+						[]slack.Message{testMsg1},
+						true,
+						"blah",
+						nil,
+					).
+					Times(1)
+				mc.EXPECT().
+					GetConversationRepliesContext(
+						gomock.Any(),
+						&slack.GetConversationRepliesParameters{ChannelID: "CHANNEL", Timestamp: "THREAD", Cursor: "blah"},
+					).
+					Return(
+						[]slack.Message{testMsg2},
+						false,
+						"",
+						nil,
+					).
+					Times(1)
+			},
+			[]Message{{Message: testMsg1}, {Message: testMsg2}},
+			false,
+		},
+		{
+			"sudden bleep bloop error",
+			fields{},
+			args{context.Background(), newLimiter(noTier, 1, 0), "CHANNEL", "THREADTS"},
+			func(c *mockClienter) {
+				c.EXPECT().
+					GetConversationRepliesContext(
+						gomock.Any(),
+						gomock.Any(),
+					).
+					Return(
+						nil,
+						false,
+						"",
+						errors.New("bleep bloop gtfo"),
+					).
+					Times(1)
+			},
+			nil,
+			true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			mc := newmockClienter(ctrl)
+
+			tt.expectFn(mc)
+
+			sd := &SlackDumper{
+				client:    mc,
+				Users:     tt.fields.Users,
+				UserIndex: tt.fields.UserIndex,
+				options:   tt.fields.options,
 			}
+			got, err := sd.dumpThread(tt.args.ctx, tt.args.l, tt.args.channelID, tt.args.threadTS)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("SlackDumper.dumpThread() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }
