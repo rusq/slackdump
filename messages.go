@@ -74,16 +74,12 @@ func (sd *SlackDumper) DumpURL(ctx context.Context, slackURL string) (*Conversat
 	if err != nil {
 		return nil, err
 	}
-	if !ui.IsValid() {
-		return nil, fmt.Errorf("invalid URL: %q", slackURL)
-	}
 
 	if ui.IsThread() {
 		return sd.DumpThread(ctx, ui.Channel, ui.ThreadTS)
 	} else {
 		return sd.DumpMessages(ctx, ui.Channel)
 	}
-	// unreachable
 }
 
 // DumpMessages fetches messages from the conversation identified by channelID.
@@ -257,12 +253,13 @@ func (sd *SlackDumper) DumpThread(ctx context.Context, channelID, threadTS strin
 
 	trace.Logf(ctx, "info", "channelID: %q, threadTS: %q", channelID, threadTS)
 
-	threadMsgs, err := sd.dumpThread(ctx, sd.limiter(tier3), channelID, threadTS)
+	var filesC = make(chan *slack.File, filesCbufSz)
+	dlDoneC, err := sd.newFileDownloader(ctx, sd.limiter(noTier), channelID, filesC)
 	if err != nil {
 		return nil, err
 	}
-	var filesC = make(chan *slack.File, filesCbufSz)
-	dlDoneC, err := sd.newFileDownloader(ctx, sd.limiter(noTier), channelID, filesC)
+
+	threadMsgs, err := sd.dumpThread(ctx, sd.limiter(tier3), channelID, threadTS)
 	if err != nil {
 		return nil, err
 	}

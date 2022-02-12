@@ -1,6 +1,7 @@
 package slackdump
 
 import (
+	"fmt"
 	"net/url"
 	"strconv"
 	"strings"
@@ -57,6 +58,9 @@ func parseURL(slackURL string) (*urlInfo, error) {
 		ui.Channel = parts[1]
 	default:
 		return nil, errUnsupportedURL
+	}
+	if !ui.IsValid() {
+		return nil, fmt.Errorf("invalid URL: %q", slackURL)
 	}
 	return &ui, nil
 }
