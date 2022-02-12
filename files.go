@@ -15,7 +15,7 @@ import (
 )
 
 // filesFromMessages extracts files from messages slice.
-func (sd *SlackDumper) filesFromMessages(m []Message) []slack.File {
+func (*SlackDumper) filesFromMessages(m []Message) []slack.File {
 	var files []slack.File
 
 	for i := range m {

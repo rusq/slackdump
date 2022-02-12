@@ -91,6 +91,10 @@ func (sd *SlackDumper) DumpMessages(ctx context.Context, channelID string) (*Con
 	ctx, task := trace.NewTask(ctx, "DumpMessages")
 	defer task.End()
 
+	if channelID == "" {
+		return nil, errors.New("channelID is empty")
+	}
+
 	trace.Logf(ctx, "info", "channelID: %q", channelID)
 
 	var (
@@ -134,7 +138,7 @@ func (sd *SlackDumper) DumpMessages(ctx context.Context, channelID string) (*Con
 		}
 
 		chunk := sd.convertMsgs(resp.Messages)
-		threads, err := sd.populateThreads(ctx, threadLimiter, chunk, channelID)
+		threads, err := sd.populateThreads(ctx, threadLimiter, chunk, channelID, sd.dumpThread)
 		if err != nil {
 			return nil, err
 		}
@@ -160,6 +164,18 @@ func (sd *SlackDumper) DumpMessages(ctx context.Context, channelID string) (*Con
 	sortMessages(messages)
 
 	return &Conversation{Messages: messages, ID: channelID}, nil
+}
+
+// pipeFiles scans the messages and sends all the files discovered to the filesC.
+func (sd *SlackDumper) pipeFiles(filesC chan<- *slack.File, msgs []Message) {
+	if !sd.options.dumpfiles {
+		return
+	}
+	// place files in download queue
+	fileChunk := sd.filesFromMessages(msgs)
+	for i := range fileChunk {
+		filesC <- &fileChunk[i]
+	}
 }
 
 func (sd *SlackDumper) generateText(w io.Writer, m []Message, prefix string) error {
@@ -215,21 +231,27 @@ func sortMessages(msgs []Message) {
 	})
 }
 
-// populateThreads scans the message slice for threads, if and when it
-// discovers the message with ThreadTimestamp, it fetches all messages in that
-// thread updating them to the msgs slice.  Returns the count of messages that
-// contained threads.
+type threadFunc func(ctx context.Context, l *rate.Limiter, channelID string, threadTS string) ([]Message, error)
+
+// populateThreads scans the message slice for threads, if it discovers the
+// message with ThreadTimestamp, it calls the dumpFn on it. dumpFn should return
+// the messages from the thread. Returns the count of messages that contained
+// threads.  msgs is being updated with discovered messages.
 //
 // ref: https://api.slack.com/messaging/retrieving
-func (sd *SlackDumper) populateThreads(ctx context.Context, l *rate.Limiter, msgs []Message, channelID string) (int, error) {
+func (*SlackDumper) populateThreads(ctx context.Context, l *rate.Limiter, msgs []Message, channelID string, dumpFn threadFunc) (int, error) {
 	total := 0
 	for i := range msgs {
 		if msgs[i].ThreadTimestamp == "" {
 			continue
 		}
-		threadMsgs, err := sd.dumpThread(ctx, l, channelID, msgs[i].ThreadTimestamp)
+		threadMsgs, err := dumpFn(ctx, l, channelID, msgs[i].ThreadTimestamp)
 		if err != nil {
 			return total, err
+		}
+		if len(threadMsgs) == 0 {
+			trace.Log(ctx, "warn", "a very strange situation right here, no error, and no messages. testing?")
+			continue
 		}
 		msgs[i].ThreadReplies = threadMsgs[1:] // the first message returned by conversation.history is the message that started thread, so skipping it.
 		total++
@@ -238,9 +260,14 @@ func (sd *SlackDumper) populateThreads(ctx context.Context, l *rate.Limiter, msg
 }
 
 func (sd *SlackDumper) DumpThread(ctx context.Context, channelID, threadTS string) (*Conversation, error) {
+	ctx, task := trace.NewTask(ctx, "DumpThread")
+	defer task.End()
+
 	if threadTS == "" || channelID == "" {
-		return nil, errors.New("internal error: channelID and threadTS are empty")
+		return nil, errors.New("internal error: channelID or threadTS are empty")
 	}
+
+	trace.Logf(ctx, "info", "channelID: %q, threadTS: %q", channelID, threadTS)
 
 	threadMsgs, err := sd.dumpThread(ctx, sd.limiter(tier3), channelID, threadTS)
 	if err != nil {

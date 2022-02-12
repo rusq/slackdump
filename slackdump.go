@@ -94,18 +94,6 @@ func (sd *SlackDumper) limiter(t tier) *rate.Limiter {
 	return newLimiter(t, sd.options.limiterBurst, int(sd.options.limiterBoost))
 }
 
-// pipeFiles scans the messages and sends all the files discovered to the filesC.
-func (sd *SlackDumper) pipeFiles(filesC chan<- *slack.File, msgs []Message) {
-	if !sd.options.dumpfiles {
-		return
-	}
-	// place files in download queue
-	fileChunk := sd.filesFromMessages(msgs)
-	for i := range fileChunk {
-		filesC <- &fileChunk[i]
-	}
-}
-
 var ErrRetryFailed = errors.New("callback was not able to complete without errors within the allowed number of retries")
 
 // withRetry will run the callback function fn. If the function returns

@@ -55,9 +55,10 @@ func Test_sortMessages(t *testing.T) {
 }
 
 var (
-	testMsg1 = slack.Message{Msg: slack.Msg{ClientMsgID: "a", Type: "x"}}
-	testMsg2 = slack.Message{Msg: slack.Msg{ClientMsgID: "b", Type: "y"}}
-	testMsg3 = slack.Message{Msg: slack.Msg{ClientMsgID: "c", Type: "z"}}
+	testMsg1  = slack.Message{Msg: slack.Msg{ClientMsgID: "a", Type: "x"}}
+	testMsg2  = slack.Message{Msg: slack.Msg{ClientMsgID: "b", Type: "y"}}
+	testMsg3  = slack.Message{Msg: slack.Msg{ClientMsgID: "c", Type: "z"}}
+	testMsg4t = slack.Message{Msg: slack.Msg{ClientMsgID: "c", Type: "z", ThreadTimestamp: "d"}}
 )
 
 func TestSlackDumper_convertMsgs(t *testing.T) {
@@ -138,6 +139,57 @@ func TestSlackDumper_DumpMessages(t *testing.T) {
 					{Message: testMsg1},
 					{Message: testMsg2},
 					{Message: testMsg3},
+				}},
+			false,
+		},
+		{
+			"iteration test",
+			fields{},
+			args{context.Background(), "CHANNEL"},
+			func(c *mockClienter) {
+				first := c.EXPECT().
+					GetConversationHistoryContext(
+						gomock.Any(),
+						&slack.GetConversationHistoryParameters{
+							ChannelID: "CHANNEL",
+						}).
+					Return(
+						&slack.GetConversationHistoryResponse{
+							HasMore:       true,
+							SlackResponse: slack.SlackResponse{Ok: true},
+							ResponseMetaData: struct {
+								NextCursor string "json:\"next_cursor\""
+							}{"cur"},
+							Messages: []slack.Message{
+								testMsg1,
+							},
+						},
+						nil,
+					)
+
+				c.EXPECT().
+					GetConversationHistoryContext(
+						gomock.Any(),
+						&slack.GetConversationHistoryParameters{
+							ChannelID: "CHANNEL",
+							Cursor:    "cur",
+						}).
+					Return(
+						&slack.GetConversationHistoryResponse{
+							SlackResponse: slack.SlackResponse{Ok: true},
+							Messages: []slack.Message{
+								testMsg2,
+							},
+						},
+						nil,
+					).
+					After(first)
+			},
+			&Conversation{
+				ID: "CHANNEL",
+				Messages: []Message{
+					{Message: testMsg1},
+					{Message: testMsg2},
 				}},
 			false,
 		},
@@ -312,6 +364,92 @@ func TestSlackDumper_dumpThread(t *testing.T) {
 				return
 			}
 			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestSlackDumper_populateThreads(t *testing.T) {
+	type args struct {
+		ctx       context.Context
+		l         *rate.Limiter
+		msgs      []Message
+		channelID string
+		dumpFn    threadFunc
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    int
+		wantErr bool
+	}{
+		{
+			"ok, no threads",
+			args{
+				ctx:       context.Background(),
+				l:         newLimiter(noTier, 1, 0),
+				msgs:      []Message{{Message: testMsg1}},
+				channelID: "x",
+				dumpFn: func(ctx context.Context, l *rate.Limiter, channelID, threadTS string) ([]Message, error) {
+					return nil, nil
+				},
+			},
+			0,
+			false,
+		},
+		{
+			"ok, thread",
+			args{
+				ctx:       context.Background(),
+				l:         newLimiter(noTier, 1, 0),
+				msgs:      []Message{{Message: testMsg1}, {Message: testMsg4t}},
+				channelID: "x",
+				dumpFn: func(ctx context.Context, l *rate.Limiter, channelID, threadTS string) ([]Message, error) {
+					return []Message{{Message: testMsg4t}, {Message: testMsg2}}, nil
+				},
+			},
+			1,
+			false,
+		},
+		{
+			"skipping empty messages",
+			args{
+				ctx:       context.Background(),
+				l:         newLimiter(noTier, 1, 0),
+				msgs:      []Message{{Message: testMsg4t}, {Message: testMsg1}},
+				channelID: "x",
+				dumpFn: func(ctx context.Context, l *rate.Limiter, channelID, threadTS string) ([]Message, error) {
+					return []Message{}, nil
+				},
+			},
+			0,
+			false,
+		},
+		{
+			"failing on dumpFn returning error",
+			args{
+				ctx:       context.Background(),
+				l:         newLimiter(noTier, 1, 0),
+				msgs:      []Message{{Message: testMsg4t}},
+				channelID: "x",
+				dumpFn: func(ctx context.Context, l *rate.Limiter, channelID, threadTS string) ([]Message, error) {
+					return nil, errors.New("bam")
+				},
+			},
+			0,
+			true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			sd := &SlackDumper{}
+			got, err := sd.populateThreads(tt.args.ctx, tt.args.l, tt.args.msgs, tt.args.channelID, tt.args.dumpFn)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("SlackDumper.populateThreads() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("SlackDumper.populateThreads() = %v, want %v", got, tt.want)
+			}
 		})
 	}
 }
