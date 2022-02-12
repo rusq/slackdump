@@ -82,6 +82,7 @@ func calcRunDuration(rateLimit float64, attempts int) time.Duration {
 }
 
 func Test_withRetry(t *testing.T) {
+	t.Parallel()
 	type args struct {
 		ctx         context.Context
 		l           *rate.Limiter
@@ -303,6 +304,7 @@ func Test_checkCacheFile(t *testing.T) {
 }
 
 func Test_newLimiter(t *testing.T) {
+	t.Parallel()
 	type args struct {
 		t     tier
 		burst uint
@@ -343,6 +345,7 @@ func Test_newLimiter(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 
 			got := newLimiter(tt.args.t, tt.args.burst, tt.args.boost)
 

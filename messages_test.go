@@ -143,6 +143,14 @@ func TestSlackDumper_DumpMessages(t *testing.T) {
 			false,
 		},
 		{
+			"channelID is empty",
+			fields{},
+			args{context.Background(), ""},
+			func(c *mockClienter) {},
+			nil,
+			true,
+		},
+		{
 			"iteration test",
 			fields{},
 			args{context.Background(), "CHANNEL"},

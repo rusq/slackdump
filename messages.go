@@ -166,18 +166,6 @@ func (sd *SlackDumper) DumpMessages(ctx context.Context, channelID string) (*Con
 	return &Conversation{Messages: messages, ID: channelID}, nil
 }
 
-// pipeFiles scans the messages and sends all the files discovered to the filesC.
-func (sd *SlackDumper) pipeFiles(filesC chan<- *slack.File, msgs []Message) {
-	if !sd.options.dumpfiles {
-		return
-	}
-	// place files in download queue
-	fileChunk := sd.filesFromMessages(msgs)
-	for i := range fileChunk {
-		filesC <- &fileChunk[i]
-	}
-}
-
 func (sd *SlackDumper) generateText(w io.Writer, m []Message, prefix string) error {
 	var (
 		prevMsg  Message

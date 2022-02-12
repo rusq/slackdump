@@ -9,6 +9,7 @@ import (
 	"runtime/trace"
 	"sync"
 
+	"github.com/pkg/errors"
 	"github.com/rusq/dlog"
 	"github.com/slack-go/slack"
 	"golang.org/x/time/rate"
@@ -28,6 +29,18 @@ func (*SlackDumper) filesFromMessages(m []Message) []slack.File {
 		}
 	}
 	return files
+}
+
+// pipeFiles scans the messages and sends all the files discovered to the filesC.
+func (sd *SlackDumper) pipeFiles(filesC chan<- *slack.File, msgs []Message) {
+	if !sd.options.dumpfiles {
+		return
+	}
+	// place files in download queue
+	fileChunk := sd.filesFromMessages(msgs)
+	for i := range fileChunk {
+		filesC <- &fileChunk[i]
+	}
 }
 
 // SaveFileTo saves a single file to the specified directory.
@@ -72,6 +85,10 @@ func (sd *SlackDumper) newFileDownloader(ctx context.Context, l *rate.Limiter, d
 		// terminating if dumpfiles is not enabled.
 		close(done)
 		return done, nil
+	}
+
+	if dir == "" {
+		return nil, errors.New("empty directory")
 	}
 
 	if err := os.Mkdir(dir, 0777); err != nil {
