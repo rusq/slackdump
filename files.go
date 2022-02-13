@@ -107,16 +107,14 @@ func (sd *SlackDumper) newFileDownloader(ctx context.Context, l *rate.Limiter, d
 	}
 
 	var wg sync.WaitGroup
-	go func() {
-		// create workers
-		for i := 0; i < sd.options.downloadWorkers; i++ {
-			wg.Add(1)
-			go func() {
-				sd.worker(ctx, l, dir, seenFilter(toDownload))
-				wg.Done()
-			}()
-		}
-	}()
+	// create workers
+	for i := 0; i < sd.options.downloadWorkers; i++ {
+		wg.Add(1)
+		go func() {
+			sd.worker(ctx, l, dir, seenFilter(toDownload))
+			wg.Done()
+		}()
+	}
 
 	// sentinel
 	go func() {
@@ -131,13 +129,13 @@ func (sd *SlackDumper) worker(ctx context.Context, l *rate.Limiter, dir string, 
 	for {
 		select {
 		case <-ctx.Done():
-			dlog.Println(ctx.Err())
+			trace.Log(ctx, "warn", "worker context cancelled")
 			return
 		case file, moar := <-filesC:
 			if !moar {
 				return
 			}
-			dlog.Printf("saving %s, size: %d", filename(file), file.Size)
+			dlog.Debugf("saving %s, size: %d", filename(file), file.Size)
 			n, err := sd.saveFileWithLimiter(ctx, l, dir, file)
 			if err != nil {
 				dlog.Printf("error saving %q: %s", filename(file), err)

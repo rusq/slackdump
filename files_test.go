@@ -4,7 +4,6 @@ import (
 	"context"
 	"os"
 	"path/filepath"
-	"reflect"
 	"sync"
 	"testing"
 	"time"
@@ -13,6 +12,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/slack-go/slack"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"golang.org/x/time/rate"
 )
 
@@ -326,45 +326,43 @@ func Test_filename(t *testing.T) {
 }
 
 func TestSlackDumper_newFileDownloader(t *testing.T) {
-	type fields struct {
-		client    clienter
-		Users     Users
-		UserIndex map[string]*slack.User
-		options   options
+	t.Parallel()
+	tl := newLimiter(noTier, 1, 0)
+	tmpdir, err := os.MkdirTemp("", "")
+	if err != nil {
+		t.Fatal(err)
 	}
-	type args struct {
-		ctx        context.Context
-		l          *rate.Limiter
-		dir        string
-		toDownload <-chan *slack.File
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		want    chan struct{}
-		wantErr bool
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			sd := &SlackDumper{
-				client:    tt.fields.client,
-				Users:     tt.fields.Users,
-				UserIndex: tt.fields.UserIndex,
-				options:   tt.fields.options,
-			}
-			got, err := sd.newFileDownloader(tt.args.ctx, tt.args.l, tt.args.dir, tt.args.toDownload)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("SlackDumper.newFileDownloader() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("SlackDumper.newFileDownloader() = %v, want %v", got, tt.want)
-			}
-		})
-	}
+	defer os.RemoveAll(tmpdir)
+
+	t.Run("ensure file downloader is running", func(t *testing.T) {
+		mc := newmockClienter(gomock.NewController(t))
+		sd := SlackDumper{
+			client: mc,
+			options: options{
+				dumpfiles:       true,
+				downloadWorkers: 4,
+			},
+		}
+
+		mc.EXPECT().
+			GetFile(file9.URLPrivateDownload, gomock.Any()).
+			Return(nil).
+			Times(1)
+
+		ctx, cancel := context.WithTimeout(context.Background(), 500*time.Second)
+		defer cancel()
+		filesC := make(chan *slack.File, 1)
+		filesC <- &file9
+		close(filesC)
+
+		done, err := sd.newFileDownloader(ctx, tl, tmpdir, filesC)
+		require.NoError(t, err)
+
+		<-done
+		filename := filepath.Join(tmpdir, filename(&file9))
+		assert.FileExists(t, filename)
+
+	})
 }
 
 func TestSlackDumper_worker(t *testing.T) {
@@ -419,24 +417,40 @@ func TestSlackDumper_worker(t *testing.T) {
 		_, err := os.Stat(filepath.Join(tmpdir, filename(&file1)))
 		assert.True(t, os.IsNotExist(err))
 	})
+	t.Run("cancelled context", func(t *testing.T) {
+		mc := newmockClienter(gomock.NewController(t))
+		sd := SlackDumper{
+			client: mc,
+		}
+
+		filesC := make(chan *slack.File, 1)
+
+		ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+		cancel()
+
+		sd.worker(ctx, tl, tmpdir, filesC)
+	})
 }
 
 func Test_seenFilter(t *testing.T) {
-	type args struct {
-		filesC <-chan *slack.File
-	}
-	tests := []struct {
-		name string
-		args args
-		want <-chan *slack.File
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := seenFilter(tt.args.filesC); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("seenFilter() = %v, want %v", got, tt.want)
+	t.Run("ensure that we don't get dup files", func(t *testing.T) {
+		source := []slack.File{file1, file2, file2, file3, file3, file3, file4, file5}
+		want := []slack.File{file1, file2, file3, file4, file5}
+
+		filesC := make(chan *slack.File)
+		go func() {
+			defer close(filesC)
+			for _, f := range source {
+				file := f // copy
+				filesC <- &file
 			}
-		})
-	}
+		}()
+		dlqC := seenFilter(filesC)
+
+		var got []slack.File
+		for f := range dlqC {
+			got = append(got, *f)
+		}
+		assert.Equal(t, want, got)
+	})
 }
