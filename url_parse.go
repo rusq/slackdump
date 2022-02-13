@@ -1,6 +1,7 @@
 package slackdump
 
 import (
+	"fmt"
 	"net/url"
 	"strconv"
 	"strings"
@@ -8,22 +9,22 @@ import (
 	"github.com/pkg/errors"
 )
 
-type URLInfo struct {
-	Channel string
-	Thread  string
+type urlInfo struct {
+	Channel  string
+	ThreadTS string
 }
 
-func (u URLInfo) IsThread() bool {
-	return u.Thread != ""
+func (u urlInfo) IsThread() bool {
+	return u.ThreadTS != ""
 }
 
-func (u URLInfo) IsValid() bool {
-	return u.Channel != "" || (u.Channel != "" && u.Thread != "")
+func (u urlInfo) IsValid() bool {
+	return u.Channel != "" || (u.Channel != "" && u.ThreadTS != "")
 }
 
 var errUnsupportedURL = errors.New("unsuuported URL type")
 
-func ParseURL(slackURL string) (*URLInfo, error) {
+func parseURL(slackURL string) (*urlInfo, error) {
 	if slackURL == "" {
 		return nil, errors.New("no url provided")
 	}
@@ -40,7 +41,7 @@ func ParseURL(slackURL string) (*URLInfo, error) {
 		return nil, errUnsupportedURL
 	}
 
-	var ui URLInfo
+	var ui urlInfo
 	switch len(parts) {
 	case 3:
 		//thread
@@ -50,13 +51,16 @@ func ParseURL(slackURL string) (*URLInfo, error) {
 		if _, err := strconv.ParseInt(parts[2][1:], 10, 64); err != nil {
 			return nil, errors.WithStack(err)
 		}
-		ui.Thread = parts[2][1:]
+		ui.ThreadTS = parts[2][1:11] + "." + parts[2][11:]
 		fallthrough
 	case 2:
 		// channel
 		ui.Channel = parts[1]
 	default:
 		return nil, errUnsupportedURL
+	}
+	if !ui.IsValid() {
+		return nil, fmt.Errorf("invalid URL: %q", slackURL)
 	}
 	return &ui, nil
 }

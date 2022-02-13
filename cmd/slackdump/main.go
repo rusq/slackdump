@@ -7,6 +7,8 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"runtime/trace"
+	"time"
 
 	"github.com/rusq/slackdump/internal/app"
 	"github.com/rusq/slackdump/internal/tracer"
@@ -21,8 +23,10 @@ const (
 )
 
 const (
-	defBoost = 120 // this seemed to be a safe value to use without getting rate limited after 1000 messages with threads.
-	defBurst = 1
+	defBoost         = 120 // this seemed to be a safe value to use without getting rate limited after 1000 messages with threads.
+	defBurst         = 1
+	defCacheLifetime = 4 * time.Hour
+	defUserCacheFile = "users.json"
 )
 
 var build = "dev"
@@ -39,6 +43,7 @@ type params struct {
 
 	traceFile    string // trace file
 	printVersion bool
+	verbose      bool
 }
 
 func main() {
@@ -52,12 +57,19 @@ func main() {
 		fmt.Println(build)
 		return
 	}
+	if params.verbose {
+		dlog.SetDebug(true)
+	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 
 	if err := run(ctx, params); err != nil {
-		dlog.Fatal(err)
+		if params.verbose {
+			dlog.Fatalf("%+v", err)
+		} else {
+			dlog.Fatal(err)
+		}
 	}
 }
 
@@ -76,12 +88,24 @@ func run(ctx context.Context, p params) error {
 		}()
 	}
 
-	app, err := app.New(p.appCfg)
+	ctx, task := trace.NewTask(ctx, "main.run")
+	defer task.End()
+
+	application, err := app.New(p.appCfg)
 	if err != nil {
+		trace.Logf(ctx, "error", "app.New: %s", err.Error())
 		return err
 	}
 
-	return app.Run(ctx)
+	// deleting creds to avoid logging them in the trace.
+	p.appCfg.Creds = app.SlackCreds{}
+	trace.Logf(ctx, "info", "params: input: %+v", p)
+
+	if err := application.Run(ctx); err != nil {
+		trace.Logf(ctx, "error", "app.Run: %s", err.Error())
+		return err
+	}
+	return nil
 }
 
 // loadSecrets load secrets from the files in secrets slice.
@@ -107,17 +131,27 @@ func parseCmdLine(args []string) (params, error) {
 	}
 
 	var p params
-	fs.BoolVar(&p.appCfg.ListFlags.Channels, "c", false, "ListFlags channels (aka conversations) and their IDs for export.")
-	fs.BoolVar(&p.appCfg.ListFlags.Users, "u", false, "ListFlags users and their IDs. ")
-	fs.BoolVar(&p.appCfg.IncludeFiles, "f", false, "enable files download")
-	fs.UintVar(&p.appCfg.Boost, "limiter-boost", defBoost, "rate limiter boost in `events` per minute, will be added to the\nbase slack tier event per minute value.")
-	fs.UintVar(&p.appCfg.Burst, "limiter-burst", defBurst, "allow up to `N` burst events per second.  Default value is safe.")
-	fs.StringVar(&p.appCfg.Output.Filename, "o", "-", "Output `filename` for users and channels.  Use '-' for standard\nOutput.")
-	fs.StringVar(&p.appCfg.Output.Format, "r", "", "report `format`.  One of 'json' or 'text'")
 	fs.StringVar(&p.appCfg.Creds.Token, "t", os.Getenv(slackTokenEnv), "Specify slack `API_token`, (environment: "+slackTokenEnv+")")
 	fs.StringVar(&p.appCfg.Creds.Cookie, "cookie", os.Getenv(slackCookieEnv), "d= cookie `value` (environment: "+slackCookieEnv+")")
+
+	fs.BoolVar(&p.appCfg.ListFlags.Channels, "c", false, "list channels (aka conversations) and their IDs for export.")
+	fs.BoolVar(&p.appCfg.ListFlags.Users, "u", false, "list users and their IDs. ")
+
+	fs.BoolVar(&p.appCfg.Input.DownloadFiles, "f", false, "enable files download")
+	fs.StringVar(&p.appCfg.Input.Filename, "i", "", "specify the `input file` with Channel IDs or URLs to be used instead of giving the list on the command line, one per line.\nUse \"-\" to read input from STDIN.")
+	fs.StringVar(&p.appCfg.Output.Filename, "o", "-", "Output `filename` for users and channels.  Use '-' for standard\nOutput.")
+	fs.StringVar(&p.appCfg.Output.Format, "r", "", "report `format`.  One of 'json' or 'text'")
+
+	fs.UintVar(&p.appCfg.Boost, "limiter-boost", defBoost, "rate limiter boost in `events` per minute, will be added to the\nbase slack tier event per minute value.")
+	fs.UintVar(&p.appCfg.Burst, "limiter-burst", defBurst, "allow up to `N` burst events per second.  Default value is safe.")
+
+	fs.DurationVar(&p.appCfg.MaxUserCacheAge, "user-cache-age", defCacheLifetime, "user cache lifetime `duration`. Set this to 0 to disable cache")
+	fs.StringVar(&p.appCfg.UserCacheFilename, "user-cache-file", defUserCacheFile, "user cache file`name`")
+
+	// main parameters
 	fs.StringVar(&p.traceFile, "trace", os.Getenv("TRACE_FILE"), "trace `file` (optional)")
 	fs.BoolVar(&p.printVersion, "V", false, "print version and exit")
+	fs.BoolVar(&p.verbose, "v", false, "verbose messages")
 
 	os.Unsetenv(slackTokenEnv)
 	os.Unsetenv(slackCookieEnv)
@@ -126,7 +160,7 @@ func parseCmdLine(args []string) (params, error) {
 		return p, err
 	}
 
-	p.appCfg.ChannelIDs = fs.Args()
+	p.appCfg.Input.List = fs.Args()
 
 	return p, p.validate()
 }

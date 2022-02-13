@@ -16,22 +16,16 @@ import (
 	"github.com/slack-go/slack"
 )
 
-// cache lifetime
-const (
-	cacheValidFor     = 4 * time.Hour
-	userCacheFilename = "users.json"
-)
-
-// Users keeps slice of users
+// Users is a slice of users.
 type Users []slack.User
 
-// GetUsers retrieve all users and refresh structure User information
+// GetUsers retrieves all users either from cache or from the API.
 func (sd *SlackDumper) GetUsers(ctx context.Context) (Users, error) {
 	// TODO: validate that the cache is from the same workspace, it can be done by team ID.
 	ctx, task := trace.NewTask(ctx, "GetUsers")
 	defer task.End()
 
-	users, err := sd.loadUserCache(userCacheFilename)
+	users, err := sd.loadUserCache(sd.options.userCacheFilename, sd.options.maxUserCacheAge)
 	if err != nil {
 		if os.IsNotExist(err) {
 			dlog.Println("  caching users for the first time")
@@ -42,13 +36,10 @@ func (sd *SlackDumper) GetUsers(ctx context.Context) (Users, error) {
 		if err != nil {
 			return nil, err
 		}
-		if err := sd.saveUserCache(userCacheFilename, users); err != nil {
-			dlog.Printf("error saving user cache to %q: %s, but nevermind, let's continue", userCacheFilename, err)
+		if err := sd.saveUserCache(sd.options.userCacheFilename, users); err != nil {
+			dlog.Printf("error saving user cache to %q: %s, but nevermind, let's continue", sd.options.userCacheFilename, err)
 		}
 	}
-
-	sd.Users = users
-	sd.UserIndex = sd.Users.IndexByID()
 
 	return users, err
 }
@@ -69,58 +60,41 @@ func (sd *SlackDumper) fetchUsers(ctx context.Context) (Users, error) {
 }
 
 // loadUsers tries to load the users from the file
-func (sd *SlackDumper) loadUserCache(filename string) (Users, error) {
-	if err := sd.validateUserCache(filename); err != nil {
+func (*SlackDumper) loadUserCache(filename string, maxAge time.Duration) (Users, error) {
+	if err := checkCacheFile(filename, maxAge); err != nil {
 		return nil, err
 	}
 	f, err := os.Open(filename)
 	if err != nil {
-		return nil, err
+		return nil, errors.WithStack(err)
 	}
 	defer f.Close()
 
 	dec := json.NewDecoder(f)
 	var uu Users
 	if err := dec.Decode(&uu); err != nil {
-		return nil, err
+		return nil, errors.WithStack(err)
 	}
 	return uu, nil
 }
 
-func (*SlackDumper) saveUserCache(filename string, uu Users) error {
-	f, err := os.Create("users.json")
+func (sd *SlackDumper) saveUserCache(filename string, uu Users) error {
+	f, err := os.Create(filename)
 	if err != nil {
-		return err
+		return errors.WithStack(err)
 	}
 	defer f.Close()
+
 	enc := json.NewEncoder(f)
 	enc.SetIndent("", "  ")
 	if err := enc.Encode(uu); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (*SlackDumper) validateUserCache(filename string) error {
-	if filename == "" {
-		return errors.New("no user cache filename")
-	}
-	fi, err := os.Stat(filename)
-	if err != nil {
-		return err
-	}
-	if fi.Size() == 0 {
-		return errors.New("empty user cache")
-	}
-	if time.Since(fi.ModTime()) > cacheValidFor {
-		return errors.New("user cache expired")
+		return errors.WithStack(err)
 	}
 	return nil
 }
 
 // ToText outputs Users us to io.Writer w in Text format
-func (us Users) ToText(w io.Writer) (err error) {
-	//const strFormat = "%-*s (id: %8s) %3s %8s\n"
+func (us Users) ToText(_ *SlackDumper, w io.Writer) error {
 	const strFormat = "%s\t%s\t%s\t%s\n"
 	writer := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
 	defer writer.Flush()
@@ -133,11 +107,15 @@ func (us Users) ToText(w io.Writer) (err error) {
 	}
 	sort.Strings(names)
 
-	// maxNameLen := maxStringLength(names)
 	// header
-	fmt.Fprintf(writer, strFormat, "Name", "ID", "Bot?", "Deleted?")
-	fmt.Fprintf(writer, strFormat, "", "", "", "")
+	if _, err := fmt.Fprintf(writer, strFormat, "Name", "ID", "Bot?", "Deleted?"); err != nil {
+		return errors.WithStack(err)
+	}
+	if _, err := fmt.Fprintf(writer, strFormat, "", "", "", ""); err != nil {
+		return errors.WithStack(err)
+	}
 
+	// data
 	for _, name := range names {
 		var deleted, bot string
 		if usermap[name].Deleted {
@@ -147,10 +125,13 @@ func (us Users) ToText(w io.Writer) (err error) {
 			bot = "bot"
 		}
 
-		fmt.Fprintf(writer, strFormat,
+		_, err := fmt.Fprintf(writer, strFormat,
 			name, usermap[name].ID, bot, deleted)
+		if err != nil {
+			return errors.WithStack(err)
+		}
 	}
-	return
+	return nil
 }
 
 // IndexByID returns the userID map to relevant *slack.User
@@ -164,7 +145,12 @@ func (us Users) IndexByID() map[string]*slack.User {
 	return usermap
 }
 
-// Len returns the user count
-func (us Users) Len() int {
-	return len(us)
+// IsUserDeleted checks if the user is deleted and returns appropriate value. It
+// will assume user is not deleted, if it's not present in the user index.
+func (sd *SlackDumper) IsUserDeleted(id string) bool {
+	thisUser, ok := sd.UserIndex[id]
+	if !ok {
+		return false
+	}
+	return thisUser.Deleted
 }
