@@ -49,24 +49,32 @@ func (sd *SlackDumper) SaveFileTo(ctx context.Context, dir string, f *slack.File
 }
 
 // saveFileWithLimiter saves the file to specified directory, it will use the provided limiter l for throttling.
-func (sd *SlackDumper) saveFileWithLimiter(ctx context.Context, l *rate.Limiter, dir string, f *slack.File) (int64, error) {
-	filePath := filepath.Join(dir, filename(f))
-	file, err := os.Create(filePath)
+func (sd *SlackDumper) saveFileWithLimiter(ctx context.Context, l *rate.Limiter, dir string, sf *slack.File) (int64, error) {
+	filePath := filepath.Join(dir, filename(sf))
+	f, err := os.Create(filePath)
 	if err != nil {
 		return 0, err
 	}
-	defer file.Close()
+	defer f.Close()
 
 	if err := withRetry(ctx, l, sd.options.downloadRetries, func() error {
 		region := trace.StartRegion(ctx, "GetFile")
 		defer region.End()
 
-		return sd.client.GetFile(f.URLPrivateDownload, file)
+		if err := sd.client.GetFile(sf.URLPrivateDownload, f); err != nil {
+			// cleanup if download failed.
+			f.Close()
+			if e := os.RemoveAll(filePath); e != nil {
+				trace.Logf(ctx, "error", "removing file after unsuccesful download failed with: %s", e)
+			}
+			return err
+		}
+		return nil
 	}); err != nil {
 		return 0, err
 	}
 
-	return int64(f.Size), nil
+	return int64(sf.Size), nil
 }
 
 // filename returns name of the file
@@ -93,7 +101,7 @@ func (sd *SlackDumper) newFileDownloader(ctx context.Context, l *rate.Limiter, d
 
 	if err := os.Mkdir(dir, 0777); err != nil {
 		if !os.IsExist(err) {
-			// channels done is closed by defer
+			close(done)
 			return done, err
 		}
 	}
@@ -120,14 +128,23 @@ func (sd *SlackDumper) newFileDownloader(ctx context.Context, l *rate.Limiter, d
 }
 
 func (sd *SlackDumper) worker(ctx context.Context, l *rate.Limiter, dir string, filesC <-chan *slack.File) {
-	for file := range filesC {
-		// download file
-		dlog.Printf("saving %s, size: %d", filename(file), file.Size)
-		n, err := sd.saveFileWithLimiter(ctx, l, dir, file)
-		if err != nil {
-			dlog.Printf("error saving %q: %s", filename(file), err)
+	for {
+		select {
+		case <-ctx.Done():
+			dlog.Println(ctx.Err())
+			return
+		case file, moar := <-filesC:
+			if !moar {
+				return
+			}
+			dlog.Printf("saving %s, size: %d", filename(file), file.Size)
+			n, err := sd.saveFileWithLimiter(ctx, l, dir, file)
+			if err != nil {
+				dlog.Printf("error saving %q: %s", filename(file), err)
+				break
+			}
+			dlog.Printf("file %s saved: %d bytes written", filename(file), n)
 		}
-		dlog.Printf("file %s saved: %d bytes written", filename(file), n)
 	}
 }
 

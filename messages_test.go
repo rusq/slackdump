@@ -148,7 +148,7 @@ func TestSlackDumper_DumpMessages(t *testing.T) {
 		name     string
 		fields   fields
 		args     args
-		expectFn func(c *mockClienter)
+		expectFn func(mc *mockClienter)
 		want     *Conversation
 		wantErr  bool
 	}{
@@ -572,6 +572,9 @@ func TestSlackDumper_DumpThread(t *testing.T) {
 		want     *Conversation
 		wantErr  bool
 	}{
+		{"chan and thread are empty", fields{}, args{context.Background(), "", ""}, nil, nil, true},
+		{"thread empty", fields{}, args{context.Background(), "xxx", ""}, nil, nil, true},
+		{"chan empty", fields{}, args{context.Background(), "", "yyy"}, nil, nil, true},
 		{
 			"ok",
 			fields{},
@@ -653,7 +656,9 @@ func TestSlackDumper_DumpThread(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			mc := newmockClienter(ctrl)
 
-			tt.expectFn(mc)
+			if tt.expectFn != nil {
+				tt.expectFn(mc)
+			}
 
 			sd := &SlackDumper{
 				client:    mc,
@@ -747,6 +752,42 @@ func TestSlackDumper_DumpURL(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("SlackDumper.DumpURL() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestConversation_String(t *testing.T) {
+	type fields struct {
+		Messages []Message
+		ID       string
+		ThreadTS string
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   string
+	}{
+		{
+			"conversation",
+			fields{ID: "x"},
+			"x",
+		},
+		{
+			"thread",
+			fields{ID: "x", ThreadTS: "y"},
+			"x-y",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := Conversation{
+				Messages: tt.fields.Messages,
+				ID:       tt.fields.ID,
+				ThreadTS: tt.fields.ThreadTS,
+			}
+			if got := c.String(); got != tt.want {
+				t.Errorf("Conversation.String() = %v, want %v", got, tt.want)
 			}
 		})
 	}

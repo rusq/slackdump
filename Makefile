@@ -10,7 +10,7 @@ OSES=linux darwin windows
 DISTFILES=README.rst LICENSE
 ZIPFILES=$(foreach s,$(OSES),$(OUTPUT)-$s.zip)
 
-.PHONY: dist all
+.PHONY: dist all test
 
 # special guest.
 $(OUTPUT)-windows.zip: EXECUTABLE=$(OUTPUT).exe
@@ -37,3 +37,6 @@ $(OUTPUT):
 
 clean:
 	-rm slackdump slackdump.exe $(wildcard *.zip)
+
+test:
+	go test ./... -race -cover -count=3
