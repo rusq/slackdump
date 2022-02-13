@@ -99,7 +99,7 @@ two ways of providing the conversation IDs that you want to save:
 IDs or URLs can be passed on the command line or read from a file
 (using the ``-i`` command line flag), in that file, every ID or URL
 should be placed on a separate line.  Slackdump can automatically
-detect the type of input.
+detect if it's an ID or a URL.
   
 Providing the list on the command line
 ++++++++++++++++++++++++++++++++++++++
