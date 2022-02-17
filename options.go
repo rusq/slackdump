@@ -68,21 +68,39 @@ func RetryDownloads(attempts int) Option {
 	}
 }
 
-// LimiterBoost allows to deliver a magic kick to the limiter, to override the
+// Tier3Boost allows to deliver a magic kick to the limiter, to override the
 // base slack tier limits.  The resulting
 // events per minute will be calculated like this:
 //
 //   events_per_sec =  (<slack_tier_epm> + <eventsPerMin>) / 60.0
-func LimiterBoost(eventsPerMin uint) Option {
+func Tier3Boost(eventsPerMin uint) Option {
 	return func(options *Options) {
 		options.Tier3Boost = eventsPerMin
 	}
 }
 
-// LimiterBurst allows to set the limiter burst value.
-func LimiterBurst(eventsPerSec uint) Option {
+// Tier3Burst allows to set the limiter burst value.
+func Tier3Burst(eventsPerSec uint) Option {
 	return func(options *Options) {
 		options.Tier3Burst = eventsPerSec
+	}
+}
+
+// Tier2Boost allows to deliver a magic kick to the limiter, to override the
+// base slack tier limits.  The resulting
+// events per minute will be calculated like this:
+//
+//   events_per_sec =  (<slack_tier_epm> + <eventsPerMin>) / 60.0
+func Tier2Boost(eventsPerMin uint) Option {
+	return func(options *Options) {
+		options.Tier2Boost = eventsPerMin
+	}
+}
+
+// Tier2Burst allows to set the limiter burst value.
+func Tier2Burst(eventsPerSec uint) Option {
+	return func(options *Options) {
+		options.Tier2Burst = eventsPerSec
 	}
 }
 

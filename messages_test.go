@@ -19,7 +19,7 @@ var (
 		Type:        "message",
 		User:        "U10H7D9RR",
 		Timestamp:   "1638497751.040300",
-		Text:        "message 1",
+		Text:        "Test message \u0026lt; \u0026gt; \u0026lt; \u0026gt;",
 	}}}
 	testMsg2 = Message{Message: slack.Message{Msg: slack.Msg{
 		ClientMsgID: "b11431d3-a5c4-4612-b09c-b074e9ddace7",
@@ -520,17 +520,17 @@ func TestSlackDumper_generateText(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			"two messages from the same person, not very far apart",
+			"two messages from the same person, not very far apart, with html escaped char",
 			fields{},
 			args{[]Message{testMsg1, testMsg2}, ""},
-			"\n> U10H7D9RR [U10H7D9RR] @ 03/12/2021 02:15:51 Z:\nmessage 1\nmessage 2\n",
+			"\n> U10H7D9RR [U10H7D9RR] @ 03/12/2021 02:15:51 Z:\nTest message < > < >\nmessage 2\n",
 			false,
 		},
 		{
 			"two messages from the same person, far apart",
 			fields{},
 			args{[]Message{testMsg1, testMsg4t}, ""},
-			"\n> U10H7D9RR [U10H7D9RR] @ 03/12/2021 02:15:51 Z:\nmessage 1\n\n> UP58RAHCJ [UP58RAHCJ] @ 03/12/2021 09:47:34 Z:\nmessage 4\n|   \n|   > U01HPAR0YFN [U01HPAR0YFN] @ 03/12/2021 18:05:26 Z:\n|   blah blah, reply 1\n",
+			"\n> U10H7D9RR [U10H7D9RR] @ 03/12/2021 02:15:51 Z:\nTest message < > < >\n\n> UP58RAHCJ [UP58RAHCJ] @ 03/12/2021 09:47:34 Z:\nmessage 4\n|   \n|   > U01HPAR0YFN [U01HPAR0YFN] @ 03/12/2021 18:05:26 Z:\n|   blah blah, reply 1\n",
 			false,
 		},
 	}
