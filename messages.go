@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"html"
 	"io"
 	"runtime/trace"
 	"sort"
@@ -179,7 +180,7 @@ func (sd *SlackDumper) generateText(w io.Writer, m []Message, prefix string) err
 			fmt.Fprintf(w, prefix+"\n"+prefix+"> %s [%s] @ %s:\n%s\n",
 				sd.SenderName(&message), message.User,
 				t.Format(textTimeFmt),
-				prefix+message.Text,
+				prefix+html.UnescapeString(message.Text),
 			)
 		}
 		if len(message.ThreadReplies) > 0 {
