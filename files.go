@@ -45,7 +45,7 @@ func (sd *SlackDumper) pipeFiles(filesC chan<- *slack.File, msgs []Message) {
 
 // SaveFileTo saves a single file to the specified directory.
 func (sd *SlackDumper) SaveFileTo(ctx context.Context, dir string, f *slack.File) (int64, error) {
-	return sd.saveFileWithLimiter(ctx, newLimiter(noTier, sd.options.LimiterBurst, 0), dir, f)
+	return sd.saveFileWithLimiter(ctx, newLimiter(noTier, sd.options.Tier3Burst, 0), dir, f)
 }
 
 // saveFileWithLimiter saves the file to specified directory, it will use the provided limiter l for throttling.

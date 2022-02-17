@@ -12,24 +12,30 @@ type Options struct {
 	DumpFiles           bool          // will we save the conversation files?
 	Workers             int           // number of file-saving workers
 	ConversationRetries int           // number of retries to do when getting 429 on conversation fetch
+	Tier2Retries        int           // number of retries when getting 429 on channels fetch
 	DownloadRetries     int           // if we get rate limited on file downloads, this is how many times we're going to retry
+	Tier2Boost          uint          // channel (tier-2) limiter boost
+	Tier2Burst          uint          // channel (tier-2) limiter burst
+	Tier3Boost          uint          // convo (tier-3) limiter boost allows to increase or decrease the slack tier req/min rate.  Affects all tiers.
+	Tier3Burst          uint          // convo (tier-3) limiter burst allows to set the limiter burst in req/sec.  Default of 1 is safe.
 	ConversationsPerReq int           // number of messages we get per 1 api request. bigger the number, less requests, but they become more beefy.
-	LimiterBoost        uint          // limiter boost allows to increase or decrease the slack tier req/min rate.  Affects all tiers.
-	LimiterBurst        uint          // limiter burst allows to set the limiter burst in req/sec.  Default of 1 is safe.
 	UserCacheFilename   string        // user cache filename
 	MaxUserCacheAge     time.Duration // how long the user cache is valid for.
 }
 
 // DefOptions is the default options used when initialising slackdump instance.
 var DefOptions = Options{
+	DumpFiles:           false,
 	Workers:             defNumWorkers, // number of workers doing the file download
-	ConversationRetries: 3,
-	DownloadRetries:     3,
-	LimiterBoost:        120,           // playing safe there, but generally value of 120 is fine.
-	LimiterBurst:        1,             // safe value, who would ever want to modify it? I don't know.
+	ConversationRetries: 3,             // on tier 3 this was never a problem, even with limiter-boost=120
+	Tier2Retries:        20,            // see #28, sometimes slack is being difficult
+	DownloadRetries:     3,             // this shouldn't even happen, as we have no limiter on files download.
+	Tier2Boost:          0,             // slack is being difficult, so no boost for tier 2.
+	Tier3Boost:          120,           // playing safe there, but generally value of 120 is fine.
+	Tier3Burst:          1,             // safe value, who would ever want to modify it? I don't know.
 	ConversationsPerReq: 200,           // this is the recommended value by Slack. But who listens to them anyway.
 	UserCacheFilename:   "users.json",  // seems logical
-	MaxUserCacheAge:     4 * time.Hour, // quick math: that's 1/6th of a day.
+	MaxUserCacheAge:     4 * time.Hour, // quick math:  that's 1/6th of a day, how's that, huh?
 }
 
 // Option is the signature of the option-setting function.
@@ -69,14 +75,14 @@ func RetryDownloads(attempts int) Option {
 //   events_per_sec =  (<slack_tier_epm> + <eventsPerMin>) / 60.0
 func LimiterBoost(eventsPerMin uint) Option {
 	return func(options *Options) {
-		options.LimiterBoost = eventsPerMin
+		options.Tier3Boost = eventsPerMin
 	}
 }
 
 // LimiterBurst allows to set the limiter burst value.
 func LimiterBurst(eventsPerSec uint) Option {
 	return func(options *Options) {
-		options.LimiterBurst = eventsPerSec
+		options.Tier3Burst = eventsPerSec
 	}
 }
 

@@ -22,7 +22,7 @@ func (sd *SlackDumper) getChannels(ctx context.Context, chanTypes []string) (Cha
 	ctx, task := trace.NewTask(ctx, "getChannels")
 	defer task.End()
 
-	limiter := newLimiter(tier2, sd.options.LimiterBurst, int(sd.options.LimiterBoost))
+	limiter := newLimiter(tier2, sd.options.Tier2Burst, int(sd.options.Tier2Boost))
 
 	if chanTypes == nil {
 		chanTypes = allChanTypes

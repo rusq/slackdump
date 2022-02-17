@@ -97,7 +97,7 @@ func NewWithOptions(ctx context.Context, token string, cookie string, opts Optio
 }
 
 func (sd *SlackDumper) limiter(t tier) *rate.Limiter {
-	return newLimiter(t, sd.options.LimiterBurst, int(sd.options.LimiterBoost))
+	return newLimiter(t, sd.options.Tier3Burst, int(sd.options.Tier3Boost))
 }
 
 var ErrRetryFailed = errors.New("callback was not able to complete without errors within the allowed number of retries")
