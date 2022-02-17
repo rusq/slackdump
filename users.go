@@ -25,7 +25,7 @@ func (sd *SlackDumper) GetUsers(ctx context.Context) (Users, error) {
 	ctx, task := trace.NewTask(ctx, "GetUsers")
 	defer task.End()
 
-	users, err := sd.loadUserCache(sd.options.userCacheFilename, sd.options.maxUserCacheAge)
+	users, err := sd.loadUserCache(sd.options.UserCacheFilename, sd.options.MaxUserCacheAge)
 	if err != nil {
 		if os.IsNotExist(err) {
 			dlog.Println("  caching users for the first time")
@@ -36,8 +36,8 @@ func (sd *SlackDumper) GetUsers(ctx context.Context) (Users, error) {
 		if err != nil {
 			return nil, err
 		}
-		if err := sd.saveUserCache(sd.options.userCacheFilename, users); err != nil {
-			dlog.Printf("error saving user cache to %q: %s, but nevermind, let's continue", sd.options.userCacheFilename, err)
+		if err := sd.saveUserCache(sd.options.UserCacheFilename, users); err != nil {
+			dlog.Printf("error saving user cache to %q: %s, but nevermind, let's continue", sd.options.UserCacheFilename, err)
 		}
 	}
 

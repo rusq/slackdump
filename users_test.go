@@ -51,7 +51,7 @@ func TestSlackDumper_IsUserDeleted(t *testing.T) {
 		client    *slack.Client
 		Users     Users
 		UserIndex map[string]*slack.User
-		options   options
+		options   Options
 	}
 	type args struct {
 		id string
@@ -167,7 +167,7 @@ func TestSlackDumper_loadUserCache(t *testing.T) {
 		client    *slack.Client
 		Users     Users
 		UserIndex map[string]*slack.User
-		options   options
+		options   Options
 	}
 	type args struct {
 		filename string
@@ -220,7 +220,7 @@ func TestSlackDumper_fetchUsers(t *testing.T) {
 	type fields struct {
 		Users     Users
 		UserIndex map[string]*slack.User
-		options   options
+		options   Options
 	}
 	type args struct {
 		ctx context.Context
@@ -292,7 +292,7 @@ func TestSlackDumper_GetUsers(t *testing.T) {
 	type fields struct {
 		Users     Users
 		UserIndex map[string]*slack.User
-		options   options
+		options   Options
 	}
 	type args struct {
 		ctx context.Context
@@ -307,9 +307,9 @@ func TestSlackDumper_GetUsers(t *testing.T) {
 	}{
 		{
 			"everything goes as planned",
-			fields{options: options{
-				userCacheFilename: gimmeTempFile(t),
-				maxUserCacheAge:   5 * time.Hour,
+			fields{options: Options{
+				UserCacheFilename: gimmeTempFile(t),
+				MaxUserCacheAge:   5 * time.Hour,
 			}},
 			args{context.Background()},
 			func(mc *mockClienter) {
@@ -320,9 +320,9 @@ func TestSlackDumper_GetUsers(t *testing.T) {
 		},
 		{
 			"loaded from cache",
-			fields{options: options{
-				userCacheFilename: gimmeTempFileWithUsers(t),
-				maxUserCacheAge:   5 * time.Hour,
+			fields{options: Options{
+				UserCacheFilename: gimmeTempFileWithUsers(t),
+				MaxUserCacheAge:   5 * time.Hour,
 			}},
 			args{context.Background()},
 			func(mc *mockClienter) {
@@ -334,7 +334,7 @@ func TestSlackDumper_GetUsers(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			defer os.Remove(tt.fields.options.userCacheFilename)
+			defer os.Remove(tt.fields.options.UserCacheFilename)
 
 			mc := newmockClienter(gomock.NewController(t))
 

@@ -112,7 +112,7 @@ func (sd *SlackDumper) DumpMessages(ctx context.Context, channelID string) (*Con
 	)
 	for i := 1; ; i++ {
 		var resp *slack.GetConversationHistoryResponse
-		if err := withRetry(ctx, convLimiter, sd.options.conversationRetries, func() error {
+		if err := withRetry(ctx, convLimiter, sd.options.ConversationRetries, func() error {
 			var err error
 			trace.WithRegion(ctx, "GetConversationHistoryContext", func() {
 				resp, err = sd.client.GetConversationHistoryContext(
@@ -120,7 +120,7 @@ func (sd *SlackDumper) DumpMessages(ctx context.Context, channelID string) (*Con
 					&slack.GetConversationHistoryParameters{
 						ChannelID: channelID,
 						Cursor:    cursor,
-						Limit:     sd.options.conversationsPerRequest,
+						Limit:     sd.options.ConversationsPerReq,
 					},
 				)
 			})
@@ -151,7 +151,7 @@ func (sd *SlackDumper) DumpMessages(ctx context.Context, channelID string) (*Con
 		cursor = resp.ResponseMetaData.NextCursor
 	}
 
-	if sd.options.dumpfiles {
+	if sd.options.DumpFiles {
 		trace.Log(ctx, "info", "closing files channel")
 		close(filesC)
 		<-dlDoneC
@@ -265,7 +265,7 @@ func (sd *SlackDumper) DumpThread(ctx context.Context, channelID, threadTS strin
 	}
 
 	sd.pipeFiles(filesC, threadMsgs)
-	if sd.options.dumpfiles {
+	if sd.options.DumpFiles {
 		close(filesC)
 		<-dlDoneC
 	}
@@ -291,7 +291,7 @@ func (sd *SlackDumper) dumpThread(ctx context.Context, l *rate.Limiter, channelI
 			hasmore    bool
 			nextCursor string
 		)
-		if err := withRetry(ctx, l, sd.options.conversationRetries, func() error {
+		if err := withRetry(ctx, l, sd.options.ConversationRetries, func() error {
 			var err error
 			trace.WithRegion(ctx, "GetConversationRepliesContext", func() {
 				msgs, hasmore, nextCursor, err = sd.client.GetConversationRepliesContext(

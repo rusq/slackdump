@@ -6,7 +6,8 @@ import (
 	"fmt"
 	"io"
 	"strings"
-	"time"
+
+	"github.com/rusq/slackdump"
 )
 
 type Config struct {
@@ -16,10 +17,7 @@ type Config struct {
 	Input  Input
 	Output Output
 
-	Boost             uint
-	Burst             uint
-	MaxUserCacheAge   time.Duration
-	UserCacheFilename string
+	Options slackdump.Options
 }
 
 type Output struct {
@@ -28,9 +26,8 @@ type Output struct {
 }
 
 type Input struct {
-	List          []string // Input list
-	Filename      string   // filename containing the list of Conversation IDs or URLs to download.
-	DownloadFiles bool     // if true, the input is treated as URLs instead of conversation IDs
+	List     []string // Input list
+	Filename string   // filename containing the list of Conversation IDs or URLs to download.
 }
 
 var (

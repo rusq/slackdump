@@ -138,7 +138,7 @@ func TestSlackDumper_DumpMessages(t *testing.T) {
 	type fields struct {
 		Users     Users
 		UserIndex map[string]*slack.User
-		options   options
+		options   Options
 	}
 	type args struct {
 		ctx       context.Context
@@ -300,7 +300,7 @@ func TestSlackDumper_dumpThread(t *testing.T) {
 	type fields struct {
 		Users     Users
 		UserIndex map[string]*slack.User
-		options   options
+		options   Options
 	}
 	type args struct {
 		ctx       context.Context
@@ -506,7 +506,7 @@ func TestSlackDumper_generateText(t *testing.T) {
 		client    clienter
 		Users     Users
 		UserIndex map[string]*slack.User
-		options   options
+		options   Options
 	}
 	type args struct {
 		m      []Message
@@ -557,7 +557,7 @@ func TestSlackDumper_DumpThread(t *testing.T) {
 	type fields struct {
 		Users     Users
 		UserIndex map[string]*slack.User
-		options   options
+		options   Options
 	}
 	type args struct {
 		ctx       context.Context
@@ -681,7 +681,7 @@ func TestSlackDumper_DumpURL(t *testing.T) {
 	type fields struct {
 		Users     Users
 		UserIndex map[string]*slack.User
-		options   options
+		options   Options
 	}
 	type args struct {
 		ctx      context.Context

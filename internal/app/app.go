@@ -30,15 +30,11 @@ func New(cfg Config) (*App, error) {
 
 // init initialises the slack dumper app.
 func (app *App) init(ctx context.Context) error {
-	sd, err := slackdump.New(
+	sd, err := slackdump.NewWithOptions(
 		ctx,
 		app.cfg.Creds.Token,
 		app.cfg.Creds.Cookie,
-		slackdump.DownloadFiles(app.cfg.Input.DownloadFiles),
-		slackdump.LimiterBoost(app.cfg.Boost),
-		slackdump.LimiterBurst(app.cfg.Burst),
-		slackdump.MaxUserCacheAge(app.cfg.MaxUserCacheAge),
-		slackdump.UserCacheFilename(app.cfg.UserCacheFilename),
+		app.cfg.Options,
 	)
 	if err != nil {
 		return err

@@ -3,6 +3,7 @@ package main
 import (
 	"testing"
 
+	"github.com/rusq/slackdump"
 	"github.com/rusq/slackdump/internal/app"
 
 	"github.com/stretchr/testify/assert"
@@ -58,12 +59,9 @@ func Test_checkParameters(t *testing.T) {
 					Token:  "x",
 					Cookie: "d",
 				},
-				Input:             app.Input{List: []string{}},
-				Output:            app.Output{Filename: "-", Format: "text"},
-				Boost:             defBoost,
-				Burst:             defBurst,
-				MaxUserCacheAge:   defCacheLifetime,
-				UserCacheFilename: defUserCacheFile,
+				Input:   app.Input{List: []string{}},
+				Output:  app.Output{Filename: "-", Format: "text"},
+				Options: slackdump.DefOptions,
 			}},
 			false,
 		},
@@ -79,12 +77,9 @@ func Test_checkParameters(t *testing.T) {
 					Token:  "x",
 					Cookie: "d",
 				},
-				Input:             app.Input{List: []string{}},
-				Output:            app.Output{Filename: "-", Format: "text"},
-				Boost:             defBoost,
-				Burst:             defBurst,
-				MaxUserCacheAge:   defCacheLifetime,
-				UserCacheFilename: defUserCacheFile,
+				Input:   app.Input{List: []string{}},
+				Output:  app.Output{Filename: "-", Format: "text"},
+				Options: slackdump.DefOptions,
 			}},
 			false,
 		},
