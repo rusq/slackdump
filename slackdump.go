@@ -6,15 +6,11 @@ import (
 	"io"
 	"os"
 	"runtime/trace"
-	"strconv"
-	"strings"
 	"time"
 	"unicode/utf8"
 
 	"github.com/pkg/errors"
-
 	"github.com/rusq/dlog"
-
 	"github.com/slack-go/slack"
 	"golang.org/x/time/rate"
 )
@@ -145,24 +141,6 @@ func newLimiter(t tier, burst uint, boost int) *rate.Limiter {
 	callsPerSec := float64(int(t)+boost) / 60.0
 	l := rate.NewLimiter(rate.Limit(callsPerSec), int(burst))
 	return l
-}
-
-func fromSlackTime(timestamp string) (time.Time, error) {
-	strTime := strings.Split(timestamp, ".")
-	var hi, lo int64
-
-	hi, err := strconv.ParseInt(strTime[0], 10, 64)
-	if err != nil {
-		return time.Time{}, err
-	}
-	if len(strTime) > 1 {
-		lo, err = strconv.ParseInt(strTime[1], 10, 64)
-		if err != nil {
-			return time.Time{}, err
-		}
-	}
-	t := time.Unix(hi, lo).UTC()
-	return t, nil
 }
 
 func maxStringLength(strings []string) (maxlen int) {

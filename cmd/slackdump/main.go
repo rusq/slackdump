@@ -146,7 +146,7 @@ func parseCmdLine(args []string) (params, error) {
 	// options
 	fs.BoolVar(&p.appCfg.Options.DumpFiles, "f", slackdump.DefOptions.DumpFiles, "enable files download")
 	fs.IntVar(&p.appCfg.Options.Workers, "download-workers", slackdump.DefOptions.Workers, "number of file download worker threads")
-	fs.IntVar(&p.appCfg.Options.ConversationRetries, "cr", slackdump.DefOptions.ConversationRetries, "rate limit retries for conversation")
+	fs.IntVar(&p.appCfg.Options.Tier3Retries, "cr", slackdump.DefOptions.Tier3Retries, "rate limit retries for conversation")
 	fs.IntVar(&p.appCfg.Options.Tier2Retries, "chr", slackdump.DefOptions.Tier2Retries, "rate limit retries for channel listing")
 	fs.IntVar(&p.appCfg.Options.DownloadRetries, "dr", slackdump.DefOptions.DownloadRetries, "rate limit retries for file downloads")
 	fs.IntVar(&p.appCfg.Options.ConversationsPerReq, "cpr", slackdump.DefOptions.ConversationsPerReq, "number of file download worker threads")

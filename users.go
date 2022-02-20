@@ -1,5 +1,7 @@
 package slackdump
 
+// In this file: user related code.
+
 import (
 	"context"
 	"encoding/json"

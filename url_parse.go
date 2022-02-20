@@ -1,9 +1,10 @@
 package slackdump
 
+// In this file: slack URL parsing functions.
+
 import (
 	"fmt"
 	"net/url"
-	"strconv"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -45,13 +46,11 @@ func parseURL(slackURL string) (*urlInfo, error) {
 	switch len(parts) {
 	case 3:
 		//thread
-		if len(parts[2]) == 0 || parts[2][0] != 'p' {
+		ts, err := parseThreadID(parts[2])
+		if err != nil {
 			return nil, errUnsupportedURL
 		}
-		if _, err := strconv.ParseInt(parts[2][1:], 10, 64); err != nil {
-			return nil, errors.WithStack(err)
-		}
-		ui.ThreadTS = parts[2][1:11] + "." + parts[2][11:]
+		ui.ThreadTS = formatSlackTS(ts)
 		fallthrough
 	case 2:
 		// channel

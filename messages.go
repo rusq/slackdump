@@ -1,5 +1,7 @@
 package slackdump
 
+// In this file: messages related code.
+
 import (
 	"bufio"
 	"context"
@@ -66,7 +68,15 @@ func (m Conversation) ToText(sd *SlackDumper, w io.Writer) (err error) {
 
 // DumpURL dumps messages from the slack URL, it supports conversations and individual threads.
 func (sd *SlackDumper) DumpURL(ctx context.Context, slackURL string) (*Conversation, error) {
-	ctx, task := trace.NewTask(ctx, "DumpURL")
+	return sd.dumpURL(ctx, slackURL, time.Time{}, time.Time{})
+}
+
+func (sd *SlackDumper) DumpURLInTimeframe(ctx context.Context, slackURL string, oldest, latest time.Time) (*Conversation, error) {
+	return sd.dumpURL(ctx, slackURL, oldest, latest)
+}
+
+func (sd *SlackDumper) dumpURL(ctx context.Context, slackURL string, oldest, latest time.Time) (*Conversation, error) {
+	ctx, task := trace.NewTask(ctx, "dumpURL")
 	defer task.End()
 
 	trace.Logf(ctx, "info", "slackURL: %q", slackURL)
@@ -79,20 +89,32 @@ func (sd *SlackDumper) DumpURL(ctx context.Context, slackURL string) (*Conversat
 	if ui.IsThread() {
 		return sd.DumpThread(ctx, ui.Channel, ui.ThreadTS)
 	} else {
-		return sd.DumpMessages(ctx, ui.Channel)
+		return sd.dumpMessages(ctx, ui.Channel, oldest, latest)
 	}
 }
 
 // DumpMessages fetches messages from the conversation identified by channelID.
 func (sd *SlackDumper) DumpMessages(ctx context.Context, channelID string) (*Conversation, error) {
-	ctx, task := trace.NewTask(ctx, "DumpMessages")
+	return sd.dumpMessages(ctx, channelID, time.Time{}, time.Time{})
+}
+
+// DumpMessagesInTimeframe dumps messages in the given timeframe between oldest
+// and latest.  If oldest or latest are zero time, they will not be accounted
+// for.  Having both oldest and latest as zero time, will make this function
+// behave similar to DumpMessages.
+func (sd *SlackDumper) DumpMessagesInTimeframe(ctx context.Context, channelID string, oldest, latest time.Time) (*Conversation, error) {
+	return sd.dumpMessages(ctx, channelID, oldest, latest)
+}
+
+func (sd *SlackDumper) dumpMessages(ctx context.Context, channelID string, oldest, latest time.Time) (*Conversation, error) {
+	ctx, task := trace.NewTask(ctx, "dumpMessages")
 	defer task.End()
 
 	if channelID == "" {
 		return nil, errors.New("channelID is empty")
 	}
 
-	trace.Logf(ctx, "info", "channelID: %q", channelID)
+	trace.Logf(ctx, "info", "channelID: %q, oldest: %s, latest: %s", channelID, oldest, latest)
 
 	var (
 		// slack rate limits are per method, so we're safe to use different limiters for different mehtods.
@@ -112,18 +134,14 @@ func (sd *SlackDumper) DumpMessages(ctx context.Context, channelID string) (*Con
 		cursor   string
 	)
 	for i := 1; ; i++ {
-		var resp *slack.GetConversationHistoryResponse
-		if err := withRetry(ctx, convLimiter, sd.options.ConversationRetries, func() error {
+		var (
+			resp   *slack.GetConversationHistoryResponse
+			params = sd.convHistoryParams(channelID, cursor, oldest, latest)
+		)
+		if err := withRetry(ctx, convLimiter, sd.options.Tier3Retries, func() error {
 			var err error
 			trace.WithRegion(ctx, "GetConversationHistoryContext", func() {
-				resp, err = sd.client.GetConversationHistoryContext(
-					ctx,
-					&slack.GetConversationHistoryParameters{
-						ChannelID: channelID,
-						Cursor:    cursor,
-						Limit:     sd.options.ConversationsPerReq,
-					},
-				)
+				resp, err = sd.client.GetConversationHistoryContext(ctx, params)
 			})
 			return errors.WithStack(err)
 		}); err != nil {
@@ -163,13 +181,31 @@ func (sd *SlackDumper) DumpMessages(ctx context.Context, channelID string) (*Con
 	return &Conversation{Messages: messages, ID: channelID}, nil
 }
 
+// convHistoryParams returns GetConversationHistoryParameters.
+func (sd *SlackDumper) convHistoryParams(channelID, cursor string, oldest, latest time.Time) *slack.GetConversationHistoryParameters {
+	params := &slack.GetConversationHistoryParameters{
+		ChannelID: channelID,
+		Cursor:    cursor,
+		Limit:     sd.options.ConversationsPerReq,
+	}
+	if !oldest.IsZero() {
+		params.Oldest = formatSlackTS(oldest)
+		params.Inclusive = true // make sure we include the messages at this exact TS
+	}
+	if !latest.IsZero() {
+		params.Latest = formatSlackTS(latest)
+		params.Inclusive = true
+	}
+	return params
+}
+
 func (sd *SlackDumper) generateText(w io.Writer, m []Message, prefix string) error {
 	var (
 		prevMsg  Message
 		prevTime time.Time
 	)
 	for _, message := range m {
-		t, err := fromSlackTime(message.Timestamp)
+		t, err := parseSlackTS(message.Timestamp)
 		if err != nil {
 			return err
 		}
@@ -292,7 +328,7 @@ func (sd *SlackDumper) dumpThread(ctx context.Context, l *rate.Limiter, channelI
 			hasmore    bool
 			nextCursor string
 		)
-		if err := withRetry(ctx, l, sd.options.ConversationRetries, func() error {
+		if err := withRetry(ctx, l, sd.options.Tier3Retries, func() error {
 			var err error
 			trace.WithRegion(ctx, "GetConversationRepliesContext", func() {
 				msgs, hasmore, nextCursor, err = sd.client.GetConversationRepliesContext(
