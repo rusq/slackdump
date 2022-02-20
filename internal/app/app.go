@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/rusq/dlog"
 	"github.com/rusq/slackdump"
@@ -94,20 +95,20 @@ func (app *App) dump(ctx context.Context, input Input) (int, error) {
 	return total, nil
 }
 
+type dumpFunc func(context.Context, string, time.Time, time.Time) (*slackdump.Conversation, error)
+
 func (app *App) newDumpFunc(s string) dumpFunc {
 	if strings.HasPrefix(strings.ToLower(s), "https://") {
-		return app.sd.DumpURL
+		return app.sd.DumpURLInTimeframe
 	} else {
-		return app.sd.DumpMessages
+		return app.sd.DumpMessagesInTimeframe
 	}
 }
-
-type dumpFunc func(context.Context, string) (*slackdump.Conversation, error)
 
 // dumpOneChannel dumps just one channel having ID = id.  If generateText is
 // true, it will also generate a ID.txt text file.
 func (app *App) dumpOne(ctx context.Context, s string, fn dumpFunc) error {
-	cnv, err := fn(ctx, s)
+	cnv, err := fn(ctx, s, time.Time(app.cfg.Oldest), time.Time(app.cfg.Latest))
 	if err != nil {
 		return err
 	}

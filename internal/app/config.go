@@ -14,8 +14,11 @@ type Config struct {
 	Creds     SlackCreds
 	ListFlags ListFlags
 
-	Input  Input
-	Output Output
+	Input  Input  // parameters of the input
+	Output Output // " " output
+
+	Oldest TimeValue // oldest time to dump conversations from
+	Latest TimeValue // latest time to dump conversations to
 
 	Options slackdump.Options
 }
@@ -38,52 +41,6 @@ var (
 
 func (in Input) IsValid() bool {
 	return len(in.List) > 0 || in.Filename != ""
-}
-
-// Producer iterates over the list or reads the list from the file and calls
-// fn for each entry.
-func (in Input) producer(fn func(string) error) error {
-	if !in.IsValid() {
-		return ErrInvalidInput
-	}
-	if in.Filename != "" {
-		return in.fileProducer(fn)
-	} else {
-		return in.listProducer(fn)
-	}
-}
-
-// fileProducer iterates over the file, reading it line by line, and calls fn
-// for each line.
-func (in Input) fileProducer(fn func(string) error) error {
-	if !in.IsValid() {
-		return ErrInvalidInput
-	}
-	f, err := openFile(in.Filename)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	return in.iterScanner(f, fn)
-}
-
-// iterScanner iterates over the reader r, reading it line by line, and calls fn
-// for each line.
-func (in Input) iterScanner(r io.Reader, fn func(string) error) error {
-	if !in.IsValid() {
-		return ErrInvalidInput
-	}
-	scanner := bufio.NewScanner(r)
-	for scanner.Scan() {
-		if err := fn(scanner.Text()); err != nil {
-			if errors.Is(err, errSkip) {
-				continue
-			}
-			return err
-		}
-	}
-	return scanner.Err()
 }
 
 // listProducer iterates over the input.List, and calls fn for each entry.
@@ -154,4 +111,50 @@ func (p *Config) Validate() error {
 	}
 
 	return nil
+}
+
+// Producer iterates over the list or reads the list from the file and calls
+// fn for each entry.
+func (in Input) producer(fn func(string) error) error {
+	if !in.IsValid() {
+		return ErrInvalidInput
+	}
+	if in.Filename != "" {
+		return in.fileProducer(fn)
+	} else {
+		return in.listProducer(fn)
+	}
+}
+
+// fileProducer iterates over the file, reading it line by line, and calls fn
+// for each line.
+func (in Input) fileProducer(fn func(string) error) error {
+	if !in.IsValid() {
+		return ErrInvalidInput
+	}
+	f, err := openFile(in.Filename)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	return in.iterScanner(f, fn)
+}
+
+// iterScanner iterates over the reader r, reading it line by line, and calls fn
+// for each line.
+func (in Input) iterScanner(r io.Reader, fn func(string) error) error {
+	if !in.IsValid() {
+		return ErrInvalidInput
+	}
+	scanner := bufio.NewScanner(r)
+	for scanner.Scan() {
+		if err := fn(scanner.Text()); err != nil {
+			if errors.Is(err, errSkip) {
+				continue
+			}
+			return err
+		}
+	}
+	return scanner.Err()
 }

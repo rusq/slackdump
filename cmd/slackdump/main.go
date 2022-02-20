@@ -8,7 +8,6 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime/trace"
-	"time"
 
 	"github.com/rusq/slackdump"
 	"github.com/rusq/slackdump/internal/app"
@@ -21,14 +20,6 @@ import (
 const (
 	slackTokenEnv  = "SLACK_TOKEN"
 	slackCookieEnv = "COOKIE"
-)
-
-const (
-	defBoost         = 120 // this seemed to be a safe value to use without getting rate limited after 1000 messages with threads.
-	defBurst         = 1
-	defCacheLifetime = 4 * time.Hour
-	defUserCacheFile = "users.json"
-	defWorkers       = 4
 )
 
 var build = "dev"
@@ -119,7 +110,7 @@ func loadSecrets(files []string) {
 
 // parseCmdLine parses the command line arguments.
 func parseCmdLine(args []string) (params, error) {
-	fs := flag.NewFlagSet("", flag.ExitOnError)
+	fs := flag.NewFlagSet("", flag.ContinueOnError)
 	fs.Usage = func() {
 		fmt.Fprintf(
 			flag.CommandLine.Output(),
@@ -156,6 +147,8 @@ func parseCmdLine(args []string) (params, error) {
 	fs.UintVar(&p.appCfg.Options.Tier2Boost, "t2boost", slackdump.DefOptions.Tier2Boost, "Tier-2 limiter boost in `events` per minute, affects users and channels listing")
 	fs.StringVar(&p.appCfg.Options.UserCacheFilename, "user-cache-file", slackdump.DefOptions.UserCacheFilename, "user cache file`name`")
 	fs.DurationVar(&p.appCfg.Options.MaxUserCacheAge, "user-cache-age", slackdump.DefOptions.MaxUserCacheAge, "user cache lifetime `duration`. Set this to 0 to disable cache")
+	fs.Var(&p.appCfg.Oldest, "dump-from", "`timestamp` of the oldest message to fetch from (i.e. 2020-12-31T23:59:59)")
+	fs.Var(&p.appCfg.Latest, "dump-to", "`timestamp` of the latest message to fetch to (i.e. 2020-12-31T23:59:59)")
 
 	// main parameters
 	fs.StringVar(&p.traceFile, "trace", os.Getenv("TRACE_FILE"), "trace `file` (optional)")
