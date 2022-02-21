@@ -127,8 +127,10 @@ func parseCmdLine(args []string) (params, error) {
 	fs.StringVar(&p.appCfg.Creds.Token, "t", os.Getenv(slackTokenEnv), "Specify slack `API_token`, (environment: "+slackTokenEnv+")")
 	fs.StringVar(&p.appCfg.Creds.Cookie, "cookie", os.Getenv(slackCookieEnv), "d= cookie `value` (environment: "+slackCookieEnv+")")
 
-	fs.BoolVar(&p.appCfg.ListFlags.Channels, "c", false, "list channels (aka conversations) and their IDs for export.")
-	fs.BoolVar(&p.appCfg.ListFlags.Users, "u", false, "list users and their IDs. ")
+	fs.BoolVar(&p.appCfg.ListFlags.Channels, "c", false, "same as -list-channels")
+	fs.BoolVar(&p.appCfg.ListFlags.Channels, "list-channels", false, "list channels (aka conversations) and their IDs for export.")
+	fs.BoolVar(&p.appCfg.ListFlags.Users, "u", false, "same as -list-users")
+	fs.BoolVar(&p.appCfg.ListFlags.Users, "list-users", false, "list users and their IDs. ")
 
 	fs.StringVar(&p.appCfg.Input.Filename, "i", "", "specify the `input file` with Channel IDs or URLs to be used instead of giving the list on the command line, one per line.\nUse \"-\" to read input from STDIN.")
 	fs.StringVar(&p.appCfg.Output.Filename, "o", "-", "Output `filename` for users and channels.  Use '-' for standard\nOutput.")
