@@ -17,7 +17,7 @@ func (tv *TimeValue) Set(s string) error {
 	if s == "" {
 		return nil
 	}
-	if t, err := time.Parse(s, timeFmt); err != nil {
+	if t, err := time.Parse(timeFmt, s); err != nil {
 		return err
 	} else {
 		*tv = TimeValue(t)

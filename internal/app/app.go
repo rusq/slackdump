@@ -148,7 +148,8 @@ func (app *App) saveText(filename string, m *slackdump.Conversation) error {
 	return m.ToText(app.sd, f)
 }
 
-// listEntities queries lists the supported entities, and writes the output to output.
+// listEntities queries lists the supported entities, and writes the output to
+// the output defined in the app.cfg.
 func (app *App) listEntities(ctx context.Context) error {
 	f, err := createFile(app.cfg.Output.Filename)
 	if err != nil {
@@ -207,7 +208,7 @@ func (app *App) fetchEntity(ctx context.Context, listFlags ListFlags) (rep slack
 	return
 }
 
-// formatEntity formats the entity according to output specification.
+// formatEntity formats the entity according to output parameter value.
 func (app *App) formatEntity(w io.Writer, rep slackdump.Reporter, output Output) error {
 	switch output.Format {
 	case OutputTypeText:
