@@ -1,5 +1,7 @@
 package slackdump
 
+// In this file: channel/conversations and thread related code.
+
 import (
 	"context"
 	"fmt"
@@ -22,7 +24,7 @@ func (sd *SlackDumper) getChannels(ctx context.Context, chanTypes []string) (Cha
 	ctx, task := trace.NewTask(ctx, "getChannels")
 	defer task.End()
 
-	limiter := newLimiter(tier2, sd.options.limiterBurst, int(sd.options.limiterBoost))
+	limiter := newLimiter(tier2, sd.options.Tier2Burst, int(sd.options.Tier2Boost))
 
 	if chanTypes == nil {
 		chanTypes = allChanTypes
@@ -35,7 +37,7 @@ func (sd *SlackDumper) getChannels(ctx context.Context, chanTypes []string) (Cha
 			chans   []slack.Channel
 			nextcur string
 		)
-		if err := withRetry(ctx, limiter, sd.options.conversationRetries, func() error {
+		if err := withRetry(ctx, limiter, sd.options.Tier3Retries, func() error {
 			var err error
 			trace.WithRegion(ctx, "GetConversations", func() {
 				chans, nextcur, err = sd.client.GetConversations(params)

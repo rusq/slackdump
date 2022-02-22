@@ -8,8 +8,8 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime/trace"
-	"time"
 
+	"github.com/rusq/slackdump"
 	"github.com/rusq/slackdump/internal/app"
 	"github.com/rusq/slackdump/internal/tracer"
 
@@ -20,13 +20,6 @@ import (
 const (
 	slackTokenEnv  = "SLACK_TOKEN"
 	slackCookieEnv = "COOKIE"
-)
-
-const (
-	defBoost         = 120 // this seemed to be a safe value to use without getting rate limited after 1000 messages with threads.
-	defBurst         = 1
-	defCacheLifetime = 4 * time.Hour
-	defUserCacheFile = "users.json"
 )
 
 var build = "dev"
@@ -117,7 +110,7 @@ func loadSecrets(files []string) {
 
 // parseCmdLine parses the command line arguments.
 func parseCmdLine(args []string) (params, error) {
-	fs := flag.NewFlagSet("", flag.ExitOnError)
+	fs := flag.NewFlagSet("", flag.ContinueOnError)
 	fs.Usage = func() {
 		fmt.Fprintf(
 			flag.CommandLine.Output(),
@@ -134,19 +127,33 @@ func parseCmdLine(args []string) (params, error) {
 	fs.StringVar(&p.appCfg.Creds.Token, "t", os.Getenv(slackTokenEnv), "Specify slack `API_token`, (environment: "+slackTokenEnv+")")
 	fs.StringVar(&p.appCfg.Creds.Cookie, "cookie", os.Getenv(slackCookieEnv), "d= cookie `value` (environment: "+slackCookieEnv+")")
 
-	fs.BoolVar(&p.appCfg.ListFlags.Channels, "c", false, "list channels (aka conversations) and their IDs for export.")
-	fs.BoolVar(&p.appCfg.ListFlags.Users, "u", false, "list users and their IDs. ")
+	fs.BoolVar(&p.appCfg.ListFlags.Channels, "c", false, "same as -list-channels")
+	fs.BoolVar(&p.appCfg.ListFlags.Channels, "list-channels", false, "list channels (aka conversations) and their IDs for export.")
+	fs.BoolVar(&p.appCfg.ListFlags.Users, "u", false, "same as -list-users")
+	fs.BoolVar(&p.appCfg.ListFlags.Users, "list-users", false, "list users and their IDs. ")
 
-	fs.BoolVar(&p.appCfg.Input.DownloadFiles, "f", false, "enable files download")
 	fs.StringVar(&p.appCfg.Input.Filename, "i", "", "specify the `input file` with Channel IDs or URLs to be used instead of giving the list on the command line, one per line.\nUse \"-\" to read input from STDIN.")
 	fs.StringVar(&p.appCfg.Output.Filename, "o", "-", "Output `filename` for users and channels.  Use '-' for standard\nOutput.")
 	fs.StringVar(&p.appCfg.Output.Format, "r", "", "report `format`.  One of 'json' or 'text'")
 
-	fs.UintVar(&p.appCfg.Boost, "limiter-boost", defBoost, "rate limiter boost in `events` per minute, will be added to the\nbase slack tier event per minute value.")
-	fs.UintVar(&p.appCfg.Burst, "limiter-burst", defBurst, "allow up to `N` burst events per second.  Default value is safe.")
-
-	fs.DurationVar(&p.appCfg.MaxUserCacheAge, "user-cache-age", defCacheLifetime, "user cache lifetime `duration`. Set this to 0 to disable cache")
-	fs.StringVar(&p.appCfg.UserCacheFilename, "user-cache-file", defUserCacheFile, "user cache file`name`")
+	// options
+	fs.BoolVar(&p.appCfg.Options.DumpFiles, "f", slackdump.DefOptions.DumpFiles, "same as -download")
+	fs.BoolVar(&p.appCfg.Options.DumpFiles, "download", slackdump.DefOptions.DumpFiles, "enable files download.")
+	fs.IntVar(&p.appCfg.Options.Workers, "download-workers", slackdump.DefOptions.Workers, "number of file download worker threads.")
+	fs.IntVar(&p.appCfg.Options.Tier3Retries, "t3-retries", slackdump.DefOptions.Tier3Retries, "rate limit retries for conversation.")
+	fs.IntVar(&p.appCfg.Options.Tier2Retries, "t2-retries", slackdump.DefOptions.Tier2Retries, "rate limit retries for channel listing.")
+	fs.IntVar(&p.appCfg.Options.DownloadRetries, "dl-retries", slackdump.DefOptions.DownloadRetries, "rate limit retries for file downloads.")
+	fs.IntVar(&p.appCfg.Options.ConversationsPerReq, "cpr", slackdump.DefOptions.ConversationsPerReq, "number of file download worker threads.")
+	fs.UintVar(&p.appCfg.Options.Tier3Boost, "limiter-boost", slackdump.DefOptions.Tier3Boost, "same as -t3-boost.")
+	fs.UintVar(&p.appCfg.Options.Tier3Boost, "t3-boost", slackdump.DefOptions.Tier3Boost, "Tier-3 rate limiter boost in `events` per minute, will be added to the\nbase slack tier event per minute value.")
+	fs.UintVar(&p.appCfg.Options.Tier3Burst, "limiter-burst", slackdump.DefOptions.Tier3Burst, "same as -t3-burst.")
+	fs.UintVar(&p.appCfg.Options.Tier3Burst, "t3-burst", slackdump.DefOptions.Tier3Burst, "allow up to `N` burst events per second.  Default value is safe.")
+	fs.UintVar(&p.appCfg.Options.Tier2Boost, "t2-boost", slackdump.DefOptions.Tier2Boost, "Tier-2 limiter boost in `events` per minute (affects users and channels).")
+	fs.UintVar(&p.appCfg.Options.Tier2Burst, "t2-burst", slackdump.DefOptions.Tier2Burst, "Tier-2 limiter burst in `events` (affects users and channels).")
+	fs.StringVar(&p.appCfg.Options.UserCacheFilename, "user-cache-file", slackdump.DefOptions.UserCacheFilename, "user cache file`name`.")
+	fs.DurationVar(&p.appCfg.Options.MaxUserCacheAge, "user-cache-age", slackdump.DefOptions.MaxUserCacheAge, "user cache lifetime `duration`. Set this to 0 to disable cache.")
+	fs.Var(&p.appCfg.Oldest, "dump-from", "`timestamp` of the oldest message to fetch from (i.e. 2020-12-31T23:59:59)")
+	fs.Var(&p.appCfg.Latest, "dump-to", "`timestamp` of the latest message to fetch to (i.e. 2020-12-31T23:59:59)")
 
 	// main parameters
 	fs.StringVar(&p.traceFile, "trace", os.Getenv("TRACE_FILE"), "trace `file` (optional)")

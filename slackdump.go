@@ -6,15 +6,11 @@ import (
 	"io"
 	"os"
 	"runtime/trace"
-	"strconv"
-	"strings"
 	"time"
 	"unicode/utf8"
 
 	"github.com/pkg/errors"
-
 	"github.com/rusq/dlog"
-
 	"github.com/slack-go/slack"
 	"golang.org/x/time/rate"
 )
@@ -33,7 +29,7 @@ type SlackDumper struct {
 	Users     Users                  `json:"users"`
 	UserIndex map[string]*slack.User `json:"-"`
 
-	options options
+	options Options
 }
 
 // clienter is the interface with some functions of slack.Client with the sole
@@ -70,12 +66,18 @@ type Reporter interface {
 // New creates new client and populates the internal cache of users and channels
 // for lookups.
 func New(ctx context.Context, token string, cookie string, opts ...Option) (*SlackDumper, error) {
+	options := DefOptions
+	for _, opt := range opts {
+		opt(&options)
+	}
+
+	return NewWithOptions(ctx, token, cookie, options)
+}
+
+func NewWithOptions(ctx context.Context, token string, cookie string, opts Options) (*SlackDumper, error) {
 	sd := &SlackDumper{
 		client:  slack.New(token, slack.OptionCookie(cookie)),
-		options: defOptions,
-	}
-	for _, opt := range opts {
-		opt(sd)
+		options: opts,
 	}
 
 	dlog.Println("> checking user cache...")
@@ -91,7 +93,7 @@ func New(ctx context.Context, token string, cookie string, opts ...Option) (*Sla
 }
 
 func (sd *SlackDumper) limiter(t tier) *rate.Limiter {
-	return newLimiter(t, sd.options.limiterBurst, int(sd.options.limiterBoost))
+	return newLimiter(t, sd.options.Tier3Burst, int(sd.options.Tier3Boost))
 }
 
 var ErrRetryFailed = errors.New("callback was not able to complete without errors within the allowed number of retries")
@@ -139,24 +141,6 @@ func newLimiter(t tier, burst uint, boost int) *rate.Limiter {
 	callsPerSec := float64(int(t)+boost) / 60.0
 	l := rate.NewLimiter(rate.Limit(callsPerSec), int(burst))
 	return l
-}
-
-func fromSlackTime(timestamp string) (time.Time, error) {
-	strTime := strings.Split(timestamp, ".")
-	var hi, lo int64
-
-	hi, err := strconv.ParseInt(strTime[0], 10, 64)
-	if err != nil {
-		return time.Time{}, err
-	}
-	if len(strTime) > 1 {
-		lo, err = strconv.ParseInt(strTime[1], 10, 64)
-		if err != nil {
-			return time.Time{}, err
-		}
-	}
-	t := time.Unix(hi, lo).UTC()
-	return t, nil
 }
 
 func maxStringLength(strings []string) (maxlen int) {

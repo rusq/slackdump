@@ -5,6 +5,7 @@ import (
 	"context"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/golang/mock/gomock"
 	"github.com/pkg/errors"
@@ -19,7 +20,7 @@ var (
 		Type:        "message",
 		User:        "U10H7D9RR",
 		Timestamp:   "1638497751.040300",
-		Text:        "message 1",
+		Text:        "Test message \u0026lt; \u0026gt; \u0026lt; \u0026gt;",
 	}}}
 	testMsg2 = Message{Message: slack.Message{Msg: slack.Msg{
 		ClientMsgID: "b11431d3-a5c4-4612-b09c-b074e9ddace7",
@@ -138,7 +139,7 @@ func TestSlackDumper_DumpMessages(t *testing.T) {
 	type fields struct {
 		Users     Users
 		UserIndex map[string]*slack.User
-		options   options
+		options   Options
 	}
 	type args struct {
 		ctx       context.Context
@@ -300,7 +301,7 @@ func TestSlackDumper_dumpThread(t *testing.T) {
 	type fields struct {
 		Users     Users
 		UserIndex map[string]*slack.User
-		options   options
+		options   Options
 	}
 	type args struct {
 		ctx       context.Context
@@ -506,7 +507,7 @@ func TestSlackDumper_generateText(t *testing.T) {
 		client    clienter
 		Users     Users
 		UserIndex map[string]*slack.User
-		options   options
+		options   Options
 	}
 	type args struct {
 		m      []Message
@@ -520,17 +521,17 @@ func TestSlackDumper_generateText(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			"two messages from the same person, not very far apart",
+			"two messages from the same person, not very far apart, with html escaped char",
 			fields{},
 			args{[]Message{testMsg1, testMsg2}, ""},
-			"\n> U10H7D9RR [U10H7D9RR] @ 03/12/2021 02:15:51 Z:\nmessage 1\nmessage 2\n",
+			"\n> U10H7D9RR [U10H7D9RR] @ 03/12/2021 02:15:51 Z:\nTest message < > < >\nmessage 2\n",
 			false,
 		},
 		{
 			"two messages from the same person, far apart",
 			fields{},
 			args{[]Message{testMsg1, testMsg4t}, ""},
-			"\n> U10H7D9RR [U10H7D9RR] @ 03/12/2021 02:15:51 Z:\nmessage 1\n\n> UP58RAHCJ [UP58RAHCJ] @ 03/12/2021 09:47:34 Z:\nmessage 4\n|   \n|   > U01HPAR0YFN [U01HPAR0YFN] @ 03/12/2021 18:05:26 Z:\n|   blah blah, reply 1\n",
+			"\n> U10H7D9RR [U10H7D9RR] @ 03/12/2021 02:15:51 Z:\nTest message < > < >\n\n> UP58RAHCJ [UP58RAHCJ] @ 03/12/2021 09:47:34 Z:\nmessage 4\n|   \n|   > U01HPAR0YFN [U01HPAR0YFN] @ 03/12/2021 18:05:26 Z:\n|   blah blah, reply 1\n",
 			false,
 		},
 	}
@@ -557,7 +558,7 @@ func TestSlackDumper_DumpThread(t *testing.T) {
 	type fields struct {
 		Users     Users
 		UserIndex map[string]*slack.User
-		options   options
+		options   Options
 	}
 	type args struct {
 		ctx       context.Context
@@ -681,7 +682,7 @@ func TestSlackDumper_DumpURL(t *testing.T) {
 	type fields struct {
 		Users     Users
 		UserIndex map[string]*slack.User
-		options   options
+		options   Options
 	}
 	type args struct {
 		ctx      context.Context
@@ -788,6 +789,100 @@ func TestConversation_String(t *testing.T) {
 			}
 			if got := c.String(); got != tt.want {
 				t.Errorf("Conversation.String() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestSlackDumper_convHistoryParams(t *testing.T) {
+	type fields struct {
+		client    clienter
+		Users     Users
+		UserIndex map[string]*slack.User
+		options   Options
+	}
+	type args struct {
+		channelID string
+		cursor    string
+		oldest    time.Time
+		latest    time.Time
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   *slack.GetConversationHistoryParameters
+	}{
+		{
+			"just channel",
+			fields{options: DefOptions},
+			args{channelID: "CHAN_ID"},
+			&slack.GetConversationHistoryParameters{
+				ChannelID: "CHAN_ID",
+				Limit:     DefOptions.ConversationsPerReq,
+			},
+		},
+		{
+			"channel and cursor",
+			fields{options: DefOptions},
+			args{channelID: "CHAN_ID", cursor: "SOME_JUNK"},
+			&slack.GetConversationHistoryParameters{
+				ChannelID: "CHAN_ID",
+				Cursor:    "SOME_JUNK",
+				Limit:     DefOptions.ConversationsPerReq,
+			},
+		},
+		{
+			"oldest set",
+			fields{options: DefOptions},
+			args{channelID: "CHAN_ID", oldest: time.Date(1991, 9, 16, 6, 7, 8, 9, time.UTC)},
+			&slack.GetConversationHistoryParameters{
+				ChannelID: "CHAN_ID",
+				Oldest:    "685001228.000009",
+				Inclusive: true,
+				Limit:     DefOptions.ConversationsPerReq,
+			},
+		},
+		{
+			"latest set",
+			fields{options: DefOptions},
+			args{channelID: "CHAN_ID", latest: time.Date(2020, 1, 5, 6, 7, 8, 9, time.UTC)},
+			&slack.GetConversationHistoryParameters{
+				ChannelID: "CHAN_ID",
+				Latest:    "1578204428.000009",
+				Inclusive: true,
+				Limit:     DefOptions.ConversationsPerReq,
+			},
+		},
+		{
+			"full house",
+			fields{options: DefOptions},
+			args{
+				channelID: "CHAN_ID",
+				cursor:    "JUNK",
+				oldest:    time.Date(1991, 9, 16, 6, 7, 8, 9, time.UTC),
+				latest:    time.Date(2020, 1, 5, 6, 7, 8, 9, time.UTC),
+			},
+			&slack.GetConversationHistoryParameters{
+				ChannelID: "CHAN_ID",
+				Cursor:    "JUNK",
+				Inclusive: true,
+				Oldest:    "685001228.000009",
+				Latest:    "1578204428.000009",
+				Limit:     DefOptions.ConversationsPerReq,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			sd := &SlackDumper{
+				client:    tt.fields.client,
+				Users:     tt.fields.Users,
+				UserIndex: tt.fields.UserIndex,
+				options:   tt.fields.options,
+			}
+			if got := sd.convHistoryParams(tt.args.channelID, tt.args.cursor, tt.args.oldest, tt.args.latest); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("SlackDumper.convHistoryParams() = %v, want %v", got, tt.want)
 			}
 		})
 	}

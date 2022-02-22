@@ -107,8 +107,8 @@ func TestSlackDumper_filesFromMessages(t *testing.T) {
 
 func TestSlackDumper_pipeFiles(t *testing.T) {
 	sd := SlackDumper{
-		options: options{
-			dumpfiles: true,
+		options: Options{
+			DumpFiles: true,
 		},
 	}
 
@@ -146,7 +146,7 @@ func TestSlackDumper_SaveFileTo(t *testing.T) {
 	type fields struct {
 		Users     Users
 		UserIndex map[string]*slack.User
-		options   options
+		options   Options
 	}
 	type args struct {
 		ctx context.Context
@@ -229,7 +229,7 @@ func TestSlackDumper_saveFileWithLimiter(t *testing.T) {
 	type fields struct {
 		Users     Users
 		UserIndex map[string]*slack.User
-		options   options
+		options   Options
 	}
 	type args struct {
 		ctx context.Context
@@ -338,9 +338,9 @@ func TestSlackDumper_newFileDownloader(t *testing.T) {
 		mc := newmockClienter(gomock.NewController(t))
 		sd := SlackDumper{
 			client: mc,
-			options: options{
-				dumpfiles:       true,
-				downloadWorkers: 4,
+			options: Options{
+				DumpFiles: true,
+				Workers:   4,
 			},
 		}
 
