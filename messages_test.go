@@ -172,9 +172,11 @@ func TestSlackDumper_DumpMessages(t *testing.T) {
 						},
 					},
 					nil)
+				mockConvInfo(c, "CHANNEL", "channel_name")
 			},
 			&Conversation{
-				ID: "CHANNEL",
+				Name: "channel_name",
+				ID:   "CHANNEL",
 				Messages: []Message{
 					testMsg1,
 					testMsg2,
@@ -232,9 +234,11 @@ func TestSlackDumper_DumpMessages(t *testing.T) {
 						nil,
 					).
 					After(first)
+				mockConvInfo(c, "CHANNEL", "channel_name")
 			},
 			&Conversation{
-				ID: "CHANNEL",
+				Name: "channel_name",
+				ID:   "CHANNEL",
 				Messages: []Message{
 					testMsg1,
 					testMsg2,
@@ -593,8 +597,9 @@ func TestSlackDumper_DumpThread(t *testing.T) {
 						nil,
 					).
 					Times(1)
+				mockConvInfo(mc, "CHANNEL", "channel_name")
 			},
-			&Conversation{ID: "CHANNEL", ThreadTS: "THREAD", Messages: []Message{testMsg1, testMsg2, testMsg3}},
+			&Conversation{Name: "channel_name", ID: "CHANNEL", ThreadTS: "THREAD", Messages: []Message{testMsg1, testMsg2, testMsg3}},
 			false,
 		},
 		{
@@ -626,8 +631,9 @@ func TestSlackDumper_DumpThread(t *testing.T) {
 						nil,
 					).
 					Times(1)
+				mockConvInfo(mc, "CHANNEL", "channel_name")
 			},
-			&Conversation{ID: "CHANNEL", ThreadTS: "THREAD", Messages: []Message{testMsg1, testMsg2}},
+			&Conversation{Name: "channel_name", ID: "CHANNEL", ThreadTS: "THREAD", Messages: []Message{testMsg1, testMsg2}},
 			false,
 		},
 		{
@@ -707,8 +713,9 @@ func TestSlackDumper_DumpURL(t *testing.T) {
 					},
 					nil,
 				)
+				mockConvInfo(sc, "CHM82GF99", "unittest")
 			},
-			want:    &Conversation{ID: "CHM82GF99", Messages: []Message{testMsg1}},
+			want:    &Conversation{Name: "unittest", ID: "CHM82GF99", Messages: []Message{testMsg1}},
 			wantErr: false,
 		},
 		{
@@ -721,8 +728,9 @@ func TestSlackDumper_DumpURL(t *testing.T) {
 					"",
 					nil,
 				)
+				mockConvInfo(sc, "CHM82GF99", "unittest")
 			},
-			want:    &Conversation{ID: "CHM82GF99", ThreadTS: "1577694990.000400", Messages: []Message{testMsg1}},
+			want:    &Conversation{Name: "unittest", ID: "CHM82GF99", ThreadTS: "1577694990.000400", Messages: []Message{testMsg1}},
 			wantErr: false,
 		},
 		{
@@ -751,11 +759,16 @@ func TestSlackDumper_DumpURL(t *testing.T) {
 				t.Errorf("SlackDumper.DumpURL() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
+			assert.Equal(t, tt.want, got)
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("SlackDumper.DumpURL() = %v, want %v", got, tt.want)
 			}
 		})
 	}
+}
+
+func mockConvInfo(mc *mockClienter, channelID, wantName string) {
+	mc.EXPECT().GetConversationInfoContext(gomock.Any(), channelID, false).Return(&slack.Channel{GroupConversation: slack.GroupConversation{Conversation: slack.Conversation{NameNormalized: wantName}}}, nil)
 }
 
 func TestConversation_String(t *testing.T) {
@@ -883,6 +896,78 @@ func TestSlackDumper_convHistoryParams(t *testing.T) {
 			}
 			if got := sd.convHistoryParams(tt.args.channelID, tt.args.cursor, tt.args.oldest, tt.args.latest); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("SlackDumper.convHistoryParams() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestSlackDumper_getChannelName(t *testing.T) {
+	type fields struct {
+		Users     Users
+		UserIndex map[string]*slack.User
+		options   Options
+	}
+	type args struct {
+		ctx       context.Context
+		l         *rate.Limiter
+		channelID string
+	}
+	tests := []struct {
+		name     string
+		fields   fields
+		args     args
+		expectFn func(mc *mockClienter)
+		want     string
+		wantErr  bool
+	}{
+		{
+			name:   "ok",
+			fields: fields{},
+			args: args{
+				ctx:       context.Background(),
+				l:         newLimiter(noTier, 1, 0),
+				channelID: "TESTCHAN",
+			},
+			expectFn: func(sc *mockClienter) {
+				sc.EXPECT().GetConversationInfoContext(gomock.Any(), "TESTCHAN", false).Return(&slack.Channel{GroupConversation: slack.GroupConversation{Conversation: slack.Conversation{NameNormalized: "unittest"}}}, nil)
+			},
+			want:    "unittest",
+			wantErr: false,
+		},
+		{
+			name:   "error",
+			fields: fields{},
+			args: args{
+				ctx:       context.Background(),
+				l:         newLimiter(noTier, 1, 0),
+				channelID: "TESTCHAN",
+			},
+			expectFn: func(sc *mockClienter) {
+				sc.EXPECT().GetConversationInfoContext(gomock.Any(), "TESTCHAN", false).Return(nil, errors.New("rekt"))
+			},
+			want:    "",
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			mc := newmockClienter(ctrl)
+
+			tt.expectFn(mc)
+			sd := &SlackDumper{
+				client:    mc,
+				Users:     tt.fields.Users,
+				UserIndex: tt.fields.UserIndex,
+				options:   tt.fields.options,
+			}
+			got, err := sd.getChannelName(tt.args.ctx, tt.args.l, tt.args.channelID)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("SlackDumper.getChannelName() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("SlackDumper.getChannelName() = %v, want %v", got, tt.want)
 			}
 		})
 	}
