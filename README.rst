@@ -87,7 +87,7 @@ Setting up the application
 
 
 Dumping conversations
-~~~~~~~~~~~~~~~~~~~~~
+---------------------
 
 As it was already mentioned in the introduction, Slackdump supports
 two ways of providing the conversation IDs that you want to save:
@@ -102,7 +102,7 @@ should be placed on a separate line.  Slackdump can automatically
 detect if it's an ID or a URL.
   
 Providing the list on the command line
-++++++++++++++++++++++++++++++++++++++
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Firstly, dump the channel list to choose what you want to dump::
 
@@ -132,7 +132,7 @@ you want the convesation to be saved to a text file as well, use the
 ``-r text`` command line parameter.  See example below.
 
 Example
-^^^^^^^
++++++++
 
 Say, you want to dump convesations with @alice and @bob to the text
 files and also want to save all the files that you all shared in those
@@ -171,7 +171,7 @@ Run the slackdump and provide the URL link as an input::
 	     
 
 Reading data from the file
-++++++++++++++++++++++++++
+~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Slackdump can read the list of the channels and URLs to dump from the
 file.
@@ -188,7 +188,7 @@ file.
 		   ╰───────: instructs slackdump to use the file input
 		   
 Dumping users
-~~~~~~~~~~~~~
+-------------
 
 To view all users, run::
 
@@ -197,8 +197,8 @@ To view all users, run::
 By default, slackdump exports users in text format.  If you need to
 output json, use ``-r json`` flag.
 
-Dumping chanels
-~~~~~~~~~~~~~~~
+Dumping channels
+----------------
 
 To view channels, that are visible to your account, including group
 conversations, archived chats and public channels, run::
@@ -207,6 +207,80 @@ conversations, archived chats and public channels, run::
 
 By default, slackdump exports users in text format.  If you need to
 output json, use ``-r json`` flag.
+
+Command line flags reference
+============================
+
+In this section there will be some explanation provided for the
+possible command line flags.
+
+This doc may be out of date, to get the current command line flags
+with a brief description, run::
+
+  slackdump -h
+
+Command line flags are described as of version ``v1.3.1``.
+
+-V       print version and exit
+-c       same as -list-channels
+-cookie  along with ``-t`` sets the authentication values.  Can also be
+    	 set using ``COOKIE`` environment variable.  Must contain the
+	 value of ``d=`` cookie.
+-cpr     number of conversation items per request. (default 200).  This is
+         the amount of individual messages that will be fetched from
+         Slack API per single API request.
+-dl-retries  rate limit retries for file downloads. (default 3).  If
+             the file download process hits the Slack Rate Limit
+             reponse (HTTP ERROR 429), slackdump will retry the
+             download this number of times, for each file.
+-download    enable files download.  If this flag is specified, slackdump
+             will download all attachements.
+-download-workers  number of file download worker threads. (default 4).
+                   File download is performed with multiple
+                   goroutines.  This is the number of goroutines that
+                   will be downloading files.  You generally wouldn't
+                   need to modify this value.
+-dump-from  timestamp of the oldest message to fetch from
+            (i.e. 2020-12-31T23:59:59).  Allows setting the lower
+            boundary of the timeframe for conversation dump.  This is
+            useful when you don't need everything from the beginning
+            of times.
+-dump-to    timestamp of the latest message to fetch to
+            (i.e. 2020-12-31T23:59:59).  Same as above, but for upper
+            boundary.
+-f   same as -download
+-ft  output file naming template.  This parameter allows to define
+     custom naming for output conversation files.  See "Filename
+     templates" section for explanation and examples.
+-i   specify the input file with Channel IDs or URLs to be used instead
+     of giving the list on the command line, one per line.  Use "-"
+     to read input from STDIN.  Example: ``-i my_links.txt``.
+-limiter-boost  same as -t3-boost. (default 120)
+-limiter-burst  same as -t3-burst. (default 1)
+-list-channels  list channels (aka conversations) and their IDs for export.
+-list-users     list users and their IDs. 
+-o              output filename for users and channels.  Use '-' for
+                standard output. (default "-")
+-r              report (output) format.  One of 'json' or 'text'.
+                For channels and users - will output only in the specified
+		format.  For messages - if 'text' is requested,
+		the text file will be generated along with json.
+-t              Specify slack API_token, (environment: SLACK_TOKEN).
+                This should be used along with ``--cookie`` flag.
+-t2-boost       Tier-2 limiter boost in events per minute (affects users
+                and channels).
+-t2-burst       Tier-2 limiter burst in events (affects users and channels). (default 1)
+-t2-retries     rate limit retries for channel listing. (default 20)
+-t3-boost       Tier-3 rate limiter boost in events per minute, will be added to the
+    	        base slack tier event per minute value. (default 120)
+-t3-burst       allow up to N burst events per second.  Default value is safe. (default 1)
+-t3-retries     rate limit retries for conversation. (default 3)
+-trace          trace file (optional) (default "trace.out")
+-u              same as -list-users
+-user-cache-age   user cache lifetime duration. Set this to 0 to disable cache. (default 4h0m0s)
+-user-cache-file  user cache filename. (default "users.json")
+-v              verbose messages
+
 
 	       
 As a library
