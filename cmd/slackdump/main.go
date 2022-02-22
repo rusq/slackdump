@@ -136,6 +136,8 @@ func parseCmdLine(args []string) (params, error) {
 	fs.StringVar(&p.appCfg.Output.Filename, "o", "-", "Output `filename` for users and channels.  Use '-' for standard\nOutput.")
 	fs.StringVar(&p.appCfg.Output.Format, "r", "", "report `format`.  One of 'json' or 'text'")
 
+	fs.StringVar(&p.appCfg.FilenameTemplate, "ft", "{{.ID}}{{ if .ThreadTS}}-{{.ThreadTS}}{{end}}", "output file naming template.")
+
 	// options
 	fs.BoolVar(&p.appCfg.Options.DumpFiles, "f", slackdump.DefOptions.DumpFiles, "same as -download")
 	fs.BoolVar(&p.appCfg.Options.DumpFiles, "download", slackdump.DefOptions.DumpFiles, "enable files download.")

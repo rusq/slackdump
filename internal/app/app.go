@@ -105,6 +105,15 @@ func (app *App) newDumpFunc(s string) dumpFunc {
 	}
 }
 
+func (app *App) renderFilename(c *slackdump.Conversation) string {
+	var buf strings.Builder
+	if err := app.cfg.tmpl.ExecuteTemplate(&buf, filenameTmplName, c); err != nil {
+		// this should nevar happen
+		panic(err)
+	}
+	return buf.String()
+}
+
 // dumpOneChannel dumps just one channel having ID = id.  If generateText is
 // true, it will also generate a ID.txt text file.
 func (app *App) dumpOne(ctx context.Context, s string, fn dumpFunc) error {
@@ -113,7 +122,7 @@ func (app *App) dumpOne(ctx context.Context, s string, fn dumpFunc) error {
 		return err
 	}
 
-	return app.writeFile(cnv.String(), cnv)
+	return app.writeFile(app.renderFilename(cnv), cnv)
 }
 
 func (app *App) writeFile(name string, cnv *slackdump.Conversation) error {

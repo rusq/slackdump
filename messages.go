@@ -53,6 +53,10 @@ func (c Conversation) String() string {
 	return c.ID + "-" + c.ThreadTS
 }
 
+func (c Conversation) IsThread() bool {
+	return c.ThreadTS != ""
+}
+
 // Message is the internal representation of message with thread.
 type Message struct {
 	slack.Message
