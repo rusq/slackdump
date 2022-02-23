@@ -40,3 +40,8 @@ clean:
 
 test:
 	go test -race -cover -count=3 ./...
+
+man: slackdump.1
+
+slackdump.1: README.rst
+	rst2man.py $< $@ --syntax-highlight=none
