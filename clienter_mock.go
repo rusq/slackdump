@@ -51,6 +51,21 @@ func (mr *mockClienterMockRecorder) GetConversationHistoryContext(ctx, params in
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetConversationHistoryContext", reflect.TypeOf((*mockClienter)(nil).GetConversationHistoryContext), ctx, params)
 }
 
+// GetConversationInfoContext mocks base method.
+func (m *mockClienter) GetConversationInfoContext(ctx context.Context, channelID string, includeLocale bool) (*slack.Channel, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetConversationInfoContext", ctx, channelID, includeLocale)
+	ret0, _ := ret[0].(*slack.Channel)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetConversationInfoContext indicates an expected call of GetConversationInfoContext.
+func (mr *mockClienterMockRecorder) GetConversationInfoContext(ctx, channelID, includeLocale interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetConversationInfoContext", reflect.TypeOf((*mockClienter)(nil).GetConversationInfoContext), ctx, channelID, includeLocale)
+}
+
 // GetConversationRepliesContext mocks base method.
 func (m *mockClienter) GetConversationRepliesContext(ctx context.Context, params *slack.GetConversationRepliesParameters) ([]slack.Message, bool, string, error) {
 	m.ctrl.T.Helper()

@@ -37,6 +37,7 @@ type Channel = Conversation
 
 // Conversation keeps the slice of messages.
 type Conversation struct {
+	Name     string    `json:"name"`
 	Messages []Message `json:"messages"`
 	// ID is the channel ID.
 	ID string `json:"channel_id"`
@@ -50,6 +51,10 @@ func (c Conversation) String() string {
 		return c.ID
 	}
 	return c.ID + "-" + c.ThreadTS
+}
+
+func (c Conversation) IsThread() bool {
+	return c.ThreadTS != ""
 }
 
 // Message is the internal representation of message with thread.
@@ -178,7 +183,25 @@ func (sd *SlackDumper) dumpMessages(ctx context.Context, channelID string, oldes
 
 	sortMessages(messages)
 
-	return &Conversation{Messages: messages, ID: channelID}, nil
+	name, err := sd.getChannelName(ctx, sd.limiter(tier3), channelID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Conversation{Name: name, Messages: messages, ID: channelID}, nil
+}
+
+func (sd *SlackDumper) getChannelName(ctx context.Context, l *rate.Limiter, channelID string) (string, error) {
+	// get channel name
+	var ci *slack.Channel
+	if err := withRetry(ctx, l, sd.options.Tier3Retries, func() error {
+		var err error
+		ci, err = sd.client.GetConversationInfoContext(ctx, channelID, false)
+		return err
+	}); err != nil {
+		return "", err
+	}
+	return ci.NameNormalized, nil
 }
 
 // convHistoryParams returns GetConversationHistoryParameters.
@@ -309,7 +332,13 @@ func (sd *SlackDumper) DumpThread(ctx context.Context, channelID, threadTS strin
 
 	sortMessages(threadMsgs)
 
+	name, err := sd.getChannelName(ctx, sd.limiter(tier3), channelID)
+	if err != nil {
+		return nil, err
+	}
+
 	return &Conversation{
+		Name:     name,
 		Messages: threadMsgs,
 		ID:       channelID,
 		ThreadTS: threadTS,

@@ -4,11 +4,15 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"html/template"
 	"io"
 	"strings"
 
 	"github.com/rusq/slackdump"
+	"github.com/slack-go/slack"
 )
+
+const filenameTmplName = "fnt"
 
 type Config struct {
 	Creds     SlackCreds
@@ -19,6 +23,8 @@ type Config struct {
 
 	Oldest TimeValue // oldest time to dump conversations from
 	Latest TimeValue // latest time to dump conversations to
+
+	FilenameTemplate string
 
 	Options slackdump.Options
 }
@@ -110,6 +116,53 @@ func (p *Config) Validate() error {
 		return fmt.Errorf("invalid Output type: %q, must use one of %v", p.Output.Format, []string{OutputTypeJSON, OutputTypeText})
 	}
 
+	// validate file naming template
+	if err := p.compileValidateTemplate(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (cfg *Config) compileTemplates() (*template.Template, error) {
+	return template.New(filenameTmplName).Parse(cfg.FilenameTemplate)
+}
+
+func (cfg *Config) compileValidateTemplate() error {
+	tmpl, err := cfg.compileTemplates()
+	if err != nil {
+		return err
+	}
+	// are you ready for some filth? Here we go!
+
+	// let's define some indicators
+	const (
+		NotOK     = "$$ERROR$$"   // not allowed at all
+		OK        = "$$OK$$"      // required
+		PartialOK = "$$PARTIAL$$" // partial (only goes well with OK)
+	)
+
+	// marking all the fields we want with OK, all the rest (the ones we DO NOT
+	// WANT) with NotOK.
+	tc := slackdump.Conversation{
+		Name:     OK,
+		ID:       OK,
+		Messages: []slackdump.Message{{Message: slack.Message{Msg: slack.Msg{Channel: NotOK}}}},
+		ThreadTS: PartialOK,
+	}
+
+	// now we render the template and check for OK/NotOK values in the output.
+	var buf strings.Builder
+	if err := tmpl.ExecuteTemplate(&buf, filenameTmplName, tc); err != nil {
+		return err
+	}
+	if strings.Contains(buf.String(), NotOK) || len(buf.String()) == 0 {
+		return fmt.Errorf("invalid fields in the template: %q", cfg.FilenameTemplate)
+	}
+	if !strings.Contains(buf.String(), OK) {
+		// must contain at least one OK
+		return fmt.Errorf("this does not resolve to anything useful: %q", cfg.FilenameTemplate)
+	}
 	return nil
 }
 
