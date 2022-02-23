@@ -25,7 +25,6 @@ type Config struct {
 	Latest TimeValue // latest time to dump conversations to
 
 	FilenameTemplate string
-	tmpl             *template.Template
 
 	Options slackdump.Options
 }
@@ -125,13 +124,15 @@ func (p *Config) Validate() error {
 	return nil
 }
 
-func (p *Config) compileValidateTemplate() error {
-	var err error
-	p.tmpl, err = template.New(filenameTmplName).Parse(p.FilenameTemplate)
+func (cfg *Config) compileTemplates() (*template.Template, error) {
+	return template.New(filenameTmplName).Parse(cfg.FilenameTemplate)
+}
+
+func (cfg *Config) compileValidateTemplate() error {
+	tmpl, err := cfg.compileTemplates()
 	if err != nil {
 		return err
 	}
-
 	// are you ready for some filth? Here we go!
 
 	// let's define some indicators
@@ -152,15 +153,15 @@ func (p *Config) compileValidateTemplate() error {
 
 	// now we render the template and check for OK/NotOK values in the output.
 	var buf strings.Builder
-	if err := p.tmpl.ExecuteTemplate(&buf, filenameTmplName, tc); err != nil {
+	if err := tmpl.ExecuteTemplate(&buf, filenameTmplName, tc); err != nil {
 		return err
 	}
 	if strings.Contains(buf.String(), NotOK) || len(buf.String()) == 0 {
-		return fmt.Errorf("invalid fields in the template: %q", p.FilenameTemplate)
+		return fmt.Errorf("invalid fields in the template: %q", cfg.FilenameTemplate)
 	}
 	if !strings.Contains(buf.String(), OK) {
 		// must contain at least one OK
-		return fmt.Errorf("this does not resolve to anything useful: %q", p.FilenameTemplate)
+		return fmt.Errorf("this does not resolve to anything useful: %q", cfg.FilenameTemplate)
 	}
 	return nil
 }

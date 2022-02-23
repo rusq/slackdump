@@ -1,7 +1,6 @@
 package app
 
 import (
-	"html/template"
 	"testing"
 
 	"github.com/rusq/slackdump"
@@ -16,7 +15,6 @@ func TestConfig_compileValidateTemplate(t *testing.T) {
 		Oldest           TimeValue
 		Latest           TimeValue
 		FilenameTemplate string
-		tmpl             *template.Template
 		Options          slackdump.Options
 	}
 	tests := []struct {
@@ -26,42 +24,42 @@ func TestConfig_compileValidateTemplate(t *testing.T) {
 	}{
 		{
 			"id is ok",
-			fields{FilenameTemplate: "{{.ID}}", tmpl: template.New("")},
+			fields{FilenameTemplate: "{{.ID}}"},
 			false,
 		},
 		{
 			"name is ok",
-			fields{FilenameTemplate: "{{.Name}}", tmpl: template.New("")},
+			fields{FilenameTemplate: "{{.Name}}"},
 			false,
 		},
 		{
 			"just threadTS is not ok",
-			fields{FilenameTemplate: "{{.ThreadTS}}", tmpl: template.New("")},
+			fields{FilenameTemplate: "{{.ThreadTS}}"},
 			true,
 		},
 		{
 			"threadTS and message ID is ok",
-			fields{FilenameTemplate: "{{.ID}}-{{.ThreadTS}}", tmpl: template.New("")},
+			fields{FilenameTemplate: "{{.ID}}-{{.ThreadTS}}"},
 			false,
 		},
 		{
 			"threadTS and message ID is ok (conditional)",
-			fields{FilenameTemplate: "{{.ID}}{{ if .ThreadTS}}-{{.ThreadTS}}{{end}}", tmpl: template.New("")},
+			fields{FilenameTemplate: "{{.ID}}{{ if .ThreadTS}}-{{.ThreadTS}}{{end}}"},
 			false,
 		},
 		{
 			"message is not ok",
-			fields{FilenameTemplate: "{{.Message}}", tmpl: template.New("")},
+			fields{FilenameTemplate: "{{.Message}}"},
 			true,
 		},
 		{
 			"unknown field is not ok",
-			fields{FilenameTemplate: "{{.Who_dis}}", tmpl: template.New("")},
+			fields{FilenameTemplate: "{{.Who_dis}}"},
 			true,
 		},
 		{
 			"empty not ok",
-			fields{FilenameTemplate: "", tmpl: template.New("")},
+			fields{FilenameTemplate: ""},
 			true,
 		},
 	}
@@ -75,7 +73,6 @@ func TestConfig_compileValidateTemplate(t *testing.T) {
 				Oldest:           tt.fields.Oldest,
 				Latest:           tt.fields.Latest,
 				FilenameTemplate: tt.fields.FilenameTemplate,
-				tmpl:             tt.fields.tmpl,
 				Options:          tt.fields.Options,
 			}
 			if err := p.compileValidateTemplate(); (err != nil) != tt.wantErr {

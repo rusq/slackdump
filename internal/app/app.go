@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"html/template"
 	"io"
 	"os"
 	"strings"
@@ -19,14 +20,22 @@ const (
 )
 
 type App struct {
-	sd *slackdump.SlackDumper
+	sd   *slackdump.SlackDumper
+	tmpl *template.Template
 
 	cfg Config
 }
 
 // New creates a new slackdump app.
 func New(cfg Config) (*App, error) {
-	return &App{cfg: cfg}, nil
+	if err := cfg.Validate(); err != nil {
+		return nil, err
+	}
+	tmpl, err := cfg.compileTemplates()
+	if err != nil {
+		return nil, err
+	}
+	return &App{cfg: cfg, tmpl: tmpl}, nil
 }
 
 // init initialises the slack dumper app.
@@ -107,7 +116,7 @@ func (app *App) newDumpFunc(s string) dumpFunc {
 
 func (app *App) renderFilename(c *slackdump.Conversation) string {
 	var buf strings.Builder
-	if err := app.cfg.tmpl.ExecuteTemplate(&buf, filenameTmplName, c); err != nil {
+	if err := app.tmpl.ExecuteTemplate(&buf, filenameTmplName, c); err != nil {
 		// this should nevar happen
 		panic(err)
 	}
