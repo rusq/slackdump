@@ -156,6 +156,8 @@ func parseCmdLine(args []string) (params, error) {
 	fs.UintVar(&p.appCfg.Options.Tier2Burst, "t2-burst", slackdump.DefOptions.Tier2Burst, "Tier-2 limiter burst in `events` (affects users and channels).")
 	fs.StringVar(&p.appCfg.Options.UserCacheFilename, "user-cache-file", slackdump.DefOptions.UserCacheFilename, "user cache file`name`.")
 	fs.DurationVar(&p.appCfg.Options.MaxUserCacheAge, "user-cache-age", slackdump.DefOptions.MaxUserCacheAge, "user cache lifetime `duration`. Set this to 0 to disable cache.")
+	fs.BoolVar(&p.appCfg.Options.NoUserCache, "no-user-cache", slackdump.DefOptions.NoUserCache, "skip fetching users")
+
 	fs.Var(&p.appCfg.Oldest, "dump-from", "`timestamp` of the oldest message to fetch from (i.e. 2020-12-31T23:59:59)")
 	fs.Var(&p.appCfg.Latest, "dump-to", "`timestamp` of the latest message to fetch to (i.e. 2020-12-31T23:59:59)")
 

@@ -27,6 +27,10 @@ func (sd *SlackDumper) GetUsers(ctx context.Context) (Users, error) {
 	ctx, task := trace.NewTask(ctx, "GetUsers")
 	defer task.End()
 
+	if sd.options.NoUserCache {
+		return Users{}, nil
+	}
+
 	users, err := sd.loadUserCache(sd.options.UserCacheFilename, sd.options.MaxUserCacheAge)
 	if err != nil {
 		if os.IsNotExist(err) {

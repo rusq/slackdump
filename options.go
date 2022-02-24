@@ -20,9 +20,11 @@ type Options struct {
 	Tier3Boost          uint          // tier-3 limiter boost allows to increase or decrease the slack tier req/min rate.  Affects all tiers.
 	Tier3Burst          uint          // tier-3 limiter burst allows to set the limiter burst in req/sec.  Default of 1 is safe.
 	Tier3Retries        int           // number of retries to do when getting 429 on conversation fetch
-	ConversationsPerReq int           // number of messages we get per 1 api request. bigger the number, less requests, but they become more beefy.
+	ConversationsPerReq int           // number of messages we get per 1 API request. bigger the number, less requests, but they become more beefy.
+	ChannelsPerReq      int           // number of channels to fetch per 1 API request.
 	UserCacheFilename   string        // user cache filename
 	MaxUserCacheAge     time.Duration // how long the user cache is valid for.
+	NoUserCache         bool          // sometimes slack disallows user access, so we need a way to overcome that.
 }
 
 // DefOptions is the default options used when initialising slackdump instance.
@@ -37,6 +39,7 @@ var DefOptions = Options{
 	Tier3Burst:          1,             // safe value, who would ever want to modify it? I don't know.
 	Tier3Retries:        3,             // on tier 3 this was never a problem, even with limiter-boost=120
 	ConversationsPerReq: 200,           // this is the recommended value by Slack. But who listens to them anyway.
+	ChannelsPerReq:      500,           // channels are tier2 rate limited. We need to get as much per request as possible.
 	UserCacheFilename:   "users.json",  // seems logical
 	MaxUserCacheAge:     4 * time.Hour, // quick math:  that's 1/6th of a day, how's that, huh?
 }
