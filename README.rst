@@ -322,6 +322,12 @@ Command line flags are described as of version ``v1.3.1``.
    list users and their IDs.  The default output format is "text".
    Use ``-r json`` to output as JSON.
 
+\-no-user-cache
+   skip fetching users.  If this flag is specified, users won't be fetched
+   during startup.  This disables the username resolving for the text
+   output, I don't know why someone would use this flag, but it's there
+   if you must.
+
 \-o
    output filename for users and channels.  Use '-' for standard
    output. (default "-")
