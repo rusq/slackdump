@@ -135,14 +135,16 @@ func (sd *SlackDumper) dumpMessages(ctx context.Context, channelID string, oldes
 	}
 
 	var (
-		messages []Message
-		cursor   string
+		messages   []Message
+		cursor     string
+		fetchStart = time.Now()
 	)
 	for i := 1; ; i++ {
 		var (
 			resp   *slack.GetConversationHistoryResponse
 			params = sd.convHistoryParams(channelID, cursor, oldest, latest)
 		)
+		reqStart := time.Now()
 		if err := withRetry(ctx, convLimiter, sd.options.Tier3Retries, func() error {
 			var err error
 			trace.WithRegion(ctx, "GetConversationHistoryContext", func() {
@@ -165,10 +167,14 @@ func (sd *SlackDumper) dumpMessages(ctx context.Context, channelID string, oldes
 		sd.pipeFiles(filesC, chunk)
 		messages = append(messages, chunk...)
 
-		dlog.Printf("request #%5d, fetched: %4d, (with threads: %4d) total: %8d\n",
-			i, len(resp.Messages), threads, len(messages))
+		dlog.Printf("messages request #%5d, fetched: %4d (with threads: %4d), total: %8d (speed: %6.2f/sec, avg: %6.2f/sec)\n",
+			i, len(resp.Messages), threads, len(messages),
+			float64(len(resp.Messages))/float64(time.Since(reqStart).Seconds()),
+			float64(len(messages))/float64(time.Since(fetchStart).Seconds()),
+		)
 
 		if !resp.HasMore {
+			dlog.Printf("messages fetch complete, total: %d", len(messages))
 			break
 		}
 
@@ -351,12 +357,14 @@ func (sd *SlackDumper) dumpThread(ctx context.Context, l *rate.Limiter, channelI
 	var thread []Message
 
 	var cursor string
-	for {
+	fetchStart := time.Now()
+	for i := 1; ; i++ {
 		var (
 			msgs       []slack.Message
 			hasmore    bool
 			nextCursor string
 		)
+		reqStart := time.Now()
 		if err := withRetry(ctx, l, sd.options.Tier3Retries, func() error {
 			var err error
 			trace.WithRegion(ctx, "GetConversationRepliesContext", func() {
@@ -371,7 +379,15 @@ func (sd *SlackDumper) dumpThread(ctx context.Context, l *rate.Limiter, channelI
 		}
 
 		thread = append(thread, sd.convertMsgs(msgs)...)
+
+		dlog.Printf("  thread request #%5d, fetched: %4d, total: %8d (speed: %6.2f/sec, avg: %6.2f/sec)\n",
+			i, len(msgs), len(thread),
+			float64(len(msgs))/float64(time.Since(reqStart).Seconds()),
+			float64(len(thread))/float64(time.Since(fetchStart).Seconds()),
+		)
+
 		if !hasmore {
+			dlog.Printf("  thread fetch complete, total: %d", len(thread))
 			break
 		}
 		cursor = nextCursor

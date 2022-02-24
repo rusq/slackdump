@@ -38,7 +38,7 @@ type clienter interface {
 	GetConversationInfoContext(ctx context.Context, channelID string, includeLocale bool) (*slack.Channel, error)
 	GetConversationHistoryContext(ctx context.Context, params *slack.GetConversationHistoryParameters) (*slack.GetConversationHistoryResponse, error)
 	GetConversationRepliesContext(ctx context.Context, params *slack.GetConversationRepliesParameters) (msgs []slack.Message, hasMore bool, nextCursor string, err error)
-	GetConversations(params *slack.GetConversationsParameters) (channels []slack.Channel, nextCursor string, err error)
+	GetConversationsContext(ctx context.Context, params *slack.GetConversationsParameters) (channels []slack.Channel, nextCursor string, err error)
 	GetFile(downloadURL string, writer io.Writer) error
 	GetUsers() ([]slack.User, error)
 }
@@ -130,7 +130,7 @@ func withRetry(ctx context.Context, l *rate.Limiter, maxAttempts int, fn func() 
 
 		msg := fmt.Sprintf("got rate limited, sleeping %s", rle.RetryAfter)
 		trace.Log(ctx, "info", msg)
-		dlog.Debug(msg)
+		dlog.Print(msg)
 
 		time.Sleep(rle.RetryAfter)
 	}

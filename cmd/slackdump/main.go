@@ -8,6 +8,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime/trace"
+	"syscall"
 
 	"github.com/rusq/slackdump"
 	"github.com/rusq/slackdump/internal/app"
@@ -56,7 +57,7 @@ func main() {
 		dlog.SetDebug(true)
 	}
 
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
 	if err := run(ctx, params); err != nil {

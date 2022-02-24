@@ -36,7 +36,7 @@ func TestSlackDumper_getChannels(t *testing.T) {
 				allChanTypes,
 			},
 			func(mc *mockClienter) {
-				mc.EXPECT().GetConversations(&slack.GetConversationsParameters{
+				mc.EXPECT().GetConversationsContext(context.Background(), &slack.GetConversationsParameters{
 					Types: allChanTypes,
 				}).Return(Channels{
 					slack.Channel{GroupConversation: slack.GroupConversation{
@@ -58,7 +58,7 @@ func TestSlackDumper_getChannels(t *testing.T) {
 				allChanTypes,
 			},
 			func(mc *mockClienter) {
-				mc.EXPECT().GetConversations(&slack.GetConversationsParameters{
+				mc.EXPECT().GetConversationsContext(context.Background(), &slack.GetConversationsParameters{
 					Types: allChanTypes,
 				}).Return(
 					nil,
