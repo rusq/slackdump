@@ -77,7 +77,11 @@ func New(ctx context.Context, token string, cookie string, opts ...Option) (*Sla
 
 func NewWithOptions(ctx context.Context, token string, cookie string, opts Options) (*SlackDumper, error) {
 	sd := &SlackDumper{
-		client:  slack.New(token, slack.OptionCookie(cookie)),
+		client: slack.New(
+			token,
+			slack.OptionAuthCookie(cookie),
+			slack.OptionCookie("d-s", fmt.Sprintf("%d", time.Now().Unix()-10)),
+		),
 		options: opts,
 	}
 
