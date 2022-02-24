@@ -43,6 +43,6 @@ func parseSlackTS(timestamp string) (time.Time, error) {
 
 func formatSlackTS(ts time.Time) string {
 	hi := ts.Unix()
-	lo := ts.UnixNano() % 100000
+	lo := ts.UnixNano() % 1000000
 	return fmt.Sprintf("%d.%06d", hi, lo)
 }
