@@ -20,9 +20,11 @@ type Options struct {
 	Tier3Boost          uint          // tier-3 limiter boost allows to increase or decrease the slack tier req/min rate.  Affects all tiers.
 	Tier3Burst          uint          // tier-3 limiter burst allows to set the limiter burst in req/sec.  Default of 1 is safe.
 	Tier3Retries        int           // number of retries to do when getting 429 on conversation fetch
-	ConversationsPerReq int           // number of messages we get per 1 api request. bigger the number, less requests, but they become more beefy.
+	ConversationsPerReq int           // number of messages we get per 1 API request. bigger the number, less requests, but they become more beefy.
+	ChannelsPerReq      int           // number of channels to fetch per 1 API request.
 	UserCacheFilename   string        // user cache filename
 	MaxUserCacheAge     time.Duration // how long the user cache is valid for.
+	NoUserCache         bool          // sometimes slack disallows user access, so we need a way to overcome that.
 }
 
 // DefOptions is the default options used when initialising slackdump instance.
@@ -30,13 +32,14 @@ var DefOptions = Options{
 	DumpFiles:           false,
 	Workers:             defNumWorkers, // number of workers doing the file download
 	DownloadRetries:     3,             // this shouldn't even happen, as we have no limiter on files download.
-	Tier2Boost:          0,             // slack is being difficult, so no boost for tier 2.
+	Tier2Boost:          20,            // seems to work fine with this boost
 	Tier2Burst:          1,             // limiter will wait indefinitely if it is less than 1.
 	Tier2Retries:        20,            // see #28, sometimes slack is being difficult
 	Tier3Boost:          120,           // playing safe there, but generally value of 120 is fine.
 	Tier3Burst:          1,             // safe value, who would ever want to modify it? I don't know.
 	Tier3Retries:        3,             // on tier 3 this was never a problem, even with limiter-boost=120
 	ConversationsPerReq: 200,           // this is the recommended value by Slack. But who listens to them anyway.
+	ChannelsPerReq:      100,           // channels are tier2 rate limited. Slack is greedy and never returns more than 100 per call.
 	UserCacheFilename:   "users.json",  // seems logical
 	MaxUserCacheAge:     4 * time.Hour, // quick math:  that's 1/6th of a day, how's that, huh?
 }

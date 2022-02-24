@@ -83,20 +83,20 @@ func (mr *mockClienterMockRecorder) GetConversationRepliesContext(ctx, params in
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetConversationRepliesContext", reflect.TypeOf((*mockClienter)(nil).GetConversationRepliesContext), ctx, params)
 }
 
-// GetConversations mocks base method.
-func (m *mockClienter) GetConversations(params *slack.GetConversationsParameters) ([]slack.Channel, string, error) {
+// GetConversationsContext mocks base method.
+func (m *mockClienter) GetConversationsContext(ctx context.Context, params *slack.GetConversationsParameters) ([]slack.Channel, string, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetConversations", params)
+	ret := m.ctrl.Call(m, "GetConversationsContext", ctx, params)
 	ret0, _ := ret[0].([]slack.Channel)
 	ret1, _ := ret[1].(string)
 	ret2, _ := ret[2].(error)
 	return ret0, ret1, ret2
 }
 
-// GetConversations indicates an expected call of GetConversations.
-func (mr *mockClienterMockRecorder) GetConversations(params interface{}) *gomock.Call {
+// GetConversationsContext indicates an expected call of GetConversationsContext.
+func (mr *mockClienterMockRecorder) GetConversationsContext(ctx, params interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetConversations", reflect.TypeOf((*mockClienter)(nil).GetConversations), params)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetConversationsContext", reflect.TypeOf((*mockClienter)(nil).GetConversationsContext), ctx, params)
 }
 
 // GetFile mocks base method.

@@ -75,8 +75,9 @@ func (out Output) IsText() bool {
 }
 
 type SlackCreds struct {
-	Token  string
-	Cookie string
+	Token         string
+	Cookie        string
+	SSBInstanceID string
 }
 
 func (c SlackCreds) Valid() bool {

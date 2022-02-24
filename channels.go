@@ -10,7 +10,9 @@ import (
 	"runtime/trace"
 	"strings"
 	"text/tabwriter"
+	"time"
 
+	"github.com/rusq/dlog"
 	"github.com/slack-go/slack"
 )
 
@@ -30,17 +32,19 @@ func (sd *SlackDumper) getChannels(ctx context.Context, chanTypes []string) (Cha
 		chanTypes = allChanTypes
 	}
 
-	params := &slack.GetConversationsParameters{Types: chanTypes}
+	params := &slack.GetConversationsParameters{Types: chanTypes, Limit: sd.options.ChannelsPerReq}
 	allChannels := make([]slack.Channel, 0, 50)
-	for {
+	fetchStart := time.Now()
+	for i := 1; ; i++ {
 		var (
 			chans   []slack.Channel
 			nextcur string
 		)
+		reqStart := time.Now()
 		if err := withRetry(ctx, limiter, sd.options.Tier3Retries, func() error {
 			var err error
 			trace.WithRegion(ctx, "GetConversations", func() {
-				chans, nextcur, err = sd.client.GetConversations(params)
+				chans, nextcur, err = sd.client.GetConversationsContext(ctx, params)
 			})
 			return err
 
@@ -48,9 +52,18 @@ func (sd *SlackDumper) getChannels(ctx context.Context, chanTypes []string) (Cha
 			return nil, err
 		}
 		allChannels = append(allChannels, chans...)
+
+		dlog.Printf("channels request #%5d, fetched: %4d, total: %8d (speed: %6.2f/sec, avg: %6.2f/sec)\n",
+			i, len(chans), len(allChannels),
+			float64(len(chans))/float64(time.Since(reqStart).Seconds()),
+			float64(len(allChannels))/float64(time.Since(fetchStart).Seconds()),
+		)
+
 		if nextcur == "" {
+			dlog.Printf("channels fetch complete, total: %d channels", len(allChannels))
 			break
 		}
+
 		params.Cursor = nextcur
 		limiter.Wait(ctx)
 	}

@@ -65,7 +65,7 @@ func (app *App) Run(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		dlog.Printf("job finished, dumped %d channels", n)
+		dlog.Printf("job finished, dumped %d item(s)", n)
 	}
 	return nil
 }
