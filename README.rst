@@ -8,6 +8,7 @@ Slack Dumper
 
 `Read the set up guide on Medium.com`_
 
+
 Purpose: dump slack messages, users and files using browser token and cookie.
 
 Typical usecase scenarios:
@@ -25,6 +26,10 @@ will do for ad-hoc use.
 
 Slackdump accepts two types of input: URL link of the channel or
 thread, or ID of the channel.
+
+.. contents::
+   :depth: 2
+
 
 Usage
 =====
@@ -327,6 +332,12 @@ Command line flags are described as of version ``v1.3.1``.
    during startup.  This disables the username resolving for the text
    output, I don't know why someone would use this flag, but it's there
    if you must.
+
+\-npr
+   chaNnels per request.  The amount of channels that will be fetched
+   per API request when listing channels.  Setting it to higher value than
+   100 bears no tangible outcome - Slack never returns more than 100 channels
+   per request.  Greedy.
 
 \-o
    output filename for users and channels.  Use '-' for standard
