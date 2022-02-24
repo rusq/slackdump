@@ -18,6 +18,7 @@ func Test_parseSlackTS(t *testing.T) {
 	}{
 		{"valid time", args{"1534552745.065949"}, time.Date(2018, 8, 18, 0, 39, 05, 65949, time.UTC), false},
 		{"another valid time", args{"1638494510.037400"}, time.Date(2021, 12, 3, 1, 21, 50, 37400, time.UTC), false},
+		{"the time when I slipped", args{"1645551829.244659"}, time.Date(2022, 2, 22, 17, 43, 49, 244659, time.UTC), false},
 		{"time without millis", args{"0"}, time.Date(1970, 1, 1, 0, 00, 00, 0, time.UTC), false},
 		{"invalid time", args{"x"}, time.Time{}, true},
 		{"invalid time", args{"x.x"}, time.Time{}, true},
