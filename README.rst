@@ -9,23 +9,24 @@ Slack Dumper
 `Read the set up guide on Medium.com`_
 
 
-Purpose: dump slack messages, users and files using browser token and cookie.
+Purpose: dump Slack messages, users and files using browser token and cookie.
 
-Typical usecase scenarios:
+Typical use scenarios:
 
-* You want to archive your private convesations from slack but the administrator
-  does not allow you to install applications.
+* archive your private conversations from Slack when the administrator
+  does not allow you to install applications OR you don't want to use 
+  potentially privacy-violating third-party tools, 
+* archive channels from Slack when you're on a free "no archive" subscription,
+  so you don't lose valuable knowledge in those channels.
 
-* You are allowed to install applications in Slack but don't want to use the
-  "cloud" tools for privacy concerns - god knows what those third party apps are
-  retaining in their "clouds".
-
-The library is "fit-for-purpose" quality and provided AS-IS.  Can't
+The library is "fit-for-purpose" quality and provided AS-IS.  I can't
 say it's ready for production, as it lacks most of the unit tests, but
 will do for ad-hoc use.
 
-Slackdump accepts two types of input: URL link of the channel or
-thread, or ID of the channel.
+Slackdump accepts two types of input: 
+# the URL/link of the channel or
+thread, OR 
+# the ID of the channel.
 
 .. contents::
    :depth: 2
@@ -50,7 +51,7 @@ Getting the authentication data
 TOKEN
 +++++
 
-#. Open your browser *Developer Console*.
+#. Open your browser's *Developer Console*.
 #. Go to the Network tab
 #. In the toolbar, switch to ``Fetch/XHR`` view.
 #. Open any channel or private conversation in Slack.  You'll see a
@@ -62,7 +63,7 @@ TOKEN
 #. Grab the **token:** value (it starts with ``xoxc-``), by right
    clicking the value and choosing "Copy Value".
 
-**If you don't see the token value** in Poogle Chrome - switch to `Payload` tab,
+**If you don't see the token value** in Google Chrome - switch to `Payload` tab,
 your token is waiting for you there.
 
 COOKIE
@@ -139,9 +140,9 @@ you want the convesation to be saved to a text file as well, use the
 Example
 +++++++
 
-Say, you want to dump convesations with @alice and @bob to the text
-files and also want to save all the files that you all shared in those
-convesations::
+You want to dump conversations with @alice and @bob to text
+files and save all the files (attachments) that you all shared in those
+conversations::
 
   slackdump -r text -f DNF3XXXXX DLY4XXXXX https://....
        	    ━━━┯━━━ ━┯ ━━━┯━━━━━ ━━━┯━━━━━ ━━━━┯━━━━━┅┅ 
