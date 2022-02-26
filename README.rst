@@ -24,9 +24,9 @@ say it's ready for production, as it lacks most of the unit tests, but
 will do for ad-hoc use.
 
 Slackdump accepts two types of input: 
-# the URL/link of the channel or
-thread, OR 
-# the ID of the channel.
+
+#. the URL/link of the channel or thread, OR 
+#. the ID of the channel.
 
 .. contents::
    :depth: 2

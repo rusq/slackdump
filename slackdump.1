@@ -1,5 +1,8 @@
 .\" Man page generated from reStructuredText.
 .
+.TH SLACK DUMPER  "" "" ""
+.SH NAME
+Slack Dumper \- 
 .
 .nr rst2man-indent-level 0
 .
@@ -27,9 +30,6 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .in \\n[rst2man-indent\\n[rst2man-indent-level]]u
 ..
-.TH "SLACK DUMPER"  "" "" ""
-.SH NAME
-Slack Dumper \- 
 .sp
 \fI\%Buy me a cup of tea\fP
 .sp
@@ -37,25 +37,30 @@ Slack Dumper \-
 .sp
 \fI\%Read the set up guide on Medium.com\fP
 .sp
-Purpose: dump slack messages, users and files using browser token and cookie.
+Purpose: dump Slack messages, users and files using browser token and cookie.
 .sp
-Typical usecase scenarios:
+Typical use scenarios:
 .INDENT 0.0
 .IP \(bu 2
-You want to archive your private convesations from slack but the administrator
-does not allow you to install applications.
+archive your private conversations from Slack when the administrator
+does not allow you to install applications OR you don\(aqt want to use
+potentially privacy\-violating third\-party tools,
 .IP \(bu 2
-You are allowed to install applications in Slack but don\(aqt want to use the
-\(dqcloud\(dq tools for privacy concerns \- god knows what those third party apps are
-retaining in their \(dqclouds\(dq.
+archive channels from Slack when you\(aqre on a free "no archive" subscription,
+so you don\(aqt lose valuable knowledge in those channels.
 .UNINDENT
 .sp
-The library is \(dqfit\-for\-purpose\(dq quality and provided AS\-IS.  Can\(aqt
+The library is "fit\-for\-purpose" quality and provided AS\-IS.  I can\(aqt
 say it\(aqs ready for production, as it lacks most of the unit tests, but
 will do for ad\-hoc use.
 .sp
-Slackdump accepts two types of input: URL link of the channel or
-thread, or ID of the channel.
+Slackdump accepts two types of input:
+.INDENT 0.0
+.IP 1. 3
+the URL/link of the channel or thread, OR
+.IP 2. 3
+the ID of the channel.
+.UNINDENT
 .SS Contents
 .INDENT 0.0
 .IP \(bu 2
@@ -101,7 +106,7 @@ Open up your Slack \fIin browser\fP and login.
 .SS TOKEN
 .INDENT 0.0
 .IP 1. 3
-Open your browser \fIDeveloper Console\fP\&.
+Open your browser\(aqs \fIDeveloper Console\fP\&.
 .IP 2. 3
 Go to the Network tab
 .IP 3. 3
@@ -117,10 +122,10 @@ opened pane.
 Scroll down, until you see \fBForm Data\fP
 .IP 7. 3
 Grab the \fBtoken:\fP value (it starts with \fBxoxc\-\fP), by right
-clicking the value and choosing \(dqCopy Value\(dq.
+clicking the value and choosing "Copy Value".
 .UNINDENT
 .sp
-\fBIf you don\(aqt see the token value\fP in Poogle Chrome \- switch to \fIPayload\fP tab,
+\fBIf you don\(aqt see the token value\fP in Google Chrome \- switch to \fIPayload\fP tab,
 your token is waiting for you there.
 .SS COOKIE
 .INDENT 0.0
@@ -128,8 +133,8 @@ your token is waiting for you there.
 Switch to \fI\%Application\fP tab and select \fBCookies\fP in the left
 navigation pane.
 .IP 2. 3
-Find the cookie with the name \(dq\fBd\fP\(dq.  That\(aqs right, just the
-letter \(dqd\(dq.
+Find the cookie with the name "\fBd\fP".  That\(aqs right, just the
+letter "d".
 .IP 3. 3
 Double\-click the Value of this cookie.
 .IP 4. 3
@@ -169,7 +174,7 @@ two ways of providing the conversation IDs that you want to save:
 \fBBy ID\fP: it expects to see Conversation IDs.
 .IP \(bu 2
 \fBBy URL\fP: it expects to see URLs.  You can get URL by choosing
-\(dqCopy Link\(dq in the Slack on the channel or thread.
+"Copy Link" in the Slack on the channel or thread.
 .UNINDENT
 .sp
 IDs or URLs can be passed on the command line or read from a file
@@ -230,9 +235,9 @@ you want the convesation to be saved to a text file as well, use the
 \fB\-r text\fP command line parameter.  See example below.
 .SS Example
 .sp
-Say, you want to dump convesations with @alice and @bob to the text
-files and also want to save all the files that you all shared in those
-convesations:
+You want to dump conversations with @alice and @bob to text
+files and save all the files (attachments) that you all shared in those
+conversations:
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -260,7 +265,7 @@ won\(aqt teach you at school:
 In Slack, right click on the conversation you want to dump (in the
 channel navigation pane on the left)
 .IP 2. 3
-Choose \(dqCopy link\(dq.
+Choose "Copy link".
 .UNINDENT
 .sp
 Thread URL:
@@ -270,7 +275,7 @@ In Slack, open the thread that you want to dump.
 .IP 2. 3
 The thread opens to the right of the main conversation window
 .IP 3. 3
-On the first message of the thread, click on three vertical dots menu (not sure how it\(aqs properly called), choose \(dqCopy link\(dq
+On the first message of the thread, click on three vertical dots menu (not sure how it\(aqs properly called), choose "Copy link"
 .UNINDENT
 .sp
 Run the slackdump and provide the URL link as an input:
@@ -294,12 +299,12 @@ file.
 .INDENT 0.0
 .IP 1. 3
 Create the file that will contain all the necessary IDs and/or
-URLs, I\(aqll use \(dqlinks.txt\(dq in the example.
+URLs, I\(aqll use "links.txt" in the example.
 .IP 2. 3
 Copy/paste all the IDs and URLs into that file, one per line.
 .IP 3. 3
-Run slackdump with \(dq\-i\(dq command line flag.  \(dq\-i\(dq stands for
-\(dqinput\(dq:
+Run slackdump with "\-i" command line flag.  "\-i" stands for
+"input":
 .INDENT 3.0
 .INDENT 3.5
 .sp
@@ -411,7 +416,7 @@ timestamp of the latest message to fetch to
 (i.e. 2020\-12\-31T23:59:59).  Same as above, but for upper boundary.
 .TP
 .B \-f
-shorthand for \-download (means \(dqfiles\(dq)
+shorthand for \-download (means "files")
 .TP
 .B \-ft
 output file naming template.  This parameter allows to define
@@ -450,9 +455,9 @@ Below are some of the common templates you could use.
 .UNINDENT
 .UNINDENT
 .sp
-The output file will look like \(dq\fBC480129421.json\fP\(dq for a
+The output file will look like "\fBC480129421.json\fP" for a
 channel if channel has ID=C480129421 and
-\(dq\fBC4840129421\-1234567890.123456.json\fP\(dq for a thread.  This is
+"\fBC4840129421\-1234567890.123456.json\fP" for a thread.  This is
 the default template.
 .TP
 .B Channel Name and thread
@@ -467,13 +472,13 @@ the default template.
 .UNINDENT
 .UNINDENT
 .sp
-The output file will look like \(dq\fBgeneral.json\fP\(dq for the channel and
-\(dq\fBgeneral(123457890.123456).json\fP\(dq for a thread.
+The output file will look like "\fBgeneral.json\fP" for the channel and
+"\fBgeneral(123457890.123456).json\fP" for a thread.
 .UNINDENT
 .TP
 .B \-i
 specify the input file with Channel IDs or URLs to be used instead
-of giving the list on the command line, one per line.  Use \(dq\-\(dq to
+of giving the list on the command line, one per line.  Use "\-" to
 read input from STDIN.  Example: \fB\-i my_links.txt\fP\&.
 .TP
 .B \-limiter\-boost
@@ -484,11 +489,11 @@ same as \-t3\-burst. (default 1)
 .TP
 .B \-list\-channels
 list channels (aka conversations) and their IDs for export.  The
-default output format is \(dqtext\(dq.  Use \fB\-r json\fP to output
+default output format is "text".  Use \fB\-r json\fP to output
 as JSON.
 .TP
 .B \-list\-users
-list users and their IDs.  The default output format is \(dqtext\(dq.
+list users and their IDs.  The default output format is "text".
 Use \fB\-r json\fP to output as JSON.
 .TP
 .B \-no\-user\-cache
@@ -505,7 +510,7 @@ per request.  Greedy.
 .TP
 .B \-o
 output filename for users and channels.  Use \(aq\-\(aq for standard
-output. (default \(dq\-\(dq)
+output. (default "\-")
 .TP
 .B \-r
 report (output) format.  One of \(aqjson\(aq or \(aqtext\(aq. For channels and
@@ -556,7 +561,7 @@ runs of slackdump.  Known issue \- if you\(aqre changing slack
 workspace, make sure to delete the cache file, or set this to 0.
 .TP
 .B \-user\-cache\-file
-user cache filename. (default \(dqusers.json\(dq) See note
+user cache filename. (default "users.json") See note
 for \-user\-cache\-age above.
 .TP
 .B \-v
@@ -582,10 +587,10 @@ Use:
 .sp
 .nf
 .ft C
-import \(dqgithub.com/rusq/slackdump\(dq
+import "github.com/rusq/slackdump"
 
 func main() {
-  sd, err := slackdump.New(os.Getenv(\(dqTOKEN\(dq), os.Getenv(\(dqCOOKIE\(dq))
+  sd, err := slackdump.New(os.Getenv("TOKEN"), os.Getenv("COOKIE"))
   if err != nil {
       // handle
   }
@@ -606,7 +611,7 @@ No, you don\(aqt.  You need to grab that token and cookie from the
 browser Slack session.  See \fI\%Usage\fP at the top of the file.
 .TP
 .B Q
-\fBI\(aqm getting \(dqinvalid_auth\(dq error\fP
+\fBI\(aqm getting "invalid_auth" error\fP
 .TP
 .B A
 Go get the new Cookie from the browser and Token as well.
