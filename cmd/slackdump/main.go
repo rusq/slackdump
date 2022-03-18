@@ -130,7 +130,7 @@ func parseCmdLine(args []string) (params, error) {
 				"This program comes with ABSOLUTELY NO WARRANTY;\n\n"+
 				"This is free software, and you are welcome to redistribute it\n"+
 				"under certain conditions\n\n"+
-				"Usage:  %s [flags] <ID1 [ID2 ... IDN]\n"+
+				"Usage:  %s [flags] [ID1 ID2 ... IDN]\n"+
 				"\twhere: ID is the conversation ID or URL Link to a conversation or thread\n\nflags:\n",
 			build, filepath.Base(os.Args[0]))
 		fs.PrintDefaults()
