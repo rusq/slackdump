@@ -22,12 +22,17 @@ import (
 const (
 	slackTokenEnv  = "SLACK_TOKEN"
 	slackCookieEnv = "COOKIE"
+
+	bannerFmt = "Slackdump %[1]s Copyright (c) 2018-%[2]s rusq\n\n"
 )
 
 // defFilenameTemplate is the default file naming template.
 const defFilenameTemplate = "{{.ID}}{{ if .ThreadTS}}-{{.ThreadTS}}{{end}}"
 
-var build = "dev"
+var (
+	build     = "dev"
+	buildYear = "2077"
+)
 
 // secrets defines the names of the supported secret files that we load our
 // secrets from.  Inexperienced windows users might have bad experience trying
@@ -45,6 +50,7 @@ type params struct {
 }
 
 func main() {
+	banner(os.Stderr)
 	loadSecrets(secrets)
 
 	params, err := parseCmdLine(os.Args[1:])
@@ -73,7 +79,6 @@ func main() {
 
 // run runs the dumper.
 func run(ctx context.Context, p params) error {
-	banner(os.Stderr)
 	if p.traceFile != "" {
 		dlog.Printf("enabling trace, will write to %q", p.traceFile)
 		trc := tracer.New(p.traceFile)
@@ -206,5 +211,5 @@ func (p *params) validate() error {
 }
 
 func banner(w io.Writer) {
-	fmt.Fprintf(w, "Slackdump %[1]s Copyright (c) 2022 rusq\n"+build)
+	fmt.Fprintf(w, bannerFmt, build, buildYear)
 }

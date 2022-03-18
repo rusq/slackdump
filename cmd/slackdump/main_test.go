@@ -1,11 +1,12 @@
 package main
 
 import (
+	"bytes"
+	"fmt"
 	"testing"
 
 	"github.com/rusq/slackdump"
 	"github.com/rusq/slackdump/internal/app"
-
 	"github.com/stretchr/testify/assert"
 )
 
@@ -94,6 +95,27 @@ func Test_checkParameters(t *testing.T) {
 				return
 			}
 			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func Test_banner(t *testing.T) {
+	tests := []struct {
+		name  string
+		wantW string
+	}{
+		{
+			"make sure I haven't fucked up",
+			fmt.Sprintf(bannerFmt, build, buildYear),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			w := &bytes.Buffer{}
+			banner(w)
+			if gotW := w.String(); gotW != tt.wantW {
+				t.Errorf("banner() = %v, want %v", gotW, tt.wantW)
+			}
 		})
 	}
 }
