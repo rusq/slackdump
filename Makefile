@@ -4,8 +4,9 @@ CMD=./cmd/slackdump
 OUTPUT=slackdump
 EXECUTABLE=slackdump
 BUILD=$(shell git describe --tags)
+BUILD_YEAR=$(shell date +%Y)
 
-LDFLAGS="-s -w -X main.build=$(BUILD)"
+LDFLAGS="-s -w -X 'main.build=$(BUILD)' -X 'main.buildYear=$(BUILD_YEAR)'"
 OSES=linux darwin windows
 DISTFILES=README.rst LICENSE
 ZIPFILES=$(foreach s,$(OSES),$(OUTPUT)-$s.zip)
