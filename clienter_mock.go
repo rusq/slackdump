@@ -113,19 +113,19 @@ func (mr *mockClienterMockRecorder) GetFile(downloadURL, writer interface{}) *go
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetFile", reflect.TypeOf((*mockClienter)(nil).GetFile), downloadURL, writer)
 }
 
-// GetUsers mocks base method.
-func (m *mockClienter) GetUsers() ([]slack.User, error) {
+// GetUsersContext mocks base method.
+func (m *mockClienter) GetUsersContext(ctx context.Context) ([]slack.User, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetUsers")
+	ret := m.ctrl.Call(m, "GetUsersContext", ctx)
 	ret0, _ := ret[0].([]slack.User)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetUsers indicates an expected call of GetUsers.
-func (mr *mockClienterMockRecorder) GetUsers() *gomock.Call {
+// GetUsersContext indicates an expected call of GetUsersContext.
+func (mr *mockClienterMockRecorder) GetUsersContext(ctx interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUsers", reflect.TypeOf((*mockClienter)(nil).GetUsers))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUsersContext", reflect.TypeOf((*mockClienter)(nil).GetUsersContext), ctx)
 }
 
 // MockReporter is a mock of Reporter interface.

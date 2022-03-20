@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -14,6 +15,7 @@ import (
 	"github.com/rusq/slackdump"
 	"github.com/rusq/slackdump/internal/app"
 	"github.com/rusq/slackdump/internal/tracer"
+	"github.com/slack-go/slack"
 
 	"github.com/joho/godotenv"
 	"github.com/rusq/dlog"
@@ -107,6 +109,10 @@ func run(ctx context.Context, p params) error {
 
 	if err := application.Run(ctx); err != nil {
 		trace.Logf(ctx, "error", "app.Run: %s", err.Error())
+		var ser slack.SlackErrorResponse
+		if errors.As(err, &ser) && ser.Err == "invalid_auth" {
+			return fmt.Errorf("%w: failed to authenticate:  please double check that token/cookie value are correct", ser)
+		}
 		return err
 	}
 	return nil
