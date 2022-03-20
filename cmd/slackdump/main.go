@@ -111,7 +111,7 @@ func run(ctx context.Context, p params) error {
 		trace.Logf(ctx, "error", "app.Run: %s", err.Error())
 		var ser slack.SlackErrorResponse
 		if errors.As(err, &ser) && ser.Err == "invalid_auth" {
-			return fmt.Errorf("%w: failed to authenticate:  please double check that token/cookie value are correct", ser)
+			return fmt.Errorf("%w: failed to authenticate:  please double check that token/cookie values are correct", ser)
 		}
 		return err
 	}
