@@ -40,7 +40,7 @@ type clienter interface {
 	GetConversationRepliesContext(ctx context.Context, params *slack.GetConversationRepliesParameters) (msgs []slack.Message, hasMore bool, nextCursor string, err error)
 	GetConversationsContext(ctx context.Context, params *slack.GetConversationsParameters) (channels []slack.Channel, nextCursor string, err error)
 	GetFile(downloadURL string, writer io.Writer) error
-	GetUsers() ([]slack.User, error)
+	GetUsersContext(ctx context.Context) ([]slack.User, error)
 }
 
 // tier represents rate limit tier:
@@ -88,7 +88,7 @@ func NewWithOptions(ctx context.Context, token string, cookie string, opts Optio
 	dlog.Println("> checking user cache...")
 	users, err := sd.GetUsers(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("error fetching users: %s", err)
+		return nil, fmt.Errorf("error fetching users: %w", err)
 	}
 
 	sd.Users = users

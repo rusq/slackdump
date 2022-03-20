@@ -55,16 +55,18 @@ func (sd *SlackDumper) fetchUsers(ctx context.Context) (Users, error) {
 	var (
 		users []slack.User
 	)
-	withRetry(ctx, newLimiter(tier2, sd.options.Tier2Burst, int(sd.options.Tier2Boost)), sd.options.Tier2Retries, func() error {
+	if err := withRetry(ctx, newLimiter(tier2, sd.options.Tier2Burst, int(sd.options.Tier2Boost)), sd.options.Tier2Retries, func() error {
 		var err error
-		users, err = sd.client.GetUsers()
+		users, err = sd.client.GetUsersContext(ctx)
 		return err
-	})
+	}); err != nil {
+		return nil, err
+	}
 	// BUG: as of 201902 there's a bug in slack module, the invalid_auth error
 	// is not propagated properly, so we'll check for number of users.  There
 	// should be at least one (slackbot).
 	if len(users) == 0 {
-		return nil, fmt.Errorf("couldn't fetch users")
+		return nil, errors.New("couldn't fetch users")
 	}
 	return users, nil
 }

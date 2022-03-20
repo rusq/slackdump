@@ -238,7 +238,7 @@ func TestSlackDumper_fetchUsers(t *testing.T) {
 			fields{},
 			args{context.Background()},
 			func(mc *mockClienter) {
-				mc.EXPECT().GetUsers().Return([]slack.User(testUsers), nil)
+				mc.EXPECT().GetUsersContext(gomock.Any()).Return([]slack.User(testUsers), nil)
 			},
 			testUsers,
 			false,
@@ -248,7 +248,7 @@ func TestSlackDumper_fetchUsers(t *testing.T) {
 			fields{},
 			args{context.Background()},
 			func(mc *mockClienter) {
-				mc.EXPECT().GetUsers().Return(nil, errors.New("i don't think so"))
+				mc.EXPECT().GetUsersContext(gomock.Any()).Return(nil, errors.New("i don't think so"))
 			},
 			nil,
 			true,
@@ -258,7 +258,7 @@ func TestSlackDumper_fetchUsers(t *testing.T) {
 			fields{},
 			args{context.Background()},
 			func(mc *mockClienter) {
-				mc.EXPECT().GetUsers().Return([]slack.User{}, nil)
+				mc.EXPECT().GetUsersContext(gomock.Any()).Return([]slack.User{}, nil)
 			},
 			nil,
 			true,
@@ -313,7 +313,7 @@ func TestSlackDumper_GetUsers(t *testing.T) {
 			}},
 			args{context.Background()},
 			func(mc *mockClienter) {
-				mc.EXPECT().GetUsers().Return([]slack.User(testUsers), nil)
+				mc.EXPECT().GetUsersContext(gomock.Any()).Return([]slack.User(testUsers), nil)
 			},
 			testUsers,
 			false,
