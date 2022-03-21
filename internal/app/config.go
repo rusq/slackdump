@@ -74,10 +74,14 @@ func (out Output) IsText() bool {
 	return out.Format == OutputTypeText
 }
 
+// SlackCreds stores Slack credentials.
 type SlackCreds struct {
-	Token         string
-	Cookie        string
-	SSBInstanceID string
+	// Token is the Slack auth-token value.
+	Token string
+	// Cookie may contain cookie value or a filename.  I have mixed filings
+	// about this, but blame CURL, it's the same approach, and I have no
+	// imagination.
+	Cookie string
 }
 
 func (c SlackCreds) Valid() bool {
