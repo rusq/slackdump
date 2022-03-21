@@ -9,6 +9,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	cookiemonster "github.com/MercuryEngineering/CookieMonster"
 	"github.com/pkg/errors"
 	"github.com/rusq/dlog"
 	"github.com/slack-go/slack"
@@ -76,11 +77,25 @@ func New(ctx context.Context, token string, cookie string, opts ...Option) (*Sla
 }
 
 func NewWithOptions(ctx context.Context, token string, cookie string, opts Options) (*SlackDumper, error) {
+	var sopts []slack.Option
+	if isExistingFile(cookie) {
+		dlog.Debug("cookie value appears to be an existing file")
+		cookies, err := cookiemonster.ParseFile(cookie)
+		if err != nil {
+			return nil, fmt.Errorf("error loading cookies file: %w", errors.WithStack(err))
+		}
+		sopts = append(sopts, slack.OptionCookieRAW(cookies...))
+	} else {
+		sopts = []slack.Option{
+			slack.OptionAuthCookie(cookie),
+			slack.OptionCookie("d-s", fmt.Sprintf("%d", time.Now().Unix()-10)),
+		}
+	}
+
 	sd := &SlackDumper{
 		client: slack.New(
 			token,
-			slack.OptionAuthCookie(cookie),
-			slack.OptionCookie("d-s", fmt.Sprintf("%d", time.Now().Unix()-10)),
+			sopts...,
 		),
 		options: opts,
 	}
@@ -99,6 +114,11 @@ func NewWithOptions(ctx context.Context, token string, cookie string, opts Optio
 
 func (sd *SlackDumper) limiter(t tier) *rate.Limiter {
 	return newLimiter(t, sd.options.Tier3Burst, int(sd.options.Tier3Boost))
+}
+
+func isExistingFile(cookie string) bool {
+	_, err := os.Stat(cookie)
+	return err == nil
 }
 
 var ErrRetryFailed = errors.New("callback was not able to complete without errors within the allowed number of retries")

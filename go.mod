@@ -13,10 +13,11 @@ require (
 )
 
 require (
+	github.com/MercuryEngineering/CookieMonster v0.0.0-20180304172713-1584578b3403 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/gorilla/websocket v1.4.2 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	gopkg.in/yaml.v2 v2.2.2 // indirect
 )
 
-replace github.com/slack-go/slack => github.com/rusq/slack v0.10.2
+replace github.com/slack-go/slack => github.com/rusq/slack v0.10.3
