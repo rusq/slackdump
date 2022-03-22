@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"html/template"
 	"io"
+	"os"
 	"strings"
 
 	"github.com/rusq/slackdump"
@@ -84,8 +85,34 @@ type SlackCreds struct {
 	Cookie string
 }
 
-func (c SlackCreds) Valid() bool {
-	return c.Token != "" && c.Cookie != ""
+func (c SlackCreds) Validate() error {
+	if c.Token == "" {
+		return fmt.Errorf("token is not specified")
+	} else if c.Cookie == "" {
+		return fmt.Errorf("cookie is not specified")
+	}
+
+	stat, err := os.Stat(c.Cookie)
+	if err != nil {
+		if os.IsNotExist(err) {
+			// cookie is not a file
+			return nil
+		}
+		return fmt.Errorf("cookie file: stat error: %w", err)
+	}
+
+	if stat.IsDir() {
+		return fmt.Errorf("cookie path is a directory")
+	}
+
+	// cookie is a file, try to open it for reading
+	f, err := os.Open(c.Cookie)
+	if err != nil {
+		return fmt.Errorf("error opening the cookie file: %w", err)
+	}
+	f.Close()
+
+	return nil
 }
 
 type ListFlags struct {
@@ -99,8 +126,8 @@ func (lf ListFlags) FlagsPresent() bool {
 
 // Validate checks if the command line parameters have valid values.
 func (p *Config) Validate() error {
-	if !p.Creds.Valid() {
-		return fmt.Errorf("slack token or cookie not specified")
+	if err := p.Creds.Validate(); err != nil {
+		return err
 	}
 
 	if !p.Input.IsValid() && !p.ListFlags.FlagsPresent() {
