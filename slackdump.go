@@ -76,20 +76,25 @@ func New(ctx context.Context, token string, cookie string, opts ...Option) (*Sla
 	return NewWithOptions(ctx, token, cookie, options)
 }
 
-func NewWithOptions(ctx context.Context, token string, cookie string, opts Options) (*SlackDumper, error) {
-	var sopts []slack.Option
-	if isExistingFile(cookie) {
-		dlog.Debug("cookie value appears to be an existing file")
-		cookies, err := cookiemonster.ParseFile(cookie)
-		if err != nil {
-			return nil, fmt.Errorf("error loading cookies file: %w", errors.WithStack(err))
-		}
-		sopts = append(sopts, slack.OptionCookieRAW(cookies...))
-	} else {
-		sopts = []slack.Option{
+func makeSlakeOpts(cookie string) ([]slack.Option, error) {
+	if !isExistingFile(cookie) {
+		return []slack.Option{
 			slack.OptionAuthCookie(cookie),
 			slack.OptionCookie("d-s", fmt.Sprintf("%d", time.Now().Unix()-10)),
-		}
+		}, nil
+	}
+	dlog.Debug("cookie value appears to be an existing file")
+	cookies, err := cookiemonster.ParseFile(cookie)
+	if err != nil {
+		return nil, fmt.Errorf("error loading cookies file: %w", errors.WithStack(err))
+	}
+	return []slack.Option{slack.OptionCookieRAW(cookies...)}, nil
+}
+
+func NewWithOptions(ctx context.Context, token string, cookie string, opts Options) (*SlackDumper, error) {
+	sopts, err := makeSlakeOpts(cookie)
+	if err != nil {
+		return nil, err
 	}
 
 	sd := &SlackDumper{
@@ -117,8 +122,8 @@ func (sd *SlackDumper) limiter(t tier) *rate.Limiter {
 }
 
 func isExistingFile(cookie string) bool {
-	_, err := os.Stat(cookie)
-	return err == nil
+	fi, err := os.Stat(cookie)
+	return err == nil && !fi.IsDir()
 }
 
 var ErrRetryFailed = errors.New("callback was not able to complete without errors within the allowed number of retries")
