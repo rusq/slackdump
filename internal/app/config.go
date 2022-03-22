@@ -79,9 +79,11 @@ func (out Output) IsText() bool {
 type SlackCreds struct {
 	// Token is the Slack auth-token value.
 	Token string
-	// Cookie may contain cookie value or a filename.  I have mixed filings
-	// about this, but blame CURL, it's the same approach, and I have no
-	// imagination.
+	// Cookie may contain cookie value or a filename.  I have mixed feelings
+	// about this, but blame cURL, they use the same approach for --cookie, and
+	// I have no imagination.  Also, it's simpler from the usability POV, as
+	// there's no additional parameter.  Well, I'll repeat this to myself until
+	// I start to believe in it.
 	Cookie string
 }
 
