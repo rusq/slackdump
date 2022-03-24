@@ -92,6 +92,11 @@ func makeSlakeOpts(cookie string) ([]slack.Option, error) {
 }
 
 func NewWithOptions(ctx context.Context, token string, cookie string, opts Options) (*SlackDumper, error) {
+	ctx, task := trace.NewTask(ctx, "NewWithOptions")
+	defer task.End()
+
+	trace.Logf(ctx, "startup", "has_token=%v has_cookie=%v cookie_is_file=%v", token != "", cookie != "", isExistingFile(cookie))
+
 	sopts, err := makeSlakeOpts(cookie)
 	if err != nil {
 		return nil, err

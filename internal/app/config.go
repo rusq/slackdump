@@ -87,12 +87,15 @@ type SlackCreds struct {
 	Cookie string
 }
 
-func (c SlackCreds) Validate() error {
+func (c *SlackCreds) Validate() error {
 	if c.Token == "" {
 		return fmt.Errorf("token is not specified")
 	} else if c.Cookie == "" {
 		return fmt.Errorf("cookie is not specified")
 	}
+
+	// cleanup cookie
+	c.Cookie = strings.TrimPrefix(c.Cookie, "d=")
 
 	stat, err := os.Stat(c.Cookie)
 	if err != nil {
@@ -135,7 +138,6 @@ func (p *Config) Validate() error {
 	if !p.Input.IsValid() && !p.ListFlags.FlagsPresent() {
 		return fmt.Errorf("no valid input and no list flags specified")
 	}
-	p.Creds.Cookie = strings.TrimPrefix(p.Creds.Cookie, "d=")
 
 	// channels and users listings will be in the text format (if not specified otherwise)
 	if p.Output.Format == "" {
