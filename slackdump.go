@@ -50,7 +50,7 @@ type tier int
 
 const (
 	// base throttling defined as events per minute
-	noTier tier = 0 // no tier is applied
+	noTier tier = 1000 // no tier is applied
 
 	tier1 tier = 1
 	tier2 tier = 20

@@ -235,7 +235,7 @@ func TestSlackDumper_fetchUsers(t *testing.T) {
 	}{
 		{
 			"ok",
-			fields{},
+			fields{options: DefOptions},
 			args{context.Background()},
 			func(mc *mockClienter) {
 				mc.EXPECT().GetUsersContext(gomock.Any()).Return([]slack.User(testUsers), nil)
@@ -245,7 +245,7 @@ func TestSlackDumper_fetchUsers(t *testing.T) {
 		},
 		{
 			"api error",
-			fields{},
+			fields{options: DefOptions},
 			args{context.Background()},
 			func(mc *mockClienter) {
 				mc.EXPECT().GetUsersContext(gomock.Any()).Return(nil, errors.New("i don't think so"))
@@ -255,7 +255,7 @@ func TestSlackDumper_fetchUsers(t *testing.T) {
 		},
 		{
 			"zero users",
-			fields{},
+			fields{options: DefOptions},
 			args{context.Background()},
 			func(mc *mockClienter) {
 				mc.EXPECT().GetUsersContext(gomock.Any()).Return([]slack.User{}, nil)
@@ -310,6 +310,8 @@ func TestSlackDumper_GetUsers(t *testing.T) {
 			fields{options: Options{
 				UserCacheFilename: gimmeTempFile(t),
 				MaxUserCacheAge:   5 * time.Hour,
+				Tier2Burst:        1,
+				Tier3Burst:        1,
 			}},
 			args{context.Background()},
 			func(mc *mockClienter) {
@@ -323,6 +325,8 @@ func TestSlackDumper_GetUsers(t *testing.T) {
 			fields{options: Options{
 				UserCacheFilename: gimmeTempFileWithUsers(t),
 				MaxUserCacheAge:   5 * time.Hour,
+				Tier2Burst:        1,
+				Tier3Burst:        1,
 			}},
 			args{context.Background()},
 			func(mc *mockClienter) {
