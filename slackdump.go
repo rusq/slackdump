@@ -19,8 +19,8 @@ import (
 const defNumAttempts = 3 // default number of attempts for withRetry.
 
 //go:generate mockgen -destination internal/mock_os/mock_os.go os FileInfo
-//go:generate sh -c "mockgen -source slackdump.go -destination clienter_mock.go -package slackdump -mock_names clienter=mockClienter"
-//go:generate sed -i ~ "s/NewmockClienter/newmockClienter/g" clienter_mock.go
+//go:generate sh -c "mockgen -source slackdump.go -destination clienter_mock.go -package slackdump -mock_names clienter=mockClienter,Reporter=mockReporter"
+//go:generate sed -i ~ -e "s/NewmockClienter/newmockClienter/g" -e "s/NewmockReporter/newmockReporter/g" clienter_mock.go
 
 // SlackDumper stores basic session parameters.
 type SlackDumper struct {
