@@ -142,11 +142,15 @@ func withRetry(ctx context.Context, l *rate.Limiter, maxAttempts int, fn func() 
 		maxAttempts = defNumAttempts
 	}
 	for attempt := 0; attempt < maxAttempts; attempt++ {
+		var err error
 		trace.WithRegion(ctx, "withRetry.wait", func() {
-			l.Wait(ctx)
+			err = l.Wait(ctx)
 		})
+		if err != nil {
+			return err
+		}
 
-		err := fn()
+		err = fn()
 		if err == nil {
 			ok = true
 			break
