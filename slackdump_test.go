@@ -121,7 +121,7 @@ func Test_withRetry(t *testing.T) {
 		{"slackRetry should honour the value in the rate limit error",
 			args{
 				context.Background(),
-				rate.NewLimiter(0.0, 1), // no rate limit on this one, only delay by slack.RateLimitedError.RetryAfter
+				rate.NewLimiter(1000, 1),
 				5,
 				retryFn(4, 100*time.Millisecond, nil),
 			},

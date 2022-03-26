@@ -155,13 +155,14 @@ func TestSlackDumper_DumpMessages(t *testing.T) {
 	}{
 		{
 			"all ok",
-			fields{},
+			fields{options: DefOptions},
 			args{context.Background(), "CHANNEL"},
 			func(c *mockClienter) {
 				c.EXPECT().GetConversationHistoryContext(
 					gomock.Any(),
 					&slack.GetConversationHistoryParameters{
 						ChannelID: "CHANNEL",
+						Limit:     DefOptions.ConversationsPerReq,
 					}).Return(
 					&slack.GetConversationHistoryResponse{
 						SlackResponse: slack.SlackResponse{Ok: true},
@@ -186,7 +187,7 @@ func TestSlackDumper_DumpMessages(t *testing.T) {
 		},
 		{
 			"channelID is empty",
-			fields{},
+			fields{options: DefOptions},
 			args{context.Background(), ""},
 			func(c *mockClienter) {},
 			nil,
@@ -194,7 +195,7 @@ func TestSlackDumper_DumpMessages(t *testing.T) {
 		},
 		{
 			"iteration test",
-			fields{},
+			fields{options: DefOptions},
 			args{context.Background(), "CHANNEL"},
 			func(c *mockClienter) {
 				first := c.EXPECT().
@@ -202,6 +203,7 @@ func TestSlackDumper_DumpMessages(t *testing.T) {
 						gomock.Any(),
 						&slack.GetConversationHistoryParameters{
 							ChannelID: "CHANNEL",
+							Limit:     DefOptions.ConversationsPerReq,
 						}).
 					Return(
 						&slack.GetConversationHistoryResponse{
@@ -223,6 +225,7 @@ func TestSlackDumper_DumpMessages(t *testing.T) {
 						&slack.GetConversationHistoryParameters{
 							ChannelID: "CHANNEL",
 							Cursor:    "cur",
+							Limit:     DefOptions.ConversationsPerReq,
 						}).
 					Return(
 						&slack.GetConversationHistoryResponse{
@@ -247,7 +250,7 @@ func TestSlackDumper_DumpMessages(t *testing.T) {
 		},
 		{
 			"resp not ok",
-			fields{},
+			fields{options: DefOptions},
 			args{context.Background(), "CHANNEL"},
 			func(c *mockClienter) {
 				c.EXPECT().GetConversationHistoryContext(
@@ -264,7 +267,7 @@ func TestSlackDumper_DumpMessages(t *testing.T) {
 		},
 		{
 			"sudden bleep bloop error",
-			fields{},
+			fields{options: DefOptions},
 			args{context.Background(), "CHANNEL"},
 			func(c *mockClienter) {
 				c.EXPECT().GetConversationHistoryContext(
@@ -344,7 +347,7 @@ func TestSlackDumper_dumpThread(t *testing.T) {
 		},
 		{
 			"iterating over",
-			fields{},
+			fields{options: DefOptions},
 			args{context.Background(), newLimiter(noTier, 1, 0), "CHANNEL", "THREAD"},
 			func(mc *mockClienter) {
 				mc.EXPECT().
@@ -377,7 +380,7 @@ func TestSlackDumper_dumpThread(t *testing.T) {
 		},
 		{
 			"sudden bleep bloop error",
-			fields{},
+			fields{options: DefOptions},
 			args{context.Background(), newLimiter(noTier, 1, 0), "CHANNEL", "THREADTS"},
 			func(c *mockClienter) {
 				c.EXPECT().
@@ -577,12 +580,12 @@ func TestSlackDumper_DumpThread(t *testing.T) {
 		want     *Conversation
 		wantErr  bool
 	}{
-		{"chan and thread are empty", fields{}, args{context.Background(), "", ""}, nil, nil, true},
-		{"thread empty", fields{}, args{context.Background(), "xxx", ""}, nil, nil, true},
-		{"chan empty", fields{}, args{context.Background(), "", "yyy"}, nil, nil, true},
+		{"chan and thread are empty", fields{options: DefOptions}, args{context.Background(), "", ""}, nil, nil, true},
+		{"thread empty", fields{options: DefOptions}, args{context.Background(), "xxx", ""}, nil, nil, true},
+		{"chan empty", fields{options: DefOptions}, args{context.Background(), "", "yyy"}, nil, nil, true},
 		{
 			"ok",
-			fields{},
+			fields{options: DefOptions},
 			args{context.Background(), "CHANNEL", "THREAD"},
 			func(mc *mockClienter) {
 				mc.EXPECT().
@@ -604,7 +607,7 @@ func TestSlackDumper_DumpThread(t *testing.T) {
 		},
 		{
 			"iterating over",
-			fields{},
+			fields{options: DefOptions},
 			args{context.Background(), "CHANNEL", "THREAD"},
 			func(mc *mockClienter) {
 				mc.EXPECT().
@@ -638,7 +641,7 @@ func TestSlackDumper_DumpThread(t *testing.T) {
 		},
 		{
 			"sudden bleep bloop error",
-			fields{},
+			fields{options: DefOptions},
 			args{context.Background(), "CHANNEL", "THREADTS"},
 			func(c *mockClienter) {
 				c.EXPECT().
@@ -703,8 +706,9 @@ func TestSlackDumper_DumpURL(t *testing.T) {
 		wantErr  bool
 	}{
 		{
-			name: "conversation url",
-			args: args{context.Background(), "https://ora600.slack.com/archives/CHM82GF99"},
+			name:   "conversation url",
+			fields: fields{options: DefOptions},
+			args:   args{context.Background(), "https://ora600.slack.com/archives/CHM82GF99"},
 			expectFn: func(sc *mockClienter) {
 				sc.EXPECT().GetConversationHistoryContext(gomock.Any(), gomock.Any()).Return(
 					&slack.GetConversationHistoryResponse{
@@ -719,8 +723,9 @@ func TestSlackDumper_DumpURL(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "thread url",
-			args: args{context.Background(), "https://ora600.slack.com/archives/CHM82GF99/p1577694990000400"},
+			name:   "thread url",
+			fields: fields{options: DefOptions},
+			args:   args{context.Background(), "https://ora600.slack.com/archives/CHM82GF99/p1577694990000400"},
 			expectFn: func(sc *mockClienter) {
 				sc.EXPECT().GetConversationRepliesContext(gomock.Any(), gomock.Any()).Return(
 					[]slack.Message{testMsg1.Message},
@@ -735,6 +740,7 @@ func TestSlackDumper_DumpURL(t *testing.T) {
 		},
 		{
 			name:    "invalid url",
+			fields:  fields{options: DefOptions},
 			args:    args{context.Background(), "x"},
 			wantErr: true,
 		},

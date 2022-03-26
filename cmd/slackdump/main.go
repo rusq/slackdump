@@ -121,7 +121,7 @@ func run(ctx context.Context, p params) error {
 // loadSecrets load secrets from the files in secrets slice.
 func loadSecrets(files []string) {
 	for _, f := range files {
-		godotenv.Load(f)
+		_ = godotenv.Load(f)
 	}
 }
 

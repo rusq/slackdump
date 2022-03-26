@@ -65,7 +65,10 @@ func (sd *SlackDumper) getChannels(ctx context.Context, chanTypes []string) (Cha
 		}
 
 		params.Cursor = nextcur
-		limiter.Wait(ctx)
+
+		if err := limiter.Wait(ctx); err != nil {
+			return nil, err
+		}
 	}
 	return allChannels, nil
 }
