@@ -3,6 +3,7 @@ module github.com/rusq/slackdump
 go 1.17
 
 require (
+	github.com/MercuryEngineering/CookieMonster v0.0.0-20180304172713-1584578b3403
 	github.com/golang/mock v1.6.0
 	github.com/joho/godotenv v1.4.0
 	github.com/pkg/errors v0.9.1
@@ -19,4 +20,4 @@ require (
 	gopkg.in/yaml.v2 v2.2.2 // indirect
 )
 
-replace github.com/slack-go/slack => github.com/rusq/slack v0.10.2
+replace github.com/slack-go/slack => github.com/rusq/slack v0.10.3

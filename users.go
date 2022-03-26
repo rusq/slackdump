@@ -43,6 +43,7 @@ func (sd *SlackDumper) GetUsers(ctx context.Context) (Users, error) {
 			return nil, err
 		}
 		if err := sd.saveUserCache(sd.options.UserCacheFilename, users); err != nil {
+			trace.Logf(ctx, "error", "saving user cache to %q, error: %s", sd.options.UserCacheFilename, err)
 			dlog.Printf("error saving user cache to %q: %s, but nevermind, let's continue", sd.options.UserCacheFilename, err)
 		}
 	}
@@ -60,6 +61,7 @@ func (sd *SlackDumper) fetchUsers(ctx context.Context) (Users, error) {
 		users, err = sd.client.GetUsersContext(ctx)
 		return err
 	}); err != nil {
+		trace.Logf(ctx, "error", "GetUsers error=%s", err)
 		return nil, err
 	}
 	// BUG: as of 201902 there's a bug in slack module, the invalid_auth error
