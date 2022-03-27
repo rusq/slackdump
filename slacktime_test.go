@@ -40,7 +40,7 @@ func Test_parseSlackTS(t *testing.T) {
 	}
 }
 
-func Test_toSlackTime(t *testing.T) {
+func Test_formatSlackTS(t *testing.T) {
 	type args struct {
 		ts time.Time
 	}
