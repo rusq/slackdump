@@ -30,13 +30,14 @@ func TestSlackDumper_getChannels(t *testing.T) {
 	}{
 		{
 			"ok",
-			fields{},
+			fields{options: DefOptions},
 			args{
 				context.Background(),
 				allChanTypes,
 			},
 			func(mc *mockClienter) {
 				mc.EXPECT().GetConversationsContext(gomock.Any(), &slack.GetConversationsParameters{
+					Limit: DefOptions.ChannelsPerReq,
 					Types: allChanTypes,
 				}).Return(Channels{
 					slack.Channel{GroupConversation: slack.GroupConversation{
@@ -52,13 +53,14 @@ func TestSlackDumper_getChannels(t *testing.T) {
 		},
 		{
 			"function made a boo boo",
-			fields{},
+			fields{options: DefOptions},
 			args{
 				context.Background(),
 				allChanTypes,
 			},
 			func(mc *mockClienter) {
 				mc.EXPECT().GetConversationsContext(gomock.Any(), &slack.GetConversationsParameters{
+					Limit: DefOptions.ChannelsPerReq,
 					Types: allChanTypes,
 				}).Return(
 					nil,

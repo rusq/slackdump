@@ -163,7 +163,7 @@ func TestSlackDumper_SaveFileTo(t *testing.T) {
 	}{
 		{
 			"ok",
-			fields{},
+			fields{options: DefOptions},
 			args{
 				context.Background(),
 				tmpdir,
@@ -179,7 +179,7 @@ func TestSlackDumper_SaveFileTo(t *testing.T) {
 		},
 		{
 			"getfile rekt",
-			fields{},
+			fields{options: DefOptions},
 			args{
 				context.Background(),
 				tmpdir,

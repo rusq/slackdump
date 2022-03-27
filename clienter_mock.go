@@ -128,31 +128,31 @@ func (mr *mockClienterMockRecorder) GetUsersContext(ctx interface{}) *gomock.Cal
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUsersContext", reflect.TypeOf((*mockClienter)(nil).GetUsersContext), ctx)
 }
 
-// MockReporter is a mock of Reporter interface.
-type MockReporter struct {
+// mockReporter is a mock of Reporter interface.
+type mockReporter struct {
 	ctrl     *gomock.Controller
-	recorder *MockReporterMockRecorder
+	recorder *mockReporterMockRecorder
 }
 
-// MockReporterMockRecorder is the mock recorder for MockReporter.
-type MockReporterMockRecorder struct {
-	mock *MockReporter
+// mockReporterMockRecorder is the mock recorder for mockReporter.
+type mockReporterMockRecorder struct {
+	mock *mockReporter
 }
 
-// NewMockReporter creates a new mock instance.
-func NewMockReporter(ctrl *gomock.Controller) *MockReporter {
-	mock := &MockReporter{ctrl: ctrl}
-	mock.recorder = &MockReporterMockRecorder{mock}
+// newmockReporter creates a new mock instance.
+func newmockReporter(ctrl *gomock.Controller) *mockReporter {
+	mock := &mockReporter{ctrl: ctrl}
+	mock.recorder = &mockReporterMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockReporter) EXPECT() *MockReporterMockRecorder {
+func (m *mockReporter) EXPECT() *mockReporterMockRecorder {
 	return m.recorder
 }
 
 // ToText mocks base method.
-func (m *MockReporter) ToText(sd *SlackDumper, w io.Writer) error {
+func (m *mockReporter) ToText(sd *SlackDumper, w io.Writer) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ToText", sd, w)
 	ret0, _ := ret[0].(error)
@@ -160,7 +160,7 @@ func (m *MockReporter) ToText(sd *SlackDumper, w io.Writer) error {
 }
 
 // ToText indicates an expected call of ToText.
-func (mr *MockReporterMockRecorder) ToText(sd, w interface{}) *gomock.Call {
+func (mr *mockReporterMockRecorder) ToText(sd, w interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ToText", reflect.TypeOf((*MockReporter)(nil).ToText), sd, w)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ToText", reflect.TypeOf((*mockReporter)(nil).ToText), sd, w)
 }

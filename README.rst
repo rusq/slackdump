@@ -69,6 +69,8 @@ your token is waiting for you there.
 COOKIE
 ++++++
 
+**OPTION I:  Getting the cookie value**
+
 #. Switch to Application_ tab and select **Cookies** in the left
    navigation pane.
 #. Find the cookie with the name "``d``".  That's right, just the
@@ -76,6 +78,27 @@ COOKIE
 #. Double-click the Value of this cookie.
 #. Press Ctrl+C or Cmd+C to copy it's value to clipboard.
 #. Save it for later.
+
+**OPTION II:  Saving cookies to a cookies.txt**
+
+#. Install the `Get cookies.txt Chrome extension`_
+#. With your Slack workspace tab opened, press the "Get Cookies.txt" extension
+   button
+#. Press **Export** button.
+#. The slack.com_cookies.txt will have been saved to your **Downloads**
+   directory.
+#. Copy it to any convenient location, i.e. the directory where "slackdump"
+   executable is.
+
+Generally, there's no necessity in using the cookies.txt file, so providing
+d= cookie value will work in most cases.
+
+It may only be necessary, if your slack workspace uses Single Sign-On (SSO) in
+case you keep getting ``invalid_auth`` error.
+
+Slackdump will automatically detect if the filename is used as a value of a
+cookie, and will load all cookies from that file.
+
 
 Setting up the application
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -87,8 +110,13 @@ Setting up the application
    should look like this::
 
      SLACK_TOKEN=xoxc-<...elided...>
-     COOKIE=12345472908twp<...elided...>
+     COOKIE=xoxd-<...elided...>
 
+   Alternatively, if you saved the cookies to the file, it will look like this:
+
+     SLACK_TOKEN=xoxc-<...elided...>
+     COOKIE=path/to/slack.com_cookies.txt
+     
 #. Save the file and close the editor.
 
 
@@ -233,9 +261,11 @@ Command line flags are described as of version ``v1.3.1``.
    same as -list-channels
 
 \-cookie
-   along with ``-t`` sets the authentication values.  Can also be set
-   using ``COOKIE`` environment variable.  Must contain the value of
-   ``d=`` cookie.
+   along with ``-t`` sets the authentication values.  Can also be set using
+   ``COOKIE`` environment variable.  Must contain the value of ``d=`` cookie, or
+   a cookies.txt dumped from the browser using the `Get cookies.txt Chrome
+   extension`_
+   
 
 \-cpr
    number of conversation items per request. (default 200).  This is
@@ -454,3 +484,4 @@ Messages that were conveyed with the donations:
   bulletin board links
 
 .. _`TheSignChef.com`: https://www.glassdoor.com.au/Reviews/TheSignChef-com-Reviews-E793259.htm
+.. _`Get cookies.txt Chrome extension`: https://chrome.google.com/webstore/detail/get-cookiestxt/bgaddhkoddajcdgocldbbfleckgcbcid
