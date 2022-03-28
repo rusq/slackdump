@@ -76,6 +76,8 @@ func (sd *SlackDumper) fetchUsers(ctx context.Context) (Users, error) {
 
 // loadUsers tries to load the users from the file
 func (sd *SlackDumper) loadUserCache(filename string, suffix string, maxAge time.Duration) (Users, error) {
+	filename = makeCacheFilename(filename, suffix)
+
 	if err := checkCacheFile(filename, maxAge); err != nil {
 		return nil, err
 	}
@@ -95,6 +97,8 @@ func (sd *SlackDumper) loadUserCache(filename string, suffix string, maxAge time
 }
 
 func (sd *SlackDumper) saveUserCache(filename string, suffix string, uu Users) error {
+	filename = makeCacheFilename(filename, suffix)
+
 	f, err := os.Create(filename)
 	if err != nil {
 		return errors.WithStack(err)

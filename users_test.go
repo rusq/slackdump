@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
 	"time"
@@ -143,18 +144,14 @@ func TestUsers_ToText(t *testing.T) {
 func TestSlackDumper_saveUserCache(t *testing.T) {
 
 	// test saving file works
-	sd := SlackDumper{}
+	sd := SlackDumper{teamID: testSuffix}
 
-	testFile, err := os.CreateTemp("", "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.Remove(testFile.Name())
-	testFile.Close()
+	dir := t.TempDir()
+	testfile := filepath.Join(dir, "test.json")
 
-	assert.NoError(t, sd.saveUserCache(testFile.Name(), testSuffix, testUsers))
+	assert.NoError(t, sd.saveUserCache(testfile, testSuffix, testUsers))
 
-	reopenedF, err := os.Open(testFile.Name())
+	reopenedF, err := os.Open(makeCacheFilename(testfile, testSuffix))
 	if err != nil {
 		t.Fatal(err)
 	}
