@@ -113,6 +113,21 @@ func (mr *mockClienterMockRecorder) GetFile(downloadURL, writer interface{}) *go
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetFile", reflect.TypeOf((*mockClienter)(nil).GetFile), downloadURL, writer)
 }
 
+// GetTeamInfo mocks base method.
+func (m *mockClienter) GetTeamInfo() (*slack.TeamInfo, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetTeamInfo")
+	ret0, _ := ret[0].(*slack.TeamInfo)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetTeamInfo indicates an expected call of GetTeamInfo.
+func (mr *mockClienterMockRecorder) GetTeamInfo() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTeamInfo", reflect.TypeOf((*mockClienter)(nil).GetTeamInfo))
+}
+
 // GetUsersContext mocks base method.
 func (m *mockClienter) GetUsersContext(ctx context.Context) ([]slack.User, error) {
 	m.ctrl.T.Helper()

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"runtime/trace"
 	"sort"
 	"text/tabwriter"
@@ -31,7 +32,7 @@ func (sd *SlackDumper) GetUsers(ctx context.Context) (Users, error) {
 		return Users{}, nil
 	}
 
-	users, err := sd.loadUserCache(sd.options.UserCacheFilename, sd.options.MaxUserCacheAge)
+	users, err := sd.loadUserCache(sd.options.UserCacheFilename, sd.teamID, sd.options.MaxUserCacheAge)
 	if err != nil {
 		if os.IsNotExist(err) {
 			dlog.Println("  caching users for the first time")
@@ -42,7 +43,7 @@ func (sd *SlackDumper) GetUsers(ctx context.Context) (Users, error) {
 		if err != nil {
 			return nil, err
 		}
-		if err := sd.saveUserCache(sd.options.UserCacheFilename, users); err != nil {
+		if err := sd.saveUserCache(sd.options.UserCacheFilename, sd.teamID, users); err != nil {
 			trace.Logf(ctx, "error", "saving user cache to %q, error: %s", sd.options.UserCacheFilename, err)
 			dlog.Printf("error saving user cache to %q: %s, but nevermind, let's continue", sd.options.UserCacheFilename, err)
 		}
@@ -74,10 +75,11 @@ func (sd *SlackDumper) fetchUsers(ctx context.Context) (Users, error) {
 }
 
 // loadUsers tries to load the users from the file
-func (*SlackDumper) loadUserCache(filename string, maxAge time.Duration) (Users, error) {
+func (sd *SlackDumper) loadUserCache(filename string, suffix string, maxAge time.Duration) (Users, error) {
 	if err := checkCacheFile(filename, maxAge); err != nil {
 		return nil, err
 	}
+
 	f, err := os.Open(filename)
 	if err != nil {
 		return nil, errors.WithStack(err)
@@ -92,7 +94,7 @@ func (*SlackDumper) loadUserCache(filename string, maxAge time.Duration) (Users,
 	return uu, nil
 }
 
-func (sd *SlackDumper) saveUserCache(filename string, uu Users) error {
+func (sd *SlackDumper) saveUserCache(filename string, suffix string, uu Users) error {
 	f, err := os.Create(filename)
 	if err != nil {
 		return errors.WithStack(err)
@@ -167,4 +169,24 @@ func (sd *SlackDumper) IsUserDeleted(id string) bool {
 		return false
 	}
 	return thisUser.Deleted
+}
+
+// makeCacheFilename converts filename.ext to filename-suffix.ext.
+func makeCacheFilename(filename, suffix string) string {
+	ne := filenameSplit(filename)
+	return filenameJoin(nameExt{ne[0] + "-" + suffix, ne[1]})
+}
+
+type nameExt [2]string
+
+// filenameSplit splits the "path/to/filename.ext" into nameExt{"path/to/filename", ".ext"}
+func filenameSplit(filename string) nameExt {
+	ext := filepath.Ext(filename)
+	name := filename[:len(filename)-len(ext)]
+	return nameExt{name, ext}
+}
+
+// filenameJoin combines nameExt{"path/to/filename", ".ext"} to "path/to/filename.ext".
+func filenameJoin(splitfname nameExt) string {
+	return splitfname[0] + splitfname[1]
 }

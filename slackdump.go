@@ -26,6 +26,8 @@ const defNumAttempts = 3 // default number of attempts for withRetry.
 type SlackDumper struct {
 	client clienter
 
+	teamID string // used as a suffix for cached users
+
 	// Users contains the list of users and populated on NewSlackDumper
 	Users     Users                  `json:"users"`
 	UserIndex map[string]*slack.User `json:"-"`
@@ -41,6 +43,7 @@ type clienter interface {
 	GetConversationRepliesContext(ctx context.Context, params *slack.GetConversationRepliesParameters) (msgs []slack.Message, hasMore bool, nextCursor string, err error)
 	GetConversationsContext(ctx context.Context, params *slack.GetConversationsParameters) (channels []slack.Channel, nextCursor string, err error)
 	GetFile(downloadURL string, writer io.Writer) error
+	GetTeamInfo() (*slack.TeamInfo, error)
 	GetUsersContext(ctx context.Context) ([]slack.User, error)
 }
 
@@ -58,7 +61,7 @@ const (
 	tier4 tier = 100
 )
 
-var allChanTypes = []string{"mpim", "im", "public_channel", "private_channel"}
+var AllChanTypes = []string{"mpim", "im", "public_channel", "private_channel"}
 
 // Reporter is an interface defining output functions
 type Reporter interface {
@@ -102,12 +105,16 @@ func NewWithOptions(ctx context.Context, token string, cookie string, opts Optio
 		return nil, err
 	}
 
+	cl := slack.New(token, sopts...)
+	ti, err := cl.GetTeamInfoContext(ctx)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
 	sd := &SlackDumper{
-		client: slack.New(
-			token,
-			sopts...,
-		),
+		client:  cl,
 		options: opts,
+		teamID:  ti.ID,
 	}
 
 	dlog.Println("> checking user cache...")
