@@ -8,6 +8,7 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/pkg/errors"
 	"github.com/slack-go/slack"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestSlackDumper_getChannels(t *testing.T) {
@@ -33,12 +34,12 @@ func TestSlackDumper_getChannels(t *testing.T) {
 			fields{options: DefOptions},
 			args{
 				context.Background(),
-				allChanTypes,
+				AllChanTypes,
 			},
 			func(mc *mockClienter) {
 				mc.EXPECT().GetConversationsContext(gomock.Any(), &slack.GetConversationsParameters{
 					Limit: DefOptions.ChannelsPerReq,
-					Types: allChanTypes,
+					Types: AllChanTypes,
 				}).Return(Channels{
 					slack.Channel{GroupConversation: slack.GroupConversation{
 						Name: "lol",
@@ -56,12 +57,12 @@ func TestSlackDumper_getChannels(t *testing.T) {
 			fields{options: DefOptions},
 			args{
 				context.Background(),
-				allChanTypes,
+				AllChanTypes,
 			},
 			func(mc *mockClienter) {
 				mc.EXPECT().GetConversationsContext(gomock.Any(), &slack.GetConversationsParameters{
 					Limit: DefOptions.ChannelsPerReq,
-					Types: allChanTypes,
+					Types: AllChanTypes,
 				}).Return(
 					nil,
 					"",
@@ -85,14 +86,16 @@ func TestSlackDumper_getChannels(t *testing.T) {
 				tt.expectFn(mc)
 			}
 
-			got, err := sd.getChannels(tt.args.ctx, tt.args.chanTypes)
+			var got Channels
+			err := sd.getChannels(tt.args.ctx, tt.args.chanTypes, func(c []slack.Channel) error {
+				got = append(got, c...)
+				return nil
+			})
 			if (err != nil) != tt.wantErr {
 				t.Errorf("SlackDumper.getChannels() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("SlackDumper.getChannels() = %v, want %v", got, tt.want)
-			}
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }

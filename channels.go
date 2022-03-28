@@ -19,22 +19,49 @@ import (
 // Channels keeps slice of channels
 type Channels []slack.Channel
 
+// GetChannels list all conversations for a user.  `chanTypes` specifies the
+// type of messages to fetch.  See github.com/rusq/slack docs for possible
+// values.  If large number of channels is to be returned, consider using
+// StreamChannels.
+func (sd *SlackDumper) GetChannels(ctx context.Context, chanTypes ...string) (Channels, error) {
+	var allChannels Channels
+	if err := sd.getChannels(ctx, chanTypes, func(cc []slack.Channel) error {
+		allChannels = append(allChannels, cc...)
+		return nil
+	}); err != nil {
+		return allChannels, err
+	}
+	return allChannels, nil
+}
+
+// StreamChannels requests the channels from the API and sends them over the channelC channel.
+func (sd *SlackDumper) StreamChannels(ctx context.Context, chanTypes []string, cb func(ch slack.Channel) error) error {
+	return sd.getChannels(ctx, chanTypes, func(chans []slack.Channel) error {
+		for _, ch := range chans {
+			if err := cb(ch); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
 // getChannels list all conversations for a user.  `chanTypes` specifies
 // the type of messages to fetch.  See github.com/rusq/slack docs for possible
 // values
-func (sd *SlackDumper) getChannels(ctx context.Context, chanTypes []string) (Channels, error) {
+func (sd *SlackDumper) getChannels(ctx context.Context, chanTypes []string, cb func([]slack.Channel) error) error {
 	ctx, task := trace.NewTask(ctx, "getChannels")
 	defer task.End()
 
 	limiter := newLimiter(tier2, sd.options.Tier2Burst, int(sd.options.Tier2Boost))
 
 	if chanTypes == nil {
-		chanTypes = allChanTypes
+		chanTypes = AllChanTypes
 	}
 
 	params := &slack.GetConversationsParameters{Types: chanTypes, Limit: sd.options.ChannelsPerReq}
-	allChannels := make([]slack.Channel, 0, 50)
 	fetchStart := time.Now()
+	var total int
 	for i := 1; ; i++ {
 		var (
 			chans   []slack.Channel
@@ -43,41 +70,38 @@ func (sd *SlackDumper) getChannels(ctx context.Context, chanTypes []string) (Cha
 		reqStart := time.Now()
 		if err := withRetry(ctx, limiter, sd.options.Tier3Retries, func() error {
 			var err error
-			trace.WithRegion(ctx, "GetConversations", func() {
+			trace.WithRegion(ctx, "GetConversationsContext", func() {
 				chans, nextcur, err = sd.client.GetConversationsContext(ctx, params)
 			})
 			return err
 
 		}); err != nil {
-			return nil, err
+			return err
 		}
-		allChannels = append(allChannels, chans...)
+
+		if err := cb(chans); err != nil {
+			return err
+		}
+		total += len(chans)
 
 		dlog.Printf("channels request #%5d, fetched: %4d, total: %8d (speed: %6.2f/sec, avg: %6.2f/sec)\n",
-			i, len(chans), len(allChannels),
+			i, len(chans), total,
 			float64(len(chans))/float64(time.Since(reqStart).Seconds()),
-			float64(len(allChannels))/float64(time.Since(fetchStart).Seconds()),
+			float64(total)/float64(time.Since(fetchStart).Seconds()),
 		)
 
 		if nextcur == "" {
-			dlog.Printf("channels fetch complete, total: %d channels", len(allChannels))
+			dlog.Printf("channels fetch complete, total: %d channels", total)
 			break
 		}
 
 		params.Cursor = nextcur
 
 		if err := limiter.Wait(ctx); err != nil {
-			return nil, err
+			return err
 		}
 	}
-	return allChannels, nil
-}
-
-// GetChannels list all conversations for a user.  `chanTypes` specifies
-// the type of messages to fetch.  See github.com/rusq/slack docs for possible
-// values
-func (sd *SlackDumper) GetChannels(ctx context.Context, chanTypes ...string) (Channels, error) {
-	return sd.getChannels(ctx, chanTypes)
+	return nil
 }
 
 // ToText outputs Channels cs to io.Writer w in Text format.

@@ -40,7 +40,7 @@ var DefOptions = Options{
 	Tier3Retries:        3,             // on tier 3 this was never a problem, even with limiter-boost=120
 	ConversationsPerReq: 200,           // this is the recommended value by Slack. But who listens to them anyway.
 	ChannelsPerReq:      100,           // channels are tier2 rate limited. Slack is greedy and never returns more than 100 per call.
-	UserCacheFilename:   "users.json",  // seems logical
+	UserCacheFilename:   "users.cache", // seems logical
 	MaxUserCacheAge:     4 * time.Hour, // quick math:  that's 1/6th of a day, how's that, huh?
 }
 

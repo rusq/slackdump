@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
 	"time"
@@ -14,6 +15,8 @@ import (
 	"github.com/slack-go/slack"
 	"github.com/stretchr/testify/assert"
 )
+
+const testSuffix = "UNIT"
 
 var testUsers = Users{
 	{ID: "LOL1", Name: "yippi", Deleted: false},
@@ -141,18 +144,14 @@ func TestUsers_ToText(t *testing.T) {
 func TestSlackDumper_saveUserCache(t *testing.T) {
 
 	// test saving file works
-	sd := SlackDumper{}
+	sd := SlackDumper{teamID: testSuffix}
 
-	testFile, err := os.CreateTemp("", "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.Remove(testFile.Name())
-	testFile.Close()
+	dir := t.TempDir()
+	testfile := filepath.Join(dir, "test.json")
 
-	assert.NoError(t, sd.saveUserCache(testFile.Name(), testUsers))
+	assert.NoError(t, sd.saveUserCache(testfile, testSuffix, testUsers))
 
-	reopenedF, err := os.Open(testFile.Name())
+	reopenedF, err := os.Open(makeCacheFilename(testfile, testSuffix))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -204,7 +203,7 @@ func TestSlackDumper_loadUserCache(t *testing.T) {
 				UserIndex: tt.fields.UserIndex,
 				options:   tt.fields.options,
 			}
-			got, err := sd.loadUserCache(tt.args.filename, tt.args.maxAge)
+			got, err := sd.loadUserCache(tt.args.filename, testSuffix, tt.args.maxAge)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("SlackDumper.loadUserCache() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -346,6 +345,7 @@ func TestSlackDumper_GetUsers(t *testing.T) {
 
 			sd := &SlackDumper{
 				client:    mc,
+				teamID:    testSuffix,
 				Users:     tt.fields.Users,
 				UserIndex: tt.fields.UserIndex,
 				options:   tt.fields.options,
@@ -374,7 +374,7 @@ func gimmeTempFile(t *testing.T) string {
 func gimmeTempFileWithUsers(t *testing.T) string {
 	f := gimmeTempFile(t)
 	sd := SlackDumper{}
-	if err := sd.saveUserCache(f, testUsers); err != nil {
+	if err := sd.saveUserCache(f, testSuffix, testUsers); err != nil {
 		t.Fatal(err)
 	}
 	return f
