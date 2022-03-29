@@ -27,6 +27,9 @@ type Config struct {
 
 	FilenameTemplate string
 
+	FullExport      bool
+	ExportDirectory string
+
 	Options slackdump.Options
 }
 
