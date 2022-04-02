@@ -51,14 +51,44 @@ func (se *Export) users(ctx context.Context) (slackdump.Users, error) {
 
 func (se *Export) channels(ctx context.Context, users slackdump.Users) error {
 	if err := se.dumper.StreamChannels(ctx, slackdump.AllChanTypes, func(ch slack.Channel) error {
-		messages, err := se.dumper.DumpMessages(ctx, ch.ID)
-		if err != nil {
-			return fmt.Errorf("failed dumping %q (%s): %w", ch.Name, ch.ID, err)
-		}
-		se.byDate(messages, users)
-		return nil
+		return se.exportConversation(ctx, ch, users)
 	}); err != nil {
 		return fmt.Errorf("channels: error: %w", err)
+	}
+	return nil
+}
+
+func (se *Export) exportConversation(ctx context.Context, ch slack.Channel, users slackdump.Users) error {
+	messages, err := se.dumper.DumpMessages(ctx, ch.ID)
+	if err != nil {
+		return fmt.Errorf("failed dumping %q (%s): %w", ch.Name, ch.ID, err)
+	}
+
+	msgs, err := se.byDate(messages, users)
+	if err != nil {
+		return fmt.Errorf("exportChannelData: error: %w", err)
+	}
+
+	if err := se.saveChannel(ch.Name, msgs); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// saveChannel creates a directory `name` and writes the contents of msgs. for
+// each map key the json file is created, with the name `{key}.json`, and values
+// for that key are serialised to the file in json format.
+func (se *Export) saveChannel(channelName string, msgs messagesByDate) error {
+	basedir := filepath.Join(se.dir, channelName)
+	if err := os.MkdirAll(basedir, 0700); err != nil {
+		return fmt.Errorf("unable to create directory %q: %w", channelName, err)
+	}
+	for date, messages := range msgs {
+		output := filepath.Join(basedir, date+".json")
+		if err := se.serializeToFile(output, messages); err != nil {
+			return err
+		}
 	}
 	return nil
 }

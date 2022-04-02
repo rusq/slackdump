@@ -4,8 +4,6 @@ package export
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 	"sort"
 
 	"github.com/rusq/slackdump"
@@ -57,22 +55,5 @@ func populateMsgs(msgsByDate messagesByDate, messages []slackdump.Message, usrId
 		msgsByDate[formattedDt] = append(msgsByDate[formattedDt], *expMsg)
 	}
 
-	return nil
-}
-
-// saveChannel creates a directory `name` and writes the contents of msgs. for
-// each map key the json file is created, with the name `{key}.json`, and values
-// for that key are serialised to the file in json format.
-func (se *Export) saveChannel(name string, msgs messagesByDate) error {
-	basedir := filepath.Join(se.dir, name)
-	if err := os.MkdirAll(basedir, 0700); err != nil {
-		return fmt.Errorf("unable to create directory %q: %w", name, err)
-	}
-	for date, messages := range msgs {
-		output := date + ".json"
-		if err := se.serializeToFile(output, messages); err != nil {
-			return err
-		}
-	}
 	return nil
 }
