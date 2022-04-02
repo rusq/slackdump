@@ -101,5 +101,8 @@ func loadTestDir(path string) (messagesByDate, error) {
 	}); err != nil {
 		return nil, err
 	}
+	if err := mbd.validate(); err != nil {
+		return nil, err
+	}
 	return mbd, nil
 }

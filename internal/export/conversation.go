@@ -5,9 +5,12 @@ package export
 import (
 	"fmt"
 	"sort"
+	"time"
 
 	"github.com/rusq/slackdump"
 )
+
+const dateFmt = "2006-01-02"
 
 // byDate sorts the messages by date and returns a map date->[]slack.Message.
 // users should contain the users in the conversation for population of required
@@ -31,11 +34,20 @@ func (Export) byDate(c *slackdump.Conversation, users slackdump.Users) (map[stri
 
 type messagesByDate map[string][]ExportMessage
 
+// validate checks if mbd keys are valid dates.
+func (mbd messagesByDate) validate() error {
+	for k := range mbd {
+		_, err := time.Parse(dateFmt, k)
+		if err != nil {
+			return fmt.Errorf("validation failed: %w", err)
+		}
+	}
+	return nil
+}
+
 // populateMsgs takes the messages as the input, splits them by the date and
 // populates the msgsByDate structure.
 func populateMsgs(msgsByDate messagesByDate, messages []slackdump.Message, usrIdx userIndex) error {
-	const dateFmt = "2006-01-02"
-
 	for _, msg := range messages {
 		expMsg := newExportMessage(&msg, usrIdx)
 
