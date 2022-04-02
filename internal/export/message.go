@@ -1,6 +1,9 @@
 package export
 
 import (
+	"sort"
+	"time"
+
 	"github.com/rusq/slackdump"
 	"github.com/slack-go/slack"
 )
@@ -17,6 +20,11 @@ type ExportMessage struct {
 	ReplyUsers      []string          `json:"reply_users,omitempty"`
 }
 
+func (em ExportMessage) Time() time.Time {
+	ts, _ := slackdump.ParseSlackTS(em.Timestamp)
+	return ts
+}
+
 // userIndex maps the userID to a slack User.
 type userIndex map[string]*slack.User
 
@@ -26,29 +34,46 @@ type userIndex map[string]*slack.User
 func newExportMessage(msg *slackdump.Message, users userIndex) *ExportMessage {
 	expMsg := ExportMessage{Msg: msg.Msg}
 
-	if len(msg.ThreadReplies) == 0 {
-		return &expMsg
-	}
-	/*
-		Parent message of a thread:
-			user_team
-			source_team
-			user_profile
-			reply_users_count
-			reply_users
-			replies []
-
-		Each thread message:
-			parent_user_id
-	*/
-	expMsg.Msg.ParentUserId = msg.User
 	expMsg.UserTeam = msg.Team
 	expMsg.SourceTeam = msg.Team
 
+	user, ok := users[msg.User]
+	if ok {
+		expMsg.UserProfile = user.Profile
+	}
+
+	if !msg.IsThread() {
+		return &expMsg
+	}
+
 	for _, replyMsg := range msg.ThreadReplies {
 		expMsg.Msg.Replies = append(msg.Msg.Replies, slack.Reply{User: replyMsg.User, Timestamp: replyMsg.Timestamp})
-		// expMsg.UserProfile =  // create a map of users and get the user from it
-		expMsg.ReplyUsers = append(expMsg.ReplyUsers, replyMsg.User) // TODO: make unique
+		expMsg.ReplyUsers = append(expMsg.ReplyUsers, replyMsg.User)
 	}
+
+	sort.Slice(expMsg.Msg.Replies, func(i, j int) bool {
+		tsi, _ := slackdump.ParseSlackTS(expMsg.Msg.Replies[i].Timestamp)
+		tsj, _ := slackdump.ParseSlackTS(expMsg.Msg.Replies[j].Timestamp)
+		return tsi.Before(tsj)
+	})
+	makeUniq(&expMsg.ReplyUsers)
+
 	return &expMsg
+}
+
+func makeUniq(ss *[]string) {
+	var seen = make(map[string]bool, len(*ss))
+
+	for _, s := range *ss {
+		if seen[s] {
+			continue
+		}
+		seen[s] = true
+	}
+	keys := make([]string, 0, len(seen))
+	for k := range seen {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	*ss = keys
 }

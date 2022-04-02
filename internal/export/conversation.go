@@ -4,25 +4,38 @@ package export
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
+	"sort"
 
 	"github.com/rusq/slackdump"
 )
 
-// ByDate sorts the messages by date and returns a map date->[]slack.Message.
+// byDate sorts the messages by date and returns a map date->[]slack.Message.
 // users should contain the users in the conversation for population of required
 // fields.
 // Threads are flattened.
-func (Export) ByDate(c slackdump.Conversation, users slackdump.Users) (map[string][]ExportMessage, error) {
+func (Export) byDate(c *slackdump.Conversation, users slackdump.Users) (map[string][]ExportMessage, error) {
 	msgsByDate := make(map[string][]ExportMessage)
 	if err := populateMsgs(msgsByDate, c.Messages, users.IndexByID()); err != nil {
 		return nil, err
 	}
+
+	// sort messages by Time within each date.
+	for date, messages := range msgsByDate {
+		sort.Slice(msgsByDate[date], func(i, j int) bool {
+			return messages[i].Time().Before(messages[j].Time())
+		})
+	}
+
 	return msgsByDate, nil
 }
 
+type messagesByDate map[string][]ExportMessage
+
 // populateMsgs takes the messages as the input, splits them by the date and
 // populates the msgsByDate structure.
-func populateMsgs(msgsByDate map[string][]ExportMessage, messages []slackdump.Message, usrIdx userIndex) error {
+func populateMsgs(msgsByDate messagesByDate, messages []slackdump.Message, usrIdx userIndex) error {
 	const dateFmt = "2006-01-02"
 
 	for _, msg := range messages {
@@ -41,7 +54,25 @@ func populateMsgs(msgsByDate map[string][]ExportMessage, messages []slackdump.Me
 		}
 
 		formattedDt := dt.Format(dateFmt)
-		msgsByDate[formattedDt] = append(msgsByDate[formattedDt], expMsg)
+		msgsByDate[formattedDt] = append(msgsByDate[formattedDt], *expMsg)
+	}
+
+	return nil
+}
+
+// saveChannel creates a directory `name` and writes the contents of msgs. for
+// each map key the json file is created, with the name `{key}.json`, and values
+// for that key are serialised to the file in json format.
+func (se *Export) saveChannel(name string, msgs messagesByDate) error {
+	basedir := filepath.Join(se.dir, name)
+	if err := os.MkdirAll(basedir, 0700); err != nil {
+		return fmt.Errorf("unable to create directory %q: %w", name, err)
+	}
+	for date, messages := range msgs {
+		output := date + ".json"
+		if err := se.serializeToFile(output, messages); err != nil {
+			return err
+		}
 	}
 	return nil
 }

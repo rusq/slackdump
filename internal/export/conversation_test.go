@@ -11,21 +11,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// testConversation unmashals and returns the test conversation from fixtures.
-func testConversation() slackdump.Conversation {
-	var ret slackdump.Conversation
-	if err := json.Unmarshal([]byte(fixtures.TestConversationJSON), &ret); err != nil {
-		panic(err)
-	}
-	return ret
-}
-
 func TestConversation_ByDate(t *testing.T) {
-	// TODO test users
-
-	exp := Export{}
-	c := testConversation()
-	convDt, err := exp.ByDate()
+	var exp Export
+	c := fixtures.Load[slackdump.Conversation](fixtures.TestConversationJSON)
+	convDt, err := exp.byDate(&c, fixtures.Load[slackdump.Users](fixtures.UsersJSON))
 	if err != nil {
 		t.Fatal(err)
 	}

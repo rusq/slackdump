@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 
@@ -41,7 +42,7 @@ func (se *Export) users(ctx context.Context) (slackdump.Users, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := se.serialize(filepath.Join(se.dir, "users.json"), users); err != nil {
+	if err := se.serializeToFile(filepath.Join(se.dir, "users.json"), users); err != nil {
 		return nil, err
 	}
 
@@ -50,7 +51,11 @@ func (se *Export) users(ctx context.Context) (slackdump.Users, error) {
 
 func (se *Export) channels(ctx context.Context, users slackdump.Users) error {
 	if err := se.dumper.StreamChannels(ctx, slackdump.AllChanTypes, func(ch slack.Channel) error {
-		// TODO: save channel
+		messages, err := se.dumper.DumpMessages(ctx, ch.ID)
+		if err != nil {
+			return fmt.Errorf("failed dumping %q (%s): %w", ch.Name, ch.ID, err)
+		}
+		se.byDate(messages, users)
 		return nil
 	}); err != nil {
 		return fmt.Errorf("channels: error: %w", err)
@@ -59,18 +64,22 @@ func (se *Export) channels(ctx context.Context, users slackdump.Users) error {
 }
 
 // serialize writes the data in json format to provided filename.
-func (*Export) serialize(filename string, data interface{}) error {
+func (se *Export) serializeToFile(filename string, data any) error {
 	f, err := os.Create(filename)
 	if err != nil {
-		return fmt.Errorf("serialize: failed to create %q: %w", filename, err)
+		return fmt.Errorf("serializeToFile: failed to create %q: %w", filename, err)
 	}
 	defer f.Close()
 
-	enc := json.NewEncoder(f)
+	return se.serialize(f, data)
+}
+
+func (*Export) serialize(w io.Writer, data any) error {
+	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
 
 	if err := enc.Encode(data); err != nil {
-		return fmt.Errorf("serialize: failed to write %q: %w", filename, err)
+		return fmt.Errorf("serialize: failed to encode: %w", err)
 	}
 
 	return nil

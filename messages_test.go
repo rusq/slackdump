@@ -3,7 +3,6 @@ package slackdump
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"reflect"
 	"testing"
 	"time"
@@ -60,19 +59,6 @@ var (
 		},
 	}
 )
-
-// loadTestMsg tries to load a message from json, it panics if the json is not a
-// message.
-func loadTestMsg(js string) Message {
-	var msg Message
-	if err := json.Unmarshal([]byte(js), &msg); err != nil {
-		panic(err)
-	}
-	if msg.Timestamp == "" {
-		panic("not a Message JSON")
-	}
-	return msg
-}
 
 func Test_sortMessages(t *testing.T) {
 	type args struct {
@@ -1001,11 +987,11 @@ func TestMessage_IsBotMessage(t *testing.T) {
 		want bool
 	}{
 		{"not a bot",
-			loadTestMsg(fixtures.ThreadMessageJSON),
+			fixtures.Load[Message](fixtures.ThreadMessageJSON),
 			false,
 		},
 		{"bot message",
-			loadTestMsg(fixtures.BotMessageThreadParentJSON),
+			fixtures.Load[Message](fixtures.BotMessageThreadParentJSON),
 			true,
 		},
 	}
@@ -1025,15 +1011,15 @@ func TestMessage_IsThread(t *testing.T) {
 		want bool
 	}{
 		{"is thread (parent)",
-			loadTestMsg(fixtures.BotMessageThreadParentJSON),
+			fixtures.Load[Message](fixtures.BotMessageThreadParentJSON),
 			true,
 		},
 		{"is thread (child)",
-			loadTestMsg(fixtures.BotMessageThreadChildJSON),
+			fixtures.Load[Message](fixtures.BotMessageThreadChildJSON),
 			true,
 		},
 		{"not a thread",
-			loadTestMsg(fixtures.SimpleMessageJSON),
+			fixtures.Load[Message](fixtures.SimpleMessageJSON),
 			false,
 		},
 	}
@@ -1053,15 +1039,15 @@ func TestMessage_IsThreadParent(t *testing.T) {
 		want bool
 	}{
 		{"is thread (parent)",
-			loadTestMsg(fixtures.BotMessageThreadParentJSON),
+			fixtures.Load[Message](fixtures.BotMessageThreadParentJSON),
 			true,
 		},
 		{"is thread (child)",
-			loadTestMsg(fixtures.BotMessageThreadChildJSON),
+			fixtures.Load[Message](fixtures.BotMessageThreadChildJSON),
 			false,
 		},
 		{"not a thread",
-			loadTestMsg(fixtures.SimpleMessageJSON),
+			fixtures.Load[Message](fixtures.SimpleMessageJSON),
 			false,
 		},
 	}
@@ -1081,15 +1067,15 @@ func TestMessage_IsThreadChild(t *testing.T) {
 		want bool
 	}{
 		{"is thread (parent)",
-			loadTestMsg(fixtures.BotMessageThreadParentJSON),
+			fixtures.Load[Message](fixtures.BotMessageThreadParentJSON),
 			false,
 		},
 		{"is thread (child)",
-			loadTestMsg(fixtures.BotMessageThreadChildJSON),
+			fixtures.Load[Message](fixtures.BotMessageThreadChildJSON),
 			true,
 		},
 		{"not a thread",
-			loadTestMsg(fixtures.SimpleMessageJSON),
+			fixtures.Load[Message](fixtures.SimpleMessageJSON),
 			false,
 		},
 	}
