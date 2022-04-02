@@ -12,6 +12,7 @@ import (
 	"runtime/trace"
 	"syscall"
 
+	"github.com/rusq/osenv/v2"
 	"github.com/rusq/slackdump"
 	"github.com/rusq/slackdump/internal/app"
 	"github.com/rusq/slackdump/internal/tracer"
@@ -145,8 +146,8 @@ func parseCmdLine(args []string) (params, error) {
 	var p params
 
 	// authentication
-	fs.StringVar(&p.appCfg.Creds.Token, "t", os.Getenv(slackTokenEnv), "Specify slack `API_token`, (environment: "+slackTokenEnv+")")
-	fs.StringVar(&p.appCfg.Creds.Cookie, "cookie", os.Getenv(slackCookieEnv), "d= cookie `value` or a path to a cookie.txt file (environment: "+slackCookieEnv+")")
+	fs.StringVar(&p.appCfg.Creds.Token, "t", osenv.Secret(slackTokenEnv, ""), "Specify slack `API_token`, (environment: "+slackTokenEnv+")")
+	fs.StringVar(&p.appCfg.Creds.Cookie, "cookie", osenv.Secret(slackCookieEnv, ""), "d= cookie `value` or a path to a cookie.txt file (environment: "+slackCookieEnv+")")
 
 	// operation mode
 	fs.BoolVar(&p.appCfg.ListFlags.Channels, "c", false, "same as -list-channels")
@@ -193,9 +194,9 @@ func parseCmdLine(args []string) (params, error) {
 	fs.Var(&p.appCfg.Latest, "dump-to", "`timestamp` of the latest message to fetch to (i.e. 2020-12-31T23:59:59)")
 
 	// - main executable parameters
-	fs.StringVar(&p.traceFile, "trace", os.Getenv("TRACE_FILE"), "trace `file` (optional)")
+	fs.StringVar(&p.traceFile, "trace", osenv.Value("TRACE_FILE", ""), "trace `file` (optional)")
 	fs.BoolVar(&p.printVersion, "V", false, "print version and exit")
-	fs.BoolVar(&p.verbose, "v", false, "verbose messages")
+	fs.BoolVar(&p.verbose, "v", osenv.Value("DEBUG", false), "verbose messages")
 
 	os.Unsetenv(slackTokenEnv)
 	os.Unsetenv(slackCookieEnv)

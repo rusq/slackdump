@@ -3,12 +3,14 @@ package slackdump
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"reflect"
 	"testing"
 	"time"
 
 	"github.com/golang/mock/gomock"
 	"github.com/pkg/errors"
+	"github.com/rusq/slackdump/internal/fixtures"
 	"github.com/slack-go/slack"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/time/rate"
@@ -58,6 +60,19 @@ var (
 		},
 	}
 )
+
+// loadTestMsg tries to load a message from json, it panics if the json is not a
+// message.
+func loadTestMsg(js string) Message {
+	var msg Message
+	if err := json.Unmarshal([]byte(js), &msg); err != nil {
+		panic(err)
+	}
+	if msg.Timestamp == "" {
+		panic("not a Message JSON")
+	}
+	return msg
+}
 
 func Test_sortMessages(t *testing.T) {
 	type args struct {
@@ -974,6 +989,114 @@ func TestSlackDumper_getChannelName(t *testing.T) {
 			}
 			if got != tt.want {
 				t.Errorf("SlackDumper.getChannelName() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestMessage_IsBotMessage(t *testing.T) {
+	tests := []struct {
+		name string
+		m    Message
+		want bool
+	}{
+		{"not a bot",
+			loadTestMsg(fixtures.ThreadMessageJSON),
+			false,
+		},
+		{"bot message",
+			loadTestMsg(fixtures.BotMessageThreadParentJSON),
+			true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.m.IsBotMessage(); got != tt.want {
+				t.Errorf("Message.IsBotMessage() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestMessage_IsThread(t *testing.T) {
+	tests := []struct {
+		name string
+		m    Message
+		want bool
+	}{
+		{"is thread (parent)",
+			loadTestMsg(fixtures.BotMessageThreadParentJSON),
+			true,
+		},
+		{"is thread (child)",
+			loadTestMsg(fixtures.BotMessageThreadChildJSON),
+			true,
+		},
+		{"not a thread",
+			loadTestMsg(fixtures.SimpleMessageJSON),
+			false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.m.IsThread(); got != tt.want {
+				t.Errorf("Message.IsThread() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestMessage_IsThreadParent(t *testing.T) {
+	tests := []struct {
+		name string
+		m    Message
+		want bool
+	}{
+		{"is thread (parent)",
+			loadTestMsg(fixtures.BotMessageThreadParentJSON),
+			true,
+		},
+		{"is thread (child)",
+			loadTestMsg(fixtures.BotMessageThreadChildJSON),
+			false,
+		},
+		{"not a thread",
+			loadTestMsg(fixtures.SimpleMessageJSON),
+			false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.m.IsThreadParent(); got != tt.want {
+				t.Errorf("Message.IsThreadParent() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestMessage_IsThreadChild(t *testing.T) {
+	tests := []struct {
+		name string
+		m    Message
+		want bool
+	}{
+		{"is thread (parent)",
+			loadTestMsg(fixtures.BotMessageThreadParentJSON),
+			false,
+		},
+		{"is thread (child)",
+			loadTestMsg(fixtures.BotMessageThreadChildJSON),
+			true,
+		},
+		{"not a thread",
+			loadTestMsg(fixtures.SimpleMessageJSON),
+			false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.m.IsThreadChild(); got != tt.want {
+				t.Errorf("Message.IsThreadChild() = %v, want %v", got, tt.want)
 			}
 		})
 	}

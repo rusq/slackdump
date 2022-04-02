@@ -46,6 +46,37 @@ type Conversation struct {
 	ThreadTS string `json:"thread_ts,omitempty"`
 }
 
+// Message is the internal representation of message with thread.
+type Message struct {
+	slack.Message
+	ThreadReplies []Message `json:"slackdump_thread_replies,omitempty"`
+}
+
+func (m Message) Datetime() (time.Time, error) {
+	return parseSlackTS(m.Timestamp)
+}
+
+// IsBotMessage returns true if the message is from a bot.
+func (m Message) IsBotMessage() bool {
+	return m.Msg.BotID != ""
+}
+
+func (m Message) IsThread() bool {
+	return m.Msg.ThreadTimestamp != ""
+}
+
+// IsThreadChild will return true if the message is the parent message of a
+// conversation (has more than 0 replies)
+func (m Message) IsThreadParent() bool {
+	return m.IsThread() && m.Msg.ReplyCount != 0
+}
+
+// IsThreadChild will return true if the message is the child message of a
+// conversation.
+func (m Message) IsThreadChild() bool {
+	return m.IsThread() && m.Msg.ReplyCount == 0
+}
+
 func (c Conversation) String() string {
 	if c.ThreadTS == "" {
 		return c.ID
@@ -57,18 +88,12 @@ func (c Conversation) IsThread() bool {
 	return c.ThreadTS != ""
 }
 
-// Message is the internal representation of message with thread.
-type Message struct {
-	slack.Message
-	ThreadReplies []Message `json:"slackdump_thread_replies,omitempty"`
-}
-
 // ToText outputs Messages m to io.Writer w in text format.
-func (m Conversation) ToText(sd *SlackDumper, w io.Writer) (err error) {
+func (c Conversation) ToText(sd *SlackDumper, w io.Writer) (err error) {
 	buf := bufio.NewWriter(w)
 	defer buf.Flush()
 
-	return sd.generateText(w, m.Messages, "")
+	return sd.generateText(w, c.Messages, "")
 }
 
 // DumpURL dumps messages from the slack URL, it supports conversations and individual threads.

@@ -61,7 +61,7 @@ const (
 	tier4 tier = 100
 )
 
-// AllChanTypes enumerates all API-supported channel types as of 03/2022
+// AllChanTypes enumerates all API-supported channel types as of 03/2022.
 var AllChanTypes = []string{"mpim", "im", "public_channel", "private_channel"}
 
 // Reporter is an interface defining output functions

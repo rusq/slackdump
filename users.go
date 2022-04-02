@@ -119,14 +119,6 @@ func (us Users) ToText(_ *SlackDumper, w io.Writer) error {
 	writer := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
 	defer writer.Flush()
 
-	var names = make([]string, 0, len(us))
-	var usermap = make(map[string]*slack.User, len(us))
-	for i := range us {
-		names = append(names, us[i].Name)
-		usermap[us[i].Name] = &us[i]
-	}
-	sort.Strings(names)
-
 	// header
 	if _, err := fmt.Fprintf(writer, strFormat, "Name", "ID", "Bot?", "Deleted?"); err != nil {
 		return errors.WithStack(err)
@@ -134,6 +126,16 @@ func (us Users) ToText(_ *SlackDumper, w io.Writer) error {
 	if _, err := fmt.Fprintf(writer, strFormat, "", "", "", ""); err != nil {
 		return errors.WithStack(err)
 	}
+
+	var (
+		names   = make([]string, 0, len(us))
+		usermap = make(map[string]*slack.User, len(us))
+	)
+	for i := range us {
+		names = append(names, us[i].Name)
+		usermap[us[i].Name] = &us[i]
+	}
+	sort.Strings(names)
 
 	// data
 	for _, name := range names {
