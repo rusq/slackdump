@@ -9,6 +9,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/rusq/dlog"
 	"github.com/rusq/slackdump"
 	"github.com/slack-go/slack"
 )
@@ -136,6 +137,17 @@ func (lf ListFlags) FlagsPresent() bool {
 func (p *Config) Validate() error {
 	if err := p.Creds.Validate(); err != nil {
 		return err
+	}
+
+	if p.FullExport {
+		if p.ExportDirectory == "" {
+			return fmt.Errorf("export directory not specified")
+		}
+		return nil
+	}
+	if p.ExportDirectory != "" {
+		// show a warning if user has specified an export directory, but not an export flag.
+		dlog.Println("WARNING: export directory is specified, but will be ignored")
 	}
 
 	if !p.Input.IsValid() && !p.ListFlags.FlagsPresent() {

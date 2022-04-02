@@ -42,7 +42,7 @@ func (app *App) Run(ctx context.Context) error {
 		return err
 	}
 
-	// TODO: add tracing to run*
+	start := time.Now()
 	var err error
 	switch {
 	case app.cfg.ListFlags.FlagsPresent():
@@ -57,6 +57,8 @@ func (app *App) Run(ctx context.Context) error {
 		trace.Log(ctx, "error", err.Error())
 		return err
 	}
+
+	dlog.Printf("completed, time taken: %s", time.Since(start))
 	return nil
 }
 
@@ -74,29 +76,37 @@ func (app *App) init(ctx context.Context) error {
 	app.sd = sd
 	return nil
 }
+func (app *App) runListEntities(ctx context.Context) error {
+	ctx, task := trace.NewTask(ctx, "runListEntities")
+	defer task.End()
 
-func (app *App) runDump(ctx context.Context) error {
-	n, err := app.dump(ctx, app.cfg.Input)
-	if err != nil {
+	if err := app.listEntities(ctx, app.cfg.Output, app.cfg.ListFlags); err != nil {
 		return err
 	}
-	dlog.Printf("job finished, dumped %d item(s)", n)
+
 	return nil
 }
 
 func (app *App) runExport(ctx context.Context) error {
-	start := time.Now()
+	ctx, task := trace.NewTask(ctx, "runExport")
+	defer task.End()
+
 	if err := app.Export(ctx, app.cfg.ExportDirectory); err != nil {
 		return err
 	}
-	dlog.Printf("export complete, time taken: %d", time.Since(start))
+
 	return nil
 }
 
-func (app *App) runListEntities(ctx context.Context) error {
-	if err := app.listEntities(ctx, app.cfg.Output, app.cfg.ListFlags); err != nil {
+func (app *App) runDump(ctx context.Context) error {
+	ctx, task := trace.NewTask(ctx, "runDump")
+	defer task.End()
+
+	n, err := app.dump(ctx, app.cfg.Input)
+	if err != nil {
 		return err
 	}
-	dlog.Println("list entities completed without errors")
+
+	dlog.Printf("dumped %d item(s)", n)
 	return nil
 }
