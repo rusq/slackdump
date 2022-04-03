@@ -79,30 +79,42 @@ func TestExport_saveChannel(t *testing.T) {
 	}
 }
 
+// loadTestDir loads the file from the directory uses the
+// filenames (minus JSON suffix) as a key in messageByDate map
+// and file contents as []ExportMessage value for the key.
 func loadTestDir(path string) (messagesByDate, error) {
+	const jsonExt = ".json"
 	// no proper error checking.
 	var mbd = make(messagesByDate, 0)
 	if err := filepath.WalkDir(path, func(path string, d fs.DirEntry, err error) error {
-		if filepath.Ext(path) != ".json" {
+
+		if filepath.Ext(path) != jsonExt {
 			return nil
 		}
+
 		f, err := os.Open(path)
 		if err != nil {
 			return err
 		}
 		defer f.Close()
+
 		var mm []ExportMessage
 		dec := json.NewDecoder(f)
 		if err := dec.Decode(&mm); err != nil {
 			return err
 		}
-		mbd[strings.TrimSuffix(filepath.Base(path), ".json")] = mm
+
+		mbd[strings.TrimSuffix(filepath.Base(path), jsonExt)] = mm
+
 		return nil
+
 	}); err != nil {
 		return nil, err
 	}
+
 	if err := mbd.validate(); err != nil {
 		return nil, err
 	}
+
 	return mbd, nil
 }

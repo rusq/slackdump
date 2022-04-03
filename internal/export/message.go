@@ -13,11 +13,11 @@ import (
 type ExportMessage struct {
 	slack.Msg
 	// additional fields not defined by the library
-	UserTeam        string            `json:"user_team,omitempty"`
-	SourceTeam      string            `json:"source_team,omitempty"`
-	UserProfile     slack.UserProfile `json:"user_profile,omitempty"`
-	ReplyUsersCount int               `json:"reply_users_count,omitempty"`
-	ReplyUsers      []string          `json:"reply_users,omitempty"`
+	UserTeam        string             `json:"user_team,omitempty"`
+	SourceTeam      string             `json:"source_team,omitempty"`
+	UserProfile     *slack.UserProfile `json:"user_profile,omitempty"`
+	ReplyUsersCount int                `json:"reply_users_count,omitempty"`
+	ReplyUsers      []string           `json:"reply_users,omitempty"`
 }
 
 func (em ExportMessage) Time() time.Time {
@@ -37,14 +37,15 @@ func newExportMessage(msg *slackdump.Message, users userIndex) *ExportMessage {
 	expMsg.UserTeam = msg.Team
 	expMsg.SourceTeam = msg.Team
 
-	user, ok := users[msg.User]
-	if ok {
-		expMsg.UserProfile = user.Profile
+	if user, ok := users[msg.User]; ok && !user.IsBot {
+		expMsg.UserProfile = &user.Profile
 	}
 
 	if !msg.IsThread() {
 		return &expMsg
 	}
+
+	// threaded message branch
 
 	for _, replyMsg := range msg.ThreadReplies {
 		expMsg.Msg.Replies = append(msg.Msg.Replies, slack.Reply{User: replyMsg.User, Timestamp: replyMsg.Timestamp})

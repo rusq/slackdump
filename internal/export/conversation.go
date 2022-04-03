@@ -39,14 +39,14 @@ func (mbd messagesByDate) validate() error {
 	for k := range mbd {
 		_, err := time.Parse(dateFmt, k)
 		if err != nil {
-			return fmt.Errorf("validation failed: %w", err)
+			return fmt.Errorf("validation failed for %q: %w", k, err)
 		}
 	}
 	return nil
 }
 
-// populateMsgs takes the messages as the input, splits them by the date and
-// populates the msgsByDate structure.
+// populateMsgs takes the messages input, splits them by the date and
+// populates the msgsByDate map.
 func populateMsgs(msgsByDate messagesByDate, messages []slackdump.Message, usrIdx userIndex) error {
 	for _, msg := range messages {
 		expMsg := newExportMessage(&msg, usrIdx)
