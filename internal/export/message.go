@@ -12,12 +12,26 @@ import (
 // slack exports.
 type ExportMessage struct {
 	slack.Msg
-	// additional fields not defined by the library
+
+	// additional fields not defined by the slack library, but present
+	// in slack exports
 	UserTeam        string             `json:"user_team,omitempty"`
 	SourceTeam      string             `json:"source_team,omitempty"`
-	UserProfile     *slack.UserProfile `json:"user_profile,omitempty"`
+	UserProfile     *ExportUserProfile `json:"user_profile,omitempty"`
 	ReplyUsersCount int                `json:"reply_users_count,omitempty"`
 	ReplyUsers      []string           `json:"reply_users,omitempty"`
+}
+
+type ExportUserProfile struct {
+	AvatarHash        string `json:"avatar_hash,omitempty"`
+	Image72           string `json:"image_72,omitempty"`
+	FirstName         string `json:"first_name,omitempty"`
+	RealName          string `json:"real_name,omitempty"`
+	DisplayName       string `json:"display_name,omitempty"`
+	Team              string `json:"team,omitempty"`
+	Name              string `json:"name,omitempty"`
+	IsRestricted      bool   `json:"is_restricted,omitempty"`
+	IsUltraRestricted bool   `json:"is_ultra_restricted,omitempty"`
 }
 
 func (em ExportMessage) Time() time.Time {
@@ -28,9 +42,9 @@ func (em ExportMessage) Time() time.Time {
 // userIndex maps the userID to a slack User.
 type userIndex map[string]*slack.User
 
-// newExportMessage populates some additional fields of a message.  Slack
-// messages produced by export are much more saturated with information, i.e.
-// contain user profiles and thread stats.
+// newExportMessage creates an export message from a slack message and populates
+// some additional fields.  Slack messages produced by export are much more
+// saturated with information, i.e. contain user profiles and thread stats.
 func newExportMessage(msg *slackdump.Message, users userIndex) *ExportMessage {
 	expMsg := ExportMessage{Msg: msg.Msg}
 
@@ -38,7 +52,17 @@ func newExportMessage(msg *slackdump.Message, users userIndex) *ExportMessage {
 	expMsg.SourceTeam = msg.Team
 
 	if user, ok := users[msg.User]; ok && !user.IsBot {
-		expMsg.UserProfile = &user.Profile
+		expMsg.UserProfile = &ExportUserProfile{
+			AvatarHash:        user.Profile.AvatarHash, // is currently not populated.
+			Image72:           user.Profile.Image72,
+			FirstName:         user.Profile.FirstName,
+			RealName:          user.Profile.RealName,
+			DisplayName:       user.Profile.DisplayName,
+			Team:              user.Profile.Team,
+			Name:              user.Name,
+			IsRestricted:      user.IsRestricted,
+			IsUltraRestricted: user.IsUltraRestricted,
+		}
 	}
 
 	if !msg.IsThread() {
@@ -48,7 +72,7 @@ func newExportMessage(msg *slackdump.Message, users userIndex) *ExportMessage {
 	// threaded message branch
 
 	for _, replyMsg := range msg.ThreadReplies {
-		expMsg.Msg.Replies = append(msg.Msg.Replies, slack.Reply{User: replyMsg.User, Timestamp: replyMsg.Timestamp})
+		expMsg.Msg.Replies = append(expMsg.Msg.Replies, slack.Reply{User: replyMsg.User, Timestamp: replyMsg.Timestamp})
 		expMsg.ReplyUsers = append(expMsg.ReplyUsers, replyMsg.User)
 	}
 
@@ -58,21 +82,24 @@ func newExportMessage(msg *slackdump.Message, users userIndex) *ExportMessage {
 		return tsi.Before(tsj)
 	})
 	makeUniq(&expMsg.ReplyUsers)
+	expMsg.ReplyUsersCount = len(expMsg.ReplyUsers)
 
 	return &expMsg
 }
 
+// makeUniq scans the slice ss, removes all duplicates and sorts it.  Case
+// sensitive.
 func makeUniq(ss *[]string) {
-	var seen = make(map[string]bool, len(*ss))
+	var uniq = make(map[string]bool, len(*ss))
 
 	for _, s := range *ss {
-		if seen[s] {
+		if uniq[s] {
 			continue
 		}
-		seen[s] = true
+		uniq[s] = true
 	}
-	keys := make([]string, 0, len(seen))
-	for k := range seen {
+	keys := make([]string, 0, len(uniq))
+	for k := range uniq {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)

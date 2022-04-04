@@ -987,7 +987,7 @@ func TestMessage_IsBotMessage(t *testing.T) {
 		want bool
 	}{
 		{"not a bot",
-			fixtures.Load[Message](fixtures.ThreadMessageJSON),
+			fixtures.Load[Message](fixtures.ThreadMessage1JSON),
 			false,
 		},
 		{"bot message",

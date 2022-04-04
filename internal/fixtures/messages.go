@@ -27,7 +27,8 @@ const (
         ]
     }
 	`
-	ThreadMessageJSON = `    {
+
+	ThreadMessage1JSON = `    {
 	"client_msg_id": "676e1cbb-15fe-45e9-b7f2-32a8764fe560",
 	"type": "message",
 	"user": "UHSD97ZA5",
@@ -222,6 +223,80 @@ const (
 	  }
 	]
   }
+`
+
+	ThreadedExportedMessage1JSON = `{
+			"client_msg_id": "676e1cbb-15fe-45e9-b7f2-32a8764fe560",
+			"type": "message",
+			"text": "This ~is a~  Rich Text message test.",
+			"user": "UHSD97ZA5",
+			"ts": "1577694990.000400",
+			"team": "THY5HTZ8U",
+			"user_team": "THY5HTZ8U",
+			"source_team": "THY5HTZ8U",
+			"user_profile": {
+				"image_72": "https:\/\/secure.gravatar.com\/avatar\/41eca2328d6510133f47ffceae7b912a.jpg?s=72&d=https%3A%2F%2Fa.slack-edge.com%2Fdf10d%2Fimg%2Favatars%2Fava_0022-72.png",
+				"first_name": "Jane",
+				"real_name": "Jane Doe",
+				"display_name": "",
+				"team": "THY5HTZ8U",
+				"name": "janed",
+				"is_restricted": false,
+				"is_ultra_restricted": false
+			},
+			"blocks": [
+				{
+					"type": "rich_text",
+					"block_id": "r+rDn",
+					"elements": [
+						{
+							"type": "rich_text_section",
+							"elements": [
+								{
+									"type": "text",
+									"text": "This "
+								},
+								{
+									"type": "text",
+									"text": "is a ",
+									"style": {
+										"strike": true
+									}
+								},
+								{
+									"type": "text",
+									"text": " Rich Text message test."
+								}
+							]
+						}
+					]
+				}
+			],
+			"thread_ts": "1577694990.000400",
+			"reply_count": 3,
+			"reply_users_count": 1,
+			"latest_reply": "1648633700.407619",
+			"reply_users": [
+				"UHSD97ZA5"
+			],
+			"replies": [
+				{
+					"user": "UHSD97ZA5",
+					"ts": "1638784588.000100"
+				},
+				{
+					"user": "UHSD97ZA5",
+					"ts": "1638784627.000300"
+				},
+				{
+					"user": "UHSD97ZA5",
+					"ts": "1648633700.407619"
+				}
+			],
+			"is_locked": false,
+			"subscribed": true,
+			"last_read": "1648633700.407619"
+		}
 `
 
 	BotMessageThreadParentJSON = `{
