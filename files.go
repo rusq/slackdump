@@ -23,7 +23,7 @@ func (*SlackDumper) filesFromMessages(m []Message) []slack.File {
 		if m[i].Files != nil {
 			files = append(files, m[i].Files...)
 		}
-		// include threaded files
+		// include thread files
 		for _, reply := range m[i].ThreadReplies {
 			files = append(files, reply.Files...)
 		}

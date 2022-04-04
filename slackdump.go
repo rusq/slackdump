@@ -12,6 +12,7 @@ import (
 	cookiemonster "github.com/MercuryEngineering/CookieMonster"
 	"github.com/pkg/errors"
 	"github.com/rusq/dlog"
+	"github.com/rusq/slackdump/internal/network"
 	"github.com/slack-go/slack"
 	"golang.org/x/time/rate"
 )
@@ -21,6 +22,7 @@ const defNumAttempts = 3 // default number of attempts for withRetry.
 //go:generate mockgen -destination internal/mock_os/mock_os.go os FileInfo
 //go:generate sh -c "mockgen -source slackdump.go -destination clienter_mock.go -package slackdump -mock_names clienter=mockClienter,Reporter=mockReporter"
 //go:generate sed -i ~ -e "s/NewmockClienter/newmockClienter/g" -e "s/NewmockReporter/newmockReporter/g" clienter_mock.go
+//go:generate mockgen -destination internal/mock_downloader/mock_downloader.go github.com/rusq/slackdump/downloader Downloader
 
 // SlackDumper stores basic session parameters.
 type SlackDumper struct {
@@ -139,47 +141,11 @@ func isExistingFile(cookie string) bool {
 	return err == nil && !fi.IsDir()
 }
 
-var ErrRetryFailed = errors.New("callback was not able to complete without errors within the allowed number of retries")
-
 // withRetry will run the callback function fn. If the function returns
 // slack.RateLimitedError, it will delay, and then call it again up to
 // maxAttempts times. It will return an error if it runs out of attempts.
 func withRetry(ctx context.Context, l *rate.Limiter, maxAttempts int, fn func() error) error {
-	var ok bool
-	if maxAttempts == 0 {
-		maxAttempts = defNumAttempts
-	}
-	for attempt := 0; attempt < maxAttempts; attempt++ {
-		var err error
-		trace.WithRegion(ctx, "withRetry.wait", func() {
-			err = l.Wait(ctx)
-		})
-		if err != nil {
-			return err
-		}
-
-		err = fn()
-		if err == nil {
-			ok = true
-			break
-		}
-
-		trace.Logf(ctx, "error", "slackRetry: %s", err)
-		var rle *slack.RateLimitedError
-		if !errors.As(err, &rle) {
-			return errors.WithStack(err)
-		}
-
-		msg := fmt.Sprintf("got rate limited, sleeping %s", rle.RetryAfter)
-		trace.Log(ctx, "info", msg)
-		dlog.Print(msg)
-
-		time.Sleep(rle.RetryAfter)
-	}
-	if !ok {
-		return ErrRetryFailed
-	}
-	return nil
+	return network.WithRetry(ctx, l, maxAttempts, fn)
 }
 
 // newLimiter returns throttler with rateLimit requests per minute.
