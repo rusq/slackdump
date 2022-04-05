@@ -112,7 +112,7 @@ Setting up the application
      SLACK_TOKEN=xoxc-<...elided...>
      COOKIE=xoxd-<...elided...>
 
-   Alternatively, if you saved the cookies to the file, it will look like this:
+   Alternatively, if you saved the cookies to the file, it will look like this::
 
      SLACK_TOKEN=xoxc-<...elided...>
      COOKIE=path/to/slack.com_cookies.txt
