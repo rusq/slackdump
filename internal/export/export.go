@@ -17,12 +17,11 @@ import (
 	"github.com/slack-go/slack"
 )
 
-const userPrefix = "IM-"
+const userPrefix = "IM-" // prefix for Direct Messages
 
 type Export struct {
-	dir string
-
-	dumper *slackdump.SlackDumper
+	dir    string                 //target directory
+	dumper *slackdump.SlackDumper // slackdumper instance
 }
 
 func New(dir string, dumper *slackdump.SlackDumper) *Export {

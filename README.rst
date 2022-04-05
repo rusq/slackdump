@@ -8,6 +8,11 @@ Slack Dumper
 
 `Read the set up guide on Medium.com`_
 
+.. image:: https://pkg.go.dev/badge/github.com/rusq/slackdump.svg
+   :alt: Go Reference
+   :target: https://pkg.go.dev/github.com/rusq/slackdump
+
+
 
 Purpose: dump Slack messages, users and files using browser token and cookie.
 
