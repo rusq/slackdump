@@ -77,7 +77,7 @@ func (se *Export) channels(ctx context.Context, users slackdump.Users) error {
 }
 
 func (se *Export) exportConversation(ctx context.Context, ch slack.Channel, users slackdump.Users) error {
-	messages, err := se.dumper.DumpMessages(ctx, ch.ID)
+	messages, err := se.dumper.DumpAllMessages(ctx, ch.ID)
 	if err != nil {
 		return fmt.Errorf("failed dumping %q (%s): %w", ch.Name, ch.ID, err)
 	}

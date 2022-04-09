@@ -295,7 +295,7 @@ func TestSlackDumper_DumpMessages(t *testing.T) {
 				UserIndex: tt.fields.UserIndex,
 				options:   tt.fields.options,
 			}
-			got, err := sd.DumpMessages(tt.args.ctx, tt.args.channelID)
+			got, err := sd.DumpAllMessages(tt.args.ctx, tt.args.channelID)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("SlackDumper.DumpMessages() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -445,7 +445,7 @@ func TestSlackDumper_populateThreads(t *testing.T) {
 				l:         newLimiter(noTier, 1, 0),
 				msgs:      []Message{testMsg1},
 				channelID: "x",
-				dumpFn: func(ctx context.Context, l *rate.Limiter, channelID, threadTS string) ([]Message, error) {
+				dumpFn: func(ctx context.Context, l *rate.Limiter, channelID, threadTS string, processFn ...ProcessFunc) ([]Message, error) {
 					return nil, nil
 				},
 			},
@@ -459,7 +459,7 @@ func TestSlackDumper_populateThreads(t *testing.T) {
 				l:         newLimiter(noTier, 1, 0),
 				msgs:      []Message{testMsg1, testMsg4t},
 				channelID: "x",
-				dumpFn: func(ctx context.Context, l *rate.Limiter, channelID, threadTS string) ([]Message, error) {
+				dumpFn: func(ctx context.Context, l *rate.Limiter, channelID, threadTS string, processFn ...ProcessFunc) ([]Message, error) {
 					return []Message{testMsg4t, testMsg2}, nil
 				},
 			},
@@ -473,7 +473,7 @@ func TestSlackDumper_populateThreads(t *testing.T) {
 				l:         newLimiter(noTier, 1, 0),
 				msgs:      []Message{testMsg4t, testMsg1},
 				channelID: "x",
-				dumpFn: func(ctx context.Context, l *rate.Limiter, channelID, threadTS string) ([]Message, error) {
+				dumpFn: func(ctx context.Context, l *rate.Limiter, channelID, threadTS string, processFn ...ProcessFunc) ([]Message, error) {
 					return []Message{}, nil
 				},
 			},
@@ -487,7 +487,7 @@ func TestSlackDumper_populateThreads(t *testing.T) {
 				l:         newLimiter(noTier, 1, 0),
 				msgs:      []Message{testMsg4t},
 				channelID: "x",
-				dumpFn: func(ctx context.Context, l *rate.Limiter, channelID, threadTS string) ([]Message, error) {
+				dumpFn: func(ctx context.Context, l *rate.Limiter, channelID, threadTS string, processFn ...ProcessFunc) ([]Message, error) {
 					return nil, errors.New("bam")
 				},
 			},
@@ -761,7 +761,7 @@ func TestSlackDumper_DumpURL(t *testing.T) {
 				UserIndex: tt.fields.UserIndex,
 				options:   tt.fields.options,
 			}
-			got, err := sd.DumpURL(tt.args.ctx, tt.args.slackURL)
+			got, err := sd.DumpAllURL(tt.args.ctx, tt.args.slackURL)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("SlackDumper.DumpURL() error = %v, wantErr %v", err, tt.wantErr)
 				return

@@ -46,13 +46,13 @@ func (app *App) dump(ctx context.Context, input Input) (int, error) {
 	return total, nil
 }
 
-type dumpFunc func(context.Context, string, time.Time, time.Time) (*slackdump.Conversation, error)
+type dumpFunc func(context.Context, string, time.Time, time.Time, ...slackdump.ProcessFunc) (*slackdump.Conversation, error)
 
 func (app *App) newDumpFunc(s string) dumpFunc {
 	if strings.HasPrefix(strings.ToLower(s), "https://") {
-		return app.sd.DumpURLInTimeframe
+		return app.sd.DumpURL
 	} else {
-		return app.sd.DumpMessagesInTimeframe
+		return app.sd.DumpMessages
 	}
 }
 
