@@ -105,7 +105,7 @@ func (sd *SlackDumper) getChannels(ctx context.Context, chanTypes []string, cb f
 }
 
 // ToText outputs Channels cs to io.Writer w in Text format.
-func (cs Channels) ToText(sd *SlackDumper, w io.Writer) (err error) {
+func (cs Channels) ToText(w io.Writer, sd *SlackDumper) (err error) {
 	const strFormat = "%s\t%s\t%s\t%s\n"
 	writer := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
 	defer writer.Flush()

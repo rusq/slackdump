@@ -2,11 +2,9 @@ package slackdump
 
 import (
 	"context"
-	"runtime/trace"
 
 	"github.com/rusq/slackdump/downloader"
 	"github.com/slack-go/slack"
-	"golang.org/x/time/rate"
 )
 
 // SaveFileTo saves a single file to the specified directory.
@@ -34,38 +32,6 @@ func (*SlackDumper) filesFromMessages(m []Message) []slack.File {
 		}
 	}
 	return files
-}
-
-type cancelFunc func()
-
-func (sd *SlackDumper) newDownloader(ctx context.Context, dir string, l *rate.Limiter) (ProcessFunc, cancelFunc, error) {
-	// set up a file downloader and add it to the post-process functions
-	// slice
-	dl := downloader.New(
-		sd.client,
-		downloader.Limiter(l),
-		downloader.Retries(sd.options.DownloadRetries),
-		downloader.Workers(sd.options.Workers),
-	)
-	var filesC = make(chan *slack.File, filesCbufSz)
-
-	dlDoneC, err := dl.AsyncDownloader(ctx, dir, filesC)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	fn := func(msg []Message, _ string) (ProcessResult, error) {
-		n := sd.pipeFiles(filesC, msg)
-		return ProcessResult{Entity: "files", Count: n}, nil
-	}
-
-	cancelFn := func() {
-		trace.Log(ctx, "info", "closing files channel")
-		close(filesC)
-		<-dlDoneC
-	}
-	return fn, cancelFn, nil
-
 }
 
 // pipeFiles scans the messages and sends all the files discovered to the filesC.

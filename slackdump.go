@@ -68,7 +68,7 @@ var AllChanTypes = []string{"mpim", "im", "public_channel", "private_channel"}
 
 // Reporter is an interface defining output functions
 type Reporter interface {
-	ToText(sd *SlackDumper, w io.Writer) error
+	ToText(w io.Writer, sd *SlackDumper) error
 }
 
 // New creates new client and populates the internal cache of users and channels

@@ -27,18 +27,12 @@ const (
 	// of messages from a single user in the conversation.  This increases the
 	// readability of the text output.
 	minMsgTimeApart = 2 * time.Minute
-	// files channel buffer size. I don't know, i just like 20, doesn't really matter.
-	filesCbufSz = 20
 )
 
 // Channel keeps the slice of messages.
 //
 // Deprecated: use Conversation instead.
 type Channel = Conversation
-
-// ProcessFunc is the signature of the function Dump* functions accept and call for each
-// API call result.
-type ProcessFunc func(msg []Message, channelID string) (ProcessResult, error)
 
 type ProcessResult struct {
 	Entity string
@@ -113,7 +107,7 @@ func (c Conversation) IsThread() bool {
 }
 
 // ToText outputs Messages m to io.Writer w in text format.
-func (c Conversation) ToText(sd *SlackDumper, w io.Writer) (err error) {
+func (c Conversation) ToText(w io.Writer, sd *SlackDumper) (err error) {
 	buf := bufio.NewWriter(w)
 	defer buf.Flush()
 
@@ -162,7 +156,7 @@ func (sd *SlackDumper) DumpAllMessages(ctx context.Context, channelID string) (*
 // that will be called for each message chunk downloaded from the Slack API.
 func (sd *SlackDumper) DumpMessages(ctx context.Context, channelID string, oldest, latest time.Time, processFn ...ProcessFunc) (*Conversation, error) {
 	if sd.options.DumpFiles {
-		fn, cancelFn, err := sd.newDownloader(ctx, channelID, sd.limiter(noTier))
+		fn, cancelFn, err := sd.newFileProcessFn(ctx, channelID, sd.limiter(noTier))
 		if err != nil {
 			return nil, err
 		}
@@ -200,7 +194,7 @@ func (sd *SlackDumper) dumpMessages(ctx context.Context, channelID string, oldes
 
 	// add thread dumper.  It should go first, because it populates message
 	// chunk with thread messages.
-	pfns := []ProcessFunc{sd.newThreadProcessor(ctx, threadLimiter)}
+	pfns := []ProcessFunc{sd.newThreadProcessFn(ctx, threadLimiter)}
 	pfns = append(pfns, processFn...)
 
 	var (

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"strings"
 	"time"
@@ -33,9 +34,9 @@ func (app *App) dump(ctx context.Context, input Input) (int, error) {
 	}
 
 	total := 0
-	if err := input.producer(func(s string) error {
-		if err := app.dumpOne(ctx, s, app.newDumpFunc(s)); err != nil {
-			dlog.Printf("error processing: %q (conversation will be skipped): %s", s, err)
+	if err := input.producer(func(channelID string) error {
+		if err := app.dumpOne(ctx, channelID, app.newDumpFunc(channelID)); err != nil {
+			dlog.Printf("error processing: %q (conversation will be skipped): %s", channelID, err)
 			return errSkip
 		}
 		total++
@@ -48,6 +49,7 @@ func (app *App) dump(ctx context.Context, input Input) (int, error) {
 
 type dumpFunc func(context.Context, string, time.Time, time.Time, ...slackdump.ProcessFunc) (*slackdump.Conversation, error)
 
+// newDumpFunc returns the appropriate dump function depending on the input s.
 func (app *App) newDumpFunc(s string) dumpFunc {
 	if strings.HasPrefix(strings.ToLower(s), "https://") {
 		return app.sd.DumpURL
@@ -56,6 +58,8 @@ func (app *App) newDumpFunc(s string) dumpFunc {
 	}
 }
 
+// renderFilename returns the filename that is rendered according to the
+// file naming template.
 func (app *App) renderFilename(c *slackdump.Conversation) string {
 	var buf strings.Builder
 	if err := app.tmpl.ExecuteTemplate(&buf, filenameTmplName, c); err != nil {
@@ -65,45 +69,54 @@ func (app *App) renderFilename(c *slackdump.Conversation) string {
 	return buf.String()
 }
 
-// dumpOneChannel dumps just one channel having ID = id.  If generateText is
-// true, it will also generate a ID.txt text file.
-func (app *App) dumpOne(ctx context.Context, s string, fn dumpFunc) error {
-	cnv, err := fn(ctx, s, time.Time(app.cfg.Oldest), time.Time(app.cfg.Latest))
+// dumpOneChannel dumps just one channel specified by channelInput.  If
+// generateText is true, it will also generate a ID.txt text file.
+func (app *App) dumpOne(ctx context.Context, channelInput string, fn dumpFunc) error {
+	cnv, err := fn(ctx, channelInput, time.Time(app.cfg.Oldest), time.Time(app.cfg.Latest))
 	if err != nil {
 		return err
 	}
 
-	return app.writeFile(app.renderFilename(cnv), cnv)
+	return app.writeFiles(app.renderFilename(cnv), cnv)
 }
 
-func (app *App) writeFile(name string, cnv *slackdump.Conversation) error {
-	f, err := os.Create(name + ".json")
-	if err != nil {
+// writeFiles writes the conversation to disk.  If text output is set, it will
+// also generate a text file having the same name as JSON file.
+func (app *App) writeFiles(name string, cnv *slackdump.Conversation) error {
+	if err := app.writeJSON(name+".json", cnv); err != nil {
 		return err
+	}
+	if app.cfg.Output.IsText() {
+		if err := app.writeText(name+".txt", cnv); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (app *App) writeJSON(filename string, m *slackdump.Conversation) error {
+	dlog.Printf("generating %s", filename)
+	f, err := os.Create(filename)
+	if err != nil {
+		return fmt.Errorf("error writing %q: %w", filename, err)
 	}
 	defer f.Close()
 
 	enc := json.NewEncoder(f)
 	enc.SetIndent("", "  ")
-	if err := enc.Encode(cnv); err != nil {
-		return err
+	if err := enc.Encode(m); err != nil {
+		return fmt.Errorf("error encoding %q: %w", filename, err)
 	}
-	if app.cfg.Output.IsText() {
-		if err := app.saveText(name+".txt", cnv); err != nil {
-			dlog.Printf("error creating text file: %s", err)
-		}
-	}
-
 	return nil
 }
 
-func (app *App) saveText(filename string, m *slackdump.Conversation) error {
+func (app *App) writeText(filename string, m *slackdump.Conversation) error {
 	dlog.Printf("generating %s", filename)
 	f, err := os.Create(filename)
 	if err != nil {
-		return err
+		return fmt.Errorf("error writing %q: %w", filename, err)
 	}
 	defer f.Close()
 
-	return m.ToText(app.sd, f)
+	return m.ToText(f, app.sd)
 }

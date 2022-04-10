@@ -21,7 +21,7 @@ const testSuffix = "UNIT"
 var testUsers = Users{
 	{ID: "LOL1", Name: "yippi", Deleted: false},
 	{ID: "DELD", Name: "ka", Deleted: true},
-	{ID: "LOL3", Name: "yay", Deleted: false},
+	{ID: "LOL3", Name: "yay", IsRestricted: true},
 	{ID: "LOL4", Name: "motherfucker", Deleted: false, IsBot: true},
 }
 
@@ -123,20 +123,21 @@ func TestUsers_ToText(t *testing.T) {
 			"test user list",
 			testUsers,
 			args{nil},
-			"Name          ID    Bot?  Deleted?\n                          \nka            DELD        deleted\nmotherfucker  LOL4  bot   \nyay           LOL3        \nyippi         LOL1        \n",
+			"Name          ID    Bot?  Deleted?  Restricted?\n                                    \nka            DELD        deleted   \nmotherfucker  LOL4  bot             \nyay           LOL3                  restricted\nyippi         LOL1                  \n",
 			false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			w := &bytes.Buffer{}
-			if err := tt.us.ToText(tt.args.sd, w); (err != nil) != tt.wantErr {
+			if err := tt.us.ToText(w, tt.args.sd); (err != nil) != tt.wantErr {
 				t.Errorf("Users.ToText() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if gotW := w.String(); gotW != tt.wantW {
-				t.Errorf("Users.ToText() = %q, want %q", gotW, tt.wantW)
-			}
+			assert.Equal(t, tt.wantW, w.String())
+			// if gotW := w.String(); gotW != tt.wantW {
+			// 	t.Errorf("Users.ToText() = %q, want %q", gotW, tt.wantW)
+			// }
 		})
 	}
 }

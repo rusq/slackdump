@@ -65,7 +65,7 @@ func newExportMessage(msg *slackdump.Message, users userIndex) *ExportMessage {
 		}
 	}
 
-	if !msg.IsThread() {
+	if !msg.IsThreadParent() {
 		return &expMsg
 	}
 

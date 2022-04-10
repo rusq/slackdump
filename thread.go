@@ -27,7 +27,7 @@ func (sd *SlackDumper) DumpThread(ctx context.Context, channelID, threadTS strin
 	trace.Logf(ctx, "info", "channelID: %q, threadTS: %q", channelID, threadTS)
 
 	if sd.options.DumpFiles {
-		fn, cancelFn, err := sd.newDownloader(ctx, channelID, sd.limiter(noTier))
+		fn, cancelFn, err := sd.newFileProcessFn(ctx, channelID, sd.limiter(noTier))
 		if err != nil {
 			return nil, err
 		}
@@ -128,15 +128,4 @@ func (sd *SlackDumper) dumpThread(ctx context.Context, l *rate.Limiter, channelI
 		cursor = nextCursor
 	}
 	return thread, nil
-}
-
-func (sd *SlackDumper) newThreadProcessor(ctx context.Context, l *rate.Limiter) ProcessFunc {
-	processFn := func(chunk []Message, channelID string) (ProcessResult, error) {
-		n, err := sd.populateThreads(ctx, l, chunk, channelID, sd.dumpThread)
-		if err != nil {
-			return ProcessResult{}, err
-		}
-		return ProcessResult{Entity: "threads", Count: n}, nil
-	}
-	return processFn
 }

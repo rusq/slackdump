@@ -7,29 +7,38 @@ import (
 
 	"github.com/rusq/slackdump"
 	"github.com/rusq/slackdump/internal/fixtures"
-	"github.com/slack-go/slack"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestConversation_ByDate(t *testing.T) {
 	// TODO
 	var exp Export
+
 	conversations := fixtures.Load[slackdump.Conversation](fixtures.TestConversationJSON)
-	convDt, err := exp.byDate(&conversations, fixtures.Load[slackdump.Users](fixtures.UsersJSON))
+	users := fixtures.Load[slackdump.Users](fixtures.UsersJSON)
+
+	convDt, err := exp.byDate(&conversations, users)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	data, err := json.Marshal(convDt)
+	// uncomment to write the json for fixtures
+	// require.NoError(t, writeOutput("convDt", convDt))
+
+	want := fixtures.Load[map[string][]ExportMessage](fixtures.TestConversationExportJSON)
+	assert.Equal(t, want, convDt)
+}
+
+func writeOutput(name string, v any) error {
+	data, err := json.MarshalIndent(v, "", "  ")
 	if err != nil {
-		t.Fatal(err)
+		return err
 	}
 
-	if err := os.WriteFile("x.json", data, 0644); err != nil {
-		t.Fatal(err)
+	if err := os.WriteFile(name+".json", data, 0644); err != nil {
+		return err
 	}
-
-	assert.Equal(t, map[string][]slack.Conversation{}, convDt)
+	return nil
 }
 
 func Test_messagesByDate_validate(t *testing.T) {
