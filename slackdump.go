@@ -53,12 +53,12 @@ type tier int
 
 const (
 	// base throttling defined as events per minute
-	noTier tier = 1000 // no tier is applied
+	noTier tier = 6000 // no tier is applied
 
-	tier1 tier = 1
+	// tier1 tier = 1
 	tier2 tier = 20
 	tier3 tier = 50
-	tier4 tier = 100
+	// tier4 tier = 100
 )
 
 // AllChanTypes enumerates all API-supported channel types as of 03/2022.
