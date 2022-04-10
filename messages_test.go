@@ -9,10 +9,11 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/pkg/errors"
-	"github.com/rusq/slackdump/v2/internal/fixtures"
 	"github.com/slack-go/slack"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/time/rate"
+
+	"github.com/rusq/slackdump/v2/internal/fixtures"
 )
 
 var (

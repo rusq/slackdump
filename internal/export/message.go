@@ -4,8 +4,9 @@ import (
 	"sort"
 	"time"
 
-	"github.com/rusq/slackdump/v2"
 	"github.com/slack-go/slack"
+
+	"github.com/rusq/slackdump/v2"
 )
 
 // ExportMessage is the slack.Message with additional fields usually found in

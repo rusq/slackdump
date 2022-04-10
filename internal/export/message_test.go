@@ -3,9 +3,10 @@ package export
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/internal/fixtures"
-	"github.com/stretchr/testify/assert"
 )
 
 func Test_makeUniq(t *testing.T) {

@@ -8,5 +8,3 @@ for os in $OSES; do
 	make "$f"
 	mv "$f" dist/
 done
-
-

@@ -15,7 +15,7 @@ import (
 	"github.com/rusq/osenv/v2"
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/internal/app"
-	"github.com/rusq/slackdump/v2/internal/tracer"
+	"github.com/rusq/tracer"
 	"github.com/slack-go/slack"
 
 	"github.com/joho/godotenv"

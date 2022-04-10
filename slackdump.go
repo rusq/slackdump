@@ -12,9 +12,10 @@ import (
 	cookiemonster "github.com/MercuryEngineering/CookieMonster"
 	"github.com/pkg/errors"
 	"github.com/rusq/dlog"
-	"github.com/rusq/slackdump/v2/internal/network"
 	"github.com/slack-go/slack"
 	"golang.org/x/time/rate"
+
+	"github.com/rusq/slackdump/v2/internal/network"
 )
 
 //go:generate mockgen -destination internal/mocks/mock_os/mock_os.go os FileInfo

@@ -9,6 +9,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/rusq/dlog v1.3.3
 	github.com/rusq/osenv/v2 v2.0.1
+	github.com/rusq/tracer v1.0.0
 	github.com/slack-go/slack v0.10.2
 	github.com/stretchr/testify v1.7.1
 	golang.org/x/time v0.0.0-20220224211638-0e9765cccd65
