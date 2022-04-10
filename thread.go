@@ -35,16 +35,12 @@ func (sd *SlackDumper) DumpThread(ctx context.Context, channelID, threadTS strin
 		processFn = append(processFn, fn)
 	}
 
-	threadMsgs, err := sd.dumpThread(ctx, sd.limiter(tier3), channelID, threadTS)
+	threadMsgs, err := sd.dumpThread(ctx, sd.limiter(tier3), channelID, threadTS, processFn...)
 	if err != nil {
 		return nil, err
 	}
 
 	sortMessages(threadMsgs)
-
-	for _, fn := range processFn {
-		fn(threadMsgs, channelID)
-	}
 
 	name, err := sd.getChannelName(ctx, sd.limiter(tier3), channelID)
 	if err != nil {
@@ -115,8 +111,14 @@ func (sd *SlackDumper) dumpThread(ctx context.Context, l *rate.Limiter, channelI
 
 		thread = append(thread, sd.convertMsgs(msgs)...)
 
-		dlog.Printf("  thread request #%5d, fetched: %4d, total: %8d (speed: %6.2f/sec, avg: %6.2f/sec)\n",
+		prs, err := runProcessFuncs(thread, channelID, processFn...)
+		if err != nil {
+			return nil, err
+		}
+
+		dlog.Printf("  thread request #%5d, fetched: %4d, total: %8d, process results: %s (speed: %6.2f/sec, avg: %6.2f/sec)\n",
 			i, len(msgs), len(thread),
+			prs,
 			float64(len(msgs))/float64(time.Since(reqStart).Seconds()),
 			float64(len(thread))/float64(time.Since(fetchStart).Seconds()),
 		)

@@ -17,8 +17,6 @@ import (
 	"golang.org/x/time/rate"
 )
 
-const defNumAttempts = 3 // default number of attempts for withRetry.
-
 //go:generate mockgen -destination internal/mocks/mock_os/mock_os.go os FileInfo
 //go:generate mockgen -destination internal/mocks/mock_downloader/mock_downloader.go github.com/rusq/slackdump/v2/downloader Downloader
 //go:generate sh -c "mockgen -source slackdump.go -destination clienter_mock.go -package slackdump -mock_names clienter=mockClienter,Reporter=mockReporter"

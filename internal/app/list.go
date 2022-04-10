@@ -71,7 +71,7 @@ func (app *App) fetchEntity(ctx context.Context, listFlags ListFlags) (rep slack
 	return
 }
 
-// formatEntity formats the entity according to output parameter value.
+// formatEntity formats reporter output as defined in the "Output".
 func (app *App) formatEntity(w io.Writer, rep slackdump.Reporter, output Output) error {
 	switch output.Format {
 	case OutputTypeText:

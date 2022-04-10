@@ -94,7 +94,7 @@ func (app *App) writeFiles(name string, cnv *slackdump.Conversation) error {
 	return nil
 }
 
-func (app *App) writeJSON(filename string, m *slackdump.Conversation) error {
+func (app *App) writeJSON(filename string, m any) error {
 	dlog.Printf("generating %s", filename)
 	f, err := os.Create(filename)
 	if err != nil {

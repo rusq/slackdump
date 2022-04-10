@@ -194,8 +194,7 @@ func (sd *SlackDumper) dumpMessages(ctx context.Context, channelID string, oldes
 
 	// add thread dumper.  It should go first, because it populates message
 	// chunk with thread messages.
-	pfns := []ProcessFunc{sd.newThreadProcessFn(ctx, threadLimiter)}
-	pfns = append(pfns, processFn...)
+	pfns := append([]ProcessFunc{sd.newThreadProcessFn(ctx, threadLimiter)}, processFn...)
 
 	var (
 		messages   []Message
@@ -228,13 +227,9 @@ func (sd *SlackDumper) dumpMessages(ctx context.Context, channelID string, oldes
 		// 	return nil, err
 		// }
 
-		var results ProcessResults
-		for _, fn := range pfns {
-			res, err := fn(chunk, channelID)
-			if err != nil {
-				return nil, err
-			}
-			results = append(results, res)
+		results, err := runProcessFuncs(chunk, channelID, pfns...)
+		if err != nil {
+			return nil, err
 		}
 
 		messages = append(messages, chunk...)

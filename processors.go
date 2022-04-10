@@ -21,6 +21,19 @@ type ProcessFunc func(msg []Message, channelID string) (ProcessResult, error)
 // cancelFunc may be returned by some process function constructors.
 type cancelFunc func()
 
+// runProcessFuncs runs processFn sequentially and return results of execution.
+func runProcessFuncs(m []Message, channelID string, processFn ...ProcessFunc) (ProcessResults, error) {
+	var prs ProcessResults
+	for _, fn := range processFn {
+		res, err := fn(m, channelID)
+		if err != nil {
+			return nil, err
+		}
+		prs = append(prs, res)
+	}
+	return prs, nil
+}
+
 // newFileProcessFn returns a file process function that will save the conversation files to
 // directory dir, rate limited by limiter l.  It returns ProcessFunction and CancelFunc.  CancelFunc
 // must be called, i.e. by deferring it's execution.

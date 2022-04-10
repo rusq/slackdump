@@ -318,7 +318,7 @@ func Test_newLimiter(t *testing.T) {
 
 			got := newLimiter(tt.args.t, tt.args.burst, tt.args.boost)
 
-			got.Wait(context.Background()) // prime
+			assert.NoError(t, got.Wait(context.Background())) // prime
 
 			start := time.Now()
 			err := got.Wait(context.Background())
