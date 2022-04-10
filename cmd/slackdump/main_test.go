@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/rusq/slackdump"
-	"github.com/rusq/slackdump/internal/app"
+	"github.com/rusq/slackdump/v2"
+	"github.com/rusq/slackdump/v2/internal/app"
 	"github.com/stretchr/testify/assert"
 )
 

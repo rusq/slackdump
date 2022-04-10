@@ -3,8 +3,8 @@ package export
 import (
 	"testing"
 
-	"github.com/rusq/slackdump"
-	"github.com/rusq/slackdump/internal/fixtures"
+	"github.com/rusq/slackdump/v2"
+	"github.com/rusq/slackdump/v2/internal/fixtures"
 	"github.com/stretchr/testify/assert"
 )
 

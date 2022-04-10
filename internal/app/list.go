@@ -8,7 +8,7 @@ import (
 	"os"
 
 	"github.com/rusq/dlog"
-	"github.com/rusq/slackdump"
+	"github.com/rusq/slackdump/v2"
 )
 
 // runListEntities queries lists the supported entities, and writes the output to

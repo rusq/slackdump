@@ -167,15 +167,15 @@ func (m *mockReporter) EXPECT() *mockReporterMockRecorder {
 }
 
 // ToText mocks base method.
-func (m *mockReporter) ToText(sd *SlackDumper, w io.Writer) error {
+func (m *mockReporter) ToText(w io.Writer, sd *SlackDumper) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ToText", sd, w)
+	ret := m.ctrl.Call(m, "ToText", w, sd)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // ToText indicates an expected call of ToText.
-func (mr *mockReporterMockRecorder) ToText(sd, w interface{}) *gomock.Call {
+func (mr *mockReporterMockRecorder) ToText(w, sd interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ToText", reflect.TypeOf((*mockReporter)(nil).ToText), sd, w)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ToText", reflect.TypeOf((*mockReporter)(nil).ToText), w, sd)
 }

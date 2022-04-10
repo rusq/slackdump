@@ -10,7 +10,7 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/pkg/errors"
-	"github.com/rusq/slackdump/internal/mock_os"
+	"github.com/rusq/slackdump/v2/internal/mock_os"
 	"github.com/slack-go/slack"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/time/rate"

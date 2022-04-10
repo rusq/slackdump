@@ -6,7 +6,7 @@ Slack Dumper
 
 `Join the discussion`_
 
-`Read the set up guide on Medium.com`_
+`Read the overview on Medium.com`_
 
 .. image:: https://pkg.go.dev/badge/github.com/rusq/slackdump.svg
    :alt: Go Reference
@@ -441,13 +441,13 @@ Download:
 
 .. code:: go
 
-  go get github.com/rusq/slackdump
+  go get github.com/rusq/slackdump/v2
 
 Use:
 
 .. code:: go
 
-  import "github.com/rusq/slackdump"
+  import "github.com/rusq/slackdump/v2"
 
   func main() {
     sd, err := slackdump.New(os.Getenv("TOKEN"), os.Getenv("COOKIE"))

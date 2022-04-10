@@ -36,6 +36,8 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 \fI\%Join the discussion\fP
 .sp
 \fI\%Read the set up guide on Medium.com\fP
+\fI\%[image: Go Reference/https://pkg.go.dev/badge/github.com/rusq/slackdump.svg]
+\fP
 .sp
 Purpose: dump Slack messages, users and files using browser token and cookie.
 .sp
@@ -128,6 +130,8 @@ clicking the value and choosing "Copy Value".
 \fBIf you don\(aqt see the token value\fP in Google Chrome \- switch to \fIPayload\fP tab,
 your token is waiting for you there.
 .SS COOKIE
+.sp
+\fBOPTION I:  Getting the cookie value\fP
 .INDENT 0.0
 .IP 1. 3
 Switch to \fI\%Application\fP tab and select \fBCookies\fP in the left
@@ -142,6 +146,32 @@ Press Ctrl+C or Cmd+C to copy it\(aqs value to clipboard.
 .IP 5. 3
 Save it for later.
 .UNINDENT
+.sp
+\fBOPTION II:  Saving cookies to a cookies.txt\fP
+.INDENT 0.0
+.IP 1. 3
+Install the \fI\%Get cookies.txt Chrome extension\fP
+.IP 2. 3
+With your Slack workspace tab opened, press the "Get Cookies.txt" extension
+button
+.IP 3. 3
+Press \fBExport\fP button.
+.IP 4. 3
+The slack.com_cookies.txt will have been saved to your \fBDownloads\fP
+directory.
+.IP 5. 3
+Copy it to any convenient location, i.e. the directory where "slackdump"
+executable is.
+.UNINDENT
+.sp
+Generally, there\(aqs no necessity in using the cookies.txt file, so providing
+d= cookie value will work in most cases.
+.sp
+It may only be necessary, if your slack workspace uses Single Sign\-On (SSO) in
+case you keep getting \fBinvalid_auth\fP error.
+.sp
+Slackdump will automatically detect if the filename is used as a value of a
+cookie, and will load all cookies from that file.
 .SS Setting up the application
 .INDENT 0.0
 .IP 1. 3
@@ -157,7 +187,20 @@ should look like this:
 .nf
 .ft C
 SLACK_TOKEN=xoxc\-<...elided...>
-COOKIE=12345472908twp<...elided...>
+COOKIE=xoxd\-<...elided...>
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+Alternatively, if you saved the cookies to the file, it will look like this:
+.INDENT 3.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+SLACK_TOKEN=xoxc\-<...elided...>
+COOKIE=path/to/slack.com_cookies.txt
 .ft P
 .fi
 .UNINDENT
@@ -380,9 +423,10 @@ print version and exit
 same as \-list\-channels
 .TP
 .B \-cookie
-along with \fB\-t\fP sets the authentication values.  Can also be set
-using \fBCOOKIE\fP environment variable.  Must contain the value of
-\fBd=\fP cookie.
+along with \fB\-t\fP sets the authentication values.  Can also be set using
+\fBCOOKIE\fP environment variable.  Must contain the value of \fBd=\fP cookie, or
+a cookies.txt dumped from the browser using the \fI\%Get cookies.txt Chrome
+extension\fP
 .TP
 .B \-cpr
 number of conversation items per request. (default 200).  This is
@@ -575,7 +619,7 @@ Download:
 .sp
 .nf
 .ft C
-go get github.com/rusq/slackdump
+go get github.com/rusq/slackdump/v2
 .ft P
 .fi
 .UNINDENT
@@ -587,7 +631,7 @@ Use:
 .sp
 .nf
 .ft C
-import "github.com/rusq/slackdump"
+import "github.com/rusq/slackdump/v2"
 
 func main() {
   sd, err := slackdump.New(os.Getenv("TOKEN"), os.Getenv("COOKIE"))

@@ -12,7 +12,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/rusq/dlog"
-	"github.com/rusq/slackdump/internal/network"
+	"github.com/rusq/slackdump/v2/internal/network"
 	"github.com/slack-go/slack"
 	"golang.org/x/time/rate"
 )

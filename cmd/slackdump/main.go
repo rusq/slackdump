@@ -13,9 +13,9 @@ import (
 	"syscall"
 
 	"github.com/rusq/osenv/v2"
-	"github.com/rusq/slackdump"
-	"github.com/rusq/slackdump/internal/app"
-	"github.com/rusq/slackdump/internal/tracer"
+	"github.com/rusq/slackdump/v2"
+	"github.com/rusq/slackdump/v2/internal/app"
+	"github.com/rusq/slackdump/v2/internal/tracer"
 	"github.com/slack-go/slack"
 
 	"github.com/joho/godotenv"

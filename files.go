@@ -3,7 +3,7 @@ package slackdump
 import (
 	"context"
 
-	"github.com/rusq/slackdump/downloader"
+	"github.com/rusq/slackdump/v2/downloader"
 	"github.com/slack-go/slack"
 )
 

@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/rusq/dlog"
-	"github.com/rusq/slackdump"
+	"github.com/rusq/slackdump/v2"
 )
 
 // dump dumps the input, if dumpfiles is true, it will save the files into a

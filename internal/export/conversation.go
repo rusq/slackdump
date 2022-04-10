@@ -7,7 +7,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/rusq/slackdump"
+	"github.com/rusq/slackdump/v2"
 )
 
 const dateFmt = "2006-01-02"

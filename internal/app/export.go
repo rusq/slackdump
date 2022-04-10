@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/rusq/slackdump/internal/export"
+	"github.com/rusq/slackdump/v2/internal/export"
 )
 
 const defDirMode = 0700

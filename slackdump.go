@@ -12,7 +12,7 @@ import (
 	cookiemonster "github.com/MercuryEngineering/CookieMonster"
 	"github.com/pkg/errors"
 	"github.com/rusq/dlog"
-	"github.com/rusq/slackdump/internal/network"
+	"github.com/rusq/slackdump/v2/internal/network"
 	"github.com/slack-go/slack"
 	"golang.org/x/time/rate"
 )
@@ -22,7 +22,7 @@ const defNumAttempts = 3 // default number of attempts for withRetry.
 //go:generate mockgen -destination internal/mock_os/mock_os.go os FileInfo
 //go:generate sh -c "mockgen -source slackdump.go -destination clienter_mock.go -package slackdump -mock_names clienter=mockClienter,Reporter=mockReporter"
 //go:generate sed -i ~ -e "s/NewmockClienter/newmockClienter/g" -e "s/NewmockReporter/newmockReporter/g" clienter_mock.go
-//go:generate mockgen -destination internal/mock_downloader/mock_downloader.go github.com/rusq/slackdump/downloader Downloader
+//go:generate mockgen -destination internal/mock_downloader/mock_downloader.go github.com/rusq/slackdump/v2/downloader Downloader
 
 // SlackDumper stores basic session parameters.
 type SlackDumper struct {

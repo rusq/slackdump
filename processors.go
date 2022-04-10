@@ -4,7 +4,7 @@ import (
 	"context"
 	"runtime/trace"
 
-	"github.com/rusq/slackdump/downloader"
+	"github.com/rusq/slackdump/v2/downloader"
 	"github.com/slack-go/slack"
 	"golang.org/x/time/rate"
 )

@@ -111,7 +111,7 @@ func (cs Channels) ToText(w io.Writer, sd *SlackDumper) (err error) {
 	defer writer.Flush()
 	fmt.Fprintf(writer, strFormat, "ID", "Arch", "Saved", "What")
 	for i, ch := range cs {
-		who := sd.whoThisChannelFor(&ch)
+		who := sd.channelName(&ch)
 		archived := "-"
 		if cs[i].IsArchived || sd.IsUserDeleted(ch.User) {
 			archived = "arch"
@@ -126,9 +126,8 @@ func (cs Channels) ToText(w io.Writer, sd *SlackDumper) (err error) {
 	return nil
 }
 
-// whoThisChannelFor return the proper name of the addressee of the channel
-// Parameters: channel and userIdMap - mapping slackID to users
-func (sd *SlackDumper) whoThisChannelFor(channel *slack.Channel) (who string) {
+// channelName return the proper name of the channel.
+func (sd *SlackDumper) channelName(channel *slack.Channel) (who string) {
 	switch {
 	case channel.IsIM:
 		who = "@" + sd.username(channel.User)
