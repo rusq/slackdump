@@ -9,7 +9,7 @@ import (
 
 	gomock "github.com/golang/mock/gomock"
 	"github.com/pkg/errors"
-	"github.com/rusq/slackdump/v2/internal/mock_downloader"
+	"github.com/rusq/slackdump/v2/internal/mocks/mock_downloader"
 	"github.com/slack-go/slack"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

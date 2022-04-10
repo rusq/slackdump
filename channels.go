@@ -104,7 +104,8 @@ func (sd *SlackDumper) getChannels(ctx context.Context, chanTypes []string, cb f
 	return nil
 }
 
-// ToText outputs Channels cs to io.Writer w in Text format.
+// ToText outputs Channels to w in text format.  It uses Slackdumper instance
+// to resolve the user attributes.
 func (cs Channels) ToText(w io.Writer, sd *SlackDumper) (err error) {
 	const strFormat = "%s\t%s\t%s\t%s\n"
 	writer := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
@@ -126,7 +127,7 @@ func (cs Channels) ToText(w io.Writer, sd *SlackDumper) (err error) {
 	return nil
 }
 
-// channelName return the proper name of the channel.
+// channelName return the "beautified" name of the channel.
 func (sd *SlackDumper) channelName(channel *slack.Channel) (who string) {
 	switch {
 	case channel.IsIM:
