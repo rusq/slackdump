@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime/trace"
+	"time"
 
 	"github.com/rusq/slackdump/v2"
 	"github.com/slack-go/slack"
@@ -19,15 +20,21 @@ import (
 
 const userPrefix = "IM-" // prefix for Direct Messages
 
+// Export is the instance of Slack Exporter.
 type Export struct {
 	dir    string                 //target directory
 	dumper *slackdump.SlackDumper // slackdumper instance
+
+	// time window
+	oldest time.Time
+	latest time.Time
 }
 
-func New(dir string, dumper *slackdump.SlackDumper) *Export {
-	return &Export{dir: dir, dumper: dumper}
+func New(dir string, dumper *slackdump.SlackDumper, oldest, latest time.Time) *Export {
+	return &Export{dir: dir, dumper: dumper, oldest: oldest, latest: latest}
 }
 
+// Run runs the export.
 func (se *Export) Run(ctx context.Context) error {
 	// export users to users.json
 	users, err := se.users(ctx)
@@ -36,7 +43,7 @@ func (se *Export) Run(ctx context.Context) error {
 	}
 
 	// export channels to channels.json
-	if err := se.channels(ctx, users); err != nil {
+	if err := se.messages(ctx, users); err != nil {
 		return err
 	}
 	return nil
@@ -48,14 +55,14 @@ func (se *Export) users(ctx context.Context) (slackdump.Users, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := se.serializeToFile(filepath.Join(se.dir, "users.json"), users); err != nil {
+	if err := serializeToFile(filepath.Join(se.dir, "users.json"), users); err != nil {
 		return nil, err
 	}
 
 	return users, nil
 }
 
-func (se *Export) channels(ctx context.Context, users slackdump.Users) error {
+func (se *Export) messages(ctx context.Context, users slackdump.Users) error {
 
 	var chans []slack.Channel
 	if err := se.dumper.StreamChannels(ctx, slackdump.AllChanTypes, func(ch slack.Channel) error {
@@ -71,13 +78,13 @@ func (se *Export) channels(ctx context.Context, users slackdump.Users) error {
 		return fmt.Errorf("channels: error: %w", err)
 	}
 
-	se.serializeToFile(filepath.Join(se.dir, "channels.json"), chans)
+	serializeToFile(filepath.Join(se.dir, "channels.json"), chans)
 
 	return nil
 }
 
 func (se *Export) exportConversation(ctx context.Context, ch slack.Channel, users slackdump.Users) error {
-	messages, err := se.dumper.DumpAllMessages(ctx, ch.ID)
+	messages, err := se.dumper.DumpMessages(ctx, ch.ID, se.oldest, se.latest)
 	if err != nil {
 		return fmt.Errorf("failed dumping %q (%s): %w", ch.Name, ch.ID, err)
 	}
@@ -105,8 +112,8 @@ var errUnknownEntity = errors.New("encountered an unknown entity, please (1) rer
 // either of those, it will return the ID of the channel or a user.
 //
 // I have no access to Enterprise Plan Slack Export functionality, so I don't
-// know what directory name would IM have.  So, I'll do the right thing, and
-// prefix IM directories with `userPrefix`.
+// know what directory name would IM have in Slack Export ZIP.  So, I'll do the
+// right thing, and prefix IM directories with `userPrefix`.
 //
 // If it fails to determine the appropriate name, it returns errUnknownEntity.
 func validName(ctx context.Context, ch slack.Channel, uidx userIndex) (string, error) {
@@ -163,25 +170,25 @@ func (se *Export) saveChannel(channelName string, msgs messagesByDate) error {
 	}
 	for date, messages := range msgs {
 		output := filepath.Join(basedir, date+".json")
-		if err := se.serializeToFile(output, messages); err != nil {
+		if err := serializeToFile(output, messages); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-// serialize writes the data in json format to provided filename.
-func (se *Export) serializeToFile(filename string, data any) error {
+// serializeToFile writes the data in json format to provided filename.
+func serializeToFile(filename string, data any) error {
 	f, err := os.Create(filename)
 	if err != nil {
 		return fmt.Errorf("serializeToFile: failed to create %q: %w", filename, err)
 	}
 	defer f.Close()
 
-	return se.serialize(f, data)
+	return serialize(f, data)
 }
 
-func (*Export) serialize(w io.Writer, data any) error {
+func serialize(w io.Writer, data any) error {
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
 

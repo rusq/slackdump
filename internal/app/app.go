@@ -76,6 +76,7 @@ func (app *App) init(ctx context.Context) error {
 	app.sd = sd
 	return nil
 }
+
 func (app *App) runListEntities(ctx context.Context) error {
 	ctx, task := trace.NewTask(ctx, "runListEntities")
 	defer task.End()
@@ -91,7 +92,11 @@ func (app *App) runExport(ctx context.Context) error {
 	ctx, task := trace.NewTask(ctx, "runExport")
 	defer task.End()
 
-	if err := app.Export(ctx, app.cfg.ExportDirectory); err != nil {
+	if err := app.Export(ctx,
+		app.cfg.ExportDirectory,
+		time.Time(app.cfg.Oldest),
+		time.Time(app.cfg.Latest),
+	); err != nil {
 		return err
 	}
 

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/rusq/slackdump/v2/internal/export"
 )
@@ -13,7 +14,7 @@ const defDirMode = 0700
 
 // Export performs the full export of slack workspace in slack export compatible
 // format.
-func (app *App) Export(ctx context.Context, dir string) error {
+func (app *App) Export(ctx context.Context, dir string, from, to time.Time) error {
 	if dir == "" { // dir is passed from app.cfg.ExportDirectory
 		return errors.New("export directory not specified")
 	}
@@ -21,6 +22,6 @@ func (app *App) Export(ctx context.Context, dir string) error {
 	if err := os.MkdirAll(dir, defDirMode); err != nil {
 		return fmt.Errorf("Export: failed to create the export directory %q: %w", dir, err)
 	}
-	export := export.New(dir, app.sd)
+	export := export.New(dir, app.sd, from, to)
 	return export.Run(ctx)
 }
