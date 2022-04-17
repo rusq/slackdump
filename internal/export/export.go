@@ -26,12 +26,17 @@ type Export struct {
 	dumper *slackdump.SlackDumper // slackdumper instance
 
 	// time window
-	oldest time.Time
-	latest time.Time
+	opts Options
 }
 
-func New(dir string, dumper *slackdump.SlackDumper, oldest, latest time.Time) *Export {
-	return &Export{dir: dir, dumper: dumper, oldest: oldest, latest: latest}
+type Options struct {
+	Oldest       time.Time
+	Latest       time.Time
+	IncludeFiles bool
+}
+
+func New(dir string, dumper *slackdump.SlackDumper, cfg Options) *Export {
+	return &Export{dir: dir, dumper: dumper, opts: cfg}
 }
 
 // Run runs the export.
@@ -63,7 +68,6 @@ func (se *Export) users(ctx context.Context) (slackdump.Users, error) {
 }
 
 func (se *Export) messages(ctx context.Context, users slackdump.Users) error {
-
 	var chans []slack.Channel
 	if err := se.dumper.StreamChannels(ctx, slackdump.AllChanTypes, func(ch slack.Channel) error {
 		if err := se.exportConversation(ctx, ch, users); err != nil {
@@ -84,7 +88,7 @@ func (se *Export) messages(ctx context.Context, users slackdump.Users) error {
 }
 
 func (se *Export) exportConversation(ctx context.Context, ch slack.Channel, users slackdump.Users) error {
-	messages, err := se.dumper.DumpMessages(ctx, ch.ID, se.oldest, se.latest)
+	messages, err := se.dumper.DumpMessages(ctx, ch.ID, se.opts.Oldest, se.opts.Latest)
 	if err != nil {
 		return fmt.Errorf("failed dumping %q (%s): %w", ch.Name, ch.ID, err)
 	}

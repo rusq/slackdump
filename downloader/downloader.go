@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"path/filepath"
 	"runtime/trace"
@@ -30,6 +29,11 @@ type Client struct {
 
 	retries int
 	workers int
+
+	mu           *sync.Mutex
+	filesDlQueue chan *slack.File
+	wg           *sync.WaitGroup
+	started      bool
 }
 
 // Downloader is the file downloader interface.  It exists primarily for mocking
@@ -72,7 +76,7 @@ func Workers(n int) Option {
 func New(client Downloader, opts ...Option) *Client {
 	if client == nil {
 		// better safe than sorry
-		panic("programming error:  client is nil")
+		panic("programming error: client is nil")
 	}
 	c := &Client{
 		client:  client,
@@ -85,8 +89,8 @@ func New(client Downloader, opts ...Option) *Client {
 	return c
 }
 
-// SaveFileTo saves a single file to the specified directory.
-func (c *Client) SaveFileTo(ctx context.Context, dir string, f *slack.File) (int64, error) {
+// SaveFile saves a single file to the specified directory synchrounously.
+func (c *Client) SaveFile(ctx context.Context, dir string, f *slack.File) (int64, error) {
 	return c.saveFile(ctx, dir, f)
 }
 
@@ -97,25 +101,10 @@ func (c *Client) SaveFileTo(ctx context.Context, dir string, f *slack.File) (int
 func (c *Client) AsyncDownloader(ctx context.Context, dir string, fileDlQueue <-chan *slack.File) (chan struct{}, error) {
 	done := make(chan struct{})
 
-	if dir == "" {
-		return nil, errors.New("empty directory")
-	}
-
-	if err := os.Mkdir(dir, 0777); err != nil {
-		if !os.IsExist(err) {
-			close(done)
-			return done, err
-		}
-	}
-
-	var wg sync.WaitGroup
-	// create workers
-	for i := 0; i < c.workers; i++ {
-		wg.Add(1)
-		go func() {
-			c.worker(ctx, dir, seenFilter(fileDlQueue))
-			wg.Done()
-		}()
+	wg, err := c.start(ctx, dir, fileDlQueue)
+	if err != nil {
+		close(done)
+		return done, nil
 	}
 
 	// sentinel
@@ -146,7 +135,7 @@ func (c *Client) saveFile(ctx context.Context, dir string, sf *slack.File) (int6
 			if e := os.RemoveAll(filePath); e != nil {
 				trace.Logf(ctx, "error", "removing file after unsuccesful download failed with: %s", e)
 			}
-			return err
+			return fmt.Errorf("download to %q failed: %w", filePath, err)
 		}
 		return nil
 	}); err != nil {
@@ -171,37 +160,99 @@ func (c *Client) worker(ctx context.Context, dir string, filesC <-chan *slack.Fi
 			if !moar {
 				return
 			}
-			dlog.Debugf("saving %s, size: %d", filename(file), file.Size)
+			dlog.Debugf("saving %q to %s, size: %d", filename(file), dir, file.Size)
 			n, err := c.saveFile(ctx, dir, file)
 			if err != nil {
-				dlog.Printf("error saving %q: %s", filename(file), err)
+				dlog.Printf("error saving %q to %s: %s", filename(file), dir, err)
 				break
 			}
-			dlog.Printf("file %s saved: %d bytes written", filename(file), n)
+			dlog.Printf("file %q saved to %s: %d bytes written", filename(file), dir, n)
 		}
 	}
 }
 
-// seenFilter filters the files from filesC to ensure that no duplicates
-// are downloaded.
-func seenFilter(filesC <-chan *slack.File) <-chan *slack.File {
-	dlQ := make(chan *slack.File)
-	go func() {
-		// closing stop will lead to all worker goroutines to terminate.
-		defer close(dlQ)
+// Start starts an async file downloader.  If the downloader
+// is already started, it does nothing.
+func (c *Client) Start(ctx context.Context, dir string) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 
-		// seen contains file ids that already been seen,
-		// so we don't download the same file twice
-		seen := make(map[string]bool)
-		// files queue must be closed by the caller (see DumpToDir.(1))
-		for f := range filesC {
-			if _, ok := seen[f.ID]; ok {
-				log.Printf("already seen %s, skipping", filename(f))
-				continue
-			}
-			seen[f.ID] = true
-			dlQ <- f
+	if c.started {
+		// already started
+		return nil
+	}
+	filesDlQueue := make(chan *slack.File, 20)
+
+	wg, err := c.start(ctx, dir, filesDlQueue)
+	if err != nil {
+		return err
+	}
+
+	c.filesDlQueue = filesDlQueue
+	c.wg = wg
+	c.started = true
+	return nil
+}
+
+// start creates a download directory if it does not exist and starts download
+// workers.  It returns a sync.WaitGroup.  If the filesDlQueue channel is
+// closed, workers will stop, and wg.Wait() completes.
+func (c *Client) start(ctx context.Context, dir string, filesDlQueue <-chan *slack.File) (*sync.WaitGroup, error) {
+	if err := c.mkdir(dir); err != nil {
+		return nil, err
+	}
+	var wg sync.WaitGroup
+	// create workers
+	for i := 0; i < c.workers; i++ {
+		wg.Add(1)
+		go func() {
+			c.worker(ctx, dir, seenFilter(filesDlQueue))
+			wg.Done()
+		}()
+	}
+
+	return &wg, nil
+}
+
+func (c *Client) mkdir(name string) error {
+	if name == "" {
+		return errors.New("empty directory")
+	}
+
+	if err := os.Mkdir(name, 0755); err != nil {
+		if !os.IsExist(err) {
+			return err
 		}
-	}()
-	return dlQ
+	}
+	return nil
+}
+
+func (c *Client) Stop() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	close(c.filesDlQueue)
+	c.wg.Wait()
+
+	c.filesDlQueue = nil
+	c.wg = nil
+	c.started = false
+}
+
+var ErrNotStarted = errors.New("downloader not started")
+
+// DownloadFile requires a started downloader, otherwise it will return
+// ErrNotStarted. Will place the file to the download queue, and save the file
+// to the directory that was specified when Start was called. If the file buffer
+// is full, will block until it becomes empty.
+func (c *Client) DownloadFile(f *slack.File) error {
+	c.mu.Lock()
+	started := c.started
+	c.mu.Unlock()
+
+	if !started {
+		return ErrNotStarted
+	}
+	c.filesDlQueue <- f
+	return nil
 }

@@ -15,7 +15,7 @@ func (sd *SlackDumper) SaveFileTo(ctx context.Context, dir string, f *slack.File
 		downloader.Retries(sd.options.DownloadRetries),
 		downloader.Workers(sd.options.Workers),
 	)
-	return dl.SaveFileTo(ctx, dir, f)
+	return dl.SaveFile(ctx, dir, f)
 }
 
 // filesFromMessages extracts files from messages slice.

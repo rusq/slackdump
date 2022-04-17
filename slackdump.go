@@ -81,6 +81,10 @@ func New(ctx context.Context, token string, cookie string, opts ...Option) (*Sla
 	return NewWithOptions(ctx, token, cookie, options)
 }
 
+func (sd *SlackDumper) Client() *slack.Client {
+	return sd.client.(*slack.Client)
+}
+
 func makeSlakeOpts(cookie string) ([]slack.Option, error) {
 	if !isExistingFile(cookie) {
 		return []slack.Option{

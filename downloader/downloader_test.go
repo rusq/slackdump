@@ -101,7 +101,7 @@ func TestSlackDumper_SaveFileTo(t *testing.T) {
 				retries: tt.fields.retries,
 				workers: tt.fields.workers,
 			}
-			got, err := sd.SaveFileTo(tt.args.ctx, tt.args.dir, tt.args.f)
+			got, err := sd.SaveFile(tt.args.ctx, tt.args.dir, tt.args.f)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("SlackDumper.SaveFileTo() error = %v, wantErr %v", err, tt.wantErr)
 				return

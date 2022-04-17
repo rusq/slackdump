@@ -94,8 +94,6 @@ func (app *App) runExport(ctx context.Context) error {
 
 	if err := app.Export(ctx,
 		app.cfg.ExportDirectory,
-		time.Time(app.cfg.Oldest),
-		time.Time(app.cfg.Latest),
 	); err != nil {
 		return err
 	}
