@@ -70,7 +70,7 @@ var (
 	}
 )
 
-func TestSlackDumper_filesFromMessages(t *testing.T) {
+func TestSlackDumper_ExtractFiles(t *testing.T) {
 	type args struct {
 		m []Message
 	}
@@ -95,7 +95,7 @@ func TestSlackDumper_filesFromMessages(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			sd := &SlackDumper{}
-			got := sd.filesFromMessages(tt.args.m)
+			got := sd.ExtractFiles(tt.args.m)
 			assert.Equal(t, tt.want, got)
 		})
 	}

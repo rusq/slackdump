@@ -18,16 +18,16 @@ func (sd *SlackDumper) SaveFileTo(ctx context.Context, dir string, f *slack.File
 	return dl.SaveFile(ctx, dir, f)
 }
 
-// filesFromMessages extracts files from messages slice.
-func (*SlackDumper) filesFromMessages(m []Message) []slack.File {
+// ExtractFiles extracts files from messages slice.
+func (*SlackDumper) ExtractFiles(msgs []Message) []slack.File {
 	var files []slack.File
 
-	for i := range m {
-		if m[i].Files != nil {
-			files = append(files, m[i].Files...)
+	for i := range msgs {
+		if msgs[i].Files != nil {
+			files = append(files, msgs[i].Files...)
 		}
 		// include thread files
-		for _, reply := range m[i].ThreadReplies {
+		for _, reply := range msgs[i].ThreadReplies {
 			files = append(files, reply.Files...)
 		}
 	}
@@ -36,8 +36,8 @@ func (*SlackDumper) filesFromMessages(m []Message) []slack.File {
 
 // pipeFiles scans the messages and sends all the files discovered to the filesC.
 func (sd *SlackDumper) pipeFiles(filesC chan<- *slack.File, msgs []Message) int {
-	// place files in download queue
-	fileChunk := sd.filesFromMessages(msgs)
+	// place files in the download queue
+	fileChunk := sd.ExtractFiles(msgs)
 	for i := range fileChunk {
 		filesC <- &fileChunk[i]
 	}

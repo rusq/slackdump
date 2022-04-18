@@ -114,11 +114,7 @@ func TestSlackDumper_SaveFileTo(t *testing.T) {
 }
 
 func TestSlackDumper_saveFile(t *testing.T) {
-	tmpdir, err := os.MkdirTemp("", "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpdir)
+	tmpdir := t.TempDir()
 
 	type fields struct {
 		l       *rate.Limiter
@@ -266,11 +262,7 @@ func TestSlackDumper_newFileDownloader(t *testing.T) {
 func TestSlackDumper_worker(t *testing.T) {
 	t.Parallel()
 	tl := rate.NewLimiter(defLimit, 1)
-	tmpdir, err := os.MkdirTemp("", "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpdir)
+	tmpdir := t.TempDir()
 
 	t.Run("sending a single file", func(t *testing.T) {
 		mc := mock_downloader.NewMockDownloader(gomock.NewController(t))
@@ -289,11 +281,11 @@ func TestSlackDumper_worker(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 		defer cancel()
 
-		filesC := make(chan *slack.File, 1)
-		filesC <- &file1
-		close(filesC)
+		reqC := make(chan FileRequest, 1)
+		reqC <- FileRequest{Directory: tmpdir, File: &file1}
+		close(reqC)
 
-		sd.worker(ctx, tmpdir, filesC)
+		sd.worker(ctx, reqC)
 		assert.FileExists(t, filepath.Join(tmpdir, filename(&file1)))
 	})
 	t.Run("getfile error", func(t *testing.T) {
@@ -313,11 +305,11 @@ func TestSlackDumper_worker(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 		defer cancel()
 
-		filesC := make(chan *slack.File, 1)
-		filesC <- &file1
-		close(filesC)
+		reqC := make(chan FileRequest, 1)
+		reqC <- FileRequest{Directory: tmpdir, File: &file1}
+		close(reqC)
 
-		sd.worker(ctx, tmpdir, filesC)
+		sd.worker(ctx, reqC)
 		_, err := os.Stat(filepath.Join(tmpdir, filename(&file1)))
 		assert.True(t, os.IsNotExist(err))
 	})
@@ -330,34 +322,164 @@ func TestSlackDumper_worker(t *testing.T) {
 			workers: defNumWorkers,
 		}
 
-		filesC := make(chan *slack.File, 1)
+		reqC := make(chan FileRequest, 1)
 
 		ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 		cancel()
 
-		sd.worker(ctx, tmpdir, filesC)
+		sd.worker(ctx, reqC)
 	})
 }
 
-func Test_seenFilter(t *testing.T) {
-	t.Run("ensure that we don't get dup files", func(t *testing.T) {
-		source := []slack.File{file1, file2, file2, file3, file3, file3, file4, file5}
-		want := []slack.File{file1, file2, file3, file4, file5}
+func Test_mkdir(t *testing.T) {
+	dir := t.TempDir()
 
-		filesC := make(chan *slack.File)
-		go func() {
-			defer close(filesC)
-			for _, f := range source {
-				file := f // copy
-				filesC <- &file
+	testFile := filepath.Join(dir, "existing_file")
+	if err := os.WriteFile(testFile, []byte("I should not be moved"), 0666); err != nil {
+		t.Fatalf("failed to create a test file: %s", err)
+	}
+
+	type args struct {
+		name string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+	}{
+		{
+			"empty name",
+			args{},
+			true,
+		},
+		{
+			"new directory",
+			args{filepath.Join(dir, "test1")},
+			false,
+		},
+		{
+			"directory already exists",
+			args{filepath.Join(dir, "test1")},
+			false,
+		},
+		{
+			"another dir",
+			args{filepath.Join(dir, "test2")},
+			false,
+		},
+		{
+			"object with such name exists, and is a file",
+			args{testFile},
+			true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := mkdir(tt.args.name); (err != nil) != tt.wantErr {
+				t.Errorf("mkdir() error = %v, wantErr %v", err, tt.wantErr)
 			}
-		}()
-		dlqC := seenFilter(filesC)
+		})
+	}
+}
 
-		var got []slack.File
-		for f := range dlqC {
-			got = append(got, *f)
+func TestClient_startWorkers(t *testing.T) {
+	t.Run("check that start actually starts workers", func(t *testing.T) {
+		const qSz = 10
+
+		ctrl := gomock.NewController(t)
+		dc := mock_downloader.NewMockDownloader(ctrl)
+		cl := Client{
+			client:  dc,
+			limiter: rate.NewLimiter(5000, 1),
+			workers: defNumWorkers,
 		}
-		assert.Equal(t, want, got)
+
+		dc.EXPECT().GetFile(gomock.Any(), gomock.Any()).Times(qSz).Return(nil)
+
+		fileQueue := makeFileReqQ(qSz, "x")
+		fileChan := slice2chan(fileQueue, defFileBufSz)
+		wg := cl.startWorkers(context.Background(), fileChan)
+
+		wg.Wait()
+	})
+}
+
+// slice2chan takes the slice of []T, create a chan T and sends all elements of
+// []T to it.  It closes the channel after all elements are sent.
+func slice2chan[T any](input []T, bufSz int) <-chan T {
+	output := make(chan T, bufSz)
+	go func() {
+		defer close(output)
+		for _, v := range input {
+			output <- v
+		}
+	}()
+	return output
+}
+
+func TestClient_Start(t *testing.T) {
+	t.Run("make sure structures initialised", func(t *testing.T) {
+		c := clientWithMock(t)
+
+		c.Start(context.Background())
+		defer c.Stop()
+
+		assert.True(t, c.started)
+		assert.NotNil(t, c.wg)
+		assert.NotNil(t, c.fileRequests)
+	})
+}
+
+func TestClient_Stop(t *testing.T) {
+	t.Run("ensure stopped", func(t *testing.T) {
+		c := clientWithMock(t)
+		c.Start(context.Background())
+		assert.True(t, c.started)
+
+		c.Stop()
+		assert.False(t, c.started)
+		assert.Nil(t, c.fileRequests)
+		assert.Nil(t, c.wg)
+	})
+	t.Run("stop on stopped downloader does nothing", func(t *testing.T) {
+		c := clientWithMock(t)
+		c.Stop()
+		assert.False(t, c.started)
+		assert.Nil(t, c.fileRequests)
+		assert.Nil(t, c.wg)
+	})
+}
+
+func clientWithMock(t *testing.T) *Client {
+	ctrl := gomock.NewController(t)
+	dc := mock_downloader.NewMockDownloader(ctrl)
+	c := &Client{
+		client:  dc,
+		limiter: rate.NewLimiter(5000, 1),
+		workers: defNumWorkers,
+	}
+	return c
+}
+
+func TestClient_DownloadFile(t *testing.T) {
+	dir := filepath.Join(t.TempDir())
+	t.Run("returns error on stopped downloader", func(t *testing.T) {
+		c := clientWithMock(t)
+		err := c.DownloadFile(dir, slack.File{ID: "xx", Name: "tt"})
+		assert.ErrorIs(t, err, ErrNotStarted)
+	})
+	t.Run("ensure that file is placed on the queue", func(t *testing.T) {
+		c := clientWithMock(t)
+		c.Start(context.Background())
+
+		c.client.(*mock_downloader.MockDownloader).EXPECT().
+			GetFile(gomock.Any(), gomock.Any()).
+			Times(1).
+			Return(nil)
+
+		err := c.DownloadFile(dir, file1)
+		assert.NoError(t, err)
+
+		c.Stop()
 	})
 }

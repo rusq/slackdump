@@ -14,7 +14,9 @@ import (
 	"runtime/trace"
 	"time"
 
+	"github.com/rusq/dlog"
 	"github.com/rusq/slackdump/v2"
+	"github.com/rusq/slackdump/v2/downloader"
 	"github.com/slack-go/slack"
 )
 
@@ -69,8 +71,14 @@ func (se *Export) users(ctx context.Context) (slackdump.Users, error) {
 
 func (se *Export) messages(ctx context.Context, users slackdump.Users) error {
 	var chans []slack.Channel
+	dl := downloader.New(se.dumper.Client())
+	if se.opts.IncludeFiles {
+		// start the downloader
+		dl.Start(ctx)
+	}
+
 	if err := se.dumper.StreamChannels(ctx, slackdump.AllChanTypes, func(ch slack.Channel) error {
-		if err := se.exportConversation(ctx, ch, users); err != nil {
+		if err := se.exportConversation(ctx, ch, users, dl); err != nil {
 			return err
 		}
 
@@ -87,10 +95,16 @@ func (se *Export) messages(ctx context.Context, users slackdump.Users) error {
 	return nil
 }
 
-func (se *Export) exportConversation(ctx context.Context, ch slack.Channel, users slackdump.Users) error {
-	messages, err := se.dumper.DumpMessages(ctx, ch.ID, se.opts.Oldest, se.opts.Latest)
+func (se *Export) exportConversation(ctx context.Context, ch slack.Channel, users slackdump.Users, dl *downloader.Client) error {
+
+	dlFn := se.downloadFn(dl, ch.Name)
+	messages, err := se.dumper.DumpMessagesRaw(ctx, ch.ID, se.opts.Oldest, se.opts.Latest, dlFn)
 	if err != nil {
 		return fmt.Errorf("failed dumping %q (%s): %w", ch.Name, ch.ID, err)
+	}
+	if len(messages.Messages) == 0 {
+		// empty result set
+		return nil
 	}
 
 	msgs, err := se.byDate(messages, users)
@@ -108,6 +122,27 @@ func (se *Export) exportConversation(ctx context.Context, ch slack.Channel, user
 	}
 
 	return nil
+}
+
+// downloadFn returns the process function that should be passed to
+// DumpMessagesRaw that will handle the download of the files.  If the
+// downloader is not started, i.e. if file download is disabled, it will
+// silently ignore the error and return nil.
+func (se *Export) downloadFn(dl *downloader.Client, channelName string) func(msg []slackdump.Message, channelID string) (slackdump.ProcessResult, error) {
+	dir := filepath.Join(se.basedir(channelName), "attachments")
+	return func(msg []slackdump.Message, channelID string) (slackdump.ProcessResult, error) {
+		files := se.dumper.ExtractFiles(msg)
+		for _, f := range files {
+			if err := dl.DownloadFile(dir, f); err != nil {
+				if errors.Is(err, downloader.ErrNotStarted) {
+					return slackdump.ProcessResult{Entity: "files", Count: 0}, nil
+				}
+				return slackdump.ProcessResult{}, err
+			}
+			dlog.Printf("sent: %s", f.Name)
+		}
+		return slackdump.ProcessResult{Entity: "files", Count: len(files)}, nil
+	}
 }
 
 var errUnknownEntity = errors.New("encountered an unknown entity, please (1) rerun with -trace=trace.out, (2) create an issue on https://github.com/rusq/slackdump/v2/issues and (3) submit the trace file when requested")
@@ -164,11 +199,15 @@ func traceCompress(ctx context.Context, v any) string {
 	return buf.String()
 }
 
+func (se *Export) basedir(channelName string) string {
+	return filepath.Join(se.dir, channelName)
+}
+
 // saveChannel creates a directory `name` and writes the contents of msgs. for
 // each map key the json file is created, with the name `{key}.json`, and values
 // for that key are serialised to the file in json format.
 func (se *Export) saveChannel(channelName string, msgs messagesByDate) error {
-	basedir := filepath.Join(se.dir, channelName)
+	basedir := se.basedir(channelName)
 	if err := os.MkdirAll(basedir, 0700); err != nil {
 		return fmt.Errorf("unable to create directory %q: %w", channelName, err)
 	}
