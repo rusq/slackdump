@@ -50,7 +50,7 @@ func Test_fltSeen(t *testing.T) {
 
 func BenchmarkFltSeen(b *testing.B) {
 	const numReq = 100_000
-	input := makeFileReqQ(numReq, "x")
+	input := makeFileReqQ(numReq, b.TempDir())
 	inputC := make(chan FileRequest)
 	go func() {
 		defer close(inputC)
