@@ -35,3 +35,4 @@ cmd/sdconv/sdconv
 /*.txt
 *~
 .env
+*.cache
