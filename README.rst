@@ -52,6 +52,7 @@ TOKEN
 +++++
 
 #. Open your browser's *Developer Console*.
+
    #. In Firefox, under `Tools -> Browser Tools -> Web Developer tools` in the menu bar
    #. In Chrome, click the 'three dots' button to the right of the URL Bar, then select
       'More Tools -> Developer Tools'
