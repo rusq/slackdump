@@ -52,6 +52,10 @@ TOKEN
 +++++
 
 #. Open your browser's *Developer Console*.
+
+   #. In Firefox, under `Tools -> Browser Tools -> Web Developer tools` in the menu bar
+   #. In Chrome, click the 'three dots' button to the right of the URL Bar, then select
+      'More Tools -> Developer Tools'
 #. Go to the Network tab
 #. In the toolbar, switch to ``Fetch/XHR`` view.
 #. Open any channel or private conversation in Slack.  You'll see a
