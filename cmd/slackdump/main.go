@@ -13,10 +13,11 @@ import (
 	"syscall"
 
 	"github.com/rusq/osenv/v2"
-	"github.com/rusq/slackdump/v2"
-	"github.com/rusq/slackdump/v2/internal/app"
 	"github.com/rusq/tracer"
 	"github.com/slack-go/slack"
+
+	"github.com/rusq/slackdump/v2"
+	"github.com/rusq/slackdump/v2/internal/app"
 
 	"github.com/joho/godotenv"
 	"github.com/rusq/dlog"
@@ -156,7 +157,6 @@ func parseCmdLine(args []string) (params, error) {
 	fs.BoolVar(&p.appCfg.ListFlags.Users, "u", false, "same as -list-users")
 	fs.BoolVar(&p.appCfg.ListFlags.Users, "list-users", false, "list users and their IDs. ")
 	// - export
-	fs.BoolVar(&p.appCfg.FullExport, "export", false, "starts the full export of the workspace (output directory must speficied\nwith -export-dir)")
 	fs.StringVar(&p.appCfg.ExportDirectory, "export-dir", "", "`name` of the export directory (should be used with -export, will be created\nif not exists)")
 
 	// input-ouput options

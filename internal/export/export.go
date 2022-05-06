@@ -15,9 +15,10 @@ import (
 	"time"
 
 	"github.com/rusq/dlog"
+	"github.com/slack-go/slack"
+
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/downloader"
-	"github.com/slack-go/slack"
 )
 
 const userPrefix = "IM-" // prefix for Direct Messages
@@ -90,9 +91,7 @@ func (se *Export) messages(ctx context.Context, users slackdump.Users) error {
 		return fmt.Errorf("channels: error: %w", err)
 	}
 
-	serializeToFile(filepath.Join(se.dir, "channels.json"), chans)
-
-	return nil
+	return serializeToFile(filepath.Join(se.dir, "channels.json"), chans)
 }
 
 func (se *Export) exportConversation(ctx context.Context, ch slack.Channel, users slackdump.Users, dl *downloader.Client) error {

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/rusq/dlog"
+
 	"github.com/rusq/slackdump/v2"
 )
 
@@ -47,7 +48,7 @@ func (app *App) Run(ctx context.Context) error {
 	switch {
 	case app.cfg.ListFlags.FlagsPresent():
 		err = app.runListEntities(ctx)
-	case app.cfg.FullExport:
+	case app.cfg.ExportDirectory != "":
 		err = app.runExport(ctx)
 	default:
 		err = app.runDump(ctx)

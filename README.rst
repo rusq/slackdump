@@ -8,11 +8,9 @@ Slack Dumper
 
 `Read the overview on Medium.com`_
 
-.. image:: https://pkg.go.dev/badge/github.com/rusq/slackdump.svg
+.. image:: https://pkg.go.dev/badge/github.com/rusq/slackdump/v2.svg
    :alt: Go Reference
-   :target: https://pkg.go.dev/github.com/rusq/slackdump
-
-
+   :target: https://pkg.go.dev/github.com/rusq/slackdump/v2/
 
 Purpose: dump Slack messages, users and files using browser token and cookie.
 
@@ -23,12 +21,9 @@ Typical use scenarios:
   potentially privacy-violating third-party tools, 
 * archive channels from Slack when you're on a free "no archive" subscription,
   so you don't lose valuable knowledge in those channels.
+* create a Slack Export archive without admin access.
 
-The library is "fit-for-purpose" quality and provided AS-IS.  I can't
-say it's ready for production, as it lacks most of the unit tests, but
-will do for ad-hoc use.
-
-Slackdump accepts two types of input: 
+Slackdump accepts two types of input:
 
 #. the URL/link of the channel or thread, OR 
 #. the ID of the channel.
@@ -249,7 +244,52 @@ conversations, archived chats and public channels, run::
   slackdump -c
 
 By default, slackdump exports users in text format.  If you need to
-output json, use ``-r json`` flag.
+output json, use '``-r json``' flag.
+
+Creating Slack Export
+---------------------
+This feature allows one to create a slack export of the slack workspace. To
+run in Slack Export mode, one must start Slackdump specifying the
+slack export directory, i.e.::
+
+  slackdump -export-dir my-workspace
+
+Slackdump will export the whole workspace.  If ' ``-f``' flag is specified,
+all files will be saved under the channels' '``attachments``' directory.
+
+Slack Export is currently in alpha development stage, please report
+all issues in Github Issues_.
+
+Slack Export Directory Structure
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Sample directory structure::
+
+  /
+  ├── everyone               : channel "#everyone"
+  │   ├── 2022-01-01.json    :   all messages for the 1 Jan 2022.
+  │   ├── 2022-01-04.json    :    "     "      "   "  4 Jan 2022.
+  │   └── attachments        :   message files
+  │       └── F02PM6A1AUA-Chevy.jpg       : message attachment
+  ├── IM-scumbag.steve       : Your DMs with Scumbag Steve^
+  │   └── 2022-01-04.json    :   (you did not have much to discuss —
+  │                          :    Steve turned out to be a scumbag)
+  ├── channels.json          : all workspace channels information
+  └── users.json             : all workspace users information
+
+Channels
+  The channels are be saved in directories, named after the channel title, i.e.
+  ``#random`` would be saved to "random" directory.  The directory will contain
+  a set of JSON files, one per each day.
+
+Users
+  User directories will have an "IM-" prefix, following by the users' Slack
+  handle.
+
+Group Messages
+  Group messages will have name listing all the users handles involved.
+
+^In case you're wondering who's `Scumbag Steve`_.
 
 Command line flags reference
 ============================
@@ -262,7 +302,7 @@ with a brief description, run::
 
   slackdump -h
 
-Command line flags are described as of version ``v1.3.1``.
+Command line flags are described as of version ``v2.0.0``.
 
 \-V
    print version and exit
@@ -306,6 +346,10 @@ Command line flags are described as of version ``v1.3.1``.
 \-dump-to
    timestamp of the latest message to fetch to
    (i.e. 2020-12-31T23:59:59).  Same as above, but for upper boundary.
+
+\-export-dir name
+   enables the mode of operation to "Slack Export" mode and sets the export
+   directory to "name".
 
 \-f
    shorthand for -download (means "files")
@@ -486,8 +530,10 @@ Messages that were conveyed with the donations:
 .. _Application: https://stackoverflow.com/questions/12908881/how-to-copy-cookies-in-google-chrome
 .. _`Buy me a cup of tea`: https://www.paypal.com/donate/?hosted_button_id=GUHCLSM7E54ZW
 .. _`Join the discussion`: https://t.me/slackdump
-.. _`Read the set up guide on Medium.com`: https://medium.com/@gilyazov/downloading-your-private-slack-conversations-52e50428b3c2
+.. _`Read the overview on Medium.com`: https://medium.com/@gilyazov/downloading-your-private-slack-conversations-52e50428b3c2
 .. _`Go templating`: https://pkg.go.dev/html/template
+.. _Issues: issues
+.. _`Scumbag Steve`: https://www.google.com/search?q=Scumbag+Steve
 
 ..
   bulletin board links

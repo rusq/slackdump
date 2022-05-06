@@ -10,8 +10,9 @@ import (
 	"strings"
 
 	"github.com/rusq/dlog"
-	"github.com/rusq/slackdump/v2"
 	"github.com/slack-go/slack"
+
+	"github.com/rusq/slackdump/v2"
 )
 
 const filenameTmplName = "fnt"
@@ -28,7 +29,6 @@ type Config struct {
 
 	FilenameTemplate string
 
-	FullExport      bool
 	ExportDirectory string
 
 	Options slackdump.Options
@@ -139,10 +139,8 @@ func (p *Config) Validate() error {
 		return err
 	}
 
-	if p.FullExport {
-		if p.ExportDirectory == "" {
-			return fmt.Errorf("export directory not specified")
-		}
+	if p.ExportDirectory != "" {
+		dlog.Debugf("will operate in export mode")
 		return nil
 	}
 	if p.ExportDirectory != "" {
