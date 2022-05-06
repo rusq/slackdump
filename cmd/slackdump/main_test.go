@@ -106,7 +106,7 @@ func Test_banner(t *testing.T) {
 	}{
 		{
 			"make sure I haven't fucked up",
-			fmt.Sprintf(bannerFmt, build, buildYear),
+			fmt.Sprintf(bannerFmt, build, buildYear, trunc(commit, 7)),
 		},
 	}
 	for _, tt := range tests {
@@ -115,6 +115,30 @@ func Test_banner(t *testing.T) {
 			banner(w)
 			if gotW := w.String(); gotW != tt.wantW {
 				t.Errorf("banner() = %v, want %v", gotW, tt.wantW)
+			}
+		})
+	}
+}
+
+func Test_trunc(t *testing.T) {
+	type args struct {
+		s string
+		n uint
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+		{"empty", args{"", 7}, ""},
+		{"few bytes", args{"abcdef", 2}, "ab"},
+		{"zero", args{"abcdef", 0}, ""},
+		{"same amount", args{"ab", 2}, "ab"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := trunc(tt.args.s, tt.args.n); got != tt.want {
+				t.Errorf("trunc() = %v, want %v", got, tt.want)
 			}
 		})
 	}
