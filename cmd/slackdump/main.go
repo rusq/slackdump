@@ -12,10 +12,11 @@ import (
 	"runtime/trace"
 	"syscall"
 
+	"github.com/slack-go/slack"
+
 	"github.com/rusq/slackdump"
 	"github.com/rusq/slackdump/internal/app"
 	"github.com/rusq/slackdump/internal/tracer"
-	"github.com/slack-go/slack"
 
 	"github.com/joho/godotenv"
 	"github.com/rusq/dlog"
@@ -25,7 +26,7 @@ const (
 	slackTokenEnv  = "SLACK_TOKEN"
 	slackCookieEnv = "COOKIE"
 
-	bannerFmt = "Slackdump %[1]s Copyright (c) 2018-%[2]s rusq\n\n"
+	bannerFmt = "Slackdump %[1]s Copyright (c) 2018-%[2]s rusq (build: %s)\n\n"
 )
 
 // defFilenameTemplate is the default file naming template.
@@ -34,6 +35,7 @@ const defFilenameTemplate = "{{.ID}}{{ if .ThreadTS}}-{{.ThreadTS}}{{end}}"
 var (
 	build     = "dev"
 	buildYear = "2077"
+	commit    = "placeholder"
 )
 
 // secrets defines the names of the supported secret files that we load our
@@ -111,7 +113,7 @@ func run(ctx context.Context, p params) error {
 		trace.Logf(ctx, "error", "app.Run: %s", err.Error())
 		var ser slack.SlackErrorResponse
 		if errors.As(err, &ser) && ser.Err == "invalid_auth" {
-			return fmt.Errorf("%w: failed to authenticate:  please double check that token/cookie values are correct", ser)
+			return fmt.Errorf("%w: failed to authenticate:  p``ease double check that token/cookie values are correct", ser)
 		}
 		return err
 	}
@@ -217,5 +219,13 @@ func (p *params) validate() error {
 }
 
 func banner(w io.Writer) {
-	fmt.Fprintf(w, bannerFmt, build, buildYear)
+	fmt.Fprintf(w, bannerFmt, build, buildYear, trunc(commit, 7))
+}
+
+// trunc truncates string s to n chars
+func trunc(s string, n uint) string {
+	if uint(len(s)) <= n {
+		return s
+	}
+	return s[:n]
 }
