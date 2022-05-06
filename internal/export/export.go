@@ -144,7 +144,7 @@ func (se *Export) downloadFn(dl *downloader.Client, channelName string) func(msg
 	}
 }
 
-var errUnknownEntity = errors.New("encountered an unknown entity, please (1) rerun with -trace=trace.out, (2) create an issue on https://github.com/rusq/slackdump/v2/issues and (3) submit the trace file when requested")
+var errUnknownEntity = errors.New("encountered an unknown entity, please (1) rerun with -trace=trace.out, (2) create an issue on https://github.com/rusq/slackdump/issues and (3) submit the trace file when requested")
 
 // validName returns the channel or user name.  If it is not able to determine
 // either of those, it will return the ID of the channel or a user.

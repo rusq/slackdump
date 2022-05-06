@@ -143,10 +143,6 @@ func (p *Config) Validate() error {
 		dlog.Debugf("will operate in export mode")
 		return nil
 	}
-	if p.ExportDirectory != "" {
-		// show a warning if user has specified an export directory, but not an export flag.
-		dlog.Println("WARNING: export directory is specified, but will be ignored")
-	}
 
 	if !p.Input.IsValid() && !p.ListFlags.FlagsPresent() {
 		return fmt.Errorf("no valid input and no list flags specified")

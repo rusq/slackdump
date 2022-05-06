@@ -35,8 +35,8 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .sp
 \fI\%Join the discussion\fP
 .sp
-\fI\%Read the set up guide on Medium.com\fP
-\fI\%[image: Go Reference/https://pkg.go.dev/badge/github.com/rusq/slackdump.svg]
+\fI\%Read the overview on Medium.com\fP
+\fI\%[image: Go Reference/https://pkg.go.dev/badge/github.com/rusq/slackdump/v2.svg]
 \fP
 .sp
 Purpose: dump Slack messages, users and files using browser token and cookie.
@@ -50,11 +50,9 @@ potentially privacy\-violating third\-party tools,
 .IP \(bu 2
 archive channels from Slack when you\(aqre on a free "no archive" subscription,
 so you don\(aqt lose valuable knowledge in those channels.
+.IP \(bu 2
+create a Slack Export archive without admin access.
 .UNINDENT
-.sp
-The library is "fit\-for\-purpose" quality and provided AS\-IS.  I can\(aqt
-say it\(aqs ready for production, as it lacks most of the unit tests, but
-will do for ad\-hoc use.
 .sp
 Slackdump accepts two types of input:
 .INDENT 0.0
@@ -76,6 +74,8 @@ the ID of the channel.
 \fI\%Dumping users\fP
 .IP \(bu 2
 \fI\%Dumping channels\fP
+.IP \(bu 2
+\fI\%Creating Slack Export\fP
 .UNINDENT
 .IP \(bu 2
 \fI\%Command line flags reference\fP
@@ -109,6 +109,13 @@ Open up your Slack \fIin browser\fP and login.
 .INDENT 0.0
 .IP 1. 3
 Open your browser\(aqs \fIDeveloper Console\fP\&.
+.INDENT 3.0
+.IP 1. 3
+In Firefox, under \fITools \-> Browser Tools \-> Web Developer tools\fP in the menu bar
+.IP 2. 3
+In Chrome, click the \(aqthree dots\(aq button to the right of the URL Bar, then select
+\(aqMore Tools \-> Developer Tools\(aq
+.UNINDENT
 .IP 2. 3
 Go to the Network tab
 .IP 3. 3
@@ -394,7 +401,67 @@ slackdump \-c
 .UNINDENT
 .sp
 By default, slackdump exports users in text format.  If you need to
-output json, use \fB\-r json\fP flag.
+output json, use \(aq\fB\-r json\fP\(aq flag.
+.SS Creating Slack Export
+.sp
+This feature allows one to create a slack export of the slack workspace. To
+run in Slack Export mode, one must start Slackdump specifying the
+slack export directory, i.e.:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+slackdump \-export\-dir my\-workspace
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+Slackdump will export the whole workspace.  If \(aq \fB\-f\fP\(aq flag is specified,
+all files will be saved under the channels\(aq \(aq\fBattachments\fP\(aq directory.
+.sp
+Slack Export is currently in alpha development stage, please report
+all issues in Github \fI\%Issues\fP\&.
+.SS Slack Export Directory Structure
+.sp
+Sample directory structure:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+/
+├── everyone               : channel "#everyone"
+│   ├── 2022\-01\-01.json    :   all messages for the 1 Jan 2022.
+│   ├── 2022\-01\-04.json    :    "     "      "   "  4 Jan 2022.
+│   └── attachments        :   message files
+│       └── F02PM6A1AUA\-Chevy.jpg       : message attachment
+├── IM\-scumbag.steve       : Your DMs with Scumbag Steve^
+│   └── 2022\-01\-04.json    :   (you did not have much to discuss —
+│                          :    Steve turned out to be a scumbag)
+├── channels.json          : all workspace channels information
+└── users.json             : all workspace users information
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B Channels
+The channels are be saved in directories, named after the channel title, i.e.
+\fB#random\fP would be saved to "random" directory.  The directory will contain
+a set of JSON files, one per each day.
+.TP
+.B Users
+User directories will have an "IM\-" prefix, following by the users\(aq Slack
+handle.
+.TP
+.B Group Messages
+Group messages will have name listing all the users handles involved.
+.UNINDENT
+.sp
+^In case you\(aqre wondering who\(aqs \fI\%Scumbag Steve\fP\&.
 .SH COMMAND LINE FLAGS REFERENCE
 .sp
 In this section there will be some explanation provided for the
@@ -413,7 +480,7 @@ slackdump \-h
 .UNINDENT
 .UNINDENT
 .sp
-Command line flags are described as of version \fBv1.3.1\fP\&.
+Command line flags are described as of version \fBv2.0.0\fP\&.
 .INDENT 0.0
 .TP
 .B \-V
@@ -458,6 +525,10 @@ need everything from the beginning of times.
 .B \-dump\-to
 timestamp of the latest message to fetch to
 (i.e. 2020\-12\-31T23:59:59).  Same as above, but for upper boundary.
+.TP
+.B \-export\-dir name
+enables the mode of operation to "Slack Export" mode and sets the export
+directory to "name".
 .TP
 .B \-f
 shorthand for \-download (means "files")
