@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"html/template"
 	"io"
-	"os"
 	"strings"
 
 	"github.com/rusq/dlog"
@@ -18,7 +17,6 @@ import (
 const filenameTmplName = "fnt"
 
 type Config struct {
-	Creds     SlackCreds
 	ListFlags ListFlags
 
 	Input  Input  // parameters of the input
@@ -79,51 +77,6 @@ func (out Output) IsText() bool {
 	return out.Format == OutputTypeText
 }
 
-// SlackCreds stores Slack credentials.
-type SlackCreds struct {
-	// Token is the Slack auth-token value.
-	Token string
-	// Cookie may contain cookie value or a filename.  I have mixed feelings
-	// about this, but blame cURL, they use the same approach for --cookie, and
-	// I have no imagination.  Also, it's simpler from the usability POV, as
-	// there's no additional parameter.  Well, I'll repeat this to myself until
-	// I start to believe in it.
-	Cookie string
-}
-
-func (c *SlackCreds) Validate() error {
-	if c.Token == "" {
-		return fmt.Errorf("token is not specified")
-	} else if c.Cookie == "" {
-		return fmt.Errorf("cookie is not specified")
-	}
-
-	// cleanup cookie
-	c.Cookie = strings.TrimPrefix(c.Cookie, "d=")
-
-	stat, err := os.Stat(c.Cookie)
-	if err != nil {
-		if os.IsNotExist(err) {
-			// cookie is not a file
-			return nil
-		}
-		return fmt.Errorf("cookie file: stat error: %w", err)
-	}
-
-	if stat.IsDir() {
-		return fmt.Errorf("cookie path is a directory")
-	}
-
-	// cookie is a file, try to open it for reading
-	f, err := os.Open(c.Cookie)
-	if err != nil {
-		return fmt.Errorf("error opening the cookie file: %w", err)
-	}
-	f.Close()
-
-	return nil
-}
-
 type ListFlags struct {
 	Users    bool
 	Channels bool
@@ -135,10 +88,6 @@ func (lf ListFlags) FlagsPresent() bool {
 
 // Validate checks if the command line parameters have valid values.
 func (p *Config) Validate() error {
-	if err := p.Creds.Validate(); err != nil {
-		return err
-	}
-
 	if p.ExportDirectory != "" {
 		dlog.Debugf("will operate in export mode")
 		return nil

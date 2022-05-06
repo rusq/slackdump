@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -48,6 +49,7 @@ var secrets = []string{".env", ".env.txt", "secrets.txt"}
 // params is the command line parameters
 type params struct {
 	appCfg app.Config
+	creds  slackCreds
 
 	traceFile    string // trace file
 	printVersion bool
@@ -70,10 +72,7 @@ func main() {
 		dlog.SetDebug(true)
 	}
 
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
-
-	if err := run(ctx, params); err != nil {
+	if err := run(context.Background(), params); err != nil {
 		if params.verbose {
 			dlog.Fatalf("%+v", err)
 		} else {
@@ -100,15 +99,22 @@ func run(ctx context.Context, p params) error {
 	ctx, task := trace.NewTask(ctx, "main.run")
 	defer task.End()
 
-	application, err := app.New(p.appCfg)
+	provider, err := p.creds.authProvider()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	application, err := app.New(p.appCfg, provider)
 	if err != nil {
 		trace.Logf(ctx, "error", "app.New: %s", err.Error())
 		return err
 	}
 
-	// deleting creds to avoid logging them in the trace.
-	p.appCfg.Creds = app.SlackCreds{}
+	// deleting slackCreds to avoid logging them in the trace.
 	trace.Logf(ctx, "info", "params: input: %+v", p)
+
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
 
 	if err := application.Run(ctx); err != nil {
 		trace.Logf(ctx, "error", "app.Run: %s", err.Error())
@@ -148,8 +154,8 @@ func parseCmdLine(args []string) (params, error) {
 	var p params
 
 	// authentication
-	fs.StringVar(&p.appCfg.Creds.Token, "t", osenv.Secret(slackTokenEnv, ""), "Specify slack `API_token`, (environment: "+slackTokenEnv+")")
-	fs.StringVar(&p.appCfg.Creds.Cookie, "cookie", osenv.Secret(slackCookieEnv, ""), "d= cookie `value` or a path to a cookie.txt file (environment: "+slackCookieEnv+")")
+	fs.StringVar(&p.creds.token, "t", osenv.Secret(slackTokenEnv, ""), "Specify slack `API_token`, (environment: "+slackTokenEnv+")")
+	fs.StringVar(&p.creds.cookie, "cookie", osenv.Secret(slackCookieEnv, ""), "d= cookie `value` or a path to a cookie.txt file (environment: "+slackCookieEnv+")")
 
 	// operation mode
 	fs.BoolVar(&p.appCfg.ListFlags.Channels, "c", false, "same as -list-channels")

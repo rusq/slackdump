@@ -9,6 +9,7 @@ import (
 	"github.com/rusq/dlog"
 
 	"github.com/rusq/slackdump/v2"
+	"github.com/rusq/slackdump/v2/auth"
 )
 
 const (
@@ -20,11 +21,12 @@ type App struct {
 	sd   *slackdump.SlackDumper
 	tmpl *template.Template
 
-	cfg Config
+	prov auth.Provider
+	cfg  Config
 }
 
 // New creates a new slackdump app.
-func New(cfg Config) (*App, error) {
+func New(cfg Config, provider auth.Provider) (*App, error) {
 	if err := cfg.Validate(); err != nil {
 		return nil, err
 	}
@@ -32,7 +34,7 @@ func New(cfg Config) (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &App{cfg: cfg, tmpl: tmpl}, nil
+	return &App{cfg: cfg, prov: provider, tmpl: tmpl}, nil
 }
 
 func (app *App) Run(ctx context.Context) error {
@@ -67,8 +69,7 @@ func (app *App) Run(ctx context.Context) error {
 func (app *App) init(ctx context.Context) error {
 	sd, err := slackdump.NewWithOptions(
 		ctx,
-		app.cfg.Creds.Token,
-		app.cfg.Creds.Cookie,
+		app.prov,
 		app.cfg.Options,
 	)
 	if err != nil {

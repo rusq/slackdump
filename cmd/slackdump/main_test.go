@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/internal/app"
-	"github.com/stretchr/testify/assert"
 )
 
 func Test_output_validFormat(t *testing.T) {
@@ -56,7 +57,7 @@ func Test_checkParameters(t *testing.T) {
 					Users:    false,
 					Channels: true,
 				},
-				Creds: app.SlackCreds{
+				Provider: app.SlackCreds{
 					Token:  "x",
 					Cookie: "d",
 				},
@@ -75,7 +76,7 @@ func Test_checkParameters(t *testing.T) {
 					Channels: false,
 					Users:    true,
 				},
-				Creds: app.SlackCreds{
+				Provider: app.SlackCreds{
 					Token:  "x",
 					Cookie: "d",
 				},

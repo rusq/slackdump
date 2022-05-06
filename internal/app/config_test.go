@@ -68,7 +68,7 @@ func TestConfig_compileValidateTemplate(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			p := &Config{
-				Creds:            tt.fields.Creds,
+				Provider:         tt.fields.Creds,
 				ListFlags:        tt.fields.ListFlags,
 				Input:            tt.fields.Input,
 				Output:           tt.fields.Output,
