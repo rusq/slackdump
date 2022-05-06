@@ -104,14 +104,15 @@ func (sd *SlackDumper) getChannels(ctx context.Context, chanTypes []string, cb f
 	return nil
 }
 
-// ToText outputs Channels cs to io.Writer w in Text format.
-func (cs Channels) ToText(sd *SlackDumper, w io.Writer) (err error) {
+// ToText outputs Channels to w in text format.  It uses Slackdumper instance
+// to resolve the user attributes.
+func (cs Channels) ToText(w io.Writer, sd *SlackDumper) (err error) {
 	const strFormat = "%s\t%s\t%s\t%s\n"
 	writer := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
 	defer writer.Flush()
 	fmt.Fprintf(writer, strFormat, "ID", "Arch", "Saved", "What")
 	for i, ch := range cs {
-		who := sd.whoThisChannelFor(&ch)
+		who := sd.channelName(&ch)
 		archived := "-"
 		if cs[i].IsArchived || sd.IsUserDeleted(ch.User) {
 			archived = "arch"
@@ -126,9 +127,8 @@ func (cs Channels) ToText(sd *SlackDumper, w io.Writer) (err error) {
 	return nil
 }
 
-// whoThisChannelFor return the proper name of the addressee of the channel
-// Parameters: channel and userIdMap - mapping slackID to users
-func (sd *SlackDumper) whoThisChannelFor(channel *slack.Channel) (who string) {
+// channelName return the "beautified" name of the channel.
+func (sd *SlackDumper) channelName(channel *slack.Channel) (who string) {
 	switch {
 	case channel.IsIM:
 		who = "@" + sd.username(channel.User)

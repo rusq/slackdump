@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/rusq/slackdump"
+	"github.com/rusq/slackdump/v2"
 )
 
 func TestConfig_compileValidateTemplate(t *testing.T) {

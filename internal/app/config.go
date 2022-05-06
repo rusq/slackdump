@@ -9,8 +9,10 @@ import (
 	"os"
 	"strings"
 
-	"github.com/rusq/slackdump"
+	"github.com/rusq/dlog"
 	"github.com/slack-go/slack"
+
+	"github.com/rusq/slackdump/v2"
 )
 
 const filenameTmplName = "fnt"
@@ -26,6 +28,8 @@ type Config struct {
 	Latest TimeValue // latest time to dump conversations to
 
 	FilenameTemplate string
+
+	ExportDirectory string
 
 	Options slackdump.Options
 }
@@ -133,6 +137,11 @@ func (lf ListFlags) FlagsPresent() bool {
 func (p *Config) Validate() error {
 	if err := p.Creds.Validate(); err != nil {
 		return err
+	}
+
+	if p.ExportDirectory != "" {
+		dlog.Debugf("will operate in export mode")
+		return nil
 	}
 
 	if !p.Input.IsValid() && !p.ListFlags.FlagsPresent() {

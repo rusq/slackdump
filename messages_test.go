@@ -12,6 +12,8 @@ import (
 	"github.com/slack-go/slack"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/time/rate"
+
+	"github.com/rusq/slackdump/v2/internal/fixtures"
 )
 
 var (
@@ -294,7 +296,7 @@ func TestSlackDumper_DumpMessages(t *testing.T) {
 				UserIndex: tt.fields.UserIndex,
 				options:   tt.fields.options,
 			}
-			got, err := sd.DumpMessages(tt.args.ctx, tt.args.channelID)
+			got, err := sd.DumpAllMessages(tt.args.ctx, tt.args.channelID)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("SlackDumper.DumpMessages() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -444,7 +446,7 @@ func TestSlackDumper_populateThreads(t *testing.T) {
 				l:         newLimiter(noTier, 1, 0),
 				msgs:      []Message{testMsg1},
 				channelID: "x",
-				dumpFn: func(ctx context.Context, l *rate.Limiter, channelID, threadTS string) ([]Message, error) {
+				dumpFn: func(ctx context.Context, l *rate.Limiter, channelID, threadTS string, processFn ...ProcessFunc) ([]Message, error) {
 					return nil, nil
 				},
 			},
@@ -458,7 +460,7 @@ func TestSlackDumper_populateThreads(t *testing.T) {
 				l:         newLimiter(noTier, 1, 0),
 				msgs:      []Message{testMsg1, testMsg4t},
 				channelID: "x",
-				dumpFn: func(ctx context.Context, l *rate.Limiter, channelID, threadTS string) ([]Message, error) {
+				dumpFn: func(ctx context.Context, l *rate.Limiter, channelID, threadTS string, processFn ...ProcessFunc) ([]Message, error) {
 					return []Message{testMsg4t, testMsg2}, nil
 				},
 			},
@@ -472,7 +474,7 @@ func TestSlackDumper_populateThreads(t *testing.T) {
 				l:         newLimiter(noTier, 1, 0),
 				msgs:      []Message{testMsg4t, testMsg1},
 				channelID: "x",
-				dumpFn: func(ctx context.Context, l *rate.Limiter, channelID, threadTS string) ([]Message, error) {
+				dumpFn: func(ctx context.Context, l *rate.Limiter, channelID, threadTS string, processFn ...ProcessFunc) ([]Message, error) {
 					return []Message{}, nil
 				},
 			},
@@ -486,7 +488,7 @@ func TestSlackDumper_populateThreads(t *testing.T) {
 				l:         newLimiter(noTier, 1, 0),
 				msgs:      []Message{testMsg4t},
 				channelID: "x",
-				dumpFn: func(ctx context.Context, l *rate.Limiter, channelID, threadTS string) ([]Message, error) {
+				dumpFn: func(ctx context.Context, l *rate.Limiter, channelID, threadTS string, processFn ...ProcessFunc) ([]Message, error) {
 					return nil, errors.New("bam")
 				},
 			},
@@ -760,7 +762,7 @@ func TestSlackDumper_DumpURL(t *testing.T) {
 				UserIndex: tt.fields.UserIndex,
 				options:   tt.fields.options,
 			}
-			got, err := sd.DumpURL(tt.args.ctx, tt.args.slackURL)
+			got, err := sd.DumpAllURL(tt.args.ctx, tt.args.slackURL)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("SlackDumper.DumpURL() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -974,6 +976,114 @@ func TestSlackDumper_getChannelName(t *testing.T) {
 			}
 			if got != tt.want {
 				t.Errorf("SlackDumper.getChannelName() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestMessage_IsBotMessage(t *testing.T) {
+	tests := []struct {
+		name string
+		m    Message
+		want bool
+	}{
+		{"not a bot",
+			fixtures.Load[Message](fixtures.ThreadMessage1JSON),
+			false,
+		},
+		{"bot message",
+			fixtures.Load[Message](fixtures.BotMessageThreadParentJSON),
+			true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.m.IsBotMessage(); got != tt.want {
+				t.Errorf("Message.IsBotMessage() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestMessage_IsThread(t *testing.T) {
+	tests := []struct {
+		name string
+		m    Message
+		want bool
+	}{
+		{"is thread (parent)",
+			fixtures.Load[Message](fixtures.BotMessageThreadParentJSON),
+			true,
+		},
+		{"is thread (child)",
+			fixtures.Load[Message](fixtures.BotMessageThreadChildJSON),
+			true,
+		},
+		{"not a thread",
+			fixtures.Load[Message](fixtures.SimpleMessageJSON),
+			false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.m.IsThread(); got != tt.want {
+				t.Errorf("Message.IsThread() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestMessage_IsThreadParent(t *testing.T) {
+	tests := []struct {
+		name string
+		m    Message
+		want bool
+	}{
+		{"is thread (parent)",
+			fixtures.Load[Message](fixtures.BotMessageThreadParentJSON),
+			true,
+		},
+		{"is thread (child)",
+			fixtures.Load[Message](fixtures.BotMessageThreadChildJSON),
+			false,
+		},
+		{"not a thread",
+			fixtures.Load[Message](fixtures.SimpleMessageJSON),
+			false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.m.IsThreadParent(); got != tt.want {
+				t.Errorf("Message.IsThreadParent() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestMessage_IsThreadChild(t *testing.T) {
+	tests := []struct {
+		name string
+		m    Message
+		want bool
+	}{
+		{"is thread (parent)",
+			fixtures.Load[Message](fixtures.BotMessageThreadParentJSON),
+			false,
+		},
+		{"is thread (child)",
+			fixtures.Load[Message](fixtures.BotMessageThreadChildJSON),
+			true,
+		},
+		{"not a thread",
+			fixtures.Load[Message](fixtures.SimpleMessageJSON),
+			false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.m.IsThreadChild(); got != tt.want {
+				t.Errorf("Message.IsThreadChild() = %v, want %v", got, tt.want)
 			}
 		})
 	}

@@ -23,6 +23,11 @@ func parseThreadID(threadID string) (time.Time, error) {
 	return parseSlackTS(threadID[1:11] + "." + threadID[11:])
 }
 
+// ParseSlackTS parses the slack timestamp.
+func ParseSlackTS(timestamp string) (time.Time, error) {
+	return parseSlackTS(timestamp)
+}
+
 func parseSlackTS(timestamp string) (time.Time, error) {
 	strTime := strings.Split(timestamp, ".")
 	var hi, lo int64
