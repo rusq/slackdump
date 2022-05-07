@@ -5,9 +5,7 @@ Slack Dumper
 - `Buy me a cup of tea`_
 - Join the discussion in Telegram_ or Slack_.
 - `Read the overview on Medium.com`_
-- .. image:: https://pkg.go.dev/badge/github.com/rusq/slackdump/v2.svg
-     :alt: Go Reference
-     :target: https://pkg.go.dev/github.com/rusq/slackdump/v2/
+- |go ref|
 
 Description
 ===========
@@ -75,18 +73,20 @@ Use:
     _ = sd
   }
 
+See |go ref|
+
 FAQ
 ===
 
 :Q: **Do I need to create a Slack application?**
 
-:A: No, you don't.  You need to grab that token and cookie from the
-    browser Slack session.  See Usage_ at the top of the file.
+:A: No, you don't.  Just run the application and EZ-Login 3000 will take
+    care of the authentication or, alternatively, grab that token and
+    cookie from the browser Slack session.  See `User Guide`_.
 
 :Q: **I'm getting "invalid_auth" error**
 
 :A: Go get the new Cookie from the browser and Token as well.
-
 
 
 Bulletin Board
@@ -111,3 +111,7 @@ Messages that were conveyed with the donations:
 
 .. _`TheSignChef.com`: https://www.glassdoor.com.au/Reviews/TheSignChef-com-Reviews-E793259.htm
 .. _`Get cookies.txt Chrome extension`: https://chrome.google.com/webstore/detail/get-cookiestxt/bgaddhkoddajcdgocldbbfleckgcbcid
+
+.. |go ref| image:: https://pkg.go.dev/badge/github.com/rusq/slackdump/v2.svg
+              :alt: Go Reference
+           :target: https://pkg.go.dev/github.com/rusq/slackdump/v2/
