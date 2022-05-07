@@ -56,6 +56,11 @@ The browser disappeared, but Slackdump doesn't do anything.
   the login procedure again.  If nothing helps, use the Manual_ login
   method.
 
+EZ-Login 3000 prompt does not appear, and I'm getting ``invalid_auth``.
+  Delete ``.env`` or ``.env.txt`` or ``secrets.txt`` files that might
+  contain obsolete login credentials, and EZ-Login 3000 prompt will
+  appear.
+
 [Index_]
 
 .. _playwright: https://playwright.dev
