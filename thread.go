@@ -91,7 +91,7 @@ func (sd *SlackDumper) dumpThread(ctx context.Context, l *rate.Limiter, channelI
 		cursor     string
 		fetchStart = time.Now()
 	)
-	for i := 1; ; i++ {
+	for i := 0; ; i++ {
 		var (
 			msgs       []slack.Message
 			hasmore    bool
@@ -103,14 +103,23 @@ func (sd *SlackDumper) dumpThread(ctx context.Context, l *rate.Limiter, channelI
 			trace.WithRegion(ctx, "GetConversationRepliesContext", func() {
 				msgs, hasmore, nextCursor, err = sd.client.GetConversationRepliesContext(
 					ctx,
-					&slack.GetConversationRepliesParameters{ChannelID: channelID, Timestamp: threadTS, Cursor: cursor},
+					&slack.GetConversationRepliesParameters{
+						ChannelID: channelID,
+						Timestamp: threadTS,
+						Cursor:    cursor,
+						Limit:     sd.options.RepliesPerReq,
+					},
 				)
 			})
 			return errors.WithStack(err)
 		}); err != nil {
 			return nil, err
 		}
-
+		// slack api returns the first message of a thread with every api call:
+		// strip the first message if i > 0 to avoid dupes
+		if 0 < i && 1 < len(msgs) {
+			msgs = msgs[1:]
+		}
 		thread = append(thread, sd.convertMsgs(msgs)...)
 
 		prs, err := runProcessFuncs(thread, channelID, processFn...)
@@ -119,10 +128,10 @@ func (sd *SlackDumper) dumpThread(ctx context.Context, l *rate.Limiter, channelI
 		}
 
 		dlog.Printf("  thread request #%5d, fetched: %4d, total: %8d, process results: %s (speed: %6.2f/sec, avg: %6.2f/sec)\n",
-			i, len(msgs), len(thread),
+			i+1, len(msgs), len(thread),
 			prs,
-			float64(len(msgs))/float64(time.Since(reqStart).Seconds()),
-			float64(len(thread))/float64(time.Since(fetchStart).Seconds()),
+			float64(len(msgs))/time.Since(reqStart).Seconds(),
+			float64(len(thread))/time.Since(fetchStart).Seconds(),
 		)
 
 		if !hasmore {

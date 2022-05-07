@@ -42,7 +42,7 @@ func WithRetry(ctx context.Context, l *rate.Limiter, maxAttempts int, fn func() 
 			break
 		}
 
-		trace.Logf(ctx, "error", "slackRetry: %s", err)
+		trace.Logf(ctx, "error", "slackRetry: %s after %d attempts", err, attempt+1)
 		var rle *slack.RateLimitedError
 		if !errors.As(err, &rle) {
 			return errors.WithStack(err)
