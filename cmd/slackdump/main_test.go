@@ -52,39 +52,42 @@ func Test_checkParameters(t *testing.T) {
 		{
 			"channels",
 			args{[]string{"-c", "-t", "x", "-cookie", "d"}},
-			params{appCfg: app.Config{
-				ListFlags: app.ListFlags{
-					Users:    false,
-					Channels: true,
+			params{
+				creds: slackCreds{
+					token:  "x",
+					cookie: "d",
 				},
-				Provider: app.SlackCreds{
-					Token:  "x",
-					Cookie: "d",
-				},
-				FilenameTemplate: defFilenameTemplate,
-				Input:            app.Input{List: []string{}},
-				Output:           app.Output{Filename: "-", Format: "text"},
-				Options:          slackdump.DefOptions,
-			}},
+				appCfg: app.Config{
+					ListFlags: app.ListFlags{
+						Users:    false,
+						Channels: true,
+					},
+
+					FilenameTemplate: defFilenameTemplate,
+					Input:            app.Input{List: []string{}},
+					Output:           app.Output{Filename: "-", Format: "text"},
+					Options:          slackdump.DefOptions,
+				}},
 			false,
 		},
 		{
 			"users",
 			args{[]string{"-u", "-t", "x", "-cookie", "d"}},
-			params{appCfg: app.Config{
-				ListFlags: app.ListFlags{
-					Channels: false,
-					Users:    true,
+			params{
+				creds: slackCreds{
+					token:  "x",
+					cookie: "d",
 				},
-				Provider: app.SlackCreds{
-					Token:  "x",
-					Cookie: "d",
-				},
-				FilenameTemplate: defFilenameTemplate,
-				Input:            app.Input{List: []string{}},
-				Output:           app.Output{Filename: "-", Format: "text"},
-				Options:          slackdump.DefOptions,
-			}},
+				appCfg: app.Config{
+					ListFlags: app.ListFlags{
+						Channels: false,
+						Users:    true,
+					},
+					FilenameTemplate: defFilenameTemplate,
+					Input:            app.Input{List: []string{}},
+					Output:           app.Output{Filename: "-", Format: "text"},
+					Options:          slackdump.DefOptions,
+				}},
 			false,
 		},
 	}
