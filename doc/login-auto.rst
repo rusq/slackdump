@@ -3,6 +3,8 @@ Automatic login: EZ-Login 3000
 ==============================
 [Index_]
 
+|ez-login|
+
 *EZ-Login 3000* provides an easy solution to login to Slack without the
 complex steps of manually extracting the token and cookies from the
 browser.  To use it - just start the Slackdump, and you will be
@@ -59,3 +61,6 @@ The browser disappeared, but Slackdump doesn't do anything.
 .. _playwright: https://playwright.dev
 .. _Index: README.rst
 .. _Manual: login-manual.rst
+
+.. |ez-login| image:: ez-login.png
+              :width: 320px
