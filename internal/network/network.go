@@ -50,7 +50,7 @@ func WithRetry(ctx context.Context, l *rate.Limiter, maxAttempts int, fn func() 
 
 		msg := fmt.Sprintf("got rate limited, sleeping %s", rle.RetryAfter)
 		trace.Log(ctx, "info", msg)
-		dlog.Print(msg)
+		dlog.Debug(msg)
 
 		time.Sleep(rle.RetryAfter)
 	}

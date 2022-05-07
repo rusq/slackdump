@@ -102,6 +102,8 @@ func run(ctx context.Context, p params) error {
 	provider, err := p.creds.authProvider()
 	if err != nil {
 		log.Fatal(err)
+	} else {
+		p.creds = slackCreds{}
 	}
 
 	application, err := app.New(p.appCfg, provider)
@@ -111,6 +113,7 @@ func run(ctx context.Context, p params) error {
 	}
 
 	// deleting slackCreds to avoid logging them in the trace.
+
 	trace.Logf(ctx, "info", "params: input: %+v", p)
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)

@@ -17,6 +17,8 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rusq/dlog"
 	"github.com/slack-go/slack"
+
+	"github.com/rusq/slackdump/v2/internal/network"
 )
 
 // Users is a slice of users.
@@ -57,7 +59,7 @@ func (sd *SlackDumper) fetchUsers(ctx context.Context) (Users, error) {
 	var (
 		users []slack.User
 	)
-	if err := withRetry(ctx, newLimiter(tier2, sd.options.Tier2Burst, int(sd.options.Tier2Boost)), sd.options.Tier2Retries, func() error {
+	if err := withRetry(ctx, network.NewLimiter(network.Tier2, sd.options.Tier2Burst, int(sd.options.Tier2Boost)), sd.options.Tier2Retries, func() error {
 		var err error
 		users, err = sd.client.GetUsersContext(ctx)
 		return err

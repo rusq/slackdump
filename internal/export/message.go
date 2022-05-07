@@ -7,6 +7,7 @@ import (
 	"github.com/slack-go/slack"
 
 	"github.com/rusq/slackdump/v2"
+	"github.com/rusq/slackdump/v2/internal/structures"
 )
 
 // ExportMessage is the slack.Message with additional fields usually found in
@@ -36,7 +37,7 @@ type ExportUserProfile struct {
 }
 
 func (em ExportMessage) Time() time.Time {
-	ts, _ := slackdump.ParseSlackTS(em.Timestamp)
+	ts, _ := structures.ParseSlackTS(em.Timestamp)
 	return ts
 }
 
@@ -78,8 +79,8 @@ func newExportMessage(msg *slackdump.Message, users userIndex) *ExportMessage {
 	}
 
 	sort.Slice(expMsg.Msg.Replies, func(i, j int) bool {
-		tsi, _ := slackdump.ParseSlackTS(expMsg.Msg.Replies[i].Timestamp)
-		tsj, _ := slackdump.ParseSlackTS(expMsg.Msg.Replies[j].Timestamp)
+		tsi, _ := structures.ParseSlackTS(expMsg.Msg.Replies[i].Timestamp)
+		tsj, _ := structures.ParseSlackTS(expMsg.Msg.Replies[j].Timestamp)
 		return tsi.Before(tsj)
 	})
 	makeUniq(&expMsg.ReplyUsers)

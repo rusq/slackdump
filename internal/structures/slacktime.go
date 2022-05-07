@@ -1,4 +1,4 @@
-package slackdump
+package structures
 
 // in this file: slack timestamp parsing functions
 
@@ -11,24 +11,20 @@ import (
 	"github.com/pkg/errors"
 )
 
-// parseThreadID parses the thread id (ie. p1577694990000400) and returns
+// ParseThreadID parses the thread id (ie. p1577694990000400) and returns
 // time.Time.
-func parseThreadID(threadID string) (time.Time, error) {
+func ParseThreadID(threadID string) (time.Time, error) {
 	if len(threadID) == 0 || threadID[0] != 'p' {
 		return time.Time{}, errors.New("not a thread ID")
 	}
 	if _, err := strconv.ParseInt(threadID[1:], 10, 64); err != nil {
 		return time.Time{}, errors.New("invalid thread ID")
 	}
-	return parseSlackTS(threadID[1:11] + "." + threadID[11:])
+	return ParseSlackTS(threadID[1:11] + "." + threadID[11:])
 }
 
 // ParseSlackTS parses the slack timestamp.
 func ParseSlackTS(timestamp string) (time.Time, error) {
-	return parseSlackTS(timestamp)
-}
-
-func parseSlackTS(timestamp string) (time.Time, error) {
 	strTime := strings.Split(timestamp, ".")
 	var hi, lo int64
 
@@ -46,7 +42,7 @@ func parseSlackTS(timestamp string) (time.Time, error) {
 	return t, nil
 }
 
-func formatSlackTS(ts time.Time) string {
+func FormatSlackTS(ts time.Time) string {
 	hi := ts.Unix()
 	lo := ts.UnixNano() % 1_000_000
 	return fmt.Sprintf("%d.%06d", hi, lo)

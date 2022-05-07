@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/rusq/slackdump/v2/internal/mocks/mock_os"
+	"github.com/rusq/slackdump/v2/internal/network"
 )
 
 func Test_maxStringLength(t *testing.T) {
@@ -137,7 +138,7 @@ func Test_checkCacheFile(t *testing.T) {
 func Test_newLimiter(t *testing.T) {
 	t.Parallel()
 	type args struct {
-		t     tier
+		t     network.Tier
 		burst uint
 		boost int
 	}
@@ -147,18 +148,18 @@ func Test_newLimiter(t *testing.T) {
 		wantDelay time.Duration
 	}{
 		{
-			"tier test",
+			"Tier test",
 			args{
-				tier3,
+				network.Tier3,
 				1,
 				0,
 			},
-			time.Duration(math.Round(60.0/float64(tier3)*1000.0)) * time.Millisecond, // 6/5 sec
+			time.Duration(math.Round(60.0/float64(network.Tier3)*1000.0)) * time.Millisecond, // 6/5 sec
 		},
 		{
 			"burst 2",
 			args{
-				tier3,
+				network.Tier3,
 				2,
 				0,
 			},
@@ -167,18 +168,18 @@ func Test_newLimiter(t *testing.T) {
 		{
 			"boost 70",
 			args{
-				tier3,
+				network.Tier3,
 				1,
 				70,
 			},
-			time.Duration(math.Round(60.0/float64(tier3+70)*1000.0)) * time.Millisecond, // 500 msec
+			time.Duration(math.Round(60.0/float64(network.Tier3+70)*1000.0)) * time.Millisecond, // 500 msec
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			got := newLimiter(tt.args.t, tt.args.burst, tt.args.boost)
+			got := network.NewLimiter(tt.args.t, tt.args.burst, tt.args.boost)
 
 			assert.NoError(t, got.Wait(context.Background())) // prime
 

@@ -13,7 +13,7 @@ import (
 	"github.com/rusq/dlog"
 )
 
-// Client is the client for Browser Auth Provider
+// Client is the client for Browser Auth Provider.
 type Client struct {
 	workspace string
 }
@@ -77,6 +77,7 @@ func (cl *Client) Authenticate() (string, []http.Cookie, error) {
 	return token, convertCookies(state.Cookies), nil
 }
 
+// tokenRE is the regexp that matches a valid Slack Client token.
 var tokenRE = regexp.MustCompile(`xoxc-[0-9]{12}-[0-9]{12}-[0-9]{13}-[0-9a-z]{64}`)
 
 func extractToken(uri string) (string, error) {
@@ -120,10 +121,14 @@ var str2samesite = map[string]http.SameSite{
 	"Strict": http.SameSiteStrictMode,
 }
 
+// sameSite returns the constant value that maps to the string value of SameSite.
 func sameSite(val string) http.SameSite {
 	return str2samesite[val]
 }
 
+// float2time converts a float value of Unix time to time, nanoseconds value
+// is discarded.  If v == -1, it returns the date approximately 5 years from
+// Now().
 func float2time(v float64) time.Time {
 	if v == -1.0 {
 		return time.Now().Add(5 * 365 * 24 * time.Hour)

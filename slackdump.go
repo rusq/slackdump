@@ -49,20 +49,6 @@ type clienter interface {
 	GetUsersContext(ctx context.Context) ([]slack.User, error)
 }
 
-// tier represents rate limit tier:
-// https://api.slack.com/docs/rate-limits
-type tier int
-
-const (
-	// base throttling defined as events per minute
-	noTier tier = 6000 // no tier is applied
-
-	// tier1 tier = 1
-	tier2 tier = 20
-	tier3 tier = 50
-	// tier4 tier = 100
-)
-
 // AllChanTypes enumerates all API-supported channel types as of 03/2022.
 var AllChanTypes = []string{"mpim", "im", "public_channel", "private_channel"}
 
@@ -126,8 +112,8 @@ func toPtrCookies(cc []http.Cookie) []*http.Cookie {
 	return ret
 }
 
-func (sd *SlackDumper) limiter(t tier) *rate.Limiter {
-	return newLimiter(t, sd.options.Tier3Burst, int(sd.options.Tier3Boost))
+func (sd *SlackDumper) limiter(t network.Tier) *rate.Limiter {
+	return network.NewLimiter(t, sd.options.Tier3Burst, int(sd.options.Tier3Boost))
 }
 
 // withRetry will run the callback function fn. If the function returns
@@ -135,14 +121,6 @@ func (sd *SlackDumper) limiter(t tier) *rate.Limiter {
 // maxAttempts times. It will return an error if it runs out of attempts.
 func withRetry(ctx context.Context, l *rate.Limiter, maxAttempts int, fn func() error) error {
 	return network.WithRetry(ctx, l, maxAttempts, fn)
-}
-
-// newLimiter returns throttler with rateLimit requests per minute.
-// optionally caller may specify the boost
-func newLimiter(t tier, burst uint, boost int) *rate.Limiter {
-	callsPerSec := float64(int(t)+boost) / 60.0
-	l := rate.NewLimiter(rate.Limit(callsPerSec), int(burst))
-	return l
 }
 
 func maxStringLength(strings []string) (maxlen int) {

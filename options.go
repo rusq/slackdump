@@ -14,11 +14,11 @@ type Options struct {
 	DumpFiles           bool          // will we save the conversation files?
 	Workers             int           // number of file-saving workers
 	DownloadRetries     int           // if we get rate limited on file downloads, this is how many times we're going to retry
-	Tier2Boost          uint          // tier-2 limiter boost
-	Tier2Burst          uint          // tier-2 limiter burst
-	Tier2Retries        int           // tier-2 retries when getting 429 on channels fetch
-	Tier3Boost          uint          // tier-3 limiter boost allows to increase or decrease the slack tier req/min rate.  Affects all tiers.
-	Tier3Burst          uint          // tier-3 limiter burst allows to set the limiter burst in req/sec.  Default of 1 is safe.
+	Tier2Boost          uint          // Tier-2 limiter boost
+	Tier2Burst          uint          // Tier-2 limiter burst
+	Tier2Retries        int           // Tier-2 retries when getting 429 on channels fetch
+	Tier3Boost          uint          // Tier-3 limiter boost allows to increase or decrease the slack Tier req/min rate.  Affects all tiers.
+	Tier3Burst          uint          // Tier-3 limiter burst allows to set the limiter burst in req/sec.  Default of 1 is safe.
 	Tier3Retries        int           // number of retries to do when getting 429 on conversation fetch
 	ConversationsPerReq int           // number of messages we get per 1 API request. bigger the number, less requests, but they become more beefy.
 	ChannelsPerReq      int           // number of channels to fetch per 1 API request.
@@ -37,9 +37,9 @@ var DefOptions = Options{
 	Tier2Retries:        20,            // see #28, sometimes slack is being difficult
 	Tier3Boost:          120,           // playing safe there, but generally value of 120 is fine.
 	Tier3Burst:          1,             // safe value, who would ever want to modify it? I don't know.
-	Tier3Retries:        3,             // on tier 3 this was never a problem, even with limiter-boost=120
+	Tier3Retries:        3,             // on Tier 3 this was never a problem, even with limiter-boost=120
 	ConversationsPerReq: 200,           // this is the recommended value by Slack. But who listens to them anyway.
-	ChannelsPerReq:      100,           // channels are tier2 rate limited. Slack is greedy and never returns more than 100 per call.
+	ChannelsPerReq:      100,           // channels are Tier2 rate limited. Slack is greedy and never returns more than 100 per call.
 	UserCacheFilename:   "users.cache", // seems logical
 	MaxUserCacheAge:     4 * time.Hour, // quick math:  that's 1/6th of a day, how's that, huh?
 }
@@ -75,7 +75,7 @@ func RetryDownloads(attempts int) Option {
 }
 
 // Tier3Boost allows to deliver a magic kick to the limiter, to override the
-// base slack tier limits.  The resulting
+// base slack Tier limits.  The resulting
 // events per minute will be calculated like this:
 //
 //   events_per_sec =  (<slack_tier_epm> + <eventsPerMin>) / 60.0
@@ -93,7 +93,7 @@ func Tier3Burst(eventsPerSec uint) Option {
 }
 
 // Tier2Boost allows to deliver a magic kick to the limiter, to override the
-// base slack tier limits.  The resulting
+// base slack Tier limits.  The resulting
 // events per minute will be calculated like this:
 //
 //   events_per_sec =  (<slack_tier_epm> + <eventsPerMin>) / 60.0
