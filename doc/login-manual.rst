@@ -85,4 +85,4 @@ Setting up the application
 
 [Index_]
 
-.. _Index: index.rst
+.. _Index: README.rst

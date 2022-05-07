@@ -18,11 +18,11 @@ along with some instructions, asking for the Slack Workspace Name::
   Enter Slack Workspace Name: _
 
 You can paste the URL of your Slack Workspace, or just type in the
-name of the workspace. For example::
+name of the workspace.  For example::
 
   Enter Slack Workspace Name: https://evilcorp.slack.com
 
-                      - OR -
+OR::
 
   Enter Slack Workspace Name: evilcorp
 
@@ -57,5 +57,5 @@ The browser disappeared, but Slackdump doesn't do anything.
 [Index_]
 
 .. _playwright: https://playwright.dev
-.. _Index: index.rst
+.. _Index: README.rst
 .. _Manual: login-manual.rst
