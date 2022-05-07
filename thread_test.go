@@ -43,7 +43,7 @@ func TestSlackDumper_DumpThread(t *testing.T) {
 				mc.EXPECT().
 					GetConversationRepliesContext(
 						gomock.Any(),
-						&slack.GetConversationRepliesParameters{ChannelID: "CHANNEL", Timestamp: "THREAD"},
+						&slack.GetConversationRepliesParameters{ChannelID: "CHANNEL", Timestamp: "THREAD", Limit: DefOptions.RepliesPerReq},
 					).
 					Return(
 						[]slack.Message{testMsg1.Message, testMsg2.Message, testMsg3.Message},
@@ -65,7 +65,7 @@ func TestSlackDumper_DumpThread(t *testing.T) {
 				mc.EXPECT().
 					GetConversationRepliesContext(
 						gomock.Any(),
-						&slack.GetConversationRepliesParameters{ChannelID: "CHANNEL", Timestamp: "THREAD"},
+						&slack.GetConversationRepliesParameters{ChannelID: "CHANNEL", Timestamp: "THREAD", Limit: DefOptions.RepliesPerReq},
 					).
 					Return(
 						[]slack.Message{testMsg1.Message},
@@ -77,7 +77,7 @@ func TestSlackDumper_DumpThread(t *testing.T) {
 				mc.EXPECT().
 					GetConversationRepliesContext(
 						gomock.Any(),
-						&slack.GetConversationRepliesParameters{ChannelID: "CHANNEL", Timestamp: "THREAD", Cursor: "blah"},
+						&slack.GetConversationRepliesParameters{ChannelID: "CHANNEL", Timestamp: "THREAD", Cursor: "blah", Limit: DefOptions.RepliesPerReq},
 					).
 					Return(
 						[]slack.Message{testMsg2.Message},
@@ -273,7 +273,7 @@ func TestSlackDumper_dumpThread(t *testing.T) {
 				mc.EXPECT().
 					GetConversationRepliesContext(
 						gomock.Any(),
-						&slack.GetConversationRepliesParameters{ChannelID: "CHANNEL", Timestamp: "THREAD"},
+						&slack.GetConversationRepliesParameters{ChannelID: "CHANNEL", Timestamp: "THREAD", Limit: DefOptions.RepliesPerReq},
 					).
 					Return(
 						[]slack.Message{testMsg1.Message},
@@ -285,7 +285,7 @@ func TestSlackDumper_dumpThread(t *testing.T) {
 				mc.EXPECT().
 					GetConversationRepliesContext(
 						gomock.Any(),
-						&slack.GetConversationRepliesParameters{ChannelID: "CHANNEL", Timestamp: "THREAD", Cursor: "blah"},
+						&slack.GetConversationRepliesParameters{ChannelID: "CHANNEL", Timestamp: "THREAD", Cursor: "blah", Limit: DefOptions.RepliesPerReq},
 					).
 					Return(
 						[]slack.Message{testMsg2.Message},
