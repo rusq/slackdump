@@ -1,4 +1,4 @@
-package slackdump
+package structures
 
 import (
 	"reflect"
@@ -28,7 +28,7 @@ func Test_parseSlackTS(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := parseSlackTS(tt.args.timestamp)
+			got, err := ParseSlackTS(tt.args.timestamp)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("fromSlackTime() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -54,7 +54,7 @@ func Test_formatSlackTS(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := formatSlackTS(tt.args.ts); got != tt.want {
+			if got := FormatSlackTS(tt.args.ts); got != tt.want {
 				t.Errorf("toSlackTime() = %v, want %v", got, tt.want)
 			}
 		})
@@ -98,7 +98,7 @@ func Test_parseThreadID(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := parseThreadID(tt.args.threadID)
+			got, err := ParseThreadID(tt.args.threadID)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("parseThreadID() error = %v, wantErr %v", err, tt.wantErr)
 				return

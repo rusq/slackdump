@@ -14,6 +14,8 @@ import (
 
 	"github.com/rusq/dlog"
 	"github.com/slack-go/slack"
+
+	"github.com/rusq/slackdump/v2/internal/network"
 )
 
 // Channels keeps slice of channels
@@ -53,7 +55,7 @@ func (sd *SlackDumper) getChannels(ctx context.Context, chanTypes []string, cb f
 	ctx, task := trace.NewTask(ctx, "getChannels")
 	defer task.End()
 
-	limiter := newLimiter(tier2, sd.options.Tier2Burst, int(sd.options.Tier2Boost))
+	limiter := network.NewLimiter(network.Tier2, sd.options.Tier2Burst, int(sd.options.Tier2Boost))
 
 	if chanTypes == nil {
 		chanTypes = AllChanTypes

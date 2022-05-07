@@ -17,6 +17,9 @@ import (
 	"github.com/rusq/dlog"
 	"github.com/slack-go/slack"
 	"golang.org/x/time/rate"
+
+	"github.com/rusq/slackdump/v2/internal/network"
+	"github.com/rusq/slackdump/v2/internal/structures"
 )
 
 // time format for text output.
@@ -71,7 +74,7 @@ type Message struct {
 }
 
 func (m Message) Datetime() (time.Time, error) {
-	return parseSlackTS(m.Timestamp)
+	return structures.ParseSlackTS(m.Timestamp)
 }
 
 // IsBotMessage returns true if the message is from a bot.
@@ -132,7 +135,7 @@ func (sd *SlackDumper) dumpURL(ctx context.Context, slackURL string, oldest, lat
 
 	trace.Logf(ctx, "info", "slackURL: %q", slackURL)
 
-	ui, err := parseURL(slackURL)
+	ui, err := structures.ParseURL(slackURL)
 	if err != nil {
 		return nil, err
 	}
@@ -156,7 +159,7 @@ func (sd *SlackDumper) DumpAllMessages(ctx context.Context, channelID string) (*
 // that will be called for each message chunk downloaded from the Slack API.
 func (sd *SlackDumper) DumpMessages(ctx context.Context, channelID string, oldest, latest time.Time, processFn ...ProcessFunc) (*Conversation, error) {
 	if sd.options.DumpFiles {
-		fn, cancelFn, err := sd.newFileProcessFn(ctx, channelID, sd.limiter(noTier))
+		fn, cancelFn, err := sd.newFileProcessFn(ctx, channelID, sd.limiter(network.NoTier))
 		if err != nil {
 			return nil, err
 		}
@@ -188,8 +191,8 @@ func (sd *SlackDumper) dumpMessages(ctx context.Context, channelID string, oldes
 
 	var (
 		// slack rate limits are per method, so we're safe to use different limiters for different mehtods.
-		convLimiter   = sd.limiter(tier3)
-		threadLimiter = sd.limiter(tier3)
+		convLimiter   = sd.limiter(network.Tier3)
+		threadLimiter = sd.limiter(network.Tier3)
 	)
 
 	// add thread dumper.  It should go first, because it populates message
@@ -250,7 +253,7 @@ func (sd *SlackDumper) dumpMessages(ctx context.Context, channelID string, oldes
 
 	sortMessages(messages)
 
-	name, err := sd.getChannelName(ctx, sd.limiter(tier3), channelID)
+	name, err := sd.getChannelName(ctx, sd.limiter(network.Tier3), channelID)
 	if err != nil {
 		return nil, err
 	}
@@ -279,11 +282,11 @@ func (sd *SlackDumper) convHistoryParams(channelID, cursor string, oldest, lates
 		Limit:     sd.options.ConversationsPerReq,
 	}
 	if !oldest.IsZero() {
-		params.Oldest = formatSlackTS(oldest)
+		params.Oldest = structures.FormatSlackTS(oldest)
 		params.Inclusive = true // make sure we include the messages at this exact TS
 	}
 	if !latest.IsZero() {
-		params.Latest = formatSlackTS(latest)
+		params.Latest = structures.FormatSlackTS(latest)
 		params.Inclusive = true
 	}
 	return params
@@ -295,7 +298,7 @@ func (sd *SlackDumper) generateText(w io.Writer, m []Message, prefix string) err
 		prevTime time.Time
 	)
 	for _, message := range m {
-		t, err := parseSlackTS(message.Timestamp)
+		t, err := structures.ParseSlackTS(message.Timestamp)
 		if err != nil {
 			return err
 		}

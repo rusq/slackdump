@@ -2,15 +2,17 @@ package slackdump
 
 import (
 	"context"
+	"log"
 	"math"
-	"os"
-	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/golang/mock/gomock"
-	"github.com/rusq/slackdump/v2/internal/mocks/mock_os"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/rusq/slackdump/v2/auth"
+	"github.com/rusq/slackdump/v2/internal/mocks/mock_os"
+	"github.com/rusq/slackdump/v2/internal/network"
 )
 
 func Test_maxStringLength(t *testing.T) {
@@ -138,7 +140,7 @@ func Test_checkCacheFile(t *testing.T) {
 func Test_newLimiter(t *testing.T) {
 	t.Parallel()
 	type args struct {
-		t     tier
+		t     network.Tier
 		burst uint
 		boost int
 	}
@@ -148,18 +150,18 @@ func Test_newLimiter(t *testing.T) {
 		wantDelay time.Duration
 	}{
 		{
-			"tier test",
+			"Tier test",
 			args{
-				tier3,
+				network.Tier3,
 				1,
 				0,
 			},
-			time.Duration(math.Round(60.0/float64(tier3)*1000.0)) * time.Millisecond, // 6/5 sec
+			time.Duration(math.Round(60.0/float64(network.Tier3)*1000.0)) * time.Millisecond, // 6/5 sec
 		},
 		{
 			"burst 2",
 			args{
-				tier3,
+				network.Tier3,
 				2,
 				0,
 			},
@@ -168,18 +170,18 @@ func Test_newLimiter(t *testing.T) {
 		{
 			"boost 70",
 			args{
-				tier3,
+				network.Tier3,
 				1,
 				70,
 			},
-			time.Duration(math.Round(60.0/float64(tier3+70)*1000.0)) * time.Millisecond, // 500 msec
+			time.Duration(math.Round(60.0/float64(network.Tier3+70)*1000.0)) * time.Millisecond, // 500 msec
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			got := newLimiter(tt.args.t, tt.args.burst, tt.args.boost)
+			got := network.NewLimiter(tt.args.t, tt.args.burst, tt.args.boost)
 
 			assert.NoError(t, got.Wait(context.Background())) // prime
 
@@ -193,28 +195,44 @@ func Test_newLimiter(t *testing.T) {
 	}
 }
 
-func Test_isExistingFile(t *testing.T) {
-	testfile := filepath.Join(t.TempDir(), "cookies.txt")
-	if err := os.WriteFile(testfile, []byte("blah"), 0600); err != nil {
-		t.Fatal(err)
+func ExampleNew_tokenAndCookie() {
+	provider, err := auth.NewValueAuth("xoxc-...", "xoxd-...")
+	if err != nil {
+		log.Print(err)
+		return
 	}
+	sd, err := New(context.Background(), provider)
+	if err != nil {
+		log.Print(err)
+		return
+	}
+	_ = sd
+}
 
-	type args struct {
-		cookie string
+func ExampleNew_cookieFile() {
+	provider, err := auth.NewCookieFileAuth("xoxc-...", "cookies.txt")
+	if err != nil {
+		log.Print(err)
+		return
 	}
-	tests := []struct {
-		name string
-		args args
-		want bool
-	}{
-		{"not a file", args{"$blah"}, false},
-		{"file", args{testfile}, true},
+	sd, err := New(context.Background(), provider)
+	if err != nil {
+		log.Print(err)
+		return
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := isExistingFile(tt.args.cookie); got != tt.want {
-				t.Errorf("isExistingFile() = %v, want %v", got, tt.want)
-			}
-		})
+	_ = sd
+}
+
+func ExampleNew_browserAuth() {
+	provider, err := auth.NewBrowserAuth()
+	if err != nil {
+		log.Print(err)
+		return
 	}
+	sd, err := New(context.Background(), provider)
+	if err != nil {
+		log.Print(err)
+		return
+	}
+	_ = sd
 }

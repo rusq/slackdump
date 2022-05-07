@@ -1,4 +1,4 @@
-package slackdump
+package structures
 
 // In this file: slack URL parsing functions.
 
@@ -10,22 +10,22 @@ import (
 	"github.com/pkg/errors"
 )
 
-type urlInfo struct {
+type UrlInfo struct {
 	Channel  string
 	ThreadTS string
 }
 
-func (u urlInfo) IsThread() bool {
+func (u UrlInfo) IsThread() bool {
 	return u.ThreadTS != ""
 }
 
-func (u urlInfo) IsValid() bool {
+func (u UrlInfo) IsValid() bool {
 	return u.Channel != "" || (u.Channel != "" && u.ThreadTS != "")
 }
 
 var errUnsupportedURL = errors.New("unsuuported URL type")
 
-func parseURL(slackURL string) (*urlInfo, error) {
+func ParseURL(slackURL string) (*UrlInfo, error) {
 	if slackURL == "" {
 		return nil, errors.New("no url provided")
 	}
@@ -42,15 +42,15 @@ func parseURL(slackURL string) (*urlInfo, error) {
 		return nil, errUnsupportedURL
 	}
 
-	var ui urlInfo
+	var ui UrlInfo
 	switch len(parts) {
 	case 3:
 		//thread
-		ts, err := parseThreadID(parts[2])
+		ts, err := ParseThreadID(parts[2])
 		if err != nil {
 			return nil, errUnsupportedURL
 		}
-		ui.ThreadTS = formatSlackTS(ts)
+		ui.ThreadTS = FormatSlackTS(ts)
 		fallthrough
 	case 2:
 		// channel

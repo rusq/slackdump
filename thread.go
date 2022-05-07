@@ -9,6 +9,8 @@ import (
 	"github.com/rusq/dlog"
 	"github.com/slack-go/slack"
 	"golang.org/x/time/rate"
+
+	"github.com/rusq/slackdump/v2/internal/network"
 )
 
 type threadFunc func(ctx context.Context, l *rate.Limiter, channelID string, threadTS string, processFn ...ProcessFunc) ([]Message, error)
@@ -27,7 +29,7 @@ func (sd *SlackDumper) DumpThread(ctx context.Context, channelID, threadTS strin
 	trace.Logf(ctx, "info", "channelID: %q, threadTS: %q", channelID, threadTS)
 
 	if sd.options.DumpFiles {
-		fn, cancelFn, err := sd.newFileProcessFn(ctx, channelID, sd.limiter(noTier))
+		fn, cancelFn, err := sd.newFileProcessFn(ctx, channelID, sd.limiter(network.NoTier))
 		if err != nil {
 			return nil, err
 		}
@@ -35,14 +37,14 @@ func (sd *SlackDumper) DumpThread(ctx context.Context, channelID, threadTS strin
 		processFn = append(processFn, fn)
 	}
 
-	threadMsgs, err := sd.dumpThread(ctx, sd.limiter(tier3), channelID, threadTS, processFn...)
+	threadMsgs, err := sd.dumpThread(ctx, sd.limiter(network.Tier3), channelID, threadTS, processFn...)
 	if err != nil {
 		return nil, err
 	}
 
 	sortMessages(threadMsgs)
 
-	name, err := sd.getChannelName(ctx, sd.limiter(tier3), channelID)
+	name, err := sd.getChannelName(ctx, sd.limiter(network.Tier3), channelID)
 	if err != nil {
 		return nil, err
 	}

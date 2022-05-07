@@ -4,17 +4,18 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"runtime/trace"
 	"time"
 	"unicode/utf8"
 
-	cookiemonster "github.com/MercuryEngineering/CookieMonster"
 	"github.com/pkg/errors"
 	"github.com/rusq/dlog"
 	"github.com/slack-go/slack"
 	"golang.org/x/time/rate"
 
+	"github.com/rusq/slackdump/v2/auth"
 	"github.com/rusq/slackdump/v2/internal/network"
 )
 
@@ -48,20 +49,6 @@ type clienter interface {
 	GetUsersContext(ctx context.Context) ([]slack.User, error)
 }
 
-// tier represents rate limit tier:
-// https://api.slack.com/docs/rate-limits
-type tier int
-
-const (
-	// base throttling defined as events per minute
-	noTier tier = 6000 // no tier is applied
-
-	// tier1 tier = 1
-	tier2 tier = 20
-	tier3 tier = 50
-	// tier4 tier = 100
-)
-
 // AllChanTypes enumerates all API-supported channel types as of 03/2022.
 var AllChanTypes = []string{"mpim", "im", "public_channel", "private_channel"}
 
@@ -72,46 +59,28 @@ type Reporter interface {
 
 // New creates new client and populates the internal cache of users and channels
 // for lookups.
-func New(ctx context.Context, token string, cookie string, opts ...Option) (*SlackDumper, error) {
+func New(ctx context.Context, creds auth.Provider, opts ...Option) (*SlackDumper, error) {
 	options := DefOptions
 	for _, opt := range opts {
 		opt(&options)
 	}
 
-	return NewWithOptions(ctx, token, cookie, options)
+	return NewWithOptions(ctx, creds, options)
 }
 
 func (sd *SlackDumper) Client() *slack.Client {
 	return sd.client.(*slack.Client)
 }
 
-func makeSlakeOpts(cookie string) ([]slack.Option, error) {
-	if !isExistingFile(cookie) {
-		return []slack.Option{
-			slack.OptionAuthCookie(cookie),
-			slack.OptionCookie("d-s", fmt.Sprintf("%d", time.Now().Unix()-10)),
-		}, nil
-	}
-	dlog.Debug("cookie value appears to be an existing file")
-	cookies, err := cookiemonster.ParseFile(cookie)
-	if err != nil {
-		return nil, fmt.Errorf("error loading cookies file: %w", errors.WithStack(err))
-	}
-	return []slack.Option{slack.OptionCookieRAW(cookies...)}, nil
-}
-
-func NewWithOptions(ctx context.Context, token string, cookie string, opts Options) (*SlackDumper, error) {
+func NewWithOptions(ctx context.Context, authProvider auth.Provider, opts Options) (*SlackDumper, error) {
 	ctx, task := trace.NewTask(ctx, "NewWithOptions")
 	defer task.End()
 
-	trace.Logf(ctx, "startup", "has_token=%v has_cookie=%v cookie_is_file=%v", token != "", cookie != "", isExistingFile(cookie))
-
-	sopts, err := makeSlakeOpts(cookie)
-	if err != nil {
+	if err := authProvider.Validate(); err != nil {
 		return nil, err
 	}
 
-	cl := slack.New(token, sopts...)
+	cl := slack.New(authProvider.SlackToken(), slack.OptionCookieRAW(toPtrCookies(authProvider.Cookies())...))
 	ti, err := cl.GetTeamInfoContext(ctx)
 	if err != nil {
 		return nil, errors.WithStack(err)
@@ -135,13 +104,16 @@ func NewWithOptions(ctx context.Context, token string, cookie string, opts Optio
 	return sd, nil
 }
 
-func (sd *SlackDumper) limiter(t tier) *rate.Limiter {
-	return newLimiter(t, sd.options.Tier3Burst, int(sd.options.Tier3Boost))
+func toPtrCookies(cc []http.Cookie) []*http.Cookie {
+	var ret = make([]*http.Cookie, len(cc))
+	for i := range cc {
+		ret[i] = &cc[i]
+	}
+	return ret
 }
 
-func isExistingFile(cookie string) bool {
-	fi, err := os.Stat(cookie)
-	return err == nil && !fi.IsDir()
+func (sd *SlackDumper) limiter(t network.Tier) *rate.Limiter {
+	return network.NewLimiter(t, sd.options.Tier3Burst, int(sd.options.Tier3Boost))
 }
 
 // withRetry will run the callback function fn. If the function returns
@@ -149,14 +121,6 @@ func isExistingFile(cookie string) bool {
 // maxAttempts times. It will return an error if it runs out of attempts.
 func withRetry(ctx context.Context, l *rate.Limiter, maxAttempts int, fn func() error) error {
 	return network.WithRetry(ctx, l, maxAttempts, fn)
-}
-
-// newLimiter returns throttler with rateLimit requests per minute.
-// optionally caller may specify the boost
-func newLimiter(t tier, burst uint, boost int) *rate.Limiter {
-	callsPerSec := float64(int(t)+boost) / 60.0
-	l := rate.NewLimiter(rate.Limit(callsPerSec), int(burst))
-	return l
 }
 
 func maxStringLength(strings []string) (maxlen int) {

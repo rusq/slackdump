@@ -1,4 +1,4 @@
-package slackdump
+package structures
 
 import (
 	"reflect"
@@ -12,19 +12,19 @@ func TestParseURL(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    args
-		want    *urlInfo
+		want    *UrlInfo
 		wantErr bool
 	}{
 		{
 			name:    "channel",
 			args:    args{"https://ora600.slack.com/archives/CHM82GF99"},
-			want:    &urlInfo{Channel: "CHM82GF99"},
+			want:    &UrlInfo{Channel: "CHM82GF99"},
 			wantErr: false,
 		},
 		{
 			name:    "thread",
 			args:    args{"https://ora600.slack.com/archives/CHM82GF99/p1577694990000400"},
-			want:    &urlInfo{Channel: "CHM82GF99", ThreadTS: "1577694990.000400"},
+			want:    &UrlInfo{Channel: "CHM82GF99", ThreadTS: "1577694990.000400"},
 			wantErr: false,
 		},
 		{
@@ -48,7 +48,7 @@ func TestParseURL(t *testing.T) {
 		{
 			name:    "DM",
 			args:    args{"https://ora600.slack.com/archives/DL98HT3QA"},
-			want:    &urlInfo{Channel: "DL98HT3QA"},
+			want:    &UrlInfo{Channel: "DL98HT3QA"},
 			wantErr: false,
 		},
 		{
@@ -90,13 +90,13 @@ func TestParseURL(t *testing.T) {
 		{
 			name:    "thread",
 			args:    args{"https://xxxxxx.slack.com/archives/CHANNEL/p1645551829244659"},
-			want:    &urlInfo{Channel: "CHANNEL", ThreadTS: "1645551829.244659"},
+			want:    &UrlInfo{Channel: "CHANNEL", ThreadTS: "1645551829.244659"},
 			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := parseURL(tt.args.slackURL)
+			got, err := ParseURL(tt.args.slackURL)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ParseURL() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -123,7 +123,7 @@ func TestURLInfo_IsThread(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			u := urlInfo{
+			u := UrlInfo{
 				Channel:  tt.fields.Channel,
 				ThreadTS: tt.fields.ThreadTS,
 			}
@@ -150,7 +150,7 @@ func TestURLInfo_IsValid(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			u := urlInfo{
+			u := UrlInfo{
 				Channel:  tt.fields.Channel,
 				ThreadTS: tt.fields.ThreadTS,
 			}

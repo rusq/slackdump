@@ -3,15 +3,17 @@ package slackdump
 import (
 	"context"
 
-	"github.com/rusq/slackdump/v2/downloader"
 	"github.com/slack-go/slack"
+
+	"github.com/rusq/slackdump/v2/downloader"
+	"github.com/rusq/slackdump/v2/internal/network"
 )
 
 // SaveFileTo saves a single file to the specified directory.
 func (sd *SlackDumper) SaveFileTo(ctx context.Context, dir string, f *slack.File) (int64, error) {
 	dl := downloader.New(
 		sd.client,
-		downloader.Limiter(newLimiter(noTier, sd.options.Tier3Burst, 0)),
+		downloader.Limiter(network.NewLimiter(network.NoTier, sd.options.Tier3Burst, 0)),
 		downloader.Retries(sd.options.DownloadRetries),
 		downloader.Workers(sd.options.Workers),
 	)

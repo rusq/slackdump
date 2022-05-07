@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/internal/app"
-	"github.com/stretchr/testify/assert"
 )
 
 func Test_output_validFormat(t *testing.T) {
@@ -51,39 +52,42 @@ func Test_checkParameters(t *testing.T) {
 		{
 			"channels",
 			args{[]string{"-c", "-t", "x", "-cookie", "d"}},
-			params{appCfg: app.Config{
-				ListFlags: app.ListFlags{
-					Users:    false,
-					Channels: true,
+			params{
+				creds: slackCreds{
+					token:  "x",
+					cookie: "d",
 				},
-				Creds: app.SlackCreds{
-					Token:  "x",
-					Cookie: "d",
-				},
-				FilenameTemplate: defFilenameTemplate,
-				Input:            app.Input{List: []string{}},
-				Output:           app.Output{Filename: "-", Format: "text"},
-				Options:          slackdump.DefOptions,
-			}},
+				appCfg: app.Config{
+					ListFlags: app.ListFlags{
+						Users:    false,
+						Channels: true,
+					},
+
+					FilenameTemplate: defFilenameTemplate,
+					Input:            app.Input{List: []string{}},
+					Output:           app.Output{Filename: "-", Format: "text"},
+					Options:          slackdump.DefOptions,
+				}},
 			false,
 		},
 		{
 			"users",
 			args{[]string{"-u", "-t", "x", "-cookie", "d"}},
-			params{appCfg: app.Config{
-				ListFlags: app.ListFlags{
-					Channels: false,
-					Users:    true,
+			params{
+				creds: slackCreds{
+					token:  "x",
+					cookie: "d",
 				},
-				Creds: app.SlackCreds{
-					Token:  "x",
-					Cookie: "d",
-				},
-				FilenameTemplate: defFilenameTemplate,
-				Input:            app.Input{List: []string{}},
-				Output:           app.Output{Filename: "-", Format: "text"},
-				Options:          slackdump.DefOptions,
-			}},
+				appCfg: app.Config{
+					ListFlags: app.ListFlags{
+						Channels: false,
+						Users:    true,
+					},
+					FilenameTemplate: defFilenameTemplate,
+					Input:            app.Input{List: []string{}},
+					Output:           app.Output{Filename: "-", Format: "text"},
+					Options:          slackdump.DefOptions,
+				}},
 			false,
 		},
 	}
