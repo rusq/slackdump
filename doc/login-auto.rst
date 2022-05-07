@@ -63,4 +63,4 @@ The browser disappeared, but Slackdump doesn't do anything.
 .. _Manual: login-manual.rst
 
 .. |ez-login| image:: ez-login.png
-              :width: 400px
+              :width: 320px
