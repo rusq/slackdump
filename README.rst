@@ -7,6 +7,10 @@ Slack Dumper
 - `Read the overview on Medium.com`_
 - |go ref|
 
+
+.. contents::
+   :depth: 2
+
 Description
 ===========
 
@@ -32,8 +36,6 @@ Slackdump accepts two types of input (see `Dumping Conversations`_ section):
 #. the URL/link of the channel or thread, OR 
 #. the ID of the channel.
 
-.. contents::
-   :depth: 2
 
 Quick Start
 ===========
