@@ -23,13 +23,13 @@ Typical use scenarios:
   so you don't lose valuable knowledge in those channels.
 * create a Slack Export archive without admin access.
 
-There a three modes of operation:
+There a three modes of operation (more on this in `User Guide`_) :
 
-- List users/channels
-- Dumping messages and threads
-- Creating a Slack Export.
+#. List users/channels
+#. Dumping messages and threads
+#. Creating a Slack Export.
 
-Slackdump accepts two types of input:
+Slackdump accepts two types of input (see `Dumping Conversations`_ section):
 
 #. the URL/link of the channel or thread, OR 
 #. the ID of the channel.
@@ -37,10 +37,10 @@ Slackdump accepts two types of input:
 .. contents::
    :depth: 2
 
-Users Manual
-============
+Quick Start
+===========
 
-`Users Manual`_ is located in the doc_ directory.
+Please see the `User Guide`_.
 
 
 Using as a library
@@ -56,14 +56,23 @@ Use:
 
 .. code:: go
 
-  import "github.com/rusq/slackdump/v2"
+  import (
+    "github.com/rusq/slackdump/v2"
+    "github.com/rusq/slackdump/v2/auth"
+  )
 
   func main() {
-    sd, err := slackdump.New(os.Getenv("TOKEN"), os.Getenv("COOKIE"))
+    provider, err := auth.NewValueAuth("xoxc-...", "xoxd-...")
     if err != nil {
-        // handle
+        log.Print(err)
+        return
     }
-    // ... read the docs
+    sd, err := New(context.Background(), provider)
+    if err != nil {
+        log.Print(err)
+        return
+    }
+    _ = sd
   }
 
 FAQ
@@ -94,8 +103,8 @@ Messages that were conveyed with the donations:
 .. _Slack: https://join.slack.com/t/newworkspace-wcx3986/shared_invite/zt-18kj2sdoj-jMi3aZMWwkbK5JNjne0dbQ
 .. _`Read the overview on Medium.com`: https://medium.com/@gilyazov/downloading-your-private-slack-conversations-52e50428b3c2
 .. _`Go templating`: https://pkg.go.dev/html/template
-.. _Users Manual: doc/README.rst
-
+.. _User Guide: doc/README.rst
+.. _Dumping Conversations: doc/usage-channels.rst
 
 ..
   bulletin board links

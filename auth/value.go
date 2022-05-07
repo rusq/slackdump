@@ -6,21 +6,21 @@ import (
 	"time"
 )
 
-var _ Provider = &ValueCreds{}
+var _ Provider = &ValueAuth{}
 
-// ValueCreds stores Slack credentials.
-type ValueCreds struct {
+// ValueAuth stores Slack credentials.
+type ValueAuth struct {
 	simpleProvider
 }
 
-func NewValueCreds(token string, cookie string) (ValueCreds, error) {
+func NewValueAuth(token string, cookie string) (ValueAuth, error) {
 	if token == "" {
-		return ValueCreds{}, ErrNoToken
+		return ValueAuth{}, ErrNoToken
 	}
 	if cookie == "" {
-		return ValueCreds{}, ErrNoCookies
+		return ValueAuth{}, ErrNoCookies
 	}
-	return ValueCreds{simpleProvider{
+	return ValueAuth{simpleProvider{
 		token: token,
 		cookies: []http.Cookie{
 			makeCookie("d", cookie),

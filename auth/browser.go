@@ -14,32 +14,32 @@ import (
 	"github.com/rusq/slackdump/v2/auth/browser"
 )
 
-var _ Provider = BrowserCreds{}
+var _ Provider = BrowserAuth{}
 
-type BrowserCreds struct {
+type BrowserAuth struct {
 	simpleProvider
 }
 
-func NewBrowser() (BrowserCreds, error) {
+func NewBrowserAuth() (BrowserAuth, error) {
 	if err := playwright.Install(&playwright.RunOptions{Browsers: []string{"chromium"}}); err != nil {
-		return BrowserCreds{}, err
+		return BrowserAuth{}, err
 	}
 
 	instructions(os.Stdout)
 	workspace, err := requestWorkspace(os.Stdout)
 	if err != nil {
-		return BrowserCreds{}, err
+		return BrowserAuth{}, err
 	}
 
 	auther, err := browser.New(workspace)
 	if err != nil {
-		return BrowserCreds{}, err
+		return BrowserAuth{}, err
 	}
 	token, cookies, err := auther.Authenticate()
 	if err != nil {
-		return BrowserCreds{}, err
+		return BrowserAuth{}, err
 	}
-	return BrowserCreds{
+	return BrowserAuth{
 		simpleProvider: simpleProvider{
 			token:   token,
 			cookies: cookies,

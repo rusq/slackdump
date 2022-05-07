@@ -2,6 +2,7 @@ package slackdump
 
 import (
 	"context"
+	"log"
 	"math"
 	"testing"
 	"time"
@@ -9,6 +10,7 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/rusq/slackdump/v2/auth"
 	"github.com/rusq/slackdump/v2/internal/mocks/mock_os"
 	"github.com/rusq/slackdump/v2/internal/network"
 )
@@ -191,4 +193,46 @@ func Test_newLimiter(t *testing.T) {
 			assert.WithinDurationf(t, start.Add(tt.wantDelay), stop, 10*time.Millisecond, "delayed for: %s, expected: %s", stop.Sub(start), tt.wantDelay)
 		})
 	}
+}
+
+func ExampleNew_tokenAndCookie() {
+	provider, err := auth.NewValueAuth("xoxc-...", "xoxd-...")
+	if err != nil {
+		log.Print(err)
+		return
+	}
+	sd, err := New(context.Background(), provider)
+	if err != nil {
+		log.Print(err)
+		return
+	}
+	_ = sd
+}
+
+func ExampleNew_cookieFile() {
+	provider, err := auth.NewCookieFileAuth("xoxc-...", "cookies.txt")
+	if err != nil {
+		log.Print(err)
+		return
+	}
+	sd, err := New(context.Background(), provider)
+	if err != nil {
+		log.Print(err)
+		return
+	}
+	_ = sd
+}
+
+func ExampleNew_browserAuth() {
+	provider, err := auth.NewBrowserAuth()
+	if err != nil {
+		log.Print(err)
+		return
+	}
+	sd, err := New(context.Background(), provider)
+	if err != nil {
+		log.Print(err)
+		return
+	}
+	_ = sd
 }

@@ -6,22 +6,22 @@ import (
 	cookiemonster "github.com/MercuryEngineering/CookieMonster"
 )
 
-var _ Provider = FileCreds{}
+var _ Provider = CookieFileAuth{}
 
-type FileCreds struct {
+type CookieFileAuth struct {
 	simpleProvider
 }
 
-// NewFileCreds creates new auth provider from token and Mozilla cookie file.
-func NewFileCreds(token string, cookieFile string) (FileCreds, error) {
+// NewCookieFileAuth creates new auth provider from token and Mozilla cookie file.
+func NewCookieFileAuth(token string, cookieFile string) (CookieFileAuth, error) {
 	if token == "" {
-		return FileCreds{}, ErrNoToken
+		return CookieFileAuth{}, ErrNoToken
 	}
 	ptrCookies, err := cookiemonster.ParseFile(cookieFile)
 	if err != nil {
-		return FileCreds{}, err
+		return CookieFileAuth{}, err
 	}
-	fc := FileCreds{
+	fc := CookieFileAuth{
 		simpleProvider: simpleProvider{
 			token:   token,
 			cookies: deRefCookies(ptrCookies),
