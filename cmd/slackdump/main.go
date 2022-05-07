@@ -196,6 +196,7 @@ func parseCmdLine(args []string) (params, error) {
 	// - API request size
 	fs.IntVar(&p.appCfg.Options.ConversationsPerReq, "cpr", slackdump.DefOptions.ConversationsPerReq, "number of conversation `items` per request.")
 	fs.IntVar(&p.appCfg.Options.ChannelsPerReq, "npr", slackdump.DefOptions.ChannelsPerReq, "number of `channels` per request.")
+	fs.IntVar(&p.appCfg.Options.RepliesPerReq, "rpr", slackdump.DefOptions.RepliesPerReq, "number of `replies` per request.")
 
 	// - user cache controls
 	fs.StringVar(&p.appCfg.Options.UserCacheFilename, "user-cache-file", slackdump.DefOptions.UserCacheFilename, "user cache file`name`.")

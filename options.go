@@ -22,6 +22,7 @@ type Options struct {
 	Tier3Retries        int           // number of retries to do when getting 429 on conversation fetch
 	ConversationsPerReq int           // number of messages we get per 1 API request. bigger the number, less requests, but they become more beefy.
 	ChannelsPerReq      int           // number of channels to fetch per 1 API request.
+	RepliesPerReq       int           // number of thread replies per request (slack default: 1000)
 	UserCacheFilename   string        // user cache filename
 	MaxUserCacheAge     time.Duration // how long the user cache is valid for.
 	NoUserCache         bool          // sometimes slack disallows user access, so we need a way to overcome that.
@@ -40,6 +41,7 @@ var DefOptions = Options{
 	Tier3Retries:        3,             // on Tier 3 this was never a problem, even with limiter-boost=120
 	ConversationsPerReq: 200,           // this is the recommended value by Slack. But who listens to them anyway.
 	ChannelsPerReq:      100,           // channels are Tier2 rate limited. Slack is greedy and never returns more than 100 per call.
+	RepliesPerReq:       200,           // the API-default is 1000 (see conversations.replies), but on large threads it may fail (see #54)
 	UserCacheFilename:   "users.cache", // seems logical
 	MaxUserCacheAge:     4 * time.Hour, // quick math:  that's 1/6th of a day, how's that, huh?
 }
