@@ -78,7 +78,7 @@ func (cl *Client) Authenticate() (string, []http.Cookie, error) {
 }
 
 // tokenRE is the regexp that matches a valid Slack Client token.
-var tokenRE = regexp.MustCompile(`xoxc-[0-9]{12}-[0-9]{12}-[0-9]{13}-[0-9a-z]{64}`)
+var tokenRE = regexp.MustCompile(`xoxc-[0-9]+-[0-9]+-[0-9]+-[0-9a-z]{64}`)
 
 func extractToken(uri string) (string, error) {
 	p, err := url.Parse(strings.TrimSpace(uri))
