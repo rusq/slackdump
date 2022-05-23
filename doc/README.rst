@@ -22,7 +22,7 @@ Logging in
 ----------
 There are two types of login options available:
 
-- Automatic_ (also called **EZ-Login 3000**); OR
+- Automatic_ (**EZ-Login 3000**, works only in 64-bit systems); OR
 - Manual_
 
 Automatic_ login is the default one, it requires no prior setup, and the
