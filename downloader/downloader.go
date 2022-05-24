@@ -1,19 +1,21 @@
 package downloader
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
 	"runtime/trace"
 	"sync"
 
 	"github.com/pkg/errors"
 	"github.com/rusq/dlog"
-	"github.com/rusq/slackdump/v2/internal/network"
 	"github.com/slack-go/slack"
 	"golang.org/x/time/rate"
+
+	"github.com/rusq/slackdump/v2/fsadapter"
+	"github.com/rusq/slackdump/v2/internal/network"
 )
 
 const (
@@ -27,6 +29,7 @@ const (
 type Client struct {
 	client  Downloader
 	limiter *rate.Limiter
+	fs      fsadapter.FS
 
 	retries int
 	workers int
@@ -76,13 +79,14 @@ func Workers(n int) Option {
 }
 
 // Ne initialises new file downloader
-func New(client Downloader, opts ...Option) *Client {
+func New(client Downloader, fs fsadapter.FS, opts ...Option) *Client {
 	if client == nil {
 		// better safe than sorry
 		panic("programming error: client is nil")
 	}
 	c := &Client{
 		client:  client,
+		fs:      fs,
 		limiter: rate.NewLimiter(defLimit, 1),
 		retries: defRetries,
 		workers: defNumWorkers,
@@ -130,13 +134,12 @@ func (c *Client) startWorkers(ctx context.Context, req <-chan FileRequest) *sync
 	// create workers
 	for i := 0; i < c.workers; i++ {
 		wg.Add(1)
-		go func(i int) {
+		go func(workerNum int) {
 			c.worker(ctx, fltSeen(req))
 			wg.Done()
-			dlog.Debugf("download worker %d terminated", i)
+			dlog.Debugf("download worker %d terminated", workerNum)
 		}(i)
 	}
-
 	return &wg
 }
 
@@ -165,8 +168,8 @@ func (c *Client) worker(ctx context.Context, reqC <-chan FileRequest) {
 
 // AsyncDownloader starts Client.worker goroutines to download files
 // concurrently. It will download any file that is received on fileDlQueue
-// channel. It returns the "done" channel and an error. "done" channel will
-// be closed once all downloads are complete.
+// channel. It returns the "done" channel and an error. "done" channel will be
+// closed once all downloads are complete.
 func (c *Client) AsyncDownloader(ctx context.Context, dir string, fileDlQueue <-chan *slack.File) (chan struct{}, error) {
 	done := make(chan struct{})
 
@@ -191,30 +194,15 @@ func (c *Client) AsyncDownloader(ctx context.Context, dir string, fileDlQueue <-
 
 // saveFileWithLimiter saves the file to specified directory, it will use the provided limiter l for throttling.
 func (c *Client) saveFile(ctx context.Context, dir string, sf *slack.File) (int64, error) {
-	c.mkdirMu.Lock()
-	err := mkdir(dir)
-	c.mkdirMu.Unlock()
-	if err != nil {
-		return 0, err
-	}
-
 	filePath := filepath.Join(dir, filename(sf))
-	f, err := os.Create(filePath)
-	if err != nil {
-		return 0, err
-	}
-	defer f.Close()
 
+	var buf bytes.Buffer
 	if err := network.WithRetry(ctx, c.limiter, c.retries, func() error {
 		region := trace.StartRegion(ctx, "GetFile")
 		defer region.End()
 
-		if err := c.client.GetFile(sf.URLPrivateDownload, f); err != nil {
-			// cleanup if download failed.
-			f.Close()
-			if e := os.RemoveAll(filePath); e != nil {
-				trace.Logf(ctx, "error", "removing file after unsuccesful download failed with: %s", e)
-			}
+		buf.Reset()
+		if err := c.client.GetFile(sf.URLPrivateDownload, &buf); err != nil {
 			return fmt.Errorf("download to %q failed: %w", filePath, err)
 		}
 		return nil
@@ -222,30 +210,16 @@ func (c *Client) saveFile(ctx context.Context, dir string, sf *slack.File) (int6
 		return 0, err
 	}
 
-	return int64(sf.Size), nil
+	if err := c.fs.WriteFile(filePath, buf.Bytes(), 0666); err != nil {
+		return 0, err
+	}
+
+	return int64(buf.Len()), nil
 }
 
 // filename returns name of the file
 func filename(f *slack.File) string {
 	return fmt.Sprintf("%s-%s", f.ID, f.Name)
-}
-
-// mkdir creates a directory "name", if the directory exists, it does nothing.
-func mkdir(name string) error {
-	if name == "" {
-		return errors.New("empty directory")
-	}
-
-	fi, err := os.Stat(name)
-	if err == nil && fi.IsDir() {
-		// exists and is a directory
-		return nil
-	}
-
-	if err := os.MkdirAll(name, 0755); err != nil {
-		return err
-	}
-	return nil
 }
 
 func (c *Client) Stop() {

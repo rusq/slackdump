@@ -331,57 +331,6 @@ func TestSlackDumper_worker(t *testing.T) {
 	})
 }
 
-func Test_mkdir(t *testing.T) {
-	dir := t.TempDir()
-
-	testFile := filepath.Join(dir, "existing_file")
-	if err := os.WriteFile(testFile, []byte("I should not be moved"), 0666); err != nil {
-		t.Fatalf("failed to create a test file: %s", err)
-	}
-
-	type args struct {
-		name string
-	}
-	tests := []struct {
-		name    string
-		args    args
-		wantErr bool
-	}{
-		{
-			"empty name",
-			args{},
-			true,
-		},
-		{
-			"new directory",
-			args{filepath.Join(dir, "test1")},
-			false,
-		},
-		{
-			"directory already exists",
-			args{filepath.Join(dir, "test1")},
-			false,
-		},
-		{
-			"another dir",
-			args{filepath.Join(dir, "test2")},
-			false,
-		},
-		{
-			"object with such name exists, and is a file",
-			args{testFile},
-			true,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if err := mkdir(tt.args.name); (err != nil) != tt.wantErr {
-				t.Errorf("mkdir() error = %v, wantErr %v", err, tt.wantErr)
-			}
-		})
-	}
-}
-
 func TestClient_startWorkers(t *testing.T) {
 	t.Run("check that start actually starts workers", func(t *testing.T) {
 		const qSz = 10

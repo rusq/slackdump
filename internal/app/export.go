@@ -3,14 +3,12 @@ package app
 import (
 	"context"
 	"errors"
-	"fmt"
-	"os"
+	"strings"
 	"time"
 
+	"github.com/rusq/slackdump/v2/fsadapter"
 	"github.com/rusq/slackdump/v2/internal/export"
 )
-
-const defDirMode = 0700
 
 // Export performs the full export of slack workspace in slack export compatible
 // format.
@@ -19,14 +17,16 @@ func (app *App) Export(ctx context.Context, dir string) error {
 		return errors.New("export directory not specified")
 	}
 
-	if err := os.MkdirAll(dir, defDirMode); err != nil {
-		return fmt.Errorf("Export: failed to create the export directory %q: %w", dir, err)
-	}
 	cfg := export.Options{
 		Oldest:       time.Time(app.cfg.Oldest),
 		Latest:       time.Time(app.cfg.Latest),
 		IncludeFiles: app.cfg.Options.DumpFiles,
 	}
-	export := export.New(dir, app.sd, cfg)
+	zf, err := fsadapter.NewZipFile(strings.TrimSuffix(dir, ".zip") + ".zip") // ensure we have a zip suffix TODO
+	if err != nil {
+		return err
+	}
+	defer zf.Close()
+	export := export.New(app.sd, zf, cfg)
 	return export.Run(ctx)
 }

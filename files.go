@@ -6,6 +6,7 @@ import (
 	"github.com/slack-go/slack"
 
 	"github.com/rusq/slackdump/v2/downloader"
+	"github.com/rusq/slackdump/v2/fsadapter"
 	"github.com/rusq/slackdump/v2/internal/network"
 )
 
@@ -13,6 +14,7 @@ import (
 func (sd *SlackDumper) SaveFileTo(ctx context.Context, dir string, f *slack.File) (int64, error) {
 	dl := downloader.New(
 		sd.client,
+		fsadapter.NewDirectory("."),
 		downloader.Limiter(network.NewLimiter(network.NoTier, sd.options.Tier3Burst, 0)),
 		downloader.Retries(sd.options.DownloadRetries),
 		downloader.Workers(sd.options.Workers),

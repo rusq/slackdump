@@ -8,6 +8,7 @@ import (
 	"golang.org/x/time/rate"
 
 	"github.com/rusq/slackdump/v2/downloader"
+	"github.com/rusq/slackdump/v2/fsadapter"
 )
 
 const (
@@ -43,6 +44,7 @@ func (sd *SlackDumper) newFileProcessFn(ctx context.Context, dir string, l *rate
 	// slice
 	dl := downloader.New(
 		sd.client,
+		fsadapter.NewDirectory("."),
 		downloader.Limiter(l),
 		downloader.Retries(sd.options.DownloadRetries),
 		downloader.Workers(sd.options.Workers),

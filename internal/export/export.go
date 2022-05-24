@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
 	"runtime/trace"
 	"time"
@@ -19,13 +18,14 @@ import (
 
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/downloader"
+	"github.com/rusq/slackdump/v2/fsadapter"
 )
 
 const userPrefix = "IM-" // prefix for Direct Messages
 
 // Export is the instance of Slack Exporter.
 type Export struct {
-	dir    string                 //target directory
+	fs     fsadapter.FS           // target filesystem
 	dumper *slackdump.SlackDumper // slackdumper instance
 
 	// time window
@@ -38,8 +38,8 @@ type Options struct {
 	IncludeFiles bool
 }
 
-func New(dir string, dumper *slackdump.SlackDumper, cfg Options) *Export {
-	return &Export{dir: dir, dumper: dumper, opts: cfg}
+func New(dumper *slackdump.SlackDumper, fs fsadapter.FS, cfg Options) *Export {
+	return &Export{fs: fs, dumper: dumper, opts: cfg}
 }
 
 // Run runs the export.
@@ -63,7 +63,7 @@ func (se *Export) users(ctx context.Context) (slackdump.Users, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := serializeToFile(filepath.Join(se.dir, "users.json"), users); err != nil {
+	if err := serializeToFS(se.fs, "users.json", users); err != nil {
 		return nil, err
 	}
 
@@ -72,7 +72,7 @@ func (se *Export) users(ctx context.Context) (slackdump.Users, error) {
 
 func (se *Export) messages(ctx context.Context, users slackdump.Users) error {
 	var chans []slack.Channel
-	dl := downloader.New(se.dumper.Client())
+	dl := downloader.New(se.dumper.Client(), se.fs)
 	if se.opts.IncludeFiles {
 		// start the downloader
 		dl.Start(ctx)
@@ -91,7 +91,7 @@ func (se *Export) messages(ctx context.Context, users slackdump.Users) error {
 		return fmt.Errorf("channels: error: %w", err)
 	}
 
-	return serializeToFile(filepath.Join(se.dir, "channels.json"), chans)
+	return serializeToFS(se.fs, "channels.json", chans)
 }
 
 func (se *Export) exportConversation(ctx context.Context, ch slack.Channel, users slackdump.Users, dl *downloader.Client) error {
@@ -199,34 +199,29 @@ func traceCompress(ctx context.Context, v any) string {
 }
 
 func (se *Export) basedir(channelName string) string {
-	return filepath.Join(se.dir, channelName)
+	return channelName
 }
 
 // saveChannel creates a directory `name` and writes the contents of msgs. for
 // each map key the json file is created, with the name `{key}.json`, and values
 // for that key are serialised to the file in json format.
 func (se *Export) saveChannel(channelName string, msgs messagesByDate) error {
-	basedir := se.basedir(channelName)
-	if err := os.MkdirAll(basedir, 0700); err != nil {
-		return fmt.Errorf("unable to create directory %q: %w", channelName, err)
-	}
 	for date, messages := range msgs {
-		output := filepath.Join(basedir, date+".json")
-		if err := serializeToFile(output, messages); err != nil {
+		output := filepath.Join(channelName, date+".json")
+		if err := serializeToFS(se.fs, output, messages); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-// serializeToFile writes the data in json format to provided filename.
-func serializeToFile(filename string, data any) error {
-	f, err := os.Create(filename)
+// serializeToFS writes the data in json format to provided filesystem adapter.
+func serializeToFS(fs fsadapter.FS, filename string, data any) error {
+	f, err := fs.Create(filename)
 	if err != nil {
-		return fmt.Errorf("serializeToFile: failed to create %q: %w", filename, err)
+		return err
 	}
 	defer f.Close()
-
 	return serialize(f, data)
 }
 
