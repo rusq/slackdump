@@ -1,8 +1,6 @@
 package auth
 
 import (
-	"net/http"
-
 	cookiemonster "github.com/MercuryEngineering/CookieMonster"
 )
 
@@ -24,14 +22,14 @@ func NewCookieFileAuth(token string, cookieFile string) (CookieFileAuth, error) 
 	fc := CookieFileAuth{
 		simpleProvider: simpleProvider{
 			token:   token,
-			cookies: deRefCookies(ptrCookies),
+			cookies: deref(ptrCookies),
 		},
 	}
 	return fc, nil
 }
 
-func deRefCookies(cc []*http.Cookie) []http.Cookie {
-	var ret = make([]http.Cookie, len(cc))
+func deref[T any](cc []*T) []T {
+	var ret = make([]T, len(cc))
 	for i := range cc {
 		ret[i] = *cc[i]
 	}
