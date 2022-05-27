@@ -17,7 +17,7 @@ Slackdump will export the whole workspace.  If ' ``-f``' flag is specified,
 all files will be saved under the channels' '``attachments``' directory.
 
 Slack Export is currently in alpha development stage, please report
-all issues in Github Issues_.
+all issues in Github `Issues <https://github.com/rusq/slackdump/issues>`_.
 
 Slack Export Directory Structure
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
