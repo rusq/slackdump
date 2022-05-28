@@ -15,3 +15,11 @@ type FSRemover interface {
 	FS
 	RemoveAll(string) error
 }
+
+func Close(fs FS) error {
+	closer, ok := fs.(io.Closer)
+	if !ok {
+		return nil
+	}
+	return closer.Close()
+}

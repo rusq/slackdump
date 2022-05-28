@@ -54,10 +54,17 @@ func (z *ZIP) WriteFile(name string, data []byte, _ os.FileMode) error {
 // Close closes the underlying zip writer and the file handle.  It is only necessary if
 // ZIP was initialised using NewZipFile
 func (z *ZIP) Close() error {
-	if !z.ours() {
+	if !z.ourHandles() {
+		// we don't own the handles, so just bail out.
 		return nil
 	}
 	z.mu.Lock()
+	defer z.mu.Unlock()
+
+	return z.closeHandles()
+}
+
+func (z *ZIP) closeHandles() error {
 	if err := z.zw.Close(); err != nil {
 		return err
 	}
@@ -67,7 +74,7 @@ func (z *ZIP) Close() error {
 	return z.f.Close()
 }
 
-func (z *ZIP) ours() bool {
+func (z *ZIP) ourHandles() bool {
 	return z.f != nil
 }
 

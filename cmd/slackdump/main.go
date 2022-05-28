@@ -13,15 +13,14 @@ import (
 	"runtime/trace"
 	"syscall"
 
+	"github.com/joho/godotenv"
+	"github.com/rusq/dlog"
 	"github.com/rusq/osenv/v2"
 	"github.com/rusq/tracer"
 	"github.com/slack-go/slack"
 
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/internal/app"
-
-	"github.com/joho/godotenv"
-	"github.com/rusq/dlog"
 )
 
 const (
@@ -111,6 +110,7 @@ func run(ctx context.Context, p params) error {
 		trace.Logf(ctx, "error", "app.New: %s", err.Error())
 		return err
 	}
+	defer application.Close()
 
 	// deleting slackCreds to avoid logging them in the trace.
 
@@ -172,6 +172,7 @@ func parseCmdLine(args []string) (params, error) {
 	fs.StringVar(&p.appCfg.Input.Filename, "i", "", "specify the `input file` with Channel IDs or URLs to be used instead of listing\neverything on the command line, one per line.\nUse \"-\" to read input from STDIN.")
 	fs.StringVar(&p.appCfg.Output.Filename, "o", "-", "Output `filename` for users and channels.  Use '-' for standard Output.")
 	fs.StringVar(&p.appCfg.Output.Format, "r", "", "report `format`.  One of 'json' or 'text'")
+	fs.StringVar(&p.appCfg.Output.Base, "base", "", "base directory or zip file to use (add .zip extension to save to zip file)")
 	fs.StringVar(&p.appCfg.FilenameTemplate, "ft", defFilenameTemplate, "output file naming template.")
 
 	// options

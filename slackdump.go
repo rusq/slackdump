@@ -16,6 +16,7 @@ import (
 	"golang.org/x/time/rate"
 
 	"github.com/rusq/slackdump/v2/auth"
+	"github.com/rusq/slackdump/v2/fsadapter"
 	"github.com/rusq/slackdump/v2/internal/network"
 )
 
@@ -29,6 +30,8 @@ type SlackDumper struct {
 	client clienter
 
 	teamID string // used as a suffix for cached users
+
+	fs fsadapter.FS // filesystem for saving attachments
 
 	// Users contains the list of users and populated on NewSlackDumper
 	Users     Users                  `json:"users"`
@@ -83,13 +86,14 @@ func NewWithOptions(ctx context.Context, authProvider auth.Provider, opts Option
 	cl := slack.New(authProvider.SlackToken(), slack.OptionCookieRAW(toPtrCookies(authProvider.Cookies())...))
 	ti, err := cl.GetTeamInfoContext(ctx)
 	if err != nil {
-		return nil, errors.WithStack(err)
+		return nil, fmt.Errorf("error getting team information: %w", err)
 	}
 
 	sd := &SlackDumper{
 		client:  cl,
 		options: opts,
 		teamID:  ti.ID,
+		fs:      fsadapter.NewDirectory("."), // default is to save attachments to the current directory.
 	}
 
 	dlog.Println("> checking user cache...")
@@ -102,6 +106,15 @@ func NewWithOptions(ctx context.Context, authProvider auth.Provider, opts Option
 	sd.UserIndex = users.IndexByID()
 
 	return sd, nil
+}
+
+// SetFS sets the filesystem to save attachments to (slackdump defaults to the
+// current directory otherwise).
+func (sd *SlackDumper) SetFS(fs fsadapter.FS) {
+	if fs == nil {
+		return
+	}
+	sd.fs = fs
 }
 
 func toPtrCookies(cc []http.Cookie) []*http.Cookie {

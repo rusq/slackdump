@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
@@ -96,7 +95,7 @@ func (app *App) writeFiles(name string, cnv *slackdump.Conversation) error {
 
 func (app *App) writeJSON(filename string, m any) error {
 	dlog.Printf("generating %s", filename)
-	f, err := os.Create(filename)
+	f, err := app.fs.Create(filename)
 	if err != nil {
 		return fmt.Errorf("error writing %q: %w", filename, err)
 	}
@@ -112,7 +111,7 @@ func (app *App) writeJSON(filename string, m any) error {
 
 func (app *App) writeText(filename string, m *slackdump.Conversation) error {
 	dlog.Printf("generating %s", filename)
-	f, err := os.Create(filename)
+	f, err := app.fs.Create(filename)
 	if err != nil {
 		return fmt.Errorf("error writing %q: %w", filename, err)
 	}

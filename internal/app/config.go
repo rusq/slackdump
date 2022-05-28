@@ -34,7 +34,8 @@ type Config struct {
 
 type Output struct {
 	Filename string
-	Format   string
+	Format   string // output format
+	Base     string // base directory or zip file
 }
 
 type Input struct {

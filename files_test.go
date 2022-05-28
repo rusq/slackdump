@@ -2,12 +2,12 @@ package slackdump
 
 import (
 	"context"
-	"os"
 	"sync"
 	"testing"
 
 	gomock "github.com/golang/mock/gomock"
 	"github.com/pkg/errors"
+	"github.com/rusq/slackdump/v2/fsadapter"
 	"github.com/rusq/slackdump/v2/internal/fixtures"
 	"github.com/slack-go/slack"
 	"github.com/stretchr/testify/assert"
@@ -134,12 +134,6 @@ func TestSlackDumper_pipeFiles(t *testing.T) {
 }
 
 func TestSlackDumper_SaveFileTo(t *testing.T) {
-	tmpdir, err := os.MkdirTemp("", "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpdir)
-
 	type fields struct {
 		Users     Users
 		UserIndex map[string]*slack.User
@@ -163,7 +157,7 @@ func TestSlackDumper_SaveFileTo(t *testing.T) {
 			fields{options: DefOptions},
 			args{
 				context.Background(),
-				tmpdir,
+				"attachments",
 				&file1,
 			},
 			func(mc *mockClienter) {
@@ -180,7 +174,7 @@ func TestSlackDumper_SaveFileTo(t *testing.T) {
 			fields{options: DefOptions},
 			args{
 				context.Background(),
-				tmpdir,
+				".",
 				&file2,
 			},
 			func(mc *mockClienter) {
@@ -201,6 +195,7 @@ func TestSlackDumper_SaveFileTo(t *testing.T) {
 
 			sd := &SlackDumper{
 				client:    mc,
+				fs:        fsadapter.NewDirectory(t.TempDir()),
 				Users:     tt.fields.Users,
 				UserIndex: tt.fields.UserIndex,
 				options:   tt.fields.options,
