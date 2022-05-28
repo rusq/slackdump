@@ -91,11 +91,30 @@ func (se *Export) messages(ctx context.Context, users slackdump.Users) error {
 		return fmt.Errorf("channels: error: %w", err)
 	}
 
+	populateNames(chans, users)
+
 	return serializeToFS(se.fs, "channels.json", chans)
 }
 
-func (se *Export) exportConversation(ctx context.Context, ch slack.Channel, users slackdump.Users, dl *downloader.Client) error {
+// populateNames updates name and name_normalized of the private conversations
+// in ch with their respective usernames (see
+// https://github.com/rusq/slackdump/issues/63 )
+func populateNames(ch []slack.Channel, usr []slack.User) {
+	// quick and dirty
+	for i := range ch {
+		if ch[i].User == "" {
+			continue
+		}
+		for k := range usr {
+			if ch[i].User == usr[k].ID {
+				ch[i].Name = usr[k].Name
+				ch[i].NameNormalized = usr[k].Name
+			}
+		}
+	}
+}
 
+func (se *Export) exportConversation(ctx context.Context, ch slack.Channel, users slackdump.Users, dl *downloader.Client) error {
 	dlFn := se.downloadFn(dl, ch.Name)
 	messages, err := se.dumper.DumpMessagesRaw(ctx, ch.ID, se.opts.Oldest, se.opts.Latest, dlFn)
 	if err != nil {
