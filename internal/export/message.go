@@ -22,8 +22,6 @@ type ExportMessage struct {
 	UserProfile     *ExportUserProfile `json:"user_profile,omitempty"`
 	ReplyUsersCount int                `json:"reply_users_count,omitempty"`
 	ReplyUsers      []string           `json:"reply_users,omitempty"`
-
-	Text string `json:"text"` // slack export compatibility.
 }
 
 type ExportUserProfile struct {

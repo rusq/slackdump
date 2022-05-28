@@ -1,5 +1,6 @@
 package fixtures
 
+//TestConversationJSON channel: CHM82GF99
 const TestConversationJSON = `
 {
 	"name": "everything",

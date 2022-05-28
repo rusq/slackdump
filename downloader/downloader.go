@@ -38,8 +38,6 @@ type Client struct {
 	fileRequests chan FileRequest
 	wg           *sync.WaitGroup
 	started      bool
-
-	mkdirMu sync.Mutex
 }
 
 // Downloader is the file downloader interface.  It exists primarily for mocking
@@ -166,11 +164,16 @@ func (c *Client) worker(ctx context.Context, reqC <-chan FileRequest) {
 	}
 }
 
+var errNoFS = errors.New("fs adapter not initialised")
+
 // AsyncDownloader starts Client.worker goroutines to download files
 // concurrently. It will download any file that is received on fileDlQueue
 // channel. It returns the "done" channel and an error. "done" channel will be
 // closed once all downloads are complete.
 func (c *Client) AsyncDownloader(ctx context.Context, dir string, fileDlQueue <-chan *slack.File) (chan struct{}, error) {
+	if c.fs == nil {
+		return nil, errNoFS
+	}
 	done := make(chan struct{})
 
 	req := make(chan FileRequest)
@@ -194,6 +197,9 @@ func (c *Client) AsyncDownloader(ctx context.Context, dir string, fileDlQueue <-
 
 // saveFileWithLimiter saves the file to specified directory, it will use the provided limiter l for throttling.
 func (c *Client) saveFile(ctx context.Context, dir string, sf *slack.File) (int64, error) {
+	if c.fs == nil {
+		return 0, errNoFS
+	}
 	filePath := filepath.Join(dir, filename(sf))
 
 	var buf bytes.Buffer

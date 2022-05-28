@@ -8,6 +8,7 @@ import (
 
 	gomock "github.com/golang/mock/gomock"
 	"github.com/pkg/errors"
+	"github.com/rusq/slackdump/v2/internal/fixtures"
 	"github.com/slack-go/slack"
 	"github.com/stretchr/testify/assert"
 )
@@ -168,6 +169,7 @@ func TestSlackDumper_SaveFileTo(t *testing.T) {
 			func(mc *mockClienter) {
 				mc.EXPECT().
 					GetFile("file1_url", gomock.Any()).
+					SetArg(1, *fixtures.FilledBuffer(file1.Size)).
 					Return(nil)
 			},
 			int64(file1.Size),

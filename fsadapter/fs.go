@@ -45,5 +45,9 @@ func mkdirAll(name string) error {
 }
 
 func (fs Directory) WriteFile(name string, data []byte, perm os.FileMode) error {
+	fullpath := filepath.Join(fs.dir, name)
+	if err := mkdirAll(filepath.Dir(fullpath)); err != nil {
+		return err
+	}
 	return os.WriteFile(filepath.Join(fs.dir, name), data, perm)
 }
