@@ -102,7 +102,8 @@ func (se *Export) messages(ctx context.Context, users slackdump.Users) error {
 func populateNames(ch []slack.Channel, usr []slack.User) {
 	// quick and dirty
 	for i := range ch {
-		if ch[i].User == "" {
+		if !ch[i].IsIM || ch[i].User == "" {
+			// we don't care about public conversations in this case.
 			continue
 		}
 		for k := range usr {
