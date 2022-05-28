@@ -11,11 +11,7 @@ type FS interface {
 	WriteFile(name string, data []byte, perm os.FileMode) error
 }
 
-type FSRemover interface {
-	FS
-	RemoveAll(string) error
-}
-
+// Close closes the filesystem, if it implements the io.Closer interface.
 func Close(fs FS) error {
 	closer, ok := fs.(io.Closer)
 	if !ok {

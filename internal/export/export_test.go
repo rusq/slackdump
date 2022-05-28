@@ -88,6 +88,9 @@ func loadTestDir(path string) (messagesByDate, error) {
 	// no proper error checking.
 	var mbd = make(messagesByDate, 0)
 	if err := filepath.WalkDir(path, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
 
 		if filepath.Ext(path) != jsonExt {
 			return nil

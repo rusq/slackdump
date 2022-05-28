@@ -5,6 +5,8 @@ import (
 	"bytes"
 	"io"
 	"os"
+	"path"
+	"path/filepath"
 	"sync"
 )
 
@@ -29,8 +31,16 @@ func NewZipFile(filename string) (*ZIP, error) {
 	return &ZIP{zw: zw, f: f}, nil
 }
 
-func (z *ZIP) Create(filepath string) (io.WriteCloser, error) {
-	w, err := z.zw.Create(filepath)
+func (*ZIP) normalizePath(p string) string {
+	return path.Join(filepath.SplitList(p)...)
+}
+
+func (z *ZIP) Create(filename string) (io.WriteCloser, error) {
+	// reassemble path in correct format for ZIP file
+	// in case it uses OS specific path.
+	filename = z.normalizePath(filename)
+
+	w, err := z.zw.Create(filename)
 	if err != nil {
 		return nil, err
 	}
@@ -38,10 +48,10 @@ func (z *ZIP) Create(filepath string) (io.WriteCloser, error) {
 	return &syncWriter{w: w, mu: &z.mu}, nil
 }
 
-func (z *ZIP) WriteFile(name string, data []byte, _ os.FileMode) error {
+func (z *ZIP) WriteFile(filename string, data []byte, _ os.FileMode) error {
 	z.mu.Lock()
 	defer z.mu.Unlock()
-	zf, err := z.zw.Create(name)
+	zf, err := z.zw.Create(filename)
 	if err != nil {
 		return err
 	}

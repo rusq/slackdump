@@ -1,8 +1,6 @@
 package export
 
 import (
-	"encoding/json"
-	"os"
 	"testing"
 
 	"github.com/rusq/slackdump/v2"
@@ -27,18 +25,6 @@ func TestConversation_ByDate(t *testing.T) {
 
 	want := fixtures.Load[map[string][]ExportMessage](fixtures.TestConversationExportJSON)
 	assert.Equal(t, want, convDt)
-}
-
-func writeOutput(name string, v any) error {
-	data, err := json.MarshalIndent(v, "", "  ")
-	if err != nil {
-		return err
-	}
-
-	if err := os.WriteFile(name+".json", data, 0644); err != nil {
-		return err
-	}
-	return nil
 }
 
 func Test_messagesByDate_validate(t *testing.T) {
