@@ -8,7 +8,6 @@ import (
 	"os"
 	"runtime/trace"
 	"time"
-	"unicode/utf8"
 
 	"github.com/pkg/errors"
 	"github.com/rusq/dlog"
@@ -25,6 +24,11 @@ import (
 //go:generate sh -c "mockgen -source slackdump.go -destination clienter_mock.go -package slackdump -mock_names clienter=mockClienter,Reporter=mockReporter"
 //go:generate sed -i ~ -e "s/NewmockClienter/newmockClienter/g" -e "s/NewmockReporter/newmockReporter/g" clienter_mock.go
 
+const (
+	// user index of the application user in the user list.
+	userIdxMe = 1
+)
+
 // SlackDumper stores basic session parameters.
 type SlackDumper struct {
 	client clienter
@@ -36,6 +40,7 @@ type SlackDumper struct {
 	// Users contains the list of users and populated on NewSlackDumper
 	Users     Users                  `json:"users"`
 	UserIndex map[string]*slack.User `json:"-"`
+	me        slack.User
 
 	options Options
 }
@@ -101,11 +106,21 @@ func NewWithOptions(ctx context.Context, authProvider auth.Provider, opts Option
 	if err != nil {
 		return nil, fmt.Errorf("error fetching users: %w", err)
 	}
+	if len(users) < 2 { // me and slackbot.
+		return nil, errors.New("invalid number of users retrieved.")
+	}
+
+	// now, this is filthy, but Slack does not allow us to call GetUserIdentity with browser token.
+	sd.me = users[userIdxMe]
 
 	sd.Users = users
 	sd.UserIndex = users.IndexByID()
 
 	return sd, nil
+}
+
+func (sd *SlackDumper) Me() slack.User {
+	return sd.me
 }
 
 // SetFS sets the filesystem to save attachments to (slackdump defaults to the
@@ -134,16 +149,6 @@ func (sd *SlackDumper) limiter(t network.Tier) *rate.Limiter {
 // maxAttempts times. It will return an error if it runs out of attempts.
 func withRetry(ctx context.Context, l *rate.Limiter, maxAttempts int, fn func() error) error {
 	return network.WithRetry(ctx, l, maxAttempts, fn)
-}
-
-func maxStringLength(strings []string) (maxlen int) {
-	for i := range strings {
-		l := utf8.RuneCountInString(strings[i])
-		if l > maxlen {
-			maxlen = l
-		}
-	}
-	return
 }
 
 func checkCacheFile(filename string, maxAge time.Duration) error {
