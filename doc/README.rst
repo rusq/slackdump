@@ -17,17 +17,7 @@ Releases_ page, extract and run it:
 #. Change directory to where you have unpacked the archive;
 #. Run ``./slackdump -h`` to view help options.
 
-Compiling from Sources
-^^^^^^^^^^^^^^^^^^^^^^
-
-Slackdump uses a slightly `modified`_ "slack" library via module replacement
-directive to enable the cookie authentication, so ``go install`` won't work.  To
-compile it from sources, run the following commands::
- 
-   git clone github.com/rusq/slackdump
-   cd slackdump
-   go build ./cmd/slackdump
-
+For compiling from sources see: `Compiling from sources`_
 
 Logging in
 ----------
@@ -56,4 +46,4 @@ There are three modes of operation:
 .. _Creating a Slack Export: usage-export.rst
 .. _Listing users/channels:  usage-list.rst
 .. _Releases: https://github.com/rusq/slackdump/releases
-.. _modified: https://github.com/rusq/slack
+.. _Compiling from sources: compiling.rst
