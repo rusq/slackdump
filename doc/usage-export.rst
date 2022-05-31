@@ -50,6 +50,11 @@ Group Messages
 
 ^In case you're wondering who's `Scumbag Steve`_.
 
+Slack Export Viewer
+~~~~~~~~~~~~~~~~~~~
+
+While you're welcome to just open each individual ``.json`` file to read the contents of your backup, you might also consider using a tool like `slack-export-viewer <https://github.com/hfaran/slack-export-viewer>`_. Some work has been put in, to make ``slackdump`` compatible with ``slack-export-viewer``, which will allow you to navigate your backup with a slack-like GUI.
+
 [Index_]
 
 .. _`Scumbag Steve`: https://www.google.com/search?q=Scumbag+Steve
