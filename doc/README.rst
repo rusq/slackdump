@@ -8,7 +8,7 @@ Installation
 ------------
 
 Installing is pretty simple - just download the latest Slackdump from the
-Releases page, extract and run it:
+Releases_ page, extract and run it:
 
 #. Download the archive from the Releases_ page for your operating system.
 
@@ -16,6 +16,17 @@ Releases page, extract and run it:
 #. Unpack;
 #. Change directory to where you have unpacked the archive;
 #. Run ``./slackdump -h`` to view help options.
+
+Compiling from Sources
+^^^^^^^^^^^^^^^^^^^^^^
+
+Slackdump uses a `custom`_ "slack" library to enable cookie auth, and module
+replacement directive, so ``go install`` won't work.  To install it from
+sources, run the following commands::
+ 
+   git clone github.com/rusq/slackdump
+   cd slackdump
+   go build ./cmd/slackdump
 
 
 Logging in
@@ -45,3 +56,4 @@ There are three modes of operation:
 .. _Creating a Slack Export: usage-export.rst
 .. _Listing users/channels:  usage-list.rst
 .. _Releases: https://github.com/rusq/slackdump/releases
+.. _custom: https://github.com/rusq/slack
