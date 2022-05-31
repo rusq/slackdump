@@ -17,6 +17,7 @@
 
 # IDE
 .idea
+.vscode
 
 #OS junk
 .DS_Store

@@ -43,6 +43,7 @@ func (sd *SlackDumper) newFileProcessFn(ctx context.Context, dir string, l *rate
 	// slice
 	dl := downloader.New(
 		sd.client,
+		sd.fs,
 		downloader.Limiter(l),
 		downloader.Retries(sd.options.DownloadRetries),
 		downloader.Workers(sd.options.Workers),

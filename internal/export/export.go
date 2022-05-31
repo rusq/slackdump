@@ -1,17 +1,12 @@
 package export
 
 import (
-	"bytes"
-	"compress/gzip"
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
-	"runtime/trace"
 	"time"
 
 	"github.com/rusq/dlog"
@@ -19,13 +14,12 @@ import (
 
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/downloader"
+	"github.com/rusq/slackdump/v2/fsadapter"
 )
-
-const userPrefix = "IM-" // prefix for Direct Messages
 
 // Export is the instance of Slack Exporter.
 type Export struct {
-	dir    string                 //target directory
+	fs     fsadapter.FS           // target filesystem
 	dumper *slackdump.SlackDumper // slackdumper instance
 
 	// time window
@@ -38,8 +32,8 @@ type Options struct {
 	IncludeFiles bool
 }
 
-func New(dir string, dumper *slackdump.SlackDumper, cfg Options) *Export {
-	return &Export{dir: dir, dumper: dumper, opts: cfg}
+func New(dumper *slackdump.SlackDumper, fs fsadapter.FS, cfg Options) *Export {
+	return &Export{fs: fs, dumper: dumper, opts: cfg}
 }
 
 // Run runs the export.
@@ -63,16 +57,12 @@ func (se *Export) users(ctx context.Context) (slackdump.Users, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := serializeToFile(filepath.Join(se.dir, "users.json"), users); err != nil {
-		return nil, err
-	}
-
 	return users, nil
 }
 
 func (se *Export) messages(ctx context.Context, users slackdump.Users) error {
 	var chans []slack.Channel
-	dl := downloader.New(se.dumper.Client())
+	dl := downloader.New(se.dumper.Client(), se.fs)
 	if se.opts.IncludeFiles {
 		// start the downloader
 		dl.Start(ctx)
@@ -91,11 +81,16 @@ func (se *Export) messages(ctx context.Context, users slackdump.Users) error {
 		return fmt.Errorf("channels: error: %w", err)
 	}
 
-	return serializeToFile(filepath.Join(se.dir, "channels.json"), chans)
+	idx, err := createIndex(chans, users, se.dumper.Me())
+	if err != nil {
+		return fmt.Errorf("failed to create an index: %w", err)
+	}
+
+	return idx.Marshal(se.fs)
 }
 
+// exportConversation exports one conversation.
 func (se *Export) exportConversation(ctx context.Context, ch slack.Channel, users slackdump.Users, dl *downloader.Client) error {
-
 	dlFn := se.downloadFn(dl, ch.Name)
 	messages, err := se.dumper.DumpMessagesRaw(ctx, ch.ID, se.opts.Oldest, se.opts.Latest, dlFn)
 	if err != nil {
@@ -144,89 +139,43 @@ func (se *Export) downloadFn(dl *downloader.Client, channelName string) func(msg
 	}
 }
 
-var errUnknownEntity = errors.New("encountered an unknown entity, please (1) rerun with -trace=trace.out, (2) create an issue on https://github.com/rusq/slackdump/issues and (3) submit the trace file when requested")
-
-// validName returns the channel or user name.  If it is not able to determine
-// either of those, it will return the ID of the channel or a user.
-//
-// I have no access to Enterprise Plan Slack Export functionality, so I don't
-// know what directory name would IM have in Slack Export ZIP.  So, I'll do the
-// right thing, and prefix IM directories with `userPrefix`.
-//
-// If it fails to determine the appropriate name, it returns errUnknownEntity.
+// validName returns the channel or user name. Following the naming convention
+// described by @niklasdahlheimer in this post (thanks to @Neznakomec for
+// discovering it):
+// https://github.com/RocketChat/Rocket.Chat/issues/13905#issuecomment-477500022
 func validName(ctx context.Context, ch slack.Channel, uidx userIndex) (string, error) {
-	if ch.NameNormalized != "" {
-		// populated on all channels, private channels, and group messages
+
+	if ch.IsIM {
+		return ch.ID, nil
+	} else {
 		return ch.NameNormalized, nil
 	}
-
-	// user branch
-
-	if !ch.IsIM {
-		// what is this? It doesn't have a name, and is not a IM.
-		trace.Logf(ctx, "unsupported", "unknown type=%s", traceCompress(ctx, ch))
-		return "", errUnknownEntity
-	}
-	user, ok := uidx[ch.User]
-	if ok {
-		return userPrefix + user.Name, nil
-	}
-
-	// failed to get the username
-
-	trace.Logf(ctx, "warning", "user not found: %s", ch.User)
-
-	// using ID as a username
-	return userPrefix + ch.User, nil
-}
-
-// traceCompress gz-compresses and base64-encodes the json data for trace.
-func traceCompress(ctx context.Context, v any) string {
-	data, err := json.Marshal(v)
-	if err != nil {
-		trace.Logf(ctx, "error", "error marshalling v: %s", err)
-		return ""
-	}
-	var buf bytes.Buffer
-	b64 := base64.NewEncoder(base64.RawStdEncoding, &buf)
-	gz := gzip.NewWriter(b64)
-	if _, err := gz.Write(data); err != nil {
-		trace.Logf(ctx, "error", "error compressing data: %v", err)
-	}
-	gz.Close()
-	b64.Close()
-	return buf.String()
 }
 
 func (se *Export) basedir(channelName string) string {
-	return filepath.Join(se.dir, channelName)
+	return channelName
 }
 
 // saveChannel creates a directory `name` and writes the contents of msgs. for
 // each map key the json file is created, with the name `{key}.json`, and values
 // for that key are serialised to the file in json format.
 func (se *Export) saveChannel(channelName string, msgs messagesByDate) error {
-	basedir := se.basedir(channelName)
-	if err := os.MkdirAll(basedir, 0700); err != nil {
-		return fmt.Errorf("unable to create directory %q: %w", channelName, err)
-	}
 	for date, messages := range msgs {
-		output := filepath.Join(basedir, date+".json")
-		if err := serializeToFile(output, messages); err != nil {
+		output := filepath.Join(channelName, date+".json")
+		if err := serializeToFS(se.fs, output, messages); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-// serializeToFile writes the data in json format to provided filename.
-func serializeToFile(filename string, data any) error {
-	f, err := os.Create(filename)
+// serializeToFS writes the data in json format to provided filesystem adapter.
+func serializeToFS(fs fsadapter.FS, filename string, data any) error {
+	f, err := fs.Create(filename)
 	if err != nil {
-		return fmt.Errorf("serializeToFile: failed to create %q: %w", filename, err)
+		return err
 	}
 	defer f.Close()
-
 	return serialize(f, data)
 }
 

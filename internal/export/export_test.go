@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/rusq/slackdump/v2"
+	"github.com/rusq/slackdump/v2/fsadapter"
 	"github.com/rusq/slackdump/v2/internal/fixtures"
 	"github.com/slack-go/slack"
 	"github.com/stretchr/testify/assert"
@@ -64,7 +65,7 @@ func TestExport_saveChannel(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			se := &Export{
-				dir:    tt.fields.dir,
+				fs:     fsadapter.NewDirectory(tt.fields.dir),
 				dumper: tt.fields.dumper,
 			}
 			if err := se.saveChannel(tt.args.channelName, tt.args.msgs); (err != nil) != tt.wantErr {
@@ -87,6 +88,9 @@ func loadTestDir(path string) (messagesByDate, error) {
 	// no proper error checking.
 	var mbd = make(messagesByDate, 0)
 	if err := filepath.WalkDir(path, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
 
 		if filepath.Ext(path) != jsonExt {
 			return nil

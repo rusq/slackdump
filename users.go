@@ -203,6 +203,6 @@ func filenameSplit(filename string) nameExt {
 }
 
 // filenameJoin combines nameExt{"path/to/filename", ".ext"} to "path/to/filename.ext".
-func filenameJoin(splitfname nameExt) string {
-	return splitfname[0] + splitfname[1]
+func filenameJoin(split nameExt) string {
+	return split[0] + split[1]
 }

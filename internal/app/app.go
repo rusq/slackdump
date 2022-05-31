@@ -10,6 +10,7 @@ import (
 
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/auth"
+	"github.com/rusq/slackdump/v2/fsadapter"
 )
 
 const (
@@ -20,6 +21,7 @@ const (
 type App struct {
 	sd   *slackdump.SlackDumper
 	tmpl *template.Template
+	fs   fsadapter.FS
 
 	prov auth.Provider
 	cfg  Config
@@ -34,14 +36,18 @@ func New(cfg Config, provider auth.Provider) (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &App{cfg: cfg, prov: provider, tmpl: tmpl}, nil
+	fs, err := fsadapter.ForFilename(cfg.Output.Base)
+	if err != nil {
+		return nil, err
+	}
+	return &App{cfg: cfg, prov: provider, tmpl: tmpl, fs: fs}, nil
 }
 
 func (app *App) Run(ctx context.Context) error {
 	ctx, task := trace.NewTask(ctx, "app.Run")
 	defer task.End()
 
-	if err := app.init(ctx); err != nil {
+	if err := app.initSlackdump(ctx); err != nil {
 		return err
 	}
 
@@ -50,7 +56,7 @@ func (app *App) Run(ctx context.Context) error {
 	switch {
 	case app.cfg.ListFlags.FlagsPresent():
 		err = app.runListEntities(ctx)
-	case app.cfg.ExportDirectory != "":
+	case app.cfg.ExportName != "":
 		err = app.runExport(ctx)
 	default:
 		err = app.runDump(ctx)
@@ -65,8 +71,13 @@ func (app *App) Run(ctx context.Context) error {
 	return nil
 }
 
-// init initialises the slack dumper app.
-func (app *App) init(ctx context.Context) error {
+// Close closes all open handles.
+func (app *App) Close() error {
+	return fsadapter.Close(app.fs)
+}
+
+// initSlackdump initialises the slack dumper app.
+func (app *App) initSlackdump(ctx context.Context) error {
 	sd, err := slackdump.NewWithOptions(
 		ctx,
 		app.prov,
@@ -76,6 +87,7 @@ func (app *App) init(ctx context.Context) error {
 		return err
 	}
 	app.sd = sd
+	app.sd.SetFS(app.fs)
 	return nil
 }
 
@@ -95,7 +107,7 @@ func (app *App) runExport(ctx context.Context) error {
 	defer task.End()
 
 	if err := app.Export(ctx,
-		app.cfg.ExportDirectory,
+		app.cfg.ExportName,
 	); err != nil {
 		return err
 	}

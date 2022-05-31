@@ -9,10 +9,11 @@ import (
 	"github.com/rusq/slackdump/v2/internal/network"
 )
 
-// SaveFileTo saves a single file to the specified directory.
+// SaveFileTo saves a single file to the specified directory within the current file system.
 func (sd *SlackDumper) SaveFileTo(ctx context.Context, dir string, f *slack.File) (int64, error) {
 	dl := downloader.New(
 		sd.client,
+		sd.fs,
 		downloader.Limiter(network.NewLimiter(network.NoTier, sd.options.Tier3Burst, 0)),
 		downloader.Retries(sd.options.DownloadRetries),
 		downloader.Workers(sd.options.Workers),

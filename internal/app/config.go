@@ -27,14 +27,15 @@ type Config struct {
 
 	FilenameTemplate string
 
-	ExportDirectory string
+	ExportName string
 
 	Options slackdump.Options
 }
 
 type Output struct {
 	Filename string
-	Format   string
+	Format   string // output format
+	Base     string // base directory or zip file
 }
 
 type Input struct {
@@ -88,7 +89,7 @@ func (lf ListFlags) FlagsPresent() bool {
 
 // Validate checks if the command line parameters have valid values.
 func (p *Config) Validate() error {
-	if p.ExportDirectory != "" {
+	if p.ExportName != "" {
 		dlog.Debugf("will operate in export mode")
 		return nil
 	}

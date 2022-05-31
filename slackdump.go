@@ -8,7 +8,6 @@ import (
 	"os"
 	"runtime/trace"
 	"time"
-	"unicode/utf8"
 
 	"github.com/pkg/errors"
 	"github.com/rusq/dlog"
@@ -16,6 +15,7 @@ import (
 	"golang.org/x/time/rate"
 
 	"github.com/rusq/slackdump/v2/auth"
+	"github.com/rusq/slackdump/v2/fsadapter"
 	"github.com/rusq/slackdump/v2/internal/network"
 )
 
@@ -24,15 +24,23 @@ import (
 //go:generate sh -c "mockgen -source slackdump.go -destination clienter_mock.go -package slackdump -mock_names clienter=mockClienter,Reporter=mockReporter"
 //go:generate sed -i ~ -e "s/NewmockClienter/newmockClienter/g" -e "s/NewmockReporter/newmockReporter/g" clienter_mock.go
 
+const (
+	// user index of the application user in the user list.
+	userIdxMe = 1
+)
+
 // SlackDumper stores basic session parameters.
 type SlackDumper struct {
 	client clienter
 
 	teamID string // used as a suffix for cached users
 
+	fs fsadapter.FS // filesystem for saving attachments
+
 	// Users contains the list of users and populated on NewSlackDumper
 	Users     Users                  `json:"users"`
 	UserIndex map[string]*slack.User `json:"-"`
+	me        slack.User
 
 	options Options
 }
@@ -83,13 +91,14 @@ func NewWithOptions(ctx context.Context, authProvider auth.Provider, opts Option
 	cl := slack.New(authProvider.SlackToken(), slack.OptionCookieRAW(toPtrCookies(authProvider.Cookies())...))
 	ti, err := cl.GetTeamInfoContext(ctx)
 	if err != nil {
-		return nil, errors.WithStack(err)
+		return nil, fmt.Errorf("error getting team information: %w", err)
 	}
 
 	sd := &SlackDumper{
 		client:  cl,
 		options: opts,
 		teamID:  ti.ID,
+		fs:      fsadapter.NewDirectory("."), // default is to save attachments to the current directory.
 	}
 
 	dlog.Println("> checking user cache...")
@@ -97,11 +106,30 @@ func NewWithOptions(ctx context.Context, authProvider auth.Provider, opts Option
 	if err != nil {
 		return nil, fmt.Errorf("error fetching users: %w", err)
 	}
+	if len(users) < 2 { // me and slackbot.
+		return nil, errors.New("invalid number of users retrieved.")
+	}
+
+	// now, this is filthy, but Slack does not allow us to call GetUserIdentity with browser token.
+	sd.me = users[userIdxMe]
 
 	sd.Users = users
 	sd.UserIndex = users.IndexByID()
 
 	return sd, nil
+}
+
+func (sd *SlackDumper) Me() slack.User {
+	return sd.me
+}
+
+// SetFS sets the filesystem to save attachments to (slackdump defaults to the
+// current directory otherwise).
+func (sd *SlackDumper) SetFS(fs fsadapter.FS) {
+	if fs == nil {
+		return
+	}
+	sd.fs = fs
 }
 
 func toPtrCookies(cc []http.Cookie) []*http.Cookie {
@@ -121,16 +149,6 @@ func (sd *SlackDumper) limiter(t network.Tier) *rate.Limiter {
 // maxAttempts times. It will return an error if it runs out of attempts.
 func withRetry(ctx context.Context, l *rate.Limiter, maxAttempts int, fn func() error) error {
 	return network.WithRetry(ctx, l, maxAttempts, fn)
-}
-
-func maxStringLength(strings []string) (maxlen int) {
-	for i := range strings {
-		l := utf8.RuneCountInString(strings[i])
-		if l > maxlen {
-			maxlen = l
-		}
-	}
-	return
 }
 
 func checkCacheFile(filename string, maxAge time.Duration) error {

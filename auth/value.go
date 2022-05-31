@@ -3,7 +3,14 @@ package auth
 import (
 	"fmt"
 	"net/http"
+	"net/url"
+	"regexp"
 	"time"
+)
+
+const (
+	defaultPath   = "/"
+	defaultDomain = ".slack.com"
 )
 
 var _ Provider = &ValueAuth{}
@@ -29,13 +36,26 @@ func NewValueAuth(token string, cookie string) (ValueAuth, error) {
 	}}, nil
 }
 
+var timeFunc = time.Now
+
 func makeCookie(key, val string) http.Cookie {
+	if !urlsafe(val) {
+		val = url.QueryEscape(val)
+	}
 	return http.Cookie{
 		Name:    key,
 		Value:   val,
-		Path:    "/",
-		Domain:  ".slack.com",
-		Expires: time.Now().AddDate(10, 0, 0),
+		Path:    defaultPath,
+		Domain:  defaultDomain,
+		Expires: timeFunc().AddDate(10, 0, 0),
 		Secure:  true,
 	}
+}
+
+var reURLsafe = regexp.MustCompile(`[-._~%a-zA-Z0-9]+`)
+
+func urlsafe(s string) bool {
+	// https://www.ietf.org/rfc/rfc3986.txt
+	st := reURLsafe.ReplaceAllString(s, "") // workaround for inability to use `(?!...)`
+	return len(st) == 0
 }

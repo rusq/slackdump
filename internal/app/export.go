@@ -4,29 +4,40 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
+	"runtime/trace"
 	"time"
 
+	"github.com/rusq/dlog"
+	"github.com/rusq/slackdump/v2/fsadapter"
 	"github.com/rusq/slackdump/v2/internal/export"
 )
 
-const defDirMode = 0700
-
 // Export performs the full export of slack workspace in slack export compatible
 // format.
-func (app *App) Export(ctx context.Context, dir string) error {
-	if dir == "" { // dir is passed from app.cfg.ExportDirectory
-		return errors.New("export directory not specified")
+//
+// TODO: unify with Base filesystem.
+func (app *App) Export(ctx context.Context, name string) error {
+	ctx, task := trace.NewTask(ctx, "App.Export")
+	defer task.End()
+
+	if name == "" { // dir is passed from app.cfg.ExportDirectory
+		return errors.New("export directory or filename not specified")
 	}
 
-	if err := os.MkdirAll(dir, defDirMode); err != nil {
-		return fmt.Errorf("Export: failed to create the export directory %q: %w", dir, err)
-	}
 	cfg := export.Options{
 		Oldest:       time.Time(app.cfg.Oldest),
 		Latest:       time.Time(app.cfg.Latest),
 		IncludeFiles: app.cfg.Options.DumpFiles,
 	}
-	export := export.New(dir, app.sd, cfg)
-	return export.Run(ctx)
+	fs, err := fsadapter.ForFilename(name)
+	if err != nil {
+		trace.Logf(ctx, "error", "filesystem: %s", err)
+		return fmt.Errorf("failed to initialise the filesystem: %w", err)
+	}
+	defer fsadapter.Close(fs)
+
+	trace.Logf(ctx, "info", "filesystem: %s", fs)
+	dlog.Printf("staring export to: %s", fs)
+
+	return export.New(app.sd, fs, cfg).Run(ctx)
 }

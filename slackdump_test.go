@@ -15,30 +15,6 @@ import (
 	"github.com/rusq/slackdump/v2/internal/network"
 )
 
-func Test_maxStringLength(t *testing.T) {
-	type args struct {
-		strings []string
-	}
-	tests := []struct {
-		name       string
-		args       args
-		wantMaxlen int
-	}{
-		{"ascii", args{[]string{"123", "abc", "defg"}}, 4},
-		{"unicode", args{[]string{"сообщение1", "проверка", "тест"}}, 10},
-		{"empty", args{[]string{}}, 0},
-		{"several empty", args{[]string{"", "", "", ""}}, 0},
-		{"several empty one full", args{[]string{"", "", "1", ""}}, 1},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if gotMaxlen := maxStringLength(tt.args.strings); gotMaxlen != tt.wantMaxlen {
-				t.Errorf("maxStringLength() = %v, want %v", gotMaxlen, tt.wantMaxlen)
-			}
-		})
-	}
-}
-
 func Test_validateFileStats(t *testing.T) {
 	type args struct {
 		maxAge time.Duration
