@@ -17,6 +17,10 @@ func NewDirectory(dir string) Directory {
 	return Directory{dir: dir}
 }
 
+func (d Directory) String() string {
+	return "<directory: " + d.dir + ">"
+}
+
 func (fs Directory) Create(fpath string) (io.WriteCloser, error) {
 	node := filepath.Join(fs.dir, fpath)
 	nodeDir := filepath.Dir(node)

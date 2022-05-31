@@ -3,9 +3,7 @@ package app
 import (
 	"context"
 	"html/template"
-	"path/filepath"
 	"runtime/trace"
-	"strings"
 	"time"
 
 	"github.com/rusq/dlog"
@@ -38,18 +36,11 @@ func New(cfg Config, provider auth.Provider) (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	fs, err := initFSAdapter(cfg.Output.Base)
+	fs, err := fsadapter.ForFilename(cfg.Output.Base)
 	if err != nil {
 		return nil, err
 	}
 	return &App{cfg: cfg, prov: provider, tmpl: tmpl, fs: fs}, nil
-}
-
-func initFSAdapter(name string) (fsadapter.FS, error) {
-	if strings.EqualFold(strings.ToUpper(filepath.Ext(name)), ".ZIP") {
-		return fsadapter.NewZipFile(name)
-	}
-	return fsadapter.NewDirectory(name), nil
 }
 
 func (app *App) Run(ctx context.Context) error {
@@ -65,7 +56,7 @@ func (app *App) Run(ctx context.Context) error {
 	switch {
 	case app.cfg.ListFlags.FlagsPresent():
 		err = app.runListEntities(ctx)
-	case app.cfg.ExportDirectory != "":
+	case app.cfg.ExportName != "":
 		err = app.runExport(ctx)
 	default:
 		err = app.runDump(ctx)
@@ -116,7 +107,7 @@ func (app *App) runExport(ctx context.Context) error {
 	defer task.End()
 
 	if err := app.Export(ctx,
-		app.cfg.ExportDirectory,
+		app.cfg.ExportName,
 	); err != nil {
 		return err
 	}

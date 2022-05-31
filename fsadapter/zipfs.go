@@ -3,6 +3,7 @@ package fsadapter
 import (
 	"archive/zip"
 	"bytes"
+	"fmt"
 	"io"
 	"os"
 	"path"
@@ -16,6 +17,10 @@ type ZIP struct {
 	zw *zip.Writer
 	mu sync.Mutex
 	f  *os.File
+}
+
+func (z *ZIP) String() string {
+	return fmt.Sprintf("<zip archive: %s>", z.f.Name())
 }
 
 func NewZIP(zw *zip.Writer) *ZIP {

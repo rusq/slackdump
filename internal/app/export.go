@@ -3,9 +3,11 @@ package app
 import (
 	"context"
 	"errors"
-	"strings"
+	"fmt"
+	"runtime/trace"
 	"time"
 
+	"github.com/rusq/dlog"
 	"github.com/rusq/slackdump/v2/fsadapter"
 	"github.com/rusq/slackdump/v2/internal/export"
 )
@@ -14,9 +16,12 @@ import (
 // format.
 //
 // TODO: unify with Base filesystem.
-func (app *App) Export(ctx context.Context, dir string) error {
-	if dir == "" { // dir is passed from app.cfg.ExportDirectory
-		return errors.New("export directory not specified")
+func (app *App) Export(ctx context.Context, name string) error {
+	ctx, task := trace.NewTask(ctx, "App.Export")
+	defer task.End()
+
+	if name == "" { // dir is passed from app.cfg.ExportDirectory
+		return errors.New("export directory or filename not specified")
 	}
 
 	cfg := export.Options{
@@ -24,11 +29,15 @@ func (app *App) Export(ctx context.Context, dir string) error {
 		Latest:       time.Time(app.cfg.Latest),
 		IncludeFiles: app.cfg.Options.DumpFiles,
 	}
-	zf, err := fsadapter.NewZipFile(strings.TrimSuffix(dir, ".zip") + ".zip") // ensure we have a zip suffix TODO
+	fs, err := fsadapter.ForFilename(name)
 	if err != nil {
-		return err
+		trace.Logf(ctx, "error", "filesystem: %s", err)
+		return fmt.Errorf("failed to initialise the filesystem: %w", err)
 	}
-	defer zf.Close()
-	export := export.New(app.sd, zf, cfg)
-	return export.Run(ctx)
+	defer fsadapter.Close(fs)
+
+	trace.Logf(ctx, "info", "filesystem: %s", fs)
+	dlog.Printf("staring export to: %s", fs)
+
+	return export.New(app.sd, fs, cfg).Run(ctx)
 }
