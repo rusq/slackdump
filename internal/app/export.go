@@ -14,13 +14,11 @@ import (
 
 // Export performs the full export of slack workspace in slack export compatible
 // format.
-//
-// TODO: unify with Base filesystem.
 func (app *App) Export(ctx context.Context, name string) error {
 	ctx, task := trace.NewTask(ctx, "App.Export")
 	defer task.End()
 
-	if name == "" { // dir is passed from app.cfg.ExportDirectory
+	if name == "" {
 		return errors.New("export directory or filename not specified")
 	}
 

@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"path"
 	"path/filepath"
 	"runtime/trace"
 	"sync"
@@ -76,7 +77,7 @@ func Workers(n int) Option {
 	}
 }
 
-// Ne initialises new file downloader
+// New initialises new file downloader
 func New(client Downloader, fs fsadapter.FS, opts ...Option) *Client {
 	if client == nil {
 		// better safe than sorry
@@ -153,13 +154,13 @@ func (c *Client) worker(ctx context.Context, reqC <-chan FileRequest) {
 			if !moar {
 				return
 			}
-			dlog.Debugf("saving %q to %s, size: %d", filename(req.File), req.Directory, req.File.Size)
+			dlog.Debugf("saving %q to %s, size: %d", Filename(req.File), req.Directory, req.File.Size)
 			n, err := c.saveFile(ctx, req.Directory, req.File)
 			if err != nil {
-				dlog.Printf("error saving %q to %s: %s", filename(req.File), req.Directory, err)
+				dlog.Printf("error saving %q to %s: %s", Filename(req.File), req.Directory, err)
 				break
 			}
-			dlog.Printf("file %q saved to %s: %d bytes written", filename(req.File), req.Directory, n)
+			dlog.Printf("file %q saved to %s: %d bytes written", Filename(req.File), req.Directory, n)
 		}
 	}
 }
@@ -200,7 +201,7 @@ func (c *Client) saveFile(ctx context.Context, dir string, sf *slack.File) (int6
 	if c.fs == nil {
 		return 0, errNoFS
 	}
-	filePath := filepath.Join(dir, filename(sf))
+	filePath := filepath.Join(dir, Filename(sf))
 
 	var buf bytes.Buffer
 	if err := network.WithRetry(ctx, c.limiter, c.retries, func() error {
@@ -223,8 +224,8 @@ func (c *Client) saveFile(ctx context.Context, dir string, sf *slack.File) (int6
 	return int64(buf.Len()), nil
 }
 
-// filename returns name of the file
-func filename(f *slack.File) string {
+// Filename returns name of the file
+func Filename(f *slack.File) string {
 	return fmt.Sprintf("%s-%s", f.ID, f.Name)
 }
 
@@ -251,15 +252,16 @@ var ErrNotStarted = errors.New("downloader not started")
 // DownloadFile requires a started downloader, otherwise it will return
 // ErrNotStarted. Will place the file to the download queue, and save the file
 // to the directory that was specified when Start was called. If the file buffer
-// is full, will block until it becomes empty.
-func (c *Client) DownloadFile(dir string, f slack.File) error {
+// is full, will block until it becomes empty.  It returns the filepath within the
+// filesystem.
+func (c *Client) DownloadFile(dir string, f slack.File) (string, error) {
 	c.mu.Lock()
 	started := c.started
 	c.mu.Unlock()
 
 	if !started {
-		return ErrNotStarted
+		return "", ErrNotStarted
 	}
 	c.fileRequests <- FileRequest{Directory: dir, File: &f}
-	return nil
+	return path.Join(dir, Filename(&f)), nil
 }

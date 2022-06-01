@@ -66,7 +66,32 @@ func (sd *SlackDumper) newFileProcessFn(ctx context.Context, dir string, l *rate
 		<-dlDoneC
 	}
 	return fn, cancelFn, nil
+}
 
+// ExtractFiles extracts files from messages slice.
+func (*SlackDumper) ExtractFiles(msgs []Message) []slack.File {
+	var files []slack.File
+
+	for i := range msgs {
+		if msgs[i].Files != nil {
+			files = append(files, msgs[i].Files...)
+		}
+		// include thread files
+		for _, reply := range msgs[i].ThreadReplies {
+			files = append(files, reply.Files...)
+		}
+	}
+	return files
+}
+
+// pipeFiles scans the messages and sends all the files discovered to the filesC.
+func (sd *SlackDumper) pipeFiles(filesC chan<- *slack.File, msgs []Message) int {
+	// place files in the download queue
+	fileChunk := sd.ExtractFiles(msgs)
+	for i := range fileChunk {
+		filesC <- &fileChunk[i]
+	}
+	return len(fileChunk)
 }
 
 // newThreadProcessFn returns the new thread processor function.  It will use limiter l

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"path"
 	"path/filepath"
 	"time"
 
@@ -118,25 +119,97 @@ func (se *Export) exportConversation(ctx context.Context, ch slack.Channel, user
 	return nil
 }
 
+// refRoot is the parent address for the topmost message chunk.
+const refRoot = -1
+
 // downloadFn returns the process function that should be passed to
 // DumpMessagesRaw that will handle the download of the files.  If the
 // downloader is not started, i.e. if file download is disabled, it will
 // silently ignore the error and return nil.
 func (se *Export) downloadFn(dl *downloader.Client, channelName string) func(msg []slackdump.Message, channelID string) (slackdump.ProcessResult, error) {
-	dir := filepath.Join(se.basedir(channelName), "attachments")
+	const (
+		entFiles  = "files"
+		dirAttach = "attachments"
+	)
+
+	dir := filepath.Join(se.basedir(channelName), dirAttach)
 	return func(msg []slackdump.Message, channelID string) (slackdump.ProcessResult, error) {
-		files := se.dumper.ExtractFiles(msg)
-		for _, f := range files {
-			if err := dl.DownloadFile(dir, f); err != nil {
-				if errors.Is(err, downloader.ErrNotStarted) {
-					return slackdump.ProcessResult{Entity: "files", Count: 0}, nil
-				}
-				return slackdump.ProcessResult{}, err
+		total := 0
+		if err := extractFiles(msg, refRoot, func(file slack.File, addr fileAddr) error {
+			filename, err := dl.DownloadFile(dir, file)
+			if err != nil {
+				return err
 			}
-			dlog.Printf("sent: %s", f.Name)
+			dlog.Debugf("submitted for download: %s", file.Name)
+			total++
+			return updateFileURL(msg, addr, path.Join(dirAttach, path.Base(filename)))
+		}); err != nil {
+			if errors.Is(err, downloader.ErrNotStarted) {
+				return slackdump.ProcessResult{Entity: entFiles, Count: 0}, nil
+			}
+			return slackdump.ProcessResult{}, err
 		}
-		return slackdump.ProcessResult{Entity: "files", Count: len(files)}, nil
+
+		return slackdump.ProcessResult{Entity: entFiles, Count: total}, nil
 	}
+}
+
+// updateFileURL updates the URL link for the files in message chunk msgs.  Addr contains
+// an address of the message to update the URL for, and filename is the path to the file
+// on the local filesystem.  It will return an error if the address references out of range.
+func updateFileURL(msgs []slackdump.Message, addr fileAddr, filename string) error {
+	if addr.idxParMsg == refRoot {
+		if addr.idxMsg < 0 || len(msgs) <= addr.idxMsg {
+			return errors.New("invalid message reference")
+		}
+		if addr.idxFile < 0 || len(msgs[addr.idxMsg].Files) < addr.idxFile {
+			return errors.New("invalid file reference")
+		}
+		msgs[addr.idxMsg].Files[addr.idxFile].URLPrivateDownload = filename
+		msgs[addr.idxMsg].Files[addr.idxFile].URLPrivate = filename
+	} else {
+		return updateFileURL(
+			msgs[addr.idxParMsg].ThreadReplies,
+			fileAddr{idxMsg: addr.idxMsg, idxParMsg: refRoot, idxFile: addr.idxFile},
+			filename,
+		)
+	}
+	return nil
+}
+
+// fileAddr is the address of the file in the messages slice.
+//   idxMsg    - index of the message or message reply in the provided slice
+//   idxParMsg - index of the parent message. If it is not equal to refRoot, then
+//               it is assumed that it is the reference to a message reply:
+//               i.e.: msg[idxParMsg].ThreadReplies[idxMsg].
+//   idxFile   - index of the file ine the message's file slice.
+type fileAddr struct {
+	idxMsg    int // index of the message in the messages slice
+	idxParMsg int // index of the parent message, or refRoot if it's the address of the top level message
+	idxFile   int // index of the file in the file slice.
+}
+
+// extractFiles scans the message slice msgs, and calls fn for each file it
+// finds. fn is called with the copy of the file and that file's address in the
+// provided message slice.  idxParentMsg is the index of the parent message (for
+// message replies slice), or refRoot if it's the topmost messages slice (see
+// invocation in downloadFn).
+func extractFiles(msgs []slackdump.Message, idxParentMsg int, fn func(file slack.File, addr fileAddr) error) error {
+	for mi := range msgs {
+		if len(msgs[mi].Files) > 0 {
+			for fileIdx, file := range msgs[mi].Files {
+				if err := fn(file, fileAddr{idxMsg: mi, idxParMsg: idxParentMsg, idxFile: fileIdx}); err != nil {
+					return err
+				}
+			}
+		}
+		if len(msgs[mi].ThreadReplies) > 0 {
+			if err := extractFiles(msgs[mi].ThreadReplies, mi, fn); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 // validName returns the channel or user name. Following the naming convention
@@ -144,7 +217,6 @@ func (se *Export) downloadFn(dl *downloader.Client, channelName string) func(msg
 // discovering it):
 // https://github.com/RocketChat/Rocket.Chat/issues/13905#issuecomment-477500022
 func validName(ctx context.Context, ch slack.Channel, uidx userIndex) (string, error) {
-
 	if ch.IsIM {
 		return ch.ID, nil
 	} else {

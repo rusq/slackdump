@@ -19,7 +19,7 @@ func fltSeen(filesC <-chan FileRequest) <-chan FileRequest {
 		for f := range filesC {
 			id := f.File.ID + f.Directory
 			if _, ok := seen[id]; ok {
-				log.Printf("already seen %s, skipping", filename(f.File))
+				log.Printf("already seen %s, skipping", Filename(f.File))
 				continue
 			}
 			seen[id] = true

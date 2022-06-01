@@ -1,14 +1,9 @@
 package slackdump
 
 import (
-	"context"
 	"sync"
 	"testing"
 
-	gomock "github.com/golang/mock/gomock"
-	"github.com/pkg/errors"
-	"github.com/rusq/slackdump/v2/fsadapter"
-	"github.com/rusq/slackdump/v2/internal/fixtures"
 	"github.com/slack-go/slack"
 	"github.com/stretchr/testify/assert"
 )
@@ -131,83 +126,4 @@ func TestSlackDumper_pipeFiles(t *testing.T) {
 	wg.Wait()
 
 	assert.Equal(t, want, got)
-}
-
-func TestSlackDumper_SaveFileTo(t *testing.T) {
-	type fields struct {
-		Users     Users
-		UserIndex map[string]*slack.User
-		options   Options
-	}
-	type args struct {
-		ctx context.Context
-		dir string
-		f   *slack.File
-	}
-	tests := []struct {
-		name     string
-		fields   fields
-		args     args
-		expectFn func(mc *mockClienter)
-		want     int64
-		wantErr  bool
-	}{
-		{
-			"ok",
-			fields{options: DefOptions},
-			args{
-				context.Background(),
-				"attachments",
-				&file1,
-			},
-			func(mc *mockClienter) {
-				mc.EXPECT().
-					GetFile("file1_url", gomock.Any()).
-					SetArg(1, *fixtures.FilledBuffer(file1.Size)).
-					Return(nil)
-			},
-			int64(file1.Size),
-			false,
-		},
-		{
-			"getfile rekt",
-			fields{options: DefOptions},
-			args{
-				context.Background(),
-				".",
-				&file2,
-			},
-			func(mc *mockClienter) {
-				mc.EXPECT().
-					GetFile("file2_url", gomock.Any()).
-					Return(errors.New("rekt"))
-			},
-			int64(0),
-			true,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			ctrl := gomock.NewController(t)
-			mc := newmockClienter(ctrl)
-
-			tt.expectFn(mc)
-
-			sd := &SlackDumper{
-				client:    mc,
-				fs:        fsadapter.NewDirectory(t.TempDir()),
-				Users:     tt.fields.Users,
-				UserIndex: tt.fields.UserIndex,
-				options:   tt.fields.options,
-			}
-			got, err := sd.SaveFileTo(tt.args.ctx, tt.args.dir, tt.args.f)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("SlackDumper.SaveFileTo() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if got != tt.want {
-				t.Errorf("SlackDumper.SaveFileTo() = %v, want %v", got, tt.want)
-			}
-		})
-	}
 }

@@ -31,6 +31,8 @@ var (
 	errNoIdent   = errors.New("empty user identity")
 )
 
+// createIndex creates a channels and users index for export archive, splitting
+// channels in group/mpims/dms/public channels.
 func createIndex(channels []slack.Channel, users []slack.User, me slack.User) (*index, error) {
 	if len(channels) == 0 {
 		return nil, errNoChannel
@@ -65,6 +67,8 @@ func createIndex(channels []slack.Channel, users []slack.User, me slack.User) (*
 	return &idx, nil
 }
 
+// Marshal writes the index to the filesystem in a set of files specified in
+// `filename` tags of the structure.
 func (idx *index) Marshal(fs fsadapter.FS) error {
 	if fs == nil {
 		return errors.New("marshal: no fs")
@@ -82,7 +86,7 @@ func (idx *index) Marshal(fs fsadapter.FS) error {
 		case "-":
 			continue
 		case "":
-			return fmt.Errorf("empty filename on: %s", field.Name)
+			return fmt.Errorf("empty filename for: %s", field.Name)
 		default:
 		}
 		if found && (option == "omitempty" && val.Field(i).IsZero()) {
