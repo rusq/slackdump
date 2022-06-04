@@ -67,37 +67,6 @@ var (
 	}
 )
 
-func TestSlackDumper_ExtractFiles(t *testing.T) {
-	type args struct {
-		m []types.Message
-	}
-	tests := []struct {
-		name string
-		args args
-		want []slack.File
-	}{
-		{
-			"extracts files ok",
-			args{[]types.Message{testFileMsg1, testFileMsg2}},
-			[]slack.File{
-				file1, file2, file3, file4, file5, file6,
-			},
-		},
-		{
-			"extracts files from thread",
-			args{[]types.Message{testFileMsg3t}},
-			[]slack.File{file7, file8, file9},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			sd := &SlackDumper{}
-			got := sd.ExtractFiles(tt.args.m)
-			assert.Equal(t, tt.want, got)
-		})
-	}
-}
-
 func TestSlackDumper_pipeFiles(t *testing.T) {
 	sd := SlackDumper{
 		options: Options{

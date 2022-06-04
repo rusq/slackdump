@@ -18,7 +18,9 @@ type index struct {
 	Users    []slack.User    `filename:"users.json"`
 }
 
-// DM respresents a direct Message entry in dms.json
+// DM respresents a direct Message entry in dms.json.
+// Structure is based on this post:
+//    https://github.com/RocketChat/Rocket.Chat/issues/13905#issuecomment-477500022
 type DM struct {
 	ID      string   `json:"id"`
 	Created int64    `json:"created"`
