@@ -160,10 +160,10 @@ func checkCacheFile(filename string, maxAge time.Duration) error {
 		return err
 	}
 
-	return validateFileStats(fi, maxAge)
+	return validateCache(fi, maxAge)
 }
 
-func validateFileStats(fi os.FileInfo, maxAge time.Duration) error {
+func validateCache(fi os.FileInfo, maxAge time.Duration) error {
 	if fi.IsDir() {
 		return errors.New("cache file is a directory")
 	}

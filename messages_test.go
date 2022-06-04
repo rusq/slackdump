@@ -15,6 +15,7 @@ import (
 
 	"github.com/rusq/slackdump/v2/internal/fixtures"
 	"github.com/rusq/slackdump/v2/internal/network"
+	"github.com/rusq/slackdump/v2/internal/structures"
 )
 
 var (
@@ -308,48 +309,34 @@ func TestSlackDumper_DumpMessages(t *testing.T) {
 }
 
 func TestSlackDumper_generateText(t *testing.T) {
-	type fields struct {
-		client    clienter
-		Users     Users
-		UserIndex map[string]*slack.User
-		options   Options
-	}
 	type args struct {
-		m      []Message
-		prefix string
+		m       []Message
+		prefix  string
+		userIdx structures.UserIndex
 	}
 	tests := []struct {
 		name    string
-		fields  fields
 		args    args
 		wantW   string
 		wantErr bool
 	}{
 		{
 			"two messages from the same person, not very far apart, with html escaped char",
-			fields{},
-			args{[]Message{testMsg1, testMsg2}, ""},
+			args{[]Message{testMsg1, testMsg2}, "", nil},
 			"\n> U10H7D9RR [U10H7D9RR] @ 03/12/2021 02:15:51 Z:\nTest message < > < >\nmessage 2\n",
 			false,
 		},
 		{
 			"two messages from the same person, far apart",
-			fields{},
-			args{[]Message{testMsg1, testMsg4t}, ""},
+			args{[]Message{testMsg1, testMsg4t}, "", nil},
 			"\n> U10H7D9RR [U10H7D9RR] @ 03/12/2021 02:15:51 Z:\nTest message < > < >\n\n> UP58RAHCJ [UP58RAHCJ] @ 03/12/2021 09:47:34 Z:\nmessage 4\n|   \n|   > U01HPAR0YFN [U01HPAR0YFN] @ 03/12/2021 18:05:26 Z:\n|   blah blah, reply 1\n",
 			false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			sd := &SlackDumper{
-				client:    tt.fields.client,
-				Users:     tt.fields.Users,
-				UserIndex: tt.fields.UserIndex,
-				options:   tt.fields.options,
-			}
 			w := &bytes.Buffer{}
-			if err := sd.generateText(w, tt.args.m, tt.args.prefix); (err != nil) != tt.wantErr {
+			if err := generateText(w, tt.args.m, tt.args.prefix, tt.args.userIdx); (err != nil) != tt.wantErr {
 				t.Errorf("SlackDumper.generateText() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}

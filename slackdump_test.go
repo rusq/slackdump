@@ -15,7 +15,7 @@ import (
 	"github.com/rusq/slackdump/v2/internal/network"
 )
 
-func Test_validateFileStats(t *testing.T) {
+func Test_validateCache(t *testing.T) {
 	type args struct {
 		maxAge time.Duration
 	}
@@ -80,7 +80,7 @@ func Test_validateFileStats(t *testing.T) {
 
 			tt.expectFn(mfi)
 
-			if err := validateFileStats(mfi, tt.args.maxAge); (err != nil) != tt.wantErr {
+			if err := validateCache(mfi, tt.args.maxAge); (err != nil) != tt.wantErr {
 				t.Errorf("validateFileStats() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

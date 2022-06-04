@@ -32,11 +32,6 @@ const (
 	minMsgTimeApart = 2 * time.Minute
 )
 
-// Channel keeps the slice of messages.
-//
-// Deprecated: use Conversation instead.
-type Channel = Conversation
-
 type ProcessResult struct {
 	Entity string
 	Count  int
@@ -110,11 +105,11 @@ func (c Conversation) IsThread() bool {
 }
 
 // ToText outputs Messages m to io.Writer w in text format.
-func (c Conversation) ToText(w io.Writer, sd *SlackDumper) (err error) {
+func (c Conversation) ToText(w io.Writer, userIdx structures.UserIndex) (err error) {
 	buf := bufio.NewWriter(w)
 	defer buf.Flush()
 
-	return sd.generateText(w, c.Messages, "")
+	return generateText(w, c.Messages, "", userIdx)
 }
 
 // DumpAllURL dumps messages from the slack URL, it supports conversations and
@@ -225,10 +220,6 @@ func (sd *SlackDumper) dumpMessages(ctx context.Context, channelID string, oldes
 		}
 
 		chunk := sd.convertMsgs(resp.Messages)
-		// threads, err := sd.populateThreads(ctx, threadLimiter, chunk, channelID, sd.dumpThread)
-		// if err != nil {
-		// 	return nil, err
-		// }
 
 		results, err := runProcessFuncs(chunk, channelID, pfns...)
 		if err != nil {
@@ -292,7 +283,7 @@ func (sd *SlackDumper) convHistoryParams(channelID, cursor string, oldest, lates
 	return params
 }
 
-func (sd *SlackDumper) generateText(w io.Writer, m []Message, prefix string) error {
+func generateText(w io.Writer, m []Message, prefix string, userIdx structures.UserIndex) error {
 	var (
 		prevMsg  Message
 		prevTime time.Time
@@ -307,13 +298,13 @@ func (sd *SlackDumper) generateText(w io.Writer, m []Message, prefix string) err
 			fmt.Fprintf(w, prefix+"%s\n", message.Text)
 		} else {
 			fmt.Fprintf(w, prefix+"\n"+prefix+"> %s [%s] @ %s:\n%s\n",
-				sd.SenderName(&message), message.User,
+				structures.SenderName(&message.Message, userIdx), message.User,
 				t.Format(textTimeFmt),
 				prefix+html.UnescapeString(message.Text),
 			)
 		}
 		if len(message.ThreadReplies) > 0 {
-			if err := sd.generateText(w, message.ThreadReplies, "|   "); err != nil {
+			if err := generateText(w, message.ThreadReplies, "|   ", userIdx); err != nil {
 				return err
 			}
 		}
@@ -321,22 +312,6 @@ func (sd *SlackDumper) generateText(w io.Writer, m []Message, prefix string) err
 		prevTime = t
 	}
 	return nil
-}
-
-// SenderName returns username for the message
-func (sd *SlackDumper) SenderName(msg *Message) string {
-	var userid string
-	if msg.Comment != nil {
-		userid = msg.Comment.User
-	} else {
-		userid = msg.User
-	}
-
-	if userid != "" {
-		return sd.username(userid)
-	}
-
-	return ""
 }
 
 func sortMessages(msgs []Message) {
