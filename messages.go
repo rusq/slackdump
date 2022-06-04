@@ -6,7 +6,6 @@ import (
 	"context"
 	"fmt"
 	"runtime/trace"
-	"sort"
 	"strings"
 	"time"
 
@@ -146,7 +145,7 @@ func (sd *SlackDumper) dumpMessages(ctx context.Context, channelID string, oldes
 			return nil, fmt.Errorf("response not ok, slack error: %s", resp.Error)
 		}
 
-		chunk := sd.convertMsgs(resp.Messages)
+		chunk := types.ConvertMsgs(resp.Messages)
 
 		results, err := runProcessFuncs(chunk, channelID, pfns...)
 		if err != nil {
@@ -169,7 +168,7 @@ func (sd *SlackDumper) dumpMessages(ctx context.Context, channelID string, oldes
 		cursor = resp.ResponseMetaData.NextCursor
 	}
 
-	sortMessages(messages)
+	types.SortMessages(messages)
 
 	name, err := sd.getChannelName(ctx, sd.limiter(network.Tier3), channelID)
 	if err != nil {
@@ -208,19 +207,4 @@ func (sd *SlackDumper) convHistoryParams(channelID, cursor string, oldest, lates
 		params.Inclusive = true
 	}
 	return params
-}
-
-func sortMessages(msgs []types.Message) {
-	sort.Slice(msgs, func(i, j int) bool {
-		return msgs[i].Timestamp < msgs[j].Timestamp
-	})
-}
-
-// convertMsgs converts a slice of slack.Message to []types.Message.
-func (*SlackDumper) convertMsgs(sm []slack.Message) []types.Message {
-	msgs := make([]types.Message, len(sm))
-	for i := range sm {
-		msgs[i].Message = sm[i]
-	}
-	return msgs
 }

@@ -68,12 +68,6 @@ var (
 )
 
 func TestSlackDumper_pipeFiles(t *testing.T) {
-	sd := SlackDumper{
-		options: Options{
-			DumpFiles: true,
-		},
-	}
-
 	want := []slack.File{
 		file1, file2, file3, file4, file5, file6,
 	}
@@ -91,7 +85,7 @@ func TestSlackDumper_pipeFiles(t *testing.T) {
 	}(filesC)
 	wg.Add(1)
 
-	sd.pipeFiles(filesC, []types.Message{testFileMsg1, testFileMsg2})
+	pipeFiles(filesC, []types.Message{testFileMsg1, testFileMsg2})
 	close(filesC)
 	wg.Wait()
 

@@ -58,7 +58,7 @@ func (sd *SlackDumper) newFileProcessFn(ctx context.Context, dir string, l *rate
 	}
 
 	fn := func(msg []types.Message, _ string) (ProcessResult, error) {
-		n := sd.pipeFiles(filesC, msg)
+		n := pipeFiles(filesC, msg)
 		return ProcessResult{Entity: "files", Count: n}, nil
 	}
 
@@ -71,7 +71,7 @@ func (sd *SlackDumper) newFileProcessFn(ctx context.Context, dir string, l *rate
 }
 
 // pipeFiles scans the messages and sends all the files discovered to the filesC.
-func (sd *SlackDumper) pipeFiles(filesC chan<- *slack.File, msgs []types.Message) int {
+func pipeFiles(filesC chan<- *slack.File, msgs []types.Message) int {
 	// place files in the download queue
 	total := 0
 	_ = files.Extract(msgs, files.Root, func(file slack.File, _ files.Addr) error {

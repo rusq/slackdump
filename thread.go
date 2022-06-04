@@ -43,7 +43,7 @@ func (sd *SlackDumper) DumpThread(ctx context.Context, channelID, threadTS strin
 		return nil, err
 	}
 
-	sortMessages(threadMsgs)
+	types.SortMessages(threadMsgs)
 
 	name, err := sd.getChannelName(ctx, sd.limiter(network.Tier3), channelID)
 	if err != nil {
@@ -133,7 +133,7 @@ func (sd *SlackDumper) dumpThread(
 		if 0 < i && 1 < len(msgs) {
 			msgs = msgs[1:]
 		}
-		thread = append(thread, sd.convertMsgs(msgs)...)
+		thread = append(thread, types.ConvertMsgs(msgs)...)
 
 		prs, err := runProcessFuncs(thread, channelID, processFn...)
 		if err != nil {
