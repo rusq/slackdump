@@ -11,14 +11,15 @@ import (
 	"golang.org/x/time/rate"
 
 	"github.com/rusq/slackdump/v2/internal/network"
+	"github.com/rusq/slackdump/v2/types"
 )
 
-type threadFunc func(ctx context.Context, l *rate.Limiter, channelID string, threadTS string, processFn ...ProcessFunc) ([]Message, error)
+type threadFunc func(ctx context.Context, l *rate.Limiter, channelID string, threadTS string, processFn ...ProcessFunc) ([]types.Message, error)
 
 // DumpThread dumps a single thread identified by (channelID, threadTS).
 // Optionally one can provide a number of processFn that will be applied to each
 // chunk of messages returned by a one API call.
-func (sd *SlackDumper) DumpThread(ctx context.Context, channelID, threadTS string, processFn ...ProcessFunc) (*Conversation, error) {
+func (sd *SlackDumper) DumpThread(ctx context.Context, channelID, threadTS string, processFn ...ProcessFunc) (*types.Conversation, error) {
 	ctx, task := trace.NewTask(ctx, "DumpThread")
 	defer task.End()
 
@@ -49,7 +50,7 @@ func (sd *SlackDumper) DumpThread(ctx context.Context, channelID, threadTS strin
 		return nil, err
 	}
 
-	return &Conversation{
+	return &types.Conversation{
 		Name:     name,
 		Messages: threadMsgs,
 		ID:       channelID,
@@ -63,7 +64,13 @@ func (sd *SlackDumper) DumpThread(ctx context.Context, channelID, threadTS strin
 // threads.  msgs is being updated with discovered messages.
 //
 // ref: https://api.slack.com/messaging/retrieving
-func (*SlackDumper) populateThreads(ctx context.Context, l *rate.Limiter, msgs []Message, channelID string, dumpFn threadFunc) (int, error) {
+func (*SlackDumper) populateThreads(
+	ctx context.Context,
+	l *rate.Limiter,
+	msgs []types.Message,
+	channelID string,
+	dumpFn threadFunc,
+) (int, error) {
 	total := 0
 	for i := range msgs {
 		if msgs[i].ThreadTimestamp == "" {
@@ -85,9 +92,15 @@ func (*SlackDumper) populateThreads(ctx context.Context, l *rate.Limiter, msgs [
 
 // dumpThread retrieves all messages in the thread and returns them as a slice
 // of messages.
-func (sd *SlackDumper) dumpThread(ctx context.Context, l *rate.Limiter, channelID string, threadTS string, processFn ...ProcessFunc) ([]Message, error) {
+func (sd *SlackDumper) dumpThread(
+	ctx context.Context,
+	l *rate.Limiter,
+	channelID string,
+	threadTS string,
+	processFn ...ProcessFunc,
+) ([]types.Message, error) {
 	var (
-		thread     []Message
+		thread     []types.Message
 		cursor     string
 		fetchStart = time.Now()
 	)

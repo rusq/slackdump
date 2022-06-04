@@ -4,6 +4,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/rusq/slackdump/v2/types"
 	"github.com/slack-go/slack"
 	"github.com/stretchr/testify/assert"
 )
@@ -19,7 +20,7 @@ var (
 	file8 = slack.File{ID: "f8", Name: "filename8.ext", URLPrivateDownload: "file8_url", Size: 800}
 	file9 = slack.File{ID: "f9", Name: "filename9.ext", URLPrivateDownload: "file9_url", Size: 900}
 
-	testFileMsg1 = Message{
+	testFileMsg1 = types.Message{
 		Message: slack.Message{
 			Msg: slack.Msg{
 				ClientMsgID: "1",
@@ -29,7 +30,7 @@ var (
 					file1, file2, file3,
 				}},
 		}}
-	testFileMsg2 = Message{
+	testFileMsg2 = types.Message{
 		Message: slack.Message{
 			Msg: slack.Msg{
 				ClientMsgID: "2",
@@ -40,7 +41,7 @@ var (
 				}},
 		}}
 
-	testFileMsg3t = Message{
+	testFileMsg3t = types.Message{
 		Message: slack.Message{
 			Msg: slack.Msg{
 				ClientMsgID: "3",
@@ -50,7 +51,7 @@ var (
 					file7,
 				}},
 		},
-		ThreadReplies: []Message{
+		ThreadReplies: []types.Message{
 			{
 				Message: slack.Message{
 					Msg: slack.Msg{
@@ -68,7 +69,7 @@ var (
 
 func TestSlackDumper_ExtractFiles(t *testing.T) {
 	type args struct {
-		m []Message
+		m []types.Message
 	}
 	tests := []struct {
 		name string
@@ -77,14 +78,14 @@ func TestSlackDumper_ExtractFiles(t *testing.T) {
 	}{
 		{
 			"extracts files ok",
-			args{[]Message{testFileMsg1, testFileMsg2}},
+			args{[]types.Message{testFileMsg1, testFileMsg2}},
 			[]slack.File{
 				file1, file2, file3, file4, file5, file6,
 			},
 		},
 		{
 			"extracts files from thread",
-			args{[]Message{testFileMsg3t}},
+			args{[]types.Message{testFileMsg3t}},
 			[]slack.File{file7, file8, file9},
 		},
 	}
@@ -121,7 +122,7 @@ func TestSlackDumper_pipeFiles(t *testing.T) {
 	}(filesC)
 	wg.Add(1)
 
-	sd.pipeFiles(filesC, []Message{testFileMsg1, testFileMsg2})
+	sd.pipeFiles(filesC, []types.Message{testFileMsg1, testFileMsg2})
 	close(filesC)
 	wg.Wait()
 

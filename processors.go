@@ -8,6 +8,7 @@ import (
 	"golang.org/x/time/rate"
 
 	"github.com/rusq/slackdump/v2/downloader"
+	"github.com/rusq/slackdump/v2/types"
 )
 
 const (
@@ -17,13 +18,13 @@ const (
 
 // ProcessFunc is the signature of the function Dump* functions accept and call for each
 // API call result.
-type ProcessFunc func(msg []Message, channelID string) (ProcessResult, error)
+type ProcessFunc func(msg []types.Message, channelID string) (ProcessResult, error)
 
 // cancelFunc may be returned by some process function constructors.
 type cancelFunc func()
 
 // runProcessFuncs runs processFn sequentially and return results of execution.
-func runProcessFuncs(m []Message, channelID string, processFn ...ProcessFunc) (ProcessResults, error) {
+func runProcessFuncs(m []types.Message, channelID string, processFn ...ProcessFunc) (ProcessResults, error) {
 	var prs ProcessResults
 	for _, fn := range processFn {
 		res, err := fn(m, channelID)
@@ -55,7 +56,7 @@ func (sd *SlackDumper) newFileProcessFn(ctx context.Context, dir string, l *rate
 		return nil, nil, err
 	}
 
-	fn := func(msg []Message, _ string) (ProcessResult, error) {
+	fn := func(msg []types.Message, _ string) (ProcessResult, error) {
 		n := sd.pipeFiles(filesC, msg)
 		return ProcessResult{Entity: "files", Count: n}, nil
 	}
@@ -69,7 +70,7 @@ func (sd *SlackDumper) newFileProcessFn(ctx context.Context, dir string, l *rate
 }
 
 // ExtractFiles extracts files from messages slice.
-func (*SlackDumper) ExtractFiles(msgs []Message) []slack.File {
+func (*SlackDumper) ExtractFiles(msgs []types.Message) []slack.File {
 	var files []slack.File
 
 	for i := range msgs {
@@ -85,7 +86,7 @@ func (*SlackDumper) ExtractFiles(msgs []Message) []slack.File {
 }
 
 // pipeFiles scans the messages and sends all the files discovered to the filesC.
-func (sd *SlackDumper) pipeFiles(filesC chan<- *slack.File, msgs []Message) int {
+func (sd *SlackDumper) pipeFiles(filesC chan<- *slack.File, msgs []types.Message) int {
 	// place files in the download queue
 	fileChunk := sd.ExtractFiles(msgs)
 	for i := range fileChunk {
@@ -97,7 +98,7 @@ func (sd *SlackDumper) pipeFiles(filesC chan<- *slack.File, msgs []Message) int 
 // newThreadProcessFn returns the new thread processor function.  It will use limiter l
 // to limit the API calls rate.
 func (sd *SlackDumper) newThreadProcessFn(ctx context.Context, l *rate.Limiter) ProcessFunc {
-	processFn := func(chunk []Message, channelID string) (ProcessResult, error) {
+	processFn := func(chunk []types.Message, channelID string) (ProcessResult, error) {
 		n, err := sd.populateThreads(ctx, l, chunk, channelID, sd.dumpThread)
 		if err != nil {
 			return ProcessResult{}, err

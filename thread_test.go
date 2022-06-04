@@ -11,6 +11,7 @@ import (
 	"golang.org/x/time/rate"
 
 	"github.com/rusq/slackdump/v2/internal/network"
+	"github.com/rusq/slackdump/v2/types"
 )
 
 func TestSlackDumper_DumpThread(t *testing.T) {
@@ -29,7 +30,7 @@ func TestSlackDumper_DumpThread(t *testing.T) {
 		fields   fields
 		args     args
 		expectFn func(*mockClienter)
-		want     *Conversation
+		want     *types.Conversation
 		wantErr  bool
 	}{
 		{"chan and thread are empty", fields{options: DefOptions}, args{context.Background(), "", ""}, nil, nil, true},
@@ -54,7 +55,7 @@ func TestSlackDumper_DumpThread(t *testing.T) {
 					Times(1)
 				mockConvInfo(mc, "CHANNEL", "channel_name")
 			},
-			&Conversation{Name: "channel_name", ID: "CHANNEL", ThreadTS: "THREAD", Messages: []Message{testMsg1, testMsg2, testMsg3}},
+			&types.Conversation{Name: "channel_name", ID: "CHANNEL", ThreadTS: "THREAD", Messages: []types.Message{testMsg1, testMsg2, testMsg3}},
 			false,
 		},
 		{
@@ -88,7 +89,7 @@ func TestSlackDumper_DumpThread(t *testing.T) {
 					Times(1)
 				mockConvInfo(mc, "CHANNEL", "channel_name")
 			},
-			&Conversation{Name: "channel_name", ID: "CHANNEL", ThreadTS: "THREAD", Messages: []Message{testMsg1, testMsg2}},
+			&types.Conversation{Name: "channel_name", ID: "CHANNEL", ThreadTS: "THREAD", Messages: []types.Message{testMsg1, testMsg2}},
 			false,
 		},
 		{
@@ -142,7 +143,7 @@ func TestSlackDumper_populateThreads(t *testing.T) {
 	type args struct {
 		ctx       context.Context
 		l         *rate.Limiter
-		msgs      []Message
+		msgs      []types.Message
 		channelID string
 		dumpFn    threadFunc
 	}
@@ -157,9 +158,9 @@ func TestSlackDumper_populateThreads(t *testing.T) {
 			args{
 				ctx:       context.Background(),
 				l:         network.NewLimiter(network.NoTier, 1, 0),
-				msgs:      []Message{testMsg1},
+				msgs:      []types.Message{testMsg1},
 				channelID: "x",
-				dumpFn: func(ctx context.Context, l *rate.Limiter, channelID, threadTS string, processFn ...ProcessFunc) ([]Message, error) {
+				dumpFn: func(ctx context.Context, l *rate.Limiter, channelID, threadTS string, processFn ...ProcessFunc) ([]types.Message, error) {
 					return nil, nil
 				},
 			},
@@ -171,10 +172,10 @@ func TestSlackDumper_populateThreads(t *testing.T) {
 			args{
 				ctx:       context.Background(),
 				l:         network.NewLimiter(network.NoTier, 1, 0),
-				msgs:      []Message{testMsg1, testMsg4t},
+				msgs:      []types.Message{testMsg1, testMsg4t},
 				channelID: "x",
-				dumpFn: func(ctx context.Context, l *rate.Limiter, channelID, threadTS string, processFn ...ProcessFunc) ([]Message, error) {
-					return []Message{testMsg4t, testMsg2}, nil
+				dumpFn: func(ctx context.Context, l *rate.Limiter, channelID, threadTS string, processFn ...ProcessFunc) ([]types.Message, error) {
+					return []types.Message{testMsg4t, testMsg2}, nil
 				},
 			},
 			1,
@@ -185,10 +186,10 @@ func TestSlackDumper_populateThreads(t *testing.T) {
 			args{
 				ctx:       context.Background(),
 				l:         network.NewLimiter(network.NoTier, 1, 0),
-				msgs:      []Message{testMsg4t, testMsg1},
+				msgs:      []types.Message{testMsg4t, testMsg1},
 				channelID: "x",
-				dumpFn: func(ctx context.Context, l *rate.Limiter, channelID, threadTS string, processFn ...ProcessFunc) ([]Message, error) {
-					return []Message{}, nil
+				dumpFn: func(ctx context.Context, l *rate.Limiter, channelID, threadTS string, processFn ...ProcessFunc) ([]types.Message, error) {
+					return []types.Message{}, nil
 				},
 			},
 			0,
@@ -199,9 +200,9 @@ func TestSlackDumper_populateThreads(t *testing.T) {
 			args{
 				ctx:       context.Background(),
 				l:         network.NewLimiter(network.NoTier, 1, 0),
-				msgs:      []Message{testMsg4t},
+				msgs:      []types.Message{testMsg4t},
 				channelID: "x",
-				dumpFn: func(ctx context.Context, l *rate.Limiter, channelID, threadTS string, processFn ...ProcessFunc) ([]Message, error) {
+				dumpFn: func(ctx context.Context, l *rate.Limiter, channelID, threadTS string, processFn ...ProcessFunc) ([]types.Message, error) {
 					return nil, errors.New("bam")
 				},
 			},
@@ -241,7 +242,7 @@ func TestSlackDumper_dumpThread(t *testing.T) {
 		fields   fields
 		args     args
 		expectFn func(*mockClienter)
-		want     []Message
+		want     []types.Message
 		wantErr  bool
 	}{
 		{
@@ -262,7 +263,7 @@ func TestSlackDumper_dumpThread(t *testing.T) {
 					).
 					Times(1)
 			},
-			[]Message{testMsg1, testMsg2, testMsg3},
+			[]types.Message{testMsg1, testMsg2, testMsg3},
 			false,
 		},
 		{
@@ -295,7 +296,7 @@ func TestSlackDumper_dumpThread(t *testing.T) {
 					).
 					Times(1)
 			},
-			[]Message{testMsg1, testMsg2},
+			[]types.Message{testMsg1, testMsg2},
 			false,
 		},
 		{

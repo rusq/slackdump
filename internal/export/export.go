@@ -16,6 +16,7 @@ import (
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/downloader"
 	"github.com/rusq/slackdump/v2/fsadapter"
+	"github.com/rusq/slackdump/v2/types"
 )
 
 // Export is the instance of Slack Exporter.
@@ -123,14 +124,14 @@ func (se *Export) exportConversation(ctx context.Context, ch slack.Channel, user
 // DumpMessagesRaw that will handle the download of the files.  If the
 // downloader is not started, i.e. if file download is disabled, it will
 // silently ignore the error and return nil.
-func (se *Export) downloadFn(dl *downloader.Client, channelName string) func(msg []slackdump.Message, channelID string) (slackdump.ProcessResult, error) {
+func (se *Export) downloadFn(dl *downloader.Client, channelName string) func(msg []types.Message, channelID string) (slackdump.ProcessResult, error) {
 	const (
 		entFiles  = "files"
 		dirAttach = "attachments"
 	)
 
 	dir := filepath.Join(se.basedir(channelName), dirAttach)
-	return func(msg []slackdump.Message, channelID string) (slackdump.ProcessResult, error) {
+	return func(msg []types.Message, channelID string) (slackdump.ProcessResult, error) {
 		total := 0
 		if err := Extract(msg, Root, func(file slack.File, addr Addr) error {
 			filename, err := dl.DownloadFile(dir, file)

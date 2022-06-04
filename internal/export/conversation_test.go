@@ -5,6 +5,7 @@ import (
 
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/internal/fixtures"
+	"github.com/rusq/slackdump/v2/types"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -12,7 +13,7 @@ func TestConversation_ByDate(t *testing.T) {
 	// TODO
 	var exp Export
 
-	conversations := fixtures.Load[slackdump.Conversation](fixtures.TestConversationJSON)
+	conversations := fixtures.Load[types.Conversation](fixtures.TestConversationJSON)
 	users := fixtures.Load[slackdump.Users](fixtures.UsersJSON)
 
 	convDt, err := exp.byDate(&conversations, users)

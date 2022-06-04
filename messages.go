@@ -3,11 +3,8 @@ package slackdump
 // In this file: messages related code.
 
 import (
-	"bufio"
 	"context"
 	"fmt"
-	"html"
-	"io"
 	"runtime/trace"
 	"sort"
 	"strings"
@@ -20,16 +17,7 @@ import (
 
 	"github.com/rusq/slackdump/v2/internal/network"
 	"github.com/rusq/slackdump/v2/internal/structures"
-)
-
-// time format for text output.
-const textTimeFmt = "02/01/2006 15:04:05 Z0700"
-
-const (
-	// minMsgTimeApart defines the time interval in minutes to separate group
-	// of messages from a single user in the conversation.  This increases the
-	// readability of the text output.
-	minMsgTimeApart = 2 * time.Minute
+	"github.com/rusq/slackdump/v2/types"
 )
 
 type ProcessResult struct {
@@ -51,80 +39,19 @@ func (prs ProcessResults) String() string {
 	return strings.Join(results, ", ")
 }
 
-// Conversation keeps the slice of messages.
-type Conversation struct {
-	Name     string    `json:"name"`
-	Messages []Message `json:"messages"`
-	// ID is the channel ID.
-	ID string `json:"channel_id"`
-	// ThreadTS is a thread timestamp.  If it's not empty, it means that it's a
-	// dump of a thread, not a channel.
-	ThreadTS string `json:"thread_ts,omitempty"`
-}
-
-// Message is the internal representation of message with thread.
-type Message struct {
-	slack.Message
-	ThreadReplies []Message `json:"slackdump_thread_replies,omitempty"`
-}
-
-func (m Message) Datetime() (time.Time, error) {
-	return structures.ParseSlackTS(m.Timestamp)
-}
-
-// IsBotMessage returns true if the message is from a bot.
-func (m Message) IsBotMessage() bool {
-	return m.Msg.BotID != ""
-}
-
-func (m Message) IsThread() bool {
-	return m.Msg.ThreadTimestamp != ""
-}
-
-// IsThreadChild will return true if the message is the parent message of a
-// conversation (has more than 0 replies)
-func (m Message) IsThreadParent() bool {
-	return m.IsThread() && m.Msg.ReplyCount != 0
-}
-
-// IsThreadChild will return true if the message is the child message of a
-// conversation.
-func (m Message) IsThreadChild() bool {
-	return m.IsThread() && m.Msg.ReplyCount == 0
-}
-
-func (c Conversation) String() string {
-	if c.ThreadTS == "" {
-		return c.ID
-	}
-	return c.ID + "-" + c.ThreadTS
-}
-
-func (c Conversation) IsThread() bool {
-	return c.ThreadTS != ""
-}
-
-// ToText outputs Messages m to io.Writer w in text format.
-func (c Conversation) ToText(w io.Writer, userIdx structures.UserIndex) (err error) {
-	buf := bufio.NewWriter(w)
-	defer buf.Flush()
-
-	return generateText(w, c.Messages, "", userIdx)
-}
-
 // DumpAllURL dumps messages from the slack URL, it supports conversations and
 // individual threads.
-func (sd *SlackDumper) DumpAllURL(ctx context.Context, slackURL string) (*Conversation, error) {
+func (sd *SlackDumper) DumpAllURL(ctx context.Context, slackURL string) (*types.Conversation, error) {
 	return sd.dumpURL(ctx, slackURL, time.Time{}, time.Time{})
 }
 
 // DumpURL acts like DumpURL but allows to specify oldest and latest
 // timestamps to define a window within which the messages should be retrieved.
-func (sd *SlackDumper) DumpURL(ctx context.Context, slackURL string, oldest, latest time.Time, processFn ...ProcessFunc) (*Conversation, error) {
+func (sd *SlackDumper) DumpURL(ctx context.Context, slackURL string, oldest, latest time.Time, processFn ...ProcessFunc) (*types.Conversation, error) {
 	return sd.dumpURL(ctx, slackURL, oldest, latest, processFn...)
 }
 
-func (sd *SlackDumper) dumpURL(ctx context.Context, slackURL string, oldest, latest time.Time, processFn ...ProcessFunc) (*Conversation, error) {
+func (sd *SlackDumper) dumpURL(ctx context.Context, slackURL string, oldest, latest time.Time, processFn ...ProcessFunc) (*types.Conversation, error) {
 	ctx, task := trace.NewTask(ctx, "dumpURL")
 	defer task.End()
 
@@ -143,7 +70,7 @@ func (sd *SlackDumper) dumpURL(ctx context.Context, slackURL string, oldest, lat
 }
 
 // DumpAllMessages fetches messages from the conversation identified by channelID.
-func (sd *SlackDumper) DumpAllMessages(ctx context.Context, channelID string) (*Conversation, error) {
+func (sd *SlackDumper) DumpAllMessages(ctx context.Context, channelID string) (*types.Conversation, error) {
 	return sd.DumpMessages(ctx, channelID, time.Time{}, time.Time{})
 }
 
@@ -152,7 +79,7 @@ func (sd *SlackDumper) DumpAllMessages(ctx context.Context, channelID string) (*
 // for.  Having both oldest and latest as Zero-time, will make this function
 // behave similar to DumpMessages.  ProcessFn is a slice of post-processing functions
 // that will be called for each message chunk downloaded from the Slack API.
-func (sd *SlackDumper) DumpMessages(ctx context.Context, channelID string, oldest, latest time.Time, processFn ...ProcessFunc) (*Conversation, error) {
+func (sd *SlackDumper) DumpMessages(ctx context.Context, channelID string, oldest, latest time.Time, processFn ...ProcessFunc) (*types.Conversation, error) {
 	if sd.options.DumpFiles {
 		fn, cancelFn, err := sd.newFileProcessFn(ctx, channelID, sd.limiter(network.NoTier))
 		if err != nil {
@@ -168,13 +95,13 @@ func (sd *SlackDumper) DumpMessages(ctx context.Context, channelID string, oldes
 // DumpMessagesRaw dumps all messages, but does not account for any options
 // defined, such as DumpFiles, instead, the caller must hassle about any
 // processFns they want to apply.
-func (sd *SlackDumper) DumpMessagesRaw(ctx context.Context, channelID string, oldest, latest time.Time, processFn ...ProcessFunc) (*Conversation, error) {
+func (sd *SlackDumper) DumpMessagesRaw(ctx context.Context, channelID string, oldest, latest time.Time, processFn ...ProcessFunc) (*types.Conversation, error) {
 	return sd.dumpMessages(ctx, channelID, oldest, latest, processFn...)
 }
 
 // DumpMessages fetches messages from the conversation identified by channelID.
 // processFn will be called on each batch of messages returned from API.
-func (sd *SlackDumper) dumpMessages(ctx context.Context, channelID string, oldest, latest time.Time, processFn ...ProcessFunc) (*Conversation, error) {
+func (sd *SlackDumper) dumpMessages(ctx context.Context, channelID string, oldest, latest time.Time, processFn ...ProcessFunc) (*types.Conversation, error) {
 	ctx, task := trace.NewTask(ctx, "dumpMessages")
 	defer task.End()
 
@@ -195,7 +122,7 @@ func (sd *SlackDumper) dumpMessages(ctx context.Context, channelID string, oldes
 	pfns := append([]ProcessFunc{sd.newThreadProcessFn(ctx, threadLimiter)}, processFn...)
 
 	var (
-		messages   []Message
+		messages   []types.Message
 		cursor     string
 		fetchStart = time.Now()
 	)
@@ -249,7 +176,7 @@ func (sd *SlackDumper) dumpMessages(ctx context.Context, channelID string, oldes
 		return nil, err
 	}
 
-	return &Conversation{Name: name, Messages: messages, ID: channelID}, nil
+	return &types.Conversation{Name: name, Messages: messages, ID: channelID}, nil
 }
 
 func (sd *SlackDumper) getChannelName(ctx context.Context, l *rate.Limiter, channelID string) (string, error) {
@@ -283,46 +210,15 @@ func (sd *SlackDumper) convHistoryParams(channelID, cursor string, oldest, lates
 	return params
 }
 
-func generateText(w io.Writer, m []Message, prefix string, userIdx structures.UserIndex) error {
-	var (
-		prevMsg  Message
-		prevTime time.Time
-	)
-	for _, message := range m {
-		t, err := structures.ParseSlackTS(message.Timestamp)
-		if err != nil {
-			return err
-		}
-		diff := t.Sub(prevTime)
-		if prevMsg.User == message.User && diff < minMsgTimeApart {
-			fmt.Fprintf(w, prefix+"%s\n", message.Text)
-		} else {
-			fmt.Fprintf(w, prefix+"\n"+prefix+"> %s [%s] @ %s:\n%s\n",
-				structures.SenderName(&message.Message, userIdx), message.User,
-				t.Format(textTimeFmt),
-				prefix+html.UnescapeString(message.Text),
-			)
-		}
-		if len(message.ThreadReplies) > 0 {
-			if err := generateText(w, message.ThreadReplies, "|   ", userIdx); err != nil {
-				return err
-			}
-		}
-		prevMsg = message
-		prevTime = t
-	}
-	return nil
-}
-
-func sortMessages(msgs []Message) {
+func sortMessages(msgs []types.Message) {
 	sort.Slice(msgs, func(i, j int) bool {
 		return msgs[i].Timestamp < msgs[j].Timestamp
 	})
 }
 
-// convertMsgs converts a slice of slack.Message to []Message.
-func (*SlackDumper) convertMsgs(sm []slack.Message) []Message {
-	msgs := make([]Message, len(sm))
+// convertMsgs converts a slice of slack.Message to []types.Message.
+func (*SlackDumper) convertMsgs(sm []slack.Message) []types.Message {
+	msgs := make([]types.Message, len(sm))
 	for i := range sm {
 		msgs[i].Message = sm[i]
 	}

@@ -4,7 +4,7 @@ package export
 import (
 	"errors"
 
-	"github.com/rusq/slackdump/v2"
+	"github.com/rusq/slackdump/v2/types"
 	"github.com/slack-go/slack"
 )
 
@@ -35,7 +35,7 @@ type Addr struct {
 // contains an address of the message and the file within the message slice to
 // update the URL for, and filename is the path to the file on the local
 // filesystem.  It will return an error if the address references out of range.
-func UpdateURLs(msgs []slackdump.Message, addr Addr, filename string) error {
+func UpdateURLs(msgs []types.Message, addr Addr, filename string) error {
 	if addr.idxParMsg != Root {
 		return UpdateURLs(
 			msgs[addr.idxParMsg].ThreadReplies,
@@ -60,7 +60,7 @@ func UpdateURLs(msgs []slackdump.Message, addr Addr, filename string) error {
 // provided message slice.  idxParentMsg is the index of the parent message (for
 // message replies slice), or refRoot if it's the topmost messages slice (see
 // invocation in downloadFn).
-func Extract(msgs []slackdump.Message, idxParentMsg int, fn func(file slack.File, addr Addr) error) error {
+func Extract(msgs []types.Message, idxParentMsg int, fn func(file slack.File, addr Addr) error) error {
 	if fn == nil {
 		return errors.New("extractFiles: internal error: no callback function")
 	}

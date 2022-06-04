@@ -10,6 +10,7 @@ import (
 
 	"github.com/rusq/dlog"
 	"github.com/rusq/slackdump/v2"
+	"github.com/rusq/slackdump/v2/types"
 )
 
 // dump dumps the input, if dumpfiles is true, it will save the files into a
@@ -46,7 +47,7 @@ func (app *App) dump(ctx context.Context, input Input) (int, error) {
 	return total, nil
 }
 
-type dumpFunc func(context.Context, string, time.Time, time.Time, ...slackdump.ProcessFunc) (*slackdump.Conversation, error)
+type dumpFunc func(context.Context, string, time.Time, time.Time, ...slackdump.ProcessFunc) (*types.Conversation, error)
 
 // newDumpFunc returns the appropriate dump function depending on the input s.
 func (app *App) newDumpFunc(s string) dumpFunc {
@@ -59,7 +60,7 @@ func (app *App) newDumpFunc(s string) dumpFunc {
 
 // renderFilename returns the filename that is rendered according to the
 // file naming template.
-func (app *App) renderFilename(c *slackdump.Conversation) string {
+func (app *App) renderFilename(c *types.Conversation) string {
 	var buf strings.Builder
 	if err := app.tmpl.ExecuteTemplate(&buf, filenameTmplName, c); err != nil {
 		// this should nevar happen
@@ -81,7 +82,7 @@ func (app *App) dumpOne(ctx context.Context, channelInput string, fn dumpFunc) e
 
 // writeFiles writes the conversation to disk.  If text output is set, it will
 // also generate a text file having the same name as JSON file.
-func (app *App) writeFiles(name string, cnv *slackdump.Conversation) error {
+func (app *App) writeFiles(name string, cnv *types.Conversation) error {
 	if err := app.writeJSON(name+".json", cnv); err != nil {
 		return err
 	}
@@ -109,7 +110,7 @@ func (app *App) writeJSON(filename string, m any) error {
 	return nil
 }
 
-func (app *App) writeText(filename string, m *slackdump.Conversation) error {
+func (app *App) writeText(filename string, m *types.Conversation) error {
 	dlog.Printf("generating %s", filename)
 	f, err := app.fs.Create(filename)
 	if err != nil {
@@ -117,5 +118,5 @@ func (app *App) writeText(filename string, m *slackdump.Conversation) error {
 	}
 	defer f.Close()
 
-	return m.ToText(f, app.sd)
+	return m.ToText(f, app.sd.UserIndex)
 }
