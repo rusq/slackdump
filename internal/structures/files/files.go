@@ -1,5 +1,5 @@
 // Package files contains some additional file logic.
-package export
+package files
 
 import (
 	"errors"

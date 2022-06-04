@@ -16,14 +16,12 @@ require (
 	github.com/slack-go/slack v0.10.2
 	github.com/stretchr/testify v1.7.1
 	golang.org/x/time v0.0.0-20220224211638-0e9765cccd65
-	gotest.tools/v3 v3.2.0
 )
 
 require (
 	github.com/danwakefield/fnmatch v0.0.0-20160403171240-cbb64ac3d964 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/go-stack/stack v1.8.1 // indirect
-	github.com/google/go-cmp v0.5.7 // indirect
 	github.com/gorilla/websocket v1.5.0 // indirect
 	github.com/mattn/go-colorable v0.1.9 // indirect
 	github.com/mattn/go-isatty v0.0.14 // indirect

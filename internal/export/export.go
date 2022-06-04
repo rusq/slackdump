@@ -16,6 +16,7 @@ import (
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/downloader"
 	"github.com/rusq/slackdump/v2/fsadapter"
+	"github.com/rusq/slackdump/v2/internal/structures/files"
 	"github.com/rusq/slackdump/v2/types"
 )
 
@@ -133,14 +134,14 @@ func (se *Export) downloadFn(dl *downloader.Client, channelName string) func(msg
 	dir := filepath.Join(se.basedir(channelName), dirAttach)
 	return func(msg []types.Message, channelID string) (slackdump.ProcessResult, error) {
 		total := 0
-		if err := Extract(msg, Root, func(file slack.File, addr Addr) error {
+		if err := files.Extract(msg, files.Root, func(file slack.File, addr files.Addr) error {
 			filename, err := dl.DownloadFile(dir, file)
 			if err != nil {
 				return err
 			}
 			dlog.Debugf("submitted for download: %s", file.Name)
 			total++
-			return UpdateURLs(msg, addr, path.Join(dirAttach, path.Base(filename)))
+			return files.UpdateURLs(msg, addr, path.Join(dirAttach, path.Base(filename)))
 		}); err != nil {
 			if errors.Is(err, downloader.ErrNotStarted) {
 				return slackdump.ProcessResult{Entity: entFiles, Count: 0}, nil
