@@ -11,65 +11,39 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var (
-	file1 = slack.File{ID: "f1", Name: "filename1.ext", URLPrivateDownload: "https://file1_url", Size: 100}
-	file2 = slack.File{ID: "f2", Name: "filename2.ext", URLPrivateDownload: "https://file2_url", Size: 200}
-	file3 = slack.File{ID: "f3", Name: "filename3.ext", URLPrivateDownload: "https://file3_url", Size: 300}
-	file4 = slack.File{ID: "f4", Name: "filename4.ext", URLPrivateDownload: "https://file4_url", Size: 400}
-	file5 = slack.File{ID: "f5", Name: "filename5.ext", URLPrivateDownload: "https://file5_url", Size: 500}
-	file6 = slack.File{ID: "f6", Name: "filename6.ext", URLPrivateDownload: "https://file6_url", Size: 600}
-	file7 = slack.File{ID: "f7", Name: "filename7.ext", URLPrivateDownload: "https://file7_url", Size: 700}
-	file8 = slack.File{ID: "f8", Name: "filename8.ext", URLPrivateDownload: "https://file8_url", Size: 800}
-	file9 = slack.File{ID: "f9", Name: "filename9.ext", URLPrivateDownload: "https://file9_url", Size: 900}
-
-	testFileMsg1 = types.Message{
-		Message: slack.Message{
-			Msg: slack.Msg{
-				ClientMsgID: "1",
-				Channel:     "x",
-				Type:        "y",
-				Files: []slack.File{
-					file1, file2, file3,
-				}},
-		}}
-	testFileMsg2 = types.Message{
-		Message: slack.Message{
-			Msg: slack.Msg{
-				ClientMsgID: "2",
-				Channel:     "x",
-				Type:        "z",
-				Files: []slack.File{
-					file4, file5, file6,
-				}},
-		}}
-
-	testFileMsg3t = types.Message{
-		Message: slack.Message{
-			Msg: slack.Msg{
-				ClientMsgID: "3",
-				Channel:     "x",
-				Type:        "z",
-				Files: []slack.File{
-					file7,
-				}},
-		},
-		ThreadReplies: []types.Message{
-			{
-				Message: slack.Message{
-					Msg: slack.Msg{
-						ClientMsgID: "4",
-						Channel:     "x",
-						Type:        "message",
-						Files: []slack.File{
-							file8, file9,
-						}},
-				},
-			},
-		},
-	}
-)
-
 func TestSlackDumper_pipeFiles(t *testing.T) {
+	var (
+		file1 = slack.File{ID: "f1", Name: "filename1.ext", URLPrivateDownload: "https://file1_url", Size: 100}
+		file2 = slack.File{ID: "f2", Name: "filename2.ext", URLPrivateDownload: "https://file2_url", Size: 200}
+		file3 = slack.File{ID: "f3", Name: "filename3.ext", URLPrivateDownload: "https://file3_url", Size: 300}
+		file4 = slack.File{ID: "f4", Name: "filename4.ext", URLPrivateDownload: "https://file4_url", Size: 400}
+		file5 = slack.File{ID: "f5", Name: "filename5.ext", URLPrivateDownload: "https://file5_url", Size: 500}
+		file6 = slack.File{ID: "f6", Name: "filename6.ext", URLPrivateDownload: "https://file6_url", Size: 600}
+	)
+
+	var (
+		testFileMsg1 = types.Message{
+			Message: slack.Message{
+				Msg: slack.Msg{
+					ClientMsgID: "1",
+					Channel:     "x",
+					Type:        "y",
+					Files: []slack.File{
+						file1, file2, file3,
+					}},
+			}}
+		testFileMsg2 = types.Message{
+			Message: slack.Message{
+				Msg: slack.Msg{
+					ClientMsgID: "2",
+					Channel:     "x",
+					Type:        "z",
+					Files: []slack.File{
+						file4, file5, file6,
+					}},
+			}}
+	)
+
 	t.Run("ensure all files make it to channel", func(t *testing.T) {
 		want := []slack.File{
 			file1, file2, file3, file4, file5, file6,
