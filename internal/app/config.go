@@ -12,6 +12,7 @@ import (
 	"github.com/slack-go/slack"
 
 	"github.com/rusq/slackdump/v2"
+	"github.com/rusq/slackdump/v2/types"
 )
 
 const filenameTmplName = "fnt"
@@ -139,10 +140,10 @@ func (cfg *Config) compileValidateTemplate() error {
 
 	// marking all the fields we want with OK, all the rest (the ones we DO NOT
 	// WANT) with NotOK.
-	tc := slackdump.Conversation{
+	tc := types.Conversation{
 		Name:     OK,
 		ID:       OK,
-		Messages: []slackdump.Message{{Message: slack.Message{Msg: slack.Msg{Channel: NotOK}}}},
+		Messages: []types.Message{{Message: slack.Message{Msg: slack.Msg{Channel: NotOK}}}},
 		ThreadTS: PartialOK,
 	}
 

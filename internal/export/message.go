@@ -6,8 +6,8 @@ import (
 
 	"github.com/slack-go/slack"
 
-	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/internal/structures"
+	"github.com/rusq/slackdump/v2/types"
 )
 
 // ExportMessage is the slack.Message with additional fields usually found in
@@ -47,7 +47,7 @@ type userIndex map[string]*slack.User
 // newExportMessage creates an export message from a slack message and populates
 // some additional fields.  Slack messages produced by export are much more
 // saturated with information, i.e. contain user profiles and thread stats.
-func newExportMessage(msg *slackdump.Message, users userIndex) *ExportMessage {
+func newExportMessage(msg *types.Message, users userIndex) *ExportMessage {
 	expMsg := ExportMessage{Msg: msg.Msg}
 
 	expMsg.UserTeam = msg.Team

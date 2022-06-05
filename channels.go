@@ -16,6 +16,7 @@ import (
 	"github.com/slack-go/slack"
 
 	"github.com/rusq/slackdump/v2/internal/network"
+	"github.com/rusq/slackdump/v2/internal/structures"
 )
 
 // Channels keeps slice of channels
@@ -133,7 +134,7 @@ func (cs Channels) ToText(w io.Writer, sd *SlackDumper) (err error) {
 func (sd *SlackDumper) channelName(channel *slack.Channel) (who string) {
 	switch {
 	case channel.IsIM:
-		who = "@" + sd.username(channel.User)
+		who = "@" + structures.ResolveUsername(channel.User, sd.UserIndex)
 	case channel.IsMpIM:
 		who = strings.Replace(channel.Purpose.Value, " messaging with", "", -1)
 	case channel.IsPrivate:
@@ -142,20 +143,4 @@ func (sd *SlackDumper) channelName(channel *slack.Channel) (who string) {
 		who = "#" + channel.NameNormalized
 	}
 	return who
-}
-
-// username tries to resolve the username by ID. If the internal users map is not
-// initialised, it will return the ID, otherwise, if the user is not found in
-// cache, it will assume that the user is external, and return the ID with
-// "external" prefix.
-func (sd *SlackDumper) username(id string) string {
-	if sd.UserIndex == nil {
-		// no user cache, use the IDs.
-		return id
-	}
-	user, ok := sd.UserIndex[id]
-	if !ok {
-		return "<external>:" + id
-	}
-	return user.Name
 }

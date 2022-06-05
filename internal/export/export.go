@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"path"
 	"path/filepath"
 	"time"
 
@@ -15,6 +16,8 @@ import (
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/downloader"
 	"github.com/rusq/slackdump/v2/fsadapter"
+	"github.com/rusq/slackdump/v2/internal/structures/files"
+	"github.com/rusq/slackdump/v2/types"
 )
 
 // Export is the instance of Slack Exporter.
@@ -122,20 +125,31 @@ func (se *Export) exportConversation(ctx context.Context, ch slack.Channel, user
 // DumpMessagesRaw that will handle the download of the files.  If the
 // downloader is not started, i.e. if file download is disabled, it will
 // silently ignore the error and return nil.
-func (se *Export) downloadFn(dl *downloader.Client, channelName string) func(msg []slackdump.Message, channelID string) (slackdump.ProcessResult, error) {
-	dir := filepath.Join(se.basedir(channelName), "attachments")
-	return func(msg []slackdump.Message, channelID string) (slackdump.ProcessResult, error) {
-		files := se.dumper.ExtractFiles(msg)
-		for _, f := range files {
-			if err := dl.DownloadFile(dir, f); err != nil {
-				if errors.Is(err, downloader.ErrNotStarted) {
-					return slackdump.ProcessResult{Entity: "files", Count: 0}, nil
-				}
-				return slackdump.ProcessResult{}, err
+func (se *Export) downloadFn(dl *downloader.Client, channelName string) func(msg []types.Message, channelID string) (slackdump.ProcessResult, error) {
+	const (
+		entFiles  = "files"
+		dirAttach = "attachments"
+	)
+
+	dir := filepath.Join(se.basedir(channelName), dirAttach)
+	return func(msg []types.Message, channelID string) (slackdump.ProcessResult, error) {
+		total := 0
+		if err := files.Extract(msg, files.Root, func(file slack.File, addr files.Addr) error {
+			filename, err := dl.DownloadFile(dir, file)
+			if err != nil {
+				return err
 			}
-			dlog.Printf("sent: %s", f.Name)
+			dlog.Debugf("submitted for download: %s", file.Name)
+			total++
+			return files.UpdateURLs(msg, addr, path.Join(dirAttach, path.Base(filename)))
+		}); err != nil {
+			if errors.Is(err, downloader.ErrNotStarted) {
+				return slackdump.ProcessResult{Entity: entFiles, Count: 0}, nil
+			}
+			return slackdump.ProcessResult{}, err
 		}
-		return slackdump.ProcessResult{Entity: "files", Count: len(files)}, nil
+
+		return slackdump.ProcessResult{Entity: entFiles, Count: total}, nil
 	}
 }
 
@@ -144,7 +158,6 @@ func (se *Export) downloadFn(dl *downloader.Client, channelName string) func(msg
 // discovering it):
 // https://github.com/RocketChat/Rocket.Chat/issues/13905#issuecomment-477500022
 func validName(ctx context.Context, ch slack.Channel, uidx userIndex) (string, error) {
-
 	if ch.IsIM {
 		return ch.ID, nil
 	} else {

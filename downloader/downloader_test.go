@@ -3,6 +3,7 @@ package downloader
 import (
 	"context"
 	"os"
+	"path"
 	"path/filepath"
 	"testing"
 	"time"
@@ -225,7 +226,7 @@ func Test_filename(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := filename(tt.args.f); got != tt.want {
+			if got := Filename(tt.args.f); got != tt.want {
 				t.Errorf("filename() = %v, want %v", got, tt.want)
 			}
 		})
@@ -265,7 +266,7 @@ func TestSlackDumper_newFileDownloader(t *testing.T) {
 		require.NoError(t, err)
 
 		<-done
-		filename := filepath.Join(tmpdir, filename(&file9))
+		filename := filepath.Join(tmpdir, Filename(&file9))
 		assert.FileExists(t, filename)
 
 	})
@@ -302,7 +303,7 @@ func TestSlackDumper_worker(t *testing.T) {
 		close(reqC)
 
 		sd.worker(ctx, reqC)
-		assert.FileExists(t, filepath.Join(tmpdir, filename(&file1)))
+		assert.FileExists(t, filepath.Join(tmpdir, Filename(&file1)))
 	})
 	t.Run("getfile error", func(t *testing.T) {
 		mc := mock_downloader.NewMockDownloader(gomock.NewController(t))
@@ -321,7 +322,7 @@ func TestSlackDumper_worker(t *testing.T) {
 		close(reqC)
 
 		sd.worker(ctx, reqC)
-		_, err := os.Stat(filepath.Join(tmpdir, "01", filename(&file1)))
+		_, err := os.Stat(filepath.Join(tmpdir, "01", Filename(&file1)))
 		assert.True(t, os.IsNotExist(err))
 	})
 	t.Run("cancelled context", func(t *testing.T) {
@@ -423,8 +424,13 @@ func TestClient_DownloadFile(t *testing.T) {
 	dir := t.TempDir()
 	t.Run("returns error on stopped downloader", func(t *testing.T) {
 		c := clientWithMock(t, dir)
-		err := c.DownloadFile(dir, slack.File{ID: "xx", Name: "tt"})
-		assert.ErrorIs(t, err, ErrNotStarted)
+		path, err := c.DownloadFile(dir, slack.File{ID: "xx", Name: "tt"})
+		if path != "" {
+			t.Errorf("path should be empty")
+		}
+		if !errors.Is(err, ErrNotStarted) {
+			t.Errorf("want err=%s, got=%s", ErrNotStarted, err)
+		}
 	})
 	t.Run("ensure that file is placed on the queue", func(t *testing.T) {
 		c := clientWithMock(t, dir)
@@ -435,8 +441,14 @@ func TestClient_DownloadFile(t *testing.T) {
 			Times(1).
 			Return(nil)
 
-		err := c.DownloadFile(dir, file1)
-		assert.NoError(t, err)
+		filename, err := c.DownloadFile(dir, file1)
+		wantfname := path.Join(dir, Filename(&file1))
+		if filename != wantfname {
+			t.Errorf("expected filename=%s, got=%s", wantfname, filename)
+		}
+		if err != nil {
+			t.Errorf("error is not expected at this time: %s", err)
+		}
 
 		c.Stop()
 	})

@@ -21,8 +21,8 @@ import (
 
 //go:generate mockgen -destination internal/mocks/mock_os/mock_os.go os FileInfo
 //go:generate mockgen -destination internal/mocks/mock_downloader/mock_downloader.go github.com/rusq/slackdump/v2/downloader Downloader
-//go:generate sh -c "mockgen -source slackdump.go -destination clienter_mock.go -package slackdump -mock_names clienter=mockClienter,Reporter=mockReporter"
-//go:generate sed -i ~ -e "s/NewmockClienter/newmockClienter/g" -e "s/NewmockReporter/newmockReporter/g" clienter_mock.go
+//go:generate sh -c "mockgen -source slackdump.go -destination clienter_mock_test.go -package slackdump -mock_names clienter=mockClienter,Reporter=mockReporter"
+//go:generate sed -i ~ -e "s/NewmockClienter/newmockClienter/g" -e "s/NewmockReporter/newmockReporter/g" clienter_mock_test.go
 
 const (
 	// user index of the application user in the user list.
@@ -160,10 +160,10 @@ func checkCacheFile(filename string, maxAge time.Duration) error {
 		return err
 	}
 
-	return validateFileStats(fi, maxAge)
+	return validateCache(fi, maxAge)
 }
 
-func validateFileStats(fi os.FileInfo, maxAge time.Duration) error {
+func validateCache(fi os.FileInfo, maxAge time.Duration) error {
 	if fi.IsDir() {
 		return errors.New("cache file is a directory")
 	}
