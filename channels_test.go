@@ -9,12 +9,15 @@ import (
 	"github.com/pkg/errors"
 	"github.com/slack-go/slack"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/rusq/slackdump/v2/internal/structures"
+	"github.com/rusq/slackdump/v2/types"
 )
 
 func TestSlackDumper_getChannels(t *testing.T) {
 	type fields struct {
-		Users     Users
-		UserIndex map[string]*slack.User
+		Users     types.Users
+		UserIndex structures.UserIndex
 		options   Options
 	}
 	type args struct {
@@ -26,7 +29,7 @@ func TestSlackDumper_getChannels(t *testing.T) {
 		fields   fields
 		args     args
 		expectFn func(mc *mockClienter)
-		want     Channels
+		want     types.Channels
 		wantErr  bool
 	}{
 		{
@@ -40,14 +43,14 @@ func TestSlackDumper_getChannels(t *testing.T) {
 				mc.EXPECT().GetConversationsContext(gomock.Any(), &slack.GetConversationsParameters{
 					Limit: DefOptions.ChannelsPerReq,
 					Types: AllChanTypes,
-				}).Return(Channels{
+				}).Return(types.Channels{
 					slack.Channel{GroupConversation: slack.GroupConversation{
 						Name: "lol",
 					}}},
 					"",
 					nil)
 			},
-			Channels{slack.Channel{GroupConversation: slack.GroupConversation{
+			types.Channels{slack.Channel{GroupConversation: slack.GroupConversation{
 				Name: "lol",
 			}}},
 			false,
@@ -86,7 +89,7 @@ func TestSlackDumper_getChannels(t *testing.T) {
 				tt.expectFn(mc)
 			}
 
-			var got Channels
+			var got types.Channels
 			err := sd.getChannels(tt.args.ctx, tt.args.chanTypes, func(c []slack.Channel) error {
 				got = append(got, c...)
 				return nil
@@ -103,8 +106,8 @@ func TestSlackDumper_getChannels(t *testing.T) {
 func TestSlackDumper_GetChannels(t *testing.T) {
 	type fields struct {
 		client    clienter
-		Users     Users
-		UserIndex map[string]*slack.User
+		Users     types.Users
+		UserIndex structures.UserIndex
 		options   Options
 	}
 	type args struct {
@@ -115,7 +118,7 @@ func TestSlackDumper_GetChannels(t *testing.T) {
 		name    string
 		fields  fields
 		args    args
-		want    Channels
+		want    types.Channels
 		wantErr bool
 	}{
 		// TODO: Add test cases.

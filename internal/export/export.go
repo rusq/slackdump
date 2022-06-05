@@ -16,6 +16,7 @@ import (
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/downloader"
 	"github.com/rusq/slackdump/v2/fsadapter"
+	"github.com/rusq/slackdump/v2/internal/structures"
 	"github.com/rusq/slackdump/v2/internal/structures/files"
 	"github.com/rusq/slackdump/v2/types"
 )
@@ -54,7 +55,7 @@ func (se *Export) Run(ctx context.Context) error {
 	return nil
 }
 
-func (se *Export) users(ctx context.Context) (slackdump.Users, error) {
+func (se *Export) users(ctx context.Context) (types.Users, error) {
 	// fetch users and save them.
 	users, err := se.dumper.GetUsers(ctx)
 	if err != nil {
@@ -63,7 +64,7 @@ func (se *Export) users(ctx context.Context) (slackdump.Users, error) {
 	return users, nil
 }
 
-func (se *Export) messages(ctx context.Context, users slackdump.Users) error {
+func (se *Export) messages(ctx context.Context, users types.Users) error {
 	var chans []slack.Channel
 	dl := downloader.New(se.dumper.Client(), se.fs)
 	if se.opts.IncludeFiles {
@@ -93,7 +94,7 @@ func (se *Export) messages(ctx context.Context, users slackdump.Users) error {
 }
 
 // exportConversation exports one conversation.
-func (se *Export) exportConversation(ctx context.Context, ch slack.Channel, users slackdump.Users, dl *downloader.Client) error {
+func (se *Export) exportConversation(ctx context.Context, ch slack.Channel, users types.Users, dl *downloader.Client) error {
 	dlFn := se.downloadFn(dl, ch.Name)
 	messages, err := se.dumper.DumpMessagesRaw(ctx, ch.ID, se.opts.Oldest, se.opts.Latest, dlFn)
 	if err != nil {
@@ -157,7 +158,7 @@ func (se *Export) downloadFn(dl *downloader.Client, channelName string) func(msg
 // described by @niklasdahlheimer in this post (thanks to @Neznakomec for
 // discovering it):
 // https://github.com/RocketChat/Rocket.Chat/issues/13905#issuecomment-477500022
-func validName(ctx context.Context, ch slack.Channel, uidx userIndex) (string, error) {
+func validName(ctx context.Context, ch slack.Channel, uidx structures.UserIndex) (string, error) {
 	if ch.IsIM {
 		return ch.ID, nil
 	} else {

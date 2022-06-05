@@ -65,7 +65,7 @@ func generateText(w io.Writer, m []Message, prefix string, userIdx structures.Us
 			fmt.Fprintf(w, prefix+"%s\n", message.Text)
 		} else {
 			fmt.Fprintf(w, prefix+"\n"+prefix+"> %s [%s] @ %s:\n%s\n",
-				structures.SenderName(&message.Message, userIdx), message.User,
+				userIdx.Sender(&message.Message), message.User,
 				t.Format(textTimeFmt),
 				prefix+html.UnescapeString(message.Text),
 			)

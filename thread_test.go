@@ -11,13 +11,14 @@ import (
 	"golang.org/x/time/rate"
 
 	"github.com/rusq/slackdump/v2/internal/network"
+	"github.com/rusq/slackdump/v2/internal/structures"
 	"github.com/rusq/slackdump/v2/types"
 )
 
 func TestSlackDumper_DumpThread(t *testing.T) {
 	type fields struct {
-		Users     Users
-		UserIndex map[string]*slack.User
+		Users     types.Users
+		UserIndex structures.UserIndex
 		options   Options
 	}
 	type args struct {
@@ -227,8 +228,8 @@ func TestSlackDumper_populateThreads(t *testing.T) {
 
 func TestSlackDumper_dumpThread(t *testing.T) {
 	type fields struct {
-		Users     Users
-		UserIndex map[string]*slack.User
+		Users     types.Users
+		UserIndex structures.UserIndex
 		options   Options
 	}
 	type args struct {

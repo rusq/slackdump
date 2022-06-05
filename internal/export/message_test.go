@@ -5,8 +5,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/internal/fixtures"
+	"github.com/rusq/slackdump/v2/internal/structures"
 	"github.com/rusq/slackdump/v2/types"
 )
 
@@ -21,7 +21,7 @@ func Test_makeUniq(t *testing.T) {
 func Test_newExportMessage(t *testing.T) {
 	type args struct {
 		msg   *types.Message
-		users userIndex
+		users structures.UserIndex
 	}
 	tests := []struct {
 		name string
@@ -32,7 +32,7 @@ func Test_newExportMessage(t *testing.T) {
 			"threaded message fields are populated correctly",
 			args{
 				msg:   fixtures.Load[*types.Message](fixtures.ThreadMessage1JSON),
-				users: fixtures.Load[slackdump.Users](fixtures.UsersJSON).IndexByID(),
+				users: fixtures.Load[types.Users](fixtures.UsersJSON).IndexByID(),
 			},
 			fixtures.Load[*ExportMessage](fixtures.ThreadedExportedMessage1JSON),
 		},

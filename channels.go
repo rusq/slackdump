@@ -4,31 +4,23 @@ package slackdump
 
 import (
 	"context"
-	"fmt"
-	"io"
-	"os"
 	"runtime/trace"
-	"strings"
-	"text/tabwriter"
 	"time"
 
 	"github.com/rusq/dlog"
 	"github.com/slack-go/slack"
 
 	"github.com/rusq/slackdump/v2/internal/network"
-	"github.com/rusq/slackdump/v2/internal/structures"
+	"github.com/rusq/slackdump/v2/types"
 )
-
-// Channels keeps slice of channels
-type Channels []slack.Channel
 
 // GetChannels list all conversations for a user.  `chanTypes` specifies the
 // type of messages to fetch.  See github.com/rusq/slack docs for possible
 // values.  If large number of channels is to be returned, consider using
 // StreamChannels.
-func (sd *SlackDumper) GetChannels(ctx context.Context, chanTypes ...string) (Channels, error) {
-	var allChannels Channels
-	if err := sd.getChannels(ctx, chanTypes, func(cc []slack.Channel) error {
+func (sd *SlackDumper) GetChannels(ctx context.Context, chanTypes ...string) (types.Channels, error) {
+	var allChannels types.Channels
+	if err := sd.getChannels(ctx, chanTypes, func(cc types.Channels) error {
 		allChannels = append(allChannels, cc...)
 		return nil
 	}); err != nil {
@@ -37,9 +29,10 @@ func (sd *SlackDumper) GetChannels(ctx context.Context, chanTypes ...string) (Ch
 	return allChannels, nil
 }
 
-// StreamChannels requests the channels from the API and sends them over the channelC channel.
+// StreamChannels requests the channels from the API and calls the callback
+// function cb for each.
 func (sd *SlackDumper) StreamChannels(ctx context.Context, chanTypes []string, cb func(ch slack.Channel) error) error {
-	return sd.getChannels(ctx, chanTypes, func(chans []slack.Channel) error {
+	return sd.getChannels(ctx, chanTypes, func(chans types.Channels) error {
 		for _, ch := range chans {
 			if err := cb(ch); err != nil {
 				return err
@@ -52,7 +45,7 @@ func (sd *SlackDumper) StreamChannels(ctx context.Context, chanTypes []string, c
 // getChannels list all conversations for a user.  `chanTypes` specifies
 // the type of messages to fetch.  See github.com/rusq/slack docs for possible
 // values
-func (sd *SlackDumper) getChannels(ctx context.Context, chanTypes []string, cb func([]slack.Channel) error) error {
+func (sd *SlackDumper) getChannels(ctx context.Context, chanTypes []string, cb func(types.Channels) error) error {
 	ctx, task := trace.NewTask(ctx, "getChannels")
 	defer task.End()
 
@@ -105,42 +98,4 @@ func (sd *SlackDumper) getChannels(ctx context.Context, chanTypes []string, cb f
 		}
 	}
 	return nil
-}
-
-// ToText outputs Channels to w in text format.  It uses Slackdumper instance
-// to resolve the user attributes.
-func (cs Channels) ToText(w io.Writer, sd *SlackDumper) (err error) {
-	const strFormat = "%s\t%s\t%s\t%s\n"
-	writer := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
-	defer writer.Flush()
-	fmt.Fprintf(writer, strFormat, "ID", "Arch", "Saved", "What")
-	for i, ch := range cs {
-		who := sd.channelName(&ch)
-		archived := "-"
-		if cs[i].IsArchived || sd.IsUserDeleted(ch.User) {
-			archived = "arch"
-		}
-		saved := "-"
-		if _, err := os.Stat(ch.ID + ".json"); err == nil {
-			saved = "saved"
-		}
-
-		fmt.Fprintf(writer, strFormat, ch.ID, archived, saved, who)
-	}
-	return nil
-}
-
-// channelName return the "beautified" name of the channel.
-func (sd *SlackDumper) channelName(channel *slack.Channel) (who string) {
-	switch {
-	case channel.IsIM:
-		who = "@" + structures.ResolveUsername(channel.User, sd.UserIndex)
-	case channel.IsMpIM:
-		who = strings.Replace(channel.Purpose.Value, " messaging with", "", -1)
-	case channel.IsPrivate:
-		who = "🔒 " + channel.NameNormalized
-	default:
-		who = "#" + channel.NameNormalized
-	}
-	return who
 }

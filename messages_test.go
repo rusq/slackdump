@@ -14,6 +14,7 @@ import (
 
 	"github.com/rusq/slackdump/v2/internal/fixtures"
 	"github.com/rusq/slackdump/v2/internal/network"
+	"github.com/rusq/slackdump/v2/internal/structures"
 	"github.com/rusq/slackdump/v2/types"
 )
 
@@ -64,8 +65,8 @@ var (
 
 func TestSlackDumper_DumpMessages(t *testing.T) {
 	type fields struct {
-		Users     Users
-		UserIndex map[string]*slack.User
+		Users     types.Users
+		UserIndex structures.UserIndex
 		options   Options
 	}
 	type args struct {
@@ -234,8 +235,8 @@ func TestSlackDumper_DumpMessages(t *testing.T) {
 func TestSlackDumper_DumpURL(t *testing.T) {
 	t.Parallel()
 	type fields struct {
-		Users     Users
-		UserIndex map[string]*slack.User
+		Users     types.Users
+		UserIndex structures.UserIndex
 		options   Options
 	}
 	type args struct {
@@ -361,8 +362,8 @@ func TestConversation_String(t *testing.T) {
 func TestSlackDumper_convHistoryParams(t *testing.T) {
 	type fields struct {
 		client    clienter
-		Users     Users
-		UserIndex map[string]*slack.User
+		Users     types.Users
+		UserIndex structures.UserIndex
 		options   Options
 	}
 	type args struct {
@@ -454,8 +455,8 @@ func TestSlackDumper_convHistoryParams(t *testing.T) {
 
 func TestSlackDumper_getChannelName(t *testing.T) {
 	type fields struct {
-		Users     Users
-		UserIndex map[string]*slack.User
+		Users     types.Users
+		UserIndex structures.UserIndex
 		options   Options
 	}
 	type args struct {

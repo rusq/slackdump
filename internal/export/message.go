@@ -41,13 +41,10 @@ func (em ExportMessage) Time() time.Time {
 	return ts
 }
 
-// userIndex maps the userID to a slack User.
-type userIndex map[string]*slack.User
-
 // newExportMessage creates an export message from a slack message and populates
 // some additional fields.  Slack messages produced by export are much more
 // saturated with information, i.e. contain user profiles and thread stats.
-func newExportMessage(msg *types.Message, users userIndex) *ExportMessage {
+func newExportMessage(msg *types.Message, users structures.UserIndex) *ExportMessage {
 	expMsg := ExportMessage{Msg: msg.Msg}
 
 	expMsg.UserTeam = msg.Team
