@@ -2,6 +2,7 @@ package slackdump
 
 import (
 	"context"
+	"path"
 	"runtime/trace"
 
 	"github.com/slack-go/slack"
@@ -37,9 +38,11 @@ func runProcessFuncs(m []types.Message, channelID string, processFn ...ProcessFu
 	return prs, nil
 }
 
-// newFileProcessFn returns a file process function that will save the conversation files to
-// directory dir, rate limited by limiter l.  It returns ProcessFunction and CancelFunc.  CancelFunc
-// must be called, i.e. by deferring it's execution.
+// newFileProcessFn returns a file process function that will save the
+// conversation files to directory dir on the slackdump filesystem, rate limited
+// by limiter l.  The File.PublicURL will be updated to point to the downloaded
+// file, instead of Slack server URL.  It returns ProcessFunction and
+// CancelFunc. CancelFunc must be called, i.e. by deferring it's execution.
 func (sd *SlackDumper) newFileProcessFn(ctx context.Context, dir string, l *rate.Limiter) (ProcessFunc, cancelFunc, error) {
 	// set up a file downloader and add it to the post-process functions
 	// slice
@@ -58,7 +61,7 @@ func (sd *SlackDumper) newFileProcessFn(ctx context.Context, dir string, l *rate
 	}
 
 	fn := func(msg []types.Message, _ string) (ProcessResult, error) {
-		n := pipeFiles(filesC, msg)
+		n := pipeAndUpdateFiles(filesC, msg, dir)
 		return ProcessResult{Entity: "files", Count: n}, nil
 	}
 
@@ -70,13 +73,15 @@ func (sd *SlackDumper) newFileProcessFn(ctx context.Context, dir string, l *rate
 	return fn, cancelFn, nil
 }
 
-// pipeFiles scans the messages and sends all the files discovered to the filesC.
-func pipeFiles(filesC chan<- *slack.File, msgs []types.Message) int {
+// pipeAndUpdateFiles scans the messages and sends all the files discovered to
+// the filesC.
+func pipeAndUpdateFiles(filesC chan<- *slack.File, msgs []types.Message, dir string) int {
 	// place files in the download queue
 	total := 0
-	_ = files.Extract(msgs, files.Root, func(file slack.File, _ files.Addr) error {
+	_ = files.Extract(msgs, files.Root, func(file slack.File, addr files.Addr) error {
 		filesC <- &file
 		total++
+		files.UpdateURLs(msgs, addr, path.Join(dir, downloader.Filename(&file)))
 		return nil
 	})
 	return total
