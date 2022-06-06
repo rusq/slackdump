@@ -18,36 +18,74 @@ var _ Provider = BrowserAuth{}
 
 type BrowserAuth struct {
 	simpleProvider
+	flow      BrowserAuthFlow
+	workspace string
 }
 
-func NewBrowserAuth() (BrowserAuth, error) {
+type BrowserAuthFlow interface {
+	RequestWorkspace(w io.Writer) (string, error)
+}
+
+type BrowserOption func(*BrowserAuth)
+
+func BrowserWithAuthFlow(flow BrowserAuthFlow) BrowserOption {
+	return func(ba *BrowserAuth) {
+		if flow == nil {
+			return
+		}
+		ba.flow = flow
+	}
+}
+
+func BrowserWithWorkspace(name string) BrowserOption {
+	return func(ba *BrowserAuth) {
+		ba.workspace = name
+	}
+}
+
+func NewBrowserAuth(opts ...BrowserOption) (BrowserAuth, error) {
+	var br = BrowserAuth{
+		flow: &cliLogin{},
+	}
+	for _, opt := range opts {
+		opt(&br)
+	}
+
 	if err := playwright.Install(&playwright.RunOptions{Browsers: []string{"chromium"}}); err != nil {
-		return BrowserAuth{}, err
+		return br, err
+	}
+	if br.workspace == "" {
+		var err error
+		br.workspace, err = br.flow.RequestWorkspace(os.Stdout)
+		if err != nil {
+			return br, err
+		}
+	}
+	if wsp, err := sanitize(br.workspace); err != nil {
+		return br, err
+	} else {
+		br.workspace = wsp
 	}
 
-	instructions(os.Stdout)
-	workspace, err := requestWorkspace(os.Stdout)
+	auther, err := browser.New(br.workspace)
 	if err != nil {
-		return BrowserAuth{}, err
-	}
-
-	auther, err := browser.New(workspace)
-	if err != nil {
-		return BrowserAuth{}, err
+		return br, err
 	}
 	token, cookies, err := auther.Authenticate()
 	if err != nil {
-		return BrowserAuth{}, err
+		return br, err
 	}
-	return BrowserAuth{
-		simpleProvider: simpleProvider{
-			token:   token,
-			cookies: cookies,
-		},
-	}, nil
+	br.simpleProvider = simpleProvider{
+		token:   token,
+		cookies: cookies,
+	}
+
+	return br, nil
 }
 
-func instructions(w io.Writer) {
+type cliLogin struct{}
+
+func (*cliLogin) instructions(w io.Writer) {
 	const welcome = "Welcome to Slackdump EZ-Login 3000"
 	underline := color.Set(color.Underline)
 	fmt.Fprintf(w, "%s\n\n", underline.Sprint(welcome))
@@ -57,13 +95,14 @@ func instructions(w io.Writer) {
 	fmt.Fprintf(w, "3. Browser will close and slackdump will be authenticated.\n\n\n")
 }
 
-func requestWorkspace(w io.Writer) (string, error) {
+func (cl *cliLogin) RequestWorkspace(w io.Writer) (string, error) {
+	cl.instructions(w)
 	fmt.Fprint(w, "Enter Slack Workspace Name: ")
 	workspace, err := readln(os.Stdin)
 	if err != nil {
 		return "", err
 	}
-	return sanitize(workspace)
+	return workspace, nil
 }
 
 func sanitize(workspace string) (string, error) {
