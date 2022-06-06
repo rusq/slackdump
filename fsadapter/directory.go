@@ -76,5 +76,5 @@ func (fs Directory) WriteFile(name string, data []byte, perm os.FileMode) error 
 	if err := mkdirAll(filepath.Dir(node)); err != nil {
 		return err
 	}
-	return os.WriteFile(filepath.Join(fs.dir, name), data, perm)
+	return os.WriteFile(node, data, perm)
 }

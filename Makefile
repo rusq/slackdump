@@ -6,10 +6,13 @@ EXECUTABLE=slackdump
 BUILD=$(shell git describe --tags)
 BUILD_YEAR=$(shell date +%Y)
 
+PKG=github.com/rusq/slackdump/v2
+
 LDFLAGS="-s -w -X 'main.build=$(BUILD)' -X 'main.buildYear=$(BUILD_YEAR)'"
 OSES=linux darwin windows
 DISTFILES=README.rst LICENSE
 ZIPFILES=$(foreach s,$(OSES),$(OUTPUT)-$s.zip)
+
 
 .PHONY: dist all test
 
@@ -46,3 +49,6 @@ man: slackdump.1
 
 slackdump.1: README.rst
 	rst2man.py $< $@ --syntax-highlight=none
+
+callvis:
+	go-callvis -group pkg,type -limit $(PKG) $(PKG)/cmd/slackdump
