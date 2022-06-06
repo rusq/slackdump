@@ -1,9 +1,9 @@
 package downloader
 
 import (
-	"math/rand"
 	"testing"
 
+	"github.com/rusq/slackdump/v2/internal/fixtures"
 	"github.com/slack-go/slack"
 	"github.com/stretchr/testify/assert"
 )
@@ -78,17 +78,5 @@ func makeFileReqQ(numReq int, dir string) []FileRequest {
 }
 
 func randomFileReq(dirname string) FileRequest {
-	return FileRequest{Directory: dirname, File: &slack.File{ID: randString(8), Name: randString(12)}}
-}
-
-func randString(sz int) string {
-	const (
-		charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
-		chrstSz = len(charset)
-	)
-	var ret = make([]byte, sz)
-	for i := 0; i < sz; i++ {
-		ret[i] = charset[rand.Int()%chrstSz]
-	}
-	return string(ret)
+	return FileRequest{Directory: dirname, File: &slack.File{ID: fixtures.RandString(8), Name: fixtures.RandString(12)}}
 }

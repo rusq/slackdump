@@ -6,8 +6,10 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 
+	"github.com/rusq/slackdump/v2/internal/fixtures"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -15,9 +17,7 @@ import (
 func TestNewZipFile(t *testing.T) {
 	tmp := t.TempDir()
 	t.Run("zip file is created", func(t *testing.T) {
-		zipPath := filepath.Join(tmp, "test.zip")
-		zf, err := NewZipFile(zipPath)
-		require.NoError(t, err)
+		zipPath, zf := gimmeZIP(t, tmp)
 
 		assert.NotNil(t, zf.zw)
 		assert.NotNil(t, zf.f)
@@ -87,4 +87,54 @@ func assertZippedFileSize(t *testing.T, zipfile string, fullpath string, size ui
 	if !found {
 		t.Errorf("file not found: %s", fullpath)
 	}
+}
+
+func TestZIP_WriteFile(t *testing.T) {
+	tmp := t.TempDir()
+
+	t.Run("write file creates the file in the zip archive", func(t *testing.T) {
+		zipfile, hZF := gimmeZIP(t, tmp)
+		if err := hZF.WriteFile("test1.txt", []byte("0123456789abcdef"), 0750); err != nil {
+			hZF.Close()
+			t.Fatalf("ZIP.WriteFile err=%s", err)
+		}
+		assert.NoError(t, hZF.Close())
+
+		assertZippedFileSize(t, zipfile, "test1.txt", 16)
+	})
+}
+
+// gimmeZIP creates a zip file, returns it's name and initialised *ZIP instance.
+// Don't forget to close it before running assertions.
+func gimmeZIP(t *testing.T, tmpdir string) (filename string, hZF *ZIP) {
+	zipfile := filepath.Join(tmpdir, fixtures.RandString(8)+".zip")
+	hZF, err := NewZipFile(zipfile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return zipfile, hZF
+}
+
+func Test_syncWriter_Close(t *testing.T) {
+	t.Run("should unlock the mutex", func(t *testing.T) {
+		sw := syncWriter{mu: &sync.Mutex{}}
+
+		sw.mu.Lock()
+
+		sw.Close()
+		assert.True(t, sw.mu.TryLock())
+	})
+}
+
+func TestNewZIP(t *testing.T) {
+	tmpdir := t.TempDir()
+	t.Run("ensure it's the same zw", func(t *testing.T) {
+		hFile, err := os.Create(filepath.Join(tmpdir, "x.zip"))
+		assert.NoError(t, err)
+
+		zw := zip.NewWriter(hFile)
+		zf := NewZIP(zw)
+
+		assert.Equal(t, zw, zf.zw)
+	})
 }

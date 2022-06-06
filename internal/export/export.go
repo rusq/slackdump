@@ -73,7 +73,7 @@ func (se *Export) messages(ctx context.Context, users types.Users) error {
 	}
 
 	if err := se.dumper.StreamChannels(ctx, slackdump.AllChanTypes, func(ch slack.Channel) error {
-		if err := se.exportConversation(ctx, ch, users, dl); err != nil {
+		if err := se.exportConversation(ctx, dl, users.IndexByID(), ch); err != nil {
 			return err
 		}
 
@@ -94,7 +94,7 @@ func (se *Export) messages(ctx context.Context, users types.Users) error {
 }
 
 // exportConversation exports one conversation.
-func (se *Export) exportConversation(ctx context.Context, ch slack.Channel, users types.Users, dl *downloader.Client) error {
+func (se *Export) exportConversation(ctx context.Context, dl *downloader.Client, userIdx structures.UserIndex, ch slack.Channel) error {
 	dlFn := se.downloadFn(dl, ch.Name)
 	messages, err := se.dumper.DumpMessagesRaw(ctx, ch.ID, se.opts.Oldest, se.opts.Latest, dlFn)
 	if err != nil {
@@ -105,12 +105,12 @@ func (se *Export) exportConversation(ctx context.Context, ch slack.Channel, user
 		return nil
 	}
 
-	msgs, err := se.byDate(messages, users)
+	msgs, err := se.byDate(messages, userIdx)
 	if err != nil {
 		return fmt.Errorf("exportChannelData: error: %w", err)
 	}
 
-	name, err := validName(ctx, ch, users.IndexByID())
+	name, err := validName(ctx, ch, userIdx)
 	if err != nil {
 		return err
 	}
@@ -132,7 +132,7 @@ func (se *Export) downloadFn(dl *downloader.Client, channelName string) func(msg
 		dirAttach = "attachments"
 	)
 
-	dir := filepath.Join(se.basedir(channelName), dirAttach)
+	dir := filepath.Join(channelName, dirAttach)
 	return func(msg []types.Message, channelID string) (slackdump.ProcessResult, error) {
 		total := 0
 		if err := files.Extract(msg, files.Root, func(file slack.File, addr files.Addr) error {
@@ -164,10 +164,6 @@ func validName(ctx context.Context, ch slack.Channel, uidx structures.UserIndex)
 	} else {
 		return ch.NameNormalized, nil
 	}
-}
-
-func (se *Export) basedir(channelName string) string {
-	return channelName
 }
 
 // saveChannel creates a directory `name` and writes the contents of msgs. for

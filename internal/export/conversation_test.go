@@ -15,7 +15,7 @@ func TestConversation_ByDate(t *testing.T) {
 	conversations := fixtures.Load[types.Conversation](fixtures.TestConversationJSON)
 	users := fixtures.Load[types.Users](fixtures.UsersJSON)
 
-	convDt, err := exp.byDate(&conversations, users)
+	convDt, err := exp.byDate(&conversations, users.IndexByID())
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -90,7 +90,7 @@ func TestSlackDumper_getChannels(t *testing.T) {
 			}
 
 			var got types.Channels
-			err := sd.getChannels(tt.args.ctx, tt.args.chanTypes, func(c []slack.Channel) error {
+			err := sd.getChannels(tt.args.ctx, tt.args.chanTypes, func(c types.Channels) error {
 				got = append(got, c...)
 				return nil
 			})

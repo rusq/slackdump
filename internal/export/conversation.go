@@ -17,9 +17,9 @@ const dateFmt = "2006-01-02"
 // users should contain the users in the conversation for population of required
 // fields.
 // Threads are flattened.
-func (Export) byDate(c *types.Conversation, users types.Users) (map[string][]ExportMessage, error) {
+func (Export) byDate(c *types.Conversation, userIdx structures.UserIndex) (map[string][]ExportMessage, error) {
 	msgsByDate := make(map[string][]ExportMessage)
-	if err := populateMsgs(msgsByDate, c.Messages, users.IndexByID()); err != nil {
+	if err := populateMsgs(msgsByDate, c.Messages, userIdx); err != nil {
 		return nil, err
 	}
 
