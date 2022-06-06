@@ -63,6 +63,41 @@ func TestSlackDumper_DumpThread(t *testing.T) {
 			false,
 		},
 		{
+			"ok with time constraints",
+			fields{options: DefOptions},
+			args{
+				context.Background(),
+				"CHANNEL",
+				"THREAD",
+				time.Date(2020, 12, 31, 23, 59, 59, 0, time.UTC),
+				time.Date(2021, 12, 31, 23, 59, 59, 0, time.UTC),
+			},
+			func(mc *mockClienter) {
+				mc.EXPECT().
+					GetConversationRepliesContext(
+						gomock.Any(),
+						&slack.GetConversationRepliesParameters{
+							ChannelID: "CHANNEL",
+							Timestamp: "THREAD",
+							Limit:     DefOptions.RepliesPerReq,
+							Oldest:    "1609459199.000000",
+							Latest:    "1640995199.000000",
+							Inclusive: true,
+						},
+					).
+					Return(
+						[]slack.Message{testMsg1.Message, testMsg2.Message, testMsg3.Message},
+						false,
+						"",
+						nil,
+					).
+					Times(1)
+				mockConvInfo(mc, "CHANNEL", "channel_name")
+			},
+			&types.Conversation{Name: "channel_name", ID: "CHANNEL", ThreadTS: "THREAD", Messages: []types.Message{testMsg1, testMsg2, testMsg3}},
+			false,
+		},
+		{
 			"iterating over",
 			fields{options: DefOptions},
 			args{context.Background(), "CHANNEL", "THREAD", time.Time{}, time.Time{}},
