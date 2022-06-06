@@ -75,7 +75,7 @@ func (app *App) fetchEntity(ctx context.Context, listFlags ListFlags) (rep slack
 func (app *App) formatEntity(w io.Writer, rep slackdump.Reporter, output Output) error {
 	switch output.Format {
 	case OutputTypeText:
-		return rep.ToText(w, app.sd)
+		return rep.ToText(w, app.sd.UserIndex)
 	case OutputTypeJSON:
 		enc := json.NewEncoder(w)
 		return enc.Encode(rep)

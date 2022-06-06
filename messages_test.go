@@ -4,7 +4,6 @@ import (
 	"context"
 	"reflect"
 	"testing"
-	"time"
 
 	"github.com/golang/mock/gomock"
 	"github.com/pkg/errors"
@@ -14,6 +13,7 @@ import (
 
 	"github.com/rusq/slackdump/v2/internal/fixtures"
 	"github.com/rusq/slackdump/v2/internal/network"
+	"github.com/rusq/slackdump/v2/internal/structures"
 	"github.com/rusq/slackdump/v2/types"
 )
 
@@ -64,8 +64,8 @@ var (
 
 func TestSlackDumper_DumpMessages(t *testing.T) {
 	type fields struct {
-		Users     Users
-		UserIndex map[string]*slack.User
+		Users     types.Users
+		UserIndex structures.UserIndex
 		options   Options
 	}
 	type args struct {
@@ -90,6 +90,7 @@ func TestSlackDumper_DumpMessages(t *testing.T) {
 					&slack.GetConversationHistoryParameters{
 						ChannelID: "CHANNEL",
 						Limit:     DefOptions.ConversationsPerReq,
+						Inclusive: true,
 					}).Return(
 					&slack.GetConversationHistoryResponse{
 						SlackResponse: slack.SlackResponse{Ok: true},
@@ -131,6 +132,7 @@ func TestSlackDumper_DumpMessages(t *testing.T) {
 						&slack.GetConversationHistoryParameters{
 							ChannelID: "CHANNEL",
 							Limit:     DefOptions.ConversationsPerReq,
+							Inclusive: true,
 						}).
 					Return(
 						&slack.GetConversationHistoryResponse{
@@ -153,6 +155,7 @@ func TestSlackDumper_DumpMessages(t *testing.T) {
 							ChannelID: "CHANNEL",
 							Cursor:    "cur",
 							Limit:     DefOptions.ConversationsPerReq,
+							Inclusive: true,
 						}).
 					Return(
 						&slack.GetConversationHistoryResponse{
@@ -234,8 +237,8 @@ func TestSlackDumper_DumpMessages(t *testing.T) {
 func TestSlackDumper_DumpURL(t *testing.T) {
 	t.Parallel()
 	type fields struct {
-		Users     Users
-		UserIndex map[string]*slack.User
+		Users     types.Users
+		UserIndex structures.UserIndex
 		options   Options
 	}
 	type args struct {
@@ -358,104 +361,10 @@ func TestConversation_String(t *testing.T) {
 	}
 }
 
-func TestSlackDumper_convHistoryParams(t *testing.T) {
-	type fields struct {
-		client    clienter
-		Users     Users
-		UserIndex map[string]*slack.User
-		options   Options
-	}
-	type args struct {
-		channelID string
-		cursor    string
-		oldest    time.Time
-		latest    time.Time
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		args   args
-		want   *slack.GetConversationHistoryParameters
-	}{
-		{
-			"just channel",
-			fields{options: DefOptions},
-			args{channelID: "CHAN_ID"},
-			&slack.GetConversationHistoryParameters{
-				ChannelID: "CHAN_ID",
-				Limit:     DefOptions.ConversationsPerReq,
-			},
-		},
-		{
-			"channel and cursor",
-			fields{options: DefOptions},
-			args{channelID: "CHAN_ID", cursor: "SOME_JUNK"},
-			&slack.GetConversationHistoryParameters{
-				ChannelID: "CHAN_ID",
-				Cursor:    "SOME_JUNK",
-				Limit:     DefOptions.ConversationsPerReq,
-			},
-		},
-		{
-			"oldest set",
-			fields{options: DefOptions},
-			args{channelID: "CHAN_ID", oldest: time.Date(1991, 9, 16, 6, 7, 8, 9, time.UTC)},
-			&slack.GetConversationHistoryParameters{
-				ChannelID: "CHAN_ID",
-				Oldest:    "685001228.000009",
-				Inclusive: true,
-				Limit:     DefOptions.ConversationsPerReq,
-			},
-		},
-		{
-			"latest set",
-			fields{options: DefOptions},
-			args{channelID: "CHAN_ID", latest: time.Date(2020, 1, 5, 6, 7, 8, 9, time.UTC)},
-			&slack.GetConversationHistoryParameters{
-				ChannelID: "CHAN_ID",
-				Latest:    "1578204428.000009",
-				Inclusive: true,
-				Limit:     DefOptions.ConversationsPerReq,
-			},
-		},
-		{
-			"full house",
-			fields{options: DefOptions},
-			args{
-				channelID: "CHAN_ID",
-				cursor:    "JUNK",
-				oldest:    time.Date(1991, 9, 16, 6, 7, 8, 9, time.UTC),
-				latest:    time.Date(2020, 1, 5, 6, 7, 8, 9, time.UTC),
-			},
-			&slack.GetConversationHistoryParameters{
-				ChannelID: "CHAN_ID",
-				Cursor:    "JUNK",
-				Inclusive: true,
-				Oldest:    "685001228.000009",
-				Latest:    "1578204428.000009",
-				Limit:     DefOptions.ConversationsPerReq,
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			sd := &SlackDumper{
-				client:    tt.fields.client,
-				Users:     tt.fields.Users,
-				UserIndex: tt.fields.UserIndex,
-				options:   tt.fields.options,
-			}
-			if got := sd.convHistoryParams(tt.args.channelID, tt.args.cursor, tt.args.oldest, tt.args.latest); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("SlackDumper.convHistoryParams() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
 func TestSlackDumper_getChannelName(t *testing.T) {
 	type fields struct {
-		Users     Users
-		UserIndex map[string]*slack.User
+		Users     types.Users
+		UserIndex structures.UserIndex
 		options   Options
 	}
 	type args struct {

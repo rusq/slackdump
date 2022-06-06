@@ -65,8 +65,8 @@ func TestExport_saveChannel(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			se := &Export{
-				fs:     fsadapter.NewDirectory(tt.fields.dir),
-				dumper: tt.fields.dumper,
+				fs: fsadapter.NewDirectory(tt.fields.dir),
+				sd: tt.fields.dumper,
 			}
 			if err := se.saveChannel(tt.args.channelName, tt.args.msgs); (err != nil) != tt.wantErr {
 				t.Errorf("Export.saveChannel() error = %v, wantErr %v", err, tt.wantErr)

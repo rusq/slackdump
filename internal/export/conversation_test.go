@@ -3,7 +3,6 @@ package export
 import (
 	"testing"
 
-	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/internal/fixtures"
 	"github.com/rusq/slackdump/v2/types"
 	"github.com/stretchr/testify/assert"
@@ -14,9 +13,9 @@ func TestConversation_ByDate(t *testing.T) {
 	var exp Export
 
 	conversations := fixtures.Load[types.Conversation](fixtures.TestConversationJSON)
-	users := fixtures.Load[slackdump.Users](fixtures.UsersJSON)
+	users := fixtures.Load[types.Users](fixtures.UsersJSON)
 
-	convDt, err := exp.byDate(&conversations, users)
+	convDt, err := exp.byDate(&conversations, users.IndexByID())
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -62,7 +62,7 @@ func (sd *SlackDumper) dumpURL(ctx context.Context, slackURL string, oldest, lat
 	}
 
 	if ui.IsThread() {
-		return sd.DumpThread(ctx, ui.Channel, ui.ThreadTS, processFn...)
+		return sd.DumpThread(ctx, ui.Channel, ui.ThreadTS, oldest, latest, processFn...)
 	} else {
 		return sd.DumpMessages(ctx, ui.Channel, oldest, latest, processFn...)
 	}
@@ -118,7 +118,7 @@ func (sd *SlackDumper) dumpMessages(ctx context.Context, channelID string, oldes
 
 	// add thread dumper.  It should go first, because it populates message
 	// chunk with thread messages.
-	pfns := append([]ProcessFunc{sd.newThreadProcessFn(ctx, threadLimiter)}, processFn...)
+	pfns := append([]ProcessFunc{sd.newThreadProcessFn(ctx, threadLimiter, oldest, latest)}, processFn...)
 
 	var (
 		messages   []types.Message
@@ -127,14 +127,20 @@ func (sd *SlackDumper) dumpMessages(ctx context.Context, channelID string, oldes
 	)
 	for i := 1; ; i++ {
 		var (
-			resp   *slack.GetConversationHistoryResponse
-			params = sd.convHistoryParams(channelID, cursor, oldest, latest)
+			resp *slack.GetConversationHistoryResponse
 		)
 		reqStart := time.Now()
 		if err := withRetry(ctx, convLimiter, sd.options.Tier3Retries, func() error {
 			var err error
 			trace.WithRegion(ctx, "GetConversationHistoryContext", func() {
-				resp, err = sd.client.GetConversationHistoryContext(ctx, params)
+				resp, err = sd.client.GetConversationHistoryContext(ctx, &slack.GetConversationHistoryParameters{
+					ChannelID: channelID,
+					Cursor:    cursor,
+					Limit:     sd.options.ConversationsPerReq,
+					Oldest:    structures.FormatSlackTS(oldest),
+					Latest:    structures.FormatSlackTS(latest),
+					Inclusive: true,
+				})
 			})
 			return errors.WithStack(err)
 		}); err != nil {
@@ -189,22 +195,4 @@ func (sd *SlackDumper) getChannelName(ctx context.Context, l *rate.Limiter, chan
 		return "", err
 	}
 	return ci.NameNormalized, nil
-}
-
-// convHistoryParams returns GetConversationHistoryParameters.
-func (sd *SlackDumper) convHistoryParams(channelID, cursor string, oldest, latest time.Time) *slack.GetConversationHistoryParameters {
-	params := &slack.GetConversationHistoryParameters{
-		ChannelID: channelID,
-		Cursor:    cursor,
-		Limit:     sd.options.ConversationsPerReq,
-	}
-	if !oldest.IsZero() {
-		params.Oldest = structures.FormatSlackTS(oldest)
-		params.Inclusive = true // make sure we include the messages at this exact TS
-	}
-	if !latest.IsZero() {
-		params.Latest = structures.FormatSlackTS(latest)
-		params.Inclusive = true
-	}
-	return params
 }

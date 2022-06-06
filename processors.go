@@ -4,6 +4,7 @@ import (
 	"context"
 	"path"
 	"runtime/trace"
+	"time"
 
 	"github.com/slack-go/slack"
 	"golang.org/x/time/rate"
@@ -89,9 +90,9 @@ func pipeAndUpdateFiles(filesC chan<- *slack.File, msgs []types.Message, dir str
 
 // newThreadProcessFn returns the new thread processor function.  It will use limiter l
 // to limit the API calls rate.
-func (sd *SlackDumper) newThreadProcessFn(ctx context.Context, l *rate.Limiter) ProcessFunc {
+func (sd *SlackDumper) newThreadProcessFn(ctx context.Context, l *rate.Limiter, oldest, latest time.Time) ProcessFunc {
 	processFn := func(chunk []types.Message, channelID string) (ProcessResult, error) {
-		n, err := sd.populateThreads(ctx, l, chunk, channelID, sd.dumpThread)
+		n, err := sd.populateThreads(ctx, l, chunk, channelID, oldest, latest, sd.dumpThread)
 		if err != nil {
 			return ProcessResult{}, err
 		}

@@ -51,6 +51,9 @@ func Test_formatSlackTS(t *testing.T) {
 	}{
 		{"ok", args{time.Date(2018, 8, 18, 0, 39, 05, 65949, time.UTC)}, "1534552745.065949"},
 		{"another valid time", args{time.Date(2021, 12, 3, 1, 21, 50, 37400, time.UTC)}, "1638494510.037400"},
+		{"empty", args{time.Time{}}, ""},
+		{"Happy new 1970 year", args{time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC)}, "0.000000"},
+		{"prepare for the future", args{time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC).Add(-1 * time.Nanosecond)}, ""},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

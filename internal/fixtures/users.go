@@ -1,5 +1,14 @@
 package fixtures
 
+import "github.com/slack-go/slack"
+
+var TestUsers = []slack.User{
+	{ID: "LOL1", Name: "yippi", Deleted: false},
+	{ID: "DELD", Name: "ka", Deleted: true},
+	{ID: "LOL3", Name: "yay", IsRestricted: true},
+	{ID: "LOL4", Name: "motherfucker", Deleted: false, IsBot: true},
+}
+
 const UsersJSON = `[
 	{
 	  "id": "USLACKBOT",

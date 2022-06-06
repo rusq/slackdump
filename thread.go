@@ -11,15 +11,22 @@ import (
 	"golang.org/x/time/rate"
 
 	"github.com/rusq/slackdump/v2/internal/network"
+	"github.com/rusq/slackdump/v2/internal/structures"
 	"github.com/rusq/slackdump/v2/types"
 )
 
-type threadFunc func(ctx context.Context, l *rate.Limiter, channelID string, threadTS string, processFn ...ProcessFunc) ([]types.Message, error)
+type threadFunc func(ctx context.Context, l *rate.Limiter, channelID string, threadTS string, oldest, latest time.Time, processFn ...ProcessFunc) ([]types.Message, error)
 
 // DumpThread dumps a single thread identified by (channelID, threadTS).
 // Optionally one can provide a number of processFn that will be applied to each
 // chunk of messages returned by a one API call.
-func (sd *SlackDumper) DumpThread(ctx context.Context, channelID, threadTS string, processFn ...ProcessFunc) (*types.Conversation, error) {
+func (sd *SlackDumper) DumpThread(
+	ctx context.Context,
+	channelID,
+	threadTS string,
+	oldest, latest time.Time,
+	processFn ...ProcessFunc,
+) (*types.Conversation, error) {
 	ctx, task := trace.NewTask(ctx, "DumpThread")
 	defer task.End()
 
@@ -38,7 +45,7 @@ func (sd *SlackDumper) DumpThread(ctx context.Context, channelID, threadTS strin
 		processFn = append(processFn, fn)
 	}
 
-	threadMsgs, err := sd.dumpThread(ctx, sd.limiter(network.Tier3), channelID, threadTS, processFn...)
+	threadMsgs, err := sd.dumpThread(ctx, sd.limiter(network.Tier3), channelID, threadTS, oldest, latest, processFn...)
 	if err != nil {
 		return nil, err
 	}
@@ -69,6 +76,7 @@ func (*SlackDumper) populateThreads(
 	l *rate.Limiter,
 	msgs []types.Message,
 	channelID string,
+	oldest, latest time.Time,
 	dumpFn threadFunc,
 ) (int, error) {
 	total := 0
@@ -76,7 +84,7 @@ func (*SlackDumper) populateThreads(
 		if msgs[i].ThreadTimestamp == "" {
 			continue
 		}
-		threadMsgs, err := dumpFn(ctx, l, channelID, msgs[i].ThreadTimestamp)
+		threadMsgs, err := dumpFn(ctx, l, channelID, msgs[i].ThreadTimestamp, oldest, latest)
 		if err != nil {
 			return total, err
 		}
@@ -97,6 +105,7 @@ func (sd *SlackDumper) dumpThread(
 	l *rate.Limiter,
 	channelID string,
 	threadTS string,
+	oldest, latest time.Time,
 	processFn ...ProcessFunc,
 ) ([]types.Message, error) {
 	var (
@@ -118,9 +127,12 @@ func (sd *SlackDumper) dumpThread(
 					ctx,
 					&slack.GetConversationRepliesParameters{
 						ChannelID: channelID,
-						Timestamp: threadTS,
 						Cursor:    cursor,
+						Timestamp: threadTS,
 						Limit:     sd.options.RepliesPerReq,
+						Oldest:    structures.FormatSlackTS(oldest),
+						Latest:    structures.FormatSlackTS(latest),
+						Inclusive: true,
 					},
 				)
 			})

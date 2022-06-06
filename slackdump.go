@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"runtime/trace"
 	"time"
 
@@ -17,6 +18,8 @@ import (
 	"github.com/rusq/slackdump/v2/auth"
 	"github.com/rusq/slackdump/v2/fsadapter"
 	"github.com/rusq/slackdump/v2/internal/network"
+	"github.com/rusq/slackdump/v2/internal/structures"
+	"github.com/rusq/slackdump/v2/types"
 )
 
 //go:generate mockgen -destination internal/mocks/mock_os/mock_os.go os FileInfo
@@ -27,6 +30,8 @@ import (
 const (
 	// user index of the application user in the user list.
 	userIdxMe = 1
+
+	cacheDirName = "slackdump"
 )
 
 // SlackDumper stores basic session parameters.
@@ -38,11 +43,13 @@ type SlackDumper struct {
 	fs fsadapter.FS // filesystem for saving attachments
 
 	// Users contains the list of users and populated on NewSlackDumper
-	Users     Users                  `json:"users"`
-	UserIndex map[string]*slack.User `json:"-"`
+	Users     types.Users          `json:"users"`
+	UserIndex structures.UserIndex `json:"-"`
 	me        slack.User
 
 	options Options
+
+	cacheDir string // cache directory on local system
 }
 
 // clienter is the interface with some functions of slack.Client with the sole
@@ -62,7 +69,7 @@ var AllChanTypes = []string{"mpim", "im", "public_channel", "private_channel"}
 
 // Reporter is an interface defining output functions
 type Reporter interface {
-	ToText(w io.Writer, sd *SlackDumper) error
+	ToText(w io.Writer, ui structures.UserIndex) error
 }
 
 // New creates new client and populates the internal cache of users and channels
@@ -94,11 +101,18 @@ func NewWithOptions(ctx context.Context, authProvider auth.Provider, opts Option
 		return nil, fmt.Errorf("error getting team information: %w", err)
 	}
 
+	cacheDir, err := createCacheDir(cacheDirName)
+	if err != nil {
+		cacheDir = "."
+		dlog.Printf("failed to create the cache directory, will use current")
+	}
+
 	sd := &SlackDumper{
-		client:  cl,
-		options: opts,
-		teamID:  ti.ID,
-		fs:      fsadapter.NewDirectory("."), // default is to save attachments to the current directory.
+		client:   cl,
+		options:  opts,
+		teamID:   ti.ID,
+		fs:       fsadapter.NewDirectory("."), // default is to save attachments to the current directory.
+		cacheDir: cacheDir,
 	}
 
 	dlog.Println("> checking user cache...")
@@ -117,6 +131,21 @@ func NewWithOptions(ctx context.Context, authProvider auth.Provider, opts Option
 	sd.UserIndex = users.IndexByID()
 
 	return sd, nil
+}
+
+func createCacheDir(subdir string) (string, error) {
+	if subdir == "" {
+		return "", errors.New("can't use top level cache directory")
+	}
+	cache, err := os.UserCacheDir()
+	if err != nil {
+		return "", err
+	}
+	cachePath := filepath.Join(cache, subdir)
+	if err := os.MkdirAll(cachePath, 0750); err != nil {
+		return "", err
+	}
+	return cachePath, nil
 }
 
 func (sd *SlackDumper) Me() slack.User {

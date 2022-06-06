@@ -7,7 +7,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/rusq/slackdump/v2"
+	"github.com/rusq/slackdump/v2/internal/structures"
 	"github.com/rusq/slackdump/v2/types"
 )
 
@@ -17,9 +17,9 @@ const dateFmt = "2006-01-02"
 // users should contain the users in the conversation for population of required
 // fields.
 // Threads are flattened.
-func (Export) byDate(c *types.Conversation, users slackdump.Users) (map[string][]ExportMessage, error) {
+func (Export) byDate(c *types.Conversation, userIdx structures.UserIndex) (map[string][]ExportMessage, error) {
 	msgsByDate := make(map[string][]ExportMessage)
-	if err := populateMsgs(msgsByDate, c.Messages, users.IndexByID()); err != nil {
+	if err := populateMsgs(msgsByDate, c.Messages, userIdx); err != nil {
 		return nil, err
 	}
 
@@ -48,7 +48,7 @@ func (mbd messagesByDate) validate() error {
 
 // populateMsgs takes the messages input, splits them by the date and
 // populates the msgsByDate map.
-func populateMsgs(msgsByDate messagesByDate, messages []types.Message, usrIdx userIndex) error {
+func populateMsgs(msgsByDate messagesByDate, messages []types.Message, usrIdx structures.UserIndex) error {
 	for _, msg := range messages {
 		expMsg := newExportMessage(&msg, usrIdx)
 
