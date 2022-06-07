@@ -98,7 +98,7 @@ func run(ctx context.Context, p params) error {
 	ctx, task := trace.NewTask(ctx, "main.run")
 	defer task.End()
 
-	provider, err := p.creds.authProvider()
+	provider, err := p.creds.authProvider(ctx)
 	if err != nil {
 		log.Fatal(err)
 	} else {

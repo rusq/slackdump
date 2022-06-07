@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"os"
 	"runtime"
@@ -16,7 +17,7 @@ type slackCreds struct {
 
 // authProvider returns the appropriate auth Provider depending on the values
 // of the token and cookie.
-func (c slackCreds) authProvider() (auth.Provider, error) {
+func (c slackCreds) authProvider(ctx context.Context) (auth.Provider, error) {
 	if c.token == "" || c.cookie == "" {
 		if !ezLoginSupported() {
 			return nil, errors.New("EZ-Login 3000 is not supported on this OS, please use the manual login method")
@@ -24,7 +25,7 @@ func (c slackCreds) authProvider() (auth.Provider, error) {
 		if !ezLoginTested() {
 			dlog.Println("warning, EZ-Login 3000 is not tested on this OS, if it doesn't work, use manual login method")
 		}
-		return auth.NewBrowserAuth()
+		return auth.NewBrowserAuth(ctx)
 	}
 	if isExistingFile(c.cookie) {
 		return auth.NewCookieFileAuth(c.token, c.cookie)
