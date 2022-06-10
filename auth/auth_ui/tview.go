@@ -38,7 +38,7 @@ func (tv *TView) RequestWorkspace(w io.Writer) (string, error) {
 		})
 
 	form.SetBorder(true).
-		SetTitle(" Slackdump [EZ-Login 3000] ").
+		SetTitle(" Slackdump EZ-Login 3000 ").
 		SetBackgroundColor(tcell.ColorDarkCyan).
 		SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 			if !input.HasFocus() {
@@ -58,7 +58,7 @@ func (tv *TView) RequestWorkspace(w io.Writer) (string, error) {
 		})
 
 	go func() {
-		if err := tv.app.SetRoot(modal(form, 60, 7), true).EnableMouse(false).Run(); err != nil {
+		if err := tv.app.SetRoot(modal(form, 60, 7), true).EnableMouse(true).Run(); err != nil {
 			dlog.Println(err)
 		}
 	}()
