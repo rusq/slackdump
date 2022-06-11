@@ -52,6 +52,4 @@ There are three modes of operation:
 .. _Listing users/channels:  usage-list.rst
 .. _Releases: https://github.com/rusq/slackdump/releases
 .. _Compiling from sources: compiling.rst
-.. _Linux/macOS Terminal: beginner-terminal.rst
-.. _Windows Command Prompt: beginner-dos.rst
 .. _Unix Shell Guide: https://swcarpentry.github.io/shell-novice/
