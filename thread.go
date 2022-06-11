@@ -20,7 +20,7 @@ type threadFunc func(ctx context.Context, l *rate.Limiter, channelID string, thr
 // DumpThread dumps a single thread identified by (channelID, threadTS).
 // Optionally one can provide a number of processFn that will be applied to each
 // chunk of messages returned by a one API call.
-func (sd *SlackDumper) DumpThread(
+func (sd *Session) DumpThread(
 	ctx context.Context,
 	channelID,
 	threadTS string,
@@ -71,7 +71,7 @@ func (sd *SlackDumper) DumpThread(
 // threads.  msgs is being updated with discovered messages.
 //
 // ref: https://api.slack.com/messaging/retrieving
-func (*SlackDumper) populateThreads(
+func (*Session) populateThreads(
 	ctx context.Context,
 	l *rate.Limiter,
 	msgs []types.Message,
@@ -100,7 +100,7 @@ func (*SlackDumper) populateThreads(
 
 // dumpThread retrieves all messages in the thread and returns them as a slice
 // of messages.
-func (sd *SlackDumper) dumpThread(
+func (sd *Session) dumpThread(
 	ctx context.Context,
 	l *rate.Limiter,
 	channelID string,

@@ -23,8 +23,8 @@ import (
 
 // Export is the instance of Slack Exporter.
 type Export struct {
-	fs fsadapter.FS           // target filesystem
-	sd *slackdump.SlackDumper // slackdumper instance
+	fs fsadapter.FS       // target filesystem
+	sd *slackdump.Session // slackdumper instance
 
 	// time window
 	opts Options
@@ -39,7 +39,7 @@ type Options struct {
 
 // New creates a new Export instance, that will save export to the
 // provided fs.
-func New(sd *slackdump.SlackDumper, fs fsadapter.FS, cfg Options) *Export {
+func New(sd *slackdump.Session, fs fsadapter.FS, cfg Options) *Export {
 	return &Export{fs: fs, sd: sd, opts: cfg}
 }
 

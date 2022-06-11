@@ -18,7 +18,7 @@ import (
 // type of messages to fetch.  See github.com/rusq/slack docs for possible
 // values.  If large number of channels is to be returned, consider using
 // StreamChannels.
-func (sd *SlackDumper) GetChannels(ctx context.Context, chanTypes ...string) (types.Channels, error) {
+func (sd *Session) GetChannels(ctx context.Context, chanTypes ...string) (types.Channels, error) {
 	var allChannels types.Channels
 	if err := sd.getChannels(ctx, chanTypes, func(cc types.Channels) error {
 		allChannels = append(allChannels, cc...)
@@ -31,7 +31,7 @@ func (sd *SlackDumper) GetChannels(ctx context.Context, chanTypes ...string) (ty
 
 // StreamChannels requests the channels from the API and calls the callback
 // function cb for each.
-func (sd *SlackDumper) StreamChannels(ctx context.Context, chanTypes []string, cb func(ch slack.Channel) error) error {
+func (sd *Session) StreamChannels(ctx context.Context, chanTypes []string, cb func(ch slack.Channel) error) error {
 	return sd.getChannels(ctx, chanTypes, func(chans types.Channels) error {
 		for _, ch := range chans {
 			if err := cb(ch); err != nil {
@@ -45,7 +45,7 @@ func (sd *SlackDumper) StreamChannels(ctx context.Context, chanTypes []string, c
 // getChannels list all conversations for a user.  `chanTypes` specifies
 // the type of messages to fetch.  See github.com/rusq/slack docs for possible
 // values
-func (sd *SlackDumper) getChannels(ctx context.Context, chanTypes []string, cb func(types.Channels) error) error {
+func (sd *Session) getChannels(ctx context.Context, chanTypes []string, cb func(types.Channels) error) error {
 	ctx, task := trace.NewTask(ctx, "getChannels")
 	defer task.End()
 

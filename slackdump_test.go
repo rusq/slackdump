@@ -255,7 +255,7 @@ func TestSlackDumper_Me(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			sd := &SlackDumper{
+			sd := &Session{
 				client:    tt.fields.client,
 				teamID:    tt.fields.teamID,
 				fs:        tt.fields.fs,

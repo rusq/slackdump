@@ -21,7 +21,7 @@ func TestExport_saveChannel(t *testing.T) {
 	dir := t.TempDir()
 	type fields struct {
 		dir    string
-		dumper *slackdump.SlackDumper
+		dumper *slackdump.Session
 	}
 	type args struct {
 		channelName string
@@ -127,7 +127,7 @@ func loadTestDir(path string) (messagesByDate, error) {
 func TestExport_getCurrentUser(t *testing.T) {
 	type fields struct {
 		fs   fsadapter.FS
-		sd   *slackdump.SlackDumper
+		sd   *slackdump.Session
 		opts Options
 	}
 	tests := []struct {
@@ -139,7 +139,7 @@ func TestExport_getCurrentUser(t *testing.T) {
 		{
 			"ok",
 			fields{
-				sd: &slackdump.SlackDumper{Users: fixtures.TestUsers},
+				sd: &slackdump.Session{Users: fixtures.TestUsers},
 			},
 			fixtures.TestUsers[1],
 			false,
@@ -147,7 +147,7 @@ func TestExport_getCurrentUser(t *testing.T) {
 		{
 			"no users - error",
 			fields{
-				sd: &slackdump.SlackDumper{Users: nil},
+				sd: &slackdump.Session{Users: nil},
 			},
 			slack.User{},
 			true,

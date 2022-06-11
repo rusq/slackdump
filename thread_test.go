@@ -162,7 +162,7 @@ func TestSlackDumper_DumpThread(t *testing.T) {
 				tt.expectFn(mc)
 			}
 
-			sd := &SlackDumper{
+			sd := &Session{
 				client:    mc,
 				Users:     tt.fields.Users,
 				UserIndex: tt.fields.UserIndex,
@@ -253,7 +253,7 @@ func TestSlackDumper_populateThreads(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			sd := &SlackDumper{}
+			sd := &Session{}
 			got, err := sd.populateThreads(tt.args.ctx, tt.args.l, tt.args.msgs, tt.args.channelID, tt.args.oldest, tt.args.latest, tt.args.dumpFn)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("SlackDumper.populateThreads() error = %v, wantErr %v", err, tt.wantErr)
@@ -382,7 +382,7 @@ func TestSlackDumper_dumpThread(t *testing.T) {
 
 			tt.expectFn(mc)
 
-			sd := &SlackDumper{
+			sd := &Session{
 				client:    mc,
 				Users:     tt.fields.Users,
 				UserIndex: tt.fields.UserIndex,
