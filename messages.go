@@ -6,7 +6,6 @@ import (
 	"context"
 	"fmt"
 	"runtime/trace"
-	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -19,38 +18,19 @@ import (
 	"github.com/rusq/slackdump/v2/types"
 )
 
-type ProcessResult struct {
-	Entity string
-	Count  int
-}
-
-type ProcessResults []ProcessResult
-
-func (pr ProcessResult) String() string {
-	return fmt.Sprintf("%s: %d", pr.Entity, pr.Count)
-}
-
-func (prs ProcessResults) String() string {
-	var results []string
-	for _, res := range prs {
-		results = append(results, res.String())
-	}
-	return strings.Join(results, ", ")
-}
-
 // DumpAllURL dumps messages from the slack URL, it supports conversations and
 // individual threads.
-func (sd *SlackDumper) DumpAllURL(ctx context.Context, slackURL string) (*types.Conversation, error) {
+func (sd *Session) DumpAllURL(ctx context.Context, slackURL string) (*types.Conversation, error) {
 	return sd.dumpURL(ctx, slackURL, time.Time{}, time.Time{})
 }
 
 // DumpURL acts like DumpURL but allows to specify oldest and latest
 // timestamps to define a window within which the messages should be retrieved.
-func (sd *SlackDumper) DumpURL(ctx context.Context, slackURL string, oldest, latest time.Time, processFn ...ProcessFunc) (*types.Conversation, error) {
+func (sd *Session) DumpURL(ctx context.Context, slackURL string, oldest, latest time.Time, processFn ...ProcessFunc) (*types.Conversation, error) {
 	return sd.dumpURL(ctx, slackURL, oldest, latest, processFn...)
 }
 
-func (sd *SlackDumper) dumpURL(ctx context.Context, slackURL string, oldest, latest time.Time, processFn ...ProcessFunc) (*types.Conversation, error) {
+func (sd *Session) dumpURL(ctx context.Context, slackURL string, oldest, latest time.Time, processFn ...ProcessFunc) (*types.Conversation, error) {
 	ctx, task := trace.NewTask(ctx, "dumpURL")
 	defer task.End()
 
@@ -69,7 +49,7 @@ func (sd *SlackDumper) dumpURL(ctx context.Context, slackURL string, oldest, lat
 }
 
 // DumpAllMessages fetches messages from the conversation identified by channelID.
-func (sd *SlackDumper) DumpAllMessages(ctx context.Context, channelID string) (*types.Conversation, error) {
+func (sd *Session) DumpAllMessages(ctx context.Context, channelID string) (*types.Conversation, error) {
 	return sd.DumpMessages(ctx, channelID, time.Time{}, time.Time{})
 }
 
@@ -78,7 +58,7 @@ func (sd *SlackDumper) DumpAllMessages(ctx context.Context, channelID string) (*
 // for.  Having both oldest and latest as Zero-time, will make this function
 // behave similar to DumpMessages.  ProcessFn is a slice of post-processing functions
 // that will be called for each message chunk downloaded from the Slack API.
-func (sd *SlackDumper) DumpMessages(ctx context.Context, channelID string, oldest, latest time.Time, processFn ...ProcessFunc) (*types.Conversation, error) {
+func (sd *Session) DumpMessages(ctx context.Context, channelID string, oldest, latest time.Time, processFn ...ProcessFunc) (*types.Conversation, error) {
 	if sd.options.DumpFiles {
 		fn, cancelFn, err := sd.newFileProcessFn(ctx, channelID, sd.limiter(network.NoTier))
 		if err != nil {
@@ -94,13 +74,13 @@ func (sd *SlackDumper) DumpMessages(ctx context.Context, channelID string, oldes
 // DumpMessagesRaw dumps all messages, but does not account for any options
 // defined, such as DumpFiles, instead, the caller must hassle about any
 // processFns they want to apply.
-func (sd *SlackDumper) DumpMessagesRaw(ctx context.Context, channelID string, oldest, latest time.Time, processFn ...ProcessFunc) (*types.Conversation, error) {
+func (sd *Session) DumpMessagesRaw(ctx context.Context, channelID string, oldest, latest time.Time, processFn ...ProcessFunc) (*types.Conversation, error) {
 	return sd.dumpMessages(ctx, channelID, oldest, latest, processFn...)
 }
 
 // DumpMessages fetches messages from the conversation identified by channelID.
 // processFn will be called on each batch of messages returned from API.
-func (sd *SlackDumper) dumpMessages(ctx context.Context, channelID string, oldest, latest time.Time, processFn ...ProcessFunc) (*types.Conversation, error) {
+func (sd *Session) dumpMessages(ctx context.Context, channelID string, oldest, latest time.Time, processFn ...ProcessFunc) (*types.Conversation, error) {
 	ctx, task := trace.NewTask(ctx, "dumpMessages")
 	defer task.End()
 
@@ -184,7 +164,7 @@ func (sd *SlackDumper) dumpMessages(ctx context.Context, channelID string, oldes
 	return &types.Conversation{Name: name, Messages: messages, ID: channelID}, nil
 }
 
-func (sd *SlackDumper) getChannelName(ctx context.Context, l *rate.Limiter, channelID string) (string, error) {
+func (sd *Session) getChannelName(ctx context.Context, l *rate.Limiter, channelID string) (string, error) {
 	// get channel name
 	var ci *slack.Channel
 	if err := withRetry(ctx, l, sd.options.Tier3Retries, func() error {

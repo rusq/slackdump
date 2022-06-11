@@ -50,7 +50,7 @@ func TestUsers_IndexByID(t *testing.T) {
 func TestSlackDumper_saveUserCache(t *testing.T) {
 
 	// test saving file works
-	sd := SlackDumper{teamID: testSuffix}
+	sd := Session{teamID: testSuffix}
 
 	dir := t.TempDir()
 	testfile := filepath.Join(dir, "test.json")
@@ -103,7 +103,7 @@ func TestSlackDumper_loadUserCache(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			sd := &SlackDumper{
+			sd := &Session{
 				client:    tt.fields.client,
 				Users:     tt.fields.Users,
 				UserIndex: tt.fields.UserIndex,
@@ -175,7 +175,7 @@ func TestSlackDumper_fetchUsers(t *testing.T) {
 
 			tt.expectFn(mc)
 
-			sd := &SlackDumper{
+			sd := &Session{
 				client:    mc,
 				Users:     tt.fields.Users,
 				UserIndex: tt.fields.UserIndex,
@@ -248,7 +248,7 @@ func TestSlackDumper_GetUsers(t *testing.T) {
 
 			tt.expectFn(mc)
 
-			sd := &SlackDumper{
+			sd := &Session{
 				client:    mc,
 				teamID:    testSuffix,
 				Users:     tt.fields.Users,
@@ -280,7 +280,7 @@ func gimmeTempFile(t *testing.T, dir string) string {
 
 func gimmeTempFileWithUsers(t *testing.T, dir string) string {
 	f := gimmeTempFile(t, dir)
-	sd := SlackDumper{}
+	sd := Session{}
 	if err := sd.saveUserCache(f, testSuffix, testUsers); err != nil {
 		t.Fatal(err)
 	}

@@ -19,7 +19,7 @@ const (
 )
 
 type App struct {
-	sd   *slackdump.SlackDumper
+	sd   *slackdump.Session
 	tmpl *template.Template
 	fs   fsadapter.FS
 

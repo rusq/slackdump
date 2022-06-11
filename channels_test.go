@@ -78,7 +78,7 @@ func TestSlackDumper_getChannels(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mc := newmockClienter(gomock.NewController(t))
-			sd := &SlackDumper{
+			sd := &Session{
 				client:    mc,
 				Users:     tt.fields.Users,
 				UserIndex: tt.fields.UserIndex,
@@ -125,7 +125,7 @@ func TestSlackDumper_GetChannels(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			sd := &SlackDumper{
+			sd := &Session{
 				client:    tt.fields.client,
 				Users:     tt.fields.Users,
 				UserIndex: tt.fields.UserIndex,

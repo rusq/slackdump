@@ -5,9 +5,14 @@ import (
 	"net/http"
 )
 
+// Provider is the Slack Authentication provider.
 type Provider interface {
+	// SlackToken should return the Slack Token value.
 	SlackToken() string
+	// Cookies should returns a set of Slack Session cookies.
 	Cookies() []http.Cookie
+	// Validate should return error, in case the token or cookies cannot be
+	// retrieved.
 	Validate() error
 }
 
