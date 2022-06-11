@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -121,4 +122,52 @@ func loadTestDir(path string) (messagesByDate, error) {
 	}
 
 	return mbd, nil
+}
+
+func TestExport_getCurrentUser(t *testing.T) {
+	type fields struct {
+		fs   fsadapter.FS
+		sd   *slackdump.SlackDumper
+		opts Options
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		want    slack.User
+		wantErr bool
+	}{
+		{
+			"ok",
+			fields{
+				sd: &slackdump.SlackDumper{Users: fixtures.TestUsers},
+			},
+			fixtures.TestUsers[1],
+			false,
+		},
+		{
+			"no users - error",
+			fields{
+				sd: &slackdump.SlackDumper{Users: nil},
+			},
+			slack.User{},
+			true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			se := &Export{
+				fs:   tt.fields.fs,
+				sd:   tt.fields.sd,
+				opts: tt.fields.opts,
+			}
+			got, err := se.getCurrentUser()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Export.getCurrentUser() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Export.getCurrentUser() = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }

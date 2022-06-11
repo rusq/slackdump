@@ -45,7 +45,6 @@ type SlackDumper struct {
 	// Users contains the list of users and populated on NewSlackDumper
 	Users     types.Users          `json:"users"`
 	UserIndex structures.UserIndex `json:"-"`
-	me        slack.User
 
 	options Options
 
@@ -63,6 +62,11 @@ type clienter interface {
 	GetTeamInfo() (*slack.TeamInfo, error)
 	GetUsersContext(ctx context.Context) ([]slack.User, error)
 }
+
+// Errors
+var (
+	ErrNoUserCache = errors.New("user cache unavailable")
+)
 
 // AllChanTypes enumerates all API-supported channel types as of 03/2022.
 var AllChanTypes = []string{"mpim", "im", "public_channel", "private_channel"}
@@ -120,12 +124,6 @@ func NewWithOptions(ctx context.Context, authProvider auth.Provider, opts Option
 	if err != nil {
 		return nil, fmt.Errorf("error fetching users: %w", err)
 	}
-	if len(users) < 2 { // me and slackbot.
-		return nil, errors.New("invalid number of users retrieved.")
-	}
-
-	// now, this is filthy, but Slack does not allow us to call GetUserIdentity with browser token.
-	sd.me = users[userIdxMe]
 
 	sd.Users = users
 	sd.UserIndex = users.IndexByID()
@@ -148,8 +146,11 @@ func createCacheDir(subdir string) (string, error) {
 	return cachePath, nil
 }
 
-func (sd *SlackDumper) Me() slack.User {
-	return sd.me
+func (sd *SlackDumper) Me() (slack.User, error) {
+	if len(sd.Users) < 2 { // me and slackbot.
+		return slack.User{}, ErrNoUserCache
+	}
+	return sd.Users[userIdxMe], nil
 }
 
 // SetFS sets the filesystem to save attachments to (slackdump defaults to the
