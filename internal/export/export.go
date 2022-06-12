@@ -23,8 +23,8 @@ import (
 
 // Export is the instance of Slack Exporter.
 type Export struct {
-	fs fsadapter.FS           // target filesystem
-	sd *slackdump.SlackDumper // slackdumper instance
+	fs fsadapter.FS       // target filesystem
+	sd *slackdump.Session // slackdumper instance
 
 	// time window
 	opts Options
@@ -39,7 +39,7 @@ type Options struct {
 
 // New creates a new Export instance, that will save export to the
 // provided fs.
-func New(sd *slackdump.SlackDumper, fs fsadapter.FS, cfg Options) *Export {
+func New(sd *slackdump.Session, fs fsadapter.FS, cfg Options) *Export {
 	return &Export{fs: fs, sd: sd, opts: cfg}
 }
 
@@ -75,6 +75,12 @@ func (se *Export) messages(ctx context.Context, users types.Users) error {
 		dl.Start(ctx)
 	}
 
+	// we need the current user to be able to build an index of DMs.
+	usrMe, err := se.getCurrentUser()
+	if err != nil {
+		return err
+	}
+
 	if err := se.sd.StreamChannels(ctx, slackdump.AllChanTypes, func(ch slack.Channel) error {
 		if err := se.exportConversation(ctx, dl, users.IndexByID(), ch); err != nil {
 			return err
@@ -88,12 +94,23 @@ func (se *Export) messages(ctx context.Context, users types.Users) error {
 		return fmt.Errorf("channels: error: %w", err)
 	}
 
-	idx, err := createIndex(chans, users, se.sd.Me())
+	idx, err := createIndex(chans, users, usrMe)
 	if err != nil {
 		return fmt.Errorf("failed to create an index: %w", err)
 	}
 
 	return idx.Marshal(se.fs)
+}
+
+func (se *Export) getCurrentUser() (slack.User, error) {
+	me, err := se.sd.Me()
+	if err != nil {
+		if errors.Is(err, slackdump.ErrNoUserCache) {
+			return me, fmt.Errorf("slack export requires user cache to be enabled: %w", err)
+		}
+		return me, fmt.Errorf("error retrieving current user: %s", err)
+	}
+	return me, nil
 }
 
 // exportConversation exports one conversation.

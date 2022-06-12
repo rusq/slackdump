@@ -19,7 +19,7 @@ import (
 )
 
 // GetUsers retrieves all users either from cache or from the API.
-func (sd *SlackDumper) GetUsers(ctx context.Context) (types.Users, error) {
+func (sd *Session) GetUsers(ctx context.Context) (types.Users, error) {
 	// TODO: validate that the cache is from the same workspace, it can be done by team ID.
 	ctx, task := trace.NewTask(ctx, "GetUsers")
 	defer task.End()
@@ -49,7 +49,7 @@ func (sd *SlackDumper) GetUsers(ctx context.Context) (types.Users, error) {
 }
 
 // fetchUsers fetches users from the API.
-func (sd *SlackDumper) fetchUsers(ctx context.Context) (types.Users, error) {
+func (sd *Session) fetchUsers(ctx context.Context) (types.Users, error) {
 	var (
 		users []slack.User
 	)
@@ -71,7 +71,7 @@ func (sd *SlackDumper) fetchUsers(ctx context.Context) (types.Users, error) {
 }
 
 // loadUsers tries to load the users from the file
-func (sd *SlackDumper) loadUserCache(filename string, suffix string, maxAge time.Duration) (types.Users, error) {
+func (sd *Session) loadUserCache(filename string, suffix string, maxAge time.Duration) (types.Users, error) {
 	filename = sd.makeCacheFilename(filename, suffix)
 
 	if err := checkCacheFile(filename, maxAge); err != nil {
@@ -92,7 +92,7 @@ func (sd *SlackDumper) loadUserCache(filename string, suffix string, maxAge time
 	return uu, nil
 }
 
-func (sd *SlackDumper) saveUserCache(filename string, suffix string, uu types.Users) error {
+func (sd *Session) saveUserCache(filename string, suffix string, uu types.Users) error {
 	filename = sd.makeCacheFilename(filename, suffix)
 
 	f, err := os.Create(filename)
@@ -110,7 +110,7 @@ func (sd *SlackDumper) saveUserCache(filename string, suffix string, uu types.Us
 }
 
 // makeCacheFilename converts filename.ext to filename-suffix.ext.
-func (sd *SlackDumper) makeCacheFilename(filename, suffix string) string {
+func (sd *Session) makeCacheFilename(filename, suffix string) string {
 	ne := filenameSplit(filename)
 	return filepath.Join(sd.cacheDir, filenameJoin(nameExt{ne[0] + "-" + suffix, ne[1]}))
 }

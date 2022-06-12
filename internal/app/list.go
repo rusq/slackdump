@@ -8,8 +8,13 @@ import (
 	"os"
 
 	"github.com/rusq/dlog"
-	"github.com/rusq/slackdump/v2"
+	"github.com/rusq/slackdump/v2/internal/structures"
 )
+
+// reporter is an interface defining output functions
+type reporter interface {
+	ToText(w io.Writer, ui structures.UserIndex) error
+}
 
 // runListEntities queries lists the supported entities, and writes the output to
 // the output defined in the app.cfg.
@@ -53,7 +58,7 @@ func openFile(filename string) (f io.ReadCloser, err error) {
 }
 
 // fetchEntity retrieves the data from the API according to the ListFlags.
-func (app *App) fetchEntity(ctx context.Context, listFlags ListFlags) (rep slackdump.Reporter, err error) {
+func (app *App) fetchEntity(ctx context.Context, listFlags ListFlags) (rep reporter, err error) {
 	switch {
 	case listFlags.Channels:
 		rep, err = app.sd.GetChannels(ctx)
@@ -72,7 +77,7 @@ func (app *App) fetchEntity(ctx context.Context, listFlags ListFlags) (rep slack
 }
 
 // formatEntity formats reporter output as defined in the "Output".
-func (app *App) formatEntity(w io.Writer, rep slackdump.Reporter, output Output) error {
+func (app *App) formatEntity(w io.Writer, rep reporter, output Output) error {
 	switch output.Format {
 	case OutputTypeText:
 		return rep.ToText(w, app.sd.UserIndex)

@@ -4,15 +4,20 @@ import (
 	"context"
 	"log"
 	"math"
+	"reflect"
 	"testing"
 	"time"
 
 	"github.com/golang/mock/gomock"
-	"github.com/stretchr/testify/assert"
-
 	"github.com/rusq/slackdump/v2/auth"
+	"github.com/rusq/slackdump/v2/fsadapter"
+	"github.com/rusq/slackdump/v2/internal/fixtures"
 	"github.com/rusq/slackdump/v2/internal/mocks/mock_os"
 	"github.com/rusq/slackdump/v2/internal/network"
+	"github.com/rusq/slackdump/v2/internal/structures"
+	"github.com/rusq/slackdump/v2/types"
+	"github.com/slack-go/slack"
+	"github.com/stretchr/testify/assert"
 )
 
 func Test_validateCache(t *testing.T) {
@@ -211,4 +216,62 @@ func ExampleNew_browserAuth() {
 		return
 	}
 	_ = sd
+}
+
+func TestSlackDumper_Me(t *testing.T) {
+	type fields struct {
+		client    clienter
+		teamID    string
+		fs        fsadapter.FS
+		Users     types.Users
+		UserIndex structures.UserIndex
+		options   Options
+		cacheDir  string
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		want    slack.User
+		wantErr bool
+	}{
+		{
+			"all ok",
+			fields{Users: fixtures.TestUsers},
+			fixtures.TestUsers[userIdxMe],
+			false,
+		},
+		{
+			"no users - error",
+			fields{Users: nil},
+			slack.User{},
+			true,
+		},
+		{
+			"not enough users - error",
+			fields{Users: fixtures.TestUsers[0:0]},
+			slack.User{},
+			true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			sd := &Session{
+				client:    tt.fields.client,
+				teamID:    tt.fields.teamID,
+				fs:        tt.fields.fs,
+				Users:     tt.fields.Users,
+				UserIndex: tt.fields.UserIndex,
+				options:   tt.fields.options,
+				cacheDir:  tt.fields.cacheDir,
+			}
+			got, err := sd.Me()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("SlackDumper.Me() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("SlackDumper.Me() = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }

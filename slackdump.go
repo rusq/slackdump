@@ -34,8 +34,8 @@ const (
 	cacheDirName = "slackdump"
 )
 
-// SlackDumper stores basic session parameters.
-type SlackDumper struct {
+// Session stores basic session parameters.
+type Session struct {
 	client clienter
 
 	teamID string // used as a suffix for cached users
@@ -45,7 +45,6 @@ type SlackDumper struct {
 	// Users contains the list of users and populated on NewSlackDumper
 	Users     types.Users          `json:"users"`
 	UserIndex structures.UserIndex `json:"-"`
-	me        slack.User
 
 	options Options
 
@@ -64,17 +63,17 @@ type clienter interface {
 	GetUsersContext(ctx context.Context) ([]slack.User, error)
 }
 
+// Errors
+var (
+	ErrNoUserCache = errors.New("user cache unavailable")
+)
+
 // AllChanTypes enumerates all API-supported channel types as of 03/2022.
 var AllChanTypes = []string{"mpim", "im", "public_channel", "private_channel"}
 
-// Reporter is an interface defining output functions
-type Reporter interface {
-	ToText(w io.Writer, ui structures.UserIndex) error
-}
-
-// New creates new client and populates the internal cache of users and channels
-// for lookups.
-func New(ctx context.Context, creds auth.Provider, opts ...Option) (*SlackDumper, error) {
+// New creates new session with the default options  and populates the internal
+// cache of users and channels for lookups.
+func New(ctx context.Context, creds auth.Provider, opts ...Option) (*Session, error) {
 	options := DefOptions
 	for _, opt := range opts {
 		opt(&options)
@@ -83,11 +82,9 @@ func New(ctx context.Context, creds auth.Provider, opts ...Option) (*SlackDumper
 	return NewWithOptions(ctx, creds, options)
 }
 
-func (sd *SlackDumper) Client() *slack.Client {
-	return sd.client.(*slack.Client)
-}
-
-func NewWithOptions(ctx context.Context, authProvider auth.Provider, opts Options) (*SlackDumper, error) {
+// New creates new Session with provided options, and populates the internal
+// cache of users and channels for lookups.
+func NewWithOptions(ctx context.Context, authProvider auth.Provider, opts Options) (*Session, error) {
 	ctx, task := trace.NewTask(ctx, "NewWithOptions")
 	defer task.End()
 
@@ -107,7 +104,7 @@ func NewWithOptions(ctx context.Context, authProvider auth.Provider, opts Option
 		dlog.Printf("failed to create the cache directory, will use current")
 	}
 
-	sd := &SlackDumper{
+	sd := &Session{
 		client:   cl,
 		options:  opts,
 		teamID:   ti.ID,
@@ -120,12 +117,6 @@ func NewWithOptions(ctx context.Context, authProvider auth.Provider, opts Option
 	if err != nil {
 		return nil, fmt.Errorf("error fetching users: %w", err)
 	}
-	if len(users) < 2 { // me and slackbot.
-		return nil, errors.New("invalid number of users retrieved.")
-	}
-
-	// now, this is filthy, but Slack does not allow us to call GetUserIdentity with browser token.
-	sd.me = users[userIdxMe]
 
 	sd.Users = users
 	sd.UserIndex = users.IndexByID()
@@ -148,13 +139,23 @@ func createCacheDir(subdir string) (string, error) {
 	return cachePath, nil
 }
 
-func (sd *SlackDumper) Me() slack.User {
-	return sd.me
+// Client returns the underlying slack.Client.
+func (sd *Session) Client() *slack.Client {
+	return sd.client.(*slack.Client)
+}
+
+// Me returns the current authenticated user in a rather dirty manner.
+// If the user cache is unitnitialised, it returns ErrNoUserCache.
+func (sd *Session) Me() (slack.User, error) {
+	if len(sd.Users) < 2 { // me and slackbot.
+		return slack.User{}, ErrNoUserCache
+	}
+	return sd.Users[userIdxMe], nil
 }
 
 // SetFS sets the filesystem to save attachments to (slackdump defaults to the
 // current directory otherwise).
-func (sd *SlackDumper) SetFS(fs fsadapter.FS) {
+func (sd *Session) SetFS(fs fsadapter.FS) {
 	if fs == nil {
 		return
 	}
@@ -169,7 +170,7 @@ func toPtrCookies(cc []http.Cookie) []*http.Cookie {
 	return ret
 }
 
-func (sd *SlackDumper) limiter(t network.Tier) *rate.Limiter {
+func (sd *Session) limiter(t network.Tier) *rate.Limiter {
 	return network.NewLimiter(t, sd.options.Tier3Burst, int(sd.options.Tier3Boost))
 }
 

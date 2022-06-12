@@ -167,7 +167,7 @@ func (m *mockReporter) EXPECT() *mockReporterMockRecorder {
 }
 
 // ToText mocks base method.
-func (m *mockReporter) ToText(w io.Writer, sd *SlackDumper) error {
+func (m *mockReporter) ToText(w io.Writer, sd *Session) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ToText", w, sd)
 	ret0, _ := ret[0].(error)

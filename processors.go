@@ -2,8 +2,10 @@ package slackdump
 
 import (
 	"context"
+	"fmt"
 	"path"
 	"runtime/trace"
+	"strings"
 	"time"
 
 	"github.com/slack-go/slack"
@@ -22,6 +24,29 @@ const (
 // ProcessFunc is the signature of the function Dump* functions accept and call for each
 // API call result.
 type ProcessFunc func(msg []types.Message, channelID string) (ProcessResult, error)
+
+// ProcessResult contains the result of processing.
+type ProcessResult struct {
+	// Entity is the type of entity that this result is related to.
+	Entity string
+	// Count is the number of items processed during processing.
+	Count int
+}
+
+func (pr ProcessResult) String() string {
+	return fmt.Sprintf("%s: %d", pr.Entity, pr.Count)
+}
+
+// ProcessResults is the slice of ProcessResult
+type ProcessResults []ProcessResult
+
+func (prs ProcessResults) String() string {
+	var results []string
+	for _, res := range prs {
+		results = append(results, res.String())
+	}
+	return strings.Join(results, ", ")
+}
 
 // cancelFunc may be returned by some process function constructors.
 type cancelFunc func()
@@ -44,7 +69,7 @@ func runProcessFuncs(m []types.Message, channelID string, processFn ...ProcessFu
 // by limiter l.  The File.PublicURL will be updated to point to the downloaded
 // file, instead of Slack server URL.  It returns ProcessFunction and
 // CancelFunc. CancelFunc must be called, i.e. by deferring it's execution.
-func (sd *SlackDumper) newFileProcessFn(ctx context.Context, dir string, l *rate.Limiter) (ProcessFunc, cancelFunc, error) {
+func (sd *Session) newFileProcessFn(ctx context.Context, dir string, l *rate.Limiter) (ProcessFunc, cancelFunc, error) {
 	// set up a file downloader and add it to the post-process functions
 	// slice
 	dl := downloader.New(
@@ -90,7 +115,7 @@ func pipeAndUpdateFiles(filesC chan<- *slack.File, msgs []types.Message, dir str
 
 // newThreadProcessFn returns the new thread processor function.  It will use limiter l
 // to limit the API calls rate.
-func (sd *SlackDumper) newThreadProcessFn(ctx context.Context, l *rate.Limiter, oldest, latest time.Time) ProcessFunc {
+func (sd *Session) newThreadProcessFn(ctx context.Context, l *rate.Limiter, oldest, latest time.Time) ProcessFunc {
 	processFn := func(chunk []types.Message, channelID string) (ProcessResult, error) {
 		n, err := sd.populateThreads(ctx, l, chunk, channelID, oldest, latest, sd.dumpThread)
 		if err != nil {

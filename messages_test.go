@@ -218,7 +218,7 @@ func TestSlackDumper_DumpMessages(t *testing.T) {
 
 			tt.expectFn(mc)
 
-			sd := &SlackDumper{
+			sd := &Session{
 				client:    mc,
 				Users:     tt.fields.Users,
 				UserIndex: tt.fields.UserIndex,
@@ -302,7 +302,7 @@ func TestSlackDumper_DumpURL(t *testing.T) {
 				tt.expectFn(mc)
 			}
 
-			sd := &SlackDumper{
+			sd := &Session{
 				client:    mc,
 				Users:     tt.fields.Users,
 				UserIndex: tt.fields.UserIndex,
@@ -415,7 +415,7 @@ func TestSlackDumper_getChannelName(t *testing.T) {
 			mc := newmockClienter(ctrl)
 
 			tt.expectFn(mc)
-			sd := &SlackDumper{
+			sd := &Session{
 				client:    mc,
 				Users:     tt.fields.Users,
 				UserIndex: tt.fields.UserIndex,
