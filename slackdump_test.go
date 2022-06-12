@@ -205,7 +205,7 @@ func ExampleNew_cookieFile() {
 }
 
 func ExampleNew_browserAuth() {
-	provider, err := auth.NewBrowserAuth()
+	provider, err := auth.NewBrowserAuth(context.Background())
 	if err != nil {
 		log.Print(err)
 		return
