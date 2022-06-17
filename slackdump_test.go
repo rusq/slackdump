@@ -221,8 +221,8 @@ func ExampleNew_browserAuth() {
 func TestSlackDumper_Me(t *testing.T) {
 	type fields struct {
 		client    clienter
-		teamID    string
 		fs        fsadapter.FS
+		wspInfo   *slack.AuthTestResponse
 		Users     types.Users
 		UserIndex structures.UserIndex
 		options   Options
@@ -236,8 +236,11 @@ func TestSlackDumper_Me(t *testing.T) {
 	}{
 		{
 			"all ok",
-			fields{Users: fixtures.TestUsers},
-			fixtures.TestUsers[userIdxMe],
+			fields{
+				wspInfo:   &slack.AuthTestResponse{UserID: "DELD"},
+				UserIndex: structures.NewUserIndex(fixtures.TestUsers),
+			},
+			fixtures.TestUsers[1],
 			false,
 		},
 		{
@@ -248,7 +251,7 @@ func TestSlackDumper_Me(t *testing.T) {
 		},
 		{
 			"not enough users - error",
-			fields{Users: fixtures.TestUsers[0:0]},
+			fields{UserIndex: structures.UserIndex{}},
 			slack.User{},
 			true,
 		},
@@ -257,8 +260,8 @@ func TestSlackDumper_Me(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			sd := &Session{
 				client:    tt.fields.client,
-				teamID:    tt.fields.teamID,
 				fs:        tt.fields.fs,
+				wspInfo:   tt.fields.wspInfo,
 				Users:     tt.fields.Users,
 				UserIndex: tt.fields.UserIndex,
 				options:   tt.fields.options,

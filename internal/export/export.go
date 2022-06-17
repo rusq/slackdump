@@ -76,11 +76,6 @@ func (se *Export) messages(ctx context.Context, users types.Users) error {
 	}
 
 	// we need the current user to be able to build an index of DMs.
-	usrMe, err := se.getCurrentUser()
-	if err != nil {
-		return err
-	}
-
 	if err := se.sd.StreamChannels(ctx, slackdump.AllChanTypes, func(ch slack.Channel) error {
 		if err := se.exportConversation(ctx, dl, users.IndexByID(), ch); err != nil {
 			return err
@@ -94,7 +89,7 @@ func (se *Export) messages(ctx context.Context, users types.Users) error {
 		return fmt.Errorf("channels: error: %w", err)
 	}
 
-	idx, err := createIndex(chans, users, usrMe)
+	idx, err := createIndex(chans, users, se.sd.CurrentUserID())
 	if err != nil {
 		return fmt.Errorf("failed to create an index: %w", err)
 	}
@@ -102,23 +97,12 @@ func (se *Export) messages(ctx context.Context, users types.Users) error {
 	return idx.Marshal(se.fs)
 }
 
-func (se *Export) getCurrentUser() (slack.User, error) {
-	me, err := se.sd.Me()
-	if err != nil {
-		if errors.Is(err, slackdump.ErrNoUserCache) {
-			return me, fmt.Errorf("slack export requires user cache to be enabled: %w", err)
-		}
-		return me, fmt.Errorf("error retrieving current user: %s", err)
-	}
-	return me, nil
-}
-
 // exportConversation exports one conversation.
 func (se *Export) exportConversation(ctx context.Context, dl *downloader.Client, userIdx structures.UserIndex, ch slack.Channel) error {
 	dlFn := se.downloadFn(dl, ch.Name)
 	messages, err := se.sd.DumpMessagesRaw(ctx, ch.ID, se.opts.Oldest, se.opts.Latest, dlFn)
 	if err != nil {
-		return fmt.Errorf("failed dumping %q (%s): %w", ch.Name, ch.ID, err)
+		return fmt.Errorf("failed to dump %q (%s): %w", ch.Name, ch.ID, err)
 	}
 	if len(messages.Messages) == 0 {
 		// empty result set
@@ -127,7 +111,7 @@ func (se *Export) exportConversation(ctx context.Context, dl *downloader.Client,
 
 	msgs, err := se.byDate(messages, userIdx)
 	if err != nil {
-		return fmt.Errorf("exportChannelData: error: %w", err)
+		return fmt.Errorf("exportConversation: error: %w", err)
 	}
 
 	name, err := validName(ctx, ch, userIdx)

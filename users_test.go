@@ -50,7 +50,7 @@ func TestUsers_IndexByID(t *testing.T) {
 func TestSlackDumper_saveUserCache(t *testing.T) {
 
 	// test saving file works
-	sd := Session{teamID: testSuffix}
+	sd := Session{wspInfo: &slack.AuthTestResponse{TeamID: "123"}}
 
 	dir := t.TempDir()
 	testfile := filepath.Join(dir, "test.json")
@@ -250,7 +250,7 @@ func TestSlackDumper_GetUsers(t *testing.T) {
 
 			sd := &Session{
 				client:    mc,
-				teamID:    testSuffix,
+				wspInfo:   &slack.AuthTestResponse{TeamID: testSuffix},
 				Users:     tt.fields.Users,
 				UserIndex: tt.fields.UserIndex,
 				options:   tt.fields.options,
