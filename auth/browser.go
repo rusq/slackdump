@@ -85,6 +85,10 @@ func NewBrowserAuth(ctx context.Context, opts ...BrowserOption) (BrowserAuth, er
 	return br, nil
 }
 
+func (BrowserAuth) Type() Type {
+	return TypeBrowser
+}
+
 func sanitize(workspace string) (string, error) {
 	if !strings.Contains(workspace, ".slack.com") {
 		return workspace, nil
