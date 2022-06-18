@@ -34,15 +34,16 @@ var (
 )
 
 // createIndex creates a channels and users index for export archive, splitting
-// channels in group/mpims/dms/public channels.
-func createIndex(channels []slack.Channel, users []slack.User, me slack.User) (*index, error) {
+// channels in group/mpims/dms/public channels.  currentUserID should contain
+// the current user ID
+func createIndex(channels []slack.Channel, users []slack.User, currentUserID string) (*index, error) {
 	if len(channels) == 0 {
 		return nil, errNoChannel
 	}
 	if len(users) == 0 {
 		return nil, errNoUsers
 	}
-	if me.ID == "" {
+	if currentUserID == "" {
 		return nil, errNoIdent
 	}
 
@@ -56,7 +57,7 @@ func createIndex(channels []slack.Channel, users []slack.User, me slack.User) (*
 			idx.DMs = append(idx.DMs, DM{
 				ID:      ch.ID,
 				Created: int64(ch.Created),
-				Members: []string{ch.User, me.ID},
+				Members: []string{ch.User, currentUserID},
 			})
 		case ch.IsMpIM:
 			idx.MPIMs = append(idx.MPIMs, ch)

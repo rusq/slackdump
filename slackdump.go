@@ -28,9 +28,6 @@ import (
 //go:generate sed -i ~ -e "s/NewmockClienter/newmockClienter/g" -e "s/NewmockReporter/newmockReporter/g" clienter_mock_test.go
 
 const (
-	// user index of the application user in the user list.
-	userIdxMe = 1
-
 	cacheDirName = "slackdump"
 )
 
@@ -38,7 +35,7 @@ const (
 type Session struct {
 	client clienter
 
-	teamID string // used as a suffix for cached users
+	wspInfo *slack.AuthTestResponse // workspace info
 
 	fs fsadapter.FS // filesystem for saving attachments
 
@@ -83,7 +80,8 @@ func New(ctx context.Context, creds auth.Provider, opts ...Option) (*Session, er
 }
 
 // New creates new Session with provided options, and populates the internal
-// cache of users and channels for lookups.
+// cache of users and channels for lookups.  If it fails to authenticate,
+// AuthError is returned.
 func NewWithOptions(ctx context.Context, authProvider auth.Provider, opts Options) (*Session, error) {
 	ctx, task := trace.NewTask(ctx, "NewWithOptions")
 	defer task.End()
@@ -93,9 +91,10 @@ func NewWithOptions(ctx context.Context, authProvider auth.Provider, opts Option
 	}
 
 	cl := slack.New(authProvider.SlackToken(), slack.OptionCookieRAW(toPtrCookies(authProvider.Cookies())...))
-	ti, err := cl.GetTeamInfoContext(ctx)
+
+	authTestResp, err := cl.AuthTestContext(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("error getting team information: %w", err)
+		return nil, &AuthError{Err: err}
 	}
 
 	cacheDir, err := createCacheDir(cacheDirName)
@@ -107,7 +106,7 @@ func NewWithOptions(ctx context.Context, authProvider auth.Provider, opts Option
 	sd := &Session{
 		client:   cl,
 		options:  opts,
-		teamID:   ti.ID,
+		wspInfo:  authTestResp,
 		fs:       fsadapter.NewDirectory("."), // default is to save attachments to the current directory.
 		cacheDir: cacheDir,
 	}
@@ -147,10 +146,14 @@ func (sd *Session) Client() *slack.Client {
 // Me returns the current authenticated user in a rather dirty manner.
 // If the user cache is unitnitialised, it returns ErrNoUserCache.
 func (sd *Session) Me() (slack.User, error) {
-	if len(sd.Users) < 2 { // me and slackbot.
+	if len(sd.UserIndex) == 0 {
 		return slack.User{}, ErrNoUserCache
 	}
-	return sd.Users[userIdxMe], nil
+	return *sd.UserIndex[sd.CurrentUserID()], nil
+}
+
+func (sd *Session) CurrentUserID() string {
+	return sd.wspInfo.UserID
 }
 
 // SetFS sets the filesystem to save attachments to (slackdump defaults to the

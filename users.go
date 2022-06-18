@@ -28,7 +28,7 @@ func (sd *Session) GetUsers(ctx context.Context) (types.Users, error) {
 		return types.Users{}, nil
 	}
 
-	users, err := sd.loadUserCache(sd.options.UserCacheFilename, sd.teamID, sd.options.MaxUserCacheAge)
+	users, err := sd.loadUserCache(sd.options.UserCacheFilename, sd.wspInfo.TeamID, sd.options.MaxUserCacheAge)
 	if err != nil {
 		if os.IsNotExist(err) {
 			dlog.Println("  caching users for the first time")
@@ -39,7 +39,7 @@ func (sd *Session) GetUsers(ctx context.Context) (types.Users, error) {
 		if err != nil {
 			return nil, err
 		}
-		if err := sd.saveUserCache(sd.options.UserCacheFilename, sd.teamID, users); err != nil {
+		if err := sd.saveUserCache(sd.options.UserCacheFilename, sd.wspInfo.TeamID, users); err != nil {
 			trace.Logf(ctx, "error", "saving user cache to %q, error: %s", sd.options.UserCacheFilename, err)
 			dlog.Printf("error saving user cache to %q: %s, but nevermind, let's continue", sd.options.UserCacheFilename, err)
 		}
