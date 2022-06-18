@@ -6,10 +6,9 @@ import (
 	"testing"
 )
 
-var testErr = errors.New("test error")
+var errSample = errors.New("test error")
 
 func TestAuthError_Unwrap(t *testing.T) {
-
 	type fields struct {
 		Err error
 	}
@@ -20,13 +19,13 @@ func TestAuthError_Unwrap(t *testing.T) {
 	}{
 		{
 			"unwrap unwraps properly",
-			fields{Err: testErr},
-			testErr,
+			fields{Err: errSample},
+			errSample,
 		},
 		{
 			"multilevel wrap",
-			fields{Err: fmt.Errorf("blah: %w", testErr)},
-			testErr,
+			fields{Err: fmt.Errorf("blah: %w", errSample)},
+			errSample,
 		},
 	}
 	for _, tt := range tests {
@@ -56,14 +55,14 @@ func TestAuthError_Is(t *testing.T) {
 	}{
 		{
 			"is correctly compares underlying error",
-			fields{Err: testErr},
-			args{testErr},
+			fields{Err: errSample},
+			args{errSample},
 			true,
 		},
 		{
 			"not matching error returns false",
 			fields{Err: errors.New("not me bro")},
-			args{testErr},
+			args{errSample},
 			false,
 		},
 	}
