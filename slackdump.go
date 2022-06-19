@@ -57,7 +57,7 @@ type clienter interface {
 	GetConversationsContext(ctx context.Context, params *slack.GetConversationsParameters) (channels []slack.Channel, nextCursor string, err error)
 	GetFile(downloadURL string, writer io.Writer) error
 	GetTeamInfo() (*slack.TeamInfo, error)
-	GetUsersContext(ctx context.Context) ([]slack.User, error)
+	GetUsersContext(ctx context.Context, options ...slack.GetUsersOption) ([]slack.User, error)
 }
 
 // Errors

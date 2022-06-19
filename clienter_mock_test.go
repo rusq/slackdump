@@ -129,53 +129,21 @@ func (mr *mockClienterMockRecorder) GetTeamInfo() *gomock.Call {
 }
 
 // GetUsersContext mocks base method.
-func (m *mockClienter) GetUsersContext(ctx context.Context) ([]slack.User, error) {
+func (m *mockClienter) GetUsersContext(ctx context.Context, options ...slack.GetUsersOption) ([]slack.User, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetUsersContext", ctx)
+	varargs := []interface{}{ctx}
+	for _, a := range options {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "GetUsersContext", varargs...)
 	ret0, _ := ret[0].([]slack.User)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetUsersContext indicates an expected call of GetUsersContext.
-func (mr *mockClienterMockRecorder) GetUsersContext(ctx interface{}) *gomock.Call {
+func (mr *mockClienterMockRecorder) GetUsersContext(ctx interface{}, options ...interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUsersContext", reflect.TypeOf((*mockClienter)(nil).GetUsersContext), ctx)
-}
-
-// mockReporter is a mock of Reporter interface.
-type mockReporter struct {
-	ctrl     *gomock.Controller
-	recorder *mockReporterMockRecorder
-}
-
-// mockReporterMockRecorder is the mock recorder for mockReporter.
-type mockReporterMockRecorder struct {
-	mock *mockReporter
-}
-
-// newmockReporter creates a new mock instance.
-func newmockReporter(ctrl *gomock.Controller) *mockReporter {
-	mock := &mockReporter{ctrl: ctrl}
-	mock.recorder = &mockReporterMockRecorder{mock}
-	return mock
-}
-
-// EXPECT returns an object that allows the caller to indicate expected use.
-func (m *mockReporter) EXPECT() *mockReporterMockRecorder {
-	return m.recorder
-}
-
-// ToText mocks base method.
-func (m *mockReporter) ToText(w io.Writer, sd *Session) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ToText", w, sd)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// ToText indicates an expected call of ToText.
-func (mr *mockReporterMockRecorder) ToText(w, sd interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ToText", reflect.TypeOf((*mockReporter)(nil).ToText), w, sd)
+	varargs := append([]interface{}{ctx}, options...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUsersContext", reflect.TypeOf((*mockClienter)(nil).GetUsersContext), varargs...)
 }

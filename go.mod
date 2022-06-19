@@ -13,7 +13,7 @@ require (
 	github.com/rusq/osenv/v2 v2.0.1
 	github.com/rusq/tracer v1.0.0
 	github.com/schollz/progressbar/v3 v3.8.6
-	github.com/slack-go/slack v0.10.2
+	github.com/slack-go/slack v0.11.0
 	github.com/stretchr/testify v1.7.1
 	golang.org/x/time v0.0.0-20220609170525-579cf78fd858
 )
@@ -36,4 +36,4 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-replace github.com/slack-go/slack => github.com/rusq/slack v0.10.4
+replace github.com/slack-go/slack => github.com/rusq/slack v0.11.100
