@@ -52,6 +52,14 @@ Download:
 
   go get github.com/rusq/slackdump/v2
 
+Add the following line at the end of your project's ``go.mod`` file::
+
+  replace github.com/slack-go/slack => github.com/rusq/slack v0.10.4
+
+This is required, as Slackdump relies on custom autorization scheme
+that uses cookies, and those functions are simply not in the original
+library.
+
 Use:
 
 .. code:: go
