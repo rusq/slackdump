@@ -56,7 +56,7 @@ Add the following line at the end of your project's ``go.mod`` file::
 
   replace github.com/slack-go/slack => github.com/rusq/slack v0.11.100
 
-This is required, as Slackdump relies on custom autorization scheme
+This is required, as Slackdump relies on custom authentication scheme
 that uses cookies, and those functions are simply not in the original
 library.
 
