@@ -2,10 +2,10 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"runtime"
 
-	"github.com/rusq/dlog"
 	"github.com/rusq/slackdump/v2/auth"
 )
 
@@ -22,7 +22,7 @@ func (c slackCreds) authProvider() (auth.Provider, error) {
 			return nil, errors.New("EZ-Login 3000 is not supported on this OS, please use the manual login method")
 		}
 		if !ezLoginTested() {
-			dlog.Println("warning, EZ-Login 3000 is not tested on this OS, if it doesn't work, use manual login method")
+			fmt.Println("warning, EZ-Login 3000 is not tested on this OS, if it doesn't work, use manual login method")
 		}
 		return auth.NewBrowserAuth()
 	}

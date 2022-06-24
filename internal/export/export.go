@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/rusq/dlog"
 	"github.com/slack-go/slack"
 
 	"github.com/rusq/slackdump/v2"
@@ -18,13 +17,15 @@ import (
 	"github.com/rusq/slackdump/v2/fsadapter"
 	"github.com/rusq/slackdump/v2/internal/structures"
 	"github.com/rusq/slackdump/v2/internal/structures/files"
+	"github.com/rusq/slackdump/v2/logger"
 	"github.com/rusq/slackdump/v2/types"
 )
 
 // Export is the instance of Slack Exporter.
 type Export struct {
-	fs fsadapter.FS       // target filesystem
-	sd *slackdump.Session // slackdumper instance
+	fs   fsadapter.FS       // target filesystem
+	sd   *slackdump.Session // slackdumper instance
+	dlog logger.Interface
 
 	// time window
 	opts Options
@@ -35,12 +36,17 @@ type Options struct {
 	Oldest       time.Time
 	Latest       time.Time
 	IncludeFiles bool
+	Logger       logger.Interface
 }
 
 // New creates a new Export instance, that will save export to the
 // provided fs.
 func New(sd *slackdump.Session, fs fsadapter.FS, cfg Options) *Export {
-	return &Export{fs: fs, sd: sd, opts: cfg}
+	se := &Export{fs: fs, sd: sd, dlog: cfg.Logger, opts: cfg}
+	if se.dlog == nil {
+		se.dlog = logger.Default
+	}
+	return se
 }
 
 // Run runs the export.
@@ -144,7 +150,7 @@ func (se *Export) downloadFn(dl *downloader.Client, channelName string) func(msg
 			if err != nil {
 				return err
 			}
-			dlog.Debugf("submitted for download: %s", file.Name)
+			se.l().Debugf("submitted for download: %s", file.Name)
 			total++
 			return files.UpdateURLs(msg, addr, path.Join(dirAttach, path.Base(filename)))
 		}); err != nil {
@@ -202,4 +208,11 @@ func serialize(w io.Writer, data any) error {
 	}
 
 	return nil
+}
+
+func (se *Export) l() logger.Interface {
+	if se.dlog == nil {
+		se.dlog = logger.Default
+	}
+	return se.dlog
 }

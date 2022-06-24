@@ -6,11 +6,10 @@ import (
 	"runtime/trace"
 	"time"
 
-	"github.com/rusq/dlog"
-
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/auth"
 	"github.com/rusq/slackdump/v2/fsadapter"
+	"github.com/rusq/slackdump/v2/logger"
 )
 
 const (
@@ -22,13 +21,25 @@ type App struct {
 	sd   *slackdump.Session
 	tmpl *template.Template
 	fs   fsadapter.FS
+	dlog logger.Interface
 
 	prov auth.Provider
 	cfg  Config
 }
 
+type Option func(*App)
+
+func WithLogger(l logger.Interface) Option {
+	return func(a *App) {
+		if l == nil {
+			l = logger.Default
+		}
+		a.dlog = l
+	}
+}
+
 // New creates a new slackdump app.
-func New(cfg Config, provider auth.Provider) (*App, error) {
+func New(cfg Config, provider auth.Provider, opt ...Option) (*App, error) {
 	if err := cfg.Validate(); err != nil {
 		return nil, err
 	}
@@ -40,12 +51,20 @@ func New(cfg Config, provider auth.Provider) (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &App{cfg: cfg, prov: provider, tmpl: tmpl, fs: fs}, nil
+	app := &App{cfg: cfg, prov: provider, tmpl: tmpl, fs: fs, dlog: logger.Default}
+	for _, o := range opt {
+		o(app)
+	}
+	return app, nil
 }
 
 func (app *App) Run(ctx context.Context) error {
 	ctx, task := trace.NewTask(ctx, "app.Run")
 	defer task.End()
+
+	if app.cfg.ExportName != "" {
+		app.l().Debug("export mode ON")
+	}
 
 	if err := app.initSlackdump(ctx); err != nil {
 		return err
@@ -67,7 +86,7 @@ func (app *App) Run(ctx context.Context) error {
 		return err
 	}
 
-	dlog.Printf("completed, time taken: %s", time.Since(start))
+	app.l().Printf("completed, time taken: %s", time.Since(start))
 	return nil
 }
 
@@ -124,6 +143,13 @@ func (app *App) runDump(ctx context.Context) error {
 		return err
 	}
 
-	dlog.Printf("dumped %d item(s)", n)
+	app.l().Printf("dumped %d item(s)", n)
 	return nil
+}
+
+func (app *App) l() logger.Interface {
+	if app.dlog == nil {
+		app.dlog = logger.Default
+	}
+	return app.dlog
 }

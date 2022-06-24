@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	"github.com/rusq/dlog"
 	"github.com/slack-go/slack"
 
 	"github.com/rusq/slackdump/v2/internal/network"
@@ -31,9 +30,9 @@ func (sd *Session) GetUsers(ctx context.Context) (types.Users, error) {
 	users, err := sd.loadUserCache(sd.options.UserCacheFilename, sd.wspInfo.TeamID, sd.options.MaxUserCacheAge)
 	if err != nil {
 		if os.IsNotExist(err) {
-			dlog.Println("  caching users for the first time")
+			sd.l().Println("  caching users for the first time")
 		} else {
-			dlog.Printf("  failed to load cache, it will be recreated: %s", err)
+			sd.l().Printf("  failed to load cache, it will be recreated: %s", err)
 		}
 		users, err = sd.fetchUsers(ctx)
 		if err != nil {
@@ -41,7 +40,7 @@ func (sd *Session) GetUsers(ctx context.Context) (types.Users, error) {
 		}
 		if err := sd.saveUserCache(sd.options.UserCacheFilename, sd.wspInfo.TeamID, users); err != nil {
 			trace.Logf(ctx, "error", "saving user cache to %q, error: %s", sd.options.UserCacheFilename, err)
-			dlog.Printf("error saving user cache to %q: %s, but nevermind, let's continue", sd.options.UserCacheFilename, err)
+			sd.l().Printf("error saving user cache to %q: %s, but nevermind, let's continue", sd.options.UserCacheFilename, err)
 		}
 	}
 

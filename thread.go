@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	"github.com/rusq/dlog"
 	"github.com/slack-go/slack"
 	"golang.org/x/time/rate"
 
@@ -152,7 +151,7 @@ func (sd *Session) dumpThread(
 			return nil, err
 		}
 
-		dlog.Printf("  thread request #%5d, fetched: %4d, total: %8d, process results: %s (speed: %6.2f/sec, avg: %6.2f/sec)\n",
+		sd.l().Printf("  thread request #%5d, fetched: %4d, total: %8d, process results: %s (speed: %6.2f/sec, avg: %6.2f/sec)\n",
 			i+1, len(msgs), len(thread),
 			prs,
 			float64(len(msgs))/time.Since(reqStart).Seconds(),
@@ -160,7 +159,7 @@ func (sd *Session) dumpThread(
 		)
 
 		if !hasmore {
-			dlog.Printf("  thread fetch complete, total: %d", len(thread))
+			sd.l().Printf("  thread fetch complete, total: %d", len(thread))
 			break
 		}
 		cursor = nextCursor

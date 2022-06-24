@@ -11,7 +11,7 @@ require (
 	github.com/playwright-community/playwright-go v0.2000.1
 	github.com/rusq/dlog v1.3.3
 	github.com/rusq/osenv/v2 v2.0.1
-	github.com/rusq/tracer v1.0.0
+	github.com/rusq/tracer v1.0.1
 	github.com/schollz/progressbar/v3 v3.8.6
 	github.com/slack-go/slack v0.11.0
 	github.com/stretchr/testify v1.7.1

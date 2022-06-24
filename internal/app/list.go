@@ -7,7 +7,6 @@ import (
 	"io"
 	"os"
 
-	"github.com/rusq/dlog"
 	"github.com/rusq/slackdump/v2/internal/structures"
 )
 
@@ -25,7 +24,7 @@ func (app *App) listEntities(ctx context.Context, output Output, lf ListFlags) e
 	}
 	defer f.Close()
 
-	dlog.Print("retrieving data...")
+	app.l().Print("retrieving data...")
 	rep, err := app.fetchEntity(ctx, lf)
 	if err != nil {
 		return err

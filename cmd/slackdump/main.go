@@ -112,8 +112,6 @@ func run(ctx context.Context, p params) error {
 	}
 	defer application.Close()
 
-	// deleting slackCreds to avoid logging them in the trace.
-
 	trace.Logf(ctx, "info", "params: input: %+v", p)
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -156,7 +154,11 @@ func parseCmdLine(args []string) (params, error) {
 		fs.PrintDefaults()
 	}
 
-	var p params
+	var p = params{
+		appCfg: app.Config{
+			Options: slackdump.DefOptions,
+		},
+	}
 
 	// authentication
 	fs.StringVar(&p.creds.token, "t", osenv.Secret(slackTokenEnv, ""), "Specify slack `API_token`, (environment: "+slackTokenEnv+")")
