@@ -60,8 +60,8 @@ This is required, as Slackdump relies on custom authentication scheme
 that uses cookies, and those functions are simply not in the original
 library.
 
-Use:
-
+Example
+-------
 .. code:: go
 
   import (
@@ -84,6 +84,13 @@ Use:
   }
 
 See |go ref|
+
+Custom Logger
+-------------
+Slackdump uses `rusq/dlog`_ as a default logger.  If you need to plug in some
+other logger, such as logrus_ or glog_, it is simply a matter of wrapping the
+calls of the logger of your choice, to satisfy the logger.Interface (defined in
+`logger`_ package).
 
 FAQ
 ===
@@ -115,7 +122,10 @@ Messages that were conveyed with the donations:
 .. _`Go templating`: https://pkg.go.dev/html/template
 .. _User Guide: doc/README.rst
 .. _Dumping Conversations: doc/usage-channels.rst
-
+.. _rusq/dlog: https://github.com/rusq/dlog
+.. _logrus: https://github.com/sirupsen/logrus
+.. _glog: https://github.com/golang/glog
+.. _logger: logger/logger.go
 ..
   bulletin board links
 
