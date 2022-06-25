@@ -15,6 +15,7 @@ import (
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/downloader"
 	"github.com/rusq/slackdump/v2/fsadapter"
+	"github.com/rusq/slackdump/v2/internal/network"
 	"github.com/rusq/slackdump/v2/internal/structures"
 	"github.com/rusq/slackdump/v2/internal/structures/files"
 	"github.com/rusq/slackdump/v2/logger"
@@ -46,6 +47,7 @@ func New(sd *slackdump.Session, fs fsadapter.FS, cfg Options) *Export {
 	if se.dlog == nil {
 		se.dlog = logger.Default
 	}
+	network.Logger = se.l()
 	return se
 }
 
@@ -75,7 +77,7 @@ func (se *Export) users(ctx context.Context) (types.Users, error) {
 
 func (se *Export) messages(ctx context.Context, users types.Users) error {
 	var chans []slack.Channel
-	dl := downloader.New(se.sd.Client(), se.fs)
+	dl := downloader.New(se.sd.Client(), se.fs, downloader.Logger(se.l()))
 	if se.opts.IncludeFiles {
 		// start the downloader
 		dl.Start(ctx)

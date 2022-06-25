@@ -145,6 +145,7 @@ func MaxUserCacheAge(d time.Duration) Option {
 	}
 }
 
+// WithLogger allows to set the custom logger.
 func WithLogger(l logger.Interface) Option {
 	return func(o *Options) {
 		if l == nil {

@@ -112,6 +112,8 @@ func NewWithOptions(ctx context.Context, authProvider auth.Provider, opts Option
 		cacheDir: cacheDir,
 	}
 
+	sd.propagateLogger(sd.l())
+
 	sd.l().Println("> checking user cache...")
 	users, err := sd.GetUsers(ctx)
 	if err != nil {
@@ -216,4 +218,9 @@ func (sd *Session) l() logger.Interface {
 		return logger.Default
 	}
 	return sd.options.Logger
+}
+
+// propagateLogger propagates the slackdump logger to other packages.
+func (sd *Session) propagateLogger(l logger.Interface) {
+	network.Logger = l
 }

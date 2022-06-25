@@ -85,18 +85,35 @@ Example
 
 See |go ref|
 
-Custom Logger
--------------
+Using Custom Logger
+-------------------
 Slackdump uses a simple `rusq/dlog`_ as a default logger (it is a wrapper around
-the standard logger that adds `Debug*` functions).  If you need to plug in some
-other logger, such as logrus_ or glog_, it is a matter of wrapping the calls of
-the logger of your choice, to satisfy the ``logger.Interface`` (defined in the
-`logger`_ package), and then setting the ``Logger`` variable in
-`slackdump.Options` (see `options.go`_).
+the standard logger that adds `Debug*` functions).  Of course, everyone has
+their own favourite logger that is better than other miserable loggers.  Please
+read below for instructions on your favourite logger.
 
-.. NOTE::
-  logrus_ can be plugged in straight away, as it implements the
-  ``logger.Interface`` out of the box.
+Logrus
+~~~~~~
+Good news is logrus_ can be plugged in straight away, as it implements the
+``logger.Interface`` out of the box.
+
+.. code:: go
+
+  lg := logrus.New()
+  sd, err := New(context.Background(), provider, WithLogger(lg))
+    if err != nil {
+        log.Print(err)
+        return
+    }
+  }
+
+
+Glog and others
+~~~~~~~~~~~~~~~
+If you need to use some other logger, such as glog_, it is a matter of wrapping
+the calls to satisfy the ``logger.Interface`` (defined in the `logger`_
+package), and then setting the ``Logger`` variable in `slackdump.Options` (see
+`options.go`_), or using `WithLogger` option.
 
 FAQ
 ===
