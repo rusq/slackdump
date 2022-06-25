@@ -7,7 +7,6 @@ import (
 	"runtime/trace"
 	"time"
 
-	"github.com/rusq/dlog"
 	"github.com/rusq/slackdump/v2/fsadapter"
 	"github.com/rusq/slackdump/v2/internal/export"
 )
@@ -26,6 +25,7 @@ func (app *App) Export(ctx context.Context, name string) error {
 		Oldest:       time.Time(app.cfg.Oldest),
 		Latest:       time.Time(app.cfg.Latest),
 		IncludeFiles: app.cfg.Options.DumpFiles,
+		Logger:       app.l(),
 	}
 	fs, err := fsadapter.ForFilename(name)
 	if err != nil {
@@ -35,7 +35,7 @@ func (app *App) Export(ctx context.Context, name string) error {
 	defer fsadapter.Close(fs)
 
 	trace.Logf(ctx, "info", "filesystem: %s", fs)
-	dlog.Printf("staring export to: %s", fs)
+	app.l().Printf("staring export to: %s", fs)
 
 	return export.New(app.sd, fs, cfg).Run(ctx)
 }

@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	"github.com/rusq/dlog"
 	"github.com/slack-go/slack"
 	"golang.org/x/time/rate"
 
@@ -19,6 +18,7 @@ import (
 	"github.com/rusq/slackdump/v2/fsadapter"
 	"github.com/rusq/slackdump/v2/internal/network"
 	"github.com/rusq/slackdump/v2/internal/structures"
+	"github.com/rusq/slackdump/v2/logger"
 	"github.com/rusq/slackdump/v2/types"
 )
 
@@ -28,12 +28,13 @@ import (
 //go:generate sed -i ~ -e "s/NewmockClienter/newmockClienter/g" -e "s/NewmockReporter/newmockReporter/g" clienter_mock_test.go
 
 const (
-	cacheDirName = "slackdump"
+	cacheDirName        = "slackdump"
+	cacheDirPermissions = 0750
 )
 
 // Session stores basic session parameters.
 type Session struct {
-	client clienter
+	client clienter // Slack client
 
 	wspInfo *slack.AuthTestResponse // workspace info
 
@@ -100,7 +101,7 @@ func NewWithOptions(ctx context.Context, authProvider auth.Provider, opts Option
 	cacheDir, err := createCacheDir(cacheDirName)
 	if err != nil {
 		cacheDir = "."
-		dlog.Printf("failed to create the cache directory, will use current")
+		trace.Logf(ctx, "warn", "failed to create the cache directory %q, will use current", cacheDirName)
 	}
 
 	sd := &Session{
@@ -111,7 +112,9 @@ func NewWithOptions(ctx context.Context, authProvider auth.Provider, opts Option
 		cacheDir: cacheDir,
 	}
 
-	dlog.Println("> checking user cache...")
+	sd.propagateLogger(sd.l())
+
+	sd.l().Println("> checking user cache...")
 	users, err := sd.GetUsers(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching users: %w", err)
@@ -132,7 +135,7 @@ func createCacheDir(subdir string) (string, error) {
 		return "", err
 	}
 	cachePath := filepath.Join(cache, subdir)
-	if err := os.MkdirAll(cachePath, 0750); err != nil {
+	if err := os.MkdirAll(cachePath, cacheDirPermissions); err != nil {
 		return "", err
 	}
 	return cachePath, nil
@@ -207,4 +210,17 @@ func validateCache(fi os.FileInfo, maxAge time.Duration) error {
 		return errors.New("cache expired")
 	}
 	return nil
+}
+
+// l returns the current logger.
+func (sd *Session) l() logger.Interface {
+	if sd.options.Logger == nil {
+		return logger.Default
+	}
+	return sd.options.Logger
+}
+
+// propagateLogger propagates the slackdump logger to some dumb packages.
+func (sd *Session) propagateLogger(l logger.Interface) {
+	network.Logger = l
 }

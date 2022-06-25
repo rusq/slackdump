@@ -2,18 +2,21 @@ package network
 
 import (
 	"context"
-	"fmt"
 	"runtime/trace"
 	"time"
 
 	"github.com/pkg/errors"
-	"github.com/rusq/dlog"
 	"github.com/slack-go/slack"
 	"golang.org/x/time/rate"
+
+	"github.com/rusq/slackdump/v2/logger"
 )
 
 // defNumAttempts is the default number of retry attempts.
 const defNumAttempts = 3
+
+// Logger is the package logger.
+var Logger logger.Interface = logger.Default
 
 // ErrRetryFailed is returned if number of retry attempts exceeded the retry attempts limit and
 // function wasn't able to complete without errors.
@@ -36,26 +39,35 @@ func WithRetry(ctx context.Context, l *rate.Limiter, maxAttempts int, fn func() 
 			return err
 		}
 
-		err = fn()
-		if err == nil {
+		cbErr := fn()
+		if cbErr == nil {
 			ok = true
 			break
 		}
 
-		trace.Logf(ctx, "error", "slackRetry: %s after %d attempts", err, attempt+1)
+		tracelogf(ctx, "error", "slackRetry: %s after %d attempts", cbErr, attempt+1)
 		var rle *slack.RateLimitedError
-		if !errors.As(err, &rle) {
-			return errors.WithStack(err)
+		if !errors.As(cbErr, &rle) {
+			return errors.WithStack(cbErr)
 		}
 
-		msg := fmt.Sprintf("got rate limited, sleeping %s", rle.RetryAfter)
-		trace.Log(ctx, "info", msg)
-		dlog.Debug(msg)
-
+		tracelogf(ctx, "info", "got rate limited, sleeping %s", rle.RetryAfter)
 		time.Sleep(rle.RetryAfter)
 	}
 	if !ok {
 		return ErrRetryFailed
 	}
 	return nil
+}
+
+func tracelogf(ctx context.Context, category string, fmt string, a ...any) {
+	trace.Logf(ctx, category, fmt, a...)
+	l().Debugf(fmt, a...)
+}
+
+func l() logger.Interface {
+	if Logger == nil {
+		return logger.Default
+	}
+	return Logger
 }

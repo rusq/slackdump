@@ -5,6 +5,8 @@ package slackdump
 import (
 	"runtime"
 	"time"
+
+	"github.com/rusq/slackdump/v2/logger"
 )
 
 const defNumWorkers = 4 // default number of file downloaders. it's here because it's used in several places.
@@ -25,7 +27,8 @@ type Options struct {
 	RepliesPerReq       int           // number of thread replies per request (slack default: 1000)
 	UserCacheFilename   string        // user cache filename
 	MaxUserCacheAge     time.Duration // how long the user cache is valid for.
-	NoUserCache         bool          // sometimes slack disallows user access, so we need a way to overcome that.
+	NoUserCache         bool          // disable fetching users from the API.
+	Logger              logger.Interface
 }
 
 // DefOptions is the default options used when initialising slackdump instance.
@@ -44,6 +47,7 @@ var DefOptions = Options{
 	RepliesPerReq:       200,           // the API-default is 1000 (see conversations.replies), but on large threads it may fail (see #54)
 	UserCacheFilename:   "users.cache", // seems logical
 	MaxUserCacheAge:     4 * time.Hour, // quick math:  that's 1/6th of a day, how's that, huh?
+	Logger:              logger.Default,
 }
 
 // Option is the signature of the option-setting function.
@@ -138,5 +142,15 @@ func UserCacheFilename(s string) Option {
 func MaxUserCacheAge(d time.Duration) Option {
 	return func(options *Options) {
 		options.MaxUserCacheAge = d
+	}
+}
+
+// WithLogger allows to set the custom logger.
+func WithLogger(l logger.Interface) Option {
+	return func(o *Options) {
+		if l == nil {
+			l = logger.Default
+		}
+		o.Logger = l
 	}
 }

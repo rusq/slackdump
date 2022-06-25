@@ -60,8 +60,8 @@ This is required, as Slackdump relies on custom authentication scheme
 that uses cookies, and those functions are simply not in the original
 library.
 
-Use:
-
+Example
+-------
 .. code:: go
 
   import (
@@ -85,6 +85,43 @@ Use:
 
 See |go ref|
 
+Using Custom Logger
+-------------------
+Slackdump uses a simple `rusq/dlog`_ as a default logger (it is a wrapper around
+the standard logger that adds `Debug*` functions). 
+
+If you want to use the same default logger that Slackdump uses in your
+application, it is available as ``logger.Default``.
+
+No doubts that everyone has their own favourite logger that is better than other
+miserable loggers.  Please read below for instructions on plugging your
+favourite logger.
+
+
+Logrus
+~~~~~~
+Good news is logrus_ can be plugged in straight away, as it implements the
+``logger.Interface`` out of the box.
+
+.. code:: go
+
+  lg := logrus.New()
+  sd, err := New(context.Background(), provider, WithLogger(lg))
+    if err != nil {
+        log.Print(err)
+        return
+    }
+  }
+
+
+Glog and others
+~~~~~~~~~~~~~~~
+If you need to use some other logger, such as glog_, it is a matter of wrapping
+the calls to satisfy the ``logger.Interface`` (defined in the `logger`_
+package), and then setting the ``Logger`` variable in `slackdump.Options` (see
+`options.go`_), or using `WithLogger` option.
+
+
 FAQ
 ===
 
@@ -100,7 +137,7 @@ FAQ
 
 
 Bulletin Board
---------------
+==============
 
 Messages that were conveyed with the donations:
 
@@ -115,7 +152,11 @@ Messages that were conveyed with the donations:
 .. _`Go templating`: https://pkg.go.dev/html/template
 .. _User Guide: doc/README.rst
 .. _Dumping Conversations: doc/usage-channels.rst
-
+.. _rusq/dlog: https://github.com/rusq/dlog
+.. _logrus: https://github.com/sirupsen/logrus
+.. _glog: https://github.com/golang/glog
+.. _logger: logger/logger.go
+.. _options.go: options.go
 ..
   bulletin board links
 

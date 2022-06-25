@@ -10,21 +10,23 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/rusq/dlog"
 	"github.com/slack-go/slack"
 
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/downloader"
 	"github.com/rusq/slackdump/v2/fsadapter"
+	"github.com/rusq/slackdump/v2/internal/network"
 	"github.com/rusq/slackdump/v2/internal/structures"
 	"github.com/rusq/slackdump/v2/internal/structures/files"
+	"github.com/rusq/slackdump/v2/logger"
 	"github.com/rusq/slackdump/v2/types"
 )
 
 // Export is the instance of Slack Exporter.
 type Export struct {
-	fs fsadapter.FS       // target filesystem
-	sd *slackdump.Session // slackdumper instance
+	fs   fsadapter.FS       // target filesystem
+	sd   *slackdump.Session // slackdumper instance
+	dlog logger.Interface
 
 	// time window
 	opts Options
@@ -35,12 +37,18 @@ type Options struct {
 	Oldest       time.Time
 	Latest       time.Time
 	IncludeFiles bool
+	Logger       logger.Interface
 }
 
 // New creates a new Export instance, that will save export to the
 // provided fs.
 func New(sd *slackdump.Session, fs fsadapter.FS, cfg Options) *Export {
-	return &Export{fs: fs, sd: sd, opts: cfg}
+	se := &Export{fs: fs, sd: sd, dlog: cfg.Logger, opts: cfg}
+	if se.dlog == nil {
+		se.dlog = logger.Default
+	}
+	network.Logger = se.l()
+	return se
 }
 
 // Run runs the export.
@@ -69,7 +77,7 @@ func (se *Export) users(ctx context.Context) (types.Users, error) {
 
 func (se *Export) messages(ctx context.Context, users types.Users) error {
 	var chans []slack.Channel
-	dl := downloader.New(se.sd.Client(), se.fs)
+	dl := downloader.New(se.sd.Client(), se.fs, downloader.Logger(se.l()))
 	if se.opts.IncludeFiles {
 		// start the downloader
 		dl.Start(ctx)
@@ -144,7 +152,7 @@ func (se *Export) downloadFn(dl *downloader.Client, channelName string) func(msg
 			if err != nil {
 				return err
 			}
-			dlog.Debugf("submitted for download: %s", file.Name)
+			se.l().Debugf("submitted for download: %s", file.Name)
 			total++
 			return files.UpdateURLs(msg, addr, path.Join(dirAttach, path.Base(filename)))
 		}); err != nil {
@@ -202,4 +210,11 @@ func serialize(w io.Writer, data any) error {
 	}
 
 	return nil
+}
+
+func (se *Export) l() logger.Interface {
+	if se.dlog == nil {
+		se.dlog = logger.Default
+	}
+	return se.dlog
 }

@@ -10,7 +10,6 @@ import (
 	"log"
 
 	"github.com/joho/godotenv"
-	"github.com/rusq/dlog"
 	"github.com/rusq/osenv/v2"
 	"github.com/schollz/progressbar/v3"
 	"github.com/slack-go/slack"
@@ -18,6 +17,7 @@ import (
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/internal/network"
 	"github.com/rusq/slackdump/v2/internal/structures"
+	"github.com/rusq/slackdump/v2/logger"
 )
 
 var _ = godotenv.Load()
@@ -33,7 +33,7 @@ func main() {
 	flag.Parse()
 	if *token == "" {
 		flag.Usage()
-		dlog.Fatal("token not set")
+		logger.Default.Fatal("token not set")
 	}
 
 	if *delThread != "" {
@@ -45,7 +45,6 @@ func main() {
 			log.Fatal(err)
 		}
 	}
-	return
 }
 
 func runDelete(token, url string) error {

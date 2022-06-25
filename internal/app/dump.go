@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/rusq/dlog"
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/types"
 )
@@ -36,7 +35,7 @@ func (app *App) dump(ctx context.Context, input Input) (int, error) {
 	total := 0
 	if err := input.producer(func(channelID string) error {
 		if err := app.dumpOne(ctx, channelID, app.newDumpFunc(channelID)); err != nil {
-			dlog.Printf("error processing: %q (conversation will be skipped): %s", channelID, err)
+			app.l().Printf("error processing: %q (conversation will be skipped): %s", channelID, err)
 			return errSkip
 		}
 		total++
@@ -95,7 +94,7 @@ func (app *App) writeFiles(name string, cnv *types.Conversation) error {
 }
 
 func (app *App) writeJSON(filename string, m any) error {
-	dlog.Printf("generating %s", filename)
+	app.l().Printf("generating %s", filename)
 	f, err := app.fs.Create(filename)
 	if err != nil {
 		return fmt.Errorf("error writing %q: %w", filename, err)
@@ -111,7 +110,7 @@ func (app *App) writeJSON(filename string, m any) error {
 }
 
 func (app *App) writeText(filename string, m *types.Conversation) error {
-	dlog.Printf("generating %s", filename)
+	app.l().Printf("generating %s", filename)
 	f, err := app.fs.Create(filename)
 	if err != nil {
 		return fmt.Errorf("error writing %q: %w", filename, err)

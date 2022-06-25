@@ -1,3 +1,4 @@
+// Package downloader provides the sync and async file download functionality.
 package downloader
 
 import (
@@ -11,26 +12,28 @@ import (
 	"sync"
 
 	"github.com/pkg/errors"
-	"github.com/rusq/dlog"
 	"github.com/slack-go/slack"
 	"golang.org/x/time/rate"
 
 	"github.com/rusq/slackdump/v2/fsadapter"
 	"github.com/rusq/slackdump/v2/internal/network"
+	"github.com/rusq/slackdump/v2/logger"
 )
 
 const (
-	defDownloadDir = "." // default download directory is current.
-	defRetries     = 3   // default number of retries if download fails
-	defNumWorkers  = 4   // number of download processes
-	defLimit       = 5000
-	defFileBufSz   = 100
+	defDownloadDir = "."  // default download directory is current.
+	defRetries     = 3    // default number of retries if download fails
+	defNumWorkers  = 4    // number of download processes
+	defLimit       = 5000 // default API limit, in events per second.
+	defFileBufSz   = 100  // default download channel buffer.
 )
 
+// Client is the instance of the downloader.
 type Client struct {
 	client  Downloader
 	limiter *rate.Limiter
 	fs      fsadapter.FS
+	dlog    logger.Interface
 
 	retries int
 	workers int
@@ -48,6 +51,7 @@ type Downloader interface {
 	GetFile(downloadURL string, writer io.Writer) error
 }
 
+// Option is the function signature for the option functions.
 type Option func(*Client)
 
 // Limiter uses the initialised limiter instead of built in.
@@ -59,6 +63,7 @@ func Limiter(l *rate.Limiter) Option {
 	}
 }
 
+// Retries sets the number of attempts that will be taken for the file download.
 func Retries(n int) Option {
 	return func(c *Client) {
 		if n <= 0 {
@@ -68,6 +73,7 @@ func Retries(n int) Option {
 	}
 }
 
+// Workers sets the number of workers for the download queue.
 func Workers(n int) Option {
 	return func(c *Client) {
 		if n <= 0 {
@@ -77,11 +83,22 @@ func Workers(n int) Option {
 	}
 }
 
-// New initialises new file downloader
+// Logger allows to use an external log library, that satisfies the
+// logger.Interface.
+func Logger(l logger.Interface) Option {
+	return func(c *Client) {
+		if l == nil {
+			l = logger.Default
+		}
+		c.dlog = l
+	}
+}
+
+// New initialises new file downloader.
 func New(client Downloader, fs fsadapter.FS, opts ...Option) *Client {
 	if client == nil {
 		// better safe than sorry
-		panic("programming error: client is nil")
+		panic("programming error:  client is nil")
 	}
 	c := &Client{
 		client:  client,
@@ -127,7 +144,7 @@ func (c *Client) Start(ctx context.Context) {
 // req channel is closed, workers will stop, and wg.Wait() completes.
 func (c *Client) startWorkers(ctx context.Context, req <-chan FileRequest) *sync.WaitGroup {
 	if c.workers == 0 {
-		panic("zero workers")
+		c.workers = defNumWorkers
 	}
 	var wg sync.WaitGroup
 	// create workers
@@ -136,7 +153,7 @@ func (c *Client) startWorkers(ctx context.Context, req <-chan FileRequest) *sync
 		go func(workerNum int) {
 			c.worker(ctx, fltSeen(req))
 			wg.Done()
-			dlog.Debugf("download worker %d terminated", workerNum)
+			c.l().Debugf("download worker %d terminated", workerNum)
 		}(i)
 	}
 	return &wg
@@ -148,19 +165,19 @@ func (c *Client) worker(ctx context.Context, reqC <-chan FileRequest) {
 	for {
 		select {
 		case <-ctx.Done():
-			trace.Log(ctx, "warn", "worker context cancelled")
+			trace.Log(ctx, "info", "worker context cancelled")
 			return
 		case req, moar := <-reqC:
 			if !moar {
 				return
 			}
-			dlog.Debugf("saving %q to %s, size: %d", Filename(req.File), req.Directory, req.File.Size)
+			c.l().Debugf("saving %q to %s, size: %d", Filename(req.File), req.Directory, req.File.Size)
 			n, err := c.saveFile(ctx, req.Directory, req.File)
 			if err != nil {
-				dlog.Printf("error saving %q to %s: %s", Filename(req.File), req.Directory, err)
+				c.l().Printf("error saving %q to %s: %s", Filename(req.File), req.Directory, err)
 				break
 			}
-			dlog.Printf("file %q saved to %s: %d bytes written", Filename(req.File), req.Directory, n)
+			c.l().Printf("file %q saved to %s: %d bytes written", Filename(req.File), req.Directory, n)
 		}
 	}
 }
@@ -229,6 +246,7 @@ func Filename(f *slack.File) string {
 	return fmt.Sprintf("%s-%s", f.ID, f.Name)
 }
 
+// Stop stops the downloader.
 func (c *Client) Stop() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -238,9 +256,9 @@ func (c *Client) Stop() {
 	}
 
 	close(c.fileRequests)
-	dlog.Debugf("chan closed")
+	c.l().Debugf("chan closed")
 	c.wg.Wait()
-	dlog.Debugf("wait complete")
+	c.l().Debugf("wait complete")
 
 	c.fileRequests = nil
 	c.wg = nil
@@ -264,4 +282,11 @@ func (c *Client) DownloadFile(dir string, f slack.File) (string, error) {
 	}
 	c.fileRequests <- FileRequest{Directory: dir, File: &f}
 	return path.Join(dir, Filename(&f)), nil
+}
+
+func (c *Client) l() logger.Interface {
+	if c.dlog == nil {
+		return logger.Default
+	}
+	return c.dlog
 }

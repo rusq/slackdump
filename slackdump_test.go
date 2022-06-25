@@ -4,17 +4,20 @@ import (
 	"context"
 	"log"
 	"math"
+	"os"
 	"reflect"
 	"testing"
 	"time"
 
 	"github.com/golang/mock/gomock"
+	"github.com/rusq/dlog"
 	"github.com/rusq/slackdump/v2/auth"
 	"github.com/rusq/slackdump/v2/fsadapter"
 	"github.com/rusq/slackdump/v2/internal/fixtures"
 	"github.com/rusq/slackdump/v2/internal/mocks/mock_os"
 	"github.com/rusq/slackdump/v2/internal/network"
 	"github.com/rusq/slackdump/v2/internal/structures"
+	"github.com/rusq/slackdump/v2/logger"
 	"github.com/rusq/slackdump/v2/types"
 	"github.com/slack-go/slack"
 	"github.com/stretchr/testify/assert"
@@ -274,6 +277,55 @@ func TestSlackDumper_Me(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("SlackDumper.Me() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestSession_l(t *testing.T) {
+	testLg := dlog.New(os.Stderr, "TEST", log.LstdFlags, false)
+	type fields struct {
+		client    clienter
+		wspInfo   *slack.AuthTestResponse
+		fs        fsadapter.FS
+		Users     types.Users
+		UserIndex structures.UserIndex
+		options   Options
+		cacheDir  string
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   logger.Interface
+	}{
+		{
+			"empty returns the default logger",
+			fields{
+				options: Options{},
+			},
+			logger.Default,
+		},
+		{
+			"if logger is set, it returns the custom logger",
+			fields{
+				options: Options{Logger: testLg},
+			},
+			logger.Interface(testLg),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			sd := &Session{
+				client:    tt.fields.client,
+				wspInfo:   tt.fields.wspInfo,
+				fs:        tt.fields.fs,
+				Users:     tt.fields.Users,
+				UserIndex: tt.fields.UserIndex,
+				options:   tt.fields.options,
+				cacheDir:  tt.fields.cacheDir,
+			}
+			if got := sd.l(); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Session.l() = %v, want %v", got, tt.want)
 			}
 		})
 	}

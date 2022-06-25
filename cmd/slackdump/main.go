@@ -14,13 +14,13 @@ import (
 	"syscall"
 
 	"github.com/joho/godotenv"
-	"github.com/rusq/dlog"
 	"github.com/rusq/osenv/v2"
 	"github.com/rusq/tracer"
 	"github.com/slack-go/slack"
 
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/internal/app"
+	"github.com/rusq/slackdump/v2/logger"
 )
 
 const (
@@ -50,7 +50,9 @@ type params struct {
 	appCfg app.Config
 	creds  slackCreds
 
-	traceFile    string // trace file
+	traceFile string // trace file
+	logFile   string //log file, if not specified, outputs to stderr.
+
 	printVersion bool
 	verbose      bool
 }
@@ -61,73 +63,135 @@ func main() {
 
 	params, err := parseCmdLine(os.Args[1:])
 	if err != nil {
-		dlog.Fatal(err)
+		log.Fatal(err)
 	}
 	if params.printVersion {
 		fmt.Println(build)
 		return
 	}
-	if params.verbose {
-		dlog.SetDebug(true)
-	}
 
 	if err := run(context.Background(), params); err != nil {
 		if params.verbose {
-			dlog.Fatalf("%+v", err)
+			log.Fatalf("%+v", err)
 		} else {
-			dlog.Fatal(err)
+			log.Fatal(err)
 		}
 	}
 }
 
 // run runs the dumper.
 func run(ctx context.Context, p params) error {
-	if p.traceFile != "" {
-		dlog.Printf("enabling trace, will write to %q", p.traceFile)
-		trc := tracer.New(p.traceFile)
-		if err := trc.Start(); err != nil {
-			return err
-		}
-		defer func() {
-			if err := trc.End(); err != nil {
-				dlog.Printf("failed to write the trace file: %s", err)
-			}
-		}()
+	// init logging and tracing
+	lg, logStopFn, err := initLog(p.logFile, p.verbose)
+	if err != nil {
+		return err
+	}
+	defer logStopFn()
+
+	// - setting the logger for slackdump package
+	p.appCfg.Options.Logger = lg
+
+	// - trace init
+	if traceStopFn, err := initTrace(lg, p.traceFile); err != nil {
+		return err
+	} else {
+		defer traceStopFn()
 	}
 
+	// initialise context with trace task.
 	ctx, task := trace.NewTask(ctx, "main.run")
 	defer task.End()
 
+	// init the authentication provider
 	provider, err := p.creds.authProvider()
 	if err != nil {
-		log.Fatal(err)
+		return fmt.Errorf("failed to initialise the auth provider: %w", err)
 	} else {
+		// dispose of credentials, prevents from logging them into trace file.
 		p.creds = slackCreds{}
 	}
 
+	// trace startup parameters for debugging
+	trace.Logf(ctx, "info", "params: input: %+v", p)
+
+	// initialise the application
 	application, err := app.New(p.appCfg, provider)
 	if err != nil {
 		trace.Logf(ctx, "error", "app.New: %s", err.Error())
-		return err
+		return fmt.Errorf("application failed to initialise: %w", err)
 	}
 	defer application.Close()
 
-	// deleting slackCreds to avoid logging them in the trace.
-
-	trace.Logf(ctx, "info", "params: input: %+v", p)
-
+	// override default handler for SIGTERM and SIGQUIT signals.
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
+	// run the application
 	if err := application.Run(ctx); err != nil {
 		trace.Logf(ctx, "error", "app.Run: %s", err.Error())
-		var ser slack.SlackErrorResponse
-		if errors.As(err, &ser) && ser.Err == "invalid_auth" {
-			return fmt.Errorf("%w: failed to authenticate:  please double check that token/cookie values are correct", ser)
+		if isInvalidAuth(err) {
+			return fmt.Errorf("failed to authenticate:  please double check that token/cookie values are correct (error: %w)", err)
 		}
-		return err
+		return fmt.Errorf("application error: %w", err)
 	}
+
 	return nil
+}
+
+// initLog initialises the logging.  If the filename is not empty, the file will
+// be opened, and the logger output will be switch to that file.  Returns the
+// initialised logger, stop function and an error, if any.  The stop function
+// must be called in the deferred call, it will close the log file, if it is
+// open. If the error is returned the stop function is nil.
+func initLog(filename string, verbose bool) (logger.Interface, func(), error) {
+	lg := logger.Default
+	lg.SetDebug(verbose)
+
+	if filename == "" {
+		return lg, func() {}, nil
+	}
+
+	lg.Debugf("log messages will be written to: %q", filename)
+	lf, err := os.OpenFile(filename, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0666)
+	if err != nil {
+		return lg, nil, fmt.Errorf("failed to create the log file: %w", err)
+	}
+	lg.SetOutput(lf)
+
+	stopFn := func() {
+		if err := lf.Close(); err != nil {
+			log.Printf("failed to close the log file: %s", err)
+		}
+	}
+	return lg, stopFn, nil
+}
+
+// initTrace initialises the tracing.  If the filename is not empty, the file
+// will be opened, trace will write to that file.  Returns the stop function
+// that must be called in the deferred call.  If the error is returned the stop
+// function is nil.
+func initTrace(lg logger.Interface, filename string) (stop func(), err error) {
+	if filename == "" {
+		return func() {}, nil
+	}
+
+	lg.Printf("trace will be written to %q", filename)
+
+	trc := tracer.New(filename)
+	if err := trc.Start(); err != nil {
+		return nil, err
+	}
+	return func() {
+		if err := trc.End(); err != nil {
+			lg.Printf("failed to write the trace file: %s", err)
+		}
+	}, nil
+}
+
+// isInvalidAuth returns true if err is Slack's invalid authentication error.
+func isInvalidAuth(err error) bool {
+	var ser slack.SlackErrorResponse
+	return errors.As(err, &ser) && ser.Err == "invalid_auth"
 }
 
 // loadSecrets load secrets from the files in secrets slice.
@@ -145,18 +209,23 @@ func parseCmdLine(args []string) (params, error) {
 	fs.Usage = func() {
 		fmt.Fprintf(
 			flag.CommandLine.Output(),
-			"Slackdump %s\n"+
-				"Slackdump dumps messages and files from Slack.\n"+
-				"This program comes with ABSOLUTELY NO WARRANTY;\n\n"+
+			"Slackdump saves conversations, threads and files from Slack.\n\n"+
+				"This program comes with ABSOLUTELY NO WARRANTY;\n"+
 				"This is free software, and you are welcome to redistribute it\n"+
-				"under certain conditions\n\n"+
-				"Usage:  %s [flags] [ID1 ID2 ... IDN]\n"+
-				"\twhere: ID is the conversation ID or URL Link to a conversation or thread\n\nflags:\n",
-			build, filepath.Base(os.Args[0]))
+				"under certain conditions.  Read LICENSE for more information.\n\n"+
+				"Usage:  %s [flags] < -u | -c | [ID1 ID2 ... IDN] >\n"+
+				"\twhere: ID is the conversation ID or URL Link to a conversation or thread\n"+
+				"* NOTE: either `-u`, `-c` or URL or ID of the conversation must be specified\n\n"+
+				"flags:\n",
+			filepath.Base(os.Args[0]))
 		fs.PrintDefaults()
 	}
 
-	var p params
+	var p = params{
+		appCfg: app.Config{
+			Options: slackdump.DefOptions,
+		},
+	}
 
 	// authentication
 	fs.StringVar(&p.creds.token, "t", osenv.Secret(slackTokenEnv, ""), "Specify slack `API_token`, (environment: "+slackTokenEnv+")")
@@ -211,6 +280,7 @@ func parseCmdLine(args []string) (params, error) {
 	fs.Var(&p.appCfg.Latest, "dump-to", "`timestamp` of the latest message to fetch to (i.e. 2020-12-31T23:59:59)")
 
 	// - main executable parameters
+	fs.StringVar(&p.logFile, "log", osenv.Value("LOG_FILE", ""), "log `file`, if not specified, messages are printed to STDERR")
 	fs.StringVar(&p.traceFile, "trace", osenv.Value("TRACE_FILE", ""), "trace `file` (optional)")
 	fs.BoolVar(&p.printVersion, "V", false, "print version and exit")
 	fs.BoolVar(&p.verbose, "v", osenv.Value("DEBUG", false), "verbose messages")
@@ -227,6 +297,7 @@ func parseCmdLine(args []string) (params, error) {
 	return p, p.validate()
 }
 
+// validate checks if the parameters are valid.
 func (p *params) validate() error {
 	if p.printVersion {
 		return nil
@@ -234,6 +305,7 @@ func (p *params) validate() error {
 	return p.appCfg.Validate()
 }
 
+// banner prints the program banner.
 func banner(w io.Writer) {
 	fmt.Fprintf(w, bannerFmt, build, buildYear, trunc(commit, 7))
 }

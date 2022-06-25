@@ -7,7 +7,6 @@ import (
 	"runtime/trace"
 	"time"
 
-	"github.com/rusq/dlog"
 	"github.com/slack-go/slack"
 
 	"github.com/rusq/slackdump/v2/internal/network"
@@ -80,14 +79,14 @@ func (sd *Session) getChannels(ctx context.Context, chanTypes []string, cb func(
 		}
 		total += len(chans)
 
-		dlog.Printf("channels request #%5d, fetched: %4d, total: %8d (speed: %6.2f/sec, avg: %6.2f/sec)\n",
+		sd.l().Printf("channels request #%5d, fetched: %4d, total: %8d (speed: %6.2f/sec, avg: %6.2f/sec)\n",
 			i, len(chans), total,
 			float64(len(chans))/float64(time.Since(reqStart).Seconds()),
 			float64(total)/float64(time.Since(fetchStart).Seconds()),
 		)
 
 		if nextcur == "" {
-			dlog.Printf("channels fetch complete, total: %d channels", total)
+			sd.l().Printf("channels fetch complete, total: %d channels", total)
 			break
 		}
 
