@@ -220,7 +220,7 @@ func (sd *Session) l() logger.Interface {
 	return sd.options.Logger
 }
 
-// propagateLogger propagates the slackdump logger to other packages.
+// propagateLogger propagates the slackdump logger to some dumb packages.
 func (sd *Session) propagateLogger(l logger.Interface) {
 	network.Logger = l
 }
