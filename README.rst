@@ -87,11 +87,16 @@ See |go ref|
 
 Custom Logger
 -------------
-Slackdump uses `rusq/dlog`_ as a default logger.  If you need to plug in some
-other logger, such as logrus_ or glog_, it is simply a matter of wrapping the
-calls of the logger of your choice, to satisfy the ``logger.Interface`` (defined
-in the `logger`_ package), and then setting the Logger option in
+Slackdump uses a simple `rusq/dlog`_ as a default logger (it is a wrapper around
+the standard logger that adds `Debug*` functions).  If you need to plug in some
+other logger, such as logrus_ or glog_, it is a matter of wrapping the calls of
+the logger of your choice, to satisfy the ``logger.Interface`` (defined in the
+`logger`_ package), and then setting the ``Logger`` variable in
 `slackdump.Options` (see `options.go`_).
+
+.. NOTE::
+  logrus_ can be plugged in straight away, as it implements the
+  ``logger.Interface`` out of the box.
 
 FAQ
 ===

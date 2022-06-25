@@ -21,25 +21,14 @@ type App struct {
 	sd   *slackdump.Session
 	tmpl *template.Template
 	fs   fsadapter.FS
-	dlog logger.Interface
 
 	prov auth.Provider
 	cfg  Config
 }
 
-type Option func(*App)
-
-func WithLogger(l logger.Interface) Option {
-	return func(a *App) {
-		if l == nil {
-			l = logger.Default
-		}
-		a.dlog = l
-	}
-}
-
-// New creates a new slackdump app.
-func New(cfg Config, provider auth.Provider, opt ...Option) (*App, error) {
+// New creates a new slackdump app. It inherits the logging from slack optiond
+// in the Config.
+func New(cfg Config, provider auth.Provider) (*App, error) {
 	if err := cfg.Validate(); err != nil {
 		return nil, err
 	}
@@ -51,10 +40,7 @@ func New(cfg Config, provider auth.Provider, opt ...Option) (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	app := &App{cfg: cfg, prov: provider, tmpl: tmpl, fs: fs, dlog: logger.Default}
-	for _, o := range opt {
-		o(app)
-	}
+	app := &App{cfg: cfg, prov: provider, tmpl: tmpl, fs: fs}
 	return app, nil
 }
 
@@ -148,8 +134,9 @@ func (app *App) runDump(ctx context.Context) error {
 }
 
 func (app *App) l() logger.Interface {
-	if app.dlog == nil {
-		app.dlog = logger.Default
+	// inherit the logger from the slackdump options
+	if app.cfg.Options.Logger == nil {
+		app.cfg.Options.Logger = logger.Default
 	}
-	return app.dlog
+	return app.cfg.Options.Logger
 }

@@ -14,7 +14,6 @@ import (
 	"syscall"
 
 	"github.com/joho/godotenv"
-	"github.com/rusq/dlog"
 	"github.com/rusq/osenv/v2"
 	"github.com/rusq/tracer"
 	"github.com/slack-go/slack"
@@ -82,22 +81,24 @@ func main() {
 
 // run runs the dumper.
 func run(ctx context.Context, p params) error {
-	lg := logger.Default
-	lg.SetDebug(p.verbose)
-
 	// init logging and tracing
-	if logStopFn, err := initLog(lg, p.logFile); err != nil {
+	lg, logStopFn, err := initLog(p.logFile, p.verbose)
+	if err != nil {
 		return err
-	} else {
-		defer logStopFn()
 	}
+	defer logStopFn()
+
+	// - setting the logger for slackdump package
+	p.appCfg.Options.Logger = lg
+
+	// - trace init
 	if traceStopFn, err := initTrace(lg, p.traceFile); err != nil {
 		return err
 	} else {
 		defer traceStopFn()
 	}
 
-	// initialise context with tracing information
+	// initialise context with trace task.
 	ctx, task := trace.NewTask(ctx, "main.run")
 	defer task.End()
 
@@ -114,7 +115,7 @@ func run(ctx context.Context, p params) error {
 	trace.Logf(ctx, "info", "params: input: %+v", p)
 
 	// initialise the application
-	application, err := app.New(p.appCfg, provider, app.WithLogger(lg))
+	application, err := app.New(p.appCfg, provider)
 	if err != nil {
 		trace.Logf(ctx, "error", "app.New: %s", err.Error())
 		return fmt.Errorf("application failed to initialise: %w", err)
@@ -139,23 +140,30 @@ func run(ctx context.Context, p params) error {
 
 // initLog initialises the logging.  If the filename is not empty, the file will
 // be opened, and the logger output will be switch to that file.  Returns the
-// stop function that must be called in the deferred call.  If the error is returned
-// the stop function is nil.
-func initLog(lg *dlog.Logger, filename string) (stop func(), err error) {
+// initialised logger, stop function and an error, if any.  The stop function
+// must be called in the deferred call, it will close the log file, if it is
+// open. If the error is returned the stop function is nil.
+func initLog(filename string, verbose bool) (logger.Interface, func(), error) {
+	lg := logger.Default
+	lg.SetDebug(verbose)
+
 	if filename == "" {
-		return func() {}, nil
+		return lg, func() {}, nil
 	}
+
 	lg.Debugf("log messages will be written to: %q", filename)
 	lf, err := os.OpenFile(filename, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0666)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create the log file: %w", err)
+		return lg, nil, fmt.Errorf("failed to create the log file: %w", err)
 	}
 	lg.SetOutput(lf)
-	return func() {
+
+	stopFn := func() {
 		if err := lf.Close(); err != nil {
 			log.Printf("failed to close the log file: %s", err)
 		}
-	}, nil
+	}
+	return lg, stopFn, nil
 }
 
 // initTrace initialises the tracing.  If the filename is not empty, the file
@@ -201,14 +209,15 @@ func parseCmdLine(args []string) (params, error) {
 	fs.Usage = func() {
 		fmt.Fprintf(
 			flag.CommandLine.Output(),
-			"Slackdump %s\n"+
-				"Slackdump dumps messages and files from Slack.\n"+
-				"This program comes with ABSOLUTELY NO WARRANTY;\n\n"+
+			"Slackdump saves conversations, threads and files from Slack.\n\n"+
+				"This program comes with ABSOLUTELY NO WARRANTY;\n"+
 				"This is free software, and you are welcome to redistribute it\n"+
-				"under certain conditions\n\n"+
-				"Usage:  %s [flags] [ID1 ID2 ... IDN]\n"+
-				"\twhere: ID is the conversation ID or URL Link to a conversation or thread\n\nflags:\n",
-			build, filepath.Base(os.Args[0]))
+				"under certain conditions.  Read LICENSE for more information.\n\n"+
+				"Usage:  %s [flags] < -u | -c | [ID1 ID2 ... IDN] >\n"+
+				"\twhere: ID is the conversation ID or URL Link to a conversation or thread\n"+
+				"* NOTE: either `-u`, `-c` or URL or ID of the conversation must be specified\n\n"+
+				"flags:\n",
+			filepath.Base(os.Args[0]))
 		fs.PrintDefaults()
 	}
 
