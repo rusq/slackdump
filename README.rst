@@ -88,9 +88,15 @@ See |go ref|
 Using Custom Logger
 -------------------
 Slackdump uses a simple `rusq/dlog`_ as a default logger (it is a wrapper around
-the standard logger that adds `Debug*` functions).  Of course, everyone has
-their own favourite logger that is better than other miserable loggers.  Please
-read below for instructions on your favourite logger.
+the standard logger that adds `Debug*` functions). 
+
+If you want to use the same default logger that Slackdump uses in your
+application, it is available as ``logger.Default``.
+
+No doubts that everyone has their own favourite logger that is better than other
+miserable loggers.  Please read below for instructions on plugging your
+favourite logger.
+
 
 Logrus
 ~~~~~~
@@ -115,6 +121,7 @@ the calls to satisfy the ``logger.Interface`` (defined in the `logger`_
 package), and then setting the ``Logger`` variable in `slackdump.Options` (see
 `options.go`_), or using `WithLogger` option.
 
+
 FAQ
 ===
 
@@ -130,7 +137,7 @@ FAQ
 
 
 Bulletin Board
---------------
+==============
 
 Messages that were conveyed with the donations:
 
