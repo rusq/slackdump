@@ -23,7 +23,7 @@ func (u UrlInfo) IsValid() bool {
 	return u.Channel != "" || (u.Channel != "" && u.ThreadTS != "")
 }
 
-var errUnsupportedURL = errors.New("unsuuported URL type")
+var ErrUnsupportedURL = errors.New("unsuuported URL type")
 
 func ParseURL(slackURL string) (*UrlInfo, error) {
 	if slackURL == "" {
@@ -39,7 +39,7 @@ func ParseURL(slackURL string) (*UrlInfo, error) {
 
 	parts := strings.Split(strings.TrimPrefix(uri.Path, "/"), "/")
 	if !strings.EqualFold(parts[0], "archives") || len(parts) < 2 || parts[1] == "" {
-		return nil, errUnsupportedURL
+		return nil, ErrUnsupportedURL
 	}
 
 	var ui UrlInfo
@@ -48,7 +48,7 @@ func ParseURL(slackURL string) (*UrlInfo, error) {
 		//thread
 		ts, err := ParseThreadID(parts[2])
 		if err != nil {
-			return nil, errUnsupportedURL
+			return nil, ErrUnsupportedURL
 		}
 		ui.ThreadTS = FormatSlackTS(ts)
 		fallthrough
@@ -56,10 +56,15 @@ func ParseURL(slackURL string) (*UrlInfo, error) {
 		// channel
 		ui.Channel = parts[1]
 	default:
-		return nil, errUnsupportedURL
+		return nil, ErrUnsupportedURL
 	}
 	if !ui.IsValid() {
 		return nil, fmt.Errorf("invalid URL: %q", slackURL)
 	}
 	return &ui, nil
+}
+
+// IsURL returns true if the value looks like URL, false if not.
+func IsURL(s string) bool {
+	return strings.HasPrefix(strings.ToLower(s), "https://")
 }

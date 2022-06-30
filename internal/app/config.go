@@ -14,7 +14,10 @@ import (
 	"github.com/rusq/slackdump/v2/types"
 )
 
-const filenameTmplName = "fnt"
+const (
+	filenameTmplName = "fnt"
+	excludeRune      = '^'
+)
 
 type Config struct {
 	ListFlags ListFlags
@@ -39,8 +42,9 @@ type Output struct {
 }
 
 type Input struct {
-	List     []string // Input list
-	Filename string   // filename containing the list of Conversation IDs or URLs to download.
+	List        []string // Include channels
+	ExcludeList []string // Exclude channels
+	Filename    string   // filename containing the list of Conversation IDs or URLs to download.
 }
 
 var (
@@ -49,12 +53,28 @@ var (
 	errSkip = errors.New("skip")
 )
 
-func (in Input) IsValid() bool {
+func (in *Input) IsValid() bool {
 	return len(in.List) > 0 || in.Filename != ""
 }
 
+// Load loads the slice of strings, populating List and ExcludeList with
+// elements of s.
+// If the item is prefixed with ! then it is placed to ExcludeList, otherwise
+// it gets to the include list.
+func (in *Input) Load(elements []string) {
+	for _, el := range elements {
+		if el == "" {
+			continue
+		} else if el[0] == excludeRune {
+			in.ExcludeList = append(in.ExcludeList, el[1:])
+		} else {
+			in.List = append(in.List, el)
+		}
+	}
+}
+
 // listProducer iterates over the input.List, and calls fn for each entry.
-func (in Input) listProducer(fn func(string) error) error {
+func (in *Input) listProducer(fn func(string) error) error {
 	if !in.IsValid() {
 		return ErrInvalidInput
 	}

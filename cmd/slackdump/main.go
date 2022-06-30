@@ -292,7 +292,7 @@ func parseCmdLine(args []string) (params, error) {
 		return p, err
 	}
 
-	p.appCfg.Input.List = fs.Args()
+	p.appCfg.Input.Load(fs.Args())
 
 	return p, p.validate()
 }

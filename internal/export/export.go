@@ -8,7 +8,6 @@ import (
 	"io"
 	"path"
 	"path/filepath"
-	"time"
 
 	"github.com/slack-go/slack"
 
@@ -30,14 +29,6 @@ type Export struct {
 
 	// time window
 	opts Options
-}
-
-// Options allows to configure slack export options.
-type Options struct {
-	Oldest       time.Time
-	Latest       time.Time
-	IncludeFiles bool
-	Logger       logger.Interface
 }
 
 // New creates a new Export instance, that will save export to the
@@ -76,15 +67,46 @@ func (se *Export) users(ctx context.Context) (types.Users, error) {
 }
 
 func (se *Export) messages(ctx context.Context, users types.Users) error {
-	var chans []slack.Channel
 	dl := downloader.New(se.sd.Client(), se.fs, downloader.Logger(se.l()))
 	if se.opts.IncludeFiles {
 		// start the downloader
 		dl.Start(ctx)
 	}
 
+	filterFn, err := se.opts.makeFilterFn()
+	if err != nil {
+		return err
+	}
+
+	var chans []slack.Channel
+	if len(se.opts.Include) > 0 {
+		// if there an Include list, we don't need to retrieve all channels,
+		// only the ones that are specified.
+		chans, err = se.exportList(ctx, dl, users, se.opts.Include, filterFn)
+	} else {
+		chans, err = se.exportAll(ctx, dl, users, filterFn)
+	}
+	if err != nil {
+		return fmt.Errorf("export error: %w", err)
+	}
+
+	idx, err := createIndex(chans, users, se.sd.CurrentUserID())
+	if err != nil {
+		return fmt.Errorf("failed to create an index: %w", err)
+	}
+
+	return idx.Marshal(se.fs)
+}
+
+func (se *Export) exportAll(ctx context.Context, dl *downloader.Client, users types.Users, shouldExport filterFunc) ([]slack.Channel, error) {
+	chans := make([]slack.Channel, 0)
+
 	// we need the current user to be able to build an index of DMs.
 	if err := se.sd.StreamChannels(ctx, slackdump.AllChanTypes, func(ch slack.Channel) error {
+		if !shouldExport(ch.ID) {
+			se.l().Debugf("skipping %s")
+			return nil
+		}
 		if err := se.exportConversation(ctx, dl, users.IndexByID(), ch); err != nil {
 			return err
 		}
@@ -94,15 +116,35 @@ func (se *Export) messages(ctx context.Context, users types.Users) error {
 		return nil
 
 	}); err != nil {
-		return fmt.Errorf("channels: error: %w", err)
+		return nil, fmt.Errorf("channels: error: %w", err)
+	}
+	return chans, nil
+}
+
+func (se *Export) exportList(ctx context.Context, dl *downloader.Client, users types.Users, list []string, shouldExport filterFunc) ([]slack.Channel, error) {
+	// preallocate, some channels might be excluded, so this is optimistic
+	// allocation
+	chans := make([]slack.Channel, 0, len(list))
+
+	// we need the current user to be able to build an index of DMs.
+	for _, id := range list {
+		if !shouldExport(id) {
+			se.l().Debugf("skipping %s")
+			continue
+		}
+		ch, err := se.sd.Client().GetConversationInfo(id, true)
+		if err != nil {
+			return nil, fmt.Errorf("error getting info for %s:%w", id, err)
+		}
+
+		if err := se.exportConversation(ctx, dl, users.IndexByID(), *ch); err != nil {
+			return nil, err
+		}
+
+		chans = append(chans, *ch)
 	}
 
-	idx, err := createIndex(chans, users, se.sd.CurrentUserID())
-	if err != nil {
-		return fmt.Errorf("failed to create an index: %w", err)
-	}
-
-	return idx.Marshal(se.fs)
+	return chans, nil
 }
 
 // exportConversation exports one conversation.

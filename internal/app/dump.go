@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/rusq/slackdump/v2"
+	"github.com/rusq/slackdump/v2/internal/structures"
 	"github.com/rusq/slackdump/v2/types"
 )
 
@@ -50,7 +51,7 @@ type dumpFunc func(context.Context, string, time.Time, time.Time, ...slackdump.P
 
 // newDumpFunc returns the appropriate dump function depending on the input s.
 func (app *App) newDumpFunc(s string) dumpFunc {
-	if strings.HasPrefix(strings.ToLower(s), "https://") {
+	if structures.IsURL(s) {
 		return app.sd.DumpURL
 	} else {
 		return app.sd.DumpMessages

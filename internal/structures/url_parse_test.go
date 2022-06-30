@@ -160,3 +160,37 @@ func TestURLInfo_IsValid(t *testing.T) {
 		})
 	}
 }
+
+func TestIsURL(t *testing.T) {
+	type args struct {
+		s string
+	}
+	tests := []struct {
+		name string
+		args args
+		want bool
+	}{
+		{
+			"is url",
+			args{"https://github.com/rusq/slackdump"},
+			true,
+		},
+		{
+			"is no url",
+			args{"C43012851"},
+			false,
+		},
+		{
+			"empty",
+			args{""},
+			false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := IsURL(tt.args.s); got != tt.want {
+				t.Errorf("IsURL() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
