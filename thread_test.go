@@ -16,7 +16,7 @@ import (
 	"github.com/rusq/slackdump/v2/types"
 )
 
-func TestSlackDumper_DumpThread(t *testing.T) {
+func TestSession_DumpThreadWithFiles(t *testing.T) {
 	type fields struct {
 		Users     types.Users
 		UserIndex structures.UserIndex
@@ -168,7 +168,7 @@ func TestSlackDumper_DumpThread(t *testing.T) {
 				UserIndex: tt.fields.UserIndex,
 				options:   tt.fields.options,
 			}
-			got, err := sd.DumpThread(tt.args.ctx, tt.args.channelID, tt.args.threadTS, tt.args.oldest, tt.args.latest)
+			got, err := sd.dumpThreadAsConversation(tt.args.ctx, structures.SlackLink{Channel: tt.args.channelID, ThreadTS: tt.args.threadTS}, tt.args.oldest, tt.args.latest)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("SlackDumper.dumpThread() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -178,7 +178,7 @@ func TestSlackDumper_DumpThread(t *testing.T) {
 	}
 }
 
-func TestSlackDumper_populateThreads(t *testing.T) {
+func TestSession_populateThreads(t *testing.T) {
 	type args struct {
 		ctx       context.Context
 		l         *rate.Limiter
@@ -266,7 +266,7 @@ func TestSlackDumper_populateThreads(t *testing.T) {
 	}
 }
 
-func TestSlackDumper_dumpThread(t *testing.T) {
+func TestSession_dumpThread(t *testing.T) {
 	type fields struct {
 		Users     types.Users
 		UserIndex structures.UserIndex

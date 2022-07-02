@@ -20,6 +20,7 @@ import (
 
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/internal/app"
+	"github.com/rusq/slackdump/v2/internal/structures"
 	"github.com/rusq/slackdump/v2/logger"
 )
 
@@ -240,7 +241,6 @@ func parseCmdLine(args []string) (params, error) {
 	fs.StringVar(&p.appCfg.ExportName, "export", "", "`name` of the directory or zip file to export the Slack workspace to."+zipHint)
 
 	// input-ouput options
-	fs.StringVar(&p.appCfg.Input.Filename, "i", "", "specify the `input file` with Channel IDs or URLs to be used instead of\nlisting everything on the command line, one per line.\nUse \"-\" to read input from STDIN.")
 	fs.StringVar(&p.appCfg.Output.Filename, "o", "-", "Output `filename` for users and channels.\nUse '-' for the Standard Output.")
 	fs.StringVar(&p.appCfg.Output.Format, "r", "", "report `format`.  One of 'json' or 'text'")
 	fs.StringVar(&p.appCfg.Output.Base, "base", "", "`name` of a directory or a file to save dumps to."+zipHint)
@@ -292,7 +292,12 @@ func parseCmdLine(args []string) (params, error) {
 		return p, err
 	}
 
-	p.appCfg.Input.Load(fs.Args())
+	el, err := structures.MakeEntityList(fs.Args())
+	if err != nil {
+		return p, err
+	}
+
+	p.appCfg.Input.List = el
 
 	return p, p.validate()
 }

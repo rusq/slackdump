@@ -11,6 +11,7 @@ import (
 
 	"github.com/slack-go/slack"
 
+	"github.com/rusq/dlog"
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/downloader"
 	"github.com/rusq/slackdump/v2/fsadapter"
@@ -73,19 +74,9 @@ func (se *Export) messages(ctx context.Context, users types.Users) error {
 		dl.Start(ctx)
 	}
 
-	filterFn, err := se.opts.makeFilterFn()
-	if err != nil {
-		return err
-	}
-
 	var chans []slack.Channel
-	if len(se.opts.Include) > 0 {
-		// if there an Include list, we don't need to retrieve all channels,
-		// only the ones that are specified.
-		chans, err = se.exportList(ctx, dl, users, se.opts.Include, filterFn)
-	} else {
-		chans, err = se.exportAll(ctx, dl, users, filterFn)
-	}
+
+	chans, err := se.exportChannels(ctx, dl, users, se.opts.List)
 	if err != nil {
 		return fmt.Errorf("export error: %w", err)
 	}
@@ -98,16 +89,27 @@ func (se *Export) messages(ctx context.Context, users types.Users) error {
 	return idx.Marshal(se.fs)
 }
 
-func (se *Export) exportAll(ctx context.Context, dl *downloader.Client, users types.Users, shouldExport filterFunc) ([]slack.Channel, error) {
+func (se *Export) exportChannels(ctx context.Context, dl *downloader.Client, users types.Users, el *structures.EntityList) ([]slack.Channel, error) {
+	if se.opts.List.HasIncludes() {
+		// if there an Include list, we don't need to retrieve all channels,
+		// only the ones that are specified.
+		return se.inclusiveExport(ctx, dl, users, se.opts.List)
+	} else {
+		return se.exclusiveExport(ctx, dl, users, se.opts.List)
+	}
+}
+func (se *Export) exclusiveExport(ctx context.Context, dl *downloader.Client, users types.Users, el *structures.EntityList) ([]slack.Channel, error) {
 	chans := make([]slack.Channel, 0)
 
+	listIdx := el.Index()
+	uidx := users.IndexByID()
 	// we need the current user to be able to build an index of DMs.
 	if err := se.sd.StreamChannels(ctx, slackdump.AllChanTypes, func(ch slack.Channel) error {
-		if !shouldExport(ch.ID) {
-			se.l().Debugf("skipping %s")
+		if include, ok := listIdx[ch.ID]; ok && !include {
+			dlog.Debugf("skipping: %s", ch.ID)
 			return nil
 		}
-		if err := se.exportConversation(ctx, dl, users.IndexByID(), ch); err != nil {
+		if err := se.exportConversation(ctx, dl, uidx, ch); err != nil {
 			return err
 		}
 
@@ -121,18 +123,17 @@ func (se *Export) exportAll(ctx context.Context, dl *downloader.Client, users ty
 	return chans, nil
 }
 
-func (se *Export) exportList(ctx context.Context, dl *downloader.Client, users types.Users, list []string, shouldExport filterFunc) ([]slack.Channel, error) {
+func (se *Export) inclusiveExport(ctx context.Context, dl *downloader.Client, users types.Users, list *structures.EntityList) ([]slack.Channel, error) {
 	// preallocate, some channels might be excluded, so this is optimistic
 	// allocation
-	chans := make([]slack.Channel, 0, len(list))
+	if !list.HasIncludes() {
+		return nil, errors.New("empty input")
+	}
+	chans := make([]slack.Channel, 0, len(list.Include))
 
 	// we need the current user to be able to build an index of DMs.
-	for _, id := range list {
-		if !shouldExport(id) {
-			se.l().Debugf("skipping %s")
-			continue
-		}
-		ch, err := se.sd.Client().GetConversationInfo(id, true)
+	for _, id := range list.Include {
+		ch, err := se.sd.Client().GetConversationInfoContext(ctx, id, true)
 		if err != nil {
 			return nil, fmt.Errorf("error getting info for %s:%w", id, err)
 		}
@@ -150,7 +151,7 @@ func (se *Export) exportList(ctx context.Context, dl *downloader.Client, users t
 // exportConversation exports one conversation.
 func (se *Export) exportConversation(ctx context.Context, dl *downloader.Client, userIdx structures.UserIndex, ch slack.Channel) error {
 	dlFn := se.downloadFn(dl, ch.Name)
-	messages, err := se.sd.DumpMessagesRaw(ctx, ch.ID, se.opts.Oldest, se.opts.Latest, dlFn)
+	messages, err := se.sd.DumpRaw(ctx, ch.ID, se.opts.Oldest, se.opts.Latest, dlFn)
 	if err != nil {
 		return fmt.Errorf("failed to dump %q (%s): %w", ch.Name, ch.ID, err)
 	}

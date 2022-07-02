@@ -5,29 +5,59 @@ package structures
 import (
 	"fmt"
 	"net/url"
+	"regexp"
 	"strings"
 
 	"github.com/pkg/errors"
 )
 
-type UrlInfo struct {
+const linkSep = ":"
+
+type SlackLink struct {
 	Channel  string
 	ThreadTS string
 }
 
-func (u UrlInfo) IsThread() bool {
+func (u SlackLink) IsThread() bool {
+	if !u.IsValid() {
+		return false
+	}
 	return u.ThreadTS != ""
 }
 
-func (u UrlInfo) IsValid() bool {
+func (u SlackLink) IsValid() bool {
 	return u.Channel != "" || (u.Channel != "" && u.ThreadTS != "")
 }
 
-var ErrUnsupportedURL = errors.New("unsuuported URL type")
+func (u SlackLink) String() string {
+	return strings.Join([]string{u.Channel, u.ThreadTS}, linkSep)
+}
 
-func ParseURL(slackURL string) (*UrlInfo, error) {
+func ParseLink(link string) (SlackLink, error) {
+	if IsURL(link) {
+		sl, err := ParseURL(link)
+		if err != nil {
+			return SlackLink{}, err
+		}
+		return *sl, nil
+	}
+
+	id, ts, _ := strings.Cut(link, linkSep)
+	return SlackLink{Channel: id, ThreadTS: ts}, nil
+}
+
+var (
+	ErrUnsupportedURL = errors.New("unsupported URL type")
+	ErrNoURL          = errors.New("no url provided")
+	ErrNotSlackURL    = errors.New("not a slack URL")
+)
+
+func ParseURL(slackURL string) (*SlackLink, error) {
 	if slackURL == "" {
-		return nil, errors.New("no url provided")
+		return nil, ErrNoURL
+	}
+	if !IsValidSlackURL(slackURL) {
+		return nil, ErrNotSlackURL
 	}
 	uri, err := url.Parse(slackURL)
 	if err != nil {
@@ -42,7 +72,7 @@ func ParseURL(slackURL string) (*UrlInfo, error) {
 		return nil, ErrUnsupportedURL
 	}
 
-	var ui UrlInfo
+	var ui SlackLink
 	switch len(parts) {
 	case 3:
 		//thread
@@ -64,7 +94,15 @@ func ParseURL(slackURL string) (*UrlInfo, error) {
 	return &ui, nil
 }
 
-// IsURL returns true if the value looks like URL, false if not.
+// Sample: https://ora600.slack.com/archives/CHM82GF99/p1577694990000400
+var slackURLRe = regexp.MustCompile(`^https:\/\/[\w]+\.slack\.com\/archives\/[A-Z]{1}[A-Z0-9]+(\/p(\d+))?$`)
+
+// IsValidSlackURL returns true if the value looks like valid Slack URL, false
+// if not.
+func IsValidSlackURL(s string) bool {
+	return slackURLRe.MatchString(s)
+}
+
 func IsURL(s string) bool {
 	return strings.HasPrefix(strings.ToLower(s), "https://")
 }
@@ -85,7 +123,7 @@ func ResolveURLs(idsOrURLs []string) ([]string, error) {
 			val = val[len(excludePrefix):] // remove exclude prefix for the sake of parsing
 		}
 
-		if !IsURL(val) {
+		if !IsValidSlackURL(val) {
 			continue
 		}
 		ch, err := ParseURL(val)
