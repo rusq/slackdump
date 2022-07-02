@@ -103,9 +103,9 @@ Command line flags are described as of version ``v2.0.0``.
 
 
 \-i
-   specify the input file with Channel IDs or URLs to be used instead
-   of giving the list on the command line, one per line.  Use "-" to
-   read input from STDIN.  Example: ``-i my_links.txt``.
+   Deprecated.  Use '@' to specify the file with links and IDs:  Example::
+
+      slackdump @my_list.txt
 
 \-limiter-boost
    same as -t3-boost. (default 120)
