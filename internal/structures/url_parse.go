@@ -68,3 +68,40 @@ func ParseURL(slackURL string) (*UrlInfo, error) {
 func IsURL(s string) bool {
 	return strings.HasPrefix(strings.ToLower(s), "https://")
 }
+
+// ResolveURLs normalises all channels to ID form.  If the idsOrURLs[i] is
+// a channel ID, it is unmodified, if it is URL - it is parsed and replaced
+// with the channel ID.  If the channel is marked for exclusion in the list
+// it will retain this status.
+func ResolveURLs(idsOrURLs []string) ([]string, error) {
+	var ret = make([]string, len(idsOrURLs))
+	for i, val := range idsOrURLs {
+		if val == "" {
+			continue
+		}
+
+		restorePrefix := HasExcludePrefix(val)
+		if restorePrefix {
+			val = val[len(excludePrefix):] // remove exclude prefix for the sake of parsing
+		}
+
+		if !IsURL(val) {
+			continue
+		}
+		ch, err := ParseURL(val)
+		if err != nil {
+			return nil, fmt.Errorf("error parsing Slack URL %q: %w", val, err)
+		}
+		if !ch.IsValid() {
+			return nil, fmt.Errorf("not a valid Slack URL: %s", val)
+		}
+
+		if restorePrefix {
+			// restoring exclude prefix
+			ret[i] = excludePrefix + ch.Channel
+		} else {
+			ret[i] = ch.Channel
+		}
+	}
+	return ret, nil
+}
