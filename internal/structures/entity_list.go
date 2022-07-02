@@ -2,7 +2,6 @@ package structures
 
 import (
 	"bufio"
-	"fmt"
 	"io"
 	"os"
 	"sort"
@@ -86,11 +85,6 @@ func readEntityList(r io.Reader, maxEntries int) (*EntityList, error) {
 			continue
 		}
 		// test if it's a valid line
-		if IsURL(line) {
-			if _, err := ParseURL(line); err != nil {
-				return nil, fmt.Errorf("error on line: %d: %w", n, err)
-			}
-		}
 		elements = append(elements, line)
 		if exit {
 			break
@@ -153,7 +147,11 @@ func buildEntityIndex(entities []string) (map[string]bool, error) {
 			if trimmed == "" {
 				continue
 			}
-			excluded = append(excluded, trimmed)
+			sl, err := ParseLink(trimmed)
+			if err != nil {
+				return nil, err
+			}
+			excluded = append(excluded, sl.String())
 		case hasFilePrefix(ent):
 			trimmed := strings.TrimPrefix(ent, filePrefix)
 			if trimmed == "" {
@@ -161,7 +159,11 @@ func buildEntityIndex(entities []string) (map[string]bool, error) {
 			}
 			files = append(files, trimmed)
 		default:
-			index[ent] = true
+			sl, err := ParseLink(ent)
+			if err != nil {
+				return nil, err
+			}
+			index[sl.String()] = true
 		}
 	}
 	// process files

@@ -13,6 +13,13 @@ import (
 
 const linkSep = ":"
 
+var (
+	ErrUnsupportedURL = errors.New("unsupported URL type")
+	ErrNoURL          = errors.New("no url provided")
+	ErrNotSlackURL    = errors.New("not a slack URL")
+	ErrInvalidLink    = errors.New("invalid link")
+)
+
 type SlackLink struct {
 	Channel  string
 	ThreadTS string
@@ -30,8 +37,16 @@ func (u SlackLink) IsValid() bool {
 }
 
 func (u SlackLink) String() string {
+	if !u.IsValid() {
+		return "<invalid slack link>"
+	}
+	if !u.IsThread() {
+		return u.Channel
+	}
 	return strings.Join([]string{u.Channel, u.ThreadTS}, linkSep)
 }
+
+var linkRe = regexp.MustCompile(`^[A-Za-z]{1}[A-Za-z0-9]+(:[0-9]+\.[0-9]+)?$`)
 
 func ParseLink(link string) (SlackLink, error) {
 	if IsURL(link) {
@@ -41,16 +56,13 @@ func ParseLink(link string) (SlackLink, error) {
 		}
 		return *sl, nil
 	}
+	if !linkRe.MatchString(link) {
+		return SlackLink{}, fmt.Errorf("%w: %q", ErrInvalidLink, link)
+	}
 
 	id, ts, _ := strings.Cut(link, linkSep)
 	return SlackLink{Channel: id, ThreadTS: ts}, nil
 }
-
-var (
-	ErrUnsupportedURL = errors.New("unsupported URL type")
-	ErrNoURL          = errors.New("no url provided")
-	ErrNotSlackURL    = errors.New("not a slack URL")
-)
 
 func ParseURL(slackURL string) (*SlackLink, error) {
 	if slackURL == "" {

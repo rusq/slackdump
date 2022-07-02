@@ -46,7 +46,7 @@ func New(sd *slackdump.Session, fs fsadapter.FS, cfg Options) *Export {
 // Run runs the export.
 func (se *Export) Run(ctx context.Context) error {
 	// export users to users.json
-	users, err := se.users(ctx)
+	users, err := se.sd.GetUsers(ctx)
 	if err != nil {
 		return err
 	}
@@ -56,15 +56,6 @@ func (se *Export) Run(ctx context.Context) error {
 		return err
 	}
 	return nil
-}
-
-func (se *Export) users(ctx context.Context) (types.Users, error) {
-	// fetch users and save them.
-	users, err := se.sd.GetUsers(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return users, nil
 }
 
 func (se *Export) messages(ctx context.Context, users types.Users) error {
@@ -98,6 +89,7 @@ func (se *Export) exportChannels(ctx context.Context, dl *downloader.Client, use
 		return se.exclusiveExport(ctx, dl, users, se.opts.List)
 	}
 }
+
 func (se *Export) exclusiveExport(ctx context.Context, dl *downloader.Client, users types.Users, el *structures.EntityList) ([]slack.Channel, error) {
 	chans := make([]slack.Channel, 0)
 
@@ -106,7 +98,7 @@ func (se *Export) exclusiveExport(ctx context.Context, dl *downloader.Client, us
 	// we need the current user to be able to build an index of DMs.
 	if err := se.sd.StreamChannels(ctx, slackdump.AllChanTypes, func(ch slack.Channel) error {
 		if include, ok := listIdx[ch.ID]; ok && !include {
-			dlog.Debugf("skipping: %s", ch.ID)
+			dlog.Printf("skipping: %s", ch.ID)
 			return nil
 		}
 		if err := se.exportConversation(ctx, dl, uidx, ch); err != nil {
@@ -114,12 +106,12 @@ func (se *Export) exclusiveExport(ctx context.Context, dl *downloader.Client, us
 		}
 
 		chans = append(chans, ch)
-
 		return nil
 
 	}); err != nil {
 		return nil, fmt.Errorf("channels: error: %w", err)
 	}
+	se.l().Printf("  out of which exported:  %d", len(chans))
 	return chans, nil
 }
 
@@ -132,10 +124,14 @@ func (se *Export) inclusiveExport(ctx context.Context, dl *downloader.Client, us
 	chans := make([]slack.Channel, 0, len(list.Include))
 
 	// we need the current user to be able to build an index of DMs.
-	for _, id := range list.Include {
-		ch, err := se.sd.Client().GetConversationInfoContext(ctx, id, true)
+	for _, entry := range list.Include {
+		sl, err := structures.ParseLink(entry)
 		if err != nil {
-			return nil, fmt.Errorf("error getting info for %s:%w", id, err)
+			return nil, err
+		}
+		ch, err := se.sd.Client().GetConversationInfoContext(ctx, sl.Channel, true)
+		if err != nil {
+			return nil, fmt.Errorf("error getting info for %s: %w", sl, err)
 		}
 
 		if err := se.exportConversation(ctx, dl, users.IndexByID(), *ch); err != nil {
