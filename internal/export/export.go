@@ -102,6 +102,9 @@ func (se *Export) exportChannels(ctx context.Context, dl *downloader.Client, use
 // exclusiveExport exports all channels, excluding ones that are defined in
 // EntityList.  If EntityList has Include channels, they are ignored.
 func (se *Export) exclusiveExport(ctx context.Context, dl *downloader.Client, users types.Users, el *structures.EntityList) ([]slack.Channel, error) {
+	ctx, task := trace.NewTask(ctx, "export.exclusive")
+	defer task.End()
+
 	chans := make([]slack.Channel, 0)
 
 	listIdx := el.Index()
@@ -109,6 +112,7 @@ func (se *Export) exclusiveExport(ctx context.Context, dl *downloader.Client, us
 	// we need the current user to be able to build an index of DMs.
 	if err := se.sd.StreamChannels(ctx, slackdump.AllChanTypes, func(ch slack.Channel) error {
 		if include, ok := listIdx[ch.ID]; ok && !include {
+			trace.Logf(ctx, "info", "skipping %s", ch.ID)
 			dlog.Printf("skipping: %s", ch.ID)
 			return nil
 		}
@@ -129,11 +133,15 @@ func (se *Export) exclusiveExport(ctx context.Context, dl *downloader.Client, us
 // inclusiveExport exports only channels that are defined in the
 // EntryList.Include.
 func (se *Export) inclusiveExport(ctx context.Context, dl *downloader.Client, users types.Users, list *structures.EntityList) ([]slack.Channel, error) {
-	// preallocate, some channels might be excluded, so this is optimistic
-	// allocation
+	ctx, task := trace.NewTask(ctx, "export.inclusive")
+	defer task.End()
+
 	if !list.HasIncludes() {
 		return nil, errors.New("empty input")
 	}
+
+	// preallocate, some channels might be excluded, so this is optimistic
+	// allocation
 	chans := make([]slack.Channel, 0, len(list.Include))
 
 	elIdx := list.Index()
@@ -141,6 +149,7 @@ func (se *Export) inclusiveExport(ctx context.Context, dl *downloader.Client, us
 	// we need the current user to be able to build an index of DMs.
 	for _, entry := range list.Include {
 		if include, ok := elIdx[entry]; ok && !include {
+			trace.Logf(ctx, "info", "skipping %s", entry)
 			dlog.Printf("skipping: %s", entry)
 			continue
 		}
@@ -165,6 +174,9 @@ func (se *Export) inclusiveExport(ctx context.Context, dl *downloader.Client, us
 
 // exportConversation exports one conversation.
 func (se *Export) exportConversation(ctx context.Context, dl *downloader.Client, userIdx structures.UserIndex, ch slack.Channel) error {
+	ctx, task := trace.NewTask(ctx, "export.conversation")
+	defer task.End()
+
 	dlFn := se.downloadFn(dl, ch.Name)
 	messages, err := se.sd.DumpRaw(ctx, ch.ID, se.opts.Oldest, se.opts.Latest, dlFn)
 	if err != nil {
@@ -180,7 +192,7 @@ func (se *Export) exportConversation(ctx context.Context, dl *downloader.Client,
 		return fmt.Errorf("exportConversation: error: %w", err)
 	}
 
-	name, err := validName(ctx, ch, userIdx)
+	name, err := validName(ch, userIdx)
 	if err != nil {
 		return err
 	}
@@ -228,7 +240,7 @@ func (se *Export) downloadFn(dl *downloader.Client, channelName string) func(msg
 // described by @niklasdahlheimer in this post (thanks to @Neznakomec for
 // discovering it):
 // https://github.com/RocketChat/Rocket.Chat/issues/13905#issuecomment-477500022
-func validName(ctx context.Context, ch slack.Channel, uidx structures.UserIndex) (string, error) {
+func validName(ch slack.Channel, uidx structures.UserIndex) (string, error) {
 	if ch.IsIM {
 		return ch.ID, nil
 	} else {
