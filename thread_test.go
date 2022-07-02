@@ -170,7 +170,7 @@ func TestSession_DumpThreadWithFiles(t *testing.T) {
 			}
 			got, err := sd.dumpThreadAsConversation(tt.args.ctx, structures.SlackLink{Channel: tt.args.channelID, ThreadTS: tt.args.threadTS}, tt.args.oldest, tt.args.latest)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("SlackDumper.dumpThread() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("Session.dumpThread() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			assert.Equal(t, tt.want, got)
@@ -256,11 +256,11 @@ func TestSession_populateThreads(t *testing.T) {
 			sd := &Session{}
 			got, err := sd.populateThreads(tt.args.ctx, tt.args.l, tt.args.msgs, tt.args.channelID, tt.args.oldest, tt.args.latest, tt.args.dumpFn)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("SlackDumper.populateThreads() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("Session.populateThreads() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if got != tt.want {
-				t.Errorf("SlackDumper.populateThreads() = %v, want %v", got, tt.want)
+				t.Errorf("Session.populateThreads() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -390,7 +390,7 @@ func TestSession_dumpThread(t *testing.T) {
 			}
 			got, err := sd.dumpThread(tt.args.ctx, tt.args.l, tt.args.channelID, tt.args.threadTS, tt.args.oldest, tt.args.latest)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("SlackDumper.dumpThread() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("Session.dumpThread() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			assert.Equal(t, tt.want, got)

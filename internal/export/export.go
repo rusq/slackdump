@@ -25,7 +25,7 @@ import (
 // Export is the instance of Slack Exporter.
 type Export struct {
 	fs   fsadapter.FS       // target filesystem
-	sd   *slackdump.Session // slackdumper instance
+	sd   *slackdump.Session // Session instance
 	dlog logger.Interface
 
 	// time window

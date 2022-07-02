@@ -11,7 +11,7 @@ import (
 
 const defNumWorkers = 4 // default number of file downloaders. it's here because it's used in several places.
 
-// Options is the option set for the slackdumper.
+// Options is the option set for the Session.
 type Options struct {
 	DumpFiles           bool          // will we save the conversation files?
 	Workers             int           // number of file-saving workers

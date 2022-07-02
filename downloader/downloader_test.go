@@ -31,7 +31,7 @@ var (
 	file9 = slack.File{ID: "f9", Name: "filename9.ext", URLPrivateDownload: "file9_url", Size: 900}
 )
 
-func TestSlackDumper_SaveFileTo(t *testing.T) {
+func TestSession_SaveFileTo(t *testing.T) {
 	tmpdir := t.TempDir()
 
 	type fields struct {
@@ -111,17 +111,17 @@ func TestSlackDumper_SaveFileTo(t *testing.T) {
 			}
 			got, err := sd.SaveFile(tt.args.ctx, tt.args.dir, tt.args.f)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("SlackDumper.SaveFileTo() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("Session.SaveFileTo() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if got != tt.want {
-				t.Errorf("SlackDumper.SaveFileTo() = %v, want %v", got, tt.want)
+				t.Errorf("Session.SaveFileTo() = %v, want %v", got, tt.want)
 			}
 		})
 	}
 }
 
-func TestSlackDumper_saveFile(t *testing.T) {
+func TestSession_saveFile(t *testing.T) {
 	tmpdir := t.TempDir()
 
 	type fields struct {
@@ -203,11 +203,11 @@ func TestSlackDumper_saveFile(t *testing.T) {
 			}
 			got, err := sd.saveFile(tt.args.ctx, tt.args.dir, tt.args.f)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("SlackDumper.saveFileWithLimiter() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("Session.saveFileWithLimiter() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if got != tt.want {
-				t.Errorf("SlackDumper.saveFileWithLimiter() = %v, want %v", got, tt.want)
+				t.Errorf("Session.saveFileWithLimiter() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -233,7 +233,7 @@ func Test_filename(t *testing.T) {
 	}
 }
 
-func TestSlackDumper_newFileDownloader(t *testing.T) {
+func TestSession_newFileDownloader(t *testing.T) {
 	tl := rate.NewLimiter(defLimit, 1)
 	tmpdir, err := os.MkdirTemp("", "")
 	if err != nil {
@@ -272,7 +272,7 @@ func TestSlackDumper_newFileDownloader(t *testing.T) {
 	})
 }
 
-func TestSlackDumper_worker(t *testing.T) {
+func TestSession_worker(t *testing.T) {
 	tl := rate.NewLimiter(defLimit, 1)
 	tmpdir := t.TempDir()
 

@@ -40,7 +40,7 @@ type Session struct {
 
 	fs fsadapter.FS // filesystem for saving attachments
 
-	// Users contains the list of users and populated on NewSlackDumper
+	// Users contains the list of users and populated on NewSession
 	Users     types.Users          `json:"users"`
 	UserIndex structures.UserIndex `json:"-"`
 

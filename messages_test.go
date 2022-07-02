@@ -62,7 +62,7 @@ var (
 	}
 )
 
-func TestSlackDumper_DumpMessages(t *testing.T) {
+func TestSession_DumpMessages(t *testing.T) {
 	type fields struct {
 		Users     types.Users
 		UserIndex structures.UserIndex
@@ -226,7 +226,7 @@ func TestSlackDumper_DumpMessages(t *testing.T) {
 			}
 			got, err := sd.DumpAll(tt.args.ctx, tt.args.channelID)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("SlackDumper.DumpMessages() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("Session.DumpMessages() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			assert.Equal(t, tt.want, got)
@@ -234,7 +234,7 @@ func TestSlackDumper_DumpMessages(t *testing.T) {
 	}
 }
 
-func TestSlackDumper_DumpAll(t *testing.T) {
+func TestSession_DumpAll(t *testing.T) {
 	t.Parallel()
 	type fields struct {
 		Users     types.Users
@@ -310,12 +310,12 @@ func TestSlackDumper_DumpAll(t *testing.T) {
 			}
 			got, err := sd.DumpAll(tt.args.ctx, tt.args.slackURL)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("SlackDumper.DumpAll() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("Session.DumpAll() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			assert.Equal(t, tt.want, got)
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("SlackDumper.DumpAll() = %v, want %v", got, tt.want)
+				t.Errorf("Session.DumpAll() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -361,7 +361,7 @@ func TestConversation_String(t *testing.T) {
 	}
 }
 
-func TestSlackDumper_getChannelName(t *testing.T) {
+func TestSession_getChannelName(t *testing.T) {
 	type fields struct {
 		Users     types.Users
 		UserIndex structures.UserIndex
@@ -423,11 +423,11 @@ func TestSlackDumper_getChannelName(t *testing.T) {
 			}
 			got, err := sd.getChannelName(tt.args.ctx, tt.args.l, tt.args.channelID)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("SlackDumper.getChannelName() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("Session.getChannelName() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if got != tt.want {
-				t.Errorf("SlackDumper.getChannelName() = %v, want %v", got, tt.want)
+				t.Errorf("Session.getChannelName() = %v, want %v", got, tt.want)
 			}
 		})
 	}
