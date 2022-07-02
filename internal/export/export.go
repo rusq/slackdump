@@ -8,6 +8,7 @@ import (
 	"io"
 	"path"
 	"path/filepath"
+	"runtime/trace"
 
 	"github.com/slack-go/slack"
 
@@ -45,20 +46,28 @@ func New(sd *slackdump.Session, fs fsadapter.FS, cfg Options) *Export {
 
 // Run runs the export.
 func (se *Export) Run(ctx context.Context) error {
+	ctx, task := trace.NewTask(ctx, "export.Run")
+	defer task.End()
+
 	// export users to users.json
 	users, err := se.sd.GetUsers(ctx)
 	if err != nil {
+		trace.Logf(ctx, "error", "GetUsers: %s", err)
 		return err
 	}
 
 	// export channels to channels.json
 	if err := se.messages(ctx, users); err != nil {
+		trace.Logf(ctx, "error", "messages: %s", err)
 		return err
 	}
 	return nil
 }
 
 func (se *Export) messages(ctx context.Context, users types.Users) error {
+	ctx, task := trace.NewTask(ctx, "export.messages")
+	defer task.End()
+
 	dl := downloader.New(se.sd.Client(), se.fs, downloader.Logger(se.l()))
 	if se.opts.IncludeFiles {
 		// start the downloader
@@ -90,6 +99,8 @@ func (se *Export) exportChannels(ctx context.Context, dl *downloader.Client, use
 	}
 }
 
+// exclusiveExport exports all channels, excluding ones that are defined in
+// EntityList.  If EntityList has Include channels, they are ignored.
 func (se *Export) exclusiveExport(ctx context.Context, dl *downloader.Client, users types.Users, el *structures.EntityList) ([]slack.Channel, error) {
 	chans := make([]slack.Channel, 0)
 
@@ -115,6 +126,8 @@ func (se *Export) exclusiveExport(ctx context.Context, dl *downloader.Client, us
 	return chans, nil
 }
 
+// inclusiveExport exports only channels that are defined in the
+// EntryList.Include.
 func (se *Export) inclusiveExport(ctx context.Context, dl *downloader.Client, users types.Users, list *structures.EntityList) ([]slack.Channel, error) {
 	// preallocate, some channels might be excluded, so this is optimistic
 	// allocation
@@ -123,8 +136,14 @@ func (se *Export) inclusiveExport(ctx context.Context, dl *downloader.Client, us
 	}
 	chans := make([]slack.Channel, 0, len(list.Include))
 
+	elIdx := list.Index()
+
 	// we need the current user to be able to build an index of DMs.
 	for _, entry := range list.Include {
+		if include, ok := elIdx[entry]; ok && !include {
+			dlog.Printf("skipping: %s", entry)
+			continue
+		}
 		sl, err := structures.ParseLink(entry)
 		if err != nil {
 			return nil, err

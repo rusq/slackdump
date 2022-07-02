@@ -2,10 +2,12 @@ package network
 
 import (
 	"context"
+	"fmt"
 	"runtime/trace"
 	"time"
 
-	"github.com/pkg/errors"
+	"errors"
+
 	"github.com/slack-go/slack"
 	"golang.org/x/time/rate"
 
@@ -48,7 +50,7 @@ func WithRetry(ctx context.Context, l *rate.Limiter, maxAttempts int, fn func() 
 		tracelogf(ctx, "error", "slackRetry: %s after %d attempts", cbErr, attempt+1)
 		var rle *slack.RateLimitedError
 		if !errors.As(cbErr, &rle) {
-			return errors.WithStack(cbErr)
+			return fmt.Errorf("callback error: %w", cbErr)
 		}
 
 		tracelogf(ctx, "info", "got rate limited, sleeping %s", rle.RetryAfter)

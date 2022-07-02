@@ -11,7 +11,8 @@ import (
 	"runtime/trace"
 	"sync"
 
-	"github.com/pkg/errors"
+	"errors"
+
 	"github.com/slack-go/slack"
 	"golang.org/x/time/rate"
 

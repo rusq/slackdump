@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pkg/errors"
+	"errors"
 )
 
 // ParseThreadID parses the thread id (ie. p1577694990000400) and returns

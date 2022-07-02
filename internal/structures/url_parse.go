@@ -8,7 +8,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/pkg/errors"
+	"errors"
 )
 
 const linkSep = ":"
@@ -48,6 +48,12 @@ func (u SlackLink) String() string {
 
 var linkRe = regexp.MustCompile(`^[A-Za-z]{1}[A-Za-z0-9]+(:[0-9]+\.[0-9]+)?$`)
 
+// ParseLink parses the slack link string.  It supports the following formats:
+//
+//   - XXXXXXX                   - channel ID
+//   - XXXXXXX:99999999.99999    - channel ID and thread ID
+//   - https://<valid slack URL> - slack URL link.
+// It returns the SlackLink or error.
 func ParseLink(link string) (SlackLink, error) {
 	if IsURL(link) {
 		sl, err := ParseURL(link)
@@ -64,6 +70,8 @@ func ParseLink(link string) (SlackLink, error) {
 	return SlackLink{Channel: id, ThreadTS: ts}, nil
 }
 
+// ParseURL parses the slack link in the format of
+// https://xxxx.slack.com/archives/XXXXX[/p99999999]
 func ParseURL(slackURL string) (*SlackLink, error) {
 	if slackURL == "" {
 		return nil, ErrNoURL
@@ -73,7 +81,7 @@ func ParseURL(slackURL string) (*SlackLink, error) {
 	}
 	uri, err := url.Parse(slackURL)
 	if err != nil {
-		return nil, errors.WithStack(err)
+		return nil, fmt.Errorf("error parsing URL %q: %w", slackURL, err)
 	}
 	if len(uri.Path) == 0 {
 		return nil, errors.New("url should point to a DM or Public conversation or a Slack Thread")

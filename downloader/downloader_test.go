@@ -8,8 +8,9 @@ import (
 	"testing"
 	"time"
 
+	"errors"
+
 	gomock "github.com/golang/mock/gomock"
-	"github.com/pkg/errors"
 	"github.com/rusq/slackdump/v2/fsadapter"
 	"github.com/rusq/slackdump/v2/internal/fixtures"
 	"github.com/rusq/slackdump/v2/internal/mocks/mock_downloader"

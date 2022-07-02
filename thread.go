@@ -2,10 +2,12 @@ package slackdump
 
 import (
 	"context"
+	"fmt"
 	"runtime/trace"
 	"time"
 
-	"github.com/pkg/errors"
+	"errors"
+
 	"github.com/slack-go/slack"
 	"golang.org/x/time/rate"
 
@@ -125,7 +127,7 @@ func (sd *Session) dumpThread(
 					},
 				)
 			})
-			return errors.WithStack(err)
+			return fmt.Errorf("failed to dump channel:thread %s:%s: %w", channelID, threadTS, err)
 		}); err != nil {
 			return nil, err
 		}

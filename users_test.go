@@ -9,8 +9,9 @@ import (
 	"testing"
 	"time"
 
+	"errors"
+
 	"github.com/golang/mock/gomock"
-	"github.com/pkg/errors"
 	"github.com/slack-go/slack"
 	"github.com/stretchr/testify/assert"
 

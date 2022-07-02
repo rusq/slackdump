@@ -2,11 +2,11 @@ package slackdump
 
 import (
 	"context"
+	"errors"
 	"reflect"
 	"testing"
 
 	"github.com/golang/mock/gomock"
-	"github.com/pkg/errors"
 	"github.com/slack-go/slack"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/time/rate"
