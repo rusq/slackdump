@@ -6,7 +6,6 @@ import (
 	"sort"
 	"text/tabwriter"
 
-	"github.com/pkg/errors"
 	"github.com/rusq/slackdump/v2/internal/structures"
 	"github.com/slack-go/slack"
 )
@@ -22,10 +21,10 @@ func (us Users) ToText(w io.Writer, _ structures.UserIndex) error {
 
 	// header
 	if _, err := fmt.Fprintf(writer, strFormat, "Name", "ID", "Bot?", "Deleted?", "Restricted?"); err != nil {
-		return errors.WithStack(err)
+		return fmt.Errorf("writer error: %w", err)
 	}
 	if _, err := fmt.Fprintf(writer, strFormat, "", "", "", "", ""); err != nil {
-		return errors.WithStack(err)
+		return fmt.Errorf("writer error: %w", err)
 	}
 
 	var (
@@ -59,7 +58,7 @@ func (us Users) ToText(w io.Writer, _ structures.UserIndex) error {
 			name, usermap[name].ID, bot, deleted, restricted,
 		)
 		if err != nil {
-			return errors.WithStack(err)
+			return fmt.Errorf("writer error: %w", err)
 		}
 	}
 	return nil

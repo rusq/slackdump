@@ -9,8 +9,9 @@ import (
 	"testing"
 	"time"
 
+	"errors"
+
 	"github.com/golang/mock/gomock"
-	"github.com/pkg/errors"
 	"github.com/slack-go/slack"
 	"github.com/stretchr/testify/assert"
 
@@ -47,7 +48,7 @@ func TestUsers_IndexByID(t *testing.T) {
 	}
 }
 
-func TestSlackDumper_saveUserCache(t *testing.T) {
+func TestSession_saveUserCache(t *testing.T) {
 
 	// test saving file works
 	sd := Session{wspInfo: &slack.AuthTestResponse{TeamID: "123"}}
@@ -67,7 +68,7 @@ func TestSlackDumper_saveUserCache(t *testing.T) {
 	assert.Equal(t, testUsers, uu)
 }
 
-func TestSlackDumper_loadUserCache(t *testing.T) {
+func TestSession_loadUserCache(t *testing.T) {
 	dir := t.TempDir()
 	type fields struct {
 		client    *slack.Client
@@ -111,17 +112,17 @@ func TestSlackDumper_loadUserCache(t *testing.T) {
 			}
 			got, err := sd.loadUserCache(tt.args.filename, testSuffix, tt.args.maxAge)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("SlackDumper.loadUserCache() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("Session.loadUserCache() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("SlackDumper.loadUserCache() = %v, want %v", got, tt.want)
+				t.Errorf("Session.loadUserCache() = %v, want %v", got, tt.want)
 			}
 		})
 	}
 }
 
-func TestSlackDumper_fetchUsers(t *testing.T) {
+func TestSession_fetchUsers(t *testing.T) {
 	type fields struct {
 		Users     types.Users
 		UserIndex structures.UserIndex
@@ -183,17 +184,17 @@ func TestSlackDumper_fetchUsers(t *testing.T) {
 			}
 			got, err := sd.fetchUsers(tt.args.ctx)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("SlackDumper.fetchUsers() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("Session.fetchUsers() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("SlackDumper.fetchUsers() = %v, want %v", got, tt.want)
+				t.Errorf("Session.fetchUsers() = %v, want %v", got, tt.want)
 			}
 		})
 	}
 }
 
-func TestSlackDumper_GetUsers(t *testing.T) {
+func TestSession_GetUsers(t *testing.T) {
 	dir := t.TempDir()
 	type fields struct {
 		Users     types.Users
@@ -257,11 +258,11 @@ func TestSlackDumper_GetUsers(t *testing.T) {
 			}
 			got, err := sd.GetUsers(tt.args.ctx)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("SlackDumper.GetUsers() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("Session.GetUsers() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("SlackDumper.GetUsers() = %v, want %v", got, tt.want)
+				t.Errorf("Session.GetUsers() = %v, want %v", got, tt.want)
 			}
 		})
 	}

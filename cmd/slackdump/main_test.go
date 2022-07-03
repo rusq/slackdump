@@ -9,6 +9,7 @@ import (
 
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/internal/app"
+	"github.com/rusq/slackdump/v2/internal/structures"
 )
 
 func Test_output_validFormat(t *testing.T) {
@@ -64,7 +65,7 @@ func Test_checkParameters(t *testing.T) {
 					},
 
 					FilenameTemplate: defFilenameTemplate,
-					Input:            app.Input{List: []string{}},
+					Input:            app.Input{List: &structures.EntityList{}},
 					Output:           app.Output{Filename: "-", Format: "text"},
 					Options:          slackdump.DefOptions,
 				}},
@@ -84,7 +85,7 @@ func Test_checkParameters(t *testing.T) {
 						Users:    true,
 					},
 					FilenameTemplate: defFilenameTemplate,
-					Input:            app.Input{List: []string{}},
+					Input:            app.Input{List: &structures.EntityList{}},
 					Output:           app.Output{Filename: "-", Format: "text"},
 					Options:          slackdump.DefOptions,
 				}},

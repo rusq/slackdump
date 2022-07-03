@@ -83,7 +83,7 @@ func Test_generateText(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			w := &bytes.Buffer{}
 			if err := generateText(w, tt.args.m, tt.args.prefix, tt.args.userIdx); (err != nil) != tt.wantErr {
-				t.Errorf("SlackDumper.generateText() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("Session.generateText() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			gotW := w.String()

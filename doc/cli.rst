@@ -5,7 +5,7 @@ Command line flags reference
 
 .. contents::
 
-This section provides some explanation for the possible command line
+This section provides some explanation for the supported command line
 flags.
 
 This doc may be out of date, to get the current command line flags
@@ -17,15 +17,15 @@ Command line flags are described as of version ``v2.0.0``.
 
 \-V
    print version and exit
+
 \-c
-   same as -list-channels
+   shorthand for -list-channels
 
 \-cookie
    along with ``-t`` sets the authentication values.  Can also be set using
    ``COOKIE`` environment variable.  Must contain the value of ``d=`` cookie, or
    a cookies.txt dumped from the browser using the `Get cookies.txt Chrome
    extension`_
-
 
 \-cpr
    number of conversation items per request. (default 200).  This is
@@ -58,9 +58,10 @@ Command line flags are described as of version ``v2.0.0``.
    timestamp of the latest message to fetch to
    (i.e. 2020-12-31T23:59:59).  Same as above, but for upper boundary.
 
-\-export-dir name
+\-export name
    enables the mode of operation to "Slack Export" mode and sets the export
-   directory to "name".
+   directory to "name".  To save to a ZIP file, add .zip extension, i.e.
+   ``name.zip``.
 
 \-f
    shorthand for -download (means "files")
@@ -103,9 +104,9 @@ Command line flags are described as of version ``v2.0.0``.
 
 
 \-i
-   specify the input file with Channel IDs or URLs to be used instead
-   of giving the list on the command line, one per line.  Use "-" to
-   read input from STDIN.  Example: ``-i my_links.txt``.
+   Deprecated.  Use '@' to specify the file with links and IDs:  Example::
+
+      slackdump @my_list.txt
 
 \-limiter-boost
    same as -t3-boost. (default 120)
@@ -122,6 +123,10 @@ Command line flags are described as of version ``v2.0.0``.
    list users and their IDs.  The default output format is "text".
    Use ``-r json`` to output as JSON.
 
+\-log file
+   if specified, will output all message to the ``file`` instead of the
+   screen.
+
 \-no-user-cache
    skip fetching users.  If this flag is specified, users won't be fetched
    during startup.  This disables the username resolving for the text
@@ -134,17 +139,17 @@ Command line flags are described as of version ``v2.0.0``.
    100 bears no tangible outcome - Slack never returns more than 100 channels
    per request.  Greedy.
 
-\-o
+\-o filename
    output filename for users and channels.  Use '-' for standard
    output. (default "-")
 
-\-r
+\-r format
    report (output) format.  One of 'json' or 'text'. For channels and
    users - will output only in the specified format.  For messages -
    if 'text' is requested, the text file will be generated along with
    json.
 
-\-t
+\-t API_token
    Specify slack API token, (environment: ``SLACK_TOKEN``).
    This should be used along with ``--cookie`` flag.
 
@@ -173,18 +178,19 @@ Command line flags are described as of version ``v2.0.0``.
    rate limit retries for conversation.  Affects conversation APIs. (default 3)
 
 \-trace filename
-   allows to specify the trace filename and enable tracing (optional).
-   Use this flag if requested by developer.  The trace file does not contain any
-   sensitive or PII.
+   allows to specify the trace filename and enable tracing (optional).  Use this
+   flag if requested by the developer.  The trace file does not contain any
+   sensitive or personal identifiable information.  It will contain the slack
+   workspace name and channel IDs.
 
 \-u
    shorthand for -list-users.
 
 \-user-cache-age
    user cache lifetime duration. Set this to 0 to disable
-   cache. (default 4h0m0s) User cache is used to speedup consequent
-   runs of slackdump.  Known issue - if you're changing slack
-   workspace, make sure to delete the cache file, or set this to 0.
+   cache usage. (default 4h0m0s) User cache is used to speedup consequent
+   runs of slackdump.  If set to 0, fresh user list will fetched from the 
+   server every time, unless ``-no-user-cache`` is set.
 
 \-user-cache-file
    user cache filename. (default "users.json") See note

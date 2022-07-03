@@ -5,12 +5,14 @@ package slackdump
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime/trace"
 	"time"
 
-	"github.com/pkg/errors"
+	"errors"
+
 	"github.com/slack-go/slack"
 
 	"github.com/rusq/slackdump/v2/internal/network"
@@ -79,14 +81,14 @@ func (sd *Session) loadUserCache(filename string, suffix string, maxAge time.Dur
 
 	f, err := os.Open(filename)
 	if err != nil {
-		return nil, errors.WithStack(err)
+		return nil, fmt.Errorf("failed to open %s: %w", filename, err)
 	}
 	defer f.Close()
 
 	dec := json.NewDecoder(f)
 	var uu types.Users
 	if err := dec.Decode(&uu); err != nil {
-		return nil, errors.WithStack(err)
+		return nil, fmt.Errorf("failed to decode users from %s: %w", filename, err)
 	}
 	return uu, nil
 }
@@ -96,14 +98,14 @@ func (sd *Session) saveUserCache(filename string, suffix string, uu types.Users)
 
 	f, err := os.Create(filename)
 	if err != nil {
-		return errors.WithStack(err)
+		return fmt.Errorf("failed to create file %s: %w", filename, err)
 	}
 	defer f.Close()
 
 	enc := json.NewEncoder(f)
 	enc.SetIndent("", "  ")
 	if err := enc.Encode(uu); err != nil {
-		return errors.WithStack(err)
+		return fmt.Errorf("failed to encode data for %s: %w", filename, err)
 	}
 	return nil
 }

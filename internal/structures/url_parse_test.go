@@ -5,6 +5,15 @@ import (
 	"testing"
 )
 
+const (
+	sampleChannelURL = "https://ora600.slack.com/archives/CHM82GF99"
+	sampleThreadURL  = "https://ora600.slack.com/archives/CHM82GF99/p1577694990000400"
+	sampleDMURL      = "https://ora600.slack.com/archives/DL98HT3QA"
+
+	sampleChannelID = "CHM82GF99"
+	sampleThreadTS  = "p1577694990000400"
+)
+
 func TestParseURL(t *testing.T) {
 	type args struct {
 		slackURL string
@@ -12,24 +21,24 @@ func TestParseURL(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    args
-		want    *UrlInfo
+		want    *SlackLink
 		wantErr bool
 	}{
 		{
 			name:    "channel",
-			args:    args{"https://ora600.slack.com/archives/CHM82GF99"},
-			want:    &UrlInfo{Channel: "CHM82GF99"},
+			args:    args{sampleChannelURL},
+			want:    &SlackLink{Channel: "CHM82GF99"},
 			wantErr: false,
 		},
 		{
 			name:    "thread",
-			args:    args{"https://ora600.slack.com/archives/CHM82GF99/p1577694990000400"},
-			want:    &UrlInfo{Channel: "CHM82GF99", ThreadTS: "1577694990.000400"},
+			args:    args{sampleThreadURL},
+			want:    &SlackLink{Channel: "CHM82GF99", ThreadTS: "1577694990.000400"},
 			wantErr: false,
 		},
 		{
 			name:    "thread with extra data in the URL",
-			args:    args{"https://ora600.slack.com/archives/CHM82GF99/p1577694990000400/xxxx"},
+			args:    args{sampleThreadURL + "/xxxx"},
 			want:    nil,
 			wantErr: true,
 		},
@@ -47,8 +56,8 @@ func TestParseURL(t *testing.T) {
 		},
 		{
 			name:    "DM",
-			args:    args{"https://ora600.slack.com/archives/DL98HT3QA"},
-			want:    &UrlInfo{Channel: "DL98HT3QA"},
+			args:    args{sampleDMURL},
+			want:    &SlackLink{Channel: "DL98HT3QA"},
 			wantErr: false,
 		},
 		{
@@ -90,7 +99,7 @@ func TestParseURL(t *testing.T) {
 		{
 			name:    "thread",
 			args:    args{"https://xxxxxx.slack.com/archives/CHANNEL/p1645551829244659"},
-			want:    &UrlInfo{Channel: "CHANNEL", ThreadTS: "1645551829.244659"},
+			want:    &SlackLink{Channel: "CHANNEL", ThreadTS: "1645551829.244659"},
 			wantErr: false,
 		},
 	}
@@ -123,7 +132,7 @@ func TestURLInfo_IsThread(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			u := UrlInfo{
+			u := SlackLink{
 				Channel:  tt.fields.Channel,
 				ThreadTS: tt.fields.ThreadTS,
 			}
@@ -150,12 +159,111 @@ func TestURLInfo_IsValid(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			u := UrlInfo{
+			u := SlackLink{
 				Channel:  tt.fields.Channel,
 				ThreadTS: tt.fields.ThreadTS,
 			}
 			if got := u.IsValid(); got != tt.want {
 				t.Errorf("URLInfo.IsValid() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestIsValidSlackURL(t *testing.T) {
+	type args struct {
+		s string
+	}
+	tests := []struct {
+		name string
+		args args
+		want bool
+	}{
+		{
+			"channel url",
+			args{sampleChannelURL},
+			true,
+		},
+		{
+			"thread url",
+			args{sampleThreadURL},
+			true,
+		},
+		{
+			"invalid thread URL",
+			args{"https://ora600.slack.com/archives/CHM82GF99/p15776949900x0400"},
+			false,
+		},
+		{
+			"is no url",
+			args{"C43012851"},
+			false,
+		},
+		{
+			"empty",
+			args{""},
+			false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := IsValidSlackURL(tt.args.s); got != tt.want {
+				t.Errorf("IsURL() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParseLink(t *testing.T) {
+	type args struct {
+		link string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    SlackLink
+		wantErr bool
+	}{
+		{
+			"channel ID",
+			args{"C4810"},
+			SlackLink{Channel: "C4810"},
+			false,
+		},
+		{
+			"channel ID and thread TS",
+			args{"C4810" + linkSep + "1577694990.000400"},
+			SlackLink{Channel: "C4810", ThreadTS: "1577694990.000400"},
+			false,
+		},
+		{
+			"url",
+			args{sampleChannelURL},
+			SlackLink{Channel: sampleChannelID},
+			false,
+		},
+		{
+			"thread URL",
+			args{sampleThreadURL},
+			SlackLink{Channel: sampleChannelID, ThreadTS: "1577694990.000400"},
+			false,
+		},
+		{
+			"invalid URL",
+			args{"https://example.com"},
+			SlackLink{},
+			true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := ParseLink(tt.args.link)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ParseLink() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("ParseLink() = %#v, want %#v", got, tt.want)
 			}
 		})
 	}

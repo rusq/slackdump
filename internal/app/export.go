@@ -26,6 +26,7 @@ func (app *App) Export(ctx context.Context, name string) error {
 		Latest:       time.Time(app.cfg.Latest),
 		IncludeFiles: app.cfg.Options.DumpFiles,
 		Logger:       app.l(),
+		List:         app.cfg.Input.List,
 	}
 	fs, err := fsadapter.ForFilename(name)
 	if err != nil {

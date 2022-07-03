@@ -221,7 +221,7 @@ func ExampleNew_browserAuth() {
 	_ = sd
 }
 
-func TestSlackDumper_Me(t *testing.T) {
+func TestSession_Me(t *testing.T) {
 	type fields struct {
 		client    clienter
 		fs        fsadapter.FS
@@ -272,11 +272,11 @@ func TestSlackDumper_Me(t *testing.T) {
 			}
 			got, err := sd.Me()
 			if (err != nil) != tt.wantErr {
-				t.Errorf("SlackDumper.Me() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("Session.Me() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("SlackDumper.Me() = %v, want %v", got, tt.want)
+				t.Errorf("Session.Me() = %v, want %v", got, tt.want)
 			}
 		})
 	}

@@ -2,11 +2,11 @@ package slackdump
 
 import (
 	"context"
+	"errors"
 	"reflect"
 	"testing"
 
 	"github.com/golang/mock/gomock"
-	"github.com/pkg/errors"
 	"github.com/slack-go/slack"
 	"github.com/stretchr/testify/assert"
 
@@ -14,7 +14,7 @@ import (
 	"github.com/rusq/slackdump/v2/types"
 )
 
-func TestSlackDumper_getChannels(t *testing.T) {
+func TestSession_getChannels(t *testing.T) {
 	type fields struct {
 		Users     types.Users
 		UserIndex structures.UserIndex
@@ -95,7 +95,7 @@ func TestSlackDumper_getChannels(t *testing.T) {
 				return nil
 			})
 			if (err != nil) != tt.wantErr {
-				t.Errorf("SlackDumper.getChannels() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("Session.getChannels() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			assert.Equal(t, tt.want, got)
@@ -103,7 +103,7 @@ func TestSlackDumper_getChannels(t *testing.T) {
 	}
 }
 
-func TestSlackDumper_GetChannels(t *testing.T) {
+func TestSession_GetChannels(t *testing.T) {
 	type fields struct {
 		client    clienter
 		Users     types.Users
@@ -133,11 +133,11 @@ func TestSlackDumper_GetChannels(t *testing.T) {
 			}
 			got, err := sd.GetChannels(tt.args.ctx, tt.args.chanTypes...)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("SlackDumper.GetChannels() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("Session.GetChannels() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("SlackDumper.GetChannels() = %v, want %v", got, tt.want)
+				t.Errorf("Session.GetChannels() = %v, want %v", got, tt.want)
 			}
 		})
 	}

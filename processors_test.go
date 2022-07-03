@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestSlackDumper_pipeFiles(t *testing.T) {
+func TestSession_pipeFiles(t *testing.T) {
 	var (
 		file1 = slack.File{ID: "f1", Name: "filename1.ext", URLPrivateDownload: "https://file1_url", Size: 100}
 		file2 = slack.File{ID: "f2", Name: "filename2.ext", URLPrivateDownload: "https://file2_url", Size: 200}

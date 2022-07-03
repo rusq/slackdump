@@ -2,10 +2,12 @@ package slackdump
 
 import (
 	"context"
+	"fmt"
 	"runtime/trace"
 	"time"
 
-	"github.com/pkg/errors"
+	"errors"
+
 	"github.com/slack-go/slack"
 	"golang.org/x/time/rate"
 
@@ -16,42 +18,32 @@ import (
 
 type threadFunc func(ctx context.Context, l *rate.Limiter, channelID string, threadTS string, oldest, latest time.Time, processFn ...ProcessFunc) ([]types.Message, error)
 
-// DumpThread dumps a single thread identified by (channelID, threadTS).
-// Optionally one can provide a number of processFn that will be applied to each
-// chunk of messages returned by a one API call.
-func (sd *Session) DumpThread(
+// dumpThreadAsConversation dumps a single thread identified by (channelID,
+// threadTS). Optionally one can provide a number of processFn that will be
+// applied to each chunk of messages returned by a one API call.
+func (sd *Session) dumpThreadAsConversation(
 	ctx context.Context,
-	channelID,
-	threadTS string,
+	sl structures.SlackLink,
 	oldest, latest time.Time,
 	processFn ...ProcessFunc,
 ) (*types.Conversation, error) {
 	ctx, task := trace.NewTask(ctx, "DumpThread")
 	defer task.End()
 
-	if threadTS == "" || channelID == "" {
+	if !(sl.IsValid() && sl.IsThread()) {
 		return nil, errors.New("internal error: channelID or threadTS are empty")
 	}
 
-	trace.Logf(ctx, "info", "channelID: %q, threadTS: %q", channelID, threadTS)
+	trace.Logf(ctx, "info", "channelID: %q, threadTS: %q", sl.Channel, sl.ThreadTS)
 
-	if sd.options.DumpFiles {
-		fn, cancelFn, err := sd.newFileProcessFn(ctx, channelID, sd.limiter(network.NoTier))
-		if err != nil {
-			return nil, err
-		}
-		defer cancelFn()
-		processFn = append(processFn, fn)
-	}
-
-	threadMsgs, err := sd.dumpThread(ctx, sd.limiter(network.Tier3), channelID, threadTS, oldest, latest, processFn...)
+	threadMsgs, err := sd.dumpThread(ctx, sd.limiter(network.Tier3), sl.Channel, sl.ThreadTS, oldest, latest, processFn...)
 	if err != nil {
 		return nil, err
 	}
 
 	types.SortMessages(threadMsgs)
 
-	name, err := sd.getChannelName(ctx, sd.limiter(network.Tier3), channelID)
+	name, err := sd.getChannelName(ctx, sd.limiter(network.Tier3), sl.Channel)
 	if err != nil {
 		return nil, err
 	}
@@ -59,8 +51,8 @@ func (sd *Session) DumpThread(
 	return &types.Conversation{
 		Name:     name,
 		Messages: threadMsgs,
-		ID:       channelID,
-		ThreadTS: threadTS,
+		ID:       sl.Channel,
+		ThreadTS: sl.ThreadTS,
 	}, nil
 }
 
@@ -135,7 +127,10 @@ func (sd *Session) dumpThread(
 					},
 				)
 			})
-			return errors.WithStack(err)
+			if err != nil {
+				return fmt.Errorf("failed to dump channel:thread %s:%s: %w", channelID, threadTS, err)
+			}
+			return nil
 		}); err != nil {
 			return nil, err
 		}

@@ -34,7 +34,7 @@ func (app *App) dump(ctx context.Context, input Input) (int, error) {
 
 	total := 0
 	if err := input.producer(func(channelID string) error {
-		if err := app.dumpOne(ctx, channelID, app.newDumpFunc(channelID)); err != nil {
+		if err := app.dumpOne(ctx, channelID, app.sd.Dump); err != nil {
 			app.l().Printf("error processing: %q (conversation will be skipped): %s", channelID, err)
 			return errSkip
 		}
@@ -47,15 +47,6 @@ func (app *App) dump(ctx context.Context, input Input) (int, error) {
 }
 
 type dumpFunc func(context.Context, string, time.Time, time.Time, ...slackdump.ProcessFunc) (*types.Conversation, error)
-
-// newDumpFunc returns the appropriate dump function depending on the input s.
-func (app *App) newDumpFunc(s string) dumpFunc {
-	if strings.HasPrefix(strings.ToLower(s), "https://") {
-		return app.sd.DumpURL
-	} else {
-		return app.sd.DumpMessages
-	}
-}
 
 // renderFilename returns the filename that is rendered according to the
 // file naming template.

@@ -134,7 +134,7 @@ func delMessages(ctx context.Context, client *slack.Client, channelID string, ms
 	return nil
 }
 
-func getMessages(ctx context.Context, client *slack.Client, ui *structures.UrlInfo) ([]slack.Message, error) {
+func getMessages(ctx context.Context, client *slack.Client, ui *structures.SlackLink) ([]slack.Message, error) {
 	var msgs []slack.Message
 	cursor := ""
 	for {

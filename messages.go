@@ -4,11 +4,11 @@ package slackdump
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"runtime/trace"
 	"time"
 
-	"github.com/pkg/errors"
 	"github.com/slack-go/slack"
 	"golang.org/x/time/rate"
 
@@ -17,49 +17,23 @@ import (
 	"github.com/rusq/slackdump/v2/types"
 )
 
-// DumpAllURL dumps messages from the slack URL, it supports conversations and
-// individual threads.
-func (sd *Session) DumpAllURL(ctx context.Context, slackURL string) (*types.Conversation, error) {
-	return sd.dumpURL(ctx, slackURL, time.Time{}, time.Time{})
-}
-
-// DumpURL acts like DumpURL but allows to specify oldest and latest
-// timestamps to define a window within which the messages should be retrieved.
-func (sd *Session) DumpURL(ctx context.Context, slackURL string, oldest, latest time.Time, processFn ...ProcessFunc) (*types.Conversation, error) {
-	return sd.dumpURL(ctx, slackURL, oldest, latest, processFn...)
-}
-
-func (sd *Session) dumpURL(ctx context.Context, slackURL string, oldest, latest time.Time, processFn ...ProcessFunc) (*types.Conversation, error) {
-	ctx, task := trace.NewTask(ctx, "dumpURL")
-	defer task.End()
-
-	trace.Logf(ctx, "info", "slackURL: %q", slackURL)
-
-	ui, err := structures.ParseURL(slackURL)
+// Dump dumps messages or threads specified by link. link can be one of the
+// following:
+//
+//   - Channel URL        - i.e. https://ora600.slack.com/archives/CHM82GF99
+//   - Thread URL         - i.e. https://ora600.slack.com/archives/CHM82GF99/p1577694990000400
+//   - ChannelID          - i.e. CHM82GF99
+//   - ChannelID:ThreadTS - i.e. CHM82GF99:1577694990.000400
+//
+// oldest and latest timestamps set a timeframe  within which the messages
+// should be retrieved, also one can provide process functions.
+func (sd *Session) Dump(ctx context.Context, link string, oldest, latest time.Time, processFn ...ProcessFunc) (*types.Conversation, error) {
+	sl, err := structures.ParseLink(link)
 	if err != nil {
 		return nil, err
 	}
-
-	if ui.IsThread() {
-		return sd.DumpThread(ctx, ui.Channel, ui.ThreadTS, oldest, latest, processFn...)
-	} else {
-		return sd.DumpMessages(ctx, ui.Channel, oldest, latest, processFn...)
-	}
-}
-
-// DumpAllMessages fetches messages from the conversation identified by channelID.
-func (sd *Session) DumpAllMessages(ctx context.Context, channelID string) (*types.Conversation, error) {
-	return sd.DumpMessages(ctx, channelID, time.Time{}, time.Time{})
-}
-
-// DumpMessages dumps messages in the given timeframe between oldest
-// and latest.  If oldest or latest are zero time, they will not be accounted
-// for.  Having both oldest and latest as Zero-time, will make this function
-// behave similar to DumpMessages.  ProcessFn is a slice of post-processing functions
-// that will be called for each message chunk downloaded from the Slack API.
-func (sd *Session) DumpMessages(ctx context.Context, channelID string, oldest, latest time.Time, processFn ...ProcessFunc) (*types.Conversation, error) {
 	if sd.options.DumpFiles {
-		fn, cancelFn, err := sd.newFileProcessFn(ctx, channelID, sd.limiter(network.NoTier))
+		fn, cancelFn, err := sd.newFileProcessFn(ctx, sl.Channel, sd.limiter(network.NoTier))
 		if err != nil {
 			return nil, err
 		}
@@ -67,19 +41,44 @@ func (sd *Session) DumpMessages(ctx context.Context, channelID string, oldest, l
 		processFn = append(processFn, fn)
 	}
 
-	return sd.dumpMessages(ctx, channelID, oldest, latest, processFn...)
+	return sd.dump(ctx, sl, oldest, latest, processFn...)
 }
 
-// DumpMessagesRaw dumps all messages, but does not account for any options
+// DumpAll dumps all messages.  See description of Dump for what can be provided
+// in link.
+func (sd *Session) DumpAll(ctx context.Context, link string) (*types.Conversation, error) {
+	return sd.Dump(ctx, link, time.Time{}, time.Time{})
+}
+
+// DumpRaw dumps all messages, but does not account for any options
 // defined, such as DumpFiles, instead, the caller must hassle about any
 // processFns they want to apply.
-func (sd *Session) DumpMessagesRaw(ctx context.Context, channelID string, oldest, latest time.Time, processFn ...ProcessFunc) (*types.Conversation, error) {
-	return sd.dumpMessages(ctx, channelID, oldest, latest, processFn...)
+func (sd *Session) DumpRaw(ctx context.Context, link string, oldest, latest time.Time, processFn ...ProcessFunc) (*types.Conversation, error) {
+	sl, err := structures.ParseLink(link)
+	if err != nil {
+		return nil, err
+	}
+	return sd.dump(ctx, sl, oldest, latest, processFn...)
 }
 
-// DumpMessages fetches messages from the conversation identified by channelID.
+func (sd *Session) dump(ctx context.Context, sl structures.SlackLink, oldest, latest time.Time, processFn ...ProcessFunc) (*types.Conversation, error) {
+	ctx, task := trace.NewTask(ctx, "dump")
+	defer task.End()
+	trace.Logf(ctx, "info", "sl: %q", sl)
+	if !sl.IsValid() {
+		return nil, errors.New("invalid link")
+	}
+
+	if sl.IsThread() {
+		return sd.dumpThreadAsConversation(ctx, sl, oldest, latest, processFn...)
+	} else {
+		return sd.dumpChannel(ctx, sl.Channel, oldest, latest, processFn...)
+	}
+}
+
+// dumpChannel fetches messages from the conversation identified by channelID.
 // processFn will be called on each batch of messages returned from API.
-func (sd *Session) dumpMessages(ctx context.Context, channelID string, oldest, latest time.Time, processFn ...ProcessFunc) (*types.Conversation, error) {
+func (sd *Session) dumpChannel(ctx context.Context, channelID string, oldest, latest time.Time, processFn ...ProcessFunc) (*types.Conversation, error) {
 	ctx, task := trace.NewTask(ctx, "dumpMessages")
 	defer task.End()
 
@@ -121,7 +120,10 @@ func (sd *Session) dumpMessages(ctx context.Context, channelID string, oldest, l
 					Inclusive: true,
 				})
 			})
-			return errors.WithStack(err)
+			if err != nil {
+				return fmt.Errorf("failed to dump channel %s: %w", channelID, err)
+			}
+			return nil
 		}); err != nil {
 			return nil, err
 		}

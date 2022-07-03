@@ -1,20 +1,21 @@
 package app
 
 import (
-	"bufio"
 	"errors"
 	"fmt"
 	"html/template"
-	"io"
 	"strings"
 
 	"github.com/slack-go/slack"
 
 	"github.com/rusq/slackdump/v2"
+	"github.com/rusq/slackdump/v2/internal/structures"
 	"github.com/rusq/slackdump/v2/types"
 )
 
-const filenameTmplName = "fnt"
+const (
+	filenameTmplName = "fnt"
+)
 
 type Config struct {
 	ListFlags ListFlags
@@ -39,8 +40,7 @@ type Output struct {
 }
 
 type Input struct {
-	List     []string // Input list
-	Filename string   // filename containing the list of Conversation IDs or URLs to download.
+	List *structures.EntityList // Include channels
 }
 
 var (
@@ -49,16 +49,17 @@ var (
 	errSkip = errors.New("skip")
 )
 
-func (in Input) IsValid() bool {
-	return len(in.List) > 0 || in.Filename != ""
+func (in *Input) IsValid() bool {
+	return !in.List.IsEmpty()
 }
 
-// listProducer iterates over the input.List, and calls fn for each entry.
-func (in Input) listProducer(fn func(string) error) error {
-	if !in.IsValid() {
+// listProducer iterates over the input.List.Include, and calls fn for each
+// entry.
+func (in *Input) listProducer(fn func(string) error) error {
+	if !in.List.HasIncludes() {
 		return ErrInvalidInput
 	}
-	for _, entry := range in.List {
+	for _, entry := range in.List.Include {
 		if err := fn(entry); err != nil {
 			if errors.Is(err, errSkip) {
 				continue
@@ -167,42 +168,6 @@ func (in Input) producer(fn func(string) error) error {
 	if !in.IsValid() {
 		return ErrInvalidInput
 	}
-	if in.Filename != "" {
-		return in.fileProducer(fn)
-	} else {
-		return in.listProducer(fn)
-	}
-}
 
-// fileProducer iterates over the file, reading it line by line, and calls fn
-// for each line.
-func (in Input) fileProducer(fn func(string) error) error {
-	if !in.IsValid() {
-		return ErrInvalidInput
-	}
-	f, err := openFile(in.Filename)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	return in.iterScanner(f, fn)
-}
-
-// iterScanner iterates over the reader r, reading it line by line, and calls fn
-// for each line.
-func (in Input) iterScanner(r io.Reader, fn func(string) error) error {
-	if !in.IsValid() {
-		return ErrInvalidInput
-	}
-	scanner := bufio.NewScanner(r)
-	for scanner.Scan() {
-		if err := fn(scanner.Text()); err != nil {
-			if errors.Is(err, errSkip) {
-				continue
-			}
-			return err
-		}
-	}
-	return scanner.Err()
+	return in.listProducer(fn)
 }
