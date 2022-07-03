@@ -20,7 +20,12 @@ Dumping users
 
 To view all users, run::
 
+  slackdump -list-users
+
+or::
+
   slackdump -u
+
 
 If the channel list in your Slack Workspace is too large, you can skip the
 caching of users by specifying the ``-no-user-cache`` flag::
@@ -30,11 +35,15 @@ caching of users by specifying the ``-no-user-cache`` flag::
 In this case, the users will not be cached.  This flag works with both `generic
 dump`_ and `Slack Export`_ modes.
 
-Dumping channels
-----------------
+Viewing Conversations
+---------------------
 
-To view channels, that are visible to your account, including group
+To view all Conversations, that are visible to your account, including group
 conversations, archived chats and public channels, run::
+
+  slackdump -list-channels
+
+or::
 
   slackdump -c
 

@@ -135,6 +135,15 @@ FAQ
 
 :A: Go get the new Cookie from the browser and Token as well.
 
+:Q: **Slackdump takes a very long time to cache users**
+
+:A: Disable the user cache with ``-no-user-cache`` flag.
+
+:Q: **How to read the export file?**
+
+:A: For Slack Workspace Export, use `slack export viewer`_.  For the generic
+    dump files, see `examples`_ directory for some python and shell examples.
+
 
 Bulletin Board
 ==============
@@ -157,6 +166,8 @@ Messages that were conveyed with the donations:
 .. _glog: https://github.com/golang/glog
 .. _logger: logger/logger.go
 .. _options.go: options.go
+.. _slack export viewer: https://github.com/hfaran/slack-export-viewer
+.. _examples: examples
 ..
   bulletin board links
 

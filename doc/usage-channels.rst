@@ -16,9 +16,9 @@ The provided examples are for Linux and macOS if you're using windows, replace
 User Cache
 ++++++++++
 
-Slackdump always pre-caches the users to be able to resolve the usernames.  If
-the amount of users is large in your Workspace, disable user caching with
-``-no-user-cache`` flag, i.e.::
+Slackdump always pre-caches the Slack Workspace Users to be able to resolve the
+usernames.  If the amount of users is large in your Workspace, disable user
+caching with ``-no-user-cache`` flag, i.e.::
 
   slackdump -no-user-cache ...
 
@@ -31,8 +31,8 @@ To enable generation of the text file::
 
   slackdump -r text ...
 
-Set output Directory or ZIP file
-++++++++++++++++++++++++++++++++
+Save to Another Directory or ZIP File
++++++++++++++++++++++++++++++++++++++
 
 By default, Slackdump writes all files to the current directory.  Alternatively,
 Slackdump can output files to another directory or even a ZIP file.  To make
@@ -42,16 +42,17 @@ Output to Directory with the name of "some_dir"::
   
   slackdump -base some_dir ...
 
-Output to ZIP file named "my_archive.zip"::
+Output to a ZIP file named "my_archive.zip"::
 
   slackdump -base my_archive.zip ...
 
-Saving file and image attachments
-+++++++++++++++++++++++++++++++++
-By default, Slackdump does not fetch any attachments.  To enable fetching
-attachments, use ``-f`` flag::
+Downloading file and image attachments
+++++++++++++++++++++++++++++++++++++++
 
-  slackdump -f ...
+By default, Slackdump does not fetch any attachments.  To enable fetching
+attachments, use ``-download`` flag::
+
+  slackdump -download ...
 
 If the base directory is set, it will use it to save attachments.
 
@@ -71,18 +72,17 @@ in details later in this section.
 Example
 +++++++
 
-You want to dump conversations with @alice and @bob to text
-files and save all the files (attachments) that you all shared in those
-conversations::
+You want to dump conversations with @alice and @bob to text files and save all
+the files (attachments) that you all shared in those conversations::
 
-  slackdump -r text -f DNF3XXXXX DLY4XXXXX https://....
-            ━━━┯━━━ ━┯ ━━━┯━━━━━ ━━━┯━━━━━ ━━━━┯━━━━━┅┅
-               │     │    │         │          │
-               │     │    │         ╰─: @alice │
-               │     │    ╰───────────: @bob   ┊
-               │     ╰────────────────: save files
+  slackdump -r text -download DNF3XXXXX DLY4XXXXX https://....
+            ━━━┯━━━ ━┯━━━━━━━ ━━━┯━━━━━ ━━━┯━━━━━ ━━━━┯━━━━━┅┅
+               │     │           │         │          │
+               │     │           │         ╰─: @alice │
+               │     │           ╰───────────: @bob   │
+               │     ╰────────────────: save files    ┊
                ╰──────────────────────: text file output (can also be "json")
-           thread or conversation URL :────────╯
+                  thread or conversation URL :────────╯
 
 Reading data from the file
 --------------------------
@@ -112,7 +112,7 @@ Conversation URL
 To get the conversation URL link, use this simple trick that they
 won't teach you at school:
 
-1. In Slack, right click on the conversation you want to dump (in the
+1. In Slack Client, right click on the conversation you want to dump (in the
    channel navigation pane on the left)
 2. Choose "Copy link".
 
@@ -121,17 +121,18 @@ Thread URL
 
 1. In Slack, open the thread that you want to dump.
 2. The thread opens to the right of the main conversation window
-3. On the first message of the thread, click on three vertical dots menu (not sure how it's properly called), choose "Copy link"
+3. On the first message of the thread, click on three vertical dots menu (not
+   sure how it's properly called), choose "Copy link"
 
 Run the slackdump and provide the URL link as an input::
 
   slackdump -f  https://xxxxxx.slack.com/archives/CHM82GX00/p1577694990000400
             ━┯  ━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
              │        ╰─────: URL of the thread
-             ╰──────────────: save files
+             ╰──────────────: save files (shorthand for -download)
 
 Internal Thread Link Format
----------------------------
++++++++++++++++++++++++++++
 Slackdump also supports the internal format of the thread identifier for
 brevity.  It has the format of CHANNEL:THREAD, i.e.
 ``CHM82GX00:1577694990.000400``, for the example above.
