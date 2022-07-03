@@ -1,63 +1,72 @@
-Dumping conversations
----------------------
+=====================
+Dumping Conversations
+=====================
 [Index_]
 
 .. contents::
 
-As it was already mentioned in the introduction, Slackdump supports
-two ways of providing the conversation IDs that you want to save:
+Generic Information
+-------------------
+On Examples
++++++++++++
 
-- **By ID**: it expects to see Conversation IDs.
-- **By URL**: it expects to see URLs.  You can get URL by choosing
-  "Copy Link" in the Slack on the channel or thread.
+The provided examples are for Linux and macOS if you're using windows, replace
+``./slackdump`` with ``slackdump`` in the examples.
 
-IDs or URLs can be passed on the command line or read from a file
-(using the ``-i`` command line flag), in that file, every ID or URL
-should be placed on a separate line.
+User Cache
+++++++++++
 
-Slackdump can automatically detect if it's an ID or a URL.
+Slackdump always pre-caches the users to be able to resolve the usernames.  If
+the amount of users is large in your Workspace, disable user caching with
+``-no-user-cache`` flag, i.e.::
 
-Providing the list on the command line
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  slackdump -no-user-cache ...
 
-By ID
-+++++
+Output Format
++++++++++++++
 
-Firstly, dump the channel list to choose what you want to dump::
+The default output format for Conversations or Threads is ``json``.
+Additionally, slackdump can generate a text file with formatted conversation.
+To enable generation of the text file::
 
-  slackdump -c
+  slackdump -r text ...
 
-You will get the output resembling the following::
+Set output Directory or ZIP file
+++++++++++++++++++++++++++++++++
 
-  2021/10/31 17:32:34 initializing...
-  2021/10/31 17:32:35 retrieving data...
-  2021/10/31 17:32:35 done
-  ID           Arch  Saved  What
-  CHXXXXXXX    -     -      #everything
-  CHXXXXXXX    -     -      #everyone
-  CHXXXXXXX    -     -      #random
-  DHMAXXXXX    -     -      @slackbot
-  DNF3XXXXX    -     -      @alice
-  DLY4XXXXX    -     -      @bob
+By default, Slackdump writes all files to the current directory.  Alternatively,
+Slackdump can output files to another directory or even a ZIP file.  To make
+Slackdump write to another directory or ZIP file:
 
-You'll need the value in the **ID** column.
+Output to Directory with the name of "some_dir"::
+  
+  slackdump -base some_dir ...
 
-To dump the channel, run the following command::
+Output to ZIP file named "my_archive.zip"::
 
-  slackdump <ID1> [ID2] ... [IDn]
+  slackdump -base my_archive.zip ...
 
-By default, slackdump generates a json file with the convesation.  If
-you want the convesation to be saved to a text file as well, use the
-``-r text`` command line parameter.  See example below.
+Saving file and image attachments
++++++++++++++++++++++++++++++++++
+By default, Slackdump does not fetch any attachments.  To enable fetching
+attachments, use ``-f`` flag::
 
-By URL
-++++++
-One can start Slackdump with the list of URLs.  This can be helpful, if the
-amount of channels is to large to list::
+  slackdump -f ...
 
-  slackdump <URL1> [URL2] ... [URLn]
+If the base directory is set, it will use it to save attachments.
 
-One can mix URLs and IDs.
+Using the Command Line
+----------------------
+
+To dump the conversations of interest, you must provide their IDs or URLs either
+on the command line, or a file.
+
+Providing the list on the command line::
+
+  ./slackdump CXXXXXX DXXXXXXX https://xx.slack.com/archives/CXXXXXX
+
+The URL can be URL of the conversation or thread.  Thread URLs are explained
+in details later in this section.
 
 Example
 +++++++
@@ -72,10 +81,33 @@ conversations::
                │     │    │         ╰─: @alice │
                │     │    ╰───────────: @bob   ┊
                │     ╰────────────────: save files
-               ╰──────────────────────: text file output
+               ╰──────────────────────: text file output (can also be "json")
            thread or conversation URL :────────╯
 
-Conversation URL:
+Reading data from the file
+--------------------------
+
+Slackdump can read the list of the channels and URLs to dump from the
+file.
+
+1. Create the file that will contain all the necessary IDs and/or
+   URLs, I'll use "links.txt" in the example.
+2. Copy/paste all the IDs and URLs into that file, one per line.
+3. Run slackdump with "@links.txt" on the command line::
+
+     slackdump @links.txt
+               ━━━━┯━━━━━
+                   │
+                   ╰───────: instructs slackdump to use the file input
+
+   "@" character instructs slackdump to read entries from the file.
+
+File input can be combined with channel IDs or URLs, i.e.::
+
+  slackdump CHANNELID1 @links.txt https://xx.slack.com/...
+
+Conversation URL
+----------------
 
 To get the conversation URL link, use this simple trick that they
 won't teach you at school:
@@ -84,7 +116,8 @@ won't teach you at school:
    channel navigation pane on the left)
 2. Choose "Copy link".
 
-Thread URL:
+Thread URL
+----------
 
 1. In Slack, open the thread that you want to dump.
 2. The thread opens to the right of the main conversation window
@@ -97,24 +130,14 @@ Run the slackdump and provide the URL link as an input::
              │        ╰─────: URL of the thread
              ╰──────────────: save files
 
+Internal Thread Link Format
+---------------------------
+Slackdump also supports the internal format of the thread identifier for
+brevity.  It has the format of CHANNEL:THREAD, i.e.
+``CHM82GX00:1577694990.000400``, for the example above.
 
-Reading data from the file
-~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Slackdump can read the list of the channels and URLs to dump from the
-file.
-
-1. Create the file that will contain all the necessary IDs and/or
-   URLs, I'll use "links.txt" in the example.
-2. Copy/paste all the IDs and URLs into that file, one per line.
-3. Run slackdump with "-i" command line flag.  "-i" stands for
-   "input"::
-
-     slackdump -i links.txt
-               ━━━━┯━━━━━━━
-                   │
-                   ╰───────: instructs slackdump to use the file input
 [Index_]
 
 .. _Index: README.rst
 .. _Issues: issues
+.. _export: usage-export.rst
