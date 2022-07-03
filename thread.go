@@ -127,7 +127,10 @@ func (sd *Session) dumpThread(
 					},
 				)
 			})
-			return fmt.Errorf("failed to dump channel:thread %s:%s: %w", channelID, threadTS, err)
+			if err != nil {
+				return fmt.Errorf("failed to dump channel:thread %s:%s: %w", channelID, threadTS, err)
+			}
+			return nil
 		}); err != nil {
 			return nil, err
 		}

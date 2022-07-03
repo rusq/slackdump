@@ -120,7 +120,10 @@ func (sd *Session) dumpChannel(ctx context.Context, channelID string, oldest, la
 					Inclusive: true,
 				})
 			})
-			return fmt.Errorf("failed to dump channel %s: %w", channelID, err)
+			if err != nil {
+				return fmt.Errorf("failed to dump channel %s: %w", channelID, err)
+			}
+			return nil
 		}); err != nil {
 			return nil, err
 		}
