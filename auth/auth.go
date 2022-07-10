@@ -43,3 +43,12 @@ func (c simpleProvider) SlackToken() string {
 func (c simpleProvider) Cookies() []http.Cookie {
 	return c.cookies
 }
+
+// deref dereferences []*T to []T.
+func deref[T any](cc []*T) []T {
+	var ret = make([]T, len(cc))
+	for i := range cc {
+		ret[i] = *cc[i]
+	}
+	return ret
+}

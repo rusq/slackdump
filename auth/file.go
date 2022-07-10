@@ -27,11 +27,3 @@ func NewCookieFileAuth(token string, cookieFile string) (CookieFileAuth, error) 
 	}
 	return fc, nil
 }
-
-func deref[T any](cc []*T) []T {
-	var ret = make([]T, len(cc))
-	for i := range cc {
-		ret[i] = *cc[i]
-	}
-	return ret
-}
