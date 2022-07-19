@@ -39,6 +39,13 @@ $(OUTPUT).exe: $(OUTPUT)
 $(OUTPUT):
 	GOOS=$(GOOS) go build -ldflags=$(LDFLAGS) -o $(EXECUTABLE) $(CMD)
 
+x86_%:
+	GOARCH=amd64 go build -ldflags=$(LDFLAGS) -o $@ $(CMD)
+
+arm_%:
+	GOARCH=arm64 go build -ldflags=$(LDFLAGS) -o $@ $(CMD)
+
+
 clean:
 	-rm slackdump slackdump.exe $(wildcard *.zip)
 

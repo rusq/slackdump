@@ -247,7 +247,7 @@ func Filename(f *slack.File) string {
 	return fmt.Sprintf("%s-%s", f.ID, f.Name)
 }
 
-// Stop stops the downloader.
+// Stop waits for all transfers to finish, and stops the downloader.
 func (c *Client) Stop() {
 	c.mu.Lock()
 	defer c.mu.Unlock()

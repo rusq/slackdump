@@ -72,6 +72,7 @@ func (se *Export) messages(ctx context.Context, users types.Users) error {
 	if se.opts.IncludeFiles {
 		// start the downloader
 		dl.Start(ctx)
+		defer dl.Stop()
 	}
 
 	var chans []slack.Channel
@@ -86,7 +87,11 @@ func (se *Export) messages(ctx context.Context, users types.Users) error {
 		return fmt.Errorf("failed to create an index: %w", err)
 	}
 
-	return idx.Marshal(se.fs)
+	if err := idx.Marshal(se.fs); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (se *Export) exportChannels(ctx context.Context, dl *downloader.Client, users types.Users, el *structures.EntityList) ([]slack.Channel, error) {
