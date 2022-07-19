@@ -12,7 +12,6 @@ import (
 
 	"github.com/slack-go/slack"
 
-	"github.com/rusq/dlog"
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/downloader"
 	"github.com/rusq/slackdump/v2/fsadapter"
@@ -25,9 +24,9 @@ import (
 
 // Export is the instance of Slack Exporter.
 type Export struct {
-	fs   fsadapter.FS       // target filesystem
-	sd   *slackdump.Session // Session instance
-	dlog logger.Interface
+	fs fsadapter.FS       // target filesystem
+	sd *slackdump.Session // Session instance
+	lg logger.Interface
 
 	// time window
 	opts Options
@@ -36,9 +35,9 @@ type Export struct {
 // New creates a new Export instance, that will save export to the
 // provided fs.
 func New(sd *slackdump.Session, fs fsadapter.FS, cfg Options) *Export {
-	se := &Export{fs: fs, sd: sd, dlog: cfg.Logger, opts: cfg}
-	if se.dlog == nil {
-		se.dlog = logger.Default
+	se := &Export{fs: fs, sd: sd, lg: cfg.Logger, opts: cfg}
+	if se.lg == nil {
+		se.lg = logger.Default
 	}
 	network.Logger = se.l()
 	return se
@@ -72,7 +71,11 @@ func (se *Export) messages(ctx context.Context, users types.Users) error {
 	if se.opts.IncludeFiles {
 		// start the downloader
 		dl.Start(ctx)
-		defer dl.Stop()
+		defer func() {
+			trace.Log(ctx, "info", "waiting for downloads to finish")
+			dl.Stop()
+			trace.Log(ctx, "info", "downloader stopped")
+		}()
 	}
 
 	var chans []slack.Channel
@@ -118,7 +121,7 @@ func (se *Export) exclusiveExport(ctx context.Context, dl *downloader.Client, us
 	if err := se.sd.StreamChannels(ctx, slackdump.AllChanTypes, func(ch slack.Channel) error {
 		if include, ok := listIdx[ch.ID]; ok && !include {
 			trace.Logf(ctx, "info", "skipping %s", ch.ID)
-			dlog.Printf("skipping: %s", ch.ID)
+			se.lg.Printf("skipping: %s", ch.ID)
 			return nil
 		}
 		if err := se.exportConversation(ctx, dl, uidx, ch); err != nil {
@@ -155,7 +158,7 @@ func (se *Export) inclusiveExport(ctx context.Context, dl *downloader.Client, us
 	for _, entry := range list.Include {
 		if include, ok := elIdx[entry]; ok && !include {
 			trace.Logf(ctx, "info", "skipping %s", entry)
-			dlog.Printf("skipping: %s", entry)
+			se.lg.Printf("skipping: %s", entry)
 			continue
 		}
 		sl, err := structures.ParseLink(entry)
@@ -288,8 +291,8 @@ func serialize(w io.Writer, data any) error {
 }
 
 func (se *Export) l() logger.Interface {
-	if se.dlog == nil {
-		se.dlog = logger.Default
+	if se.lg == nil {
+		se.lg = logger.Default
 	}
-	return se.dlog
+	return se.lg
 }

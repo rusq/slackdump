@@ -26,7 +26,7 @@ type App struct {
 	cfg  Config
 }
 
-// New creates a new slackdump app. It inherits the logging from slack optiond
+// New creates a new slackdump app. It inherits the logging from slack options
 // in the Config.
 func New(cfg Config, provider auth.Provider) (*App, error) {
 	if err := cfg.Validate(); err != nil {
