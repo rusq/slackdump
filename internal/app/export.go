@@ -30,13 +30,21 @@ func (app *App) Export(ctx context.Context, name string) error {
 	}
 	fs, err := fsadapter.ForFilename(name)
 	if err != nil {
-		trace.Logf(ctx, "error", "filesystem: %s", err)
+		app.td(ctx, "error", "filesystem: %s", err)
 		return fmt.Errorf("failed to initialise the filesystem: %w", err)
 	}
-	defer fsadapter.Close(fs)
+	defer func() {
+		app.td(ctx, "info", "closing file system")
+		fsadapter.Close(fs)
+	}()
 
-	trace.Logf(ctx, "info", "filesystem: %s", fs)
+	app.td(ctx, "info", "filesystem: %s", fs)
 	app.l().Printf("staring export to: %s", fs)
 
-	return export.New(app.sd, fs, cfg).Run(ctx)
+	e := export.New(app.sd, fs, cfg)
+	if err := e.Run(ctx); err != nil {
+		return err
+	}
+
+	return nil
 }

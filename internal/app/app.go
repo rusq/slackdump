@@ -140,3 +140,9 @@ func (app *App) l() logger.Interface {
 	}
 	return app.cfg.Options.Logger
 }
+
+// td outputs the message to trace and logs a debug message.
+func (app *App) td(ctx context.Context, category string, fmt string, a ...any) {
+	app.l().Debugf(fmt, a...)
+	trace.Logf(ctx, category, fmt, a...)
+}

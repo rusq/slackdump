@@ -257,9 +257,9 @@ func (c *Client) Stop() {
 	}
 
 	close(c.fileRequests)
-	c.l().Debugf("chan closed")
+	c.l().Debugf("download files channel closed, waiting for downloads to complete")
 	c.wg.Wait()
-	c.l().Debugf("wait complete")
+	c.l().Debugf("wait complete:  all files downloaded")
 
 	c.fileRequests = nil
 	c.wg = nil
