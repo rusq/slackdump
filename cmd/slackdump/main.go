@@ -49,7 +49,7 @@ var secrets = []string{".env", ".env.txt", "secrets.txt"}
 // params is the command line parameters
 type params struct {
 	appCfg app.Config
-	creds  slackCreds
+	creds  app.SlackCreds
 
 	traceFile string // trace file
 	logFile   string //log file, if not specified, outputs to stderr.
@@ -66,6 +66,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	if params.printVersion {
 		fmt.Println(build)
 		return
@@ -104,12 +105,11 @@ func run(ctx context.Context, p params) error {
 	defer task.End()
 
 	// init the authentication provider
-	provider, err := p.creds.authProvider()
+	provider, err := p.creds.AuthProvider(ctx, "")
 	if err != nil {
 		return fmt.Errorf("failed to initialise the auth provider: %w", err)
 	} else {
-		// dispose of credentials, prevents from logging them into trace file.
-		p.creds = slackCreds{}
+		p.creds = app.SlackCreds{}
 	}
 
 	// trace startup parameters for debugging
@@ -229,8 +229,8 @@ func parseCmdLine(args []string) (params, error) {
 	}
 
 	// authentication
-	fs.StringVar(&p.creds.token, "t", osenv.Secret(slackTokenEnv, ""), "Specify slack `API_token`, (environment: "+slackTokenEnv+")")
-	fs.StringVar(&p.creds.cookie, "cookie", osenv.Secret(slackCookieEnv, ""), "d= cookie `value` or a path to a cookie.txt file (environment: "+slackCookieEnv+")")
+	fs.StringVar(&p.creds.Token, "t", osenv.Secret(slackTokenEnv, ""), "Specify slack `API_token`, (environment: "+slackTokenEnv+")")
+	fs.StringVar(&p.creds.Cookie, "cookie", osenv.Secret(slackCookieEnv, ""), "d= cookie `value` or a path to a cookie.txt file (environment: "+slackCookieEnv+")")
 
 	// operation mode
 	fs.BoolVar(&p.appCfg.ListFlags.Channels, "c", false, "same as -list-channels")

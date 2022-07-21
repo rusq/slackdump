@@ -54,9 +54,9 @@ func Test_checkParameters(t *testing.T) {
 			"channels",
 			args{[]string{"-c", "-t", "x", "-cookie", "d"}},
 			params{
-				creds: slackCreds{
-					token:  "x",
-					cookie: "d",
+				creds: app.SlackCreds{
+					Token:  "x",
+					Cookie: "d",
 				},
 				appCfg: app.Config{
 					ListFlags: app.ListFlags{
@@ -75,9 +75,9 @@ func Test_checkParameters(t *testing.T) {
 			"users",
 			args{[]string{"-u", "-t", "x", "-cookie", "d"}},
 			params{
-				creds: slackCreds{
-					token:  "x",
-					cookie: "d",
+				creds: app.SlackCreds{
+					Token:  "x",
+					Cookie: "d",
 				},
 				appCfg: app.Config{
 					ListFlags: app.ListFlags{

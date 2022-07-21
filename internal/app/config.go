@@ -88,6 +88,8 @@ func (lf ListFlags) FlagsPresent() bool {
 	return lf.Users || lf.Channels
 }
 
+var ErrNothingToDo = errors.New("no valid input and no list flags specified")
+
 // Validate checks if the command line parameters have valid values.
 func (p *Config) Validate() error {
 	if p.ExportName != "" {
@@ -96,7 +98,7 @@ func (p *Config) Validate() error {
 	}
 
 	if !p.Input.IsValid() && !p.ListFlags.FlagsPresent() {
-		return fmt.Errorf("no valid input and no list flags specified")
+		return ErrNothingToDo
 	}
 
 	// channels and users listings will be in the text format (if not specified otherwise)

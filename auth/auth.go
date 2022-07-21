@@ -5,12 +5,25 @@ import (
 	"net/http"
 )
 
+// Type is the auth type.
+type Type uint8
+
+// All supported auth types.
+const (
+	TypeInvalid Type = iota
+	TypeValue
+	TypeCookieFile
+	TypeBrowser
+)
+
 // Provider is the Slack Authentication provider.
 type Provider interface {
 	// SlackToken should return the Slack Token value.
 	SlackToken() string
 	// Cookies should returns a set of Slack Session cookies.
 	Cookies() []http.Cookie
+	// Type returns the auth type.
+	Type() Type
 	// Validate should return error, in case the token or cookies cannot be
 	// retrieved.
 	Validate() error

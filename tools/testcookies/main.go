@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 
@@ -18,7 +19,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	token, cookies, err := b.Authenticate()
+	token, cookies, err := b.Authenticate(context.Background())
 	if err != nil {
 		log.Fatal(err)
 	}
