@@ -34,7 +34,7 @@ func (sd *Session) GetUsers(ctx context.Context) (types.Users, error) {
 		if os.IsNotExist(err) {
 			sd.l().Println("  caching users for the first time")
 		} else {
-			sd.l().Printf("  failed to load cache, it will be recreated: %s", err)
+			sd.l().Printf("  %s: it will be recreated.", err)
 		}
 		users, err = sd.fetchUsers(ctx)
 		if err != nil {

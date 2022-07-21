@@ -104,7 +104,7 @@ func run(ctx context.Context, p params) error {
 	defer task.End()
 
 	// init the authentication provider
-	provider, err := p.creds.authProvider()
+	provider, err := p.creds.authProvider(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to initialise the auth provider: %w", err)
 	} else {

@@ -1,69 +1,88 @@
 package auth
 
 import (
-	"bufio"
-	"fmt"
+	"context"
 	"io"
 	"net/url"
 	"os"
 	"strings"
 
-	"github.com/fatih/color"
 	"github.com/playwright-community/playwright-go"
 
+	"github.com/rusq/slackdump/v2/auth/auth_ui"
 	"github.com/rusq/slackdump/v2/auth/browser"
 )
 
 var _ Provider = BrowserAuth{}
+var defaultFlow = &auth_ui.TView{}
 
 type BrowserAuth struct {
 	simpleProvider
+	flow      BrowserAuthUI
+	workspace string
 }
 
-func NewBrowserAuth() (BrowserAuth, error) {
+type BrowserAuthUI interface {
+	RequestWorkspace(w io.Writer) (string, error)
+	Stop()
+}
+
+type BrowserOption func(*BrowserAuth)
+
+func BrowserWithAuthFlow(flow BrowserAuthUI) BrowserOption {
+	return func(ba *BrowserAuth) {
+		if flow == nil {
+			return
+		}
+		ba.flow = flow
+	}
+}
+
+func BrowserWithWorkspace(name string) BrowserOption {
+	return func(ba *BrowserAuth) {
+		ba.workspace = name
+	}
+}
+
+func NewBrowserAuth(ctx context.Context, opts ...BrowserOption) (BrowserAuth, error) {
+	var br = BrowserAuth{
+		flow: defaultFlow,
+	}
+	for _, opt := range opts {
+		opt(&br)
+	}
+
 	if err := playwright.Install(&playwright.RunOptions{Browsers: []string{"chromium"}}); err != nil {
-		return BrowserAuth{}, err
+		return br, err
+	}
+	if br.workspace == "" {
+		var err error
+		br.workspace, err = br.flow.RequestWorkspace(os.Stdout)
+		if err != nil {
+			return br, err
+		}
+		defer br.flow.Stop()
+	}
+	if wsp, err := sanitize(br.workspace); err != nil {
+		return br, err
+	} else {
+		br.workspace = wsp
 	}
 
-	instructions(os.Stdout)
-	workspace, err := requestWorkspace(os.Stdout)
+	auther, err := browser.New(br.workspace)
 	if err != nil {
-		return BrowserAuth{}, err
+		return br, err
+	}
+	token, cookies, err := auther.Authenticate(ctx)
+	if err != nil {
+		return br, err
+	}
+	br.simpleProvider = simpleProvider{
+		token:   token,
+		cookies: cookies,
 	}
 
-	auther, err := browser.New(workspace)
-	if err != nil {
-		return BrowserAuth{}, err
-	}
-	token, cookies, err := auther.Authenticate()
-	if err != nil {
-		return BrowserAuth{}, err
-	}
-	return BrowserAuth{
-		simpleProvider: simpleProvider{
-			token:   token,
-			cookies: cookies,
-		},
-	}, nil
-}
-
-func instructions(w io.Writer) {
-	const welcome = "Welcome to Slackdump EZ-Login 3000"
-	underline := color.Set(color.Underline)
-	fmt.Fprintf(w, "%s\n\n", underline.Sprint(welcome))
-	fmt.Fprintf(w, "Please read these instructions carefully:\n\n")
-	fmt.Fprintf(w, "1. Enter the slack workspace name or paste the URL of your slack workspace.\n\n   HINT: If https://example.slack.com is the Slack URL of your company,\n         then 'example' is the Slack Workspace name\n\n")
-	fmt.Fprintf(w, "2. Browser will open, login as usual.\n\n")
-	fmt.Fprintf(w, "3. Browser will close and slackdump will be authenticated.\n\n\n")
-}
-
-func requestWorkspace(w io.Writer) (string, error) {
-	fmt.Fprint(w, "Enter Slack Workspace Name: ")
-	workspace, err := readln(os.Stdin)
-	if err != nil {
-		return "", err
-	}
-	return sanitize(workspace)
+	return br, nil
 }
 
 func sanitize(workspace string) (string, error) {
@@ -80,12 +99,4 @@ func sanitize(workspace string) (string, error) {
 	// parse
 	parts := strings.Split(workspace, ".")
 	return parts[0], nil
-}
-
-func readln(r io.Reader) (string, error) {
-	line, err := bufio.NewReader(r).ReadString('\n')
-	if err != nil {
-		return "", err
-	}
-	return strings.TrimSpace(line), nil
 }
