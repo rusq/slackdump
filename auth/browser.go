@@ -14,7 +14,7 @@ import (
 )
 
 var _ Provider = BrowserAuth{}
-var defaultFlow = &auth_ui.TView{}
+var defaultFlow = &auth_ui.CLI{}
 
 type BrowserAuth struct {
 	simpleProvider
