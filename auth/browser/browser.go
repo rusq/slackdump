@@ -1,11 +1,13 @@
 package browser
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
 	"regexp"
+	"runtime/trace"
 	"strings"
 	"time"
 
@@ -15,7 +17,8 @@ import (
 
 // Client is the client for Browser Auth Provider.
 type Client struct {
-	workspace string
+	workspace  string
+	pageClosed chan bool // will receive a notification that the page is closed prematurely.
 }
 
 var Logger logger.Interface = logger.Default
@@ -25,10 +28,13 @@ func New(workspace string) (*Client, error) {
 	if workspace == "" {
 		return nil, errors.New("workspace can't be empty")
 	}
-	return &Client{workspace: workspace}, nil
+	return &Client{workspace: workspace, pageClosed: make(chan bool, 1)}, nil
 }
 
-func (cl *Client) Authenticate() (string, []http.Cookie, error) {
+func (cl *Client) Authenticate(ctx context.Context) (string, []http.Cookie, error) {
+	ctx, task := trace.NewTask(ctx, "Authenticate")
+	defer task.End()
+
 	pw, err := playwright.Run()
 	if err != nil {
 		return "", nil, err
@@ -54,6 +60,7 @@ func (cl *Client) Authenticate() (string, []http.Cookie, error) {
 	if err != nil {
 		return "", nil, err
 	}
+	page.On("close", func() { trace.Log(ctx, "user", "page closed"); close(cl.pageClosed) })
 
 	uri := fmt.Sprintf("https://%s.slack.com", cl.workspace)
 	l().Debugf("opening browser URL=%s", uri)
@@ -62,7 +69,13 @@ func (cl *Client) Authenticate() (string, []http.Cookie, error) {
 		return "", nil, err
 	}
 
-	r := page.WaitForRequest(uri + "/api/api.features*")
+	var r playwright.Request
+	if err := cl.withBrowserGuard(ctx, func() {
+		r = page.WaitForRequest(uri + "/api/api.features*")
+	}); err != nil {
+		return "", nil, err
+	}
+
 	token, err := extractToken(r.URL())
 	if err != nil {
 		return "", nil, err
@@ -77,6 +90,22 @@ func (cl *Client) Authenticate() (string, []http.Cookie, error) {
 	}
 
 	return token, convertCookies(state.Cookies), nil
+}
+
+func (cl *Client) withBrowserGuard(ctx context.Context, fn func()) error {
+	var done = make(chan struct{})
+	go func() {
+		defer close(done)
+		fn()
+	}()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-cl.pageClosed:
+		return errors.New("browser closed")
+	case <-done:
+	}
+	return nil
 }
 
 // tokenRE is the regexp that matches a valid Slack Client token.
