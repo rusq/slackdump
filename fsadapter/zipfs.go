@@ -37,7 +37,7 @@ func NewZipFile(filename string) (*ZIP, error) {
 }
 
 func (*ZIP) normalizePath(p string) string {
-	return path.Join(filepath.SplitList(p)...)
+	return path.Join(filepath.SplitList(filepath.Clean(p))...)
 }
 
 func (z *ZIP) Create(filename string) (io.WriteCloser, error) {

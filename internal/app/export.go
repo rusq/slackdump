@@ -35,11 +35,13 @@ func (app *App) Export(ctx context.Context, name string) error {
 	}
 	defer func() {
 		app.td(ctx, "info", "closing file system")
-		fsadapter.Close(fs)
+		if err := fsadapter.Close(fs); err != nil {
+			app.tl(ctx, "error", "error closing filesystem")
+		}
 	}()
-
 	app.td(ctx, "info", "filesystem: %s", fs)
-	app.l().Printf("staring export to: %s", fs)
+
+	app.tl(ctx, "info", "staring export to: %s", fs)
 
 	e := export.New(app.sd, fs, cfg)
 	if err := e.Run(ctx); err != nil {
