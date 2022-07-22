@@ -37,7 +37,7 @@ func NewZipFile(filename string) (*ZIP, error) {
 }
 
 func (*ZIP) normalizePath(p string) string {
-	return path.Join(filepath.SplitList(p)...)
+	return path.Join(filepath.SplitList(filepath.Clean(p))...)
 }
 
 func (z *ZIP) Create(filename string) (io.WriteCloser, error) {
@@ -45,11 +45,11 @@ func (z *ZIP) Create(filename string) (io.WriteCloser, error) {
 	// in case it uses OS specific path.
 	filename = z.normalizePath(filename)
 
+	z.mu.Lock() // mutex will be unlocked, when the user calls Close.
 	w, err := z.zw.Create(filename)
 	if err != nil {
 		return nil, err
 	}
-	z.mu.Lock() // mutex will be unlocked, when the user calls Close.
 	return &syncWriter{w: w, mu: &z.mu}, nil
 }
 

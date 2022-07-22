@@ -2,10 +2,10 @@
 package downloader
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"io"
+	"os"
 	"path"
 	"path/filepath"
 	"runtime/trace"
@@ -175,7 +175,7 @@ func (c *Client) worker(ctx context.Context, reqC <-chan FileRequest) {
 			c.l().Debugf("saving %q to %s, size: %d", Filename(req.File), req.Directory, req.File.Size)
 			n, err := c.saveFile(ctx, req.Directory, req.File)
 			if err != nil {
-				c.l().Printf("error saving %q to %s: %s", Filename(req.File), req.Directory, err)
+				c.l().Printf("error saving %q to %q: %s", Filename(req.File), req.Directory, err)
 				break
 			}
 			c.l().Printf("file %q saved to %s: %d bytes written", Filename(req.File), req.Directory, n)
@@ -221,25 +221,48 @@ func (c *Client) saveFile(ctx context.Context, dir string, sf *slack.File) (int6
 	}
 	filePath := filepath.Join(dir, Filename(sf))
 
-	var buf bytes.Buffer
+	tf, err := os.CreateTemp("", "")
+	if err != nil {
+		return 0, err
+	}
+	defer func() {
+		tf.Close()
+		os.Remove(tf.Name())
+	}()
+
 	if err := network.WithRetry(ctx, c.limiter, c.retries, func() error {
 		region := trace.StartRegion(ctx, "GetFile")
 		defer region.End()
 
-		buf.Reset()
-		if err := c.client.GetFile(sf.URLPrivateDownload, &buf); err != nil {
-			return fmt.Errorf("download to %q failed: %w", filePath, err)
+		if err := c.client.GetFile(sf.URLPrivateDownload, tf); err != nil {
+			if _, err := tf.Seek(0, io.SeekStart); err != nil {
+				c.l().Debugf("seek error: %s", err)
+			}
+			return fmt.Errorf("download to %q failed, [src=%s]: %w", filePath, sf.URLPrivateDownload, err)
 		}
 		return nil
 	}); err != nil {
 		return 0, err
 	}
 
-	if err := c.fs.WriteFile(filePath, buf.Bytes(), 0666); err != nil {
+	// at this point, temporary file position would be at EOF, we need to reset
+	// it prior to copying.
+	if _, err := tf.Seek(0, io.SeekStart); err != nil {
 		return 0, err
 	}
 
-	return int64(buf.Len()), nil
+	fsf, err := c.fs.Create(filePath)
+	if err != nil {
+		return 0, err
+	}
+	defer fsf.Close()
+
+	n, err := io.Copy(fsf, tf)
+	if err != nil {
+		return 0, err
+	}
+
+	return int64(n), nil
 }
 
 // Filename returns name of the file
@@ -257,9 +280,9 @@ func (c *Client) Stop() {
 	}
 
 	close(c.fileRequests)
-	c.l().Debugf("chan closed")
+	c.l().Debugf("download files channel closed, waiting for downloads to complete")
 	c.wg.Wait()
-	c.l().Debugf("wait complete")
+	c.l().Debugf("wait complete:  all files downloaded")
 
 	c.fileRequests = nil
 	c.wg = nil

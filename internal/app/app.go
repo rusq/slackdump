@@ -48,10 +48,6 @@ func (app *App) Run(ctx context.Context) error {
 	ctx, task := trace.NewTask(ctx, "app.Run")
 	defer task.End()
 
-	if app.cfg.ExportName != "" {
-		app.l().Debug("export mode ON")
-	}
-
 	if err := app.initSlackdump(ctx); err != nil {
 		return err
 	}
@@ -62,6 +58,7 @@ func (app *App) Run(ctx context.Context) error {
 	case app.cfg.ListFlags.FlagsPresent():
 		err = app.runListEntities(ctx)
 	case app.cfg.ExportName != "":
+		app.l().Debug("export mode ON")
 		err = app.runExport(ctx)
 	default:
 		err = app.runDump(ctx)
@@ -139,4 +136,16 @@ func (app *App) l() logger.Interface {
 		app.cfg.Options.Logger = logger.Default
 	}
 	return app.cfg.Options.Logger
+}
+
+// td outputs the message to trace and logs a debug message.
+func (app *App) td(ctx context.Context, category string, fmt string, a ...any) {
+	app.l().Debugf(fmt, a...)
+	trace.Logf(ctx, category, fmt, a...)
+}
+
+// td outputs the message to trace and logs a debug message.
+func (app *App) tl(ctx context.Context, category string, fmt string, a ...any) {
+	app.l().Printf(fmt, a...)
+	trace.Logf(ctx, category, fmt, a...)
 }

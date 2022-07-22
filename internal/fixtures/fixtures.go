@@ -3,6 +3,8 @@ package fixtures
 import (
 	"bytes"
 	"encoding/json"
+	"io"
+	"os"
 )
 
 // loadFixture loads a json data into T, or panics.
@@ -19,4 +21,14 @@ func FilledBuffer(sz int) *bytes.Buffer {
 	var buf bytes.Buffer
 	buf.Write(bytes.Repeat([]byte{0x00}, sz))
 	return &buf
+}
+
+func FilledFile(sz int) *os.File {
+	f, err := os.CreateTemp("", "sdunit*")
+	if err != nil {
+		panic(err)
+	}
+	f.Write(bytes.Repeat([]byte{0x00}, sz))
+	f.Seek(0, io.SeekStart)
+	return f
 }

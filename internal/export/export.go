@@ -72,15 +72,15 @@ func (se *Export) messages(ctx context.Context, users types.Users) error {
 		// start the downloader
 		dl.Start(ctx)
 		defer func() {
-			trace.Log(ctx, "info", "waiting for downloads to finish")
+			se.td(ctx, "info", "waiting for downloads to finish")
 			dl.Stop()
-			trace.Log(ctx, "info", "downloader stopped")
+			se.td(ctx, "info", "downloader stopped")
 		}()
 	}
 
 	var chans []slack.Channel
 
-	chans, err := se.exportChannels(ctx, dl, users, se.opts.List)
+	chans, err := se.exportChannels(ctx, dl, users.IndexByID(), se.opts.List)
 	if err != nil {
 		return fmt.Errorf("export error: %w", err)
 	}
@@ -97,26 +97,25 @@ func (se *Export) messages(ctx context.Context, users types.Users) error {
 	return nil
 }
 
-func (se *Export) exportChannels(ctx context.Context, dl *downloader.Client, users types.Users, el *structures.EntityList) ([]slack.Channel, error) {
+func (se *Export) exportChannels(ctx context.Context, dl *downloader.Client, uidx structures.UserIndex, el *structures.EntityList) ([]slack.Channel, error) {
 	if se.opts.List.HasIncludes() {
 		// if there an Include list, we don't need to retrieve all channels,
 		// only the ones that are specified.
-		return se.inclusiveExport(ctx, dl, users, se.opts.List)
+		return se.inclusiveExport(ctx, dl, uidx, se.opts.List)
 	} else {
-		return se.exclusiveExport(ctx, dl, users, se.opts.List)
+		return se.exclusiveExport(ctx, dl, uidx, se.opts.List)
 	}
 }
 
 // exclusiveExport exports all channels, excluding ones that are defined in
 // EntityList.  If EntityList has Include channels, they are ignored.
-func (se *Export) exclusiveExport(ctx context.Context, dl *downloader.Client, users types.Users, el *structures.EntityList) ([]slack.Channel, error) {
+func (se *Export) exclusiveExport(ctx context.Context, dl *downloader.Client, uidx structures.UserIndex, el *structures.EntityList) ([]slack.Channel, error) {
 	ctx, task := trace.NewTask(ctx, "export.exclusive")
 	defer task.End()
 
 	chans := make([]slack.Channel, 0)
 
 	listIdx := el.Index()
-	uidx := users.IndexByID()
 	// we need the current user to be able to build an index of DMs.
 	if err := se.sd.StreamChannels(ctx, slackdump.AllChanTypes, func(ch slack.Channel) error {
 		if include, ok := listIdx[ch.ID]; ok && !include {
@@ -140,7 +139,7 @@ func (se *Export) exclusiveExport(ctx context.Context, dl *downloader.Client, us
 
 // inclusiveExport exports only channels that are defined in the
 // EntryList.Include.
-func (se *Export) inclusiveExport(ctx context.Context, dl *downloader.Client, users types.Users, list *structures.EntityList) ([]slack.Channel, error) {
+func (se *Export) inclusiveExport(ctx context.Context, dl *downloader.Client, uidx structures.UserIndex, list *structures.EntityList) ([]slack.Channel, error) {
 	ctx, task := trace.NewTask(ctx, "export.inclusive")
 	defer task.End()
 
@@ -157,7 +156,7 @@ func (se *Export) inclusiveExport(ctx context.Context, dl *downloader.Client, us
 	// we need the current user to be able to build an index of DMs.
 	for _, entry := range list.Include {
 		if include, ok := elIdx[entry]; ok && !include {
-			trace.Logf(ctx, "info", "skipping %s", entry)
+			se.td(ctx, "info", "skipping %s", entry)
 			se.lg.Printf("skipping: %s", entry)
 			continue
 		}
@@ -170,7 +169,7 @@ func (se *Export) inclusiveExport(ctx context.Context, dl *downloader.Client, us
 			return nil, fmt.Errorf("error getting info for %s: %w", sl, err)
 		}
 
-		if err := se.exportConversation(ctx, dl, users.IndexByID(), *ch); err != nil {
+		if err := se.exportConversation(ctx, dl, uidx, *ch); err != nil {
 			return nil, err
 		}
 
@@ -295,4 +294,10 @@ func (se *Export) l() logger.Interface {
 		se.lg = logger.Default
 	}
 	return se.lg
+}
+
+// td outputs the message to trace and logs a debug message.
+func (e *Export) td(ctx context.Context, category string, fmt string, a ...any) {
+	e.l().Debugf(fmt, a...)
+	trace.Logf(ctx, category, fmt, a...)
 }

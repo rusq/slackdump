@@ -69,7 +69,7 @@ func TestSession_SaveFileTo(t *testing.T) {
 			func(mc *mock_downloader.MockDownloader) {
 				mc.EXPECT().
 					GetFile("file1_url", gomock.Any()).
-					SetArg(1, *fixtures.FilledBuffer(file1.Size)). // to mock the file size.
+					SetArg(1, *fixtures.FilledFile(file1.Size)). // to mock the file size.
 					Return(nil)
 			},
 			int64(file1.Size),
@@ -160,7 +160,7 @@ func TestSession_saveFile(t *testing.T) {
 			func(mc *mock_downloader.MockDownloader) {
 				mc.EXPECT().
 					GetFile("file1_url", gomock.Any()).
-					SetArg(1, *fixtures.FilledBuffer(file1.Size)).
+					SetArg(1, *fixtures.FilledFile(file1.Size)).
 					Return(nil)
 			},
 			int64(file1.Size),
