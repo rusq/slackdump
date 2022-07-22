@@ -2,6 +2,9 @@ package fsadapter
 
 import (
 	"archive/zip"
+	"bytes"
+	"crypto/rand"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -137,4 +140,61 @@ func TestNewZIP(t *testing.T) {
 
 		assert.Equal(t, zw, zf.zw)
 	})
+}
+
+func TestCreateConcurrency(t *testing.T) {
+	// test for GH issue#90 - race condition in ZIP.Create
+	const (
+		numRoutines    = 16
+		testContentsSz = 1 * (1 << 20)
+	)
+
+	var buf bytes.Buffer
+	var wg sync.WaitGroup
+
+	zw := zip.NewWriter(&buf)
+	defer zw.Close()
+
+	fsa := NewZIP(zw)
+	defer fsa.Close()
+
+	// prepare workers
+	readySteadyGo := make(chan struct{})
+	panicAttacks := make(chan any, numRoutines)
+
+	for i := 0; i < numRoutines; i++ {
+		wg.Add(1)
+		go func(n int) {
+			defer func() {
+				if r := recover(); r != nil {
+					panicAttacks <- fmt.Sprintf("ZIP.Create race condition in gr %d: %v", n, r)
+				}
+			}()
+
+			defer wg.Done()
+			var contents bytes.Buffer
+			if _, err := io.CopyN(&contents, rand.Reader, testContentsSz); err != nil {
+				panic(err)
+			}
+
+			<-readySteadyGo
+			fw, err := fsa.Create(fmt.Sprintf("file%d", i))
+			if err != nil {
+				panic(err)
+			}
+			defer fw.Close()
+
+			if _, err := io.Copy(fw, &contents); err != nil {
+				panic(err)
+			}
+		}(i)
+	}
+	close(readySteadyGo)
+	wg.Wait()
+	close(panicAttacks)
+	for r := range panicAttacks {
+		if r != nil {
+			t.Error(r)
+		}
+	}
 }
