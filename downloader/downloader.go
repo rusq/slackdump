@@ -152,7 +152,7 @@ func (c *Client) startWorkers(ctx context.Context, req <-chan FileRequest) *sync
 	for i := 0; i < c.workers; i++ {
 		wg.Add(1)
 		go func(workerNum int) {
-			c.worker(ctx, fltSeen(req))
+			c.worker(ctx, c.fltSeen(req))
 			wg.Done()
 			c.l().Debugf("download worker %d terminated", workerNum)
 		}(i)

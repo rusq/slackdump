@@ -1,12 +1,8 @@
 package downloader
 
-import (
-	"log"
-)
-
 // fltSeen filters the files from filesC to ensure that no duplicates
 // are downloaded.
-func fltSeen(filesC <-chan FileRequest) <-chan FileRequest {
+func (c *Client) fltSeen(filesC <-chan FileRequest) <-chan FileRequest {
 	dlQ := make(chan FileRequest)
 	go func() {
 		// closing stop will lead to all worker goroutines to terminate.
@@ -19,7 +15,7 @@ func fltSeen(filesC <-chan FileRequest) <-chan FileRequest {
 		for f := range filesC {
 			id := f.File.ID + f.Directory
 			if _, ok := seen[id]; ok {
-				log.Printf("already seen %s, skipping", Filename(f.File))
+				c.l().Debugf("already seen %q, skipping", Filename(f.File))
 				continue
 			}
 			seen[id] = true

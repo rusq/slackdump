@@ -38,7 +38,9 @@ func Test_fltSeen(t *testing.T) {
 				filesC <- f
 			}
 		}()
-		dlqC := fltSeen(filesC)
+
+		c := Client{}
+		dlqC := c.fltSeen(filesC)
 
 		var got []FileRequest
 		for f := range dlqC {
@@ -58,8 +60,8 @@ func BenchmarkFltSeen(b *testing.B) {
 			inputC <- req
 		}
 	}()
-
-	outputC := fltSeen(inputC)
+	c := Client{}
+	outputC := c.fltSeen(inputC)
 
 	for n := 0; n < b.N; n++ {
 		for out := range outputC {
