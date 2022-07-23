@@ -108,9 +108,7 @@ func (app *App) runExport(ctx context.Context) error {
 	ctx, task := trace.NewTask(ctx, "runExport")
 	defer task.End()
 
-	if err := app.Export(ctx,
-		app.cfg.ExportName,
-	); err != nil {
+	if err := app.Export(ctx, app.cfg.ExportName); err != nil {
 		return err
 	}
 
