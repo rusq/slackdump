@@ -2,13 +2,11 @@ package app
 
 import (
 	"context"
-	"html/template"
 	"runtime/trace"
 	"time"
 
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/auth"
-	"github.com/rusq/slackdump/v2/fsadapter"
 	"github.com/rusq/slackdump/v2/logger"
 )
 
@@ -18,9 +16,7 @@ const (
 )
 
 type App struct {
-	sd   *slackdump.Session
-	tmpl *template.Template
-	fs   fsadapter.FS
+	sd *slackdump.Session
 
 	prov auth.Provider
 	cfg  Config
@@ -32,15 +28,7 @@ func New(cfg Config, provider auth.Provider) (*App, error) {
 	if err := cfg.Validate(); err != nil {
 		return nil, err
 	}
-	tmpl, err := cfg.compileTemplates()
-	if err != nil {
-		return nil, err
-	}
-	fs, err := fsadapter.ForFilename(cfg.Output.Base)
-	if err != nil {
-		return nil, err
-	}
-	app := &App{cfg: cfg, prov: provider, tmpl: tmpl, fs: fs}
+	app := &App{cfg: cfg, prov: provider}
 	return app, nil
 }
 
@@ -48,24 +36,15 @@ func (app *App) Run(ctx context.Context) error {
 	ctx, task := trace.NewTask(ctx, "app.Run")
 	defer task.End()
 
-	if err := app.initSlackdump(ctx); err != nil {
-		return err
-	}
-
 	start := time.Now()
+
 	var err error
-	switch {
-	case app.cfg.ListFlags.FlagsPresent():
-		err = app.runListEntities(ctx)
-	case app.cfg.ExportName != "":
-		app.l().Debug("export mode ON")
-		err = app.runExport(ctx)
-	default:
+	if app.cfg.ExportName != "" {
+		err = app.Export(ctx, app.cfg.ExportName)
+	} else {
 		err = app.runDump(ctx)
 	}
-
 	if err != nil {
-		trace.Log(ctx, "error", err.Error())
 		return err
 	}
 
@@ -75,43 +54,6 @@ func (app *App) Run(ctx context.Context) error {
 
 // Close closes all open handles.
 func (app *App) Close() error {
-	return fsadapter.Close(app.fs)
-}
-
-// initSlackdump initialises the slack dumper app.
-func (app *App) initSlackdump(ctx context.Context) error {
-	sd, err := slackdump.NewWithOptions(
-		ctx,
-		app.prov,
-		app.cfg.Options,
-	)
-	if err != nil {
-		return err
-	}
-	app.sd = sd
-	app.sd.SetFS(app.fs)
-	return nil
-}
-
-func (app *App) runListEntities(ctx context.Context) error {
-	ctx, task := trace.NewTask(ctx, "runListEntities")
-	defer task.End()
-
-	if err := app.listEntities(ctx, app.cfg.Output, app.cfg.ListFlags); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (app *App) runExport(ctx context.Context) error {
-	ctx, task := trace.NewTask(ctx, "runExport")
-	defer task.End()
-
-	if err := app.Export(ctx, app.cfg.ExportName); err != nil {
-		return err
-	}
-
 	return nil
 }
 
@@ -119,13 +61,19 @@ func (app *App) runDump(ctx context.Context) error {
 	ctx, task := trace.NewTask(ctx, "runDump")
 	defer task.End()
 
-	n, err := app.dump(ctx, app.cfg.Input)
+	dm, err := newDump(ctx, &app.cfg, app.prov)
 	if err != nil {
 		return err
 	}
 
-	app.l().Printf("dumped %d item(s)", n)
-	return nil
+	if app.cfg.ListFlags.FlagsPresent() {
+		err = dm.List(ctx)
+	} else {
+		var n int
+		n, err = dm.Dump(ctx)
+		app.l().Printf("dumped %d item(s)", n)
+	}
+	return err
 }
 
 func (app *App) l() logger.Interface {

@@ -17,6 +17,8 @@ const (
 	filenameTmplName = "fnt"
 )
 
+var errSkip = errors.New("skip")
+
 type Config struct {
 	ListFlags ListFlags
 
@@ -45,8 +47,6 @@ type Input struct {
 
 var (
 	ErrInvalidInput = errors.New("no valid input")
-
-	errSkip = errors.New("skip")
 )
 
 func (in *Input) IsValid() bool {
