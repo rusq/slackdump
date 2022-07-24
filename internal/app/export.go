@@ -7,43 +7,50 @@ import (
 	"runtime/trace"
 	"time"
 
+	"github.com/rusq/slackdump/v2"
+	"github.com/rusq/slackdump/v2/auth"
+	"github.com/rusq/slackdump/v2/export"
 	"github.com/rusq/slackdump/v2/fsadapter"
-	"github.com/rusq/slackdump/v2/internal/export"
 )
 
 // Export performs the full export of slack workspace in slack export compatible
 // format.
-func (app *App) Export(ctx context.Context, name string) error {
-	ctx, task := trace.NewTask(ctx, "App.Export")
+func Export(ctx context.Context, cfg Config, prov auth.Provider) error {
+	ctx, task := trace.NewTask(ctx, "Export")
 	defer task.End()
 
-	if name == "" {
+	if cfg.ExportName == "" {
 		return errors.New("export directory or filename not specified")
 	}
 
-	cfg := export.Options{
-		Oldest:       time.Time(app.cfg.Oldest),
-		Latest:       time.Time(app.cfg.Latest),
-		IncludeFiles: app.cfg.Options.DumpFiles,
-		Logger:       app.l(),
-		List:         app.cfg.Input.List,
-	}
-	fs, err := fsadapter.ForFilename(name)
+	sess, err := slackdump.NewWithOptions(ctx, prov, cfg.Options)
 	if err != nil {
-		app.td(ctx, "error", "filesystem: %s", err)
+		return err
+	}
+
+	expCfg := export.Options{
+		Oldest:       time.Time(cfg.Oldest),
+		Latest:       time.Time(cfg.Latest),
+		IncludeFiles: cfg.Options.DumpFiles,
+		Logger:       cfg.Logger(),
+		List:         cfg.Input.List,
+	}
+	fs, err := fsadapter.ForFilename(cfg.ExportName)
+	if err != nil {
+		cfg.Logger().Debugf("Export:  filesystem error: %s", err)
 		return fmt.Errorf("failed to initialise the filesystem: %w", err)
 	}
 	defer func() {
-		app.td(ctx, "info", "closing file system")
+		cfg.Logger().Debugf("Export:  closing file system")
 		if err := fsadapter.Close(fs); err != nil {
-			app.tl(ctx, "error", "error closing filesystem")
+			cfg.Logger().Printf("Export:  error closing filesystem")
 		}
 	}()
-	app.td(ctx, "info", "filesystem: %s", fs)
 
-	app.tl(ctx, "info", "staring export to: %s", fs)
+	cfg.Logger().Debugf("Export:  filesystem: %s", fs)
+	cfg.Logger().Printf("Export:  staring export to: %s", fs)
 
-	e := export.New(app.sd, fs, cfg)
+	e := export.New(sess, fs, expCfg)
 	if err := e.Run(ctx); err != nil {
 		return err
 	}

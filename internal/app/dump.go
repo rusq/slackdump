@@ -8,6 +8,7 @@ import (
 	"html/template"
 	"io"
 	"os"
+	"runtime/trace"
 	"strings"
 	"time"
 
@@ -21,25 +22,37 @@ import (
 
 type dump struct {
 	sess *slackdump.Session
-	cfg  *Config
+	cfg  Config
 
 	log logger.Interface
 }
 
-func newDump(ctx context.Context, cfg *Config, prov auth.Provider) (*dump, error) {
+func Dump(ctx context.Context, cfg Config, prov auth.Provider) error {
+	ctx, task := trace.NewTask(ctx, "runDump")
+	defer task.End()
+
+	dm, err := newDump(ctx, cfg, prov)
+	if err != nil {
+		return err
+	}
+
+	if cfg.ListFlags.FlagsPresent() {
+		err = dm.List(ctx)
+	} else {
+		var n int
+		n, err = dm.Dump(ctx)
+		cfg.Logger().Printf("dumped %d item(s)", n)
+	}
+	return err
+}
+
+func newDump(ctx context.Context, cfg Config, prov auth.Provider) (*dump, error) {
 	sess, err := slackdump.NewWithOptions(ctx, prov, cfg.Options)
 	if err != nil {
 		return nil, err
 	}
 
-	var l logger.Interface
-	if cfg.Options.Logger == nil {
-		l = logger.Default
-	} else {
-		l = cfg.Options.Logger
-	}
-
-	return &dump{sess: sess, cfg: cfg, log: l}, nil
+	return &dump{sess: sess, cfg: cfg, log: cfg.Logger()}, nil
 }
 
 // dump dumps the input, if dumpfiles is true, it will save the files into a

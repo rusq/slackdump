@@ -115,20 +115,12 @@ func run(ctx context.Context, p params) error {
 	// trace startup parameters for debugging
 	trace.Logf(ctx, "info", "params: input: %+v", p)
 
-	// initialise the application
-	application, err := app.New(p.appCfg, provider)
-	if err != nil {
-		trace.Logf(ctx, "error", "app.New: %s", err.Error())
-		return fmt.Errorf("application failed to initialise: %w", err)
-	}
-	defer application.Close()
-
 	// override default handler for SIGTERM and SIGQUIT signals.
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
 	// run the application
-	if err := application.Run(ctx); err != nil {
+	if err := app.Run(ctx, p.appCfg, provider); err != nil {
 		trace.Logf(ctx, "error", "app.Run: %s", err.Error())
 		if isInvalidAuth(err) {
 			return fmt.Errorf("failed to authenticate:  please double check that token/cookie values are correct (error: %w)", err)
