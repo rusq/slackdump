@@ -1,10 +1,16 @@
 package app
 
-import "time"
-
-type TimeValue time.Time
+import (
+	"flag"
+	"time"
+)
 
 const timeFmt = "2006-01-02T15:04:05"
+
+// TimeValue satisfies flag.Value, used for command line parsing.
+type TimeValue time.Time
+
+var _ flag.Value = &TimeValue{}
 
 func (tv *TimeValue) String() string {
 	if time.Time(*tv).IsZero() {

@@ -5,12 +5,55 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"html/template"
+	"io"
+	"os"
+	"runtime/trace"
 	"strings"
 	"time"
 
 	"github.com/rusq/slackdump/v2"
+	"github.com/rusq/slackdump/v2/auth"
+	"github.com/rusq/slackdump/v2/fsadapter"
+	"github.com/rusq/slackdump/v2/internal/structures"
+	"github.com/rusq/slackdump/v2/logger"
 	"github.com/rusq/slackdump/v2/types"
 )
+
+type dump struct {
+	sess *slackdump.Session
+	cfg  Config
+
+	log logger.Interface
+}
+
+func Dump(ctx context.Context, cfg Config, prov auth.Provider) error {
+	ctx, task := trace.NewTask(ctx, "runDump")
+	defer task.End()
+
+	dm, err := newDump(ctx, cfg, prov)
+	if err != nil {
+		return err
+	}
+
+	if cfg.ListFlags.FlagsPresent() {
+		err = dm.List(ctx)
+	} else {
+		var n int
+		n, err = dm.Dump(ctx)
+		cfg.Logger().Printf("dumped %d item(s)", n)
+	}
+	return err
+}
+
+func newDump(ctx context.Context, cfg Config, prov auth.Provider) (*dump, error) {
+	sess, err := slackdump.NewWithOptions(ctx, prov, cfg.Options)
+	if err != nil {
+		return nil, err
+	}
+
+	return &dump{sess: sess, cfg: cfg, log: cfg.Logger()}, nil
+}
 
 // dump dumps the input, if dumpfiles is true, it will save the files into a
 // respective directory with ID of the channel as the name.  If generateText is
@@ -27,15 +70,27 @@ import (
 //    +--<ID>.json - json file with conversation and users
 //    +--<ID>.txt  - formatted conversation in text format, if generateText is true.
 //
-func (app *App) dump(ctx context.Context, input Input) (int, error) {
-	if !input.IsValid() {
+func (app *dump) Dump(ctx context.Context) (int, error) {
+	if !app.cfg.Input.IsValid() {
 		return 0, errors.New("no valid input")
 	}
 
+	fs, err := fsadapter.ForFilename(app.cfg.Output.Base)
+	if err != nil {
+		return 0, err
+	}
+	defer fsadapter.Close(fs)
+	app.sess.SetFS(fs)
+
+	tmpl, err := app.cfg.compileTemplates()
+	if err != nil {
+		return 0, err
+	}
+
 	total := 0
-	if err := input.producer(func(channelID string) error {
-		if err := app.dumpOne(ctx, channelID, app.sd.Dump); err != nil {
-			app.l().Printf("error processing: %q (conversation will be skipped): %s", channelID, err)
+	if err := app.cfg.Input.producer(func(channelID string) error {
+		if err := app.dumpOne(ctx, fs, tmpl, channelID, app.sess.Dump); err != nil {
+			app.log.Printf("error processing: %q (conversation will be skipped): %s", channelID, err)
 			return errSkip
 		}
 		total++
@@ -50,9 +105,9 @@ type dumpFunc func(context.Context, string, time.Time, time.Time, ...slackdump.P
 
 // renderFilename returns the filename that is rendered according to the
 // file naming template.
-func (app *App) renderFilename(c *types.Conversation) string {
+func renderFilename(tmpl *template.Template, c *types.Conversation) string {
 	var buf strings.Builder
-	if err := app.tmpl.ExecuteTemplate(&buf, filenameTmplName, c); err != nil {
+	if err := tmpl.ExecuteTemplate(&buf, filenameTmplName, c); err != nil {
 		// this should nevar happen
 		panic(err)
 	}
@@ -61,32 +116,31 @@ func (app *App) renderFilename(c *types.Conversation) string {
 
 // dumpOneChannel dumps just one channel specified by channelInput.  If
 // generateText is true, it will also generate a ID.txt text file.
-func (app *App) dumpOne(ctx context.Context, channelInput string, fn dumpFunc) error {
+func (app *dump) dumpOne(ctx context.Context, fs fsadapter.FS, filetmpl *template.Template, channelInput string, fn dumpFunc) error {
 	cnv, err := fn(ctx, channelInput, time.Time(app.cfg.Oldest), time.Time(app.cfg.Latest))
 	if err != nil {
 		return err
 	}
 
-	return app.writeFiles(app.renderFilename(cnv), cnv)
+	return app.writeFiles(fs, renderFilename(filetmpl, cnv), cnv)
 }
 
 // writeFiles writes the conversation to disk.  If text output is set, it will
 // also generate a text file having the same name as JSON file.
-func (app *App) writeFiles(name string, cnv *types.Conversation) error {
-	if err := app.writeJSON(name+".json", cnv); err != nil {
+func (app *dump) writeFiles(fs fsadapter.FS, name string, cnv *types.Conversation) error {
+	if err := app.writeJSON(fs, name+".json", cnv); err != nil {
 		return err
 	}
 	if app.cfg.Output.IsText() {
-		if err := app.writeText(name+".txt", cnv); err != nil {
+		if err := app.writeText(fs, name+".txt", cnv); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (app *App) writeJSON(filename string, m any) error {
-	app.l().Printf("generating %s", filename)
-	f, err := app.fs.Create(filename)
+func (app *dump) writeJSON(fs fsadapter.FS, filename string, m any) error {
+	f, err := fs.Create(filename)
 	if err != nil {
 		return fmt.Errorf("error writing %q: %w", filename, err)
 	}
@@ -100,13 +154,80 @@ func (app *App) writeJSON(filename string, m any) error {
 	return nil
 }
 
-func (app *App) writeText(filename string, m *types.Conversation) error {
-	app.l().Printf("generating %s", filename)
-	f, err := app.fs.Create(filename)
+func (app *dump) writeText(fs fsadapter.FS, filename string, m *types.Conversation) error {
+	app.log.Printf("generating %s", filename)
+	f, err := fs.Create(filename)
 	if err != nil {
 		return fmt.Errorf("error writing %q: %w", filename, err)
 	}
 	defer f.Close()
 
-	return m.ToText(f, app.sd.UserIndex)
+	return m.ToText(f, app.sess.UserIndex)
+}
+
+// reporter is an interface defining output functions
+type reporter interface {
+	ToText(w io.Writer, ui structures.UserIndex) error
+}
+
+// List lists the supported entities, and writes the output to the output
+// defined in the app.cfg.
+func (app *dump) List(ctx context.Context) error {
+	f, err := createFile(app.cfg.Output.Filename)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	app.log.Print("retrieving data...")
+	rep, err := app.fetchEntity(ctx, app.cfg.ListFlags)
+	if err != nil {
+		return err
+	}
+
+	if err := app.formatEntity(f, rep, app.cfg.Output); err != nil {
+		return err
+	}
+	return nil
+}
+
+// createFile creates the file, or opens the Stdout, if the filename is "-".
+// It will return an error, if things go pear-shaped.
+func createFile(filename string) (f io.WriteCloser, err error) {
+	if filename == "-" {
+		f = os.Stdout
+		return
+	}
+	return os.Create(filename)
+}
+
+// fetchEntity retrieves the data from the API according to the ListFlags.
+func (dm *dump) fetchEntity(ctx context.Context, listFlags ListFlags) (rep reporter, err error) {
+	switch {
+	case listFlags.Channels:
+		rep, err = dm.sess.GetChannels(ctx)
+		if err != nil {
+			return
+		}
+	case listFlags.Users:
+		rep, err = dm.sess.GetUsers(ctx)
+		if err != nil {
+			return
+		}
+	default:
+		err = errors.New("nothing to do")
+	}
+	return
+}
+
+// formatEntity formats reporter output as defined in the "Output".
+func (app *dump) formatEntity(w io.Writer, rep reporter, output Output) error {
+	switch output.Format {
+	case OutputTypeText:
+		return rep.ToText(w, app.sess.UserIndex)
+	case OutputTypeJSON:
+		enc := json.NewEncoder(w)
+		return enc.Encode(rep)
+	}
+	return errors.New("invalid Output format")
 }

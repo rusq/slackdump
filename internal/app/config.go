@@ -10,12 +10,20 @@ import (
 
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/internal/structures"
+	"github.com/rusq/slackdump/v2/logger"
 	"github.com/rusq/slackdump/v2/types"
+)
+
+const (
+	OutputTypeJSON = "json"
+	OutputTypeText = "text"
 )
 
 const (
 	filenameTmplName = "fnt"
 )
+
+var errSkip = errors.New("skip")
 
 type Config struct {
 	ListFlags ListFlags
@@ -45,8 +53,6 @@ type Input struct {
 
 var (
 	ErrInvalidInput = errors.New("no valid input")
-
-	errSkip = errors.New("skip")
 )
 
 func (in *Input) IsValid() bool {
@@ -172,4 +178,11 @@ func (in Input) producer(fn func(string) error) error {
 	}
 
 	return in.listProducer(fn)
+}
+
+func (cfg Config) Logger() logger.Interface {
+	if cfg.Options.Logger == nil {
+		return logger.Default
+	}
+	return cfg.Options.Logger
 }
