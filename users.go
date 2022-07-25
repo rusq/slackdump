@@ -113,7 +113,7 @@ func (sd *Session) saveUserCache(filename string, suffix string, uu types.Users)
 // makeCacheFilename converts filename.ext to filename-suffix.ext.
 func (sd *Session) makeCacheFilename(filename, suffix string) string {
 	ne := filenameSplit(filename)
-	return filepath.Join(sd.cacheDir, filenameJoin(nameExt{ne[0] + "-" + suffix, ne[1]}))
+	return filepath.Join(sd.options.CacheDir, filenameJoin(nameExt{ne[0] + "-" + suffix, ne[1]}))
 }
 
 type nameExt [2]string

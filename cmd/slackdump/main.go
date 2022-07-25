@@ -58,6 +58,10 @@ type params struct {
 	verbose      bool
 }
 
+func init() {
+
+}
+
 func main() {
 	banner(os.Stderr)
 	loadSecrets(secrets)
@@ -262,7 +266,8 @@ func parseCmdLine(args []string) (params, error) {
 	fs.IntVar(&p.appCfg.Options.ChannelsPerReq, "npr", slackdump.DefOptions.ChannelsPerReq, "number of `channels` per request.")
 	fs.IntVar(&p.appCfg.Options.RepliesPerReq, "rpr", slackdump.DefOptions.RepliesPerReq, "number of `replies` per request.")
 
-	// - user cache controls
+	// - cache controls
+	fs.StringVar(&p.appCfg.Options.CacheDir, "cache-dir", app.CacheDir(), "slackdump cache directory")
 	fs.StringVar(&p.appCfg.Options.UserCacheFilename, "user-cache-file", slackdump.DefOptions.UserCacheFilename, "user cache file`name`.")
 	fs.DurationVar(&p.appCfg.Options.MaxUserCacheAge, "user-cache-age", slackdump.DefOptions.MaxUserCacheAge, "user cache lifetime `duration`. Set this to 0 to disable cache.")
 	fs.BoolVar(&p.appCfg.Options.NoUserCache, "no-user-cache", slackdump.DefOptions.NoUserCache, "skip fetching users")

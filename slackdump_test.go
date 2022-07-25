@@ -268,7 +268,6 @@ func TestSession_Me(t *testing.T) {
 				Users:     tt.fields.Users,
 				UserIndex: tt.fields.UserIndex,
 				options:   tt.fields.options,
-				cacheDir:  tt.fields.cacheDir,
 			}
 			got, err := sd.Me()
 			if (err != nil) != tt.wantErr {
@@ -322,7 +321,6 @@ func TestSession_l(t *testing.T) {
 				Users:     tt.fields.Users,
 				UserIndex: tt.fields.UserIndex,
 				options:   tt.fields.options,
-				cacheDir:  tt.fields.cacheDir,
 			}
 			if got := sd.l(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("Session.l() = %v, want %v", got, tt.want)
