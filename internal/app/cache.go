@@ -11,18 +11,16 @@ const (
 	cacheDirName = "slackdump"
 )
 
-var cacheDir string // cache directory
-
-func init() {
-	var err error
-	ucd, err := os.UserCacheDir()
+// ucd detects user cache dir and returns slack cache directory name.
+func ucd(ucdFn func() (string, error)) string {
+	ucd, err := ucdFn()
 	if err != nil {
-		dlog.Debugf("failed to determine the OS cache directory: %s", err)
-		return
+		dlog.Debug(err)
+		return "."
 	}
-	cacheDir = filepath.Join(ucd, cacheDirName)
+	return filepath.Join(ucd, cacheDirName)
 }
 
 func CacheDir() string {
-	return cacheDir
+	return ucd(os.UserCacheDir)
 }
