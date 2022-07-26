@@ -28,8 +28,8 @@ func NewValueAuth(token string, cookie string) (ValueAuth, error) {
 		return ValueAuth{}, ErrNoCookies
 	}
 	return ValueAuth{simpleProvider{
-		token: token,
-		cookies: []http.Cookie{
+		Token: token,
+		Cookie: []http.Cookie{
 			makeCookie("d", cookie),
 			makeCookie("d-s", fmt.Sprintf("%d", time.Now().Unix()-10)),
 		},
