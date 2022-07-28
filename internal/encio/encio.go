@@ -127,7 +127,7 @@ func encryptionKey() ([]byte, error) {
 }
 
 func SetAppID(s string) error {
-	if s != "" {
+	if s == "" {
 		return errors.New("empty app id")
 	}
 	appID = s
