@@ -7,8 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"runtime/trace"
 
-	"github.com/rusq/dlog"
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/auth"
 	"github.com/rusq/slackdump/v2/internal/encio"
@@ -92,22 +92,39 @@ func ezLoginTested() bool {
 	}
 }
 
+// InitProvider initialises the auth.Provider depending on provided slack
+// credentials.  It returns auth.Provider or an error.  The logic diagram is
+// available in the doc/diagrams/auth_flow.puml.
+//
+// If the creds is empty, it attempts to load the stored credentials.  If it
+// finds them, it returns an initialised credentials provider.  If not - it
+// returns the auth provider according to the type of credentials determined
+// by creds.AuthProvider, and saves them to an AES-256-CFB encrypted storage.
+//
+// The storage is encrypted using the hash of the unique machine-ID, supplied
+// by the operating system (see package encio), it makes it impossible to
+// transfer and use the stored credentials on another machine (including
+// virtual), even another operating system on the same machine, unless it's a
+// clone of the source operating system on which the credentials storage was
+// created.
 func InitProvider(ctx context.Context, cacheDir string, workspace string, creds SlackCreds) (auth.Provider, error) {
+	ctx, task := trace.NewTask(ctx, "InitProvider")
+	defer task.End()
+
 	credsLoc := filepath.Join(cacheDir, credsFile)
 
-	lg := dlog.FromContext(ctx)
 	// try to load the existing credentials, if saved earlier.
 	if creds.IsEmpty() {
 		prov, err := loadCreds(credsLoc)
 		if err != nil {
-			lg.Debugf("failed to load credentials: %s", err)
+			trace.Logf(ctx, "warn", "failed to load credentials: %s", err)
 		} else {
 			if err := slackdump.TestAuth(ctx, prov); err == nil {
 				// authenticated with the saved creds.
-				lg.Print("loaded saved credentials")
+				trace.Log(ctx, "info", "loaded saved credentials")
 				return prov, nil
 			}
-			lg.Debugf("no stored credentials on the system")
+			trace.Log(ctx, "info", "no stored credentials on the system")
 			// fallthrough to getting the credentials from auth provider
 		}
 	}
@@ -119,7 +136,7 @@ func InitProvider(ctx context.Context, cacheDir string, workspace string, creds 
 	}
 
 	if err := saveCreds(credsLoc, provider); err != nil {
-		lg.Printf("warning:  failed to save credentials to: %s", credsLoc)
+		trace.Logf(ctx, "error", "failed to save credentials to: %s", credsLoc)
 	}
 
 	return provider, nil
@@ -127,6 +144,7 @@ func InitProvider(ctx context.Context, cacheDir string, workspace string, creds 
 
 var errLoadFailed = errors.New("failed to load stored credentials")
 
+// loadCreds loads the encrypted credentials from the file.
 func loadCreds(filename string) (auth.Provider, error) {
 	f, err := encio.Open(filename)
 	if err != nil {
@@ -137,6 +155,7 @@ func loadCreds(filename string) (auth.Provider, error) {
 	return auth.Load(f)
 }
 
+// saveCreds encrypts and saves the credentials.
 func saveCreds(filename string, p auth.Provider) error {
 	f, err := encio.Create(filename)
 	if err != nil {
@@ -147,6 +166,7 @@ func saveCreds(filename string, p auth.Provider) error {
 	return auth.Save(f, p)
 }
 
+// AuthReset removes the cached credentials.
 func AuthReset(cacheDir string) error {
 	return os.Remove(filepath.Join(cacheDir, credsFile))
 }
