@@ -3,10 +3,19 @@ package app
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
+	"path/filepath"
 	"runtime"
 
+	"github.com/rusq/dlog"
+	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/auth"
+	"github.com/rusq/slackdump/v2/internal/encio"
+)
+
+const (
+	credsFile = "provider.bin"
 )
 
 type SlackCreds struct {
@@ -26,19 +35,25 @@ var (
 // authentication determined is not supported for the current system, it will
 // return ErrUnsupported.
 func (c SlackCreds) Type(ctx context.Context) (auth.Type, error) {
-	if c.Token == "" || c.Cookie == "" {
-		if !ezLoginSupported() {
-			return auth.TypeInvalid, ErrUnsupported
+	if !c.IsEmpty() {
+		if isExistingFile(c.Cookie) {
+			return auth.TypeCookieFile, nil
 		}
-		if !ezLoginTested() {
-			return auth.TypeBrowser, ErrNotTested
-		}
-		return auth.TypeBrowser, nil
+		return auth.TypeValue, nil
 	}
-	if isExistingFile(c.Cookie) {
-		return auth.TypeCookieFile, nil
+
+	if !ezLoginSupported() {
+		return auth.TypeInvalid, ErrUnsupported
 	}
-	return auth.TypeValue, nil
+	if !ezLoginTested() {
+		return auth.TypeBrowser, ErrNotTested
+	}
+	return auth.TypeBrowser, nil
+
+}
+
+func (c SlackCreds) IsEmpty() bool {
+	return c.Token == "" || c.Cookie == ""
 }
 
 // AuthProvider returns the appropriate auth Provider depending on the values
@@ -75,4 +90,63 @@ func ezLoginTested() bool {
 	case "windows", "linux", "darwin":
 		return true
 	}
+}
+
+func InitProvider(ctx context.Context, cacheDir string, workspace string, creds SlackCreds) (auth.Provider, error) {
+	credsLoc := filepath.Join(cacheDir, credsFile)
+
+	lg := dlog.FromContext(ctx)
+	// try to load the existing credentials, if saved earlier.
+	if creds.IsEmpty() {
+		prov, err := loadCreds(credsLoc)
+		if err != nil {
+			lg.Debugf("failed to load credentials: %s", err)
+		} else {
+			if err := slackdump.TestAuth(ctx, prov); err == nil {
+				// authenticated with the saved creds.
+				lg.Print("loaded saved credentials")
+				return prov, nil
+			}
+			lg.Debugf("no stored credentials on the system")
+			// fallthrough to getting the credentials from auth provider
+		}
+	}
+
+	// init the authentication provider
+	provider, err := creds.AuthProvider(ctx, workspace)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialise the auth provider: %w", err)
+	}
+
+	if err := saveCreds(credsLoc, provider); err != nil {
+		lg.Printf("warning:  failed to save credentials to: %s", credsLoc)
+	}
+
+	return provider, nil
+}
+
+var errLoadFailed = errors.New("failed to load stored credentials")
+
+func loadCreds(filename string) (auth.Provider, error) {
+	f, err := encio.Open(filename)
+	if err != nil {
+		return nil, errLoadFailed
+	}
+	defer f.Close()
+
+	return auth.Load(f)
+}
+
+func saveCreds(filename string, p auth.Provider) error {
+	f, err := encio.Create(filename)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	return auth.Save(f, p)
+}
+
+func AuthReset(cacheDir string) error {
+	return os.Remove(filepath.Join(cacheDir, credsFile))
 }

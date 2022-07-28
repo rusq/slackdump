@@ -14,6 +14,7 @@ import (
 	"syscall"
 
 	"github.com/joho/godotenv"
+	"github.com/rusq/dlog"
 	"github.com/rusq/osenv/v2"
 	"github.com/rusq/tracer"
 	"github.com/slack-go/slack"
@@ -48,18 +49,15 @@ var secrets = []string{".env", ".env.txt", "secrets.txt"}
 
 // params is the command line parameters
 type params struct {
-	appCfg app.Config
-	creds  app.SlackCreds
+	appCfg    app.Config
+	creds     app.SlackCreds
+	authReset bool
 
 	traceFile string // trace file
 	logFile   string //log file, if not specified, outputs to stderr.
 
 	printVersion bool
 	verbose      bool
-}
-
-func init() {
-
 }
 
 func main() {
@@ -75,13 +73,16 @@ func main() {
 		fmt.Println(build)
 		return
 	}
+	if params.authReset {
+		if err := app.AuthReset(params.appCfg.Options.CacheDir); err != nil {
+			if !os.IsNotExist(err) {
+				dlog.Printf("auth reset error: %s", err)
+			}
+		}
+	}
 
 	if err := run(context.Background(), params); err != nil {
-		if params.verbose {
-			log.Fatalf("%+v", err)
-		} else {
-			log.Fatal(err)
-		}
+		log.Fatal(err)
 	}
 }
 
@@ -93,6 +94,7 @@ func run(ctx context.Context, p params) error {
 		return err
 	}
 	defer logStopFn()
+	ctx = dlog.NewContext(ctx, lg)
 
 	// - setting the logger for slackdump package
 	p.appCfg.Options.Logger = lg
@@ -108,10 +110,9 @@ func run(ctx context.Context, p params) error {
 	ctx, task := trace.NewTask(ctx, "main.run")
 	defer task.End()
 
-	// init the authentication provider
-	provider, err := p.creds.AuthProvider(ctx, "")
+	provider, err := app.InitProvider(ctx, p.appCfg.Options.CacheDir, "", p.creds)
 	if err != nil {
-		return fmt.Errorf("failed to initialise the auth provider: %w", err)
+		return err
 	} else {
 		p.creds = app.SlackCreds{}
 	}
@@ -120,7 +121,7 @@ func run(ctx context.Context, p params) error {
 	trace.Logf(ctx, "info", "params: input: %+v", p)
 
 	// override default handler for SIGTERM and SIGQUIT signals.
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
 	// run the application
@@ -140,7 +141,7 @@ func run(ctx context.Context, p params) error {
 // initialised logger, stop function and an error, if any.  The stop function
 // must be called in the deferred call, it will close the log file, if it is
 // open. If the error is returned the stop function is nil.
-func initLog(filename string, verbose bool) (logger.Interface, func(), error) {
+func initLog(filename string, verbose bool) (*dlog.Logger, func(), error) {
 	lg := logger.Default
 	lg.SetDebug(verbose)
 
@@ -227,6 +228,7 @@ func parseCmdLine(args []string) (params, error) {
 	// authentication
 	fs.StringVar(&p.creds.Token, "t", osenv.Secret(slackTokenEnv, ""), "Specify slack `API_token`, (environment: "+slackTokenEnv+")")
 	fs.StringVar(&p.creds.Cookie, "cookie", osenv.Secret(slackCookieEnv, ""), "d= cookie `value` or a path to a cookie.txt file (environment: "+slackCookieEnv+")")
+	fs.BoolVar(&p.authReset, "auth-reset", false, "reset EZ-Login 3000 authentication.")
 
 	// operation mode
 	fs.BoolVar(&p.appCfg.ListFlags.Channels, "c", false, "same as -list-channels")

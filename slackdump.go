@@ -116,6 +116,18 @@ func NewWithOptions(ctx context.Context, authProvider auth.Provider, opts Option
 	return sd, nil
 }
 
+// TestAuth attempts to authenticate with the given provider.  It will return
+// AuthError if faled.
+func TestAuth(ctx context.Context, provider auth.Provider) error {
+	cl := slack.New(provider.SlackToken(), slack.OptionCookieRAW(toPtrCookies(provider.Cookies())...))
+
+	_, err := cl.AuthTestContext(ctx)
+	if err != nil {
+		return &AuthError{Err: err}
+	}
+	return nil
+}
+
 // Client returns the underlying slack.Client.
 func (sd *Session) Client() *slack.Client {
 	return sd.client.(*slack.Client)
