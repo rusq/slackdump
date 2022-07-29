@@ -119,8 +119,13 @@ func NewWithOptions(ctx context.Context, authProvider auth.Provider, opts Option
 // TestAuth attempts to authenticate with the given provider.  It will return
 // AuthError if faled.
 func TestAuth(ctx context.Context, provider auth.Provider) error {
+	ctx, task := trace.NewTask(ctx, "TestAuth")
+	defer task.End()
+
 	cl := slack.New(provider.SlackToken(), slack.OptionCookieRAW(toPtrCookies(provider.Cookies())...))
 
+	region := trace.StartRegion(ctx, "AuthTestContext")
+	defer region.End()
 	_, err := cl.AuthTestContext(ctx)
 	if err != nil {
 		return &AuthError{Err: err}

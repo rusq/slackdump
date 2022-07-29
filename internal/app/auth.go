@@ -113,11 +113,12 @@ func InitProvider(ctx context.Context, cacheDir string, workspace string, creds 
 
 	credsLoc := filepath.Join(cacheDir, credsFile)
 
+	trace.Logf(ctx, "info", "empty creds? %v", creds.IsEmpty())
 	// try to load the existing credentials, if saved earlier.
 	if creds.IsEmpty() {
 		prov, err := loadCreds(credsLoc)
 		if err != nil {
-			trace.Logf(ctx, "warn", "failed to load credentials: %s", err)
+			trace.Log(ctx, "warn", err.Error())
 		} else {
 			if err := slackdump.TestAuth(ctx, prov); err == nil {
 				// authenticated with the saved creds.
@@ -130,6 +131,7 @@ func InitProvider(ctx context.Context, cacheDir string, workspace string, creds 
 	}
 
 	// init the authentication provider
+	trace.Log(ctx, "info", "getting credentals from file or browser")
 	provider, err := creds.AuthProvider(ctx, workspace)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialise the auth provider: %w", err)
