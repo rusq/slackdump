@@ -70,3 +70,31 @@ func TestSlackCreds_Type(t *testing.T) {
 		})
 	}
 }
+
+func TestSlackCreds_IsEmpty(t *testing.T) {
+	type fields struct {
+		Token  string
+		Cookie string
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   bool
+	}{
+		{"empty", fields{Token: "", Cookie: ""}, true},
+		{"empty", fields{Token: "x", Cookie: ""}, true},
+		{"empty", fields{Token: "", Cookie: "x"}, true},
+		{"empty", fields{Token: "x", Cookie: "x"}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := SlackCreds{
+				Token:  tt.fields.Token,
+				Cookie: tt.fields.Cookie,
+			}
+			if got := c.IsEmpty(); got != tt.want {
+				t.Errorf("SlackCreds.IsEmpty() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

@@ -18,6 +18,7 @@ const (
 	credsFile = "provider.bin"
 )
 
+// SlackCreds holds the Token and Cookie reference.
 type SlackCreds struct {
 	Token  string
 	Cookie string
