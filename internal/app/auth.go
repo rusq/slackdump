@@ -207,13 +207,3 @@ func (encryptedFile) Open(filename string) (io.ReadCloser, error) {
 func (encryptedFile) Create(filename string) (io.WriteCloser, error) {
 	return encio.Create(filename)
 }
-
-type plainFile struct{}
-
-func (plainFile) Open(filename string) (io.ReadCloser, error) {
-	return os.Open(filename)
-}
-
-func (plainFile) Create(filename string) (io.WriteCloser, error) {
-	return os.Create(filename)
-}

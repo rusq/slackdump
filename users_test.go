@@ -15,6 +15,7 @@ import (
 	"github.com/slack-go/slack"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/rusq/slackdump/v2/internal/encio"
 	"github.com/rusq/slackdump/v2/internal/fixtures"
 	"github.com/rusq/slackdump/v2/internal/structures"
 	"github.com/rusq/slackdump/v2/types"
@@ -49,7 +50,6 @@ func TestUsers_IndexByID(t *testing.T) {
 }
 
 func TestSession_saveUserCache(t *testing.T) {
-
 	// test saving file works
 	sd := Session{wspInfo: &slack.AuthTestResponse{TeamID: "123"}}
 
@@ -58,7 +58,7 @@ func TestSession_saveUserCache(t *testing.T) {
 
 	assert.NoError(t, sd.saveUserCache(testfile, testSuffix, testUsers))
 
-	reopenedF, err := os.Open(sd.makeCacheFilename(testfile, testSuffix))
+	reopenedF, err := encio.Open(sd.makeCacheFilename(testfile, testSuffix))
 	if err != nil {
 		t.Fatal(err)
 	}
