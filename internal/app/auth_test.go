@@ -13,6 +13,7 @@ import (
 	"github.com/rusq/slackdump/v2/auth"
 	"github.com/rusq/slackdump/v2/internal/mocks/mock_app"
 	"github.com/rusq/slackdump/v2/internal/mocks/mock_io"
+	"github.com/stretchr/testify/assert"
 )
 
 func Test_isExistingFile(t *testing.T) {
@@ -376,9 +377,10 @@ func Test_loadCreds(t *testing.T) {
 				t.Errorf("loadCreds() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("loadCreds() = %v, want %v", got, tt.want)
-			}
+			assert.Equal(t, tt.want, got)
+			// if !reflect.DeepEqual(got, tt.want) {
+			// 	t.Errorf("loadCreds() = %v, want %v", got, tt.want)
+			// }
 		})
 	}
 }
