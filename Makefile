@@ -52,6 +52,9 @@ clean:
 test:
 	go test -race -cover -count=3 ./...
 
+docker_test:
+	docker build .
+
 man: slackdump.1
 
 slackdump.1: README.rst

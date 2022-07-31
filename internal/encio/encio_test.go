@@ -52,7 +52,7 @@ func TestCreateOpen(t *testing.T) {
 	td := t.TempDir()
 	f, err := Create(filepath.Join(td, testfile))
 	if err != nil {
-		t.Errorf("error creating a test file: %s", err)
+		t.Fatalf("error creating a test file: %s", err)
 	}
 	if n, err := f.Write([]byte(plaintext)); err != nil {
 		t.Errorf("error writing test data: %s", err)

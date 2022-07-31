@@ -18,7 +18,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/panta/machineid"
+	"github.com/crowdsecurity/machineid"
 	"github.com/rusq/secure"
 )
 
