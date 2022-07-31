@@ -18,7 +18,6 @@ import (
 	"io"
 	"os"
 
-	"github.com/mzky/machineid"
 	"github.com/rusq/secure"
 )
 
@@ -136,8 +135,6 @@ func generateIV() ([aes.BlockSize]byte, error) {
 	_, err := rand.Read(iv[:])
 	return iv, err
 }
-
-var machineIDFn = machineid.ProtectedID
 
 // encryptionKey returns an encryption key from the passphrase that is
 // generated from a hashed by appID machineID.
