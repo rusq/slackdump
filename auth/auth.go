@@ -16,7 +16,6 @@ const (
 	TypeValue
 	TypeCookieFile
 	TypeBrowser
-	TypeSimple
 )
 
 // Provider is the Slack Authentication provider.

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -13,6 +14,9 @@ import (
 	"github.com/rusq/slackdump/v2/auth"
 	"github.com/rusq/slackdump/v2/internal/encio"
 )
+
+//go:generate mockgen -source=auth.go -destination=../mocks/mock_app/mock_app.go Credentials,createOpener
+//go:generate mockgen -destination=../mocks/mock_io/mock_io.go io ReadCloser,WriteCloser
 
 const (
 	credsFile = "provider.bin"
@@ -93,6 +97,14 @@ func ezLoginTested() bool {
 	}
 }
 
+// filer is openCreator that will be used by InitProvider.
+var filer createOpener = encryptedFile{}
+
+type Credentials interface {
+	IsEmpty() bool
+	AuthProvider(ctx context.Context, workspace string) (auth.Provider, error)
+}
+
 // InitProvider initialises the auth.Provider depending on provided slack
 // credentials.  It returns auth.Provider or an error.  The logic diagram is
 // available in the doc/diagrams/auth_flow.puml.
@@ -108,26 +120,19 @@ func ezLoginTested() bool {
 // virtual), even another operating system on the same machine, unless it's a
 // clone of the source operating system on which the credentials storage was
 // created.
-func InitProvider(ctx context.Context, cacheDir string, workspace string, creds SlackCreds) (auth.Provider, error) {
+func InitProvider(ctx context.Context, cacheDir string, workspace string, creds Credentials) (auth.Provider, error) {
 	ctx, task := trace.NewTask(ctx, "InitProvider")
 	defer task.End()
 
 	credsLoc := filepath.Join(cacheDir, credsFile)
 
-	trace.Logf(ctx, "info", "empty creds? %v", creds.IsEmpty())
 	// try to load the existing credentials, if saved earlier.
 	if creds.IsEmpty() {
-		prov, err := loadCreds(credsLoc)
-		if err != nil {
-			trace.Log(ctx, "warn", err.Error())
+		if prov, err := tryLoad(ctx, credsLoc); err != nil {
+			trace.Logf(ctx, "warn", "no saved credentials: %s", err)
 		} else {
-			if err := slackdump.TestAuth(ctx, prov); err == nil {
-				// authenticated with the saved creds.
-				trace.Log(ctx, "info", "loaded saved credentials")
-				return prov, nil
-			}
-			trace.Log(ctx, "info", "no stored credentials on the system")
-			// fallthrough to getting the credentials from auth provider
+			trace.Log(ctx, "info", "loaded saved credentials")
+			return prov, nil
 		}
 	}
 
@@ -138,20 +143,32 @@ func InitProvider(ctx context.Context, cacheDir string, workspace string, creds 
 		return nil, fmt.Errorf("failed to initialise the auth provider: %w", err)
 	}
 
-	if err := saveCreds(credsLoc, provider); err != nil {
+	if err := saveCreds(filer, credsLoc, provider); err != nil {
 		trace.Logf(ctx, "error", "failed to save credentials to: %s", credsLoc)
 	}
 
 	return provider, nil
 }
 
-var errLoadFailed = errors.New("failed to load stored credentials")
+var authTester = slackdump.TestAuth
+
+func tryLoad(ctx context.Context, filename string) (auth.Provider, error) {
+	prov, err := loadCreds(filer, filename)
+	if err != nil {
+		return nil, err
+	}
+	// test the loaded credentials
+	if err := authTester(ctx, prov); err != nil {
+		return nil, err
+	}
+	return prov, nil
+}
 
 // loadCreds loads the encrypted credentials from the file.
-func loadCreds(filename string) (auth.Provider, error) {
-	f, err := encio.Open(filename)
+func loadCreds(opener createOpener, filename string) (auth.Provider, error) {
+	f, err := opener.Open(filename)
 	if err != nil {
-		return nil, errLoadFailed
+		return nil, errors.New("failed to load stored credentials")
 	}
 	defer f.Close()
 
@@ -159,8 +176,8 @@ func loadCreds(filename string) (auth.Provider, error) {
 }
 
 // saveCreds encrypts and saves the credentials.
-func saveCreds(filename string, p auth.Provider) error {
-	f, err := encio.Create(filename)
+func saveCreds(opener createOpener, filename string, p auth.Provider) error {
+	f, err := opener.Create(filename)
 	if err != nil {
 		return err
 	}
@@ -172,4 +189,31 @@ func saveCreds(filename string, p auth.Provider) error {
 // AuthReset removes the cached credentials.
 func AuthReset(cacheDir string) error {
 	return os.Remove(filepath.Join(cacheDir, credsFile))
+}
+
+// createOpener is the interface to be able to switch between encrypted file
+// and plain text file, if needed.
+type createOpener interface {
+	Create(string) (io.WriteCloser, error)
+	Open(string) (io.ReadCloser, error)
+}
+
+type encryptedFile struct{}
+
+func (encryptedFile) Open(filename string) (io.ReadCloser, error) {
+	return encio.Open(filename)
+}
+
+func (encryptedFile) Create(filename string) (io.WriteCloser, error) {
+	return encio.Create(filename)
+}
+
+type plainFile struct{}
+
+func (plainFile) Open(filename string) (io.ReadCloser, error) {
+	return os.Open(filename)
+}
+
+func (plainFile) Create(filename string) (io.WriteCloser, error) {
+	return os.Create(filename)
 }
