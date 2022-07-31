@@ -51,7 +51,7 @@ func makeCookie(key, val string) http.Cookie {
 		Value:   val,
 		Path:    defaultPath,
 		Domain:  defaultDomain,
-		Expires: timeFunc().AddDate(10, 0, 0),
+		Expires: timeFunc().AddDate(10, 0, 0).UTC(),
 		Secure:  true,
 	}
 }

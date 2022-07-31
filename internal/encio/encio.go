@@ -18,7 +18,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/crowdsecurity/machineid"
+	"github.com/mzky/machineid"
 	"github.com/rusq/secure"
 )
 
