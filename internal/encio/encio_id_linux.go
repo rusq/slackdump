@@ -22,6 +22,12 @@ const (
 
 var machineIDFn = protectedIDwrapper
 
+// protectedIDwrapper is a wrapper around machineid.ProtectedID.  If executed
+// inside docker container, the machineid.ProtectedID will fail, because it
+// relies on /etc/machine-id that may not be present.  If it fails to locate
+// the machine ID it calls genID which will attempt to generate an ID using
+// hostname, which is pretty random in docker, unless the user has assigned
+// a specific name.
 func protectedIDwrapper(appID string) (string, error) {
 	if inContainer, err := isInContainer(cgroupFile); !inContainer || err != nil {
 		return machineid.ProtectedID(appID)
@@ -31,6 +37,8 @@ func protectedIDwrapper(appID string) (string, error) {
 	return hex.EncodeToString(id[:]), nil
 }
 
+// genID generates an ID either from hostname or, if it is unable to get the
+// hostname, it will return "no-machine-id"
 func genID() []byte {
 	if id, err := os.Hostname(); err == nil {
 		return []byte(id)
