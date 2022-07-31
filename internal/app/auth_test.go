@@ -445,3 +445,19 @@ func Test_saveCreds(t *testing.T) {
 		})
 	}
 }
+
+func TestAuthReset(t *testing.T) {
+	t.Run("file is removed", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		testFile := filepath.Join(tmpDir, credsFile)
+		if err := os.WriteFile(testFile, []byte("unit"), 0644); err != nil {
+			t.Fatal(err)
+		}
+		if err := AuthReset(tmpDir); err != nil {
+			t.Errorf("AuthReset unexpected error: %s", err)
+		}
+		if fi, err := os.Stat(testFile); !os.IsNotExist(err) || fi != nil {
+			t.Errorf("expected the %s to be removed, but it is there", testFile)
+		}
+	})
+}
