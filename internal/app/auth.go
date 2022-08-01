@@ -124,6 +124,10 @@ func InitProvider(ctx context.Context, cacheDir string, workspace string, creds 
 	ctx, task := trace.NewTask(ctx, "InitProvider")
 	defer task.End()
 
+	if err := os.MkdirAll(cacheDir, 0700); err != nil {
+		return nil, fmt.Errorf("failed to create cache directory:  %w", err)
+	}
+
 	credsLoc := filepath.Join(cacheDir, credsFile)
 
 	// try to load the existing credentials, if saved earlier.
