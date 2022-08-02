@@ -3,6 +3,6 @@
 
 package encio
 
-import "github.com/mzky/machineid"
+import "github.com/denisbrodbeck/machineid"
 
 var machineIDFn = machineid.ProtectedID

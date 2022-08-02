@@ -9,7 +9,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/mzky/machineid"
+	"github.com/denisbrodbeck/machineid"
 )
 
 const cgroupFile = "/proc/1/cgroup"
