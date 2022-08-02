@@ -12,8 +12,7 @@ import (
 )
 
 const (
-	testRateLimit       = 100.0                 // per second
-	maxRunDurationError = 10 * time.Millisecond // maximum deviation of run duration
+	testRateLimit = 100.0 // per second
 )
 
 // calcRunDuration is the convenience function to calculate the expected run duration.

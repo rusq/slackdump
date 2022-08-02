@@ -134,6 +134,7 @@ func TestNewZIP(t *testing.T) {
 	t.Run("ensure it's the same zw", func(t *testing.T) {
 		hFile, err := os.Create(filepath.Join(tmpdir, "x.zip"))
 		assert.NoError(t, err)
+		defer hFile.Close()
 
 		zw := zip.NewWriter(hFile)
 		zf := NewZIP(zw)

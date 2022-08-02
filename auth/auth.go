@@ -1,7 +1,9 @@
 package auth
 
 import (
+	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 )
 
@@ -35,26 +37,26 @@ var (
 )
 
 type simpleProvider struct {
-	token   string
-	cookies []http.Cookie
+	Token  string
+	Cookie []http.Cookie
 }
 
 func (c simpleProvider) Validate() error {
-	if c.token == "" {
+	if c.Token == "" {
 		return ErrNoToken
 	}
-	if len(c.cookies) == 0 {
+	if len(c.Cookie) == 0 {
 		return ErrNoCookies
 	}
 	return nil
 }
 
 func (c simpleProvider) SlackToken() string {
-	return c.token
+	return c.Token
 }
 
 func (c simpleProvider) Cookies() []http.Cookie {
-	return c.cookies
+	return c.Cookie
 }
 
 // deref dereferences []*T to []T.
@@ -64,4 +66,36 @@ func deref[T any](cc []*T) []T {
 		ret[i] = *cc[i]
 	}
 	return ret
+}
+
+// Load deserialises JSON data from reader and returns a ValueAuth, that can
+// be used to authenticate Slackdump.  It will return ErrNoToken or
+// ErrNoCookie if the authentication information is missing.
+func Load(r io.Reader) (ValueAuth, error) {
+	dec := json.NewDecoder(r)
+	var s simpleProvider
+	if err := dec.Decode(&s); err != nil {
+		return ValueAuth{}, err
+	}
+	return ValueAuth{s}, s.Validate()
+}
+
+// Save serialises authentication information to writer.  It will return
+// ErrNoToken or ErrNoCookie if provider fails validation.
+func Save(w io.Writer, p Provider) error {
+	if err := p.Validate(); err != nil {
+		return err
+	}
+
+	var s = simpleProvider{
+		Token:  p.SlackToken(),
+		Cookie: p.Cookies(),
+	}
+
+	enc := json.NewEncoder(w)
+	if err := enc.Encode(s); err != nil {
+		return err
+	}
+
+	return nil
 }

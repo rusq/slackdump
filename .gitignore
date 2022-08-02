@@ -33,6 +33,7 @@ secrets.*
 cmd/slackdump/slackdump
 cmd/sdconv/sdconv
 /slackdump
+/TODO.*
 /*.txt
 *~
 .env

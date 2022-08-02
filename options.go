@@ -28,6 +28,7 @@ type Options struct {
 	UserCacheFilename   string        // user cache filename
 	MaxUserCacheAge     time.Duration // how long the user cache is valid for.
 	NoUserCache         bool          // disable fetching users from the API.
+	CacheDir            string        // cache directory
 	Logger              logger.Interface
 }
 
@@ -47,6 +48,7 @@ var DefOptions = Options{
 	RepliesPerReq:       200,           // the API-default is 1000 (see conversations.replies), but on large threads it may fail (see #54)
 	UserCacheFilename:   "users.cache", // seems logical
 	MaxUserCacheAge:     4 * time.Hour, // quick math:  that's 1/6th of a day, how's that, huh?
+	CacheDir:            ".",           // default cache dir
 	Logger:              logger.Default,
 }
 
@@ -152,5 +154,14 @@ func WithLogger(l logger.Interface) Option {
 			l = logger.Default
 		}
 		o.Logger = l
+	}
+}
+
+func CacheDir(dir string) Option {
+	return func(o *Options) {
+		if dir == "" {
+			return
+		}
+		o.CacheDir = dir
 	}
 }

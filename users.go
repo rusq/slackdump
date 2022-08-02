@@ -15,6 +15,7 @@ import (
 
 	"github.com/slack-go/slack"
 
+	"github.com/rusq/slackdump/v2/internal/encio"
 	"github.com/rusq/slackdump/v2/internal/network"
 	"github.com/rusq/slackdump/v2/types"
 )
@@ -79,7 +80,7 @@ func (sd *Session) loadUserCache(filename string, suffix string, maxAge time.Dur
 		return nil, err
 	}
 
-	f, err := os.Open(filename)
+	f, err := encio.Open(filename)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open %s: %w", filename, err)
 	}
@@ -96,14 +97,13 @@ func (sd *Session) loadUserCache(filename string, suffix string, maxAge time.Dur
 func (sd *Session) saveUserCache(filename string, suffix string, uu types.Users) error {
 	filename = sd.makeCacheFilename(filename, suffix)
 
-	f, err := os.Create(filename)
+	f, err := encio.Create(filename)
 	if err != nil {
 		return fmt.Errorf("failed to create file %s: %w", filename, err)
 	}
 	defer f.Close()
 
 	enc := json.NewEncoder(f)
-	enc.SetIndent("", "  ")
 	if err := enc.Encode(uu); err != nil {
 		return fmt.Errorf("failed to encode data for %s: %w", filename, err)
 	}
@@ -113,7 +113,7 @@ func (sd *Session) saveUserCache(filename string, suffix string, uu types.Users)
 // makeCacheFilename converts filename.ext to filename-suffix.ext.
 func (sd *Session) makeCacheFilename(filename, suffix string) string {
 	ne := filenameSplit(filename)
-	return filepath.Join(sd.cacheDir, filenameJoin(nameExt{ne[0] + "-" + suffix, ne[1]}))
+	return filepath.Join(sd.options.CacheDir, filenameJoin(nameExt{ne[0] + "-" + suffix, ne[1]}))
 }
 
 type nameExt [2]string

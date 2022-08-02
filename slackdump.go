@@ -6,7 +6,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"path/filepath"
 	"runtime/trace"
 	"time"
 
@@ -28,11 +27,6 @@ import (
 //go:generate sh -c "mockgen -source slackdump.go -destination clienter_mock_test.go -package slackdump -mock_names clienter=mockClienter,Reporter=mockReporter"
 //go:generate sed -i ~ -e "s/NewmockClienter/newmockClienter/g" -e "s/NewmockReporter/newmockReporter/g" clienter_mock_test.go
 
-const (
-	cacheDirName        = "slackdump"
-	cacheDirPermissions = 0750
-)
-
 // Session stores basic session parameters.
 type Session struct {
 	client clienter // Slack client
@@ -46,8 +40,6 @@ type Session struct {
 	UserIndex structures.UserIndex `json:"-"`
 
 	options Options
-
-	cacheDir string // cache directory on local system
 }
 
 // clienter is the interface with some functions of slack.Client with the sole
@@ -99,21 +91,18 @@ func NewWithOptions(ctx context.Context, authProvider auth.Provider, opts Option
 		return nil, &AuthError{Err: err}
 	}
 
-	cacheDir, err := createCacheDir(cacheDirName)
-	if err != nil {
-		cacheDir = "."
-		trace.Logf(ctx, "warn", "failed to create the cache directory %q, will use current", cacheDirName)
-	}
-
 	sd := &Session{
-		client:   cl,
-		options:  opts,
-		wspInfo:  authTestResp,
-		fs:       fsadapter.NewDirectory("."), // default is to save attachments to the current directory.
-		cacheDir: cacheDir,
+		client:  cl,
+		options: opts,
+		wspInfo: authTestResp,
+		fs:      fsadapter.NewDirectory("."), // default is to save attachments to the current directory.
 	}
 
 	sd.propagateLogger(sd.l())
+
+	if err := os.MkdirAll(opts.CacheDir, 0700); err != nil {
+		return nil, fmt.Errorf("failed to create the cache directory: %s", err)
+	}
 
 	sd.l().Println("> checking user cache...")
 	users, err := sd.GetUsers(ctx)
@@ -127,19 +116,21 @@ func NewWithOptions(ctx context.Context, authProvider auth.Provider, opts Option
 	return sd, nil
 }
 
-func createCacheDir(subdir string) (string, error) {
-	if subdir == "" {
-		return "", errors.New("can't use top level cache directory")
-	}
-	cache, err := os.UserCacheDir()
+// TestAuth attempts to authenticate with the given provider.  It will return
+// AuthError if faled.
+func TestAuth(ctx context.Context, provider auth.Provider) error {
+	ctx, task := trace.NewTask(ctx, "TestAuth")
+	defer task.End()
+
+	cl := slack.New(provider.SlackToken(), slack.OptionCookieRAW(toPtrCookies(provider.Cookies())...))
+
+	region := trace.StartRegion(ctx, "AuthTestContext")
+	defer region.End()
+	_, err := cl.AuthTestContext(ctx)
 	if err != nil {
-		return "", err
+		return &AuthError{Err: err}
 	}
-	cachePath := filepath.Join(cache, subdir)
-	if err := os.MkdirAll(cachePath, cacheDirPermissions); err != nil {
-		return "", err
-	}
-	return cachePath, nil
+	return nil
 }
 
 // Client returns the underlying slack.Client.

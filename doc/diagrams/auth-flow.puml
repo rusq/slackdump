@@ -1,0 +1,20 @@
+@startuml Authentication flow
+start;
+if (credentials empty?) then (yes)
+    :load stored credentials;
+    if (success?) then (yes)
+        :test credentials;
+        if (credentials valid?) then (yes)
+            #palegreen:return credentials provider;
+            stop
+        else (no)
+        endif
+    else (no)
+    endif
+else(no)
+endif
+    :determine auth provider type;
+    :save credentials;
+    #palegreen:return credentials provider;
+end
+@enduml

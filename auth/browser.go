@@ -78,8 +78,8 @@ func NewBrowserAuth(ctx context.Context, opts ...BrowserOption) (BrowserAuth, er
 		return br, err
 	}
 	br.simpleProvider = simpleProvider{
-		token:   token,
-		cookies: cookies,
+		Token:  token,
+		Cookie: cookies,
 	}
 
 	return br, nil
