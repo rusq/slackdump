@@ -3,10 +3,13 @@ package main
 import (
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/rusq/slackdump/v2/internal/app"
+	"github.com/rusq/slackdump/v2/internal/app/ui"
 	"github.com/rusq/slackdump/v2/internal/structures"
 )
 
@@ -14,8 +17,17 @@ var errExit = errors.New("exit")
 
 func Interactive(p *params) error {
 	mode := &survey.Select{
-		Message: "Choose Slackdump Mode: ",
-		Options: []string{"Dump", "Export", "List", "- Options", "Exit"},
+		Message: "What would you like to do?",
+		Options: []string{"Dump", "Export", "List", "Exit"},
+		Description: func(value string, index int) string {
+			descr := []string{
+				"dump a list of channels",
+				"create an Slack export of a whole workspace or individual channels",
+				"list channels or users on the screen",
+				"exit Slackdump and return to OS",
+			}
+			return descr[index]
+		},
 	}
 	var resp string
 	if err := survey.AskOne(mode, &resp); err != nil {
@@ -25,13 +37,9 @@ func Interactive(p *params) error {
 	switch resp {
 	case "Exit":
 		err = errExit
-	case "- Options":
-		//
 	case "Dump":
-		//
 		err = surveyDump(p)
 	case "Export":
-		//
 		err = surveyExport(p)
 	case "List":
 		err = surveyList(p)
@@ -59,7 +67,7 @@ func surveyList(p *params) error {
 				Message: "Report format: ",
 				Options: []string{app.OutputTypeText, app.OutputTypeJSON},
 				Description: func(value string, index int) string {
-					return "generate report in " + value + " format"
+					return "produce output in " + value + " format"
 				},
 			},
 		},
@@ -70,7 +78,8 @@ func surveyList(p *params) error {
 		Format string
 	}{}
 
-	if err := survey.Ask(qs, &mode); err != nil {
+	var err error
+	if err = survey.Ask(qs, &mode); err != nil {
 		return err
 	}
 
@@ -81,20 +90,20 @@ func surveyList(p *params) error {
 		p.appCfg.ListFlags.Users = true
 	}
 	p.appCfg.Output.Format = mode.Format
-
-	return nil
+	p.appCfg.Output.Filename, err = questOutputFile()
+	return err
 }
 
 func surveyExport(p *params) error {
 	var err error
-	p.appCfg.ExportName, err = svMustInputString(
+	p.appCfg.ExportName, err = ui.MustString(
 		"Output directory or ZIP file: ",
 		"Enter the output directory or ZIP file name.  Add \".zip\" to save to zip file",
 	)
 	if err != nil {
 		return err
 	}
-	p.appCfg.Input.List, err = surveyChanList()
+	p.appCfg.Input.List, err = questChanList()
 	if err != nil {
 		return err
 	}
@@ -103,41 +112,14 @@ func surveyExport(p *params) error {
 
 func surveyDump(p *params) error {
 	var err error
-	p.appCfg.Input.List, err = surveyChanList()
+	p.appCfg.Input.List, err = questChanList()
 	return err
 }
 
-func surveyInput(msg, help string, validator survey.Validator) (string, error) {
-	qs := []*survey.Question{
-		{
-			Name:     "value",
-			Validate: validator,
-			Prompt: &survey.Input{
-				Message: msg,
-				Help:    help,
-			},
-		},
-	}
-	var m = struct {
-		Value string
-	}{}
-	if err := survey.Ask(qs, &m); err != nil {
-		return "", err
-	}
-	return m.Value, nil
-}
-
-func svMustInputString(msg, help string) (string, error) {
-	return surveyInput(msg, help, survey.Required)
-}
-
-func svInputString(msg, help string) (string, error) {
-	return surveyInput(msg, help, nil)
-}
-
-func surveyChanList() (*structures.EntityList, error) {
+// questChanList enquires the channel list.
+func questChanList() (*structures.EntityList, error) {
 	for {
-		chanStr, err := svInputString(
+		chanStr, err := ui.String(
 			"List of channels: ",
 			"Enter whitespace separated channel IDs or URLs to export.\n"+
 				"   - prefix with ^ (carret) to exclude the channel\n"+
@@ -156,4 +138,40 @@ func surveyChanList() (*structures.EntityList, error) {
 			return el, nil
 		}
 	}
+}
+
+// questOutputFile prints the output file question.
+func questOutputFile() (string, error) {
+	var q = &survey.Input{
+		Message: "Output file name (if empty - screen output): ",
+		Suggest: func(partname string) []string {
+			// thanks to AlecAivazis for great example of this.
+			files, _ := filepath.Glob(partname + "*")
+			return files
+		},
+		Help: "Enter the filename to save the data to. Leave empty to print the results on the screen.",
+	}
+
+	var (
+		output string
+	)
+	for {
+		if err := survey.AskOne(q, &output); err != nil {
+			return "", err
+		}
+		if _, err := os.Stat(output); err != nil {
+			break
+		}
+		overwrite, err := ui.Confirm(fmt.Sprintf("File %q exists. Overwrite?", output), false)
+		if err != nil {
+			return "", err
+		}
+		if overwrite {
+			break
+		}
+	}
+	if output == "" {
+		output = "-"
+	}
+	return output, nil
 }

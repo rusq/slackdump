@@ -6,7 +6,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -65,20 +64,20 @@ func main() {
 	loadSecrets(secrets)
 
 	params, err := parseCmdLine(os.Args[1:])
-	if err != nil {
-		if err == app.ErrNothingToDo {
-			if err := Interactive(&params); err != nil {
-				if err == errExit {
-					return
-				}
-				log.Fatal(err)
+	if err == app.ErrNothingToDo {
+		// if the user hasn't provided any required flags, let's offer
+		// an interactive prompt to fill them.
+		if err := Interactive(&params); err != nil {
+			if err == errExit {
+				return
 			}
-			if err := params.validate(); err != nil {
-				log.Fatal(err)
-			}
-		} else {
-			log.Fatal(err)
+			dlog.Fatal(err)
 		}
+		if err := params.validate(); err != nil {
+			dlog.Fatal(err)
+		}
+	} else if err != nil {
+		dlog.Fatal(err)
 	}
 
 	if params.printVersion {
@@ -94,7 +93,7 @@ func main() {
 	}
 
 	if err := run(context.Background(), params); err != nil {
-		log.Fatal(err)
+		dlog.Fatal(err)
 	}
 }
 
@@ -170,7 +169,7 @@ func initLog(filename string, verbose bool) (*dlog.Logger, func(), error) {
 
 	stopFn := func() {
 		if err := lf.Close(); err != nil {
-			log.Printf("failed to close the log file: %s", err)
+			dlog.Printf("failed to close the log file: %s", err)
 		}
 	}
 	return lg, stopFn, nil
