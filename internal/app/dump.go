@@ -229,5 +229,5 @@ func (app *dump) formatEntity(w io.Writer, rep reporter, output Output) error {
 		enc := json.NewEncoder(w)
 		return enc.Encode(rep)
 	}
-	return errors.New("invalid Output format")
+	return errors.New("invalid output format")
 }

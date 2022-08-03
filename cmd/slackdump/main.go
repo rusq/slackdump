@@ -66,7 +66,19 @@ func main() {
 
 	params, err := parseCmdLine(os.Args[1:])
 	if err != nil {
-		log.Fatal(err)
+		if err == app.ErrNothingToDo {
+			if err := Interactive(&params); err != nil {
+				if err == errExit {
+					return
+				}
+				log.Fatal(err)
+			}
+			if err := params.validate(); err != nil {
+				log.Fatal(err)
+			}
+		} else {
+			log.Fatal(err)
+		}
 	}
 
 	if params.printVersion {
