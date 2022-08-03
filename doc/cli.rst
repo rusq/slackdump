@@ -13,7 +13,7 @@ with a brief description, run::
 
   slackdump -h
 
-Command line flags are described as of version ``v2.0.0``.
+Command line flags are described as of version ``v2.0.3``.
 
 \-V
    print version and exit

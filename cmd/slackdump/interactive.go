@@ -21,9 +21,9 @@ func Interactive(p *params) error {
 		Options: []string{"Dump", "Export", "List", "Exit"},
 		Description: func(value string, index int) string {
 			descr := []string{
-				"dump a list of channels",
-				"create an Slack export of a whole workspace or individual channels",
-				"list channels or users on the screen",
+				"save a list of conversations",
+				"save the workspace or conversations in Slack Export format",
+				"list conversations or users on the screen",
 				"exit Slackdump and return to OS",
 			}
 			return descr[index]
@@ -54,7 +54,7 @@ func surveyList(p *params) error {
 			Validate: survey.Required,
 			Prompt: &survey.Select{
 				Message: "List: ",
-				Options: []string{"Channels", "Users"},
+				Options: []string{"Conversations", "Users"},
 				Description: func(value string, index int) string {
 					return "List Slack " + value
 				},
@@ -84,7 +84,7 @@ func surveyList(p *params) error {
 	}
 
 	switch mode.Entity {
-	case "Channels":
+	case "Conversations":
 		p.appCfg.ListFlags.Channels = true
 	case "Users":
 		p.appCfg.ListFlags.Users = true
@@ -103,7 +103,7 @@ func surveyExport(p *params) error {
 	if err != nil {
 		return err
 	}
-	p.appCfg.Input.List, err = questChanList()
+	p.appCfg.Input.List, err = questConvoList()
 	if err != nil {
 		return err
 	}
@@ -112,18 +112,18 @@ func surveyExport(p *params) error {
 
 func surveyDump(p *params) error {
 	var err error
-	p.appCfg.Input.List, err = questChanList()
+	p.appCfg.Input.List, err = questConvoList()
 	return err
 }
 
-// questChanList enquires the channel list.
-func questChanList() (*structures.EntityList, error) {
+// questConvoList enquires the channel list.
+func questConvoList() (*structures.EntityList, error) {
 	for {
 		chanStr, err := ui.String(
-			"List of channels: ",
-			"Enter whitespace separated channel IDs or URLs to export.\n"+
-				"   - prefix with ^ (carret) to exclude the channel\n"+
-				"   - prefix with @ to read the list of channels from the file.\n\n"+
+			"List conversations: ",
+			"Enter whitespace separated conversation IDs or URLs to export.\n"+
+				"   - prefix with ^ (caret) to exclude the converation\n"+
+				"   - prefix with @ to read the list of converations from the file.\n\n"+
 				"For more details, see https://github.com/rusq/slackdump/blob/master/doc/usage-export.rst#providing-the-list-in-a-file",
 		)
 		if err != nil {
