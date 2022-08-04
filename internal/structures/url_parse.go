@@ -115,7 +115,7 @@ func ParseURL(slackURL string) (*SlackLink, error) {
 }
 
 // Sample: https://ora600.slack.com/archives/CHM82GF99/p1577694990000400
-var slackURLRe = regexp.MustCompile(`^https:\/\/[\w]+\.slack\.com\/archives\/[A-Z]{1}[A-Z0-9]+(\/p(\d+))?$`)
+var slackURLRe = regexp.MustCompile(`^https:\/\/[a-zA-Z0-9]{1}[-\w]+\.slack\.com\/archives\/[A-Z]{1}[A-Z0-9]+(\/p(\d+))?$`)
 
 // IsValidSlackURL returns true if the value looks like valid Slack URL, false
 // if not.

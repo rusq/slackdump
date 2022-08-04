@@ -6,9 +6,10 @@ import (
 )
 
 const (
-	sampleChannelURL = "https://ora600.slack.com/archives/CHM82GF99"
-	sampleThreadURL  = "https://ora600.slack.com/archives/CHM82GF99/p1577694990000400"
-	sampleDMURL      = "https://ora600.slack.com/archives/DL98HT3QA"
+	sampleChannelURL     = "https://ora600.slack.com/archives/CHM82GF99"
+	sampleThreadURL      = "https://ora600.slack.com/archives/CHM82GF99/p1577694990000400"
+	sampleThreadWDashURL = "https://ora-600.slack.com/archives/CHM82GF99/p1577694990000400"
+	sampleDMURL          = "https://ora600.slack.com/archives/DL98HT3QA"
 
 	sampleChannelID = "CHM82GF99"
 	sampleThreadTS  = "p1577694990000400"
@@ -33,6 +34,12 @@ func TestParseURL(t *testing.T) {
 		{
 			name:    "thread",
 			args:    args{sampleThreadURL},
+			want:    &SlackLink{Channel: "CHM82GF99", ThreadTS: "1577694990.000400"},
+			wantErr: false,
+		},
+		{
+			name:    "thread",
+			args:    args{sampleThreadWDashURL},
 			want:    &SlackLink{Channel: "CHM82GF99", ThreadTS: "1577694990.000400"},
 			wantErr: false,
 		},
