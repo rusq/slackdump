@@ -13,13 +13,36 @@ with a brief description, run::
 
   slackdump -h
 
-Command line flags are described as of version ``v2.0.0``.
+Command line flags are described as of version ``v2.1.0``.
 
 \-V
    print version and exit
 
+\-auth-reset
+   reset EZ-Login 3000 authentication (removes the stored credentials on the
+   system).
+
+\-base <directory or zip-file name>
+   sets the base directory for files.  If not specified, Slackdump dumps the
+   data next to the executable.  With this option it's possible to place all
+   generated files in a directory or a zip-file.  To make it save to the
+   zip-file, add a ZIP extension.  Example: "-base my_archive" will save to
+   "my_archive" directory, but "-base my_archive.zip" will save the files to
+   a zip-file.
+
 \-c
    shorthand for -list-channels
+
+\-cache-dir directory
+   allows to specify the cache directory for user cache, credentials storage
+   etc.  If not specified, the system-default is used, usually the following:
+   
+   - Linux: "$XDG_CACHE_HOME/slackdump" or "$HOME/.cache/slackdump"
+   - macOS: "$HOME/Library/Caches/slackdump"
+   - Windows: "%LocalAppData%\\slackdump"
+
+   To see the directory used by default, run ``./slackdump -h`` and check the
+   default value for this parameter.
 
 \-cookie
    along with ``-t`` sets the authentication values.  Can also be set using
@@ -27,7 +50,7 @@ Command line flags are described as of version ``v2.0.0``.
    a cookies.txt dumped from the browser using the `Get cookies.txt Chrome
    extension`_
 
-\-cpr
+\-cpr number
    number of conversation items per request. (default 200).  This is
    the amount of individual messages that will be fetched from Slack
    API per single API request.
@@ -108,10 +131,10 @@ Command line flags are described as of version ``v2.0.0``.
 
       slackdump @my_list.txt
 
-\-limiter-boost
+\-limiter-boost number
    same as -t3-boost. (default 120)
 
-\-limiter-burst
+\-limiter-burst number
    same as -t3-burst. (default 1)
 
 \-list-channels

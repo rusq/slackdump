@@ -117,7 +117,7 @@ func (p *Config) Validate() error {
 	}
 
 	if !p.ListFlags.FlagsPresent() && !p.Output.FormatValid() {
-		return fmt.Errorf("invalid Output type: %q, must use one of %v", p.Output.Format, []string{OutputTypeJSON, OutputTypeText})
+		return fmt.Errorf("invalid output type: %q, must use one of %v", p.Output.Format, []string{OutputTypeJSON, OutputTypeText})
 	}
 
 	// validate file naming template
