@@ -85,7 +85,12 @@ func isExistingFile(name string) bool {
 }
 
 func ezLoginSupported() bool {
-	return runtime.GOARCH != "386"
+	return runtime.GOARCH != "386" && !isWSL()
+}
+
+// isWSL detects if we're running in WSL environment
+func isWSL() bool {
+	return os.Getenv("WSL_DISTRO_NAME") != ""
 }
 
 func ezLoginTested() bool {
