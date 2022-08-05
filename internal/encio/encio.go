@@ -132,7 +132,7 @@ func (wc *writeCloser) Close() error {
 // generateIV generates the random initialisation vector.
 func generateIV() ([aes.BlockSize]byte, error) {
 	var iv [aes.BlockSize]byte
-	_, err := rand.Read(iv[:])
+	_, err := io.ReadFull(rand.Reader, iv[:])
 	return iv, err
 }
 
