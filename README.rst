@@ -7,9 +7,10 @@ Slack Dumper
 - `Read the overview on Medium.com`_
 - |go ref|
 
-
 .. contents::
    :depth: 2
+
+|screenshot|
 
 Description
 ===========
@@ -40,7 +41,33 @@ Slackdump accepts two types of input (see `Dumping Conversations`_ section):
 Quick Start
 ===========
 
-Please see the `User Guide`_.
+#. Download the latest release for your operating system from the releases_
+   page.
+#. Unpack the archive to any directory.
+#. Run the ``./slackdump`` or ``slackdump.exe`` executable (see note below).
+#. You know the drill:  use arrow keys to select the menu item, and Enter (or
+   Return) to confirm.
+
+By default, Slackdump uses the EZ-Login 3000 automatic login, and interactive
+mode.
+
+.. NOTE::
+  On Windows and macOS you may be presented with "Unknown developer" window,
+  this is fine.  Reason for this is that the executable hasn't been signed by
+  the developer certificate.
+
+  To work around this:
+  
+  - **on Windows**: click "more information", and press "Run
+    Anyway" button.
+  - **on macOS**: open the folder in Finder, hold Option and double click the
+    executable, choose Run.
+
+
+User Guide
+==========
+
+For more advanced features and instructions, please see the `User Guide`_.
 
 
 Using as a library
@@ -168,6 +195,7 @@ Messages that were conveyed with the donations:
 .. _options.go: options.go
 .. _slack export viewer: https://github.com/hfaran/slack-export-viewer
 .. _examples: examples
+.. _releases: https://github.com/rusq/slackdump/releases/
 ..
   bulletin board links
 
@@ -177,3 +205,6 @@ Messages that were conveyed with the donations:
 .. |go ref| image:: https://pkg.go.dev/badge/github.com/rusq/slackdump/v2.svg
               :alt: Go Reference
            :target: https://pkg.go.dev/github.com/rusq/slackdump/v2/
+
+.. |screenshot| image:: doc/slackdump.webp
+               :target: https://github.com/rusq/slackdump/releases/

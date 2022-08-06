@@ -3,6 +3,7 @@ module github.com/rusq/slackdump/v2
 go 1.18
 
 require (
+	github.com/AlecAivazis/survey/v2 v2.3.5
 	github.com/MercuryEngineering/CookieMonster v0.0.0-20180304172713-1584578b3403
 	github.com/denisbrodbeck/machineid v1.0.1
 	github.com/fatih/color v1.13.0
@@ -22,7 +23,6 @@ require (
 )
 
 require (
-	github.com/AlecAivazis/survey/v2 v2.3.5 // indirect
 	github.com/danwakefield/fnmatch v0.0.0-20160403171240-cbb64ac3d964 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/gdamore/encoding v1.0.0 // indirect
