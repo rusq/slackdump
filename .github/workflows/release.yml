@@ -15,11 +15,16 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        goos: [linux, windows, darwin]
+        goos: [linux, windows, darwin, freebsd, netbsd, openbsd]
         goarch: ["386", amd64]
         exclude:
           - goarch: "386"
             goos: darwin
+        include:
+          - goarch: "arm64"
+            goos: darwin
+          - goarch: "arm64"
+            goos: linux
     steps:
       - uses: actions/checkout@v2
 
@@ -38,5 +43,5 @@ jobs:
           goversion: "1.18"
           project_path: "${{ env.CMD_PATH }}"
           build_flags: -v
-          ldflags: -X "main.build=${{ env.APP_VERSION }}" -X "main.buildYear=${{ env.BUILD_TIME }}" -X main.commit=${{ github.sha }}
+          ldflags: -X "main.build=${{ env.APP_VERSION }}" -X "main.buildYear=${{ env.BUILD_TIME }}" -X main.commit=${{ github.sha }} -s -w
           extra_files: LICENSE README.rst

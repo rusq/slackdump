@@ -463,3 +463,24 @@ func TestAuthReset(t *testing.T) {
 		}
 	})
 }
+
+func Test_isWSL(t *testing.T) {
+	tests := []struct {
+		name         string
+		wslDistroVal string
+		want         bool
+	}{
+		{"yes WSL", "Ubuntu", true},
+		{"not WSL", "", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			os.Setenv("WSL_DISTRO_NAME", tt.wslDistroVal)
+			defer os.Unsetenv("WSL_DISTRO_NAME")
+
+			if got := isWSL(); got != tt.want {
+				t.Errorf("isWSL() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
