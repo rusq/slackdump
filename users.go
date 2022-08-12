@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"runtime/trace"
@@ -86,10 +87,26 @@ func (sd *Session) loadUserCache(filename string, suffix string, maxAge time.Dur
 	}
 	defer f.Close()
 
-	dec := json.NewDecoder(f)
-	var uu types.Users
-	if err := dec.Decode(&uu); err != nil {
+	uu, err := readUsers(f)
+	if err != nil {
 		return nil, fmt.Errorf("failed to decode users from %s: %w", filename, err)
+	}
+
+	return uu, nil
+}
+
+func readUsers(r io.Reader) (types.Users, error) {
+	dec := json.NewDecoder(r)
+	var uu = make(types.Users, 0, 500) // 500 users. reasonable?
+	for {
+		var u slack.User
+		if err := dec.Decode(&u); err != nil {
+			if err == io.EOF {
+				break
+			}
+			return nil, err
+		}
+		uu = append(uu, u)
 	}
 	return uu, nil
 }
@@ -104,8 +121,10 @@ func (sd *Session) saveUserCache(filename string, suffix string, uu types.Users)
 	defer f.Close()
 
 	enc := json.NewEncoder(f)
-	if err := enc.Encode(uu); err != nil {
-		return fmt.Errorf("failed to encode data for %s: %w", filename, err)
+	for _, u := range uu {
+		if err := enc.Encode(u); err != nil {
+			return fmt.Errorf("failed to encode data for %s: %w", filename, err)
+		}
 	}
 	return nil
 }
