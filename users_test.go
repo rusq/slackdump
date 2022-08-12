@@ -2,7 +2,6 @@ package slackdump
 
 import (
 	"context"
-	"encoding/json"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -63,8 +62,8 @@ func TestSession_saveUserCache(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer reopenedF.Close()
-	var uu types.Users
-	assert.NoError(t, json.NewDecoder(reopenedF).Decode(&uu))
+	uu, err := readUsers(reopenedF)
+	assert.NoError(t, err)
 	assert.Equal(t, testUsers, uu)
 }
 
