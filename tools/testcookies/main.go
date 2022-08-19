@@ -11,7 +11,7 @@ import (
 )
 
 func init() {
-	playwright.Install(&playwright.RunOptions{Browsers: []string{"chromium"}})
+	_ = playwright.Install(&playwright.RunOptions{Browsers: []string{"chromium"}})
 }
 
 func main() {

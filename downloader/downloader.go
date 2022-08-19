@@ -22,11 +22,10 @@ import (
 )
 
 const (
-	defDownloadDir = "."  // default download directory is current.
-	defRetries     = 3    // default number of retries if download fails
-	defNumWorkers  = 4    // number of download processes
-	defLimit       = 5000 // default API limit, in events per second.
-	defFileBufSz   = 100  // default download channel buffer.
+	defRetries    = 3    // default number of retries if download fails
+	defNumWorkers = 4    // number of download processes
+	defLimit      = 5000 // default API limit, in events per second.
+	defFileBufSz  = 100  // default download channel buffer.
 )
 
 // Client is the instance of the downloader.
@@ -50,6 +49,9 @@ type Client struct {
 // FilenameFunc is the file naming function that should return the output
 // filename for slack.File.
 type FilenameFunc func(*slack.File) string
+
+// Filename returns name of the file generated from the slack.File.
+var Filename FilenameFunc = stdFilenameFn
 
 // Downloader is the file downloader interface.  It exists primarily for mocking
 // in tests.
@@ -281,9 +283,6 @@ func (c *Client) saveFile(ctx context.Context, dir string, sf *slack.File) (int6
 
 	return int64(n), nil
 }
-
-// Filename returns name of the file
-var Filename = stdFilenameFn
 
 func stdFilenameFn(f *slack.File) string {
 	return fmt.Sprintf("%s-%s", f.ID, f.Name)
