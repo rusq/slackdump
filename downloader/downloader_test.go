@@ -40,6 +40,7 @@ func TestSession_SaveFileTo(t *testing.T) {
 		fs      fsadapter.FS
 		retries int
 		workers int
+		nameFn  FilenameFunc
 	}
 	type args struct {
 		ctx context.Context
@@ -60,7 +61,9 @@ func TestSession_SaveFileTo(t *testing.T) {
 				l:       rate.NewLimiter(defLimit, 1),
 				fs:      fsadapter.NewDirectory(tmpdir),
 				retries: defRetries,
-				workers: defNumWorkers},
+				workers: defNumWorkers,
+				nameFn:  Filename,
+			},
 			args{
 				context.Background(),
 				"01",
@@ -81,7 +84,9 @@ func TestSession_SaveFileTo(t *testing.T) {
 				l:       rate.NewLimiter(defLimit, 1),
 				fs:      fsadapter.NewDirectory(tmpdir),
 				retries: defRetries,
-				workers: defNumWorkers},
+				workers: defNumWorkers,
+				nameFn:  Filename,
+			},
 			args{
 				context.Background(),
 				"02",
@@ -109,6 +114,7 @@ func TestSession_SaveFileTo(t *testing.T) {
 				limiter: tt.fields.l,
 				retries: tt.fields.retries,
 				workers: tt.fields.workers,
+				nameFn:  tt.fields.nameFn,
 			}
 			got, err := sd.SaveFile(tt.args.ctx, tt.args.dir, tt.args.f)
 			if (err != nil) != tt.wantErr {
@@ -130,6 +136,7 @@ func TestSession_saveFile(t *testing.T) {
 		fs      fsadapter.FS
 		retries int
 		workers int
+		nameFn  FilenameFunc
 	}
 	type args struct {
 		ctx context.Context
@@ -151,6 +158,7 @@ func TestSession_saveFile(t *testing.T) {
 				fs:      fsadapter.NewDirectory(tmpdir),
 				retries: defRetries,
 				workers: defNumWorkers,
+				nameFn:  Filename,
 			},
 			args{
 				context.Background(),
@@ -173,6 +181,7 @@ func TestSession_saveFile(t *testing.T) {
 				fs:      fsadapter.NewDirectory(tmpdir),
 				retries: defRetries,
 				workers: defNumWorkers,
+				nameFn:  Filename,
 			},
 			args{
 				context.Background(),
@@ -201,6 +210,7 @@ func TestSession_saveFile(t *testing.T) {
 				limiter: tt.fields.l,
 				retries: tt.fields.retries,
 				workers: tt.fields.workers,
+				nameFn:  tt.fields.nameFn,
 			}
 			got, err := sd.saveFile(tt.args.ctx, tt.args.dir, tt.args.f)
 			if (err != nil) != tt.wantErr {
@@ -250,6 +260,7 @@ func TestSession_newFileDownloader(t *testing.T) {
 			limiter: tl,
 			retries: 3,
 			workers: 4,
+			nameFn:  Filename,
 		}
 
 		mc.EXPECT().
@@ -284,6 +295,7 @@ func TestSession_worker(t *testing.T) {
 			limiter: tl,
 			retries: defRetries,
 			workers: defNumWorkers,
+			nameFn:  Filename,
 		}
 	}
 
@@ -350,6 +362,7 @@ func TestClient_startWorkers(t *testing.T) {
 			fs:      fsadapter.NewDirectory(t.TempDir()),
 			limiter: rate.NewLimiter(5000, 1),
 			workers: defNumWorkers,
+			nameFn:  Filename,
 		}
 
 		dc.EXPECT().GetFile(gomock.Any(), gomock.Any()).Times(qSz).Return(nil)
@@ -417,6 +430,7 @@ func clientWithMock(t *testing.T, dir string) *Client {
 		fs:      fsadapter.NewDirectory(dir),
 		limiter: rate.NewLimiter(5000, 1),
 		workers: defNumWorkers,
+		nameFn:  Filename,
 	}
 	return c
 }

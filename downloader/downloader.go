@@ -43,7 +43,13 @@ type Client struct {
 	fileRequests chan FileRequest
 	wg           *sync.WaitGroup
 	started      bool
+
+	nameFn FilenameFunc
 }
+
+// FilenameFunc is the file naming function that should return the output
+// filename for slack.File.
+type FilenameFunc func(*slack.File) string
 
 // Downloader is the file downloader interface.  It exists primarily for mocking
 // in tests.
@@ -95,6 +101,16 @@ func Logger(l logger.Interface) Option {
 	}
 }
 
+func WithNameFunc(fn FilenameFunc) Option {
+	return func(c *Client) {
+		if fn != nil {
+			c.nameFn = fn
+		} else {
+			c.nameFn = Filename
+		}
+	}
+}
+
 // New initialises new file downloader.
 func New(client Downloader, fs fsadapter.FS, opts ...Option) *Client {
 	if client == nil {
@@ -107,6 +123,7 @@ func New(client Downloader, fs fsadapter.FS, opts ...Option) *Client {
 		limiter: rate.NewLimiter(defLimit, 1),
 		retries: defRetries,
 		workers: defNumWorkers,
+		nameFn:  Filename,
 	}
 	for _, opt := range opts {
 		opt(c)
@@ -172,18 +189,18 @@ func (c *Client) worker(ctx context.Context, reqC <-chan FileRequest) {
 			if !moar {
 				return
 			}
-			c.l().Debugf("saving %q to %s, size: %d", Filename(req.File), req.Directory, req.File.Size)
+			c.l().Debugf("saving %q to %s, size: %d", c.nameFn(req.File), req.Directory, req.File.Size)
 			n, err := c.saveFile(ctx, req.Directory, req.File)
 			if err != nil {
-				c.l().Printf("error saving %q to %q: %s", Filename(req.File), req.Directory, err)
+				c.l().Printf("error saving %q to %q: %s", c.nameFn(req.File), req.Directory, err)
 				break
 			}
-			c.l().Printf("file %q saved to %s: %d bytes written", Filename(req.File), req.Directory, n)
+			c.l().Printf("file %q saved to %s: %d bytes written", c.nameFn(req.File), req.Directory, n)
 		}
 	}
 }
 
-var errNoFS = errors.New("fs adapter not initialised")
+var ErrNoFS = errors.New("fs adapter not initialised")
 
 // AsyncDownloader starts Client.worker goroutines to download files
 // concurrently. It will download any file that is received on fileDlQueue
@@ -191,7 +208,7 @@ var errNoFS = errors.New("fs adapter not initialised")
 // closed once all downloads are complete.
 func (c *Client) AsyncDownloader(ctx context.Context, dir string, fileDlQueue <-chan *slack.File) (chan struct{}, error) {
 	if c.fs == nil {
-		return nil, errNoFS
+		return nil, ErrNoFS
 	}
 	done := make(chan struct{})
 
@@ -217,9 +234,9 @@ func (c *Client) AsyncDownloader(ctx context.Context, dir string, fileDlQueue <-
 // saveFileWithLimiter saves the file to specified directory, it will use the provided limiter l for throttling.
 func (c *Client) saveFile(ctx context.Context, dir string, sf *slack.File) (int64, error) {
 	if c.fs == nil {
-		return 0, errNoFS
+		return 0, ErrNoFS
 	}
-	filePath := filepath.Join(dir, Filename(sf))
+	filePath := filepath.Join(dir, c.nameFn(sf))
 
 	tf, err := os.CreateTemp("", "")
 	if err != nil {
@@ -266,7 +283,9 @@ func (c *Client) saveFile(ctx context.Context, dir string, sf *slack.File) (int6
 }
 
 // Filename returns name of the file
-func Filename(f *slack.File) string {
+var Filename = stdFilenameFn
+
+func stdFilenameFn(f *slack.File) string {
 	return fmt.Sprintf("%s-%s", f.ID, f.Name)
 }
 

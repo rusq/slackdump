@@ -28,7 +28,7 @@ type Export struct {
 	sd *slackdump.Session // Session instance
 	lg logger.Interface
 
-	// time window
+	// options
 	opts Options
 }
 
