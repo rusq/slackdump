@@ -154,7 +154,7 @@ func (cl *Client) GetUsers(ctx context.Context, ids []string) ([]UserInfo, error
 
 // UsersInfo calls a users.info endpoint.  This endpoint does not return results
 // straight away.  It may return "pending ids", and when it does, it should be
-// called again to get the actual user info (see [Client.GetUsers] )
+// called again to get the actual user info (see [Client.GetUsers]).
 func (cl *Client) UsersInfo(ctx context.Context, req *UsersInfoRequest) (*UserInfoResponse, error) {
 	var ui UserInfoResponse
 	if err := callAPI(ctx, cl, "users/info", req, &ui); err != nil {

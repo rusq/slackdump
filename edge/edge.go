@@ -1,5 +1,5 @@
-// Package edge provides a limited implementation of Slack edge api necessary
-// to get the data from a slack workspace.
+// Package edge provides a limited implementation of undocumented Slack Edge
+// API necessary to get the data from a slack workspace.
 package edge
 
 import (
