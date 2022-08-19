@@ -20,9 +20,9 @@ func (e *ExportType) Set(v string) error {
 	switch v {
 	default:
 		return fmt.Errorf("unknown format: %s", v)
-	case "standard":
+	case strings.ToLower(TStandard.String()):
 		*e = TStandard
-	case "mattermost":
+	case strings.ToLower(TMattermost.String()):
 		*e = TMattermost
 	}
 	return nil

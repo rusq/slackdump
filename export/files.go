@@ -17,7 +17,12 @@ import (
 
 const entFiles = "files"
 
+// Downloader is the interface for the file downloader.
 type Downloader interface {
+	// ProcessFunc returns the process function that should be passed to
+	// DumpMessagesRaw that should handle the download of the files.  If the
+	// downloader is not started, i.e. if file download is disabled, it should
+	// silently ignore the error and return nil.
 	ProcessFunc(channelName string) slackdump.ProcessFunc
 	Start(ctx context.Context)
 	Stop()
@@ -115,40 +120,11 @@ func (md *mattermostDownload) ProcessFunc(_ string) slackdump.ProcessFunc {
 			total++
 			return nil
 		}); err != nil {
-			return slackdump.ProcessResult{}, err
-		}
-		return slackdump.ProcessResult{Entity: entFiles, Count: total}, nil
-	}
-}
-
-// downloadFn returns the process function that should be passed to
-// DumpMessagesRaw that will handle the download of the files.  If the
-// downloader is not started, i.e. if file download is disabled, it will
-// silently ignore the error and return nil.
-func (se *Export) downloadFn(dl *downloader.Client, channelName string) slackdump.ProcessFunc {
-	const (
-		entFiles  = "files"
-		dirAttach = "attachments"
-	)
-
-	dir := filepath.Join(channelName, dirAttach)
-	return func(msg []types.Message, channelID string) (slackdump.ProcessResult, error) {
-		total := 0
-		if err := files.Extract(msg, files.Root, func(file slack.File, addr files.Addr) error {
-			filename, err := dl.DownloadFile(dir, file)
-			if err != nil {
-				return err
-			}
-			se.l().Debugf("submitted for download: %s", file.Name)
-			total++
-			return files.UpdateURLs(msg, addr, path.Join(dirAttach, path.Base(filename)))
-		}); err != nil {
 			if errors.Is(err, downloader.ErrNotStarted) {
 				return slackdump.ProcessResult{Entity: entFiles, Count: 0}, nil
 			}
 			return slackdump.ProcessResult{}, err
 		}
-
 		return slackdump.ProcessResult{Entity: entFiles, Count: total}, nil
 	}
 }
