@@ -14,4 +14,5 @@ type Options struct {
 	IncludeFiles bool
 	Logger       logger.Interface
 	List         *structures.EntityList
+	Type         ExportType
 }

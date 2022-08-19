@@ -6,18 +6,15 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"path"
 	"path/filepath"
 	"runtime/trace"
 
 	"github.com/slack-go/slack"
 
 	"github.com/rusq/slackdump/v2"
-	"github.com/rusq/slackdump/v2/downloader"
 	"github.com/rusq/slackdump/v2/fsadapter"
 	"github.com/rusq/slackdump/v2/internal/network"
 	"github.com/rusq/slackdump/v2/internal/structures"
-	"github.com/rusq/slackdump/v2/internal/structures/files"
 	"github.com/rusq/slackdump/v2/logger"
 	"github.com/rusq/slackdump/v2/types"
 )
@@ -67,7 +64,7 @@ func (se *Export) messages(ctx context.Context, users types.Users) error {
 	ctx, task := trace.NewTask(ctx, "export.messages")
 	defer task.End()
 
-	dl := downloader.New(se.sd.Client(), se.fs, downloader.Logger(se.l()))
+	dl := newDownloader(se.opts.Type, se.fs, se.sd.Client(), se.l())
 	if se.opts.IncludeFiles {
 		// start the downloader
 		dl.Start(ctx)
@@ -97,7 +94,7 @@ func (se *Export) messages(ctx context.Context, users types.Users) error {
 	return nil
 }
 
-func (se *Export) exportChannels(ctx context.Context, dl *downloader.Client, uidx structures.UserIndex, el *structures.EntityList) ([]slack.Channel, error) {
+func (se *Export) exportChannels(ctx context.Context, dl Downloader, uidx structures.UserIndex, el *structures.EntityList) ([]slack.Channel, error) {
 	if se.opts.List.HasIncludes() {
 		// if there an Include list, we don't need to retrieve all channels,
 		// only the ones that are specified.
@@ -109,7 +106,7 @@ func (se *Export) exportChannels(ctx context.Context, dl *downloader.Client, uid
 
 // exclusiveExport exports all channels, excluding ones that are defined in
 // EntityList.  If EntityList has Include channels, they are ignored.
-func (se *Export) exclusiveExport(ctx context.Context, dl *downloader.Client, uidx structures.UserIndex, el *structures.EntityList) ([]slack.Channel, error) {
+func (se *Export) exclusiveExport(ctx context.Context, dl Downloader, uidx structures.UserIndex, el *structures.EntityList) ([]slack.Channel, error) {
 	ctx, task := trace.NewTask(ctx, "export.exclusive")
 	defer task.End()
 
@@ -139,7 +136,7 @@ func (se *Export) exclusiveExport(ctx context.Context, dl *downloader.Client, ui
 
 // inclusiveExport exports only channels that are defined in the
 // EntryList.Include.
-func (se *Export) inclusiveExport(ctx context.Context, dl *downloader.Client, uidx structures.UserIndex, list *structures.EntityList) ([]slack.Channel, error) {
+func (se *Export) inclusiveExport(ctx context.Context, dl Downloader, uidx structures.UserIndex, list *structures.EntityList) ([]slack.Channel, error) {
 	ctx, task := trace.NewTask(ctx, "export.inclusive")
 	defer task.End()
 
@@ -180,11 +177,11 @@ func (se *Export) inclusiveExport(ctx context.Context, dl *downloader.Client, ui
 }
 
 // exportConversation exports one conversation.
-func (se *Export) exportConversation(ctx context.Context, dl *downloader.Client, userIdx structures.UserIndex, ch slack.Channel) error {
+func (se *Export) exportConversation(ctx context.Context, dl Downloader, userIdx structures.UserIndex, ch slack.Channel) error {
 	ctx, task := trace.NewTask(ctx, "export.conversation")
 	defer task.End()
 
-	dlFn := se.downloadFn(dl, ch.Name)
+	dlFn := dl.ProcessFunc(ch.Name)
 	messages, err := se.sd.DumpRaw(ctx, ch.ID, se.opts.Oldest, se.opts.Latest, dlFn)
 	if err != nil {
 		return fmt.Errorf("failed to dump %q (%s): %w", ch.Name, ch.ID, err)
@@ -209,38 +206,6 @@ func (se *Export) exportConversation(ctx context.Context, dl *downloader.Client,
 	}
 
 	return nil
-}
-
-// downloadFn returns the process function that should be passed to
-// DumpMessagesRaw that will handle the download of the files.  If the
-// downloader is not started, i.e. if file download is disabled, it will
-// silently ignore the error and return nil.
-func (se *Export) downloadFn(dl *downloader.Client, channelName string) func(msg []types.Message, channelID string) (slackdump.ProcessResult, error) {
-	const (
-		entFiles  = "files"
-		dirAttach = "attachments"
-	)
-
-	dir := filepath.Join(channelName, dirAttach)
-	return func(msg []types.Message, channelID string) (slackdump.ProcessResult, error) {
-		total := 0
-		if err := files.Extract(msg, files.Root, func(file slack.File, addr files.Addr) error {
-			filename, err := dl.DownloadFile(dir, file)
-			if err != nil {
-				return err
-			}
-			se.l().Debugf("submitted for download: %s", file.Name)
-			total++
-			return files.UpdateURLs(msg, addr, path.Join(dirAttach, path.Base(filename)))
-		}); err != nil {
-			if errors.Is(err, downloader.ErrNotStarted) {
-				return slackdump.ProcessResult{Entity: entFiles, Count: 0}, nil
-			}
-			return slackdump.ProcessResult{}, err
-		}
-
-		return slackdump.ProcessResult{Entity: entFiles, Count: total}, nil
-	}
 }
 
 // validName returns the channel or user name. Following the naming convention

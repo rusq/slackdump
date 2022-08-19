@@ -9,6 +9,7 @@ import (
 	"github.com/slack-go/slack"
 
 	"github.com/rusq/slackdump/v2"
+	"github.com/rusq/slackdump/v2/export"
 	"github.com/rusq/slackdump/v2/internal/structures"
 	"github.com/rusq/slackdump/v2/logger"
 	"github.com/rusq/slackdump/v2/types"
@@ -37,6 +38,7 @@ type Config struct {
 	FilenameTemplate string
 
 	ExportName string
+	ExportType export.ExportType
 
 	Options slackdump.Options
 }

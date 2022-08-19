@@ -34,6 +34,7 @@ func Export(ctx context.Context, cfg Config, prov auth.Provider) error {
 		IncludeFiles: cfg.Options.DumpFiles,
 		Logger:       cfg.Logger(),
 		List:         cfg.Input.List,
+		Type:         cfg.ExportType,
 	}
 	fs, err := fsadapter.ForFilename(cfg.ExportName)
 	if err != nil {
