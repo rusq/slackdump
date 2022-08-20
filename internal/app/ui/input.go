@@ -23,10 +23,12 @@ func Input(msg, help string, validator survey.Validator) (string, error) {
 	return m.Value, nil
 }
 
-func MustString(msg, help string) (string, error) {
+// StringRequire requires user to input string.
+func StringRequire(msg, help string) (string, error) {
 	return Input(msg, help, survey.Required)
 }
 
+// String asks user to input string, accepts an empty input.
 func String(msg, help string) (string, error) {
 	return Input(msg, help, nil)
 }

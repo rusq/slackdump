@@ -96,7 +96,7 @@ func surveyList(p *params) error {
 
 func surveyExport(p *params) error {
 	var err error
-	p.appCfg.ExportName, err = ui.MustString(
+	p.appCfg.ExportName, err = ui.StringRequire(
 		"Output directory or ZIP file: ",
 		"Enter the output directory or ZIP file name.  Add \".zip\" to save to zip file",
 	)
