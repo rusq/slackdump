@@ -17,12 +17,13 @@ import (
 
 const entFiles = "files"
 
-// Downloader is the interface for the file downloader.
-type Downloader interface {
+// fileExporter is the file exporter interface.
+type fileExporter interface {
 	// ProcessFunc returns the process function that should be passed to
-	// DumpMessagesRaw that should handle the download of the files.  If the
-	// downloader is not started, i.e. if file download is disabled, it should
-	// silently ignore the error and return nil.
+	// DumpMessagesRaw. It should be able to extract files from the messages
+	// and download them.  If the downloader is not started, i.e. if file
+	// download is disabled, it should silently ignore the error and return
+	// nil.
 	ProcessFunc(channelName string) slackdump.ProcessFunc
 	Start(ctx context.Context)
 	Stop()
@@ -49,7 +50,7 @@ type mattermostDownload struct {
 	baseDownloader
 }
 
-func newDownloader(t ExportType, fs fsadapter.FS, cl *slack.Client, l logger.Interface) Downloader {
+func newDownloader(t ExportType, fs fsadapter.FS, cl *slack.Client, l logger.Interface) fileExporter {
 	switch t {
 	default:
 		l.Printf("unknown export type %s, using standard format", t)
@@ -107,7 +108,7 @@ func newMattermostDl(fs fsadapter.FS, cl *slack.Client, l logger.Interface) *mat
 
 func (md *mattermostDownload) ProcessFunc(_ string) slackdump.ProcessFunc {
 	const (
-		baseDir = "__upload"
+		baseDir = "__uploads"
 	)
 	return func(msg []types.Message, channelID string) (slackdump.ProcessResult, error) {
 		total := 0

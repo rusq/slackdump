@@ -94,7 +94,7 @@ func (se *Export) messages(ctx context.Context, users types.Users) error {
 	return nil
 }
 
-func (se *Export) exportChannels(ctx context.Context, dl Downloader, uidx structures.UserIndex, el *structures.EntityList) ([]slack.Channel, error) {
+func (se *Export) exportChannels(ctx context.Context, dl fileExporter, uidx structures.UserIndex, el *structures.EntityList) ([]slack.Channel, error) {
 	if se.opts.List.HasIncludes() {
 		// if there an Include list, we don't need to retrieve all channels,
 		// only the ones that are specified.
@@ -106,7 +106,7 @@ func (se *Export) exportChannels(ctx context.Context, dl Downloader, uidx struct
 
 // exclusiveExport exports all channels, excluding ones that are defined in
 // EntityList.  If EntityList has Include channels, they are ignored.
-func (se *Export) exclusiveExport(ctx context.Context, dl Downloader, uidx structures.UserIndex, el *structures.EntityList) ([]slack.Channel, error) {
+func (se *Export) exclusiveExport(ctx context.Context, dl fileExporter, uidx structures.UserIndex, el *structures.EntityList) ([]slack.Channel, error) {
 	ctx, task := trace.NewTask(ctx, "export.exclusive")
 	defer task.End()
 
@@ -136,7 +136,7 @@ func (se *Export) exclusiveExport(ctx context.Context, dl Downloader, uidx struc
 
 // inclusiveExport exports only channels that are defined in the
 // EntryList.Include.
-func (se *Export) inclusiveExport(ctx context.Context, dl Downloader, uidx structures.UserIndex, list *structures.EntityList) ([]slack.Channel, error) {
+func (se *Export) inclusiveExport(ctx context.Context, dl fileExporter, uidx structures.UserIndex, list *structures.EntityList) ([]slack.Channel, error) {
 	ctx, task := trace.NewTask(ctx, "export.inclusive")
 	defer task.End()
 
@@ -177,7 +177,7 @@ func (se *Export) inclusiveExport(ctx context.Context, dl Downloader, uidx struc
 }
 
 // exportConversation exports one conversation.
-func (se *Export) exportConversation(ctx context.Context, dl Downloader, userIdx structures.UserIndex, ch slack.Channel) error {
+func (se *Export) exportConversation(ctx context.Context, dl fileExporter, userIdx structures.UserIndex, ch slack.Channel) error {
 	ctx, task := trace.NewTask(ctx, "export.conversation")
 	defer task.End()
 
