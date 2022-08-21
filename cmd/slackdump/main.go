@@ -19,6 +19,7 @@ import (
 	"github.com/slack-go/slack"
 
 	"github.com/rusq/slackdump/v2"
+	"github.com/rusq/slackdump/v2/export"
 	"github.com/rusq/slackdump/v2/internal/app"
 	"github.com/rusq/slackdump/v2/internal/structures"
 	"github.com/rusq/slackdump/v2/logger"
@@ -232,7 +233,8 @@ func parseCmdLine(args []string) (params, error) {
 
 	var p = params{
 		appCfg: app.Config{
-			Options: slackdump.DefOptions,
+			Options:    slackdump.DefOptions,
+			ExportType: export.TStandard,
 		},
 	}
 
@@ -248,6 +250,7 @@ func parseCmdLine(args []string) (params, error) {
 	fs.BoolVar(&p.appCfg.ListFlags.Users, "list-users", false, "list users and their IDs. ")
 	// - export
 	fs.StringVar(&p.appCfg.ExportName, "export", "", "`name` of the directory or zip file to export the Slack workspace to."+zipHint)
+	fs.Var(&p.appCfg.ExportType, "export-type", "set the export type: 'standard' or 'mattermost' (default: standard)")
 
 	// input-ouput options
 	fs.StringVar(&p.appCfg.Output.Filename, "o", "-", "Output `filename` for users and channels.\nUse '-' for the Standard Output.")

@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/AlecAivazis/survey/v2"
+	"github.com/rusq/slackdump/v2/export"
 	"github.com/rusq/slackdump/v2/internal/app"
 	"github.com/rusq/slackdump/v2/internal/app/ui"
 	"github.com/rusq/slackdump/v2/internal/structures"
@@ -96,28 +97,59 @@ func surveyList(p *params) error {
 
 func surveyExport(p *params) error {
 	var err error
-	p.appCfg.ExportName, err = ui.MustString(
+
+	p.appCfg.ExportType, err = questExportType()
+	if err != nil {
+		return err
+	}
+
+	p.appCfg.ExportName, err = ui.StringRequire(
 		"Output directory or ZIP file: ",
-		"Enter the output directory or ZIP file name.  Add \".zip\" to save to zip file",
+		"Enter the output directory or ZIP file name.  Add \".zip\" extension to save to a zip file.\nFor Mattermost, zip file is recommended.",
 	)
 	if err != nil {
 		return err
 	}
-	p.appCfg.Input.List, err = questConvoList()
+	p.appCfg.Input.List, err = questConversationList()
+	if err != nil {
+		return err
+	}
+	p.appCfg.Options.DumpFiles, err = ui.Confirm("Export files?", true)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
+func questExportType() (export.ExportType, error) {
+	mode := &survey.Select{
+		Message: "Export type: ",
+		Options: []string{export.TMattermost.String(), export.TStandard.String()},
+		Description: func(value string, index int) string {
+			descr := []string{
+				"Mattermost bulk upload compatible export (see doc)",
+				"Standard export format",
+			}
+			return descr[index]
+		},
+	}
+	var resp string
+	if err := survey.AskOne(mode, &resp); err != nil {
+		return 0, err
+	}
+	var t export.ExportType
+	t.Set(resp)
+	return t, nil
+}
+
 func surveyDump(p *params) error {
 	var err error
-	p.appCfg.Input.List, err = questConvoList()
+	p.appCfg.Input.List, err = questConversationList()
 	return err
 }
 
-// questConvoList enquires the channel list.
-func questConvoList() (*structures.EntityList, error) {
+// questConversationList enquires the channel list.
+func questConversationList() (*structures.EntityList, error) {
 	for {
 		chanStr, err := ui.String(
 			"List conversations: ",

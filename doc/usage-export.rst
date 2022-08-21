@@ -4,21 +4,120 @@ Creating Slack Export
 
 .. contents::
 
-Exporting Slack Workspace
-~~~~~~~~~~~~~~~~~~~~~~~~~
+This feature allows one to create a slack export of the Slack workspace in
+standard or Mattermost compatible format.
 
-This feature allows one to create a slack export of the slack workspace. To
-run in Slack Export mode, one must start Slackdump specifying the
-slack export directory, i.e.::
+By default, it generates the Standard type Export. 
 
-  slackdump -export my-workspace
+The export file or directory will include emails and attachments (if
+``-download`` flag is specified).
 
-Or, if you want to save export as a ZIP file::
+Mattermost export
+~~~~~~~~~~~~~~~~~
+Mattermost mode is currently in alpha-stage.  Export is generated in the
+format that can be imported using Mattermost "bulk" import mode format using
+``mmetl/mmctl`` tools (see quick guide below).
 
-  slackdump -export my-workspace.zip
+The ``mattermost import slack`` command is not yet supported.
 
-Slackdump will export the whole workspace.  If ' ``-f``' flag is specified,
-all files will be saved under the channel's '``attachments``' directory.
+Mattermost export quick guide
++++++++++++++++++++++++++++++
+
+To export to Mattermost, Slackdump should be started with ``-export-type
+mattermost`` flag.  Mattermost tools would require a ZIP file.
+
+Steps to export from Slack and import to Mattermost:
+
+#. Run Slackdump in mattermost mode to export the workspace::
+
+     slackdump -export my-workspace.zip -export-type mattermost -download
+
+   optionally, you can specify list of conversation to export::
+
+     slackdump -export my-workspace.zip -export-type mattermost -download C12301120 D4012041
+
+#. Download the ``mmetl`` tool for your architecture from `mmetl
+   github page`_.  In the example we'll be using the Linux version::
+
+     curl -LO https://github.com/mattermost/mmetl/releases/download/0.0.1/mmetl.linux-amd64.tar.gz
+
+   Unpack::
+
+     tar zxf mmetl.linux-amd64.tar.gz
+
+#. Run the ``mmetl`` tool to generate the mattermost bulk import
+   JSONL file::
+
+     ./mmetl transform slack -t Your_Team_Name -d bulk-export-attachments -f test.zip -o mattermost_import.jsonl
+
+   For example, if your Mattermost team is "slackdump"::
+
+     ./mmetl transform slack -t slackdump -d bulk-export-attachments -f test.zip -o mattermost_import.jsonl
+     
+   This will generate a directory ``bulk-export-attachments`` and
+   ``mattermost_import.jsonl`` file in the current directory.
+
+#. Create a zip archive in bulk format.  Please ensure that the
+   ``bulk-export-attachments`` directory is placed inside ``data``
+   directory by following the steps below::
+
+     mkdir data
+     mv bulk-export-attachments data
+     zip -r bulk_import.zip data mattermost_import.jsonl
+
+#. Copy the resulting file to the mattermost server, and upload it using ``mmctl`` tool::
+
+     mmctl import upload ./bulk_import.zip
+
+   This will upload the zip file into the Mattermost.
+
+   List all import files to find out the filename that will be used to
+   start the import process::
+
+     mmctl import list available
+
+   The output will print the file with an ID prefix::
+     
+     9zgyay5wupdyzc1kqdin5re77e_bulk_import.zip
+
+#. Start the import process::
+
+     mmctl import process <filename>
+
+   For example::
+
+     mmctl import process 9zgyay5wupdyzc1kqdin5re77e_bulk_import.zip
+     
+#. To monitor the status of the job or to see if there are any
+   errors::
+
+     mmctl import job list
+
+   and::
+
+     mmctl import job show <JOB ID> --json
+
+After following all these steps, you should see the data in your
+Mattermost team.
+     
+More detailed instructions can be found in the `Mattermost
+documentation`_
+
+Standard export
+~~~~~~~~~~~~~~~
+
+To run in Slack Export standard mode, one must start Slackdump
+specifying the slack export directory or zip file, i.e.::
+
+  slackdump -export my-workspace -export-type standard
+
+  < OR, for a ZIP file >
+
+  slackdump -export my-workspace.zip -export-type standard
+
+Slackdump will export the whole workspace.  If ' ``-download``' flag is
+specified, all files will be saved under the channel's '``attachments``'
+directory.
 
 Inclusive and Exclusive export
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -26,7 +125,7 @@ Inclusive and Exclusive export
 It is possible to **include** or **exclude** channels in/from the Export.
 
 Exporting only the channels you need
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+++++++++++++++++++++++++++++++++++++
 
 To **include** only those channels you're interested in, use the following
 syntax::
@@ -36,7 +135,7 @@ syntax::
 The command above will export ONLY channels ``C12401724`` and ``C4812934``.
 
 Exporting everything except some unwanted channels
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+++++++++++++++++++++++++++++++++++++++++++++++++++
 
 To **exclude** one or more channels from the export, prefix the channel with "^"
 character.  For example, you want to export everything except channel C123456::
@@ -44,7 +143,7 @@ character.  For example, you want to export everything except channel C123456::
   slackdump -export my-workspace.zip ^C123456
 
 Providing the list in a file
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+++++++++++++++++++++++++++++
 
 You can specify the filename instead of listing all the channels on the command
 line.  To include the channels from the file, use the "@" character prefix.  The
@@ -111,3 +210,5 @@ slack-like GUI.
 
 .. _`Scumbag Steve`: https://www.google.com/search?q=Scumbag+Steve
 .. _Index: README.rst
+.. _mmetl github page: https://github.com/mattermost/mmetl
+.. _Mattermost documentation: https://docs.mattermost.com/onboard/migrating-to-mattermost.html#migrating-from-slack-using-the-mattermost-mmetl-tool-and-bulk-import

@@ -12,7 +12,6 @@ const (
 	sampleDMURL          = "https://ora600.slack.com/archives/DL98HT3QA"
 
 	sampleChannelID = "CHM82GF99"
-	sampleThreadTS  = "p1577694990000400"
 )
 
 func TestParseURL(t *testing.T) {
