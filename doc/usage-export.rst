@@ -110,7 +110,7 @@ documentation`_
 Mattermost Export Directory Structure
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The Mattermost type archive will have the following structure:
+The Mattermost type archive will have the following structure::
 
   /
   ├── __uploads              : all uploaded files are placed in this dir.
