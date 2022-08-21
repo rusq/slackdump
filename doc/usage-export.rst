@@ -7,7 +7,7 @@ Creating Slack Export
 This feature allows one to create a slack export of the Slack workspace in
 standard or Mattermost compatible format.
 
-Export types
+Export Types
 ~~~~~~~~~~~~
 
 By default, Slackdump generates the Standard type Export. 
@@ -15,7 +15,7 @@ By default, Slackdump generates the Standard type Export.
 The export file or directory will include emails and attachments (if
 ``-download`` flag is specified).
 
-Mattermost export
+Mattermost Export
 +++++++++++++++++
 
 Mattermost mode is currently in alpha-stage.  Export is generated in the
@@ -24,7 +24,7 @@ format that can be imported using Mattermost "bulk" import mode format using
 
 The ``mattermost import slack`` command is not yet supported.
 
-Mattermost export quick guide
+Mattermost Export Quick Guide
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 To export to Mattermost, Slackdump should be started with ``-export-type
@@ -107,7 +107,7 @@ Mattermost team.
 More detailed instructions can be found in the `Mattermost
 documentation`_
 
-Mattermost export directory structure
+Mattermost Export Directory Structure
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The Mattermost type archive will have the following structure:
@@ -126,7 +126,7 @@ The Mattermost type archive will have the following structure:
   ├── dms.json               : direct message information
   └── users.json             : all workspace users information
 
-Standard export
+Standard Export
 +++++++++++++++
 
 To run in Slack Export standard mode, one must start Slackdump
@@ -174,13 +174,13 @@ Group Messages
 
 ^In case you're wondering who's `Scumbag Steve`_.
 
-Inclusive and Exclusive export
+Inclusive and Exclusive Export
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 It is possible to **include** or **exclude** channels in/from the Export.
 
-Exporting only the channels you need
-++++++++++++++++++++++++++++++++++++
+Exporting Only Channels You Need
+++++++++++++++++++++++++++++++++
 
 To **include** only those channels you're interested in, use the following
 syntax::
@@ -189,7 +189,7 @@ syntax::
 
 The command above will export ONLY channels ``C12401724`` and ``C4812934``.
 
-Exporting everything except some unwanted channels
+Exporting Everything Except Some Unwanted Channels
 ++++++++++++++++++++++++++++++++++++++++++++++++++
 
 To **exclude** one or more channels from the export, prefix the channel with "^"
@@ -197,7 +197,7 @@ character.  For example, you want to export everything except channel C123456::
 
   slackdump -export my-workspace.zip ^C123456
 
-Providing the list in a file
+Providing the List in a File
 ++++++++++++++++++++++++++++
 
 You can specify the filename instead of listing all the channels on the command
