@@ -107,6 +107,25 @@ Mattermost team.
 More detailed instructions can be found in the `Mattermost
 documentation`_
 
+Mattermost export directory structure
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The Mattermost type archive will have the following structure:
+
+  /
+  ├── __uploads              : all uploaded files are placed in this dir.
+  │   └── F02PM6A1AUA        : slack file ID is used as a directory name
+  |       └── Chevy.jpg      : file attachment
+  ├── everyone               : channel "#everyone"
+  │   ├── 2022-01-01.json    :   all messages for the 1 Jan 2022.
+  │   └── 2022-01-04.json    :    "     "      "   "  4 Jan 2022.
+  ├── DM12345678             : Your DMs with Scumbag Steve^
+  │   └── 2022-01-04.json    :   (you did not have much to discuss —
+  │                          :    Steve turned out to be a scumbag)
+  ├── channels.json          : all workspace channels information
+  ├── dms.json               : direct message information
+  └── users.json             : all workspace users information
+
 Standard export
 +++++++++++++++
 
@@ -122,6 +141,38 @@ specifying the slack export directory or zip file, i.e.::
 Slackdump will export the whole workspace.  If ' ``-download``' flag is
 specified, all files will be saved under the channel's '``attachments``'
 directory.
+
+Standard Export Directory Structure
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Sample directory or ZIP file structure::
+
+  /
+  ├── everyone               : channel "#everyone"
+  │   ├── 2022-01-01.json    :   all messages for the 1 Jan 2022.
+  │   ├── 2022-01-04.json    :    "     "      "   "  4 Jan 2022.
+  │   └── attachments        :   message files
+  │       └── F02PM6A1AUA-Chevy.jpg       : message attachment
+  ├── DM12345678             : Your DMs with Scumbag Steve^
+  │   └── 2022-01-04.json    :   (you did not have much to discuss —
+  │                          :    Steve turned out to be a scumbag)
+  ├── channels.json          : all workspace channels information
+  ├── dms.json               : direct message information
+  └── users.json             : all workspace users information
+
+Channels
+  The channels are be saved in directories, named after the channel title, i.e.
+  ``#random`` would be saved to "random" directory.  The directory will contain
+  a set of JSON files, one per each day.
+
+Users
+  User directories will have an "D" prefix, to find out the user name, check
+  ``users.json`` file.
+
+Group Messages
+  Group messages will have name listing all the users handles involved.
+
+^In case you're wondering who's `Scumbag Steve`_.
 
 Inclusive and Exclusive export
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -167,38 +218,6 @@ channel ``C123456`` from the Export.
 
   Slack Export is currently in beta development stage, please report
   all issues in Github `Issues <https://github.com/rusq/slackdump/issues>`_.
-
-Slack Export Directory Structure
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Sample directory or ZIP file structure::
-
-  /
-  ├── everyone               : channel "#everyone"
-  │   ├── 2022-01-01.json    :   all messages for the 1 Jan 2022.
-  │   ├── 2022-01-04.json    :    "     "      "   "  4 Jan 2022.
-  │   └── attachments        :   message files
-  │       └── F02PM6A1AUA-Chevy.jpg       : message attachment
-  ├── DM12345678             : Your DMs with Scumbag Steve^
-  │   └── 2022-01-04.json    :   (you did not have much to discuss —
-  │                          :    Steve turned out to be a scumbag)
-  ├── channels.json          : all workspace channels information
-  ├── dms.json               : direct message information
-  └── users.json             : all workspace users information
-
-Channels
-  The channels are be saved in directories, named after the channel title, i.e.
-  ``#random`` would be saved to "random" directory.  The directory will contain
-  a set of JSON files, one per each day.
-
-Users
-  User directories will have an "D" prefix, to find out the user name, check
-  ``users.json`` file.
-
-Group Messages
-  Group messages will have name listing all the users handles involved.
-
-^In case you're wondering who's `Scumbag Steve`_.
 
 Slack Export Viewer
 ~~~~~~~~~~~~~~~~~~~
