@@ -65,7 +65,7 @@ func (se *Export) messages(ctx context.Context, users types.Users) error {
 	defer task.End()
 
 	dl := newFileExporter(se.opts.Type, se.fs, se.sd.Client(), se.l(), se.opts.ExportToken)
-	if se.opts.IncludeFiles {
+	if se.opts.IsFilesEnabled() {
 		// start the downloader
 		dl.Start(ctx)
 		defer func() {

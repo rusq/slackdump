@@ -110,7 +110,7 @@ func surveyExport(p *params) error {
 	if err != nil {
 		return err
 	}
-	p.appCfg.Input.List, err = questConversationList()
+	p.appCfg.Input.List, err = questConversationList("Conversations to export (leave empty for ALL): ")
 	if err != nil {
 		return err
 	}
@@ -144,15 +144,15 @@ func questExportType() (export.ExportType, error) {
 
 func surveyDump(p *params) error {
 	var err error
-	p.appCfg.Input.List, err = questConversationList()
+	p.appCfg.Input.List, err = questConversationList("Enter conversations to dump: ")
 	return err
 }
 
 // questConversationList enquires the channel list.
-func questConversationList() (*structures.EntityList, error) {
+func questConversationList(msg string) (*structures.EntityList, error) {
 	for {
 		chanStr, err := ui.String(
-			"List conversations: ",
+			msg,
 			"Enter whitespace separated conversation IDs or URLs to export.\n"+
 				"   - prefix with ^ (caret) to exclude the converation\n"+
 				"   - prefix with @ to read the list of converations from the file.\n\n"+

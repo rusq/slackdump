@@ -31,18 +31,20 @@ type Addr struct {
 	idxFile   int // index of the file in the file slice.
 }
 
-// UpdateURLs updates the URL link for the files in message chunk msgs.  Addr
-// contains an address of the message and the file within the message slice to
-// update the URL for, and filename is the path to the file on the local
-// filesystem.  It will return an error if the address references out of range.
-func UpdateURLs(msgs []types.Message, addr Addr, filename string) error {
+// UpdateURLs sets the URLPrivate and URLPrivateDownload for the file at addr
+// to the specified value.
+func UpdateURLs(msgs []types.Message, addr Addr, value string) error {
 	return Update(msgs, addr, func(f *slack.File) error {
-		f.URLPrivateDownload = filename
-		f.URLPrivate = filename
+		f.URLPrivateDownload = value
+		f.URLPrivate = value
 		return nil
 	})
 }
 
+// Update locates the file by address addr, and calls fn with the pointer to
+// that file. Addr contains an address of the message and the file within the
+// message slice to update.  It will return an error if the address references
+// out of range.
 func Update(msgs []types.Message, addr Addr, fn func(*slack.File) error) error {
 	if addr.idxParMsg != Root {
 		return Update(

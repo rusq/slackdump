@@ -198,6 +198,7 @@ func updateTokenFn(token string) func(*slack.File) error {
 		update(&f.Thumb80, token)
 		update(&f.Thumb160, token)
 		update(&f.Thumb360, token)
+		update(&f.Thumb360Gif, token)
 		update(&f.Thumb480, token)
 		update(&f.Thumb720, token)
 		update(&f.Thumb960, token)
