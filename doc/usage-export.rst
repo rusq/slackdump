@@ -7,13 +7,17 @@ Creating Slack Export
 This feature allows one to create a slack export of the Slack workspace in
 standard or Mattermost compatible format.
 
-By default, it generates the Standard type Export. 
+Export types
+~~~~~~~~~~~~
+
+By default, Slackdump generates the Standard type Export. 
 
 The export file or directory will include emails and attachments (if
 ``-download`` flag is specified).
 
 Mattermost export
-~~~~~~~~~~~~~~~~~
++++++++++++++++++
+
 Mattermost mode is currently in alpha-stage.  Export is generated in the
 format that can be imported using Mattermost "bulk" import mode format using
 ``mmetl/mmctl`` tools (see quick guide below).
@@ -21,7 +25,7 @@ format that can be imported using Mattermost "bulk" import mode format using
 The ``mattermost import slack`` command is not yet supported.
 
 Mattermost export quick guide
-+++++++++++++++++++++++++++++
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 To export to Mattermost, Slackdump should be started with ``-export-type
 mattermost`` flag.  Mattermost tools would require a ZIP file.
@@ -104,7 +108,7 @@ More detailed instructions can be found in the `Mattermost
 documentation`_
 
 Standard export
-~~~~~~~~~~~~~~~
++++++++++++++++
 
 To run in Slack Export standard mode, one must start Slackdump
 specifying the slack export directory or zip file, i.e.::
