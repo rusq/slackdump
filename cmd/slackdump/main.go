@@ -26,8 +26,9 @@ import (
 )
 
 const (
-	slackTokenEnv  = "SLACK_TOKEN"
-	slackCookieEnv = "COOKIE"
+	envSlackToken     = "SLACK_TOKEN"
+	envSlackCookie    = "COOKIE"
+	envSlackFileToken = "SLACK_FILE_TOKEN"
 
 	bannerFmt = "Slackdump %[1]s Copyright (c) 2018-%[2]s rusq (build: %s)\n\n"
 )
@@ -234,13 +235,13 @@ func parseCmdLine(args []string) (params, error) {
 	var p = params{
 		appCfg: app.Config{
 			Options:    slackdump.DefOptions,
-			ExportType: export.TStandard,
+			ExportType: export.TNoDownload,
 		},
 	}
 
 	// authentication
-	fs.StringVar(&p.creds.Token, "t", osenv.Secret(slackTokenEnv, ""), "Specify slack `API_token`, (environment: "+slackTokenEnv+")")
-	fs.StringVar(&p.creds.Cookie, "cookie", osenv.Secret(slackCookieEnv, ""), "d= cookie `value` or a path to a cookie.txt file (environment: "+slackCookieEnv+")")
+	fs.StringVar(&p.creds.Token, "t", osenv.Secret(envSlackToken, ""), "Specify slack `API_token`, (environment: "+envSlackToken+")")
+	fs.StringVar(&p.creds.Cookie, "cookie", osenv.Secret(envSlackCookie, ""), "d= cookie `value` or a path to a cookie.txt file (environment: "+envSlackCookie+")")
 	fs.BoolVar(&p.authReset, "auth-reset", false, "reset EZ-Login 3000 authentication.")
 
 	// operation mode
@@ -251,6 +252,7 @@ func parseCmdLine(args []string) (params, error) {
 	// - export
 	fs.StringVar(&p.appCfg.ExportName, "export", "", "`name` of the directory or zip file to export the Slack workspace to."+zipHint)
 	fs.Var(&p.appCfg.ExportType, "export-type", "set the export type: 'standard' or 'mattermost' (default: standard)")
+	fs.StringVar(&p.appCfg.ExportToken, "export-token", osenv.Secret(envSlackFileToken, ""), "Slack token that will be added to all file URLs, (environment: "+envSlackFileToken+")")
 
 	// input-ouput options
 	fs.StringVar(&p.appCfg.Output.Filename, "o", "-", "Output `filename` for users and channels.\nUse '-' for the Standard Output.")
@@ -298,8 +300,8 @@ func parseCmdLine(args []string) (params, error) {
 	fs.BoolVar(&p.printVersion, "V", false, "print version and exit")
 	fs.BoolVar(&p.verbose, "v", osenv.Value("DEBUG", false), "verbose messages")
 
-	os.Unsetenv(slackTokenEnv)
-	os.Unsetenv(slackCookieEnv)
+	os.Unsetenv(envSlackToken)
+	os.Unsetenv(envSlackCookie)
 
 	if err := fs.Parse(args); err != nil {
 		return p, err

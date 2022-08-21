@@ -8,13 +8,14 @@ func _() {
 	// An "invalid array index" compiler error signifies that the constant values have changed.
 	// Re-run the stringer command to generate them again.
 	var x [1]struct{}
-	_ = x[TStandard-0]
-	_ = x[TMattermost-1]
+	_ = x[TNoDownload-0]
+	_ = x[TStandard-1]
+	_ = x[TMattermost-2]
 }
 
-const _ExportType_name = "StandardMattermost"
+const _ExportType_name = "NoDownloadStandardMattermost"
 
-var _ExportType_index = [...]uint8{0, 8, 18}
+var _ExportType_index = [...]uint8{0, 10, 18, 28}
 
 func (i ExportType) String() string {
 	if i >= ExportType(len(_ExportType_index)-1) {

@@ -11,7 +11,8 @@ import (
 type ExportType uint8
 
 const (
-	TStandard   ExportType = iota // Standard
+	TNoDownload ExportType = iota // NoDownload
+	TStandard                     // Standard
 	TMattermost                   // Mattermost
 )
 

@@ -15,4 +15,5 @@ type Options struct {
 	Logger       logger.Interface
 	List         *structures.EntityList
 	Type         ExportType
+	ExportToken  string
 }

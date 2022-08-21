@@ -12,22 +12,22 @@ import (
 const Root = -1
 
 // Addr is the address of the file in the messages slice.
-//   idxMsg    - index of the message or message reply in the provided slice
-//   idxParMsg - index of the parent message. If it is not equal to Root,
-//               then it's the address of the message:
 //
-//                   msg[idxMsg].File[idxFile]
+//	idxMsg    - index of the message or message reply in the provided slice
+//	idxParMsg - index of the parent message. If it is not equal to Root
+//	            constant, then it's the address of the message:
 //
-//               if it is not equal to Root, then it is assumed that it is
-//               a reference to a message reply:
+//	                msg[idxMsg].File[idxFile]
 //
-//                   msg[idxParMsg].ThreadReplies[idxMsg].File[idxFile]
+//	            if it is not equal to Root, then it is assumed that it is
+//	            an address of a message (thread) reply:
 //
-//   idxFile   - index of the file in the message's file slice.
+//	                msg[idxParMsg].ThreadReplies[idxMsg].File[idxFile]
 //
+//	idxFile   - index of the file in the message's file slice.
 type Addr struct {
 	idxMsg    int // index of the message in the messages slice
-	idxParMsg int // index of the parent message, or refRoot if it's the address of the top level message
+	idxParMsg int // index of the parent message, or Root (-1) if it's the address of the top level message
 	idxFile   int // index of the file in the file slice.
 }
 
@@ -36,11 +36,19 @@ type Addr struct {
 // update the URL for, and filename is the path to the file on the local
 // filesystem.  It will return an error if the address references out of range.
 func UpdateURLs(msgs []types.Message, addr Addr, filename string) error {
+	return Update(msgs, addr, func(f *slack.File) error {
+		f.URLPrivateDownload = filename
+		f.URLPrivate = filename
+		return nil
+	})
+}
+
+func Update(msgs []types.Message, addr Addr, fn func(*slack.File) error) error {
 	if addr.idxParMsg != Root {
-		return UpdateURLs(
+		return Update(
 			msgs[addr.idxParMsg].ThreadReplies,
 			Addr{idxMsg: addr.idxMsg, idxParMsg: Root, idxFile: addr.idxFile},
-			filename,
+			fn,
 		)
 	}
 
@@ -50,13 +58,12 @@ func UpdateURLs(msgs []types.Message, addr Addr, filename string) error {
 	if addr.idxFile < 0 || len(msgs[addr.idxMsg].Files) < addr.idxFile {
 		return errors.New("invalid file reference")
 	}
-	msgs[addr.idxMsg].Files[addr.idxFile].URLPrivateDownload = filename
-	msgs[addr.idxMsg].Files[addr.idxFile].URLPrivate = filename
+	fn(&msgs[addr.idxMsg].Files[addr.idxFile])
 	return nil
 }
 
 // Extract scans the message slice msgs, and calls fn for each file it
-// finds. fn is called with the copy of the file and that file's address in the
+// finds. fn is called with the copy of the file and the files' address in the
 // provided message slice.  idxParentMsg is the index of the parent message (for
 // message replies slice), or refRoot if it's the topmost messages slice (see
 // invocation in downloadFn).
@@ -64,16 +71,16 @@ func Extract(msgs []types.Message, idxParentMsg int, fn func(file slack.File, ad
 	if fn == nil {
 		return errors.New("extractFiles: internal error: no callback function")
 	}
-	for mi := range msgs {
-		if len(msgs[mi].Files) > 0 {
-			for fileIdx, file := range msgs[mi].Files {
-				if err := fn(file, Addr{idxMsg: mi, idxParMsg: idxParentMsg, idxFile: fileIdx}); err != nil {
+	for iMsg := range msgs {
+		if len(msgs[iMsg].Files) > 0 {
+			for fileIdx, file := range msgs[iMsg].Files {
+				if err := fn(file, Addr{idxMsg: iMsg, idxParMsg: idxParentMsg, idxFile: fileIdx}); err != nil {
 					return err
 				}
 			}
 		}
-		if len(msgs[mi].ThreadReplies) > 0 {
-			if err := Extract(msgs[mi].ThreadReplies, mi, fn); err != nil {
+		if len(msgs[iMsg].ThreadReplies) > 0 {
+			if err := Extract(msgs[iMsg].ThreadReplies, iMsg, fn); err != nil {
 				return err
 			}
 		}
