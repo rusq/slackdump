@@ -20,29 +20,41 @@ type mattermostDownload struct {
 	baseDownloader
 }
 
-func newMattermostDl(fs fsadapter.FS, cl *slack.Client, l logger.Interface) *mattermostDownload {
-	return &mattermostDownload{baseDownloader: baseDownloader{
-		dl: downloader.New(cl, fs, downloader.Logger(l), downloader.WithNameFunc(
-			func(f *slack.File) string {
-				return f.Name
-			},
-		)), l: l,
-	}}
+// newMattermostDl returns the downloader, that downloads the files into
+// the __uploads directory, so that it could be transformed into bulk import
+// by mmetl and imported into mattermost with mmctl import bulk.
+func newMattermostDl(fs fsadapter.FS, cl *slack.Client, l logger.Interface, token string) *mattermostDownload {
+	return &mattermostDownload{
+		baseDownloader: baseDownloader{
+			l:     l,
+			token: token,
+			dl: downloader.New(cl, fs, downloader.Logger(l), downloader.WithNameFunc(
+				func(f *slack.File) string {
+					return f.Name
+				},
+			)),
+		},
+	}
 }
 
+// ProcessFunc returns the ProcessFunc that downloads the files into the
+// __uploads directory in the root of the download filesystem.
 func (md *mattermostDownload) ProcessFunc(_ string) slackdump.ProcessFunc {
 	const (
 		baseDir = "__uploads"
 	)
-	return func(msg []types.Message, channelID string) (slackdump.ProcessResult, error) {
+	return func(msgs []types.Message, channelID string) (slackdump.ProcessResult, error) {
 		total := 0
-		if err := files.Extract(msg, files.Root, func(file slack.File, addr files.Addr) error {
+		if err := files.Extract(msgs, files.Root, func(file slack.File, addr files.Addr) error {
 			filedir := filepath.Join(baseDir, file.ID)
 			_, err := md.dl.DownloadFile(filedir, file)
 			if err != nil {
 				return err
 			}
 			total++
+			if md.token != "" {
+				return files.Update(msgs, addr, updateTokenFn(md.token))
+			}
 			return nil
 		}); err != nil {
 			if errors.Is(err, downloader.ErrNotStarted) {

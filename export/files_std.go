@@ -18,13 +18,21 @@ type stdDownload struct {
 	baseDownloader
 }
 
-func newStdDl(fs fsadapter.FS, cl *slack.Client, l logger.Interface) *stdDownload {
-	return &stdDownload{baseDownloader: baseDownloader{
-		dl: downloader.New(cl, fs, downloader.Logger(l)),
-		l:  l,
-	}}
+// newStdDl returns standard downloader, which downloads files into
+// "channel_id/attachments" directory.
+func newStdDl(fs fsadapter.FS, cl *slack.Client, l logger.Interface, token string) *stdDownload {
+	return &stdDownload{
+		baseDownloader: baseDownloader{
+			dl:    downloader.New(cl, fs, downloader.Logger(l)),
+			l:     l,
+			token: token,
+		}}
 }
 
+// ProcessFunc returns the function that downloads the file into
+// channel_id/attachments directory. If Slack token is set, it updates the
+// thumbnails to include that token.  It replaces the file URL to point to
+// physical downloaded files on disk.
 func (d *stdDownload) ProcessFunc(channelName string) slackdump.ProcessFunc {
 	const (
 		dirAttach = "attachments"
@@ -40,6 +48,9 @@ func (d *stdDownload) ProcessFunc(channelName string) slackdump.ProcessFunc {
 			}
 			d.l.Debugf("submitted for download: %s", file.Name)
 			total++
+			if d.token != "" {
+				files.Update(msg, addr, updateTokenFn(d.token))
+			}
 			return files.UpdateURLs(msg, addr, path.Join(dirAttach, path.Base(filename)))
 		}); err != nil {
 			if errors.Is(err, downloader.ErrNotStarted) {
