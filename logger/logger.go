@@ -1,6 +1,7 @@
 package logger
 
 import (
+	"io"
 	"log"
 	"os"
 
@@ -16,3 +17,7 @@ type Interface interface {
 }
 
 var Default = dlog.New(log.Default().Writer(), "", log.LstdFlags, os.Getenv("DEBUG") == "1")
+
+// note: previously ioutil.Discard which is not deprecated in favord of io.Discard
+// so this is valid only from go1.16
+var Silent = dlog.New(io.Discard, "", log.LstdFlags, false)

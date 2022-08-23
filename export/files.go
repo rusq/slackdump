@@ -2,21 +2,18 @@ package export
 
 import (
 	"context"
-	"errors"
 	"net/url"
-	"path"
-	"path/filepath"
+
+	"github.com/slack-go/slack"
 
 	"github.com/rusq/slackdump/v2"
-	"github.com/rusq/slackdump/v2/downloader"
 	"github.com/rusq/slackdump/v2/fsadapter"
-	"github.com/rusq/slackdump/v2/internal/structures/files"
 	"github.com/rusq/slackdump/v2/logger"
-	"github.com/rusq/slackdump/v2/types"
-	"github.com/slack-go/slack"
 )
 
 const entFiles = "files"
+
+//go:generate sh -c "mockgen -source files.go -destination files_mock_test.go -package export"
 
 // fileProcessor is the file exporter interface.
 type fileProcessor interface {
@@ -30,14 +27,25 @@ type fileProcessor interface {
 
 type fileExporter interface {
 	fileProcessor
+	startStopper
+}
+
+type startStopper interface {
 	Start(ctx context.Context)
 	Stop()
 }
 
+// exportDownloader is the interface that downloader.Client implements.  Used
+// for mocking in tests.
+type exportDownloader interface {
+	DownloadFile(dir string, f slack.File) (string, error)
+	startStopper
+}
+
 type baseDownloader struct {
-	dl    *downloader.Client
-	l     logger.Interface
+	dl    exportDownloader
 	token string // token is the token that will be appended to each file URL.
+	l     logger.Interface
 }
 
 func (bd *baseDownloader) Start(ctx context.Context) {
@@ -48,15 +56,6 @@ func (bd *baseDownloader) Stop() {
 	bd.dl.Stop()
 }
 
-type stdDownload struct {
-	baseDownloader
-}
-
-type mattermostDownload struct {
-	baseDownloader
-}
-
-// newFileExporter returns the appropriate file exporter for the ExportType.
 func newFileExporter(t ExportType, fs fsadapter.FS, cl *slack.Client, l logger.Interface, token string) fileExporter {
 	switch t {
 	case TNoDownload:
@@ -68,97 +67,6 @@ func newFileExporter(t ExportType, fs fsadapter.FS, cl *slack.Client, l logger.I
 		return newStdDl(fs, cl, l, token)
 	case TMattermost:
 		return newMattermostDl(fs, cl, l, token)
-	}
-}
-
-// newStdDl returns standard downloader, which downloads files into
-// "channel_id/attachments" directory.
-func newStdDl(fs fsadapter.FS, cl *slack.Client, l logger.Interface, token string) *stdDownload {
-	return &stdDownload{
-		baseDownloader: baseDownloader{
-			dl:    downloader.New(cl, fs, downloader.Logger(l)),
-			l:     l,
-			token: token,
-		}}
-}
-
-// ProcessFunc returns the function that downloads the file into
-// channel_id/attachments directory. If Slack token is set, it updates the
-// thumbnails to include that token.  It replaces the file URL to point to
-// physical downloaded files on disk.
-func (d *stdDownload) ProcessFunc(channelName string) slackdump.ProcessFunc {
-	const (
-		dirAttach = "attachments"
-	)
-
-	dir := filepath.Join(channelName, dirAttach)
-	return func(msg []types.Message, channelID string) (slackdump.ProcessResult, error) {
-		total := 0
-		if err := files.Extract(msg, files.Root, func(file slack.File, addr files.Addr) error {
-			filename, err := d.dl.DownloadFile(dir, file)
-			if err != nil {
-				return err
-			}
-			d.l.Debugf("submitted for download: %s", file.Name)
-			total++
-			if d.token != "" {
-				files.Update(msg, addr, updateTokenFn(d.token))
-			}
-			return files.UpdateURLs(msg, addr, path.Join(dirAttach, path.Base(filename)))
-		}); err != nil {
-			if errors.Is(err, downloader.ErrNotStarted) {
-				return slackdump.ProcessResult{Entity: entFiles, Count: 0}, nil
-			}
-			return slackdump.ProcessResult{}, err
-		}
-
-		return slackdump.ProcessResult{Entity: entFiles, Count: total}, nil
-	}
-}
-
-// newMattermostDl returns the downloader, that downloads the files into
-// the __uploads directory, so that it could be transformed into bulk import
-// by mmetl and imported into mattermost with mmctl import bulk.
-func newMattermostDl(fs fsadapter.FS, cl *slack.Client, l logger.Interface, token string) *mattermostDownload {
-	return &mattermostDownload{
-		baseDownloader: baseDownloader{
-			l:     l,
-			token: token,
-			dl: downloader.New(cl, fs, downloader.Logger(l), downloader.WithNameFunc(
-				func(f *slack.File) string {
-					return f.Name
-				},
-			)),
-		},
-	}
-}
-
-// ProcessFunc returns the ProcessFunc that downloads the files into the
-// __uploads directory in the root of the download filesystem.
-func (md *mattermostDownload) ProcessFunc(_ string) slackdump.ProcessFunc {
-	const (
-		baseDir = "__uploads"
-	)
-	return func(msgs []types.Message, channelID string) (slackdump.ProcessResult, error) {
-		total := 0
-		if err := files.Extract(msgs, files.Root, func(file slack.File, addr files.Addr) error {
-			filedir := filepath.Join(baseDir, file.ID)
-			_, err := md.dl.DownloadFile(filedir, file)
-			if err != nil {
-				return err
-			}
-			total++
-			if md.token != "" {
-				return files.Update(msgs, addr, updateTokenFn(md.token))
-			}
-			return nil
-		}); err != nil {
-			if errors.Is(err, downloader.ErrNotStarted) {
-				return slackdump.ProcessResult{Entity: entFiles, Count: 0}, nil
-			}
-			return slackdump.ProcessResult{}, err
-		}
-		return slackdump.ProcessResult{Entity: entFiles, Count: total}, nil
 	}
 }
 
@@ -204,44 +112,5 @@ func updateTokenFn(token string) func(*slack.File) error {
 		update(&f.Thumb960, token)
 		update(&f.Thumb1024, token)
 		return nil
-	}
-}
-
-// fileUpdater does not download any files, it just updates the link adding
-// a token query parameter, if the token is set.
-type fileUpdater struct {
-	baseDownloader
-}
-
-// Start does nothing.
-func (fileUpdater) Start(context.Context) {}
-
-// Stop does nothing.
-func (fileUpdater) Stop() {}
-
-// newFileUpdater returns an fileExporter that does not download any files,
-// but updates the link adding a token query parameter, if the token is set.
-func newFileUpdater(token string) fileUpdater {
-	return fileUpdater{baseDownloader: baseDownloader{
-		token: token,
-	}}
-}
-
-// ProcessFunc returns the [slackdump.ProcessFunc] that updates the file link
-// adding a token query parameter.
-func (u fileUpdater) ProcessFunc(_ string) slackdump.ProcessFunc {
-	if u.token == "" {
-		return func(msg []types.Message, channelID string) (slackdump.ProcessResult, error) {
-			return slackdump.ProcessResult{}, nil
-		}
-	}
-	return func(msgs []types.Message, channelID string) (slackdump.ProcessResult, error) {
-		total := 0
-		if err := files.Extract(msgs, files.Root, func(file slack.File, addr files.Addr) error {
-			return files.Update(msgs, addr, updateTokenFn(u.token))
-		}); err != nil {
-			return slackdump.ProcessResult{}, err
-		}
-		return slackdump.ProcessResult{Entity: entFiles, Count: total}, nil
 	}
 }

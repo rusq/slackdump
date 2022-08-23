@@ -75,6 +75,12 @@ Steps to export from Slack and import to Mattermost:
 
    This will upload the zip file into the Mattermost.
 
+   **NOTE**: you may need to authenticate to use ``mmctl``. Run::
+
+     mmctl auth login URL
+     # URL is the URL of your mattermost server, i.e.:
+     mmctl auth login http://localhost:8065
+
    List all import files to find out the filename that will be used to
    start the import process::
 
