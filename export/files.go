@@ -2,20 +2,17 @@ package export
 
 import (
 	"context"
-	"errors"
-	"path"
-	"path/filepath"
+
+	"github.com/slack-go/slack"
 
 	"github.com/rusq/slackdump/v2"
-	"github.com/rusq/slackdump/v2/downloader"
 	"github.com/rusq/slackdump/v2/fsadapter"
-	"github.com/rusq/slackdump/v2/internal/structures/files"
 	"github.com/rusq/slackdump/v2/logger"
-	"github.com/rusq/slackdump/v2/types"
-	"github.com/slack-go/slack"
 )
 
 const entFiles = "files"
+
+//go:generate sh -c "mockgen -source files.go -destination files_mock_test.go -package export"
 
 // fileProcessor is the file exporter interface.
 type fileProcessor interface {
@@ -29,13 +26,24 @@ type fileProcessor interface {
 
 type fileExporter interface {
 	fileProcessor
+	startStopper
+}
+
+type startStopper interface {
 	Start(ctx context.Context)
 	Stop()
 }
 
 type baseDownloader struct {
-	dl *downloader.Client
+	dl exportDownloader
 	l  logger.Interface
+}
+
+// exportDownloader is the interface that downloader.Client implements.  Used
+// for mocking in tests.
+type exportDownloader interface {
+	DownloadFile(dir string, f slack.File) (string, error)
+	startStopper
 }
 
 func (bd *baseDownloader) Start(ctx context.Context) {
@@ -44,14 +52,6 @@ func (bd *baseDownloader) Start(ctx context.Context) {
 
 func (bd *baseDownloader) Stop() {
 	bd.dl.Stop()
-}
-
-type stdDownload struct {
-	baseDownloader
-}
-
-type mattermostDownload struct {
-	baseDownloader
 }
 
 func newFileExporter(t ExportType, fs fsadapter.FS, cl *slack.Client, l logger.Interface) fileExporter {
@@ -63,73 +63,5 @@ func newFileExporter(t ExportType, fs fsadapter.FS, cl *slack.Client, l logger.I
 		return newStdDl(fs, cl, l)
 	case TMattermost:
 		return newMattermostDl(fs, cl, l)
-	}
-}
-
-func newStdDl(fs fsadapter.FS, cl *slack.Client, l logger.Interface) *stdDownload {
-	return &stdDownload{baseDownloader: baseDownloader{
-		dl: downloader.New(cl, fs, downloader.Logger(l)),
-		l:  l,
-	}}
-}
-
-func (d *stdDownload) ProcessFunc(channelName string) slackdump.ProcessFunc {
-	const (
-		dirAttach = "attachments"
-	)
-
-	dir := filepath.Join(channelName, dirAttach)
-	return func(msg []types.Message, channelID string) (slackdump.ProcessResult, error) {
-		total := 0
-		if err := files.Extract(msg, files.Root, func(file slack.File, addr files.Addr) error {
-			filename, err := d.dl.DownloadFile(dir, file)
-			if err != nil {
-				return err
-			}
-			d.l.Debugf("submitted for download: %s", file.Name)
-			total++
-			return files.UpdateURLs(msg, addr, path.Join(dirAttach, path.Base(filename)))
-		}); err != nil {
-			if errors.Is(err, downloader.ErrNotStarted) {
-				return slackdump.ProcessResult{Entity: entFiles, Count: 0}, nil
-			}
-			return slackdump.ProcessResult{}, err
-		}
-
-		return slackdump.ProcessResult{Entity: entFiles, Count: total}, nil
-	}
-}
-
-func newMattermostDl(fs fsadapter.FS, cl *slack.Client, l logger.Interface) *mattermostDownload {
-	return &mattermostDownload{baseDownloader: baseDownloader{
-		dl: downloader.New(cl, fs, downloader.Logger(l), downloader.WithNameFunc(
-			func(f *slack.File) string {
-				return f.Name
-			},
-		)), l: l,
-	}}
-}
-
-func (md *mattermostDownload) ProcessFunc(_ string) slackdump.ProcessFunc {
-	const (
-		baseDir = "__uploads"
-	)
-	return func(msg []types.Message, channelID string) (slackdump.ProcessResult, error) {
-		total := 0
-		if err := files.Extract(msg, files.Root, func(file slack.File, addr files.Addr) error {
-			filedir := filepath.Join(baseDir, file.ID)
-			_, err := md.dl.DownloadFile(filedir, file)
-			if err != nil {
-				return err
-			}
-			total++
-			return nil
-		}); err != nil {
-			if errors.Is(err, downloader.ErrNotStarted) {
-				return slackdump.ProcessResult{Entity: entFiles, Count: 0}, nil
-			}
-			return slackdump.ProcessResult{}, err
-		}
-		return slackdump.ProcessResult{Entity: entFiles, Count: total}, nil
 	}
 }
