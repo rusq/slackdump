@@ -15,6 +15,7 @@ import (
 	"github.com/rusq/slackdump/v2/fsadapter"
 	"github.com/rusq/slackdump/v2/internal/network"
 	"github.com/rusq/slackdump/v2/internal/structures"
+	"github.com/rusq/slackdump/v2/internal/structures/files"
 	"github.com/rusq/slackdump/v2/logger"
 	"github.com/rusq/slackdump/v2/types"
 )
@@ -24,6 +25,7 @@ type Export struct {
 	fs fsadapter.FS       // target filesystem
 	sd *slackdump.Session // Session instance
 	lg logger.Interface
+	dl files.Exporter
 
 	// options
 	opts Options
@@ -32,10 +34,17 @@ type Export struct {
 // New creates a new Export instance, that will save export to the
 // provided fs.
 func New(sd *slackdump.Session, fs fsadapter.FS, cfg Options) *Export {
-	se := &Export{fs: fs, sd: sd, lg: cfg.Logger, opts: cfg}
+	se := &Export{
+		fs:   fs,
+		sd:   sd,
+		lg:   cfg.Logger,
+		opts: cfg,
+		dl:   newFileExporter(cfg.Type, fs, sd.Client(), cfg.Logger, cfg.ExportToken),
+	}
 	if se.lg == nil {
 		se.lg = logger.Default
 	}
+
 	network.Logger = se.l()
 	return se
 }
@@ -64,20 +73,19 @@ func (se *Export) messages(ctx context.Context, users types.Users) error {
 	ctx, task := trace.NewTask(ctx, "export.messages")
 	defer task.End()
 
-	dl := newFileExporter(se.opts.Type, se.fs, se.sd.Client(), se.l(), se.opts.ExportToken)
 	if se.opts.IsFilesEnabled() {
-		// start the downloader
-		dl.Start(ctx)
+		// start the dl
+		se.dl.Start(ctx)
 		defer func() {
 			se.td(ctx, "info", "waiting for downloads to finish")
-			dl.Stop()
-			se.td(ctx, "info", "downloader stopped")
+			se.dl.Stop()
+			se.td(ctx, "info", "dl stopped")
 		}()
 	}
 
 	var chans []slack.Channel
 
-	chans, err := se.exportChannels(ctx, dl, users.IndexByID(), se.opts.List)
+	chans, err := se.exportChannels(ctx, users.IndexByID())
 	if err != nil {
 		return fmt.Errorf("export error: %w", err)
 	}
@@ -94,19 +102,19 @@ func (se *Export) messages(ctx context.Context, users types.Users) error {
 	return nil
 }
 
-func (se *Export) exportChannels(ctx context.Context, proc fileProcessor, uidx structures.UserIndex, el *structures.EntityList) ([]slack.Channel, error) {
+func (se *Export) exportChannels(ctx context.Context, uidx structures.UserIndex) ([]slack.Channel, error) {
 	if se.opts.List.HasIncludes() {
-		// if there an Include list, we don't need to retrieve all channels,
+		// if there's an "Include" list, we don't need to retrieve all channels,
 		// only the ones that are specified.
-		return se.inclusiveExport(ctx, proc, uidx, se.opts.List)
+		return se.inclusiveExport(ctx, uidx, se.opts.List)
 	} else {
-		return se.exclusiveExport(ctx, proc, uidx, se.opts.List)
+		return se.exclusiveExport(ctx, uidx, se.opts.List)
 	}
 }
 
 // exclusiveExport exports all channels, excluding ones that are defined in
 // EntityList.  If EntityList has Include channels, they are ignored.
-func (se *Export) exclusiveExport(ctx context.Context, proc fileProcessor, uidx structures.UserIndex, el *structures.EntityList) ([]slack.Channel, error) {
+func (se *Export) exclusiveExport(ctx context.Context, uidx structures.UserIndex, el *structures.EntityList) ([]slack.Channel, error) {
 	ctx, task := trace.NewTask(ctx, "export.exclusive")
 	defer task.End()
 
@@ -120,7 +128,7 @@ func (se *Export) exclusiveExport(ctx context.Context, proc fileProcessor, uidx 
 			se.lg.Printf("skipping: %s", ch.ID)
 			return nil
 		}
-		if err := se.exportConversation(ctx, proc, uidx, ch); err != nil {
+		if err := se.exportConversation(ctx, uidx, ch); err != nil {
 			return err
 		}
 
@@ -136,7 +144,7 @@ func (se *Export) exclusiveExport(ctx context.Context, proc fileProcessor, uidx 
 
 // inclusiveExport exports only channels that are defined in the
 // EntryList.Include.
-func (se *Export) inclusiveExport(ctx context.Context, proc fileProcessor, uidx structures.UserIndex, list *structures.EntityList) ([]slack.Channel, error) {
+func (se *Export) inclusiveExport(ctx context.Context, uidx structures.UserIndex, list *structures.EntityList) ([]slack.Channel, error) {
 	ctx, task := trace.NewTask(ctx, "export.inclusive")
 	defer task.End()
 
@@ -166,7 +174,7 @@ func (se *Export) inclusiveExport(ctx context.Context, proc fileProcessor, uidx 
 			return nil, fmt.Errorf("error getting info for %s: %w", sl, err)
 		}
 
-		if err := se.exportConversation(ctx, proc, uidx, *ch); err != nil {
+		if err := se.exportConversation(ctx, uidx, *ch); err != nil {
 			return nil, err
 		}
 
@@ -177,11 +185,11 @@ func (se *Export) inclusiveExport(ctx context.Context, proc fileProcessor, uidx 
 }
 
 // exportConversation exports one conversation.
-func (se *Export) exportConversation(ctx context.Context, proc fileProcessor, userIdx structures.UserIndex, ch slack.Channel) error {
+func (se *Export) exportConversation(ctx context.Context, userIdx structures.UserIndex, ch slack.Channel) error {
 	ctx, task := trace.NewTask(ctx, "export.conversation")
 	defer task.End()
 
-	messages, err := se.sd.DumpRaw(ctx, ch.ID, se.opts.Oldest, se.opts.Latest, proc.ProcessFunc(ch.Name))
+	messages, err := se.sd.DumpRaw(ctx, ch.ID, se.opts.Oldest, se.opts.Latest, se.dl.ProcessFunc(ch.Name))
 	if err != nil {
 		return fmt.Errorf("failed to dump %q (%s): %w", ch.Name, ch.ID, err)
 	}
@@ -195,7 +203,7 @@ func (se *Export) exportConversation(ctx context.Context, proc fileProcessor, us
 		return fmt.Errorf("exportConversation: error: %w", err)
 	}
 
-	name, err := validName(ch, userIdx)
+	name, err := validName(ch)
 	if err != nil {
 		return err
 	}
@@ -211,7 +219,7 @@ func (se *Export) exportConversation(ctx context.Context, proc fileProcessor, us
 // described by @niklasdahlheimer in this post (thanks to @Neznakomec for
 // discovering it):
 // https://github.com/RocketChat/Rocket.Chat/issues/13905#issuecomment-477500022
-func validName(ch slack.Channel, uidx structures.UserIndex) (string, error) {
+func validName(ch slack.Channel) (string, error) {
 	if ch.IsIM {
 		return ch.ID, nil
 	} else {
@@ -262,7 +270,7 @@ func (se *Export) l() logger.Interface {
 }
 
 // td outputs the message to trace and logs a debug message.
-func (e *Export) td(ctx context.Context, category string, fmt string, a ...any) {
-	e.l().Debugf(fmt, a...)
+func (se *Export) td(ctx context.Context, category string, fmt string, a ...any) {
+	se.l().Debugf(fmt, a...)
 	trace.Logf(ctx, category, fmt, a...)
 }

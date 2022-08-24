@@ -1,6 +1,8 @@
-package export
+package files
 
-import "testing"
+import (
+	"testing"
+)
 
 func Test_addToken(t *testing.T) {
 	type args struct {

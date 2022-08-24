@@ -11,13 +11,14 @@ import (
 	"errors"
 
 	gomock "github.com/golang/mock/gomock"
-	"github.com/rusq/slackdump/v2/fsadapter"
-	"github.com/rusq/slackdump/v2/internal/fixtures"
-	"github.com/rusq/slackdump/v2/internal/mocks/mock_downloader"
 	"github.com/slack-go/slack"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/time/rate"
+
+	"github.com/rusq/slackdump/v2/fsadapter"
+	"github.com/rusq/slackdump/v2/internal/fixtures"
+	"github.com/rusq/slackdump/v2/internal/mocks/mock_downloader"
 )
 
 var (
@@ -249,7 +250,7 @@ func TestSession_newFileDownloader(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpdir)
 
-	t.Run("ensure file downloader is running", func(t *testing.T) {
+	t.Run("ensure file dl is running", func(t *testing.T) {
 		mc := mock_downloader.NewMockDownloader(gomock.NewController(t))
 		sd := Client{
 			client:  mc,
@@ -410,7 +411,7 @@ func TestClient_Stop(t *testing.T) {
 		assert.Nil(t, c.fileRequests)
 		assert.Nil(t, c.wg)
 	})
-	t.Run("stop on stopped downloader does nothing", func(t *testing.T) {
+	t.Run("stop on stopped dl does nothing", func(t *testing.T) {
 		c := clientWithMock(t, tmpdir)
 		c.Stop()
 		assert.False(t, c.started)
@@ -434,7 +435,7 @@ func clientWithMock(t *testing.T, dir string) *Client {
 
 func TestClient_DownloadFile(t *testing.T) {
 	dir := t.TempDir()
-	t.Run("returns error on stopped downloader", func(t *testing.T) {
+	t.Run("returns error on stopped dl", func(t *testing.T) {
 		c := clientWithMock(t, dir)
 		path, err := c.DownloadFile(dir, slack.File{ID: "xx", Name: "tt"})
 		if path != "" {

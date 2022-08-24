@@ -1,4 +1,4 @@
-package export
+package dl
 
 // mattermost file format support
 
@@ -16,15 +16,15 @@ import (
 	"github.com/rusq/slackdump/v2/types"
 )
 
-type mattermostDownload struct {
+type MattermostDownload struct {
 	baseDownloader
 }
 
-// newMattermostDl returns the downloader, that downloads the files into
+// NewMattermostDl returns the dl, that downloads the files into
 // the __uploads directory, so that it could be transformed into bulk import
 // by mmetl and imported into mattermost with mmctl import bulk.
-func newMattermostDl(fs fsadapter.FS, cl *slack.Client, l logger.Interface, token string) *mattermostDownload {
-	return &mattermostDownload{
+func NewMattermostDl(fs fsadapter.FS, cl *slack.Client, l logger.Interface, token string) *MattermostDownload {
+	return &MattermostDownload{
 		baseDownloader: baseDownloader{
 			l:     l,
 			token: token,
@@ -39,7 +39,7 @@ func newMattermostDl(fs fsadapter.FS, cl *slack.Client, l logger.Interface, toke
 
 // ProcessFunc returns the ProcessFunc that downloads the files into the
 // __uploads directory in the root of the download filesystem.
-func (md *mattermostDownload) ProcessFunc(_ string) slackdump.ProcessFunc {
+func (md *MattermostDownload) ProcessFunc(_ string) slackdump.ProcessFunc {
 	const (
 		baseDir = "__uploads"
 	)
@@ -53,7 +53,7 @@ func (md *mattermostDownload) ProcessFunc(_ string) slackdump.ProcessFunc {
 			}
 			total++
 			if md.token != "" {
-				return files.Update(msgs, addr, updateTokenFn(md.token))
+				return files.Update(msgs, addr, files.UpdateTokenFn(md.token))
 			}
 			return nil
 		}); err != nil {

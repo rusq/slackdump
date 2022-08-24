@@ -1,91 +1,66 @@
-// Package files contains some additional file logic.
 package files
 
 import (
-	"errors"
+	"net/url"
 
-	"github.com/rusq/slackdump/v2/types"
 	"github.com/slack-go/slack"
 )
 
-// Root is the parent address for the topmost message chunk.
-const Root = -1
+// UpdateFunc is the signature of the function that modifies the file passed
+// as an argument.
+type UpdateFunc func(f *slack.File) error
 
-// Addr is the address of the file in the messages slice.
-//
-//	idxMsg    - index of the message or message reply in the provided slice
-//	idxParMsg - index of the parent message. If it is not equal to Root
-//	            constant, then it's the address of the message:
-//
-//	                msg[idxMsg].File[idxFile]
-//
-//	            if it is not equal to Root, then it is assumed that it is
-//	            an address of a message (thread) reply:
-//
-//	                msg[idxParMsg].ThreadReplies[idxMsg].File[idxFile]
-//
-//	idxFile   - index of the file in the message's file slice.
-type Addr struct {
-	idxMsg    int // index of the message in the messages slice
-	idxParMsg int // index of the parent message, or Root (-1) if it's the address of the top level message
-	idxFile   int // index of the file in the file slice.
-}
-
-// UpdateURLs sets the URLPrivate and URLPrivateDownload for the file at addr
-// to the specified value.
-func UpdateURLs(msgs []types.Message, addr Addr, value string) error {
-	return Update(msgs, addr, func(f *slack.File) error {
-		f.URLPrivateDownload = value
-		f.URLPrivate = value
+// UpdateTokenFn returns a file update function that adds the t= query parameter
+// with token value. If token value is empty, the function does nothing.
+func UpdateTokenFn(token string) UpdateFunc {
+	return func(f *slack.File) error {
+		if token == "" {
+			return nil
+		}
+		var err error
+		update := func(s *string, t string) {
+			if err != nil {
+				return
+			}
+			*s, err = addToken(*s, t)
+		}
+		update(&f.URLPrivate, token)
+		update(&f.URLPrivateDownload, token)
+		update(&f.Thumb64, token)
+		update(&f.Thumb80, token)
+		update(&f.Thumb160, token)
+		update(&f.Thumb360, token)
+		update(&f.Thumb360Gif, token)
+		update(&f.Thumb480, token)
+		update(&f.Thumb720, token)
+		update(&f.Thumb960, token)
+		update(&f.Thumb1024, token)
 		return nil
-	})
+	}
 }
 
-// Update locates the file by address addr, and calls fn with the pointer to
-// that file. Addr contains an address of the message and the file within the
-// message slice to update.  It will return an error if the address references
-// out of range.
-func Update(msgs []types.Message, addr Addr, fn func(*slack.File) error) error {
-	if addr.idxParMsg != Root {
-		return Update(
-			msgs[addr.idxParMsg].ThreadReplies,
-			Addr{idxMsg: addr.idxMsg, idxParMsg: Root, idxFile: addr.idxFile},
-			fn,
-		)
+// UpdatePathFn sets the URLPrivate and URLPrivateDownload for the file at addr
+// to the specified path.
+func UpdatePathFn(path string) UpdateFunc {
+	return func(f *slack.File) error {
+		f.URLPrivateDownload = path
+		f.URLPrivate = path
+		return nil
 	}
-
-	if addr.idxMsg < 0 || len(msgs) <= addr.idxMsg {
-		return errors.New("invalid message reference")
-	}
-	if addr.idxFile < 0 || len(msgs[addr.idxMsg].Files) < addr.idxFile {
-		return errors.New("invalid file reference")
-	}
-	fn(&msgs[addr.idxMsg].Files[addr.idxFile])
-	return nil
 }
 
-// Extract scans the message slice msgs, and calls fn for each file it
-// finds. fn is called with the copy of the file and the files' address in the
-// provided message slice.  idxParentMsg is the index of the parent message (for
-// message replies slice), or refRoot if it's the topmost messages slice (see
-// invocation in downloadFn).
-func Extract(msgs []types.Message, idxParentMsg int, fn func(file slack.File, addr Addr) error) error {
-	if fn == nil {
-		return errors.New("extractFiles: internal error: no callback function")
+// addToken updates the uri, adding the t= query parameter with token value.
+// if token or url is empty, it does nothing.
+func addToken(uri string, token string) (string, error) {
+	if token == "" || uri == "" {
+		return uri, nil
 	}
-	for iMsg := range msgs {
-		if len(msgs[iMsg].Files) > 0 {
-			for fileIdx, file := range msgs[iMsg].Files {
-				if err := fn(file, Addr{idxMsg: iMsg, idxParMsg: idxParentMsg, idxFile: fileIdx}); err != nil {
-					return err
-				}
-			}
-		}
-		if len(msgs[iMsg].ThreadReplies) > 0 {
-			if err := Extract(msgs[iMsg].ThreadReplies, iMsg, fn); err != nil {
-				return err
-			}
-		}
+	u, err := url.Parse(uri)
+	if err != nil {
+		return "", err
 	}
-	return nil
+	val := u.Query()
+	val.Set("t", token)
+	u.RawQuery = val.Encode()
+	return u.String(), nil
 }

@@ -1,38 +1,42 @@
-package export
+package dl
+
+// no download, but update the token if required.
 
 import (
 	"context"
 
+	"github.com/slack-go/slack"
+
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/internal/structures/files"
 	"github.com/rusq/slackdump/v2/types"
-	"github.com/slack-go/slack"
 )
 
-// fileUpdater does not download any files, it just updates the link adding
+// NoDownload does not download any files, it just updates the link adding
 // a token query parameter, if the token is set.
-type fileUpdater struct {
+type NoDownload struct {
 	baseDownloader
 }
 
 // Start does nothing.
-func (fileUpdater) Start(context.Context) {}
+func (NoDownload) Start(context.Context) {}
 
 // Stop does nothing.
-func (fileUpdater) Stop() {}
+func (NoDownload) Stop() {}
 
-// newFileUpdater returns an fileExporter that does not download any files,
+// NewFileUpdater returns an fileExporter that does not download any files,
 // but updates the link adding a token query parameter, if the token is set.
-func newFileUpdater(token string) fileUpdater {
-	return fileUpdater{baseDownloader: baseDownloader{
+func NewFileUpdater(token string) NoDownload {
+	return NoDownload{baseDownloader: baseDownloader{
 		token: token,
 	}}
 }
 
 // ProcessFunc returns the [slackdump.ProcessFunc] that updates the file link
 // adding a token query parameter.
-func (u fileUpdater) ProcessFunc(_ string) slackdump.ProcessFunc {
+func (u NoDownload) ProcessFunc(_ string) slackdump.ProcessFunc {
 	if u.token == "" {
+		// return dummy function, if the token is empty.
 		return func(msg []types.Message, channelID string) (slackdump.ProcessResult, error) {
 			return slackdump.ProcessResult{}, nil
 		}
@@ -40,7 +44,7 @@ func (u fileUpdater) ProcessFunc(_ string) slackdump.ProcessFunc {
 	return func(msgs []types.Message, channelID string) (slackdump.ProcessResult, error) {
 		total := 0
 		if err := files.Extract(msgs, files.Root, func(file slack.File, addr files.Addr) error {
-			return files.Update(msgs, addr, updateTokenFn(u.token))
+			return files.Update(msgs, addr, files.UpdateTokenFn(u.token))
 		}); err != nil {
 			return slackdump.ProcessResult{}, err
 		}

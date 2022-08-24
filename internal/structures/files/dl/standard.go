@@ -1,9 +1,13 @@
-package export
+package dl
+
+// standard file export
 
 import (
 	"errors"
 	"path"
 	"path/filepath"
+
+	"github.com/slack-go/slack"
 
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/downloader"
@@ -11,17 +15,16 @@ import (
 	"github.com/rusq/slackdump/v2/internal/structures/files"
 	"github.com/rusq/slackdump/v2/logger"
 	"github.com/rusq/slackdump/v2/types"
-	"github.com/slack-go/slack"
 )
 
-type stdDownload struct {
+type StdDownload struct {
 	baseDownloader
 }
 
-// newStdDl returns standard downloader, which downloads files into
+// NewStdDl returns standard dl, which downloads files into
 // "channel_id/attachments" directory.
-func newStdDl(fs fsadapter.FS, cl *slack.Client, l logger.Interface, token string) *stdDownload {
-	return &stdDownload{
+func NewStdDl(fs fsadapter.FS, cl *slack.Client, l logger.Interface, token string) *StdDownload {
+	return &StdDownload{
 		baseDownloader: baseDownloader{
 			dl:    downloader.New(cl, fs, downloader.Logger(l)),
 			l:     l,
@@ -33,7 +36,7 @@ func newStdDl(fs fsadapter.FS, cl *slack.Client, l logger.Interface, token strin
 // channel_id/attachments directory. If Slack token is set, it updates the
 // thumbnails to include that token.  It replaces the file URL to point to
 // physical downloaded files on disk.
-func (d *stdDownload) ProcessFunc(channelName string) slackdump.ProcessFunc {
+func (d *StdDownload) ProcessFunc(channelName string) slackdump.ProcessFunc {
 	const (
 		dirAttach = "attachments"
 	)
@@ -49,9 +52,11 @@ func (d *stdDownload) ProcessFunc(channelName string) slackdump.ProcessFunc {
 			d.l.Debugf("submitted for download: %s", file.Name)
 			total++
 			if d.token != "" {
-				files.Update(msg, addr, updateTokenFn(d.token))
+				if err := files.Update(msg, addr, files.UpdateTokenFn(d.token)); err != nil {
+					return err
+				}
 			}
-			return files.UpdateURLs(msg, addr, path.Join(dirAttach, path.Base(filename)))
+			return files.Update(msg, addr, files.UpdatePathFn(path.Join(dirAttach, path.Base(filename))))
 		}); err != nil {
 			if errors.Is(err, downloader.ErrNotStarted) {
 				return slackdump.ProcessResult{Entity: entFiles, Count: 0}, nil

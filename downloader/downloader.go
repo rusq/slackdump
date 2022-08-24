@@ -1,4 +1,4 @@
-// Package downloader provides the sync and async file download functionality.
+// Package dl provides the sync and async file download functionality.
 package downloader
 
 import (
@@ -28,7 +28,7 @@ const (
 	defFileBufSz  = 100  // default download channel buffer.
 )
 
-// Client is the instance of the downloader.
+// Client is the instance of the dl.
 type Client struct {
 	client  Downloader
 	limiter *rate.Limiter
@@ -53,7 +53,7 @@ type FilenameFunc func(*slack.File) string
 // Filename returns name of the file generated from the slack.File.
 var Filename FilenameFunc = stdFilenameFn
 
-// Downloader is the file downloader interface.  It exists primarily for mocking
+// Downloader is the file dl interface.  It exists primarily for mocking
 // in tests.
 type Downloader interface {
 	// GetFile retreives a given file from its private download URL
@@ -113,7 +113,7 @@ func WithNameFunc(fn FilenameFunc) Option {
 	}
 }
 
-// New initialises new file downloader.
+// New initialises new file dl.
 func New(client Downloader, fs fsadapter.FS, opts ...Option) *Client {
 	if client == nil {
 		// better safe than sorry
@@ -143,7 +143,7 @@ type FileRequest struct {
 	File      *slack.File
 }
 
-// Start starts an async file downloader.  If the downloader
+// Start starts an async file dl.  If the dl
 // is already started, it does nothing.
 func (c *Client) Start(ctx context.Context) {
 	c.mu.Lock()
@@ -288,7 +288,7 @@ func stdFilenameFn(f *slack.File) string {
 	return fmt.Sprintf("%s-%s", f.ID, f.Name)
 }
 
-// Stop waits for all transfers to finish, and stops the downloader.
+// Stop waits for all transfers to finish, and stops the dl.
 func (c *Client) Stop() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -307,9 +307,9 @@ func (c *Client) Stop() {
 	c.started = false
 }
 
-var ErrNotStarted = errors.New("downloader not started")
+var ErrNotStarted = errors.New("dl not started")
 
-// DownloadFile requires a started downloader, otherwise it will return
+// DownloadFile requires a started dl, otherwise it will return
 // ErrNotStarted. Will place the file to the download queue, and save the file
 // to the directory that was specified when Start was called. If the file buffer
 // is full, will block until it becomes empty.  It returns the filepath within the
