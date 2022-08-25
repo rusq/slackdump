@@ -15,7 +15,7 @@ import (
 	"github.com/rusq/slackdump/v2/fsadapter"
 	"github.com/rusq/slackdump/v2/internal/network"
 	"github.com/rusq/slackdump/v2/internal/structures"
-	"github.com/rusq/slackdump/v2/internal/structures/files"
+	"github.com/rusq/slackdump/v2/internal/structures/files/dl"
 	"github.com/rusq/slackdump/v2/logger"
 	"github.com/rusq/slackdump/v2/types"
 )
@@ -25,7 +25,7 @@ type Export struct {
 	fs fsadapter.FS       // target filesystem
 	sd *slackdump.Session // Session instance
 	lg logger.Interface
-	dl files.Exporter
+	dl dl.Exporter
 
 	// options
 	opts Options
@@ -34,6 +34,11 @@ type Export struct {
 // New creates a new Export instance, that will save export to the
 // provided fs.
 func New(sd *slackdump.Session, fs fsadapter.FS, cfg Options) *Export {
+	if cfg.Logger == nil {
+		cfg.Logger = logger.Default
+	}
+	network.Logger = cfg.Logger
+
 	se := &Export{
 		fs:   fs,
 		sd:   sd,
@@ -41,11 +46,6 @@ func New(sd *slackdump.Session, fs fsadapter.FS, cfg Options) *Export {
 		opts: cfg,
 		dl:   newFileExporter(cfg.Type, fs, sd.Client(), cfg.Logger, cfg.ExportToken),
 	}
-	if se.lg == nil {
-		se.lg = logger.Default
-	}
-
-	network.Logger = se.l()
 	return se
 }
 
@@ -57,13 +57,13 @@ func (se *Export) Run(ctx context.Context) error {
 	// export users to users.json
 	users, err := se.sd.GetUsers(ctx)
 	if err != nil {
-		trace.Logf(ctx, "error", "GetUsers: %s", err)
+		se.td(ctx, "error", "GetUsers: %s", err)
 		return err
 	}
 
 	// export channels to channels.json
 	if err := se.messages(ctx, users); err != nil {
-		trace.Logf(ctx, "error", "messages: %s", err)
+		se.td(ctx, "error", "messages: %s", err)
 		return err
 	}
 	return nil
@@ -203,10 +203,7 @@ func (se *Export) exportConversation(ctx context.Context, userIdx structures.Use
 		return fmt.Errorf("exportConversation: error: %w", err)
 	}
 
-	name, err := validName(ch)
-	if err != nil {
-		return err
-	}
+	name := validName(ch)
 
 	if err := se.saveChannel(name, msgs); err != nil {
 		return err
@@ -219,12 +216,11 @@ func (se *Export) exportConversation(ctx context.Context, userIdx structures.Use
 // described by @niklasdahlheimer in this post (thanks to @Neznakomec for
 // discovering it):
 // https://github.com/RocketChat/Rocket.Chat/issues/13905#issuecomment-477500022
-func validName(ch slack.Channel) (string, error) {
+func validName(ch slack.Channel) string {
 	if ch.IsIM {
-		return ch.ID, nil
-	} else {
-		return ch.NameNormalized, nil
+		return ch.ID
 	}
+	return ch.NameNormalized
 }
 
 // saveChannel creates a directory `name` and writes the contents of msgs. for

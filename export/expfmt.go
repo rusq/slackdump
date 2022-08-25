@@ -4,13 +4,12 @@ import (
 	"github.com/slack-go/slack"
 
 	"github.com/rusq/slackdump/v2/fsadapter"
-	"github.com/rusq/slackdump/v2/internal/structures/files"
 	"github.com/rusq/slackdump/v2/internal/structures/files/dl"
 	"github.com/rusq/slackdump/v2/logger"
 )
 
 // newFileExporter returns the appropriate exporter for the ExportType.
-func newFileExporter(t ExportType, fs fsadapter.FS, cl *slack.Client, l logger.Interface, token string) files.Exporter {
+func newFileExporter(t ExportType, fs fsadapter.FS, cl *slack.Client, l logger.Interface, token string) dl.Exporter {
 	switch t {
 	default:
 		l.Printf("unknown export type %s, not downloading any files", t)

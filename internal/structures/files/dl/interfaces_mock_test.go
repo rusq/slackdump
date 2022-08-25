@@ -2,4 +2,4 @@
 // Source: files.go
 
 // Package files is a generated GoMock package.
-package files
+package dl
