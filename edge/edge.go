@@ -22,8 +22,16 @@ type Client struct {
 }
 
 func New(teamID string, token string, cookies []*http.Cookie) *Client {
+	return &Client{
+		cl:      HTTPClient(token, "https://slack.com", cookies),
+		token:   token,
+		apiPath: fmt.Sprintf("https://edgeapi.slack.com/cache/%s/", teamID)}
+}
+
+// HTTPClient inits the HTTP client with cookies.
+func HTTPClient(token string, cookieDomain string, cookies []*http.Cookie) *http.Client {
 	jar, _ := cookiejar.New(&cookiejar.Options{PublicSuffixList: publicsuffix.List})
-	url, err := url.Parse("https://slack.com")
+	url, err := url.Parse(cookieDomain)
 	if err != nil {
 		panic(err) //shouldn't happen
 	}
@@ -39,10 +47,7 @@ func New(teamID string, token string, cookies []*http.Cookie) *Client {
 		Jar:       jar,
 		Transport: tr,
 	}
-	return &Client{
-		cl:      &cl,
-		token:   token,
-		apiPath: fmt.Sprintf("https://edgeapi.slack.com/cache/%s/", teamID)}
+	return &cl
 }
 
 func NewWithProvider(teamID string, prov auth.Provider) *Client {
@@ -98,4 +103,8 @@ func sliceOfPtr[T any](cc []T) []*T {
 		ret[i] = &cc[i]
 	}
 	return ret
+}
+
+func ConvertCookies(cc []http.Cookie) []*http.Cookie {
+	return sliceOfPtr(cc)
 }
