@@ -8,11 +8,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/http/cookiejar"
-	"net/url"
 
 	"github.com/rusq/slackdump/v2/auth"
-	"golang.org/x/net/publicsuffix"
+	"github.com/rusq/slackdump/v2/internal/chttp"
 )
 
 type Client struct {
@@ -23,35 +21,13 @@ type Client struct {
 
 func New(teamID string, token string, cookies []*http.Cookie) *Client {
 	return &Client{
-		cl:      HTTPClient(token, "https://slack.com", cookies),
+		cl:      chttp.NewWithToken(token, "https://slack.com", cookies),
 		token:   token,
 		apiPath: fmt.Sprintf("https://edgeapi.slack.com/cache/%s/", teamID)}
 }
 
-// HTTPClient inits the HTTP client with cookies.
-func HTTPClient(token string, cookieDomain string, cookies []*http.Cookie) *http.Client {
-	jar, _ := cookiejar.New(&cookiejar.Options{PublicSuffixList: publicsuffix.List})
-	url, err := url.Parse(cookieDomain)
-	if err != nil {
-		panic(err) //shouldn't happen
-	}
-	jar.SetCookies(url, cookies)
-	tr := newTransport(nil)
-	tr.BeforeReq = func(req *http.Request) {
-		// req.V
-		// if req.Method == http.MethodGet {
-		// 	req.Form.Add("token", token)
-		// }
-	}
-	cl := http.Client{
-		Jar:       jar,
-		Transport: tr,
-	}
-	return &cl
-}
-
 func NewWithProvider(teamID string, prov auth.Provider) *Client {
-	return New(teamID, prov.SlackToken(), sliceOfPtr(prov.Cookies()))
+	return New(teamID, prov.SlackToken(), chttp.ConvertCookies(prov.Cookies()))
 }
 
 func (cl *Client) Raw() *http.Client {
@@ -95,16 +71,4 @@ func (cl *Client) ParseResponse(req any, resp *http.Response) error {
 	defer resp.Body.Close()
 	dec := json.NewDecoder(resp.Body)
 	return dec.Decode(req)
-}
-
-func sliceOfPtr[T any](cc []T) []*T {
-	var ret = make([]*T, len(cc))
-	for i := range cc {
-		ret[i] = &cc[i]
-	}
-	return ret
-}
-
-func ConvertCookies(cc []http.Cookie) []*http.Cookie {
-	return sliceOfPtr(cc)
 }

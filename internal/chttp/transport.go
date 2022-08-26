@@ -1,16 +1,16 @@
-package edge
+package chttp
 
 import "net/http"
 
 // a simple wrapper for http.RoundTripper to do something before and after RoundTrip
-type transport struct {
+type Transport struct {
 	tr        http.RoundTripper
 	BeforeReq func(req *http.Request)
 	AfterReq  func(resp *http.Response, req *http.Request)
 }
 
-func newTransport(tr http.RoundTripper) *transport {
-	t := &transport{}
+func NewTransport(tr http.RoundTripper) *Transport {
+	t := &Transport{}
 	if tr == nil {
 		tr = http.DefaultTransport
 	}
@@ -18,7 +18,7 @@ func newTransport(tr http.RoundTripper) *transport {
 	return t
 }
 
-func (t *transport) RoundTrip(req *http.Request) (resp *http.Response, err error) {
+func (t *Transport) RoundTrip(req *http.Request) (resp *http.Response, err error) {
 	if t.BeforeReq != nil {
 		t.BeforeReq(req)
 	}
