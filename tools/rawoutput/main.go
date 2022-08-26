@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/rusq/slackdump/v2/edge"
 	"github.com/rusq/slackdump/v2/internal/app"
 )
 
@@ -25,8 +26,8 @@ func init() {
 	flag.StringVar(&args.workspace, "w", "", "optional slack workspace name or URL")
 
 	flag.Usage = func() {
-		fmt.Fprintf(flag.CommandLine.Output(), "Usage: %s [flags] <id_1 id_2 ... id_N>\n", os.Args[0])
-		fmt.Fprintln(flag.CommandLine.Output(), "Where id_* are ids or URLs of slack channels or threads and flags are:")
+		fmt.Fprintf(flag.CommandLine.Output(), "Usage: %s [flags] <id>\n", os.Args[0])
+		fmt.Fprintln(flag.CommandLine.Output(), "Where id is an id or URLs of slack channel or thread.\n\nFlags:")
 		flag.PrintDefaults()
 	}
 }
@@ -53,7 +54,9 @@ func run(ctx context.Context, p params) error {
 	if err != nil {
 		return err
 	}
-	_ = prov
+
+	cl := edge.HTTPClient(prov.SlackToken(), "https://slack.com", edge.ConvertCookies(prov.Cookies()))
+	_ = cl
 
 	return nil
 }
