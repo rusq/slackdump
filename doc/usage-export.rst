@@ -7,13 +7,51 @@ Creating Slack Export
 This feature allows one to create a slack export of the Slack workspace in
 standard or Mattermost compatible format.
 
+There are four main export specific command line flags that control the export
+behaviour:
+
+-export string
+  Enables the export mode and allows to specify the file or directory to save
+  the data to, for example::
+    
+    -export my_export.zip
+
+-export-type string (optional)
+  Allows to specify the export type.  It mainly affects how the location of
+  attachments files within the archive.  It can accept the following values::
+    
+    standard    - attachments are placed into channel_id/attachments directory.
+    mattermost  - attachments are placed into __uploads/ directory
+
+  ``standard`` is the default export mode, if this parameter is not specified.
+
+Example::
+    
+    slackdump -export my_export.zip -export-type mattermost
+
+
+-export-token string (optional)
+  Allows to append a custom export token to all attachment files (even if the
+  download is disabled).  It modifies each file's Download URLs and Thumbnail
+  URLs by adding the t= URL value to them.  NOTE: if you don't want it to be
+  saved in shell history, specify it as an environment variable
+  "SLACK_FILE_TOKEN", i.e.::
+
+    SLACK_FILE_TOKEN=xoxe-.... slackdump -export my_export.zip
+
+-download (optional)
+  If this flag is present, Slackdump will download attachments::
+
+    slackdump -export my_export.zip -download
+
+
 Export Types
 ~~~~~~~~~~~~
 
 By default, Slackdump generates the Standard type Export. 
 
-The export file or directory will include emails and attachments (if
-``-download`` flag is specified).
+The export file or directory will include emails and, if
+``-download`` flag is specified, attachments.
 
 Mattermost Export
 +++++++++++++++++
