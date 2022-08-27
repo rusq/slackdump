@@ -86,6 +86,22 @@ Command line flags are described as of version ``v2.1.0``.
    directory to "name".  To save to a ZIP file, add .zip extension, i.e.
    ``name.zip``.
 
+\-export-type
+  allows to specify the export type.  It mainly affects how the location of
+  attachments files within the archive.  It can accept the following values::
+    
+    standard    - attachments are placed into channel_id/attachments directory.
+    mattermost  - attachments are placed into __uploads/ directory
+
+\-export-token
+  allows to append a custom export token to all attachment files (even if the
+  download is disabled).  It modifies each file's Download URLs and Thumbnail
+  URLs by adding the t= URL value to them.  NOTE: if you don't want it to be
+  saved in shell history, specify it as an environment variable
+  "SLACK_FILE_TOKEN", i.e.::
+
+    SLACK_FILE_TOKEN=xoxe-.... slackdump -export my_export.zip
+
 \-f
    shorthand for -download (means "files")
 

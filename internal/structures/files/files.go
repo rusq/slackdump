@@ -1,81 +1,95 @@
-// Package files contains some additional file logic.
 package files
 
 import (
-	"errors"
+	"net/url"
 
-	"github.com/rusq/slackdump/v2/types"
 	"github.com/slack-go/slack"
 )
 
-// Root is the parent address for the topmost message chunk.
-const Root = -1
+// UpdateFunc is the signature of the function that modifies the file passed
+// as an argument.
+type UpdateFunc func(f *slack.File) error
 
-// Addr is the address of the file in the messages slice.
-//   idxMsg    - index of the message or message reply in the provided slice
-//   idxParMsg - index of the parent message. If it is not equal to Root,
-//               then it's the address of the message:
-//
-//                   msg[idxMsg].File[idxFile]
-//
-//               if it is not equal to Root, then it is assumed that it is
-//               a reference to a message reply:
-//
-//                   msg[idxParMsg].ThreadReplies[idxMsg].File[idxFile]
-//
-//   idxFile   - index of the file in the message's file slice.
-//
-type Addr struct {
-	idxMsg    int // index of the message in the messages slice
-	idxParMsg int // index of the parent message, or refRoot if it's the address of the top level message
-	idxFile   int // index of the file in the file slice.
-}
-
-// UpdateURLs updates the URL link for the files in message chunk msgs.  Addr
-// contains an address of the message and the file within the message slice to
-// update the URL for, and filename is the path to the file on the local
-// filesystem.  It will return an error if the address references out of range.
-func UpdateURLs(msgs []types.Message, addr Addr, filename string) error {
-	if addr.idxParMsg != Root {
-		return UpdateURLs(
-			msgs[addr.idxParMsg].ThreadReplies,
-			Addr{idxMsg: addr.idxMsg, idxParMsg: Root, idxFile: addr.idxFile},
-			filename,
-		)
-	}
-
-	if addr.idxMsg < 0 || len(msgs) <= addr.idxMsg {
-		return errors.New("invalid message reference")
-	}
-	if addr.idxFile < 0 || len(msgs[addr.idxMsg].Files) < addr.idxFile {
-		return errors.New("invalid file reference")
-	}
-	msgs[addr.idxMsg].Files[addr.idxFile].URLPrivateDownload = filename
-	msgs[addr.idxMsg].Files[addr.idxFile].URLPrivate = filename
-	return nil
-}
-
-// Extract scans the message slice msgs, and calls fn for each file it
-// finds. fn is called with the copy of the file and that file's address in the
-// provided message slice.  idxParentMsg is the index of the parent message (for
-// message replies slice), or refRoot if it's the topmost messages slice (see
-// invocation in downloadFn).
-func Extract(msgs []types.Message, idxParentMsg int, fn func(file slack.File, addr Addr) error) error {
-	if fn == nil {
-		return errors.New("extractFiles: internal error: no callback function")
-	}
-	for mi := range msgs {
-		if len(msgs[mi].Files) > 0 {
-			for fileIdx, file := range msgs[mi].Files {
-				if err := fn(file, Addr{idxMsg: mi, idxParMsg: idxParentMsg, idxFile: fileIdx}); err != nil {
-					return err
-				}
-			}
+// UpdateTokenFn returns a file update function that adds the t= query parameter
+// with token value. If token value is empty, the function does nothing.
+func UpdateTokenFn(token string) UpdateFunc {
+	return func(f *slack.File) error {
+		if token == "" {
+			return nil
 		}
-		if len(msgs[mi].ThreadReplies) > 0 {
-			if err := Extract(msgs[mi].ThreadReplies, mi, fn); err != nil {
+		return UpdateFileLinksAll(f, func(s *string) error {
+			var err error
+			*s, err = addToken(*s, token)
+			if err != nil {
 				return err
 			}
+			return nil
+		})
+	}
+}
+
+// fileThumbLinks returns slice of pointers to all private URL links of the file.
+func filePrivateLinks(f *slack.File) []*string {
+	return []*string{&f.URLPrivate, &f.URLPrivateDownload}
+}
+
+// fileThumbLinks returns slice of pointers to all thumbnail URLs of the file.
+func fileThumbLinks(f *slack.File) []*string {
+	return []*string{
+		&f.Thumb64,
+		&f.Thumb80,
+		&f.Thumb160,
+		&f.Thumb360,
+		&f.Thumb360Gif,
+		&f.Thumb480,
+		&f.Thumb720,
+		&f.Thumb960,
+		&f.Thumb1024,
+	}
+}
+
+// UpdateFileLinksAll calls fn with pointer to each file URL except permalinks.
+// fn can modify the string pointed by ptrS.
+func UpdateFileLinksAll(f *slack.File, fn func(ptrS *string) error) error {
+	return callForEach(append(fileThumbLinks(f), filePrivateLinks(f)...), fn)
+}
+
+func UpdateFileLinksPrivate(f *slack.File, fn func(ptrS *string) error) error {
+	return callForEach(filePrivateLinks(f), fn)
+}
+
+// UpdatePathFn sets the URLPrivate and URLPrivateDownload for the file at addr
+// to the specified path.
+func UpdatePathFn(path string) UpdateFunc {
+	return func(f *slack.File) error {
+		return UpdateFileLinksPrivate(f, func(ptrS *string) error {
+			*ptrS = path
+			return nil
+		})
+	}
+}
+
+// addToken updates the uri, adding the t= query parameter with token value.
+// if token or url is empty, it does nothing.
+func addToken(uri string, token string) (string, error) {
+	if token == "" || uri == "" {
+		return uri, nil
+	}
+	u, err := url.Parse(uri)
+	if err != nil {
+		return "", err
+	}
+	val := u.Query()
+	val.Set("t", token)
+	u.RawQuery = val.Encode()
+	return u.String(), nil
+}
+
+// callForEach calls fn for each element of slice elements.
+func callForEach[T any](elements []*T, fn func(el *T) error) error {
+	for _, ptr := range elements {
+		if err := fn(ptr); err != nil {
+			return err
 		}
 	}
 	return nil

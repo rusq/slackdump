@@ -37,8 +37,9 @@ type Config struct {
 
 	FilenameTemplate string
 
-	ExportName string
-	ExportType export.ExportType
+	ExportName  string            // export file or directory name.
+	ExportType  export.ExportType // export type, see enum for available options.
+	ExportToken string            // token that will be added to all exported files.
 
 	Options slackdump.Options
 }

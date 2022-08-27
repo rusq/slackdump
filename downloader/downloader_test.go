@@ -11,13 +11,14 @@ import (
 	"errors"
 
 	gomock "github.com/golang/mock/gomock"
-	"github.com/rusq/slackdump/v2/fsadapter"
-	"github.com/rusq/slackdump/v2/internal/fixtures"
-	"github.com/rusq/slackdump/v2/internal/mocks/mock_downloader"
 	"github.com/slack-go/slack"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/time/rate"
+
+	"github.com/rusq/slackdump/v2/fsadapter"
+	"github.com/rusq/slackdump/v2/internal/fixtures"
+	"github.com/rusq/slackdump/v2/internal/mocks/mock_downloader"
 )
 
 var (
@@ -308,8 +309,8 @@ func TestSession_worker(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 		defer cancel()
 
-		reqC := make(chan FileRequest, 1)
-		reqC <- FileRequest{Directory: ".", File: &file1}
+		reqC := make(chan fileRequest, 1)
+		reqC <- fileRequest{Directory: ".", File: &file1}
 		close(reqC)
 
 		sd.worker(ctx, reqC)
@@ -327,8 +328,8 @@ func TestSession_worker(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 		defer cancel()
 
-		reqC := make(chan FileRequest, 1)
-		reqC <- FileRequest{Directory: "01", File: &file1}
+		reqC := make(chan fileRequest, 1)
+		reqC <- fileRequest{Directory: "01", File: &file1}
 		close(reqC)
 
 		sd.worker(ctx, reqC)
@@ -339,7 +340,7 @@ func TestSession_worker(t *testing.T) {
 		mc := mock_downloader.NewMockDownloader(gomock.NewController(t))
 		sd := newClient(mc)
 
-		reqC := make(chan FileRequest, 1)
+		reqC := make(chan fileRequest, 1)
 
 		ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 		cancel()
