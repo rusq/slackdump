@@ -6,7 +6,7 @@ Slack Dumper
 - Join the discussion in Telegram_ or Slack_.
 - `Read the overview on Medium.com`_
 - |go ref|
-
+- `Mattermost migration`_ steps
 .. contents::
    :depth: 2
 
@@ -30,7 +30,7 @@ There a three modes of operation (more on this in `User Guide`_) :
 
 #. List users/channels
 #. Dumping messages and threads
-#. Creating a Slack Export.
+#. Creating a Slack Export in Mattermost or Standard modes.
 
 Slackdump accepts two types of input (see `Dumping Conversations`_ section):
 
@@ -42,7 +42,7 @@ Quick Start
 ===========
 
 #. Download the latest release for your operating system from the releases_
-   page.
+   page. (If you're using **macOS**, download **Darwin** executable).
 #. Unpack the archive to any directory.
 #. Run the ``./slackdump`` or ``slackdump.exe`` executable (see note below).
 #. You know the drill:  use arrow keys to select the menu item, and Enter (or
@@ -188,6 +188,7 @@ Messages that were conveyed with the donations:
 .. _`Go templating`: https://pkg.go.dev/html/template
 .. _User Guide: doc/README.rst
 .. _Dumping Conversations: doc/usage-channels.rst
+.. _Mattermost migration: doc/usage-export.rst
 .. _rusq/dlog: https://github.com/rusq/dlog
 .. _logrus: https://github.com/sirupsen/logrus
 .. _glog: https://github.com/golang/glog

@@ -179,7 +179,7 @@ func TestCreateConcurrency(t *testing.T) {
 			}
 
 			<-readySteadyGo
-			fw, err := fsa.Create(fmt.Sprintf("file%d", i))
+			fw, err := fsa.Create(fmt.Sprintf("file%d", n))
 			if err != nil {
 				panic(err)
 			}

@@ -1,7 +1,10 @@
 package export
 
 import (
+	"archive/zip"
 	"encoding/json"
+	"errors"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -121,4 +124,101 @@ func loadTestDir(path string) (messagesByDate, error) {
 	}
 
 	return mbd, nil
+}
+
+func Test_validName(t *testing.T) {
+	type args struct {
+		ch slack.Channel
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+		{
+			"im",
+			args{slack.Channel{GroupConversation: slack.GroupConversation{Conversation: slack.Conversation{IsIM: true, ID: "ID42"}}}},
+			"ID42",
+		},
+		{
+			"channel",
+			args{slack.Channel{GroupConversation: slack.GroupConversation{Conversation: slack.Conversation{IsIM: false, ID: "ID42", NameNormalized: "name"}}}},
+			"name",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := validName(tt.args.ch)
+			if got != tt.want {
+				t.Errorf("validName() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_serializeToFS(t *testing.T) {
+	const (
+		testData = "123"
+		want     = `"` + testData + `"` + "\n"
+	)
+	t.Run("directory", func(t *testing.T) {
+		tempdir := t.TempDir()
+		fsys := fsadapter.NewDirectory(tempdir)
+		if err := serializeToFS(fsys, "test.json", testData); err != nil {
+			t.Fatal(err)
+		}
+		// read back
+		got, err := os.ReadFile(filepath.Join(tempdir, "test.json"))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if !strings.EqualFold(string(got), want) {
+			t.Errorf("data mismatch: want=%q, got=%q", want, string(got))
+		}
+	})
+	t.Run("zipFile", func(t *testing.T) {
+		tempdir := t.TempDir()
+		testzip := filepath.Join(tempdir, "test.zip")
+		fsys, err := fsadapter.NewZipFile(testzip)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := serializeToFS(fsys, "test.json", testData); err != nil {
+			t.Fatal(err)
+		}
+		fsys.Close()
+
+		// read back
+		arc, err := zip.OpenReader(testzip)
+		if err != nil {
+			t.Fatal(err)
+		}
+		r, err := arc.Open("test.json")
+		if err != nil {
+			t.Fatal(err)
+		}
+		got, err := io.ReadAll(r)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.EqualFold(string(got), want) {
+			t.Errorf("data mismatch: want=%q, got=%q", want, string(got))
+		}
+	})
+	t.Run("fs error", func(t *testing.T) {
+		if err := serializeToFS(errFs{}, "test.fs", testData); err == nil {
+			t.Fatal("expected error, but got nil")
+		}
+	})
+}
+
+type errFs struct{}
+
+func (errFs) Create(string) (io.WriteCloser, error) {
+	return nil, errors.New("not this time")
+}
+
+func (errFs) WriteFile(name string, data []byte, perm os.FileMode) error {
+	return errors.New("no luck bro")
 }

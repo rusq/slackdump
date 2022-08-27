@@ -32,9 +32,7 @@ func (cl *CLI) RequestWorkspace(w io.Writer) (string, error) {
 	return workspace, nil
 }
 
-func (*CLI) Stop() {
-	return
-}
+func (*CLI) Stop() {}
 
 func readln(r io.Reader) (string, error) {
 	line, err := bufio.NewReader(r).ReadString('\n')

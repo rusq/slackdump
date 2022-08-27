@@ -11,13 +11,14 @@ import (
 	"errors"
 
 	gomock "github.com/golang/mock/gomock"
-	"github.com/rusq/slackdump/v2/fsadapter"
-	"github.com/rusq/slackdump/v2/internal/fixtures"
-	"github.com/rusq/slackdump/v2/internal/mocks/mock_downloader"
 	"github.com/slack-go/slack"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/time/rate"
+
+	"github.com/rusq/slackdump/v2/fsadapter"
+	"github.com/rusq/slackdump/v2/internal/fixtures"
+	"github.com/rusq/slackdump/v2/internal/mocks/mock_downloader"
 )
 
 var (
@@ -26,9 +27,6 @@ var (
 	file3 = slack.File{ID: "f3", Name: "filename3.ext", URLPrivateDownload: "file3_url", Size: 300}
 	file4 = slack.File{ID: "f4", Name: "filename4.ext", URLPrivateDownload: "file4_url", Size: 400}
 	file5 = slack.File{ID: "f5", Name: "filename5.ext", URLPrivateDownload: "file5_url", Size: 500}
-	file6 = slack.File{ID: "f6", Name: "filename6.ext", URLPrivateDownload: "file6_url", Size: 600}
-	file7 = slack.File{ID: "f7", Name: "filename7.ext", URLPrivateDownload: "file7_url", Size: 700}
-	file8 = slack.File{ID: "f8", Name: "filename8.ext", URLPrivateDownload: "file8_url", Size: 800}
 	file9 = slack.File{ID: "f9", Name: "filename9.ext", URLPrivateDownload: "file9_url", Size: 900}
 )
 
@@ -40,6 +38,7 @@ func TestSession_SaveFileTo(t *testing.T) {
 		fs      fsadapter.FS
 		retries int
 		workers int
+		nameFn  FilenameFunc
 	}
 	type args struct {
 		ctx context.Context
@@ -60,7 +59,9 @@ func TestSession_SaveFileTo(t *testing.T) {
 				l:       rate.NewLimiter(defLimit, 1),
 				fs:      fsadapter.NewDirectory(tmpdir),
 				retries: defRetries,
-				workers: defNumWorkers},
+				workers: defNumWorkers,
+				nameFn:  Filename,
+			},
 			args{
 				context.Background(),
 				"01",
@@ -81,7 +82,9 @@ func TestSession_SaveFileTo(t *testing.T) {
 				l:       rate.NewLimiter(defLimit, 1),
 				fs:      fsadapter.NewDirectory(tmpdir),
 				retries: defRetries,
-				workers: defNumWorkers},
+				workers: defNumWorkers,
+				nameFn:  Filename,
+			},
 			args{
 				context.Background(),
 				"02",
@@ -109,6 +112,7 @@ func TestSession_SaveFileTo(t *testing.T) {
 				limiter: tt.fields.l,
 				retries: tt.fields.retries,
 				workers: tt.fields.workers,
+				nameFn:  tt.fields.nameFn,
 			}
 			got, err := sd.SaveFile(tt.args.ctx, tt.args.dir, tt.args.f)
 			if (err != nil) != tt.wantErr {
@@ -130,6 +134,7 @@ func TestSession_saveFile(t *testing.T) {
 		fs      fsadapter.FS
 		retries int
 		workers int
+		nameFn  FilenameFunc
 	}
 	type args struct {
 		ctx context.Context
@@ -151,6 +156,7 @@ func TestSession_saveFile(t *testing.T) {
 				fs:      fsadapter.NewDirectory(tmpdir),
 				retries: defRetries,
 				workers: defNumWorkers,
+				nameFn:  Filename,
 			},
 			args{
 				context.Background(),
@@ -173,6 +179,7 @@ func TestSession_saveFile(t *testing.T) {
 				fs:      fsadapter.NewDirectory(tmpdir),
 				retries: defRetries,
 				workers: defNumWorkers,
+				nameFn:  Filename,
 			},
 			args{
 				context.Background(),
@@ -201,6 +208,7 @@ func TestSession_saveFile(t *testing.T) {
 				limiter: tt.fields.l,
 				retries: tt.fields.retries,
 				workers: tt.fields.workers,
+				nameFn:  tt.fields.nameFn,
 			}
 			got, err := sd.saveFile(tt.args.ctx, tt.args.dir, tt.args.f)
 			if (err != nil) != tt.wantErr {
@@ -250,6 +258,7 @@ func TestSession_newFileDownloader(t *testing.T) {
 			limiter: tl,
 			retries: 3,
 			workers: 4,
+			nameFn:  Filename,
 		}
 
 		mc.EXPECT().
@@ -284,6 +293,7 @@ func TestSession_worker(t *testing.T) {
 			limiter: tl,
 			retries: defRetries,
 			workers: defNumWorkers,
+			nameFn:  Filename,
 		}
 	}
 
@@ -299,8 +309,8 @@ func TestSession_worker(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 		defer cancel()
 
-		reqC := make(chan FileRequest, 1)
-		reqC <- FileRequest{Directory: ".", File: &file1}
+		reqC := make(chan fileRequest, 1)
+		reqC <- fileRequest{Directory: ".", File: &file1}
 		close(reqC)
 
 		sd.worker(ctx, reqC)
@@ -318,8 +328,8 @@ func TestSession_worker(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 		defer cancel()
 
-		reqC := make(chan FileRequest, 1)
-		reqC <- FileRequest{Directory: "01", File: &file1}
+		reqC := make(chan fileRequest, 1)
+		reqC <- fileRequest{Directory: "01", File: &file1}
 		close(reqC)
 
 		sd.worker(ctx, reqC)
@@ -330,7 +340,7 @@ func TestSession_worker(t *testing.T) {
 		mc := mock_downloader.NewMockDownloader(gomock.NewController(t))
 		sd := newClient(mc)
 
-		reqC := make(chan FileRequest, 1)
+		reqC := make(chan fileRequest, 1)
 
 		ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 		cancel()
@@ -350,6 +360,7 @@ func TestClient_startWorkers(t *testing.T) {
 			fs:      fsadapter.NewDirectory(t.TempDir()),
 			limiter: rate.NewLimiter(5000, 1),
 			workers: defNumWorkers,
+			nameFn:  Filename,
 		}
 
 		dc.EXPECT().GetFile(gomock.Any(), gomock.Any()).Times(qSz).Return(nil)
@@ -417,6 +428,7 @@ func clientWithMock(t *testing.T, dir string) *Client {
 		fs:      fsadapter.NewDirectory(dir),
 		limiter: rate.NewLimiter(5000, 1),
 		workers: defNumWorkers,
+		nameFn:  Filename,
 	}
 	return c
 }

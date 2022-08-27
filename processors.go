@@ -21,8 +21,10 @@ const (
 	filesCbufSz = 20
 )
 
-// ProcessFunc is the signature of the function Dump* functions accept and call for each
-// API call result.
+// ProcessFunc is the signature of the function Dump* functions accept and
+// call for each API call result.  It can be used to modify in-place the slice
+// of messages, returned from API, before they are appended to the slice that
+// will be returned by Dump*.  Messages passed to this function are unsorted.
 type ProcessFunc func(msg []types.Message, channelID string) (ProcessResult, error)
 
 // ProcessResult contains the result of processing.
@@ -108,8 +110,7 @@ func pipeAndUpdateFiles(filesC chan<- *slack.File, msgs []types.Message, dir str
 	_ = files.Extract(msgs, files.Root, func(file slack.File, addr files.Addr) error {
 		filesC <- &file
 		total++
-		files.UpdateURLs(msgs, addr, path.Join(dir, downloader.Filename(&file)))
-		return nil
+		return files.Update(msgs, addr, files.UpdatePathFn(path.Join(dir, downloader.Filename(&file))))
 	})
 	return total
 }

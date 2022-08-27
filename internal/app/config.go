@@ -9,6 +9,7 @@ import (
 	"github.com/slack-go/slack"
 
 	"github.com/rusq/slackdump/v2"
+	"github.com/rusq/slackdump/v2/export"
 	"github.com/rusq/slackdump/v2/internal/structures"
 	"github.com/rusq/slackdump/v2/logger"
 	"github.com/rusq/slackdump/v2/types"
@@ -36,7 +37,9 @@ type Config struct {
 
 	FilenameTemplate string
 
-	ExportName string
+	ExportName  string            // export file or directory name.
+	ExportType  export.ExportType // export type, see enum for available options.
+	ExportToken string            // token that will be added to all exported files.
 
 	Options slackdump.Options
 }

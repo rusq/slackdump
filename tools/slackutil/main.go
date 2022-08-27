@@ -129,7 +129,7 @@ func delMessages(ctx context.Context, client *slack.Client, channelID string, ms
 		if err != nil {
 			return err
 		}
-		pb.Add(1)
+		_ = pb.Add(1)
 	}
 	return nil
 }

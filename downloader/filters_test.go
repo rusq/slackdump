@@ -10,7 +10,7 @@ import (
 
 func Test_fltSeen(t *testing.T) {
 	t.Run("ensure that we don't get dup files", func(t *testing.T) {
-		source := []FileRequest{
+		source := []fileRequest{
 			{Directory: "x", File: &file1},
 			{Directory: "x", File: &file2},
 			{Directory: "a", File: &file2}, // this should appear, different dir
@@ -21,7 +21,7 @@ func Test_fltSeen(t *testing.T) {
 			{Directory: "x", File: &file5},
 			{Directory: "y", File: &file5}, // this should appear, different dir
 		}
-		want := []FileRequest{
+		want := []fileRequest{
 			{Directory: "x", File: &file1},
 			{Directory: "x", File: &file2},
 			{Directory: "a", File: &file2},
@@ -31,7 +31,7 @@ func Test_fltSeen(t *testing.T) {
 			{Directory: "y", File: &file5},
 		}
 
-		filesC := make(chan FileRequest)
+		filesC := make(chan fileRequest)
 		go func() {
 			defer close(filesC)
 			for _, f := range source {
@@ -42,7 +42,7 @@ func Test_fltSeen(t *testing.T) {
 		c := Client{}
 		dlqC := c.fltSeen(filesC)
 
-		var got []FileRequest
+		var got []fileRequest
 		for f := range dlqC {
 			got = append(got, f)
 		}
@@ -53,7 +53,7 @@ func Test_fltSeen(t *testing.T) {
 func BenchmarkFltSeen(b *testing.B) {
 	const numReq = 100_000
 	input := makeFileReqQ(numReq, b.TempDir())
-	inputC := make(chan FileRequest)
+	inputC := make(chan fileRequest)
 	go func() {
 		defer close(inputC)
 		for _, req := range input {
@@ -71,14 +71,14 @@ func BenchmarkFltSeen(b *testing.B) {
 
 }
 
-func makeFileReqQ(numReq int, dir string) []FileRequest {
-	reqQ := make([]FileRequest, numReq)
+func makeFileReqQ(numReq int, dir string) []fileRequest {
+	reqQ := make([]fileRequest, numReq)
 	for i := 0; i < numReq; i++ {
 		reqQ[i] = randomFileReq(dir)
 	}
 	return reqQ
 }
 
-func randomFileReq(dirname string) FileRequest {
-	return FileRequest{Directory: dirname, File: &slack.File{ID: fixtures.RandString(8), Name: fixtures.RandString(12)}}
+func randomFileReq(dirname string) fileRequest {
+	return fileRequest{Directory: dirname, File: &slack.File{ID: fixtures.RandString(8), Name: fixtures.RandString(12)}}
 }

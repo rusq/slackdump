@@ -6,18 +6,16 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"path"
 	"path/filepath"
 	"runtime/trace"
 
 	"github.com/slack-go/slack"
 
 	"github.com/rusq/slackdump/v2"
-	"github.com/rusq/slackdump/v2/downloader"
 	"github.com/rusq/slackdump/v2/fsadapter"
 	"github.com/rusq/slackdump/v2/internal/network"
 	"github.com/rusq/slackdump/v2/internal/structures"
-	"github.com/rusq/slackdump/v2/internal/structures/files"
+	"github.com/rusq/slackdump/v2/internal/structures/files/dl"
 	"github.com/rusq/slackdump/v2/logger"
 	"github.com/rusq/slackdump/v2/types"
 )
@@ -27,19 +25,27 @@ type Export struct {
 	fs fsadapter.FS       // target filesystem
 	sd *slackdump.Session // Session instance
 	lg logger.Interface
+	dl dl.Exporter
 
-	// time window
+	// options
 	opts Options
 }
 
 // New creates a new Export instance, that will save export to the
 // provided fs.
 func New(sd *slackdump.Session, fs fsadapter.FS, cfg Options) *Export {
-	se := &Export{fs: fs, sd: sd, lg: cfg.Logger, opts: cfg}
-	if se.lg == nil {
-		se.lg = logger.Default
+	if cfg.Logger == nil {
+		cfg.Logger = logger.Default
 	}
-	network.Logger = se.l()
+	network.Logger = cfg.Logger
+
+	se := &Export{
+		fs:   fs,
+		sd:   sd,
+		lg:   cfg.Logger,
+		opts: cfg,
+		dl:   newFileExporter(cfg.Type, fs, sd.Client(), cfg.Logger, cfg.ExportToken),
+	}
 	return se
 }
 
@@ -51,13 +57,13 @@ func (se *Export) Run(ctx context.Context) error {
 	// export users to users.json
 	users, err := se.sd.GetUsers(ctx)
 	if err != nil {
-		trace.Logf(ctx, "error", "GetUsers: %s", err)
+		se.td(ctx, "error", "GetUsers: %s", err)
 		return err
 	}
 
 	// export channels to channels.json
 	if err := se.messages(ctx, users); err != nil {
-		trace.Logf(ctx, "error", "messages: %s", err)
+		se.td(ctx, "error", "messages: %s", err)
 		return err
 	}
 	return nil
@@ -67,20 +73,19 @@ func (se *Export) messages(ctx context.Context, users types.Users) error {
 	ctx, task := trace.NewTask(ctx, "export.messages")
 	defer task.End()
 
-	dl := downloader.New(se.sd.Client(), se.fs, downloader.Logger(se.l()))
-	if se.opts.IncludeFiles {
-		// start the downloader
-		dl.Start(ctx)
+	if se.opts.IsFilesEnabled() {
+		// start the dl
+		se.dl.Start(ctx)
 		defer func() {
 			se.td(ctx, "info", "waiting for downloads to finish")
-			dl.Stop()
-			se.td(ctx, "info", "downloader stopped")
+			se.dl.Stop()
+			se.td(ctx, "info", "dl stopped")
 		}()
 	}
 
 	var chans []slack.Channel
 
-	chans, err := se.exportChannels(ctx, dl, users.IndexByID(), se.opts.List)
+	chans, err := se.exportChannels(ctx, users.IndexByID())
 	if err != nil {
 		return fmt.Errorf("export error: %w", err)
 	}
@@ -97,19 +102,19 @@ func (se *Export) messages(ctx context.Context, users types.Users) error {
 	return nil
 }
 
-func (se *Export) exportChannels(ctx context.Context, dl *downloader.Client, uidx structures.UserIndex, el *structures.EntityList) ([]slack.Channel, error) {
+func (se *Export) exportChannels(ctx context.Context, uidx structures.UserIndex) ([]slack.Channel, error) {
 	if se.opts.List.HasIncludes() {
-		// if there an Include list, we don't need to retrieve all channels,
+		// if there's an "Include" list, we don't need to retrieve all channels,
 		// only the ones that are specified.
-		return se.inclusiveExport(ctx, dl, uidx, se.opts.List)
+		return se.inclusiveExport(ctx, uidx, se.opts.List)
 	} else {
-		return se.exclusiveExport(ctx, dl, uidx, se.opts.List)
+		return se.exclusiveExport(ctx, uidx, se.opts.List)
 	}
 }
 
 // exclusiveExport exports all channels, excluding ones that are defined in
 // EntityList.  If EntityList has Include channels, they are ignored.
-func (se *Export) exclusiveExport(ctx context.Context, dl *downloader.Client, uidx structures.UserIndex, el *structures.EntityList) ([]slack.Channel, error) {
+func (se *Export) exclusiveExport(ctx context.Context, uidx structures.UserIndex, el *structures.EntityList) ([]slack.Channel, error) {
 	ctx, task := trace.NewTask(ctx, "export.exclusive")
 	defer task.End()
 
@@ -123,7 +128,7 @@ func (se *Export) exclusiveExport(ctx context.Context, dl *downloader.Client, ui
 			se.lg.Printf("skipping: %s", ch.ID)
 			return nil
 		}
-		if err := se.exportConversation(ctx, dl, uidx, ch); err != nil {
+		if err := se.exportConversation(ctx, uidx, ch); err != nil {
 			return err
 		}
 
@@ -139,7 +144,7 @@ func (se *Export) exclusiveExport(ctx context.Context, dl *downloader.Client, ui
 
 // inclusiveExport exports only channels that are defined in the
 // EntryList.Include.
-func (se *Export) inclusiveExport(ctx context.Context, dl *downloader.Client, uidx structures.UserIndex, list *structures.EntityList) ([]slack.Channel, error) {
+func (se *Export) inclusiveExport(ctx context.Context, uidx structures.UserIndex, list *structures.EntityList) ([]slack.Channel, error) {
 	ctx, task := trace.NewTask(ctx, "export.inclusive")
 	defer task.End()
 
@@ -169,7 +174,7 @@ func (se *Export) inclusiveExport(ctx context.Context, dl *downloader.Client, ui
 			return nil, fmt.Errorf("error getting info for %s: %w", sl, err)
 		}
 
-		if err := se.exportConversation(ctx, dl, uidx, *ch); err != nil {
+		if err := se.exportConversation(ctx, uidx, *ch); err != nil {
 			return nil, err
 		}
 
@@ -180,12 +185,11 @@ func (se *Export) inclusiveExport(ctx context.Context, dl *downloader.Client, ui
 }
 
 // exportConversation exports one conversation.
-func (se *Export) exportConversation(ctx context.Context, dl *downloader.Client, userIdx structures.UserIndex, ch slack.Channel) error {
+func (se *Export) exportConversation(ctx context.Context, userIdx structures.UserIndex, ch slack.Channel) error {
 	ctx, task := trace.NewTask(ctx, "export.conversation")
 	defer task.End()
 
-	dlFn := se.downloadFn(dl, ch.Name)
-	messages, err := se.sd.DumpRaw(ctx, ch.ID, se.opts.Oldest, se.opts.Latest, dlFn)
+	messages, err := se.sd.DumpRaw(ctx, ch.ID, se.opts.Oldest, se.opts.Latest, se.dl.ProcessFunc(ch.Name))
 	if err != nil {
 		return fmt.Errorf("failed to dump %q (%s): %w", ch.Name, ch.ID, err)
 	}
@@ -199,10 +203,7 @@ func (se *Export) exportConversation(ctx context.Context, dl *downloader.Client,
 		return fmt.Errorf("exportConversation: error: %w", err)
 	}
 
-	name, err := validName(ch, userIdx)
-	if err != nil {
-		return err
-	}
+	name := validName(ch)
 
 	if err := se.saveChannel(name, msgs); err != nil {
 		return err
@@ -211,48 +212,15 @@ func (se *Export) exportConversation(ctx context.Context, dl *downloader.Client,
 	return nil
 }
 
-// downloadFn returns the process function that should be passed to
-// DumpMessagesRaw that will handle the download of the files.  If the
-// downloader is not started, i.e. if file download is disabled, it will
-// silently ignore the error and return nil.
-func (se *Export) downloadFn(dl *downloader.Client, channelName string) func(msg []types.Message, channelID string) (slackdump.ProcessResult, error) {
-	const (
-		entFiles  = "files"
-		dirAttach = "attachments"
-	)
-
-	dir := filepath.Join(channelName, dirAttach)
-	return func(msg []types.Message, channelID string) (slackdump.ProcessResult, error) {
-		total := 0
-		if err := files.Extract(msg, files.Root, func(file slack.File, addr files.Addr) error {
-			filename, err := dl.DownloadFile(dir, file)
-			if err != nil {
-				return err
-			}
-			se.l().Debugf("submitted for download: %s", file.Name)
-			total++
-			return files.UpdateURLs(msg, addr, path.Join(dirAttach, path.Base(filename)))
-		}); err != nil {
-			if errors.Is(err, downloader.ErrNotStarted) {
-				return slackdump.ProcessResult{Entity: entFiles, Count: 0}, nil
-			}
-			return slackdump.ProcessResult{}, err
-		}
-
-		return slackdump.ProcessResult{Entity: entFiles, Count: total}, nil
-	}
-}
-
 // validName returns the channel or user name. Following the naming convention
 // described by @niklasdahlheimer in this post (thanks to @Neznakomec for
 // discovering it):
 // https://github.com/RocketChat/Rocket.Chat/issues/13905#issuecomment-477500022
-func validName(ch slack.Channel, uidx structures.UserIndex) (string, error) {
+func validName(ch slack.Channel) string {
 	if ch.IsIM {
-		return ch.ID, nil
-	} else {
-		return ch.NameNormalized, nil
+		return ch.ID
 	}
+	return ch.NameNormalized
 }
 
 // saveChannel creates a directory `name` and writes the contents of msgs. for
@@ -289,6 +257,7 @@ func serialize(w io.Writer, data any) error {
 	return nil
 }
 
+// l returns the current logger or the default one if no logger is set.
 func (se *Export) l() logger.Interface {
 	if se.lg == nil {
 		se.lg = logger.Default
@@ -297,7 +266,7 @@ func (se *Export) l() logger.Interface {
 }
 
 // td outputs the message to trace and logs a debug message.
-func (e *Export) td(ctx context.Context, category string, fmt string, a ...any) {
-	e.l().Debugf(fmt, a...)
+func (se *Export) td(ctx context.Context, category string, fmt string, a ...any) {
+	se.l().Debugf(fmt, a...)
 	trace.Logf(ctx, category, fmt, a...)
 }
