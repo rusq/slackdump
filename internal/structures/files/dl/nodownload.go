@@ -12,29 +12,29 @@ import (
 	"github.com/rusq/slackdump/v2/types"
 )
 
-// NoDownload does not download any files, it just updates the link adding
+// Nothing does not download any files, it just updates the link adding
 // a token query parameter, if the token is set.
-type NoDownload struct {
+type Nothing struct {
 	baseDownloader
 }
 
 // Start does nothing.
-func (NoDownload) Start(context.Context) {}
+func (Nothing) Start(context.Context) {}
 
 // Stop does nothing.
-func (NoDownload) Stop() {}
+func (Nothing) Stop() {}
 
 // NewFileUpdater returns an fileExporter that does not download any files,
 // but updates the link adding a token query parameter, if the token is set.
-func NewFileUpdater(token string) NoDownload {
-	return NoDownload{baseDownloader: baseDownloader{
+func NewFileUpdater(token string) Nothing {
+	return Nothing{baseDownloader: baseDownloader{
 		token: token,
 	}}
 }
 
 // ProcessFunc returns the [slackdump.ProcessFunc] that updates the file link
 // adding a token query parameter.
-func (u NoDownload) ProcessFunc(_ string) slackdump.ProcessFunc {
+func (u Nothing) ProcessFunc(_ string) slackdump.ProcessFunc {
 	if u.token == "" {
 		// return dummy function, if the token is empty.
 		return func(msg []types.Message, channelID string) (slackdump.ProcessResult, error) {

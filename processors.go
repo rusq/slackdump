@@ -72,7 +72,7 @@ func runProcessFuncs(m []types.Message, channelID string, processFn ...ProcessFu
 // file, instead of Slack server URL.  It returns ProcessFunction and
 // CancelFunc. CancelFunc must be called, i.e. by deferring it's execution.
 func (sd *Session) newFileProcessFn(ctx context.Context, dir string, l *rate.Limiter) (ProcessFunc, cancelFunc, error) {
-	// set up a file dl and add it to the post-process functions
+	// set up a file downloader and add it to the post-process functions
 	// slice
 	dl := downloader.New(
 		sd.client,

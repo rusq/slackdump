@@ -1,4 +1,4 @@
-// Package dl provides the sync and async file download functionality.
+// Package downloader provides the sync and async file download functionality.
 package downloader
 
 import (
@@ -28,7 +28,7 @@ const (
 	defFileBufSz  = 100  // default download channel buffer.
 )
 
-// Client is the instance of the dl.
+// Client is the instance of the downloader.
 type Client struct {
 	client  Downloader
 	limiter *rate.Limiter
@@ -39,7 +39,7 @@ type Client struct {
 	workers int
 
 	mu           sync.Mutex // mutex prevents race condition when starting/stopping
-	fileRequests chan FileRequest
+	fileRequests chan fileRequest
 	wg           *sync.WaitGroup
 	started      bool
 
@@ -53,7 +53,7 @@ type FilenameFunc func(*slack.File) string
 // Filename returns name of the file generated from the slack.File.
 var Filename FilenameFunc = stdFilenameFn
 
-// Downloader is the file dl interface.  It exists primarily for mocking
+// Downloader is the file downloader interface.  It exists primarily for mocking
 // in tests.
 type Downloader interface {
 	// GetFile retreives a given file from its private download URL
@@ -113,7 +113,7 @@ func WithNameFunc(fn FilenameFunc) Option {
 	}
 }
 
-// New initialises new file dl.
+// New initialises new file downloader.
 func New(client Downloader, fs fsadapter.FS, opts ...Option) *Client {
 	if client == nil {
 		// better safe than sorry
@@ -138,13 +138,13 @@ func (c *Client) SaveFile(ctx context.Context, dir string, f *slack.File) (int64
 	return c.saveFile(ctx, dir, f)
 }
 
-type FileRequest struct {
+type fileRequest struct {
 	Directory string
 	File      *slack.File
 }
 
-// Start starts an async file dl.  If the dl
-// is already started, it does nothing.
+// Start starts an async file downloader.  If the downloader is already
+// started, it does nothing.
 func (c *Client) Start(ctx context.Context) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -153,7 +153,7 @@ func (c *Client) Start(ctx context.Context) {
 		// already started
 		return
 	}
-	req := make(chan FileRequest, defFileBufSz)
+	req := make(chan fileRequest, defFileBufSz)
 
 	c.fileRequests = req
 	c.wg = c.startWorkers(ctx, req)
@@ -162,7 +162,7 @@ func (c *Client) Start(ctx context.Context) {
 
 // startWorkers starts download workers.  It returns a sync.WaitGroup.  If the
 // req channel is closed, workers will stop, and wg.Wait() completes.
-func (c *Client) startWorkers(ctx context.Context, req <-chan FileRequest) *sync.WaitGroup {
+func (c *Client) startWorkers(ctx context.Context, req <-chan fileRequest) *sync.WaitGroup {
 	if c.workers == 0 {
 		c.workers = defNumWorkers
 	}
@@ -181,7 +181,7 @@ func (c *Client) startWorkers(ctx context.Context, req <-chan FileRequest) *sync
 
 // worker receives requests from reqC and passes them to saveFile function.
 // It will stop if either context is Done, or reqC is closed.
-func (c *Client) worker(ctx context.Context, reqC <-chan FileRequest) {
+func (c *Client) worker(ctx context.Context, reqC <-chan fileRequest) {
 	for {
 		select {
 		case <-ctx.Done():
@@ -214,11 +214,11 @@ func (c *Client) AsyncDownloader(ctx context.Context, dir string, fileDlQueue <-
 	}
 	done := make(chan struct{})
 
-	req := make(chan FileRequest)
+	req := make(chan fileRequest)
 	go func() {
 		defer close(req)
 		for f := range fileDlQueue {
-			req <- FileRequest{Directory: dir, File: f}
+			req <- fileRequest{Directory: dir, File: f}
 		}
 	}()
 
@@ -288,7 +288,7 @@ func stdFilenameFn(f *slack.File) string {
 	return fmt.Sprintf("%s-%s", f.ID, f.Name)
 }
 
-// Stop waits for all transfers to finish, and stops the dl.
+// Stop waits for all transfers to finish, and stops the downloader.
 func (c *Client) Stop() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -307,9 +307,9 @@ func (c *Client) Stop() {
 	c.started = false
 }
 
-var ErrNotStarted = errors.New("dl not started")
+var ErrNotStarted = errors.New("downloader not started")
 
-// DownloadFile requires a started dl, otherwise it will return
+// DownloadFile requires a started downloader, otherwise it will return
 // ErrNotStarted. Will place the file to the download queue, and save the file
 // to the directory that was specified when Start was called. If the file buffer
 // is full, will block until it becomes empty.  It returns the filepath within the
@@ -322,7 +322,7 @@ func (c *Client) DownloadFile(dir string, f slack.File) (string, error) {
 	if !started {
 		return "", ErrNotStarted
 	}
-	c.fileRequests <- FileRequest{Directory: dir, File: &f}
+	c.fileRequests <- fileRequest{Directory: dir, File: &f}
 	return path.Join(dir, Filename(&f)), nil
 }
 

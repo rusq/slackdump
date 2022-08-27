@@ -2,8 +2,8 @@ package downloader
 
 // fltSeen filters the files from filesC to ensure that no duplicates
 // are downloaded.
-func (c *Client) fltSeen(filesC <-chan FileRequest) <-chan FileRequest {
-	dlQ := make(chan FileRequest)
+func (c *Client) fltSeen(filesC <-chan fileRequest) <-chan fileRequest {
+	dlQ := make(chan fileRequest)
 	go func() {
 		// closing stop will lead to all worker goroutines to terminate.
 		defer close(dlQ)

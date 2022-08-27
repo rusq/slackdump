@@ -17,14 +17,14 @@ import (
 	"github.com/rusq/slackdump/v2/types"
 )
 
-type StdDownload struct {
+type Std struct {
 	baseDownloader
 }
 
-// NewStdDl returns standard dl, which downloads files into
+// NewStd returns standard dl, which downloads files into
 // "channel_id/attachments" directory.
-func NewStdDl(fs fsadapter.FS, cl *slack.Client, l logger.Interface, token string) *StdDownload {
-	return &StdDownload{
+func NewStd(fs fsadapter.FS, cl *slack.Client, l logger.Interface, token string) *Std {
+	return &Std{
 		baseDownloader: baseDownloader{
 			dl:    downloader.New(cl, fs, downloader.Logger(l)),
 			l:     l,
@@ -36,7 +36,7 @@ func NewStdDl(fs fsadapter.FS, cl *slack.Client, l logger.Interface, token strin
 // channel_id/attachments directory. If Slack token is set, it updates the
 // thumbnails to include that token.  It replaces the file URL to point to
 // physical downloaded files on disk.
-func (d *StdDownload) ProcessFunc(channelName string) slackdump.ProcessFunc {
+func (d *Std) ProcessFunc(channelName string) slackdump.ProcessFunc {
 	const (
 		dirAttach = "attachments"
 	)

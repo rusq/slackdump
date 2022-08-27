@@ -17,8 +17,8 @@ func newFileExporter(t ExportType, fs fsadapter.FS, cl *slack.Client, l logger.I
 	case TNoDownload:
 		return dl.NewFileUpdater(token)
 	case TStandard:
-		return dl.NewStdDl(fs, cl, l, token)
+		return dl.NewStd(fs, cl, l, token)
 	case TMattermost:
-		return dl.NewMattermostDl(fs, cl, l, token)
+		return dl.NewMattermost(fs, cl, l, token)
 	}
 }
