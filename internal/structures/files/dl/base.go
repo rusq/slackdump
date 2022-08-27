@@ -8,16 +8,16 @@ import (
 
 const entFiles = "files"
 
-type baseDownloader struct {
+type base struct {
 	dl    exportDownloader
 	token string // token is the token that will be appended to each file URL.
 	l     logger.Interface
 }
 
-func (bd *baseDownloader) Start(ctx context.Context) {
+func (bd *base) Start(ctx context.Context) {
 	bd.dl.Start(ctx)
 }
 
-func (bd *baseDownloader) Stop() {
+func (bd *base) Stop() {
 	bd.dl.Stop()
 }

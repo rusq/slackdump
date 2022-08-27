@@ -18,14 +18,14 @@ import (
 )
 
 type Std struct {
-	baseDownloader
+	base
 }
 
 // NewStd returns standard dl, which downloads files into
 // "channel_id/attachments" directory.
 func NewStd(fs fsadapter.FS, cl *slack.Client, l logger.Interface, token string) *Std {
 	return &Std{
-		baseDownloader: baseDownloader{
+		base: base{
 			dl:    downloader.New(cl, fs, downloader.Logger(l)),
 			l:     l,
 			token: token,

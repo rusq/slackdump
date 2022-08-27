@@ -17,7 +17,7 @@ import (
 )
 
 type Mattermost struct {
-	baseDownloader
+	base
 }
 
 // NewMattermost returns the dl, that downloads the files into
@@ -25,7 +25,7 @@ type Mattermost struct {
 // by mmetl and imported into mattermost with mmctl import bulk.
 func NewMattermost(fs fsadapter.FS, cl *slack.Client, l logger.Interface, token string) *Mattermost {
 	return &Mattermost{
-		baseDownloader: baseDownloader{
+		base: base{
 			l:     l,
 			token: token,
 			dl: downloader.New(cl, fs, downloader.Logger(l), downloader.WithNameFunc(

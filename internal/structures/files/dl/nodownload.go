@@ -15,7 +15,7 @@ import (
 // Nothing does not download any files, it just updates the link adding
 // a token query parameter, if the token is set.
 type Nothing struct {
-	baseDownloader
+	base
 }
 
 // Start does nothing.
@@ -27,7 +27,7 @@ func (Nothing) Stop() {}
 // NewFileUpdater returns an fileExporter that does not download any files,
 // but updates the link adding a token query parameter, if the token is set.
 func NewFileUpdater(token string) Nothing {
-	return Nothing{baseDownloader: baseDownloader{
+	return Nothing{base: base{
 		token: token,
 	}}
 }
