@@ -1,3 +1,7 @@
+//go:build exclude
+
+// Package mm is an experimental package to add support to MM.  It is
+// currently unused.
 package mm
 
 type Entry struct {
