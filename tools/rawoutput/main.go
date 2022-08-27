@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -110,8 +109,6 @@ func maybeCreate(filename string) (io.WriteCloser, error) {
 	}
 	return f, nil
 }
-
-var errNotOK = errors.New("server NOT OK")
 
 func saveThread(ctx context.Context, cl *http.Client, w io.Writer, token string, sl structures.SlackLink) error {
 	v := url.Values{
