@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"net/http"
 	"os"
 	"runtime/trace"
 	"time"
@@ -84,7 +83,7 @@ func NewWithOptions(ctx context.Context, authProvider auth.Provider, opts Option
 		return nil, err
 	}
 
-	cl := slack.New(authProvider.SlackToken(), slack.OptionCookieRAW(toPtrCookies(authProvider.Cookies())...))
+	cl := slack.New(authProvider.SlackToken(), slack.OptionCookieRAW(ptrSlice(authProvider.Cookies())...))
 
 	authTestResp, err := cl.AuthTestContext(ctx)
 	if err != nil {
@@ -122,7 +121,7 @@ func TestAuth(ctx context.Context, provider auth.Provider) error {
 	ctx, task := trace.NewTask(ctx, "TestAuth")
 	defer task.End()
 
-	cl := slack.New(provider.SlackToken(), slack.OptionCookieRAW(toPtrCookies(provider.Cookies())...))
+	cl := slack.New(provider.SlackToken(), slack.OptionCookieRAW(ptrSlice(provider.Cookies())...))
 
 	region := trace.StartRegion(ctx, "AuthTestContext")
 	defer region.End()
@@ -160,8 +159,8 @@ func (sd *Session) SetFS(fs fsadapter.FS) {
 	sd.fs = fs
 }
 
-func toPtrCookies(cc []http.Cookie) []*http.Cookie {
-	var ret = make([]*http.Cookie, len(cc))
+func ptrSlice[T any](cc []T) []*T {
+	var ret = make([]*T, len(cc))
 	for i := range cc {
 		ret[i] = &cc[i]
 	}
