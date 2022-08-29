@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/joho/godotenv"
+
 	"github.com/rusq/slackdump/v2/auth"
 	"github.com/rusq/slackdump/v2/internal/chttp"
 )
