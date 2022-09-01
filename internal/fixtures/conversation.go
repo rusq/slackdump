@@ -1,6 +1,6 @@
 package fixtures
 
-//TestConversationJSON channel: CHM82GF99
+// TestConversationJSON channel: CHM82GF99
 const TestConversationJSON = `
 {
 	"name": "everything",
@@ -324,5 +324,45 @@ const TestConversationJSON = `
 	  }
 	],
 	"channel_id": "CHM82GF99"
+  }
+`
+
+const TestChannel = `
+  {
+    "id": "CLPGTGPAA",
+    "created": 1563771279,
+    "is_open": false,
+    "last_read": "1656044916.988719",
+    "is_group": false,
+    "is_shared": false,
+    "is_im": false,
+    "is_ext_shared": false,
+    "is_org_shared": false,
+    "is_pending_ext_shared": false,
+    "is_private": false,
+    "is_mpim": false,
+    "unlinked": 0,
+    "name_normalized": "random",
+    "num_members": 0,
+    "priority": 0,
+    "user": "",
+    "name": "random",
+    "creator": "LOL1",
+    "is_archived": false,
+    "members": null,
+    "topic": {
+      "value": "Non-work banter and water cooler conversation",
+      "creator": "LOL1",
+      "last_set": 1563771279
+    },
+    "purpose": {
+      "value": "A place for non-work-related flimflam, faffing, hodge-podge or jibber-jabber you'd prefer to keep out of more focused work-related channels.",
+      "creator": "LOL1",
+      "last_set": 1563771279
+    },
+    "is_channel": true,
+    "is_general": false,
+    "is_member": true,
+    "locale": "en-US"
   }
 `

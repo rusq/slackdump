@@ -6,8 +6,9 @@ import (
 	"sort"
 	"text/tabwriter"
 
-	"github.com/rusq/slackdump/v2/internal/structures"
 	"github.com/slack-go/slack"
+
+	"github.com/rusq/slackdump/v2/internal/structures"
 )
 
 // Users is a slice of users.
