@@ -57,13 +57,16 @@ func (cl *Client) Authenticate(ctx context.Context) (string, []http.Cookie, erro
 	}
 	defer context.Close()
 
-	var _s = playwright.String
+	var (
+		_s = playwright.String
+		_f = playwright.Float
+	)
 	if err := context.AddCookies(playwright.BrowserContextAddCookiesOptionsCookies{
 		Domain:  _s(".slack.com"),
 		Path:    _s("/"),
 		Name:    _s("OptanonAlertBoxClosed"),
 		Value:   _s(time.Now().Add(-10 * time.Minute).Format(time.RFC3339)),
-		Expires: playwright.Float(float64(time.Now().AddDate(10, 0, 0).Unix())),
+		Expires: _f(float64(time.Now().AddDate(0, 0, 30).Unix())),
 	}); err != nil {
 		return "", nil, err
 	}
