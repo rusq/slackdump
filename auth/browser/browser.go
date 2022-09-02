@@ -32,6 +32,7 @@ func New(workspace string) (*Client, error) {
 }
 
 func (cl *Client) Authenticate(ctx context.Context) (string, []http.Cookie, error) {
+
 	ctx, task := trace.NewTask(ctx, "Authenticate")
 	defer task.End()
 
@@ -55,6 +56,17 @@ func (cl *Client) Authenticate(ctx context.Context) (string, []http.Cookie, erro
 		return "", nil, err
 	}
 	defer context.Close()
+
+	var _s = playwright.String
+	if err := context.AddCookies(playwright.BrowserContextAddCookiesOptionsCookies{
+		Domain:  _s(".slack.com"),
+		Path:    _s("/"),
+		Name:    _s("OptanonAlertBoxClosed"),
+		Value:   _s(time.Now().Add(-10 * time.Minute).Format(time.RFC3339)),
+		Expires: playwright.Float(float64(time.Now().AddDate(10, 0, 0).Unix())),
+	}); err != nil {
+		return "", nil, err
+	}
 
 	page, err := context.NewPage()
 	if err != nil {
