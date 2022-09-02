@@ -34,7 +34,7 @@ func (idx UserIndex) Username(id string) string {
 // user and returns ID with "external" prefix.
 func (idx UserIndex) RealName(id string) string {
 	return idx.userattr(id, func(user *slack.User) string {
-		return user.Profile.RealName
+		return user.RealName
 	})
 }
 
