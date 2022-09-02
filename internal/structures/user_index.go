@@ -29,13 +29,26 @@ func (idx UserIndex) Username(id string) string {
 	})
 }
 
-// RealName tries to resolve the username by ID. If it fails, it returns the
-// user ID.  If the user is not found in index, is assumes that it is an external
-// user and returns ID with "external" prefix.
-func (idx UserIndex) RealName(id string) string {
+// DisplayName tries to resolve the display name by ID. if the index is empty, it
+// returns the user ID. If the user is not found in index, is assumes that it is
+// an external user and returns ID with "external" prefix. If it does find the
+// user and display name is unavailble, it returns the Real Name.
+func (idx UserIndex) DisplayName(id string) string {
 	return idx.userattr(id, func(user *slack.User) string {
-		return user.RealName
+		return nvl(user.Profile.DisplayName, user.RealName)
 	})
+}
+
+func nvl(s string, ss ...string) string {
+	if s != "" {
+		return s
+	}
+	for _, alt := range ss {
+		if alt != "" {
+			return alt
+		}
+	}
+	return "" // you got no luck at all, don't you.
 }
 
 // userattr finds the user by ID and calls a function fn with that user. If the
@@ -64,7 +77,7 @@ func (idx UserIndex) Sender(msg *slack.Message) string {
 	}
 
 	if userid != "" {
-		return idx.RealName(userid)
+		return idx.DisplayName(userid)
 	}
 
 	return ""
