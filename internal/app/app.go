@@ -21,6 +21,8 @@ func Run(ctx context.Context, cfg Config, prov auth.Provider) error {
 	var err error
 	if cfg.ExportName != "" {
 		err = Export(ctx, cfg, prov)
+	} else if cfg.Emoji {
+		err = Emoji(ctx, cfg, prov)
 	} else {
 		err = Dump(ctx, cfg, prov)
 	}

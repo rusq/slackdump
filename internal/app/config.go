@@ -41,6 +41,8 @@ type Config struct {
 	ExportType  export.ExportType // export type, see enum for available options.
 	ExportToken string            // token that will be added to all exported files.
 
+	Emoji bool
+
 	Options slackdump.Options
 }
 
@@ -103,6 +105,14 @@ var ErrNothingToDo = errors.New("no valid input and no list flags specified")
 func (p *Config) Validate() error {
 	if p.ExportName != "" {
 		// slack workspace export mode.
+		return nil
+	}
+
+	if p.Emoji {
+		// emoji export mode
+		if p.Output.Base == "" {
+			return errors.New("emoji mode requires base directory")
+		}
 		return nil
 	}
 
