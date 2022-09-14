@@ -64,6 +64,13 @@ mode.
     executable, choose Run.
 
 
+Slackord2: Migrating to Discord
+===============================
+
+If you're migrating to Discord, the recommended way is to use Slackord2_ - a
+great tool with a nice GUI, that is compatible with the export files generated
+by Slackdump.
+
 User Guide
 ==========
 
@@ -194,9 +201,11 @@ Messages that were conveyed with the donations:
 .. _glog: https://github.com/golang/glog
 .. _logger: logger/logger.go
 .. _options.go: options.go
-.. _slack export viewer: https://github.com/hfaran/slack-export-viewer
 .. _examples: examples
+.. _slack export viewer: https://github.com/hfaran/slack-export-viewer
 .. _releases: https://github.com/rusq/slackdump/releases/
+.. _Slackord2: https://github.com/thomasloupe/Slackord2
+
 ..
   bulletin board links
 
