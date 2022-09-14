@@ -124,11 +124,6 @@ func emojiWorker(ctx context.Context, fsa fsadapter.FS, emojiC <-chan emoji, res
 }
 
 func emojiDownload(ctx context.Context, fsa fsadapter.FS, name, uri string) error {
-	// req, err := http.NewRequestWithContext(ctx, http.MethodGet, uri, nil)
-	// if err != nil {
-	// 	return err
-	// }
-	// resp, err := http.DefaultClient.Do(req)
 	resp, err := http.Get(uri)
 	if err != nil {
 		return err
