@@ -20,8 +20,8 @@ Purpose: dump Slack messages, users and files using browser token and cookie.
 Typical use scenarios:
 
 * archive your private conversations from Slack when the administrator
-  does not allow you to install applications OR you don't want to use 
-  potentially privacy-violating third-party tools, 
+  does not allow you to install applications OR you don't want to use
+  potentially privacy-violating third-party tools,
 * archive channels from Slack when you're on a free "no archive" subscription,
   so you don't lose valuable knowledge in those channels.
 * create a Slack Export archive without admin access.
@@ -34,7 +34,7 @@ There a three modes of operation (more on this in `User Guide`_) :
 
 Slackdump accepts two types of input (see `Dumping Conversations`_ section):
 
-#. the URL/link of the channel or thread, OR 
+#. the URL/link of the channel or thread, OR
 #. the ID of the channel.
 
 
@@ -57,7 +57,7 @@ mode.
   the developer certificate.
 
   To work around this:
-  
+
   - **on Windows**: click "more information", and press "Run
     Anyway" button.
   - **on macOS**: open the folder in Finder, hold Option and double click the
@@ -98,9 +98,13 @@ Example
 -------
 .. code:: go
 
+  package main
+
   import (
     "github.com/rusq/slackdump/v2"
     "github.com/rusq/slackdump/v2/auth"
+    "log"
+    "context"
   )
 
   func main() {
@@ -109,7 +113,7 @@ Example
         log.Print(err)
         return
     }
-    sd, err := New(context.Background(), provider)
+    sd, err := slackdump.New(context.Background(), provider)
     if err != nil {
         log.Print(err)
         return
@@ -122,7 +126,7 @@ See |go ref|
 Using Custom Logger
 -------------------
 Slackdump uses a simple `rusq/dlog`_ as a default logger (it is a wrapper around
-the standard logger that adds `Debug*` functions). 
+the standard logger that adds `Debug*` functions).
 
 If you want to use the same default logger that Slackdump uses in your
 application, it is available as ``logger.Default``.
@@ -140,7 +144,7 @@ Good news is logrus_ can be plugged in straight away, as it implements the
 .. code:: go
 
   lg := logrus.New()
-  sd, err := New(context.Background(), provider, WithLogger(lg))
+  sd, err := slackdump.New(context.Background(), provider, WithLogger(lg))
     if err != nil {
         log.Print(err)
         return
@@ -185,7 +189,7 @@ Bulletin Board
 Messages that were conveyed with the donations:
 
 - 25/01/2022: Stay away from `TheSignChef.com`_, ya hear, they don't pay what
-  they owe to their employees. 
+  they owe to their employees.
 
 .. _Application: https://stackoverflow.com/questions/12908881/how-to-copy-cookies-in-google-chrome
 .. _`Buy me a cup of tea`: https://www.paypal.com/donate/?hosted_button_id=GUHCLSM7E54ZW
