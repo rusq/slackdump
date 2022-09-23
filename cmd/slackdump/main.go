@@ -21,6 +21,7 @@ import (
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/export"
 	"github.com/rusq/slackdump/v2/internal/app"
+	"github.com/rusq/slackdump/v2/internal/app/config"
 	"github.com/rusq/slackdump/v2/internal/structures"
 	"github.com/rusq/slackdump/v2/logger"
 )
@@ -50,7 +51,7 @@ var secrets = []string{".env", ".env.txt", "secrets.txt"}
 
 // params is the command line parameters
 type params struct {
-	appCfg    app.Config
+	appCfg    config.Params
 	creds     app.SlackCreds
 	authReset bool
 
@@ -66,7 +67,7 @@ func main() {
 	loadSecrets(secrets)
 
 	params, err := parseCmdLine(os.Args[1:])
-	if err == app.ErrNothingToDo {
+	if err == config.ErrNothingToDo {
 		// if the user hasn't provided any required flags, let's offer
 		// an interactive prompt to fill them.
 		if err := Interactive(&params); err != nil {
@@ -233,7 +234,7 @@ func parseCmdLine(args []string) (params, error) {
 	}
 
 	var p = params{
-		appCfg: app.Config{
+		appCfg: config.Params{
 			Options:    slackdump.DefOptions,
 			ExportType: export.TNoDownload,
 		},

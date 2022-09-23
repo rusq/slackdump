@@ -8,8 +8,9 @@ import (
 	"strings"
 
 	"github.com/AlecAivazis/survey/v2"
+
 	"github.com/rusq/slackdump/v2/export"
-	"github.com/rusq/slackdump/v2/internal/app"
+	"github.com/rusq/slackdump/v2/internal/app/config"
 	"github.com/rusq/slackdump/v2/internal/app/ui"
 	"github.com/rusq/slackdump/v2/internal/structures"
 )
@@ -66,7 +67,7 @@ func surveyList(p *params) error {
 			Validate: survey.Required,
 			Prompt: &survey.Select{
 				Message: "Report format: ",
-				Options: []string{app.OutputTypeText, app.OutputTypeJSON},
+				Options: []string{config.OutputTypeText, config.OutputTypeJSON},
 				Description: func(value string, index int) string {
 					return "produce output in " + value + " format"
 				},

@@ -6,10 +6,12 @@ import (
 	"time"
 
 	"github.com/rusq/slackdump/v2/auth"
+	"github.com/rusq/slackdump/v2/internal/app/config"
+	"github.com/rusq/slackdump/v2/internal/app/emoji"
 )
 
 // Run starts the Slackdump.
-func Run(ctx context.Context, cfg Config, prov auth.Provider) error {
+func Run(ctx context.Context, cfg config.Params, prov auth.Provider) error {
 	if err := cfg.Validate(); err != nil {
 		return err
 	}
@@ -22,7 +24,7 @@ func Run(ctx context.Context, cfg Config, prov auth.Provider) error {
 	if cfg.ExportName != "" {
 		err = Export(ctx, cfg, prov)
 	} else if cfg.Emoji {
-		err = Emoji(ctx, cfg, prov)
+		err = emoji.Download(ctx, cfg, prov)
 	} else {
 		err = Dump(ctx, cfg, prov)
 	}
