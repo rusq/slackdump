@@ -9,6 +9,7 @@ import (
 	"path"
 	"path/filepath"
 	"sync"
+	"time"
 )
 
 var _ FS = &ZIP{}
@@ -46,17 +47,27 @@ func (z *ZIP) Create(filename string) (io.WriteCloser, error) {
 	filename = z.normalizePath(filename)
 
 	z.mu.Lock() // mutex will be unlocked, when the user calls Close.
-	w, err := z.zw.Create(filename)
+	w, err := z.create(filename)
 	if err != nil {
 		return nil, err
 	}
 	return &syncWriter{w: w, mu: &z.mu}, nil
 }
 
+func (z *ZIP) create(filename string) (io.Writer, error) {
+	header := &zip.FileHeader{
+		Name:     filename,
+		Method:   zip.Deflate,
+		Modified: time.Now(),
+	}
+	return z.zw.CreateHeader(header)
+
+}
+
 func (z *ZIP) WriteFile(filename string, data []byte, _ os.FileMode) error {
 	z.mu.Lock()
 	defer z.mu.Unlock()
-	zf, err := z.zw.Create(filename)
+	zf, err := z.create(filename)
 	if err != nil {
 		return err
 	}

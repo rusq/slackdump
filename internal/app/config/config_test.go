@@ -1,4 +1,4 @@
-package app
+package config
 
 import (
 	"testing"
@@ -64,7 +64,7 @@ func TestConfig_compileValidateTemplate(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := &Config{
+			p := &Params{
 				ListFlags:        tt.fields.ListFlags,
 				Input:            tt.fields.Input,
 				Output:           tt.fields.Output,
@@ -74,7 +74,7 @@ func TestConfig_compileValidateTemplate(t *testing.T) {
 				Options:          tt.fields.Options,
 			}
 			if err := p.compileValidateTemplate(); (err != nil) != tt.wantErr {
-				t.Errorf("Config.compileValidateTemplate() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("Params.compileValidateTemplate() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
