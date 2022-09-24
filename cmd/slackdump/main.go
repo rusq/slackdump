@@ -110,7 +110,7 @@ func run(ctx context.Context, p params) error {
 	defer logStopFn()
 	ctx = dlog.NewContext(ctx, lg)
 
-	// - setting the logger for slackdump package
+	// - setting the logger for the application.
 	p.appCfg.Options.Logger = lg
 
 	// - trace init

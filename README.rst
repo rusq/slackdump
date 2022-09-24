@@ -15,7 +15,8 @@ Slack Dumper
 Description
 ===========
 
-Purpose: dump Slack messages, users and files using browser token and cookie.
+Purpose: dump Slack messages, users, files and emojis using browser token and
+cookie.
 
 Typical use scenarios:
 
@@ -23,14 +24,16 @@ Typical use scenarios:
   does not allow you to install applications OR you don't want to use
   potentially privacy-violating third-party tools,
 * archive channels from Slack when you're on a free "no archive" subscription,
-  so you don't lose valuable knowledge in those channels.
-* create a Slack Export archive without admin access.
+  so you don't lose valuable knowledge in those channels,
+* create a Slack Export archive without admin access, or
+* save your favourite emojis.
 
 There a three modes of operation (more on this in `User Guide`_) :
 
 #. List users/channels
 #. Dumping messages and threads
 #. Creating a Slack Export in Mattermost or Standard modes.
+#. Emoji download mode.
 
 Slackdump accepts two types of input (see `Dumping Conversations`_ section):
 
