@@ -91,7 +91,7 @@ Download:
 
 Add the following line at the end of your project's ``go.mod`` file::
 
-  replace github.com/slack-go/slack => github.com/rusq/slack v0.11.100
+  replace github.com/slack-go/slack => github.com/rusq/slack v0.11.300
 
 This is required, as Slackdump relies on custom authentication scheme
 that uses cookies, and those functions are simply not in the original
@@ -104,10 +104,11 @@ Example
   package main
 
   import (
+    "context"
+    "log"
+
     "github.com/rusq/slackdump/v2"
     "github.com/rusq/slackdump/v2/auth"
-    "log"
-    "context"
   )
 
   func main() {
