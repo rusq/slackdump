@@ -26,11 +26,11 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/rusq/dlog"
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/auth"
 	"github.com/rusq/slackdump/v2/fsadapter"
 	"github.com/rusq/slackdump/v2/internal/app/config"
-	"github.com/rusq/slackdump/v2/logger"
 )
 
 const (
@@ -69,6 +69,8 @@ func Download(ctx context.Context, cfg config.Params, prov auth.Provider) error 
 // fetch downloads the emojis and saves them to the fsa. It spawns numWorker
 // goroutines for getting the files. It will call fetchFn for each emoji.
 func fetch(ctx context.Context, fsa fsadapter.FS, emojis map[string]string, fetchFn fetchFunc) error {
+	lg := dlog.FromContext(ctx)
+
 	var (
 		emojiC  = make(chan emoji)
 		resultC = make(chan result)
@@ -114,11 +116,11 @@ func fetch(ctx context.Context, fsa fsadapter.FS, emojis map[string]string, fetc
 			if errors.Is(res.err, context.Canceled) {
 				return res.err
 			}
-			logger.Default.Printf("failed: %q: %s", res.name, res.err)
+			lg.Printf("failed: %q: %s", res.name, res.err)
 			continue
 		}
 		count++
-		logger.Default.Printf("downloaded % 5d/%d %q", count, total, res.name)
+		lg.Printf("downloaded % 5d/%d %q", count, total, res.name)
 	}
 
 	return nil
