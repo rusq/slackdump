@@ -23,7 +23,7 @@ func Run(ctx context.Context, cfg config.Params, prov auth.Provider) error {
 	var err error
 	if cfg.ExportName != "" {
 		err = Export(ctx, cfg, prov)
-	} else if cfg.Emoji {
+	} else if cfg.Emoji.Enabled {
 		err = emoji.Download(ctx, cfg, prov)
 	} else {
 		err = Dump(ctx, cfg, prov)

@@ -43,9 +43,14 @@ type Params struct {
 	ExportType  export.ExportType // export type, see enum for available options.
 	ExportToken string            // token that will be added to all exported files.
 
-	Emoji bool
+	Emoji EmojiParams
 
 	Options slackdump.Options
+}
+
+type EmojiParams struct {
+	Enabled     bool
+	FailOnError bool
 }
 
 type Output struct {
@@ -110,7 +115,7 @@ func (p *Params) Validate() error {
 		return nil
 	}
 
-	if p.Emoji {
+	if p.Emoji.Enabled {
 		// emoji export mode
 		if p.Output.Base == "" {
 			return errors.New("emoji mode requires base directory")

@@ -3,6 +3,7 @@ package emoji
 import (
 	"bytes"
 	"context"
+	"errors"
 	"io"
 	"math/rand"
 	"net/http"
@@ -14,11 +15,25 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang/mock/gomock"
 	"github.com/rusq/slackdump/v2/fsadapter"
 )
 
-type args struct {
-	ctx context.Context
+type fetchFunc func(ctx context.Context, fsa fsadapter.FS, dir string, name string, uri string) error
+
+var mu sync.Mutex // globals mutex
+
+var (
+	emptyFetchFn = func(ctx context.Context, fsa fsadapter.FS, dir, name, uri string) error { return nil }
+	errorFetchFn = func(ctx context.Context, fsa fsadapter.FS, dir, name, uri string) error {
+		return errors.New("your shattered hopes")
+	}
+)
+
+func setGlobalFetchFn(fn fetchFunc) {
+	mu.Lock()
+	defer mu.Unlock()
+	fetchFn = fn
 }
 
 func init() {
@@ -114,13 +129,13 @@ func testEmojiC(emojis []emoji, wantClosed bool) <-chan emoji {
 
 func Test_worker(t *testing.T) {
 	type args struct {
-		ctx     context.Context
-		emojiC  <-chan emoji
-		fetchFn fetchFunc
+		ctx    context.Context
+		emojiC <-chan emoji
 	}
 	tests := []struct {
 		name       string
 		args       args
+		fetchFn    fetchFunc
 		wantResult []result
 	}{
 		{
@@ -128,9 +143,9 @@ func Test_worker(t *testing.T) {
 			args{
 				ctx:    context.Background(),
 				emojiC: testEmojiC([]emoji{{"test", "passed"}}, true),
-				fetchFn: func(ctx context.Context, fsa fsadapter.FS, dir string, name string, uri string) error {
-					return nil
-				},
+			},
+			func(ctx context.Context, fsa fsadapter.FS, dir string, name string, uri string) error {
+				return nil
 			},
 			[]result{
 				{name: "test"},
@@ -141,9 +156,9 @@ func Test_worker(t *testing.T) {
 			args{
 				ctx:    func() context.Context { ctx, cancel := context.WithCancel(context.Background()); cancel(); return ctx }(),
 				emojiC: testEmojiC([]emoji{}, false),
-				fetchFn: func(ctx context.Context, fsa fsadapter.FS, dir string, name string, uri string) error {
-					return nil
-				},
+			},
+			func(ctx context.Context, fsa fsadapter.FS, dir string, name string, uri string) error {
+				return nil
 			},
 			[]result{
 				{name: "", err: context.Canceled},
@@ -154,9 +169,9 @@ func Test_worker(t *testing.T) {
 			args{
 				ctx:    context.Background(),
 				emojiC: testEmojiC([]emoji{{"test", "passed"}}, true),
-				fetchFn: func(ctx context.Context, fsa fsadapter.FS, dir string, name string, uri string) error {
-					return io.EOF
-				},
+			},
+			func(ctx context.Context, fsa fsadapter.FS, dir string, name string, uri string) error {
+				return io.EOF
 			},
 			[]result{
 				{name: "test", err: io.EOF},
@@ -165,6 +180,7 @@ func Test_worker(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			setGlobalFetchFn(tt.fetchFn)
 
 			fsa, _ := fsadapter.ForFilename(t.TempDir())
 			resultC := make(chan result)
@@ -172,7 +188,7 @@ func Test_worker(t *testing.T) {
 			var wg sync.WaitGroup
 			wg.Add(1)
 			go func() {
-				worker(tt.args.ctx, fsa, tt.args.emojiC, resultC, tt.args.fetchFn)
+				worker(tt.args.ctx, fsa, tt.args.emojiC, resultC)
 				wg.Done()
 			}()
 			go func() {
@@ -196,12 +212,15 @@ func Test_fetch(t *testing.T) {
 
 	got := make(map[string]string, len(emojis))
 	var mu sync.Mutex
-	err := fetch(context.Background(), fsa, emojis, func(ctx context.Context, fsa fsadapter.FS, dir string, name string, uri string) error {
+
+	setGlobalFetchFn(func(ctx context.Context, fsa fsadapter.FS, dir string, name string, uri string) error {
 		mu.Lock()
 		got[name] = uri
 		mu.Unlock()
 		return nil
 	})
+
+	err := fetch(context.Background(), fsa, emojis, true)
 	if err != nil {
 		t.Errorf("unexpected error: %s", err)
 	}
@@ -226,4 +245,98 @@ func randString(n int) string {
 		b[i] = chars[rand.Intn(len(chars))]
 	}
 	return string(b)
+}
+
+func Test_download(t *testing.T) {
+	tmpdir := t.TempDir()
+
+	type args struct {
+		ctx      context.Context
+		output   string
+		failFast bool
+	}
+	tests := []struct {
+		name    string
+		args    args
+		fetchFn fetchFunc
+		expect  func(m *Mockemojidumper)
+		wantErr bool
+	}{
+		{
+			"save to directory",
+			args{
+				ctx:      context.Background(),
+				output:   tmpdir,
+				failFast: true,
+			},
+			emptyFetchFn,
+			func(m *Mockemojidumper) {
+				m.EXPECT().
+					DumpEmojis(gomock.Any()).
+					Return(map[string]string{
+						"test": "https://blahblah.png",
+					}, nil)
+			},
+			false,
+		},
+		{
+			"save to zip file",
+			args{
+				ctx:      context.Background(),
+				output:   filepath.Join(tmpdir, "test.zip"),
+				failFast: true,
+			},
+			emptyFetchFn,
+			func(m *Mockemojidumper) {
+				m.EXPECT().
+					DumpEmojis(gomock.Any()).
+					Return(map[string]string{
+						"test": "https://blahblah.png",
+					}, nil)
+			},
+			false,
+		},
+		{
+			"fails on fetch error with fail fast",
+			args{
+				ctx:      context.Background(),
+				output:   tmpdir,
+				failFast: true,
+			},
+			errorFetchFn,
+			func(m *Mockemojidumper) {
+				m.EXPECT().
+					DumpEmojis(gomock.Any()).
+					Return(map[string]string{
+						"test": "https://blahblah.png",
+					}, nil)
+			},
+			true,
+		},
+		{
+			"fails on DumpEmojis error",
+			args{
+				ctx:      context.Background(),
+				output:   tmpdir,
+				failFast: false,
+			},
+			errorFetchFn,
+			func(m *Mockemojidumper) {
+				m.EXPECT().
+					DumpEmojis(gomock.Any()).
+					Return(nil, errors.New("no emojis for you, it's 1991."))
+			},
+			true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			setGlobalFetchFn(tt.fetchFn)
+			sess := NewMockemojidumper(gomock.NewController(t))
+			tt.expect(sess)
+			if err := download(tt.args.ctx, sess, tt.args.output, tt.args.failFast); (err != nil) != tt.wantErr {
+				t.Errorf("download() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
 }
