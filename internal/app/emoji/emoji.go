@@ -45,9 +45,18 @@ func Download(ctx context.Context, cfg config.Params, prov auth.Provider) error 
 	if err != nil {
 		return err
 	}
-	fsa, err := fsadapter.ForFilename(cfg.Output.Base)
+	return download(ctx, sess, cfg.Output.Base, cfg.Emoji.FailOnError)
+}
+
+//go:generate mockgen -source emoji.go -destination emoji_mock_test.go -package emoji
+type emojidumper interface {
+	DumpEmojis(ctx context.Context) (map[string]string, error)
+}
+
+func download(ctx context.Context, sess emojidumper, base string, ignoreErrors bool) error {
+	fsa, err := fsadapter.ForFilename(base)
 	if err != nil {
-		return fmt.Errorf("unable to initialise adapter for %s: %w", cfg.Output.Base, err)
+		return fmt.Errorf("unable to initialise adapter for %s: %w", base, err)
 	}
 	defer fsadapter.Close(fsa)
 
@@ -63,12 +72,12 @@ func Download(ctx context.Context, cfg config.Params, prov auth.Provider) error 
 		return fmt.Errorf("failed writing emoji index: %w", err)
 	}
 
-	return fetch(ctx, fsa, emojis, fetchEmoji)
+	return fetch(ctx, fsa, emojis, true)
 }
 
 // fetch downloads the emojis and saves them to the fsa. It spawns numWorker
 // goroutines for getting the files. It will call fetchFn for each emoji.
-func fetch(ctx context.Context, fsa fsadapter.FS, emojis map[string]string, fetchFn fetchFunc) error {
+func fetch(ctx context.Context, fsa fsadapter.FS, emojis map[string]string, failFast bool) error {
 	lg := dlog.FromContext(ctx)
 
 	var (
@@ -95,7 +104,7 @@ func fetch(ctx context.Context, fsa fsadapter.FS, emojis map[string]string, fetc
 	for i := 0; i < numWorkers; i++ {
 		wg.Add(1)
 		go func() {
-			worker(ctx, fsa, emojiC, resultC, fetchFn)
+			worker(ctx, fsa, emojiC, resultC)
 			wg.Done()
 		}()
 	}
@@ -116,8 +125,10 @@ func fetch(ctx context.Context, fsa fsadapter.FS, emojis map[string]string, fetc
 			if errors.Is(res.err, context.Canceled) {
 				return res.err
 			}
+			if failFast {
+				return fmt.Errorf("failed: %q: %w", res.name, res.err)
+			}
 			lg.Printf("failed: %q: %s", res.name, res.err)
-			continue
 		}
 		count++
 		lg.Printf("downloaded % 5d/%d %q", count, total, res.name)
@@ -134,12 +145,12 @@ type result struct {
 	err  error
 }
 
-type fetchFunc func(ctx context.Context, fsa fsadapter.FS, dir string, name string, uri string) error
+var fetchFn = fetchEmoji
 
 // worker is the function that runs in a separate goroutine and downloads emoji
 // received from emojiC. The result of the operation is sent to resultC channel.
 // fn is called for each received emoji.
-func worker(ctx context.Context, fsa fsadapter.FS, emojiC <-chan emoji, resultC chan<- result, fetchFn fetchFunc) {
+func worker(ctx context.Context, fsa fsadapter.FS, emojiC <-chan emoji, resultC chan<- result) {
 	for {
 		select {
 		case <-ctx.Done():

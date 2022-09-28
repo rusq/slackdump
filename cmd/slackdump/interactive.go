@@ -245,7 +245,7 @@ func fileSelector(msg, descr string) (string, error) {
 }
 
 func surveyEmojis(p *params) error {
-	p.appCfg.Emoji = true
+	p.appCfg.Emoji.Enabled = true
 	var base string
 	for {
 		var err error
@@ -259,5 +259,11 @@ func surveyEmojis(p *params) error {
 		fmt.Println("invalid filename")
 	}
 	p.appCfg.Output.Base = base
+
+	var err error
+	p.appCfg.Emoji.FailOnError, err = ui.Confirm("Fail on download errors?", false)
+	if err != nil {
+		return err
+	}
 	return nil
 }
