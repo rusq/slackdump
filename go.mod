@@ -7,11 +7,9 @@ require (
 	github.com/MercuryEngineering/CookieMonster v0.0.0-20180304172713-1584578b3403
 	github.com/denisbrodbeck/machineid v1.0.1
 	github.com/fatih/color v1.13.0
-	github.com/gdamore/tcell/v2 v2.5.2
 	github.com/golang/mock v1.6.0
 	github.com/joho/godotenv v1.4.0
 	github.com/playwright-community/playwright-go v0.2000.1
-	github.com/rivo/tview v0.0.0-20220728094620-c6cff75ed57b
 	github.com/rusq/dlog v1.3.3
 	github.com/rusq/osenv/v2 v2.0.1
 	github.com/rusq/secure v0.0.3
@@ -26,11 +24,9 @@ require (
 require (
 	github.com/danwakefield/fnmatch v0.0.0-20160403171240-cbb64ac3d964 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/gdamore/encoding v1.0.0 // indirect
 	github.com/go-stack/stack v1.8.1 // indirect
 	github.com/gorilla/websocket v1.5.0 // indirect
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51 // indirect
-	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect
 	github.com/mattn/go-colorable v0.1.12 // indirect
 	github.com/mattn/go-isatty v0.0.14 // indirect
 	github.com/mattn/go-runewidth v0.0.13 // indirect
