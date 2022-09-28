@@ -186,9 +186,23 @@ FAQ
 :A: For Slack Workspace Export, use `slack export viewer`_.  For the generic
     dump files, see `examples`_ directory for some python and shell examples.
 
+Thank you
+=========
+Big thanks to all contributors, who submitted a pull request, reported a bug,
+suggested a feature, helped to reproduce, or spent time chatting with me on
+the Telegram or Slack to help to understand the issue and tested.
+
+Also, I'd like to thank all those who made a donation to support the project:
+
+- Vivek R.
+- Fabian I.
+- Shir B. L.
+- Emin G.
+- Robert Z.
+- Sudhanshu J.
 
 Bulletin Board
-==============
+--------------
 
 Messages that were conveyed with the donations:
 

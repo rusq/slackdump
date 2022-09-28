@@ -11,7 +11,12 @@ Emoji mode requires only one parameter:
 
 - base directory or ZIP file (``-base``)
 
-When download starts, the emojis are being downloaded using twelve goroutines.
+Optional parameters:
+
+- fail fast on errors (``-emoji-failfast``).  When download starts, the emojis
+  are being downloaded using twelve goroutines.  By default, all download
+  errors are printed on screen and skipped.  Specifying this flag will terminate
+  the process on any download error, i.e. network failure or HTTP 404.
 
 GUI Usage
 ---------

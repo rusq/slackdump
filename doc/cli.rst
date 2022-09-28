@@ -81,6 +81,15 @@ Command line flags are described as of version ``v2.1.0``.
    timestamp of the latest message to fetch to
    (i.e. 2020-12-31T23:59:59).  Same as above, but for upper boundary.
 
+\-emoji
+   enables the emoji download mode.  Specify the target directory with
+   ``-base``.
+
+\-emoji-failfast
+   enables the immediate failure of emoji download on any error, i.e. network
+   failure or HTTP 404.  If not specified, all network errors are printed on
+   the screen and skipped.
+
 \-export name
    enables the mode of operation to "Slack Export" mode and sets the export
    directory to "name".  To save to a ZIP file, add .zip extension, i.e.
