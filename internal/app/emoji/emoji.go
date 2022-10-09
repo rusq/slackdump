@@ -38,6 +38,8 @@ const (
 	emojiDir   = "emojis" // directory where all emojis are downloaded.
 )
 
+var fetchFn = fetchEmoji
+
 // Download saves all emojis to "emoji" subdirectory of the Output.Base directory
 // or archive.
 func Download(ctx context.Context, cfg config.Params, prov auth.Provider) error {
@@ -144,8 +146,6 @@ type result struct {
 	name string
 	err  error
 }
-
-var fetchFn = fetchEmoji
 
 // worker is the function that runs in a separate goroutine and downloads emoji
 // received from emojiC. The result of the operation is sent to resultC channel.
