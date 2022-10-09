@@ -277,6 +277,16 @@ compatibility issues, please open a Github issue_.
 Viewing export
 ~~~~~~~~~~~~~~
 
+SlackLogViewer
+++++++++++++++
+
+SlackLogViewer_ is a fast desktop application, with an advanced search
+function that turns your Slack Export file into a searchable knowledge base.
+It is extremely fast due to being written in C++ and comes as a single
+executable.  Recently it was updated to support the preview of DMs.
+
+`Download SlackLogViewer`_ v1.2.
+
 Slack Export Viewer
 +++++++++++++++++++
 
@@ -295,3 +305,5 @@ slack-like GUI.
 .. _Mattermost documentation: https://docs.mattermost.com/onboard/migrating-to-mattermost.html#migrating-from-slack-using-the-mattermost-mmetl-tool-and-bulk-import
 .. _Slackord2: https://github.com/thomasloupe/Slackord2
 .. _issue: https://github.com/rusq/slackdump/issues
+.. _SlackLogViewer: https://github.com/thayakawa-gh/SlackLogViewer
+.. _Download SlackLogViewer: https://github.com/thayakawa-gh/SlackLogViewer/actions/runs/3029568329

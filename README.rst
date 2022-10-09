@@ -183,8 +183,10 @@ FAQ
 
 :Q: **How to read the export file?**
 
-:A: For Slack Workspace Export, use `slack export viewer`_.  For the generic
-    dump files, see `examples`_ directory for some python and shell examples.
+:A: For Slack Workspace Export, use SlackLogViewer_ which is extremely fast
+    with an advanced search function, or `slack export viewer`_ which is a
+    Python application and runs in a browser.  For the generic dump files, see
+    `examples`_ directory for some python and shell examples.
 
 Thank you
 =========
@@ -227,6 +229,7 @@ Messages that were conveyed with the donations:
 .. _slack export viewer: https://github.com/hfaran/slack-export-viewer
 .. _releases: https://github.com/rusq/slackdump/releases/
 .. _Slackord2: https://github.com/thomasloupe/Slackord2
+.. _SlackLogViewer: https://github.com/thayakawa-gh/SlackLogViewer/actions/runs/3029568329
 
 ..
   bulletin board links
