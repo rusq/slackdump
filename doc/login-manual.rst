@@ -24,6 +24,9 @@ TOKEN
 #. Token value is printed right after the executed command (it starts with
    "``xoxc-``"), save it somewhere for now.
 
+.. NOTE:: if you're having problems running the code snippet above, you can
+          get the token the conventional way, see Troubleshooting_ section below.
+
 COOKIE
 ++++++
 
@@ -83,8 +86,8 @@ Troubleshooting
 Getting token the hard way
 ++++++++++++++++++++++++++
 
-#. Open your browser's *Developer Console*, as described in the "Getting
-   token" steps above.
+#. Open your browser's *Developer Console*, as described in the TOKEN_ section
+   steps above.
 #. Go to the Network tab
 #. In the toolbar, switch to ``Fetch/XHR`` view.
 #. Open any channel or private conversation in Slack.  You'll see a
