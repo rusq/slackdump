@@ -141,8 +141,8 @@ func Test_validName(t *testing.T) {
 			"ID42",
 		},
 		{
-			"channel",
-			args{slack.Channel{GroupConversation: slack.GroupConversation{Conversation: slack.Conversation{IsIM: false, ID: "ID42", NameNormalized: "name"}}}},
+			"channel (#144)",
+			args{slack.Channel{GroupConversation: slack.GroupConversation{Name: "name", Conversation: slack.Conversation{IsIM: false, ID: "ID42", NameNormalized: "name_normalized"}}}},
 			"name",
 		},
 	}
