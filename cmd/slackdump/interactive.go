@@ -127,11 +127,6 @@ func surveyList(p *params) error {
 func surveyExport(p *params) error {
 	var err error
 
-	p.appCfg.ExportType, err = questExportType()
-	if err != nil {
-		return err
-	}
-
 	p.appCfg.ExportName, err = ui.StringRequire(
 		"Output directory or ZIP file: ",
 		"Enter the output directory or ZIP file name.  Add \".zip\" extension to save to a zip file.\nFor Mattermost, zip file is recommended.",
@@ -147,6 +142,17 @@ func surveyExport(p *params) error {
 	if err != nil {
 		return err
 	}
+	if p.appCfg.Options.DumpFiles {
+		p.appCfg.ExportType, err = questExportType()
+		if err != nil {
+			return err
+		}
+		p.appCfg.ExportToken, err = ui.String("Append export token (leave empty if none)", "export token will be appended to all file URLs.")
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
