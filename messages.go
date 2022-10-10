@@ -175,5 +175,5 @@ func (sd *Session) getChannelName(ctx context.Context, l *rate.Limiter, channelI
 	}); err != nil {
 		return "", err
 	}
-	return ci.NameNormalized, nil
+	return ci.Name, nil
 }

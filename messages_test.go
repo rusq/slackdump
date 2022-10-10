@@ -322,7 +322,7 @@ func TestSession_DumpAll(t *testing.T) {
 }
 
 func mockConvInfo(mc *mockClienter, channelID, wantName string) {
-	mc.EXPECT().GetConversationInfoContext(gomock.Any(), channelID, false).Return(&slack.Channel{GroupConversation: slack.GroupConversation{Conversation: slack.Conversation{NameNormalized: wantName}}}, nil)
+	mc.EXPECT().GetConversationInfoContext(gomock.Any(), channelID, false).Return(&slack.Channel{GroupConversation: slack.GroupConversation{Name: wantName, Conversation: slack.Conversation{NameNormalized: wantName + "_normalized"}}}, nil)
 }
 
 func TestConversation_String(t *testing.T) {
@@ -389,7 +389,7 @@ func TestSession_getChannelName(t *testing.T) {
 				channelID: "TESTCHAN",
 			},
 			expectFn: func(sc *mockClienter) {
-				sc.EXPECT().GetConversationInfoContext(gomock.Any(), "TESTCHAN", false).Return(&slack.Channel{GroupConversation: slack.GroupConversation{Conversation: slack.Conversation{NameNormalized: "unittest"}}}, nil)
+				sc.EXPECT().GetConversationInfoContext(gomock.Any(), "TESTCHAN", false).Return(&slack.Channel{GroupConversation: slack.GroupConversation{Name: "unittest", Conversation: slack.Conversation{NameNormalized: "unittest_normalized"}}}, nil)
 			},
 			want:    "unittest",
 			wantErr: false,

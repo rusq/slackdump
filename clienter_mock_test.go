@@ -99,6 +99,21 @@ func (mr *mockClienterMockRecorder) GetConversationsContext(ctx, params interfac
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetConversationsContext", reflect.TypeOf((*mockClienter)(nil).GetConversationsContext), ctx, params)
 }
 
+// GetEmojiContext mocks base method.
+func (m *mockClienter) GetEmojiContext(ctx context.Context) (map[string]string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetEmojiContext", ctx)
+	ret0, _ := ret[0].(map[string]string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetEmojiContext indicates an expected call of GetEmojiContext.
+func (mr *mockClienterMockRecorder) GetEmojiContext(ctx interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEmojiContext", reflect.TypeOf((*mockClienter)(nil).GetEmojiContext), ctx)
+}
+
 // GetFile mocks base method.
 func (m *mockClienter) GetFile(downloadURL string, writer io.Writer) error {
 	m.ctrl.T.Helper()

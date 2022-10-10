@@ -37,11 +37,12 @@ doesn't work for some reason, fallback to Manual_ login steps.
 
 Usage
 -----
-There are three modes of operation:
+There are four modes of operation:
 
 - `Listing users/channels`_
 - `Dumping messages and threads`_ (private and public)
-- `Creating a Slack Export`_
+- `Creating a Slack export`_
+- `Downloading all Emojis`_
 
 
 .. _Automatic:  login-auto.rst
@@ -50,6 +51,7 @@ There are three modes of operation:
 .. _Dumping messages and threads: usage-channels.rst
 .. _Creating a Slack Export: usage-export.rst
 .. _Listing users/channels:  usage-list.rst
+.. _Downloading all Emojis:  usage-emoji.rst
 .. _Releases: https://github.com/rusq/slackdump/releases
 .. _Compiling from sources: compiling.rst
 .. _Unix Shell Guide: https://swcarpentry.github.io/shell-novice/

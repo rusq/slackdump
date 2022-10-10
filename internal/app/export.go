@@ -11,6 +11,7 @@ import (
 	"github.com/rusq/slackdump/v2/auth"
 	"github.com/rusq/slackdump/v2/export"
 	"github.com/rusq/slackdump/v2/fsadapter"
+	"github.com/rusq/slackdump/v2/internal/app/config"
 )
 
 // defExportType is the default file export type, if the DumpFiles is
@@ -19,7 +20,7 @@ const defExportType = export.TStandard
 
 // Export performs the full export of slack workspace in slack export compatible
 // format.
-func Export(ctx context.Context, cfg Config, prov auth.Provider) error {
+func Export(ctx context.Context, cfg config.Params, prov auth.Provider) error {
 	ctx, task := trace.NewTask(ctx, "Export")
 	defer task.End()
 
@@ -55,7 +56,7 @@ func Export(ctx context.Context, cfg Config, prov auth.Provider) error {
 	return nil
 }
 
-func makeExportOptions(cfg Config) export.Options {
+func makeExportOptions(cfg config.Params) export.Options {
 	expCfg := export.Options{
 		Oldest:      time.Time(cfg.Oldest),
 		Latest:      time.Time(cfg.Latest),

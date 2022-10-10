@@ -15,6 +15,7 @@ import (
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/auth"
 	"github.com/rusq/slackdump/v2/fsadapter"
+	"github.com/rusq/slackdump/v2/internal/app/config"
 	"github.com/rusq/slackdump/v2/internal/structures"
 	"github.com/rusq/slackdump/v2/logger"
 	"github.com/rusq/slackdump/v2/types"
@@ -22,12 +23,12 @@ import (
 
 type dump struct {
 	sess *slackdump.Session
-	cfg  Config
+	cfg  config.Params
 
 	log logger.Interface
 }
 
-func Dump(ctx context.Context, cfg Config, prov auth.Provider) error {
+func Dump(ctx context.Context, cfg config.Params, prov auth.Provider) error {
 	ctx, task := trace.NewTask(ctx, "runDump")
 	defer task.End()
 
@@ -46,7 +47,7 @@ func Dump(ctx context.Context, cfg Config, prov auth.Provider) error {
 	return err
 }
 
-func newDump(ctx context.Context, cfg Config, prov auth.Provider) (*dump, error) {
+func newDump(ctx context.Context, cfg config.Params, prov auth.Provider) (*dump, error) {
 	sess, err := slackdump.NewWithOptions(ctx, prov, cfg.Options)
 	if err != nil {
 		return nil, err
@@ -63,13 +64,12 @@ func newDump(ctx context.Context, cfg Config, prov auth.Provider) (*dump, error)
 // The result of the work of this function, for each channel ID, the following
 // files will be created:
 //
-//    +-<ID> - directory, if dumpfiles is true
-//    |  +- attachment1.ext
-//    |  +- attachment2.ext
-//    |  +- ...
-//    +--<ID>.json - json file with conversation and users
-//    +--<ID>.txt  - formatted conversation in text format, if generateText is true.
-//
+//	+-<ID> - directory, if dumpfiles is true
+//	|  +- attachment1.ext
+//	|  +- attachment2.ext
+//	|  +- ...
+//	+--<ID>.json - json file with conversation and users
+//	+--<ID>.txt  - formatted conversation in text format, if generateText is true.
 func (app *dump) Dump(ctx context.Context) (int, error) {
 	if !app.cfg.Input.IsValid() {
 		return 0, errors.New("no valid input")
@@ -82,16 +82,16 @@ func (app *dump) Dump(ctx context.Context) (int, error) {
 	defer fsadapter.Close(fs)
 	app.sess.SetFS(fs)
 
-	tmpl, err := app.cfg.compileTemplates()
+	tmpl, err := app.cfg.CompileTemplates()
 	if err != nil {
 		return 0, err
 	}
 
 	total := 0
-	if err := app.cfg.Input.producer(func(channelID string) error {
+	if err := app.cfg.Input.Producer(func(channelID string) error {
 		if err := app.dumpOne(ctx, fs, tmpl, channelID, app.sess.Dump); err != nil {
 			app.log.Printf("error processing: %q (conversation will be skipped): %s", channelID, err)
-			return errSkip
+			return config.ErrSkip
 		}
 		total++
 		return nil
@@ -107,7 +107,7 @@ type dumpFunc func(context.Context, string, time.Time, time.Time, ...slackdump.P
 // file naming template.
 func renderFilename(tmpl *template.Template, c *types.Conversation) string {
 	var buf strings.Builder
-	if err := tmpl.ExecuteTemplate(&buf, filenameTmplName, c); err != nil {
+	if err := tmpl.ExecuteTemplate(&buf, config.FilenameTmplName, c); err != nil {
 		// this should nevar happen
 		panic(err)
 	}
@@ -202,7 +202,7 @@ func createFile(filename string) (f io.WriteCloser, err error) {
 }
 
 // fetchEntity retrieves the data from the API according to the ListFlags.
-func (dm *dump) fetchEntity(ctx context.Context, listFlags ListFlags) (rep reporter, err error) {
+func (dm *dump) fetchEntity(ctx context.Context, listFlags config.ListFlags) (rep reporter, err error) {
 	switch {
 	case listFlags.Channels:
 		rep, err = dm.sess.GetChannels(ctx)
@@ -221,11 +221,11 @@ func (dm *dump) fetchEntity(ctx context.Context, listFlags ListFlags) (rep repor
 }
 
 // formatEntity formats reporter output as defined in the "Output".
-func (app *dump) formatEntity(w io.Writer, rep reporter, output Output) error {
+func (app *dump) formatEntity(w io.Writer, rep reporter, output config.Output) error {
 	switch output.Format {
-	case OutputTypeText:
+	case config.OutputTypeText:
 		return rep.ToText(w, app.sess.UserIndex)
-	case OutputTypeJSON:
+	case config.OutputTypeJSON:
 		enc := json.NewEncoder(w)
 		return enc.Encode(rep)
 	}

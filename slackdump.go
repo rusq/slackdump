@@ -51,6 +51,7 @@ type clienter interface {
 	GetFile(downloadURL string, writer io.Writer) error
 	GetTeamInfo() (*slack.TeamInfo, error)
 	GetUsersContext(ctx context.Context, options ...slack.GetUsersOption) ([]slack.User, error)
+	GetEmojiContext(ctx context.Context) (map[string]string, error)
 }
 
 // Errors

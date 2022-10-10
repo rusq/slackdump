@@ -260,11 +260,35 @@ channel ``C123456`` from the Export.
 
 .. Note::
 
-  Slack Export is currently in beta development stage, please report
-  all issues in Github `Issues <https://github.com/rusq/slackdump/issues>`_.
+  Slack Export is currently in beta development stage, please open an
+  issue_ in Github Issues, if you run into problems.
+
+
+Migrating to
+~~~~~~~~~~~~
+
+Discord
++++++++
+
+The preferred way is to use Slackord2_ - a great tool with a nice GUI that is
+compatible with Slackdump generated export files.  If you have any
+compatibility issues, please open a Github issue_.
+
+Viewing export
+~~~~~~~~~~~~~~
+
+SlackLogViewer
+++++++++++++++
+
+SlackLogViewer_ is a fast desktop application, with an advanced search
+function that turns your Slack Export file into a searchable knowledge base.
+It is extremely fast due to being written in C++ and comes as a single
+executable.  Recently it was updated to support the preview of DMs.
+
+`Download SlackLogViewer`_ v1.2.
 
 Slack Export Viewer
-~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++
 
 While you're welcome to just open each individual ``.json`` file to read the
 contents of your backup, you might also consider using a tool like
@@ -279,3 +303,7 @@ slack-like GUI.
 .. _Index: README.rst
 .. _mmetl github page: https://github.com/mattermost/mmetl
 .. _Mattermost documentation: https://docs.mattermost.com/onboard/migrating-to-mattermost.html#migrating-from-slack-using-the-mattermost-mmetl-tool-and-bulk-import
+.. _Slackord2: https://github.com/thomasloupe/Slackord2
+.. _issue: https://github.com/rusq/slackdump/issues
+.. _SlackLogViewer: https://github.com/thayakawa-gh/SlackLogViewer
+.. _Download SlackLogViewer: https://github.com/thayakawa-gh/SlackLogViewer/actions/runs/3029568329

@@ -220,7 +220,7 @@ func validName(ch slack.Channel) string {
 	if ch.IsIM {
 		return ch.ID
 	}
-	return ch.NameNormalized
+	return ch.Name
 }
 
 // saveChannel creates a directory `name` and writes the contents of msgs. for
