@@ -15,6 +15,8 @@ import (
 	"github.com/rusq/slackdump/v2/logger"
 )
 
+const slackDomain = ".slack.com"
+
 // Client is the client for Browser Auth Provider.
 type Client struct {
 	workspace  string
@@ -62,7 +64,7 @@ func (cl *Client) Authenticate(ctx context.Context) (string, []http.Cookie, erro
 		_f = playwright.Float
 	)
 	if err := context.AddCookies(playwright.BrowserContextAddCookiesOptionsCookies{
-		Domain:  _s(".slack.com"),
+		Domain:  _s(slackDomain),
 		Path:    _s("/"),
 		Name:    _s("OptanonAlertBoxClosed"),
 		Value:   _s(time.Now().Add(-10 * time.Minute).Format(time.RFC3339)),
@@ -77,7 +79,7 @@ func (cl *Client) Authenticate(ctx context.Context) (string, []http.Cookie, erro
 	}
 	page.On("close", func() { trace.Log(ctx, "user", "page closed"); close(cl.pageClosed) })
 
-	uri := fmt.Sprintf("https://%s.slack.com", cl.workspace)
+	uri := fmt.Sprintf("https://%s"+slackDomain, cl.workspace)
 	l().Debugf("opening browser URL=%s", uri)
 
 	if _, err := page.Goto(uri); err != nil {
@@ -143,9 +145,13 @@ func extractToken(uri string) (string, error) {
 }
 
 func convertCookies(pwc []playwright.Cookie) []http.Cookie {
-	var ret = make([]http.Cookie, len(pwc))
-	for i, p := range pwc {
-		ret[i] = http.Cookie{
+	var ret = make([]http.Cookie, 0, len(pwc))
+	for _, p := range pwc {
+		if !strings.HasSuffix(p.Domain, slackDomain) {
+			// ignoring filth (thirdparty tracking cookies)
+			continue
+		}
+		ret = append(ret, http.Cookie{
 			Name:     p.Name,
 			Value:    p.Value,
 			Path:     p.Path,
@@ -155,7 +161,7 @@ func convertCookies(pwc []playwright.Cookie) []http.Cookie {
 			Secure:   p.Secure,
 			HttpOnly: p.HttpOnly,
 			SameSite: sameSite(p.SameSite),
-		}
+		})
 	}
 	return ret
 }
