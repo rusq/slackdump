@@ -214,7 +214,7 @@ func TestZIP_normalizePath(t *testing.T) {
 		{
 			"windows",
 			&ZIP{},
-			args{"sample\\directory\\and\\file.txt"},
+			args{filepath.Join("sample", "directory", "and", "file.txt")},
 			"sample/directory/and/file.txt",
 		},
 	}
