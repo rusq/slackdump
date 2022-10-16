@@ -15,26 +15,29 @@ Slack Dumper
 Description
 ===========
 
-Purpose: dump Slack messages, users and files using browser token and cookie.
+Purpose: dump Slack messages, users, files and emojis using browser token and
+cookie.
 
 Typical use scenarios:
 
 * archive your private conversations from Slack when the administrator
-  does not allow you to install applications OR you don't want to use 
-  potentially privacy-violating third-party tools, 
+  does not allow you to install applications OR you don't want to use
+  potentially privacy-violating third-party tools,
 * archive channels from Slack when you're on a free "no archive" subscription,
-  so you don't lose valuable knowledge in those channels.
-* create a Slack Export archive without admin access.
+  so you don't lose valuable knowledge in those channels,
+* create a Slack Export archive without admin access, or
+* save your favourite emojis.
 
 There a three modes of operation (more on this in `User Guide`_) :
 
 #. List users/channels
 #. Dumping messages and threads
 #. Creating a Slack Export in Mattermost or Standard modes.
+#. Emoji download mode.
 
 Slackdump accepts two types of input (see `Dumping Conversations`_ section):
 
-#. the URL/link of the channel or thread, OR 
+#. the URL/link of the channel or thread, OR
 #. the ID of the channel.
 
 
@@ -57,12 +60,19 @@ mode.
   the developer certificate.
 
   To work around this:
-  
+
   - **on Windows**: click "more information", and press "Run
     Anyway" button.
   - **on macOS**: open the folder in Finder, hold Option and double click the
     executable, choose Run.
 
+
+Slackord2: Migrating to Discord
+===============================
+
+If you're migrating to Discord, the recommended way is to use Slackord2_ - a
+great tool with a nice GUI, that is compatible with the export files generated
+by Slackdump.
 
 User Guide
 ==========
@@ -81,7 +91,7 @@ Download:
 
 Add the following line at the end of your project's ``go.mod`` file::
 
-  replace github.com/slack-go/slack => github.com/rusq/slack v0.11.100
+  replace github.com/slack-go/slack => github.com/rusq/slack v0.11.300
 
 This is required, as Slackdump relies on custom authentication scheme
 that uses cookies, and those functions are simply not in the original
@@ -91,7 +101,12 @@ Example
 -------
 .. code:: go
 
+  package main
+
   import (
+    "context"
+    "log"
+
     "github.com/rusq/slackdump/v2"
     "github.com/rusq/slackdump/v2/auth"
   )
@@ -102,7 +117,7 @@ Example
         log.Print(err)
         return
     }
-    sd, err := New(context.Background(), provider)
+    sd, err := slackdump.New(context.Background(), provider)
     if err != nil {
         log.Print(err)
         return
@@ -115,7 +130,7 @@ See |go ref|
 Using Custom Logger
 -------------------
 Slackdump uses a simple `rusq/dlog`_ as a default logger (it is a wrapper around
-the standard logger that adds `Debug*` functions). 
+the standard logger that adds `Debug*` functions).
 
 If you want to use the same default logger that Slackdump uses in your
 application, it is available as ``logger.Default``.
@@ -133,7 +148,7 @@ Good news is logrus_ can be plugged in straight away, as it implements the
 .. code:: go
 
   lg := logrus.New()
-  sd, err := New(context.Background(), provider, WithLogger(lg))
+  sd, err := slackdump.New(context.Background(), provider, WithLogger(lg))
     if err != nil {
         log.Print(err)
         return
@@ -168,19 +183,35 @@ FAQ
 
 :Q: **How to read the export file?**
 
-:A: For Slack Workspace Export, use `slack export viewer`_.  For the generic
-    dump files, see `examples`_ directory for some python and shell examples.
+:A: For Slack Workspace Export, use SlackLogViewer_ which is extremely fast
+    with an advanced search function, or `slack export viewer`_ which is a
+    Python application and runs in a browser.  For the generic dump files, see
+    `examples`_ directory for some python and shell examples.
 
+Thank you
+=========
+Big thanks to all contributors, who submitted a pull request, reported a bug,
+suggested a feature, helped to reproduce, or spent time chatting with me on
+the Telegram or Slack to help to understand the issue and tested.
+
+Also, I'd like to thank all those who made a donation to support the project:
+
+- Vivek R.
+- Fabian I.
+- Shir B. L.
+- Emin G.
+- Robert Z.
+- Sudhanshu J.
 
 Bulletin Board
-==============
+--------------
 
 Messages that were conveyed with the donations:
 
 - 25/01/2022: Stay away from `TheSignChef.com`_, ya hear, they don't pay what
-  they owe to their employees. 
+  they owe to their employees.
 
-.. _Application: https://stackoverflow.com/questions/12908881/how-to-copy-cookies-in-google-chrome
+
 .. _`Buy me a cup of tea`: https://www.paypal.com/donate/?hosted_button_id=GUHCLSM7E54ZW
 .. _Telegram: https://t.me/slackdump
 .. _Slack: https://slackdump.herokuapp.com/
@@ -194,14 +225,16 @@ Messages that were conveyed with the donations:
 .. _glog: https://github.com/golang/glog
 .. _logger: logger/logger.go
 .. _options.go: options.go
-.. _slack export viewer: https://github.com/hfaran/slack-export-viewer
 .. _examples: examples
+.. _slack export viewer: https://github.com/hfaran/slack-export-viewer
 .. _releases: https://github.com/rusq/slackdump/releases/
+.. _Slackord2: https://github.com/thomasloupe/Slackord2
+.. _SlackLogViewer: https://github.com/thayakawa-gh/SlackLogViewer/actions/runs/3029568329
+
 ..
   bulletin board links
 
 .. _`TheSignChef.com`: https://www.glassdoor.com.au/Reviews/TheSignChef-com-Reviews-E793259.htm
-.. _`Get cookies.txt Chrome extension`: https://chrome.google.com/webstore/detail/get-cookiestxt/bgaddhkoddajcdgocldbbfleckgcbcid
 
 .. |go ref| image:: https://pkg.go.dev/badge/github.com/rusq/slackdump/v2.svg
               :alt: Go Reference

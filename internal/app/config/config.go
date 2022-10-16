@@ -1,4 +1,4 @@
-package app
+package config
 
 import (
 	"errors"
@@ -21,12 +21,14 @@ const (
 )
 
 const (
-	filenameTmplName = "fnt"
+	FilenameTmplName = "fnt"
 )
 
-var errSkip = errors.New("skip")
+// ErrSkip is should be returned if the [Producer] should skip the channel.
+var ErrSkip = errors.New("skip")
 
-type Config struct {
+// Params is the application config parameters.
+type Params struct {
 	ListFlags ListFlags
 
 	Input  Input  // parameters of the input
@@ -41,7 +43,14 @@ type Config struct {
 	ExportType  export.ExportType // export type, see enum for available options.
 	ExportToken string            // token that will be added to all exported files.
 
+	Emoji EmojiParams
+
 	Options slackdump.Options
+}
+
+type EmojiParams struct {
+	Enabled     bool
+	FailOnError bool
 }
 
 type Output struct {
@@ -70,7 +79,7 @@ func (in *Input) listProducer(fn func(string) error) error {
 	}
 	for _, entry := range in.List.Include {
 		if err := fn(entry); err != nil {
-			if errors.Is(err, errSkip) {
+			if errors.Is(err, ErrSkip) {
 				continue
 			}
 			return err
@@ -100,9 +109,17 @@ func (lf ListFlags) FlagsPresent() bool {
 var ErrNothingToDo = errors.New("no valid input and no list flags specified")
 
 // Validate checks if the command line parameters have valid values.
-func (p *Config) Validate() error {
+func (p *Params) Validate() error {
 	if p.ExportName != "" {
 		// slack workspace export mode.
+		return nil
+	}
+
+	if p.Emoji.Enabled {
+		// emoji export mode
+		if p.Output.Base == "" {
+			return errors.New("emoji mode requires base directory")
+		}
 		return nil
 	}
 
@@ -131,12 +148,12 @@ func (p *Config) Validate() error {
 	return nil
 }
 
-func (cfg *Config) compileTemplates() (*template.Template, error) {
-	return template.New(filenameTmplName).Parse(cfg.FilenameTemplate)
+func (p *Params) CompileTemplates() (*template.Template, error) {
+	return template.New(FilenameTmplName).Parse(p.FilenameTemplate)
 }
 
-func (cfg *Config) compileValidateTemplate() error {
-	tmpl, err := cfg.compileTemplates()
+func (p *Params) compileValidateTemplate() error {
+	tmpl, err := p.CompileTemplates()
 	if err != nil {
 		return err
 	}
@@ -160,22 +177,22 @@ func (cfg *Config) compileValidateTemplate() error {
 
 	// now we render the template and check for OK/NotOK values in the output.
 	var buf strings.Builder
-	if err := tmpl.ExecuteTemplate(&buf, filenameTmplName, tc); err != nil {
+	if err := tmpl.ExecuteTemplate(&buf, FilenameTmplName, tc); err != nil {
 		return err
 	}
 	if strings.Contains(buf.String(), NotOK) || len(buf.String()) == 0 {
-		return fmt.Errorf("invalid fields in the template: %q", cfg.FilenameTemplate)
+		return fmt.Errorf("invalid fields in the template: %q", p.FilenameTemplate)
 	}
 	if !strings.Contains(buf.String(), OK) {
 		// must contain at least one OK
-		return fmt.Errorf("this does not resolve to anything useful: %q", cfg.FilenameTemplate)
+		return fmt.Errorf("this does not resolve to anything useful: %q", p.FilenameTemplate)
 	}
 	return nil
 }
 
 // Producer iterates over the list or reads the list from the file and calls
 // fn for each entry.
-func (in Input) producer(fn func(string) error) error {
+func (in Input) Producer(fn func(string) error) error {
 	if !in.IsValid() {
 		return ErrInvalidInput
 	}
@@ -183,9 +200,9 @@ func (in Input) producer(fn func(string) error) error {
 	return in.listProducer(fn)
 }
 
-func (cfg Config) Logger() logger.Interface {
-	if cfg.Options.Logger == nil {
+func (p *Params) Logger() logger.Interface {
+	if p.Options.Logger == nil {
 		return logger.Default
 	}
-	return cfg.Options.Logger
+	return p.Options.Logger
 }
