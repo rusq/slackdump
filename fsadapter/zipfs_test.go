@@ -199,3 +199,29 @@ func TestCreateConcurrency(t *testing.T) {
 		}
 	}
 }
+
+func TestZIP_normalizePath(t *testing.T) {
+	type args struct {
+		p string
+	}
+	tests := []struct {
+		name string
+		z    *ZIP
+		args args
+		want string
+	}{
+		{
+			"windows",
+			&ZIP{},
+			args{"sample\\directory\\and\\file.txt"},
+			"sample/directory/and/file.txt",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.z.normalizePath(tt.args.p); got != tt.want {
+				t.Errorf("ZIP.normalizePath() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

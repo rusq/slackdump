@@ -8,6 +8,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 	"sync"
 )
 
@@ -37,7 +38,8 @@ func NewZipFile(filename string) (*ZIP, error) {
 }
 
 func (*ZIP) normalizePath(p string) string {
-	return path.Join(filepath.SplitList(filepath.Clean(p))...)
+	split := strings.Split(filepath.Clean(p), string(os.PathSeparator))
+	return path.Join(split...)
 }
 
 func (z *ZIP) Create(filename string) (io.WriteCloser, error) {
