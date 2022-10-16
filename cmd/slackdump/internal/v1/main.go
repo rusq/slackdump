@@ -22,6 +22,7 @@ import (
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/base"
 	"github.com/rusq/slackdump/v2/export"
 	"github.com/rusq/slackdump/v2/internal/app"
+	"github.com/rusq/slackdump/v2/internal/app/config"
 	"github.com/rusq/slackdump/v2/internal/structures"
 	"github.com/rusq/slackdump/v2/logger"
 )
@@ -51,7 +52,7 @@ var secrets = []string{".env", ".env.txt", "secrets.txt"}
 
 // params is the command line parameters
 type params struct {
-	appCfg    app.Config
+	appCfg    config.Params
 	creds     app.SlackCreds
 	authReset bool
 
@@ -62,16 +63,12 @@ type params struct {
 	verbose      bool
 }
 
-var V1 = &base.Command{
-	Run: runV1,
-}
-
 func runV1(ctx context.Context, cmd *base.Command, args []string) {
 	banner(os.Stderr)
 	loadSecrets(secrets)
 
-	params, err := parseCmdLine(args)
-	if err == app.ErrNothingToDo {
+	params, err := parseCmdLine(args[1:])
+	if err == config.ErrNothingToDo {
 		// if the user hasn't provided any required flags, let's offer
 		// an interactive prompt to fill them.
 		if err := Interactive(&params); err != nil {
@@ -114,7 +111,7 @@ func run(ctx context.Context, p params) error {
 	defer logStopFn()
 	ctx = dlog.NewContext(ctx, lg)
 
-	// - setting the logger for slackdump package
+	// - setting the logger for the application.
 	p.appCfg.Options.Logger = lg
 
 	// - trace init
@@ -139,7 +136,7 @@ func run(ctx context.Context, p params) error {
 	trace.Logf(ctx, "info", "params: input: %+v", p)
 
 	// override default handler for SIGTERM and SIGQUIT signals.
-	ctx, stop := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
+	ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
 	// run the application
@@ -238,7 +235,7 @@ func parseCmdLine(args []string) (params, error) {
 	}
 
 	var p = params{
-		appCfg: app.Config{
+		appCfg: config.Params{
 			Options:    slackdump.DefOptions,
 			ExportType: export.TNoDownload,
 		},
@@ -258,6 +255,9 @@ func parseCmdLine(args []string) (params, error) {
 	fs.StringVar(&p.appCfg.ExportName, "export", "", "`name` of the directory or zip file to export the Slack workspace to."+zipHint)
 	fs.Var(&p.appCfg.ExportType, "export-type", "set the export type: 'standard' or 'mattermost' (default: standard)")
 	fs.StringVar(&p.appCfg.ExportToken, "export-token", osenv.Secret(envSlackFileToken, ""), "Slack token that will be added to all file URLs, (environment: "+envSlackFileToken+")")
+	// - emoji
+	fs.BoolVar(&p.appCfg.Emoji.Enabled, "emoji", false, "dump all workspace emojis (set the base directory or zip file)")
+	fs.BoolVar(&p.appCfg.Emoji.FailOnError, "emoji-fastfail", false, "fail on download error (if false, the download errors will be ignored\nand files will be skipped")
 
 	// input-ouput options
 	fs.StringVar(&p.appCfg.Output.Filename, "o", "-", "Output `filename` for users and channels.\nUse '-' for the Standard Output.")
