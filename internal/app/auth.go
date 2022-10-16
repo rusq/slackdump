@@ -22,6 +22,9 @@ const (
 	credsFile = "provider.bin"
 )
 
+// isWSL is true if we're running in the WSL environment
+var isWSL = os.Getenv("WSL_DISTRO_NAME") != ""
+
 // SlackCreds holds the Token and Cookie reference.
 type SlackCreds struct {
 	Token  string
@@ -85,12 +88,7 @@ func isExistingFile(name string) bool {
 }
 
 func ezLoginSupported() bool {
-	return runtime.GOARCH != "386" && !isWSL()
-}
-
-// isWSL detects if we're running in WSL environment
-func isWSL() bool {
-	return os.Getenv("WSL_DISTRO_NAME") != ""
+	return runtime.GOARCH != "386" && !isWSL
 }
 
 func ezLoginTested() bool {
