@@ -16,9 +16,10 @@ import (
 var _ FS = &ZIP{}
 
 type ZIP struct {
-	zw *zip.Writer
-	mu sync.Mutex
-	f  *os.File
+	zw   *zip.Writer
+	mu   sync.Mutex
+	f    *os.File
+	seen map[string]bool // seen holds the list of seen directories.
 }
 
 func (z *ZIP) String() string {
@@ -26,7 +27,7 @@ func (z *ZIP) String() string {
 }
 
 func NewZIP(zw *zip.Writer) *ZIP {
-	return &ZIP{zw: zw}
+	return &ZIP{zw: zw, seen: make(map[string]bool)}
 }
 
 func NewZipFile(filename string) (*ZIP, error) {
@@ -35,7 +36,7 @@ func NewZipFile(filename string) (*ZIP, error) {
 		return nil, err
 	}
 	zw := zip.NewWriter(f)
-	return &ZIP{zw: zw, f: f}, nil
+	return &ZIP{zw: zw, f: f, seen: make(map[string]bool)}, nil
 }
 
 func (*ZIP) normalizePath(p string) string {
@@ -57,13 +58,53 @@ func (z *ZIP) Create(filename string) (io.WriteCloser, error) {
 }
 
 func (z *ZIP) create(filename string) (io.Writer, error) {
+	if err := z.ensureDir(filename); err != nil {
+		return nil, err
+	}
 	header := &zip.FileHeader{
 		Name:     filename,
 		Method:   zip.Deflate,
 		Modified: time.Now(),
 	}
 	return z.zw.CreateHeader(header)
+}
 
+func (z *ZIP) ensureDir(filename string) error {
+	if z.seen == nil {
+		z.seen = make(map[string]bool, 0)
+	}
+	var ensureFn = func(dir string) error {
+		if _, seen := z.seen[dir]; seen {
+			return nil
+		}
+		// not seen, create an empty directory.
+		if _, err := z.zw.Create(dir); err != nil {
+			return err
+		}
+		z.seen[dir] = true
+		return nil
+	}
+	dir, _ := path.Split(filename)
+	for _, d := range z.dirpath(dir) {
+		if err := ensureFn(d); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (*ZIP) dirpath(dir string) []string {
+	const sep = "/"
+	if len(dir) == 0 {
+		return nil
+	}
+	var ret []string
+	d := strings.TrimRight(dir, sep)
+	for len(d) > 0 {
+		ret = append([]string{strings.TrimRight(d, sep) + sep}, ret...)
+		d, _ = path.Split(strings.TrimRight(d, sep))
+	}
+	return ret
 }
 
 func (z *ZIP) WriteFile(filename string, data []byte, _ os.FileMode) error {

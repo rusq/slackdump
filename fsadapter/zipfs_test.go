@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"sync"
 	"testing"
@@ -221,6 +222,44 @@ func TestZIP_normalizePath(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := tt.z.normalizePath(tt.args.p); got != tt.want {
 				t.Errorf("ZIP.normalizePath() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestZIP_dirpath(t *testing.T) {
+	type args struct {
+		dir string
+	}
+	tests := []struct {
+		name string
+		z    *ZIP
+		args args
+		want []string
+	}{
+		{
+			"single",
+			&ZIP{},
+			args{"foo/"},
+			[]string{"foo/"},
+		},
+		{
+			"single",
+			&ZIP{},
+			args{"foo"},
+			[]string{"foo/"},
+		},
+		{
+			"two",
+			&ZIP{},
+			args{"foo/bar"},
+			[]string{"foo/", "foo/bar/"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.z.dirpath(tt.args.dir); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("ZIP.dirpath() = %v, want %v", got, tt.want)
 			}
 		})
 	}
