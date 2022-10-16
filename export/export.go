@@ -189,7 +189,7 @@ func (se *Export) exportConversation(ctx context.Context, userIdx structures.Use
 	ctx, task := trace.NewTask(ctx, "export.conversation")
 	defer task.End()
 
-	messages, err := se.sd.DumpRaw(ctx, ch.ID, se.opts.Oldest, se.opts.Latest, se.dl.ProcessFunc(ch.Name))
+	messages, err := se.sd.DumpRaw(ctx, ch.ID, se.opts.Oldest, se.opts.Latest, se.dl.ProcessFunc(validName(ch)))
 	if err != nil {
 		return fmt.Errorf("failed to dump %q (%s): %w", ch.Name, ch.ID, err)
 	}
