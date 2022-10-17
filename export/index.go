@@ -52,7 +52,11 @@ func createIndex(channels []slack.Channel, users types.Users, currentUserID stri
 	}
 
 	var idx = index{
-		Users: users,
+		Users:    users,
+		Channels: []slack.Channel{},
+		Groups:   []slack.Channel{},
+		MPIMs:    []slack.Channel{},
+		DMs:      []DM{},
 	}
 
 	for _, ch := range channels {
