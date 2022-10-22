@@ -229,7 +229,7 @@ Messages that were conveyed with the donations:
 .. _slack export viewer: https://github.com/hfaran/slack-export-viewer
 .. _releases: https://github.com/rusq/slackdump/releases/
 .. _Slackord2: https://github.com/thomasloupe/Slackord2
-.. _SlackLogViewer: https://github.com/thayakawa-gh/SlackLogViewer/actions/runs/3029568329
+.. _SlackLogViewer: https://github.com/thayakawa-gh/SlackLogViewer/releases
 
 ..
   bulletin board links
