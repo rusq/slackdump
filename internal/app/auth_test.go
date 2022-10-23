@@ -98,9 +98,10 @@ func TestSlackCreds_IsEmpty(t *testing.T) {
 		want   bool
 	}{
 		{"empty", fields{Token: "", Cookie: ""}, true},
-		{"empty", fields{Token: "x", Cookie: ""}, true},
-		{"empty", fields{Token: "", Cookie: "x"}, true},
-		{"empty", fields{Token: "x", Cookie: "x"}, false},
+		{"no token", fields{Token: "", Cookie: "x"}, true},
+		{"xoxc: token and cookie present", fields{Token: "xoxc-", Cookie: "x"}, false},
+		{"xoxc: no cookie is not ok", fields{Token: "xoxc-", Cookie: ""}, true},
+		{"other: no cookie is ok", fields{Token: "xoxp-", Cookie: ""}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -127,7 +128,6 @@ func TestInitProvider(t *testing.T) {
 
 	storedProv, _ := auth.NewValueAuth("xoxc", "xoxd")
 	returnedProv, _ := auth.NewValueAuth("a", "b")
-	// using default filer
 
 	type args struct {
 		ctx       context.Context

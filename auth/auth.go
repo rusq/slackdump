@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"strings"
 )
 
 // Type is the auth type.
@@ -45,7 +46,7 @@ func (c simpleProvider) Validate() error {
 	if c.Token == "" {
 		return ErrNoToken
 	}
-	if len(c.Cookie) == 0 {
+	if IsClientToken(c.Token) && len(c.Cookie) == 0 {
 		return ErrNoCookies
 	}
 	return nil
@@ -98,4 +99,8 @@ func Save(w io.Writer, p Provider) error {
 	}
 
 	return nil
+}
+
+func IsClientToken(tok string) bool {
+	return strings.HasPrefix(tok, "xoxc-")
 }
