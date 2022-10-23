@@ -11,7 +11,13 @@ package base
 import (
 	"context"
 	"flag"
+	"fmt"
+	"os"
+	"strings"
+	"sync"
 )
+
+var CmdName string
 
 // A Command is an implementation of a slackdump command.
 type Command struct {
@@ -30,4 +36,68 @@ type Command struct {
 
 	// Flag is a set of flags specific to this command.
 	Flag flag.FlagSet
+
+	// Commands lists the available commands and help topics.
+	// The order here is the order in which they are printed by 'go help'.
+	// Note that subcommands are in general best avoided.
+	Commands []*Command
+}
+
+var Slackdump = &Command{
+	UsageLine: "slackdump",
+	Long:      `Slackdump is a tool for exporting Slack conversations, emojis, users, etc.`,
+	// Commands initialised in main.
+}
+
+var exitStatus = 0
+var exitMu sync.Mutex
+
+func SetExitStatus(n int) {
+	exitMu.Lock()
+	if exitStatus < n {
+		exitStatus = n
+	}
+	exitMu.Unlock()
+}
+
+func Exit() {
+	os.Exit(exitStatus)
+}
+
+// Runnable reports whether the command can be run; otherwise
+// it is a documentation pseudo-command such as importpath.
+func (c *Command) Runnable() bool {
+	return c.Run != nil
+}
+
+// LongName returns the command's long name: all the words in the usage line between "go" and a flag or argument,
+func (c *Command) LongName() string {
+	name := c.UsageLine
+	if i := strings.Index(name, " ["); i >= 0 {
+		name = name[:i]
+	}
+	if name == "slackdump" {
+		return ""
+	}
+	return strings.TrimPrefix(name, "slackdump ")
+}
+
+// Name returns the command's short name: the last word in the usage line before a flag or argument.
+func (c *Command) Name() string {
+	name := c.LongName()
+	if i := strings.LastIndex(name, " "); i >= 0 {
+		name = name[i+1:]
+	}
+	return name
+}
+
+// Usage is the usage-reporting function, filled in by package main
+// but here for reference by other packages.
+var Usage func()
+
+func (c *Command) Usage() {
+	fmt.Fprintf(os.Stderr, "usage: %s\n", c.UsageLine)
+	fmt.Fprintf(os.Stderr, "Run 'slackdump help %s' for details.\n", c.LongName())
+	SetExitStatus(2)
+	Exit()
 }

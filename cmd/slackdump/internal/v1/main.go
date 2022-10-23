@@ -35,6 +35,15 @@ const (
 	bannerFmt = "Slackdump %[1]s Copyright (c) 2018-%[2]s rusq (build: %s)\n\n"
 )
 
+var CmdV1 = &base.Command{
+	Run:       runV1,
+	UsageLine: "slackdump v1",
+	Short:     "slackdump legacy mode",
+	Long: `
+V1 starts slackdump in legacy mode, that supports all legacy flags.	
+	`,
+}
+
 // defFilenameTemplate is the default file naming template.
 const defFilenameTemplate = "{{.ID}}{{ if .ThreadTS}}-{{.ThreadTS}}{{end}}"
 
@@ -67,7 +76,7 @@ func runV1(ctx context.Context, cmd *base.Command, args []string) {
 	banner(os.Stderr)
 	loadSecrets(secrets)
 
-	params, err := parseCmdLine(args[1:])
+	params, err := parseCmdLine(args[0:])
 	if err == config.ErrNothingToDo {
 		// if the user hasn't provided any required flags, let's offer
 		// an interactive prompt to fill them.
