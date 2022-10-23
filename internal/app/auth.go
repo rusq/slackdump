@@ -61,7 +61,7 @@ func (c SlackCreds) Type(ctx context.Context) (auth.Type, error) {
 }
 
 func (c SlackCreds) IsEmpty() bool {
-	return c.Token == "" || c.Cookie == ""
+	return c.Token == "" || (auth.IsClientToken(c.Token) && c.Cookie == "")
 }
 
 // AuthProvider returns the appropriate auth Provider depending on the values
