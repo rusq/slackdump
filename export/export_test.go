@@ -194,6 +194,8 @@ func Test_serializeToFS(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		defer arc.Close()
+
 		r, err := arc.Open("test.json")
 		if err != nil {
 			t.Fatal(err)

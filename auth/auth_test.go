@@ -81,10 +81,17 @@ func TestSave(t *testing.T) {
 			true,
 		},
 		{
-			"cookies missing",
-			args{ValueAuth{simpleProvider{Token: "token_value", Cookie: []http.Cookie{}}}},
+			"cookies missing on client token",
+			args{ValueAuth{simpleProvider{Token: "xoxc-blah", Cookie: []http.Cookie{}}}},
 			"",
 			true,
+		},
+		{
+			"cookies missing on non-client token",
+			args{ValueAuth{simpleProvider{Token: "xoxp-blah", Cookie: []http.Cookie{}}}},
+			`{"Token":"xoxp-blah","Cookie":[]}
+`,
+			false,
 		},
 		{
 			"token and cookie are missing",

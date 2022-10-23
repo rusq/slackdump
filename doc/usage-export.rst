@@ -306,4 +306,4 @@ slack-like GUI.
 .. _Slackord2: https://github.com/thomasloupe/Slackord2
 .. _issue: https://github.com/rusq/slackdump/issues
 .. _SlackLogViewer: https://github.com/thayakawa-gh/SlackLogViewer
-.. _Download SlackLogViewer: https://github.com/thayakawa-gh/SlackLogViewer/actions/runs/3029568329
+.. _Download SlackLogViewer: https://github.com/thayakawa-gh/SlackLogViewer/releases

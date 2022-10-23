@@ -211,7 +211,7 @@ Messages that were conveyed with the donations:
 - 25/01/2022: Stay away from `TheSignChef.com`_, ya hear, they don't pay what
   they owe to their employees.
 
-.. _Application: https://stackoverflow.com/questions/12908881/how-to-copy-cookies-in-google-chrome
+
 .. _`Buy me a cup of tea`: https://www.paypal.com/donate/?hosted_button_id=GUHCLSM7E54ZW
 .. _Telegram: https://t.me/slackdump
 .. _Slack: https://slackdump.herokuapp.com/
@@ -229,13 +229,12 @@ Messages that were conveyed with the donations:
 .. _slack export viewer: https://github.com/hfaran/slack-export-viewer
 .. _releases: https://github.com/rusq/slackdump/releases/
 .. _Slackord2: https://github.com/thomasloupe/Slackord2
-.. _SlackLogViewer: https://github.com/thayakawa-gh/SlackLogViewer/actions/runs/3029568329
+.. _SlackLogViewer: https://github.com/thayakawa-gh/SlackLogViewer/releases
 
 ..
   bulletin board links
 
 .. _`TheSignChef.com`: https://www.glassdoor.com.au/Reviews/TheSignChef-com-Reviews-E793259.htm
-.. _`Get cookies.txt Chrome extension`: https://chrome.google.com/webstore/detail/get-cookiestxt/bgaddhkoddajcdgocldbbfleckgcbcid
 
 .. |go ref| image:: https://pkg.go.dev/badge/github.com/rusq/slackdump/v2.svg
               :alt: Go Reference

@@ -16,19 +16,16 @@ TOKEN
    #. In Firefox, under `Tools -> Browser Tools -> Web Developer tools` in the menu bar
    #. In Chrome, click the 'three dots' button to the right of the URL Bar, then select
       'More Tools -> Developer Tools'
-#. Go to the Network tab
-#. In the toolbar, switch to ``Fetch/XHR`` view.
-#. Open any channel or private conversation in Slack.  You'll see a
-   bunch of stuff appearing in Network panel.
-#. In the list of requests, find the one starting with
-   ``channels.prefs.get?``, click it and click on *Headers* tab in the
-   opened pane.
-#. Scroll down, until you see **Form Data**
-#. Grab the **token:** value (it starts with ``xoxc-``), by right
-   clicking the value and choosing "Copy Value".
+#. Switch to the console tab.
+#. Paste the following snippet and press ENTER to execute::
 
-**If you don't see the token value** in Google Chrome - switch to `Payload` tab,
-your token is waiting for you there.
+     JSON.parse(localStorage.localConfig_v2).teams[document.location.pathname.match(/^\/client\/(T[A-Z0-9]+)/)[1]].token
+
+#. Token value is printed right after the executed command (it starts with
+   "``xoxc-``"), save it somewhere for now.
+
+.. NOTE:: if you're having problems running the code snippet above, you can
+          get the token the conventional way, see Troubleshooting_ section below.
 
 COOKIE
 ++++++
@@ -83,6 +80,31 @@ Setting up the application
 
 #. Save the file and close the editor.
 
+Troubleshooting
+~~~~~~~~~~~~~~~
+
+Getting token the hard way
+++++++++++++++++++++++++++
+
+#. Open your browser's *Developer Console*, as described in the TOKEN_ section
+   steps above.
+#. Go to the Network tab
+#. In the toolbar, switch to ``Fetch/XHR`` view.
+#. Open any channel or private conversation in Slack.  You'll see a
+   bunch of stuff appearing in Network panel.
+#. In the list of requests, find the one starting with
+   ``channels.prefs.get?``, click it and click on *Headers* tab in the
+   opened pane.
+#. Scroll down, until you see **Form Data**
+#. Grab the **token:** value (it starts with "``xoxc-``"), by right
+   clicking the value and choosing "Copy Value".
+
+**If you don't see the token value** in Google Chrome - switch to `Payload` tab,
+your token is waiting for you there.
+
+
 [Index_]
 
 .. _Index: README.rst
+.. _Application: https://stackoverflow.com/questions/12908881/how-to-copy-cookies-in-google-chrome
+.. _`Get cookies.txt Chrome extension`: https://chrome.google.com/webstore/detail/get-cookiestxt/bgaddhkoddajcdgocldbbfleckgcbcid

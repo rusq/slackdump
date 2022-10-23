@@ -24,16 +24,19 @@ func NewValueAuth(token string, cookie string) (ValueAuth, error) {
 	if token == "" {
 		return ValueAuth{}, ErrNoToken
 	}
-	if cookie == "" {
-		return ValueAuth{}, ErrNoCookies
-	}
-	return ValueAuth{simpleProvider{
+	c := ValueAuth{simpleProvider{
 		Token: token,
-		Cookie: []http.Cookie{
+	}}
+	if IsClientToken(token) {
+		if len(cookie) == 0 {
+			return ValueAuth{}, ErrNoCookies
+		}
+		c.Cookie = []http.Cookie{
 			makeCookie("d", cookie),
 			makeCookie("d-s", fmt.Sprintf("%d", time.Now().Unix()-10)),
-		},
-	}}, nil
+		}
+	}
+	return c, nil
 }
 
 func (ValueAuth) Type() Type {

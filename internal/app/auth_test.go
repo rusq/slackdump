@@ -55,16 +55,19 @@ func TestSlackCreds_Type(t *testing.T) {
 	type args struct {
 		ctx context.Context
 	}
-	tests := []struct {
+	type test struct {
 		name    string
 		fields  fields
 		args    args
 		want    auth.Type
 		wantErr bool
-	}{
-		{"browser", fields{Token: "", Cookie: ""}, args{context.Background()}, auth.TypeBrowser, false},
+	}
+	tests := []test{
 		{"value", fields{Token: "t", Cookie: "c"}, args{context.Background()}, auth.TypeValue, false},
-		{"browser", fields{Token: "t", Cookie: testFile}, args{context.Background()}, auth.TypeCookieFile, false},
+		{"cookie file", fields{Token: "t", Cookie: testFile}, args{context.Background()}, auth.TypeCookieFile, false},
+	}
+	if !isWSL {
+		tests = append(tests, test{"browser", fields{Token: "", Cookie: ""}, args{context.Background()}, auth.TypeBrowser, false})
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -95,9 +98,10 @@ func TestSlackCreds_IsEmpty(t *testing.T) {
 		want   bool
 	}{
 		{"empty", fields{Token: "", Cookie: ""}, true},
-		{"empty", fields{Token: "x", Cookie: ""}, true},
-		{"empty", fields{Token: "", Cookie: "x"}, true},
-		{"empty", fields{Token: "x", Cookie: "x"}, false},
+		{"no token", fields{Token: "", Cookie: "x"}, true},
+		{"xoxc: token and cookie present", fields{Token: "xoxc-", Cookie: "x"}, false},
+		{"xoxc: no cookie is not ok", fields{Token: "xoxc-", Cookie: ""}, true},
+		{"other: no cookie is ok", fields{Token: "xoxp-", Cookie: ""}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -124,7 +128,6 @@ func TestInitProvider(t *testing.T) {
 
 	storedProv, _ := auth.NewValueAuth("xoxc", "xoxd")
 	returnedProv, _ := auth.NewValueAuth("a", "b")
-	// using default filer
 
 	type args struct {
 		ctx       context.Context
@@ -462,25 +465,4 @@ func TestAuthReset(t *testing.T) {
 			t.Errorf("expected the %s to be removed, but it is there", testFile)
 		}
 	})
-}
-
-func Test_isWSL(t *testing.T) {
-	tests := []struct {
-		name         string
-		wslDistroVal string
-		want         bool
-	}{
-		{"yes WSL", "Ubuntu", true},
-		{"not WSL", "", false},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			os.Setenv("WSL_DISTRO_NAME", tt.wslDistroVal)
-			defer os.Unsetenv("WSL_DISTRO_NAME")
-
-			if got := isWSL(); got != tt.want {
-				t.Errorf("isWSL() = %v, want %v", got, tt.want)
-			}
-		})
-	}
 }
