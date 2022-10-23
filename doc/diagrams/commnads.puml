@@ -1,0 +1,36 @@
+@startmindmap command-hierarchy
+
+* SLACKDUMP
+**[#orange] dump
+*** conversation list
+**[#orange] list
+*** conversations
+*** users
+*** list format
+**** json
+**** text
+**[#orange] export
+*** output
+**** directory
+**** zip file
+*** Conversations
+**** selective
+**** all
+****[#lightgray] bookmarked
+*** dump files
+**** file format
+***** standard
+***** mattermost
+--[#orange] emoji
+--- output
+---- directory
+---- zip file
+--[#lightgray] workspace
+--- authenticate
+---- EZ-login 3000
+---- Token[+Cookie]
+--- list
+--- switch
+--- delete
+---- all
+@end
