@@ -9,9 +9,11 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"runtime"
 	"runtime/trace"
 	"syscall"
 
+	"github.com/fatih/color"
 	"github.com/joho/godotenv"
 	"github.com/rusq/dlog"
 	"github.com/rusq/osenv/v2"
@@ -19,7 +21,7 @@ import (
 	"github.com/slack-go/slack"
 
 	"github.com/rusq/slackdump/v2"
-	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/base"
+	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v2/export"
 	"github.com/rusq/slackdump/v2/internal/app"
 	"github.com/rusq/slackdump/v2/internal/app/config"
@@ -36,9 +38,10 @@ const (
 )
 
 var CmdV1 = &base.Command{
-	Run:       runV1,
-	UsageLine: "slackdump v1",
-	Short:     "slackdump legacy mode",
+	Run:         runV1,
+	UsageLine:   "slackdump v1",
+	Short:       "slackdump legacy mode",
+	CustomFlags: true,
 	Long: `
 V1 starts slackdump in legacy mode, that supports all legacy flags.	
 	`,
@@ -223,12 +226,19 @@ func loadSecrets(files []string) {
 	}
 }
 
-// parseCmdLine parses the command line arguments.
-func parseCmdLine(args []string) (params, error) {
-	const zipHint = "\n(add .zip extension to save to a ZIP file)"
+func executable() string {
+	exe, err := os.Executable()
+	if err != nil {
+		exe = "slackdump"
+		if runtime.GOOS == "windows" {
+			exe += ".exe"
+		}
+	}
+	return "." + string(os.PathSeparator) + filepath.Base(exe)
+}
 
-	fs := flag.NewFlagSet("", flag.ContinueOnError)
-	fs.Usage = func() {
+func usage(fs *flag.FlagSet) func() {
+	return func() {
 		fmt.Fprintf(
 			flag.CommandLine.Output(),
 			"Slackdump saves conversations, threads and files from Slack.\n\n"+
@@ -241,7 +251,27 @@ func parseCmdLine(args []string) (params, error) {
 				"flags:\n",
 			filepath.Base(os.Args[0]))
 		fs.PrintDefaults()
+		fmt.Fprint(flag.CommandLine.Output(), color.HiYellowString(`
+---------------------------------------------------------------
+ATTENTION:  v1 command will be deprecated in v2.4.0 and removed
+            in v2.5.0.
+Run:
+	`+executable()+` help
+
+to see the new command line interface help, or run without
+parameters to use the Slackdump Wizard.
+---------------------------------------------------------------
+`),
+		)
 	}
+}
+
+// parseCmdLine parses the command line arguments.
+func parseCmdLine(args []string) (params, error) {
+	const zipHint = "\n(add .zip extension to save to a ZIP file)"
+
+	fs := flag.NewFlagSet("", flag.ContinueOnError)
+	fs.Usage = usage(fs)
 
 	var p = params{
 		appCfg: config.Params{

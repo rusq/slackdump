@@ -4,28 +4,34 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"log"
 	"os"
 	"runtime/trace"
 	"strings"
 
-	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/base"
-	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/help"
+	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/cfg"
+	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/golang/base"
+	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/golang/help"
+	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/list"
 	v1 "github.com/rusq/slackdump/v2/cmd/slackdump/internal/v1"
+	"github.com/rusq/tracer"
 )
 
 func init() {
 	base.Slackdump.Commands = []*base.Command{
 		v1.CmdV1,
+		list.CmdList,
 	}
 }
 
 func main() {
 	flag.Usage = base.Usage
 	flag.Parse()
-	log.SetFlags(0)
 
 	args := flag.Args()
+	if len(args) < 1 {
+		base.Usage()
+	}
+
 	base.CmdName = args[0]
 	if args[0] == "help" {
 		help.Help(os.Stdout, args[1:])
@@ -80,11 +86,49 @@ func mainUsage() {
 }
 
 func invoke(cmd *base.Command, args []string) {
-	cmd.Flag.Usage = func() { cmd.Usage() }
-	cmd.Flag.Parse(args[1:])
-	args = cmd.Flag.Args()
+	if cmd.CustomFlags {
+		args = args[1:]
+	} else {
+		cfg.SetBaseFlags(&cmd.Flag)
+		cmd.Flag.Usage = func() { cmd.Usage() }
+		cmd.Flag.Parse(args[1:])
+		args = cmd.Flag.Args()
+	}
+
 	// maybe start trace
-	ctx, task := trace.NewTask(context.Background(), fmt.Sprint("Running ", cmd.Name(), " command"))
+	if err := initTrace(cfg.TraceFile); err != nil {
+		fmt.Fprintf(os.Stderr, "failed to start trace: %s", err)
+		base.SetExitStatus(1)
+		return
+	}
+
+	ctx, task := trace.NewTask(context.Background(), "command")
 	defer task.End()
+	trace.Log(ctx, "command", fmt.Sprint("Running ", cmd.Name(), " command"))
 	cmd.Run(ctx, cmd, args)
+}
+
+// initTrace initialises the tracing.  If the filename is not empty, the file
+// will be opened, trace will write to that file.  Returns the stop function
+// that must be called in the deferred call.  If the error is returned the stop
+// function is nil.
+func initTrace(filename string) error {
+	if filename == "" {
+		return nil
+	}
+
+	fmt.Fprintf(os.Stderr, "trace will be written to %q", filename)
+
+	trc := tracer.New(filename)
+	if err := trc.Start(); err != nil {
+		return nil
+	}
+
+	stop := func() {
+		if err := trc.End(); err != nil {
+			fmt.Fprintf(os.Stderr, "failed to write the trace file: %s", err)
+		}
+	}
+	base.AtExit(stop)
+	return nil
 }

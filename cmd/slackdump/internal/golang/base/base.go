@@ -37,6 +37,15 @@ type Command struct {
 	// Flag is a set of flags specific to this command.
 	Flag flag.FlagSet
 
+	// CustomFlags indicates that the command will do its own
+	// flag parsing.
+	CustomFlags bool
+
+	// PrintFlags indicates that generic help handler should print the
+	// flags in the flagset.  Set it to false, if a Long lists all the flags.
+	// It only matters for the commands that have no subcommands.
+	PrintFlags bool
+
 	// Commands lists the available commands and help topics.
 	// The order here is the order in which they are printed by 'go help'.
 	// Note that subcommands are in general best avoided.
@@ -60,7 +69,16 @@ func SetExitStatus(n int) {
 	exitMu.Unlock()
 }
 
+var atExitFuncs []func()
+
+func AtExit(f func()) {
+	atExitFuncs = append(atExitFuncs, f)
+}
+
 func Exit() {
+	for _, f := range atExitFuncs {
+		f()
+	}
 	os.Exit(exitStatus)
 }
 
