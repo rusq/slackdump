@@ -1,4 +1,4 @@
-// Copyright 2022 rusq, GPL 3.0.
+// This package is based on the Golang source code with some modifications.
 //
 // Copyright 2017 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style

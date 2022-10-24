@@ -1,11 +1,10 @@
+// This package is based on the Golang source code with some modifications.
+//
+// Copyright 2017 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 // Package base defines shared basic pieces of the slackdump command.
-//
-// The command subsystem is based on golang's `go` command implementation, which
-// is BSD-licensed:
-//
-//	Copyright 2017 The Go Authors. All rights reserved.
-//	Use of this source code is governed by a BSD-style
-//	license that can be found in the LICENSE file.
 package base
 
 import (

@@ -12,6 +12,7 @@ import (
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/golang/help"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/list"
+	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/man"
 	v1 "github.com/rusq/slackdump/v2/cmd/slackdump/internal/v1"
 	"github.com/rusq/tracer"
 )
@@ -20,6 +21,8 @@ func init() {
 	base.Slackdump.Commands = []*base.Command{
 		v1.CmdV1,
 		list.CmdList,
+
+		man.ManLogin,
 	}
 }
 

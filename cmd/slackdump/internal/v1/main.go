@@ -43,7 +43,7 @@ var CmdV1 = &base.Command{
 	Short:       "slackdump legacy mode",
 	CustomFlags: true,
 	Long: `
-V1 starts slackdump in legacy mode, that supports all legacy flags.	
+v1 command starts slackdump in legacy mode, that supports all legacy flags.	
 	`,
 }
 
