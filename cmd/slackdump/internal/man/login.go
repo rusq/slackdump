@@ -22,7 +22,7 @@ Manual:
 
 ## EZ-Login 3000 ##
 
-If the token flag is not specified, Slackdump starts the EZ-Login 3000.  The
+If the -token flag is not specified, Slackdump starts the EZ-Login 3000.  The
 process of login is as follows:
 
   - You will be asked the Slack workspace name that you wish to login to;

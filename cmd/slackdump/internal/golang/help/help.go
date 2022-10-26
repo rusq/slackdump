@@ -98,7 +98,7 @@ Args:
 		tmpl(os.Stdout, helpTemplate, cmd)
 		if !cmd.CustomFlags && cmd.PrintFlags {
 			fmt.Fprintln(os.Stdout, "\nWhere flags are:")
-			cfg.SetBaseFlags(&cmd.Flag)
+			cfg.SetBaseFlags(&cmd.Flag, cmd.FlagMask)
 			cmd.Flag.PrintDefaults()
 		}
 	}

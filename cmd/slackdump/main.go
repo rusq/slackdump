@@ -14,6 +14,7 @@ import (
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/list"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/man"
 	v1 "github.com/rusq/slackdump/v2/cmd/slackdump/internal/v1"
+	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/wizard"
 	"github.com/rusq/tracer"
 )
 
@@ -21,6 +22,7 @@ func init() {
 	base.Slackdump.Commands = []*base.Command{
 		v1.CmdV1,
 		list.CmdList,
+		wizard.CmdWizard,
 
 		man.ManLogin,
 	}
@@ -92,7 +94,7 @@ func invoke(cmd *base.Command, args []string) {
 	if cmd.CustomFlags {
 		args = args[1:]
 	} else {
-		cfg.SetBaseFlags(&cmd.Flag)
+		cfg.SetBaseFlags(&cmd.Flag, cmd.FlagMask)
 		cmd.Flag.Usage = func() { cmd.Usage() }
 		cmd.Flag.Parse(args[1:])
 		args = cmd.Flag.Args()

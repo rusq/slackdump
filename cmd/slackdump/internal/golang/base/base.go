@@ -14,6 +14,8 @@ import (
 	"os"
 	"strings"
 	"sync"
+
+	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/cfg"
 )
 
 var CmdName string
@@ -23,6 +25,8 @@ type Command struct {
 	// Run runs the command.
 	// The args are the arguments after the command name.
 	Run func(ctx context.Context, cmd *Command, args []string)
+
+	Wizard func(ctx context.Context, cmd *Command, args []string) error
 
 	// UsageLine is the one-line usage message.
 	UsageLine string
@@ -39,6 +43,9 @@ type Command struct {
 	// CustomFlags indicates that the command will do its own
 	// flag parsing.
 	CustomFlags bool
+
+	// FlagMask specifies the flags to be used with the command.
+	FlagMask cfg.FlagMask
 
 	// PrintFlags indicates that generic help handler should print the
 	// flags in the flagset.  Set it to false, if a Long lists all the flags.

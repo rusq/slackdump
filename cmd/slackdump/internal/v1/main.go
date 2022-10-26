@@ -39,12 +39,20 @@ const (
 
 var CmdV1 = &base.Command{
 	Run:         runV1,
+	Wizard:      nil, //initialised in init
 	UsageLine:   "slackdump v1",
 	Short:       "slackdump legacy mode",
 	CustomFlags: true,
 	Long: `
 v1 command starts slackdump in legacy mode, that supports all legacy flags.	
 	`,
+}
+
+func init() {
+	CmdV1.Wizard = func(ctx context.Context, cmd *base.Command, args []string) error {
+		runV1(ctx, cmd, args)
+		return nil
+	}
 }
 
 // defFilenameTemplate is the default file naming template.
