@@ -8,21 +8,29 @@ import (
 	"runtime/trace"
 	"strings"
 
+	"github.com/rusq/dlog"
+	"github.com/rusq/tracer"
+
+	"github.com/rusq/slackdump/v2/auth"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/cfg"
+	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/emoji"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/golang/help"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/list"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/man"
 	v1 "github.com/rusq/slackdump/v2/cmd/slackdump/internal/v1"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/wizard"
-	"github.com/rusq/tracer"
+	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/workspace"
+	"github.com/rusq/slackdump/v2/internal/app/appauth"
 )
 
 func init() {
 	base.Slackdump.Commands = []*base.Command{
-		v1.CmdV1,
-		list.CmdList,
 		wizard.CmdWizard,
+		list.CmdList,
+		emoji.CmdEmoji,
+		workspace.CmdWorkspace,
+		v1.CmdV1,
 
 		man.ManLogin,
 	}
@@ -53,7 +61,7 @@ BigCmdLoop:
 				args = args[1:]
 				if len(args) == 0 {
 					help.PrintUsage(os.Stderr, bigCmd)
-					base.SetExitStatus(2)
+					base.SetExitStatus(base.SHelpRequested)
 					base.Exit()
 				}
 				if args[0] == "help" {
@@ -76,7 +84,7 @@ BigCmdLoop:
 			helpArg = " " + base.CmdName[:i]
 		}
 		fmt.Fprintf(os.Stderr, "slackdump %s: unknown command\nRun 'go help%s' for usage.\n", base.CmdName, helpArg)
-		base.SetExitStatus(2)
+		base.SetExitStatus(base.SInvalidParameters)
 		base.Exit()
 	}
 }
@@ -103,12 +111,23 @@ func invoke(cmd *base.Command, args []string) {
 	// maybe start trace
 	if err := initTrace(cfg.TraceFile); err != nil {
 		fmt.Fprintf(os.Stderr, "failed to start trace: %s", err)
-		base.SetExitStatus(1)
+		base.SetExitStatus(base.SGenericError)
 		return
 	}
 
 	ctx, task := trace.NewTask(context.Background(), "command")
 	defer task.End()
+	if cmd.RequireAuth {
+		trace.Logf(ctx, "invoke", "command %s requires auth", cmd.Name())
+		var err error
+		ctx, err = authenticate(ctx)
+		if err != nil {
+			dlog.Printf("auth error: %s", err)
+			trace.Logf(ctx, "invoke", "auth error: %s", err)
+			base.SetExitStatus(base.SAuthError)
+			return
+		}
+	}
 	trace.Log(ctx, "command", fmt.Sprint("Running ", cmd.Name(), " command"))
 	cmd.Run(ctx, cmd, args)
 }
@@ -122,7 +141,7 @@ func initTrace(filename string) error {
 		return nil
 	}
 
-	fmt.Fprintf(os.Stderr, "trace will be written to %q", filename)
+	dlog.Printf("trace will be written to %q", filename)
 
 	trc := tracer.New(filename)
 	if err := trc.Start(); err != nil {
@@ -131,9 +150,17 @@ func initTrace(filename string) error {
 
 	stop := func() {
 		if err := trc.End(); err != nil {
-			fmt.Fprintf(os.Stderr, "failed to write the trace file: %s", err)
+			dlog.Printf("failed to write the trace file: %s", err)
 		}
 	}
 	base.AtExit(stop)
 	return nil
+}
+
+func authenticate(ctx context.Context) (context.Context, error) {
+	prov, err := appauth.InitProvider(ctx, cfg.CacheDir(), cfg.Workspace, appauth.SlackCreds{cfg.SlackToken, cfg.SlackCookie})
+	if err != nil {
+		return nil, err
+	}
+	return auth.WithContext(ctx, prov), nil
 }

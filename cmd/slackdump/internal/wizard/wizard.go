@@ -7,9 +7,10 @@ import (
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/rusq/dlog"
-	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/golang/base"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
+
+	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/golang/base"
 )
 
 var CmdWizard = &base.Command{
@@ -19,6 +20,7 @@ var CmdWizard = &base.Command{
 	Long: `
 Slackdump Wizard guides through the dumping process.
 `,
+	RequireAuth: true,
 }
 
 var titlecase = cases.Title(language.English)
@@ -53,8 +55,7 @@ func runWizard(ctx context.Context, cmd *base.Command, args []string) {
 
 	menu := makeMenu(baseCommands, "", "What would you like to do?")
 	if err := show(menu, func(cmd *base.Command) error {
-		cmd.Run(ctx, cmd, args)
-		return nil
+		return cmd.Wizard(ctx, cmd, args)
 	}); err != nil {
 		dlog.Println("error running wizard: %s", err)
 		base.SetExitStatus(1)

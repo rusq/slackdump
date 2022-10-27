@@ -6,6 +6,8 @@ import (
 	"os"
 
 	"github.com/rusq/osenv/v2"
+
+	"github.com/rusq/slackdump/v2"
 )
 
 var (
@@ -13,9 +15,15 @@ var (
 	LogFile   string
 	Verbose   bool
 
-	ConfigFile    string
-	SlackToken    string
-	SlackCookie   string
+	ConfigFile string
+	BaseLoc    string // base location - directory or a zip file.
+	cacheDir   string // cache directory
+	Workspace  string
+
+	SlackToken   string
+	SlackCookie  string
+	SlackOptions = slackdump.DefOptions
+
 	DownloadFiles bool
 )
 
@@ -26,6 +34,7 @@ const (
 	OmitAuthFlags FlagMask = 1 << iota
 	OmitDownloadFlag
 	OmitConfigFlag
+	OmitBaseLoc
 )
 
 // SetBaseFlags sets base flags
@@ -45,4 +54,9 @@ func SetBaseFlags(fs *flag.FlagSet, mask FlagMask) {
 	if mask&OmitConfigFlag == 0 {
 		fs.StringVar(&ConfigFile, "config", "", "configuration `file` with API limits overrides")
 	}
+	if mask&OmitBaseLoc == 0 {
+		fs.StringVar(&BaseLoc, "base", os.Getenv("BASE_LOC"), "a `location` (directory or a ZIP file) on a local disk where the files will be saved.")
+	}
+	fs.StringVar(&cacheDir, "cache-dir", osenv.Value("CACHE_DIR", CacheDir()), "cache `directory` location")
+	fs.StringVar(&Workspace, "workspace", osenv.Value("SLACK_WORKSPACE", ""), "Slack workspace to use") // TODO: load from configuration.
 }

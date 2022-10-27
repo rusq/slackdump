@@ -21,9 +21,11 @@ import (
 	"github.com/slack-go/slack"
 
 	"github.com/rusq/slackdump/v2"
+	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v2/export"
 	"github.com/rusq/slackdump/v2/internal/app"
+	"github.com/rusq/slackdump/v2/internal/app/appauth"
 	"github.com/rusq/slackdump/v2/internal/app/config"
 	"github.com/rusq/slackdump/v2/internal/structures"
 	"github.com/rusq/slackdump/v2/logger"
@@ -73,7 +75,7 @@ var secrets = []string{".env", ".env.txt", "secrets.txt"}
 // params is the command line parameters
 type params struct {
 	appCfg    config.Params
-	creds     app.SlackCreds
+	creds     appauth.SlackCreds
 	authReset bool
 
 	traceFile string // trace file
@@ -109,7 +111,7 @@ func runV1(ctx context.Context, cmd *base.Command, args []string) {
 		return
 	}
 	if params.authReset {
-		if err := app.AuthReset(params.appCfg.Options.CacheDir); err != nil {
+		if err := appauth.AuthReset(params.appCfg.Options.CacheDir); err != nil {
 			if !os.IsNotExist(err) {
 				dlog.Printf("auth reset error: %s", err)
 			}
@@ -145,11 +147,11 @@ func run(ctx context.Context, p params) error {
 	ctx, task := trace.NewTask(ctx, "main.run")
 	defer task.End()
 
-	provider, err := app.InitProvider(ctx, p.appCfg.Options.CacheDir, "", p.creds)
+	provider, err := appauth.InitProvider(ctx, p.appCfg.Options.CacheDir, "", p.creds)
 	if err != nil {
 		return err
 	} else {
-		p.creds = app.SlackCreds{}
+		p.creds = appauth.SlackCreds{}
 	}
 
 	// trace startup parameters for debugging
@@ -337,7 +339,7 @@ func parseCmdLine(args []string) (params, error) {
 	fs.IntVar(&p.appCfg.Options.RepliesPerReq, "rpr", slackdump.DefOptions.RepliesPerReq, "number of `replies` per request.")
 
 	// - cache controls
-	fs.StringVar(&p.appCfg.Options.CacheDir, "cache-dir", app.CacheDir(), "slackdump cache directory")
+	fs.StringVar(&p.appCfg.Options.CacheDir, "cache-dir", cfg.CacheDir(), "slackdump cache directory")
 	fs.StringVar(&p.appCfg.Options.UserCacheFilename, "user-cache-file", slackdump.DefOptions.UserCacheFilename, "user cache file`name`.")
 	fs.DurationVar(&p.appCfg.Options.MaxUserCacheAge, "user-cache-age", slackdump.DefOptions.MaxUserCacheAge, "user cache lifetime `duration`. Set this to 0 to disable cache.")
 	fs.BoolVar(&p.appCfg.Options.NoUserCache, "no-user-cache", slackdump.DefOptions.NoUserCache, "skip fetching users")

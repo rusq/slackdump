@@ -12,13 +12,14 @@ import (
 	"net/url"
 	"os"
 
-	"github.com/rusq/slackdump/v2/internal/app"
+	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/cfg"
+	"github.com/rusq/slackdump/v2/internal/app/appauth"
 	"github.com/rusq/slackdump/v2/internal/chttp"
 	"github.com/rusq/slackdump/v2/internal/structures"
 )
 
 type params struct {
-	creds     app.SlackCreds
+	creds     appauth.SlackCreds
 	output    string
 	workspace string
 
@@ -63,7 +64,7 @@ const (
 )
 
 func run(ctx context.Context, p params) error {
-	prov, err := app.InitProvider(ctx, app.CacheDir(), p.workspace, p.creds)
+	prov, err := appauth.InitProvider(ctx, cfg.CacheDir(), p.workspace, p.creds)
 	if err != nil {
 		return err
 	}

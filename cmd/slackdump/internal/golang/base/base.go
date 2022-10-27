@@ -52,6 +52,10 @@ type Command struct {
 	// It only matters for the commands that have no subcommands.
 	PrintFlags bool
 
+	// RequireAuth is a flag that indicates that the command requires
+	// authentication.
+	RequireAuth bool
+
 	// Commands lists the available commands and help topics.
 	// The order here is the order in which they are printed by 'go help'.
 	// Note that subcommands are in general best avoided.
@@ -64,7 +68,7 @@ var Slackdump = &Command{
 	// Commands initialised in main.
 }
 
-var exitStatus = 0
+var exitStatus = SNoError
 var exitMu sync.Mutex
 
 func SetExitStatus(n int) {

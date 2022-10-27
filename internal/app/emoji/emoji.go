@@ -27,6 +27,7 @@ import (
 	"sync"
 
 	"github.com/rusq/dlog"
+
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/auth"
 	"github.com/rusq/slackdump/v2/fsadapter"
@@ -47,7 +48,7 @@ func Download(ctx context.Context, cfg config.Params, prov auth.Provider) error 
 	if err != nil {
 		return err
 	}
-	return download(ctx, sess, cfg.Output.Base, cfg.Emoji.FailOnError)
+	return Dl(ctx, sess, cfg.Output.Base, cfg.Emoji.FailOnError)
 }
 
 //go:generate mockgen -source emoji.go -destination emoji_mock_test.go -package emoji
@@ -55,7 +56,7 @@ type emojidumper interface {
 	DumpEmojis(ctx context.Context) (map[string]string, error)
 }
 
-func download(ctx context.Context, sess emojidumper, base string, ignoreErrors bool) error {
+func Dl(ctx context.Context, sess emojidumper, base string, ignoreErrors bool) error {
 	fsa, err := fsadapter.ForFilename(base)
 	if err != nil {
 		return fmt.Errorf("unable to initialise adapter for %s: %w", base, err)

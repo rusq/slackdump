@@ -101,6 +101,7 @@ func Save(w io.Writer, p Provider) error {
 	return nil
 }
 
+// IsClientToken returns true if the tok is a web-client token.
 func IsClientToken(tok string) bool {
 	return strings.HasPrefix(tok, "xoxc-")
 }

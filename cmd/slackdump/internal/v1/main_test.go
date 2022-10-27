@@ -8,7 +8,8 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/rusq/slackdump/v2"
-	"github.com/rusq/slackdump/v2/internal/app"
+	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/cfg"
+	"github.com/rusq/slackdump/v2/internal/app/appauth"
 	"github.com/rusq/slackdump/v2/internal/app/config"
 	"github.com/rusq/slackdump/v2/internal/structures"
 )
@@ -43,7 +44,7 @@ func Test_output_validFormat(t *testing.T) {
 
 func Test_checkParameters(t *testing.T) {
 	// setup
-	slackdump.DefOptions.CacheDir = app.CacheDir()
+	slackdump.DefOptions.CacheDir = cfg.CacheDir()
 
 	// test
 	type args struct {
@@ -59,7 +60,7 @@ func Test_checkParameters(t *testing.T) {
 			"channels",
 			args{[]string{"-c", "-t", "x", "-cookie", "d"}},
 			params{
-				creds: app.SlackCreds{
+				creds: appauth.SlackCreds{
 					Token:  "x",
 					Cookie: "d",
 				},
@@ -79,7 +80,7 @@ func Test_checkParameters(t *testing.T) {
 			"users",
 			args{[]string{"-u", "-t", "x", "-cookie", "d"}},
 			params{
-				creds: app.SlackCreds{
+				creds: appauth.SlackCreds{
 					Token:  "x",
 					Cookie: "d",
 				},

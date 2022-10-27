@@ -1,4 +1,4 @@
-package app
+package cfg
 
 import (
 	"os"
@@ -22,5 +22,8 @@ func ucd(ucdFn func() (string, error)) string {
 }
 
 func CacheDir() string {
+	if cacheDir == "" {
+
+	}
 	return ucd(os.UserCacheDir)
 }

@@ -334,7 +334,7 @@ func Test_download(t *testing.T) {
 			setGlobalFetchFn(tt.fetchFn)
 			sess := NewMockemojidumper(gomock.NewController(t))
 			tt.expect(sess)
-			if err := download(tt.args.ctx, sess, tt.args.output, tt.args.failFast); (err != nil) != tt.wantErr {
+			if err := Dl(tt.args.ctx, sess, tt.args.output, tt.args.failFast); (err != nil) != tt.wantErr {
 				t.Errorf("download() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
