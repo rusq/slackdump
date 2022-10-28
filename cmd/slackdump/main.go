@@ -8,6 +8,7 @@ import (
 	"runtime/trace"
 	"strings"
 
+	"github.com/joho/godotenv"
 	"github.com/rusq/dlog"
 	"github.com/rusq/tracer"
 
@@ -26,6 +27,8 @@ import (
 )
 
 func init() {
+	loadSecrets(secretFiles)
+
 	base.Slackdump.Commands = []*base.Command{
 		wizard.CmdWizard,
 		list.CmdList,
@@ -165,4 +168,17 @@ func authenticate(ctx context.Context) (context.Context, error) {
 		return nil, err
 	}
 	return auth.WithContext(ctx, prov), nil
+}
+
+// secrets defines the names of the supported secret files that we load our
+// secrets from.  Inexperienced windows users might have bad experience trying
+// to create .env file with the notepad as it will battle for having the
+// "txt" extension.  Let it have it.
+var secretFiles = []string{".env", ".env.txt", "secrets.txt"}
+
+// loadSecrets load secrets from the files in secrets slice.
+func loadSecrets(files []string) {
+	for _, f := range files {
+		_ = godotenv.Load(f)
+	}
 }

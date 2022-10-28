@@ -96,9 +96,11 @@ Args:
 		PrintUsage(os.Stdout, cmd)
 	} else {
 		tmpl(os.Stdout, helpTemplate, cmd)
-		if !cmd.CustomFlags && cmd.PrintFlags {
+		if cmd.PrintFlags {
 			fmt.Fprintln(os.Stdout, "\nFlags:")
-			cfg.SetBaseFlags(&cmd.Flag, cmd.FlagMask)
+			if !cmd.CustomFlags {
+				cfg.SetBaseFlags(&cmd.Flag, cmd.FlagMask)
+			}
 			cmd.Flag.PrintDefaults()
 		}
 	}

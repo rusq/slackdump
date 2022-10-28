@@ -30,14 +30,4 @@ Additional help topics:
 Use "slackdump help{{with .LongName}} {{.}}{{end}} <topic>" for more information about that topic.
 {{end}}
 `
-	documentationTemplate = `{{range .}}{{if .Short}}{{.Short | capitalize}}
-
-{{end}}{{if .Commands}}` + usageTemplate + `{{else}}{{if .Runnable}}Usage:
-
-	{{.UsageLine}}
-
-{{end}}{{.Long | trim}}
-
-
-{{end}}{{end}}`
 )

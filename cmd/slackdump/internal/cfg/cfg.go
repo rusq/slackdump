@@ -35,6 +35,8 @@ const (
 	OmitDownloadFlag
 	OmitConfigFlag
 	OmitBaseLoc
+
+	OmitAll = OmitConfigFlag | OmitDownloadFlag | OmitBaseLoc
 )
 
 // SetBaseFlags sets base flags

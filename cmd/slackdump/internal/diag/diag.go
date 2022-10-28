@@ -21,5 +21,6 @@ open an issue on Github.
 	Commands: []*base.Command{
 		CmdRawOutput,
 		CmdEzTest,
+		CmdThread,
 	},
 }

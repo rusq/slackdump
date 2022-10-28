@@ -1,48 +1,81 @@
-// Command slackutil is an utility that provides some useful functions for
-// testing, i.e. deletion of the threads, or generation of large threads.
-package main
+package diag
 
 import (
 	"context"
 	"errors"
-	"flag"
 	"fmt"
-	"log"
+	"os"
 
 	"github.com/joho/godotenv"
+	"github.com/rusq/dlog"
 	"github.com/rusq/osenv/v2"
 	"github.com/schollz/progressbar/v3"
 	"github.com/slack-go/slack"
 
 	"github.com/rusq/slackdump/v2"
+	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/cfg"
+	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v2/internal/network"
 	"github.com/rusq/slackdump/v2/internal/structures"
-	"github.com/rusq/slackdump/v2/logger"
 )
 
 var _ = godotenv.Load()
 
+var CmdThread = &base.Command{
+	Run:       nil,
+	Wizard:    nil,
+	UsageLine: "slackutil diag thread [flags]",
+	Short:     "thread utilities",
+	Long: `
+Thread is an utility that provides some useful functions for
+testing, i.e. deletion of the threads, or generation of large threads.
+`,
+	FlagMask:    cfg.OmitAll,
+	PrintFlags:  true,
+	CustomFlags: true,
+}
+
+func init() {
+	CmdThread.Run = runThread
+	CmdThread.Flag.Usage = func() {
+		fmt.Fprint(os.Stdout, "usage: slackdump diag thread [flags]\n\nFlags:\n")
+		CmdThread.Flag.PrintDefaults()
+	}
+}
+
 var (
-	token        = flag.String("token", osenv.Secret("TOKEN", ""), "slack app token")
-	channel      = flag.String("channel", osenv.Value("CHANNEL", ""), "channel to generate thread in")
-	numThreadMsg = flag.Int("num", 2, "number of messages to generate in the thread")
-	delThread    = flag.String("del", "", "`URL` of the thread to delete")
+	token        = CmdThread.Flag.String("app-token", os.Getenv("APP_TOKEN"), "Slack application or bot token")
+	channel      = CmdThread.Flag.String("channel", osenv.Value("CHANNEL", ""), "channel to operate on")
+	numThreadMsg = CmdThread.Flag.Int("num", 2, "number of messages to generate in the thread")
+	delThread    = CmdThread.Flag.String("del", "", "`URL` of the thread to delete")
 )
 
-func main() {
-	flag.Parse()
-	if *token == "" {
-		flag.Usage()
-		logger.Default.Fatal("token not set")
+func runThread(ctx context.Context, cmd *base.Command, args []string) {
+	lg := dlog.FromContext(ctx)
+	lg.SetPrefix("thread ")
+
+	if err := cmd.Flag.Parse(args); err != nil {
+		base.SetExitStatus(base.SInvalidParameters)
+		return
+	}
+
+	if *channel == "" {
+		base.SetExitStatus(base.SInvalidParameters)
+		lg.Println("-channel flag is required")
+		return
 	}
 
 	if *delThread != "" {
 		if err := runDelete(*token, *delThread); err != nil {
-			log.Fatal(err)
+			base.SetExitStatus(base.SApplicationError)
+			lg.Println(err)
+			return
 		}
 	} else {
 		if err := runGenerate(*token, *channel, *numThreadMsg); err != nil {
-			log.Fatal(err)
+			base.SetExitStatus(base.SApplicationError)
+			lg.Println(err)
+			return
 		}
 	}
 }
@@ -56,7 +89,7 @@ func runDelete(token, url string) error {
 
 func runGenerate(token string, channelID string, numMsg int) error {
 	if channelID == "" {
-		return errors.New("channel ID not set")
+		return errors.New("channel ID is required")
 	}
 	if err := generateThread(context.Background(), slack.New(token), channelID, numMsg); err != nil {
 		return err

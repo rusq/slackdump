@@ -12,7 +12,7 @@ import (
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/golang/base"
 )
 
-var flagmask = cfg.OmitConfigFlag | cfg.OmitBaseLoc | cfg.OmitDownloadFlag
+var flagmask = cfg.OmitAll
 
 var CmdWorkspace = &base.Command{
 	Run:       nil,

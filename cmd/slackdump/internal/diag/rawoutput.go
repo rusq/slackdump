@@ -35,7 +35,7 @@ Running this tool may be requested by developers.
 https://sdump.slack.com.
 `,
 	CustomFlags: false,
-	FlagMask:    cfg.OmitConfigFlag | cfg.OmitDownloadFlag | cfg.OmitBaseLoc,
+	FlagMask:    cfg.OmitAll,
 	PrintFlags:  true,
 	RequireAuth: true,
 	Commands:    nil,
