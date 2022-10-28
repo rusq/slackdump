@@ -13,6 +13,7 @@ import (
 
 	"github.com/rusq/slackdump/v2/auth"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/cfg"
+	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/diag"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/emoji"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/golang/help"
@@ -30,6 +31,7 @@ func init() {
 		list.CmdList,
 		emoji.CmdEmoji,
 		workspace.CmdWorkspace,
+		diag.CmdDiag,
 		v1.CmdV1,
 
 		man.ManLogin,

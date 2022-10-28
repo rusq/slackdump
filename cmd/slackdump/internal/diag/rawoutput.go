@@ -1,10 +1,10 @@
-package main
+package diag
 
 import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"flag"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -13,10 +13,33 @@ import (
 	"os"
 
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/cfg"
+	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v2/internal/app/appauth"
 	"github.com/rusq/slackdump/v2/internal/chttp"
 	"github.com/rusq/slackdump/v2/internal/structures"
 )
+
+var CmdRawOutput = &base.Command{
+	Run:       nil, // populated by init to break the init cycle
+	Wizard:    func(context.Context, *base.Command, []string) error { panic("not implemented") },
+	UsageLine: "slackdump diag rawoutput [flags] <id>",
+	Short:     "record raw API output",
+	Long: `
+Rawoutput produces a log file with the raw API output (as received from Slack
+API).
+
+Running this tool may be requested in response to a Github issue.
+`,
+	CustomFlags: true,
+	FlagMask:    0,
+	PrintFlags:  false,
+	RequireAuth: false,
+	Commands:    nil,
+}
+
+func init() {
+	CmdRawOutput.Run = runRawOutput
+}
 
 type params struct {
 	creds     appauth.SlackCreds
@@ -26,34 +49,47 @@ type params struct {
 	idOrURL string
 }
 
-var args params
-
 func init() {
-	flag.StringVar(&args.creds.Token, "token", os.Getenv("SLACK_TOKEN"), "slack token")
-	flag.StringVar(&args.creds.Cookie, "cookie", os.Getenv("COOKIE"), "slack cookie or path to a file with cookies")
-	flag.StringVar(&args.output, "o", "slackdump_raw.log", "output file")
-	flag.StringVar(&args.workspace, "w", "", "optional slack workspace name or URL")
-
-	flag.Usage = func() {
-		fmt.Fprintf(flag.CommandLine.Output(), "Usage: %s [flags] <id>\n", os.Args[0])
-		fmt.Fprintln(flag.CommandLine.Output(), "Where id is an id or URLs of slack channel or thread.\n\nFlags:")
-		flag.PrintDefaults()
+	CmdEzTest.Flag.Usage = func() {
+		fmt.Fprintf(CmdEzTest.Flag.Output(), "usage: %s\n", CmdRawOutput.UsageLine)
+		fmt.Fprintln(CmdEzTest.Flag.Output(), "Where `id' is an ID or URL of slack channel or thread.\n\nFlags:")
+		CmdEzTest.Flag.PrintDefaults()
 	}
 }
 
-func main() {
-	flag.Parse()
+func initFlags() params {
+	var p params
+	CmdEzTest.Flag.StringVar(&p.creds.Token, "token", os.Getenv("SLACK_TOKEN"), "slack token")
+	CmdEzTest.Flag.StringVar(&p.creds.Cookie, "cookie", os.Getenv("COOKIE"), "slack cookie or path to a file with cookies")
+	CmdEzTest.Flag.StringVar(&p.output, "o", "slackdump_raw.log", "output file")
+	CmdEzTest.Flag.StringVar(&p.workspace, "w", "", "optional slack workspace name or URL")
 
-	if flag.NArg() == 0 {
-		flag.Usage()
-		fmt.Fprint(flag.CommandLine.Output(), "Error:  missing ids or channel/thread links\n")
+	return p
+}
+
+func parseArgs(p *params, args []string) error {
+	if err := CmdEzTest.Flag.Parse(args); err != nil {
+		CmdEzTest.Flag.Usage()
+		return err
+	}
+	if CmdEzTest.Flag.NArg() == 0 {
+		CmdEzTest.Flag.Usage()
+		return errors.New("missing ids or channel/thread links")
+	}
+	p.idOrURL = CmdEzTest.Flag.Arg(0)
+	return nil
+}
+
+func runRawOutput(ctx context.Context, cmd *base.Command, args []string) {
+	p := initFlags()
+	if err := parseArgs(&p, args); err != nil {
+		base.SetExitStatus(base.SInvalidParameters)
+		fmt.Fprintln(os.Stderr, "Error: ", err)
 		return
 	}
-	args.idOrURL = flag.Arg(0)
 
-	ctx := context.Background()
-	if err := run(ctx, args); err != nil {
-		fmt.Fprintf(flag.CommandLine.Output(), "Error occurred: %s", err)
+	if err := run(ctx, p); err != nil {
+		fmt.Fprintf(os.Stderr, "Error occurred: %s", err)
 		return
 	}
 }
@@ -69,7 +105,7 @@ func run(ctx context.Context, p params) error {
 		return err
 	}
 
-	sl, err := structures.ParseLink(args.idOrURL)
+	sl, err := structures.ParseLink(p.idOrURL)
 	if err != nil {
 		return err
 	}
