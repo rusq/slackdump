@@ -113,13 +113,18 @@ type Credentials interface {
 // returns the auth provider according to the type of credentials determined
 // by creds.AuthProvider, and saves them to an AES-256-CFB encrypted storage.
 //
-// The storage is encrypted using the hash of the unique machine-ID, supplied
-// by the operating system (see package encio), it makes it impossible to
-// transfer and use the stored credentials on another machine (including
-// virtual), even another operating system on the same machine, unless it's a
-// clone of the source operating system on which the credentials storage was
-// created.
+// The storage is encrypted using the hash of the unique machine-ID, supplied by
+// the operating system (see package encio), it makes it impossible use the
+// stored credentials on another machine (including virtual), even another
+// operating system on the same machine, unless it's a clone of the source
+// operating system on which the credentials storage was created.
+//
+// Deprecated: Use Manager.Auth.
 func InitProvider(ctx context.Context, cacheDir string, workspace string, creds Credentials) (auth.Provider, error) {
+	return initProvider(ctx, cacheDir, defCredsFile, workspace, creds)
+}
+
+func initProvider(ctx context.Context, cacheDir string, filename string, workspace string, creds Credentials) (auth.Provider, error) {
 	ctx, task := trace.NewTask(ctx, "InitProvider")
 	defer task.End()
 
@@ -127,7 +132,7 @@ func InitProvider(ctx context.Context, cacheDir string, workspace string, creds 
 		return nil, fmt.Errorf("failed to create cache directory:  %w", err)
 	}
 
-	credsLoc := filepath.Join(cacheDir, defCredsFile)
+	credsLoc := filepath.Join(cacheDir, filename)
 
 	// try to load the existing credentials, if saved earlier.
 	if creds.IsEmpty() {
