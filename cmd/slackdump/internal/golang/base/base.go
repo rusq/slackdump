@@ -12,6 +12,8 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 
@@ -64,7 +66,13 @@ type Command struct {
 
 var Slackdump = &Command{
 	UsageLine: "slackdump",
-	Long:      `Slackdump is a tool for exporting Slack conversations, emojis, users, etc.`,
+	Long: `
+Slackdump is a tool for exporting Slack conversations, emojis, users, etc.
+
+This program comes with ABSOLUTELY NO WARRANTY;
+This is free software, and you are welcome to redistribute it
+under certain conditions.  Read LICENSE for more information.
+`,
 	// Commands initialised in main.
 }
 
@@ -77,6 +85,11 @@ func SetExitStatus(n int) {
 		exitStatus = n
 	}
 	exitMu.Unlock()
+}
+
+func SetExitStatusMsg(status int, message any) {
+	fmt.Fprintln(os.Stderr, message)
+	SetExitStatus(status)
 }
 
 var atExitFuncs []func()
@@ -128,4 +141,16 @@ func (c *Command) Usage() {
 	fmt.Fprintf(os.Stderr, "Run 'slackdump help %s' for details.\n", c.LongName())
 	SetExitStatus(2)
 	Exit()
+}
+
+// Executable returns the name of the executable for the current OS.
+func Executable() string {
+	exe, err := os.Executable()
+	if err != nil {
+		exe = "slackdump"
+		if runtime.GOOS == "windows" {
+			exe += ".exe"
+		}
+	}
+	return filepath.Base(exe)
 }

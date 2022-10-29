@@ -1,6 +1,6 @@
 package base
 
-// Some status codes returned by the main executable.
+// Status codes returned by the main executable.
 const (
 	SNoError = iota
 	SGenericError

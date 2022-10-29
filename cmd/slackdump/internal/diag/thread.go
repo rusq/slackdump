@@ -23,7 +23,6 @@ var _ = godotenv.Load()
 
 var CmdThread = &base.Command{
 	Run:       nil,
-	Wizard:    nil,
 	UsageLine: "slackutil diag thread [flags]",
 	Short:     "thread utilities",
 	Long: `
@@ -44,6 +43,7 @@ func init() {
 }
 
 var (
+	// TODO: test with client auth.
 	token        = CmdThread.Flag.String("app-token", os.Getenv("APP_TOKEN"), "Slack application or bot token")
 	channel      = CmdThread.Flag.String("channel", osenv.Value("CHANNEL", ""), "channel to operate on")
 	numThreadMsg = CmdThread.Flag.Int("num", 2, "number of messages to generate in the thread")

@@ -18,10 +18,6 @@ import (
 //go:generate mockgen -source=auth.go -destination=../mocks/mock_app/mock_app.go Credentials,createOpener
 //go:generate mockgen -destination=../mocks/mock_io/mock_io.go io ReadCloser,WriteCloser
 
-const (
-	credsFile = "provider.bin"
-)
-
 // isWSL is true if we're running in the WSL environment
 var isWSL = os.Getenv("WSL_DISTRO_NAME") != ""
 
@@ -101,7 +97,7 @@ func ezLoginTested() bool {
 }
 
 // filer is openCreator that will be used by InitProvider.
-var filer createOpener = encryptedFile{}
+var filer container = encryptedFile{}
 
 type Credentials interface {
 	IsEmpty() bool
@@ -131,7 +127,7 @@ func InitProvider(ctx context.Context, cacheDir string, workspace string, creds 
 		return nil, fmt.Errorf("failed to create cache directory:  %w", err)
 	}
 
-	credsLoc := filepath.Join(cacheDir, credsFile)
+	credsLoc := filepath.Join(cacheDir, defCredsFile)
 
 	// try to load the existing credentials, if saved earlier.
 	if creds.IsEmpty() {
@@ -172,8 +168,8 @@ func tryLoad(ctx context.Context, filename string) (auth.Provider, error) {
 }
 
 // loadCreds loads the encrypted credentials from the file.
-func loadCreds(opener createOpener, filename string) (auth.Provider, error) {
-	f, err := opener.Open(filename)
+func loadCreds(ct container, filename string) (auth.Provider, error) {
+	f, err := ct.Open(filename)
 	if err != nil {
 		return nil, errors.New("failed to load stored credentials")
 	}
@@ -183,8 +179,8 @@ func loadCreds(opener createOpener, filename string) (auth.Provider, error) {
 }
 
 // saveCreds encrypts and saves the credentials.
-func saveCreds(opener createOpener, filename string, p auth.Provider) error {
-	f, err := opener.Create(filename)
+func saveCreds(ct container, filename string, p auth.Provider) error {
+	f, err := ct.Create(filename)
 	if err != nil {
 		return err
 	}
@@ -195,16 +191,16 @@ func saveCreds(opener createOpener, filename string, p auth.Provider) error {
 
 // AuthReset removes the cached credentials.
 func AuthReset(cacheDir string) error {
-	return os.Remove(filepath.Join(cacheDir, credsFile))
+	return os.Remove(filepath.Join(cacheDir, defCredsFile))
 }
 
-// createOpener is the interface to be able to switch between encrypted file
-// and plain text file, if needed.
-type createOpener interface {
-	Create(string) (io.WriteCloser, error)
-	Open(string) (io.ReadCloser, error)
+// container is the interface to operate with credentials container.
+type container interface {
+	Create(filename string) (io.WriteCloser, error)
+	Open(filename string) (io.ReadCloser, error)
 }
 
+// encryptedFile is the encrypted file container.
 type encryptedFile struct{}
 
 func (encryptedFile) Open(filename string) (io.ReadCloser, error) {

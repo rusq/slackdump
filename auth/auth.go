@@ -23,7 +23,7 @@ const (
 type Provider interface {
 	// SlackToken should return the Slack Token value.
 	SlackToken() string
-	// Cookies should returns a set of Slack Session cookies.
+	// Cookies should return a set of Slack Session cookies.
 	Cookies() []http.Cookie
 	// Type returns the auth type.
 	Type() Type

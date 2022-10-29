@@ -8,8 +8,6 @@ import (
 	"io"
 	"os"
 	"os/signal"
-	"path/filepath"
-	"runtime"
 	"runtime/trace"
 	"syscall"
 
@@ -42,12 +40,40 @@ const (
 var CmdV1 = &base.Command{
 	Run:         runV1,
 	Wizard:      nil, //initialised in init
-	UsageLine:   "slackdump v1",
+	UsageLine:   "slackdump v1 [flags]",
 	Short:       "slackdump legacy mode",
 	CustomFlags: true,
 	Long: `
-v1 command starts slackdump in legacy mode, that supports all legacy flags.	
-	`,
+Legacy mode
+-----------
+
+v1 command starts Slackdump in legacy mode, that supports all legacy flags.
+
+Adjusting your scripts:
+1. Replace all calls to "slackdump" with "slackdump -v".
+
+
+For example, if you were exporting some workspace, and had this command:
+
+  ./slackdump -export "my.zip" -format mattermost -download
+
+Update it like this:
+
+  ./slackdump v1 -export "my.zip" -format mattermost -download
+
+To access legacy UI, run:
+
+  ./slackdump v1
+
+Compatibility with workspaces
+-----------------------------
+
+Legacy mode supports working on the default workspace.  Run:
+
+  ./slackdump workspace select <workspace>
+
+to set the default workspace.
+`,
 }
 
 func init() {
@@ -236,17 +262,6 @@ func loadSecrets(files []string) {
 	}
 }
 
-func executable() string {
-	exe, err := os.Executable()
-	if err != nil {
-		exe = "slackdump"
-		if runtime.GOOS == "windows" {
-			exe += ".exe"
-		}
-	}
-	return "." + string(os.PathSeparator) + filepath.Base(exe)
-}
-
 func usage(fs *flag.FlagSet) func() {
 	return func() {
 		fmt.Fprintf(
@@ -259,14 +274,14 @@ func usage(fs *flag.FlagSet) func() {
 				"\twhere: ID is the conversation ID or URL Link to a conversation or thread\n"+
 				"* NOTE: either `-u`, `-c` or URL or ID of the conversation must be specified\n\n"+
 				"flags:\n",
-			filepath.Base(os.Args[0]))
+			base.Executable())
 		fs.PrintDefaults()
 		fmt.Fprint(flag.CommandLine.Output(), color.HiYellowString(`
 ---------------------------------------------------------------
 ATTENTION:  v1 command will be deprecated in v2.4.0 and removed
             in v2.5.0.
 Run:
-	`+executable()+` help
+	`+base.Executable()+` help
 
 to see the new command line interface help, or run without
 parameters to use the Slackdump Wizard.

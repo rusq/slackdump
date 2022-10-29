@@ -10,10 +10,11 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
+	"github.com/stretchr/testify/assert"
+
 	"github.com/rusq/slackdump/v2/auth"
 	"github.com/rusq/slackdump/v2/internal/mocks/mock_app"
 	"github.com/rusq/slackdump/v2/internal/mocks/mock_io"
-	"github.com/stretchr/testify/assert"
 )
 
 func Test_isExistingFile(t *testing.T) {
@@ -220,7 +221,7 @@ func TestInitProvider(t *testing.T) {
 			authTester = fakeAuthTester(tt.authTestErr)
 
 			// resetting credentials
-			credsFile := filepath.Join(testDir, credsFile)
+			credsFile := filepath.Join(testDir, defCredsFile)
 			if err := saveCreds(filer, credsFile, storedProv); err != nil {
 				t.Fatal(err)
 			}
@@ -245,7 +246,7 @@ func Test_tryLoad(t *testing.T) {
 	// preparing file for testing
 	testDir := t.TempDir()
 	testProvider, _ := auth.NewValueAuth("xoxc", "xoxd")
-	credsFile := filepath.Join(testDir, credsFile)
+	credsFile := filepath.Join(testDir, defCredsFile)
 	if err := saveCreds(filer, credsFile, testProvider); err != nil {
 		t.Fatal(err)
 	}
@@ -454,7 +455,7 @@ func Test_saveCreds(t *testing.T) {
 func TestAuthReset(t *testing.T) {
 	t.Run("file is removed", func(t *testing.T) {
 		tmpDir := t.TempDir()
-		testFile := filepath.Join(tmpDir, credsFile)
+		testFile := filepath.Join(tmpDir, defCredsFile)
 		if err := os.WriteFile(testFile, []byte("unit"), 0644); err != nil {
 			t.Fatal(err)
 		}

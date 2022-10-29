@@ -3,18 +3,13 @@ package workspace
 import (
 	"context"
 	"fmt"
-	"os"
-	"path/filepath"
-
-	"github.com/rusq/dlog"
 
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/golang/base"
+	"github.com/rusq/slackdump/v2/internal/app/appauth"
 )
 
-var CmdListWsp = &base.Command{
-	Run:       runList,
-	Wizard:    nil,
+var CmdWspList = &base.Command{
 	UsageLine: "slackdump workspace list [flags]",
 	Short:     "list saved workspaces",
 	Long: `
@@ -24,53 +19,69 @@ List allows to list Slack Workspaces, that you have previously authenticated in.
 	PrintFlags: true,
 }
 
+var (
+	bare = CmdWspList.Flag.Bool("b", false, "bare output format (just names)")
+)
+
+func init() {
+	CmdWspList.Run = runList
+}
+
 func runList(ctx context.Context, cmd *base.Command, args []string) {
-	entries, err := filepath.Glob(filepath.Join(cfg.CacheDir(), "*.bin"))
+	m, err := appauth.NewManager(cfg.CacheDir())
 	if err != nil {
-		dlog.Printf("error trying to find existing workspaces: %s", err)
-		base.SetExitStatus(base.SCacheError)
+		base.SetExitStatusMsg(base.SCacheError, err)
 		return
 	}
-	if len(entries) == 0 {
-		fmt.Println("No workspaces exist on this device.")
-		fmt.Println("Run:  slackdump workspaces auth   to authenticate.")
-		// TODO: do we want to ask user to authenticate?
+
+	formatter := printFull
+	if *bare {
+		formatter = printBare
+	}
+
+	entries, err := m.List()
+	if err != nil {
+		base.SetExitStatusMsg(base.SCacheError, err)
 		return
 	}
+	current, err := m.Current()
+	if err != nil {
+		base.SetExitStatusMsg(base.SWorkspaceError, fmt.Sprintf("error getting the current workspace: %s", err))
+		return
+	}
+
+	formatter(m, current, entries)
+}
+
+const defMark = "=>"
+
+func printFull(m *appauth.Manager, current string, wsps []string) {
 	fmt.Printf("Workspaces in %q:\n\n", cfg.CacheDir())
-	current, err := Current()
-	if err != nil {
-		dlog.Printf("error getting the current workspace: %s", err)
-		base.SetExitStatus(base.SWorkspaceError)
+
+	for _, name := range wsps {
+		fmt.Println("\t" + formatWsp(m, current, name))
 	}
-	for _, direntry := range entries {
-		fmt.Println("\t" + formatWsp(direntry, current))
-	}
-	fmt.Println("\nCurrent workspace is marked with ' => '.")
+	fmt.Printf("\nCurrent workspace is marked with ' %s '.\n", defMark)
 }
 
-func wspName(filename string) string {
-	name := filepath.Base(filename)
-	if name == defaultWspFilename {
-		name = "default"
-	} else {
-		ext := filepath.Ext(name)
-		name = name[:len(name)-len(ext)]
-	}
-	return name
-}
-
-func formatWsp(filename string, current string) string {
+func formatWsp(m *appauth.Manager, current string, name string) string {
 	timestamp := "unknown"
-	if fi, err := os.Stat(filename); err == nil {
+	filename := "-"
+	if fi, err := m.FileInfo(name); err == nil {
 		timestamp = fi.ModTime().Format("2006-01-02 15:04:05")
+		filename = fi.Name()
 	}
-	name := wspName(filename)
-	if filepath.Base(filename) == current {
-		name = "=> " + name
+	if name == current {
+		name = defMark + " " + name
 	} else {
 		name = "   " + name
 	}
 
-	return fmt.Sprintf("%s (last modified: %s)", name, timestamp)
+	return fmt.Sprintf("%s (file: %s, last modified: %s)", name, filename, timestamp)
+}
+
+func printBare(_ *appauth.Manager, _ string, workspaces []string) {
+	for _, name := range workspaces {
+		fmt.Println(name)
+	}
 }
