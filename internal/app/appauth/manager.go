@@ -1,6 +1,7 @@
 package appauth
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -9,6 +10,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/rusq/slackdump/v2/auth"
 )
 
 // Manager is the workspace manager.
@@ -23,7 +26,10 @@ const (
 	currentWspFile = "workspace.txt"
 )
 
-var ErrNoWorkspaces = errors.New("no saved workspaces")
+var (
+	ErrNoWorkspaces = errors.New("no saved workspaces")
+	ErrNameRequired = errors.New("workspace name is required")
+)
 
 // NewManager creates a new workspace manager over the directory dir.
 // The cache directory is created with rwx------ permissions, if it does
@@ -34,6 +40,28 @@ func NewManager(dir string) (*Manager, error) {
 		return nil, err
 	}
 	return m, nil
+}
+
+// Auth authenticates in the Slack Workspace "name" and saves credentials to the
+// relevant file. It initialises the auth.Provider depending on provided slack
+// credentials. It returns auth.Provider or an error. The logic diagram is
+// available in the doc/diagrams/auth_flow.puml.
+//
+// If the creds is empty, it attempts to load the stored credentials.  If it
+// finds them, it returns an initialised credentials provider.  If not - it
+// returns the auth provider according to the type of credentials determined
+// by creds.AuthProvider, and saves them to an AES-256-CFB encrypted storage.
+//
+// The storage is encrypted using the hash of the unique machine-ID, supplied by
+// the operating system (see package encio), it makes it impossible use the
+// stored credentials on another machine (including virtual), even another
+// operating system on the same machine, unless it's a clone of the source
+// operating system on which the credentials storage was created.
+func (m *Manager) Auth(ctx context.Context, name string, c Credentials) (auth.Provider, error) {
+	if name == "" {
+		return nil, ErrNameRequired
+	}
+	return initProvider(ctx, m.dir, m.filename(name), name, c)
 }
 
 func (m *Manager) List() ([]string, error) {
@@ -98,11 +126,7 @@ func (m *Manager) Current() (string, error) {
 
 // Select selects the existing workspace with "name"
 func (m *Manager) Select(name string) error {
-	existing, err := m.List()
-	if err != nil {
-		return err
-	}
-	if !exist(existing, name) {
+	if !m.Exists(name) {
 		return fmt.Errorf("unknown workspace %s", name)
 	}
 
@@ -116,21 +140,36 @@ func (m *Manager) Select(name string) error {
 
 // FileInfo returns the container file information for the workspace.
 func (m *Manager) FileInfo(name string) (fs.FileInfo, error) {
-	fi, err := os.Stat(m.filename(name))
+	fi, err := os.Stat(m.filepath(name))
 	if err != nil {
 		return nil, err
 	}
 	return fi, nil
 }
 
-// filename returns the full path to the filename of workspace name.
+// Exists returns true if the workspace with name "name" exists in the list of
+// authenticated workspaces.
+func (m *Manager) Exists(name string) bool {
+	existing, err := m.List()
+	if err != nil {
+		return false
+	}
+	return exist(existing, name)
+}
+
+// filename returns the filename for the workspace name.
 func (m *Manager) filename(name string) string {
 	if name == defName {
 		name = defCredsFile
 	} else {
 		name = name + wspExt
 	}
-	return filepath.Join(m.dir, name)
+	return name
+}
+
+// filepath returns the full path to the filename of workspace name.
+func (m *Manager) filepath(name string) string {
+	return filepath.Join(m.dir, m.filename(name))
 }
 
 func (m *Manager) name(filename string) (string, error) {

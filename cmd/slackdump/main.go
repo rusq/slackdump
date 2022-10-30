@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -55,6 +56,7 @@ func main() {
 		help.Help(os.Stdout, args[1:])
 		return
 	}
+	//TODO version
 BigCmdLoop:
 	for bigCmd := base.Slackdump; ; {
 		for _, cmd := range bigCmd.Commands {
@@ -125,7 +127,7 @@ func invoke(cmd *base.Command, args []string) {
 	if cmd.RequireAuth {
 		trace.Logf(ctx, "invoke", "command %s requires auth", cmd.Name())
 		var err error
-		ctx, err = authenticate(ctx)
+		ctx, err = authenticate(ctx, cfg.CacheDir())
 		if err != nil {
 			dlog.Printf("auth error: %s", err)
 			trace.Logf(ctx, "invoke", "auth error: %s", err)
@@ -162,8 +164,29 @@ func initTrace(filename string) error {
 	return nil
 }
 
-func authenticate(ctx context.Context) (context.Context, error) {
-	prov, err := appauth.InitProvider(ctx, cfg.CacheDir(), cfg.Workspace, appauth.SlackCreds{cfg.SlackToken, cfg.SlackCookie})
+func authenticate(ctx context.Context, cacheDir string) (context.Context, error) {
+	m, err := appauth.NewManager(cacheDir)
+	if err != nil {
+		return nil, err
+	}
+	var currentWsp string
+	if cfg.Workspace != "" {
+		if !m.Exists(cfg.Workspace) {
+			return nil, fmt.Errorf("workspace does not exist: %q", cfg.Workspace)
+		}
+		currentWsp = cfg.Workspace
+	} else {
+		currentWsp, err = m.Current()
+		if err != nil {
+			if errors.Is(err, appauth.ErrNoWorkspaces) {
+				currentWsp = "default"
+			} else {
+				return nil, err
+			}
+		}
+	}
+	trace.Logf(ctx, "auth", "current workspace=%s", currentWsp)
+	prov, err := m.Auth(ctx, currentWsp, appauth.SlackCreds{Token: cfg.SlackToken, Cookie: cfg.SlackCookie})
 	if err != nil {
 		return nil, err
 	}

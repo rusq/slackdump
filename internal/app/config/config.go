@@ -24,7 +24,7 @@ const (
 	FilenameTmplName = "fnt"
 )
 
-// ErrSkip is should be returned if the [Producer] should skip the channel.
+// ErrSkip should be returned if the [Producer] should skip the channel.
 var ErrSkip = errors.New("skip")
 
 // Params is the application config parameters.

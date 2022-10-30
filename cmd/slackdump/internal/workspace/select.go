@@ -38,6 +38,9 @@ func runSelect(ctx context.Context, cmd *base.Command, args []string) {
 		base.SetExitStatusMsg(base.SCacheError, fmt.Sprintf("unable to initialise cache: %s", err))
 		return
 	}
-	_ = m
-	// TODO: finish
+	if err := m.Select(args[0]); err != nil {
+		base.SetExitStatusMsg(base.SInvalidParameters, fmt.Sprintf("Failed:  unable to select %s: %s", args[0], err))
+		return
+	}
+	fmt.Printf("Success:  current workspace set to:  %s\n", args[0])
 }

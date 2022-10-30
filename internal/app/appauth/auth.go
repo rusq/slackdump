@@ -108,6 +108,15 @@ type Credentials interface {
 // credentials.  It returns auth.Provider or an error.  The logic diagram is
 // available in the doc/diagrams/auth_flow.puml.
 //
+// Deprecated: Use [Manager.Auth].
+func InitProvider(ctx context.Context, cacheDir string, workspace string, creds Credentials) (auth.Provider, error) {
+	return initProvider(ctx, cacheDir, defCredsFile, workspace, creds)
+}
+
+// initProvider initialises the auth.Provider depending on provided slack
+// credentials.  It returns auth.Provider or an error.  The logic diagram is
+// available in the doc/diagrams/auth_flow.puml.
+//
 // If the creds is empty, it attempts to load the stored credentials.  If it
 // finds them, it returns an initialised credentials provider.  If not - it
 // returns the auth provider according to the type of credentials determined
@@ -118,25 +127,21 @@ type Credentials interface {
 // stored credentials on another machine (including virtual), even another
 // operating system on the same machine, unless it's a clone of the source
 // operating system on which the credentials storage was created.
-//
-// Deprecated: Use Manager.Auth.
-func InitProvider(ctx context.Context, cacheDir string, workspace string, creds Credentials) (auth.Provider, error) {
-	return initProvider(ctx, cacheDir, defCredsFile, workspace, creds)
-}
-
 func initProvider(ctx context.Context, cacheDir string, filename string, workspace string, creds Credentials) (auth.Provider, error) {
 	ctx, task := trace.NewTask(ctx, "InitProvider")
 	defer task.End()
 
-	if err := os.MkdirAll(cacheDir, 0700); err != nil {
-		return nil, fmt.Errorf("failed to create cache directory:  %w", err)
+	credsFile := filename
+	if cacheDir != "" {
+		if err := os.MkdirAll(cacheDir, 0700); err != nil {
+			return nil, fmt.Errorf("failed to create cache directory:  %w", err)
+		}
+		credsFile = filepath.Join(cacheDir, filename)
 	}
-
-	credsLoc := filepath.Join(cacheDir, filename)
 
 	// try to load the existing credentials, if saved earlier.
 	if creds.IsEmpty() {
-		if prov, err := tryLoad(ctx, credsLoc); err != nil {
+		if prov, err := tryLoad(ctx, credsFile); err != nil {
 			trace.Logf(ctx, "warn", "no saved credentials: %s", err)
 		} else {
 			trace.Log(ctx, "info", "loaded saved credentials")
@@ -151,8 +156,8 @@ func initProvider(ctx context.Context, cacheDir string, filename string, workspa
 		return nil, fmt.Errorf("failed to initialise the auth provider: %w", err)
 	}
 
-	if err := saveCreds(filer, credsLoc, provider); err != nil {
-		trace.Logf(ctx, "error", "failed to save credentials to: %s", credsLoc)
+	if err := saveCreds(filer, credsFile, provider); err != nil {
+		trace.Logf(ctx, "error", "failed to save credentials to: %s", credsFile)
 	}
 
 	return provider, nil

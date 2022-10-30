@@ -9,14 +9,16 @@ import (
 )
 
 // Type is the auth type.
+//
+//go:generate stringer -type Type -linecomment
 type Type uint8
 
 // All supported auth types.
 const (
-	TypeInvalid Type = iota
-	TypeValue
-	TypeCookieFile
-	TypeBrowser
+	TypeInvalid    Type = iota // Invalid
+	TypeValue                  // Value
+	TypeCookieFile             // Cookie File
+	TypeBrowser                // EZ-Login 3000
 )
 
 // Provider is the Slack Authentication provider.

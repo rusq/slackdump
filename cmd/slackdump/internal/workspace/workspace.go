@@ -34,6 +34,7 @@ Workspaces are stored in cache directory on this device:
 	PrintFlags:  false,
 	RequireAuth: false,
 	Commands: []*base.Command{
+		CmdWspNew,
 		CmdWspList,
 		CmdWspSelect,
 	},
