@@ -79,7 +79,7 @@ under certain conditions.  Read LICENSE for more information.
 var exitStatus = SNoError
 var exitMu sync.Mutex
 
-func SetExitStatus(n int) {
+func SetExitStatus(n StatusCode) {
 	exitMu.Lock()
 	if exitStatus < n {
 		exitStatus = n
@@ -87,8 +87,12 @@ func SetExitStatus(n int) {
 	exitMu.Unlock()
 }
 
-func SetExitStatusMsg(status int, message any) {
-	fmt.Fprintln(os.Stderr, message)
+func SetExitStatusMsg(status StatusCode, message any) {
+	if status == SNoError {
+		fmt.Fprintln(os.Stderr, message)
+	} else {
+		fmt.Fprintf(os.Stderr, "ERR-%03[1]d (%[1]s): %[2]s\n", status, message)
+	}
 	SetExitStatus(status)
 }
 
@@ -102,7 +106,7 @@ func Exit() {
 	for _, f := range atExitFuncs {
 		f()
 	}
-	os.Exit(exitStatus)
+	os.Exit(int(exitStatus))
 }
 
 // Runnable reports whether the command can be run; otherwise

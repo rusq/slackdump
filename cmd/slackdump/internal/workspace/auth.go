@@ -21,12 +21,10 @@ New allows you to authenticate in an existing Slack Workspace.
 }
 
 func runWspNew(ctx context.Context, cmd *base.Command, args []string) {
-	if cfg.Workspace == "" {
-		if args[0] == "" {
-			base.SetExitStatusMsg(base.SInvalidParameters, "workspace name must be specified")
-			return
-		}
-		cfg.Workspace = args[0]
+	wsp, err := argsWorkspace(args)
+	if err != nil {
+		base.SetExitStatusMsg(base.SInvalidParameters, err.Error())
+		return
 	}
 
 	m, err := appauth.NewManager(cfg.CacheDir())
@@ -38,10 +36,20 @@ func runWspNew(ctx context.Context, cmd *base.Command, args []string) {
 		Token:  cfg.SlackToken,
 		Cookie: cfg.SlackCookie,
 	}
-	prov, err := m.Auth(ctx, cfg.Workspace, creds)
+	prov, err := m.Auth(ctx, wsp, creds)
 	if err != nil {
 		base.SetExitStatusMsg(base.SAuthError, err)
 		return
 	}
-	fmt.Printf("Success:  added workspace %q of type %q\n", cfg.Workspace, prov.Type())
+	fmt.Printf("Success:  added workspace %q of type %q\n", wsp, prov.Type())
+}
+
+func argsWorkspace(args []string) (string, error) {
+	if cfg.Workspace != "" {
+		return cfg.Workspace, nil
+	}
+	if len(args) > 0 && args[0] != "" {
+		return args[0], nil
+	}
+	return "", appauth.ErrNameRequired
 }

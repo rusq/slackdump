@@ -73,8 +73,8 @@ func New(ctx context.Context, creds auth.Provider, opts ...Option) (*Session, er
 	return NewWithOptions(ctx, creds, options)
 }
 
-// New creates new Session with provided options, and populates the internal
-// cache of users and channels for lookups.  If it fails to authenticate,
+// NewWithOptions creates new Session with provided options, and populates the
+// internal cache of users and channels for lookups. If it fails to authenticate,
 // AuthError is returned.
 func NewWithOptions(ctx context.Context, authProvider auth.Provider, opts Options) (*Session, error) {
 	ctx, task := trace.NewTask(ctx, "NewWithOptions")
@@ -117,7 +117,7 @@ func NewWithOptions(ctx context.Context, authProvider auth.Provider, opts Option
 }
 
 // TestAuth attempts to authenticate with the given provider.  It will return
-// AuthError if faled.
+// AuthError if failed.
 func TestAuth(ctx context.Context, provider auth.Provider) error {
 	ctx, task := trace.NewTask(ctx, "TestAuth")
 	defer task.End()

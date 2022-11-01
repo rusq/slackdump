@@ -37,5 +37,6 @@ Workspaces are stored in cache directory on this device:
 		CmdWspNew,
 		CmdWspList,
 		CmdWspSelect,
+		CmdWspDel,
 	},
 }

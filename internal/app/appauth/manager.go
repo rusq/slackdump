@@ -29,6 +29,7 @@ const (
 var (
 	ErrNoWorkspaces = errors.New("no saved workspaces")
 	ErrNameRequired = errors.New("workspace name is required")
+	ErrNoDefault    = errors.New("default workspace not set")
 )
 
 // NewManager creates a new workspace manager over the directory dir.
@@ -64,6 +65,38 @@ func (m *Manager) Auth(ctx context.Context, name string, c Credentials) (auth.Pr
 	return initProvider(ctx, m.dir, m.filename(name), name, c)
 }
 
+type ErrWorkspace struct {
+	Workspace string
+	Message   string
+	Err       error
+}
+
+func (ew *ErrWorkspace) Error() string {
+	if ew.Err == nil {
+		return fmt.Sprintf("workspace %q: %s", ew.Workspace, ew.Message)
+	}
+	return fmt.Sprintf("workspace %q: %s (error: %s)", ew.Workspace, ew.Message, ew.Err)
+}
+
+func newErrNoWorkspace(name string) *ErrWorkspace {
+	return &ErrWorkspace{Workspace: name, Message: "no such workspace"}
+}
+
+func (ew *ErrWorkspace) Unwrap() error {
+	return ew.Err
+}
+
+// Delete deletes the workspace file.
+func (m *Manager) Delete(name string) error {
+	if !m.Exists(name) {
+		return newErrNoWorkspace(name)
+	}
+	if err := os.Remove(m.filepath(name)); err != nil {
+		return &ErrWorkspace{Workspace: name, Message: "failed to delete", Err: err}
+	}
+	return nil
+}
+
 func (m *Manager) List() ([]string, error) {
 	files, err := m.listFiles()
 	if err != nil {
@@ -84,7 +117,7 @@ func (m *Manager) List() ([]string, error) {
 func (m *Manager) listFiles() ([]string, error) {
 	files, err := filepath.Glob(filepath.Join(m.dir, "*"+wspExt))
 	if err != nil {
-		return nil, fmt.Errorf("error trying to find existing workspaces: %w", err)
+		return nil, fmt.Errorf("error listing existing workspaces: %w", err)
 	}
 	if len(files) == 0 {
 		return nil, ErrNoWorkspaces
@@ -105,34 +138,37 @@ func (m *Manager) Current() (string, error) {
 		if !os.IsNotExist(err) {
 			return "", err
 		}
-		// if workspace file does not exist, select the default one.
-		if !exist(workspaces, defName) {
-			return "", err
-		}
-		if e := m.Select(defName); e != nil {
-			return "", e
-		}
-		return defName, nil
+		return m.selectDefault()
 	}
 	defer f.Close()
 	wf := m.readWsp(f)
 
 	if !exist(workspaces, wf) {
-		return "", fmt.Errorf("unknown workspace %s", wf)
+		return m.selectDefault()
 	}
 
 	return wf, nil
 }
 
+func (m *Manager) selectDefault() (string, error) {
+	if !m.Exists(defName) {
+		return "", ErrNoDefault
+	}
+	if err := m.Select(defName); err != nil {
+		return "", err
+	}
+	return defName, nil
+}
+
 // Select selects the existing workspace with "name"
 func (m *Manager) Select(name string) error {
 	if !m.Exists(name) {
-		return fmt.Errorf("unknown workspace %s", name)
+		return newErrNoWorkspace(name)
 	}
 
 	f, err := os.Create(filepath.Join(m.dir, currentWspFile))
 	if err != nil {
-		return err
+		return &ErrWorkspace{Workspace: name, Message: "failed to create workspace file", Err: err}
 	}
 	defer f.Close()
 	return m.writeWsp(f, name)
@@ -142,7 +178,7 @@ func (m *Manager) Select(name string) error {
 func (m *Manager) FileInfo(name string) (fs.FileInfo, error) {
 	fi, err := os.Stat(m.filepath(name))
 	if err != nil {
-		return nil, err
+		return nil, &ErrWorkspace{Workspace: name, Message: "error accessing workspace file", Err: err}
 	}
 	return fi, nil
 }
