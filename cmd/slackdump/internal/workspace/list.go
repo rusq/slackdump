@@ -38,11 +38,11 @@ func init() {
 	CmdWspList.Run = runList
 }
 
-func runList(ctx context.Context, cmd *base.Command, args []string) {
+func runList(ctx context.Context, cmd *base.Command, args []string) error {
 	m, err := appauth.NewManager(cfg.CacheDir())
 	if err != nil {
-		base.SetExitStatusMsg(base.SCacheError, err)
-		return
+		base.SetExitStatus(base.SCacheError)
+		return err
 	}
 
 	formatter := printFull
@@ -55,27 +55,28 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 	entries, err := m.List()
 	if err != nil {
 		if errors.Is(err, appauth.ErrNoWorkspaces) {
-			base.SetExitStatusMsg(base.SUserError, "no authenticated workspaces, please run \"slackdump workspace new\"")
-		} else {
-			base.SetExitStatusMsg(base.SCacheError, err)
+			base.SetExitStatus(base.SUserError)
+			return errors.New("no authenticated workspaces, please run \"slackdump workspace new\"")
 		}
-		return
+		base.SetExitStatus(base.SCacheError)
+		return err
 	}
 	current, err := m.Current()
 	if err != nil {
 		if !errors.Is(err, appauth.ErrNoDefault) {
-			base.SetExitStatusMsg(base.SWorkspaceError, fmt.Sprintf("error getting the current workspace: %s", err))
-			return
+			base.SetExitStatus(base.SWorkspaceError)
+			return fmt.Errorf("error getting the current workspace: %s", err)
 		}
 		current = entries[0]
 		if err := m.Select(current); err != nil {
-			base.SetExitStatusMsg(base.SWorkspaceError, fmt.Sprintf("error setting the current workspace: %s", err))
-			return
+			base.SetExitStatus(base.SWorkspaceError)
+			return fmt.Errorf("error setting the current workspace: %s", err)
 		}
 
 	}
 
 	formatter(m, current, entries)
+	return nil
 }
 
 const defMark = "=>"

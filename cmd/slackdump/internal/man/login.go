@@ -1,11 +1,23 @@
 package man
 
-import "github.com/rusq/slackdump/v2/cmd/slackdump/internal/golang/base"
+import (
+	markdown "github.com/MichaelMure/go-term-markdown"
 
-var ManLogin = &base.Command{
+	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/golang/base"
+)
+
+func render(s string) string {
+	const (
+		width  = 80
+		indent = 6
+	)
+	return string(markdown.Render(s, width, indent))
+}
+
+var Login = &base.Command{
 	UsageLine: "login",
 	Short:     "login related information",
-	Long: `
+	Long: render(`
 	
 # Login #
 
@@ -36,7 +48,7 @@ process of login is as follows:
 
 After this, if you have provided a command to run, it will start exectuion,
 otherwise, if no commands are given, an interactive menu of Slackdump Wizard
-displayed.
+is displayed.
 
-`,
+`),
 }

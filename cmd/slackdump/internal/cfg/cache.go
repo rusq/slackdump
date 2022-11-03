@@ -22,8 +22,8 @@ func ucd(ucdFn func() (string, error)) string {
 }
 
 func CacheDir() string {
-	if cacheDir == "" {
-
+	if UserCacheDir == "" {
+		return ucd(os.UserCacheDir)
 	}
-	return ucd(os.UserCacheDir)
+	return UserCacheDir
 }

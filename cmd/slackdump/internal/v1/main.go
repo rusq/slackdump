@@ -111,7 +111,7 @@ type params struct {
 	verbose      bool
 }
 
-func runV1(ctx context.Context, cmd *base.Command, args []string) {
+func runV1(ctx context.Context, cmd *base.Command, args []string) error {
 	banner(os.Stderr)
 	loadSecrets(secrets)
 
@@ -121,20 +121,22 @@ func runV1(ctx context.Context, cmd *base.Command, args []string) {
 		// an interactive prompt to fill them.
 		if err := Interactive(&params); err != nil {
 			if err == errExit {
-				return
+				return nil
 			}
-			dlog.Fatal(err)
+			base.SetExitStatus(base.SApplicationError)
+			return err
 		}
 		if err := params.validate(); err != nil {
-			dlog.Fatal(err)
+			base.SetExitStatus(base.SInvalidParameters)
+			return err
 		}
 	} else if err != nil {
-		dlog.Fatal(err)
+		return err
 	}
 
 	if params.printVersion {
 		fmt.Println(build)
-		return
+		return nil
 	}
 	if params.authReset {
 		if err := appauth.AuthReset(params.appCfg.Options.CacheDir); err != nil {
@@ -145,8 +147,10 @@ func runV1(ctx context.Context, cmd *base.Command, args []string) {
 	}
 
 	if err := run(context.Background(), params); err != nil {
-		dlog.Fatal(err)
+		base.SetExitStatus(base.SApplicationError)
+		return err
 	}
+	return nil
 }
 
 // run runs the dumper.

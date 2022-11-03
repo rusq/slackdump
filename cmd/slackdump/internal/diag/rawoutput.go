@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -54,22 +55,22 @@ func init() {
 	CmdRawOutput.Flag.StringVar(&p.output, "o", "slackdump_raw.log", "output file")
 }
 
-func runRawOutput(ctx context.Context, cmd *base.Command, args []string) {
+func runRawOutput(ctx context.Context, cmd *base.Command, args []string) error {
 	lg := dlog.FromContext(ctx)
 	lg.SetPrefix("rawoutput ")
 
 	if len(args) == 0 {
 		CmdRawOutput.Flag.Usage()
-		lg.Println("missing ids or channel/thread links")
 		base.SetExitStatus(base.SInvalidParameters)
-		return
+		return errors.New("missing ids or channel/thread links")
 	}
 	p.idOrURL = args[0]
 
 	if err := run(ctx, p); err != nil {
-		fmt.Fprintf(os.Stderr, "Error occurred: %s", err)
-		return
+		base.SetExitStatus(base.SApplicationError)
+		return err
 	}
+	return nil
 }
 
 const (

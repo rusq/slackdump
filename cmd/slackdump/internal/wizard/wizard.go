@@ -3,10 +3,10 @@ package wizard
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/AlecAivazis/survey/v2"
-	"github.com/rusq/dlog"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 
@@ -47,7 +47,7 @@ func init() {
 	CmdWizard.Run = runWizard
 }
 
-func runWizard(ctx context.Context, cmd *base.Command, args []string) {
+func runWizard(ctx context.Context, cmd *base.Command, args []string) error {
 	baseCommands := base.Slackdump.Commands
 	if len(baseCommands) == 0 {
 		panic("internal error:  no commands")
@@ -57,10 +57,10 @@ func runWizard(ctx context.Context, cmd *base.Command, args []string) {
 	if err := show(menu, func(cmd *base.Command) error {
 		return cmd.Wizard(ctx, cmd, args)
 	}); err != nil {
-		dlog.Println("error running wizard: %s", err)
-		base.SetExitStatus(1)
-		return
+		base.SetExitStatus(base.SApplicationError)
+		return fmt.Errorf("error running wizard: %s", err)
 	}
+	return nil
 }
 
 func makeMenu(cmds []*base.Command, parent string, title string) (m *menu) {

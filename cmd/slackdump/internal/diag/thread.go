@@ -50,34 +50,32 @@ var (
 	delThread    = CmdThread.Flag.String("del", "", "`URL` of the thread to delete")
 )
 
-func runThread(ctx context.Context, cmd *base.Command, args []string) {
+func runThread(ctx context.Context, cmd *base.Command, args []string) error {
 	lg := dlog.FromContext(ctx)
 	lg.SetPrefix("thread ")
 
 	if err := cmd.Flag.Parse(args); err != nil {
 		base.SetExitStatus(base.SInvalidParameters)
-		return
+		return nil
 	}
 
 	if *channel == "" {
 		base.SetExitStatus(base.SInvalidParameters)
-		lg.Println("-channel flag is required")
-		return
+		return errors.New("-channel flag is required")
 	}
 
 	if *delThread != "" {
 		if err := runDelete(*token, *delThread); err != nil {
 			base.SetExitStatus(base.SApplicationError)
-			lg.Println(err)
-			return
+			return err
 		}
 	} else {
 		if err := runGenerate(*token, *channel, *numThreadMsg); err != nil {
 			base.SetExitStatus(base.SApplicationError)
-			lg.Println(err)
-			return
+			return err
 		}
 	}
+	return nil
 }
 
 func runDelete(token, url string) error {

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"log"
 	"os"
 	"runtime/trace"
 	"strings"
@@ -38,7 +39,8 @@ func init() {
 		diag.CmdDiag,
 		v1.CmdV1,
 
-		man.ManLogin,
+		man.Login,
+		man.WhatsNew,
 	}
 }
 
@@ -82,7 +84,9 @@ BigCmdLoop:
 			if !cmd.Runnable() {
 				continue
 			}
-			invoke(cmd, args)
+			if err := invoke(cmd, args); err != nil {
+				log.Print(err)
+			}
 			base.Exit()
 			return
 		}
@@ -105,7 +109,7 @@ func mainUsage() {
 	os.Exit(2)
 }
 
-func invoke(cmd *base.Command, args []string) {
+func invoke(cmd *base.Command, args []string) error {
 	if cmd.CustomFlags {
 		args = args[1:]
 	} else {
@@ -117,9 +121,8 @@ func invoke(cmd *base.Command, args []string) {
 
 	// maybe start trace
 	if err := initTrace(cfg.TraceFile); err != nil {
-		fmt.Fprintf(os.Stderr, "failed to start trace: %s", err)
 		base.SetExitStatus(base.SGenericError)
-		return
+		return fmt.Errorf("failed to start trace: %s", err)
 	}
 
 	ctx, task := trace.NewTask(context.Background(), "command")
@@ -129,14 +132,13 @@ func invoke(cmd *base.Command, args []string) {
 		var err error
 		ctx, err = authenticate(ctx, cfg.CacheDir())
 		if err != nil {
-			dlog.Printf("auth error: %s", err)
 			trace.Logf(ctx, "invoke", "auth error: %s", err)
 			base.SetExitStatus(base.SAuthError)
-			return
+			return fmt.Errorf("auth error: %w", err)
 		}
 	}
 	trace.Log(ctx, "command", fmt.Sprint("Running ", cmd.Name(), " command"))
-	cmd.Run(ctx, cmd, args)
+	return cmd.Run(ctx, cmd, args)
 }
 
 // initTrace initialises the tracing.  If the filename is not empty, the file

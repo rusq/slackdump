@@ -26,7 +26,7 @@ var CmdName string
 type Command struct {
 	// Run runs the command.
 	// The args are the arguments after the command name.
-	Run func(ctx context.Context, cmd *Command, args []string)
+	Run func(ctx context.Context, cmd *Command, args []string) error
 
 	Wizard func(ctx context.Context, cmd *Command, args []string) error
 
@@ -85,15 +85,6 @@ func SetExitStatus(n StatusCode) {
 		exitStatus = n
 	}
 	exitMu.Unlock()
-}
-
-func SetExitStatusMsg(status StatusCode, message any) {
-	if status == SNoError {
-		fmt.Fprintln(os.Stderr, message)
-	} else {
-		fmt.Fprintf(os.Stderr, "ERR-%03[1]d (%[1]s): %[2]s\n", status, message)
-	}
-	SetExitStatus(status)
 }
 
 var atExitFuncs []func()

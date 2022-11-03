@@ -40,3 +40,17 @@ Workspaces are stored in cache directory on this device:
 		CmdWspDel,
 	},
 }
+
+// argsWorkspace checks if the current workspace override is set, and returns it
+// if it is. Otherwise, it checks the first (with index zero) argument in args,
+// and if it set, returns it.  Otherwise, it returns an empty string.
+func argsWorkspace(args []string) string {
+	if cfg.Workspace != "" {
+		return cfg.Workspace
+	}
+	if len(args) > 0 && args[0] != "" {
+		return args[0]
+	}
+
+	return ""
+}

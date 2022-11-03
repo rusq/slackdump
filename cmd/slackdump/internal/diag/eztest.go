@@ -3,6 +3,7 @@ package diag
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 
@@ -42,7 +43,7 @@ func init() {
 	}
 }
 
-func runEzLoginTest(ctx context.Context, cmd *base.Command, args []string) {
+func runEzLoginTest(ctx context.Context, cmd *base.Command, args []string) error {
 	lg := dlog.FromContext(ctx)
 	lg.SetPrefix("eztest ")
 
@@ -50,27 +51,24 @@ func runEzLoginTest(ctx context.Context, cmd *base.Command, args []string) {
 
 	if err := cmd.Flag.Parse(args); err != nil {
 		base.SetExitStatus(base.SInvalidParameters)
-		lg.Println(err)
-		return
+		return err
 	}
 
 	if *wsp == "" {
 		base.SetExitStatus(base.SInvalidParameters)
 		cmd.Flag.Usage()
-		return
+		return nil
 	}
 
 	if err := playwright.Install(&playwright.RunOptions{Browsers: []string{"chromium"}}); err != nil {
 		base.SetExitStatus(base.SApplicationError)
-		lg.Println("playwright installation error: ", err)
-		return
+		return fmt.Errorf("playwright installation error: %w", err)
 	}
 
 	b, err := browser.New(*wsp)
 	if err != nil {
 		base.SetExitStatus(base.SApplicationError)
-		lg.Println(err)
-		return
+		return err
 	}
 
 	token, cookies, err := b.Authenticate(context.Background())
@@ -87,13 +85,14 @@ func runEzLoginTest(ctx context.Context, cmd *base.Command, args []string) {
 	enc.SetIndent("", "  ")
 	if err := enc.Encode(r); err != nil {
 		base.SetExitStatus(base.SApplicationError)
-		lg.Println(err)
-		return
+		return err
 	}
 	if r.Err == nil {
 		lg.Println("OK")
 	} else {
 		lg.Println("ERROR")
 		base.SetExitStatus(base.SApplicationError)
+		return errors.New(*r.Err)
 	}
+	return nil
 }

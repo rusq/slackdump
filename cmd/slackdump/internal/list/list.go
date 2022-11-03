@@ -20,6 +20,7 @@ which is sometimes unreasonably slow.
 	},
 }
 
-func runList(ctx context.Context, cmd *base.Command, args []string) {
+func runList(ctx context.Context, cmd *base.Command, args []string) error {
 	cmd.Flag.Usage()
+	return nil
 }

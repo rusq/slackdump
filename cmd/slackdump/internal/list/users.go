@@ -22,6 +22,7 @@ func init() {
 	CmdListUsers.Flag.StringVar(&dummy, "test", "test string", "this is a test string")
 }
 
-func listUsers(ctx context.Context, cmd *base.Command, args []string) {
+func listUsers(ctx context.Context, cmd *base.Command, args []string) error {
 	fmt.Println("list users invoked, args:", args)
+	return nil
 }

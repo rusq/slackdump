@@ -2,13 +2,15 @@ package workspace
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v2/internal/app/appauth"
 )
+
+var ErrOpCancelled = errors.New("operation cancelled")
 
 var CmdWspDel = &base.Command{
 	UsageLine: "slackdump workspace del [flags]",
@@ -34,83 +36,68 @@ var (
 	delConfirm = CmdWspDel.Flag.Bool("y", false, "answer yes to all questions")
 )
 
-func runWspDel(ctx context.Context, cmd *base.Command, args []string) {
+func runWspDel(ctx context.Context, cmd *base.Command, args []string) error {
 	if *delAll {
-		delAllWsp()
+		return delAllWsp()
 	} else {
-		delOneWsp(args)
+		return delOneWsp(args)
 	}
 }
 
-func delAllWsp() {
+func delAllWsp() error {
 	m, err := appauth.NewManager(cfg.CacheDir())
 	if err != nil {
-		base.SetExitStatusMsg(base.SCacheError, err.Error())
-		return
+		base.SetExitStatus(base.SCacheError)
+		return err
 	}
 
 	workspaces, err := m.List()
 	if err != nil {
-		base.SetExitStatusMsg(base.SApplicationError, err.Error())
+		base.SetExitStatus(base.SApplicationError)
+		return err
 	}
 
-	if !*delConfirm && !yesno("This will delete ALL workspaces") {
-		base.SetExitStatusMsg(base.SNoError, "operation cancelled")
-		return
+	if !*delConfirm && !base.YesNo("This will delete ALL workspaces") {
+		base.SetExitStatus(base.SNoError)
+		return ErrOpCancelled
 	}
 	for _, name := range workspaces {
 		if err := m.Delete(name); err != nil {
-			base.SetExitStatusMsg(base.SCacheError, err.Error())
-			return
+			base.SetExitStatus(base.SCacheError)
+			return err
 		}
 		fmt.Printf("workspace %q deleted\n", name)
 	}
+	return nil
 }
 
-func delOneWsp(args []string) {
-	wsp, err := argsWorkspace(args)
-	if err != nil {
-		base.SetExitStatusMsg(base.SInvalidParameters, err.Error())
-		return
+func delOneWsp(args []string) error {
+	wsp := argsWorkspace(args)
+	if wsp == "" {
+		base.SetExitStatus(base.SInvalidParameters)
+		return appauth.ErrNameRequired
 	}
 
 	m, err := appauth.NewManager(cfg.CacheDir())
 	if err != nil {
-		base.SetExitStatusMsg(base.SCacheError, err.Error())
-		return
+		base.SetExitStatus(base.SCacheError)
+		return err
 	}
 
 	if !m.Exists(wsp) {
-		base.SetExitStatusMsg(base.SUserError, "workspace does not exist")
-		return
+		base.SetExitStatus(base.SUserError)
+		return errors.New("workspace does not exist")
 	}
 
-	if !*delConfirm && !yesno(fmt.Sprintf("workspace %q is about to be deleted", wsp)) {
-		base.SetExitStatusMsg(base.SNoError, "operation cancelled")
-		return
+	if !*delConfirm && !base.YesNo(fmt.Sprintf("workspace %q is about to be deleted", wsp)) {
+		base.SetExitStatus(base.SNoError)
+		return ErrOpCancelled
 	}
 
 	if err := m.Delete(wsp); err != nil {
-		base.SetExitStatusMsg(base.SApplicationError, err.Error())
-		return
+		base.SetExitStatus(base.SApplicationError)
+		return err
 	}
 	fmt.Printf("workspace %q deleted\n", wsp)
-}
-
-func yesno(message string) bool {
-	for {
-		fmt.Print(message, "? (y/N) ")
-		var resp string
-		fmt.Scanln(&resp)
-		resp = strings.TrimSpace(resp)
-		if len(resp) > 0 {
-			switch strings.ToLower(resp)[0] {
-			case 'y':
-				return true
-			case 'n':
-				return false
-			}
-		}
-		fmt.Println("Please answer yes or no and press Enter or Return.")
-	}
+	return nil
 }

@@ -17,7 +17,7 @@ func TestCacheDir(t *testing.T) {
 		want string
 	}{
 		{
-			"returns the cacheDir value",
+			"returns the UserCacheDir value",
 			filepath.Join(ucd, cacheDirName),
 		},
 	}

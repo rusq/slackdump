@@ -59,9 +59,6 @@ func NewManager(dir string) (*Manager, error) {
 // operating system on the same machine, unless it's a clone of the source
 // operating system on which the credentials storage was created.
 func (m *Manager) Auth(ctx context.Context, name string, c Credentials) (auth.Provider, error) {
-	if name == "" {
-		return nil, ErrNameRequired
-	}
 	return initProvider(ctx, m.dir, m.filename(name), name, c)
 }
 
@@ -195,7 +192,7 @@ func (m *Manager) Exists(name string) bool {
 
 // filename returns the filename for the workspace name.
 func (m *Manager) filename(name string) string {
-	if name == defName {
+	if name == defName || name == "" {
 		name = defCredsFile
 	} else {
 		name = name + wspExt

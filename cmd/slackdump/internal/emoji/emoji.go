@@ -2,8 +2,7 @@ package emoji
 
 import (
 	"context"
-
-	"github.com/rusq/dlog"
+	"fmt"
 
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/auth"
@@ -32,23 +31,21 @@ func init() {
 	CmdEmoji.Flag.BoolVar(&ignoreErrors, "ignore-errors", true, "ignore download errors (skip failed emojis)")
 }
 
-func runEmoji(ctx context.Context, cmd *base.Command, args []string) {
+func runEmoji(ctx context.Context, cmd *base.Command, args []string) error {
 	prov, err := auth.FromContext(ctx)
 	if err != nil {
 		base.SetExitStatus(base.SAuthError)
-		dlog.Printf("auth error: %s", err)
-		return
+		return fmt.Errorf("auth error: %s", err)
 	}
 	cfg.SlackOptions.NoUserCache = true // don't need users for emojis
 	sess, err := slackdump.NewWithOptions(ctx, prov, cfg.SlackOptions)
 	if err != nil {
 		base.SetExitStatus(base.SApplicationError)
-		dlog.Printf("application error: %s", err)
-		return
+		return fmt.Errorf("application error: %s", err)
 	}
 	if err := emoji.Dl(ctx, sess, cfg.BaseLoc, ignoreErrors); err != nil {
 		base.SetExitStatus(base.SApplicationError)
-		dlog.Printf("application error: %s", err)
-		return
+		return fmt.Errorf("application error: %s", err)
 	}
+	return nil
 }
