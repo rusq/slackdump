@@ -17,10 +17,9 @@ var (
 	LogFile   string
 	Verbose   bool
 
-	ConfigFile   string
-	BaseLoc      string // base location - directory or a zip file.
-	UserCacheDir string // cache directory
-	Workspace    string
+	ConfigFile string
+	BaseLoc    string // base location - directory or a zip file.
+	Workspace  string
 
 	SlackToken   string
 	SlackCookie  string
@@ -37,8 +36,15 @@ const (
 	OmitDownloadFlag
 	OmitConfigFlag
 	OmitBaseLoc
+	OmitCacheDir
+	OmitWorkspaceFlag
 
-	OmitAll = OmitConfigFlag | OmitDownloadFlag | OmitBaseLoc
+	OmitAll = OmitConfigFlag |
+		OmitDownloadFlag |
+		OmitBaseLoc |
+		OmitCacheDir |
+		OmitWorkspaceFlag |
+		OmitAuthFlags
 )
 
 // SetBaseFlags sets base flags
@@ -56,12 +62,16 @@ func SetBaseFlags(fs *flag.FlagSet, mask FlagMask) {
 		fs.BoolVar(&DownloadFiles, "download", true, "enables file attachments download")
 	}
 	if mask&OmitConfigFlag == 0 {
-		fs.StringVar(&ConfigFile, "config", "", "configuration `file` with API limits overrides")
+		fs.StringVar(&ConfigFile, "api-config", "", "configuration `file` with Slack API limits overrides.\nYou can generate one with default values with 'slackdump config new`")
 	}
 	if mask&OmitBaseLoc == 0 {
 		base := fmt.Sprintf("slackdump_%s.zip", time.Now().Format("20060102_150304"))
 		fs.StringVar(&BaseLoc, "base", osenv.Value("BASE_LOC", base), "a `location` (directory or a ZIP file) on a local disk where the files will be saved.")
 	}
-	fs.StringVar(&UserCacheDir, "cache-dir", osenv.Value("CACHE_DIR", CacheDir()), "cache `directory` location")
-	fs.StringVar(&Workspace, "workspace", osenv.Value("SLACK_WORKSPACE", ""), "Slack workspace to use") // TODO: load from configuration.
+	if mask&OmitCacheDir == 0 {
+		fs.StringVar(&SlackOptions.CacheDir, "cache-dir", osenv.Value("CACHE_DIR", CacheDir()), "cache `directory` location")
+	}
+	if mask&OmitWorkspaceFlag == 0 {
+		fs.StringVar(&Workspace, "workspace", osenv.Value("SLACK_WORKSPACE", ""), "Slack workspace to use") // TODO: load from configuration.
+	}
 }

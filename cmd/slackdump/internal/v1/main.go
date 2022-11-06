@@ -380,7 +380,7 @@ func parseCmdLine(args []string) (params, error) {
 		return p, err
 	}
 
-	el, err := structures.MakeEntityList(fs.Args())
+	el, err := structures.NewEntityList(fs.Args())
 	if err != nil {
 		return p, err
 	}

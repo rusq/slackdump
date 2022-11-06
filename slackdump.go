@@ -104,14 +104,16 @@ func NewWithOptions(ctx context.Context, authProvider auth.Provider, opts Option
 		return nil, fmt.Errorf("failed to create the cache directory: %s", err)
 	}
 
-	sd.l().Println("> checking user cache...")
-	users, err := sd.GetUsers(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("error fetching users: %w", err)
-	}
+	if !sd.options.NoUserCache {
+		sd.l().Println("> checking user cache...")
+		users, err := sd.GetUsers(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("error fetching users: %w", err)
+		}
 
-	sd.Users = users
-	sd.UserIndex = users.IndexByID()
+		sd.Users = users
+		sd.UserIndex = users.IndexByID()
+	}
 
 	return sd, nil
 }

@@ -17,6 +17,9 @@ import (
 	"strings"
 	"sync"
 
+	markdown "github.com/MichaelMure/go-term-markdown"
+	"golang.org/x/term"
+
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/cfg"
 )
 
@@ -78,6 +81,13 @@ under certain conditions.  Read LICENSE for more information.
 
 var exitStatus = SNoError
 var exitMu sync.Mutex
+
+func ExitStatus() (sc StatusCode) {
+	exitMu.Lock()
+	sc = exitStatus
+	exitMu.Unlock()
+	return
+}
 
 func SetExitStatus(n StatusCode) {
 	exitMu.Lock()
@@ -148,4 +158,22 @@ func Executable() string {
 		}
 	}
 	return filepath.Base(exe)
+}
+
+// Render renders the string formatted as markdown into a string with
+// escape sequences for the terminal output.  The width of output is calculated
+// based on the terminal width.
+func Render(s string) string {
+	const (
+		defWidth = 80
+	)
+	width, _, err := term.GetSize(int(os.Stdout.Fd()))
+	if err != nil {
+		// we're not running in the terminal, output the markdown source.
+		return s
+	}
+	leftIndent := int(float64(width) * 0.075)
+	rightIndent := int(float64(width) * 0.02)
+
+	return string(markdown.Render(s, width-rightIndent, leftIndent))
 }

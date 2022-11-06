@@ -12,8 +12,8 @@ import (
 )
 
 var CmdEmoji = &base.Command{
-	Run:         runEmoji,
-	Wizard:      func(context.Context, *base.Command, []string) error { panic("not implemented") },
+	Run:         run,
+	Wizard:      wizard,
 	UsageLine:   "slackdump emoji [flags]",
 	Short:       "download workspace emojis",
 	Long:        "",
@@ -31,7 +31,7 @@ func init() {
 	CmdEmoji.Flag.BoolVar(&ignoreErrors, "ignore-errors", true, "ignore download errors (skip failed emojis)")
 }
 
-func runEmoji(ctx context.Context, cmd *base.Command, args []string) error {
+func run(ctx context.Context, cmd *base.Command, args []string) error {
 	prov, err := auth.FromContext(ctx)
 	if err != nil {
 		base.SetExitStatus(base.SAuthError)

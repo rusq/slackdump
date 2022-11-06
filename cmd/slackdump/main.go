@@ -5,7 +5,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"log"
 	"os"
 	"runtime/trace"
 	"strings"
@@ -15,9 +14,11 @@ import (
 	"github.com/rusq/tracer"
 
 	"github.com/rusq/slackdump/v2/auth"
+	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/apiconfig"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/diag"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/emoji"
+	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/export"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/golang/help"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/list"
@@ -26,6 +27,7 @@ import (
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/wizard"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/workspace"
 	"github.com/rusq/slackdump/v2/internal/app/appauth"
+	"github.com/rusq/slackdump/v2/logger"
 )
 
 func init() {
@@ -33,11 +35,13 @@ func init() {
 
 	base.Slackdump.Commands = []*base.Command{
 		wizard.CmdWizard,
+		export.CmdExport,
 		list.CmdList,
 		emoji.CmdEmoji,
 		workspace.CmdWorkspace,
 		diag.CmdDiag,
 		v1.CmdV1,
+		apiconfig.CmdConfig,
 
 		man.Login,
 		man.WhatsNew,
@@ -85,7 +89,7 @@ BigCmdLoop:
 				continue
 			}
 			if err := invoke(cmd, args); err != nil {
-				log.Print(err)
+				dlog.Printf("Error %03[1]d (%[1]s): %[2]s", base.ExitStatus(), err)
 			}
 			base.Exit()
 			return
@@ -113,10 +117,11 @@ func invoke(cmd *base.Command, args []string) error {
 	if cmd.CustomFlags {
 		args = args[1:]
 	} else {
-		cfg.SetBaseFlags(&cmd.Flag, cmd.FlagMask)
-		cmd.Flag.Usage = func() { cmd.Usage() }
-		cmd.Flag.Parse(args[1:])
-		args = cmd.Flag.Args()
+		var err error
+		args, err = parseFlags(cmd, args)
+		if err != nil {
+			return err
+		}
 	}
 
 	// maybe start trace
@@ -127,6 +132,16 @@ func invoke(cmd *base.Command, args []string) error {
 
 	ctx, task := trace.NewTask(context.Background(), "command")
 	defer task.End()
+
+	// initialise default logging.
+	lg, err := initLog(cfg.LogFile, cfg.Verbose)
+	if err != nil {
+		return err
+	}
+	lg.SetPrefix(cmd.Name() + ": ")
+	ctx = dlog.NewContext(ctx, lg)
+	cfg.SlackOptions.Logger = lg
+
 	if cmd.RequireAuth {
 		trace.Logf(ctx, "invoke", "command %s requires auth", cmd.Name())
 		var err error
@@ -139,6 +154,27 @@ func invoke(cmd *base.Command, args []string) error {
 	}
 	trace.Log(ctx, "command", fmt.Sprint("Running ", cmd.Name(), " command"))
 	return cmd.Run(ctx, cmd, args)
+}
+
+func parseFlags(cmd *base.Command, args []string) ([]string, error) {
+	cfg.SetBaseFlags(&cmd.Flag, cmd.FlagMask)
+	cmd.Flag.Usage = func() { cmd.Usage() }
+	if err := cmd.Flag.Parse(args[1:]); err != nil {
+		return nil, err
+	}
+	if cfg.ConfigFile == "" {
+		return cmd.Flag.Args(), nil
+	}
+
+	// load the API limit configuration file.
+	opts, err := apiconfig.Load(cfg.ConfigFile)
+	if err != nil {
+		return nil, err
+	}
+	if err := cfg.SlackOptions.Apply(*opts); err != nil {
+		return nil, err
+	}
+	return cmd.Flag.Args(), nil
 }
 
 // initTrace initialises the tracing.  If the filename is not empty, the file
@@ -164,6 +200,36 @@ func initTrace(filename string) error {
 	}
 	base.AtExit(stop)
 	return nil
+}
+
+// initLog initialises the logging and returns the context with the Logger. If
+// the filename is not empty, the file will be opened, and the logger output will
+// be switch to that file. Returns the initialised logger, stop function and an
+// error, if any. The stop function must be called in the deferred call, it will
+// close the log file, if it is open. If the error is returned the stop function
+// is nil.
+func initLog(filename string, verbose bool) (*dlog.Logger, error) {
+	lg := logger.Default
+	lg.SetDebug(verbose)
+
+	if filename == "" {
+		return lg, nil
+	}
+
+	lg.Debugf("log messages will be written to: %q", filename)
+	lf, err := os.OpenFile(filename, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0666)
+	if err != nil {
+		return lg, fmt.Errorf("failed to create the log file: %w", err)
+	}
+	lg.SetOutput(lf)
+
+	base.AtExit(func() {
+		if err := lf.Close(); err != nil {
+			dlog.Printf("failed to close the log file: %s", err)
+		}
+	})
+
+	return lg, nil
 }
 
 func authenticate(ctx context.Context, cacheDir string) (context.Context, error) {

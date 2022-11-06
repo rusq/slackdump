@@ -199,7 +199,7 @@ func questConversationList(msg string) (*structures.EntityList, error) {
 		if chanStr == "" {
 			return new(structures.EntityList), nil
 		}
-		if el, err := structures.MakeEntityList(strings.Split(chanStr, " ")); err != nil {
+		if el, err := structures.NewEntityList(strings.Split(chanStr, " ")); err != nil {
 			fmt.Println(err)
 		} else {
 			return el, nil
