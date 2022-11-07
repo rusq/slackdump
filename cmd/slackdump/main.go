@@ -17,6 +17,7 @@ import (
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/apiconfig"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/diag"
+	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/dump"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/emoji"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/export"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/golang/base"
@@ -36,6 +37,7 @@ func init() {
 	base.Slackdump.Commands = []*base.Command{
 		wizard.CmdWizard,
 		export.CmdExport,
+		dump.CmdDump,
 		list.CmdList,
 		emoji.CmdEmoji,
 		workspace.CmdWorkspace,

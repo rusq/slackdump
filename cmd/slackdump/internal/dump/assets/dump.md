@@ -1,0 +1,75 @@
+# Command Dump
+
+## Description
+
+Dump is the mode that allows to dump the following type of conversations:
+
+- public and private channels with threads
+- group messages (MPIM)
+- private messages (DMs)
+- individual threads
+
+It downloads file attachments as well, if the `-download` flag is set.
+
+This is the original low-level mode that applies almost no transformations to
+the API output mode of the Slackdump, and its behaviour would be familiar
+to those who used it since the very first release.
+
+### IDs or URLs Parameter
+
+The `<IDs or URLs>` parameter should list the IDs of conversations or URLs of
+the channel or thread that you'd like to download, for example `C051D4052` is
+a channel ID, and `https://ora600.slack.com/archives/DHYNUJ00Y` is a URL of a
+private conversation (DM). You can also use an input file with the list of
+IDs or URLs or combine file with conversations and individual conversation
+links.
+
+## Examples
+
+### Dump one channel and a DM
+
+This command will also enable file download.
+
+```shell
+slackdump dump -files C051D4052 DHYNUJ00Y
+```
+
+### Dump channels listed in my_channels.txt
+
+```shell
+slackdump dump @my_channels.txt
+```
+
+### Dump a single thread
+
+Threads can be specified as a **URL**, or use a Slackdump-specific
+**colon notation**.
+
+URL:
+
+```shell
+slackdump dump \
+  https://ora600.slack.com/archives/C051D4052/p1665917454731419
+```
+
+Slackdump colon notation:
+
+```shell
+slackdump dump C051D4052:1665917454.731419
+```
+
+### Combined all of the above
+
+This example shows how you can combine different types of input. URL of the
+thread is omitted for brevity:
+
+```shell
+slackdump dump -files C051D4052 \
+  DHYNUJ00Y \ 
+  @my_channels.txt \
+  C051D4052:1665917454.731419
+```
+
+_Windows users_: please note that "\" is used on UNIX systems to split the
+single command across multiple lines.  The same command can be entered on a
+single line without "\" and will have the same effect as the one above.
