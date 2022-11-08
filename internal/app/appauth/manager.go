@@ -218,7 +218,7 @@ func (m *Manager) name(filename string) (string, error) {
 func (m *Manager) readWsp(r io.Reader) string {
 	var current string
 	if _, err := fmt.Fscanln(r, &current); err != nil {
-		return filepath.Join(m.dir, defCredsFile)
+		return defCredsFile
 	}
 	return strings.TrimSpace(current)
 }

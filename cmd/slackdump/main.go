@@ -169,11 +169,11 @@ func parseFlags(cmd *base.Command, args []string) ([]string, error) {
 	}
 
 	// load the API limit configuration file.
-	opts, err := apiconfig.Load(cfg.ConfigFile)
+	limits, err := apiconfig.Load(cfg.ConfigFile)
 	if err != nil {
 		return nil, err
 	}
-	if err := cfg.SlackOptions.Apply(*opts); err != nil {
+	if err := cfg.SlackOptions.Limits.Apply(*limits); err != nil {
 		return nil, err
 	}
 	return cmd.Flag.Args(), nil

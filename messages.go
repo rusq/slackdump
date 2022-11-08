@@ -108,13 +108,13 @@ func (sd *Session) dumpChannel(ctx context.Context, channelID string, oldest, la
 			resp *slack.GetConversationHistoryResponse
 		)
 		reqStart := time.Now()
-		if err := withRetry(ctx, convLimiter, sd.options.Tier3Retries, func() error {
+		if err := withRetry(ctx, convLimiter, sd.options.Limits.Tier3.Retries, func() error {
 			var err error
 			trace.WithRegion(ctx, "GetConversationHistoryContext", func() {
 				resp, err = sd.client.GetConversationHistoryContext(ctx, &slack.GetConversationHistoryParameters{
 					ChannelID: channelID,
 					Cursor:    cursor,
-					Limit:     sd.options.ConversationsPerReq,
+					Limit:     sd.options.Limits.Request.Conversations,
 					Oldest:    structures.FormatSlackTS(oldest),
 					Latest:    structures.FormatSlackTS(latest),
 					Inclusive: true,
@@ -168,7 +168,7 @@ func (sd *Session) dumpChannel(ctx context.Context, channelID string, oldest, la
 func (sd *Session) getChannelName(ctx context.Context, l *rate.Limiter, channelID string) (string, error) {
 	// get channel name
 	var ci *slack.Channel
-	if err := withRetry(ctx, l, sd.options.Tier3Retries, func() error {
+	if err := withRetry(ctx, l, sd.options.Limits.Tier3.Retries, func() error {
 		var err error
 		ci, err = sd.client.GetConversationInfoContext(ctx, channelID, false)
 		return err

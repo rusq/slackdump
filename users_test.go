@@ -216,8 +216,10 @@ func TestSession_GetUsers(t *testing.T) {
 			fields{options: Options{
 				UserCacheFilename: gimmeTempFile(t, dir),
 				MaxUserCacheAge:   5 * time.Hour,
-				Tier2Burst:        1,
-				Tier3Burst:        1,
+				Limits: Limits{
+					Tier2: TierLimits{Burst: 1},
+					Tier3: TierLimits{Burst: 1},
+				},
 			}},
 			args{context.Background()},
 			func(mc *mockClienter) {
@@ -231,8 +233,10 @@ func TestSession_GetUsers(t *testing.T) {
 			fields{options: Options{
 				UserCacheFilename: gimmeTempFileWithUsers(t, dir),
 				MaxUserCacheAge:   5 * time.Hour,
-				Tier2Burst:        1,
-				Tier3Burst:        1,
+				Limits: Limits{
+					Tier2: TierLimits{Burst: 1},
+					Tier3: TierLimits{Burst: 1},
+				},
 			}},
 			args{context.Background()},
 			func(mc *mockClienter) {

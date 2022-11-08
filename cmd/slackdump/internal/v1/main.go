@@ -338,24 +338,24 @@ func parseCmdLine(args []string) (params, error) {
 	// - file download options
 	fs.BoolVar(&p.appCfg.Options.DumpFiles, "f", slackdump.DefOptions.DumpFiles, "same as -download")
 	fs.BoolVar(&p.appCfg.Options.DumpFiles, "download", slackdump.DefOptions.DumpFiles, "enable files download.")
-	fs.IntVar(&p.appCfg.Options.Workers, "download-workers", slackdump.DefOptions.Workers, "number of file download worker threads.")
-	fs.IntVar(&p.appCfg.Options.DownloadRetries, "dl-retries", slackdump.DefOptions.DownloadRetries, "rate limit retries for file downloads.")
+	fs.IntVar(&p.appCfg.Options.Limits.Workers, "download-workers", slackdump.DefOptions.Limits.Workers, "number of file download worker threads.")
+	fs.IntVar(&p.appCfg.Options.Limits.DownloadRetries, "dl-retries", slackdump.DefOptions.Limits.DownloadRetries, "rate limit retries for file downloads.")
 
 	// - API request speed
-	fs.IntVar(&p.appCfg.Options.Tier3Retries, "t3-retries", slackdump.DefOptions.Tier3Retries, "rate limit retries for conversation.")
-	fs.UintVar(&p.appCfg.Options.Tier3Boost, "t3-boost", slackdump.DefOptions.Tier3Boost, "Tier-3 rate limiter boost in `events` per minute, will be added to the\nbase slack tier event per minute value.")
-	fs.UintVar(&p.appCfg.Options.Tier3Burst, "t3-burst", slackdump.DefOptions.Tier3Burst, "Tier-3 rate limiter burst, allow up to `N` burst events per second.\nDefault value is safe.")
-	fs.IntVar(&p.appCfg.Options.Tier2Retries, "t2-retries", slackdump.DefOptions.Tier2Retries, "rate limit retries for channel listing.")
-	fs.UintVar(&p.appCfg.Options.Tier2Boost, "t2-boost", slackdump.DefOptions.Tier2Boost, "Tier-2 rate limiter boost in `events` per minute\n(affects users and channels).")
-	fs.UintVar(&p.appCfg.Options.Tier2Burst, "t2-burst", slackdump.DefOptions.Tier2Burst, "Tier-2 rate limiter burst, allow up to `N` burst events per second.\n(affects users and channels).")
+	fs.IntVar(&p.appCfg.Options.Limits.Tier3.Retries, "t3-retries", slackdump.DefOptions.Limits.Tier3.Retries, "rate limit retries for conversation.")
+	fs.UintVar(&p.appCfg.Options.Limits.Tier3.Boost, "t3-boost", slackdump.DefOptions.Limits.Tier3.Boost, "Tier-3 rate limiter boost in `events` per minute, will be added to the\nbase slack tier event per minute value.")
+	fs.UintVar(&p.appCfg.Options.Limits.Tier3.Burst, "t3-burst", slackdump.DefOptions.Limits.Tier3.Burst, "Tier-3 rate limiter burst, allow up to `N` burst events per second.\nDefault value is safe.")
+	fs.IntVar(&p.appCfg.Options.Limits.Tier2.Retries, "t2-retries", slackdump.DefOptions.Limits.Tier2.Retries, "rate limit retries for channel listing.")
+	fs.UintVar(&p.appCfg.Options.Limits.Tier2.Boost, "t2-boost", slackdump.DefOptions.Limits.Tier2.Boost, "Tier-2 rate limiter boost in `events` per minute\n(affects users and channels).")
+	fs.UintVar(&p.appCfg.Options.Limits.Tier2.Burst, "t2-burst", slackdump.DefOptions.Limits.Tier2.Burst, "Tier-2 rate limiter burst, allow up to `N` burst events per second.\n(affects users and channels).")
 
-	fs.UintVar(&p.appCfg.Options.Tier3Boost, "limiter-boost", slackdump.DefOptions.Tier3Boost, "same as -t3-boost.")
-	fs.UintVar(&p.appCfg.Options.Tier3Burst, "limiter-burst", slackdump.DefOptions.Tier3Burst, "same as -t3-burst.")
+	fs.UintVar(&p.appCfg.Options.Limits.Tier3.Boost, "limiter-boost", slackdump.DefOptions.Limits.Tier3.Boost, "same as -t3-boost.")
+	fs.UintVar(&p.appCfg.Options.Limits.Tier3.Burst, "limiter-burst", slackdump.DefOptions.Limits.Tier3.Burst, "same as -t3-burst.")
 
 	// - API request size
-	fs.IntVar(&p.appCfg.Options.ConversationsPerReq, "cpr", slackdump.DefOptions.ConversationsPerReq, "number of conversation `items` per request.")
-	fs.IntVar(&p.appCfg.Options.ChannelsPerReq, "npr", slackdump.DefOptions.ChannelsPerReq, "number of `channels` per request.")
-	fs.IntVar(&p.appCfg.Options.RepliesPerReq, "rpr", slackdump.DefOptions.RepliesPerReq, "number of `replies` per request.")
+	fs.IntVar(&p.appCfg.Options.Limits.Request.Conversations, "cpr", slackdump.DefOptions.Limits.Request.Conversations, "number of conversation `items` per request.")
+	fs.IntVar(&p.appCfg.Options.Limits.Request.Channels, "npr", slackdump.DefOptions.Limits.Request.Channels, "number of `channels` per request.")
+	fs.IntVar(&p.appCfg.Options.Limits.Request.Replies, "rpr", slackdump.DefOptions.Limits.Request.Replies, "number of `replies` per request.")
 
 	// - cache controls
 	fs.StringVar(&p.appCfg.Options.CacheDir, "cache-dir", cfg.CacheDir(), "slackdump cache directory")

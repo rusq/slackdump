@@ -72,4 +72,4 @@ slackdump dump -files C051D4052 \
 
 _Windows users_: please note that "\" is used on UNIX systems to split the
 single command across multiple lines.  The same command can be entered on a
-single line without "\" and will have the same effect as the one above.
+single line with "\" removed, and will have the same effect as the one above.

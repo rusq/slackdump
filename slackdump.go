@@ -10,6 +10,7 @@ import (
 
 	"errors"
 
+	"github.com/go-playground/validator/v10"
 	"github.com/slack-go/slack"
 	"golang.org/x/time/rate"
 
@@ -80,6 +81,14 @@ func NewWithOptions(ctx context.Context, authProvider auth.Provider, opts Option
 	ctx, task := trace.NewTask(ctx, "NewWithOptions")
 	defer task.End()
 
+	if err := opts.Limits.Validate(); err != nil {
+		var vErr validator.ValidationErrors
+		if errors.As(err, &vErr) {
+			return nil, fmt.Errorf("API limits failed validation: %s", vErr.Translate(OptErrTranslations))
+		} else {
+			return nil, err
+		}
+	}
 	if err := authProvider.Validate(); err != nil {
 		return nil, err
 	}
@@ -171,7 +180,7 @@ func ptrSlice[T any](cc []T) []*T {
 }
 
 func (sd *Session) limiter(t network.Tier) *rate.Limiter {
-	return network.NewLimiter(t, sd.options.Tier3Burst, int(sd.options.Tier3Boost))
+	return network.NewLimiter(t, sd.options.Limits.Tier3.Burst, int(sd.options.Limits.Tier3.Boost))
 }
 
 // withRetry will run the callback function fn. If the function returns

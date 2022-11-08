@@ -78,8 +78,8 @@ func (sd *Session) newFileProcessFn(ctx context.Context, dir string, l *rate.Lim
 		sd.client,
 		sd.fs,
 		downloader.Limiter(l),
-		downloader.Retries(sd.options.DownloadRetries),
-		downloader.Workers(sd.options.Workers),
+		downloader.Retries(sd.options.Limits.DownloadRetries),
+		downloader.Workers(sd.options.Limits.Workers),
 		downloader.Logger(sd.l()),
 	)
 	var filesC = make(chan *slack.File, filesCbufSz)

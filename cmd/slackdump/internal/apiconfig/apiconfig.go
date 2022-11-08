@@ -32,26 +32,26 @@ configuration file.
 var ErrConfigInvalid = errors.New("config validation failed")
 
 // Load reads, parses and validates the config file.
-func Load(filename string) (*slackdump.Options, error) {
+func Load(filename string) (*slackdump.Limits, error) {
 	f, err := os.Open(filename)
 	if err != nil {
 		return nil, err
 	}
 	defer f.Close()
 
-	var opts slackdump.Options
+	var limits slackdump.Limits
 	dec := yaml.NewDecoder(f, yaml.DisallowUnknownField(), yaml.DisallowDuplicateKey())
-	if err := dec.Decode(&opts); err != nil {
+	if err := dec.Decode(&limits); err != nil {
 		return nil, err
 	}
 
-	if err := cfg.SlackOptions.Apply(opts); err != nil {
+	if err := cfg.SlackOptions.Limits.Apply(limits); err != nil {
 		if err := printErrors(os.Stderr, err); err != nil {
 			return nil, err
 		}
 		return nil, ErrConfigInvalid
 	}
-	return &opts, nil
+	return &limits, nil
 }
 
 func printErrors(w io.Writer, err error) error {

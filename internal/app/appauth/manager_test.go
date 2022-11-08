@@ -63,7 +63,7 @@ func testFiles(dir string) []string {
 	return files
 }
 
-func TestManager_List(t *testing.T) {
+func TestManager_listFiles(t *testing.T) {
 	tests := []struct {
 		name    string
 		prepFn  func(t *testing.T, dir string)
@@ -100,7 +100,7 @@ func TestManager_List(t *testing.T) {
 			if tt.prepFn != nil {
 				tt.prepFn(t, tempdir)
 			}
-			got, err := m.List()
+			got, err := m.listFiles()
 			if !tt.wantErr(t, err, fmt.Sprintf("List()")) {
 				return
 			}

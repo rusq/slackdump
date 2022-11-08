@@ -41,7 +41,7 @@ func TestSession_getChannels(t *testing.T) {
 			},
 			func(mc *mockClienter) {
 				mc.EXPECT().GetConversationsContext(gomock.Any(), &slack.GetConversationsParameters{
-					Limit: DefOptions.ChannelsPerReq,
+					Limit: DefOptions.Limits.Request.Channels,
 					Types: AllChanTypes,
 				}).Return(types.Channels{
 					slack.Channel{GroupConversation: slack.GroupConversation{
@@ -64,7 +64,7 @@ func TestSession_getChannels(t *testing.T) {
 			},
 			func(mc *mockClienter) {
 				mc.EXPECT().GetConversationsContext(gomock.Any(), &slack.GetConversationsParameters{
-					Limit: DefOptions.ChannelsPerReq,
+					Limit: DefOptions.Limits.Request.Channels,
 					Types: AllChanTypes,
 				}).Return(
 					nil,
