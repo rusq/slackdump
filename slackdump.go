@@ -15,7 +15,6 @@ import (
 	"golang.org/x/time/rate"
 
 	"github.com/rusq/slackdump/v2/auth"
-	"github.com/rusq/slackdump/v2/fsadapter"
 	"github.com/rusq/slackdump/v2/internal/network"
 	"github.com/rusq/slackdump/v2/internal/structures"
 	"github.com/rusq/slackdump/v2/logger"
@@ -32,8 +31,6 @@ type Session struct {
 	client clienter // Slack client
 
 	wspInfo *slack.AuthTestResponse // workspace info
-
-	fs fsadapter.FS // filesystem for saving attachments
 
 	// Users contains the list of users and populated on NewSession
 	Users     types.Users          `json:"users"`
@@ -104,7 +101,6 @@ func NewWithOptions(ctx context.Context, authProvider auth.Provider, opts Option
 		client:  cl,
 		options: opts,
 		wspInfo: authTestResp,
-		fs:      fsadapter.NewDirectory("."), // default is to save attachments to the current directory.
 	}
 
 	sd.propagateLogger(sd.l())
@@ -160,15 +156,6 @@ func (sd *Session) Me() (slack.User, error) {
 
 func (sd *Session) CurrentUserID() string {
 	return sd.wspInfo.UserID
-}
-
-// SetFS sets the filesystem to save attachments to (slackdump defaults to the
-// current directory otherwise).
-func (sd *Session) SetFS(fs fsadapter.FS) {
-	if fs == nil {
-		return
-	}
-	sd.fs = fs
 }
 
 func ptrSlice[T any](cc []T) []*T {

@@ -12,6 +12,7 @@ import (
 	"github.com/go-playground/validator/v10"
 	translations "github.com/go-playground/validator/v10/translations/en"
 
+	"github.com/rusq/slackdump/v2/fsadapter"
 	"github.com/rusq/slackdump/v2/logger"
 )
 
@@ -27,6 +28,7 @@ type Options struct {
 	NoUserCache       bool          // disable fetching users from the API.
 	CacheDir          string        // cache directory
 	Logger            logger.Interface
+	Filesystem        fsadapter.FS
 }
 
 type Limits struct {
@@ -80,16 +82,17 @@ var DefOptions = Options{
 			Retries: 3,   // on Tier 3 this was never a problem, even with limiter-boost=120
 		},
 		Request: RequestLimit{
-			Conversations: 200, // this is the recommended value by Slack. But who listens to them anyway.
-			Channels:      200, // channels are Tier2 rate limited. Slack is greedy and never returns more than 100 per call.
+			Conversations: 100, // this is the recommended value by Slack. But who listens to them anyway.
+			Channels:      100, // channels are Tier2 rate limited. Slack is greedy and never returns more than 100 per call.
 			Replies:       200, // the API-default is 1000 (see conversations.replies), but on large threads it may fail (see #54)
 		},
 	},
 	DumpFiles:         false,
-	UserCacheFilename: "users.cache", // seems logical
-	MaxUserCacheAge:   4 * time.Hour, // quick math:  that's 1/6th of a day, how's that, huh?
-	CacheDir:          "",            // default cache dir
-	Logger:            logger.Default,
+	UserCacheFilename: "users.cache",               // seems logical
+	MaxUserCacheAge:   4 * time.Hour,               // quick math:  that's 1/6th of a day, how's that, huh?
+	CacheDir:          "",                          // default cache dir
+	Logger:            logger.Default,              // default logger is the... default logger
+	Filesystem:        fsadapter.NewDirectory("."), // default filesystem is the current directory
 }
 
 var (

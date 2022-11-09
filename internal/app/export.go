@@ -33,7 +33,7 @@ func Export(ctx context.Context, cfg config.Params, prov auth.Provider) error {
 		return err
 	}
 
-	fs, err := fsadapter.ForFilename(cfg.ExportName)
+	fs, err := fsadapter.New(cfg.ExportName)
 	if err != nil {
 		cfg.Logger().Debugf("Export:  filesystem error: %s", err)
 		return fmt.Errorf("failed to initialise the filesystem: %w", err)

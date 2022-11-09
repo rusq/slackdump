@@ -76,7 +76,7 @@ func (sd *Session) newFileProcessFn(ctx context.Context, dir string, l *rate.Lim
 	// slice
 	dl := downloader.New(
 		sd.client,
-		sd.fs,
+		sd.options.Filesystem,
 		downloader.Limiter(l),
 		downloader.Retries(sd.options.Limits.DownloadRetries),
 		downloader.Workers(sd.options.Limits.Workers),

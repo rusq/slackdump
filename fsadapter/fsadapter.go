@@ -13,17 +13,18 @@ type FS interface {
 	WriteFile(name string, data []byte, perm os.FileMode) error
 }
 
-// ForFilename returns appropriate filesystem based on the name of the file or
-// directory given.
+// New returns appropriate filesystem based on the name of the location.
 // Logic is simple:
-//   - if file has a known extension, the appropriate adapter will be returned.
+//   - if location has a known extension, the appropriate adapter is returned.
 //   - else: it's a directory.
-func ForFilename(name string) (FS, error) {
-	switch strings.ToUpper(filepath.Ext(name)) {
+//
+// Currently supported extensions: ".zip" (case insensitive)
+func New(location string) (FS, error) {
+	switch strings.ToUpper(filepath.Ext(location)) {
 	case ".ZIP":
-		return NewZipFile(name)
+		return NewZipFile(location)
 	default:
-		return NewDirectory(name), nil
+		return NewDirectory(location), nil
 	}
 }
 

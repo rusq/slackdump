@@ -32,6 +32,14 @@ func Dump(ctx context.Context, cfg config.Params, prov auth.Provider) error {
 	ctx, task := trace.NewTask(ctx, "runDump")
 	defer task.End()
 
+	fs, err := fsadapter.New(cfg.Output.Base)
+	if err != nil {
+		return err
+	} else {
+		defer fsadapter.Close(fs)
+		cfg.Options.Filesystem = fs
+	}
+
 	dm, err := newDump(ctx, cfg, prov)
 	if err != nil {
 		return err
@@ -41,7 +49,7 @@ func Dump(ctx context.Context, cfg config.Params, prov auth.Provider) error {
 		err = dm.List(ctx)
 	} else {
 		var n int
-		n, err = dm.Dump(ctx)
+		n, err = dm.Dump(ctx, fs)
 		cfg.Logger().Printf("dumped %d item(s)", n)
 	}
 	return err
@@ -56,7 +64,7 @@ func newDump(ctx context.Context, cfg config.Params, prov auth.Provider) (*dump,
 	return &dump{sess: sess, cfg: cfg, log: cfg.Logger()}, nil
 }
 
-// dump dumps the input, if dumpfiles is true, it will save the files into a
+// Dump dumps the input, if dumpfiles is true, it will save the files into a
 // respective directory with ID of the channel as the name.  If generateText is
 // true, it will additionally format the conversation as text file and write it
 // to <ID>.txt file.
@@ -70,17 +78,10 @@ func newDump(ctx context.Context, cfg config.Params, prov auth.Provider) (*dump,
 //	|  +- ...
 //	+--<ID>.json - json file with conversation and users
 //	+--<ID>.txt  - formatted conversation in text format, if generateText is true.
-func (app *dump) Dump(ctx context.Context) (int, error) {
+func (app *dump) Dump(ctx context.Context, fs fsadapter.FS) (int, error) {
 	if !app.cfg.Input.IsValid() {
 		return 0, errors.New("no valid input")
 	}
-
-	fs, err := fsadapter.ForFilename(app.cfg.Output.Base)
-	if err != nil {
-		return 0, err
-	}
-	defer fsadapter.Close(fs)
-	app.sess.SetFS(fs)
 
 	tmpl, err := app.cfg.CompileTemplates()
 	if err != nil {

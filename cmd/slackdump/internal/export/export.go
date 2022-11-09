@@ -65,7 +65,7 @@ func runExport(ctx context.Context, cmd *base.Command, args []string) error {
 		return err
 	}
 
-	fs, err := fsadapter.ForFilename(cfg.BaseLoc)
+	fs, err := fsadapter.New(cfg.BaseLoc)
 	if err != nil {
 		return err
 	}
