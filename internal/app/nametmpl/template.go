@@ -12,6 +12,9 @@ import (
 
 const filenameTmplName = "nametmpl"
 
+// Default is the default file naming template.
+const Default = `{{.ID}}{{ if .ThreadTS}}-{{.ThreadTS}}{{end}}`
+
 // let's define some markers
 const (
 	mNotOK     = "$$ERROR$$"   // not allowed at all
