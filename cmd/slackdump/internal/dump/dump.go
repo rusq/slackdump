@@ -59,8 +59,7 @@ func runDump(ctx context.Context, cmd *base.Command, args []string) error {
 	if err != nil {
 		base.SetExitStatus(base.SInvalidParameters)
 		return err
-	}
-	if list.IsEmpty() {
+	} else if list.IsEmpty() {
 		base.SetExitStatus(base.SInvalidParameters)
 		return ErrNothingToDo
 	}

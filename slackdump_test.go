@@ -12,7 +12,6 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/rusq/dlog"
 	"github.com/rusq/slackdump/v2/auth"
-	"github.com/rusq/slackdump/v2/fsadapter"
 	"github.com/rusq/slackdump/v2/internal/fixtures"
 	"github.com/rusq/slackdump/v2/internal/mocks/mock_os"
 	"github.com/rusq/slackdump/v2/internal/network"
@@ -224,12 +223,10 @@ func ExampleNew_browserAuth() {
 func TestSession_Me(t *testing.T) {
 	type fields struct {
 		client    clienter
-		fs        fsadapter.FS
 		wspInfo   *slack.AuthTestResponse
 		Users     types.Users
 		UserIndex structures.UserIndex
 		options   Options
-		cacheDir  string
 	}
 	tests := []struct {
 		name    string
@@ -263,7 +260,6 @@ func TestSession_Me(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			sd := &Session{
 				client:    tt.fields.client,
-				fs:        tt.fields.fs,
 				wspInfo:   tt.fields.wspInfo,
 				Users:     tt.fields.Users,
 				UserIndex: tt.fields.UserIndex,
@@ -286,11 +282,9 @@ func TestSession_l(t *testing.T) {
 	type fields struct {
 		client    clienter
 		wspInfo   *slack.AuthTestResponse
-		fs        fsadapter.FS
 		Users     types.Users
 		UserIndex structures.UserIndex
 		options   Options
-		cacheDir  string
 	}
 	tests := []struct {
 		name   string
@@ -317,7 +311,6 @@ func TestSession_l(t *testing.T) {
 			sd := &Session{
 				client:    tt.fields.client,
 				wspInfo:   tt.fields.wspInfo,
-				fs:        tt.fields.fs,
 				Users:     tt.fields.Users,
 				UserIndex: tt.fields.UserIndex,
 				options:   tt.fields.options,

@@ -5,11 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"html/template"
 	"io"
 	"os"
 	"runtime/trace"
 	"strings"
+	"text/template"
 	"time"
 
 	"github.com/rusq/slackdump/v2"

@@ -3,16 +3,13 @@ package config
 import (
 	"errors"
 	"fmt"
-	"html/template"
-	"strings"
-
-	"github.com/slack-go/slack"
+	"text/template"
 
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/export"
+	"github.com/rusq/slackdump/v2/internal/app/nametmpl"
 	"github.com/rusq/slackdump/v2/internal/structures"
 	"github.com/rusq/slackdump/v2/logger"
-	"github.com/rusq/slackdump/v2/types"
 )
 
 const (
@@ -141,7 +138,7 @@ func (p *Params) Validate() error {
 	}
 
 	// validate file naming template
-	if err := p.compileValidateTemplate(); err != nil {
+	if _, err := p.CompileTemplates(); err != nil {
 		return err
 	}
 
@@ -149,45 +146,7 @@ func (p *Params) Validate() error {
 }
 
 func (p *Params) CompileTemplates() (*template.Template, error) {
-	return template.New(FilenameTmplName).Parse(p.FilenameTemplate)
-}
-
-func (p *Params) compileValidateTemplate() error {
-	tmpl, err := p.CompileTemplates()
-	if err != nil {
-		return err
-	}
-	// are you ready for some filth? Here we go!
-
-	// let's define some indicators
-	const (
-		NotOK     = "$$ERROR$$"   // not allowed at all
-		OK        = "$$OK$$"      // required
-		PartialOK = "$$PARTIAL$$" // partial (only goes well with OK)
-	)
-
-	// marking all the fields we want with OK, all the rest (the ones we DO NOT
-	// WANT) with NotOK.
-	tc := types.Conversation{
-		Name:     OK,
-		ID:       OK,
-		Messages: []types.Message{{Message: slack.Message{Msg: slack.Msg{Channel: NotOK}}}},
-		ThreadTS: PartialOK,
-	}
-
-	// now we render the template and check for OK/NotOK values in the output.
-	var buf strings.Builder
-	if err := tmpl.ExecuteTemplate(&buf, FilenameTmplName, tc); err != nil {
-		return err
-	}
-	if strings.Contains(buf.String(), NotOK) || len(buf.String()) == 0 {
-		return fmt.Errorf("invalid fields in the template: %q", p.FilenameTemplate)
-	}
-	if !strings.Contains(buf.String(), OK) {
-		// must contain at least one OK
-		return fmt.Errorf("this does not resolve to anything useful: %q", p.FilenameTemplate)
-	}
-	return nil
+	return nametmpl.Compile(p.FilenameTemplate)
 }
 
 // Producer iterates over the list or reads the list from the file and calls
