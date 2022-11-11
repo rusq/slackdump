@@ -12,9 +12,11 @@ import (
 var CmdWspNew = &base.Command{
 	UsageLine: "slackdump workspace new [flags] name",
 	Short:     "authenticate in a Slack Workspace",
-	Long: `
-New allows you to authenticate in an existing Slack Workspace.
-`,
+	Long: base.Render(`
+# Workspace New Command
+
+**New** allows you to authenticate in an existing Slack Workspace.
+`),
 	FlagMask:   flagmask,
 	PrintFlags: true,
 }

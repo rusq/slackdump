@@ -15,13 +15,19 @@ var ErrOpCancelled = errors.New("operation cancelled")
 var CmdWspDel = &base.Command{
 	UsageLine: "slackdump workspace del [flags]",
 	Short:     "deletes the saved workspace login information",
-	Long: `
-Del can be used to delete the Slack Workspace login information (forgets the
-workspace).
+	Long: base.Render(`
+# Workspace Del(ete) Command
 
-If the workspace login information is deleted, you will need to re-authorize
-in that Slack Workspace by running "slackdump workspace new <name>".
-`,
+Use ` + "`del`" + ` to delete the Slack Workspace login information ("forget"
+the workspace).
+
+If the workspace login information is deleted, in case you will need to use this
+workspace again, you will need to login into that workspace again by running 
+` + " `slackdump workspace new <name>`." + `
+
+Slackdump will ask for the confirmation before deleting.  To omit the
+question, use ` + "`-y`" + ` flag.
+`),
 	CustomFlags: false,
 	FlagMask:    cfg.OmitAll,
 	PrintFlags:  true,

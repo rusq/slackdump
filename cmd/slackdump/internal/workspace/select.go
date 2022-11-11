@@ -12,14 +12,16 @@ import (
 var CmdWspSelect = &base.Command{
 	UsageLine: "slackdump workspace select [flags]",
 	Short:     "choose a previously saved workspace",
-	Long: `
-Select allows to set the current workspace from the list of workspaces
+	Long: base.Render(`
+# Workspace Select Command
+
+**Select** allows to set the current workspace from the list of workspaces
 that you have previously authenticated in.
 
 To get the full list of workspaces, run:
 
 	` + base.Executable() + ` workspace list
-`,
+`),
 	FlagMask:   flagmask,
 	PrintFlags: true,
 }
@@ -39,9 +41,11 @@ func runSelect(ctx context.Context, cmd *base.Command, args []string) error {
 		base.SetExitStatus(base.SCacheError)
 		return fmt.Errorf("unable to initialise cache: %s", err)
 	}
+	// TODO: maybe ask the user to create new workspace if the workspace
+	// does not exist.
 	if err := m.Select(wsp); err != nil {
 		base.SetExitStatus(base.SInvalidParameters)
-		return fmt.Errorf("Failed:  unable to select %s: %s", args[0], err)
+		return fmt.Errorf("unable to select %q: %w", args[0], err)
 	}
 	fmt.Printf("Success:  current workspace set to:  %s\n", args[0])
 	return nil

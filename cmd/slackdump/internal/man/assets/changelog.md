@@ -6,15 +6,15 @@
   use the old CLI, instead of `./slackdump`, run `./slackdump v1`. The legacy
   CLI will be phased out:  deprecated in v2.4.0, and removed in v2.5.0;
 - `-download` flag renamed to `-files` and is set to "true" by default;
-- `-r` flag that allowed to generate text files was moved to
+- `-r` flag that allowed to generate text files was replaced by
   `slackdump convert` command.
 
 ## New features
 
 - Completely rewritten CLI, based on `go` command source code (see
-  [Licenses][1]).
+  [Licenses][1]);
 - Default API limits can be overridden with configuration file (use
-  `-config <file>`).
+  `-config <file>`);
 - Slack Workspaces:
     - Slackdump remembers credentials for multiple Slack Workspaces;
     - It is possible to select the "_Current_" Workspace using the
@@ -27,7 +27,10 @@
 - Default output location (**BASE_LOC** environment variable), if not set by the
   user, defaults to the ZIP file "slackdump_YYYYMMDD_HHmmSS.zip", where
   `YYYYMMDD` is the current date (for example `20221103`) and `HHmmSS` is the
-  current time with seconds (for example `185803`).
+  current time with seconds (for example `185803`);
+- To reset all authentication data (similar to old `-auth-reset`), run
+  `slackdump workspace delete -a -y` where `-a` is for "all" and `-y` to
+  answer "yes" to all questions.
 
 # Library changes
 

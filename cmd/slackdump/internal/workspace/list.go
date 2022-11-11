@@ -20,9 +20,11 @@ import (
 var CmdWspList = &base.Command{
 	UsageLine: "slackdump workspace list [flags]",
 	Short:     "list saved workspaces",
-	Long: `
-List allows to list Slack Workspaces, that you have previously authenticated in.
-`,
+	Long: base.Render(`
+# Workspace List Command
+
+**List** allows to list Slack Workspaces, that you have previously authenticated in.
+`),
 	FlagMask:   flagmask,
 	PrintFlags: true,
 }
