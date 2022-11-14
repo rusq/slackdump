@@ -69,7 +69,7 @@ func runExport(ctx context.Context, cmd *base.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	defer fsadapter.Close(fs)
+	defer fs.Close()
 	lg.Printf("initialised output location: %s", cfg.BaseLoc)
 
 	sess, err := slackdump.NewWithOptions(ctx, prov, cfg.SlackOptions)

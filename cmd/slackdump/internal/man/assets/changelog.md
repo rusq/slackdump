@@ -30,7 +30,9 @@
   current time with seconds (for example `185803`);
 - To reset all authentication data (similar to old `-auth-reset`), run
   `slackdump workspace delete -a -y` where `-a` is for "all" and `-y` to
-  answer "yes" to all questions.
+  answer "yes" to all questions;
+- Flag `-user-cache-file` was removed.
+
 
 # Library changes
 
@@ -43,6 +45,8 @@
   `Limits.Tier3` variables. Requests limits are accessible via
   `Limits.Request`.
 - `Session.SetFS` method is removed, set the filesystem in `Options.Filesystem`.
+- Introduced `Close()` interface method on `fsadapter.FS`.  `fsadapter.Close` is
+  removed.
 
 ## Licenses
 

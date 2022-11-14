@@ -78,3 +78,7 @@ func (fs Directory) WriteFile(name string, data []byte, perm os.FileMode) error 
 	}
 	return os.WriteFile(node, data, perm)
 }
+
+func (fs Directory) Close() error {
+	return nil
+}

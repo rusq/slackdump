@@ -92,7 +92,7 @@ func runDump(ctx context.Context, cmd *base.Command, args []string) error {
 		return err
 	} else {
 		cfg.SlackOptions.Filesystem = fs
-		defer fsadapter.Close(fs)
+		defer fs.Close()
 	}
 
 	sess, err := slackdump.NewWithOptions(ctx, prov, cfg.SlackOptions)

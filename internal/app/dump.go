@@ -36,7 +36,7 @@ func Dump(ctx context.Context, cfg config.Params, prov auth.Provider) error {
 	if err != nil {
 		return err
 	} else {
-		defer fsadapter.Close(fs)
+		defer fs.Close()
 		cfg.Options.Filesystem = fs
 	}
 

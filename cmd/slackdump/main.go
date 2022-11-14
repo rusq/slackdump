@@ -16,6 +16,7 @@ import (
 	"github.com/rusq/slackdump/v2/auth"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/apiconfig"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/cfg"
+	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/convert"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/diag"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/dump"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/emoji"
@@ -44,6 +45,7 @@ func init() {
 		diag.CmdDiag,
 		v1.CmdV1,
 		apiconfig.CmdConfig,
+		convert.CmdConvert,
 
 		man.Login,
 		man.WhatsNew,
@@ -136,13 +138,13 @@ func invoke(cmd *base.Command, args []string) error {
 	defer task.End()
 
 	// initialise default logging.
-	lg, err := initLog(cfg.LogFile, cfg.Verbose)
-	if err != nil {
+	if lg, err := initLog(cfg.LogFile, cfg.Verbose); err != nil {
 		return err
+	} else {
+		lg.SetPrefix(cmd.Name() + ": ")
+		ctx = dlog.NewContext(ctx, lg)
+		cfg.SlackOptions.Logger = lg
 	}
-	lg.SetPrefix(cmd.Name() + ": ")
-	ctx = dlog.NewContext(ctx, lg)
-	cfg.SlackOptions.Logger = lg
 
 	if cmd.RequireAuth {
 		trace.Logf(ctx, "invoke", "command %s requires auth", cmd.Name())
@@ -239,28 +241,36 @@ func authenticate(ctx context.Context, cacheDir string) (context.Context, error)
 	if err != nil {
 		return nil, err
 	}
-	var currentWsp string
-	if cfg.Workspace != "" {
-		if !m.Exists(cfg.Workspace) {
-			return nil, fmt.Errorf("workspace does not exist: %q", cfg.Workspace)
-		}
-		currentWsp = cfg.Workspace
-	} else {
-		currentWsp, err = m.Current()
-		if err != nil {
-			if errors.Is(err, appauth.ErrNoWorkspaces) {
-				currentWsp = "default"
-			} else {
-				return nil, err
-			}
-		}
+	wsp, err := currentWorkspace(m)
+	if err != nil {
+		return nil, err
 	}
-	trace.Logf(ctx, "auth", "current workspace=%s", currentWsp)
-	prov, err := m.Auth(ctx, currentWsp, appauth.SlackCreds{Token: cfg.SlackToken, Cookie: cfg.SlackCookie})
+
+	trace.Logf(ctx, "auth", "current workspace=%s", wsp)
+	prov, err := m.Auth(ctx, wsp, appauth.SlackCreds{Token: cfg.SlackToken, Cookie: cfg.SlackCookie})
 	if err != nil {
 		return nil, err
 	}
 	return auth.WithContext(ctx, prov), nil
+}
+
+func currentWorkspace(m *appauth.Manager) (wsp string, err error) {
+	if cfg.Workspace != "" {
+		if !m.Exists(cfg.Workspace) {
+			return "", fmt.Errorf("workspace does not exist: %q", cfg.Workspace)
+		}
+		return cfg.Workspace, nil
+	}
+
+	wsp, err = m.Current()
+	if err != nil {
+		if errors.Is(err, appauth.ErrNoWorkspaces) {
+			wsp = "default"
+		} else {
+			return "", err
+		}
+	}
+	return wsp, nil
 }
 
 // secrets defines the names of the supported secret files that we load our

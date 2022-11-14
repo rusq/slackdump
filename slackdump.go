@@ -30,7 +30,7 @@ import (
 type Session struct {
 	client clienter // Slack client
 
-	wspInfo *slack.AuthTestResponse // workspace info
+	wspInfo *WorkspaceInfo // workspace info
 
 	// Users contains the list of users and populated on NewSession
 	Users     types.Users          `json:"users"`
@@ -38,6 +38,9 @@ type Session struct {
 
 	options Options
 }
+
+// WorkspaceInfo is an type alias for [slack.AuthTestResponse].
+type WorkspaceInfo = slack.AuthTestResponse
 
 // clienter is the interface with some functions of slack.Client with the sole
 // purpose of mocking in tests (see client_mock.go)
@@ -213,4 +216,9 @@ func (sd *Session) l() logger.Interface {
 // propagateLogger propagates the slackdump logger to some dumb packages.
 func (sd *Session) propagateLogger(l logger.Interface) {
 	network.Logger = l
+}
+
+// Info returns a workspace information.
+func (sd *Session) Info() *WorkspaceInfo {
+	return sd.wspInfo
 }

@@ -224,3 +224,7 @@ func (errFs) Create(string) (io.WriteCloser, error) {
 func (errFs) WriteFile(name string, data []byte, perm os.FileMode) error {
 	return errors.New("no luck bro")
 }
+
+func (errFs) Close() error {
+	return errors.New("close error")
+}

@@ -61,7 +61,7 @@ func Dl(ctx context.Context, sess emojidumper, base string, ignoreErrors bool) e
 	if err != nil {
 		return fmt.Errorf("unable to initialise adapter for %s: %w", base, err)
 	}
-	defer fsadapter.Close(fsa)
+	defer fsa.Close()
 
 	emojis, err := sess.DumpEmojis(ctx)
 	if err != nil {

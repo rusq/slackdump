@@ -40,7 +40,7 @@ func Export(ctx context.Context, cfg config.Params, prov auth.Provider) error {
 	}
 	defer func() {
 		cfg.Logger().Debugf("Export:  closing file system")
-		if err := fsadapter.Close(fs); err != nil {
+		if err := fs.Close(); err != nil {
 			cfg.Logger().Printf("Export:  error closing filesystem")
 		}
 	}()

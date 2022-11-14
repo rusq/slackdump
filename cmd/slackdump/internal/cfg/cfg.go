@@ -36,13 +36,15 @@ const (
 	OmitBaseLoc
 	OmitCacheDir
 	OmitWorkspaceFlag
+	OmitUserCacheFlag
 
 	OmitAll = OmitConfigFlag |
 		OmitDownloadFlag |
 		OmitBaseLoc |
 		OmitCacheDir |
 		OmitWorkspaceFlag |
-		OmitAuthFlags
+		OmitAuthFlags |
+		OmitUserCacheFlag
 )
 
 // SetBaseFlags sets base flags
@@ -77,5 +79,9 @@ func SetBaseFlags(fs *flag.FlagSet, mask FlagMask) {
 	}
 	if mask&OmitWorkspaceFlag == 0 {
 		fs.StringVar(&Workspace, "workspace", osenv.Value("SLACK_WORKSPACE", ""), "Slack workspace to use") // TODO: load from configuration.
+	}
+	if mask&OmitUserCacheFlag == 0 {
+		fs.BoolVar(&SlackOptions.NoUserCache, "no-user-cache", false, "disable user cache")
+		fs.DurationVar(&SlackOptions.MaxUserCacheAge, "user-cache-age", slackdump.DefOptions.MaxUserCacheAge, "maximum user cache age")
 	}
 }
