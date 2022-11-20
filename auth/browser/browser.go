@@ -30,6 +30,11 @@ func New(workspace string) (*Client, error) {
 	if workspace == "" {
 		return nil, errors.New("workspace can't be empty")
 	}
+	if err := playwright.Install(&playwright.RunOptions{
+		Browsers: []string{"firefox"},
+	}); err != nil {
+		return nil, err
+	}
 	return &Client{workspace: workspace, pageClosed: make(chan bool, 1)}, nil
 }
 
@@ -47,7 +52,7 @@ func (cl *Client) Authenticate(ctx context.Context) (string, []http.Cookie, erro
 	opts := playwright.BrowserTypeLaunchOptions{
 		Headless: playwright.Bool(false),
 	}
-	browser, err := pw.Chromium.Launch(opts)
+	browser, err := pw.Firefox.Launch(opts)
 	if err != nil {
 		return "", nil, err
 	}
