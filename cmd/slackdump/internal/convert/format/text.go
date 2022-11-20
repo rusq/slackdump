@@ -18,14 +18,38 @@ import (
 
 var _ Converter = &Text{}
 
-const textTimeFmt = "02/01/2006 15:04:05 Z0700"
+const (
+	defaultNewMsgThreshold = 3 * time.Minute
+	textTimeFmt            = "02/01/2006 15:04:05 Z0700"
+)
 
 type Text struct {
-	timeSplit time.Duration
+	opts options
 }
 
-func NewText(minMsgTimeApart time.Duration) *Text {
-	return &Text{timeSplit: minMsgTimeApart}
+type textOptions struct {
+	msgSplitAfter time.Duration
+}
+
+func TextNewMessageThreshold(d time.Duration) Option {
+	return func(o *options) {
+		o.textOptions.msgSplitAfter = d
+	}
+}
+
+func init() {
+	Converters[CText] = NewText
+}
+
+func NewText(opts ...Option) Converter {
+	settings := options{
+		textOptions: textOptions{
+			msgSplitAfter: defaultNewMsgThreshold,
+		}}
+	for _, fn := range opts {
+		fn(&settings)
+	}
+	return &Text{opts: settings}
 }
 
 func (txt *Text) Conversation(ctx context.Context, w io.Writer, u []slack.User, conv *types.Conversation) error {
@@ -48,7 +72,7 @@ func (txt *Text) txtConversations(w io.Writer, m []types.Message, prefix string,
 			return err
 		}
 		diff := t.Sub(prevTime)
-		if prevMsg.User == message.User && diff < txt.timeSplit {
+		if prevMsg.User == message.User && diff < txt.opts.msgSplitAfter {
 			fmt.Fprintf(w, prefix+"%s\n", message.Text)
 		} else {
 			fmt.Fprintf(w, prefix+"\n"+prefix+"> %s [%s] @ %s:\n%s\n",
@@ -66,19 +90,6 @@ func (txt *Text) txtConversations(w io.Writer, m []types.Message, prefix string,
 		prevTime = t
 	}
 	return nil
-}
-
-// userReplacer returns a replacer that replaces all user IDs with their
-// DisplayNames.
-func userReplacer(userIdx structures.UserIndex) *strings.Replacer {
-	if len(userIdx) == 0 {
-		return strings.NewReplacer()
-	}
-	var replacements = make([]string, 0, len(userIdx)*2)
-	for k := range userIdx {
-		replacements = append(replacements, k, userIdx.DisplayName(k))
-	}
-	return strings.NewReplacer(replacements...)
 }
 
 func (txt *Text) Users(ctx context.Context, w io.Writer, u []slack.User) error {

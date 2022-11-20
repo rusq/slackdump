@@ -10,11 +10,12 @@ func _() {
 	var x [1]struct{}
 	_ = x[CUnknown-0]
 	_ = x[CText-1]
+	_ = x[CCSV-2]
 }
 
-const _Type_name = "UnknownText"
+const _Type_name = "UnknownTextCSV"
 
-var _Type_index = [...]uint8{0, 7, 11}
+var _Type_index = [...]uint8{0, 7, 11, 14}
 
 func (i Type) String() string {
 	if i < 0 || i >= Type(len(_Type_index)-1) {

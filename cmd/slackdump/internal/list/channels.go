@@ -37,7 +37,7 @@ func listChannels(ctx context.Context, cmd *base.Command, args []string) error {
 		return err
 	}
 
-	dlog.FromContext(ctx).Printf("users saved to %q\n", filepath.Join(cfg.BaseLoc, filename))
+	dlog.FromContext(ctx).Printf("channels saved to %q\n", filepath.Join(cfg.BaseLoc, filename))
 
 	return nil
 }

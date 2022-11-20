@@ -8,7 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime/trace"
-	"time"
 
 	"github.com/rusq/dlog"
 	"github.com/rusq/slackdump/v2"
@@ -69,13 +68,13 @@ func runConvert(ctx context.Context, cmd *base.Command, args []string) error {
 		base.SetExitStatus(base.SInvalidParameters)
 		return err
 	} else {
-		switch convType {
-		default:
+		var ok bool
+		initConverter, ok := format.Converters[convType]
+		if !ok {
 			base.SetExitStatus(base.SInvalidParameters)
 			return errors.New("unknown converter type")
-		case format.CText:
-			converter = format.NewText(2 * time.Minute)
 		}
+		converter = initConverter()
 	}
 
 	var filename string
@@ -165,7 +164,7 @@ func detectAndRead(rs io.ReadSeeker) (*dump, error) {
 
 	if ch, err := unmarshal[[]slack.Channel](rs); err != nil && !isJSONTypeErr(err) {
 		return nil, err
-	} else if len(ch) > 0 && ch[0].ID != "" {
+	} else if len(ch) > 0 && ch[0].Creator != "" {
 		d.filetype = dtChannels
 		d.channels = ch
 		return d, nil
@@ -173,7 +172,7 @@ func detectAndRead(rs io.ReadSeeker) (*dump, error) {
 
 	if u, err := unmarshal[[]slack.User](rs); err != nil && !isJSONTypeErr(err) {
 		return nil, err
-	} else if len(u) > 0 && u[0].ID != "" {
+	} else if len(u) > 0 && u[0].RealName != "" {
 		d.filetype = dtUsers
 		d.users = u
 		return d, nil
