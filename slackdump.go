@@ -97,7 +97,7 @@ func NewWithOptions(ctx context.Context, authProvider auth.Provider, opts Option
 
 	authTestResp, err := cl.AuthTestContext(ctx)
 	if err != nil {
-		return nil, &AuthError{Err: err}
+		return nil, &auth.Error{Err: err}
 	}
 
 	sd := &Session{
@@ -124,23 +124,6 @@ func NewWithOptions(ctx context.Context, authProvider auth.Provider, opts Option
 	}
 
 	return sd, nil
-}
-
-// TestAuth attempts to authenticate with the given provider.  It will return
-// AuthError if failed.
-func TestAuth(ctx context.Context, provider auth.Provider) error {
-	ctx, task := trace.NewTask(ctx, "TestAuth")
-	defer task.End()
-
-	cl := slack.New(provider.SlackToken(), slack.OptionCookieRAW(ptrSlice(provider.Cookies())...))
-
-	region := trace.StartRegion(ctx, "AuthTestContext")
-	defer region.End()
-	_, err := cl.AuthTestContext(ctx)
-	if err != nil {
-		return &AuthError{Err: err}
-	}
-	return nil
 }
 
 // Client returns the underlying slack.Client.

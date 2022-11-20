@@ -78,7 +78,7 @@ func delAllWsp() error {
 }
 
 func delOneWsp(args []string) error {
-	wsp := argsWorkspace(args)
+	wsp := argsWorkspace(args, cfg.Workspace)
 	if wsp == "" {
 		base.SetExitStatus(base.SInvalidParameters)
 		return appauth.ErrNameRequired

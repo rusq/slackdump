@@ -1,4 +1,4 @@
-package slackdump
+package auth
 
 import (
 	"errors"
@@ -30,7 +30,7 @@ func TestAuthError_Unwrap(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ae := &AuthError{
+			ae := &Error{
 				Err: tt.fields.Err,
 			}
 			if err := ae.Unwrap(); (err != nil) && !errors.Is(err, tt.wantErr) {
@@ -68,7 +68,7 @@ func TestAuthError_Is(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ae := &AuthError{
+			ae := &Error{
 				Err: tt.fields.Err,
 			}
 			if got := ae.Is(tt.args.target); got != tt.want {

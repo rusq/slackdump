@@ -37,7 +37,7 @@ func runWspNew(ctx context.Context, cmd *base.Command, args []string) error {
 		return fmt.Errorf("error initialising workspace manager: %s", err)
 	}
 
-	wsp := argsWorkspace(args)
+	wsp := argsWorkspace(args, cfg.Workspace)
 
 	if m.Exists(realname(wsp)) {
 		if !*newConfirm && !base.YesNo(fmt.Sprintf("Workspace %q already exists. Overwrite", realname(wsp))) {

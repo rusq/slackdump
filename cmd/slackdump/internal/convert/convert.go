@@ -1,19 +1,24 @@
 package convert
 
 import (
-	"archive/zip"
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
-	"io/fs"
 	"os"
 	"path/filepath"
-	"strings"
+	"runtime/trace"
 	"time"
 
+	"github.com/rusq/dlog"
+	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/convert/format"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/golang/base"
+	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/workspace"
+	"github.com/rusq/slackdump/v2/internal/app/appauth"
+	"github.com/rusq/slackdump/v2/types"
+	"github.com/slack-go/slack"
 )
 
 var CmdConvert = &base.Command{
@@ -29,110 +34,270 @@ var CmdConvert = &base.Command{
 	RequireAuth: false,
 }
 
-type datatype uint8
+//go:generate stringer -type dumptype -trimprefix=dt convert.go
+type dumptype uint8
 
 const (
-	dtUnknown = iota
+	dtUnknown dumptype = iota
 	dtConversation
 	dtChannels
 	dtUsers
 )
 
-var typemap = map[string]datatype{
-	"C":        dtConversation, // channel
-	"G":        dtConversation, // group conversation
-	"D":        dtConversation, // private msg
-	"channels": dtChannels,
-	"users":    dtUsers,
-}
-
-var ErrUnknown = errors.New("unknown data type")
+var ErrUnknown = errors.New("unknown file type")
 
 var (
-	archive string
+	archive   string
+	online    bool
+	converter format.Converter
 )
 
 func init() {
-	CmdConvert.Flag.StringVar(&archive, "zip", "", "access the file within the ZIP `archive.zip`")
+	CmdConvert.Flag.StringVar(&archive, "archive", "", "access the file within the ZIP `archive.zip`")
+	CmdConvert.Flag.BoolVar(&online, "online", false, "get users from current workspace (workspace must be selected, or set with -w flag)")
 }
 
 func runConvert(ctx context.Context, cmd *base.Command, args []string) error {
-	if len(args) < 2 {
+	if len(args) < 1 {
 		base.SetExitStatus(base.SInvalidParameters)
-		return errors.New("must specify output format and a file to convert")
+		return errors.New("must specify output format (supported: 'text')")
 	}
 
+	// determining the conversion type.
 	var convType format.Type
 	if err := convType.Set(args[0]); err != nil {
 		base.SetExitStatus(base.SInvalidParameters)
 		return err
+	} else {
+		switch convType {
+		default:
+			base.SetExitStatus(base.SInvalidParameters)
+			return errors.New("unknown converter type")
+		case format.CText:
+			converter = format.NewText(2 * time.Minute)
+		}
 	}
-	file := args[1]
-	// get users somehow.
 
-	// get converter
-	if err := convertData(ctx, format.NewText(3*time.Minute), archive, file); err != nil {
-		base.SetExitStatus(base.SApplicationError)
+	var filename string
+	if len(args) > 1 {
+		filename = args[1]
+	}
+
+	rsc, err := opendump(filename, archive)
+	if err != nil {
+		base.SetExitStatus(base.SUserError)
+		return err
+	}
+	defer rsc.Close()
+
+	if err := convert(ctx, os.Stdout, converter, rsc); err != nil {
+		if errors.Is(err, ErrUnknown) {
+			base.SetExitStatus(base.SInvalidParameters)
+		} else {
+			base.SetExitStatus(base.SApplicationError)
+		}
 		return err
 	}
 	return nil
 }
 
-func convertData(ctx context.Context, cvt format.Converter, archive string, filename string) error {
-	dt := typeof(filename)
-	if dt == dtUnknown {
-		return ErrUnknown
-	}
-	var fsys fs.FS
-	if archive != "" {
-		zr, err := zip.OpenReader(archive)
-		if err != nil {
-			return err
-		}
-		defer zr.Close()
-		fsys = zr
-	} else {
-		fsys = os.DirFS(filepath.Dir(filename))
-		filename = filepath.Base(filename)
-	}
+type idextractor interface {
+	UserIDs() []string
+}
 
-	// open target
-	f, err := fsys.Open(filename)
+func convert(ctx context.Context, w io.Writer, cvt format.Converter, rs io.ReadSeeker) error {
+	ctx, task := trace.NewTask(ctx, "convert")
+	defer task.End()
+	lg := dlog.FromContext(ctx)
+
+	dump, err := detectAndRead(rs)
 	if err != nil {
 		return err
 	}
-	defer f.Close()
-	// convert
-	if err := convert(ctx, os.Stdout, dt, f); err != nil {
+	lg.Printf("Detected dump type: %q", dump.filetype)
+
+	if dump.filetype == dtUsers {
+		// special case.  Users do not need to have users fetched from slack etc,
+		// because, well, because they are users already.
+		return cvt.Users(ctx, w, dump.users)
+	}
+
+	uu, err := getUsers(ctx, dump, online)
+	if err != nil {
 		return err
 	}
-	return nil
-}
 
-func convert(ctx context.Context, w io.Writer, dt datatype, r io.Reader) (err error) {
-	switch dt {
-	default:
-		err = ErrUnknown
-	case dtConversation:
-		// convert convo
+	switch dump.filetype {
 	case dtChannels:
-		// convert Channels
-	case dtUsers:
-		// convert Users
+		return cvt.Channels(ctx, w, uu, dump.channels)
+	case dtConversation:
+		return cvt.Conversation(ctx, w, uu, dump.conversation)
+	case dtUnknown:
+		fallthrough
+	default:
 	}
-	return
+	return errors.New("internal error: undetected type")
 }
 
-func typeof(filename string) (dt datatype) {
-	name := filepath.Base(filename)
-	if filepath.Ext(name) != ".json" {
-		return
+// dump represents a slack data dump.  Only one variable will be initialised
+// depending on the dumptype.
+type dump struct {
+	filetype     dumptype
+	users        types.Users
+	channels     types.Channels
+	conversation *types.Conversation
+}
+
+// detectAndRead detects the filetype by consequently trying to unmarshal the
+// data.  It will return [dump] that will have [dumptype] and one of the
+// member variables populated.  If it fails to detect the type it will return
+// ErrUnknown and set the dump filetype to dtUnknown.
+func detectAndRead(rs io.ReadSeeker) (*dump, error) {
+	var d = new(dump)
+
+	if conv, err := unmarshal[types.Conversation](rs); err != nil && !isJSONTypeErr(err) {
+		return nil, err
+	} else if conv.ID != "" {
+		d.filetype = dtConversation
+		d.conversation = &conv
+		return d, nil
 	}
-	for k, v := range typemap {
-		if strings.HasPrefix(name, k) {
-			dt = v
-			break
+
+	if ch, err := unmarshal[[]slack.Channel](rs); err != nil && !isJSONTypeErr(err) {
+		return nil, err
+	} else if len(ch) > 0 && ch[0].ID != "" {
+		d.filetype = dtChannels
+		d.channels = ch
+		return d, nil
+	}
+
+	if u, err := unmarshal[[]slack.User](rs); err != nil && !isJSONTypeErr(err) {
+		return nil, err
+	} else if len(u) > 0 && u[0].ID != "" {
+		d.filetype = dtUsers
+		d.users = u
+		return d, nil
+	}
+
+	// no luck
+	d.filetype = dtUnknown
+	return d, ErrUnknown
+}
+
+func isJSONTypeErr(err error) bool {
+	var e *json.UnmarshalTypeError
+	return errors.As(err, &e)
+}
+
+func (d dump) userIDs() []string {
+	var xt idextractor
+	switch d.filetype {
+	case dtConversation:
+		xt = d.conversation
+	case dtUsers:
+		xt = d.users
+	case dtChannels:
+		xt = d.channels
+	}
+	return xt.UserIDs()
+}
+
+func unmarshal[OUT any](rs io.ReadSeeker) (OUT, error) {
+	var ret OUT
+	if _, err := rs.Seek(0, io.SeekStart); err != nil {
+		return ret, err
+	}
+	defer rs.Seek(0, io.SeekStart)
+
+	dec := json.NewDecoder(rs)
+	if err := dec.Decode(&ret); err != nil {
+		return ret, err
+	}
+
+	return ret, nil
+}
+
+func getUsers(ctx context.Context, dmp *dump, isOnline bool) ([]slack.User, error) {
+	if isOnline {
+		return getUsersOnline(ctx, cfg.CacheDir(), cfg.Workspace)
+	}
+	rgn := trace.StartRegion(ctx, "userIDs")
+	ids := dmp.userIDs()
+	rgn.End()
+	if len(ids) == 0 {
+		return nil, errors.New("unable to extract user IDs")
+	}
+	trace.Logf(ctx, "getUsers", "number of users in this dump: %d", len(ids))
+	uu, err := searchCache(ctx, cfg.CacheDir(), ids)
+	if err != nil {
+		return nil, err
+	}
+	return uu, nil
+}
+
+func getUsersOnline(ctx context.Context, cacheDir, wsp string) ([]slack.User, error) {
+	prov, err := workspace.AuthCurrent(ctx, cacheDir, wsp)
+	if err != nil {
+		return nil, err
+	}
+	sess, err := slackdump.NewWithOptions(ctx, prov, cfg.SlackOptions)
+	if err != nil {
+		return nil, err
+	}
+	return sess.GetUsers(ctx)
+}
+
+var errNoMatch = errors.New("no matching users")
+
+// searchCache searches the cache directory for cached workspace users that have
+// the same ids, and returns the user slice from that cache.
+func searchCache(ctx context.Context, cacheDir string, ids []string) ([]slack.User, error) {
+	m, err := appauth.NewManager(cacheDir)
+	if err != nil {
+		return nil, err
+	}
+	var users []slack.User
+	err = m.WalkUsers(func(path string, r io.Reader) error {
+		var err1 error
+		users, err1 = matchUsers(r, ids)
+		if err1 != nil {
+			if errors.Is(err1, errNoMatch) {
+				return nil
+			}
+			return err1
+		}
+		dlog.Printf("matching file: %s", path)
+		return filepath.SkipDir
+	})
+	if err != nil {
+		return nil, err
+	}
+	return users, nil
+}
+
+func matchUsers(r io.Reader, ids []string) ([]slack.User, error) {
+	const matchRatio = 0.5
+	dec := json.NewDecoder(r)
+	var uu types.Users
+	for {
+		var u slack.User
+		if err := dec.Decode(&u); err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			return nil, err
+		}
+		uu = append(uu, u)
+	}
+	fileIDs := uu.IndexByID()
+	var matchingCnt = 0 // matching users count
+	for _, id := range ids {
+		if fileIDs[id] != nil {
+			matchingCnt++
 		}
 	}
-	return
+	if float64(matchingCnt)/float64(len(ids)) < matchRatio {
+		return nil, errNoMatch
+	}
+	return uu, nil
 }

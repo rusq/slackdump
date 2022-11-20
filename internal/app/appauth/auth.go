@@ -10,7 +10,6 @@ import (
 	"runtime"
 	"runtime/trace"
 
-	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/auth"
 	"github.com/rusq/slackdump/v2/internal/encio"
 )
@@ -163,15 +162,13 @@ func initProvider(ctx context.Context, cacheDir string, filename string, workspa
 	return provider, nil
 }
 
-var authTester = slackdump.TestAuth
-
 func tryLoad(ctx context.Context, filename string) (auth.Provider, error) {
 	prov, err := loadCreds(filer, filename)
 	if err != nil {
 		return nil, err
 	}
 	// test the loaded credentials
-	if err := authTester(ctx, prov); err != nil {
+	if err := prov.Test(ctx); err != nil {
 		return nil, err
 	}
 	return prov, nil

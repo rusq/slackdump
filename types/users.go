@@ -69,3 +69,12 @@ func (us Users) ToText(w io.Writer, _ structures.UserIndex) error {
 func (us Users) IndexByID() structures.UserIndex {
 	return structures.NewUserIndex(us)
 }
+
+// UserIDs returns a slice of user IDs.
+func (us Users) UserIDs() []string {
+	var ids = make([]string, len(us))
+	for i := range us {
+		ids[i] = us[i].ID
+	}
+	return ids
+}

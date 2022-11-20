@@ -1,11 +1,15 @@
 package auth
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
+	"runtime/trace"
 	"strings"
+
+	"github.com/slack-go/slack"
 )
 
 // Type is the auth type.
@@ -32,6 +36,8 @@ type Provider interface {
 	// Validate should return error, in case the token or cookies cannot be
 	// retrieved.
 	Validate() error
+	// Test tests if credentials are valid.
+	Test(ctx context.Context) error
 }
 
 var (
@@ -71,6 +77,14 @@ func deref[T any](cc []*T) []T {
 	return ret
 }
 
+func ref[T any](cc []T) []*T {
+	var ret = make([]*T, len(cc))
+	for i := range cc {
+		ret[i] = &cc[i]
+	}
+	return ret
+}
+
 // Load deserialises JSON data from reader and returns a ValueAuth, that can
 // be used to authenticate Slackdump.  It will return ErrNoToken or
 // ErrNoCookie if the authentication information is missing.
@@ -106,4 +120,21 @@ func Save(w io.Writer, p Provider) error {
 // IsClientToken returns true if the tok is a web-client token.
 func IsClientToken(tok string) bool {
 	return strings.HasPrefix(tok, "xoxc-")
+}
+
+// TestAuth attempts to authenticate with the given provider.  It will return
+// AuthError if failed.
+func (s simpleProvider) Test(ctx context.Context) error {
+	ctx, task := trace.NewTask(ctx, "TestAuth")
+	defer task.End()
+
+	cl := slack.New(s.Token, slack.OptionCookieRAW(ref(s.Cookie)...))
+
+	region := trace.StartRegion(ctx, "AuthTestContext")
+	defer region.End()
+	_, err := cl.AuthTestContext(ctx)
+	if err != nil {
+		return &Error{Err: err}
+	}
+	return nil
 }

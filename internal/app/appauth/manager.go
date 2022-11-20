@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/rusq/slackdump/v2/auth"
+	"github.com/rusq/slackdump/v2/internal/encio"
 )
 
 // Manager is the workspace manager.
@@ -24,6 +25,8 @@ const (
 	defCredsFile   = "provider" + wspExt // default creds file
 	defName        = "default"           // name that will be shown for "provider.bin"
 	currentWspFile = "workspace.txt"
+	userPrefix     = "users-"
+	userSuffix     = ".cache"
 )
 
 var (
@@ -251,4 +254,25 @@ func indexOf[T comparable](ss []T, s T) int {
 
 func exist[T comparable](ss []T, s T) bool {
 	return -1 < indexOf(ss, s)
+}
+
+// WalkUsers scans the cache directory and calls userFn for each user file
+// discovered.
+func (m *Manager) WalkUsers(userFn func(path string, r io.Reader) error) error {
+	err := filepath.WalkDir(m.dir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if !strings.HasPrefix(d.Name(), userPrefix) && !strings.HasSuffix(d.Name(), userSuffix) {
+			// skip non-matching files
+			return nil
+		}
+		f, err := encio.Open(path)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+		return userFn(path, f)
+	})
+	return err
 }

@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -13,7 +12,6 @@ import (
 	"github.com/rusq/dlog"
 	"github.com/rusq/tracer"
 
-	"github.com/rusq/slackdump/v2/auth"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/apiconfig"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/convert"
@@ -28,7 +26,6 @@ import (
 	v1 "github.com/rusq/slackdump/v2/cmd/slackdump/internal/v1"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/wizard"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/workspace"
-	"github.com/rusq/slackdump/v2/internal/app/appauth"
 	"github.com/rusq/slackdump/v2/logger"
 )
 
@@ -149,7 +146,7 @@ func invoke(cmd *base.Command, args []string) error {
 	if cmd.RequireAuth {
 		trace.Logf(ctx, "invoke", "command %s requires auth", cmd.Name())
 		var err error
-		ctx, err = authenticate(ctx, cfg.CacheDir())
+		ctx, err = workspace.AuthCurrentCtx(ctx, cfg.CacheDir(), cfg.Workspace)
 		if err != nil {
 			trace.Logf(ctx, "invoke", "auth error: %s", err)
 			base.SetExitStatus(base.SAuthError)
@@ -234,43 +231,6 @@ func initLog(filename string, verbose bool) (*dlog.Logger, error) {
 	})
 
 	return lg, nil
-}
-
-func authenticate(ctx context.Context, cacheDir string) (context.Context, error) {
-	m, err := appauth.NewManager(cacheDir)
-	if err != nil {
-		return nil, err
-	}
-	wsp, err := currentWorkspace(m)
-	if err != nil {
-		return nil, err
-	}
-
-	trace.Logf(ctx, "auth", "current workspace=%s", wsp)
-	prov, err := m.Auth(ctx, wsp, appauth.SlackCreds{Token: cfg.SlackToken, Cookie: cfg.SlackCookie})
-	if err != nil {
-		return nil, err
-	}
-	return auth.WithContext(ctx, prov), nil
-}
-
-func currentWorkspace(m *appauth.Manager) (wsp string, err error) {
-	if cfg.Workspace != "" {
-		if !m.Exists(cfg.Workspace) {
-			return "", fmt.Errorf("workspace does not exist: %q", cfg.Workspace)
-		}
-		return cfg.Workspace, nil
-	}
-
-	wsp, err = m.Current()
-	if err != nil {
-		if errors.Is(err, appauth.ErrNoWorkspaces) {
-			wsp = "default"
-		} else {
-			return "", err
-		}
-	}
-	return wsp, nil
 }
 
 // secrets defines the names of the supported secret files that we load our

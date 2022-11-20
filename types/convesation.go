@@ -80,3 +80,15 @@ func generateText(w io.Writer, m []Message, prefix string, userIdx structures.Us
 	}
 	return nil
 }
+
+// UserIDs returns a slice of user IDs.
+func (c Conversation) UserIDs() []string {
+	var seen = make(map[string]bool, len(c.Messages))
+	for _, m := range c.Messages {
+		if seen[m.User] {
+			continue
+		}
+		seen[m.User] = true
+	}
+	return toslice(seen)
+}

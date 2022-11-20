@@ -7,6 +7,7 @@ import (
 	"html"
 	"io"
 	"sort"
+	"strings"
 	"text/tabwriter"
 	"time"
 
@@ -31,10 +32,12 @@ func (txt *Text) Conversation(ctx context.Context, w io.Writer, u []slack.User, 
 	buf := bufio.NewWriter(w)
 	defer buf.Flush()
 
-	return txt.txtConversations(w, conv.Messages, "", structures.NewUserIndex(u))
+	ui := structures.NewUserIndex(u)
+
+	return txt.txtConversations(w, conv.Messages, "", ui, userReplacer(ui))
 }
 
-func (txt *Text) txtConversations(w io.Writer, m []types.Message, prefix string, userIdx structures.UserIndex) error {
+func (txt *Text) txtConversations(w io.Writer, m []types.Message, prefix string, userIdx structures.UserIndex, repl *strings.Replacer) error {
 	var (
 		prevMsg  types.Message
 		prevTime time.Time
@@ -51,11 +54,11 @@ func (txt *Text) txtConversations(w io.Writer, m []types.Message, prefix string,
 			fmt.Fprintf(w, prefix+"\n"+prefix+"> %s [%s] @ %s:\n%s\n",
 				userIdx.Sender(&message.Message), message.User,
 				t.Format(textTimeFmt),
-				prefix+html.UnescapeString(message.Text),
+				prefix+html.UnescapeString(repl.Replace(message.Text)),
 			)
 		}
 		if len(message.ThreadReplies) > 0 {
-			if err := txt.txtConversations(w, message.ThreadReplies, "|   ", userIdx); err != nil {
+			if err := txt.txtConversations(w, message.ThreadReplies, "|   ", userIdx, repl); err != nil {
 				return err
 			}
 		}
@@ -63,6 +66,19 @@ func (txt *Text) txtConversations(w io.Writer, m []types.Message, prefix string,
 		prevTime = t
 	}
 	return nil
+}
+
+// userReplacer returns a replacer that replaces all user IDs with their
+// DisplayNames.
+func userReplacer(userIdx structures.UserIndex) *strings.Replacer {
+	if len(userIdx) == 0 {
+		return strings.NewReplacer()
+	}
+	var replacements = make([]string, 0, len(userIdx)*2)
+	for k := range userIdx {
+		replacements = append(replacements, k, userIdx.DisplayName(k))
+	}
+	return strings.NewReplacer(replacements...)
 }
 
 func (txt *Text) Users(ctx context.Context, w io.Writer, u []slack.User) error {

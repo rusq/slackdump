@@ -31,7 +31,7 @@ func init() {
 }
 
 func runSelect(ctx context.Context, cmd *base.Command, args []string) error {
-	wsp := argsWorkspace(args)
+	wsp := argsWorkspace(args, cfg.Workspace)
 	if wsp == "" {
 		base.SetExitStatus(base.SInvalidParameters)
 		return appauth.ErrNameRequired
