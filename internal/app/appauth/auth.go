@@ -14,8 +14,8 @@ import (
 	"github.com/rusq/slackdump/v2/internal/encio"
 )
 
-//go:generate mockgen -source=auth.go -destination=../mocks/mock_app/mock_app.go Credentials,createOpener
-//go:generate mockgen -destination=../mocks/mock_io/mock_io.go io ReadCloser,WriteCloser
+//go:generate mockgen -source=auth.go -destination=../../mocks/mock_app/mock_app.go Credentials,createOpener
+//go:generate mockgen -destination=../../mocks/mock_io/mock_io.go io ReadCloser,WriteCloser
 
 // isWSL is true if we're running in the WSL environment
 var isWSL = os.Getenv("WSL_DISTRO_NAME") != ""

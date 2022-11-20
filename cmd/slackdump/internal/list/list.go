@@ -12,7 +12,6 @@ import (
 )
 
 var CmdList = &base.Command{
-	Run:       runList,
 	UsageLine: "slackdump list",
 	Short:     "list users or channels",
 	Long: `
@@ -24,11 +23,6 @@ which is sometimes unreasonably slow.
 		CmdListUsers,
 		CmdListChannels,
 	},
-}
-
-func runList(ctx context.Context, cmd *base.Command, args []string) error {
-	cmd.Flag.Usage()
-	return nil
 }
 
 func serialise(fs fsadapter.FS, name string, a any) error {

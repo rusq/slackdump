@@ -117,12 +117,6 @@ func TestSlackCreds_IsEmpty(t *testing.T) {
 	}
 }
 
-func fakeAuthTester(retErr error) func(context.Context, auth.Provider) error {
-	return func(ctx context.Context, p auth.Provider) error {
-		return retErr
-	}
-}
-
 func TestInitProvider(t *testing.T) {
 	// prep
 	testDir := t.TempDir()
