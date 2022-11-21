@@ -7,8 +7,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/playwright-community/playwright-go"
-
 	"github.com/rusq/slackdump/v2/auth/auth_ui"
 	"github.com/rusq/slackdump/v2/auth/browser"
 )
@@ -18,8 +16,13 @@ var defaultFlow = &auth_ui.Survey{}
 
 type BrowserAuth struct {
 	simpleProvider
-	flow      BrowserAuthUI
+	opts browserOpts
+}
+
+type browserOpts struct {
 	workspace string
+	browser   browser.Browser
+	flow      BrowserAuthUI
 }
 
 type BrowserAuthUI interface {
@@ -27,49 +30,32 @@ type BrowserAuthUI interface {
 	Stop()
 }
 
-type BrowserOption func(*BrowserAuth)
-
-func BrowserWithAuthFlow(flow BrowserAuthUI) BrowserOption {
-	return func(ba *BrowserAuth) {
-		if flow == nil {
-			return
-		}
-		ba.flow = flow
-	}
-}
-
-func BrowserWithWorkspace(name string) BrowserOption {
-	return func(ba *BrowserAuth) {
-		ba.workspace = name
-	}
-}
-
-func NewBrowserAuth(ctx context.Context, opts ...BrowserOption) (BrowserAuth, error) {
+func NewBrowserAuth(ctx context.Context, opts ...Option) (BrowserAuth, error) {
 	var br = BrowserAuth{
-		flow: defaultFlow,
+		opts: browserOpts{
+			flow:    defaultFlow,
+			browser: browser.Bfirefox,
+		},
 	}
 	for _, opt := range opts {
-		opt(&br)
+		opt(&options{browserOpts: &br.opts})
 	}
 
-	if err := playwright.Install(&playwright.RunOptions{Browsers: []string{"chromium"}}); err != nil {
-		return br, err
-	}
-	if br.workspace == "" {
+	if br.opts.workspace == "" {
 		var err error
-		br.workspace, err = br.flow.RequestWorkspace(os.Stdout)
+		br.opts.workspace, err = br.opts.flow.RequestWorkspace(os.Stdout)
 		if err != nil {
 			return br, err
 		}
-		defer br.flow.Stop()
+		defer br.opts.flow.Stop()
 	}
-	if wsp, err := sanitize(br.workspace); err != nil {
+	if wsp, err := sanitize(br.opts.workspace); err != nil {
 		return br, err
 	} else {
-		br.workspace = wsp
+		br.opts.workspace = wsp
 	}
 
-	auther, err := browser.New(br.workspace)
+	auther, err := browser.New(br.opts.workspace, browser.OptBrowser(br.opts.browser))
 	if err != nil {
 		return br, err
 	}

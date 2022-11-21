@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/rusq/slackdump/v2/auth"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v2/internal/app/appauth"
@@ -17,7 +18,7 @@ var CmdWspNew = &base.Command{
 
 **New** allows you to authenticate in an existing Slack Workspace.
 `),
-	FlagMask:   flagmask,
+	FlagMask:   flagmask &^ cfg.OmitAuthFlags,
 	PrintFlags: true,
 }
 
@@ -31,7 +32,7 @@ func init() {
 
 // runWspNew authenticates in the new workspace.
 func runWspNew(ctx context.Context, cmd *base.Command, args []string) error {
-	m, err := appauth.NewManager(cfg.CacheDir())
+	m, err := appauth.NewManager(cfg.CacheDir(), appauth.WithAuthOpts(auth.BrowserWithBrowser(cfg.Browser)))
 	if err != nil {
 		base.SetExitStatus(base.SCacheError)
 		return fmt.Errorf("error initialising workspace manager: %s", err)

@@ -61,14 +61,17 @@ func (c SlackCreds) IsEmpty() bool {
 
 // AuthProvider returns the appropriate auth Provider depending on the values
 // of the token and cookie.
-func (c SlackCreds) AuthProvider(ctx context.Context, workspace string) (auth.Provider, error) {
+func (c SlackCreds) AuthProvider(ctx context.Context, workspace string, opts ...auth.Option) (auth.Provider, error) {
 	authType, err := c.Type(ctx)
 	if err != nil {
 		return nil, err
 	}
+
+	opts = append([]auth.Option{auth.BrowserWithWorkspace(workspace)}, opts...)
+
 	switch authType {
 	case auth.TypeBrowser:
-		return auth.NewBrowserAuth(ctx, auth.BrowserWithWorkspace(workspace))
+		return auth.NewBrowserAuth(ctx, opts...)
 	case auth.TypeCookieFile:
 		return auth.NewCookieFileAuth(c.Token, c.Cookie)
 	case auth.TypeValue:
@@ -100,7 +103,7 @@ var filer container = encryptedFile{}
 
 type Credentials interface {
 	IsEmpty() bool
-	AuthProvider(ctx context.Context, workspace string) (auth.Provider, error)
+	AuthProvider(ctx context.Context, workspace string, opts ...auth.Option) (auth.Provider, error)
 }
 
 // InitProvider initialises the auth.Provider depending on provided slack
@@ -126,7 +129,7 @@ func InitProvider(ctx context.Context, cacheDir string, workspace string, creds 
 // stored credentials on another machine (including virtual), even another
 // operating system on the same machine, unless it's a clone of the source
 // operating system on which the credentials storage was created.
-func initProvider(ctx context.Context, cacheDir string, filename string, workspace string, creds Credentials) (auth.Provider, error) {
+func initProvider(ctx context.Context, cacheDir string, filename string, workspace string, creds Credentials, opts ...auth.Option) (auth.Provider, error) {
 	ctx, task := trace.NewTask(ctx, "InitProvider")
 	defer task.End()
 
@@ -150,7 +153,7 @@ func initProvider(ctx context.Context, cacheDir string, filename string, workspa
 
 	// init the authentication provider
 	trace.Log(ctx, "info", "getting credentals from file or browser")
-	provider, err := creds.AuthProvider(ctx, workspace)
+	provider, err := creds.AuthProvider(ctx, workspace, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialise the auth provider: %w", err)
 	}

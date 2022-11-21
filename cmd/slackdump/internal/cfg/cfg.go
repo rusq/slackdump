@@ -10,6 +10,7 @@ import (
 	"github.com/rusq/osenv/v2"
 
 	"github.com/rusq/slackdump/v2"
+	"github.com/rusq/slackdump/v2/auth/browser"
 )
 
 var (
@@ -23,6 +24,7 @@ var (
 
 	SlackToken   string
 	SlackCookie  string
+	Browser      browser.Browser
 	SlackOptions = slackdump.DefOptions
 )
 
@@ -58,6 +60,7 @@ func SetBaseFlags(fs *flag.FlagSet, mask FlagMask) {
 		fs.StringVar(&SlackToken, "token", osenv.Secret("SLACK_TOKEN", ""), "Slack `token`")
 		// COOKIE environment variable is deprecated and will be removed in v2.5.0, use SLACK_COOKIE instead.
 		fs.StringVar(&SlackCookie, "cookie", osenv.Secret("SLACK_COOKIE", osenv.Secret("COOKIE", "")), "d= cookie `value` or a path to a cookie.txt file (environment: SLACK_COOKIE)")
+		fs.Var(&Browser, "browser", "browser to use for EZ-Login 3000 (default: firefox)")
 	}
 	if mask&OmitDownloadFlag == 0 {
 		fs.BoolVar(&SlackOptions.DumpFiles, "files", true, "enables file attachments download (to disable, specify: -files=false)")

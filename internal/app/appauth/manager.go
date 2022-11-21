@@ -17,7 +17,8 @@ import (
 
 // Manager is the workspace manager.
 type Manager struct {
-	dir string
+	dir         string
+	authOptions []auth.Option
 }
 
 const (
@@ -35,11 +36,22 @@ var (
 	ErrNoDefault    = errors.New("default workspace not set")
 )
 
+type Option func(m *Manager)
+
+func WithAuthOpts(opts ...auth.Option) Option {
+	return func(m *Manager) {
+		m.authOptions = opts
+	}
+}
+
 // NewManager creates a new workspace manager over the directory dir.
 // The cache directory is created with rwx------ permissions, if it does
 // not exist.
-func NewManager(dir string) (*Manager, error) {
+func NewManager(dir string, opts ...Option) (*Manager, error) {
 	m := &Manager{dir: dir}
+	for _, opt := range opts {
+		opt(m)
+	}
 	if err := os.MkdirAll(dir, 0700); err != nil {
 		return nil, err
 	}
@@ -62,7 +74,7 @@ func NewManager(dir string) (*Manager, error) {
 // operating system on the same machine, unless it's a clone of the source
 // operating system on which the credentials storage was created.
 func (m *Manager) Auth(ctx context.Context, name string, c Credentials) (auth.Provider, error) {
-	return initProvider(ctx, m.dir, m.filename(name), name, c)
+	return initProvider(ctx, m.dir, m.filename(name), name, c, m.authOptions...)
 }
 
 type ErrWorkspace struct {

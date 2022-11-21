@@ -60,7 +60,7 @@ func runEzLoginTest(ctx context.Context, cmd *base.Command, args []string) error
 		return nil
 	}
 
-	if err := playwright.Install(&playwright.RunOptions{Browsers: []string{"chromium"}}); err != nil {
+	if err := playwright.Install(&playwright.RunOptions{Browsers: []string{"firefox"}}); err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return fmt.Errorf("playwright installation error: %w", err)
 	}
