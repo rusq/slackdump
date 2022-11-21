@@ -37,18 +37,23 @@ func (m *MockCredentials) EXPECT() *MockCredentialsMockRecorder {
 }
 
 // AuthProvider mocks base method.
-func (m *MockCredentials) AuthProvider(ctx context.Context, workspace string) (auth.Provider, error) {
+func (m *MockCredentials) AuthProvider(ctx context.Context, workspace string, opts ...auth.Option) (auth.Provider, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AuthProvider", ctx, workspace)
+	varargs := []interface{}{ctx, workspace}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "AuthProvider", varargs...)
 	ret0, _ := ret[0].(auth.Provider)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // AuthProvider indicates an expected call of AuthProvider.
-func (mr *MockCredentialsMockRecorder) AuthProvider(ctx, workspace interface{}) *gomock.Call {
+func (mr *MockCredentialsMockRecorder) AuthProvider(ctx, workspace interface{}, opts ...interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AuthProvider", reflect.TypeOf((*MockCredentials)(nil).AuthProvider), ctx, workspace)
+	varargs := append([]interface{}{ctx, workspace}, opts...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AuthProvider", reflect.TypeOf((*MockCredentials)(nil).AuthProvider), varargs...)
 }
 
 // IsEmpty mocks base method.

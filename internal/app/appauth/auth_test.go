@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/rusq/slackdump/v2/auth"
-	"github.com/rusq/slackdump/v2/internal/mocks/mock_app"
+	"github.com/rusq/slackdump/v2/internal/mocks/mock_appauth"
 	"github.com/rusq/slackdump/v2/internal/mocks/mock_io"
 )
 
@@ -132,7 +132,7 @@ func TestInitProvider(t *testing.T) {
 	tests := []struct {
 		name        string
 		args        args
-		expect      func(m *mock_app.MockCredentials)
+		expect      func(m *mock_appauth.MockCredentials)
 		authTestErr error
 		want        auth.Provider
 		wantErr     bool
@@ -140,7 +140,7 @@ func TestInitProvider(t *testing.T) {
 		{
 			"empty creds, no errors",
 			args{context.Background(), testDir, "wsp"},
-			func(m *mock_app.MockCredentials) {
+			func(m *mock_appauth.MockCredentials) {
 				m.EXPECT().IsEmpty().Return(false)
 				m.EXPECT().
 					AuthProvider(gomock.Any(), "wsp").
@@ -153,7 +153,7 @@ func TestInitProvider(t *testing.T) {
 		{
 			"creds empty, tryLoad succeeds",
 			args{context.Background(), testDir, "wsp"},
-			func(m *mock_app.MockCredentials) {
+			func(m *mock_appauth.MockCredentials) {
 				m.EXPECT().IsEmpty().Return(true)
 			},
 			nil,
@@ -163,7 +163,7 @@ func TestInitProvider(t *testing.T) {
 		{
 			"creds empty, tryLoad fails",
 			args{context.Background(), testDir, "wsp"},
-			func(m *mock_app.MockCredentials) {
+			func(m *mock_appauth.MockCredentials) {
 				m.EXPECT().IsEmpty().Return(true)
 				m.EXPECT().AuthProvider(gomock.Any(), "wsp").Return(returnedProv, nil)
 			},
@@ -174,7 +174,7 @@ func TestInitProvider(t *testing.T) {
 		{
 			"creds non-empty, provider failed",
 			args{context.Background(), testDir, "wsp"},
-			func(m *mock_app.MockCredentials) {
+			func(m *mock_appauth.MockCredentials) {
 				m.EXPECT().IsEmpty().Return(false)
 				m.EXPECT().AuthProvider(gomock.Any(), "wsp").Return(nil, errors.New("authProvider failed"))
 			},
@@ -185,7 +185,7 @@ func TestInitProvider(t *testing.T) {
 		{
 			"creds non-empty, provider succeeds, save succeeds",
 			args{context.Background(), testDir, "wsp"},
-			func(m *mock_app.MockCredentials) {
+			func(m *mock_appauth.MockCredentials) {
 				m.EXPECT().IsEmpty().Return(false)
 				m.EXPECT().AuthProvider(gomock.Any(), "wsp").Return(returnedProv, nil)
 			},
@@ -196,7 +196,7 @@ func TestInitProvider(t *testing.T) {
 		{
 			"creds non-empty, provider succeeds, save fails",
 			args{context.Background(), t.TempDir() + "$", "wsp"},
-			func(m *mock_app.MockCredentials) {
+			func(m *mock_appauth.MockCredentials) {
 				m.EXPECT().IsEmpty().Return(false)
 				m.EXPECT().AuthProvider(gomock.Any(), "wsp").Return(returnedProv, nil)
 			},
@@ -220,7 +220,7 @@ func TestInitProvider(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			mc := mock_app.NewMockCredentials(gomock.NewController(t))
+			mc := mock_appauth.NewMockCredentials(gomock.NewController(t))
 			tt.expect(mc)
 
 			// test
@@ -313,14 +313,14 @@ func Test_loadCreds(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    args
-		expect  func(mco *mock_app.MockcreateOpener, mrc *mock_io.MockReadCloser)
+		expect  func(mco *mock_appauth.MockcreateOpener, mrc *mock_io.MockReadCloser)
 		want    auth.Provider
 		wantErr bool
 	}{
 		{
 			"all ok",
 			args{"fakefile.ext"},
-			func(mco *mock_app.MockcreateOpener, mrc *mock_io.MockReadCloser) {
+			func(mco *mock_appauth.MockcreateOpener, mrc *mock_io.MockReadCloser) {
 				readCall := mrc.EXPECT().
 					Read(gomock.Any()).
 					DoAndReturn(func(b []byte) (int, error) {
@@ -338,7 +338,7 @@ func Test_loadCreds(t *testing.T) {
 		{
 			"auth.Read error",
 			args{"fakefile.ext"},
-			func(mco *mock_app.MockcreateOpener, mrc *mock_io.MockReadCloser) {
+			func(mco *mock_appauth.MockcreateOpener, mrc *mock_io.MockReadCloser) {
 				readCall := mrc.EXPECT().
 					Read(gomock.Any()).
 					Return(0, errors.New("auth.Read error"))
@@ -354,7 +354,7 @@ func Test_loadCreds(t *testing.T) {
 		{
 			"read error",
 			args{"fakefile.ext"},
-			func(mco *mock_app.MockcreateOpener, mrc *mock_io.MockReadCloser) {
+			func(mco *mock_appauth.MockcreateOpener, mrc *mock_io.MockReadCloser) {
 				mco.EXPECT().
 					Open("fakefile.ext").
 					Return(nil, errors.New("it was at this moment that test framework knew:  it fucked up"))
@@ -366,7 +366,7 @@ func Test_loadCreds(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			mco := mock_app.NewMockcreateOpener(ctrl)
+			mco := mock_appauth.NewMockcreateOpener(ctrl)
 			mrc := mock_io.NewMockReadCloser(ctrl)
 			tt.expect(mco, mrc)
 
@@ -398,13 +398,13 @@ func Test_saveCreds(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    args
-		expect  func(m *mock_app.MockcreateOpener, mwc *mock_io.MockWriteCloser)
+		expect  func(m *mock_appauth.MockcreateOpener, mwc *mock_io.MockWriteCloser)
 		wantErr bool
 	}{
 		{
 			"all ok",
 			args{filename: "filename.ext", p: testProv},
-			func(m *mock_app.MockcreateOpener, mwc *mock_io.MockWriteCloser) {
+			func(m *mock_appauth.MockcreateOpener, mwc *mock_io.MockWriteCloser) {
 				wc := mwc.EXPECT().Write(testProvBytes).Return(len(testProvBytes), nil)
 				mwc.EXPECT().Close().After(wc).Return(nil)
 
@@ -415,7 +415,7 @@ func Test_saveCreds(t *testing.T) {
 		{
 			"create fails",
 			args{filename: "filename.ext", p: testProv},
-			func(m *mock_app.MockcreateOpener, mwc *mock_io.MockWriteCloser) {
+			func(m *mock_appauth.MockcreateOpener, mwc *mock_io.MockWriteCloser) {
 				m.EXPECT().Create("filename.ext").Return(nil, errors.New("create fail"))
 			},
 			true,
@@ -423,7 +423,7 @@ func Test_saveCreds(t *testing.T) {
 		{
 			"write fails",
 			args{filename: "filename.ext", p: testProv},
-			func(m *mock_app.MockcreateOpener, mwc *mock_io.MockWriteCloser) {
+			func(m *mock_appauth.MockcreateOpener, mwc *mock_io.MockWriteCloser) {
 				wc := mwc.EXPECT().Write(testProvBytes).Return(0, errors.New("write fail"))
 				mwc.EXPECT().Close().After(wc).Return(nil)
 
@@ -435,7 +435,7 @@ func Test_saveCreds(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			mco := mock_app.NewMockcreateOpener(ctrl)
+			mco := mock_appauth.NewMockcreateOpener(ctrl)
 			mwc := mock_io.NewMockWriteCloser(ctrl)
 			tt.expect(mco, mwc)
 
