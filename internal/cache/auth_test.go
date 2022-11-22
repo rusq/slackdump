@@ -1,4 +1,4 @@
-package appauth
+package cache
 
 import (
 	"bytes"

@@ -6,7 +6,7 @@ import (
 
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/golang/base"
-	"github.com/rusq/slackdump/v2/internal/app/appauth"
+	"github.com/rusq/slackdump/v2/internal/cache"
 )
 
 var CmdWspSelect = &base.Command{
@@ -34,9 +34,9 @@ func runSelect(ctx context.Context, cmd *base.Command, args []string) error {
 	wsp := argsWorkspace(args, cfg.Workspace)
 	if wsp == "" {
 		base.SetExitStatus(base.SInvalidParameters)
-		return appauth.ErrNameRequired
+		return cache.ErrNameRequired
 	}
-	m, err := appauth.NewManager(cfg.CacheDir())
+	m, err := cache.NewManager(cfg.CacheDir())
 	if err != nil {
 		base.SetExitStatus(base.SCacheError)
 		return fmt.Errorf("unable to initialise cache: %s", err)

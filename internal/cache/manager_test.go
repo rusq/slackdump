@@ -1,8 +1,7 @@
-package appauth
+package cache
 
 import (
 	"errors"
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -101,7 +100,7 @@ func TestManager_listFiles(t *testing.T) {
 				tt.prepFn(t, tempdir)
 			}
 			got, err := m.listFiles()
-			if !tt.wantErr(t, err, fmt.Sprintf("List()")) {
+			if !tt.wantErr(t, err, "List()") {
 				return
 			}
 			var want []string

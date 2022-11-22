@@ -9,7 +9,7 @@ import (
 	"github.com/rusq/slackdump/v2/auth"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/golang/base"
-	"github.com/rusq/slackdump/v2/internal/app/appauth"
+	cache2 "github.com/rusq/slackdump/v2/internal/cache"
 )
 
 var flagmask = cfg.OmitAll
@@ -67,7 +67,7 @@ func argsWorkspace(args []string, defaultWsp string) string {
 // Auth authenticates in the workspace wsp, and saves, or reuses the credentials
 // in the dir.
 func Auth(ctx context.Context, dir string, wsp string) (auth.Provider, error) {
-	m, err := appauth.NewManager(dir)
+	m, err := cache2.NewManager(dir)
 	if err != nil {
 		return nil, err
 	}
@@ -75,7 +75,7 @@ func Auth(ctx context.Context, dir string, wsp string) (auth.Provider, error) {
 		return nil, fmt.Errorf("workspace does not exist: %q", cfg.Workspace)
 	}
 
-	prov, err := m.Auth(ctx, wsp, appauth.SlackCreds{Token: cfg.SlackToken, Cookie: cfg.SlackCookie})
+	prov, err := m.Auth(ctx, wsp, cache2.SlackCreds{Token: cfg.SlackToken, Cookie: cfg.SlackCookie})
 	if err != nil {
 		return nil, err
 	}
@@ -112,7 +112,7 @@ func AuthCurrentCtx(pctx context.Context, cacheDir string, overrideWsp string) (
 // configuration values.  If cfg.Workspace is set, it checks if the workspace
 // cfg.Workspace exists in the directory dir, and returns it.
 func Current(dir string, override string) (wsp string, err error) {
-	m, err := appauth.NewManager(dir)
+	m, err := cache2.NewManager(dir)
 	if err != nil {
 		return "", err
 	}
@@ -126,7 +126,7 @@ func Current(dir string, override string) (wsp string, err error) {
 
 	wsp, err = m.Current()
 	if err != nil {
-		if errors.Is(err, appauth.ErrNoWorkspaces) {
+		if errors.Is(err, cache2.ErrNoWorkspaces) {
 			wsp = "default"
 		} else {
 			return "", err

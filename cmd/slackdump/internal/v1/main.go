@@ -23,8 +23,8 @@ import (
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v2/export"
 	"github.com/rusq/slackdump/v2/internal/app"
-	"github.com/rusq/slackdump/v2/internal/app/appauth"
 	"github.com/rusq/slackdump/v2/internal/app/config"
+	"github.com/rusq/slackdump/v2/internal/cache"
 	"github.com/rusq/slackdump/v2/internal/structures"
 	"github.com/rusq/slackdump/v2/logger"
 )
@@ -101,7 +101,7 @@ var secrets = []string{".env", ".env.txt", "secrets.txt"}
 // params is the command line parameters
 type params struct {
 	appCfg    config.Params
-	creds     appauth.SlackCreds
+	creds     cache.SlackCreds
 	authReset bool
 
 	traceFile string // trace file
@@ -139,7 +139,7 @@ func runV1(ctx context.Context, cmd *base.Command, args []string) error {
 		return nil
 	}
 	if params.authReset {
-		if err := appauth.AuthReset(params.appCfg.Options.CacheDir); err != nil {
+		if err := cache.AuthReset(params.appCfg.Options.CacheDir); err != nil {
 			if !os.IsNotExist(err) {
 				dlog.Printf("auth reset error: %s", err)
 			}
@@ -177,11 +177,11 @@ func run(ctx context.Context, p params) error {
 	ctx, task := trace.NewTask(ctx, "main.run")
 	defer task.End()
 
-	provider, err := appauth.InitProvider(ctx, p.appCfg.Options.CacheDir, "", p.creds)
+	provider, err := cache.InitProvider(ctx, p.appCfg.Options.CacheDir, "", p.creds)
 	if err != nil {
 		return err
 	} else {
-		p.creds = appauth.SlackCreds{}
+		p.creds = cache.SlackCreds{}
 	}
 
 	// trace startup parameters for debugging

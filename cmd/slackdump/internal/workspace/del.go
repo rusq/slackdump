@@ -7,7 +7,7 @@ import (
 
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/golang/base"
-	"github.com/rusq/slackdump/v2/internal/app/appauth"
+	"github.com/rusq/slackdump/v2/internal/cache"
 )
 
 var ErrOpCancelled = errors.New("operation cancelled")
@@ -51,7 +51,7 @@ func runWspDel(ctx context.Context, cmd *base.Command, args []string) error {
 }
 
 func delAllWsp() error {
-	m, err := appauth.NewManager(cfg.CacheDir())
+	m, err := cache.NewManager(cfg.CacheDir())
 	if err != nil {
 		base.SetExitStatus(base.SCacheError)
 		return err
@@ -81,10 +81,10 @@ func delOneWsp(args []string) error {
 	wsp := argsWorkspace(args, cfg.Workspace)
 	if wsp == "" {
 		base.SetExitStatus(base.SInvalidParameters)
-		return appauth.ErrNameRequired
+		return cache.ErrNameRequired
 	}
 
-	m, err := appauth.NewManager(cfg.CacheDir())
+	m, err := cache.NewManager(cfg.CacheDir())
 	if err != nil {
 		base.SetExitStatus(base.SCacheError)
 		return err

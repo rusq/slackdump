@@ -9,8 +9,8 @@ import (
 
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/cfg"
-	"github.com/rusq/slackdump/v2/internal/app/appauth"
 	"github.com/rusq/slackdump/v2/internal/app/config"
+	"github.com/rusq/slackdump/v2/internal/cache"
 	"github.com/rusq/slackdump/v2/internal/structures"
 )
 
@@ -60,7 +60,7 @@ func Test_checkParameters(t *testing.T) {
 			"channels",
 			args{[]string{"-c", "-t", "x", "-cookie", "d"}},
 			params{
-				creds: appauth.SlackCreds{
+				creds: cache.SlackCreds{
 					Token:  "x",
 					Cookie: "d",
 				},
@@ -80,7 +80,7 @@ func Test_checkParameters(t *testing.T) {
 			"users",
 			args{[]string{"-u", "-t", "x", "-cookie", "d"}},
 			params{
-				creds: appauth.SlackCreds{
+				creds: cache.SlackCreds{
 					Token:  "x",
 					Cookie: "d",
 				},

@@ -56,7 +56,10 @@ func (sd *Session) fetchUsers(ctx context.Context) (types.Users, error) {
 	var (
 		users []slack.User
 	)
-	if err := withRetry(ctx, network.NewLimiter(network.Tier2, sd.options.Limits.Tier2.Burst, int(sd.options.Limits.Tier2.Boost)), sd.options.Limits.Tier2.Retries, func() error {
+	l := network.NewLimiter(
+		network.Tier2, sd.options.Limits.Tier2.Burst, int(sd.options.Limits.Tier2.Boost),
+	)
+	if err := withRetry(ctx, l, sd.options.Limits.Tier2.Retries, func() error {
 		var err error
 		users, err = sd.client.GetUsersContext(ctx)
 		return err

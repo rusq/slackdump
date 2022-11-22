@@ -10,14 +10,15 @@ import (
 	"runtime/trace"
 
 	"github.com/rusq/dlog"
+	"github.com/slack-go/slack"
+
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/convert/format"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/workspace"
-	"github.com/rusq/slackdump/v2/internal/app/appauth"
+	"github.com/rusq/slackdump/v2/internal/cache"
 	"github.com/rusq/slackdump/v2/types"
-	"github.com/slack-go/slack"
 )
 
 var CmdConvert = &base.Command{
@@ -251,7 +252,7 @@ var errNoMatch = errors.New("no matching users")
 // searchCache searches the cache directory for cached workspace users that have
 // the same ids, and returns the user slice from that cache.
 func searchCache(ctx context.Context, cacheDir string, ids []string) ([]slack.User, error) {
-	m, err := appauth.NewManager(cacheDir)
+	m, err := cache.NewManager(cacheDir)
 	if err != nil {
 		return nil, err
 	}
