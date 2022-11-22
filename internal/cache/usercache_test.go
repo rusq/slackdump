@@ -1,4 +1,4 @@
-package slackdump
+package cache
 
 import (
 	"os"
@@ -10,23 +10,28 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/rusq/slackdump/v2/internal/encio"
+	"github.com/rusq/slackdump/v2/internal/fixtures"
 	"github.com/rusq/slackdump/v2/internal/mocks/mock_os"
 	"github.com/rusq/slackdump/v2/types"
 )
+
+const testSuffix = "UNIT"
+
+var testUsers = types.Users(fixtures.TestUsers)
 
 func TestSaveUserCache(t *testing.T) {
 	// test saving file works
 	dir := t.TempDir()
 	testfile := "test.json"
 
-	assert.NoError(t, SaveUserCache(dir, testfile, testSuffix, testUsers))
+	assert.NoError(t, saveUsers(dir, testfile, testSuffix, testUsers))
 
 	reopenedF, err := encio.Open(makeCacheFilename(dir, testfile, testSuffix))
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer reopenedF.Close()
-	uu, err := readUsers(reopenedF)
+	uu, err := ReadUsers(reopenedF)
 	assert.NoError(t, err)
 	assert.Equal(t, testUsers, uu)
 }
@@ -58,7 +63,7 @@ func TestLoadUserCache(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := LoadUserCache("", tt.args.filename, testSuffix, tt.args.maxAge)
+			got, err := loadUsers("", tt.args.filename, testSuffix, tt.args.maxAge)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Session.loadUserCache() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -181,7 +186,7 @@ func gimmeTempFile(t *testing.T, dir string) string {
 
 func gimmeTempFileWithUsers(t *testing.T, dir string) string {
 	f := gimmeTempFile(t, dir)
-	if err := SaveUserCache("", f, testSuffix, testUsers); err != nil {
+	if err := saveUsers("", f, testSuffix, testUsers); err != nil {
 		t.Fatal(err)
 	}
 	return f

@@ -10,15 +10,18 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/rusq/slackdump/v2/auth"
 	"github.com/rusq/slackdump/v2/internal/encio"
+	"github.com/rusq/slackdump/v2/types"
 )
 
 // Manager is the workspace manager.
 type Manager struct {
 	dir         string
 	authOptions []auth.Option
+	userFile    string
 }
 
 const (
@@ -26,8 +29,6 @@ const (
 	defCredsFile   = "provider" + wspExt // default creds file
 	defName        = "default"           // name that will be shown for "provider.bin"
 	currentWspFile = "workspace.txt"
-	userPrefix     = "users-"
-	userSuffix     = ".cache"
 )
 
 var (
@@ -44,16 +45,38 @@ func WithAuthOpts(opts ...auth.Option) Option {
 	}
 }
 
+// WithUserBasename allows to change the default base name of "users.cache".
+// If the filename is empty it's a noop.  If the filename does not contain
+// extension, ".cache" is appended.
+func WithUserBasename(filename string) Option {
+	return func(m *Manager) {
+		if filename == "" {
+			return
+		}
+		if ext := filepath.Ext(filename); ext == "" || ext == "." {
+			filename += ".cache"
+		}
+		m.userFile = filename
+	}
+}
+
 // NewManager creates a new workspace manager over the directory dir.
 // The cache directory is created with rwx------ permissions, if it does
 // not exist.
+//
+// TODO: test with empty dir.
 func NewManager(dir string, opts ...Option) (*Manager, error) {
-	m := &Manager{dir: dir}
+	m := &Manager{
+		dir:      dir,
+		userFile: "users.cache",
+	}
 	for _, opt := range opts {
 		opt(m)
 	}
-	if err := os.MkdirAll(dir, 0700); err != nil {
-		return nil, err
+	if m.dir != "" {
+		if err := os.MkdirAll(dir, 0700); err != nil {
+			return nil, err
+		}
 	}
 	return m, nil
 }
@@ -271,6 +294,8 @@ func exist[T comparable](ss []T, s T) bool {
 // WalkUsers scans the cache directory and calls userFn for each user file
 // discovered.
 func (m *Manager) WalkUsers(userFn func(path string, r io.Reader) error) error {
+	userSuffix := filepath.Ext(m.userFile)
+	userPrefix := m.userFile[0 : len(m.userFile)-len(userSuffix)]
 	err := filepath.WalkDir(m.dir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -287,4 +312,14 @@ func (m *Manager) WalkUsers(userFn func(path string, r io.Reader) error) error {
 		return userFn(path, f)
 	})
 	return err
+}
+
+// loadUsers loads user cache file no older than maxAge for teamID.
+func (m *Manager) LoadUsers(teamID string, maxAge time.Duration) (types.Users, error) {
+	return loadUsers(m.dir, m.userFile, teamID, maxAge)
+}
+
+// saveUsers saves users to user cache file for teamID.
+func (m *Manager) SaveUsers(teamID string, uu types.Users) error {
+	return saveUsers(m.dir, m.userFile, teamID, uu)
 }

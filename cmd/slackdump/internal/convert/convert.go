@@ -252,6 +252,8 @@ var errNoMatch = errors.New("no matching users")
 // searchCache searches the cache directory for cached workspace users that have
 // the same ids, and returns the user slice from that cache.
 func searchCache(ctx context.Context, cacheDir string, ids []string) ([]slack.User, error) {
+	ctx, task := trace.NewTask(ctx, "searchCache")
+	defer task.End()
 	m, err := cache.NewManager(cacheDir)
 	if err != nil {
 		return nil, err
@@ -276,18 +278,10 @@ func searchCache(ctx context.Context, cacheDir string, ids []string) ([]slack.Us
 }
 
 func matchUsers(r io.Reader, ids []string) ([]slack.User, error) {
-	const matchRatio = 0.5
-	dec := json.NewDecoder(r)
-	var uu types.Users
-	for {
-		var u slack.User
-		if err := dec.Decode(&u); err != nil {
-			if errors.Is(err, io.EOF) {
-				break
-			}
-			return nil, err
-		}
-		uu = append(uu, u)
+	const matchRatio = 0.5 // 50% of users must match.
+	uu, err := cache.ReadUsers(r)
+	if err != nil {
+		return nil, err
 	}
 	fileIDs := uu.IndexByID()
 	var matchingCnt = 0 // matching users count

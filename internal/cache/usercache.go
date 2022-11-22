@@ -1,4 +1,4 @@
-package slackdump
+package cache
 
 import (
 	"encoding/json"
@@ -15,8 +15,8 @@ import (
 	"github.com/rusq/slackdump/v2/types"
 )
 
-// LoadUserCache tries to load the users from the file
-func LoadUserCache(cacheDir, filename string, suffix string, maxAge time.Duration) (types.Users, error) {
+// loadUsers tries to load the users from the file
+func loadUsers(cacheDir, filename string, suffix string, maxAge time.Duration) (types.Users, error) {
 	filename = makeCacheFilename(cacheDir, filename, suffix)
 
 	if err := checkCacheFile(filename, maxAge); err != nil {
@@ -29,7 +29,7 @@ func LoadUserCache(cacheDir, filename string, suffix string, maxAge time.Duratio
 	}
 	defer f.Close()
 
-	uu, err := readUsers(f)
+	uu, err := ReadUsers(f)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode users from %s: %w", filename, err)
 	}
@@ -37,13 +37,14 @@ func LoadUserCache(cacheDir, filename string, suffix string, maxAge time.Duratio
 	return uu, nil
 }
 
-func readUsers(r io.Reader) (types.Users, error) {
+// ReadUsers reads users from JSONL data in Reader r.
+func ReadUsers(r io.Reader) (types.Users, error) {
 	dec := json.NewDecoder(r)
 	var uu = make(types.Users, 0, 500) // 500 users. reasonable?
 	for {
 		var u slack.User
 		if err := dec.Decode(&u); err != nil {
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				break
 			}
 			return nil, err
@@ -53,7 +54,7 @@ func readUsers(r io.Reader) (types.Users, error) {
 	return uu, nil
 }
 
-func SaveUserCache(cacheDir, filename string, suffix string, uu types.Users) error {
+func saveUsers(cacheDir, filename string, suffix string, uu types.Users) error {
 	filename = makeCacheFilename(cacheDir, filename, suffix)
 
 	f, err := encio.Create(filename)
@@ -62,10 +63,17 @@ func SaveUserCache(cacheDir, filename string, suffix string, uu types.Users) err
 	}
 	defer f.Close()
 
-	enc := json.NewEncoder(f)
+	if err := WriteUsers(f, uu); err != nil {
+		return fmt.Errorf("file: %s, error: %w", filename, err)
+	}
+	return nil
+}
+
+func WriteUsers(w io.Writer, uu types.Users) error {
+	enc := json.NewEncoder(w)
 	for _, u := range uu {
 		if err := enc.Encode(u); err != nil {
-			return fmt.Errorf("failed to encode data for %s: %w", filename, err)
+			return fmt.Errorf("failed to encode data: %w", err)
 		}
 	}
 	return nil

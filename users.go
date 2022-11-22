@@ -11,6 +11,7 @@ import (
 
 	"github.com/slack-go/slack"
 
+	"github.com/rusq/slackdump/v2/internal/cache"
 	"github.com/rusq/slackdump/v2/internal/network"
 	"github.com/rusq/slackdump/v2/types"
 )
@@ -25,7 +26,13 @@ func (sd *Session) GetUsers(ctx context.Context) (types.Users, error) {
 		return types.Users{}, nil
 	}
 
-	users, err := LoadUserCache(sd.options.CacheDir, sd.options.UserCacheFilename, sd.wspInfo.TeamID, sd.options.MaxUserCacheAge)
+	// TODO make Manager a Session variable.  Maybe?
+	m, err := cache.NewManager(sd.options.CacheDir, cache.WithUserBasename(sd.options.UserCacheFilename))
+	if err != nil {
+		return nil, err
+	}
+
+	users, err := m.LoadUsers(sd.wspInfo.TeamID, sd.options.MaxUserCacheAge)
 	if err != nil {
 		if os.IsNotExist(err) {
 			sd.l().Println("  caching users for the first time")
@@ -36,7 +43,7 @@ func (sd *Session) GetUsers(ctx context.Context) (types.Users, error) {
 		if err != nil {
 			return nil, err
 		}
-		if err := SaveUserCache(sd.options.CacheDir, sd.options.UserCacheFilename, sd.wspInfo.TeamID, users); err != nil {
+		if err := m.SaveUsers(sd.wspInfo.TeamID, users); err != nil {
 			trace.Logf(ctx, "error", "saving user cache to %q, error: %s", sd.options.UserCacheFilename, err)
 			sd.l().Printf("error saving user cache to %q: %s, but nevermind, let's continue", sd.options.UserCacheFilename, err)
 		}
