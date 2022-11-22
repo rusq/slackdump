@@ -2,13 +2,11 @@ package slackdump
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"runtime/trace"
-	"time"
-
-	"errors"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/slack-go/slack"
@@ -161,31 +159,6 @@ func (sd *Session) limiter(t network.Tier) *rate.Limiter {
 // maxAttempts times. It will return an error if it runs out of attempts.
 func withRetry(ctx context.Context, l *rate.Limiter, maxAttempts int, fn func() error) error {
 	return network.WithRetry(ctx, l, maxAttempts, fn)
-}
-
-func checkCacheFile(filename string, maxAge time.Duration) error {
-	if filename == "" {
-		return errors.New("no cache filename")
-	}
-	fi, err := os.Stat(filename)
-	if err != nil {
-		return err
-	}
-
-	return validateCache(fi, maxAge)
-}
-
-func validateCache(fi os.FileInfo, maxAge time.Duration) error {
-	if fi.IsDir() {
-		return errors.New("cache file is a directory")
-	}
-	if fi.Size() == 0 {
-		return errors.New("empty cache file")
-	}
-	if time.Since(fi.ModTime()) > maxAge {
-		return errors.New("cache expired")
-	}
-	return nil
 }
 
 // l returns the current logger.

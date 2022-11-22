@@ -4,19 +4,13 @@ package slackdump
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
-	"io"
 	"os"
-	"path/filepath"
 	"runtime/trace"
-	"time"
 
 	"errors"
 
 	"github.com/slack-go/slack"
 
-	"github.com/rusq/slackdump/v2/internal/encio"
 	"github.com/rusq/slackdump/v2/internal/network"
 	"github.com/rusq/slackdump/v2/types"
 )
@@ -31,7 +25,7 @@ func (sd *Session) GetUsers(ctx context.Context) (types.Users, error) {
 		return types.Users{}, nil
 	}
 
-	users, err := sd.loadUserCache(sd.options.UserCacheFilename, sd.wspInfo.TeamID, sd.options.MaxUserCacheAge)
+	users, err := LoadUserCache(sd.options.CacheDir, sd.options.UserCacheFilename, sd.wspInfo.TeamID, sd.options.MaxUserCacheAge)
 	if err != nil {
 		if os.IsNotExist(err) {
 			sd.l().Println("  caching users for the first time")
@@ -42,7 +36,7 @@ func (sd *Session) GetUsers(ctx context.Context) (types.Users, error) {
 		if err != nil {
 			return nil, err
 		}
-		if err := sd.saveUserCache(sd.options.UserCacheFilename, sd.wspInfo.TeamID, users); err != nil {
+		if err := SaveUserCache(sd.options.CacheDir, sd.options.UserCacheFilename, sd.wspInfo.TeamID, users); err != nil {
 			trace.Logf(ctx, "error", "saving user cache to %q, error: %s", sd.options.UserCacheFilename, err)
 			sd.l().Printf("error saving user cache to %q: %s, but nevermind, let's continue", sd.options.UserCacheFilename, err)
 		}
@@ -74,80 +68,4 @@ func (sd *Session) fetchUsers(ctx context.Context) (types.Users, error) {
 		return nil, errors.New("couldn't fetch users")
 	}
 	return users, nil
-}
-
-// loadUsers tries to load the users from the file
-func (sd *Session) loadUserCache(filename string, suffix string, maxAge time.Duration) (types.Users, error) {
-	filename = sd.makeCacheFilename(filename, suffix)
-
-	if err := checkCacheFile(filename, maxAge); err != nil {
-		return nil, err
-	}
-
-	f, err := encio.Open(filename)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open %s: %w", filename, err)
-	}
-	defer f.Close()
-
-	uu, err := readUsers(f)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode users from %s: %w", filename, err)
-	}
-
-	return uu, nil
-}
-
-func readUsers(r io.Reader) (types.Users, error) {
-	dec := json.NewDecoder(r)
-	var uu = make(types.Users, 0, 500) // 500 users. reasonable?
-	for {
-		var u slack.User
-		if err := dec.Decode(&u); err != nil {
-			if err == io.EOF {
-				break
-			}
-			return nil, err
-		}
-		uu = append(uu, u)
-	}
-	return uu, nil
-}
-
-func (sd *Session) saveUserCache(filename string, suffix string, uu types.Users) error {
-	filename = sd.makeCacheFilename(filename, suffix)
-
-	f, err := encio.Create(filename)
-	if err != nil {
-		return fmt.Errorf("failed to create file %s: %w", filename, err)
-	}
-	defer f.Close()
-
-	enc := json.NewEncoder(f)
-	for _, u := range uu {
-		if err := enc.Encode(u); err != nil {
-			return fmt.Errorf("failed to encode data for %s: %w", filename, err)
-		}
-	}
-	return nil
-}
-
-// makeCacheFilename converts filename.ext to filename-suffix.ext.
-func (sd *Session) makeCacheFilename(filename, suffix string) string {
-	ne := filenameSplit(filename)
-	return filepath.Join(sd.options.CacheDir, filenameJoin(nameExt{ne[0] + "-" + suffix, ne[1]}))
-}
-
-type nameExt [2]string
-
-// filenameSplit splits the "path/to/filename.ext" into nameExt{"path/to/filename", ".ext"}
-func filenameSplit(filename string) nameExt {
-	ext := filepath.Ext(filename)
-	name := filename[:len(filename)-len(ext)]
-	return nameExt{name, ext}
-}
-
-// filenameJoin combines nameExt{"path/to/filename", ".ext"} to "path/to/filename.ext".
-func filenameJoin(split nameExt) string {
-	return split[0] + split[1]
 }
