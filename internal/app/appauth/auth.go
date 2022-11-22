@@ -165,13 +165,15 @@ func initProvider(ctx context.Context, cacheDir string, filename string, workspa
 	return provider, nil
 }
 
+var authTester = (auth.Provider).Test
+
 func tryLoad(ctx context.Context, filename string) (auth.Provider, error) {
 	prov, err := loadCreds(filer, filename)
 	if err != nil {
 		return nil, err
 	}
 	// test the loaded credentials
-	if err := prov.Test(ctx); err != nil {
+	if err := authTester(prov, ctx); err != nil {
 		return nil, err
 	}
 	return prov, nil
