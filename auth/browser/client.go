@@ -158,10 +158,6 @@ func extractToken(uri string) (string, error) {
 func convertCookies(pwc []playwright.Cookie) []http.Cookie {
 	var ret = make([]http.Cookie, 0, len(pwc))
 	for _, p := range pwc {
-		if !strings.HasSuffix(p.Domain, slackDomain) {
-			// ignoring filth (thirdparty tracking cookies)
-			continue
-		}
 		ret = append(ret, http.Cookie{
 			Name:     p.Name,
 			Value:    p.Value,
