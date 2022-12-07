@@ -12,8 +12,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/rusq/encio"
+
 	"github.com/rusq/slackdump/v2/auth"
-	"github.com/rusq/slackdump/v2/internal/encio"
 	"github.com/rusq/slackdump/v2/types"
 )
 

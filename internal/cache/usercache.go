@@ -9,9 +9,9 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/rusq/encio"
 	"github.com/slack-go/slack"
 
-	"github.com/rusq/slackdump/v2/internal/encio"
 	"github.com/rusq/slackdump/v2/types"
 )
 

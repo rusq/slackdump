@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
+	"github.com/rusq/encio"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/rusq/slackdump/v2/internal/encio"
 	"github.com/rusq/slackdump/v2/internal/fixtures"
 	"github.com/rusq/slackdump/v2/internal/mocks/mock_os"
 	"github.com/rusq/slackdump/v2/types"

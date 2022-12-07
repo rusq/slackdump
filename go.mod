@@ -50,6 +50,7 @@ require (
 	github.com/mitchellh/colorstring v0.0.0-20190213212951-d06e56a500db // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rivo/uniseg v0.3.1 // indirect
+	github.com/rusq/encio v0.1.0 // indirect
 	golang.org/x/crypto v0.1.0 // indirect
 	golang.org/x/image v0.1.0 // indirect
 	golang.org/x/sys v0.1.0 // indirect

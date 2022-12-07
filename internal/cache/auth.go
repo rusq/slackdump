@@ -10,8 +10,9 @@ import (
 	"runtime"
 	"runtime/trace"
 
+	"github.com/rusq/encio"
+
 	"github.com/rusq/slackdump/v2/auth"
-	"github.com/rusq/slackdump/v2/internal/encio"
 )
 
 //go:generate mockgen -source=auth.go -destination=../../mocks/mock_appauth/mock_appauth.go Credentials,createOpener
