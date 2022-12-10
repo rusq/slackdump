@@ -38,32 +38,32 @@ type Limits struct {
 	// going to retry
 	DownloadRetries int `json:"download_retries,omitempty" yaml:"download_retries,omitempty"`
 	// Tier-2 limits
-	Tier2 TierLimits
+	Tier2 TierLimits `json:"tier_2,omitempty" yaml:"tier_2,omitempty"`
 	// Tier-3 limits
-	Tier3 TierLimits
+	Tier3 TierLimits `json:"tier_3,omitempty" yaml:"tier_3,omitempty"`
 	// Request Limits
-	Request RequestLimit
+	Request RequestLimit `json:"per_request,omitempty" yaml:"per_request,omitempty"`
 }
 
 // TierLimits represents a Slack API Tier limits.
 type TierLimits struct {
 	// Tier limiter boost
-	Boost uint `json:"tier_2_boost,omitempty" yaml:"tier_2_boost,omitempty"`
+	Boost uint `json:"boost,omitempty" yaml:"boost,omitempty"`
 	// Tier limiter burst
-	Burst uint `json:"tier_2_burst,omitempty" yaml:"tier_2_burst,omitempty" validate:"gte=1"`
+	Burst uint `json:"burst,omitempty" yaml:"burst,omitempty" validate:"gte=1"`
 	// Tier retries when getting 429 on channels fetch
-	Retries int `json:"tier_2_retries,omitempty" yaml:"tier_2_retries,omitempty"`
+	Retries int `json:"retries,omitempty" yaml:"retries,omitempty"`
 }
 
 // RequestLimit defines the limits on the requests that are sent to the API.
 type RequestLimit struct {
 	// number of messages we get per 1 API request. bigger the number, fewer
 	// requests, but they become more beefy.
-	Conversations int `json:"conversations_per_request,omitempty" yaml:"conversations_per_request,omitempty" validate:"gt=0,lte=100"`
+	Conversations int `json:"conversations,omitempty" yaml:"conversations,omitempty" validate:"gt=0,lte=100"`
 	// number of channels to fetch per 1 API request.
-	Channels int `json:"channels_per_request,omitempty" yaml:"channels_per_request,omitempty" validate:"gt=0,lte=1000"`
+	Channels int `json:"channels,omitempty" yaml:"channels,omitempty" validate:"gt=0,lte=1000"`
 	// number of thread replies per request (slack default: 1000)
-	Replies int `json:"replies_per_request,omitempty" yaml:"replies_per_request,omitempty" validate:"gt=0,lte=1000"`
+	Replies int `json:"replies,omitempty" yaml:"replies,omitempty" validate:"gt=0,lte=1000"`
 }
 
 // DefOptions is the default options used when initialising slackdump instance.
