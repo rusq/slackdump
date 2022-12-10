@@ -121,6 +121,8 @@ func show(m *menu, onMatch func(cmd *base.Command) error) error {
 				return nil
 			} else if errors.Is(err, errInvalid) {
 				return err
+			} else {
+				return err
 			}
 		}
 	}
@@ -138,8 +140,7 @@ func run(m *menu, choice string, onMatch func(cmd *base.Command) error) error {
 			continue
 		}
 		if mi.Submenu != nil {
-			show(mi.Submenu, onMatch)
-			return nil
+			return show(mi.Submenu, onMatch)
 		}
 		// found
 		if mi.cmd == nil { // only Exit and back won't have this.

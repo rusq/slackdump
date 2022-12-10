@@ -11,6 +11,7 @@ import (
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/golang/base"
+	"github.com/rusq/slackdump/v2/internal/app/ui"
 )
 
 var CmdConfigNew = &base.Command{
@@ -36,6 +37,7 @@ var (
 
 func init() {
 	CmdConfigNew.Run = runConfigNew
+	CmdConfigNew.Wizard = wizConfigNew
 }
 
 func runConfigNew(ctx context.Context, cmd *base.Command, args []string) error {
@@ -59,8 +61,31 @@ func runConfigNew(ctx context.Context, cmd *base.Command, args []string) error {
 		return fmt.Errorf("error writing the API limits config %q: %w", filename, err)
 	}
 
-	fmt.Printf("Your new API limits config is ready: %q\n", filename)
-	return nil
+	_, err := printConfigOK(filename)
+	return err
+}
+
+func printConfigOK(filename string) (n int, err error) {
+	return fmt.Printf("Your new API limits config is ready: %q\n", filename)
+}
+
+func wizConfigNew(ctx context.Context, cmd *base.Command, args []string) error {
+	ctx, task := trace.NewTask(ctx, "wizConfigNew")
+	defer task.End()
+
+RESTART:
+	filename, err := ui.FileSelector("New config file name", "Enter new limiter config file name")
+	if err != nil {
+		return err
+	}
+	if err := Save(filename, slackdump.DefOptions.Limits); err != nil {
+		fmt.Printf("Error: %s, please retry\n", err)
+		trace.Logf(ctx, "error", "error saving file to %q: %s, survey restarted", filename, err)
+		goto RESTART
+	}
+
+	_, err = printConfigOK(filename)
+	return err
 }
 
 // shouldOverwrite returns true if the file can be overwritten.  If override
