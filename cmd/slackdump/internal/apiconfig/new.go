@@ -7,8 +7,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/goccy/go-yaml"
-
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/golang/base"
@@ -55,13 +53,7 @@ func runConfigNew(ctx context.Context, cmd *base.Command, args []string) error {
 		return fmt.Errorf("refusing to overwrite file %q, use -y flag to overwrite", filename)
 	}
 
-	f, err := os.Create(filename)
-	if err != nil {
-		return fmt.Errorf("unable to create a new API config file: %w", err)
-	}
-	defer f.Close()
-
-	if err := yaml.NewEncoder(f).Encode(&slackdump.DefOptions); err != nil {
+	if err := Save(filename, &slackdump.DefOptions.Limits); err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return fmt.Errorf("error writing the API config %q: %w", filename, err)
 	}

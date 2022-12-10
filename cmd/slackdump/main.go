@@ -172,7 +172,7 @@ func parseFlags(cmd *base.Command, args []string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := cfg.SlackOptions.Limits.Apply(*limits); err != nil {
+	if err := cfg.SlackOptions.Limits.Apply(limits); err != nil {
 		return nil, err
 	}
 	return cmd.Flag.Args(), nil

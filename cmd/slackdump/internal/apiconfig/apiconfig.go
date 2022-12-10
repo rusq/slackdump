@@ -32,28 +32,48 @@ configuration file.
 var ErrConfigInvalid = errors.New("config validation failed")
 
 // Load reads, parses and validates the config file.
-func Load(filename string) (*slackdump.Limits, error) {
+func Load(filename string) (slackdump.Limits, error) {
 	f, err := os.Open(filename)
 	if err != nil {
-		return nil, err
+		return slackdump.Limits{}, err
 	}
 	defer f.Close()
 
+	return readLimits(f)
+}
+
+func Save(filename string, limits *slackdump.Limits) error {
+	f, err := os.Create(filename)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	return writeLimits(f, limits)
+}
+
+func readLimits(r io.Reader) (slackdump.Limits, error) {
 	var limits slackdump.Limits
-	dec := yaml.NewDecoder(f, yaml.DisallowUnknownField(), yaml.DisallowDuplicateKey())
+	dec := yaml.NewDecoder(r, yaml.DisallowUnknownField(), yaml.DisallowDuplicateKey())
 	if err := dec.Decode(&limits); err != nil {
-		return nil, err
+		return slackdump.Limits{}, err
 	}
 
 	if err := cfg.SlackOptions.Limits.Apply(limits); err != nil {
 		if err := printErrors(os.Stderr, err); err != nil {
-			return nil, err
+			return slackdump.Limits{}, err
 		}
-		return nil, ErrConfigInvalid
+		return slackdump.Limits{}, ErrConfigInvalid
 	}
-	return &limits, nil
+	return limits, nil
 }
 
+func writeLimits(w io.Writer, cfg *slackdump.Limits) error {
+	return yaml.NewEncoder(w).Encode(&slackdump.DefOptions.Limits)
+}
+
+// printErrors prints configuration errors, if error is not nill and is of
+// validator.ValidationErrors type.
 func printErrors(w io.Writer, err error) error {
 	if err == nil {
 		return nil
