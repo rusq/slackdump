@@ -42,7 +42,8 @@ func Load(filename string) (slackdump.Limits, error) {
 	return readLimits(f)
 }
 
-func Save(filename string, limits *slackdump.Limits) error {
+// Save saves the config to the file.
+func Save(filename string, limits slackdump.Limits) error {
 	f, err := os.Create(filename)
 	if err != nil {
 		return err
@@ -68,8 +69,8 @@ func readLimits(r io.Reader) (slackdump.Limits, error) {
 	return limits, nil
 }
 
-func writeLimits(w io.Writer, cfg *slackdump.Limits) error {
-	return yaml.NewEncoder(w).Encode(&slackdump.DefOptions.Limits)
+func writeLimits(w io.Writer, cfg slackdump.Limits) error {
+	return yaml.NewEncoder(w).Encode(cfg)
 }
 
 // printErrors prints configuration errors, if error is not nill and is of
