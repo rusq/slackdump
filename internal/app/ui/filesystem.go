@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -8,28 +9,53 @@ import (
 	"github.com/AlecAivazis/survey/v2"
 )
 
-func FileSelector(msg, descr string) (string, error) {
-	var q = &survey.Input{
-		Message: msg,
-		Suggest: func(partname string) []string {
-			// thanks to AlecAivazis the for great example of this.
-			files, _ := filepath.Glob(partname + "*")
-			return files
+type fileSelectorOpt struct {
+	emptyFilename string // if set, the empty filename will be replaced to this value
+}
+
+func WithEmptyFilename(s string) Option {
+	return func(so *inputOptions) {
+		so.fileSelectorOpt.emptyFilename = s
+	}
+}
+
+func FileSelector(msg, descr string, opt ...Option) (string, error) {
+	var opts = defaultOpts().apply(opt...)
+
+	var q = []*survey.Question{
+		{
+			Name: "filename",
+			Prompt: &survey.Input{
+				Message: msg,
+				Suggest: func(partname string) []string {
+					files, _ := filepath.Glob(partname + "*")
+					return files
+				},
+				Help: descr,
+			},
+			Validate: func(ans interface{}) error {
+				if ans.(string) != "" || opts.emptyFilename != "" {
+					return nil
+				}
+				return errors.New("empty filename")
+			},
 		},
-		Help: descr,
 	}
 
-	var (
-		output string
-	)
+	var resp struct {
+		Filename string
+	}
 	for {
-		if err := survey.AskOne(q, &output); err != nil {
+		if err := survey.Ask(q, &resp, opts.surveyOpts()...); err != nil {
 			return "", err
 		}
-		if _, err := os.Stat(output); err != nil {
+		if resp.Filename == "" && opts.emptyFilename != "" {
+			resp.Filename = opts.emptyFilename
+		}
+		if _, err := os.Stat(resp.Filename); err != nil {
 			break
 		}
-		overwrite, err := Confirm(fmt.Sprintf("File %q exists. Overwrite?", output), false)
+		overwrite, err := Confirm(fmt.Sprintf("File %q exists. Overwrite?", resp.Filename), false, opt...)
 		if err != nil {
 			return "", err
 		}
@@ -37,8 +63,5 @@ func FileSelector(msg, descr string) (string, error) {
 			break
 		}
 	}
-	if output == "" {
-		output = "-"
-	}
-	return output, nil
+	return resp.Filename, nil
 }

@@ -6,18 +6,20 @@ require (
 	github.com/AlecAivazis/survey/v2 v2.3.6
 	github.com/MercuryEngineering/CookieMonster v0.0.0-20180304172713-1584578b3403
 	github.com/MichaelMure/go-term-markdown v0.1.4
-	github.com/denisbrodbeck/machineid v1.0.1
+	github.com/Netflix/go-expect v0.0.0-20220104043353-73e0943537d2
 	github.com/fatih/color v1.13.0
 	github.com/go-playground/locales v0.13.0
 	github.com/go-playground/universal-translator v0.17.0
 	github.com/go-playground/validator/v10 v10.4.1
 	github.com/goccy/go-yaml v1.9.6
 	github.com/golang/mock v1.6.0
+	github.com/hinshun/vt10x v0.0.0-20220119200601-820417d04eec
 	github.com/joho/godotenv v1.4.0
+	github.com/kr/pty v1.1.8
 	github.com/playwright-community/playwright-go v0.2000.1
 	github.com/rusq/dlog v1.3.3
+	github.com/rusq/encio v0.1.0
 	github.com/rusq/osenv/v2 v2.0.1
-	github.com/rusq/secure v0.0.4
 	github.com/rusq/tracer v1.0.1
 	github.com/schollz/progressbar/v3 v3.8.6
 	github.com/slack-go/slack v0.11.0
@@ -31,8 +33,10 @@ require (
 require (
 	github.com/MichaelMure/go-term-text v0.3.1 // indirect
 	github.com/alecthomas/chroma v0.7.1 // indirect
+	github.com/creack/pty v1.1.17 // indirect
 	github.com/danwakefield/fnmatch v0.0.0-20160403171240-cbb64ac3d964 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/denisbrodbeck/machineid v1.0.1 // indirect
 	github.com/disintegration/imaging v1.6.2 // indirect
 	github.com/dlclark/regexp2 v1.1.6 // indirect
 	github.com/eliukblau/pixterm/pkg/ansimage v0.0.0-20191210081756-9fb6cf8c2f75 // indirect
@@ -50,7 +54,7 @@ require (
 	github.com/mitchellh/colorstring v0.0.0-20190213212951-d06e56a500db // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rivo/uniseg v0.3.1 // indirect
-	github.com/rusq/encio v0.1.0 // indirect
+	github.com/rusq/secure v0.0.4 // indirect
 	golang.org/x/crypto v0.1.0 // indirect
 	golang.org/x/image v0.1.0 // indirect
 	golang.org/x/sys v0.1.0 // indirect
