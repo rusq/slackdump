@@ -9,8 +9,14 @@ import (
 	"github.com/kr/pty"
 )
 
+type console interface {
+	ExpectString(s string) (string, error)
+	SendLine(s string) (int, error)
+	ExpectEOF() (string, error)
+}
+
 type (
-	procedureFunc func(*testing.T, *expect.Console)
+	procedureFunc func(*testing.T, console)
 	testFunc      func(terminal.Stdio) error
 )
 
@@ -19,7 +25,7 @@ type (
 // it's a simplified copy/paste from the survey lib:
 //
 //	https://github.com/go-survey/survey/blob/master/survey_posix_test.go
-func RunTest(t *testing.T, procedure func(*testing.T, *expect.Console), test func(terminal.Stdio) error) {
+func RunTest(t *testing.T, procedure func(*testing.T, console), test func(terminal.Stdio) error) {
 	t.Helper()
 
 	pty, tty, err := pty.Open()

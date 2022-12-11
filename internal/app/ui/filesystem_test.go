@@ -1,12 +1,13 @@
 package ui
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/AlecAivazis/survey/v2/core"
 	"github.com/AlecAivazis/survey/v2/terminal"
-	"github.com/Netflix/go-expect"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -23,7 +24,7 @@ func TestFileselector(t *testing.T) {
 			filename, err = FileSelector("xxx", "help", WithOutput(stdio))
 			return err
 		}
-		procedure := func(t *testing.T, console *expect.Console) {
+		procedure := func(t *testing.T, console console) {
 			console.ExpectString("xxx")
 			console.SendLine("test.txt")
 			console.ExpectEOF()
@@ -38,13 +39,13 @@ func TestFileselector(t *testing.T) {
 			filename, err = FileSelector("xxx", "help", WithOutput(stdio))
 			return err
 		}
-		procedure := func(t *testing.T, console *expect.Console) {
-			console.ExpectString("xxx")
-			console.SendLine("")
+		procedure := func(t *testing.T, c console) {
+			c.ExpectString("xxx")
+			c.SendLine("")
 			time.Sleep(10 * time.Millisecond)
-			console.ExpectString("xxx")
-			console.SendLine(":wq!")
-			console.ExpectEOF()
+			c.ExpectString("xxx")
+			c.SendLine(":wq!")
+			c.ExpectEOF()
 		}
 		RunTest(t, procedure, testFn)
 		assert.Equal(t, ":wq!", filename)
@@ -56,12 +57,35 @@ func TestFileselector(t *testing.T) {
 			filename, err = FileSelector("xxx", "help", WithOutput(stdio), WithEmptyFilename("override"))
 			return err
 		}
-		procedure := func(t *testing.T, console *expect.Console) {
-			console.ExpectString("xxx")
-			console.SendLine("")
-			console.ExpectEOF()
+		procedure := func(t *testing.T, c console) {
+			c.ExpectString("xxx")
+			c.SendLine("")
+			c.ExpectEOF()
 		}
 		RunTest(t, procedure, testFn)
 		assert.Equal(t, "override", filename)
+	})
+	t.Run("overwrite", func(t *testing.T) {
+		var filename string
+		dir := t.TempDir()
+		testfile := filepath.Join(dir, "testfile.txt")
+		if err := os.WriteFile(testfile, []byte("unittest"), 0666); err != nil {
+			t.Fatal(err)
+		}
+		RunTest(
+			t,
+			func(t *testing.T, c console) {
+				c.ExpectString("make me overwrite this")
+				c.SendLine(testfile)
+				c.ExpectString("exists")
+				c.SendLine("Y")
+				c.ExpectEOF()
+			},
+			func(s terminal.Stdio) error {
+				var err error
+				filename, err = FileSelector("make me overwrite this", "", WithOutput(s))
+				return err
+			})
+		assert.Equal(t, testfile, filename)
 	})
 }
