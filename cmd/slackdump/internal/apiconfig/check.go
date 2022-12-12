@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/golang/base"
+	"github.com/rusq/slackdump/v2/internal/app/ui"
 )
 
 var CmdConfigCheck = &base.Command{
@@ -27,6 +28,7 @@ within the allowed boundaries.
 
 func init() {
 	CmdConfigCheck.Run = runConfigCheck
+	CmdConfigCheck.Wizard = wizConfigCheck
 }
 
 func runConfigCheck(ctx context.Context, cmd *base.Command, args []string) error {
@@ -37,8 +39,21 @@ func runConfigCheck(ctx context.Context, cmd *base.Command, args []string) error
 	filename := args[0]
 	if _, err := Load(filename); err != nil {
 		base.SetExitStatus(base.SUserError)
-		return err
+		return fmt.Errorf("config file %q not OK: %s", filename, err)
 	}
 	fmt.Printf("Config file %q: OK\n", filename)
 	return nil
+}
+
+func wizConfigCheck(ctx context.Context, cmd *base.Command, args []string) error {
+	filename, err := ui.FileSelector(
+		"Input a config file name to check",
+		"Enter the config file name.  It must exist and be a regular file.",
+		ui.WithMustExist(true),
+	)
+	if err != nil {
+		return err
+	}
+
+	return runConfigCheck(ctx, cmd, []string{filename})
 }

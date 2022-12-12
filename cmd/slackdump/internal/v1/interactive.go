@@ -3,8 +3,6 @@ package v1
 import (
 	"errors"
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/AlecAivazis/survey/v2"
@@ -209,45 +207,11 @@ func questConversationList(msg string) (*structures.EntityList, error) {
 
 // questOutputFile prints the output file question.
 func questOutputFile() (string, error) {
-	return fileSelector(
+	return ui.FileSelector(
 		"Output file name (if empty - screen output): ",
 		"Enter the filename to save the data to. Leave empty to print the results on the screen.",
+		ui.WithDefaultFilename("-"),
 	)
-}
-
-func fileSelector(msg, descr string) (string, error) {
-	var q = &survey.Input{
-		Message: msg,
-		Suggest: func(partname string) []string {
-			// thanks to AlecAivazis the for great example of this.
-			files, _ := filepath.Glob(partname + "*")
-			return files
-		},
-		Help: descr,
-	}
-
-	var (
-		output string
-	)
-	for {
-		if err := survey.AskOne(q, &output); err != nil {
-			return "", err
-		}
-		if _, err := os.Stat(output); err != nil {
-			break
-		}
-		overwrite, err := ui.Confirm(fmt.Sprintf("File %q exists. Overwrite?", output), false)
-		if err != nil {
-			return "", err
-		}
-		if overwrite {
-			break
-		}
-	}
-	if output == "" {
-		output = "-"
-	}
-	return output, nil
 }
 
 func surveyEmojis(p *params) error {
@@ -255,7 +219,7 @@ func surveyEmojis(p *params) error {
 	var base string
 	for {
 		var err error
-		base, err = fileSelector("Enter directory or ZIP file name: ", "Emojis will be saved to this directory or ZIP file")
+		base, err = ui.FileSelector("Enter directory or ZIP file name: ", "Emojis will be saved to this directory or ZIP file")
 		if err != nil {
 			return err
 		}

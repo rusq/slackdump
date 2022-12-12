@@ -15,14 +15,11 @@ type console interface {
 	ExpectEOF() (string, error)
 }
 
-type (
-	procedureFunc func(*testing.T, console)
-	testFunc      func(terminal.Stdio) error
-)
-
-// RunTest is the helper function to execute the UI tests.
+// RunTest is the helper function to execute the UI tests.  procedure is the
+// function that contains Expect interactions with the UI, and test is the
+// function that should invoke the UI element.
 //
-// it's a simplified copy/paste from the survey lib:
+// It's a simplified copy/paste from the survey lib:
 //
 //	https://github.com/go-survey/survey/blob/master/survey_posix_test.go
 func RunTest(t *testing.T, procedure func(*testing.T, console), test func(terminal.Stdio) error) {
