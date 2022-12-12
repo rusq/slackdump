@@ -10,12 +10,19 @@ import (
 )
 
 type fileSelectorOpt struct {
-	emptyFilename string // if set, the empty filename will be replaced to this value
+	defaultFilename string // if set, the empty filename will be replaced to this value
+	mustExist       bool
 }
 
-func WithEmptyFilename(s string) Option {
-	return func(so *inputOptions) {
-		so.fileSelectorOpt.emptyFilename = s
+func WithDefaultFilename(s string) Option {
+	return func(io *inputOptions) {
+		io.fileSelectorOpt.defaultFilename = s
+	}
+}
+
+func WithMustExist(b bool) Option {
+	return func(io *inputOptions) {
+		io.mustExist = b
 	}
 }
 
@@ -34,10 +41,22 @@ func FileSelector(msg, descr string, opt ...Option) (string, error) {
 				Help: descr,
 			},
 			Validate: func(ans interface{}) error {
-				if ans.(string) != "" || opts.emptyFilename != "" {
-					return nil
+				filename := ans.(string)
+				if filename == "" {
+					if opts.defaultFilename == "" {
+						return errors.New("empty filename")
+					} else {
+						if !opts.mustExist {
+							return nil
+						} else {
+							return checkExists(opts.defaultFilename)
+						}
+					}
 				}
-				return errors.New("empty filename")
+				if opts.mustExist {
+					return checkExists(filename)
+				}
+				return nil
 			},
 		},
 	}
@@ -49,8 +68,11 @@ func FileSelector(msg, descr string, opt ...Option) (string, error) {
 		if err := survey.Ask(q, &resp, opts.surveyOpts()...); err != nil {
 			return "", err
 		}
-		if resp.Filename == "" && opts.emptyFilename != "" {
-			resp.Filename = opts.emptyFilename
+		if resp.Filename == "" && opts.defaultFilename != "" {
+			resp.Filename = opts.defaultFilename
+		}
+		if opts.mustExist {
+			break
 		}
 		if _, err := os.Stat(resp.Filename); err != nil {
 			break
@@ -64,4 +86,15 @@ func FileSelector(msg, descr string, opt ...Option) (string, error) {
 		}
 	}
 	return resp.Filename, nil
+}
+
+func checkExists(filename string) error {
+	if _, err := os.Stat(filename); err != nil {
+		if os.IsNotExist(err) {
+			return errors.New("file must exist")
+		} else {
+			return err
+		}
+	}
+	return nil
 }
