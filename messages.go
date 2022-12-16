@@ -170,7 +170,7 @@ func (sd *Session) getChannelName(ctx context.Context, l *rate.Limiter, channelI
 	var ci *slack.Channel
 	if err := withRetry(ctx, l, sd.options.Limits.Tier3.Retries, func() error {
 		var err error
-		ci, err = sd.client.GetConversationInfoContext(ctx, channelID, false)
+		ci, err = sd.client.GetConversationInfoContext(ctx, &slack.GetConversationInfoInput{ChannelID: channelID})
 		return err
 	}); err != nil {
 		return "", err

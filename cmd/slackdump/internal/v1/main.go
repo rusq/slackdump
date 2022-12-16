@@ -282,8 +282,8 @@ func usage(fs *flag.FlagSet) func() {
 		fs.PrintDefaults()
 		fmt.Fprint(flag.CommandLine.Output(), color.HiYellowString(`
 ---------------------------------------------------------------
-ATTENTION:  v1 command will be deprecated in v2.4.0 and removed
-            in v2.5.0.
+ATTENTION:  v1 command is deprecated in and will be removed
+            in v3.1.0.
 Run:
 	`+base.Executable()+` help
 
