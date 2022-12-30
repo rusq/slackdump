@@ -132,7 +132,7 @@ func surveyExport(p *params) error {
 	if err != nil {
 		return err
 	}
-	p.appCfg.Input.List, err = questConversationList("Conversations to export (leave empty for ALL): ")
+	p.appCfg.Input.List, err = questConversationList("Conversations to export (leave empty or type ALL for full export): ")
 	if err != nil {
 		return err
 	}
@@ -194,7 +194,7 @@ func questConversationList(msg string) (*structures.EntityList, error) {
 		if err != nil {
 			return nil, err
 		}
-		if chanStr == "" {
+		if chanStr == "" || strings.ToLower(chanStr) == "all" {
 			return new(structures.EntityList), nil
 		}
 		if el, err := structures.NewEntityList(strings.Split(chanStr, " ")); err != nil {
