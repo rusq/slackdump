@@ -3,11 +3,14 @@ package list
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 
+	"github.com/rusq/dlog"
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/auth"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/cfg"
@@ -33,16 +36,20 @@ which is sometimes unreasonably slow.
 }
 
 // common flags
-var listType format.Type
-
-func addCommonFlags(fs *flag.FlagSet) {
-	fs.Var(&listType, "type", fmt.Sprintf("list type, if not specified will use JSON.  Supported values: %v", format.AllTypes))
-}
+var (
+	listType  format.Type = format.CText
+	writeJSON bool
+)
 
 func init() {
 	for _, cmd := range CmdList.Commands {
 		addCommonFlags(&cmd.Flag)
 	}
+}
+
+func addCommonFlags(fs *flag.FlagSet) {
+	fs.Var(&listType, "type", fmt.Sprintf("listing format.  Supported values: %v", format.AllTypes))
+	fs.BoolVar(&writeJSON, "json", false, "if specified, will save the result to a JSON file.")
 }
 
 func serialise(fs fsadapter.FS, name string, a any) error {
@@ -60,7 +67,13 @@ func serialise(fs fsadapter.FS, name string, a any) error {
 
 type listFunc func(ctx context.Context, sess *slackdump.Session) (a any, filename string, err error)
 
+// list authenticates and creates a slackdump instance, then calls a listFn.
+// listFn must return the object from the api, a JSON filename and an error.
 func list(ctx context.Context, listFn listFunc) error {
+	if listType == format.CUnknown {
+		return errors.New("unknown listing format, seek help")
+	}
+
 	prov, err := auth.FromContext(ctx)
 	if err != nil {
 		base.SetExitStatus(base.SAuthError)
@@ -72,16 +85,11 @@ func list(ctx context.Context, listFn listFunc) error {
 		return err
 	}
 
-	a, filename, err := listFn(ctx, sess)
+	a, jsonFilename, err := listFn(ctx, sess)
 	if err != nil {
 		return err
 	}
-	if listType != format.CUnknown {
-		// stdout output
-		if err := fmtPrint(ctx, os.Stdout, a, listType, sess.Users); err != nil {
-			return err
-		}
-	} else {
+	if writeJSON {
 		// save JSON
 		fs, err := fsadapter.New(cfg.BaseLoc)
 		if err != nil {
@@ -89,7 +97,13 @@ func list(ctx context.Context, listFn listFunc) error {
 			return err
 		}
 		defer fs.Close()
-		if err := serialise(fs, filename, a); err != nil {
+		if err := serialise(fs, jsonFilename, a); err != nil {
+			return err
+		}
+		dlog.FromContext(ctx).Printf("data saved to %q\n", filepath.Join(cfg.BaseLoc, jsonFilename))
+	} else {
+		// stdout output
+		if err := fmtPrint(ctx, os.Stdout, a, listType, sess.Users); err != nil {
 			return err
 		}
 	}
