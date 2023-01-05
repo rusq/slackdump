@@ -8,6 +8,7 @@ import (
 	"github.com/rusq/dlog"
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/cfg"
+	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/convert/format"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/golang/base"
 )
 
@@ -33,7 +34,8 @@ func listUsers(ctx context.Context, cmd *base.Command, args []string) error {
 		return err
 	}
 
-	dlog.FromContext(ctx).Printf("users saved to %q\n", filepath.Join(cfg.BaseLoc, filename))
-
+	if listType == format.CUnknown {
+		dlog.FromContext(ctx).Printf("users saved to %q\n", filepath.Join(cfg.BaseLoc, filename))
+	}
 	return nil
 }

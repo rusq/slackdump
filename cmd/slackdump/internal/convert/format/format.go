@@ -24,6 +24,8 @@ const (
 	CCSV                 // CCSV is the CSV converter
 )
 
+var AllTypes = []Type{CText, CCSV}
+
 // Converter is a converter interface that each formatter must implement.
 type Converter interface {
 	Conversation(ctx context.Context, w io.Writer, u []slack.User, conv *types.Conversation) error

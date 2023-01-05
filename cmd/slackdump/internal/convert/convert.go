@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -60,7 +61,7 @@ func init() {
 func runConvert(ctx context.Context, cmd *base.Command, args []string) error {
 	if len(args) < 1 {
 		base.SetExitStatus(base.SInvalidParameters)
-		return errors.New("must specify output format (supported: 'text')")
+		return fmt.Errorf("must specify output format (supported: %v)", format.AllTypes)
 	}
 
 	// determining the conversion type.
