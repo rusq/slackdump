@@ -16,8 +16,8 @@ type CSV struct {
 }
 
 type csvOptions struct {
-	csvUseCRLF bool
-	csvComma   rune
+	UseCRLF bool
+	Comma   rune
 }
 
 func init() {
@@ -27,8 +27,8 @@ func init() {
 func NewCSV(opts ...Option) Converter {
 	settings := options{
 		csvOptions: csvOptions{
-			csvUseCRLF: false,
-			csvComma:   ',',
+			UseCRLF: false,
+			Comma:   ',',
 		},
 	}
 	for _, fn := range opts {
@@ -154,7 +154,7 @@ func (c *CSV) Users(ctx context.Context, w io.Writer, users []slack.User) error 
 
 func (c *CSV) mkwriter(w io.Writer) *csv.Writer {
 	csv := csv.NewWriter(w)
-	csv.Comma = c.opts.csvComma
-	csv.UseCRLF = c.opts.csvUseCRLF
+	csv.Comma = c.opts.Comma
+	csv.UseCRLF = c.opts.UseCRLF
 	return csv
 }

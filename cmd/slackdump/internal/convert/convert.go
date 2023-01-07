@@ -61,7 +61,7 @@ func init() {
 func runConvert(ctx context.Context, cmd *base.Command, args []string) error {
 	if len(args) < 1 {
 		base.SetExitStatus(base.SInvalidParameters)
-		return fmt.Errorf("must specify output format (supported: %v)", format.AllTypes)
+		return fmt.Errorf("must specify output format (supported: %v)", format.All())
 	}
 
 	// determining the conversion type.

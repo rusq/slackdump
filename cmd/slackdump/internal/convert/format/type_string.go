@@ -11,11 +11,12 @@ func _() {
 	_ = x[CUnknown-0]
 	_ = x[CText-1]
 	_ = x[CCSV-2]
+	_ = x[CJSON-3]
 }
 
-const _Type_name = "UnknownTextCSV"
+const _Type_name = "UnknownTextCSVJSON"
 
-var _Type_index = [...]uint8{0, 7, 11, 14}
+var _Type_index = [...]uint8{0, 7, 11, 14, 18}
 
 func (i Type) String() string {
 	if i < 0 || i >= Type(len(_Type_index)-1) {

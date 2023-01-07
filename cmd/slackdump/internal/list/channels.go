@@ -24,7 +24,9 @@ including archived ones.
 
 Please note that it may take a while to retrieve all channels, if your
 workspace has lots of them.
-`),
+` +
+		sectListFormat,
+	),
 	RequireAuth: true,
 }
 

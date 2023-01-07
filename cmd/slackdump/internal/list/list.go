@@ -37,8 +37,7 @@ which is sometimes unreasonably slow.
 
 // common flags
 var (
-	listType  format.Type = format.CText
-	writeJSON bool
+	listType format.Type = format.CText
 )
 
 func init() {
@@ -48,8 +47,7 @@ func init() {
 }
 
 func addCommonFlags(fs *flag.FlagSet) {
-	fs.Var(&listType, "type", fmt.Sprintf("listing format.  Supported values: %v", format.AllTypes))
-	fs.BoolVar(&writeJSON, "json", false, "if specified, will save the result to a JSON file.")
+	fs.Var(&listType, "format", fmt.Sprintf("listing format.  Supported values: %v", format.All()))
 }
 
 func serialise(fs fsadapter.FS, name string, a any) error {
@@ -89,8 +87,8 @@ func list(ctx context.Context, listFn listFunc) error {
 	if err != nil {
 		return err
 	}
-	if writeJSON {
-		// save JSON
+	if listType == format.CJSON {
+		// save JSON to file.
 		fs, err := fsadapter.New(cfg.BaseLoc)
 		if err != nil {
 			base.SetExitStatus(base.SApplicationError)

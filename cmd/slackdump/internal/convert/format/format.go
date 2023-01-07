@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"sort"
 	"strings"
 
 	"github.com/rusq/slackdump/v2/internal/structures"
@@ -22,9 +23,19 @@ const (
 	CUnknown Type = iota // Unknown converter type
 	CText                // CText is the plain text converter
 	CCSV                 // CCSV is the CSV converter
+	CJSON                // CJSON is JSON format converter
 )
 
-var AllTypes = []Type{CText, CCSV}
+func All() []Type {
+	keys := make([]Type, 0, len(Converters))
+	for t := range Converters {
+		keys = append(keys, t)
+	}
+	sort.Slice(keys, func(i, j int) bool {
+		return string(keys[i].String()) < string(keys[j].String())
+	})
+	return keys
+}
 
 // Converter is a converter interface that each formatter must implement.
 type Converter interface {
@@ -36,6 +47,7 @@ type Converter interface {
 type options struct {
 	textOptions
 	csvOptions
+	jsonOptions
 }
 
 // Option is the converter option.
