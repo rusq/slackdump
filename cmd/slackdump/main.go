@@ -66,22 +66,7 @@ func main() {
 	banner(os.Stderr)
 	loadSecrets(secrets)
 
-	params, err := parseCmdLine(os.Args[1:])
-	if err == config.ErrNothingToDo {
-		// if the user hasn't provided any required flags, let's offer
-		// an interactive prompt to fill them.
-		if err := Interactive(&params); err != nil {
-			if err == errExit {
-				return
-			}
-			dlog.Fatal(err)
-		}
-		if err := params.validate(); err != nil {
-			dlog.Fatal(err)
-		}
-	} else if err != nil {
-		dlog.Fatal(err)
-	}
+	params, cfgErr := parseCmdLine(os.Args[1:])
 
 	if params.printVersion {
 		fmt.Println(build)
@@ -93,6 +78,26 @@ func main() {
 				dlog.Printf("auth reset error: %s", err)
 			}
 		}
+		if errors.Is(cfgErr, config.ErrNothingToDo) {
+			// if no mode flag is specified - exit.
+			dlog.Println("You have been logged out.")
+			return
+		}
+	}
+	if cfgErr == config.ErrNothingToDo {
+		// if the user hasn't provided any required flags, let's offer
+		// an interactive prompt to fill them.
+		if err := Interactive(&params); err != nil {
+			if err == errExit {
+				return
+			}
+			dlog.Fatal(err)
+		}
+		if err := params.validate(); err != nil {
+			dlog.Fatal(err)
+		}
+	} else if cfgErr != nil {
+		dlog.Fatal(cfgErr)
 	}
 
 	if err := run(context.Background(), params); err != nil {
