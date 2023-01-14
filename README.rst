@@ -79,6 +79,17 @@ User Guide
 
 For more advanced features and instructions, please see the `User Guide`_.
 
+Previewing Results
+==================
+
+Once the data is dumped, you can use one of the following tools to preview the
+results:
+
+- `SlackLogViewer`_ - a fast and powerful Slack Export viewer written in C++.
+- `Slackdump2Html`_ - a great Python application that converts Slack Dump to a
+  static browsable HTML, works on Dump mode files.
+- `slack export viewer`_ - Slack Export Viewer is a well known viewer for
+  slack export files.
 
 Using as a library
 ==================
@@ -192,12 +203,14 @@ Thank you
 =========
 Big thanks to all contributors, who submitted a pull request, reported a bug,
 suggested a feature, helped to reproduce, or spent time chatting with me on
-the Telegram or Slack to help to understand the issue and tested.
+the Telegram or Slack to help to understand the issue and tested the proposed
+solution.
 
 Also, I'd like to thank all those who made a donation to support the project:
 
 - Vivek R.
 - Fabian I.
+- Ori P.
 - Shir B. L.
 - Emin G.
 - Robert Z.
@@ -230,6 +243,7 @@ Messages that were conveyed with the donations:
 .. _releases: https://github.com/rusq/slackdump/releases/
 .. _Slackord2: https://github.com/thomasloupe/Slackord2
 .. _SlackLogViewer: https://github.com/thayakawa-gh/SlackLogViewer/releases
+.. _Slackdump2Html: https://github.com/kununu/slackdump2html
 
 ..
   bulletin board links
