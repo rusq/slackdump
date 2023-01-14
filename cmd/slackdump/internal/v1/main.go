@@ -115,8 +115,26 @@ func runV1(ctx context.Context, cmd *base.Command, args []string) error {
 	banner(os.Stderr)
 	loadSecrets(secrets)
 
-	params, err := parseCmdLine(args[0:])
-	if err == config.ErrNothingToDo {
+	params, cfgErr := parseCmdLine(args[0:])
+
+	if params.printVersion {
+		fmt.Println(build)
+		return nil
+	}
+	if params.authReset {
+		if err := cache.AuthReset(params.appCfg.Options.CacheDir); err != nil {
+			if !os.IsNotExist(err) {
+				dlog.Printf("auth reset error: %s", err)
+			}
+		}
+		if errors.Is(cfgErr, config.ErrNothingToDo) {
+			// if no mode flag is specified - exit.
+			dlog.Println("You have been logged out.")
+			return nil
+		}
+	}
+
+	if cfgErr == config.ErrNothingToDo {
 		// if the user hasn't provided any required flags, let's offer
 		// an interactive prompt to fill them.
 		if err := Interactive(&params); err != nil {
@@ -130,20 +148,8 @@ func runV1(ctx context.Context, cmd *base.Command, args []string) error {
 			base.SetExitStatus(base.SInvalidParameters)
 			return err
 		}
-	} else if err != nil {
-		return err
-	}
-
-	if params.printVersion {
-		fmt.Println(build)
-		return nil
-	}
-	if params.authReset {
-		if err := cache.AuthReset(params.appCfg.Options.CacheDir); err != nil {
-			if !os.IsNotExist(err) {
-				dlog.Printf("auth reset error: %s", err)
-			}
-		}
+	} else if cfgErr != nil {
+		return cfgErr
 	}
 
 	if err := run(context.Background(), params); err != nil {
