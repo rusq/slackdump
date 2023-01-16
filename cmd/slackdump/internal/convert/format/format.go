@@ -26,7 +26,18 @@ const (
 	CJSON                // CJSON is JSON format converter
 )
 
-func All() []Type {
+// Types is a list of converter types.
+type Types []Type
+
+func (tt Types) String() string {
+	var s []string
+	for _, t := range tt {
+		s = append(s, t.String())
+	}
+	return strings.Join(s, ", ")
+}
+
+func All() Types {
 	keys := make([]Type, 0, len(Converters))
 	for t := range Converters {
 		keys = append(keys, t)

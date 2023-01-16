@@ -26,6 +26,7 @@ import (
 //go:embed assets/dump.md
 var dumpMd string
 
+// CmdDump is the dump command.
 var CmdDump = &base.Command{
 	UsageLine:   "slackdump dump [flags] <IDs or URLs>",
 	Short:       "dump individual conversations or threads",
@@ -38,16 +39,15 @@ var CmdDump = &base.Command{
 var ErrNothingToDo = errors.New("no conversations to dump, run \"slackdump help dump\"")
 
 type options struct {
-	Oldest       time.Time
-	Latest       time.Time
-	NameTemplate string
+	Oldest       time.Time // Oldest is the timestamp of the oldest message to fetch.
+	Latest       time.Time // Latest is the timestamp of the newest message to fetch.
+	NameTemplate string    // NameTemplate is the template for the output file name.
 }
 
 var opts options
 
-func ptr[T any](a T) *T {
-	return &a
-}
+// ptr returns a pointer to the given value.
+func ptr[T any](a T) *T { return &a }
 
 func init() {
 	CmdDump.Run = runDump
@@ -56,6 +56,7 @@ func init() {
 	CmdDump.Flag.StringVar(&opts.NameTemplate, "ft", nametmpl.Default, "output file naming template.")
 }
 
+// runDump is the main entry point for the dump command.
 func runDump(ctx context.Context, cmd *base.Command, args []string) error {
 	if len(args) == 0 {
 		base.SetExitStatus(base.SInvalidParameters)
@@ -102,7 +103,7 @@ func runDump(ctx context.Context, cmd *base.Command, args []string) error {
 	}
 
 	for _, link := range list.Include {
-		if err := dump(ctx, sess, cfg.SlackOptions.Filesystem, nameTemplate, opts, link); err != nil {
+		if err := dump(ctx, sess, nameTemplate, opts, link); err != nil {
 			base.SetExitStatus(base.SApplicationError)
 			return err
 		}
@@ -110,7 +111,9 @@ func runDump(ctx context.Context, cmd *base.Command, args []string) error {
 	return nil
 }
 
-func dump(ctx context.Context, sess *slackdump.Session, fs fsadapter.FS, t *template.Template, opts options, link string) error {
+// dump dumps the conversation and saves it to the filesystem.  Filesystem is
+// specified in the global config.
+func dump(ctx context.Context, sess *slackdump.Session, t *template.Template, opts options, link string) error {
 	ctx, task := trace.NewTask(ctx, "dump")
 	defer task.End()
 
@@ -128,6 +131,7 @@ func dump(ctx context.Context, sess *slackdump.Session, fs fsadapter.FS, t *temp
 	return nil
 }
 
+// saveConversation saves the conversation to the filesystem.
 func saveConversation(fs fsadapter.FS, filename string, conv *types.Conversation) error {
 	f, err := fs.Create(filename)
 	if err != nil {

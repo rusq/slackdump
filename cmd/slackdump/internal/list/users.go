@@ -2,7 +2,6 @@ package list
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/cfg"
@@ -26,7 +25,7 @@ List users lists workspace users in the desired format.` +
 
 func listUsers(ctx context.Context, cmd *base.Command, args []string) error {
 	if err := list(ctx, func(ctx context.Context, sess *slackdump.Session) (any, string, error) {
-		var filename = fmt.Sprintf("users-%s.json", sess.Info().TeamID)
+		var filename = makeFilename("users", sess.Info().TeamID, listType)
 		if len(args) > 0 {
 			filename = args[0]
 		}
