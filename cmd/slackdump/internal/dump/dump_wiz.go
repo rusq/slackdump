@@ -1,0 +1,44 @@
+package dump
+
+import (
+	"context"
+	"fmt"
+	"strings"
+
+	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/golang/base"
+	"github.com/rusq/slackdump/v2/internal/app/ui"
+	"github.com/rusq/slackdump/v2/internal/structures"
+)
+
+func WizDump(ctx context.Context, cmd *base.Command, args []string) error {
+	// ask for the list of channels
+	// ask for from and to dates
+	// ask name template
+	// ask filesystem
+	panic("not implemented")
+}
+
+// AskConversationList asks the user for the list of conversations to dump or
+// export. msg is the message to display to the user.
+func AskConversationList(msg string) (*structures.EntityList, error) {
+	for {
+		chanStr, err := ui.String(
+			msg,
+			"Enter whitespace separated conversation IDs or URLs to export.\n"+
+				"   - prefix with ^ (caret) to exclude the converation\n"+
+				"   - prefix with @ to read the list of converations from the file.\n\n"+
+				"For more details, see https://github.com/rusq/slackdump/blob/master/doc/usage-export.rst#providing-the-list-in-a-file",
+		)
+		if err != nil {
+			return nil, err
+		}
+		if chanStr == "" || strings.ToLower(chanStr) == "all" {
+			return new(structures.EntityList), nil
+		}
+		if el, err := structures.NewEntityList(strings.Split(chanStr, " ")); err != nil {
+			fmt.Println(err)
+		} else {
+			return el, nil
+		}
+	}
+}

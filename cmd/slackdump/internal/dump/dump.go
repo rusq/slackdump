@@ -67,18 +67,11 @@ func RunDump(ctx context.Context, cmd *base.Command, args []string) error {
 		base.SetExitStatus(base.SInvalidParameters)
 		return ErrNothingToDo
 	}
-
-	lg := dlog.FromContext(ctx)
-
-	// initialize the file name template.
-	if opts.NameTemplate == "" {
-		lg.Print("File name template is empty, using the default.")
-		opts.NameTemplate = nametmpl.Default
-	}
-	nameTemplate, err := nametmpl.Compile(opts.NameTemplate)
+	// Retrieve the Authentication provider.
+	prov, err := auth.FromContext(ctx)
 	if err != nil {
-		base.SetExitStatus(base.SUserError)
-		return fmt.Errorf("file template error: %w", err)
+		base.SetExitStatus(base.SApplicationError)
+		return err
 	}
 
 	// initialize the list of entities to dump.
@@ -91,11 +84,17 @@ func RunDump(ctx context.Context, cmd *base.Command, args []string) error {
 		return ErrNothingToDo
 	}
 
-	// Retrieve the Authentication provider.
-	prov, err := auth.FromContext(ctx)
+	lg := dlog.FromContext(ctx)
+
+	// initialize the file naming template.
+	if opts.NameTemplate == "" {
+		lg.Print("File name template is empty, using the default.")
+		opts.NameTemplate = nametmpl.Default
+	}
+	nameTemplate, err := nametmpl.Compile(opts.NameTemplate)
 	if err != nil {
-		base.SetExitStatus(base.SApplicationError)
-		return err
+		base.SetExitStatus(base.SUserError)
+		return fmt.Errorf("file template error: %w", err)
 	}
 
 	// Initialize the filesystem.
@@ -114,7 +113,7 @@ func RunDump(ctx context.Context, cmd *base.Command, args []string) error {
 		return err
 	}
 
-	// Dump the conversations.
+	// Dump conversations.
 	for _, link := range list.Include {
 		if err := dump(ctx, sess, nameTemplate, opts, link); err != nil {
 			base.SetExitStatus(base.SApplicationError)

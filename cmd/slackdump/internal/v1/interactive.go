@@ -3,14 +3,13 @@ package v1
 import (
 	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/AlecAivazis/survey/v2"
 
-	"github.com/rusq/slackdump/v2/export"
+	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/dump"
+	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/export"
 	"github.com/rusq/slackdump/v2/internal/app/config"
 	"github.com/rusq/slackdump/v2/internal/app/ui"
-	"github.com/rusq/slackdump/v2/internal/structures"
 )
 
 var errExit = errors.New("exit")
@@ -132,7 +131,7 @@ func surveyExport(p *params) error {
 	if err != nil {
 		return err
 	}
-	p.appCfg.Input.List, err = questConversationList("Conversations to export (leave empty or type ALL for full export): ")
+	p.appCfg.Input.List, err = dump.AskConversationList("Conversations to export (leave empty or type ALL for full export): ")
 	if err != nil {
 		return err
 	}
@@ -141,7 +140,7 @@ func surveyExport(p *params) error {
 		return err
 	}
 	if p.appCfg.Options.DumpFiles {
-		p.appCfg.ExportType, err = questExportType()
+		p.appCfg.ExportType, err = export.AskExportType()
 		if err != nil {
 			return err
 		}
@@ -154,55 +153,10 @@ func surveyExport(p *params) error {
 	return nil
 }
 
-func questExportType() (export.ExportType, error) {
-	mode := &survey.Select{
-		Message: "Export type: ",
-		Options: []string{export.TMattermost.String(), export.TStandard.String()},
-		Description: func(value string, index int) string {
-			descr := []string{
-				"Mattermost bulk upload compatible export (see doc)",
-				"Standard export format",
-			}
-			return descr[index]
-		},
-	}
-	var resp string
-	if err := survey.AskOne(mode, &resp); err != nil {
-		return 0, err
-	}
-	var t export.ExportType
-	t.Set(resp)
-	return t, nil
-}
-
 func surveyDump(p *params) error {
 	var err error
-	p.appCfg.Input.List, err = questConversationList("Enter conversations to dump: ")
+	p.appCfg.Input.List, err = dump.AskConversationList("Enter conversations to dump: ")
 	return err
-}
-
-// questConversationList enquires the channel list.
-func questConversationList(msg string) (*structures.EntityList, error) {
-	for {
-		chanStr, err := ui.String(
-			msg,
-			"Enter whitespace separated conversation IDs or URLs to export.\n"+
-				"   - prefix with ^ (caret) to exclude the converation\n"+
-				"   - prefix with @ to read the list of converations from the file.\n\n"+
-				"For more details, see https://github.com/rusq/slackdump/blob/master/doc/usage-export.rst#providing-the-list-in-a-file",
-		)
-		if err != nil {
-			return nil, err
-		}
-		if chanStr == "" || strings.ToLower(chanStr) == "all" {
-			return new(structures.EntityList), nil
-		}
-		if el, err := structures.NewEntityList(strings.Split(chanStr, " ")); err != nil {
-			fmt.Println(err)
-		} else {
-			return el, nil
-		}
-	}
 }
 
 // questOutputFile prints the output file question.
