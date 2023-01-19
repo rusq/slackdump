@@ -5,6 +5,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
 	"runtime/trace"
 	"strings"
@@ -50,19 +51,26 @@ var opts options
 func ptr[T any](a T) *T { return &a }
 
 func init() {
-	CmdDump.Run = runDump
-	CmdDump.Flag.Var(ptr(config.TimeValue(opts.Oldest)), "from", "timestamp of the oldest message to fetch")
-	CmdDump.Flag.Var(ptr(config.TimeValue(opts.Latest)), "to", "timestamp of the newest message to fetch")
-	CmdDump.Flag.StringVar(&opts.NameTemplate, "ft", nametmpl.Default, "output file naming template.")
+	CmdDump.Run = RunDump
+	InitDumpFlagset(&CmdDump.Flag)
 }
 
-// runDump is the main entry point for the dump command.
-func runDump(ctx context.Context, cmd *base.Command, args []string) error {
+func InitDumpFlagset(fs *flag.FlagSet) {
+	fs.Var(ptr(config.TimeValue(opts.Oldest)), "from", "timestamp of the oldest message to fetch")
+	fs.Var(ptr(config.TimeValue(opts.Latest)), "to", "timestamp of the newest message to fetch")
+	fs.StringVar(&opts.NameTemplate, "ft", nametmpl.Default, "output file naming template.\n")
+}
+
+// RunDump is the main entry point for the dump command.
+func RunDump(ctx context.Context, cmd *base.Command, args []string) error {
 	if len(args) == 0 {
 		base.SetExitStatus(base.SInvalidParameters)
 		return ErrNothingToDo
 	}
+
 	lg := dlog.FromContext(ctx)
+
+	// initialize the file name template.
 	if opts.NameTemplate == "" {
 		lg.Print("File name template is empty, using the default.")
 		opts.NameTemplate = nametmpl.Default
@@ -73,6 +81,7 @@ func runDump(ctx context.Context, cmd *base.Command, args []string) error {
 		return fmt.Errorf("file template error: %w", err)
 	}
 
+	// initialize the list of entities to dump.
 	list, err := structures.NewEntityList(args)
 	if err != nil {
 		base.SetExitStatus(base.SInvalidParameters)
@@ -82,12 +91,14 @@ func runDump(ctx context.Context, cmd *base.Command, args []string) error {
 		return ErrNothingToDo
 	}
 
+	// Retrieve the Authentication provider.
 	prov, err := auth.FromContext(ctx)
 	if err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return err
 	}
 
+	// Initialize the filesystem.
 	if fs, err := fsadapter.New(cfg.BaseLoc); err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return err
@@ -96,12 +107,14 @@ func runDump(ctx context.Context, cmd *base.Command, args []string) error {
 		defer fs.Close()
 	}
 
+	// Initialize the session.
 	sess, err := slackdump.NewWithOptions(ctx, prov, cfg.SlackOptions)
 	if err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return err
 	}
 
+	// Dump the conversations.
 	for _, link := range list.Include {
 		if err := dump(ctx, sess, nameTemplate, opts, link); err != nil {
 			base.SetExitStatus(base.SApplicationError)

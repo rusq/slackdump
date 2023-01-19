@@ -10,6 +10,7 @@ import (
 
 var CmdListUsers = &base.Command{
 	Run:        listUsers,
+	Wizard:     wizUsers,
 	UsageLine:  "slackdump list users [flags] [filename]",
 	PrintFlags: true,
 	FlagMask:   cfg.OmitDownloadFlag,
@@ -34,4 +35,11 @@ func listUsers(ctx context.Context, cmd *base.Command, args []string) error {
 		return err
 	}
 	return nil
+}
+
+func wizUsers(ctx context.Context, cmd *base.Command, args []string) error {
+	return wizard(ctx, func(ctx context.Context, sess *slackdump.Session) (any, string, error) {
+		var filename = makeFilename("users", sess.Info().TeamID, listType)
+		return sess.Users, filename, nil
+	})
 }

@@ -2,7 +2,6 @@ package list
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -10,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/AlecAivazis/survey/v2"
 	"github.com/rusq/dlog"
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/auth"
@@ -21,24 +21,28 @@ import (
 	"github.com/slack-go/slack"
 )
 
+// CmdList is the list command.  The logic is in the subcommands.
 var CmdList = &base.Command{
 	UsageLine: "slackdump list",
 	Short:     "list users or channels",
-	Long: `
-List lists users or channels for the Slack Workspace.  It may take a while on
-large workspaces, as Slack limits the amount of requests on it's own discretion,
+	Long: base.Render(`
+# List Command
+
+List lists users or channels for the Slack Workspace.  It may take a while on a
+large workspace, as Slack limits the amount of requests on it's own discretion,
 which is sometimes unreasonably slow.
-`,
+`),
 	Commands: []*base.Command{
 		CmdListUsers,
 		CmdListChannels,
+		CmdListConversation,
 	},
 }
 
 // common flags
 var (
 	listType     format.Type = format.CText
-	screenOutput bool
+	screenOutput bool        // output to screen instead of file
 )
 
 func init() {
@@ -53,19 +57,6 @@ func addCommonFlags(fs *flag.FlagSet) {
 	fs.BoolVar(&screenOutput, "screen", false, "output to screen instead of file")
 }
 
-func serialise(fs fsadapter.FS, name string, a any) error {
-	f, err := fs.Create(name)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	enc := json.NewEncoder(f)
-	if err := enc.Encode(a); err != nil {
-		return err
-	}
-	return nil
-}
-
 // listFunc is a function that lists something from the Slack API.  It should
 // return the object from the api, a filename to save the data to and an
 // error.
@@ -78,11 +69,14 @@ func list(ctx context.Context, listFn listFunc) error {
 		return errors.New("unknown listing format, seek help")
 	}
 
+	// get the provider from Context.
 	prov, err := auth.FromContext(ctx)
 	if err != nil {
 		base.SetExitStatus(base.SAuthError)
 		return err
 	}
+
+	// initialize the session.
 	sess, err := slackdump.NewWithOptions(ctx, prov, cfg.SlackOptions)
 	if err != nil {
 		base.SetExitStatus(base.SApplicationError)
@@ -98,19 +92,30 @@ func list(ctx context.Context, listFn listFunc) error {
 	if screenOutput {
 		return fmtPrint(ctx, os.Stdout, data, listType, sess.Users)
 	} else {
-		// save to a filesystem.
-		fs, err := fsadapter.New(cfg.BaseLoc)
-		if err != nil {
-			base.SetExitStatus(base.SApplicationError)
-			return err
-		}
-		defer fs.Close()
-		if err := serialise(fs, filename, data); err != nil {
-			return err
-		}
-		dlog.FromContext(ctx).Printf("data saved to %q\n", filepath.Join(cfg.BaseLoc, filename))
+		return saveData(ctx, sess, data, filename)
 	}
+	// unreachable
+}
 
+// saveData saves the given data to the given filename.
+func saveData(ctx context.Context, sess *slackdump.Session, data any, filename string) error {
+	// save to a filesystem.
+	fs, err := fsadapter.New(cfg.BaseLoc)
+	if err != nil {
+		base.SetExitStatus(base.SApplicationError)
+		return err
+	}
+	defer fs.Close()
+
+	f, err := fs.Create(filename)
+	if err != nil {
+		return fmt.Errorf("failed to create file: %w", err)
+	}
+	defer f.Close()
+	if err := fmtPrint(ctx, f, data, listType, sess.Users); err != nil {
+		return err
+	}
+	dlog.FromContext(ctx).Printf("Data saved to:  %q\n", filepath.Join(cfg.BaseLoc, filename))
 	return nil
 }
 
@@ -133,7 +138,6 @@ func fmtPrint(ctx context.Context, w io.Writer, a any, typ format.Type, u []slac
 		return cvt.Channels(ctx, w, u, val)
 	case types.Users:
 		return cvt.Users(ctx, w, val)
-
 	default:
 		return fmt.Errorf("unsupported data type: %T", a)
 	}
@@ -154,4 +158,44 @@ func makeFilename(prefix string, teamID string, listType format.Type) string {
 		panic(fmt.Sprintf("unknown list type: %v", listType))
 	}
 	return fmt.Sprintf("%s-%s.%s", prefix, teamID, ext)
+}
+
+func wizard(ctx context.Context, listFn listFunc) error {
+	// pick format
+	var types []string
+	for _, t := range format.All() {
+		types = append(types, t.String())
+	}
+
+	q := &survey.Select{
+		Message: "Pick a format:",
+		Options: types,
+		Help:    "Pick a format for the listing",
+		Description: func(value string, index int) string {
+			var v format.Type
+			v.Set(value)
+			return format.Descriptions[v]
+		},
+	}
+	var lt int
+	if err := survey.AskOne(q, &lt); err != nil {
+		return err
+	}
+	listType = format.Type(lt)
+	// pick output type: screen or file/directory
+	q = &survey.Select{
+		Message: "Pick an output type:",
+		Options: []string{"screen", "ZIP file", "directory"},
+		Help:    "Pick an output type for the listing",
+	}
+	var ot string
+	if err := survey.AskOne(q, &ot); err != nil {
+		return err
+	}
+	if ot != "screen" {
+		return errors.New("not implemented yet")
+	}
+
+	// if file/directory, pick filename
+	return nil
 }

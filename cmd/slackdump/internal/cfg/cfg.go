@@ -59,21 +59,21 @@ func SetBaseFlags(fs *flag.FlagSet, mask FlagMask) {
 	if mask&OmitAuthFlags == 0 {
 		fs.StringVar(&SlackToken, "token", osenv.Secret("SLACK_TOKEN", ""), "Slack `token`")
 		// COOKIE environment variable is deprecated and will be removed in v2.5.0, use SLACK_COOKIE instead.
-		fs.StringVar(&SlackCookie, "cookie", osenv.Secret("SLACK_COOKIE", osenv.Secret("COOKIE", "")), "d= cookie `value` or a path to a cookie.txt file (environment: SLACK_COOKIE)")
+		fs.StringVar(&SlackCookie, "cookie", osenv.Secret("SLACK_COOKIE", osenv.Secret("COOKIE", "")), "d= cookie `value` or a path to a cookie.txt file\n(environment: SLACK_COOKIE)")
 		fs.Var(&Browser, "browser", "browser to use for EZ-Login 3000 (default: firefox)")
 	}
 	if mask&OmitDownloadFlag == 0 {
-		fs.BoolVar(&SlackOptions.DumpFiles, "files", true, "enables file attachments download (to disable, specify: -files=false)")
+		fs.BoolVar(&SlackOptions.DumpFiles, "files", true, "enables file attachments download (to disable,\nspecify: -files=false)")
 	}
 	if mask&OmitConfigFlag == 0 {
 		fs.StringVar(&ConfigFile, "api-config", "", "configuration `file` with Slack API limits overrides.\nYou can generate one with default values with 'slackdump config new`")
 	}
 	if mask&OmitBaseLoc == 0 {
 		base := fmt.Sprintf("slackdump_%s.zip", time.Now().Format("20060102_150405"))
-		fs.StringVar(&BaseLoc, "base", osenv.Value("BASE_LOC", base), "a `location` (directory or a ZIP file) on a local disk where the files will be saved.")
+		fs.StringVar(&BaseLoc, "base", osenv.Value("BASE_LOC", base), "a `location` (a directory or a ZIP file) on the local disk to save\ndownloaded files to.")
 	}
 	if mask&OmitCacheDir == 0 {
-		fs.StringVar(&SlackOptions.CacheDir, "cache-dir", osenv.Value("CACHE_DIR", CacheDir()), "cache `directory` location")
+		fs.StringVar(&SlackOptions.CacheDir, "cache-dir", osenv.Value("CACHE_DIR", CacheDir()), "cache `directory` location\n")
 	} else {
 		// If the OmitCacheDir is specified, then the CacheDir will end up being
 		// the default value, which is "". Therefore, we need to init the

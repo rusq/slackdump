@@ -26,6 +26,12 @@ const (
 	CJSON                // CJSON is JSON format converter
 )
 
+var Descriptions = map[Type]string{
+	CText: "Plain text format",
+	CCSV:  "CSV format",
+	CJSON: "JSON format",
+}
+
 // Types is a list of converter types.
 type Types []Type
 
