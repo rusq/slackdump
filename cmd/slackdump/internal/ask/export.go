@@ -1,12 +1,12 @@
-package export
+package ask
 
 import (
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/rusq/slackdump/v2/export"
 )
 
-// AskExportType asks the user to select an export type.
-func AskExportType() (export.ExportType, error) {
+// ExportType asks the user to select an export type.
+func ExportType() (export.ExportType, error) {
 	mode := &survey.Select{
 		Message: "Export type: ",
 		Options: []string{export.TMattermost.String(), export.TStandard.String()},

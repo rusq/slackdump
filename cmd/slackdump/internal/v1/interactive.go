@@ -6,8 +6,7 @@ import (
 
 	"github.com/AlecAivazis/survey/v2"
 
-	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/dump"
-	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/export"
+	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/ask"
 	"github.com/rusq/slackdump/v2/internal/app/config"
 	"github.com/rusq/slackdump/v2/internal/app/ui"
 )
@@ -131,7 +130,7 @@ func surveyExport(p *params) error {
 	if err != nil {
 		return err
 	}
-	p.appCfg.Input.List, err = dump.AskConversationList("Conversations to export (leave empty or type ALL for full export): ")
+	p.appCfg.Input.List, err = ask.ConversationList("Conversations to export (leave empty or type ALL for full export): ")
 	if err != nil {
 		return err
 	}
@@ -140,7 +139,7 @@ func surveyExport(p *params) error {
 		return err
 	}
 	if p.appCfg.Options.DumpFiles {
-		p.appCfg.ExportType, err = export.AskExportType()
+		p.appCfg.ExportType, err = ask.ExportType()
 		if err != nil {
 			return err
 		}
@@ -155,7 +154,7 @@ func surveyExport(p *params) error {
 
 func surveyDump(p *params) error {
 	var err error
-	p.appCfg.Input.List, err = dump.AskConversationList("Enter conversations to dump: ")
+	p.appCfg.Input.List, err = ask.ConversationList("Enter conversations to dump: ")
 	return err
 }
 
