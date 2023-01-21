@@ -13,7 +13,7 @@ import (
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/golang/base"
-	cache2 "github.com/rusq/slackdump/v2/internal/cache"
+	"github.com/rusq/slackdump/v2/internal/cache"
 	"github.com/rusq/slackdump/v2/logger"
 )
 
@@ -41,7 +41,7 @@ func init() {
 }
 
 func runList(ctx context.Context, cmd *base.Command, args []string) error {
-	m, err := cache2.NewManager(cfg.CacheDir())
+	m, err := cache.NewManager(cfg.CacheDir())
 	if err != nil {
 		base.SetExitStatus(base.SCacheError)
 		return err
@@ -56,7 +56,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) error {
 
 	entries, err := m.List()
 	if err != nil {
-		if errors.Is(err, cache2.ErrNoWorkspaces) {
+		if errors.Is(err, cache.ErrNoWorkspaces) {
 			base.SetExitStatus(base.SUserError)
 			return errors.New("no authenticated workspaces, please run \"slackdump workspace new\"")
 		}
@@ -65,7 +65,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) error {
 	}
 	current, err := m.Current()
 	if err != nil {
-		if !errors.Is(err, cache2.ErrNoDefault) {
+		if !errors.Is(err, cache.ErrNoDefault) {
 			base.SetExitStatus(base.SWorkspaceError)
 			return fmt.Errorf("error getting the current workspace: %s", err)
 		}
@@ -83,7 +83,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) error {
 
 const defMark = "=>"
 
-func printAll(m *cache2.Manager, current string, wsps []string) {
+func printAll(m manager, current string, wsps []string) {
 	ctx, task := trace.NewTask(context.Background(), "printAll")
 	defer task.End()
 
@@ -114,8 +114,8 @@ func printAll(m *cache2.Manager, current string, wsps []string) {
 	}
 }
 
-func userInfo(ctx context.Context, m *cache2.Manager, name string) (*slack.AuthTestResponse, error) {
-	prov, err := m.Auth(ctx, name, cache2.SlackCreds{})
+func userInfo(ctx context.Context, m manager, name string) (*slack.AuthTestResponse, error) {
+	prov, err := m.Auth(ctx, name, cache.SlackCreds{})
 	if err != nil {
 		return nil, err
 	}
@@ -126,7 +126,7 @@ func userInfo(ctx context.Context, m *cache2.Manager, name string) (*slack.AuthT
 	return sess.Client().AuthTest()
 }
 
-func printFull(m *cache2.Manager, current string, wsps []string) {
+func printFull(m manager, current string, wsps []string) {
 	fmt.Printf("Workspaces in %q:\n\n", cfg.CacheDir())
 	for _, name := range wsps {
 		fmt.Println("\t" + formatWsp(m, current, name))
@@ -134,7 +134,7 @@ func printFull(m *cache2.Manager, current string, wsps []string) {
 	fmt.Printf("\nCurrent workspace is marked with ' %s '.\n", defMark)
 }
 
-func formatWsp(m *cache2.Manager, current string, name string) string {
+func formatWsp(m manager, current string, name string) string {
 	timestamp := "unknown"
 	filename := "-"
 	if fi, err := m.FileInfo(name); err == nil {
@@ -150,7 +150,7 @@ func formatWsp(m *cache2.Manager, current string, name string) string {
 	return fmt.Sprintf("%s (file: %s, last modified: %s)", name, filename, timestamp)
 }
 
-func printBare(_ *cache2.Manager, current string, workspaces []string) {
+func printBare(_ manager, current string, workspaces []string) {
 	for _, name := range workspaces {
 		if current == name {
 			fmt.Print("*")

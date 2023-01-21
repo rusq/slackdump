@@ -4,11 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"runtime/trace"
 
 	"github.com/rusq/slackdump/v2/auth"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/golang/base"
+	"github.com/rusq/slackdump/v2/internal/cache"
 	cache2 "github.com/rusq/slackdump/v2/internal/cache"
 )
 
@@ -48,6 +50,15 @@ automatically detected to be:
 		CmdWspSelect,
 		CmdWspDel,
 	},
+}
+
+// manager is used for test rigging.
+type manager interface {
+	Auth(ctx context.Context, name string, c cache.Credentials) (auth.Provider, error)
+	Delete(name string) error
+	Exists(name string) bool
+	FileInfo(name string) (os.FileInfo, error)
+	List() ([]string, error)
 }
 
 // argsWorkspace checks if the current workspace override is set, and returns it

@@ -10,7 +10,10 @@ import (
 	"github.com/rusq/slackdump/v2/internal/cache"
 )
 
-var ErrOpCancelled = errors.New("operation cancelled")
+var (
+	ErrOpCancelled = errors.New("operation cancelled")
+	ErrNotExists   = errors.New("workspace does not exist")
+)
 
 var CmdWspDel = &base.Command{
 	UsageLine: "slackdump workspace del [flags]",
@@ -43,27 +46,28 @@ var (
 )
 
 func runWspDel(ctx context.Context, cmd *base.Command, args []string) error {
-	if *delAll {
-		return delAllWsp()
-	} else {
-		return delOneWsp(args)
-	}
-}
-
-func delAllWsp() error {
 	m, err := cache.NewManager(cfg.CacheDir())
 	if err != nil {
 		base.SetExitStatus(base.SCacheError)
 		return err
 	}
+	if *delAll {
+		return delAllWsp(m)
+	} else {
+		return delOneWsp(m, args)
+	}
+}
 
+var yesno = base.YesNo
+
+func delAllWsp(m manager) error {
 	workspaces, err := m.List()
 	if err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return err
 	}
 
-	if !*delConfirm && !base.YesNo("This will delete ALL workspaces") {
+	if !*delConfirm && !yesno("This will delete ALL workspaces") {
 		base.SetExitStatus(base.SNoError)
 		return ErrOpCancelled
 	}
@@ -77,25 +81,19 @@ func delAllWsp() error {
 	return nil
 }
 
-func delOneWsp(args []string) error {
+func delOneWsp(m manager, args []string) error {
 	wsp := argsWorkspace(args, cfg.Workspace)
 	if wsp == "" {
 		base.SetExitStatus(base.SInvalidParameters)
 		return cache.ErrNameRequired
 	}
 
-	m, err := cache.NewManager(cfg.CacheDir())
-	if err != nil {
-		base.SetExitStatus(base.SCacheError)
-		return err
-	}
-
 	if !m.Exists(wsp) {
 		base.SetExitStatus(base.SUserError)
-		return errors.New("workspace does not exist")
+		return ErrNotExists
 	}
 
-	if !*delConfirm && !base.YesNo(fmt.Sprintf("workspace %q is about to be deleted", wsp)) {
+	if !*delConfirm && !yesno(fmt.Sprintf("workspace %q is about to be deleted", wsp)) {
 		base.SetExitStatus(base.SNoError)
 		return ErrOpCancelled
 	}

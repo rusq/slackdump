@@ -7,7 +7,7 @@ import (
 	"github.com/rusq/slackdump/v2/auth"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/golang/base"
-	cache2 "github.com/rusq/slackdump/v2/internal/cache"
+	"github.com/rusq/slackdump/v2/internal/cache"
 )
 
 var CmdWspNew = &base.Command{
@@ -32,7 +32,7 @@ func init() {
 
 // runWspNew authenticates in the new workspace.
 func runWspNew(ctx context.Context, cmd *base.Command, args []string) error {
-	m, err := cache2.NewManager(cfg.CacheDir(), cache2.WithAuthOpts(auth.BrowserWithBrowser(cfg.Browser)))
+	m, err := cache.NewManager(cfg.CacheDir(), cache.WithAuthOpts(auth.BrowserWithBrowser(cfg.Browser)))
 	if err != nil {
 		base.SetExitStatus(base.SCacheError)
 		return fmt.Errorf("error initialising workspace manager: %s", err)
@@ -50,7 +50,7 @@ func runWspNew(ctx context.Context, cmd *base.Command, args []string) error {
 		}
 	}
 
-	creds := cache2.SlackCreds{
+	creds := cache.SlackCreds{
 		Token:  cfg.SlackToken,
 		Cookie: cfg.SlackCookie,
 	}
