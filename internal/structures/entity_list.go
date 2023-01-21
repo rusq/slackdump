@@ -110,6 +110,9 @@ func (el *EntityList) fromIndex(index map[string]bool) {
 // Index returns a map where key is entity, and value show if the entity
 // should be processed (true) or not (false).
 func (el *EntityList) Index() map[string]bool {
+	if el == nil {
+		return map[string]bool{}
+	}
 	var idx = make(map[string]bool, len(el.Include)+len(el.Exclude))
 	for _, v := range el.Include {
 		idx[v] = true

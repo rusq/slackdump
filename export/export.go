@@ -103,7 +103,7 @@ func (se *Export) messages(ctx context.Context, users types.Users) error {
 }
 
 func (se *Export) exportChannels(ctx context.Context, uidx structures.UserIndex) ([]slack.Channel, error) {
-	if se.opts.List.HasIncludes() {
+	if se.opts.List != nil && se.opts.List.HasIncludes() {
 		// if there's an "Include" list, we don't need to retrieve all channels,
 		// only the ones that are specified.
 		return se.inclusiveExport(ctx, uidx, se.opts.List)

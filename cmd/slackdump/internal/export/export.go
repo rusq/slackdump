@@ -46,6 +46,7 @@ func ptr[T any](a T) *T {
 
 func init() {
 	CmdExport.Run = runExport
+	CmdExport.Wizard = wizExport
 }
 
 func runExport(ctx context.Context, cmd *base.Command, args []string) error {
@@ -57,8 +58,6 @@ func runExport(ctx context.Context, cmd *base.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("error parsing the entity list: %w", err)
 	}
-	lg := dlog.FromContext(ctx)
-	options.Logger = lg
 
 	prov, err := auth.FromContext(ctx)
 	if err != nil {
@@ -70,6 +69,9 @@ func runExport(ctx context.Context, cmd *base.Command, args []string) error {
 		return err
 	}
 	defer fs.Close()
+
+	lg := dlog.FromContext(ctx)
+	options.Logger = lg
 	lg.Printf("initialised output location: %s", cfg.BaseLoc)
 
 	sess, err := slackdump.NewWithOptions(ctx, prov, cfg.SlackOptions)

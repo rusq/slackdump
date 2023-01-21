@@ -252,6 +252,11 @@ func TestEntityList_Index(t *testing.T) {
 				"C567": false,
 			},
 		},
+		{
+			"nil",
+			fields{},
+			map[string]bool{},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

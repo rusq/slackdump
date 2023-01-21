@@ -6,9 +6,9 @@ import (
 
 	"github.com/AlecAivazis/survey/v2"
 
-	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/ask"
 	"github.com/rusq/slackdump/v2/internal/app/config"
 	"github.com/rusq/slackdump/v2/internal/app/ui"
+	"github.com/rusq/slackdump/v2/internal/app/ui/ask"
 )
 
 var errExit = errors.New("exit")
@@ -40,7 +40,7 @@ var mainMenu = []struct {
 	},
 	{
 		Name:        "Exit",
-		Description: "exit Slackdump and return to the OS",
+		Description: "Exit and return to the main menu.",
 		Fn: func(*params) error {
 			return errExit
 		},
