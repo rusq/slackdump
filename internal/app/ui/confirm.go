@@ -7,6 +7,7 @@ func Confirm(msg string, defavlt bool, opt ...Option) (bool, error) {
 
 	q := &survey.Confirm{
 		Message: msg,
+		Help:    opts.help,
 		Default: defavlt,
 	}
 

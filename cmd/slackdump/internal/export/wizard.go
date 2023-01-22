@@ -28,25 +28,11 @@ func wizExport(ctx context.Context, cmd *base.Command, args []string) error {
 	options.List = list
 
 	// ask if user wants time range
-	needRange, err := ui.Confirm("Do you want to specify the time range?", false)
+	options.Oldest, options.Latest, err = ask.MaybeTimeRange()
 	if err != nil {
 		return err
 	}
-	var options export.Options
-	if needRange {
-		// ask for the time range
-		if earliest, err := ui.Time("Earliest message"); err != nil {
-			return err
-		} else {
-			options.Oldest = earliest
-		}
 
-		if latest, err := ui.Time("Latest message"); err != nil {
-			return err
-		} else {
-			options.Latest = latest
-		}
-	}
 	// ask for the type
 	exportType, err := ask.ExportType()
 	if err != nil {

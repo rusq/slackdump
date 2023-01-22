@@ -11,6 +11,7 @@ import (
 type inputOptions struct {
 	stdio terminal.Stdio
 	fileSelectorOpt
+	help string
 }
 
 // surveyOpts returns the survey options.
@@ -42,5 +43,12 @@ func defaultOpts() *inputOptions {
 func WithOutput(stdio terminal.Stdio) Option {
 	return func(io *inputOptions) {
 		io.stdio = stdio
+	}
+}
+
+// WithHelp sets the help message.
+func WithHelp(msg string) Option {
+	return func(io *inputOptions) {
+		io.help = msg
 	}
 }
