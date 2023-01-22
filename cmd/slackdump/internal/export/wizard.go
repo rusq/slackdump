@@ -54,6 +54,18 @@ func wizExport(ctx context.Context, cmd *base.Command, args []string) error {
 	} else {
 		options.Type = exportType
 	}
+
+	if wantExportToken, err := ui.Confirm("Do you want to specify an export token for attachments?", false); err != nil {
+		return err
+	} else if wantExportToken {
+		// ask for the export token
+		exportToken, err := ui.String("Export token", "Enter the export token, that will be appended to each of the attachment URLs.")
+		if err != nil {
+			return err
+		}
+		options.ExportToken = exportToken
+	}
+
 	// ask for the save location
 	baseLoc, err := ui.FileSelector("Output ZIP or Directory name", "Enter the name of the ZIP or directory to save the export to.")
 	if err != nil {

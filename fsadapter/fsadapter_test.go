@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestForFilename(t *testing.T) {
+func TestNew(t *testing.T) {
 	tmp := t.TempDir()
 	type args struct {
 		name string
