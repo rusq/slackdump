@@ -12,7 +12,7 @@ import (
 var CmdWspSelect = &base.Command{
 	UsageLine: "slackdump workspace select [flags]",
 	Short:     "choose a previously saved workspace",
-	Long: base.Render(`
+	Long: `
 # Workspace Select Command
 
 **Select** allows to set the current workspace from the list of workspaces
@@ -21,7 +21,7 @@ that you have previously authenticated in.
 To get the full list of workspaces, run:
 
 	` + base.Executable() + ` workspace list
-`),
+`,
 	FlagMask:   flagmask,
 	PrintFlags: true,
 }

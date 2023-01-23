@@ -21,7 +21,7 @@ var CmdWorkspace = &base.Command{
 	Wizard:    nil,
 	UsageLine: "slackdump workspace",
 	Short:     "authenticate or choose workspace to run on",
-	Long: base.Render(`
+	Long: `
 # Workspace Command
 
 Slackdump supports working with multiple Slack Workspaces without the need
@@ -39,7 +39,7 @@ To learn more about different login options, run:
 Workspaces are stored on this device in the Cache directory, which is
 automatically detected to be:
     ` + cfg.CacheDir() + `
-`),
+`,
 	CustomFlags: false,
 	FlagMask:    flagmask,
 	PrintFlags:  false,

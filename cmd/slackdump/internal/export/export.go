@@ -22,7 +22,7 @@ var CmdExport = &base.Command{
 	Wizard:      nil,
 	UsageLine:   "slackdump export",
 	Short:       "exports the Slack Workspace or individual conversations",
-	Long:        ``,
+	Long:        ``, // TODO: add long description
 	CustomFlags: false,
 	PrintFlags:  true,
 	RequireAuth: true,

@@ -25,13 +25,13 @@ import (
 var CmdList = &base.Command{
 	UsageLine: "slackdump list",
 	Short:     "list users or channels",
-	Long: base.Render(`
+	Long: `
 # List Command
 
 List lists users or channels for the Slack Workspace.  It may take a while on a
 large workspace, as Slack limits the amount of requests on it's own discretion,
 which is sometimes unreasonably slow.
-`),
+`,
 	Commands: []*base.Command{
 		CmdListUsers,
 		CmdListChannels,

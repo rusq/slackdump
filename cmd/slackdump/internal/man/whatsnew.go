@@ -12,5 +12,5 @@ var mdWhatsnew string
 var WhatsNew = &base.Command{
 	UsageLine: "whatsnew",
 	Short:     "what's new in this version",
-	Long:      base.Render(mdWhatsnew),
+	Long:      mdWhatsnew,
 }

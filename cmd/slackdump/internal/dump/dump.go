@@ -11,7 +11,7 @@ const codeBlock = "```"
 var CmdDump = &base.Command{
 	UsageLine: "slackdump dump [flags] <IDs or URLs>",
 	Short:     "dump individual conversations or threads",
-	Long: base.Render(`
+	Long: `
 	# Dump Command
 
 This command is an alias for: 
@@ -19,7 +19,7 @@ This command is an alias for:
 slackdump list conversation
 ` + codeBlock + `
 
-To get extended usage help, run ` + "`slackdump help list conversation`"),
+To get extended usage help, run ` + "`slackdump help list conversation`",
 	RequireAuth: true,
 	PrintFlags:  true,
 }

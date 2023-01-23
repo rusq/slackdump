@@ -17,7 +17,7 @@ import (
 var CmdConfigNew = &base.Command{
 	UsageLine: "slackdump config new",
 	Short:     "creates a new API config with the default values",
-	Long: base.Render(`
+	Long: `
 # Config New Command
 
 Creates a new API configuration file containing default values. You will need
@@ -26,7 +26,7 @@ to specify the filename, for example:
     slackdump config new myconfig.yaml
 
 If the extension is omitted, ".yaml" is automatically appended to the filename.
-`),
+`,
 	FlagMask:   cfg.OmitAll,
 	PrintFlags: true,
 }

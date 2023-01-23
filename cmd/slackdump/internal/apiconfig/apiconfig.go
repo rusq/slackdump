@@ -17,12 +17,12 @@ import (
 var CmdConfig = &base.Command{
 	UsageLine: "slackdump config",
 	Short:     "API configuration",
-	Long: base.Render(`
+	Long: `
 # Config Command
 
 Config command allows to perform different operations on the API limits
 configuration file.
-`),
+`,
 	Commands: []*base.Command{
 		CmdConfigNew,
 		CmdConfigCheck,

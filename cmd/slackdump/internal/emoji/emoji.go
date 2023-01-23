@@ -16,7 +16,7 @@ var CmdEmoji = &base.Command{
 	Wizard:      wizard,
 	UsageLine:   "slackdump emoji [flags]",
 	Short:       "download workspace emojis",
-	Long:        "",
+	Long:        "", // TODO: add long description
 	FlagMask:    cfg.OmitDownloadFlag | cfg.OmitConfigFlag,
 	RequireAuth: true,
 	PrintFlags:  true,

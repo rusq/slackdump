@@ -12,7 +12,7 @@ import (
 var CmdConfigCheck = &base.Command{
 	UsageLine: "slackdump config check",
 	Short:     "validate the existing config for errors",
-	Long: base.Render(`
+	Long: `
 # Config Check Command
 
 Allows to check the config for errors and invalid values.
@@ -23,7 +23,7 @@ Example:
 
 It will check for duplicate and unknown keys, and also ensure that values are
 within the allowed boundaries.
-`),
+`,
 }
 
 func init() {
