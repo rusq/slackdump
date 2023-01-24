@@ -169,7 +169,7 @@ func (se *Export) inclusiveExport(ctx context.Context, uidx structures.UserIndex
 		if err != nil {
 			return nil, err
 		}
-		ch, err := se.sd.Client().GetConversationInfoContext(ctx, sl.Channel, true)
+		ch, err := se.sd.Client().GetConversationInfoContext(ctx, &slack.GetConversationInfoInput{ChannelID: sl.Channel, IncludeLocale: true, IncludeNumMembers: true})
 		if err != nil {
 			return nil, fmt.Errorf("error getting info for %s: %w", sl, err)
 		}

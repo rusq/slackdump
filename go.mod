@@ -42,4 +42,4 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-replace github.com/slack-go/slack => github.com/rusq/slack v0.11.300
+replace github.com/slack-go/slack => github.com/rusq/slack v0.12.0
