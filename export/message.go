@@ -52,7 +52,7 @@ func newExportMessage(msg *types.Message, users structures.UserIndex) *ExportMes
 
 	if user, ok := users[msg.User]; ok && !user.IsBot {
 		expMsg.UserProfile = &ExportUserProfile{
-			AvatarHash:        user.Profile.AvatarHash, // is currently not populated.
+			AvatarHash:        "",
 			Image72:           user.Profile.Image72,
 			FirstName:         user.Profile.FirstName,
 			RealName:          user.Profile.RealName,
