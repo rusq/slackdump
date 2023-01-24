@@ -7,8 +7,8 @@ import (
 	"github.com/AlecAivazis/survey/v2"
 
 	"github.com/rusq/slackdump/v2/internal/app/config"
-	"github.com/rusq/slackdump/v2/internal/app/ui"
-	"github.com/rusq/slackdump/v2/internal/app/ui/ask"
+	"github.com/rusq/slackdump/v2/internal/ui"
+	"github.com/rusq/slackdump/v2/internal/ui/ask"
 )
 
 var errExit = errors.New("exit")

@@ -10,8 +10,8 @@ import (
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v2/export"
 	"github.com/rusq/slackdump/v2/fsadapter"
-	"github.com/rusq/slackdump/v2/internal/app/ui"
-	"github.com/rusq/slackdump/v2/internal/app/ui/ask"
+	"github.com/rusq/slackdump/v2/internal/ui"
+	"github.com/rusq/slackdump/v2/internal/ui/ask"
 )
 
 func wizExport(ctx context.Context, cmd *base.Command, args []string) error {

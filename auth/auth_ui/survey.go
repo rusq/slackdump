@@ -5,7 +5,7 @@ import (
 	"io"
 
 	"github.com/AlecAivazis/survey/v2"
-	"github.com/rusq/slackdump/v2/internal/app/ui"
+	"github.com/rusq/slackdump/v2/internal/ui"
 )
 
 type Survey struct{}
