@@ -14,7 +14,7 @@ var CmdListChannels = &base.Command{
 	PrintFlags: true,
 	FlagMask:   cfg.OmitDownloadFlag,
 	Short:      "list workspace channels",
-	Long: base.Render(`
+	Long: `
 # List Channels Command
 
 Lists all visible channels for the currently logged in user.  The list
@@ -23,9 +23,8 @@ including archived ones.
 
 Please note that it may take a while to retrieve all channels, if your
 workspace has lots of them.
-` +
-		sectListFormat,
-	),
+` + sectListFormat,
+
 	RequireAuth: true,
 }
 

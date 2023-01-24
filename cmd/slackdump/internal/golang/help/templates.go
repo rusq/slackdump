@@ -9,9 +9,9 @@ package help
 var (
 	helpTemplate = `{{if .Runnable}}usage: {{.UsageLine}}
 
-{{end}}{{.Long | trim}}
+{{end}}{{.Markdown | trim}}
 `
-	usageTemplate = `{{.Long | trim}}
+	usageTemplate = `{{.Markdown | trim}}
 
 Usage:
 

@@ -26,9 +26,9 @@ var CmdConvert = &base.Command{
 	Run:       runConvert,
 	UsageLine: "slackdump convert [flags] <format> <file.json>",
 	Short:     "converts the json files to other formats",
-	Long: base.Render(`
+	Long: `
 # Convert Command
-`),
+`, // TODO: add more info
 	CustomFlags: false,
 	FlagMask:    cfg.OmitAll & ^cfg.OmitWorkspaceFlag,
 	PrintFlags:  true,

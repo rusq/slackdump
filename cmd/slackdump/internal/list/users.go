@@ -15,12 +15,11 @@ var CmdListUsers = &base.Command{
 	PrintFlags: true,
 	FlagMask:   cfg.OmitDownloadFlag,
 	Short:      "list workspace users",
-	Long: base.Render(`
+	Long: `
 # List Users
 
 List users lists workspace users in the desired format.` +
 		sectListFormat,
-	),
 	RequireAuth: true,
 }
 

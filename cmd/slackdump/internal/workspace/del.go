@@ -18,7 +18,7 @@ var (
 var CmdWspDel = &base.Command{
 	UsageLine: "slackdump workspace del [flags]",
 	Short:     "deletes the saved workspace login information",
-	Long: base.Render(`
+	Long: `
 # Workspace Del(ete) Command
 
 Use ` + "`del`" + ` to delete the Slack Workspace login information ("forget"
@@ -30,7 +30,7 @@ workspace again, you will need to login into that workspace again by running
 
 Slackdump will ask for the confirmation before deleting.  To omit the
 question, use ` + "`-y`" + ` flag.
-`),
+`,
 	CustomFlags: false,
 	FlagMask:    cfg.OmitAll,
 	PrintFlags:  true,

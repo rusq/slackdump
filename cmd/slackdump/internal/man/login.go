@@ -12,5 +12,5 @@ var mdLogin string
 var Login = &base.Command{
 	UsageLine: "login",
 	Short:     "login related information",
-	Long:      base.Render(mdLogin),
+	Long:      mdLogin,
 }

@@ -25,13 +25,13 @@ import (
 var CmdList = &base.Command{
 	UsageLine: "slackdump list",
 	Short:     "list users or channels",
-	Long: base.Render(`
+	Long: `
 # List Command
 
 List lists users or channels for the Slack Workspace.  It may take a while on a
 large workspace, as Slack limits the amount of requests on it's own discretion,
 which is sometimes unreasonably slow.
-`),
+`,
 	Commands: []*base.Command{
 		CmdListUsers,
 		CmdListChannels,
@@ -92,13 +92,13 @@ func list(ctx context.Context, listFn listFunc) error {
 	if screenOutput {
 		return fmtPrint(ctx, os.Stdout, data, listType, sess.Users)
 	} else {
-		return saveData(ctx, sess, data, filename)
+		return saveData(ctx, sess, data, filename, listType)
 	}
 	// unreachable
 }
 
 // saveData saves the given data to the given filename.
-func saveData(ctx context.Context, sess *slackdump.Session, data any, filename string) error {
+func saveData(ctx context.Context, sess *slackdump.Session, data any, filename string, typ format.Type) error {
 	// save to a filesystem.
 	fs, err := fsadapter.New(cfg.BaseLoc)
 	if err != nil {
@@ -112,7 +112,7 @@ func saveData(ctx context.Context, sess *slackdump.Session, data any, filename s
 		return fmt.Errorf("failed to create file: %w", err)
 	}
 	defer f.Close()
-	if err := fmtPrint(ctx, f, data, listType, sess.Users); err != nil {
+	if err := fmtPrint(ctx, f, data, typ, sess.Users); err != nil {
 		return err
 	}
 	dlog.FromContext(ctx).Printf("Data saved to:  %q\n", filepath.Join(cfg.BaseLoc, filename))
@@ -151,7 +151,8 @@ var extmap = map[format.Type]string{
 	format.CCSV:  "csv",
 }
 
-// makeFilename makes a filename for the given prefix, teamID and listType.
+// makeFilename makes a filename for the given prefix, teamID and listType for
+// channels and users.
 func makeFilename(prefix string, teamID string, listType format.Type) string {
 	ext, ok := extmap[listType]
 	if !ok {

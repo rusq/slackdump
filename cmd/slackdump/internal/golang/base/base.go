@@ -148,6 +148,10 @@ func (c *Command) Usage() {
 	Exit()
 }
 
+func (c *Command) Markdown() string {
+	return Render(c.Long)
+}
+
 // Executable returns the name of the executable for the current OS.
 func Executable() string {
 	exe, err := os.Executable()
