@@ -24,6 +24,7 @@
 
 # temporary files and the rest of the crap
 *.json
+*.yml
 *.yaml
 json/*
 examples/*

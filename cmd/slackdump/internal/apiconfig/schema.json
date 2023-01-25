@@ -1,0 +1,85 @@
+{
+    "$schema": "http://json-schema.org/draft-06/schema#",
+    "$ref": "#/definitions/slackdump",
+    "title": "Slackdump",
+    "description": "Slackdump API configuration file",
+    "definitions": {
+        "slackdump": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "workers": {
+                    "type": "integer",
+                    "description": "Number of workers to use for downloading files",
+                    "minimum": 1,
+                    "maximum": 128
+                },
+                "download_retries": {
+                    "type": "integer",
+                    "description": "Number of times to retry downloading a file"
+                },
+                "tier_1": {
+                    "$ref": "#/definitions/Tier"
+                },
+                "tier_2": {
+                    "$ref": "#/definitions/Tier"
+                },
+                "tier_3": {
+                    "$ref": "#/definitions/Tier"
+                },
+                "per_request": {
+                    "$ref": "#/definitions/PerRequest"
+                }
+            },
+            "title": "Slackdump"
+        },
+        "PerRequest": {
+            "type": "object",
+            "additionalProperties": false,
+            "description": "Number of items to fetch per request",
+            "properties": {
+                "conversations": {
+                    "type": "integer",
+                    "description": "Number of conversations to fetch per request",
+                    "minimum": 1,
+                    "maximum": 100
+                },
+                "channels": {
+                    "type": "integer",
+                    "description": "Number of channels to fetch per request",
+                    "minimum": 1,
+                    "maximum": 1000
+                },
+                "replies": {
+                    "type": "integer",
+                    "description": "Number of replies to fetch per request",
+                    "minimum": 1,
+                    "maximum": 1000
+
+                }
+            },
+            "title": "PerRequest"
+        },
+        "Tier": {
+            "type": "object",
+            "additionalProperties": false,
+            "description": "Rate limiting tier",
+            "properties": {
+                "boost": {
+                    "type": "integer",
+                    "description": "Additional number of requests to make per second"
+                },
+                "burst": {
+                    "type": "integer",
+                    "description": "Limiter burst size",
+                    "minimum": 1
+                },
+                "retries": {
+                    "type": "integer",
+                    "description": "Number of times to retry a request"
+                }
+            },
+            "title": "Tier"
+        }
+    }
+}

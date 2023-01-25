@@ -14,6 +14,8 @@ import (
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/golang/base"
 )
 
+const schemaJSONpath = "https://raw.githubusercontent.com/rusq/slackdump/cli-remake/cmd/slackdump/internal/apiconfig/schema.json"
+
 var CmdConfig = &base.Command{
 	UsageLine: "slackdump config",
 	Short:     "API configuration",
@@ -70,6 +72,7 @@ func readLimits(r io.Reader) (slackdump.Limits, error) {
 }
 
 func writeLimits(w io.Writer, cfg slackdump.Limits) error {
+	fmt.Fprintf(w, "# yaml-language-server: $schema=%s\n", schemaJSONpath)
 	return yaml.NewEncoder(w).Encode(cfg)
 }
 
