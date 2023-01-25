@@ -40,3 +40,7 @@ cmd/sdconv/sdconv
 .env
 *.cache
 *.log
+
+dist/
+!.goreleaser.yaml
+!schema.json

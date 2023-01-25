@@ -29,6 +29,12 @@ import (
 	"github.com/rusq/slackdump/v2/logger"
 )
 
+var (
+	version = "unknown"
+	commit  = "unknown"
+	date    = "unknown"
+)
+
 func init() {
 	loadSecrets(secretFiles)
 
@@ -43,6 +49,7 @@ func init() {
 		v1.CmdV1,
 		apiconfig.CmdConfig,
 		convert.CmdConvert,
+		CmdVersion,
 
 		man.Login,
 		man.WhatsNew,
