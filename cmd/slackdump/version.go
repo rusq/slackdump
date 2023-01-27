@@ -21,6 +21,10 @@ And by the way, version is: ` + version + `, commit: ` + commit + `, built on ` 
 }
 
 func versionRun(ctx context.Context, cmd *base.Command, args []string) error {
-	fmt.Printf("%s (commit: %s) built on: %s\n", version, commit, date)
+	printVersion()
 	return nil
+}
+
+func printVersion() {
+	fmt.Printf("Slackdump %s (commit: %s) built on: %s\n", version, commit, date)
 }

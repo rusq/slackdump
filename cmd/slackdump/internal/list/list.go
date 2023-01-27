@@ -35,7 +35,6 @@ which is sometimes unreasonably slow.
 	Commands: []*base.Command{
 		CmdListUsers,
 		CmdListChannels,
-		CmdListConversation,
 	},
 }
 
@@ -107,16 +106,20 @@ func saveData(ctx context.Context, sess *slackdump.Session, data any, filename s
 	}
 	defer fs.Close()
 
+	if err := writeData(ctx, fs, filename, data, typ, sess.Users); err != nil {
+		return err
+	}
+	dlog.FromContext(ctx).Printf("Data saved to:  %q\n", filepath.Join(cfg.BaseLoc, filename))
+	return nil
+}
+
+func writeData(ctx context.Context, fs fsadapter.FS, filename string, data any, typ format.Type, users []slack.User) error {
 	f, err := fs.Create(filename)
 	if err != nil {
 		return fmt.Errorf("failed to create file: %w", err)
 	}
 	defer f.Close()
-	if err := fmtPrint(ctx, f, data, typ, sess.Users); err != nil {
-		return err
-	}
-	dlog.FromContext(ctx).Printf("Data saved to:  %q\n", filepath.Join(cfg.BaseLoc, filename))
-	return nil
+	return fmtPrint(ctx, f, data, typ, users)
 }
 
 // fmtPrint prints the given data to the given writer, using the given format.
@@ -138,6 +141,8 @@ func fmtPrint(ctx context.Context, w io.Writer, a any, typ format.Type, u []slac
 		return cvt.Channels(ctx, w, u, val)
 	case types.Users:
 		return cvt.Users(ctx, w, val)
+	case *types.Conversation:
+		return cvt.Conversation(ctx, w, u, val)
 	default:
 		return fmt.Errorf("unsupported data type: %T", a)
 	}

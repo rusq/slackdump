@@ -4,13 +4,17 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"io"
+	"log"
 	"os"
 	"runtime/trace"
 	"strings"
 
+	"github.com/AlecAivazis/survey/v2"
 	"github.com/joho/godotenv"
 	"github.com/rusq/dlog"
 	"github.com/rusq/tracer"
+	"golang.org/x/term"
 
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/apiconfig"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/cfg"
@@ -62,15 +66,28 @@ func main() {
 
 	args := flag.Args()
 	if len(args) < 1 {
-		base.Usage()
-	}
+		if !isInteractive() {
+			base.Usage()
+			// Usage terminates the program.
+		}
 
-	base.CmdName = args[0]
-	if args[0] == "help" {
-		help.Help(os.Stdout, args[1:])
-		return
+		next, err := whatDo(os.Stdout)
+		if err != nil {
+			log.Fatal(err)
+		}
+		switch next {
+		case choiceExit:
+			return
+		case choiceWizard:
+			args = append(args, "wiz")
+		case choiceHelp:
+			fallthrough
+		default:
+			base.Usage()
+		}
 	}
-	//TODO version
+	base.CmdName = args[0]
+
 BigCmdLoop:
 	for bigCmd := base.Slackdump; ; {
 		for _, cmd := range bigCmd.Commands {
@@ -251,4 +268,38 @@ func loadSecrets(files []string) {
 	for _, f := range files {
 		_ = godotenv.Load(f)
 	}
+}
+
+type choice string
+
+const (
+	choiceUnknown choice = ""
+	choiceHelp    choice = "Print help and exit"
+	choiceWizard  choice = "Run wizard"
+	choiceExit    choice = "Exit"
+)
+
+func whatDo(w io.Writer) (choice, error) {
+	fmt.Println()
+	printVersion()
+	fmt.Println()
+	q := &survey.Select{
+		Message: "What do you want to do?",
+		Options: []string{
+			string(choiceHelp),
+			string(choiceWizard),
+			string(choiceExit),
+		},
+		Default: "Print help and exit",
+	}
+	var ans string
+	if err := survey.AskOne(q, &ans); err != nil {
+		return choiceUnknown, err
+	}
+
+	return choice(ans), nil
+}
+
+func isInteractive() bool {
+	return term.IsTerminal(int(os.Stdout.Fd())) && term.IsTerminal(int(os.Stdin.Fd())) && os.Getenv("TERM") != "dumb"
 }
