@@ -41,6 +41,7 @@ cmd/sdconv/sdconv
 *.cache
 *.log
 
+# goreleaser stuff
 dist/
 !.goreleaser.yaml
 !schema.json

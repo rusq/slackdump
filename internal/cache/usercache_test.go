@@ -8,6 +8,7 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/rusq/encio"
+	"github.com/slack-go/slack"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/rusq/slackdump/v2/internal/fixtures"
@@ -31,9 +32,9 @@ func TestSaveUserCache(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer reopenedF.Close()
-	uu, err := ReadUsers(reopenedF)
+	uu, err := read[slack.User](reopenedF)
 	assert.NoError(t, err)
-	assert.Equal(t, testUsers, uu)
+	assert.Equal(t, testUsers, types.Users(uu))
 }
 
 func TestLoadUserCache(t *testing.T) {

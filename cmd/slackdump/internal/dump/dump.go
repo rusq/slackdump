@@ -111,6 +111,7 @@ func RunDump(ctx context.Context, cmd *base.Command, args []string) error {
 	// Initialize the session.
 	cfg.SlackOptions.Filesystem = fs
 	cfg.SlackOptions.Logger = dlog.FromContext(ctx)
+
 	sess, err := slackdump.NewWithOptions(ctx, prov, cfg.SlackOptions)
 	if err != nil {
 		base.SetExitStatus(base.SApplicationError)
@@ -131,17 +132,19 @@ func RunDump(ctx context.Context, cmd *base.Command, args []string) error {
 	return nil
 }
 
+// namer is a helper type to generate filenames for conversations.
 type namer struct {
 	t   *template.Template
 	ext string
 }
 
-func newNamer(tmpl string, eext string) (namer, error) {
+// newNamer returns a new namer.  It must be called with a valid template.
+func newNamer(tmpl string, ext string) (namer, error) {
 	t, err := template.New("name").Parse(tmpl)
 	if err != nil {
 		return namer{}, err
 	}
-	return namer{t: t, ext: eext}, nil
+	return namer{t: t, ext: ext}, nil
 }
 
 // Filename returns the filename for the given conversation.

@@ -22,7 +22,9 @@ import (
 type Manager struct {
 	dir         string
 	authOptions []auth.Option
+
 	userFile    string
+	channelFile string
 }
 
 const (
@@ -118,6 +120,7 @@ func newErrNoWorkspace(name string) *ErrWorkspace {
 	return &ErrWorkspace{Workspace: name, Message: "no such workspace"}
 }
 
+// Unwrap returns the underlying error.
 func (ew *ErrWorkspace) Unwrap() error {
 	return ew.Err
 }
@@ -186,6 +189,7 @@ func (m *Manager) Current() (string, error) {
 	return wf, nil
 }
 
+// selectDefault selects the default workspace if it exists.
 func (m *Manager) selectDefault() (string, error) {
 	if !m.Exists(defName) {
 		return "", ErrNoDefault
@@ -196,7 +200,7 @@ func (m *Manager) selectDefault() (string, error) {
 	return defName, nil
 }
 
-// Select selects the existing workspace with "name"
+// Select selects the existing workspace with "name".
 func (m *Manager) Select(name string) error {
 	if !m.Exists(name) {
 		return newErrNoWorkspace(name)
@@ -244,6 +248,7 @@ func (m *Manager) filepath(name string) string {
 	return filepath.Join(m.dir, m.filename(name))
 }
 
+// name returns the workspace name from the filename.
 func (m *Manager) name(filename string) (string, error) {
 	if filedir := filepath.Dir(filename); !strings.EqualFold(filedir, m.dir) {
 		return "", fmt.Errorf("incorrect directory: %s", filedir)
@@ -254,6 +259,7 @@ func (m *Manager) name(filename string) (string, error) {
 	return wspName(filename), nil
 }
 
+// readWsp reads the workspace file name from the reader.
 func (m *Manager) readWsp(r io.Reader) string {
 	var current string
 	if _, err := fmt.Fscanln(r, &current); err != nil {
@@ -262,6 +268,7 @@ func (m *Manager) readWsp(r io.Reader) string {
 	return strings.TrimSpace(current)
 }
 
+// writeWsp writes the workspace file name to the writer.
 func (*Manager) writeWsp(w io.Writer, filename string) error {
 	_, err := fmt.Fprintln(w, filename)
 	return err
@@ -279,6 +286,7 @@ func wspName(filename string) string {
 	return name
 }
 
+// indexOf returns the index of s in ss, or -1 if not found.
 func indexOf[T comparable](ss []T, s T) int {
 	for i := range ss {
 		if s == ss[i] {
@@ -288,6 +296,7 @@ func indexOf[T comparable](ss []T, s T) int {
 	return -1
 }
 
+// exist returns true if s is in ss.
 func exist[T comparable](ss []T, s T) bool {
 	return -1 < indexOf(ss, s)
 }
@@ -323,4 +332,12 @@ func (m *Manager) LoadUsers(teamID string, maxAge time.Duration) (types.Users, e
 // saveUsers saves users to user cache file for teamID.
 func (m *Manager) SaveUsers(teamID string, uu types.Users) error {
 	return saveUsers(m.dir, m.userFile, teamID, uu)
+}
+
+func (m *Manager) LoadChannels(teamID string, maxAge time.Duration) (types.Channels, error) {
+	return loadChannels(m.dir, m.channelFile, teamID, maxAge)
+}
+
+func (m *Manager) SaveChannels(teamID string, cc types.Channels) error {
+	return saveChannels(m.dir, m.channelFile, teamID, cc)
 }
