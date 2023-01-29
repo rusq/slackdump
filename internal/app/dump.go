@@ -56,7 +56,7 @@ func Dump(ctx context.Context, cfg config.Params, prov auth.Provider) error {
 }
 
 func newDump(ctx context.Context, cfg config.Params, prov auth.Provider) (*dump, error) {
-	sess, err := slackdump.NewWithOptions(ctx, prov, cfg.Options)
+	sess, err := slackdump.New(ctx, prov, cfg.Options)
 	if err != nil {
 		return nil, err
 	}

@@ -85,7 +85,7 @@ func ExampleNew_tokenAndCookie() {
 		log.Print(err)
 		return
 	}
-	sd, err := New(context.Background(), provider)
+	sd, err := New(context.Background(), provider, DefOptions)
 	if err != nil {
 		log.Print(err)
 		return
@@ -99,7 +99,7 @@ func ExampleNew_cookieFile() {
 		log.Print(err)
 		return
 	}
-	sd, err := New(context.Background(), provider)
+	sd, err := New(context.Background(), provider, DefOptions)
 	if err != nil {
 		log.Print(err)
 		return
@@ -113,7 +113,7 @@ func ExampleNew_browserAuth() {
 		log.Print(err)
 		return
 	}
-	sd, err := New(context.Background(), provider)
+	sd, err := New(context.Background(), provider, DefOptions)
 	if err != nil {
 		log.Print(err)
 		return
@@ -127,7 +127,7 @@ func TestSession_Me(t *testing.T) {
 		wspInfo   *slack.AuthTestResponse
 		Users     types.Users
 		UserIndex structures.UserIndex
-		options   Options
+		options   Config
 	}
 	tests := []struct {
 		name    string
@@ -164,7 +164,7 @@ func TestSession_Me(t *testing.T) {
 				wspInfo:   tt.fields.wspInfo,
 				Users:     tt.fields.Users,
 				UserIndex: tt.fields.UserIndex,
-				options:   tt.fields.options,
+				cfg:       tt.fields.options,
 			}
 			got, err := sd.Me()
 			if (err != nil) != tt.wantErr {
@@ -185,7 +185,7 @@ func TestSession_l(t *testing.T) {
 		wspInfo   *slack.AuthTestResponse
 		Users     types.Users
 		UserIndex structures.UserIndex
-		options   Options
+		options   Config
 	}
 	tests := []struct {
 		name   string
@@ -195,14 +195,14 @@ func TestSession_l(t *testing.T) {
 		{
 			"empty returns the default logger",
 			fields{
-				options: Options{},
+				options: Config{},
 			},
 			logger.Default,
 		},
 		{
 			"if logger is set, it returns the custom logger",
 			fields{
-				options: Options{Logger: testLg},
+				options: Config{Logger: testLg},
 			},
 			logger.Interface(testLg),
 		},
@@ -214,7 +214,7 @@ func TestSession_l(t *testing.T) {
 				wspInfo:   tt.fields.wspInfo,
 				Users:     tt.fields.Users,
 				UserIndex: tt.fields.UserIndex,
-				options:   tt.fields.options,
+				cfg:       tt.fields.options,
 			}
 			if got := sd.l(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("Session.l() = %v, want %v", got, tt.want)

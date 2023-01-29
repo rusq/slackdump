@@ -50,7 +50,7 @@ func TestSession_fetchUsers(t *testing.T) {
 	type fields struct {
 		Users     types.Users
 		UserIndex structures.UserIndex
-		options   Options
+		options   Config
 	}
 	type args struct {
 		ctx context.Context
@@ -104,7 +104,7 @@ func TestSession_fetchUsers(t *testing.T) {
 				client:    mc,
 				Users:     tt.fields.Users,
 				UserIndex: tt.fields.UserIndex,
-				options:   tt.fields.options,
+				cfg:       tt.fields.options,
 			}
 			got, err := sd.fetchUsers(tt.args.ctx)
 			if (err != nil) != tt.wantErr {
@@ -123,7 +123,7 @@ func TestSession_GetUsers(t *testing.T) {
 	type fields struct {
 		Users     types.Users
 		UserIndex structures.UserIndex
-		options   Options
+		options   Config
 	}
 	type args struct {
 		ctx context.Context
@@ -138,8 +138,8 @@ func TestSession_GetUsers(t *testing.T) {
 	}{
 		{
 			"everything goes as planned",
-			fields{options: Options{
-				UserCache: CacheOptions{Filename: gimmeTempFile(t, dir), MaxAge: 5 * time.Hour},
+			fields{options: Config{
+				UserCache: CacheConfig{Filename: gimmeTempFile(t, dir), MaxAge: 5 * time.Hour},
 				Limits: Limits{
 					Tier2: TierLimits{Burst: 1},
 					Tier3: TierLimits{Burst: 1},
@@ -154,8 +154,8 @@ func TestSession_GetUsers(t *testing.T) {
 		},
 		{
 			"loaded from cache",
-			fields{options: Options{
-				UserCache: CacheOptions{Filename: gimmeTempFileWithUsers(t, dir), MaxAge: 5 * time.Hour},
+			fields{options: Config{
+				UserCache: CacheConfig{Filename: gimmeTempFileWithUsers(t, dir), MaxAge: 5 * time.Hour},
 				Limits: Limits{
 					Tier2: TierLimits{Burst: 1},
 					Tier3: TierLimits{Burst: 1},
@@ -180,7 +180,7 @@ func TestSession_GetUsers(t *testing.T) {
 				wspInfo:   &slack.AuthTestResponse{TeamID: testSuffix},
 				Users:     tt.fields.Users,
 				UserIndex: tt.fields.UserIndex,
-				options:   tt.fields.options,
+				cfg:       tt.fields.options,
 			}
 			got, err := sd.GetUsers(tt.args.ctx)
 			if (err != nil) != tt.wantErr {
@@ -207,7 +207,7 @@ func gimmeTempFile(t *testing.T, dir string) string {
 
 func gimmeTempFileWithUsers(t *testing.T, dir string) string {
 	f := gimmeTempFile(t, dir)
-	m, err := cache.NewManager("", cache.WithUserBasename(f))
+	m, err := cache.NewManager("", cache.WithUserCacheBase(f))
 	if err != nil {
 		t.Fatal(err)
 	}

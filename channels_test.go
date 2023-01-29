@@ -18,7 +18,7 @@ func TestSession_getChannels(t *testing.T) {
 	type fields struct {
 		Users     types.Users
 		UserIndex structures.UserIndex
-		options   Options
+		options   Config
 	}
 	type args struct {
 		ctx       context.Context
@@ -82,7 +82,7 @@ func TestSession_getChannels(t *testing.T) {
 				client:    mc,
 				Users:     tt.fields.Users,
 				UserIndex: tt.fields.UserIndex,
-				options:   tt.fields.options,
+				cfg:       tt.fields.options,
 			}
 
 			if tt.expectFn != nil {
@@ -108,7 +108,7 @@ func TestSession_GetChannels(t *testing.T) {
 		client    clienter
 		Users     types.Users
 		UserIndex structures.UserIndex
-		options   Options
+		options   Config
 	}
 	type args struct {
 		ctx       context.Context
@@ -129,7 +129,7 @@ func TestSession_GetChannels(t *testing.T) {
 				client:    tt.fields.client,
 				Users:     tt.fields.Users,
 				UserIndex: tt.fields.UserIndex,
-				options:   tt.fields.options,
+				cfg:       tt.fields.options,
 			}
 			got, err := sd.GetChannels(tt.args.ctx, tt.args.chanTypes...)
 			if (err != nil) != tt.wantErr {

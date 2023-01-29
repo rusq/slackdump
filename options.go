@@ -4,7 +4,6 @@ package slackdump
 
 import (
 	"reflect"
-	"runtime"
 	"time"
 
 	"github.com/go-playground/locales/en"
@@ -16,23 +15,21 @@ import (
 	"github.com/rusq/slackdump/v2/logger"
 )
 
-const defNumWorkers = 4 // default number of file downloaders. it's here because it's used in several places.
-
-// Options is the option set for the Session.
-type Options struct {
+// Config is the option set for the Session.
+type Config struct {
 	Limits Limits
 
-	DumpFiles  bool // will we save the conversation files?
-	Filesystem fsadapter.FS
+	DumpFiles bool // will we save the conversation files?
 
 	CacheDir  string // cache directory
-	UserCache CacheOptions
+	UserCache CacheConfig
 
-	Logger logger.Interface
+	Filesystem fsadapter.FS
+	Logger     logger.Interface
 }
 
-// CacheOptions represents the options for the cache.
-type CacheOptions struct {
+// CacheConfig represents the options for the cache.
+type CacheConfig struct {
 	Filename string
 	MaxAge   time.Duration
 	Disabled bool
@@ -74,10 +71,10 @@ type RequestLimit struct {
 }
 
 // DefOptions is the default options used when initialising slackdump instance.
-var DefOptions = Options{
+var DefOptions = Config{
 	Limits: Limits{
-		Workers:         defNumWorkers, // number of workers doing the file download
-		DownloadRetries: 3,             // this shouldn't even happen, as we have no limiter on files download.
+		Workers:         4, // number of workers doing the file download
+		DownloadRetries: 3, // this shouldn't even happen, as we have no limiter on files download.
 		Tier2: TierLimits{
 			Boost:   20, // seems to work fine with this boost
 			Burst:   1,  // limiter will wait indefinitely if it is less than 1.
@@ -95,7 +92,7 @@ var DefOptions = Options{
 		},
 	},
 	DumpFiles:  false,
-	UserCache:  CacheOptions{Filename: "users.cache", MaxAge: 4 * time.Hour},
+	UserCache:  CacheConfig{Filename: "users.cache", MaxAge: 4 * time.Hour},
 	CacheDir:   "",                          // default cache dir
 	Logger:     logger.Default,              // default logger is the... default logger
 	Filesystem: fsadapter.NewDirectory("."), // default filesystem is the current directory
@@ -151,79 +148,4 @@ func apply[T comparable](this *T, other T) {
 
 func isZero(a any) bool {
 	return a == reflect.Zero(reflect.TypeOf(a)).Interface()
-}
-
-// Option is the signature of the option-setting function.
-type Option func(*Options)
-
-// DownloadFiles enables or disables the conversation/thread file downloads.
-func DownloadFiles(b bool) Option {
-	return func(options *Options) {
-		options.DumpFiles = b
-	}
-}
-
-// RetryDownloads sets the number of attempts to download a file when getting
-// rate limited.
-func RetryDownloads(attempts int) Option {
-	return func(options *Options) {
-		if attempts > 0 {
-			options.Limits.DownloadRetries = attempts
-		}
-	}
-}
-
-// NumWorkers allows to set the number of file download workers. n should be in
-// range [1, NumCPU]. If not in range, will be reset to a defNumWorkers number,
-// which seems reasonable.
-func NumWorkers(n int) Option {
-	return func(options *Options) {
-		if n < 1 || runtime.NumCPU() < n {
-			n = defNumWorkers
-		}
-		options.Limits.Workers = n
-	}
-}
-
-// UserCacheFilename allows to set the user cache filename.
-func UserCacheFilename(s string) Option {
-	return func(options *Options) {
-		if s != "" {
-			options.UserCache.Filename = s
-		}
-	}
-}
-
-// MaxUserCacheAge allows to set the maximum user cache age.  If set to 0 - it
-// will always use the API output, and never load cache.
-func MaxUserCacheAge(d time.Duration) Option {
-	return func(options *Options) {
-		options.UserCache.MaxAge = d
-	}
-}
-
-// WithLogger allows to set the custom logger.
-func WithLogger(l logger.Interface) Option {
-	return func(o *Options) {
-		if l == nil {
-			l = logger.Default
-		}
-		o.Logger = l
-	}
-}
-
-func CacheDir(dir string) Option {
-	return func(o *Options) {
-		if dir == "" {
-			return
-		}
-		o.CacheDir = dir
-	}
-}
-
-// WithLimits applies the Limits to the default options.
-func WithLimits(l Limits) Option {
-	return func(o *Options) {
-		_ = o.Limits.Apply(l) // NewWithOptions runs the validation.
-	}
 }

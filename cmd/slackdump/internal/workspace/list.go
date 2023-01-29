@@ -119,7 +119,7 @@ func userInfo(ctx context.Context, m manager, name string) (*slack.AuthTestRespo
 	if err != nil {
 		return nil, err
 	}
-	sess, err := slackdump.NewWithOptions(ctx, prov, cfg.SlackOptions)
+	sess, err := slackdump.New(ctx, prov, cfg.SlackOptions)
 	if err != nil {
 		return nil, err
 	}

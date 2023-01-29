@@ -112,7 +112,7 @@ func RunDump(ctx context.Context, cmd *base.Command, args []string) error {
 	cfg.SlackOptions.Filesystem = fs
 	cfg.SlackOptions.Logger = dlog.FromContext(ctx)
 
-	sess, err := slackdump.NewWithOptions(ctx, prov, cfg.SlackOptions)
+	sess, err := slackdump.New(ctx, prov, cfg.SlackOptions)
 	if err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return err

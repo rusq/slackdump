@@ -21,17 +21,17 @@ func (sd *Session) GetUsers(ctx context.Context) (types.Users, error) {
 	ctx, task := trace.NewTask(ctx, "GetUsers")
 	defer task.End()
 
-	if sd.options.UserCache.Disabled {
+	if sd.cfg.UserCache.Disabled {
 		return types.Users{}, nil
 	}
 
 	// TODO make Manager a Session variable.  Maybe?
-	m, err := cache.NewManager(sd.options.CacheDir, cache.WithUserBasename(sd.options.UserCache.Filename))
+	m, err := cache.NewManager(sd.cfg.CacheDir, cache.WithUserCacheBase(sd.cfg.UserCache.Filename))
 	if err != nil {
 		return nil, err
 	}
 
-	users, err := m.LoadUsers(sd.wspInfo.TeamID, sd.options.UserCache.MaxAge)
+	users, err := m.LoadUsers(sd.wspInfo.TeamID, sd.cfg.UserCache.MaxAge)
 	if err != nil {
 		if os.IsNotExist(err) {
 			sd.l().Println("  caching users for the first time")
@@ -43,8 +43,8 @@ func (sd *Session) GetUsers(ctx context.Context) (types.Users, error) {
 			return nil, err
 		}
 		if err := m.SaveUsers(sd.wspInfo.TeamID, users); err != nil {
-			trace.Logf(ctx, "error", "saving user cache to %q, error: %s", sd.options.UserCache.Filename, err)
-			sd.l().Printf("error saving user cache to %q: %s, but nevermind, let's continue", sd.options.UserCache.Filename, err)
+			trace.Logf(ctx, "error", "saving user cache to %q, error: %s", sd.cfg.UserCache.Filename, err)
+			sd.l().Printf("error saving user cache to %q: %s, but nevermind, let's continue", sd.cfg.UserCache.Filename, err)
 		}
 	}
 
@@ -57,9 +57,9 @@ func (sd *Session) fetchUsers(ctx context.Context) (types.Users, error) {
 		users []slack.User
 	)
 	l := network.NewLimiter(
-		network.Tier2, sd.options.Limits.Tier2.Burst, int(sd.options.Limits.Tier2.Boost),
+		network.Tier2, sd.cfg.Limits.Tier2.Burst, int(sd.cfg.Limits.Tier2.Boost),
 	)
-	if err := withRetry(ctx, l, sd.options.Limits.Tier2.Retries, func() error {
+	if err := withRetry(ctx, l, sd.cfg.Limits.Tier2.Retries, func() error {
 		var err error
 		users, err = sd.client.GetUsersContext(ctx)
 		return err

@@ -241,7 +241,7 @@ func getUsersOnline(ctx context.Context, cacheDir, wsp string) ([]slack.User, er
 	if err != nil {
 		return nil, err
 	}
-	sess, err := slackdump.NewWithOptions(ctx, prov, cfg.SlackOptions)
+	sess, err := slackdump.New(ctx, prov, cfg.SlackOptions)
 	if err != nil {
 		return nil, err
 	}

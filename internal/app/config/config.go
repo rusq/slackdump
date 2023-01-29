@@ -42,7 +42,7 @@ type Params struct {
 
 	Emoji EmojiParams
 
-	Options slackdump.Options
+	Options slackdump.Config
 }
 
 type EmojiParams struct {

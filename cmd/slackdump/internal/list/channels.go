@@ -2,7 +2,10 @@ package list
 
 import (
 	"context"
+	"runtime/trace"
+	"time"
 
+	"github.com/rusq/dlog"
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/golang/base"
@@ -32,17 +35,31 @@ workspace has lots of them.
 
 func listChannels(ctx context.Context, cmd *base.Command, args []string) error {
 	if err := list(ctx, func(ctx context.Context, sess *slackdump.Session) (any, string, error) {
+		ctx, task := trace.NewTask(ctx, "listChannels")
+		defer task.End()
+
 		var filename = makeFilename("channels", sess.Info().TeamID, listType)
 		if len(args) > 0 {
 			filename = args[0]
 		}
-
-		cc, ok := maybeLoadChanCache(cfg.CacheDir(), sess.Info().Team)
+		teamID := sess.Info().TeamID
+		cc, ok := maybeLoadChanCache(cfg.CacheDir(), teamID)
 		if ok {
+			// cache hit
+			trace.Logf(ctx, "cache hit", "teamID=%s", teamID)
 			return cc, filename, nil
 		}
+		// cache miss, load from API
+		trace.Logf(ctx, "cache miss", "teamID=%s", teamID)
 		cc, err := sess.GetChannels(ctx)
-		return cc, filename, err
+		if err != nil {
+			return nil, "", err
+		}
+		if err := saveCache(cfg.CacheDir(), teamID, cc); err != nil {
+			// warn, but don't fail
+			dlog.FromContext(ctx).Printf("failed to save cache: %v", err)
+		}
+		return cc, filename, nil
 	}); err != nil {
 		return err
 	}
@@ -50,8 +67,10 @@ func listChannels(ctx context.Context, cmd *base.Command, args []string) error {
 	return nil
 }
 
-var chanCacheOpts = slackdump.CacheOptions{
+var chanCacheOpts = slackdump.CacheConfig{
 	Disabled: false,
+	MaxAge:   0 * time.Minute,
+	Filename: "channels.json",
 }
 
 func maybeLoadChanCache(cacheDir string, teamID string) (types.Channels, bool) {
@@ -64,4 +83,12 @@ func maybeLoadChanCache(cacheDir string, teamID string) (types.Channels, bool) {
 		return nil, false
 	}
 	return cc, true
+}
+
+func saveCache(cacheDir, teamID string, cc types.Channels) error {
+	m, err := cache.NewManager(cacheDir)
+	if err != nil {
+		return err
+	}
+	return m.SaveChannels(teamID, cc)
 }

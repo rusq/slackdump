@@ -28,7 +28,7 @@ func Export(ctx context.Context, cfg config.Params, prov auth.Provider) error {
 		return errors.New("export directory or filename not specified")
 	}
 
-	sess, err := slackdump.NewWithOptions(ctx, prov, cfg.Options)
+	sess, err := slackdump.New(ctx, prov, cfg.Options)
 	if err != nil {
 		return err
 	}

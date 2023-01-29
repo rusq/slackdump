@@ -62,7 +62,7 @@ func wizExport(ctx context.Context, cmd *base.Command, args []string) error {
 		return err
 	}
 
-	sess, err := slackdump.NewWithOptions(ctx, prov, cfg.SlackOptions)
+	sess, err := slackdump.New(ctx, prov, cfg.SlackOptions)
 	if err != nil {
 		return err
 	}

@@ -34,7 +34,7 @@ type Session struct {
 	Users     types.Users          `json:"users"`
 	UserIndex structures.UserIndex `json:"-"`
 
-	options Options
+	cfg Config
 }
 
 // WorkspaceInfo is an type alias for [slack.AuthTestResponse].
@@ -61,25 +61,17 @@ var (
 // AllChanTypes enumerates all API-supported channel types as of 03/2022.
 var AllChanTypes = []string{"mpim", "im", "public_channel", "private_channel"}
 
-// New creates new session with the default options  and populates the internal
-// cache of users and channels for lookups.
-func New(ctx context.Context, creds auth.Provider, opts ...Option) (*Session, error) {
-	options := DefOptions
-	for _, opt := range opts {
-		opt(&options)
-	}
+// Option is the signature of the option-setting function.
+type Option func(*Session)
 
-	return NewWithOptions(ctx, creds, options)
-}
-
-// NewWithOptions creates new Session with provided options, and populates the
-// internal cache of users and channels for lookups. If it fails to authenticate,
-// AuthError is returned.
-func NewWithOptions(ctx context.Context, authProvider auth.Provider, opts Options) (*Session, error) {
+// New creates new Slackdump session with provided options, and populates the
+// internal cache of users and channels for lookups. If it fails to
+// authenticate, AuthError is returned.
+func New(ctx context.Context, authProvider auth.Provider, cfg Config, opts ...Option) (*Session, error) {
 	ctx, task := trace.NewTask(ctx, "NewWithOptions")
 	defer task.End()
 
-	if err := opts.Limits.Validate(); err != nil {
+	if err := cfg.Limits.Validate(); err != nil {
 		var vErr validator.ValidationErrors
 		if errors.As(err, &vErr) {
 			return nil, fmt.Errorf("API limits failed validation: %s", vErr.Translate(OptErrTranslations))
@@ -100,17 +92,17 @@ func NewWithOptions(ctx context.Context, authProvider auth.Provider, opts Option
 
 	sd := &Session{
 		client:  cl,
-		options: opts,
+		cfg:     cfg,
 		wspInfo: authTestResp,
 	}
 
 	sd.propagateLogger(sd.l())
 
-	if err := os.MkdirAll(opts.CacheDir, 0700); err != nil {
+	if err := os.MkdirAll(cfg.CacheDir, 0700); err != nil {
 		return nil, fmt.Errorf("failed to create the cache directory: %s", err)
 	}
 
-	if !sd.options.UserCache.Disabled {
+	if !sd.cfg.UserCache.Disabled {
 		sd.l().Println("> checking user cache...")
 		users, err := sd.GetUsers(ctx)
 		if err != nil {
@@ -151,7 +143,7 @@ func ptrSlice[T any](cc []T) []*T {
 }
 
 func (sd *Session) limiter(t network.Tier) *rate.Limiter {
-	return network.NewLimiter(t, sd.options.Limits.Tier3.Burst, int(sd.options.Limits.Tier3.Boost))
+	return network.NewLimiter(t, sd.cfg.Limits.Tier3.Burst, int(sd.cfg.Limits.Tier3.Boost))
 }
 
 // withRetry will run the callback function fn. If the function returns
@@ -163,10 +155,10 @@ func withRetry(ctx context.Context, l *rate.Limiter, maxAttempts int, fn func() 
 
 // l returns the current logger.
 func (sd *Session) l() logger.Interface {
-	if sd.options.Logger == nil {
+	if sd.cfg.Logger == nil {
 		return logger.Default
 	}
-	return sd.options.Logger
+	return sd.cfg.Logger
 }
 
 // propagateLogger propagates the slackdump logger to some dumb packages.
@@ -174,7 +166,9 @@ func (sd *Session) propagateLogger(l logger.Interface) {
 	network.Logger = l
 }
 
-// Info returns a workspace information.
+// Info returns a workspace information.  Slackdump retrieves workspace
+// information during the initialisation when performing authentication test,
+// so no API call is involved at this point.
 func (sd *Session) Info() *WorkspaceInfo {
 	return sd.wspInfo
 }

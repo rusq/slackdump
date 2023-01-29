@@ -28,7 +28,7 @@ type Manager struct {
 }
 
 const (
-	wspExt         = ".bin"
+	wspExt         = ".bin"              // workspace file extension
 	defCredsFile   = "provider" + wspExt // default creds file
 	defName        = "default"           // name that will be shown for "provider.bin"
 	currentWspFile = "workspace.txt"
@@ -42,25 +42,46 @@ var (
 
 type Option func(m *Manager)
 
+// WithAuthOpts allows to change the default Auth options, they will be
+// passed to auth package..
 func WithAuthOpts(opts ...auth.Option) Option {
 	return func(m *Manager) {
 		m.authOptions = opts
 	}
 }
 
-// WithUserBasename allows to change the default base name of "users.cache".
-// If the filename is empty it's a noop.  If the filename does not contain
-// extension, ".cache" is appended.
-func WithUserBasename(filename string) Option {
+// WithChannelCacheBase allows to change the default cache file name for
+// channels cache.
+func WithChannelCacheBase(filename string) Option {
 	return func(m *Manager) {
 		if filename == "" {
 			return
 		}
-		if ext := filepath.Ext(filename); ext == "" || ext == "." {
-			filename += ".cache"
-		}
-		m.userFile = filename
+		m.channelFile = maybeAppendExt(filename, ".cache")
 	}
+}
+
+// WithUserCacheBase allows to change the default base name of "users.cache".
+// If the filename is empty it's a noop.  If the filename does not contain
+// extension, ".cache" is appended.
+func WithUserCacheBase(filename string) Option {
+	return func(m *Manager) {
+		if filename == "" {
+			return
+		}
+		m.userFile = maybeAppendExt(filename, ".cache")
+	}
+}
+
+// maybeAppendExt appends the extension to the filename if it's empty.
+func maybeAppendExt(filename string, ext string) string {
+	if ext == "" {
+		return filename
+	}
+	if ext := filepath.Ext(filename); ext == "" || ext == "." {
+		filename += ext
+	}
+	return filename
 }
 
 // NewManager creates a new workspace manager over the directory dir.
@@ -70,8 +91,9 @@ func WithUserBasename(filename string) Option {
 // TODO: test with empty dir.
 func NewManager(dir string, opts ...Option) (*Manager, error) {
 	m := &Manager{
-		dir:      dir,
-		userFile: "users.cache",
+		dir:         dir,
+		userFile:    "users.cache",
+		channelFile: "channels.cache",
 	}
 	for _, opt := range opts {
 		opt(m)

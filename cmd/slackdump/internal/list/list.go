@@ -76,7 +76,7 @@ func list(ctx context.Context, listFn listFunc) error {
 	}
 
 	// initialize the session.
-	sess, err := slackdump.NewWithOptions(ctx, prov, cfg.SlackOptions)
+	sess, err := slackdump.New(ctx, prov, cfg.SlackOptions)
 	if err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return err

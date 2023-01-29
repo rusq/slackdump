@@ -111,7 +111,7 @@ func (sd *Session) dumpThread(
 			nextCursor string
 		)
 		reqStart := time.Now()
-		if err := withRetry(ctx, l, sd.options.Limits.Tier3.Retries, func() error {
+		if err := withRetry(ctx, l, sd.cfg.Limits.Tier3.Retries, func() error {
 			var err error
 			trace.WithRegion(ctx, "GetConversationRepliesContext", func() {
 				msgs, hasmore, nextCursor, err = sd.client.GetConversationRepliesContext(
@@ -120,7 +120,7 @@ func (sd *Session) dumpThread(
 						ChannelID: channelID,
 						Cursor:    cursor,
 						Timestamp: threadTS,
-						Limit:     sd.options.Limits.Request.Replies,
+						Limit:     sd.cfg.Limits.Request.Replies,
 						Oldest:    structures.FormatSlackTS(oldest),
 						Latest:    structures.FormatSlackTS(latest),
 						Inclusive: true,

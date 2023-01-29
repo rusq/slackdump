@@ -38,7 +38,7 @@ func run(ctx context.Context, cmd *base.Command, args []string) error {
 		return fmt.Errorf("auth error: %s", err)
 	}
 	cfg.SlackOptions.UserCache.Disabled = true // don't need users for emojis
-	sess, err := slackdump.NewWithOptions(ctx, prov, cfg.SlackOptions)
+	sess, err := slackdump.New(ctx, prov, cfg.SlackOptions)
 	if err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return fmt.Errorf("application error: %s", err)
