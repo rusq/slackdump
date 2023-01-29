@@ -110,7 +110,7 @@ func NewWithOptions(ctx context.Context, authProvider auth.Provider, opts Option
 		return nil, fmt.Errorf("failed to create the cache directory: %s", err)
 	}
 
-	if !sd.options.NoUserCache {
+	if !sd.options.UserCache.Disabled {
 		sd.l().Println("> checking user cache...")
 		users, err := sd.GetUsers(ctx)
 		if err != nil {

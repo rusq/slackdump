@@ -22,13 +22,20 @@ const defNumWorkers = 4 // default number of file downloaders. it's here because
 type Options struct {
 	Limits Limits
 
-	DumpFiles         bool          // will we save the conversation files?
-	UserCacheFilename string        // user cache filename
-	MaxUserCacheAge   time.Duration // how long the user cache is valid for.
-	NoUserCache       bool          // disable fetching users from the API.
-	CacheDir          string        // cache directory
-	Logger            logger.Interface
-	Filesystem        fsadapter.FS
+	DumpFiles  bool // will we save the conversation files?
+	Filesystem fsadapter.FS
+
+	CacheDir  string // cache directory
+	UserCache CacheOptions
+
+	Logger logger.Interface
+}
+
+// CacheOptions represents the options for the cache.
+type CacheOptions struct {
+	Filename string
+	MaxAge   time.Duration
+	Disabled bool
 }
 
 type Limits struct {
@@ -87,12 +94,11 @@ var DefOptions = Options{
 			Replies:       200, // the API-default is 1000 (see conversations.replies), but on large threads it may fail (see #54)
 		},
 	},
-	DumpFiles:         false,
-	UserCacheFilename: "users.cache",               // seems logical
-	MaxUserCacheAge:   4 * time.Hour,               // quick math:  that's 1/6th of a day, how's that, huh?
-	CacheDir:          "",                          // default cache dir
-	Logger:            logger.Default,              // default logger is the... default logger
-	Filesystem:        fsadapter.NewDirectory("."), // default filesystem is the current directory
+	DumpFiles:  false,
+	UserCache:  CacheOptions{Filename: "users.cache", MaxAge: 4 * time.Hour},
+	CacheDir:   "",                          // default cache dir
+	Logger:     logger.Default,              // default logger is the... default logger
+	Filesystem: fsadapter.NewDirectory("."), // default filesystem is the current directory
 }
 
 var (
@@ -183,7 +189,7 @@ func NumWorkers(n int) Option {
 func UserCacheFilename(s string) Option {
 	return func(options *Options) {
 		if s != "" {
-			options.UserCacheFilename = s
+			options.UserCache.Filename = s
 		}
 	}
 }
@@ -192,7 +198,7 @@ func UserCacheFilename(s string) Option {
 // will always use the API output, and never load cache.
 func MaxUserCacheAge(d time.Duration) Option {
 	return func(options *Options) {
-		options.MaxUserCacheAge = d
+		options.UserCache.MaxAge = d
 	}
 }
 

@@ -84,7 +84,7 @@ func SetBaseFlags(fs *flag.FlagSet, mask FlagMask) {
 		fs.StringVar(&Workspace, "workspace", osenv.Value("SLACK_WORKSPACE", ""), "Slack workspace to use") // TODO: load from configuration.
 	}
 	if mask&OmitUserCacheFlag == 0 {
-		fs.BoolVar(&SlackOptions.NoUserCache, "no-user-cache", false, "disable user cache")
-		fs.DurationVar(&SlackOptions.MaxUserCacheAge, "user-cache-age", slackdump.DefOptions.MaxUserCacheAge, "maximum user cache age")
+		fs.BoolVar(&SlackOptions.UserCache.Disabled, "no-user-cache", false, "disable user cache")
+		fs.DurationVar(&SlackOptions.UserCache.MaxAge, "user-cache-age", slackdump.DefOptions.UserCache.MaxAge, "maximum user cache age")
 	}
 }

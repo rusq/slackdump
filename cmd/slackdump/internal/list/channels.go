@@ -6,6 +6,8 @@ import (
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/golang/base"
+	"github.com/rusq/slackdump/v2/internal/cache"
+	"github.com/rusq/slackdump/v2/types"
 )
 
 var CmdListChannels = &base.Command{
@@ -34,11 +36,32 @@ func listChannels(ctx context.Context, cmd *base.Command, args []string) error {
 		if len(args) > 0 {
 			filename = args[0]
 		}
-		a, err := sess.GetChannels(ctx)
-		return a, filename, err
+
+		cc, ok := maybeLoadChanCache(cfg.CacheDir(), sess.Info().Team)
+		if ok {
+			return cc, filename, nil
+		}
+		cc, err := sess.GetChannels(ctx)
+		return cc, filename, err
 	}); err != nil {
 		return err
 	}
 
 	return nil
+}
+
+var chanCacheOpts = slackdump.CacheOptions{
+	Disabled: false,
+}
+
+func maybeLoadChanCache(cacheDir string, teamID string) (types.Channels, bool) {
+	m, err := cache.NewManager(cacheDir)
+	if err != nil {
+		return nil, false
+	}
+	cc, err := m.LoadChannels(teamID, chanCacheOpts.MaxAge)
+	if err != nil {
+		return nil, false
+	}
+	return cc, true
 }

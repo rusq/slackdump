@@ -18,21 +18,20 @@ import (
 
 // GetUsers retrieves all users either from cache or from the API.
 func (sd *Session) GetUsers(ctx context.Context) (types.Users, error) {
-	// TODO: validate that the cache is from the same workspace, it can be done by team ID.
 	ctx, task := trace.NewTask(ctx, "GetUsers")
 	defer task.End()
 
-	if sd.options.NoUserCache {
+	if sd.options.UserCache.Disabled {
 		return types.Users{}, nil
 	}
 
 	// TODO make Manager a Session variable.  Maybe?
-	m, err := cache.NewManager(sd.options.CacheDir, cache.WithUserBasename(sd.options.UserCacheFilename))
+	m, err := cache.NewManager(sd.options.CacheDir, cache.WithUserBasename(sd.options.UserCache.Filename))
 	if err != nil {
 		return nil, err
 	}
 
-	users, err := m.LoadUsers(sd.wspInfo.TeamID, sd.options.MaxUserCacheAge)
+	users, err := m.LoadUsers(sd.wspInfo.TeamID, sd.options.UserCache.MaxAge)
 	if err != nil {
 		if os.IsNotExist(err) {
 			sd.l().Println("  caching users for the first time")
@@ -44,8 +43,8 @@ func (sd *Session) GetUsers(ctx context.Context) (types.Users, error) {
 			return nil, err
 		}
 		if err := m.SaveUsers(sd.wspInfo.TeamID, users); err != nil {
-			trace.Logf(ctx, "error", "saving user cache to %q, error: %s", sd.options.UserCacheFilename, err)
-			sd.l().Printf("error saving user cache to %q: %s, but nevermind, let's continue", sd.options.UserCacheFilename, err)
+			trace.Logf(ctx, "error", "saving user cache to %q, error: %s", sd.options.UserCache.Filename, err)
+			sd.l().Printf("error saving user cache to %q: %s, but nevermind, let's continue", sd.options.UserCache.Filename, err)
 		}
 	}
 

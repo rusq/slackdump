@@ -94,7 +94,7 @@ func printAll(m manager, current string, wsps []string) {
 		"C\tname\tfilename\tmodified\tteam\tuser\terror\n"+
 			"-\t-------\t------------\t-------------------\t---------\t--------\t-----")
 	cfg.SlackOptions.Logger = logger.Silent
-	cfg.SlackOptions.NoUserCache = true
+	cfg.SlackOptions.UserCache.Disabled = true
 	for _, name := range wsps {
 		curr := ""
 		if current == name {
