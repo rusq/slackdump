@@ -33,7 +33,8 @@ type Session struct {
 	// Users contains the list of users and populated on NewSession
 	Users types.Users `json:"users"`
 
-	fs fsadapter.FS
+	fs    fsadapter.FSCloser // filesystem adapter
+	ownFS bool               // whether the filesystem adapter was created by the session
 
 	cfg Config
 }
@@ -65,6 +66,17 @@ var AllChanTypes = []string{"mpim", "im", "public_channel", "private_channel"}
 // Option is the signature of the option-setting function.
 type Option func(*Session)
 
+// WithFilesystem sets the filesystem adapter to use for the session.  If this
+// option is not given, the default filesystem adapter is initialised with the
+// base location specified in the Config.
+func WithFilesystem(fs fsadapter.FSCloser) Option {
+	return func(s *Session) {
+		if fs != nil {
+			s.fs = fs
+		}
+	}
+}
+
 // New creates new Slackdump session with provided options, and populates the
 // internal cache of users and channels for lookups. If it fails to
 // authenticate, AuthError is returned.
@@ -95,6 +107,19 @@ func New(ctx context.Context, prov auth.Provider, cfg Config, opts ...Option) (*
 		cfg:     cfg,
 		wspInfo: authTestResp,
 	}
+	for _, opt := range opts {
+		opt(sd)
+	}
+	if sd.fs == nil {
+		// if no filesystem adapter is provided through Options, initialise
+		// the default one.
+		var err error
+		sd.fs, err = fsadapter.New(cfg.BaseLocation)
+		if err != nil {
+			return nil, fmt.Errorf("failed to initialise filesystem adapter: %s", err)
+		}
+		sd.ownFS = true
+	}
 
 	sd.propagateLogger(sd.l())
 
@@ -117,6 +142,20 @@ func New(ctx context.Context, prov auth.Provider, cfg Config, opts ...Option) (*
 // Client returns the underlying slack.Client.
 func (s *Session) Client() *slack.Client {
 	return s.client.(*slack.Client)
+}
+
+// Filesystem returns the filesystem adapter used by the session.
+func (s *Session) Filesystem() fsadapter.FS {
+	return s.fs
+}
+
+// Close closes the handles if they were created by the session.
+// It must be called when the session is no longer needed.
+func (s *Session) Close() error {
+	if s.ownFS {
+		return s.fs.Close()
+	}
+	return nil
 }
 
 // Me returns the current authenticated user in a rather dirty manner.

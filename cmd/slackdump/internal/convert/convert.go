@@ -241,10 +241,11 @@ func getUsersOnline(ctx context.Context, cacheDir, wsp string) ([]slack.User, er
 	if err != nil {
 		return nil, err
 	}
-	sess, err := slackdump.New(ctx, prov, cfg.SlackOptions)
+	sess, err := slackdump.New(ctx, prov, cfg.SlackConfig)
 	if err != nil {
 		return nil, err
 	}
+	defer sess.Close()
 	return sess.GetUsers(ctx)
 }
 
@@ -253,7 +254,7 @@ var errNoMatch = errors.New("no matching users")
 // searchCache searches the cache directory for cached workspace users that have
 // the same ids, and returns the user slice from that cache.
 func searchCache(ctx context.Context, cacheDir string, ids []string) ([]slack.User, error) {
-	ctx, task := trace.NewTask(ctx, "searchCache")
+	_, task := trace.NewTask(ctx, "searchCache")
 	defer task.End()
 	m, err := cache.NewManager(cacheDir)
 	if err != nil {

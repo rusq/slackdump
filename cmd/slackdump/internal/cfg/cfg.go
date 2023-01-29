@@ -19,13 +19,12 @@ var (
 	Verbose   bool
 
 	ConfigFile string
-	BaseLoc    string // base location - directory or a zip file.
 	Workspace  string
 
-	SlackToken   string
-	SlackCookie  string
-	Browser      browser.Browser
-	SlackOptions = slackdump.DefOptions
+	SlackToken  string
+	SlackCookie string
+	Browser     browser.Browser
+	SlackConfig = slackdump.DefOptions
 )
 
 type FlagMask int
@@ -63,28 +62,28 @@ func SetBaseFlags(fs *flag.FlagSet, mask FlagMask) {
 		fs.Var(&Browser, "browser", "browser to use for EZ-Login 3000 (default: firefox)")
 	}
 	if mask&OmitDownloadFlag == 0 {
-		fs.BoolVar(&SlackOptions.DumpFiles, "files", true, "enables file attachments download (to disable,\nspecify: -files=false)")
+		fs.BoolVar(&SlackConfig.DumpFiles, "files", true, "enables file attachments download (to disable,\nspecify: -files=false)")
 	}
 	if mask&OmitConfigFlag == 0 {
 		fs.StringVar(&ConfigFile, "api-config", "", "configuration `file` with Slack API limits overrides.\nYou can generate one with default values with 'slackdump config new`")
 	}
 	if mask&OmitBaseLoc == 0 {
 		base := fmt.Sprintf("slackdump_%s.zip", time.Now().Format("20060102_150405"))
-		fs.StringVar(&BaseLoc, "base", osenv.Value("BASE_LOC", base), "a `location` (a directory or a ZIP file) on the local disk to save\ndownloaded files to.")
+		fs.StringVar(&SlackConfig.BaseLocation, "base", osenv.Value("BASE_LOC", base), "a `location` (a directory or a ZIP file) on the local disk to save\ndownloaded files to.")
 	}
 	if mask&OmitCacheDir == 0 {
-		fs.StringVar(&SlackOptions.CacheDir, "cache-dir", osenv.Value("CACHE_DIR", CacheDir()), "cache `directory` location\n")
+		fs.StringVar(&SlackConfig.CacheDir, "cache-dir", osenv.Value("CACHE_DIR", CacheDir()), "cache `directory` location\n")
 	} else {
 		// If the OmitCacheDir is specified, then the CacheDir will end up being
 		// the default value, which is "". Therefore, we need to init the
 		// cache directory.
-		SlackOptions.CacheDir = CacheDir()
+		SlackConfig.CacheDir = CacheDir()
 	}
 	if mask&OmitWorkspaceFlag == 0 {
 		fs.StringVar(&Workspace, "workspace", osenv.Value("SLACK_WORKSPACE", ""), "Slack workspace to use") // TODO: load from configuration.
 	}
 	if mask&OmitUserCacheFlag == 0 {
-		fs.BoolVar(&SlackOptions.UserCache.Disabled, "no-user-cache", false, "disable user cache")
-		fs.DurationVar(&SlackOptions.UserCache.MaxAge, "user-cache-age", slackdump.DefOptions.UserCache.MaxAge, "maximum user cache age")
+		fs.BoolVar(&SlackConfig.UserCache.Disabled, "no-user-cache", false, "disable user cache")
+		fs.DurationVar(&SlackConfig.UserCache.MaxAge, "user-cache-age", slackdump.DefOptions.UserCache.MaxAge, "maximum user cache age")
 	}
 }

@@ -76,11 +76,12 @@ func list(ctx context.Context, listFn listFunc) error {
 	}
 
 	// initialize the session.
-	sess, err := slackdump.New(ctx, prov, cfg.SlackOptions)
+	sess, err := slackdump.New(ctx, prov, cfg.SlackConfig)
 	if err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return err
 	}
+	defer sess.Close()
 
 	data, filename, err := listFn(ctx, sess)
 	if err != nil {
@@ -99,17 +100,10 @@ func list(ctx context.Context, listFn listFunc) error {
 // saveData saves the given data to the given filename.
 func saveData(ctx context.Context, sess *slackdump.Session, data any, filename string, typ format.Type) error {
 	// save to a filesystem.
-	fs, err := fsadapter.New(cfg.BaseLoc)
-	if err != nil {
-		base.SetExitStatus(base.SApplicationError)
+	if err := writeData(ctx, sess.Filesystem(), filename, data, typ, sess.Users); err != nil {
 		return err
 	}
-	defer fs.Close()
-
-	if err := writeData(ctx, fs, filename, data, typ, sess.Users); err != nil {
-		return err
-	}
-	dlog.FromContext(ctx).Printf("Data saved to:  %q\n", filepath.Join(cfg.BaseLoc, filename))
+	dlog.FromContext(ctx).Printf("Data saved to:  %q\n", filepath.Join(cfg.SlackConfig.BaseLocation, filename))
 	return nil
 }
 

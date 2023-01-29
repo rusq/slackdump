@@ -11,7 +11,6 @@ import (
 	"github.com/go-playground/validator/v10"
 	translations "github.com/go-playground/validator/v10/translations/en"
 
-	"github.com/rusq/slackdump/v2/fsadapter"
 	"github.com/rusq/slackdump/v2/logger"
 )
 
@@ -24,8 +23,8 @@ type Config struct {
 	CacheDir  string // cache directory
 	UserCache CacheConfig
 
-	Filesystem fsadapter.FS
-	Logger     logger.Interface
+	BaseLocation string // base location for the dump files
+	Logger       logger.Interface
 }
 
 // CacheConfig represents the options for the cache.
@@ -91,22 +90,23 @@ var DefOptions = Config{
 			Replies:       200, // the API-default is 1000 (see conversations.replies), but on large threads it may fail (see #54)
 		},
 	},
-	DumpFiles:  false,
-	UserCache:  CacheConfig{Filename: "users.cache", MaxAge: 4 * time.Hour},
-	CacheDir:   "",                          // default cache dir
-	Logger:     logger.Default,              // default logger is the... default logger
-	Filesystem: fsadapter.NewDirectory("."), // default filesystem is the current directory
+	DumpFiles:    false,
+	UserCache:    CacheConfig{Filename: "users.cache", MaxAge: 4 * time.Hour},
+	CacheDir:     "",             // default cache dir
+	Logger:       logger.Default, // default logger is the... default logger
+	BaseLocation: ".",            // default location is the current directory
 }
 
 var (
-	optValidator *validator.Validate // options validator
+	cfgValidator *validator.Validate // options validator
 	// OptErrTranslations is the english translations for the validation
 	// errors.
 	OptErrTranslations ut.Translator
 )
 
 func init() {
-	optValidator = validator.New()
+	// initialise the config validator
+	cfgValidator = validator.New()
 	english := en.New()
 	uni := ut.New(english, english)
 	var ok bool
@@ -114,7 +114,7 @@ func init() {
 	if !ok {
 		panic("internal error: failed to init translator")
 	}
-	if err := translations.RegisterDefaultTranslations(optValidator, OptErrTranslations); err != nil {
+	if err := translations.RegisterDefaultTranslations(cfgValidator, OptErrTranslations); err != nil {
 		panic(err)
 	}
 }
@@ -137,7 +137,7 @@ func (o *Limits) Apply(other Limits) error {
 }
 
 func (o *Limits) Validate() error {
-	return optValidator.Struct(o)
+	return cfgValidator.Struct(o)
 }
 
 func apply[T comparable](this *T, other T) {

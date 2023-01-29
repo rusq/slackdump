@@ -42,7 +42,7 @@ type Params struct {
 
 	Emoji EmojiParams
 
-	Options slackdump.Config
+	SlackConfig slackdump.Config
 }
 
 type EmojiParams struct {
@@ -160,8 +160,8 @@ func (in Input) Producer(fn func(string) error) error {
 }
 
 func (p *Params) Logger() logger.Interface {
-	if p.Options.Logger == nil {
+	if p.SlackConfig.Logger == nil {
 		return logger.Default
 	}
-	return p.Options.Logger
+	return p.SlackConfig.Logger
 }
