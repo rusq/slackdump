@@ -48,9 +48,8 @@ func TestUsers_IndexByID(t *testing.T) {
 
 func TestSession_fetchUsers(t *testing.T) {
 	type fields struct {
-		Users     types.Users
-		UserIndex structures.UserIndex
-		options   Config
+		Users   types.Users
+		options Config
 	}
 	type args struct {
 		ctx context.Context
@@ -101,10 +100,9 @@ func TestSession_fetchUsers(t *testing.T) {
 			tt.expectFn(mc)
 
 			sd := &Session{
-				client:    mc,
-				Users:     tt.fields.Users,
-				UserIndex: tt.fields.UserIndex,
-				cfg:       tt.fields.options,
+				client: mc,
+				Users:  tt.fields.Users,
+				cfg:    tt.fields.options,
 			}
 			got, err := sd.fetchUsers(tt.args.ctx)
 			if (err != nil) != tt.wantErr {
@@ -121,9 +119,8 @@ func TestSession_fetchUsers(t *testing.T) {
 func TestSession_GetUsers(t *testing.T) {
 	dir := t.TempDir()
 	type fields struct {
-		Users     types.Users
-		UserIndex structures.UserIndex
-		options   Config
+		Users   types.Users
+		options Config
 	}
 	type args struct {
 		ctx context.Context
@@ -176,11 +173,10 @@ func TestSession_GetUsers(t *testing.T) {
 			tt.expectFn(mc)
 
 			sd := &Session{
-				client:    mc,
-				wspInfo:   &slack.AuthTestResponse{TeamID: testSuffix},
-				Users:     tt.fields.Users,
-				UserIndex: tt.fields.UserIndex,
-				cfg:       tt.fields.options,
+				client:  mc,
+				wspInfo: &slack.AuthTestResponse{TeamID: testSuffix},
+				Users:   tt.fields.Users,
+				cfg:     tt.fields.options,
 			}
 			got, err := sd.GetUsers(tt.args.ctx)
 			if (err != nil) != tt.wantErr {

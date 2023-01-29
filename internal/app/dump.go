@@ -163,7 +163,7 @@ func (app *dump) writeText(fs fsadapter.FS, filename string, m *types.Conversati
 	}
 	defer f.Close()
 
-	return m.ToText(f, app.sess.UserIndex)
+	return m.ToText(f, app.sess.Users.IndexByID())
 }
 
 // reporter is an interface defining output functions
@@ -225,7 +225,7 @@ func (dm *dump) fetchEntity(ctx context.Context, listFlags config.ListFlags) (re
 func (app *dump) formatEntity(w io.Writer, rep reporter, output config.Output) error {
 	switch output.Format {
 	case config.OutputTypeText:
-		return rep.ToText(w, app.sess.UserIndex)
+		return rep.ToText(w, app.sess.Users.IndexByID())
 	case config.OutputTypeJSON:
 		enc := json.NewEncoder(w)
 		return enc.Encode(rep)

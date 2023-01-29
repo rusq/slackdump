@@ -10,15 +10,13 @@ import (
 	"github.com/slack-go/slack"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/rusq/slackdump/v2/internal/structures"
 	"github.com/rusq/slackdump/v2/types"
 )
 
 func TestSession_getChannels(t *testing.T) {
 	type fields struct {
-		Users     types.Users
-		UserIndex structures.UserIndex
-		options   Config
+		Users   types.Users
+		options Config
 	}
 	type args struct {
 		ctx       context.Context
@@ -79,10 +77,9 @@ func TestSession_getChannels(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			mc := newmockClienter(gomock.NewController(t))
 			sd := &Session{
-				client:    mc,
-				Users:     tt.fields.Users,
-				UserIndex: tt.fields.UserIndex,
-				cfg:       tt.fields.options,
+				client: mc,
+				Users:  tt.fields.Users,
+				cfg:    tt.fields.options,
 			}
 
 			if tt.expectFn != nil {
@@ -105,10 +102,9 @@ func TestSession_getChannels(t *testing.T) {
 
 func TestSession_GetChannels(t *testing.T) {
 	type fields struct {
-		client    clienter
-		Users     types.Users
-		UserIndex structures.UserIndex
-		options   Config
+		client  clienter
+		Users   types.Users
+		options Config
 	}
 	type args struct {
 		ctx       context.Context
@@ -126,10 +122,9 @@ func TestSession_GetChannels(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			sd := &Session{
-				client:    tt.fields.client,
-				Users:     tt.fields.Users,
-				UserIndex: tt.fields.UserIndex,
-				cfg:       tt.fields.options,
+				client: tt.fields.client,
+				Users:  tt.fields.Users,
+				cfg:    tt.fields.options,
 			}
 			got, err := sd.GetChannels(tt.args.ctx, tt.args.chanTypes...)
 			if (err != nil) != tt.wantErr {

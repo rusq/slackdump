@@ -73,12 +73,12 @@ type RequestLimit struct {
 // DefOptions is the default options used when initialising slackdump instance.
 var DefOptions = Config{
 	Limits: Limits{
-		Workers:         4, // number of workers doing the file download
+		Workers:         4, // number of parallel goroutines downloading files.
 		DownloadRetries: 3, // this shouldn't even happen, as we have no limiter on files download.
 		Tier2: TierLimits{
 			Boost:   20, // seems to work fine with this boost
 			Burst:   1,  // limiter will wait indefinitely if it is less than 1.
-			Retries: 20, // see #28, sometimes slack is being difficult
+			Retries: 20, // see issue #28, sometimes slack is being difficult
 		},
 		Tier3: TierLimits{
 			Boost:   120, // playing safe there, but generally value of 120 is fine.

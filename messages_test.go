@@ -13,7 +13,6 @@ import (
 
 	"github.com/rusq/slackdump/v2/internal/fixtures"
 	"github.com/rusq/slackdump/v2/internal/network"
-	"github.com/rusq/slackdump/v2/internal/structures"
 	"github.com/rusq/slackdump/v2/types"
 )
 
@@ -64,9 +63,8 @@ var (
 
 func TestSession_DumpMessages(t *testing.T) {
 	type fields struct {
-		Users     types.Users
-		UserIndex structures.UserIndex
-		options   Config
+		Users   types.Users
+		options Config
 	}
 	type args struct {
 		ctx       context.Context
@@ -219,10 +217,9 @@ func TestSession_DumpMessages(t *testing.T) {
 			tt.expectFn(mc)
 
 			sd := &Session{
-				client:    mc,
-				Users:     tt.fields.Users,
-				UserIndex: tt.fields.UserIndex,
-				cfg:       tt.fields.options,
+				client: mc,
+				Users:  tt.fields.Users,
+				cfg:    tt.fields.options,
 			}
 			got, err := sd.DumpAll(tt.args.ctx, tt.args.channelID)
 			if (err != nil) != tt.wantErr {
@@ -237,9 +234,8 @@ func TestSession_DumpMessages(t *testing.T) {
 func TestSession_DumpAll(t *testing.T) {
 	t.Parallel()
 	type fields struct {
-		Users     types.Users
-		UserIndex structures.UserIndex
-		options   Config
+		Users   types.Users
+		options Config
 	}
 	type args struct {
 		ctx      context.Context
@@ -303,10 +299,9 @@ func TestSession_DumpAll(t *testing.T) {
 			}
 
 			sd := &Session{
-				client:    mc,
-				Users:     tt.fields.Users,
-				UserIndex: tt.fields.UserIndex,
-				cfg:       tt.fields.options,
+				client: mc,
+				Users:  tt.fields.Users,
+				cfg:    tt.fields.options,
 			}
 			got, err := sd.DumpAll(tt.args.ctx, tt.args.slackURL)
 			if (err != nil) != tt.wantErr {
@@ -365,9 +360,8 @@ func TestConversation_String(t *testing.T) {
 
 func TestSession_getChannelName(t *testing.T) {
 	type fields struct {
-		Users     types.Users
-		UserIndex structures.UserIndex
-		options   Config
+		Users   types.Users
+		options Config
 	}
 	type args struct {
 		ctx       context.Context
@@ -422,10 +416,9 @@ func TestSession_getChannelName(t *testing.T) {
 
 			tt.expectFn(mc)
 			sd := &Session{
-				client:    mc,
-				Users:     tt.fields.Users,
-				UserIndex: tt.fields.UserIndex,
-				cfg:       tt.fields.options,
+				client: mc,
+				Users:  tt.fields.Users,
+				cfg:    tt.fields.options,
 			}
 			got, err := sd.getChannelName(tt.args.ctx, tt.args.l, tt.args.channelID)
 			if (err != nil) != tt.wantErr {

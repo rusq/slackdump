@@ -27,13 +27,13 @@ import (
 //
 // oldest and latest timestamps set a timeframe  within which the messages
 // should be retrieved, also one can provide process functions.
-func (sd *Session) Dump(ctx context.Context, link string, oldest, latest time.Time, processFn ...ProcessFunc) (*types.Conversation, error) {
+func (s *Session) Dump(ctx context.Context, link string, oldest, latest time.Time, processFn ...ProcessFunc) (*types.Conversation, error) {
 	sl, err := structures.ParseLink(link)
 	if err != nil {
 		return nil, err
 	}
-	if sd.cfg.DumpFiles {
-		fn, cancelFn, err := sd.newFileProcessFn(ctx, sl.Channel, sd.limiter(network.NoTier))
+	if s.cfg.DumpFiles {
+		fn, cancelFn, err := s.newFileProcessFn(ctx, sl.Channel, s.limiter(network.NoTier))
 		if err != nil {
 			return nil, err
 		}
@@ -41,27 +41,27 @@ func (sd *Session) Dump(ctx context.Context, link string, oldest, latest time.Ti
 		processFn = append(processFn, fn)
 	}
 
-	return sd.dump(ctx, sl, oldest, latest, processFn...)
+	return s.dump(ctx, sl, oldest, latest, processFn...)
 }
 
 // DumpAll dumps all messages.  See description of Dump for what can be provided
 // in link.
-func (sd *Session) DumpAll(ctx context.Context, link string) (*types.Conversation, error) {
-	return sd.Dump(ctx, link, time.Time{}, time.Time{})
+func (s *Session) DumpAll(ctx context.Context, link string) (*types.Conversation, error) {
+	return s.Dump(ctx, link, time.Time{}, time.Time{})
 }
 
 // DumpRaw dumps all messages, but does not account for any options
 // defined, such as DumpFiles, instead, the caller must hassle about any
 // processFns they want to apply.
-func (sd *Session) DumpRaw(ctx context.Context, link string, oldest, latest time.Time, processFn ...ProcessFunc) (*types.Conversation, error) {
+func (s *Session) DumpRaw(ctx context.Context, link string, oldest, latest time.Time, processFn ...ProcessFunc) (*types.Conversation, error) {
 	sl, err := structures.ParseLink(link)
 	if err != nil {
 		return nil, err
 	}
-	return sd.dump(ctx, sl, oldest, latest, processFn...)
+	return s.dump(ctx, sl, oldest, latest, processFn...)
 }
 
-func (sd *Session) dump(ctx context.Context, sl structures.SlackLink, oldest, latest time.Time, processFn ...ProcessFunc) (*types.Conversation, error) {
+func (s *Session) dump(ctx context.Context, sl structures.SlackLink, oldest, latest time.Time, processFn ...ProcessFunc) (*types.Conversation, error) {
 	ctx, task := trace.NewTask(ctx, "dump")
 	defer task.End()
 	trace.Logf(ctx, "info", "sl: %q", sl)
@@ -70,15 +70,15 @@ func (sd *Session) dump(ctx context.Context, sl structures.SlackLink, oldest, la
 	}
 
 	if sl.IsThread() {
-		return sd.dumpThreadAsConversation(ctx, sl, oldest, latest, processFn...)
+		return s.dumpThreadAsConversation(ctx, sl, oldest, latest, processFn...)
 	} else {
-		return sd.dumpChannel(ctx, sl.Channel, oldest, latest, processFn...)
+		return s.dumpChannel(ctx, sl.Channel, oldest, latest, processFn...)
 	}
 }
 
 // dumpChannel fetches messages from the conversation identified by channelID.
 // processFn will be called on each batch of messages returned from API.
-func (sd *Session) dumpChannel(ctx context.Context, channelID string, oldest, latest time.Time, processFn ...ProcessFunc) (*types.Conversation, error) {
+func (s *Session) dumpChannel(ctx context.Context, channelID string, oldest, latest time.Time, processFn ...ProcessFunc) (*types.Conversation, error) {
 	ctx, task := trace.NewTask(ctx, "dumpMessages")
 	defer task.End()
 
@@ -90,13 +90,13 @@ func (sd *Session) dumpChannel(ctx context.Context, channelID string, oldest, la
 
 	var (
 		// slack rate limits are per method, so we're safe to use different limiters for different mehtods.
-		convLimiter   = sd.limiter(network.Tier3)
-		threadLimiter = sd.limiter(network.Tier3)
+		convLimiter   = s.limiter(network.Tier3)
+		threadLimiter = s.limiter(network.Tier3)
 	)
 
 	// add thread dumper.  It should go first, because it populates message
 	// chunk with thread messages.
-	pfns := append([]ProcessFunc{sd.newThreadProcessFn(ctx, threadLimiter, oldest, latest)}, processFn...)
+	pfns := append([]ProcessFunc{s.newThreadProcessFn(ctx, threadLimiter, oldest, latest)}, processFn...)
 
 	var (
 		messages   []types.Message
@@ -108,13 +108,13 @@ func (sd *Session) dumpChannel(ctx context.Context, channelID string, oldest, la
 			resp *slack.GetConversationHistoryResponse
 		)
 		reqStart := time.Now()
-		if err := withRetry(ctx, convLimiter, sd.cfg.Limits.Tier3.Retries, func() error {
+		if err := withRetry(ctx, convLimiter, s.cfg.Limits.Tier3.Retries, func() error {
 			var err error
 			trace.WithRegion(ctx, "GetConversationHistoryContext", func() {
-				resp, err = sd.client.GetConversationHistoryContext(ctx, &slack.GetConversationHistoryParameters{
+				resp, err = s.client.GetConversationHistoryContext(ctx, &slack.GetConversationHistoryParameters{
 					ChannelID: channelID,
 					Cursor:    cursor,
-					Limit:     sd.cfg.Limits.Request.Conversations,
+					Limit:     s.cfg.Limits.Request.Conversations,
 					Oldest:    structures.FormatSlackTS(oldest),
 					Latest:    structures.FormatSlackTS(latest),
 					Inclusive: true,
@@ -141,14 +141,14 @@ func (sd *Session) dumpChannel(ctx context.Context, channelID string, oldest, la
 
 		messages = append(messages, chunk...)
 
-		sd.l().Printf("messages request #%5d, fetched: %4d (%s), total: %8d (speed: %6.2f/sec, avg: %6.2f/sec)\n",
+		s.l().Printf("messages request #%5d, fetched: %4d (%s), total: %8d (speed: %6.2f/sec, avg: %6.2f/sec)\n",
 			i, len(resp.Messages), results, len(messages),
 			float64(len(resp.Messages))/float64(time.Since(reqStart).Seconds()),
 			float64(len(messages))/float64(time.Since(fetchStart).Seconds()),
 		)
 
 		if !resp.HasMore {
-			sd.l().Printf("messages fetch complete, total: %d", len(messages))
+			s.l().Printf("messages fetch complete, total: %d", len(messages))
 			break
 		}
 
@@ -157,7 +157,7 @@ func (sd *Session) dumpChannel(ctx context.Context, channelID string, oldest, la
 
 	types.SortMessages(messages)
 
-	name, err := sd.getChannelName(ctx, sd.limiter(network.Tier3), channelID)
+	name, err := s.getChannelName(ctx, s.limiter(network.Tier3), channelID)
 	if err != nil {
 		return nil, err
 	}
@@ -165,12 +165,12 @@ func (sd *Session) dumpChannel(ctx context.Context, channelID string, oldest, la
 	return &types.Conversation{Name: name, Messages: messages, ID: channelID}, nil
 }
 
-func (sd *Session) getChannelName(ctx context.Context, l *rate.Limiter, channelID string) (string, error) {
+func (s *Session) getChannelName(ctx context.Context, l *rate.Limiter, channelID string) (string, error) {
 	// get channel name
 	var ci *slack.Channel
-	if err := withRetry(ctx, l, sd.cfg.Limits.Tier3.Retries, func() error {
+	if err := withRetry(ctx, l, s.cfg.Limits.Tier3.Retries, func() error {
 		var err error
-		ci, err = sd.client.GetConversationInfoContext(ctx, &slack.GetConversationInfoInput{ChannelID: channelID})
+		ci, err = s.client.GetConversationInfoContext(ctx, &slack.GetConversationInfoInput{ChannelID: channelID})
 		return err
 	}); err != nil {
 		return "", err

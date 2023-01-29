@@ -21,7 +21,7 @@ type threadFunc func(ctx context.Context, l *rate.Limiter, channelID string, thr
 // dumpThreadAsConversation dumps a single thread identified by (channelID,
 // threadTS). Optionally one can provide a number of processFn that will be
 // applied to each chunk of messages returned by a one API call.
-func (sd *Session) dumpThreadAsConversation(
+func (s *Session) dumpThreadAsConversation(
 	ctx context.Context,
 	sl structures.SlackLink,
 	oldest, latest time.Time,
@@ -36,14 +36,14 @@ func (sd *Session) dumpThreadAsConversation(
 
 	trace.Logf(ctx, "info", "channelID: %q, threadTS: %q", sl.Channel, sl.ThreadTS)
 
-	threadMsgs, err := sd.dumpThread(ctx, sd.limiter(network.Tier3), sl.Channel, sl.ThreadTS, oldest, latest, processFn...)
+	threadMsgs, err := s.dumpThread(ctx, s.limiter(network.Tier3), sl.Channel, sl.ThreadTS, oldest, latest, processFn...)
 	if err != nil {
 		return nil, err
 	}
 
 	types.SortMessages(threadMsgs)
 
-	name, err := sd.getChannelName(ctx, sd.limiter(network.Tier3), sl.Channel)
+	name, err := s.getChannelName(ctx, s.limiter(network.Tier3), sl.Channel)
 	if err != nil {
 		return nil, err
 	}
@@ -91,7 +91,7 @@ func (*Session) populateThreads(
 
 // dumpThread retrieves all messages in the thread and returns them as a slice
 // of messages.
-func (sd *Session) dumpThread(
+func (s *Session) dumpThread(
 	ctx context.Context,
 	l *rate.Limiter,
 	channelID string,
@@ -111,16 +111,16 @@ func (sd *Session) dumpThread(
 			nextCursor string
 		)
 		reqStart := time.Now()
-		if err := withRetry(ctx, l, sd.cfg.Limits.Tier3.Retries, func() error {
+		if err := withRetry(ctx, l, s.cfg.Limits.Tier3.Retries, func() error {
 			var err error
 			trace.WithRegion(ctx, "GetConversationRepliesContext", func() {
-				msgs, hasmore, nextCursor, err = sd.client.GetConversationRepliesContext(
+				msgs, hasmore, nextCursor, err = s.client.GetConversationRepliesContext(
 					ctx,
 					&slack.GetConversationRepliesParameters{
 						ChannelID: channelID,
 						Cursor:    cursor,
 						Timestamp: threadTS,
-						Limit:     sd.cfg.Limits.Request.Replies,
+						Limit:     s.cfg.Limits.Request.Replies,
 						Oldest:    structures.FormatSlackTS(oldest),
 						Latest:    structures.FormatSlackTS(latest),
 						Inclusive: true,
@@ -146,7 +146,7 @@ func (sd *Session) dumpThread(
 			return nil, err
 		}
 
-		sd.l().Printf("  thread request #%5d, fetched: %4d, total: %8d, process results: %s (speed: %6.2f/sec, avg: %6.2f/sec)\n",
+		s.l().Printf("  thread request #%5d, fetched: %4d, total: %8d, process results: %s (speed: %6.2f/sec, avg: %6.2f/sec)\n",
 			i+1, len(msgs), len(thread),
 			prs,
 			float64(len(msgs))/time.Since(reqStart).Seconds(),
@@ -154,7 +154,7 @@ func (sd *Session) dumpThread(
 		)
 
 		if !hasmore {
-			sd.l().Printf("  thread fetch complete, total: %d", len(thread))
+			s.l().Printf("  thread fetch complete, total: %d", len(thread))
 			break
 		}
 		cursor = nextCursor

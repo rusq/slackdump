@@ -16,7 +16,6 @@ import (
 	"github.com/rusq/slackdump/v2/auth"
 	"github.com/rusq/slackdump/v2/internal/fixtures"
 	"github.com/rusq/slackdump/v2/internal/network"
-	"github.com/rusq/slackdump/v2/internal/structures"
 	"github.com/rusq/slackdump/v2/logger"
 	"github.com/rusq/slackdump/v2/types"
 )
@@ -123,11 +122,10 @@ func ExampleNew_browserAuth() {
 
 func TestSession_Me(t *testing.T) {
 	type fields struct {
-		client    clienter
-		wspInfo   *slack.AuthTestResponse
-		Users     types.Users
-		UserIndex structures.UserIndex
-		options   Config
+		client  clienter
+		wspInfo *slack.AuthTestResponse
+		Users   types.Users
+		options Config
 	}
 	tests := []struct {
 		name    string
@@ -138,8 +136,8 @@ func TestSession_Me(t *testing.T) {
 		{
 			"all ok",
 			fields{
-				wspInfo:   &slack.AuthTestResponse{UserID: "DELD"},
-				UserIndex: structures.NewUserIndex(fixtures.TestUsers),
+				wspInfo: &slack.AuthTestResponse{UserID: "DELD"},
+				Users:   fixtures.TestUsers,
 			},
 			fixtures.TestUsers[1],
 			false,
@@ -152,7 +150,7 @@ func TestSession_Me(t *testing.T) {
 		},
 		{
 			"not enough users - error",
-			fields{UserIndex: structures.UserIndex{}},
+			fields{Users: []slack.User{}},
 			slack.User{},
 			true,
 		},
@@ -160,11 +158,10 @@ func TestSession_Me(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			sd := &Session{
-				client:    tt.fields.client,
-				wspInfo:   tt.fields.wspInfo,
-				Users:     tt.fields.Users,
-				UserIndex: tt.fields.UserIndex,
-				cfg:       tt.fields.options,
+				client:  tt.fields.client,
+				wspInfo: tt.fields.wspInfo,
+				Users:   tt.fields.Users,
+				cfg:     tt.fields.options,
 			}
 			got, err := sd.Me()
 			if (err != nil) != tt.wantErr {
@@ -181,11 +178,10 @@ func TestSession_Me(t *testing.T) {
 func TestSession_l(t *testing.T) {
 	testLg := dlog.New(os.Stderr, "TEST", log.LstdFlags, false)
 	type fields struct {
-		client    clienter
-		wspInfo   *slack.AuthTestResponse
-		Users     types.Users
-		UserIndex structures.UserIndex
-		options   Config
+		client  clienter
+		wspInfo *slack.AuthTestResponse
+		Users   types.Users
+		options Config
 	}
 	tests := []struct {
 		name   string
@@ -210,11 +206,10 @@ func TestSession_l(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			sd := &Session{
-				client:    tt.fields.client,
-				wspInfo:   tt.fields.wspInfo,
-				Users:     tt.fields.Users,
-				UserIndex: tt.fields.UserIndex,
-				cfg:       tt.fields.options,
+				client:  tt.fields.client,
+				wspInfo: tt.fields.wspInfo,
+				Users:   tt.fields.Users,
+				cfg:     tt.fields.options,
 			}
 			if got := sd.l(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("Session.l() = %v, want %v", got, tt.want)

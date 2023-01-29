@@ -19,9 +19,8 @@ import (
 
 func TestSession_DumpThreadWithFiles(t *testing.T) {
 	type fields struct {
-		Users     types.Users
-		UserIndex structures.UserIndex
-		options   Config
+		Users   types.Users
+		options Config
 	}
 	type args struct {
 		ctx       context.Context
@@ -164,10 +163,9 @@ func TestSession_DumpThreadWithFiles(t *testing.T) {
 			}
 
 			sd := &Session{
-				client:    mc,
-				Users:     tt.fields.Users,
-				UserIndex: tt.fields.UserIndex,
-				cfg:       tt.fields.options,
+				client: mc,
+				Users:  tt.fields.Users,
+				cfg:    tt.fields.options,
 			}
 			got, err := sd.dumpThreadAsConversation(tt.args.ctx, structures.SlackLink{Channel: tt.args.channelID, ThreadTS: tt.args.threadTS}, tt.args.oldest, tt.args.latest)
 			if (err != nil) != tt.wantErr {
@@ -269,9 +267,8 @@ func TestSession_populateThreads(t *testing.T) {
 
 func TestSession_dumpThread(t *testing.T) {
 	type fields struct {
-		Users     types.Users
-		UserIndex structures.UserIndex
-		options   Config
+		Users   types.Users
+		options Config
 	}
 	type args struct {
 		ctx       context.Context
@@ -384,10 +381,9 @@ func TestSession_dumpThread(t *testing.T) {
 			tt.expectFn(mc)
 
 			sd := &Session{
-				client:    mc,
-				Users:     tt.fields.Users,
-				UserIndex: tt.fields.UserIndex,
-				cfg:       tt.fields.options,
+				client: mc,
+				Users:  tt.fields.Users,
+				cfg:    tt.fields.options,
 			}
 			got, err := sd.dumpThread(tt.args.ctx, tt.args.l, tt.args.channelID, tt.args.threadTS, tt.args.oldest, tt.args.latest)
 			if (err != nil) != tt.wantErr {

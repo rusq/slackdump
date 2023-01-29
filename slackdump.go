@@ -13,8 +13,8 @@ import (
 	"golang.org/x/time/rate"
 
 	"github.com/rusq/slackdump/v2/auth"
+	"github.com/rusq/slackdump/v2/fsadapter"
 	"github.com/rusq/slackdump/v2/internal/network"
-	"github.com/rusq/slackdump/v2/internal/structures"
 	"github.com/rusq/slackdump/v2/logger"
 	"github.com/rusq/slackdump/v2/types"
 )
@@ -31,8 +31,9 @@ type Session struct {
 	wspInfo *WorkspaceInfo // workspace info
 
 	// Users contains the list of users and populated on NewSession
-	Users     types.Users          `json:"users"`
-	UserIndex structures.UserIndex `json:"-"`
+	Users types.Users `json:"users"`
+
+	fs fsadapter.FS
 
 	cfg Config
 }
@@ -53,8 +54,8 @@ type clienter interface {
 	GetEmojiContext(ctx context.Context) (map[string]string, error)
 }
 
-// Errors
 var (
+	// ErrNoUserCache is returned when the user cache is not initialised.
 	ErrNoUserCache = errors.New("user cache unavailable")
 )
 
@@ -67,23 +68,22 @@ type Option func(*Session)
 // New creates new Slackdump session with provided options, and populates the
 // internal cache of users and channels for lookups. If it fails to
 // authenticate, AuthError is returned.
-func New(ctx context.Context, authProvider auth.Provider, cfg Config, opts ...Option) (*Session, error) {
-	ctx, task := trace.NewTask(ctx, "NewWithOptions")
+func New(ctx context.Context, prov auth.Provider, cfg Config, opts ...Option) (*Session, error) {
+	ctx, task := trace.NewTask(ctx, "New")
 	defer task.End()
 
 	if err := cfg.Limits.Validate(); err != nil {
 		var vErr validator.ValidationErrors
 		if errors.As(err, &vErr) {
 			return nil, fmt.Errorf("API limits failed validation: %s", vErr.Translate(OptErrTranslations))
-		} else {
-			return nil, err
 		}
-	}
-	if err := authProvider.Validate(); err != nil {
 		return nil, err
 	}
+	if err := prov.Validate(); err != nil {
+		return nil, fmt.Errorf("auth provider validation error: %s", err)
+	}
 
-	cl := slack.New(authProvider.SlackToken(), slack.OptionCookieRAW(ptrSlice(authProvider.Cookies())...))
+	cl := slack.New(prov.SlackToken(), slack.OptionCookieRAW(ptrSlice(prov.Cookies())...))
 
 	authTestResp, err := cl.AuthTestContext(ctx)
 	if err != nil {
@@ -103,35 +103,33 @@ func New(ctx context.Context, authProvider auth.Provider, cfg Config, opts ...Op
 	}
 
 	if !sd.cfg.UserCache.Disabled {
-		sd.l().Println("> checking user cache...")
 		users, err := sd.GetUsers(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("error fetching users: %w", err)
 		}
 
 		sd.Users = users
-		sd.UserIndex = users.IndexByID()
 	}
 
 	return sd, nil
 }
 
 // Client returns the underlying slack.Client.
-func (sd *Session) Client() *slack.Client {
-	return sd.client.(*slack.Client)
+func (s *Session) Client() *slack.Client {
+	return s.client.(*slack.Client)
 }
 
 // Me returns the current authenticated user in a rather dirty manner.
 // If the user cache is unitnitialised, it returns ErrNoUserCache.
-func (sd *Session) Me() (slack.User, error) {
-	if len(sd.UserIndex) == 0 {
+func (s *Session) Me() (slack.User, error) {
+	if len(s.Users) == 0 {
 		return slack.User{}, ErrNoUserCache
 	}
-	return *sd.UserIndex[sd.CurrentUserID()], nil
+	return *s.Users.IndexByID()[s.CurrentUserID()], nil
 }
 
-func (sd *Session) CurrentUserID() string {
-	return sd.wspInfo.UserID
+func (s *Session) CurrentUserID() string {
+	return s.wspInfo.UserID
 }
 
 func ptrSlice[T any](cc []T) []*T {
@@ -142,8 +140,8 @@ func ptrSlice[T any](cc []T) []*T {
 	return ret
 }
 
-func (sd *Session) limiter(t network.Tier) *rate.Limiter {
-	return network.NewLimiter(t, sd.cfg.Limits.Tier3.Burst, int(sd.cfg.Limits.Tier3.Boost))
+func (s *Session) limiter(t network.Tier) *rate.Limiter {
+	return network.NewLimiter(t, s.cfg.Limits.Tier3.Burst, int(s.cfg.Limits.Tier3.Boost))
 }
 
 // withRetry will run the callback function fn. If the function returns
@@ -154,21 +152,21 @@ func withRetry(ctx context.Context, l *rate.Limiter, maxAttempts int, fn func() 
 }
 
 // l returns the current logger.
-func (sd *Session) l() logger.Interface {
-	if sd.cfg.Logger == nil {
+func (s *Session) l() logger.Interface {
+	if s.cfg.Logger == nil {
 		return logger.Default
 	}
-	return sd.cfg.Logger
+	return s.cfg.Logger
 }
 
 // propagateLogger propagates the slackdump logger to some dumb packages.
-func (sd *Session) propagateLogger(l logger.Interface) {
+func (s *Session) propagateLogger(l logger.Interface) {
 	network.Logger = l
 }
 
 // Info returns a workspace information.  Slackdump retrieves workspace
 // information during the initialisation when performing authentication test,
 // so no API call is involved at this point.
-func (sd *Session) Info() *WorkspaceInfo {
-	return sd.wspInfo
+func (s *Session) Info() *WorkspaceInfo {
+	return s.wspInfo
 }

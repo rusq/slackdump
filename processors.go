@@ -71,16 +71,16 @@ func runProcessFuncs(m []types.Message, channelID string, processFn ...ProcessFu
 // by limiter l.  The File.PublicURL will be updated to point to the downloaded
 // file, instead of Slack server URL.  It returns ProcessFunction and
 // CancelFunc. CancelFunc must be called, i.e. by deferring it's execution.
-func (sd *Session) newFileProcessFn(ctx context.Context, dir string, l *rate.Limiter) (ProcessFunc, cancelFunc, error) {
+func (s *Session) newFileProcessFn(ctx context.Context, dir string, l *rate.Limiter) (ProcessFunc, cancelFunc, error) {
 	// set up a file downloader and add it to the post-process functions
 	// slice
 	dl := downloader.New(
-		sd.client,
-		sd.cfg.Filesystem,
+		s.client,
+		s.cfg.Filesystem,
 		downloader.Limiter(l),
-		downloader.Retries(sd.cfg.Limits.DownloadRetries),
-		downloader.Workers(sd.cfg.Limits.Workers),
-		downloader.Logger(sd.l()),
+		downloader.Retries(s.cfg.Limits.DownloadRetries),
+		downloader.Workers(s.cfg.Limits.Workers),
+		downloader.Logger(s.l()),
 	)
 	var filesC = make(chan *slack.File, filesCbufSz)
 
@@ -117,9 +117,9 @@ func pipeAndUpdateFiles(filesC chan<- *slack.File, msgs []types.Message, dir str
 
 // newThreadProcessFn returns the new thread processor function.  It will use limiter l
 // to limit the API calls rate.
-func (sd *Session) newThreadProcessFn(ctx context.Context, l *rate.Limiter, oldest, latest time.Time) ProcessFunc {
+func (s *Session) newThreadProcessFn(ctx context.Context, l *rate.Limiter, oldest, latest time.Time) ProcessFunc {
 	processFn := func(chunk []types.Message, channelID string) (ProcessResult, error) {
-		n, err := sd.populateThreads(ctx, l, chunk, channelID, oldest, latest, sd.dumpThread)
+		n, err := s.populateThreads(ctx, l, chunk, channelID, oldest, latest, s.dumpThread)
 		if err != nil {
 			return ProcessResult{}, err
 		}
