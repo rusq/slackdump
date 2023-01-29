@@ -100,23 +100,14 @@ func RunDump(ctx context.Context, cmd *base.Command, args []string) error {
 		return fmt.Errorf("file template error: %w", err)
 	}
 
-	// Initialize the filesystem.
-	fs, err := fsadapter.New(cfg.BaseLoc)
+	cfg.SlackConfig.Logger = dlog.FromContext(ctx)
+
+	sess, err := slackdump.New(ctx, prov, cfg.SlackConfig)
 	if err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return err
 	}
-	defer fs.Close()
-
-	// Initialize the session.
-	cfg.SlackOptions.Filesystem = fs
-	cfg.SlackOptions.Logger = dlog.FromContext(ctx)
-
-	sess, err := slackdump.New(ctx, prov, cfg.SlackOptions)
-	if err != nil {
-		base.SetExitStatus(base.SApplicationError)
-		return err
-	}
+	defer sess.Close()
 
 	// Dump conversations.
 	for _, link := range list.Include {
@@ -125,7 +116,7 @@ func RunDump(ctx context.Context, cmd *base.Command, args []string) error {
 			return err
 		}
 
-		if err := save(ctx, fs, namer.Filename(conv), conv); err != nil {
+		if err := save(ctx, sess.Filesystem(), namer.Filename(conv), conv); err != nil {
 			return err
 		}
 	}

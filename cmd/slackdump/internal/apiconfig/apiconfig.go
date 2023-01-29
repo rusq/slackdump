@@ -62,7 +62,7 @@ func readLimits(r io.Reader) (slackdump.Limits, error) {
 		return slackdump.Limits{}, err
 	}
 
-	if err := cfg.SlackOptions.Limits.Apply(limits); err != nil {
+	if err := cfg.SlackConfig.Limits.Apply(limits); err != nil {
 		if err := printErrors(os.Stderr, err); err != nil {
 			return slackdump.Limits{}, err
 		}

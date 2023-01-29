@@ -32,36 +32,36 @@ func Dump(ctx context.Context, cfg config.Params, prov auth.Provider) error {
 	ctx, task := trace.NewTask(ctx, "runDump")
 	defer task.End()
 
-	fs, err := fsadapter.New(cfg.Output.Base)
-	if err != nil {
-		return err
-	} else {
-		defer fs.Close()
-		cfg.Options.Filesystem = fs
-	}
+	cfg.SlackConfig.BaseLocation = cfg.Output.Base
 
 	dm, err := newDump(ctx, cfg, prov)
 	if err != nil {
 		return err
 	}
+	defer dm.Close()
 
 	if cfg.ListFlags.FlagsPresent() {
 		err = dm.List(ctx)
 	} else {
 		var n int
-		n, err = dm.Dump(ctx, fs)
+		n, err = dm.Dump(ctx)
 		cfg.Logger().Printf("dumped %d item(s)", n)
 	}
+
 	return err
 }
 
 func newDump(ctx context.Context, cfg config.Params, prov auth.Provider) (*dump, error) {
-	sess, err := slackdump.New(ctx, prov, cfg.Options)
+	sess, err := slackdump.New(ctx, prov, cfg.SlackConfig)
 	if err != nil {
 		return nil, err
 	}
 
 	return &dump{sess: sess, cfg: cfg, log: cfg.Logger()}, nil
+}
+
+func (d *dump) Close() error {
+	return d.sess.Close()
 }
 
 // Dump dumps the input, if dumpfiles is true, it will save the files into a
@@ -78,7 +78,7 @@ func newDump(ctx context.Context, cfg config.Params, prov auth.Provider) (*dump,
 //	|  +- ...
 //	+--<ID>.json - json file with conversation and users
 //	+--<ID>.txt  - formatted conversation in text format, if generateText is true.
-func (app *dump) Dump(ctx context.Context, fs fsadapter.FS) (int, error) {
+func (app *dump) Dump(ctx context.Context) (int, error) {
 	if !app.cfg.Input.IsValid() {
 		return 0, errors.New("no valid input")
 	}
@@ -90,7 +90,7 @@ func (app *dump) Dump(ctx context.Context, fs fsadapter.FS) (int, error) {
 
 	total := 0
 	if err := app.cfg.Input.Producer(func(channelID string) error {
-		if err := app.dumpOne(ctx, fs, tmpl, channelID, app.sess.Dump); err != nil {
+		if err := app.dumpOne(ctx, app.sess.Filesystem(), tmpl, channelID, app.sess.Dump); err != nil {
 			app.log.Printf("error processing: %q (conversation will be skipped): %s", channelID, err)
 			return config.ErrSkip
 		}

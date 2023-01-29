@@ -164,7 +164,7 @@ func invoke(cmd *base.Command, args []string) error {
 	} else {
 		lg.SetPrefix(cmd.Name() + ": ")
 		ctx = dlog.NewContext(ctx, lg)
-		cfg.SlackOptions.Logger = lg
+		cfg.SlackConfig.Logger = lg
 	}
 
 	if cmd.RequireAuth {
@@ -196,7 +196,7 @@ func parseFlags(cmd *base.Command, args []string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := cfg.SlackOptions.Limits.Apply(limits); err != nil {
+	if err := cfg.SlackConfig.Limits.Apply(limits); err != nil {
 		return nil, err
 	}
 	return cmd.Flag.Args(), nil

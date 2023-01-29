@@ -12,7 +12,6 @@ import (
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v2/export"
-	"github.com/rusq/slackdump/v2/fsadapter"
 	"github.com/rusq/slackdump/v2/internal/app/config"
 	"github.com/rusq/slackdump/v2/internal/structures"
 )
@@ -29,7 +28,7 @@ var CmdExport = &base.Command{
 }
 
 var (
-	options export.Options
+	options export.Config
 )
 
 func init() {
@@ -50,7 +49,7 @@ func init() {
 }
 
 func runExport(ctx context.Context, cmd *base.Command, args []string) error {
-	if cfg.BaseLoc == "" {
+	if cfg.SlackConfig.BaseLocation == "" {
 		return errors.New("use -base to set the base output location")
 	}
 	var err error
@@ -64,21 +63,14 @@ func runExport(ctx context.Context, cmd *base.Command, args []string) error {
 		return err
 	}
 
-	fs, err := fsadapter.New(cfg.BaseLoc)
-	if err != nil {
-		return err
-	}
-	defer fs.Close()
-
 	lg := dlog.FromContext(ctx)
 	options.Logger = lg
-	lg.Printf("initialised output location: %s", cfg.BaseLoc)
-
-	sess, err := slackdump.New(ctx, prov, cfg.SlackOptions)
+	sess, err := slackdump.New(ctx, prov, cfg.SlackConfig)
 	if err != nil {
 		return err
 	}
+	defer sess.Close()
 
-	exp := export.New(sess, fs, options)
+	exp := export.New(sess, options)
 	return exp.Run(ctx)
 }

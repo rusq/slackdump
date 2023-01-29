@@ -7,8 +7,8 @@ import (
 	"github.com/rusq/slackdump/v2/logger"
 )
 
-// Options allows to configure slack export options.
-type Options struct {
+// Config allows to configure slack export options.
+type Config struct {
 	Oldest      time.Time
 	Latest      time.Time
 	Logger      logger.Interface
@@ -17,6 +17,6 @@ type Options struct {
 	ExportToken string
 }
 
-func (opt Options) IsFilesEnabled() bool {
+func (opt Config) IsFilesEnabled() bool {
 	return opt.Type > TNoDownload
 }
