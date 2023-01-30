@@ -13,12 +13,12 @@ import (
 
 const dateFmt = "2006-01-02"
 
-// byDate sorts the messages by date and returns a map date->[]slack.Message.
-// users should contain the users in the conversation for population of
+// byDate sorts the messages by date and returns a map date->[]ExportMessage.
+// userIdx should contain the users in the conversation for populating the
 // required fields.  Threads are flattened.
 func (Export) byDate(c *types.Conversation, userIdx structures.UserIndex) (map[string][]ExportMessage, error) {
 	msgsByDate := make(map[string][]ExportMessage, 0)
-	if err := populateMsgs(msgsByDate, c.Messages, userIdx); err != nil {
+	if err := flattenMsgs(msgsByDate, c.Messages, userIdx); err != nil {
 		return nil, err
 	}
 
@@ -45,15 +45,15 @@ func (mbd messagesByDate) validate() error {
 	return nil
 }
 
-// populateMsgs takes the messages input, splits them by the date and
+// flattenMsgs takes the messages input, splits them by the date and
 // populates the msgsByDate map.
-func populateMsgs(msgsByDate messagesByDate, messages []types.Message, usrIdx structures.UserIndex) error {
+func flattenMsgs(msgsByDate messagesByDate, messages []types.Message, usrIdx structures.UserIndex) error {
 	for _, msg := range messages {
 		expMsg := newExportMessage(&msg, usrIdx)
 
 		if len(msg.ThreadReplies) > 0 {
 			// Recursive call:  are you ready, mr. stack?
-			if err := populateMsgs(msgsByDate, msg.ThreadReplies, usrIdx); err != nil {
+			if err := flattenMsgs(msgsByDate, msg.ThreadReplies, usrIdx); err != nil {
 				return fmt.Errorf("thread ID %s: %w", msg.Timestamp, err)
 			}
 		}

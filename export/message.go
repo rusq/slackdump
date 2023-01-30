@@ -49,6 +49,9 @@ func (em ExportMessage) Time() time.Time {
 // some additional fields.  Slack messages produced by export are much more
 // saturated with information, i.e. contain user profiles and thread stats.
 func newExportMessage(msg *types.Message, users structures.UserIndex) *ExportMessage {
+	if msg == nil {
+		panic("internal error: msg is nil")
+	}
 	expMsg := ExportMessage{Msg: msg.Msg}
 
 	expMsg.UserTeam = msg.Team

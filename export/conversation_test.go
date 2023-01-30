@@ -2,6 +2,8 @@ package export
 
 import (
 	"context"
+	"encoding/json"
+	"os"
 	"runtime/trace"
 	"testing"
 	"time"
@@ -10,10 +12,10 @@ import (
 	"github.com/rusq/slackdump/v2/internal/fixtures/fixgen"
 	"github.com/rusq/slackdump/v2/types"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestConversation_ByDate(t *testing.T) {
-	// TODO
 	var exp Export
 
 	conversations := fixtures.Load[types.Conversation](fixtures.TestConversationJSON)
@@ -25,10 +27,33 @@ func TestConversation_ByDate(t *testing.T) {
 	}
 
 	// uncomment to write the json for fixtures
-	// require.NoError(t, writeOutput("convDt", convDt))
+	require.NoError(t, writeOutput("convDt", convDt))
 
 	want := fixtures.Load[map[string][]ExportMessage](fixtures.TestConversationExportJSON)
+
+	// we need to depopulate slackdumpTime for comparison, as it is not saved
+	// in the fixture.
+	zeroSlackdumpTime(convDt)
 	assert.Equal(t, want, convDt)
+}
+
+func zeroSlackdumpTime(m map[string][]ExportMessage) {
+	for _, msgs := range m {
+		for i := range msgs {
+			msgs[i].slackdumpTime = time.Time{}
+		}
+	}
+}
+
+func writeOutput(name string, v interface{}) error {
+	f, err := os.Create(name + ".json")
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	enc := json.NewEncoder(f)
+	enc.SetIndent("", "\t")
+	return enc.Encode(v)
 }
 
 func Test_messagesByDate_validate(t *testing.T) {

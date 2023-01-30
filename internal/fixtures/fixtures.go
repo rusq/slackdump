@@ -7,13 +7,19 @@ import (
 	"os"
 )
 
-// loadFixture loads a json data into T, or panics.
+// Load loads a json data into T, or panics.
 func Load[T any](js string) T {
 	var ret T
 	if err := json.Unmarshal([]byte(js), &ret); err != nil {
 		panic(err)
 	}
 	return ret
+}
+
+// LoadPtr loads a json data into *T, or panics.
+func LoadPtr[T any](js string) *T {
+	v := Load[T](js)
+	return &v
 }
 
 // FilledBuffer returns buffer that filled with sz bytes of 0x00.
