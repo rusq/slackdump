@@ -70,6 +70,7 @@ func newExportMessage(msg *types.Message, users structures.UserIndex) *ExportMes
 
 	// threaded message branch
 
+	expMsg.Replies = make([]slack.Reply, 0, len(msg.ThreadReplies))
 	for _, replyMsg := range msg.ThreadReplies {
 		expMsg.Msg.Replies = append(expMsg.Msg.Replies, slack.Reply{User: replyMsg.User, Timestamp: replyMsg.Timestamp})
 		expMsg.ReplyUsers = append(expMsg.ReplyUsers, replyMsg.User)
