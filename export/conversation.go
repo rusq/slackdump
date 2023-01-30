@@ -17,7 +17,7 @@ const dateFmt = "2006-01-02"
 // users should contain the users in the conversation for population of
 // required fields.  Threads are flattened.
 func (Export) byDate(c *types.Conversation, userIdx structures.UserIndex) (map[string][]ExportMessage, error) {
-	msgsByDate := make(map[string][]ExportMessage, len(c.Messages))
+	msgsByDate := make(map[string][]ExportMessage, 0)
 	if err := populateMsgs(msgsByDate, c.Messages, userIdx); err != nil {
 		return nil, err
 	}
@@ -25,7 +25,7 @@ func (Export) byDate(c *types.Conversation, userIdx structures.UserIndex) (map[s
 	// sort messages by Time within each date.
 	for date, messages := range msgsByDate {
 		sort.Slice(msgsByDate[date], func(i, j int) bool {
-			return messages[i].Time().Before(messages[j].Time())
+			return messages[i].slackdumpTime.Before(messages[j].slackdumpTime)
 		})
 	}
 
@@ -58,12 +58,7 @@ func populateMsgs(msgsByDate messagesByDate, messages []types.Message, usrIdx st
 			}
 		}
 
-		dt, err := msg.Datetime()
-		if err != nil {
-			return fmt.Errorf("updateDateMsgs: unable to parse message timestamp (%s): %w", msg.Timestamp, err)
-		}
-
-		formattedDt := dt.Format(dateFmt)
+		formattedDt := expMsg.slackdumpTime.Format(dateFmt)
 		msgsByDate[formattedDt] = append(msgsByDate[formattedDt], *expMsg)
 	}
 

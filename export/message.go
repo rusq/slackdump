@@ -22,6 +22,7 @@ type ExportMessage struct {
 	UserProfile     *ExportUserProfile `json:"user_profile"`
 	ReplyUsersCount int                `json:"reply_users_count"`
 	ReplyUsers      []string           `json:"reply_users"`
+	slackdumpTime   time.Time          `json:"-"`
 }
 
 type ExportUserProfile struct {
@@ -37,8 +38,11 @@ type ExportUserProfile struct {
 }
 
 func (em ExportMessage) Time() time.Time {
-	ts, _ := structures.ParseSlackTS(em.Timestamp)
-	return ts
+	if em.slackdumpTime.IsZero() {
+		ts, _ := structures.ParseSlackTS(em.Timestamp)
+		return ts
+	}
+	return em.slackdumpTime
 }
 
 // newExportMessage creates an export message from a slack message and populates
@@ -49,6 +53,7 @@ func newExportMessage(msg *types.Message, users structures.UserIndex) *ExportMes
 
 	expMsg.UserTeam = msg.Team
 	expMsg.SourceTeam = msg.Team
+	expMsg.slackdumpTime, _ = msg.Datetime()
 
 	if user, ok := users[msg.User]; ok && !user.IsBot {
 		expMsg.UserProfile = &ExportUserProfile{
