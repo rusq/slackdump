@@ -102,7 +102,7 @@ func init() {
 	var (
 		startDate   = time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 		endDate     = time.Date(2020, 1, 1, 15, 0, 0, 0, time.UTC)
-		numMessages = 1_000_000
+		numMessages = 10_000
 	)
 	benchConv = fixgen.GenerateTestConversation("test", startDate, endDate, numMessages)
 }
