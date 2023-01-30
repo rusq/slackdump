@@ -29,7 +29,7 @@ func TestConversation_ByDate(t *testing.T) {
 	// uncomment to write the json for fixtures
 	require.NoError(t, writeOutput("convDt", convDt))
 
-	want := fixtures.Load[map[string][]ExportMessage](fixtures.TestConversationExportJSON)
+	want := fixtures.Load[messagesByDate](fixtures.TestConversationExportJSON)
 
 	// we need to depopulate slackdumpTime for comparison, as it is not saved
 	// in the fixture.
@@ -37,7 +37,7 @@ func TestConversation_ByDate(t *testing.T) {
 	assert.Equal(t, want, convDt)
 }
 
-func zeroSlackdumpTime(m map[string][]ExportMessage) {
+func zeroSlackdumpTime(m messagesByDate) {
 	for _, msgs := range m {
 		for i := range msgs {
 			msgs[i].slackdumpTime = time.Time{}
@@ -64,22 +64,22 @@ func Test_messagesByDate_validate(t *testing.T) {
 	}{
 		{"valid",
 			messagesByDate{
-				"2019-09-16": []ExportMessage{},
-				"2020-12-31": []ExportMessage{},
+				"2019-09-16": []*ExportMessage{},
+				"2020-12-31": []*ExportMessage{},
 			},
 			false,
 		},
 		{"empty key",
 			messagesByDate{
-				"":           []ExportMessage{},
-				"2020-12-31": []ExportMessage{},
+				"":           []*ExportMessage{},
+				"2020-12-31": []*ExportMessage{},
 			},
 			true,
 		},
 		{"invalid key",
 			messagesByDate{
-				"2019-09-16": []ExportMessage{},
-				"2020-31-12": []ExportMessage{}, //swapped month and date
+				"2019-09-16": []*ExportMessage{},
+				"2020-31-12": []*ExportMessage{}, //swapped month and date
 			},
 			true,
 		},
@@ -94,7 +94,7 @@ func Test_messagesByDate_validate(t *testing.T) {
 }
 
 var (
-	benchResult map[string][]ExportMessage
+	benchResult messagesByDate
 	benchConv   types.Conversation
 )
 
@@ -118,7 +118,7 @@ func BenchmarkByDate(b *testing.B) {
 	)
 	region := trace.StartRegion(ctx, "byDateBenchRun")
 	defer region.End()
-	var m map[string][]ExportMessage
+	var m messagesByDate
 	for i := 0; i < b.N; i++ {
 		m, err = ex.byDate(&benchConv, nil)
 		if err != nil {

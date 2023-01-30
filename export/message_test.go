@@ -2,6 +2,7 @@ package export
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 
@@ -40,6 +41,7 @@ func Test_newExportMessage(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := newExportMessage(tt.args.msg, tt.args.users)
+			got.slackdumpTime = time.Time{} // clear for comparison. not saved in fixture.
 			assert.Equal(t, tt.want, got)
 		})
 	}

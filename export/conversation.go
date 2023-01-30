@@ -16,8 +16,8 @@ const dateFmt = "2006-01-02"
 // byDate sorts the messages by date and returns a map date->[]ExportMessage.
 // userIdx should contain the users in the conversation for populating the
 // required fields.  Threads are flattened.
-func (Export) byDate(c *types.Conversation, userIdx structures.UserIndex) (map[string][]ExportMessage, error) {
-	msgsByDate := make(map[string][]ExportMessage, 0)
+func (Export) byDate(c *types.Conversation, userIdx structures.UserIndex) (messagesByDate, error) {
+	msgsByDate := make(map[string][]*ExportMessage, 0)
 	if err := flattenMsgs(msgsByDate, c.Messages, userIdx); err != nil {
 		return nil, err
 	}
@@ -32,7 +32,7 @@ func (Export) byDate(c *types.Conversation, userIdx structures.UserIndex) (map[s
 	return msgsByDate, nil
 }
 
-type messagesByDate map[string][]ExportMessage
+type messagesByDate map[string][]*ExportMessage
 
 // validate checks if mbd keys are valid dates.
 func (mbd messagesByDate) validate() error {
@@ -59,7 +59,7 @@ func flattenMsgs(msgsByDate messagesByDate, messages []types.Message, usrIdx str
 		}
 
 		formattedDt := expMsg.slackdumpTime.Format(dateFmt)
-		msgsByDate[formattedDt] = append(msgsByDate[formattedDt], *expMsg)
+		msgsByDate[formattedDt] = append(msgsByDate[formattedDt], expMsg)
 	}
 
 	return nil

@@ -42,10 +42,10 @@ func TestExport_saveChannel(t *testing.T) {
 			args{
 				"unittest",
 				messagesByDate{
-					"2020-12-30": []ExportMessage{
+					"2020-12-30": []*ExportMessage{
 						{Msg: fixtures.Load[slack.Msg](fixtures.SimpleMessageJSON)},
 					},
-					"2020-12-31": []ExportMessage{
+					"2020-12-31": []*ExportMessage{
 						{Msg: fixtures.Load[slack.Msg](fixtures.SimpleMessageJSON)},
 						{Msg: fixtures.Load[slack.Msg](fixtures.BotMessageThreadParentJSON)},
 						{Msg: fixtures.Load[slack.Msg](fixtures.BotMessageThreadChildJSON)},
@@ -54,10 +54,10 @@ func TestExport_saveChannel(t *testing.T) {
 			},
 			false,
 			messagesByDate{
-				"2020-12-30": []ExportMessage{
+				"2020-12-30": []*ExportMessage{
 					{Msg: fixtures.Load[slack.Msg](fixtures.SimpleMessageJSON)},
 				},
-				"2020-12-31": []ExportMessage{
+				"2020-12-31": []*ExportMessage{
 					{Msg: fixtures.Load[slack.Msg](fixtures.SimpleMessageJSON)},
 					{Msg: fixtures.Load[slack.Msg](fixtures.BotMessageThreadParentJSON)},
 					{Msg: fixtures.Load[slack.Msg](fixtures.BotMessageThreadChildJSON)},
@@ -105,7 +105,7 @@ func loadTestDir(path string) (messagesByDate, error) {
 		}
 		defer f.Close()
 
-		var mm []ExportMessage
+		var mm []*ExportMessage
 		dec := json.NewDecoder(f)
 		if err := dec.Decode(&mm); err != nil {
 			return err
