@@ -68,21 +68,24 @@ func Test_messagesByDate_validate(t *testing.T) {
 	}
 }
 
-var m map[string][]ExportMessage
+var (
+	benchResult map[string][]ExportMessage
+	benchConv   types.Conversation
+)
 
-func BenchmarkByDate(b *testing.B) {
+func init() {
 	var (
 		startDate   = time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 		endDate     = time.Date(2020, 1, 1, 15, 0, 0, 0, time.UTC)
 		numMessages = 10_000
 	)
+	benchConv = fixgen.GenerateTestConversation("test", startDate, endDate, numMessages)
+}
+
+func BenchmarkByDate(b *testing.B) {
+
 	ctx, task := trace.NewTask(context.Background(), "BenchmarkByDate")
 	defer task.End()
-
-	var conv types.Conversation
-	trace.WithRegion(ctx, "generate", func() {
-		conv = fixgen.GenerateTestConversation("test", startDate, endDate, numMessages)
-	})
 
 	var (
 		ex  Export
@@ -90,10 +93,12 @@ func BenchmarkByDate(b *testing.B) {
 	)
 	region := trace.StartRegion(ctx, "byDateBenchRun")
 	defer region.End()
+	var m map[string][]ExportMessage
 	for i := 0; i < b.N; i++ {
-		m, err = ex.byDate(&conv, nil)
+		m, err = ex.byDate(&benchConv, nil)
 		if err != nil {
 			b.Fatal(err)
 		}
 	}
+	benchResult = m
 }
