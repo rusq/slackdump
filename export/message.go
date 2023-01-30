@@ -13,7 +13,7 @@ import (
 // ExportMessage is the slack.Message with additional fields usually found in
 // slack exports.
 type ExportMessage struct {
-	slack.Msg
+	*slack.Msg
 
 	// additional fields not defined by the slack library, but present
 	// in slack exports
@@ -52,7 +52,7 @@ func newExportMessage(msg *types.Message, users structures.UserIndex) *ExportMes
 	if msg == nil {
 		panic("internal error: msg is nil")
 	}
-	expMsg := ExportMessage{Msg: msg.Msg}
+	expMsg := ExportMessage{Msg: &msg.Msg}
 
 	expMsg.UserTeam = msg.Team
 	expMsg.SourceTeam = msg.Team

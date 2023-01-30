@@ -48,13 +48,13 @@ func (mbd messagesByDate) validate() error {
 // flattenMsgs takes the messages input, splits them by the date and
 // populates the msgsByDate map.
 func flattenMsgs(msgsByDate messagesByDate, messages []types.Message, usrIdx structures.UserIndex) error {
-	for _, msg := range messages {
-		expMsg := newExportMessage(&msg, usrIdx)
+	for i := range messages {
+		expMsg := newExportMessage(&messages[i], usrIdx)
 
-		if len(msg.ThreadReplies) > 0 {
+		if len(messages[i].ThreadReplies) > 0 {
 			// Recursive call:  are you ready, mr. stack?
-			if err := flattenMsgs(msgsByDate, msg.ThreadReplies, usrIdx); err != nil {
-				return fmt.Errorf("thread ID %s: %w", msg.Timestamp, err)
+			if err := flattenMsgs(msgsByDate, messages[i].ThreadReplies, usrIdx); err != nil {
+				return fmt.Errorf("thread ID %s: %w", messages[i].Timestamp, err)
 			}
 		}
 

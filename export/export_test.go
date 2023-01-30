@@ -43,24 +43,24 @@ func TestExport_saveChannel(t *testing.T) {
 				"unittest",
 				messagesByDate{
 					"2020-12-30": []*ExportMessage{
-						{Msg: fixtures.Load[slack.Msg](fixtures.SimpleMessageJSON)},
+						{Msg: fixtures.LoadPtr[slack.Msg](fixtures.SimpleMessageJSON)},
 					},
 					"2020-12-31": []*ExportMessage{
-						{Msg: fixtures.Load[slack.Msg](fixtures.SimpleMessageJSON)},
-						{Msg: fixtures.Load[slack.Msg](fixtures.BotMessageThreadParentJSON)},
-						{Msg: fixtures.Load[slack.Msg](fixtures.BotMessageThreadChildJSON)},
+						{Msg: fixtures.LoadPtr[slack.Msg](fixtures.SimpleMessageJSON)},
+						{Msg: fixtures.LoadPtr[slack.Msg](fixtures.BotMessageThreadParentJSON)},
+						{Msg: fixtures.LoadPtr[slack.Msg](fixtures.BotMessageThreadChildJSON)},
 					},
 				},
 			},
 			false,
 			messagesByDate{
 				"2020-12-30": []*ExportMessage{
-					{Msg: fixtures.Load[slack.Msg](fixtures.SimpleMessageJSON)},
+					{Msg: fixtures.LoadPtr[slack.Msg](fixtures.SimpleMessageJSON)},
 				},
 				"2020-12-31": []*ExportMessage{
-					{Msg: fixtures.Load[slack.Msg](fixtures.SimpleMessageJSON)},
-					{Msg: fixtures.Load[slack.Msg](fixtures.BotMessageThreadParentJSON)},
-					{Msg: fixtures.Load[slack.Msg](fixtures.BotMessageThreadChildJSON)},
+					{Msg: fixtures.LoadPtr[slack.Msg](fixtures.SimpleMessageJSON)},
+					{Msg: fixtures.LoadPtr[slack.Msg](fixtures.BotMessageThreadParentJSON)},
+					{Msg: fixtures.LoadPtr[slack.Msg](fixtures.BotMessageThreadChildJSON)},
 				},
 			},
 		},
