@@ -8,9 +8,9 @@ import (
 	"github.com/rusq/slackdump/v2"
 )
 
-//go:generate sh -c "mockgen -source interfaces.go -destination interfaces_mock_test.go -package dl"
-
 // Exporter is the file exporter interface.
+//
+//go:generate mockgen -destination ../../../../internal/mocks/mock_dl/mock_exporter.go github.com/rusq/slackdump/v2/internal/structures/files/dl Exporter
 type Exporter interface {
 	// ProcessFunc returns the process function that should be passed to
 	// DumpMessagesRaw. It should be able to extract files from the messages

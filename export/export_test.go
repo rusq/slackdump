@@ -2,6 +2,7 @@ package export
 
 import (
 	"archive/zip"
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -10,10 +11,16 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
+	gomock "github.com/golang/mock/gomock"
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/fsadapter"
 	"github.com/rusq/slackdump/v2/internal/fixtures"
+	"github.com/rusq/slackdump/v2/internal/mocks/mock_dl"
+	"github.com/rusq/slackdump/v2/internal/mocks/mock_fsadapter"
+	"github.com/rusq/slackdump/v2/internal/mocks/mock_io"
+	"github.com/rusq/slackdump/v2/types"
 	"github.com/slack-go/slack"
 	"github.com/stretchr/testify/assert"
 )
@@ -223,4 +230,60 @@ func (errFs) Create(string) (io.WriteCloser, error) {
 
 func (errFs) WriteFile(name string, data []byte, perm os.FileMode) error {
 	return errors.New("no luck bro")
+}
+
+func TestExport_exportConversation(t *testing.T) {
+	t.Run("all ok", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		dumper := NewMockdumper(ctrl)
+		dl := mock_dl.NewMockExporter(ctrl)
+		fs := mock_fsadapter.NewMockFS(ctrl)
+		mwc := mock_io.NewMockWriteCloser(ctrl)
+
+		exp := &Export{
+			sd: dumper,
+			fs: fs,
+			dl: dl,
+			opts: Options{
+				Oldest: time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC),
+				Latest: time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC),
+			},
+		}
+
+		testCh := slack.Channel{
+			GroupConversation: slack.GroupConversation{
+				Conversation: slack.Conversation{
+					ID: "ID42",
+				},
+			},
+		}
+		conv := fixtures.Load[types.Conversation](fixtures.TestConversationJSON)
+
+		// expectations
+		dumper.EXPECT().
+			DumpRaw(gomock.Any(), "ID42", exp.opts.Oldest, exp.opts.Latest, gomock.Any()).
+			Return(&conv, nil)
+		dl.EXPECT().
+			ProcessFunc(gomock.Any()).
+			Return(func(msg []types.Message, channelID string) (slackdump.ProcessResult, error) {
+				return slackdump.ProcessResult{}, nil
+			})
+
+		var testUserIdx = types.Users(fixtures.TestUsers).IndexByID()
+		msgmap, _ := exp.byDate(&conv, testUserIdx)
+		fs.EXPECT().
+			Create(gomock.Any()).Times(len(msgmap)).
+			Return(mwc, nil)
+		mwc.EXPECT().
+			Write(gomock.Any()).AnyTimes().
+			Return(100, nil)
+		mwc.EXPECT().
+			Close().Times(len(msgmap)).
+			Return(nil)
+			// TODO: check the actual data
+
+		if err := exp.exportConversation(context.Background(), testUserIdx, testCh); err != nil {
+			t.Fatal(err)
+		}
+	})
 }
