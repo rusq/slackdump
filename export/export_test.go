@@ -20,6 +20,7 @@ import (
 	"github.com/rusq/slackdump/v2/internal/mocks/mock_dl"
 	"github.com/rusq/slackdump/v2/internal/mocks/mock_fsadapter"
 	"github.com/rusq/slackdump/v2/internal/mocks/mock_io"
+	"github.com/rusq/slackdump/v2/internal/structures"
 	"github.com/rusq/slackdump/v2/types"
 	"github.com/slack-go/slack"
 	"github.com/stretchr/testify/assert"
@@ -233,57 +234,179 @@ func (errFs) WriteFile(name string, data []byte, perm os.FileMode) error {
 }
 
 func TestExport_exportConversation(t *testing.T) {
-	t.Run("all ok", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		dumper := NewMockdumper(ctrl)
-		dl := mock_dl.NewMockExporter(ctrl)
-		fs := mock_fsadapter.NewMockFS(ctrl)
-		mwc := mock_io.NewMockWriteCloser(ctrl)
+	type args struct {
+		ch     slack.Channel
+		oldest time.Time
+		latest time.Time
+		users  []slack.User
+	}
+	type returns struct {
+		dumpRawErr, createErr, writeErr, closeErr error
+	}
+	type mocks struct {
+		conv types.Conversation
+		rets returns
+	}
 
-		exp := &Export{
-			sd: dumper,
-			fs: fs,
-			dl: dl,
-			opts: Options{
-				Oldest: time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC),
-				Latest: time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC),
+	tests := []struct {
+		name    string
+		args    args
+		mocks   mocks
+		wantErr bool
+	}{
+		{
+			"ok",
+			args{
+				ch: slack.Channel{
+					GroupConversation: slack.GroupConversation{
+						Conversation: slack.Conversation{
+							ID: "ID42",
+						},
+					},
+				},
+				oldest: time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC),
+				latest: time.Date(2021, 1, 2, 0, 0, 0, 0, time.UTC),
+				users:  types.Users(fixtures.TestUsers),
 			},
-		}
-
-		testCh := slack.Channel{
-			GroupConversation: slack.GroupConversation{
-				Conversation: slack.Conversation{
-					ID: "ID42",
+			mocks{
+				conv: fixtures.Load[types.Conversation](fixtures.TestConversationJSON),
+			},
+			false,
+		},
+		{
+			"dump fails",
+			args{
+				ch: slack.Channel{
+					GroupConversation: slack.GroupConversation{
+						Conversation: slack.Conversation{
+							ID: "ID42",
+						},
+					},
+				},
+				oldest: time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC),
+				latest: time.Date(2021, 1, 2, 0, 0, 0, 0, time.UTC),
+				users:  types.Users(fixtures.TestUsers),
+			},
+			mocks{
+				conv: fixtures.Load[types.Conversation](fixtures.TestConversationJSON),
+				rets: returns{
+					dumpRawErr: errors.New("dump failed"),
 				},
 			},
-		}
-		conv := fixtures.Load[types.Conversation](fixtures.TestConversationJSON)
+			true,
+		},
+		{
+			"create fails",
+			args{
+				ch: slack.Channel{
+					GroupConversation: slack.GroupConversation{
+						Conversation: slack.Conversation{
+							ID: "ID42",
+						},
+					},
+				},
+				oldest: time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC),
+				latest: time.Date(2021, 1, 2, 0, 0, 0, 0, time.UTC),
+				users:  types.Users(fixtures.TestUsers),
+			},
+			mocks{
+				conv: fixtures.Load[types.Conversation](fixtures.TestConversationJSON),
+				rets: returns{
+					createErr: errors.New("create failed"),
+				},
+			},
+			true,
+		},
+		{
+			"write fails",
+			args{
+				ch: slack.Channel{
+					GroupConversation: slack.GroupConversation{
+						Conversation: slack.Conversation{
+							ID: "ID42",
+						},
+					},
+				},
+				oldest: time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC),
+				latest: time.Date(2021, 1, 2, 0, 0, 0, 0, time.UTC),
+				users:  types.Users(fixtures.TestUsers),
+			},
+			mocks{
+				conv: fixtures.Load[types.Conversation](fixtures.TestConversationJSON),
+				rets: returns{
+					writeErr: errors.New("write failed"),
+				},
+			},
+			true,
+		},
+		{
+			"close fails",
+			args{
+				ch: slack.Channel{
+					GroupConversation: slack.GroupConversation{
+						Conversation: slack.Conversation{
+							ID: "ID42",
+						},
+					},
+				},
+				oldest: time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC),
+				latest: time.Date(2021, 1, 2, 0, 0, 0, 0, time.UTC),
+				users:  types.Users(fixtures.TestUsers),
+			},
+			mocks{
+				conv: fixtures.Load[types.Conversation](fixtures.TestConversationJSON),
+				rets: returns{
+					closeErr: errors.New("close failed"),
+				},
+			},
+			false, // DON'T CARE LALALALALALA
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			dumper := NewMockdumper(ctrl)
+			dl := mock_dl.NewMockExporter(ctrl)
+			fs := mock_fsadapter.NewMockFS(ctrl)
+			mwc := mock_io.NewMockWriteCloser(ctrl)
 
-		// expectations
-		dumper.EXPECT().
-			DumpRaw(gomock.Any(), "ID42", exp.opts.Oldest, exp.opts.Latest, gomock.Any()).
-			Return(&conv, nil)
-		dl.EXPECT().
-			ProcessFunc(gomock.Any()).
-			Return(func(msg []types.Message, channelID string) (slackdump.ProcessResult, error) {
-				return slackdump.ProcessResult{}, nil
-			})
+			exp := &Export{
+				sd: dumper,
+				fs: fs,
+				dl: dl,
+				opts: Options{
+					Oldest: tt.args.oldest,
+					Latest: tt.args.latest,
+				},
+			}
 
-		var testUserIdx = types.Users(fixtures.TestUsers).IndexByID()
-		msgmap, _ := exp.byDate(&conv, testUserIdx)
-		fs.EXPECT().
-			Create(gomock.Any()).Times(len(msgmap)).
-			Return(mwc, nil)
-		mwc.EXPECT().
-			Write(gomock.Any()).AnyTimes().
-			Return(100, nil)
-		mwc.EXPECT().
-			Close().Times(len(msgmap)).
-			Return(nil)
-			// TODO: check the actual data
-
-		if err := exp.exportConversation(context.Background(), testUserIdx, testCh); err != nil {
-			t.Fatal(err)
-		}
-	})
+			dumper.EXPECT().
+				DumpRaw(gomock.Any(), tt.args.ch.ID, exp.opts.Oldest, exp.opts.Latest, gomock.Any()).
+				Return(&tt.mocks.conv, tt.mocks.rets.dumpRawErr)
+			dl.EXPECT().
+				ProcessFunc(gomock.Any()).
+				Return(func(msg []types.Message, channelID string) (slackdump.ProcessResult, error) {
+					return slackdump.ProcessResult{}, nil
+				})
+			var testUserIdx structures.UserIndex
+			if tt.mocks.rets.dumpRawErr == nil {
+				testUserIdx = types.Users(tt.args.users).IndexByID()
+				msgmap, _ := exp.byDate(&tt.mocks.conv, testUserIdx)
+				fs.EXPECT().
+					Create(gomock.Any()).MinTimes(1).MaxTimes(len(msgmap)).
+					Return(mwc, tt.mocks.rets.createErr)
+				if tt.mocks.rets.createErr == nil {
+					mwc.EXPECT().
+						Write(gomock.Any()).AnyTimes().
+						Return(100, tt.mocks.rets.writeErr)
+					mwc.EXPECT().
+						Close().MinTimes(1).MaxTimes(len(msgmap)).
+						Return(tt.mocks.rets.closeErr)
+				}
+			}
+			if err := exp.exportConversation(context.Background(), testUserIdx, tt.args.ch); (err != nil) != tt.wantErr {
+				t.Errorf("Export.exportConversation() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
 }
