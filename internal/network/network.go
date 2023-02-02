@@ -3,6 +3,7 @@ package network
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"runtime/trace"
 	"time"
 
@@ -15,7 +16,14 @@ import (
 )
 
 // defNumAttempts is the default number of retry attempts.
-const defNumAttempts = 3
+const (
+	defNumAttempts = 3
+)
+
+// MaxAllowedWaitTime is the maximum time to wait for a transient error.  The
+// wait time for a transient error depends on the current retry attempt number
+// and is calculated as: (attempt+2)^3 seconds, capped at MaxAllowedWaitTime.
+var MaxAllowedWaitTime = 5 * time.Minute
 
 // Logger is the package logger.
 var Logger logger.Interface = logger.Default
@@ -48,18 +56,43 @@ func WithRetry(ctx context.Context, l *rate.Limiter, maxAttempts int, fn func() 
 		}
 
 		tracelogf(ctx, "error", "slackRetry: %s after %d attempts", cbErr, attempt+1)
-		var rle *slack.RateLimitedError
-		if !errors.As(cbErr, &rle) {
-			return fmt.Errorf("callback error: %w", cbErr)
+		var (
+			rle *slack.RateLimitedError
+			sce slack.StatusCodeError
+		)
+		if errors.As(cbErr, &rle) {
+			tracelogf(ctx, "info", "got rate limited, sleeping %s", rle.RetryAfter)
+			time.Sleep(rle.RetryAfter)
+			continue
+		} else if errors.As(cbErr, &sce) {
+			if sce.Code >= http.StatusInternalServerError && sce.Code <= 599 {
+				// possibly transient error
+				delay := waitTime(attempt)
+				tracelogf(ctx, "info", "got server error %d, sleeping %s", sce.Code, delay)
+				time.Sleep(delay)
+				continue
+			}
 		}
 
-		tracelogf(ctx, "info", "got rate limited, sleeping %s", rle.RetryAfter)
-		time.Sleep(rle.RetryAfter)
+		return fmt.Errorf("callback error: %w", cbErr)
 	}
 	if !ok {
 		return ErrRetryFailed
 	}
 	return nil
+}
+
+// waitTime returns the amount of time to wait before retrying depending on
+// the current attempt. The wait time is calculated as (x+2)^3 seconds, where
+// x is the current attempt number. The maximum wait time is capped at 5
+// minutes.
+func waitTime(attempt int) time.Duration {
+	x := attempt + 2 // this is to ensure that we sleep at least 8 seconds.
+	delay := time.Duration(x*x*x) * time.Second
+	if delay > MaxAllowedWaitTime {
+		return MaxAllowedWaitTime
+	}
+	return delay
 }
 
 func tracelogf(ctx context.Context, category string, fmt string, a ...any) {
