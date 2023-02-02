@@ -13,7 +13,7 @@ import (
 // ExportMessage is the slack.Message with additional fields usually found in
 // slack exports.
 type ExportMessage struct {
-	slack.Msg
+	*slack.Msg
 
 	// additional fields not defined by the slack library, but present
 	// in slack exports
@@ -22,6 +22,7 @@ type ExportMessage struct {
 	UserProfile     *ExportUserProfile `json:"user_profile"`
 	ReplyUsersCount int                `json:"reply_users_count"`
 	ReplyUsers      []string           `json:"reply_users"`
+	slackdumpTime   time.Time          `json:"-"`
 }
 
 type ExportUserProfile struct {
@@ -37,18 +38,25 @@ type ExportUserProfile struct {
 }
 
 func (em ExportMessage) Time() time.Time {
-	ts, _ := structures.ParseSlackTS(em.Timestamp)
-	return ts
+	if em.slackdumpTime.IsZero() {
+		ts, _ := structures.ParseSlackTS(em.Timestamp)
+		return ts
+	}
+	return em.slackdumpTime
 }
 
 // newExportMessage creates an export message from a slack message and populates
 // some additional fields.  Slack messages produced by export are much more
 // saturated with information, i.e. contain user profiles and thread stats.
 func newExportMessage(msg *types.Message, users structures.UserIndex) *ExportMessage {
-	expMsg := ExportMessage{Msg: msg.Msg}
+	if msg == nil {
+		panic("internal error: msg is nil")
+	}
+	expMsg := ExportMessage{Msg: &msg.Msg}
 
 	expMsg.UserTeam = msg.Team
 	expMsg.SourceTeam = msg.Team
+	expMsg.slackdumpTime, _ = msg.Datetime()
 
 	if user, ok := users[msg.User]; ok && !user.IsBot {
 		expMsg.UserProfile = &ExportUserProfile{
@@ -70,6 +78,7 @@ func newExportMessage(msg *types.Message, users structures.UserIndex) *ExportMes
 
 	// threaded message branch
 
+	expMsg.Replies = make([]slack.Reply, 0, len(msg.ThreadReplies))
 	for _, replyMsg := range msg.ThreadReplies {
 		expMsg.Msg.Replies = append(expMsg.Msg.Replies, slack.Reply{User: replyMsg.User, Timestamp: replyMsg.Timestamp})
 		expMsg.ReplyUsers = append(expMsg.ReplyUsers, replyMsg.User)

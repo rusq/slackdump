@@ -366,3 +366,32 @@ const TestChannel = `
     "locale": "en-US"
   }
 `
+
+const TestMessage = `	  {
+	"client_msg_id": "c6cdfb3a-59d6-4198-9800-cc74bcdc0b7d",
+	"type": "message",
+	"user": "UHSD97ZA5",
+	"text": "Test message with Html chars \u0026lt; \u0026gt;",
+	"ts": "1645095505.023899",
+	"team": "THY5HTZ8U",
+	"replace_original": false,
+	"delete_original": false,
+	"blocks": [
+	  {
+		"type": "rich_text",
+		"block_id": "SkX",
+		"elements": [
+		  {
+			"type": "rich_text_section",
+			"elements": [
+			  {
+				"type": "text",
+				"text": "Test message with Html chars \u003c \u003e"
+			  }
+			]
+		  }
+		]
+	  }
+	]
+  }
+`

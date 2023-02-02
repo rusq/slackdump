@@ -13,6 +13,8 @@ import (
 	"github.com/slack-go/slack"
 )
 
+// index is the index of the export archive.  filename tags are used to
+// serialize the structure to JSON files.
 type index struct {
 	Channels []slack.Channel `filename:"channels.json"`
 	Groups   []slack.Channel `filename:"groups.json,omitempty"`
@@ -39,7 +41,7 @@ var (
 
 // createIndex creates a channels and users index for export archive, splitting
 // channels in group/mpims/dms/public channels.  currentUserID should contain
-// the current user ID
+// the current user ID.
 func createIndex(channels []slack.Channel, users types.Users, currentUserID string) (*index, error) {
 	if len(channels) == 0 {
 		return nil, errNoChannel

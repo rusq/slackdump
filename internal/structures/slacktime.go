@@ -25,21 +25,24 @@ func ParseThreadID(threadID string) (time.Time, error) {
 
 // ParseSlackTS parses the slack timestamp.
 func ParseSlackTS(timestamp string) (time.Time, error) {
-	strTime := strings.Split(timestamp, ".")
-	var hi, lo int64
+	const (
+		base = 10
+		bit  = 64
+	)
+	sHi, sLo, found := strings.Cut(timestamp, ".")
 
-	hi, err := strconv.ParseInt(strTime[0], 10, 64)
+	var hi, lo int64
+	hi, err := strconv.ParseInt(sHi, base, bit)
 	if err != nil {
 		return time.Time{}, err
 	}
-	if len(strTime) > 1 {
-		lo, err = strconv.ParseInt(strTime[1], 10, 64)
+	if found {
+		lo, err = strconv.ParseInt(sLo, base, bit)
 		if err != nil {
 			return time.Time{}, err
 		}
 	}
-	t := time.Unix(hi, lo).UTC()
-	return t, nil
+	return time.Unix(hi, lo).UTC(), nil
 }
 
 func FormatSlackTS(ts time.Time) string {
