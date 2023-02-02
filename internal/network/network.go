@@ -20,9 +20,9 @@ const (
 	defNumAttempts = 3
 )
 
-// MaxAllowedWaitTime is the maximum time to wait for a transient error.
-// The wait time for a transient error depends on the current retry attempt
-// number and is calculated as: (attempt+2)^3 seconds.
+// MaxAllowedWaitTime is the maximum time to wait for a transient error.  The
+// wait time for a transient error depends on the current retry attempt number
+// and is calculated as: (attempt+2)^3 seconds, capped at MaxAllowedWaitTime.
 var MaxAllowedWaitTime = 5 * time.Minute
 
 // Logger is the package logger.
