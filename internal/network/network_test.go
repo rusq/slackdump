@@ -2,10 +2,13 @@ package network
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"reflect"
 	"testing"
 	"time"
-
-	"errors"
 
 	"github.com/slack-go/slack"
 	"golang.org/x/time/rate"
@@ -139,6 +142,111 @@ func Test_withRetry(t *testing.T) {
 			t.Logf("runtime = %s, mustCompleteIn = %s, error = ABS(%[1]s - %[2]s) = %[3]s", runTime, tt.mustCompleteIn, runTimeError)
 			if runTimeError > maxRunDurationError {
 				t.Errorf("runtime error %s is not within allowed threshold: %s", runTimeError, maxRunDurationError)
+			}
+		})
+	}
+}
+
+func Test500ErrorHandling(t *testing.T) {
+	t.Parallel()
+
+	var codes = []int{500, 502, 503, 504, 598}
+	for _, code := range codes {
+		var thisCode = code
+		// This test is to ensure that we handle 500 errors correctly.
+		t.Run(fmt.Sprintf("%d error", code), func(t *testing.T) {
+			t.Parallel()
+
+			const (
+				testRetryCount = 1
+				waitThreshold  = 100 * time.Millisecond
+			)
+
+			// Create a test server that returns a 500 error.
+			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(thisCode)
+			}))
+			defer ts.Close()
+
+			// Create a new client with the test server as the endpoint.
+			client := slack.New("token", slack.OptionAPIURL(ts.URL+"/"))
+
+			start := time.Now()
+			// Call the client with a retry.
+			err := WithRetry(context.Background(), rate.NewLimiter(1, 1), testRetryCount, func() error {
+				_, err := client.GetConversationHistory(&slack.GetConversationHistoryParameters{})
+				if err == nil {
+					return errors.New("expected error, got nil")
+				}
+				return err
+			})
+			if err == nil {
+				t.Fatal("expected error, got nil")
+			}
+
+			dur := time.Since(start)
+			if dur < waitTime(testRetryCount-1)-waitThreshold || waitTime(testRetryCount-1)+waitThreshold < dur {
+				t.Errorf("expected duration to be around %s, got %s", waitTime(testRetryCount), dur)
+			}
+
+		})
+	}
+	t.Run("404 error", func(t *testing.T) {
+		t.Parallel()
+
+		const (
+			testRetryCount = 1
+			waitThreshold  = 100 * time.Millisecond
+		)
+
+		// Create a test server that returns a 404 error.
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(404)
+		}))
+		defer ts.Close()
+
+		// Create a new client with the test server as the endpoint.
+		client := slack.New("token", slack.OptionAPIURL(ts.URL+"/"))
+
+		// Call the client with a retry.
+		start := time.Now()
+		err := WithRetry(context.Background(), rate.NewLimiter(1, 1), testRetryCount, func() error {
+			_, err := client.GetConversationHistory(&slack.GetConversationHistoryParameters{})
+			if err == nil {
+				return errors.New("expected error, got nil")
+			}
+			return err
+		})
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+		dur := time.Since(start)
+		if dur > 500*time.Millisecond { // 404 error should not be retried
+			t.Errorf("expected no sleep, but slept for %s", dur)
+		}
+	})
+}
+
+func Test_waitTime(t *testing.T) {
+	type args struct {
+		attempt int
+	}
+	tests := []struct {
+		name string
+		args args
+		want time.Duration
+	}{
+		{"attempt 0", args{0}, 8 * time.Second},
+		{"attempt 1", args{1}, 27 * time.Second},
+		{"attempt 2", args{2}, 64 * time.Second},
+		{"attempt 2", args{4}, 216 * time.Second},
+		{"attempt 100", args{5}, MaxAllowedWaitTime}, // check if capped properly
+		{"attempt 100", args{1000}, MaxAllowedWaitTime},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := waitTime(tt.args.attempt); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("waitTime() = %v, want %v", got, tt.want)
 			}
 		})
 	}
