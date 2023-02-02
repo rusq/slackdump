@@ -208,6 +208,7 @@ func Test_serializeToFS(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		defer r.Close()
 		got, err := io.ReadAll(r)
 		if err != nil {
 			t.Fatal(err)
