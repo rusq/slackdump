@@ -1,13 +1,13 @@
 package logger
 
 import (
-	"io"
 	"log"
 	"os"
 
 	"github.com/rusq/dlog"
 )
 
+// Interface is the interface for a logger.
 type Interface interface {
 	Debug(...any)
 	Debugf(fmt string, a ...any)
@@ -16,8 +16,20 @@ type Interface interface {
 	Println(...any)
 }
 
+// Default is the default logger.  It logs to stderr and debug logging can be
+// enabled by setting the DEBUG environment variable to 1.  For example:
+//
+//	DEBUG=1 slackdump
 var Default = dlog.New(log.Default().Writer(), "", log.LstdFlags, os.Getenv("DEBUG") == "1")
 
-// note: previously ioutil.Discard which is not deprecated in favord of io.Discard
-// so this is valid only from go1.16
-var Silent = dlog.New(io.Discard, "", log.LstdFlags, false)
+// Silent is a logger that does not log anything.
+var Silent = silent{}
+
+// Silent is a logger that does not log anything.
+type silent struct{}
+
+func (s silent) Debug(...any)                {}
+func (s silent) Debugf(fmt string, a ...any) {}
+func (s silent) Print(...any)                {}
+func (s silent) Printf(fmt string, a ...any) {}
+func (s silent) Println(...any)              {}
