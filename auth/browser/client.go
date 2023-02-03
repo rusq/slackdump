@@ -26,7 +26,9 @@ type Client struct {
 
 var Logger logger.Interface = logger.Default
 
-// New create new browser based client
+var installFn = playwright.Install
+
+// New create new browser based client.
 func New(workspace string, opts ...Option) (*Client, error) {
 	if workspace == "" {
 		return nil, errors.New("workspace can't be empty")
@@ -35,7 +37,7 @@ func New(workspace string, opts ...Option) (*Client, error) {
 	for _, opt := range opts {
 		opt(cl)
 	}
-	if err := playwright.Install(&playwright.RunOptions{
+	if err := installFn(&playwright.RunOptions{
 		Browsers: []string{cl.br.String()},
 	}); err != nil {
 		return nil, err
@@ -47,6 +49,12 @@ func (cl *Client) Authenticate(ctx context.Context) (string, []http.Cookie, erro
 	ctx, task := trace.NewTask(ctx, "Authenticate")
 	defer task.End()
 
+	var (
+		_s = playwright.String
+		_f = playwright.Float
+		_b = playwright.Bool
+	)
+
 	pw, err := playwright.Run()
 	if err != nil {
 		return "", nil, err
@@ -54,7 +62,7 @@ func (cl *Client) Authenticate(ctx context.Context) (string, []http.Cookie, erro
 	defer pw.Stop()
 
 	opts := playwright.BrowserTypeLaunchOptions{
-		Headless: playwright.Bool(false),
+		Headless: _b(false),
 	}
 
 	browser, err := cl.br.client(pw).Launch(opts)
@@ -70,10 +78,6 @@ func (cl *Client) Authenticate(ctx context.Context) (string, []http.Cookie, erro
 	defer context.Close()
 
 	// disable the "cookies" nag screen.
-	var (
-		_s = playwright.String
-		_f = playwright.Float
-	)
 	if err := context.AddCookies(playwright.BrowserContextAddCookiesOptionsCookies{
 		Domain:  _s(slackDomain),
 		Path:    _s("/"),
