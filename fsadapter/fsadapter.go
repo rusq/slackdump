@@ -15,6 +15,7 @@ type FS interface {
 	WriteFile(name string, data []byte, perm os.FileMode) error
 }
 
+// FSCloser is a FS that can be closed.
 type FSCloser interface {
 	FS
 	io.Closer

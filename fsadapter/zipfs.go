@@ -15,6 +15,7 @@ import (
 
 var _ FS = &ZIP{}
 
+// ZIP is a filesystem adapter for zip files.
 type ZIP struct {
 	zw   *zip.Writer
 	mu   sync.Mutex
@@ -26,10 +27,12 @@ func (z *ZIP) String() string {
 	return fmt.Sprintf("<zip archive: %s>", z.f.Name())
 }
 
+// NewZIP returns a new ZIP filesystem adapter for a given ZipWriter.
 func NewZIP(zw *zip.Writer) *ZIP {
 	return &ZIP{zw: zw, seen: make(map[string]bool)}
 }
 
+// NewZipFile returns a new ZIP filesystem adapter for a given filename.
 func NewZipFile(filename string) (*ZIP, error) {
 	f, err := os.Create(filename)
 	if err != nil {
@@ -39,11 +42,13 @@ func NewZipFile(filename string) (*ZIP, error) {
 	return &ZIP{zw: zw, f: f, seen: make(map[string]bool)}, nil
 }
 
+// normalizePath reassembles the path in correct format for ZIP file.
 func (*ZIP) normalizePath(p string) string {
 	split := strings.Split(filepath.Clean(p), string(os.PathSeparator))
 	return path.Join(split...)
 }
 
+// Create creates a new file in the zip archive.
 func (z *ZIP) Create(filename string) (io.WriteCloser, error) {
 	// reassemble path in correct format for ZIP file
 	// in case it uses OS specific path.
@@ -57,6 +62,7 @@ func (z *ZIP) Create(filename string) (io.WriteCloser, error) {
 	return &syncWriter{w: w, mu: &z.mu}, nil
 }
 
+// create creates a new file in the zip archive.
 func (z *ZIP) create(filename string) (io.Writer, error) {
 	if err := z.ensureDir(filename); err != nil {
 		return nil, err
@@ -69,6 +75,11 @@ func (z *ZIP) create(filename string) (io.Writer, error) {
 	return z.zw.CreateHeader(header)
 }
 
+// ensureDir ensures that the given directory exists in the zip archive.  This
+// is necessary because if the empty directory is not created beforehand, the
+// files will appear in the root of the zip archive, but will contain the
+// slash in their name.  Most of the ZIP unarchivers will be able to handle
+// this, but some will not.
 func (z *ZIP) ensureDir(filename string) error {
 	if z.seen == nil {
 		z.seen = make(map[string]bool, 0)
@@ -93,6 +104,11 @@ func (z *ZIP) ensureDir(filename string) error {
 	return nil
 }
 
+// dirpath decomposes the path into a list of directories that lead to a
+// given directory, to ensure that the ensureDir would create all the nested
+// levels.  For example, if the directory is "a/b/c", the returned list will
+// be ["a/", "a/b/", "a/b/c/"].  The returned list is sorted from the root
+// directory to the given directory.
 func (*ZIP) dirpath(dir string) []string {
 	const sep = "/"
 	if len(dir) == 0 {
@@ -107,6 +123,7 @@ func (*ZIP) dirpath(dir string) []string {
 	return ret
 }
 
+// WriteFile writes the given data to the given filename in the zip archive.
 func (z *ZIP) WriteFile(filename string, data []byte, _ os.FileMode) error {
 	z.mu.Lock()
 	defer z.mu.Unlock()
@@ -120,8 +137,8 @@ func (z *ZIP) WriteFile(filename string, data []byte, _ os.FileMode) error {
 
 }
 
-// Close closes the underlying zip writer and the file handle.  It is only necessary if
-// ZIP was initialised using NewZipFile
+// Close closes the underlying zip writer and the file handle.  It is only
+// necessary if ZIP was initialised using NewZipFile
 func (z *ZIP) Close() error {
 	if !z.ourHandles() {
 		// we don't own the handles, so just bail out.
@@ -133,6 +150,7 @@ func (z *ZIP) Close() error {
 	return z.closeHandles()
 }
 
+// closeHandles closes the underlying zip writer and the file handle.
 func (z *ZIP) closeHandles() error {
 	if err := z.zw.Close(); err != nil {
 		return err
@@ -143,10 +161,13 @@ func (z *ZIP) closeHandles() error {
 	return z.f.Close()
 }
 
+// ourHandles returns true if we own the file handle.
 func (z *ZIP) ourHandles() bool {
 	return z.f != nil
 }
 
+// syncWriter is a wrapper around an io.Writer that ensures that the underlying
+// writer is only used by one process at a time.
 type syncWriter struct {
 	w io.Writer // underlying writer
 
