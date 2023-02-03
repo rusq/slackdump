@@ -379,7 +379,7 @@ func TestExport_exportConversation(t *testing.T) {
 				sd: dumper,
 				fs: fs,
 				dl: dl,
-				opts: Options{
+				opts: Config{
 					Oldest: tt.args.oldest,
 					Latest: tt.args.latest,
 				},

@@ -28,7 +28,7 @@ func TestOptions_IsFilesEnabled(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			opt := Options{
+			opt := Config{
 				Oldest:      tt.fields.Oldest,
 				Latest:      tt.fields.Latest,
 				Logger:      tt.fields.Logger,

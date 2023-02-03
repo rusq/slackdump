@@ -15,6 +15,8 @@ type Directory struct {
 	dir string
 }
 
+// NewDirectory returns a new Directory filesystem adapter for a given
+// directory.
 func NewDirectory(dir string) Directory {
 	return Directory{dir: dir}
 }
@@ -23,6 +25,7 @@ func (d Directory) String() string {
 	return "<directory: " + d.dir + ">"
 }
 
+// Create creates a new file in the directory.
 func (fs Directory) Create(fpath string) (io.WriteCloser, error) {
 	node := filepath.Join(fs.dir, fpath)
 	if err := fs.ensureSubdir(node); err != nil {
@@ -35,6 +38,8 @@ func (fs Directory) Create(fpath string) (io.WriteCloser, error) {
 	return os.Create(node)
 }
 
+// ErrIllegalDir is returned, if the file path reference is outside of the
+// working directory.
 var ErrIllegalDir = errors.New("illegal file path reference outside of working directory")
 
 // ensureSubdir ensures that the node is a subdirectory of
@@ -50,7 +55,8 @@ func (fs Directory) ensureSubdir(node string) error {
 	return nil
 }
 
-// mkdirAll creates a directory "name", if the directory exists, it does nothing.
+// mkdirAll creates a directory "name", if the directory exists, it does
+// nothing.
 func mkdirAll(name string) error {
 	if name == "" {
 		return errors.New("empty directory")
@@ -68,6 +74,9 @@ func mkdirAll(name string) error {
 	return nil
 }
 
+// WriteFile writes data to a file named by name. If the file does not exist,
+// WriteFile creates it with permissions perm (before umask); otherwise
+// WriteFile truncates it before writing.
 func (fs Directory) WriteFile(name string, data []byte, perm os.FileMode) error {
 	node := filepath.Join(fs.dir, name)
 	if err := fs.ensureSubdir(node); err != nil {
@@ -79,6 +88,7 @@ func (fs Directory) WriteFile(name string, data []byte, perm os.FileMode) error 
 	return os.WriteFile(node, data, perm)
 }
 
+// Close is a noop for Directory.
 func (fs Directory) Close() error {
 	return nil
 }

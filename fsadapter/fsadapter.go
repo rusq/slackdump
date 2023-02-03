@@ -13,6 +13,11 @@ import (
 type FS interface {
 	Create(string) (io.WriteCloser, error)
 	WriteFile(name string, data []byte, perm os.FileMode) error
+}
+
+// FSCloser is a FS that can be closed.
+type FSCloser interface {
+	FS
 	io.Closer
 }
 
@@ -22,7 +27,7 @@ type FS interface {
 //   - else: it's a directory.
 //
 // Currently supported extensions: ".zip" (case insensitive)
-func New(location string) (FS, error) {
+func New(location string) (FSCloser, error) {
 	switch strings.ToUpper(filepath.Ext(location)) {
 	case ".ZIP":
 		return NewZipFile(location)

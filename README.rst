@@ -133,6 +133,7 @@ Example
         log.Print(err)
         return
     }
+    defer sd.Close()
     _ = sd
   }
 
@@ -165,6 +166,7 @@ Good news is logrus_ can be plugged in straight away, as it implements the
         return
     }
   }
+  defer sd.Close()
 
 
 Glog and others

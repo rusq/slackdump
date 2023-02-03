@@ -93,8 +93,8 @@ func printAll(m manager, current string, wsps []string) {
 	fmt.Fprintln(tw,
 		"C\tname\tfilename\tmodified\tteam\tuser\terror\n"+
 			"-\t-------\t------------\t-------------------\t---------\t--------\t-----")
-	cfg.SlackOptions.Logger = logger.Silent
-	cfg.SlackOptions.UserCache.Disabled = true
+	cfg.SlackConfig.Logger = logger.Silent
+	cfg.SlackConfig.UserCache.Disabled = true
 	for _, name := range wsps {
 		curr := ""
 		if current == name {
@@ -119,10 +119,11 @@ func userInfo(ctx context.Context, m manager, name string) (*slack.AuthTestRespo
 	if err != nil {
 		return nil, err
 	}
-	sess, err := slackdump.New(ctx, prov, cfg.SlackOptions)
+	sess, err := slackdump.New(ctx, prov, cfg.SlackConfig)
 	if err != nil {
 		return nil, err
 	}
+	defer sess.Close()
 	return sess.Client().AuthTest()
 }
 
