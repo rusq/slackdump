@@ -170,7 +170,7 @@ func run(ctx context.Context, p params) error {
 	ctx = dlog.NewContext(ctx, lg)
 
 	// - setting the logger for the application.
-	p.appCfg.SlackConfig.Logger = lg
+	p.appCfg.Log = lg
 
 	// - trace init
 	if traceStopFn, err := initTrace(lg, p.traceFile); err != nil {

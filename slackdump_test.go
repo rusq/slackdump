@@ -4,19 +4,16 @@ import (
 	"context"
 	"log"
 	"math"
-	"os"
 	"reflect"
 	"testing"
 	"time"
 
-	"github.com/rusq/dlog"
 	"github.com/slack-go/slack"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/rusq/slackdump/v2/auth"
 	"github.com/rusq/slackdump/v2/internal/fixtures"
 	"github.com/rusq/slackdump/v2/internal/network"
-	"github.com/rusq/slackdump/v2/logger"
 	"github.com/rusq/slackdump/v2/types"
 )
 
@@ -170,49 +167,6 @@ func TestSession_Me(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("Session.Me() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestSession_l(t *testing.T) {
-	testLg := dlog.New(os.Stderr, "TEST", log.LstdFlags, false)
-	type fields struct {
-		client  clienter
-		wspInfo *slack.AuthTestResponse
-		Users   types.Users
-		options Config
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		want   logger.Interface
-	}{
-		{
-			"empty returns the default logger",
-			fields{
-				options: Config{},
-			},
-			logger.Default,
-		},
-		{
-			"if logger is set, it returns the custom logger",
-			fields{
-				options: Config{Logger: testLg},
-			},
-			logger.Interface(testLg),
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			sd := &Session{
-				client:  tt.fields.client,
-				wspInfo: tt.fields.wspInfo,
-				Users:   tt.fields.Users,
-				cfg:     tt.fields.options,
-			}
-			if got := sd.l(); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("Session.l() = %v, want %v", got, tt.want)
 			}
 		})
 	}

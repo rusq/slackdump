@@ -10,8 +10,6 @@ import (
 	ut "github.com/go-playground/universal-translator"
 	"github.com/go-playground/validator/v10"
 	translations "github.com/go-playground/validator/v10/translations/en"
-
-	"github.com/rusq/slackdump/v2/logger"
 )
 
 // Config is the option set for the Session.
@@ -24,7 +22,7 @@ type Config struct {
 	UserCache CacheConfig
 
 	BaseLocation string // base location for the dump files
-	Logger       logger.Interface
+	Logfile      string
 }
 
 // CacheConfig represents the options for the cache.
@@ -92,9 +90,9 @@ var DefOptions = Config{
 	},
 	DumpFiles:    false,
 	UserCache:    CacheConfig{Filename: "users.cache", MaxAge: 4 * time.Hour},
-	CacheDir:     "",             // default cache dir
-	Logger:       logger.Default, // default logger is the... default logger
-	BaseLocation: ".",            // default location is the current directory
+	CacheDir:     "",  // default cache dir
+	BaseLocation: ".", // default location is the current directory
+	Logfile:      "",  // empty, means STDERR
 }
 
 var (

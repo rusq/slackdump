@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"runtime/trace"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/slack-go/slack"
 	"golang.org/x/time/rate"
 
+	"github.com/rusq/dlog"
 	"github.com/rusq/slackdump/v2/auth"
 	"github.com/rusq/slackdump/v2/fsadapter"
 	"github.com/rusq/slackdump/v2/internal/network"
@@ -24,7 +26,8 @@ import (
 //go:generate sh -c "mockgen -source slackdump.go -destination clienter_mock_test.go -package slackdump -mock_names clienter=mockClienter,Reporter=mockReporter"
 //go:generate sed -i ~ -e "s/NewmockClienter/newmockClienter/g" -e "s/NewmockReporter/newmockReporter/g" clienter_mock_test.go
 
-// Session stores basic session parameters.
+// Session stores basic session parameters.  Zero value is not usable, must be
+// initialised with New.
 type Session struct {
 	client clienter // Slack client
 
@@ -33,8 +36,10 @@ type Session struct {
 	// Users contains the list of users and populated on NewSession
 	Users types.Users `json:"users"`
 
-	fs    fsadapter.FSCloser // filesystem adapter
-	ownFS bool               // whether the filesystem adapter was created by the session
+	fs  fsadapter.FS     // filesystem adapter
+	log logger.Interface // logger
+
+	atClose []func() error // functions to call on exit
 
 	cfg Config
 }
@@ -77,6 +82,18 @@ func WithFilesystem(fs fsadapter.FSCloser) Option {
 	}
 }
 
+// WithLogger sets the logger to use for the session.  If this option is not
+// given, the default logger is initialised with the filename specified in
+// Config.Logfile.  If the Config.Logfile is empty, the default logger writes
+// to STDERR.
+func WithLogger(l logger.Interface) Option {
+	return func(s *Session) {
+		if l != nil {
+			s.log = l
+		}
+	}
+}
+
 // New creates new Slackdump session with provided options, and populates the
 // internal cache of users and channels for lookups. If it fails to
 // authenticate, AuthError is returned.
@@ -106,22 +123,23 @@ func New(ctx context.Context, prov auth.Provider, cfg Config, opts ...Option) (*
 		client:  cl,
 		cfg:     cfg,
 		wspInfo: authTestResp,
+		log:     logger.Default,
 	}
 	for _, opt := range opts {
 		opt(sd)
 	}
 	if sd.fs == nil {
-		// if no filesystem adapter is provided through Options, initialise
-		// the default one.
-		var err error
-		sd.fs, err = fsadapter.New(cfg.BaseLocation)
-		if err != nil {
+		if err := sd.openFS(cfg.BaseLocation); err != nil {
 			return nil, fmt.Errorf("failed to initialise filesystem adapter: %s", err)
 		}
-		sd.ownFS = true
+	}
+	if sd.log == nil {
+		if err := sd.openLogger(cfg.Logfile); err != nil {
+			return nil, fmt.Errorf("failed to initialise logger: %s", err)
+		}
 	}
 
-	sd.propagateLogger(sd.l())
+	sd.propagateLogger()
 
 	if err := os.MkdirAll(cfg.CacheDir, 0700); err != nil {
 		return nil, fmt.Errorf("failed to create the cache directory: %s", err)
@@ -144,18 +162,51 @@ func (s *Session) Client() *slack.Client {
 	return s.client.(*slack.Client)
 }
 
+func (s *Session) openFS(loc string) error {
+	// if no filesystem adapter is provided through Options, initialise
+	// the default one.
+	fs, err := fsadapter.New(loc)
+	if err != nil {
+		return err
+	}
+	s.fs = fs
+	s.atClose = append(s.atClose, func() error {
+		return fs.Close()
+	})
+	return nil
+}
+
 // Filesystem returns the filesystem adapter used by the session.
 func (s *Session) Filesystem() fsadapter.FS {
 	return s.fs
 }
 
+func (s *Session) openLogger(filename string) error {
+	if filename == "" {
+		s.log = logger.Default
+		return nil
+	}
+	f, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0600)
+	if err != nil {
+		return err
+	}
+	s.atClose = append(s.atClose, func() error {
+		return f.Close()
+	})
+	s.log = dlog.New(f, "", log.LstdFlags, false)
+	return nil
+}
+
 // Close closes the handles if they were created by the session.
 // It must be called when the session is no longer needed.
 func (s *Session) Close() error {
-	if s.ownFS {
-		return s.fs.Close()
+	var last error
+	for _, fn := range s.atClose {
+		if err := fn(); err != nil {
+			last = err
+		}
 	}
-	return nil
+	return last
 }
 
 // Me returns the current authenticated user in a rather dirty manner.
@@ -190,17 +241,9 @@ func withRetry(ctx context.Context, l *rate.Limiter, maxAttempts int, fn func() 
 	return network.WithRetry(ctx, l, maxAttempts, fn)
 }
 
-// l returns the current logger.
-func (s *Session) l() logger.Interface {
-	if s.cfg.Logger == nil {
-		return logger.Default
-	}
-	return s.cfg.Logger
-}
-
 // propagateLogger propagates the slackdump logger to some dumb packages.
-func (s *Session) propagateLogger(l logger.Interface) {
-	network.Logger = l
+func (s *Session) propagateLogger() {
+	network.Logger = s.log
 }
 
 // Info returns a workspace information.  Slackdump retrieves workspace

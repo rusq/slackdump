@@ -100,9 +100,7 @@ func RunDump(ctx context.Context, cmd *base.Command, args []string) error {
 		return fmt.Errorf("file template error: %w", err)
 	}
 
-	cfg.SlackConfig.Logger = dlog.FromContext(ctx)
-
-	sess, err := slackdump.New(ctx, prov, cfg.SlackConfig)
+	sess, err := slackdump.New(ctx, prov, cfg.SlackConfig, slackdump.WithLogger(dlog.FromContext(ctx)))
 	if err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return err
