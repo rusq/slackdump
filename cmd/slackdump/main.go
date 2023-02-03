@@ -164,7 +164,7 @@ func invoke(cmd *base.Command, args []string) error {
 	} else {
 		lg.SetPrefix(cmd.Name() + ": ")
 		ctx = dlog.NewContext(ctx, lg)
-		cfg.SlackConfig.Logger = lg
+		cfg.Log = lg
 	}
 
 	if cmd.RequireAuth {

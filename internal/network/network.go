@@ -83,10 +83,13 @@ func WithRetry(ctx context.Context, l *rate.Limiter, maxAttempts int, fn func() 
 }
 
 // waitTime returns the amount of time to wait before retrying depending on
-// the current attempt. The wait time is calculated as (x+2)^3 seconds, where
-// x is the current attempt number. The maximum wait time is capped at 5
+// the current attempt.  This variable exists to reduce the test time.
+var waitTime = cubicWait
+
+// cubicWait is the wait time function.  Time is calculated as (x+2)^3 seconds,
+// where x is the current attempt number. The maximum wait time is capped at 5
 // minutes.
-func waitTime(attempt int) time.Duration {
+func cubicWait(attempt int) time.Duration {
 	x := attempt + 2 // this is to ensure that we sleep at least 8 seconds.
 	delay := time.Duration(x*x*x) * time.Second
 	if delay > MaxAllowedWaitTime {

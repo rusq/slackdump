@@ -15,6 +15,7 @@ import (
 	"github.com/rusq/slackdump/v2/internal/cache"
 	"github.com/rusq/slackdump/v2/internal/fixtures"
 	"github.com/rusq/slackdump/v2/internal/structures"
+	"github.com/rusq/slackdump/v2/logger"
 	"github.com/rusq/slackdump/v2/types"
 )
 
@@ -177,6 +178,7 @@ func TestSession_GetUsers(t *testing.T) {
 				wspInfo: &slack.AuthTestResponse{TeamID: testSuffix},
 				Users:   tt.fields.Users,
 				cfg:     tt.fields.options,
+				log:     logger.Silent,
 			}
 			got, err := sd.GetUsers(tt.args.ctx)
 			if (err != nil) != tt.wantErr {

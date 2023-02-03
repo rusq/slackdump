@@ -32,14 +32,14 @@ func (s *Session) GetUsers(ctx context.Context) (types.Users, error) {
 
 	users, err := m.LoadUsers(s.wspInfo.TeamID, s.cfg.UserCache.MaxAge)
 	if err != nil {
-		s.l().Println("caching users")
+		s.log.Println("caching users")
 		users, err = s.fetchUsers(ctx)
 		if err != nil {
 			return nil, err
 		}
 		if err := m.SaveUsers(s.wspInfo.TeamID, users); err != nil {
 			trace.Logf(ctx, "error", "saving user cache to %q, error: %s", s.cfg.UserCache.Filename, err)
-			s.l().Printf("error saving user cache to %q: %s, but nevermind, let's continue", s.cfg.UserCache.Filename, err)
+			s.log.Printf("error saving user cache to %q: %s, but nevermind, let's continue", s.cfg.UserCache.Filename, err)
 		}
 	}
 

@@ -11,6 +11,7 @@ import (
 
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/auth/browser"
+	"github.com/rusq/slackdump/v2/logger"
 )
 
 var (
@@ -25,6 +26,8 @@ var (
 	SlackCookie string
 	Browser     browser.Browser
 	SlackConfig = slackdump.DefOptions
+
+	Log logger.Interface
 )
 
 type FlagMask int

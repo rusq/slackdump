@@ -10,6 +10,7 @@ import (
 	"github.com/slack-go/slack"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/rusq/slackdump/v2/logger"
 	"github.com/rusq/slackdump/v2/types"
 )
 
@@ -80,6 +81,7 @@ func TestSession_getChannels(t *testing.T) {
 				client: mc,
 				Users:  tt.fields.Users,
 				cfg:    tt.fields.options,
+				log:    logger.Silent,
 			}
 
 			if tt.expectFn != nil {

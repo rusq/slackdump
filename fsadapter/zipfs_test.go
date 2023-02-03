@@ -145,60 +145,64 @@ func TestNewZIP(t *testing.T) {
 }
 
 func TestCreateConcurrency(t *testing.T) {
-	// test for GH issue#90 - race condition in ZIP.Create
-	const (
-		numRoutines    = 16
-		testContentsSz = 1 * (1 << 20)
-	)
+	t.Parallel()
+	t.Run("issue#90", func(t *testing.T) {
+		t.Parallel()
+		// test for GH issue#90 - race condition in ZIP.Create
+		const (
+			numRoutines    = 16
+			testContentsSz = 1 * (1 << 20)
+		)
 
-	var buf bytes.Buffer
-	var wg sync.WaitGroup
+		var buf bytes.Buffer
+		var wg sync.WaitGroup
 
-	zw := zip.NewWriter(&buf)
-	defer zw.Close()
+		zw := zip.NewWriter(&buf)
+		defer zw.Close()
 
-	fsa := NewZIP(zw)
-	defer fsa.Close()
+		fsa := NewZIP(zw)
+		defer fsa.Close()
 
-	// prepare workers
-	readySteadyGo := make(chan struct{})
-	panicAttacks := make(chan any, numRoutines)
+		// prepare workers
+		readySteadyGo := make(chan struct{})
+		panicAttacks := make(chan any, numRoutines)
 
-	for i := 0; i < numRoutines; i++ {
-		wg.Add(1)
-		go func(n int) {
-			defer func() {
-				if r := recover(); r != nil {
-					panicAttacks <- fmt.Sprintf("ZIP.Create race condition in gr %d: %v", n, r)
+		for i := 0; i < numRoutines; i++ {
+			wg.Add(1)
+			go func(n int) {
+				defer func() {
+					if r := recover(); r != nil {
+						panicAttacks <- fmt.Sprintf("ZIP.Create race condition in gr %d: %v", n, r)
+					}
+				}()
+
+				defer wg.Done()
+				var contents bytes.Buffer
+				if _, err := io.CopyN(&contents, rand.Reader, testContentsSz); err != nil {
+					panic(err)
 				}
-			}()
 
-			defer wg.Done()
-			var contents bytes.Buffer
-			if _, err := io.CopyN(&contents, rand.Reader, testContentsSz); err != nil {
-				panic(err)
-			}
+				<-readySteadyGo
+				fw, err := fsa.Create(fmt.Sprintf("file%d", n))
+				if err != nil {
+					panic(err)
+				}
+				defer fw.Close()
 
-			<-readySteadyGo
-			fw, err := fsa.Create(fmt.Sprintf("file%d", n))
-			if err != nil {
-				panic(err)
-			}
-			defer fw.Close()
-
-			if _, err := io.Copy(fw, &contents); err != nil {
-				panic(err)
-			}
-		}(i)
-	}
-	close(readySteadyGo)
-	wg.Wait()
-	close(panicAttacks)
-	for r := range panicAttacks {
-		if r != nil {
-			t.Error(r)
+				if _, err := io.Copy(fw, &contents); err != nil {
+					panic(err)
+				}
+			}(i)
 		}
-	}
+		close(readySteadyGo)
+		wg.Wait()
+		close(panicAttacks)
+		for r := range panicAttacks {
+			if r != nil {
+				t.Error(r)
+			}
+		}
+	})
 }
 
 func TestZIP_normalizePath(t *testing.T) {
