@@ -148,14 +148,16 @@ func Test_withRetry(t *testing.T) {
 }
 
 func Test500ErrorHandling(t *testing.T) {
-	t.Parallel()
+	waitTime = func(attempt int) time.Duration { return 50 * time.Millisecond }
+	defer func() {
+		waitTime = cubicWait
+	}()
 
 	var codes = []int{500, 502, 503, 504, 598}
 	for _, code := range codes {
 		var thisCode = code
 		// This test is to ensure that we handle 500 errors correctly.
 		t.Run(fmt.Sprintf("%d error", code), func(t *testing.T) {
-			t.Parallel()
 
 			const (
 				testRetryCount = 1
@@ -227,7 +229,7 @@ func Test500ErrorHandling(t *testing.T) {
 	})
 }
 
-func Test_waitTime(t *testing.T) {
+func Test_cubicWait(t *testing.T) {
 	type args struct {
 		attempt int
 	}
@@ -245,7 +247,7 @@ func Test_waitTime(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := waitTime(tt.args.attempt); !reflect.DeepEqual(got, tt.want) {
+			if got := cubicWait(tt.args.attempt); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("waitTime() = %v, want %v", got, tt.want)
 			}
 		})
