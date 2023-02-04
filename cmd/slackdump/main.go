@@ -87,6 +87,10 @@ func main() {
 		}
 	}
 	base.CmdName = args[0]
+	if args[0] == "help" {
+		help.Help(os.Stdout, args[1:])
+		return
+	}
 
 BigCmdLoop:
 	for bigCmd := base.Slackdump; ; {
