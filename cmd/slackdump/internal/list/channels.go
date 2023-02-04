@@ -33,6 +33,11 @@ workspace has lots of them.
 	RequireAuth: true,
 }
 
+func init() {
+	CmdListChannels.Flag.BoolVar(&chanCacheOpts.Disabled, "no-chan-cache", chanCacheOpts.Disabled, "disable channel cache")
+	CmdListChannels.Flag.DurationVar(&chanCacheOpts.MaxAge, "chan-cache-age", chanCacheOpts.MaxAge, "channel cache retention time")
+}
+
 func listChannels(ctx context.Context, cmd *base.Command, args []string) error {
 	if err := list(ctx, func(ctx context.Context, sess *slackdump.Session) (any, string, error) {
 		ctx, task := trace.NewTask(ctx, "listChannels")
@@ -69,11 +74,15 @@ func listChannels(ctx context.Context, cmd *base.Command, args []string) error {
 
 var chanCacheOpts = slackdump.CacheConfig{
 	Disabled: false,
-	MaxAge:   0 * time.Minute,
+	MaxAge:   20 * time.Minute,
 	Filename: "channels.json",
 }
 
 func maybeLoadChanCache(cacheDir string, teamID string) (types.Channels, bool) {
+	if chanCacheOpts.Disabled {
+		// channel cache disabled
+		return nil, false
+	}
 	m, err := cache.NewManager(cacheDir)
 	if err != nil {
 		return nil, false

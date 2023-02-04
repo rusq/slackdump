@@ -31,6 +31,20 @@ var CmdList = &base.Command{
 List lists users or channels for the Slack Workspace.  It may take a while on a
 large workspace, as Slack limits the amount of requests on it's own discretion,
 which is sometimes unreasonably slow.
+
+The data is dumped to a JSON file in the base directory, and additionally,
+printed on the screen in the requested format.
+
+- To disable saving data to a file, use '-no-save' flag.
+- To disable printing to the screen, use '-q' (quiet) flag.
+
+## Caching
+Channel and User data is cached.  User cache lasts for 4 hours, and channel
+cache — for 20 minutes.  This is to prevent fetching the same data for every
+execution, which could be slow for the large workspaces.
+
+The caching can be turned off by using common flags "-no-user-cache" and
+"-no-channel-cache".
 `,
 	Commands: []*base.Command{
 		CmdListUsers,
@@ -40,8 +54,9 @@ which is sometimes unreasonably slow.
 
 // common flags
 var (
-	listType     format.Type = format.CText
-	screenOutput bool        // output to screen instead of file
+	listType format.Type = format.CText
+	quiet    bool        // quiet mode:  don't print anything on the screen, just save the file
+	nosave   bool        // nosave mode:  don't save the data to a file, just print it to the screen
 )
 
 func init() {
@@ -53,7 +68,8 @@ func init() {
 // addCommonFlags adds common flags to the flagset.
 func addCommonFlags(fs *flag.FlagSet) {
 	fs.Var(&listType, "format", fmt.Sprintf("listing format, should be one of: %v", format.All()))
-	fs.BoolVar(&screenOutput, "screen", false, "output to screen instead of file")
+	fs.BoolVar(&quiet, "q", false, "quiet mode:  don't print anything on the screen, just save the file")
+	fs.BoolVar(&nosave, "no-json", false, "don't save the data to a file, just print it to the screen")
 }
 
 // listFunc is a function that lists something from the Slack API.  It should
@@ -88,13 +104,15 @@ func list(ctx context.Context, listFn listFunc) error {
 		return err
 	}
 
-	// if screenOutput is true, print to stdout, otherwise save to a file.
-	if screenOutput {
-		return fmtPrint(ctx, os.Stdout, data, listType, sess.Users)
-	} else {
-		return saveData(ctx, sess, data, filename, listType)
+	if !nosave {
+		if err := saveData(ctx, sess, data, filename, format.CJSON); err != nil {
+			return err
+		}
 	}
-	// unreachable
+	if !quiet {
+		return fmtPrint(ctx, os.Stdout, data, listType, sess.Users)
+	}
+	return nil
 }
 
 // saveData saves the given data to the given filename.
