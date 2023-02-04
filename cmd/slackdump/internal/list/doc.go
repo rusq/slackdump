@@ -11,5 +11,5 @@ var (
 ## Listing format
 
 By default, the data is being output in TEXT format.  You can choose the listing
-format by specifying "-type X" flag, where X is one of: ` + fmt.Sprint(format.All())
+format by specifying "-format X" flag, where X is one of: ` + fmt.Sprint(format.All())
 )

@@ -87,6 +87,6 @@ func SetBaseFlags(fs *flag.FlagSet, mask FlagMask) {
 	}
 	if mask&OmitUserCacheFlag == 0 {
 		fs.BoolVar(&SlackConfig.UserCache.Disabled, "no-user-cache", false, "disable user cache")
-		fs.DurationVar(&SlackConfig.UserCache.MaxAge, "user-cache-age", slackdump.DefOptions.UserCache.MaxAge, "maximum user cache age")
+		fs.DurationVar(&SlackConfig.UserCache.Retention, "user-cache-retention", slackdump.DefOptions.UserCache.Retention, "user cache retention duration.  After this time, the cache is considered stale and will be refreshed.")
 	}
 }

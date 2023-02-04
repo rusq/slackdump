@@ -2,6 +2,7 @@ package list
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/cfg"
@@ -15,11 +16,15 @@ var CmdListUsers = &base.Command{
 	PrintFlags: true,
 	FlagMask:   cfg.OmitDownloadFlag,
 	Short:      "list workspace users",
-	Long: `
+	Long: fmt.Sprintf(`
 # List Users
 
-List users lists workspace users in the desired format.` +
-		sectListFormat,
+List users lists workspace users in the desired format.
+
+Users are cached for %v.  To disable caching, use '-no-user-cache' flag and
+'-user-cache-retention' flag to control the caching behaviour.
+`+
+		sectListFormat, cfg.SlackConfig.UserCache.Retention),
 	RequireAuth: true,
 }
 

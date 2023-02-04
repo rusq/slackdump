@@ -304,6 +304,8 @@ func whatDo(w io.Writer) (choice, error) {
 	return choice(ans), nil
 }
 
+// isInteractive returns true if the program is running in the interactive
+// terminal.
 func isInteractive() bool {
 	return term.IsTerminal(int(os.Stdout.Fd())) && term.IsTerminal(int(os.Stdin.Fd())) && os.Getenv("TERM") != "dumb"
 }

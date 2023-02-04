@@ -25,7 +25,7 @@ import (
 var CmdList = &base.Command{
 	UsageLine: "slackdump list",
 	Short:     "list users or channels",
-	Long: `
+	Long: fmt.Sprintf(`
 # List Command
 
 List lists users or channels for the Slack Workspace.  It may take a while on a
@@ -36,16 +36,15 @@ The data is dumped to a JSON file in the base directory, and additionally,
 printed on the screen in the requested format.
 
 - To disable saving data to a file, use '-no-save' flag.
-- To disable printing to the screen, use '-q' (quiet) flag.
+- To disable printing on the screen, use '-q' (quiet) flag.
 
 ## Caching
-Channel and User data is cached.  User cache lasts for 4 hours, and channel
-cache — for 20 minutes.  This is to prevent fetching the same data for every
-execution, which could be slow for the large workspaces.
+Channel and User data is cached.  Default user cache retention is %s, and
+channel cache — %s.  This is to speed up consecutive runs of the command.
 
-The caching can be turned off by using common flags "-no-user-cache" and
-"-no-channel-cache".
-`,
+The caching can be turned off by using flags "-no-user-cache" and
+"-no-chan-cache".
+`, cfg.SlackConfig.UserCache.Retention, chanCacheOpts.Retention),
 	Commands: []*base.Command{
 		CmdListUsers,
 		CmdListChannels,

@@ -137,7 +137,7 @@ func TestSession_GetUsers(t *testing.T) {
 		{
 			"everything goes as planned",
 			fields{options: Config{
-				UserCache: CacheConfig{Filename: gimmeTempFile(t, dir), MaxAge: 5 * time.Hour},
+				UserCache: CacheConfig{Filename: gimmeTempFile(t, dir), Retention: 5 * time.Hour},
 				Limits: Limits{
 					Tier2: TierLimits{Burst: 1},
 					Tier3: TierLimits{Burst: 1},
@@ -153,7 +153,7 @@ func TestSession_GetUsers(t *testing.T) {
 		{
 			"loaded from cache",
 			fields{options: Config{
-				UserCache: CacheConfig{Filename: gimmeTempFileWithUsers(t, dir), MaxAge: 5 * time.Hour},
+				UserCache: CacheConfig{Filename: gimmeTempFileWithUsers(t, dir), Retention: 5 * time.Hour},
 				Limits: Limits{
 					Tier2: TierLimits{Burst: 1},
 					Tier3: TierLimits{Burst: 1},

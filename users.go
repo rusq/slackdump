@@ -30,7 +30,7 @@ func (s *Session) GetUsers(ctx context.Context) (types.Users, error) {
 		return nil, err
 	}
 
-	users, err := m.LoadUsers(s.wspInfo.TeamID, s.cfg.UserCache.MaxAge)
+	users, err := m.LoadUsers(s.wspInfo.TeamID, s.cfg.UserCache.Retention)
 	if err != nil {
 		s.log.Println("caching users")
 		users, err = s.fetchUsers(ctx)

@@ -27,9 +27,9 @@ type Config struct {
 
 // CacheConfig represents the options for the cache.
 type CacheConfig struct {
-	Filename string
-	MaxAge   time.Duration
-	Disabled bool
+	Filename  string
+	Retention time.Duration
+	Disabled  bool
 }
 
 type Limits struct {
@@ -89,7 +89,7 @@ var DefOptions = Config{
 		},
 	},
 	DumpFiles:    false,
-	UserCache:    CacheConfig{Filename: "users.cache", MaxAge: 4 * time.Hour},
+	UserCache:    CacheConfig{Filename: "users.cache", Retention: 4 * time.Hour},
 	CacheDir:     "",  // default cache dir
 	BaseLocation: ".", // default location is the current directory
 	Logfile:      "",  // empty, means STDERR

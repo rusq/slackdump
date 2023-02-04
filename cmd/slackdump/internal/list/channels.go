@@ -2,6 +2,7 @@ package list
 
 import (
 	"context"
+	"fmt"
 	"runtime/trace"
 	"time"
 
@@ -19,7 +20,7 @@ var CmdListChannels = &base.Command{
 	PrintFlags: true,
 	FlagMask:   cfg.OmitDownloadFlag,
 	Short:      "list workspace channels",
-	Long: `
+	Long: fmt.Sprintf(`
 # List Channels Command
 
 Lists all visible channels for the currently logged in user.  The list
@@ -28,14 +29,17 @@ including archived ones.
 
 Please note that it may take a while to retrieve all channels, if your
 workspace has lots of them.
-` + sectListFormat,
+
+The channels are cached, and the cache is valid for %s.  Use the -no-chan-cache
+and -chan-cache-retention flags to control the cache behavior.
+`+sectListFormat, chanCacheOpts.Retention),
 
 	RequireAuth: true,
 }
 
 func init() {
 	CmdListChannels.Flag.BoolVar(&chanCacheOpts.Disabled, "no-chan-cache", chanCacheOpts.Disabled, "disable channel cache")
-	CmdListChannels.Flag.DurationVar(&chanCacheOpts.MaxAge, "chan-cache-age", chanCacheOpts.MaxAge, "channel cache retention time")
+	CmdListChannels.Flag.DurationVar(&chanCacheOpts.Retention, "chan-cache-retention", chanCacheOpts.Retention, "channel cache retention time.  After this time, the cache is considered stale and will be refreshed.")
 }
 
 func listChannels(ctx context.Context, cmd *base.Command, args []string) error {
@@ -73,9 +77,9 @@ func listChannels(ctx context.Context, cmd *base.Command, args []string) error {
 }
 
 var chanCacheOpts = slackdump.CacheConfig{
-	Disabled: false,
-	MaxAge:   20 * time.Minute,
-	Filename: "channels.json",
+	Disabled:  false,
+	Retention: 20 * time.Minute,
+	Filename:  "channels.json",
 }
 
 func maybeLoadChanCache(cacheDir string, teamID string) (types.Channels, bool) {
@@ -87,7 +91,7 @@ func maybeLoadChanCache(cacheDir string, teamID string) (types.Channels, bool) {
 	if err != nil {
 		return nil, false
 	}
-	cc, err := m.LoadChannels(teamID, chanCacheOpts.MaxAge)
+	cc, err := m.LoadChannels(teamID, chanCacheOpts.Retention)
 	if err != nil {
 		return nil, false
 	}

@@ -366,7 +366,7 @@ func parseCmdLine(args []string) (params, error) {
 	// - cache controls
 	fs.StringVar(&p.appCfg.SlackConfig.CacheDir, "cache-dir", cfg.CacheDir(), "slackdump cache directory")
 	fs.StringVar(&p.appCfg.SlackConfig.UserCache.Filename, "user-cache-file", slackdump.DefOptions.UserCache.Filename, "user cache file`name`.")
-	fs.DurationVar(&p.appCfg.SlackConfig.UserCache.MaxAge, "user-cache-age", slackdump.DefOptions.UserCache.MaxAge, "user cache lifetime `duration`. Set this to 0 to disable cache.")
+	fs.DurationVar(&p.appCfg.SlackConfig.UserCache.Retention, "user-cache-age", slackdump.DefOptions.UserCache.Retention, "user cache lifetime `duration`. Set this to 0 to disable cache.")
 	fs.BoolVar(&p.appCfg.SlackConfig.UserCache.Disabled, "no-user-cache", slackdump.DefOptions.UserCache.Disabled, "skip fetching users")
 
 	// - time frame options
