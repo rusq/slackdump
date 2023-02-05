@@ -16,6 +16,7 @@ import (
 	"github.com/rusq/dlog"
 	"github.com/rusq/slackdump/v2/auth"
 	"github.com/rusq/slackdump/v2/fsadapter"
+	"github.com/rusq/slackdump/v2/internal/chttp"
 	"github.com/rusq/slackdump/v2/internal/network"
 	"github.com/rusq/slackdump/v2/logger"
 	"github.com/rusq/slackdump/v2/types"
@@ -55,7 +56,7 @@ type clienter interface {
 	GetConversationRepliesContext(ctx context.Context, params *slack.GetConversationRepliesParameters) (msgs []slack.Message, hasMore bool, nextCursor string, err error)
 	GetConversationsContext(ctx context.Context, params *slack.GetConversationsParameters) (channels []slack.Channel, nextCursor string, err error)
 	GetFile(downloadURL string, writer io.Writer) error
-	GetTeamInfo() (*slack.TeamInfo, error)
+	GetTeamInfoContext(ctx context.Context) (*slack.TeamInfo, error)
 	GetUsersContext(ctx context.Context, options ...slack.GetUsersOption) ([]slack.User, error)
 	GetEmojiContext(ctx context.Context) (map[string]string, error)
 }
@@ -112,7 +113,9 @@ func New(ctx context.Context, prov auth.Provider, cfg Config, opts ...Option) (*
 		return nil, fmt.Errorf("auth provider validation error: %s", err)
 	}
 
-	cl := slack.New(prov.SlackToken(), slack.OptionCookieRAW(ptrSlice(prov.Cookies())...))
+	httpCl := chttp.NewWithToken(prov.SlackToken(), "https://slack.com", chttp.ConvertCookies(prov.Cookies()))
+
+	cl := slack.New(prov.SlackToken(), slack.OptionHTTPClient(httpCl))
 
 	authTestResp, err := cl.AuthTestContext(ctx)
 	if err != nil {

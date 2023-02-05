@@ -22,7 +22,7 @@ require (
 	github.com/rusq/osenv/v2 v2.0.1
 	github.com/rusq/tracer v1.0.1
 	github.com/schollz/progressbar/v3 v3.8.6
-	github.com/slack-go/slack v0.11.0
+	github.com/slack-go/slack v0.12.1
 	github.com/stretchr/testify v1.7.1
 	golang.org/x/net v0.1.0
 	golang.org/x/term v0.1.0
@@ -62,5 +62,3 @@ require (
 	gopkg.in/square/go-jose.v2 v2.6.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
-
-replace github.com/slack-go/slack => github.com/rusq/slack v0.12.0

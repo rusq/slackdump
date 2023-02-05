@@ -143,7 +143,7 @@ func initProvider(ctx context.Context, cacheDir string, filename string, workspa
 	}
 
 	// try to load the existing credentials, if saved earlier.
-	if creds.IsEmpty() {
+	if creds == nil || creds.IsEmpty() {
 		if prov, err := tryLoad(ctx, credsFile); err != nil {
 			trace.Logf(ctx, "warn", "no saved credentials: %s", err)
 		} else {

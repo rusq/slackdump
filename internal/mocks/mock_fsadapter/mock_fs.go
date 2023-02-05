@@ -35,20 +35,6 @@ func (m *MockFS) EXPECT() *MockFSMockRecorder {
 	return m.recorder
 }
 
-// Close mocks base method.
-func (m *MockFS) Close() error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Close")
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// Close indicates an expected call of Close.
-func (mr *MockFSMockRecorder) Close() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockFS)(nil).Close))
-}
-
 // Create mocks base method.
 func (m *MockFS) Create(arg0 string) (io.WriteCloser, error) {
 	m.ctrl.T.Helper()

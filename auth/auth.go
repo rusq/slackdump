@@ -9,6 +9,7 @@ import (
 	"runtime/trace"
 	"strings"
 
+	"github.com/rusq/slackdump/v2/internal/chttp"
 	"github.com/slack-go/slack"
 )
 
@@ -130,7 +131,9 @@ func (s simpleProvider) Test(ctx context.Context) error {
 	ctx, task := trace.NewTask(ctx, "TestAuth")
 	defer task.End()
 
-	cl := slack.New(s.Token, slack.OptionCookieRAW(ref(s.Cookie)...))
+	httpCl := chttp.NewWithToken(s.Token, "https://slack.com", chttp.ConvertCookies(s.Cookie))
+
+	cl := slack.New(s.Token, slack.OptionHTTPClient(httpCl))
 
 	region := trace.StartRegion(ctx, "AuthTestContext")
 	defer region.End()

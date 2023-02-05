@@ -22,10 +22,10 @@ import (
 )
 
 const (
-	defRetries    = 3    // default number of retries if download fails
-	defNumWorkers = 4    // number of download processes
-	defLimit      = 5000 // default API limit, in events per second.
-	defFileBufSz  = 100  // default download channel buffer.
+	retries       = 3    // default number of retries if download fails
+	numWorkers    = 4    // number of download processes
+	maxEvtPerSec  = 5000 // default API limit, in events per second.
+	downloadBufSz = 100  // default download channel buffer.
 )
 
 // Client is the instance of the downloader.
@@ -76,7 +76,7 @@ func Limiter(l *rate.Limiter) Option {
 func Retries(n int) Option {
 	return func(c *Client) {
 		if n <= 0 {
-			n = defRetries
+			n = retries
 		}
 		c.retries = n
 	}
@@ -86,7 +86,7 @@ func Retries(n int) Option {
 func Workers(n int) Option {
 	return func(c *Client) {
 		if n <= 0 {
-			n = defNumWorkers
+			n = numWorkers
 		}
 		c.workers = n
 	}
@@ -122,9 +122,9 @@ func New(client Downloader, fs fsadapter.FS, opts ...Option) *Client {
 	c := &Client{
 		client:  client,
 		fs:      fs,
-		limiter: rate.NewLimiter(defLimit, 1),
-		retries: defRetries,
-		workers: defNumWorkers,
+		limiter: rate.NewLimiter(maxEvtPerSec, 1),
+		retries: retries,
+		workers: numWorkers,
 		nameFn:  Filename,
 	}
 	for _, opt := range opts {
@@ -153,7 +153,7 @@ func (c *Client) Start(ctx context.Context) {
 		// already started
 		return
 	}
-	req := make(chan fileRequest, defFileBufSz)
+	req := make(chan fileRequest, downloadBufSz)
 
 	c.fileRequests = req
 	c.wg = c.startWorkers(ctx, req)
@@ -164,7 +164,7 @@ func (c *Client) Start(ctx context.Context) {
 // req channel is closed, workers will stop, and wg.Wait() completes.
 func (c *Client) startWorkers(ctx context.Context, req <-chan fileRequest) *sync.WaitGroup {
 	if c.workers == 0 {
-		c.workers = defNumWorkers
+		c.workers = numWorkers
 	}
 	var wg sync.WaitGroup
 	// create workers
