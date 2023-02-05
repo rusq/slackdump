@@ -27,7 +27,7 @@ func New(teamID string, token string, cookies []*http.Cookie) *Client {
 }
 
 func NewWithProvider(teamID string, prov auth.Provider) *Client {
-	return New(teamID, prov.SlackToken(), chttp.ConvertCookies(prov.Cookies()))
+	return New(teamID, prov.SlackToken(), prov.Cookies())
 }
 
 func (cl *Client) Raw() *http.Client {

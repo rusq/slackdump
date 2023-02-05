@@ -22,7 +22,7 @@ func TestLoad(t *testing.T) {
 		{
 			"loads valid data",
 			args{strings.NewReader(`{"Token":"token_value","Cookie":[{"Name":"d","Value":"abc","Path":"","Domain":"","Expires":"0001-01-01T00:00:00Z","RawExpires":"","MaxAge":0,"Secure":false,"HttpOnly":false,"SameSite":0,"Raw":"","Unparsed":null}]}`)},
-			ValueAuth{simpleProvider{Token: "token_value", Cookie: []http.Cookie{
+			ValueAuth{simpleProvider{Token: "token_value", Cookie: []*http.Cookie{
 				{Name: "d", Value: "abc"},
 			}}},
 			false,
@@ -66,7 +66,7 @@ func TestSave(t *testing.T) {
 	}{
 		{
 			"all info present",
-			args{ValueAuth{simpleProvider{Token: "token_value", Cookie: []http.Cookie{
+			args{ValueAuth{simpleProvider{Token: "token_value", Cookie: []*http.Cookie{
 				{Name: "d", Value: "abc"},
 			}}}},
 			`{"Token":"token_value","Cookie":[{"Name":"d","Value":"abc","Path":"","Domain":"","Expires":"0001-01-01T00:00:00Z","RawExpires":"","MaxAge":0,"Secure":false,"HttpOnly":false,"SameSite":0,"Raw":"","Unparsed":null}]}` + "\n",
@@ -74,7 +74,7 @@ func TestSave(t *testing.T) {
 		},
 		{
 			"token missing",
-			args{ValueAuth{simpleProvider{Token: "", Cookie: []http.Cookie{
+			args{ValueAuth{simpleProvider{Token: "", Cookie: []*http.Cookie{
 				{Name: "d", Value: "abc"},
 			}}}},
 			"",
@@ -82,13 +82,13 @@ func TestSave(t *testing.T) {
 		},
 		{
 			"cookies missing on client token",
-			args{ValueAuth{simpleProvider{Token: "xoxc-blah", Cookie: []http.Cookie{}}}},
+			args{ValueAuth{simpleProvider{Token: "xoxc-blah", Cookie: []*http.Cookie{}}}},
 			"",
 			true,
 		},
 		{
 			"cookies missing on non-client token",
-			args{ValueAuth{simpleProvider{Token: "xoxp-blah", Cookie: []http.Cookie{}}}},
+			args{ValueAuth{simpleProvider{Token: "xoxp-blah", Cookie: []*http.Cookie{}}}},
 			`{"Token":"xoxp-blah","Cookie":[]}
 `,
 			false,

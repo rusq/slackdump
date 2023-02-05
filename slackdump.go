@@ -113,7 +113,7 @@ func New(ctx context.Context, prov auth.Provider, cfg Config, opts ...Option) (*
 		return nil, fmt.Errorf("auth provider validation error: %s", err)
 	}
 
-	httpCl := chttp.New("https://slack.com", chttp.ConvertCookies(prov.Cookies()))
+	httpCl := chttp.New("https://slack.com", prov.Cookies())
 
 	cl := slack.New(prov.SlackToken(), slack.OptionHTTPClient(httpCl))
 
@@ -223,14 +223,6 @@ func (s *Session) Me() (slack.User, error) {
 
 func (s *Session) CurrentUserID() string {
 	return s.wspInfo.UserID
-}
-
-func ptrSlice[T any](cc []T) []*T {
-	var ret = make([]*T, len(cc))
-	for i := range cc {
-		ret[i] = &cc[i]
-	}
-	return ret
 }
 
 func (s *Session) limiter(t network.Tier) *rate.Limiter {

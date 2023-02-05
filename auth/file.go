@@ -22,7 +22,7 @@ func NewCookieFileAuth(token string, cookieFile string) (CookieFileAuth, error) 
 	fc := CookieFileAuth{
 		simpleProvider: simpleProvider{
 			Token:  token,
-			Cookie: deref(ptrCookies),
+			Cookie: ptrCookies,
 		},
 	}
 	return fc, nil

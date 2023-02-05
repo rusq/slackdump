@@ -88,7 +88,7 @@ func run(ctx context.Context, p params) error {
 	if err != nil {
 		return err
 	}
-	cl := chttp.NewWithTransport(domain, chttp.ConvertCookies(prov.Cookies()), chttp.NewTransport(nil))
+	cl := chttp.NewWithTransport(domain, prov.Cookies(), chttp.NewTransport(nil))
 	if err := saveOutput(ctx, cl, p.output, prov.SlackToken(), sl); err != nil {
 		return err
 	}

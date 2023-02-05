@@ -45,7 +45,7 @@ func New(workspace string, opts ...Option) (*Client, error) {
 	return cl, nil
 }
 
-func (cl *Client) Authenticate(ctx context.Context) (string, []http.Cookie, error) {
+func (cl *Client) Authenticate(ctx context.Context) (string, []*http.Cookie, error) {
 	ctx, task := trace.NewTask(ctx, "Authenticate")
 	defer task.End()
 
@@ -159,10 +159,10 @@ func extractToken(uri string) (string, error) {
 	return token, nil
 }
 
-func convertCookies(pwc []playwright.Cookie) []http.Cookie {
-	var ret = make([]http.Cookie, 0, len(pwc))
+func convertCookies(pwc []playwright.Cookie) []*http.Cookie {
+	var ret = make([]*http.Cookie, 0, len(pwc))
 	for _, p := range pwc {
-		ret = append(ret, http.Cookie{
+		ret = append(ret, &http.Cookie{
 			Name:     p.Name,
 			Value:    p.Value,
 			Path:     p.Path,

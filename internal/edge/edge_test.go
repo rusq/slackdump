@@ -10,7 +10,6 @@ import (
 	"github.com/joho/godotenv"
 
 	"github.com/rusq/slackdump/v2/auth"
-	"github.com/rusq/slackdump/v2/internal/chttp"
 )
 
 var _ = godotenv.Load()
@@ -30,7 +29,7 @@ func TestNew(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cl := New(testTeam, au.SlackToken(), chttp.ConvertCookies(au.Cookies()))
+	cl := New(testTeam, au.SlackToken(), au.Cookies())
 	req := UsersListRequest{
 		Channels: []string{"C6NL0QQSG"},
 		Filter:   "everyone AND NOT bots AND NOT apps",

@@ -33,7 +33,7 @@ type Provider interface {
 	// SlackToken should return the Slack Token value.
 	SlackToken() string
 	// Cookies should return a set of Slack Session cookies.
-	Cookies() []http.Cookie
+	Cookies() []*http.Cookie
 	// Type returns the auth type.
 	Type() Type
 	// Validate should return error, in case the token or cookies cannot be
@@ -50,7 +50,7 @@ var (
 
 type simpleProvider struct {
 	Token  string
-	Cookie []http.Cookie
+	Cookie []*http.Cookie
 }
 
 func (c simpleProvider) Validate() error {
@@ -67,25 +67,8 @@ func (c simpleProvider) SlackToken() string {
 	return c.Token
 }
 
-func (c simpleProvider) Cookies() []http.Cookie {
+func (c simpleProvider) Cookies() []*http.Cookie {
 	return c.Cookie
-}
-
-// deref dereferences []*T to []T.
-func deref[T any](cc []*T) []T {
-	var ret = make([]T, len(cc))
-	for i := range cc {
-		ret[i] = *cc[i]
-	}
-	return ret
-}
-
-func ref[T any](cc []T) []*T {
-	var ret = make([]*T, len(cc))
-	for i := range cc {
-		ret[i] = &cc[i]
-	}
-	return ret
 }
 
 // Load deserialises JSON data from reader and returns a ValueAuth, that can
@@ -131,7 +114,7 @@ func (s simpleProvider) Test(ctx context.Context) error {
 	ctx, task := trace.NewTask(ctx, "TestAuth")
 	defer task.End()
 
-	httpCl := chttp.New("https://slack.com", chttp.ConvertCookies(s.Cookie))
+	httpCl := chttp.New("https://slack.com", s.Cookies())
 
 	cl := slack.New(s.Token, slack.OptionHTTPClient(httpCl))
 

@@ -31,7 +31,7 @@ func NewValueAuth(token string, cookie string) (ValueAuth, error) {
 		if len(cookie) == 0 {
 			return ValueAuth{}, ErrNoCookies
 		}
-		c.Cookie = []http.Cookie{
+		c.Cookie = []*http.Cookie{
 			makeCookie("d", cookie),
 			makeCookie("d-s", fmt.Sprintf("%d", time.Now().Unix()-10)),
 		}
@@ -45,11 +45,11 @@ func (ValueAuth) Type() Type {
 
 var timeFunc = time.Now
 
-func makeCookie(key, val string) http.Cookie {
+func makeCookie(key, val string) *http.Cookie {
 	if !urlsafe(val) {
 		val = url.QueryEscape(val)
 	}
-	return http.Cookie{
+	return &http.Cookie{
 		Name:    key,
 		Value:   val,
 		Path:    defaultPath,

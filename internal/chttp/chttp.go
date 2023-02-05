@@ -30,15 +30,3 @@ func NewWithTransport(cookieDomain string, cookies []*http.Cookie, rt http.Round
 func New(cookieDomain string, cookies []*http.Cookie) *http.Client {
 	return NewWithTransport(cookieDomain, cookies, NewTransport(nil))
 }
-
-func sliceOfPtr[T any](cc []T) []*T {
-	var ret = make([]*T, len(cc))
-	for i := range cc {
-		ret[i] = &cc[i]
-	}
-	return ret
-}
-
-func ConvertCookies(cc []http.Cookie) []*http.Cookie {
-	return sliceOfPtr(cc)
-}
