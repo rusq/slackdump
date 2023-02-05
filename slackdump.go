@@ -113,7 +113,7 @@ func New(ctx context.Context, prov auth.Provider, cfg Config, opts ...Option) (*
 		return nil, fmt.Errorf("auth provider validation error: %s", err)
 	}
 
-	httpCl := chttp.NewWithToken(prov.SlackToken(), "https://slack.com", chttp.ConvertCookies(prov.Cookies()))
+	httpCl := chttp.New("https://slack.com", chttp.ConvertCookies(prov.Cookies()))
 
 	cl := slack.New(prov.SlackToken(), slack.OptionHTTPClient(httpCl))
 

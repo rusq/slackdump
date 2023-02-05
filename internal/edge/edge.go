@@ -21,7 +21,7 @@ type Client struct {
 
 func New(teamID string, token string, cookies []*http.Cookie) *Client {
 	return &Client{
-		cl:      chttp.NewWithToken(token, "https://slack.com", cookies),
+		cl:      chttp.New("https://slack.com", cookies),
 		token:   token,
 		apiPath: fmt.Sprintf("https://edgeapi.slack.com/cache/%s/", teamID)}
 }

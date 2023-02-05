@@ -131,7 +131,7 @@ func (s simpleProvider) Test(ctx context.Context) error {
 	ctx, task := trace.NewTask(ctx, "TestAuth")
 	defer task.End()
 
-	httpCl := chttp.NewWithToken(s.Token, "https://slack.com", chttp.ConvertCookies(s.Cookie))
+	httpCl := chttp.New("https://slack.com", chttp.ConvertCookies(s.Cookie))
 
 	cl := slack.New(s.Token, slack.OptionHTTPClient(httpCl))
 

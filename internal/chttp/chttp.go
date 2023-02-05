@@ -1,5 +1,5 @@
-// Package chttp provides some convenience function to wrap the standard http
-// Client.
+// Package chttp (Cooked HTTP) provides a wrapper around http.Client with
+// cookies.
 package chttp
 
 import (
@@ -10,8 +10,9 @@ import (
 	"golang.org/x/net/publicsuffix"
 )
 
-// New inits the HTTP client with cookies.
-func New(cookieDomain string, cookies []*http.Cookie, rt http.RoundTripper) *http.Client {
+// NewWithTransport inits the HTTP client with cookies.  It allows to use
+// the custom Transport.
+func NewWithTransport(cookieDomain string, cookies []*http.Cookie, rt http.RoundTripper) *http.Client {
 	jar, _ := cookiejar.New(&cookiejar.Options{PublicSuffixList: publicsuffix.List})
 	url, err := url.Parse(cookieDomain)
 	if err != nil {
@@ -25,17 +26,9 @@ func New(cookieDomain string, cookies []*http.Cookie, rt http.RoundTripper) *htt
 	return &cl
 }
 
-// NewWithToken returns the HTTP client with cookies, that augments requests
-// with slack token.
-func NewWithToken(token string, cookieDomain string, cookies []*http.Cookie) *http.Client {
-	tr := NewTransport(nil)
-	tr.BeforeReq = func(req *http.Request) {
-		// req.V
-		// if req.Method == http.MethodGet {
-		// 	req.Form.Add("token", token)
-		// }
-	}
-	return New(cookieDomain, cookies, tr)
+// New returns the HTTP client with cookies and default transport.
+func New(cookieDomain string, cookies []*http.Cookie) *http.Client {
+	return NewWithTransport(cookieDomain, cookies, NewTransport(nil))
 }
 
 func sliceOfPtr[T any](cc []T) []*T {
