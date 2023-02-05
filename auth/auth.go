@@ -9,7 +9,7 @@ import (
 	"runtime/trace"
 	"strings"
 
-	"github.com/rusq/slackdump/v2/internal/chttp"
+	"github.com/rusq/chttp"
 	"github.com/slack-go/slack"
 )
 

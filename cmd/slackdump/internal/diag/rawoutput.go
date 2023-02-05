@@ -12,12 +12,12 @@ import (
 	"net/url"
 	"os"
 
+	"github.com/rusq/chttp"
 	"github.com/rusq/dlog"
 
 	"github.com/rusq/slackdump/v2/auth"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/golang/base"
-	"github.com/rusq/slackdump/v2/internal/chttp"
 	"github.com/rusq/slackdump/v2/internal/structures"
 )
 

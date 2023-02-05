@@ -13,10 +13,10 @@ import (
 	"github.com/slack-go/slack"
 	"golang.org/x/time/rate"
 
+	"github.com/rusq/chttp"
 	"github.com/rusq/dlog"
 	"github.com/rusq/slackdump/v2/auth"
 	"github.com/rusq/slackdump/v2/fsadapter"
-	"github.com/rusq/slackdump/v2/internal/chttp"
 	"github.com/rusq/slackdump/v2/internal/network"
 	"github.com/rusq/slackdump/v2/logger"
 	"github.com/rusq/slackdump/v2/types"
