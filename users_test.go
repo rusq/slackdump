@@ -96,7 +96,7 @@ func TestSession_fetchUsers(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mc := newmockClienter(gomock.NewController(t))
+			mc := NewmockClienter(gomock.NewController(t))
 
 			tt.expectFn(mc)
 
@@ -169,7 +169,7 @@ func TestSession_GetUsers(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mc := newmockClienter(gomock.NewController(t))
+			mc := NewmockClienter(gomock.NewController(t))
 
 			tt.expectFn(mc)
 

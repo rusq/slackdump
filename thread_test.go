@@ -157,7 +157,7 @@ func TestSession_DumpThreadWithFiles(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			mc := newmockClienter(ctrl)
+			mc := NewmockClienter(ctrl)
 
 			if tt.expectFn != nil {
 				tt.expectFn(mc)
@@ -378,7 +378,7 @@ func TestSession_dumpThread(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			mc := newmockClienter(ctrl)
+			mc := NewmockClienter(ctrl)
 
 			tt.expectFn(mc)
 

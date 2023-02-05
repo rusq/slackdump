@@ -90,7 +90,7 @@ func Save(w io.Writer, p Provider) error {
 		return err
 	}
 
-	var s = simpleProvider{
+	s := simpleProvider{
 		Token:  p.SlackToken(),
 		Cookie: p.Cookies(),
 	}
@@ -114,14 +114,15 @@ func (s simpleProvider) Test(ctx context.Context) error {
 	ctx, task := trace.NewTask(ctx, "TestAuth")
 	defer task.End()
 
-	httpCl := chttp.New("https://slack.com", s.Cookies())
-
+	httpCl, err := chttp.New("https://slack.com", s.Cookies())
+	if err != nil {
+		return err
+	}
 	cl := slack.New(s.Token, slack.OptionHTTPClient(httpCl))
 
 	region := trace.StartRegion(ctx, "AuthTestContext")
 	defer region.End()
-	_, err := cl.AuthTestContext(ctx)
-	if err != nil {
+	if _, err := cl.AuthTestContext(ctx); err != nil {
 		return &Error{Err: err}
 	}
 	return nil

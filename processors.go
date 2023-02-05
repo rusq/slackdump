@@ -82,7 +82,7 @@ func (s *Session) newFileProcessFn(ctx context.Context, dir string, l *rate.Limi
 		downloader.Workers(s.cfg.Limits.Workers),
 		downloader.Logger(s.log),
 	)
-	var filesC = make(chan *slack.File, filesCbufSz)
+	filesC := make(chan *slack.File, filesCbufSz)
 
 	dlDoneC, err := dl.AsyncDownloader(ctx, dir, filesC)
 	if err != nil {

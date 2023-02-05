@@ -45,7 +45,7 @@ func TestSession_DumpEmojis(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mcl := newmockClienter(gomock.NewController(t))
+			mcl := NewmockClienter(gomock.NewController(t))
 			tt.expectfn(mcl)
 			s := &Session{
 				client: mcl,

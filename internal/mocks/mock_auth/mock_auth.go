@@ -37,10 +37,10 @@ func (m *MockProvider) EXPECT() *MockProviderMockRecorder {
 }
 
 // Cookies mocks base method.
-func (m *MockProvider) Cookies() []http.Cookie {
+func (m *MockProvider) Cookies() []*http.Cookie {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Cookies")
-	ret0, _ := ret[0].([]http.Cookie)
+	ret0, _ := ret[0].([]*http.Cookie)
 	return ret0
 }
 

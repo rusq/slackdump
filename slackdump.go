@@ -23,9 +23,7 @@ import (
 )
 
 //go:generate mockgen -destination internal/mocks/mock_os/mock_os.go os FileInfo
-//go:generate mockgen -destination internal/mocks/mock_downloader/mock_downloader.go github.com/rusq/slackdump/v2/downloader Downloader
-//go:generate sh -c "mockgen -source slackdump.go -destination clienter_mock_test.go -package slackdump -mock_names clienter=mockClienter,Reporter=mockReporter"
-//go:generate sed -i ~ -e "s/NewmockClienter/newmockClienter/g" -e "s/NewmockReporter/newmockReporter/g" clienter_mock_test.go
+//go:generate mockgen -source slackdump.go -destination clienter_mock_test.go -package slackdump -mock_names clienter=mockClienter,Reporter=mockReporter
 
 // Session stores basic session parameters.  Zero value is not usable, must be
 // initialised with New.
@@ -113,7 +111,10 @@ func New(ctx context.Context, prov auth.Provider, cfg Config, opts ...Option) (*
 		return nil, fmt.Errorf("auth provider validation error: %s", err)
 	}
 
-	httpCl := chttp.New("https://slack.com", prov.Cookies())
+	httpCl, err := chttp.New("https://slack.com", prov.Cookies())
+	if err != nil {
+		return nil, err
+	}
 
 	cl := slack.New(prov.SlackToken(), slack.OptionHTTPClient(httpCl))
 

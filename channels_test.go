@@ -76,7 +76,7 @@ func TestSession_getChannels(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mc := newmockClienter(gomock.NewController(t))
+			mc := NewmockClienter(gomock.NewController(t))
 			sd := &Session{
 				client: mc,
 				Users:  tt.fields.Users,

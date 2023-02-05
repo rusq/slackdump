@@ -213,7 +213,7 @@ func TestSession_DumpMessages(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			mc := newmockClienter(ctrl)
+			mc := NewmockClienter(ctrl)
 
 			tt.expectFn(mc)
 
@@ -294,7 +294,7 @@ func TestSession_DumpAll(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			mc := newmockClienter(ctrl)
+			mc := NewmockClienter(ctrl)
 
 			if tt.expectFn != nil {
 				tt.expectFn(mc)
@@ -415,7 +415,7 @@ func TestSession_getChannelName(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			mc := newmockClienter(ctrl)
+			mc := NewmockClienter(ctrl)
 
 			tt.expectFn(mc)
 			sd := &Session{

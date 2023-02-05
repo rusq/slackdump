@@ -55,6 +55,8 @@ var Filename FilenameFunc = stdFilenameFn
 
 // Downloader is the file downloader interface.  It exists primarily for mocking
 // in tests.
+//
+//go:generate mockgen -destination ../internal/mocks/mock_downloader/mock_downloader.go github.com/rusq/slackdump/v2/downloader Downloader
 type Downloader interface {
 	// GetFile retreives a given file from its private download URL
 	GetFile(downloadURL string, writer io.Writer) error

@@ -1,6 +1,6 @@
 package slackdump
 
-// In this file: slackdump options.
+// In this file: slackdump config.
 
 import (
 	"reflect"
