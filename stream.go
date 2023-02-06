@@ -24,6 +24,9 @@ type channelStream struct {
 	oldest, latest time.Time
 	client         clienter
 	limits         rateLimits
+
+	egThread errgroup.Group
+	egFiles  errgroup.Group
 }
 
 type rateLimits struct {
@@ -33,7 +36,7 @@ type rateLimits struct {
 }
 
 func newChannelStream(cl clienter, limits *Limits, oldest, latest time.Time) *channelStream {
-	return &channelStream{
+	cs := &channelStream{
 		oldest: oldest,
 		latest: latest,
 		client: cl,
@@ -43,6 +46,9 @@ func newChannelStream(cl clienter, limits *Limits, oldest, latest time.Time) *ch
 			tier:     limits,
 		},
 	}
+	cs.egThread.SetLimit(streamThreadGoroutines)
+	cs.egFiles.SetLimit(streamFilesGoroutines)
+	return cs
 }
 
 func (cs *channelStream) Stream(ctx context.Context, link string, proc processors.Channeller) error {
@@ -54,18 +60,19 @@ func (cs *channelStream) Stream(ctx context.Context, link string, proc processor
 		return errors.New("invalid slack link: " + link)
 	}
 	if sl.IsThread() {
-		return cs.thread(ctx, sl.Channel, sl.ThreadTS, proc)
+		if err := cs.thread(ctx, sl.Channel, sl.ThreadTS, proc); err != nil {
+			return err
+		}
+	} else {
+		if err := cs.channel(ctx, sl.Channel, proc); err != nil {
+			return err
+		}
 	}
-	return cs.channel(ctx, sl.Channel, proc)
+	return cs.egFiles.Wait()
 }
 
 func (cs *channelStream) channel(ctx context.Context, id string, proc processors.Channeller) error {
 	cursor := ""
-	var (
-		egThread errgroup.Group
-		egFiles  errgroup.Group
-	)
-	egThread.SetLimit(streamThreadGoroutines)
 	for {
 		var (
 			resp *slack.GetConversationHistoryResponse
@@ -94,17 +101,17 @@ func (cs *channelStream) channel(ctx context.Context, id string, proc processors
 		for i := range resp.Messages {
 			idx := i
 			if resp.Messages[idx].Msg.ThreadTimestamp != "" {
-				egThread.Go(func() error {
+				cs.egThread.Go(func() error {
 					return cs.thread(ctx, id, resp.Messages[idx].Msg.ThreadTimestamp, proc)
 				})
 			}
 			if resp.Messages[idx].Files != nil && len(resp.Messages[idx].Files) > 0 {
-				egFiles.Go(func() error {
-					return proc.Files(resp.Messages[idx], resp.Messages[idx].Files)
+				cs.egFiles.Go(func() error {
+					return proc.Files(resp.Messages[idx], false, resp.Messages[idx].Files)
 				})
 			}
 		}
-		if err := egThread.Wait(); err != nil {
+		if err := cs.egThread.Wait(); err != nil {
 			return err
 		}
 		if !resp.HasMore {
@@ -112,7 +119,7 @@ func (cs *channelStream) channel(ctx context.Context, id string, proc processors
 		}
 		cursor = resp.ResponseMetaData.NextCursor
 	}
-	return egFiles.Wait()
+	return nil
 }
 
 func (cs *channelStream) thread(ctx context.Context, id string, threadTS string, proc processors.Channeller) error {
@@ -148,7 +155,15 @@ func (cs *channelStream) thread(ctx context.Context, id string, threadTS string,
 		if err := proc.ThreadMessages(msgs[0], msgs[1:]); err != nil {
 			return fmt.Errorf("failed to process message id=%s, thread_ts=%s: %w", msgs[0].Msg.ClientMsgID, threadTS, err)
 		}
-
+		// extract files from thread messages
+		for i := range msgs[1:] {
+			idx := i
+			if msgs[idx].Files != nil && len(msgs[idx].Files) > 0 {
+				cs.egFiles.Go(func() error {
+					return proc.Files(msgs[idx], true, msgs[idx].Files)
+				})
+			}
+		}
 		if !hasmore {
 			break
 		}

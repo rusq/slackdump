@@ -1,6 +1,10 @@
 package processors
 
-import "github.com/slack-go/slack"
+import (
+	"io"
+
+	"github.com/slack-go/slack"
+)
 
 // Channeller is the interface for conversation fetching.
 type Channeller interface {
@@ -8,8 +12,10 @@ type Channeller interface {
 	Messages(m []slack.Message) error
 	// Files is called for each file that is retrieved. The parent message is
 	// passed in as well.
-	Files(parent slack.Message, m []slack.File) error
+	Files(parent slack.Message, isThread bool, m []slack.File) error
 	// ThreadMessages is called for each of the thread messages that are
 	// retrieved. The parent message is passed in as well.
 	ThreadMessages(parent slack.Message, tm []slack.Message) error
+
+	io.Closer
 }
