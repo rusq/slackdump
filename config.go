@@ -52,7 +52,7 @@ type TierLimits struct {
 	Boost uint `json:"boost,omitempty" yaml:"boost,omitempty"`
 	// Tier limiter burst
 	Burst uint `json:"burst,omitempty" yaml:"burst,omitempty" validate:"gte=1"`
-	// Tier retries when getting 429 on channels fetch
+	// Tier retries when getting transient errors, i.e. 429 or 500-599.
 	Retries int `json:"retries,omitempty" yaml:"retries,omitempty"`
 }
 

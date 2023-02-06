@@ -20,7 +20,7 @@ type threadFunc func(ctx context.Context, l *rate.Limiter, channelID string, thr
 
 // dumpThreadAsConversation dumps a single thread identified by (channelID,
 // threadTS). Optionally one can provide a number of processFn that will be
-// applied to each chunk of messages returned by a one API call.
+// applied to each chunk of messages returned by one API call.
 func (s *Session) dumpThreadAsConversation(
 	ctx context.Context,
 	sl structures.SlackLink,

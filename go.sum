@@ -108,8 +108,6 @@ github.com/rivo/uniseg v0.1.0/go.mod h1:J6wj4VEh+S6ZtnVlnTBMWIodfgj8LQOQFoIToxlJ
 github.com/rivo/uniseg v0.2.0/go.mod h1:J6wj4VEh+S6ZtnVlnTBMWIodfgj8LQOQFoIToxlJtxc=
 github.com/rivo/uniseg v0.3.1 h1:SDPP7SHNl1L7KrEFCSJslJ/DM9DT02Nq2C61XrfHMmk=
 github.com/rivo/uniseg v0.3.1/go.mod h1:FN3SvrM+Zdj16jyLfmOkMNblXMcoc8DfTHruCPUcx88=
-github.com/rusq/chttp v1.0.0 h1:CIrDQPvcUJEA0tvHU2GVlVhNoCusxT5eFU6e0esBKJ0=
-github.com/rusq/chttp v1.0.0/go.mod h1:9H/mMp/iUc4xDkSOY0rL6ecxd/YyaW7zE9GhR+mZfRg=
 github.com/rusq/chttp v1.0.1 h1:j3WE7+jQE9Rgw0E6mGMje8HxMCv09QRkKvR0oZ1R2vY=
 github.com/rusq/chttp v1.0.1/go.mod h1:9H/mMp/iUc4xDkSOY0rL6ecxd/YyaW7zE9GhR+mZfRg=
 github.com/rusq/dlog v1.3.3 h1:Q9fZW1H/YEnlDg3Ph1k/BRSBfi/q5ezI+8Metws9tTI=
@@ -163,6 +161,7 @@ golang.org/x/net v0.5.0 h1:GyT4nK/YDHSqa1c4753ouYCDajOYKTja9Xb/OHtgvSw=
 golang.org/x/net v0.5.0/go.mod h1:DivGGAXEgPSlEBzxGzZI+ZLohi+xUj054jfeKui00ws=
 golang.org/x/sync v0.0.0-20190423024810-112230192c58/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
 golang.org/x/sync v0.0.0-20210220032951-036812b2e83c/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
+golang.org/x/sync v0.0.0-20220722155255-886fb9371eb4 h1:uVc8UZUe6tr40fFVnUP5Oj+veunVezqYl9z7DYw9xzw=
 golang.org/x/sync v0.0.0-20220722155255-886fb9371eb4/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
 golang.org/x/sys v0.0.0-20181128092732-4ed8d59d0b35/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
 golang.org/x/sys v0.0.0-20190215142949-d0b11bdaac8a/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=

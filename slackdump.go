@@ -227,7 +227,16 @@ func (s *Session) CurrentUserID() string {
 }
 
 func (s *Session) limiter(t network.Tier) *rate.Limiter {
-	return network.NewLimiter(t, s.cfg.Limits.Tier3.Burst, int(s.cfg.Limits.Tier3.Boost))
+	var tl TierLimits
+	switch t {
+	case network.Tier2:
+		tl = s.cfg.Limits.Tier2
+	case network.Tier3:
+		tl = s.cfg.Limits.Tier3
+	default:
+		tl = s.cfg.Limits.Tier3
+	}
+	return network.NewLimiter(t, tl.Burst, int(tl.Boost)) // BUG: tier was always 3, should fix in master too.
 }
 
 // withRetry will run the callback function fn. If the function returns

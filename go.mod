@@ -25,6 +25,7 @@ require (
 	github.com/schollz/progressbar/v3 v3.8.6
 	github.com/slack-go/slack v0.12.1
 	github.com/stretchr/testify v1.7.1
+	golang.org/x/sync v0.0.0-20220722155255-886fb9371eb4
 	golang.org/x/term v0.4.0
 	golang.org/x/text v0.6.0
 	golang.org/x/time v0.1.0
