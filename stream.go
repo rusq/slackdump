@@ -95,7 +95,7 @@ func (cs *channelStream) channel(ctx context.Context, id string, proc processors
 			trace.Logf(ctx, "error", "not ok, api error=%s", resp.Error)
 			return fmt.Errorf("response not ok, slack error: %s", resp.Error)
 		}
-		if err := proc.Messages(resp.Messages); err != nil {
+		if err := proc.Messages(id, resp.Messages); err != nil {
 			return fmt.Errorf("failed to process message chunk starting with id=%s (size=%d): %w", resp.Messages[0].Msg.ClientMsgID, len(resp.Messages), err)
 		}
 		for i := range resp.Messages {
@@ -107,7 +107,7 @@ func (cs *channelStream) channel(ctx context.Context, id string, proc processors
 			}
 			if resp.Messages[idx].Files != nil && len(resp.Messages[idx].Files) > 0 {
 				cs.egFiles.Go(func() error {
-					return proc.Files(resp.Messages[idx], false, resp.Messages[idx].Files)
+					return proc.Files(id, resp.Messages[idx], false, resp.Messages[idx].Files)
 				})
 			}
 		}
@@ -152,7 +152,7 @@ func (cs *channelStream) thread(ctx context.Context, id string, threadTS string,
 
 		// slack returns the thread starter as the first message with every
 		// call so we use it as a parent message.
-		if err := proc.ThreadMessages(msgs[0], msgs[1:]); err != nil {
+		if err := proc.ThreadMessages(id, msgs[0], msgs[1:]); err != nil {
 			return fmt.Errorf("failed to process message id=%s, thread_ts=%s: %w", msgs[0].Msg.ClientMsgID, threadTS, err)
 		}
 		// extract files from thread messages
@@ -160,7 +160,7 @@ func (cs *channelStream) thread(ctx context.Context, id string, threadTS string,
 			idx := i
 			if msgs[idx].Files != nil && len(msgs[idx].Files) > 0 {
 				cs.egFiles.Go(func() error {
-					return proc.Files(msgs[idx], true, msgs[idx].Files)
+					return proc.Files(id, msgs[idx], true, msgs[idx].Files)
 				})
 			}
 		}
