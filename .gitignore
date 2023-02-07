@@ -45,3 +45,4 @@ cmd/sdconv/sdconv
 dist/
 !.goreleaser.yaml
 !schema.json
+*.jsonl

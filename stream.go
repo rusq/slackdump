@@ -51,7 +51,7 @@ func newChannelStream(cl clienter, limits *Limits, oldest, latest time.Time) *ch
 	return cs
 }
 
-func (cs *channelStream) Stream(ctx context.Context, link string, proc processors.Channeller) error {
+func (cs *channelStream) Stream(ctx context.Context, link string, proc processors.Channeler) error {
 	sl, err := structures.ParseLink(link)
 	if err != nil {
 		return err
@@ -71,7 +71,7 @@ func (cs *channelStream) Stream(ctx context.Context, link string, proc processor
 	return cs.egFiles.Wait()
 }
 
-func (cs *channelStream) channel(ctx context.Context, id string, proc processors.Channeller) error {
+func (cs *channelStream) channel(ctx context.Context, id string, proc processors.Channeler) error {
 	cursor := ""
 	for {
 		var (
@@ -122,7 +122,7 @@ func (cs *channelStream) channel(ctx context.Context, id string, proc processors
 	return nil
 }
 
-func (cs *channelStream) thread(ctx context.Context, id string, threadTS string, proc processors.Channeller) error {
+func (cs *channelStream) thread(ctx context.Context, id string, threadTS string, proc processors.Channeler) error {
 	cursor := ""
 	for {
 		var (

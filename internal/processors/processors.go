@@ -6,8 +6,8 @@ import (
 	"github.com/slack-go/slack"
 )
 
-// Channeller is the interface for conversation fetching.
-type Channeller interface {
+// Channeler is the interface for conversation fetching.
+type Channeler interface {
 	// Messages is called for each message that is retrieved.
 	Messages(m []slack.Message) error
 	// Files is called for each file that is retrieved. The parent message is

@@ -33,8 +33,16 @@ func TestChannelStream(t *testing.T) {
 
 	sd := slack.New(prov.SlackToken(), slack.OptionHTTPClient(chttp.Must(chttp.New("https://slack.com", prov.Cookies()))))
 
+	f, err := os.Create("record.jsonl")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	rec := processors.NewRecorder(f)
+	defer rec.Close()
+
 	cs := newChannelStream(sd, &DefOptions.Limits, time.Time{}, time.Time{})
-	if err := cs.Stream(context.Background(), "D01MN4X7UGP", &processors.Discarder{}); err != nil {
+	if err := cs.Stream(context.Background(), "D01MN4X7UGP", rec); err != nil {
 		t.Fatal(err)
 	}
 }
