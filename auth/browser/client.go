@@ -6,7 +6,10 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
 	"regexp"
+	"runtime"
 	"runtime/trace"
 	"strings"
 	"time"
@@ -26,7 +29,9 @@ type Client struct {
 
 var Logger logger.Interface = logger.Default
 
-var installFn = playwright.Install
+var (
+	installFn = playwright.Install
+)
 
 // New create new browser based client.
 func New(workspace string, opts ...Option) (*Client, error) {
@@ -40,7 +45,12 @@ func New(workspace string, opts ...Option) (*Client, error) {
 	if err := installFn(&playwright.RunOptions{
 		Browsers: []string{cl.br.String()},
 	}); err != nil {
-		return nil, err
+		if !strings.Contains(err.Error(), "could not run driver") || runtime.GOOS == "windows" {
+			return nil, err
+		}
+		if err := pwRepair(cl.br.String()); err != nil {
+			return nil, err
+		}
 	}
 	return cl, nil
 }
@@ -204,4 +214,62 @@ func l() logger.Interface {
 		return logger.Default
 	}
 	return Logger
+}
+
+// newDriverFn is the function that creates a new driver.  It is set to
+// playwright.NewDriver by default, but can be overridden for testing.
+var newDriverFn = playwright.NewDriver
+
+// pwRepair attempts to repair the playwright installation.
+func pwRepair(browser string) error {
+	if browser == "" {
+		return nil
+	}
+	drv, err := newDriverFn(&playwright.RunOptions{
+		Browsers: []string{browser},
+	})
+	if err != nil {
+		return err
+	}
+
+	// check node permissions
+	if err := pwIsKnownProblem(drv.DriverDirectory); err != nil {
+		return err
+	}
+	if err := os.RemoveAll(drv.DriverDirectory); err != nil {
+		return err
+	}
+
+	// attempt to reinstall
+	if err := installFn(&playwright.RunOptions{
+		Browsers: []string{browser},
+	}); err != nil {
+		// we did everything we could, but it still failed.
+		return err
+	}
+	return nil
+}
+
+var errUnknownProblem = errors.New("unknown problem")
+
+// pwIsKnownProblem checks if the playwright installation is in a known
+// problematic state, and if yes, return nil.  If the problem is unknown,
+// returns an errUnknownProblem.
+func pwIsKnownProblem(path string) error {
+	if runtime.GOOS == "windows" {
+		// this should not ever happen on windows, as this problem relates to
+		// executable flag not being set, which is not a thing in a
+		// DOS/Windows world.
+		return errors.New("impossible has just happened, call the exorcist")
+	}
+	fi, err := os.Stat(filepath.Join(path, "node"))
+	if err != nil {
+		return err
+	}
+	// check if the file is executable, and if yes, return an error, because
+	// we wouldn't know what to do.
+	if fi.Mode()&0111 != 0 {
+		return errUnknownProblem
+	}
+	return nil
 }
