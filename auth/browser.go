@@ -7,8 +7,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/playwright-community/playwright-go"
-
 	"github.com/rusq/slackdump/v2/auth/auth_ui"
 	"github.com/rusq/slackdump/v2/auth/browser"
 )
@@ -52,9 +50,6 @@ func NewBrowserAuth(ctx context.Context, opts ...BrowserOption) (BrowserAuth, er
 		opt(&br)
 	}
 
-	if err := playwright.Install(&playwright.RunOptions{Browsers: []string{"chromium"}}); err != nil {
-		return br, err
-	}
 	if br.workspace == "" {
 		var err error
 		br.workspace, err = br.flow.RequestWorkspace(os.Stdout)
