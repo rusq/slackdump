@@ -11,22 +11,13 @@ import (
 	"github.com/rusq/slackdump/v2/internal/processors"
 	"github.com/rusq/slackdump/v2/internal/structures"
 	"github.com/slack-go/slack"
-	"golang.org/x/sync/errgroup"
 	"golang.org/x/time/rate"
-)
-
-const (
-	streamThreadGoroutines = 10
-	streamFilesGoroutines  = 10
 )
 
 type channelStream struct {
 	oldest, latest time.Time
 	client         clienter
 	limits         rateLimits
-
-	egThread errgroup.Group
-	egFiles  errgroup.Group
 }
 
 type rateLimits struct {
@@ -46,8 +37,6 @@ func newChannelStream(cl clienter, limits *Limits, oldest, latest time.Time) *ch
 			tier:     limits,
 		},
 	}
-	cs.egThread.SetLimit(streamThreadGoroutines)
-	cs.egFiles.SetLimit(streamFilesGoroutines)
 	return cs
 }
 
@@ -67,12 +56,6 @@ func (cs *channelStream) Stream(ctx context.Context, link string, proc processor
 		if err := cs.channel(ctx, sl.Channel, proc); err != nil {
 			return err
 		}
-	}
-	if err := cs.egThread.Wait(); err != nil {
-		return err
-	}
-	if err := cs.egFiles.Wait(); err != nil {
-		return err
 	}
 	return nil
 }
@@ -107,18 +90,15 @@ func (cs *channelStream) channel(ctx context.Context, id string, proc processors
 		for i := range resp.Messages {
 			idx := i
 			if resp.Messages[idx].Msg.ThreadTimestamp != "" {
-				cs.egThread.Go(func() error {
-					return cs.thread(ctx, id, resp.Messages[idx].Msg.ThreadTimestamp, proc)
-				})
+				if err := cs.thread(ctx, id, resp.Messages[idx].Msg.ThreadTimestamp, proc); err != nil {
+					return err
+				}
 			}
 			if resp.Messages[idx].Files != nil && len(resp.Messages[idx].Files) > 0 {
-				cs.egFiles.Go(func() error {
-					return proc.Files(id, resp.Messages[idx], false, resp.Messages[idx].Files)
-				})
+				if err := proc.Files(id, resp.Messages[idx], false, resp.Messages[idx].Files); err != nil {
+					return err
+				}
 			}
-		}
-		if err := cs.egThread.Wait(); err != nil {
-			return err
 		}
 		if !resp.HasMore {
 			break
@@ -165,9 +145,9 @@ func (cs *channelStream) thread(ctx context.Context, id string, threadTS string,
 		for i := range msgs[1:] {
 			idx := i
 			if msgs[idx].Files != nil && len(msgs[idx].Files) > 0 {
-				cs.egFiles.Go(func() error {
-					return proc.Files(id, msgs[idx], true, msgs[idx].Files)
-				})
+				if err := proc.Files(id, msgs[idx], true, msgs[idx].Files); err != nil {
+					return err
+				}
 			}
 		}
 		if !hasmore {

@@ -61,19 +61,18 @@ func router(p *Player) *http.ServeMux {
 		}
 	})
 	mux.HandleFunc("/api/conversations.replies", func(w http.ResponseWriter, r *http.Request) {
-		req := slack.GetConversationRepliesParameters{}
-		defer r.Body.Close()
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+		timestamp := r.FormValue("ts")
+		if timestamp == "" {
+			http.Error(w, "ts is required", http.StatusBadRequest)
 			return
 		}
-		msg, err := p.Thread(req.Timestamp)
+		msg, err := p.Thread(timestamp)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 		resp := GetConversationRepliesResponse{
-			HasMore:  p.HasMoreThreads(req.Timestamp),
+			HasMore:  p.HasMoreThreads(timestamp),
 			Messages: msg,
 			SlackResponse: slack.SlackResponse{
 				Ok: true,

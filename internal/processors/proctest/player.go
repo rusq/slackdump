@@ -39,6 +39,9 @@ func NewPlayer(rs io.ReadSeeker) (*Player, error) {
 	return &Player{
 		rs:  rs,
 		idx: idx,
+		current: state{
+			threadReq: make(map[string]int),
+		},
 	}, nil
 }
 
