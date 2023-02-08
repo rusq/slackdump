@@ -41,6 +41,9 @@ func newChannelStream(cl clienter, limits *Limits, oldest, latest time.Time) *ch
 }
 
 func (cs *channelStream) Stream(ctx context.Context, link string, proc processors.Channeler) error {
+	ctx, task := trace.NewTask(ctx, "Stream")
+	defer task.End()
+
 	sl, err := structures.ParseLink(link)
 	if err != nil {
 		return err
@@ -61,6 +64,9 @@ func (cs *channelStream) Stream(ctx context.Context, link string, proc processor
 }
 
 func (cs *channelStream) channel(ctx context.Context, id string, proc processors.Channeler) error {
+	ctx, task := trace.NewTask(ctx, "channel")
+	defer task.End()
+
 	cursor := ""
 	for {
 		var (
@@ -68,6 +74,7 @@ func (cs *channelStream) channel(ctx context.Context, id string, proc processors
 		)
 		if err := network.WithRetry(ctx, cs.limits.channels, cs.limits.tier.Tier3.Retries, func() error {
 			var apiErr error
+			rgn := trace.StartRegion(ctx, "GetConversationHistoryContext")
 			resp, apiErr = cs.client.GetConversationHistoryContext(ctx, &slack.GetConversationHistoryParameters{
 				ChannelID: id,
 				Cursor:    cursor,
@@ -76,6 +83,7 @@ func (cs *channelStream) channel(ctx context.Context, id string, proc processors
 				Latest:    structures.FormatSlackTS(cs.latest),
 				Inclusive: true,
 			})
+			rgn.End()
 			return apiErr
 		}); err != nil {
 			return err

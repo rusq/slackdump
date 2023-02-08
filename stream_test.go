@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"runtime/trace"
 	"testing"
 	"time"
 
@@ -12,6 +13,26 @@ import (
 	"github.com/rusq/slackdump/v2/internal/processors/proctest"
 	"github.com/slack-go/slack"
 )
+
+var expandedLimits = Limits{
+	Workers:         10,
+	DownloadRetries: 10,
+	Tier2: TierLimits{
+		Boost:   100,
+		Burst:   100,
+		Retries: 20,
+	},
+	Tier3: TierLimits{
+		Boost:   100,
+		Burst:   100,
+		Retries: 20,
+	},
+	Request: RequestLimit{
+		Conversations: 200,
+		Channels:      200,
+		Replies:       1000,
+	},
+}
 
 func TestChannelStream(t *testing.T) {
 	ucd, err := os.UserCacheDir()
@@ -41,19 +62,23 @@ func TestChannelStream(t *testing.T) {
 	rec := proctest.NewRecorder(f)
 	defer rec.Close()
 
-	cs := newChannelStream(sd, &DefOptions.Limits, time.Time{}, time.Time{})
+	cs := newChannelStream(sd, &expandedLimits, time.Time{}, time.Time{})
 	if err := cs.Stream(context.Background(), "D01MN4X7UGP", rec); err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestRecorderStream(t *testing.T) {
+	ctx, task := trace.NewTask(context.Background(), "TestRecorderStream")
+	defer task.End()
 	f, err := os.Open("record.jsonl")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer f.Close()
+	rgnNewSrv := trace.StartRegion(ctx, "NewServer")
 	srv := proctest.NewServer(f)
+	rgnNewSrv.End()
 	defer srv.Close()
 	sd := slack.New("test", slack.OptionAPIURL(srv.URL+"/api/"))
 
@@ -65,10 +90,12 @@ func TestRecorderStream(t *testing.T) {
 	rec := proctest.NewRecorder(w)
 	defer rec.Close()
 
-	cs := newChannelStream(sd, &DefOptions.Limits, time.Time{}, time.Time{})
-	if err := cs.Stream(context.Background(), "D01MN4X7UGP", rec); err != nil {
+	rgnStream := trace.StartRegion(ctx, "Stream")
+	cs := newChannelStream(sd, &expandedLimits, time.Time{}, time.Time{})
+	if err := cs.Stream(ctx, "D01MN4X7UGP", rec); err != nil {
 		t.Fatal(err)
 	}
+	rgnStream.End()
 }
 
 func TestReplay(t *testing.T) {

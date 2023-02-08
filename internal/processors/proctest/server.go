@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"runtime/trace"
 
 	"github.com/slack-go/slack"
 )
@@ -32,6 +33,8 @@ func (s *Server) Close() {
 func router(p *Player) *http.ServeMux {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/conversations.history", func(w http.ResponseWriter, r *http.Request) {
+		_, task := trace.NewTask(r.Context(), "conversation.history")
+		defer task.End()
 		msg, err := p.Messages()
 		if err != nil {
 			if err == io.EOF {
@@ -61,6 +64,9 @@ func router(p *Player) *http.ServeMux {
 		}
 	})
 	mux.HandleFunc("/api/conversations.replies", func(w http.ResponseWriter, r *http.Request) {
+		_, task := trace.NewTask(r.Context(), "conversation.replies")
+		defer task.End()
+
 		timestamp := r.FormValue("ts")
 		if timestamp == "" {
 			http.Error(w, "ts is required", http.StatusBadRequest)
