@@ -1,4 +1,4 @@
-package processors
+package proctest
 
 import (
 	"encoding/json"

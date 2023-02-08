@@ -68,7 +68,13 @@ func (cs *channelStream) Stream(ctx context.Context, link string, proc processor
 			return err
 		}
 	}
-	return cs.egFiles.Wait()
+	if err := cs.egThread.Wait(); err != nil {
+		return err
+	}
+	if err := cs.egFiles.Wait(); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (cs *channelStream) channel(ctx context.Context, id string, proc processors.Channeler) error {

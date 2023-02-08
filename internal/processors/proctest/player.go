@@ -1,9 +1,10 @@
-package processors
+package proctest
 
 import (
 	"encoding/json"
 	"errors"
 	"io"
+	"strconv"
 
 	"github.com/slack-go/slack"
 )
@@ -17,9 +18,10 @@ type Player struct {
 }
 
 type state struct {
-	MessageIdx int // current message offset INDEX
-	Thread     int // number of threads returned
-	File       int // number of files returned
+	MessageIdx int            // current message offset INDEX
+	Thread     int            // number of threads returned
+	File       int            // number of files returned
+	threadReq  map[string]int // current thread request. key is thread_ts
 }
 
 // counts holds total event counts for each event type.
@@ -59,24 +61,30 @@ func indexRecords(rs io.ReadSeeker) (*index, error) {
 	dec := json.NewDecoder(rs)
 	for i := 0; ; i++ {
 		var event Event
-		offset, err := rs.Seek(0, io.SeekCurrent) // get current offset
-		if err != nil {
-			return nil, err
-		}
+		offset := dec.InputOffset() // get current offset
+
 		if err := dec.Decode(&event); err != nil {
 			if err == io.EOF {
 				break
 			}
 			return nil, err
 		}
+		// threadReq is a map of threadTS to the number of requests for that thread
+		// number is concatenated to the threadTS to keep track of the order.
+		var threadReq = map[string]int{}
 		switch event.Type {
 		case EventMessages:
 			idx.messages = append(idx.messages, offset)
 			idx.count.Messages++
 		case EventThreadMessages:
-			idx.children[EventThreadMessages][event.Parent.ThreadTimestamp] = offset
+			id := event.Parent.ThreadTimestamp
+			idx.children[EventThreadMessages][id+":"+strconv.Itoa(threadReq[id])] = offset
+			// increment the counter for this thread
+			threadReq[id]++
 			idx.count.Threads++
 		case EventFiles:
+			// technically we don't need these as they're embedded in the
+			// messages.  But we'll index them anyway.
 			idx.children[EventFiles][event.Parent.ThreadTimestamp] = offset
 			idx.count.Files++
 		}
@@ -89,7 +97,7 @@ func indexRecords(rs io.ReadSeeker) (*index, error) {
 
 func (p *Player) Messages() ([]slack.Message, error) {
 	if p.current.MessageIdx >= p.idx.count.Messages {
-		return nil, ErrExhausted
+		return nil, io.EOF
 	}
 	offset := p.idx.messages[p.current.MessageIdx]
 	_, err := p.rs.Seek(offset, io.SeekStart)
@@ -104,6 +112,10 @@ func (p *Player) Messages() ([]slack.Message, error) {
 	return event.Messages, nil
 }
 
+func (p *Player) HasMoreMessages() bool {
+	return p.current.MessageIdx < p.idx.count.Messages
+}
+
 var (
 	ErrNotFound  = errors.New("not found")
 	ErrExhausted = errors.New("exhausted")
@@ -112,12 +124,14 @@ var (
 func (p *Player) Thread(threadTS string) ([]slack.Message, error) {
 	// check if there are still threads to return
 	if p.current.Thread >= p.idx.count.Threads {
-		return nil, ErrExhausted
+		return nil, io.EOF
 	}
 
 	// BUG: more than 2 chunks of the same threadTS, currently gets overwritten
 	// in the indexing.  Needs another map to keep track of the sequence.
-	offset, ok := p.idx.children[EventThreadMessages][threadTS]
+	reqNum := p.current.threadReq[threadTS]
+
+	offset, ok := p.idx.children[EventThreadMessages][threadTS+":"+strconv.Itoa(reqNum)]
 	if !ok {
 		return nil, ErrNotFound
 	}
@@ -125,10 +139,23 @@ func (p *Player) Thread(threadTS string) ([]slack.Message, error) {
 	if err != nil {
 		return nil, err
 	}
+	p.current.threadReq[threadTS]++ // increase request count for this thread
+
 	var event Event
 	if err := json.NewDecoder(p.rs).Decode(&event); err != nil {
 		return nil, err
 	}
 	p.current.Thread++
 	return event.Messages, nil
+}
+
+func (p *Player) HasMoreThreads(threadTS string) bool {
+	// check if there are still threads to return
+	if p.current.Thread >= p.idx.count.Threads {
+		return false
+	}
+	// check if there are more threads for this threadTS
+	reqNum := p.current.threadReq[threadTS]
+	_, ok := p.idx.children[EventThreadMessages][threadTS+":"+strconv.Itoa(reqNum)]
+	return ok
 }

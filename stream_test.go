@@ -9,7 +9,7 @@ import (
 
 	"github.com/rusq/chttp"
 	"github.com/rusq/slackdump/v2/internal/cache"
-	"github.com/rusq/slackdump/v2/internal/processors"
+	"github.com/rusq/slackdump/v2/internal/processors/proctest"
 	"github.com/slack-go/slack"
 )
 
@@ -38,11 +38,63 @@ func TestChannelStream(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer f.Close()
-	rec := processors.NewRecorder(f)
+	rec := proctest.NewRecorder(f)
 	defer rec.Close()
 
 	cs := newChannelStream(sd, &DefOptions.Limits, time.Time{}, time.Time{})
 	if err := cs.Stream(context.Background(), "D01MN4X7UGP", rec); err != nil {
 		t.Fatal(err)
 	}
+}
+
+func TestRecorderStream(t *testing.T) {
+	f, err := os.Open("record.jsonl")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	srv := proctest.NewServer(f)
+	defer srv.Close()
+	sd := slack.New("test", slack.OptionAPIURL(srv.URL+"/api/"))
+
+	w, err := os.Create("replay_record.jsonl")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	rec := proctest.NewRecorder(w)
+	defer rec.Close()
+
+	cs := newChannelStream(sd, &DefOptions.Limits, time.Time{}, time.Time{})
+	if err := cs.Stream(context.Background(), "D01MN4X7UGP", rec); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestReplay(t *testing.T) {
+	f, err := os.Open("record.jsonl")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+
+	srv := proctest.NewServer(f)
+	defer srv.Close()
+	sd := slack.New("test", slack.OptionAPIURL(srv.URL+"/api/"))
+
+	reachedEnd := false
+	for i := 0; i < 100; i++ {
+		resp, err := sd.GetConversationHistory(&slack.GetConversationHistoryParameters{})
+		if err != nil {
+			t.Fatalf("error on iteration %d: %s", i, err)
+		}
+		if !resp.HasMore {
+			reachedEnd = true
+			t.Log("no more messages")
+		}
+	}
+	if !reachedEnd {
+		t.Fatal("didn't reach end of stream")
+	}
+
 }
