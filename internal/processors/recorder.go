@@ -1,4 +1,4 @@
-package proctest
+package processors
 
 import (
 	"encoding/json"
@@ -17,6 +17,8 @@ type Recorder struct {
 	resp   chan error
 }
 
+// EventType is the type of event that was recorded.  There are three types:
+// messages, thread messages, and files.
 type EventType int
 
 const (
@@ -36,6 +38,22 @@ type Event struct {
 	Files           []slack.File    `json:"files,omitempty"`
 }
 
+func threadID(channelID string, threadTS string) string {
+	return "t" + channelID + ":" + threadTS
+}
+
+func (e *Event) ID() string {
+	switch e.Type {
+	case EventMessages:
+		return e.ChannelID
+	case EventThreadMessages:
+		return threadID(e.ChannelID, e.Parent.Timestamp)
+	case EventFiles:
+		return "f" + e.ChannelID + ":" + e.Parent.Timestamp
+	}
+	return "<empty>"
+}
+
 func NewRecorder(wc io.Writer) *Recorder {
 	rec := &Recorder{
 		w:      wc,
@@ -48,7 +66,6 @@ func NewRecorder(wc io.Writer) *Recorder {
 
 func (rec *Recorder) worker() {
 	enc := json.NewEncoder(rec.w)
-	enc.SetIndent("", "  ")
 LOOP:
 	for event := range rec.events {
 		if err := enc.Encode(event); err != nil {
