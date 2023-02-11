@@ -9,6 +9,9 @@ import (
 	"github.com/slack-go/slack"
 )
 
+// Player replays the events from a file, it is able to emulate the API
+// responses, if used in conjunction with the [proctest.Server]. Zero value is
+// not usable.
 type Player struct {
 	rs io.ReadSeeker
 
@@ -17,6 +20,7 @@ type Player struct {
 	idx *index
 }
 
+// index holds the index of each event type within the file.
 type index struct {
 	count counts
 	// children may not be written in the same order as they are returned by
@@ -29,6 +33,7 @@ type index struct {
 	messages map[string][]int64
 }
 
+// state holds the current state of the player.
 type state struct {
 	MessageIdx map[string]int // current message offset INDEX
 	Thread     int            // number of threads returned
@@ -177,4 +182,50 @@ func (p *Player) HasMoreThreads(channelID string, threadTS string) bool {
 	reqNum := p.current.threadReq[id]
 	_, ok := p.idx.children[EventThreadMessages][id+":"+strconv.Itoa(reqNum)]
 	return ok
+}
+
+func (p *Player) Reset() error {
+	p.current = state{
+		MessageIdx: make(map[string]int),
+		threadReq:  make(map[string]int),
+	}
+	_, err := p.rs.Seek(0, io.SeekStart)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// Replay replays the events in the reader to the channeler in the order they
+// were recorded.  It will reset the state of the Player.
+func (p *Player) Replay(c Channeler) error {
+	if err := p.Reset(); err != nil {
+		return err
+	}
+	defer p.rs.Seek(0, io.SeekStart) // reset offset once we finished.
+	dec := json.NewDecoder(p.rs)
+	for {
+		var evt Event
+		if err := dec.Decode(&evt); err != nil {
+			if err == io.EOF {
+				break
+			}
+			return err
+		}
+		switch evt.Type {
+		case EventMessages:
+			if err := c.Messages(evt.ChannelID, evt.Messages); err != nil {
+				return err
+			}
+		case EventThreadMessages:
+			if err := c.ThreadMessages(evt.ChannelID, *evt.Parent, evt.Messages); err != nil {
+				return err
+			}
+		case EventFiles:
+			if err := c.Files(evt.ChannelID, *evt.Parent, evt.IsThreadMessage, evt.Files); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }

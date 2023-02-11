@@ -125,5 +125,4 @@ func TestReplay(t *testing.T) {
 	if !reachedEnd {
 		t.Fatal("didn't reach end of stream")
 	}
-
 }

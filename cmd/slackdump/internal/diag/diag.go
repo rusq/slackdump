@@ -22,5 +22,6 @@ open an issue on Github.
 		CmdRawOutput,
 		CmdEzTest,
 		CmdThread,
+		CmdObfuscate,
 	},
 }
