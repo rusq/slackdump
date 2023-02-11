@@ -101,12 +101,20 @@ func (o obfuscator) Messages(m ...slack.Message) {
 
 const filePrefix = "https://files.slack.com/"
 
+func notNilFn(s string, fn func(string) string) string {
+	if s != "" {
+		s = fn(s)
+	}
+	return s
+}
+
 func (o obfuscator) OneMessage(m *slack.Message) {
 	if m == nil {
 		return
 	}
-	m.ClientMsgID = randomUUID()
+	m.ClientMsgID = notNilFn(m.ClientMsgID, func(s string) string { return randomUUID() })
 	m.Team = o.ID("T", m.Team)
+	m.Channel = o.ID("C", m.Channel)
 	m.User = o.ID("U", m.User)
 	if m.Text != "" {
 		m.Text = randomString(len(m.Text))
@@ -166,8 +174,8 @@ func (o obfuscator) OneFile(f *slack.File) {
 	for i := range fields {
 		*fields[i] = ifnotnil(*fields[i])
 	}
-	f.Title = randomString(len(f.Title))
-	f.Name = randomString(len(f.Name))
+	f.Title = ifnotnil(f.Title)
+	f.Name = ifnotnil(f.Name)
 	f.Thumb360W = 0
 	f.Thumb360H = 0
 	f.Thumb480W = 0
