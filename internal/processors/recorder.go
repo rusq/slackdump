@@ -2,6 +2,7 @@ package processors
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"time"
 
@@ -14,7 +15,7 @@ type Recorder struct {
 	w io.Writer
 
 	events chan Event
-	resp   chan error
+	errC   chan error
 }
 
 // EventType is the type of event that was recorded.  There are three types:
@@ -51,39 +52,42 @@ func (e *Event) ID() string {
 	case EventFiles:
 		return "f" + e.ChannelID + ":" + e.Parent.Timestamp
 	}
-	return "<empty>"
+	return fmt.Sprintf("<unknown:%d>", e.Type)
 }
 
 func NewRecorder(w io.Writer) *Recorder {
 	rec := &Recorder{
 		w:      w,
 		events: make(chan Event),
-		resp:   make(chan error, 1),
+		errC:   make(chan error, 1),
 	}
-	go rec.worker()
+	go rec.worker(json.NewEncoder(rec.w))
 	return rec
 }
 
-func (rec *Recorder) worker() {
-	enc := json.NewEncoder(rec.w)
+type encoder interface {
+	Encode(v interface{}) error
+}
+
+func (rec *Recorder) worker(enc encoder) {
 LOOP:
 	for event := range rec.events {
 		if err := enc.Encode(event); err != nil {
 			select {
-			case rec.resp <- err:
+			case rec.errC <- err:
 			default:
 				// unable to send, prevent deadlock
 				break LOOP
 			}
 		}
 	}
-	close(rec.resp)
+	close(rec.errC)
 }
 
 // Messages is called for each message that is retrieved.
 func (rec *Recorder) Messages(channelID string, m []slack.Message) error {
 	select {
-	case err := <-rec.resp:
+	case err := <-rec.errC:
 		return err
 	case rec.events <- Event{
 		Type:      EventMessages,
@@ -99,7 +103,7 @@ func (rec *Recorder) Messages(channelID string, m []slack.Message) error {
 // passed in as well.
 func (rec *Recorder) Files(channelID string, parent slack.Message, isThread bool, f []slack.File) error {
 	select {
-	case err := <-rec.resp:
+	case err := <-rec.errC:
 		return err
 	case rec.events <- Event{
 		Type:            EventFiles,
@@ -116,7 +120,7 @@ func (rec *Recorder) Files(channelID string, parent slack.Message, isThread bool
 // retrieved. The parent message is passed in as well.
 func (rec *Recorder) ThreadMessages(channelID string, parent slack.Message, tm []slack.Message) error {
 	select {
-	case err := <-rec.resp:
+	case err := <-rec.errC:
 		return err
 	case rec.events <- Event{
 		Type:            EventThreadMessages,
@@ -131,5 +135,5 @@ func (rec *Recorder) ThreadMessages(channelID string, parent slack.Message, tm [
 
 func (rec *Recorder) Close() error {
 	close(rec.events)
-	return <-rec.resp
+	return <-rec.errC
 }
