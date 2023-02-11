@@ -37,14 +37,14 @@ const (
 	OmitAuthFlags FlagMask = 1 << iota
 	OmitDownloadFlag
 	OmitConfigFlag
-	OmitBaseLoc
+	OmitBaseLocFlag
 	OmitCacheDir
 	OmitWorkspaceFlag
 	OmitUserCacheFlag
 
 	OmitAll = OmitConfigFlag |
 		OmitDownloadFlag |
-		OmitBaseLoc |
+		OmitBaseLocFlag |
 		OmitCacheDir |
 		OmitWorkspaceFlag |
 		OmitAuthFlags |
@@ -70,7 +70,7 @@ func SetBaseFlags(fs *flag.FlagSet, mask FlagMask) {
 	if mask&OmitConfigFlag == 0 {
 		fs.StringVar(&ConfigFile, "api-config", "", "configuration `file` with Slack API limits overrides.\nYou can generate one with default values with 'slackdump config new`")
 	}
-	if mask&OmitBaseLoc == 0 {
+	if mask&OmitBaseLocFlag == 0 {
 		base := fmt.Sprintf("slackdump_%s.zip", time.Now().Format("20060102_150405"))
 		fs.StringVar(&SlackConfig.BaseLocation, "base", osenv.Value("BASE_LOC", base), "a `location` (a directory or a ZIP file) on the local disk to save\ndownloaded files to.")
 	}

@@ -54,9 +54,9 @@ func (e *Event) ID() string {
 	return "<empty>"
 }
 
-func NewRecorder(wc io.Writer) *Recorder {
+func NewRecorder(w io.Writer) *Recorder {
 	rec := &Recorder{
-		w:      wc,
+		w:      w,
 		events: make(chan Event),
 		resp:   make(chan error, 1),
 	}

@@ -23,5 +23,6 @@ open an issue on Github.
 		CmdEzTest,
 		CmdThread,
 		CmdObfuscate,
+		CmdRecord,
 	},
 }

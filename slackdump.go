@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"runtime/trace"
+	"time"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/slack-go/slack"
@@ -18,6 +19,7 @@ import (
 	"github.com/rusq/slackdump/v2/auth"
 	"github.com/rusq/slackdump/v2/fsadapter"
 	"github.com/rusq/slackdump/v2/internal/network"
+	"github.com/rusq/slackdump/v2/internal/processors"
 	"github.com/rusq/slackdump/v2/logger"
 	"github.com/rusq/slackdump/v2/types"
 )
@@ -256,4 +258,13 @@ func (s *Session) propagateLogger() {
 // so no API call is involved at this point.
 func (s *Session) Info() *WorkspaceInfo {
 	return s.wspInfo
+}
+
+// Stream streams the channel, calling Channeler functions for each chunk.
+func (s *Session) Stream(ctx context.Context, link string, proc processors.Channeler, oldest, latest time.Time) error {
+	ctx, task := trace.NewTask(ctx, "Stream")
+	defer task.End()
+
+	cs := newChannelStream(s.client, &s.cfg.Limits, oldest, latest)
+	return cs.Stream(ctx, link, proc)
 }
