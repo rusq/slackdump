@@ -2,7 +2,6 @@ package processors
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 	"time"
 
@@ -16,43 +15,6 @@ type Recorder struct {
 
 	events chan Event
 	errC   chan error
-}
-
-// EventType is the type of event that was recorded.  There are three types:
-// messages, thread messages, and files.
-type EventType int
-
-const (
-	EventMessages EventType = iota
-	EventThreadMessages
-	EventFiles
-)
-
-type Event struct {
-	Type            EventType       `json:"type,omitempty"`
-	TS              int64           `json:"event_ts,omitempty"`
-	ChannelID       string          `json:"channel_id,omitempty"`
-	IsThreadMessage bool            `json:"is_thread_message,omitempty"`
-	Size            int             `json:"size,omitempty"` // number of messages or files
-	Parent          *slack.Message  `json:"parent,omitempty"`
-	Messages        []slack.Message `json:"messages,omitempty"`
-	Files           []slack.File    `json:"files,omitempty"`
-}
-
-func threadID(channelID string, threadTS string) string {
-	return "t" + channelID + ":" + threadTS
-}
-
-func (e *Event) ID() string {
-	switch e.Type {
-	case EventMessages:
-		return e.ChannelID
-	case EventThreadMessages:
-		return threadID(e.ChannelID, e.Parent.Timestamp)
-	case EventFiles:
-		return "f" + e.ChannelID + ":" + e.Parent.Timestamp
-	}
-	return fmt.Sprintf("<unknown:%d>", e.Type)
 }
 
 func NewRecorder(w io.Writer) *Recorder {
