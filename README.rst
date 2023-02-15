@@ -201,6 +201,13 @@ FAQ
     Python application and runs in a browser.  For the generic dump files, see
     `examples`_ directory for some python and shell examples.
 
+:Q: **My Slack Workspace is on the Free plan.  Can I get data older than
+    90-days?**
+
+:A: No, unfortunately you can't.  Slack doesn't allow to export data older
+    than 90 days for free workspaces, the API does not return any data before 90
+    days for workspaces on the Free plan.
+
 Thank you
 =========
 Big thanks to all contributors, who submitted a pull request, reported a bug,
