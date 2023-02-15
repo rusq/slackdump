@@ -70,7 +70,7 @@ func TestEvent_ID(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			e := &Event{
 				Type:            tt.fields.Type,
-				TS:              tt.fields.TS,
+				Timestamp:       tt.fields.TS,
 				ChannelID:       tt.fields.ChannelID,
 				IsThreadMessage: tt.fields.IsThreadMessage,
 				Size:            tt.fields.Size,

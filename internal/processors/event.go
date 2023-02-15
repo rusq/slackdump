@@ -17,8 +17,8 @@ const (
 )
 
 type Event struct {
-	Type            EventType       `json:"type,omitempty"`
-	TS              int64           `json:"event_ts,omitempty"`
+	Type            EventType       `json:"type"`
+	Timestamp       int64           `json:"event_ts,omitempty"`
 	ChannelID       string          `json:"channel_id,omitempty"`
 	IsThreadMessage bool            `json:"is_thread_message,omitempty"`
 	Size            int             `json:"size,omitempty"` // number of messages or files

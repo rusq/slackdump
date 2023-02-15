@@ -3,7 +3,6 @@ package diag
 import (
 	"context"
 	"io"
-	"math/rand"
 	"os"
 	"time"
 
@@ -26,14 +25,15 @@ var CmdObfuscate = &base.Command{
 var obfuscateParams struct {
 	inputFile  string
 	outputFile string
+	seed       int64
 }
 
 func init() {
-	rand.Seed(time.Now().UnixNano())
 	CmdObfuscate.Run = runObfuscate
 
 	CmdObfuscate.Flag.StringVar(&obfuscateParams.inputFile, "i", "", "input file, if not specified, stdin is used")
 	CmdObfuscate.Flag.StringVar(&obfuscateParams.outputFile, "o", "", "output file, if not specified, stdout is used")
+	CmdObfuscate.Flag.Int64Var(&obfuscateParams.seed, "seed", time.Now().UnixNano(), "seed for the random number generator")
 }
 
 func runObfuscate(ctx context.Context, cmd *base.Command, args []string) error {
@@ -65,5 +65,5 @@ func runObfuscate(ctx context.Context, cmd *base.Command, args []string) error {
 		}
 		defer out.Close()
 	}
-	return obfuscate.Do(ctx, out, in)
+	return obfuscate.Do(ctx, out, in, obfuscate.WithSeed(obfuscateParams.seed))
 }

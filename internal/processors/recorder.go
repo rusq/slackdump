@@ -53,7 +53,7 @@ func (rec *Recorder) Messages(channelID string, m []slack.Message) error {
 		return err
 	case rec.events <- Event{
 		Type:      EventMessages,
-		TS:        time.Now().UnixNano(),
+		Timestamp: time.Now().UnixNano(),
 		ChannelID: channelID,
 		Size:      len(m),
 		Messages:  m}: // ok

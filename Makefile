@@ -66,3 +66,6 @@ callvis:
 goreleaser:
 	goreleaser check
 	goreleaser release --snapshot --rm-dist
+
+tags:
+	gotags -R *.go > $@

@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"os"
+	"sync/atomic"
 
 	"github.com/slack-go/slack"
 )
@@ -21,7 +23,8 @@ type Player struct {
 
 	pointer state // current event pointers
 
-	idx index
+	idx        index
+	lastOffset atomic.Int64
 }
 
 // index holds the index of each event type within the file.  key is the event
@@ -37,6 +40,9 @@ func NewPlayer(rs io.ReadSeeker) (*Player, error) {
 	if err != nil {
 		return nil, err
 	}
+	if _, err := rs.Seek(0, io.SeekStart); err != nil { // reset offset
+		return nil, err
+	}
 	return &Player{
 		rs:      rs,
 		idx:     idx,
@@ -45,7 +51,7 @@ func NewPlayer(rs io.ReadSeeker) (*Player, error) {
 }
 
 // indexRecords indexes the records in the reader and returns an index.
-func indexRecords(rs io.ReadSeeker) (index, error) {
+func indexRecords(rs io.Reader) (index, error) {
 	var idx = make(index)
 
 	dec := json.NewDecoder(rs)
@@ -62,10 +68,20 @@ func indexRecords(rs io.ReadSeeker) (index, error) {
 		}
 		idx[event.ID()] = append(idx[event.ID()], offset)
 	}
-	if _, err := rs.Seek(0, io.SeekStart); err != nil { // reset offset
+	f, err := os.Create("index.json")
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	if err := json.NewEncoder(f).Encode(idx); err != nil {
 		return nil, err
 	}
 	return idx, nil
+}
+
+// Offset returns the last read offset of the record ReadSeeker.
+func (p *Player) Offset() int64 {
+	return p.lastOffset.Load()
 }
 
 func (p *Player) tryGetEvent(id string) (*Event, error) {
@@ -82,6 +98,7 @@ func (p *Player) tryGetEvent(id string) (*Event, error) {
 		return nil, io.EOF
 	}
 
+	p.lastOffset.Store(offsets[ptr])
 	_, err := p.rs.Seek(offsets[ptr], io.SeekStart) // seek to the offset
 	if err != nil {
 		return nil, err
@@ -97,12 +114,12 @@ func (p *Player) tryGetEvent(id string) (*Event, error) {
 func (p *Player) hasMore(id string) bool {
 	offsets, ok := p.idx[id]
 	if !ok {
-		return false
+		return false // no such id
 	}
 	// getting current offset index for the requested id.
 	ptr, ok := p.pointer[id]
 	if !ok {
-		p.pointer[id] = 0 // initialize, if we see it the first time.
+		return true //hasn't been accessed yet
 	}
 	return ptr < len(offsets)
 }

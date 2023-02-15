@@ -7,6 +7,7 @@ import (
 	"runtime/trace"
 	"time"
 
+	"github.com/rusq/dlog"
 	"github.com/rusq/slackdump/v2/internal/network"
 	"github.com/rusq/slackdump/v2/internal/processors"
 	"github.com/rusq/slackdump/v2/internal/structures"
@@ -97,7 +98,8 @@ func (cs *channelStream) channel(ctx context.Context, id string, proc processors
 		}
 		for i := range resp.Messages {
 			idx := i
-			if resp.Messages[idx].Msg.ThreadTimestamp != "" {
+			if resp.Messages[idx].Msg.ThreadTimestamp != "" && resp.Messages[idx].Msg.SubType != "thread_broadcast" {
+				dlog.Debugf("- message #%d/thread: id=%s, thread_ts=%s, cursor=%s", i, resp.Messages[idx].ClientMsgID, resp.Messages[idx].Msg.ThreadTimestamp, cursor)
 				if err := cs.thread(ctx, id, resp.Messages[idx].Msg.ThreadTimestamp, proc); err != nil {
 					return err
 				}
@@ -125,6 +127,7 @@ func (cs *channelStream) thread(ctx context.Context, id string, threadTS string,
 		)
 		if err := network.WithRetry(ctx, cs.limits.threads, cs.limits.tier.Tier3.Retries, func() error {
 			var apiErr error
+			dlog.Debugf("- getting: thread: id=%s, thread_ts=%s, cursor=%s", id, threadTS, cursor)
 			msgs, hasmore, cursor, apiErr = cs.client.GetConversationRepliesContext(ctx, &slack.GetConversationRepliesParameters{
 				ChannelID: id,
 				Timestamp: threadTS,

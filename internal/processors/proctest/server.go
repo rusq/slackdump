@@ -3,10 +3,13 @@ package proctest
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"runtime/trace"
+	"strconv"
 
 	"github.com/rusq/slackdump/v2/internal/processors"
 	"github.com/slack-go/slack"
@@ -34,11 +37,9 @@ func (s *Server) Close() {
 
 type GetConversationRepliesResponse struct {
 	slack.SlackResponse
-	HasMore          bool `json:"has_more"`
-	ResponseMetaData struct {
-		NextCursor string `json:"next_cursor"`
-	} `json:"response_metadata"`
-	Messages []slack.Message `json:"messages"`
+	HasMore          bool             `json:"has_more"`
+	ResponseMetaData responseMetaData `json:"response_metadata"`
+	Messages         []slack.Message  `json:"messages"`
 }
 
 func router(p *processors.Player) *http.ServeMux {
@@ -52,6 +53,7 @@ func router(p *processors.Player) *http.ServeMux {
 			http.NotFound(w, r)
 			return
 		}
+		log.Printf("channel: %s", channel)
 
 		msg, err := p.Messages(channel)
 		if err != nil {
@@ -74,8 +76,9 @@ func router(p *processors.Player) *http.ServeMux {
 			return
 		}
 		resp := slack.GetConversationHistoryResponse{
-			HasMore:  p.HasMoreMessages(channel),
-			Messages: msg,
+			HasMore:          p.HasMoreMessages(channel),
+			Messages:         msg,
+			ResponseMetaData: responseMetaData{NextCursor: strconv.FormatInt(p.Offset(), 10)},
 			SlackResponse: slack.SlackResponse{
 				Ok: true,
 			},
@@ -91,22 +94,30 @@ func router(p *processors.Player) *http.ServeMux {
 
 		timestamp := r.FormValue("ts")
 		channel := r.FormValue("channel")
+		log.Printf("channel: %s, ts: %s", channel, timestamp)
 
 		if timestamp == "" {
 			http.Error(w, "ts is required", http.StatusBadRequest)
 			return
 		}
+
+		var slackResp = slack.SlackResponse{
+			Ok: true,
+		}
 		msg, err := p.Thread(channel, timestamp)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
+			slackResp.Ok = false
+			if errors.Is(err, io.EOF) {
+				slackResp.Error = fmt.Sprintf("thread_not_found[%s:%s]", channel, timestamp)
+			} else {
+				slackResp.Error = err.Error()
+			}
 		}
 		resp := GetConversationRepliesResponse{
-			HasMore:  p.HasMoreThreads(channel, timestamp),
-			Messages: msg,
-			SlackResponse: slack.SlackResponse{
-				Ok: true,
-			},
+			HasMore:          p.HasMoreThreads(channel, timestamp),
+			Messages:         msg,
+			ResponseMetaData: responseMetaData{strconv.FormatInt(p.Offset(), 10)}, // adding offset for the ease of debugging.
+			SlackResponse:    slackResp,
 		}
 		if err := json.NewEncoder(w).Encode(resp); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -114,4 +125,8 @@ func router(p *processors.Player) *http.ServeMux {
 		}
 	})
 	return mux
+}
+
+type responseMetaData struct {
+	NextCursor string `json:"next_cursor"`
 }

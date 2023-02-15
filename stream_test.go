@@ -35,6 +35,8 @@ var expandedLimits = Limits{
 	},
 }
 
+const testConversation = "C01SPFM1KNY"
+
 func TestChannelStream(t *testing.T) {
 	ucd, err := os.UserCacheDir()
 	if err != nil {
@@ -63,8 +65,8 @@ func TestChannelStream(t *testing.T) {
 	rec := processors.NewRecorder(f)
 	defer rec.Close()
 
-	cs := newChannelStream(sd, &expandedLimits, time.Time{}, time.Time{})
-	if err := cs.Stream(context.Background(), "D01MN4X7UGP", rec); err != nil {
+	cs := newChannelStream(sd, &DefOptions.Limits, time.Time{}, time.Time{})
+	if err := cs.Stream(context.Background(), testConversation, rec); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -93,7 +95,7 @@ func TestRecorderStream(t *testing.T) {
 
 	rgnStream := trace.StartRegion(ctx, "Stream")
 	cs := newChannelStream(sd, &expandedLimits, time.Time{}, time.Time{})
-	if err := cs.Stream(ctx, "D01MN4X7UGP", rec); err != nil {
+	if err := cs.Stream(ctx, testConversation, rec); err != nil {
 		t.Fatal(err)
 	}
 	rgnStream.End()
@@ -112,7 +114,7 @@ func TestReplay(t *testing.T) {
 
 	reachedEnd := false
 	for i := 0; i < 100_000; i++ {
-		resp, err := sd.GetConversationHistory(&slack.GetConversationHistoryParameters{ChannelID: "D01MN4X7UGP"})
+		resp, err := sd.GetConversationHistory(&slack.GetConversationHistoryParameters{ChannelID: testConversation})
 		if err != nil {
 			t.Fatalf("error on iteration %d: %s", i, err)
 		}

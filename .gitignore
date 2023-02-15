@@ -18,6 +18,7 @@
 # IDE
 .idea
 .vscode
+.gonvim
 
 #OS junk
 .DS_Store

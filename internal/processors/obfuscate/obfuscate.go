@@ -131,6 +131,9 @@ func (o obfuscator) OneMessage(m *slack.Message) {
 	if len(m.Attachments) > 0 {
 		m.Attachments = nil // too much hassle to obfuscate
 	}
+	if m.ParentUserId != "" {
+		m.ParentUserId = o.ID("U", m.ParentUserId)
+	}
 	for i := range m.Files {
 		o.OneFile(&m.Files[i])
 	}

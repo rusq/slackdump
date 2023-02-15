@@ -16,6 +16,7 @@ import (
 
 	"github.com/rusq/chttp"
 	"github.com/rusq/dlog"
+
 	"github.com/rusq/slackdump/v2/auth"
 	"github.com/rusq/slackdump/v2/fsadapter"
 	"github.com/rusq/slackdump/v2/internal/network"
@@ -61,10 +62,8 @@ type clienter interface {
 	GetEmojiContext(ctx context.Context) (map[string]string, error)
 }
 
-var (
-	// ErrNoUserCache is returned when the user cache is not initialised.
-	ErrNoUserCache = errors.New("user cache unavailable")
-)
+// ErrNoUserCache is returned when the user cache is not initialised.
+var ErrNoUserCache = errors.New("user cache unavailable")
 
 // AllChanTypes enumerates all API-supported channel types as of 03/2022.
 var AllChanTypes = []string{"mpim", "im", "public_channel", "private_channel"}
@@ -147,7 +146,7 @@ func New(ctx context.Context, prov auth.Provider, cfg Config, opts ...Option) (*
 
 	sd.propagateLogger()
 
-	if err := os.MkdirAll(cfg.CacheDir, 0700); err != nil {
+	if err := os.MkdirAll(cfg.CacheDir, 0o700); err != nil {
 		return nil, fmt.Errorf("failed to create the cache directory: %s", err)
 	}
 
@@ -192,7 +191,7 @@ func (s *Session) openLogger(filename string) error {
 		s.log = logger.Default
 		return nil
 	}
-	f, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0600)
+	f, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0o600)
 	if err != nil {
 		return err
 	}
