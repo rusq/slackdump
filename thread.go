@@ -72,7 +72,7 @@ func (*Session) populateThreads(
 ) (int, error) {
 	total := 0
 	for i := range msgs {
-		if msgs[i].ThreadTimestamp == "" {
+		if msgs[i].ThreadTimestamp == "" || msgs[i].SubType == "thread_broadcast" {
 			continue
 		}
 		threadMsgs, err := dumpFn(ctx, l, channelID, msgs[i].ThreadTimestamp, oldest, latest)
