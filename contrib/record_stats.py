@@ -1,14 +1,14 @@
 #!/usr/bin/env python
 import io
-import sys
 import json
+import argparse
 
 RECORD_FILE = "record.jsonl"
 INDEX_FILE = "index.json"
 
+
 def index_stats(f: io.TextIOWrapper):
-    s = f.read().strip()
-    index = json.loads(s)
+    index = json.load(f)
 
     entries = 0
     channels = 0
@@ -29,20 +29,18 @@ def index_stats(f: io.TextIOWrapper):
     print("Total number of channels: %d" % channels)
     print("Total number of threads: %d" % threads)
     print("Total number of files: %d" % files)
-    
 
 
 def record_stats(f: io.TextIOWrapper):
-    lines = list(f)
-
-    print("Total number of API requests: {}".format(len(lines)))
     messages = 0
     msg_requests = 0
     threads = 0
     thread_requests = 0
     files = 0
     file_requests = 0
-    for line in lines:
+    total = 0
+    for line in f:
+        total += 1
         data = json.loads(line)
         if data["type"] == 0:
             msg_requests += 1
@@ -58,12 +56,24 @@ def record_stats(f: io.TextIOWrapper):
     print("Total number of thread requests: {}, thread messages: {}".format(
         thread_requests, threads))
     print("Total number of file requests: {}, files: {}".format(file_requests, files))
+    print("Total number of API requests: {}".format(total))
 
 
 if __name__ == "__main__":
-    file = sys.argv[1] if len(sys.argv) > 1 else INDEX_FILE
+    parser = argparse.ArgumentParser(description="Record file statistics tool")
+    parser.add_argument("file", nargs="?", default=RECORD_FILE,
+                        help="Record or index file to analyze (default: record.jsonl)")
+    parser.add_argument("-i", "--index", action="store_true", default=False,
+                        help="Treat the file as index file if true, otherwise treat it as record file.")
+    args = parser.parse_args()
+
+    if args.index:
+        fn = index_stats
+    else:
+        fn = record_stats
+
     try:
-        with open(file) as f:
-            index_stats(f)
+        with open(args.file) as f:
+            fn(f)
     except FileNotFoundError:
-        print("File not found: {}".format(file))
+        print("File not found: {}".format(args.file))
