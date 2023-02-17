@@ -16,6 +16,9 @@ const (
 	EventFiles
 )
 
+// Event is a single event that was recorded.  It contains the type of event,
+// the timestamp of the event, the channel ID, and the number of messages or
+// files that were recorded.
 type Event struct {
 	Type            EventType       `json:"type"`
 	Timestamp       int64           `json:"event_ts,omitempty"`
@@ -47,6 +50,7 @@ func fileID(channelID, parentTS string) string {
 	return "f" + channelID + ":" + parentTS
 }
 
+// ID returns a unique ID for the event.
 func (e *Event) ID() string {
 	switch e.Type {
 	case EventMessages:

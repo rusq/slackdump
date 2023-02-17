@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"os"
 	"sync/atomic"
 
 	"github.com/slack-go/slack"
@@ -52,7 +51,7 @@ func NewPlayer(rs io.ReadSeeker) (*Player, error) {
 
 // indexRecords indexes the records in the reader and returns an index.
 func indexRecords(rs io.Reader) (index, error) {
-	var idx = make(index)
+	idx := make(index)
 
 	dec := json.NewDecoder(rs)
 
@@ -68,14 +67,6 @@ func indexRecords(rs io.Reader) (index, error) {
 		}
 		idx[event.ID()] = append(idx[event.ID()], offset)
 	}
-	f, err := os.Create("index.json")
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-	if err := json.NewEncoder(f).Encode(idx); err != nil {
-		return nil, err
-	}
 	return idx, nil
 }
 
@@ -84,6 +75,8 @@ func (p *Player) Offset() int64 {
 	return p.lastOffset.Load()
 }
 
+// tryGetEvent tries to get the event for the given id.  It returns io.EOF if
+// there are no more events for the given id.
 func (p *Player) tryGetEvent(id string) (*Event, error) {
 	offsets, ok := p.idx[id]
 	if !ok {
@@ -111,6 +104,7 @@ func (p *Player) tryGetEvent(id string) (*Event, error) {
 	return &event, nil
 }
 
+// hasMore returns true if there are more events for the given id.
 func (p *Player) hasMore(id string) bool {
 	offsets, ok := p.idx[id]
 	if !ok {
@@ -119,11 +113,12 @@ func (p *Player) hasMore(id string) bool {
 	// getting current offset index for the requested id.
 	ptr, ok := p.pointer[id]
 	if !ok {
-		return true //hasn't been accessed yet
+		return true // hasn't been accessed yet
 	}
 	return ptr < len(offsets)
 }
 
+// Messages returns the messages for the given channel.
 func (p *Player) Messages(channelID string) ([]slack.Message, error) {
 	event, err := p.tryGetEvent(channelID)
 	if err != nil {
@@ -138,6 +133,7 @@ func (p *Player) HasMoreMessages(channelID string) bool {
 	return p.hasMore(channelID)
 }
 
+// Thread returns the messages for the given thread.
 func (p *Player) Thread(channelID string, threadTS string) ([]slack.Message, error) {
 	id := threadID(channelID, threadTS)
 	event, err := p.tryGetEvent(id)
@@ -163,20 +159,31 @@ func (p *Player) Reset() error {
 // Replay replays the events in the reader to the channeler in the order they
 // were recorded.  It will reset the state of the Player.
 func (p *Player) Replay(c Channeler) error {
+	return p.ForEach(func(ev *Event) error {
+		if ev == nil {
+			return nil
+		}
+		return p.emit(c, *ev)
+	})
+}
+
+// ForEach iterates over the events in the reader and calls the function for
+// each event.  It will reset the state of the Player.
+func (p *Player) ForEach(fn func(ev *Event) error) error {
 	if err := p.Reset(); err != nil {
 		return err
 	}
 	defer p.rs.Seek(0, io.SeekStart) // reset offset once we finished.
 	dec := json.NewDecoder(p.rs)
 	for {
-		var evt Event
+		var evt *Event
 		if err := dec.Decode(&evt); err != nil {
 			if err == io.EOF {
 				break
 			}
 			return err
 		}
-		if err := p.emit(c, evt); err != nil {
+		if err := fn(evt); err != nil {
 			return err
 		}
 	}
