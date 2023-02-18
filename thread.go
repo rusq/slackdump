@@ -2,11 +2,10 @@ package slackdump
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"runtime/trace"
 	"time"
-
-	"errors"
 
 	"github.com/slack-go/slack"
 	"golang.org/x/time/rate"
@@ -30,7 +29,7 @@ func (s *Session) dumpThreadAsConversation(
 	ctx, task := trace.NewTask(ctx, "DumpThread")
 	defer task.End()
 
-	if !(sl.IsValid() && sl.IsThread()) {
+	if !sl.IsValid() && !sl.IsThread() {
 		return nil, errors.New("internal error: channelID or threadTS are empty")
 	}
 
@@ -135,7 +134,7 @@ func (s *Session) dumpThread(
 			return nil, err
 		}
 		// slack api returns the first message of a thread with every api call:
-		// strip the first message if i > 0 to avoid dupes
+		// strip the first message after the first call to avoid duplicates.
 		if 0 < i && 1 < len(msgs) {
 			msgs = msgs[1:]
 		}
