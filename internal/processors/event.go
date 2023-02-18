@@ -42,7 +42,8 @@ func threadID(channelID, threadTS string) string {
 	return "t" + channelID + ":" + threadTS
 }
 
-func (e *Event) fileID() string {
+// fileEvtID returns a unique ID for the file event.
+func (e *Event) fileEvtID() string {
 	return fileID(e.ChannelID, e.Parent.Timestamp)
 }
 
@@ -58,7 +59,7 @@ func (e *Event) ID() string {
 	case EventThreadMessages:
 		return e.threadID()
 	case EventFiles:
-		return e.fileID()
+		return e.fileEvtID()
 	}
 	return fmt.Sprintf("<unknown:%d>", e.Type)
 }

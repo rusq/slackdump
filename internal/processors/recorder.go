@@ -46,7 +46,7 @@ LOOP:
 	close(rec.errC)
 }
 
-// Messages is called for each message that is retrieved.
+// Messages is called for each message chunk that is retrieved.
 func (rec *Recorder) Messages(channelID string, m []slack.Message) error {
 	select {
 	case err := <-rec.errC:
@@ -56,12 +56,13 @@ func (rec *Recorder) Messages(channelID string, m []slack.Message) error {
 		Timestamp: time.Now().UnixNano(),
 		ChannelID: channelID,
 		Size:      len(m),
-		Messages:  m}: // ok
+		Messages:  m,
+	}: // ok
 	}
 	return nil
 }
 
-// Files is called for each file that is retrieved. The parent message is
+// Files is called for each file chunk that is retrieved. The parent message is
 // passed in as well.
 func (rec *Recorder) Files(channelID string, parent slack.Message, isThread bool, f []slack.File) error {
 	select {
@@ -73,7 +74,8 @@ func (rec *Recorder) Files(channelID string, parent slack.Message, isThread bool
 		Parent:          &parent,
 		IsThreadMessage: isThread,
 		Size:            len(f),
-		Files:           f}: // ok
+		Files:           f,
+	}: // ok
 	}
 	return nil
 }
@@ -90,7 +92,8 @@ func (rec *Recorder) ThreadMessages(channelID string, parent slack.Message, tm [
 		Parent:          &parent,
 		IsThreadMessage: true,
 		Size:            len(tm),
-		Messages:        tm}: // ok
+		Messages:        tm,
+	}: // ok
 	}
 	return nil
 }

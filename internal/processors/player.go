@@ -6,6 +6,7 @@ import (
 	"io"
 	"sync/atomic"
 
+	"github.com/rusq/slackdump/v2/internal/state"
 	"github.com/slack-go/slack"
 )
 
@@ -16,11 +17,11 @@ var (
 
 // Player replays the events from a file, it is able to emulate the API
 // responses, if used in conjunction with the [proctest.Server]. Zero value is
-// not usable.
+// not usable.st
 type Player struct {
 	rs io.ReadSeeker
 
-	pointer state // current event pointers
+	pointer offsets // current event pointers
 
 	idx        index
 	lastOffset atomic.Int64
@@ -30,8 +31,8 @@ type Player struct {
 // ID, value is the list of offsets for that id in the file.
 type index map[string][]int64
 
-// state holds the index of the current offset for each event id.
-type state map[string]int
+// offsets holds the index of the current offset for each event id.
+type offsets map[string]int
 
 // NewPlayer creates a new event player from the io.ReadSeeker.
 func NewPlayer(rs io.ReadSeeker) (*Player, error) {
@@ -45,7 +46,7 @@ func NewPlayer(rs io.ReadSeeker) (*Player, error) {
 	return &Player{
 		rs:      rs,
 		idx:     idx,
-		pointer: make(state),
+		pointer: make(offsets),
 	}, nil
 }
 
@@ -148,7 +149,7 @@ func (p *Player) HasMoreThreads(channelID string, threadTS string) bool {
 }
 
 func (p *Player) Reset() error {
-	p.pointer = make(state)
+	p.pointer = make(offsets)
 	_, err := p.rs.Seek(0, io.SeekStart)
 	if err != nil {
 		return err
@@ -207,4 +208,30 @@ func (p *Player) emit(c Channeler, evt Event) error {
 		}
 	}
 	return nil
+}
+
+func (p *Player) State() (*state.State, error) {
+	s := state.New()
+	p.ForEach(func(ev *Event) error {
+		if ev == nil {
+			return nil
+		}
+		if ev.Type == EventFiles {
+			for _, f := range ev.Files {
+				s.AddFile(ev.ChannelID, f.ID)
+			}
+		}
+		if ev.Type == EventThreadMessages {
+			for _, m := range ev.Messages {
+				s.AddThread(ev.ChannelID, ev.Parent.ThreadTimestamp, m.Timestamp)
+			}
+		}
+		if ev.Type == EventMessages {
+			for _, m := range ev.Messages {
+				s.AddMessage(ev.ChannelID, m.Timestamp)
+			}
+		}
+		return nil
+	})
+	return s, nil
 }

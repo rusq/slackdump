@@ -29,7 +29,7 @@ func (s *Session) dumpThreadAsConversation(
 	ctx, task := trace.NewTask(ctx, "DumpThread")
 	defer task.End()
 
-	if !sl.IsValid() && !sl.IsThread() {
+	if !sl.IsValid() || !sl.IsThread() {
 		return nil, errors.New("internal error: channelID or threadTS are empty")
 	}
 
