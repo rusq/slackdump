@@ -47,3 +47,4 @@ dist/
 !.goreleaser.yaml
 !schema.json
 *.jsonl
+*.state

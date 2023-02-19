@@ -29,7 +29,11 @@ func (e ErrStateVersion) Error() string {
 
 // State is a struct that holds the state of the Slack dump.
 type State struct {
+	// Version is the version of the state file.
 	Version float64 `json:"version"`
+	// Filename is the original filename for which the state is valid.
+	// It may be empty.
+	Filename string `json:"filename,omitempty"`
 	// Channels is a map of channel ID to the latest message timestamp.
 	Channels map[_id]int64 `json:"channels,omitempty"`
 	// Threads is a map of channel ID + thread timestamp to the latest message
@@ -48,9 +52,10 @@ type Stater interface {
 }
 
 // New returns a new State.
-func New() *State {
+func New(filename string) *State {
 	return &State{
 		Version:  Version,
+		Filename: filename,
 		Channels: make(map[_id]int64),
 		Threads:  make(map[_idAndThread]int64),
 		Files:    make(map[_id]_id),
@@ -93,7 +98,7 @@ func (s *State) AddFile(channelID, fileID string) {
 func tsUpdate(m map[string]int64, id string, val string) {
 	currVal, err := ts2int(val)
 	if err != nil {
-		return //not updating crooked values
+		return // not updating crooked values
 	}
 	existingVal, ok := m[id]
 	if !ok || currVal > existingVal {

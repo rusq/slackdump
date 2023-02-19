@@ -2,7 +2,9 @@ package diag
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"time"
@@ -15,21 +17,35 @@ import (
 )
 
 var CmdRecord = &base.Command{
-	UsageLine:   "slackdump diag record [options] <channel>",
+	UsageLine: "slackdump diag record",
+	Short:     "event record commands",
+	Commands:  []*base.Command{CmdRecordStream, CmdRecordState},
+}
+
+var CmdRecordStream = &base.Command{
+	UsageLine:   "slackdump diag record stream [options] <channel>",
 	Short:       "dump slack data in a event record format",
 	FlagMask:    cfg.OmitBaseLocFlag | cfg.OmitDownloadFlag,
 	PrintFlags:  true,
 	RequireAuth: true,
 }
 
+var CmdRecordState = &base.Command{
+	UsageLine:   "slackdump diag record state [options] <record_file.jsonl>",
+	Short:       "print state of the record",
+	FlagMask:    cfg.OmitAll,
+	PrintFlags:  true,
+	RequireAuth: false,
+}
+
 func init() {
 	// break init cycle
-	CmdRecord.Run = runRecord
+	CmdRecordStream.Run = runRecord
 }
 
 var output = CmdRecord.Flag.String("output", "", "output file")
 
-func runRecord(ctx context.Context, cmd *base.Command, args []string) error {
+func runRecord(ctx context.Context, _ *base.Command, args []string) error {
 	if len(args) == 0 {
 		return errors.New("missing channel argument")
 	}
@@ -48,19 +64,58 @@ func runRecord(ctx context.Context, cmd *base.Command, args []string) error {
 	if *output == "" {
 		w = os.Stdout
 	} else {
-		f, err := os.Create("output.jsonl")
-		if err != nil {
+		if f, err := os.Create(*output); err != nil {
 			return err
+		} else {
+			defer f.Close()
+			w = f
 		}
-		defer f.Close()
-		w = f
 	}
 
 	rec := processors.NewRecorder(w)
-	defer rec.Close()
-
-	if err := sess.Stream(ctx, args[0], rec, time.Time{}, time.Time{}); err != nil {
+	for _, ch := range args {
+		cfg.Log.Printf("streaming channel %q", ch)
+		if err := sess.Stream(ctx, ch, rec, time.Time{}, time.Time{}); err != nil {
+			if err2 := rec.Close(); err2 != nil {
+				return fmt.Errorf("error streaming channel %q: %w; error closing recorder: %v", ch, err, err2)
+			}
+			return err
+		}
+	}
+	if err := rec.Close(); err != nil {
 		return err
 	}
-	return nil
+	st, err := rec.State()
+	if err != nil {
+		return err
+	}
+	return st.Save(*output + ".state")
+}
+
+func init() {
+	// break init cycle
+	CmdRecordState.Run = runRecordState
+}
+
+func runRecordState(ctx context.Context, _ *base.Command, args []string) error {
+	if len(args) == 0 {
+		return errors.New("missing record file argument")
+	}
+	f, err := os.Open(args[0])
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	pl, err := processors.NewPlayer(f)
+	if err != nil {
+		return err
+	}
+	state, err := pl.State()
+	if err != nil {
+		return err
+	}
+	enc := json.NewEncoder(os.Stdout)
+	enc.SetIndent("", "  ")
+	return enc.Encode(state)
 }

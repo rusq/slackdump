@@ -6,8 +6,9 @@ import (
 	"io"
 	"sync/atomic"
 
-	"github.com/rusq/slackdump/v2/internal/state"
 	"github.com/slack-go/slack"
+
+	"github.com/rusq/slackdump/v2/internal/state"
 )
 
 var (
@@ -210,8 +211,16 @@ func (p *Player) emit(c Channeler, evt Event) error {
 	return nil
 }
 
+type namer interface {
+	Name() string
+}
+
 func (p *Player) State() (*state.State, error) {
-	s := state.New()
+	var name string
+	if file, ok := p.rs.(namer); ok {
+		name = file.Name()
+	}
+	s := state.New(name)
 	p.ForEach(func(ev *Event) error {
 		if ev == nil {
 			return nil

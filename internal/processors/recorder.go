@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/slack-go/slack"
+
+	"github.com/rusq/slackdump/v2/internal/state"
 )
 
 // Recorder is a special Channeler that records all the data it receives, so
@@ -15,13 +17,20 @@ type Recorder struct {
 
 	events chan Event
 	errC   chan error
+
+	state *state.State
 }
 
 func NewRecorder(w io.Writer) *Recorder {
+	filename := "unknown"
+	if f, ok := w.(namer); ok {
+		filename = f.Name()
+	}
 	rec := &Recorder{
 		w:      w,
 		events: make(chan Event),
 		errC:   make(chan error, 1),
+		state:  state.New(filename),
 	}
 	go rec.worker(json.NewEncoder(rec.w))
 	return rec
@@ -58,6 +67,9 @@ func (rec *Recorder) Messages(channelID string, m []slack.Message) error {
 		Size:      len(m),
 		Messages:  m,
 	}: // ok
+		for i := range m {
+			rec.state.AddMessage(channelID, m[i].Timestamp)
+		}
 	}
 	return nil
 }
@@ -76,6 +88,9 @@ func (rec *Recorder) Files(channelID string, parent slack.Message, isThread bool
 		Size:            len(f),
 		Files:           f,
 	}: // ok
+		for i := range f {
+			rec.state.AddFile(channelID, f[i].ID)
+		}
 	}
 	return nil
 }
@@ -94,8 +109,15 @@ func (rec *Recorder) ThreadMessages(channelID string, parent slack.Message, tm [
 		Size:            len(tm),
 		Messages:        tm,
 	}: // ok
+		for i := range tm {
+			rec.state.AddThread(channelID, parent.ThreadTimestamp, tm[i].Timestamp)
+		}
 	}
 	return nil
+}
+
+func (rec *Recorder) State() (*state.State, error) {
+	return rec.state, nil
 }
 
 func (rec *Recorder) Close() error {
