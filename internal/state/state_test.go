@@ -426,14 +426,31 @@ func Test_load(t *testing.T) {
 }
 
 func TestNew(t *testing.T) {
+	type args struct {
+		filename string
+	}
 	tests := []struct {
 		name string
+		args args
 		want *State
 	}{
 		{
 			"new",
+			args{"x"},
 			&State{
 				Version:  Version,
+				Filename: "x",
+				Channels: make(map[_id]int64),
+				Threads:  make(map[_idAndThread]int64),
+				Files:    make(map[_id]_id),
+			},
+		},
+		{
+			"empty filename",
+			args{""},
+			&State{
+				Version:  Version,
+				Filename: "",
 				Channels: make(map[_id]int64),
 				Threads:  make(map[_idAndThread]int64),
 				Files:    make(map[_id]_id),
@@ -442,7 +459,7 @@ func TestNew(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := New(); !reflect.DeepEqual(got, tt.want) {
+			if got := New(tt.args.filename); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("New() = %v, want %v", got, tt.want)
 			}
 		})

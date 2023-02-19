@@ -43,7 +43,7 @@ func init() {
 	CmdRecordStream.Run = runRecord
 }
 
-var output = CmdRecord.Flag.String("output", "", "output file")
+var output = CmdRecordStream.Flag.String("output", "", "output file")
 
 func runRecord(ctx context.Context, _ *base.Command, args []string) error {
 	if len(args) == 0 {

@@ -20,14 +20,14 @@ const (
 // the timestamp of the event, the channel ID, and the number of messages or
 // files that were recorded.
 type Event struct {
-	Type            EventType       `json:"type"`
-	Timestamp       int64           `json:"event_ts,omitempty"`
-	ChannelID       string          `json:"channel_id,omitempty"`
-	IsThreadMessage bool            `json:"is_thread_message,omitempty"`
-	Size            int             `json:"size,omitempty"` // number of messages or files
-	Parent          *slack.Message  `json:"parent,omitempty"`
-	Messages        []slack.Message `json:"messages,omitempty"`
-	Files           []slack.File    `json:"files,omitempty"`
+	Type            EventType       `json:"_t"`
+	Timestamp       int64           `json:"_ts,omitempty"`
+	ChannelID       string          `json:"_cid,omitempty"`
+	IsThreadMessage bool            `json:"_istm,omitempty"`
+	Size            int             `json:"_sz,omitempty"` // number of messages or files
+	Parent          *slack.Message  `json:"_p,omitempty"`
+	Messages        []slack.Message `json:"_m,omitempty"`
+	Files           []slack.File    `json:"_f,omitempty"`
 }
 
 func (e *Event) messageID() string {
