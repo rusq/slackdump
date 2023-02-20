@@ -29,7 +29,8 @@ func NewStd(fs fsadapter.FS, cl *slack.Client, l logger.Interface, token string)
 			dl:    downloader.New(cl, fs, downloader.Logger(l)),
 			l:     l,
 			token: token,
-		}}
+		},
+	}
 }
 
 // ProcessFunc returns the function that downloads the file into
@@ -42,7 +43,7 @@ func (d *Std) ProcessFunc(channelName string) slackdump.ProcessFunc {
 	)
 
 	dir := filepath.Join(channelName, dirAttach)
-	return func(msg []types.Message, channelID string) (slackdump.ProcessResult, error) {
+	return func(msg []types.Message, _ string) (slackdump.ProcessResult, error) {
 		total := 0
 		if err := files.Extract(msg, files.Root, func(file slack.File, addr files.Addr) error {
 			filename, err := d.dl.DownloadFile(dir, file)

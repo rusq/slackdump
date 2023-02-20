@@ -53,6 +53,7 @@ func (md *Mattermost) ProcessFunc(_ string) slackdump.ProcessFunc {
 			}
 			total++
 			if md.token != "" {
+				// update the file URL if the token is set.
 				return files.Update(msgs, addr, files.UpdateTokenFn(md.token))
 			}
 			return nil
