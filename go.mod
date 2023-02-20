@@ -20,11 +20,12 @@ require (
 	github.com/rusq/chttp v1.0.1
 	github.com/rusq/dlog v1.3.3
 	github.com/rusq/encio v0.1.0
+	github.com/rusq/fsadapter v1.0.0
 	github.com/rusq/osenv/v2 v2.0.1
 	github.com/rusq/tracer v1.0.1
 	github.com/schollz/progressbar/v3 v3.8.6
 	github.com/slack-go/slack v0.12.1
-	github.com/stretchr/testify v1.7.1
+	github.com/stretchr/testify v1.8.1
 	golang.org/x/term v0.4.0
 	golang.org/x/text v0.6.0
 	golang.org/x/time v0.1.0

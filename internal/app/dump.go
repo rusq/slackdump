@@ -12,9 +12,9 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/rusq/fsadapter"
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/auth"
-	"github.com/rusq/slackdump/v2/fsadapter"
 	"github.com/rusq/slackdump/v2/internal/app/config"
 	"github.com/rusq/slackdump/v2/internal/structures"
 	"github.com/rusq/slackdump/v2/logger"

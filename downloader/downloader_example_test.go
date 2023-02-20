@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/rusq/fsadapter"
 	"github.com/rusq/slackdump/v2/downloader"
-	"github.com/rusq/slackdump/v2/fsadapter"
 	"github.com/slack-go/slack"
 	"golang.org/x/time/rate"
 )

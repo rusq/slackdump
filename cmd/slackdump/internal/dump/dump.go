@@ -13,11 +13,11 @@ import (
 	"time"
 
 	"github.com/rusq/dlog"
+	"github.com/rusq/fsadapter"
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/auth"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/golang/base"
-	"github.com/rusq/slackdump/v2/fsadapter"
 	"github.com/rusq/slackdump/v2/internal/app/config"
 	"github.com/rusq/slackdump/v2/internal/app/nametmpl"
 	"github.com/rusq/slackdump/v2/internal/structures"

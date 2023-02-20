@@ -1,6 +1,6 @@
 package transform
 
-import "github.com/rusq/slackdump/v2/fsadapter"
+import "github.com/rusq/fsadapter"
 
 type Standard struct {
 	fs fsadapter.FS

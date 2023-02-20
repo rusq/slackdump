@@ -3,7 +3,7 @@ package processors
 import (
 	"os"
 
-	"github.com/rusq/slackdump/v2/fsadapter"
+	"github.com/rusq/fsadapter"
 	"github.com/slack-go/slack"
 )
 
