@@ -113,6 +113,8 @@ github.com/rivo/uniseg v0.1.0/go.mod h1:J6wj4VEh+S6ZtnVlnTBMWIodfgj8LQOQFoIToxlJ
 github.com/rivo/uniseg v0.2.0/go.mod h1:J6wj4VEh+S6ZtnVlnTBMWIodfgj8LQOQFoIToxlJtxc=
 github.com/rivo/uniseg v0.3.1 h1:SDPP7SHNl1L7KrEFCSJslJ/DM9DT02Nq2C61XrfHMmk=
 github.com/rivo/uniseg v0.3.1/go.mod h1:FN3SvrM+Zdj16jyLfmOkMNblXMcoc8DfTHruCPUcx88=
+github.com/rusq/asyncdl v0.1.1 h1:DqatPlvpkcXtk8e4dtDP2ny5n9bdFuqEZqJcbTlIv7c=
+github.com/rusq/asyncdl v0.1.1/go.mod h1:PDZURyzHbk71cd/WuMr7x1EeZw+n95/+xTpduUU46r8=
 github.com/rusq/chttp v1.0.1 h1:j3WE7+jQE9Rgw0E6mGMje8HxMCv09QRkKvR0oZ1R2vY=
 github.com/rusq/chttp v1.0.1/go.mod h1:9H/mMp/iUc4xDkSOY0rL6ecxd/YyaW7zE9GhR+mZfRg=
 github.com/rusq/dlog v1.3.3 h1:Q9fZW1H/YEnlDg3Ph1k/BRSBfi/q5ezI+8Metws9tTI=

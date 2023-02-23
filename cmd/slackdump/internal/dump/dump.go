@@ -7,6 +7,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"os"
 	"runtime/trace"
 	"strings"
 	"text/template"
@@ -20,6 +21,7 @@ import (
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v2/internal/app/config"
 	"github.com/rusq/slackdump/v2/internal/app/nametmpl"
+	"github.com/rusq/slackdump/v2/internal/event/processor"
 	"github.com/rusq/slackdump/v2/internal/structures"
 	"github.com/rusq/slackdump/v2/types"
 )
@@ -108,6 +110,11 @@ func RunDump(ctx context.Context, cmd *base.Command, args []string) error {
 	defer sess.Close()
 
 	// Dump conversations.
+
+	return dumpv3(ctx, sess, list, namer)
+}
+
+func dumpv2(ctx context.Context, sess *slackdump.Session, list *structures.EntityList, namer namer) error {
 	for _, link := range list.Include {
 		conv, err := sess.Dump(ctx, link, opts.Oldest, opts.Latest)
 		if err != nil {
@@ -115,6 +122,32 @@ func RunDump(ctx context.Context, cmd *base.Command, args []string) error {
 		}
 
 		if err := save(ctx, sess.Filesystem(), namer.Filename(conv), conv); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func dumpv3(ctx context.Context, sess *slackdump.Session, list *structures.EntityList, namer namer) error {
+	tmpdir, err := os.MkdirTemp("", "slackdump-*")
+	if err != nil {
+		return err
+	}
+	dlog.Printf("using %s as temporary directory", tmpdir)
+	f, err := os.CreateTemp(tmpdir, "events-*.jsonl")
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	pr, err := processor.NewStandard(f, sess.Client(), tmpdir)
+	if err != nil {
+		return err
+	}
+	defer pr.Close()
+
+	for _, link := range list.Include {
+		if err := sess.Stream(ctx, link, pr, opts.Oldest, opts.Latest); err != nil {
 			return err
 		}
 	}

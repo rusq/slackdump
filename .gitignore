@@ -48,3 +48,6 @@ dist/
 !schema.json
 *.jsonl
 *.state
+
+# sundry junk used for testing and other fuckery
+/tmp
