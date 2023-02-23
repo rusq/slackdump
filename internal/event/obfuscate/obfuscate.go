@@ -17,7 +17,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/rusq/slackdump/v2/internal/processors"
+	"github.com/rusq/slackdump/v2/internal/event"
 	"github.com/slack-go/slack"
 )
 
@@ -56,7 +56,7 @@ func Do(ctx context.Context, w io.Writer, r io.Reader, options ...Option) error 
 	)
 	// obfuscation loop
 	for {
-		var e processors.Event
+		var e event.Event
 		if err := dec.Decode(&e); err != nil {
 			if err == io.EOF {
 				break
@@ -78,15 +78,15 @@ type obfuscator struct {
 	salt   string
 }
 
-func (o obfuscator) Event(e *processors.Event) {
+func (o obfuscator) Event(e *event.Event) {
 	e.ChannelID = o.ID("C", e.ChannelID)
 	switch e.Type {
-	case processors.EventMessages:
+	case event.EMessages:
 		o.Messages(e.Messages...)
-	case processors.EventThreadMessages:
+	case event.EThreadMessages:
 		o.OneMessage(e.Parent)
 		o.Messages(e.Messages...)
-	case processors.EventFiles:
+	case event.EFiles:
 		o.OneMessage(e.Parent)
 		o.Files(e.Files...)
 	}

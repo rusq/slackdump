@@ -1,4 +1,4 @@
-package processors
+package event
 
 import (
 	"bytes"
@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/rusq/slackdump/v2/internal/state"
 	"github.com/slack-go/slack"
 	"github.com/stretchr/testify/assert"
 )
@@ -30,7 +31,7 @@ func TestEvent_ID(t *testing.T) {
 		{
 			"Message",
 			fields{
-				Type:      EventMessages,
+				Type:      EMessages,
 				ChannelID: "C123",
 			},
 			"C123",
@@ -38,10 +39,10 @@ func TestEvent_ID(t *testing.T) {
 		{
 			"Thread",
 			fields{
-				Type:      EventThreadMessages,
+				Type:      EThreadMessages,
 				ChannelID: "C123",
 				Parent: &slack.Message{
-					Msg: slack.Msg{Timestamp: "123.456"},
+					Msg: slack.Msg{ThreadTimestamp: "123.456"},
 				},
 			},
 			"tC123:123.456",
@@ -49,7 +50,7 @@ func TestEvent_ID(t *testing.T) {
 		{
 			"File",
 			fields{
-				Type:      EventFiles,
+				Type:      EFiles,
 				ChannelID: "C123",
 				Parent: &slack.Message{
 					Msg: slack.Msg{Timestamp: "123.456"},
@@ -73,7 +74,7 @@ func TestEvent_ID(t *testing.T) {
 				Timestamp:       tt.fields.TS,
 				ChannelID:       tt.fields.ChannelID,
 				IsThreadMessage: tt.fields.IsThreadMessage,
-				Size:            tt.fields.Size,
+				Count:           tt.fields.Size,
 				Parent:          tt.fields.Parent,
 				Messages:        tt.fields.Messages,
 				Files:           tt.fields.Files,
@@ -117,11 +118,12 @@ func TestRecorder_worker(t *testing.T) {
 		r := &Recorder{
 			events: make(chan Event, 1),
 			errC:   make(chan error, 1),
+			state:  state.New(""),
 			w:      &buf,
 		}
 		go func() {
 			r.events <- Event{
-				Type:      EventMessages,
+				Type:      EMessages,
 				ChannelID: "C123",
 				Messages:  []slack.Message{{Msg: slack.Msg{Text: "hello"}}},
 			}
@@ -132,7 +134,7 @@ func TestRecorder_worker(t *testing.T) {
 		if time.Since(start) > 50*time.Millisecond {
 			t.Errorf("worker took too long to exit")
 		}
-		const want = `{"channel_id":"C123","messages":[{"text":"hello","replace_original":false,"delete_original":false,"metadata":{"event_type":"","event_payload":null},"blocks":null}]}
+		const want = `{"_t":0,"_ts":0,"_id":"C123","_c":0,"_m":[{"text":"hello","replace_original":false,"delete_original":false,"metadata":{"event_type":"","event_payload":null},"blocks":null}]}
 `
 		if !assert.Equal(t, want, buf.String()) {
 			t.Errorf("unexpected output: %s", buf.String())
@@ -148,7 +150,7 @@ func TestRecorder_worker(t *testing.T) {
 		}
 		go func() {
 			r.events <- Event{
-				Type:      EventMessages,
+				Type:      EMessages,
 				ChannelID: "C123",
 				Messages:  []slack.Message{{Msg: slack.Msg{Text: "hello"}}},
 			}
@@ -176,7 +178,7 @@ func TestRecorder_worker(t *testing.T) {
 		}
 		go func() {
 			r.events <- Event{
-				Type:      EventMessages,
+				Type:      EMessages,
 				ChannelID: "C123",
 				Messages:  []slack.Message{{Msg: slack.Msg{Text: "hello"}}},
 			}
@@ -200,12 +202,13 @@ func TestRecorder_Messages(t *testing.T) {
 		rec := &Recorder{
 			events: make(chan Event, 1),
 			errC:   make(chan error, 1),
+			state:  state.New(""), // we don't really need it.
 		}
 		if err := rec.Messages("C123", []slack.Message{{Msg: slack.Msg{Text: "hello"}}}); err != nil {
 			t.Errorf("unexpected error: %v", err)
 		}
 		evt := <-rec.events
-		if evt.Type != EventMessages {
+		if evt.Type != EMessages {
 			t.Errorf("unexpected event type: %v", evt.Type)
 		}
 		if evt.ChannelID != "C123" {
@@ -223,6 +226,7 @@ func TestRecorder_Messages(t *testing.T) {
 		rec := &Recorder{
 			events: make(chan Event),
 			errC:   make(chan error, 1),
+			state:  state.New(""), // we don't really need it.
 		}
 		rec.errC <- errors.New("test error")
 		gotErr := rec.Messages("C123", []slack.Message{{Msg: slack.Msg{Text: "hello"}}})
@@ -239,6 +243,7 @@ func TestRecorder_ThreadMessages(t *testing.T) {
 		rec := &Recorder{
 			events: make(chan Event, 1),
 			errC:   make(chan error, 1),
+			state:  state.New(""), // we don't really need it.
 		}
 		if err := rec.ThreadMessages(
 			"C123",
@@ -248,7 +253,7 @@ func TestRecorder_ThreadMessages(t *testing.T) {
 			t.Errorf("unexpected error: %v", err)
 		}
 		evt := <-rec.events
-		if evt.Type != EventThreadMessages {
+		if evt.Type != EThreadMessages {
 			t.Errorf("unexpected event type: %v", evt.Type)
 		}
 		if evt.ChannelID != "C123" {
@@ -285,6 +290,7 @@ func TestRecorder_Files(t *testing.T) {
 		rec := &Recorder{
 			events: make(chan Event, 1),
 			errC:   make(chan error, 1),
+			state:  state.New(""), // we don't really need it.
 		}
 		if err := rec.Files(
 			"C123",
@@ -295,7 +301,7 @@ func TestRecorder_Files(t *testing.T) {
 			t.Errorf("unexpected error: %v", err)
 		}
 		evt := <-rec.events
-		if evt.Type != EventFiles {
+		if evt.Type != EFiles {
 			t.Errorf("unexpected event type: %v", evt.Type)
 		}
 		if evt.ChannelID != "C123" {

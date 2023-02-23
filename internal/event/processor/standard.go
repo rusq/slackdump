@@ -1,14 +1,15 @@
-package processors
+package processor
 
 import (
 	"os"
 
 	"github.com/rusq/fsadapter"
+	"github.com/rusq/slackdump/v2/internal/event"
 	"github.com/slack-go/slack"
 )
 
 type Standard struct {
-	*Recorder
+	*event.Recorder
 	channelID string
 	fs        fsadapter.FS
 }
@@ -18,7 +19,7 @@ func NewStandard(channelID string, fs fsadapter.FS) (*Standard, error) {
 	if err != nil {
 		return nil, err
 	}
-	r := NewRecorder(f)
+	r := event.NewRecorder(f)
 	return &Standard{
 		Recorder:  r,
 		channelID: channelID,

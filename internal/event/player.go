@@ -1,4 +1,4 @@
-package processors
+package event
 
 import (
 	"encoding/json"
@@ -37,7 +37,7 @@ type offsets map[string]int
 
 // NewPlayer creates a new event player from the io.ReadSeeker.
 func NewPlayer(rs io.ReadSeeker) (*Player, error) {
-	idx, err := indexRecords(rs)
+	idx, err := indexRecords(json.NewDecoder(rs))
 	if err != nil {
 		return nil, err
 	}
@@ -51,11 +51,14 @@ func NewPlayer(rs io.ReadSeeker) (*Player, error) {
 	}, nil
 }
 
-// indexRecords indexes the records in the reader and returns an index.
-func indexRecords(rs io.Reader) (index, error) {
-	idx := make(index)
+type decodeOffsetter interface {
+	Decode(interface{}) error
+	InputOffset() int64
+}
 
-	dec := json.NewDecoder(rs)
+// indexRecords indexes the records in the reader and returns an index.
+func indexRecords(dec decodeOffsetter) (index, error) {
+	idx := make(index)
 
 	for i := 0; ; i++ {
 		offset := dec.InputOffset() // record current offset
@@ -158,17 +161,6 @@ func (p *Player) Reset() error {
 	return nil
 }
 
-// Replay replays the events in the reader to the channeler in the order they
-// were recorded.  It will reset the state of the Player.
-func (p *Player) Replay(c Channeler) error {
-	return p.ForEach(func(ev *Event) error {
-		if ev == nil {
-			return nil
-		}
-		return p.emit(c, *ev)
-	})
-}
-
 // ForEach iterates over the events in the reader and calls the function for
 // each event.  It will reset the state of the Player.
 func (p *Player) ForEach(fn func(ev *Event) error) error {
@@ -192,25 +184,6 @@ func (p *Player) ForEach(fn func(ev *Event) error) error {
 	return nil
 }
 
-// emit emits the event to the channeler.
-func (p *Player) emit(c Channeler, evt Event) error {
-	switch evt.Type {
-	case EventMessages:
-		if err := c.Messages(evt.ChannelID, evt.Messages); err != nil {
-			return err
-		}
-	case EventThreadMessages:
-		if err := c.ThreadMessages(evt.ChannelID, *evt.Parent, evt.Messages); err != nil {
-			return err
-		}
-	case EventFiles:
-		if err := c.Files(evt.ChannelID, *evt.Parent, evt.IsThreadMessage, evt.Files); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 type namer interface {
 	Name() string
 }
@@ -225,17 +198,17 @@ func (p *Player) State() (*state.State, error) {
 		if ev == nil {
 			return nil
 		}
-		if ev.Type == EventFiles {
+		if ev.Type == EFiles {
 			for _, f := range ev.Files {
 				s.AddFile(ev.ChannelID, f.ID)
 			}
 		}
-		if ev.Type == EventThreadMessages {
+		if ev.Type == EThreadMessages {
 			for _, m := range ev.Messages {
 				s.AddThread(ev.ChannelID, ev.Parent.ThreadTimestamp, m.Timestamp)
 			}
 		}
-		if ev.Type == EventMessages {
+		if ev.Type == EMessages {
 			for _, m := range ev.Messages {
 				s.AddMessage(ev.ChannelID, m.Timestamp)
 			}

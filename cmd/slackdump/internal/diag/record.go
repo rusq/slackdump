@@ -13,7 +13,7 @@ import (
 	"github.com/rusq/slackdump/v2/auth"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/golang/base"
-	"github.com/rusq/slackdump/v2/internal/processors"
+	"github.com/rusq/slackdump/v2/internal/event"
 )
 
 var CmdRecord = &base.Command{
@@ -72,7 +72,7 @@ func runRecord(ctx context.Context, _ *base.Command, args []string) error {
 		}
 	}
 
-	rec := processors.NewRecorder(w)
+	rec := event.NewRecorder(w)
 	for _, ch := range args {
 		cfg.Log.Printf("streaming channel %q", ch)
 		if err := sess.Stream(ctx, ch, rec, time.Time{}, time.Time{}); err != nil {
@@ -107,7 +107,7 @@ func runRecordState(ctx context.Context, _ *base.Command, args []string) error {
 	}
 	defer f.Close()
 
-	pl, err := processors.NewPlayer(f)
+	pl, err := event.NewPlayer(f)
 	if err != nil {
 		return err
 	}

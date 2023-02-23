@@ -1,4 +1,4 @@
-package processors
+package event
 
 import (
 	"fmt"
@@ -10,10 +10,11 @@ import (
 // messages, thread messages, and files.
 type EventType int
 
+//go:generate stringer -type=EventType -trimprefix=E
 const (
-	EventMessages EventType = iota
-	EventThreadMessages
-	EventFiles
+	EMessages EventType = iota
+	EThreadMessages
+	EFiles
 )
 
 // Event is a single event that was recorded.  It contains the type of event,
@@ -21,10 +22,10 @@ const (
 // files that were recorded.
 type Event struct {
 	Type            EventType       `json:"_t"`
-	Timestamp       int64           `json:"_ts,omitempty"`
-	ChannelID       string          `json:"_cid,omitempty"`
-	IsThreadMessage bool            `json:"_istm,omitempty"`
-	Size            int             `json:"_sz,omitempty"` // number of messages or files
+	Timestamp       int64           `json:"_ts"`
+	ChannelID       string          `json:"_id"`
+	IsThreadMessage bool            `json:"_tm,omitempty"`
+	Count           int             `json:"_c"` // number of messages or files
 	Parent          *slack.Message  `json:"_p,omitempty"`
 	Messages        []slack.Message `json:"_m,omitempty"`
 	Files           []slack.File    `json:"_f,omitempty"`
@@ -54,11 +55,11 @@ func fileID(channelID, parentTS string) string {
 // ID returns a unique ID for the event.
 func (e *Event) ID() string {
 	switch e.Type {
-	case EventMessages:
+	case EMessages:
 		return e.messageID()
-	case EventThreadMessages:
+	case EThreadMessages:
 		return e.threadID()
-	case EventFiles:
+	case EFiles:
 		return e.fileEvtID()
 	}
 	return fmt.Sprintf("<unknown:%d>", e.Type)

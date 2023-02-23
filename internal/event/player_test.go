@@ -1,4 +1,4 @@
-package processors
+package event
 
 import (
 	"bytes"
@@ -16,11 +16,11 @@ import (
 
 var testThreads = []Event{
 	{
-		Type:            EventThreadMessages,
+		Type:            EThreadMessages,
 		Timestamp:       1234567890,
 		ChannelID:       "C1234567890",
 		IsThreadMessage: true,
-		Size:            2,
+		Count:           2,
 		Parent: &slack.Message{
 			Msg: slack.Msg{
 				ThreadTimestamp: "1234567890.123456",
@@ -44,11 +44,11 @@ var testThreads = []Event{
 		},
 	},
 	{
-		Type:            EventThreadMessages,
+		Type:            EThreadMessages,
 		Timestamp:       1234567891,
 		ChannelID:       "C1234567890",
 		IsThreadMessage: true,
-		Size:            2,
+		Count:           2,
 		Parent: &slack.Message{
 			Msg: slack.Msg{
 				ThreadTimestamp: "1234567890.123458",
@@ -72,11 +72,11 @@ var testThreads = []Event{
 		},
 	},
 	{
-		Type:            EventThreadMessages,
+		Type:            EThreadMessages,
 		Timestamp:       1234567890,
 		ChannelID:       "C1234567890",
 		IsThreadMessage: true,
-		Size:            2,
+		Count:           2,
 		Parent: &slack.Message{
 			Msg: slack.Msg{
 				ThreadTimestamp: "1234567890.123456",
@@ -102,8 +102,8 @@ var testThreads = []Event{
 }
 
 var testThreadsIndex = index{
-	"tC1234567890:1234567890.123456": []int64{0, 1305},
-	"tC1234567890:1234567890.123458": []int64{652},
+	"tC1234567890:1234567890.123456": []int64{0, 1225},
+	"tC1234567890:1234567890.123458": []int64{612},
 }
 
 func marshalEvents(t *testing.T, v []Event) []byte {
@@ -139,7 +139,7 @@ func Test_indexRecords(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := indexRecords(tt.args.rs)
+			got, err := indexRecords(json.NewDecoder(tt.args.rs))
 			if (err != nil) != tt.wantErr {
 				t.Errorf("indexRecords() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -202,7 +202,7 @@ func TestPlayer_FileState(t *testing.T) {
 				rs: bytes.NewReader(marshalEvents(t, testThreads)),
 			},
 			want: &state.State{
-				Version:  1,
+				Version:  state.Version,
 				Channels: make(map[string]int64),
 				Threads: map[string]int64{
 					"C1234567890:1234567890.123456": 1234567890500000,

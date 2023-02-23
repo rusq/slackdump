@@ -1,4 +1,4 @@
-package processors
+package processor
 
 import (
 	"io"
@@ -6,8 +6,8 @@ import (
 	"github.com/slack-go/slack"
 )
 
-// Channeler is the interface for conversation fetching.
-type Channeler interface {
+// Processor is the interface for conversation fetching.
+type Processor interface {
 	// Messages is called for each message that is retrieved.
 	Messages(channelID string, m []slack.Message) error
 	// Files is called for each file that is retrieved. The parent message is

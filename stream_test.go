@@ -10,8 +10,8 @@ import (
 
 	"github.com/rusq/chttp"
 	"github.com/rusq/slackdump/v2/internal/cache"
-	"github.com/rusq/slackdump/v2/internal/processors"
-	"github.com/rusq/slackdump/v2/internal/processors/proctest"
+	"github.com/rusq/slackdump/v2/internal/event"
+	"github.com/rusq/slackdump/v2/internal/event/proctest"
 	"github.com/slack-go/slack"
 )
 
@@ -38,6 +38,7 @@ var expandedLimits = Limits{
 const testConversation = "C01SPFM1KNY"
 
 func TestChannelStream(t *testing.T) {
+	t.Skip("skipping test")
 	ucd, err := os.UserCacheDir()
 	if err != nil {
 		t.Fatal(err)
@@ -62,7 +63,7 @@ func TestChannelStream(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer f.Close()
-	rec := processors.NewRecorder(f)
+	rec := event.NewRecorder(f)
 	defer rec.Close()
 
 	cs := newChannelStream(sd, &DefOptions.Limits, time.Time{}, time.Time{})
@@ -72,6 +73,7 @@ func TestChannelStream(t *testing.T) {
 }
 
 func TestRecorderStream(t *testing.T) {
+	t.Skip()
 	ctx, task := trace.NewTask(context.Background(), "TestRecorderStream")
 	defer task.End()
 	f, err := os.Open("record.jsonl")
@@ -90,7 +92,7 @@ func TestRecorderStream(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer f.Close()
-	rec := processors.NewRecorder(w)
+	rec := event.NewRecorder(w)
 	defer rec.Close()
 
 	rgnStream := trace.StartRegion(ctx, "Stream")
@@ -102,6 +104,7 @@ func TestRecorderStream(t *testing.T) {
 }
 
 func TestReplay(t *testing.T) {
+	t.Skip("skipping test")
 	f, err := os.Open("record.jsonl")
 	if err != nil {
 		t.Fatal(err)

@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/rusq/dlog"
+	"github.com/rusq/slackdump/v2/internal/event/processor"
 	"github.com/rusq/slackdump/v2/internal/network"
-	"github.com/rusq/slackdump/v2/internal/processors"
 	"github.com/rusq/slackdump/v2/internal/structures"
 	"github.com/slack-go/slack"
 	"golang.org/x/time/rate"
@@ -41,7 +41,7 @@ func newChannelStream(cl clienter, limits *Limits, oldest, latest time.Time) *ch
 	return cs
 }
 
-func (cs *channelStream) Stream(ctx context.Context, link string, proc processors.Channeler) error {
+func (cs *channelStream) Stream(ctx context.Context, link string, proc processor.Processor) error {
 	ctx, task := trace.NewTask(ctx, "Stream")
 	defer task.End()
 
@@ -64,7 +64,7 @@ func (cs *channelStream) Stream(ctx context.Context, link string, proc processor
 	return nil
 }
 
-func (cs *channelStream) channel(ctx context.Context, id string, proc processors.Channeler) error {
+func (cs *channelStream) channel(ctx context.Context, id string, proc processor.Processor) error {
 	ctx, task := trace.NewTask(ctx, "channel")
 	defer task.End()
 
@@ -118,7 +118,7 @@ func (cs *channelStream) channel(ctx context.Context, id string, proc processors
 	return nil
 }
 
-func (cs *channelStream) thread(ctx context.Context, id string, threadTS string, proc processors.Channeler) error {
+func (cs *channelStream) thread(ctx context.Context, id string, threadTS string, proc processor.Processor) error {
 	cursor := ""
 	for {
 		var (

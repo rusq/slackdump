@@ -10,8 +10,8 @@ import (
 	"math/rand"
 	"testing"
 
+	"github.com/rusq/slackdump/v2/internal/event"
 	"github.com/rusq/slackdump/v2/internal/fixtures"
-	"github.com/rusq/slackdump/v2/internal/processors"
 	"github.com/slack-go/slack"
 	"github.com/stretchr/testify/assert"
 )
@@ -73,7 +73,7 @@ func Test_Do(t *testing.T) {
 		if srcEvt[i].Type != dstEvt[i].Type {
 			t.Fatalf("expected %q, got %q", srcEvt[i].Type, dstEvt[i].Type)
 		}
-		if srcEvt[i].Type == processors.EventMessages {
+		if srcEvt[i].Type == event.EMessages {
 			for j := range srcEvt[i].Messages {
 				if srcEvt[i].Messages[j].Text == dstEvt[i].Messages[j].Text && srcEvt[i].Messages[j].Text != "" {
 					t.Fatalf("expected %q, got %q", srcEvt[i].Messages[j].Text, dstEvt[i].Messages[j].Text)
@@ -83,11 +83,11 @@ func Test_Do(t *testing.T) {
 	}
 }
 
-func unmarshalEvents(r io.Reader) []processors.Event {
-	var events []processors.Event
+func unmarshalEvents(r io.Reader) []event.Event {
+	var events []event.Event
 	dec := json.NewDecoder(r)
 	for {
-		var e processors.Event
+		var e event.Event
 		if err := dec.Decode(&e); err != nil {
 			if err == io.EOF {
 				break

@@ -1,4 +1,4 @@
-package processors
+package event
 
 import (
 	"encoding/json"
@@ -18,29 +18,46 @@ type Recorder struct {
 	events chan Event
 	errC   chan error
 
+	enc Encoder // encoder to use for the events
+
 	state *state.State
 }
 
-func NewRecorder(w io.Writer) *Recorder {
+// Option is a function that configures the Recorder.
+type Option func(r *Recorder)
+
+// WithEncoder allows you to specify a custom encoder to use for the events.
+// By default, json.NewEncoder is used.
+func WithEncoder(enc Encoder) Option {
+	return func(r *Recorder) {
+		r.enc = enc
+	}
+}
+
+func NewRecorder(w io.Writer, options ...Option) *Recorder {
 	filename := "unknown"
 	if f, ok := w.(namer); ok {
 		filename = f.Name()
 	}
 	rec := &Recorder{
-		w:      w,
 		events: make(chan Event),
 		errC:   make(chan error, 1),
+		enc:    json.NewEncoder(w),
 		state:  state.New(filename),
 	}
-	go rec.worker(json.NewEncoder(rec.w))
+	for _, opt := range options {
+		opt(rec)
+	}
+	go rec.worker(rec.enc)
 	return rec
 }
 
-type encoder interface {
-	Encode(v interface{}) error
+// Encoder is the interface that wraps the Encode method.
+type Encoder interface {
+	Encode(event interface{}) error
 }
 
-func (rec *Recorder) worker(enc encoder) {
+func (rec *Recorder) worker(enc Encoder) {
 LOOP:
 	for event := range rec.events {
 		if err := enc.Encode(event); err != nil {
@@ -61,10 +78,10 @@ func (rec *Recorder) Messages(channelID string, m []slack.Message) error {
 	case err := <-rec.errC:
 		return err
 	case rec.events <- Event{
-		Type:      EventMessages,
+		Type:      EMessages,
 		Timestamp: time.Now().UnixNano(),
 		ChannelID: channelID,
-		Size:      len(m),
+		Count:     len(m),
 		Messages:  m,
 	}: // ok
 		for i := range m {
@@ -81,11 +98,11 @@ func (rec *Recorder) Files(channelID string, parent slack.Message, isThread bool
 	case err := <-rec.errC:
 		return err
 	case rec.events <- Event{
-		Type:            EventFiles,
+		Type:            EFiles,
 		ChannelID:       channelID,
 		Parent:          &parent,
 		IsThreadMessage: isThread,
-		Size:            len(f),
+		Count:           len(f),
 		Files:           f,
 	}: // ok
 		for i := range f {
@@ -102,11 +119,11 @@ func (rec *Recorder) ThreadMessages(channelID string, parent slack.Message, tm [
 	case err := <-rec.errC:
 		return err
 	case rec.events <- Event{
-		Type:            EventThreadMessages,
+		Type:            EThreadMessages,
 		ChannelID:       channelID,
 		Parent:          &parent,
 		IsThreadMessage: true,
-		Size:            len(tm),
+		Count:           len(tm),
 		Messages:        tm,
 	}: // ok
 		for i := range tm {
