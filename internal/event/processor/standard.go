@@ -55,7 +55,6 @@ func (s *Standard) Files(channelID string, parent slack.Message, isThread bool, 
 }
 
 func (s *Standard) Close() error {
-	// reconstruct the final json file
 	s.dl.Stop()
-	return nil
+	return s.Recorder.Close()
 }

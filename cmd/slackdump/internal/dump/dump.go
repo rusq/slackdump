@@ -24,8 +24,8 @@ import (
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v2/internal/app/config"
 	"github.com/rusq/slackdump/v2/internal/app/nametmpl"
+	"github.com/rusq/slackdump/v2/internal/event/state"
 	"github.com/rusq/slackdump/v2/internal/structures"
-	"github.com/rusq/slackdump/v2/internal/transform"
 	"github.com/rusq/slackdump/v2/types"
 )
 
@@ -209,25 +209,16 @@ func reconstruct(ctx context.Context, fsa fsadapter.FS, tmpdir string, namer nam
 			}
 			return nil
 		}
-		if !strings.HasSuffix(path, "jsonl.gz") {
+		if filepath.Ext(path) != ".state" {
 			return nil
 		}
 
-		channelID, _, found := strings.Cut(d.Name(), "-")
-		if !found {
-			return fmt.Errorf("invalid filename: %q", d.Name())
+		st, err := state.Load(path)
+		if err != nil {
+			return fmt.Errorf("failed to load state: %w", err)
 		}
 
-		info := transform.EventsInfo{
-			ChannelID:    channelID,
-			IsCompressed: true,
-			File:         path,
-		}
-		if filesdir := filepath.Join(tmpdir, channelID); dirExists(filesdir) {
-			info.FilesDir = filesdir
-		}
-
-		dlog.Printf("reconstructing %s", info)
+		dlog.Printf("reconstructing %s", st.Filename)
 		return nil
 	})
 }

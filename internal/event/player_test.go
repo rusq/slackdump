@@ -9,9 +9,10 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/rusq/slackdump/v2/internal/state"
 	"github.com/slack-go/slack"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/rusq/slackdump/v2/internal/event/state"
 )
 
 var testThreads = []Event{

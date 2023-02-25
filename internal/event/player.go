@@ -4,11 +4,12 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"path/filepath"
 	"sync/atomic"
 
 	"github.com/slack-go/slack"
 
-	"github.com/rusq/slackdump/v2/internal/state"
+	"github.com/rusq/slackdump/v2/internal/event/state"
 )
 
 var (
@@ -189,10 +190,11 @@ type namer interface {
 	Name() string
 }
 
+// State returns the state of the player.
 func (p *Player) State() (*state.State, error) {
 	var name string
 	if file, ok := p.rs.(namer); ok {
-		name = file.Name()
+		name = filepath.Base(file.Name())
 	}
 	s := state.New(name)
 	if err := p.ForEach(func(ev *Event) error {

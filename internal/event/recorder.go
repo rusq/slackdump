@@ -7,7 +7,7 @@ import (
 
 	"github.com/slack-go/slack"
 
-	"github.com/rusq/slackdump/v2/internal/state"
+	"github.com/rusq/slackdump/v2/internal/event/state"
 )
 
 // Recorder is a special Channeler that records all the data it receives, so

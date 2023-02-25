@@ -31,9 +31,13 @@ func (e ErrStateVersion) Error() string {
 type State struct {
 	// Version is the version of the state file.
 	Version float64 `json:"version"`
-	// Filename is the original filename for which the state is valid.
+	// Filename is the original event filename for which the state is valid.
 	// It may be empty.
 	Filename string `json:"filename,omitempty"`
+	// Directory with downloaded files, if any.
+	FilesDir string `json:"files_dir,omitempty"`
+	// IsCompressed indicates that the event file is compressed.
+	IsCompressed bool `json:"is_compressed,omitempty"`
 	// Channels is a map of channel ID to the latest message timestamp.
 	Channels map[_id]int64 `json:"channels,omitempty"`
 	// Threads is a map of channel ID + thread timestamp to the latest message
@@ -176,6 +180,27 @@ func (s *State) FileChannelID(id string) string {
 	defer s.mu.RUnlock()
 
 	return s.Files[id]
+}
+
+func (s *State) SetFilename(filename string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.Filename = filename
+}
+
+func (s *State) SetFilesDir(dir string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.FilesDir = dir
+}
+
+func (s *State) SetIsCompressed(isCompressed bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.IsCompressed = isCompressed
 }
 
 // Save saves the state to the given file.

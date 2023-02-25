@@ -9,6 +9,7 @@ import (
 	"github.com/rusq/fsadapter"
 
 	"github.com/rusq/slackdump/v2/internal/event"
+	"github.com/rusq/slackdump/v2/internal/event/state"
 )
 
 type Standard struct {
@@ -19,17 +20,17 @@ func NewStandard(fs fsadapter.FS) *Standard {
 	return &Standard{fs: fs}
 }
 
-func (s *Standard) Transform(ei *EventsInfo) error {
-	if ei == nil {
+func (s *Standard) Transform(st *state.State) error {
+	if st == nil {
 		return fmt.Errorf("nil events info")
 	}
 	var rs io.ReadSeeker
-	f, err := os.Open(ei.File)
+	f, err := os.Open(st.Filename)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
-	if ei.IsCompressed {
+	if st.IsCompressed {
 		tf, err := uncompress(f)
 		if err != nil {
 			return err
@@ -44,10 +45,13 @@ func (s *Standard) Transform(ei *EventsInfo) error {
 	if err != nil {
 		return err
 	}
+	_ = pl
 
 	return nil
 }
 
+// uncompress decompresses a gzip file and returns a temporary file handler.
+// it must be removed after use.
 func uncompress(r io.Reader) (*os.File, error) {
 	gr, err := gzip.NewReader(r)
 	if err != nil {

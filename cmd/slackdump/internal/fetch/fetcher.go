@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -45,7 +46,8 @@ type streamer interface {
 var replacer = strings.NewReplacer("/", "-", ":", "-")
 
 func dumpOne(ctx context.Context, sess streamer, dir string, link string, p *Parameters) error {
-	var pattern = fmt.Sprintf("%s-*.jsonl.gz", replacer.Replace(link))
+	fileprefix := replacer.Replace(link)
+	var pattern = fmt.Sprintf("%s-*.jsonl.gz", fileprefix)
 	f, err := os.CreateTemp(dir, pattern)
 	if err != nil {
 		return err
@@ -60,9 +62,13 @@ func dumpOne(ctx context.Context, sess streamer, dir string, link string, p *Par
 		return err
 	}
 	defer pr.Close()
-
 	if err := sess.Stream(ctx, pr, link, p.Oldest, p.Latest); err != nil {
 		return err
 	}
-	return nil
+	s, err := pr.State()
+	if err != nil {
+		return err
+	}
+	s.SetFilename(filepath.Base(f.Name()))
+	return s.Save(filepath.Join(dir, fileprefix+".state"))
 }
