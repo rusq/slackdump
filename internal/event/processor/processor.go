@@ -19,3 +19,20 @@ type Processor interface {
 
 	io.Closer
 }
+
+type options struct {
+	dumpFiles bool
+}
+
+// Option is a functional option for the processor.
+type Option func(*options)
+
+// DumpFiles disables the file processing (enabled by default).  It may be
+// useful on enterprise workspaces where the file download may be monitored.
+// See:
+// https://github.com/rusq/slackdump/discussions/191#discussioncomment-4953235
+func DumpFiles(b bool) Option {
+	return func(o *options) {
+		o.dumpFiles = b
+	}
+}

@@ -7,7 +7,9 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io/fs"
 	"os"
+	"path/filepath"
 	"runtime/trace"
 	"strings"
 	"text/template"
@@ -18,11 +20,12 @@ import (
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/auth"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/cfg"
+	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/fetch"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v2/internal/app/config"
 	"github.com/rusq/slackdump/v2/internal/app/nametmpl"
-	"github.com/rusq/slackdump/v2/internal/event/processor"
 	"github.com/rusq/slackdump/v2/internal/structures"
+	"github.com/rusq/slackdump/v2/internal/transform"
 	"github.com/rusq/slackdump/v2/types"
 )
 
@@ -109,9 +112,25 @@ func RunDump(ctx context.Context, cmd *base.Command, args []string) error {
 	}
 	defer sess.Close()
 
-	// Dump conversations.
+	tmpdir, err := os.MkdirTemp("", "slackdump-*")
+	if err != nil {
+		return err
+	}
 
-	return dumpv3(ctx, sess, list, namer)
+	// Dump conversations.
+	p := &fetch.Parameters{
+		Oldest:    opts.Oldest,
+		Latest:    opts.Latest,
+		List:      list,
+		DumpFiles: cfg.SlackConfig.DumpFiles,
+	}
+	if err := fetch.Fetch(ctx, sess, tmpdir, p); err != nil {
+		return err
+	}
+	if err := reconstruct(ctx, sess.Filesystem(), tmpdir, namer); err != nil {
+		return err
+	}
+	return nil
 }
 
 func dumpv2(ctx context.Context, sess *slackdump.Session, list *structures.EntityList, namer namer) error {
@@ -122,32 +141,6 @@ func dumpv2(ctx context.Context, sess *slackdump.Session, list *structures.Entit
 		}
 
 		if err := save(ctx, sess.Filesystem(), namer.Filename(conv), conv); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func dumpv3(ctx context.Context, sess *slackdump.Session, list *structures.EntityList, namer namer) error {
-	tmpdir, err := os.MkdirTemp("", "slackdump-*")
-	if err != nil {
-		return err
-	}
-	dlog.Printf("using %s as temporary directory", tmpdir)
-	f, err := os.CreateTemp(tmpdir, "events-*.jsonl")
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	pr, err := processor.NewStandard(f, sess.Client(), tmpdir)
-	if err != nil {
-		return err
-	}
-	defer pr.Close()
-
-	for _, link := range list.Include {
-		if err := sess.Stream(ctx, link, pr, opts.Oldest, opts.Latest); err != nil {
 			return err
 		}
 	}
@@ -200,4 +193,49 @@ func HelpDump(cmd *base.Command) string {
 		panic(err)
 	}
 	return buf.String()
+}
+
+func reconstruct(ctx context.Context, fsa fsadapter.FS, tmpdir string, namer namer) error {
+	_, task := trace.NewTask(ctx, "reconstruct")
+	defer task.End()
+
+	return filepath.WalkDir(tmpdir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			if path != tmpdir {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if !strings.HasSuffix(path, "jsonl.gz") {
+			return nil
+		}
+
+		channelID, _, found := strings.Cut(d.Name(), "-")
+		if !found {
+			return fmt.Errorf("invalid filename: %q", d.Name())
+		}
+
+		info := transform.EventsInfo{
+			ChannelID:    channelID,
+			IsCompressed: true,
+			File:         path,
+		}
+		if filesdir := filepath.Join(tmpdir, channelID); dirExists(filesdir) {
+			info.FilesDir = filesdir
+		}
+
+		dlog.Printf("reconstructing %s", info)
+		return nil
+	})
+}
+
+func dirExists(path string) bool {
+	fi, err := os.Stat(path)
+	if err != nil {
+		return false
+	}
+	return fi.IsDir()
 }

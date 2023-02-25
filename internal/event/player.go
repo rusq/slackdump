@@ -32,7 +32,8 @@ type Player struct {
 // ID, value is the list of offsets for that id in the file.
 type index map[string][]int64
 
-// offsets holds the index of the current offset for each event id.
+// offsets holds the index of the current offset in the index for each event
+// id.
 type offsets map[string]int
 
 // NewPlayer creates a new event player from the io.ReadSeeker.
@@ -75,7 +76,7 @@ func indexRecords(dec decodeOffsetter) (index, error) {
 	return idx, nil
 }
 
-// Offset returns the last read offset of the record ReadSeeker.
+// Offset returns the last read offset of the record in ReadSeeker.
 func (p *Player) Offset() int64 {
 	return p.lastOffset.Load()
 }
@@ -194,7 +195,7 @@ func (p *Player) State() (*state.State, error) {
 		name = file.Name()
 	}
 	s := state.New(name)
-	p.ForEach(func(ev *Event) error {
+	if err := p.ForEach(func(ev *Event) error {
 		if ev == nil {
 			return nil
 		}
@@ -214,6 +215,8 @@ func (p *Player) State() (*state.State, error) {
 			}
 		}
 		return nil
-	})
+	}); err != nil {
+		return nil, err
+	}
 	return s, nil
 }

@@ -260,7 +260,7 @@ func (s *Session) Info() *WorkspaceInfo {
 }
 
 // Stream streams the channel, calling Channeler functions for each chunk.
-func (s *Session) Stream(ctx context.Context, link string, proc processor.Processor, oldest, latest time.Time) error {
+func (s *Session) Stream(ctx context.Context, proc processor.Processor, link string, oldest, latest time.Time) error {
 	ctx, task := trace.NewTask(ctx, "Stream")
 	defer task.End()
 

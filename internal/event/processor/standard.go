@@ -13,19 +13,38 @@ import (
 type Standard struct {
 	*event.Recorder
 	dl *downloader.Client
+
+	opts options
 }
 
-func NewStandard(w io.Writer, sess downloader.Downloader, dir string) (*Standard, error) {
-	r := event.NewRecorder(w)
+// NewStandard creates a new standard processor.  It will write the output to
+// the given writer.  The downloader is used to download files.  The directory
+// is the directory where the files will be downloaded to.  The options are
+// functional options.  See the NoFiles option.
+func NewStandard(ctx context.Context, w io.Writer, sess downloader.Downloader, dir string, opts ...Option) (*Standard, error) {
+	opt := options{dumpFiles: false}
+	for _, o := range opts {
+		o(&opt)
+	}
+
 	dl := downloader.New(sess, fsadapter.NewDirectory(dir))
-	dl.Start(context.Background())
+	dl.Start(ctx)
+
+	r := event.NewRecorder(w)
 	return &Standard{
 		Recorder: r,
 		dl:       dl,
+		opts:     opt,
 	}, nil
 }
 
+// Files implements the Processor interface. It will download files if the
+// dumpFiles option is enabled.
 func (s *Standard) Files(channelID string, parent slack.Message, isThread bool, m []slack.File) error {
+	if !s.opts.dumpFiles {
+		// ignore files if requested
+		return nil
+	}
 	// custom file processor, because we need to donwload those files
 	for i := range m {
 		if _, err := s.dl.DownloadFile(channelID, m[i]); err != nil {
@@ -33,14 +52,6 @@ func (s *Standard) Files(channelID string, parent slack.Message, isThread bool, 
 		}
 	}
 	return nil
-}
-
-func fileUrls(ff []slack.File) []string {
-	var urls = make([]string, 0, len(ff))
-	for i := range ff {
-		urls = append(urls, ff[i].URLPrivate)
-	}
-	return urls
 }
 
 func (s *Standard) Close() error {
