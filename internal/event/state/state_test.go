@@ -528,6 +528,7 @@ func TestState_AddFile(t *testing.T) {
 	type args struct {
 		channelID string
 		fileID    string
+		path      string
 	}
 	tests := []struct {
 		name   string
@@ -546,9 +547,10 @@ func TestState_AddFile(t *testing.T) {
 			args{
 				channelID: "channel",
 				fileID:    "file",
+				path:      "path",
 			},
 			map[_id]_id{
-				"file": "channel",
+				"channel:file": "path",
 			},
 		},
 	}
@@ -560,7 +562,7 @@ func TestState_AddFile(t *testing.T) {
 				Threads:  tt.fields.Threads,
 				Files:    tt.fields.Files,
 			}
-			s.AddFile(tt.args.channelID, tt.args.fileID)
+			s.AddFile(tt.args.channelID, tt.args.fileID, tt.args.path)
 			if !reflect.DeepEqual(s.Files, tt.want) {
 				t.Errorf("State.AddFile() = %v, want %v", s.Files, tt.want)
 			}

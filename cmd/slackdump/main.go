@@ -7,8 +7,10 @@ import (
 	"io"
 	"log"
 	"os"
+	"os/signal"
 	"runtime/trace"
 	"strings"
+	"syscall"
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/joho/godotenv"
@@ -161,6 +163,9 @@ func invoke(cmd *base.Command, args []string) error {
 
 	ctx, task := trace.NewTask(context.Background(), "command")
 	defer task.End()
+
+	ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
+	defer stop()
 
 	// initialise default logging.
 	if lg, err := initLog(cfg.LogFile, cfg.Verbose); err != nil {

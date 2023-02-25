@@ -114,6 +114,7 @@ func RunDump(ctx context.Context, cmd *base.Command, args []string) error {
 
 	tmpdir, err := os.MkdirTemp("", "slackdump-*")
 	if err != nil {
+		base.SetExitStatus(base.SGenericError)
 		return err
 	}
 
@@ -125,9 +126,11 @@ func RunDump(ctx context.Context, cmd *base.Command, args []string) error {
 		DumpFiles: cfg.SlackConfig.DumpFiles,
 	}
 	if err := fetch.Fetch(ctx, sess, tmpdir, p); err != nil {
+		base.SetExitStatus(base.SApplicationError)
 		return err
 	}
 	if err := reconstruct(ctx, sess.Filesystem(), tmpdir, namer); err != nil {
+		base.SetExitStatus(base.SApplicationError)
 		return err
 	}
 	return nil
@@ -215,7 +218,7 @@ func reconstruct(ctx context.Context, fsa fsadapter.FS, tmpdir string, namer nam
 
 		st, err := state.Load(path)
 		if err != nil {
-			return fmt.Errorf("failed to load state: %w", err)
+			return fmt.Errorf("failed to load state file: %w", err)
 		}
 
 		dlog.Printf("reconstructing %s", st.Filename)

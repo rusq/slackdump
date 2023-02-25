@@ -40,16 +40,19 @@ func NewStandard(ctx context.Context, w io.Writer, sess downloader.Downloader, d
 
 // Files implements the Processor interface. It will download files if the
 // dumpFiles option is enabled.
-func (s *Standard) Files(channelID string, parent slack.Message, isThread bool, m []slack.File) error {
+func (s *Standard) Files(ctx context.Context, channelID string, parent slack.Message, isThread bool, ff []slack.File) error {
 	if !s.opts.dumpFiles {
 		// ignore files if requested
 		return nil
 	}
 	// custom file processor, because we need to donwload those files
-	for i := range m {
-		if _, err := s.dl.DownloadFile(channelID, m[i]); err != nil {
+	for i := range ff {
+		filename, err := s.dl.DownloadFile(channelID, ff[i])
+		if err != nil {
 			return err
 		}
+		s, _ := s.Recorder.State()
+		s.AddFile(channelID, ff[i].ID, filename)
 	}
 	return nil
 }

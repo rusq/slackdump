@@ -23,18 +23,18 @@ var (
 type Player struct {
 	rs io.ReadSeeker
 
+	idx     index   // index of events in the file
 	pointer offsets // current event pointers
 
-	idx        index
 	lastOffset atomic.Int64
 }
 
-// index holds the index of each event type within the file.  key is the event
-// ID, value is the list of offsets for that id in the file.
+// index holds the index of each event within the file.  key is the event ID,
+// value is the list of offsets for that id in the file.
 type index map[string][]int64
 
 // offsets holds the index of the current offset in the index for each event
-// id.
+// ID.
 type offsets map[string]int
 
 // NewPlayer creates a new event player from the io.ReadSeeker.
@@ -203,7 +203,7 @@ func (p *Player) State() (*state.State, error) {
 		}
 		if ev.Type == EFiles {
 			for _, f := range ev.Files {
-				s.AddFile(ev.ChannelID, f.ID)
+				s.AddFile(ev.ChannelID, f.ID, "")
 			}
 		}
 		if ev.Type == EThreadMessages {

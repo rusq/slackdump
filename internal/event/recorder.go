@@ -1,6 +1,7 @@
 package event
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"time"
@@ -73,7 +74,7 @@ LOOP:
 }
 
 // Messages is called for each message chunk that is retrieved.
-func (rec *Recorder) Messages(channelID string, m []slack.Message) error {
+func (rec *Recorder) Messages(ctx context.Context, channelID string, m []slack.Message) error {
 	select {
 	case err := <-rec.errC:
 		return err
@@ -93,12 +94,13 @@ func (rec *Recorder) Messages(channelID string, m []slack.Message) error {
 
 // Files is called for each file chunk that is retrieved. The parent message is
 // passed in as well.
-func (rec *Recorder) Files(channelID string, parent slack.Message, isThread bool, f []slack.File) error {
+func (rec *Recorder) Files(ctx context.Context, channelID string, parent slack.Message, isThread bool, f []slack.File) error {
 	select {
 	case err := <-rec.errC:
 		return err
 	case rec.events <- Event{
 		Type:            EFiles,
+		Timestamp:       time.Now().UnixNano(),
 		ChannelID:       channelID,
 		Parent:          &parent,
 		IsThreadMessage: isThread,
@@ -106,7 +108,7 @@ func (rec *Recorder) Files(channelID string, parent slack.Message, isThread bool
 		Files:           f,
 	}: // ok
 		for i := range f {
-			rec.state.AddFile(channelID, f[i].ID)
+			rec.state.AddFile(channelID, f[i].ID, "")
 		}
 	}
 	return nil
@@ -114,12 +116,13 @@ func (rec *Recorder) Files(channelID string, parent slack.Message, isThread bool
 
 // ThreadMessages is called for each of the thread messages that are
 // retrieved. The parent message is passed in as well.
-func (rec *Recorder) ThreadMessages(channelID string, parent slack.Message, tm []slack.Message) error {
+func (rec *Recorder) ThreadMessages(ctx context.Context, channelID string, parent slack.Message, tm []slack.Message) error {
 	select {
 	case err := <-rec.errC:
 		return err
 	case rec.events <- Event{
 		Type:            EThreadMessages,
+		Timestamp:       time.Now().UnixNano(),
 		ChannelID:       channelID,
 		Parent:          &parent,
 		IsThreadMessage: true,

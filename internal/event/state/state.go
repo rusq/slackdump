@@ -34,6 +34,8 @@ type State struct {
 	// Filename is the original event filename for which the state is valid.
 	// It may be empty.
 	Filename string `json:"filename,omitempty"`
+	// IsComplete indicates that all events were written to the file.
+	IsComplete bool `json:"is_complete"`
 	// Directory with downloaded files, if any.
 	FilesDir string `json:"files_dir,omitempty"`
 	// IsCompressed indicates that the event file is compressed.
@@ -88,14 +90,14 @@ func (s *State) AddThread(channelID, threadTS, ts string) {
 }
 
 // AddFile should be called when a file is processed.
-func (s *State) AddFile(channelID, fileID string) {
+func (s *State) AddFile(channelID, fileID string, path string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	if s.Files == nil {
 		s.Files = make(map[_id]_id)
 	}
-	s.Files[fileID] = channelID
+	s.Files[channelID+":"+fileID] = path
 }
 
 // tsUpdate updates the map with the given ID and value if the value is greater.
@@ -201,6 +203,13 @@ func (s *State) SetIsCompressed(isCompressed bool) {
 	defer s.mu.Unlock()
 
 	s.IsCompressed = isCompressed
+}
+
+func (s *State) SetIsComplete(isComplete bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.IsComplete = isComplete
 }
 
 // Save saves the state to the given file.

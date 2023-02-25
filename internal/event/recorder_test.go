@@ -2,6 +2,7 @@ package event
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"testing"
@@ -200,12 +201,14 @@ func TestRecorder_Messages(t *testing.T) {
 	t.Parallel()
 	t.Run("sending a message", func(t *testing.T) {
 		t.Parallel()
+		ctx := context.Background()
 		rec := &Recorder{
 			events: make(chan Event, 1),
 			errC:   make(chan error, 1),
 			state:  state.New(""), // we don't really need it.
 		}
-		if err := rec.Messages("C123", []slack.Message{{Msg: slack.Msg{Text: "hello"}}}); err != nil {
+
+		if err := rec.Messages(ctx, "C123", []slack.Message{{Msg: slack.Msg{Text: "hello"}}}); err != nil {
 			t.Errorf("unexpected error: %v", err)
 		}
 		evt := <-rec.events
@@ -214,6 +217,9 @@ func TestRecorder_Messages(t *testing.T) {
 		}
 		if evt.ChannelID != "C123" {
 			t.Errorf("unexpected channel ID: %s", evt.ChannelID)
+		}
+		if evt.Timestamp == 0 {
+			t.Errorf("unexpected timestamp: %v", evt.Timestamp)
 		}
 		if len(evt.Messages) != 1 {
 			t.Errorf("unexpected number of messages: %d", len(evt.Messages))
@@ -224,13 +230,14 @@ func TestRecorder_Messages(t *testing.T) {
 	})
 	t.Run("sending a message, error", func(t *testing.T) {
 		t.Parallel()
+		ctx := context.Background()
 		rec := &Recorder{
 			events: make(chan Event),
 			errC:   make(chan error, 1),
 			state:  state.New(""), // we don't really need it.
 		}
 		rec.errC <- errors.New("test error")
-		gotErr := rec.Messages("C123", []slack.Message{{Msg: slack.Msg{Text: "hello"}}})
+		gotErr := rec.Messages(ctx, "C123", []slack.Message{{Msg: slack.Msg{Text: "hello"}}})
 		if gotErr == nil {
 			t.Errorf("expected error, got none")
 		}
@@ -241,12 +248,14 @@ func TestRecorder_ThreadMessages(t *testing.T) {
 	t.Parallel()
 	t.Run("sending a message", func(t *testing.T) {
 		t.Parallel()
+		ctx := context.Background()
 		rec := &Recorder{
 			events: make(chan Event, 1),
 			errC:   make(chan error, 1),
 			state:  state.New(""), // we don't really need it.
 		}
 		if err := rec.ThreadMessages(
+			ctx,
 			"C123",
 			slack.Message{Msg: slack.Msg{Text: "parent"}},
 			[]slack.Message{{Msg: slack.Msg{Text: "hello"}}},
@@ -260,6 +269,9 @@ func TestRecorder_ThreadMessages(t *testing.T) {
 		if evt.ChannelID != "C123" {
 			t.Errorf("unexpected channel ID: %s", evt.ChannelID)
 		}
+		if evt.Timestamp == 0 {
+			t.Errorf("unexpected timestamp: %v", evt.Timestamp)
+		}
 		if evt.Parent.Text != "parent" {
 			t.Errorf("unexpected parent text: %s", evt.Parent.Text)
 		}
@@ -272,12 +284,13 @@ func TestRecorder_ThreadMessages(t *testing.T) {
 	})
 	t.Run("sending a message, error", func(t *testing.T) {
 		t.Parallel()
+		ctx := context.Background()
 		rec := &Recorder{
 			events: make(chan Event),
 			errC:   make(chan error, 1),
 		}
 		rec.errC <- errors.New("test error")
-		gotErr := rec.ThreadMessages("C123", slack.Message{Msg: slack.Msg{Text: "parent"}}, []slack.Message{{Msg: slack.Msg{Text: "hello"}}})
+		gotErr := rec.ThreadMessages(ctx, "C123", slack.Message{Msg: slack.Msg{Text: "parent"}}, []slack.Message{{Msg: slack.Msg{Text: "hello"}}})
 		if gotErr == nil {
 			t.Errorf("expected error, got none")
 		}
@@ -288,12 +301,14 @@ func TestRecorder_Files(t *testing.T) {
 	t.Parallel()
 	t.Run("sending a message", func(t *testing.T) {
 		t.Parallel()
+		ctx := context.Background()
 		rec := &Recorder{
 			events: make(chan Event, 1),
 			errC:   make(chan error, 1),
 			state:  state.New(""), // we don't really need it.
 		}
 		if err := rec.Files(
+			ctx,
 			"C123",
 			slack.Message{Msg: slack.Msg{Text: "parent"}},
 			true,
@@ -308,6 +323,9 @@ func TestRecorder_Files(t *testing.T) {
 		if evt.ChannelID != "C123" {
 			t.Errorf("unexpected channel ID: %s", evt.ChannelID)
 		}
+		if evt.Timestamp == 0 {
+			t.Errorf("unexpected timestamp: %v", evt.Timestamp)
+		}
 		if evt.Parent.Text != "parent" {
 			t.Errorf("unexpected parent text: %s", evt.Parent.Text)
 		}
@@ -320,12 +338,14 @@ func TestRecorder_Files(t *testing.T) {
 	})
 	t.Run("sending a message, error", func(t *testing.T) {
 		t.Parallel()
+		ctx := context.Background()
 		rec := &Recorder{
 			events: make(chan Event),
 			errC:   make(chan error, 1),
 		}
 		rec.errC <- errors.New("test error")
 		gotErr := rec.Files(
+			ctx,
 			"C123",
 			slack.Message{Msg: slack.Msg{Text: "parent"}},
 			true,

@@ -62,13 +62,29 @@ func dumpOne(ctx context.Context, sess streamer, dir string, link string, p *Par
 		return err
 	}
 	defer pr.Close()
-	if err := sess.Stream(ctx, pr, link, p.Oldest, p.Latest); err != nil {
-		return err
-	}
-	s, err := pr.State()
+	state, err := pr.State()
 	if err != nil {
 		return err
 	}
-	s.SetFilename(filepath.Base(f.Name()))
-	return s.Save(filepath.Join(dir, fileprefix+".state"))
+	state.SetFilename(filepath.Base(f.Name()))
+	state.SetIsCompressed(true)
+	if p.DumpFiles {
+		state.SetFilesDir(fileprefix)
+	}
+	defer func() {
+		// we are deferring this so that it would execute even if the error
+		// has occurred to have a consistent state.
+		if err := state.Save(filepath.Join(dir, fileprefix+".state")); err != nil {
+			dlog.Print(err)
+			return
+		}
+	}()
+	if err := sess.Stream(ctx, pr, link, p.Oldest, p.Latest); err != nil {
+		return err
+	}
+	if ctx.Err() != nil {
+		return ctx.Err()
+	}
+	state.SetIsComplete(true)
+	return nil
 }
