@@ -11,7 +11,7 @@ import (
 	"github.com/rusq/chttp"
 	"github.com/rusq/slackdump/v2/internal/cache"
 	"github.com/rusq/slackdump/v2/internal/chunk"
-	"github.com/rusq/slackdump/v2/internal/chunk/proctest"
+	"github.com/rusq/slackdump/v2/internal/chunk/chunktest"
 	"github.com/slack-go/slack"
 )
 
@@ -82,7 +82,7 @@ func TestRecorderStream(t *testing.T) {
 	}
 	defer f.Close()
 	rgnNewSrv := trace.StartRegion(ctx, "NewServer")
-	srv := proctest.NewServer(f)
+	srv := chunktest.NewServer(f)
 	rgnNewSrv.End()
 	defer srv.Close()
 	sd := slack.New("test", slack.OptionAPIURL(srv.URL+"/api/"))
@@ -111,7 +111,7 @@ func TestReplay(t *testing.T) {
 	}
 	defer f.Close()
 
-	srv := proctest.NewServer(f)
+	srv := chunktest.NewServer(f)
 	defer srv.Close()
 	sd := slack.New("test", slack.OptionAPIURL(srv.URL+"/api/"))
 

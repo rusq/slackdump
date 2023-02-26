@@ -1,4 +1,5 @@
-package proctest
+// Package chunktest provides a test server for testing the chunk package.
+package chunktest
 
 import (
 	"encoding/json"
@@ -15,11 +16,13 @@ import (
 	"github.com/slack-go/slack"
 )
 
+// Server is a test server for testing the chunk package.
 type Server struct {
 	*httptest.Server
 	p *chunk.Player
 }
 
+// NewServer returns a new Server.
 func NewServer(rs io.ReadSeeker) *Server {
 	p, err := chunk.NewPlayer(rs)
 	if err != nil {
@@ -31,6 +34,7 @@ func NewServer(rs io.ReadSeeker) *Server {
 	}
 }
 
+// Close closes the server.
 func (s *Server) Close() {
 	s.Server.Close()
 }
@@ -42,9 +46,18 @@ type GetConversationRepliesResponse struct {
 	Messages         []slack.Message  `json:"messages"`
 }
 
+type responseMetaData struct {
+	NextCursor string `json:"next_cursor"`
+}
+
 func router(p *chunk.Player) *http.ServeMux {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/api/conversations.history", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/api/conversations.history", handleConversationsHistory(p))
+	mux.HandleFunc("/api/conversations.replies", handleConversationsReplies(p))
+	return mux
+}
+func handleConversationsHistory(p *chunk.Player) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
 		_, task := trace.NewTask(r.Context(), "conversation.history")
 		defer task.End()
 
@@ -87,8 +100,11 @@ func router(p *chunk.Player) *http.ServeMux {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-	})
-	mux.HandleFunc("/api/conversations.replies", func(w http.ResponseWriter, r *http.Request) {
+	}
+}
+
+func handleConversationsReplies(p *chunk.Player) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
 		_, task := trace.NewTask(r.Context(), "conversation.replies")
 		defer task.End()
 
@@ -123,10 +139,5 @@ func router(p *chunk.Player) *http.ServeMux {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-	})
-	return mux
-}
-
-type responseMetaData struct {
-	NextCursor string `json:"next_cursor"`
+	}
 }
