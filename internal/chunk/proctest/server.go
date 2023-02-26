@@ -11,17 +11,17 @@ import (
 	"runtime/trace"
 	"strconv"
 
-	"github.com/rusq/slackdump/v2/internal/event"
+	"github.com/rusq/slackdump/v2/internal/chunk"
 	"github.com/slack-go/slack"
 )
 
 type Server struct {
 	*httptest.Server
-	p *event.Player
+	p *chunk.Player
 }
 
 func NewServer(rs io.ReadSeeker) *Server {
-	p, err := event.NewPlayer(rs)
+	p, err := chunk.NewPlayer(rs)
 	if err != nil {
 		panic(err)
 	}
@@ -42,7 +42,7 @@ type GetConversationRepliesResponse struct {
 	Messages         []slack.Message  `json:"messages"`
 }
 
-func router(p *event.Player) *http.ServeMux {
+func router(p *chunk.Player) *http.ServeMux {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/conversations.history", func(w http.ResponseWriter, r *http.Request) {
 		_, task := trace.NewTask(r.Context(), "conversation.history")
@@ -57,7 +57,7 @@ func router(p *event.Player) *http.ServeMux {
 
 		msg, err := p.Messages(channel)
 		if err != nil {
-			if errors.Is(err, event.ErrNotFound) {
+			if errors.Is(err, chunk.ErrNotFound) {
 				http.NotFound(w, r)
 				return
 			}

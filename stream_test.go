@@ -10,8 +10,8 @@ import (
 
 	"github.com/rusq/chttp"
 	"github.com/rusq/slackdump/v2/internal/cache"
-	"github.com/rusq/slackdump/v2/internal/event"
-	"github.com/rusq/slackdump/v2/internal/event/proctest"
+	"github.com/rusq/slackdump/v2/internal/chunk"
+	"github.com/rusq/slackdump/v2/internal/chunk/proctest"
 	"github.com/slack-go/slack"
 )
 
@@ -63,7 +63,7 @@ func TestChannelStream(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer f.Close()
-	rec := event.NewRecorder(f)
+	rec := chunk.NewRecorder(f)
 	defer rec.Close()
 
 	cs := newChannelStream(sd, &DefOptions.Limits, time.Time{}, time.Time{})
@@ -92,7 +92,7 @@ func TestRecorderStream(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer f.Close()
-	rec := event.NewRecorder(w)
+	rec := chunk.NewRecorder(w)
 	defer rec.Close()
 
 	rgnStream := trace.StartRegion(ctx, "Stream")

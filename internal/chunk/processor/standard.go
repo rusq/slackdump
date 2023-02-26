@@ -6,12 +6,12 @@ import (
 
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/slackdump/v2/downloader"
-	"github.com/rusq/slackdump/v2/internal/event"
+	"github.com/rusq/slackdump/v2/internal/chunk"
 	"github.com/slack-go/slack"
 )
 
 type Standard struct {
-	*event.Recorder
+	*chunk.Recorder
 	dl *downloader.Client
 
 	opts options
@@ -30,7 +30,7 @@ func NewStandard(ctx context.Context, w io.Writer, sess downloader.Downloader, d
 	dl := downloader.New(sess, fsadapter.NewDirectory(dir))
 	dl.Start(ctx)
 
-	r := event.NewRecorder(w)
+	r := chunk.NewRecorder(w)
 	return &Standard{
 		Recorder: r,
 		dl:       dl,

@@ -8,8 +8,8 @@ import (
 
 	"github.com/rusq/fsadapter"
 
-	"github.com/rusq/slackdump/v2/internal/event"
-	"github.com/rusq/slackdump/v2/internal/event/state"
+	"github.com/rusq/slackdump/v2/internal/chunk"
+	"github.com/rusq/slackdump/v2/internal/chunk/state"
 )
 
 type Standard struct {
@@ -22,7 +22,7 @@ func NewStandard(fs fsadapter.FS) *Standard {
 
 func (s *Standard) Transform(st *state.State) error {
 	if st == nil {
-		return fmt.Errorf("nil events info")
+		return fmt.Errorf("nil state")
 	}
 	var rs io.ReadSeeker
 	f, err := os.Open(st.Filename)
@@ -41,7 +41,7 @@ func (s *Standard) Transform(st *state.State) error {
 	} else {
 		rs = f
 	}
-	pl, err := event.NewPlayer(rs)
+	pl, err := chunk.NewPlayer(rs)
 	if err != nil {
 		return err
 	}

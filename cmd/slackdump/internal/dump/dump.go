@@ -24,7 +24,7 @@ import (
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v2/internal/app/config"
 	"github.com/rusq/slackdump/v2/internal/app/nametmpl"
-	"github.com/rusq/slackdump/v2/internal/event/state"
+	"github.com/rusq/slackdump/v2/internal/chunk/state"
 	"github.com/rusq/slackdump/v2/internal/structures"
 	"github.com/rusq/slackdump/v2/types"
 )

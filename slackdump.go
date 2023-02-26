@@ -19,7 +19,7 @@ import (
 
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/slackdump/v2/auth"
-	"github.com/rusq/slackdump/v2/internal/event/processor"
+	"github.com/rusq/slackdump/v2/internal/chunk/processor"
 	"github.com/rusq/slackdump/v2/internal/network"
 	"github.com/rusq/slackdump/v2/logger"
 	"github.com/rusq/slackdump/v2/types"
@@ -260,7 +260,7 @@ func (s *Session) Info() *WorkspaceInfo {
 }
 
 // Stream streams the channel, calling Channeler functions for each chunk.
-func (s *Session) Stream(ctx context.Context, proc processor.Processor, link string, oldest, latest time.Time) error {
+func (s *Session) Stream(ctx context.Context, proc processor.Conversationer, link string, oldest, latest time.Time) error {
 	ctx, task := trace.NewTask(ctx, "Stream")
 	defer task.End()
 

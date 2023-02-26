@@ -13,18 +13,18 @@ import (
 	"github.com/rusq/slackdump/v2/auth"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/golang/base"
-	"github.com/rusq/slackdump/v2/internal/event"
+	"github.com/rusq/slackdump/v2/internal/chunk"
 )
 
 var CmdRecord = &base.Command{
 	UsageLine: "slackdump diag record",
-	Short:     "event record commands",
+	Short:     "chunk record commands",
 	Commands:  []*base.Command{CmdRecordStream, CmdRecordState},
 }
 
 var CmdRecordStream = &base.Command{
 	UsageLine:   "slackdump diag record stream [options] <channel>",
-	Short:       "dump slack data in a event record format",
+	Short:       "dump slack data in a chunk record format",
 	FlagMask:    cfg.OmitBaseLocFlag | cfg.OmitDownloadFlag,
 	PrintFlags:  true,
 	RequireAuth: true,
@@ -72,7 +72,7 @@ func runRecord(ctx context.Context, _ *base.Command, args []string) error {
 		}
 	}
 
-	rec := event.NewRecorder(w)
+	rec := chunk.NewRecorder(w)
 	for _, ch := range args {
 		cfg.Log.Printf("streaming channel %q", ch)
 		if err := sess.Stream(ctx, rec, ch, time.Time{}, time.Time{}); err != nil {
@@ -107,7 +107,7 @@ func runRecordState(ctx context.Context, _ *base.Command, args []string) error {
 	}
 	defer f.Close()
 
-	pl, err := event.NewPlayer(f)
+	pl, err := chunk.NewPlayer(f)
 	if err != nil {
 		return err
 	}

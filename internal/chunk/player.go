@@ -1,4 +1,4 @@
-package event
+package chunk
 
 import (
 	"encoding/json"
@@ -9,7 +9,7 @@ import (
 
 	"github.com/slack-go/slack"
 
-	"github.com/rusq/slackdump/v2/internal/event/state"
+	"github.com/rusq/slackdump/v2/internal/chunk/state"
 )
 
 var (
@@ -17,27 +17,27 @@ var (
 	ErrExhausted = errors.New("exhausted")
 )
 
-// Player replays the events from a file, it is able to emulate the API
+// Player replays the chunks from a file, it is able to emulate the API
 // responses, if used in conjunction with the [proctest.Server]. Zero value is
 // not usable.st
 type Player struct {
 	rs io.ReadSeeker
 
-	idx     index   // index of events in the file
-	pointer offsets // current event pointers
+	idx     index   // index of chunks in the file
+	pointer offsets // current chunk pointers
 
 	lastOffset atomic.Int64
 }
 
-// index holds the index of each event within the file.  key is the event ID,
+// index holds the index of each chunk within the file.  key is the chunk ID,
 // value is the list of offsets for that id in the file.
 type index map[string][]int64
 
-// offsets holds the index of the current offset in the index for each event
+// offsets holds the index of the current offset in the index for each chunk
 // ID.
 type offsets map[string]int
 
-// NewPlayer creates a new event player from the io.ReadSeeker.
+// NewPlayer creates a new chunk player from the io.ReadSeeker.
 func NewPlayer(rs io.ReadSeeker) (*Player, error) {
 	idx, err := indexRecords(json.NewDecoder(rs))
 	if err != nil {
@@ -65,14 +65,14 @@ func indexRecords(dec decodeOffsetter) (index, error) {
 	for i := 0; ; i++ {
 		offset := dec.InputOffset() // record current offset
 
-		var event Event
-		if err := dec.Decode(&event); err != nil {
+		var chunk Chunk
+		if err := dec.Decode(&chunk); err != nil {
 			if err == io.EOF {
 				break
 			}
 			return nil, err
 		}
-		idx[event.ID()] = append(idx[event.ID()], offset)
+		idx[chunk.ID()] = append(idx[chunk.ID()], offset)
 	}
 	return idx, nil
 }
@@ -82,9 +82,9 @@ func (p *Player) Offset() int64 {
 	return p.lastOffset.Load()
 }
 
-// tryGetEvent tries to get the event for the given id.  It returns io.EOF if
-// there are no more events for the given id.
-func (p *Player) tryGetEvent(id string) (*Event, error) {
+// tryGetChunk tries to get the chunk for the given id.  It returns io.EOF if
+// there are no more chunks for the given id.
+func (p *Player) tryGetChunk(id string) (*Chunk, error) {
 	offsets, ok := p.idx[id]
 	if !ok {
 		return nil, ErrNotFound
@@ -103,15 +103,18 @@ func (p *Player) tryGetEvent(id string) (*Event, error) {
 	if err != nil {
 		return nil, err
 	}
-	var event Event
-	if err := json.NewDecoder(p.rs).Decode(&event); err != nil {
+
+	var chunk Chunk
+	// we have to init new decoder at the current offset, because it's
+	// not possible to seek the decoder.
+	if err := json.NewDecoder(p.rs).Decode(&chunk); err != nil {
 		return nil, err
 	}
 	p.pointer[id]++ // increase the offset pointer for the next call.
-	return &event, nil
+	return &chunk, nil
 }
 
-// hasMore returns true if there are more events for the given id.
+// hasMore returns true if there are more chunks for the given id.
 func (p *Player) hasMore(id string) bool {
 	offsets, ok := p.idx[id]
 	if !ok {
@@ -127,11 +130,11 @@ func (p *Player) hasMore(id string) bool {
 
 // Messages returns the messages for the given channel.
 func (p *Player) Messages(channelID string) ([]slack.Message, error) {
-	event, err := p.tryGetEvent(channelID)
+	chunk, err := p.tryGetChunk(channelID)
 	if err != nil {
 		return nil, err
 	}
-	return event.Messages, nil
+	return chunk.Messages, nil
 }
 
 // HasMoreMessages returns true if there are more messages to be read for the
@@ -143,11 +146,11 @@ func (p *Player) HasMoreMessages(channelID string) bool {
 // Thread returns the messages for the given thread.
 func (p *Player) Thread(channelID string, threadTS string) ([]slack.Message, error) {
 	id := threadID(channelID, threadTS)
-	event, err := p.tryGetEvent(id)
+	chunk, err := p.tryGetChunk(id)
 	if err != nil {
 		return nil, err
 	}
-	return event.Messages, nil
+	return chunk.Messages, nil
 }
 
 func (p *Player) HasMoreThreads(channelID string, threadTS string) bool {
@@ -163,23 +166,23 @@ func (p *Player) Reset() error {
 	return nil
 }
 
-// ForEach iterates over the events in the reader and calls the function for
-// each event.  It will reset the state of the Player.
-func (p *Player) ForEach(fn func(ev *Event) error) error {
+// ForEach iterates over the chunks in the reader and calls the function for
+// each chunk.  It will reset the state of the Player.
+func (p *Player) ForEach(fn func(ev *Chunk) error) error {
 	if err := p.Reset(); err != nil {
 		return err
 	}
 	defer p.rs.Seek(0, io.SeekStart) // reset offset once we finished.
 	dec := json.NewDecoder(p.rs)
 	for {
-		var evt *Event
-		if err := dec.Decode(&evt); err != nil {
+		var chunk *Chunk
+		if err := dec.Decode(&chunk); err != nil {
 			if err == io.EOF {
 				break
 			}
 			return err
 		}
-		if err := fn(evt); err != nil {
+		if err := fn(chunk); err != nil {
 			return err
 		}
 	}
@@ -197,21 +200,21 @@ func (p *Player) State() (*state.State, error) {
 		name = filepath.Base(file.Name())
 	}
 	s := state.New(name)
-	if err := p.ForEach(func(ev *Event) error {
+	if err := p.ForEach(func(ev *Chunk) error {
 		if ev == nil {
 			return nil
 		}
-		if ev.Type == EFiles {
+		if ev.Type == CFiles {
 			for _, f := range ev.Files {
 				s.AddFile(ev.ChannelID, f.ID, "")
 			}
 		}
-		if ev.Type == EThreadMessages {
+		if ev.Type == CThreadMessages {
 			for _, m := range ev.Messages {
 				s.AddThread(ev.ChannelID, ev.Parent.ThreadTimestamp, m.Timestamp)
 			}
 		}
-		if ev.Type == EMessages {
+		if ev.Type == CMessages {
 			for _, m := range ev.Messages {
 				s.AddMessage(ev.ChannelID, m.Timestamp)
 			}

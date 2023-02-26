@@ -10,7 +10,7 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/rusq/slackdump/v2/internal/event"
+	"github.com/rusq/slackdump/v2/internal/chunk"
 	"github.com/rusq/slackdump/v2/internal/fixtures"
 	"github.com/slack-go/slack"
 	"github.com/stretchr/testify/assert"
@@ -56,47 +56,47 @@ func Test_randomString(t *testing.T) {
 
 func Test_Do(t *testing.T) {
 	var buf bytes.Buffer
-	src := fixtures.EventsJSONL()
+	src := fixtures.ChunksJSONL()
 	if err := Do(context.Background(), &buf, src); err != nil {
 		t.Fatal(err)
 	}
 	// reopen
 	src.Close()
-	src = fixtures.EventsJSONL()
-	srcEvt := unmarshalEvents(src)
-	dstEvt := unmarshalEvents(&buf)
-	if len(srcEvt) != len(dstEvt) {
-		t.Fatalf("expected %d events, got %d", len(srcEvt), len(dstEvt))
+	src = fixtures.ChunksJSONL()
+	srcChunk := unmarshalEvents(src)
+	dstChunk := unmarshalEvents(&buf)
+	if len(srcChunk) != len(dstChunk) {
+		t.Fatalf("expected %d chunks, got %d", len(srcChunk), len(dstChunk))
 	}
 	// ensure that text is obfuscated.
-	for i := range srcEvt {
-		if srcEvt[i].Type != dstEvt[i].Type {
-			t.Fatalf("expected %q, got %q", srcEvt[i].Type, dstEvt[i].Type)
+	for i := range srcChunk {
+		if srcChunk[i].Type != dstChunk[i].Type {
+			t.Fatalf("expected %q, got %q", srcChunk[i].Type, dstChunk[i].Type)
 		}
-		if srcEvt[i].Type == event.EMessages {
-			for j := range srcEvt[i].Messages {
-				if srcEvt[i].Messages[j].Text == dstEvt[i].Messages[j].Text && srcEvt[i].Messages[j].Text != "" {
-					t.Fatalf("expected %q, got %q", srcEvt[i].Messages[j].Text, dstEvt[i].Messages[j].Text)
+		if srcChunk[i].Type == chunk.CMessages {
+			for j := range srcChunk[i].Messages {
+				if srcChunk[i].Messages[j].Text == dstChunk[i].Messages[j].Text && srcChunk[i].Messages[j].Text != "" {
+					t.Fatalf("expected %q, got %q", srcChunk[i].Messages[j].Text, dstChunk[i].Messages[j].Text)
 				}
 			}
 		}
 	}
 }
 
-func unmarshalEvents(r io.Reader) []event.Event {
-	var events []event.Event
+func unmarshalEvents(r io.Reader) []chunk.Chunk {
+	var chunks []chunk.Chunk
 	dec := json.NewDecoder(r)
 	for {
-		var e event.Event
-		if err := dec.Decode(&e); err != nil {
+		var c chunk.Chunk
+		if err := dec.Decode(&c); err != nil {
 			if err == io.EOF {
 				break
 			}
 			panic(err)
 		}
-		events = append(events, e)
+		chunks = append(chunks, c)
 	}
-	return events
+	return chunks
 }
 
 func Test_obfuscator_OneMessage(t *testing.T) {

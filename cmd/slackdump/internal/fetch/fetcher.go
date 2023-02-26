@@ -11,7 +11,7 @@ import (
 
 	"github.com/rusq/dlog"
 	"github.com/rusq/slackdump/v2"
-	"github.com/rusq/slackdump/v2/internal/event/processor"
+	"github.com/rusq/slackdump/v2/internal/chunk/processor"
 	"github.com/rusq/slackdump/v2/internal/structures"
 	"github.com/slack-go/slack"
 )
@@ -40,7 +40,7 @@ func Fetch(ctx context.Context, sess *slackdump.Session, dir string, p *Paramete
 
 type streamer interface {
 	Client() *slack.Client
-	Stream(context.Context, processor.Processor, string, time.Time, time.Time) error
+	Stream(context.Context, processor.Conversationer, string, time.Time, time.Time) error
 }
 
 var replacer = strings.NewReplacer("/", "-", ":", "-")

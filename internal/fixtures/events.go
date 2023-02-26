@@ -7,17 +7,17 @@ import (
 	"io"
 )
 
-// To generate the events.jsonl.gz file:
+// To generate the chunks.jsonl.gz file:
 //
-//  ./slackdump diag record <channel> | ./slackdump diag obfuscate | gzip -9 -c > events.jsonl.gz
+//  ./slackdump diag record stream <channel> | ./slackdump diag obfuscate | gzip -9 -c > chunks.jsonl.gz
 
-//go:embed assets/events.jsonl.gz
-var eventsJsonlGz []byte
+//go:embed assets/chunks.jsonl.gz
+var chunksJsonlGz []byte
 
-// EventsJSONL returns a reader for the events.jsonl.gz file.  Reader must be
+// ChunksJSONL returns a reader for the chunks.jsonl.gz file.  Reader must be
 // closed
-func EventsJSONL() io.ReadCloser {
-	gz, err := gzip.NewReader(bytes.NewReader(eventsJsonlGz))
+func ChunksJSONL() io.ReadCloser {
+	gz, err := gzip.NewReader(bytes.NewReader(chunksJsonlGz))
 	if err != nil {
 		panic(err)
 	}

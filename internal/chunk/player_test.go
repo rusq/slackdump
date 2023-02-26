@@ -1,4 +1,4 @@
-package event
+package chunk
 
 import (
 	"bytes"
@@ -12,12 +12,12 @@ import (
 	"github.com/slack-go/slack"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/rusq/slackdump/v2/internal/event/state"
+	"github.com/rusq/slackdump/v2/internal/chunk/state"
 )
 
-var testThreads = []Event{
+var testThreads = []Chunk{
 	{
-		Type:            EThreadMessages,
+		Type:            CThreadMessages,
 		Timestamp:       1234567890,
 		ChannelID:       "C1234567890",
 		IsThreadMessage: true,
@@ -45,7 +45,7 @@ var testThreads = []Event{
 		},
 	},
 	{
-		Type:            EThreadMessages,
+		Type:            CThreadMessages,
 		Timestamp:       1234567891,
 		ChannelID:       "C1234567890",
 		IsThreadMessage: true,
@@ -73,7 +73,7 @@ var testThreads = []Event{
 		},
 	},
 	{
-		Type:            EThreadMessages,
+		Type:            CThreadMessages,
 		Timestamp:       1234567890,
 		ChannelID:       "C1234567890",
 		IsThreadMessage: true,
@@ -107,7 +107,7 @@ var testThreadsIndex = index{
 	"tC1234567890:1234567890.123458": []int64{612},
 }
 
-func marshalEvents(t *testing.T, v []Event) []byte {
+func marshalEvents(t *testing.T, v []Chunk) []byte {
 	t.Helper()
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)

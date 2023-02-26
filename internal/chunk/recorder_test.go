@@ -1,4 +1,4 @@
-package event
+package chunk
 
 import (
 	"bytes"
@@ -11,12 +11,12 @@ import (
 	"github.com/slack-go/slack"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/rusq/slackdump/v2/internal/event/state"
+	"github.com/rusq/slackdump/v2/internal/chunk/state"
 )
 
 func TestEvent_ID(t *testing.T) {
 	type fields struct {
-		Type            EventType
+		Type            ChunkType
 		TS              int64
 		ChannelID       string
 		IsThreadMessage bool
@@ -33,7 +33,7 @@ func TestEvent_ID(t *testing.T) {
 		{
 			"Message",
 			fields{
-				Type:      EMessages,
+				Type:      CMessages,
 				ChannelID: "C123",
 			},
 			"C123",
@@ -41,7 +41,7 @@ func TestEvent_ID(t *testing.T) {
 		{
 			"Thread",
 			fields{
-				Type:      EThreadMessages,
+				Type:      CThreadMessages,
 				ChannelID: "C123",
 				Parent: &slack.Message{
 					Msg: slack.Msg{ThreadTimestamp: "123.456"},
@@ -52,7 +52,7 @@ func TestEvent_ID(t *testing.T) {
 		{
 			"File",
 			fields{
-				Type:      EFiles,
+				Type:      CFiles,
 				ChannelID: "C123",
 				Parent: &slack.Message{
 					Msg: slack.Msg{Timestamp: "123.456"},
@@ -63,7 +63,7 @@ func TestEvent_ID(t *testing.T) {
 		{
 			"Unknown type",
 			fields{
-				Type:      EventType(1000),
+				Type:      ChunkType(1000),
 				ChannelID: "C123",
 			},
 			"<unknown:1000>",
@@ -71,7 +71,7 @@ func TestEvent_ID(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			e := &Event{
+			e := &Chunk{
 				Type:            tt.fields.Type,
 				Timestamp:       tt.fields.TS,
 				ChannelID:       tt.fields.ChannelID,
@@ -98,14 +98,14 @@ func (e *errEncoder) Encode(v interface{}) error {
 
 func TestRecorder_worker(t *testing.T) {
 	t.Parallel()
-	t.Run("no events", func(t *testing.T) {
+	t.Run("no chunks", func(t *testing.T) {
 		t.Parallel()
 		r := &Recorder{
-			events: make(chan Event, 1),
+			chunks: make(chan Chunk, 1),
 			errC:   make(chan error, 1),
 		}
 		time.AfterFunc(40*time.Millisecond, func() {
-			close(r.events)
+			close(r.chunks)
 		})
 		var buf bytes.Buffer // we don't really need it.
 		start := time.Now()
@@ -114,25 +114,24 @@ func TestRecorder_worker(t *testing.T) {
 			t.Errorf("worker took too long to exit")
 		}
 	})
-	t.Run("one event", func(t *testing.T) {
+	t.Run("one chunk", func(t *testing.T) {
 		t.Parallel()
 		var buf bytes.Buffer
 		r := &Recorder{
-			events: make(chan Event, 1),
+			chunks: make(chan Chunk, 1),
 			errC:   make(chan error, 1),
 			state:  state.New(""),
-			w:      &buf,
 		}
 		go func() {
-			r.events <- Event{
-				Type:      EMessages,
+			r.chunks <- Chunk{
+				Type:      CMessages,
 				ChannelID: "C123",
 				Messages:  []slack.Message{{Msg: slack.Msg{Text: "hello"}}},
 			}
-			close(r.events)
+			close(r.chunks)
 		}()
 		start := time.Now()
-		r.worker(json.NewEncoder(r.w))
+		r.worker(json.NewEncoder(&buf))
 		if time.Since(start) > 50*time.Millisecond {
 			t.Errorf("worker took too long to exit")
 		}
@@ -142,21 +141,19 @@ func TestRecorder_worker(t *testing.T) {
 			t.Errorf("unexpected output: %s", buf.String())
 		}
 	})
-	t.Run("one event, error", func(t *testing.T) {
+	t.Run("one chunk, error", func(t *testing.T) {
 		t.Parallel()
-		var buf bytes.Buffer
 		r := &Recorder{
-			events: make(chan Event, 1),
+			chunks: make(chan Chunk, 1),
 			errC:   make(chan error, 1),
-			w:      &buf,
 		}
 		go func() {
-			r.events <- Event{
-				Type:      EMessages,
+			r.chunks <- Chunk{
+				Type:      CMessages,
 				ChannelID: "C123",
 				Messages:  []slack.Message{{Msg: slack.Msg{Text: "hello"}}},
 			}
-			close(r.events)
+			close(r.chunks)
 		}()
 
 		start := time.Now()
@@ -172,19 +169,17 @@ func TestRecorder_worker(t *testing.T) {
 	})
 	t.Run("unsendable error", func(t *testing.T) {
 		t.Parallel()
-		var buf bytes.Buffer
 		r := &Recorder{
-			events: make(chan Event, 1),
+			chunks: make(chan Chunk, 1),
 			errC:   make(chan error), // unbuffered, and we don't read it.
-			w:      &buf,
 		}
 		go func() {
-			r.events <- Event{
-				Type:      EMessages,
+			r.chunks <- Chunk{
+				Type:      CMessages,
 				ChannelID: "C123",
 				Messages:  []slack.Message{{Msg: slack.Msg{Text: "hello"}}},
 			}
-			close(r.events)
+			close(r.chunks)
 		}()
 
 		r.worker(&errEncoder{err: errors.New("test error")})
@@ -203,7 +198,7 @@ func TestRecorder_Messages(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 		rec := &Recorder{
-			events: make(chan Event, 1),
+			chunks: make(chan Chunk, 1),
 			errC:   make(chan error, 1),
 			state:  state.New(""), // we don't really need it.
 		}
@@ -211,9 +206,9 @@ func TestRecorder_Messages(t *testing.T) {
 		if err := rec.Messages(ctx, "C123", []slack.Message{{Msg: slack.Msg{Text: "hello"}}}); err != nil {
 			t.Errorf("unexpected error: %v", err)
 		}
-		evt := <-rec.events
-		if evt.Type != EMessages {
-			t.Errorf("unexpected event type: %v", evt.Type)
+		evt := <-rec.chunks
+		if evt.Type != CMessages {
+			t.Errorf("unexpected chunk type: %v", evt.Type)
 		}
 		if evt.ChannelID != "C123" {
 			t.Errorf("unexpected channel ID: %s", evt.ChannelID)
@@ -232,7 +227,7 @@ func TestRecorder_Messages(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 		rec := &Recorder{
-			events: make(chan Event),
+			chunks: make(chan Chunk),
 			errC:   make(chan error, 1),
 			state:  state.New(""), // we don't really need it.
 		}
@@ -250,7 +245,7 @@ func TestRecorder_ThreadMessages(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 		rec := &Recorder{
-			events: make(chan Event, 1),
+			chunks: make(chan Chunk, 1),
 			errC:   make(chan error, 1),
 			state:  state.New(""), // we don't really need it.
 		}
@@ -262,9 +257,9 @@ func TestRecorder_ThreadMessages(t *testing.T) {
 		); err != nil {
 			t.Errorf("unexpected error: %v", err)
 		}
-		evt := <-rec.events
-		if evt.Type != EThreadMessages {
-			t.Errorf("unexpected event type: %v", evt.Type)
+		evt := <-rec.chunks
+		if evt.Type != CThreadMessages {
+			t.Errorf("unexpected chunk type: %v", evt.Type)
 		}
 		if evt.ChannelID != "C123" {
 			t.Errorf("unexpected channel ID: %s", evt.ChannelID)
@@ -286,7 +281,7 @@ func TestRecorder_ThreadMessages(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 		rec := &Recorder{
-			events: make(chan Event),
+			chunks: make(chan Chunk),
 			errC:   make(chan error, 1),
 		}
 		rec.errC <- errors.New("test error")
@@ -303,7 +298,7 @@ func TestRecorder_Files(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 		rec := &Recorder{
-			events: make(chan Event, 1),
+			chunks: make(chan Chunk, 1),
 			errC:   make(chan error, 1),
 			state:  state.New(""), // we don't really need it.
 		}
@@ -316,9 +311,9 @@ func TestRecorder_Files(t *testing.T) {
 		); err != nil {
 			t.Errorf("unexpected error: %v", err)
 		}
-		evt := <-rec.events
-		if evt.Type != EFiles {
-			t.Errorf("unexpected event type: %v", evt.Type)
+		evt := <-rec.chunks
+		if evt.Type != CFiles {
+			t.Errorf("unexpected chunk type: %v", evt.Type)
 		}
 		if evt.ChannelID != "C123" {
 			t.Errorf("unexpected channel ID: %s", evt.ChannelID)
@@ -340,7 +335,7 @@ func TestRecorder_Files(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 		rec := &Recorder{
-			events: make(chan Event),
+			chunks: make(chan Chunk),
 			errC:   make(chan error, 1),
 		}
 		rec.errC <- errors.New("test error")
@@ -362,7 +357,7 @@ func TestRecorder_Close(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		t.Parallel()
 		rec := &Recorder{
-			events: make(chan Event),
+			chunks: make(chan Chunk),
 			errC:   make(chan error, 1),
 		}
 		time.AfterFunc(10*time.Millisecond, func() {
@@ -375,7 +370,7 @@ func TestRecorder_Close(t *testing.T) {
 	t.Run("error", func(t *testing.T) {
 		t.Parallel()
 		rec := &Recorder{
-			events: make(chan Event),
+			chunks: make(chan Chunk),
 			errC:   make(chan error, 1),
 		}
 		rec.errC <- errors.New("test error")

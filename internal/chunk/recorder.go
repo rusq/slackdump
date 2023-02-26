@@ -1,4 +1,4 @@
-package event
+package chunk
 
 import (
 	"context"
@@ -8,18 +8,16 @@ import (
 
 	"github.com/slack-go/slack"
 
-	"github.com/rusq/slackdump/v2/internal/event/state"
+	"github.com/rusq/slackdump/v2/internal/chunk/state"
 )
 
 // Recorder is a special Channeler that records all the data it receives, so
 // that it can be replayed later.
 type Recorder struct {
-	w io.Writer
-
-	events chan Event
+	chunks chan Chunk
 	errC   chan error
 
-	enc Encoder // encoder to use for the events
+	enc Encoder // encoder to use for the chunks
 
 	state *state.State
 }
@@ -27,7 +25,7 @@ type Recorder struct {
 // Option is a function that configures the Recorder.
 type Option func(r *Recorder)
 
-// WithEncoder allows you to specify a custom encoder to use for the events.
+// WithEncoder allows you to specify a custom encoder to use for the chunks.
 // By default, json.NewEncoder is used.
 func WithEncoder(enc Encoder) Option {
 	return func(r *Recorder) {
@@ -41,7 +39,7 @@ func NewRecorder(w io.Writer, options ...Option) *Recorder {
 		filename = f.Name()
 	}
 	rec := &Recorder{
-		events: make(chan Event),
+		chunks: make(chan Chunk),
 		errC:   make(chan error, 1),
 		enc:    json.NewEncoder(w),
 		state:  state.New(filename),
@@ -55,13 +53,13 @@ func NewRecorder(w io.Writer, options ...Option) *Recorder {
 
 // Encoder is the interface that wraps the Encode method.
 type Encoder interface {
-	Encode(event interface{}) error
+	Encode(chunk interface{}) error
 }
 
 func (rec *Recorder) worker(enc Encoder) {
 LOOP:
-	for event := range rec.events {
-		if err := enc.Encode(event); err != nil {
+	for chunk := range rec.chunks {
+		if err := enc.Encode(chunk); err != nil {
 			select {
 			case rec.errC <- err:
 			default:
@@ -78,8 +76,8 @@ func (rec *Recorder) Messages(ctx context.Context, channelID string, m []slack.M
 	select {
 	case err := <-rec.errC:
 		return err
-	case rec.events <- Event{
-		Type:      EMessages,
+	case rec.chunks <- Chunk{
+		Type:      CMessages,
 		Timestamp: time.Now().UnixNano(),
 		ChannelID: channelID,
 		Count:     len(m),
@@ -98,8 +96,8 @@ func (rec *Recorder) Files(ctx context.Context, channelID string, parent slack.M
 	select {
 	case err := <-rec.errC:
 		return err
-	case rec.events <- Event{
-		Type:            EFiles,
+	case rec.chunks <- Chunk{
+		Type:            CFiles,
 		Timestamp:       time.Now().UnixNano(),
 		ChannelID:       channelID,
 		Parent:          &parent,
@@ -120,8 +118,8 @@ func (rec *Recorder) ThreadMessages(ctx context.Context, channelID string, paren
 	select {
 	case err := <-rec.errC:
 		return err
-	case rec.events <- Event{
-		Type:            EThreadMessages,
+	case rec.chunks <- Chunk{
+		Type:            CThreadMessages,
 		Timestamp:       time.Now().UnixNano(),
 		ChannelID:       channelID,
 		Parent:          &parent,
@@ -141,6 +139,6 @@ func (rec *Recorder) State() (*state.State, error) {
 }
 
 func (rec *Recorder) Close() error {
-	close(rec.events)
+	close(rec.chunks)
 	return <-rec.errC
 }

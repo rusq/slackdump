@@ -1,4 +1,4 @@
-// Package obfuscate obfuscates a slackdump event recording.  It provides
+// Package obfuscate obfuscates a slackdump chunk recording.  It provides
 // deterministic obfuscation of IDs, so that the users within the obfuscated
 // file will have a consistent IDs. But the same file obfuscated multiple
 // times will have different IDs.  The text is replaced with the randomness of
@@ -17,7 +17,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/rusq/slackdump/v2/internal/event"
+	"github.com/rusq/slackdump/v2/internal/chunk"
 	"github.com/slack-go/slack"
 )
 
@@ -56,7 +56,7 @@ func Do(ctx context.Context, w io.Writer, r io.Reader, options ...Option) error 
 	)
 	// obfuscation loop
 	for {
-		var e event.Event
+		var e chunk.Chunk
 		if err := dec.Decode(&e); err != nil {
 			if err == io.EOF {
 				break
@@ -78,15 +78,15 @@ type obfuscator struct {
 	salt   string
 }
 
-func (o obfuscator) Event(e *event.Event) {
+func (o obfuscator) Event(e *chunk.Chunk) {
 	e.ChannelID = o.ID("C", e.ChannelID)
 	switch e.Type {
-	case event.EMessages:
+	case chunk.CMessages:
 		o.Messages(e.Messages...)
-	case event.EThreadMessages:
+	case chunk.CThreadMessages:
 		o.OneMessage(e.Parent)
 		o.Messages(e.Messages...)
-	case event.EFiles:
+	case chunk.CFiles:
 		o.OneMessage(e.Parent)
 		o.Files(e.Files...)
 	}

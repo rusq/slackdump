@@ -31,14 +31,14 @@ func (e ErrStateVersion) Error() string {
 type State struct {
 	// Version is the version of the state file.
 	Version float64 `json:"version"`
-	// Filename is the original event filename for which the state is valid.
+	// Filename is the original chunks filename for which the state is valid.
 	// It may be empty.
 	Filename string `json:"filename,omitempty"`
-	// IsComplete indicates that all events were written to the file.
+	// IsComplete indicates that all chunks were written to the file.
 	IsComplete bool `json:"is_complete"`
 	// Directory with downloaded files, if any.
 	FilesDir string `json:"files_dir,omitempty"`
-	// IsCompressed indicates that the event file is compressed.
+	// IsCompressed indicates that the chunk file is compressed.
 	IsCompressed bool `json:"is_compressed,omitempty"`
 	// Channels is a map of channel ID to the latest message timestamp.
 	Channels map[_id]int64 `json:"channels,omitempty"`
