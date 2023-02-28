@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 )
 
@@ -98,6 +99,28 @@ func (s *State) AddFile(channelID, fileID string, path string) {
 		s.Files = make(map[_id]_id)
 	}
 	s.Files[channelID+":"+fileID] = path
+}
+
+// AllFiles returns all saved files for the given channel.
+func (s *State) AllFiles(channelID string) []string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	var files []string
+	for fileChanID, path := range s.Files {
+		id, _, _ := strings.Cut(fileChanID, ":")
+		if id == channelID {
+			files = append(files, path)
+		}
+	}
+	return files
+}
+
+func (s *State) FilePath(channelID, fileID string) string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	return s.Files[channelID+":"+fileID]
 }
 
 // tsUpdate updates the map with the given ID and value if the value is greater.

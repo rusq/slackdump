@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"path/filepath"
+	"strings"
 	"sync/atomic"
 
 	"github.com/slack-go/slack"
@@ -157,6 +158,7 @@ func (p *Player) HasMoreThreads(channelID string, threadTS string) bool {
 	return p.hasMore(threadID(channelID, threadTS))
 }
 
+// Reset resets the state of the Player.
 func (p *Player) Reset() error {
 	p.pointer = make(offsets)
 	_, err := p.rs.Seek(0, io.SeekStart)
@@ -193,7 +195,8 @@ type namer interface {
 	Name() string
 }
 
-// State returns the state of the player.
+// State generates and returns the state of the player.  It does not include
+// the path to the downloaded files.
 func (p *Player) State() (*state.State, error) {
 	var name string
 	if file, ok := p.rs.(namer); ok {
@@ -206,6 +209,8 @@ func (p *Player) State() (*state.State, error) {
 		}
 		if ev.Type == CFiles {
 			for _, f := range ev.Files {
+				// we are adding the files with the empty path as we
+				// have no way of knowing if the file was downloaded or not.
 				s.AddFile(ev.ChannelID, f.ID, "")
 			}
 		}
@@ -224,4 +229,45 @@ func (p *Player) State() (*state.State, error) {
 		return nil, err
 	}
 	return s, nil
+}
+
+// allMessagesForID returns all the messages for the given id. It will reset
+// the Player prior to execution.
+func (p *Player) allMessagesForID(id string) ([]slack.Message, error) {
+	if err := p.Reset(); err != nil {
+		return nil, err
+	}
+	var m []slack.Message
+	for {
+		chunk, err := p.tryGetChunk(id)
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return nil, err
+		}
+		m = append(m, chunk.Messages...)
+	}
+	return m, nil
+}
+
+// AllMessages returns all the messages for the given channel.
+func (p *Player) AllMessages(channelID string) ([]slack.Message, error) {
+	return p.allMessagesForID(channelID)
+}
+
+// AllThreadMessages returns all the messages for the given thread.
+func (p *Player) AllThreadMessages(channelID, threadTS string) ([]slack.Message, error) {
+	return p.allMessagesForID(threadID(channelID, threadTS))
+}
+
+// AllChannels returns all the channels in the chunkfile.
+func (p *Player) AllChannels() []string {
+	var ids []string
+	for id := range p.idx {
+		if !strings.Contains(id, ":") {
+			ids = append(ids, id)
+		}
+	}
+	return ids
 }

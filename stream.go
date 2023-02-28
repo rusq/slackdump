@@ -97,15 +97,14 @@ func (cs *channelStream) channel(ctx context.Context, id string, proc processor.
 			return fmt.Errorf("failed to process message chunk starting with id=%s (size=%d): %w", resp.Messages[0].Msg.ClientMsgID, len(resp.Messages), err)
 		}
 		for i := range resp.Messages {
-			idx := i
-			if resp.Messages[idx].Msg.ThreadTimestamp != "" && resp.Messages[idx].Msg.SubType != "thread_broadcast" {
-				dlog.Debugf("- message #%d/thread: id=%s, thread_ts=%s, cursor=%s", i, resp.Messages[idx].ClientMsgID, resp.Messages[idx].Msg.ThreadTimestamp, cursor)
-				if err := cs.thread(ctx, id, resp.Messages[idx].Msg.ThreadTimestamp, proc); err != nil {
+			if resp.Messages[i].Msg.ThreadTimestamp != "" && resp.Messages[i].Msg.SubType != "thread_broadcast" {
+				dlog.Debugf("- message #%d/thread: id=%s, thread_ts=%s, cursor=%s", i, resp.Messages[i].ClientMsgID, resp.Messages[i].Msg.ThreadTimestamp, cursor)
+				if err := cs.thread(ctx, id, resp.Messages[i].Msg.ThreadTimestamp, proc); err != nil {
 					return err
 				}
 			}
-			if resp.Messages[idx].Files != nil && len(resp.Messages[idx].Files) > 0 {
-				if err := proc.Files(ctx, id, resp.Messages[idx], false, resp.Messages[idx].Files); err != nil {
+			if len(resp.Messages[i].Files) > 0 {
+				if err := proc.Files(ctx, id, resp.Messages[i], false, resp.Messages[i].Files); err != nil {
 					return err
 				}
 			}
@@ -154,9 +153,8 @@ func (cs *channelStream) thread(ctx context.Context, id string, threadTS string,
 		}
 		// extract files from thread messages
 		for i := range msgs[1:] {
-			idx := i
-			if msgs[idx].Files != nil && len(msgs[idx].Files) > 0 {
-				if err := proc.Files(ctx, id, msgs[idx], true, msgs[idx].Files); err != nil {
+			if len(msgs[i].Files) > 0 {
+				if err := proc.Files(ctx, id, msgs[i], true, msgs[i].Files); err != nil {
 					return err
 				}
 			}

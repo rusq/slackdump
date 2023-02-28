@@ -51,3 +51,4 @@ dist/
 
 # sundry junk used for testing and other fuckery
 /tmp
+*.dot
