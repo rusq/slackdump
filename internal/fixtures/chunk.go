@@ -35,5 +35,3 @@ func chunksJSONL(b []byte) io.ReadSeeker {
 func ChunkFileJSONL() io.ReadSeeker {
 	return chunksJSONL(chunksJsonlGz)
 }
-
-}
