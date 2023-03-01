@@ -17,10 +17,6 @@ const (
 	OutputTypeText = "text"
 )
 
-const (
-	FilenameTmplName = "fnt"
-)
-
 // ErrSkip should be returned if the [Producer] should skip the channel.
 var ErrSkip = errors.New("skip")
 

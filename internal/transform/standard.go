@@ -1,9 +1,11 @@
 package transform
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"path/filepath"
+	"runtime/trace"
 
 	"github.com/rusq/dlog"
 	"github.com/rusq/fsadapter"
@@ -19,18 +21,22 @@ type Standard struct {
 	fs             fsadapter.FS
 	nameFn         func(*types.Conversation) string
 	updateFileLink bool
+	seenFiles      map[string]struct{}
 }
 
 // NewStandard returns a new Standard transformer, nameFn should return the
 // filename for a given conversation.  This is the name that the conversation
 // will be written to the filesystem.
 func NewStandard(fs fsadapter.FS, nameFn func(*types.Conversation) string) *Standard {
-	return &Standard{fs: fs, nameFn: nameFn, updateFileLink: true}
+	return &Standard{fs: fs, nameFn: nameFn, updateFileLink: true, seenFiles: make(map[string]struct{})}
 }
 
-func (s *Standard) Transform(st *state.State, basePath string) error {
+func (s *Standard) Transform(ctx context.Context, st *state.State, basePath string) error {
+	ctx, task := trace.NewTask(ctx, "transform.Standard.Transform")
+	defer task.End()
+
 	if st == nil {
-		return fmt.Errorf("nil state")
+		return fmt.Errorf("fatal:  nil state")
 	}
 	rsc, err := st.OpenChunks(basePath)
 	if err != nil {
@@ -45,7 +51,9 @@ func (s *Standard) Transform(st *state.State, basePath string) error {
 
 	allCh := pl.AllChannels()
 	for _, ch := range allCh {
+		rgn := trace.StartRegion(ctx, "transform.Standard.Transform: "+ch)
 		conv, err := s.conversation(pl, st, basePath, ch)
+		rgn.End()
 		if err != nil {
 			return err
 		}
@@ -105,8 +113,13 @@ func (s *Standard) transferFiles(st *state.State, basePath string, mm []types.Me
 			if fp == "" {
 				return fmt.Errorf("unable to generate the filename for: %v", mm[i].Files[j])
 			}
+			if _, ok := s.seenFiles[fp]; ok {
+				continue
+			} else {
+				s.seenFiles[fp] = struct{}{}
+			}
 			srcPath := filepath.Join(basePath, fp)
-			fsTrgPath := filepath.Join(ch, "attachments", filepath.Base(srcPath))
+			fsTrgPath := filepath.Join(ch, filepath.Base(srcPath))
 			if err := osext.MoveFile(srcPath, s.fs, fsTrgPath); err != nil {
 				dlog.Printf("file missing: %q", srcPath)
 				return fmt.Errorf("error moving %q to %q", srcPath, fsTrgPath)

@@ -54,3 +54,11 @@ func Compile(t string) (*template.Template, error) {
 	}
 	return tmpl, nil
 }
+
+func ExecuteTemplate(tmpl *template.Template, c *types.Conversation) (string, error) {
+	var buf strings.Builder
+	if err := tmpl.ExecuteTemplate(&buf, filenameTmplName, c); err != nil {
+		return "", err
+	}
+	return buf.String(), nil
+}

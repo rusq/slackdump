@@ -1,7 +1,9 @@
 package transform
 
 import (
+	"context"
 	"path/filepath"
+	"runtime/trace"
 	"testing"
 
 	"github.com/rusq/fsadapter"
@@ -12,6 +14,8 @@ import (
 const whereTheTempIsAt = "../../tmp"
 
 func TestStandard_Transform(t *testing.T) {
+	ctx, task := trace.NewTask(context.Background(), "TestStandard_Transform")
+	defer task.End()
 	// MANUAL
 	fs := fsadapter.NewDirectory(filepath.Join(whereTheTempIsAt, "manual"))
 	s := NewStandard(fs, func(c *types.Conversation) string {
@@ -21,7 +25,7 @@ func TestStandard_Transform(t *testing.T) {
 	if err != nil {
 		t.Fatalf("state.Load(): %s", err)
 	}
-	if err := s.Transform(st, whereTheTempIsAt); err != nil {
+	if err := s.Transform(ctx, st, whereTheTempIsAt); err != nil {
 		t.Fatal(err)
 	}
 }
