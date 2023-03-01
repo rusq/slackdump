@@ -8,11 +8,15 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang/mock/gomock"
 	"github.com/rusq/chttp"
+	"github.com/slack-go/slack"
+
 	"github.com/rusq/slackdump/v2/internal/cache"
 	"github.com/rusq/slackdump/v2/internal/chunk"
 	"github.com/rusq/slackdump/v2/internal/chunk/chunktest"
-	"github.com/slack-go/slack"
+	"github.com/rusq/slackdump/v2/internal/fixtures"
+	"github.com/rusq/slackdump/v2/internal/mocks/mock_processor"
 )
 
 var expandedLimits = Limits{
@@ -38,7 +42,7 @@ var expandedLimits = Limits{
 const testConversation = "C01SPFM1KNY"
 
 func TestChannelStream(t *testing.T) {
-	t.Skip("skipping test")
+	t.Skip()
 	ucd, err := os.UserCacheDir()
 	if err != nil {
 		t.Fatal(err)
@@ -104,13 +108,7 @@ func TestRecorderStream(t *testing.T) {
 }
 
 func TestReplay(t *testing.T) {
-	t.Skip("skipping test")
-	f, err := os.Open("record.jsonl")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer f.Close()
-
+	f := fixtures.ChunkFileJSONL()
 	srv := chunktest.NewServer(f)
 	defer srv.Close()
 	sd := slack.New("test", slack.OptionAPIURL(srv.URL+"/api/"))
@@ -130,4 +128,72 @@ func TestReplay(t *testing.T) {
 	if !reachedEnd {
 		t.Fatal("didn't reach end of stream")
 	}
+}
+
+var testThread = []slack.Message{
+	{
+		Msg: slack.Msg{
+			Channel:         "CTM1",
+			Timestamp:       "1610000000.000000",
+			ThreadTimestamp: "1610000000.000000",
+			Files: []slack.File{
+				{ID: "FILE_1", Name: "file1"},
+				{ID: "FILE_2", Name: "file2"},
+			},
+		},
+	},
+	{
+		Msg: slack.Msg{
+			Channel:         "CTM1",
+			Timestamp:       "1610000000.000001",
+			ThreadTimestamp: "1610000000.000000",
+			Files: []slack.File{
+				{ID: "FILE_3", Name: "file1"},
+				{ID: "FILE_4", Name: "file2"},
+			},
+		},
+	},
+	{
+		Msg: slack.Msg{
+			Channel:         "CTM1",
+			Timestamp:       "1610000000.000002",
+			ThreadTimestamp: "1610000000.000000",
+			Files: []slack.File{
+				{ID: "FILE_5", Name: "file5"},
+				{ID: "FILE_6", Name: "file6"},
+			},
+		},
+	},
+}
+
+func Test_channelStream_thread(t *testing.T) {
+	lim := limits(&DefOptions.Limits)
+
+	t.Run("all files from messages are collected", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		mc := NewmockClienter(ctrl)
+
+		mc.EXPECT().
+			GetConversationRepliesContext(gomock.Any(), gomock.Any()).Return(testThread, false, "", nil)
+
+		cs := &channelStream{
+			client: mc,
+			limits: lim,
+		}
+		mproc := mock_processor.NewMockConversationer(ctrl)
+		mproc.EXPECT().
+			ThreadMessages(gomock.Any(), "CTM1", testThread[0], testThread[1:]).
+			Return(nil)
+
+		mproc.EXPECT().
+			Files(gomock.Any(), "CTM1", testThread[1], true, testThread[1].Files).
+			Return(nil)
+		mproc.EXPECT().
+			Files(gomock.Any(), "CTM1", testThread[2], true, testThread[2].Files).
+			Return(nil)
+
+		if err := cs.thread(context.Background(), "CTM1", testThread[0].ThreadTimestamp, mproc); err != nil {
+			t.Fatal(err)
+		}
+	})
 }

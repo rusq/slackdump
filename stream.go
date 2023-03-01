@@ -8,11 +8,12 @@ import (
 	"time"
 
 	"github.com/rusq/dlog"
+	"github.com/slack-go/slack"
+	"golang.org/x/time/rate"
+
 	"github.com/rusq/slackdump/v2/internal/chunk/processor"
 	"github.com/rusq/slackdump/v2/internal/network"
 	"github.com/rusq/slackdump/v2/internal/structures"
-	"github.com/slack-go/slack"
-	"golang.org/x/time/rate"
 )
 
 type channelStream struct {
@@ -27,16 +28,20 @@ type rateLimits struct {
 	tier     *Limits
 }
 
-func newChannelStream(cl clienter, limits *Limits, oldest, latest time.Time) *channelStream {
+func limits(l *Limits) rateLimits {
+	return rateLimits{
+		channels: network.NewLimiter(network.Tier3, l.Tier3.Burst, int(l.Tier3.Boost)),
+		threads:  network.NewLimiter(network.Tier3, l.Tier3.Burst, int(l.Tier3.Boost)),
+		tier:     l,
+	}
+}
+
+func newChannelStream(cl clienter, l *Limits, oldest, latest time.Time) *channelStream {
 	cs := &channelStream{
 		oldest: oldest,
 		latest: latest,
 		client: cl,
-		limits: rateLimits{
-			channels: network.NewLimiter(network.Tier3, limits.Tier3.Burst, int(limits.Tier3.Boost)),
-			threads:  network.NewLimiter(network.Tier3, limits.Tier3.Burst, int(limits.Tier3.Boost)),
-			tier:     limits,
-		},
+		limits: limits(l),
 	}
 	return cs
 }
@@ -70,9 +75,7 @@ func (cs *channelStream) channel(ctx context.Context, id string, proc processor.
 
 	cursor := ""
 	for {
-		var (
-			resp *slack.GetConversationHistoryResponse
-		)
+		var resp *slack.GetConversationHistoryResponse
 		if err := network.WithRetry(ctx, cs.limits.channels, cs.limits.tier.Tier3.Retries, func() error {
 			var apiErr error
 			rgn := trace.StartRegion(ctx, "GetConversationHistoryContext")
@@ -152,9 +155,9 @@ func (cs *channelStream) thread(ctx context.Context, id string, threadTS string,
 			return fmt.Errorf("failed to process message id=%s, thread_ts=%s: %w", msgs[0].Msg.ClientMsgID, threadTS, err)
 		}
 		// extract files from thread messages
-		for i := range msgs[1:] {
-			if len(msgs[i].Files) > 0 {
-				if err := proc.Files(ctx, id, msgs[i], true, msgs[i].Files); err != nil {
+		for _, m := range msgs[1:] {
+			if len(m.Files) > 0 {
+				if err := proc.Files(ctx, id, m, true, m.Files); err != nil {
 					return err
 				}
 			}

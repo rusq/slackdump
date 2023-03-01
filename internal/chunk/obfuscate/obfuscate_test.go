@@ -56,13 +56,15 @@ func Test_randomString(t *testing.T) {
 
 func Test_Do(t *testing.T) {
 	var buf bytes.Buffer
-	src := fixtures.ChunksJSONL()
+	src := fixtures.ChunkFileJSONL()
 	if err := Do(context.Background(), &buf, src); err != nil {
 		t.Fatal(err)
 	}
+
+	if _, err := src.Seek(0, io.SeekStart); err != nil {
+		t.Fatal(err)
+	}
 	// reopen
-	src.Close()
-	src = fixtures.ChunksJSONL()
 	srcChunk := unmarshalEvents(src)
 	dstChunk := unmarshalEvents(&buf)
 	if len(srcChunk) != len(dstChunk) {
