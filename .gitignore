@@ -18,12 +18,14 @@
 # IDE
 .idea
 .vscode
+.gonvim
 
 #OS junk
 .DS_Store
 
 # temporary files and the rest of the crap
 *.json
+*.yml
 *.yaml
 json/*
 examples/*
@@ -39,3 +41,14 @@ cmd/sdconv/sdconv
 .env
 *.cache
 *.log
+
+# goreleaser stuff
+dist/
+!.goreleaser.yaml
+!schema.json
+*.jsonl
+*.state
+
+# sundry junk used for testing and other fuckery
+/tmp
+*.dot
