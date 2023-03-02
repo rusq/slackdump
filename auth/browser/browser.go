@@ -5,10 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"net/url"
-	"regexp"
 	"runtime/trace"
-	"strings"
 	"time"
 
 	"github.com/playwright-community/playwright-go"
@@ -98,7 +95,7 @@ func (cl *Client) Authenticate(ctx context.Context) (string, []http.Cookie, erro
 		return "", nil, err
 	}
 
-	token, err := extractToken(r.URL())
+	token, err := extractToken(r)
 	if err != nil {
 		return "", nil, err
 	}
@@ -128,25 +125,6 @@ func (cl *Client) withBrowserGuard(ctx context.Context, fn func()) error {
 	case <-done:
 	}
 	return nil
-}
-
-// tokenRE is the regexp that matches a valid Slack Client token.
-var tokenRE = regexp.MustCompile(`xoxc-[0-9]+-[0-9]+-[0-9]+-[0-9a-z]{64}`)
-
-func extractToken(uri string) (string, error) {
-	p, err := url.Parse(strings.TrimSpace(uri))
-	if err != nil {
-		return "", err
-	}
-	q := p.Query()
-	token := q.Get("token")
-	if token == "" {
-		return "", errors.New("token not found")
-	}
-	if !tokenRE.MatchString(token) {
-		return "", errors.New("invalid token value")
-	}
-	return token, nil
 }
 
 func convertCookies(pwc []playwright.Cookie) []http.Cookie {
