@@ -14,6 +14,7 @@ import (
 	"github.com/slack-go/slack"
 	"golang.org/x/time/rate"
 
+	"github.com/rusq/chttp"
 	"github.com/rusq/slackdump/v2/auth"
 	"github.com/rusq/slackdump/v2/fsadapter"
 	"github.com/rusq/slackdump/v2/internal/network"
@@ -85,7 +86,12 @@ func NewWithOptions(ctx context.Context, authProvider auth.Provider, opts Option
 		return nil, err
 	}
 
-	cl := slack.New(authProvider.SlackToken(), slack.OptionCookieRAW(toPtrCookies(authProvider.Cookies())...))
+	httpCl, err := chttp.New("https://slack.com", authProvider.Cookies())
+	if err != nil {
+		return nil, err
+	}
+
+	cl := slack.New(authProvider.SlackToken(), slack.OptionHTTPClient(httpCl))
 
 	authTestResp, err := cl.AuthTestContext(ctx)
 	if err != nil {
@@ -123,12 +129,16 @@ func TestAuth(ctx context.Context, provider auth.Provider) error {
 	ctx, task := trace.NewTask(ctx, "TestAuth")
 	defer task.End()
 
-	cl := slack.New(provider.SlackToken(), slack.OptionCookieRAW(toPtrCookies(provider.Cookies())...))
+	httpCl, err := chttp.New("https://slack.com", provider.Cookies())
+	if err != nil {
+		return err
+	}
+
+	cl := slack.New(provider.SlackToken(), slack.OptionHTTPClient(httpCl))
 
 	region := trace.StartRegion(ctx, "AuthTestContext")
 	defer region.End()
-	_, err := cl.AuthTestContext(ctx)
-	if err != nil {
+	if _, err := cl.AuthTestContext(ctx); err != nil {
 		return &AuthError{Err: err}
 	}
 	return nil

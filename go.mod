@@ -10,6 +10,7 @@ require (
 	github.com/golang/mock v1.6.0
 	github.com/joho/godotenv v1.4.0
 	github.com/playwright-community/playwright-go v0.2000.1
+	github.com/rusq/chttp v1.0.1
 	github.com/rusq/dlog v1.3.3
 	github.com/rusq/osenv/v2 v2.0.1
 	github.com/rusq/secure v0.0.4
@@ -17,7 +18,6 @@ require (
 	github.com/schollz/progressbar/v3 v3.8.6
 	github.com/slack-go/slack v0.11.0
 	github.com/stretchr/testify v1.7.1
-	golang.org/x/net v0.7.0
 	golang.org/x/time v0.0.0-20220922220347-f3bd1da661af
 )
 
@@ -35,6 +35,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rivo/uniseg v0.3.1 // indirect
 	golang.org/x/crypto v0.0.0-20221012134737-56aed061732a // indirect
+	golang.org/x/net v0.7.0 // indirect
 	golang.org/x/sys v0.5.0 // indirect
 	golang.org/x/term v0.5.0 // indirect
 	golang.org/x/text v0.7.0 // indirect

@@ -12,8 +12,8 @@ import (
 	"net/url"
 	"os"
 
+	"github.com/rusq/chttp"
 	"github.com/rusq/slackdump/v2/internal/app"
-	"github.com/rusq/slackdump/v2/internal/chttp"
 	"github.com/rusq/slackdump/v2/internal/structures"
 )
 
@@ -72,7 +72,10 @@ func run(ctx context.Context, p params) error {
 	if err != nil {
 		return err
 	}
-	cl := chttp.New(domain, chttp.ConvertCookies(prov.Cookies()), chttp.NewTransport(nil))
+	cl, err := chttp.New(domain, prov.Cookies())
+	if err != nil {
+		return err
+	}
 	if err := saveOutput(ctx, cl, p.output, prov.SlackToken(), sl); err != nil {
 		return err
 	}
