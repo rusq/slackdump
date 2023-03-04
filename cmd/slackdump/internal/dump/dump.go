@@ -23,8 +23,8 @@ import (
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/fetch"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v2/internal/app/config"
-	"github.com/rusq/slackdump/v2/internal/app/nametmpl"
 	"github.com/rusq/slackdump/v2/internal/chunk/state"
+	"github.com/rusq/slackdump/v2/internal/nametmpl"
 	"github.com/rusq/slackdump/v2/internal/structures"
 	"github.com/rusq/slackdump/v2/internal/transform"
 	"github.com/rusq/slackdump/v2/types"
@@ -32,8 +32,6 @@ import (
 
 //go:embed assets/list_conversation.md
 var dumpMd string
-
-const codeBlock = "```"
 
 // CmdDump is the dump command.
 var CmdDump = &base.Command{

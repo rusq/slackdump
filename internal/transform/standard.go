@@ -143,7 +143,7 @@ func (s *Standard) conversation(pl *chunk.Player, st *state.State, basePath stri
 }
 
 func (s *Standard) transferFiles(st *state.State, basePath string, mm []types.Message, ch string) error {
-	if st == nil {
+	if st == nil || len(st.Files) == 0 {
 		return nil // nothing to do
 	}
 	for i := range mm {
