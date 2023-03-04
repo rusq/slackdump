@@ -8,7 +8,6 @@ package obfuscate
 import (
 	"context"
 	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"hash"
 	"io"
@@ -80,7 +79,7 @@ type obfuscator struct {
 }
 
 func (o obfuscator) Chunk(c *chunk.Chunk) {
-	c.ChannelID = o.ID("C", c.ChannelID)
+	c.ChannelID = o.ChannelID(c.ChannelID)
 	switch c.Type {
 	case chunk.CMessages:
 		o.Messages(c.Messages...)
@@ -105,7 +104,7 @@ func (o obfuscator) Messages(m ...slack.Message) {
 	}
 }
 
-const filePrefix = "https://files.slack.com/"
+const fileURLPrefix = "https://files.slack.com/"
 
 func notNilFn(s string, fn func(string) string) string {
 	if s != "" {
@@ -119,14 +118,14 @@ func (o obfuscator) OneMessage(m *slack.Message) {
 		return
 	}
 	m.ClientMsgID = notNilFn(m.ClientMsgID, func(s string) string { return randomUUID() })
-	m.Team = o.ID("T", m.Team)
-	m.Channel = o.ID("C", m.Channel)
-	m.User = o.ID("U", m.User)
+	m.Team = o.TeamID(m.Team)
+	m.Channel = o.UserID(m.Channel)
+	m.User = o.UserID(m.User)
 	if m.Text != "" {
 		m.Text = randomString(len(m.Text))
 	}
 	if m.Edited != nil {
-		m.Edited.User = o.ID("U", m.Edited.User)
+		m.Edited.User = o.UserID(m.Edited.User)
 	}
 	if len(m.Blocks.BlockSet) > 0 {
 		m.Blocks.BlockSet = nil // too much hassle to obfuscate
@@ -138,7 +137,7 @@ func (o obfuscator) OneMessage(m *slack.Message) {
 		m.Attachments = nil // too much hassle to obfuscate
 	}
 	if m.ParentUserId != "" {
-		m.ParentUserId = o.ID("U", m.ParentUserId)
+		m.ParentUserId = o.UserID(m.ParentUserId)
 	}
 	for i := range m.Files {
 		o.OneFile(&m.Files[i])
@@ -157,8 +156,8 @@ func (o obfuscator) OneFile(f *slack.File) {
 	}
 	ifnotnil := func(s string) string {
 		if s != "" {
-			if strings.HasPrefix(s, filePrefix) {
-				s = filePrefix + randomString(len(s)-len(filePrefix))
+			if strings.HasPrefix(s, fileURLPrefix) {
+				s = fileURLPrefix + randomString(len(s)-len(fileURLPrefix))
 			} else {
 				s = randomString(len(s))
 			}
@@ -198,8 +197,8 @@ func (o obfuscator) OneFile(f *slack.File) {
 	f.OriginalW = 0
 	f.OriginalH = 0
 	f.InitialComment = slack.Comment{}
-	f.User = o.ID("U", f.User)
-	f.ID = o.ID("F", f.ID)
+	f.User = o.UserID(f.User)
+	f.ID = o.FileID(f.ID)
 }
 
 // randomString returns a random string of length n + random number [0,40).
@@ -241,23 +240,11 @@ func randomUUID() string {
 	return string(b)
 }
 
-// ID obfuscates an ID.
-func (o obfuscator) ID(prefix string, id string) string {
-	if id == "" {
-		return ""
-	}
-	h := o.hasher()
-	if _, err := h.Write([]byte(o.salt + id)); err != nil {
-		panic(err)
-	}
-	return prefix + strings.ToUpper(hex.EncodeToString(h.Sum(nil)))[:len(id)-1]
-}
-
 func (o obfuscator) Reactions(r []slack.ItemReaction) {
 	for i := range r {
 		r[i].Name = randomStringExact(len(r[i].Name))
 		for j := range r[i].Users {
-			r[i].Users[j] = o.ID("U", r[i].Users[j])
+			r[i].Users[j] = o.UserID(r[i].Users[j])
 		}
 	}
 }
@@ -266,13 +253,18 @@ func (o obfuscator) Channel(c *slack.Channel) {
 	if c == nil {
 		return
 	}
-	c.ID = o.ID("C", c.ID)
-	c.Creator = o.ID("U", c.Creator)
+	c.ID = o.ChannelID(c.ID)
+	c.Creator = o.UserID(c.Creator)
 	c.Name = o.ID("", c.Name)
 	c.NameNormalized = o.ID("", c.NameNormalized)
+
 	c.Purpose.Value = randomStringExact(len(c.Purpose.Value))
+	c.Purpose.Creator = o.UserID(c.Purpose.Creator)
+
 	c.Topic.Value = randomStringExact(len(c.Topic.Value))
+	c.Topic.Creator = o.UserID(c.Topic.Creator)
+
 	for i := range c.Members {
-		c.Members[i] = o.ID("U", c.Members[i])
+		c.Members[i] = o.UserID(c.Members[i])
 	}
 }

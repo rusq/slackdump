@@ -141,10 +141,10 @@ func Test_obfuscator_OneMessage(t *testing.T) {
 					ClientMsgID: "a29ab0f5-808b-bc8e-f22e-b4ac1a00fcd4",
 					Type:        "message",
 					Channel:     "",
-					User:        "U8EEA06E1",
+					User:        userPrefix + "8EEA06E1",
 					Text:        "9 LVwGabEN7FkWNmyD0HtOdvcYYvfHfF hVA6Nd1BtVOw52BH40tQ4xsZr1rbOE",
 					Timestamp:   "1645095505.023899",
-					Team:        "TEBC93378",
+					Team:        teamPrefix + "EBC93378",
 				},
 			},
 		},
@@ -199,7 +199,7 @@ func Test_obfuscator_OneFile(t *testing.T) {
 				f: fixtures.Load[*slack.File](fixtures.FileJPEG),
 			},
 			wantFile: &slack.File{
-				ID:                 "F8B5BAA15C4",
+				ID:                 filePrefix + "8B5BAA15C4",
 				Created:            1638784624,
 				Timestamp:          1638784624,
 				Name:               "N1CIe93m6sjyQtxxQ",
@@ -207,7 +207,7 @@ func Test_obfuscator_OneFile(t *testing.T) {
 				Mimetype:           "image/jpeg",
 				Filetype:           "jpg",
 				PrettyType:         "JPEG",
-				User:               "U8EEA06E1",
+				User:               userPrefix + "8EEA06E1",
 				Mode:               "hosted",
 				Size:               359002,
 				URLPrivate:         "https://files.slack.com/jXUJR9JT5pul5g8MDbK7E1ycTwBhzdJG9 LVwGabEN7FkWNmyD0HtOdvcYYvfHfF hVA6Nd1BtVOw52BH40tQ4xsZr1rbOEdndtLrooKH5L9GzLgWmmWfVTBKfSvym98qEQMYaWdLEKrJCEXzYB2bFiOLzhK",
@@ -246,10 +246,12 @@ var testChan = &slack.Channel{
 		IsArchived: false,
 		Creator:    "U024BE7LH",
 		Topic: slack.Topic{
-			Value: "Fun times",
+			Value:   "Fun times",
+			Creator: "U024BE7LV",
 		},
 		Purpose: slack.Purpose{
-			Value: "A place for non-work-related flimflam.",
+			Value:   "A place for non-work-related flimflam.",
+			Creator: "U024BE7LH",
 		},
 		Conversation: slack.Conversation{
 			ID:      "C0G9QF9GW",
@@ -287,15 +289,17 @@ func Test_obfuscator_Channel(t *testing.T) {
 				GroupConversation: slack.GroupConversation{
 					Name:       "55D55",
 					IsArchived: false,
-					Creator:    "UF209DFAC",
+					Creator:    userPrefix + "F209DFAC",
 					Topic: slack.Topic{
-						Value: "GabEN7FkW",
+						Value:   "GabEN7FkW",
+						Creator: userPrefix + "0077C5B4",
 					},
 					Purpose: slack.Purpose{
-						Value: "2jXUJR9JT5pul5g8MDbK7E1ycTwBhzdJG9 LVw",
+						Value:   "2jXUJR9JT5pul5g8MDbK7E1ycTwBhzdJG9 LVw",
+						Creator: userPrefix + "F209DFAC",
 					},
 					Conversation: slack.Conversation{
-						ID:      "C0250C11A",
+						ID:      chanPrefix + "0250C11A",
 						IsGroup: false,
 						Created: 1449252882,
 					},
