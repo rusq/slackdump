@@ -6,12 +6,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"net/http/httptest"
 	"runtime/trace"
 	"strconv"
 
+	"github.com/rusq/dlog"
 	"github.com/rusq/slackdump/v2/internal/chunk"
 	"github.com/slack-go/slack"
 )
@@ -52,10 +52,12 @@ type responseMetaData struct {
 
 func router(p *chunk.Player) *http.ServeMux {
 	mux := http.NewServeMux()
+	mux.HandleFunc("/api/conversations.info", handleConversationsInfo(p))
 	mux.HandleFunc("/api/conversations.history", handleConversationsHistory(p))
 	mux.HandleFunc("/api/conversations.replies", handleConversationsReplies(p))
 	return mux
 }
+
 func handleConversationsHistory(p *chunk.Player) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		_, task := trace.NewTask(r.Context(), "conversation.history")
@@ -66,7 +68,7 @@ func handleConversationsHistory(p *chunk.Player) http.HandlerFunc {
 			http.NotFound(w, r)
 			return
 		}
-		log.Printf("channel: %s", channel)
+		dlog.Printf("channel: %s", channel)
 
 		msg, err := p.Messages(channel)
 		if err != nil {
@@ -110,7 +112,7 @@ func handleConversationsReplies(p *chunk.Player) http.HandlerFunc {
 
 		timestamp := r.FormValue("ts")
 		channel := r.FormValue("channel")
-		log.Printf("channel: %s, ts: %s", channel, timestamp)
+		dlog.Printf("channel: %s, ts: %s", channel, timestamp)
 
 		if timestamp == "" {
 			http.Error(w, "ts is required", http.StatusBadRequest)
@@ -134,6 +136,52 @@ func handleConversationsReplies(p *chunk.Player) http.HandlerFunc {
 			Messages:         msg,
 			ResponseMetaData: responseMetaData{strconv.FormatInt(p.Offset(), 10)}, // adding offset for the ease of debugging.
 			SlackResponse:    slackResp,
+		}
+		if err := json.NewEncoder(w).Encode(resp); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+}
+
+type channelResponseFull struct {
+	Channel      slack.Channel `json:"channel"`
+	Purpose      string        `json:"purpose"`
+	Topic        string        `json:"topic"`
+	NotInChannel bool          `json:"not_in_channel"`
+	slack.History
+	slack.SlackResponse
+	Metadata slack.ResponseMetadata `json:"response_metadata"`
+}
+
+func handleConversationsInfo(p *chunk.Player) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		_, task := trace.NewTask(r.Context(), "conversation.info")
+		defer task.End()
+
+		channel := r.FormValue("channel")
+		if channel == "" {
+			http.Error(w, "channel is required", http.StatusBadRequest)
+			return
+		}
+		dlog.Printf("channel: %s", channel)
+		ci, err := p.ChannelInfo(channel)
+		if err != nil {
+			if errors.Is(err, chunk.ErrNotFound) {
+				dlog.Printf("conversationInfo: not found: (%q) %v", channel, err)
+				http.NotFound(w, r)
+				return
+			}
+			dlog.Printf("conversationInfo: error: %v", err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		resp := channelResponseFull{
+			SlackResponse: slack.SlackResponse{
+				Ok: true,
+			},
+			Channel: *ci,
 		}
 		if err := json.NewEncoder(w).Encode(resp); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)

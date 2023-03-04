@@ -22,13 +22,15 @@ const (
 
 // Conversation keeps the slice of messages.
 type Conversation struct {
-	Name     string    `json:"name"`
-	Messages []Message `json:"messages"`
 	// ID is the channel ID.
 	ID string `json:"channel_id"`
 	// ThreadTS is a thread timestamp.  If it's not empty, it means that it's a
 	// dump of a thread, not a channel.
 	ThreadTS string `json:"thread_ts,omitempty"`
+	// Name is the channel name.
+	Name string `json:"name"`
+	// Messages is a slice of messages.
+	Messages []Message `json:"messages"`
 }
 
 func (c Conversation) String() string {
@@ -38,6 +40,7 @@ func (c Conversation) String() string {
 	return c.ID + "-" + c.ThreadTS
 }
 
+// IsThread returns true if the conversation is a thread.
 func (c Conversation) IsThread() bool {
 	return c.ThreadTS != ""
 }
@@ -83,7 +86,7 @@ func generateText(w io.Writer, m []Message, prefix string, userIdx structures.Us
 
 // UserIDs returns a slice of user IDs.
 func (c Conversation) UserIDs() []string {
-	var seen = make(map[string]bool, len(c.Messages))
+	seen := make(map[string]bool, len(c.Messages))
 	for _, m := range c.Messages {
 		if seen[m.User] {
 			continue

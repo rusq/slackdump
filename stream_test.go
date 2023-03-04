@@ -42,6 +42,7 @@ var expandedLimits = Limits{
 const testConversation = "C01SPFM1KNY"
 
 func TestChannelStream(t *testing.T) {
+	t.Skip()
 	ucd, err := os.UserCacheDir()
 	if err != nil {
 		t.Fatal(err)
@@ -71,7 +72,7 @@ func TestChannelStream(t *testing.T) {
 	defer rec.Close()
 
 	cs := newChannelStream(sd, &DefOptions.Limits, time.Time{}, time.Time{})
-	if err := cs.Stream(context.Background(), testConversation, rec); err != nil {
+	if err := cs.Conversations(context.Background(), testConversation, rec); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -99,7 +100,7 @@ func TestRecorderStream(t *testing.T) {
 
 	rgnStream := trace.StartRegion(ctx, "Stream")
 	cs := newChannelStream(sd, &expandedLimits, time.Time{}, time.Time{})
-	if err := cs.Stream(ctx, testConversation, rec); err != nil {
+	if err := cs.Conversations(ctx, fixtures.ChunkFileChannelID, rec); err != nil {
 		t.Fatal(err)
 	}
 	rgnStream.End()

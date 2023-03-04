@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync/atomic"
 
@@ -263,11 +264,20 @@ func (p *Player) AllThreadMessages(channelID, threadTS string) ([]slack.Message,
 
 // AllChannels returns all the channels in the chunkfile.
 func (p *Player) AllChannels() []string {
-	var ids []string
+	var ids = make([]string, 0, 1)
 	for id := range p.idx {
-		if !strings.Contains(id, ":") {
+		if !strings.Contains(id, ":") && !strings.HasPrefix(id, "ci") {
 			ids = append(ids, id)
 		}
 	}
+	sort.Strings(ids)
 	return ids
+}
+
+func (p *Player) ChannelInfo(id string) (*slack.Channel, error) {
+	chunk, err := p.tryGetChunk(channelID(id, false))
+	if err != nil {
+		return nil, err
+	}
+	return chunk.Channel, nil
 }

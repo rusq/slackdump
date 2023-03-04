@@ -48,7 +48,6 @@ func (s *Standard) Transform(ctx context.Context, st *state.State, basePath stri
 	if err != nil {
 		return err
 	}
-
 	allCh := pl.AllChannels()
 	for _, ch := range allCh {
 		rgn := trace.StartRegion(ctx, "transform.Standard.Transform: "+ch)
@@ -66,12 +65,17 @@ func (s *Standard) Transform(ctx context.Context, st *state.State, basePath stri
 }
 
 func (s *Standard) conversation(pl *chunk.Player, st *state.State, basePath string, ch string) (*types.Conversation, error) {
+	ci, err := pl.ChannelInfo(ch)
+	if err != nil {
+		return nil, err
+	}
 	mm, err := pl.AllMessages(ch)
 	if err != nil {
 		return nil, err
 	}
 	conv := &types.Conversation{
 		ID:       ch,
+		Name:     ci.Name,
 		Messages: make([]types.Message, 0, len(mm)),
 	}
 	for i := range mm {

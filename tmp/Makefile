@@ -10,5 +10,8 @@ clean: $(FILES)
 	-rm -rf $^ 
 .PHONY: clean
 
-backup: $(FILES)
-	7z a backup/backup.7z $^
+backup/backup.7z: $(FILES)
+	7z a $@ $^
+
+backup: backup/backup.7z
+.PHONY: backup

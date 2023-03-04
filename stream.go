@@ -46,8 +46,8 @@ func newChannelStream(cl clienter, l *Limits, oldest, latest time.Time) *channel
 	return cs
 }
 
-func (cs *channelStream) Stream(ctx context.Context, link string, proc processor.Conversationer) error {
-	ctx, task := trace.NewTask(ctx, "Stream")
+func (cs *channelStream) Conversations(ctx context.Context, link string, proc processor.Conversationer) error {
+	ctx, task := trace.NewTask(ctx, "channelStream.Conversations")
 	defer task.End()
 
 	sl, err := structures.ParseLink(link)

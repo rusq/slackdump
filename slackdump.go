@@ -265,5 +265,5 @@ func (s *Session) Stream(ctx context.Context, proc processor.Conversationer, lin
 	defer task.End()
 
 	cs := newChannelStream(s.client, &s.cfg.Limits, oldest, latest)
-	return cs.Stream(ctx, link, proc)
+	return cs.Conversations(ctx, link, proc)
 }
