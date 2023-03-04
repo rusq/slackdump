@@ -25,12 +25,12 @@ func Test_makeCookie(t *testing.T) {
 	tests := []struct {
 		name string
 		args args
-		want http.Cookie
+		want *http.Cookie
 	}{
 		{
 			"values are properly propagated",
 			args{"key", "xoxd-412451%2Babcdef"},
-			http.Cookie{
+			&http.Cookie{
 				Name:    "key",
 				Value:   "xoxd-412451%2Babcdef",
 				Path:    defaultPath,
@@ -42,7 +42,7 @@ func Test_makeCookie(t *testing.T) {
 		{
 			"URL Unsafe values are escaped",
 			args{"key", "xoxd-412451+abcdef"},
-			http.Cookie{
+			&http.Cookie{
 				Name:    "key",
 				Value:   "xoxd-412451%2Babcdef",
 				Path:    defaultPath,
