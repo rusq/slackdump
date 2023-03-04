@@ -16,9 +16,10 @@ import (
 
 var CmdEzTest = &base.Command{
 	Run:       runEzLoginTest,
-	UsageLine: "slack diag eztest",
+	UsageLine: "slack tools eztest",
 	Short:     "EZ-Login 3000 test",
 	Long: `
+# EZ-Login 3000 Test tool
 Eztest attempts to start EZ Login 3000 on the device.
 
 The browser will open, and you will be offered to login to the workspace of your

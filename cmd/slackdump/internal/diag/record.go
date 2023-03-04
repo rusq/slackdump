@@ -17,21 +17,28 @@ import (
 )
 
 var CmdRecord = &base.Command{
-	UsageLine: "slackdump diag record",
+	UsageLine: "slackdump tools record",
 	Short:     "chunk record commands",
 	Commands:  []*base.Command{CmdRecordStream, CmdRecordState},
 }
 
 var CmdRecordStream = &base.Command{
-	UsageLine:   "slackdump diag record stream [options] <channel>",
-	Short:       "dump slack data in a chunk record format",
+	UsageLine: "slackdump tools record stream [options] <channel>",
+	Short:     "dump slack data in a chunk record format",
+	Long: `
+# Record tool
+
+Records the data from a channel in a chunk record format.
+
+See also: slackdump tool obfuscate
+`,
 	FlagMask:    cfg.OmitBaseLocFlag | cfg.OmitDownloadFlag,
 	PrintFlags:  true,
 	RequireAuth: true,
 }
 
 var CmdRecordState = &base.Command{
-	UsageLine:   "slackdump diag record state [options] <record_file.jsonl>",
+	UsageLine:   "slackdump tools record state [options] <record_file.jsonl>",
 	Short:       "print state of the record",
 	FlagMask:    cfg.OmitAll,
 	PrintFlags:  true,

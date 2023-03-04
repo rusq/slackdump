@@ -13,10 +13,14 @@ import (
 // CmdObfuscate is the command to obfuscate sensitive data in a slackdump
 // recording.
 var CmdObfuscate = &base.Command{
-	UsageLine: "slackdump diag obfuscate [options] [file]",
+	UsageLine: "slackdump tools obfuscate [options] [file]",
 	Short:     "obfuscate sensitive data in a slackdump recording",
 	Long: `
-# Diagnostic Command: Obfuscate
+# Obfuscate tool
+
+Obfuscate tool obfuscates sensitive data in a slackdump chunk recording.
+
+To record the chunk, you can run ` + "`slackdump tools record stream`" + `.
 `,
 	CustomFlags: true,
 	PrintFlags:  true,

@@ -13,7 +13,6 @@ import (
 	"os"
 
 	"github.com/rusq/chttp"
-	"github.com/rusq/dlog"
 
 	"github.com/rusq/slackdump/v2/auth"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/cfg"
@@ -24,17 +23,17 @@ import (
 var CmdRawOutput = &base.Command{
 	Run:       nil, // populated by init to break the init cycle
 	Wizard:    func(context.Context, *base.Command, []string) error { panic("not implemented") },
-	UsageLine: "slackdump diag rawoutput [flags] <id>",
+	UsageLine: "slackdump tools rawoutput [flags] <id>",
 	Short:     "record raw API output",
 	Long: `
+# Rawoutput Tool
+
 Rawoutput produces a log file with the raw API output (as received from Slack
 API).
 
 Running this tool may be requested by developers.
 
-<id> is the ID or URL of the workspace, for example "sdump" or 
-https://sdump.slack.com.
-`,
+` + "`id`" + ` is the ID or URL of the workspace (for example ` + "`sdump` or `https://sdump.slack.com`)",
 	CustomFlags: false,
 	FlagMask:    cfg.OmitAll,
 	PrintFlags:  true,
@@ -56,11 +55,8 @@ func init() {
 }
 
 func runRawOutput(ctx context.Context, cmd *base.Command, args []string) error {
-	lg := dlog.FromContext(ctx)
-	lg.SetPrefix("rawoutput ")
-
 	if len(args) == 0 {
-		CmdRawOutput.Flag.Usage()
+		cmd.Flag.Usage()
 		base.SetExitStatus(base.SInvalidParameters)
 		return errors.New("missing ids or channel/thread links")
 	}

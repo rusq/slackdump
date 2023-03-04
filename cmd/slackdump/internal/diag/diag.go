@@ -11,7 +11,9 @@ var CmdDiag = &base.Command{
 	UsageLine: "slackdump tools",
 	Short:     "diagnostic tools",
 	Long: `
-Tool command contains different tools, running which may be requested if you
+# Diagnostic tools
+
+Tools command contains different tools, running which may be requested if you
 open an issue on Github.
 `,
 	CustomFlags: false,
