@@ -16,7 +16,7 @@ require (
 	github.com/rusq/secure v0.0.4
 	github.com/rusq/tracer v1.0.1
 	github.com/schollz/progressbar/v3 v3.8.6
-	github.com/slack-go/slack v0.11.0
+	github.com/slack-go/slack v0.12.1
 	github.com/stretchr/testify v1.7.1
 	golang.org/x/time v0.0.0-20220922220347-f3bd1da661af
 )
@@ -42,5 +42,3 @@ require (
 	gopkg.in/square/go-jose.v2 v2.6.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
-
-replace github.com/slack-go/slack => github.com/rusq/slack v0.12.0
