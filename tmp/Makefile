@@ -1,6 +1,6 @@
 SHELL=/bin/sh
 
-FILES=$(wildcard *.json.gz) $(wildcard *.state) $(wildcard C*) $(wildcard D*) manual
+FILES=$(wildcard *.json.gz) $(wildcard *.state) $(wildcard C*) $(wildcard D*)
 
 restore: $(FILES)
 	7z x backup/backup.7z

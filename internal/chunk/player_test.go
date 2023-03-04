@@ -17,11 +17,11 @@ import (
 
 var testThreads = []Chunk{
 	{
-		Type:            CThreadMessages,
-		Timestamp:       1234567890,
-		ChannelID:       "C1234567890",
-		IsThreadMessage: true,
-		Count:           2,
+		Type:      CThreadMessages,
+		Timestamp: 1234567890,
+		ChannelID: "C1234567890",
+		IsThread:  true,
+		Count:     2,
 		Parent: &slack.Message{
 			Msg: slack.Msg{
 				ThreadTimestamp: "1234567890.123456",
@@ -45,11 +45,11 @@ var testThreads = []Chunk{
 		},
 	},
 	{
-		Type:            CThreadMessages,
-		Timestamp:       1234567891,
-		ChannelID:       "C1234567890",
-		IsThreadMessage: true,
-		Count:           2,
+		Type:      CThreadMessages,
+		Timestamp: 1234567891,
+		ChannelID: "C1234567890",
+		IsThread:  true,
+		Count:     2,
 		Parent: &slack.Message{
 			Msg: slack.Msg{
 				ThreadTimestamp: "1234567890.123458",
@@ -73,11 +73,11 @@ var testThreads = []Chunk{
 		},
 	},
 	{
-		Type:            CThreadMessages,
-		Timestamp:       1234567890,
-		ChannelID:       "C1234567890",
-		IsThreadMessage: true,
-		Count:           2,
+		Type:      CThreadMessages,
+		Timestamp: 1234567890,
+		ChannelID: "C1234567890",
+		IsThread:  true,
+		Count:     2,
 		Parent: &slack.Message{
 			Msg: slack.Msg{
 				ThreadTimestamp: "1234567890.123456",

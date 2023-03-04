@@ -11,11 +11,12 @@ func _() {
 	_ = x[CMessages-0]
 	_ = x[CThreadMessages-1]
 	_ = x[CFiles-2]
+	_ = x[CChannelInfo-3]
 }
 
-const _ChunkType_name = "MessagesThreadMessagesFiles"
+const _ChunkType_name = "MessagesThreadMessagesFilesChannelInfo"
 
-var _ChunkType_index = [...]uint8{0, 8, 22, 27}
+var _ChunkType_index = [...]uint8{0, 8, 22, 27, 38}
 
 func (i ChunkType) String() string {
 	if i < 0 || i >= ChunkType(len(_ChunkType_index)-1) {

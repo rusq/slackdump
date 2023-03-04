@@ -17,6 +17,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/rusq/dlog"
 	"github.com/rusq/slackdump/v2/internal/chunk"
 	"github.com/slack-go/slack"
 )
@@ -64,7 +65,7 @@ func Do(ctx context.Context, w io.Writer, r io.Reader, options ...Option) error 
 			return err
 		}
 		trace.WithRegion(ctx, "obfuscate.Event", func() {
-			obf.Event(&e)
+			obf.Chunk(&e)
 		})
 		if err := enc.Encode(e); err != nil {
 			return err
@@ -78,18 +79,23 @@ type obfuscator struct {
 	salt   string
 }
 
-func (o obfuscator) Event(e *chunk.Chunk) {
-	e.ChannelID = o.ID("C", e.ChannelID)
-	switch e.Type {
+func (o obfuscator) Chunk(c *chunk.Chunk) {
+	c.ChannelID = o.ID("C", c.ChannelID)
+	switch c.Type {
 	case chunk.CMessages:
-		o.Messages(e.Messages...)
+		o.Messages(c.Messages...)
 	case chunk.CThreadMessages:
-		o.OneMessage(e.Parent)
-		o.Messages(e.Messages...)
+		o.OneMessage(c.Parent)
+		o.Messages(c.Messages...)
 	case chunk.CFiles:
-		o.OneMessage(e.Parent)
-		o.Files(e.Files...)
+		o.OneMessage(c.Parent)
+		o.Files(c.Files...)
+	case chunk.CChannelInfo:
+		o.Channel(c.Channel)
+	default:
+		dlog.Panicf("unknown chunk type: %s", c.Type)
 	}
+
 }
 
 // obfuscateManyMessages obfuscates a slice of messages.
@@ -253,5 +259,20 @@ func (o obfuscator) Reactions(r []slack.ItemReaction) {
 		for j := range r[i].Users {
 			r[i].Users[j] = o.ID("U", r[i].Users[j])
 		}
+	}
+}
+
+func (o obfuscator) Channel(c *slack.Channel) {
+	if c == nil {
+		return
+	}
+	c.ID = o.ID("C", c.ID)
+	c.Creator = o.ID("U", c.Creator)
+	c.Name = o.ID("", c.Name)
+	c.NameNormalized = o.ID("", c.NameNormalized)
+	c.Purpose.Value = randomStringExact(len(c.Purpose.Value))
+	c.Topic.Value = randomStringExact(len(c.Topic.Value))
+	for i := range c.Members {
+		c.Members[i] = o.ID("U", c.Members[i])
 	}
 }

@@ -239,3 +239,80 @@ func Test_obfuscator_OneFile(t *testing.T) {
 		})
 	}
 }
+
+var testChan = &slack.Channel{
+	GroupConversation: slack.GroupConversation{
+		Name:       "random",
+		IsArchived: false,
+		Creator:    "U024BE7LH",
+		Topic: slack.Topic{
+			Value: "Fun times",
+		},
+		Purpose: slack.Purpose{
+			Value: "A place for non-work-related flimflam.",
+		},
+		Conversation: slack.Conversation{
+			ID:      "C0G9QF9GW",
+			IsGroup: false,
+			Created: 1449252882,
+		},
+	},
+}
+
+func Test_obfuscator_Channel(t *testing.T) {
+	rand.Seed(0)
+	type fields struct {
+		hasher func() hash.Hash
+		salt   string
+	}
+	type args struct {
+		c *slack.Channel
+	}
+	tests := []struct {
+		name     string
+		fields   fields
+		args     args
+		wantChan *slack.Channel
+	}{
+		{
+			name: "channel",
+			fields: fields{
+				hasher: sha1.New,
+				salt:   "salt",
+			},
+			args: args{
+				c: testChan,
+			},
+			wantChan: &slack.Channel{
+				GroupConversation: slack.GroupConversation{
+					Name:       "55D55",
+					IsArchived: false,
+					Creator:    "UF209DFAC",
+					Topic: slack.Topic{
+						Value: "GabEN7FkW",
+					},
+					Purpose: slack.Purpose{
+						Value: "2jXUJR9JT5pul5g8MDbK7E1ycTwBhzdJG9 LVw",
+					},
+					Conversation: slack.Conversation{
+						ID:      "C0250C11A",
+						IsGroup: false,
+						Created: 1449252882,
+					},
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			o := obfuscator{
+				hasher: tt.fields.hasher,
+				salt:   tt.fields.salt,
+			}
+			o.Channel(tt.args.c)
+			if !assert.Equal(t, tt.wantChan, tt.args.c) {
+				t.Errorf("obfuscator.Channel() = %v, want %v", tt.args.c, tt.wantChan)
+			}
+		})
+	}
+}

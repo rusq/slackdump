@@ -42,7 +42,6 @@ var expandedLimits = Limits{
 const testConversation = "C01SPFM1KNY"
 
 func TestChannelStream(t *testing.T) {
-	t.Skip()
 	ucd, err := os.UserCacheDir()
 	if err != nil {
 		t.Fatal(err)
@@ -67,6 +66,7 @@ func TestChannelStream(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer f.Close()
+
 	rec := chunk.NewRecorder(f)
 	defer rec.Close()
 
@@ -77,25 +77,23 @@ func TestChannelStream(t *testing.T) {
 }
 
 func TestRecorderStream(t *testing.T) {
-	t.Skip()
 	ctx, task := trace.NewTask(context.Background(), "TestRecorderStream")
 	defer task.End()
-	f, err := os.Open("record.jsonl")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer f.Close()
+
+	f := fixtures.ChunkFileJSONL()
+
 	rgnNewSrv := trace.StartRegion(ctx, "NewServer")
 	srv := chunktest.NewServer(f)
 	rgnNewSrv.End()
 	defer srv.Close()
 	sd := slack.New("test", slack.OptionAPIURL(srv.URL+"/api/"))
 
-	w, err := os.Create("replay_record.jsonl")
+	w, err := os.Create(os.DevNull)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer f.Close()
+	defer w.Close()
+
 	rec := chunk.NewRecorder(w)
 	defer rec.Close()
 
@@ -115,7 +113,7 @@ func TestReplay(t *testing.T) {
 
 	reachedEnd := false
 	for i := 0; i < 100_000; i++ {
-		resp, err := sd.GetConversationHistory(&slack.GetConversationHistoryParameters{ChannelID: testConversation})
+		resp, err := sd.GetConversationHistory(&slack.GetConversationHistoryParameters{ChannelID: fixtures.ChunkFileChannelID})
 		if err != nil {
 			t.Fatalf("error on iteration %d: %s", i, err)
 		}

@@ -72,14 +72,14 @@ func TestEvent_ID(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			e := &Chunk{
-				Type:            tt.fields.Type,
-				Timestamp:       tt.fields.TS,
-				ChannelID:       tt.fields.ChannelID,
-				IsThreadMessage: tt.fields.IsThreadMessage,
-				Count:           tt.fields.Size,
-				Parent:          tt.fields.Parent,
-				Messages:        tt.fields.Messages,
-				Files:           tt.fields.Files,
+				Type:      tt.fields.Type,
+				Timestamp: tt.fields.TS,
+				ChannelID: tt.fields.ChannelID,
+				IsThread:  tt.fields.IsThreadMessage,
+				Count:     tt.fields.Size,
+				Parent:    tt.fields.Parent,
+				Messages:  tt.fields.Messages,
+				Files:     tt.fields.Files,
 			}
 			if got := e.ID(); got != tt.want {
 				t.Errorf("Event.ID() = %v, want %v", got, tt.want)

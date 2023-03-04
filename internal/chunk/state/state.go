@@ -48,6 +48,8 @@ type State struct {
 	Threads map[_idAndThread]int64 `json:"threads,omitempty"`
 	// Files is a map of file ID to the channel ID where it was posted.
 	Files map[_id]_id `json:"files,omitempty"`
+	// ChannelInfos contains the list of all channels in the state file.
+	ChannelInfos []string `json:"channel_infos,omitempty"`
 
 	mu sync.RWMutex
 }
@@ -114,6 +116,13 @@ func (s *State) AllFiles(channelID string) []string {
 		}
 	}
 	return files
+}
+
+func (s *State) AddChannel(info string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.ChannelInfos = append(s.ChannelInfos, info)
 }
 
 func (s *State) FilePath(channelID, fileID string) string {

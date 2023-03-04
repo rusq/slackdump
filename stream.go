@@ -58,6 +58,12 @@ func (cs *channelStream) Stream(ctx context.Context, link string, proc processor
 		return errors.New("invalid slack link: " + link)
 	}
 	if sl.IsThread() {
+		// we need to fetch the channel info on this level, because
+		// thread is also being called from the channel, and we don't
+		// want to fetch it every time.
+		if err := cs.channelInfo(ctx, sl.Channel, true, proc); err != nil {
+			return err
+		}
 		if err := cs.thread(ctx, sl.Channel, sl.ThreadTS, proc); err != nil {
 			return err
 		}
@@ -69,10 +75,30 @@ func (cs *channelStream) Stream(ctx context.Context, link string, proc processor
 	return nil
 }
 
+// channelInfo fetches the channel info and passes it to the processor.
+func (cs *channelStream) channelInfo(ctx context.Context, channelID string, isThread bool, proc processor.Conversationer) error {
+	ctx, task := trace.NewTask(ctx, "channelInfo")
+	defer task.End()
+
+	info, err := cs.client.GetConversationInfoContext(ctx, &slack.GetConversationInfoInput{
+		ChannelID: channelID,
+	})
+	if err != nil {
+		return err
+	}
+	if err := proc.ChannelInfo(ctx, info, isThread); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (cs *channelStream) channel(ctx context.Context, id string, proc processor.Conversationer) error {
 	ctx, task := trace.NewTask(ctx, "channel")
 	defer task.End()
 
+	if err := cs.channelInfo(ctx, id, false, proc); err != nil {
+		return err
+	}
 	cursor := ""
 	for {
 		var resp *slack.GetConversationHistoryResponse
@@ -121,7 +147,13 @@ func (cs *channelStream) channel(ctx context.Context, id string, proc processor.
 }
 
 func (cs *channelStream) thread(ctx context.Context, id string, threadTS string, proc processor.Conversationer) error {
-	cursor := ""
+	ctx, task := trace.NewTask(ctx, "thread")
+	defer task.End()
+
+	lg := dlog.FromContext(ctx)
+	lg.Debugf("- getting: thread: id=%s, thread_ts=%s", id, threadTS)
+
+	var cursor string
 	for {
 		var (
 			msgs    []slack.Message
@@ -129,7 +161,7 @@ func (cs *channelStream) thread(ctx context.Context, id string, threadTS string,
 		)
 		if err := network.WithRetry(ctx, cs.limits.threads, cs.limits.tier.Tier3.Retries, func() error {
 			var apiErr error
-			dlog.Debugf("- getting: thread: id=%s, thread_ts=%s, cursor=%s", id, threadTS, cursor)
+			lg.Debugln("-- cursor", cursor)
 			msgs, hasmore, cursor, apiErr = cs.client.GetConversationRepliesContext(ctx, &slack.GetConversationRepliesParameters{
 				ChannelID: id,
 				Timestamp: threadTS,

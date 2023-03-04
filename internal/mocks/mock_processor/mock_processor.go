@@ -35,6 +35,20 @@ func (m *MockConversationer) EXPECT() *MockConversationerMockRecorder {
 	return m.recorder
 }
 
+// ChannelInfo mocks base method.
+func (m *MockConversationer) ChannelInfo(arg0 context.Context, arg1 *slack.Channel, arg2 bool) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ChannelInfo", arg0, arg1, arg2)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// ChannelInfo indicates an expected call of ChannelInfo.
+func (mr *MockConversationerMockRecorder) ChannelInfo(arg0, arg1, arg2 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ChannelInfo", reflect.TypeOf((*MockConversationer)(nil).ChannelInfo), arg0, arg1, arg2)
+}
+
 // Close mocks base method.
 func (m *MockConversationer) Close() error {
 	m.ctrl.T.Helper()

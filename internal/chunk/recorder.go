@@ -97,13 +97,13 @@ func (rec *Recorder) Files(ctx context.Context, channelID string, parent slack.M
 	case err := <-rec.errC:
 		return err
 	case rec.chunks <- Chunk{
-		Type:            CFiles,
-		Timestamp:       time.Now().UnixNano(),
-		ChannelID:       channelID,
-		Parent:          &parent,
-		IsThreadMessage: isThread,
-		Count:           len(f),
-		Files:           f,
+		Type:      CFiles,
+		Timestamp: time.Now().UnixNano(),
+		ChannelID: channelID,
+		Parent:    &parent,
+		IsThread:  isThread,
+		Count:     len(f),
+		Files:     f,
 	}: // ok
 		for i := range f {
 			rec.state.AddFile(channelID, f[i].ID, "")
@@ -119,17 +119,35 @@ func (rec *Recorder) ThreadMessages(ctx context.Context, channelID string, paren
 	case err := <-rec.errC:
 		return err
 	case rec.chunks <- Chunk{
-		Type:            CThreadMessages,
-		Timestamp:       time.Now().UnixNano(),
-		ChannelID:       channelID,
-		Parent:          &parent,
-		IsThreadMessage: true,
-		Count:           len(tm),
-		Messages:        tm,
+		Type:      CThreadMessages,
+		Timestamp: time.Now().UnixNano(),
+		ChannelID: channelID,
+		Parent:    &parent,
+		IsThread:  true,
+		Count:     len(tm),
+		Messages:  tm,
 	}: // ok
 		for i := range tm {
 			rec.state.AddThread(channelID, parent.ThreadTimestamp, tm[i].Timestamp)
 		}
+	}
+	return nil
+}
+
+// isThread should be set to true, if channelinfo is called while streaming a
+// thread (user requested a thread).
+func (rec *Recorder) ChannelInfo(ctx context.Context, channel *slack.Channel, isThread bool) error {
+	select {
+	case err := <-rec.errC:
+		return err
+	case rec.chunks <- Chunk{
+		Type:      CChannelInfo,
+		ChannelID: channel.ID,
+		IsThread:  isThread,
+		Timestamp: time.Now().UnixNano(),
+		Channel:   channel,
+	}: // ok
+		rec.state.AddChannel(channel.ID)
 	}
 	return nil
 }

@@ -11,6 +11,8 @@ import (
 //
 //go:generate mockgen -destination ../../mocks/mock_processor/mock_processor.go github.com/rusq/slackdump/v2/internal/chunk/processor Conversationer
 type Conversationer interface {
+	// ChannelInfo is called for each channel that is retrieved.
+	ChannelInfo(ctx context.Context, ci *slack.Channel, isThread bool) error
 	// Messages is called for each message that is retrieved.
 	Messages(ctx context.Context, channelID string, mm []slack.Message) error
 	// Files is called for each file that is retrieved. The parent message is
