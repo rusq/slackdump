@@ -9,6 +9,7 @@ import (
 
 	"github.com/rusq/dlog"
 	"github.com/rusq/fsadapter"
+	"github.com/slack-go/slack"
 
 	"github.com/rusq/slackdump/v2/internal/chunk"
 	"github.com/rusq/slackdump/v2/internal/chunk/state"
@@ -18,19 +19,53 @@ import (
 )
 
 type Standard struct {
-	fs             fsadapter.FS
-	nameFn         func(*types.Conversation) string
+	// fs is the filesystem to write the transformed data to.
+	fs fsadapter.FS
+	// nameFn returns the filename for a given conversation.
+	nameFn func(*types.Conversation) string
+	// updateFileLink indicates whether the file link should be updated
+	// with the path to the file within the archive/directory.
 	updateFileLink bool
-	seenFiles      map[string]struct{}
+	// seenFiles ensures that if two messages reference the same file
+	// the Files method won't be called twice.
+	seenFiles map[string]struct{}
+}
+
+// StandardOption is a function that configures a Standard transformer.
+type StandardOption func(*Standard)
+
+// WithUpdateFileLink allows to specify whether the file link should be
+// updated with the path to the file within the archive/directory.
+func WithUpdateFileLink(updateFileLink bool) StandardOption {
+	return func(s *Standard) {
+		s.updateFileLink = updateFileLink
+	}
+}
+
+// WithNameFn allows to specify a custom function to generate the filename
+// for the conversation.  By default the conversation ID is used.
+func WithNameFn(nameFn func(*types.Conversation) string) StandardOption {
+	return func(s *Standard) {
+		s.nameFn = nameFn
+	}
 }
 
 // NewStandard returns a new Standard transformer, nameFn should return the
 // filename for a given conversation.  This is the name that the conversation
 // will be written to the filesystem.
-func NewStandard(fs fsadapter.FS, nameFn func(*types.Conversation) string) *Standard {
-	return &Standard{fs: fs, nameFn: nameFn, updateFileLink: true, seenFiles: make(map[string]struct{})}
+func NewStandard(fs fsadapter.FS, opts ...StandardOption) *Standard {
+	s := &Standard{
+		fs:        fs,
+		nameFn:    func(c *types.Conversation) string { return c.ID + ".json" },
+		seenFiles: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(s)
+	}
+	return s
 }
 
+// Transform transforms the state into a set of files.
 func (s *Standard) Transform(ctx context.Context, st *state.State, basePath string) error {
 	ctx, task := trace.NewTask(ctx, "transform.Standard.Transform")
 	defer task.End()
@@ -93,14 +128,14 @@ func (s *Standard) conversation(pl *chunk.Player, st *state.State, basePath stri
 				return nil, err
 			}
 			sdm.ThreadReplies = types.ConvertMsgs(thread)
-			// update the file links, if requested
+			// move the thread files into the archive.
 			if err := s.transferFiles(st, basePath, sdm.ThreadReplies, ch); err != nil {
 				return nil, err
 			}
 		}
 		conv.Messages = append(conv.Messages, sdm)
 	}
-	// update the file links, if requested
+	// move the files of the main conversation into the archive.
 	if err := s.transferFiles(st, basePath, conv.Messages, ch); err != nil {
 		return nil, err
 	}
@@ -108,6 +143,9 @@ func (s *Standard) conversation(pl *chunk.Player, st *state.State, basePath stri
 }
 
 func (s *Standard) transferFiles(st *state.State, basePath string, mm []types.Message, ch string) error {
+	if st == nil {
+		return nil // nothing to do
+	}
 	for i := range mm {
 		if mm[i].Files == nil {
 			continue
@@ -130,16 +168,18 @@ func (s *Standard) transferFiles(st *state.State, basePath string, mm []types.Me
 			}
 			// TODO: simplify this
 			if s.updateFileLink {
-				if err := files.UpdateFileLinksAll(&mm[i].Files[j], func(ptrS *string) error {
-					*ptrS = fsTrgPath
-					return nil
-				}); err != nil {
-					return err
-				}
+				s.updateFilepath(&mm[i].Files[j], fsTrgPath)
 			}
 		}
 	}
 	return nil
+}
+
+func (s *Standard) updateFilepath(m *slack.File, fsTrgPath string) {
+	_ = files.UpdateFileLinksAll(m, func(ptrS *string) error {
+		*ptrS = fsTrgPath
+		return nil
+	})
 }
 
 func (s *Standard) saveConversation(conv *types.Conversation) error {
@@ -151,7 +191,5 @@ func (s *Standard) saveConversation(conv *types.Conversation) error {
 		return err
 	}
 	defer f.Close()
-	enc := json.NewEncoder(f)
-	enc.SetIndent("", "  ")
-	return enc.Encode(conv)
+	return json.NewEncoder(f).Encode(conv)
 }

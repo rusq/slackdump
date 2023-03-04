@@ -26,6 +26,7 @@ import (
 	"github.com/rusq/slackdump/v2/internal/app/nametmpl"
 	"github.com/rusq/slackdump/v2/internal/chunk/state"
 	"github.com/rusq/slackdump/v2/internal/structures"
+	"github.com/rusq/slackdump/v2/internal/transform"
 	"github.com/rusq/slackdump/v2/types"
 )
 
@@ -178,6 +179,8 @@ func reconstruct(ctx context.Context, fsa fsadapter.FS, tmpdir string, namer nam
 	_, task := trace.NewTask(ctx, "reconstruct")
 	defer task.End()
 
+	tf := transform.NewStandard(fsa, transform.WithNameFn(namer.Filename))
+
 	return filepath.WalkDir(tmpdir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -198,14 +201,6 @@ func reconstruct(ctx context.Context, fsa fsadapter.FS, tmpdir string, namer nam
 		}
 
 		dlog.Printf("reconstructing %s", st.Filename)
-		return nil
+		return tf.Transform(ctx, st, tmpdir)
 	})
-}
-
-func dirExists(path string) bool {
-	fi, err := os.Stat(path)
-	if err != nil {
-		return false
-	}
-	return fi.IsDir()
 }

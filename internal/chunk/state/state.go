@@ -118,6 +118,7 @@ func (s *State) AllFiles(channelID string) []string {
 	return files
 }
 
+// AddChannel should be called when a channel is processed.
 func (s *State) AddChannel(info string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -125,6 +126,7 @@ func (s *State) AddChannel(info string) {
 	s.ChannelInfos = append(s.ChannelInfos, info)
 }
 
+// FilePath returns the file path for the given file ID in the given channel.
 func (s *State) FilePath(channelID, fileID string) string {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -168,11 +170,12 @@ func (s *State) HasFile(id string) bool {
 	return has(s.Files, id)
 }
 
-func has[T any](m map[string]T, id string) bool {
+// has returns true if the map contains the given key
+func has[T any](m map[string]T, k string) bool {
 	if m == nil {
 		return false
 	}
-	_, ok := m[id]
+	_, ok := m[k]
 	return ok
 }
 
