@@ -119,13 +119,6 @@ func (cl *Client) Authenticate(ctx context.Context) (string, []*http.Cookie, err
 		return "", nil, err
 	}
 
-	fmt.Println(r.PostData())
-
-	// token, err := extractToken(r.URL())
-	// if err != nil {
-	// 	return "", nil, err
-	// }
-
 	state, err := context.StorageState()
 	if err != nil {
 		return "", nil, err
