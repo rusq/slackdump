@@ -22,7 +22,7 @@ func TestStandard_Transform(t *testing.T) {
 	if err != nil {
 		t.Fatalf("state.Load(): %s", err)
 	}
-	if err := s.Transform(ctx, st, whereTheTempIsAt); err != nil {
+	if err := s.Transform(ctx, whereTheTempIsAt, st); err != nil {
 		t.Fatal(err)
 	}
 }

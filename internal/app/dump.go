@@ -8,7 +8,6 @@ import (
 	"io"
 	"os"
 	"runtime/trace"
-	"text/template"
 	"time"
 
 	"github.com/rusq/fsadapter"
@@ -106,13 +105,13 @@ type dumpFunc func(context.Context, string, time.Time, time.Time, ...slackdump.P
 
 // dumpOneChannel dumps just one channel specified by channelInput.  If
 // generateText is true, it will also generate a ID.txt text file.
-func (app *dump) dumpOne(ctx context.Context, fs fsadapter.FS, filetmpl *template.Template, channelInput string, fn dumpFunc) error {
+func (app *dump) dumpOne(ctx context.Context, fs fsadapter.FS, filetmpl *nametmpl.Template, channelInput string, fn dumpFunc) error {
 	cnv, err := fn(ctx, channelInput, time.Time(app.cfg.Oldest), time.Time(app.cfg.Latest))
 	if err != nil {
 		return err
 	}
 
-	filename, err := nametmpl.ExecuteTemplate(filetmpl, cnv)
+	filename, err := filetmpl.Execute(cnv)
 	if err != nil {
 		return err
 	}

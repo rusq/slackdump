@@ -7,9 +7,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io/fs"
 	"os"
-	"path/filepath"
 	"runtime/trace"
 	"strings"
 	"text/template"
@@ -99,7 +97,7 @@ func RunDump(ctx context.Context, cmd *base.Command, args []string) error {
 	if opts.NameTemplate == "" {
 		opts.NameTemplate = nametmpl.Default
 	}
-	namer, err := newNamer(opts.NameTemplate, "json")
+	tmpl, err := nametmpl.New(opts.NameTemplate + ".json")
 	if err != nil {
 		base.SetExitStatus(base.SUserError)
 		return fmt.Errorf("file template error: %w", err)
@@ -126,14 +124,14 @@ func RunDump(ctx context.Context, cmd *base.Command, args []string) error {
 		DumpFiles: cfg.SlackConfig.DumpFiles,
 	}
 
-	if err := dumpv3(ctx, sess, tmpdir, namer, p); err != nil {
+	if err := dumpv3(ctx, sess, tmpdir, tmpl, p); err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return err
 	}
 	return nil
 }
 
-func dumpv3(ctx context.Context, sess *slackdump.Session, dir string, namer namer, p *fetch.Parameters) error {
+func dumpv3(ctx context.Context, sess *slackdump.Session, dir string, tmpl *nametmpl.Template, p *fetch.Parameters) error {
 	ctx, task := trace.NewTask(ctx, "dumpv3")
 	defer task.End()
 
@@ -145,7 +143,7 @@ func dumpv3(ctx context.Context, sess *slackdump.Session, dir string, namer name
 
 	lg.Printf("using temporary directory:  %s ", dir)
 
-	tf := transform.NewStandard(sess.Filesystem(), transform.WithNameFn(namer.Filename))
+	tf := transform.NewStandard(sess.Filesystem(), transform.WithNameFn(tmpl.Execute))
 	var eg errgroup.Group
 	for _, link := range p.List.Include {
 		lg.Printf("fetching %q", link)
@@ -156,29 +154,45 @@ func dumpv3(ctx context.Context, sess *slackdump.Session, dir string, namer name
 		if err != nil {
 			return err
 		}
-		lg.Printf("transforming %q", link)
-		st, err := state.Load(statefile)
-		if err != nil {
-			return err
-		}
 		eg.Go(func() error {
-			return tf.Transform(ctx, st, dir)
+			return convertChunks(ctx, tf, statefile, dir)
 		})
 	}
-	lg.Printf("waiting for all conversations to be transformed...")
+	lg.Printf("waiting for all conversations to finish conversion...")
 	if err := eg.Wait(); err != nil {
+		return err
+	}
+	return os.RemoveAll(dir)
+}
+
+func convertChunks(ctx context.Context, tf transform.Interface, statefile string, dir string) error {
+	ctx, task := trace.NewTask(ctx, "convert")
+	defer task.End()
+
+	lg := dlog.FromContext(ctx)
+
+	lg.Printf("converting %q", statefile)
+	st, err := state.Load(statefile)
+	if err != nil {
+		return err
+	}
+	if err := tf.Transform(ctx, dir, st); err != nil {
 		return err
 	}
 	return nil
 }
 
-func dumpv2(ctx context.Context, sess *slackdump.Session, list *structures.EntityList, namer namer) error {
+func dumpv2(ctx context.Context, sess *slackdump.Session, list *structures.EntityList, t *nametmpl.Template) error {
 	for _, link := range list.Include {
 		conv, err := sess.Dump(ctx, link, opts.Oldest, opts.Latest)
 		if err != nil {
 			return err
 		}
-		if err := save(ctx, sess.Filesystem(), namer.Filename(conv), conv); err != nil {
+		name, err := t.Execute(conv)
+		if err != nil {
+			return err
+		}
+		if err := save(ctx, sess.Filesystem(), name, conv); err != nil {
 			return err
 		}
 	}
@@ -207,36 +221,4 @@ func HelpDump(cmd *base.Command) string {
 		panic(err)
 	}
 	return buf.String()
-}
-
-// Reconstruct reconstructs the conversation files from the temporary directory
-// with state files and chunk records.
-func Reconstruct(ctx context.Context, fsa fsadapter.FS, tmpdir string, namer namer) error {
-	_, task := trace.NewTask(ctx, "reconstruct")
-	defer task.End()
-
-	tf := transform.NewStandard(fsa, transform.WithNameFn(namer.Filename))
-
-	return filepath.WalkDir(tmpdir, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if d.IsDir() {
-			if path != tmpdir {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		if filepath.Ext(path) != ".state" {
-			return nil
-		}
-
-		st, err := state.Load(path)
-		if err != nil {
-			return fmt.Errorf("failed to load state file: %w", err)
-		}
-
-		dlog.Printf("reconstructing %s", st.Filename)
-		return tf.Transform(ctx, st, tmpdir)
-	})
 }

@@ -13,6 +13,7 @@ import (
 
 	"github.com/rusq/slackdump/v2/internal/chunk"
 	"github.com/rusq/slackdump/v2/internal/chunk/state"
+	"github.com/rusq/slackdump/v2/internal/nametmpl"
 	"github.com/rusq/slackdump/v2/internal/osext"
 	"github.com/rusq/slackdump/v2/internal/structures/files"
 	"github.com/rusq/slackdump/v2/types"
@@ -22,7 +23,7 @@ type Standard struct {
 	// fs is the filesystem to write the transformed data to.
 	fs fsadapter.FS
 	// nameFn returns the filename for a given conversation.
-	nameFn func(*types.Conversation) string
+	nameFn func(*types.Conversation) (string, error)
 	// updateFileLink indicates whether the file link should be updated
 	// with the path to the file within the archive/directory.
 	updateFileLink bool
@@ -44,7 +45,7 @@ func WithUpdateFileLink(updateFileLink bool) StandardOption {
 
 // WithNameFn allows to specify a custom function to generate the filename
 // for the conversation.  By default the conversation ID is used.
-func WithNameFn(nameFn func(*types.Conversation) string) StandardOption {
+func WithNameFn(nameFn func(*types.Conversation) (string, error)) StandardOption {
 	return func(s *Standard) {
 		s.nameFn = nameFn
 	}
@@ -54,9 +55,10 @@ func WithNameFn(nameFn func(*types.Conversation) string) StandardOption {
 // filename for a given conversation.  This is the name that the conversation
 // will be written to the filesystem.
 func NewStandard(fs fsadapter.FS, opts ...StandardOption) *Standard {
+	t := nametmpl.NewDefault()
 	s := &Standard{
 		fs:        fs,
-		nameFn:    func(c *types.Conversation) string { return c.ID + ".json" },
+		nameFn:    t.Execute,
 		seenFiles: make(map[string]struct{}),
 	}
 	for _, opt := range opts {
@@ -66,7 +68,7 @@ func NewStandard(fs fsadapter.FS, opts ...StandardOption) *Standard {
 }
 
 // Transform transforms the state into a set of files.
-func (s *Standard) Transform(ctx context.Context, st *state.State, basePath string) error {
+func (s *Standard) Transform(ctx context.Context, basePath string, st *state.State) error {
 	ctx, task := trace.NewTask(ctx, "transform.Standard.Transform")
 	defer task.End()
 	if st == nil {
@@ -198,7 +200,11 @@ func (s *Standard) saveConversation(conv *types.Conversation) error {
 	if conv == nil {
 		return fmt.Errorf("nil conversation")
 	}
-	f, err := s.fs.Create(s.nameFn(conv))
+	name, err := s.nameFn(conv)
+	if err != nil {
+		return err
+	}
+	f, err := s.fs.Create(name)
 	if err != nil {
 		return err
 	}

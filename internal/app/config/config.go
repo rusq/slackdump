@@ -3,7 +3,6 @@ package config
 import (
 	"errors"
 	"fmt"
-	"text/template"
 
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/export"
@@ -143,8 +142,8 @@ func (p *Params) Validate() error {
 	return nil
 }
 
-func (p *Params) CompileTemplates() (*template.Template, error) {
-	return nametmpl.Compile(p.FilenameTemplate)
+func (p *Params) CompileTemplates() (*nametmpl.Template, error) {
+	return nametmpl.New(p.FilenameTemplate)
 }
 
 // Producer iterates over the list or reads the list from the file and calls
