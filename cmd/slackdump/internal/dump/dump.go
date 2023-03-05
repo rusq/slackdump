@@ -15,6 +15,8 @@ import (
 
 	"github.com/rusq/dlog"
 	"github.com/rusq/fsadapter"
+	"golang.org/x/sync/errgroup"
+
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/auth"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/cfg"
@@ -26,7 +28,6 @@ import (
 	"github.com/rusq/slackdump/v2/internal/structures"
 	"github.com/rusq/slackdump/v2/internal/transform"
 	"github.com/rusq/slackdump/v2/types"
-	"golang.org/x/sync/errgroup"
 )
 
 //go:embed assets/list_conversation.md
@@ -55,6 +56,7 @@ type options struct {
 	Latest       time.Time // Latest is the timestamp of the newest message to fetch.
 	NameTemplate string    // NameTemplate is the template for the output file name.
 	JSONL        bool      // JSONL should be true if the output should be JSONL instead of JSON.
+	Compat       bool      // compatibility mode
 }
 
 var opts options
@@ -68,6 +70,7 @@ func InitDumpFlagset(fs *flag.FlagSet) {
 	fs.Var(ptr(config.TimeValue(opts.Latest)), "to", "timestamp of the newest message to fetch")
 	fs.StringVar(&opts.NameTemplate, "ft", nametmpl.Default, "output file naming template.\n")
 	fs.BoolVar(&opts.JSONL, "jsonl", false, "output JSONL instead of JSON")
+	fs.BoolVar(&opts.Compat, "compat", false, "compatibility mode")
 }
 
 // RunDump is the main entry point for the dump command.
@@ -110,13 +113,27 @@ func RunDump(ctx context.Context, cmd *base.Command, args []string) error {
 	}
 	defer sess.Close()
 
-	tmpdir, err := os.MkdirTemp("", "slackdump-*")
-	if err != nil {
-		base.SetExitStatus(base.SGenericError)
-		return err
+	// leave the compatibility mode to the user, if the new version is playing
+	// tricks.
+	var dumpFn = dumpv3
+	if opts.Compat {
+		dumpFn = dumpv2
 	}
 
-	// Dump conversations.
+	if err := dumpFn(ctx, sess, list, tmpl); err != nil {
+		base.SetExitStatus(base.SApplicationError)
+		return err
+	}
+	return nil
+}
+
+// dumpv2(ctx context.Context, sess *slackdump.Session, list *structures.EntityList, t *nametmpl.Template) error
+func dumpv3(ctx context.Context, sess *slackdump.Session, list *structures.EntityList, t *nametmpl.Template) error {
+	ctx, task := trace.NewTask(ctx, "dumpv3")
+	defer task.End()
+
+	lg := dlog.FromContext(ctx)
+
 	p := &fetch.Parameters{
 		Oldest:    opts.Oldest,
 		Latest:    opts.Latest,
@@ -124,45 +141,33 @@ func RunDump(ctx context.Context, cmd *base.Command, args []string) error {
 		DumpFiles: cfg.SlackConfig.DumpFiles,
 	}
 
-	if err := dumpv3(ctx, sess, tmpdir, tmpl, p); err != nil {
-		base.SetExitStatus(base.SApplicationError)
+	tmpdir, err := os.MkdirTemp("", "slackdump-*")
+	if err != nil {
+		base.SetExitStatus(base.SGenericError)
 		return err
 	}
-	return nil
-}
+	lg.Printf("using temporary directory:  %s ", tmpdir)
 
-func dumpv3(ctx context.Context, sess *slackdump.Session, dir string, tmpl *nametmpl.Template, p *fetch.Parameters) error {
-	ctx, task := trace.NewTask(ctx, "dumpv3")
-	defer task.End()
-
-	if p == nil {
-		trace.Log(ctx, "p", "nil")
-		return errors.New("nil parameters")
-	}
-	lg := dlog.FromContext(ctx)
-
-	lg.Printf("using temporary directory:  %s ", dir)
-
-	tf := transform.NewStandard(sess.Filesystem(), transform.WithNameFn(tmpl.Execute))
+	tf := transform.NewStandard(sess.Filesystem(), transform.WithNameFn(t.Execute))
 	var eg errgroup.Group
 	for _, link := range p.List.Include {
 		lg.Printf("fetching %q", link)
 
 		cr := trace.StartRegion(ctx, "fetch.Conversation")
-		statefile, err := fetch.Conversation(ctx, sess, dir, link, p)
+		statefile, err := fetch.Conversation(ctx, sess, tmpdir, link, p)
 		cr.End()
 		if err != nil {
 			return err
 		}
 		eg.Go(func() error {
-			return convertChunks(ctx, tf, statefile, dir)
+			return convertChunks(ctx, tf, statefile, tmpdir)
 		})
 	}
 	lg.Printf("waiting for all conversations to finish conversion...")
 	if err := eg.Wait(); err != nil {
 		return err
 	}
-	return os.RemoveAll(dir)
+	return os.RemoveAll(tmpdir)
 }
 
 func convertChunks(ctx context.Context, tf transform.Interface, statefile string, dir string) error {
