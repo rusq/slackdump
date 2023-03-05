@@ -69,10 +69,18 @@ func NewStandard(fs fsadapter.FS, opts ...StandardOption) *Standard {
 func (s *Standard) Transform(ctx context.Context, st *state.State, basePath string) error {
 	ctx, task := trace.NewTask(ctx, "transform.Standard.Transform")
 	defer task.End()
-
 	if st == nil {
+		trace.Log(ctx, "state", "nil state")
 		return fmt.Errorf("fatal:  nil state")
 	}
+
+	trace.Logf(ctx, "state", "%v, len(files)=%d", st.ChannelInfos, len(st.Files))
+
+	if !st.IsComplete {
+		trace.Log(ctx, "state", "incomplete state")
+		return fmt.Errorf("state is incomplete, unable to transform the chunk record")
+	}
+
 	rsc, err := st.OpenChunks(basePath)
 	if err != nil {
 		return err
@@ -95,21 +103,24 @@ func (s *Standard) Transform(ctx context.Context, st *state.State, basePath stri
 			return err
 		}
 	}
-
+	// save state file inside the filesystem
+	if err := st.SaveFSA(s.fs, filepath.Join(st.Filename+".state")); err != nil {
+		return err
+	}
 	return nil
 }
 
-func (s *Standard) conversation(pl *chunk.Player, st *state.State, basePath string, ch string) (*types.Conversation, error) {
-	ci, err := pl.ChannelInfo(ch)
+func (s *Standard) conversation(pl *chunk.Player, st *state.State, basePath string, chID string) (*types.Conversation, error) {
+	ci, err := pl.ChannelInfo(chID)
 	if err != nil {
 		return nil, err
 	}
-	mm, err := pl.AllMessages(ch)
+	mm, err := pl.AllMessages(chID)
 	if err != nil {
 		return nil, err
 	}
 	conv := &types.Conversation{
-		ID:       ch,
+		ID:       chID,
 		Name:     ci.Name,
 		Messages: make([]types.Message, 0, len(mm)),
 	}
@@ -123,22 +134,23 @@ func (s *Standard) conversation(pl *chunk.Player, st *state.State, basePath stri
 		sdm.Message = mm[i]
 		if mm[i].ThreadTimestamp != "" {
 			// if there's a thread timestamp, we need to find and add it.
-			thread, err := pl.AllThreadMessages(ch, mm[i].ThreadTimestamp)
+			thread, err := pl.AllThreadMessages(chID, mm[i].ThreadTimestamp)
 			if err != nil {
 				return nil, err
 			}
 			sdm.ThreadReplies = types.ConvertMsgs(thread)
 			// move the thread files into the archive.
-			if err := s.transferFiles(st, basePath, sdm.ThreadReplies, ch); err != nil {
+			if err := s.transferFiles(st, basePath, sdm.ThreadReplies, chID); err != nil {
 				return nil, err
 			}
 		}
 		conv.Messages = append(conv.Messages, sdm)
 	}
 	// move the files of the main conversation into the archive.
-	if err := s.transferFiles(st, basePath, conv.Messages, ch); err != nil {
+	if err := s.transferFiles(st, basePath, conv.Messages, chID); err != nil {
 		return nil, err
 	}
+
 	return conv, nil
 }
 

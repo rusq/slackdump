@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+
+	"github.com/rusq/fsadapter"
 )
 
 const Version = 0.1
@@ -258,6 +260,22 @@ func (s *State) Save(filename string) error {
 	}
 	defer f.Close()
 	return json.NewEncoder(f).Encode(s)
+}
+
+// SaveFSA saves the state to the given file in the filesystem adapter.
+func (s *State) SaveFSA(fsa fsadapter.FS, filename string) error {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	f, err := fsa.Create(filename)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	err = json.NewEncoder(f).Encode(s)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // Load loads the state from the given file.

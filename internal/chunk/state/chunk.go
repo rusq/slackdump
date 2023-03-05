@@ -2,16 +2,25 @@ package state
 
 import (
 	"compress/gzip"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
 )
+
+// State holds the state of a chunk recording. It contains the filename of the
+// chunk recording file, as well as the path to the downloaded files.
+
+var ErrNoChunkFile = errors.New("no linked chunk file")
 
 // OpenChunks attempts to open the chunk file linked in the State. If the
 // chunk is compressed, it will be decompressed and a temporary file will be
 // created. The temporary file will be removed when the OpenChunks is
 // closed.
 func (st *State) OpenChunks(basePath string) (io.ReadSeekCloser, error) {
+	if st.Filename == "" {
+		return nil, ErrNoChunkFile
+	}
 	f, err := os.Open(filepath.Join(basePath, st.Filename))
 	if err != nil {
 		return nil, err

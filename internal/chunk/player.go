@@ -274,6 +274,8 @@ func (p *Player) AllChannels() []string {
 	return ids
 }
 
+// ChannelInfo returns the channel information for the given channel.  It
+// returns an error if the channel is not found within the chunkfile.
 func (p *Player) ChannelInfo(id string) (*slack.Channel, error) {
 	chunk, err := p.tryGetChunk(channelID(id, false))
 	if err != nil {

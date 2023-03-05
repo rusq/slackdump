@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/rusq/dlog"
-	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/internal/chunk/processor"
 	"github.com/rusq/slackdump/v2/internal/structures"
 	"github.com/slack-go/slack"
@@ -23,21 +22,6 @@ type Parameters struct {
 	DumpFiles bool
 }
 
-func Fetch(ctx context.Context, sess *slackdump.Session, dir string, p *Parameters) error {
-	if p == nil {
-		return fmt.Errorf("nil parameters")
-	}
-
-	dlog.Printf("using %s as temporary directory", dir)
-
-	for _, link := range p.List.Include {
-		if err := dumpOne(ctx, sess, dir, link, p); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 type streamer interface {
 	Client() *slack.Client
 	Stream(context.Context, processor.Conversationer, string, time.Time, time.Time) error
@@ -45,12 +29,16 @@ type streamer interface {
 
 var replacer = strings.NewReplacer("/", "-", ":", "-")
 
-func dumpOne(ctx context.Context, sess streamer, dir string, link string, p *Parameters) error {
+// Conversation dumps a single conversation or thread into a directory,
+// returning the name of the state file that was created.  State file contains
+// the information about the filename of the chunk recording file, as well as
+// paths to downloaded files.
+func Conversation(ctx context.Context, sess streamer, dir string, link string, p *Parameters) (string, error) {
 	fileprefix := replacer.Replace(link)
 	var pattern = fmt.Sprintf("%s-*.jsonl.gz", fileprefix)
 	f, err := os.CreateTemp(dir, pattern)
 	if err != nil {
-		return err
+		return "", err
 	}
 	defer f.Close()
 
@@ -59,32 +47,33 @@ func dumpOne(ctx context.Context, sess streamer, dir string, link string, p *Par
 
 	pr, err := processor.NewStandard(ctx, gz, sess.Client(), dir, processor.DumpFiles(p.DumpFiles))
 	if err != nil {
-		return err
+		return "", err
 	}
 	defer pr.Close()
 	state, err := pr.State()
 	if err != nil {
-		return err
+		return "", err
 	}
 	state.SetFilename(filepath.Base(f.Name()))
 	state.SetIsCompressed(true)
 	if p.DumpFiles {
 		state.SetFilesDir(fileprefix)
 	}
+	statefile := filepath.Join(dir, fileprefix+".state")
 	defer func() {
 		// we are deferring this so that it would execute even if the error
 		// has occurred to have a consistent state.
-		if err := state.Save(filepath.Join(dir, fileprefix+".state")); err != nil {
+		if err := state.Save(statefile); err != nil {
 			dlog.Print(err)
 			return
 		}
 	}()
 	if err := sess.Stream(ctx, pr, link, p.Oldest, p.Latest); err != nil {
-		return err
+		return statefile, err
 	}
 	if ctx.Err() != nil {
-		return ctx.Err()
+		return statefile, ctx.Err()
 	}
 	state.SetIsComplete(true)
-	return nil
+	return statefile, nil
 }

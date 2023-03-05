@@ -28,6 +28,7 @@ import (
 	"github.com/rusq/slackdump/v2/internal/structures"
 	"github.com/rusq/slackdump/v2/internal/transform"
 	"github.com/rusq/slackdump/v2/types"
+	"golang.org/x/sync/errgroup"
 )
 
 //go:embed assets/list_conversation.md
@@ -124,12 +125,48 @@ func RunDump(ctx context.Context, cmd *base.Command, args []string) error {
 		List:      list,
 		DumpFiles: cfg.SlackConfig.DumpFiles,
 	}
-	if err := fetch.Fetch(ctx, sess, tmpdir, p); err != nil {
+
+	if err := dumpv3(ctx, sess, tmpdir, namer, p); err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return err
 	}
-	if err := reconstruct(ctx, sess.Filesystem(), tmpdir, namer); err != nil {
-		base.SetExitStatus(base.SApplicationError)
+	return nil
+}
+
+func dumpv3(ctx context.Context, sess *slackdump.Session, dir string, namer namer, p *fetch.Parameters) error {
+	ctx, task := trace.NewTask(ctx, "dumpv3")
+	defer task.End()
+
+	if p == nil {
+		trace.Log(ctx, "p", "nil")
+		return errors.New("nil parameters")
+	}
+	lg := dlog.FromContext(ctx)
+
+	lg.Printf("using temporary directory:  %s ", dir)
+
+	tf := transform.NewStandard(sess.Filesystem(), transform.WithNameFn(namer.Filename))
+	var eg errgroup.Group
+	for _, link := range p.List.Include {
+		lg.Printf("fetching %q", link)
+
+		cr := trace.StartRegion(ctx, "fetch.Conversation")
+		statefile, err := fetch.Conversation(ctx, sess, dir, link, p)
+		cr.End()
+		if err != nil {
+			return err
+		}
+		lg.Printf("transforming %q", link)
+		st, err := state.Load(statefile)
+		if err != nil {
+			return err
+		}
+		eg.Go(func() error {
+			return tf.Transform(ctx, st, dir)
+		})
+	}
+	lg.Printf("waiting for all conversations to be transformed...")
+	if err := eg.Wait(); err != nil {
 		return err
 	}
 	return nil
@@ -141,7 +178,6 @@ func dumpv2(ctx context.Context, sess *slackdump.Session, list *structures.Entit
 		if err != nil {
 			return err
 		}
-
 		if err := save(ctx, sess.Filesystem(), namer.Filename(conv), conv); err != nil {
 			return err
 		}
@@ -173,7 +209,9 @@ func HelpDump(cmd *base.Command) string {
 	return buf.String()
 }
 
-func reconstruct(ctx context.Context, fsa fsadapter.FS, tmpdir string, namer namer) error {
+// Reconstruct reconstructs the conversation files from the temporary directory
+// with state files and chunk records.
+func Reconstruct(ctx context.Context, fsa fsadapter.FS, tmpdir string, namer namer) error {
 	_, task := trace.NewTask(ctx, "reconstruct")
 	defer task.End()
 
