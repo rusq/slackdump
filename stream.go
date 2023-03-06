@@ -16,7 +16,7 @@ import (
 	"github.com/rusq/slackdump/v2/internal/structures"
 )
 
-type channelStream struct {
+type stream struct {
 	oldest, latest time.Time
 	client         clienter
 	limits         rateLimits
@@ -25,6 +25,7 @@ type channelStream struct {
 type rateLimits struct {
 	channels *rate.Limiter
 	threads  *rate.Limiter
+	users    *rate.Limiter
 	tier     *Limits
 }
 
@@ -32,12 +33,13 @@ func limits(l *Limits) rateLimits {
 	return rateLimits{
 		channels: network.NewLimiter(network.Tier3, l.Tier3.Burst, int(l.Tier3.Boost)),
 		threads:  network.NewLimiter(network.Tier3, l.Tier3.Burst, int(l.Tier3.Boost)),
+		users:    network.NewLimiter(network.Tier2, l.Tier2.Burst, int(l.Tier2.Boost)),
 		tier:     l,
 	}
 }
 
-func newChannelStream(cl clienter, l *Limits, oldest, latest time.Time) *channelStream {
-	cs := &channelStream{
+func newChannelStream(cl clienter, l *Limits, oldest, latest time.Time) *stream {
+	cs := &stream{
 		oldest: oldest,
 		latest: latest,
 		client: cl,
@@ -46,7 +48,7 @@ func newChannelStream(cl clienter, l *Limits, oldest, latest time.Time) *channel
 	return cs
 }
 
-func (cs *channelStream) Conversations(ctx context.Context, link string, proc processor.Conversationer) error {
+func (cs *stream) Conversations(ctx context.Context, link string, proc processor.Conversations) error {
 	ctx, task := trace.NewTask(ctx, "channelStream.Conversations")
 	defer task.End()
 
@@ -76,7 +78,7 @@ func (cs *channelStream) Conversations(ctx context.Context, link string, proc pr
 }
 
 // channelInfo fetches the channel info and passes it to the processor.
-func (cs *channelStream) channelInfo(ctx context.Context, channelID string, isThread bool, proc processor.Conversationer) error {
+func (cs *stream) channelInfo(ctx context.Context, channelID string, isThread bool, proc processor.Conversations) error {
 	ctx, task := trace.NewTask(ctx, "channelInfo")
 	defer task.End()
 
@@ -92,7 +94,7 @@ func (cs *channelStream) channelInfo(ctx context.Context, channelID string, isTh
 	return nil
 }
 
-func (cs *channelStream) channel(ctx context.Context, id string, proc processor.Conversationer) error {
+func (cs *stream) channel(ctx context.Context, id string, proc processor.Conversations) error {
 	ctx, task := trace.NewTask(ctx, "channel")
 	defer task.End()
 
@@ -146,7 +148,7 @@ func (cs *channelStream) channel(ctx context.Context, id string, proc processor.
 	return nil
 }
 
-func (cs *channelStream) thread(ctx context.Context, id string, threadTS string, proc processor.Conversationer) error {
+func (cs *stream) thread(ctx context.Context, id string, threadTS string, proc processor.Conversations) error {
 	ctx, task := trace.NewTask(ctx, "thread")
 	defer task.End()
 
@@ -199,4 +201,34 @@ func (cs *channelStream) thread(ctx context.Context, id string, threadTS string,
 		}
 	}
 	return nil
+}
+
+func (cs *stream) Users(ctx context.Context, proc processor.Users) error {
+	ctx, task := trace.NewTask(ctx, "Users")
+	defer task.End()
+
+	ti, err := cs.client.GetTeamInfoContext(ctx)
+	if err != nil {
+		return err
+	}
+	if err := proc.TeamInfo(ctx, ti); err != nil {
+		return err
+	}
+
+	p := cs.client.GetUsersPaginated()
+	var apiErr error
+	for apiErr == nil {
+		if apiErr := network.WithRetry(ctx, cs.limits.users, cs.limits.tier.Tier2.Retries, func() error {
+			var err error
+			p, err = p.Next(ctx)
+			return err
+		}); apiErr != nil {
+			return apiErr
+		}
+		if err := proc.Users(ctx, ti.ID, p.Users); err != nil {
+			return err
+		}
+	}
+
+	return p.Failure(apiErr)
 }

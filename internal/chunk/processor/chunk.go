@@ -6,9 +6,9 @@ import (
 	"github.com/rusq/slackdump/v2/internal/chunk"
 )
 
-// Replay replays the chunks in the reader to the Conversationer in the order
+// Replay replays the chunks in the reader to the Conversation in the order
 // they were recorded.
-func Replay(ctx context.Context, ep *chunk.Player, prc Conversationer) error {
+func Replay(ctx context.Context, ep *chunk.Player, prc Conversations) error {
 	return ep.ForEach(func(ev *chunk.Chunk) error {
 		if ev == nil {
 			return nil
@@ -18,7 +18,7 @@ func Replay(ctx context.Context, ep *chunk.Player, prc Conversationer) error {
 }
 
 // emit emits the chunk to the Conversationer.
-func emit(ctx context.Context, prc Conversationer, ch chunk.Chunk) error {
+func emit(ctx context.Context, prc Conversations, ch chunk.Chunk) error {
 	switch ch.Type {
 	case chunk.CChannelInfo:
 		if err := prc.ChannelInfo(ctx, ch.Channel, ch.IsThread); err != nil {

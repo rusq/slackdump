@@ -24,7 +24,7 @@ type Parameters struct {
 
 type streamer interface {
 	Client() *slack.Client
-	Stream(context.Context, processor.Conversationer, string, time.Time, time.Time) error
+	Stream(context.Context, processor.Conversations, string, time.Time, time.Time) error
 }
 
 var replacer = strings.NewReplacer("/", "-", ":", "-")

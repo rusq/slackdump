@@ -54,8 +54,7 @@ func runExport(ctx context.Context, cmd *base.Command, args []string) error {
 	if cfg.SlackConfig.BaseLocation == "" {
 		return errors.New("use -base to set the base output location")
 	}
-	var err error
-	options.List, err = structures.NewEntityList(args)
+	list, err := structures.NewEntityList(args)
 	if err != nil {
 		return fmt.Errorf("error parsing the entity list: %w", err)
 	}
@@ -65,8 +64,12 @@ func runExport(ctx context.Context, cmd *base.Command, args []string) error {
 		return err
 	}
 
-	lg := dlog.FromContext(ctx)
-	options.Logger = lg
+	return exportV2(ctx, prov, list)
+}
+
+func exportV2(ctx context.Context, prov auth.Provider, list *structures.EntityList) error {
+	options.List = list
+	options.Logger = dlog.FromContext(ctx)
 	sess, err := slackdump.New(ctx, prov, cfg.SlackConfig)
 	if err != nil {
 		return err
@@ -76,3 +79,7 @@ func runExport(ctx context.Context, cmd *base.Command, args []string) error {
 	exp := export.New(sess, options)
 	return exp.Run(ctx)
 }
+
+// func exportV3(ctx context.Context, prov auth.Provider, list *structures.EntityList) error {
+
+// }

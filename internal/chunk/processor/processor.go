@@ -7,10 +7,10 @@ import (
 	"github.com/slack-go/slack"
 )
 
-// Conversationer is the interface for conversation fetching.
+// Conversations is the interface for conversation fetching.
 //
-//go:generate mockgen -destination ../../mocks/mock_processor/mock_processor.go github.com/rusq/slackdump/v2/internal/chunk/processor Conversationer
-type Conversationer interface {
+//go:generate mockgen -destination ../../mocks/mock_processor/mock_processor.go github.com/rusq/slackdump/v2/internal/chunk/processor Conversations,Team,Users,Channels
+type Conversations interface {
 	// ChannelInfo is called for each channel that is retrieved.
 	ChannelInfo(ctx context.Context, ci *slack.Channel, isThread bool) error
 	// Messages is called for each message that is retrieved.
@@ -25,8 +25,16 @@ type Conversationer interface {
 	io.Closer
 }
 
-type Workspacer interface {
+type Team interface {
+	TeamInfo(ctx context.Context, team *slack.TeamInfo) error
+}
+
+type Users interface {
+	Team
 	Users(ctx context.Context, teamID string, users []slack.User) error
+}
+
+type Channels interface {
 	Channels(ctx context.Context, teamID string, channels []slack.Channel) error
 }
 

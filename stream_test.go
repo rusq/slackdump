@@ -175,11 +175,11 @@ func Test_channelStream_thread(t *testing.T) {
 		mc.EXPECT().
 			GetConversationRepliesContext(gomock.Any(), gomock.Any()).Return(testThread, false, "", nil)
 
-		cs := &channelStream{
+		cs := &stream{
 			client: mc,
 			limits: lim,
 		}
-		mproc := mock_processor.NewMockConversationer(ctrl)
+		mproc := mock_processor.NewMockConversations(ctrl)
 		mproc.EXPECT().
 			ThreadMessages(gomock.Any(), "CTM1", testThread[0], testThread[1:]).
 			Return(nil)

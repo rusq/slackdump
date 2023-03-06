@@ -162,3 +162,21 @@ func (mr *mockClienterMockRecorder) GetUsersContext(ctx interface{}, options ...
 	varargs := append([]interface{}{ctx}, options...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUsersContext", reflect.TypeOf((*mockClienter)(nil).GetUsersContext), varargs...)
 }
+
+// GetUsersPaginated mocks base method.
+func (m *mockClienter) GetUsersPaginated(options ...slack.GetUsersOption) slack.UserPagination {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{}
+	for _, a := range options {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "GetUsersPaginated", varargs...)
+	ret0, _ := ret[0].(slack.UserPagination)
+	return ret0
+}
+
+// GetUsersPaginated indicates an expected call of GetUsersPaginated.
+func (mr *mockClienterMockRecorder) GetUsersPaginated(options ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUsersPaginated", reflect.TypeOf((*mockClienter)(nil).GetUsersPaginated), options...)
+}
