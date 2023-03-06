@@ -25,11 +25,14 @@ func TestNew(t *testing.T) {
 		t.Skip("test token not set")
 	}
 
-	au, err := auth.NewValueAuth(testToken, testCookie)
+	prov, err := auth.NewValueAuth(testToken, testCookie)
 	if err != nil {
 		t.Fatal(err)
 	}
-	cl := New(testTeam, au.SlackToken(), au.Cookies())
+	cl, err := New(testTeam, prov.SlackToken(), prov.Cookies())
+	if err != nil {
+		t.Fatal(err)
+	}
 	req := UsersListRequest{
 		Channels: []string{"C6NL0QQSG"},
 		Filter:   "everyone AND NOT bots AND NOT apps",
@@ -54,7 +57,10 @@ func TestGetUsers(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cl := NewWithProvider(testTeam, au)
+	cl, err := NewWithProvider(testTeam, au)
+	if err != nil {
+		t.Fatal(err)
+	}
 	ui, err := cl.GetUsers(context.Background(), []string{"U0LKLSNER", "U03K9GLS2", "U03KMNRQS"})
 	if err != nil {
 		t.Fatal(err)

@@ -5,10 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
-	"regexp"
 	"runtime"
 	"runtime/trace"
 	"strings"
@@ -29,9 +27,7 @@ type Client struct {
 
 var Logger logger.Interface = logger.Default
 
-var (
-	installFn = playwright.Install
-)
+var installFn = playwright.Install
 
 // New create new browser based client.
 func New(workspace string, opts ...Option) (*Client, error) {
@@ -118,7 +114,7 @@ func (cl *Client) Authenticate(ctx context.Context) (string, []*http.Cookie, err
 		return "", nil, err
 	}
 
-	token, err := extractToken(r.URL())
+	token, err := extractToken(r)
 	if err != nil {
 		return "", nil, err
 	}
@@ -135,7 +131,7 @@ func (cl *Client) Authenticate(ctx context.Context) (string, []*http.Cookie, err
 }
 
 func (cl *Client) withBrowserGuard(ctx context.Context, fn func()) error {
-	var done = make(chan struct{})
+	done := make(chan struct{})
 	go func() {
 		defer close(done)
 		fn()
@@ -150,27 +146,8 @@ func (cl *Client) withBrowserGuard(ctx context.Context, fn func()) error {
 	return nil
 }
 
-// tokenRE is the regexp that matches a valid Slack Client token.
-var tokenRE = regexp.MustCompile(`xoxc-[0-9]+-[0-9]+-[0-9]+-[0-9a-z]{64}`)
-
-func extractToken(uri string) (string, error) {
-	p, err := url.Parse(strings.TrimSpace(uri))
-	if err != nil {
-		return "", err
-	}
-	q := p.Query()
-	token := q.Get("token")
-	if token == "" {
-		return "", errors.New("token not found")
-	}
-	if !tokenRE.MatchString(token) {
-		return "", errors.New("invalid token value")
-	}
-	return token, nil
-}
-
 func convertCookies(pwc []playwright.Cookie) []*http.Cookie {
-	var ret = make([]*http.Cookie, 0, len(pwc))
+	ret := make([]*http.Cookie, 0, len(pwc))
 	for _, p := range pwc {
 		ret = append(ret, &http.Cookie{
 			Name:     p.Name,
@@ -268,7 +245,7 @@ func pwIsKnownProblem(path string) error {
 	}
 	// check if the file is executable, and if yes, return an error, because
 	// we wouldn't know what to do.
-	if fi.Mode()&0111 != 0 {
+	if fi.Mode()&0o111 != 0 {
 		return errUnknownProblem
 	}
 	return nil

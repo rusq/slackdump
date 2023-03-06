@@ -17,7 +17,7 @@ import (
 
 	"github.com/golang/mock/gomock"
 
-	"github.com/rusq/slackdump/v2/fsadapter"
+	"github.com/rusq/fsadapter"
 )
 
 type fetchFunc func(ctx context.Context, fsa fsadapter.FS, dir string, name string, uri string) error

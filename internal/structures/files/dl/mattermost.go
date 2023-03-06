@@ -8,9 +8,9 @@ import (
 
 	"github.com/slack-go/slack"
 
+	"github.com/rusq/fsadapter"
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/downloader"
-	"github.com/rusq/slackdump/v2/fsadapter"
 	"github.com/rusq/slackdump/v2/internal/structures/files"
 	"github.com/rusq/slackdump/v2/logger"
 	"github.com/rusq/slackdump/v2/types"
@@ -53,6 +53,7 @@ func (md *Mattermost) ProcessFunc(_ string) slackdump.ProcessFunc {
 			}
 			total++
 			if md.token != "" {
+				// update the file URL if the token is set.
 				return files.Update(msgs, addr, files.UpdateTokenFn(md.token))
 			}
 			return nil

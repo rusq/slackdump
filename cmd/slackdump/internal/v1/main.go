@@ -183,7 +183,11 @@ func run(ctx context.Context, p params) error {
 	ctx, task := trace.NewTask(ctx, "main.run")
 	defer task.End()
 
-	provider, err := cache.InitProvider(ctx, p.appCfg.SlackConfig.CacheDir, "", p.creds)
+	m, err := cache.NewManager(p.appCfg.SlackConfig.CacheDir)
+	if err != nil {
+		return err
+	}
+	provider, err := m.Auth(ctx, cfg.Workspace, p.creds)
 	if err != nil {
 		return err
 	} else {
@@ -327,6 +331,8 @@ func parseCmdLine(args []string) (params, error) {
 	fs.BoolVar(&p.appCfg.ListFlags.Users, "list-users", false, "list users and their IDs. ")
 	// - export
 	fs.StringVar(&p.appCfg.ExportName, "export", "", "`name` of the directory or zip file to export the Slack workspace to."+zipHint)
+	fs.StringVar(&cfg.Workspace, "workspace", "", "name of the Slack workspace to export")
+
 	fs.Var(&p.appCfg.ExportType, "export-type", "set the export type: 'standard' or 'mattermost' (default: standard)")
 	fs.StringVar(&p.appCfg.ExportToken, "export-token", osenv.Secret(envSlackFileToken, ""), "Slack token that will be added to all file URLs, (environment: "+envSlackFileToken+")")
 	// - emoji

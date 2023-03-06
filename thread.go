@@ -2,11 +2,10 @@ package slackdump
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"runtime/trace"
 	"time"
-
-	"errors"
 
 	"github.com/slack-go/slack"
 	"golang.org/x/time/rate"
@@ -20,7 +19,7 @@ type threadFunc func(ctx context.Context, l *rate.Limiter, channelID string, thr
 
 // dumpThreadAsConversation dumps a single thread identified by (channelID,
 // threadTS). Optionally one can provide a number of processFn that will be
-// applied to each chunk of messages returned by a one API call.
+// applied to each chunk of messages returned by one API call.
 func (s *Session) dumpThreadAsConversation(
 	ctx context.Context,
 	sl structures.SlackLink,
@@ -30,7 +29,7 @@ func (s *Session) dumpThreadAsConversation(
 	ctx, task := trace.NewTask(ctx, "DumpThread")
 	defer task.End()
 
-	if !(sl.IsValid() && sl.IsThread()) {
+	if !sl.IsValid() || !sl.IsThread() {
 		return nil, errors.New("internal error: channelID or threadTS are empty")
 	}
 
@@ -72,7 +71,7 @@ func (*Session) populateThreads(
 ) (int, error) {
 	total := 0
 	for i := range msgs {
-		if msgs[i].ThreadTimestamp == "" {
+		if msgs[i].ThreadTimestamp == "" || msgs[i].SubType == "thread_broadcast" {
 			continue
 		}
 		threadMsgs, err := dumpFn(ctx, l, channelID, msgs[i].ThreadTimestamp, oldest, latest)
@@ -135,7 +134,7 @@ func (s *Session) dumpThread(
 			return nil, err
 		}
 		// slack api returns the first message of a thread with every api call:
-		// strip the first message if i > 0 to avoid dupes
+		// strip the first message after the first call to avoid duplicates.
 		if 0 < i && 1 < len(msgs) {
 			msgs = msgs[1:]
 		}

@@ -131,6 +131,7 @@ func (el *EntityList) HasExcludes() bool {
 	return len(el.Exclude) > 0
 }
 
+// IsEmpty returns true if there's no entries in the list.
 func (el *EntityList) IsEmpty() bool {
 	return len(el.Include)+len(el.Exclude) == 0
 }

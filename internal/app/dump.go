@@ -8,14 +8,13 @@ import (
 	"io"
 	"os"
 	"runtime/trace"
-	"strings"
-	"text/template"
 	"time"
 
+	"github.com/rusq/fsadapter"
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/auth"
-	"github.com/rusq/slackdump/v2/fsadapter"
 	"github.com/rusq/slackdump/v2/internal/app/config"
+	"github.com/rusq/slackdump/v2/internal/nametmpl"
 	"github.com/rusq/slackdump/v2/internal/structures"
 	"github.com/rusq/slackdump/v2/logger"
 	"github.com/rusq/slackdump/v2/types"
@@ -104,26 +103,19 @@ func (app *dump) Dump(ctx context.Context) (int, error) {
 
 type dumpFunc func(context.Context, string, time.Time, time.Time, ...slackdump.ProcessFunc) (*types.Conversation, error)
 
-// renderFilename returns the filename that is rendered according to the
-// file naming template.
-func renderFilename(tmpl *template.Template, c *types.Conversation) string {
-	var buf strings.Builder
-	if err := tmpl.ExecuteTemplate(&buf, config.FilenameTmplName, c); err != nil {
-		// this should nevar happen
-		panic(err)
-	}
-	return buf.String()
-}
-
 // dumpOneChannel dumps just one channel specified by channelInput.  If
 // generateText is true, it will also generate a ID.txt text file.
-func (app *dump) dumpOne(ctx context.Context, fs fsadapter.FS, filetmpl *template.Template, channelInput string, fn dumpFunc) error {
+func (app *dump) dumpOne(ctx context.Context, fs fsadapter.FS, filetmpl *nametmpl.Template, channelInput string, fn dumpFunc) error {
 	cnv, err := fn(ctx, channelInput, time.Time(app.cfg.Oldest), time.Time(app.cfg.Latest))
 	if err != nil {
 		return err
 	}
 
-	return app.writeFiles(fs, renderFilename(filetmpl, cnv), cnv)
+	filename, err := filetmpl.Execute(cnv)
+	if err != nil {
+		return err
+	}
+	return app.writeFiles(fs, filename, cnv)
 }
 
 // writeFiles writes the conversation to disk.  If text output is set, it will

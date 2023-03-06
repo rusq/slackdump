@@ -59,7 +59,8 @@ func Test_newLimiter(t *testing.T) {
 			time.Duration(math.Round(60.0/float64(network.Tier3+70)*1000.0)) * time.Millisecond, // 500 msec
 		},
 	}
-	for _, tt := range tests {
+	for _, test := range tests {
+		tt := test
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 

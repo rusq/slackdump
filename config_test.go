@@ -1,7 +1,6 @@
 package slackdump
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -127,7 +126,7 @@ func TestLimits_Validate(t *testing.T) {
 				Tier3:           tt.fields.Tier3,
 				Request:         tt.fields.Request,
 			}
-			tt.wantErr(t, o.Validate(), fmt.Sprintf("Validate()"))
+			tt.wantErr(t, o.Validate(), "Validate()")
 		})
 	}
 }

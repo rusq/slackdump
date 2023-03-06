@@ -19,14 +19,19 @@ type Client struct {
 	token   string
 }
 
-func New(teamID string, token string, cookies []*http.Cookie) *Client {
+func New(teamID string, token string, cookies []*http.Cookie) (*Client, error) {
+	cl, err := chttp.New("https://slack.com", cookies)
+	if err != nil {
+		return nil, err
+	}
 	return &Client{
-		cl:      chttp.Must(chttp.New("https://slack.com", cookies)),
+		cl:      cl,
 		token:   token,
-		apiPath: fmt.Sprintf("https://edgeapi.slack.com/cache/%s/", teamID)}
+		apiPath: fmt.Sprintf("https://edgeapi.slack.com/cache/%s/", teamID),
+	}, nil
 }
 
-func NewWithProvider(teamID string, prov auth.Provider) *Client {
+func NewWithProvider(teamID string, prov auth.Provider) (*Client, error) {
 	return New(teamID, prov.SlackToken(), prov.Cookies())
 }
 

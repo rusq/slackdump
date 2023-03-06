@@ -31,9 +31,29 @@ var tc = types.Conversation{
 	ThreadTS: mPartialOK,
 }
 
+type Template struct {
+	t *template.Template
+}
+
+func New(t string) (*Template, error) {
+	tmpl, err := compile(t)
+	if err != nil {
+		return nil, err
+	}
+	return &Template{tmpl}, nil
+}
+
+func NewDefault() *Template {
+	t, err := New(Default)
+	if err != nil {
+		panic(err)
+	}
+	return t
+}
+
 // Compile checks the template for validness and compiles it returning the
 // template and an error if any.
-func Compile(t string) (*template.Template, error) {
+func compile(t string) (*template.Template, error) {
 	tmpl, err := template.New(filenameTmplName).Parse(t)
 	if err != nil {
 		return nil, err
@@ -53,4 +73,19 @@ func Compile(t string) (*template.Template, error) {
 		return nil, fmt.Errorf("this does not resolve to anything useful: %q", t)
 	}
 	return tmpl, nil
+}
+
+func (t *Template) Execute(c *types.Conversation) (string, error) {
+	var buf strings.Builder
+	if err := t.t.ExecuteTemplate(&buf, filenameTmplName, c); err != nil {
+		return "", err
+	}
+	return buf.String(), nil
+}
+
+func Must(s string, err error) string {
+	if err != nil {
+		panic(err)
+	}
+	return s
 }

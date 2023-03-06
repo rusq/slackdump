@@ -28,7 +28,9 @@ var CmdExport = &base.Command{
 }
 
 var (
-	options export.Config
+	options = export.Config{
+		Type: export.TStandard,
+	}
 )
 
 func init() {

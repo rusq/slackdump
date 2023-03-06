@@ -18,6 +18,7 @@
 # IDE
 .idea
 .vscode
+.gonvim
 
 #OS junk
 .DS_Store
@@ -45,3 +46,9 @@ cmd/sdconv/sdconv
 dist/
 !.goreleaser.yaml
 !schema.json
+*.jsonl
+*.state
+
+# sundry junk used for testing and other fuckery
+/tmp
+*.dot

@@ -23,7 +23,7 @@ var _ = godotenv.Load()
 
 var CmdThread = &base.Command{
 	Run:       nil,
-	UsageLine: "slackutil diag thread [flags]",
+	UsageLine: "slackdump tools thread [flags]",
 	Short:     "thread utilities",
 	Long: `
 Thread is an utility that provides some useful functions for

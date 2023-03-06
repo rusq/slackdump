@@ -3,11 +3,10 @@ package config
 import (
 	"errors"
 	"fmt"
-	"text/template"
 
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/export"
-	"github.com/rusq/slackdump/v2/internal/app/nametmpl"
+	"github.com/rusq/slackdump/v2/internal/nametmpl"
 	"github.com/rusq/slackdump/v2/internal/structures"
 	"github.com/rusq/slackdump/v2/logger"
 )
@@ -15,10 +14,6 @@ import (
 const (
 	OutputTypeJSON = "json"
 	OutputTypeText = "text"
-)
-
-const (
-	FilenameTmplName = "fnt"
 )
 
 // ErrSkip should be returned if the [Producer] should skip the channel.
@@ -147,8 +142,8 @@ func (p *Params) Validate() error {
 	return nil
 }
 
-func (p *Params) CompileTemplates() (*template.Template, error) {
-	return nametmpl.Compile(p.FilenameTemplate)
+func (p *Params) CompileTemplates() (*nametmpl.Template, error) {
+	return nametmpl.New(p.FilenameTemplate)
 }
 
 // Producer iterates over the list or reads the list from the file and calls

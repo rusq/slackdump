@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"runtime/trace"
+	"time"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/slack-go/slack"
@@ -15,8 +16,10 @@ import (
 
 	"github.com/rusq/chttp"
 	"github.com/rusq/dlog"
+
+	"github.com/rusq/fsadapter"
 	"github.com/rusq/slackdump/v2/auth"
-	"github.com/rusq/slackdump/v2/fsadapter"
+	"github.com/rusq/slackdump/v2/internal/chunk/processor"
 	"github.com/rusq/slackdump/v2/internal/network"
 	"github.com/rusq/slackdump/v2/logger"
 	"github.com/rusq/slackdump/v2/types"
@@ -59,10 +62,8 @@ type clienter interface {
 	GetEmojiContext(ctx context.Context) (map[string]string, error)
 }
 
-var (
-	// ErrNoUserCache is returned when the user cache is not initialised.
-	ErrNoUserCache = errors.New("user cache unavailable")
-)
+// ErrNoUserCache is returned when the user cache is not initialised.
+var ErrNoUserCache = errors.New("user cache unavailable")
 
 // AllChanTypes enumerates all API-supported channel types as of 03/2022.
 var AllChanTypes = []string{"mpim", "im", "public_channel", "private_channel"}
@@ -145,7 +146,7 @@ func New(ctx context.Context, prov auth.Provider, cfg Config, opts ...Option) (*
 
 	sd.propagateLogger()
 
-	if err := os.MkdirAll(cfg.CacheDir, 0700); err != nil {
+	if err := os.MkdirAll(cfg.CacheDir, 0o700); err != nil {
 		return nil, fmt.Errorf("failed to create the cache directory: %s", err)
 	}
 
@@ -190,7 +191,7 @@ func (s *Session) openLogger(filename string) error {
 		s.log = logger.Default
 		return nil
 	}
-	f, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0600)
+	f, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0o600)
 	if err != nil {
 		return err
 	}
@@ -227,7 +228,16 @@ func (s *Session) CurrentUserID() string {
 }
 
 func (s *Session) limiter(t network.Tier) *rate.Limiter {
-	return network.NewLimiter(t, s.cfg.Limits.Tier3.Burst, int(s.cfg.Limits.Tier3.Boost))
+	var tl TierLimits
+	switch t {
+	case network.Tier2:
+		tl = s.cfg.Limits.Tier2
+	case network.Tier3:
+		tl = s.cfg.Limits.Tier3
+	default:
+		tl = s.cfg.Limits.Tier3
+	}
+	return network.NewLimiter(t, tl.Burst, int(tl.Boost)) // BUG: tier was always 3, should fix in master too.
 }
 
 // withRetry will run the callback function fn. If the function returns
@@ -247,4 +257,13 @@ func (s *Session) propagateLogger() {
 // so no API call is involved at this point.
 func (s *Session) Info() *WorkspaceInfo {
 	return s.wspInfo
+}
+
+// Stream streams the channel, calling Channeler functions for each chunk.
+func (s *Session) Stream(ctx context.Context, proc processor.Conversationer, link string, oldest, latest time.Time) error {
+	ctx, task := trace.NewTask(ctx, "Stream")
+	defer task.End()
+
+	cs := newChannelStream(s.client, &s.cfg.Limits, oldest, latest)
+	return cs.Conversations(ctx, link, proc)
 }

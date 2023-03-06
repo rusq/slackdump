@@ -8,10 +8,12 @@ import (
 var CmdDiag = &base.Command{
 	Run:       nil,
 	Wizard:    nil,
-	UsageLine: "slackdump diag",
-	Short:     "problem diagnostic tools",
+	UsageLine: "slackdump tools",
+	Short:     "diagnostic tools",
 	Long: `
-Diag contains various diagnostic tool, running which may be requested if you
+# Diagnostic tools
+
+Tools command contains different tools, running which may be requested if you
 open an issue on Github.
 `,
 	CustomFlags: false,
@@ -22,5 +24,7 @@ open an issue on Github.
 		CmdRawOutput,
 		CmdEzTest,
 		CmdThread,
+		CmdObfuscate,
+		CmdRecord,
 	},
 }
