@@ -14,8 +14,8 @@ import (
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/auth"
 	"github.com/rusq/slackdump/v2/internal/app/config"
+	"github.com/rusq/slackdump/v2/internal/format"
 	"github.com/rusq/slackdump/v2/internal/nametmpl"
-	"github.com/rusq/slackdump/v2/internal/structures"
 	"github.com/rusq/slackdump/v2/logger"
 	"github.com/rusq/slackdump/v2/types"
 )
@@ -115,17 +115,17 @@ func (app *dump) dumpOne(ctx context.Context, fs fsadapter.FS, filetmpl *nametmp
 	if err != nil {
 		return err
 	}
-	return app.writeFiles(fs, filename, cnv)
+	return app.writeFiles(ctx, fs, filename, cnv)
 }
 
 // writeFiles writes the conversation to disk.  If text output is set, it will
 // also generate a text file having the same name as JSON file.
-func (app *dump) writeFiles(fs fsadapter.FS, name string, cnv *types.Conversation) error {
+func (app *dump) writeFiles(ctx context.Context, fs fsadapter.FS, name string, cnv *types.Conversation) error {
 	if err := app.writeJSON(fs, name+".json", cnv); err != nil {
 		return err
 	}
 	if app.cfg.Output.IsText() {
-		if err := app.writeText(fs, name+".txt", cnv); err != nil {
+		if err := app.writeText(ctx, fs, name+".txt", cnv); err != nil {
 			return err
 		}
 	}
@@ -147,20 +147,16 @@ func (app *dump) writeJSON(fs fsadapter.FS, filename string, m any) error {
 	return nil
 }
 
-func (app *dump) writeText(fs fsadapter.FS, filename string, m *types.Conversation) error {
+func (app *dump) writeText(ctx context.Context, fs fsadapter.FS, filename string, m *types.Conversation) error {
 	app.log.Printf("generating %s", filename)
 	f, err := fs.Create(filename)
 	if err != nil {
 		return fmt.Errorf("error writing %q: %w", filename, err)
 	}
 	defer f.Close()
+	txt := format.NewText()
 
-	return m.ToText(f, app.sess.Users.IndexByID())
-}
-
-// reporter is an interface defining output functions
-type reporter interface {
-	ToText(w io.Writer, ui structures.UserIndex) error
+	return txt.Conversation(ctx, f, app.sess.Users, m)
 }
 
 // List lists the supported entities, and writes the output to the output
@@ -173,15 +169,28 @@ func (app *dump) List(ctx context.Context) error {
 	defer f.Close()
 
 	app.log.Print("retrieving data...")
-	rep, err := app.fetchEntity(ctx, app.cfg.ListFlags)
-	if err != nil {
-		return err
+
+	var formatter format.Converter = format.NewJSON()
+	if app.cfg.Output.IsText() {
+		formatter = format.NewText()
 	}
 
-	if err := app.formatEntity(f, rep, app.cfg.Output); err != nil {
-		return err
+	switch {
+	case app.cfg.ListFlags.Channels:
+		ch, err := app.sess.GetChannels(ctx)
+		if err != nil {
+			return err
+		}
+		return formatter.Channels(ctx, f, app.sess.Users, ch)
+	case app.cfg.ListFlags.Users:
+		u, err := app.sess.GetUsers(ctx)
+		if err != nil {
+			return err
+		}
+		return formatter.Users(ctx, f, u)
+	default:
+		return errors.New("no valid list flag")
 	}
-	return nil
 }
 
 // createFile creates the file, or opens the Stdout, if the filename is "-".
@@ -192,35 +201,4 @@ func createFile(filename string) (f io.WriteCloser, err error) {
 		return
 	}
 	return os.Create(filename)
-}
-
-// fetchEntity retrieves the data from the API according to the ListFlags.
-func (dm *dump) fetchEntity(ctx context.Context, listFlags config.ListFlags) (rep reporter, err error) {
-	switch {
-	case listFlags.Channels:
-		rep, err = dm.sess.GetChannels(ctx)
-		if err != nil {
-			return
-		}
-	case listFlags.Users:
-		rep, err = dm.sess.GetUsers(ctx)
-		if err != nil {
-			return
-		}
-	default:
-		err = errors.New("nothing to do")
-	}
-	return
-}
-
-// formatEntity formats reporter output as defined in the "Output".
-func (app *dump) formatEntity(w io.Writer, rep reporter, output config.Output) error {
-	switch output.Format {
-	case config.OutputTypeText:
-		return rep.ToText(w, app.sess.Users.IndexByID())
-	case config.OutputTypeJSON:
-		enc := json.NewEncoder(w)
-		return enc.Encode(rep)
-	}
-	return errors.New("invalid output format")
 }

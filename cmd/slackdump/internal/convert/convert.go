@@ -15,10 +15,10 @@ import (
 
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/cfg"
-	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/convert/format"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/workspace"
 	"github.com/rusq/slackdump/v2/internal/cache"
+	"github.com/rusq/slackdump/v2/internal/format"
 	"github.com/rusq/slackdump/v2/types"
 )
 

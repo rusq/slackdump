@@ -15,8 +15,8 @@ import (
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/auth"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/cfg"
-	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/convert/format"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/golang/base"
+	"github.com/rusq/slackdump/v2/internal/format"
 	"github.com/rusq/slackdump/v2/types"
 	"github.com/slack-go/slack"
 )

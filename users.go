@@ -4,9 +4,8 @@ package slackdump
 
 import (
 	"context"
-	"runtime/trace"
-
 	"errors"
+	"runtime/trace"
 
 	"github.com/slack-go/slack"
 

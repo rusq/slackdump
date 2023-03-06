@@ -1,25 +1,5 @@
 package types
 
-import (
-	"bufio"
-	"fmt"
-	"html"
-	"io"
-	"time"
-
-	"github.com/rusq/slackdump/v2/internal/structures"
-)
-
-// time format for text output.
-const textTimeFmt = "02/01/2006 15:04:05 Z0700"
-
-const (
-	// minMsgTimeApart defines the time interval in minutes to separate group
-	// of messages from a single user in the conversation.  This increases the
-	// readability of the text output.
-	minMsgTimeApart = 2 * time.Minute
-)
-
 // Conversation keeps the slice of messages.
 type Conversation struct {
 	// ID is the channel ID.
@@ -43,45 +23,6 @@ func (c Conversation) String() string {
 // IsThread returns true if the conversation is a thread.
 func (c Conversation) IsThread() bool {
 	return c.ThreadTS != ""
-}
-
-// ToText outputs Messages m to io.Writer w in text format.
-func (c Conversation) ToText(w io.Writer, userIdx structures.UserIndex) (err error) {
-	buf := bufio.NewWriter(w)
-	defer buf.Flush()
-
-	return generateText(w, c.Messages, "", userIdx)
-}
-
-func generateText(w io.Writer, m []Message, prefix string, userIdx structures.UserIndex) error {
-	var (
-		prevMsg  Message
-		prevTime time.Time
-	)
-	for _, message := range m {
-		t, err := structures.ParseSlackTS(message.Timestamp)
-		if err != nil {
-			return err
-		}
-		diff := t.Sub(prevTime)
-		if prevMsg.User == message.User && diff < minMsgTimeApart {
-			fmt.Fprintf(w, prefix+"%s\n", message.Text)
-		} else {
-			fmt.Fprintf(w, prefix+"\n"+prefix+"> %s [%s] @ %s:\n%s\n",
-				userIdx.Sender(&message.Message), message.User,
-				t.Format(textTimeFmt),
-				prefix+html.UnescapeString(message.Text),
-			)
-		}
-		if len(message.ThreadReplies) > 0 {
-			if err := generateText(w, message.ThreadReplies, "|   ", userIdx); err != nil {
-				return err
-			}
-		}
-		prevMsg = message
-		prevTime = t
-	}
-	return nil
 }
 
 // UserIDs returns a slice of user IDs.
