@@ -7,7 +7,7 @@ import (
 	"os"
 
 	"github.com/go-playground/validator/v10"
-	"github.com/goccy/go-yaml"
+	"gopkg.in/yaml.v3"
 
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/cfg"
@@ -57,7 +57,8 @@ func Save(filename string, limits slackdump.Limits) error {
 
 func readLimits(r io.Reader) (slackdump.Limits, error) {
 	var limits slackdump.Limits
-	dec := yaml.NewDecoder(r, yaml.DisallowUnknownField(), yaml.DisallowDuplicateKey())
+	dec := yaml.NewDecoder(r)
+	dec.KnownFields(true)
 	if err := dec.Decode(&limits); err != nil {
 		return slackdump.Limits{}, err
 	}
