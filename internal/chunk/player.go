@@ -84,8 +84,8 @@ func (p *Player) Offset() int64 {
 	return p.lastOffset.Load()
 }
 
-// tryGetChunk tries to get the chunk for the given id.  It returns io.EOF if
-// there are no more chunks for the given id.
+// tryGetChunk tries to get the next chunk for the given id.  It returns
+// io.EOF if there are no more chunks for the given id.
 func (p *Player) tryGetChunk(id string) (*Chunk, error) {
 	offsets, ok := p.idx[id]
 	if !ok {
@@ -116,6 +116,39 @@ func (p *Player) tryGetChunk(id string) (*Chunk, error) {
 	return &chunk, nil
 }
 
+// Messages returns the next message chunk for the given channel.
+func (p *Player) Messages(channelID string) ([]slack.Message, error) {
+	chunk, err := p.tryGetChunk(channelID)
+	if err != nil {
+		return nil, err
+	}
+	return chunk.Messages, nil
+}
+
+// Users returns the next users chunk.
+func (p *Player) Users() ([]slack.User, error) {
+	chunk, err := p.tryGetChunk(userChunkID)
+	if err != nil {
+		return nil, err
+	}
+	return chunk.Users, nil
+}
+
+// Channels returns the next channels chunk.
+func (p *Player) Channels() ([]slack.Channel, error) {
+	chunk, err := p.tryGetChunk(channelChunkID)
+	if err != nil {
+		return nil, err
+	}
+	return chunk.Channels, nil
+}
+
+// HasMoreMessages returns true if there are more messages to be read for the
+// channel.
+func (p *Player) HasMoreMessages(channelID string) bool {
+	return p.hasMore(channelID)
+}
+
 // hasMore returns true if there are more chunks for the given id.
 func (p *Player) hasMore(id string) bool {
 	offsets, ok := p.idx[id]
@@ -130,19 +163,16 @@ func (p *Player) hasMore(id string) bool {
 	return ptr < len(offsets)
 }
 
-// Messages returns the messages for the given channel.
-func (p *Player) Messages(channelID string) ([]slack.Message, error) {
-	chunk, err := p.tryGetChunk(channelID)
-	if err != nil {
-		return nil, err
-	}
-	return chunk.Messages, nil
+func (p *Player) HasMoreThreads(channelID string, threadTS string) bool {
+	return p.hasMore(threadID(channelID, threadTS))
 }
 
-// HasMoreMessages returns true if there are more messages to be read for the
-// channel.
-func (p *Player) HasMoreMessages(channelID string) bool {
-	return p.hasMore(channelID)
+func (p *Player) HasMoreChannels() bool {
+	return p.hasMore(channelChunkID)
+}
+
+func (p *Player) HasMoreUsers() bool {
+	return p.hasMore(userChunkID)
 }
 
 // Thread returns the messages for the given thread.
@@ -153,10 +183,6 @@ func (p *Player) Thread(channelID string, threadTS string) ([]slack.Message, err
 		return nil, err
 	}
 	return chunk.Messages, nil
-}
-
-func (p *Player) HasMoreThreads(channelID string, threadTS string) bool {
-	return p.hasMore(threadID(channelID, threadTS))
 }
 
 // Reset resets the state of the Player.

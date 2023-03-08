@@ -12,8 +12,9 @@ import (
 	"strconv"
 
 	"github.com/rusq/dlog"
-	"github.com/rusq/slackdump/v2/internal/chunk"
 	"github.com/slack-go/slack"
+
+	"github.com/rusq/slackdump/v2/internal/chunk"
 )
 
 // Server is a test server for testing the chunk package.
@@ -55,6 +56,8 @@ func router(p *chunk.Player) *http.ServeMux {
 	mux.HandleFunc("/api/conversations.info", handleConversationsInfo(p))
 	mux.HandleFunc("/api/conversations.history", handleConversationsHistory(p))
 	mux.HandleFunc("/api/conversations.replies", handleConversationsReplies(p))
+	mux.HandleFunc("/api/conversations.list", handleConversationsList(p))
+	mux.HandleFunc("/api/users.list", handleUsersList(p))
 	return mux
 }
 
@@ -119,7 +122,7 @@ func handleConversationsReplies(p *chunk.Player) http.HandlerFunc {
 			return
 		}
 
-		var slackResp = slack.SlackResponse{
+		slackResp := slack.SlackResponse{
 			Ok: true,
 		}
 		msg, err := p.Thread(channel, timestamp)
@@ -182,6 +185,83 @@ func handleConversationsInfo(p *chunk.Player) http.HandlerFunc {
 				Ok: true,
 			},
 			Channel: *ci,
+		}
+		if err := json.NewEncoder(w).Encode(resp); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+}
+
+type channelResponse struct {
+	Channels []slack.Channel `json:"channels"`
+	slack.SlackResponse
+	Metadata slack.ResponseMetadata `json:"response_metadata"`
+}
+
+func handleConversationsList(p *chunk.Player) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		_, task := trace.NewTask(r.Context(), "conversation.list")
+		defer task.End()
+
+		c, err := p.Channels()
+		sr := slack.SlackResponse{
+			Ok: true,
+			ResponseMetadata: slack.ResponseMetadata{
+				Cursor: "moar",
+			},
+		}
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				sr.Ok = false
+				sr.ResponseMetadata.Cursor = ""
+			} else {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+		}
+		resp := channelResponse{
+			Channels:      c,
+			SlackResponse: sr,
+		}
+		if err := json.NewEncoder(w).Encode(resp); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+}
+
+type userResponseFull struct {
+	Users   []slack.User `json:"users,omitempty"`
+	User    slack.User   `json:"user,omitempty"`
+	Members []slack.User `json:"members"`
+	slack.SlackResponse
+	slack.UserPresence
+	Metadata slack.ResponseMetadata `json:"response_metadata"`
+}
+
+func handleUsersList(p *chunk.Player) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		_, task := trace.NewTask(r.Context(), "users.list")
+		defer task.End()
+
+		sr := slack.SlackResponse{
+			Ok: true,
+		}
+		u, err := p.Users()
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				sr.Ok = false
+				sr.Error = "pagination complete"
+			} else {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+		}
+
+		resp := userResponseFull{
+			Users:         u,
+			SlackResponse: sr,
 		}
 		if err := json.NewEncoder(w).Encode(resp); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
