@@ -192,7 +192,10 @@ func (p *Player) ForEach(fn func(ev *Chunk) error) error {
 	return nil
 }
 
+// namer is an interface that allows us to get the name of the file.
 type namer interface {
+	// Name should return the name of the file.  *os.File implements this
+	// interface.
 	Name() string
 }
 
@@ -232,26 +235,6 @@ func (p *Player) State() (*state.State, error) {
 	return s, nil
 }
 
-// allMessagesForID returns all the messages for the given id. It will reset
-// the Player prior to execution.
-func (p *Player) allMessagesForID(id string) ([]slack.Message, error) {
-	if err := p.Reset(); err != nil {
-		return nil, err
-	}
-	var m []slack.Message
-	for {
-		chunk, err := p.tryGetChunk(id)
-		if err != nil {
-			if err == io.EOF {
-				break
-			}
-			return nil, err
-		}
-		m = append(m, chunk.Messages...)
-	}
-	return m, nil
-}
-
 // AllMessages returns all the messages for the given channel.
 func (p *Player) AllMessages(channelID string) ([]slack.Message, error) {
 	return p.allMessagesForID(channelID)
@@ -260,6 +243,52 @@ func (p *Player) AllMessages(channelID string) ([]slack.Message, error) {
 // AllThreadMessages returns all the messages for the given thread.
 func (p *Player) AllThreadMessages(channelID, threadTS string) ([]slack.Message, error) {
 	return p.allMessagesForID(threadID(channelID, threadTS))
+}
+
+func (p *Player) AllTeamUsers(teamID string) ([]slack.User, error) {
+	return allForID(p, usersID(teamID), func(c *Chunk) []slack.User {
+		return c.Users
+	})
+}
+
+func (p *Player) AllUsers() (map[string][]slack.User, error) {
+	users := make(map[string][]slack.User)
+	if err := p.ForEach(func(c *Chunk) error {
+		if c.Type != CUsers {
+			return nil
+		}
+		users[c.TeamID] = append(users[c.TeamID], c.Users...)
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+	return users, nil
+}
+
+// allMessagesForID returns all the messages for the given id. It will reset
+// the Player prior to execution.
+func (p *Player) allMessagesForID(id string) ([]slack.Message, error) {
+	return allForID(p, id, func(c *Chunk) []slack.Message {
+		return c.Messages
+	})
+}
+
+func allForID[T any](p *Player, id string, fn func(*Chunk) []T) ([]T, error) {
+	if err := p.Reset(); err != nil {
+		return nil, err
+	}
+	var m []T
+	for {
+		chunk, err := p.tryGetChunk(id)
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return nil, err
+		}
+		m = append(m, fn(chunk)...)
+	}
+	return m, nil
 }
 
 // AllChannels returns all the channels in the chunkfile.
@@ -277,7 +306,7 @@ func (p *Player) AllChannels() []string {
 // ChannelInfo returns the channel information for the given channel.  It
 // returns an error if the channel is not found within the chunkfile.
 func (p *Player) ChannelInfo(id string) (*slack.Channel, error) {
-	chunk, err := p.tryGetChunk(channelID(id, false))
+	chunk, err := p.tryGetChunk(channelInfoID(id, false))
 	if err != nil {
 		return nil, err
 	}

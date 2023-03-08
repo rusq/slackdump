@@ -3,6 +3,7 @@ package chunk
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"time"
 
@@ -142,12 +143,44 @@ func (rec *Recorder) ChannelInfo(ctx context.Context, channel *slack.Channel, is
 		return err
 	case rec.chunks <- Chunk{
 		Type:      CChannelInfo,
+		Timestamp: time.Now().UnixNano(),
 		ChannelID: channel.ID,
 		IsThread:  isThread,
-		Timestamp: time.Now().UnixNano(),
 		Channel:   channel,
 	}: // ok
 		rec.state.AddChannel(channel.ID)
+	}
+	return nil
+}
+
+func (rec *Recorder) Users(ctx context.Context, teamID string, users []slack.User) error {
+	select {
+	case err := <-rec.errC:
+		return err
+	case rec.chunks <- Chunk{
+		Type:      CUsers,
+		Timestamp: time.Now().UnixNano(),
+		TeamID:    teamID,
+		Count:     len(users),
+		Users:     users,
+	}: // ok
+	}
+	return nil
+}
+
+func (rec *Recorder) TeamInfo(ctx context.Context, team *slack.Team) error {
+	if team == nil {
+		return errors.New("team is nil")
+	}
+	select {
+	case err := <-rec.errC:
+		return err
+	case rec.chunks <- Chunk{
+		Type:      CTeamInfo,
+		Timestamp: time.Now().UnixNano(),
+		TeamID:    team.ID,
+		Team:      team,
+	}: // ok
 	}
 	return nil
 }

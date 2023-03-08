@@ -222,7 +222,7 @@ var testChunks = []Chunk{
 	},
 }
 
-func marshalEvents(t *testing.T, v []Chunk) []byte {
+func marshalChunks(t *testing.T, v []Chunk) []byte {
 	t.Helper()
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)
@@ -247,7 +247,7 @@ func Test_indexRecords(t *testing.T) {
 		{
 			name: "single thread",
 			args: args{
-				rs: bytes.NewReader(marshalEvents(t, testThreads)),
+				rs: bytes.NewReader(marshalChunks(t, testThreads)),
 			},
 			want:    testThreadsIndex,
 			wantErr: false,
@@ -268,7 +268,7 @@ func Test_indexRecords(t *testing.T) {
 }
 
 func TestPlayer_Thread(t *testing.T) {
-	data := marshalEvents(t, testThreads)
+	data := marshalChunks(t, testThreads)
 	p := Player{
 		rs:      bytes.NewReader(data),
 		idx:     testThreadsIndex,
@@ -315,7 +315,7 @@ func TestPlayer_FileState(t *testing.T) {
 		{
 			name: "single thread",
 			fields: fields{
-				rs: bytes.NewReader(marshalEvents(t, testThreads)),
+				rs: bytes.NewReader(marshalChunks(t, testThreads)),
 			},
 			want: &state.State{
 				Version:  state.Version,
@@ -362,7 +362,7 @@ func TestPlayer_AllChannels(t *testing.T) {
 		{
 			name: "ok",
 			fields: fields{
-				rs: bytes.NewReader(marshalEvents(t, testChunks)),
+				rs: bytes.NewReader(marshalChunks(t, testChunks)),
 			},
 			want: []string{"C1234567890", "C987654321"},
 		},
@@ -381,6 +381,153 @@ func TestPlayer_AllChannels(t *testing.T) {
 			}
 			if got := p.AllChannels(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("Player.AllChannels() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+var testUserChunks = []Chunk{
+	// team 1
+	{
+		Type:   CUsers,
+		TeamID: "T1234567890",
+		Users: []slack.User{
+			{ID: "U1234567890", Name: "user1"},
+			{ID: "U987654321", Name: "user2"},
+		},
+	},
+	{
+		Type:   CUsers,
+		TeamID: "T1234567890",
+		Users: []slack.User{
+			{ID: "U1234567891", Name: "user3"},
+			{ID: "U987654322", Name: "user4"},
+		},
+	},
+	// team 2
+	{
+		Type:   CUsers,
+		TeamID: "T987654321",
+		Users: []slack.User{
+			{ID: "U1234567892", Name: "user5"},
+			{ID: "U987654323", Name: "user6"},
+		},
+	},
+	{
+		Type:   CUsers,
+		TeamID: "T987654321",
+		Users: []slack.User{
+			{ID: "U1234567893", Name: "user7"},
+			{ID: "U987654324", Name: "user8"},
+		},
+	},
+}
+
+func TestPlayer_AllUsers(t *testing.T) {
+	type fields struct {
+		rs         io.ReadSeeker
+		idx        index
+		pointer    offsets
+		lastOffset atomic.Int64
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		want    map[string][]slack.User
+		wantErr bool
+	}{
+		{
+			name: "ok",
+			fields: fields{
+				rs: bytes.NewReader(marshalChunks(t, append(testUserChunks, testChunks...))),
+			},
+			want: map[string][]slack.User{
+				"T1234567890": {
+					{ID: "U1234567890", Name: "user1"},
+					{ID: "U987654321", Name: "user2"},
+					{ID: "U1234567891", Name: "user3"},
+					{ID: "U987654322", Name: "user4"},
+				},
+				"T987654321": {
+					{ID: "U1234567892", Name: "user5"},
+					{ID: "U987654323", Name: "user6"},
+					{ID: "U1234567893", Name: "user7"},
+					{ID: "U987654324", Name: "user8"},
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := &Player{
+				rs:         tt.fields.rs,
+				idx:        tt.fields.idx,
+				pointer:    tt.fields.pointer,
+				lastOffset: tt.fields.lastOffset,
+			}
+			got, err := p.AllUsers()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Player.AllUsers() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Player.AllUsers() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestPlayer_AllTeamUsers(t *testing.T) {
+	type fields struct {
+		rs         io.ReadSeeker
+		pointer    offsets
+		lastOffset atomic.Int64
+	}
+	type args struct {
+		teamID string
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    []slack.User
+		wantErr bool
+	}{
+		{
+			name: "ok",
+			fields: fields{
+				rs: bytes.NewReader(marshalChunks(t, append(testUserChunks, testChunks...))),
+			},
+			args: args{
+				teamID: "T1234567890",
+			},
+			want: []slack.User{
+				{ID: "U1234567890", Name: "user1"},
+				{ID: "U987654321", Name: "user2"},
+				{ID: "U1234567891", Name: "user3"},
+				{ID: "U987654322", Name: "user4"},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			idx, err := indexRecords(json.NewDecoder(tt.fields.rs))
+			if err != nil {
+				t.Fatal(err)
+			}
+			p := &Player{
+				rs:         tt.fields.rs,
+				idx:        idx,
+				pointer:    tt.fields.pointer,
+				lastOffset: tt.fields.lastOffset,
+			}
+			got, err := p.AllTeamUsers(tt.args.teamID)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Player.AllTeamUsers() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Player.AllTeamUsers() = %v, want %v", got, tt.want)
 			}
 		})
 	}
