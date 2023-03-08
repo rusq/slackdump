@@ -26,15 +26,18 @@ type Conversations interface {
 }
 
 type Team interface {
+	// TeamInfo is called for the team info that is retrieved.
 	TeamInfo(ctx context.Context, team *slack.TeamInfo) error
 }
 
 type Users interface {
 	Team
-	Users(ctx context.Context, teamID string, users []slack.User) error
+	// Users is called for each user chunk that is retrieved.
+	Users(ctx context.Context, users []slack.User) error
 }
 
 type Channels interface {
+	// Channels is called for each channel chunk that is retrieved.
 	Channels(ctx context.Context, teamID string, channels []slack.Channel) error
 }
 

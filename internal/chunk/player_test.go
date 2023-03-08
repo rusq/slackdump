@@ -387,35 +387,29 @@ func TestPlayer_AllChannels(t *testing.T) {
 }
 
 var testUserChunks = []Chunk{
-	// team 1
 	{
-		Type:   CUsers,
-		TeamID: "T1234567890",
+		Type: CUsers,
 		Users: []slack.User{
 			{ID: "U1234567890", Name: "user1"},
 			{ID: "U987654321", Name: "user2"},
 		},
 	},
 	{
-		Type:   CUsers,
-		TeamID: "T1234567890",
+		Type: CUsers,
 		Users: []slack.User{
 			{ID: "U1234567891", Name: "user3"},
 			{ID: "U987654322", Name: "user4"},
 		},
 	},
-	// team 2
 	{
-		Type:   CUsers,
-		TeamID: "T987654321",
+		Type: CUsers,
 		Users: []slack.User{
 			{ID: "U1234567892", Name: "user5"},
 			{ID: "U987654323", Name: "user6"},
 		},
 	},
 	{
-		Type:   CUsers,
-		TeamID: "T987654321",
+		Type: CUsers,
 		Users: []slack.User{
 			{ID: "U1234567893", Name: "user7"},
 			{ID: "U987654324", Name: "user8"},
@@ -426,70 +420,12 @@ var testUserChunks = []Chunk{
 func TestPlayer_AllUsers(t *testing.T) {
 	type fields struct {
 		rs         io.ReadSeeker
-		idx        index
 		pointer    offsets
 		lastOffset atomic.Int64
 	}
 	tests := []struct {
 		name    string
 		fields  fields
-		want    map[string][]slack.User
-		wantErr bool
-	}{
-		{
-			name: "ok",
-			fields: fields{
-				rs: bytes.NewReader(marshalChunks(t, append(testUserChunks, testChunks...))),
-			},
-			want: map[string][]slack.User{
-				"T1234567890": {
-					{ID: "U1234567890", Name: "user1"},
-					{ID: "U987654321", Name: "user2"},
-					{ID: "U1234567891", Name: "user3"},
-					{ID: "U987654322", Name: "user4"},
-				},
-				"T987654321": {
-					{ID: "U1234567892", Name: "user5"},
-					{ID: "U987654323", Name: "user6"},
-					{ID: "U1234567893", Name: "user7"},
-					{ID: "U987654324", Name: "user8"},
-				},
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			p := &Player{
-				rs:         tt.fields.rs,
-				idx:        tt.fields.idx,
-				pointer:    tt.fields.pointer,
-				lastOffset: tt.fields.lastOffset,
-			}
-			got, err := p.AllUsers()
-			if (err != nil) != tt.wantErr {
-				t.Errorf("Player.AllUsers() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("Player.AllUsers() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestPlayer_AllTeamUsers(t *testing.T) {
-	type fields struct {
-		rs         io.ReadSeeker
-		pointer    offsets
-		lastOffset atomic.Int64
-	}
-	type args struct {
-		teamID string
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
 		want    []slack.User
 		wantErr bool
 	}{
@@ -498,14 +434,15 @@ func TestPlayer_AllTeamUsers(t *testing.T) {
 			fields: fields{
 				rs: bytes.NewReader(marshalChunks(t, append(testUserChunks, testChunks...))),
 			},
-			args: args{
-				teamID: "T1234567890",
-			},
 			want: []slack.User{
 				{ID: "U1234567890", Name: "user1"},
 				{ID: "U987654321", Name: "user2"},
 				{ID: "U1234567891", Name: "user3"},
 				{ID: "U987654322", Name: "user4"},
+				{ID: "U1234567892", Name: "user5"},
+				{ID: "U987654323", Name: "user6"},
+				{ID: "U1234567893", Name: "user7"},
+				{ID: "U987654324", Name: "user8"},
 			},
 		},
 	}
@@ -521,13 +458,13 @@ func TestPlayer_AllTeamUsers(t *testing.T) {
 				pointer:    tt.fields.pointer,
 				lastOffset: tt.fields.lastOffset,
 			}
-			got, err := p.AllTeamUsers(tt.args.teamID)
+			got, err := p.AllUsers()
 			if (err != nil) != tt.wantErr {
-				t.Errorf("Player.AllTeamUsers() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("Player.AllUsers() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("Player.AllTeamUsers() = %v, want %v", got, tt.want)
+				t.Errorf("Player.AllUsers() = %v, want %v", got, tt.want)
 			}
 		})
 	}

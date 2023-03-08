@@ -245,24 +245,11 @@ func (p *Player) AllThreadMessages(channelID, threadTS string) ([]slack.Message,
 	return p.allMessagesForID(threadID(channelID, threadTS))
 }
 
-func (p *Player) AllTeamUsers(teamID string) ([]slack.User, error) {
-	return allForID(p, usersID(teamID), func(c *Chunk) []slack.User {
+// AllUsers returns all users in the dump file.
+func (p *Player) AllUsers() ([]slack.User, error) {
+	return allForID(p, "usr", func(c *Chunk) []slack.User {
 		return c.Users
 	})
-}
-
-func (p *Player) AllUsers() (map[string][]slack.User, error) {
-	users := make(map[string][]slack.User)
-	if err := p.ForEach(func(c *Chunk) error {
-		if c.Type != CUsers {
-			return nil
-		}
-		users[c.TeamID] = append(users[c.TeamID], c.Users...)
-		return nil
-	}); err != nil {
-		return nil, err
-	}
-	return users, nil
 }
 
 // allMessagesForID returns all the messages for the given id. It will reset

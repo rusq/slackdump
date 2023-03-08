@@ -106,19 +106,6 @@ func TestChunk_ID(t *testing.T) {
 			want: "uT123",
 		},
 		{
-			name: "team info",
-			fields: fields{
-				Type:      CTeamInfo,
-				Timestamp: 0,
-				IsThread:  false,
-				Count:     0,
-				Channel:   nil,
-				ChannelID: "",
-				TeamID:    "T123",
-			},
-			want: "tiT123",
-		},
-		{
 			name: "unknown",
 			fields: fields{
 				Type:      ChunkType(999),
@@ -144,7 +131,6 @@ func TestChunk_ID(t *testing.T) {
 				Parent:    tt.fields.Parent,
 				Messages:  tt.fields.Messages,
 				Files:     tt.fields.Files,
-				TeamID:    tt.fields.TeamID,
 				Users:     tt.fields.Users,
 			}
 			if got := c.ID(); got != tt.want {

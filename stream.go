@@ -207,14 +207,6 @@ func (cs *stream) Users(ctx context.Context, proc processor.Users) error {
 	ctx, task := trace.NewTask(ctx, "Users")
 	defer task.End()
 
-	ti, err := cs.client.GetTeamInfoContext(ctx)
-	if err != nil {
-		return err
-	}
-	if err := proc.TeamInfo(ctx, ti); err != nil {
-		return err
-	}
-
 	p := cs.client.GetUsersPaginated()
 	var apiErr error
 	for apiErr == nil {
@@ -225,7 +217,7 @@ func (cs *stream) Users(ctx context.Context, proc processor.Users) error {
 		}); apiErr != nil {
 			return apiErr
 		}
-		if err := proc.Users(ctx, ti.ID, p.Users); err != nil {
+		if err := proc.Users(ctx, p.Users); err != nil {
 			return err
 		}
 	}

@@ -180,17 +180,17 @@ func (mr *MockUsersMockRecorder) TeamInfo(arg0, arg1 interface{}) *gomock.Call {
 }
 
 // Users mocks base method.
-func (m *MockUsers) Users(arg0 context.Context, arg1 string, arg2 []slack.User) error {
+func (m *MockUsers) Users(arg0 context.Context, arg1 []slack.User) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Users", arg0, arg1, arg2)
+	ret := m.ctrl.Call(m, "Users", arg0, arg1)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Users indicates an expected call of Users.
-func (mr *MockUsersMockRecorder) Users(arg0, arg1, arg2 interface{}) *gomock.Call {
+func (mr *MockUsersMockRecorder) Users(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Users", reflect.TypeOf((*MockUsers)(nil).Users), arg0, arg1, arg2)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Users", reflect.TypeOf((*MockUsers)(nil).Users), arg0, arg1)
 }
 
 // MockChannels is a mock of Channels interface.
