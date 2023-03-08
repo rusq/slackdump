@@ -247,8 +247,15 @@ func (p *Player) AllThreadMessages(channelID, threadTS string) ([]slack.Message,
 
 // AllUsers returns all users in the dump file.
 func (p *Player) AllUsers() ([]slack.User, error) {
-	return allForID(p, "usr", func(c *Chunk) []slack.User {
+	return allForID(p, userChunkID, func(c *Chunk) []slack.User {
 		return c.Users
+	})
+}
+
+// AllChannels returns all channels in the dump file.
+func (p *Player) AllChannels() ([]slack.Channel, error) {
+	return allForID(p, channelChunkID, func(c *Chunk) []slack.Channel {
+		return c.Channels
 	})
 }
 
@@ -278,8 +285,8 @@ func allForID[T any](p *Player, id string, fn func(*Chunk) []T) ([]T, error) {
 	return m, nil
 }
 
-// AllChannels returns all the channels in the chunkfile.
-func (p *Player) AllChannels() []string {
+// AllChannelIDs returns all the channels in the chunkfile.
+func (p *Player) AllChannelIDs() []string {
 	var ids = make([]string, 0, 1)
 	for id := range p.idx {
 		if !strings.Contains(id, ":") && !strings.HasPrefix(id, "ci") {

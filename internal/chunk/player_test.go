@@ -379,7 +379,7 @@ func TestPlayer_AllChannels(t *testing.T) {
 				pointer:    tt.fields.pointer,
 				lastOffset: tt.fields.lastOffset,
 			}
-			if got := p.AllChannels(); !reflect.DeepEqual(got, tt.want) {
+			if got := p.AllChannelIDs(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("Player.AllChannels() = %v, want %v", got, tt.want)
 			}
 		})

@@ -152,7 +152,7 @@ func (rec *Recorder) ChannelInfo(ctx context.Context, channel *slack.Channel, is
 	return nil
 }
 
-func (rec *Recorder) Users(ctx context.Context, teamID string, users []slack.User) error {
+func (rec *Recorder) Users(ctx context.Context, users []slack.User) error {
 	select {
 	case err := <-rec.errC:
 		return err
@@ -161,6 +161,20 @@ func (rec *Recorder) Users(ctx context.Context, teamID string, users []slack.Use
 		Timestamp: time.Now().UnixNano(),
 		Count:     len(users),
 		Users:     users,
+	}: // ok
+	}
+	return nil
+}
+
+func (rec *Recorder) Channels(ctx context.Context, channels []slack.Channel) error {
+	select {
+	case err := <-rec.errC:
+		return err
+	case rec.chunks <- Chunk{
+		Type:      CChannels,
+		Timestamp: time.Now().UnixNano(),
+		Count:     len(channels),
+		Channels:  channels,
 	}: // ok
 	}
 	return nil

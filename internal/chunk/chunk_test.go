@@ -17,8 +17,6 @@ func TestChunk_ID(t *testing.T) {
 		Parent    *slack.Message
 		Messages  []slack.Message
 		Files     []slack.File
-		TeamID    string
-		Team      *slack.Team
 		Users     []slack.User
 	}
 	tests := []struct {
@@ -101,9 +99,19 @@ func TestChunk_ID(t *testing.T) {
 				Count:     0,
 				Channel:   nil,
 				ChannelID: "",
-				TeamID:    "T123",
 			},
-			want: "uT123",
+			want: userChunkID,
+		},
+		{
+			name: "channels",
+			fields: fields{
+				Type:      CChannels,
+				Timestamp: 0,
+				IsThread:  false,
+				Count:     0,
+				Channel:   nil,
+			},
+			want: channelChunkID,
 		},
 		{
 			name: "unknown",
@@ -114,7 +122,6 @@ func TestChunk_ID(t *testing.T) {
 				Count:     0,
 				Channel:   nil,
 				ChannelID: "",
-				TeamID:    "",
 			},
 			want: "<unknown:ChunkType(999)>",
 		},

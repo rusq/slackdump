@@ -30,15 +30,33 @@ type Chunk struct {
 	IsThread  bool      `json:"_tm,omitempty"`
 	Count     int       `json:"_c"` // number of messages or files
 
+	// Channel contains the channel information.  It may not be immediately
+	// followed by messages from the channel.  Populated by ChannelInfo method.
 	Channel *slack.Channel `json:"_ci,omitempty"`
 
-	ChannelID string          `json:"_id"`
-	Parent    *slack.Message  `json:"_p,omitempty"`
-	Messages  []slack.Message `json:"_m,omitempty"`
-	Files     []slack.File    `json:"_f,omitempty"`
+	ChannelID string `json:"_id"`
+	// Parent is populated in case the chunk is a thread, or a file. Populated
+	// by ThreadMessages and Files methods.
+	Parent *slack.Message `json:"_p,omitempty"`
+	// Messages contains a chunk of messages as returned by the API. Populated
+	// by Messages and ThreadMessages methods.
+	Messages []slack.Message `json:"_m,omitempty"`
+	// Files contains a chunk of files as returned by the API. Populated by
+	// Files method.
+	Files []slack.File `json:"_f,omitempty"`
 
-	Users []slack.User `json:"_u,omitempty"`
+	// Users contains a chunk of users as returned by the API. Populated by
+	// Users method.
+	Users []slack.User `json:"_u,omitempty"` // Populated by Users
+	// Channels contains a chunk of channels as returned by the API. Populated
+	// by Channels method.
+	Channels []slack.Channel `json:"_ch,omitempty"` // Populated by Channels
 }
+
+const (
+	userChunkID    = "usr"
+	channelChunkID = "chan"
+)
 
 // ID returns a unique ID for the chunk.
 func (c *Chunk) ID() string {
@@ -52,9 +70,9 @@ func (c *Chunk) ID() string {
 	case CChannelInfo:
 		return channelInfoID(c.ChannelID, c.IsThread)
 	case CUsers:
-		return "usr" //static, one team per chunk file
+		return userChunkID // static, one team per chunk file
 	case CChannels:
-		return "chan" // static, one team per chunk file.
+		return channelChunkID // static, one team per chunk file.
 	}
 	return fmt.Sprintf("<unknown:%s>", c.Type)
 }

@@ -93,7 +93,7 @@ func (s *Standard) Transform(ctx context.Context, basePath string, st *state.Sta
 	if err != nil {
 		return err
 	}
-	allCh := pl.AllChannels()
+	allCh := pl.AllChannelIDs()
 	for _, ch := range allCh {
 		rgn := trace.StartRegion(ctx, "transform.Standard.Transform: "+ch)
 		conv, err := s.conversation(pl, st, basePath, ch)

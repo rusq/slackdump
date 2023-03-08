@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 
+	"github.com/rusq/slackdump/v2/internal/chunk"
 	"github.com/slack-go/slack"
 )
 
@@ -25,21 +26,21 @@ type Conversations interface {
 	io.Closer
 }
 
-type Team interface {
-	// TeamInfo is called for the team info that is retrieved.
-	TeamInfo(ctx context.Context, team *slack.TeamInfo) error
-}
+var _ Conversations = new(chunk.Recorder)
 
 type Users interface {
-	Team
 	// Users is called for each user chunk that is retrieved.
 	Users(ctx context.Context, users []slack.User) error
 }
 
+var _ Users = new(chunk.Recorder)
+
 type Channels interface {
 	// Channels is called for each channel chunk that is retrieved.
-	Channels(ctx context.Context, teamID string, channels []slack.Channel) error
+	Channels(ctx context.Context, channels []slack.Channel) error
 }
+
+var _ Channels = new(chunk.Recorder)
 
 type options struct {
 	dumpFiles bool
