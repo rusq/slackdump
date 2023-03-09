@@ -1,0 +1,34 @@
+# Contributions
+
+This directory contains scripts and helper tools that has been contributed to
+this project.  See the [catalogue](#catalogue) for a list of the available
+tools.
+
+For more information on how to contribute, see the
+[contributing](#contributing).
+
+
+## Catalogue
+
+{{- range . }}
+### {{ .Title }}
+
+- Author: [@{{.Author}}](https://github.com/{{.Author}})
+- Path: [{{.Path}}]({{ .Path }})
+{{- if .Source}}
+- Source: [link]({{ .Source }}){{end -}}
+{{- if .Description }}
+- Description: {{ .Description }}
+{{ end -}}
+{{ end -}}
+
+
+## Contributing
+
+If you have a script or tool that you think would be useful to others, please
+consider contributing it to this project.  To do so, please follow these steps:
+
+1. Fork the project;
+2. Add your script or tool to the `contrib` directory;
+3. Add the tool description to the `catalogue.yaml` file;
+4. Submit a pull request.

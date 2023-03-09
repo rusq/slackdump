@@ -21,5 +21,9 @@ jobs:
     - name: Build
       run: go build -v ./...
 
+    - name: Check Catalogue
+      run: |
+        BASE_DIR="contrib" go run ./contrib/_gen -v
+
     - name: Test
       run: make test
