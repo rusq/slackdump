@@ -16,7 +16,7 @@ import (
 	"github.com/rusq/slackdump/v2/internal/structures"
 )
 
-type stream struct {
+type Stream struct {
 	oldest, latest time.Time
 	client         clienter
 	limits         rateLimits
@@ -38,17 +38,40 @@ func limits(l *Limits) rateLimits {
 	}
 }
 
-func newChannelStream(cl clienter, l *Limits, oldest, latest time.Time) *stream {
-	cs := &stream{
-		oldest: oldest,
-		latest: latest,
+// StreamOptions are used to configure the stream.
+type StreamOption func(*Stream)
+
+// WithOldest sets the oldest time to be fetched.
+func WithOldest(t time.Time) StreamOption {
+	return func(cs *Stream) {
+		cs.oldest = t
+	}
+}
+
+// WithLatest sets the latest time to be fetched.
+func WithLatest(t time.Time) StreamOption {
+	return func(cs *Stream) {
+		cs.latest = t
+	}
+}
+
+func newChannelStream(cl clienter, l *Limits, opts ...StreamOption) *Stream {
+	cs := &Stream{
 		client: cl,
 		limits: limits(l),
+	}
+	for _, opt := range opts {
+		opt(cs)
+	}
+	if cs.oldest.After(cs.latest) {
+		cs.oldest, cs.latest = cs.latest, cs.oldest
 	}
 	return cs
 }
 
-func (cs *stream) Conversations(ctx context.Context, link string, proc processor.Conversations) error {
+// Conversations fetches the conversations from the link which can be a
+// channelID, channel URL, thread URL or a link in Slackdump format.
+func (cs *Stream) Conversations(ctx context.Context, link string, proc processor.Conversations) error {
 	ctx, task := trace.NewTask(ctx, "channelStream.Conversations")
 	defer task.End()
 
@@ -78,7 +101,7 @@ func (cs *stream) Conversations(ctx context.Context, link string, proc processor
 }
 
 // channelInfo fetches the channel info and passes it to the processor.
-func (cs *stream) channelInfo(ctx context.Context, channelID string, isThread bool, proc processor.Conversations) error {
+func (cs *Stream) channelInfo(ctx context.Context, channelID string, isThread bool, proc processor.Conversations) error {
 	ctx, task := trace.NewTask(ctx, "channelInfo")
 	defer task.End()
 
@@ -94,7 +117,7 @@ func (cs *stream) channelInfo(ctx context.Context, channelID string, isThread bo
 	return nil
 }
 
-func (cs *stream) channel(ctx context.Context, id string, proc processor.Conversations) error {
+func (cs *Stream) channel(ctx context.Context, id string, proc processor.Conversations) error {
 	ctx, task := trace.NewTask(ctx, "channel")
 	defer task.End()
 
@@ -148,7 +171,7 @@ func (cs *stream) channel(ctx context.Context, id string, proc processor.Convers
 	return nil
 }
 
-func (cs *stream) thread(ctx context.Context, id string, threadTS string, proc processor.Conversations) error {
+func (cs *Stream) thread(ctx context.Context, id string, threadTS string, proc processor.Conversations) error {
 	ctx, task := trace.NewTask(ctx, "thread")
 	defer task.End()
 
@@ -203,7 +226,7 @@ func (cs *stream) thread(ctx context.Context, id string, threadTS string, proc p
 	return nil
 }
 
-func (cs *stream) Users(ctx context.Context, proc processor.Users) error {
+func (cs *Stream) Users(ctx context.Context, proc processor.Users) error {
 	ctx, task := trace.NewTask(ctx, "Users")
 	defer task.End()
 
@@ -223,4 +246,26 @@ func (cs *stream) Users(ctx context.Context, proc processor.Users) error {
 	}
 
 	return p.Failure(apiErr)
+}
+
+// TODO: test this.
+func (cs *Stream) Channels(ctx context.Context, types []string, proc processor.Channels) error {
+	ctx, task := trace.NewTask(ctx, "Channels")
+	defer task.End()
+
+	for {
+		ch, next, err := cs.client.GetConversationsContext(ctx, &slack.GetConversationsParameters{
+			Types: types,
+		})
+		if err != nil {
+			return err
+		}
+		if err := proc.Channels(ctx, ch); err != nil {
+			return err
+		}
+		if next == "" {
+			break
+		}
+	}
+	return nil
 }

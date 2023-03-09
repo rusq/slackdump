@@ -34,9 +34,9 @@ func (e ErrStateVersion) Error() string {
 type State struct {
 	// Version is the version of the state file.
 	Version float64 `json:"version"`
-	// Filename is the original chunks filename for which the state is valid.
+	// ChunkFilename is the original chunks filename for which the state is valid.
 	// It may be empty.
-	Filename string `json:"filename,omitempty"`
+	ChunkFilename string `json:"chunk_filename,omitempty"`
 	// IsComplete indicates that all chunks were written to the file.
 	IsComplete bool `json:"is_complete"`
 	// Directory with downloaded files, if any.
@@ -65,11 +65,11 @@ type Stater interface {
 // New returns a new State.
 func New(filename string) *State {
 	return &State{
-		Version:  Version,
-		Filename: filename,
-		Channels: make(map[_id]int64),
-		Threads:  make(map[_idAndThread]int64),
-		Files:    make(map[_id]_id),
+		Version:       Version,
+		ChunkFilename: filename,
+		Channels:      make(map[_id]int64),
+		Threads:       make(map[_idAndThread]int64),
+		Files:         make(map[_id]_id),
 	}
 }
 
@@ -221,32 +221,36 @@ func (s *State) FileChannelID(id string) string {
 	return s.Files[id]
 }
 
-func (s *State) SetFilename(filename string) {
+func (s *State) SetChunkFilename(filename string) *State {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	s.Filename = filename
+	s.ChunkFilename = filename
+	return s
 }
 
-func (s *State) SetFilesDir(dir string) {
+func (s *State) SetFilesDir(dir string) *State {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	s.FilesDir = dir
+	return s
 }
 
-func (s *State) SetIsCompressed(isCompressed bool) {
+func (s *State) SetIsCompressed(isCompressed bool) *State {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	s.IsCompressed = isCompressed
+	return s
 }
 
-func (s *State) SetIsComplete(isComplete bool) {
+func (s *State) SetIsComplete(isComplete bool) *State {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	s.IsComplete = isComplete
+	return s
 }
 
 // Save saves the state to the given file.

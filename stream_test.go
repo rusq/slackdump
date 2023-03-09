@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"runtime/trace"
 	"testing"
-	"time"
 
 	"github.com/golang/mock/gomock"
 	"github.com/rusq/chttp"
@@ -71,7 +70,7 @@ func TestChannelStream(t *testing.T) {
 	rec := chunk.NewRecorder(f)
 	defer rec.Close()
 
-	cs := newChannelStream(sd, &DefOptions.Limits, time.Time{}, time.Time{})
+	cs := newChannelStream(sd, &DefOptions.Limits)
 	if err := cs.Conversations(context.Background(), testConversation, rec); err != nil {
 		t.Fatal(err)
 	}
@@ -99,7 +98,7 @@ func TestRecorderStream(t *testing.T) {
 	defer rec.Close()
 
 	rgnStream := trace.StartRegion(ctx, "Stream")
-	cs := newChannelStream(sd, &expandedLimits, time.Time{}, time.Time{})
+	cs := newChannelStream(sd, &expandedLimits)
 	if err := cs.Conversations(ctx, fixtures.ChunkFileChannelID, rec); err != nil {
 		t.Fatal(err)
 	}
@@ -175,7 +174,7 @@ func Test_channelStream_thread(t *testing.T) {
 		mc.EXPECT().
 			GetConversationRepliesContext(gomock.Any(), gomock.Any()).Return(testThread, false, "", nil)
 
-		cs := &stream{
+		cs := &Stream{
 			client: mc,
 			limits: lim,
 		}

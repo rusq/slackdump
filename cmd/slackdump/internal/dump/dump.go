@@ -127,7 +127,6 @@ func RunDump(ctx context.Context, cmd *base.Command, args []string) error {
 	return nil
 }
 
-// dumpv2(ctx context.Context, sess *slackdump.Session, list *structures.EntityList, t *nametmpl.Template) error
 func dumpv3(ctx context.Context, sess *slackdump.Session, list *structures.EntityList, t *nametmpl.Template) error {
 	ctx, task := trace.NewTask(ctx, "dumpv3")
 	defer task.End()

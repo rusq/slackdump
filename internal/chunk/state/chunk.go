@@ -18,10 +18,10 @@ var ErrNoChunkFile = errors.New("no linked chunk file")
 // created. The temporary file will be removed when the OpenChunks is
 // closed.
 func (st *State) OpenChunks(basePath string) (io.ReadSeekCloser, error) {
-	if st.Filename == "" {
+	if st.ChunkFilename == "" {
 		return nil, ErrNoChunkFile
 	}
-	f, err := os.Open(filepath.Join(basePath, st.Filename))
+	f, err := os.Open(filepath.Join(basePath, st.ChunkFilename))
 	if err != nil {
 		return nil, err
 	}

@@ -106,7 +106,7 @@ func (s *Standard) Transform(ctx context.Context, basePath string, st *state.Sta
 		}
 	}
 	// save state file inside the filesystem
-	if err := st.SaveFSA(s.fs, filepath.Join(st.Filename+".state")); err != nil {
+	if err := st.SaveFSA(s.fs, filepath.Join(st.ChunkFilename+".state")); err != nil {
 		return err
 	}
 	return nil

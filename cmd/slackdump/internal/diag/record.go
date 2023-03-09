@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"time"
 
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/auth"
@@ -82,7 +81,7 @@ func runRecord(ctx context.Context, _ *base.Command, args []string) error {
 	rec := chunk.NewRecorder(w)
 	for _, ch := range args {
 		cfg.Log.Printf("streaming channel %q", ch)
-		if err := sess.Stream(ctx, rec, ch, time.Time{}, time.Time{}); err != nil {
+		if err := sess.Stream().Conversations(ctx, ch, rec); err != nil {
 			if err2 := rec.Close(); err2 != nil {
 				return fmt.Errorf("error streaming channel %q: %w; error closing recorder: %v", ch, err, err2)
 			}

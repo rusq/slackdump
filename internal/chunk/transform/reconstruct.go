@@ -37,7 +37,7 @@ func Reconstruct(ctx context.Context, fsa fsadapter.FS, tmpdir string, tf Interf
 			return fmt.Errorf("failed to load state file: %w", err)
 		}
 
-		dlog.Printf("reconstructing %s", st.Filename)
+		dlog.Printf("reconstructing %s", st.ChunkFilename)
 		return tf.Transform(ctx, tmpdir, st)
 	})
 }

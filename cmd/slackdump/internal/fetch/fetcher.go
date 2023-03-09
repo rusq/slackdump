@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/rusq/dlog"
+	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/internal/chunk/processor"
 	"github.com/rusq/slackdump/v2/internal/structures"
 	"github.com/slack-go/slack"
@@ -24,7 +25,7 @@ type Parameters struct {
 
 type streamer interface {
 	Client() *slack.Client
-	Stream(context.Context, processor.Conversations, string, time.Time, time.Time) error
+	Stream(opt ...slackdump.StreamOption) *slackdump.Stream
 }
 
 var replacer = strings.NewReplacer("/", "-", ":", "-")
@@ -50,12 +51,14 @@ func Conversation(ctx context.Context, sess streamer, dir string, link string, p
 		return "", err
 	}
 	defer pr.Close()
+
 	state, err := pr.State()
 	if err != nil {
 		return "", err
 	}
-	state.SetFilename(filepath.Base(f.Name()))
-	state.SetIsCompressed(true)
+	state.
+		SetChunkFilename(filepath.Base(f.Name())).
+		SetIsCompressed(true)
 	if p.DumpFiles {
 		state.SetFilesDir(fileprefix)
 	}
@@ -68,7 +71,10 @@ func Conversation(ctx context.Context, sess streamer, dir string, link string, p
 			return
 		}
 	}()
-	if err := sess.Stream(ctx, pr, link, p.Oldest, p.Latest); err != nil {
+	if err := sess.Stream(
+		slackdump.WithLatest(p.Latest),
+		slackdump.WithOldest(p.Oldest),
+	).Conversations(ctx, link, pr); err != nil {
 		return statefile, err
 	}
 	if ctx.Err() != nil {
