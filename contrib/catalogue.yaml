@@ -1,0 +1,31 @@
+- title: "Example: Find matches and print dates and text"
+  path: messages_json_parsing/jq/find_matches_print_dates_and_text.sh
+  author: fitzyjoe
+  description: Finds messages that match a regex and prints the date and text.
+  dependencies:
+    - sh
+    - jq
+- title: "Example: Print messages"
+  path: messages_json_parsing/jq/print_messages.sh
+  author: rusq
+  description: Prints user ID and a message
+  dependencies:
+    - sh
+    - jq
+- title: "Example: Print messages"
+  path: messages_json_parsing/python/print_messages.py
+  author: rusq
+  description: Prints user ID and a message
+  dependencies:
+    - python3
+- title: Incremental Workspace Backups
+  path: incremental_backup/dump.sh
+  author: levigroker
+  description: |
+    Dumps messages and attachments for selected 1-1 direct messages, and selected named
+    channels and group PMs, from the authenticated Slack workspace. Subsequent runs will
+    fetch only the new content since the previous run.
+  source: https://gist.github.com/levigroker/fa7b231373e68269843aeeee5cc845a3
+  dependencies:
+    - bash
+    - jq
