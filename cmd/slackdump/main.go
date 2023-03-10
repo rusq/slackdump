@@ -31,16 +31,16 @@ const (
 	envSlackCookie    = "COOKIE"
 	envSlackFileToken = "SLACK_FILE_TOKEN"
 
-	bannerFmt = "Slackdump %[1]s Copyright (c) 2018-%[2]s rusq (build: %s)\n\n"
+	bannerFmt = "Slackdump %s (commit: %s) built on: %s\n"
 )
 
 // defFilenameTemplate is the default file naming template.
 const defFilenameTemplate = "{{.ID}}{{ if .ThreadTS}}-{{.ThreadTS}}{{end}}"
 
 var (
-	build     = "dev"
-	buildYear = "2077"
-	commit    = "placeholder"
+	version = "dev"
+	date    = "2077"
+	commit  = "placeholder"
 )
 
 // secrets defines the names of the supported secret files that we load our
@@ -69,7 +69,7 @@ func main() {
 	params, cfgErr := parseCmdLine(os.Args[1:])
 
 	if params.printVersion {
-		fmt.Println(build)
+		fmt.Println(version)
 		return
 	}
 	if params.authReset {
@@ -336,7 +336,7 @@ func (p *params) validate() error {
 
 // banner prints the program banner.
 func banner(w io.Writer) {
-	fmt.Fprintf(w, bannerFmt, build, buildYear, trunc(commit, 7))
+	fmt.Fprintf(w, bannerFmt, version, commit, date)
 }
 
 // trunc truncates string s to n chars

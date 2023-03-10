@@ -115,7 +115,7 @@ func Test_banner(t *testing.T) {
 	}{
 		{
 			"make sure I haven't fucked up",
-			fmt.Sprintf(bannerFmt, build, buildYear, trunc(commit, 7)),
+			fmt.Sprintf(bannerFmt, version, date, trunc(commit, 7)),
 		},
 	}
 	for _, tt := range tests {

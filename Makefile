@@ -62,3 +62,10 @@ slackdump.1: README.rst
 
 callvis:
 	go-callvis -group pkg,type -limit $(PKG) $(PKG)/cmd/slackdump
+
+goreleaser:
+	goreleaser check
+	goreleaser release --snapshot --clean
+
+tags:
+	gotags -R *.go > $@
