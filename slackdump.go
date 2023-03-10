@@ -64,7 +64,9 @@ type clienter interface {
 // ErrNoUserCache is returned when the user cache is not initialised.
 var ErrNoUserCache = errors.New("user cache unavailable")
 
-// AllChanTypes enumerates all API-supported channel types as of 03/2022.
+// AllChanTypes enumerates all API-supported channel [types] as of 03/2023.
+//
+// [types]: https://api.slack.com/methods/conversations.list#arg_types
 var AllChanTypes = []string{"mpim", "im", "public_channel", "private_channel"}
 
 // Option is the signature of the option-setting function.
