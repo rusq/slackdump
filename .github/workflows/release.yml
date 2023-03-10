@@ -22,10 +22,14 @@ jobs:
           cache: true
       # More assembly might be required: Docker logins, GPG, etc. It all depends
       # on your needs.
+      - name: install mockgen and stringer
+        run: |
+          go install github.com/golang/mock/mockgen@v1.6.0
+          go install golang.org/x/tools/cmd/stringer@latest
       - uses: goreleaser/goreleaser-action@v4
         with:
           distribution: goreleaser
           version: latest
-          args: release --rm-dist
+          args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.ACTIONS_TOKEN }}
