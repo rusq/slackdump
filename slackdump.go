@@ -56,12 +56,14 @@ type clienter interface {
 	GetEmojiContext(ctx context.Context) (map[string]string, error)
 }
 
-// Errors
 var (
+	// ErrNoUserCache is returned when the user cache is not available.
 	ErrNoUserCache = errors.New("user cache unavailable")
 )
 
-// AllChanTypes enumerates all API-supported channel types as of 03/2022.
+// AllChanTypes enumerates all API-supported channel [types] as of 03/2023.
+//
+// [types]: https://api.slack.com/methods/conversations.list#arg_types
 var AllChanTypes = []string{"mpim", "im", "public_channel", "private_channel"}
 
 // New creates new session with the default options  and populates the internal
