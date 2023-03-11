@@ -11,7 +11,12 @@ import (
 
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/auth/browser"
+	"github.com/rusq/slackdump/v2/internal/app/config"
 	"github.com/rusq/slackdump/v2/logger"
+)
+
+const (
+	filenameLayout = "20060102_150405"
 )
 
 var (
@@ -27,10 +32,18 @@ var (
 	Browser     browser.Browser
 	SlackConfig = slackdump.DefOptions
 
+	// Oldest is the default timestamp of the oldest message to fetch, that is
+	// used by the dump and export commands.
+	Oldest = config.TimeValue(time.Time{})
+	// Latest is the default timestamp of the newest message to fetch, that is
+	// used by the dump and export commands.  It is set to an exact value
+	// for the dump to be consistent.
+	Latest = config.TimeValue(time.Now())
+
 	Log logger.Interface
 )
 
-type FlagMask int
+type FlagMask uint16
 
 const (
 	DefaultFlags  FlagMask = 0
@@ -41,6 +54,7 @@ const (
 	OmitCacheDir
 	OmitWorkspaceFlag
 	OmitUserCacheFlag
+	OmitTimeframeFlag
 
 	OmitAll = OmitConfigFlag |
 		OmitDownloadFlag |
@@ -48,7 +62,8 @@ const (
 		OmitCacheDir |
 		OmitWorkspaceFlag |
 		OmitAuthFlags |
-		OmitUserCacheFlag
+		OmitUserCacheFlag |
+		OmitTimeframeFlag
 )
 
 // SetBaseFlags sets base flags
@@ -71,7 +86,7 @@ func SetBaseFlags(fs *flag.FlagSet, mask FlagMask) {
 		fs.StringVar(&ConfigFile, "api-config", "", "configuration `file` with Slack API limits overrides.\nYou can generate one with default values with 'slackdump config new`")
 	}
 	if mask&OmitBaseLocFlag == 0 {
-		base := fmt.Sprintf("slackdump_%s.zip", time.Now().Format("20060102_150405"))
+		base := fmt.Sprintf("slackdump_%s.zip", time.Now().Format(filenameLayout))
 		fs.StringVar(&SlackConfig.BaseLocation, "base", osenv.Value("BASE_LOC", base), "a `location` (a directory or a ZIP file) on the local disk to save\ndownloaded files to.")
 	}
 	if mask&OmitCacheDir == 0 {
@@ -88,5 +103,9 @@ func SetBaseFlags(fs *flag.FlagSet, mask FlagMask) {
 	if mask&OmitUserCacheFlag == 0 {
 		fs.BoolVar(&SlackConfig.UserCache.Disabled, "no-user-cache", false, "disable user cache")
 		fs.DurationVar(&SlackConfig.UserCache.Retention, "user-cache-retention", slackdump.DefOptions.UserCache.Retention, "user cache retention duration.  After this time, the cache is considered stale and will be refreshed.")
+	}
+	if mask&OmitTimeframeFlag == 0 {
+		fs.Var(&Oldest, "from", "timestamp of the oldest message to fetch (UTC timezone)")
+		fs.Var(&Latest, "to", "timestamp of the newest message to fetch (UTC timezone)")
 	}
 }

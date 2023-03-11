@@ -22,7 +22,6 @@ import (
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/fetch"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/golang/base"
-	"github.com/rusq/slackdump/v2/internal/app/config"
 	"github.com/rusq/slackdump/v2/internal/chunk/state"
 	"github.com/rusq/slackdump/v2/internal/chunk/transform"
 	"github.com/rusq/slackdump/v2/internal/nametmpl"
@@ -52,11 +51,9 @@ func init() {
 var ErrNothingToDo = errors.New("no conversations to dump, run \"slackdump help dump\"")
 
 type options struct {
-	Oldest       time.Time // Oldest is the timestamp of the oldest message to fetch.
-	Latest       time.Time // Latest is the timestamp of the newest message to fetch.
-	NameTemplate string    // NameTemplate is the template for the output file name.
-	JSONL        bool      // JSONL should be true if the output should be JSONL instead of JSON.
-	Compat       bool      // compatibility mode
+	NameTemplate string // NameTemplate is the template for the output file name.
+	JSONL        bool   // JSONL should be true if the output should be JSONL instead of JSON.
+	Compat       bool   // compatibility mode
 }
 
 var opts options
@@ -66,11 +63,13 @@ func ptr[T any](a T) *T { return &a }
 
 // InitDumpFlagset initializes the flagset for the dump command.
 func InitDumpFlagset(fs *flag.FlagSet) {
-	fs.Var(ptr(config.TimeValue(opts.Oldest)), "from", "timestamp of the oldest message to fetch")
-	fs.Var(ptr(config.TimeValue(opts.Latest)), "to", "timestamp of the newest message to fetch")
 	fs.StringVar(&opts.NameTemplate, "ft", nametmpl.Default, "output file naming template.\n")
 	fs.BoolVar(&opts.JSONL, "jsonl", false, "output JSONL instead of JSON")
 	fs.BoolVar(&opts.Compat, "compat", false, "compatibility mode")
+}
+
+func init() {
+	InitDumpFlagset(&CmdDump.Flag)
 }
 
 // RunDump is the main entry point for the dump command.
@@ -134,18 +133,19 @@ func dumpv3(ctx context.Context, sess *slackdump.Session, list *structures.Entit
 	lg := dlog.FromContext(ctx)
 
 	p := &fetch.Parameters{
-		Oldest:    opts.Oldest,
-		Latest:    opts.Latest,
+		Oldest:    time.Time(cfg.Oldest),
+		Latest:    time.Time(cfg.Latest),
 		List:      list,
 		DumpFiles: cfg.SlackConfig.DumpFiles,
 	}
+	lg.Debugf("fetch parameters: %+v", p)
 
 	tmpdir, err := os.MkdirTemp("", "slackdump-*")
 	if err != nil {
 		base.SetExitStatus(base.SGenericError)
 		return err
 	}
-	lg.Printf("using temporary directory:  %s ", tmpdir)
+	lg.Debugf("using temporary directory:  %s", tmpdir)
 
 	tf := transform.NewStandard(sess.Filesystem(), transform.WithNameFn(t.Execute))
 	var eg errgroup.Group
@@ -188,7 +188,7 @@ func convertChunks(ctx context.Context, tf transform.Interface, statefile string
 
 func dumpv2(ctx context.Context, sess *slackdump.Session, list *structures.EntityList, t *nametmpl.Template) error {
 	for _, link := range list.Include {
-		conv, err := sess.Dump(ctx, link, opts.Oldest, opts.Latest)
+		conv, err := sess.Dump(ctx, link, time.Time(cfg.Oldest), time.Time(cfg.Latest))
 		if err != nil {
 			return err
 		}

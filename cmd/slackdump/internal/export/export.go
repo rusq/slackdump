@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/rusq/dlog"
 
@@ -12,7 +13,6 @@ import (
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v2/export"
-	"github.com/rusq/slackdump/v2/internal/app/config"
 	"github.com/rusq/slackdump/v2/internal/structures"
 )
 
@@ -29,20 +29,16 @@ var CmdExport = &base.Command{
 
 var (
 	options = export.Config{
-		Type: export.TStandard,
+		Type:   export.TStandard,
+		Oldest: time.Time(cfg.Oldest),
+		Latest: time.Time(cfg.Latest),
 	}
 )
 
 func init() {
 	// TODO: move TimeValue somewhere more appropriate once v1 is sunset.
-	CmdExport.Flag.Var(ptr(config.TimeValue(options.Oldest)), "from", "timestamp of the oldest message to fetch")
-	CmdExport.Flag.Var(ptr(config.TimeValue(options.Latest)), "to", "timestamp of the newest message to fetch")
 	CmdExport.Flag.Var(&options.Type, "type", "export type")
 	CmdExport.Flag.StringVar(&options.ExportToken, "export-token", "", "file export token to append to each of the file URLs")
-}
-
-func ptr[T any](a T) *T {
-	return &a
 }
 
 func init() {
