@@ -5,7 +5,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io"
 	"os"
 	"os/signal"
 	"runtime/trace"
@@ -33,8 +32,6 @@ const (
 	envSlackToken     = "SLACK_TOKEN"
 	envSlackCookie    = "COOKIE"
 	envSlackFileToken = "SLACK_FILE_TOKEN"
-
-	bannerFmt = "Slackdump %[1]s Copyright (c) 2018-%[2]s rusq (build: %s)\n\n"
 )
 
 var CmdV1 = &base.Command{
@@ -86,12 +83,6 @@ func init() {
 // defFilenameTemplate is the default file naming template.
 const defFilenameTemplate = "{{.ID}}{{ if .ThreadTS}}-{{.ThreadTS}}{{end}}"
 
-var (
-	build     = "dev"
-	buildYear = "2077"
-	commit    = "placeholder"
-)
-
 // secrets defines the names of the supported secret files that we load our
 // secrets from.  Inexperienced Windows users might have bad experience trying
 // to create .env file with the notepad as it will battle for having the
@@ -107,20 +98,14 @@ type params struct {
 	traceFile string // trace file
 	logFile   string //log file, if not specified, outputs to stderr.
 
-	printVersion bool
-	verbose      bool
+	verbose bool
 }
 
 func runV1(ctx context.Context, cmd *base.Command, args []string) error {
-	banner(os.Stderr)
 	loadSecrets(secrets)
 
 	params, cfgErr := parseCmdLine(args[0:])
 
-	if params.printVersion {
-		fmt.Println(build)
-		return nil
-	}
 	if params.authReset {
 		if err := cache.AuthReset(params.appCfg.SlackConfig.CacheDir); err != nil {
 			if !os.IsNotExist(err) {
@@ -382,7 +367,6 @@ func parseCmdLine(args []string) (params, error) {
 	// - main executable parameters
 	fs.StringVar(&p.logFile, "log", osenv.Value("LOG_FILE", ""), "log `file`, if not specified, messages are printed to STDERR")
 	fs.StringVar(&p.traceFile, "trace", osenv.Value("TRACE_FILE", ""), "trace `file` (optional)")
-	fs.BoolVar(&p.printVersion, "V", false, "print version and exit")
 	fs.BoolVar(&p.verbose, "v", osenv.Value("DEBUG", false), "verbose messages")
 
 	os.Unsetenv(envSlackToken)
@@ -404,15 +388,7 @@ func parseCmdLine(args []string) (params, error) {
 
 // validate checks if the parameters are valid.
 func (p *params) validate() error {
-	if p.printVersion {
-		return nil
-	}
 	return p.appCfg.Validate()
-}
-
-// banner prints the program banner.
-func banner(w io.Writer) {
-	fmt.Fprintf(w, bannerFmt, build, buildYear, trunc(commit, 7))
 }
 
 // trunc truncates string s to n chars
