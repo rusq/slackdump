@@ -58,13 +58,9 @@ type options struct {
 
 var opts options
 
-// ptr returns a pointer to the given value.
-func ptr[T any](a T) *T { return &a }
-
 // InitDumpFlagset initializes the flagset for the dump command.
 func InitDumpFlagset(fs *flag.FlagSet) {
 	fs.StringVar(&opts.NameTemplate, "ft", nametmpl.Default, "output file naming template.\n")
-	fs.BoolVar(&opts.JSONL, "jsonl", false, "output JSONL instead of JSON")
 	fs.BoolVar(&opts.Compat, "compat", false, "compatibility mode")
 }
 

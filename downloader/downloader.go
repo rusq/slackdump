@@ -193,6 +193,10 @@ func (c *Client) worker(ctx context.Context, reqC <-chan fileRequest) {
 			if !moar {
 				return
 			}
+			if req.File.Mode == "hidden_by_limit" {
+				c.l().Printf("skipping %q because it's hidden by Slack due to 90 days limit", c.nameFn(req.File))
+				continue
+			}
 			c.l().Debugf("saving %q to %s, size: %d", c.nameFn(req.File), req.Directory, req.File.Size)
 			n, err := c.saveFile(ctx, req.Directory, req.File)
 			if err != nil {
