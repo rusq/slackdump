@@ -6,43 +6,60 @@ import (
 	"context"
 	"errors"
 	"runtime/trace"
+	"sync"
+	"time"
 
 	"github.com/slack-go/slack"
 
-	"github.com/rusq/slackdump/v2/internal/cache"
 	"github.com/rusq/slackdump/v2/internal/network"
 	"github.com/rusq/slackdump/v2/types"
 )
 
-// GetUsers retrieves all users either from cache or from the API.
+type usercache struct {
+	users    types.Users
+	mu       sync.RWMutex
+	cachedAt time.Time
+}
+
+var errCacheExpired = errors.New("cache expired")
+
+// get retrieves users from cache.  If cache is empty or expired, it will
+// return errCacheExpired.
+func (uc *usercache) get(retention time.Duration) (types.Users, error) {
+	uc.mu.RLock()
+	defer uc.mu.RUnlock()
+	if len(uc.users) > 0 && time.Since(uc.cachedAt) < retention {
+		return uc.users, nil
+	}
+	return nil, errCacheExpired
+}
+
+func (uc *usercache) set(users types.Users) {
+	uc.mu.Lock()
+	defer uc.mu.Unlock()
+	uc.users = users
+	uc.cachedAt = time.Now()
+}
+
+// GetUsers retrieves all users either from cache or from the API.  If
+// Session.usercache is not empty, it will return the cached users.
+// Otherwise, it will try fetching them from the API and cache them.
 func (s *Session) GetUsers(ctx context.Context) (types.Users, error) {
 	ctx, task := trace.NewTask(ctx, "GetUsers")
 	defer task.End()
 
-	if s.cfg.UserCache.Disabled {
-		return types.Users{}, nil
+	users, err := s.uc.get(s.cfg.UserCache.Retention)
+	if err == nil {
+		return users, nil
 	}
 
-	// TODO make Manager a Session variable.  Maybe?
-	m, err := cache.NewManager(s.cfg.CacheDir, cache.WithUserCacheBase(s.cfg.UserCache.Filename))
+	users, err = s.fetchUsers(ctx)
 	if err != nil {
 		return nil, err
 	}
-
-	users, err := m.LoadUsers(s.wspInfo.TeamID, s.cfg.UserCache.Retention)
-	if err != nil {
-		s.log.Println("caching users")
-		users, err = s.fetchUsers(ctx)
-		if err != nil {
-			return nil, err
-		}
-		if err := m.SaveUsers(s.wspInfo.TeamID, users); err != nil {
-			trace.Logf(ctx, "error", "saving user cache to %q, error: %s", s.cfg.UserCache.Filename, err)
-			s.log.Printf("error saving user cache to %q: %s, but nevermind, let's continue", s.cfg.UserCache.Filename, err)
-		}
-	}
-
+	s.uc.set(users)
 	return users, err
+
 }
 
 // fetchUsers fetches users from the API.

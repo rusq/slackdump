@@ -33,8 +33,9 @@ type Session struct {
 
 	wspInfo *WorkspaceInfo // workspace info
 
-	// Users contains the list of users and populated on NewSession
-	Users types.Users `json:"users"`
+	// usercache contains the list of users.
+	usercache types.Users
+	uc        *usercache
 
 	fs  fsadapter.FS     // filesystem adapter
 	log logger.Interface // logger
@@ -128,6 +129,7 @@ func New(ctx context.Context, prov auth.Provider, cfg Config, opts ...Option) (*
 	sd := &Session{
 		client:  cl,
 		cfg:     cfg,
+		uc:      new(usercache),
 		wspInfo: authTestResp,
 		log:     logger.Default,
 	}
@@ -149,15 +151,6 @@ func New(ctx context.Context, prov auth.Provider, cfg Config, opts ...Option) (*
 
 	if err := os.MkdirAll(cfg.CacheDir, 0o700); err != nil {
 		return nil, fmt.Errorf("failed to create the cache directory: %s", err)
-	}
-
-	if !sd.cfg.UserCache.Disabled {
-		users, err := sd.GetUsers(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("error fetching users: %w", err)
-		}
-
-		sd.Users = users
 	}
 
 	return sd, nil
@@ -213,15 +206,6 @@ func (s *Session) Close() error {
 		}
 	}
 	return last
-}
-
-// Me returns the current authenticated user in a rather dirty manner.
-// If the user cache is unitnitialised, it returns ErrNoUserCache.
-func (s *Session) Me() (slack.User, error) {
-	if len(s.Users) == 0 {
-		return slack.User{}, ErrNoUserCache
-	}
-	return *s.Users.IndexByID()[s.CurrentUserID()], nil
 }
 
 func (s *Session) CurrentUserID() string {

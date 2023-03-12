@@ -6,16 +6,12 @@ import (
 	"math"
 	"os"
 	"path/filepath"
-	"reflect"
 	"testing"
 	"time"
 
 	"github.com/rusq/slackdump/v2/auth"
-	"github.com/rusq/slackdump/v2/internal/fixtures"
 	"github.com/rusq/slackdump/v2/internal/network"
 	"github.com/rusq/slackdump/v2/logger"
-	"github.com/rusq/slackdump/v2/types"
-	"github.com/slack-go/slack"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -118,61 +114,6 @@ func ExampleNew_browserAuth() {
 		return
 	}
 	_ = sd
-}
-
-func TestSession_Me(t *testing.T) {
-	type fields struct {
-		client  clienter
-		wspInfo *slack.AuthTestResponse
-		Users   types.Users
-		options Config
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		want    slack.User
-		wantErr bool
-	}{
-		{
-			"all ok",
-			fields{
-				wspInfo: &slack.AuthTestResponse{UserID: "DELD"},
-				Users:   fixtures.TestUsers,
-			},
-			fixtures.TestUsers[1],
-			false,
-		},
-		{
-			"no users - error",
-			fields{Users: nil},
-			slack.User{},
-			true,
-		},
-		{
-			"not enough users - error",
-			fields{Users: []slack.User{}},
-			slack.User{},
-			true,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			sd := &Session{
-				client:  tt.fields.client,
-				wspInfo: tt.fields.wspInfo,
-				Users:   tt.fields.Users,
-				cfg:     tt.fields.options,
-			}
-			got, err := sd.Me()
-			if (err != nil) != tt.wantErr {
-				t.Errorf("Session.Me() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("Session.Me() = %v, want %v", got, tt.want)
-			}
-		})
-	}
 }
 
 func TestSession_openFS(t *testing.T) {

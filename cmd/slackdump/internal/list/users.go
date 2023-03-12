@@ -34,7 +34,8 @@ func listUsers(ctx context.Context, cmd *base.Command, args []string) error {
 		if len(args) > 0 {
 			filename = args[0]
 		}
-		return sess.Users, filename, nil
+		users, err := sess.GetUsers(ctx)
+		return users, filename, err
 	}); err != nil {
 		return err
 	}
@@ -44,6 +45,7 @@ func listUsers(ctx context.Context, cmd *base.Command, args []string) error {
 func wizUsers(ctx context.Context, cmd *base.Command, args []string) error {
 	return wizard(ctx, func(ctx context.Context, sess *slackdump.Session) (any, string, error) {
 		var filename = makeFilename("users", sess.Info().TeamID, listType)
-		return sess.Users, filename, nil
+		users, err := sess.GetUsers(ctx)
+		return users, filename, err
 	})
 }

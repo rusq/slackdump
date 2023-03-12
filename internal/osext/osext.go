@@ -9,5 +9,5 @@ type Error struct {
 }
 
 func (e *Error) Error() string {
-	return fmt.Sprintf("%w: %s", e.Err, e.File)
+	return fmt.Sprintf("%s: %s", e.Err, e.File)
 }

@@ -91,6 +91,8 @@ func (o obfuscator) Chunk(c *chunk.Chunk) {
 		o.Files(c.Files...)
 	case chunk.CChannelInfo:
 		o.Channel(c.Channel)
+	case chunk.CUsers:
+		o.Users(c.Users...)
 	default:
 		dlog.Panicf("unknown chunk type: %s", c.Type)
 	}
@@ -267,4 +269,36 @@ func (o obfuscator) Channel(c *slack.Channel) {
 	for i := range c.Members {
 		c.Members[i] = o.UserID(c.Members[i])
 	}
+}
+
+func (o obfuscator) Users(uu ...slack.User) {
+	for i := range uu {
+		o.User(&uu[i])
+	}
+}
+
+// TODO: test
+func (o obfuscator) User(u *slack.User) {
+	if u == nil {
+		return
+	}
+	u.ID = o.UserID(u.ID)
+	u.Name = o.ID("", u.Name)
+	u.RealName = randomStringExact(len(u.RealName))
+	u.Profile.DisplayName = randomStringExact(len(u.Profile.DisplayName))
+	u.Profile.DisplayNameNormalized = randomStringExact(len(u.Profile.DisplayNameNormalized))
+	u.Profile.RealName = randomStringExact(len(u.Profile.RealName))
+	u.Profile.RealNameNormalized = randomStringExact(len(u.Profile.RealNameNormalized))
+	u.Profile.Email = randomStringExact(len(u.Profile.Email))
+	u.Profile.Image24 = randomStringExact(len(u.Profile.Image24))
+	u.Profile.Image32 = randomStringExact(len(u.Profile.Image32))
+	u.Profile.Image48 = randomStringExact(len(u.Profile.Image48))
+	u.Profile.Image72 = randomStringExact(len(u.Profile.Image72))
+	u.Profile.Image192 = randomStringExact(len(u.Profile.Image192))
+	u.Profile.Image512 = randomStringExact(len(u.Profile.Image512))
+	u.Profile.ImageOriginal = randomStringExact(len(u.Profile.ImageOriginal))
+	u.Profile.StatusText = randomStringExact(len(u.Profile.StatusText))
+	u.Profile.StatusEmoji = randomStringExact(len(u.Profile.StatusEmoji))
+	u.Profile.StatusExpiration = 0
+	u.Profile.Team = o.TeamID(u.Profile.Team)
 }

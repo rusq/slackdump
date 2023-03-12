@@ -79,7 +79,6 @@ func TestSession_getChannels(t *testing.T) {
 			mc := NewmockClienter(gomock.NewController(t))
 			sd := &Session{
 				client: mc,
-				Users:  tt.fields.Users,
 				cfg:    tt.fields.options,
 				log:    logger.Silent,
 			}
@@ -125,7 +124,6 @@ func TestSession_GetChannels(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			sd := &Session{
 				client: tt.fields.client,
-				Users:  tt.fields.Users,
 				cfg:    tt.fields.options,
 			}
 			got, err := sd.GetChannels(tt.args.ctx, tt.args.chanTypes...)

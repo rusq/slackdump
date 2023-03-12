@@ -102,7 +102,6 @@ func TestSession_fetchUsers(t *testing.T) {
 
 			sd := &Session{
 				client: mc,
-				Users:  tt.fields.Users,
 				cfg:    tt.fields.options,
 			}
 			got, err := sd.fetchUsers(tt.args.ctx)
@@ -176,7 +175,6 @@ func TestSession_GetUsers(t *testing.T) {
 			sd := &Session{
 				client:  mc,
 				wspInfo: &slack.AuthTestResponse{TeamID: testSuffix},
-				Users:   tt.fields.Users,
 				cfg:     tt.fields.options,
 				log:     logger.Silent,
 			}

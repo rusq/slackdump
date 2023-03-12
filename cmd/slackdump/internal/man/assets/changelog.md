@@ -32,6 +32,10 @@
   `slackdump workspace delete -a -y` where `-a` is for "all" and `-y` to
   answer "yes" to all questions;
 - Flag `-user-cache-file` was removed.
+- Slackdump does not cache users on each startup, to speed up execution, it
+  users lazy caching. For example, when the list command is requested.  The
+  user cache behaviour can still be controlled by `-no-user-cache` and
+  `-user-cache-retention` flags.
 
 
 # Library changes

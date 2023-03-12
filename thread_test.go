@@ -165,7 +165,6 @@ func TestSession_DumpThreadWithFiles(t *testing.T) {
 
 			sd := &Session{
 				client: mc,
-				Users:  tt.fields.Users,
 				cfg:    tt.fields.options,
 				log:    logger.Silent,
 			}
@@ -384,7 +383,6 @@ func TestSession_dumpThread(t *testing.T) {
 
 			sd := &Session{
 				client: mc,
-				Users:  tt.fields.Users,
 				cfg:    tt.fields.options,
 				log:    logger.Silent,
 			}

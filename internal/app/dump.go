@@ -18,6 +18,7 @@ import (
 	"github.com/rusq/slackdump/v2/internal/nametmpl"
 	"github.com/rusq/slackdump/v2/logger"
 	"github.com/rusq/slackdump/v2/types"
+	"github.com/slack-go/slack"
 )
 
 type dump struct {
@@ -115,17 +116,21 @@ func (app *dump) dumpOne(ctx context.Context, fs fsadapter.FS, filetmpl *nametmp
 	if err != nil {
 		return err
 	}
-	return app.writeFiles(ctx, fs, filename, cnv)
+	users, err := app.sess.GetUsers(ctx)
+	if err != nil {
+		return err
+	}
+	return app.writeFiles(ctx, fs, filename, cnv, users)
 }
 
 // writeFiles writes the conversation to disk.  If text output is set, it will
 // also generate a text file having the same name as JSON file.
-func (app *dump) writeFiles(ctx context.Context, fs fsadapter.FS, name string, cnv *types.Conversation) error {
+func (app *dump) writeFiles(ctx context.Context, fs fsadapter.FS, name string, cnv *types.Conversation, users []slack.User) error {
 	if err := app.writeJSON(fs, name+".json", cnv); err != nil {
 		return err
 	}
 	if app.cfg.Output.IsText() {
-		if err := app.writeText(ctx, fs, name+".txt", cnv); err != nil {
+		if err := app.writeText(ctx, fs, name+".txt", cnv, users); err != nil {
 			return err
 		}
 	}
@@ -147,7 +152,7 @@ func (app *dump) writeJSON(fs fsadapter.FS, filename string, m any) error {
 	return nil
 }
 
-func (app *dump) writeText(ctx context.Context, fs fsadapter.FS, filename string, m *types.Conversation) error {
+func (app *dump) writeText(ctx context.Context, fs fsadapter.FS, filename string, m *types.Conversation, users []slack.User) error {
 	app.log.Printf("generating %s", filename)
 	f, err := fs.Create(filename)
 	if err != nil {
@@ -156,7 +161,7 @@ func (app *dump) writeText(ctx context.Context, fs fsadapter.FS, filename string
 	defer f.Close()
 	txt := format.NewText()
 
-	return txt.Conversation(ctx, f, app.sess.Users, m)
+	return txt.Conversation(ctx, f, users, m)
 }
 
 // List lists the supported entities, and writes the output to the output
@@ -174,6 +179,10 @@ func (app *dump) List(ctx context.Context) error {
 	if app.cfg.Output.IsText() {
 		formatter = format.NewText()
 	}
+	users, err := app.sess.GetUsers(ctx)
+	if err != nil {
+		return err
+	}
 
 	switch {
 	case app.cfg.ListFlags.Channels:
@@ -181,13 +190,9 @@ func (app *dump) List(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		return formatter.Channels(ctx, f, app.sess.Users, ch)
+		return formatter.Channels(ctx, f, users, ch)
 	case app.cfg.ListFlags.Users:
-		u, err := app.sess.GetUsers(ctx)
-		if err != nil {
-			return err
-		}
-		return formatter.Users(ctx, f, u)
+		return formatter.Users(ctx, f, users)
 	default:
 		return errors.New("no valid list flag")
 	}

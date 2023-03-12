@@ -219,7 +219,6 @@ func TestSession_DumpMessages(t *testing.T) {
 
 			sd := &Session{
 				client: mc,
-				Users:  tt.fields.Users,
 				cfg:    tt.fields.options,
 				log:    logger.Silent,
 			}
@@ -302,7 +301,6 @@ func TestSession_DumpAll(t *testing.T) {
 
 			sd := &Session{
 				client: mc,
-				Users:  tt.fields.Users,
 				cfg:    tt.fields.options,
 				log:    logger.Silent,
 			}
@@ -420,7 +418,6 @@ func TestSession_getChannelName(t *testing.T) {
 			tt.expectFn(mc)
 			sd := &Session{
 				client: mc,
-				Users:  tt.fields.Users,
 				cfg:    tt.fields.options,
 			}
 			got, err := sd.getChannelName(tt.args.ctx, tt.args.l, tt.args.channelID)

@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime/trace"
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/rusq/dlog"
@@ -16,6 +17,7 @@ import (
 	"github.com/rusq/slackdump/v2/auth"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/golang/base"
+	"github.com/rusq/slackdump/v2/internal/cache"
 	"github.com/rusq/slackdump/v2/internal/format"
 	"github.com/rusq/slackdump/v2/types"
 	"github.com/slack-go/slack"
@@ -102,22 +104,43 @@ func list(ctx context.Context, listFn listFunc) error {
 	if err != nil {
 		return err
 	}
+	m, err := cache.NewManager(cfg.CacheDir(), cache.WithUserCacheBase(cfg.SlackConfig.UserCache.Filename))
+	if err != nil {
+		return err
+	}
+
+	lg := dlog.FromContext(ctx)
+	teamID := sess.Info().TeamID
+	users, err := m.LoadUsers(teamID, cfg.SlackConfig.UserCache.Retention)
+	if err != nil {
+		lg.Println("user cache expired, caching users")
+
+		users, err = sess.GetUsers(ctx)
+		if err != nil {
+			return err
+		}
+
+		if err := m.SaveUsers(teamID, users); err != nil {
+			trace.Logf(ctx, "error", "saving user cache to %q, error: %s", cfg.SlackConfig.UserCache.Filename, err)
+			lg.Printf("error saving user cache to %q: %s, but nevermind, let's continue", cfg.SlackConfig.UserCache.Filename, err)
+		}
+	}
 
 	if !nosave {
-		if err := saveData(ctx, sess, data, filename, format.CJSON); err != nil {
+		if err := saveData(ctx, sess.Filesystem(), data, filename, format.CJSON, users); err != nil {
 			return err
 		}
 	}
 	if !quiet {
-		return fmtPrint(ctx, os.Stdout, data, listType, sess.Users)
+		return fmtPrint(ctx, os.Stdout, data, listType, users)
 	}
 	return nil
 }
 
 // saveData saves the given data to the given filename.
-func saveData(ctx context.Context, sess *slackdump.Session, data any, filename string, typ format.Type) error {
+func saveData(ctx context.Context, fs fsadapter.FS, data any, filename string, typ format.Type, users []slack.User) error {
 	// save to a filesystem.
-	if err := writeData(ctx, sess.Filesystem(), filename, data, typ, sess.Users); err != nil {
+	if err := writeData(ctx, fs, filename, data, typ, users); err != nil {
 		return err
 	}
 	dlog.FromContext(ctx).Printf("Data saved to:  %q\n", filepath.Join(cfg.SlackConfig.BaseLocation, filename))
