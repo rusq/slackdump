@@ -393,7 +393,7 @@ func TestClient_Start(t *testing.T) {
 		c.Start(context.Background())
 		defer c.Stop()
 
-		assert.True(t, c.started)
+		assert.True(t, c.started.Load())
 		assert.NotNil(t, c.wg)
 		assert.NotNil(t, c.fileRequests)
 	})
@@ -404,17 +404,17 @@ func TestClient_Stop(t *testing.T) {
 	t.Run("ensure stopped", func(t *testing.T) {
 		c := clientWithMock(t, tmpdir)
 		c.Start(context.Background())
-		assert.True(t, c.started)
+		assert.True(t, c.started.Load())
 
 		c.Stop()
-		assert.False(t, c.started)
+		assert.False(t, c.started.Load())
 		assert.Nil(t, c.fileRequests)
 		assert.Nil(t, c.wg)
 	})
 	t.Run("stop on stopped downloader does nothing", func(t *testing.T) {
 		c := clientWithMock(t, tmpdir)
 		c.Stop()
-		assert.False(t, c.started)
+		assert.False(t, c.started.Load())
 		assert.Nil(t, c.fileRequests)
 		assert.Nil(t, c.wg)
 	})

@@ -46,6 +46,10 @@ func (s *Standard) Files(ctx context.Context, channelID string, parent slack.Mes
 		// ignore files if requested
 		return nil
 	}
+	st, err := s.Recorder.State()
+	if err != nil {
+		return err
+	}
 	// custom file processor, because we need to donwload those files
 	for i := range ff {
 		if ff[i].Mode == "hidden_by_limit" {
@@ -57,8 +61,7 @@ func (s *Standard) Files(ctx context.Context, channelID string, parent slack.Mes
 		if err != nil {
 			return err
 		}
-		s, _ := s.Recorder.State()
-		s.AddFile(channelID, ff[i].ID, filename)
+		st.AddFile(channelID, ff[i].ID, filename)
 	}
 	return nil
 }
