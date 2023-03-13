@@ -1,4 +1,4 @@
-package fetch
+package transform
 
 import (
 	"compress/gzip"
@@ -30,11 +30,11 @@ type streamer interface {
 
 var replacer = strings.NewReplacer("/", "-", ":", "-")
 
-// Conversation dumps a single conversation or thread into a directory,
+// Fetch dumps a single conversation or thread into a directory,
 // returning the name of the state file that was created.  State file contains
 // the information about the filename of the chunk recording file, as well as
 // paths to downloaded files.
-func Conversation(ctx context.Context, sess streamer, dir string, link string, p *Parameters) (string, error) {
+func Fetch(ctx context.Context, sess streamer, dir string, link string, p *Parameters) (string, error) {
 	fileprefix := replacer.Replace(link)
 	var pattern = fmt.Sprintf("%s-*.jsonl.gz", fileprefix)
 	f, err := os.CreateTemp(dir, pattern)

@@ -20,7 +20,6 @@ import (
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/auth"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/cfg"
-	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/fetch"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v2/internal/chunk/state"
 	"github.com/rusq/slackdump/v2/internal/chunk/transform"
@@ -128,7 +127,7 @@ func dumpv3(ctx context.Context, sess *slackdump.Session, list *structures.Entit
 
 	lg := dlog.FromContext(ctx)
 
-	p := &fetch.Parameters{
+	p := &transform.Parameters{
 		Oldest:    time.Time(cfg.Oldest),
 		Latest:    time.Time(cfg.Latest),
 		List:      list,
@@ -149,7 +148,7 @@ func dumpv3(ctx context.Context, sess *slackdump.Session, list *structures.Entit
 		lg.Printf("fetching %q", link)
 
 		cr := trace.StartRegion(ctx, "fetch.Conversation")
-		statefile, err := fetch.Conversation(ctx, sess, tmpdir, link, p)
+		statefile, err := transform.Fetch(ctx, sess, tmpdir, link, p)
 		cr.End()
 		if err != nil {
 			return err

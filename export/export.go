@@ -138,7 +138,7 @@ func (se *Export) exclusiveExport(ctx context.Context, uidx structures.UserIndex
 	}); err != nil {
 		return nil, fmt.Errorf("channels: error: %w", err)
 	}
-	se.l().Printf("  out of which exported:  %d", len(chans))
+	se.lg.Printf("  out of which exported:  %d", len(chans))
 	return chans, nil
 }
 
@@ -257,16 +257,8 @@ func serialize(w io.Writer, data any) error {
 	return nil
 }
 
-// l returns the current logger or the default one if no logger is set.
-func (se *Export) l() logger.Interface {
-	if se.lg == nil {
-		se.lg = logger.Default
-	}
-	return se.lg
-}
-
 // td outputs the message to trace and logs a debug message.
 func (se *Export) td(ctx context.Context, category string, fmt string, a ...any) {
-	se.l().Debugf(fmt, a...)
+	se.lg.Debugf(fmt, a...)
 	trace.Logf(ctx, category, fmt, a...)
 }
