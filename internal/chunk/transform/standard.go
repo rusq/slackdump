@@ -67,23 +67,14 @@ func NewStandard(fs fsadapter.FS, opts ...StandardOption) *Standard {
 	return s
 }
 
-// Transform transforms the state into a set of files.
+// Transform transforms the chunk file referenced by a state into a final form.
 func (s *Standard) Transform(ctx context.Context, basePath string, st *state.State) error {
 	ctx, task := trace.NewTask(ctx, "transform.Standard.Transform")
 	defer task.End()
-	if st == nil {
-		trace.Log(ctx, "state", "nil state")
-		return fmt.Errorf("fatal:  nil state")
-	}
 
 	trace.Logf(ctx, "state", "%v, len(files)=%d", st.ChannelInfos, len(st.Files))
 
-	if !st.IsComplete {
-		trace.Log(ctx, "state", "incomplete state")
-		return fmt.Errorf("state is incomplete, unable to transform the chunk record")
-	}
-
-	rsc, err := st.OpenChunks(basePath)
+	rsc, err := loadState(st, basePath)
 	if err != nil {
 		return err
 	}

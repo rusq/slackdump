@@ -71,7 +71,7 @@ func TestChannelStream(t *testing.T) {
 	defer rec.Close()
 
 	cs := newChannelStream(sd, &DefOptions.Limits)
-	if err := cs.Conversations(context.Background(), testConversation, rec); err != nil {
+	if err := cs.Conversations(context.Background(), rec, testConversation); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -99,7 +99,7 @@ func TestRecorderStream(t *testing.T) {
 
 	rgnStream := trace.StartRegion(ctx, "Stream")
 	cs := newChannelStream(sd, &expandedLimits)
-	if err := cs.Conversations(ctx, fixtures.ChunkFileChannelID, rec); err != nil {
+	if err := cs.Conversations(ctx, rec, fixtures.ChunkFileChannelID); err != nil {
 		t.Fatal(err)
 	}
 	rgnStream.End()

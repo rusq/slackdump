@@ -71,7 +71,7 @@ func newChannelStream(cl clienter, l *Limits, opts ...StreamOption) *Stream {
 
 // Conversations fetches the conversations from the link which can be a
 // channelID, channel URL, thread URL or a link in Slackdump format.
-func (cs *Stream) Conversations(ctx context.Context, link string, proc processor.Conversations) error {
+func (cs *Stream) Conversations(ctx context.Context, proc processor.Conversations, link string) error {
 	ctx, task := trace.NewTask(ctx, "channelStream.Conversations")
 	defer task.End()
 
