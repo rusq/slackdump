@@ -171,8 +171,13 @@ func (p *Player) HasMoreChannels() bool {
 	return p.hasMore(channelChunkID)
 }
 
-func (p *Player) HasMoreUsers() bool {
+// HasUsers returns true if there is at least one user chunk in the file.
+func (p *Player) HasUsers() bool {
 	return p.hasMore(userChunkID)
+}
+
+func (p *Player) HasChannels() bool {
+	return p.hasMore(channelChunkID)
 }
 
 // Thread returns the messages for the given thread.

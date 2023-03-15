@@ -59,23 +59,23 @@ func runExport(ctx context.Context, cmd *base.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-
-	return exportV2(ctx, prov, list)
-}
-
-func exportV2(ctx context.Context, prov auth.Provider, list *structures.EntityList) error {
-	options.List = list
-	options.Logger = dlog.FromContext(ctx)
 	sess, err := slackdump.New(ctx, prov, cfg.SlackConfig)
 	if err != nil {
 		return err
 	}
 	defer sess.Close()
 
+	options.List = list
+	options.Logger = dlog.FromContext(ctx)
+
+	return exportV2(ctx, sess, list, options)
+}
+
+func exportV2(ctx context.Context, sess *slackdump.Session, list *structures.EntityList, options export.Config) error {
 	exp := export.New(sess, options)
 	return exp.Run(ctx)
 }
 
-// func exportV3(ctx context.Context, prov auth.Provider, list *structures.EntityList) error {
-
+// func exportV3(ctx context.Context, sess *slackdump.Session, list *structures.EntityList, options export.Config) error {
+// 	s := sess.Stream(slackdump.WithOldest(options.Oldest), slackdump.WithLatest(options.Latest))
 // }
