@@ -3,10 +3,12 @@ package chunk
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"sync/atomic"
 
 	"github.com/slack-go/slack"
@@ -24,6 +26,7 @@ var (
 // not usable.st
 type Player struct {
 	rs io.ReadSeeker
+	mu sync.RWMutex
 
 	idx     index   // index of chunks in the file
 	pointer offsets // current chunk pointers
@@ -81,12 +84,16 @@ func indexRecords(dec decodeOffsetter) (index, error) {
 
 // Offset returns the last read offset of the record in ReadSeeker.
 func (p *Player) Offset() int64 {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
 	return p.lastOffset.Load()
 }
 
 // tryGetChunk tries to get the next chunk for the given id.  It returns
 // io.EOF if there are no more chunks for the given id.
 func (p *Player) tryGetChunk(id string) (*Chunk, error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
 	offsets, ok := p.idx[id]
 	if !ok {
 		return nil, ErrNotFound
@@ -110,7 +117,7 @@ func (p *Player) tryGetChunk(id string) (*Chunk, error) {
 	// we have to init new decoder at the current offset, because it's
 	// not possible to seek the decoder.
 	if err := json.NewDecoder(p.rs).Decode(&chunk); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to decode chunk at offset %d: %w", offsets[ptr], err)
 	}
 	p.pointer[id]++ // increase the offset pointer for the next call.
 	return &chunk, nil
@@ -151,6 +158,8 @@ func (p *Player) HasMoreMessages(channelID string) bool {
 
 // hasMore returns true if there are more chunks for the given id.
 func (p *Player) hasMore(id string) bool {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
 	offsets, ok := p.idx[id]
 	if !ok {
 		return false // no such id
@@ -203,6 +212,8 @@ func (p *Player) Reset() error {
 // ForEach iterates over the chunks in the reader and calls the function for
 // each chunk.  It will reset the state of the Player.
 func (p *Player) ForEach(fn func(ev *Chunk) error) error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
 	if err := p.Reset(); err != nil {
 		return err
 	}

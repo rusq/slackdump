@@ -6,12 +6,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"runtime/trace"
 	"strconv"
 
-	"github.com/rusq/dlog"
 	"github.com/slack-go/slack"
 
 	"github.com/rusq/slackdump/v2/internal/chunk"
@@ -71,7 +71,7 @@ func handleConversationsHistory(p *chunk.Player) http.HandlerFunc {
 			http.NotFound(w, r)
 			return
 		}
-		dlog.Printf("channel: %s", channel)
+		log.Printf("channel: %s", channel)
 
 		msg, err := p.Messages(channel)
 		if err != nil {
@@ -90,6 +90,7 @@ func handleConversationsHistory(p *chunk.Player) http.HandlerFunc {
 				}
 				return
 			}
+			log.Printf("error processing messages: %s", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -102,6 +103,7 @@ func handleConversationsHistory(p *chunk.Player) http.HandlerFunc {
 			},
 		}
 		if err := json.NewEncoder(w).Encode(resp); err != nil {
+			log.Printf("error encoding channel.history response: %s", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -115,7 +117,7 @@ func handleConversationsReplies(p *chunk.Player) http.HandlerFunc {
 
 		timestamp := r.FormValue("ts")
 		channel := r.FormValue("channel")
-		dlog.Printf("channel: %s, ts: %s", channel, timestamp)
+		log.Printf("channel: %s, ts: %s", channel, timestamp)
 
 		if timestamp == "" {
 			http.Error(w, "ts is required", http.StatusBadRequest)
@@ -133,6 +135,7 @@ func handleConversationsReplies(p *chunk.Player) http.HandlerFunc {
 			} else {
 				slackResp.Error = err.Error()
 			}
+			log.Printf("error processing thread: %s", err)
 		}
 		resp := GetConversationRepliesResponse{
 			HasMore:          p.HasMoreThreads(channel, timestamp),
@@ -141,6 +144,7 @@ func handleConversationsReplies(p *chunk.Player) http.HandlerFunc {
 			SlackResponse:    slackResp,
 		}
 		if err := json.NewEncoder(w).Encode(resp); err != nil {
+			log.Printf("error encoding conversation.replies response: %s", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -167,15 +171,15 @@ func handleConversationsInfo(p *chunk.Player) http.HandlerFunc {
 			http.Error(w, "channel is required", http.StatusBadRequest)
 			return
 		}
-		dlog.Printf("channel: %s", channel)
+		log.Printf("channel: %s", channel)
 		ci, err := p.ChannelInfo(channel)
 		if err != nil {
 			if errors.Is(err, chunk.ErrNotFound) {
-				dlog.Printf("conversationInfo: not found: (%q) %v", channel, err)
+				log.Printf("conversationInfo: not found: (%q) %v", channel, err)
 				http.NotFound(w, r)
 				return
 			}
-			dlog.Printf("conversationInfo: error: %v", err)
+			log.Printf("conversationInfo: error: %v", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -187,6 +191,7 @@ func handleConversationsInfo(p *chunk.Player) http.HandlerFunc {
 			Channel: *ci,
 		}
 		if err := json.NewEncoder(w).Encode(resp); err != nil {
+			log.Printf("error encoding channel.info response: %s", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -216,6 +221,7 @@ func handleConversationsList(p *chunk.Player) http.HandlerFunc {
 				sr.Ok = false
 				sr.ResponseMetadata.Cursor = ""
 			} else {
+				log.Printf("error processing conversations.list: %s", err)
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
@@ -225,6 +231,7 @@ func handleConversationsList(p *chunk.Player) http.HandlerFunc {
 			SlackResponse: sr,
 		}
 		if err := json.NewEncoder(w).Encode(resp); err != nil {
+			log.Printf("error encoding channel.list response: %s", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -254,6 +261,7 @@ func handleUsersList(p *chunk.Player) http.HandlerFunc {
 				sr.Ok = false
 				sr.Error = "pagination complete"
 			} else {
+				log.Printf("error processing users.list: %s", err)
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
@@ -264,6 +272,7 @@ func handleUsersList(p *chunk.Player) http.HandlerFunc {
 			SlackResponse: sr,
 		}
 		if err := json.NewEncoder(w).Encode(resp); err != nil {
+			log.Printf("error encoding users.list response: %s", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}

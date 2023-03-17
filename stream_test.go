@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"runtime/trace"
 	"testing"
+	"time"
 
 	"github.com/golang/mock/gomock"
 	"github.com/rusq/chttp"
@@ -80,6 +81,7 @@ func TestRecorderStream(t *testing.T) {
 	ctx, task := trace.NewTask(context.Background(), "TestRecorderStream")
 	defer task.End()
 
+	start := time.Now()
 	f := fixtures.ChunkFileJSONL()
 
 	rgnNewSrv := trace.StartRegion(ctx, "NewServer")
@@ -103,6 +105,9 @@ func TestRecorderStream(t *testing.T) {
 		t.Fatal(err)
 	}
 	rgnStream.End()
+	if time.Since(start) > 2*time.Second {
+		t.Fatal("took too long")
+	}
 }
 
 func TestReplay(t *testing.T) {
