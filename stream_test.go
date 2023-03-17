@@ -164,20 +164,10 @@ var testThread = []slack.Message{
 	},
 }
 
-func Test_channelStream_thread(t *testing.T) {
-	lim := limits(&DefOptions.Limits)
-
+func Test_processThreadMessages(t *testing.T) {
 	t.Run("all files from messages are collected", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		mc := NewmockClienter(ctrl)
 
-		mc.EXPECT().
-			GetConversationRepliesContext(gomock.Any(), gomock.Any()).Return(testThread, false, "", nil)
-
-		cs := &Stream{
-			client: mc,
-			limits: lim,
-		}
 		mproc := mock_processor.NewMockConversations(ctrl)
 		mproc.EXPECT().
 			ThreadMessages(gomock.Any(), "CTM1", testThread[0], testThread[1:]).
@@ -190,7 +180,7 @@ func Test_channelStream_thread(t *testing.T) {
 			Files(gomock.Any(), "CTM1", testThread[2], true, testThread[2].Files).
 			Return(nil)
 
-		if err := cs.thread(context.Background(), "CTM1", testThread[0].ThreadTimestamp, mproc); err != nil {
+		if err := processThreadMessages(context.Background(), mproc, "CTM1", testThread[0].ThreadTimestamp, testThread); err != nil {
 			t.Fatal(err)
 		}
 	})
