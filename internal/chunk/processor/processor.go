@@ -51,8 +51,9 @@ type Option func(*options)
 
 // DumpFiles disables the file processing (enabled by default).  It may be
 // useful on enterprise workspaces where the file download may be monitored.
-// See:
-// https://github.com/rusq/slackdump/discussions/191#discussioncomment-4953235
+// See [#191]
+//
+// [#191]: https://github.com/rusq/slackdump/discussions/191#discussioncomment-4953235
 func DumpFiles(b bool) Option {
 	return func(o *options) {
 		o.dumpFiles = b
