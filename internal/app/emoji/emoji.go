@@ -49,7 +49,14 @@ func Download(ctx context.Context, cfg config.Params, prov auth.Provider) error 
 		return err
 	}
 	defer sess.Close()
-	return Dl(ctx, sess, cfg.Output.Base, cfg.Emoji.FailOnError)
+
+	fsa, err := fsadapter.New(cfg.Output.Base)
+	if err != nil {
+		return fmt.Errorf("unable to initialise adapter for %s: %w", cfg.Output.Base, err)
+	}
+	defer fsa.Close()
+
+	return DlFS(ctx, sess, fsa, cfg.Emoji.FailOnError)
 }
 
 //go:generate mockgen -source emoji.go -destination emoji_mock_test.go -package emoji
@@ -72,20 +79,6 @@ func DlFS(ctx context.Context, sess emojidumper, fsa fsadapter.FS, ignoreErrors 
 	}
 
 	return fetch(ctx, fsa, emojis, true)
-}
-
-// Dl downloads all emojis from the workspace and saves them to the base
-// directory or file.
-//
-// Deprecated: use DlFS instead.
-func Dl(ctx context.Context, sess emojidumper, base string, ignoreErrors bool) error {
-	fsa, err := fsadapter.New(base)
-	if err != nil {
-		return fmt.Errorf("unable to initialise adapter for %s: %w", base, err)
-	}
-	defer fsa.Close()
-
-	return DlFS(ctx, sess, fsa, ignoreErrors)
 }
 
 // fetch downloads the emojis and saves them to the fsa. It spawns numWorker
