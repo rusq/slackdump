@@ -321,21 +321,7 @@ func (cs *Stream) channelWorker(ctx context.Context, id int, proc processor.Conv
 				errors <- WorkerError{Type: "channel", Worker: id, Err: err}
 			}
 			if err := cs.channel(ctx, req.channelID, func(mm []slack.Message) error {
-				if err := proc.Messages(ctx, req.channelID, mm); err != nil {
-					return fmt.Errorf("failed to process message chunk starting with id=%s (size=%d): %w", mm[0].Msg.ClientMsgID, len(mm), err)
-				}
-				for i := range mm {
-					if mm[i].Msg.ThreadTimestamp != "" && mm[i].Msg.SubType != "thread_broadcast" {
-						dlog.Debugf("- message #%d/thread: id=%s, thread_ts=%s", i, mm[i].ClientMsgID, mm[i].Msg.ThreadTimestamp)
-						threadC <- threadRequest{channelID: req.channelID, threadTS: mm[i].Msg.ThreadTimestamp}
-					}
-					if len(mm[i].Files) > 0 {
-						if err := proc.Files(ctx, req.channelID, mm[i], false, mm[i].Files); err != nil {
-							return err
-						}
-					}
-				}
-				return nil
+				return processChannelMessages(ctx, proc, threadC, req.channelID, mm)
 			}); err != nil {
 				errors <- WorkerError{Type: "channel", Worker: id, Err: err}
 			}
@@ -401,23 +387,51 @@ func (cs *Stream) threadWorker(ctx context.Context, id int, proc processor.Conve
 				}
 			}
 			if err := cs.thread(ctx, req.channelID, req.threadTS, func(msgs []slack.Message) error {
-				// slack returns the thread starter as the first message with every
-				// call, so we use it as a parent message.
-				if err := proc.ThreadMessages(ctx, req.channelID, msgs[0], msgs[1:]); err != nil {
-					return fmt.Errorf("failed to process message id=%s, thread_ts=%s: %w", msgs[0].Msg.ClientMsgID, req.threadTS, err)
-				}
-				// extract files from thread messages
-				for _, m := range msgs[1:] {
-					if len(m.Files) > 0 {
-						if err := proc.Files(ctx, req.channelID, m, true, m.Files); err != nil {
-							return err
-						}
-					}
-				}
-				return nil
+				return processThreadMessages(ctx, proc, req.channelID, req.threadTS, msgs)
 			}); err != nil {
 				errors <- WorkerError{Type: "thread", Worker: id, Err: err}
 			}
 		}
 	}
+}
+
+func processChannelMessages(ctx context.Context, proc processor.Conversations, threadC chan<- threadRequest, channelID string, mm []slack.Message) error {
+	ctx, task := trace.NewTask(ctx, "processChannelMessages")
+	defer task.End()
+	if err := proc.Messages(ctx, channelID, mm); err != nil {
+		return fmt.Errorf("failed to process message chunk starting with id=%s (size=%d): %w", mm[0].Msg.ClientMsgID, len(mm), err)
+	}
+
+	for i := range mm {
+		if mm[i].Msg.ThreadTimestamp != "" && mm[i].Msg.SubType != "thread_broadcast" {
+			dlog.Debugf("- message #%d/thread: id=%s, thread_ts=%s", i, mm[i].ClientMsgID, mm[i].Msg.ThreadTimestamp)
+			threadC <- threadRequest{channelID: channelID, threadTS: mm[i].Msg.ThreadTimestamp}
+		}
+		if len(mm[i].Files) > 0 {
+			if err := proc.Files(ctx, channelID, mm[i], false, mm[i].Files); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func processThreadMessages(ctx context.Context, proc processor.Conversations, channelID, threadTS string, msgs []slack.Message) error {
+	ctx, task := trace.NewTask(ctx, "processThreadMessages")
+	defer task.End()
+
+	// slack returns the thread starter as the first message with every
+	// call, so we use it as a parent message.
+	if err := proc.ThreadMessages(ctx, channelID, msgs[0], msgs[1:]); err != nil {
+		return fmt.Errorf("failed to process message id=%s, thread_ts=%s: %w", msgs[0].Msg.ClientMsgID, threadTS, err)
+	}
+	// extract files from thread messages
+	for _, m := range msgs[1:] {
+		if len(m.Files) > 0 {
+			if err := proc.Files(ctx, channelID, m, true, m.Files); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
