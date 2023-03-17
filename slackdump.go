@@ -20,7 +20,6 @@ import (
 	"github.com/rusq/slackdump/v2/auth"
 	"github.com/rusq/slackdump/v2/internal/network"
 	"github.com/rusq/slackdump/v2/logger"
-	"github.com/rusq/slackdump/v2/types"
 )
 
 //go:generate mockgen -destination internal/mocks/mock_os/mock_os.go os FileInfo
@@ -34,8 +33,7 @@ type Session struct {
 	wspInfo *WorkspaceInfo // workspace info
 
 	// usercache contains the list of users.
-	usercache types.Users
-	uc        *usercache
+	uc *usercache
 
 	fs  fsadapter.FS     // filesystem adapter
 	log logger.Interface // logger

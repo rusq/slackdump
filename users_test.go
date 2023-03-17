@@ -119,7 +119,6 @@ func TestSession_fetchUsers(t *testing.T) {
 func TestSession_GetUsers(t *testing.T) {
 	dir := t.TempDir()
 	type fields struct {
-		Users   types.Users
 		options Config
 	}
 	type args struct {
