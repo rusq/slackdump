@@ -57,13 +57,8 @@ type emojidumper interface {
 	DumpEmojis(ctx context.Context) (map[string]string, error)
 }
 
-func Dl(ctx context.Context, sess emojidumper, base string, ignoreErrors bool) error {
-	fsa, err := fsadapter.New(base)
-	if err != nil {
-		return fmt.Errorf("unable to initialise adapter for %s: %w", base, err)
-	}
-	defer fsa.Close()
-
+// DlFS downloads all emojis from the workspace and saves them to the fsa.
+func DlFS(ctx context.Context, sess emojidumper, fsa fsadapter.FS, ignoreErrors bool) error {
 	emojis, err := sess.DumpEmojis(ctx)
 	if err != nil {
 		return fmt.Errorf("error during emoji dump: %w", err)
@@ -77,6 +72,20 @@ func Dl(ctx context.Context, sess emojidumper, base string, ignoreErrors bool) e
 	}
 
 	return fetch(ctx, fsa, emojis, true)
+}
+
+// Dl downloads all emojis from the workspace and saves them to the base
+// directory or file.
+//
+// Deprecated: use DlFS instead.
+func Dl(ctx context.Context, sess emojidumper, base string, ignoreErrors bool) error {
+	fsa, err := fsadapter.New(base)
+	if err != nil {
+		return fmt.Errorf("unable to initialise adapter for %s: %w", base, err)
+	}
+	defer fsa.Close()
+
+	return DlFS(ctx, sess, fsa, ignoreErrors)
 }
 
 // fetch downloads the emojis and saves them to the fsa. It spawns numWorker

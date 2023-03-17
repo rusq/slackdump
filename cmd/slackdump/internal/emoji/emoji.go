@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/rusq/fsadapter"
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/auth"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/cfg"
@@ -37,14 +38,21 @@ func run(ctx context.Context, cmd *base.Command, args []string) error {
 		base.SetExitStatus(base.SAuthError)
 		return fmt.Errorf("auth error: %s", err)
 	}
-	cfg.SlackConfig.UserCache.Disabled = true // don't need users for emojis
-	sess, err := slackdump.New(ctx, prov, cfg.SlackConfig)
+
+	fs, err := fsadapter.New(cfg.SlackConfig.BaseLocation)
+	if err != nil {
+		return err
+	}
+	defer fs.Close()
+
+	sess, err := slackdump.New(ctx, prov, cfg.SlackConfig, slackdump.WithFilesystem(fs))
 	if err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return fmt.Errorf("application error: %s", err)
 	}
 	defer sess.Close()
-	if err := emoji.Dl(ctx, sess, cfg.SlackConfig.BaseLocation, ignoreErrors); err != nil {
+
+	if err := emoji.DlFS(ctx, sess, fs, ignoreErrors); err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return fmt.Errorf("application error: %s", err)
 	}
