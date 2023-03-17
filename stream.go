@@ -39,7 +39,7 @@ func limits(l *Limits) rateLimits {
 	}
 }
 
-// StreamOptions are used to configure the stream.
+// StreamOption functions are used to configure the stream.
 type StreamOption func(*Stream)
 
 // WithOldest sets the oldest time to be fetched.
@@ -72,31 +72,20 @@ func newChannelStream(cl clienter, l *Limits, opts ...StreamOption) *Stream {
 
 // Conversations fetches the conversations from the link which can be a
 // channelID, channel URL, thread URL or a link in Slackdump format.
-func (cs *Stream) Conversations(ctx context.Context, proc processor.Conversations, link string) error {
+func (cs *Stream) Conversations(ctx context.Context, proc processor.Conversations, link ...string) error {
 	ctx, task := trace.NewTask(ctx, "channelStream.Conversations")
 	defer task.End()
 
-	sl, err := structures.ParseLink(link)
-	if err != nil {
+	linkC := make(chan string, 1)
+	go func() {
+		defer close(linkC)
+		for _, l := range link {
+			linkC <- l
+		}
+	}()
+
+	if err := cs.AsyncConversations(ctx, proc, linkC); err != nil {
 		return err
-	}
-	if !sl.IsValid() {
-		return errors.New("invalid slack link: " + link)
-	}
-	if sl.IsThread() {
-		// we need to fetch the channel info on this level, because
-		// thread is also being called from the channel, and we don't
-		// want to fetch it every time.
-		if err := cs.channelInfo(ctx, sl.Channel, true, proc); err != nil {
-			return err
-		}
-		if err := cs.thread(ctx, sl.Channel, sl.ThreadTS, proc); err != nil {
-			return err
-		}
-	} else {
-		if err := cs.channel(ctx, sl.Channel, proc); err != nil {
-			return err
-		}
 	}
 	return nil
 }
@@ -279,19 +268,21 @@ func (cs *Stream) AsyncConversations(ctx context.Context, proc processor.Convers
 
 	// create channels
 	chans := make(chan channelRequest, chanSz)
-	defer close(chans)
 	threads := make(chan threadRequest, chanSz)
-	defer close(threads)
+
 	errorC := make(chan error, 2)
 
 	var wg sync.WaitGroup
-	wg.Add(2)
+	wg.Add(3)
 	go func() {
 		cs.channelWorker(ctx, 0, proc, errorC, chans, threads)
+		// we close threads here, instead of the main loop, because we want to
+		// close it after all the channel workers are done.
+		close(threads)
 		wg.Done()
 	}()
 	go func() {
-		go cs.threadWorker(ctx, 0, proc, errorC, threads)
+		cs.threadWorker(ctx, 0, proc, errorC, threads)
 		wg.Done()
 	}()
 	go func() {
@@ -299,19 +290,32 @@ func (cs *Stream) AsyncConversations(ctx context.Context, proc processor.Convers
 		close(errorC)
 	}()
 
-	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case link, more := <-links:
-			if !more {
-				return nil
-			}
-			if err := cs.processLink(chans, threads, link); err != nil {
-				return err
+	go func() {
+		defer wg.Done()
+		defer close(chans)
+		for {
+			select {
+			case <-ctx.Done():
+				errorC <- ctx.Err()
+				return
+			case link, more := <-links:
+				if !more {
+					return
+				}
+				if err := cs.processLink(chans, threads, link); err != nil {
+					errorC <- err
+				}
 			}
 		}
+	}()
+
+	for err := range errorC {
+		if err != nil {
+			return err
+		}
 	}
+	dlog.Printf("bailing out!!!")
+	return nil
 }
 
 // processLink parses the link and sends it to the appropriate worker.
@@ -324,7 +328,7 @@ func (cs *Stream) processLink(chans chan<- channelRequest, threads chan<- thread
 		return errors.New("invalid slack link: " + link)
 	}
 	if sl.IsThread() {
-		threads <- threadRequest{channelID: sl.Channel, threadTS: sl.ThreadTS}
+		threads <- threadRequest{channelID: sl.Channel, threadTS: sl.ThreadTS, needChanInfo: true}
 	} else {
 		chans <- channelRequest{channelID: sl.Channel}
 	}
@@ -338,6 +342,10 @@ type channelRequest struct {
 type threadRequest struct {
 	channelID string
 	threadTS  string
+	// needChanInfo indicates whether the channel info is needed for the thread.
+	// This is true when we're fetching the standalone thread without the
+	// conversation.
+	needChanInfo bool
 }
 
 type WorkerError struct {
@@ -445,6 +453,11 @@ func (cs *Stream) threadWorker(ctx context.Context, id int, proc processor.Conve
 		case req, more := <-reqs:
 			if !more {
 				return // channel closed
+			}
+			if req.needChanInfo {
+				if err := cs.channelInfo(ctx, req.channelID, true, proc); err != nil {
+					errors <- WorkerError{Type: "thread", Worker: id, Err: err}
+				}
 			}
 			if err := cs.thread(ctx, req.channelID, req.threadTS, proc); err != nil {
 				errors <- WorkerError{Type: "thread", Worker: id, Err: err}
