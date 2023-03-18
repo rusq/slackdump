@@ -97,10 +97,16 @@ func (cs *Stream) channelInfo(ctx context.Context, channelID string, isThread bo
 	ctx, task := trace.NewTask(ctx, "channelInfo")
 	defer task.End()
 
-	info, err := cs.client.GetConversationInfoContext(ctx, &slack.GetConversationInfoInput{
-		ChannelID: channelID,
-	})
-	if err != nil {
+	trace.Logf(ctx, "channel_id", "%s, isThread=%v", channelID, isThread)
+
+	var info *slack.Channel
+	if err := network.WithRetry(ctx, cs.limits.channels, cs.limits.tier.Tier3.Retries, func() error {
+		var err error
+		info, err = cs.client.GetConversationInfoContext(ctx, &slack.GetConversationInfoInput{
+			ChannelID: channelID,
+		})
+		return err
+	}); err != nil {
 		return err
 	}
 	if err := proc.ChannelInfo(ctx, info, isThread); err != nil {
@@ -142,9 +148,14 @@ func (cs *Stream) thread(ctx context.Context, id string, threadTS string, fn fun
 		if len(msgs) <= 1 {
 			return nil
 		}
-		if err := fn(msgs); err != nil {
+
+		r := trace.StartRegion(ctx, "thread_callback")
+		err := fn(msgs)
+		r.End()
+		if err != nil {
 			return err
 		}
+
 		if !hasmore {
 			break
 		}
@@ -344,7 +355,7 @@ func (cs *Stream) channelWorker(ctx context.Context, id int, proc processor.Conv
 }
 
 func (cs *Stream) channel(ctx context.Context, id string, fn func(mm []slack.Message) error) error {
-	ctx, task := trace.NewTask(ctx, "asyncChannel")
+	ctx, task := trace.NewTask(ctx, "channel")
 	defer task.End()
 
 	cursor := ""
@@ -370,9 +381,14 @@ func (cs *Stream) channel(ctx context.Context, id string, fn func(mm []slack.Mes
 			trace.Logf(ctx, "error", "not ok, api error=%s", resp.Error)
 			return fmt.Errorf("response not ok, slack error: %s", resp.Error)
 		}
-		if err := fn(resp.Messages); err != nil {
+
+		r := trace.StartRegion(ctx, "channel_callback")
+		err := fn(resp.Messages)
+		r.End()
+		if err != nil {
 			return fmt.Errorf("failed to process message chunk starting with id=%s (size=%d): %w", resp.Messages[0].Msg.ClientMsgID, len(resp.Messages), err)
 		}
+
 		if !resp.HasMore {
 			break
 		}
@@ -413,8 +429,6 @@ func (cs *Stream) threadWorker(ctx context.Context, id int, proc processor.Conve
 // thread requests for the threads in the channel, if it discovers messages
 // with threads.
 func processChannelMessages(ctx context.Context, proc processor.Conversations, threadC chan<- threadRequest, channelID string, mm []slack.Message) error {
-	ctx, task := trace.NewTask(ctx, "processChannelMessages")
-	defer task.End()
 	if err := proc.Messages(ctx, channelID, mm); err != nil {
 		return fmt.Errorf("failed to process message chunk starting with id=%s (size=%d): %w", mm[0].Msg.ClientMsgID, len(mm), err)
 	}
@@ -434,9 +448,6 @@ func processChannelMessages(ctx context.Context, proc processor.Conversations, t
 }
 
 func processThreadMessages(ctx context.Context, proc processor.Conversations, channelID, threadTS string, msgs []slack.Message) error {
-	ctx, task := trace.NewTask(ctx, "processThreadMessages")
-	defer task.End()
-
 	// slack returns the thread starter as the first message with every
 	// call, so we use it as a parent message.
 	if err := proc.ThreadMessages(ctx, channelID, msgs[0], msgs[1:]); err != nil {
