@@ -196,8 +196,10 @@ func (cs *Stream) Channels(ctx context.Context, types []string, proc processor.C
 	return nil
 }
 
-const chanSz = 100
+const chanSz = 16
 
+// AsyncConversations fetches the conversations from the link which can be a
+// channelID, channel URL, thread URL or a link in Slackdump format.
 func (cs *Stream) AsyncConversations(ctx context.Context, proc processor.Conversations, links <-chan string) error {
 	ctx, task := trace.NewTask(ctx, "AsyncConversations")
 	defer task.End()
@@ -209,44 +211,56 @@ func (cs *Stream) AsyncConversations(ctx context.Context, proc processor.Convers
 	errorC := make(chan error, 2)
 
 	var wg sync.WaitGroup
-	wg.Add(3)
+	{
+		// channel worker
+		wg.Add(1)
+		go func() {
+			cs.channelWorker(ctx, 0, proc, errorC, chans, threads)
+			// we close threads here, instead of the main loop, because we want to
+			// close it after all the thread workers are done.
+			close(threads)
+			wg.Done()
+			trace.Log(ctx, "async", "channel worker done")
+		}()
+	}
+	{
+		// thread worker
+		wg.Add(1)
+		go func() {
+			cs.threadWorker(ctx, 0, proc, errorC, threads)
+			wg.Done()
+			trace.Log(ctx, "async", "thread worker done")
+		}()
+	}
+	{
+		// main loop
+		wg.Add(1)
+		go func() {
+			defer trace.Log(ctx, "async", "main loop done")
+			defer wg.Done()
+			defer close(chans)
+			for {
+				select {
+				case <-ctx.Done():
+					errorC <- ctx.Err()
+					return
+				case link, more := <-links:
+					if !more {
+						return
+					}
+					if err := cs.processLink(chans, threads, link); err != nil {
+						errorC <- err
+					}
+				}
+			}
+		}()
+	}
 	go func() {
-		cs.channelWorker(ctx, 0, proc, errorC, chans, threads)
-		// we close threads here, instead of the main loop, because we want to
-		// close it after all the channel workers are done.
-		close(threads)
-		wg.Done()
-		trace.Log(ctx, "async", "channel worker done")
-	}()
-	go func() {
-		cs.threadWorker(ctx, 0, proc, errorC, threads)
-		wg.Done()
-		trace.Log(ctx, "async", "thread worker done")
-	}()
-	go func() {
+		// sentinel waits for all the workers to finish, then closes the error
+		// channel.
 		wg.Wait()
 		close(errorC)
 		trace.Log(ctx, "async", "sentinel done")
-	}()
-
-	go func() {
-		defer trace.Log(ctx, "async", "main loop done")
-		defer wg.Done()
-		defer close(chans)
-		for {
-			select {
-			case <-ctx.Done():
-				errorC <- ctx.Err()
-				return
-			case link, more := <-links:
-				if !more {
-					return
-				}
-				if err := cs.processLink(chans, threads, link); err != nil {
-					errorC <- err
-				}
-			}
-		}
 	}()
 
 	for err := range errorC {
@@ -395,6 +409,9 @@ func (cs *Stream) threadWorker(ctx context.Context, id int, proc processor.Conve
 	}
 }
 
+// processChannelMessages processes the messages in the channel and sends
+// thread requests for the threads in the channel, if it discovers messages
+// with threads.
 func processChannelMessages(ctx context.Context, proc processor.Conversations, threadC chan<- threadRequest, channelID string, mm []slack.Message) error {
 	ctx, task := trace.NewTask(ctx, "processChannelMessages")
 	defer task.End()
