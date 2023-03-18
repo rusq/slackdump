@@ -22,11 +22,6 @@ type Stream struct {
 	limits         rateLimits
 }
 
-type StreamResult struct {
-	ChannelID string
-	ThreadTS  string
-}
-
 func (s *StreamResult) String() string {
 	if s.ThreadTS == "" {
 		return "<" + s.ChannelID + ">"
@@ -53,15 +48,15 @@ func limits(l *Limits) rateLimits {
 // StreamOption functions are used to configure the stream.
 type StreamOption func(*Stream)
 
-// WithOldest sets the oldest time to be fetched.
-func WithOldest(t time.Time) StreamOption {
+// OptOldest sets the oldest time to be fetched.
+func OptOldest(t time.Time) StreamOption {
 	return func(cs *Stream) {
 		cs.oldest = t
 	}
 }
 
-// WithLatest sets the latest time to be fetched.
-func WithLatest(t time.Time) StreamOption {
+// OptLatest sets the latest time to be fetched.
+func OptLatest(t time.Time) StreamOption {
 	return func(cs *Stream) {
 		cs.latest = t
 	}
@@ -84,6 +79,13 @@ func newChannelStream(cl clienter, l *Limits, opts ...StreamOption) *Stream {
 // Conversations fetches the conversations from the link which can be a
 // channelID, channel URL, thread URL or a link in Slackdump format.
 func (cs *Stream) Conversations(ctx context.Context, proc processor.Conversations, link ...string) error {
+	lg := dlog.FromContext(ctx)
+	return cs.ConversationsCB(ctx, proc, link, func(sr StreamResult) {
+		lg.Debugf("stream: finished processing: %s", sr)
+	})
+}
+
+func (cs *Stream) ConversationsCB(ctx context.Context, proc processor.Conversations, link []string, cb func(StreamResult)) error {
 	ctx, task := trace.NewTask(ctx, "channelStream.Conversations")
 	defer task.End()
 
@@ -98,41 +100,233 @@ func (cs *Stream) Conversations(ctx context.Context, proc processor.Conversation
 		lg.Debugf("stream: sent %d links", len(link))
 	}()
 
-	results := make(chan StreamResult, 1)
-	defer close(results)
-	go func() {
-		for res := range results {
-			lg.Debugf("stream: finished processing: %s", res)
-		}
-	}()
-
-	if err := cs.AsyncConversations(ctx, proc, results, linkC); err != nil {
+	if err := cs.AsyncConversations(ctx, proc, linkC, cb); err != nil {
 		return err
 	}
 	return nil
 }
 
-// channelInfo fetches the channel info and passes it to the processor.
-func (cs *Stream) channelInfo(ctx context.Context, channelID string, isThread bool, proc processor.Conversations) error {
-	ctx, task := trace.NewTask(ctx, "channelInfo")
+const (
+	chanSz   = 16 // channel and thread channels size
+	resultSz = 2  // result channel size
+)
+
+// AsyncConversations fetches the conversations from the link which can be a
+// channelID, channel URL, thread URL or a link in Slackdump format.
+func (cs *Stream) AsyncConversations(ctx context.Context, proc processor.Conversations, links <-chan string, fn func(StreamResult)) error {
+	ctx, task := trace.NewTask(ctx, "AsyncConversations")
 	defer task.End()
 
-	trace.Logf(ctx, "channel_id", "%s, isThread=%v", channelID, isThread)
+	// create channels
+	chans := make(chan channelRequest, chanSz)
+	threads := make(chan threadRequest, chanSz)
 
-	var info *slack.Channel
-	if err := network.WithRetry(ctx, cs.limits.channels, cs.limits.tier.Tier3.Retries, func() error {
-		var err error
-		info, err = cs.client.GetConversationInfoContext(ctx, &slack.GetConversationInfoInput{
-			ChannelID: channelID,
-		})
-		return err
-	}); err != nil {
+	resultsC := make(chan StreamResult, resultSz)
+
+	var wg sync.WaitGroup
+	{
+		// channel worker
+		wg.Add(1)
+		go func() {
+			cs.channelWorker(ctx, proc, resultsC, chans, threads)
+			// we close threads here, instead of the main loop, because we want to
+			// close it after all the thread workers are done.
+			close(threads)
+			wg.Done()
+			trace.Log(ctx, "async", "channel worker done")
+		}()
+	}
+	{
+		// thread worker
+		wg.Add(1)
+		go func() {
+			cs.threadWorker(ctx, proc, resultsC, threads)
+			wg.Done()
+			trace.Log(ctx, "async", "thread worker done")
+		}()
+	}
+	{
+		// main loop
+		wg.Add(1)
+		go func() {
+			defer trace.Log(ctx, "async", "main loop done")
+			defer wg.Done()
+			defer close(chans)
+			for {
+				select {
+				case <-ctx.Done():
+					resultsC <- StreamResult{Type: "main", Err: ctx.Err()}
+					return
+				case link, more := <-links:
+					if !more {
+						return
+					}
+					if err := cs.processLink(chans, threads, link); err != nil {
+						resultsC <- StreamResult{Type: "main", Err: fmt.Errorf("link error: %q: %w", link, err)}
+					}
+				}
+			}
+		}()
+	}
+	go func() {
+		// sentinel waits for all the workers to finish, then closes the error
+		// channel.
+		wg.Wait()
+		close(resultsC)
+		trace.Log(ctx, "async", "sentinel done")
+	}()
+
+	for res := range resultsC {
+		if err := res.Err; err != nil {
+			trace.Log(ctx, "error", err.Error())
+			return err
+		}
+		fn(res)
+	}
+	trace.Log(ctx, "func", "complete")
+	return nil
+}
+
+// processLink parses the link and sends it to the appropriate worker.
+func (cs *Stream) processLink(chans chan<- channelRequest, threads chan<- threadRequest, link string) error {
+	sl, err := structures.ParseLink(link)
+	if err != nil {
 		return err
 	}
-	if err := proc.ChannelInfo(ctx, info, isThread); err != nil {
-		return err
+	if !sl.IsValid() {
+		return fmt.Errorf("invalid slack link: %s", link)
+	}
+	if sl.IsThread() {
+		threads <- threadRequest{channelID: sl.Channel, threadTS: sl.ThreadTS, needChanInfo: true}
+	} else {
+		chans <- channelRequest{channelID: sl.Channel}
 	}
 	return nil
+}
+
+type channelRequest struct {
+	channelID string
+}
+
+type threadRequest struct {
+	channelID string
+	threadTS  string
+	// needChanInfo indicates whether the channel info is needed for the thread.
+	// This is true when we're fetching the standalone thread without the
+	// conversation.
+	needChanInfo bool
+}
+
+type StreamResult struct {
+	Type      string
+	ChannelID string
+	ThreadTS  string
+	Err       error
+}
+
+func (we *StreamResult) Error() string {
+	return fmt.Sprintf("%s worker %s: %v", we.Type, structures.SlackLink{Channel: we.ChannelID, ThreadTS: we.ThreadTS}, we.Err)
+}
+
+func (we *StreamResult) Unwrap() error {
+	return we.Err
+}
+
+func (cs *Stream) channelWorker(ctx context.Context, proc processor.Conversations, results chan<- StreamResult, reqs <-chan channelRequest, threadC chan<- threadRequest) {
+	ctx, task := trace.NewTask(ctx, "channelWorker")
+	defer task.End()
+
+	for {
+		select {
+		case <-ctx.Done():
+			results <- StreamResult{Type: "channel", Err: ctx.Err()}
+			return
+		case req, more := <-reqs:
+			if !more {
+				return // channel closed
+			}
+			if err := cs.channelInfo(ctx, req.channelID, false, proc); err != nil {
+				results <- StreamResult{Type: "channel", ChannelID: req.channelID, Err: err}
+			}
+			if err := cs.channel(ctx, req.channelID, func(mm []slack.Message) error {
+				return processChannelMessages(ctx, proc, threadC, req.channelID, mm)
+			}); err != nil {
+				results <- StreamResult{Type: "channel", ChannelID: req.channelID, Err: err}
+			}
+			results <- StreamResult{Type: "channel", ChannelID: req.channelID}
+		}
+	}
+}
+
+func (cs *Stream) channel(ctx context.Context, id string, fn func(mm []slack.Message) error) error {
+	ctx, task := trace.NewTask(ctx, "channel")
+	defer task.End()
+
+	cursor := ""
+	for {
+		var resp *slack.GetConversationHistoryResponse
+		if err := network.WithRetry(ctx, cs.limits.channels, cs.limits.tier.Tier3.Retries, func() error {
+			var apiErr error
+			r := trace.StartRegion(ctx, "GetConversationHistoryContext")
+			defer r.End()
+			resp, apiErr = cs.client.GetConversationHistoryContext(ctx, &slack.GetConversationHistoryParameters{
+				ChannelID: id,
+				Cursor:    cursor,
+				Limit:     cs.limits.tier.Request.Conversations,
+				Oldest:    structures.FormatSlackTS(cs.oldest),
+				Latest:    structures.FormatSlackTS(cs.latest),
+				Inclusive: true,
+			})
+			return apiErr
+		}); err != nil {
+			return err
+		}
+		if !resp.Ok {
+			trace.Logf(ctx, "error", "not ok, api error=%s", resp.Error)
+			return fmt.Errorf("response not ok, slack error: %s", resp.Error)
+		}
+
+		r := trace.StartRegion(ctx, "channel_callback")
+		err := fn(resp.Messages)
+		r.End()
+		if err != nil {
+			return fmt.Errorf("failed to process message chunk starting with id=%s (size=%d): %w", resp.Messages[0].Msg.ClientMsgID, len(resp.Messages), err)
+		}
+
+		if !resp.HasMore {
+			break
+		}
+		cursor = resp.ResponseMetaData.NextCursor
+	}
+	return nil
+}
+
+func (cs *Stream) threadWorker(ctx context.Context, proc processor.Conversations, results chan<- StreamResult, reqs <-chan threadRequest) {
+	ctx, task := trace.NewTask(ctx, "threadWorker")
+	defer task.End()
+
+	for {
+		select {
+		case <-ctx.Done():
+			results <- StreamResult{Type: "thread", Err: ctx.Err()}
+			return
+		case req, more := <-reqs:
+			if !more {
+				return // channel closed
+			}
+			if req.needChanInfo {
+				if err := cs.channelInfo(ctx, req.channelID, true, proc); err != nil {
+					results <- StreamResult{Type: "thread", ChannelID: req.channelID, ThreadTS: req.threadTS, Err: err}
+				}
+			}
+			if err := cs.thread(ctx, req.channelID, req.threadTS, func(msgs []slack.Message) error {
+				return processThreadMessages(ctx, proc, req.channelID, req.threadTS, msgs)
+			}); err != nil {
+				results <- StreamResult{Type: "thread", ChannelID: req.channelID, ThreadTS: req.threadTS, Err: err}
+			}
+			results <- StreamResult{Type: "thread", ChannelID: req.channelID, ThreadTS: req.threadTS}
+		}
+	}
 }
 
 func (cs *Stream) thread(ctx context.Context, id string, threadTS string, fn func(mm []slack.Message) error) error {
@@ -183,6 +377,68 @@ func (cs *Stream) thread(ctx context.Context, id string, threadTS string, fn fun
 	return nil
 }
 
+// processChannelMessages processes the messages in the channel and sends
+// thread requests for the threads in the channel, if it discovers messages
+// with threads.
+func processChannelMessages(ctx context.Context, proc processor.Conversations, threadC chan<- threadRequest, channelID string, mm []slack.Message) error {
+	if err := proc.Messages(ctx, channelID, mm); err != nil {
+		return fmt.Errorf("failed to process message chunk starting with id=%s (size=%d): %w", mm[0].Msg.ClientMsgID, len(mm), err)
+	}
+
+	for i := range mm {
+		if mm[i].Msg.ThreadTimestamp != "" && mm[i].Msg.SubType != "thread_broadcast" {
+			dlog.Debugf("- message #%d/thread: id=%s, thread_ts=%s", i, mm[i].ClientMsgID, mm[i].Msg.ThreadTimestamp)
+			threadC <- threadRequest{channelID: channelID, threadTS: mm[i].Msg.ThreadTimestamp}
+		}
+		if len(mm[i].Files) > 0 {
+			if err := proc.Files(ctx, channelID, mm[i], false, mm[i].Files); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func processThreadMessages(ctx context.Context, proc processor.Conversations, channelID, threadTS string, msgs []slack.Message) error {
+	// slack returns the thread starter as the first message with every
+	// call, so we use it as a parent message.
+	if err := proc.ThreadMessages(ctx, channelID, msgs[0], msgs[1:]); err != nil {
+		return fmt.Errorf("failed to process message id=%s, thread_ts=%s: %w", msgs[0].Msg.ClientMsgID, threadTS, err)
+	}
+	// extract files from thread messages
+	for _, m := range msgs[1:] {
+		if len(m.Files) > 0 {
+			if err := proc.Files(ctx, channelID, m, true, m.Files); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// channelInfo fetches the channel info and passes it to the processor.
+func (cs *Stream) channelInfo(ctx context.Context, channelID string, isThread bool, proc processor.Conversations) error {
+	ctx, task := trace.NewTask(ctx, "channelInfo")
+	defer task.End()
+
+	trace.Logf(ctx, "channel_id", "%s, isThread=%v", channelID, isThread)
+
+	var info *slack.Channel
+	if err := network.WithRetry(ctx, cs.limits.channels, cs.limits.tier.Tier3.Retries, func() error {
+		var err error
+		info, err = cs.client.GetConversationInfoContext(ctx, &slack.GetConversationInfoInput{
+			ChannelID: channelID,
+		})
+		return err
+	}); err != nil {
+		return err
+	}
+	if err := proc.ChannelInfo(ctx, info, isThread); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (cs *Stream) Users(ctx context.Context, proc processor.Users) error {
 	ctx, task := trace.NewTask(ctx, "Users")
 	defer task.End()
@@ -222,268 +478,6 @@ func (cs *Stream) ListChannels(ctx context.Context, types []string, proc process
 		}
 		if next == "" {
 			break
-		}
-	}
-	return nil
-}
-
-const chanSz = 16
-
-// AsyncConversations fetches the conversations from the link which can be a
-// channelID, channel URL, thread URL or a link in Slackdump format.
-func (cs *Stream) AsyncConversations(ctx context.Context, proc processor.Conversations, results chan<- StreamResult, links <-chan string) error {
-	ctx, task := trace.NewTask(ctx, "AsyncConversations")
-	defer task.End()
-
-	// create channels
-	chans := make(chan channelRequest, chanSz)
-	threads := make(chan threadRequest, chanSz)
-
-	resultsC := make(chan result, 2)
-
-	var wg sync.WaitGroup
-	{
-		// channel worker
-		wg.Add(1)
-		go func() {
-			cs.channelWorker(ctx, proc, resultsC, chans, threads)
-			// we close threads here, instead of the main loop, because we want to
-			// close it after all the thread workers are done.
-			close(threads)
-			wg.Done()
-			trace.Log(ctx, "async", "channel worker done")
-		}()
-	}
-	{
-		// thread worker
-		wg.Add(1)
-		go func() {
-			cs.threadWorker(ctx, proc, resultsC, threads)
-			wg.Done()
-			trace.Log(ctx, "async", "thread worker done")
-		}()
-	}
-	{
-		// main loop
-		wg.Add(1)
-		go func() {
-			defer trace.Log(ctx, "async", "main loop done")
-			defer wg.Done()
-			defer close(chans)
-			for {
-				select {
-				case <-ctx.Done():
-					resultsC <- result{Type: "main", Err: ctx.Err()}
-					return
-				case link, more := <-links:
-					if !more {
-						return
-					}
-					if err := cs.processLink(chans, threads, link); err != nil {
-						resultsC <- result{Type: "main", Err: fmt.Errorf("link error: %q: %w", err)}
-					}
-				}
-			}
-		}()
-	}
-	go func() {
-		// sentinel waits for all the workers to finish, then closes the error
-		// channel.
-		wg.Wait()
-		close(resultsC)
-		trace.Log(ctx, "async", "sentinel done")
-	}()
-
-	for res := range resultsC {
-		if err := res.Err; err != nil {
-			trace.Log(ctx, "error", err.Error())
-			return err
-		}
-		results <- StreamResult{
-			ChannelID: res.ChannelID,
-			ThreadTS:  res.ThreadTS,
-		}
-	}
-	trace.Log(ctx, "func", "complete")
-	return nil
-}
-
-// processLink parses the link and sends it to the appropriate worker.
-func (cs *Stream) processLink(chans chan<- channelRequest, threads chan<- threadRequest, link string) error {
-	sl, err := structures.ParseLink(link)
-	if err != nil {
-		return err
-	}
-	if !sl.IsValid() {
-		return fmt.Errorf("invalid slack link: %s", link)
-	}
-	if sl.IsThread() {
-		threads <- threadRequest{channelID: sl.Channel, threadTS: sl.ThreadTS, needChanInfo: true}
-	} else {
-		chans <- channelRequest{channelID: sl.Channel}
-	}
-	return nil
-}
-
-type channelRequest struct {
-	channelID string
-}
-
-type threadRequest struct {
-	channelID string
-	threadTS  string
-	// needChanInfo indicates whether the channel info is needed for the thread.
-	// This is true when we're fetching the standalone thread without the
-	// conversation.
-	needChanInfo bool
-}
-
-type result struct {
-	Type      string
-	ChannelID string
-	ThreadTS  string
-	Err       error
-}
-
-func (we result) Error() string {
-	return fmt.Sprintf("%s worker %d: %v", we.Type, we.ChannelID, we.Err)
-}
-
-func (we result) Unwrap() error {
-	return we.Err
-}
-
-func (cs *Stream) channelWorker(ctx context.Context, proc processor.Conversations, results chan<- result, reqs <-chan channelRequest, threadC chan<- threadRequest) {
-	ctx, task := trace.NewTask(ctx, "channelWorker")
-	defer task.End()
-
-	for {
-		select {
-		case <-ctx.Done():
-			results <- result{Type: "channel", Err: ctx.Err()}
-			return
-		case req, more := <-reqs:
-			if !more {
-				return // channel closed
-			}
-			if err := cs.channelInfo(ctx, req.channelID, false, proc); err != nil {
-				results <- result{Type: "channel", ChannelID: req.channelID, Err: err}
-			}
-			if err := cs.channel(ctx, req.channelID, func(mm []slack.Message) error {
-				return processChannelMessages(ctx, proc, threadC, req.channelID, mm)
-			}); err != nil {
-				results <- result{Type: "channel", ChannelID: req.channelID, Err: err}
-			}
-			results <- result{Type: "channel", ChannelID: req.channelID}
-		}
-	}
-}
-
-func (cs *Stream) channel(ctx context.Context, id string, fn func(mm []slack.Message) error) error {
-	ctx, task := trace.NewTask(ctx, "channel")
-	defer task.End()
-
-	cursor := ""
-	for {
-		var resp *slack.GetConversationHistoryResponse
-		if err := network.WithRetry(ctx, cs.limits.channels, cs.limits.tier.Tier3.Retries, func() error {
-			var apiErr error
-			rgn := trace.StartRegion(ctx, "GetConversationHistoryContext")
-			resp, apiErr = cs.client.GetConversationHistoryContext(ctx, &slack.GetConversationHistoryParameters{
-				ChannelID: id,
-				Cursor:    cursor,
-				Limit:     cs.limits.tier.Request.Conversations,
-				Oldest:    structures.FormatSlackTS(cs.oldest),
-				Latest:    structures.FormatSlackTS(cs.latest),
-				Inclusive: true,
-			})
-			rgn.End()
-			return apiErr
-		}); err != nil {
-			return err
-		}
-		if !resp.Ok {
-			trace.Logf(ctx, "error", "not ok, api error=%s", resp.Error)
-			return fmt.Errorf("response not ok, slack error: %s", resp.Error)
-		}
-
-		r := trace.StartRegion(ctx, "channel_callback")
-		err := fn(resp.Messages)
-		r.End()
-		if err != nil {
-			return fmt.Errorf("failed to process message chunk starting with id=%s (size=%d): %w", resp.Messages[0].Msg.ClientMsgID, len(resp.Messages), err)
-		}
-
-		if !resp.HasMore {
-			break
-		}
-		cursor = resp.ResponseMetaData.NextCursor
-	}
-	return nil
-}
-
-func (cs *Stream) threadWorker(ctx context.Context, proc processor.Conversations, results chan<- result, reqs <-chan threadRequest) {
-	ctx, task := trace.NewTask(ctx, "threadWorker")
-	defer task.End()
-
-	for {
-		select {
-		case <-ctx.Done():
-			results <- result{Type: "thread", Err: ctx.Err()}
-			return
-		case req, more := <-reqs:
-			if !more {
-				return // channel closed
-			}
-			if req.needChanInfo {
-				if err := cs.channelInfo(ctx, req.channelID, true, proc); err != nil {
-					results <- result{Type: "thread", ChannelID: req.channelID, ThreadTS: req.threadTS, Err: err}
-				}
-			}
-			if err := cs.thread(ctx, req.channelID, req.threadTS, func(msgs []slack.Message) error {
-				return processThreadMessages(ctx, proc, req.channelID, req.threadTS, msgs)
-			}); err != nil {
-				results <- result{Type: "thread", ChannelID: req.channelID, ThreadTS: req.threadTS, Err: err}
-			}
-			results <- result{Type: "thread", ChannelID: req.channelID, ThreadTS: req.threadTS}
-		}
-	}
-}
-
-// processChannelMessages processes the messages in the channel and sends
-// thread requests for the threads in the channel, if it discovers messages
-// with threads.
-func processChannelMessages(ctx context.Context, proc processor.Conversations, threadC chan<- threadRequest, channelID string, mm []slack.Message) error {
-	if err := proc.Messages(ctx, channelID, mm); err != nil {
-		return fmt.Errorf("failed to process message chunk starting with id=%s (size=%d): %w", mm[0].Msg.ClientMsgID, len(mm), err)
-	}
-
-	for i := range mm {
-		if mm[i].Msg.ThreadTimestamp != "" && mm[i].Msg.SubType != "thread_broadcast" {
-			dlog.Debugf("- message #%d/thread: id=%s, thread_ts=%s", i, mm[i].ClientMsgID, mm[i].Msg.ThreadTimestamp)
-			threadC <- threadRequest{channelID: channelID, threadTS: mm[i].Msg.ThreadTimestamp}
-		}
-		if len(mm[i].Files) > 0 {
-			if err := proc.Files(ctx, channelID, mm[i], false, mm[i].Files); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
-func processThreadMessages(ctx context.Context, proc processor.Conversations, channelID, threadTS string, msgs []slack.Message) error {
-	// slack returns the thread starter as the first message with every
-	// call, so we use it as a parent message.
-	if err := proc.ThreadMessages(ctx, channelID, msgs[0], msgs[1:]); err != nil {
-		return fmt.Errorf("failed to process message id=%s, thread_ts=%s: %w", msgs[0].Msg.ClientMsgID, threadTS, err)
-	}
-	// extract files from thread messages
-	for _, m := range msgs[1:] {
-		if len(m.Files) > 0 {
-			if err := proc.Files(ctx, channelID, m, true, m.Files); err != nil {
-				return err
-			}
 		}
 	}
 	return nil
