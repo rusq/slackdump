@@ -4,13 +4,17 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"sync"
 	"time"
 
 	"github.com/rusq/dlog"
+	"github.com/slack-go/slack"
 
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/auth"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/cfg"
+	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/export/expproc"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v2/export"
 	"github.com/rusq/slackdump/v2/internal/structures"
@@ -76,6 +80,47 @@ func exportV2(ctx context.Context, sess *slackdump.Session, list *structures.Ent
 	return exp.Run(ctx)
 }
 
-// func exportV3(ctx context.Context, sess *slackdump.Session, list *structures.EntityList, options export.Config) error {
-// 	s := sess.Stream(slackdump.WithOldest(options.Oldest), slackdump.WithLatest(options.Latest))
-// }
+func exportV3(ctx context.Context, sess *slackdump.Session, list *structures.EntityList, options export.Config) error {
+	lg := dlog.FromContext(ctx)
+	tmpdir, err := os.MkdirTemp("", "slackdump-*")
+	if err != nil {
+		return err
+	}
+
+	errC := make(chan error, 1)
+	s := sess.Stream()
+	var wg sync.WaitGroup
+	{
+		userproc, err := expproc.NewUsers(tmpdir)
+		if err != nil {
+			return err
+		}
+		wg.Add(1)
+		go func() {
+			errC <- s.Users(ctx, userproc)
+			errC <- userproc.Close()
+			wg.Done()
+			lg.Debug("users done")
+		}()
+	}
+	{
+		var channelsC = make(chan []slack.Channel, 1)
+		chanproc, err := expproc.NewChannels(tmpdir, func(c []slack.Channel) error {
+			channelsC <- c
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+
+		wg.Add(1)
+		go func() {
+			errC <- s.ListChannels(ctx, slackdump.AllChanTypes, chanproc)
+			errC <- chanproc.Close()
+			wg.Done()
+			lg.Debug("channels done")
+		}()
+	}
+
+	panic("not implemented")
+}

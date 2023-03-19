@@ -25,32 +25,35 @@ const (
 // the timestamp of the chunk, the channel ID, and the number of messages or
 // files that were recorded.
 type Chunk struct {
-	Type      ChunkType `json:"_t"`
-	Timestamp int64     `json:"_ts"`
-	IsThread  bool      `json:"_tm,omitempty"`
-	Count     int       `json:"_c"` // number of messages or files
+	Type      ChunkType `json:"t"`
+	Timestamp int64     `json:"ts"`
+	IsThread  bool      `json:"r,omitempty"`
+	Count     int       `json:"n"` // number of messages or files
+	// IsLast is set to true if this is the last chunk for the channel or
+	// thread.
+	IsLast bool `json:"l,omitempty"`
 
 	// Channel contains the channel information.  It may not be immediately
 	// followed by messages from the channel.  Populated by ChannelInfo method.
-	Channel *slack.Channel `json:"_ci,omitempty"`
+	Channel *slack.Channel `json:"ci,omitempty"`
 
-	ChannelID string `json:"_id"`
+	ChannelID string `json:"id"`
 	// Parent is populated in case the chunk is a thread, or a file. Populated
 	// by ThreadMessages and Files methods.
-	Parent *slack.Message `json:"_p,omitempty"`
+	Parent *slack.Message `json:"p,omitempty"`
 	// Messages contains a chunk of messages as returned by the API. Populated
 	// by Messages and ThreadMessages methods.
-	Messages []slack.Message `json:"_m,omitempty"`
+	Messages []slack.Message `json:"m,omitempty"`
 	// Files contains a chunk of files as returned by the API. Populated by
 	// Files method.
-	Files []slack.File `json:"_f,omitempty"`
+	Files []slack.File `json:"f,omitempty"`
 
 	// Users contains a chunk of users as returned by the API. Populated by
 	// Users method.
-	Users []slack.User `json:"_u,omitempty"` // Populated by Users
+	Users []slack.User `json:"u,omitempty"` // Populated by Users
 	// Channels contains a chunk of channels as returned by the API. Populated
 	// by Channels method.
-	Channels []slack.Channel `json:"_ch,omitempty"` // Populated by Channels
+	Channels []slack.Channel `json:"ch,omitempty"` // Populated by Channels
 }
 
 const (

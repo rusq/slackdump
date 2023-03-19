@@ -117,9 +117,9 @@ func TestSession_fetchUsers(t *testing.T) {
 }
 
 func TestSession_GetUsers(t *testing.T) {
-	dir := t.TempDir()
 	type fields struct {
-		options Config
+		options   Config
+		usercache usercache
 	}
 	type args struct {
 		ctx context.Context
@@ -134,13 +134,15 @@ func TestSession_GetUsers(t *testing.T) {
 	}{
 		{
 			"everything goes as planned",
-			fields{options: Config{
-				UserCache: CacheConfig{Filename: gimmeTempFile(t, dir), Retention: 5 * time.Hour},
-				Limits: Limits{
-					Tier2: TierLimits{Burst: 1},
-					Tier3: TierLimits{Burst: 1},
+			fields{
+				options: Config{
+					Limits: Limits{
+						Tier2: TierLimits{Burst: 1},
+						Tier3: TierLimits{Burst: 1},
+					},
 				},
-			}},
+				usercache: usercache{},
+			},
 			args{context.Background()},
 			func(mc *mockClienter) {
 				mc.EXPECT().GetUsersContext(gomock.Any()).Return([]slack.User(testUsers), nil)
@@ -150,13 +152,19 @@ func TestSession_GetUsers(t *testing.T) {
 		},
 		{
 			"loaded from cache",
-			fields{options: Config{
-				UserCache: CacheConfig{Filename: gimmeTempFileWithUsers(t, dir), Retention: 5 * time.Hour},
-				Limits: Limits{
-					Tier2: TierLimits{Burst: 1},
-					Tier3: TierLimits{Burst: 1},
+			fields{
+				options: Config{
+					UserCache: CacheConfig{Retention: 5 * time.Hour},
+					Limits: Limits{
+						Tier2: TierLimits{Burst: 1},
+						Tier3: TierLimits{Burst: 1},
+					},
 				},
-			}},
+				usercache: usercache{
+					users:    testUsers,
+					cachedAt: time.Now(),
+				},
+			},
 			args{context.Background()},
 			func(mc *mockClienter) {
 				// we don't expect any API calls
@@ -175,6 +183,7 @@ func TestSession_GetUsers(t *testing.T) {
 				client:  mc,
 				wspInfo: &slack.AuthTestResponse{TeamID: testSuffix},
 				cfg:     tt.fields.options,
+				uc:      &tt.fields.usercache,
 				log:     logger.Silent,
 			}
 			got, err := sd.GetUsers(tt.args.ctx)

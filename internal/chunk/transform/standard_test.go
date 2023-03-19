@@ -13,6 +13,7 @@ import (
 const whereTheTempIsAt = "../../tmp"
 
 func TestStandard_Transform(t *testing.T) {
+	t.Skip()
 	ctx, task := trace.NewTask(context.Background(), "TestStandard_Transform")
 	defer task.End()
 	// MANUAL

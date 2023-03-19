@@ -135,8 +135,8 @@ func TestRecorder_worker(t *testing.T) {
 		if time.Since(start) > 50*time.Millisecond {
 			t.Errorf("worker took too long to exit")
 		}
-		const want = `{"_t":0,"_ts":0,"_c":0,"_id":"C123","_m":[{"text":"hello","replace_original":false,"delete_original":false,"metadata":{"event_type":"","event_payload":null},"blocks":null}]}
-`
+		const want = "{\"t\":0,\"ts\":0,\"n\":0,\"id\":\"C123\",\"m\":[{\"text\":\"hello\",\"replace_original\":false,\"delete_original\":false,\"metadata\":{\"event_type\":\"\",\"event_payload\":null},\"blocks\":null}]}\n"
+
 		if !assert.Equal(t, want, buf.String()) {
 			t.Errorf("unexpected output: %s", buf.String())
 		}
@@ -203,7 +203,7 @@ func TestRecorder_Messages(t *testing.T) {
 			state:  state.New(""), // we don't really need it.
 		}
 
-		if err := rec.Messages(ctx, "C123", []slack.Message{{Msg: slack.Msg{Text: "hello"}}}); err != nil {
+		if err := rec.Messages(ctx, "C123", false, []slack.Message{{Msg: slack.Msg{Text: "hello"}}}); err != nil {
 			t.Errorf("unexpected error: %v", err)
 		}
 		evt := <-rec.chunks
@@ -232,7 +232,7 @@ func TestRecorder_Messages(t *testing.T) {
 			state:  state.New(""), // we don't really need it.
 		}
 		rec.errC <- errors.New("test error")
-		gotErr := rec.Messages(ctx, "C123", []slack.Message{{Msg: slack.Msg{Text: "hello"}}})
+		gotErr := rec.Messages(ctx, "C123", false, []slack.Message{{Msg: slack.Msg{Text: "hello"}}})
 		if gotErr == nil {
 			t.Errorf("expected error, got none")
 		}
@@ -253,6 +253,7 @@ func TestRecorder_ThreadMessages(t *testing.T) {
 			ctx,
 			"C123",
 			slack.Message{Msg: slack.Msg{Text: "parent"}},
+			false,
 			[]slack.Message{{Msg: slack.Msg{Text: "hello"}}},
 		); err != nil {
 			t.Errorf("unexpected error: %v", err)
@@ -285,7 +286,7 @@ func TestRecorder_ThreadMessages(t *testing.T) {
 			errC:   make(chan error, 1),
 		}
 		rec.errC <- errors.New("test error")
-		gotErr := rec.ThreadMessages(ctx, "C123", slack.Message{Msg: slack.Msg{Text: "parent"}}, []slack.Message{{Msg: slack.Msg{Text: "hello"}}})
+		gotErr := rec.ThreadMessages(ctx, "C123", slack.Message{Msg: slack.Msg{Text: "parent"}}, false, []slack.Message{{Msg: slack.Msg{Text: "hello"}}})
 		if gotErr == nil {
 			t.Errorf("expected error, got none")
 		}

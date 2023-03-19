@@ -72,7 +72,7 @@ LOOP:
 }
 
 // Messages is called for each message chunk that is retrieved.
-func (rec *Recorder) Messages(ctx context.Context, channelID string, m []slack.Message) error {
+func (rec *Recorder) Messages(ctx context.Context, channelID string, isLast bool, m []slack.Message) error {
 	select {
 	case err := <-rec.errC:
 		return err
@@ -80,6 +80,7 @@ func (rec *Recorder) Messages(ctx context.Context, channelID string, m []slack.M
 		Type:      CMessages,
 		Timestamp: time.Now().UnixNano(),
 		ChannelID: channelID,
+		IsLast:    isLast,
 		Count:     len(m),
 		Messages:  m,
 	}: // ok
@@ -114,7 +115,7 @@ func (rec *Recorder) Files(ctx context.Context, channelID string, parent slack.M
 
 // ThreadMessages is called for each of the thread messages that are
 // retrieved. The parent message is passed in as well.
-func (rec *Recorder) ThreadMessages(ctx context.Context, channelID string, parent slack.Message, tm []slack.Message) error {
+func (rec *Recorder) ThreadMessages(ctx context.Context, channelID string, parent slack.Message, isLast bool, tm []slack.Message) error {
 	select {
 	case err := <-rec.errC:
 		return err
@@ -124,6 +125,7 @@ func (rec *Recorder) ThreadMessages(ctx context.Context, channelID string, paren
 		ChannelID: channelID,
 		Parent:    &parent,
 		IsThread:  true,
+		IsLast:    isLast,
 		Count:     len(tm),
 		Messages:  tm,
 	}: // ok
