@@ -72,7 +72,7 @@ LOOP:
 }
 
 // Messages is called for each message chunk that is retrieved.
-func (rec *Recorder) Messages(ctx context.Context, channelID string, isLast bool, m []slack.Message) error {
+func (rec *Recorder) Messages(ctx context.Context, channelID string, numThreads int, isLast bool, m []slack.Message) error {
 	select {
 	case err := <-rec.errC:
 		return err

@@ -25,19 +25,24 @@ const (
 // the timestamp of the chunk, the channel ID, and the number of messages or
 // files that were recorded.
 type Chunk struct {
+	// header
 	Type      ChunkType `json:"t"`
 	Timestamp int64     `json:"ts"`
-	IsThread  bool      `json:"r,omitempty"`
+	ChannelID string    `json:"id"`
 	Count     int       `json:"n"` // number of messages or files
+
+	// the rest
+	IsThread bool `json:"r,omitempty"`
 	// IsLast is set to true if this is the last chunk for the channel or
-	// thread.
+	// thread. Populated by Messages and ThreadMessages methods.
 	IsLast bool `json:"l,omitempty"`
+	// Number of threads in the message chunk.  Populated by Messages method.
+	NumThreads int `json:"nt,omitempty"`
 
 	// Channel contains the channel information.  It may not be immediately
 	// followed by messages from the channel.  Populated by ChannelInfo method.
 	Channel *slack.Channel `json:"ci,omitempty"`
 
-	ChannelID string `json:"id"`
 	// Parent is populated in case the chunk is a thread, or a file. Populated
 	// by ThreadMessages and Files methods.
 	Parent *slack.Message `json:"p,omitempty"`

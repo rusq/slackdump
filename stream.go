@@ -23,11 +23,12 @@ type Stream struct {
 }
 
 type StreamResult struct {
-	Type      ResultType // "channel" or "thread"
-	ChannelID string
-	ThreadTS  string
-	IsLast    bool // true if this is the last message for the channel or thread
-	Err       error
+	Type        ResultType // "channel" or "thread"
+	ChannelID   string
+	ThreadTS    string
+	ThreadCount int
+	IsLast      bool // true if this is the last message for the channel or thread
+	Err         error
 }
 
 //go:generate stringer -type=ResultType -trimprefix=RT
@@ -43,7 +44,7 @@ func (s StreamResult) String() string {
 	if s.ThreadTS == "" {
 		return "<" + s.ChannelID + ">"
 	}
-	return fmt.Sprintf("<%s:%s>", s.ChannelID, s.ThreadTS)
+	return fmt.Sprintf("<%s[%s:%s]>", s.Type, s.ChannelID, s.ThreadTS)
 }
 
 type rateLimits struct {
@@ -97,12 +98,13 @@ func newChannelStream(cl clienter, l *Limits, opts ...StreamOption) *Stream {
 // channelID, channel URL, thread URL or a link in Slackdump format.
 func (cs *Stream) Conversations(ctx context.Context, proc processor.Conversations, link ...string) error {
 	lg := dlog.FromContext(ctx)
-	return cs.ConversationsCB(ctx, proc, link, func(sr StreamResult) {
+	return cs.ConversationsCB(ctx, proc, link, func(sr StreamResult) error {
 		lg.Debugf("stream: finished processing: %s", sr)
+		return nil
 	})
 }
 
-func (cs *Stream) ConversationsCB(ctx context.Context, proc processor.Conversations, link []string, cb func(StreamResult)) error {
+func (cs *Stream) ConversationsCB(ctx context.Context, proc processor.Conversations, link []string, cb func(StreamResult) error) error {
 	ctx, task := trace.NewTask(ctx, "channelStream.Conversations")
 	defer task.End()
 
@@ -130,7 +132,7 @@ const (
 
 // AsyncConversations fetches the conversations from the link which can be a
 // channelID, channel URL, thread URL or a link in Slackdump format.
-func (cs *Stream) AsyncConversations(ctx context.Context, proc processor.Conversations, links <-chan string, fn func(StreamResult)) error {
+func (cs *Stream) AsyncConversations(ctx context.Context, proc processor.Conversations, links <-chan string, fn func(StreamResult) error) error {
 	ctx, task := trace.NewTask(ctx, "AsyncConversations")
 	defer task.End()
 
@@ -198,7 +200,9 @@ func (cs *Stream) AsyncConversations(ctx context.Context, proc processor.Convers
 			trace.Log(ctx, "error", err.Error())
 			return err
 		}
-		fn(res)
+		if err := fn(res); err != nil {
+			return err
+		}
 	}
 	trace.Log(ctx, "func", "complete")
 	return nil
@@ -259,13 +263,16 @@ func (cs *Stream) channelWorker(ctx context.Context, proc processor.Conversation
 				results <- StreamResult{Type: RTChannel, ChannelID: req.channelID, Err: err}
 			}
 			last := false
+			threadCount := 0
 			if err := cs.channel(ctx, req.channelID, func(mm []slack.Message, isLast bool) error {
 				last = isLast
-				return processChannelMessages(ctx, proc, threadC, req.channelID, isLast, mm)
+				n, err := processChannelMessages(ctx, proc, threadC, req.channelID, isLast, mm)
+				threadCount = n
+				return err
 			}); err != nil {
 				results <- StreamResult{Type: RTChannel, ChannelID: req.channelID, Err: err}
 			}
-			results <- StreamResult{Type: RTChannel, ChannelID: req.channelID, IsLast: last}
+			results <- StreamResult{Type: RTChannel, ChannelID: req.channelID, ThreadCount: threadCount, IsLast: last}
 		}
 	}
 }
@@ -393,24 +400,26 @@ func (cs *Stream) thread(ctx context.Context, id string, threadTS string, fn fun
 
 // processChannelMessages processes the messages in the channel and sends
 // thread requests for the threads in the channel, if it discovers messages
-// with threads.
-func processChannelMessages(ctx context.Context, proc processor.Conversations, threadC chan<- threadRequest, channelID string, isLast bool, mm []slack.Message) error {
-	if err := proc.Messages(ctx, channelID, isLast, mm); err != nil {
-		return fmt.Errorf("failed to process message chunk starting with id=%s (size=%d): %w", mm[0].Msg.ClientMsgID, len(mm), err)
-	}
-
+// with threads.  It returns thread count in the mm and error if any.
+func processChannelMessages(ctx context.Context, proc processor.Conversations, threadC chan<- threadRequest, channelID string, isLast bool, mm []slack.Message) (int, error) {
+	numThreads := 0
 	for i := range mm {
 		if mm[i].Msg.ThreadTimestamp != "" && mm[i].Msg.SubType != "thread_broadcast" {
 			dlog.Debugf("- message #%d/thread: id=%s, thread_ts=%s", i, mm[i].ClientMsgID, mm[i].Msg.ThreadTimestamp)
 			threadC <- threadRequest{channelID: channelID, threadTS: mm[i].Msg.ThreadTimestamp}
+			numThreads++
 		}
 		if len(mm[i].Files) > 0 {
 			if err := proc.Files(ctx, channelID, mm[i], false, mm[i].Files); err != nil {
-				return err
+				return numThreads, err
 			}
 		}
 	}
-	return nil
+	if err := proc.Messages(ctx, channelID, numThreads, isLast, mm); err != nil {
+		return 0, fmt.Errorf("failed to process message chunk starting with id=%s (size=%d): %w", mm[0].Msg.ClientMsgID, len(mm), err)
+	}
+
+	return numThreads, nil
 }
 
 func processThreadMessages(ctx context.Context, proc processor.Conversations, channelID, threadTS string, isLast bool, msgs []slack.Message) error {

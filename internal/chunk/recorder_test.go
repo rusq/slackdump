@@ -203,7 +203,7 @@ func TestRecorder_Messages(t *testing.T) {
 			state:  state.New(""), // we don't really need it.
 		}
 
-		if err := rec.Messages(ctx, "C123", false, []slack.Message{{Msg: slack.Msg{Text: "hello"}}}); err != nil {
+		if err := rec.Messages(ctx, "C123", 0, false, []slack.Message{{Msg: slack.Msg{Text: "hello"}}}); err != nil {
 			t.Errorf("unexpected error: %v", err)
 		}
 		evt := <-rec.chunks
@@ -232,7 +232,7 @@ func TestRecorder_Messages(t *testing.T) {
 			state:  state.New(""), // we don't really need it.
 		}
 		rec.errC <- errors.New("test error")
-		gotErr := rec.Messages(ctx, "C123", false, []slack.Message{{Msg: slack.Msg{Text: "hello"}}})
+		gotErr := rec.Messages(ctx, "C123", 0, false, []slack.Message{{Msg: slack.Msg{Text: "hello"}}})
 		if gotErr == nil {
 			t.Errorf("expected error, got none")
 		}

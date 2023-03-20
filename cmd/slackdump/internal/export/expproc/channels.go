@@ -16,7 +16,7 @@ func NewChannels(dir string, fn func(c []slack.Channel) error) (*Channels, error
 	if err != nil {
 		return nil, err
 	}
-	return &Channels{baseproc: p}, nil
+	return &Channels{baseproc: p, fn: fn}, nil
 }
 
 // Channels is called for each channel chunk that is retrieved.  Then, the

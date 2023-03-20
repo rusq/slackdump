@@ -78,17 +78,17 @@ func (mr *MockConversationsMockRecorder) Files(arg0, arg1, arg2, arg3, arg4 inte
 }
 
 // Messages mocks base method.
-func (m *MockConversations) Messages(arg0 context.Context, arg1 string, arg2 bool, arg3 []slack.Message) error {
+func (m *MockConversations) Messages(arg0 context.Context, arg1 string, arg2 int, arg3 bool, arg4 []slack.Message) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Messages", arg0, arg1, arg2, arg3)
+	ret := m.ctrl.Call(m, "Messages", arg0, arg1, arg2, arg3, arg4)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Messages indicates an expected call of Messages.
-func (mr *MockConversationsMockRecorder) Messages(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
+func (mr *MockConversationsMockRecorder) Messages(arg0, arg1, arg2, arg3, arg4 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Messages", reflect.TypeOf((*MockConversations)(nil).Messages), arg0, arg1, arg2, arg3)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Messages", reflect.TypeOf((*MockConversations)(nil).Messages), arg0, arg1, arg2, arg3, arg4)
 }
 
 // ThreadMessages mocks base method.

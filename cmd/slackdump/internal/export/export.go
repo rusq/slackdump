@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"sync"
 	"time"
@@ -72,7 +73,7 @@ func runExport(ctx context.Context, cmd *base.Command, args []string) error {
 	options.List = list
 	options.Logger = dlog.FromContext(ctx)
 
-	return exportV2(ctx, sess, list, options)
+	return exportV3(ctx, sess, list, options)
 }
 
 func exportV2(ctx context.Context, sess *slackdump.Session, list *structures.EntityList, options export.Config) error {
@@ -86,6 +87,7 @@ func exportV3(ctx context.Context, sess *slackdump.Session, list *structures.Ent
 	if err != nil {
 		return err
 	}
+	log.Printf("using %s as the temporary directory", tmpdir)
 
 	errC := make(chan error, 1)
 	s := sess.Stream()
@@ -103,10 +105,15 @@ func exportV3(ctx context.Context, sess *slackdump.Session, list *structures.Ent
 			lg.Debug("users done")
 		}()
 	}
+
+	links := make(chan string)
 	{
-		var channelsC = make(chan []slack.Channel, 1)
 		chanproc, err := expproc.NewChannels(tmpdir, func(c []slack.Channel) error {
-			channelsC <- c
+			for _, ch := range c {
+				// if ch.IsMember {
+				links <- ch.ID
+				// }
+			}
 			return nil
 		})
 		if err != nil {
@@ -121,6 +128,22 @@ func exportV3(ctx context.Context, sess *slackdump.Session, list *structures.Ent
 			lg.Debug("channels done")
 		}()
 	}
-
-	panic("not implemented")
+	conv, err := expproc.NewConversation(tmpdir)
+	if err != nil {
+		return err
+	}
+	if err := s.AsyncConversations(ctx, conv, links, func(sr slackdump.StreamResult) error {
+		if sr.IsLast {
+			lg.Printf("finalising channel %s", sr.ChannelID)
+			return conv.Finalise(sr.ChannelID)
+		}
+		lg.Printf("finished: %s", sr)
+		return nil
+	}); err != nil {
+		return err
+	}
+	lg.Printf("waiting for the conversations export to finish")
+	wg.Wait()
+	lg.Printf("conversations export finished")
+	return nil
 }
