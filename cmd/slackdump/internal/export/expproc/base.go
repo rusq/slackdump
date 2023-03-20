@@ -30,5 +30,9 @@ func newBaseProc(dir string, filename string) (*baseproc, error) {
 }
 
 func (p *baseproc) Close() error {
+	if err := p.Recorder.Close(); err != nil {
+		p.wf.Close()
+		return err
+	}
 	return p.wf.Close()
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"log"
 	"time"
 
 	"github.com/slack-go/slack"
@@ -62,6 +63,7 @@ LOOP:
 		if err := enc.Encode(chunk); err != nil {
 			select {
 			case rec.errC <- err:
+				log.Printf("internal error: %s", err)
 			default:
 				// unable to send, prevent deadlock
 				break LOOP

@@ -23,8 +23,11 @@ func NewChannels(dir string, fn func(c []slack.Channel) error) (*Channels, error
 // function calls the function passed in to the constructor for the channel
 // slice.
 func (cp *Channels) Channels(ctx context.Context, channels []slack.Channel) error {
+	if err := cp.fn(channels); err != nil {
+		return err
+	}
 	if err := cp.baseproc.Channels(ctx, channels); err != nil {
 		return err
 	}
-	return cp.fn(channels)
+	return nil
 }
