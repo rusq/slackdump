@@ -2,12 +2,9 @@ package expproc
 
 import (
 	"context"
-	"os"
-	"path/filepath"
 	"sync"
 
 	"github.com/rusq/dlog"
-	"github.com/rusq/slackdump/v2/internal/chunk"
 	"github.com/slack-go/slack"
 )
 
@@ -39,13 +36,12 @@ func (p *Conversations) ensure(channelID string) error {
 	if _, ok := p.cw[channelID]; ok {
 		return nil
 	}
-	wf, err := os.Create(filepath.Join(p.dir, channelID+".json"))
+	bp, err := newBaseProc(p.dir, channelID)
 	if err != nil {
 		return err
 	}
-	r := chunk.NewRecorder(wf)
 	p.cw[channelID] = &channelproc{
-		baseproc:   &baseproc{dir: p.dir, wf: wf, Recorder: r},
+		baseproc:   bp,
 		numThreads: 0,
 	}
 	return nil

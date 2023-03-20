@@ -12,7 +12,7 @@ type Channels struct {
 }
 
 func NewChannels(dir string, fn func(c []slack.Channel) error) (*Channels, error) {
-	p, err := newBaseProc(dir, "channels.json")
+	p, err := newBaseProc(dir, "channels")
 	if err != nil {
 		return nil, err
 	}

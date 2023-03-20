@@ -7,7 +7,7 @@ type Users struct {
 
 // NewUsers creates a new Users processor.
 func NewUsers(dir string) (*Users, error) {
-	p, err := newBaseProc(dir, "users.json")
+	p, err := newBaseProc(dir, "users")
 	if err != nil {
 		return nil, err
 	}
