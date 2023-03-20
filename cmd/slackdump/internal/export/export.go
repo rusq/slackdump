@@ -92,27 +92,18 @@ func exportV3(ctx context.Context, sess *slackdump.Session, list *structures.Ent
 	errC := make(chan error, 1)
 	s := sess.Stream()
 	var wg sync.WaitGroup
-	{
-		userproc, err := expproc.NewUsers(tmpdir)
-		if err != nil {
-			return err
-		}
-		wg.Add(1)
-		go func() {
-			errC <- s.Users(ctx, userproc)
-			errC <- userproc.Close()
-			wg.Done()
-			lg.Debug("users done")
-		}()
-	}
 
+	// Generator of channel IDs.
 	links := make(chan string)
 	{
 		chanproc, err := expproc.NewChannels(tmpdir, func(c []slack.Channel) error {
 			for _, ch := range c {
-				// if ch.IsMember {
-				links <- ch.ID
-				// }
+				// TODO: if ch.IsMember { // only channels that the user is a member of
+				select {
+				case <-ctx.Done():
+					return ctx.Err()
+				case links <- ch.ID:
+				}
 			}
 			return nil
 		})
@@ -122,28 +113,78 @@ func exportV3(ctx context.Context, sess *slackdump.Session, list *structures.Ent
 
 		wg.Add(1)
 		go func() {
-			errC <- s.ListChannels(ctx, slackdump.AllChanTypes, chanproc)
-			errC <- chanproc.Close()
-			wg.Done()
+			defer wg.Done()
+			defer close(links)
+
+			if err := s.ListChannels(ctx, slackdump.AllChanTypes, chanproc); err != nil {
+				errC <- fmt.Errorf("error listing channels: %w", err)
+				return
+			}
+			if err := chanproc.Close(); err != nil {
+				errC <- fmt.Errorf("error closing channel processor: %w", err)
+				return
+			}
 			lg.Debug("channels done")
 		}()
 	}
-	conv, err := expproc.NewConversation(tmpdir)
-	if err != nil {
-		return err
-	}
-	if err := s.AsyncConversations(ctx, conv, links, func(sr slackdump.StreamResult) error {
-		if sr.IsLast {
-			lg.Printf("finalising channel %s", sr.ChannelID)
-			return conv.Finalise(sr.ChannelID)
+	// user goroutine
+	{
+		userproc, err := expproc.NewUsers(tmpdir)
+		if err != nil {
+			return err
 		}
-		lg.Printf("finished: %s", sr)
-		return nil
-	}); err != nil {
-		return err
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if err := s.Users(ctx, userproc); err != nil {
+				errC <- fmt.Errorf("error listing users: %w", err)
+				return
+			}
+			if err := userproc.Close(); err != nil {
+				errC <- fmt.Errorf("error closing user processor: %w", err)
+				return
+			}
+			lg.Debug("users done")
+		}()
 	}
+	// conversations goroutine
+	{
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			conv, err := expproc.NewConversation(tmpdir)
+			if err != nil {
+				errC <- err
+				return
+			}
+
+			if err := s.AsyncConversations(ctx, conv, links, func(sr slackdump.StreamResult) error {
+				if sr.IsLast {
+					return conv.Finalise(sr.ChannelID)
+				}
+				lg.Printf("finished: %s", sr)
+				return nil
+			}); err != nil {
+				errC <- fmt.Errorf("error streaming conversations: %w", err)
+				return
+			}
+			lg.Debug("conversations done")
+		}()
+	}
+	// sentinel
+	go func() {
+		wg.Wait()
+		close(errC)
+	}()
+
 	lg.Printf("waiting for the conversations export to finish")
-	wg.Wait()
+	// process returned errors
+	for err := range errC {
+		if err != nil {
+			return err
+		}
+	}
 	lg.Printf("conversations export finished")
 	return nil
 }

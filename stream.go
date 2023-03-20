@@ -2,6 +2,7 @@ package slackdump
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"runtime/trace"
 	"sync"
@@ -469,19 +470,19 @@ func (cs *Stream) Users(ctx context.Context, proc processor.Users) error {
 	p := cs.client.GetUsersPaginated()
 	var apiErr error
 	for apiErr == nil {
-		if apiErr := network.WithRetry(ctx, cs.limits.users, cs.limits.tier.Tier2.Retries, func() error {
+		if apiErr = network.WithRetry(ctx, cs.limits.users, cs.limits.tier.Tier2.Retries, func() error {
 			var err error
 			p, err = p.Next(ctx)
 			return err
 		}); apiErr != nil {
-			return apiErr
+			break
 		}
 		if err := proc.Users(ctx, p.Users); err != nil {
 			return err
 		}
 	}
 
-	return p.Failure(apiErr)
+	return p.Failure(errors.Unwrap(apiErr))
 }
 
 // TODO: test this.

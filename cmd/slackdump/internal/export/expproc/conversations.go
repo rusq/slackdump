@@ -6,10 +6,12 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/rusq/dlog"
 	"github.com/rusq/slackdump/v2/internal/chunk"
 	"github.com/slack-go/slack"
 )
 
+// Conversations is a processor that writes the channel and thread messages.
 type Conversations struct {
 	dir string
 	cw  map[string]*channelproc
@@ -25,18 +27,12 @@ type channelproc struct {
 	numThreads int
 }
 
-func (cp *channelproc) addThreads(n int) {
-	cp.numThreads += n
-}
-
-func (cp *channelproc) decThreads() {
-	cp.numThreads--
-}
-
 func NewConversation(dir string) (*Conversations, error) {
 	return &Conversations{dir: dir, cw: make(map[string]*channelproc)}, nil
 }
 
+// ensure ensures that the channel file is open and the recorder is
+// initialized.
 func (p *Conversations) ensure(channelID string) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -77,6 +73,8 @@ func (p *Conversations) recorder(channelID string) (*baseproc, error) {
 	return p.cw[channelID].baseproc, nil
 }
 
+// threadCount returns the number of threads that are expected to be
+// processed for the given channel.
 func (p *Conversations) threadCount(channelID string) int {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
@@ -92,7 +90,7 @@ func (p *Conversations) addThreads(channelID string, n int) {
 	if _, ok := p.cw[channelID]; !ok {
 		return
 	}
-	p.cw[channelID].addThreads(n)
+	p.cw[channelID].numThreads += n
 }
 
 func (p *Conversations) decThreads(channelID string) {
@@ -101,7 +99,7 @@ func (p *Conversations) decThreads(channelID string) {
 	if _, ok := p.cw[channelID]; !ok {
 		return
 	}
-	p.cw[channelID].decThreads()
+	p.cw[channelID].numThreads--
 }
 
 // Messages is called for each message that is retrieved.
@@ -143,8 +141,10 @@ func (p *Conversations) ThreadMessages(ctx context.Context, channelID string, pa
 // Finalise closes the channel file if there are no more threads to process.
 func (p *Conversations) Finalise(channelID string) error {
 	if p.threadCount(channelID) > 0 {
+		dlog.Printf("channel %s: %d threads left", channelID, p.threadCount(channelID))
 		return nil
 	}
+	dlog.Printf("channel %s: closing channel file", channelID)
 	r, err := p.recorder(channelID)
 	if err != nil {
 		return err
@@ -159,6 +159,8 @@ func (p *Conversations) Finalise(channelID string) error {
 }
 
 func (p *Conversations) Close() error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
 	for _, r := range p.cw {
 		if err := r.Close(); err != nil {
 			return err
