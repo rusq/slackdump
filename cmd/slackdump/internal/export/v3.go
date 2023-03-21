@@ -158,9 +158,6 @@ func conversationWorker(ctx context.Context, s *slackdump.Stream, tmpdir string,
 	}
 
 	if err := s.AsyncConversations(ctx, conv, links, func(sr slackdump.StreamResult) error {
-		if sr.IsLast {
-			return conv.Finalise(sr.ChannelID)
-		}
 		return nil
 	}); err != nil {
 		return fmt.Errorf("error streaming conversations: %w", err)

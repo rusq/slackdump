@@ -107,7 +107,13 @@ func (p *Conversations) Messages(ctx context.Context, channelID string, numThrea
 	if numThreads > 0 {
 		p.addThreads(channelID, numThreads)
 	}
-	return r.Messages(ctx, channelID, numThreads, isLast, mm)
+	if err := r.Messages(ctx, channelID, numThreads, isLast, mm); err != nil {
+		return err
+	}
+	if isLast {
+		return p.finalise(channelID)
+	}
+	return nil
 }
 
 // Files is called for each file that is retrieved. The parent message is
@@ -131,11 +137,14 @@ func (p *Conversations) ThreadMessages(ctx context.Context, channelID string, pa
 		return err
 	}
 	p.decThreads(channelID)
+	if isLast {
+		return p.finalise(channelID)
+	}
 	return nil
 }
 
-// Finalise closes the channel file if there are no more threads to process.
-func (p *Conversations) Finalise(channelID string) error {
+// finalise closes the channel file if there are no more threads to process.
+func (p *Conversations) finalise(channelID string) error {
 	if tc := p.threadCount(channelID); tc > 0 {
 		dlog.Printf("channel %s: still processing %d threads left", channelID, tc)
 		return nil
