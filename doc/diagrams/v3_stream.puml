@@ -1,0 +1,71 @@
+@startuml
+' left to right direction
+title V3 Stream architecture
+
+component Export
+
+folder exp {
+component "Export\nTransformer" as exptrans
+component "Export\nProcessor" as expproc
+
+folder "temp directory" as temp {
+    file "chunk 1" as chunk1
+    file "chunk 2" as chunk2
+    file "chunk N" as chunkN
+}
+}
+
+folder slackdump {
+    component Stream
+    rectangle Conversations
+    rectangle Users
+    rectangle ListChannels
+
+    Stream --> Conversations
+    Stream --> Users
+    Stream --> ListChannels
+}
+
+Export .up.|> Stream : controls
+Export .left.|> expproc : controls
+Export .down.|> exptrans : controls
+
+folder processor {
+    interface Conversations as IConversations
+    interface Channels as IChannels
+    interface Users as IUsers
+
+    Conversations -- IConversations
+    ListChannels -- IChannels
+    Users -- IUsers
+}
+
+IConversations )-- expproc
+IChannels )-- expproc
+IUsers )-- expproc
+
+ListChannels --[#red]-> Export : links
+Export --[#red]-> Conversations : links
+
+
+expproc --> chunk1 : writes
+expproc --> chunk2 : writes
+expproc --> chunkN : writes
+
+chunk1 --> exptrans : reads
+chunk2 --> exptrans : reads
+chunkN --> exptrans : reads
+
+
+folder "directory" as output
+file "export.zip" as zip
+interface FS
+
+exptrans -- FS
+FS )-left- zip
+FS )-right- output
+
+' internal logic
+
+
+@enduml
