@@ -136,8 +136,8 @@ func (p *Conversations) ThreadMessages(ctx context.Context, channelID string, pa
 
 // Finalise closes the channel file if there are no more threads to process.
 func (p *Conversations) Finalise(channelID string) error {
-	if p.threadCount(channelID) > 0 {
-		dlog.Printf("channel %s: %d threads left", channelID, p.threadCount(channelID))
+	if tc := p.threadCount(channelID); tc > 0 {
+		dlog.Printf("channel %s: still processing %d threads left", channelID, tc)
 		return nil
 	}
 	dlog.Printf("channel %s: closing channel file", channelID)

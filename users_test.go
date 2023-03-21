@@ -2,7 +2,6 @@ package slackdump
 
 import (
 	"context"
-	"os"
 	"reflect"
 	"testing"
 	"time"
@@ -12,7 +11,6 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/slack-go/slack"
 
-	"github.com/rusq/slackdump/v2/internal/cache"
 	"github.com/rusq/slackdump/v2/internal/fixtures"
 	"github.com/rusq/slackdump/v2/internal/structures"
 	"github.com/rusq/slackdump/v2/logger"
@@ -196,27 +194,4 @@ func TestSession_GetUsers(t *testing.T) {
 			}
 		})
 	}
-}
-
-func gimmeTempFile(t *testing.T, dir string) string {
-	f, err := os.CreateTemp(dir, "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := f.Close(); err != nil {
-		t.Errorf("error closing test file: %s", err)
-	}
-	return f.Name()
-}
-
-func gimmeTempFileWithUsers(t *testing.T, dir string) string {
-	f := gimmeTempFile(t, dir)
-	m, err := cache.NewManager("", cache.WithUserCacheBase(f))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := m.SaveUsers(testSuffix, testUsers); err != nil {
-		t.Fatal(err)
-	}
-	return f
 }

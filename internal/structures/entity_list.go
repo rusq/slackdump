@@ -123,10 +123,12 @@ func (el *EntityList) Index() map[string]bool {
 	return idx
 }
 
+// HasIncludes returns true if there's any included entities.
 func (el *EntityList) HasIncludes() bool {
 	return len(el.Include) > 0
 }
 
+// HasExcludes returns true if there's any excluded entities.
 func (el *EntityList) HasExcludes() bool {
 	return len(el.Exclude) > 0
 }

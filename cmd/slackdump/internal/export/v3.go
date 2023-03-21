@@ -3,7 +3,6 @@ package export
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
 	"sync"
 
@@ -21,7 +20,7 @@ func exportV3(ctx context.Context, sess *slackdump.Session, list *structures.Ent
 	if err != nil {
 		return err
 	}
-	log.Printf("using %s as the temporary directory", tmpdir)
+	lg.Printf("using %s as the temporary directory", tmpdir)
 
 	errC := make(chan error, 1)
 	s := sess.Stream()
@@ -30,55 +29,29 @@ func exportV3(ctx context.Context, sess *slackdump.Session, list *structures.Ent
 	// Generator of channel IDs.
 	links := make(chan string)
 	{
-		chanproc, err := expproc.NewChannels(tmpdir, func(c []slack.Channel) error {
-			for _, ch := range c {
-				// TODO: if ch.IsMember { // only channels that the user is a member of
-				select {
-				case <-ctx.Done():
-					return ctx.Err()
-				case links <- ch.ID:
-				}
-			}
-			return nil
-		})
-		if err != nil {
-			return err
+		wg.Add(1)
+		var channelWorker linkFeederFunc
+		if list.HasIncludes() {
+			// inclusive export, processes only included channels.
+			channelWorker = listChannelWorker
+		} else {
+			// exclusive export (process only excludes, if any)
+			channelWorker = apiChannelWorker(tmpdir, s)
 		}
 
-		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			defer close(links)
-
-			if err := s.ListChannels(ctx, slackdump.AllChanTypes, chanproc); err != nil {
-				errC <- fmt.Errorf("error listing channels: %w", err)
-				return
-			}
-			if err := chanproc.Close(); err != nil {
-				errC <- fmt.Errorf("error closing channel processor: %w", err)
-				return
-			}
+			errC <- channelWorker(ctx, links, list) // TODO
 			lg.Debug("channels done")
 		}()
 	}
 	// user goroutine
 	{
-		userproc, err := expproc.NewUsers(tmpdir)
-		if err != nil {
-			return err
-		}
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			if err := s.Users(ctx, userproc); err != nil {
-				errC <- fmt.Errorf("error listing users: %w", err)
-				return
-			}
-			if err := userproc.Close(); err != nil {
-				errC <- fmt.Errorf("error closing user processor: %w", err)
-				return
-			}
-			lg.Debug("users done")
+			errC <- userWorker(ctx, s, tmpdir)
 		}()
 	}
 	// conversations goroutine
@@ -112,13 +85,85 @@ func exportV3(ctx context.Context, sess *slackdump.Session, list *structures.Ent
 		close(errC)
 	}()
 
-	lg.Printf("waiting for the conversations export to finish")
+	lg.Printf("running export...")
 	// process returned errors
 	for err := range errC {
 		if err != nil {
 			return err
 		}
 	}
-	lg.Printf("conversations export finished")
+	lg.Printf("conversations export finished, chunk files in: %s", tmpdir)
+	return nil
+}
+
+type linkFeederFunc func(ctx context.Context, links chan<- string, list *structures.EntityList) error
+
+// listChannelWorker feeds the channel IDs that it gets from the list to the
+// links channel.  It does not fetch the channel list from the api, so it's
+// blazing fast in comparison to apiChannelFeeder.  When needed, get the
+// channel information from the conversations chunk files (they contain the
+// chunk with channel information).
+func listChannelWorker(ctx context.Context, links chan<- string, list *structures.EntityList) error {
+	for _, ch := range list.Include {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case links <- ch:
+		}
+	}
+	return nil
+}
+
+// apiChannelWorker feeds the channel IDs that it gets from the API to the
+// links channel.  It also filters out channels that are excluded in the list.
+// It does not account for "included".  It ignores the thread links in the
+// list.  It writes the channels to the tmpdir.
+func apiChannelWorker(tmpdir string, s *slackdump.Stream) linkFeederFunc {
+	return linkFeederFunc(func(ctx context.Context, links chan<- string, list *structures.EntityList) error {
+		chIdx := list.Index()
+		chanproc, err := expproc.NewChannels(tmpdir, func(c []slack.Channel) error {
+			for _, ch := range c {
+				// TODO: if ch.IsMember { // only channels that the user is a member of
+				if include, ok := chIdx[ch.ID]; ok && !include {
+					continue
+				}
+
+				select {
+				case <-ctx.Done():
+					return ctx.Err()
+				case links <- ch.ID:
+
+				}
+			}
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+
+		if err := s.ListChannels(ctx, chanproc, &slack.GetConversationsParameters{Types: slackdump.AllChanTypes}); err != nil {
+			return fmt.Errorf("error listing channels: %w", err)
+		}
+		if err := chanproc.Close(); err != nil {
+			return fmt.Errorf("error closing channel processor: %w", err)
+		}
+		dlog.FromContext(ctx).Debug("channels done")
+		return nil
+	})
+}
+
+func userWorker(ctx context.Context, s *slackdump.Stream, tmpdir string) error {
+	userproc, err := expproc.NewUsers(tmpdir)
+	if err != nil {
+		return err
+	}
+
+	if err := s.Users(ctx, userproc); err != nil {
+		return fmt.Errorf("error listing users: %w", err)
+	}
+	if err := userproc.Close(); err != nil {
+		return fmt.Errorf("error closing user processor: %w", err)
+	}
+	dlog.FromContext(ctx).Debug("users done")
 	return nil
 }

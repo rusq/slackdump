@@ -76,6 +76,8 @@ LOOP:
 // Messages is called for each message chunk that is retrieved.
 func (rec *Recorder) Messages(ctx context.Context, channelID string, numThreads int, isLast bool, m []slack.Message) error {
 	select {
+	case <-ctx.Done():
+		return ctx.Err()
 	case err := <-rec.errC:
 		return err
 	case rec.chunks <- Chunk{
@@ -97,6 +99,8 @@ func (rec *Recorder) Messages(ctx context.Context, channelID string, numThreads 
 // passed in as well.
 func (rec *Recorder) Files(ctx context.Context, channelID string, parent slack.Message, isThread bool, f []slack.File) error {
 	select {
+	case <-ctx.Done():
+		return ctx.Err()
 	case err := <-rec.errC:
 		return err
 	case rec.chunks <- Chunk{
@@ -119,6 +123,8 @@ func (rec *Recorder) Files(ctx context.Context, channelID string, parent slack.M
 // retrieved. The parent message is passed in as well.
 func (rec *Recorder) ThreadMessages(ctx context.Context, channelID string, parent slack.Message, isLast bool, tm []slack.Message) error {
 	select {
+	case <-ctx.Done():
+		return ctx.Err()
 	case err := <-rec.errC:
 		return err
 	case rec.chunks <- Chunk{
@@ -142,6 +148,8 @@ func (rec *Recorder) ThreadMessages(ctx context.Context, channelID string, paren
 // thread (user requested a thread).
 func (rec *Recorder) ChannelInfo(ctx context.Context, channel *slack.Channel, isThread bool) error {
 	select {
+	case <-ctx.Done():
+		return ctx.Err()
 	case err := <-rec.errC:
 		return err
 	case rec.chunks <- Chunk{
@@ -158,6 +166,8 @@ func (rec *Recorder) ChannelInfo(ctx context.Context, channel *slack.Channel, is
 
 func (rec *Recorder) Users(ctx context.Context, users []slack.User) error {
 	select {
+	case <-ctx.Done():
+		return ctx.Err()
 	case err := <-rec.errC:
 		return err
 	case rec.chunks <- Chunk{
@@ -172,6 +182,8 @@ func (rec *Recorder) Users(ctx context.Context, users []slack.User) error {
 
 func (rec *Recorder) Channels(ctx context.Context, channels []slack.Channel) error {
 	select {
+	case <-ctx.Done():
+		return ctx.Err()
 	case err := <-rec.errC:
 		return err
 	case rec.chunks <- Chunk{

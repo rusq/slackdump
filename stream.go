@@ -260,7 +260,7 @@ func (cs *Stream) channelWorker(ctx context.Context, proc processor.Conversation
 			if !more {
 				return // channel closed
 			}
-			if err := cs.channelInfo(ctx, req.channelID, false, proc); err != nil {
+			if err := cs.channelInfo(ctx, proc, req.channelID, false); err != nil {
 				results <- StreamResult{Type: RTChannel, ChannelID: req.channelID, Err: err}
 			}
 			last := false
@@ -335,7 +335,7 @@ func (cs *Stream) threadWorker(ctx context.Context, proc processor.Conversations
 				return // channel closed
 			}
 			if req.needChanInfo {
-				if err := cs.channelInfo(ctx, req.channelID, true, proc); err != nil {
+				if err := cs.channelInfo(ctx, proc, req.channelID, true); err != nil {
 					results <- StreamResult{Type: RTThread, ChannelID: req.channelID, ThreadTS: req.threadTS, Err: err}
 				}
 			}
@@ -441,7 +441,7 @@ func processThreadMessages(ctx context.Context, proc processor.Conversations, ch
 }
 
 // channelInfo fetches the channel info and passes it to the processor.
-func (cs *Stream) channelInfo(ctx context.Context, channelID string, isThread bool, proc processor.Conversations) error {
+func (cs *Stream) channelInfo(ctx context.Context, proc processor.Conversations, channelID string, isThread bool) error {
 	ctx, task := trace.NewTask(ctx, "channelInfo")
 	defer task.End()
 
@@ -486,14 +486,12 @@ func (cs *Stream) Users(ctx context.Context, proc processor.Users) error {
 }
 
 // TODO: test this.
-func (cs *Stream) ListChannels(ctx context.Context, types []string, proc processor.Channels) error {
+func (cs *Stream) ListChannels(ctx context.Context, proc processor.Channels, p *slack.GetConversationsParameters) error {
 	ctx, task := trace.NewTask(ctx, "Channels")
 	defer task.End()
 
 	for {
-		ch, next, err := cs.client.GetConversationsContext(ctx, &slack.GetConversationsParameters{
-			Types: types,
-		})
+		ch, next, err := cs.client.GetConversationsContext(ctx, p)
 		if err != nil {
 			return err
 		}
