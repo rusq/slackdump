@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 
 	"github.com/rusq/slackdump/v2/internal/chunk"
 )
@@ -23,7 +24,17 @@ func newBaseProc(dir string, name string) (*baseproc, error) {
 	} else if !fi.IsDir() {
 		return nil, fmt.Errorf("not a directory: %s", dir)
 	}
-	f, err := os.Create(filepath.Join(dir, name+ext))
+	filename := filepath.Join(dir, name+ext)
+	if fi, err := os.Stat(filename); err == nil {
+		if fi.IsDir() {
+			return nil, fmt.Errorf("not a file: %s", filename)
+		}
+		if fi.Size() > 0 {
+			runtime.Breakpoint()
+			return nil, fmt.Errorf("file %s exists and not empty", filename)
+		}
+	}
+	f, err := os.Create(filename)
 	if err != nil {
 		return nil, err
 	}

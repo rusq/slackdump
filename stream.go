@@ -424,11 +424,6 @@ func processChannelMessages(ctx context.Context, proc processor.Conversations, t
 }
 
 func processThreadMessages(ctx context.Context, proc processor.Conversations, channelID, threadTS string, isLast bool, msgs []slack.Message) error {
-	// slack returns the thread starter as the first message with every
-	// call, so we use it as a parent message.
-	if err := proc.ThreadMessages(ctx, channelID, msgs[0], isLast, msgs[1:]); err != nil {
-		return fmt.Errorf("failed to process message id=%s, thread_ts=%s: %w", msgs[0].Msg.ClientMsgID, threadTS, err)
-	}
 	// extract files from thread messages
 	for _, m := range msgs[1:] {
 		if len(m.Files) > 0 {
@@ -436,6 +431,11 @@ func processThreadMessages(ctx context.Context, proc processor.Conversations, ch
 				return err
 			}
 		}
+	}
+	// slack returns the thread starter as the first message with every
+	// call, so we use it as a parent message.
+	if err := proc.ThreadMessages(ctx, channelID, msgs[0], isLast, msgs[1:]); err != nil {
+		return fmt.Errorf("failed to process message id=%s, thread_ts=%s: %w", msgs[0].Msg.ClientMsgID, threadTS, err)
 	}
 	return nil
 }

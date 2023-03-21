@@ -11,6 +11,7 @@ import (
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/export/expproc"
 	"github.com/rusq/slackdump/v2/export"
 	"github.com/rusq/slackdump/v2/internal/structures"
+	"github.com/schollz/progressbar/v3"
 	"github.com/slack-go/slack"
 )
 
@@ -21,6 +22,7 @@ func exportV3(ctx context.Context, sess *slackdump.Session, list *structures.Ent
 		return err
 	}
 	lg.Printf("using %s as the temporary directory", tmpdir)
+	lg.Print("running export...")
 
 	errC := make(chan error, 1)
 	s := sess.Stream()
@@ -56,10 +58,14 @@ func exportV3(ctx context.Context, sess *slackdump.Session, list *structures.Ent
 	}
 	// conversations goroutine
 	{
+		pb := newProgressBar(progressbar.New(-1), lg.IsDebug())
+		pb.RenderBlank()
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			errC <- conversationWorker(ctx, s, tmpdir, links)
+			defer pb.Finish()
+			errC <- conversationWorker(ctx, s, pb, tmpdir, links)
+
 		}()
 	}
 	// sentinel
@@ -68,7 +74,6 @@ func exportV3(ctx context.Context, sess *slackdump.Session, list *structures.Ent
 		close(errC)
 	}()
 
-	lg.Printf("running export...")
 	// process returned errors
 	for err := range errC {
 		if err != nil {
@@ -151,17 +156,65 @@ func userWorker(ctx context.Context, s *slackdump.Stream, tmpdir string) error {
 	return nil
 }
 
-func conversationWorker(ctx context.Context, s *slackdump.Stream, tmpdir string, links <-chan string) error {
+type progresser interface {
+	RenderBlank() error
+	Describe(description string)
+	Add(num int) error
+	Finish()
+}
+
+func conversationWorker(ctx context.Context, s *slackdump.Stream, pb progresser, tmpdir string, links <-chan string) error {
 	conv, err := expproc.NewConversation(tmpdir)
 	if err != nil {
 		return fmt.Errorf("error initialising conversation processor: %w", err)
 	}
 
 	if err := s.AsyncConversations(ctx, conv, links, func(sr slackdump.StreamResult) error {
+		pb.Describe(sr.String())
+		pb.Add(1)
 		return nil
 	}); err != nil {
 		return fmt.Errorf("error streaming conversations: %w", err)
 	}
 	dlog.FromContext(ctx).Debug("conversations done")
+	pb.Describe("OK")
 	return nil
+}
+
+type noDebugBar struct {
+	*progressbar.ProgressBar
+	debug bool
+}
+
+func newProgressBar(pb *progressbar.ProgressBar, debug bool) *noDebugBar {
+	return &noDebugBar{pb, debug}
+}
+
+func (pb *noDebugBar) Describe(description string) {
+	if pb.debug {
+		return
+	}
+	pb.ProgressBar.Describe(description)
+}
+
+func (pb *noDebugBar) Add(num int) error {
+	if pb.debug {
+		return nil
+	}
+	return pb.ProgressBar.Add(num)
+}
+
+func (pb *noDebugBar) RenderBlank() error {
+	if pb.debug {
+		return nil
+	}
+	return pb.ProgressBar.RenderBlank()
+}
+
+func (pb *noDebugBar) Finish() {
+	if pb.debug {
+		return
+	}
+	pb.ProgressBar.Finish()
+	fmt.Println()
 }
