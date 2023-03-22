@@ -46,18 +46,21 @@ type Session struct {
 // WorkspaceInfo is an type alias for [slack.AuthTestResponse].
 type WorkspaceInfo = slack.AuthTestResponse
 
-// clienter is the interface with some functions of slack.Client with the sole
-// purpose of mocking in tests (see client_mock.go)
-type clienter interface {
+type streamer interface {
 	GetConversationInfoContext(ctx context.Context, input *slack.GetConversationInfoInput) (*slack.Channel, error)
 	GetConversationHistoryContext(ctx context.Context, params *slack.GetConversationHistoryParameters) (*slack.GetConversationHistoryResponse, error)
 	GetConversationRepliesContext(ctx context.Context, params *slack.GetConversationRepliesParameters) (msgs []slack.Message, hasMore bool, nextCursor string, err error)
 	GetConversationsContext(ctx context.Context, params *slack.GetConversationsParameters) (channels []slack.Channel, nextCursor string, err error)
+	GetUsersPaginated(options ...slack.GetUsersOption) slack.UserPagination
+}
+
+// clienter is the interface with some functions of slack.Client with the sole
+// purpose of mocking in tests (see client_mock.go)
+type clienter interface {
+	streamer
 	GetFile(downloadURL string, writer io.Writer) error
-	GetTeamInfoContext(ctx context.Context) (*slack.TeamInfo, error)
 	GetUsersContext(ctx context.Context, options ...slack.GetUsersOption) ([]slack.User, error)
 	GetEmojiContext(ctx context.Context) (map[string]string, error)
-	GetUsersPaginated(options ...slack.GetUsersOption) slack.UserPagination
 }
 
 // ErrNoUserCache is returned when the user cache is not initialised.

@@ -19,7 +19,7 @@ import (
 
 type Stream struct {
 	oldest, latest time.Time
-	client         clienter
+	client         streamer
 	limits         rateLimits
 }
 
@@ -81,7 +81,7 @@ func OptLatest(t time.Time) StreamOption {
 	}
 }
 
-func newChannelStream(cl clienter, l *Limits, opts ...StreamOption) *Stream {
+func newChannelStream(cl streamer, l *Limits, opts ...StreamOption) *Stream {
 	cs := &Stream{
 		client: cl,
 		limits: limits(l),
@@ -463,11 +463,12 @@ func (cs *Stream) channelInfo(ctx context.Context, proc processor.Conversations,
 	return nil
 }
 
-func (cs *Stream) Users(ctx context.Context, proc processor.Users) error {
+// Users returns all users in the workspace.
+func (cs *Stream) Users(ctx context.Context, proc processor.Users, opt ...slack.GetUsersOption) error {
 	ctx, task := trace.NewTask(ctx, "Users")
 	defer task.End()
 
-	p := cs.client.GetUsersPaginated()
+	p := cs.client.GetUsersPaginated(opt...)
 	var apiErr error
 	for apiErr == nil {
 		if apiErr = network.WithRetry(ctx, cs.limits.users, cs.limits.tier.Tier2.Retries, func() error {
