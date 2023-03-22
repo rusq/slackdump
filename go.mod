@@ -7,10 +7,10 @@ require (
 	github.com/MercuryEngineering/CookieMonster v0.0.0-20180304172713-1584578b3403
 	github.com/MichaelMure/go-term-markdown v0.1.4
 	github.com/Netflix/go-expect v0.0.0-20220104043353-73e0943537d2
-	github.com/fatih/color v1.14.1
+	github.com/fatih/color v1.15.0
 	github.com/go-playground/locales v0.14.1
 	github.com/go-playground/universal-translator v0.18.1
-	github.com/go-playground/validator/v10 v10.11.2
+	github.com/go-playground/validator/v10 v10.12.0
 	github.com/golang/mock v1.6.0
 	github.com/hinshun/vt10x v0.0.0-20220119200601-820417d04eec
 	github.com/joho/godotenv v1.5.1
