@@ -107,7 +107,7 @@ func runV1(ctx context.Context, cmd *base.Command, args []string) error {
 	params, cfgErr := parseCmdLine(args[0:])
 
 	if params.authReset {
-		if err := cache.AuthReset(params.appCfg.SlackConfig.CacheDir); err != nil {
+		if err := cache.AuthReset(cfg.CacheDir()); err != nil {
 			if !os.IsNotExist(err) {
 				dlog.Printf("auth reset error: %s", err)
 			}
@@ -168,7 +168,7 @@ func run(ctx context.Context, p params) error {
 	ctx, task := trace.NewTask(ctx, "main.run")
 	defer task.End()
 
-	m, err := cache.NewManager(p.appCfg.SlackConfig.CacheDir)
+	m, err := cache.NewManager(cfg.CacheDir())
 	if err != nil {
 		return err
 	}
@@ -355,7 +355,7 @@ func parseCmdLine(args []string) (params, error) {
 	fs.IntVar(&p.appCfg.SlackConfig.Limits.Request.Replies, "rpr", slackdump.DefOptions.Limits.Request.Replies, "number of `replies` per request.")
 
 	// - cache controls
-	fs.StringVar(&p.appCfg.SlackConfig.CacheDir, "cache-dir", cfg.CacheDir(), "slackdump cache directory")
+	fs.StringVar(&cfg.LocalCacheDir, "cache-dir", cfg.CacheDir(), "slackdump cache directory")
 	fs.DurationVar(&cfg.UserCacheRetention, "user-cache-age", cfg.UserCacheRetention, "user cache lifetime `duration`. Set this to 0 to disable cache.")
 	fs.BoolVar(&cfg.NoUserCache, "no-user-cache", cfg.NoUserCache, "skip fetching users")
 

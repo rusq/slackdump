@@ -79,7 +79,7 @@ type Option func(*Session)
 // WithFilesystem sets the filesystem adapter to use for the session.  If this
 // option is not given, the default filesystem adapter is initialised with the
 // base location specified in the Config.
-func WithFilesystem(fs fsadapter.FSCloser) Option {
+func WithFilesystem(fs fsadapter.FS) Option {
 	return func(s *Session) {
 		if fs != nil {
 			s.fs = fs
@@ -148,11 +148,6 @@ func New(ctx context.Context, prov auth.Provider, cfg Config, opts ...Option) (*
 	for _, opt := range opts {
 		opt(sd)
 	}
-	if sd.fs == nil {
-		if err := sd.openFS(cfg.BaseLocation); err != nil {
-			return nil, fmt.Errorf("failed to initialise filesystem adapter: %s", err)
-		}
-	}
 	if sd.log == nil {
 		if err := sd.openLogger(cfg.Logfile); err != nil {
 			return nil, fmt.Errorf("failed to initialise logger: %s", err)
@@ -161,30 +156,12 @@ func New(ctx context.Context, prov auth.Provider, cfg Config, opts ...Option) (*
 
 	sd.propagateLogger()
 
-	if err := os.MkdirAll(cfg.CacheDir, 0o700); err != nil {
-		return nil, fmt.Errorf("failed to create the cache directory: %s", err)
-	}
-
 	return sd, nil
 }
 
 // Client returns the underlying slack.Client.
 func (s *Session) Client() *slack.Client {
 	return s.client.(*slack.Client)
-}
-
-func (s *Session) openFS(loc string) error {
-	// if no filesystem adapter is provided through Options, initialise
-	// the default one.
-	fs, err := fsadapter.New(loc)
-	if err != nil {
-		return err
-	}
-	s.fs = fs
-	s.atClose = append(s.atClose, func() error {
-		return fs.Close()
-	})
-	return nil
 }
 
 // Filesystem returns the filesystem adapter used by the session.

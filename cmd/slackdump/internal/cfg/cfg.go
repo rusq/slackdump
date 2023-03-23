@@ -24,8 +24,9 @@ var (
 	LogFile   string
 	Verbose   bool
 
-	ConfigFile string
-	Workspace  string
+	BaseLocation string
+	ConfigFile   string
+	Workspace    string
 
 	SlackToken  string
 	SlackCookie string
@@ -40,6 +41,7 @@ var (
 	// for the dump to be consistent.
 	Latest = config.TimeValue(time.Now())
 
+	LocalCacheDir      string
 	UserCacheRetention time.Duration
 	NoUserCache        bool
 
@@ -90,15 +92,15 @@ func SetBaseFlags(fs *flag.FlagSet, mask FlagMask) {
 	}
 	if mask&OmitBaseLocFlag == 0 {
 		base := fmt.Sprintf("slackdump_%s.zip", time.Now().Format(filenameLayout))
-		fs.StringVar(&SlackConfig.BaseLocation, "base", osenv.Value("BASE_LOC", base), "a `location` (a directory or a ZIP file) on the local disk to save\ndownloaded files to.")
+		fs.StringVar(&BaseLocation, "base", osenv.Value("BASE_LOC", base), "a `location` (a directory or a ZIP file) on the local disk to save\ndownloaded files to.")
 	}
 	if mask&OmitCacheDir == 0 {
-		fs.StringVar(&SlackConfig.CacheDir, "cache-dir", osenv.Value("CACHE_DIR", CacheDir()), "cache `directory` location\n")
+		fs.StringVar(&LocalCacheDir, "cache-dir", osenv.Value("CACHE_DIR", CacheDir()), "cache `directory` location\n")
 	} else {
 		// If the OmitCacheDir is specified, then the CacheDir will end up being
 		// the default value, which is "". Therefore, we need to init the
 		// cache directory.
-		SlackConfig.CacheDir = CacheDir()
+		LocalCacheDir = CacheDir()
 	}
 	if mask&OmitWorkspaceFlag == 0 {
 		fs.StringVar(&Workspace, "workspace", osenv.Value("SLACK_WORKSPACE", ""), "Slack workspace to use") // TODO: load from configuration.

@@ -49,7 +49,7 @@ func init() {
 }
 
 func runExport(ctx context.Context, cmd *base.Command, args []string) error {
-	if cfg.SlackConfig.BaseLocation == "" {
+	if cfg.BaseLocation == "" {
 		return errors.New("use -base to set the base output location")
 	}
 	list, err := structures.NewEntityList(args)

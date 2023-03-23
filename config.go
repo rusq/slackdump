@@ -16,11 +16,7 @@ type Config struct {
 	Limits Limits
 
 	DumpFiles bool // will we save the conversation files?
-
-	CacheDir string // cache directory
-
-	BaseLocation string // base location for the dump files
-	Logfile      string
+	Logfile   string
 }
 
 type Limits struct {
@@ -79,10 +75,8 @@ var DefOptions = Config{
 			Replies:       200, // the API-default is 1000 (see conversations.replies), but on large threads it may fail (see #54)
 		},
 	},
-	DumpFiles:    false,
-	CacheDir:     "",  // default cache dir
-	BaseLocation: ".", // default location is the current directory
-	Logfile:      "",  // empty, means STDERR
+	DumpFiles: false,
+	Logfile:   "", // empty, means STDERR
 }
 
 var (

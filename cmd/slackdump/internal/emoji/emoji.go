@@ -39,7 +39,7 @@ func run(ctx context.Context, cmd *base.Command, args []string) error {
 		return fmt.Errorf("auth error: %s", err)
 	}
 
-	fs, err := fsadapter.New(cfg.SlackConfig.BaseLocation)
+	fs, err := fsadapter.New(cfg.BaseLocation)
 	if err != nil {
 		return err
 	}

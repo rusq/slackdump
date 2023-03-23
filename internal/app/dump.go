@@ -32,9 +32,13 @@ func Dump(ctx context.Context, cfg config.Params, prov auth.Provider) error {
 	ctx, task := trace.NewTask(ctx, "runDump")
 	defer task.End()
 
-	cfg.SlackConfig.BaseLocation = cfg.Output.Base
+	fs, err := fsadapter.New(cfg.Output.Base)
+	if err != nil {
+		return err
+	}
+	defer fs.Close()
 
-	dm, err := newDump(ctx, cfg, prov)
+	dm, err := newDump(ctx, cfg, prov, fs)
 	if err != nil {
 		return err
 	}
@@ -51,8 +55,8 @@ func Dump(ctx context.Context, cfg config.Params, prov auth.Provider) error {
 	return err
 }
 
-func newDump(ctx context.Context, cfg config.Params, prov auth.Provider) (*dump, error) {
-	sess, err := slackdump.New(ctx, prov, cfg.SlackConfig)
+func newDump(ctx context.Context, cfg config.Params, prov auth.Provider, fs fsadapter.FS) (*dump, error) {
+	sess, err := slackdump.New(ctx, prov, cfg.SlackConfig, slackdump.WithFilesystem(fs))
 	if err != nil {
 		return nil, err
 	}

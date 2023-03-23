@@ -6,6 +6,7 @@ import (
 	"runtime/trace"
 	"time"
 
+	"github.com/rusq/fsadapter"
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/auth"
 	"github.com/rusq/slackdump/v2/export"
@@ -26,9 +27,13 @@ func Export(ctx context.Context, cfg config.Params, prov auth.Provider) error {
 		return errors.New("export directory or filename not specified")
 	}
 
-	cfg.SlackConfig.BaseLocation = cfg.ExportName
+	fs, err := fsadapter.New(cfg.ExportName)
+	if err != nil {
+		return err
+	}
+	defer fs.Close()
 
-	sess, err := slackdump.New(ctx, prov, cfg.SlackConfig)
+	sess, err := slackdump.New(ctx, prov, cfg.SlackConfig, slackdump.WithFilesystem(fs))
 	if err != nil {
 		return err
 	}

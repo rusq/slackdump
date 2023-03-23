@@ -22,8 +22,8 @@ func ucd(ucdFn func() (string, error)) string {
 }
 
 func CacheDir() string {
-	if SlackConfig.CacheDir == "" {
+	if LocalCacheDir == "" {
 		return ucd(os.UserCacheDir)
 	}
-	return SlackConfig.CacheDir
+	return LocalCacheDir
 }

@@ -6,7 +6,6 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/rusq/slackdump/v2"
-	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v2/internal/app/config"
 	"github.com/rusq/slackdump/v2/internal/cache"
 	"github.com/rusq/slackdump/v2/internal/structures"
@@ -41,9 +40,6 @@ func Test_output_validFormat(t *testing.T) {
 }
 
 func Test_checkParameters(t *testing.T) {
-	// setup
-	slackdump.DefOptions.CacheDir = cfg.CacheDir()
-
 	// test
 	type args struct {
 		args []string

@@ -2,6 +2,7 @@ package slackdump
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"path"
 	"runtime/trace"
@@ -72,6 +73,9 @@ func runProcessFuncs(m []types.Message, channelID string, processFn ...ProcessFu
 // file, instead of Slack server URL.  It returns ProcessFunction and
 // CancelFunc. CancelFunc must be called, i.e. by deferring it's execution.
 func (s *Session) newFileProcessFn(ctx context.Context, dir string, l *rate.Limiter) (ProcessFunc, cancelFunc, error) {
+	if s.fs == nil {
+		return nil, nil, errors.New("filesystem not set, unable to download files")
+	}
 	// set up a file downloader and add it to the post-process functions
 	// slice
 	dl := downloader.New(

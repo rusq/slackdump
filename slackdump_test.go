@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/rusq/fsadapter"
 	"github.com/rusq/slackdump/v2/auth"
 	"github.com/rusq/slackdump/v2/internal/network"
 	"github.com/rusq/slackdump/v2/logger"
@@ -80,6 +81,9 @@ func ExampleNew_tokenAndCookie() {
 		log.Print(err)
 		return
 	}
+	fsa := openTempFS()
+	defer fsa.Close()
+
 	sd, err := New(context.Background(), provider, DefOptions)
 	if err != nil {
 		log.Print(err)
@@ -94,6 +98,9 @@ func ExampleNew_cookieFile() {
 		log.Print(err)
 		return
 	}
+	fsa := openTempFS()
+	defer fsa.Close()
+
 	sd, err := New(context.Background(), provider, DefOptions)
 	if err != nil {
 		log.Print(err)
@@ -108,12 +115,26 @@ func ExampleNew_browserAuth() {
 		log.Print(err)
 		return
 	}
+	fsa := openTempFS()
+	defer fsa.Close()
 	sd, err := New(context.Background(), provider, DefOptions)
 	if err != nil {
 		log.Print(err)
 		return
 	}
 	_ = sd
+}
+
+func openTempFS() fsadapter.FSCloser {
+	dir, err := os.MkdirTemp("", "slackdump")
+	if err != nil {
+		panic(err)
+	}
+	fs, err := fsadapter.New(dir)
+	if err != nil {
+		panic(err)
+	}
+	return fs
 }
 
 func TestSession_openFS(t *testing.T) {
@@ -123,7 +144,6 @@ func TestSession_openFS(t *testing.T) {
 		sd.cfg = Config{}
 		testFile := filepath.Join(dir, "test.zip")
 
-		assert.NoError(t, sd.openFS(testFile))
 		assert.NotNil(t, sd.fs)
 		assert.Len(t, sd.atClose, 1)
 		assert.NoError(t, sd.Close())
@@ -135,7 +155,6 @@ func TestSession_openFS(t *testing.T) {
 		sd.cfg = Config{}
 		testDir := filepath.Join(dir, "test")
 
-		assert.NoError(t, sd.openFS(testDir))
 		assert.NotNil(t, sd.fs)
 		assert.Len(t, sd.atClose, 1)
 

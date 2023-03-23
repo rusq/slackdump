@@ -147,7 +147,7 @@ func saveData(ctx context.Context, fs fsadapter.FS, data any, filename string, t
 	if err := writeData(ctx, fs, filename, data, typ, users); err != nil {
 		return err
 	}
-	dlog.FromContext(ctx).Printf("Data saved to:  %q\n", filepath.Join(cfg.SlackConfig.BaseLocation, filename))
+	dlog.FromContext(ctx).Printf("Data saved to:  %q\n", filepath.Join(cfg.BaseLocation, filename))
 	return nil
 }
 

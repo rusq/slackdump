@@ -56,7 +56,7 @@ func wizExport(ctx context.Context, cmd *base.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	cfg.SlackConfig.BaseLocation = baseLoc
+	cfg.BaseLocation = baseLoc
 
 	sess, err := slackdump.New(ctx, prov, cfg.SlackConfig)
 	if err != nil {

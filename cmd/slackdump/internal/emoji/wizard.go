@@ -22,7 +22,7 @@ func wizard(ctx context.Context, cmd *base.Command, args []string) error {
 		}
 		fmt.Println("invalid filename")
 	}
-	cfg.SlackConfig.BaseLocation = baseloc
+	cfg.BaseLocation = baseloc
 
 	var err error
 	ignoreErrors, err = ui.Confirm("Ignore download errors?", true)
