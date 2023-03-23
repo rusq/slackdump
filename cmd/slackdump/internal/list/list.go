@@ -23,6 +23,10 @@ import (
 	"github.com/slack-go/slack"
 )
 
+const (
+	userCacheBase = "users.cache"
+)
+
 // CmdList is the list command.  The logic is in the subcommands.
 var CmdList = &base.Command{
 	UsageLine: "slackdump list",
@@ -46,7 +50,7 @@ channel cache — %s.  This is to speed up consecutive runs of the command.
 
 The caching can be turned off by using flags "-no-user-cache" and
 "-no-chan-cache".
-`, cfg.SlackConfig.UserCache.Retention, chanCacheOpts.Retention),
+`, cfg.UserCacheRetention, chanCacheOpts.Retention),
 	Commands: []*base.Command{
 		CmdListUsers,
 		CmdListChannels,
@@ -104,14 +108,14 @@ func list(ctx context.Context, listFn listFunc) error {
 	if err != nil {
 		return err
 	}
-	m, err := cache.NewManager(cfg.CacheDir(), cache.WithUserCacheBase(cfg.SlackConfig.UserCache.Filename))
+	m, err := cache.NewManager(cfg.CacheDir(), cache.WithUserCacheBase(userCacheBase))
 	if err != nil {
 		return err
 	}
 
 	lg := dlog.FromContext(ctx)
 	teamID := sess.Info().TeamID
-	users, err := m.LoadUsers(teamID, cfg.SlackConfig.UserCache.Retention)
+	users, err := m.LoadUsers(teamID, cfg.UserCacheRetention)
 	if err != nil {
 		lg.Println("user cache expired, caching users")
 
@@ -121,8 +125,8 @@ func list(ctx context.Context, listFn listFunc) error {
 		}
 
 		if err := m.SaveUsers(teamID, users); err != nil {
-			trace.Logf(ctx, "error", "saving user cache to %q, error: %s", cfg.SlackConfig.UserCache.Filename, err)
-			lg.Printf("error saving user cache to %q: %s, but nevermind, let's continue", cfg.SlackConfig.UserCache.Filename, err)
+			trace.Logf(ctx, "error", "saving user cache to %q, error: %s", userCacheBase, err)
+			lg.Printf("error saving user cache to %q: %s, but nevermind, let's continue", userCacheBase, err)
 		}
 	}
 

@@ -76,7 +76,13 @@ func listChannels(ctx context.Context, cmd *base.Command, args []string) error {
 	return nil
 }
 
-var chanCacheOpts = slackdump.CacheConfig{
+type cacheConfig struct {
+	Disabled  bool
+	Retention time.Duration
+	Filename  string
+}
+
+var chanCacheOpts = cacheConfig{
 	Disabled:  false,
 	Retention: 20 * time.Minute,
 	Filename:  "channels.json",

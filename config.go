@@ -4,7 +4,6 @@ package slackdump
 
 import (
 	"reflect"
-	"time"
 
 	"github.com/go-playground/locales/en"
 	ut "github.com/go-playground/universal-translator"
@@ -18,18 +17,10 @@ type Config struct {
 
 	DumpFiles bool // will we save the conversation files?
 
-	CacheDir  string // cache directory
-	UserCache CacheConfig
+	CacheDir string // cache directory
 
 	BaseLocation string // base location for the dump files
 	Logfile      string
-}
-
-// CacheConfig represents the options for the cache.
-type CacheConfig struct {
-	Filename  string
-	Retention time.Duration
-	Disabled  bool
 }
 
 type Limits struct {
@@ -89,7 +80,6 @@ var DefOptions = Config{
 		},
 	},
 	DumpFiles:    false,
-	UserCache:    CacheConfig{Filename: "users.cache", Retention: 4 * time.Hour},
 	CacheDir:     "",  // default cache dir
 	BaseLocation: ".", // default location is the current directory
 	Logfile:      "",  // empty, means STDERR

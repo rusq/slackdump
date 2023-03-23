@@ -6,11 +6,16 @@ import (
 	"context"
 	"errors"
 	"runtime/trace"
+	"time"
 
 	"github.com/slack-go/slack"
 
 	"github.com/rusq/slackdump/v2/internal/network"
 	"github.com/rusq/slackdump/v2/types"
+)
+
+const (
+	cacheTimeout = 5 * time.Minute
 )
 
 // GetUsers retrieves all users either from cache or from the API.  If
@@ -21,7 +26,7 @@ func (s *Session) GetUsers(ctx context.Context) (types.Users, error) {
 	defer task.End()
 
 	// try getting users from cache
-	users, err := s.uc.get(s.cfg.UserCache.Retention)
+	users, err := s.uc.get(cacheTimeout)
 	if err == nil {
 		return users, nil
 	}

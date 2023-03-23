@@ -24,7 +24,7 @@ List users lists workspace users in the desired format.
 Users are cached for %v.  To disable caching, use '-no-user-cache' flag and
 '-user-cache-retention' flag to control the caching behaviour.
 `+
-		sectListFormat, cfg.SlackConfig.UserCache.Retention),
+		sectListFormat, cfg.UserCacheRetention),
 	RequireAuth: true,
 }
 

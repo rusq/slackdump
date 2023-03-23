@@ -93,7 +93,6 @@ func printAll(m manager, current string, wsps []string) {
 	fmt.Fprintln(tw,
 		"C\tname\tfilename\tmodified\tteam\tuser\terror\n"+
 			"-\t-------\t------------\t-------------------\t---------\t--------\t-----")
-	cfg.SlackConfig.UserCache.Disabled = true
 	for _, name := range wsps {
 		curr := ""
 		if current == name {

@@ -40,6 +40,9 @@ var (
 	// for the dump to be consistent.
 	Latest = config.TimeValue(time.Now())
 
+	UserCacheRetention time.Duration
+	NoUserCache        bool
+
 	Log logger.Interface
 )
 
@@ -101,8 +104,8 @@ func SetBaseFlags(fs *flag.FlagSet, mask FlagMask) {
 		fs.StringVar(&Workspace, "workspace", osenv.Value("SLACK_WORKSPACE", ""), "Slack workspace to use") // TODO: load from configuration.
 	}
 	if mask&OmitUserCacheFlag == 0 {
-		fs.BoolVar(&SlackConfig.UserCache.Disabled, "no-user-cache", false, "disable user cache")
-		fs.DurationVar(&SlackConfig.UserCache.Retention, "user-cache-retention", slackdump.DefOptions.UserCache.Retention, "user cache retention duration.  After this time, the cache is considered stale and will be refreshed.")
+		fs.BoolVar(&NoUserCache, "no-user-cache", false, "disable user cache (file cache)")
+		fs.DurationVar(&UserCacheRetention, "user-cache-retention", 60*time.Minute, "user cache retention duration.  After this time, the cache is considered stale and will be refreshed.")
 	}
 	if mask&OmitTimeframeFlag == 0 {
 		fs.Var(&Oldest, "from", "timestamp of the oldest message to fetch (UTC timezone)")

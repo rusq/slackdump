@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"runtime/trace"
+	"time"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/slack-go/slack"
@@ -33,7 +34,8 @@ type Session struct {
 	wspInfo *WorkspaceInfo // workspace info
 
 	// usercache contains the list of users.
-	uc *usercache
+	uc             *usercache
+	cacheRetention time.Duration
 
 	fs  fsadapter.FS     // filesystem adapter
 	log logger.Interface // logger
@@ -97,6 +99,14 @@ func WithLogger(l logger.Interface) Option {
 	}
 }
 
+// WithUserCacheRetention sets the retention period for the user cache.  If this
+// option is not given, the default value is 60 minutes.
+func WithUserCacheRetention(d time.Duration) Option {
+	return func(s *Session) {
+		s.cacheRetention = d
+	}
+}
+
 // New creates new Slackdump session with provided options, and populates the
 // internal cache of users and channels for lookups. If it fails to
 // authenticate, AuthError is returned.
@@ -128,11 +138,12 @@ func New(ctx context.Context, prov auth.Provider, cfg Config, opts ...Option) (*
 	}
 
 	sd := &Session{
-		client:  cl,
-		cfg:     cfg,
-		uc:      new(usercache),
-		wspInfo: authTestResp,
-		log:     logger.Default,
+		client:         cl,
+		cfg:            cfg,
+		uc:             new(usercache),
+		cacheRetention: 60 * time.Minute,
+		wspInfo:        authTestResp,
+		log:            logger.Default,
 	}
 	for _, opt := range opts {
 		opt(sd)
