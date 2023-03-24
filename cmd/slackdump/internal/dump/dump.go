@@ -100,7 +100,14 @@ func RunDump(ctx context.Context, cmd *base.Command, args []string) error {
 		return fmt.Errorf("file template error: %w", err)
 	}
 
-	sess, err := slackdump.New(ctx, prov, slackdump.WithLogger(dlog.FromContext(ctx)))
+	fs, err := fsadapter.New(cfg.BaseLocation)
+	if err != nil {
+		base.SetExitStatus(base.SApplicationError)
+		return err
+	}
+	defer fs.Close()
+
+	sess, err := slackdump.New(ctx, prov, slackdump.WithLogger(dlog.FromContext(ctx)), slackdump.WithFilesystem(fs))
 	if err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return err
@@ -113,14 +120,14 @@ func RunDump(ctx context.Context, cmd *base.Command, args []string) error {
 		dumpFn = dumpv2
 	}
 
-	if err := dumpFn(ctx, sess, list, tmpl); err != nil {
+	if err := dumpFn(ctx, sess, fs, list, tmpl); err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return err
 	}
 	return nil
 }
 
-func dumpv3(ctx context.Context, sess *slackdump.Session, list *structures.EntityList, t *nametmpl.Template) error {
+func dumpv3(ctx context.Context, sess *slackdump.Session, fs fsadapter.FS, list *structures.EntityList, t *nametmpl.Template) error {
 	ctx, task := trace.NewTask(ctx, "dumpv3")
 	defer task.End()
 
@@ -141,7 +148,7 @@ func dumpv3(ctx context.Context, sess *slackdump.Session, list *structures.Entit
 	}
 	lg.Debugf("using temporary directory:  %s", tmpdir)
 
-	tf := transform.NewStandard(sess.Filesystem(), transform.WithNameFn(t.Execute))
+	tf := transform.NewStandard(fs, transform.WithNameFn(t.Execute))
 	var eg errgroup.Group
 	for _, link := range p.List.Include {
 		lg.Printf("fetching %q", link)
@@ -180,7 +187,7 @@ func convertChunks(ctx context.Context, tf transform.Interface, statefile string
 	return nil
 }
 
-func dumpv2(ctx context.Context, sess *slackdump.Session, list *structures.EntityList, t *nametmpl.Template) error {
+func dumpv2(ctx context.Context, sess *slackdump.Session, fs fsadapter.FS, list *structures.EntityList, t *nametmpl.Template) error {
 	for _, link := range list.Include {
 		conv, err := sess.Dump(ctx, link, time.Time(cfg.Oldest), time.Time(cfg.Latest))
 		if err != nil {
@@ -190,7 +197,7 @@ func dumpv2(ctx context.Context, sess *slackdump.Session, list *structures.Entit
 		if err != nil {
 			return err
 		}
-		if err := save(ctx, sess.Filesystem(), name, conv); err != nil {
+		if err := save(ctx, fs, name, conv); err != nil {
 			return err
 		}
 	}

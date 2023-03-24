@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/rusq/dlog"
+	"github.com/rusq/fsadapter"
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/export/expproc"
 	"github.com/rusq/slackdump/v2/export"
@@ -15,7 +16,7 @@ import (
 	"github.com/slack-go/slack"
 )
 
-func exportV3(ctx context.Context, sess *slackdump.Session, list *structures.EntityList, options export.Config) error {
+func exportV3(ctx context.Context, sess *slackdump.Session, fs fsadapter.FS, list *structures.EntityList, options export.Config) error {
 	lg := dlog.FromContext(ctx)
 	tmpdir, err := os.MkdirTemp("", "slackdump-*")
 	if err != nil {

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/rusq/dlog"
+	"github.com/rusq/fsadapter"
 
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/auth"
@@ -65,13 +66,18 @@ func runExport(ctx context.Context, cmd *base.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+	fsa, err := fsadapter.New(cfg.BaseLocation)
+	if err != nil {
+		return err
+	}
 
 	options.List = list
 	options.Logger = dlog.FromContext(ctx)
 
+	var expfn = exportV3
 	if compat {
-		return exportV2(ctx, sess, list, options)
+		expfn = exportV2
 	}
 
-	return exportV3(ctx, sess, list, options)
+	return expfn(ctx, sess, fsa, list, options)
 }

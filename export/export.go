@@ -33,18 +33,18 @@ type Export struct {
 
 // New creates a new Export instance, that will save export to the
 // provided fs.
-func New(sd *slackdump.Session, cfg Config) *Export {
+func New(sd *slackdump.Session, fs fsadapter.FS, cfg Config) *Export {
 	if cfg.Logger == nil {
 		cfg.Logger = logger.Default
 	}
 	network.Logger = cfg.Logger
 
 	se := &Export{
-		fs:   sd.Filesystem(),
+		fs:   fs,
 		sd:   sd,
 		lg:   cfg.Logger,
 		opts: cfg,
-		dl:   newFileExporter(cfg.Type, sd.Filesystem(), sd.Client(), cfg.Logger, cfg.ExportToken),
+		dl:   newFileExporter(cfg.Type, fs, sd.Client(), cfg.Logger, cfg.ExportToken),
 	}
 	return se
 }

@@ -85,6 +85,7 @@ type listFunc func(ctx context.Context, sess *slackdump.Session) (a any, filenam
 // list authenticates and creates a slackdump instance, then calls a listFn.
 // listFn must return the object from the api, a JSON filename and an error.
 func list(ctx context.Context, listFn listFunc) error {
+	// TODO fix users saving JSON to a text file within archive
 	if listType == format.CUnknown {
 		return errors.New("unknown listing format, seek help")
 	}
@@ -130,7 +131,11 @@ func list(ctx context.Context, listFn listFunc) error {
 	}
 
 	if !nosave {
-		if err := saveData(ctx, sess.Filesystem(), data, filename, format.CJSON, users); err != nil {
+		fsa, err := fsadapter.New(cfg.BaseLocation)
+		if err != nil {
+			return err
+		}
+		if err := saveData(ctx, fsa, data, filename, format.CJSON, users); err != nil {
 			return err
 		}
 	}

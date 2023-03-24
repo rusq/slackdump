@@ -66,7 +66,7 @@ func wizExport(ctx context.Context, cmd *base.Command, args []string) error {
 		return err
 	}
 	// TODO v3
-	exp := export.New(sess, options)
+	exp := export.New(sess, fsa, options)
 
 	// run export
 	return exp.Run(ctx)

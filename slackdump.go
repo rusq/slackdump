@@ -162,11 +162,6 @@ func (s *Session) Client() *slack.Client {
 	return s.client.(*slack.Client)
 }
 
-// Filesystem returns the filesystem adapter used by the session.
-func (s *Session) Filesystem() fsadapter.FS {
-	return s.fs
-}
-
 // CurrentUserID returns the user ID of the authenticated user.
 func (s *Session) CurrentUserID() string {
 	return s.wspInfo.UserID

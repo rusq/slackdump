@@ -25,6 +25,7 @@ import (
 type dump struct {
 	sess *slackdump.Session
 	cfg  config.Params
+	fs   fsadapter.FS
 
 	log logger.Interface
 }
@@ -61,7 +62,7 @@ func newDump(ctx context.Context, cfg config.Params, prov auth.Provider, fs fsad
 		return nil, err
 	}
 
-	return &dump{sess: sess, cfg: cfg, log: cfg.Logger()}, nil
+	return &dump{sess: sess, cfg: cfg, log: cfg.Logger(), fs: fs}, nil
 }
 
 // Dump dumps the input, if dumpfiles is true, it will save the files into a
@@ -90,7 +91,7 @@ func (app *dump) Dump(ctx context.Context) (int, error) {
 
 	total := 0
 	if err := app.cfg.Input.Producer(func(channelID string) error {
-		if err := app.dumpOne(ctx, app.sess.Filesystem(), tmpl, channelID, app.sess.Dump); err != nil {
+		if err := app.dumpOne(ctx, app.fs, tmpl, channelID, app.sess.Dump); err != nil {
 			app.log.Printf("error processing: %q (conversation will be skipped): %s", channelID, err)
 			return config.ErrSkip
 		}

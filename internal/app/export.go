@@ -41,7 +41,7 @@ func Export(ctx context.Context, cfg config.Params, prov auth.Provider) error {
 
 	cfg.Logger().Printf("Export:  staring export to: %s", cfg.ExportName)
 
-	e := export.New(sess, makeExportOptions(cfg))
+	e := export.New(sess, fs, makeExportOptions(cfg))
 	if err := e.Run(ctx); err != nil {
 		return err
 	}
