@@ -4,9 +4,9 @@ import (
 	"context"
 
 	"github.com/rusq/dlog"
+	"github.com/rusq/fsadapter"
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/auth"
-	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v2/export"
 	"github.com/rusq/slackdump/v2/internal/ui"
@@ -56,14 +56,16 @@ func wizExport(ctx context.Context, cmd *base.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	cfg.BaseLocation = baseLoc
-
-	sess, err := slackdump.New(ctx, prov, cfg.SlackConfig)
+	fsa, err := fsadapter.New(baseLoc)
 	if err != nil {
 		return err
 	}
-	defer sess.Close()
 
+	sess, err := slackdump.New(ctx, prov, slackdump.WithFilesystem(fsa), slackdump.WithLogger(options.Logger))
+	if err != nil {
+		return err
+	}
+	// TODO v3
 	exp := export.New(sess, options)
 
 	// run export

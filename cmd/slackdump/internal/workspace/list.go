@@ -93,6 +93,7 @@ func printAll(m manager, current string, wsps []string) {
 	fmt.Fprintln(tw,
 		"C\tname\tfilename\tmodified\tteam\tuser\terror\n"+
 			"-\t-------\t------------\t-------------------\t---------\t--------\t-----")
+	// TODO: Concurrent pipeline.
 	for _, name := range wsps {
 		curr := ""
 		if current == name {
@@ -117,11 +118,10 @@ func userInfo(ctx context.Context, m manager, name string) (*slack.AuthTestRespo
 	if err != nil {
 		return nil, err
 	}
-	sess, err := slackdump.New(ctx, prov, cfg.SlackConfig, slackdump.WithLogger(logger.Silent))
+	sess, err := slackdump.New(ctx, prov, slackdump.WithLogger(logger.Silent))
 	if err != nil {
 		return nil, err
 	}
-	defer sess.Close()
 	return sess.Client().AuthTest()
 }
 

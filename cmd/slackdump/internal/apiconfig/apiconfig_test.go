@@ -38,7 +38,7 @@ func Test_readConfig(t *testing.T) {
 		{
 			"sample config (ok)",
 			args{strings.NewReader(sampleLimitsYaml)},
-			slackdump.DefOptions.Limits,
+			slackdump.DefLimits,
 			false,
 		},
 		{

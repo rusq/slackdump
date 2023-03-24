@@ -71,7 +71,7 @@ func TestChannelStream(t *testing.T) {
 	rec := chunk.NewRecorder(f)
 	defer rec.Close()
 
-	cs := newChannelStream(sd, &DefOptions.Limits)
+	cs := newChannelStream(sd, &DefLimits)
 	if err := cs.Conversations(context.Background(), rec, testConversation); err != nil {
 		t.Fatal(err)
 	}

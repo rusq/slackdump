@@ -35,9 +35,10 @@ type Params struct {
 	ExportType  export.ExportType // export type, see enum for available options.
 	ExportToken string            // token that will be added to all exported files.
 
-	Emoji EmojiParams
+	DumpFiles bool // dump files from the workspace
 
-	SlackConfig slackdump.Config
+	Emoji  EmojiParams
+	Limits slackdump.Limits
 
 	Log logger.Interface
 }

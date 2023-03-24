@@ -60,11 +60,10 @@ func runRecord(ctx context.Context, _ *base.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	sess, err := slackdump.New(ctx, prov, cfg.SlackConfig)
+	sess, err := slackdump.New(ctx, prov)
 	if err != nil {
 		return err
 	}
-	defer sess.Close()
 
 	var w io.Writer
 	if *output == "" {

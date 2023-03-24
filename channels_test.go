@@ -16,8 +16,7 @@ import (
 
 func TestSession_getChannels(t *testing.T) {
 	type fields struct {
-		Users   types.Users
-		options Config
+		config config
 	}
 	type args struct {
 		ctx       context.Context
@@ -33,14 +32,14 @@ func TestSession_getChannels(t *testing.T) {
 	}{
 		{
 			"ok",
-			fields{options: DefOptions},
+			fields{config: defConfig},
 			args{
 				context.Background(),
 				AllChanTypes,
 			},
 			func(mc *mockClienter) {
 				mc.EXPECT().GetConversationsContext(gomock.Any(), &slack.GetConversationsParameters{
-					Limit: DefOptions.Limits.Request.Channels,
+					Limit: DefLimits.Request.Channels,
 					Types: AllChanTypes,
 				}).Return(types.Channels{
 					slack.Channel{GroupConversation: slack.GroupConversation{
@@ -56,14 +55,14 @@ func TestSession_getChannels(t *testing.T) {
 		},
 		{
 			"function made a boo boo",
-			fields{options: DefOptions},
+			fields{config: defConfig},
 			args{
 				context.Background(),
 				AllChanTypes,
 			},
 			func(mc *mockClienter) {
 				mc.EXPECT().GetConversationsContext(gomock.Any(), &slack.GetConversationsParameters{
-					Limit: DefOptions.Limits.Request.Channels,
+					Limit: DefLimits.Request.Channels,
 					Types: AllChanTypes,
 				}).Return(
 					nil,
@@ -79,7 +78,7 @@ func TestSession_getChannels(t *testing.T) {
 			mc := NewmockClienter(gomock.NewController(t))
 			sd := &Session{
 				client: mc,
-				cfg:    tt.fields.options,
+				cfg:    tt.fields.config,
 				log:    logger.Silent,
 			}
 
@@ -103,9 +102,8 @@ func TestSession_getChannels(t *testing.T) {
 
 func TestSession_GetChannels(t *testing.T) {
 	type fields struct {
-		client  clienter
-		Users   types.Users
-		options Config
+		client clienter
+		config config
 	}
 	type args struct {
 		ctx       context.Context
@@ -124,7 +122,7 @@ func TestSession_GetChannels(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			sd := &Session{
 				client: tt.fields.client,
-				cfg:    tt.fields.options,
+				cfg:    tt.fields.config,
 			}
 			got, err := sd.GetChannels(tt.args.ctx, tt.args.chanTypes...)
 			if (err != nil) != tt.wantErr {

@@ -44,17 +44,17 @@ var fetchFn = fetchEmoji
 // Download saves all emojis to "emoji" subdirectory of the Output.Base directory
 // or archive.
 func Download(ctx context.Context, cfg config.Params, prov auth.Provider) error {
-	sess, err := slackdump.New(ctx, prov, cfg.SlackConfig)
-	if err != nil {
-		return err
-	}
-	defer sess.Close()
 
 	fsa, err := fsadapter.New(cfg.Output.Base)
 	if err != nil {
 		return fmt.Errorf("unable to initialise adapter for %s: %w", cfg.Output.Base, err)
 	}
 	defer fsa.Close()
+
+	sess, err := slackdump.New(ctx, prov, slackdump.WithFilesystem(fsa), slackdump.WithLogger(dlog.FromContext(ctx)))
+	if err != nil {
+		return err
+	}
 
 	return DlFS(ctx, sess, fsa, cfg.Emoji.FailOnError)
 }

@@ -64,8 +64,7 @@ var (
 
 func TestSession_DumpMessages(t *testing.T) {
 	type fields struct {
-		Users   types.Users
-		options Config
+		config config
 	}
 	type args struct {
 		ctx       context.Context
@@ -81,14 +80,14 @@ func TestSession_DumpMessages(t *testing.T) {
 	}{
 		{
 			"all ok",
-			fields{options: DefOptions},
+			fields{config: defConfig},
 			args{context.Background(), "CHANNEL"},
 			func(c *mockClienter) {
 				c.EXPECT().GetConversationHistoryContext(
 					gomock.Any(),
 					&slack.GetConversationHistoryParameters{
 						ChannelID: "CHANNEL",
-						Limit:     DefOptions.Limits.Request.Conversations,
+						Limit:     DefLimits.Request.Conversations,
 						Inclusive: true,
 					}).Return(
 					&slack.GetConversationHistoryResponse{
@@ -114,7 +113,7 @@ func TestSession_DumpMessages(t *testing.T) {
 		},
 		{
 			"channelID is empty",
-			fields{options: DefOptions},
+			fields{config: defConfig},
 			args{context.Background(), ""},
 			func(c *mockClienter) {},
 			nil,
@@ -122,7 +121,7 @@ func TestSession_DumpMessages(t *testing.T) {
 		},
 		{
 			"iteration test",
-			fields{options: DefOptions},
+			fields{config: defConfig},
 			args{context.Background(), "CHANNEL"},
 			func(c *mockClienter) {
 				first := c.EXPECT().
@@ -130,7 +129,7 @@ func TestSession_DumpMessages(t *testing.T) {
 						gomock.Any(),
 						&slack.GetConversationHistoryParameters{
 							ChannelID: "CHANNEL",
-							Limit:     DefOptions.Limits.Request.Conversations,
+							Limit:     DefLimits.Request.Conversations,
 							Inclusive: true,
 						}).
 					Return(
@@ -153,7 +152,7 @@ func TestSession_DumpMessages(t *testing.T) {
 						&slack.GetConversationHistoryParameters{
 							ChannelID: "CHANNEL",
 							Cursor:    "cur",
-							Limit:     DefOptions.Limits.Request.Conversations,
+							Limit:     DefLimits.Request.Conversations,
 							Inclusive: true,
 						}).
 					Return(
@@ -179,7 +178,7 @@ func TestSession_DumpMessages(t *testing.T) {
 		},
 		{
 			"resp not ok",
-			fields{options: DefOptions},
+			fields{config: defConfig},
 			args{context.Background(), "CHANNEL"},
 			func(c *mockClienter) {
 				c.EXPECT().GetConversationHistoryContext(
@@ -196,7 +195,7 @@ func TestSession_DumpMessages(t *testing.T) {
 		},
 		{
 			"sudden bleep bloop error",
-			fields{options: DefOptions},
+			fields{config: defConfig},
 			args{context.Background(), "CHANNEL"},
 			func(c *mockClienter) {
 				c.EXPECT().GetConversationHistoryContext(
@@ -219,7 +218,7 @@ func TestSession_DumpMessages(t *testing.T) {
 
 			sd := &Session{
 				client: mc,
-				cfg:    tt.fields.options,
+				cfg:    tt.fields.config,
 				log:    logger.Silent,
 			}
 			got, err := sd.DumpAll(tt.args.ctx, tt.args.channelID)
@@ -235,8 +234,7 @@ func TestSession_DumpMessages(t *testing.T) {
 func TestSession_DumpAll(t *testing.T) {
 	t.Parallel()
 	type fields struct {
-		Users   types.Users
-		options Config
+		config config
 	}
 	type args struct {
 		ctx      context.Context
@@ -252,7 +250,7 @@ func TestSession_DumpAll(t *testing.T) {
 	}{
 		{
 			name:   "conversation url",
-			fields: fields{options: DefOptions},
+			fields: fields{config: defConfig},
 			args:   args{context.Background(), "https://ora600.slack.com/archives/CHM82GF99"},
 			expectFn: func(sc *mockClienter) {
 				sc.EXPECT().GetConversationHistoryContext(gomock.Any(), gomock.Any()).Return(
@@ -269,7 +267,7 @@ func TestSession_DumpAll(t *testing.T) {
 		},
 		{
 			name:   "thread url",
-			fields: fields{options: DefOptions},
+			fields: fields{config: defConfig},
 			args:   args{context.Background(), "https://ora600.slack.com/archives/CHM82GF99/p1577694990000400"},
 			expectFn: func(sc *mockClienter) {
 				sc.EXPECT().GetConversationRepliesContext(gomock.Any(), gomock.Any()).Return(
@@ -285,7 +283,7 @@ func TestSession_DumpAll(t *testing.T) {
 		},
 		{
 			name:    "invalid url",
-			fields:  fields{options: DefOptions},
+			fields:  fields{config: defConfig},
 			args:    args{context.Background(), "https://example.com"},
 			wantErr: true,
 		},
@@ -301,7 +299,7 @@ func TestSession_DumpAll(t *testing.T) {
 
 			sd := &Session{
 				client: mc,
-				cfg:    tt.fields.options,
+				cfg:    tt.fields.config,
 				log:    logger.Silent,
 			}
 			got, err := sd.DumpAll(tt.args.ctx, tt.args.slackURL)
@@ -361,8 +359,7 @@ func TestConversation_String(t *testing.T) {
 
 func TestSession_getChannelName(t *testing.T) {
 	type fields struct {
-		Users   types.Users
-		options Config
+		config config
 	}
 	type args struct {
 		ctx       context.Context
@@ -418,7 +415,7 @@ func TestSession_getChannelName(t *testing.T) {
 			tt.expectFn(mc)
 			sd := &Session{
 				client: mc,
-				cfg:    tt.fields.options,
+				cfg:    tt.fields.config,
 			}
 			got, err := sd.getChannelName(tt.args.ctx, tt.args.l, tt.args.channelID)
 			if (err != nil) != tt.wantErr {

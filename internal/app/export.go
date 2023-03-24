@@ -6,6 +6,7 @@ import (
 	"runtime/trace"
 	"time"
 
+	"github.com/rusq/dlog"
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/auth"
@@ -33,11 +34,10 @@ func Export(ctx context.Context, cfg config.Params, prov auth.Provider) error {
 	}
 	defer fs.Close()
 
-	sess, err := slackdump.New(ctx, prov, cfg.SlackConfig, slackdump.WithFilesystem(fs))
+	sess, err := slackdump.New(ctx, prov, slackdump.WithFilesystem(fs), slackdump.WithLogger(dlog.FromContext(ctx)))
 	if err != nil {
 		return err
 	}
-	defer sess.Close()
 
 	cfg.Logger().Printf("Export:  staring export to: %s", cfg.ExportName)
 
@@ -61,7 +61,7 @@ func makeExportOptions(cfg config.Params) export.Config {
 	// if files requested, but the type is no-download, we need to switch
 	// export type to the default export type, so that the files would
 	// download.
-	if cfg.SlackConfig.DumpFiles && cfg.ExportType == export.TNoDownload {
+	if cfg.DumpFiles && cfg.ExportType == export.TNoDownload {
 		expCfg.Type = defExportType
 	}
 	return expCfg

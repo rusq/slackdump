@@ -97,12 +97,11 @@ func list(ctx context.Context, listFn listFunc) error {
 	}
 
 	// initialize the session.
-	sess, err := slackdump.New(ctx, prov, cfg.SlackConfig)
+	sess, err := slackdump.New(ctx, prov, slackdump.WithLogger(dlog.FromContext(ctx)))
 	if err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return err
 	}
-	defer sess.Close()
 
 	data, filename, err := listFn(ctx, sess)
 	if err != nil {

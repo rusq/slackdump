@@ -47,8 +47,8 @@ func TestUsers_IndexByID(t *testing.T) {
 
 func TestSession_fetchUsers(t *testing.T) {
 	type fields struct {
-		Users   types.Users
-		options Config
+		Users  types.Users
+		config config
 	}
 	type args struct {
 		ctx context.Context
@@ -63,7 +63,7 @@ func TestSession_fetchUsers(t *testing.T) {
 	}{
 		{
 			"ok",
-			fields{options: DefOptions},
+			fields{config: defConfig},
 			args{context.Background()},
 			func(mc *mockClienter) {
 				mc.EXPECT().GetUsersContext(gomock.Any()).Return([]slack.User(testUsers), nil)
@@ -73,7 +73,7 @@ func TestSession_fetchUsers(t *testing.T) {
 		},
 		{
 			"api error",
-			fields{options: DefOptions},
+			fields{config: defConfig},
 			args{context.Background()},
 			func(mc *mockClienter) {
 				mc.EXPECT().GetUsersContext(gomock.Any()).Return(nil, errors.New("i don't think so"))
@@ -83,7 +83,7 @@ func TestSession_fetchUsers(t *testing.T) {
 		},
 		{
 			"zero users",
-			fields{options: DefOptions},
+			fields{config: defConfig},
 			args{context.Background()},
 			func(mc *mockClienter) {
 				mc.EXPECT().GetUsersContext(gomock.Any()).Return([]slack.User{}, nil)
@@ -100,7 +100,7 @@ func TestSession_fetchUsers(t *testing.T) {
 
 			sd := &Session{
 				client: mc,
-				cfg:    tt.fields.options,
+				cfg:    tt.fields.config,
 			}
 			got, err := sd.fetchUsers(tt.args.ctx)
 			if (err != nil) != tt.wantErr {
@@ -116,7 +116,7 @@ func TestSession_fetchUsers(t *testing.T) {
 
 func TestSession_GetUsers(t *testing.T) {
 	type fields struct {
-		options   Config
+		config    config
 		usercache usercache
 	}
 	type args struct {
@@ -133,12 +133,10 @@ func TestSession_GetUsers(t *testing.T) {
 		{
 			"everything goes as planned",
 			fields{
-				options: Config{
-					Limits: Limits{
-						Tier2: TierLimits{Burst: 1},
-						Tier3: TierLimits{Burst: 1},
-					},
-				},
+				config: config{limits: Limits{
+					Tier2: TierLimits{Burst: 1},
+					Tier3: TierLimits{Burst: 1},
+				}},
 				usercache: usercache{},
 			},
 			args{context.Background()},
@@ -151,12 +149,10 @@ func TestSession_GetUsers(t *testing.T) {
 		{
 			"loaded from cache",
 			fields{
-				options: Config{
-					Limits: Limits{
-						Tier2: TierLimits{Burst: 1},
-						Tier3: TierLimits{Burst: 1},
-					},
-				},
+				config: config{limits: Limits{
+					Tier2: TierLimits{Burst: 1},
+					Tier3: TierLimits{Burst: 1},
+				}},
 				usercache: usercache{
 					users:    testUsers,
 					cachedAt: time.Now(),
@@ -179,7 +175,7 @@ func TestSession_GetUsers(t *testing.T) {
 			sd := &Session{
 				client:  mc,
 				wspInfo: &slack.AuthTestResponse{TeamID: testSuffix},
-				cfg:     tt.fields.options,
+				cfg:     tt.fields.config,
 				uc:      &tt.fields.usercache,
 				log:     logger.Silent,
 			}

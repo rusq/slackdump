@@ -241,11 +241,10 @@ func getUsersOnline(ctx context.Context, cacheDir, wsp string) ([]slack.User, er
 	if err != nil {
 		return nil, err
 	}
-	sess, err := slackdump.New(ctx, prov, cfg.SlackConfig)
+	sess, err := slackdump.New(ctx, prov)
 	if err != nil {
 		return nil, err
 	}
-	defer sess.Close()
 	return sess.GetUsers(ctx)
 }
 

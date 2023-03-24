@@ -48,13 +48,13 @@ func (s *Session) getChannels(ctx context.Context, chanTypes []string, cb func(t
 	ctx, task := trace.NewTask(ctx, "getChannels")
 	defer task.End()
 
-	limiter := network.NewLimiter(network.Tier2, s.cfg.Limits.Tier2.Burst, int(s.cfg.Limits.Tier2.Boost))
+	limiter := network.NewLimiter(network.Tier2, s.cfg.limits.Tier2.Burst, int(s.cfg.limits.Tier2.Boost))
 
 	if chanTypes == nil {
 		chanTypes = AllChanTypes
 	}
 
-	params := &slack.GetConversationsParameters{Types: chanTypes, Limit: s.cfg.Limits.Request.Channels}
+	params := &slack.GetConversationsParameters{Types: chanTypes, Limit: s.cfg.limits.Request.Channels}
 	fetchStart := time.Now()
 	var total int
 	for i := 1; ; i++ {
@@ -63,7 +63,7 @@ func (s *Session) getChannels(ctx context.Context, chanTypes []string, cb func(t
 			nextcur string
 		)
 		reqStart := time.Now()
-		if err := withRetry(ctx, limiter, s.cfg.Limits.Tier3.Retries, func() error {
+		if err := withRetry(ctx, limiter, s.cfg.limits.Tier3.Retries, func() error {
 			var err error
 			trace.WithRegion(ctx, "GetConversationsContext", func() {
 				chans, nextcur, err = s.client.GetConversationsContext(ctx, params)

@@ -100,12 +100,11 @@ func RunDump(ctx context.Context, cmd *base.Command, args []string) error {
 		return fmt.Errorf("file template error: %w", err)
 	}
 
-	sess, err := slackdump.New(ctx, prov, cfg.SlackConfig, slackdump.WithLogger(dlog.FromContext(ctx)))
+	sess, err := slackdump.New(ctx, prov, slackdump.WithLogger(dlog.FromContext(ctx)))
 	if err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return err
 	}
-	defer sess.Close()
 
 	// leave the compatibility mode to the user, if the new version is playing
 	// tricks.
@@ -131,7 +130,7 @@ func dumpv3(ctx context.Context, sess *slackdump.Session, list *structures.Entit
 		Oldest:    time.Time(cfg.Oldest),
 		Latest:    time.Time(cfg.Latest),
 		List:      list,
-		DumpFiles: cfg.SlackConfig.DumpFiles,
+		DumpFiles: cfg.DumpFiles,
 	}
 	lg.Debugf("fetch parameters: %+v", p)
 

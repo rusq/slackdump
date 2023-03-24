@@ -20,8 +20,8 @@ import (
 
 func TestSession_DumpThreadWithFiles(t *testing.T) {
 	type fields struct {
-		Users   types.Users
-		options Config
+		Users  types.Users
+		config config
 	}
 	type args struct {
 		ctx       context.Context
@@ -38,18 +38,18 @@ func TestSession_DumpThreadWithFiles(t *testing.T) {
 		want     *types.Conversation
 		wantErr  bool
 	}{
-		{"chan and thread are empty", fields{options: DefOptions}, args{context.Background(), "", "", time.Time{}, time.Time{}}, nil, nil, true},
-		{"thread empty", fields{options: DefOptions}, args{context.Background(), "xxx", "", time.Time{}, time.Time{}}, nil, nil, true},
-		{"chan empty", fields{options: DefOptions}, args{context.Background(), "", "yyy", time.Time{}, time.Time{}}, nil, nil, true},
+		{"chan and thread are empty", fields{config: defConfig}, args{context.Background(), "", "", time.Time{}, time.Time{}}, nil, nil, true},
+		{"thread empty", fields{config: defConfig}, args{context.Background(), "xxx", "", time.Time{}, time.Time{}}, nil, nil, true},
+		{"chan empty", fields{config: defConfig}, args{context.Background(), "", "yyy", time.Time{}, time.Time{}}, nil, nil, true},
 		{
 			"ok",
-			fields{options: DefOptions},
+			fields{config: defConfig},
 			args{context.Background(), "CHANNEL", "THREAD", time.Time{}, time.Time{}},
 			func(mc *mockClienter) {
 				mc.EXPECT().
 					GetConversationRepliesContext(
 						gomock.Any(),
-						&slack.GetConversationRepliesParameters{ChannelID: "CHANNEL", Timestamp: "THREAD", Limit: DefOptions.Limits.Request.Replies, Inclusive: true},
+						&slack.GetConversationRepliesParameters{ChannelID: "CHANNEL", Timestamp: "THREAD", Limit: DefLimits.Request.Replies, Inclusive: true},
 					).
 					Return(
 						[]slack.Message{testMsg1.Message, testMsg2.Message, testMsg3.Message},
@@ -65,7 +65,7 @@ func TestSession_DumpThreadWithFiles(t *testing.T) {
 		},
 		{
 			"ok with time constraints",
-			fields{options: DefOptions},
+			fields{config: defConfig},
 			args{
 				context.Background(),
 				"CHANNEL",
@@ -80,7 +80,7 @@ func TestSession_DumpThreadWithFiles(t *testing.T) {
 						&slack.GetConversationRepliesParameters{
 							ChannelID: "CHANNEL",
 							Timestamp: "THREAD",
-							Limit:     DefOptions.Limits.Request.Replies,
+							Limit:     DefLimits.Request.Replies,
 							Oldest:    "1609459199.000000",
 							Latest:    "1640995199.000000",
 							Inclusive: true,
@@ -100,13 +100,13 @@ func TestSession_DumpThreadWithFiles(t *testing.T) {
 		},
 		{
 			"iterating over",
-			fields{options: DefOptions},
+			fields{config: defConfig},
 			args{context.Background(), "CHANNEL", "THREAD", time.Time{}, time.Time{}},
 			func(mc *mockClienter) {
 				mc.EXPECT().
 					GetConversationRepliesContext(
 						gomock.Any(),
-						&slack.GetConversationRepliesParameters{ChannelID: "CHANNEL", Timestamp: "THREAD", Limit: DefOptions.Limits.Request.Replies, Inclusive: true},
+						&slack.GetConversationRepliesParameters{ChannelID: "CHANNEL", Timestamp: "THREAD", Limit: DefLimits.Request.Replies, Inclusive: true},
 					).
 					Return(
 						[]slack.Message{testMsg1.Message},
@@ -118,7 +118,7 @@ func TestSession_DumpThreadWithFiles(t *testing.T) {
 				mc.EXPECT().
 					GetConversationRepliesContext(
 						gomock.Any(),
-						&slack.GetConversationRepliesParameters{ChannelID: "CHANNEL", Timestamp: "THREAD", Cursor: "blah", Limit: DefOptions.Limits.Request.Replies, Inclusive: true},
+						&slack.GetConversationRepliesParameters{ChannelID: "CHANNEL", Timestamp: "THREAD", Cursor: "blah", Limit: DefLimits.Request.Replies, Inclusive: true},
 					).
 					Return(
 						[]slack.Message{testMsg2.Message},
@@ -134,7 +134,7 @@ func TestSession_DumpThreadWithFiles(t *testing.T) {
 		},
 		{
 			"sudden bleep bloop error",
-			fields{options: DefOptions},
+			fields{config: defConfig},
 			args{context.Background(), "CHANNEL", "THREADTS", time.Time{}, time.Time{}},
 			func(c *mockClienter) {
 				c.EXPECT().
@@ -165,7 +165,7 @@ func TestSession_DumpThreadWithFiles(t *testing.T) {
 
 			sd := &Session{
 				client: mc,
-				cfg:    tt.fields.options,
+				cfg:    tt.fields.config,
 				log:    logger.Silent,
 			}
 			got, err := sd.dumpThreadAsConversation(tt.args.ctx, structures.SlackLink{Channel: tt.args.channelID, ThreadTS: tt.args.threadTS}, tt.args.oldest, tt.args.latest)
@@ -268,8 +268,8 @@ func TestSession_populateThreads(t *testing.T) {
 
 func TestSession_dumpThread(t *testing.T) {
 	type fields struct {
-		Users   types.Users
-		options Config
+		Users  types.Users
+		config config
 	}
 	type args struct {
 		ctx       context.Context
@@ -310,7 +310,7 @@ func TestSession_dumpThread(t *testing.T) {
 		},
 		{
 			"iterating over",
-			fields{options: DefOptions},
+			fields{config: defConfig},
 			args{context.Background(), network.NewLimiter(network.NoTier, 1, 0), "CHANNEL", "THREAD", time.Time{}, time.Time{}},
 			func(mc *mockClienter) {
 				mc.EXPECT().
@@ -319,7 +319,7 @@ func TestSession_dumpThread(t *testing.T) {
 						&slack.GetConversationRepliesParameters{
 							ChannelID: "CHANNEL",
 							Timestamp: "THREAD",
-							Limit:     DefOptions.Limits.Request.Replies,
+							Limit:     DefLimits.Request.Replies,
 							Inclusive: true,
 						},
 					).
@@ -337,7 +337,7 @@ func TestSession_dumpThread(t *testing.T) {
 							ChannelID: "CHANNEL",
 							Cursor:    "blah",
 							Timestamp: "THREAD",
-							Limit:     DefOptions.Limits.Request.Replies,
+							Limit:     DefLimits.Request.Replies,
 							Inclusive: true,
 						},
 					).
@@ -354,7 +354,7 @@ func TestSession_dumpThread(t *testing.T) {
 		},
 		{
 			"sudden bleep bloop error",
-			fields{options: DefOptions},
+			fields{config: defConfig},
 			args{context.Background(), network.NewLimiter(network.NoTier, 1, 0), "CHANNEL", "THREADTS", time.Time{}, time.Time{}},
 			func(c *mockClienter) {
 				c.EXPECT().
@@ -383,7 +383,7 @@ func TestSession_dumpThread(t *testing.T) {
 
 			sd := &Session{
 				client: mc,
-				cfg:    tt.fields.options,
+				cfg:    tt.fields.config,
 				log:    logger.Silent,
 			}
 			got, err := sd.dumpThread(tt.args.ctx, tt.args.l, tt.args.channelID, tt.args.threadTS, tt.args.oldest, tt.args.latest)

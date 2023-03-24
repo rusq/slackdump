@@ -61,11 +61,10 @@ func runExport(ctx context.Context, cmd *base.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	sess, err := slackdump.New(ctx, prov, cfg.SlackConfig)
+	sess, err := slackdump.New(ctx, prov, slackdump.WithLogger(dlog.FromContext(ctx)), slackdump.WithLimits(cfg.Limits))
 	if err != nil {
 		return err
 	}
-	defer sess.Close()
 
 	options.List = list
 	options.Logger = dlog.FromContext(ctx)

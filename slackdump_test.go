@@ -5,14 +5,12 @@ import (
 	"log"
 	"math"
 	"os"
-	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/slackdump/v2/auth"
 	"github.com/rusq/slackdump/v2/internal/network"
-	"github.com/rusq/slackdump/v2/logger"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -84,7 +82,7 @@ func ExampleNew_tokenAndCookie() {
 	fsa := openTempFS()
 	defer fsa.Close()
 
-	sd, err := New(context.Background(), provider, DefOptions)
+	sd, err := New(context.Background(), provider)
 	if err != nil {
 		log.Print(err)
 		return
@@ -101,7 +99,7 @@ func ExampleNew_cookieFile() {
 	fsa := openTempFS()
 	defer fsa.Close()
 
-	sd, err := New(context.Background(), provider, DefOptions)
+	sd, err := New(context.Background(), provider)
 	if err != nil {
 		log.Print(err)
 		return
@@ -117,7 +115,7 @@ func ExampleNew_browserAuth() {
 	}
 	fsa := openTempFS()
 	defer fsa.Close()
-	sd, err := New(context.Background(), provider, DefOptions)
+	sd, err := New(context.Background(), provider)
 	if err != nil {
 		log.Print(err)
 		return
@@ -135,75 +133,4 @@ func openTempFS() fsadapter.FSCloser {
 		panic(err)
 	}
 	return fs
-}
-
-func TestSession_openFS(t *testing.T) {
-	t.Run("ensure that fs os open and close function added", func(t *testing.T) {
-		var sd = new(Session)
-		dir := t.TempDir()
-		sd.cfg = Config{}
-		testFile := filepath.Join(dir, "test.zip")
-
-		assert.NotNil(t, sd.fs)
-		assert.Len(t, sd.atClose, 1)
-		assert.NoError(t, sd.Close())
-		assert.FileExists(t, testFile)
-	})
-	t.Run("ensure works with directory", func(t *testing.T) {
-		var sd = new(Session)
-		dir := t.TempDir()
-		sd.cfg = Config{}
-		testDir := filepath.Join(dir, "test")
-
-		assert.NotNil(t, sd.fs)
-		assert.Len(t, sd.atClose, 1)
-
-		assert.NoError(t, sd.fs.WriteFile("test.txt", []byte("test"), 0644))
-
-		assert.NoError(t, sd.Close())
-		assert.DirExists(t, testDir)
-	})
-}
-
-func TestSession_openLogger(t *testing.T) {
-	t.Run("empty filename should log to stderr", func(t *testing.T) {
-		var sd = new(Session)
-		sd.cfg = Config{}
-		assert.NoError(t, sd.openLogger(""))
-		assert.NotNil(t, sd.log)
-		assert.Equal(t, sd.log, logger.Default)
-		assert.Len(t, sd.atClose, 0) // no close function for stderr
-		assert.NoError(t, sd.Close())
-	})
-	t.Run("non-empty file creates a log file", func(t *testing.T) {
-		testLogFile(t, filepath.Join(t.TempDir(), "test.log"), "hello log")
-	})
-	t.Run("new data is appended to log file if it exists", func(t *testing.T) {
-		testFile := filepath.Join(t.TempDir(), "test_again.log")
-		testLogFile(t, testFile, "hello log")
-		testLogFile(t, testFile, "hello again log")
-
-		data, err := os.ReadFile(testFile)
-		assert.NoError(t, err)
-		assert.Contains(t, string(data), "hello log")
-		assert.Contains(t, string(data), "hello again log")
-	})
-}
-
-func testLogFile(t *testing.T, testFile string, msg string) {
-	var sd = new(Session)
-	sd.cfg = Config{}
-
-	assert.NoError(t, sd.openLogger(testFile))
-	assert.NotNil(t, sd.log)
-	assert.Len(t, sd.atClose, 1)
-
-	sd.log.Print(msg)
-
-	assert.NoError(t, sd.Close())
-	assert.FileExists(t, testFile)
-
-	data, err := os.ReadFile(testFile)
-	assert.NoError(t, err)
-	assert.Contains(t, string(data), msg)
 }

@@ -4,6 +4,7 @@ package slackdump
 
 import (
 	"reflect"
+	"time"
 
 	"github.com/go-playground/locales/en"
 	ut "github.com/go-playground/universal-translator"
@@ -12,11 +13,17 @@ import (
 )
 
 // Config is the option set for the Session.
-type Config struct {
-	Limits Limits
+type config struct {
+	limits         Limits
+	dumpFiles      bool          // will we save the conversation files?
+	cacheRetention time.Duration // how long to keep the cache (user, etc.)
+}
 
-	DumpFiles bool // will we save the conversation files?
-	Logfile   string
+// DefOptions is the default options used when initialising slackdump instance.
+var defConfig = config{
+	limits:         DefLimits,
+	dumpFiles:      false,
+	cacheRetention: 60 * time.Minute,
 }
 
 type Limits struct {
@@ -54,29 +61,24 @@ type RequestLimit struct {
 	Replies int `json:"replies,omitempty" yaml:"replies,omitempty" validate:"gt=0,lte=1000"`
 }
 
-// DefOptions is the default options used when initialising slackdump instance.
-var DefOptions = Config{
-	Limits: Limits{
-		Workers:         4, // number of parallel goroutines downloading files.
-		DownloadRetries: 3, // this shouldn't even happen, as we have no limiter on files download.
-		Tier2: TierLimits{
-			Boost:   20, // seems to work fine with this boost
-			Burst:   1,  // limiter will wait indefinitely if it is less than 1.
-			Retries: 20, // see issue #28, sometimes slack is being difficult
-		},
-		Tier3: TierLimits{
-			Boost:   120, // playing safe there, but generally value of 120 is fine.
-			Burst:   1,   // safe value, who would ever want to modify it? I don't know.
-			Retries: 3,   // on Tier 3 this was never a problem, even with limiter-boost=120
-		},
-		Request: RequestLimit{
-			Conversations: 100, // this is the recommended value by Slack. But who listens to them anyway.
-			Channels:      100, // channels are Tier2 rate limited. Slack is greedy and never returns more than 100 per call.
-			Replies:       200, // the API-default is 1000 (see conversations.replies), but on large threads it may fail (see #54)
-		},
+var DefLimits = Limits{
+	Workers:         4, // number of parallel goroutines downloading files.
+	DownloadRetries: 3, // this shouldn't even happen, as we have no limiter on files download.
+	Tier2: TierLimits{
+		Boost:   20, // seems to work fine with this boost
+		Burst:   1,  // limiter will wait indefinitely if it is less than 1.
+		Retries: 20, // see issue #28, sometimes slack is being difficult
 	},
-	DumpFiles: false,
-	Logfile:   "", // empty, means STDERR
+	Tier3: TierLimits{
+		Boost:   120, // playing safe there, but generally value of 120 is fine.
+		Burst:   1,   // safe value, who would ever want to modify it? I don't know.
+		Retries: 3,   // on Tier 3 this was never a problem, even with limiter-boost=120
+	},
+	Request: RequestLimit{
+		Conversations: 100, // this is the recommended value by Slack. But who listens to them anyway.
+		Channels:      100, // channels are Tier2 rate limited. Slack is greedy and never returns more than 100 per call.
+		Replies:       200, // the API-default is 1000 (see conversations.replies), but on large threads it may fail (see #54)
+	},
 }
 
 var (

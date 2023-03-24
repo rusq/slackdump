@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/rusq/dlog"
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/auth"
@@ -45,12 +46,11 @@ func run(ctx context.Context, cmd *base.Command, args []string) error {
 	}
 	defer fs.Close()
 
-	sess, err := slackdump.New(ctx, prov, cfg.SlackConfig, slackdump.WithFilesystem(fs))
+	sess, err := slackdump.New(ctx, prov, slackdump.WithFilesystem(fs), slackdump.WithLogger(dlog.FromContext(ctx)))
 	if err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return fmt.Errorf("application error: %s", err)
 	}
-	defer sess.Close()
 
 	if err := emoji.DlFS(ctx, sess, fs, ignoreErrors); err != nil {
 		base.SetExitStatus(base.SApplicationError)

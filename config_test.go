@@ -81,7 +81,7 @@ func TestLimits_Validate(t *testing.T) {
 		wantErr assert.ErrorAssertionFunc
 	}{
 		{"validate default options",
-			fields(DefOptions.Limits),
+			fields(DefLimits),
 			func(t assert.TestingT, err error, i ...interface{}) bool {
 				return err == nil
 			},

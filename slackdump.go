@@ -5,8 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
-	"os"
 	"runtime/trace"
 	"time"
 
@@ -15,7 +13,6 @@ import (
 	"golang.org/x/time/rate"
 
 	"github.com/rusq/chttp"
-	"github.com/rusq/dlog"
 
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/slackdump/v2/auth"
@@ -29,20 +26,14 @@ import (
 // Session stores basic session parameters.  Zero value is not usable, must be
 // initialised with New.
 type Session struct {
-	client clienter // Slack client
+	client clienter         // Slack client
+	uc     *usercache       // usercache contains the list of users.
+	fs     fsadapter.FS     // filesystem adapter
+	log    logger.Interface // logger
 
 	wspInfo *WorkspaceInfo // workspace info
 
-	// usercache contains the list of users.
-	uc             *usercache
-	cacheRetention time.Duration
-
-	fs  fsadapter.FS     // filesystem adapter
-	log logger.Interface // logger
-
-	atClose []func() error // functions to call on exit
-
-	cfg Config
+	cfg config
 }
 
 // WorkspaceInfo is an type alias for [slack.AuthTestResponse].
@@ -87,6 +78,17 @@ func WithFilesystem(fs fsadapter.FS) Option {
 	}
 }
 
+// WithLimits sets the API limits to use for the session.  If this option is
+// not given, the default limits are initialised with the values specified in
+// DefLimits.
+func WithLimits(l Limits) Option {
+	return func(s *Session) {
+		if l.Validate() == nil {
+			s.cfg.limits = l
+		}
+	}
+}
+
 // WithLogger sets the logger to use for the session.  If this option is not
 // given, the default logger is initialised with the filename specified in
 // Config.Logfile.  If the Config.Logfile is empty, the default logger writes
@@ -103,24 +105,17 @@ func WithLogger(l logger.Interface) Option {
 // option is not given, the default value is 60 minutes.
 func WithUserCacheRetention(d time.Duration) Option {
 	return func(s *Session) {
-		s.cacheRetention = d
+		s.cfg.cacheRetention = d
 	}
 }
 
 // New creates new Slackdump session with provided options, and populates the
 // internal cache of users and channels for lookups. If it fails to
 // authenticate, AuthError is returned.
-func New(ctx context.Context, prov auth.Provider, cfg Config, opts ...Option) (*Session, error) {
+func New(ctx context.Context, prov auth.Provider, opts ...Option) (*Session, error) {
 	ctx, task := trace.NewTask(ctx, "New")
 	defer task.End()
 
-	if err := cfg.Limits.Validate(); err != nil {
-		var vErr validator.ValidationErrors
-		if errors.As(err, &vErr) {
-			return nil, fmt.Errorf("API limits failed validation: %s", vErr.Translate(OptErrTranslations))
-		}
-		return nil, err
-	}
 	if err := prov.Validate(); err != nil {
 		return nil, fmt.Errorf("auth provider validation error: %s", err)
 	}
@@ -138,20 +133,23 @@ func New(ctx context.Context, prov auth.Provider, cfg Config, opts ...Option) (*
 	}
 
 	sd := &Session{
-		client:         cl,
-		cfg:            cfg,
-		uc:             new(usercache),
-		cacheRetention: 60 * time.Minute,
-		wspInfo:        authTestResp,
-		log:            logger.Default,
+		client: cl,
+		cfg:    defConfig,
+		uc:     new(usercache),
+
+		wspInfo: authTestResp,
+		log:     logger.Default,
 	}
 	for _, opt := range opts {
 		opt(sd)
 	}
-	if sd.log == nil {
-		if err := sd.openLogger(cfg.Logfile); err != nil {
-			return nil, fmt.Errorf("failed to initialise logger: %s", err)
+
+	if err := sd.cfg.limits.Validate(); err != nil {
+		var vErr validator.ValidationErrors
+		if errors.As(err, &vErr) {
+			return nil, fmt.Errorf("API limits failed validation: %s", vErr.Translate(OptErrTranslations))
 		}
+		return nil, err
 	}
 
 	sd.propagateLogger()
@@ -169,34 +167,7 @@ func (s *Session) Filesystem() fsadapter.FS {
 	return s.fs
 }
 
-func (s *Session) openLogger(filename string) error {
-	if filename == "" {
-		s.log = logger.Default
-		return nil
-	}
-	f, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0o600)
-	if err != nil {
-		return err
-	}
-	s.atClose = append(s.atClose, func() error {
-		return f.Close()
-	})
-	s.log = dlog.New(f, "", log.LstdFlags, false)
-	return nil
-}
-
-// Close closes the handles if they were created by the session.
-// It must be called when the session is no longer needed.
-func (s *Session) Close() error {
-	var last error
-	for _, fn := range s.atClose {
-		if err := fn(); err != nil {
-			last = err
-		}
-	}
-	return last
-}
-
+// CurrentUserID returns the user ID of the authenticated user.
 func (s *Session) CurrentUserID() string {
 	return s.wspInfo.UserID
 }
@@ -205,11 +176,11 @@ func (s *Session) limiter(t network.Tier) *rate.Limiter {
 	var tl TierLimits
 	switch t {
 	case network.Tier2:
-		tl = s.cfg.Limits.Tier2
+		tl = s.cfg.limits.Tier2
 	case network.Tier3:
-		tl = s.cfg.Limits.Tier3
+		tl = s.cfg.limits.Tier3
 	default:
-		tl = s.cfg.Limits.Tier3
+		tl = s.cfg.limits.Tier3
 	}
 	return network.NewLimiter(t, tl.Burst, int(tl.Boost)) // BUG: tier was always 3, should fix in master too.
 }
@@ -235,5 +206,5 @@ func (s *Session) Info() *WorkspaceInfo {
 
 // Stream streams the channel, calling proc functions for each chunk.
 func (s *Session) Stream(opts ...StreamOption) *Stream {
-	return newChannelStream(s.client, &s.cfg.Limits, opts...)
+	return newChannelStream(s.client, &s.cfg.limits, opts...)
 }

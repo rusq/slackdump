@@ -134,11 +134,11 @@ func surveyExport(p *params) error {
 	if err != nil {
 		return err
 	}
-	p.appCfg.SlackConfig.DumpFiles, err = ui.Confirm("Export files?", true)
+	p.appCfg.DumpFiles, err = ui.Confirm("Export files?", true)
 	if err != nil {
 		return err
 	}
-	if p.appCfg.SlackConfig.DumpFiles {
+	if p.appCfg.DumpFiles {
 		p.appCfg.ExportType, err = ask.ExportType()
 		if err != nil {
 			return err

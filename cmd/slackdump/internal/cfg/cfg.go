@@ -31,7 +31,9 @@ var (
 	SlackToken  string
 	SlackCookie string
 	Browser     browser.Browser
-	SlackConfig = slackdump.DefOptions
+	Limits      = slackdump.DefLimits
+
+	DumpFiles bool
 
 	// Oldest is the default timestamp of the oldest message to fetch, that is
 	// used by the dump and export commands.
@@ -85,7 +87,7 @@ func SetBaseFlags(fs *flag.FlagSet, mask FlagMask) {
 		fs.Var(&Browser, "browser", "browser to use for EZ-Login 3000 (default: firefox)")
 	}
 	if mask&OmitDownloadFlag == 0 {
-		fs.BoolVar(&SlackConfig.DumpFiles, "files", true, "enables file attachments download (to disable,\nspecify: -files=false)")
+		fs.BoolVar(&DumpFiles, "files", true, "enables file attachments download (to disable,\nspecify: -files=false)")
 	}
 	if mask&OmitConfigFlag == 0 {
 		fs.StringVar(&ConfigFile, "api-config", "", "configuration `file` with Slack API limits overrides.\nYou can generate one with default values with 'slackdump config new`")
