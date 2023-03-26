@@ -12,8 +12,6 @@ import (
 	"github.com/slack-go/slack"
 	"golang.org/x/time/rate"
 
-	"github.com/rusq/chttp"
-
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/slackdump/v2/auth"
 	"github.com/rusq/slackdump/v2/internal/network"
@@ -120,14 +118,13 @@ func New(ctx context.Context, prov auth.Provider, opts ...Option) (*Session, err
 		return nil, fmt.Errorf("auth provider validation error: %s", err)
 	}
 
-	httpCl, err := chttp.New("https://slack.com", prov.Cookies())
+	httpCl, err := prov.HTTPClient()
 	if err != nil {
 		return nil, err
 	}
-
 	cl := slack.New(prov.SlackToken(), slack.OptionHTTPClient(httpCl))
 
-	authTestResp, err := cl.AuthTestContext(ctx)
+	authResp, err := cl.AuthTestContext(ctx)
 	if err != nil {
 		return nil, &auth.Error{Err: err}
 	}
@@ -137,12 +134,13 @@ func New(ctx context.Context, prov auth.Provider, opts ...Option) (*Session, err
 		cfg:    defConfig,
 		uc:     new(usercache),
 
-		wspInfo: authTestResp,
+		wspInfo: authResp,
 		log:     logger.Default,
 	}
 	for _, opt := range opts {
 		opt(sd)
 	}
+	network.SetLogger(sd.log) // set the logger for the network package
 
 	if err := sd.cfg.limits.Validate(); err != nil {
 		var vErr validator.ValidationErrors
@@ -151,8 +149,6 @@ func New(ctx context.Context, prov auth.Provider, opts ...Option) (*Session, err
 		}
 		return nil, err
 	}
-
-	sd.propagateLogger()
 
 	return sd, nil
 }
@@ -185,11 +181,6 @@ func (s *Session) limiter(t network.Tier) *rate.Limiter {
 // maxAttempts times. It will return an error if it runs out of attempts.
 func withRetry(ctx context.Context, l *rate.Limiter, maxAttempts int, fn func() error) error {
 	return network.WithRetry(ctx, l, maxAttempts, fn)
-}
-
-// propagateLogger propagates the slackdump logger to some dumb packages.
-func (s *Session) propagateLogger() {
-	network.Logger = s.log
 }
 
 // Info returns a workspace information.  Slackdump retrieves workspace

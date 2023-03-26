@@ -148,9 +148,9 @@ func Test_withRetry(t *testing.T) {
 }
 
 func Test500ErrorHandling(t *testing.T) {
-	waitTime = func(attempt int) time.Duration { return 50 * time.Millisecond }
+	waitFn = func(attempt int) time.Duration { return 50 * time.Millisecond }
 	defer func() {
-		waitTime = cubicWait
+		waitFn = cubicWait
 	}()
 
 	var codes = []int{500, 502, 503, 504, 598}
@@ -187,8 +187,8 @@ func Test500ErrorHandling(t *testing.T) {
 			}
 
 			dur := time.Since(start)
-			if dur < waitTime(testRetryCount-1)-waitThreshold || waitTime(testRetryCount-1)+waitThreshold < dur {
-				t.Errorf("expected duration to be around %s, got %s", waitTime(testRetryCount), dur)
+			if dur < waitFn(testRetryCount-1)-waitThreshold || waitFn(testRetryCount-1)+waitThreshold < dur {
+				t.Errorf("expected duration to be around %s, got %s", waitFn(testRetryCount), dur)
 			}
 
 		})
@@ -242,8 +242,8 @@ func Test_cubicWait(t *testing.T) {
 		{"attempt 1", args{1}, 27 * time.Second},
 		{"attempt 2", args{2}, 64 * time.Second},
 		{"attempt 2", args{4}, 216 * time.Second},
-		{"attempt 100", args{5}, MaxAllowedWaitTime}, // check if capped properly
-		{"attempt 100", args{1000}, MaxAllowedWaitTime},
+		{"attempt 100", args{5}, maxAllowedWaitTime}, // check if capped properly
+		{"attempt 100", args{1000}, maxAllowedWaitTime},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

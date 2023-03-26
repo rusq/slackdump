@@ -37,7 +37,7 @@ func New(sd *slackdump.Session, fs fsadapter.FS, cfg Config) *Export {
 	if cfg.Logger == nil {
 		cfg.Logger = logger.Default
 	}
-	network.Logger = cfg.Logger
+	network.SetLogger(cfg.Logger)
 
 	se := &Export{
 		fs:   fs,

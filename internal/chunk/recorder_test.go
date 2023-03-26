@@ -135,7 +135,7 @@ func TestRecorder_worker(t *testing.T) {
 		if time.Since(start) > 50*time.Millisecond {
 			t.Errorf("worker took too long to exit")
 		}
-		const want = "{\"t\":0,\"ts\":0,\"n\":0,\"id\":\"C123\",\"m\":[{\"text\":\"hello\",\"replace_original\":false,\"delete_original\":false,\"metadata\":{\"event_type\":\"\",\"event_payload\":null},\"blocks\":null}]}\n"
+		const want = "{\"t\":0,\"ts\":0,\"id\":\"C123\",\"n\":0,\"m\":[{\"text\":\"hello\",\"replace_original\":false,\"delete_original\":false,\"metadata\":{\"event_type\":\"\",\"event_payload\":null},\"blocks\":null}]}\n"
 
 		if !assert.Equal(t, want, buf.String()) {
 			t.Errorf("unexpected output: %s", buf.String())

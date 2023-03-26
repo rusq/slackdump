@@ -9,7 +9,7 @@ type Error struct {
 }
 
 func (ae *Error) Error() string {
-	return fmt.Sprintf("failed to authenticate: %s", ae.Err)
+	return fmt.Sprintf("authentication error: %s", ae.Err)
 }
 
 func (ae *Error) Unwrap() error {
