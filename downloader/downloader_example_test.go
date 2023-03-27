@@ -37,6 +37,7 @@ func ExampleNew_advanced() {
 		fmt.Println("failed to initialise the file system")
 		return
 	}
+	defer fs.Close()
 
 	dl := downloader.New(
 		client,

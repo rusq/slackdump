@@ -60,6 +60,7 @@ func wizExport(ctx context.Context, cmd *base.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+	defer fsa.Close()
 
 	sess, err := slackdump.New(ctx, prov, slackdump.WithFilesystem(fsa), slackdump.WithLogger(options.Logger))
 	if err != nil {
