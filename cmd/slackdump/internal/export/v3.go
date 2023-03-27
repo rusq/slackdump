@@ -59,7 +59,7 @@ func exportV3(ctx context.Context, sess *slackdump.Session, fs fsadapter.FS, lis
 	}
 	// conversations goroutine
 	{
-		pb := newProgressBar(progressbar.New(-1), lg.IsDebug())
+		pb := newProgressBar(progressbar.NewOptions(-1, progressbar.OptionClearOnFinish(), progressbar.OptionSpinnerType(8)), lg.IsDebug())
 		pb.RenderBlank()
 		wg.Add(1)
 		go func() {
@@ -161,7 +161,7 @@ type progresser interface {
 	RenderBlank() error
 	Describe(description string)
 	Add(num int) error
-	Finish()
+	Finish() error
 }
 
 func conversationWorker(ctx context.Context, s *slackdump.Stream, pb progresser, tmpdir string, links <-chan string) error {
@@ -182,40 +182,9 @@ func conversationWorker(ctx context.Context, s *slackdump.Stream, pb progresser,
 	return nil
 }
 
-type noDebugBar struct {
-	*progressbar.ProgressBar
-	debug bool
-}
-
-func newProgressBar(pb *progressbar.ProgressBar, debug bool) *noDebugBar {
-	return &noDebugBar{pb, debug}
-}
-
-func (pb *noDebugBar) Describe(description string) {
-	if pb.debug {
-		return
+func newProgressBar(pb *progressbar.ProgressBar, debug bool) progresser {
+	if debug {
+		return progressbar.DefaultSilent(0)
 	}
-	pb.ProgressBar.Describe(description)
-}
-
-func (pb *noDebugBar) Add(num int) error {
-	if pb.debug {
-		return nil
-	}
-	return pb.ProgressBar.Add(num)
-}
-
-func (pb *noDebugBar) RenderBlank() error {
-	if pb.debug {
-		return nil
-	}
-	return pb.ProgressBar.RenderBlank()
-}
-
-func (pb *noDebugBar) Finish() {
-	if pb.debug {
-		return
-	}
-	pb.ProgressBar.Finish()
-	fmt.Println()
+	return pb
 }
