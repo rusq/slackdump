@@ -135,6 +135,7 @@ func list(ctx context.Context, listFn listFunc) error {
 		if err != nil {
 			return err
 		}
+		defer fsa.Close()
 		if err := saveData(ctx, fsa, data, filename, format.CJSON, users); err != nil {
 			return err
 		}
