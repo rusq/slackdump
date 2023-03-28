@@ -34,13 +34,13 @@ func Dump(ctx context.Context, cfg config.Params, prov auth.Provider) error {
 	ctx, task := trace.NewTask(ctx, "runDump")
 	defer task.End()
 
-	fs, err := fsadapter.New(cfg.Output.Base)
+	fsa, err := fsadapter.New(cfg.Output.Base)
 	if err != nil {
 		return err
 	}
-	defer fs.Close()
+	defer fsa.Close()
 
-	dm, err := newDump(ctx, cfg, prov, fs)
+	dm, err := newDump(ctx, cfg, prov, fsa)
 	if err != nil {
 		return err
 	}

@@ -100,14 +100,14 @@ func RunDump(ctx context.Context, cmd *base.Command, args []string) error {
 		return fmt.Errorf("file template error: %w", err)
 	}
 
-	fs, err := fsadapter.New(cfg.BaseLocation)
+	fsa, err := fsadapter.New(cfg.BaseLocation)
 	if err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return err
 	}
-	defer fs.Close()
+	defer fsa.Close()
 
-	sess, err := slackdump.New(ctx, prov, slackdump.WithLogger(dlog.FromContext(ctx)), slackdump.WithFilesystem(fs))
+	sess, err := slackdump.New(ctx, prov, slackdump.WithLogger(dlog.FromContext(ctx)), slackdump.WithFilesystem(fsa))
 	if err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return err
@@ -120,7 +120,7 @@ func RunDump(ctx context.Context, cmd *base.Command, args []string) error {
 		dumpFn = dumpv2
 	}
 
-	if err := dumpFn(ctx, sess, fs, list, tmpl); err != nil {
+	if err := dumpFn(ctx, sess, fsa, list, tmpl); err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return err
 	}

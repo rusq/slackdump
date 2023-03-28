@@ -128,9 +128,9 @@ func openTempFS() fsadapter.FSCloser {
 	if err != nil {
 		panic(err)
 	}
-	fs, err := fsadapter.New(dir)
+	fsc, err := fsadapter.New(dir)
 	if err != nil {
 		panic(err)
 	}
-	return fs
+	return fsc
 }

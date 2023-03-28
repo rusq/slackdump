@@ -40,19 +40,19 @@ func run(ctx context.Context, cmd *base.Command, args []string) error {
 		return fmt.Errorf("auth error: %s", err)
 	}
 
-	fs, err := fsadapter.New(cfg.BaseLocation)
+	fsa, err := fsadapter.New(cfg.BaseLocation)
 	if err != nil {
 		return err
 	}
-	defer fs.Close()
+	defer fsa.Close()
 
-	sess, err := slackdump.New(ctx, prov, slackdump.WithFilesystem(fs), slackdump.WithLogger(dlog.FromContext(ctx)))
+	sess, err := slackdump.New(ctx, prov, slackdump.WithFilesystem(fsa), slackdump.WithLogger(dlog.FromContext(ctx)))
 	if err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return fmt.Errorf("application error: %s", err)
 	}
 
-	if err := emoji.DlFS(ctx, sess, fs, ignoreErrors); err != nil {
+	if err := emoji.DlFS(ctx, sess, fsa, ignoreErrors); err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return fmt.Errorf("application error: %s", err)
 	}

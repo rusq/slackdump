@@ -28,20 +28,20 @@ func Export(ctx context.Context, cfg config.Params, prov auth.Provider) error {
 		return errors.New("export directory or filename not specified")
 	}
 
-	fs, err := fsadapter.New(cfg.ExportName)
+	fsa, err := fsadapter.New(cfg.ExportName)
 	if err != nil {
 		return err
 	}
-	defer fs.Close()
+	defer fsa.Close()
 
-	sess, err := slackdump.New(ctx, prov, slackdump.WithFilesystem(fs), slackdump.WithLogger(dlog.FromContext(ctx)))
+	sess, err := slackdump.New(ctx, prov, slackdump.WithFilesystem(fsa), slackdump.WithLogger(dlog.FromContext(ctx)))
 	if err != nil {
 		return err
 	}
 
 	cfg.Logger().Printf("Export:  staring export to: %s", cfg.ExportName)
 
-	e := export.New(sess, fs, makeExportOptions(cfg))
+	e := export.New(sess, fsa, makeExportOptions(cfg))
 	if err := e.Run(ctx); err != nil {
 		return err
 	}
