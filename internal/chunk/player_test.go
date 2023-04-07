@@ -515,3 +515,55 @@ func TestPlayer_offsetTimestamps(t *testing.T) {
 		})
 	}
 }
+
+func Test_timeOffsets(t *testing.T) {
+	type args struct {
+		ots offts
+	}
+	tests := []struct {
+		name string
+		args args
+		want map[int64]TimeOffset
+	}{
+		{
+			name: "ok",
+			args: args{
+				ots: offts{
+					546: offsetInfo{ID: "C1234567890", Timestamps: []string{"1234567890.100000", "1234567890.200000", "1234567890.300000", "1234567890.400000", "1234567890.500000"}},
+				},
+			},
+			want: map[int64]TimeOffset{
+				1234567890100000: {
+					Offset:    546,
+					Timestamp: "1234567890.100000",
+					Index:     0,
+				},
+				1234567890200000: {
+					Offset:    546,
+					Timestamp: "1234567890.200000",
+					Index:     1,
+				},
+				1234567890300000: {
+					Offset:    546,
+					Timestamp: "1234567890.300000",
+					Index:     2,
+				},
+				1234567890400000: {
+					Offset:    546,
+					Timestamp: "1234567890.400000",
+					Index:     3,
+				},
+				1234567890500000: {
+					Offset:    546,
+					Timestamp: "1234567890.500000",
+					Index:     4,
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, timeOffsets(tt.args.ots))
+		})
+	}
+}

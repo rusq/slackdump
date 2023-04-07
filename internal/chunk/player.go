@@ -382,9 +382,6 @@ type offsetInfo struct {
 // offsetTimestamp returns a map of the chunk offset to the message timestamps
 // it contains.
 func (p *Player) offsetTimestamps() offts {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
 	var ret = make(offts, p.idx.OffsetCount())
 	for id, offsets := range p.idx {
 		prefix := id[0]
@@ -408,13 +405,15 @@ func (p *Player) offsetTimestamps() offts {
 }
 
 type TimeOffset struct {
-	Offset int64  // offset within the chunk file
-	TS     string // original timestamp value
-	Index  int    // index of the message within the messages slice in the chunk
+	Offset    int64  // offset within the chunk file
+	Timestamp string // original timestamp value
+	Index     int    // index of the message within the messages slice in the chunk
 }
 
 // timeOffsets returns a map of the timestamp to the chunk offset and index of
-// the message with this timestamp within the message slice.
+// the message with this timestamp within the message slice.  It converts the
+// string timestamp to an int64 timestamp using structures.TS2int, but the
+// original string timestamp returned in the TimeOffset struct.
 func timeOffsets(ots offts) map[int64]TimeOffset {
 	var ret = make(map[int64]TimeOffset, len(ots))
 	for offset, info := range ots {
@@ -424,15 +423,41 @@ func timeOffsets(ots offts) map[int64]TimeOffset {
 				panic(err) // should not happen
 			}
 			ret[iTS] = TimeOffset{
-				Offset: offset,
-				TS:     ts,
-				Index:  i,
+				Offset:    offset,
+				Timestamp: ts,
+				Index:     i,
 			}
 		}
 	}
 	return ret
 }
 
+func (p *Player) Sorted(fn func(ts string, m *slack.Message) error) error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	tos := timeOffsets(p.offsetTimestamps())
+	var tsList = make([]int64, 0, len(tos))
+	for ts := range tos {
+		tsList = append(tsList, ts)
+	}
+	sort.Slice(tsList, func(i, j int) bool {
+		return tsList[i] < tsList[j]
+	})
+	for _, ts := range tsList {
+		to := tos[ts]
+		chunk, err := p.chunkAt(to.Offset)
+		if err != nil {
+			return err
+		}
+		if err := fn(to.Timestamp, &chunk.Messages[to.Index]); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// chunkAt returns the chunk at the given offset.
 func (p *Player) chunkAt(offset int64) (*Chunk, error) {
 	_, err := p.rs.Seek(offset, io.SeekStart)
 	if err != nil {
