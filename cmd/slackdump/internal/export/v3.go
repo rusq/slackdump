@@ -39,7 +39,7 @@ func exportV3(ctx context.Context, sess *slackdump.Session, fs fsadapter.FS, lis
 			generator = listChannelGenerator
 		} else {
 			// exclusive export (process only excludes, if any)
-			generator = apiChannelGenerator(tmpdir, s)
+			generator = apiChannelGenerator(tmpdir, s, options.MemberOnly)
 		}
 
 		go func() {
@@ -107,12 +107,14 @@ func listChannelGenerator(ctx context.Context, links chan<- string, list *struct
 // links channel.  It also filters out channels that are excluded in the list.
 // It does not account for "included".  It ignores the thread links in the
 // list.  It writes the channels to the tmpdir.
-func apiChannelGenerator(tmpdir string, s *slackdump.Stream) linkFeederFunc {
+func apiChannelGenerator(tmpdir string, s *slackdump.Stream, memberOnly bool) linkFeederFunc {
 	return linkFeederFunc(func(ctx context.Context, links chan<- string, list *structures.EntityList) error {
 		chIdx := list.Index()
 		chanproc, err := expproc.NewChannels(tmpdir, func(c []slack.Channel) error {
 			for _, ch := range c {
-				// TODO: if ch.IsMember { // only channels that the user is a member of
+				if memberOnly && !ch.IsMember {
+					continue
+				}
 				if include, ok := chIdx[ch.ID]; ok && !include {
 					continue
 				}
@@ -157,6 +159,7 @@ func userWorker(ctx context.Context, s *slackdump.Stream, tmpdir string) error {
 	return nil
 }
 
+// progresser is an interface for progress bars.
 type progresser interface {
 	RenderBlank() error
 	Describe(description string)

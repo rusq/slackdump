@@ -14,6 +14,7 @@ import (
 	"github.com/slack-go/slack"
 
 	"github.com/rusq/slackdump/v2/internal/chunk/state"
+	"github.com/rusq/slackdump/v2/internal/structures"
 )
 
 var (
@@ -38,13 +39,22 @@ type Player struct {
 // value is the list of offsets for that id in the file.
 type index map[string][]int64
 
+// OffsetCount returns the total number of offsets in the index.
+func (idx index) OffsetCount() int {
+	n := 0
+	for _, offsets := range idx {
+		n += len(offsets)
+	}
+	return n
+}
+
 // offsets holds the index of the current offset in the index for each chunk
 // ID.
 type offsets map[string]int
 
 // NewPlayer creates a new chunk player from the io.ReadSeeker.
 func NewPlayer(rs io.ReadSeeker) (*Player, error) {
-	idx, err := indexRecords(json.NewDecoder(rs))
+	idx, err := indexChunks(json.NewDecoder(rs))
 	if err != nil {
 		return nil, err
 	}
@@ -58,13 +68,13 @@ func NewPlayer(rs io.ReadSeeker) (*Player, error) {
 	}, nil
 }
 
-type decodeOffsetter interface {
+type decoder interface {
 	Decode(interface{}) error
 	InputOffset() int64
 }
 
-// indexRecords indexes the records in the reader and returns an index.
-func indexRecords(dec decodeOffsetter) (index, error) {
+// indexChunks indexes the records in the reader and returns an index.
+func indexChunks(dec decoder) (index, error) {
 	idx := make(index)
 
 	for i := 0; ; i++ {
@@ -309,6 +319,8 @@ func (p *Player) allMessagesForID(id string) ([]slack.Message, error) {
 	})
 }
 
+// allForID returns all the messages for the given id. It will reset
+// the Player prior to execution.
 func allForID[T any](p *Player, id string, fn func(*Chunk) []T) ([]T, error) {
 	if err := p.Reset(); err != nil {
 		return nil, err
@@ -347,4 +359,89 @@ func (p *Player) ChannelInfo(id string) (*slack.Channel, error) {
 		return nil, err
 	}
 	return chunk.Channel, nil
+}
+
+type offts map[int64]offsetInfo
+
+func (o offts) MessageCount() int {
+	var count int
+	for _, info := range o {
+		if info.Type == CMessages {
+			count += len(info.Timestamps)
+		}
+	}
+	return count
+}
+
+type offsetInfo struct {
+	ID         string
+	Type       ChunkType
+	Timestamps []string
+}
+
+// offsetTimestamp returns a map of the chunk offset to the message timestamps
+// it contains.
+func (p *Player) offsetTimestamps() offts {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	var ret = make(offts, p.idx.OffsetCount())
+	for id, offsets := range p.idx {
+		prefix := id[0]
+		switch prefix {
+		case 'i', 'f', 'l': // ignoring files, information and list chunks
+			continue
+		}
+		for _, offset := range offsets {
+			chunk, err := p.chunkAt(offset)
+			if err != nil {
+				continue
+			}
+			ret[offset] = offsetInfo{
+				ID:         chunk.ID(),
+				Type:       chunk.Type,
+				Timestamps: chunk.Timestamps(),
+			}
+		}
+	}
+	return ret
+}
+
+type TimeOffset struct {
+	Offset int64  // offset within the chunk file
+	TS     string // original timestamp value
+	Index  int    // index of the message within the messages slice in the chunk
+}
+
+// timeOffsets returns a map of the timestamp to the chunk offset and index of
+// the message with this timestamp within the message slice.
+func timeOffsets(ots offts) map[int64]TimeOffset {
+	var ret = make(map[int64]TimeOffset, len(ots))
+	for offset, info := range ots {
+		for i, ts := range info.Timestamps {
+			iTS, err := structures.TS2int(ts)
+			if err != nil {
+				panic(err) // should not happen
+			}
+			ret[iTS] = TimeOffset{
+				Offset: offset,
+				TS:     ts,
+				Index:  i,
+			}
+		}
+	}
+	return ret
+}
+
+func (p *Player) chunkAt(offset int64) (*Chunk, error) {
+	_, err := p.rs.Seek(offset, io.SeekStart)
+	if err != nil {
+		return nil, err
+	}
+	dec := json.NewDecoder(p.rs)
+	var chunk *Chunk
+	if err := dec.Decode(&chunk); err != nil {
+		return nil, err
+	}
+	return chunk, nil
 }

@@ -255,7 +255,7 @@ func Test_indexRecords(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := indexRecords(json.NewDecoder(tt.args.rs))
+			got, err := indexChunks(json.NewDecoder(tt.args.rs))
 			if (err != nil) != tt.wantErr {
 				t.Errorf("indexRecords() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -369,7 +369,7 @@ func TestPlayer_AllChannels(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			idx, err := indexRecords(json.NewDecoder(tt.fields.rs))
+			idx, err := indexChunks(json.NewDecoder(tt.fields.rs))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -448,7 +448,7 @@ func TestPlayer_AllUsers(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			idx, err := indexRecords(json.NewDecoder(tt.fields.rs))
+			idx, err := indexChunks(json.NewDecoder(tt.fields.rs))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -466,6 +466,52 @@ func TestPlayer_AllUsers(t *testing.T) {
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("Player.AllUsers() = %v, want %v", got, tt.want)
 			}
+		})
+	}
+}
+
+func TestPlayer_offsetTimestamps(t *testing.T) {
+	type fields struct {
+		rs         io.ReadSeeker
+		pointer    offsets
+		lastOffset atomic.Int64
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   offts
+	}{
+		{
+			name: "ok",
+			fields: fields{
+				rs: bytes.NewReader(marshalChunks(t, testChunks)),
+			},
+			want: offts{
+				546:  offsetInfo{ID: "C1234567890", Timestamps: []string{"1234567890.100000", "1234567890.200000", "1234567890.300000", "1234567890.400000", "1234567890.500000"}},
+				1382: offsetInfo{ID: "C1234567890", Timestamps: []string{"1234567890.600000", "1234567890.700000"}},
+				1751: offsetInfo{ID: "C1234567890", Timestamps: []string{"1234567890.800000", "1234567890.800000"}},
+				2208: offsetInfo{ID: "tC1234567890:1234567890.800000", Type: CThreadMessages, Timestamps: []string{"1234567890.900000", "1234567891.100000"}},
+				3572: offsetInfo{ID: "C987654321", Timestamps: []string{"1234567890.100000", "1234567890.200000", "1234567890.300000", "1234567890.400000", "1234567890.500000"}},
+				4407: offsetInfo{ID: "C987654321", Timestamps: []string{"1234567890.600000", "1234567890.700000"}},
+				4775: offsetInfo{ID: "C987654321", Timestamps: []string{"1234567890.800000", "1234567890.800000"}},
+				5231: offsetInfo{ID: "tC987654321:1234567890.800000", Type: CThreadMessages, Timestamps: []string{"1234567890.900000", "1234567891.100000"}},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			idx, err := indexChunks(json.NewDecoder(tt.fields.rs))
+			if err != nil {
+				t.Fatal(err)
+			}
+			p := &Player{
+				rs:         tt.fields.rs,
+				idx:        idx,
+				pointer:    tt.fields.pointer,
+				lastOffset: tt.fields.lastOffset,
+			}
+			got := p.offsetTimestamps()
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }

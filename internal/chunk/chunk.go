@@ -62,8 +62,13 @@ type Chunk struct {
 }
 
 const (
-	userChunkID    = "usr"
-	channelChunkID = "chan"
+	userChunkID    = "lusr"
+	channelChunkID = "lch"
+
+	threadPrefix         = "t"
+	filePrefix           = "f"
+	chanInfoPrefix       = "ic"
+	threadChanInfoPrefix = "it"
 )
 
 // ID returns a unique ID for the chunk.
@@ -74,7 +79,7 @@ func (c *Chunk) ID() string {
 	case CThreadMessages:
 		return threadID(c.ChannelID, c.Parent.ThreadTimestamp)
 	case CFiles:
-		return id("f", c.ChannelID, c.Parent.Timestamp)
+		return id(filePrefix, c.ChannelID, c.Parent.Timestamp)
 	case CChannelInfo:
 		return channelInfoID(c.ChannelID, c.IsThread)
 	case CUsers:
@@ -90,12 +95,36 @@ func id(prefix string, ids ...string) string {
 }
 
 func threadID(channelID, threadTS string) string {
-	return id("t", channelID, threadTS)
+	return id(threadPrefix, channelID, threadTS)
 }
 
 func channelInfoID(channelID string, isThread bool) string {
 	if isThread {
-		return id("tci", channelID)
+		return id(threadChanInfoPrefix, channelID)
 	}
-	return id("ci", channelID)
+	return id(chanInfoPrefix, channelID)
+}
+
+func (c *Chunk) String() string {
+	return fmt.Sprintf("%s: %s", c.Type, c.ID())
+}
+
+// Timestamps returns the timestamps of the messages in the chunk.  For files
+// and other types of chunks, it returns nil.
+func (c *Chunk) Timestamps() []string {
+	switch c.Type {
+	case CMessages, CThreadMessages:
+		return c.messageTimestamps()
+	default:
+		return nil
+	}
+	// unreachable
+}
+
+func (c *Chunk) messageTimestamps() []string {
+	ts := make([]string, len(c.Messages))
+	for i := range c.Messages {
+		ts[i] = c.Messages[i].Timestamp
+	}
+	return ts
 }

@@ -1,4 +1,4 @@
-package state
+package structures
 
 import "testing"
 
@@ -39,7 +39,7 @@ func TestTs2int(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := ts2int(tt.args.ts)
+			got, err := TS2int(tt.args.ts)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("TS2Int64() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -78,7 +78,7 @@ func TestInt2ts(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := int2ts(tt.args.ts); got != tt.want {
+			if got := Int2TS(tt.args.ts); got != tt.want {
 				t.Errorf("Int642TS() = %v, want %v", got, tt.want)
 			}
 		})
