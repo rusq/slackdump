@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/slack-go/slack"
 
@@ -29,18 +30,18 @@ type Player struct {
 	rs io.ReadSeeker
 	mu sync.RWMutex
 
-	idx     index   // index of chunks in the file
-	pointer offsets // current chunk pointers
+	idx     idOffsets // index of chunks in the file
+	pointer offsets   // current chunk pointers
 
 	lastOffset atomic.Int64
 }
 
-// index holds the index of each chunk within the file.  key is the chunk ID,
+// idOffsets holds the idOffsets of each chunk within the file.  key is the chunk ID,
 // value is the list of offsets for that id in the file.
-type index map[string][]int64
+type idOffsets map[string][]int64
 
 // OffsetCount returns the total number of offsets in the index.
-func (idx index) OffsetCount() int {
+func (idx idOffsets) OffsetCount() int {
 	n := 0
 	for _, offsets := range idx {
 		n += len(offsets)
@@ -73,9 +74,17 @@ type decoder interface {
 	InputOffset() int64
 }
 
+// index is the index of the chunk file.
+type index struct {
+	// idOffset is a map of chunk IDs to offsets within the chunk file.
+	idOffset idOffsets
+	// offsetTS is a map of offsets to message timestamps within the chunk file.
+	offsetTS offts
+}
+
 // indexChunks indexes the records in the reader and returns an index.
-func indexChunks(dec decoder) (index, error) {
-	idx := make(index)
+func indexChunks(dec decoder) (idOffsets, error) {
+	idx := make(idOffsets)
 
 	for i := 0; ; i++ {
 		offset := dec.InputOffset() // record current offset
@@ -361,7 +370,16 @@ func (p *Player) ChannelInfo(id string) (*slack.Channel, error) {
 	return chunk.Channel, nil
 }
 
+// offts is a mapping of chunk offset to the message timestamps it contains,
+// along with some chunk medatata.
 type offts map[int64]offsetInfo
+
+// offsetInfo contains the metadata for a chunk and the list of all timestamps
+type offsetInfo struct {
+	ID         string
+	Type       ChunkType
+	Timestamps []string
+}
 
 func (o offts) MessageCount() int {
 	var count int
@@ -371,12 +389,6 @@ func (o offts) MessageCount() int {
 		}
 	}
 	return count
-}
-
-type offsetInfo struct {
-	ID         string
-	Type       ChunkType
-	Timestamps []string
 }
 
 // offsetTimestamp returns a map of the chunk offset to the message timestamps
@@ -432,7 +444,9 @@ func timeOffsets(ots offts) map[int64]TimeOffset {
 	return ret
 }
 
-func (p *Player) Sorted(fn func(ts string, m *slack.Message) error) error {
+// Sorted iterates over all the messages in the chunkfile in chronological
+// order.
+func (p *Player) Sorted(fn func(ts time.Time, m *slack.Message) error) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -444,13 +458,22 @@ func (p *Player) Sorted(fn func(ts string, m *slack.Message) error) error {
 	sort.Slice(tsList, func(i, j int) bool {
 		return tsList[i] < tsList[j]
 	})
+
+	var (
+		prevOffset int64 // previous chunk offset, used to avoid seeking
+		chunk      *Chunk
+	)
 	for _, ts := range tsList {
-		to := tos[ts]
-		chunk, err := p.chunkAt(to.Offset)
-		if err != nil {
-			return err
+		tmOff := tos[ts]
+		if tmOff.Offset != prevOffset {
+			var err error
+			chunk, err = p.chunkAt(tmOff.Offset)
+			if err != nil {
+				return err
+			}
+			prevOffset = tmOff.Offset
 		}
-		if err := fn(to.Timestamp, &chunk.Messages[to.Index]); err != nil {
+		if err := fn(structures.Int2Time(ts), &chunk.Messages[tmOff.Index]); err != nil {
 			return err
 		}
 	}

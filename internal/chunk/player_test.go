@@ -8,6 +8,7 @@ import (
 	"reflect"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/rusq/slackdump/v2/internal/chunk/state"
 	"github.com/slack-go/slack"
@@ -101,7 +102,7 @@ var testThreads = []Chunk{
 	},
 }
 
-var testThreadsIndex = index{
+var testThreadsIndex = idOffsets{
 	"tC1234567890:1234567890.123456": []int64{0, 1209},
 	"tC1234567890:1234567890.123458": []int64{604},
 }
@@ -241,7 +242,7 @@ func Test_indexRecords(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    args
-		want    index
+		want    idOffsets
 		wantErr bool
 	}{
 		{
@@ -303,7 +304,7 @@ func TestPlayer_FileState(t *testing.T) {
 	type fields struct {
 		rs         io.ReadSeeker
 		pointer    offsets
-		idx        index
+		idx        idOffsets
 		lastOffset atomic.Int64
 	}
 	tests := []struct {
@@ -564,6 +565,55 @@ func Test_timeOffsets(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert.Equal(t, tt.want, timeOffsets(tt.args.ots))
+		})
+	}
+}
+
+func TestPlayer_Sorted(t *testing.T) {
+	type fields struct {
+		rs         io.ReadSeeker
+		pointer    offsets
+		lastOffset atomic.Int64
+	}
+	type args struct {
+		fn func(ts time.Time, m *slack.Message) error
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "ok",
+			fields: fields{
+				rs: bytes.NewReader(marshalChunks(t, testChunks)),
+			},
+			args: args{
+				fn: func(ts time.Time, m *slack.Message) error {
+					t.Log(ts, m.Text, m.ThreadTimestamp)
+					return nil
+				},
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			idx, err := indexChunks(json.NewDecoder(tt.fields.rs))
+			if err != nil {
+				t.Fatal(err)
+			}
+			p := &Player{
+				rs:         tt.fields.rs,
+				idx:        idx,
+				pointer:    tt.fields.pointer,
+				lastOffset: tt.fields.lastOffset,
+			}
+			if err := p.Sorted(tt.args.fn); (err != nil) != tt.wantErr {
+				t.Errorf("Player.Sorted() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			t.Error("X")
 		})
 	}
 }

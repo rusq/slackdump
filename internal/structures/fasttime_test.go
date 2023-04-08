@@ -1,6 +1,10 @@
 package structures
 
-import "testing"
+import (
+	"reflect"
+	"testing"
+	"time"
+)
 
 func TestTs2int(t *testing.T) {
 	type args struct {
@@ -80,6 +84,30 @@ func TestInt2ts(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := Int2TS(tt.args.ts); got != tt.want {
 				t.Errorf("Int642TS() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestInt2Time(t *testing.T) {
+	type args struct {
+		ts int64
+	}
+	tests := []struct {
+		name string
+		args args
+		want time.Time
+	}{
+		{
+			"valid ts",
+			args{1645054781942979},
+			time.Unix(1645054781, 942979000),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := Int2Time(tt.args.ts); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Int2Time() = %v, want %v", got, tt.want)
 			}
 		})
 	}

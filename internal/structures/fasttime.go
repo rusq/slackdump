@@ -4,6 +4,7 @@ import (
 	"errors"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // TS2int converts a slack timestamp to an int64 by stripping the dot and
@@ -26,4 +27,9 @@ func Int2TS(ts int64) string {
 	lo := s[len(s)-6:]
 	hi := s[:len(s)-6]
 	return hi + "." + lo
+}
+
+// Int2Time converts an int64 to a time.Time.
+func Int2Time(ts int64) time.Time {
+	return time.UnixMicro(ts)
 }
