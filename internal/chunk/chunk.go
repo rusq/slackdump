@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/rusq/slackdump/v2/internal/structures"
 	"github.com/slack-go/slack"
 )
 
@@ -109,22 +110,28 @@ func (c *Chunk) String() string {
 	return fmt.Sprintf("%s: %s", c.Type, c.ID())
 }
 
+var ErrUnsupChunkType = fmt.Errorf("unsupported chunk type")
+
 // Timestamps returns the timestamps of the messages in the chunk.  For files
-// and other types of chunks, it returns nil.
-func (c *Chunk) Timestamps() []string {
+// and other types of chunks, it returns ErrUnsupChunkType.
+func (c *Chunk) Timestamps() ([]int64, error) {
 	switch c.Type {
 	case CMessages, CThreadMessages:
 		return c.messageTimestamps()
 	default:
-		return nil
+		return nil, ErrUnsupChunkType
 	}
 	// unreachable
 }
 
-func (c *Chunk) messageTimestamps() []string {
-	ts := make([]string, len(c.Messages))
+func (c *Chunk) messageTimestamps() ([]int64, error) {
+	ts := make([]int64, len(c.Messages))
 	for i := range c.Messages {
-		ts[i] = c.Messages[i].Timestamp
+		iTS, err := structures.TS2int(c.Messages[i].Timestamp)
+		if err != nil {
+			return nil, fmt.Errorf("invalid timestamp: %q :%w", c.Messages[i].Timestamp, err)
+		}
+		ts[i] = iTS
 	}
-	return ts
+	return ts, nil
 }

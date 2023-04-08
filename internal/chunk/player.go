@@ -378,7 +378,7 @@ type offts map[int64]offsetInfo
 type offsetInfo struct {
 	ID         string
 	Type       ChunkType
-	Timestamps []string
+	Timestamps []int64
 }
 
 func (o offts) MessageCount() int {
@@ -393,7 +393,7 @@ func (o offts) MessageCount() int {
 
 // offsetTimestamp returns a map of the chunk offset to the message timestamps
 // it contains.
-func (p *Player) offsetTimestamps() offts {
+func (p *Player) offsetTimestamps() (offts, error) {
 	var ret = make(offts, p.idx.OffsetCount())
 	for id, offsets := range p.idx {
 		prefix := id[0]
@@ -406,20 +406,23 @@ func (p *Player) offsetTimestamps() offts {
 			if err != nil {
 				continue
 			}
+			ts, err := chunk.Timestamps()
+			if err != nil {
+				return nil, err
+			}
 			ret[offset] = offsetInfo{
 				ID:         chunk.ID(),
 				Type:       chunk.Type,
-				Timestamps: chunk.Timestamps(),
+				Timestamps: ts,
 			}
 		}
 	}
-	return ret
+	return ret, nil
 }
 
 type TimeOffset struct {
-	Offset    int64  // offset within the chunk file
-	Timestamp string // original timestamp value
-	Index     int    // index of the message within the messages slice in the chunk
+	Offset int64 // offset within the chunk file
+	Index  int   // index of the message within the messages slice in the chunk
 }
 
 // timeOffsets returns a map of the timestamp to the chunk offset and index of
@@ -430,14 +433,9 @@ func timeOffsets(ots offts) map[int64]TimeOffset {
 	var ret = make(map[int64]TimeOffset, len(ots))
 	for offset, info := range ots {
 		for i, ts := range info.Timestamps {
-			iTS, err := structures.TS2int(ts)
-			if err != nil {
-				panic(err) // should not happen
-			}
-			ret[iTS] = TimeOffset{
-				Offset:    offset,
-				Timestamp: ts,
-				Index:     i,
+			ret[ts] = TimeOffset{
+				Offset: offset,
+				Index:  i,
 			}
 		}
 	}
@@ -450,7 +448,11 @@ func (p *Player) Sorted(fn func(ts time.Time, m *slack.Message) error) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	tos := timeOffsets(p.offsetTimestamps())
+	ots, err := p.offsetTimestamps()
+	if err != nil {
+		return err
+	}
+	tos := timeOffsets(ots)
 	var tsList = make([]int64, 0, len(tos))
 	for ts := range tos {
 		tsList = append(tsList, ts)

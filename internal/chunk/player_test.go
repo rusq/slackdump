@@ -478,9 +478,10 @@ func TestPlayer_offsetTimestamps(t *testing.T) {
 		lastOffset atomic.Int64
 	}
 	tests := []struct {
-		name   string
-		fields fields
-		want   offts
+		name    string
+		fields  fields
+		want    offts
+		wantErr bool
 	}{
 		{
 			name: "ok",
@@ -488,14 +489,14 @@ func TestPlayer_offsetTimestamps(t *testing.T) {
 				rs: bytes.NewReader(marshalChunks(t, testChunks)),
 			},
 			want: offts{
-				546:  offsetInfo{ID: "C1234567890", Timestamps: []string{"1234567890.100000", "1234567890.200000", "1234567890.300000", "1234567890.400000", "1234567890.500000"}},
-				1382: offsetInfo{ID: "C1234567890", Timestamps: []string{"1234567890.600000", "1234567890.700000"}},
-				1751: offsetInfo{ID: "C1234567890", Timestamps: []string{"1234567890.800000", "1234567890.800000"}},
-				2208: offsetInfo{ID: "tC1234567890:1234567890.800000", Type: CThreadMessages, Timestamps: []string{"1234567890.900000", "1234567891.100000"}},
-				3572: offsetInfo{ID: "C987654321", Timestamps: []string{"1234567890.100000", "1234567890.200000", "1234567890.300000", "1234567890.400000", "1234567890.500000"}},
-				4407: offsetInfo{ID: "C987654321", Timestamps: []string{"1234567890.600000", "1234567890.700000"}},
-				4775: offsetInfo{ID: "C987654321", Timestamps: []string{"1234567890.800000", "1234567890.800000"}},
-				5231: offsetInfo{ID: "tC987654321:1234567890.800000", Type: CThreadMessages, Timestamps: []string{"1234567890.900000", "1234567891.100000"}},
+				546:  offsetInfo{ID: "C1234567890", Timestamps: []int64{1234567890100000, 1234567890200000, 1234567890300000, 1234567890400000, 1234567890500000}},
+				1382: offsetInfo{ID: "C1234567890", Timestamps: []int64{1234567890600000, 1234567890700000}},
+				1751: offsetInfo{ID: "C1234567890", Timestamps: []int64{1234567890800000, 1234567890800000}},
+				2208: offsetInfo{ID: "tC1234567890:1234567890.800000", Type: CThreadMessages, Timestamps: []int64{1234567890900000, 1234567891100000}},
+				3572: offsetInfo{ID: "C987654321", Timestamps: []int64{1234567890100000, 1234567890200000, 1234567890300000, 1234567890400000, 1234567890500000}},
+				4407: offsetInfo{ID: "C987654321", Timestamps: []int64{1234567890600000, 1234567890700000}},
+				4775: offsetInfo{ID: "C987654321", Timestamps: []int64{1234567890800000, 1234567890800000}},
+				5231: offsetInfo{ID: "tC987654321:1234567890.800000", Type: CThreadMessages, Timestamps: []int64{1234567890900000, 1234567891100000}},
 			},
 		},
 	}
@@ -511,7 +512,11 @@ func TestPlayer_offsetTimestamps(t *testing.T) {
 				pointer:    tt.fields.pointer,
 				lastOffset: tt.fields.lastOffset,
 			}
-			got := p.offsetTimestamps()
+			got, err := p.offsetTimestamps()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Player.offsetTimestamps() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
 			assert.Equal(t, tt.want, got)
 		})
 	}
@@ -530,34 +535,29 @@ func Test_timeOffsets(t *testing.T) {
 			name: "ok",
 			args: args{
 				ots: offts{
-					546: offsetInfo{ID: "C1234567890", Timestamps: []string{"1234567890.100000", "1234567890.200000", "1234567890.300000", "1234567890.400000", "1234567890.500000"}},
+					546: offsetInfo{ID: "C1234567890", Timestamps: []int64{1234567890100000, 1234567890200000, 1234567890300000, 1234567890400000, 1234567890500000}},
 				},
 			},
 			want: map[int64]TimeOffset{
 				1234567890100000: {
-					Offset:    546,
-					Timestamp: "1234567890.100000",
-					Index:     0,
+					Offset: 546,
+					Index:  0,
 				},
 				1234567890200000: {
-					Offset:    546,
-					Timestamp: "1234567890.200000",
-					Index:     1,
+					Offset: 546,
+					Index:  1,
 				},
 				1234567890300000: {
-					Offset:    546,
-					Timestamp: "1234567890.300000",
-					Index:     2,
+					Offset: 546,
+					Index:  2,
 				},
 				1234567890400000: {
-					Offset:    546,
-					Timestamp: "1234567890.400000",
-					Index:     3,
+					Offset: 546,
+					Index:  3,
 				},
 				1234567890500000: {
-					Offset:    546,
-					Timestamp: "1234567890.500000",
-					Index:     4,
+					Offset: 546,
+					Index:  4,
 				},
 			},
 		},
