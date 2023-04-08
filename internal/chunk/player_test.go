@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"reflect"
 	"sync/atomic"
@@ -569,6 +570,26 @@ func Test_timeOffsets(t *testing.T) {
 	}
 }
 
+type sortedArgs struct {
+	ts time.Time
+	m  *slack.Message
+}
+
+func (f sortedArgs) String() string {
+	return fmt.Sprintf("fnCallArgs{ts: %v, m: %s}", f.ts, f.m.Text)
+}
+
+type sortedArgsSlice []sortedArgs
+
+func (f sortedArgsSlice) String() string {
+	var b bytes.Buffer
+	for _, v := range f {
+		b.WriteString(v.String())
+		b.WriteString("\n")
+	}
+	return b.String()
+}
+
 func TestPlayer_Sorted(t *testing.T) {
 	type fields struct {
 		rs         io.ReadSeeker
@@ -578,11 +599,13 @@ func TestPlayer_Sorted(t *testing.T) {
 	type args struct {
 		fn func(ts time.Time, m *slack.Message) error
 	}
+
 	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		wantErr bool
+		name        string
+		fields      fields
+		args        args
+		wantFnCalls sortedArgsSlice
+		wantErr     bool
 	}{
 		{
 			name: "ok",
@@ -591,9 +614,20 @@ func TestPlayer_Sorted(t *testing.T) {
 			},
 			args: args{
 				fn: func(ts time.Time, m *slack.Message) error {
-					t.Log(ts, m.Text, m.ThreadTimestamp)
 					return nil
 				},
+			},
+			wantFnCalls: []sortedArgs{
+				{ts: time.Unix(1234567890, 100000000), m: &testChunks[1].Messages[0]},
+				{ts: time.Unix(1234567890, 200000000), m: &testChunks[1].Messages[1]},
+				{ts: time.Unix(1234567890, 300000000), m: &testChunks[1].Messages[2]},
+				{ts: time.Unix(1234567890, 400000000), m: &testChunks[1].Messages[3]},
+				{ts: time.Unix(1234567890, 500000000), m: &testChunks[1].Messages[4]},
+				{ts: time.Unix(1234567890, 600000000), m: &testChunks[2].Messages[0]},
+				{ts: time.Unix(1234567890, 700000000), m: &testChunks[2].Messages[1]},
+				{ts: time.Unix(1234567890, 800000000), m: &testChunks[3].Messages[1]},
+				{ts: time.Unix(1234567890, 900000000), m: &testChunks[4].Messages[0]},
+				{ts: time.Unix(1234567891, 100000000), m: &testChunks[4].Messages[1]},
 			},
 			wantErr: false,
 		},
@@ -610,10 +644,17 @@ func TestPlayer_Sorted(t *testing.T) {
 				pointer:    tt.fields.pointer,
 				lastOffset: tt.fields.lastOffset,
 			}
-			if err := p.Sorted(tt.args.fn); (err != nil) != tt.wantErr {
+			var rec sortedArgsSlice
+
+			recorder := func(ts time.Time, m *slack.Message) error {
+				rec = append(rec, sortedArgs{ts, m})
+				return nil
+			}
+
+			if err := p.Sorted(recorder); (err != nil) != tt.wantErr {
 				t.Errorf("Player.Sorted() error = %v, wantErr %v", err, tt.wantErr)
 			}
-			t.Error("X")
+			assert.Equal(t, tt.wantFnCalls.String(), rec.String())
 		})
 	}
 }

@@ -352,7 +352,7 @@ func allForID[T any](p *Player, id string, fn func(*Chunk) []T) ([]T, error) {
 func (p *Player) AllChannelIDs() []string {
 	var ids = make([]string, 0, 1)
 	for id := range p.idx {
-		if !strings.Contains(id, ":") && !strings.HasPrefix(id, "ci") {
+		if !strings.Contains(id, ":") && id[0] != 'i' {
 			ids = append(ids, id)
 		}
 	}
@@ -467,6 +467,7 @@ func (p *Player) Sorted(fn func(ts time.Time, m *slack.Message) error) error {
 	)
 	for _, ts := range tsList {
 		tmOff := tos[ts]
+		// we don't want to be reading the same chunk over and over again.
 		if tmOff.Offset != prevOffset {
 			var err error
 			chunk, err = p.chunkAt(tmOff.Offset)

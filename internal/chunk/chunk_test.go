@@ -76,7 +76,7 @@ func TestChunk_ID(t *testing.T) {
 				Channel:   nil,
 				ChannelID: "C123",
 			},
-			want: "ciC123",
+			want: "icC123",
 		},
 		{
 			name: "channel info (thread)",
@@ -88,7 +88,7 @@ func TestChunk_ID(t *testing.T) {
 				Channel:   nil,
 				ChannelID: "C123",
 			},
-			want: "tciC123",
+			want: "itC123",
 		},
 		{
 			name: "users",
