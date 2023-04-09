@@ -2,6 +2,7 @@ package chunk
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -651,7 +652,7 @@ func TestPlayer_Sorted(t *testing.T) {
 				return nil
 			}
 
-			if err := p.Sorted(recorder); (err != nil) != tt.wantErr {
+			if err := p.Sorted(context.Background(), false, recorder); (err != nil) != tt.wantErr {
 				t.Errorf("Player.Sorted() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			assert.Equal(t, tt.wantFnCalls.String(), rec.String())

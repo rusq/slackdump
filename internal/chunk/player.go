@@ -446,7 +446,7 @@ func timeOffsets(ots offts) map[int64]TimeOffset {
 
 // Sorted iterates over all the messages in the chunkfile in chronological
 // order.
-func (p *Player) Sorted(ctx context.Context, fn func(ts time.Time, m *slack.Message) error) error {
+func (p *Player) Sorted(ctx context.Context, descending bool, fn func(ts time.Time, m *slack.Message) error) error {
 	ctx, task := trace.NewTask(ctx, "player.Sorted")
 	defer task.End()
 
@@ -468,9 +468,16 @@ func (p *Player) Sorted(ctx context.Context, fn func(ts time.Time, m *slack.Mess
 	for ts := range tos {
 		tsList = append(tsList, ts)
 	}
-	sort.Slice(tsList, func(i, j int) bool {
+	sf := func(i, j int) bool {
 		return tsList[i] < tsList[j]
-	})
+	}
+	if descending {
+		sf = func(i, j int) bool {
+			return tsList[i] > tsList[j]
+		}
+	}
+
+	sort.Slice(tsList, sf)
 
 	var (
 		prevOffset int64 // previous chunk offset, used to avoid seeking

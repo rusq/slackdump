@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime/trace"
 	"time"
 
 	"github.com/rusq/fsadapter"
@@ -21,6 +22,7 @@ type Transform struct {
 	srcdir string       // source directory with chunks.
 	fsa    fsadapter.FS // target file system adapter.
 	ids    chan string  // channel used to pass channel IDs to the worker.
+	users  []slack.User // user list.
 	err    chan error   // error channel used to propagate errors to the main thread.
 }
 
@@ -49,7 +51,7 @@ func (t *Transform) OnFinish(channelID string) error {
 
 func (t *Transform) worker(ctx context.Context) {
 	for id := range t.ids {
-		if err := mmtransform(ctx, t.fsa, t.srcdir, id); err != nil {
+		if err := transform(ctx, t.fsa, t.srcdir, id, t.users); err != nil {
 			t.err <- err
 			continue
 		}
@@ -64,12 +66,15 @@ func (t *Transform) Close() error {
 	return nil
 }
 
-// mmtransform is the mattermost transformer.  It transforms the chunk file
-// for the channel with ID into a slack export format, and attachments are
-// placed into the __uploads__ directory which is understood by the mattermost
-// import tool.  It expects the chunk file to be in the srcdir/id.json.gz
-// file, and the attachments to be in the srcdir/id directory.
-func mmtransform(ctx context.Context, fsa fsadapter.FS, srcdir string, id string) error {
+// transform is the chunk file transformer.  It transforms the chunk file for
+// the channel with ID into a slack export format, and attachments are placed
+// into the relevant directory.  It expects the chunk file to be in the
+// srcdir/id.json.gz file, and the attachments to be in the srcdir/id
+// directory.
+func transform(ctx context.Context, fsa fsadapter.FS, srcdir string, id string, u []slack.User) error {
+	ctx, task := trace.NewTask(ctx, "transform")
+	defer task.End()
+
 	// load the chunk file
 	f, err := openChunks(filepath.Join(srcdir, id+ext))
 	if err != nil {
@@ -92,7 +97,7 @@ func mmtransform(ctx context.Context, fsa fsadapter.FS, srcdir string, id string
 		return err
 	}
 
-	if err := writeMessages(ctx, fsa, ci, pl); err != nil {
+	if err := writeMessages(ctx, fsa, pl, ci, u); err != nil {
 		return err
 	}
 
@@ -106,12 +111,12 @@ func channelName(ch *slack.Channel) string {
 	return ch.Name
 }
 
-func writeMessages(ctx context.Context, fsa fsadapter.FS, ci *slack.Channel, pl *chunk.Player) error {
+func writeMessages(ctx context.Context, fsa fsadapter.FS, pl *chunk.Player, ci *slack.Channel, u []slack.User) error {
 	dir := channelName(ci)
 	var prevDt string
 	var wc io.WriteCloser
 	var enc *json.Encoder
-	if err := pl.Sorted(ctx, func(ts time.Time, m *slack.Message) error {
+	if err := pl.Sorted(ctx, false, func(ts time.Time, m *slack.Message) error {
 		date := ts.Format("2006-01-02")
 		if date != prevDt || prevDt == "" {
 			if wc != nil {
