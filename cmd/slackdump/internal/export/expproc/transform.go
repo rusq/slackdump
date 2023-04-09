@@ -1,6 +1,7 @@
 package expproc
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -24,14 +25,14 @@ type Transform struct {
 }
 
 // NewTransform creates a new Transform instance.
-func NewTransform(fsa fsadapter.FS, chunkdir string) (*Transform, error) {
+func NewTransform(ctx context.Context, fsa fsadapter.FS, chunkdir string) (*Transform, error) {
 	t := &Transform{
 		srcdir: chunkdir,
 		fsa:    fsa,
 		ids:    make(chan string),
 		err:    make(chan error, 1),
 	}
-	go t.worker()
+	go t.worker(ctx)
 	return t, nil
 }
 
@@ -46,9 +47,9 @@ func (t *Transform) OnFinish(channelID string) error {
 	return nil
 }
 
-func (t *Transform) worker() {
+func (t *Transform) worker(ctx context.Context) {
 	for id := range t.ids {
-		if err := mmtransform(t.fsa, t.srcdir, id); err != nil {
+		if err := mmtransform(ctx, t.fsa, t.srcdir, id); err != nil {
 			t.err <- err
 			continue
 		}
@@ -68,7 +69,7 @@ func (t *Transform) Close() error {
 // placed into the __uploads__ directory which is understood by the mattermost
 // import tool.  It expects the chunk file to be in the srcdir/id.json.gz
 // file, and the attachments to be in the srcdir/id directory.
-func mmtransform(fsa fsadapter.FS, srcdir string, id string) error {
+func mmtransform(ctx context.Context, fsa fsadapter.FS, srcdir string, id string) error {
 	// load the chunk file
 	f, err := openChunks(filepath.Join(srcdir, id+ext))
 	if err != nil {
@@ -91,7 +92,7 @@ func mmtransform(fsa fsadapter.FS, srcdir string, id string) error {
 		return err
 	}
 
-	if err := writeMessages(fsa, ci, pl); err != nil {
+	if err := writeMessages(ctx, fsa, ci, pl); err != nil {
 		return err
 	}
 
@@ -105,12 +106,12 @@ func channelName(ch *slack.Channel) string {
 	return ch.Name
 }
 
-func writeMessages(fsa fsadapter.FS, ci *slack.Channel, pl *chunk.Player) error {
+func writeMessages(ctx context.Context, fsa fsadapter.FS, ci *slack.Channel, pl *chunk.Player) error {
 	dir := channelName(ci)
 	var prevDt string
 	var wc io.WriteCloser
 	var enc *json.Encoder
-	if err := pl.Sorted(func(ts time.Time, m *slack.Message) error {
+	if err := pl.Sorted(ctx, func(ts time.Time, m *slack.Message) error {
 		date := ts.Format("2006-01-02")
 		if date != prevDt || prevDt == "" {
 			if wc != nil {

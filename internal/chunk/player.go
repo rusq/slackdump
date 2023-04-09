@@ -1,11 +1,13 @@
 package chunk
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"path/filepath"
+	"runtime/trace"
 	"sort"
 	"strings"
 	"sync"
@@ -444,15 +446,24 @@ func timeOffsets(ots offts) map[int64]TimeOffset {
 
 // Sorted iterates over all the messages in the chunkfile in chronological
 // order.
-func (p *Player) Sorted(fn func(ts time.Time, m *slack.Message) error) error {
+func (p *Player) Sorted(ctx context.Context, fn func(ts time.Time, m *slack.Message) error) error {
+	ctx, task := trace.NewTask(ctx, "player.Sorted")
+	defer task.End()
+
+	trace.Log(ctx, "mutex", "lock")
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
+	rgnOt := trace.StartRegion(ctx, "offsetTimestamps")
 	ots, err := p.offsetTimestamps()
+	rgnOt.End()
 	if err != nil {
 		return err
 	}
+
+	rgnTos := trace.StartRegion(ctx, "timeOffsets")
 	tos := timeOffsets(ots)
+	rgnTos.End()
 	var tsList = make([]int64, 0, len(tos))
 	for ts := range tos {
 		tsList = append(tsList, ts)
