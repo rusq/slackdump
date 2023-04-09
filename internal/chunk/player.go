@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"path/filepath"
 	"runtime/trace"
@@ -29,11 +28,12 @@ var (
 // responses, if used in conjunction with the [proctest.Server]. Zero value is
 // not usable.st
 type Player struct {
-	rs io.ReadSeeker
-	mu sync.RWMutex
+	rs   io.ReadSeeker
+	rsMu sync.RWMutex
 
-	idx     idOffsets // index of chunks in the file
-	pointer offsets   // current chunk pointers
+	idx     idOffsets  // index of chunks in the file
+	pointer offsets    // current chunk pointers
+	ptrMu   sync.Mutex // pointer mutex
 
 	lastOffset atomic.Int64
 }
@@ -105,16 +105,14 @@ func indexChunks(dec decoder) (idOffsets, error) {
 
 // Offset returns the last read offset of the record in ReadSeeker.
 func (p *Player) Offset() int64 {
-	p.mu.RLock()
-	defer p.mu.RUnlock()
+	p.rsMu.RLock()
+	defer p.rsMu.RUnlock()
 	return p.lastOffset.Load()
 }
 
 // tryGetChunk tries to get the next chunk for the given id.  It returns
 // io.EOF if there are no more chunks for the given id.
 func (p *Player) tryGetChunk(id string) (*Chunk, error) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
 	offsets, ok := p.idx[id]
 	if !ok {
 		return nil, ErrNotFound
@@ -129,19 +127,12 @@ func (p *Player) tryGetChunk(id string) (*Chunk, error) {
 	}
 
 	p.lastOffset.Store(offsets[ptr])
-	_, err := p.rs.Seek(offsets[ptr], io.SeekStart) // seek to the offset
+	chunk, err := p.chunkAt(offsets[ptr])
 	if err != nil {
 		return nil, err
 	}
-
-	var chunk Chunk
-	// we have to init new decoder at the current offset, because it's
-	// not possible to seek the decoder.
-	if err := json.NewDecoder(p.rs).Decode(&chunk); err != nil {
-		return nil, fmt.Errorf("failed to decode chunk at offset %d: %w", offsets[ptr], err)
-	}
 	p.pointer[id]++ // increase the offset pointer for the next call.
-	return &chunk, nil
+	return chunk, nil
 }
 
 // Messages returns the next message chunk for the given channel.
@@ -179,8 +170,8 @@ func (p *Player) HasMoreMessages(channelID string) bool {
 
 // hasMore returns true if there are more chunks for the given id.
 func (p *Player) hasMore(id string) bool {
-	p.mu.RLock()
-	defer p.mu.RUnlock()
+	p.rsMu.RLock()
+	defer p.rsMu.RUnlock()
 	offsets, ok := p.idx[id]
 	if !ok {
 		return false // no such id
@@ -222,23 +213,28 @@ func (p *Player) Thread(channelID string, threadTS string) ([]slack.Message, err
 
 // Reset resets the state of the Player.
 func (p *Player) Reset() error {
+	p.ptrMu.Lock()
 	p.pointer = make(offsets)
+	p.ptrMu.Unlock()
+
 	_, err := p.rs.Seek(0, io.SeekStart)
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
 // ForEach iterates over the chunks in the reader and calls the function for
 // each chunk.  It will reset the state of the Player.
 func (p *Player) ForEach(fn func(ev *Chunk) error) error {
-	p.mu.Lock()
-	defer p.mu.Unlock()
+	// locking mutex for the entire duration of the function, as we actively
+	// reading from the reader, and any unexpected Seek may cause issues.
+	p.rsMu.Lock()
+	defer p.rsMu.Unlock()
 	if err := p.Reset(); err != nil {
 		return err
 	}
-	defer p.rs.Seek(0, io.SeekStart) // reset offset once we finished.
 	dec := json.NewDecoder(p.rs)
 	for {
 		var chunk *Chunk
@@ -336,6 +332,12 @@ func allForID[T any](p *Player, id string, fn func(*Chunk) []T) ([]T, error) {
 	if err := p.Reset(); err != nil {
 		return nil, err
 	}
+
+	// locking mutex for the entire duration of the function, as we must keep
+	// the state of the player consistent until the function ends.
+	p.ptrMu.Lock()
+	defer p.ptrMu.Unlock()
+
 	var m []T
 	for {
 		chunk, err := p.tryGetChunk(id)
@@ -354,7 +356,7 @@ func allForID[T any](p *Player, id string, fn func(*Chunk) []T) ([]T, error) {
 func (p *Player) AllChannelIDs() []string {
 	var ids = make([]string, 0, 1)
 	for id := range p.idx {
-		if !strings.Contains(id, ":") && id[0] != 'i' {
+		if !strings.Contains(id, ":") && id[0] != 'i' && id[0] != 'l' {
 			ids = append(ids, id)
 		}
 	}
@@ -451,8 +453,6 @@ func (p *Player) Sorted(ctx context.Context, descending bool, fn func(ts time.Ti
 	defer task.End()
 
 	trace.Log(ctx, "mutex", "lock")
-	p.mu.Lock()
-	defer p.mu.Unlock()
 
 	rgnOt := trace.StartRegion(ctx, "offsetTimestamps")
 	ots, err := p.offsetTimestamps()
@@ -503,6 +503,8 @@ func (p *Player) Sorted(ctx context.Context, descending bool, fn func(ts time.Ti
 
 // chunkAt returns the chunk at the given offset.
 func (p *Player) chunkAt(offset int64) (*Chunk, error) {
+	p.rsMu.Lock()
+	defer p.rsMu.Unlock()
 	_, err := p.rs.Seek(offset, io.SeekStart)
 	if err != nil {
 		return nil, err

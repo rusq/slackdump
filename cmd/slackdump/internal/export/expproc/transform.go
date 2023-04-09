@@ -8,11 +8,15 @@ import (
 	"os"
 	"path/filepath"
 	"runtime/trace"
+	"sort"
 	"time"
 
 	"github.com/rusq/fsadapter"
+	"github.com/rusq/slackdump/v2/export"
 	"github.com/rusq/slackdump/v2/internal/chunk"
 	"github.com/rusq/slackdump/v2/internal/osext"
+	"github.com/rusq/slackdump/v2/internal/structures"
+	"github.com/rusq/slackdump/v2/types"
 	"github.com/slack-go/slack"
 )
 
@@ -112,10 +116,13 @@ func channelName(ch *slack.Channel) string {
 }
 
 func writeMessages(ctx context.Context, fsa fsadapter.FS, pl *chunk.Player, ci *slack.Channel, u []slack.User) error {
+	uidx := types.Users(u).IndexByID()
 	dir := channelName(ci)
-	var prevDt string
-	var wc io.WriteCloser
-	var enc *json.Encoder
+	var (
+		prevDt string         // previous date
+		wc     io.WriteCloser // current file
+		enc    *json.Encoder  // current encoder
+	)
 	if err := pl.Sorted(ctx, false, func(ts time.Time, m *slack.Message) error {
 		date := ts.Format("2006-01-02")
 		if date != prevDt || prevDt == "" {
@@ -141,7 +148,18 @@ func writeMessages(ctx context.Context, fsa fsadapter.FS, pl *chunk.Player, ci *
 		} else {
 			wc.Write([]byte(",\n"))
 		}
-		return enc.Encode(m)
+		var thread []slack.Message
+		if m.ThreadTimestamp != "" {
+			var err error
+			thread, err = pl.AllThreadMessages(ci.ID, m.ThreadTimestamp)
+			if err != nil {
+				return err
+			}
+		}
+		// transform the message
+		em := toExportMessage(m, thread, uidx[m.User])
+
+		return enc.Encode(em)
 	}); err != nil {
 		return err
 	}
@@ -155,6 +173,66 @@ func writeMessages(ctx context.Context, fsa fsadapter.FS, pl *chunk.Player, ci *
 		}
 	}
 	return nil
+}
+
+func toExportMessage(m *slack.Message, thread []slack.Message, user *slack.User) *export.ExportMessage {
+	em := export.ExportMessage{
+		Msg:        &m.Msg,
+		UserTeam:   m.Team,
+		SourceTeam: m.Team,
+	}
+	if user != nil && !user.IsBot {
+		em.UserProfile = &export.ExportUserProfile{
+			AvatarHash:        "",
+			Image72:           user.Profile.Image72,
+			FirstName:         user.Profile.FirstName,
+			RealName:          user.Profile.RealName,
+			DisplayName:       user.Profile.DisplayName,
+			Team:              user.Profile.Team,
+			Name:              user.Name,
+			IsRestricted:      user.IsRestricted,
+			IsUltraRestricted: user.IsUltraRestricted,
+		}
+	}
+	if len(thread) > 0 {
+		em.Replies = make([]slack.Reply, 0, len(thread))
+		for _, rm := range thread {
+			em.Replies = append(em.Replies, slack.Reply{
+				User:      rm.User,
+				Timestamp: rm.Timestamp,
+			})
+			em.ReplyUsers = append(em.ReplyUsers, rm.User)
+		}
+		sort.Slice(em.Msg.Replies, func(i, j int) bool {
+			tsi, err := structures.TS2int(em.Msg.Replies[i].Timestamp)
+			if err != nil {
+				return false
+			}
+			tsj, err := structures.TS2int(em.Msg.Replies[j].Timestamp)
+			if err != nil {
+				return false
+			}
+			return tsi < tsj
+		})
+		makeUniqueStrings(&em.ReplyUsers)
+		em.ReplyUsersCount = len(em.ReplyUsers)
+	}
+	return &em
+}
+
+func makeUniqueStrings(ss *[]string) {
+	if len(*ss) == 0 {
+		return
+	}
+	sort.Strings(*ss)
+	i := 0
+	for _, s := range *ss {
+		if s != (*ss)[i] {
+			i++
+			(*ss)[i] = s
+		}
+	}
+	*ss = (*ss)[:i+1]
 }
 
 func writeJSONHeader(w io.Writer) error {
