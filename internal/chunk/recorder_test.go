@@ -28,7 +28,7 @@ func TestEvent_ID(t *testing.T) {
 	tests := []struct {
 		name   string
 		fields fields
-		want   string
+		want   GroupID
 	}{
 		{
 			"Message",

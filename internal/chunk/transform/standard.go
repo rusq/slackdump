@@ -80,14 +80,14 @@ func (s *Standard) Transform(ctx context.Context, basePath string, st *state.Sta
 	}
 	defer rsc.Close()
 
-	pl, err := chunk.NewPlayer(rsc)
+	cf, err := chunk.FromReader(rsc)
 	if err != nil {
 		return err
 	}
-	allCh := pl.AllChannelIDs()
+	allCh := cf.AllChannelIDs()
 	for _, ch := range allCh {
 		rgn := trace.StartRegion(ctx, "transform.Standard.Transform: "+ch)
-		conv, err := s.conversation(pl, st, basePath, ch)
+		conv, err := s.conversation(cf, st, basePath, ch)
 		rgn.End()
 		if err != nil {
 			return err
@@ -103,7 +103,7 @@ func (s *Standard) Transform(ctx context.Context, basePath string, st *state.Sta
 	return nil
 }
 
-func (s *Standard) conversation(pl *chunk.Player, st *state.State, basePath string, chID string) (*types.Conversation, error) {
+func (s *Standard) conversation(pl *chunk.File, st *state.State, basePath string, chID string) (*types.Conversation, error) {
 	ci, err := pl.ChannelInfo(chID)
 	if err != nil {
 		return nil, err

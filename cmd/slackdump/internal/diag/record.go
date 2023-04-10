@@ -112,11 +112,11 @@ func runRecordState(ctx context.Context, _ *base.Command, args []string) error {
 	}
 	defer f.Close()
 
-	pl, err := chunk.NewPlayer(f)
+	cf, err := chunk.FromReader(f)
 	if err != nil {
 		return err
 	}
-	state, err := pl.State()
+	state, err := cf.State()
 	if err != nil {
 		return err
 	}

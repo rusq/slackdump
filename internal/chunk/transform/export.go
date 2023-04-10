@@ -81,21 +81,21 @@ func (e *Export) Transform(ctx context.Context, basePath string, st *state.State
 	}
 	defer rsc.Close()
 
-	pl, err := chunk.NewPlayer(rsc)
+	cf, err := chunk.FromReader(rsc)
 	if err != nil {
 		return err
 	}
 
 	// check if it has users
-	if pl.HasUsers() {
+	if cf.HasUsers() {
 		// generate users.json
 	}
 	// check if it has channels
-	if pl.HasChannels() {
+	if cf.HasChannels() {
 		// generate channels.json, mpims.json, dms.json
 	}
 	// check if it has conversations
-	channels := pl.AllChannelIDs()
+	channels := cf.AllChannelIDs()
 	if len(channels) != 0 {
 		// process channels
 	}

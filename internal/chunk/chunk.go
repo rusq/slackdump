@@ -22,6 +22,8 @@ const (
 	CChannelInfo
 )
 
+var ErrUnsupChunkType = fmt.Errorf("unsupported chunk type")
+
 // Chunk is a single chunk that was recorded.  It contains the type of chunk,
 // the timestamp of the chunk, the channel ID, and the number of messages or
 // files that were recorded.
@@ -62,9 +64,14 @@ type Chunk struct {
 	Channels []slack.Channel `json:"ch,omitempty"` // Populated by Channels
 }
 
+// GroupID is a unique ID for a chunk group.  It is used to group chunks of
+// the same type together for indexing purposes.  It may or may not be equal
+// to the Slack ID of the entity.
+type GroupID string
+
 const (
-	userChunkID    = "lusr"
-	channelChunkID = "lch"
+	userChunkID    GroupID = "lusr"
+	channelChunkID GroupID = "lch"
 
 	threadPrefix         = "t"
 	filePrefix           = "f"
@@ -72,11 +79,11 @@ const (
 	threadChanInfoPrefix = "it"
 )
 
-// ID returns a unique ID for the chunk.
-func (c *Chunk) ID() string {
+// ID returns a Group ID for the chunk.
+func (c *Chunk) ID() GroupID {
 	switch c.Type {
 	case CMessages:
-		return c.ChannelID
+		return GroupID(c.ChannelID)
 	case CThreadMessages:
 		return threadID(c.ChannelID, c.Parent.ThreadTimestamp)
 	case CFiles:
@@ -88,18 +95,18 @@ func (c *Chunk) ID() string {
 	case CChannels:
 		return channelChunkID // static, one team per chunk file.
 	}
-	return fmt.Sprintf("<unknown:%s>", c.Type)
+	return GroupID(fmt.Sprintf("<unknown:%s>", c.Type))
 }
 
-func id(prefix string, ids ...string) string {
-	return prefix + strings.Join(ids, ":")
+func id(prefix string, ids ...string) GroupID {
+	return GroupID(prefix + strings.Join(ids, ":"))
 }
 
-func threadID(channelID, threadTS string) string {
+func threadID(channelID, threadTS string) GroupID {
 	return id(threadPrefix, channelID, threadTS)
 }
 
-func channelInfoID(channelID string, isThread bool) string {
+func channelInfoID(channelID string, isThread bool) GroupID {
 	if isThread {
 		return id(threadChanInfoPrefix, channelID)
 	}
@@ -109,8 +116,6 @@ func channelInfoID(channelID string, isThread bool) string {
 func (c *Chunk) String() string {
 	return fmt.Sprintf("%s: %s", c.Type, c.ID())
 }
-
-var ErrUnsupChunkType = fmt.Errorf("unsupported chunk type")
 
 // Timestamps returns the timestamps of the messages in the chunk.  For files
 // and other types of chunks, it returns ErrUnsupChunkType.

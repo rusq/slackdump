@@ -90,12 +90,12 @@ func transform(ctx context.Context, fsa fsadapter.FS, srcdir string, id string) 
 	// 	return err
 	// }
 	// transform the chunk file
-	pl, err := chunk.NewPlayer(f)
+	cf, err := chunk.FromReader(f)
 	if err != nil {
 		return err
 	}
 
-	ci, err := pl.ChannelInfo(id)
+	ci, err := cf.ChannelInfo(id)
 	if err != nil {
 		return err
 	}
@@ -105,7 +105,7 @@ func transform(ctx context.Context, fsa fsadapter.FS, srcdir string, id string) 
 		users = nil
 	}
 
-	if err := writeMessages(ctx, fsa, pl, ci, users); err != nil {
+	if err := writeMessages(ctx, fsa, cf, ci, users); err != nil {
 		return err
 	}
 
@@ -118,7 +118,7 @@ func LoadUsers(ctx context.Context, dir string) ([]slack.User, error) {
 		return nil, err
 	}
 	defer f.Close()
-	p, err := chunk.NewPlayer(f)
+	p, err := chunk.FromReader(f)
 	if err != nil {
 		return nil, err
 	}
@@ -136,7 +136,7 @@ func channelName(ch *slack.Channel) string {
 	return ch.Name
 }
 
-func writeMessages(ctx context.Context, fsa fsadapter.FS, pl *chunk.Player, ci *slack.Channel, users []slack.User) error {
+func writeMessages(ctx context.Context, fsa fsadapter.FS, pl *chunk.File, ci *slack.Channel, users []slack.User) error {
 	uidx := types.Users(users).IndexByID()
 	dir := channelName(ci)
 	var (

@@ -1,119 +1,46 @@
 package chunk
 
 import (
-	"context"
-	"encoding/json"
 	"errors"
 	"io"
-	"path/filepath"
-	"runtime/trace"
-	"sort"
-	"strings"
 	"sync"
 	"sync/atomic"
-	"time"
 
 	"github.com/slack-go/slack"
-
-	"github.com/rusq/slackdump/v2/internal/chunk/state"
-	"github.com/rusq/slackdump/v2/internal/structures"
 )
 
-var (
-	ErrNotFound  = errors.New("not found")
-	ErrExhausted = errors.New("exhausted")
-)
+var ErrExhausted = errors.New("exhausted")
 
 // Player replays the chunks from a file, it is able to emulate the API
 // responses, if used in conjunction with the [proctest.Server]. Zero value is
-// not usable.st
+// not usable.
 type Player struct {
-	rs   io.ReadSeeker
-	rsMu sync.RWMutex
-
-	idx     idOffsets  // index of chunks in the file
-	pointer offsets    // current chunk pointers
-	ptrMu   sync.Mutex // pointer mutex
-
+	f          *File
 	lastOffset atomic.Int64
+	pointer    offsets    // current chunk pointers
+	ptrMu      sync.Mutex // pointer mutex
 }
 
-// idOffsets holds the idOffsets of each chunk within the file.  key is the chunk ID,
-// value is the list of offsets for that id in the file.
-type idOffsets map[string][]int64
-
-// OffsetCount returns the total number of offsets in the index.
-func (idx idOffsets) OffsetCount() int {
-	n := 0
-	for _, offsets := range idx {
-		n += len(offsets)
-	}
-	return n
-}
-
-// offsets holds the index of the current offset in the index for each chunk
-// ID.
-type offsets map[string]int
-
-// NewPlayer creates a new chunk player from the io.ReadSeeker.
 func NewPlayer(rs io.ReadSeeker) (*Player, error) {
-	idx, err := indexChunks(json.NewDecoder(rs))
+	cf, err := FromReader(rs)
 	if err != nil {
 		return nil, err
 	}
-	if _, err := rs.Seek(0, io.SeekStart); err != nil { // reset offset
-		return nil, err
-	}
 	return &Player{
-		rs:      rs,
-		idx:     idx,
+		f:       cf,
 		pointer: make(offsets),
 	}, nil
 }
 
-type decoder interface {
-	Decode(interface{}) error
-	InputOffset() int64
-}
-
-// index is the index of the chunk file.
-type index struct {
-	// idOffset is a map of chunk IDs to offsets within the chunk file.
-	idOffset idOffsets
-	// offsetTS is a map of offsets to message timestamps within the chunk file.
-	offsetTS offts
-}
-
-// indexChunks indexes the records in the reader and returns an index.
-func indexChunks(dec decoder) (idOffsets, error) {
-	idx := make(idOffsets)
-
-	for i := 0; ; i++ {
-		offset := dec.InputOffset() // record current offset
-
-		var chunk Chunk
-		if err := dec.Decode(&chunk); err != nil {
-			if err == io.EOF {
-				break
-			}
-			return nil, err
-		}
-		idx[chunk.ID()] = append(idx[chunk.ID()], offset)
-	}
-	return idx, nil
-}
-
 // Offset returns the last read offset of the record in ReadSeeker.
 func (p *Player) Offset() int64 {
-	p.rsMu.RLock()
-	defer p.rsMu.RUnlock()
 	return p.lastOffset.Load()
 }
 
 // next tries to get the next chunk for the given id.  It returns
 // io.EOF if there are no more chunks for the given id.
-func (p *Player) next(id string) (*Chunk, error) {
-	offsets, ok := p.idx[id]
+func (p *Player) next(id GroupID) (*Chunk, error) {
+	offsets, ok := p.f.Offsets(id)
 	if !ok {
 		return nil, ErrNotFound
 	}
@@ -127,7 +54,7 @@ func (p *Player) next(id string) (*Chunk, error) {
 	}
 
 	p.lastOffset.Store(offsets[ptr])
-	chunk, err := p.chunkAt(offsets[ptr])
+	chunk, err := p.f.chunkAt(offsets[ptr])
 	if err != nil {
 		return nil, err
 	}
@@ -137,7 +64,7 @@ func (p *Player) next(id string) (*Chunk, error) {
 
 // Messages returns the next message chunk for the given channel.
 func (p *Player) Messages(channelID string) ([]slack.Message, error) {
-	chunk, err := p.next(channelID)
+	chunk, err := p.next(GroupID(channelID))
 	if err != nil {
 		return nil, err
 	}
@@ -165,14 +92,14 @@ func (p *Player) Channels() ([]slack.Channel, error) {
 // HasMoreMessages returns true if there are more messages to be read for the
 // channel.
 func (p *Player) HasMoreMessages(channelID string) bool {
-	return p.hasMore(channelID)
+	return p.hasMore(GroupID(channelID))
 }
 
 // hasMore returns true if there are more chunks for the given id.
-func (p *Player) hasMore(id string) bool {
-	p.rsMu.RLock()
-	defer p.rsMu.RUnlock()
-	offsets, ok := p.idx[id]
+func (p *Player) hasMore(id GroupID) bool {
+	p.ptrMu.Lock()
+	defer p.ptrMu.Unlock()
+	offsets, ok := p.f.Offsets(id)
 	if !ok {
 		return false // no such id
 	}
@@ -216,152 +143,7 @@ func (p *Player) Reset() error {
 	p.ptrMu.Lock()
 	p.pointer = make(offsets)
 	p.ptrMu.Unlock()
-
-	_, err := p.rs.Seek(0, io.SeekStart)
-	if err != nil {
-		return err
-	}
-
 	return nil
-}
-
-// ForEach iterates over the chunks in the reader and calls the function for
-// each chunk.  It will reset the state of the Player.
-func (p *Player) ForEach(fn func(ev *Chunk) error) error {
-	// locking mutex for the entire duration of the function, as we actively
-	// reading from the reader, and any unexpected Seek may cause issues.
-	p.rsMu.Lock()
-	defer p.rsMu.Unlock()
-	if err := p.Reset(); err != nil {
-		return err
-	}
-	dec := json.NewDecoder(p.rs)
-	for {
-		var chunk *Chunk
-		if err := dec.Decode(&chunk); err != nil {
-			if err == io.EOF {
-				break
-			}
-			return err
-		}
-		if err := fn(chunk); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// namer is an interface that allows us to get the name of the file.
-type namer interface {
-	// Name should return the name of the file.  *os.File implements this
-	// interface.
-	Name() string
-}
-
-// State generates and returns the state of the player.  It does not include
-// the path to the downloaded files.
-func (p *Player) State() (*state.State, error) {
-	var name string
-	if file, ok := p.rs.(namer); ok {
-		name = filepath.Base(file.Name())
-	}
-	s := state.New(name)
-	if err := p.ForEach(func(ev *Chunk) error {
-		if ev == nil {
-			return nil
-		}
-		if ev.Type == CFiles {
-			for _, f := range ev.Files {
-				// we are adding the files with the empty path as we
-				// have no way of knowing if the file was downloaded or not.
-				s.AddFile(ev.ChannelID, f.ID, "")
-			}
-		}
-		if ev.Type == CThreadMessages {
-			for _, m := range ev.Messages {
-				s.AddThread(ev.ChannelID, ev.Parent.ThreadTimestamp, m.Timestamp)
-			}
-		}
-		if ev.Type == CMessages {
-			for _, m := range ev.Messages {
-				s.AddMessage(ev.ChannelID, m.Timestamp)
-			}
-		}
-		return nil
-	}); err != nil {
-		return nil, err
-	}
-	return s, nil
-}
-
-// AllMessages returns all the messages for the given channel.
-func (p *Player) AllMessages(channelID string) ([]slack.Message, error) {
-	return p.allMessagesForID(channelID)
-}
-
-// AllThreadMessages returns all the messages for the given thread.
-func (p *Player) AllThreadMessages(channelID, threadTS string) ([]slack.Message, error) {
-	return p.allMessagesForID(threadID(channelID, threadTS))
-}
-
-// AllUsers returns all users in the dump file.
-func (p *Player) AllUsers() ([]slack.User, error) {
-	return allForID(p, userChunkID, func(c *Chunk) []slack.User {
-		return c.Users
-	})
-}
-
-// AllChannels returns all channels in the dump file.
-func (p *Player) AllChannels() ([]slack.Channel, error) {
-	return allForID(p, channelChunkID, func(c *Chunk) []slack.Channel {
-		return c.Channels
-	})
-}
-
-// allMessagesForID returns all the messages for the given id. It will reset
-// the Player prior to execution.
-func (p *Player) allMessagesForID(id string) ([]slack.Message, error) {
-	return allForID(p, id, func(c *Chunk) []slack.Message {
-		return c.Messages
-	})
-}
-
-// allForID returns all the messages for the given id. It will reset
-// the Player prior to execution.
-func allForID[T any](p *Player, id string, fn func(*Chunk) []T) ([]T, error) {
-	if err := p.Reset(); err != nil {
-		return nil, err
-	}
-
-	// locking mutex for the entire duration of the function, as we must keep
-	// the state of the player consistent until the function ends.
-	p.ptrMu.Lock()
-	defer p.ptrMu.Unlock()
-
-	var m []T
-	for {
-		chunk, err := p.next(id)
-		if err != nil {
-			if err == io.EOF {
-				break
-			}
-			return nil, err
-		}
-		m = append(m, fn(chunk)...)
-	}
-	return m, nil
-}
-
-// AllChannelIDs returns all the channels in the chunkfile.
-func (p *Player) AllChannelIDs() []string {
-	var ids = make([]string, 0, 1)
-	for id := range p.idx {
-		if !strings.Contains(id, ":") && id[0] != 'i' && id[0] != 'l' {
-			ids = append(ids, id)
-		}
-	}
-	sort.Strings(ids)
-	return ids
 }
 
 // ChannelInfo returns the channel information for the given channel.  It
@@ -372,147 +154,4 @@ func (p *Player) ChannelInfo(id string) (*slack.Channel, error) {
 		return nil, err
 	}
 	return chunk.Channel, nil
-}
-
-// offts is a mapping of chunk offset to the message timestamps it contains,
-// along with some chunk medatata.
-type offts map[int64]offsetInfo
-
-// offsetInfo contains the metadata for a chunk and the list of all timestamps
-type offsetInfo struct {
-	ID         string
-	Type       ChunkType
-	Timestamps []int64
-}
-
-func (o offts) MessageCount() int {
-	var count int
-	for _, info := range o {
-		if info.Type == CMessages {
-			count += len(info.Timestamps)
-		}
-	}
-	return count
-}
-
-// offsetTimestamp returns a map of the chunk offset to the message timestamps
-// it contains.
-func (p *Player) offsetTimestamps() (offts, error) {
-	var ret = make(offts, p.idx.OffsetCount())
-	for id, offsets := range p.idx {
-		prefix := id[0]
-		switch prefix {
-		case 'i', 'f', 'l': // ignoring files, information and list chunks
-			continue
-		}
-		for _, offset := range offsets {
-			chunk, err := p.chunkAt(offset)
-			if err != nil {
-				continue
-			}
-			ts, err := chunk.Timestamps()
-			if err != nil {
-				return nil, err
-			}
-			ret[offset] = offsetInfo{
-				ID:         chunk.ID(),
-				Type:       chunk.Type,
-				Timestamps: ts,
-			}
-		}
-	}
-	return ret, nil
-}
-
-type TimeOffset struct {
-	Offset int64 // offset within the chunk file
-	Index  int   // index of the message within the messages slice in the chunk
-}
-
-// timeOffsets returns a map of the timestamp to the chunk offset and index of
-// the message with this timestamp within the message slice.  It converts the
-// string timestamp to an int64 timestamp using structures.TS2int, but the
-// original string timestamp returned in the TimeOffset struct.
-func timeOffsets(ots offts) map[int64]TimeOffset {
-	var ret = make(map[int64]TimeOffset, len(ots))
-	for offset, info := range ots {
-		for i, ts := range info.Timestamps {
-			ret[ts] = TimeOffset{
-				Offset: offset,
-				Index:  i,
-			}
-		}
-	}
-	return ret
-}
-
-// Sorted iterates over all the messages in the chunkfile in chronological
-// order.
-func (p *Player) Sorted(ctx context.Context, descending bool, fn func(ts time.Time, m *slack.Message) error) error {
-	ctx, task := trace.NewTask(ctx, "player.Sorted")
-	defer task.End()
-
-	trace.Log(ctx, "mutex", "lock")
-
-	rgnOt := trace.StartRegion(ctx, "offsetTimestamps")
-	ots, err := p.offsetTimestamps()
-	rgnOt.End()
-	if err != nil {
-		return err
-	}
-
-	rgnTos := trace.StartRegion(ctx, "timeOffsets")
-	tos := timeOffsets(ots)
-	rgnTos.End()
-	var tsList = make([]int64, 0, len(tos))
-	for ts := range tos {
-		tsList = append(tsList, ts)
-	}
-	sf := func(i, j int) bool {
-		return tsList[i] < tsList[j]
-	}
-	if descending {
-		sf = func(i, j int) bool {
-			return tsList[i] > tsList[j]
-		}
-	}
-
-	sort.Slice(tsList, sf)
-
-	var (
-		prevOffset int64 // previous chunk offset, used to avoid seeking
-		chunk      *Chunk
-	)
-	for _, ts := range tsList {
-		tmOff := tos[ts]
-		// we don't want to be reading the same chunk over and over again.
-		if tmOff.Offset != prevOffset {
-			var err error
-			chunk, err = p.chunkAt(tmOff.Offset)
-			if err != nil {
-				return err
-			}
-			prevOffset = tmOff.Offset
-		}
-		if err := fn(structures.Int2Time(ts).UTC(), &chunk.Messages[tmOff.Index]); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// chunkAt returns the chunk at the given offset.
-func (p *Player) chunkAt(offset int64) (*Chunk, error) {
-	p.rsMu.Lock()
-	defer p.rsMu.Unlock()
-	_, err := p.rs.Seek(offset, io.SeekStart)
-	if err != nil {
-		return nil, err
-	}
-	dec := json.NewDecoder(p.rs)
-	var chunk *Chunk
-	if err := dec.Decode(&chunk); err != nil {
-		return nil, err
-	}
-	return chunk, nil
 }
