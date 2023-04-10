@@ -110,9 +110,9 @@ func (p *Player) Offset() int64 {
 	return p.lastOffset.Load()
 }
 
-// tryGetChunk tries to get the next chunk for the given id.  It returns
+// next tries to get the next chunk for the given id.  It returns
 // io.EOF if there are no more chunks for the given id.
-func (p *Player) tryGetChunk(id string) (*Chunk, error) {
+func (p *Player) next(id string) (*Chunk, error) {
 	offsets, ok := p.idx[id]
 	if !ok {
 		return nil, ErrNotFound
@@ -137,7 +137,7 @@ func (p *Player) tryGetChunk(id string) (*Chunk, error) {
 
 // Messages returns the next message chunk for the given channel.
 func (p *Player) Messages(channelID string) ([]slack.Message, error) {
-	chunk, err := p.tryGetChunk(channelID)
+	chunk, err := p.next(channelID)
 	if err != nil {
 		return nil, err
 	}
@@ -146,7 +146,7 @@ func (p *Player) Messages(channelID string) ([]slack.Message, error) {
 
 // Users returns the next users chunk.
 func (p *Player) Users() ([]slack.User, error) {
-	chunk, err := p.tryGetChunk(userChunkID)
+	chunk, err := p.next(userChunkID)
 	if err != nil {
 		return nil, err
 	}
@@ -155,7 +155,7 @@ func (p *Player) Users() ([]slack.User, error) {
 
 // Channels returns the next channels chunk.
 func (p *Player) Channels() ([]slack.Channel, error) {
-	chunk, err := p.tryGetChunk(channelChunkID)
+	chunk, err := p.next(channelChunkID)
 	if err != nil {
 		return nil, err
 	}
@@ -204,7 +204,7 @@ func (p *Player) HasChannels() bool {
 // Thread returns the messages for the given thread.
 func (p *Player) Thread(channelID string, threadTS string) ([]slack.Message, error) {
 	id := threadID(channelID, threadTS)
-	chunk, err := p.tryGetChunk(id)
+	chunk, err := p.next(id)
 	if err != nil {
 		return nil, err
 	}
@@ -340,7 +340,7 @@ func allForID[T any](p *Player, id string, fn func(*Chunk) []T) ([]T, error) {
 
 	var m []T
 	for {
-		chunk, err := p.tryGetChunk(id)
+		chunk, err := p.next(id)
 		if err != nil {
 			if err == io.EOF {
 				break
@@ -367,7 +367,7 @@ func (p *Player) AllChannelIDs() []string {
 // ChannelInfo returns the channel information for the given channel.  It
 // returns an error if the channel is not found within the chunkfile.
 func (p *Player) ChannelInfo(id string) (*slack.Channel, error) {
-	chunk, err := p.tryGetChunk(channelInfoID(id, false))
+	chunk, err := p.next(channelInfoID(id, false))
 	if err != nil {
 		return nil, err
 	}
@@ -494,7 +494,7 @@ func (p *Player) Sorted(ctx context.Context, descending bool, fn func(ts time.Ti
 			}
 			prevOffset = tmOff.Offset
 		}
-		if err := fn(structures.Int2Time(ts), &chunk.Messages[tmOff.Index]); err != nil {
+		if err := fn(structures.Int2Time(ts).UTC(), &chunk.Messages[tmOff.Index]); err != nil {
 			return err
 		}
 	}

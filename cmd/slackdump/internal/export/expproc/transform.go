@@ -26,7 +26,6 @@ type Transform struct {
 	srcdir string       // source directory with chunks.
 	fsa    fsadapter.FS // target file system adapter.
 	ids    chan string  // channel used to pass channel IDs to the worker.
-	users  []slack.User // user list.
 	err    chan error   // error channel used to propagate errors to the main thread.
 }
 
@@ -55,7 +54,7 @@ func (t *Transform) OnFinish(channelID string) error {
 
 func (t *Transform) worker(ctx context.Context) {
 	for id := range t.ids {
-		if err := transform(ctx, t.fsa, t.srcdir, id, t.users); err != nil {
+		if err := transform(ctx, t.fsa, t.srcdir, id); err != nil {
 			t.err <- err
 			continue
 		}
@@ -75,7 +74,7 @@ func (t *Transform) Close() error {
 // into the relevant directory.  It expects the chunk file to be in the
 // srcdir/id.json.gz file, and the attachments to be in the srcdir/id
 // directory.
-func transform(ctx context.Context, fsa fsadapter.FS, srcdir string, id string, u []slack.User) error {
+func transform(ctx context.Context, fsa fsadapter.FS, srcdir string, id string) error {
 	ctx, task := trace.NewTask(ctx, "transform")
 	defer task.End()
 
@@ -101,11 +100,33 @@ func transform(ctx context.Context, fsa fsadapter.FS, srcdir string, id string, 
 		return err
 	}
 
-	if err := writeMessages(ctx, fsa, pl, ci, u); err != nil {
+	users, err := LoadUsers(ctx, srcdir)
+	if err != nil {
+		users = nil
+	}
+
+	if err := writeMessages(ctx, fsa, pl, ci, users); err != nil {
 		return err
 	}
 
 	return nil
+}
+
+func LoadUsers(ctx context.Context, dir string) ([]slack.User, error) {
+	f, err := openChunks(filepath.Join(dir, "users"+ext))
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	p, err := chunk.NewPlayer(f)
+	if err != nil {
+		return nil, err
+	}
+	users, err := p.AllUsers()
+	if err != nil {
+		return nil, err
+	}
+	return users, nil
 }
 
 func channelName(ch *slack.Channel) string {
@@ -115,8 +136,8 @@ func channelName(ch *slack.Channel) string {
 	return ch.Name
 }
 
-func writeMessages(ctx context.Context, fsa fsadapter.FS, pl *chunk.Player, ci *slack.Channel, u []slack.User) error {
-	uidx := types.Users(u).IndexByID()
+func writeMessages(ctx context.Context, fsa fsadapter.FS, pl *chunk.Player, ci *slack.Channel, users []slack.User) error {
+	uidx := types.Users(users).IndexByID()
 	dir := channelName(ci)
 	var (
 		prevDt string         // previous date
@@ -149,7 +170,8 @@ func writeMessages(ctx context.Context, fsa fsadapter.FS, pl *chunk.Player, ci *
 			wc.Write([]byte(",\n"))
 		}
 		var thread []slack.Message
-		if m.ThreadTimestamp != "" {
+		if m.ThreadTimestamp == m.Timestamp {
+			// get the thread for the initial thread message only.
 			var err error
 			thread, err = pl.AllThreadMessages(ci.ID, m.ThreadTimestamp)
 			if err != nil {
