@@ -132,7 +132,15 @@ const (
 )
 
 // AsyncConversations fetches the conversations from the link which can be a
-// channelID, channel URL, thread URL or a link in Slackdump format.
+// channelID, channel URL, thread URL or a link in Slackdump format.  fn is
+// called for each result (channel messages, or thread messages).  The fact
+// that fn was called for channel messages, does not mean that all threads for
+// that channel have been processed.  The fn is called for each thread result,
+// and the last thread result is marked with StreamResult.IsLast.  The caller
+// must track the number of threads processed for each channel, and when the
+// thread result with IsLast is received, the caller can assume that all
+// threads and messages for that channel have been processed.  For example,
+// see [cmd/slackdump/internal/export/expproc].
 func (cs *Stream) AsyncConversations(ctx context.Context, proc processor.Conversations, links <-chan string, fn func(StreamResult) error) error {
 	ctx, task := trace.NewTask(ctx, "AsyncConversations")
 	defer task.End()

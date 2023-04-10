@@ -40,7 +40,7 @@ func Test_transform(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := transform(tt.args.ctx, tt.args.fsa, tt.args.srcdir, tt.args.id); (err != nil) != tt.wantErr {
+			if err := transform(tt.args.ctx, tt.args.fsa, tt.args.srcdir, tt.args.id, nil); (err != nil) != tt.wantErr {
 				t.Errorf("transform() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

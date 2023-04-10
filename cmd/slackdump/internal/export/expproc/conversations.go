@@ -22,7 +22,7 @@ type Conversations struct {
 type ConvOption func(*Conversations)
 
 // OnFinish sets a callback function that is called when the processor is
-// finished processing channel and threads.
+// finished processing all channel and threads for the channel.
 func OnFinish(fn func(channelID string) error) ConvOption {
 	return func(cv *Conversations) {
 		cv.onFinish = fn

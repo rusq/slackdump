@@ -24,7 +24,6 @@ func exportV3(ctx context.Context, sess *slackdump.Session, fs fsadapter.FS, lis
 	}
 	lg.Printf("using %s as the temporary directory", tmpdir)
 	lg.Print("running export...")
-
 	errC := make(chan error, 1)
 	s := sess.Stream()
 	var wg sync.WaitGroup
@@ -50,11 +49,14 @@ func exportV3(ctx context.Context, sess *slackdump.Session, fs fsadapter.FS, lis
 		}()
 	}
 	// user goroutine
+	// once all users are fetched, it triggers the transformer to start.
+	usersReady := make(chan struct{})
 	{
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			errC <- userWorker(ctx, s, tmpdir)
+			close(usersReady)
 		}()
 	}
 	// conversations goroutine
@@ -66,7 +68,6 @@ func exportV3(ctx context.Context, sess *slackdump.Session, fs fsadapter.FS, lis
 			defer wg.Done()
 			defer pb.Finish()
 			errC <- conversationWorker(ctx, s, pb, tmpdir, links)
-
 		}()
 	}
 	// sentinel

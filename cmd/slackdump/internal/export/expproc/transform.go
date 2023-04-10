@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -20,28 +21,71 @@ import (
 	"github.com/slack-go/slack"
 )
 
-var errNotADir = errors.New("not a directory")
-
 type Transform struct {
 	srcdir string       // source directory with chunks.
 	fsa    fsadapter.FS // target file system adapter.
 	ids    chan string  // channel used to pass channel IDs to the worker.
+	done   chan struct{}
+	users  []slack.User // list of users.
 	err    chan error   // error channel used to propagate errors to the main thread.
 }
 
+type TfOption func(*Transform)
+
+func WithBufferSize(n int) TfOption {
+	return func(t *Transform) {
+		t.ids = make(chan string, n)
+	}
+}
+
+// WithUsers allows to pass a list of users to the transformer.
+func WithUsers(users []slack.User) TfOption {
+	return func(t *Transform) {
+		t.users = users
+	}
+}
+
 // NewTransform creates a new Transform instance.
-func NewTransform(ctx context.Context, fsa fsadapter.FS, chunkdir string) (*Transform, error) {
+func NewTransform(ctx context.Context, fsa fsadapter.FS, chunkdir string, tfopt ...TfOption) (*Transform, error) {
+	if err := osext.DirExists(chunkdir); err != nil {
+		return nil, fmt.Errorf("chunk directory %s does not exist: %w", chunkdir, err)
+	}
 	t := &Transform{
 		srcdir: chunkdir,
 		fsa:    fsa,
 		ids:    make(chan string),
+		done:   make(chan struct{}),
 		err:    make(chan error, 1),
 	}
-	go t.worker(ctx)
+	for _, opt := range tfopt {
+		opt(t)
+	}
 	return t, nil
 }
 
+// Start starts the Transform processor.
+func (t *Transform) StartWithUsers(ctx context.Context, users []slack.User) error {
+	if users == nil {
+		return errors.New("users list is nil")
+	}
+	t.users = users
+	go t.worker(ctx)
+	return nil
+}
+
+// Start starts the Transform processor, the users must have been initialised
+// with the WithUsers option.  Otherwise, use StartWithUsers method.
+func (t *Transform) Start(ctx context.Context) error {
+	if t.users == nil {
+		return errors.New("internal error: users not initialised")
+	}
+	go t.worker(ctx)
+	return nil
+}
+
 // OnFinish is the function that should be passed to the Channel processor.
+// It will not block if the internal buffer is full.  Buffer size can be
+// set with the WithBufferSize option.
 func (t *Transform) OnFinish(channelID string) error {
 	select {
 	case err := <-t.err:
@@ -54,11 +98,12 @@ func (t *Transform) OnFinish(channelID string) error {
 
 func (t *Transform) worker(ctx context.Context) {
 	for id := range t.ids {
-		if err := transform(ctx, t.fsa, t.srcdir, id); err != nil {
+		if err := transform(ctx, t.fsa, t.srcdir, id, t.users); err != nil {
 			t.err <- err
 			continue
 		}
 	}
+	close(t.done)
 }
 
 // Close closes the Transform processor.  It must be called once it is
@@ -66,6 +111,7 @@ func (t *Transform) worker(ctx context.Context) {
 // call to OnFinish will panic.
 func (t *Transform) Close() error {
 	close(t.ids)
+	<-t.done
 	return nil
 }
 
@@ -74,7 +120,7 @@ func (t *Transform) Close() error {
 // into the relevant directory.  It expects the chunk file to be in the
 // srcdir/id.json.gz file, and the attachments to be in the srcdir/id
 // directory.
-func transform(ctx context.Context, fsa fsadapter.FS, srcdir string, id string) error {
+func transform(ctx context.Context, fsa fsadapter.FS, srcdir string, id string, users []slack.User) error {
 	ctx, task := trace.NewTask(ctx, "transform")
 	defer task.End()
 
@@ -98,11 +144,6 @@ func transform(ctx context.Context, fsa fsadapter.FS, srcdir string, id string) 
 	ci, err := cf.ChannelInfo(id)
 	if err != nil {
 		return err
-	}
-
-	users, err := LoadUsers(ctx, srcdir)
-	if err != nil {
-		users = nil
 	}
 
 	if err := writeMessages(ctx, fsa, cf, ci, users); err != nil {
@@ -286,18 +327,4 @@ func openChunks(filename string) (io.ReadSeekCloser, error) {
 	}
 
 	return osext.RemoveOnClose(tf, tf.Name()), nil
-}
-
-func dirExists(dir string) (bool, error) {
-	fi, err := os.Stat(dir)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return false, nil
-		}
-		return false, err
-	}
-	if !fi.IsDir() {
-		return false, errNotADir
-	}
-	return true, nil
 }
