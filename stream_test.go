@@ -12,6 +12,7 @@ import (
 	"github.com/rusq/chttp"
 	"github.com/slack-go/slack"
 
+	"github.com/rusq/slackdump/v2/auth"
 	"github.com/rusq/slackdump/v2/internal/cache"
 	"github.com/rusq/slackdump/v2/internal/chunk"
 	"github.com/rusq/slackdump/v2/internal/chunk/chunktest"
@@ -60,7 +61,7 @@ func TestChannelStream(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	sd := slack.New(prov.SlackToken(), slack.OptionHTTPClient(chttp.Must(chttp.New("https://slack.com", prov.Cookies()))))
+	sd := slack.New(prov.SlackToken(), slack.OptionHTTPClient(chttp.Must(chttp.New(auth.SlackURL, prov.Cookies()))))
 
 	f, err := os.Create("record.jsonl")
 	if err != nil {

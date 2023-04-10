@@ -20,7 +20,7 @@ type Client struct {
 }
 
 func New(teamID string, token string, cookies []*http.Cookie) (*Client, error) {
-	cl, err := chttp.New("https://slack.com", cookies)
+	cl, err := chttp.New(auth.SlackURL, cookies)
 	if err != nil {
 		return nil, err
 	}

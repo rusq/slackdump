@@ -70,7 +70,7 @@ func runRawOutput(ctx context.Context, cmd *base.Command, args []string) error {
 }
 
 const (
-	domain  = "https://slack.com"
+	domain  = auth.SlackURL
 	baseURL = domain + "/api/"
 )
 

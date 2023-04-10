@@ -13,6 +13,8 @@ import (
 	"github.com/slack-go/slack"
 )
 
+const SlackURL = "https://slack.com"
+
 // Type is the auth type.
 //
 //go:generate stringer -type Type -linecomment
@@ -131,5 +133,5 @@ func (s simpleProvider) Test(ctx context.Context) error {
 }
 
 func (s simpleProvider) HTTPClient() (*http.Client, error) {
-	return chttp.New("https://slack.com", s.Cookies())
+	return chttp.New(SlackURL, s.Cookies())
 }
