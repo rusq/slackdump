@@ -251,7 +251,7 @@ func parseCmdLine(args []string) (params, error) {
 	fs.StringVar(&p.creds.Token, "t", osenv.Secret(envSlackToken, ""), "Specify slack `API_token`, (environment: "+envSlackToken+")")
 	fs.StringVar(&p.creds.Cookie, "cookie", osenv.Secret(envSlackCookie, ""), "d= cookie `value` or a path to a cookie.txt file (environment: "+envSlackCookie+")")
 	fs.BoolVar(&p.authReset, "auth-reset", false, "reset EZ-Login 3000 authentication.")
-	fs.Var(&p.browser, "browser", "set the browser to use for authentication: 'chrome' or 'firefox' (default: firefox)")
+	fs.Var(&p.browser, "browser", "set the browser to use for authentication: 'chromium' or 'firefox' (default: firefox)")
 
 	// operation mode
 	fs.BoolVar(&p.appCfg.ListFlags.Channels, "c", false, "same as -list-channels")
