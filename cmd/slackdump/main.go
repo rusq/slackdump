@@ -19,6 +19,7 @@ import (
 	"github.com/slack-go/slack"
 
 	"github.com/rusq/slackdump/v2"
+	"github.com/rusq/slackdump/v2/auth/browser"
 	"github.com/rusq/slackdump/v2/export"
 	"github.com/rusq/slackdump/v2/internal/app"
 	"github.com/rusq/slackdump/v2/internal/app/config"
@@ -54,6 +55,7 @@ type params struct {
 	appCfg    config.Params
 	creds     app.SlackCreds
 	authReset bool
+	browser   browser.Browser
 
 	traceFile string // trace file
 	logFile   string //log file, if not specified, outputs to stderr.
@@ -129,7 +131,7 @@ func run(ctx context.Context, p params) error {
 	ctx, task := trace.NewTask(ctx, "main.run")
 	defer task.End()
 
-	provider, err := app.InitProvider(ctx, p.appCfg.Options.CacheDir, "", p.creds)
+	provider, err := app.InitProvider(ctx, p.appCfg.Options.CacheDir, "", p.creds, p.browser)
 	if err != nil {
 		return err
 	} else {
@@ -249,6 +251,7 @@ func parseCmdLine(args []string) (params, error) {
 	fs.StringVar(&p.creds.Token, "t", osenv.Secret(envSlackToken, ""), "Specify slack `API_token`, (environment: "+envSlackToken+")")
 	fs.StringVar(&p.creds.Cookie, "cookie", osenv.Secret(envSlackCookie, ""), "d= cookie `value` or a path to a cookie.txt file (environment: "+envSlackCookie+")")
 	fs.BoolVar(&p.authReset, "auth-reset", false, "reset EZ-Login 3000 authentication.")
+	fs.Var(&p.browser, "browser", "set the browser to use for authentication: 'chrome' or 'firefox' (default: firefox)")
 
 	// operation mode
 	fs.BoolVar(&p.appCfg.ListFlags.Channels, "c", false, "same as -list-channels")

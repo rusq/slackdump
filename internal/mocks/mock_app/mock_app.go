@@ -11,6 +11,7 @@ import (
 
 	gomock "github.com/golang/mock/gomock"
 	auth "github.com/rusq/slackdump/v2/auth"
+	browser "github.com/rusq/slackdump/v2/auth/browser"
 )
 
 // MockCredentials is a mock of Credentials interface.
@@ -37,18 +38,18 @@ func (m *MockCredentials) EXPECT() *MockCredentialsMockRecorder {
 }
 
 // AuthProvider mocks base method.
-func (m *MockCredentials) AuthProvider(ctx context.Context, workspace string) (auth.Provider, error) {
+func (m *MockCredentials) AuthProvider(ctx context.Context, workspace string, browser browser.Browser) (auth.Provider, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AuthProvider", ctx, workspace)
+	ret := m.ctrl.Call(m, "AuthProvider", ctx, workspace, browser)
 	ret0, _ := ret[0].(auth.Provider)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // AuthProvider indicates an expected call of AuthProvider.
-func (mr *MockCredentialsMockRecorder) AuthProvider(ctx, workspace interface{}) *gomock.Call {
+func (mr *MockCredentialsMockRecorder) AuthProvider(ctx, workspace, browser interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AuthProvider", reflect.TypeOf((*MockCredentials)(nil).AuthProvider), ctx, workspace)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AuthProvider", reflect.TypeOf((*MockCredentials)(nil).AuthProvider), ctx, workspace, browser)
 }
 
 // IsEmpty mocks base method.

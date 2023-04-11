@@ -12,6 +12,7 @@ import (
 
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/auth"
+	"github.com/rusq/slackdump/v2/auth/browser"
 	"github.com/rusq/slackdump/v2/internal/encio"
 )
 
@@ -66,14 +67,14 @@ func (c SlackCreds) IsEmpty() bool {
 
 // AuthProvider returns the appropriate auth Provider depending on the values
 // of the token and cookie.
-func (c SlackCreds) AuthProvider(ctx context.Context, workspace string) (auth.Provider, error) {
+func (c SlackCreds) AuthProvider(ctx context.Context, workspace string, browser browser.Browser) (auth.Provider, error) {
 	authType, err := c.Type(ctx)
 	if err != nil {
 		return nil, err
 	}
 	switch authType {
 	case auth.TypeBrowser:
-		return auth.NewBrowserAuth(ctx, auth.BrowserWithWorkspace(workspace))
+		return auth.NewBrowserAuth(ctx, auth.BrowserWithWorkspace(workspace), auth.BrowserWithBrowser(browser))
 	case auth.TypeCookieFile:
 		return auth.NewCookieFileAuth(c.Token, c.Cookie)
 	case auth.TypeValue:
@@ -105,7 +106,7 @@ var filer createOpener = encryptedFile{}
 
 type Credentials interface {
 	IsEmpty() bool
-	AuthProvider(ctx context.Context, workspace string) (auth.Provider, error)
+	AuthProvider(ctx context.Context, workspace string, browser browser.Browser) (auth.Provider, error)
 }
 
 // InitProvider initialises the auth.Provider depending on provided slack
@@ -123,7 +124,7 @@ type Credentials interface {
 // virtual), even another operating system on the same machine, unless it's a
 // clone of the source operating system on which the credentials storage was
 // created.
-func InitProvider(ctx context.Context, cacheDir string, workspace string, creds Credentials) (auth.Provider, error) {
+func InitProvider(ctx context.Context, cacheDir string, workspace string, creds Credentials, browser browser.Browser) (auth.Provider, error) {
 	ctx, task := trace.NewTask(ctx, "InitProvider")
 	defer task.End()
 
@@ -145,7 +146,7 @@ func InitProvider(ctx context.Context, cacheDir string, workspace string, creds 
 
 	// init the authentication provider
 	trace.Log(ctx, "info", "getting credentals from file or browser")
-	provider, err := creds.AuthProvider(ctx, workspace)
+	provider, err := creds.AuthProvider(ctx, workspace, browser)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialise the auth provider: %w", err)
 	}

@@ -13,6 +13,7 @@ import (
 	"os"
 
 	"github.com/rusq/chttp"
+	"github.com/rusq/slackdump/v2/auth/browser"
 	"github.com/rusq/slackdump/v2/internal/app"
 	"github.com/rusq/slackdump/v2/internal/structures"
 )
@@ -63,7 +64,7 @@ const (
 )
 
 func run(ctx context.Context, p params) error {
-	prov, err := app.InitProvider(ctx, app.CacheDir(), p.workspace, p.creds)
+	prov, err := app.InitProvider(ctx, app.CacheDir(), p.workspace, p.creds, browser.Bfirefox)
 	if err != nil {
 		return err
 	}
