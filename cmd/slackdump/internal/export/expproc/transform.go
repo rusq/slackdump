@@ -12,6 +12,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/rusq/dlog"
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/slackdump/v2/export"
 	"github.com/rusq/slackdump/v2/internal/chunk"
@@ -83,10 +84,10 @@ func (t *Transform) Start(ctx context.Context) error {
 	return nil
 }
 
-// OnFinish is the function that should be passed to the Channel processor.
+// OnFinalise is the function that should be passed to the Channel processor.
 // It will not block if the internal buffer is full.  Buffer size can be
 // set with the WithBufferSize option.
-func (t *Transform) OnFinish(channelID string) error {
+func (t *Transform) OnFinalise(channelID string) error {
 	select {
 	case err := <-t.err:
 		return err
@@ -123,7 +124,9 @@ func (t *Transform) Close() error {
 func transform(ctx context.Context, fsa fsadapter.FS, srcdir string, id string, users []slack.User) error {
 	ctx, task := trace.NewTask(ctx, "transform")
 	defer task.End()
+	lg := dlog.FromContext(ctx)
 	trace.Logf(ctx, "input", "len(users)=%d", len(users))
+	lg.Debugf("transforming channel %s, user len=%d", id, len(users))
 
 	// load the chunk file
 	f, err := openChunks(filepath.Join(srcdir, id+ext))

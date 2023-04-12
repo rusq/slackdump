@@ -66,10 +66,12 @@ func runExport(ctx context.Context, cmd *base.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+
 	fsa, err := fsadapter.New(cfg.BaseLocation)
 	if err != nil {
 		return err
 	}
+	defer fsa.Close()
 
 	options.List = list
 	options.Logger = dlog.FromContext(ctx)

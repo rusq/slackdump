@@ -82,7 +82,7 @@ func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 		go func() {
 			defer wg.Done()
 			defer pb.Finish()
-			errC <- conversationWorker(ctx, s, pb, tmpdir, links)
+			errC <- conversationWorker(ctx, s, pb, tmpdir, links, tf.OnFinalise)
 		}()
 	}
 	// sentinel
@@ -184,8 +184,8 @@ type progresser interface {
 	Finish() error
 }
 
-func conversationWorker(ctx context.Context, s *slackdump.Stream, pb progresser, tmpdir string, links <-chan string) error {
-	conv, err := expproc.NewConversation(tmpdir)
+func conversationWorker(ctx context.Context, s *slackdump.Stream, pb progresser, tmpdir string, links <-chan string, finaliseFn func(string) error) error {
+	conv, err := expproc.NewConversation(tmpdir, expproc.OnFinalise(finaliseFn))
 	if err != nil {
 		return fmt.Errorf("error initialising conversation processor: %w", err)
 	}
