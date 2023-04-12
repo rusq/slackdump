@@ -16,12 +16,17 @@ import (
 	"github.com/slack-go/slack"
 )
 
-func exportV3(ctx context.Context, sess *slackdump.Session, fs fsadapter.FS, list *structures.EntityList, options export.Config) error {
+func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, list *structures.EntityList, options export.Config) error {
 	lg := dlog.FromContext(ctx)
 	tmpdir, err := os.MkdirTemp("", "slackdump-*")
 	if err != nil {
 		return err
 	}
+	tf, err := expproc.NewTransform(ctx, fsa, tmpdir, expproc.WithBufferSize(1000))
+	if err != nil {
+		return fmt.Errorf("failed to create transformer: %w", err)
+	}
+	defer tf.Close()
 	lg.Printf("using %s as the temporary directory", tmpdir)
 	lg.Print("running export...")
 	errC := make(chan error, 1)
@@ -50,13 +55,23 @@ func exportV3(ctx context.Context, sess *slackdump.Session, fs fsadapter.FS, lis
 	}
 	// user goroutine
 	// once all users are fetched, it triggers the transformer to start.
-	usersReady := make(chan struct{})
 	{
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			errC <- userWorker(ctx, s, tmpdir)
-			close(usersReady)
+			if err := userWorker(ctx, s, tmpdir); err != nil {
+				errC <- err
+				return
+			}
+			users, err := expproc.LoadUsers(ctx, tmpdir)
+			if err != nil {
+				errC <- err
+				return
+			}
+			if err := tf.StartWithUsers(ctx, users); err != nil {
+				errC <- err
+				return
+			}
 		}()
 	}
 	// conversations goroutine
@@ -149,6 +164,7 @@ func userWorker(ctx context.Context, s *slackdump.Stream, tmpdir string) error {
 	if err != nil {
 		return err
 	}
+	defer userproc.Close()
 
 	if err := s.Users(ctx, userproc); err != nil {
 		return fmt.Errorf("error listing users: %w", err)

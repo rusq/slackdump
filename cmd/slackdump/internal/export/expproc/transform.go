@@ -123,6 +123,7 @@ func (t *Transform) Close() error {
 func transform(ctx context.Context, fsa fsadapter.FS, srcdir string, id string, users []slack.User) error {
 	ctx, task := trace.NewTask(ctx, "transform")
 	defer task.End()
+	trace.Logf(ctx, "input", "len(users)=%d", len(users))
 
 	// load the chunk file
 	f, err := openChunks(filepath.Join(srcdir, id+ext))
@@ -154,6 +155,9 @@ func transform(ctx context.Context, fsa fsadapter.FS, srcdir string, id string, 
 }
 
 func LoadUsers(ctx context.Context, dir string) ([]slack.User, error) {
+	_, task := trace.NewTask(ctx, "load users")
+	defer task.End()
+
 	f, err := openChunks(filepath.Join(dir, "users"+ext))
 	if err != nil {
 		return nil, err

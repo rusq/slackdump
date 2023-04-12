@@ -6,15 +6,16 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"runtime"
+	"sync/atomic"
 
 	"github.com/rusq/slackdump/v2/internal/chunk"
 )
 
 type baseproc struct {
-	dir string
-	wf  io.Closer // processor recording
-	gz  io.WriteCloser
+	dir    string
+	wf     io.Closer // processor recording
+	gz     io.WriteCloser
+	closed atomic.Bool
 	*chunk.Recorder
 }
 
@@ -29,10 +30,11 @@ func newBaseProc(dir string, name string) (*baseproc, error) {
 		if fi.IsDir() {
 			return nil, fmt.Errorf("not a file: %s", filename)
 		}
-		if fi.Size() > 0 {
-			runtime.Breakpoint()
-			return nil, fmt.Errorf("file %s exists and not empty", filename)
-		}
+		// DEBUG: commented out.
+		// if fi.Size() > 0 {
+		// 	panic("oopsie")
+		// 	return nil, fmt.Errorf("file %s exists and not empty", filename)
+		// }
 	}
 	f, err := os.Create(filename)
 	if err != nil {
@@ -44,6 +46,9 @@ func newBaseProc(dir string, name string) (*baseproc, error) {
 }
 
 func (p *baseproc) Close() error {
+	if p.closed.Load() {
+		return nil
+	}
 	if err := p.Recorder.Close(); err != nil {
 		p.gz.Close()
 		p.wf.Close()
@@ -53,5 +58,6 @@ func (p *baseproc) Close() error {
 		p.wf.Close()
 		return err
 	}
+	p.closed.Store(true)
 	return p.wf.Close()
 }

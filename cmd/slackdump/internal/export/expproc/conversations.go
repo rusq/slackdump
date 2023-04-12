@@ -2,6 +2,7 @@ package expproc
 
 import (
 	"context"
+	"runtime/trace"
 	"sync"
 
 	"github.com/rusq/dlog"
@@ -129,18 +130,22 @@ func (cv *Conversations) decThreads(channelID string) {
 
 // Messages is called for each message that is retrieved.
 func (cv *Conversations) Messages(ctx context.Context, channelID string, numThreads int, isLast bool, mm []slack.Message) error {
+	ctx, task := trace.NewTask(ctx, "Messages")
+	defer task.End()
 	r, err := cv.recorder(channelID)
 	if err != nil {
 		return err
 	}
 	if numThreads > 0 {
 		cv.addThreads(channelID, numThreads)
+		trace.Logf(ctx, "threads", "added %d", numThreads)
 	}
 	if err := r.Messages(ctx, channelID, numThreads, isLast, mm); err != nil {
 		return err
 	}
 	if isLast {
-		return cv.finalise(channelID)
+		trace.Log(ctx, "isLast", "true")
+		return cv.finalise(ctx, channelID)
 	}
 	return nil
 }
@@ -158,6 +163,8 @@ func (cv *Conversations) Files(ctx context.Context, channelID string, parent sla
 // ThreadMessages is called for each of the thread messages that are
 // retrieved. The parent message is passed in as well.
 func (cv *Conversations) ThreadMessages(ctx context.Context, channelID string, parent slack.Message, isLast bool, tm []slack.Message) error {
+	ctx, task := trace.NewTask(ctx, "ThreadMessages")
+	defer task.End()
 	r, err := cv.recorder(channelID)
 	if err != nil {
 		return err
@@ -166,18 +173,22 @@ func (cv *Conversations) ThreadMessages(ctx context.Context, channelID string, p
 		return err
 	}
 	cv.decThreads(channelID)
+	trace.Logf(ctx, "threads", "decremented, current=%d", cv.threadCount(channelID))
 	if isLast {
-		return cv.finalise(channelID)
+		trace.Log(ctx, "isLast", "true")
+		return cv.finalise(ctx, channelID)
 	}
 	return nil
 }
 
 // finalise closes the channel file if there are no more threads to process.
-func (cv *Conversations) finalise(channelID string) error {
+func (cv *Conversations) finalise(ctx context.Context, channelID string) error {
 	if tc := cv.threadCount(channelID); tc > 0 {
+		trace.Logf(ctx, "thread_count", "not finalising %q because thread count = %d", channelID, tc)
 		dlog.Debugf("channel %s: still processing %d threads left", channelID, tc)
 		return nil
 	}
+	trace.Logf(ctx, "thread_count", "finalising %q thread count = 0, no need to hold back", channelID)
 	dlog.Debugf("channel %s: closing channel file", channelID)
 	r, err := cv.recorder(channelID)
 	if err != nil {
