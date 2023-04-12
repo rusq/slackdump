@@ -30,11 +30,9 @@ func newBaseProc(dir string, name string) (*baseproc, error) {
 		if fi.IsDir() {
 			return nil, fmt.Errorf("not a file: %s", filename)
 		}
-		// DEBUG: commented out.
-		// if fi.Size() > 0 {
-		// 	panic("oopsie")
-		// 	return nil, fmt.Errorf("file %s exists and not empty", filename)
-		// }
+		if fi.Size() > 0 {
+			return nil, fmt.Errorf("file %s exists and not empty", filename)
+		}
 	}
 	f, err := os.Create(filename)
 	if err != nil {

@@ -146,8 +146,8 @@ func (cs *Stream) AsyncConversations(ctx context.Context, proc processor.Convers
 	defer task.End()
 
 	// create channels
-	chans := make(chan channelRequest, chanSz)
-	threads := make(chan threadRequest, chanSz)
+	chansC := make(chan channelRequest, chanSz)
+	threadsC := make(chan threadRequest, chanSz)
 
 	resultsC := make(chan StreamResult, resultSz)
 
@@ -156,10 +156,10 @@ func (cs *Stream) AsyncConversations(ctx context.Context, proc processor.Convers
 		// channel worker
 		wg.Add(1)
 		go func() {
-			cs.channelWorker(ctx, proc, resultsC, chans, threads)
+			cs.channelWorker(ctx, proc, resultsC, threadsC, chansC)
 			// we close threads here, instead of the main loop, because we want to
 			// close it after all the thread workers are done.
-			close(threads)
+			close(threadsC)
 			wg.Done()
 			trace.Log(ctx, "async", "channel worker done")
 		}()
@@ -168,7 +168,7 @@ func (cs *Stream) AsyncConversations(ctx context.Context, proc processor.Convers
 		// thread worker
 		wg.Add(1)
 		go func() {
-			cs.threadWorker(ctx, proc, resultsC, threads)
+			cs.threadWorker(ctx, proc, resultsC, threadsC)
 			wg.Done()
 			trace.Log(ctx, "async", "thread worker done")
 		}()
@@ -179,7 +179,7 @@ func (cs *Stream) AsyncConversations(ctx context.Context, proc processor.Convers
 		go func() {
 			defer trace.Log(ctx, "async", "main loop done")
 			defer wg.Done()
-			defer close(chans)
+			defer close(chansC)
 			for {
 				select {
 				case <-ctx.Done():
@@ -189,7 +189,7 @@ func (cs *Stream) AsyncConversations(ctx context.Context, proc processor.Convers
 					if !more {
 						return
 					}
-					if err := cs.processLink(chans, threads, link); err != nil {
+					if err := cs.processLink(chansC, threadsC, link); err != nil {
 						resultsC <- StreamResult{Type: RTMain, Err: fmt.Errorf("link error: %q: %w", link, err)}
 					}
 				}
@@ -255,7 +255,7 @@ func (we *StreamResult) Unwrap() error {
 	return we.Err
 }
 
-func (cs *Stream) channelWorker(ctx context.Context, proc processor.Conversations, results chan<- StreamResult, reqs <-chan channelRequest, threadC chan<- threadRequest) {
+func (cs *Stream) channelWorker(ctx context.Context, proc processor.Conversations, results chan<- StreamResult, threadC chan<- threadRequest, reqs <-chan channelRequest) {
 	ctx, task := trace.NewTask(ctx, "channelWorker")
 	defer task.End()
 

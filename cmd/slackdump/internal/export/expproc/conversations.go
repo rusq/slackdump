@@ -39,11 +39,11 @@ func WithLogger(lg logger.Interface) ConvOption {
 
 type channelproc struct {
 	*baseproc
-	// numThreads is the number of threads are expected to be processed for
+	// refCount is the number of threads are expected to be processed for
 	// the given channel.  We keep track of the number of threads, to ensure
 	// that we don't close the file until all threads are processed.
 	// The channel file can be closed when the number of threads is zero.
-	numThreads int
+	refCount int
 }
 
 func NewConversation(dir string, opt ...ConvOption) (*Conversations, error) {
@@ -71,8 +71,8 @@ func (cv *Conversations) ensure(channelID string) error {
 		return err
 	}
 	cv.cw[channelID] = &channelproc{
-		baseproc:   bp,
-		numThreads: 0,
+		baseproc: bp,
+		refCount: 1, // the channel itself is a reference
 	}
 	return nil
 }
@@ -99,33 +99,33 @@ func (cv *Conversations) recorder(channelID string) (*baseproc, error) {
 	return cv.cw[channelID].baseproc, nil
 }
 
-// threadCount returns the number of threads that are expected to be
+// refcount returns the number of references that are expected to be
 // processed for the given channel.
-func (cv *Conversations) threadCount(channelID string) int {
+func (cv *Conversations) refcount(channelID string) int {
 	cv.mu.RLock()
 	defer cv.mu.RUnlock()
 	if _, ok := cv.cw[channelID]; !ok {
 		return 0
 	}
-	return cv.cw[channelID].numThreads
+	return cv.cw[channelID].refCount
 }
 
-func (cv *Conversations) addThreads(channelID string, n int) {
+func (cv *Conversations) addRef(channelID string, n int) {
 	cv.mu.Lock()
 	defer cv.mu.Unlock()
 	if _, ok := cv.cw[channelID]; !ok {
 		return
 	}
-	cv.cw[channelID].numThreads += n
+	cv.cw[channelID].refCount += n
 }
 
-func (cv *Conversations) decThreads(channelID string) {
+func (cv *Conversations) decRef(channelID string) {
 	cv.mu.Lock()
 	defer cv.mu.Unlock()
 	if _, ok := cv.cw[channelID]; !ok {
 		return
 	}
-	cv.cw[channelID].numThreads--
+	cv.cw[channelID].refCount--
 }
 
 // Messages is called for each message that is retrieved.
@@ -137,14 +137,15 @@ func (cv *Conversations) Messages(ctx context.Context, channelID string, numThre
 		return err
 	}
 	if numThreads > 0 {
-		cv.addThreads(channelID, numThreads)
-		trace.Logf(ctx, "threads", "added %d", numThreads)
+		cv.addRef(channelID, numThreads) // one for each thread
+		trace.Logf(ctx, "ref", "added %d", numThreads)
 	}
 	if err := r.Messages(ctx, channelID, numThreads, isLast, mm); err != nil {
 		return err
 	}
 	if isLast {
-		trace.Log(ctx, "isLast", "true")
+		trace.Log(ctx, "isLast", "true, decrease ref count")
+		cv.decRef(channelID)
 		return cv.finalise(ctx, channelID)
 	}
 	return nil
@@ -172,8 +173,8 @@ func (cv *Conversations) ThreadMessages(ctx context.Context, channelID string, p
 	if err := r.ThreadMessages(ctx, channelID, parent, isLast, tm); err != nil {
 		return err
 	}
-	cv.decThreads(channelID)
-	trace.Logf(ctx, "threads", "decremented, current=%d", cv.threadCount(channelID))
+	cv.decRef(channelID)
+	trace.Logf(ctx, "ref", "decremented, current=%d", cv.refcount(channelID))
 	if isLast {
 		trace.Log(ctx, "isLast", "true")
 		return cv.finalise(ctx, channelID)
@@ -183,12 +184,12 @@ func (cv *Conversations) ThreadMessages(ctx context.Context, channelID string, p
 
 // finalise closes the channel file if there are no more threads to process.
 func (cv *Conversations) finalise(ctx context.Context, channelID string) error {
-	if tc := cv.threadCount(channelID); tc > 0 {
-		trace.Logf(ctx, "thread_count", "not finalising %q because thread count = %d", channelID, tc)
-		dlog.Debugf("channel %s: still processing %d threads left", channelID, tc)
+	if tc := cv.refcount(channelID); tc > 0 {
+		trace.Logf(ctx, "ref", "not finalising %q because thread count = %d", channelID, tc)
+		dlog.Debugf("channel %s: still processing %d ref count", channelID, tc)
 		return nil
 	}
-	trace.Logf(ctx, "thread_count", "finalising %q thread count = 0, no need to hold back", channelID)
+	trace.Logf(ctx, "ref", "ref count = 0, finalise", channelID)
 	dlog.Debugf("channel %s: closing channel file", channelID)
 	r, err := cv.recorder(channelID)
 	if err != nil {
