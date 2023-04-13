@@ -52,9 +52,9 @@ func (s *Standard) Files(ctx context.Context, channelID string, parent slack.Mes
 	}
 	// custom file processor, because we need to donwload those files
 	for i := range ff {
-		if ff[i].Mode == "hidden_by_limit" {
+		if mode := ff[i].Mode; mode == "hidden_by_limit" || mode == "external" || ff[i].IsExternal {
 			// ignore files that are hidden by the limit
-			trace.Logf(ctx, "skip", "file hidden by limit: %q", ff[i].ID)
+			trace.Logf(ctx, "skip", "unfetchable file type: %q", ff[i].ID)
 			continue
 		}
 		filename, err := s.dl.DownloadFile(channelID, ff[i])

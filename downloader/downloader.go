@@ -238,6 +238,10 @@ func (c *Client) saveFile(ctx context.Context, dir string, sf *slack.File) (int6
 	if c.fs == nil {
 		return 0, ErrNoFS
 	}
+	if mode := sf.Mode; mode == "hidden_by_limit" || mode == "external" || sf.IsExternal {
+		trace.Logf(ctx, "info", "file %q is not downloadable", sf.Name)
+		return 0, nil
+	}
 	filePath := filepath.Join(dir, c.nameFn(sf))
 
 	tf, err := os.CreateTemp("", "")
