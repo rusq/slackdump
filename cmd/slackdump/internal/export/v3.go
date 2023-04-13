@@ -6,9 +6,11 @@ import (
 	"os"
 	"sync"
 
+	"github.com/rusq/asyncdl"
 	"github.com/rusq/dlog"
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/slackdump/v2"
+	"github.com/rusq/slackdump/v2/auth"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/export/expproc"
 	"github.com/rusq/slackdump/v2/export"
 	"github.com/rusq/slackdump/v2/internal/structures"
@@ -18,6 +20,7 @@ import (
 
 func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, list *structures.EntityList, options export.Config) error {
 	lg := dlog.FromContext(ctx)
+
 	tmpdir, err := os.MkdirTemp("", "slackdump-*")
 	if err != nil {
 		return err
@@ -27,6 +30,18 @@ func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 		return fmt.Errorf("failed to create transformer: %w", err)
 	}
 	defer tf.Close()
+
+	prov, err := auth.FromContext(ctx) // TODO: implicitly pass auth provider
+	if err != nil {
+		return err
+	}
+	hcl, err := prov.HTTPClient()
+	if err != nil {
+		return err
+	}
+	dl := asyncdl.New(fsa, asyncdl.WithClient(hcl))
+	defer dl.Close()
+
 	lg.Printf("using %s as the temporary directory", tmpdir)
 	lg.Print("running export...")
 	errC := make(chan error, 1)
@@ -40,10 +55,10 @@ func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 		var generator linkFeederFunc
 		if list.HasIncludes() {
 			// inclusive export, processes only included channels.
-			generator = listChannelGenerator
+			generator = genListChannel
 		} else {
 			// exclusive export (process only excludes, if any)
-			generator = apiChannelGenerator(tmpdir, s, options.MemberOnly)
+			generator = genAPIChannel(tmpdir, s, options.MemberOnly)
 		}
 
 		go func() {
@@ -103,12 +118,12 @@ func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 
 type linkFeederFunc func(ctx context.Context, links chan<- string, list *structures.EntityList) error
 
-// listChannelGenerator feeds the channel IDs that it gets from the list to
+// genListChannel feeds the channel IDs that it gets from the list to
 // the links channel.  It does not fetch the channel list from the api, so
 // it's blazing fast in comparison to apiChannelFeeder.  When needed, get the
 // channel information from the conversations chunk files (they contain the
 // chunk with channel information).
-func listChannelGenerator(ctx context.Context, links chan<- string, list *structures.EntityList) error {
+func genListChannel(ctx context.Context, links chan<- string, list *structures.EntityList) error {
 	for _, ch := range list.Include {
 		select {
 		case <-ctx.Done():
@@ -119,11 +134,11 @@ func listChannelGenerator(ctx context.Context, links chan<- string, list *struct
 	return nil
 }
 
-// apiChannelGenerator feeds the channel IDs that it gets from the API to the
+// genAPIChannel feeds the channel IDs that it gets from the API to the
 // links channel.  It also filters out channels that are excluded in the list.
 // It does not account for "included".  It ignores the thread links in the
 // list.  It writes the channels to the tmpdir.
-func apiChannelGenerator(tmpdir string, s *slackdump.Stream, memberOnly bool) linkFeederFunc {
+func genAPIChannel(tmpdir string, s *slackdump.Stream, memberOnly bool) linkFeederFunc {
 	return linkFeederFunc(func(ctx context.Context, links chan<- string, list *structures.EntityList) error {
 		chIdx := list.Index()
 		chanproc, err := expproc.NewChannels(tmpdir, func(c []slack.Channel) error {

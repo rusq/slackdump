@@ -16,6 +16,7 @@ require (
 	github.com/joho/godotenv v1.5.1
 	github.com/kr/pty v1.1.8
 	github.com/playwright-community/playwright-go v0.2000.1
+	github.com/rusq/asyncdl v0.2.0
 	github.com/rusq/chttp v1.0.1
 	github.com/rusq/dlog v1.4.0
 	github.com/rusq/encio v0.1.0
@@ -47,7 +48,6 @@ require (
 	github.com/google/go-cmp v0.5.9 // indirect
 	github.com/gorilla/websocket v1.5.0 // indirect
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51 // indirect
-	github.com/kr/text v0.2.0 // indirect
 	github.com/kyokomi/emoji/v2 v2.2.12 // indirect
 	github.com/leodido/go-urn v1.2.2 // indirect
 	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect

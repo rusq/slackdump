@@ -17,6 +17,7 @@ type Conversations struct {
 	mu         sync.RWMutex
 	lg         logger.Interface
 	onFinalise func(channelID string) error
+	onFiles    func(channelID string, files []slack.File) error
 }
 
 // ConvOption is a function that configures the Conversations processor.
@@ -47,14 +48,14 @@ type channelproc struct {
 	refcnt int
 }
 
-func NewConversation(dir string, opt ...ConvOption) (*Conversations, error) {
+func NewConversation(dir string, opts ...ConvOption) (*Conversations, error) {
 	c := &Conversations{
 		dir: dir,
 		lg:  logger.Default,
 		cw:  make(map[string]*channelproc),
 	}
-	for _, o := range opt {
-		o(c)
+	for _, opt := range opts {
+		opt(c)
 	}
 	return c, nil
 }
@@ -159,6 +160,12 @@ func (cv *Conversations) Files(ctx context.Context, channelID string, parent sla
 	if err != nil {
 		return err
 	}
+	if cv.onFiles != nil {
+		if err := cv.onFiles(channelID, ff); err != nil {
+			return err
+		}
+	}
+
 	return r.Files(ctx, channelID, parent, isThread, ff)
 }
 
@@ -191,7 +198,7 @@ func (cv *Conversations) finalise(ctx context.Context, channelID string) error {
 		dlog.Debugf("channel %s: still processing %d ref count", channelID, tc)
 		return nil
 	}
-	trace.Logf(ctx, "ref", "ref count = 0, finalise", channelID)
+	trace.Logf(ctx, "ref", "= 0, channel %s finalise", channelID)
 	dlog.Debugf("channel %s: closing channel file", channelID)
 	r, err := cv.recorder(channelID)
 	if err != nil {
