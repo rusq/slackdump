@@ -6,16 +6,17 @@ import (
 	"os"
 	"sync"
 
-	"github.com/rusq/asyncdl"
 	"github.com/rusq/dlog"
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/slackdump/v2"
-	"github.com/rusq/slackdump/v2/auth"
-	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/export/expproc"
-	"github.com/rusq/slackdump/v2/export"
-	"github.com/rusq/slackdump/v2/internal/structures"
 	"github.com/schollz/progressbar/v3"
 	"github.com/slack-go/slack"
+
+	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/export/expproc"
+	"github.com/rusq/slackdump/v2/downloader"
+	"github.com/rusq/slackdump/v2/export"
+	"github.com/rusq/slackdump/v2/internal/chunk/processor"
+	"github.com/rusq/slackdump/v2/internal/structures"
 )
 
 func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, list *structures.EntityList, options export.Config) error {
@@ -31,16 +32,10 @@ func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 	}
 	defer tf.Close()
 
-	prov, err := auth.FromContext(ctx) // TODO: implicitly pass auth provider
-	if err != nil {
-		return err
-	}
-	hcl, err := prov.HTTPClient()
-	if err != nil {
-		return err
-	}
-	dl := asyncdl.New(fsa, asyncdl.WithClient(hcl))
-	defer dl.Close()
+	filer := mmfiler{}
+	dl := downloader.New(sess.Client(), fsa, downloader.WithNameFunc(filer.Name))
+	dl.Start(ctx)
+	defer dl.Stop()
 
 	lg.Printf("using %s as the temporary directory", tmpdir)
 	lg.Print("running export...")
@@ -78,7 +73,7 @@ func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 				errC <- err
 				return
 			}
-			users, err := expproc.LoadUsers(ctx, tmpdir)
+			users, err := expproc.LoadUsers(ctx, tmpdir) // load users from chunks
 			if err != nil {
 				errC <- err
 				return
@@ -94,10 +89,15 @@ func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 		pb := newProgressBar(progressbar.NewOptions(-1, progressbar.OptionClearOnFinish(), progressbar.OptionSpinnerType(8)), lg.IsDebug())
 		pb.RenderBlank()
 		wg.Add(1)
+
+		conv, err := expproc.NewConversation(tmpdir, expproc.OnFinalise(tf.OnFinalise), expproc.OnFiles(filer.DownloadFn(ctx, dl)))
+		if err != nil {
+			return fmt.Errorf("error initialising conversation processor: %w", err)
+		}
 		go func() {
 			defer wg.Done()
 			defer pb.Finish()
-			errC <- conversationWorker(ctx, s, pb, tmpdir, links, tf.OnFinalise)
+			errC <- conversationWorker(ctx, s, pb, conv, links)
 		}()
 	}
 	// sentinel
@@ -199,13 +199,8 @@ type progresser interface {
 	Finish() error
 }
 
-func conversationWorker(ctx context.Context, s *slackdump.Stream, pb progresser, tmpdir string, links <-chan string, finaliseFn func(string) error) error {
-	conv, err := expproc.NewConversation(tmpdir, expproc.OnFinalise(finaliseFn))
-	if err != nil {
-		return fmt.Errorf("error initialising conversation processor: %w", err)
-	}
-
-	if err := s.AsyncConversations(ctx, conv, links, func(sr slackdump.StreamResult) error {
+func conversationWorker(ctx context.Context, s *slackdump.Stream, pb progresser, proc processor.Conversations, links <-chan string) error {
+	if err := s.AsyncConversations(ctx, proc, links, func(sr slackdump.StreamResult) error {
 		pb.Describe(sr.String())
 		pb.Add(1)
 		return nil

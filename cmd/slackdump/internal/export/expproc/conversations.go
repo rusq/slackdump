@@ -32,6 +32,13 @@ func OnFinalise(fn func(channelID string) error) ConvOption {
 	}
 }
 
+// OnFiles sets a callback function that is called for each files chunk.
+func OnFiles(fn func(channelID string, files []slack.File) error) ConvOption {
+	return func(cv *Conversations) {
+		cv.onFiles = fn
+	}
+}
+
 // WithLogger sets the logger for the processor.
 func WithLogger(lg logger.Interface) ConvOption {
 	return func(cv *Conversations) {
