@@ -16,7 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/time/rate"
 
-	"github.com/rusq/slackdump/v2/fsadapter"
+	"github.com/rusq/fsadapter"
 	"github.com/rusq/slackdump/v2/internal/fixtures"
 	"github.com/rusq/slackdump/v2/internal/mocks/mock_downloader"
 )

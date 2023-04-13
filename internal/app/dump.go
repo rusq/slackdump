@@ -12,9 +12,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/rusq/fsadapter"
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/auth"
-	"github.com/rusq/slackdump/v2/fsadapter"
 	"github.com/rusq/slackdump/v2/internal/app/config"
 	"github.com/rusq/slackdump/v2/internal/structures"
 	"github.com/rusq/slackdump/v2/logger"
@@ -75,11 +75,11 @@ func (app *dump) Dump(ctx context.Context) (int, error) {
 		return 0, errors.New("no valid input")
 	}
 
-	fs, err := fsadapter.ForFilename(app.cfg.Output.Base)
+	fs, err := fsadapter.New(app.cfg.Output.Base)
 	if err != nil {
 		return 0, err
 	}
-	defer fsadapter.Close(fs)
+	defer fs.Close()
 	app.sess.SetFS(fs)
 
 	tmpl, err := app.cfg.CompileTemplates()

@@ -11,8 +11,8 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/rusq/dlog"
+	"github.com/rusq/fsadapter"
 	"github.com/rusq/slackdump/v2/auth"
-	"github.com/rusq/slackdump/v2/fsadapter"
 	"github.com/rusq/slackdump/v2/internal/fixtures"
 	"github.com/rusq/slackdump/v2/internal/mocks/mock_os"
 	"github.com/rusq/slackdump/v2/internal/network"

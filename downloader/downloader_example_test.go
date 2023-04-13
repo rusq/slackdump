@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/rusq/fsadapter"
 	"github.com/rusq/slackdump/v2/downloader"
-	"github.com/rusq/slackdump/v2/fsadapter"
 	"github.com/slack-go/slack"
 	"golang.org/x/time/rate"
 )
@@ -37,6 +37,7 @@ func ExampleNew_advanced() {
 		fmt.Println("failed to initialise the file system")
 		return
 	}
+	defer fs.Close()
 
 	dl := downloader.New(
 		client,
