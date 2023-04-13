@@ -34,7 +34,7 @@ func newBaseProc(dir string, name string) (*baseproc, error) {
 			return nil, fmt.Errorf("file %s exists and not empty", filename)
 		}
 	}
-	f, err := os.Create(filename)
+	f, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
 		return nil, err
 	}
