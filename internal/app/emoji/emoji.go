@@ -27,9 +27,9 @@ import (
 	"sync"
 
 	"github.com/rusq/dlog"
+	"github.com/rusq/fsadapter"
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/auth"
-	"github.com/rusq/slackdump/v2/fsadapter"
 	"github.com/rusq/slackdump/v2/internal/app/config"
 )
 
@@ -56,11 +56,11 @@ type emojidumper interface {
 }
 
 func download(ctx context.Context, sess emojidumper, base string, ignoreErrors bool) error {
-	fsa, err := fsadapter.ForFilename(base)
+	fsa, err := fsadapter.New(base)
 	if err != nil {
 		return fmt.Errorf("unable to initialise adapter for %s: %w", base, err)
 	}
-	defer fsadapter.Close(fsa)
+	defer fsa.Close()
 
 	emojis, err := sess.DumpEmojis(ctx)
 	if err != nil {

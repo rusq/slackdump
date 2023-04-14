@@ -16,7 +16,7 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
-	"github.com/rusq/slackdump/v2/fsadapter"
+	"github.com/rusq/fsadapter"
 )
 
 type fetchFunc func(ctx context.Context, fsa fsadapter.FS, dir string, name string, uri string) error
@@ -86,7 +86,7 @@ func Test_fetchEmoji(t *testing.T) {
 			defer server.Close()
 
 			dir := t.TempDir()
-			fsa, err := fsadapter.ForFilename(dir)
+			fsa, err := fsadapter.New(dir)
 			if err != nil {
 				t.Fatalf("failed to create test dir: %s", err)
 			}
@@ -182,7 +182,7 @@ func Test_worker(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			setGlobalFetchFn(tt.fetchFn)
 
-			fsa, _ := fsadapter.ForFilename(t.TempDir())
+			fsa, _ := fsadapter.New(t.TempDir())
 			resultC := make(chan result)
 
 			var wg sync.WaitGroup
@@ -208,7 +208,7 @@ func Test_worker(t *testing.T) {
 
 func Test_fetch(t *testing.T) {
 	emojis := generateEmojis(50)
-	fsa, _ := fsadapter.ForFilename(t.TempDir())
+	fsa, _ := fsadapter.New(t.TempDir())
 
 	got := make(map[string]string, len(emojis))
 	var mu sync.Mutex

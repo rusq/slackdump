@@ -16,7 +16,7 @@ import (
 	"github.com/slack-go/slack"
 	"golang.org/x/time/rate"
 
-	"github.com/rusq/slackdump/v2/fsadapter"
+	"github.com/rusq/fsadapter"
 	"github.com/rusq/slackdump/v2/internal/network"
 	"github.com/rusq/slackdump/v2/logger"
 )
@@ -237,6 +237,10 @@ func (c *Client) AsyncDownloader(ctx context.Context, dir string, fileDlQueue <-
 func (c *Client) saveFile(ctx context.Context, dir string, sf *slack.File) (int64, error) {
 	if c.fs == nil {
 		return 0, ErrNoFS
+	}
+	if mode := sf.Mode; mode == "hidden_by_limit" || mode == "external" || sf.IsExternal {
+		trace.Logf(ctx, "info", "file %q is not downloadable", sf.Name)
+		return 0, nil
 	}
 	filePath := filepath.Join(dir, c.nameFn(sf))
 

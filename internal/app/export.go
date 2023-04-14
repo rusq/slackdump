@@ -7,10 +7,10 @@ import (
 	"runtime/trace"
 	"time"
 
+	"github.com/rusq/fsadapter"
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/auth"
 	"github.com/rusq/slackdump/v2/export"
-	"github.com/rusq/slackdump/v2/fsadapter"
 	"github.com/rusq/slackdump/v2/internal/app/config"
 )
 
@@ -33,14 +33,14 @@ func Export(ctx context.Context, cfg config.Params, prov auth.Provider) error {
 		return err
 	}
 
-	fs, err := fsadapter.ForFilename(cfg.ExportName)
+	fs, err := fsadapter.New(cfg.ExportName)
 	if err != nil {
 		cfg.Logger().Debugf("Export:  filesystem error: %s", err)
 		return fmt.Errorf("failed to initialise the filesystem: %w", err)
 	}
 	defer func() {
 		cfg.Logger().Debugf("Export:  closing file system")
-		if err := fsadapter.Close(fs); err != nil {
+		if err := fs.Close(); err != nil {
 			cfg.Logger().Printf("Export:  error closing filesystem")
 		}
 	}()

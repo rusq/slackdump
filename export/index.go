@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/rusq/slackdump/v2/fsadapter"
+	"github.com/rusq/fsadapter"
 	"github.com/rusq/slackdump/v2/internal/structures"
 	"github.com/rusq/slackdump/v2/types"
 

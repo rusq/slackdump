@@ -3,7 +3,7 @@ package export
 import (
 	"testing"
 
-	"github.com/rusq/slackdump/v2/fsadapter"
+	"github.com/rusq/fsadapter"
 	"github.com/slack-go/slack"
 )
 
