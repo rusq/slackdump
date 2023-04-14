@@ -108,8 +108,10 @@ func (cl *Client) Authenticate(ctx context.Context) (string, []*http.Cookie, err
 	}
 
 	var r playwright.Request
-	if err := cl.withBrowserGuard(ctx, func() {
-		r = page.WaitForRequest(uri + "/api/api.features*")
+	if err := cl.withBrowserGuard(ctx, func() error {
+		var err error
+		r, err = page.WaitForRequest(uri + "/api/api.features*")
+		return err
 	}); err != nil {
 		return "", nil, err
 	}
@@ -130,17 +132,22 @@ func (cl *Client) Authenticate(ctx context.Context) (string, []*http.Cookie, err
 	return token, convertCookies(state.Cookies), nil
 }
 
-func (cl *Client) withBrowserGuard(ctx context.Context, fn func()) error {
+var ErrBrowserClosed = errors.New("browser closed or timed out")
+
+func (cl *Client) withBrowserGuard(ctx context.Context, fn func() error) error {
 	done := make(chan struct{})
+	errC := make(chan error, 1)
 	go func() {
 		defer close(done)
-		fn()
+		errC <- fn()
 	}()
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
 	case <-cl.pageClosed:
-		return errors.New("browser closed or timed out")
+		return ErrBrowserClosed
+	case err := <-errC:
+		return err
 	case <-done:
 	}
 	return nil
