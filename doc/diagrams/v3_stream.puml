@@ -48,9 +48,10 @@ ListChannels --[#red]-> Export : links
 Export --[#red]-> Conversations : links
 
 
-expproc --> chunk1 : writes
-expproc --> chunk2 : writes
-expproc --> chunkN : writes
+expproc --> chunk1 : messages
+expproc --> chunk2 : messages
+expproc --> chunkN : messages
+
 
 chunk1 --> exptrans : reads
 chunk2 --> exptrans : reads
@@ -61,7 +62,8 @@ folder "directory" as output
 file "export.zip" as zip
 interface FS
 
-exptrans -- FS
+expproc -- FS: files
+exptrans -- FS: formatted
 FS )-left- zip
 FS )-right- output
 
