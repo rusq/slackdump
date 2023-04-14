@@ -48,8 +48,9 @@ type Provider interface {
 }
 
 var (
-	ErrNoToken   = errors.New("no token")
-	ErrNoCookies = errors.New("no cookies")
+	ErrNoToken      = errors.New("no token")
+	ErrNoCookies    = errors.New("no cookies")
+	ErrNotSupported = errors.New("not supported")
 )
 
 type simpleProvider struct {
@@ -124,7 +125,7 @@ func (s simpleProvider) Test(ctx context.Context) error {
 	}
 	cl := slack.New(s.Token, slack.OptionHTTPClient(httpCl))
 
-	region := trace.StartRegion(ctx, "AuthTestContext")
+	region := trace.StartRegion(ctx, "simpleProvider.Test")
 	defer region.End()
 	if _, err := cl.AuthTestContext(ctx); err != nil {
 		return &Error{Err: err}

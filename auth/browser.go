@@ -40,6 +40,9 @@ func NewBrowserAuth(ctx context.Context, opts ...Option) (BrowserAuth, error) {
 	for _, opt := range opts {
 		opt(&options{browserOpts: &br.opts})
 	}
+	if isDocker() {
+		return BrowserAuth{}, &Error{Err: ErrNotSupported, Msg: "browser auth is not supported in docker, use token/cookie auth instead"}
+	}
 
 	if br.opts.workspace == "" {
 		var err error
@@ -67,7 +70,6 @@ func NewBrowserAuth(ctx context.Context, opts ...Option) (BrowserAuth, error) {
 		Token:  token,
 		Cookie: cookies,
 	}
-
 	return br, nil
 }
 
@@ -89,4 +91,9 @@ func sanitize(workspace string) (string, error) {
 	// parse
 	parts := strings.Split(workspace, ".")
 	return parts[0], nil
+}
+
+func isDocker() bool {
+	_, err := os.Stat("/.dockerenv")
+	return err == nil
 }

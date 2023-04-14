@@ -63,6 +63,10 @@ func init() {
 }
 
 func main() {
+	if isRoot() {
+		dlog.Fatal("slackdump:  cowardly refusing to run as root")
+	}
+
 	flag.Usage = base.Usage
 	flag.Parse()
 
@@ -313,4 +317,8 @@ func whatDo(w io.Writer) (choice, error) {
 // terminal.
 func isInteractive() bool {
 	return term.IsTerminal(int(os.Stdout.Fd())) && term.IsTerminal(int(os.Stdin.Fd())) && os.Getenv("TERM") != "dumb"
+}
+
+func isRoot() bool {
+	return os.Geteuid() == 0
 }

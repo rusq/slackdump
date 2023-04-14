@@ -1,0 +1,7 @@
+**/tmp
+**/contrib
+**/dist
+*.json
+*.zip
+*.out
+*.gz
