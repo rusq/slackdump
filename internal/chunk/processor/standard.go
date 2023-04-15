@@ -13,7 +13,7 @@ import (
 
 type Standard struct {
 	*chunk.Recorder
-	dl *downloader.Client
+	dl *downloader.ClientV1
 
 	opts options
 }
@@ -28,7 +28,7 @@ func NewStandard(ctx context.Context, w io.Writer, sess downloader.Downloader, d
 		o(&opt)
 	}
 
-	dl := downloader.New(sess, fsadapter.NewDirectory(dir))
+	dl := downloader.NewV1(sess, fsadapter.NewDirectory(dir))
 	dl.Start(ctx)
 
 	r := chunk.NewRecorder(w)

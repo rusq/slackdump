@@ -26,7 +26,7 @@ type Std struct {
 func NewStd(fs fsadapter.FS, cl *slack.Client, l logger.Interface, token string) *Std {
 	return &Std{
 		base: base{
-			dl:    downloader.New(cl, fs, downloader.Logger(l)),
+			dl:    downloader.NewV1(cl, fs, downloader.LoggerV1(l)),
 			l:     l,
 			token: token,
 		},

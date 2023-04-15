@@ -33,7 +33,7 @@ func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 	defer tf.Close()
 
 	// starting the downloader
-	dl := downloader.NewV2(sess.Client(), fsa, downloader.WithLogger(lg))
+	dl := downloader.New(sess.Client(), fsa, downloader.WithLogger(lg))
 	dl.Start(ctx)
 	defer dl.Stop()
 

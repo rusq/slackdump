@@ -2,6 +2,8 @@ package downloader
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"os"
@@ -15,8 +17,8 @@ import (
 	"golang.org/x/time/rate"
 )
 
-// ClientV2 is the instance of the downloader.
-type ClientV2 struct {
+// Client is the instance of the downloader.
+type Client struct {
 	sc      Downloader
 	limiter *rate.Limiter
 	fsa     fsadapter.FS
@@ -26,27 +28,27 @@ type ClientV2 struct {
 	workers int
 
 	mu        sync.Mutex // mutex prevents race condition when starting/stopping
-	requests  chan request
+	requests  chan Request
 	chanBufSz int
 	wg        *sync.WaitGroup
 	started   bool
 }
 
 // Option is the function signature for the option functions.
-type OptionV2 func(*ClientV2)
+type Option func(*Client)
 
-// LimiterV2 uses the initialised limiter instead of built in.
-func LimiterV2(l *rate.Limiter) OptionV2 {
-	return func(c *ClientV2) {
+// Limiter uses the initialised limiter instead of built in.
+func Limiter(l *rate.Limiter) Option {
+	return func(c *Client) {
 		if l != nil {
 			c.limiter = l
 		}
 	}
 }
 
-// RetriesV2 sets the number of attempts that will be taken for the file download.
-func RetriesV2(n int) OptionV2 {
-	return func(c *ClientV2) {
+// Retries sets the number of attempts that will be taken for the file download.
+func Retries(n int) Option {
+	return func(c *Client) {
 		if n <= 0 {
 			n = defRetries
 		}
@@ -54,9 +56,9 @@ func RetriesV2(n int) OptionV2 {
 	}
 }
 
-// WorkersV2 sets the number of workers for the download queue.
-func WorkersV2(n int) OptionV2 {
-	return func(c *ClientV2) {
+// Workers sets the number of workers for the download queue.
+func Workers(n int) Option {
+	return func(c *Client) {
 		if n <= 0 {
 			n = defNumWorkers
 		}
@@ -66,8 +68,8 @@ func WorkersV2(n int) OptionV2 {
 
 // Logger allows to use an external log library, that satisfies the
 // logger.Interface.
-func WithLogger(l logger.Interface) OptionV2 {
-	return func(c *ClientV2) {
+func WithLogger(l logger.Interface) Option {
+	return func(c *Client) {
 		if l == nil {
 			l = logger.Default
 		}
@@ -75,13 +77,13 @@ func WithLogger(l logger.Interface) OptionV2 {
 	}
 }
 
-// NewV2 initialises new file downloader.
-func NewV2(sc Downloader, fs fsadapter.FS, opts ...OptionV2) *ClientV2 {
+// New initialises new file downloader.
+func New(sc Downloader, fs fsadapter.FS, opts ...Option) *Client {
 	if sc == nil {
 		// better safe than sorry
 		panic("programming error:  client is nil")
 	}
-	c := &ClientV2{
+	c := &Client{
 		sc:        sc,
 		fsa:       fs,
 		limiter:   rate.NewLimiter(defLimit, 1),
@@ -96,14 +98,14 @@ func NewV2(sc Downloader, fs fsadapter.FS, opts ...OptionV2) *ClientV2 {
 	return c
 }
 
-type request struct {
-	fullpath string
-	url      string
+type Request struct {
+	Fullpath string
+	URL      string
 }
 
 // Start starts an async file downloader.  If the downloader is already
 // started, it does nothing.
-func (c *ClientV2) Start(ctx context.Context) {
+func (c *Client) Start(ctx context.Context) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -111,7 +113,7 @@ func (c *ClientV2) Start(ctx context.Context) {
 		// already started
 		return
 	}
-	req := make(chan request, c.chanBufSz)
+	req := make(chan Request, c.chanBufSz)
 
 	c.requests = req
 	c.wg = c.startWorkers(ctx, req)
@@ -120,7 +122,7 @@ func (c *ClientV2) Start(ctx context.Context) {
 
 // startWorkers starts download workers.  It returns a sync.WaitGroup.  If the
 // req channel is closed, workers will stop, and wg.Wait() completes.
-func (c *ClientV2) startWorkers(ctx context.Context, req <-chan request) *sync.WaitGroup {
+func (c *Client) startWorkers(ctx context.Context, req <-chan Request) *sync.WaitGroup {
 	if c.workers == 0 {
 		c.workers = defNumWorkers
 	}
@@ -139,31 +141,38 @@ func (c *ClientV2) startWorkers(ctx context.Context, req <-chan request) *sync.W
 
 // fltSeen filters the files from filesC to ensure that no duplicates
 // are downloaded.
-func (c *ClientV2) fltSeen(reqC <-chan request) <-chan request {
-	filtered := make(chan request)
+func (c *Client) fltSeen(reqC <-chan Request) <-chan Request {
+	filtered := make(chan Request)
 	go func() {
 		// closing stop will lead to all worker goroutines to terminate.
 		defer close(filtered)
 
 		// seen contains file ids that already been seen,
 		// so we don't download the same file twice
-		seen := make(map[string]bool)
+		seen := make(map[string]bool, 1000)
 		// files queue must be closed by the caller (see DumpToDir.(1))
 		for r := range reqC {
-			if _, ok := seen[r.url]; ok {
-				c.lg.Debugf("already seen %q, skipping", r.url)
+			h := hash(r.URL + r.Fullpath)
+			if _, ok := seen[h]; ok {
+				c.lg.Debugf("already seen %q, skipping", r.URL)
 				continue
 			}
-			seen[r.url] = true
+			seen[h] = true
 			filtered <- r
 		}
 	}()
 	return filtered
 }
 
+func hash(s string) string {
+	h := sha256.New()
+	h.Write([]byte(s))
+	return hex.EncodeToString(h.Sum(nil))
+}
+
 // worker receives requests from reqC and passes them to saveFile function.
 // It will stop if either context is Done, or reqC is closed.
-func (c *ClientV2) worker(ctx context.Context, reqC <-chan request) {
+func (c *Client) worker(ctx context.Context, reqC <-chan Request) {
 	for {
 		select {
 		case <-ctx.Done():
@@ -173,19 +182,19 @@ func (c *ClientV2) worker(ctx context.Context, reqC <-chan request) {
 			if !moar {
 				return
 			}
-			c.lg.Debugf("saving %q to %s", path.Base(req.url), req.fullpath)
-			n, err := c.download(ctx, req.fullpath, req.url)
+			c.lg.Debugf("saving %q to %s", path.Base(req.URL), req.Fullpath)
+			n, err := c.download(ctx, req.Fullpath, req.URL)
 			if err != nil {
-				c.lg.Printf("error saving %q to %q: %s", path.Base(req.url), req.fullpath, err)
+				c.lg.Printf("error saving %q to %q: %s", path.Base(req.URL), req.Fullpath, err)
 				break
 			}
-			c.lg.Debugf("file %q saved to %s: %d bytes written", path.Base(req.url), req.fullpath, n)
+			c.lg.Debugf("file %q saved to %s: %d bytes written", path.Base(req.URL), req.Fullpath, n)
 		}
 	}
 }
 
 // saveFileWithLimiter saves the file to specified directory, it will use the provided limiter l for throttling.
-func (c *ClientV2) download(ctx context.Context, fullpath string, url string) (int64, error) {
+func (c *Client) download(ctx context.Context, fullpath string, url string) (int64, error) {
 	if c.fsa == nil {
 		return 0, ErrNoFS
 	}
@@ -234,7 +243,7 @@ func (c *ClientV2) download(ctx context.Context, fullpath string, url string) (i
 }
 
 // Stop waits for all transfers to finish, and stops the downloader.
-func (c *ClientV2) Stop() {
+func (c *Client) Stop() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -254,7 +263,7 @@ func (c *ClientV2) Stop() {
 
 // Download requires a started downloader, otherwise it will return
 // ErrNotStarted. Will place the file to the download queue.
-func (c *ClientV2) Download(fullpath string, url string) error {
+func (c *Client) Download(fullpath string, url string) error {
 	c.mu.Lock()
 	started := c.started
 	c.mu.Unlock()
@@ -262,6 +271,21 @@ func (c *ClientV2) Download(fullpath string, url string) error {
 	if !started {
 		return ErrNotStarted
 	}
-	c.requests <- request{fullpath: fullpath, url: url}
+	c.requests <- Request{Fullpath: fullpath, URL: url}
 	return nil
+}
+
+func (c *Client) AsyncDownloader(ctx context.Context, queueC <-chan Request) (<-chan struct{}, error) {
+	done := make(chan struct{})
+	c.Start(ctx)
+	go func() {
+		defer close(done)
+		for r := range queueC {
+			if err := c.Download(r.Fullpath, r.URL); err != nil {
+				c.lg.Printf("error downloading %q: %s", r.URL, err)
+			}
+		}
+	}()
+
+	return done, nil
 }

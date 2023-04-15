@@ -4,34 +4,37 @@ import (
 	"testing"
 
 	"github.com/rusq/slackdump/v2/internal/fixtures"
-	"github.com/slack-go/slack"
 	"github.com/stretchr/testify/assert"
 )
 
 func Test_fltSeen(t *testing.T) {
 	t.Run("ensure that we don't get dup files", func(t *testing.T) {
-		source := []fileRequest{
-			{Directory: "x", File: &file1},
-			{Directory: "x", File: &file2},
-			{Directory: "a", File: &file2}, // this should appear, different dir
-			{Directory: "x", File: &file3},
-			{Directory: "x", File: &file3}, // duplicate
-			{Directory: "x", File: &file3}, // duplicate
-			{Directory: "x", File: &file4},
-			{Directory: "x", File: &file5},
-			{Directory: "y", File: &file5}, // this should appear, different dir
+		source := []Request{
+			{Fullpath: "x/file1", URL: "url1"},
+			{Fullpath: "x/file2", URL: "url2"},
+			{Fullpath: "a/file2", URL: "url2"}, // different path
+			{Fullpath: "x/file3", URL: "url3"},
+			{Fullpath: "x/file4", URL: "url4"},
+			{Fullpath: "x/file5", URL: "url5"},
+			{Fullpath: "y/file5", URL: "url5"},
+			{Fullpath: "x/file1", URL: "url2"}, // different url same path
+			// duplicates
+			{Fullpath: "x/file1", URL: "url1"},
+			{Fullpath: "x/file2", URL: "url2"},
+			{Fullpath: "a/file2", URL: "url2"},
 		}
-		want := []fileRequest{
-			{Directory: "x", File: &file1},
-			{Directory: "x", File: &file2},
-			{Directory: "a", File: &file2},
-			{Directory: "x", File: &file3},
-			{Directory: "x", File: &file4},
-			{Directory: "x", File: &file5},
-			{Directory: "y", File: &file5},
+		want := []Request{
+			{Fullpath: "x/file1", URL: "url1"},
+			{Fullpath: "x/file2", URL: "url2"},
+			{Fullpath: "a/file2", URL: "url2"},
+			{Fullpath: "x/file3", URL: "url3"},
+			{Fullpath: "x/file4", URL: "url4"},
+			{Fullpath: "x/file5", URL: "url5"},
+			{Fullpath: "y/file5", URL: "url5"},
+			{Fullpath: "x/file1", URL: "url2"},
 		}
 
-		filesC := make(chan fileRequest)
+		filesC := make(chan Request)
 		go func() {
 			defer close(filesC)
 			for _, f := range source {
@@ -42,7 +45,7 @@ func Test_fltSeen(t *testing.T) {
 		c := Client{}
 		dlqC := c.fltSeen(filesC)
 
-		var got []fileRequest
+		var got []Request
 		for f := range dlqC {
 			got = append(got, f)
 		}
@@ -53,7 +56,7 @@ func Test_fltSeen(t *testing.T) {
 func BenchmarkFltSeen(b *testing.B) {
 	const numReq = 100_000
 	input := makeFileReqQ(numReq, b.TempDir())
-	inputC := make(chan fileRequest)
+	inputC := make(chan Request)
 	go func() {
 		defer close(inputC)
 		for _, req := range input {
@@ -71,14 +74,14 @@ func BenchmarkFltSeen(b *testing.B) {
 
 }
 
-func makeFileReqQ(numReq int, dir string) []fileRequest {
-	reqQ := make([]fileRequest, numReq)
+func makeFileReqQ(numReq int, dir string) []Request {
+	reqQ := make([]Request, numReq)
 	for i := 0; i < numReq; i++ {
 		reqQ[i] = randomFileReq(dir)
 	}
 	return reqQ
 }
 
-func randomFileReq(dirname string) fileRequest {
-	return fileRequest{Directory: dirname, File: &slack.File{ID: fixtures.RandString(8), Name: fixtures.RandString(12)}}
+func randomFileReq(dirname string) Request {
+	return Request{Fullpath: fixtures.RandString(8), URL: fixtures.RandString(16)}
 }

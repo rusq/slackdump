@@ -78,13 +78,13 @@ func (s *Session) newFileProcessFn(ctx context.Context, dir string, l *rate.Limi
 	}
 	// set up a file downloader and add it to the post-process functions
 	// slice
-	dl := downloader.New(
+	dl := downloader.NewV1(
 		s.client,
 		s.fs,
-		downloader.Limiter(l),
-		downloader.Retries(s.cfg.limits.DownloadRetries),
-		downloader.Workers(s.cfg.limits.Workers),
-		downloader.Logger(s.log),
+		downloader.LimiterV1(l),
+		downloader.RetriesV1(s.cfg.limits.DownloadRetries),
+		downloader.WorkersV1(s.cfg.limits.Workers),
+		downloader.LoggerV1(s.log),
 	)
 	filesC := make(chan *slack.File, filesCbufSz)
 

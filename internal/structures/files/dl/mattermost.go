@@ -28,7 +28,7 @@ func NewMattermost(fs fsadapter.FS, cl *slack.Client, l logger.Interface, token 
 		base: base{
 			l:     l,
 			token: token,
-			dl: downloader.New(cl, fs, downloader.Logger(l), downloader.WithNameFunc(
+			dl: downloader.NewV1(cl, fs, downloader.LoggerV1(l), downloader.WithNameFunc(
 				func(f *slack.File) string {
 					return f.Name
 				},

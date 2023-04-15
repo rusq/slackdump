@@ -26,7 +26,7 @@ func filerForType(typ export.ExportType) filer {
 }
 
 type basefiler struct {
-	dcl *downloader.ClientV2
+	dcl *downloader.Client
 }
 
 type mmfiler struct {

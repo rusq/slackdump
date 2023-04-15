@@ -14,7 +14,7 @@ func ExampleNew_basic() {
 	client := slack.New("token")
 	fs := fsadapter.NewDirectory("files/")
 
-	dl := downloader.New(
+	dl := downloader.NewV1(
 		client,
 		fs,
 	)
@@ -39,12 +39,12 @@ func ExampleNew_advanced() {
 	}
 	defer fs.Close()
 
-	dl := downloader.New(
+	dl := downloader.NewV1(
 		client,
 		fs,
-		downloader.Retries(100), // 100 retries when rate limited
-		downloader.Limiter(rate.NewLimiter(20, 1)), // rate limit
-		downloader.Workers(8),                      // number of download workers
+		downloader.RetriesV1(100), // 100 retries when rate limited
+		downloader.LimiterV1(rate.NewLimiter(20, 1)), // rate limit
+		downloader.WorkersV1(8),                      // number of download workers
 	)
 
 	f := &slack.File{}
