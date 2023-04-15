@@ -315,6 +315,8 @@ func writeJSONFooter(w io.Writer) error {
 	return err
 }
 
+// openChunks opens a chunk file and returns a ReadSeekCloser.  It expects
+// a chunkfile to be a gzip-compressed file.
 func openChunks(filename string) (io.ReadSeekCloser, error) {
 	if fi, err := os.Stat(filename); err != nil {
 		return nil, err
@@ -333,5 +335,5 @@ func openChunks(filename string) (io.ReadSeekCloser, error) {
 		return nil, err
 	}
 
-	return osext.RemoveOnClose(tf, tf.Name()), nil
+	return osext.RemoveOnClose(tf), nil
 }

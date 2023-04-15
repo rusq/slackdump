@@ -377,7 +377,7 @@ func TestClient_startWorkers(t *testing.T) {
 
 		dc.EXPECT().GetFile(gomock.Any(), gomock.Any()).Times(qSz).Return(nil)
 
-		fileQueue := makeFileReqQ(qSz, t.TempDir())
+		fileQueue := makeFileReqQ(qSz)
 		fileChan := slice2chan(fileQueue, defFileBufSz)
 		wg := cl.v2.startWorkers(context.Background(), fileChan)
 

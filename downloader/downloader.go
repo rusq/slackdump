@@ -2,9 +2,8 @@ package downloader
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
+	"hash/crc64"
 	"io"
 	"os"
 	"path"
@@ -131,7 +130,7 @@ func (c *Client) startWorkers(ctx context.Context, req <-chan Request) *sync.Wai
 	for i := 0; i < c.workers; i++ {
 		wg.Add(1)
 		go func(workerNum int) {
-			c.worker(ctx, c.fltSeen(req))
+			c.worker(ctx, fltSeen(req))
 			wg.Done()
 			c.lg.Debugf("download worker %d terminated", workerNum)
 		}(i)
@@ -141,7 +140,7 @@ func (c *Client) startWorkers(ctx context.Context, req <-chan Request) *sync.Wai
 
 // fltSeen filters the files from filesC to ensure that no duplicates
 // are downloaded.
-func (c *Client) fltSeen(reqC <-chan Request) <-chan Request {
+func fltSeen(reqC <-chan Request) <-chan Request {
 	filtered := make(chan Request)
 	go func() {
 		// closing stop will lead to all worker goroutines to terminate.
@@ -149,12 +148,11 @@ func (c *Client) fltSeen(reqC <-chan Request) <-chan Request {
 
 		// seen contains file ids that already been seen,
 		// so we don't download the same file twice
-		seen := make(map[string]bool, 1000)
+		seen := make(map[uint64]bool, 1000)
 		// files queue must be closed by the caller (see DumpToDir.(1))
 		for r := range reqC {
 			h := hash(r.URL + r.Fullpath)
 			if _, ok := seen[h]; ok {
-				c.lg.Debugf("already seen %q, skipping", r.URL)
 				continue
 			}
 			seen[h] = true
@@ -164,10 +162,12 @@ func (c *Client) fltSeen(reqC <-chan Request) <-chan Request {
 	return filtered
 }
 
-func hash(s string) string {
-	h := sha256.New()
+var crctab = crc64.MakeTable(crc64.ISO)
+
+func hash(s string) uint64 {
+	h := crc64.New(crctab)
 	h.Write([]byte(s))
-	return hex.EncodeToString(h.Sum(nil))
+	return h.Sum64()
 }
 
 // worker receives requests from reqC and passes them to saveFile function.
@@ -252,7 +252,7 @@ func (c *Client) Stop() {
 	}
 
 	close(c.requests)
-	c.lg.Debugf("download files channel closed, waiting for downloads to complete")
+	c.lg.Debugf("requests channel closed, waiting for all downloads to complete")
 	c.wg.Wait()
 	c.lg.Debugf("wait complete:  all files downloaded")
 

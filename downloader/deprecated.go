@@ -25,6 +25,8 @@ const (
 )
 
 // ClientV1 is the instance of the downloader.
+//
+// Deprecated: Use Client.
 type ClientV1 struct {
 	v2     *Client
 	nameFn FilenameFunc

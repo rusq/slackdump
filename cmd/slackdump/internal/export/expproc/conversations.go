@@ -6,18 +6,20 @@ import (
 	"sync"
 
 	"github.com/rusq/dlog"
+	"github.com/rusq/slackdump/v2/internal/chunk/processor"
 	"github.com/rusq/slackdump/v2/logger"
 	"github.com/slack-go/slack"
 )
 
 // Conversations is a processor that writes the channel and thread messages.
 type Conversations struct {
-	dir        string
-	cw         map[string]*channelproc
-	mu         sync.RWMutex
-	lg         logger.Interface
+	dir   string
+	cw    map[string]*channelproc
+	mu    sync.RWMutex
+	lg    logger.Interface
+	filer processor.Filer
+
 	onFinalise func(channelID string) error
-	onFiles    func(ctx context.Context, channelID string, files []slack.File) error
 }
 
 // ConvOption is a function that configures the Conversations processor.
@@ -32,10 +34,11 @@ func FinaliseFunc(fn func(channelID string) error) ConvOption {
 	}
 }
 
-// DownloadFunc sets a callback function that is called for each files chunk.
-func DownloadFunc(fn func(ctx context.Context, channelID string, files []slack.File) error) ConvOption {
+// WithFiler allows to set a custom filer for the processor.  It will be
+// executed on every Files call, along with the existing Filer.
+func WithFiler(f processor.Filer) ConvOption {
 	return func(cv *Conversations) {
-		cv.onFiles = fn
+		cv.filer = f
 	}
 }
 
@@ -170,8 +173,8 @@ func (cv *Conversations) Files(ctx context.Context, channelID string, parent sla
 	if err := r.Files(ctx, channelID, parent, isThread, ff); err != nil {
 		return err
 	}
-	if cv.onFiles != nil {
-		if err := cv.onFiles(ctx, channelID, ff); err != nil {
+	if cv.filer != nil {
+		if err := cv.filer.Files(ctx, channelID, parent, isThread, ff); err != nil {
 			return err
 		}
 	}

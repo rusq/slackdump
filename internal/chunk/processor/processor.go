@@ -19,11 +19,15 @@ type Conversations interface {
 	// ThreadMessages is called for each of the thread messages that are
 	// retrieved. The parent message is passed in as well.
 	ThreadMessages(ctx context.Context, channelID string, parent slack.Message, isLast bool, tm []slack.Message) error
+
+	Filer
+	io.Closer
+}
+
+type Filer interface {
 	// Files is called for each file that is retrieved. The parent message is
 	// passed in as well.
 	Files(ctx context.Context, channelID string, parent slack.Message, isThread bool, ff []slack.File) error
-
-	io.Closer
 }
 
 var _ Conversations = new(chunk.Recorder)

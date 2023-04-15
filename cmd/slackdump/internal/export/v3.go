@@ -37,18 +37,18 @@ func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 	dl.Start(ctx)
 	defer dl.Stop()
 
-	filer := mmfiler{
-		basefiler{dcl: dl},
-	}
+	filer := expproc.NewFiler(options.Type, dl)
 
 	lg.Printf("using %s as the temporary directory", tmpdir)
 	lg.Print("running export...")
-	errC := make(chan error, 1)
-	s := sess.Stream()
-	var wg sync.WaitGroup
 
+	var (
+		wg    sync.WaitGroup
+		s     = sess.Stream()
+		errC  = make(chan error, 1)
+		linkC = make(chan string)
+	)
 	// Generator of channel IDs.
-	links := make(chan string)
 	{
 		wg.Add(1)
 		var generator linkFeederFunc
@@ -62,8 +62,8 @@ func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 
 		go func() {
 			defer wg.Done()
-			defer close(links)
-			errC <- generator(ctx, links, list) // TODO
+			defer close(linkC)
+			errC <- generator(ctx, linkC, list) // TODO
 			lg.Debug("channels done")
 		}()
 	}
@@ -94,14 +94,14 @@ func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 		pb.RenderBlank()
 		wg.Add(1)
 
-		conv, err := expproc.NewConversation(tmpdir, expproc.FinaliseFunc(tf.OnFinalise), expproc.DownloadFunc(filer.Download))
+		conv, err := expproc.NewConversation(tmpdir, expproc.FinaliseFunc(tf.OnFinalise), expproc.WithFiler(filer))
 		if err != nil {
 			return fmt.Errorf("error initialising conversation processor: %w", err)
 		}
 		go func() {
 			defer wg.Done()
 			defer pb.Finish()
-			errC <- conversationWorker(ctx, s, pb, conv, links)
+			errC <- conversationWorker(ctx, s, pb, conv, linkC)
 		}()
 	}
 	// sentinel

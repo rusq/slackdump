@@ -1,4 +1,4 @@
-// Package osext provides some extended functionality for the os package.
+// Package osext provides some helpful os functions.
 package osext
 
 import "fmt"

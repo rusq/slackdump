@@ -31,7 +31,7 @@ func (st *State) OpenChunks(basePath string) (io.ReadSeekCloser, error) {
 		if err != nil {
 			return nil, err
 		}
-		return osext.RemoveOnClose(tf, tf.Name()), nil
+		return osext.RemoveOnClose(tf), nil
 	}
 	return f, nil
 }
