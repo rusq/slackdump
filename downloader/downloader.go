@@ -40,6 +40,7 @@ type Client struct {
 
 	mu           sync.Mutex // mutex prevents race condition when starting/stopping
 	fileRequests chan fileRequest
+	requests     chan request
 	wg           *sync.WaitGroup
 	started      bool
 
@@ -256,7 +257,8 @@ func (c *Client) saveFile(ctx context.Context, dir string, sf *slack.File) (int6
 	if err := network.WithRetry(ctx, c.limiter, c.retries, func() error {
 		region := trace.StartRegion(ctx, "GetFile")
 		defer region.End()
-
+		s := slack.Client{}
+		s.GetFile(sf.URLPrivateDownload, tf)
 		if err := c.client.GetFile(sf.URLPrivateDownload, tf); err != nil {
 			if _, err := tf.Seek(0, io.SeekStart); err != nil {
 				c.l().Debugf("seek error: %s", err)

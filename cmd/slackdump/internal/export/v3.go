@@ -20,7 +20,7 @@ import (
 )
 
 func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, list *structures.EntityList, options export.Config) error {
-	lg := dlog.FromContext(ctx)
+	lg := options.Logger
 
 	tmpdir, err := os.MkdirTemp("", "slackdump-*")
 	if err != nil {
@@ -32,10 +32,14 @@ func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 	}
 	defer tf.Close()
 
-	filer := mmfiler{}
-	dl := downloader.New(sess.Client(), fsa, downloader.WithNameFunc(filer.Name))
+	// starting the downloader
+	dl := downloader.NewV2(sess.Client(), fsa, downloader.WithLogger(lg))
 	dl.Start(ctx)
 	defer dl.Stop()
+
+	filer := mmfiler{
+		basefiler{dcl: dl},
+	}
 
 	lg.Printf("using %s as the temporary directory", tmpdir)
 	lg.Print("running export...")
@@ -90,7 +94,7 @@ func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 		pb.RenderBlank()
 		wg.Add(1)
 
-		conv, err := expproc.NewConversation(tmpdir, expproc.OnFinalise(tf.OnFinalise), expproc.OnFiles(filer.DownloadFn(ctx, dl)))
+		conv, err := expproc.NewConversation(tmpdir, expproc.FinaliseFunc(tf.OnFinalise), expproc.DownloadFunc(filer.Download))
 		if err != nil {
 			return fmt.Errorf("error initialising conversation processor: %w", err)
 		}

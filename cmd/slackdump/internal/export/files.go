@@ -2,43 +2,66 @@ package export
 
 import (
 	"context"
+	"fmt"
 	"path/filepath"
 
 	"github.com/rusq/slackdump/v2/downloader"
+	"github.com/rusq/slackdump/v2/export"
 	"github.com/slack-go/slack"
 )
 
 type filer interface {
-	Name(f *slack.File) string
-	DownloadFn(ctx context.Context, dl *downloader.Client) func(string, []slack.File) error
+	Download(ctx context.Context, channelID string, ff []slack.File) error
 }
 
-type mmfiler struct{}
-
-func (mmfiler) Name(f *slack.File) string {
-	return f.Name
-}
-
-func (mmfiler) DownloadFn(ctx context.Context, dl *downloader.Client) func(string, []slack.File) error {
-	const baseDir = "__uploads"
-	return func(chID string, ff []slack.File) error {
-		for _, f := range ff {
-			if _, err := dl.DownloadFile(filepath.Join(baseDir, f.ID), f); err != nil {
-				return err
-			}
-		}
-		return nil
+func filerForType(typ export.ExportType) filer {
+	switch typ {
+	case export.TStandard:
+		return stdfiler{}
+	case export.TMattermost:
+		return mmfiler{}
+	default:
+		return nopfiler{}
 	}
+}
+
+type basefiler struct {
+	dcl *downloader.ClientV2
+}
+
+type mmfiler struct {
+	basefiler
+}
+
+func (mm mmfiler) Download(ctx context.Context, channelID string, ff []slack.File) error {
+	const baseDir = "__uploads"
+	for _, f := range ff {
+		if err := mm.dcl.Download(filepath.Join(baseDir, f.ID, f.Name), f.URLPrivateDownload); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type nopfiler struct{}
 
-func (nopfiler) Name(f *slack.File) string {
-	return ""
+func (nopfiler) Download(ctx context.Context, url string, ff []slack.File) error {
+	return nil
 }
 
-func (nopfiler) DownloadFn(ctx context.Context, dl *downloader.Client) func(string, []slack.File) error {
-	return func(chID string, ff []slack.File) error {
-		return nil
+type stdfiler struct {
+	basefiler
+}
+
+func (mm stdfiler) Download(ctx context.Context, channelID string, ff []slack.File) error {
+	const baseDir = "attachments"
+	for _, f := range ff {
+		if err := mm.dcl.Download(
+			filepath.Join(channelID, baseDir, fmt.Sprintf("%s-%s", f.ID, f.Name)),
+			f.URL,
+		); err != nil {
+			return err
+		}
 	}
+	return nil
 }

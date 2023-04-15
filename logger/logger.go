@@ -14,6 +14,7 @@ type Interface interface {
 	Print(...any)
 	Printf(fmt string, a ...any)
 	Println(...any)
+	IsDebug() bool
 }
 
 // Default is the default logger.  It logs to stderr and debug logging can be
@@ -33,3 +34,4 @@ func (s silent) Debugf(fmt string, a ...any) {}
 func (s silent) Print(...any)                {}
 func (s silent) Printf(fmt string, a ...any) {}
 func (s silent) Println(...any)              {}
+func (s silent) IsDebug() bool               { return false }

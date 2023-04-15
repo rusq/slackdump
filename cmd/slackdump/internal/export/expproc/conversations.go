@@ -17,23 +17,23 @@ type Conversations struct {
 	mu         sync.RWMutex
 	lg         logger.Interface
 	onFinalise func(channelID string) error
-	onFiles    func(channelID string, files []slack.File) error
+	onFiles    func(ctx context.Context, channelID string, files []slack.File) error
 }
 
 // ConvOption is a function that configures the Conversations processor.
 type ConvOption func(*Conversations)
 
-// OnFinalise sets a callback function that is called when the processor is
+// FinaliseFunc sets a callback function that is called when the processor is
 // finished processing all channel and threads for the channel (when the
 // reference count becomes 0).
-func OnFinalise(fn func(channelID string) error) ConvOption {
+func FinaliseFunc(fn func(channelID string) error) ConvOption {
 	return func(cv *Conversations) {
 		cv.onFinalise = fn
 	}
 }
 
-// OnFiles sets a callback function that is called for each files chunk.
-func OnFiles(fn func(channelID string, files []slack.File) error) ConvOption {
+// DownloadFunc sets a callback function that is called for each files chunk.
+func DownloadFunc(fn func(ctx context.Context, channelID string, files []slack.File) error) ConvOption {
 	return func(cv *Conversations) {
 		cv.onFiles = fn
 	}
@@ -167,13 +167,15 @@ func (cv *Conversations) Files(ctx context.Context, channelID string, parent sla
 	if err != nil {
 		return err
 	}
+	if err := r.Files(ctx, channelID, parent, isThread, ff); err != nil {
+		return err
+	}
 	if cv.onFiles != nil {
-		if err := cv.onFiles(channelID, ff); err != nil {
+		if err := cv.onFiles(ctx, channelID, ff); err != nil {
 			return err
 		}
 	}
-
-	return r.Files(ctx, channelID, parent, isThread, ff)
+	return nil
 }
 
 // ThreadMessages is called for each of the thread messages that are
