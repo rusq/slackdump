@@ -1,98 +1,96 @@
-// Package downloader provides the sync and async file download functionality.
 package downloader
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"io"
+	"os"
 	"path"
-	"path/filepath"
-
-	"errors"
-
-	"github.com/slack-go/slack"
-	"golang.org/x/time/rate"
+	"runtime/trace"
+	"sync"
 
 	"github.com/rusq/fsadapter"
+	"github.com/rusq/slackdump/v2/internal/network"
 	"github.com/rusq/slackdump/v2/logger"
+	"golang.org/x/time/rate"
 )
 
-const (
-	defRetries    = 3    // default number of retries if download fails
-	defNumWorkers = 4    // number of download processes
-	defLimit      = 5000 // default API limit, in events per second.
-	defFileBufSz  = 100  // default download channel buffer.
-)
+// Client is the instance of the downloader.
+type Client struct {
+	sc      Downloader
+	limiter *rate.Limiter
+	fsa     fsadapter.FS
+	lg      logger.Interface
 
-// ClientV1 is the instance of the downloader.
-type ClientV1 struct {
-	v2     *Client
-	nameFn FilenameFunc
+	retries int
+	workers int
+
+	mu        sync.Mutex // mutex prevents race condition when starting/stopping
+	requests  chan Request
+	chanBufSz int
+	wg        *sync.WaitGroup
+	started   bool
 }
 
-// FilenameFunc is the file naming function that should return the output
-// filename for slack.File.
-type FilenameFunc func(*slack.File) string
+// Option is the function signature for the option functions.
+type Option func(*Client)
 
-// Filename returns name of the file generated from the slack.File.
-var Filename FilenameFunc = stdFilenameFn
-
-// Downloader is the file downloader interface.  It exists primarily for mocking
-// in tests.
-type Downloader interface {
-	// GetFile retreives a given file from its private download URL
-	GetFile(downloadURL string, writer io.Writer) error
-}
-
-// OptionV1 is the function signature for the option functions.
-type OptionV1 func(*ClientV1)
-
-// LimiterV1 uses the initialised limiter instead of built in.
-func LimiterV1(l *rate.Limiter) OptionV1 {
-	return func(c *ClientV1) {
-		Limiter(l)(c.v2)
-	}
-}
-
-// RetriesV1 sets the number of attempts that will be taken for the file download.
-func RetriesV1(n int) OptionV1 {
-	return func(c *ClientV1) {
-		Retries(n)(c.v2)
-	}
-}
-
-// WorkersV1 sets the number of workers for the download queue.
-func WorkersV1(n int) OptionV1 {
-	return func(c *ClientV1) {
-		Workers(n)(c.v2)
-	}
-}
-
-// LoggerV1 allows to use an external log library, that satisfies the
-// logger.Interface.
-func LoggerV1(l logger.Interface) OptionV1 {
-	return func(c *ClientV1) {
-		WithLogger(l)(c.v2)
-	}
-}
-
-func WithNameFunc(fn FilenameFunc) OptionV1 {
-	return func(c *ClientV1) {
-		if fn != nil {
-			c.nameFn = fn
-		} else {
-			c.nameFn = Filename
+// Limiter uses the initialised limiter instead of built in.
+func Limiter(l *rate.Limiter) Option {
+	return func(c *Client) {
+		if l != nil {
+			c.limiter = l
 		}
 	}
 }
 
-// NewV1 initialises new file downloader.
-//
-// Deprecated: use NewV2 instead.
-func NewV1(client Downloader, fs fsadapter.FS, opts ...OptionV1) *ClientV1 {
-	c := &ClientV1{
-		v2:     New(client, fs),
-		nameFn: Filename,
+// Retries sets the number of attempts that will be taken for the file download.
+func Retries(n int) Option {
+	return func(c *Client) {
+		if n <= 0 {
+			n = defRetries
+		}
+		c.retries = n
+	}
+}
+
+// Workers sets the number of workers for the download queue.
+func Workers(n int) Option {
+	return func(c *Client) {
+		if n <= 0 {
+			n = defNumWorkers
+		}
+		c.workers = n
+	}
+}
+
+// Logger allows to use an external log library, that satisfies the
+// logger.Interface.
+func WithLogger(l logger.Interface) Option {
+	return func(c *Client) {
+		if l == nil {
+			l = logger.Default
+		}
+		c.lg = l
+	}
+}
+
+// New initialises new file downloader.
+func New(sc Downloader, fs fsadapter.FS, opts ...Option) *Client {
+	if sc == nil {
+		// better safe than sorry
+		panic("programming error:  client is nil")
+	}
+	c := &Client{
+		sc:        sc,
+		fsa:       fs,
+		limiter:   rate.NewLimiter(defLimit, 1),
+		lg:        logger.Default,
+		chanBufSz: defFileBufSz,
+		retries:   defRetries,
+		workers:   defNumWorkers,
 	}
 	for _, opt := range opts {
 		opt(c)
@@ -100,62 +98,194 @@ func NewV1(client Downloader, fs fsadapter.FS, opts ...OptionV1) *ClientV1 {
 	return c
 }
 
-// SaveFile saves a single file to the specified directory synchrounously.
-func (c *ClientV1) SaveFile(ctx context.Context, dir string, f *slack.File) (int64, error) {
-	return c.v2.download(ctx, filepath.Join(dir, c.nameFn(f)), f.URLPrivateDownload)
+type Request struct {
+	Fullpath string
+	URL      string
 }
 
 // Start starts an async file downloader.  If the downloader is already
 // started, it does nothing.
-func (c *ClientV1) Start(ctx context.Context) {
-	c.v2.Start(ctx)
+func (c *Client) Start(ctx context.Context) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.started {
+		// already started
+		return
+	}
+	req := make(chan Request, c.chanBufSz)
+
+	c.requests = req
+	c.wg = c.startWorkers(ctx, req)
+	c.started = true
 }
 
-var ErrNoFS = errors.New("fs adapter not initialised")
-
-// AsyncDownloader starts Client.worker goroutines to download files
-// concurrently. It will download any file that is received on fileDlQueue
-// channel. It returns the "done" channel and an error. "done" channel will be
-// closed once all downloads are complete.
-func (c *ClientV1) AsyncDownloader(ctx context.Context, dir string, fileDlQueue <-chan *slack.File) (<-chan struct{}, error) {
-	if c.v2.fsa == nil {
-		return nil, ErrNoFS
+// startWorkers starts download workers.  It returns a sync.WaitGroup.  If the
+// req channel is closed, workers will stop, and wg.Wait() completes.
+func (c *Client) startWorkers(ctx context.Context, req <-chan Request) *sync.WaitGroup {
+	if c.workers == 0 {
+		c.workers = defNumWorkers
 	}
-	dlq := make(chan Request, c.v2.chanBufSz)
+	var wg sync.WaitGroup
+	// create workers
+	for i := 0; i < c.workers; i++ {
+		wg.Add(1)
+		go func(workerNum int) {
+			c.worker(ctx, c.fltSeen(req))
+			wg.Done()
+			c.lg.Debugf("download worker %d terminated", workerNum)
+		}(i)
+	}
+	return &wg
+}
+
+// fltSeen filters the files from filesC to ensure that no duplicates
+// are downloaded.
+func (c *Client) fltSeen(reqC <-chan Request) <-chan Request {
+	filtered := make(chan Request)
 	go func() {
-		defer close(dlq)
-		for f := range fileDlQueue {
-			dlq <- Request{
-				Fullpath: path.Join(dir, c.nameFn(f)),
-				URL:      f.URLPrivateDownload,
+		// closing stop will lead to all worker goroutines to terminate.
+		defer close(filtered)
+
+		// seen contains file ids that already been seen,
+		// so we don't download the same file twice
+		seen := make(map[string]bool, 1000)
+		// files queue must be closed by the caller (see DumpToDir.(1))
+		for r := range reqC {
+			h := hash(r.URL + r.Fullpath)
+			if _, ok := seen[h]; ok {
+				c.lg.Debugf("already seen %q, skipping", r.URL)
+				continue
+			}
+			seen[h] = true
+			filtered <- r
+		}
+	}()
+	return filtered
+}
+
+func hash(s string) string {
+	h := sha256.New()
+	h.Write([]byte(s))
+	return hex.EncodeToString(h.Sum(nil))
+}
+
+// worker receives requests from reqC and passes them to saveFile function.
+// It will stop if either context is Done, or reqC is closed.
+func (c *Client) worker(ctx context.Context, reqC <-chan Request) {
+	for {
+		select {
+		case <-ctx.Done():
+			trace.Log(ctx, "info", "worker context cancelled")
+			return
+		case req, moar := <-reqC:
+			if !moar {
+				return
+			}
+			c.lg.Debugf("saving %q to %s", path.Base(req.URL), req.Fullpath)
+			n, err := c.download(ctx, req.Fullpath, req.URL)
+			if err != nil {
+				c.lg.Printf("error saving %q to %q: %s", path.Base(req.URL), req.Fullpath, err)
+				break
+			}
+			c.lg.Debugf("file %q saved to %s: %d bytes written", path.Base(req.URL), req.Fullpath, n)
+		}
+	}
+}
+
+// saveFileWithLimiter saves the file to specified directory, it will use the provided limiter l for throttling.
+func (c *Client) download(ctx context.Context, fullpath string, url string) (int64, error) {
+	if c.fsa == nil {
+		return 0, ErrNoFS
+	}
+	tf, err := os.CreateTemp("", "")
+	if err != nil {
+		return 0, err
+	}
+	defer func() {
+		tf.Close()
+		os.Remove(tf.Name())
+	}()
+
+	if err := network.WithRetry(ctx, c.limiter, c.retries, func() error {
+		region := trace.StartRegion(ctx, "GetFile")
+		defer region.End()
+
+		if err := c.sc.GetFile(url, tf); err != nil {
+			if _, err := tf.Seek(0, io.SeekStart); err != nil {
+				c.lg.Debugf("seek error: %s", err)
+			}
+			return fmt.Errorf("download to %q failed, [src=%s]: %w", fullpath, url, err)
+		}
+		return nil
+	}); err != nil {
+		return 0, err
+	}
+
+	// at this point, temporary file position would be at EOF, we need to reset
+	// it prior to copying.
+	if _, err := tf.Seek(0, io.SeekStart); err != nil {
+		return 0, err
+	}
+
+	fsf, err := c.fsa.Create(fullpath)
+	if err != nil {
+		return 0, err
+	}
+	defer fsf.Close()
+
+	n, err := io.Copy(fsf, tf)
+	if err != nil {
+		return 0, err
+	}
+
+	return int64(n), nil
+}
+
+// Stop waits for all transfers to finish, and stops the downloader.
+func (c *Client) Stop() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if !c.started {
+		return
+	}
+
+	close(c.requests)
+	c.lg.Debugf("download files channel closed, waiting for downloads to complete")
+	c.wg.Wait()
+	c.lg.Debugf("wait complete:  all files downloaded")
+
+	c.requests = nil
+	c.wg = nil
+	c.started = false
+}
+
+// Download requires a started downloader, otherwise it will return
+// ErrNotStarted. Will place the file to the download queue.
+func (c *Client) Download(fullpath string, url string) error {
+	c.mu.Lock()
+	started := c.started
+	c.mu.Unlock()
+
+	if !started {
+		return ErrNotStarted
+	}
+	c.requests <- Request{Fullpath: fullpath, URL: url}
+	return nil
+}
+
+func (c *Client) AsyncDownloader(ctx context.Context, queueC <-chan Request) (<-chan struct{}, error) {
+	done := make(chan struct{})
+	c.Start(ctx)
+	go func() {
+		defer close(done)
+		for r := range queueC {
+			if err := c.Download(r.Fullpath, r.URL); err != nil {
+				c.lg.Printf("error downloading %q: %s", r.URL, err)
 			}
 		}
 	}()
-	done, err := c.v2.AsyncDownloader(ctx, dlq)
-	if err != nil {
-		return nil, err
-	}
 
 	return done, nil
-}
-
-func stdFilenameFn(f *slack.File) string {
-	return fmt.Sprintf("%s-%s", f.ID, f.Name)
-}
-
-var ErrNotStarted = errors.New("downloader not started")
-
-// DownloadFile requires a started downloader, otherwise it will return
-// ErrNotStarted. Will place the file to the download queue, and save the file
-// to the directory that was specified when Start was called. If the file buffer
-// is full, will block until it becomes empty.  It returns the filepath within the
-// filesystem.
-func (c *ClientV1) DownloadFile(dir string, f slack.File) (string, error) {
-	path := filepath.Join(dir, c.nameFn(&f))
-	err := c.v2.Download(path, f.URLPrivateDownload)
-	return path, err
-}
-
-func (c *ClientV1) Stop() {
-	c.v2.Stop()
 }
