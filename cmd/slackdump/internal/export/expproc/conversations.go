@@ -19,6 +19,9 @@ type Conversations struct {
 	lg    logger.Interface
 	filer processor.Filer
 
+	// flags
+	recordFiles bool
+
 	onFinalise func(channelID string) error
 }
 
@@ -34,18 +37,17 @@ func FinaliseFunc(fn func(channelID string) error) ConvOption {
 	}
 }
 
-// WithFiler allows to set a custom filer for the processor.  It will be
-// executed on every Files call, along with the existing Filer.
-func WithFiler(f processor.Filer) ConvOption {
-	return func(cv *Conversations) {
-		cv.filer = f
-	}
-}
-
 // WithLogger sets the logger for the processor.
 func WithLogger(lg logger.Interface) ConvOption {
 	return func(cv *Conversations) {
 		cv.lg = lg
+	}
+}
+
+// WithRecordFiles sets whether the files should be recorded in the chunk file.
+func WithRecordFiles(b bool) ConvOption {
+	return func(cv *Conversations) {
+		cv.recordFiles = b
 	}
 }
 
@@ -58,11 +60,14 @@ type channelproc struct {
 	refcnt int
 }
 
-func NewConversation(dir string, opts ...ConvOption) (*Conversations, error) {
+// NewConversation returns the new conversation processor.  filer.Files method
+// will be called for each file chunk.
+func NewConversation(dir string, filer processor.Filer, opts ...ConvOption) (*Conversations, error) {
 	c := &Conversations{
-		dir: dir,
-		lg:  logger.Default,
-		cw:  make(map[string]*channelproc),
+		dir:   dir,
+		lg:    logger.Default,
+		cw:    make(map[string]*channelproc),
+		filer: filer,
 	}
 	for _, opt := range opts {
 		opt(c)
@@ -166,15 +171,15 @@ func (cv *Conversations) Messages(ctx context.Context, channelID string, numThre
 // Files is called for each file that is retrieved. The parent message is
 // passed in as well.
 func (cv *Conversations) Files(ctx context.Context, channelID string, parent slack.Message, isThread bool, ff []slack.File) error {
-	r, err := cv.recorder(channelID)
-	if err != nil {
+	if err := cv.filer.Files(ctx, channelID, parent, isThread, ff); err != nil {
 		return err
 	}
-	if err := r.Files(ctx, channelID, parent, isThread, ff); err != nil {
-		return err
-	}
-	if cv.filer != nil {
-		if err := cv.filer.Files(ctx, channelID, parent, isThread, ff); err != nil {
+	if cv.recordFiles {
+		r, err := cv.recorder(channelID)
+		if err != nil {
+			return err
+		}
+		if err := r.Files(ctx, channelID, parent, isThread, ff); err != nil {
 			return err
 		}
 	}

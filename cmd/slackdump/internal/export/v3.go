@@ -37,8 +37,6 @@ func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 	dl.Start(ctx)
 	defer dl.Stop()
 
-	filer := expproc.NewFiler(options.Type, dl)
-
 	lg.Printf("using %s as the temporary directory", tmpdir)
 	lg.Print("running export...")
 
@@ -57,7 +55,7 @@ func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 			generator = genListChannel
 		} else {
 			// exclusive export (process only excludes, if any)
-			generator = genAPIChannel(tmpdir, s, options.MemberOnly)
+			generator = genAPIChannel(s, tmpdir, options.MemberOnly)
 		}
 
 		go func() {
@@ -94,14 +92,17 @@ func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 		pb.RenderBlank()
 		wg.Add(1)
 
-		conv, err := expproc.NewConversation(tmpdir, expproc.FinaliseFunc(tf.OnFinalise), expproc.WithFiler(filer))
+		conv, err := expproc.NewConversation(
+			tmpdir,
+			expproc.NewFiler(options.Type, dl),
+			expproc.FinaliseFunc(tf.OnFinalise))
 		if err != nil {
 			return fmt.Errorf("error initialising conversation processor: %w", err)
 		}
 		go func() {
 			defer wg.Done()
 			defer pb.Finish()
-			errC <- conversationWorker(ctx, s, pb, conv, linkC)
+			errC <- conversationWorker(ctx, s, conv, pb, linkC)
 		}()
 	}
 	// sentinel
@@ -142,7 +143,7 @@ func genListChannel(ctx context.Context, links chan<- string, list *structures.E
 // links channel.  It also filters out channels that are excluded in the list.
 // It does not account for "included".  It ignores the thread links in the
 // list.  It writes the channels to the tmpdir.
-func genAPIChannel(tmpdir string, s *slackdump.Stream, memberOnly bool) linkFeederFunc {
+func genAPIChannel(s *slackdump.Stream, tmpdir string, memberOnly bool) linkFeederFunc {
 	return linkFeederFunc(func(ctx context.Context, links chan<- string, list *structures.EntityList) error {
 		chIdx := list.Index()
 		chanproc, err := expproc.NewChannels(tmpdir, func(c []slack.Channel) error {
@@ -203,7 +204,7 @@ type progresser interface {
 	Finish() error
 }
 
-func conversationWorker(ctx context.Context, s *slackdump.Stream, pb progresser, proc processor.Conversations, links <-chan string) error {
+func conversationWorker(ctx context.Context, s *slackdump.Stream, proc processor.Conversations, pb progresser, links <-chan string) error {
 	if err := s.AsyncConversations(ctx, proc, links, func(sr slackdump.StreamResult) error {
 		pb.Describe(sr.String())
 		pb.Add(1)

@@ -1,21 +1,20 @@
-package export
+package structures
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"reflect"
 	"strings"
 
 	"github.com/rusq/fsadapter"
-	"github.com/rusq/slackdump/v2/internal/structures"
-	"github.com/rusq/slackdump/v2/types"
 
 	"github.com/slack-go/slack"
 )
 
-// index is the index of the export archive.  filename tags are used to
+// ExportIndex is the ExportIndex of the export archive.  filename tags are used to
 // serialize the structure to JSON files.
-type index struct {
+type ExportIndex struct {
 	Channels []slack.Channel `filename:"channels.json"`
 	Groups   []slack.Channel `filename:"groups.json,omitempty"`
 	MPIMs    []slack.Channel `filename:"mpims.json,omitempty"`
@@ -34,28 +33,28 @@ type DM struct {
 }
 
 var (
-	errNoChannel = errors.New("empty channel data base")
-	errNoUsers   = errors.New("empty users data base")
-	errNoIdent   = errors.New("empty user identity")
+	ErrNoChannel = errors.New("empty channel data base")
+	ErrNoUsers   = errors.New("empty users data base")
+	ErrNoIdent   = errors.New("empty user identity")
 )
 
-// createIndex creates a channels and users index for export archive, splitting
+// MakeExportIndex creates a channels and users index for export archive, splitting
 // channels in group/mpims/dms/public channels.  currentUserID should contain
 // the current user ID.
-func createIndex(channels []slack.Channel, users types.Users, currentUserID string) (*index, error) {
+func MakeExportIndex(channels []slack.Channel, users []slack.User, currentUserID string) (*ExportIndex, error) {
 	if len(channels) == 0 {
-		return nil, errNoChannel
+		return nil, ErrNoChannel
 	}
 	if len(users) == 0 {
-		return nil, errNoUsers
+		return nil, ErrNoUsers
 	}
 	if currentUserID == "" {
-		return nil, errNoIdent
+		return nil, ErrNoIdent
 	}
 
-	var idx = index{
+	var idx = ExportIndex{
 		Users:    users,
-		Channels: []slack.Channel{},
+		Channels: make([]slack.Channel, 0, len(channels)),
 		Groups:   []slack.Channel{},
 		MPIMs:    []slack.Channel{},
 		DMs:      []DM{},
@@ -70,7 +69,7 @@ func createIndex(channels []slack.Channel, users types.Users, currentUserID stri
 				Members: []string{ch.User, currentUserID},
 			})
 		case ch.IsMpIM:
-			fixed, err := structures.FixMpIMmembers(&ch, users)
+			fixed, err := FixMpIMmembers(&ch, users)
 			if err != nil {
 				return nil, err
 			}
@@ -86,7 +85,7 @@ func createIndex(channels []slack.Channel, users types.Users, currentUserID stri
 
 // Marshal writes the index to the filesystem in a set of files specified in
 // `filename` tags of the structure.
-func (idx *index) Marshal(fs fsadapter.FS) error {
+func (idx *ExportIndex) Marshal(fs fsadapter.FS) error {
 	if fs == nil {
 		return errors.New("marshal: no fs")
 	}
@@ -114,4 +113,15 @@ func (idx *index) Marshal(fs fsadapter.FS) error {
 		}
 	}
 	return nil
+}
+
+func serializeToFS(fs fsadapter.FS, filename string, data interface{}) error {
+	f, err := fs.Create(filename)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	enc := json.NewEncoder(f)
+	enc.SetIndent("", "  ")
+	return enc.Encode(data)
 }

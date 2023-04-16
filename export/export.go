@@ -90,7 +90,7 @@ func (se *Export) messages(ctx context.Context, users types.Users) error {
 		return fmt.Errorf("export error: %w", err)
 	}
 
-	idx, err := createIndex(chans, users, se.sd.CurrentUserID())
+	idx, err := structures.MakeExportIndex(chans, users, se.sd.CurrentUserID())
 	if err != nil {
 		return fmt.Errorf("failed to create an index: %w", err)
 	}

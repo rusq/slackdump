@@ -1,4 +1,4 @@
-package export
+package structures
 
 import (
 	"testing"
@@ -13,20 +13,20 @@ func TestIndex_Marshal(t *testing.T) {
 	}
 	tests := []struct {
 		name    string
-		fields  index
+		fields  ExportIndex
 		args    args
 		wantErr bool
 	}{
 		{
 			"x",
-			index{Channels: []slack.Channel{{IsChannel: true}}},
+			ExportIndex{Channels: []slack.Channel{{IsChannel: true}}},
 			args{},
 			true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			idx := &index{
+			idx := &ExportIndex{
 				Channels: tt.fields.Channels,
 				Groups:   tt.fields.Groups,
 				MPIMs:    tt.fields.MPIMs,

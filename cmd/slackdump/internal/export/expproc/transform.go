@@ -6,10 +6,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"runtime/trace"
 	"sort"
+	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/rusq/dlog"
@@ -23,12 +26,13 @@ import (
 )
 
 type Transform struct {
-	srcdir string       // source directory with chunks.
-	fsa    fsadapter.FS // target file system adapter.
-	ids    chan string  // channel used to pass channel IDs to the worker.
-	done   chan struct{}
-	users  []slack.User // list of users.
-	err    chan error   // error channel used to propagate errors to the main thread.
+	srcdir  string       // source directory with chunks.
+	fsa     fsadapter.FS // target file system adapter.
+	ids     chan string  // channel used to pass channel IDs to the worker.
+	done    chan struct{}
+	users   []slack.User // list of users.
+	err     chan error   // error channel used to propagate errors to the main thread.
+	started atomic.Bool
 }
 
 type TfOption func(*Transform)
@@ -46,7 +50,9 @@ func WithUsers(users []slack.User) TfOption {
 	}
 }
 
-// NewTransform creates a new Transform instance.
+// NewTransform creates a new Transform instance.  The fsa is the filesystem
+// adapter that holds the transformed data (output), chunkdir is the directory
+// where the chunks, produced by processor, are stored.
 func NewTransform(ctx context.Context, fsa fsadapter.FS, chunkdir string, tfopt ...TfOption) (*Transform, error) {
 	if err := osext.DirExists(chunkdir); err != nil {
 		return nil, fmt.Errorf("chunk directory %s does not exist: %w", chunkdir, err)
@@ -54,9 +60,6 @@ func NewTransform(ctx context.Context, fsa fsadapter.FS, chunkdir string, tfopt 
 	t := &Transform{
 		srcdir: chunkdir,
 		fsa:    fsa,
-		ids:    make(chan string),
-		done:   make(chan struct{}),
-		err:    make(chan error, 1),
 	}
 	for _, opt := range tfopt {
 		opt(t)
@@ -64,14 +67,35 @@ func NewTransform(ctx context.Context, fsa fsadapter.FS, chunkdir string, tfopt 
 	return t, nil
 }
 
-// Start starts the Transform processor.
+// WriteUsers writes the list of users to the file system adapter.
+func (t *Transform) WriteUsers(users []slack.User) error {
+	if users == nil {
+		return errors.New("users list is nil")
+	}
+	return t.writeUsers(users)
+}
+
+// Start starts the Transform processor with the provided list of users.
+// Users are used to populate each message with the user profile, as per Slack
+// original export format.
 func (t *Transform) StartWithUsers(ctx context.Context, users []slack.User) error {
 	if users == nil {
 		return errors.New("users list is nil")
 	}
 	t.users = users
-	go t.worker(ctx)
-	return nil
+	return t.Start(ctx)
+}
+
+// writeUsers writes the list of users to the file system adapter.
+func (t *Transform) writeUsers(users []slack.User) error {
+	f, err := t.fsa.Create("users.json")
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	enc := json.NewEncoder(f)
+	enc.SetIndent("", "  ")
+	return enc.Encode(users)
 }
 
 // Start starts the Transform processor, the users must have been initialised
@@ -80,6 +104,11 @@ func (t *Transform) Start(ctx context.Context) error {
 	if t.users == nil {
 		return errors.New("internal error: users not initialised")
 	}
+	t.ids = make(chan string)
+	t.done = make(chan struct{})
+	t.err = make(chan error, 1)
+
+	t.started.Store(false)
 	go t.worker(ctx)
 	return nil
 }
@@ -88,6 +117,9 @@ func (t *Transform) Start(ctx context.Context) error {
 // It will not block if the internal buffer is full.  Buffer size can be
 // set with the WithBufferSize option.
 func (t *Transform) OnFinalise(channelID string) error {
+	if !t.started.Load() {
+		return errors.New("transformer not started")
+	}
 	select {
 	case err := <-t.err:
 		return err
@@ -111,9 +143,26 @@ func (t *Transform) worker(ctx context.Context) {
 // guaranteed that OnFinish will not be called anymore, otherwise the
 // call to OnFinish will panic.
 func (t *Transform) Close() error {
+	if !t.started.Load() {
+		return nil
+	}
+	t.Stop()
+	return nil
+}
+
+// Stop stops the Transform processor and waits for all workers to finish what
+// they're doing.  It can be called multiple times, if the processor is
+// already stopped, it will return nil.
+//
+// Stop MUST be called before writing the user list and other things for it
+// not to interfere with the worker.
+func (t *Transform) Stop() {
+	if !t.started.Load() {
+		return
+	}
 	close(t.ids)
 	<-t.done
-	return nil
+	t.started.Store(false)
 }
 
 // transform is the chunk file transformer.  It transforms the chunk file for
@@ -134,12 +183,6 @@ func transform(ctx context.Context, fsa fsadapter.FS, srcdir string, id string, 
 		return err
 	}
 	defer f.Close()
-	// locate attachments
-	// var hasAttachments bool
-	// if hasAttachments, err = dirExists(filepath.Join(srcdir, id)); err != nil {
-	// 	return err
-	// }
-	// transform the chunk file
 	cf, err := chunk.FromReader(f)
 	if err != nil {
 		return err
@@ -157,6 +200,7 @@ func transform(ctx context.Context, fsa fsadapter.FS, srcdir string, id string, 
 	return nil
 }
 
+// LoadUsers loads the list of users from the chunk file.
 func LoadUsers(ctx context.Context, dir string) ([]slack.User, error) {
 	_, task := trace.NewTask(ctx, "load users")
 	defer task.End()
@@ -186,7 +230,7 @@ func channelName(ch *slack.Channel) string {
 
 func writeMessages(ctx context.Context, fsa fsadapter.FS, pl *chunk.File, ci *slack.Channel, users []slack.User) error {
 	uidx := types.Users(users).IndexByID()
-	dir := channelName(ci)
+	trgdir := channelName(ci)
 	var (
 		prevDt string         // previous date
 		wc     io.WriteCloser // current file
@@ -204,7 +248,7 @@ func writeMessages(ctx context.Context, fsa fsadapter.FS, pl *chunk.File, ci *sl
 				}
 			}
 			var err error
-			wc, err = fsa.Create(filepath.Join(dir, date+".json"))
+			wc, err = fsa.Create(filepath.Join(trgdir, date+".json"))
 			if err != nil {
 				return err
 			}
@@ -217,6 +261,9 @@ func writeMessages(ctx context.Context, fsa fsadapter.FS, pl *chunk.File, ci *sl
 		} else {
 			wc.Write([]byte(",\n"))
 		}
+
+		// in original Slack Export, thread starting messages have some thread
+		// statistics, and for this we need to scan the chunk file and get it.
 		var thread []slack.Message
 		if m.ThreadTimestamp == m.Timestamp {
 			// get the thread for the initial thread message only.
@@ -227,9 +274,7 @@ func writeMessages(ctx context.Context, fsa fsadapter.FS, pl *chunk.File, ci *sl
 			}
 		}
 		// transform the message
-		em := toExportMessage(m, thread, uidx[m.User])
-
-		return enc.Encode(em)
+		return enc.Encode(toExportMessage(m, thread, uidx[m.User]))
 	}); err != nil {
 		return err
 	}
@@ -245,6 +290,7 @@ func writeMessages(ctx context.Context, fsa fsadapter.FS, pl *chunk.File, ci *sl
 	return nil
 }
 
+// toExportMessage converts a slack message to an export message.
 func toExportMessage(m *slack.Message, thread []slack.Message, user *slack.User) *export.ExportMessage {
 	em := export.ExportMessage{
 		Msg:        &m.Msg,
@@ -336,4 +382,79 @@ func openChunks(filename string) (io.ReadSeekCloser, error) {
 	}
 
 	return osext.RemoveOnClose(tf), nil
+}
+
+var errNoChannelInfo = errors.New("no channel info")
+
+// LoadChannels collects all channels from the chunk directory.  First,
+// it attempts to find the channel.json.gz file, if it's not present, it will
+// go through all conversation files and try to get "ChannelInfo" chunk from
+// the each file.
+func LoadChannels(dir string) ([]slack.Channel, error) {
+	// try to open the channels file
+	const channelsJSON = "channels" + ext
+	if fi, err := os.Stat(filepath.Join(dir, channelsJSON)); err == nil && !fi.IsDir() {
+		return loadChannelsJSON(filepath.Join(dir, channelsJSON))
+	}
+	// channel files not found, try to get channel info from the conversation
+	// files.
+	var ch []slack.Channel
+	if err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if !strings.HasSuffix(path, ext) {
+			return nil
+		} else if d.IsDir() {
+			return nil
+		}
+		chs, err := loadChanInfo(path)
+		if err != nil {
+			if errors.Is(err, errNoChannelInfo) {
+				return nil
+			}
+			return err
+		}
+		ch = append(ch, chs...)
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+	return ch, nil
+}
+
+func loadChanInfo(fullpath string) ([]slack.Channel, error) {
+	f, err := openChunks(fullpath)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	return readChanInfo(f)
+}
+
+func readChanInfo(rs io.ReadSeeker) ([]slack.Channel, error) {
+	cf, err := chunk.FromReader(rs)
+	if err != nil {
+		return nil, err
+	}
+	return cf.AllChannelInfos()
+}
+
+// loadChannelsJSON loads channels json file and returns a slice of
+// slack.Channel.  It expects it to be GZIP compressed.
+func loadChannelsJSON(fullpath string) ([]slack.Channel, error) {
+	cf, err := openChunks(fullpath)
+	if err != nil {
+		return nil, err
+	}
+	defer cf.Close()
+	return readChannelsJSON(cf)
+}
+
+func readChannelsJSON(r io.Reader) ([]slack.Channel, error) {
+	var ch []slack.Channel
+	if err := json.NewDecoder(r).Decode(&ch); err != nil {
+		return nil, err
+	}
+	return ch, nil
 }

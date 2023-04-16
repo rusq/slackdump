@@ -1,3 +1,4 @@
+// Package fixgen generates test fixtures for slackdump.
 package fixgen
 
 import (

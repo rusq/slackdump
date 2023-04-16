@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"path/filepath"
 	"runtime/trace"
@@ -206,12 +207,15 @@ func (p *File) AllChannels() ([]slack.Channel, error) {
 func (p *File) AllChannelInfos() ([]slack.Channel, error) {
 	var offsets []int64
 	for id, off := range p.idx {
+		if len(id) == 0 {
+			return nil, fmt.Errorf("internal error:  invalid id: %q", id)
+		}
 		if id[0] == 'i' {
 			offsets = append(offsets, off...)
 		}
 	}
 	return allForOffsets(p, offsets, func(c *Chunk) []slack.Channel {
-		return c.Channels
+		return []slack.Channel{*c.Channel}
 	})
 }
 
