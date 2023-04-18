@@ -107,6 +107,7 @@ func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 		go func() {
 			defer wg.Done()
 			defer pb.Finish()
+			defer conv.Close()
 			errC <- conversationWorker(ctx, s, conv, pb, linkC)
 		}()
 	}

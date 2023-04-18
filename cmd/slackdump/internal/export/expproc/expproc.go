@@ -4,5 +4,3 @@
 //
 // GOOD LUCK DEBUGGING THIS.
 package expproc
-
-const ext = ".jsonl.gz"

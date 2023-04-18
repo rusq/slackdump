@@ -225,8 +225,8 @@ func (cv *Conversations) finalise(ctx context.Context, channelID string) error {
 		return err
 	}
 	cv.mu.Lock()
+	defer cv.mu.Unlock()
 	delete(cv.cw, channelID)
-	cv.mu.Unlock()
 	if cv.onFinalise != nil {
 		return cv.onFinalise(channelID)
 	}
