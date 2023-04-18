@@ -15,6 +15,7 @@ import (
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/export/expproc"
 	"github.com/rusq/slackdump/v2/downloader"
 	"github.com/rusq/slackdump/v2/export"
+	"github.com/rusq/slackdump/v2/internal/chunk"
 	"github.com/rusq/slackdump/v2/internal/chunk/processor"
 	"github.com/rusq/slackdump/v2/internal/structures"
 )
@@ -23,6 +24,10 @@ func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 	lg := options.Logger
 
 	tmpdir, err := os.MkdirTemp("", "slackdump-*")
+	if err != nil {
+		return err
+	}
+	chunkdir, err := chunk.OpenDir(tmpdir)
 	if err != nil {
 		return err
 	}
@@ -75,7 +80,7 @@ func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 				errC <- err
 				return
 			}
-			users, err := expproc.LoadUsers(ctx, tmpdir) // load users from chunks
+			users, err := chunkdir.Users() // load users from chunks
 			if err != nil {
 				errC <- err
 				return

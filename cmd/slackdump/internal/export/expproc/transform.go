@@ -6,12 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/fs"
-	"os"
 	"path/filepath"
 	"runtime/trace"
 	"sort"
-	"strings"
 	"sync/atomic"
 	"time"
 
@@ -143,9 +140,6 @@ func (t *Transform) worker(ctx context.Context) {
 // guaranteed that OnFinish will not be called anymore, otherwise the
 // call to OnFinish will panic.
 func (t *Transform) Close() error {
-	if !t.started.Load() {
-		return nil
-	}
 	t.Stop()
 	return nil
 }
@@ -177,16 +171,14 @@ func transform(ctx context.Context, fsa fsadapter.FS, srcdir string, id string, 
 	trace.Logf(ctx, "input", "len(users)=%d", len(users))
 	lg.Debugf("transforming channel %s, user len=%d", id, len(users))
 
+	cd := chunk.OpenDir(srcdir)
+
 	// load the chunk file
-	f, err := openChunks(filepath.Join(srcdir, id+ext))
+	cf, err := cd.Open(id)
 	if err != nil {
 		return err
 	}
-	defer f.Close()
-	cf, err := chunk.FromReader(f)
-	if err != nil {
-		return err
-	}
+	defer cf.Close()
 
 	ci, err := cf.ChannelInfo(id)
 	if err != nil {
@@ -198,27 +190,6 @@ func transform(ctx context.Context, fsa fsadapter.FS, srcdir string, id string, 
 	}
 
 	return nil
-}
-
-// LoadUsers loads the list of users from the chunk file.
-func LoadUsers(ctx context.Context, dir string) ([]slack.User, error) {
-	_, task := trace.NewTask(ctx, "load users")
-	defer task.End()
-
-	f, err := openChunks(filepath.Join(dir, "users"+ext))
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-	p, err := chunk.FromReader(f)
-	if err != nil {
-		return nil, err
-	}
-	users, err := p.AllUsers()
-	if err != nil {
-		return nil, err
-	}
-	return users, nil
 }
 
 func channelName(ch *slack.Channel) string {
@@ -359,102 +330,4 @@ func writeJSONHeader(w io.Writer) error {
 func writeJSONFooter(w io.Writer) error {
 	_, err := io.WriteString(w, "\n]\n")
 	return err
-}
-
-// openChunks opens a chunk file and returns a ReadSeekCloser.  It expects
-// a chunkfile to be a gzip-compressed file.
-func openChunks(filename string) (io.ReadSeekCloser, error) {
-	if fi, err := os.Stat(filename); err != nil {
-		return nil, err
-	} else if fi.IsDir() {
-		return nil, errors.New("chunk file is a directory")
-	} else if fi.Size() == 0 {
-		return nil, errors.New("chunk file is empty")
-	}
-	f, err := os.Open(filename)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-	tf, err := osext.UnGZIP(f)
-	if err != nil {
-		return nil, err
-	}
-
-	return osext.RemoveOnClose(tf), nil
-}
-
-var errNoChannelInfo = errors.New("no channel info")
-
-// LoadChannels collects all channels from the chunk directory.  First,
-// it attempts to find the channel.json.gz file, if it's not present, it will
-// go through all conversation files and try to get "ChannelInfo" chunk from
-// the each file.
-func LoadChannels(dir string) ([]slack.Channel, error) {
-	// try to open the channels file
-	const channelsJSON = "channels" + ext
-	if fi, err := os.Stat(filepath.Join(dir, channelsJSON)); err == nil && !fi.IsDir() {
-		return loadChannelsJSON(filepath.Join(dir, channelsJSON))
-	}
-	// channel files not found, try to get channel info from the conversation
-	// files.
-	var ch []slack.Channel
-	if err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if !strings.HasSuffix(path, ext) {
-			return nil
-		} else if d.IsDir() {
-			return nil
-		}
-		chs, err := loadChanInfo(path)
-		if err != nil {
-			if errors.Is(err, errNoChannelInfo) {
-				return nil
-			}
-			return err
-		}
-		ch = append(ch, chs...)
-		return nil
-	}); err != nil {
-		return nil, err
-	}
-	return ch, nil
-}
-
-func loadChanInfo(fullpath string) ([]slack.Channel, error) {
-	f, err := openChunks(fullpath)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-	return readChanInfo(f)
-}
-
-func readChanInfo(rs io.ReadSeeker) ([]slack.Channel, error) {
-	cf, err := chunk.FromReader(rs)
-	if err != nil {
-		return nil, err
-	}
-	return cf.AllChannelInfos()
-}
-
-// loadChannelsJSON loads channels json file and returns a slice of
-// slack.Channel.  It expects it to be GZIP compressed.
-func loadChannelsJSON(fullpath string) ([]slack.Channel, error) {
-	cf, err := openChunks(fullpath)
-	if err != nil {
-		return nil, err
-	}
-	defer cf.Close()
-	return readChannelsJSON(cf)
-}
-
-func readChannelsJSON(r io.Reader) ([]slack.Channel, error) {
-	var ch []slack.Channel
-	if err := json.NewDecoder(r).Decode(&ch); err != nil {
-		return nil, err
-	}
-	return ch, nil
 }

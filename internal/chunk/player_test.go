@@ -1,17 +1,15 @@
 package chunk
 
 import (
-	"bytes"
 	"errors"
 	"io"
 	"testing"
 )
 
 func TestPlayer_Thread(t *testing.T) {
-	data := marshalChunks(t, testThreads)
 	p := Player{
 		f: &File{
-			rs:  bytes.NewReader(data),
+			rs:  marshalChunks(testThreads...),
 			idx: testThreadsIndex,
 		},
 		pointer: make(offsets),

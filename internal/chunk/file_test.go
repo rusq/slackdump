@@ -223,18 +223,6 @@ var testChunks = []Chunk{
 	},
 }
 
-func marshalChunks(t *testing.T, v []Chunk) []byte {
-	t.Helper()
-	var buf bytes.Buffer
-	enc := json.NewEncoder(&buf)
-	for _, e := range v {
-		if err := enc.Encode(e); err != nil {
-			t.Fatal(err)
-		}
-	}
-	return buf.Bytes()
-}
-
 func Test_indexRecords(t *testing.T) {
 	type args struct {
 		rs io.Reader
@@ -248,7 +236,7 @@ func Test_indexRecords(t *testing.T) {
 		{
 			name: "single thread",
 			args: args{
-				rs: bytes.NewReader(marshalChunks(t, testThreads)),
+				rs: marshalChunks(testThreads...),
 			},
 			want:    testThreadsIndex,
 			wantErr: false,
@@ -282,7 +270,7 @@ func TestFile_State(t *testing.T) {
 		{
 			name: "single thread",
 			fields: fields{
-				rs: bytes.NewReader(marshalChunks(t, testThreads)),
+				rs: marshalChunks(testThreads...),
 			},
 			want: &state.State{
 				Version:  state.Version,
@@ -325,7 +313,7 @@ func TestFile_AllChannels(t *testing.T) {
 		{
 			name: "ok",
 			fields: fields{
-				rs: bytes.NewReader(marshalChunks(t, testChunks)),
+				rs: marshalChunks(testChunks...),
 			},
 			want: []string{"C1234567890", "C987654321"},
 		},
@@ -391,7 +379,7 @@ func TestFile_AllUsers(t *testing.T) {
 		{
 			name: "ok",
 			fields: fields{
-				rs: bytes.NewReader(marshalChunks(t, append(testUserChunks, testChunks...))),
+				rs: marshalChunks(append(testUserChunks, testChunks...)...),
 			},
 			want: []slack.User{
 				{ID: "U1234567890", Name: "user1"},
@@ -440,7 +428,7 @@ func TestFile_offsetTimestamps(t *testing.T) {
 		{
 			name: "ok",
 			fields: fields{
-				rs: bytes.NewReader(marshalChunks(t, testChunks)),
+				rs: marshalChunks(testChunks...),
 			},
 			want: offts{
 				546:  offsetInfo{ID: "C1234567890", Timestamps: []int64{1234567890100000, 1234567890200000, 1234567890300000, 1234567890400000, 1234567890500000}},
@@ -559,7 +547,7 @@ func TestFile_Sorted(t *testing.T) {
 		{
 			name: "ok",
 			fields: fields{
-				rs: bytes.NewReader(marshalChunks(t, testChunks)),
+				rs: marshalChunks(testChunks...),
 			},
 			args: args{
 				fn: func(ts time.Time, m *slack.Message) error {

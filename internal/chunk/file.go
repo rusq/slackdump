@@ -61,6 +61,14 @@ func FromReader(rs io.ReadSeeker) (*File, error) {
 	}, nil
 }
 
+// Close closes the underlying reader if it implements io.Closer.
+func (f *File) Close() error {
+	if c, ok := f.rs.(io.Closer); ok {
+		return c.Close()
+	}
+	return nil
+}
+
 type decoder interface {
 	Decode(interface{}) error
 	InputOffset() int64
