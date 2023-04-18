@@ -414,7 +414,7 @@ func processChannelMessages(ctx context.Context, proc processor.Conversations, t
 	numThreads := 0
 	for i := range mm {
 		if mm[i].Msg.ThreadTimestamp != "" && mm[i].Msg.SubType != "thread_broadcast" {
-			dlog.Debugf("- message #%d/thread: id=%s, thread_ts=%s", i, mm[i].ClientMsgID, mm[i].Msg.ThreadTimestamp)
+			dlog.Debugf("- message #%d/thread: id=%s, thread_ts=%s", i, mm[i].Timestamp, mm[i].Msg.ThreadTimestamp)
 			threadC <- threadRequest{channelID: channelID, threadTS: mm[i].Msg.ThreadTimestamp}
 			numThreads++
 		}
@@ -425,7 +425,7 @@ func processChannelMessages(ctx context.Context, proc processor.Conversations, t
 		}
 	}
 	if err := proc.Messages(ctx, channelID, numThreads, isLast, mm); err != nil {
-		return 0, fmt.Errorf("failed to process message chunk starting with id=%s (size=%d): %w", mm[0].Msg.ClientMsgID, len(mm), err)
+		return 0, fmt.Errorf("failed to process message chunk starting with id=%s (size=%d): %w", mm[0].Msg.Timestamp, len(mm), err)
 	}
 
 	return numThreads, nil
@@ -443,7 +443,7 @@ func processThreadMessages(ctx context.Context, proc processor.Conversations, ch
 	// slack returns the thread starter as the first message with every
 	// call, so we use it as a parent message.
 	if err := proc.ThreadMessages(ctx, channelID, msgs[0], isLast, msgs[1:]); err != nil {
-		return fmt.Errorf("failed to process message id=%s, thread_ts=%s: %w", msgs[0].Msg.ClientMsgID, threadTS, err)
+		return fmt.Errorf("failed to process thread message id=%s, thread_ts=%s: %w", msgs[0].Msg.Timestamp, threadTS, err)
 	}
 	return nil
 }

@@ -61,10 +61,14 @@ type stdfiler struct {
 	basefiler
 }
 
+// TODO: the channel name is not available, need to think how to pass it tho.
 func (mm stdfiler) Files(ctx context.Context, channelID string, parent slack.Message, isThread bool, ff []slack.File) error {
 	const baseDir = "attachments"
 	for _, f := range ff {
 		if err := mm.dcl.Download(
+			// TODO: this should be channel name, not id for public.  Maybe
+			// there's no choice but to pass the channel name to the
+			// processor, or post-process files in transform.
 			filepath.Join(channelID, baseDir, fmt.Sprintf("%s-%s", f.ID, f.Name)),
 			f.URLPrivateDownload,
 		); err != nil {

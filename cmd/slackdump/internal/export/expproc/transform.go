@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"runtime/trace"
 	"sort"
-	"sync"
 	"time"
 
 	"github.com/rusq/dlog"
@@ -23,7 +22,7 @@ import (
 	"github.com/rusq/slackdump/v2/types"
 )
 
-// Transform is a trasnformer that takes the chunks produced by the processor
+// Transform is a transformer that takes the chunks produced by the processor
 // and transforms them into a Slack Export format.  It is sutable for async
 // processing, in which case, OnFinalise function is passed to the processor,
 // and the finalisation requests will be queued (up to a certain limit) and
@@ -48,19 +47,30 @@ import (
 type Transform struct {
 	srcdir string       // source directory with chunks.
 	fsa    fsadapter.FS // target file system adapter.
-	ids    chan string  // channel used to pass channel IDs to the worker.
-	done   chan struct{}
-	err    chan error // error channel used to propagate errors to the main thread.
+	users  []slack.User // list of users.
 
-	mu      sync.RWMutex // protects the following fields.
-	users   []slack.User // list of users.
-	started bool
+	start chan struct{}
+	done  chan struct{}
+	err   chan error  // error channel used to propagate errors to the main thread.
+	ids   chan string // channel used to pass channel IDs to the worker.
 }
 
+// idsBufSz is the default size of the channel IDs buffer.  This is the number
+// of channel IDs that will be queued without blocking before the Transform is
+// started.
+const idsBufSz = 100
+
+// TfOption is a function that configures the Transform instance.
 type TfOption func(*Transform)
 
+// WithBufferSize sets the size of the channel IDs buffer.  This is the number
+// of channel IDs that will be queued without blocking before the Transform is
+// started.
 func WithBufferSize(n int) TfOption {
 	return func(t *Transform) {
+		if n < 1 {
+			n = idsBufSz
+		}
 		t.ids = make(chan string, n)
 	}
 }
@@ -82,10 +92,15 @@ func NewTransform(ctx context.Context, fsa fsadapter.FS, chunkdir string, tfopt 
 	t := &Transform{
 		srcdir: chunkdir,
 		fsa:    fsa,
+		start:  make(chan struct{}),
+		done:   make(chan struct{}),
+		ids:    make(chan string, idsBufSz),
+		err:    make(chan error, 1),
 	}
 	for _, opt := range tfopt {
 		opt(t)
 	}
+	go t.worker(ctx) // wont run until something is sent into start channel
 	return t, nil
 }
 
@@ -94,6 +109,7 @@ func (t *Transform) WriteUsers(users []slack.User) error {
 	if users == nil {
 		return errors.New("users list is nil")
 	}
+	dlog.Debugln("transform: writing users")
 	return t.writeUsers(users)
 }
 
@@ -116,15 +132,11 @@ func (t *Transform) StartWithUsers(ctx context.Context, users []slack.User) erro
 	if users == nil {
 		return errors.New("users list is nil")
 	}
-	t.mu.Lock()
 	t.users = users
-	t.mu.Unlock()
 	return t.Start(ctx)
 }
 
 func (t *Transform) hasUsers() bool {
-	t.mu.RLock()
-	defer t.mu.RUnlock()
 	return t.users != nil
 }
 
@@ -132,23 +144,13 @@ func (t *Transform) hasUsers() bool {
 // with the WithUsers option.  Otherwise, use StartWithUsers method.
 // If the processor is already started, it will return nil.
 func (t *Transform) Start(ctx context.Context) error {
-	if t.IsRunning() {
-		return nil
-	}
 	dlog.Debugln("transform: starting transform")
 	if !t.hasUsers() {
 		return errors.New("internal error: users not initialised")
 	}
 
-	t.mu.Lock()
-	defer t.mu.Unlock()
+	t.start <- struct{}{}
 
-	t.ids = make(chan string)
-	t.done = make(chan struct{})
-	t.err = make(chan error, 1)
-
-	t.started = true
-	go t.worker(ctx)
 	return nil
 }
 
@@ -169,6 +171,7 @@ func (t *Transform) OnFinalise(channelID string) error {
 }
 
 func (t *Transform) worker(ctx context.Context) {
+	<-t.start
 	dlog.Debugln("transform: worker started")
 	for id := range t.ids {
 		dlog.Debugf("transform: transforming channel %s", id)
@@ -181,41 +184,35 @@ func (t *Transform) worker(ctx context.Context) {
 	close(t.done)
 }
 
+// WriteIndex generates and writes the export index files.  It must be called
+// once all transformations are done, because it might require to read channel
+// files.
+func (t *Transform) WriteIndex(currentUserID string) error {
+	dlog.Debugln("transform: finalising transform")
+	cd, err := chunk.OpenDir(t.srcdir)
+	if err != nil {
+		return err
+	}
+	chans, err := cd.Channels() // this might read the channel files if it doesn't find the channels list chunks.
+	if err != nil {
+		return err
+	}
+	eidx, err := structures.MakeExportIndex(chans, t.users, currentUserID)
+	if err != nil {
+		return err
+	}
+	return eidx.Marshal(t.fsa)
+}
+
 // Close closes the Transform processor.  It must be called once it is
 // guaranteed that OnFinish will not be called anymore, otherwise the
 // call to OnFinish will panic.
 func (t *Transform) Close() error {
 	dlog.Debugln("transform: closing transform")
-	t.Stop()
-	return nil
-}
-
-// Stop stops the Transform processor and waits for all workers to finish what
-// they're doing.  It can be called multiple times, if the processor is
-// already stopped, it will return nil.
-//
-// Stop MUST be called before writing the user list and other things for it
-// not to interfere with the worker.
-func (t *Transform) Stop() {
-	if !t.IsRunning() {
-		return
-	}
-
-	dlog.Debugln("transform: stopping transform")
-
-	t.mu.Lock()
-	defer t.mu.Unlock()
-
 	close(t.ids)
+	close(t.start)
 	dlog.Debugln("transform: waiting for workers to finish")
-	<-t.done
-	t.started = false
-}
-
-func (t *Transform) IsRunning() bool {
-	t.mu.RLock()
-	defer t.mu.RUnlock()
-	return t.started
+	return nil
 }
 
 // transform is the chunk file transform.  It transforms the chunk file for
@@ -252,14 +249,6 @@ func transform(ctx context.Context, fsa fsadapter.FS, srcdir string, id string, 
 	}
 
 	return nil
-}
-
-// channelName returns the channel name, or the channel ID if it is a DM.
-func channelName(ch *slack.Channel) string {
-	if ch.IsIM {
-		return ch.ID
-	}
-	return ch.Name
 }
 
 // writeMessages writes the messages to the file system adapter.

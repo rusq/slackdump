@@ -49,6 +49,11 @@ func CreateDir(dir string) (*Directory, error) {
 	return &Directory{dir: dir}, nil
 }
 
+// RemoveAll deletes the directory and all its contents.
+func (d *Directory) RemoveAll() error {
+	return os.RemoveAll(d.dir)
+}
+
 var errNoChannelInfo = errors.New("no channel info")
 
 // Channels collects all channels from the chunk directory.  First, it

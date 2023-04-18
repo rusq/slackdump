@@ -31,7 +31,7 @@ var CmdExport = &base.Command{
 var (
 	compat  bool
 	options = export.Config{
-		Type:   export.TStandard,
+		Type:   export.TMattermost,
 		Oldest: time.Time(cfg.Oldest),
 		Latest: time.Time(cfg.Latest),
 	}
@@ -42,9 +42,7 @@ func init() {
 	CmdExport.Flag.Var(&options.Type, "type", "export type")
 	CmdExport.Flag.StringVar(&options.ExportToken, "export-token", "", "file export token to append to each of the file URLs")
 	CmdExport.Flag.BoolVar(&compat, "compat", false, "use the v2 export code")
-}
 
-func init() {
 	CmdExport.Run = runExport
 	CmdExport.Wizard = wizExport
 }
@@ -53,6 +51,10 @@ func runExport(ctx context.Context, cmd *base.Command, args []string) error {
 	if cfg.BaseLocation == "" {
 		return errors.New("use -base to set the base output location")
 	}
+	if !cfg.DumpFiles {
+		options.Type = export.TNoDownload
+	}
+
 	list, err := structures.NewEntityList(args)
 	if err != nil {
 		return fmt.Errorf("error parsing the entity list: %w", err)

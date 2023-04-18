@@ -31,11 +31,12 @@ func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 	if err != nil {
 		return err
 	}
+	defer chunkdir.RemoveAll()
 	tf, err := expproc.NewTransform(ctx, fsa, tmpdir, expproc.WithBufferSize(1000))
 	if err != nil {
 		return fmt.Errorf("failed to create transformer: %w", err)
 	}
-	defer tf.Close()
+	// close is called after conversations in a goroutine.
 
 	// starting the downloader
 	dl := downloader.New(sess.Client(), fsa, downloader.WithLogger(lg))
@@ -105,10 +106,22 @@ func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 			return fmt.Errorf("error initialising conversation processor: %w", err)
 		}
 		go func() {
+			// TODO: i may need a function for this fuckery.
 			defer wg.Done()
 			defer pb.Finish()
-			defer conv.Close()
-			errC <- conversationWorker(ctx, s, conv, pb, linkC)
+			defer tf.Close()
+			if err := conversationWorker(ctx, s, conv, pb, linkC); err != nil {
+				errC <- err
+				return
+			}
+			if err := conv.Close(); err != nil {
+				errC <- err
+				return
+			}
+			if err := tf.WriteIndex(sess.CurrentUserID()); err != nil {
+				errC <- err
+				return
+			}
 		}()
 	}
 	// sentinel
