@@ -22,7 +22,7 @@ type Conversations struct {
 	// flags
 	recordFiles bool
 
-	onFinalise func(channelID string) error
+	onFinalise func(ctx context.Context, channelID string) error
 }
 
 // ConvOption is a function that configures the Conversations processor.
@@ -31,7 +31,7 @@ type ConvOption func(*Conversations)
 // FinaliseFunc sets a callback function that is called when the processor is
 // finished processing all channel and threads for the channel (when the
 // reference count becomes 0).
-func FinaliseFunc(fn func(channelID string) error) ConvOption {
+func FinaliseFunc(fn func(ctx context.Context, channelID string) error) ConvOption {
 	return func(cv *Conversations) {
 		cv.onFinalise = fn
 	}
@@ -149,6 +149,9 @@ func (cv *Conversations) decRef(channelID string) {
 func (cv *Conversations) Messages(ctx context.Context, channelID string, numThreads int, isLast bool, mm []slack.Message) error {
 	ctx, task := trace.NewTask(ctx, "Messages")
 	defer task.End()
+
+	lg := dlog.FromContext(ctx)
+	lg.Debugf("processor: channelID=%s, numThreads=%d, isLast=%t, len(mm)=%d", channelID, numThreads, isLast, len(mm))
 	r, err := cv.recorder(channelID)
 	if err != nil {
 		return err
@@ -156,6 +159,7 @@ func (cv *Conversations) Messages(ctx context.Context, channelID string, numThre
 	if numThreads > 0 {
 		cv.incRefN(channelID, numThreads) // one for each thread
 		trace.Logf(ctx, "ref", "added %d", numThreads)
+		lg.Debugf("processor: increased ref count for %q to %d", channelID, cv.refcount(channelID))
 	}
 	if err := r.Messages(ctx, channelID, numThreads, isLast, mm); err != nil {
 		return err
@@ -210,13 +214,14 @@ func (cv *Conversations) ThreadMessages(ctx context.Context, channelID string, p
 
 // finalise closes the channel file if there are no more threads to process.
 func (cv *Conversations) finalise(ctx context.Context, channelID string) error {
+	lg := dlog.FromContext(ctx)
 	if tc := cv.refcount(channelID); tc > 0 {
 		trace.Logf(ctx, "ref", "not finalising %q because thread count = %d", channelID, tc)
-		dlog.Debugf("channel %s: still processing %d ref count", channelID, tc)
+		lg.Debugf("channel %s: still processing %d ref count", channelID, tc)
 		return nil
 	}
 	trace.Logf(ctx, "ref", "= 0, channel %s finalise", channelID)
-	dlog.Debugf("channel %s: closing channel file", channelID)
+	lg.Debugf("channel %s: closing channel file", channelID)
 	r, err := cv.recorder(channelID)
 	if err != nil {
 		return err
@@ -228,7 +233,7 @@ func (cv *Conversations) finalise(ctx context.Context, channelID string) error {
 	defer cv.mu.Unlock()
 	delete(cv.cw, channelID)
 	if cv.onFinalise != nil {
-		return cv.onFinalise(channelID)
+		return cv.onFinalise(ctx, channelID)
 	}
 	return nil
 }

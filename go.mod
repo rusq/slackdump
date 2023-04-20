@@ -2,6 +2,8 @@ module github.com/rusq/slackdump/v2
 
 go 1.19
 
+replace github.com/rusq/fsadapter => ../fsadapter
+
 require (
 	github.com/AlecAivazis/survey/v2 v2.3.6
 	github.com/MercuryEngineering/CookieMonster v0.0.0-20180304172713-1584578b3403

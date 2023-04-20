@@ -73,7 +73,10 @@ func runExport(ctx context.Context, cmd *base.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	defer fsa.Close()
+	defer func() {
+		dlog.Debugln("closing the fsadapter")
+		fsa.Close()
+	}()
 
 	options.List = list
 	options.Logger = dlog.FromContext(ctx)

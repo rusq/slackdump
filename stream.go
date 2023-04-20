@@ -318,7 +318,8 @@ func (cs *Stream) channel(ctx context.Context, id string, fn func(mm []slack.Mes
 		err := fn(resp.Messages, !resp.HasMore)
 		r.End()
 		if err != nil {
-			return fmt.Errorf("failed to process message chunk starting with id=%s (size=%d): %w", resp.Messages[0].Msg.ClientMsgID, len(resp.Messages), err)
+			dlog.FromContext(ctx).Printf("channel %s, callback error: %s", id, err)
+			return fmt.Errorf("callback error: %w", err)
 		}
 
 		if !resp.HasMore {
@@ -411,24 +412,32 @@ func (cs *Stream) thread(ctx context.Context, id string, threadTS string, fn fun
 // thread requests for the threads in the channel, if it discovers messages
 // with threads.  It returns thread count in the mm and error if any.
 func processChannelMessages(ctx context.Context, proc processor.Conversations, threadC chan<- threadRequest, channelID string, isLast bool, mm []slack.Message) (int, error) {
-	numThreads := 0
+	lg := dlog.FromContext(ctx)
+
+	var trs = make([]threadRequest, 0, len(mm))
 	for i := range mm {
+		// collecting threads to get their count.  But we don't start
+		// processing them yet, before we send the messages with the number of
+		// "expected" threads to processor, to ensure that processor will
+		// start processing the channel and will have the initial reference
+		// count, if it needs it.
 		if mm[i].Msg.ThreadTimestamp != "" && mm[i].Msg.SubType != "thread_broadcast" {
-			dlog.Debugf("- message #%d/thread: id=%s, thread_ts=%s", i, mm[i].Timestamp, mm[i].Msg.ThreadTimestamp)
-			threadC <- threadRequest{channelID: channelID, threadTS: mm[i].Msg.ThreadTimestamp}
-			numThreads++
+			lg.Debugf("- message #%d/channel=%s,thread: id=%s, thread_ts=%s", i, channelID, mm[i].Timestamp, mm[i].Msg.ThreadTimestamp)
+			trs = append(trs, threadRequest{channelID: channelID, threadTS: mm[i].Msg.ThreadTimestamp})
 		}
 		if len(mm[i].Files) > 0 {
 			if err := proc.Files(ctx, channelID, mm[i], false, mm[i].Files); err != nil {
-				return numThreads, err
+				return len(trs), err
 			}
 		}
 	}
-	if err := proc.Messages(ctx, channelID, numThreads, isLast, mm); err != nil {
+	if err := proc.Messages(ctx, channelID, len(trs), isLast, mm); err != nil {
 		return 0, fmt.Errorf("failed to process message chunk starting with id=%s (size=%d): %w", mm[0].Msg.Timestamp, len(mm), err)
 	}
-
-	return numThreads, nil
+	for _, tr := range trs {
+		threadC <- tr
+	}
+	return len(trs), nil
 }
 
 func processThreadMessages(ctx context.Context, proc processor.Conversations, channelID, threadTS string, isLast bool, msgs []slack.Message) error {

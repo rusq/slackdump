@@ -22,6 +22,8 @@ import (
 	"github.com/rusq/slackdump/v2/types"
 )
 
+const deletedThread = "0000000000.000000"
+
 // Transform is a transformer that takes the chunks produced by the processor
 // and transforms them into a Slack Export format.  It is sutable for async
 // processing, in which case, OnFinalise function is passed to the processor,
@@ -129,15 +131,15 @@ func (t *Transform) writeUsers(users []slack.User) error {
 // Users are used to populate each message with the user profile, as per Slack
 // original export format.
 func (t *Transform) StartWithUsers(ctx context.Context, users []slack.User) error {
-	if users == nil {
-		return errors.New("users list is nil")
+	if len(users) == 0 {
+		return errors.New("users list is empty or nil")
 	}
 	t.users = users
 	return t.Start(ctx)
 }
 
 func (t *Transform) hasUsers() bool {
-	return t.users != nil
+	return len(t.users) > 0
 }
 
 // Start starts the Transform processor, the users must have been initialised
@@ -159,8 +161,9 @@ func (t *Transform) Start(ctx context.Context) error {
 // set with the WithBufferSize option.  The caller is allowed to call OnFinalise
 // even if the processor is not started, in which case the channel ID will
 // be queued for processing once the processor is started.
-func (t *Transform) OnFinalise(channelID string) error {
-	dlog.Debugln("transform: placing channel in the queue", channelID)
+func (t *Transform) OnFinalise(ctx context.Context, channelID string) error {
+	lg := dlog.FromContext(ctx)
+	lg.Debugln("transform: placing channel in the queue", channelID)
 	select {
 	case err := <-t.err:
 		return err
@@ -171,17 +174,19 @@ func (t *Transform) OnFinalise(channelID string) error {
 }
 
 func (t *Transform) worker(ctx context.Context) {
+	defer close(t.done)
+	lg := dlog.FromContext(ctx)
+	lg.Debugln("transform: worker waiting")
 	<-t.start
-	dlog.Debugln("transform: worker started")
+	lg.Debugln("transform: worker started")
 	for id := range t.ids {
-		dlog.Debugf("transform: transforming channel %s", id)
+		lg.Debugf("transform: transforming channel %s", id)
 		if err := transform(ctx, t.fsa, t.srcdir, id, t.users); err != nil {
-			dlog.Debugf("transform: error transforming channel %s: %s", id, err)
+			lg.Debugf("transform: error transforming channel %s: %s", id, err)
 			t.err <- err
 			continue
 		}
 	}
-	close(t.done)
 }
 
 // WriteIndex generates and writes the export index files.  It must be called
@@ -191,17 +196,20 @@ func (t *Transform) WriteIndex(currentUserID string) error {
 	dlog.Debugln("transform: finalising transform")
 	cd, err := chunk.OpenDir(t.srcdir)
 	if err != nil {
-		return err
+		return fmt.Errorf("error opening chunk directory: %w", err)
 	}
 	chans, err := cd.Channels() // this might read the channel files if it doesn't find the channels list chunks.
 	if err != nil {
-		return err
+		return fmt.Errorf("error indexing channels: %w", err)
 	}
 	eidx, err := structures.MakeExportIndex(chans, t.users, currentUserID)
 	if err != nil {
-		return err
+		return fmt.Errorf("error creating export index: %w", err)
 	}
-	return eidx.Marshal(t.fsa)
+	if err := eidx.Marshal(t.fsa); err != nil {
+		return fmt.Errorf("error writing export index: %w", err)
+	}
+	return nil
 }
 
 // Close closes the Transform processor.  It must be called once it is
@@ -210,8 +218,8 @@ func (t *Transform) WriteIndex(currentUserID string) error {
 func (t *Transform) Close() error {
 	dlog.Debugln("transform: closing transform")
 	close(t.ids)
-	close(t.start)
 	dlog.Debugln("transform: waiting for workers to finish")
+	<-t.done
 	return nil
 }
 
@@ -223,25 +231,26 @@ func (t *Transform) Close() error {
 func transform(ctx context.Context, fsa fsadapter.FS, srcdir string, id string, users []slack.User) error {
 	ctx, task := trace.NewTask(ctx, "transform")
 	defer task.End()
+
 	lg := dlog.FromContext(ctx)
 	trace.Logf(ctx, "input", "len(users)=%d", len(users))
 	lg.Debugf("transforming channel %s, user len=%d", id, len(users))
 
 	cd, err := chunk.OpenDir(srcdir)
 	if err != nil {
-		return err
+		return fmt.Errorf("error opening chunk directory %q: %w", srcdir, err)
 	}
 
 	// load the chunk file
 	cf, err := cd.Open(id)
 	if err != nil {
-		return err
+		return fmt.Errorf("error opening chunk file %q: %w", id, err)
 	}
 	defer cf.Close()
 
 	ci, err := cf.ChannelInfo(id)
 	if err != nil {
-		return err
+		return fmt.Errorf("error reading channel info for %q: %w", id, err)
 	}
 
 	if err := writeMessages(ctx, fsa, cf, ci, users); err != nil {
@@ -255,61 +264,80 @@ func transform(ctx context.Context, fsa fsadapter.FS, srcdir string, id string, 
 func writeMessages(ctx context.Context, fsa fsadapter.FS, pl *chunk.File, ci *slack.Channel, users []slack.User) error {
 	uidx := types.Users(users).IndexByID()
 	trgdir := channelName(ci)
+	lg := dlog.FromContext(ctx)
 	var (
-		prevDt string         // previous date
-		wc     io.WriteCloser // current file
-		enc    *json.Encoder  // current encoder
+		prevDt string        // previous date
+		enc    *json.Encoder // current encoder
 	)
+	var wc io.WriteCloser // current file
+	defer func() {
+		// sentinel to ensure that wc is closed on exit.
+		if wc != nil {
+			wc.Close()
+		}
+	}()
 	if err := pl.Sorted(ctx, false, func(ts time.Time, m *slack.Message) error {
 		date := ts.Format("2006-01-02")
 		if date != prevDt || prevDt == "" {
 			// if we have advanced to the next date, switch to a new file.
 			if wc != nil {
 				if err := writeJSONFooter(wc); err != nil {
-					return err
+					return fmt.Errorf("error writing JSON footer: %w", err)
 				}
 				if err := wc.Close(); err != nil {
-					return err
+					return fmt.Errorf("error closing file: %w", err)
 				}
 			}
 			var err error
 			wc, err = fsa.Create(filepath.Join(trgdir, date+".json"))
 			if err != nil {
-				return err
+				return fmt.Errorf("error creating file in adapter: %w", err)
 			}
 			if err := writeJSONHeader(wc); err != nil {
-				return err
+				return fmt.Errorf("error writing JSON header: %w", err)
 			}
 			prevDt = date
 			enc = json.NewEncoder(wc)
 			enc.SetIndent("", "  ")
 		} else {
-			wc.Write([]byte(",\n"))
+			_, err := wc.Write([]byte(",\n"))
+			if err != nil {
+				return fmt.Errorf("error writing JSON separator: %w", err)
+			}
 		}
 
 		// in original Slack Export, thread starting messages have some thread
 		// statistics, and for this we need to scan the chunk file and get it.
 		var thread []slack.Message
-		if m.ThreadTimestamp == m.Timestamp {
+		if m.ThreadTimestamp == m.Timestamp && m.LatestReply != deletedThread {
 			// get the thread for the initial thread message only.
 			var err error
 			thread, err = pl.AllThreadMessages(ci.ID, m.ThreadTimestamp)
 			if err != nil {
-				return err
+				if !errors.Is(err, chunk.ErrNotFound) {
+					return fmt.Errorf("error getting thread messages for %q: %w", ci.ID+":"+m.ThreadTimestamp, err)
+				} else {
+					// this shouldn't happen as we have the guard in the if
+					// condition, but if it does (i.e. API changed), log it.
+					lg.Printf("not an error, possibly deleted thread: %q not found in chunk file", ci.ID+":"+m.ThreadTimestamp)
+				}
 			}
 		}
 		// transform the message
-		return enc.Encode(toExportMessage(m, thread, uidx[m.User]))
+		if err := enc.Encode(toExportMessage(m, thread, uidx[m.User])); err != nil {
+			return fmt.Errorf("error encoding message: %w", err)
+		}
+		return nil
 	}); err != nil {
-		return err
+		return fmt.Errorf("sorted callback error: %w", err)
 	}
 	// write the last footer
 	if wc != nil {
 		if err := writeJSONFooter(wc); err != nil {
-			return err
+			return fmt.Errorf("error writing JSON footer (final): %w", err)
 		}
 		if err := wc.Close(); err != nil {
-			return err
+			return fmt.Errorf("error closing file (final): %w", err)
 		}
 	}
 	return nil

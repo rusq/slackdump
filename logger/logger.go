@@ -11,6 +11,7 @@ import (
 type Interface interface {
 	Debug(...any)
 	Debugf(fmt string, a ...any)
+	Debugln(...any)
 	Print(...any)
 	Printf(fmt string, a ...any)
 	Println(...any)
@@ -31,6 +32,7 @@ type silent struct{}
 
 func (s silent) Debug(...any)                {}
 func (s silent) Debugf(fmt string, a ...any) {}
+func (s silent) Debugln(...any)              {}
 func (s silent) Print(...any)                {}
 func (s silent) Printf(fmt string, a ...any) {}
 func (s silent) Println(...any)              {}

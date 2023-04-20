@@ -20,6 +20,16 @@ import (
 	"github.com/rusq/slackdump/v2/internal/structures"
 )
 
+type ExportError struct {
+	Subroutine string
+	Stage      string
+	Err        error
+}
+
+func (e ExportError) Error() string {
+	return fmt.Sprintf("export error in %s on %s: %v", e.Subroutine, e.Stage, e.Err)
+}
+
 func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, list *structures.EntityList, options export.Config) error {
 	lg := options.Logger
 
@@ -31,12 +41,14 @@ func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 	if err != nil {
 		return err
 	}
-	defer chunkdir.RemoveAll()
+	if !lg.IsDebug() {
+		defer chunkdir.RemoveAll()
+	}
 	tf, err := expproc.NewTransform(ctx, fsa, tmpdir, expproc.WithBufferSize(1000))
 	if err != nil {
 		return fmt.Errorf("failed to create transformer: %w", err)
 	}
-	// close is called after conversations in a goroutine.
+	defer tf.Close()
 
 	// starting the downloader
 	dl := downloader.New(sess.Client(), fsa, downloader.WithLogger(lg))
@@ -67,7 +79,10 @@ func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 		go func() {
 			defer wg.Done()
 			defer close(linkC)
-			errC <- generator(ctx, linkC, list) // TODO
+			err := generator(ctx, linkC, list)
+			if err != nil {
+				errC <- ExportError{"channel generator", "generator", err}
+			}
 			lg.Debug("channels done")
 		}()
 	}
@@ -78,16 +93,16 @@ func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 		go func() {
 			defer wg.Done()
 			if err := userWorker(ctx, s, tmpdir); err != nil {
-				errC <- err
+				errC <- ExportError{"user", "worker", err}
 				return
 			}
 			users, err := chunkdir.Users() // load users from chunks
 			if err != nil {
-				errC <- err
+				errC <- ExportError{"user", "load users", err}
 				return
 			}
 			if err := tf.StartWithUsers(ctx, users); err != nil {
-				errC <- err
+				errC <- ExportError{"user", "start transformer", err}
 				return
 			}
 		}()
@@ -109,17 +124,12 @@ func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 			// TODO: i may need a function for this fuckery.
 			defer wg.Done()
 			defer pb.Finish()
-			defer tf.Close()
 			if err := conversationWorker(ctx, s, conv, pb, linkC); err != nil {
-				errC <- err
+				errC <- ExportError{"conversations", "worker", err}
 				return
 			}
 			if err := conv.Close(); err != nil {
-				errC <- err
-				return
-			}
-			if err := tf.WriteIndex(sess.CurrentUserID()); err != nil {
-				errC <- err
+				errC <- ExportError{"conversations", "close", err}
 				return
 			}
 		}()
@@ -136,6 +146,11 @@ func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 			return err
 		}
 	}
+	// when everything is completed, write the index.
+	if err := tf.WriteIndex(sess.CurrentUserID()); err != nil {
+		return err
+	}
+	lg.Debug("index written")
 	lg.Printf("conversations export finished, chunk files in: %s", tmpdir)
 	return nil
 }
