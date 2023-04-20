@@ -17,6 +17,12 @@ import (
 	"github.com/rusq/slackdump/v2/internal/structures"
 )
 
+const (
+	convoChanSz  = 16   // channel and thread channels size
+	threadChanSz = 2000 // channel and thread channels size
+	resultSz     = 2    // result channel size
+)
+
 type Stream struct {
 	oldest, latest time.Time
 	client         streamer
@@ -126,11 +132,6 @@ func (cs *Stream) ConversationsCB(ctx context.Context, proc processor.Conversati
 	return nil
 }
 
-const (
-	chanSz   = 16 // channel and thread channels size
-	resultSz = 2  // result channel size
-)
-
 // AsyncConversations fetches the conversations from the link which can be a
 // channelID, channel URL, thread URL or a link in Slackdump format.  fn is
 // called for each result (channel messages, or thread messages).  The fact
@@ -146,8 +147,8 @@ func (cs *Stream) AsyncConversations(ctx context.Context, proc processor.Convers
 	defer task.End()
 
 	// create channels
-	chansC := make(chan channelRequest, chanSz)
-	threadsC := make(chan threadRequest, chanSz)
+	chansC := make(chan channelRequest, convoChanSz)
+	threadsC := make(chan threadRequest, threadChanSz)
 
 	resultsC := make(chan StreamResult, resultSz)
 

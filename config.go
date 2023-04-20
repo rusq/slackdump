@@ -125,7 +125,7 @@ func (o *Limits) Validate() error {
 }
 
 func apply[T comparable](this *T, other T) {
-	if !isZero(other) && !(*this == other) {
+	if !(*this == other) {
 		*this = other
 	}
 }

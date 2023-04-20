@@ -25,27 +25,23 @@ func TestLimits_Apply(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			"change workers",
-			fields{
-				Workers: 3,
-				Tier2:   TierLimits{Burst: 1},
-				Tier3:   TierLimits{Burst: 1},
-				Request: RequestLimit{
-					Conversations: 50,
-					Replies:       50,
-					Channels:      50,
+			"boost",
+			fields(DefLimits),
+			args{
+				other: Limits{
+					Workers:         DefLimits.Workers,
+					DownloadRetries: DefLimits.DownloadRetries,
+					Tier2:           TierLimits{Burst: DefLimits.Tier2.Burst, Boost: 0},
+					Tier3:           TierLimits{Burst: DefLimits.Tier2.Burst, Boost: 0},
+					Request:         DefLimits.Request,
 				},
 			},
-			args{Limits{Workers: 4}},
 			Limits{
-				Workers: 4,
-				Tier2:   TierLimits{Burst: 1},
-				Tier3:   TierLimits{Burst: 1},
-				Request: RequestLimit{
-					Conversations: 50,
-					Replies:       50,
-					Channels:      50,
-				},
+				Workers:         DefLimits.Workers,
+				DownloadRetries: DefLimits.DownloadRetries,
+				Tier2:           TierLimits{Burst: 1, Boost: 0},
+				Tier3:           TierLimits{Burst: 1, Boost: 0},
+				Request:         DefLimits.Request,
 			},
 			false,
 		},
