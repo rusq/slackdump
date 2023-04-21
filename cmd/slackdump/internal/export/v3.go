@@ -31,7 +31,7 @@ func (e ExportError) Error() string {
 }
 
 func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, list *structures.EntityList, options export.Config) error {
-	lg := options.Logger
+	lg := dlog.FromContext(ctx)
 
 	tmpdir, err := os.MkdirTemp("", "slackdump-*")
 	if err != nil {

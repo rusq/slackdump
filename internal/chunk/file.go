@@ -51,7 +51,9 @@ func FromReader(rs io.ReadSeeker) (*File, error) {
 	if _, err := rs.Seek(0, io.SeekStart); err != nil { // reset offset
 		return nil, err
 	}
+	rgn := trace.StartRegion(context.Background(), "indexing chunks")
 	idx, err := indexChunks(json.NewDecoder(rs))
+	rgn.End()
 	if err != nil {
 		return nil, err
 	}

@@ -86,7 +86,7 @@ func TestRecorderStream(t *testing.T) {
 	f := fixtures.ChunkFileJSONL()
 
 	rgnNewSrv := trace.StartRegion(ctx, "NewServer")
-	srv := chunktest.NewServer(f)
+	srv := chunktest.NewServer(f, "U123")
 	rgnNewSrv.End()
 	defer srv.Close()
 	sd := slack.New("test", slack.OptionAPIURL(srv.URL+"/api/"))
@@ -113,7 +113,7 @@ func TestRecorderStream(t *testing.T) {
 
 func TestReplay(t *testing.T) {
 	f := fixtures.ChunkFileJSONL()
-	srv := chunktest.NewServer(f)
+	srv := chunktest.NewServer(f, "U123")
 	defer srv.Close()
 	sd := slack.New("test", slack.OptionAPIURL(srv.URL+"/api/"))
 

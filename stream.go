@@ -87,6 +87,10 @@ func OptLatest(t time.Time) StreamOption {
 	}
 }
 
+func NewStream(cl streamer, l *Limits, opts ...StreamOption) *Stream {
+	return newChannelStream(cl, l, opts...)
+}
+
 func newChannelStream(cl streamer, l *Limits, opts ...StreamOption) *Stream {
 	cs := &Stream{
 		client: cl,
@@ -422,7 +426,7 @@ func processChannelMessages(ctx context.Context, proc processor.Conversations, t
 		// "expected" threads to processor, to ensure that processor will
 		// start processing the channel and will have the initial reference
 		// count, if it needs it.
-		if mm[i].Msg.ThreadTimestamp != "" && mm[i].Msg.SubType != "thread_broadcast" {
+		if mm[i].Msg.ThreadTimestamp != "" && mm[i].Msg.SubType != "thread_broadcast" && mm[i].LatestReply != structures.NoRepliesLatestReply {
 			lg.Debugf("- message #%d/channel=%s,thread: id=%s, thread_ts=%s", i, channelID, mm[i].Timestamp, mm[i].Msg.ThreadTimestamp)
 			trs = append(trs, threadRequest{channelID: channelID, threadTS: mm[i].Msg.ThreadTimestamp})
 		}

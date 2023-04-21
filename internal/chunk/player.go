@@ -17,8 +17,15 @@ var ErrExhausted = errors.New("exhausted")
 type Player struct {
 	f          *File
 	lastOffset atomic.Int64
-	pointer    offsets    // current chunk pointers
-	ptrMu      sync.Mutex // pointer mutex
+	pointer    offsets      // current chunk pointers
+	ptrMu      sync.RWMutex // pointer mutex
+}
+
+func NewPlayerFromFile(cf *File) *Player {
+	return &Player{
+		f:       cf,
+		pointer: make(offsets),
+	}
 }
 
 func NewPlayer(rs io.ReadSeeker) (*Player, error) {
@@ -26,10 +33,7 @@ func NewPlayer(rs io.ReadSeeker) (*Player, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Player{
-		f:       cf,
-		pointer: make(offsets),
-	}, nil
+	return NewPlayerFromFile(cf), nil
 }
 
 // Offset returns the last read offset of the record in ReadSeeker.
@@ -37,9 +41,23 @@ func (p *Player) Offset() int64 {
 	return p.lastOffset.Load()
 }
 
+func (p *Player) State() map[GroupID]int {
+	p.ptrMu.RLock()
+	defer p.ptrMu.RUnlock()
+	return p.pointer
+}
+
+func (p *Player) SetState(ptrs map[GroupID]int) {
+	p.ptrMu.Lock()
+	defer p.ptrMu.Unlock()
+	p.pointer = ptrs
+}
+
 // next tries to get the next chunk for the given id.  It returns
 // io.EOF if there are no more chunks for the given id.
 func (p *Player) next(id GroupID) (*Chunk, error) {
+	p.ptrMu.Lock()
+	defer p.ptrMu.Unlock()
 	offsets, ok := p.f.Offsets(id)
 	if !ok {
 		return nil, ErrNotFound
@@ -97,8 +115,8 @@ func (p *Player) HasMoreMessages(channelID string) bool {
 
 // hasMore returns true if there are more chunks for the given id.
 func (p *Player) hasMore(id GroupID) bool {
-	p.ptrMu.Lock()
-	defer p.ptrMu.Unlock()
+	p.ptrMu.RLock()
+	defer p.ptrMu.RUnlock()
 	offsets, ok := p.f.Offsets(id)
 	if !ok {
 		return false // no such id

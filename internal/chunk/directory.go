@@ -155,7 +155,7 @@ func openChunks(filename string) (io.ReadSeekCloser, error) {
 func (d *Directory) Users() ([]slack.User, error) {
 	f, err := openChunks(d.filename("users"))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to open users file %q: %w", d.filename("users"), err)
 	}
 	defer f.Close()
 	p, err := FromReader(f)

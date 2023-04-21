@@ -22,8 +22,6 @@ import (
 	"github.com/rusq/slackdump/v2/types"
 )
 
-const deletedThread = "0000000000.000000"
-
 // Transform is a transformer that takes the chunks produced by the processor
 // and transforms them into a Slack Export format.  It is sutable for async
 // processing, in which case, OnFinalise function is passed to the processor,
@@ -218,6 +216,7 @@ func (t *Transform) WriteIndex(currentUserID string) error {
 func (t *Transform) Close() error {
 	dlog.Debugln("transform: closing transform")
 	close(t.ids)
+	close(t.start)
 	dlog.Debugln("transform: waiting for workers to finish")
 	<-t.done
 	return nil
@@ -309,7 +308,7 @@ func writeMessages(ctx context.Context, fsa fsadapter.FS, pl *chunk.File, ci *sl
 		// in original Slack Export, thread starting messages have some thread
 		// statistics, and for this we need to scan the chunk file and get it.
 		var thread []slack.Message
-		if m.ThreadTimestamp == m.Timestamp && m.LatestReply != deletedThread {
+		if m.ThreadTimestamp == m.Timestamp && m.LatestReply != structures.NoRepliesLatestReply {
 			// get the thread for the initial thread message only.
 			var err error
 			thread, err = pl.AllThreadMessages(ci.ID, m.ThreadTimestamp)

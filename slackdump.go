@@ -49,6 +49,7 @@ type streamer interface {
 // purpose of mocking in tests (see client_mock.go)
 type clienter interface {
 	streamer
+	AuthTestContext(context.Context) (response *slack.AuthTestResponse, err error)
 	GetFile(downloadURL string, writer io.Writer) error
 	GetUsersContext(ctx context.Context, options ...slack.GetUsersOption) ([]slack.User, error)
 	GetEmojiContext(ctx context.Context) (map[string]string, error)
@@ -107,6 +108,13 @@ func WithUserCacheRetention(d time.Duration) Option {
 	}
 }
 
+// WithSlackClient sets the Slack client to use for the session.  If this
+func WithSlackClient(cl clienter) Option {
+	return func(s *Session) {
+		s.client = cl
+	}
+}
+
 // New creates new Slackdump session with provided options, and populates the
 // internal cache of users and channels for lookups. If it fails to
 // authenticate, AuthError is returned.
@@ -124,18 +132,12 @@ func New(ctx context.Context, prov auth.Provider, opts ...Option) (*Session, err
 	}
 	cl := slack.New(prov.SlackToken(), slack.OptionHTTPClient(httpCl))
 
-	authResp, err := cl.AuthTestContext(ctx)
-	if err != nil {
-		return nil, &auth.Error{Err: err}
-	}
-
 	sd := &Session{
 		client: cl,
 		cfg:    defConfig,
 		uc:     new(usercache),
 
-		wspInfo: authResp,
-		log:     logger.Default,
+		log: logger.Default,
 	}
 	for _, opt := range opts {
 		opt(sd)
@@ -149,6 +151,11 @@ func New(ctx context.Context, prov auth.Provider, opts ...Option) (*Session, err
 		}
 		return nil, err
 	}
+	authResp, err := sd.client.AuthTestContext(ctx)
+	if err != nil {
+		return nil, &auth.Error{Err: err}
+	}
+	sd.wspInfo = authResp
 
 	return sd, nil
 }

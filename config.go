@@ -81,6 +81,25 @@ var DefLimits = Limits{
 	},
 }
 
+// NoLimits is setting the limits to high values, effectively disabling them.
+var NoLimits = Limits{
+	Workers:         4,
+	DownloadRetries: 3, // this shouldn't even happen, as we have no limiter on files download.
+	Tier2:           noTierLimits,
+	Tier3:           noTierLimits,
+	Request: RequestLimit{
+		Conversations: 100, // this is the recommended value by Slack. But who listens to them anyway.
+		Channels:      100, // channels are Tier2 rate limited. Slack is greedy and never returns more than 100 per call.
+		Replies:       1000,
+	},
+}
+
+var noTierLimits = TierLimits{
+	Boost:   10_000,
+	Burst:   10_000,
+	Retries: 3,
+}
+
 var (
 	cfgValidator *validator.Validate // options validator
 	// OptErrTranslations is the english translations for the validation

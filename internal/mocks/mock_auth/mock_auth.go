@@ -50,6 +50,21 @@ func (mr *MockProviderMockRecorder) Cookies() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Cookies", reflect.TypeOf((*MockProvider)(nil).Cookies))
 }
 
+// HTTPClient mocks base method.
+func (m *MockProvider) HTTPClient() (*http.Client, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "HTTPClient")
+	ret0, _ := ret[0].(*http.Client)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// HTTPClient indicates an expected call of HTTPClient.
+func (mr *MockProviderMockRecorder) HTTPClient() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HTTPClient", reflect.TypeOf((*MockProvider)(nil).HTTPClient))
+}
+
 // SlackToken mocks base method.
 func (m *MockProvider) SlackToken() string {
 	m.ctrl.T.Helper()
