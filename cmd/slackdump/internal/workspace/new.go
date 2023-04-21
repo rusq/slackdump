@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/rusq/dlog"
 	"github.com/rusq/slackdump/v2/auth"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/golang/base"
@@ -32,6 +33,7 @@ func init() {
 
 // runWspNew authenticates in the new workspace.
 func runWspNew(ctx context.Context, cmd *base.Command, args []string) error {
+	lg := dlog.FromContext(ctx)
 	m, err := cache.NewManager(cfg.CacheDir(), cache.WithAuthOpts(auth.BrowserWithBrowser(cfg.Browser)))
 	if err != nil {
 		base.SetExitStatus(base.SCacheError)
@@ -50,6 +52,7 @@ func runWspNew(ctx context.Context, cmd *base.Command, args []string) error {
 		}
 	}
 
+	lg.Debugln("requesting authentication...")
 	creds := cache.SlackCreds{
 		Token:  cfg.SlackToken,
 		Cookie: cfg.SlackCookie,
@@ -60,12 +63,14 @@ func runWspNew(ctx context.Context, cmd *base.Command, args []string) error {
 		return err
 	}
 
+	lg.Debugf("selecting %q as current...", realname(wsp))
 	// select it
 	if err := m.Select(realname(wsp)); err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return fmt.Errorf("failed to select the default workpace: %s", err)
 	}
-	fmt.Printf("Success:  added workspace %q of type %q\n", realname(wsp), prov.Type())
+	fmt.Printf("Success:  added workspace %q\n", realname(wsp))
+	lg.Debugf("workspace %q type: %q", realname(wsp), prov.Type())
 	return nil
 }
 

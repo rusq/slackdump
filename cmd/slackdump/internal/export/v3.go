@@ -239,14 +239,17 @@ type progresser interface {
 }
 
 func conversationWorker(ctx context.Context, s *slackdump.Stream, proc processor.Conversations, pb progresser, links <-chan string) error {
+	lg := dlog.FromContext(ctx)
 	if err := s.AsyncConversations(ctx, proc, links, func(sr slackdump.StreamResult) error {
+		lg.Debugf("conversations: %s", sr.String())
 		pb.Describe(sr.String())
 		pb.Add(1)
 		return nil
 	}); err != nil {
+		lg.Println("conversationsWorker:", err)
 		return fmt.Errorf("error streaming conversations: %w", err)
 	}
-	dlog.FromContext(ctx).Debug("conversations done")
+	lg.Debug("conversations done")
 	pb.Describe("OK")
 	return nil
 }

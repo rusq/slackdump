@@ -173,3 +173,7 @@ func (p *Player) ChannelInfo(id string) (*slack.Channel, error) {
 	}
 	return chunk.Channel, nil
 }
+
+func (p *Player) Close() error {
+	return p.f.Close()
+}

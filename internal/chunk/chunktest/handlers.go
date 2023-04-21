@@ -223,7 +223,6 @@ func handleUsersList(p *chunk.Player) http.HandlerFunc {
 			}
 		}
 		resp := userResponseFull{
-			Users:         u,
 			SlackResponse: sr,
 			Members:       u,
 		}
@@ -253,8 +252,9 @@ func (ah authHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			Ok: true,
 		},
 		AuthTestResponse: slack.AuthTestResponse{
-			Team: "test",
-			User: ah.userID,
+			Team:   "test",
+			User:   "Charlie Brown",
+			UserID: ah.userID,
 		},
 	}
 

@@ -14,7 +14,7 @@ import (
 // Server is a test server for testing the chunk package, that serves API
 // from a single chunk file.
 type Server struct {
-	*httptest.Server
+	baseServer
 	p *chunk.Player
 }
 
@@ -26,8 +26,8 @@ func NewServer(rs io.ReadSeeker, currentUserID string) *Server {
 		panic(err)
 	}
 	return &Server{
-		Server: httptest.NewServer(router(p, currentUserID)),
-		p:      p,
+		baseServer: baseServer{Server: httptest.NewServer(router(p, currentUserID))},
+		p:          p,
 	}
 }
 

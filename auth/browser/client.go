@@ -16,7 +16,10 @@ import (
 	"github.com/rusq/slackdump/v2/logger"
 )
 
-const slackDomain = ".slack.com"
+const (
+	slackDomain    = ".slack.com"
+	requestTimeout = 600 * time.Second
+)
 
 // Client is the client for Browser Auth Provider.
 type Client struct {
@@ -110,7 +113,7 @@ func (cl *Client) Authenticate(ctx context.Context) (string, []*http.Cookie, err
 	var r playwright.Request
 	if err := cl.withBrowserGuard(ctx, func() error {
 		var err error
-		r, err = page.WaitForRequest(uri + "/api/api.features*")
+		r, err = page.WaitForRequest(uri+"/api/api.features*", playwright.PageWaitForRequestOptions{Timeout: _f(float64(requestTimeout.Milliseconds()))})
 		return err
 	}); err != nil {
 		return "", nil, err

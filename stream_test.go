@@ -89,7 +89,7 @@ func TestRecorderStream(t *testing.T) {
 	srv := chunktest.NewServer(f, "U123")
 	rgnNewSrv.End()
 	defer srv.Close()
-	sd := slack.New("test", slack.OptionAPIURL(srv.URL+"/api/"))
+	sd := slack.New("test", slack.OptionAPIURL(srv.URL()))
 
 	w, err := os.Create(os.DevNull)
 	if err != nil {
@@ -115,7 +115,7 @@ func TestReplay(t *testing.T) {
 	f := fixtures.ChunkFileJSONL()
 	srv := chunktest.NewServer(f, "U123")
 	defer srv.Close()
-	sd := slack.New("test", slack.OptionAPIURL(srv.URL+"/api/"))
+	sd := slack.New("test", slack.OptionAPIURL(srv.URL()))
 
 	reachedEnd := false
 	for i := 0; i < 100_000; i++ {

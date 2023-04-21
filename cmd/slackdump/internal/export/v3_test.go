@@ -29,7 +29,7 @@ func Test_exportV3(t *testing.T) {
 	t.Run("large file", func(t *testing.T) {
 		srv := chunktest.NewDirServer(chunkDir, "U0BBSGYFN")
 		defer srv.Close()
-		cl := slack.New("", slack.OptionAPIURL(srv.URL+"/api/"))
+		cl := slack.New("", slack.OptionAPIURL(srv.URL()))
 
 		ctx := context.Background()
 		cl.AuthTestContext(ctx)
