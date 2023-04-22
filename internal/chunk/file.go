@@ -403,7 +403,9 @@ func (f *File) Sorted(ctx context.Context, descending bool, fn func(ts time.Time
 		}
 	}
 
-	sort.Slice(tsList, sf)
+	trace.WithRegion(ctx, "sorted.sort", func() {
+		sort.Slice(tsList, sf)
+	})
 
 	var (
 		prevOffset int64 // previous chunk offset, used to avoid seeking
@@ -420,7 +422,10 @@ func (f *File) Sorted(ctx context.Context, descending bool, fn func(ts time.Time
 			}
 			prevOffset = tmOff.Offset
 		}
-		if err := fn(structures.Int2Time(ts).UTC(), &chunk.Messages[tmOff.Index]); err != nil {
+		rgn := trace.StartRegion(ctx, "sorted.callback")
+		err = fn(structures.Int2Time(ts).UTC(), &chunk.Messages[tmOff.Index])
+		rgn.End()
+		if err != nil {
 			return err
 		}
 	}
