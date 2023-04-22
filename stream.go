@@ -18,9 +18,9 @@ import (
 )
 
 const (
-	convoChanSz  = 16   // channel and thread channels size
-	threadChanSz = 2000 // channel and thread channels size
-	resultSz     = 2    // result channel size
+	msgChanSz    = 16   // message channel buffer size
+	threadChanSz = 2000 // thread channel buffer size
+	resultSz     = 2    // result channel buffer size
 )
 
 type Stream struct {
@@ -151,7 +151,7 @@ func (cs *Stream) AsyncConversations(ctx context.Context, proc processor.Convers
 	defer task.End()
 
 	// create channels
-	chansC := make(chan channelRequest, convoChanSz)
+	chansC := make(chan channelRequest, msgChanSz)
 	threadsC := make(chan threadRequest, threadChanSz)
 
 	resultsC := make(chan StreamResult, resultSz)
@@ -295,6 +295,8 @@ func (cs *Stream) channel(ctx context.Context, id string, fn func(mm []slack.Mes
 	ctx, task := trace.NewTask(ctx, "channel")
 	defer task.End()
 
+	lg := dlog.FromContext(ctx)
+
 	cursor := ""
 	for {
 		var resp *slack.GetConversationHistoryResponse
@@ -323,11 +325,12 @@ func (cs *Stream) channel(ctx context.Context, id string, fn func(mm []slack.Mes
 		err := fn(resp.Messages, !resp.HasMore)
 		r.End()
 		if err != nil {
-			dlog.FromContext(ctx).Printf("channel %s, callback error: %s", id, err)
+			lg.Printf("channel %s, callback error: %s", id, err)
 			return fmt.Errorf("callback error: %w", err)
 		}
 
 		if !resp.HasMore {
+			lg.Debugf("server reported channel %s done", id)
 			break
 		}
 		cursor = resp.ResponseMetaData.NextCursor

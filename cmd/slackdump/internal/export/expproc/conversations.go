@@ -195,6 +195,7 @@ func (cv *Conversations) Files(ctx context.Context, channelID string, parent sla
 func (cv *Conversations) ThreadMessages(ctx context.Context, channelID string, parent slack.Message, isLast bool, tm []slack.Message) error {
 	ctx, task := trace.NewTask(ctx, "ThreadMessages")
 	defer task.End()
+	lg := dlog.FromContext(ctx)
 
 	r, err := cv.recorder(channelID)
 	if err != nil {
@@ -204,9 +205,12 @@ func (cv *Conversations) ThreadMessages(ctx context.Context, channelID string, p
 		return err
 	}
 	cv.decRef(channelID)
-	trace.Logf(ctx, "ref", "decremented, current=%d", cv.refcount(channelID))
+	refcnt := cv.refcount(channelID)
+	trace.Logf(ctx, "ref", "decremented, current=%d", refcnt)
+	lg.Debugf("processor: decreased ref count for %q to %d", channelID, refcnt)
 	if isLast {
 		trace.Log(ctx, "isLast", "true")
+		lg.Debugf("processor: isLast=true, finalising thread %s:%s", channelID, parent.ThreadTimestamp)
 		return cv.finalise(ctx, channelID)
 	}
 	return nil

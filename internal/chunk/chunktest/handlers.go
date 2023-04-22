@@ -18,42 +18,44 @@ func handleConversationsHistory(p *chunk.Player) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		_, task := trace.NewTask(r.Context(), "conversation.history")
 		defer task.End()
-
 		channel := r.FormValue("channel")
 		if channel == "" {
 			http.NotFound(w, r)
 			return
 		}
-		log.Printf("channel: %s", channel)
+		var sresp = slack.SlackResponse{
+			Ok: true,
+		}
 
 		msg, err := p.Messages(channel)
 		if err != nil {
 			if errors.Is(err, chunk.ErrNotFound) {
-				http.NotFound(w, r)
-				return
-			}
-			if errors.Is(err, io.EOF) {
+				sresp.Ok = false
+				sresp.Error = fmt.Sprintf("channel_not_found[%s]", channel)
+			} else if errors.Is(err, io.EOF) {
 				if err := json.NewEncoder(w).Encode(slack.GetConversationHistoryResponse{
 					HasMore: false,
 					SlackResponse: slack.SlackResponse{
 						Ok: true,
 					},
 				}); err != nil {
+					log.Printf("unexpected error: %s", err)
 					http.Error(w, err.Error(), http.StatusInternalServerError)
 				}
 				return
+			} else {
+				log.Printf("error processing messages: %s", err)
+				sresp.Ok = false
+				sresp.Error = err.Error()
 			}
-			log.Printf("error processing messages: %s", err)
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
 		}
+		hasmore := p.HasMoreMessages(channel)
+		log.Printf("serving channel: %s messages: %d, hasmore: %v", channel, len(msg), hasmore)
 		resp := slack.GetConversationHistoryResponse{
-			HasMore:          p.HasMoreMessages(channel),
+			HasMore:          hasmore,
 			Messages:         msg,
 			ResponseMetaData: responseMetaData{NextCursor: strconv.FormatInt(p.Offset(), 10)},
-			SlackResponse: slack.SlackResponse{
-				Ok: true,
-			},
+			SlackResponse:    sresp,
 		}
 		if err := json.NewEncoder(w).Encode(resp); err != nil {
 			log.Printf("error encoding channel.history response: %s", err)
@@ -70,7 +72,7 @@ func handleConversationsReplies(p *chunk.Player) http.HandlerFunc {
 
 		timestamp := r.FormValue("ts")
 		channel := r.FormValue("channel")
-		log.Printf("channel: %s, ts: %s", channel, timestamp)
+		log.Printf("serving channel: %s, ts: %s", channel, timestamp)
 
 		if timestamp == "" {
 			http.Error(w, "ts is required", http.StatusBadRequest)
