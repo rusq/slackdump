@@ -326,8 +326,7 @@ func (o offts) MessageCount() int {
 func (f *File) offsetTimestamps() (offts, error) {
 	var ret = make(offts, f.idx.OffsetCount())
 	for id, offsets := range f.idx {
-		prefix := id[0]
-		switch prefix {
+		switch id[0] {
 		case 'i', 'f', 'l': // ignoring files, information and list chunks
 			continue
 		}
@@ -350,22 +349,23 @@ func (f *File) offsetTimestamps() (offts, error) {
 	return ret, nil
 }
 
-type TimeOffset struct {
+// Addr is the address of a particular message within a chunk file.
+type Addr struct {
 	Offset int64 // offset within the chunk file
-	Index  int   // index of the message within the messages slice in the chunk
+	Index  int16 // index of the message within the messages slice in the chunk
 }
 
 // timeOffsets returns a map of the timestamp to the chunk offset and index of
 // the message with this timestamp within the message slice.  It converts the
 // string timestamp to an int64 timestamp using structures.TS2int, but the
 // original string timestamp returned in the TimeOffset struct.
-func timeOffsets(ots offts) map[int64]TimeOffset {
-	var ret = make(map[int64]TimeOffset, len(ots))
+func timeOffsets(ots offts) map[int64]Addr {
+	var ret = make(map[int64]Addr, len(ots))
 	for offset, info := range ots {
 		for i, ts := range info.Timestamps {
-			ret[ts] = TimeOffset{
+			ret[ts] = Addr{
 				Offset: offset,
-				Index:  i,
+				Index:  int16(i),
 			}
 		}
 	}
@@ -413,7 +413,8 @@ func (f *File) Sorted(ctx context.Context, descending bool, fn func(ts time.Time
 	)
 	for _, ts := range tsList {
 		tmOff := tos[ts]
-		// we don't want to be reading the same chunk over and over again.
+		// read the new chunk from the file only in case that the offset has
+		// changed.
 		if tmOff.Offset != prevOffset {
 			var err error
 			chunk, err = f.chunkAt(tmOff.Offset)
@@ -422,10 +423,8 @@ func (f *File) Sorted(ctx context.Context, descending bool, fn func(ts time.Time
 			}
 			prevOffset = tmOff.Offset
 		}
-		rgn := trace.StartRegion(ctx, "sorted.callback")
-		err = fn(structures.Int2Time(ts).UTC(), &chunk.Messages[tmOff.Index])
-		rgn.End()
-		if err != nil {
+
+		if err := fn(structures.Int2Time(ts).UTC(), &chunk.Messages[tmOff.Index]); err != nil {
 			return err
 		}
 	}

@@ -26,12 +26,11 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/rusq/dlog"
-
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/auth"
 	"github.com/rusq/slackdump/v2/internal/app/config"
+	"github.com/rusq/slackdump/v2/logger"
 )
 
 const (
@@ -51,7 +50,7 @@ func Download(ctx context.Context, cfg config.Params, prov auth.Provider) error 
 	}
 	defer fsa.Close()
 
-	sess, err := slackdump.New(ctx, prov, slackdump.WithFilesystem(fsa), slackdump.WithLogger(dlog.FromContext(ctx)))
+	sess, err := slackdump.New(ctx, prov, slackdump.WithFilesystem(fsa), slackdump.WithLogger(logger.FromContext(ctx)))
 	if err != nil {
 		return err
 	}
@@ -84,7 +83,7 @@ func DlFS(ctx context.Context, sess emojidumper, fsa fsadapter.FS, ignoreErrors 
 // fetch downloads the emojis and saves them to the fsa. It spawns numWorker
 // goroutines for getting the files. It will call fetchFn for each emoji.
 func fetch(ctx context.Context, fsa fsadapter.FS, emojis map[string]string, failFast bool) error {
-	lg := dlog.FromContext(ctx)
+	lg := logger.FromContext(ctx)
 
 	var (
 		emojiC  = make(chan emoji)

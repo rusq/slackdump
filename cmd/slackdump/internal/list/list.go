@@ -11,7 +11,6 @@ import (
 	"runtime/trace"
 
 	"github.com/AlecAivazis/survey/v2"
-	"github.com/rusq/dlog"
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/auth"
@@ -19,6 +18,7 @@ import (
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v2/internal/cache"
 	"github.com/rusq/slackdump/v2/internal/format"
+	"github.com/rusq/slackdump/v2/logger"
 	"github.com/rusq/slackdump/v2/types"
 	"github.com/slack-go/slack"
 )
@@ -98,7 +98,7 @@ func list(ctx context.Context, listFn listFunc) error {
 	}
 
 	// initialize the session.
-	sess, err := slackdump.New(ctx, prov, slackdump.WithLogger(dlog.FromContext(ctx)))
+	sess, err := slackdump.New(ctx, prov, slackdump.WithLogger(logger.FromContext(ctx)))
 	if err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return err
@@ -113,7 +113,7 @@ func list(ctx context.Context, listFn listFunc) error {
 		return err
 	}
 
-	lg := dlog.FromContext(ctx)
+	lg := logger.FromContext(ctx)
 	teamID := sess.Info().TeamID
 	users, err := m.LoadUsers(teamID, cfg.UserCacheRetention)
 	if err != nil {
@@ -152,7 +152,7 @@ func saveData(ctx context.Context, fs fsadapter.FS, data any, filename string, t
 	if err := writeData(ctx, fs, filename, data, typ, users); err != nil {
 		return err
 	}
-	dlog.FromContext(ctx).Printf("Data saved to:  %q\n", filepath.Join(cfg.BaseLocation, filename))
+	logger.FromContext(ctx).Printf("Data saved to:  %q\n", filepath.Join(cfg.BaseLocation, filename))
 	return nil
 }
 

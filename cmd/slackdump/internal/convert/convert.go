@@ -19,6 +19,7 @@ import (
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/workspace"
 	"github.com/rusq/slackdump/v2/internal/cache"
 	"github.com/rusq/slackdump/v2/internal/format"
+	"github.com/rusq/slackdump/v2/logger"
 	"github.com/rusq/slackdump/v2/types"
 )
 
@@ -109,7 +110,7 @@ type idextractor interface {
 func convert(ctx context.Context, w io.Writer, cvt format.Converter, rs io.ReadSeeker) error {
 	ctx, task := trace.NewTask(ctx, "convert")
 	defer task.End()
-	lg := dlog.FromContext(ctx)
+	lg := logger.FromContext(ctx)
 
 	dump, err := detectAndRead(rs)
 	if err != nil {

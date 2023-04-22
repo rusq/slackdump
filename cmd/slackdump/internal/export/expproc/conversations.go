@@ -5,7 +5,6 @@ import (
 	"runtime/trace"
 	"sync"
 
-	"github.com/rusq/dlog"
 	"github.com/rusq/slackdump/v2/internal/chunk/processor"
 	"github.com/rusq/slackdump/v2/logger"
 	"github.com/slack-go/slack"
@@ -150,7 +149,7 @@ func (cv *Conversations) Messages(ctx context.Context, channelID string, numThre
 	ctx, task := trace.NewTask(ctx, "Messages")
 	defer task.End()
 
-	lg := dlog.FromContext(ctx)
+	lg := logger.FromContext(ctx)
 	lg.Debugf("processor: channelID=%s, numThreads=%d, isLast=%t, len(mm)=%d", channelID, numThreads, isLast, len(mm))
 	r, err := cv.recorder(channelID)
 	if err != nil {
@@ -195,7 +194,7 @@ func (cv *Conversations) Files(ctx context.Context, channelID string, parent sla
 func (cv *Conversations) ThreadMessages(ctx context.Context, channelID string, parent slack.Message, isLast bool, tm []slack.Message) error {
 	ctx, task := trace.NewTask(ctx, "ThreadMessages")
 	defer task.End()
-	lg := dlog.FromContext(ctx)
+	lg := logger.FromContext(ctx)
 
 	r, err := cv.recorder(channelID)
 	if err != nil {
@@ -218,7 +217,7 @@ func (cv *Conversations) ThreadMessages(ctx context.Context, channelID string, p
 
 // finalise closes the channel file if there are no more threads to process.
 func (cv *Conversations) finalise(ctx context.Context, channelID string) error {
-	lg := dlog.FromContext(ctx)
+	lg := logger.FromContext(ctx)
 	if tc := cv.refcount(channelID); tc > 0 {
 		trace.Logf(ctx, "ref", "not finalising %q because thread count = %d", channelID, tc)
 		lg.Debugf("channel %s: still processing %d ref count", channelID, tc)

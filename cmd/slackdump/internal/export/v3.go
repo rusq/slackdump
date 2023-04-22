@@ -6,7 +6,6 @@ import (
 	"os"
 	"sync"
 
-	"github.com/rusq/dlog"
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/slackdump/v2"
 	"github.com/schollz/progressbar/v3"
@@ -18,6 +17,7 @@ import (
 	"github.com/rusq/slackdump/v2/internal/chunk"
 	"github.com/rusq/slackdump/v2/internal/chunk/processor"
 	"github.com/rusq/slackdump/v2/internal/structures"
+	"github.com/rusq/slackdump/v2/logger"
 )
 
 type ExportError struct {
@@ -31,7 +31,7 @@ func (e ExportError) Error() string {
 }
 
 func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, list *structures.EntityList, options export.Config) error {
-	lg := dlog.FromContext(ctx)
+	lg := logger.FromContext(ctx)
 
 	tmpdir, err := os.MkdirTemp("", "slackdump-*")
 	if err != nil {
@@ -66,7 +66,6 @@ func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 	)
 	// Generator of channel IDs.
 	{
-		wg.Add(1)
 		var generator linkFeederFunc
 		if list.HasIncludes() {
 			// inclusive export, processes only included channels.
@@ -76,11 +75,11 @@ func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 			generator = genAPIChannel(s, tmpdir, options.MemberOnly)
 		}
 
+		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			defer close(linkC)
-			err := generator(ctx, linkC, list)
-			if err != nil {
+			if err := generator(ctx, linkC, list); err != nil {
 				errC <- ExportError{"channel generator", "generator", err}
 			}
 			lg.Debug("channels done")
@@ -111,7 +110,6 @@ func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 	{
 		pb := newProgressBar(progressbar.NewOptions(-1, progressbar.OptionClearOnFinish(), progressbar.OptionSpinnerType(8)), lg.IsDebug())
 		pb.RenderBlank()
-		wg.Add(1)
 
 		conv, err := expproc.NewConversation(
 			tmpdir,
@@ -120,6 +118,8 @@ func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 		if err != nil {
 			return fmt.Errorf("error initialising conversation processor: %w", err)
 		}
+
+		wg.Add(1)
 		go func() {
 			// TODO: i may need a function for this fuckery.
 			defer wg.Done()
@@ -178,7 +178,7 @@ func genListChannel(ctx context.Context, links chan<- string, list *structures.E
 // It does not account for "included".  It ignores the thread links in the
 // list.  It writes the channels to the tmpdir.
 func genAPIChannel(s *slackdump.Stream, tmpdir string, memberOnly bool) linkFeederFunc {
-	return linkFeederFunc(func(ctx context.Context, links chan<- string, list *structures.EntityList) error {
+	return func(ctx context.Context, links chan<- string, list *structures.EntityList) error {
 		chIdx := list.Index()
 		chanproc, err := expproc.NewChannels(tmpdir, func(c []slack.Channel) error {
 			for _, ch := range c {
@@ -208,9 +208,9 @@ func genAPIChannel(s *slackdump.Stream, tmpdir string, memberOnly bool) linkFeed
 		if err := chanproc.Close(); err != nil {
 			return fmt.Errorf("error closing channel processor: %w", err)
 		}
-		dlog.FromContext(ctx).Debug("channels done")
+		logger.FromContext(ctx).Debug("channels done")
 		return nil
-	})
+	}
 }
 
 func userWorker(ctx context.Context, s *slackdump.Stream, tmpdir string) error {
@@ -226,7 +226,7 @@ func userWorker(ctx context.Context, s *slackdump.Stream, tmpdir string) error {
 	if err := userproc.Close(); err != nil {
 		return fmt.Errorf("error closing user processor: %w", err)
 	}
-	dlog.FromContext(ctx).Debug("users done")
+	logger.FromContext(ctx).Debug("users done")
 	return nil
 }
 
@@ -239,7 +239,7 @@ type progresser interface {
 }
 
 func conversationWorker(ctx context.Context, s *slackdump.Stream, proc processor.Conversations, pb progresser, links <-chan string) error {
-	lg := dlog.FromContext(ctx)
+	lg := logger.FromContext(ctx)
 	if err := s.AsyncConversations(ctx, proc, links, func(sr slackdump.StreamResult) error {
 		lg.Debugf("conversations: %s", sr.String())
 		pb.Describe(sr.String())

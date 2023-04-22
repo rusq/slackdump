@@ -15,6 +15,7 @@ import (
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v2/export"
 	"github.com/rusq/slackdump/v2/internal/structures"
+	"github.com/rusq/slackdump/v2/logger"
 )
 
 var CmdExport = &base.Command{
@@ -64,7 +65,7 @@ func runExport(ctx context.Context, cmd *base.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	sess, err := slackdump.New(ctx, prov, slackdump.WithLogger(dlog.FromContext(ctx)), slackdump.WithLimits(cfg.Limits))
+	sess, err := slackdump.New(ctx, prov, slackdump.WithLogger(logger.FromContext(ctx)), slackdump.WithLimits(cfg.Limits))
 	if err != nil {
 		return err
 	}
@@ -79,7 +80,7 @@ func runExport(ctx context.Context, cmd *base.Command, args []string) error {
 	}()
 
 	options.List = list
-	options.Logger = dlog.FromContext(ctx)
+	options.Logger = logger.FromContext(ctx)
 
 	var expfn = exportV3
 	if compat {

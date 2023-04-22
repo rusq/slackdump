@@ -11,7 +11,6 @@ import (
 	"sort"
 	"time"
 
-	"github.com/rusq/dlog"
 	"github.com/rusq/fsadapter"
 	"github.com/slack-go/slack"
 
@@ -19,6 +18,7 @@ import (
 	"github.com/rusq/slackdump/v2/internal/chunk"
 	"github.com/rusq/slackdump/v2/internal/osext"
 	"github.com/rusq/slackdump/v2/internal/structures"
+	"github.com/rusq/slackdump/v2/logger"
 	"github.com/rusq/slackdump/v2/types"
 )
 
@@ -48,6 +48,7 @@ type Transform struct {
 	srcdir string       // source directory with chunks.
 	fsa    fsadapter.FS // target file system adapter.
 	users  []slack.User // list of users.
+	lg     logger.Interface
 
 	start chan struct{}
 	done  chan struct{}
@@ -89,9 +90,11 @@ func NewTransform(ctx context.Context, fsa fsadapter.FS, chunkdir string, tfopt 
 	if err := osext.DirExists(chunkdir); err != nil {
 		return nil, fmt.Errorf("chunk directory %s does not exist: %w", chunkdir, err)
 	}
+	lg := logger.FromContext(ctx)
 	t := &Transform{
 		srcdir: chunkdir,
 		fsa:    fsa,
+		lg:     lg,
 		start:  make(chan struct{}),
 		done:   make(chan struct{}),
 		ids:    make(chan string, idsBufSz),
@@ -109,7 +112,7 @@ func (t *Transform) WriteUsers(users []slack.User) error {
 	if users == nil {
 		return errors.New("users list is nil")
 	}
-	dlog.Debugln("transform: writing users")
+	t.lg.Debugln("transform: writing users")
 	return t.writeUsers(users)
 }
 
@@ -144,7 +147,7 @@ func (t *Transform) hasUsers() bool {
 // with the WithUsers option.  Otherwise, use StartWithUsers method.
 // If the processor is already started, it will return nil.
 func (t *Transform) Start(ctx context.Context) error {
-	dlog.Debugln("transform: starting transform")
+	t.lg.Debugln("transform: starting transform")
 	if !t.hasUsers() {
 		return errors.New("internal error: users not initialised")
 	}
@@ -160,8 +163,7 @@ func (t *Transform) Start(ctx context.Context) error {
 // even if the processor is not started, in which case the channel ID will
 // be queued for processing once the processor is started.
 func (t *Transform) OnFinalise(ctx context.Context, channelID string) error {
-	lg := dlog.FromContext(ctx)
-	lg.Debugln("transform: placing channel in the queue", channelID)
+	t.lg.Debugln("transform: placing channel in the queue", channelID)
 	select {
 	case err := <-t.err:
 		return err
@@ -173,14 +175,14 @@ func (t *Transform) OnFinalise(ctx context.Context, channelID string) error {
 
 func (t *Transform) worker(ctx context.Context) {
 	defer close(t.done)
-	lg := dlog.FromContext(ctx)
-	lg.Debugln("transform: worker waiting")
+
+	t.lg.Debugln("transform: worker waiting")
 	<-t.start
-	lg.Debugln("transform: worker started")
+	t.lg.Debugln("transform: worker started")
 	for id := range t.ids {
-		lg.Debugf("transform: transforming channel %s", id)
+		t.lg.Debugf("transform: transforming channel %s", id)
 		if err := transform(ctx, t.fsa, t.srcdir, id, t.users); err != nil {
-			lg.Debugf("transform: error transforming channel %s: %s", id, err)
+			t.lg.Debugf("transform: error transforming channel %s: %s", id, err)
 			t.err <- err
 			continue
 		}
@@ -191,7 +193,7 @@ func (t *Transform) worker(ctx context.Context) {
 // once all transformations are done, because it might require to read channel
 // files.
 func (t *Transform) WriteIndex(currentUserID string) error {
-	dlog.Debugln("transform: finalising transform")
+	t.lg.Debugln("transform: finalising transform")
 	cd, err := chunk.OpenDir(t.srcdir)
 	if err != nil {
 		return fmt.Errorf("error opening chunk directory: %w", err)
@@ -214,10 +216,10 @@ func (t *Transform) WriteIndex(currentUserID string) error {
 // guaranteed that OnFinish will not be called anymore, otherwise the
 // call to OnFinish will panic.
 func (t *Transform) Close() error {
-	dlog.Debugln("transform: closing transform")
+	t.lg.Debugln("transform: closing transform")
 	close(t.ids)
 	close(t.start)
-	dlog.Debugln("transform: waiting for workers to finish")
+	t.lg.Debugln("transform: waiting for workers to finish")
 	<-t.done
 	return nil
 }
@@ -231,7 +233,7 @@ func transform(ctx context.Context, fsa fsadapter.FS, srcdir string, id string, 
 	ctx, task := trace.NewTask(ctx, "transform")
 	defer task.End()
 
-	lg := dlog.FromContext(ctx)
+	lg := logger.FromContext(ctx)
 	trace.Logf(ctx, "input", "len(users)=%d", len(users))
 	lg.Debugf("transforming channel %s, user len=%d", id, len(users))
 
@@ -263,7 +265,7 @@ func transform(ctx context.Context, fsa fsadapter.FS, srcdir string, id string, 
 func writeMessages(ctx context.Context, fsa fsadapter.FS, pl *chunk.File, ci *slack.Channel, users []slack.User) error {
 	uidx := types.Users(users).IndexByID()
 	trgdir := channelName(ci)
-	lg := dlog.FromContext(ctx)
+	lg := logger.FromContext(ctx)
 	var (
 		prevDt string        // previous date
 		enc    *json.Encoder // current encoder
@@ -278,6 +280,7 @@ func writeMessages(ctx context.Context, fsa fsadapter.FS, pl *chunk.File, ci *sl
 	if err := pl.Sorted(ctx, false, func(ts time.Time, m *slack.Message) error {
 		date := ts.Format("2006-01-02")
 		if date != prevDt || prevDt == "" {
+			lg.Debugf("transforming messages for channel: %q, date: %s", ci.ID, date)
 			// if we have advanced to the next date, switch to a new file.
 			if wc != nil {
 				if err := writeJSONFooter(wc); err != nil {

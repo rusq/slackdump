@@ -6,12 +6,12 @@ import (
 	"runtime/trace"
 	"time"
 
-	"github.com/rusq/dlog"
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/auth"
 	"github.com/rusq/slackdump/v2/export"
 	"github.com/rusq/slackdump/v2/internal/app/config"
+	"github.com/rusq/slackdump/v2/logger"
 )
 
 // defExportType is the default file export type, if the DumpFiles is
@@ -34,7 +34,7 @@ func Export(ctx context.Context, cfg config.Params, prov auth.Provider) error {
 	}
 	defer fsa.Close()
 
-	sess, err := slackdump.New(ctx, prov, slackdump.WithFilesystem(fsa), slackdump.WithLogger(dlog.FromContext(ctx)))
+	sess, err := slackdump.New(ctx, prov, slackdump.WithFilesystem(fsa), slackdump.WithLogger(logger.FromContext(ctx)))
 	if err != nil {
 		return err
 	}

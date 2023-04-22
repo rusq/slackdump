@@ -6,11 +6,11 @@ import (
 	"runtime/trace"
 	"time"
 
-	"github.com/rusq/dlog"
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v2/internal/cache"
+	"github.com/rusq/slackdump/v2/logger"
 	"github.com/rusq/slackdump/v2/types"
 )
 
@@ -66,7 +66,7 @@ func listChannels(ctx context.Context, cmd *base.Command, args []string) error {
 		}
 		if err := saveCache(cfg.CacheDir(), teamID, cc); err != nil {
 			// warn, but don't fail
-			dlog.FromContext(ctx).Printf("failed to save cache: %v", err)
+			logger.FromContext(ctx).Printf("failed to save cache: %v", err)
 		}
 		return cc, filename, nil
 	}); err != nil {

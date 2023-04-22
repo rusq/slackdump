@@ -8,10 +8,10 @@ import (
 	"os"
 
 	"github.com/playwright-community/playwright-go"
-	"github.com/rusq/dlog"
 
 	"github.com/rusq/slackdump/v2/auth/browser"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/golang/base"
+	"github.com/rusq/slackdump/v2/logger"
 )
 
 var CmdEzTest = &base.Command{
@@ -45,8 +45,7 @@ func init() {
 }
 
 func runEzLoginTest(ctx context.Context, cmd *base.Command, args []string) error {
-	lg := dlog.FromContext(ctx)
-	lg.SetPrefix("eztest ")
+	lg := logger.FromContext(ctx)
 
 	wsp := cmd.Flag.String("w", "", "Slack `workspace` to login to.")
 

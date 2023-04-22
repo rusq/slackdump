@@ -5,16 +5,19 @@ import (
 	"compress/gzip"
 	"context"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
 	"testing"
 
+	"github.com/rusq/dlog"
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/export"
 	"github.com/rusq/slackdump/v2/internal/chunk/chunktest"
 	"github.com/rusq/slackdump/v2/internal/structures"
+	"github.com/rusq/slackdump/v2/logger"
 	"github.com/slack-go/slack"
 )
 
@@ -31,8 +34,8 @@ func Test_exportV3(t *testing.T) {
 		defer srv.Close()
 		cl := slack.New("", slack.OptionAPIURL(srv.URL()))
 
-		ctx := context.Background()
-		cl.AuthTestContext(ctx)
+		lg := dlog.New(os.Stderr, "test ", log.LstdFlags, true)
+		ctx := logger.NewContext(context.Background(), lg)
 		prov := &chunktest.TestAuth{
 			FakeToken:      "xoxp-1234567890-1234567890-1234567890-1234567890",
 			WantHTTPClient: http.DefaultClient,

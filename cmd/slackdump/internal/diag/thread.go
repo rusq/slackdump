@@ -7,7 +7,6 @@ import (
 	"os"
 
 	"github.com/joho/godotenv"
-	"github.com/rusq/dlog"
 	"github.com/rusq/osenv/v2"
 	"github.com/schollz/progressbar/v3"
 	"github.com/slack-go/slack"
@@ -51,9 +50,6 @@ var (
 )
 
 func runThread(ctx context.Context, cmd *base.Command, args []string) error {
-	lg := dlog.FromContext(ctx)
-	lg.SetPrefix("thread ")
-
 	if err := cmd.Flag.Parse(args); err != nil {
 		base.SetExitStatus(base.SInvalidParameters)
 		return nil

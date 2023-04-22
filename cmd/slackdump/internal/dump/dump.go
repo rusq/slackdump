@@ -13,7 +13,6 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/rusq/dlog"
 	"github.com/rusq/fsadapter"
 	"golang.org/x/sync/errgroup"
 
@@ -25,6 +24,7 @@ import (
 	"github.com/rusq/slackdump/v2/internal/chunk/transform"
 	"github.com/rusq/slackdump/v2/internal/nametmpl"
 	"github.com/rusq/slackdump/v2/internal/structures"
+	"github.com/rusq/slackdump/v2/logger"
 	"github.com/rusq/slackdump/v2/types"
 )
 
@@ -107,7 +107,7 @@ func RunDump(ctx context.Context, cmd *base.Command, args []string) error {
 	}
 	defer fsa.Close()
 
-	sess, err := slackdump.New(ctx, prov, slackdump.WithLogger(dlog.FromContext(ctx)), slackdump.WithFilesystem(fsa))
+	sess, err := slackdump.New(ctx, prov, slackdump.WithLogger(logger.FromContext(ctx)), slackdump.WithFilesystem(fsa))
 	if err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return err
@@ -131,7 +131,7 @@ func dumpv3(ctx context.Context, sess *slackdump.Session, fs fsadapter.FS, list 
 	ctx, task := trace.NewTask(ctx, "dumpv3")
 	defer task.End()
 
-	lg := dlog.FromContext(ctx)
+	lg := logger.FromContext(ctx)
 
 	p := &transform.Parameters{
 		Oldest:    time.Time(cfg.Oldest),
@@ -174,7 +174,7 @@ func convertChunks(ctx context.Context, tf transform.Interface, statefile string
 	ctx, task := trace.NewTask(ctx, "convert")
 	defer task.End()
 
-	lg := dlog.FromContext(ctx)
+	lg := logger.FromContext(ctx)
 
 	lg.Printf("converting %q", statefile)
 	st, err := state.Load(statefile)

@@ -3,7 +3,6 @@ package export
 import (
 	"context"
 
-	"github.com/rusq/dlog"
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/auth"
@@ -11,10 +10,11 @@ import (
 	"github.com/rusq/slackdump/v2/export"
 	"github.com/rusq/slackdump/v2/internal/ui"
 	"github.com/rusq/slackdump/v2/internal/ui/ask"
+	"github.com/rusq/slackdump/v2/logger"
 )
 
 func wizExport(ctx context.Context, cmd *base.Command, args []string) error {
-	options.Logger = dlog.FromContext(ctx)
+	options.Logger = logger.FromContext(ctx)
 	prov, err := auth.FromContext(ctx)
 	if err != nil {
 		return err

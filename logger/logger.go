@@ -1,6 +1,7 @@
 package logger
 
 import (
+	"context"
 	"log"
 	"os"
 
@@ -37,3 +38,20 @@ func (s silent) Print(...any)                {}
 func (s silent) Printf(fmt string, a ...any) {}
 func (s silent) Println(...any)              {}
 func (s silent) IsDebug() bool               { return false }
+
+type logCtx uint8
+
+const (
+	logCtxKey logCtx = iota
+)
+
+func NewContext(ctx context.Context, l Interface) context.Context {
+	return context.WithValue(ctx, logCtxKey, l)
+}
+
+func FromContext(ctx context.Context) Interface {
+	if l, ok := ctx.Value(logCtxKey).(Interface); ok {
+		return l
+	}
+	return Default
+}

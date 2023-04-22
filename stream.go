@@ -8,13 +8,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/rusq/dlog"
 	"github.com/slack-go/slack"
 	"golang.org/x/time/rate"
 
 	"github.com/rusq/slackdump/v2/internal/chunk/processor"
 	"github.com/rusq/slackdump/v2/internal/network"
 	"github.com/rusq/slackdump/v2/internal/structures"
+	"github.com/rusq/slackdump/v2/logger"
 )
 
 const (
@@ -108,7 +108,7 @@ func newChannelStream(cl streamer, l *Limits, opts ...StreamOption) *Stream {
 // Conversations fetches the conversations from the link which can be a
 // channelID, channel URL, thread URL or a link in Slackdump format.
 func (cs *Stream) Conversations(ctx context.Context, proc processor.Conversations, link ...string) error {
-	lg := dlog.FromContext(ctx)
+	lg := logger.FromContext(ctx)
 	return cs.ConversationsCB(ctx, proc, link, func(sr StreamResult) error {
 		lg.Debugf("stream: finished processing: %s", sr)
 		return nil
@@ -119,7 +119,7 @@ func (cs *Stream) ConversationsCB(ctx context.Context, proc processor.Conversati
 	ctx, task := trace.NewTask(ctx, "channelStream.Conversations")
 	defer task.End()
 
-	lg := dlog.FromContext(ctx)
+	lg := logger.FromContext(ctx)
 
 	linkC := make(chan string, 1)
 	go func() {
@@ -295,7 +295,7 @@ func (cs *Stream) channel(ctx context.Context, id string, fn func(mm []slack.Mes
 	ctx, task := trace.NewTask(ctx, "channel")
 	defer task.End()
 
-	lg := dlog.FromContext(ctx)
+	lg := logger.FromContext(ctx)
 
 	cursor := ""
 	for {
@@ -372,7 +372,7 @@ func (cs *Stream) thread(ctx context.Context, id string, threadTS string, fn fun
 	ctx, task := trace.NewTask(ctx, "thread")
 	defer task.End()
 
-	lg := dlog.FromContext(ctx)
+	lg := logger.FromContext(ctx)
 	lg.Debugf("- getting: thread: id=%s, thread_ts=%s", id, threadTS)
 
 	var cursor string
@@ -420,7 +420,7 @@ func (cs *Stream) thread(ctx context.Context, id string, threadTS string, fn fun
 // thread requests for the threads in the channel, if it discovers messages
 // with threads.  It returns thread count in the mm and error if any.
 func processChannelMessages(ctx context.Context, proc processor.Conversations, threadC chan<- threadRequest, channelID string, isLast bool, mm []slack.Message) (int, error) {
-	lg := dlog.FromContext(ctx)
+	lg := logger.FromContext(ctx)
 
 	var trs = make([]threadRequest, 0, len(mm))
 	for i := range mm {
@@ -516,8 +516,14 @@ func (cs *Stream) ListChannels(ctx context.Context, proc processor.Channels, p *
 	ctx, task := trace.NewTask(ctx, "Channels")
 	defer task.End()
 
+	var next string
 	for {
-		ch, next, err := cs.client.GetConversationsContext(ctx, p)
+		var (
+			ch  []slack.Channel
+			err error
+		)
+		p.Cursor = next
+		ch, next, err = cs.client.GetConversationsContext(ctx, p)
 		if err != nil {
 			return err
 		}

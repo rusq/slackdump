@@ -10,7 +10,6 @@ import (
 	"runtime/trace"
 	"time"
 
-	"github.com/rusq/dlog"
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/auth"
@@ -57,7 +56,7 @@ func Dump(ctx context.Context, cfg config.Params, prov auth.Provider) error {
 }
 
 func newDump(ctx context.Context, cfg config.Params, prov auth.Provider, fs fsadapter.FS) (*dump, error) {
-	sess, err := slackdump.New(ctx, prov, slackdump.WithFilesystem(fs), slackdump.WithLogger(dlog.FromContext(ctx)))
+	sess, err := slackdump.New(ctx, prov, slackdump.WithFilesystem(fs), slackdump.WithLogger(logger.FromContext(ctx)))
 	if err != nil {
 		return nil, err
 	}

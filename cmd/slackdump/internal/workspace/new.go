@@ -4,11 +4,11 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/rusq/dlog"
 	"github.com/rusq/slackdump/v2/auth"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v2/internal/cache"
+	"github.com/rusq/slackdump/v2/logger"
 )
 
 var CmdWspNew = &base.Command{
@@ -33,7 +33,7 @@ func init() {
 
 // runWspNew authenticates in the new workspace.
 func runWspNew(ctx context.Context, cmd *base.Command, args []string) error {
-	lg := dlog.FromContext(ctx)
+	lg := logger.FromContext(ctx)
 	m, err := cache.NewManager(cfg.CacheDir(), cache.WithAuthOpts(auth.BrowserWithBrowser(cfg.Browser)))
 	if err != nil {
 		base.SetExitStatus(base.SCacheError)

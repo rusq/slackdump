@@ -469,7 +469,7 @@ func Test_timeOffsets(t *testing.T) {
 	tests := []struct {
 		name string
 		args args
-		want map[int64]TimeOffset
+		want map[int64]Addr
 	}{
 		{
 			name: "ok",
@@ -478,7 +478,7 @@ func Test_timeOffsets(t *testing.T) {
 					546: offsetInfo{ID: "C1234567890", Timestamps: []int64{1234567890100000, 1234567890200000, 1234567890300000, 1234567890400000, 1234567890500000}},
 				},
 			},
-			want: map[int64]TimeOffset{
+			want: map[int64]Addr{
 				1234567890100000: {
 					Offset: 546,
 					Index:  0,

@@ -176,7 +176,7 @@ func invoke(cmd *base.Command, args []string) error {
 		return err
 	} else {
 		lg.SetPrefix(cmd.Name() + ": ")
-		ctx = dlog.NewContext(ctx, lg)
+		ctx = logger.NewContext(ctx, lg)
 		cfg.Log = lg
 	}
 
