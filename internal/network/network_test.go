@@ -148,14 +148,16 @@ func Test_withRetry(t *testing.T) {
 }
 
 func Test500ErrorHandling(t *testing.T) {
-	t.Parallel()
+	waitFn = func(attempt int) time.Duration { return 50 * time.Millisecond }
+	defer func() {
+		waitFn = cubicWait
+	}()
 
 	var codes = []int{500, 502, 503, 504, 598}
 	for _, code := range codes {
 		var thisCode = code
 		// This test is to ensure that we handle 500 errors correctly.
 		t.Run(fmt.Sprintf("%d error", code), func(t *testing.T) {
-			t.Parallel()
 
 			const (
 				testRetryCount = 1
@@ -185,8 +187,8 @@ func Test500ErrorHandling(t *testing.T) {
 			}
 
 			dur := time.Since(start)
-			if dur < waitTime(testRetryCount-1)-waitThreshold || waitTime(testRetryCount-1)+waitThreshold < dur {
-				t.Errorf("expected duration to be around %s, got %s", waitTime(testRetryCount), dur)
+			if dur < waitFn(testRetryCount-1)-waitThreshold || waitFn(testRetryCount-1)+waitThreshold < dur {
+				t.Errorf("expected duration to be around %s, got %s", waitFn(testRetryCount), dur)
 			}
 
 		})
@@ -227,7 +229,7 @@ func Test500ErrorHandling(t *testing.T) {
 	})
 }
 
-func Test_waitTime(t *testing.T) {
+func Test_cubicWait(t *testing.T) {
 	type args struct {
 		attempt int
 	}
@@ -240,13 +242,43 @@ func Test_waitTime(t *testing.T) {
 		{"attempt 1", args{1}, 27 * time.Second},
 		{"attempt 2", args{2}, 64 * time.Second},
 		{"attempt 2", args{4}, 216 * time.Second},
-		{"attempt 100", args{5}, MaxAllowedWaitTime}, // check if capped properly
-		{"attempt 100", args{1000}, MaxAllowedWaitTime},
+		{"attempt 100", args{5}, maxAllowedWaitTime}, // check if capped properly
+		{"attempt 100", args{1000}, maxAllowedWaitTime},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := waitTime(tt.args.attempt); !reflect.DeepEqual(got, tt.want) {
+			if got := cubicWait(tt.args.attempt); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("waitTime() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_isRecoverable(t *testing.T) {
+	type args struct {
+		statusCode int
+	}
+	tests := []struct {
+		name string
+		args args
+		want bool
+	}{
+		{"500", args{500}, true},
+		{"502", args{502}, true},
+		{"503", args{503}, true},
+		{"504", args{504}, true},
+		{"598", args{598}, true},
+		{"599", args{599}, true},
+		{"200", args{200}, false},
+		{"400", args{400}, false},
+		{"404", args{404}, false},
+		{"408", args{408}, true},
+		{"429", args{429}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := isRecoverable(tt.args.statusCode); got != tt.want {
+				t.Errorf("isRecoverable() = %v, want %v", got, tt.want)
 			}
 		})
 	}
