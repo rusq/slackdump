@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"net/http"
 	"os"
 	"runtime/trace"
 	"time"
@@ -107,7 +106,7 @@ func NewWithOptions(ctx context.Context, authProvider auth.Provider, opts Option
 		fs:      fsadapter.NewDirectory("."), // default is to save attachments to the current directory.
 	}
 
-	sd.propagateLogger(sd.l())
+	network.SetLogger(sd.l())
 
 	if err := os.MkdirAll(opts.CacheDir, 0700); err != nil {
 		return nil, fmt.Errorf("failed to create the cache directory: %s", err)
@@ -173,14 +172,6 @@ func (sd *Session) SetFS(fs fsadapter.FS) {
 	sd.fs = fs
 }
 
-func toPtrCookies(cc []http.Cookie) []*http.Cookie {
-	var ret = make([]*http.Cookie, len(cc))
-	for i := range cc {
-		ret[i] = &cc[i]
-	}
-	return ret
-}
-
 func (sd *Session) limiter(t network.Tier) *rate.Limiter {
 	return network.NewLimiter(t, sd.options.Tier3Burst, int(sd.options.Tier3Boost))
 }
@@ -223,9 +214,4 @@ func (sd *Session) l() logger.Interface {
 		return logger.Default
 	}
 	return sd.options.Logger
-}
-
-// propagateLogger propagates the slackdump logger to some dumb packages.
-func (sd *Session) propagateLogger(l logger.Interface) {
-	network.Logger = l
 }
