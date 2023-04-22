@@ -253,3 +253,33 @@ func Test_cubicWait(t *testing.T) {
 		})
 	}
 }
+
+func Test_isRecoverable(t *testing.T) {
+	type args struct {
+		statusCode int
+	}
+	tests := []struct {
+		name string
+		args args
+		want bool
+	}{
+		{"500", args{500}, true},
+		{"502", args{502}, true},
+		{"503", args{503}, true},
+		{"504", args{504}, true},
+		{"598", args{598}, true},
+		{"599", args{599}, true},
+		{"200", args{200}, false},
+		{"400", args{400}, false},
+		{"404", args{404}, false},
+		{"408", args{408}, true},
+		{"429", args{429}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := isRecoverable(tt.args.statusCode); got != tt.want {
+				t.Errorf("isRecoverable() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

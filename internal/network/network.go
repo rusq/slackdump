@@ -71,7 +71,7 @@ func WithRetry(ctx context.Context, lim *rate.Limiter, maxAttempts int, fn func(
 			time.Sleep(rle.RetryAfter)
 			continue
 		} else if errors.As(cbErr, &sce) {
-			if sce.Code >= http.StatusInternalServerError && sce.Code <= 599 {
+			if isRecoverable(sce.Code) {
 				// possibly transient error
 				delay := waitFn(attempt)
 				tracelogf(ctx, "info", "got server error %d, sleeping %s", sce.Code, delay)
@@ -86,6 +86,11 @@ func WithRetry(ctx context.Context, lim *rate.Limiter, maxAttempts int, fn func(
 		return ErrRetryFailed
 	}
 	return nil
+}
+
+// isRecoverable returns true if the status code is a recoverable error.
+func isRecoverable(statusCode int) bool {
+	return (statusCode >= http.StatusInternalServerError && statusCode <= 599) || statusCode == 408
 }
 
 // cubicWait is the wait time function.  Time is calculated as (x+2)^3 seconds,
