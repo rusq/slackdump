@@ -2,7 +2,6 @@ package chunk
 
 import (
 	"compress/gzip"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -112,20 +111,16 @@ func readChanInfo(rs io.ReadSeeker) ([]slack.Channel, error) {
 // loadChannelsJSON loads channels json file and returns a slice of
 // slack.Channel.  It expects it to be GZIP compressed.
 func loadChannelsJSON(fullpath string) ([]slack.Channel, error) {
-	cf, err := openChunks(fullpath)
+	f, err := openChunks(fullpath)
 	if err != nil {
 		return nil, err
 	}
-	defer cf.Close()
-	return readChannelsJSON(cf)
-}
-
-func readChannelsJSON(r io.Reader) ([]slack.Channel, error) {
-	var ch []slack.Channel
-	if err := json.NewDecoder(r).Decode(&ch); err != nil {
+	defer f.Close()
+	cf, err := FromReader(f)
+	if err != nil {
 		return nil, err
 	}
-	return ch, nil
+	return cf.AllChannels()
 }
 
 // openChunks opens an existing chunk file and returns a ReadSeekCloser.  It

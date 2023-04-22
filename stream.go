@@ -527,6 +527,15 @@ func (cs *Stream) ListChannels(ctx context.Context, proc processor.Channels, p *
 		if err != nil {
 			return err
 		}
+
+		// this can happen if we're running the stream under the guest user.
+		// slack returns empty chunks.
+		if len(ch) == 0 {
+			if next == "" {
+				break
+			}
+			continue
+		}
 		if err := proc.Channels(ctx, ch); err != nil {
 			return err
 		}

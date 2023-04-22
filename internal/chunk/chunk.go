@@ -31,8 +31,8 @@ type Chunk struct {
 	// header
 	Type      ChunkType `json:"t"`
 	Timestamp int64     `json:"ts"`
-	ChannelID string    `json:"id"`
-	Count     int       `json:"n"` // number of messages or files
+	ChannelID string    `json:"id,omitempty"`
+	Count     int       `json:"n,omitempty"` // number of messages or files
 
 	// the rest
 	IsThread bool `json:"r,omitempty"`
