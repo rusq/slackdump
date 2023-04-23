@@ -49,13 +49,13 @@ func init() {
 }
 
 func runExport(ctx context.Context, cmd *base.Command, args []string) error {
+	start := time.Now()
 	if cfg.BaseLocation == "" {
 		return errors.New("use -base to set the base output location")
 	}
 	if !cfg.DumpFiles {
 		options.Type = export.TNoDownload
 	}
-
 	list, err := structures.NewEntityList(args)
 	if err != nil {
 		return fmt.Errorf("error parsing the entity list: %w", err)
@@ -72,6 +72,7 @@ func runExport(ctx context.Context, cmd *base.Command, args []string) error {
 
 	fsa, err := fsadapter.New(cfg.BaseLocation)
 	if err != nil {
+		base.SetExitStatus(base.SUserError)
 		return err
 	}
 	defer func() {
@@ -87,5 +88,12 @@ func runExport(ctx context.Context, cmd *base.Command, args []string) error {
 		expfn = exportV2
 	}
 
-	return expfn(ctx, sess, fsa, list, options)
+	if err := expfn(ctx, sess, fsa, list, options); err != nil {
+		base.SetExitStatus(base.SApplicationError)
+		return fmt.Errorf("export failed: %w", err)
+	}
+
+	lg := logger.FromContext(ctx)
+	lg.Printf("export completed in %s", time.Since(start).Truncate(time.Second).String())
+	return nil
 }
