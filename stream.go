@@ -540,7 +540,7 @@ func (cs *Stream) ListChannels(ctx context.Context, proc processor.Channels, p *
 		)
 		ch, next, err = cs.client.GetConversationsContext(ctx, p)
 		if err != nil {
-			return err
+			return fmt.Errorf("API error: %w", err)
 		}
 
 		// this can happen if we're running the stream under the guest user.

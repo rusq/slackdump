@@ -46,8 +46,8 @@ func (s *DirServer) dirRouter() *http.ServeMux {
 	mux.Handle("/api/conversations.info", s.chunkWrapper(handleConversationsInfo))
 	mux.Handle("/api/conversations.history", s.chunkWrapper(handleConversationsHistory))
 	mux.Handle("/api/conversations.replies", s.chunkWrapper(handleConversationsReplies))
-	mux.Handle("/api/conversations.list", s.chunkWrapper(handleConversationsList))
 
+	mux.Handle("/api/conversations.list", s.chunkfileWrapper(chunk.FChannels, handleConversationsList))
 	mux.Handle("/api/users.list", s.chunkfileWrapper(chunk.FUsers, handleUsersList))
 	mux.Handle("/api/auth.test", s.chunkfileWrapper(chunk.FWorkspace, handleAuthTest))
 

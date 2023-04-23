@@ -23,7 +23,7 @@ func handleConversationsHistory(p *chunk.Player) http.HandlerFunc {
 			http.NotFound(w, r)
 			return
 		}
-		var sresp = slack.SlackResponse{
+		sresp := slack.SlackResponse{
 			Ok: true,
 		}
 
@@ -164,28 +164,26 @@ func handleConversationsList(p *chunk.Player) http.HandlerFunc {
 		_, task := trace.NewTask(r.Context(), "conversation.list")
 		defer task.End()
 
-		c, err := p.Channels()
-		sr := slack.SlackResponse{
-			Ok: true,
-			ResponseMetadata: slack.ResponseMetadata{
-				Cursor: "moar",
+		cr := channelResponse{
+			Channels: []slack.Channel{},
+			SlackResponse: slack.SlackResponse{
+				Ok: true,
+			},
+			Metadata: slack.ResponseMetadata{
+				Cursor: "next",
 			},
 		}
+		c, err := p.Channels()
 		if err != nil {
+			cr.Ok = false
 			if errors.Is(err, io.EOF) {
-				sr.Ok = false
-				sr.ResponseMetadata.Cursor = ""
+				cr.Metadata.Cursor = ""
 			} else {
-				log.Printf("error processing conversations.list: %s", err)
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
+				cr.Error = err.Error()
 			}
 		}
-		resp := channelResponse{
-			Channels:      c,
-			SlackResponse: sr,
-		}
-		if err := json.NewEncoder(w).Encode(resp); err != nil {
+		cr.Channels = c
+		if err := json.NewEncoder(w).Encode(cr); err != nil {
 			log.Printf("error encoding channel.list response: %s", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -269,7 +267,7 @@ func (ah authHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func handleAuthTest(p *chunk.Player) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var atr = authTestResponseFull{
+		atr := authTestResponseFull{
 			SlackResponse: slack.SlackResponse{
 				Ok: true,
 			},
