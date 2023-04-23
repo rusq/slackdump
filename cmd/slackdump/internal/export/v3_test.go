@@ -24,13 +24,41 @@ import (
 const (
 	baseDir   = "../../../../"
 	chunkDir  = baseDir + "tmp/2/"
+	guestDir  = baseDir + "tmp/guest/"
 	largeFile = chunkDir + "C0BBSGYFN.json.gz"
 )
 
 func Test_exportV3(t *testing.T) {
-	// TODO: this is manual
-	t.Run("large file", func(t *testing.T) {
-		srv := chunktest.NewDirServer(chunkDir, "U0BBSGYFN")
+	// // TODO: this is manual
+	// t.Run("large file", func(t *testing.T) {
+	// 	srv := chunktest.NewDirServer(chunkDir)
+	// 	defer srv.Close()
+	// 	cl := slack.New("", slack.OptionAPIURL(srv.URL()))
+
+	// 	lg := dlog.New(os.Stderr, "test ", log.LstdFlags, true)
+	// 	ctx := logger.NewContext(context.Background(), lg)
+	// 	prov := &chunktest.TestAuth{
+	// 		FakeToken:      "xoxp-1234567890-1234567890-1234567890-1234567890",
+	// 		WantHTTPClient: http.DefaultClient,
+	// 	}
+	// 	sess, err := slackdump.New(ctx, prov, slackdump.WithSlackClient(cl), slackdump.WithLimits(slackdump.NoLimits))
+	// 	if err != nil {
+	// 		t.Fatal(err)
+	// 	}
+	// 	output := filepath.Join(baseDir, "output.zip")
+	// 	fsa, err := fsadapter.New(output)
+	// 	if err != nil {
+	// 		t.Fatal(err)
+	// 	}
+	// 	defer fsa.Close()
+
+	// 	list := &structures.EntityList{Include: []string{"C0BBSGYFN"}}
+	// 	if err := exportV3(ctx, sess, fsa, list, export.Config{List: list}); err != nil {
+	// 		t.Fatal(err)
+	// 	}
+	// })
+	t.Run("guest user", func(t *testing.T) {
+		srv := chunktest.NewDirServer(guestDir)
 		defer srv.Close()
 		cl := slack.New("", slack.OptionAPIURL(srv.URL()))
 
@@ -51,7 +79,7 @@ func Test_exportV3(t *testing.T) {
 		}
 		defer fsa.Close()
 
-		list := &structures.EntityList{Include: []string{"C0BBSGYFN"}}
+		list := &structures.EntityList{}
 		if err := exportV3(ctx, sess, fsa, list, export.Config{List: list}); err != nil {
 			t.Fatal(err)
 		}

@@ -11,22 +11,20 @@ import (
 // DirServer is a test server that serves files from a chunk.Directory.
 type DirServer struct {
 	baseServer
-	cd     *chunk.Directory
-	userID string
+	cd *chunk.Directory
 
 	mu   sync.Mutex
 	ptrs map[string]*chunk.Player
 }
 
-func NewDirServer(dir string, currentUserID string) *DirServer {
+func NewDirServer(dir string) *DirServer {
 	cd, err := chunk.OpenDir(dir)
 	if err != nil {
 		panic(err)
 	}
 	ds := &DirServer{
-		cd:     cd,
-		userID: currentUserID,
-		ptrs:   make(map[string]*chunk.Player),
+		cd:   cd,
+		ptrs: make(map[string]*chunk.Player),
 	}
 	ds.init()
 	return ds
@@ -45,13 +43,14 @@ func (s *DirServer) Close() {
 
 func (s *DirServer) dirRouter() *http.ServeMux {
 	mux := http.NewServeMux()
-	mux.Handle("/api/auth.test", authHandler{s.userID})
-
 	mux.Handle("/api/conversations.info", s.chunkWrapper(handleConversationsInfo))
 	mux.Handle("/api/conversations.history", s.chunkWrapper(handleConversationsHistory))
 	mux.Handle("/api/conversations.replies", s.chunkWrapper(handleConversationsReplies))
 	mux.Handle("/api/conversations.list", s.chunkWrapper(handleConversationsList))
-	mux.Handle("/api/users.list", s.chunkfileWrapper("users", handleUsersList))
+
+	mux.Handle("/api/users.list", s.chunkfileWrapper(chunk.FUsers, handleUsersList))
+	mux.Handle("/api/auth.test", s.chunkfileWrapper(chunk.FWorkspace, handleAuthTest))
+
 	return mux
 }
 

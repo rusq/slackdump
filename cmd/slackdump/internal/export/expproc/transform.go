@@ -151,8 +151,14 @@ func (t *Transform) Start(ctx context.Context) error {
 	if !t.hasUsers() {
 		return errors.New("internal error: users not initialised")
 	}
-
-	t.start <- struct{}{}
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-t.done:
+		return errors.New("transform is closed")
+	default:
+		t.start <- struct{}{}
+	}
 
 	return nil
 }

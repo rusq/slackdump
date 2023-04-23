@@ -266,3 +266,25 @@ func (ah authHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 }
+
+func handleAuthTest(p *chunk.Player) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var atr = authTestResponseFull{
+			SlackResponse: slack.SlackResponse{
+				Ok: true,
+			},
+		}
+		wi, err := p.WorkspaceInfo()
+		if err != nil {
+			atr.SlackResponse.Ok = false
+			atr.SlackResponse.Error = err.Error()
+		} else {
+			atr.AuthTestResponse = *wi
+		}
+		if err := json.NewEncoder(w).Encode(atr); err != nil {
+			log.Printf("error encoding auth.test response: %s", err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+}
