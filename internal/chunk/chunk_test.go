@@ -116,14 +116,14 @@ func TestChunk_ID(t *testing.T) {
 		{
 			name: "unknown",
 			fields: fields{
-				Type:      ChunkType(999),
+				Type:      ChunkType(255),
 				Timestamp: 0,
 				IsThread:  false,
 				Count:     0,
 				Channel:   nil,
 				ChannelID: "",
 			},
-			want: "<unknown:ChunkType(999)>",
+			want: "<unknown:ChunkType(255)>",
 		},
 	}
 	for _, tt := range tests {

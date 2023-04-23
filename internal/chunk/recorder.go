@@ -204,3 +204,19 @@ func (rec *Recorder) Close() error {
 	close(rec.chunks)
 	return <-rec.errC
 }
+
+// WorkspaceInfo is called when workspace info is retrieved.
+func (rec *Recorder) WorkspaceInfo(ctx context.Context, atr *slack.AuthTestResponse) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case err := <-rec.errC:
+		return err
+	case rec.chunks <- Chunk{
+		Type:          CWorkspaceInfo,
+		Timestamp:     time.Now().UnixNano(),
+		WorkspaceInfo: atr,
+	}:
+	}
+	return nil
+}

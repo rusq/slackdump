@@ -14,14 +14,15 @@ func _() {
 	_ = x[CUsers-3]
 	_ = x[CChannels-4]
 	_ = x[CChannelInfo-5]
+	_ = x[CWorkspaceInfo-6]
 }
 
-const _ChunkType_name = "MessagesThreadMessagesFilesUsersChannelsChannelInfo"
+const _ChunkType_name = "MessagesThreadMessagesFilesUsersChannelsChannelInfoWorkspaceInfo"
 
-var _ChunkType_index = [...]uint8{0, 8, 22, 27, 32, 40, 51}
+var _ChunkType_index = [...]uint8{0, 8, 22, 27, 32, 40, 51, 64}
 
 func (i ChunkType) String() string {
-	if i < 0 || i >= ChunkType(len(_ChunkType_index)-1) {
+	if i >= ChunkType(len(_ChunkType_index)-1) {
 		return "ChunkType(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
 	return _ChunkType_name[_ChunkType_index[i]:_ChunkType_index[i+1]]

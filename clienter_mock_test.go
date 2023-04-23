@@ -36,6 +36,21 @@ func (m *Mockstreamer) EXPECT() *MockstreamerMockRecorder {
 	return m.recorder
 }
 
+// AuthTestContext mocks base method.
+func (m *Mockstreamer) AuthTestContext(arg0 context.Context) (*slack.AuthTestResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AuthTestContext", arg0)
+	ret0, _ := ret[0].(*slack.AuthTestResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// AuthTestContext indicates an expected call of AuthTestContext.
+func (mr *MockstreamerMockRecorder) AuthTestContext(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AuthTestContext", reflect.TypeOf((*Mockstreamer)(nil).AuthTestContext), arg0)
+}
+
 // GetConversationHistoryContext mocks base method.
 func (m *Mockstreamer) GetConversationHistoryContext(ctx context.Context, params *slack.GetConversationHistoryParameters) (*slack.GetConversationHistoryResponse, error) {
 	m.ctrl.T.Helper()

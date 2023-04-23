@@ -63,10 +63,10 @@ func TestEvent_ID(t *testing.T) {
 		{
 			"Unknown type",
 			fields{
-				Type:      ChunkType(1000),
+				Type:      ChunkType(255),
 				ChannelID: "C123",
 			},
-			"<unknown:ChunkType(1000)>",
+			"<unknown:ChunkType(255)>",
 		},
 	}
 	for _, tt := range tests {

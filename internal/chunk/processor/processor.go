@@ -37,6 +37,10 @@ type Users interface {
 	Users(ctx context.Context, users []slack.User) error
 }
 
+type WorkspaceInfo interface {
+	WorkspaceInfo(context.Context, *slack.AuthTestResponse) error
+}
+
 var _ Users = new(chunk.Recorder)
 
 type Channels interface {

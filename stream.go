@@ -488,6 +488,21 @@ func (cs *Stream) channelInfo(ctx context.Context, proc processor.Conversations,
 	return nil
 }
 
+// WorkspaceInfo fetches the workspace info and passes it to the processor.
+// Getting it might be needed when the transformer need the current User ID or
+// Team ID. (Different teams within one workspace are not yet supported.)
+func (cs *Stream) WorkspaceInfo(ctx context.Context, proc processor.WorkspaceInfo) error {
+	ctx, task := trace.NewTask(ctx, "WorkspaceInfo")
+	defer task.End()
+
+	atr, err := cs.client.AuthTestContext(ctx)
+	if err != nil {
+		return err
+	}
+
+	return proc.WorkspaceInfo(ctx, atr)
+}
+
 // Users returns all users in the workspace.
 func (cs *Stream) Users(ctx context.Context, proc processor.Users, opt ...slack.GetUsersOption) error {
 	ctx, task := trace.NewTask(ctx, "Users")
@@ -518,11 +533,11 @@ func (cs *Stream) ListChannels(ctx context.Context, proc processor.Channels, p *
 
 	var next string
 	for {
+		p.Cursor = next
 		var (
 			ch  []slack.Channel
 			err error
 		)
-		p.Cursor = next
 		ch, next, err = cs.client.GetConversationsContext(ctx, p)
 		if err != nil {
 			return err

@@ -66,12 +66,12 @@ func (s *DirServer) chunkWrapper(fn func(p *chunk.Player) http.HandlerFunc) http
 		p, ok := s.ptrs[channel]
 		s.mu.Unlock()
 		if !ok {
-			rs, err := s.cd.Open(channel)
+			cf, err := s.cd.Open(channel)
 			if err != nil {
 				http.NotFound(w, r)
 				return
 			}
-			p = chunk.NewPlayerFromFile(rs)
+			p = chunk.NewPlayerFromFile(cf)
 			s.mu.Lock()
 			s.ptrs[channel] = p
 			s.mu.Unlock()

@@ -10,11 +10,19 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/rusq/slackdump/v2/internal/osext"
 	"github.com/slack-go/slack"
+
+	"github.com/rusq/slackdump/v2/internal/osext"
 )
 
 const ext = ".json.gz"
+
+// common filenames
+const (
+	FChannels  = "channels"
+	FUsers     = "users"
+	FWorkspace = "workspace"
+)
 
 // Directory is an abstraction over the directory with chunk files.  It
 // provides a way to write chunk files and read channels, users and messages
@@ -42,7 +50,7 @@ func OpenDir(dir string) (*Directory, error) {
 // CreateDir creates and opens a directory.  It will create all parent
 // directories if they don't exist.
 func CreateDir(dir string) (*Directory, error) {
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return nil, err
 	}
 	return &Directory{dir: dir}, nil
@@ -61,8 +69,8 @@ var errNoChannelInfo = errors.New("no channel info")
 // each file.
 func (d *Directory) Channels() ([]slack.Channel, error) {
 	// try to open the channels file
-	if fi, err := os.Stat(d.filename("channels")); err == nil && !fi.IsDir() {
-		return loadChannelsJSON(d.filename("channels"))
+	if fi, err := os.Stat(d.filename(FChannels)); err == nil && !fi.IsDir() {
+		return loadChannelsJSON(d.filename(FChannels))
 	}
 	// channel files not found, try to get channel info from the conversation
 	// files.
@@ -100,6 +108,8 @@ func loadChanInfo(fullpath string) ([]slack.Channel, error) {
 	return readChanInfo(f)
 }
 
+// readChanInfo returns the Channels from all the ChannelInfo chunks in the
+// file.
 func readChanInfo(rs io.ReadSeeker) ([]slack.Channel, error) {
 	cf, err := FromReader(rs)
 	if err != nil {
@@ -148,16 +158,12 @@ func openChunks(filename string) (io.ReadSeekCloser, error) {
 
 // Users returns the collected users from the directory.
 func (d *Directory) Users() ([]slack.User, error) {
-	f, err := openChunks(d.filename("users"))
+	f, err := d.Open(FUsers)
 	if err != nil {
-		return nil, fmt.Errorf("unable to open users file %q: %w", d.filename("users"), err)
+		return nil, fmt.Errorf("unable to open users file %q: %w", d.filename(FUsers), err)
 	}
 	defer f.Close()
-	p, err := FromReader(f)
-	if err != nil {
-		return nil, err
-	}
-	users, err := p.AllUsers()
+	users, err := f.AllUsers()
 	if err != nil {
 		return nil, err
 	}
@@ -200,13 +206,13 @@ func (d *Directory) Create(name string) (io.WriteCloser, error) {
 	filename := d.filename(name)
 	if fi, err := os.Stat(filename); err == nil {
 		if fi.IsDir() {
-			return nil, fmt.Errorf("not a file: %s", filename)
+			return nil, fmt.Errorf("is a directory: %s", filename)
 		}
 		if fi.Size() > 0 {
 			return nil, fmt.Errorf("file %s exists and not empty", filename)
 		}
 	}
-	f, err := os.OpenFile(filename, os.O_CREATE|os.O_WRONLY, 0644)
+	f, err := os.OpenFile(filename, os.O_CREATE|os.O_WRONLY, 0o644)
 	if err != nil {
 		return nil, err
 	}
@@ -224,4 +230,23 @@ func (c *closewrapper) Close() error {
 		return err
 	}
 	return c.underlying.Close()
+}
+
+// WorkspaceInfo returns the workspace info from the directory.  First it tries
+// to find the workspace.json.gz file, if not found, it tries to get the info
+// from users.json.gz and channels.json.gz.
+func (d *Directory) WorkspaceInfo() (*slack.AuthTestResponse, error) {
+	for _, name := range []string{FWorkspace, FUsers, FChannels} {
+		f, err := d.Open(name)
+		if err != nil {
+			continue
+		}
+		defer f.Close()
+		wi, err := f.WorkspaceInfo()
+		if err != nil {
+			continue
+		}
+		return wi, nil
+	}
+	return nil, errors.New("no workspace info found")
 }

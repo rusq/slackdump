@@ -38,6 +38,7 @@ type Session struct {
 type WorkspaceInfo = slack.AuthTestResponse
 
 type streamer interface {
+	AuthTestContext(context.Context) (response *slack.AuthTestResponse, err error)
 	GetConversationInfoContext(ctx context.Context, input *slack.GetConversationInfoInput) (*slack.Channel, error)
 	GetConversationHistoryContext(ctx context.Context, params *slack.GetConversationHistoryParameters) (*slack.GetConversationHistoryResponse, error)
 	GetConversationRepliesContext(ctx context.Context, params *slack.GetConversationRepliesParameters) (msgs []slack.Message, hasMore bool, nextCursor string, err error)
@@ -49,7 +50,6 @@ type streamer interface {
 // purpose of mocking in tests (see client_mock.go)
 type clienter interface {
 	streamer
-	AuthTestContext(context.Context) (response *slack.AuthTestResponse, err error)
 	GetFile(downloadURL string, writer io.Writer) error
 	GetUsersContext(ctx context.Context, options ...slack.GetUsersOption) ([]slack.User, error)
 	GetEmojiContext(ctx context.Context) (map[string]string, error)

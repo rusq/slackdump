@@ -19,7 +19,10 @@ import (
 	"github.com/rusq/slackdump/v2/internal/structures"
 )
 
-var ErrNotFound = errors.New("not found")
+var (
+	ErrNotFound       = errors.New("not found")
+	ErrDataMisaligned = errors.New("internal error: index and file data misaligned")
+)
 
 // File is the catalog of chunks in a file.
 type File struct {
@@ -258,7 +261,7 @@ func (f *File) ChannelInfo(channelID string) (*slack.Channel, error) {
 		return nil, err
 	}
 	if chunk.Channel.ID != channelID {
-		return nil, errors.New("internal error, index and file data misaligned")
+		return nil, ErrDataMisaligned
 	}
 	return chunk.Channel, nil
 }
@@ -437,12 +440,26 @@ func (f *File) chunkAt(offset int64) (*Chunk, error) {
 	defer f.rsMu.Unlock()
 	_, err := f.rs.Seek(offset, io.SeekStart)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("seek error: offset %d: %w", offset, err)
 	}
 	dec := json.NewDecoder(f.rs)
 	var chunk *Chunk
 	if err := dec.Decode(&chunk); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("decode error: offset %d: %w", offset, err)
 	}
 	return chunk, nil
+}
+
+// WorkspaceInfo returns the workspace info from the chunkfile.
+func (f *File) WorkspaceInfo() (*slack.AuthTestResponse, error) {
+	offsets, ok := f.Offsets(wspInfoChunkID)
+	if !ok || len(offsets) == 0 {
+		return nil, ErrNotFound
+	}
+	chunk, err := f.chunkAt(offsets[0])
+	if err != nil {
+		return nil, fmt.Errorf("failed to get the workspace info: %w", err)
+	}
+
+	return chunk.WorkspaceInfo, nil
 }

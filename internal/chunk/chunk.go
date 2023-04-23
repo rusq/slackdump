@@ -10,7 +10,7 @@ import (
 
 // ChunkType is the type of chunk that was recorded.  There are three types:
 // messages, thread messages, and files.
-type ChunkType int
+type ChunkType uint8
 
 //go:generate stringer -type=ChunkType -trimprefix=C
 const (
@@ -20,6 +20,7 @@ const (
 	CUsers
 	CChannels
 	CChannelInfo
+	CWorkspaceInfo
 )
 
 var ErrUnsupChunkType = fmt.Errorf("unsupported chunk type")
@@ -62,6 +63,9 @@ type Chunk struct {
 	// Channels contains a chunk of channels as returned by the API. Populated
 	// by Channels method.
 	Channels []slack.Channel `json:"ch,omitempty"` // Populated by Channels
+	// WorkspaceInfo contains the workspace information as returned by the
+	// API.  Populated by WorkspaceInfo.
+	WorkspaceInfo *slack.AuthTestResponse `json:"w,omitempty"`
 }
 
 // GroupID is a unique ID for a chunk group.  It is used to group chunks of
@@ -72,6 +76,7 @@ type GroupID string
 const (
 	userChunkID    GroupID = "lusr"
 	channelChunkID GroupID = "lch"
+	wspInfoChunkID GroupID = "iw"
 
 	threadPrefix         = "t"
 	filePrefix           = "f"
@@ -94,6 +99,8 @@ func (c *Chunk) ID() GroupID {
 		return userChunkID // static, one team per chunk file
 	case CChannels:
 		return channelChunkID // static, one team per chunk file.
+	case CWorkspaceInfo:
+		return wspInfoChunkID // static, one team per chunk file.
 	}
 	return GroupID(fmt.Sprintf("<unknown:%s>", c.Type))
 }
