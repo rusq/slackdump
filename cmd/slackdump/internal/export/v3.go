@@ -85,6 +85,16 @@ func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 			lg.Debug("channels done")
 		}()
 	}
+	{
+		// workspace info
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if err := workspaceWorker(ctx, s, tmpdir); err != nil {
+				errC <- ExportError{"workspace", "worker", err}
+			}
+		}()
+	}
 	// user goroutine
 	// once all users are fetched, it triggers the transformer to start.
 	{
@@ -146,8 +156,10 @@ func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 			return err
 		}
 	}
-	// when everything is completed, write the index.
-	if err := tf.WriteIndex(sess.CurrentUserID()); err != nil {
+
+	// at this point no goroutines are running, we are safe to assume that
+	// everything we need is in the chunk directory.
+	if err := tf.WriteIndex(); err != nil {
 		return err
 	}
 	lg.Debug("index written")
@@ -259,4 +271,19 @@ func newProgressBar(pb *progressbar.ProgressBar, debug bool) progresser {
 		return progressbar.DefaultSilent(0)
 	}
 	return pb
+}
+
+func workspaceWorker(ctx context.Context, s *slackdump.Stream, tmpdir string) error {
+	lg := logger.FromContext(ctx)
+	lg.Debug("workspaceWorker started")
+	wsproc, err := expproc.NewWorkspace(tmpdir)
+	if err != nil {
+		return err
+	}
+	defer wsproc.Close()
+	if err := s.WorkspaceInfo(ctx, wsproc); err != nil {
+		return err
+	}
+	lg.Debug("workspaceWorker done")
+	return nil
 }

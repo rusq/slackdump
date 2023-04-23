@@ -192,17 +192,21 @@ func (t *Transform) worker(ctx context.Context) {
 // WriteIndex generates and writes the export index files.  It must be called
 // once all transformations are done, because it might require to read channel
 // files.
-func (t *Transform) WriteIndex(currentUserID string) error {
+func (t *Transform) WriteIndex() error {
 	t.lg.Debugln("transform: finalising transform")
 	cd, err := chunk.OpenDir(t.srcdir)
 	if err != nil {
 		return fmt.Errorf("error opening chunk directory: %w", err)
 	}
+	wsp, err := cd.WorkspaceInfo()
+	if err != nil {
+		return fmt.Errorf("failed to get the workspace info: %w", err)
+	}
 	chans, err := cd.Channels() // this might read the channel files if it doesn't find the channels list chunks.
 	if err != nil {
 		return fmt.Errorf("error indexing channels: %w", err)
 	}
-	eidx, err := structures.MakeExportIndex(chans, t.users, currentUserID)
+	eidx, err := structures.MakeExportIndex(chans, t.users, wsp.UserID)
 	if err != nil {
 		return fmt.Errorf("error creating export index: %w", err)
 	}

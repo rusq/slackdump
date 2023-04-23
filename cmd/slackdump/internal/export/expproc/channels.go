@@ -3,7 +3,6 @@ package expproc
 import (
 	"context"
 
-	"github.com/rusq/slackdump/v2/logger"
 	"github.com/slack-go/slack"
 )
 
@@ -24,15 +23,6 @@ func NewChannels(dir string, fn func(c []slack.Channel) error) (*Channels, error
 // function calls the function passed in to the constructor for the channel
 // slice.
 func (cp *Channels) Channels(ctx context.Context, channels []slack.Channel) error {
-	lg := logger.FromContext(ctx)
-	if lg.IsDebug() {
-		names := make([]string, len(channels))
-		for i, ch := range channels {
-			names[i] = ch.Name
-		}
-		lg.Debug("channels names", names)
-	}
-
 	if err := cp.fn(channels); err != nil {
 		return err
 	}
