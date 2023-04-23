@@ -161,11 +161,11 @@ func (cs *Stream) AsyncConversations(ctx context.Context, proc processor.Convers
 		// channel worker
 		wg.Add(1)
 		go func() {
+			defer wg.Done()
 			cs.channelWorker(ctx, proc, resultsC, threadsC, chansC)
 			// we close threads here, instead of the main loop, because we want to
 			// close it after all the thread workers are done.
 			close(threadsC)
-			wg.Done()
 			trace.Log(ctx, "async", "channel worker done")
 		}()
 	}
@@ -173,8 +173,8 @@ func (cs *Stream) AsyncConversations(ctx context.Context, proc processor.Convers
 		// thread worker
 		wg.Add(1)
 		go func() {
+			defer wg.Done()
 			cs.threadWorker(ctx, proc, resultsC, threadsC)
-			wg.Done()
 			trace.Log(ctx, "async", "thread worker done")
 		}()
 	}
@@ -273,14 +273,15 @@ func (cs *Stream) channelWorker(ctx context.Context, proc processor.Conversation
 			if !more {
 				return // channel closed
 			}
-			if err := cs.channelInfo(ctx, proc, req.channelID, false); err != nil {
+			channel, err := cs.channelInfo(ctx, proc, req.channelID, false)
+			if err != nil {
 				results <- StreamResult{Type: RTChannel, ChannelID: req.channelID, Err: err}
 			}
 			last := false
 			threadCount := 0
 			if err := cs.channel(ctx, req.channelID, func(mm []slack.Message, isLast bool) error {
 				last = isLast
-				n, err := processChannelMessages(ctx, proc, threadC, req.channelID, isLast, mm)
+				n, err := processChannelMessages(ctx, proc, threadC, channel, isLast, mm)
 				threadCount = n
 				return err
 			}); err != nil {
@@ -351,15 +352,18 @@ func (cs *Stream) threadWorker(ctx context.Context, proc processor.Conversations
 			if !more {
 				return // channel closed
 			}
+			var channel = new(slack.Channel)
 			if req.needChanInfo {
-				if err := cs.channelInfo(ctx, proc, req.channelID, true); err != nil {
+				if _, err := cs.channelInfo(ctx, proc, req.channelID, true); err != nil {
 					results <- StreamResult{Type: RTThread, ChannelID: req.channelID, ThreadTS: req.threadTS, Err: err}
 				}
+			} else {
+				channel.ID = req.channelID
 			}
 			var last bool
 			if err := cs.thread(ctx, req.channelID, req.threadTS, func(msgs []slack.Message, isLast bool) error {
 				last = isLast
-				return processThreadMessages(ctx, proc, req.channelID, req.threadTS, isLast, msgs)
+				return processThreadMessages(ctx, proc, channel, req.threadTS, isLast, msgs)
 			}); err != nil {
 				results <- StreamResult{Type: RTThread, ChannelID: req.channelID, ThreadTS: req.threadTS, Err: err}
 			}
@@ -419,7 +423,7 @@ func (cs *Stream) thread(ctx context.Context, id string, threadTS string, fn fun
 // processChannelMessages processes the messages in the channel and sends
 // thread requests for the threads in the channel, if it discovers messages
 // with threads.  It returns thread count in the mm and error if any.
-func processChannelMessages(ctx context.Context, proc processor.Conversations, threadC chan<- threadRequest, channelID string, isLast bool, mm []slack.Message) (int, error) {
+func processChannelMessages(ctx context.Context, proc processor.Conversations, threadC chan<- threadRequest, channel *slack.Channel, isLast bool, mm []slack.Message) (int, error) {
 	lg := logger.FromContext(ctx)
 
 	var trs = make([]threadRequest, 0, len(mm))
@@ -430,16 +434,16 @@ func processChannelMessages(ctx context.Context, proc processor.Conversations, t
 		// start processing the channel and will have the initial reference
 		// count, if it needs it.
 		if mm[i].Msg.ThreadTimestamp != "" && mm[i].Msg.SubType != "thread_broadcast" && mm[i].LatestReply != structures.NoRepliesLatestReply {
-			lg.Debugf("- message #%d/channel=%s,thread: id=%s, thread_ts=%s", i, channelID, mm[i].Timestamp, mm[i].Msg.ThreadTimestamp)
-			trs = append(trs, threadRequest{channelID: channelID, threadTS: mm[i].Msg.ThreadTimestamp})
+			lg.Debugf("- message #%d/channel=%s,thread: id=%s, thread_ts=%s", i, channel.ID, mm[i].Timestamp, mm[i].Msg.ThreadTimestamp)
+			trs = append(trs, threadRequest{channelID: channel.ID, threadTS: mm[i].Msg.ThreadTimestamp})
 		}
 		if len(mm[i].Files) > 0 {
-			if err := proc.Files(ctx, channelID, mm[i], false, mm[i].Files); err != nil {
+			if err := proc.Files(ctx, channel, mm[i], false, mm[i].Files); err != nil {
 				return len(trs), err
 			}
 		}
 	}
-	if err := proc.Messages(ctx, channelID, len(trs), isLast, mm); err != nil {
+	if err := proc.Messages(ctx, channel.ID, len(trs), isLast, mm); err != nil {
 		return 0, fmt.Errorf("failed to process message chunk starting with id=%s (size=%d): %w", mm[0].Msg.Timestamp, len(mm), err)
 	}
 	for _, tr := range trs {
@@ -448,25 +452,25 @@ func processChannelMessages(ctx context.Context, proc processor.Conversations, t
 	return len(trs), nil
 }
 
-func processThreadMessages(ctx context.Context, proc processor.Conversations, channelID, threadTS string, isLast bool, msgs []slack.Message) error {
+func processThreadMessages(ctx context.Context, proc processor.Conversations, channel *slack.Channel, threadTS string, isLast bool, msgs []slack.Message) error {
 	// extract files from thread messages
 	for _, m := range msgs[1:] {
 		if len(m.Files) > 0 {
-			if err := proc.Files(ctx, channelID, m, true, m.Files); err != nil {
+			if err := proc.Files(ctx, channel, m, true, m.Files); err != nil {
 				return err
 			}
 		}
 	}
 	// slack returns the thread starter as the first message with every
 	// call, so we use it as a parent message.
-	if err := proc.ThreadMessages(ctx, channelID, msgs[0], isLast, msgs[1:]); err != nil {
+	if err := proc.ThreadMessages(ctx, channel.ID, msgs[0], isLast, msgs[1:]); err != nil {
 		return fmt.Errorf("failed to process thread message id=%s, thread_ts=%s: %w", msgs[0].Msg.Timestamp, threadTS, err)
 	}
 	return nil
 }
 
 // channelInfo fetches the channel info and passes it to the processor.
-func (cs *Stream) channelInfo(ctx context.Context, proc processor.Conversations, channelID string, isThread bool) error {
+func (cs *Stream) channelInfo(ctx context.Context, proc processor.Conversations, channelID string, isThread bool) (*slack.Channel, error) {
 	ctx, task := trace.NewTask(ctx, "channelInfo")
 	defer task.End()
 
@@ -480,12 +484,12 @@ func (cs *Stream) channelInfo(ctx context.Context, proc processor.Conversations,
 		})
 		return err
 	}); err != nil {
-		return err
+		return nil, err
 	}
 	if err := proc.ChannelInfo(ctx, info, isThread); err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+	return info, nil
 }
 
 // WorkspaceInfo fetches the workspace info and passes it to the processor.

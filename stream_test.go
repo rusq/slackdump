@@ -186,7 +186,7 @@ func Test_processThreadMessages(t *testing.T) {
 			Files(gomock.Any(), "CTM1", testThread[2], true, testThread[2].Files).
 			Return(nil)
 
-		if err := processThreadMessages(context.Background(), mproc, "CTM1", testThread[0].ThreadTimestamp, true, testThread); err != nil {
+		if err := processThreadMessages(context.Background(), mproc, fixtures.DummyChannel("CTM1"), testThread[0].ThreadTimestamp, true, testThread); err != nil {
 			t.Fatal(err)
 		}
 	})

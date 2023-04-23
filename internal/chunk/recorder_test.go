@@ -305,7 +305,7 @@ func TestRecorder_Files(t *testing.T) {
 		}
 		if err := rec.Files(
 			ctx,
-			"C123",
+			&slack.Channel{GroupConversation: slack.GroupConversation{Conversation: slack.Conversation{ID: "C123"}}},
 			slack.Message{Msg: slack.Msg{Text: "parent"}},
 			true,
 			[]slack.File{{ID: "F123", Name: "file.txt"}},
@@ -342,7 +342,7 @@ func TestRecorder_Files(t *testing.T) {
 		rec.errC <- errors.New("test error")
 		gotErr := rec.Files(
 			ctx,
-			"C123",
+			&slack.Channel{GroupConversation: slack.GroupConversation{Conversation: slack.Conversation{ID: "C123"}}},
 			slack.Message{Msg: slack.Msg{Text: "parent"}},
 			true,
 			[]slack.File{{ID: "F123", Name: "file.txt"}},

@@ -64,7 +64,7 @@ func (mr *MockConversationsMockRecorder) Close() *gomock.Call {
 }
 
 // Files mocks base method.
-func (m *MockConversations) Files(arg0 context.Context, arg1 string, arg2 slack.Message, arg3 bool, arg4 []slack.File) error {
+func (m *MockConversations) Files(arg0 context.Context, arg1 *slack.Channel, arg2 slack.Message, arg3 bool, arg4 []slack.File) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Files", arg0, arg1, arg2, arg3, arg4)
 	ret0, _ := ret[0].(error)

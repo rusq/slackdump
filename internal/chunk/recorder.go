@@ -97,7 +97,7 @@ func (rec *Recorder) Messages(ctx context.Context, channelID string, numThreads 
 
 // Files is called for each file chunk that is retrieved. The parent message is
 // passed in as well.
-func (rec *Recorder) Files(ctx context.Context, channelID string, parent slack.Message, isThread bool, f []slack.File) error {
+func (rec *Recorder) Files(ctx context.Context, channel *slack.Channel, parent slack.Message, isThread bool, f []slack.File) error {
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
@@ -106,14 +106,15 @@ func (rec *Recorder) Files(ctx context.Context, channelID string, parent slack.M
 	case rec.chunks <- Chunk{
 		Type:      CFiles,
 		Timestamp: time.Now().UnixNano(),
-		ChannelID: channelID,
+		ChannelID: channel.ID,
+		Channel:   channel,
 		Parent:    &parent,
 		IsThread:  isThread,
 		Count:     len(f),
 		Files:     f,
 	}: // ok
 		for i := range f {
-			rec.state.AddFile(channelID, f[i].ID, "")
+			rec.state.AddFile(channel.ID, f[i].ID, "")
 		}
 	}
 	return nil

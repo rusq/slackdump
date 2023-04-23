@@ -27,7 +27,7 @@ type Conversations interface {
 type Filer interface {
 	// Files is called for each file that is retrieved. The parent message is
 	// passed in as well.
-	Files(ctx context.Context, channelID string, parent slack.Message, isThread bool, ff []slack.File) error
+	Files(ctx context.Context, channel *slack.Channel, parent slack.Message, isThread bool, ff []slack.File) error
 }
 
 var _ Conversations = new(chunk.Recorder)

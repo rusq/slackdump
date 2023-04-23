@@ -44,7 +44,8 @@ type Chunk struct {
 	NumThreads int `json:"nt,omitempty"`
 
 	// Channel contains the channel information.  It may not be immediately
-	// followed by messages from the channel.  Populated by ChannelInfo method.
+	// followed by messages from the channel.  Populated by ChannelInfo and
+	// Files methods.
 	Channel *slack.Channel `json:"ci,omitempty"`
 
 	// Parent is populated in case the chunk is a thread, or a file. Populated

@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"io"
 	"os"
+
+	"github.com/slack-go/slack"
 )
 
 // Load loads a json data into T, or panics.
@@ -37,4 +39,12 @@ func FilledFile(sz int) *os.File {
 	f.Write(bytes.Repeat([]byte{0x00}, sz))
 	f.Seek(0, io.SeekStart)
 	return f
+}
+
+// DummyChannel is the helper function that returns a pointer to a
+// slack.Channel with the given ID, that could be used in tests.
+func DummyChannel(id string) *slack.Channel {
+	var ch slack.Channel
+	ch.ID = id
+	return &ch
 }

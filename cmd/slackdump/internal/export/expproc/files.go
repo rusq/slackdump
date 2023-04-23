@@ -41,7 +41,7 @@ type mmfiler struct {
 	basefiler
 }
 
-func (mm mmfiler) Files(ctx context.Context, channelID string, parent slack.Message, isThread bool, ff []slack.File) error {
+func (mm mmfiler) Files(ctx context.Context, channel *slack.Channel, parent slack.Message, isThread bool, ff []slack.File) error {
 	const baseDir = "__uploads"
 	for _, f := range ff {
 		if err := mm.dcl.Download(filepath.Join(baseDir, f.ID, f.Name), f.URLPrivateDownload); err != nil {
@@ -53,7 +53,7 @@ func (mm mmfiler) Files(ctx context.Context, channelID string, parent slack.Mess
 
 type nopfiler struct{}
 
-func (nopfiler) Files(ctx context.Context, channelID string, parent slack.Message, isThread bool, ff []slack.File) error {
+func (nopfiler) Files(ctx context.Context, channel *slack.Channel, parent slack.Message, isThread bool, ff []slack.File) error {
 	return nil
 }
 
@@ -62,14 +62,14 @@ type stdfiler struct {
 }
 
 // TODO: the channel name is not available, need to think how to pass it tho.
-func (mm stdfiler) Files(ctx context.Context, channelID string, parent slack.Message, isThread bool, ff []slack.File) error {
+func (mm stdfiler) Files(ctx context.Context, channel *slack.Channel, parent slack.Message, isThread bool, ff []slack.File) error {
 	const baseDir = "attachments"
 	for _, f := range ff {
 		if err := mm.dcl.Download(
 			// TODO: this should be channel name, not id for public.  Maybe
 			// there's no choice but to pass the channel name to the
 			// processor, or post-process files in transform.
-			filepath.Join(channelID, baseDir, fmt.Sprintf("%s-%s", f.ID, f.Name)),
+			filepath.Join(channelName(channel), baseDir, fmt.Sprintf("%s-%s", f.ID, f.Name)),
 			f.URLPrivateDownload,
 		); err != nil {
 			return err

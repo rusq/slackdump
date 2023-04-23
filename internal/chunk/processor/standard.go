@@ -41,7 +41,7 @@ func NewStandard(ctx context.Context, w io.Writer, sess downloader.Downloader, d
 
 // Files implements the Processor interface. It will download files if the
 // dumpFiles option is enabled.
-func (s *Standard) Files(ctx context.Context, channelID string, parent slack.Message, isThread bool, ff []slack.File) error {
+func (s *Standard) Files(ctx context.Context, channel *slack.Channel, parent slack.Message, isThread bool, ff []slack.File) error {
 	if !s.opts.dumpFiles {
 		// ignore files if requested
 		return nil
@@ -57,11 +57,11 @@ func (s *Standard) Files(ctx context.Context, channelID string, parent slack.Mes
 			trace.Logf(ctx, "skip", "unfetchable file type: %q", ff[i].ID)
 			continue
 		}
-		filename, err := s.dl.DownloadFile(channelID, ff[i])
+		filename, err := s.dl.DownloadFile(channel.ID, ff[i])
 		if err != nil {
 			return err
 		}
-		st.AddFile(channelID, ff[i].ID, filename)
+		st.AddFile(channel.ID, ff[i].ID, filename)
 	}
 	return nil
 }

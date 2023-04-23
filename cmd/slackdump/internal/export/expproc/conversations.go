@@ -12,13 +12,18 @@ import (
 
 // Conversations is a processor that writes the channel and thread messages.
 type Conversations struct {
-	dir   string
-	cw    map[string]*channelproc
-	mu    sync.RWMutex
-	lg    logger.Interface
-	filer processor.Filer
+	dir string
+	cw  map[string]*channelproc
+	mu  sync.RWMutex
+	lg  logger.Interface
 
-	// flags
+	// fileSubproc is the files subprocessor, it is called by the Files method
+	// in addition to recording the files in the chunk file (if recordFiles is
+	// set).  It it useful, when one needs to download the files directly into
+	// a final archive/directory, avoiding the intermediate step of
+	// downloading files into the temporary directory, and then using
+	// transform to download the files.
+	fileSubproc processor.Filer // files sub-processor
 	recordFiles bool
 
 	onFinalise func(ctx context.Context, channelID string) error
@@ -61,12 +66,12 @@ type channelproc struct {
 
 // NewConversation returns the new conversation processor.  filer.Files method
 // will be called for each file chunk.
-func NewConversation(dir string, filer processor.Filer, opts ...ConvOption) (*Conversations, error) {
+func NewConversation(dir string, filesSubproc processor.Filer, opts ...ConvOption) (*Conversations, error) {
 	c := &Conversations{
-		dir:   dir,
-		lg:    logger.Default,
-		cw:    make(map[string]*channelproc),
-		filer: filer,
+		dir:         dir,
+		lg:          logger.Default,
+		cw:          make(map[string]*channelproc),
+		fileSubproc: filesSubproc,
 	}
 	for _, opt := range opts {
 		opt(c)
@@ -173,16 +178,16 @@ func (cv *Conversations) Messages(ctx context.Context, channelID string, numThre
 
 // Files is called for each file that is retrieved. The parent message is
 // passed in as well.
-func (cv *Conversations) Files(ctx context.Context, channelID string, parent slack.Message, isThread bool, ff []slack.File) error {
-	if err := cv.filer.Files(ctx, channelID, parent, isThread, ff); err != nil {
+func (cv *Conversations) Files(ctx context.Context, channel *slack.Channel, parent slack.Message, isThread bool, ff []slack.File) error {
+	if err := cv.fileSubproc.Files(ctx, channel, parent, isThread, ff); err != nil {
 		return err
 	}
 	if cv.recordFiles {
-		r, err := cv.recorder(channelID)
+		r, err := cv.recorder(channel.ID)
 		if err != nil {
 			return err
 		}
-		if err := r.Files(ctx, channelID, parent, isThread, ff); err != nil {
+		if err := r.Files(ctx, channel, parent, isThread, ff); err != nil {
 			return err
 		}
 	}
