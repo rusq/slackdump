@@ -1,0 +1,35 @@
+@startuml
+
+
+title Expproc structure
+
+folder Conversation {
+    component Messages
+    component Threads
+    component Files
+    component finalise
+}
+
+component downloader
+component SubProcessor
+component OnFinalise
+component Transformer
+folder tmpdir
+file fsadapter
+
+Messages --> finalise
+Threads --> finalise
+
+finalise --> OnFinalise
+OnFinalise --> tmpdir
+
+Files --> SubProcessor
+SubProcessor --> downloader
+
+tmpdir --> Transformer
+
+Transformer --> fsadapter
+
+downloader --> fsadapter
+
+@enduml

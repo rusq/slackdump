@@ -7,9 +7,10 @@ import (
 	"sync"
 
 	"github.com/rusq/fsadapter"
-	"github.com/rusq/slackdump/v2"
 	"github.com/schollz/progressbar/v3"
 	"github.com/slack-go/slack"
+
+	"github.com/rusq/slackdump/v2"
 
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/export/expproc"
 	"github.com/rusq/slackdump/v2/downloader"

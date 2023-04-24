@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/rusq/fsadapter"
+	"github.com/rusq/slackdump/v2/internal/chunk"
 )
 
 func Test_transform(t *testing.T) {
@@ -40,7 +41,11 @@ func Test_transform(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := transform(tt.args.ctx, tt.args.fsa, tt.args.srcdir, tt.args.id, nil, nil); (err != nil) != tt.wantErr {
+			cd, err := chunk.OpenDir(tt.args.srcdir)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := transform(tt.args.ctx, tt.args.fsa, cd, tt.args.id, nil, nil); (err != nil) != tt.wantErr {
 				t.Errorf("transform() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

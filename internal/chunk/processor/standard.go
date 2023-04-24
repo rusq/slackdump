@@ -6,9 +6,10 @@ import (
 	"runtime/trace"
 
 	"github.com/rusq/fsadapter"
+	"github.com/slack-go/slack"
+
 	"github.com/rusq/slackdump/v2/downloader"
 	"github.com/rusq/slackdump/v2/internal/chunk"
-	"github.com/slack-go/slack"
 )
 
 type Standard struct {
@@ -46,7 +47,7 @@ func (s *Standard) Files(ctx context.Context, channel *slack.Channel, parent sla
 		// ignore files if requested
 		return nil
 	}
-	st, err := s.Recorder.State()
+	st, err := s.State()
 	if err != nil {
 		return err
 	}

@@ -2,12 +2,12 @@ package structures
 
 import (
 	"bufio"
+	"context"
+	"errors"
 	"io"
 	"os"
 	"sort"
 	"strings"
-
-	"errors"
 )
 
 const (
@@ -65,7 +65,7 @@ func LoadEntityList(filename string) (*EntityList, error) {
 func readEntityList(r io.Reader, maxEntries int) (*EntityList, error) {
 	br := bufio.NewReader(r)
 	var elements []string
-	var total = 0
+	total := 0
 	var exit bool
 	for n := 1; ; n++ {
 		if total >= maxEntries {
@@ -113,7 +113,7 @@ func (el *EntityList) Index() map[string]bool {
 	if el == nil {
 		return map[string]bool{}
 	}
-	var idx = make(map[string]bool, len(el.Include)+len(el.Exclude))
+	idx := make(map[string]bool, len(el.Include)+len(el.Exclude))
 	for _, v := range el.Include {
 		idx[v] = true
 	}
@@ -139,7 +139,7 @@ func (el *EntityList) IsEmpty() bool {
 }
 
 func buildEntityIndex(entities []string) (map[string]bool, error) {
-	var index = make(map[string]bool, len(entities))
+	index := make(map[string]bool, len(entities))
 	var excluded []string
 	var files []string
 	// add all included items
@@ -190,4 +190,19 @@ func buildEntityIndex(entities []string) (map[string]bool, error) {
 		index[ent] = false
 	}
 	return index, nil
+}
+
+func (el *EntityList) Generator(ctx context.Context) <-chan string {
+	ch := make(chan string)
+	go func() {
+		defer close(ch)
+		for _, ent := range el.Include {
+			select {
+			case <-ctx.Done():
+				return
+			case ch <- ent:
+			}
+		}
+	}()
+	return ch
 }

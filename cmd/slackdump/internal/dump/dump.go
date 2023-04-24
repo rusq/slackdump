@@ -13,13 +13,16 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/rusq/dlog"
 	"github.com/rusq/fsadapter"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/auth"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/cfg"
+	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/export/expproc"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/golang/base"
+	"github.com/rusq/slackdump/v2/downloader"
 	"github.com/rusq/slackdump/v2/internal/chunk/state"
 	"github.com/rusq/slackdump/v2/internal/chunk/transform"
 	"github.com/rusq/slackdump/v2/internal/nametmpl"
@@ -115,7 +118,7 @@ func RunDump(ctx context.Context, cmd *base.Command, args []string) error {
 
 	// leave the compatibility mode to the user, if the new version is playing
 	// tricks.
-	var dumpFn = dumpv3
+	dumpFn := dumpv3_2
 	if opts.Compat {
 		dumpFn = dumpv2
 	}
@@ -124,6 +127,53 @@ func RunDump(ctx context.Context, cmd *base.Command, args []string) error {
 		base.SetExitStatus(base.SApplicationError)
 		return err
 	}
+	return nil
+}
+
+func dumpv3_2(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, list *structures.EntityList, t *nametmpl.Template) error {
+	ctx, task := trace.NewTask(ctx, "dumpv3_2")
+	defer task.End()
+	lg := logger.FromContext(ctx)
+
+	if list.IsEmpty() {
+		return ErrNothingToDo
+	}
+
+	dir, err := os.MkdirTemp("", "slackdump-*")
+	if err != nil {
+		return fmt.Errorf("failed to create temp directory: %w", err)
+	}
+	lg.Debugf("using directory: %s", dir)
+
+	tf, err := transform.NewStandard2(fsa, dir)
+	if err != nil {
+		return fmt.Errorf("failed to create transform: %w", err)
+	}
+	defer tf.Close()
+
+	// files subprocessor
+	dl := downloader.New(sess.Client(), fsa, downloader.WithLogger(lg))
+	dl.Start(ctx)
+	defer dl.Stop()
+	subproc := transform.NewDumpSubproc(dl)
+
+	proc, err := expproc.NewConversation(dir, subproc, expproc.WithLogger(lg), expproc.WithRecordFiles(false), expproc.FinaliseFunc(tf.OnFinalise))
+	if err != nil {
+		return fmt.Errorf("failed to create conversation processor: %w", err)
+	}
+	defer proc.Close()
+
+	if err := sess.Stream().AsyncConversations(ctx, proc, list.Generator(ctx), func(sr slackdump.StreamResult) error {
+		if sr.Err != nil {
+			return sr.Err
+		}
+		dlog.Printf("conversation %s dumped", sr)
+		return nil
+	}); err != nil {
+		return fmt.Errorf("failed to dump conversations: %w", err)
+	}
+	lg.Debugln("stream complete, waiting for all goroutines to finish")
+
 	return nil
 }
 

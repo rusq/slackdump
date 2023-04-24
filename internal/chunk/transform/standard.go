@@ -104,12 +104,12 @@ func (s *Standard) Transform(ctx context.Context, basePath string, st *state.Sta
 	return nil
 }
 
-func (s *Standard) conversation(pl *chunk.File, st *state.State, basePath string, chID string) (*types.Conversation, error) {
-	ci, err := pl.ChannelInfo(chID)
+func (s *Standard) conversation(cf *chunk.File, st *state.State, basePath string, chID string) (*types.Conversation, error) {
+	ci, err := cf.ChannelInfo(chID)
 	if err != nil {
 		return nil, err
 	}
-	mm, err := pl.AllMessages(chID)
+	mm, err := cf.AllMessages(chID)
 	if err != nil {
 		return nil, err
 	}
@@ -128,7 +128,7 @@ func (s *Standard) conversation(pl *chunk.File, st *state.State, basePath string
 		sdm.Message = mm[i]
 		if mm[i].ThreadTimestamp != "" {
 			// if there's a thread timestamp, we need to find and add it.
-			thread, err := pl.AllThreadMessages(chID, mm[i].ThreadTimestamp)
+			thread, err := cf.AllThreadMessages(chID, mm[i].ThreadTimestamp)
 			if err != nil {
 				return nil, err
 			}
@@ -216,4 +216,93 @@ func loadState(st *state.State, basePath string) (io.ReadSeekCloser, error) {
 		return nil, err
 	}
 	return rsc, nil
+}
+
+type Standard2 struct {
+	cd   *chunk.Directory
+	fsa  fsadapter.FS
+	ids  chan string
+	done chan struct{}
+}
+
+func NewStandard2(fsa fsadapter.FS, dir string) (*Standard2, error) {
+	cd, err := chunk.OpenDir(dir)
+	if err != nil {
+		return nil, err
+	}
+	std := &Standard2{
+		cd:   cd,
+		fsa:  fsa,
+		ids:  make(chan string),
+		done: make(chan struct{}),
+	}
+	go std.worker()
+	return std, nil
+}
+
+func (s *Standard2) worker() {
+	defer close(s.done)
+	for id := range s.ids {
+		if err := stdConvert(s.fsa, s.cd, id); err != nil {
+			dlog.Printf("error converting %q: %v", id, err)
+		}
+	}
+}
+
+// Close closes the transformer.
+func (s *Standard2) Close() error {
+	close(s.ids)
+	<-s.done
+	return nil
+}
+
+func (s *Standard2) OnFinalise(ctx context.Context, channelID string) error {
+	s.ids <- channelID
+	return nil
+}
+
+func stdConvert(fsa fsadapter.FS, cd *chunk.Directory, chID string) error {
+	cf, err := cd.Open(chID)
+	if err != nil {
+		return err
+	}
+	defer cf.Close()
+	ci, err := cf.ChannelInfo(chID)
+	if err != nil {
+		return err
+	}
+	mm, err := cf.AllMessages(chID)
+	if err != nil {
+		return err
+	}
+	conv := &types.Conversation{
+		ID:       chID,
+		Name:     ci.Name,
+		Messages: make([]types.Message, 0, len(mm)),
+	}
+	for i := range mm {
+		if mm[i].SubType == "thread_broadcast" {
+			// this we don't eat.
+			// skip thread broadcasts, they're not useful
+			continue
+		}
+		var sdm types.Message
+		sdm.Message = mm[i]
+		if mm[i].ThreadTimestamp != "" {
+			// if there's a thread timestamp, we need to find and add it.
+			thread, err := cf.AllThreadMessages(chID, mm[i].ThreadTimestamp)
+			if err != nil {
+				return err
+			}
+			sdm.ThreadReplies = types.ConvertMsgs(thread)
+		}
+		conv.Messages = append(conv.Messages, sdm)
+	}
+
+	f, err := fsa.Create(chID + ".json")
+	if err != nil {
+		return fmt.Errorf("fsadapter: unable to create file %s: %w", chID+".json", err)
+	}
+	defer f.Close()
+	return json.NewEncoder(f).Encode(conv)
 }

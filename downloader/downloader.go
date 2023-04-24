@@ -198,6 +198,7 @@ func (c *Client) download(ctx context.Context, fullpath string, url string) (int
 	if c.fsa == nil {
 		return 0, ErrNoFS
 	}
+
 	tf, err := os.CreateTemp("", "")
 	if err != nil {
 		return 0, err

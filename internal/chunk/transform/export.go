@@ -43,9 +43,9 @@ import (
 //     the transformer's OnFinalise function as the finaliser option.  It will
 //     be called by export processor for each channel that was completed.
 type Export struct {
-	srcdir   string       // source directory with chunks.
-	fsa      fsadapter.FS // target file system adapter.
-	users    []slack.User // list of users.
+	srcdir   *chunk.Directory // source directory with chunks.
+	fsa      fsadapter.FS     // target file system adapter.
+	users    []slack.User     // list of users.
 	lg       logger.Interface
 	msgUpdFn []msgUpdFunc // function to update the file
 
@@ -96,8 +96,12 @@ func NewExport(ctx context.Context, fsa fsadapter.FS, chunkdir string, tfopt ...
 		return nil, fmt.Errorf("chunk directory %s does not exist: %w", chunkdir, err)
 	}
 	lg := logger.FromContext(ctx)
+	cd, err := chunk.OpenDir(chunkdir)
+	if err != nil {
+		return nil, err
+	}
 	t := &Export{
-		srcdir: chunkdir,
+		srcdir: cd,
 		fsa:    fsa,
 		lg:     lg,
 		start:  make(chan struct{}),
@@ -205,15 +209,11 @@ func (t *Export) worker(ctx context.Context) {
 // files.
 func (t *Export) WriteIndex() error {
 	t.lg.Debugln("transform: finalising transform")
-	cd, err := chunk.OpenDir(t.srcdir)
-	if err != nil {
-		return fmt.Errorf("error opening chunk directory: %w", err)
-	}
-	wsp, err := cd.WorkspaceInfo()
+	wsp, err := t.srcdir.WorkspaceInfo()
 	if err != nil {
 		return fmt.Errorf("failed to get the workspace info: %w", err)
 	}
-	chans, err := cd.Channels() // this might read the channel files if it doesn't find the channels list chunks.
+	chans, err := t.srcdir.Channels() // this might read the channel files if it doesn't find the channels list chunks.
 	if err != nil {
 		return fmt.Errorf("error indexing channels: %w", err)
 	}
@@ -244,18 +244,13 @@ func (t *Export) Close() error {
 // into the relevant directory.  It expects the chunk file to be in the
 // srcdir/id.json.gz file, and the attachments to be in the srcdir/id
 // directory.
-func transform(ctx context.Context, fsa fsadapter.FS, srcdir string, id string, users []slack.User, msgFn []msgUpdFunc) error {
+func transform(ctx context.Context, fsa fsadapter.FS, cd *chunk.Directory, id string, users []slack.User, msgFn []msgUpdFunc) error {
 	ctx, task := trace.NewTask(ctx, "transform")
 	defer task.End()
 
 	lg := logger.FromContext(ctx)
 	trace.Logf(ctx, "input", "len(users)=%d", len(users))
 	lg.Debugf("transforming channel %s, user len=%d", id, len(users))
-
-	cd, err := chunk.OpenDir(srcdir)
-	if err != nil {
-		return fmt.Errorf("error opening chunk directory %q: %w", srcdir, err)
-	}
 
 	// load the chunk file
 	cf, err := cd.Open(id)
