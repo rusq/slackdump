@@ -101,17 +101,8 @@ func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			if err := userWorker(ctx, s, tmpdir); err != nil {
+			if err := userWorker(ctx, s, tmpdir, chunkdir, tf); err != nil {
 				errC <- ExportError{"user", "worker", err}
-				return
-			}
-			users, err := chunkdir.Users() // load users from chunks
-			if err != nil {
-				errC <- ExportError{"user", "load users", err}
-				return
-			}
-			if err := tf.StartWithUsers(ctx, users); err != nil {
-				errC <- ExportError{"user", "start transformer", err}
 				return
 			}
 		}()
@@ -225,7 +216,7 @@ func genAPIChannel(s *slackdump.Stream, tmpdir string, memberOnly bool) linkFeed
 	}
 }
 
-func userWorker(ctx context.Context, s *slackdump.Stream, tmpdir string) error {
+func userWorker(ctx context.Context, s *slackdump.Stream, tmpdir string, chunkdir *chunk.Directory, tf *expproc.Transform) error {
 	userproc, err := expproc.NewUsers(tmpdir)
 	if err != nil {
 		return err
@@ -239,6 +230,13 @@ func userWorker(ctx context.Context, s *slackdump.Stream, tmpdir string) error {
 		return fmt.Errorf("error closing user processor: %w", err)
 	}
 	logger.FromContext(ctx).Debug("users done")
+	users, err := chunkdir.Users() // load users from chunks
+	if err != nil {
+		return fmt.Errorf("error loading users: %w", err)
+	}
+	if err := tf.StartWithUsers(ctx, users); err != nil {
+		return fmt.Errorf("error starting the transformer: %w", err)
+	}
 	return nil
 }
 
