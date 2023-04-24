@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"path/filepath"
 	"runtime/trace"
 
@@ -201,4 +202,18 @@ func (s *Standard) saveConversation(conv *types.Conversation) error {
 	}
 	defer f.Close()
 	return json.NewEncoder(f).Encode(conv)
+}
+
+func loadState(st *state.State, basePath string) (io.ReadSeekCloser, error) {
+	if st == nil {
+		return nil, fmt.Errorf("fatal:  nil state")
+	}
+	if !st.IsComplete {
+		return nil, fmt.Errorf("fatal:  incomplete state")
+	}
+	rsc, err := st.OpenChunks(basePath)
+	if err != nil {
+		return nil, err
+	}
+	return rsc, nil
 }

@@ -16,6 +16,7 @@ import (
 	"github.com/rusq/slackdump/v2/export"
 	"github.com/rusq/slackdump/v2/internal/chunk"
 	"github.com/rusq/slackdump/v2/internal/chunk/processor"
+	"github.com/rusq/slackdump/v2/internal/chunk/transform"
 	"github.com/rusq/slackdump/v2/internal/structures"
 	"github.com/rusq/slackdump/v2/logger"
 )
@@ -44,7 +45,7 @@ func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 	if !lg.IsDebug() {
 		defer chunkdir.RemoveAll()
 	}
-	tf, err := expproc.NewTransform(ctx, fsa, tmpdir, expproc.WithBufferSize(1000))
+	tf, err := transform.NewExport(ctx, fsa, tmpdir, transform.WithBufferSize(1000), transform.WithMsgUpdateFunc(transform.ExportTokenUpdateFn(options.ExportToken)))
 	if err != nil {
 		return fmt.Errorf("failed to create transformer: %w", err)
 	}
@@ -114,7 +115,7 @@ func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 
 		conv, err := expproc.NewConversation(
 			tmpdir,
-			expproc.NewFiler(options.Type, dl),
+			transform.NewFiler(options.Type, dl),
 			expproc.FinaliseFunc(tf.OnFinalise))
 		if err != nil {
 			return fmt.Errorf("error initialising conversation processor: %w", err)
@@ -216,7 +217,7 @@ func genAPIChannel(s *slackdump.Stream, tmpdir string, memberOnly bool) linkFeed
 	}
 }
 
-func userWorker(ctx context.Context, s *slackdump.Stream, tmpdir string, chunkdir *chunk.Directory, tf *expproc.Transform) error {
+func userWorker(ctx context.Context, s *slackdump.Stream, tmpdir string, chunkdir *chunk.Directory, tf *transform.Export) error {
 	userproc, err := expproc.NewUsers(tmpdir)
 	if err != nil {
 		return err

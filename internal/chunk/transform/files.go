@@ -1,4 +1,4 @@
-package expproc
+package transform
 
 import (
 	"context"
@@ -8,6 +8,7 @@ import (
 	"github.com/rusq/slackdump/v2/downloader"
 	"github.com/rusq/slackdump/v2/export"
 	"github.com/rusq/slackdump/v2/internal/chunk/processor"
+	"github.com/rusq/slackdump/v2/internal/structures/files"
 	"github.com/slack-go/slack"
 )
 
@@ -17,31 +18,31 @@ import (
 func NewFiler(typ export.ExportType, dl *downloader.Client) processor.Filer {
 	switch typ {
 	case export.TStandard:
-		return stdfiler{
-			basefiler: basefiler{
+		return stdsubproc{
+			baseSubproc: baseSubproc{
 				dcl: dl,
 			},
 		}
 	case export.TMattermost:
-		return mmfiler{
-			basefiler: basefiler{
+		return mmsubproc{
+			baseSubproc: baseSubproc{
 				dcl: dl,
 			},
 		}
 	default:
-		return nopfiler{}
+		return nopsubproc{}
 	}
 }
 
-type basefiler struct {
+type baseSubproc struct {
 	dcl *downloader.Client
 }
 
-type mmfiler struct {
-	basefiler
+type mmsubproc struct {
+	baseSubproc
 }
 
-func (mm mmfiler) Files(ctx context.Context, channel *slack.Channel, parent slack.Message, isThread bool, ff []slack.File) error {
+func (mm mmsubproc) Files(ctx context.Context, channel *slack.Channel, _ slack.Message, _ bool, ff []slack.File) error {
 	const baseDir = "__uploads"
 	for _, f := range ff {
 		if err := mm.dcl.Download(filepath.Join(baseDir, f.ID, f.Name), f.URLPrivateDownload); err != nil {
@@ -51,18 +52,18 @@ func (mm mmfiler) Files(ctx context.Context, channel *slack.Channel, parent slac
 	return nil
 }
 
-type nopfiler struct{}
+type nopsubproc struct{}
 
-func (nopfiler) Files(ctx context.Context, channel *slack.Channel, parent slack.Message, isThread bool, ff []slack.File) error {
+func (nopsubproc) Files(ctx context.Context, channel *slack.Channel, _ slack.Message, _ bool, ff []slack.File) error {
 	return nil
 }
 
-type stdfiler struct {
-	basefiler
+type stdsubproc struct {
+	baseSubproc
 }
 
 // TODO: the channel name is not available, need to think how to pass it tho.
-func (mm stdfiler) Files(ctx context.Context, channel *slack.Channel, parent slack.Message, isThread bool, ff []slack.File) error {
+func (mm stdsubproc) Files(ctx context.Context, channel *slack.Channel, _ slack.Message, _ bool, ff []slack.File) error {
 	const baseDir = "attachments"
 	for _, f := range ff {
 		if err := mm.dcl.Download(
@@ -76,4 +77,16 @@ func (mm stdfiler) Files(ctx context.Context, channel *slack.Channel, parent sla
 		}
 	}
 	return nil
+}
+
+func ExportTokenUpdateFn(token string) func(msg *slack.Message) error {
+	fn := files.UpdateTokenFn(token)
+	return func(msg *slack.Message) error {
+		for i := range msg.Files {
+			if err := fn(&msg.Files[i]); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
 }

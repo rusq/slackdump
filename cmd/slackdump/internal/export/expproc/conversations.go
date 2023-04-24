@@ -64,8 +64,8 @@ type channelproc struct {
 	refcnt int
 }
 
-// NewConversation returns the new conversation processor.  filer.Files method
-// will be called for each file chunk.
+// NewConversation returns the new conversation processor.  filesSubproc will
+// be called for each file chunk.
 func NewConversation(dir string, filesSubproc processor.Filer, opts ...ConvOption) (*Conversations, error) {
 	c := &Conversations{
 		dir:         dir,
