@@ -26,7 +26,7 @@ type Conversations struct {
 	fileSubproc processor.Filer // files sub-processor
 	recordFiles bool
 
-	onFinalise func(ctx context.Context, channelID string) error
+	onFinalise func(ctx context.Context, id string) error
 }
 
 // ConvOption is a function that configures the Conversations processor.
@@ -224,8 +224,8 @@ func (cv *Conversations) ThreadMessages(ctx context.Context, channelID string, p
 	lg.Debugf("processor: decreased ref count for %q to %d", id, refcnt)
 	if isLast {
 		trace.Log(ctx, "isLast", "true")
-		lg.Debugf("processor: isLast=true, finalising thread %s:%s", channelID, parent.ThreadTimestamp)
-		return cv.finalise(ctx, channelID)
+		lg.Debugf("processor: isLast=true, finalising thread %s", id)
+		return cv.finalise(ctx, id)
 	}
 	return nil
 }
