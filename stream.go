@@ -357,6 +357,10 @@ func (cs *Stream) threadWorker(ctx context.Context, proc processor.Conversations
 			if !more {
 				return // channel closed
 			}
+			if !req.sl.IsThread() {
+				results <- StreamResult{Type: RTThread, Err: fmt.Errorf("invalid thread link: %s", req.sl)}
+				continue
+			}
 			var channel = new(slack.Channel)
 			if req.threadOnly {
 				var err error
@@ -368,7 +372,7 @@ func (cs *Stream) threadWorker(ctx context.Context, proc processor.Conversations
 				channel.ID = req.sl.Channel
 			}
 			if err := cs.thread(ctx, req.sl, func(msgs []slack.Message, isLast bool) error {
-				if err := procThreadMsg(ctx, proc, channel, req.sl.ThreadTS, isLast, msgs); err != nil {
+				if err := procThreadMsg(ctx, proc, channel, req.sl.ThreadTS, req.threadOnly, isLast, msgs); err != nil {
 					return err
 				}
 				results <- StreamResult{Type: RTThread, ChannelID: req.sl.Channel, ThreadTS: req.sl.ThreadTS, IsLast: isLast}
@@ -470,7 +474,7 @@ func procChanMsg(ctx context.Context, proc processor.Conversations, threadC chan
 	return len(trs), nil
 }
 
-func procThreadMsg(ctx context.Context, proc processor.Conversations, channel *slack.Channel, threadTS string, isLast bool, msgs []slack.Message) error {
+func procThreadMsg(ctx context.Context, proc processor.Conversations, channel *slack.Channel, threadTS string, threadOnly bool, isLast bool, msgs []slack.Message) error {
 	// extract files from thread messages
 	if len(msgs) == 0 {
 		return errors.New("empty messages slice")
@@ -480,7 +484,7 @@ func procThreadMsg(ctx context.Context, proc processor.Conversations, channel *s
 	}
 	// slack returns the thread starter as the first message with every
 	// call, so we use it as a parent message.
-	if err := proc.ThreadMessages(ctx, channel.ID, msgs[0], isLast, msgs[1:]); err != nil {
+	if err := proc.ThreadMessages(ctx, channel.ID, msgs[0], threadOnly, isLast, msgs[1:]); err != nil {
 		return fmt.Errorf("failed to process thread message id=%s, thread_ts=%s: %w", msgs[0].Msg.Timestamp, threadTS, err)
 	}
 	return nil

@@ -122,7 +122,7 @@ func (rec *Recorder) Files(ctx context.Context, channel *slack.Channel, parent s
 
 // ThreadMessages is called for each of the thread messages that are
 // retrieved. The parent message is passed in as well.
-func (rec *Recorder) ThreadMessages(ctx context.Context, channelID string, parent slack.Message, isLast bool, tm []slack.Message) error {
+func (rec *Recorder) ThreadMessages(ctx context.Context, channelID string, parent slack.Message, threadOnly, isLast bool, tm []slack.Message) error {
 	select {
 	case <-ctx.Done():
 		return ctx.Err()

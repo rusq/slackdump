@@ -254,6 +254,7 @@ func TestRecorder_ThreadMessages(t *testing.T) {
 			"C123",
 			slack.Message{Msg: slack.Msg{Text: "parent"}},
 			false,
+			false,
 			[]slack.Message{{Msg: slack.Msg{Text: "hello"}}},
 		); err != nil {
 			t.Errorf("unexpected error: %v", err)
@@ -286,7 +287,7 @@ func TestRecorder_ThreadMessages(t *testing.T) {
 			errC:   make(chan error, 1),
 		}
 		rec.errC <- errors.New("test error")
-		gotErr := rec.ThreadMessages(ctx, "C123", slack.Message{Msg: slack.Msg{Text: "parent"}}, false, []slack.Message{{Msg: slack.Msg{Text: "hello"}}})
+		gotErr := rec.ThreadMessages(ctx, "C123", slack.Message{Msg: slack.Msg{Text: "parent"}}, false, false, []slack.Message{{Msg: slack.Msg{Text: "hello"}}})
 		if gotErr == nil {
 			t.Errorf("expected error, got none")
 		}

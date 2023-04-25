@@ -18,7 +18,7 @@ type Conversations interface {
 	Messages(ctx context.Context, channelID string, numThreads int, isLast bool, mm []slack.Message) error
 	// ThreadMessages is called for each of the thread messages that are
 	// retrieved. The parent message is passed in as well.
-	ThreadMessages(ctx context.Context, channelID string, parent slack.Message, isLast bool, tm []slack.Message) error
+	ThreadMessages(ctx context.Context, channelID string, parent slack.Message, threadOnly, isLast bool, tm []slack.Message) error
 
 	Filer
 	io.Closer

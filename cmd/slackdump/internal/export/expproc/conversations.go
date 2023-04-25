@@ -81,17 +81,17 @@ func NewConversation(dir string, filesSubproc processor.Filer, opts ...ConvOptio
 
 // ensure ensures that the channel file is open and the recorder is
 // initialized.
-func (cv *Conversations) ensure(channelID string) error {
+func (cv *Conversations) ensure(id string) error {
 	cv.mu.Lock()
 	defer cv.mu.Unlock()
-	if _, ok := cv.cw[channelID]; ok {
+	if _, ok := cv.cw[id]; ok {
 		return nil
 	}
-	bp, err := newBaseProc(cv.dir, channelID)
+	bp, err := newBaseProc(cv.dir, id)
 	if err != nil {
 		return err
 	}
-	cv.cw[channelID] = &channelproc{
+	cv.cw[id] = &channelproc{
 		baseproc: bp,
 		refcnt:   1, // the channel itself is a reference
 	}
@@ -107,19 +107,19 @@ func (cv *Conversations) ChannelInfo(ctx context.Context, ci *slack.Channel, isT
 	return r.ChannelInfo(ctx, ci, isThread)
 }
 
-func (cv *Conversations) recorder(channelID string) (*baseproc, error) {
+func (cv *Conversations) recorder(id string) (*baseproc, error) {
 	cv.mu.RLock()
-	r, ok := cv.cw[channelID]
+	r, ok := cv.cw[id]
 	cv.mu.RUnlock()
 	if ok {
 		return r.baseproc, nil
 	}
-	if err := cv.ensure(channelID); err != nil {
+	if err := cv.ensure(id); err != nil {
 		return nil, err
 	}
 	cv.mu.RLock()
 	defer cv.mu.RUnlock()
-	return cv.cw[channelID].baseproc, nil
+	return cv.cw[id].baseproc, nil
 }
 
 // refcount returns the number of references that are expected to be
@@ -196,24 +196,32 @@ func (cv *Conversations) Files(ctx context.Context, channel *slack.Channel, pare
 	return nil
 }
 
+func mkID(channelID, threadTS string, threadOnly bool) string {
+	if !threadOnly {
+		return channelID
+	}
+	return channelID + "-" + threadTS
+}
+
 // ThreadMessages is called for each of the thread messages that are
 // retrieved. The parent message is passed in as well.
-func (cv *Conversations) ThreadMessages(ctx context.Context, channelID string, parent slack.Message, isLast bool, tm []slack.Message) error {
+func (cv *Conversations) ThreadMessages(ctx context.Context, channelID string, parent slack.Message, threadOnly bool, isLast bool, tm []slack.Message) error {
 	ctx, task := trace.NewTask(ctx, "ThreadMessages")
 	defer task.End()
 	lg := logger.FromContext(ctx)
 
-	r, err := cv.recorder(channelID)
+	id := mkID(channelID, parent.ThreadTimestamp, threadOnly)
+	r, err := cv.recorder(id)
 	if err != nil {
 		return err
 	}
-	if err := r.ThreadMessages(ctx, channelID, parent, isLast, tm); err != nil {
+	if err := r.ThreadMessages(ctx, channelID, parent, threadOnly, isLast, tm); err != nil {
 		return err
 	}
-	cv.decRef(channelID)
-	refcnt := cv.refcount(channelID)
+	cv.decRef(id)
+	refcnt := cv.refcount(id)
 	trace.Logf(ctx, "ref", "decremented, current=%d", refcnt)
-	lg.Debugf("processor: decreased ref count for %q to %d", channelID, refcnt)
+	lg.Debugf("processor: decreased ref count for %q to %d", id, refcnt)
 	if isLast {
 		trace.Log(ctx, "isLast", "true")
 		lg.Debugf("processor: isLast=true, finalising thread %s:%s", channelID, parent.ThreadTimestamp)
@@ -223,16 +231,16 @@ func (cv *Conversations) ThreadMessages(ctx context.Context, channelID string, p
 }
 
 // finalise closes the channel file if there are no more threads to process.
-func (cv *Conversations) finalise(ctx context.Context, channelID string) error {
+func (cv *Conversations) finalise(ctx context.Context, id string) error {
 	lg := logger.FromContext(ctx)
-	if tc := cv.refcount(channelID); tc > 0 {
-		trace.Logf(ctx, "ref", "not finalising %q because thread count = %d", channelID, tc)
-		lg.Debugf("channel %s: still processing %d ref count", channelID, tc)
+	if tc := cv.refcount(id); tc > 0 {
+		trace.Logf(ctx, "ref", "not finalising %q because ref count = %d", id, tc)
+		lg.Debugf("channel %s: still processing %d ref count", id, tc)
 		return nil
 	}
-	trace.Logf(ctx, "ref", "= 0, channel %s finalise", channelID)
-	lg.Debugf("channel %s: closing channel file", channelID)
-	r, err := cv.recorder(channelID)
+	trace.Logf(ctx, "ref", "= 0, id %s finalise", id)
+	lg.Debugf("id %s: closing channel file", id)
+	r, err := cv.recorder(id)
 	if err != nil {
 		return err
 	}
@@ -241,9 +249,9 @@ func (cv *Conversations) finalise(ctx context.Context, channelID string) error {
 	}
 	cv.mu.Lock()
 	defer cv.mu.Unlock()
-	delete(cv.cw, channelID)
+	delete(cv.cw, id)
 	if cv.onFinalise != nil {
-		return cv.onFinalise(ctx, channelID)
+		return cv.onFinalise(ctx, id)
 	}
 	return nil
 }

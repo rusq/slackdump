@@ -176,7 +176,7 @@ func Test_processThreadMessages(t *testing.T) {
 
 		mproc := mock_processor.NewMockConversations(ctrl)
 		mproc.EXPECT().
-			ThreadMessages(gomock.Any(), "CTM1", testThread[0], true, testThread[1:]).
+			ThreadMessages(gomock.Any(), "CTM1", testThread[0], false, true, testThread[1:]).
 			Return(nil)
 
 		mproc.EXPECT().
@@ -186,7 +186,7 @@ func Test_processThreadMessages(t *testing.T) {
 			Files(gomock.Any(), "CTM1", testThread[2], true, testThread[2].Files).
 			Return(nil)
 
-		if err := procThreadMsg(context.Background(), mproc, fixtures.DummyChannel("CTM1"), testThread[0].ThreadTimestamp, true, testThread); err != nil {
+		if err := procThreadMsg(context.Background(), mproc, fixtures.DummyChannel("CTM1"), testThread[0].ThreadTimestamp, false, true, testThread); err != nil {
 			t.Fatal(err)
 		}
 	})

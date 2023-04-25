@@ -92,17 +92,17 @@ func (mr *MockConversationsMockRecorder) Messages(arg0, arg1, arg2, arg3, arg4 i
 }
 
 // ThreadMessages mocks base method.
-func (m *MockConversations) ThreadMessages(arg0 context.Context, arg1 string, arg2 slack.Message, arg3 bool, arg4 []slack.Message) error {
+func (m *MockConversations) ThreadMessages(arg0 context.Context, arg1 string, arg2 slack.Message, arg3, arg4 bool, arg5 []slack.Message) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ThreadMessages", arg0, arg1, arg2, arg3, arg4)
+	ret := m.ctrl.Call(m, "ThreadMessages", arg0, arg1, arg2, arg3, arg4, arg5)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // ThreadMessages indicates an expected call of ThreadMessages.
-func (mr *MockConversationsMockRecorder) ThreadMessages(arg0, arg1, arg2, arg3, arg4 interface{}) *gomock.Call {
+func (mr *MockConversationsMockRecorder) ThreadMessages(arg0, arg1, arg2, arg3, arg4, arg5 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ThreadMessages", reflect.TypeOf((*MockConversations)(nil).ThreadMessages), arg0, arg1, arg2, arg3, arg4)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ThreadMessages", reflect.TypeOf((*MockConversations)(nil).ThreadMessages), arg0, arg1, arg2, arg3, arg4, arg5)
 }
 
 // MockUsers is a mock of Users interface.
