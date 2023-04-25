@@ -74,7 +74,7 @@ func Fetch(ctx context.Context, sess streamer, dir string, link string, p *Param
 	if err := sess.Stream(
 		slackdump.OptLatest(p.Latest),
 		slackdump.OptOldest(p.Oldest),
-	).Conversations(ctx, pr, link); err != nil {
+	).SyncConversations(ctx, pr, link); err != nil {
 		return statefile, err
 	}
 	if ctx.Err() != nil {

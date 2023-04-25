@@ -167,7 +167,7 @@ func dumpv3_2(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 		}
 	}()
 
-	if err := sess.Stream().AsyncConversations(ctx, proc, list.Generator(ctx), func(sr slackdump.StreamResult) error {
+	if err := sess.Stream().Conversations(ctx, proc, list.Generator(ctx), func(sr slackdump.StreamResult) error {
 		if sr.Err != nil {
 			return sr.Err
 		}

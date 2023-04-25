@@ -18,24 +18,24 @@ import (
 )
 
 const (
-	msgChanSz    = 16   // message channel buffer size
-	threadChanSz = 2000 // thread channel buffer size
-	resultSz     = 2    // result channel buffer size
+	// message channel buffer size.  Messages are much faster than threads, so
+	// we can have a smaller buffer.
+	msgChanSz = 16
+	// thread channel buffer size.  Threads are much slower than channels,
+	// because each message might have a thread, so in the worst case we get 1
+	// thread per message.
+	threadChanSz = 2000
+	// result channel buffer size.  We are running 2 goroutines, 1 for channel
+	// messages, and 1 for threads.
+	resultSz = 2
 )
 
+// Stream is used to fetch conversations from Slack.  It is safe for concurrent
+// use.
 type Stream struct {
 	oldest, latest time.Time
 	client         streamer
 	limits         rateLimits
-}
-
-type StreamResult struct {
-	Type        ResultType // "channel" or "thread"
-	ChannelID   string
-	ThreadTS    string
-	ThreadCount int
-	IsLast      bool // true if this is the last message for the channel or thread
-	Err         error
 }
 
 //go:generate stringer -type=ResultType -trimprefix=RT
@@ -46,6 +46,16 @@ const (
 	RTChannel
 	RTThread
 )
+
+// StreamResult is sent to the callback function for each channel or thread.
+type StreamResult struct {
+	Type        ResultType // see below.
+	ChannelID   string
+	ThreadTS    string
+	ThreadCount int
+	IsLast      bool // true if this is the last message for the channel or thread
+	Err         error
+}
 
 func (s StreamResult) String() string {
 	if s.ThreadTS == "" {
@@ -105,9 +115,9 @@ func newChannelStream(cl streamer, l *Limits, opts ...StreamOption) *Stream {
 	return cs
 }
 
-// Conversations fetches the conversations from the link which can be a
+// SyncConversations fetches the conversations from the link which can be a
 // channelID, channel URL, thread URL or a link in Slackdump format.
-func (cs *Stream) Conversations(ctx context.Context, proc processor.Conversations, link ...string) error {
+func (cs *Stream) SyncConversations(ctx context.Context, proc processor.Conversations, link ...string) error {
 	lg := logger.FromContext(ctx)
 	return cs.ConversationsCB(ctx, proc, link, func(sr StreamResult) error {
 		lg.Debugf("stream: finished processing: %s", sr)
@@ -130,13 +140,13 @@ func (cs *Stream) ConversationsCB(ctx context.Context, proc processor.Conversati
 		lg.Debugf("stream: sent %d links", len(link))
 	}()
 
-	if err := cs.AsyncConversations(ctx, proc, linkC, cb); err != nil {
+	if err := cs.Conversations(ctx, proc, linkC, cb); err != nil {
 		return err
 	}
 	return nil
 }
 
-// AsyncConversations fetches the conversations from the link which can be a
+// Conversations fetches the conversations from the link which can be a
 // channelID, channel URL, thread URL or a link in Slackdump format.  fn is
 // called for each result (channel messages, or thread messages).  The fact
 // that fn was called for channel messages, does not mean that all threads for
@@ -146,7 +156,7 @@ func (cs *Stream) ConversationsCB(ctx context.Context, proc processor.Conversati
 // thread result with IsLast is received, the caller can assume that all
 // threads and messages for that channel have been processed.  For example,
 // see [cmd/slackdump/internal/export/expproc].
-func (cs *Stream) AsyncConversations(ctx context.Context, proc processor.Conversations, links <-chan string, fn func(StreamResult) error) error {
+func (cs *Stream) Conversations(ctx context.Context, proc processor.Conversations, links <-chan string, fn func(StreamResult) error) error {
 	ctx, task := trace.NewTask(ctx, "AsyncConversations")
 	defer task.End()
 
@@ -270,6 +280,7 @@ func (cs *Stream) channelWorker(ctx context.Context, proc processor.Conversation
 			channel, err := cs.channelInfo(ctx, proc, req.sl.Channel, false)
 			if err != nil {
 				results <- StreamResult{Type: RTChannel, ChannelID: req.sl.Channel, Err: err}
+				continue
 			}
 			last := false
 			threadCount := 0
@@ -280,6 +291,7 @@ func (cs *Stream) channelWorker(ctx context.Context, proc processor.Conversation
 				return err
 			}); err != nil {
 				results <- StreamResult{Type: RTChannel, ChannelID: req.sl.Channel, Err: err}
+				continue
 			}
 			results <- StreamResult{Type: RTChannel, ChannelID: req.sl.Channel, ThreadCount: threadCount, IsLast: last}
 		}
@@ -362,6 +374,7 @@ func (cs *Stream) threadWorker(ctx context.Context, proc processor.Conversations
 				return procThreadMsg(ctx, proc, channel, req.sl.ThreadTS, isLast, msgs)
 			}); err != nil {
 				results <- StreamResult{Type: RTThread, ChannelID: req.sl.Channel, ThreadTS: req.sl.ThreadTS, Err: err}
+				continue
 			}
 			results <- StreamResult{Type: RTThread, ChannelID: req.sl.Channel, ThreadTS: req.sl.ThreadTS, IsLast: last}
 		}
@@ -431,7 +444,12 @@ func procChanMsg(ctx context.Context, proc processor.Conversations, threadC chan
 		// count, if it needs it.
 		if mm[i].Msg.ThreadTimestamp != "" && mm[i].Msg.SubType != "thread_broadcast" && mm[i].LatestReply != structures.NoRepliesLatestReply {
 			lg.Debugf("- message #%d/channel=%s,thread: id=%s, thread_ts=%s", i, channel.ID, mm[i].Timestamp, mm[i].Msg.ThreadTimestamp)
-			trs = append(trs, request{sl: &structures.SlackLink{Channel: channel.ID, ThreadTS: mm[i].Msg.ThreadTimestamp}})
+			trs = append(trs, request{
+				sl: &structures.SlackLink{
+					Channel:  channel.ID,
+					ThreadTS: mm[i].Msg.ThreadTimestamp,
+				},
+			})
 		}
 		if len(mm[i].Files) > 0 {
 			if err := proc.Files(ctx, channel, mm[i], false, mm[i].Files); err != nil {
