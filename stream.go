@@ -36,6 +36,23 @@ type Stream struct {
 	oldest, latest time.Time
 	client         streamer
 	limits         rateLimits
+	cc             *chanCache
+}
+
+type chanCache struct {
+	m sync.Map
+}
+
+func (c *chanCache) get(id string) *slack.Channel {
+	v, ok := c.m.Load(id)
+	if !ok {
+		return nil
+	}
+	return v.(*slack.Channel)
+}
+
+func (c *chanCache) set(id string, ch *slack.Channel) {
+	c.m.Store(id, ch)
 }
 
 //go:generate stringer -type=ResultType -trimprefix=RT
@@ -105,6 +122,7 @@ func newChannelStream(cl streamer, l *Limits, opts ...StreamOption) *Stream {
 	cs := &Stream{
 		client: cl,
 		limits: limits(l),
+		cc:     new(chanCache),
 	}
 	for _, opt := range opts {
 		opt(cs)
@@ -511,6 +529,11 @@ func (cs *Stream) channelInfo(ctx context.Context, proc processor.Conversations,
 
 	trace.Logf(ctx, "channel_id", "%s, isThread=%v", channelID, isThread)
 
+	// to avoid fetching the same channel info multiple times, we cache it.
+	if info := cs.cc.get(channelID); info != nil {
+		return info, nil
+	}
+
 	var info *slack.Channel
 	if err := network.WithRetry(ctx, cs.limits.channels, cs.limits.tier.Tier3.Retries, func() error {
 		var err error
@@ -524,6 +547,7 @@ func (cs *Stream) channelInfo(ctx context.Context, proc processor.Conversations,
 	if err := proc.ChannelInfo(ctx, info, isThread); err != nil {
 		return nil, err
 	}
+	cs.cc.set(channelID, info)
 	return info, nil
 }
 
