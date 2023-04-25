@@ -457,10 +457,8 @@ func procChanMsg(ctx context.Context, proc processor.Conversations, threadC chan
 				},
 			})
 		}
-		if len(mm[i].Files) > 0 {
-			if err := proc.Files(ctx, channel, mm[i], false, mm[i].Files); err != nil {
-				return len(trs), err
-			}
+		if err := procFiles(ctx, proc, channel, false, mm[i]); err != nil {
+			return len(trs), err
 		}
 	}
 	if err := proc.Messages(ctx, channel.ID, len(trs), isLast, mm); err != nil {
@@ -474,17 +472,30 @@ func procChanMsg(ctx context.Context, proc processor.Conversations, threadC chan
 
 func procThreadMsg(ctx context.Context, proc processor.Conversations, channel *slack.Channel, threadTS string, isLast bool, msgs []slack.Message) error {
 	// extract files from thread messages
-	for _, m := range msgs[1:] {
-		if len(m.Files) > 0 {
-			if err := proc.Files(ctx, channel, m, true, m.Files); err != nil {
-				return err
-			}
-		}
+	if len(msgs) == 0 {
+		return errors.New("empty messages slice")
+	}
+	if err := procFiles(ctx, proc, channel, true, msgs[1:]...); err != nil {
+		return err
 	}
 	// slack returns the thread starter as the first message with every
 	// call, so we use it as a parent message.
 	if err := proc.ThreadMessages(ctx, channel.ID, msgs[0], isLast, msgs[1:]); err != nil {
 		return fmt.Errorf("failed to process thread message id=%s, thread_ts=%s: %w", msgs[0].Msg.Timestamp, threadTS, err)
+	}
+	return nil
+}
+
+func procFiles(ctx context.Context, proc processor.Filer, channel *slack.Channel, isThread bool, msgs ...slack.Message) error {
+	if len(msgs) == 0 {
+		return nil
+	}
+	for _, m := range msgs {
+		if len(m.Files) > 0 {
+			if err := proc.Files(ctx, channel, m, isThread, m.Files); err != nil {
+				return err
+			}
+		}
 	}
 	return nil
 }
