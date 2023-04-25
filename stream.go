@@ -242,7 +242,7 @@ func (cs *Stream) processLink(chans chan<- request, threads chan<- request, link
 		return fmt.Errorf("invalid slack link: %s", link)
 	}
 	if sl.IsThread() {
-		threads <- request{sl: &sl, standalone: true}
+		threads <- request{sl: &sl, threadOnly: true}
 	} else {
 		chans <- request{sl: &sl}
 	}
@@ -251,9 +251,9 @@ func (cs *Stream) processLink(chans chan<- request, threads chan<- request, link
 
 type request struct {
 	sl *structures.SlackLink
-	// standalone indicates that this is the thread directly requested by the
+	// threadOnly indicates that this is the thread directly requested by the
 	// user, and not a thread that was found in the channel.
-	standalone bool
+	threadOnly bool
 }
 
 func (we *StreamResult) Error() string {
@@ -282,23 +282,22 @@ func (cs *Stream) channelWorker(ctx context.Context, proc processor.Conversation
 				results <- StreamResult{Type: RTChannel, ChannelID: req.sl.Channel, Err: err}
 				continue
 			}
-			last := false
-			threadCount := 0
 			if err := cs.channel(ctx, req.sl.Channel, func(mm []slack.Message, isLast bool) error {
-				last = isLast
 				n, err := procChanMsg(ctx, proc, threadC, channel, isLast, mm)
-				threadCount = n
-				return err
+				if err != nil {
+					return err
+				}
+				results <- StreamResult{Type: RTChannel, ChannelID: req.sl.Channel, ThreadCount: n, IsLast: isLast}
+				return nil
 			}); err != nil {
 				results <- StreamResult{Type: RTChannel, ChannelID: req.sl.Channel, Err: err}
 				continue
 			}
-			results <- StreamResult{Type: RTChannel, ChannelID: req.sl.Channel, ThreadCount: threadCount, IsLast: last}
 		}
 	}
 }
 
-func (cs *Stream) channel(ctx context.Context, id string, fn func(mm []slack.Message, isLast bool) error) error {
+func (cs *Stream) channel(ctx context.Context, id string, callback func(mm []slack.Message, isLast bool) error) error {
 	ctx, task := trace.NewTask(ctx, "channel")
 	defer task.End()
 
@@ -329,7 +328,7 @@ func (cs *Stream) channel(ctx context.Context, id string, fn func(mm []slack.Mes
 		}
 
 		r := trace.StartRegion(ctx, "channel_callback")
-		err := fn(resp.Messages, !resp.HasMore)
+		err := callback(resp.Messages, !resp.HasMore)
 		r.End()
 		if err != nil {
 			lg.Printf("channel %s, callback error: %s", id, err)
@@ -359,7 +358,7 @@ func (cs *Stream) threadWorker(ctx context.Context, proc processor.Conversations
 				return // channel closed
 			}
 			var channel = new(slack.Channel)
-			if req.standalone {
+			if req.threadOnly {
 				var err error
 				if channel, err = cs.channelInfo(ctx, proc, req.sl.Channel, true); err != nil {
 					results <- StreamResult{Type: RTThread, ChannelID: req.sl.Channel, ThreadTS: req.sl.ThreadTS, Err: err}
@@ -368,22 +367,29 @@ func (cs *Stream) threadWorker(ctx context.Context, proc processor.Conversations
 			} else {
 				channel.ID = req.sl.Channel
 			}
-			var last bool
 			if err := cs.thread(ctx, req.sl, func(msgs []slack.Message, isLast bool) error {
-				last = isLast
-				return procThreadMsg(ctx, proc, channel, req.sl.ThreadTS, isLast, msgs)
+				if err := procThreadMsg(ctx, proc, channel, req.sl.ThreadTS, isLast, msgs); err != nil {
+					return err
+				}
+				results <- StreamResult{Type: RTThread, ChannelID: req.sl.Channel, ThreadTS: req.sl.ThreadTS, IsLast: isLast}
+				return nil
 			}); err != nil {
 				results <- StreamResult{Type: RTThread, ChannelID: req.sl.Channel, ThreadTS: req.sl.ThreadTS, Err: err}
 				continue
 			}
-			results <- StreamResult{Type: RTThread, ChannelID: req.sl.Channel, ThreadTS: req.sl.ThreadTS, IsLast: last}
 		}
 	}
 }
 
-func (cs *Stream) thread(ctx context.Context, sl *structures.SlackLink, fn func(mm []slack.Message, isLast bool) error) error {
+// thread fetches the whole thread identified by SlackLink, calling callback
+// function fn for each slice received.
+func (cs *Stream) thread(ctx context.Context, sl *structures.SlackLink, callback func(mm []slack.Message, isLast bool) error) error {
 	ctx, task := trace.NewTask(ctx, "thread")
 	defer task.End()
+
+	if !sl.IsThread() {
+		return fmt.Errorf("not a thread: %s", sl)
+	}
 
 	lg := logger.FromContext(ctx)
 	lg.Debugf("- getting: %s", sl)
@@ -416,7 +422,7 @@ func (cs *Stream) thread(ctx context.Context, sl *structures.SlackLink, fn func(
 		}
 
 		r := trace.StartRegion(ctx, "thread_callback")
-		err := fn(msgs, !hasmore)
+		err := callback(msgs, !hasmore)
 		r.End()
 		if err != nil {
 			return err
