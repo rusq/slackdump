@@ -36,7 +36,7 @@ func (m *MockConversations) EXPECT() *MockConversationsMockRecorder {
 }
 
 // ChannelInfo mocks base method.
-func (m *MockConversations) ChannelInfo(arg0 context.Context, arg1 *slack.Channel, arg2 bool) error {
+func (m *MockConversations) ChannelInfo(arg0 context.Context, arg1 *slack.Channel, arg2 string) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ChannelInfo", arg0, arg1, arg2)
 	ret0, _ := ret[0].(error)
@@ -64,17 +64,17 @@ func (mr *MockConversationsMockRecorder) Close() *gomock.Call {
 }
 
 // Files mocks base method.
-func (m *MockConversations) Files(arg0 context.Context, arg1 *slack.Channel, arg2 slack.Message, arg3 bool, arg4 []slack.File) error {
+func (m *MockConversations) Files(arg0 context.Context, arg1 *slack.Channel, arg2 slack.Message, arg3 []slack.File) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Files", arg0, arg1, arg2, arg3, arg4)
+	ret := m.ctrl.Call(m, "Files", arg0, arg1, arg2, arg3)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Files indicates an expected call of Files.
-func (mr *MockConversationsMockRecorder) Files(arg0, arg1, arg2, arg3, arg4 interface{}) *gomock.Call {
+func (mr *MockConversationsMockRecorder) Files(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Files", reflect.TypeOf((*MockConversations)(nil).Files), arg0, arg1, arg2, arg3, arg4)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Files", reflect.TypeOf((*MockConversations)(nil).Files), arg0, arg1, arg2, arg3)
 }
 
 // Messages mocks base method.

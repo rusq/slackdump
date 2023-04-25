@@ -60,7 +60,7 @@ func NewStandard(ctx context.Context, w io.Writer, sess downloader.Downloader, d
 
 // Files implements the Processor interface. It will download files if the
 // dumpFiles option is enabled.
-func (s *Standard) Files(ctx context.Context, channel *slack.Channel, parent slack.Message, isThread bool, ff []slack.File) error {
+func (s *Standard) Files(ctx context.Context, channel *slack.Channel, parent slack.Message, ff []slack.File) error {
 	if !s.opts.dumpFiles {
 		// ignore files if requested
 		return nil

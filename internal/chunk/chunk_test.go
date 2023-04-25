@@ -10,7 +10,7 @@ func TestChunk_ID(t *testing.T) {
 	type fields struct {
 		Type      ChunkType
 		Timestamp int64
-		IsThread  bool
+		ThreadTS  string
 		Count     int
 		Channel   *slack.Channel
 		ChannelID string
@@ -29,7 +29,6 @@ func TestChunk_ID(t *testing.T) {
 			fields: fields{
 				Type:      CMessages,
 				Timestamp: 0,
-				IsThread:  false,
 				Count:     0,
 				Channel:   nil,
 				ChannelID: "C123",
@@ -41,7 +40,6 @@ func TestChunk_ID(t *testing.T) {
 			fields: fields{
 				Type:      CThreadMessages,
 				Timestamp: 0,
-				IsThread:  false,
 				Count:     0,
 				Channel:   nil,
 				ChannelID: "C123",
@@ -56,7 +54,6 @@ func TestChunk_ID(t *testing.T) {
 			fields: fields{
 				Type:      CFiles,
 				Timestamp: 0,
-				IsThread:  false,
 				Count:     0,
 				Channel:   nil,
 				Parent: &slack.Message{
@@ -71,7 +68,6 @@ func TestChunk_ID(t *testing.T) {
 			fields: fields{
 				Type:      CChannelInfo,
 				Timestamp: 0,
-				IsThread:  false,
 				Count:     0,
 				Channel:   nil,
 				ChannelID: "C123",
@@ -83,7 +79,7 @@ func TestChunk_ID(t *testing.T) {
 			fields: fields{
 				Type:      CChannelInfo,
 				Timestamp: 0,
-				IsThread:  true,
+				ThreadTS:  "1234",
 				Count:     0,
 				Channel:   nil,
 				ChannelID: "C123",
@@ -95,7 +91,6 @@ func TestChunk_ID(t *testing.T) {
 			fields: fields{
 				Type:      CUsers,
 				Timestamp: 0,
-				IsThread:  false,
 				Count:     0,
 				Channel:   nil,
 				ChannelID: "",
@@ -107,7 +102,6 @@ func TestChunk_ID(t *testing.T) {
 			fields: fields{
 				Type:      CChannels,
 				Timestamp: 0,
-				IsThread:  false,
 				Count:     0,
 				Channel:   nil,
 			},
@@ -118,7 +112,6 @@ func TestChunk_ID(t *testing.T) {
 			fields: fields{
 				Type:      ChunkType(255),
 				Timestamp: 0,
-				IsThread:  false,
 				Count:     0,
 				Channel:   nil,
 				ChannelID: "",
@@ -131,7 +124,7 @@ func TestChunk_ID(t *testing.T) {
 			c := &Chunk{
 				Type:      tt.fields.Type,
 				Timestamp: tt.fields.Timestamp,
-				IsThread:  tt.fields.IsThread,
+				ThreadTS:  tt.fields.ThreadTS,
 				Count:     tt.fields.Count,
 				Channel:   tt.fields.Channel,
 				ChannelID: tt.fields.ChannelID,

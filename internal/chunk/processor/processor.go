@@ -12,8 +12,10 @@ import (
 //
 //go:generate mockgen -destination ../../mocks/mock_processor/mock_processor.go github.com/rusq/slackdump/v2/internal/chunk/processor Conversations,Users,Channels
 type Conversations interface {
-	// ChannelInfo is called for each channel that is retrieved.
-	ChannelInfo(ctx context.Context, ci *slack.Channel, isThread bool) error
+	// ChannelInfo is called for each channel that is retrieved.  ChannelInfo
+	// will be called for each direct thread link, and in this case, threadID
+	// will be set to the parent message's timestamp.
+	ChannelInfo(ctx context.Context, ci *slack.Channel, threadID string) error
 	// Messages is called for each message that is retrieved.
 	Messages(ctx context.Context, channelID string, numThreads int, isLast bool, mm []slack.Message) error
 	// ThreadMessages is called for each of the thread messages that are
@@ -27,7 +29,7 @@ type Conversations interface {
 type Filer interface {
 	// Files is called for each file that is retrieved. The parent message is
 	// passed in as well.
-	Files(ctx context.Context, channel *slack.Channel, parent slack.Message, isThread bool, ff []slack.File) error
+	Files(ctx context.Context, channel *slack.Channel, parent slack.Message, ff []slack.File) error
 }
 
 var _ Conversations = new(chunk.Recorder)

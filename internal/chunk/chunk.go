@@ -35,8 +35,9 @@ type Chunk struct {
 	ChannelID string    `json:"id,omitempty"`
 	Count     int       `json:"n,omitempty"` // number of messages or files
 
-	// the rest
-	IsThread bool `json:"r,omitempty"`
+	// ThreadTS is populated if the chunk contains thread related data.  It
+	// is the timestamp of the thread.
+	ThreadTS string `json:"r,omitempty"`
 	// IsLast is set to true if this is the last chunk for the channel or
 	// thread. Populated by Messages and ThreadMessages methods.
 	IsLast bool `json:"l,omitempty"`
@@ -95,7 +96,7 @@ func (c *Chunk) ID() GroupID {
 	case CFiles:
 		return id(filePrefix, c.ChannelID, c.Parent.Timestamp)
 	case CChannelInfo:
-		return channelInfoID(c.ChannelID, c.IsThread)
+		return channelInfoID(c.ChannelID, c.ThreadTS != "")
 	case CUsers:
 		return userChunkID // static, one team per chunk file
 	case CChannels:

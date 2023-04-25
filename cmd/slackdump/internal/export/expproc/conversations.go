@@ -99,12 +99,12 @@ func (cv *Conversations) ensure(id string) error {
 }
 
 // ChannelInfo is called for each channel that is retrieved.
-func (cv *Conversations) ChannelInfo(ctx context.Context, ci *slack.Channel, isThread bool) error {
+func (cv *Conversations) ChannelInfo(ctx context.Context, ci *slack.Channel, threadTS string) error {
 	r, err := cv.recorder(ci.ID)
 	if err != nil {
 		return err
 	}
-	return r.ChannelInfo(ctx, ci, isThread)
+	return r.ChannelInfo(ctx, ci, threadTS)
 }
 
 func (cv *Conversations) recorder(id string) (*baseproc, error) {
@@ -180,8 +180,8 @@ func (cv *Conversations) Messages(ctx context.Context, channelID string, numThre
 
 // Files is called for each file that is retrieved. The parent message is
 // passed in as well.
-func (cv *Conversations) Files(ctx context.Context, channel *slack.Channel, parent slack.Message, isThread bool, ff []slack.File) error {
-	if err := cv.fileSubproc.Files(ctx, channel, parent, isThread, ff); err != nil {
+func (cv *Conversations) Files(ctx context.Context, channel *slack.Channel, parent slack.Message, ff []slack.File) error {
+	if err := cv.fileSubproc.Files(ctx, channel, parent, ff); err != nil {
 		return err
 	}
 	if cv.recordFiles {
@@ -189,7 +189,7 @@ func (cv *Conversations) Files(ctx context.Context, channel *slack.Channel, pare
 		if err != nil {
 			return err
 		}
-		if err := r.Files(ctx, channel, parent, isThread, ff); err != nil {
+		if err := r.Files(ctx, channel, parent, ff); err != nil {
 			return err
 		}
 	}

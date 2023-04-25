@@ -40,7 +40,7 @@ var expandedLimits = Limits{
 	},
 }
 
-const testConversation = "C01SPFM1KNY"
+const testConversation = "CO720D65C25A"
 
 func TestChannelStream(t *testing.T) {
 	t.Skip()
@@ -101,7 +101,7 @@ func TestRecorderStream(t *testing.T) {
 	defer rec.Close()
 
 	rgnStream := trace.StartRegion(ctx, "Stream")
-	cs := newChannelStream(sd, &expandedLimits)
+	cs := newChannelStream(sd, &NoLimits)
 	if err := cs.SyncConversations(ctx, rec, fixtures.ChunkFileChannelID); err != nil {
 		t.Fatal(err)
 	}
@@ -175,18 +175,19 @@ func Test_processThreadMessages(t *testing.T) {
 		ctrl := gomock.NewController(t)
 
 		mproc := mock_processor.NewMockConversations(ctrl)
+		dummyChannel := fixtures.DummyChannel("CTM1")
 		mproc.EXPECT().
 			ThreadMessages(gomock.Any(), "CTM1", testThread[0], false, true, testThread[1:]).
 			Return(nil)
 
 		mproc.EXPECT().
-			Files(gomock.Any(), "CTM1", testThread[1], true, testThread[1].Files).
+			Files(gomock.Any(), dummyChannel, testThread[1], testThread[1].Files).
 			Return(nil)
 		mproc.EXPECT().
-			Files(gomock.Any(), "CTM1", testThread[2], true, testThread[2].Files).
+			Files(gomock.Any(), dummyChannel, testThread[2], testThread[2].Files).
 			Return(nil)
 
-		if err := procThreadMsg(context.Background(), mproc, fixtures.DummyChannel("CTM1"), testThread[0].ThreadTimestamp, false, true, testThread); err != nil {
+		if err := procThreadMsg(context.Background(), mproc, dummyChannel, testThread[0].ThreadTimestamp, false, true, testThread); err != nil {
 			t.Fatal(err)
 		}
 	})

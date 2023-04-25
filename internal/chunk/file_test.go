@@ -20,7 +20,7 @@ var testThreads = []Chunk{
 		Type:      CThreadMessages,
 		Timestamp: 1234567890,
 		ChannelID: "C1234567890",
-		IsThread:  true,
+		ThreadTS:  "1234567890.123456",
 		Count:     2,
 		Parent: &slack.Message{
 			Msg: slack.Msg{
@@ -48,7 +48,7 @@ var testThreads = []Chunk{
 		Type:      CThreadMessages,
 		Timestamp: 1234567891,
 		ChannelID: "C1234567890",
-		IsThread:  true,
+		ThreadTS:  "1234567890.123458",
 		Count:     2,
 		Parent: &slack.Message{
 			Msg: slack.Msg{
@@ -76,7 +76,7 @@ var testThreads = []Chunk{
 		Type:      CThreadMessages,
 		Timestamp: 1234567890,
 		ChannelID: "C1234567890",
-		IsThread:  true,
+		ThreadTS:  "1234567890.123456",
 		Count:     2,
 		Parent: &slack.Message{
 			Msg: slack.Msg{
@@ -134,7 +134,7 @@ var testChunks = []Chunk{
 	{
 		Type:      CThreadMessages,
 		ChannelID: "C1234567890",
-		IsThread:  true,
+		ThreadTS:  "1234567890.800000",
 		Parent: &slack.Message{
 			Msg: slack.Msg{
 				ClientMsgID:     "ec821bf2-c241-471d-b511-967b6ed4aa70",
@@ -191,7 +191,7 @@ var testChunks = []Chunk{
 	{
 		Type:      CThreadMessages,
 		ChannelID: "C987654321",
-		IsThread:  true,
+		ThreadTS:  "1234567890.800000",
 		Parent: &slack.Message{
 			Msg: slack.Msg{
 				ClientMsgID:     "ec821bf2-c241-471d-b511-967b6ed4aa70",

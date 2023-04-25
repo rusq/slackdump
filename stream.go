@@ -295,7 +295,7 @@ func (cs *Stream) channelWorker(ctx context.Context, proc processor.Conversation
 			if !more {
 				return // channel closed
 			}
-			channel, err := cs.channelInfo(ctx, proc, req.sl.Channel, false)
+			channel, err := cs.channelInfo(ctx, proc, req.sl.Channel, req.sl.ThreadTS)
 			if err != nil {
 				results <- StreamResult{Type: RTChannel, ChannelID: req.sl.Channel, Err: err}
 				continue
@@ -382,7 +382,7 @@ func (cs *Stream) threadWorker(ctx context.Context, proc processor.Conversations
 			var channel = new(slack.Channel)
 			if req.threadOnly {
 				var err error
-				if channel, err = cs.channelInfo(ctx, proc, req.sl.Channel, true); err != nil {
+				if channel, err = cs.channelInfo(ctx, proc, req.sl.Channel, req.sl.ThreadTS); err != nil {
 					results <- StreamResult{Type: RTThread, ChannelID: req.sl.Channel, ThreadTS: req.sl.ThreadTS, Err: err}
 					continue
 				}
@@ -479,7 +479,7 @@ func procChanMsg(ctx context.Context, proc processor.Conversations, threadC chan
 				},
 			})
 		}
-		if err := procFiles(ctx, proc, channel, false, mm[i]); err != nil {
+		if err := procFiles(ctx, proc, channel, mm[i]); err != nil {
 			return len(trs), err
 		}
 	}
@@ -497,7 +497,7 @@ func procThreadMsg(ctx context.Context, proc processor.Conversations, channel *s
 	if len(msgs) == 0 {
 		return errors.New("empty messages slice")
 	}
-	if err := procFiles(ctx, proc, channel, true, msgs[1:]...); err != nil {
+	if err := procFiles(ctx, proc, channel, msgs[1:]...); err != nil {
 		return err
 	}
 	// slack returns the thread starter as the first message with every
@@ -508,13 +508,13 @@ func procThreadMsg(ctx context.Context, proc processor.Conversations, channel *s
 	return nil
 }
 
-func procFiles(ctx context.Context, proc processor.Filer, channel *slack.Channel, isThread bool, msgs ...slack.Message) error {
+func procFiles(ctx context.Context, proc processor.Filer, channel *slack.Channel, msgs ...slack.Message) error {
 	if len(msgs) == 0 {
 		return nil
 	}
 	for _, m := range msgs {
 		if len(m.Files) > 0 {
-			if err := proc.Files(ctx, channel, m, isThread, m.Files); err != nil {
+			if err := proc.Files(ctx, channel, m, m.Files); err != nil {
 				return err
 			}
 		}
@@ -523,11 +523,11 @@ func procFiles(ctx context.Context, proc processor.Filer, channel *slack.Channel
 }
 
 // channelInfo fetches the channel info and passes it to the processor.
-func (cs *Stream) channelInfo(ctx context.Context, proc processor.Conversations, channelID string, isThread bool) (*slack.Channel, error) {
+func (cs *Stream) channelInfo(ctx context.Context, proc processor.Conversations, channelID string, threadTS string) (*slack.Channel, error) {
 	ctx, task := trace.NewTask(ctx, "channelInfo")
 	defer task.End()
 
-	trace.Logf(ctx, "channel_id", "%s, isThread=%v", channelID, isThread)
+	trace.Logf(ctx, "channel_id", "%s, threadTS=%q", channelID, threadTS)
 
 	// to avoid fetching the same channel info multiple times, we cache it.
 	if info := cs.cc.get(channelID); info != nil {
@@ -544,7 +544,7 @@ func (cs *Stream) channelInfo(ctx context.Context, proc processor.Conversations,
 	}); err != nil {
 		return nil, err
 	}
-	if err := proc.ChannelInfo(ctx, info, isThread); err != nil {
+	if err := proc.ChannelInfo(ctx, info, threadTS); err != nil {
 		return nil, err
 	}
 	cs.cc.set(channelID, info)

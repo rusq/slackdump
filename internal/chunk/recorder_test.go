@@ -16,14 +16,14 @@ import (
 
 func TestEvent_ID(t *testing.T) {
 	type fields struct {
-		Type            ChunkType
-		TS              int64
-		ChannelID       string
-		IsThreadMessage bool
-		Size            int
-		Parent          *slack.Message
-		Messages        []slack.Message
-		Files           []slack.File
+		Type      ChunkType
+		Timestamp int64
+		ChannelID string
+		ThreadTS  string
+		Count     int
+		Parent    *slack.Message
+		Messages  []slack.Message
+		Files     []slack.File
 	}
 	tests := []struct {
 		name   string
@@ -73,10 +73,10 @@ func TestEvent_ID(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			e := &Chunk{
 				Type:      tt.fields.Type,
-				Timestamp: tt.fields.TS,
+				Timestamp: tt.fields.Timestamp,
 				ChannelID: tt.fields.ChannelID,
-				IsThread:  tt.fields.IsThreadMessage,
-				Count:     tt.fields.Size,
+				ThreadTS:  tt.fields.ThreadTS,
+				Count:     tt.fields.Count,
 				Parent:    tt.fields.Parent,
 				Messages:  tt.fields.Messages,
 				Files:     tt.fields.Files,
@@ -307,8 +307,7 @@ func TestRecorder_Files(t *testing.T) {
 		if err := rec.Files(
 			ctx,
 			&slack.Channel{GroupConversation: slack.GroupConversation{Conversation: slack.Conversation{ID: "C123"}}},
-			slack.Message{Msg: slack.Msg{Text: "parent"}},
-			true,
+			slack.Message{Msg: slack.Msg{Text: "parent", ThreadTimestamp: "123"}},
 			[]slack.File{{ID: "F123", Name: "file.txt"}},
 		); err != nil {
 			t.Errorf("unexpected error: %v", err)
@@ -345,7 +344,6 @@ func TestRecorder_Files(t *testing.T) {
 			ctx,
 			&slack.Channel{GroupConversation: slack.GroupConversation{Conversation: slack.Conversation{ID: "C123"}}},
 			slack.Message{Msg: slack.Msg{Text: "parent"}},
-			true,
 			[]slack.File{{ID: "F123", Name: "file.txt"}},
 		)
 		if gotErr == nil {

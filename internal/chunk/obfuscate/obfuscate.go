@@ -89,6 +89,7 @@ func (o obfuscator) Chunk(c *chunk.Chunk) {
 	case chunk.CFiles:
 		o.OneMessage(c.Parent)
 		o.Files(c.Files...)
+		o.Channel(c.Channel)
 	case chunk.CChannelInfo:
 		o.Channel(c.Channel)
 	case chunk.CUsers:
@@ -138,9 +139,18 @@ func (o obfuscator) OneMessage(m *slack.Message) {
 	if len(m.Attachments) > 0 {
 		m.Attachments = nil // too much hassle to obfuscate
 	}
-	if m.ParentUserId != "" {
-		m.ParentUserId = o.UserID(m.ParentUserId)
+	if m.Topic != "" {
+		m.Topic = randomString(len(m.Topic))
 	}
+	m.Metadata = slack.SlackMetadata{}
+	m.ParentUserId = o.UserID(m.ParentUserId)
+	m.Team = o.TeamID(m.Team)
+	for i := range m.ReplyUsers {
+		m.ReplyUsers[i] = o.UserID(m.ReplyUsers[i])
+	}
+	o.BotProfile(m.BotProfile)
+	m.Inviter = o.UserID(m.Inviter)
+
 	for i := range m.Files {
 		o.OneFile(&m.Files[i])
 	}
@@ -301,4 +311,19 @@ func (o obfuscator) User(u *slack.User) {
 	u.Profile.StatusEmoji = randomStringExact(len(u.Profile.StatusEmoji))
 	u.Profile.StatusExpiration = 0
 	u.Profile.Team = o.TeamID(u.Profile.Team)
+}
+
+func (o *obfuscator) BotProfile(bp *slack.BotProfile) {
+	if bp == nil {
+		return
+	}
+	bp.ID = o.BotID(bp.ID)
+	bp.Deleted = false
+	bp.Name = randomStringExact(len(bp.Name))
+	bp.Updated = 0
+	bp.AppID = o.AppID(bp.AppID)
+	bp.TeamID = o.TeamID(bp.TeamID)
+	bp.Icons.Image36 = randomStringExact(len(bp.Icons.Image36))
+	bp.Icons.Image48 = randomStringExact(len(bp.Icons.Image48))
+	bp.Icons.Image72 = randomStringExact(len(bp.Icons.Image72))
 }

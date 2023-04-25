@@ -43,7 +43,7 @@ type mmsubproc struct {
 	baseSubproc
 }
 
-func (mm mmsubproc) Files(ctx context.Context, channel *slack.Channel, _ slack.Message, _ bool, ff []slack.File) error {
+func (mm mmsubproc) Files(ctx context.Context, channel *slack.Channel, _ slack.Message, ff []slack.File) error {
 	const baseDir = "__uploads"
 	for _, f := range ff {
 		if !isDownloadable(&f) {
@@ -58,7 +58,7 @@ func (mm mmsubproc) Files(ctx context.Context, channel *slack.Channel, _ slack.M
 
 type nopsubproc struct{}
 
-func (nopsubproc) Files(ctx context.Context, channel *slack.Channel, _ slack.Message, _ bool, ff []slack.File) error {
+func (nopsubproc) Files(ctx context.Context, channel *slack.Channel, _ slack.Message, ff []slack.File) error {
 	return nil
 }
 
@@ -66,7 +66,7 @@ type stdsubproc struct {
 	baseSubproc
 }
 
-func (mm stdsubproc) Files(ctx context.Context, channel *slack.Channel, _ slack.Message, _ bool, ff []slack.File) error {
+func (mm stdsubproc) Files(ctx context.Context, channel *slack.Channel, _ slack.Message, ff []slack.File) error {
 	const baseDir = "attachments"
 	for _, f := range ff {
 		if !isDownloadable(&f) {
@@ -108,7 +108,7 @@ func NewDumpSubproc(dl *downloader.Client) processor.Filer {
 	}
 }
 
-func (d dumpSubproc) Files(ctx context.Context, channel *slack.Channel, _ slack.Message, _ bool, ff []slack.File) error {
+func (d dumpSubproc) Files(ctx context.Context, channel *slack.Channel, _ slack.Message, ff []slack.File) error {
 	for _, f := range ff {
 		if !isDownloadable(&f) {
 			continue
