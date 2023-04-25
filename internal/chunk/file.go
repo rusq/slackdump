@@ -252,7 +252,16 @@ func allForOffsets[T any](p *File, offsets []int64, fn func(c *Chunk) []T) ([]T,
 
 // ChannelInfo returns the information for the given channel.
 func (f *File) ChannelInfo(channelID string) (*slack.Channel, error) {
-	ofs, ok := f.Offsets(channelInfoID(channelID, false))
+	return f.channelInfo(channelID, false)
+}
+
+// ThreadInfo returns the channel information for the given thread.
+func (f *File) ThreadInfo(channelID, threadTS string) (*slack.Channel, error) {
+	return f.channelInfo(channelID, true)
+}
+
+func (f *File) channelInfo(channelID string, thread bool) (*slack.Channel, error) {
+	ofs, ok := f.Offsets(channelInfoID(channelID, thread))
 	if !ok {
 		return nil, ErrNotFound
 	}

@@ -19,12 +19,30 @@ type Standard struct {
 	opts options
 }
 
+type options struct {
+	dumpFiles bool
+}
+
+// Option is a functional option for the processor.
+type Option func(*options)
+
+// DumpFiles disables the file processing (enabled by default).  It may be
+// useful on enterprise workspaces where the file download may be monitored.
+// See [#191]
+//
+// [#191]: https://github.com/rusq/slackdump/discussions/191#discussioncomment-4953235
+func DumpFiles(b bool) Option {
+	return func(o *options) {
+		o.dumpFiles = b
+	}
+}
+
 // NewStandard creates a new standard processor.  It will write the output to
 // the given writer.  The downloader is used to download files.  The directory
 // is the directory where the files will be downloaded to.  The options are
 // functional options.  See the NoFiles option.
 func NewStandard(ctx context.Context, w io.Writer, sess downloader.Downloader, dir string, opts ...Option) (*Standard, error) {
-	opt := options{dumpFiles: false}
+	opt := options{dumpFiles: true}
 	for _, o := range opts {
 		o(&opt)
 	}

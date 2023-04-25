@@ -219,10 +219,11 @@ func loadState(st *state.State, basePath string) (io.ReadSeekCloser, error) {
 }
 
 type Standard2 struct {
-	cd   *chunk.Directory
-	fsa  fsadapter.FS
-	ids  chan string
-	done chan struct{}
+	cd    *chunk.Directory
+	fsa   fsadapter.FS
+	idsC  chan string
+	doneC chan struct{}
+	errC  chan error
 }
 
 func NewStandard2(fsa fsadapter.FS, dir string) (*Standard2, error) {
@@ -231,19 +232,21 @@ func NewStandard2(fsa fsadapter.FS, dir string) (*Standard2, error) {
 		return nil, err
 	}
 	std := &Standard2{
-		cd:   cd,
-		fsa:  fsa,
-		ids:  make(chan string),
-		done: make(chan struct{}),
+		cd:    cd,
+		fsa:   fsa,
+		idsC:  make(chan string),
+		doneC: make(chan struct{}),
+		errC:  make(chan error, 1),
 	}
 	go std.worker()
 	return std, nil
 }
 
 func (s *Standard2) worker() {
-	defer close(s.done)
-	for id := range s.ids {
+	defer close(s.errC)
+	for id := range s.idsC {
 		if err := stdConvert(s.fsa, s.cd, id); err != nil {
+			s.errC <- err
 			dlog.Printf("error converting %q: %v", id, err)
 		}
 	}
@@ -251,13 +254,27 @@ func (s *Standard2) worker() {
 
 // Close closes the transformer.
 func (s *Standard2) Close() error {
-	close(s.ids)
-	<-s.done
+	close(s.idsC)
+	for err := range s.errC {
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
 func (s *Standard2) OnFinalise(ctx context.Context, channelID string) error {
-	s.ids <- channelID
+	select {
+	case err := <-s.errC:
+		return err
+	default:
+	}
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case s.idsC <- channelID:
+		// keep going
+	}
 	return nil
 }
 
@@ -271,6 +288,7 @@ func stdConvert(fsa fsadapter.FS, cd *chunk.Directory, chID string) error {
 	if err != nil {
 		return err
 	}
+	// determine if this a thread.
 	mm, err := cf.AllMessages(chID)
 	if err != nil {
 		return err

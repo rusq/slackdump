@@ -161,7 +161,11 @@ func dumpv3_2(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 	if err != nil {
 		return fmt.Errorf("failed to create conversation processor: %w", err)
 	}
-	defer proc.Close()
+	defer func() {
+		if err := proc.Close(); err != nil {
+			lg.Printf("failed to close conversation processor: %v", err)
+		}
+	}()
 
 	if err := sess.Stream().AsyncConversations(ctx, proc, list.Generator(ctx), func(sr slackdump.StreamResult) error {
 		if sr.Err != nil {

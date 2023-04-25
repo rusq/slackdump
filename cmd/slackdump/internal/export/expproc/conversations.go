@@ -108,7 +108,9 @@ func (cv *Conversations) ChannelInfo(ctx context.Context, ci *slack.Channel, isT
 }
 
 func (cv *Conversations) recorder(channelID string) (*baseproc, error) {
+	cv.mu.RLock()
 	r, ok := cv.cw[channelID]
+	cv.mu.RUnlock()
 	if ok {
 		return r.baseproc, nil
 	}
