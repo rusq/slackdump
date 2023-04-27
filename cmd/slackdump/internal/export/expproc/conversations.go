@@ -2,6 +2,7 @@ package expproc
 
 import (
 	"context"
+	"errors"
 	"runtime/trace"
 	"sync"
 
@@ -10,7 +11,19 @@ import (
 	"github.com/slack-go/slack"
 )
 
+// Transformer is an interface that is called when the processor is finished
+// processing a channel or thread.
+type Transformer interface {
+	// Transform is the function that starts the tranformation of the channel
+	// or thread with the given id.  It is called  when the reference count
+	// for the channel id becomes zero (meaning, that there are no more chunks
+	// to process).  It should return [transform.ErrClosed] if the transformer
+	// is closed.
+	Transform(ctx context.Context, id string) error
+}
+
 // Conversations is a processor that writes the channel and thread messages.
+// Zero value is unusable.  Use [NewConversation] to create a new instance.
 type Conversations struct {
 	dir string
 	cw  map[string]*channelproc
@@ -26,20 +39,12 @@ type Conversations struct {
 	fileSubproc processor.Filer // files sub-processor
 	recordFiles bool
 
-	onFinalise func(ctx context.Context, id string) error
+	// tf is the channel transformer that is called for each channel.
+	tf Transformer
 }
 
 // ConvOption is a function that configures the Conversations processor.
 type ConvOption func(*Conversations)
-
-// FinaliseFunc sets a callback function that is called when the processor is
-// finished processing all channel and threads for the channel (when the
-// reference count becomes 0).
-func FinaliseFunc(fn func(ctx context.Context, channelID string) error) ConvOption {
-	return func(cv *Conversations) {
-		cv.onFinalise = fn
-	}
-}
 
 // WithLogger sets the logger for the processor.
 func WithLogger(lg logger.Interface) ConvOption {
@@ -65,13 +70,23 @@ type channelproc struct {
 }
 
 // NewConversation returns the new conversation processor.  filesSubproc will
-// be called for each file chunk.
-func NewConversation(dir string, filesSubproc processor.Filer, opts ...ConvOption) (*Conversations, error) {
+// be called for each file chunk, tf will be called for each completed channel
+// or thread, when the reference count becomes zero.
+// Reference count is increased with each call to Channel processing functions.
+func NewConversation(dir string, filesSubproc processor.Filer, tf Transformer, opts ...ConvOption) (*Conversations, error) {
+	// validation
+	if filesSubproc == nil {
+		return nil, errors.New("internal error: files subprocessor is nil")
+	} else if tf == nil {
+		return nil, errors.New("internal error: transformer is nil")
+	}
+
 	c := &Conversations{
 		dir:         dir,
 		lg:          logger.Default,
 		cw:          make(map[string]*channelproc),
 		fileSubproc: filesSubproc,
+		tf:          tf,
 	}
 	for _, opt := range opts {
 		opt(c)
@@ -250,8 +265,8 @@ func (cv *Conversations) finalise(ctx context.Context, id string) error {
 	cv.mu.Lock()
 	defer cv.mu.Unlock()
 	delete(cv.cw, id)
-	if cv.onFinalise != nil {
-		return cv.onFinalise(ctx, id)
+	if cv.tf != nil {
+		return cv.tf.Transform(ctx, id)
 	}
 	return nil
 }

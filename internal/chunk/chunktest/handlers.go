@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"runtime/trace"
 	"strconv"
@@ -39,18 +38,18 @@ func handleConversationsHistory(p *chunk.Player) http.HandlerFunc {
 						Ok: true,
 					},
 				}); err != nil {
-					log.Printf("unexpected error: %s", err)
+					lg.Printf("unexpected error: %s", err)
 					http.Error(w, err.Error(), http.StatusInternalServerError)
 				}
 				return
 			} else {
-				log.Printf("error processing messages: %s", err)
+				lg.Printf("error processing messages: %s", err)
 				sresp.Ok = false
-				sresp.Error = err.Error()
+				sresp.Error = fmt.Sprintf("channel: %q: error: %s", channel, err)
 			}
 		}
 		hasmore := p.HasMoreMessages(channel)
-		log.Printf("serving channel: %s messages: %d, hasmore: %v", channel, len(msg), hasmore)
+		lg.Printf("serving channel: %s messages: %d, hasmore: %v", channel, len(msg), hasmore)
 		resp := slack.GetConversationHistoryResponse{
 			HasMore:          hasmore,
 			Messages:         msg,
@@ -58,7 +57,7 @@ func handleConversationsHistory(p *chunk.Player) http.HandlerFunc {
 			SlackResponse:    sresp,
 		}
 		if err := json.NewEncoder(w).Encode(resp); err != nil {
-			log.Printf("error encoding channel.history response: %s", err)
+			lg.Printf("error encoding channel.history response: %s", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -72,7 +71,7 @@ func handleConversationsReplies(p *chunk.Player) http.HandlerFunc {
 
 		timestamp := r.FormValue("ts")
 		channel := r.FormValue("channel")
-		log.Printf("serving channel: %s, ts: %s", channel, timestamp)
+		lg.Printf("serving channel: %s, ts: %s", channel, timestamp)
 
 		if timestamp == "" {
 			http.Error(w, "ts is required", http.StatusBadRequest)
@@ -88,9 +87,9 @@ func handleConversationsReplies(p *chunk.Player) http.HandlerFunc {
 			if errors.Is(err, io.EOF) {
 				slackResp.Error = fmt.Sprintf("thread_not_found[%s:%s]", channel, timestamp)
 			} else {
-				slackResp.Error = err.Error()
+				slackResp.Error = fmt.Sprintf("thread: [%s:%s]: error: %s", channel, timestamp, err.Error())
 			}
-			log.Printf("error processing thread %s:%s: %s", channel, timestamp, err)
+			lg.Printf("error processing thread %s:%s: %s", channel, timestamp, err)
 		}
 		resp := GetConversationRepliesResponse{
 			HasMore:          p.HasMoreThreads(channel, timestamp),
@@ -99,7 +98,7 @@ func handleConversationsReplies(p *chunk.Player) http.HandlerFunc {
 			SlackResponse:    slackResp,
 		}
 		if err := json.NewEncoder(w).Encode(resp); err != nil {
-			log.Printf("error encoding conversation.replies response: %s", err)
+			lg.Printf("error encoding conversation.replies response: %s", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -116,7 +115,7 @@ type channelResponseFull struct {
 	Metadata slack.ResponseMetadata `json:"response_metadata"`
 }
 
-func handleConversationsInfo(p *chunk.Player) http.HandlerFunc {
+func handleConversationInfo(p *chunk.Player) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		_, task := trace.NewTask(r.Context(), "conversation.info")
 		defer task.End()
@@ -126,27 +125,28 @@ func handleConversationsInfo(p *chunk.Player) http.HandlerFunc {
 			http.Error(w, "channel is required", http.StatusBadRequest)
 			return
 		}
-		log.Printf("channel: %s", channel)
-		ci, err := p.ChannelInfo(channel)
-		if err != nil {
-			if errors.Is(err, chunk.ErrNotFound) {
-				log.Printf("conversationInfo: not found: (%q) %v", channel, err)
-				http.NotFound(w, r)
-				return
-			}
-			log.Printf("conversationInfo: error: %v", err)
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
 		resp := channelResponseFull{
 			SlackResponse: slack.SlackResponse{
 				Ok: true,
 			},
-			Channel: *ci,
 		}
+
+		lg.Printf("channel: %s", channel)
+		ci, err := p.ChannelInfo(channel)
+		if err != nil {
+			if errors.Is(err, chunk.ErrNotFound) {
+				resp.Ok = false
+				resp.Error = fmt.Sprintf("conversationInfo: not found: (%q) %v", channel, err)
+			} else {
+				resp.Ok = false
+				resp.Error = fmt.Sprintf("conversationInfo: error: %s", err)
+			}
+		} else {
+			resp.Channel = *ci
+		}
+
 		if err := json.NewEncoder(w).Encode(resp); err != nil {
-			log.Printf("error encoding channel.info response: %s", err)
+			lg.Printf("error encoding channel.info response: %s", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -184,7 +184,7 @@ func handleConversationsList(p *chunk.Player) http.HandlerFunc {
 		}
 		cr.Channels = c
 		if err := json.NewEncoder(w).Encode(cr); err != nil {
-			log.Printf("error encoding channel.list response: %s", err)
+			lg.Printf("error encoding channel.list response: %s", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -217,7 +217,7 @@ func handleUsersList(p *chunk.Player) http.HandlerFunc {
 				sr.Ok = false
 				sr.Error = "user chunks not found"
 			} else {
-				log.Printf("error processing users.list: %s", err)
+				lg.Printf("error processing users.list: %s", err)
 				sr.Ok = false
 				sr.Error = err.Error()
 			}
@@ -227,7 +227,7 @@ func handleUsersList(p *chunk.Player) http.HandlerFunc {
 			Members:       u,
 		}
 		if err := json.NewEncoder(w).Encode(resp); err != nil {
-			log.Printf("error encoding users.list response: %s", err)
+			lg.Printf("error encoding users.list response: %s", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -259,7 +259,7 @@ func (ah authHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
-		log.Printf("error encoding auth.test response: %s", err)
+		lg.Printf("error encoding auth.test response: %s", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -280,7 +280,7 @@ func handleAuthTest(p *chunk.Player) http.HandlerFunc {
 			atr.AuthTestResponse = *wi
 		}
 		if err := json.NewEncoder(w).Encode(atr); err != nil {
-			log.Printf("error encoding auth.test response: %s", err)
+			lg.Printf("error encoding auth.test response: %s", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}

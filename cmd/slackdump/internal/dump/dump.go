@@ -157,7 +157,7 @@ func dumpv3_2(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 	defer dl.Stop()
 	subproc := transform.NewDumpSubproc(dl)
 
-	proc, err := expproc.NewConversation(dir, subproc, expproc.WithLogger(lg), expproc.WithRecordFiles(false), expproc.FinaliseFunc(tf.OnFinalise))
+	proc, err := expproc.NewConversation(dir, subproc, tf, expproc.WithLogger(lg), expproc.WithRecordFiles(false))
 	if err != nil {
 		return fmt.Errorf("failed to create conversation processor: %w", err)
 	}

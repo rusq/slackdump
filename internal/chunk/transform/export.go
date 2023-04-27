@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"runtime/trace"
 	"sort"
+	"sync/atomic"
 	"time"
 
 	"github.com/rusq/fsadapter"
@@ -48,6 +49,7 @@ type Export struct {
 	users    []slack.User     // list of users.
 	lg       logger.Interface
 	msgUpdFn []msgUpdFunc // function to update the file
+	closed   atomic.Bool
 
 	start chan struct{}
 	done  chan struct{}
@@ -176,14 +178,18 @@ func (t *Export) Start(ctx context.Context) error {
 // It will not block if the internal buffer is full.  Buffer size can be
 // set with the WithBufferSize option.  The caller is allowed to call OnFinalise
 // even if the processor is not started, in which case the channel ID will
-// be queued for processing once the processor is started.
-func (t *Export) OnFinalise(ctx context.Context, channelID string) error {
-	t.lg.Debugln("transform: placing channel in the queue", channelID)
+// be queued for processing once the processor is started.  If the export
+// worker is closed, it will return ErrClosed.
+func (t *Export) Transform(ctx context.Context, id string) error {
+	if t.closed.Load() {
+		return ErrClosed
+	}
+	t.lg.Debugln("transform: placing channel in the queue", id)
 	select {
 	case err := <-t.err:
 		return err
 	default:
-		t.ids <- channelID
+		t.ids <- id
 	}
 	return nil
 }
@@ -231,7 +237,12 @@ func (t *Export) WriteIndex() error {
 // guaranteed that OnFinish will not be called anymore, otherwise the
 // call to OnFinish will panic.
 func (t *Export) Close() error {
+	if t.closed.Load() {
+		t.lg.Debugln("closing already closed transform")
+		return nil
+	}
 	t.lg.Debugln("transform: closing transform")
+	t.closed.Store(true)
 	close(t.ids)
 	close(t.start)
 	t.lg.Debugln("transform: waiting for workers to finish")

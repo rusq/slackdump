@@ -349,8 +349,8 @@ func (cs *Stream) channel(ctx context.Context, id string, callback func(mm []sla
 		err := callback(resp.Messages, !resp.HasMore)
 		r.End()
 		if err != nil {
-			lg.Printf("channel %s, callback error: %s", id, err)
-			return fmt.Errorf("callback error: %w", err)
+			// lg.Printf("channel %s, callback error: %s", id, err)
+			return fmt.Errorf("channel %s, callback error: %w", id, err)
 		}
 
 		if !resp.HasMore {
@@ -542,7 +542,7 @@ func (cs *Stream) channelInfo(ctx context.Context, proc processor.Conversations,
 		})
 		return err
 	}); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error getting channel information for %s: %w", channelID, err)
 	}
 	if err := proc.ChannelInfo(ctx, info, threadTS); err != nil {
 		return nil, err

@@ -2,6 +2,7 @@ package export
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"sync"
@@ -95,6 +96,7 @@ func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 			if err := workspaceWorker(ctx, s, tmpdir); err != nil {
 				errC <- ExportError{"workspace", "worker", err}
 			}
+			lg.Debug("workspace info done")
 		}()
 	}
 	// user goroutine
@@ -111,28 +113,30 @@ func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 	}
 	// conversations goroutine
 	{
-		pb := newProgressBar(progressbar.NewOptions(-1, progressbar.OptionClearOnFinish(), progressbar.OptionSpinnerType(8)), lg.IsDebug())
-		pb.RenderBlank()
-
-		conv, err := expproc.NewConversation(
-			tmpdir,
-			transform.NewFiler(options.Type, dl),
-			expproc.FinaliseFunc(tf.OnFinalise))
+		conv, err := expproc.NewConversation(tmpdir, transform.NewFiler(options.Type, dl), tf)
 		if err != nil {
 			return fmt.Errorf("error initialising conversation processor: %w", err)
 		}
 
+		pb := newProgressBar(progressbar.NewOptions(
+			-1,
+			progressbar.OptionClearOnFinish(),
+			progressbar.OptionSpinnerType(8)),
+			lg.IsDebug(),
+		)
+		pb.RenderBlank()
+
 		wg.Add(1)
 		go func() {
-			// TODO: i may need a function for this fuckery.
 			defer wg.Done()
 			defer pb.Finish()
+			defer func() {
+				if err := conv.Close(); err != nil {
+					errC <- ExportError{"conversations", "close", err}
+				}
+			}()
 			if err := conversationWorker(ctx, s, conv, pb, linkC); err != nil {
 				errC <- ExportError{"conversations", "worker", err}
-				return
-			}
-			if err := conv.Close(); err != nil {
-				errC <- ExportError{"conversations", "close", err}
 				return
 			}
 		}()
@@ -143,11 +147,13 @@ func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 		close(errC)
 	}()
 
-	// process returned errors
-	for err := range errC {
-		if err != nil {
-			return err
-		}
+	// collect returned errors
+	var allErr error
+	for cErr := range errC {
+		allErr = errors.Join(err, cErr)
+	}
+	if allErr != nil {
+		return allErr
 	}
 
 	// at this point no goroutines are running, we are safe to assume that
@@ -258,7 +264,9 @@ func conversationWorker(ctx context.Context, s *slackdump.Stream, proc processor
 		pb.Add(1)
 		return nil
 	}); err != nil {
-		lg.Println("conversationsWorker:", err)
+		if errors.Is(err, transform.ErrClosed) {
+			return fmt.Errorf("upstream error: %w", err)
+		}
 		return fmt.Errorf("error streaming conversations: %w", err)
 	}
 	lg.Debug("conversations done")

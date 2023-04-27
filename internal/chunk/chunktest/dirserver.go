@@ -3,6 +3,7 @@ package chunktest
 import (
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"sync"
 
 	"github.com/rusq/slackdump/v2/internal/chunk"
@@ -43,7 +44,7 @@ func (s *DirServer) Close() {
 
 func (s *DirServer) dirRouter() *http.ServeMux {
 	mux := http.NewServeMux()
-	mux.Handle("/api/conversations.info", s.chunkWrapper(handleConversationsInfo))
+	mux.Handle("/api/conversations.info", s.chunkWrapper(handleConversationInfo))
 	mux.Handle("/api/conversations.history", s.chunkWrapper(handleConversationsHistory))
 	mux.Handle("/api/conversations.replies", s.chunkWrapper(handleConversationsReplies))
 
@@ -58,7 +59,7 @@ func (s *DirServer) chunkWrapper(fn func(p *chunk.Player) http.HandlerFunc) http
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		channel := r.FormValue("channel")
 		if channel == "" {
-			http.NotFound(w, r)
+			http.Error(w, "no_channel", http.StatusBadRequest)
 			return
 		}
 		s.mu.Lock()
@@ -67,7 +68,12 @@ func (s *DirServer) chunkWrapper(fn func(p *chunk.Player) http.HandlerFunc) http
 		if !ok {
 			cf, err := s.cd.Open(channel)
 			if err != nil {
-				http.NotFound(w, r)
+				if os.IsNotExist(err) {
+					http.NotFound(w, r)
+					return
+				}
+				lg.Printf("error while opening chunk file for %s: %s", channel, err)
+				http.Error(w, http.StatusText(http.StatusUnprocessableEntity), http.StatusUnprocessableEntity)
 				return
 			}
 			p = chunk.NewPlayerFromFile(cf)

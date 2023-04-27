@@ -263,7 +263,7 @@ func (s *Standard2) Close() error {
 	return nil
 }
 
-func (s *Standard2) OnFinalise(ctx context.Context, channelID string) error {
+func (s *Standard2) Transform(ctx context.Context, channelID string) error {
 	select {
 	case err := <-s.errC:
 		return err

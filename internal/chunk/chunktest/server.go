@@ -3,13 +3,17 @@ package chunktest
 
 import (
 	"io"
+	"log"
 	"net/http"
 	"net/http/httptest"
+	"os"
 
 	"github.com/slack-go/slack"
 
 	"github.com/rusq/slackdump/v2/internal/chunk"
 )
+
+var lg = log.New(os.Stderr, "chunktest: ", log.LstdFlags)
 
 // Server is a test server for testing the chunk package, that serves API
 // from a single chunk file.
@@ -46,7 +50,7 @@ func router(p *chunk.Player, userID string) *http.ServeMux {
 	mux := http.NewServeMux()
 	mux.Handle("/api/auth.test", authHandler{userID})
 
-	mux.HandleFunc("/api/conversations.info", handleConversationsInfo(p))
+	mux.HandleFunc("/api/conversations.info", handleConversationInfo(p))
 	mux.HandleFunc("/api/conversations.history", handleConversationsHistory(p))
 	mux.HandleFunc("/api/conversations.replies", handleConversationsReplies(p))
 	mux.HandleFunc("/api/conversations.list", handleConversationsList(p))
