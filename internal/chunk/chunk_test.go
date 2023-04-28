@@ -75,18 +75,6 @@ func TestChunk_ID(t *testing.T) {
 			want: "icC123",
 		},
 		{
-			name: "channel info (thread)",
-			fields: fields{
-				Type:      CChannelInfo,
-				Timestamp: 0,
-				ThreadTS:  "1234",
-				Count:     0,
-				Channel:   nil,
-				ChannelID: "C123",
-			},
-			want: "itC123",
-		},
-		{
 			name: "users",
 			fields: fields{
 				Type:      CUsers,

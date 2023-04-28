@@ -104,7 +104,7 @@ func (f *File) Offsets(id GroupID) ([]int64, bool) {
 		panic("internal error:  File.Offsets called before File.Open")
 	}
 	ret, ok := f.idx[id]
-	return ret, ok
+	return ret, ok && len(ret) > 0
 }
 
 func (f *File) HasUsers() bool {
@@ -166,19 +166,18 @@ func (f *File) State() (*state.State, error) {
 		if ev == nil {
 			return nil
 		}
-		if ev.Type == CFiles {
+		switch ev.Type {
+		case CFiles:
 			for _, f := range ev.Files {
 				// we are adding the files with the empty path as we
 				// have no way of knowing if the file was downloaded or not.
 				s.AddFile(ev.ChannelID, f.ID, "")
 			}
-		}
-		if ev.Type == CThreadMessages {
+		case CThreadMessages:
 			for _, m := range ev.Messages {
 				s.AddThread(ev.ChannelID, ev.Parent.ThreadTimestamp, m.Timestamp)
 			}
-		}
-		if ev.Type == CMessages {
+		case CMessages:
 			for _, m := range ev.Messages {
 				s.AddMessage(ev.ChannelID, m.Timestamp)
 			}
@@ -190,7 +189,8 @@ func (f *File) State() (*state.State, error) {
 	return s, nil
 }
 
-// AllMessages returns all the messages for the given channel.
+// AllMessages returns all the messages for the given channel posted to it (no
+// thread).
 func (f *File) AllMessages(channelID string) ([]slack.Message, error) {
 	m, err := f.allMessagesForID(GroupID(channelID))
 	if err != nil {
@@ -199,9 +199,20 @@ func (f *File) AllMessages(channelID string) ([]slack.Message, error) {
 	return m, nil
 }
 
-// AllThreadMessages returns all the messages for the given thread.
+// AllThreadMessages returns all the messages for the given thread.  It does not
+// return the parent message in the result, use [File.ThreadParent] for that.
 func (f *File) AllThreadMessages(channelID, threadTS string) ([]slack.Message, error) {
 	return f.allMessagesForID(threadID(channelID, threadTS))
+}
+
+// ThreadParent returns the thread parent message for the given thread.  It
+// returns ErrNotFound if the thread is not found.
+func (f *File) ThreadParent(channelID, threadTS string) (*slack.Message, error) {
+	c, err := f.firstChunkForID(threadID(channelID, threadTS))
+	if err != nil {
+		return nil, fmt.Errorf("parent message: %s:%s: %w", channelID, threadTS, err)
+	}
+	return c.Parent, nil
 }
 
 // AllUsers returns all users in the dump file.
@@ -236,13 +247,16 @@ func (p *File) AllChannelInfos() ([]slack.Channel, error) {
 	})
 }
 
+type int64s []int64
+
+func (a int64s) Len() int           { return len(a) }
+func (a int64s) Less(i, j int) bool { return a[i] < a[j] }
+func (a int64s) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+
 // allForOffsets returns all the items for the given offsets.
 func allForOffsets[T any](p *File, offsets []int64, fn func(c *Chunk) []T) ([]T, error) {
-	// sort offsets to prevent random access (only applies if there's only one
-	// thread for the file)
-	sort.Slice(offsets, func(i, j int) bool {
-		return offsets[i] < offsets[j]
-	})
+	// sort offsets to prevent random disk access.
+	sort.Sort(int64s(offsets))
 	var items []T
 	for _, offset := range offsets {
 		chunk, err := p.chunkAt(offset)
@@ -260,11 +274,7 @@ func (f *File) ChannelInfo(channelID string) (*slack.Channel, error) {
 }
 
 func (f *File) channelInfo(channelID string, thread bool) (*slack.Channel, error) {
-	ofs, ok := f.Offsets(channelInfoID(channelID))
-	if !ok {
-		return nil, ErrNotFound
-	}
-	chunk, err := f.chunkAt(ofs[0])
+	chunk, err := f.firstChunkForID(channelInfoID(channelID))
 	if err != nil {
 		return nil, err
 	}
@@ -272,6 +282,15 @@ func (f *File) channelInfo(channelID string, thread bool) (*slack.Channel, error
 		return nil, ErrDataMisaligned
 	}
 	return chunk.Channel, nil
+}
+
+// firstChunkForID returns the first chunk in the file for the given id.
+func (f *File) firstChunkForID(id GroupID) (*Chunk, error) {
+	ofs, ok := f.Offsets(id)
+	if !ok {
+		return nil, ErrNotFound
+	}
+	return f.chunkAt(ofs[0])
 }
 
 // allMessagesForID returns all the messages for the given id.
@@ -384,8 +403,8 @@ func timeOffsets(ots offts) map[int64]Addr {
 }
 
 // Sorted iterates over all the messages in the chunkfile in chronological
-// order.
-func (f *File) Sorted(ctx context.Context, descending bool, fn func(ts time.Time, m *slack.Message) error) error {
+// order.  If desc is true, the slice will be iterated in reverse order.
+func (f *File) Sorted(ctx context.Context, desc bool, fn func(ts time.Time, m *slack.Message) error) error {
 	ctx, task := trace.NewTask(ctx, "file.Sorted")
 	defer task.End()
 
@@ -405,17 +424,13 @@ func (f *File) Sorted(ctx context.Context, descending bool, fn func(ts time.Time
 	for ts := range tos {
 		tsList = append(tsList, ts)
 	}
-	sf := func(i, j int) bool {
-		return tsList[i] < tsList[j]
-	}
-	if descending {
-		sf = func(i, j int) bool {
-			return tsList[i] > tsList[j]
-		}
-	}
 
 	trace.WithRegion(ctx, "sorted.sort", func() {
-		sort.Slice(tsList, sf)
+		if desc {
+			sort.Sort(sort.Reverse(int64s(tsList)))
+		} else {
+			sort.Sort(int64s(tsList))
+		}
 	})
 
 	var (
@@ -460,11 +475,7 @@ func (f *File) chunkAt(offset int64) (*Chunk, error) {
 
 // WorkspaceInfo returns the workspace info from the chunkfile.
 func (f *File) WorkspaceInfo() (*slack.AuthTestResponse, error) {
-	offsets, ok := f.Offsets(wspInfoChunkID)
-	if !ok || len(offsets) == 0 {
-		return nil, ErrNotFound
-	}
-	chunk, err := f.chunkAt(offsets[0])
+	chunk, err := f.firstChunkForID(wspInfoChunkID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get the workspace info: %w", err)
 	}

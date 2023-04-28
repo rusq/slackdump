@@ -103,8 +103,8 @@ var testThreads = []Chunk{
 }
 
 var testThreadsIndex = index{
-	"tC1234567890:1234567890.123456": []int64{0, 1209},
-	"tC1234567890:1234567890.123458": []int64{604},
+	"tC1234567890:1234567890.123456": []int64{0, 1239},
+	"tC1234567890:1234567890.123458": []int64{619},
 }
 
 var testChunks = []Chunk{
@@ -431,14 +431,14 @@ func TestFile_offsetTimestamps(t *testing.T) {
 				rs: marshalChunks(testChunks...),
 			},
 			want: offts{
-				546:  offsetInfo{ID: "C1234567890", Timestamps: []int64{1234567890100000, 1234567890200000, 1234567890300000, 1234567890400000, 1234567890500000}},
-				1382: offsetInfo{ID: "C1234567890", Timestamps: []int64{1234567890600000, 1234567890700000}},
-				1751: offsetInfo{ID: "C1234567890", Timestamps: []int64{1234567890800000, 1234567890800000}},
-				2208: offsetInfo{ID: "tC1234567890:1234567890.800000", Type: CThreadMessages, Timestamps: []int64{1234567890900000, 1234567891100000}},
-				3572: offsetInfo{ID: "C987654321", Timestamps: []int64{1234567890100000, 1234567890200000, 1234567890300000, 1234567890400000, 1234567890500000}},
-				4407: offsetInfo{ID: "C987654321", Timestamps: []int64{1234567890600000, 1234567890700000}},
-				4775: offsetInfo{ID: "C987654321", Timestamps: []int64{1234567890800000, 1234567890800000}},
-				5231: offsetInfo{ID: "tC987654321:1234567890.800000", Type: CThreadMessages, Timestamps: []int64{1234567890900000, 1234567891100000}},
+				540:  offsetInfo{ID: "C1234567890", Timestamps: []int64{1234567890100000, 1234567890200000, 1234567890300000, 1234567890400000, 1234567890500000}},
+				1370: offsetInfo{ID: "C1234567890", Timestamps: []int64{1234567890600000, 1234567890700000}},
+				1733: offsetInfo{ID: "C1234567890", Timestamps: []int64{1234567890800000, 1234567890800000}},
+				2184: offsetInfo{ID: "tC1234567890:1234567890.800000", Type: CThreadMessages, Timestamps: []int64{1234567890900000, 1234567891100000}},
+				3557: offsetInfo{ID: "C987654321", Timestamps: []int64{1234567890100000, 1234567890200000, 1234567890300000, 1234567890400000, 1234567890500000}},
+				4386: offsetInfo{ID: "C987654321", Timestamps: []int64{1234567890600000, 1234567890700000}},
+				4748: offsetInfo{ID: "C987654321", Timestamps: []int64{1234567890800000, 1234567890800000}},
+				5198: offsetInfo{ID: "tC987654321:1234567890.800000", Type: CThreadMessages, Timestamps: []int64{1234567890900000, 1234567891100000}},
 			},
 		},
 	}
@@ -590,6 +590,77 @@ func TestFile_Sorted(t *testing.T) {
 				t.Errorf("File.Sorted() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			assert.Equal(t, tt.wantFnCalls.String(), rec.String())
+		})
+	}
+}
+
+func TestFile_Offsets(t *testing.T) {
+	type fields struct {
+		idx index
+	}
+	type args struct {
+		id GroupID
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   []int64
+		want1  bool
+	}{
+		{
+			name: "ok",
+			fields: fields{
+				idx: index{
+					"1234567890": []int64{546},
+					"1234567891": []int64{622},
+				},
+			},
+			args: args{
+				id: "1234567890",
+			},
+			want:  []int64{546},
+			want1: true,
+		},
+		{
+			name: "no entries",
+			fields: fields{
+				idx: index{
+					"5555555555": []int64{},
+				},
+			},
+			args: args{
+				id: "5555555555",
+			},
+			want:  []int64{},
+			want1: false,
+		},
+		{
+			name: "does not exist",
+			fields: fields{
+				idx: index{
+					"1234567890": []int64{546},
+				},
+			},
+			args: args{
+				id: "5555555555",
+			},
+			want:  nil,
+			want1: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := &File{
+				idx: tt.fields.idx,
+			}
+			got, got1 := f.Offsets(tt.args.id)
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("File.Offsets() got = %v, want %v", got, tt.want)
+			}
+			if got1 != tt.want1 {
+				t.Errorf("File.Offsets() got1 = %v, want %v", got1, tt.want1)
+			}
 		})
 	}
 }

@@ -18,16 +18,16 @@ func TestPlayer_Thread(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(m) != 2 {
-		t.Fatalf("expected 2 messages, got %d", len(m))
+	if len(m) != 3 {
+		t.Fatalf("expected 3 messages, got %d", len(m))
 	}
 	// again
 	m, err = p.Thread("C1234567890", "1234567890.123456")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(m) != 2 {
-		t.Fatalf("expected 2 messages, got %d", len(m))
+	if len(m) != 3 {
+		t.Fatalf("expected 3 messages, got %d", len(m))
 	}
 	// should error
 	m, err = p.Thread("C1234567890", "1234567890.123456")

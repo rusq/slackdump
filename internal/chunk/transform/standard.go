@@ -3,7 +3,6 @@ package transform
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"path/filepath"
@@ -17,6 +16,7 @@ import (
 	"github.com/rusq/slackdump/v2/internal/chunk/state"
 	"github.com/rusq/slackdump/v2/internal/nametmpl"
 	"github.com/rusq/slackdump/v2/internal/osext"
+	"github.com/rusq/slackdump/v2/internal/structures"
 	"github.com/rusq/slackdump/v2/internal/structures/files"
 	"github.com/rusq/slackdump/v2/types"
 )
@@ -287,50 +287,28 @@ func stdConvert(fsa fsadapter.FS, cd *chunk.Directory, fileID string) error {
 	}
 	defer cf.Close()
 
+	// threadTS is only populated on the thread only files.  It is safe to
+	// rely on it being non-empty to determine if we need a thread or a
+	// conversation.
 	channelID, threadID := chunk.SplitFileID(fileID)
 	ci, err := cf.ChannelInfo(channelID)
 	if err != nil {
 		return err
 	}
-	// determine if this a thread.
-	mm, err := cf.AllMessages(channelID)
+
+	var msgs []types.Message
+	if threadID == "" {
+		msgs, err = stdConversation(cf, ci)
+	} else {
+		msgs, err = stdThread(cf, ci, threadID)
+	}
 	if err != nil {
-		if !errors.Is(err, chunk.ErrNotFound) {
-			return fmt.Errorf("unexpected error when processing %q: %w", fileID, err)
-		}
-		// this is a thread.
-		mm, err = cf.AllThreadMessages(channelID, threadID)
-		if err != nil {
-			return err
-		}
-		// get parent message
-		// parent, err := cf.ParentMessage(channelID, threadID) // TODO: implement
-		// if err != nil {
-		// 	return err
-		// }
+		return err
 	}
 	conv := &types.Conversation{
-		ID:       channelID,
+		ID:       ci.ID,
 		Name:     ci.Name,
-		Messages: make([]types.Message, 0, len(mm)),
-	}
-	for i := range mm {
-		if mm[i].SubType == "thread_broadcast" {
-			// this we don't eat.
-			// skip thread broadcasts, they're not useful
-			continue
-		}
-		var sdm types.Message // slackdump message
-		sdm.Message = mm[i]
-		if mm[i].ThreadTimestamp != "" && mm[i].ThreadTimestamp == mm[i].Timestamp { // process thread only for parent messages
-			// if there's a thread timestamp, we need to find and add it.
-			thread, err := cf.AllThreadMessages(channelID, mm[i].ThreadTimestamp)
-			if err != nil {
-				return err
-			}
-			sdm.ThreadReplies = types.ConvertMsgs(thread)
-		}
-		conv.Messages = append(conv.Messages, sdm)
+		Messages: msgs,
 	}
 
 	f, err := fsa.Create(fileID + ".json")
@@ -339,4 +317,47 @@ func stdConvert(fsa fsadapter.FS, cd *chunk.Directory, fileID string) error {
 	}
 	defer f.Close()
 	return json.NewEncoder(f).Encode(conv)
+}
+
+func stdConversation(cf *chunk.File, ci *slack.Channel) ([]types.Message, error) {
+	mm, err := cf.AllMessages(ci.ID)
+	if err != nil {
+		return nil, err
+	}
+	msgs := make([]types.Message, 0, len(mm))
+	for i := range mm {
+		if mm[i].SubType == "thread_broadcast" {
+			// this we don't eat.
+			// skip thread broadcasts, they're not useful
+			continue
+		}
+		var sdm types.Message // slackdump message
+		sdm.Message = mm[i]
+		if mm[i].ThreadTimestamp != "" && mm[i].ThreadTimestamp == mm[i].Timestamp && mm[i].LatestReply != structures.NoRepliesLatestReply { // process thread only for parent messages
+			// if there's a thread timestamp, we need to find and add it.
+			thread, err := cf.AllThreadMessages(ci.ID, mm[i].ThreadTimestamp)
+			if err != nil {
+				return nil, err
+			}
+			sdm.ThreadReplies = types.ConvertMsgs(thread)
+		}
+		msgs = append(msgs, sdm)
+	}
+	return msgs, nil
+}
+
+func stdThread(cf *chunk.File, ci *slack.Channel, threadID string) ([]types.Message, error) {
+	// this is a thread.
+	mm, err := cf.AllThreadMessages(ci.ID, threadID)
+	if err != nil {
+		return nil, err
+	}
+	// get parent message
+	parent, err := cf.ThreadParent(ci.ID, threadID) // TODO: implement
+	if err != nil {
+		return nil, err
+	}
+	mm = append([]slack.Message{*parent}, mm...)
+
+	return types.ConvertMsgs(mm), nil
 }
