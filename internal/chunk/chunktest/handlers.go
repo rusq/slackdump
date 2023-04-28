@@ -115,9 +115,9 @@ type channelResponseFull struct {
 	Metadata slack.ResponseMetadata `json:"response_metadata"`
 }
 
-func handleConversationInfo(p *chunk.Player) http.HandlerFunc {
+func handleConversationsInfo(p *chunk.Player) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		_, task := trace.NewTask(r.Context(), "conversation.info")
+		_, task := trace.NewTask(r.Context(), "conversations.info")
 		defer task.End()
 
 		channel := r.FormValue("channel")

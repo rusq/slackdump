@@ -50,7 +50,7 @@ func router(p *chunk.Player, userID string) *http.ServeMux {
 	mux := http.NewServeMux()
 	mux.Handle("/api/auth.test", authHandler{userID})
 
-	mux.HandleFunc("/api/conversations.info", handleConversationInfo(p))
+	mux.HandleFunc("/api/conversations.info", handleConversationsInfo(p))
 	mux.HandleFunc("/api/conversations.history", handleConversationsHistory(p))
 	mux.HandleFunc("/api/conversations.replies", handleConversationsReplies(p))
 	mux.HandleFunc("/api/conversations.list", handleConversationsList(p))

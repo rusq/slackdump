@@ -192,7 +192,11 @@ func (f *File) State() (*state.State, error) {
 
 // AllMessages returns all the messages for the given channel.
 func (f *File) AllMessages(channelID string) ([]slack.Message, error) {
-	return f.allMessagesForID(GroupID(channelID))
+	m, err := f.allMessagesForID(GroupID(channelID))
+	if err != nil {
+		return nil, fmt.Errorf("failed getting messages for %s: %w", channelID, err)
+	}
+	return m, nil
 }
 
 // AllThreadMessages returns all the messages for the given thread.
@@ -255,13 +259,8 @@ func (f *File) ChannelInfo(channelID string) (*slack.Channel, error) {
 	return f.channelInfo(channelID, false)
 }
 
-// ThreadInfo returns the channel information for the given thread.
-func (f *File) ThreadInfo(channelID, threadTS string) (*slack.Channel, error) {
-	return f.channelInfo(channelID, true)
-}
-
 func (f *File) channelInfo(channelID string, thread bool) (*slack.Channel, error) {
-	ofs, ok := f.Offsets(channelInfoID(channelID, thread))
+	ofs, ok := f.Offsets(channelInfoID(channelID))
 	if !ok {
 		return nil, ErrNotFound
 	}

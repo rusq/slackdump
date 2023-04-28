@@ -3,6 +3,7 @@ package transform
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"path/filepath"
@@ -246,8 +247,8 @@ func (s *Standard2) worker() {
 	defer close(s.errC)
 	for id := range s.idsC {
 		if err := stdConvert(s.fsa, s.cd, id); err != nil {
-			s.errC <- err
 			dlog.Printf("error converting %q: %v", id, err)
+			s.errC <- err
 		}
 	}
 }
@@ -263,7 +264,8 @@ func (s *Standard2) Close() error {
 	return nil
 }
 
-func (s *Standard2) Transform(ctx context.Context, channelID string) error {
+// Transform sends the id to worker that runs the transformation.
+func (s *Standard2) Transform(ctx context.Context, id string) error {
 	select {
 	case err := <-s.errC:
 		return err
@@ -272,29 +274,43 @@ func (s *Standard2) Transform(ctx context.Context, channelID string) error {
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
-	case s.idsC <- channelID:
+	case s.idsC <- id:
 		// keep going
 	}
 	return nil
 }
 
-func stdConvert(fsa fsadapter.FS, cd *chunk.Directory, chID string) error {
-	cf, err := cd.Open(chID)
+func stdConvert(fsa fsadapter.FS, cd *chunk.Directory, fileID string) error {
+	cf, err := cd.Open(fileID)
 	if err != nil {
 		return err
 	}
 	defer cf.Close()
-	ci, err := cf.ChannelInfo(chID)
+
+	channelID, threadID := chunk.SplitFileID(fileID)
+	ci, err := cf.ChannelInfo(channelID)
 	if err != nil {
 		return err
 	}
 	// determine if this a thread.
-	mm, err := cf.AllMessages(chID)
+	mm, err := cf.AllMessages(channelID)
 	if err != nil {
-		return err
+		if !errors.Is(err, chunk.ErrNotFound) {
+			return fmt.Errorf("unexpected error when processing %q: %w", fileID, err)
+		}
+		// this is a thread.
+		mm, err = cf.AllThreadMessages(channelID, threadID)
+		if err != nil {
+			return err
+		}
+		// get parent message
+		// parent, err := cf.ParentMessage(channelID, threadID) // TODO: implement
+		// if err != nil {
+		// 	return err
+		// }
 	}
 	conv := &types.Conversation{
-		ID:       chID,
+		ID:       channelID,
 		Name:     ci.Name,
 		Messages: make([]types.Message, 0, len(mm)),
 	}
@@ -304,11 +320,11 @@ func stdConvert(fsa fsadapter.FS, cd *chunk.Directory, chID string) error {
 			// skip thread broadcasts, they're not useful
 			continue
 		}
-		var sdm types.Message
+		var sdm types.Message // slackdump message
 		sdm.Message = mm[i]
-		if mm[i].ThreadTimestamp != "" {
+		if mm[i].ThreadTimestamp != "" && mm[i].ThreadTimestamp == mm[i].Timestamp { // process thread only for parent messages
 			// if there's a thread timestamp, we need to find and add it.
-			thread, err := cf.AllThreadMessages(chID, mm[i].ThreadTimestamp)
+			thread, err := cf.AllThreadMessages(channelID, mm[i].ThreadTimestamp)
 			if err != nil {
 				return err
 			}
@@ -317,9 +333,9 @@ func stdConvert(fsa fsadapter.FS, cd *chunk.Directory, chID string) error {
 		conv.Messages = append(conv.Messages, sdm)
 	}
 
-	f, err := fsa.Create(chID + ".json")
+	f, err := fsa.Create(fileID + ".json")
 	if err != nil {
-		return fmt.Errorf("fsadapter: unable to create file %s: %w", chID+".json", err)
+		return fmt.Errorf("fsadapter: unable to create file %s: %w", fileID+".json", err)
 	}
 	defer f.Close()
 	return json.NewEncoder(f).Encode(conv)

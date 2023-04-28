@@ -56,7 +56,25 @@ func CreateDir(dir string) (*Directory, error) {
 	return &Directory{dir: dir}, nil
 }
 
-// RemoveAll deletes the directory and all its contents.
+// FileID returns the file ID for the given channel and thread timestamp.
+// FileID is the ID of the file within the directory (it's basically the
+// file name without extension).  If includeThread is true and threadTS is
+// not empty, the thread timestamp will be appended to the channel ID.
+// Otherwise, only the channel ID will be returned.
+func FileID(channelID, threadTS string, includeThread bool) string {
+	if includeThread && threadTS != "" {
+		return channelID + "-" + threadTS
+	}
+	return channelID
+}
+
+func SplitFileID(fileID string) (channelID, threadTS string) {
+	channelID, threadTS, _ = strings.Cut(fileID, "-")
+	return
+}
+
+// RemoveAll deletes the directory and all its contents.  Make sure all files
+// are closed.
 func (d *Directory) RemoveAll() error {
 	return os.RemoveAll(d.dir)
 }
@@ -172,8 +190,8 @@ func (d *Directory) Users() ([]slack.User, error) {
 
 // Open opens a chunk file with the given name.  Extension is appended
 // automatically.
-func (d *Directory) Open(name string) (*File, error) {
-	f, err := d.OpenRAW(d.filename(name))
+func (d *Directory) Open(fileID string) (*File, error) {
+	f, err := d.OpenRAW(d.filename(fileID))
 	if err != nil {
 		return nil, err
 	}
@@ -187,9 +205,9 @@ func (d *Directory) OpenRAW(filename string) (io.ReadSeekCloser, error) {
 	return openChunks(filepath.Join(filename))
 }
 
-// filename returns the full path of the chunk file with the given name.
-func (d *Directory) filename(name string) string {
-	return filepath.Join(d.dir, name+ext)
+// filename returns the full path of the chunk file with the given fileID.
+func (d *Directory) filename(fileID string) string {
+	return filepath.Join(d.dir, fileID+ext)
 }
 
 // Create creates the chunk file with the given name.  Extension is appended
@@ -202,8 +220,8 @@ func (d *Directory) filename(name string) string {
 //
 // It will NOT overwrite an existing file and will return an error if the file
 // exists.
-func (d *Directory) Create(name string) (io.WriteCloser, error) {
-	filename := d.filename(name)
+func (d *Directory) Create(fileID string) (io.WriteCloser, error) {
+	filename := d.filename(fileID)
 	if fi, err := os.Stat(filename); err == nil {
 		if fi.IsDir() {
 			return nil, fmt.Errorf("is a directory: %s", filename)

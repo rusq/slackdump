@@ -44,7 +44,7 @@ func (s *DirServer) Close() {
 
 func (s *DirServer) dirRouter() *http.ServeMux {
 	mux := http.NewServeMux()
-	mux.Handle("/api/conversations.info", s.chunkWrapper(handleConversationInfo))
+	mux.Handle("/api/conversations.info", s.chunkWrapper(handleConversationsInfo))
 	mux.Handle("/api/conversations.history", s.chunkWrapper(handleConversationsHistory))
 	mux.Handle("/api/conversations.replies", s.chunkWrapper(handleConversationsReplies))
 

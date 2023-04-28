@@ -80,10 +80,9 @@ const (
 	channelChunkID GroupID = "lch"
 	wspInfoChunkID GroupID = "iw"
 
-	threadPrefix         = "t"
-	filePrefix           = "f"
-	chanInfoPrefix       = "ic"
-	threadChanInfoPrefix = "it"
+	threadPrefix   = "t"
+	filePrefix     = "f"
+	chanInfoPrefix = "ic"
 )
 
 // ID returns a Group ID for the chunk.
@@ -96,7 +95,7 @@ func (c *Chunk) ID() GroupID {
 	case CFiles:
 		return id(filePrefix, c.ChannelID, c.Parent.Timestamp)
 	case CChannelInfo:
-		return channelInfoID(c.ChannelID, c.ThreadTS != "")
+		return channelInfoID(c.ChannelID)
 	case CUsers:
 		return userChunkID // static, one team per chunk file
 	case CChannels:
@@ -115,10 +114,7 @@ func threadID(channelID, threadTS string) GroupID {
 	return id(threadPrefix, channelID, threadTS)
 }
 
-func channelInfoID(channelID string, isThread bool) GroupID {
-	if isThread {
-		return id(threadChanInfoPrefix, channelID)
-	}
+func channelInfoID(channelID string) GroupID {
 	return id(chanInfoPrefix, channelID)
 }
 

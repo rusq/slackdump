@@ -6,6 +6,7 @@ import (
 	"runtime/trace"
 	"sync"
 
+	"github.com/rusq/slackdump/v2/internal/chunk"
 	"github.com/rusq/slackdump/v2/internal/chunk/processor"
 	"github.com/rusq/slackdump/v2/logger"
 	"github.com/slack-go/slack"
@@ -115,7 +116,7 @@ func (cv *Conversations) ensure(id string) error {
 
 // ChannelInfo is called for each channel that is retrieved.
 func (cv *Conversations) ChannelInfo(ctx context.Context, ci *slack.Channel, threadTS string) error {
-	r, err := cv.recorder(ci.ID)
+	r, err := cv.recorder(chunk.FileID(ci.ID, threadTS, threadTS != ""))
 	if err != nil {
 		return err
 	}
@@ -211,13 +212,6 @@ func (cv *Conversations) Files(ctx context.Context, channel *slack.Channel, pare
 	return nil
 }
 
-func mkID(channelID, threadTS string, threadOnly bool) string {
-	if !threadOnly {
-		return channelID
-	}
-	return channelID + "-" + threadTS
-}
-
 // ThreadMessages is called for each of the thread messages that are
 // retrieved. The parent message is passed in as well.
 func (cv *Conversations) ThreadMessages(ctx context.Context, channelID string, parent slack.Message, threadOnly bool, isLast bool, tm []slack.Message) error {
@@ -225,7 +219,7 @@ func (cv *Conversations) ThreadMessages(ctx context.Context, channelID string, p
 	defer task.End()
 	lg := logger.FromContext(ctx)
 
-	id := mkID(channelID, parent.ThreadTimestamp, threadOnly)
+	id := chunk.FileID(channelID, parent.ThreadTimestamp, threadOnly)
 	r, err := cv.recorder(id)
 	if err != nil {
 		return err

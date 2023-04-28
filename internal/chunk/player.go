@@ -167,15 +167,15 @@ func (p *Player) Reset() error {
 // ChannelInfo returns the channel information for the given channel.  It
 // returns an error if the channel is not found within the chunkfile.
 func (p *Player) ChannelInfo(id string) (*slack.Channel, error) {
-	return p.channelInfo(id, false)
+	return p.channelInfo(id)
 }
 
 func (p *Player) ThreadChannelInfo(id string) (*slack.Channel, error) {
-	return p.channelInfo(id, true)
+	return p.channelInfo(id)
 }
 
-func (p *Player) channelInfo(id string, isThread bool) (*slack.Channel, error) {
-	chunk, err := p.next(channelInfoID(id, isThread))
+func (p *Player) channelInfo(id string) (*slack.Channel, error) {
+	chunk, err := p.next(channelInfoID(id))
 	if err != nil {
 		return nil, err
 	}

@@ -36,7 +36,7 @@ type Stream struct {
 	oldest, latest time.Time
 	client         streamer
 	limits         rateLimits
-	cc             *chanCache
+	chanCache      *chanCache
 }
 
 type chanCache struct {
@@ -120,9 +120,9 @@ func NewStream(cl streamer, l *Limits, opts ...StreamOption) *Stream {
 
 func newChannelStream(cl streamer, l *Limits, opts ...StreamOption) *Stream {
 	cs := &Stream{
-		client: cl,
-		limits: limits(l),
-		cc:     new(chanCache),
+		client:    cl,
+		limits:    limits(l),
+		chanCache: new(chanCache),
 	}
 	for _, opt := range opts {
 		opt(cs)
@@ -530,24 +530,23 @@ func (cs *Stream) channelInfo(ctx context.Context, proc processor.Conversations,
 	trace.Logf(ctx, "channel_id", "%s, threadTS=%q", channelID, threadTS)
 
 	// to avoid fetching the same channel info multiple times, we cache it.
-	if info := cs.cc.get(channelID); info != nil {
-		return info, nil
-	}
-
 	var info *slack.Channel
-	if err := network.WithRetry(ctx, cs.limits.channels, cs.limits.tier.Tier3.Retries, func() error {
-		var err error
-		info, err = cs.client.GetConversationInfoContext(ctx, &slack.GetConversationInfoInput{
-			ChannelID: channelID,
-		})
-		return err
-	}); err != nil {
-		return nil, fmt.Errorf("error getting channel information for %s: %w", channelID, err)
+	if info = cs.chanCache.get(channelID); info == nil {
+		if err := network.WithRetry(ctx, cs.limits.channels, cs.limits.tier.Tier3.Retries, func() error {
+			var err error
+			info, err = cs.client.GetConversationInfoContext(ctx, &slack.GetConversationInfoInput{
+				ChannelID: channelID,
+			})
+			return err
+		}); err != nil {
+			return nil, fmt.Errorf("error getting channel information for %s: %w", channelID, err)
+		}
+		cs.chanCache.set(channelID, info)
 	}
 	if err := proc.ChannelInfo(ctx, info, threadTS); err != nil {
 		return nil, err
 	}
-	cs.cc.set(channelID, info)
+
 	return info, nil
 }
 
