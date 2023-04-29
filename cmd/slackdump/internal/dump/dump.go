@@ -19,10 +19,11 @@ import (
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/auth"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/cfg"
-	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/export/expproc"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v2/downloader"
+	"github.com/rusq/slackdump/v2/internal/chunk/processor/expproc"
 	"github.com/rusq/slackdump/v2/internal/chunk/transform"
+	"github.com/rusq/slackdump/v2/internal/chunk/transform/subproc"
 	"github.com/rusq/slackdump/v2/internal/nametmpl"
 	"github.com/rusq/slackdump/v2/internal/structures"
 	"github.com/rusq/slackdump/v2/logger"
@@ -52,7 +53,6 @@ var ErrNothingToDo = errors.New("no conversations to dump, run \"slackdump help 
 
 type options struct {
 	NameTemplate string // NameTemplate is the template for the output file name.
-	JSONL        bool   // JSONL should be true if the output should be JSONL instead of JSON.
 	Compat       bool   // compatibility mode
 	UpdateLinks  bool   //update file links to point to the downloaded files
 }
@@ -116,26 +116,62 @@ func RunDump(ctx context.Context, cmd *base.Command, args []string) error {
 		return err
 	}
 
+	p := dumpparams{
+		list:      list,
+		tmpl:      tmpl,
+		fpupdate:  opts.UpdateLinks,
+		dumpFiles: cfg.DumpFiles,
+		oldest:    time.Time(cfg.Oldest),
+		latest:    time.Time(cfg.Latest),
+	}
+
 	// leave the compatibility mode to the user, if the new version is playing
 	// tricks.
-	dumpFn := dumpv3_2
+	dumpFn := dumpv3
 	if opts.Compat {
 		dumpFn = dumpv2
 	}
 
-	if err := dumpFn(ctx, sess, fsa, list, tmpl, opts.UpdateLinks); err != nil {
+	if err := dumpFn(ctx, sess, fsa, p); err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return err
 	}
 	return nil
 }
 
-func dumpv3_2(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, list *structures.EntityList, t *nametmpl.Template, updLinks bool) error {
+type dumpparams struct {
+	list      *structures.EntityList // list of entities to dump
+	tmpl      *nametmpl.Template     // file naming template
+	oldest    time.Time
+	latest    time.Time
+	fpupdate  bool // update filepath?
+	dumpFiles bool // download files?
+}
+
+func (p *dumpparams) validate() error {
+	if p.list.IsEmpty() {
+		return ErrNothingToDo
+	}
+	if p.tmpl == nil {
+		p.tmpl = nametmpl.NewDefault()
+	}
+	return nil
+}
+
+func dumpv3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, p dumpparams) error {
 	ctx, task := trace.NewTask(ctx, "dumpv3_2")
 	defer task.End()
+
+	if err := p.validate(); err != nil {
+		return err
+	}
+	if fsa == nil {
+		return fmt.Errorf("no filesystem adapter")
+	}
+
 	lg := logger.FromContext(ctx)
 
-	if list.IsEmpty() {
+	if p.list.IsEmpty() {
 		return ErrNothingToDo
 	}
 
@@ -149,21 +185,24 @@ func dumpv3_2(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 	dl := downloader.New(sess.Client(), fsa, downloader.WithLogger(lg))
 	dl.Start(ctx)
 	defer dl.Stop()
-	subproc := transform.NewDumpSubproc(dl)
+	subproc := subproc.NewDumpSubproc(dl)
 
 	opts := []transform.StdOption{
-		transform.StdWithTemplate(t),
+		transform.StdWithTemplate(p.tmpl),
 		transform.StdWithLogger(lg),
 	}
-	if updLinks {
+	if p.fpupdate {
 		opts = append(opts, transform.StdWithPipeline(subproc.PathUpdateFunc))
 	}
+
+	// Initialise the standard transformer.
 	tf, err := transform.NewStandard(fsa, dir, opts...)
 	if err != nil {
 		return fmt.Errorf("failed to create transform: %w", err)
 	}
 	defer tf.Close()
 
+	// Create conversation processor.
 	proc, err := expproc.NewConversation(dir, subproc, tf, expproc.WithLogger(lg), expproc.WithRecordFiles(false))
 	if err != nil {
 		return fmt.Errorf("failed to create conversation processor: %w", err)
@@ -174,7 +213,10 @@ func dumpv3_2(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 		}
 	}()
 
-	if err := sess.Stream().Conversations(ctx, proc, list.Generator(ctx), func(sr slackdump.StreamResult) error {
+	if err := sess.Stream(
+		slackdump.OptOldest(time.Time(p.oldest)),
+		slackdump.OptLatest(time.Time(p.latest)),
+	).Conversations(ctx, proc, p.list.Generator(ctx), func(sr slackdump.StreamResult) error {
 		if sr.Err != nil {
 			return sr.Err
 		}
@@ -188,13 +230,13 @@ func dumpv3_2(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 	return nil
 }
 
-func dumpv2(ctx context.Context, sess *slackdump.Session, fs fsadapter.FS, list *structures.EntityList, t *nametmpl.Template, updLinks bool) error {
-	for _, link := range list.Include {
-		conv, err := sess.Dump(ctx, link, time.Time(cfg.Oldest), time.Time(cfg.Latest))
+func dumpv2(ctx context.Context, sess *slackdump.Session, fs fsadapter.FS, p dumpparams) error {
+	for _, link := range p.list.Include {
+		conv, err := sess.Dump(ctx, link, time.Time(p.oldest), time.Time(p.latest))
 		if err != nil {
 			return err
 		}
-		if err := save(ctx, fs, t.Execute(conv), conv); err != nil {
+		if err := save(ctx, fs, p.tmpl.Execute(conv), conv); err != nil {
 			return err
 		}
 	}

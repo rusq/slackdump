@@ -34,10 +34,6 @@ func NewExport(typ export.ExportType, dl *downloader.Client) processor.Filer {
 	}
 }
 
-type baseSubproc struct {
-	dcl *downloader.Client
-}
-
 type mmsubproc struct {
 	baseSubproc
 }

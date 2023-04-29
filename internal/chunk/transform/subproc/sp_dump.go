@@ -4,18 +4,19 @@ import (
 	"context"
 	"path/filepath"
 
-	"github.com/rusq/slackdump/v2/downloader"
 	"github.com/rusq/slackdump/v2/internal/chunk"
 	"github.com/rusq/slackdump/v2/internal/structures/files"
 	"github.com/slack-go/slack"
 )
 
+// DumpSubproc is a file subprocessor that downloads all files to the local
+// filesystem using underlying downloader.
 type DumpSubproc struct {
 	baseSubproc
 }
 
 // NewDumpSubproc returns a new Dump File Subprocessor.
-func NewDumpSubproc(dl *downloader.Client) DumpSubproc {
+func NewDumpSubproc(dl Downloader) DumpSubproc {
 	return DumpSubproc{
 		baseSubproc: baseSubproc{
 			dcl: dl,
@@ -28,9 +29,7 @@ func (d DumpSubproc) Files(ctx context.Context, channel *slack.Channel, m slack.
 		if !isDownloadable(&f) {
 			continue
 		}
-		dir := chunk.ToFileID(channel.ID, m.ThreadTimestamp, true)
-		filename := f.ID + "-" + f.Name
-		if err := d.dcl.Download(filepath.Join(dir.String(), filename), f.URLPrivateDownload); err != nil {
+		if err := d.dcl.Download(d.filepath(channel.ID, m.ThreadTimestamp, &f), f.URLPrivateDownload); err != nil {
 			return err
 		}
 	}
@@ -39,7 +38,7 @@ func (d DumpSubproc) Files(ctx context.Context, channel *slack.Channel, m slack.
 
 // PathUpdateFunc updates the path in URLDownload and URLPrivateDownload of every
 // file in the given message slice to point to the physical downloaded file
-// location.
+// location.  It can be plugged in the pipeline of Dump.
 func (d DumpSubproc) PathUpdateFunc(channelID, threadTS string, mm []slack.Message) error {
 	for i := range mm {
 		for j := range mm[i].Files {

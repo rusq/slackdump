@@ -13,11 +13,11 @@ import (
 
 	"github.com/rusq/slackdump/v2"
 
-	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/export/expproc"
 	"github.com/rusq/slackdump/v2/downloader"
 	"github.com/rusq/slackdump/v2/export"
 	"github.com/rusq/slackdump/v2/internal/chunk"
 	"github.com/rusq/slackdump/v2/internal/chunk/processor"
+	"github.com/rusq/slackdump/v2/internal/chunk/processor/expproc"
 	"github.com/rusq/slackdump/v2/internal/chunk/transform"
 	"github.com/rusq/slackdump/v2/internal/chunk/transform/subproc"
 	"github.com/rusq/slackdump/v2/internal/structures"

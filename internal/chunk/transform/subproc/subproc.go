@@ -5,6 +5,17 @@ import (
 	"github.com/slack-go/slack"
 )
 
+// Downloader is the interface that wraps the Download method.
+type Downloader interface {
+	// Download should download the file at the given URL and save it to the
+	// given path.
+	Download(fullpath string, url string) error
+}
+
+type baseSubproc struct {
+	dcl Downloader
+}
+
 // ExportTokenUpdateFn returns a function that appends the token to every file
 // URL in the given message.
 func ExportTokenUpdateFn(token string) func(msg *slack.Message) error {
