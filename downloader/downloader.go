@@ -125,12 +125,13 @@ func (c *Client) startWorkers(ctx context.Context, req <-chan Request) *sync.Wai
 	if c.workers == 0 {
 		c.workers = defNumWorkers
 	}
+	seen := fltSeen(req)
 	var wg sync.WaitGroup
 	// create workers
 	for i := 0; i < c.workers; i++ {
 		wg.Add(1)
 		go func(workerNum int) {
-			c.worker(ctx, fltSeen(req))
+			c.worker(ctx, seen)
 			wg.Done()
 			c.lg.Debugf("download worker %d terminated", workerNum)
 		}(i)

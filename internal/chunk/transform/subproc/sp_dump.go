@@ -29,7 +29,7 @@ func (d DumpSubproc) Files(ctx context.Context, channel *slack.Channel, m slack.
 		if !isDownloadable(&f) {
 			continue
 		}
-		if err := d.dcl.Download(d.filepath(channel.ID, m.ThreadTimestamp, &f), f.URLPrivateDownload); err != nil {
+		if err := d.dcl.Download(d.filepath(channel.ID, &f), f.URLPrivateDownload); err != nil {
 			return err
 		}
 	}
@@ -42,7 +42,7 @@ func (d DumpSubproc) Files(ctx context.Context, channel *slack.Channel, m slack.
 func (d DumpSubproc) PathUpdateFunc(channelID, threadTS string, mm []slack.Message) error {
 	for i := range mm {
 		for j := range mm[i].Files {
-			path := d.filepath(channelID, threadTS, &mm[i].Files[j])
+			path := d.filepath(channelID, &mm[i].Files[j])
 			if err := files.UpdatePathFn(path)(&mm[i].Files[j]); err != nil {
 				return err
 			}
@@ -51,6 +51,6 @@ func (d DumpSubproc) PathUpdateFunc(channelID, threadTS string, mm []slack.Messa
 	return nil
 }
 
-func (d DumpSubproc) filepath(channelID, threadTS string, f *slack.File) string {
-	return filepath.Join(chunk.ToFileID(channelID, threadTS, true).String(), f.ID+"-"+f.Name)
+func (d DumpSubproc) filepath(channelID string, f *slack.File) string {
+	return filepath.Join(chunk.ToFileID(channelID, "", false).String(), f.ID+"-"+f.Name)
 }
