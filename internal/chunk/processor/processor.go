@@ -8,22 +8,30 @@ import (
 	"github.com/slack-go/slack"
 )
 
-// Conversations is the interface for conversation fetching.
+// Conversations is the interface for conversation fetching with files.
 //
 //go:generate mockgen -destination ../../mocks/mock_processor/mock_processor.go github.com/rusq/slackdump/v2/internal/chunk/processor Conversations,Users,Channels
 type Conversations interface {
+	Messenger
+	Filer
+	ChannelInformer
+	io.Closer
+}
+
+type ChannelInformer interface {
 	// ChannelInfo is called for each channel that is retrieved.  ChannelInfo
 	// will be called for each direct thread link, and in this case, threadID
 	// will be set to the parent message's timestamp.
 	ChannelInfo(ctx context.Context, ci *slack.Channel, threadID string) error
+}
+
+// Messenger is the interface that implements only the message fetching.
+type Messenger interface {
 	// Messages is called for each message that is retrieved.
-	Messages(ctx context.Context, channelID string, numThreads int, isLast bool, mm []slack.Message) error
+	Messages(ctx context.Context, channelID string, numThreads int, isLast bool, messages []slack.Message) error
 	// ThreadMessages is called for each of the thread messages that are
 	// retrieved. The parent message is passed in as well.
-	ThreadMessages(ctx context.Context, channelID string, parent slack.Message, threadOnly, isLast bool, tm []slack.Message) error
-
-	Filer
-	io.Closer
+	ThreadMessages(ctx context.Context, channelID string, parent slack.Message, threadOnly, isLast bool, replies []slack.Message) error
 }
 
 type Filer interface {

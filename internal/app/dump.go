@@ -112,15 +112,11 @@ func (app *dump) dumpOne(ctx context.Context, fs fsadapter.FS, filetmpl *nametmp
 		return err
 	}
 
-	filename, err := filetmpl.Execute(cnv)
-	if err != nil {
-		return err
-	}
 	users, err := app.sess.GetUsers(ctx)
 	if err != nil {
 		return err
 	}
-	return app.writeFiles(ctx, fs, filename, cnv, users)
+	return app.writeFiles(ctx, fs, filetmpl.Execute(cnv), cnv, users)
 }
 
 // writeFiles writes the conversation to disk.  If text output is set, it will

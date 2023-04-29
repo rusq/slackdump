@@ -1,15 +1,16 @@
 package processor
 
 import (
+	"context"
 	"runtime"
 
 	"github.com/rusq/dlog"
 	"github.com/slack-go/slack"
 )
 
-type Discarder struct{}
+type Printer struct{}
 
-func (d *Discarder) Messages(messages []slack.Message) error {
+func (d *Printer) Messages(ctx context.Context, channelID string, numThreads int, isLast bool, messages []slack.Message) error {
 	dlog.Printf("Discarding %d messages", len(messages))
 	for i := range messages {
 		dlog.Printf("  message: %s", messages[i].Timestamp)
@@ -17,7 +18,7 @@ func (d *Discarder) Messages(messages []slack.Message) error {
 	return nil
 }
 
-func (d *Discarder) ThreadMessages(parent slack.Message, replies []slack.Message) error {
+func (d *Printer) ThreadMessages(ctx context.Context, channelID string, parent slack.Message, threadOnly, isLast bool, replies []slack.Message) error {
 	dlog.Printf("Discarding %d replies to %s", len(replies), parent.Timestamp)
 	for i := range replies {
 		dlog.Printf("  reply: %s", replies[i].Timestamp)
@@ -25,7 +26,7 @@ func (d *Discarder) ThreadMessages(parent slack.Message, replies []slack.Message
 	return nil
 }
 
-func (d *Discarder) Files(parent slack.Message, isThread bool, files []slack.File) error {
+func (d *Printer) Files(parent slack.Message, isThread bool, files []slack.File) error {
 	dlog.Printf("Discarding %d files to %s (thread: %v)", len(files), parent.Timestamp, isThread)
 	if parent.Timestamp == "" {
 		runtime.Breakpoint()
@@ -36,7 +37,7 @@ func (d *Discarder) Files(parent slack.Message, isThread bool, files []slack.Fil
 	return nil
 }
 
-func (d *Discarder) Close() error {
+func (d *Printer) Close() error {
 	dlog.Println("Discarder closing")
 	return nil
 }

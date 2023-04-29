@@ -35,6 +35,7 @@ type Template struct {
 	t *template.Template
 }
 
+// New returns the template from a string.
 func New(t string) (*Template, error) {
 	tmpl, err := compile(t)
 	if err != nil {
@@ -43,6 +44,7 @@ func New(t string) (*Template, error) {
 	return &Template{tmpl}, nil
 }
 
+// NewDefault returns the default template.
 func NewDefault() *Template {
 	t, err := New(Default)
 	if err != nil {
@@ -75,12 +77,15 @@ func compile(t string) (*template.Template, error) {
 	return tmpl, nil
 }
 
-func (t *Template) Execute(c *types.Conversation) (string, error) {
+// Execute executes the template and returns the result.  It panics if the
+// template cannot be executed, but please note that the template is checked
+// for validity at compile time.
+func (t *Template) Execute(c *types.Conversation) string {
 	var buf strings.Builder
 	if err := t.t.ExecuteTemplate(&buf, filenameTmplName, c); err != nil {
-		return "", err
+		panic(err)
 	}
-	return buf.String(), nil
+	return buf.String()
 }
 
 func Must(s string, err error) string {

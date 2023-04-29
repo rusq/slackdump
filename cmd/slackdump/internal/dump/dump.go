@@ -15,7 +15,6 @@ import (
 
 	"github.com/rusq/dlog"
 	"github.com/rusq/fsadapter"
-	"golang.org/x/sync/errgroup"
 
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/auth"
@@ -23,7 +22,6 @@ import (
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/export/expproc"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v2/downloader"
-	"github.com/rusq/slackdump/v2/internal/chunk/state"
 	"github.com/rusq/slackdump/v2/internal/chunk/transform"
 	"github.com/rusq/slackdump/v2/internal/nametmpl"
 	"github.com/rusq/slackdump/v2/internal/structures"
@@ -145,7 +143,7 @@ func dumpv3_2(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 	}
 	lg.Debugf("using directory: %s", dir)
 
-	tf, err := transform.NewStandard2(fsa, dir)
+	tf, err := transform.NewStandard(fsa, dir)
 	if err != nil {
 		return fmt.Errorf("failed to create transform: %w", err)
 	}
@@ -181,77 +179,13 @@ func dumpv3_2(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 	return nil
 }
 
-func dumpv3(ctx context.Context, sess *slackdump.Session, fs fsadapter.FS, list *structures.EntityList, t *nametmpl.Template) error {
-	ctx, task := trace.NewTask(ctx, "dumpv3")
-	defer task.End()
-
-	lg := logger.FromContext(ctx)
-
-	p := &transform.Parameters{
-		Oldest:    time.Time(cfg.Oldest),
-		Latest:    time.Time(cfg.Latest),
-		List:      list,
-		DumpFiles: cfg.DumpFiles,
-	}
-	lg.Debugf("fetch parameters: %+v", p)
-
-	tmpdir, err := os.MkdirTemp("", "slackdump-*")
-	if err != nil {
-		base.SetExitStatus(base.SGenericError)
-		return err
-	}
-	lg.Debugf("using temporary directory:  %s", tmpdir)
-
-	tf := transform.NewStandard(fs, transform.WithNameFn(t.Execute))
-	var eg errgroup.Group
-	for _, link := range p.List.Include {
-		lg.Printf("fetching %q", link)
-
-		cr := trace.StartRegion(ctx, "fetch.Conversation")
-		statefile, err := transform.Fetch(ctx, sess, tmpdir, link, p)
-		cr.End()
-		if err != nil {
-			return err
-		}
-		eg.Go(func() error {
-			return convertChunks(ctx, tf, statefile, tmpdir)
-		})
-	}
-	lg.Printf("waiting for all conversations to finish conversion...")
-	if err := eg.Wait(); err != nil {
-		return err
-	}
-	return os.RemoveAll(tmpdir)
-}
-
-func convertChunks(ctx context.Context, tf transform.Interface, statefile string, dir string) error {
-	ctx, task := trace.NewTask(ctx, "convert")
-	defer task.End()
-
-	lg := logger.FromContext(ctx)
-
-	lg.Printf("converting %q", statefile)
-	st, err := state.Load(statefile)
-	if err != nil {
-		return err
-	}
-	if err := tf.Transform(ctx, dir, st); err != nil {
-		return err
-	}
-	return nil
-}
-
 func dumpv2(ctx context.Context, sess *slackdump.Session, fs fsadapter.FS, list *structures.EntityList, t *nametmpl.Template) error {
 	for _, link := range list.Include {
 		conv, err := sess.Dump(ctx, link, time.Time(cfg.Oldest), time.Time(cfg.Latest))
 		if err != nil {
 			return err
 		}
-		name, err := t.Execute(conv)
-		if err != nil {
-			return err
-		}
-		if err := save(ctx, fs, name, conv); err != nil {
+		if err := save(ctx, fs, t.Execute(conv), conv); err != nil {
 			return err
 		}
 	}

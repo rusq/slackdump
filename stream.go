@@ -523,7 +523,7 @@ func procFiles(ctx context.Context, proc processor.Filer, channel *slack.Channel
 }
 
 // channelInfo fetches the channel info and passes it to the processor.
-func (cs *Stream) channelInfo(ctx context.Context, proc processor.Conversations, channelID string, threadTS string) (*slack.Channel, error) {
+func (cs *Stream) channelInfo(ctx context.Context, proc processor.ChannelInformer, channelID string, threadTS string) (*slack.Channel, error) {
 	ctx, task := trace.NewTask(ctx, "channelInfo")
 	defer task.End()
 
