@@ -159,7 +159,7 @@ func stdConvert(fsa fsadapter.FS, cd *chunk.Directory, id chunk.FileID, nametmpl
 		Messages: msgs,
 	}
 
-	f, err := fsa.Create(nametmpl.Execute(conv) + ".json")
+	f, err := fsa.Create(nametmpl.Execute(conv))
 	if err != nil {
 		return fmt.Errorf("fsadapter: unable to create file %s: %w", id+".json", err)
 	}

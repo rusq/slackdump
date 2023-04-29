@@ -34,3 +34,9 @@ func ExportTokenUpdateFn(token string) func(msg *slack.Message) error {
 func isDownloadable(f *slack.File) bool {
 	return f.Mode != "hidden_by_limit" && f.Mode != "external" && !f.IsExternal
 }
+
+type NoopDownloader struct{}
+
+func (NoopDownloader) Download(fullpath string, url string) error {
+	return nil
+}

@@ -13,6 +13,7 @@ import (
 
 	"github.com/rusq/slackdump/v2"
 
+	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v2/downloader"
 	"github.com/rusq/slackdump/v2/export"
 	"github.com/rusq/slackdump/v2/internal/chunk"
@@ -53,11 +54,6 @@ func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 		return fmt.Errorf("failed to create transformer: %w", err)
 	}
 	defer tf.Close()
-
-	// starting the downloader
-	dl := downloader.New(sess.Client(), fsa, downloader.WithLogger(lg))
-	dl.Start(ctx)
-	defer dl.Stop()
 
 	lg.Printf("using %s as the temporary directory", tmpdir)
 	lg.Print("running export...")
@@ -114,7 +110,18 @@ func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 	}
 	// conversations goroutine
 	{
-		conv, err := expproc.NewConversation(tmpdir, subproc.NewExport(options.Type, dl), tf)
+		// starting the downloader
+		var sdl subproc.Downloader
+		if options.Type == export.TNoDownload || !cfg.DumpFiles {
+			sdl = subproc.NoopDownloader{}
+		} else {
+			dl := downloader.New(sess.Client(), fsa, downloader.WithLogger(lg))
+			dl.Start(ctx)
+			defer dl.Stop()
+			sdl = dl
+		}
+
+		conv, err := expproc.NewConversation(tmpdir, subproc.NewExport(options.Type, sdl), tf)
 		if err != nil {
 			return fmt.Errorf("error initialising conversation processor: %w", err)
 		}

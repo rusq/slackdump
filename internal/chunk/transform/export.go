@@ -288,7 +288,7 @@ type msgUpdFunc func(*slack.Message) error
 // writeMessages writes the messages to the file system adapter.
 func writeMessages(ctx context.Context, fsa fsadapter.FS, pl *chunk.File, ci *slack.Channel, users []slack.User, updFn []msgUpdFunc) error {
 	uidx := types.Users(users).IndexByID()
-	trgdir := ChannelName(ci)
+	trgdir := ExportChanName(ci)
 	lg := logger.FromContext(ctx)
 	var (
 		prevDt string        // previous date
@@ -459,8 +459,8 @@ func writeJSONFooter(w io.Writer) error {
 	return err
 }
 
-// ChannelName returns the channel name, or the channel ID if it is a DM.
-func ChannelName(ch *slack.Channel) string {
+// ExportChanName returns the channel name, or the channel ID if it is a DM.
+func ExportChanName(ch *slack.Channel) string {
 	if ch.IsIM {
 		return ch.ID
 	}

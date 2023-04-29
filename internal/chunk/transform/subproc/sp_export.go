@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/rusq/slackdump/v2/downloader"
 	"github.com/rusq/slackdump/v2/export"
 	"github.com/rusq/slackdump/v2/internal/chunk/processor"
 	"github.com/rusq/slackdump/v2/internal/chunk/transform"
@@ -15,7 +14,7 @@ import (
 // NewExport initialises an export file subprocessor based on the given export
 // type.  This subprocessor can be later plugged into the
 // [expproc.Conversations] processor.
-func NewExport(typ export.ExportType, dl *downloader.Client) processor.Filer {
+func NewExport(typ export.ExportType, dl Downloader) processor.Filer {
 	switch typ {
 	case export.TStandard:
 		return stdsubproc{
@@ -58,7 +57,7 @@ func (mm stdsubproc) Files(ctx context.Context, channel *slack.Channel, _ slack.
 			continue
 		}
 		if err := mm.dcl.Download(
-			filepath.Join(transform.ChannelName(channel), baseDir, fmt.Sprintf("%s-%s", f.ID, f.Name)),
+			filepath.Join(transform.ExportChanName(channel), baseDir, fmt.Sprintf("%s-%s", f.ID, f.Name)),
 			f.URLPrivateDownload,
 		); err != nil {
 			return err

@@ -54,7 +54,7 @@ var ErrNothingToDo = errors.New("no conversations to dump, run \"slackdump help 
 type options struct {
 	NameTemplate string // NameTemplate is the template for the output file name.
 	Compat       bool   // compatibility mode
-	UpdateLinks  bool   //update file links to point to the downloaded files
+	UpdateLinks  bool   // update file links to point to the downloaded files
 }
 
 var opts options
@@ -127,15 +127,16 @@ func RunDump(ctx context.Context, cmd *base.Command, args []string) error {
 
 	// leave the compatibility mode to the user, if the new version is playing
 	// tricks.
-	dumpFn := dumpv3
+	start := time.Now()
+	dumpFn := dump
 	if opts.Compat {
 		dumpFn = dumpv2
 	}
-
 	if err := dumpFn(ctx, sess, fsa, p); err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return err
 	}
+	dlog.Printf("dumped %d conversations in %s", len(p.list.Include), time.Since(start))
 	return nil
 }
 
@@ -158,7 +159,7 @@ func (p *dumpparams) validate() error {
 	return nil
 }
 
-func dumpv3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, p dumpparams) error {
+func dump(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, p dumpparams) error {
 	ctx, task := trace.NewTask(ctx, "dumpv3_2")
 	defer task.End()
 
@@ -182,16 +183,23 @@ func dumpv3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, p du
 	lg.Debugf("using directory: %s", dir)
 
 	// files subprocessor
-	dl := downloader.New(sess.Client(), fsa, downloader.WithLogger(lg))
-	dl.Start(ctx)
-	defer dl.Stop()
-	subproc := subproc.NewDumpSubproc(dl)
+	var sdl subproc.Downloader
+	if p.dumpFiles {
+		dl := downloader.New(sess.Client(), fsa, downloader.WithLogger(lg))
+		dl.Start(ctx)
+		defer dl.Stop()
+		sdl = dl
+	} else {
+		sdl = subproc.NoopDownloader{}
+	}
+
+	subproc := subproc.NewDumpSubproc(sdl)
 
 	opts := []transform.StdOption{
 		transform.StdWithTemplate(p.tmpl),
 		transform.StdWithLogger(lg),
 	}
-	if p.fpupdate {
+	if p.fpupdate && p.dumpFiles {
 		opts = append(opts, transform.StdWithPipeline(subproc.PathUpdateFunc))
 	}
 
