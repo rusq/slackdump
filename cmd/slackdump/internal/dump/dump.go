@@ -54,6 +54,7 @@ type options struct {
 	NameTemplate string // NameTemplate is the template for the output file name.
 	JSONL        bool   // JSONL should be true if the output should be JSONL instead of JSON.
 	Compat       bool   // compatibility mode
+	UpdateLinks  bool   //update file links to point to the downloaded files
 }
 
 var opts options
@@ -62,6 +63,7 @@ var opts options
 func InitDumpFlagset(fs *flag.FlagSet) {
 	fs.StringVar(&opts.NameTemplate, "ft", nametmpl.Default, "output file naming template.\n")
 	fs.BoolVar(&opts.Compat, "compat", false, "compatibility mode")
+	fs.BoolVar(&opts.UpdateLinks, "update-links", false, "update file links to point to the downloaded files.")
 }
 
 func init() {
@@ -121,14 +123,14 @@ func RunDump(ctx context.Context, cmd *base.Command, args []string) error {
 		dumpFn = dumpv2
 	}
 
-	if err := dumpFn(ctx, sess, fsa, list, tmpl); err != nil {
+	if err := dumpFn(ctx, sess, fsa, list, tmpl, opts.UpdateLinks); err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return err
 	}
 	return nil
 }
 
-func dumpv3_2(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, list *structures.EntityList, t *nametmpl.Template) error {
+func dumpv3_2(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, list *structures.EntityList, t *nametmpl.Template, updLinks bool) error {
 	ctx, task := trace.NewTask(ctx, "dumpv3_2")
 	defer task.End()
 	lg := logger.FromContext(ctx)
@@ -143,17 +145,24 @@ func dumpv3_2(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 	}
 	lg.Debugf("using directory: %s", dir)
 
-	tf, err := transform.NewStandard(fsa, dir)
-	if err != nil {
-		return fmt.Errorf("failed to create transform: %w", err)
-	}
-	defer tf.Close()
-
 	// files subprocessor
 	dl := downloader.New(sess.Client(), fsa, downloader.WithLogger(lg))
 	dl.Start(ctx)
 	defer dl.Stop()
 	subproc := transform.NewDumpSubproc(dl)
+
+	opts := []transform.StdOption{
+		transform.StdWithTemplate(t),
+		transform.StdWithLogger(lg),
+	}
+	if updLinks {
+		opts = append(opts, transform.StdWithPipeline(subproc.PathUpdate))
+	}
+	tf, err := transform.NewStandard(fsa, dir, opts...)
+	if err != nil {
+		return fmt.Errorf("failed to create transform: %w", err)
+	}
+	defer tf.Close()
 
 	proc, err := expproc.NewConversation(dir, subproc, tf, expproc.WithLogger(lg), expproc.WithRecordFiles(false))
 	if err != nil {
@@ -179,7 +188,7 @@ func dumpv3_2(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 	return nil
 }
 
-func dumpv2(ctx context.Context, sess *slackdump.Session, fs fsadapter.FS, list *structures.EntityList, t *nametmpl.Template) error {
+func dumpv2(ctx context.Context, sess *slackdump.Session, fs fsadapter.FS, list *structures.EntityList, t *nametmpl.Template, updLinks bool) error {
 	for _, link := range list.Include {
 		conv, err := sess.Dump(ctx, link, time.Time(cfg.Oldest), time.Time(cfg.Latest))
 		if err != nil {

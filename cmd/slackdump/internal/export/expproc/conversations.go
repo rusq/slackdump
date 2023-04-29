@@ -31,13 +31,13 @@ type Conversations struct {
 	mu  sync.RWMutex
 	lg  logger.Interface
 
-	// fileSubproc is the files subprocessor, it is called by the Files method
-	// in addition to recording the files in the chunk file (if recordFiles is
-	// set).  It it useful, when one needs to download the files directly into
+	// filer is the filer subprocessor, it is called by the Files method
+	// in addition to recording the filer in the chunk file (if recordFiles is
+	// set).  It it useful, when one needs to download the filer directly into
 	// a final archive/directory, avoiding the intermediate step of
-	// downloading files into the temporary directory, and then using
-	// transform to download the files.
-	fileSubproc processor.Filer // files sub-processor
+	// downloading filer into the temporary directory, and then using
+	// transform to download the filer.
+	filer       processor.Filer // files sub-processor
 	recordFiles bool
 
 	// tf is the channel transformer that is called for each channel.
@@ -83,11 +83,11 @@ func NewConversation(dir string, filesSubproc processor.Filer, tf Transformer, o
 	}
 
 	c := &Conversations{
-		dir:         dir,
-		lg:          logger.Default,
-		cw:          make(map[chunk.FileID]*channelproc),
-		fileSubproc: filesSubproc,
-		tf:          tf,
+		dir:   dir,
+		lg:    logger.Default,
+		cw:    make(map[chunk.FileID]*channelproc),
+		filer: filesSubproc,
+		tf:    tf,
 	}
 	for _, opt := range opts {
 		opt(c)
@@ -199,7 +199,7 @@ func (cv *Conversations) Messages(ctx context.Context, channelID string, numThre
 // Files is called for each file that is retrieved. The parent message is
 // passed in as well.
 func (cv *Conversations) Files(ctx context.Context, channel *slack.Channel, parent slack.Message, ff []slack.File) error {
-	if err := cv.fileSubproc.Files(ctx, channel, parent, ff); err != nil {
+	if err := cv.filer.Files(ctx, channel, parent, ff); err != nil {
 		return err
 	}
 	if cv.recordFiles {

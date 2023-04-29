@@ -17,7 +17,7 @@ func UpdateTokenFn(token string) UpdateFunc {
 		if token == "" {
 			return nil
 		}
-		return UpdateFileLinksAll(f, func(s *string) error {
+		return UpdateAllLinks(f, func(s *string) error {
 			var err error
 			*s, err = addToken(*s, token)
 			if err != nil {
@@ -30,7 +30,10 @@ func UpdateTokenFn(token string) UpdateFunc {
 
 // fileThumbLinks returns slice of pointers to all private URL links of the file.
 func filePrivateLinks(f *slack.File) []*string {
-	return []*string{&f.URLPrivate, &f.URLPrivateDownload}
+	return []*string{
+		&f.URLPrivate,
+		&f.URLPrivateDownload,
+	}
 }
 
 // fileThumbLinks returns slice of pointers to all thumbnail URLs of the file.
@@ -48,21 +51,21 @@ func fileThumbLinks(f *slack.File) []*string {
 	}
 }
 
-// UpdateFileLinksAll calls fn with pointer to each file URL except permalinks.
+// UpdateAllLinks calls fn with pointer to each file URL except permalinks.
 // fn can modify the string pointed by ptrS.
-func UpdateFileLinksAll(f *slack.File, fn func(ptrS *string) error) error {
-	return callForEach(append(fileThumbLinks(f), filePrivateLinks(f)...), fn)
+func UpdateAllLinks(f *slack.File, fn func(ptrS *string) error) error {
+	return apply(append(fileThumbLinks(f), filePrivateLinks(f)...), fn)
 }
 
-func UpdateFileLinksPrivate(f *slack.File, fn func(ptrS *string) error) error {
-	return callForEach(filePrivateLinks(f), fn)
+func UpdateDownloadLinks(f *slack.File, fn func(ptrS *string) error) error {
+	return apply(filePrivateLinks(f), fn)
 }
 
 // UpdatePathFn sets the URLPrivate and URLPrivateDownload for the file at addr
 // to the specified path.
 func UpdatePathFn(path string) UpdateFunc {
 	return func(f *slack.File) error {
-		return UpdateFileLinksPrivate(f, func(ptrS *string) error {
+		return UpdateDownloadLinks(f, func(ptrS *string) error {
 			*ptrS = path
 			return nil
 		})
@@ -85,8 +88,8 @@ func addToken(uri string, token string) (string, error) {
 	return u.String(), nil
 }
 
-// callForEach calls fn for each element of slice elements.
-func callForEach[T any](elements []*T, fn func(el *T) error) error {
+// apply calls fn for each element of slice elements.
+func apply[T any](elements []*T, fn func(el *T) error) error {
 	for _, ptr := range elements {
 		if err := fn(ptr); err != nil {
 			return err

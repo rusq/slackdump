@@ -12,35 +12,45 @@ import (
 	"github.com/rusq/slackdump/v2/internal/chunk"
 	"github.com/rusq/slackdump/v2/internal/nametmpl"
 	"github.com/rusq/slackdump/v2/internal/structures"
+	"github.com/rusq/slackdump/v2/logger"
 	"github.com/rusq/slackdump/v2/types"
 )
 
 type Standard struct {
-	cd  *chunk.Directory
-	fsa fsadapter.FS
-	// updateFileLink indicates whether the file link should be updated
-	// with the path to the file within the archive/directory.
-	updateFileLink bool
-
+	cd    *chunk.Directory
+	fsa   fsadapter.FS
 	idsC  chan chunk.FileID
 	doneC chan struct{}
 	errC  chan error
-	tmpl  *nametmpl.Template
+	tmpl  Templater
+	lg    logger.Interface
+
+	updatePipeline pipeline
 }
 
 type StdOption func(*Standard)
 
-func StdWithTemplate(tmpl *nametmpl.Template) StdOption {
+type Templater interface {
+	Execute(c *types.Conversation) string
+}
+
+func StdWithTemplate(tmpl Templater) StdOption {
 	return func(s *Standard) {
 		s.tmpl = tmpl
 	}
 }
 
-// StdWithUpdateFileLink indicates whether the file link should be updated
-// with the path to the file within the archive/directory.
-func StdWithUpdateFileLink(b bool) StdOption {
+// StdWithPipeline adds a pipeline function to the transformer, that will
+// be called for each message slice, before it is written to the filesystem.
+func StdWithPipeline(f ...func(channelID string, threadTS string, mm []slack.Message) error) StdOption {
 	return func(s *Standard) {
-		s.updateFileLink = b
+		s.updatePipeline = append(s.updatePipeline, f...)
+	}
+}
+
+func StdWithLogger(log logger.Interface) StdOption {
+	return func(s *Standard) {
+		s.lg = log
 	}
 }
 
@@ -52,6 +62,7 @@ func NewStandard(fsa fsadapter.FS, dir string, opts ...StdOption) (*Standard, er
 	std := &Standard{
 		cd:    cd,
 		fsa:   fsa,
+		lg:    logger.Default,
 		tmpl:  nametmpl.NewDefault(),
 		idsC:  make(chan chunk.FileID),
 		doneC: make(chan struct{}),
@@ -67,7 +78,7 @@ func NewStandard(fsa fsadapter.FS, dir string, opts ...StdOption) (*Standard, er
 func (s *Standard) worker() {
 	defer close(s.errC)
 	for id := range s.idsC {
-		if err := stdConvert(s.fsa, s.cd, id, s.tmpl); err != nil {
+		if err := stdConvert(s.fsa, s.cd, id, s.tmpl, s.updatePipeline...); err != nil {
 			dlog.Printf("error converting %q: %v", id, err)
 			s.errC <- err
 		}
@@ -101,7 +112,21 @@ func (s *Standard) Transform(ctx context.Context, id chunk.FileID) error {
 	return nil
 }
 
-func stdConvert(fsa fsadapter.FS, cd *chunk.Directory, id chunk.FileID, nametmpl *nametmpl.Template) error {
+// pipelineFunc is a function that transforms a slice of slack messages.
+// defining a type alias for brevity.
+type pipelineFunc = func(channelID string, threadTS string, mm []slack.Message) error
+type pipeline []pipelineFunc
+
+func (p pipeline) apply(channelID, threadTS string, mm []slack.Message) error {
+	for i, f := range p {
+		if err := f(channelID, threadTS, mm); err != nil {
+			return fmt.Errorf("pipeline seq=%d, error: %w", i, err)
+		}
+	}
+	return nil
+}
+
+func stdConvert(fsa fsadapter.FS, cd *chunk.Directory, id chunk.FileID, nametmpl Templater, pipeline ...pipelineFunc) error {
 	cf, err := cd.Open(id)
 	if err != nil {
 		return err
@@ -119,9 +144,9 @@ func stdConvert(fsa fsadapter.FS, cd *chunk.Directory, id chunk.FileID, nametmpl
 
 	var msgs []types.Message
 	if threadID == "" {
-		msgs, err = stdConversation(cf, ci)
+		msgs, err = stdConversation(cf, ci, pipeline)
 	} else {
-		msgs, err = stdThread(cf, ci, threadID)
+		msgs, err = stdThread(cf, ci, threadID, pipeline)
 	}
 	if err != nil {
 		return err
@@ -141,10 +166,13 @@ func stdConvert(fsa fsadapter.FS, cd *chunk.Directory, id chunk.FileID, nametmpl
 	return json.NewEncoder(f).Encode(conv)
 }
 
-func stdConversation(cf *chunk.File, ci *slack.Channel) ([]types.Message, error) {
+func stdConversation(cf *chunk.File, ci *slack.Channel, pipeline pipeline) ([]types.Message, error) {
 	mm, err := cf.AllMessages(ci.ID)
 	if err != nil {
 		return nil, err
+	}
+	if err := pipeline.apply(ci.ID, "", mm); err != nil {
+		return nil, fmt.Errorf("conversation: %w", err)
 	}
 	msgs := make([]types.Message, 0, len(mm))
 	for i := range mm {
@@ -167,18 +195,22 @@ func stdConversation(cf *chunk.File, ci *slack.Channel) ([]types.Message, error)
 	return msgs, nil
 }
 
-func stdThread(cf *chunk.File, ci *slack.Channel, threadID string) ([]types.Message, error) {
+func stdThread(cf *chunk.File, ci *slack.Channel, threadTS string, pipeline pipeline) ([]types.Message, error) {
 	// this is a thread.
-	mm, err := cf.AllThreadMessages(ci.ID, threadID)
+	mm, err := cf.AllThreadMessages(ci.ID, threadTS)
 	if err != nil {
 		return nil, err
 	}
 	// get parent message
-	parent, err := cf.ThreadParent(ci.ID, threadID) // TODO: implement
+	parent, err := cf.ThreadParent(ci.ID, threadTS) // TODO: implement
 	if err != nil {
 		return nil, err
 	}
 	mm = append([]slack.Message{*parent}, mm...)
+
+	if err := pipeline.apply(ci.ID, threadTS, mm); err != nil {
+		return nil, fmt.Errorf("conversation: %w", err)
+	}
 
 	return types.ConvertMsgs(mm), nil
 }
