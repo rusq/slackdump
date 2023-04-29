@@ -12,7 +12,6 @@ require (
 	github.com/playwright-community/playwright-go v0.2000.1
 	github.com/rusq/chttp v1.0.1
 	github.com/rusq/dlog v1.4.0
-	github.com/rusq/fsadapter v1.0.0
 	github.com/rusq/osenv/v2 v2.0.1
 	github.com/rusq/secure v0.0.4
 	github.com/rusq/tracer v1.0.1

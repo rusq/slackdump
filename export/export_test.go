@@ -14,8 +14,8 @@ import (
 	"time"
 
 	gomock "github.com/golang/mock/gomock"
-	"github.com/rusq/fsadapter"
 	"github.com/rusq/slackdump/v2"
+	"github.com/rusq/slackdump/v2/fsadapter"
 	"github.com/rusq/slackdump/v2/internal/fixtures"
 	"github.com/rusq/slackdump/v2/internal/mocks/mock_dl"
 	"github.com/rusq/slackdump/v2/internal/mocks/mock_fsadapter"

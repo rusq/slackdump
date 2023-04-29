@@ -14,8 +14,8 @@ import (
 	"golang.org/x/time/rate"
 
 	"github.com/rusq/chttp"
-	"github.com/rusq/fsadapter"
 	"github.com/rusq/slackdump/v2/auth"
+	"github.com/rusq/slackdump/v2/fsadapter"
 	"github.com/rusq/slackdump/v2/internal/network"
 	"github.com/rusq/slackdump/v2/internal/structures"
 	"github.com/rusq/slackdump/v2/logger"

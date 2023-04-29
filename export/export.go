@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"runtime/trace"
 
-	"github.com/rusq/fsadapter"
+	"github.com/rusq/slackdump/v2/fsadapter"
 	"github.com/slack-go/slack"
 
 	"github.com/rusq/slackdump/v2"

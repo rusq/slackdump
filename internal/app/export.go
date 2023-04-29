@@ -7,10 +7,10 @@ import (
 	"runtime/trace"
 	"time"
 
-	"github.com/rusq/fsadapter"
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/auth"
 	"github.com/rusq/slackdump/v2/export"
+	"github.com/rusq/slackdump/v2/fsadapter"
 	"github.com/rusq/slackdump/v2/internal/app/config"
 )
 
