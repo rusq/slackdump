@@ -114,10 +114,6 @@ func OptLatest(t time.Time) StreamOption {
 	}
 }
 
-func NewStream(cl streamer, l *Limits, opts ...StreamOption) *Stream {
-	return newChannelStream(cl, l, opts...)
-}
-
 func newChannelStream(cl streamer, l *Limits, opts ...StreamOption) *Stream {
 	cs := &Stream{
 		client:    cl,

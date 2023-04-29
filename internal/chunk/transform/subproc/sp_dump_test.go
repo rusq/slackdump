@@ -1,4 +1,4 @@
-package transform
+package subproc
 
 import (
 	"testing"
@@ -66,7 +66,7 @@ func Test_dumpSubproc_PathUpdate(t *testing.T) {
 			d := DumpSubproc{
 				baseSubproc: tt.fields.baseSubproc,
 			}
-			if err := d.PathUpdate(tt.args.channelID, tt.args.threadTS, tt.args.mm); (err != nil) != tt.wantErr {
+			if err := d.PathUpdateFunc(tt.args.channelID, tt.args.threadTS, tt.args.mm); (err != nil) != tt.wantErr {
 				t.Errorf("dumpSubproc.PathUpdate() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			assert.Equal(t, tt.wantMM, tt.args.mm)

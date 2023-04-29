@@ -166,6 +166,8 @@ func stdConvert(fsa fsadapter.FS, cd *chunk.Directory, id chunk.FileID, nametmpl
 	return json.NewEncoder(f).Encode(conv)
 }
 
+// stdConversation is the function that does the transformation of the whole
+// channel with threads.
 func stdConversation(cf *chunk.File, ci *slack.Channel, pipeline pipeline) ([]types.Message, error) {
 	mm, err := cf.AllMessages(ci.ID)
 	if err != nil {
@@ -195,6 +197,7 @@ func stdConversation(cf *chunk.File, ci *slack.Channel, pipeline pipeline) ([]ty
 	return msgs, nil
 }
 
+// stdThread is the function that performs transformation of a single thread.
 func stdThread(cf *chunk.File, ci *slack.Channel, threadTS string, pipeline pipeline) ([]types.Message, error) {
 	// this is a thread.
 	mm, err := cf.AllThreadMessages(ci.ID, threadTS)

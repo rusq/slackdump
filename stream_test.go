@@ -20,26 +20,6 @@ import (
 	"github.com/rusq/slackdump/v2/internal/mocks/mock_processor"
 )
 
-var expandedLimits = Limits{
-	Workers:         10,
-	DownloadRetries: 10,
-	Tier2: TierLimits{
-		Boost:   100,
-		Burst:   100,
-		Retries: 20,
-	},
-	Tier3: TierLimits{
-		Boost:   100,
-		Burst:   100,
-		Retries: 20,
-	},
-	Request: RequestLimit{
-		Conversations: 200,
-		Channels:      200,
-		Replies:       1000,
-	},
-}
-
 const testConversation = "CO720D65C25A"
 
 func TestChannelStream(t *testing.T) {

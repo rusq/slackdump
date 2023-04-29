@@ -19,6 +19,7 @@ import (
 	"github.com/rusq/slackdump/v2/internal/chunk"
 	"github.com/rusq/slackdump/v2/internal/chunk/processor"
 	"github.com/rusq/slackdump/v2/internal/chunk/transform"
+	"github.com/rusq/slackdump/v2/internal/chunk/transform/subproc"
 	"github.com/rusq/slackdump/v2/internal/structures"
 	"github.com/rusq/slackdump/v2/logger"
 )
@@ -47,7 +48,7 @@ func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 	if !lg.IsDebug() {
 		defer chunkdir.RemoveAll()
 	}
-	tf, err := transform.NewExport(ctx, fsa, tmpdir, transform.WithBufferSize(1000), transform.WithMsgUpdateFunc(transform.ExportTokenUpdateFn(options.ExportToken)))
+	tf, err := transform.NewExport(ctx, fsa, tmpdir, transform.WithBufferSize(1000), transform.WithMsgUpdateFunc(subproc.ExportTokenUpdateFn(options.ExportToken)))
 	if err != nil {
 		return fmt.Errorf("failed to create transformer: %w", err)
 	}
@@ -113,7 +114,7 @@ func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 	}
 	// conversations goroutine
 	{
-		conv, err := expproc.NewConversation(tmpdir, transform.NewFiler(options.Type, dl), tf)
+		conv, err := expproc.NewConversation(tmpdir, subproc.NewExport(options.Type, dl), tf)
 		if err != nil {
 			return fmt.Errorf("error initialising conversation processor: %w", err)
 		}

@@ -156,7 +156,7 @@ func dumpv3_2(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 		transform.StdWithLogger(lg),
 	}
 	if updLinks {
-		opts = append(opts, transform.StdWithPipeline(subproc.PathUpdate))
+		opts = append(opts, transform.StdWithPipeline(subproc.PathUpdateFunc))
 	}
 	tf, err := transform.NewStandard(fsa, dir, opts...)
 	if err != nil {
