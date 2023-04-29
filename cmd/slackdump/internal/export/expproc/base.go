@@ -16,7 +16,7 @@ type baseproc struct {
 	*chunk.Recorder
 }
 
-func newBaseProc(dir string, name string) (*baseproc, error) {
+func newBaseProc(dir string, name chunk.FileID) (*baseproc, error) {
 	cd, err := chunk.OpenDir(dir)
 	if err != nil {
 		return nil, err

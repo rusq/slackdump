@@ -222,7 +222,7 @@ func loadState(st *state.State, basePath string) (io.ReadSeekCloser, error) {
 type Standard2 struct {
 	cd    *chunk.Directory
 	fsa   fsadapter.FS
-	idsC  chan string
+	idsC  chan chunk.FileID
 	doneC chan struct{}
 	errC  chan error
 }
@@ -235,7 +235,7 @@ func NewStandard2(fsa fsadapter.FS, dir string) (*Standard2, error) {
 	std := &Standard2{
 		cd:    cd,
 		fsa:   fsa,
-		idsC:  make(chan string),
+		idsC:  make(chan chunk.FileID),
 		doneC: make(chan struct{}),
 		errC:  make(chan error, 1),
 	}
@@ -265,7 +265,7 @@ func (s *Standard2) Close() error {
 }
 
 // Transform sends the id to worker that runs the transformation.
-func (s *Standard2) Transform(ctx context.Context, id string) error {
+func (s *Standard2) Transform(ctx context.Context, id chunk.FileID) error {
 	select {
 	case err := <-s.errC:
 		return err
@@ -280,8 +280,8 @@ func (s *Standard2) Transform(ctx context.Context, id string) error {
 	return nil
 }
 
-func stdConvert(fsa fsadapter.FS, cd *chunk.Directory, fileID string) error {
-	cf, err := cd.Open(fileID)
+func stdConvert(fsa fsadapter.FS, cd *chunk.Directory, id chunk.FileID) error {
+	cf, err := cd.Open(id)
 	if err != nil {
 		return err
 	}
@@ -290,7 +290,7 @@ func stdConvert(fsa fsadapter.FS, cd *chunk.Directory, fileID string) error {
 	// threadTS is only populated on the thread only files.  It is safe to
 	// rely on it being non-empty to determine if we need a thread or a
 	// conversation.
-	channelID, threadID := chunk.SplitFileID(fileID)
+	channelID, threadID := id.Split()
 	ci, err := cf.ChannelInfo(channelID)
 	if err != nil {
 		return err
@@ -311,9 +311,9 @@ func stdConvert(fsa fsadapter.FS, cd *chunk.Directory, fileID string) error {
 		Messages: msgs,
 	}
 
-	f, err := fsa.Create(fileID + ".json")
+	f, err := fsa.Create(string(id) + ".json")
 	if err != nil {
-		return fmt.Errorf("fsadapter: unable to create file %s: %w", fileID+".json", err)
+		return fmt.Errorf("fsadapter: unable to create file %s: %w", id+".json", err)
 	}
 	defer f.Close()
 	return json.NewEncoder(f).Encode(conv)

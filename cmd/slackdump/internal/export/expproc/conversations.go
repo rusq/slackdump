@@ -20,14 +20,14 @@ type Transformer interface {
 	// for the channel id becomes zero (meaning, that there are no more chunks
 	// to process).  It should return [transform.ErrClosed] if the transformer
 	// is closed.
-	Transform(ctx context.Context, id string) error
+	Transform(ctx context.Context, id chunk.FileID) error
 }
 
 // Conversations is a processor that writes the channel and thread messages.
 // Zero value is unusable.  Use [NewConversation] to create a new instance.
 type Conversations struct {
 	dir string
-	cw  map[string]*channelproc
+	cw  map[chunk.FileID]*channelproc
 	mu  sync.RWMutex
 	lg  logger.Interface
 
@@ -85,7 +85,7 @@ func NewConversation(dir string, filesSubproc processor.Filer, tf Transformer, o
 	c := &Conversations{
 		dir:         dir,
 		lg:          logger.Default,
-		cw:          make(map[string]*channelproc),
+		cw:          make(map[chunk.FileID]*channelproc),
 		fileSubproc: filesSubproc,
 		tf:          tf,
 	}
@@ -97,7 +97,7 @@ func NewConversation(dir string, filesSubproc processor.Filer, tf Transformer, o
 
 // ensure ensures that the channel file is open and the recorder is
 // initialized.
-func (cv *Conversations) ensure(id string) error {
+func (cv *Conversations) ensure(id chunk.FileID) error {
 	cv.mu.Lock()
 	defer cv.mu.Unlock()
 	if _, ok := cv.cw[id]; ok {
@@ -116,14 +116,14 @@ func (cv *Conversations) ensure(id string) error {
 
 // ChannelInfo is called for each channel that is retrieved.
 func (cv *Conversations) ChannelInfo(ctx context.Context, ci *slack.Channel, threadTS string) error {
-	r, err := cv.recorder(chunk.FileID(ci.ID, threadTS, threadTS != ""))
+	r, err := cv.recorder(chunk.ToFileID(ci.ID, threadTS, threadTS != ""))
 	if err != nil {
 		return err
 	}
 	return r.ChannelInfo(ctx, ci, threadTS)
 }
 
-func (cv *Conversations) recorder(id string) (*baseproc, error) {
+func (cv *Conversations) recorder(id chunk.FileID) (*baseproc, error) {
 	cv.mu.RLock()
 	r, ok := cv.cw[id]
 	cv.mu.RUnlock()
@@ -140,31 +140,31 @@ func (cv *Conversations) recorder(id string) (*baseproc, error) {
 
 // refcount returns the number of references that are expected to be
 // processed for the given channel.
-func (cv *Conversations) refcount(channelID string) int {
+func (cv *Conversations) refcount(id chunk.FileID) int {
 	cv.mu.RLock()
 	defer cv.mu.RUnlock()
-	if _, ok := cv.cw[channelID]; !ok {
+	if _, ok := cv.cw[id]; !ok {
 		return 0
 	}
-	return cv.cw[channelID].refcnt
+	return cv.cw[id].refcnt
 }
 
-func (cv *Conversations) incRefN(channelID string, n int) {
+func (cv *Conversations) incRefN(id chunk.FileID, n int) {
 	cv.mu.Lock()
 	defer cv.mu.Unlock()
-	if _, ok := cv.cw[channelID]; !ok {
+	if _, ok := cv.cw[id]; !ok {
 		return
 	}
-	cv.cw[channelID].refcnt += n
+	cv.cw[id].refcnt += n
 }
 
-func (cv *Conversations) decRef(channelID string) {
+func (cv *Conversations) decRef(id chunk.FileID) {
 	cv.mu.Lock()
 	defer cv.mu.Unlock()
-	if _, ok := cv.cw[channelID]; !ok {
+	if _, ok := cv.cw[id]; !ok {
 		return
 	}
-	cv.cw[channelID].refcnt--
+	cv.cw[id].refcnt--
 }
 
 // Messages is called for each message that is retrieved.
@@ -174,22 +174,24 @@ func (cv *Conversations) Messages(ctx context.Context, channelID string, numThre
 
 	lg := logger.FromContext(ctx)
 	lg.Debugf("processor: channelID=%s, numThreads=%d, isLast=%t, len(mm)=%d", channelID, numThreads, isLast, len(mm))
-	r, err := cv.recorder(channelID)
+
+	id := chunk.ToFileID(channelID, "", false)
+	r, err := cv.recorder(id)
 	if err != nil {
 		return err
 	}
 	if numThreads > 0 {
-		cv.incRefN(channelID, numThreads) // one for each thread
+		cv.incRefN(id, numThreads) // one for each thread
 		trace.Logf(ctx, "ref", "added %d", numThreads)
-		lg.Debugf("processor: increased ref count for %q to %d", channelID, cv.refcount(channelID))
+		lg.Debugf("processor: increased ref count for %q to %d", channelID, cv.refcount(id))
 	}
 	if err := r.Messages(ctx, channelID, numThreads, isLast, mm); err != nil {
 		return err
 	}
 	if isLast {
 		trace.Log(ctx, "isLast", "true, decrease ref count")
-		cv.decRef(channelID)
-		return cv.finalise(ctx, channelID)
+		cv.decRef(id)
+		return cv.finalise(ctx, id)
 	}
 	return nil
 }
@@ -201,7 +203,8 @@ func (cv *Conversations) Files(ctx context.Context, channel *slack.Channel, pare
 		return err
 	}
 	if cv.recordFiles {
-		r, err := cv.recorder(channel.ID)
+		id := chunk.ToFileID(channel.ID, parent.ThreadTimestamp, false) // we don't do files for threads in export
+		r, err := cv.recorder(id)
 		if err != nil {
 			return err
 		}
@@ -219,7 +222,7 @@ func (cv *Conversations) ThreadMessages(ctx context.Context, channelID string, p
 	defer task.End()
 	lg := logger.FromContext(ctx)
 
-	id := chunk.FileID(channelID, parent.ThreadTimestamp, threadOnly)
+	id := chunk.ToFileID(channelID, parent.ThreadTimestamp, threadOnly)
 	r, err := cv.recorder(id)
 	if err != nil {
 		return err
@@ -240,7 +243,7 @@ func (cv *Conversations) ThreadMessages(ctx context.Context, channelID string, p
 }
 
 // finalise closes the channel file if there are no more threads to process.
-func (cv *Conversations) finalise(ctx context.Context, id string) error {
+func (cv *Conversations) finalise(ctx context.Context, id chunk.FileID) error {
 	lg := logger.FromContext(ctx)
 	if tc := cv.refcount(id); tc > 0 {
 		trace.Logf(ctx, "ref", "not finalising %q because ref count = %d", id, tc)

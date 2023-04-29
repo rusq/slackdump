@@ -19,9 +19,9 @@ const ext = ".json.gz"
 
 // common filenames
 const (
-	FChannels  = "channels"
-	FUsers     = "users"
-	FWorkspace = "workspace"
+	FChannels  FileID = "channels"
+	FUsers     FileID = "users"
+	FWorkspace FileID = "workspace"
 )
 
 // Directory is an abstraction over the directory with chunk files.  It
@@ -56,20 +56,27 @@ func CreateDir(dir string) (*Directory, error) {
 	return &Directory{dir: dir}, nil
 }
 
-// FileID returns the file ID for the given channel and thread timestamp.
-// FileID is the ID of the file within the directory (it's basically the
-// file name without extension).  If includeThread is true and threadTS is
-// not empty, the thread timestamp will be appended to the channel ID.
-// Otherwise, only the channel ID will be returned.
-func FileID(channelID, threadTS string, includeThread bool) string {
+// FileID is the ID of the file within the directory (it's basically the file
+// name without an extension).
+type FileID string
+
+// chanThreadSep is the separator between channel name and a thread name in
+// the file ID.
+const chanThreadSep = "-"
+
+// ToFileID returns the file ID for the given channel and thread timestamp.
+// If includeThread is true and threadTS is not empty, the thread timestamp
+// will be appended to the channel ID.  Otherwise, only the channel ID will be
+// returned.
+func ToFileID(channelID, threadTS string, includeThread bool) FileID {
 	if includeThread && threadTS != "" {
-		return channelID + "-" + threadTS
+		return FileID(channelID + chanThreadSep + threadTS)
 	}
-	return channelID
+	return FileID(channelID)
 }
 
-func SplitFileID(fileID string) (channelID, threadTS string) {
-	channelID, threadTS, _ = strings.Cut(fileID, "-")
+func (id FileID) Split() (channelID, threadTS string) {
+	channelID, threadTS, _ = strings.Cut(string(id), chanThreadSep)
 	return
 }
 
@@ -190,8 +197,8 @@ func (d *Directory) Users() ([]slack.User, error) {
 
 // Open opens a chunk file with the given name.  Extension is appended
 // automatically.
-func (d *Directory) Open(fileID string) (*File, error) {
-	f, err := d.OpenRAW(d.filename(fileID))
+func (d *Directory) Open(id FileID) (*File, error) {
+	f, err := d.OpenRAW(d.filename(id))
 	if err != nil {
 		return nil, err
 	}
@@ -206,8 +213,8 @@ func (d *Directory) OpenRAW(filename string) (io.ReadSeekCloser, error) {
 }
 
 // filename returns the full path of the chunk file with the given fileID.
-func (d *Directory) filename(fileID string) string {
-	return filepath.Join(d.dir, fileID+ext)
+func (d *Directory) filename(id FileID) string {
+	return filepath.Join(d.dir, string(id)+ext)
 }
 
 // Create creates the chunk file with the given name.  Extension is appended
@@ -220,7 +227,7 @@ func (d *Directory) filename(fileID string) string {
 //
 // It will NOT overwrite an existing file and will return an error if the file
 // exists.
-func (d *Directory) Create(fileID string) (io.WriteCloser, error) {
+func (d *Directory) Create(fileID FileID) (io.WriteCloser, error) {
 	filename := d.filename(fileID)
 	if fi, err := os.Stat(filename); err == nil {
 		if fi.IsDir() {
@@ -254,7 +261,7 @@ func (c *closewrapper) Close() error {
 // to find the workspace.json.gz file, if not found, it tries to get the info
 // from users.json.gz and channels.json.gz.
 func (d *Directory) WorkspaceInfo() (*slack.AuthTestResponse, error) {
-	for _, name := range []string{FWorkspace, FUsers, FChannels} {
+	for _, name := range []FileID{FWorkspace, FUsers, FChannels} {
 		f, err := d.Open(name)
 		if err != nil {
 			continue

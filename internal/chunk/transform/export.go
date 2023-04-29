@@ -53,8 +53,8 @@ type Export struct {
 
 	start chan struct{}
 	done  chan struct{}
-	err   chan error  // error channel used to propagate errors to the main thread.
-	ids   chan string // channel used to pass channel IDs to the worker.
+	err   chan error        // error channel used to propagate errors to the main thread.
+	ids   chan chunk.FileID // channel used to pass channel IDs to the worker.
 }
 
 // bufferSz is the default size of the channel IDs buffer.  This is the number
@@ -73,7 +73,7 @@ func WithBufferSize(n int) ExpOption {
 		if n < 1 {
 			n = bufferSz
 		}
-		t.ids = make(chan string, n)
+		t.ids = make(chan chunk.FileID, n)
 	}
 }
 
@@ -108,7 +108,7 @@ func NewExport(ctx context.Context, fsa fsadapter.FS, chunkdir string, tfopt ...
 		lg:     lg,
 		start:  make(chan struct{}),
 		done:   make(chan struct{}),
-		ids:    make(chan string, bufferSz),
+		ids:    make(chan chunk.FileID, bufferSz),
 		err:    make(chan error, 1),
 	}
 	for _, opt := range tfopt {
@@ -180,17 +180,17 @@ func (t *Export) Start(ctx context.Context) error {
 // even if the processor is not started, in which case the channel ID will
 // be queued for processing once the processor is started.  If the export
 // worker is closed, it will return ErrClosed.
-func (t *Export) Transform(ctx context.Context, id string) error {
-	if t.closed.Load() {
-		return ErrClosed
-	}
-	t.lg.Debugln("transform: placing channel in the queue", id)
+func (t *Export) Transform(ctx context.Context, id chunk.FileID) error {
 	select {
 	case err := <-t.err:
 		return err
 	default:
-		t.ids <- id
 	}
+	if t.closed.Load() {
+		return ErrClosed
+	}
+	t.lg.Debugln("transform: placing channel in the queue", id)
+	t.ids <- id
 	return nil
 }
 
@@ -202,7 +202,7 @@ func (t *Export) worker(ctx context.Context) {
 	t.lg.Debugln("transform: worker started")
 	for id := range t.ids {
 		t.lg.Debugf("transform: transforming channel %s", id)
-		if err := transform(ctx, t.fsa, t.srcdir, id, t.users, t.msgUpdFn); err != nil {
+		if err := transform(ctx, t.fsa, t.srcdir, chunk.FileID(id), t.users, t.msgUpdFn); err != nil {
 			t.lg.Debugf("transform: error transforming channel %s: %s", id, err)
 			t.err <- err
 			continue
@@ -255,7 +255,7 @@ func (t *Export) Close() error {
 // into the relevant directory.  It expects the chunk file to be in the
 // srcdir/id.json.gz file, and the attachments to be in the srcdir/id
 // directory.
-func transform(ctx context.Context, fsa fsadapter.FS, cd *chunk.Directory, id string, users []slack.User, msgFn []msgUpdFunc) error {
+func transform(ctx context.Context, fsa fsadapter.FS, cd *chunk.Directory, id chunk.FileID, users []slack.User, msgFn []msgUpdFunc) error {
 	ctx, task := trace.NewTask(ctx, "transform")
 	defer task.End()
 
@@ -270,7 +270,8 @@ func transform(ctx context.Context, fsa fsadapter.FS, cd *chunk.Directory, id st
 	}
 	defer cf.Close()
 
-	ci, err := cf.ChannelInfo(id)
+	channelID, _ := id.Split()
+	ci, err := cf.ChannelInfo(channelID)
 	if err != nil {
 		return fmt.Errorf("error reading channel info for %q: %w", id, err)
 	}

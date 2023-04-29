@@ -65,8 +65,9 @@ func (s *DirServer) chunkWrapper(fn func(p *chunk.Player) http.HandlerFunc) http
 		s.mu.Lock()
 		p, ok := s.ptrs[channel]
 		s.mu.Unlock()
+		id := chunk.ToFileID(channel, "", false)
 		if !ok {
-			cf, err := s.cd.Open(channel)
+			cf, err := s.cd.Open(id)
 			if err != nil {
 				if os.IsNotExist(err) {
 					http.NotFound(w, r)
@@ -85,7 +86,7 @@ func (s *DirServer) chunkWrapper(fn func(p *chunk.Player) http.HandlerFunc) http
 	})
 }
 
-func (s *DirServer) chunkfileWrapper(name string, fn func(p *chunk.Player) http.HandlerFunc) http.Handler {
+func (s *DirServer) chunkfileWrapper(name chunk.FileID, fn func(p *chunk.Player) http.HandlerFunc) http.Handler {
 	rs, err := s.cd.Open(name)
 	if err != nil {
 		panic(err)

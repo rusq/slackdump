@@ -30,7 +30,7 @@ func TestStandard_Transform(t *testing.T) {
 }
 
 func Test_stdConvert(t *testing.T) {
-	var testNames = []string{
+	var testNames = []chunk.FileID{
 		"CHYLGDP0D-1682335799.257359",
 		"CHYLGDP0D-1682375167.836499",
 		"CHM82GF99",

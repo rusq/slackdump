@@ -45,7 +45,7 @@ func Test_transform(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if err := transform(tt.args.ctx, tt.args.fsa, cd, tt.args.id, nil, nil); (err != nil) != tt.wantErr {
+			if err := transform(tt.args.ctx, tt.args.fsa, cd, chunk.FileID(tt.args.id), nil, nil); (err != nil) != tt.wantErr {
 				t.Errorf("transform() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
