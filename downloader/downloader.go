@@ -287,6 +287,7 @@ func (c *Client) AsyncDownloader(ctx context.Context, queueC <-chan Request) (<-
 				c.lg.Printf("error downloading %q: %s", r.URL, err)
 			}
 		}
+		c.Stop()
 	}()
 
 	return done, nil

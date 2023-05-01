@@ -134,8 +134,8 @@ func TestSession_GetUsers(t *testing.T) {
 			"everything goes as planned",
 			fields{
 				config: config{limits: Limits{
-					Tier2: TierLimits{Burst: 1},
-					Tier3: TierLimits{Burst: 1},
+					Tier2: TierLimit{Burst: 1},
+					Tier3: TierLimit{Burst: 1},
 				}},
 				usercache: usercache{},
 			},
@@ -150,8 +150,8 @@ func TestSession_GetUsers(t *testing.T) {
 			"loaded from cache",
 			fields{
 				config: config{limits: Limits{
-					Tier2: TierLimits{Burst: 1},
-					Tier3: TierLimits{Burst: 1},
+					Tier2: TierLimit{Burst: 1},
+					Tier3: TierLimit{Burst: 1},
 				}},
 				usercache: usercache{
 					users:    testUsers,

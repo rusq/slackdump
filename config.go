@@ -33,15 +33,15 @@ type Limits struct {
 	// going to retry
 	DownloadRetries int `json:"download_retries,omitempty" yaml:"download_retries,omitempty"`
 	// Tier-2 limits
-	Tier2 TierLimits `json:"tier_2,omitempty" yaml:"tier_2,omitempty"`
+	Tier2 TierLimit `json:"tier_2,omitempty" yaml:"tier_2,omitempty"`
 	// Tier-3 limits
-	Tier3 TierLimits `json:"tier_3,omitempty" yaml:"tier_3,omitempty"`
+	Tier3 TierLimit `json:"tier_3,omitempty" yaml:"tier_3,omitempty"`
 	// Request Limits
 	Request RequestLimit `json:"per_request,omitempty" yaml:"per_request,omitempty"`
 }
 
-// TierLimits represents a Slack API Tier limits.
-type TierLimits struct {
+// TierLimit represents a Slack API Tier limits.
+type TierLimit struct {
 	// Tier limiter boost
 	Boost uint `json:"boost,omitempty" yaml:"boost,omitempty"`
 	// Tier limiter burst
@@ -64,12 +64,12 @@ type RequestLimit struct {
 var DefLimits = Limits{
 	Workers:         4, // number of parallel goroutines downloading files.
 	DownloadRetries: 3, // this shouldn't even happen, as we have no limiter on files download.
-	Tier2: TierLimits{
+	Tier2: TierLimit{
 		Boost:   20, // seems to work fine with this boost
 		Burst:   1,  // limiter will wait indefinitely if it is less than 1.
 		Retries: 20, // see issue #28, sometimes slack is being difficult
 	},
-	Tier3: TierLimits{
+	Tier3: TierLimit{
 		Boost:   120, // playing safe there, but generally value of 120 is fine.
 		Burst:   1,   // safe value, who would ever want to modify it? I don't know.
 		Retries: 3,   // on Tier 3 this was never a problem, even with limiter-boost=120
@@ -94,7 +94,7 @@ var NoLimits = Limits{
 	},
 }
 
-var noTierLimits = TierLimits{
+var noTierLimits = TierLimit{
 	Boost:   10_000,
 	Burst:   10_000,
 	Retries: 3,

@@ -10,8 +10,8 @@ func TestLimits_Apply(t *testing.T) {
 	type fields struct {
 		Workers         int
 		DownloadRetries int
-		Tier2           TierLimits
-		Tier3           TierLimits
+		Tier2           TierLimit
+		Tier3           TierLimit
 		Request         RequestLimit
 	}
 	type args struct {
@@ -31,16 +31,16 @@ func TestLimits_Apply(t *testing.T) {
 				other: Limits{
 					Workers:         DefLimits.Workers,
 					DownloadRetries: DefLimits.DownloadRetries,
-					Tier2:           TierLimits{Burst: DefLimits.Tier2.Burst, Boost: 0},
-					Tier3:           TierLimits{Burst: DefLimits.Tier2.Burst, Boost: 0},
+					Tier2:           TierLimit{Burst: DefLimits.Tier2.Burst, Boost: 0},
+					Tier3:           TierLimit{Burst: DefLimits.Tier2.Burst, Boost: 0},
 					Request:         DefLimits.Request,
 				},
 			},
 			Limits{
 				Workers:         DefLimits.Workers,
 				DownloadRetries: DefLimits.DownloadRetries,
-				Tier2:           TierLimits{Burst: 1, Boost: 0},
-				Tier3:           TierLimits{Burst: 1, Boost: 0},
+				Tier2:           TierLimit{Burst: 1, Boost: 0},
+				Tier3:           TierLimit{Burst: 1, Boost: 0},
 				Request:         DefLimits.Request,
 			},
 			false,
@@ -67,8 +67,8 @@ func TestLimits_Validate(t *testing.T) {
 	type fields struct {
 		Workers         int
 		DownloadRetries int
-		Tier2           TierLimits
-		Tier3           TierLimits
+		Tier2           TierLimit
+		Tier3           TierLimit
 		Request         RequestLimit
 	}
 	tests := []struct {
@@ -97,8 +97,8 @@ func TestLimits_Validate(t *testing.T) {
 			"invalid workers",
 			fields{
 				Workers: -1,
-				Tier2:   TierLimits{Burst: 1},
-				Tier3:   TierLimits{Burst: 1},
+				Tier2:   TierLimit{Burst: 1},
+				Tier3:   TierLimit{Burst: 1},
 				Request: RequestLimit{
 					Conversations: 50,
 					Replies:       50,

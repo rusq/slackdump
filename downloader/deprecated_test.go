@@ -2,6 +2,7 @@ package downloader
 
 import (
 	"context"
+	"log"
 	"os"
 	"path"
 	"path/filepath"
@@ -16,6 +17,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/time/rate"
 
+	"github.com/rusq/dlog"
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/slackdump/v2/internal/fixtures"
 	"github.com/rusq/slackdump/v2/internal/mocks/mock_downloader"
@@ -249,7 +251,11 @@ func Test_filename(t *testing.T) {
 
 func TestSession_newFileDownloader(t *testing.T) {
 	tl := rate.NewLimiter(defLimit, 1)
-	tmpdir := t.TempDir()
+	// tmpdir := t.TempDir()
+	tmpdir, err := os.MkdirTemp("", "slack-downloader")
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	t.Run("ensure file downloader is running", func(t *testing.T) {
 		mc := mock_downloader.NewMockDownloader(gomock.NewController(t))
@@ -260,7 +266,7 @@ func TestSession_newFileDownloader(t *testing.T) {
 				limiter: tl,
 				retries: 3,
 				workers: 4,
-				lg:      logger.Default,
+				lg:      dlog.New(os.Stderr, "unit ", log.LstdFlags+log.Lshortfile, true),
 			},
 			nameFn: Filename,
 		}
@@ -282,7 +288,6 @@ func TestSession_newFileDownloader(t *testing.T) {
 		<-done
 		filename := filepath.Join(tmpdir, Filename(&file9))
 		assert.FileExists(t, filename)
-
 	})
 }
 
@@ -298,7 +303,7 @@ func TestSession_worker(t *testing.T) {
 				limiter: tl,
 				retries: defRetries,
 				workers: defNumWorkers,
-				lg:      logger.Default,
+				lg:      dlog.New(os.Stderr, "unit ", log.LstdFlags+log.Lshortfile, true),
 			},
 			nameFn: Filename,
 		}
@@ -317,8 +322,9 @@ func TestSession_worker(t *testing.T) {
 		defer cancel()
 
 		fullpath := filepath.Join(tmpdir, sd.nameFn(&file1))
+		t.Log(fullpath)
 		reqC := make(chan Request, 1)
-		reqC <- Request{Fullpath: fullpath, URL: file1.URLPrivateDownload}
+		reqC <- Request{Fullpath: sd.nameFn(&file1), URL: file1.URLPrivateDownload}
 		close(reqC)
 
 		sd.v2.worker(ctx, reqC)

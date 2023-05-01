@@ -171,7 +171,7 @@ func (s *Session) CurrentUserID() string {
 }
 
 func (s *Session) limiter(t network.Tier) *rate.Limiter {
-	var tl TierLimits
+	var tl TierLimit
 	switch t {
 	case network.Tier2:
 		tl = s.cfg.limits.Tier2

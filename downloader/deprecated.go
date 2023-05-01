@@ -154,8 +154,10 @@ var ErrNotStarted = errors.New("downloader not started")
 // filesystem.
 func (c *ClientV1) DownloadFile(dir string, f slack.File) (string, error) {
 	path := filepath.Join(dir, c.nameFn(&f))
-	err := c.v2.Download(path, f.URLPrivateDownload)
-	return path, err
+	if err := c.v2.Download(path, f.URLPrivateDownload); err != nil {
+		return "", err
+	}
+	return path, nil
 }
 
 func (c *ClientV1) Stop() {
