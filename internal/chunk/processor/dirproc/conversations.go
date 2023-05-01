@@ -26,7 +26,7 @@ type Transformer interface {
 // Conversations is a processor that writes the channel and thread messages.
 // Zero value is unusable.  Use [NewConversation] to create a new instance.
 type Conversations struct {
-	dir string
+	dir *chunk.Directory
 	cw  map[chunk.FileID]*entityproc
 	mu  sync.RWMutex
 	lg  logger.Interface
@@ -76,7 +76,7 @@ type entityproc struct {
 // be called for each file chunk, tf will be called for each completed channel
 // or thread, when the reference count becomes zero.
 // Reference count is increased with each call to Channel processing functions.
-func NewConversation(dir string, filesSubproc processor.Filer, tf Transformer, opts ...ConvOption) (*Conversations, error) {
+func NewConversation(cd *chunk.Directory, filesSubproc processor.Filer, tf Transformer, opts ...ConvOption) (*Conversations, error) {
 	// validation
 	if filesSubproc == nil {
 		return nil, errors.New("internal error: files subprocessor is nil")
@@ -85,7 +85,7 @@ func NewConversation(dir string, filesSubproc processor.Filer, tf Transformer, o
 	}
 
 	c := &Conversations{
-		dir:     dir,
+		dir:     cd,
 		lg:      logger.Default,
 		cw:      make(map[chunk.FileID]*entityproc),
 		subproc: filesSubproc,

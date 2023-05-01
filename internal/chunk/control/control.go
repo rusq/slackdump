@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"runtime/trace"
 	"sync"
 
 	"github.com/rusq/slackdump/v2"
@@ -24,9 +25,6 @@ type Controller struct {
 	cd *chunk.Directory
 	// streamer is the API scraper.
 	s Streamer
-	// resultFn is a list of functions to be called on each result that
-	// comes from the streamer.
-	resultFn []func(slackdump.StreamResult) error
 	// transformer, it may not be necessary, if caller is not interested in
 	// transforming the data.
 	tf TransformStarter
@@ -35,6 +33,9 @@ type Controller struct {
 	pfiles processor.Filer
 	// lg is the logger
 	lg logger.Interface
+	// resultFn is a list of functions to be called on each result that
+	// comes from the streamer.
+	resultFn []func(slackdump.StreamResult) error
 
 	// flags
 	flags Flags
@@ -117,7 +118,10 @@ func (e CtrlError) Error() string {
 }
 
 func (c *Controller) Run(ctx context.Context, list *structures.EntityList) error {
-	lg := logger.FromContext(ctx)
+	ctx, task := trace.NewTask(logger.NewContext(ctx, c.lg), "Controller.Run")
+	defer task.End()
+
+	lg := c.lg
 
 	var (
 		wg    sync.WaitGroup
@@ -132,17 +136,19 @@ func (c *Controller) Run(ctx context.Context, list *structures.EntityList) error
 			generator = genListChannel
 		} else {
 			// exclusive export (process only excludes, if any)
-			generator = genAPIChannel(c.s, c.cd.Name(), c.flags.MemberOnly)
+			generator = genAPIChannel(c.s, c.cd, c.flags.MemberOnly)
 		}
 
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			defer close(linkC)
+			defer lg.Debug("channels done")
+
 			if err := generator(ctx, linkC, list); err != nil {
 				errC <- CtrlError{"channel generator", "generator", err}
+				return
 			}
-			lg.Debug("channels done")
 		}()
 	}
 	{
@@ -150,10 +156,11 @@ func (c *Controller) Run(ctx context.Context, list *structures.EntityList) error
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			if err := workspaceWorker(ctx, c.s, c.cd.Name()); err != nil {
+			defer lg.Debug("workspace info done")
+			if err := workspaceWorker(ctx, c.s, c.cd); err != nil {
 				errC <- CtrlError{"workspace", "worker", err}
+				return
 			}
-			lg.Debug("workspace info done")
 		}()
 	}
 	// user goroutine
@@ -170,7 +177,7 @@ func (c *Controller) Run(ctx context.Context, list *structures.EntityList) error
 	}
 	// conversations goroutine
 	{
-		conv, err := dirproc.NewConversation(c.cd.Name(), c.pfiles, c.tf)
+		conv, err := dirproc.NewConversation(c.cd, c.pfiles, c.tf)
 		if err != nil {
 			return fmt.Errorf("error initialising conversation processor: %w", err)
 		}
@@ -229,10 +236,10 @@ func genListChannel(ctx context.Context, links chan<- string, list *structures.E
 // links channel.  It also filters out channels that are excluded in the list.
 // It does not account for "included".  It ignores the thread links in the
 // list.  It writes the channels to the tmpdir.
-func genAPIChannel(s Streamer, tmpdir string, memberOnly bool) linkFeederFunc {
+func genAPIChannel(s Streamer, cd *chunk.Directory, memberOnly bool) linkFeederFunc {
 	return func(ctx context.Context, links chan<- string, list *structures.EntityList) error {
 		chIdx := list.Index()
-		chanproc, err := dirproc.NewChannels(tmpdir, func(c []slack.Channel) error {
+		chanproc, err := dirproc.NewChannels(cd, func(c []slack.Channel) error {
 			for _, ch := range c {
 				if memberOnly && !ch.IsMember {
 					continue

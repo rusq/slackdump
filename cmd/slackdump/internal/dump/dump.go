@@ -21,6 +21,7 @@ import (
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v2/downloader"
+	"github.com/rusq/slackdump/v2/internal/chunk"
 	"github.com/rusq/slackdump/v2/internal/chunk/processor/dirproc"
 	"github.com/rusq/slackdump/v2/internal/chunk/transform"
 	"github.com/rusq/slackdump/v2/internal/chunk/transform/fileproc"
@@ -160,7 +161,7 @@ func (p *dumpparams) validate() error {
 }
 
 func dump(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, p dumpparams) error {
-	ctx, task := trace.NewTask(ctx, "dumpv3_2")
+	ctx, task := trace.NewTask(ctx, "dump")
 	defer task.End()
 
 	if err := p.validate(); err != nil {
@@ -210,8 +211,12 @@ func dump(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, p dump
 	}
 	defer tf.Close()
 
+	cd, err := chunk.OpenDir(dir)
+	if err != nil {
+		return err
+	}
 	// Create conversation processor.
-	proc, err := dirproc.NewConversation(dir, subproc, tf, dirproc.WithLogger(lg), dirproc.WithRecordFiles(false))
+	proc, err := dirproc.NewConversation(cd, subproc, tf, dirproc.WithLogger(lg), dirproc.WithRecordFiles(false))
 	if err != nil {
 		return fmt.Errorf("failed to create conversation processor: %w", err)
 	}

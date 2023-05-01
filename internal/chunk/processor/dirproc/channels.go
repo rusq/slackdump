@@ -3,6 +3,7 @@ package dirproc
 import (
 	"context"
 
+	"github.com/rusq/slackdump/v2/internal/chunk"
 	"github.com/slack-go/slack"
 )
 
@@ -14,7 +15,7 @@ type Channels struct {
 // NewChannels creates a new Channels processor.  The function passed in is
 // called for each channel chunk that is retrieved.  The function is called
 // before the chunk is processed by the recorder.
-func NewChannels(dir string, fn func(c []slack.Channel) error) (*Channels, error) {
+func NewChannels(dir *chunk.Directory, fn func(c []slack.Channel) error) (*Channels, error) {
 	p, err := newBaseProc(dir, "channels")
 	if err != nil {
 		return nil, err

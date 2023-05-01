@@ -14,13 +14,15 @@ import (
 )
 
 func userWorker(ctx context.Context, s Streamer, chunkdir *chunk.Directory, tf TransformStarter) error {
-	userproc, err := dirproc.NewUsers(chunkdir.Name())
+	userproc, err := dirproc.NewUsers(chunkdir)
 	if err != nil {
 		return err
 	}
-	defer userproc.Close()
 
 	if err := s.Users(ctx, userproc); err != nil {
+		if err2 := userproc.Close(); err2 != nil {
+			err = errors.Join(err2)
+		}
 		return fmt.Errorf("error listing users: %w", err)
 	}
 	if err := userproc.Close(); err != nil {
@@ -56,10 +58,10 @@ func conversationWorker(ctx context.Context, s Streamer, proc processor.Conversa
 	return nil
 }
 
-func workspaceWorker(ctx context.Context, s Streamer, tmpdir string) error {
+func workspaceWorker(ctx context.Context, s Streamer, cd *chunk.Directory) error {
 	lg := logger.FromContext(ctx)
 	lg.Debug("workspaceWorker started")
-	wsproc, err := dirproc.NewWorkspace(tmpdir)
+	wsproc, err := dirproc.NewWorkspace(cd)
 	if err != nil {
 		return err
 	}

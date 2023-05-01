@@ -10,7 +10,7 @@ require (
 	github.com/fatih/color v1.15.0
 	github.com/go-playground/locales v0.14.1
 	github.com/go-playground/universal-translator v0.18.1
-	github.com/go-playground/validator/v10 v10.12.0
+	github.com/go-playground/validator/v10 v10.13.0
 	github.com/golang/mock v1.6.0
 	github.com/hinshun/vt10x v0.0.0-20220119200601-820417d04eec
 	github.com/joho/godotenv v1.5.1
@@ -25,7 +25,6 @@ require (
 	github.com/schollz/progressbar/v3 v3.13.0
 	github.com/slack-go/slack v0.12.2
 	github.com/stretchr/testify v1.8.2
-	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 	golang.org/x/term v0.7.0
 	golang.org/x/text v0.9.0
 	golang.org/x/time v0.3.0
@@ -48,7 +47,7 @@ require (
 	github.com/gorilla/websocket v1.5.0 // indirect
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51 // indirect
 	github.com/kyokomi/emoji/v2 v2.2.12 // indirect
-	github.com/leodido/go-urn v1.2.3 // indirect
+	github.com/leodido/go-urn v1.2.4 // indirect
 	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.18 // indirect
