@@ -1,6 +1,6 @@
 // Package ctrl is the Slack Stream controller.  It runs the API scraping in
 // several goroutines and manages the data flow between them.
-package ctrl
+package control
 
 import (
 	"context"
@@ -40,26 +40,31 @@ type Controller struct {
 	flags Flags
 }
 
+// Option is a functional option for the Controller.
 type Option func(*Controller)
 
+// WithFiler configures the controller with a file subprocessor.
 func WithFiler(f processor.Filer) Option {
 	return func(c *Controller) {
 		c.pfiles = f
 	}
 }
 
+// WithFlags configures the controller with flags.
 func WithFlags(f Flags) Option {
 	return func(c *Controller) {
 		c.flags = f
 	}
 }
 
+// WithResultFn configures the controller with a result function.
 func WithResultFn(fn func(slackdump.StreamResult) error) Option {
 	return func(c *Controller) {
 		c.resultFn = append(c.resultFn, fn)
 	}
 }
 
+// WithTransformer configures the controller with a transformer.
 func WithTransformer(tf TransformStarter) Option {
 	return func(c *Controller) {
 		if tf != nil {
@@ -68,6 +73,7 @@ func WithTransformer(tf TransformStarter) Option {
 	}
 }
 
+// WithLogger configures the controller with a logger.
 func WithLogger(lg logger.Interface) Option {
 	return func(c *Controller) {
 		if lg != nil {
@@ -76,6 +82,7 @@ func WithLogger(lg logger.Interface) Option {
 	}
 }
 
+// New creates a new [Controller].
 func New(cd *chunk.Directory, s Streamer, opts ...Option) *Controller {
 	c := &Controller{
 		cd:     cd,
@@ -90,24 +97,27 @@ func New(cd *chunk.Directory, s Streamer, opts ...Option) *Controller {
 	return c
 }
 
+// Flags are the controller flags.
+type Flags struct {
+	MemberOnly bool
+}
+
+// CtrlError is a controller error.
 type CtrlError struct {
+	// Subroutine is the name of the subroutine that failed.
 	Subroutine string
-	Stage      string
-	Err        error
+	// Stage is the stage of the subroutine that failed.
+	Stage string
+	// Err is the error that caused the failure.
+	Err error
 }
 
 func (e CtrlError) Error() string {
 	return fmt.Sprintf("controller error in %s on %s: %v", e.Subroutine, e.Stage, e.Err)
 }
 
-type Flags struct {
-	MemberOnly bool
-}
-
 func (c *Controller) Run(ctx context.Context, list *structures.EntityList) error {
 	lg := logger.FromContext(ctx)
-	lg.Printf("using %s as the temporary directory", c.cd.Name())
-	lg.Print("running export...")
 
 	var (
 		wg    sync.WaitGroup

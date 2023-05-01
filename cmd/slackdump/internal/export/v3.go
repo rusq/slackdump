@@ -14,7 +14,7 @@ import (
 	"github.com/rusq/slackdump/v2/downloader"
 	"github.com/rusq/slackdump/v2/export"
 	"github.com/rusq/slackdump/v2/internal/chunk"
-	"github.com/rusq/slackdump/v2/internal/chunk/ctrl"
+	"github.com/rusq/slackdump/v2/internal/chunk/control"
 	"github.com/rusq/slackdump/v2/internal/chunk/transform"
 	"github.com/rusq/slackdump/v2/internal/chunk/transform/fileproc"
 	"github.com/rusq/slackdump/v2/internal/structures"
@@ -28,6 +28,8 @@ func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 	if err != nil {
 		return err
 	}
+
+	lg.Printf("using %s as the temporary directory", tmpdir)
 	chunkdir, err := chunk.OpenDir(tmpdir)
 	if err != nil {
 		return err
@@ -53,17 +55,17 @@ func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 	)
 	pb.RenderBlank()
 
-	flags := ctrl.Flags{
+	flags := control.Flags{
 		MemberOnly: options.MemberOnly,
 	}
-	ctr := ctrl.New(
+	ctr := control.New(
 		chunkdir,
 		sess.Stream(),
-		ctrl.WithFiler(fileproc.NewExport(options.Type, sdl)),
-		ctrl.WithLogger(lg),
-		ctrl.WithFlags(flags),
-		ctrl.WithTransformer(tf),
-		ctrl.WithResultFn(func(sr slackdump.StreamResult) error {
+		control.WithFiler(fileproc.NewExport(options.Type, sdl)),
+		control.WithLogger(lg),
+		control.WithFlags(flags),
+		control.WithTransformer(tf),
+		control.WithResultFn(func(sr slackdump.StreamResult) error {
 			lg.Debugf("conversations: %s", sr.String())
 			pb.Describe(sr.String())
 			pb.Add(1)
@@ -71,6 +73,7 @@ func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 		}),
 	)
 
+	lg.Print("running export...")
 	if err := ctr.Run(ctx, list); err != nil {
 		return err
 	}

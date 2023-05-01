@@ -1,4 +1,4 @@
-package ctrl
+package control
 
 import (
 	"context"
