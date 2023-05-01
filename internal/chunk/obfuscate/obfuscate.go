@@ -9,6 +9,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"hash"
 	"io"
 	"math/rand"
@@ -58,7 +59,7 @@ func Do(ctx context.Context, w io.Writer, r io.Reader, options ...Option) error 
 	for {
 		var e chunk.Chunk
 		if err := dec.Decode(&e); err != nil {
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				break
 			}
 			return err

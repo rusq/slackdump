@@ -1,4 +1,4 @@
-package expproc
+package dirproc
 
 import (
 	"context"
@@ -27,7 +27,7 @@ type Transformer interface {
 // Zero value is unusable.  Use [NewConversation] to create a new instance.
 type Conversations struct {
 	dir string
-	cw  map[chunk.FileID]*channelproc
+	cw  map[chunk.FileID]*entityproc
 	mu  sync.RWMutex
 	lg  logger.Interface
 
@@ -61,7 +61,9 @@ func WithRecordFiles(b bool) ConvOption {
 	}
 }
 
-type channelproc struct {
+// entityproc is a processor for a single entity, which can be a thread or
+// a channel.
+type entityproc struct {
 	*baseproc
 	// refcnt is the number of threads are expected to be processed for
 	// the given channel.  We keep track of the number of threads, to ensure
@@ -85,7 +87,7 @@ func NewConversation(dir string, filesSubproc processor.Filer, tf Transformer, o
 	c := &Conversations{
 		dir:     dir,
 		lg:      logger.Default,
-		cw:      make(map[chunk.FileID]*channelproc),
+		cw:      make(map[chunk.FileID]*entityproc),
 		subproc: filesSubproc,
 		tf:      tf,
 	}
@@ -107,9 +109,9 @@ func (cv *Conversations) ensure(id chunk.FileID) error {
 	if err != nil {
 		return err
 	}
-	cv.cw[id] = &channelproc{
+	cv.cw[id] = &entityproc{
 		baseproc: bp,
-		refcnt:   1, // the channel itself is a reference
+		refcnt:   1, // the id itself is a reference
 	}
 	return nil
 }

@@ -1,4 +1,4 @@
-package subproc
+package fileproc
 
 import (
 	"testing"

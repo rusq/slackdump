@@ -1,4 +1,4 @@
-package expproc
+package dirproc
 
 import (
 	"io"
@@ -16,6 +16,8 @@ type baseproc struct {
 	*chunk.Recorder
 }
 
+// newBaseProc initialises the new base processor.  It creates a new chunk file
+// in a directory dir which must exist.
 func newBaseProc(dir string, name chunk.FileID) (*baseproc, error) {
 	cd, err := chunk.OpenDir(dir)
 	if err != nil {
@@ -30,6 +32,7 @@ func newBaseProc(dir string, name chunk.FileID) (*baseproc, error) {
 	return &baseproc{dir: dir, wc: wc, Recorder: r}, nil
 }
 
+// Close closes the processor and the underlying chunk file.
 func (p *baseproc) Close() error {
 	if p.closed.Load() {
 		return nil

@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/sha1"
 	"encoding/json"
+	"errors"
 	"hash"
 	"io"
 	"math/rand"
@@ -91,7 +92,7 @@ func unmarshalEvents(r io.Reader) []chunk.Chunk {
 	for {
 		var c chunk.Chunk
 		if err := dec.Decode(&c); err != nil {
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				break
 			}
 			panic(err)
@@ -144,7 +145,7 @@ func Test_obfuscator_OneMessage(t *testing.T) {
 					User:        userPrefix + "8EEA06E1",
 					Text:        "9 LVwGabEN7FkWNmyD0HtOdvcYYvfHfF hVA6Nd1BtVOw52BH40tQ4xsZr1rbOE",
 					Timestamp:   "1645095505.023899",
-					Team:        teamPrefix + "EBC93378",
+					Team:        teamPrefix + "B7C0FC649",
 				},
 			},
 		},

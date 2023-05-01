@@ -21,9 +21,9 @@ import (
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v2/downloader"
-	"github.com/rusq/slackdump/v2/internal/chunk/processor/expproc"
+	"github.com/rusq/slackdump/v2/internal/chunk/processor/dirproc"
 	"github.com/rusq/slackdump/v2/internal/chunk/transform"
-	"github.com/rusq/slackdump/v2/internal/chunk/transform/subproc"
+	"github.com/rusq/slackdump/v2/internal/chunk/transform/fileproc"
 	"github.com/rusq/slackdump/v2/internal/nametmpl"
 	"github.com/rusq/slackdump/v2/internal/structures"
 	"github.com/rusq/slackdump/v2/logger"
@@ -52,18 +52,18 @@ func init() {
 var ErrNothingToDo = errors.New("no conversations to dump, run \"slackdump help dump\"")
 
 type options struct {
-	NameTemplate string // NameTemplate is the template for the output file name.
-	Compat       bool   // compatibility mode
-	UpdateLinks  bool   // update file links to point to the downloaded files
+	nameTemplate string // NameTemplate is the template for the output file name.
+	compat       bool   // compatibility mode
+	updateLinks  bool   // update file links to point to the downloaded files
 }
 
 var opts options
 
 // InitDumpFlagset initializes the flagset for the dump command.
 func InitDumpFlagset(fs *flag.FlagSet) {
-	fs.StringVar(&opts.NameTemplate, "ft", nametmpl.Default, "output file naming template.\n")
-	fs.BoolVar(&opts.Compat, "compat", false, "compatibility mode")
-	fs.BoolVar(&opts.UpdateLinks, "update-links", false, "update file links to point to the downloaded files.")
+	fs.StringVar(&opts.nameTemplate, "ft", nametmpl.Default, "output file naming template.\n")
+	fs.BoolVar(&opts.compat, "compat", false, "compatibility mode")
+	fs.BoolVar(&opts.updateLinks, "update-links", false, "update file links to point to the downloaded files.")
 }
 
 func init() {
@@ -94,10 +94,10 @@ func RunDump(ctx context.Context, cmd *base.Command, args []string) error {
 	}
 
 	// initialize the file naming template.
-	if opts.NameTemplate == "" {
-		opts.NameTemplate = nametmpl.Default
+	if opts.nameTemplate == "" {
+		opts.nameTemplate = nametmpl.Default
 	}
-	tmpl, err := nametmpl.New(opts.NameTemplate + ".json")
+	tmpl, err := nametmpl.New(opts.nameTemplate + ".json")
 	if err != nil {
 		base.SetExitStatus(base.SUserError)
 		return fmt.Errorf("file template error: %w", err)
@@ -119,7 +119,7 @@ func RunDump(ctx context.Context, cmd *base.Command, args []string) error {
 	p := dumpparams{
 		list:      list,
 		tmpl:      tmpl,
-		fpupdate:  opts.UpdateLinks,
+		fpupdate:  opts.updateLinks,
 		dumpFiles: cfg.DumpFiles,
 		oldest:    time.Time(cfg.Oldest),
 		latest:    time.Time(cfg.Latest),
@@ -129,14 +129,14 @@ func RunDump(ctx context.Context, cmd *base.Command, args []string) error {
 	// tricks.
 	start := time.Now()
 	dumpFn := dump
-	if opts.Compat {
+	if opts.compat {
 		dumpFn = dumpv2
 	}
 	if err := dumpFn(ctx, sess, fsa, p); err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return err
 	}
-	dlog.Printf("dumped %d conversations in %s", len(p.list.Include), time.Since(start))
+	dlog.FromContext(ctx).Printf("dumped %d conversations in %s", len(p.list.Include), time.Since(start))
 	return nil
 }
 
@@ -183,17 +183,17 @@ func dump(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, p dump
 	lg.Debugf("using directory: %s", dir)
 
 	// files subprocessor
-	var sdl subproc.Downloader
+	var sdl fileproc.Downloader
 	if p.dumpFiles {
 		dl := downloader.New(sess.Client(), fsa, downloader.WithLogger(lg))
 		dl.Start(ctx)
 		defer dl.Stop()
 		sdl = dl
 	} else {
-		sdl = subproc.NoopDownloader{}
+		sdl = fileproc.NoopDownloader{}
 	}
 
-	subproc := subproc.NewDumpSubproc(sdl)
+	subproc := fileproc.NewDumpSubproc(sdl)
 
 	opts := []transform.StdOption{
 		transform.StdWithTemplate(p.tmpl),
@@ -211,7 +211,7 @@ func dump(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, p dump
 	defer tf.Close()
 
 	// Create conversation processor.
-	proc, err := expproc.NewConversation(dir, subproc, tf, expproc.WithLogger(lg), expproc.WithRecordFiles(false))
+	proc, err := dirproc.NewConversation(dir, subproc, tf, dirproc.WithLogger(lg), dirproc.WithRecordFiles(false))
 	if err != nil {
 		return fmt.Errorf("failed to create conversation processor: %w", err)
 	}

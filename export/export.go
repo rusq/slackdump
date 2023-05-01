@@ -123,7 +123,7 @@ func (se *Export) exclusiveExport(ctx context.Context, uidx structures.UserIndex
 	listIdx := el.Index()
 	// we need the current user to be able to build an index of DMs.
 	if err := se.sd.StreamChannels(ctx, slackdump.AllChanTypes, func(ch slack.Channel) error {
-		if include, ok := listIdx[ch.ID]; ok && !include {
+		if listIdx.IsExcluded(ch.ID) {
 			trace.Logf(ctx, "info", "skipping %s", ch.ID)
 			se.lg.Printf("skipping: %s", ch.ID)
 			return nil
@@ -160,7 +160,7 @@ func (se *Export) inclusiveExport(ctx context.Context, uidx structures.UserIndex
 
 	// we need the current user to be able to build an index of DMs.
 	for _, entry := range list.Include {
-		if include, ok := elIdx[entry]; ok && !include {
+		if elIdx.IsExcluded(entry) {
 			se.td(ctx, "info", "skipping %s", entry)
 			se.lg.Printf("skipping: %s", entry)
 			continue

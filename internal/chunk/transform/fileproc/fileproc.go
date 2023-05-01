@@ -1,4 +1,8 @@
-package subproc
+// Package fileproc is the file processor that can be used in conjunction with
+// the transformer.  It downloads files to the local filesystem using the
+// provided downloader.  Probably it's a good idea to use the
+// [downloader.Client] for this.
+package fileproc
 
 import (
 	"github.com/rusq/slackdump/v2/internal/structures/files"

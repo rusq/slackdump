@@ -1,4 +1,4 @@
-package expproc
+package dirproc
 
 // Users is a users processor.
 type Users struct {

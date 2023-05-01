@@ -18,9 +18,9 @@ import (
 	"github.com/rusq/slackdump/v2/export"
 	"github.com/rusq/slackdump/v2/internal/chunk"
 	"github.com/rusq/slackdump/v2/internal/chunk/processor"
-	"github.com/rusq/slackdump/v2/internal/chunk/processor/expproc"
+	"github.com/rusq/slackdump/v2/internal/chunk/processor/dirproc"
 	"github.com/rusq/slackdump/v2/internal/chunk/transform"
-	"github.com/rusq/slackdump/v2/internal/chunk/transform/subproc"
+	"github.com/rusq/slackdump/v2/internal/chunk/transform/fileproc"
 	"github.com/rusq/slackdump/v2/internal/structures"
 	"github.com/rusq/slackdump/v2/logger"
 )
@@ -49,7 +49,7 @@ func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 	if !lg.IsDebug() {
 		defer chunkdir.RemoveAll()
 	}
-	tf, err := transform.NewExport(ctx, fsa, tmpdir, transform.WithBufferSize(1000), transform.WithMsgUpdateFunc(subproc.ExportTokenUpdateFn(options.ExportToken)))
+	tf, err := transform.NewExport(ctx, fsa, tmpdir, transform.WithBufferSize(1000), transform.WithMsgUpdateFunc(fileproc.ExportTokenUpdateFn(options.ExportToken)))
 	if err != nil {
 		return fmt.Errorf("failed to create transformer: %w", err)
 	}
@@ -102,7 +102,7 @@ func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			if err := userWorker(ctx, s, tmpdir, chunkdir, tf); err != nil {
+			if err := userWorker(ctx, s, chunkdir, tf); err != nil {
 				errC <- ExportError{"user", "worker", err}
 				return
 			}
@@ -111,9 +111,9 @@ func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 	// conversations goroutine
 	{
 		// starting the downloader
-		var sdl subproc.Downloader
+		var sdl fileproc.Downloader
 		if options.Type == export.TNoDownload || !cfg.DumpFiles {
-			sdl = subproc.NoopDownloader{}
+			sdl = fileproc.NoopDownloader{}
 		} else {
 			dl := downloader.New(sess.Client(), fsa, downloader.WithLogger(lg))
 			dl.Start(ctx)
@@ -121,7 +121,7 @@ func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 			sdl = dl
 		}
 
-		conv, err := expproc.NewConversation(tmpdir, subproc.NewExport(options.Type, sdl), tf)
+		conv, err := dirproc.NewConversation(tmpdir, fileproc.NewExport(options.Type, sdl), tf)
 		if err != nil {
 			return fmt.Errorf("error initialising conversation processor: %w", err)
 		}
@@ -199,12 +199,12 @@ func genListChannel(ctx context.Context, links chan<- string, list *structures.E
 func genAPIChannel(s *slackdump.Stream, tmpdir string, memberOnly bool) linkFeederFunc {
 	return func(ctx context.Context, links chan<- string, list *structures.EntityList) error {
 		chIdx := list.Index()
-		chanproc, err := expproc.NewChannels(tmpdir, func(c []slack.Channel) error {
+		chanproc, err := dirproc.NewChannels(tmpdir, func(c []slack.Channel) error {
 			for _, ch := range c {
 				if memberOnly && !ch.IsMember {
 					continue
 				}
-				if include, ok := chIdx[ch.ID]; ok && !include {
+				if chIdx.IsExcluded(ch.ID) {
 					continue
 				}
 
@@ -232,8 +232,8 @@ func genAPIChannel(s *slackdump.Stream, tmpdir string, memberOnly bool) linkFeed
 	}
 }
 
-func userWorker(ctx context.Context, s *slackdump.Stream, tmpdir string, chunkdir *chunk.Directory, tf *transform.Export) error {
-	userproc, err := expproc.NewUsers(tmpdir)
+func userWorker(ctx context.Context, s *slackdump.Stream, chunkdir *chunk.Directory, tf *transform.Export) error {
+	userproc, err := dirproc.NewUsers(chunkdir.Name())
 	if err != nil {
 		return err
 	}
@@ -292,7 +292,7 @@ func newProgressBar(pb *progressbar.ProgressBar, debug bool) progresser {
 func workspaceWorker(ctx context.Context, s *slackdump.Stream, tmpdir string) error {
 	lg := logger.FromContext(ctx)
 	lg.Debug("workspaceWorker started")
-	wsproc, err := expproc.NewWorkspace(tmpdir)
+	wsproc, err := dirproc.NewWorkspace(tmpdir)
 	if err != nil {
 		return err
 	}

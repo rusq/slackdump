@@ -39,7 +39,7 @@ func hasFilePrefix(s string) bool {
 func NewEntityList(entities []string) (*EntityList, error) {
 	var el EntityList
 
-	index, err := buildEntityIndex(entities)
+	index, err := buildEntryIndex(entities)
 	if err != nil {
 		return nil, err
 	}
@@ -72,7 +72,7 @@ func readEntityList(r io.Reader, maxEntries int) (*EntityList, error) {
 			return nil, errors.New("maximum file size exceeded")
 		}
 		line, err := br.ReadString('\n')
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			exit = true
 		} else if err != nil {
 			return nil, err
@@ -109,7 +109,7 @@ func (el *EntityList) fromIndex(index map[string]bool) {
 
 // Index returns a map where key is entity, and value show if the entity
 // should be processed (true) or not (false).
-func (el *EntityList) Index() map[string]bool {
+func (el *EntityList) Index() EntityIndex {
 	if el == nil {
 		return map[string]bool{}
 	}
@@ -121,6 +121,22 @@ func (el *EntityList) Index() map[string]bool {
 		idx[v] = false
 	}
 	return idx
+}
+
+type EntityIndex map[string]bool
+
+// IsExcluded returns true if the entity is excluded (is in the list, and has
+// value false).
+func (ei EntityIndex) IsExcluded(ent string) bool {
+	v, ok := ei[ent]
+	return ok && !v
+}
+
+// IsIncluded returns true if the entity is included (is in the list, and has
+// value true).
+func (ei EntityIndex) IsIncluded(ent string) bool {
+	v, ok := ei[ent]
+	return ok && v
 }
 
 // HasIncludes returns true if there's any included entities.
@@ -138,12 +154,12 @@ func (el *EntityList) IsEmpty() bool {
 	return len(el.Include)+len(el.Exclude) == 0
 }
 
-func buildEntityIndex(entities []string) (map[string]bool, error) {
-	index := make(map[string]bool, len(entities))
+func buildEntryIndex(links []string) (map[string]bool, error) {
+	index := make(map[string]bool, len(links))
 	var excluded []string
 	var files []string
 	// add all included items
-	for _, ent := range entities {
+	for _, ent := range links {
 		if ent == "" {
 			continue
 		}
@@ -192,6 +208,9 @@ func buildEntityIndex(entities []string) (map[string]bool, error) {
 	return index, nil
 }
 
+// Generator returns a channel where all included entries are streamed.
+// The channel is closed when all entries have been sent, or when the context
+// is cancelled.
 func (el *EntityList) Generator(ctx context.Context) <-chan string {
 	ch := make(chan string)
 	go func() {

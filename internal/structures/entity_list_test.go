@@ -225,7 +225,7 @@ func TestEntityList_Index(t *testing.T) {
 	tests := []struct {
 		name   string
 		fields fields
-		want   map[string]bool
+		want   EntityIndex
 	}{
 		{
 			"simple",
@@ -233,7 +233,7 @@ func TestEntityList_Index(t *testing.T) {
 				Include: []string{"C123", "C234"},
 				Exclude: []string{"C456", "C567"},
 			},
-			map[string]bool{
+			EntityIndex{
 				"C123": true,
 				"C234": true,
 				"C456": false,
@@ -246,7 +246,7 @@ func TestEntityList_Index(t *testing.T) {
 				Include: []string{"C123", "C234"},
 				Exclude: []string{"C234", "C567"},
 			},
-			map[string]bool{
+			EntityIndex{
 				"C123": true,
 				"C234": false,
 				"C567": false,
@@ -255,7 +255,7 @@ func TestEntityList_Index(t *testing.T) {
 		{
 			"nil",
 			fields{},
-			map[string]bool{},
+			EntityIndex{},
 		},
 	}
 	for _, tt := range tests {
@@ -454,7 +454,7 @@ func Test_buildEntityIndex(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := buildEntityIndex(tt.args.entities)
+			got, err := buildEntryIndex(tt.args.entities)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("buildEntityIndex() error = %v, wantErr %v", err, tt.wantErr)
 				return

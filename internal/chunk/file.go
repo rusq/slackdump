@@ -81,14 +81,14 @@ type decoder interface {
 
 // indexChunks indexes the records in the reader and returns an index.
 func indexChunks(dec decoder) (index, error) {
-	idx := make(index)
+	idx := make(index, 200) // buffer for 200 chunks to avoid reallocations.
 
 	for i := 0; ; i++ {
 		offset := dec.InputOffset() // record current offset
 
 		var chunk Chunk
 		if err := dec.Decode(&chunk); err != nil {
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				break
 			}
 			return nil, err
@@ -135,7 +135,7 @@ func (f *File) ForEach(fn func(ev *Chunk) error) error {
 	for {
 		var chunk *Chunk
 		if err := dec.Decode(&chunk); err != nil {
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				break
 			}
 			return err
