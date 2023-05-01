@@ -21,7 +21,6 @@ type ExportMessage struct {
 	SourceTeam      string             `json:"source_team"`
 	UserProfile     *ExportUserProfile `json:"user_profile"`
 	ReplyUsersCount int                `json:"reply_users_count"`
-	ReplyUsers      []string           `json:"reply_users"`
 	slackdumpTime   time.Time          `json:"-"`
 }
 

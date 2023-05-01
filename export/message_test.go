@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/slack-go/slack"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/rusq/slackdump/v2/internal/fixtures"
@@ -13,7 +14,7 @@ import (
 
 func Test_makeUniq(t *testing.T) {
 	expMsg := ExportMessage{
-		ReplyUsers: []string{"A", "A", "C", "B"},
+		Msg: &slack.Msg{ReplyUsers: []string{"A", "A", "C", "B"}},
 	}
 	makeUniq(&expMsg.ReplyUsers)
 	assert.Equal(t, []string{"A", "B", "C"}, expMsg.ReplyUsers)
