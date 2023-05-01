@@ -11,14 +11,18 @@ import (
 	"github.com/rusq/slackdump/v2/internal/chunk/processor/dirproc"
 	"github.com/rusq/slackdump/v2/internal/chunk/transform"
 	"github.com/rusq/slackdump/v2/logger"
+	"github.com/slack-go/slack"
 )
 
 func userWorker(ctx context.Context, s Streamer, chunkdir *chunk.Directory, tf TransformStarter) error {
-	userproc, err := dirproc.NewUsers(chunkdir)
+	var users = make([]slack.User, 0, 100)
+	userproc, err := dirproc.NewUsers(chunkdir, dirproc.WithUsers(func(us []slack.User) error {
+		users = append(users, us...)
+		return nil
+	}))
 	if err != nil {
 		return err
 	}
-
 	if err := s.Users(ctx, userproc); err != nil {
 		if err2 := userproc.Close(); err2 != nil {
 			err = errors.Join(err2)
@@ -29,9 +33,8 @@ func userWorker(ctx context.Context, s Streamer, chunkdir *chunk.Directory, tf T
 		return fmt.Errorf("error closing user processor: %w", err)
 	}
 	logger.FromContext(ctx).Debug("users done")
-	users, err := chunkdir.Users() // load users from chunks
-	if err != nil {
-		return fmt.Errorf("error loading users: %w", err)
+	if len(users) == 0 {
+		return fmt.Errorf("unable to proceed, no users found")
 	}
 	if err := tf.StartWithUsers(ctx, users); err != nil {
 		return fmt.Errorf("error starting the transformer: %w", err)
