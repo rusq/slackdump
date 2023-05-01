@@ -27,11 +27,7 @@ import (
 )
 
 func TestExport_saveChannel(t *testing.T) {
-	//TODO
-	dir, err := os.MkdirTemp("", "slackdump")
-	if err != nil {
-		t.Fatal(err)
-	}
+	dir := t.TempDir()
 	t.Log(dir)
 	type fields struct {
 		dir    string

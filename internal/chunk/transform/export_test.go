@@ -12,7 +12,7 @@ func Test_transform(t *testing.T) {
 	// TODO: automate.
 	// MANUAL
 	const (
-		base   = "../../../../../"
+		base   = "../../../"
 		srcdir = base + "tmp/exportv3"
 		fsaDir = base + "tmp/exportv3/out"
 	)

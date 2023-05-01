@@ -251,11 +251,7 @@ func Test_filename(t *testing.T) {
 
 func TestSession_newFileDownloader(t *testing.T) {
 	tl := rate.NewLimiter(defLimit, 1)
-	// tmpdir := t.TempDir()
-	tmpdir, err := os.MkdirTemp("", "slack-downloader")
-	if err != nil {
-		t.Fatal(err)
-	}
+	tmpdir := t.TempDir()
 
 	t.Run("ensure file downloader is running", func(t *testing.T) {
 		mc := mock_downloader.NewMockDownloader(gomock.NewController(t))

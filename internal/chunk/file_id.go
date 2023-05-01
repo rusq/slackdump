@@ -6,7 +6,7 @@ import (
 	"github.com/rusq/slackdump/v2/internal/structures"
 )
 
-// FileID is the ID of the file within the directory (it's basically the file
+// FileID is the ID of the file within the Directory (it's basically the file
 // name without an extension).
 type FileID string
 
