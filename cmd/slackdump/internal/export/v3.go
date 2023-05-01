@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/rusq/fsadapter"
+	"github.com/schollz/progressbar/v3"
 
 	"github.com/rusq/slackdump/v2"
 
@@ -43,17 +44,43 @@ func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 	// starting the downloader
 	sdl, stop := initDownloader(ctx, cfg.DumpFiles, sess.Client(), options.Type, fsa, lg)
 	defer stop()
-	filer := fileproc.NewExport(options.Type, sdl)
 
-	flags := ctrl.Flags{MemberOnly: options.MemberOnly}
-	if err := ctrl.Run(ctx, chunkdir, sess.Stream(), tf, filer, list, flags); err != nil {
+	pb := newProgressBar(progressbar.NewOptions(
+		-1,
+		progressbar.OptionClearOnFinish(),
+		progressbar.OptionSpinnerType(8)),
+		lg.IsDebug(),
+	)
+	pb.RenderBlank()
+
+	flags := ctrl.Flags{
+		MemberOnly: options.MemberOnly,
+	}
+	ctr := ctrl.New(
+		chunkdir,
+		sess.Stream(),
+		ctrl.WithFiler(fileproc.NewExport(options.Type, sdl)),
+		ctrl.WithLogger(lg),
+		ctrl.WithFlags(flags),
+		ctrl.WithTransformer(tf),
+		ctrl.WithResultFn(func(sr slackdump.StreamResult) error {
+			lg.Debugf("conversations: %s", sr.String())
+			pb.Describe(sr.String())
+			pb.Add(1)
+			return nil
+		}),
+	)
+
+	if err := ctr.Run(ctx, list); err != nil {
 		return err
 	}
+	pb.Finish()
 	// at this point no goroutines are running, we are safe to assume that
 	// everything we need is in the chunk directory.
 	if err := tf.WriteIndex(); err != nil {
 		return err
 	}
+	pb.Describe("OK")
 	lg.Debug("index written")
 	lg.Println("conversations export finished")
 	lg.Debugf("chunk files in: %s", tmpdir)
@@ -68,4 +95,19 @@ func initDownloader(ctx context.Context, gEnabled bool, cl downloader.Downloader
 		dl.Start(ctx)
 		return dl, dl.Stop
 	}
+}
+
+func newProgressBar(pb *progressbar.ProgressBar, debug bool) progresser {
+	if debug {
+		return progressbar.DefaultSilent(0)
+	}
+	return pb
+}
+
+// progresser is an interface for progress bars.
+type progresser interface {
+	RenderBlank() error
+	Describe(description string)
+	Add(num int) error
+	Finish() error
 }
