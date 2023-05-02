@@ -181,6 +181,7 @@ func buildEntryIndex(links []string) (map[string]bool, error) {
 			}
 			files = append(files, trimmed)
 		default:
+			// no prefix
 			sl, err := ParseLink(ent)
 			if err != nil {
 				return nil, err

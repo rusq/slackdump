@@ -29,6 +29,7 @@ import (
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/golang/help"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/list"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/man"
+	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/record"
 	v1 "github.com/rusq/slackdump/v2/cmd/slackdump/internal/v1"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/wizard"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/workspace"
@@ -48,6 +49,7 @@ func init() {
 		wizard.CmdWizard,
 		export.CmdExport,
 		dump.CmdDump,
+		record.CmdRecord,
 		list.CmdList,
 		emoji.CmdEmoji,
 		workspace.CmdWorkspace,
@@ -57,8 +59,9 @@ func init() {
 		convert.CmdConvert,
 		CmdVersion,
 
-		man.Login,
 		man.WhatsNew,
+		man.Login,
+		man.Chunk,
 	}
 }
 

@@ -21,6 +21,10 @@
       `workspace select` command;
     - The "_Current_" workspace can be overridden by providing the `-w <name>`
       flag.
+- Slackdump `record` mode allows to dump the entire workspace into a directory
+  of chunk files.
+- Slackdump `convert` mode allows to convert chunk files into other formats,
+  such as Slack export format, or Slackdump format.
 
 ## Changes
 
