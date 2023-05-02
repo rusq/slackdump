@@ -60,16 +60,15 @@ Sample chunk JSON message:
 ### t: Chunk type
 
 Each JSON object can contain the following "chunk" of information, denoted as
-unsigned 8-bit integer:
+unsigned 8-bit integer, each chunk type is a direct mapping to the Slack API method that was used to
+retrieve the data:
+
 - **Type 0**: slice of channel messages;
 - **Type 1**: slice of channel message replies (a thread);
 - **Type 2**: slice of files that were uploaded to the workspace (only definitions);
 - **Type 3**: slice of channels;
 - **Type 4**: slice of users;
 - **Type 5**: workspace information.
-
-Each chunk type is a direct mapping to the Slack API method that was used to
-retrieve the data:
 
 - **Type 0**: [conversations.history](https://api.slack.com/methods/conversations.history);
 - **Type 1**: [conversations.replies](https://api.slack.com/methods/conversations.replies);
@@ -93,6 +92,7 @@ The channel ID is a string that contains the ID of the channel that the chunk
 belongs to.  It is only populated for chunks of type 0, 1, and 2.
 
 ### n: Number of messages or files
+
 The number of messages or files is an integer that contains the number of
 messages or files that are contained in the chunk.  It is only populated for
 chunks of type 0, 1, and 2.
@@ -125,24 +125,24 @@ It is only populated for chunks of type 1 and 2.
 
 ### m: Messages
 
-The messages contains a chunk of messages as returned by the API.  It is only
-populated for chunks of type 0 and 1.  This slice size can be in range from 1
-to 1000 for message type chunks.
+The messages contains a chunk of messages.  It is only populated for chunks of
+type 0 and 1.  This slice size can be in range from 1 to 1000 for message type
+chunks.
 
 ### f: Files
 
-The files contains a chunk of files as returned by the API.  It is only
-populated for chunks of type 2.
+The files contains a chunk of files.  It is only populated for chunks of type
+2.
 
 ### u: Users
 
-The users contains a chunk of users as returned by the API.  It is only
-populated for chunks of type 4.
+The users contains a chunk of users.  It is only populated for chunks of type
+4.
 
 ### ch: Channels
 
-The channels contains a chunk of channels as returned by the API.  It is only
-populated for chunks of type 3.
+The channels contains a chunk of channels.  It is only populated for chunks of
+type 3.
 
 ### w: Workspace information
 

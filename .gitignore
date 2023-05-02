@@ -53,3 +53,5 @@ dist/
 /tmp
 *.dot
 
+# outputs
+slackdump_2*
