@@ -35,7 +35,7 @@ const (
 // use.
 type Stream struct {
 	oldest, latest time.Time
-	client         streamer
+	client         Slacker
 	limits         rateLimits
 	chanCache      *chanCache
 }
@@ -115,7 +115,9 @@ func OptLatest(t time.Time) StreamOption {
 	}
 }
 
-func newChannelStream(cl streamer, l *Limits, opts ...StreamOption) *Stream {
+// NewStream creates a new Stream instance that allows to stream different
+// slack entities.
+func NewStream(cl Slacker, l *Limits, opts ...StreamOption) *Stream {
 	cs := &Stream{
 		client:    cl,
 		limits:    limits(l),
