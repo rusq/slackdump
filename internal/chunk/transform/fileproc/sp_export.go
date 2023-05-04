@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 
 	"github.com/rusq/slackdump/v2/export"
-	"github.com/rusq/slackdump/v2/internal/chunk/processor"
 	"github.com/rusq/slackdump/v2/internal/chunk/transform"
+	"github.com/rusq/slackdump/v2/processor"
 	"github.com/slack-go/slack"
 )
 

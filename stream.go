@@ -11,10 +11,10 @@ import (
 	"github.com/slack-go/slack"
 	"golang.org/x/time/rate"
 
-	"github.com/rusq/slackdump/v2/internal/chunk/processor"
 	"github.com/rusq/slackdump/v2/internal/network"
 	"github.com/rusq/slackdump/v2/internal/structures"
 	"github.com/rusq/slackdump/v2/logger"
+	"github.com/rusq/slackdump/v2/processor"
 )
 
 const (

@@ -22,7 +22,7 @@ import (
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v2/downloader"
 	"github.com/rusq/slackdump/v2/internal/chunk"
-	"github.com/rusq/slackdump/v2/internal/chunk/processor/dirproc"
+	"github.com/rusq/slackdump/v2/internal/chunk/dirproc"
 	"github.com/rusq/slackdump/v2/internal/chunk/transform"
 	"github.com/rusq/slackdump/v2/internal/chunk/transform/fileproc"
 	"github.com/rusq/slackdump/v2/internal/nametmpl"

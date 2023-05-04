@@ -4,8 +4,8 @@ import (
 	"context"
 
 	"github.com/rusq/slackdump/v2"
-	"github.com/rusq/slackdump/v2/internal/chunk/processor"
-	"github.com/rusq/slackdump/v2/internal/chunk/processor/dirproc"
+	"github.com/rusq/slackdump/v2/internal/chunk/dirproc"
+	"github.com/rusq/slackdump/v2/processor"
 	"github.com/slack-go/slack"
 )
 

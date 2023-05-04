@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/rusq/slackdump/v2/internal/chunk"
-	"github.com/rusq/slackdump/v2/internal/chunk/processor"
+	"github.com/rusq/slackdump/v2/processor"
 	"github.com/slack-go/slack"
 )
 
