@@ -112,7 +112,9 @@ func SetBaseFlags(fs *flag.FlagSet, mask FlagMask) {
 		fs.DurationVar(&UserCacheRetention, "user-cache-retention", 60*time.Minute, "user cache retention duration.  After this time, the cache is considered stale and will be refreshed.")
 	}
 	if mask&OmitTimeframeFlag == 0 {
-		fs.Var(&Oldest, "from", "timestamp of the oldest message to fetch (UTC timezone)")
-		fs.Var(&Latest, "to", "timestamp of the newest message to fetch (UTC timezone)")
+		fs.Var(&Oldest, "time-from", "timestamp of the oldest message to fetch (UTC timezone)")
+		fs.Var(&Latest, "time-to", "timestamp of the newest message to fetch (UTC timezone)")
+		fs.Var(&Oldest, "date-from", "timestamp of the oldest message to fetch (UTC timezone) (DEPRECATED)")
+		fs.Var(&Latest, "date-to", "timestamp of the newest message to fetch (UTC timezone) (DEPRECATED)")
 	}
 }

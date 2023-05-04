@@ -17,10 +17,9 @@ import (
 	"strings"
 	"sync"
 
-	markdown "github.com/MichaelMure/go-term-markdown"
-	"golang.org/x/term"
-
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/cfg"
+	"golang.org/x/term"
+	"src.elv.sh/pkg/md"
 )
 
 var CmdName string
@@ -176,8 +175,13 @@ func Render(s string) string {
 		// we're not running in the terminal, output the markdown source.
 		return s
 	}
-	leftIndent := int(float64(width) * 0.075)
-	rightIndent := int(float64(width) * 0.02)
+	if width == 0 {
+		width = defWidth
+	}
+	return md.RenderString(s, &md.TTYCodec{Width: width})
 
-	return string(markdown.Render(s, width-rightIndent, leftIndent))
+	// leftIndent := int(float64(width) * 0.075)
+	// rightIndent := int(float64(width) * 0.02)
+
+	// return string(markdown.Render(s, width-rightIndent, leftIndent))
 }

@@ -12,7 +12,6 @@ import (
 
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v2/downloader"
-	"github.com/rusq/slackdump/v2/export"
 	"github.com/rusq/slackdump/v2/internal/chunk"
 	"github.com/rusq/slackdump/v2/internal/chunk/control"
 	"github.com/rusq/slackdump/v2/internal/chunk/transform"
@@ -21,7 +20,7 @@ import (
 	"github.com/rusq/slackdump/v2/logger"
 )
 
-func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, list *structures.EntityList, options export.Config) error {
+func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, list *structures.EntityList, params exportFlags) error {
 	lg := logger.FromContext(ctx)
 
 	tmpdir, err := os.MkdirTemp("", "slackdump-*")
@@ -37,14 +36,14 @@ func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 	if !lg.IsDebug() {
 		defer chunkdir.RemoveAll()
 	}
-	tf, err := transform.NewExport(ctx, fsa, tmpdir, transform.WithBufferSize(1000), transform.WithMsgUpdateFunc(fileproc.ExportTokenUpdateFn(options.ExportToken)))
+	tf, err := transform.NewExport(ctx, fsa, tmpdir, transform.WithBufferSize(1000), transform.WithMsgUpdateFunc(fileproc.ExportTokenUpdateFn(params.ExportToken)))
 	if err != nil {
 		return fmt.Errorf("failed to create transformer: %w", err)
 	}
 	defer tf.Close()
 
 	// starting the downloader
-	sdl, stop := initDownloader(ctx, cfg.DumpFiles, sess.Client(), options.Type, fsa, lg)
+	sdl, stop := initDownloader(ctx, cfg.DumpFiles, sess.Client(), params.ExportStorageType, fsa, lg)
 	defer stop()
 
 	pb := newProgressBar(progressbar.NewOptions(
@@ -56,12 +55,12 @@ func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 	pb.RenderBlank()
 
 	flags := control.Flags{
-		MemberOnly: options.MemberOnly,
+		MemberOnly: params.MemberOnly,
 	}
 	ctr := control.New(
 		chunkdir,
-		sess.Stream(),
-		control.WithFiler(fileproc.NewExport(options.Type, sdl)),
+		sess.Stream(slackdump.OptOldest(params.Oldest), slackdump.OptLatest(params.Latest)),
+		control.WithFiler(fileproc.NewExport(params.ExportStorageType, sdl)),
 		control.WithLogger(lg),
 		control.WithFlags(flags),
 		control.WithTransformer(tf),
@@ -90,8 +89,8 @@ func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 	return nil
 }
 
-func initDownloader(ctx context.Context, gEnabled bool, cl downloader.Downloader, t export.ExportType, fsa fsadapter.FS, lg logger.Interface) (sdl fileproc.Downloader, stop func()) {
-	if t == export.TNoDownload || !gEnabled {
+func initDownloader(ctx context.Context, gEnabled bool, cl downloader.Downloader, t fileproc.StorageType, fsa fsadapter.FS, lg logger.Interface) (sdl fileproc.Downloader, stop func()) {
+	if t == fileproc.STNone || !gEnabled {
 		return fileproc.NoopDownloader{}, func() {}
 	} else {
 		dl := downloader.New(cl, fsa, downloader.WithLogger(lg))

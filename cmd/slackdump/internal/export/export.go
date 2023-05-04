@@ -13,7 +13,7 @@ import (
 	"github.com/rusq/slackdump/v2/auth"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/golang/base"
-	"github.com/rusq/slackdump/v2/export"
+	"github.com/rusq/slackdump/v2/internal/chunk/transform/fileproc"
 	"github.com/rusq/slackdump/v2/internal/structures"
 	"github.com/rusq/slackdump/v2/logger"
 )
@@ -23,24 +23,34 @@ var CmdExport = &base.Command{
 	Wizard:      nil,
 	UsageLine:   "slackdump export",
 	Short:       "exports the Slack Workspace or individual conversations",
+	FlagMask:    cfg.OmitUserCacheFlag,
 	Long:        ``, // TODO: add long description
 	CustomFlags: false,
 	PrintFlags:  true,
 	RequireAuth: true,
 }
 
+type exportFlags struct {
+	ExportStorageType fileproc.StorageType
+	MemberOnly        bool
+	ExportToken       string
+	Oldest            time.Time
+	Latest            time.Time
+}
+
 var (
 	compat  bool
-	options = export.Config{
-		Type:   export.TMattermost,
-		Oldest: time.Time(cfg.Oldest),
-		Latest: time.Time(cfg.Latest),
+	options = exportFlags{
+		ExportStorageType: fileproc.STMattermost,
+		Oldest:            time.Time(cfg.Oldest),
+		Latest:            time.Time(cfg.Latest),
 	}
 )
 
 func init() {
 	// TODO: move TimeValue somewhere more appropriate once v1 is sunset.
-	CmdExport.Flag.Var(&options.Type, "type", "export type")
+	CmdExport.Flag.Var(&options.ExportStorageType, "type", "export file storage type")
+	CmdExport.Flag.BoolVar(&options.MemberOnly, "member-only", false, "export only channels, which current user belongs to")
 	CmdExport.Flag.StringVar(&options.ExportToken, "export-token", "", "file export token to append to each of the file URLs")
 	CmdExport.Flag.BoolVar(&compat, "compat", false, "use the v2 export code")
 
@@ -54,7 +64,7 @@ func runExport(ctx context.Context, cmd *base.Command, args []string) error {
 		return errors.New("use -base to set the base output location")
 	}
 	if !cfg.DumpFiles {
-		options.Type = export.TNoDownload
+		options.ExportStorageType = fileproc.STNone
 	}
 	list, err := structures.NewEntityList(args)
 	if err != nil {
@@ -79,9 +89,6 @@ func runExport(ctx context.Context, cmd *base.Command, args []string) error {
 		dlog.Debugln("closing the fsadapter")
 		fsa.Close()
 	}()
-
-	options.List = list
-	options.Logger = logger.FromContext(ctx)
 
 	var expfn = exportV3
 	if compat {

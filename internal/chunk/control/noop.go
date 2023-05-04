@@ -1,5 +1,8 @@
 package control
 
+// In this file: dummies for the transformer and filer, if the user chooses
+// not to plug in any transformers.
+
 import (
 	"context"
 

@@ -14,7 +14,6 @@ import (
 	"github.com/rusq/dlog"
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/slackdump/v2"
-	"github.com/rusq/slackdump/v2/export"
 	"github.com/rusq/slackdump/v2/internal/chunk/chunktest"
 	"github.com/rusq/slackdump/v2/internal/structures"
 	"github.com/rusq/slackdump/v2/logger"
@@ -80,7 +79,7 @@ func Test_exportV3(t *testing.T) {
 		defer fsa.Close()
 
 		list := &structures.EntityList{}
-		if err := exportV3(ctx, sess, fsa, list, export.Config{List: list}); err != nil {
+		if err := exportV3(ctx, sess, fsa, list, exportFlags{}); err != nil {
 			t.Fatal(err)
 		}
 	})

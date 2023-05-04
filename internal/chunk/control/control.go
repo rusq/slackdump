@@ -1,5 +1,7 @@
-// Package ctrl is the Slack Stream controller.  It runs the API scraping in
-// several goroutines and manages the data flow between them.
+// Package control is the Slack Stream controller.  It runs the API scraping
+// in several goroutines and manages the data flow between them.  It records
+// the output of the API scraper into a chunk directory.  It also manages
+// the transformation of the data, if the caller is interested in it.
 package control
 
 import (
@@ -103,8 +105,8 @@ type Flags struct {
 	MemberOnly bool
 }
 
-// CtrlError is a controller error.
-type CtrlError struct {
+// Error is a controller error.
+type Error struct {
 	// Subroutine is the name of the subroutine that failed.
 	Subroutine string
 	// Stage is the stage of the subroutine that failed.
@@ -113,7 +115,7 @@ type CtrlError struct {
 	Err error
 }
 
-func (e CtrlError) Error() string {
+func (e Error) Error() string {
 	return fmt.Sprintf("controller error in %s on %s: %v", e.Subroutine, e.Stage, e.Err)
 }
 
@@ -146,7 +148,7 @@ func (c *Controller) Run(ctx context.Context, list *structures.EntityList) error
 			defer lg.Debug("channels done")
 
 			if err := generator(ctx, linkC, list); err != nil {
-				errC <- CtrlError{"channel generator", "generator", err}
+				errC <- Error{"channel generator", "generator", err}
 				return
 			}
 		}()
@@ -158,7 +160,7 @@ func (c *Controller) Run(ctx context.Context, list *structures.EntityList) error
 			defer wg.Done()
 			defer lg.Debug("workspace info done")
 			if err := workspaceWorker(ctx, c.s, c.cd); err != nil {
-				errC <- CtrlError{"workspace", "worker", err}
+				errC <- Error{"workspace", "worker", err}
 				return
 			}
 		}()
@@ -170,7 +172,7 @@ func (c *Controller) Run(ctx context.Context, list *structures.EntityList) error
 		go func() {
 			defer wg.Done()
 			if err := userWorker(ctx, c.s, c.cd, c.tf); err != nil {
-				errC <- CtrlError{"user", "worker", err}
+				errC <- Error{"user", "worker", err}
 				return
 			}
 		}()
@@ -187,11 +189,11 @@ func (c *Controller) Run(ctx context.Context, list *structures.EntityList) error
 			defer wg.Done()
 			defer func() {
 				if err := conv.Close(); err != nil {
-					errC <- CtrlError{"conversations", "close", err}
+					errC <- Error{"conversations", "close", err}
 				}
 			}()
 			if err := conversationWorker(ctx, c.s, conv, linkC, c.resultFn...); err != nil {
-				errC <- CtrlError{"conversations", "worker", err}
+				errC <- Error{"conversations", "worker", err}
 				return
 			}
 		}()
