@@ -229,13 +229,14 @@ func dump(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, p dump
 	if err := sess.Stream(
 		slackdump.OptOldest(time.Time(p.oldest)),
 		slackdump.OptLatest(time.Time(p.latest)),
-	).Conversations(ctx, proc, p.list.Generator(ctx), func(sr slackdump.StreamResult) error {
-		if sr.Err != nil {
-			return sr.Err
-		}
-		dlog.Printf("conversation %s dumped", sr)
-		return nil
-	}); err != nil {
+		slackdump.OptResultFn(func(sr slackdump.StreamResult) error {
+			if sr.Err != nil {
+				return sr.Err
+			}
+			dlog.Printf("conversation %s dumped", sr)
+			return nil
+		}),
+	).Conversations(ctx, proc, p.list.Generator(ctx)); err != nil {
 		return fmt.Errorf("failed to dump conversations: %w", err)
 	}
 	lg.Debugln("stream complete, waiting for all goroutines to finish")

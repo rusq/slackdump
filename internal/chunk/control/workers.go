@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/internal/chunk"
 	"github.com/rusq/slackdump/v2/internal/chunk/dirproc"
 	"github.com/rusq/slackdump/v2/internal/chunk/transform"
@@ -42,16 +41,9 @@ func userWorker(ctx context.Context, s Streamer, chunkdir *chunk.Directory, tf T
 	return nil
 }
 
-func conversationWorker(ctx context.Context, s Streamer, proc processor.Conversations, links <-chan string, resFn ...func(sr slackdump.StreamResult) error) error {
+func conversationWorker(ctx context.Context, s Streamer, proc processor.Conversations, links <-chan string) error {
 	lg := logger.FromContext(ctx)
-	if err := s.Conversations(ctx, proc, links, func(sr slackdump.StreamResult) error {
-		for _, fn := range resFn {
-			if err := fn(sr); err != nil {
-				return err
-			}
-		}
-		return nil
-	}); err != nil {
+	if err := s.Conversations(ctx, proc, links); err != nil {
 		if errors.Is(err, transform.ErrClosed) {
 			return fmt.Errorf("upstream error: %w", err)
 		}

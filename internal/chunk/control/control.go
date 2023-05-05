@@ -35,10 +35,6 @@ type Controller struct {
 	pfiles processor.Filer
 	// lg is the logger
 	lg logger.Interface
-	// resultFn is a list of functions to be called on each result that
-	// comes from the streamer.
-	resultFn []func(slackdump.StreamResult) error
-
 	// flags
 	flags Flags
 }
@@ -46,8 +42,8 @@ type Controller struct {
 // Option is a functional option for the Controller.
 type Option func(*Controller)
 
-// WithFiler configures the controller with a file subprocessor.
-func WithFiler(f processor.Filer) Option {
+// WithSubproc configures the controller with a file subprocessor.
+func WithSubproc(f processor.Filer) Option {
 	return func(c *Controller) {
 		c.pfiles = f
 	}
@@ -57,13 +53,6 @@ func WithFiler(f processor.Filer) Option {
 func WithFlags(f Flags) Option {
 	return func(c *Controller) {
 		c.flags = f
-	}
-}
-
-// WithResultFn configures the controller with a result function.
-func WithResultFn(fn func(slackdump.StreamResult) error) Option {
-	return func(c *Controller) {
-		c.resultFn = append(c.resultFn, fn)
 	}
 }
 
@@ -192,7 +181,7 @@ func (c *Controller) Run(ctx context.Context, list *structures.EntityList) error
 					errC <- Error{"conversations", "close", err}
 				}
 			}()
-			if err := conversationWorker(ctx, c.s, conv, linkC, c.resultFn...); err != nil {
+			if err := conversationWorker(ctx, c.s, conv, linkC); err != nil {
 				errC <- Error{"conversations", "worker", err}
 				return
 			}

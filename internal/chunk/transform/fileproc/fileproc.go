@@ -5,7 +5,12 @@
 package fileproc
 
 import (
+	"context"
+
+	"github.com/rusq/fsadapter"
+	"github.com/rusq/slackdump/v2/downloader"
 	"github.com/rusq/slackdump/v2/internal/structures/files"
+	"github.com/rusq/slackdump/v2/logger"
 	"github.com/slack-go/slack"
 )
 
@@ -43,4 +48,16 @@ type NoopDownloader struct{}
 
 func (NoopDownloader) Download(fullpath string, url string) error {
 	return nil
+}
+
+// NewDownloader initializes the downloader and returns it, along with a
+// function that should be called to stop it.
+func NewDownloader(ctx context.Context, gEnabled bool, cl downloader.Downloader, fsa fsadapter.FS, lg logger.Interface) (sdl Downloader, stop func()) {
+	if !gEnabled {
+		return NoopDownloader{}, func() {}
+	} else {
+		dl := downloader.New(cl, fsa, downloader.WithLogger(lg))
+		dl.Start(ctx)
+		return dl, dl.Stop
+	}
 }

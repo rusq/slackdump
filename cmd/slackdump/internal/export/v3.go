@@ -11,7 +11,6 @@ import (
 	"github.com/rusq/slackdump/v2"
 
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/cfg"
-	"github.com/rusq/slackdump/v2/downloader"
 	"github.com/rusq/slackdump/v2/internal/chunk"
 	"github.com/rusq/slackdump/v2/internal/chunk/control"
 	"github.com/rusq/slackdump/v2/internal/chunk/transform"
@@ -20,6 +19,9 @@ import (
 	"github.com/rusq/slackdump/v2/logger"
 )
 
+// TODO: check if the features is on par with Export v2.
+
+// exportV3 runs the export v3.
 func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, list *structures.EntityList, params exportFlags) error {
 	lg := logger.FromContext(ctx)
 
@@ -43,7 +45,8 @@ func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 	defer tf.Close()
 
 	// starting the downloader
-	sdl, stop := initDownloader(ctx, cfg.DumpFiles, sess.Client(), params.ExportStorageType, fsa, lg)
+	dlEnabled := cfg.DumpFiles && params.ExportStorageType != fileproc.STNone
+	sdl, stop := fileproc.NewDownloader(ctx, dlEnabled, sess.Client(), fsa, lg)
 	defer stop()
 
 	pb := newProgressBar(progressbar.NewOptions(
@@ -57,19 +60,23 @@ func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 	flags := control.Flags{
 		MemberOnly: params.MemberOnly,
 	}
-	ctr := control.New(
-		chunkdir,
-		sess.Stream(slackdump.OptOldest(params.Oldest), slackdump.OptLatest(params.Latest)),
-		control.WithFiler(fileproc.NewExport(params.ExportStorageType, sdl)),
-		control.WithLogger(lg),
-		control.WithFlags(flags),
-		control.WithTransformer(tf),
-		control.WithResultFn(func(sr slackdump.StreamResult) error {
+	stream := sess.Stream(
+		slackdump.OptOldest(params.Oldest),
+		slackdump.OptLatest(params.Latest),
+		slackdump.OptResultFn(func(sr slackdump.StreamResult) error {
 			lg.Debugf("conversations: %s", sr.String())
 			pb.Describe(sr.String())
 			pb.Add(1)
 			return nil
 		}),
+	)
+	ctr := control.New(
+		chunkdir,
+		stream,
+		control.WithSubproc(fileproc.NewExport(params.ExportStorageType, sdl)),
+		control.WithLogger(lg),
+		control.WithFlags(flags),
+		control.WithTransformer(tf),
 	)
 
 	lg.Print("running export...")
@@ -87,16 +94,6 @@ func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 	lg.Println("conversations export finished")
 	lg.Debugf("chunk files in: %s", tmpdir)
 	return nil
-}
-
-func initDownloader(ctx context.Context, gEnabled bool, cl downloader.Downloader, t fileproc.StorageType, fsa fsadapter.FS, lg logger.Interface) (sdl fileproc.Downloader, stop func()) {
-	if t == fileproc.STNone || !gEnabled {
-		return fileproc.NoopDownloader{}, func() {}
-	} else {
-		dl := downloader.New(cl, fsa, downloader.WithLogger(lg))
-		dl.Start(ctx)
-		return dl, dl.Stop
-	}
 }
 
 func newProgressBar(pb *progressbar.ProgressBar, debug bool) progresser {

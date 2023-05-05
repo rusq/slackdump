@@ -11,6 +11,7 @@ import (
 	"github.com/slack-go/slack"
 	"golang.org/x/time/rate"
 
+	"github.com/rusq/slackdump/v2/internal/chunk/state"
 	"github.com/rusq/slackdump/v2/internal/network"
 	"github.com/rusq/slackdump/v2/internal/structures"
 	"github.com/rusq/slackdump/v2/logger"
@@ -38,6 +39,7 @@ type Stream struct {
 	client         Slacker
 	limits         rateLimits
 	chanCache      *chanCache
+	resultFn       []func(sr StreamResult) error
 }
 
 type chanCache struct {
@@ -115,6 +117,20 @@ func OptLatest(t time.Time) StreamOption {
 	}
 }
 
+// OptResultFn sets the callback function that is called for each result.
+func OptResultFn(fn func(sr StreamResult) error) StreamOption {
+	return func(cs *Stream) {
+		cs.resultFn = append(cs.resultFn, fn)
+	}
+}
+
+// OptState allows to set the state of the stream.
+func OptState(s *state.State) StreamOption {
+	return func(cs *Stream) {
+		panic("not implemented")
+	}
+}
+
 // NewStream creates a new Stream instance that allows to stream different
 // slack entities.
 func NewStream(cl Slacker, l *Limits, opts ...StreamOption) *Stream {
@@ -147,6 +163,7 @@ func (cs *Stream) ConversationsCB(ctx context.Context, proc processor.Conversati
 	defer task.End()
 
 	lg := logger.FromContext(ctx)
+	cs.resultFn = append(cs.resultFn, cb)
 
 	linkC := make(chan string, 1)
 	go func() {
@@ -157,7 +174,7 @@ func (cs *Stream) ConversationsCB(ctx context.Context, proc processor.Conversati
 		lg.Debugf("stream: sent %d links", len(link))
 	}()
 
-	if err := cs.Conversations(ctx, proc, linkC, cb); err != nil {
+	if err := cs.Conversations(ctx, proc, linkC); err != nil {
 		return err
 	}
 	return nil
@@ -173,7 +190,7 @@ func (cs *Stream) ConversationsCB(ctx context.Context, proc processor.Conversati
 // thread result with IsLast is received, the caller can assume that all
 // threads and messages for that channel have been processed.  For example,
 // see [cmd/slackdump/internal/export/expproc].
-func (cs *Stream) Conversations(ctx context.Context, proc processor.Conversations, links <-chan string, fn func(StreamResult) error) error {
+func (cs *Stream) Conversations(ctx context.Context, proc processor.Conversations, links <-chan string) error {
 	ctx, task := trace.NewTask(ctx, "AsyncConversations")
 	defer task.End()
 
@@ -241,8 +258,10 @@ func (cs *Stream) Conversations(ctx context.Context, proc processor.Conversation
 			trace.Log(ctx, "error", err.Error())
 			return err
 		}
-		if err := fn(res); err != nil {
-			return err
+		for _, fn := range cs.resultFn {
+			if err := fn(res); err != nil {
+				return err
+			}
 		}
 	}
 	trace.Log(ctx, "func", "complete")
