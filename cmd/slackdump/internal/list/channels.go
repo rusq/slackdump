@@ -47,7 +47,7 @@ func listChannels(ctx context.Context, cmd *base.Command, args []string) error {
 		ctx, task := trace.NewTask(ctx, "listChannels")
 		defer task.End()
 
-		var filename = makeFilename("channels", sess.Info().TeamID, listType)
+		var filename = makeFilename("channels", sess.Info().TeamID, ".json")
 		if len(args) > 0 {
 			filename = args[0]
 		}

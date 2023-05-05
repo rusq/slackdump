@@ -30,7 +30,7 @@ Users are cached for %v.  To disable caching, use '-no-user-cache' flag and
 
 func listUsers(ctx context.Context, cmd *base.Command, args []string) error {
 	if err := list(ctx, func(ctx context.Context, sess *slackdump.Session) (any, string, error) {
-		var filename = makeFilename("users", sess.Info().TeamID, listType)
+		var filename = makeFilename("users", sess.Info().TeamID, ".json")
 		if len(args) > 0 {
 			filename = args[0]
 		}
@@ -44,7 +44,7 @@ func listUsers(ctx context.Context, cmd *base.Command, args []string) error {
 
 func wizUsers(ctx context.Context, cmd *base.Command, args []string) error {
 	return wizard(ctx, func(ctx context.Context, sess *slackdump.Session) (any, string, error) {
-		var filename = makeFilename("users", sess.Info().TeamID, listType)
+		var filename = makeFilename("users", sess.Info().TeamID, ".json")
 		users, err := sess.GetUsers(ctx)
 		return users, filename, err
 	})

@@ -175,13 +175,14 @@ func Render(s string) string {
 		// we're not running in the terminal, output the markdown source.
 		return s
 	}
-	if width == 0 {
+	if width < 40 {
 		width = defWidth
 	}
-	return md.RenderString(s, &md.TTYCodec{Width: width})
 
+	return md.RenderString(s, &md.TTYCodec{Width: width - 2})
+
+	// heavy-weight alternative:
 	// leftIndent := int(float64(width) * 0.075)
 	// rightIndent := int(float64(width) * 0.02)
-
 	// return string(markdown.Render(s, width-rightIndent, leftIndent))
 }

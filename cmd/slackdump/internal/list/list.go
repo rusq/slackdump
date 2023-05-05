@@ -192,21 +192,10 @@ func fmtPrint(ctx context.Context, w io.Writer, a any, typ format.Type, u []slac
 	// unreachable
 }
 
-// extmap maps a format.Type to a file extension.
-var extmap = map[format.Type]string{
-	format.CText: "txt",
-	format.CJSON: "json",
-	format.CCSV:  "csv",
-}
-
 // makeFilename makes a filename for the given prefix, teamID and listType for
 // channels and users.
-func makeFilename(prefix string, teamID string, listType format.Type) string {
-	ext, ok := extmap[listType]
-	if !ok {
-		panic(fmt.Sprintf("unknown list type: %v", listType))
-	}
-	return fmt.Sprintf("%s-%s.%s", prefix, teamID, ext)
+func makeFilename(prefix string, teamID string, ext string) string {
+	return fmt.Sprintf("%s-%s%s", prefix, teamID, ext)
 }
 
 func wizard(ctx context.Context, listFn listFunc) error {
