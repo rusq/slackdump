@@ -209,14 +209,15 @@ func dump(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, p dump
 	if err != nil {
 		return fmt.Errorf("failed to create transform: %w", err)
 	}
-	defer tf.Close()
+
+	coord := transform.NewCoordinator(ctx, tf)
 
 	cd, err := chunk.OpenDir(dir)
 	if err != nil {
 		return err
 	}
 	// Create conversation processor.
-	proc, err := dirproc.NewConversation(cd, subproc, tf, dirproc.WithLogger(lg), dirproc.WithRecordFiles(false))
+	proc, err := dirproc.NewConversation(cd, subproc, coord, dirproc.WithLogger(lg), dirproc.WithRecordFiles(false))
 	if err != nil {
 		return fmt.Errorf("failed to create conversation processor: %w", err)
 	}
@@ -239,7 +240,11 @@ func dump(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, p dump
 	).Conversations(ctx, proc, p.list.Generator(ctx)); err != nil {
 		return fmt.Errorf("failed to dump conversations: %w", err)
 	}
+
 	lg.Debugln("stream complete, waiting for all goroutines to finish")
+	if err := coord.Wait(); err != nil {
+		return err
+	}
 
 	return nil
 }

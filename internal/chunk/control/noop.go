@@ -25,3 +25,7 @@ func (n *noopTransformer) StartWithUsers(ctx context.Context, users []slack.User
 func (n *noopTransformer) Transform(ctx context.Context, id chunk.FileID) error {
 	return nil
 }
+
+func (n *noopTransformer) Wait() error {
+	return nil
+}

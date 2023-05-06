@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/rusq/dlog"
 	"github.com/rusq/fsadapter"
 	"github.com/slack-go/slack"
 
@@ -16,26 +15,14 @@ import (
 	"github.com/rusq/slackdump/v2/types"
 )
 
-type Standard struct {
-	cd    *chunk.Directory
-	fsa   fsadapter.FS
-	idsC  chan chunk.FileID
-	doneC chan struct{}
-	errC  chan error
-	tmpl  Templater
-	lg    logger.Interface
-
-	updatePipeline pipeline
-}
-
-type StdOption func(*Standard)
+type StdOption func(*StdConverter)
 
 type Templater interface {
 	Execute(c *types.Conversation) string
 }
 
 func StdWithTemplate(tmpl Templater) StdOption {
-	return func(s *Standard) {
+	return func(s *StdConverter) {
 		s.tmpl = tmpl
 	}
 }
@@ -43,74 +30,33 @@ func StdWithTemplate(tmpl Templater) StdOption {
 // StdWithPipeline adds a pipeline function to the transformer, that will
 // be called for each message slice, before it is written to the filesystem.
 func StdWithPipeline(f ...func(channelID string, threadTS string, mm []slack.Message) error) StdOption {
-	return func(s *Standard) {
-		s.updatePipeline = append(s.updatePipeline, f...)
+	return func(s *StdConverter) {
+		s.pipeline = append(s.pipeline, f...)
 	}
 }
 
 func StdWithLogger(log logger.Interface) StdOption {
-	return func(s *Standard) {
+	return func(s *StdConverter) {
 		s.lg = log
 	}
 }
 
 // NewStandard creates a new standard dump transformer.
-func NewStandard(fsa fsadapter.FS, dir string, opts ...StdOption) (*Standard, error) {
+func NewStandard(fsa fsadapter.FS, dir string, opts ...StdOption) (*StdConverter, error) {
 	cd, err := chunk.OpenDir(dir)
 	if err != nil {
 		return nil, err
 	}
-	std := &Standard{
-		cd:    cd,
-		fsa:   fsa,
-		lg:    logger.Default,
-		tmpl:  nametmpl.NewDefault(),
-		idsC:  make(chan chunk.FileID),
-		doneC: make(chan struct{}),
-		errC:  make(chan error, 1),
+	std := &StdConverter{
+		cd:   cd,
+		fsa:  fsa,
+		lg:   logger.Default,
+		tmpl: nametmpl.NewDefault(),
 	}
 	for _, opt := range opts {
 		opt(std)
 	}
-	go std.worker()
 	return std, nil
-}
-
-func (s *Standard) worker() {
-	defer close(s.errC)
-	for id := range s.idsC {
-		if err := stdConvert(s.fsa, s.cd, id, s.tmpl, s.updatePipeline...); err != nil {
-			dlog.Printf("error converting %q: %v", id, err)
-			s.errC <- err
-		}
-	}
-}
-
-// Close closes the transformer.
-func (s *Standard) Close() error {
-	close(s.idsC)
-	for err := range s.errC {
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// Transform sends the id to worker that runs the transformation.
-func (s *Standard) Transform(ctx context.Context, id chunk.FileID) error {
-	select {
-	case err := <-s.errC:
-		return err
-	default:
-	}
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case s.idsC <- id:
-		// keep going
-	}
-	return nil
 }
 
 // pipelineFunc is a function that transforms a slice of slack messages.
@@ -127,8 +73,16 @@ func (p pipeline) apply(channelID, threadTS string, mm []slack.Message) error {
 	return nil
 }
 
-func stdConvert(fsa fsadapter.FS, cd *chunk.Directory, id chunk.FileID, nametmpl Templater, pipeline ...pipelineFunc) error {
-	cf, err := cd.Open(id)
+type StdConverter struct {
+	cd       *chunk.Directory
+	fsa      fsadapter.FS
+	tmpl     Templater
+	lg       logger.Interface
+	pipeline []pipelineFunc
+}
+
+func (s *StdConverter) Convert(ctx context.Context, id chunk.FileID) error {
+	cf, err := s.cd.Open(id)
 	if err != nil {
 		return err
 	}
@@ -145,9 +99,9 @@ func stdConvert(fsa fsadapter.FS, cd *chunk.Directory, id chunk.FileID, nametmpl
 
 	var msgs []types.Message
 	if threadID == "" {
-		msgs, err = stdConversation(cf, ci, pipeline)
+		msgs, err = stdConversation(cf, ci, s.pipeline)
 	} else {
-		msgs, err = stdThread(cf, ci, threadID, pipeline)
+		msgs, err = stdThread(cf, ci, threadID, s.pipeline)
 	}
 	if err != nil {
 		return err
@@ -159,7 +113,7 @@ func stdConvert(fsa fsadapter.FS, cd *chunk.Directory, id chunk.FileID, nametmpl
 		Messages: msgs,
 	}
 
-	f, err := fsa.Create(nametmpl.Execute(conv))
+	f, err := s.fsa.Create(s.tmpl.Execute(conv))
 	if err != nil {
 		return fmt.Errorf("fsadapter: unable to create file %s: %w", id+".json", err)
 	}

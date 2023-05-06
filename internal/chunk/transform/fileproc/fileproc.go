@@ -42,7 +42,7 @@ func NewSubprocessor(dl Downloader, fp func(ci *slack.Channel, f *slack.File) st
 
 func (b Subprocessor) Files(ctx context.Context, channel *slack.Channel, msg slack.Message, ff []slack.File) error {
 	for _, f := range ff {
-		if !isDownloadable(&f) {
+		if !IsValid(&f) {
 			continue
 		}
 		if err := b.dcl.Download(b.filepath(channel, &f), f.URLPrivateDownload); err != nil {
@@ -83,8 +83,8 @@ func ExportTokenUpdateFn(token string) func(msg *slack.Message) error {
 	}
 }
 
-// isDownloadable returns true if the file can be downloaded.
-func isDownloadable(f *slack.File) bool {
+// IsValid returns true if the file can be downloaded and is valid.
+func IsValid(f *slack.File) bool {
 	return f.Mode != "hidden_by_limit" && f.Mode != "external" && !f.IsExternal
 }
 

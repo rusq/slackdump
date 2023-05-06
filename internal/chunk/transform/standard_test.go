@@ -1,6 +1,7 @@
 package transform
 
 import (
+	"context"
 	"testing"
 
 	"github.com/rusq/fsadapter"
@@ -25,8 +26,14 @@ func Test_stdConvert(t *testing.T) {
 			t.Fatal(err)
 		}
 		defer fsa.Close()
+		cvt := StdConverter{
+			cd:   cd,
+			fsa:  fsa,
+			tmpl: nametmpl.NewDefault(),
+		}
+
 		for i, name := range testNames {
-			if err := stdConvert(fsa, cd, name, nametmpl.NewDefault()); err != nil {
+			if err := cvt.Convert(context.Background(), name); err != nil {
 				t.Fatalf("failed on i=%d, name=%s: %s", i, name, err)
 			}
 		}

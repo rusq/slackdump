@@ -30,8 +30,18 @@ func NewExport(typ StorageType, dl Downloader) processor.Files {
 	}
 }
 
+// MattermostFilepath returns the path to the file within the __uploads
+// directory.
 func MattermostFilepath(_ *slack.Channel, f *slack.File) string {
 	return filepath.Join("__uploads", f.ID, f.Name)
+}
+
+// MattermostFilepathWithDir returns the path to the file within the given
+// directory, but it follows the mattermost naming pattern.
+func MattermostFilepathWithDir(dir string) func(*slack.Channel, *slack.File) string {
+	return func(_ *slack.Channel, f *slack.File) string {
+		return filepath.Join(dir, f.ID, f.Name)
+	}
 }
 
 func StdFilepath(ci *slack.Channel, f *slack.File) string {

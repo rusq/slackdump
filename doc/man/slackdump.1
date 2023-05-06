@@ -1,0 +1,145 @@
+.Dd $Mdocdate$
+.Dt SLACKDUMP 1
+.Os
+.Sh NAME
+.Nm slackdump
+.Nd dump Slack workspace content
+.Sh SYNOPSIS
+.Nm slackdump
+.Ar command Op Cm subcommand
+.Op Fl flags
+.Op Ar args ...
+.Sh DESCRIPTION
+The
+.Nm
+utility dumps slack workspace contents.  Currently it supports the
+following Slack entities:
+.Bl -dash -compact
+.It
+messages, which includes all messages in all channels, direct, and group messages.
+.It 
+message replies, or, in other words — threads.
+.It 
+files are dumped along with messages they belong to.
+.It 
+emojis, along with their index as a JSON file.
+.It 
+users, with their profile information.
+.It 
+and channels.
+.El
+.Pp
+If no command is given, on a dumb terminal, the 
+.Ar help
+command is assumed.
+On an interactive terminal a list of options will be presented, allowing the
+user to enter an interactive mode, display help, or exit.
+.Sh COMMANDS
+The following commands are supported:
+.Bl -tag -width workspace
+.It Ar help
+Display help.
+.It Ar export
+Export workspace contents.
+.It Ar dump
+Dump selected channels or threads.
+.It Ar record
+Export workspace in the internal Chunk format.
+.It Ar list
+List channels or users in the desired format
+.Pq default output is text.
+.It Ar emoji
+Export Slack workspace emojis.
+.It Ar convert
+Convert between formats.
+.It Ar version
+Display version information.
+.It Ar workspace
+Manage Slack workspaces authentication.
+.El
+.\"
+.Sh USAGE
+.Ss Authentication
+Slackdump supports multiple authentication methods, listed below.
+.Bl -tag -width "token+cookie file"
+.It Em EZ-LOGIN 3000
+This is the default mode, and is the most convenient one.  It requires no
+additional configuration and works out of the box.  However, it is not
+supported on all systems.
+.It token
+This method requires Application or Bot token.
+.It token+cookie
+This is the pair of token and cookie that you can get from your browser manually
+following the instructions in the documentation.
+.It token+cookie file
+This is the same as above, but it requires the 
+.Dq cookie.txt
+file.
+.El
+.\" 
+.Sh ENVIRONMENT
+.Bl -tag -width SLACK_WORKSPACE
+.It Ev BASE_LOC
+Contains path to a directory or zip file where all data will be stored.  See
+.Fl base
+flag for more details.
+.It Ev CACHE_DIR
+Contains path to a directory where cache files will be stored.  See flag
+.Fl cache-dir
+for more details.
+.It Ev COOKIE
+See 
+.Ev SLACK_COOKIE
+below.
+.It Ev DEBUG
+If set to
+.Dq Ar true
+(or any of 
+.Dq Ar 1
+,
+.Dq Ar t
+or
+.Dq Ar yes
+), enables debug output.
+.It Ev LOG_FILE
+Contains path to a file where log output will be written.
+.It Ev SLACK_COOKIE
+Contains Slack cookie (for token+cookie-based authentication).  See
+.Sx Authentication
+for more details.
+.It Ev SLACK_TOKEN
+Contains Slack token (for token-based authentication).  See
+.Sx Authentication
+for more details.
+.It Ev SLACK_WORKSPACE
+Allows to specify Slack workspace name (overrides currently selected
+workspace).  See 
+.Ar workspace
+command for more details.
+.It Ev TRACE_FILE
+Contains path to a file where trace output will be written.
+.El
+.\" For sections 1, 6, 7, and 8 only.
+.\" .Sh FILES
+.\" .Sh EXIT STATUS
+.\" For sections 1, 6, and 8 only.
+.\" .Sh EXAMPLES
+.\" .Sh DIAGNOSTICS
+.\" For sections 1, 4, 6, 7, 8, and 9 printf/stderr messages only.
+.\" .Sh ERRORS
+.\" For sections 2, 3, 4, and 9 errno settings only.
+.\" .Sh SEE ALSO
+.\" .Xr foobar 1
+.\" .Sh STANDARDS
+.\" .Sh HISTORY
+.Sh AUTHORS
+The
+.Nm
+was written by
+.An Lk https://github.com/rusq "@rusq"
+with the help of a number of contributors listed on 
+.Lk https://github.com/rusq/slackdump "Slackdump Homepage"
+.\" .Sh CAVEATS
+.\" .Sh BUGS
+.\" .Sh SECURITY CONSIDERATIONS
+.\" Not used in OpenBSD.

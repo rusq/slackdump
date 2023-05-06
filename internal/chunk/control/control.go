@@ -29,7 +29,7 @@ type Controller struct {
 	s Streamer
 	// transformer, it may not be necessary, if caller is not interested in
 	// transforming the data.
-	tf TransformStarter
+	tf ExportTransformer
 	// files subprocessor, if not configured with options, it's a noop, as
 	// it's not necessary for all use cases.
 	subproc processor.Files
@@ -57,7 +57,7 @@ func WithFlags(f Flags) Option {
 }
 
 // WithTransformer configures the controller with a transformer.
-func WithTransformer(tf TransformStarter) Option {
+func WithTransformer(tf ExportTransformer) Option {
 	return func(c *Controller) {
 		if tf != nil {
 			c.tf = tf
@@ -201,7 +201,6 @@ func (c *Controller) Run(ctx context.Context, list *structures.EntityList) error
 	if allErr != nil {
 		return allErr
 	}
-
 	return nil
 }
 

@@ -16,11 +16,16 @@ type Streamer interface {
 	WorkspaceInfo(ctx context.Context, proc processor.WorkspaceInfo) error
 }
 
-// TrasnformStarter is a transformer that can be started with a list of users.
-// The compound nature of this interface is called by the asynchronous nature
-// of execution and the fact that we need to start the transformer after Users
-// goroutine is done, which can happen any time after the Run has started.
 type TransformStarter interface {
-	dirproc.Transformer
 	StartWithUsers(ctx context.Context, users []slack.User) error
+}
+
+// ExportTransformer is a transformer that can be started with a list of
+// users.  The compound nature of this interface is called by the asynchronous
+// nature of execution and the fact that we need to start the transformer
+// after Users goroutine is done, which can happen any time after the Run has
+// started.
+type ExportTransformer interface {
+	dirproc.Transformer
+	TransformStarter
 }

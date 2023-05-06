@@ -2,11 +2,11 @@ package export
 
 import (
 	"context"
-	"fmt"
 	"os"
 
 	"github.com/rusq/fsadapter"
 	"github.com/schollz/progressbar/v3"
+	"github.com/slack-go/slack"
 
 	"github.com/rusq/slackdump/v2"
 
@@ -38,10 +38,16 @@ func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 	if !lg.IsDebug() {
 		defer chunkdir.RemoveAll()
 	}
-	tf, err := transform.NewExport(ctx, fsa, tmpdir, transform.WithBufferSize(1000), transform.WithMsgUpdateFunc(fileproc.ExportTokenUpdateFn(params.ExportToken)))
-	if err != nil {
-		return fmt.Errorf("failed to create transformer: %w", err)
+	updFn := func() func(_ *slack.Channel, m *slack.Message) error {
+		// hack: wrapper around the message update function, which does not
+		// have the channel parameter.  TODO: fix this in the library.
+		fn := fileproc.ExportTokenUpdateFn(params.ExportToken)
+		return func(_ *slack.Channel, m *slack.Message) error {
+			return fn(m)
+		}
 	}
+	conv := transform.NewExpConverter(chunkdir, fsa, transform.ExpWithMsgUpdateFunc(updFn()))
+	tf := transform.NewExportCoordinator(ctx, conv, transform.WithBufferSize(1000))
 	defer tf.Close()
 
 	// starting the downloader
@@ -86,7 +92,10 @@ func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 	pb.Finish()
 	// at this point no goroutines are running, we are safe to assume that
 	// everything we need is in the chunk directory.
-	if err := tf.WriteIndex(); err != nil {
+	if err := conv.WriteIndex(); err != nil {
+		return err
+	}
+	if err := tf.Close(); err != nil {
 		return err
 	}
 	pb.Describe("OK")
