@@ -21,8 +21,52 @@ type Downloader interface {
 	Download(fullpath string, url string) error
 }
 
-type baseSubproc struct {
-	dcl Downloader
+// Subprocessor is the file subprocessor, that downloads files to the path
+// returned by the filepath function.
+// Zero value of this type is not usable.
+type Subprocessor struct {
+	dcl      Downloader
+	filepath func(ci *slack.Channel, f *slack.File) string
+}
+
+// NewSubprocessor initialises the subprocessor.
+func NewSubprocessor(dl Downloader, fp func(ci *slack.Channel, f *slack.File) string) Subprocessor {
+	if fp == nil {
+		panic("filepath function is nil")
+	}
+	return Subprocessor{
+		dcl:      dl,
+		filepath: fp,
+	}
+}
+
+func (b Subprocessor) Files(ctx context.Context, channel *slack.Channel, msg slack.Message, ff []slack.File) error {
+	for _, f := range ff {
+		if !isDownloadable(&f) {
+			continue
+		}
+		if err := b.dcl.Download(b.filepath(channel, &f), f.URLPrivateDownload); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// PathUpdateFunc updates the path in URLDownload and URLPrivateDownload of every
+// file in the given message slice to point to the physical downloaded file
+// location.  It can be plugged in the pipeline of Dump.
+func (b Subprocessor) PathUpdateFunc(channelID, threadTS string, mm []slack.Message) error {
+	for i := range mm {
+		for j := range mm[i].Files {
+			ch := new(slack.Channel)
+			ch.ID = channelID
+			path := b.filepath(ch, &mm[i].Files[j])
+			if err := files.UpdatePathFn(path)(&mm[i].Files[j]); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 // ExportTokenUpdateFn returns a function that appends the token to every file

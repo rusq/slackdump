@@ -526,7 +526,7 @@ func procThreadMsg(ctx context.Context, proc processor.Conversations, channel *s
 	return nil
 }
 
-func procFiles(ctx context.Context, proc processor.Filer, channel *slack.Channel, msgs ...slack.Message) error {
+func procFiles(ctx context.Context, proc processor.Files, channel *slack.Channel, msgs ...slack.Message) error {
 	if len(msgs) == 0 {
 		return nil
 	}

@@ -8,9 +8,6 @@ import (
 )
 
 func Test_dumpSubproc_PathUpdate(t *testing.T) {
-	type fields struct {
-		baseSubproc baseSubproc
-	}
 	type args struct {
 		channelID string
 		threadTS  string
@@ -18,14 +15,12 @@ func Test_dumpSubproc_PathUpdate(t *testing.T) {
 	}
 	tests := []struct {
 		name    string
-		fields  fields
 		args    args
 		wantMM  []slack.Message
 		wantErr bool
 	}{
 		{
 			"just a channel",
-			fields{},
 			args{
 				channelID: "C12345678",
 				threadTS:  "",
@@ -63,8 +58,8 @@ func Test_dumpSubproc_PathUpdate(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			d := DumpSubproc{
-				baseSubproc: tt.fields.baseSubproc,
+			d := Subprocessor{
+				filepath: DumpFilepath,
 			}
 			if err := d.PathUpdateFunc(tt.args.channelID, tt.args.threadTS, tt.args.mm); (err != nil) != tt.wantErr {
 				t.Errorf("dumpSubproc.PathUpdate() error = %v, wantErr %v", err, tt.wantErr)

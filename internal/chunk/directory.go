@@ -162,6 +162,10 @@ func openChunks(filename string) (io.ReadSeekCloser, error) {
 	return osext.RemoveOnClose(tf), nil
 }
 
+func (d *Directory) Stat(id FileID) (fs.FileInfo, error) {
+	return os.Stat(d.filename(id))
+}
+
 // Users returns the collected users from the directory.
 func (d *Directory) Users() ([]slack.User, error) {
 	f, err := d.Open(FUsers)

@@ -32,7 +32,7 @@ type Controller struct {
 	tf TransformStarter
 	// files subprocessor, if not configured with options, it's a noop, as
 	// it's not necessary for all use cases.
-	pfiles processor.Filer
+	subproc processor.Files
 	// lg is the logger
 	lg logger.Interface
 	// flags
@@ -43,9 +43,9 @@ type Controller struct {
 type Option func(*Controller)
 
 // WithSubproc configures the controller with a file subprocessor.
-func WithSubproc(f processor.Filer) Option {
+func WithSubproc(f processor.Files) Option {
 	return func(c *Controller) {
-		c.pfiles = f
+		c.subproc = f
 	}
 }
 
@@ -77,11 +77,11 @@ func WithLogger(lg logger.Interface) Option {
 // New creates a new [Controller].
 func New(cd *chunk.Directory, s Streamer, opts ...Option) *Controller {
 	c := &Controller{
-		cd:     cd,
-		s:      s,
-		pfiles: &noopFiler{},
-		tf:     &noopTransformer{},
-		lg:     logger.Default,
+		cd:      cd,
+		s:       s,
+		subproc: &noopFiler{},
+		tf:      &noopTransformer{},
+		lg:      logger.Default,
 	}
 	for _, opt := range opts {
 		opt(c)
@@ -168,7 +168,7 @@ func (c *Controller) Run(ctx context.Context, list *structures.EntityList) error
 	}
 	// conversations goroutine
 	{
-		conv, err := dirproc.NewConversation(c.cd, c.pfiles, c.tf)
+		conv, err := dirproc.NewConversation(c.cd, c.subproc, c.tf)
 		if err != nil {
 			return fmt.Errorf("error initialising conversation processor: %w", err)
 		}

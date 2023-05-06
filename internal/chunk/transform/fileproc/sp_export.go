@@ -13,62 +13,29 @@ import (
 // NewExport initialises an export file subprocessor based on the given export
 // type.  This subprocessor can be later plugged into the
 // [expproc.Conversations] processor.
-func NewExport(typ StorageType, dl Downloader) processor.Filer {
+func NewExport(typ StorageType, dl Downloader) processor.Files {
 	switch typ {
 	case STStandard:
-		return stdsubproc{
-			baseSubproc: baseSubproc{
-				dcl: dl,
-			},
+		return Subprocessor{
+			dcl:      dl,
+			filepath: StdFilepath,
 		}
 	case STMattermost:
-		return mmsubproc{
-			baseSubproc: baseSubproc{
-				dcl: dl,
-			},
+		return Subprocessor{
+			dcl:      dl,
+			filepath: MattermostFilepath,
 		}
 	default:
 		return nopsubproc{}
 	}
 }
 
-// mmsubproc is the mattermost subprocessor
-type mmsubproc struct {
-	baseSubproc
+func MattermostFilepath(_ *slack.Channel, f *slack.File) string {
+	return filepath.Join("__uploads", f.ID, f.Name)
 }
 
-func (mm mmsubproc) Files(ctx context.Context, channel *slack.Channel, _ slack.Message, ff []slack.File) error {
-	const baseDir = "__uploads"
-	for _, f := range ff {
-		if !isDownloadable(&f) {
-			continue
-		}
-		if err := mm.dcl.Download(filepath.Join(baseDir, f.ID, f.Name), f.URLPrivateDownload); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// stdsubproc is the standard subprocessor.
-type stdsubproc struct {
-	baseSubproc
-}
-
-func (mm stdsubproc) Files(ctx context.Context, channel *slack.Channel, _ slack.Message, ff []slack.File) error {
-	const baseDir = "attachments"
-	for _, f := range ff {
-		if !isDownloadable(&f) {
-			continue
-		}
-		if err := mm.dcl.Download(
-			filepath.Join(transform.ExportChanName(channel), baseDir, fmt.Sprintf("%s-%s", f.ID, f.Name)),
-			f.URLPrivateDownload,
-		); err != nil {
-			return err
-		}
-	}
-	return nil
+func StdFilepath(ci *slack.Channel, f *slack.File) string {
+	return filepath.Join(transform.ExportChanName(ci), "attachments", fmt.Sprintf("%s-%s", f.ID, f.Name))
 }
 
 // nopsubproc is the no-op subprocessor.
