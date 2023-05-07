@@ -55,3 +55,6 @@ dist/
 
 # outputs
 slackdump_2*
+*.pdf
+*.ps
+*.html
