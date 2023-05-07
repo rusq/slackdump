@@ -110,7 +110,7 @@ func TestChunkToExport_Convert(t *testing.T) {
 	}
 	defer fsa.Close()
 
-	c := NewChunkToExport(cd, fsa, WithIncludeFiles())
+	c := NewChunkToExport(cd, fsa, WithIncludeFiles(true))
 
 	ctx := logger.NewContext(context.Background(), testLogger)
 	if err := c.Convert(ctx); err != nil {

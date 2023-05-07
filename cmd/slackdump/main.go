@@ -20,6 +20,7 @@ import (
 
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/apiconfig"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/cfg"
+	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/convert"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/diag"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/dump"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/emoji"
@@ -50,6 +51,7 @@ func init() {
 		export.CmdExport,
 		dump.CmdDump,
 		record.CmdRecord,
+		convert.CmdConvert,
 		list.CmdList,
 		emoji.CmdEmoji,
 		workspace.CmdWorkspace,

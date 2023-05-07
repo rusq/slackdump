@@ -41,9 +41,9 @@ type ChunkToExport struct {
 type C2EOption func(*ChunkToExport)
 
 // WithIncludeFiles sets the IncludeFiles option.
-func WithIncludeFiles() C2EOption {
+func WithIncludeFiles(b bool) C2EOption {
 	return func(c *ChunkToExport) {
-		c.includeFiles = true
+		c.includeFiles = b
 	}
 }
 
@@ -165,7 +165,7 @@ func (c *ChunkToExport) Convert(ctx context.Context) error {
 		}
 	}()
 	for _, ch := range channels {
-		lg.Debugf("processing channel %q", ch.Name)
+		lg.Debugf("processing channel %q", ch.ID)
 		if err := conv.Convert(ctx, chunk.ToFileID(ch.ID, "", false)); err != nil {
 			return fmt.Errorf("converter: failed to process %q: %w", ch.ID, err)
 		}
