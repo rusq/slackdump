@@ -3,7 +3,7 @@
 .Os
 .Sh NAME
 .Nm slackdump
-.Nd dump Slack workspace content
+.Nd archive Slack workspace contents locally.
 .Sh SYNOPSIS
 .Nm slackdump
 .Ar command Op Cm subcommand
@@ -12,7 +12,7 @@
 .Sh DESCRIPTION
 The
 .Nm
-utility dumps slack workspace contents.  Currently it supports the
+utility dumps Slack workspace contents.  Currently it supports the
 following Slack entities:
 .Bl -dash -compact
 .It
@@ -35,23 +35,28 @@ command is assumed.
 On an interactive terminal a list of options will be presented, allowing the
 user to enter an interactive mode, display help, or exit.
 .Sh COMMANDS
-The following commands are supported:
+The following commands are supported (listed in alphabetical order):
 .Bl -tag -width workspace
-.It Ar help
-Display help.
-.It Ar export
-Export workspace contents.
-.It Ar dump
-Dump selected channels or threads.
-.It Ar record
-Export workspace in the internal Chunk format.
-.It Ar list
-List channels or users in the desired format
-.Pq default output is text.
-.It Ar emoji
-Export Slack workspace emojis.
+.It Ar config
+Allows to perform different operations on the API limits configuration files.
 .It Ar convert
 Convert between formats.
+.It Ar dump
+Dump selected channels or threads.
+.It Ar emoji
+Export Slack workspace emojis.
+.It Ar export
+Export workspace contents.
+.It Ar format
+Format the conversations, users, and channels as human readable files.  
+It supports TEXT and CSV formats.
+.It Ar help
+Display help.
+.It Ar list
+List channels or users in the desired format
+.Pq default output is text
+.It Ar record
+Export workspace in the internal Chunk format.
 .It Ar version
 Display version information.
 .It Ar workspace

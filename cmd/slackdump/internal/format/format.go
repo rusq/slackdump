@@ -1,4 +1,6 @@
-package convert
+// Package format formats Slackdump conversations, channels and users as
+// human-readable text or CSV.
+package format
 
 import (
 	"context"
@@ -23,12 +25,12 @@ import (
 	"github.com/rusq/slackdump/v2/types"
 )
 
-var CmdConvert = &base.Command{
-	Run:       runConvert,
-	UsageLine: "slackdump convert [flags] <format> <file.json>",
-	Short:     "converts the json files to other formats",
+var CmdFormat = &base.Command{
+	Run:       runFormat,
+	UsageLine: "slackdump format [flags] <format> <file.json>",
+	Short:     "converts the slackdump files to a human readable format",
 	Long: `
-# Convert Command
+# Format Command
 `, // TODO: add more info
 	CustomFlags: false,
 	FlagMask:    cfg.OmitAll & ^cfg.OmitWorkspaceFlag,
@@ -55,11 +57,11 @@ var (
 )
 
 func init() {
-	CmdConvert.Flag.StringVar(&archive, "archive", "", "access the file within the ZIP `archive.zip`")
-	CmdConvert.Flag.BoolVar(&online, "online", false, "get users from current workspace (workspace must be selected, or set with -w flag)")
+	CmdFormat.Flag.StringVar(&archive, "archive", "", "access the file within the ZIP `archive.zip`")
+	CmdFormat.Flag.BoolVar(&online, "online", false, "get users from current workspace (workspace must be selected, or set with -w flag)")
 }
 
-func runConvert(ctx context.Context, cmd *base.Command, args []string) error {
+func runFormat(ctx context.Context, cmd *base.Command, args []string) error {
 	if len(args) < 1 {
 		base.SetExitStatus(base.SInvalidParameters)
 		return fmt.Errorf("must specify output format (supported: %v)", format.All())
