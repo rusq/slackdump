@@ -15,7 +15,7 @@ require (
 	github.com/joho/godotenv v1.5.1
 	github.com/kr/pty v1.1.8
 	github.com/playwright-community/playwright-go v0.2000.2-0.20221022152247-2586b3829688
-	github.com/rusq/chttp v1.0.1
+	github.com/rusq/chttp v1.0.2
 	github.com/rusq/dlog v1.4.0
 	github.com/rusq/encio v0.1.0
 	github.com/rusq/fsadapter v1.0.1
