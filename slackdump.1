@@ -154,8 +154,13 @@ extension.
 Some browser extensions may be unsafe and may expose your private data, so use them at
 your own risk.  The authors of this utility do not endorse any of the
 extensions mentioned above.
-
 .El
+.Pp
+Read more on how to get the token and cookie from your logged-in browser 
+session by running
+.Bd -literal -offset indent
+.Nm Cm help Ar login
+.Be
 .\" 
 .Sh ENVIRONMENT
 .Bl -tag -width SLACK_WORKSPACE
@@ -200,7 +205,17 @@ command for more details.
 Contains path to a file where trace output will be written.
 .El
 .\" For sections 1, 6, 7, and 8 only.
-.\" .Sh FILES
+.Sh FILES
+.Bl -tag -width secrets.txt -compact
+.It Sy .env
+Contains environment variables that will be loaded during the startup.  These
+variables override the environment variables set in the environment.
+.It Sy .env.txt
+See
+.Em .env
+.It Sy secrets.txt
+See
+.Em .env
 .\" .Sh EXIT STATUS
 .\" For sections 1, 6, and 8 only.
 .Sh EXAMPLES
