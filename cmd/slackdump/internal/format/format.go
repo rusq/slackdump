@@ -38,7 +38,7 @@ var CmdFormat = &base.Command{
 	RequireAuth: false,
 }
 
-//go:generate stringer -type dumptype -trimprefix=dt convert.go
+//go:generate stringer -type dumptype -trimprefix=dt
 type dumptype uint8
 
 const (

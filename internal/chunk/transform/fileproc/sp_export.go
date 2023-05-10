@@ -15,12 +15,12 @@ import (
 // [expproc.Conversations] processor.
 func NewExport(typ StorageType, dl Downloader) processor.Files {
 	switch typ {
-	case STStandard:
+	case STstandard:
 		return Subprocessor{
 			dcl:      dl,
 			filepath: StdFilepath,
 		}
-	case STMattermost:
+	case STmattermost:
 		return Subprocessor{
 			dcl:      dl,
 			filepath: MattermostFilepath,

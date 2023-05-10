@@ -3,15 +3,17 @@ package fileproc
 import (
 	"fmt"
 	"strings"
+
+	"github.com/slack-go/slack"
 )
 
 type StorageType uint8
 
 //go:generate stringer -type=StorageType -trimprefix=ST
 const (
-	STNone StorageType = iota
-	STStandard
-	STMattermost
+	STnone StorageType = iota
+	STstandard
+	STmattermost
 )
 
 // Set translates the string value into the ExportType, satisfies flag.Value
@@ -25,4 +27,10 @@ func (e *StorageType) Set(v string) error {
 		}
 	}
 	return fmt.Errorf("unknown format: %s", v)
+}
+
+var StorageTypeFuncs = map[StorageType]func(_ *slack.Channel, f *slack.File) string{
+	STmattermost: MattermostFilepath,
+	STstandard:   StdFilepath,
+	STnone:       func(_ *slack.Channel, f *slack.File) string { return "" },
 }

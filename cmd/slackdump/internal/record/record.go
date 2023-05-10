@@ -74,7 +74,7 @@ func RunRecord(ctx context.Context, cmd *base.Command, args []string) error {
 	)
 	defer stop()
 	// we are using the same file subprocessor as the mattermost export.
-	subproc := fileproc.NewExport(fileproc.STMattermost, dl)
+	subproc := fileproc.NewExport(fileproc.STmattermost, dl)
 	ctrl := control.New(cd, stream, control.WithLogger(lg), control.WithSubproc(subproc))
 	if err := ctrl.Run(ctx, list); err != nil {
 		return err

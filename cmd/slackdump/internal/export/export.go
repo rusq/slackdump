@@ -41,7 +41,7 @@ type exportFlags struct {
 var (
 	compat  bool
 	options = exportFlags{
-		ExportStorageType: fileproc.STMattermost,
+		ExportStorageType: fileproc.STmattermost,
 		Oldest:            time.Time(cfg.Oldest),
 		Latest:            time.Time(cfg.Latest),
 	}
@@ -64,7 +64,7 @@ func runExport(ctx context.Context, cmd *base.Command, args []string) error {
 		return errors.New("use -base to set the base output location")
 	}
 	if !cfg.DumpFiles {
-		options.ExportStorageType = fileproc.STNone
+		options.ExportStorageType = fileproc.STnone
 	}
 	list, err := structures.NewEntityList(args)
 	if err != nil {

@@ -8,12 +8,12 @@ func _() {
 	// An "invalid array index" compiler error signifies that the constant values have changed.
 	// Re-run the stringer command to generate them again.
 	var x [1]struct{}
-	_ = x[STNone-0]
-	_ = x[STStandard-1]
-	_ = x[STMattermost-2]
+	_ = x[STnone-0]
+	_ = x[STstandard-1]
+	_ = x[STmattermost-2]
 }
 
-const _StorageType_name = "NoneStandardMattermost"
+const _StorageType_name = "nonestandardmattermost"
 
 var _StorageType_index = [...]uint8{0, 4, 12, 22}
 
