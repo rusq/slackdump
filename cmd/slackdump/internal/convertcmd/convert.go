@@ -102,7 +102,6 @@ type convertflags struct {
 }
 
 func chunk2export(ctx context.Context, src, trg string, cflg convertflags) error {
-
 	cd, err := chunk.OpenDir(src)
 	if err != nil {
 		return err
@@ -118,7 +117,13 @@ func chunk2export(ctx context.Context, src, trg string, cflg convertflags) error
 		return errors.New("unknown storage type")
 	}
 
-	cvt := convert.NewChunkToExport(cd, fsa, convert.WithIncludeFiles(cflg.withFiles), convert.WithTrgFileLoc(sttFn))
+	cvt := convert.NewChunkToExport(
+		cd,
+		fsa,
+		convert.WithIncludeFiles(cflg.withFiles),
+		convert.WithTrgFileLoc(sttFn),
+		convert.WithLogger(logger.FromContext(ctx)),
+	)
 	if err := cvt.Convert(ctx); err != nil {
 		return err
 	}

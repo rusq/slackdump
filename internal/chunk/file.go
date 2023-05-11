@@ -238,7 +238,7 @@ func (p *File) AllChannelInfos() ([]slack.Channel, error) {
 		if len(id) == 0 {
 			return nil, fmt.Errorf("internal error:  invalid id: %q", id)
 		}
-		if id[0] == 'i' {
+		if id[0] == 'i' && id[1] == 'c' {
 			offsets = append(offsets, off...)
 		}
 	}

@@ -34,6 +34,8 @@ type ChunkToExport struct {
 	srcFileLoc func(*slack.Channel, *slack.File) string
 	trgFileLoc func(*slack.Channel, *slack.File) string
 
+	lg logger.Interface
+
 	request chan filereq
 	result  chan copyresult
 }
@@ -65,6 +67,15 @@ func WithTrgFileLoc(fn func(*slack.Channel, *slack.File) string) C2EOption {
 	}
 }
 
+// WithLogger sets the logger.
+func WithLogger(lg logger.Interface) C2EOption {
+	return func(c *ChunkToExport) {
+		if lg != nil {
+			c.lg = lg
+		}
+	}
+}
+
 func NewChunkToExport(src *chunk.Directory, trg fsadapter.FS, opt ...C2EOption) *ChunkToExport {
 	c := &ChunkToExport{
 		src:          src,
@@ -72,8 +83,9 @@ func NewChunkToExport(src *chunk.Directory, trg fsadapter.FS, opt ...C2EOption) 
 		includeFiles: false,
 		srcFileLoc:   fileproc.MattermostFilepath,
 		trgFileLoc:   fileproc.MattermostFilepath,
-		request:      make(chan filereq),
-		result:       make(chan copyresult),
+		lg:           logger.Default,
+		request:      make(chan filereq, 1),
+		result:       make(chan copyresult, 1),
 	}
 	for _, o := range opt {
 		o(c)
@@ -147,9 +159,6 @@ func (c *ChunkToExport) Convert(ctx context.Context) error {
 			return nil
 		}))
 		go c.copyworker(c.result, c.request)
-	} else {
-		// close the result, because we don't need to wait for the copyworker
-		close(c.result)
 	}
 
 	conv := transform.NewExpConverter(c.src, c.trg, tfopts...)
@@ -175,6 +184,7 @@ func (c *ChunkToExport) Convert(ctx context.Context) error {
 		return err
 	}
 
+	lg.Debugf("writing index for %s", c.src.Name())
 	if err := conv.WriteIndex(); err != nil {
 		return err
 	}
@@ -204,6 +214,7 @@ func (c *ChunkToExport) fileCopy(ch *slack.Channel, msg *slack.Message) error {
 			return err
 		}
 		trgpath := c.trgFileLoc(ch, &f)
+		c.lg.Debugf("copying %q to %q", srcpath, trgpath)
 		if err := c.copy2trg(trgpath, srcpath); err != nil {
 			return err
 		}

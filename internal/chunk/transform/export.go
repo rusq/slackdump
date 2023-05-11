@@ -116,7 +116,7 @@ func (e *ExpConverter) writeMessages(ctx context.Context, pl *chunk.File, ci *sl
 		date := ts.Format("2006-01-02")
 		if date != prevDt || prevDt == "" {
 			lg.Debugf("transforming messages for channel: %q, date: %s", ci.ID, date)
-			// if we have advanced to the next date, switch to a new file.
+			// if we have advanced to the next date, switch to a 	new file.
 			if wc != nil {
 				if err := writeJSONFooter(wc); err != nil {
 					return fmt.Errorf("error writing JSON footer: %w", err)
