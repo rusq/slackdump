@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"path/filepath"
 	"runtime/trace"
 	"sort"
@@ -94,57 +93,28 @@ func (e *ExpConverter) Convert(ctx context.Context, id chunk.FileID) error {
 	return nil
 }
 
-type msgUpdFunc func(*slack.Channel, *slack.Message) error
-
-// writeMessages writes the messages to the file system adapter.
 func (e *ExpConverter) writeMessages(ctx context.Context, pl *chunk.File, ci *slack.Channel) error {
+	lg := logger.FromContext(ctx)
 	uidx := types.Users(e.users).IndexByID()
 	trgdir := ExportChanName(ci)
-	lg := logger.FromContext(ctx)
-	var (
-		prevDt string        // previous date
-		enc    *json.Encoder // current encoder
-	)
-	var wc io.WriteCloser // current file
-	defer func() {
-		// sentinel to ensure that wc is closed on exit.
-		if wc != nil {
-			wc.Close()
-		}
-	}()
+
+	var mm []export.ExportMessage = make([]export.ExportMessage, 0, 100)
+	var prevDt string
+	var currDt string
 	if err := pl.Sorted(ctx, false, func(ts time.Time, m *slack.Message) error {
-		date := ts.Format("2006-01-02")
-		if date != prevDt || prevDt == "" {
-			lg.Debugf("transforming messages for channel: %q, date: %s", ci.ID, date)
-			// if we have advanced to the next date, switch to a 	new file.
-			if wc != nil {
-				if err := writeJSONFooter(wc); err != nil {
-					return fmt.Errorf("error writing JSON footer: %w", err)
-				}
-				if err := wc.Close(); err != nil {
-					return fmt.Errorf("error closing file: %w", err)
+		currDt = ts.Format("2006-01-02")
+		if currDt != prevDt || prevDt == "" {
+			if prevDt != "" {
+				if err := e.writeout(filepath.Join(trgdir, prevDt+".json"), mm); err != nil {
+					return err
 				}
 			}
-			var err error
-			wc, err = e.fsa.Create(filepath.Join(trgdir, date+".json"))
-			if err != nil {
-				return fmt.Errorf("error creating file in adapter: %w", err)
-			}
-			if err := writeJSONHeader(wc); err != nil {
-				return fmt.Errorf("error writing JSON header: %w", err)
-			}
-			prevDt = date
-			enc = json.NewEncoder(wc)
-			enc.SetIndent("", "  ")
-		} else {
-			_, err := wc.Write([]byte(",\n"))
-			if err != nil {
-				return fmt.Errorf("error writing JSON separator: %w", err)
-			}
+			mm = make([]export.ExportMessage, 0, 100)
+			prevDt = currDt
 		}
 
-		// in original Slack Export, thread starting messages have some thread
-		// statistics, and for this we need to scan the chunk file and get it.
+		// the "thread" is only used to collect statistics.  Thread messages
+		// are passed by Sorted and written as a normal course of action.
 		var thread []slack.Message
 		if m.ThreadTimestamp == m.Timestamp && m.LatestReply != structures.NoRepliesLatestReply {
 			// get the thread for the initial thread message only.
@@ -160,31 +130,45 @@ func (e *ExpConverter) writeMessages(ctx context.Context, pl *chunk.File, ci *sl
 				}
 			}
 		}
-		// transform the message
+
+		// apply all message functions.
 		for _, fn := range e.msgFunc {
 			if err := fn(ci, m); err != nil {
 				return fmt.Errorf("error updating message: %w", err)
 			}
 		}
 
-		if err := enc.Encode(toExportMessage(m, thread, uidx[m.User])); err != nil {
-			return fmt.Errorf("error encoding message: %w", err)
-		}
+		mm = append(mm, *toExportMessage(m, thread, uidx[m.User]))
 		return nil
 	}); err != nil {
 		return fmt.Errorf("sorted callback error: %w", err)
 	}
-	// write the last footer
-	if wc != nil {
-		if err := writeJSONFooter(wc); err != nil {
-			return fmt.Errorf("error writing JSON footer (final): %w", err)
+
+	// flush the last day.
+	if len(mm) > 0 {
+		if err := e.writeout(filepath.Join(trgdir, prevDt+".json"), mm); err != nil {
+			return err
 		}
-		if err := wc.Close(); err != nil {
-			return fmt.Errorf("error closing file (final): %w", err)
-		}
+	}
+
+	return nil
+}
+
+func (e *ExpConverter) writeout(filename string, mm []export.ExportMessage) error {
+	wc, err := e.fsa.Create(filename)
+	if err != nil {
+		return fmt.Errorf("error creating file in adapter: %w", err)
+	}
+	defer wc.Close()
+	enc := json.NewEncoder(wc)
+	enc.SetIndent("", "  ")
+	if err := enc.Encode(mm); err != nil {
+		return fmt.Errorf("error encoding messages: %w", err)
 	}
 	return nil
 }
+
+type msgUpdFunc func(*slack.Channel, *slack.Message) error
 
 // toExportMessage converts a slack message m to an export message, populating
 // the fields that are not present in the original message.  To populate the
@@ -258,16 +242,6 @@ func makeUniqueStrings(ss *[]string) {
 		}
 	}
 	*ss = (*ss)[:i+1]
-}
-
-func writeJSONHeader(w io.Writer) error {
-	_, err := io.WriteString(w, "[\n")
-	return err
-}
-
-func writeJSONFooter(w io.Writer) error {
-	_, err := io.WriteString(w, "\n]\n")
-	return err
 }
 
 // ExportChanName returns the channel name, or the channel ID if it is a DM.
