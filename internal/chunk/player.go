@@ -11,6 +11,10 @@ import (
 
 var ErrExhausted = errors.New("exhausted")
 
+// offsets holds the index of the current offset in the index for each chunk
+// ID.
+type offsets map[GroupID]int
+
 // Player replays the chunks from a file, it is able to emulate the API
 // responses, if used in conjunction with the [proctest.Server]. Zero value is
 // not usable.

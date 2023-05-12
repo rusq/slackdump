@@ -36,7 +36,7 @@ func WithEncoder(enc Encoder) Option {
 
 func NewRecorder(w io.Writer, options ...Option) *Recorder {
 	filename := "unknown"
-	if f, ok := w.(namer); ok {
+	if f, ok := w.(state.Namer); ok {
 		filename = f.Name()
 	}
 	rec := &Recorder{

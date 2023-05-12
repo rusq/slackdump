@@ -45,10 +45,6 @@ func (idx index) OffsetCount() int {
 	return n
 }
 
-// offsets holds the index of the current offset in the index for each chunk
-// ID.
-type offsets map[GroupID]int
-
 // FromReader creates a new chunk File from the io.ReadSeeker.
 func FromReader(rs io.ReadSeeker) (*File, error) {
 	if _, err := rs.Seek(0, io.SeekStart); err != nil { // reset offset
@@ -149,18 +145,11 @@ func (f *File) ForEach(fn func(ev *Chunk) error) error {
 	return nil
 }
 
-// namer is an interface that allows us to get the name of the file.
-type namer interface {
-	// Name should return the name of the file.  *os.File implements this
-	// interface.
-	Name() string
-}
-
 // State generates and returns the state of the file.  It does not include
 // the path to the downloaded files.
 func (f *File) State() (*state.State, error) {
 	var name string
-	if file, ok := f.rs.(namer); ok {
+	if file, ok := f.rs.(state.Namer); ok {
 		name = filepath.Base(file.Name())
 	}
 	s := state.New(name)
