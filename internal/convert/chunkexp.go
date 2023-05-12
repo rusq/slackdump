@@ -163,25 +163,33 @@ func (c *ChunkToExport) Convert(ctx context.Context) error {
 
 	conv := transform.NewExpConverter(c.src, c.trg, tfopts...)
 
-	var errC = make(chan error, 1)
+	errC := make(chan error, 1)
 	go func() {
-		defer close(errC)
-		// process file results
-		for res := range c.result {
-			if res.err != nil {
-				errC <- res
+		defer close(c.result)
+		for _, ch := range channels {
+			lg.Debugf("processing channel %q", ch.ID)
+			if err := conv.Convert(ctx, chunk.ToFileID(ch.ID, "", false)); err != nil {
+				errC <- fmt.Errorf("converter: failed to process %q: %w", ch.ID, err)
+				return
 			}
 		}
 	}()
-	for _, ch := range channels {
-		lg.Debugf("processing channel %q", ch.ID)
-		if err := conv.Convert(ctx, chunk.ToFileID(ch.ID, "", false)); err != nil {
-			return fmt.Errorf("converter: failed to process %q: %w", ch.ID, err)
+
+LOOP:
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case err := <-errC:
+			return err
+		case res, more := <-c.result:
+			if !more {
+				break LOOP
+			}
+			if res.err != nil {
+				return fmt.Errorf("error processing message with ts=%s: %w", res.fr.message.Timestamp, res.err)
+			}
 		}
-	}
-	close(c.result) // at this point we're sure that nothing is writing to it.
-	if err := <-errC; err != nil {
-		return err
 	}
 
 	lg.Debugf("writing index for %s", c.src.Name())
@@ -208,15 +216,15 @@ func (c *ChunkToExport) fileCopy(ch *slack.Channel, msg *slack.Message) error {
 		}
 		srcpath := filepath.Join(c.src.Name(), c.srcFileLoc(ch, &f))
 		if _, err := os.Stat(srcpath); err != nil {
-			return err
+			return fmt.Errorf("file ID=%s: %w", f.ID, err)
 		}
 		if _, err := os.Stat(srcpath); err != nil {
-			return err
+			return fmt.Errorf("file ID=%s: %w", f.ID, err)
 		}
 		trgpath := c.trgFileLoc(ch, &f)
 		c.lg.Debugf("copying %q to %q", srcpath, trgpath)
 		if err := c.copy2trg(trgpath, srcpath); err != nil {
-			return err
+			return fmt.Errorf("file ID=%s: %w", f.ID, err)
 		}
 	}
 	return nil
