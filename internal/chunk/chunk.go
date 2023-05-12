@@ -85,6 +85,13 @@ const (
 	chanInfoPrefix = "ic"
 )
 
+// Chunk ID categories
+const (
+	catFile = 'f'
+	catInfo = 'i'
+	catList = 'l'
+)
+
 // ID returns a Group ID for the chunk.
 func (c *Chunk) ID() GroupID {
 	switch c.Type {
@@ -144,4 +151,14 @@ func (c *Chunk) messageTimestamps() ([]int64, error) {
 		ts[i] = iTS
 	}
 	return ts, nil
+}
+
+// isInfo returns true, if the chunk is an info chunk.
+func (g GroupID) isInfo() bool {
+	return g[0] == catInfo
+}
+
+// isList returns true, if the chunk is a list chunk.
+func (g GroupID) isList() bool {
+	return g[0] == catList
 }

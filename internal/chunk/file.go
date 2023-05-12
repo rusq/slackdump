@@ -83,6 +83,7 @@ type decoder interface {
 func indexChunks(dec decoder) (index, error) {
 	idx := make(index, 200) // buffer for 200 chunks to avoid reallocations.
 
+	var id GroupID
 	for i := 0; ; i++ {
 		offset := dec.InputOffset() // record current offset
 
@@ -93,7 +94,8 @@ func indexChunks(dec decoder) (index, error) {
 			}
 			return nil, err
 		}
-		idx[chunk.ID()] = append(idx[chunk.ID()], offset)
+		id = chunk.ID()
+		idx[id] = append(idx[id], offset)
 	}
 	return idx, nil
 }
@@ -238,7 +240,7 @@ func (p *File) AllChannelInfos() ([]slack.Channel, error) {
 		if len(id) == 0 {
 			return nil, fmt.Errorf("internal error:  invalid id: %q", id)
 		}
-		if id[0] == 'i' && id[1] == 'c' {
+		if strings.HasPrefix(string(id), chanInfoPrefix) {
 			offsets = append(offsets, off...)
 		}
 	}
@@ -247,6 +249,7 @@ func (p *File) AllChannelInfos() ([]slack.Channel, error) {
 	})
 }
 
+// int64s implements sort.Interface for []int64.
 type int64s []int64
 
 func (a int64s) Len() int           { return len(a) }
@@ -322,7 +325,7 @@ func (p *File) AllChannelIDs() []string {
 	var ids = make([]string, 0, 1)
 	for gid := range p.idx {
 		id := string(gid)
-		if !strings.Contains(id, ":") && id[0] != 'i' && id[0] != 'l' {
+		if !strings.Contains(id, ":") && !gid.isInfo() && !gid.isList() {
 			ids = append(ids, id)
 		}
 	}
@@ -357,7 +360,7 @@ func (f *File) offsetTimestamps() (offts, error) {
 	var ret = make(offts, f.idx.OffsetCount())
 	for id, offsets := range f.idx {
 		switch id[0] {
-		case 'i', 'f', 'l': // ignoring files, information and list chunks
+		case catInfo, catFile, catList: // ignoring files, information and list chunks
 			continue
 		}
 		for _, offset := range offsets {
@@ -407,8 +410,6 @@ func timeOffsets(ots offts) map[int64]Addr {
 func (f *File) Sorted(ctx context.Context, desc bool, fn func(ts time.Time, m *slack.Message) error) error {
 	ctx, task := trace.NewTask(ctx, "file.Sorted")
 	defer task.End()
-
-	trace.Log(ctx, "mutex", "lock")
 
 	rgnOt := trace.StartRegion(ctx, "offsetTimestamps")
 	ots, err := f.offsetTimestamps()
