@@ -23,7 +23,7 @@ func init() {
 	Converters[CJSON] = NewJSON
 }
 
-func NewJSON(opts ...Option) Converter {
+func NewJSON(opts ...Option) Formatter {
 	settings := options{
 		jsonOptions: jsonOptions{},
 	}
@@ -49,7 +49,7 @@ func (j JSON) Conversation(ctx context.Context, w io.Writer, u []slack.User, con
 	return j.enc(w).Encode(conv)
 }
 
-func (j JSON) Channels(ctx context.Context, w io.Writer, u []slack.User, chans types.Channels) error {
+func (j JSON) Channels(ctx context.Context, w io.Writer, u []slack.User, chans []slack.Channel) error {
 	return j.enc(w).Encode(chans)
 }
 

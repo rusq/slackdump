@@ -16,7 +16,7 @@ import (
 	"github.com/slack-go/slack"
 )
 
-var _ Converter = &Text{}
+var _ Formatter = &Text{}
 
 const (
 	defaultNewMsgThreshold = 3 * time.Minute
@@ -41,7 +41,7 @@ func init() {
 	Converters[CText] = NewText
 }
 
-func NewText(opts ...Option) Converter {
+func NewText(opts ...Option) Formatter {
 	settings := options{
 		textOptions: textOptions{
 			msgSplitAfter: defaultNewMsgThreshold,
@@ -142,7 +142,7 @@ func (txt *Text) Users(ctx context.Context, w io.Writer, u []slack.User) error {
 	return nil
 }
 
-func (txt *Text) Channels(ctx context.Context, w io.Writer, u []slack.User, cc types.Channels) error {
+func (txt *Text) Channels(ctx context.Context, w io.Writer, u []slack.User, cc []slack.Channel) error {
 	const strFormat = "%s\t%s\t%s\n"
 
 	ui := structures.NewUserIndex(u)

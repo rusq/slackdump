@@ -171,7 +171,7 @@ func (app *dump) List(ctx context.Context) error {
 
 	app.log.Print("retrieving data...")
 
-	var formatter format.Converter = format.NewJSON()
+	var formatter format.Formatter = format.NewJSON()
 	if app.cfg.Output.IsText() {
 		formatter = format.NewText()
 	}

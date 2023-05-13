@@ -24,7 +24,7 @@ func init() {
 	Converters[CCSV] = NewCSV
 }
 
-func NewCSV(opts ...Option) Converter {
+func NewCSV(opts ...Option) Formatter {
 	settings := options{
 		csvOptions: csvOptions{
 			UseCRLF: false,
@@ -63,7 +63,7 @@ var (
 	}
 )
 
-func (c *CSV) Channels(ctx context.Context, w io.Writer, u []slack.User, chans types.Channels) error {
+func (c *CSV) Channels(ctx context.Context, w io.Writer, u []slack.User, chans []slack.Channel) error {
 	csv := c.mkwriter(w)
 	defer csv.Flush()
 

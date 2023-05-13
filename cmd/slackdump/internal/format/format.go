@@ -53,7 +53,7 @@ var ErrUnknown = errors.New("unknown file type")
 var (
 	archive   string
 	online    bool
-	converter format.Converter
+	converter format.Formatter
 )
 
 func init() {
@@ -109,7 +109,7 @@ type idextractor interface {
 	UserIDs() []string
 }
 
-func convert(ctx context.Context, w io.Writer, cvt format.Converter, rs io.ReadSeeker) error {
+func convert(ctx context.Context, w io.Writer, cvt format.Formatter, rs io.ReadSeeker) error {
 	ctx, task := trace.NewTask(ctx, "convert")
 	defer task.End()
 	lg := logger.FromContext(ctx)

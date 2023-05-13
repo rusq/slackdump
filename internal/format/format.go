@@ -54,10 +54,10 @@ func All() Types {
 	return keys
 }
 
-// Converter is a converter interface that each formatter must implement.
-type Converter interface {
+// Formatter is a converter interface that each formatter must implement.
+type Formatter interface {
 	Conversation(ctx context.Context, w io.Writer, u []slack.User, conv *types.Conversation) error
-	Channels(ctx context.Context, w io.Writer, u []slack.User, chans types.Channels) error
+	Channels(ctx context.Context, w io.Writer, u []slack.User, chans []slack.Channel) error
 	Users(ctx context.Context, w io.Writer, u []slack.User) error
 }
 
@@ -70,7 +70,7 @@ type options struct {
 // Option is the converter option.
 type Option func(*options)
 
-var Converters = make(map[Type]func(opts ...Option) Converter)
+var Converters = make(map[Type]func(opts ...Option) Formatter)
 
 func (e *Type) Set(v string) error {
 	v = strings.ToLower(v)
