@@ -452,7 +452,7 @@ func TestFile_offsetTimestamps(t *testing.T) {
 				rs:  tt.fields.rs,
 				idx: idx,
 			}
-			got, err := p.offsetTimestamps()
+			got, err := p.offsetTimestamps(context.Background())
 			if (err != nil) != tt.wantErr {
 				t.Errorf("File.offsetTimestamps() error = %v, wantErr %v", err, tt.wantErr)
 				return

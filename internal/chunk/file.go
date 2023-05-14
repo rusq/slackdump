@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"runtime"
 	"runtime/trace"
 	"sort"
 	"strings"
@@ -17,6 +18,7 @@ import (
 
 	"github.com/rusq/slackdump/v2/internal/chunk/state"
 	"github.com/rusq/slackdump/v2/internal/structures"
+	"github.com/rusq/slackdump/v2/logger"
 )
 
 var (
@@ -78,7 +80,6 @@ type decoder interface {
 // indexChunks indexes the records in the reader and returns an index.
 func indexChunks(dec decoder) (index, error) {
 	idx := make(index, 200) // buffer for 200 chunks to avoid reallocations.
-
 	var id GroupID
 	for i := 0; ; i++ {
 		offset := dec.InputOffset() // record current offset
@@ -93,7 +94,16 @@ func indexChunks(dec decoder) (index, error) {
 		id = chunk.ID()
 		idx[id] = append(idx[id], offset)
 	}
+	logger.Default.Debugf("indexing chunks: %d: %v", len(idx), caller(2))
 	return idx, nil
+}
+
+func caller(steps int) string {
+	name := "?"
+	if pc, _, _, ok := runtime.Caller(steps + 1); ok {
+		name = filepath.Base(runtime.FuncForPC(pc).Name())
+	}
+	return name
 }
 
 // Offsets returns all offsets for the given id.
@@ -345,7 +355,10 @@ func (o offts) MessageCount() int {
 
 // offsetTimestamp returns a map of the chunk offset to the message timestamps
 // it contains.
-func (f *File) offsetTimestamps() (offts, error) {
+func (f *File) offsetTimestamps(ctx context.Context) (offts, error) {
+	ctx, task := trace.NewTask(ctx, "offsetTimestamps")
+	defer task.End()
+
 	var ret = make(offts, f.idx.OffsetCount())
 	for id, offsets := range f.idx {
 		switch id[0] {
@@ -353,11 +366,15 @@ func (f *File) offsetTimestamps() (offts, error) {
 			continue
 		}
 		for _, offset := range offsets {
+			rgnCA := trace.StartRegion(ctx, "chunkAt")
 			chunk, err := f.chunkAt(offset)
+			rgnCA.End()
 			if err != nil {
 				continue
 			}
+			rgnTS := trace.StartRegion(ctx, "Timestamps")
 			ts, err := chunk.Timestamps()
+			rgnTS.End()
 			if err != nil {
 				return nil, err
 			}
@@ -401,7 +418,7 @@ func (f *File) Sorted(ctx context.Context, desc bool, fn func(ts time.Time, m *s
 	defer task.End()
 
 	rgnOt := trace.StartRegion(ctx, "offsetTimestamps")
-	ots, err := f.offsetTimestamps()
+	ots, err := f.offsetTimestamps(ctx)
 	rgnOt.End()
 	if err != nil {
 		return err
