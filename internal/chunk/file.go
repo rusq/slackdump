@@ -94,7 +94,7 @@ func indexChunks(dec decoder) (index, error) {
 		id = chunk.ID()
 		idx[id] = append(idx[id], offset)
 	}
-	logger.Default.Debugf("indexing chunks: %d: %v", len(idx), caller(2))
+	logger.Default.Debugf("indexing chunks: %d: called from %v", len(idx), caller(2))
 	return idx, nil
 }
 

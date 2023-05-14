@@ -1,6 +1,7 @@
 package chunk
 
 import (
+	"bytes"
 	"compress/gzip"
 	"errors"
 	"fmt"
@@ -9,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 
 	"github.com/slack-go/slack"
 
@@ -32,7 +34,12 @@ const (
 // file with the extension.  All files created by this package will be
 // compressed with GZIP, unless stated otherwise.
 type Directory struct {
-	dir string
+	dir   string
+	cache dcache
+}
+
+type dcache struct {
+	channels atomic.Value // []slack.Channel
 }
 
 // OpenDir "opens" an existing directory for read and write operations.
@@ -69,6 +76,9 @@ var errNoChannelInfo = errors.New("no channel info")
 // through all conversation files and try to get "ChannelInfo" chunk from the
 // each file.
 func (d *Directory) Channels() ([]slack.Channel, error) {
+	if val := d.cache.channels.Load(); val != nil {
+		return val.([]slack.Channel), nil
+	}
 	// try to open the channels file
 	if fi, err := os.Stat(d.filename(FChannels)); err == nil && !fi.IsDir() {
 		return loadChannelsJSON(d.filename(FChannels))
@@ -97,6 +107,7 @@ func (d *Directory) Channels() ([]slack.Channel, error) {
 	}); err != nil {
 		return nil, err
 	}
+	d.cache.channels.Store(ch)
 	return ch, nil
 }
 
@@ -106,12 +117,18 @@ func (d *Directory) Name() string {
 }
 
 func loadChanInfo(fullpath string) ([]slack.Channel, error) {
+	// try to get from cache
 	f, err := openChunks(fullpath)
 	if err != nil {
 		return nil, err
 	}
 	defer f.Close()
-	return readChanInfo(f)
+	ch, err := readChanInfo(f)
+	if err != nil {
+		return nil, err
+	}
+	// save to cache
+	return ch, nil
 }
 
 // readChanInfo returns the Channels from all the ChannelInfo chunks in the
@@ -127,11 +144,10 @@ func readChanInfo(rs io.ReadSeeker) ([]slack.Channel, error) {
 // loadChannelsJSON loads channels json file and returns a slice of
 // slack.Channel.  It expects it to be GZIP compressed.
 func loadChannelsJSON(fullpath string) ([]slack.Channel, error) {
-	f, err := openChunks(fullpath)
+	f, err := openChunksBuf(fullpath)
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
 	cf, err := FromReader(f)
 	if err != nil {
 		return nil, err
@@ -142,6 +158,21 @@ func loadChannelsJSON(fullpath string) ([]slack.Channel, error) {
 // openChunks opens an existing chunk file and returns a ReadSeekCloser.  It
 // expects a chunkfile to be a gzip-compressed file.
 func openChunks(filename string) (io.ReadSeekCloser, error) {
+	f, err := openfile(filename)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	tf, err := osext.UnGZIP(f)
+	if err != nil {
+		return nil, err
+	}
+
+	return osext.RemoveOnClose(tf), nil
+}
+
+func openfile(filename string) (*os.File, error) {
 	if fi, err := os.Stat(filename); err != nil {
 		return nil, err
 	} else if fi.IsDir() {
@@ -149,17 +180,24 @@ func openChunks(filename string) (io.ReadSeekCloser, error) {
 	} else if fi.Size() == 0 {
 		return nil, errors.New("chunk file is empty")
 	}
-	f, err := os.Open(filename)
+	return os.Open(filename)
+}
+
+func openChunksBuf(filename string) (io.ReadSeeker, error) {
+	f, err := openfile(filename)
 	if err != nil {
 		return nil, err
 	}
 	defer f.Close()
-	tf, err := osext.UnGZIP(f)
+	gzr, err := gzip.NewReader(f)
 	if err != nil {
 		return nil, err
 	}
-
-	return osext.RemoveOnClose(tf), nil
+	var buf bytes.Buffer
+	if _, err := io.Copy(&buf, gzr); err != nil {
+		return nil, err
+	}
+	return bytes.NewReader(buf.Bytes()), nil
 }
 
 func (d *Directory) Stat(id FileID) (fs.FileInfo, error) {
