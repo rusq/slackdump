@@ -64,6 +64,20 @@ func FromReader(rs io.ReadSeeker) (*File, error) {
 	}, nil
 }
 
+// fromReaderWithIndex creates a new chunk File from the io.ReadSeeker and
+// index.
+//
+// USE WITH CAUTION: It does not check if the file corresponds to the index.
+func fromReaderWithIndex(rs io.ReadSeeker, idx index) (*File, error) {
+	if _, err := rs.Seek(0, io.SeekStart); err != nil { // reset offset
+		return nil, err
+	}
+	return &File{
+		rs:  rs,
+		idx: idx,
+	}, nil
+}
+
 // Close closes the underlying reader if it implements io.Closer.
 func (f *File) Close() error {
 	if c, ok := f.rs.(io.Closer); ok {
@@ -96,6 +110,10 @@ func indexChunks(dec decoder) (index, error) {
 	}
 	logger.Default.Debugf("indexing chunks: %d: called from %v", len(idx), caller(2))
 	return idx, nil
+}
+
+func (f *File) Index() index {
+	return f.idx
 }
 
 func caller(steps int) string {

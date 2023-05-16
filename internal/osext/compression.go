@@ -24,6 +24,9 @@ func UnGZIP(r io.Reader) (*os.File, error) {
 	if err != nil {
 		return nil, err
 	}
+	if err := f.Sync(); err != nil {
+		return nil, err
+	}
 	// reset temporary file position to prepare it for reading.
 	if _, err := f.Seek(0, io.SeekStart); err != nil {
 		return nil, err

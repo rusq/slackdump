@@ -21,6 +21,7 @@ func Test_stdConvert(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		defer cd.Close()
 		fsa, err := fsadapter.New("output-dump.zip")
 		if err != nil {
 			t.Fatal(err)

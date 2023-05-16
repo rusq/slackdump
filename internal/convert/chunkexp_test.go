@@ -25,6 +25,7 @@ func TestChunkToExport_Validate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer srcDir.Close()
 	var testTrgDir = t.TempDir()
 
 	type fields struct {
@@ -98,6 +99,7 @@ func TestChunkToExport_Convert(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer cd.Close()
 	testTrgDir, err := os.MkdirTemp("", "slackdump")
 	if err != nil {
 		t.Fatal(err)

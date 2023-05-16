@@ -47,6 +47,7 @@ func NewStandard(fsa fsadapter.FS, dir string, opts ...StdOption) (*StdConverter
 	if err != nil {
 		return nil, err
 	}
+	defer cd.Close()
 	std := &StdConverter{
 		cd:   cd,
 		fsa:  fsa,

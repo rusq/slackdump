@@ -23,6 +23,7 @@ func NewDirServer(dir string) *DirServer {
 	if err != nil {
 		panic(err)
 	}
+	defer cd.Close()
 	ds := &DirServer{
 		cd:   cd,
 		ptrs: make(map[string]*chunk.Player),

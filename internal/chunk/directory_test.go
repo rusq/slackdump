@@ -1,9 +1,8 @@
 package chunk
 
 import (
-	"bytes"
-	"encoding/json"
 	"io"
+	"path/filepath"
 	"reflect"
 	"testing"
 
@@ -59,8 +58,9 @@ var (
 )
 
 func Test_readChanInfo(t *testing.T) {
+	dir := t.TempDir()
 	type args struct {
-		r io.ReadSeeker
+		r filewrapper
 	}
 	tests := []struct {
 		name    string
@@ -71,7 +71,8 @@ func Test_readChanInfo(t *testing.T) {
 		{
 			name: "test",
 			args: args{
-				r: marshalChunks(
+				r: testfilewrapper(
+					filepath.Join(dir, "unit"),
 					TestPublicChannelInfo,
 					TestPublicChannelMessages,
 				),
@@ -96,14 +97,16 @@ func Test_readChanInfo(t *testing.T) {
 	}
 }
 
-// marshalChunks turns chunks into io.ReadSeeker
-func marshalChunks(chunks ...Chunk) io.ReadSeeker {
-	var b bytes.Buffer
-	enc := json.NewEncoder(&b)
-	for _, c := range chunks {
-		if err := enc.Encode(c); err != nil {
-			panic(err)
-		}
+func testfilewrapper(name string, chunks ...Chunk) filewrapper {
+	return nopCloser{
+		ReadSeeker: marshalChunks(chunks...),
+		name:       name,
 	}
-	return bytes.NewReader(b.Bytes())
 }
+
+type nopCloser struct {
+	name string
+	io.ReadSeeker
+}
+
+func (n nopCloser) Name() string { return n.name }

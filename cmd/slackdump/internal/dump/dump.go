@@ -216,6 +216,7 @@ func dump(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, p dump
 	if err != nil {
 		return err
 	}
+	defer cd.Close()
 	// Create conversation processor.
 	proc, err := dirproc.NewConversation(cd, subproc, coord, dirproc.WithLogger(lg), dirproc.WithRecordFiles(false))
 	if err != nil {

@@ -45,6 +45,7 @@ func Test_transform(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			defer cd.Close()
 			cvt := ExpConverter{
 				cd:  cd,
 				fsa: tt.args.fsa,

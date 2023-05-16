@@ -106,6 +106,7 @@ func chunk2export(ctx context.Context, src, trg string, cflg convertflags) error
 	if err != nil {
 		return err
 	}
+	defer cd.Close()
 	fsa, err := fsadapter.New(trg)
 	if err != nil {
 		return err

@@ -1,6 +1,9 @@
 package chunk
 
 import (
+	"bytes"
+	"encoding/json"
+	"io"
 	"testing"
 
 	"github.com/slack-go/slack"
@@ -126,4 +129,16 @@ func TestChunk_ID(t *testing.T) {
 			}
 		})
 	}
+}
+
+// marshalChunks turns chunks into io.ReadSeeker
+func marshalChunks(chunks ...Chunk) io.ReadSeeker {
+	var b bytes.Buffer
+	enc := json.NewEncoder(&b)
+	for _, c := range chunks {
+		if err := enc.Encode(c); err != nil {
+			panic(err)
+		}
+	}
+	return bytes.NewReader(b.Bytes())
 }

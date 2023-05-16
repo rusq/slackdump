@@ -35,6 +35,7 @@ func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 	if err != nil {
 		return err
 	}
+	defer chunkdir.Close()
 	if !lg.IsDebug() {
 		defer chunkdir.RemoveAll()
 	}
