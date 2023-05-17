@@ -5,9 +5,15 @@ import (
 	"os"
 )
 
+// ReadSeekCloseNamer is an io.ReadSeekCloser that also has a Name method.
+type ReadSeekCloseNamer interface {
+	io.ReadSeekCloser
+	Name() string
+}
+
 // RemoveOnClose wraps an *os.File and removes it when it is closed.  The
 // filename must be given.
-func RemoveOnClose(r *os.File) io.ReadSeekCloser {
+func RemoveOnClose(r *os.File) ReadSeekCloseNamer {
 	return RemoveWrapper{filename: r.Name(), ReadSeekCloser: r}
 }
 
@@ -27,6 +33,6 @@ func (r RemoveWrapper) Close() error {
 	return os.Remove(r.filename)
 }
 
-func (r RemoveWrapper) Filename() string {
+func (r RemoveWrapper) Name() string {
 	return r.filename
 }

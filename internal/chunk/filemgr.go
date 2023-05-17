@@ -45,8 +45,7 @@ func (dp *filemgr) Destroy() error {
 	for _, f := range dp.handles {
 		f.Close()
 	}
-	// return os.RemoveAll(dp.tmpdir)
-	return nil
+	return os.RemoveAll(dp.tmpdir)
 }
 
 // Open

@@ -12,6 +12,7 @@ import (
 	"strings"
 	"sync/atomic"
 
+	"github.com/rusq/slackdump/v2/internal/osext"
 	"github.com/slack-go/slack"
 )
 
@@ -33,33 +34,48 @@ const (
 // compressed with GZIP, unless stated otherwise.
 type Directory struct {
 	dir   string
-	fm    *filemgr
 	cache dcache
+
+	wantCache bool
+	fm        *filemgr
 }
 
 type dcache struct {
 	channels atomic.Value // []slack.Channel
 }
 
-type filewrapper interface {
-	io.ReadSeeker
-	Name() string
+type DirOption func(*Directory)
+
+func WithCache(enabled bool) DirOption {
+	return func(d *Directory) {
+		d.wantCache = enabled
+	}
 }
 
 // OpenDir "opens" an existing directory for read and write operations.
 // It expects the directory to exist and to be a directory, otherwise it will
 // return an error.
-func OpenDir(dir string) (*Directory, error) {
+func OpenDir(dir string, opt ...DirOption) (*Directory, error) {
 	if fi, err := os.Stat(dir); err != nil {
 		return nil, err
 	} else if !fi.IsDir() {
 		return nil, fmt.Errorf("not a directory: %s", dir)
 	}
-	fm, err := newFileMgr()
-	if err != nil {
-		return nil, err
+	d := &Directory{
+		dir:       dir,
+		wantCache: true,
 	}
-	return &Directory{dir: dir, fm: fm}, nil
+	for _, o := range opt {
+		o(d)
+	}
+	if d.wantCache {
+		fm, err := newFileMgr()
+		if err != nil {
+			return nil, err
+		}
+		d.fm = fm
+	}
+	return d, nil
 }
 
 // CreateDir creates and opens a directory.  It will create all parent
@@ -68,11 +84,7 @@ func CreateDir(dir string) (*Directory, error) {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return nil, err
 	}
-	fm, err := newFileMgr()
-	if err != nil {
-		return nil, err
-	}
-	return &Directory{dir: dir, fm: fm}, nil
+	return OpenDir(dir)
 }
 
 // RemoveAll deletes the directory and all its contents.  Make sure all files
@@ -84,7 +96,10 @@ func (d *Directory) RemoveAll() error {
 
 // Close closes the directory and all open files.
 func (d *Directory) Close() error {
-	return d.fm.Destroy()
+	if d.fm != nil {
+		return d.fm.Destroy()
+	}
+	return nil
 }
 
 var errNoChannelInfo = errors.New("no channel info")
@@ -135,24 +150,22 @@ func (d *Directory) Name() string {
 }
 
 func (d *Directory) loadChanInfo(fullpath string) ([]slack.Channel, error) {
-	// try to get from cache
-	f, err := d.fm.Open(fullpath)
+	f, err := d.openRAW(fullpath)
 	if err != nil {
 		return nil, err
 	}
 	defer f.Close()
-	ch, err := readChanInfo(f)
+	ch, err := d.readChanInfo(f)
 	if err != nil {
 		return nil, err
 	}
-	// save to cache
 	return ch, nil
 }
 
 // readChanInfo returns the Channels from all the ChannelInfo chunks in the
 // file.
-func readChanInfo(wf filewrapper) ([]slack.Channel, error) {
-	cf, err := cachedFromReader(wf)
+func (d *Directory) readChanInfo(wf osext.ReadSeekCloseNamer) ([]slack.Channel, error) {
+	cf, err := cachedFromReader(wf, d.wantCache)
 	if err != nil {
 		return nil, err
 	}
@@ -162,12 +175,12 @@ func readChanInfo(wf filewrapper) ([]slack.Channel, error) {
 // loadChannelsJSON loads channels json file and returns a slice of
 // slack.Channel.  It expects it to be GZIP compressed.
 func (d *Directory) loadChannelsJSON(fullpath string) ([]slack.Channel, error) {
-	f, err := d.fm.Open(fullpath)
+	f, err := d.openRAW(fullpath)
 	if err != nil {
 		return nil, err
 	}
 	defer f.Close()
-	cf, err := cachedFromReader(f)
+	cf, err := cachedFromReader(f, d.wantCache)
 	if err != nil {
 		return nil, err
 	}
@@ -199,7 +212,7 @@ func (d *Directory) Open(id FileID) (*File, error) {
 	if err != nil {
 		return nil, err
 	}
-	return cachedFromReader(f)
+	return cachedFromReader(f, d.wantCache)
 }
 
 // OpenRAW opens a compressed chunk file with filename within the directory,
@@ -209,8 +222,39 @@ func (d *Directory) OpenRAW(filename string) (io.ReadSeekCloser, error) {
 	return d.openRAW(filename)
 }
 
-func (d *Directory) openRAW(filename string) (*wrappedfile, error) {
-	return d.fm.Open(filename)
+func (d *Directory) openRAW(filename string) (osext.ReadSeekCloseNamer, error) {
+	if d.wantCache {
+		return d.fm.Open(filename)
+	}
+	return openChunks(filename)
+}
+
+// openChunks opens an existing chunk file and returns a ReadSeekCloser.  It
+// expects a chunkfile to be a gzip-compressed file.
+func openChunks(filename string) (osext.ReadSeekCloseNamer, error) {
+	f, err := openfile(filename)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	tf, err := osext.UnGZIP(f)
+	if err != nil {
+		return nil, err
+	}
+
+	return osext.RemoveOnClose(tf), nil
+}
+
+func openfile(filename string) (*os.File, error) {
+	if fi, err := os.Stat(filename); err != nil {
+		return nil, err
+	} else if fi.IsDir() {
+		return nil, errors.New("chunk file is a directory")
+	} else if fi.Size() == 0 {
+		return nil, errors.New("chunk file is empty")
+	}
+	return os.Open(filename)
 }
 
 // filename returns the full path of the chunk file with the given fileID.
@@ -277,7 +321,10 @@ func (d *Directory) WorkspaceInfo() (*slack.AuthTestResponse, error) {
 	return nil, errors.New("no workspace info found")
 }
 
-func cachedFromReader(wf filewrapper) (*File, error) {
+func cachedFromReader(wf osext.ReadSeekCloseNamer, wantCache bool) (*File, error) {
+	if !wantCache {
+		return FromReader(wf)
+	}
 	// check if index exists.  If it does, read it and return chunk.File with it.
 	r, err := os.Open(wf.Name() + extIdx)
 	if err == nil {

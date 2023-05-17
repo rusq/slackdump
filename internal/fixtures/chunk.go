@@ -38,3 +38,7 @@ func chunksJSONL(b []byte) io.ReadSeeker {
 func ChunkFileJSONL() io.ReadSeeker {
 	return chunksJSONL(chunksJsonlGz)
 }
+
+const (
+	ChunkWorkspace = `{"t":6,"ts":1682508612986310000,"w":{"url":"https://unittest.slack.com/","team":"Unittest Team","user":"charlie","team_id":"T02A8XRGA","user_id":"US5ATREAF","bot_id":""}}`
+)

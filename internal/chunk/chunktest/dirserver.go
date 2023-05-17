@@ -18,12 +18,7 @@ type DirServer struct {
 	ptrs map[string]*chunk.Player
 }
 
-func NewDirServer(dir string) *DirServer {
-	cd, err := chunk.OpenDir(dir)
-	if err != nil {
-		panic(err)
-	}
-	defer cd.Close()
+func NewDirServer(cd *chunk.Directory) *DirServer {
 	ds := &DirServer{
 		cd:   cd,
 		ptrs: make(map[string]*chunk.Player),

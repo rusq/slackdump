@@ -14,6 +14,7 @@ import (
 	"github.com/rusq/dlog"
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/slackdump/v2"
+	"github.com/rusq/slackdump/v2/internal/chunk"
 	"github.com/rusq/slackdump/v2/internal/chunk/chunktest"
 	"github.com/rusq/slackdump/v2/internal/structures"
 	"github.com/rusq/slackdump/v2/logger"
@@ -57,7 +58,12 @@ func Test_exportV3(t *testing.T) {
 	// 	}
 	// })
 	t.Run("guest user", func(t *testing.T) {
-		srv := chunktest.NewDirServer(guestDir)
+		cd, err := chunk.OpenDir(guestDir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer cd.Close()
+		srv := chunktest.NewDirServer(cd)
 		defer srv.Close()
 		cl := slack.New("", slack.OptionAPIURL(srv.URL()))
 

@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/rusq/slackdump/v2/internal/fixtures"
+	"github.com/rusq/slackdump/v2/internal/osext"
 	"github.com/slack-go/slack"
 )
 
@@ -59,17 +60,24 @@ var (
 
 func Test_readChanInfo(t *testing.T) {
 	dir := t.TempDir()
+	type fields struct {
+		wantCache bool
+	}
 	type args struct {
-		r filewrapper
+		r osext.ReadSeekCloseNamer
 	}
 	tests := []struct {
 		name    string
+		fields  fields
 		args    args
 		want    []slack.Channel
 		wantErr bool
 	}{
 		{
 			name: "test",
+			fields: fields{
+				wantCache: true,
+			},
 			args: args{
 				r: testfilewrapper(
 					filepath.Join(dir, "unit"),
@@ -85,7 +93,10 @@ func Test_readChanInfo(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := readChanInfo(tt.args.r)
+			d := &Directory{
+				wantCache: tt.fields.wantCache,
+			}
+			got, err := d.readChanInfo(tt.args.r)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("readChanInfo() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -97,7 +108,7 @@ func Test_readChanInfo(t *testing.T) {
 	}
 }
 
-func testfilewrapper(name string, chunks ...Chunk) filewrapper {
+func testfilewrapper(name string, chunks ...Chunk) osext.ReadSeekCloseNamer {
 	return nopCloser{
 		ReadSeeker: marshalChunks(chunks...),
 		name:       name,
@@ -108,5 +119,7 @@ type nopCloser struct {
 	name string
 	io.ReadSeeker
 }
+
+func (n nopCloser) Close() error { return nil }
 
 func (n nopCloser) Name() string { return n.name }
