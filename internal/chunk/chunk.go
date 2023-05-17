@@ -21,6 +21,8 @@ const (
 	CChannels
 	CChannelInfo
 	CWorkspaceInfo
+	CStarredItems
+	CBookmarks
 )
 
 var ErrUnsupChunkType = fmt.Errorf("unsupported chunk type")
@@ -68,6 +70,10 @@ type Chunk struct {
 	// WorkspaceInfo contains the workspace information as returned by the
 	// API.  Populated by WorkspaceInfo.
 	WorkspaceInfo *slack.AuthTestResponse `json:"w,omitempty"`
+	//
+	StarredItems []slack.StarredItem `json:"st,omitempty"` // Populated by StarredItems
+	//
+	Bookmarks []slack.Bookmark `json:"b,omitempty"` // Populated by Bookmarks
 }
 
 // GroupID is a unique ID for a chunk group.  It is used to group chunks of
@@ -78,11 +84,13 @@ type GroupID string
 const (
 	userChunkID    GroupID = "lusr"
 	channelChunkID GroupID = "lch"
+	starredChunkID GroupID = "ls"
 	wspInfoChunkID GroupID = "iw"
 
 	threadPrefix   = "t"
 	filePrefix     = "f"
 	chanInfoPrefix = "ic"
+	bookmarkPrefix = "lb"
 )
 
 // Chunk ID categories
@@ -106,9 +114,13 @@ func (c *Chunk) ID() GroupID {
 	case CUsers:
 		return userChunkID // static, one team per chunk file
 	case CChannels:
-		return channelChunkID // static, one team per chunk file.
+		return channelChunkID // static
 	case CWorkspaceInfo:
-		return wspInfoChunkID // static, one team per chunk file.
+		return wspInfoChunkID // static
+	case CStarredItems:
+		return starredChunkID // static
+	case CBookmarks:
+		return id(bookmarkPrefix, c.ChannelID)
 	}
 	return GroupID(fmt.Sprintf("<unknown:%s>", c.Type))
 }
