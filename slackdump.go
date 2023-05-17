@@ -44,7 +44,9 @@ type Slacker interface {
 	GetConversationHistoryContext(ctx context.Context, params *slack.GetConversationHistoryParameters) (*slack.GetConversationHistoryResponse, error)
 	GetConversationRepliesContext(ctx context.Context, params *slack.GetConversationRepliesParameters) (msgs []slack.Message, hasMore bool, nextCursor string, err error)
 	GetConversationsContext(ctx context.Context, params *slack.GetConversationsParameters) (channels []slack.Channel, nextCursor string, err error)
+	GetStarredContext(ctx context.Context, params slack.StarsParameters) ([]slack.StarredItem, *slack.Paging, error)
 	GetUsersPaginated(options ...slack.GetUsersOption) slack.UserPagination
+	ListBookmarks(channelID string) ([]slack.Bookmark, error)
 }
 
 // clienter is the interface with some functions of slack.Client with the sole

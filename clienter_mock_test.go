@@ -114,6 +114,22 @@ func (mr *MockSlackerMockRecorder) GetConversationsContext(ctx, params interface
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetConversationsContext", reflect.TypeOf((*MockSlacker)(nil).GetConversationsContext), ctx, params)
 }
 
+// GetStarredContext mocks base method.
+func (m *MockSlacker) GetStarredContext(ctx context.Context, params slack.StarsParameters) ([]slack.StarredItem, *slack.Paging, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetStarredContext", ctx, params)
+	ret0, _ := ret[0].([]slack.StarredItem)
+	ret1, _ := ret[1].(*slack.Paging)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// GetStarredContext indicates an expected call of GetStarredContext.
+func (mr *MockSlackerMockRecorder) GetStarredContext(ctx, params interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetStarredContext", reflect.TypeOf((*MockSlacker)(nil).GetStarredContext), ctx, params)
+}
+
 // GetUsersPaginated mocks base method.
 func (m *MockSlacker) GetUsersPaginated(options ...slack.GetUsersOption) slack.UserPagination {
 	m.ctrl.T.Helper()
@@ -130,6 +146,21 @@ func (m *MockSlacker) GetUsersPaginated(options ...slack.GetUsersOption) slack.U
 func (mr *MockSlackerMockRecorder) GetUsersPaginated(options ...interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUsersPaginated", reflect.TypeOf((*MockSlacker)(nil).GetUsersPaginated), options...)
+}
+
+// ListBookmarks mocks base method.
+func (m *MockSlacker) ListBookmarks(channelID string) ([]slack.Bookmark, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListBookmarks", channelID)
+	ret0, _ := ret[0].([]slack.Bookmark)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListBookmarks indicates an expected call of ListBookmarks.
+func (mr *MockSlackerMockRecorder) ListBookmarks(channelID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListBookmarks", reflect.TypeOf((*MockSlacker)(nil).ListBookmarks), channelID)
 }
 
 // mockClienter is a mock of clienter interface.
@@ -262,6 +293,22 @@ func (mr *mockClienterMockRecorder) GetFile(downloadURL, writer interface{}) *go
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetFile", reflect.TypeOf((*mockClienter)(nil).GetFile), downloadURL, writer)
 }
 
+// GetStarredContext mocks base method.
+func (m *mockClienter) GetStarredContext(ctx context.Context, params slack.StarsParameters) ([]slack.StarredItem, *slack.Paging, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetStarredContext", ctx, params)
+	ret0, _ := ret[0].([]slack.StarredItem)
+	ret1, _ := ret[1].(*slack.Paging)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// GetStarredContext indicates an expected call of GetStarredContext.
+func (mr *mockClienterMockRecorder) GetStarredContext(ctx, params interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetStarredContext", reflect.TypeOf((*mockClienter)(nil).GetStarredContext), ctx, params)
+}
+
 // GetUsersContext mocks base method.
 func (m *mockClienter) GetUsersContext(ctx context.Context, options ...slack.GetUsersOption) ([]slack.User, error) {
 	m.ctrl.T.Helper()
@@ -298,4 +345,19 @@ func (m *mockClienter) GetUsersPaginated(options ...slack.GetUsersOption) slack.
 func (mr *mockClienterMockRecorder) GetUsersPaginated(options ...interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUsersPaginated", reflect.TypeOf((*mockClienter)(nil).GetUsersPaginated), options...)
+}
+
+// ListBookmarks mocks base method.
+func (m *mockClienter) ListBookmarks(channelID string) ([]slack.Bookmark, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListBookmarks", channelID)
+	ret0, _ := ret[0].([]slack.Bookmark)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListBookmarks indicates an expected call of ListBookmarks.
+func (mr *mockClienterMockRecorder) ListBookmarks(channelID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListBookmarks", reflect.TypeOf((*mockClienter)(nil).ListBookmarks), channelID)
 }
