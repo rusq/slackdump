@@ -33,7 +33,8 @@ var (
 	Browser     browser.Browser
 	Limits      = slackdump.DefLimits
 
-	DumpFiles bool
+	DumpFiles    bool
+	NoChunkCache bool
 
 	// Oldest is the default timestamp of the oldest message to fetch, that is
 	// used by the dump and export commands.
@@ -62,6 +63,7 @@ const (
 	OmitWorkspaceFlag
 	OmitUserCacheFlag
 	OmitTimeframeFlag
+	OmitChunkCacheFlag
 
 	OmitAll = OmitConfigFlag |
 		OmitDownloadFlag |
@@ -110,6 +112,11 @@ func SetBaseFlags(fs *flag.FlagSet, mask FlagMask) {
 	if mask&OmitUserCacheFlag == 0 {
 		fs.BoolVar(&NoUserCache, "no-user-cache", false, "disable user cache (file cache)")
 		fs.DurationVar(&UserCacheRetention, "user-cache-retention", 60*time.Minute, "user cache retention duration.  After this time, the cache is considered stale and will be refreshed.")
+	}
+	if mask&OmitChunkCacheFlag == 0 {
+		// ChunkCache can decrease the time of conversion for the archives
+		// with large channels.  Caching is pretty useless for small archives.
+		fs.BoolVar(&NoChunkCache, "no-chunk-cache", false, "disable chunk cache (uses temporary directory)")
 	}
 	if mask&OmitTimeframeFlag == 0 {
 		fs.Var(&Oldest, "time-from", "timestamp of the oldest message to fetch (UTC timezone)")

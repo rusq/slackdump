@@ -1,4 +1,3 @@
-
 .\" https://man.openbsd.org/mdoc.7
 .Dd $Mdocdate$
 .Dt SLACKDUMP 1
@@ -86,6 +85,86 @@ Export workspace in the internal Chunk format.
 Display version information.
 .It Cm workspace
 Manage Slack workspaces authentication.
+.El
+.\"
+.Sh FLAGS
+This section lists all available flags, availability of which depends on the
+command.  The flags are listed in alphabetical order.
+.Bl -tag -width -base dir
+.It Fl api-config Ar path
+Use the specified API limits configuration file (see the
+.Cm config
+command).
+.It Fl base Ar path
+Specifies the base directory or zip file where all data will be stored.
+If the path ends with
+.Dq .zip ,
+the data will be stored in the zip file, otherwise
+it will be stored in the directory.
+.Pp
+If the flag is not specified, Slackdump defaults to creating a zip file in the
+current directory using the following pattern:
+.Dq slackdump_YYYYMMDD_HHMISS.zip ,
+where
+.Dq YYYYMMDD_HHMISS
+is the current date and time.  For example:
+.Bd -literal -offset indent
+slackdump_20201231_235959.zip
+.Ed
+.It Fl browser Ar firefox | chromium
+Specifies the browser to use for the authentication.  The default is Firefox.
+.It Fl cache-dir Ar path
+Specifies the directory where the authentication information and user/channel
+cache is stored.  If the flag is not specified, the cache is stored in the
+system cache directory.
+.It Fl cookie Ar cookie | cookie_file
+.It Fl files=true|false
+Enables or disables attachment files downloading.  The default is enabled.  To
+disable downloading, use
+.Dq Fl files=false .
+.It Fl log Ar path
+Specifies the log file path.  If the flag is not specified, the log is written
+to the standard output.
+.It Fl token Ar token
+Specifies the token to use for the authentication.  This flag is only used
+with the manual authentication methods.
+.It Fl no-user-cache
+Disables caching of users for the subcommands of the
+.Cm list
+command.
+.It Fl no-chunk-cache
+Disables caching of chunks for the
+.Cm convert
+command.  This may be useful on small archives.  For big archives caching is
+beneficial, as it allows to reduce the processing time.
+.It Fl time-from Ar YYYY-MM-DDTHH:MI:SS
+Allows to specify the start time.  The time is specified in the format
+.Dq YYYY-MM-DDTHH:MI:SS
+where
+.Sq T
+is a literal character separating the date and time, for example
+.Dq 2020-12-311T23:59:59
+.It Fl time-to Ar YYYY-MM-DDTHH:MI:SS
+Allows to specify the end time.  See the
+.Fl time-from
+flag for the format.
+.It Fl trace Ar filename
+Enables tracing and writes the trace to the specified file.
+.It Fl user-cache-retention Ar duration
+Specifies the duration for which the user cache is kept.  The default is
+.Dq 1h
+.Ns .
+The duration is specified in the format accepted by the Go time package.
+For example, to specify the duration of 1 hour 30 minutes and 55 seconds, use
+.Dq 1h30m55s
+.Ns .
+.It Fl v
+Enables verbose output, prints a lot of debugging information.
+.It Fl workspace Ar name
+Allows to override the currently selected workspace for the session.
+See also the
+.Cm workspace Ar select
+command.
 .El
 .\"
 .Sh USAGE
