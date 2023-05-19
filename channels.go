@@ -108,7 +108,7 @@ func (sd *Session) GetChannelMembers(ctx context.Context, channelID string) ([]s
 		var next string
 		if err := network.WithRetry(ctx, sd.limiter(network.Tier4), sd.options.Tier4Retries, func() error {
 			var err error
-			uu, next, err = sd.Client().GetUsersInConversationContext(ctx, &slack.GetUsersInConversationParameters{
+			uu, next, err = sd.client.GetUsersInConversationContext(ctx, &slack.GetUsersInConversationParameters{
 				ChannelID: channelID,
 				Cursor:    cursor,
 			})
