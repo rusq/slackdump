@@ -22,6 +22,9 @@ type Options struct {
 	Tier3Boost          uint          // Tier-3 limiter boost allows to increase or decrease the slack Tier req/min rate.  Affects all tiers.
 	Tier3Burst          uint          // Tier-3 limiter burst allows to set the limiter burst in req/sec.  Default of 1 is safe.
 	Tier3Retries        int           // number of retries to do when getting 429 on conversation fetch
+	Tier4Boost          uint          // Tier-4 limiter boost allows to increase or decrease the slack Tier req/min rate.  Affects all tiers.
+	Tier4Burst          uint          // Tier-4 limiter burst allows to set the limiter burst in req/sec.  Default of 1 is safe.
+	Tier4Retries        int           // number of retries to do when getting 429 on conversation fetch
 	ConversationsPerReq int           // number of messages we get per 1 API request. bigger the number, less requests, but they become more beefy.
 	ChannelsPerReq      int           // number of channels to fetch per 1 API request.
 	RepliesPerReq       int           // number of thread replies per request (slack default: 1000)
@@ -43,6 +46,9 @@ var DefOptions = Options{
 	Tier3Boost:          120,           // playing safe there, but generally value of 120 is fine.
 	Tier3Burst:          1,             // safe value, who would ever want to modify it? I don't know.
 	Tier3Retries:        3,             // on Tier 3 this was never a problem, even with limiter-boost=120
+	Tier4Boost:          1,
+	Tier4Burst:          1,
+	Tier4Retries:        3,
 	ConversationsPerReq: 200,           // this is the recommended value by Slack. But who listens to them anyway.
 	ChannelsPerReq:      100,           // channels are Tier2 rate limited. Slack is greedy and never returns more than 100 per call.
 	RepliesPerReq:       200,           // the API-default is 1000 (see conversations.replies), but on large threads it may fail (see #54)
@@ -86,7 +92,7 @@ func RetryDownloads(attempts int) Option {
 // base slack Tier limits.  The resulting
 // events per minute will be calculated like this:
 //
-//   events_per_sec =  (<slack_tier_epm> + <eventsPerMin>) / 60.0
+//	events_per_sec =  (<slack_tier_epm> + <eventsPerMin>) / 60.0
 func Tier3Boost(eventsPerMin uint) Option {
 	return func(options *Options) {
 		options.Tier3Boost = eventsPerMin
@@ -104,7 +110,7 @@ func Tier3Burst(eventsPerSec uint) Option {
 // base slack Tier limits.  The resulting
 // events per minute will be calculated like this:
 //
-//   events_per_sec =  (<slack_tier_epm> + <eventsPerMin>) / 60.0
+//	events_per_sec =  (<slack_tier_epm> + <eventsPerMin>) / 60.0
 func Tier2Boost(eventsPerMin uint) Option {
 	return func(options *Options) {
 		options.Tier2Boost = eventsPerMin
