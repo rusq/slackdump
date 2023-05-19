@@ -162,3 +162,19 @@ func (mr *mockClienterMockRecorder) GetUsersContext(ctx interface{}, options ...
 	varargs := append([]interface{}{ctx}, options...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUsersContext", reflect.TypeOf((*mockClienter)(nil).GetUsersContext), varargs...)
 }
+
+// GetUsersInConversationContext mocks base method.
+func (m *mockClienter) GetUsersInConversationContext(ctx context.Context, params *slack.GetUsersInConversationParameters) ([]string, string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetUsersInConversationContext", ctx, params)
+	ret0, _ := ret[0].([]string)
+	ret1, _ := ret[1].(string)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// GetUsersInConversationContext indicates an expected call of GetUsersInConversationContext.
+func (mr *mockClienterMockRecorder) GetUsersInConversationContext(ctx, params interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUsersInConversationContext", reflect.TypeOf((*mockClienter)(nil).GetUsersInConversationContext), ctx, params)
+}

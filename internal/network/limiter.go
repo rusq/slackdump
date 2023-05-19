@@ -13,7 +13,7 @@ const (
 	// Tier1 Tier = 1
 	Tier2 Tier = 20
 	Tier3 Tier = 50
-	// Tier4 Tier = 100
+	Tier4 Tier = 100
 
 	// secPerMin is the number of seconds in a minute, it is here to allow easy
 	// modification of the program, should this value change.

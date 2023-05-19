@@ -86,6 +86,21 @@ func (mr *MockdumperMockRecorder) DumpRaw(ctx, link, oldest, latest interface{},
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DumpRaw", reflect.TypeOf((*Mockdumper)(nil).DumpRaw), varargs...)
 }
 
+// GetChannelMembers mocks base method.
+func (m *Mockdumper) GetChannelMembers(ctx context.Context, channelID string) ([]string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetChannelMembers", ctx, channelID)
+	ret0, _ := ret[0].([]string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetChannelMembers indicates an expected call of GetChannelMembers.
+func (mr *MockdumperMockRecorder) GetChannelMembers(ctx, channelID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetChannelMembers", reflect.TypeOf((*Mockdumper)(nil).GetChannelMembers), ctx, channelID)
+}
+
 // GetUsers mocks base method.
 func (m *Mockdumper) GetUsers(ctx context.Context) (types.Users, error) {
 	m.ctrl.T.Helper()
