@@ -36,6 +36,8 @@ type Limits struct {
 	Tier2 TierLimit `json:"tier_2,omitempty" yaml:"tier_2,omitempty"`
 	// Tier-3 limits
 	Tier3 TierLimit `json:"tier_3,omitempty" yaml:"tier_3,omitempty"`
+	// Tier-4 limits
+	Tier4 TierLimit `json:"tier_4,omitempty" yaml:"tier_4,omitempty"`
 	// Request Limits
 	Request RequestLimit `json:"per_request,omitempty" yaml:"per_request,omitempty"`
 }
@@ -74,6 +76,11 @@ var DefLimits = Limits{
 		Burst:   1,   // safe value, who would ever want to modify it? I don't know.
 		Retries: 3,   // on Tier 3 this was never a problem, even with limiter-boost=120
 	},
+	Tier4: TierLimit{
+		Boost:   10,
+		Burst:   1,
+		Retries: 3,
+	},
 	Request: RequestLimit{
 		Conversations: 100, // this is the recommended value by Slack. But who listens to them anyway.
 		Channels:      100, // channels are Tier2 rate limited. Slack is greedy and never returns more than 100 per call.
@@ -87,6 +94,7 @@ var NoLimits = Limits{
 	DownloadRetries: 3, // this shouldn't even happen, as we have no limiter on files download.
 	Tier2:           noTierLimits,
 	Tier3:           noTierLimits,
+	Tier4:           noTierLimits,
 	Request: RequestLimit{
 		Conversations: 100, // this is the recommended value by Slack. But who listens to them anyway.
 		Channels:      100, // channels are Tier2 rate limited. Slack is greedy and never returns more than 100 per call.
@@ -133,6 +141,9 @@ func (o *Limits) Apply(other Limits) error {
 	apply(&o.Tier3.Boost, other.Tier3.Boost)
 	apply(&o.Tier3.Burst, other.Tier3.Burst)
 	apply(&o.Tier3.Retries, other.Tier3.Retries)
+	apply(&o.Tier4.Boost, other.Tier4.Boost)
+	apply(&o.Tier4.Burst, other.Tier4.Burst)
+	apply(&o.Tier4.Retries, other.Tier4.Retries)
 	apply(&o.Request.Conversations, other.Request.Conversations)
 	apply(&o.Request.Channels, other.Request.Channels)
 	apply(&o.Request.Replies, other.Request.Replies)

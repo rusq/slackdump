@@ -21,6 +21,7 @@ const (
 	CChannels
 	CChannelInfo
 	CWorkspaceInfo
+	CChannelUsers
 	CStarredItems
 	CBookmarks
 )
@@ -50,6 +51,8 @@ type Chunk struct {
 	// followed by messages from the channel.  Populated by ChannelInfo and
 	// Files methods.
 	Channel *slack.Channel `json:"ci,omitempty"`
+
+	ChannelUsers []string `json:"cu,omitempty"` // Populated by ChannelUsers
 
 	// Parent is populated in case the chunk is a thread, or a file. Populated
 	// by ThreadMessages and Files methods.
@@ -87,10 +90,11 @@ const (
 	starredChunkID GroupID = "ls"
 	wspInfoChunkID GroupID = "iw"
 
-	threadPrefix   = "t"
-	filePrefix     = "f"
-	chanInfoPrefix = "ic"
-	bookmarkPrefix = "lb"
+	threadPrefix    = "t"
+	filePrefix      = "f"
+	chanInfoPrefix  = "ic"
+	bookmarkPrefix  = "lb"
+	chanUsersPrefix = "lcu"
 )
 
 // Chunk ID categories
@@ -111,6 +115,8 @@ func (c *Chunk) ID() GroupID {
 		return id(filePrefix, c.ChannelID, c.Parent.Timestamp)
 	case CChannelInfo:
 		return channelInfoID(c.ChannelID)
+	case CChannelUsers:
+		return id(chanUsersPrefix, c.ChannelID)
 	case CUsers:
 		return userChunkID // static, one team per chunk file
 	case CChannels:

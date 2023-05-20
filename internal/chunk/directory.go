@@ -112,12 +112,8 @@ func (d *Directory) Channels() ([]slack.Channel, error) {
 	if val := d.cache.channels.Load(); val != nil {
 		return val.([]slack.Channel), nil
 	}
-	// try to open the channels file
-	if fi, err := os.Stat(d.filename(FChannels)); err == nil && !fi.IsDir() {
-		return d.loadChannelsJSON(d.filename(FChannels))
-	}
-	// channel files not found, try to get channel info from the conversation
-	// files.
+	// we are not using the channel.json.gz file because it doesn't contain
+	// members.
 	var ch []slack.Channel
 	if err := filepath.WalkDir(d.dir, func(path string, de fs.DirEntry, err error) error {
 		if err != nil {

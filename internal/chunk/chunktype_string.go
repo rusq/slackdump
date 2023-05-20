@@ -15,13 +15,14 @@ func _() {
 	_ = x[CChannels-4]
 	_ = x[CChannelInfo-5]
 	_ = x[CWorkspaceInfo-6]
-	_ = x[CStarredItems-7]
-	_ = x[CBookmarks-8]
+	_ = x[CChannelUsers-7]
+	_ = x[CStarredItems-8]
+	_ = x[CBookmarks-9]
 }
 
-const _ChunkType_name = "MessagesThreadMessagesFilesUsersChannelsChannelInfoWorkspaceInfoStarredItemsBookmarks"
+const _ChunkType_name = "MessagesThreadMessagesFilesUsersChannelsChannelInfoWorkspaceInfoChannelUsersStarredItemsBookmarks"
 
-var _ChunkType_index = [...]uint8{0, 8, 22, 27, 32, 40, 51, 64, 76, 85}
+var _ChunkType_index = [...]uint8{0, 8, 22, 27, 32, 40, 51, 64, 76, 88, 97}
 
 func (i ChunkType) String() string {
 	if i >= ChunkType(len(_ChunkType_index)-1) {

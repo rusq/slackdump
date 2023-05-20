@@ -9,7 +9,7 @@ import (
 
 // Conversations is the interface for conversation fetching with files.
 //
-//go:generate mockgen -destination ../mocks/mock_processor/mock_processor.go github.com/rusq/slackdump/v2/processor Conversations,Users,Channels
+//go:generate mockgen -destination ../mocks/mock_processor/mock_processor.go github.com/rusq/slackdump/v2/processor Conversations,Users,Channels,ChannelInformer
 type Conversations interface {
 	Messenger
 	Files
@@ -22,6 +22,7 @@ type ChannelInformer interface {
 	// will be called for each direct thread link, and in this case, threadID
 	// will be set to the parent message's timestamp.
 	ChannelInfo(ctx context.Context, ci *slack.Channel, threadID string) error
+	ChannelUsers(ctx context.Context, channelID string, threadTS string, users []string) error
 }
 
 // Messenger is the interface that implements only the message fetching.

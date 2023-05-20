@@ -19,8 +19,8 @@ import (
 var _ Formatter = &Text{}
 
 const (
-	defaultNewMsgThreshold = 3 * time.Minute
-	textTimeFmt            = "02/01/2006 15:04:05 Z0700"
+	defaultMsgSplitAfter = 3 * time.Minute
+	textTimeFmt          = "02/01/2006 15:04:05 Z0700"
 )
 
 type Text struct {
@@ -44,7 +44,7 @@ func init() {
 func NewText(opts ...Option) Formatter {
 	settings := options{
 		textOptions: textOptions{
-			msgSplitAfter: defaultNewMsgThreshold,
+			msgSplitAfter: defaultMsgSplitAfter,
 		}}
 	for _, fn := range opts {
 		fn(&settings)

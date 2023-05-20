@@ -12,6 +12,7 @@ func TestLimits_Apply(t *testing.T) {
 		DownloadRetries int
 		Tier2           TierLimit
 		Tier3           TierLimit
+		Tier4           TierLimit
 		Request         RequestLimit
 	}
 	type args struct {
@@ -69,6 +70,7 @@ func TestLimits_Validate(t *testing.T) {
 		DownloadRetries int
 		Tier2           TierLimit
 		Tier3           TierLimit
+		Tier4           TierLimit
 		Request         RequestLimit
 	}
 	tests := []struct {

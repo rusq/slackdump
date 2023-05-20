@@ -270,6 +270,14 @@ func (cv *Conversations) finalise(ctx context.Context, id chunk.FileID) error {
 	return nil
 }
 
+func (cv *Conversations) ChannelUsers(ctx context.Context, channelID string, threadTS string, cu []string) error {
+	r, err := cv.recorder(chunk.ToFileID(channelID, threadTS, threadTS != ""))
+	if err != nil {
+		return err
+	}
+	return r.ChannelUsers(ctx, channelID, threadTS, cu)
+}
+
 func (cv *Conversations) Close() error {
 	cv.mu.Lock()
 	defer cv.mu.Unlock()

@@ -319,14 +319,22 @@ func (cs *Stream) channelWorker(ctx context.Context, proc processor.Conversation
 				results <- StreamResult{Type: RTChannel, ChannelID: req.sl.Channel, Err: err}
 				continue
 			}
-			if err := cs.channel(ctx, req.sl.Channel, func(mm []slack.Message, isLast bool) error {
-				n, err := procChanMsg(ctx, proc, threadC, channel, isLast, mm)
-				if err != nil {
-					return err
-				}
-				results <- StreamResult{Type: RTChannel, ChannelID: req.sl.Channel, ThreadCount: n, IsLast: isLast}
-				return nil
-			}); err != nil {
+			var eg errgroup.Group
+			eg.Go(func() error {
+				// get channel members
+				return cs.channelUsers(ctx, proc, req.sl.Channel, req.sl.ThreadTS)
+			})
+			eg.Go(func() error {
+				return cs.channel(ctx, req.sl.Channel, func(mm []slack.Message, isLast bool) error {
+					n, err := procChanMsg(ctx, proc, threadC, channel, isLast, mm)
+					if err != nil {
+						return err
+					}
+					results <- StreamResult{Type: RTChannel, ChannelID: req.sl.Channel, ThreadCount: n, IsLast: isLast}
+					return nil
+				})
+			})
+			if err := eg.Wait(); err != nil {
 				results <- StreamResult{Type: RTChannel, ChannelID: req.sl.Channel, Err: err}
 				continue
 			}
@@ -398,23 +406,33 @@ func (cs *Stream) threadWorker(ctx context.Context, proc processor.Conversations
 				results <- StreamResult{Type: RTThread, Err: fmt.Errorf("invalid thread link: %s", req.sl)}
 				continue
 			}
+
 			var channel = new(slack.Channel)
+			var eg errgroup.Group
 			if req.threadOnly {
 				var err error
 				if channel, err = cs.channelInfo(ctx, proc, req.sl.Channel, req.sl.ThreadTS); err != nil {
 					results <- StreamResult{Type: RTThread, ChannelID: req.sl.Channel, ThreadTS: req.sl.ThreadTS, Err: err}
 					continue
 				}
+				eg.Go(func() error {
+					// get channel members
+					return cs.channelUsers(ctx, proc, req.sl.Channel, req.sl.ThreadTS)
+				})
 			} else {
+				// hackety hack
 				channel.ID = req.sl.Channel
 			}
-			if err := cs.thread(ctx, req.sl, func(msgs []slack.Message, isLast bool) error {
-				if err := procThreadMsg(ctx, proc, channel, req.sl.ThreadTS, req.threadOnly, isLast, msgs); err != nil {
-					return err
-				}
-				results <- StreamResult{Type: RTThread, ChannelID: req.sl.Channel, ThreadTS: req.sl.ThreadTS, IsLast: isLast}
-				return nil
-			}); err != nil {
+			eg.Go(func() error {
+				return cs.thread(ctx, req.sl, func(msgs []slack.Message, isLast bool) error {
+					if err := procThreadMsg(ctx, proc, channel, req.sl.ThreadTS, req.threadOnly, isLast, msgs); err != nil {
+						return err
+					}
+					results <- StreamResult{Type: RTThread, ChannelID: req.sl.Channel, ThreadTS: req.sl.ThreadTS, IsLast: isLast}
+					return nil
+				})
+			})
+			if err := eg.Wait(); err != nil {
 				results <- StreamResult{Type: RTThread, ChannelID: req.sl.Channel, ThreadTS: req.sl.ThreadTS, Err: err}
 				continue
 			}
@@ -552,42 +570,13 @@ func (cs *Stream) channelInfo(ctx context.Context, proc processor.ChannelInforme
 	var info *slack.Channel
 	if info = cs.chanCache.get(channelID); info == nil {
 		if err := network.WithRetry(ctx, cs.limits.channels, cs.limits.tier.Tier3.Retries, func() error {
-			var eg errgroup.Group
-
-			eg.Go(func() error {
-				var err error
-				info, err = cs.client.GetConversationInfoContext(ctx, &slack.GetConversationInfoInput{
-					ChannelID: channelID,
-				})
-				if err != nil {
-					return fmt.Errorf("error getting channel information: %w", err)
-				}
-				return nil
+			var err error
+			info, err = cs.client.GetConversationInfoContext(ctx, &slack.GetConversationInfoInput{
+				ChannelID: channelID,
 			})
-
-			var uu []string
-			eg.Go(func() error {
-				var cursor string
-				for {
-					u, next, err := cs.client.GetUsersInConversationContext(ctx, &slack.GetUsersInConversationParameters{
-						ChannelID: channelID,
-						Cursor:    cursor,
-					})
-					if err != nil {
-						return fmt.Errorf("error getting conversation users: %w", err)
-					}
-					uu = append(uu, u...)
-					if next == "" {
-						break
-					}
-					cursor = next
-				}
-				return nil
-			})
-			if err := eg.Wait(); err != nil {
-				return err
+			if err != nil {
+				return fmt.Errorf("error getting channel information: %w", err)
 			}
-			info.Members = uu
 			return nil
 		}); err != nil {
 			return nil, fmt.Errorf("api error: %s: %w", channelID, err)
@@ -599,6 +588,32 @@ func (cs *Stream) channelInfo(ctx context.Context, proc processor.ChannelInforme
 	}
 
 	return info, nil
+}
+
+func (cs *Stream) channelUsers(ctx context.Context, proc processor.ChannelInformer, channelID, threadTS string) error {
+	var cursor string
+	for {
+		var u []string
+		var next string
+		if err := network.WithRetry(ctx, cs.limits.channels, cs.limits.tier.Tier4.Retries, func() error {
+			var err error
+			u, next, err = cs.client.GetUsersInConversationContext(ctx, &slack.GetUsersInConversationParameters{
+				ChannelID: channelID,
+				Cursor:    cursor,
+			})
+			return err
+		}); err != nil {
+			return fmt.Errorf("error getting conversation users: %w", err)
+		}
+		if err := proc.ChannelUsers(ctx, channelID, threadTS, u); err != nil {
+			return err
+		}
+		if next == "" {
+			break
+		}
+		cursor = next
+	}
+	return nil
 }
 
 // WorkspaceInfo fetches the workspace info and passes it to the processor.

@@ -66,14 +66,16 @@ func MakeExportIndex(channels []slack.Channel, users []slack.User, currentUserID
 			idx.DMs = append(idx.DMs, DM{
 				ID:      ch.ID,
 				Created: int64(ch.Created),
-				Members: []string{ch.User, currentUserID},
+				Members: ch.Members,
 			})
 		case ch.IsMpIM:
-			fixed, err := FixMpIMmembers(&ch, users)
-			if err != nil {
-				return nil, err
-			}
-			idx.MPIMs = append(idx.MPIMs, *fixed)
+			// TODO: verify this is not needed
+			// fixed, err := FixMpIMmembers(&ch, users)
+			// if err != nil {
+			// 	return nil, err
+			// }
+			// idx.MPIMs = append(idx.MPIMs, *fixed)
+			idx.MPIMs = append(idx.MPIMs, ch)
 		case ch.IsGroup:
 			idx.Groups = append(idx.Groups, ch)
 		default:

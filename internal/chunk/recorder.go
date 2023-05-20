@@ -221,3 +221,20 @@ func (rec *Recorder) WorkspaceInfo(ctx context.Context, atr *slack.AuthTestRespo
 	}
 	return nil
 }
+
+// ChannelUsers records the channel users
+func (rec *Recorder) ChannelUsers(ctx context.Context, channelID string, threadTS string, users []string) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case err := <-rec.errC:
+		return err
+	case rec.chunks <- Chunk{
+		Type:         CChannelUsers,
+		ChannelID:    channelID,
+		Timestamp:    time.Now().UnixNano(),
+		ChannelUsers: users,
+	}:
+	}
+	return nil
+}
