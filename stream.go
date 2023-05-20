@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/slack-go/slack"
+	"golang.org/x/sync/errgroup"
 	"golang.org/x/time/rate"
 
 	"github.com/rusq/slackdump/v2/internal/chunk/state"
@@ -36,7 +37,7 @@ const (
 // use.
 type Stream struct {
 	oldest, latest time.Time
-	client         Slacker
+	client         slacker
 	limits         rateLimits
 	chanCache      *chanCache
 	resultFn       []func(sr StreamResult) error
@@ -133,7 +134,7 @@ func OptState(s *state.State) StreamOption {
 
 // NewStream creates a new Stream instance that allows to stream different
 // slack entities.
-func NewStream(cl Slacker, l *Limits, opts ...StreamOption) *Stream {
+func NewStream(cl slacker, l *Limits, opts ...StreamOption) *Stream {
 	cs := &Stream{
 		client:    cl,
 		limits:    limits(l),
@@ -551,13 +552,45 @@ func (cs *Stream) channelInfo(ctx context.Context, proc processor.ChannelInforme
 	var info *slack.Channel
 	if info = cs.chanCache.get(channelID); info == nil {
 		if err := network.WithRetry(ctx, cs.limits.channels, cs.limits.tier.Tier3.Retries, func() error {
-			var err error
-			info, err = cs.client.GetConversationInfoContext(ctx, &slack.GetConversationInfoInput{
-				ChannelID: channelID,
+			var eg errgroup.Group
+
+			eg.Go(func() error {
+				var err error
+				info, err = cs.client.GetConversationInfoContext(ctx, &slack.GetConversationInfoInput{
+					ChannelID: channelID,
+				})
+				if err != nil {
+					return fmt.Errorf("error getting channel information: %w", err)
+				}
+				return nil
 			})
-			return err
+
+			var uu []string
+			eg.Go(func() error {
+				var cursor string
+				for {
+					u, next, err := cs.client.GetUsersInConversationContext(ctx, &slack.GetUsersInConversationParameters{
+						ChannelID: channelID,
+						Cursor:    cursor,
+					})
+					if err != nil {
+						return fmt.Errorf("error getting conversation users: %w", err)
+					}
+					uu = append(uu, u...)
+					if next == "" {
+						break
+					}
+					cursor = next
+				}
+				return nil
+			})
+			if err := eg.Wait(); err != nil {
+				return err
+			}
+			info.Members = uu
+			return nil
 		}); err != nil {
-			return nil, fmt.Errorf("error getting channel information for %s: %w", channelID, err)
+			return nil, fmt.Errorf("api error: %s: %w", channelID, err)
 		}
 		cs.chanCache.set(channelID, info)
 	}
