@@ -45,7 +45,7 @@ func (d *Printer) ChannelInfo(_ context.Context, ch *slack.Channel, threadID str
 }
 
 func (d *Printer) ChannelUsers(_ context.Context, ch string, threadTS string, u []string) error {
-	dlog.Printf("Discarding channel users for %s (len=%d)", ch, u)
+	dlog.Printf("Discarding channel users for %s (len=%d)", ch, len(u))
 	return nil
 }
 

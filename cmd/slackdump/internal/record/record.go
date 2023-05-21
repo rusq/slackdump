@@ -77,6 +77,7 @@ func RunRecord(ctx context.Context, cmd *base.Command, args []string) error {
 	subproc := fileproc.NewExport(fileproc.STmattermost, dl)
 	ctrl := control.New(cd, stream, control.WithLogger(lg), control.WithSubproc(subproc))
 	if err := ctrl.Run(ctx, list); err != nil {
+		base.SetExitStatus(base.SApplicationError)
 		return err
 	}
 	lg.Printf("Recorded workspace data to %s", cd.Name())

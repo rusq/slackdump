@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"path/filepath"
 	"runtime"
 	"runtime/trace"
@@ -16,6 +17,7 @@ import (
 
 	"github.com/slack-go/slack"
 
+	"github.com/rusq/dlog"
 	"github.com/rusq/slackdump/v2/internal/chunk/state"
 	"github.com/rusq/slackdump/v2/internal/structures"
 	"github.com/rusq/slackdump/v2/logger"
@@ -45,6 +47,19 @@ func (idx index) OffsetCount() int {
 		n += len(offsets)
 	}
 	return n
+}
+
+func (idx index) offsetsWithPrefix(prefix string) []int64 {
+	var offsets []int64
+	for id, off := range idx {
+		if len(id) == 0 {
+			dlog.Panicf("internal error:  invalid id: %q", id)
+		}
+		if strings.HasPrefix(string(id), prefix) {
+			offsets = append(offsets, off...)
+		}
+	}
+	return offsets
 }
 
 // FromReader creates a new chunk File from the io.ReadSeeker.
@@ -112,10 +127,6 @@ func indexChunks(dec decoder) (index, error) {
 	return idx, nil
 }
 
-func (f *File) Index() index {
-	return f.idx
-}
-
 func caller(steps int) string {
 	name := "?"
 	if pc, _, _, ok := runtime.Caller(steps + 1); ok {
@@ -124,11 +135,15 @@ func caller(steps int) string {
 	return name
 }
 
+func (f *File) ensure() {
+	if f.idx == nil {
+		log.Panicf("internal error:  %s called before File.Open", caller(1))
+	}
+}
+
 // Offsets returns all offsets for the given id.
 func (f *File) Offsets(id GroupID) ([]int64, bool) {
-	if f.idx == nil {
-		panic("internal error:  File.Offsets called before File.Open")
-	}
+	f.ensure()
 	ret, ok := f.idx[id]
 	return ret, ok && len(ret) > 0
 }
@@ -143,9 +158,7 @@ func (f *File) HasChannels() bool {
 
 // HasChunks returns true if there is at least one chunk for the given id.
 func (f *File) HasChunks(id GroupID) bool {
-	if f.idx == nil {
-		panic("internal error:  File.HasChunks called before File.Open")
-	}
+	f.ensure()
 	_, ok := f.idx[id]
 	return ok
 }
@@ -251,19 +264,27 @@ func (p *File) AllChannels() ([]slack.Channel, error) {
 
 // AllChannelInfos returns all the channel information collected by the channel
 // info API.
-func (p *File) AllChannelInfos() ([]slack.Channel, error) {
-	var offsets []int64
-	for id, off := range p.idx {
-		if len(id) == 0 {
-			return nil, fmt.Errorf("internal error:  invalid id: %q", id)
-		}
-		if strings.HasPrefix(string(id), chanInfoPrefix) {
-			offsets = append(offsets, off...)
-		}
-	}
-	return allForOffsets(p, offsets, func(c *Chunk) []slack.Channel {
+func (f *File) AllChannelInfos() ([]slack.Channel, error) {
+	f.ensure()
+	return allForOffsets(f, f.idx.offsetsWithPrefix(chanInfoPrefix), func(c *Chunk) []slack.Channel {
 		return []slack.Channel{*c.Channel}
 	})
+}
+
+// AllChannelInfoWithMembers returns all channels with Members populated.
+func (f *File) AllChannelInfoWithMembers() ([]slack.Channel, error) {
+	c, err := f.AllChannelInfos()
+	if err != nil {
+		return nil, err
+	}
+	for i := range c {
+		members, err := f.channelUsers(c[i].ID)
+		if err != nil {
+			return nil, err
+		}
+		c[i].Members = members
+	}
+	return c, nil
 }
 
 // int64s implements sort.Interface for []int64.
@@ -290,7 +311,22 @@ func allForOffsets[T any](p *File, offsets []int64, fn func(c *Chunk) []T) ([]T,
 
 // ChannelInfo returns the information for the given channel.
 func (f *File) ChannelInfo(channelID string) (*slack.Channel, error) {
-	return f.channelInfo(channelID, false)
+	info, err := f.channelInfo(channelID, false)
+	if err != nil {
+		return nil, err
+	}
+	users, err := f.channelUsers(channelID)
+	if err != nil {
+		return nil, fmt.Errorf("failed getting channel users for %q: %w", channelID, err)
+	}
+	info.Members = users
+	return info, nil
+}
+
+func (f *File) channelUsers(channelID string) ([]string, error) {
+	return allForID(f, id(chanUsersPrefix, channelID), func(c *Chunk) []string {
+		return c.ChannelUsers
+	})
 }
 
 func (f *File) channelInfo(channelID string, thread bool) (*slack.Channel, error) {
@@ -325,7 +361,7 @@ func allForID[T any](p *File, id GroupID, fn func(*Chunk) []T) ([]T, error) {
 	var ret []T
 	offsets, ok := p.idx[id]
 	if !ok {
-		return nil, ErrNotFound
+		return nil, fmt.Errorf("chunk %q: %w", id, ErrNotFound)
 	}
 	for _, offset := range offsets {
 		chunk, err := p.chunkAt(offset)
