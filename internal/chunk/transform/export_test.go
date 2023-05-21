@@ -14,8 +14,8 @@ func Test_transform(t *testing.T) {
 	const (
 		base   = "../../../"
 		srcdir = base + "tmp/exportv3"
-		fsaDir = base + "tmp/exportv3/out"
 	)
+	var fsaDir = t.TempDir()
 	type args struct {
 		ctx    context.Context
 		fsa    fsadapter.FS

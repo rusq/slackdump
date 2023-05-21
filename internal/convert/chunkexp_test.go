@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	testSrcDir = "../../tmp/slackdump_20230506_120330" // TODO: fix manual nature of this/obfuscate
+	testSrcDir = "../../tmp/ora600" // TODO: fix manual nature of this/obfuscate
 )
 
 var testLogger = dlog.New(os.Stderr, "unit ", log.Lshortfile|log.LstdFlags, true)
