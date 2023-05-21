@@ -692,7 +692,7 @@ func TestFile_channelUsers(t *testing.T) {
 				rs:  tt.fields.rs,
 				idx: mkindex(tt.fields.rs),
 			}
-			got, err := f.channelUsers(tt.args.channelID)
+			got, err := f.ChannelUsers(tt.args.channelID)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("File.channelUsers() error = %v, wantErr %v", err, tt.wantErr)
 				return

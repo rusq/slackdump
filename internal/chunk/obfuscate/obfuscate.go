@@ -93,6 +93,8 @@ func (o obfuscator) Chunk(c *chunk.Chunk) {
 		o.Channel(c.Channel)
 	case chunk.CChannelInfo:
 		o.Channel(c.Channel)
+	case chunk.CChannelUsers:
+		o.ChannelUsers(c.ChannelUsers)
 	case chunk.CUsers:
 		o.Users(c.Users...)
 	default:
@@ -327,4 +329,10 @@ func (o *obfuscator) BotProfile(bp *slack.BotProfile) {
 	bp.Icons.Image36 = randomStringExact(len(bp.Icons.Image36))
 	bp.Icons.Image48 = randomStringExact(len(bp.Icons.Image48))
 	bp.Icons.Image72 = randomStringExact(len(bp.Icons.Image72))
+}
+
+func (o *obfuscator) ChannelUsers(cu []string) {
+	for i := range cu {
+		cu[i] = o.UserID(cu[i])
+	}
 }

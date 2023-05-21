@@ -116,7 +116,7 @@ func (c *Chunk) ID() GroupID {
 	case CChannelInfo:
 		return channelInfoID(c.ChannelID)
 	case CChannelUsers:
-		return id(chanUsersPrefix, c.ChannelID)
+		return channelUsersID(c.ChannelID)
 	case CUsers:
 		return userChunkID // static, one team per chunk file
 	case CChannels:
@@ -141,6 +141,10 @@ func threadID(channelID, threadTS string) GroupID {
 
 func channelInfoID(channelID string) GroupID {
 	return id(chanInfoPrefix, channelID)
+}
+
+func channelUsersID(channelID string) GroupID {
+	return id(chanUsersPrefix, channelID)
 }
 
 func (c *Chunk) String() string {

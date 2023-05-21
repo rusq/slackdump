@@ -321,3 +321,51 @@ func Test_obfuscator_Channel(t *testing.T) {
 		})
 	}
 }
+
+func Test_obfuscator_ChannelUsers(t *testing.T) {
+	type fields struct {
+		hasher func() hash.Hash
+		salt   string
+	}
+	type args struct {
+		cu []string
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   []string
+	}{
+		{
+			name: "channel users",
+			fields: fields{
+				hasher: sha1.New,
+				salt:   "salt",
+			},
+			args: args{
+				cu: []string{
+					"U024BE7LH",
+					"U024BE7LV",
+					"U024BE7LW",
+				},
+			},
+			want: []string{
+				userPrefix + "F209DFAC",
+				userPrefix + "0077C5B4",
+				userPrefix + "2B1EB830",
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			o := &obfuscator{
+				hasher: tt.fields.hasher,
+				salt:   tt.fields.salt,
+			}
+			o.ChannelUsers(tt.args.cu)
+			if !assert.Equal(t, tt.want, tt.args.cu) {
+				t.Errorf("obfuscator.ChannelUsers() = %v, want %v", tt.args.cu, tt.want)
+			}
+		})
+	}
+}

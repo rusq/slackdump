@@ -34,6 +34,7 @@ func TestLimits_Apply(t *testing.T) {
 					DownloadRetries: DefLimits.DownloadRetries,
 					Tier2:           TierLimit{Burst: DefLimits.Tier2.Burst, Boost: 0},
 					Tier3:           TierLimit{Burst: DefLimits.Tier2.Burst, Boost: 0},
+					Tier4:           TierLimit{Burst: DefLimits.Tier4.Burst, Boost: 0},
 					Request:         DefLimits.Request,
 				},
 			},

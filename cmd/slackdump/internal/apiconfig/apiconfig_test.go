@@ -20,6 +20,10 @@ tier_3:
   boost: 120
   burst: 1
   retries: 3
+tier_4:
+  boost: 10
+  burst: 1
+  retries: 3
 per_request:
   conversations: 100
   channels: 100
@@ -34,6 +38,10 @@ tier_2:
   retries: 330
 tier_3:
   boost: 120
+  burst: 1
+  retries: 3
+tier_4:
+  boost: 10
   burst: 1
   retries: 3
 per_request:
@@ -81,6 +89,11 @@ func Test_readConfig(t *testing.T) {
 					Burst:   1,
 					Retries: 3,
 				},
+				Tier4: slackdump.TierLimit{
+					Boost:   10,
+					Burst:   1,
+					Retries: 3,
+				},
 				Request: slackdump.RequestLimit{
 					Channels:      100,
 					Conversations: 100,
@@ -93,6 +106,7 @@ func Test_readConfig(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := readLimits(tt.args.r)
+			t.Log(tt.name)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("readConfig() error = %v, wantErr %v", err, tt.wantErr)
 				return

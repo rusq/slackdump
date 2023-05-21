@@ -13,6 +13,30 @@ import (
 	"github.com/slack-go/slack"
 )
 
+func router(p *chunk.Player, userID string) *http.ServeMux {
+	mux := http.NewServeMux()
+	mux.Handle("/api/auth.test", authHandler{userID})
+
+	mux.HandleFunc("/api/conversations.info", handleConversationsInfo(p))
+	mux.HandleFunc("/api/conversations.members", handleConversationsMembers(p))
+	mux.HandleFunc("/api/conversations.history", handleConversationsHistory(p))
+	mux.HandleFunc("/api/conversations.replies", handleConversationsReplies(p))
+	mux.HandleFunc("/api/conversations.list", handleConversationsList(p))
+	mux.HandleFunc("/api/users.list", handleUsersList(p))
+	return mux
+}
+
+type GetConversationRepliesResponse struct {
+	slack.SlackResponse
+	HasMore          bool             `json:"has_more"`
+	ResponseMetaData responseMetaData `json:"response_metadata"`
+	Messages         []slack.Message  `json:"messages"`
+}
+
+type responseMetaData struct {
+	NextCursor string `json:"next_cursor"`
+}
+
 func handleConversationsHistory(p *chunk.Player) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		_, task := trace.NewTask(r.Context(), "conversation.history")
@@ -281,6 +305,52 @@ func handleAuthTest(p *chunk.Player) http.HandlerFunc {
 		}
 		if err := json.NewEncoder(w).Encode(atr); err != nil {
 			lg.Printf("error encoding auth.test response: %s", err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+}
+
+type conversationsMembersResp struct {
+	Members []string `json:"members"`
+	slack.ResponseMetadata
+	slack.SlackResponse
+}
+
+func handleConversationsMembers(p *chunk.Player) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		_, task := trace.NewTask(r.Context(), "conversations.members")
+		defer task.End()
+
+		channel := r.FormValue("channel")
+		if channel == "" {
+			http.Error(w, "channel is required", http.StatusBadRequest)
+			return
+		}
+		lg.Printf("conversations.members: channel: %s", channel)
+
+		resp := conversationsMembersResp{
+			SlackResponse: slack.SlackResponse{
+				Ok: true,
+			},
+		}
+
+		uu, err := p.ChannelUsers(channel)
+		if err != nil {
+			resp.Ok = false
+			if errors.Is(err, chunk.ErrNotFound) {
+				resp.Error = fmt.Sprintf("conversation.members: channel: %s, not_found", channel)
+			} else {
+				resp.Error = fmt.Sprintf("conversation.members: channel: %s, unexpected error: %s", channel, err)
+			}
+		} else {
+			resp.Members = uu
+		}
+		if p.HasMoreChannelUsers(channel) {
+			resp.Cursor = "go_ahead"
+		}
+		if err := json.NewEncoder(w).Encode(resp); err != nil {
+			lg.Printf("error encoding channel.info response: %s", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}

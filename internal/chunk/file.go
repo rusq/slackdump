@@ -278,7 +278,7 @@ func (f *File) AllChannelInfoWithMembers() ([]slack.Channel, error) {
 		return nil, err
 	}
 	for i := range c {
-		members, err := f.channelUsers(c[i].ID)
+		members, err := f.ChannelUsers(c[i].ID)
 		if err != nil {
 			return nil, err
 		}
@@ -315,7 +315,7 @@ func (f *File) ChannelInfo(channelID string) (*slack.Channel, error) {
 	if err != nil {
 		return nil, err
 	}
-	users, err := f.channelUsers(channelID)
+	users, err := f.ChannelUsers(channelID)
 	if err != nil {
 		return nil, fmt.Errorf("failed getting channel users for %q: %w", channelID, err)
 	}
@@ -323,8 +323,8 @@ func (f *File) ChannelInfo(channelID string) (*slack.Channel, error) {
 	return info, nil
 }
 
-func (f *File) channelUsers(channelID string) ([]string, error) {
-	return allForID(f, id(chanUsersPrefix, channelID), func(c *Chunk) []string {
+func (f *File) ChannelUsers(channelID string) ([]string, error) {
+	return allForID(f, channelUsersID(channelID), func(c *Chunk) []string {
 		return c.ChannelUsers
 	})
 }

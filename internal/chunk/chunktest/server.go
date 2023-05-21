@@ -4,11 +4,8 @@ package chunktest
 import (
 	"io"
 	"log"
-	"net/http"
 	"net/http/httptest"
 	"os"
-
-	"github.com/slack-go/slack"
 
 	"github.com/rusq/slackdump/v2/internal/chunk"
 )
@@ -33,27 +30,4 @@ func NewServer(rs io.ReadSeeker, currentUserID string) *Server {
 		baseServer: baseServer{Server: httptest.NewServer(router(p, currentUserID))},
 		p:          p,
 	}
-}
-
-type GetConversationRepliesResponse struct {
-	slack.SlackResponse
-	HasMore          bool             `json:"has_more"`
-	ResponseMetaData responseMetaData `json:"response_metadata"`
-	Messages         []slack.Message  `json:"messages"`
-}
-
-type responseMetaData struct {
-	NextCursor string `json:"next_cursor"`
-}
-
-func router(p *chunk.Player, userID string) *http.ServeMux {
-	mux := http.NewServeMux()
-	mux.Handle("/api/auth.test", authHandler{userID})
-
-	mux.HandleFunc("/api/conversations.info", handleConversationsInfo(p))
-	mux.HandleFunc("/api/conversations.history", handleConversationsHistory(p))
-	mux.HandleFunc("/api/conversations.replies", handleConversationsReplies(p))
-	mux.HandleFunc("/api/conversations.list", handleConversationsList(p))
-	mux.HandleFunc("/api/users.list", handleUsersList(p))
-	return mux
 }

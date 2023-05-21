@@ -174,6 +174,18 @@ func (p *Player) ChannelInfo(id string) (*slack.Channel, error) {
 	return p.channelInfo(id)
 }
 
+func (p *Player) ChannelUsers(channelID string) ([]string, error) {
+	ch, err := p.next(channelUsersID(channelID))
+	if err != nil {
+		return nil, err
+	}
+	return ch.ChannelUsers, nil
+}
+
+func (p *Player) HasMoreChannelUsers(channelID string) bool {
+	return p.hasMore(channelUsersID(channelID))
+}
+
 func (p *Player) ThreadChannelInfo(id string) (*slack.Channel, error) {
 	return p.channelInfo(id)
 }
