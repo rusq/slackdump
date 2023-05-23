@@ -35,6 +35,15 @@ func WithSeed(seed int64) Option {
 	}
 }
 
+func newObfuscator() obfuscator {
+	return obfuscator{
+		hasher: sha256.New,
+		salt:   randomStringExact(32),
+	}
+}
+
+// Do obfuscates the slackdump chunk recording from r, writing the obfuscated
+// chunks to w.
 func Do(ctx context.Context, w io.Writer, r io.Reader, options ...Option) error {
 	_, task := trace.NewTask(ctx, "obfuscate.Do")
 	defer task.End()
@@ -50,10 +59,7 @@ func Do(ctx context.Context, w io.Writer, r io.Reader, options ...Option) error 
 	var (
 		dec = json.NewDecoder(r)
 		enc = json.NewEncoder(w)
-		obf = obfuscator{
-			hasher: sha256.New,
-			salt:   randomStringExact(32),
-		}
+		obf = newObfuscator()
 	)
 	// obfuscation loop
 	for {
