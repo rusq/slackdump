@@ -28,7 +28,7 @@ To record the API output into a chunk, you can run ` + "`slackdump tools record 
 	PrintFlags:  true,
 }
 
-var obfuscateParams struct {
+var obfparam struct {
 	input     string
 	output    string
 	overwrite bool
@@ -38,30 +38,35 @@ var obfuscateParams struct {
 func init() {
 	CmdObfuscate.Run = runObfuscate
 
-	CmdObfuscate.Flag.StringVar(&obfuscateParams.input, "i", "", "input file or directory, if not specified, stdin is used")
-	CmdObfuscate.Flag.StringVar(&obfuscateParams.output, "o", "", "output file or directory, if not specified, stdout is used")
-	CmdObfuscate.Flag.BoolVar(&obfuscateParams.overwrite, "f", false, "force overwrite")
-	CmdObfuscate.Flag.Int64Var(&obfuscateParams.seed, "seed", time.Now().UnixNano(), "seed for the random number generator")
+	CmdObfuscate.Flag.StringVar(&obfparam.input, "i", "", "input file or directory, if not specified, stdin is used")
+	CmdObfuscate.Flag.StringVar(&obfparam.output, "o", "", "output file or directory, if not specified, stdout is used")
+	CmdObfuscate.Flag.BoolVar(&obfparam.overwrite, "f", false, "force overwrite")
+	CmdObfuscate.Flag.Int64Var(&obfparam.seed, "seed", time.Now().UnixNano(), "seed for the random number generator")
 }
 
 const (
-	otTerm = iota
+	otUnknown = iota
+	otTerm
 	otFile
 	otDir
+	otNotExist
 )
 
-func objtype(name string) (int, error) {
+func objtype(name string) int {
 	if name == "-" || name == "" {
-		return otTerm, nil
+		return otTerm
 	}
 	fi, err := os.Stat(name)
 	if err != nil {
-		return otTerm, err
+		if os.IsNotExist(err) {
+			return otNotExist
+		}
+		return otUnknown
 	}
 	if fi.IsDir() {
-		return otDir, nil
+		return otDir
 	}
-	return otFile, nil
+	return otFile
 }
 
 func runObfuscate(ctx context.Context, cmd *base.Command, args []string) error {
@@ -69,31 +74,35 @@ func runObfuscate(ctx context.Context, cmd *base.Command, args []string) error {
 		return err
 	}
 
-	inType, err := objtype(obfuscateParams.input)
-	if err != nil {
-		base.SetExitStatus(base.SInvalidParameters)
-		return err
-	}
+	inType := objtype(obfparam.input)
 
 	if inType == otFile || inType == otTerm {
 		return obfFile(ctx)
-	} else {
+	} else if inType == otDir {
 		return obfDir(ctx)
+	} else {
+		return fmt.Errorf("input %s is invalid", obfparam.input)
 	}
 }
 
 var (
 	ErrObfTargetExist = errors.New("target exists, and overwrite flag not set")
+	ErrObfSame        = errors.New("input and output are the same")
 )
 
 type ErrObfIncompat struct {
-	Output string
-	Input  string
-	Name   string
+	OutType string
+	InType  string
+	OutName string
+	InName  string
 }
 
 func (e *ErrObfIncompat) Error() string {
-	return fmt.Sprint("%s output %s is incompatible with %s input: %s", e.Output, e.Name, e.Input)
+	return fmt.Sprintf("%s output %s is incompatible with %s input: %s", e.OutType, e.OutName, e.InType, e.InName)
+}
+
+func isTerm(name string) bool {
+	return name == "-" || name == ""
 }
 
 func obfFile(ctx context.Context) error {
@@ -102,43 +111,55 @@ func obfFile(ctx context.Context) error {
 		out io.WriteCloser
 		err error
 	)
-	if obfuscateParams.input == "" {
+	if isTerm(obfparam.input) {
 		in = os.Stdin
 	} else {
-		in, err = os.Open(obfuscateParams.input)
+		in, err = os.Open(obfparam.input)
 		if err != nil {
 			return err
 		}
 		defer in.Close()
 	}
 
-	outType, err := objtype(obfuscateParams.output)
-	if err != nil && !os.IsNotExist(err) {
-		base.SetExitStatus(base.SGenericError)
-		return err
-	} else if err == nil && !obfuscateParams.overwrite {
-		// object exists but overwrite not set
-		base.SetExitStatus(base.SUserError)
-		return ErrObfTargetExist
-	} else if outType == otDir {
+	outType := objtype(obfparam.output)
+	switch outType {
+	case otDir:
 		base.SetExitStatus(base.SInvalidParameters)
 		return &ErrObfIncompat{
-			Output: "directory",
-			Input:  "non-directory",
-			Name:   obfuscateParams.output,
+			OutType: "directory",
+			InType:  "non-directory",
+			OutName: obfparam.output,
+			InName:  obfparam.input,
 		}
+	case otFile:
+		if obfparam.input == obfparam.output {
+			base.SetExitStatus(base.SInvalidParameters)
+			return ErrObfSame
+		}
+		if !obfparam.overwrite {
+			base.SetExitStatus(base.SUserError)
+			return ErrObfTargetExist
+		}
+		// ok
+	case otNotExist, otTerm:
+		// ok
+	case otUnknown:
+		fallthrough
+	default:
+		base.SetExitStatus(base.SInvalidParameters)
+		return fmt.Errorf("output %s is invalid", obfparam.output)
 	}
 
 	if outType == otTerm {
 		out = os.Stdout
 	} else {
-		out, err = os.Create(obfuscateParams.output)
+		out, err = os.Create(obfparam.output)
 		if err != nil {
 			return err
 		}
 		defer out.Close()
 	}
-	if err := obfuscate.Do(ctx, out, in, obfuscate.WithSeed(obfuscateParams.seed)); err != nil {
+	if err := obfuscate.Do(ctx, out, in, obfuscate.WithSeed(obfparam.seed)); err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return err
 	}
@@ -146,25 +167,40 @@ func obfFile(ctx context.Context) error {
 }
 
 func obfDir(ctx context.Context) error {
-	outType, err := objtype(obfuscateParams.output)
-	if err == nil {
-		if outType != otDir {
-			base.SetExitStatus(base.SInvalidParameters)
-			return &ErrObfIncompat{
-				Output: "non-directory",
-				Input:  "directory",
-				Name:   obfuscateParams.output,
-			}
+	outType := objtype(obfparam.output)
+	switch outType {
+	case otFile:
+		base.SetExitStatus(base.SInvalidParameters)
+		return &ErrObfIncompat{
+			OutType: "non-directory",
+			InType:  "directory",
+			OutName: obfparam.output,
+			InName:  obfparam.input,
 		}
-		if !obfuscateParams.overwrite {
+	case otNotExist:
+		if err := os.MkdirAll(obfparam.output, 0755); err != nil {
+			return err
+		}
+	case otDir:
+		if obfparam.input == obfparam.output {
+			base.SetExitStatus(base.SInvalidParameters)
+			return ErrObfSame
+		}
+		if !obfparam.overwrite {
 			base.SetExitStatus(base.SUserError)
 			return ErrObfTargetExist
 		}
+	case otUnknown, otTerm:
+		fallthrough
+	default:
+		base.SetExitStatus(base.SInvalidParameters)
+		return fmt.Errorf("output %s is invalid", obfparam.output)
 	}
+
 	return obfuscate.DoDir(
 		ctx,
-		obfuscateParams.input,
-		obfuscateParams.output,
-		obfuscate.WithSeed(obfuscateParams.seed),
+		obfparam.input,
+		obfparam.output,
+		obfuscate.WithSeed(obfparam.seed),
 	)
 }
