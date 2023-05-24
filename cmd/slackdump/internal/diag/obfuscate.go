@@ -15,7 +15,7 @@ import (
 // CmdObfuscate is the command to obfuscate sensitive data in a slackdump
 // recording.
 var CmdObfuscate = &base.Command{
-	UsageLine: "slackdump tools obfuscate [options] [file]",
+	UsageLine: "slackdump tools obfuscate [options] [input] [output]",
 	Short:     "obfuscate sensitive data in a slackdump recording",
 	Long: `
 # Obfuscate tool
@@ -38,8 +38,6 @@ var obfparam struct {
 func init() {
 	CmdObfuscate.Run = runObfuscate
 
-	CmdObfuscate.Flag.StringVar(&obfparam.input, "i", "", "input file or directory, if not specified, stdin is used")
-	CmdObfuscate.Flag.StringVar(&obfparam.output, "o", "", "output file or directory, if not specified, stdout is used")
 	CmdObfuscate.Flag.BoolVar(&obfparam.overwrite, "f", false, "force overwrite")
 	CmdObfuscate.Flag.Int64Var(&obfparam.seed, "seed", time.Now().UnixNano(), "seed for the random number generator")
 }
@@ -53,7 +51,7 @@ const (
 )
 
 func objtype(name string) int {
-	if name == "-" || name == "" {
+	if isTerm(name) {
 		return otTerm
 	}
 	fi, err := os.Stat(name)
@@ -74,15 +72,33 @@ func runObfuscate(ctx context.Context, cmd *base.Command, args []string) error {
 		return err
 	}
 
+	if CmdObfuscate.Flag.NArg() == 2 {
+		obfparam.input = CmdObfuscate.Flag.Arg(0)
+		obfparam.output = CmdObfuscate.Flag.Arg(1)
+	} else if CmdObfuscate.Flag.NArg() == 1 {
+		obfparam.input = CmdObfuscate.Flag.Arg(0)
+		obfparam.output = "-"
+	} else {
+		obfparam.input = "-"
+		obfparam.output = "-"
+	}
+
 	inType := objtype(obfparam.input)
 
+	var fn func(context.Context) error
 	if inType == otFile || inType == otTerm {
-		return obfFile(ctx)
+		fn = obfFile
 	} else if inType == otDir {
-		return obfDir(ctx)
+		fn = obfDir
 	} else {
+		base.SetExitStatus(base.SInvalidParameters)
 		return fmt.Errorf("input %s is invalid", obfparam.input)
 	}
+	if err := fn(ctx); err != nil {
+		return err
+	}
+	fmt.Println("OK")
+	return nil
 }
 
 var (
@@ -190,6 +206,11 @@ func obfDir(ctx context.Context) error {
 			base.SetExitStatus(base.SUserError)
 			return ErrObfTargetExist
 		}
+		if err := os.RemoveAll(obfparam.output); err != nil {
+			base.SetExitStatus(base.SApplicationError)
+			return err
+		}
+
 	case otUnknown, otTerm:
 		fallthrough
 	default:

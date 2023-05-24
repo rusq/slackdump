@@ -39,12 +39,10 @@ func DoDir(ctx context.Context, src string, trg string, options ...Option) error
 		if f.IsDir() {
 			continue
 		}
-		if filepath.Dir(f.Name()) != src {
-			continue
-		}
 		if !strings.HasSuffix(f.Name(), ".json.gz") {
 			lg.Printf("skipping %s", f.Name())
 		}
+		lg.Debugf("processing %s", f.Name())
 		once.Do(func() {
 			err = os.MkdirAll(trg, 0755)
 		})
@@ -79,11 +77,13 @@ func doFile(ctx context.Context, obf obfuscator, trgDir string, src string) erro
 		channel, thread := fileid.Split()
 		fileid = chunk.ToFileID(obf.ChannelID(channel), thread, len(thread) > 0) // export won't have a thread
 	}
-	out, err := os.Create(filepath.Join(trgDir, string(fileid)+".json.gz"))
+	w, err := os.Create(filepath.Join(trgDir, string(fileid)+".json.gz"))
 	if err != nil {
 		return err
 	}
+	defer w.Close()
+	out := gzip.NewWriter(w)
 	defer out.Close()
 
-	return Do(ctx, out, in)
+	return obfuscate(ctx, obf, out, in)
 }
