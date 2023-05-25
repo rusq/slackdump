@@ -10,6 +10,7 @@ import (
 	"github.com/slack-go/slack"
 
 	"github.com/rusq/slackdump/v2/internal/chunk/state"
+	"github.com/rusq/slackdump/v2/internal/osext"
 )
 
 // Recorder is a special Channeler that records all the data it receives, so
@@ -36,7 +37,7 @@ func WithEncoder(enc Encoder) Option {
 
 func NewRecorder(w io.Writer, options ...Option) *Recorder {
 	filename := "unknown"
-	if f, ok := w.(state.Namer); ok {
+	if f, ok := w.(osext.Namer); ok {
 		filename = f.Name()
 	}
 	rec := &Recorder{

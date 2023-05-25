@@ -7,7 +7,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/rusq/dlog"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/golang/base"
 	"golang.org/x/crypto/openpgp"
@@ -103,15 +102,16 @@ Encrypt a file to post as a message (for small files):
 
 var recipient *openpgp.Entity
 
+// flags
+var gArm bool
+
 func init() {
 	if err := initRecipient(); err != nil {
 		panic(err)
 	}
-	CmdEncrypt.Flag.BoolVar(&arm, "a", false, "shorthand for -armor")
-	CmdEncrypt.Flag.BoolVar(&arm, "armor", false, "armor the output")
+	CmdEncrypt.Flag.BoolVar(&gArm, "a", false, "shorthand for -armor")
+	CmdEncrypt.Flag.BoolVar(&gArm, "armor", false, "armor the output")
 }
-
-var arm bool
 
 func initRecipient() error {
 	block, err := armor.Decode(strings.NewReader(pubkey))
@@ -131,33 +131,15 @@ func initRecipient() error {
 }
 
 func runEncrypt(ctx context.Context, cmd *base.Command, args []string) error {
-	if len(args) < 1 {
-		return errors.New("must specify a file to encrypt")
-	}
-
-	f, err := os.Open(args[0])
-	if err != nil {
-		base.SetExitStatus(base.SApplicationError)
-		return err
-	}
-	defer f.Close()
-
-	outfile := args[0] + ".gpg"
-	if arm {
-		outfile += ".asc"
-	}
-	if len(args) == 2 {
-		outfile = args[1]
-	}
-
-	out, err := os.Create(outfile)
+	in, out, err := parseArgs(args)
 	if err != nil {
 		return err
 	}
+	defer in.Close()
 	defer out.Close()
 
 	var w io.Writer = out
-	if arm {
+	if gArm {
 		// arm if requested
 		aw, err := armor.Encode(out, "PGP MESSAGE", nil)
 		if err != nil {
@@ -174,10 +156,63 @@ func runEncrypt(ctx context.Context, cmd *base.Command, args []string) error {
 		return err
 	}
 	defer cw.Close()
-	if _, err := io.Copy(cw, f); err != nil {
+	if _, err := io.Copy(cw, in); err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return err
 	}
-	dlog.Printf("encrypted %s to %s", args[0], out.Name())
 	return nil
+}
+
+// parseArgs parses arguments and returns the input and output streams.
+//  1. if no arguments are given, input is stdin and output is stdout
+//  2. if one argument is given, and it is not a "-", the input is a file
+//  3. if two arguments are given, the input is a file, if it's not a "-" otherwise stdin,
+//     the output is a file, if it's not a "-" otherwise stdout.
+//  4. if more than two arguments are given, it's an error
+//  5. if output is stdout, arm the output automatically
+func parseArgs(args []string) (in io.ReadCloser, out io.WriteCloser, err error) {
+
+	switch len(args) {
+	case 0:
+		in = os.Stdin
+		out = os.Stdout
+		gArm = true
+	case 1:
+		if args[0] == "-" {
+			in = os.Stdin
+		} else {
+			in, err = os.Open(args[0])
+			if err != nil {
+				base.SetExitStatus(base.SApplicationError)
+				return nil, nil, err
+			}
+		}
+		out = os.Stdout
+		gArm = true
+	case 2:
+		if args[0] == "-" {
+			in = os.Stdin
+		} else {
+			in, err = os.Open(args[0])
+			if err != nil {
+				base.SetExitStatus(base.SApplicationError)
+				return nil, nil, err
+			}
+		}
+		if args[1] == "-" {
+			out = os.Stdout
+			gArm = true
+		} else {
+			out, err = os.Create(args[1])
+			if err != nil {
+				in.Close()
+				base.SetExitStatus(base.SApplicationError)
+				return nil, nil, err
+			}
+		}
+	default:
+		base.SetExitStatus(base.SInvalidParameters)
+		return nil, nil, errors.New("invalid number of arguments")
+	}
+	return in, out, nil
 }

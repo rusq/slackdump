@@ -19,6 +19,7 @@ import (
 
 	"github.com/rusq/dlog"
 	"github.com/rusq/slackdump/v2/internal/chunk/state"
+	"github.com/rusq/slackdump/v2/internal/osext"
 	"github.com/rusq/slackdump/v2/internal/structures"
 	"github.com/rusq/slackdump/v2/logger"
 )
@@ -190,7 +191,7 @@ func (f *File) ForEach(fn func(ev *Chunk) error) error {
 // the path to the downloaded files.
 func (f *File) State() (*state.State, error) {
 	var name string
-	if file, ok := f.rs.(state.Namer); ok {
+	if file, ok := f.rs.(osext.Namer); ok {
 		name = filepath.Base(file.Name())
 	}
 	s := state.New(name)

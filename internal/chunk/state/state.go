@@ -63,13 +63,6 @@ type Stater interface {
 	State() (*State, error)
 }
 
-// Namer is an interface that allows us to get the name of the file.
-type Namer interface {
-	// Name should return the name of the file.  *os.File implements this
-	// interface.
-	Name() string
-}
-
 // New returns a new State.
 func New(filename string) *State {
 	return &State{
