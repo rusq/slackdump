@@ -131,7 +131,7 @@ func initRecipient() error {
 }
 
 func runEncrypt(ctx context.Context, cmd *base.Command, args []string) error {
-	in, out, err := parseArgs(args)
+	in, out, arm, err := parseArgs(args)
 	if err != nil {
 		return err
 	}
@@ -139,7 +139,7 @@ func runEncrypt(ctx context.Context, cmd *base.Command, args []string) error {
 	defer out.Close()
 
 	var w io.Writer = out
-	if gArm {
+	if arm || gArm {
 		// arm if requested
 		aw, err := armor.Encode(out, "PGP MESSAGE", nil)
 		if err != nil {
@@ -170,13 +170,13 @@ func runEncrypt(ctx context.Context, cmd *base.Command, args []string) error {
 //     the output is a file, if it's not a "-" otherwise stdout.
 //  4. if more than two arguments are given, it's an error
 //  5. if output is stdout, arm the output automatically
-func parseArgs(args []string) (in io.ReadCloser, out io.WriteCloser, err error) {
+func parseArgs(args []string) (in io.ReadCloser, out io.WriteCloser, arm bool, err error) {
 
 	switch len(args) {
 	case 0:
 		in = os.Stdin
 		out = os.Stdout
-		gArm = true
+		arm = true
 	case 1:
 		if args[0] == "-" {
 			in = os.Stdin
@@ -184,11 +184,11 @@ func parseArgs(args []string) (in io.ReadCloser, out io.WriteCloser, err error) 
 			in, err = os.Open(args[0])
 			if err != nil {
 				base.SetExitStatus(base.SApplicationError)
-				return nil, nil, err
+				return nil, nil, false, err
 			}
 		}
 		out = os.Stdout
-		gArm = true
+		arm = true
 	case 2:
 		if args[0] == "-" {
 			in = os.Stdin
@@ -196,23 +196,23 @@ func parseArgs(args []string) (in io.ReadCloser, out io.WriteCloser, err error) 
 			in, err = os.Open(args[0])
 			if err != nil {
 				base.SetExitStatus(base.SApplicationError)
-				return nil, nil, err
+				return nil, nil, false, err
 			}
 		}
 		if args[1] == "-" {
 			out = os.Stdout
-			gArm = true
+			arm = true
 		} else {
 			out, err = os.Create(args[1])
 			if err != nil {
 				in.Close()
 				base.SetExitStatus(base.SApplicationError)
-				return nil, nil, err
+				return nil, nil, false, err
 			}
 		}
 	default:
 		base.SetExitStatus(base.SInvalidParameters)
-		return nil, nil, errors.New("invalid number of arguments")
+		return nil, nil, false, errors.New("invalid number of arguments")
 	}
-	return in, out, nil
+	return in, out, arm, nil
 }
