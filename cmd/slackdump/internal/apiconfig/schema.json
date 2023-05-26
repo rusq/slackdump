@@ -27,6 +27,9 @@
                 "tier_3": {
                     "$ref": "#/definitions/Tier"
                 },
+                "tier_4": {
+                    "$ref": "#/definitions/Tier"
+                },
                 "per_request": {
                     "$ref": "#/definitions/PerRequest"
                 }
@@ -55,12 +58,12 @@
                     "description": "Number of replies to fetch per request",
                     "minimum": 1,
                     "maximum": 1000
-
                 }
             },
             "title": "PerRequest"
         },
         "Tier": {
+            "title": "Tier",
             "type": "object",
             "additionalProperties": false,
             "description": "Rate limiting tier",
@@ -78,8 +81,7 @@
                     "type": "integer",
                     "description": "Number of times to retry a request"
                 }
-            },
-            "title": "Tier"
+            }
         }
     }
 }

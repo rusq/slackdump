@@ -65,6 +65,7 @@ func runConfigNew(ctx context.Context, cmd *base.Command, args []string) error {
 	return err
 }
 
+// printConfigOK outputs the confirmation message to the user.
 func printConfigOK(filename string) (n int, err error) {
 	return fmt.Printf("Your new API limits config is ready: %q\n", filename)
 }
@@ -99,7 +100,7 @@ func shouldOverwrite(filename string, override bool) bool {
 }
 
 // maybeFixExt checks if the extension is one of .yaml or .yml, and if not
-// appends it to teh file.
+// appends it to the file.
 func maybeFixExt(filename string) string {
 	if ext := filepath.Ext(filename); !(ext == ".yaml" || ext == ".yml") {
 		return maybeAppendExt(filename, ".yaml")

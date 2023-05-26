@@ -14,6 +14,9 @@ import (
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/golang/base"
 )
 
+// schemaJSONpath is the path to the schema JSON file for the limits yaml
+// configuration file.
+// TODO: update once released
 const schemaJSONpath = "https://raw.githubusercontent.com/rusq/slackdump/cli-remake/cmd/slackdump/internal/apiconfig/schema.json"
 
 var CmdConfig = &base.Command{
@@ -41,7 +44,7 @@ func Load(filename string) (slackdump.Limits, error) {
 	}
 	defer f.Close()
 
-	return readLimits(f)
+	return applyLimits(f)
 }
 
 // Save saves the config to the file.
@@ -55,7 +58,9 @@ func Save(filename string, limits slackdump.Limits) error {
 	return writeLimits(f, limits)
 }
 
-func readLimits(r io.Reader) (slackdump.Limits, error) {
+// applyLimits reads the limits from the reader, validates them and applies to
+// the global config.
+func applyLimits(r io.Reader) (slackdump.Limits, error) {
 	var limits slackdump.Limits
 	dec := yaml.NewDecoder(r)
 	dec.KnownFields(true)
