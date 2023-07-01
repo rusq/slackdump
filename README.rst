@@ -2,10 +2,14 @@
 Slack Dumper
 ============
 
-- `Buy me a cup of tea`_
 - Join the discussion in Telegram_ or Slack_.
-- `Read the overview on Medium.com`_
 - |go ref|
+- Buy me a cup of tea:
+  - TON: `EQAA5gzAI499UQgvLJUXWuDZRFNkVZzizq2kpKOMqa1RDCtS`
+  - USDT (TRC20): `TN2cTi5A51SNUfwMKnJKYpKUVoeN3y6zcn`
+  - BTC: `1K6eceS3h7SaTrJTGfmvTa9vY4jyfiTMFc`
+  - Or use **Github Sponsors** button on the top of the page.
+- `Read the overview on Medium.com`_  (outdated)
 - `Mattermost migration`_ steps
 .. contents::
    :depth: 2
