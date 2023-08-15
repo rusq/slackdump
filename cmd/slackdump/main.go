@@ -59,6 +59,7 @@ type params struct {
 
 	traceFile string // trace file
 	logFile   string //log file, if not specified, outputs to stderr.
+	workspace string // workspace name
 
 	printVersion bool
 	verbose      bool
@@ -131,7 +132,7 @@ func run(ctx context.Context, p params) error {
 	ctx, task := trace.NewTask(ctx, "main.run")
 	defer task.End()
 
-	provider, err := app.InitProvider(ctx, p.appCfg.Options.CacheDir, "", p.creds, p.browser)
+	provider, err := app.InitProvider(ctx, p.appCfg.Options.CacheDir, p.workspace, p.creds, p.browser)
 	if err != nil {
 		return err
 	} else {
@@ -252,6 +253,7 @@ func parseCmdLine(args []string) (params, error) {
 	fs.StringVar(&p.creds.Cookie, "cookie", osenv.Secret(envSlackCookie, ""), "d= cookie `value` or a path to a cookie.txt file (environment: "+envSlackCookie+")")
 	fs.BoolVar(&p.authReset, "auth-reset", false, "reset EZ-Login 3000 authentication.")
 	fs.Var(&p.browser, "browser", "set the browser to use for authentication: 'chromium' or 'firefox' (default: firefox)")
+	fs.StringVar(&p.workspace, "w", "", "set the Slack `workspace` name.  If not specifed, the slackdump will show an\ninteractive prompt.")
 
 	// operation mode
 	fs.BoolVar(&p.appCfg.ListFlags.Channels, "c", false, "same as -list-channels")
