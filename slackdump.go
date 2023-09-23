@@ -177,13 +177,6 @@ func (sd *Session) limiter(t network.Tier) *rate.Limiter {
 	return network.NewLimiter(t, sd.options.Tier3Burst, int(sd.options.Tier3Boost))
 }
 
-// withRetry will run the callback function fn. If the function returns
-// slack.RateLimitedError, it will delay, and then call it again up to
-// maxAttempts times. It will return an error if it runs out of attempts.
-func withRetry(ctx context.Context, l *rate.Limiter, maxAttempts int, fn func() error) error {
-	return network.WithRetry(ctx, l, maxAttempts, fn)
-}
-
 func checkCacheFile(filename string, maxAge time.Duration) error {
 	if filename == "" {
 		return errors.New("no cache filename")
