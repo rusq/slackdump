@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -23,6 +24,14 @@ func calcRunDuration(rateLimit float64, attempts int) time.Duration {
 	return time.Duration(attempts) * time.Duration(float64(time.Second)/rateLimit)
 }
 
+func calcExpRunDuration(attempts int) time.Duration {
+	var sec time.Duration
+	for i := 0; i < attempts; i++ {
+		sec += expWait(i)
+	}
+	return sec
+}
+
 // retryFn will return slack.RateLimitedError for numAttempts time and err after.
 func retryFn(numAttempts int, retryAfter time.Duration, err error) func() error {
 	i := 0
@@ -32,6 +41,18 @@ func retryFn(numAttempts int, retryAfter time.Duration, err error) func() error 
 			return &slack.RateLimitedError{RetryAfter: retryAfter}
 		}
 		return err
+	}
+}
+
+// errSeqFn will return err for forTimes time and thenErr after.
+func errSeqFn(err error, forTimes int, thenErr error) func() error {
+	i := 0
+	return func() error {
+		if i < forTimes {
+			i++
+			return err
+		}
+		return thenErr
 	}
 }
 
@@ -110,7 +131,7 @@ func Test_withRetry(t *testing.T) {
 			false,
 			calcRunDuration(10.0, 4),
 		},
-		{"slackRetry should honour the value in the rate limit error",
+		{"should honour the value in the rate limit error",
 			args{
 				context.Background(),
 				rate.NewLimiter(1000, 1),
@@ -130,6 +151,17 @@ func Test_withRetry(t *testing.T) {
 			true,
 			calcRunDuration(10.0, 4),
 		},
+		{
+			"network error (#234)",
+			args{
+				context.Background(),
+				rate.NewLimiter(10.0, 1),
+				3,
+				errSeqFn(&net.OpError{Op: "read"}, 2, nil),
+			},
+			false,
+			calcExpRunDuration(2),
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -138,10 +170,10 @@ func Test_withRetry(t *testing.T) {
 				t.Errorf("withRetry() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			runTime := time.Since(start)
-			runTimeError := dAbs(runTime - tt.mustCompleteIn)
-			t.Logf("runtime = %s, mustCompleteIn = %s, error = ABS(%[1]s - %[2]s) = %[3]s", runTime, tt.mustCompleteIn, runTimeError)
-			if runTimeError > maxRunDurationError {
-				t.Errorf("runtime error %s is not within allowed threshold: %s", runTimeError, maxRunDurationError)
+			ξ := dAbs(runTime - tt.mustCompleteIn)
+			t.Logf("runtime = %s, mustCompleteIn = %s, ξ = ABS(%[1]s - %[2]s) = %[3]s", runTime, tt.mustCompleteIn, ξ)
+			if ξ > maxRunDurationError {
+				t.Errorf("runtime error %s is not within allowed threshold: %s", ξ, maxRunDurationError)
 			}
 		})
 	}
@@ -198,7 +230,6 @@ func Test500ErrorHandling(t *testing.T) {
 
 		const (
 			testRetryCount = 1
-			waitThreshold  = 100 * time.Millisecond
 		)
 
 		// Create a test server that returns a 404 error.
