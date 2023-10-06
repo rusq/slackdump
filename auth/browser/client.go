@@ -16,10 +16,7 @@ import (
 	"github.com/rusq/slackdump/v2/logger"
 )
 
-const (
-	slackDomain    = ".slack.com"
-	requestTimeout = 600 * time.Second
-)
+const slackDomain = ".slack.com"
 
 // Client is the client for Browser Auth Provider.
 type Client struct {
@@ -87,12 +84,14 @@ func (cl *Client) Authenticate(ctx context.Context) (string, []*http.Cookie, err
 	defer context.Close()
 
 	// disable the "cookies" nag screen.
-	if err := context.AddCookies(playwright.BrowserContextAddCookiesOptionsCookies{
-		Domain:  _s(slackDomain),
-		Path:    _s("/"),
-		Name:    _s("OptanonAlertBoxClosed"),
-		Value:   _s(time.Now().Add(-10 * time.Minute).Format(time.RFC3339)),
-		Expires: _f(float64(time.Now().AddDate(0, 0, 30).Unix())),
+	if err := context.AddCookies([]playwright.OptionalCookie{
+		{
+			Domain:  _s(slackDomain),
+			Path:    _s("/"),
+			Name:    "OptanonAlertBoxClosed",
+			Value:   time.Now().Add(-10 * time.Minute).Format(time.RFC3339),
+			Expires: _f(float64(time.Now().AddDate(0, 0, 30).Unix())),
+		},
 	}); err != nil {
 		return "", nil, err
 	}
@@ -112,8 +111,7 @@ func (cl *Client) Authenticate(ctx context.Context) (string, []*http.Cookie, err
 
 	var r playwright.Request
 	if err := cl.withBrowserGuard(ctx, func() error {
-		var err error
-		r, err = page.WaitForRequest(uri+"/api/api.features*", playwright.PageWaitForRequestOptions{Timeout: _f(float64(requestTimeout.Milliseconds()))})
+		r, err = page.ExpectRequest(uri+"/api/api.features*", func() error { return nil })
 		return err
 	}); err != nil {
 		return "", nil, err
@@ -135,25 +133,20 @@ func (cl *Client) Authenticate(ctx context.Context) (string, []*http.Cookie, err
 	return token, convertCookies(state.Cookies), nil
 }
 
-var ErrBrowserClosed = errors.New("browser closed or timed out")
-
 func (cl *Client) withBrowserGuard(ctx context.Context, fn func() error) error {
-	done := make(chan struct{})
-	errC := make(chan error, 1)
+	errC := make(chan error)
 	go func() {
-		defer close(done)
+		defer close(errC)
 		errC <- fn()
 	}()
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
 	case <-cl.pageClosed:
-		return ErrBrowserClosed
+		return errors.New("browser closed or timed out")
 	case err := <-errC:
 		return err
-	case <-done:
 	}
-	return nil
 }
 
 func convertCookies(pwc []playwright.Cookie) []*http.Cookie {
@@ -174,16 +167,18 @@ func convertCookies(pwc []playwright.Cookie) []*http.Cookie {
 	return ret
 }
 
-var str2samesite = map[string]http.SameSite{
-	"":       http.SameSiteDefaultMode,
-	"Lax":    http.SameSiteLaxMode,
-	"None":   http.SameSiteNoneMode,
-	"Strict": http.SameSiteStrictMode,
-}
-
 // sameSite returns the constant value that maps to the string value of SameSite.
-func sameSite(val string) http.SameSite {
-	return str2samesite[val]
+func sameSite(val *playwright.SameSiteAttribute) http.SameSite {
+	switch val {
+	case playwright.SameSiteAttributeLax:
+		return http.SameSiteLaxMode
+	case playwright.SameSiteAttributeNone:
+		return http.SameSiteNoneMode
+	case playwright.SameSiteAttributeStrict:
+		return http.SameSiteStrictMode
+	default:
+		return http.SameSiteDefaultMode
+	}
 }
 
 // float2time converts a float value of Unix time to time, nanoseconds value

@@ -50,10 +50,10 @@ func (mr *MockRequestMockRecorder) AllHeaders() *gomock.Call {
 }
 
 // Failure mocks base method.
-func (m *MockRequest) Failure() *playwright.RequestFailure {
+func (m *MockRequest) Failure() error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Failure")
-	ret0, _ := ret[0].(*playwright.RequestFailure)
+	ret0, _ := ret[0].(error)
 	return ret0
 }
 
@@ -92,21 +92,6 @@ func (mr *MockRequestMockRecorder) HeaderValue(arg0 interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HeaderValue", reflect.TypeOf((*MockRequest)(nil).HeaderValue), arg0)
 }
 
-// HeaderValues mocks base method.
-func (m *MockRequest) HeaderValues(arg0 string) ([]string, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "HeaderValues", arg0)
-	ret0, _ := ret[0].([]string)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// HeaderValues indicates an expected call of HeaderValues.
-func (mr *MockRequestMockRecorder) HeaderValues(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HeaderValues", reflect.TypeOf((*MockRequest)(nil).HeaderValues), arg0)
-}
-
 // Headers mocks base method.
 func (m *MockRequest) Headers() map[string]string {
 	m.ctrl.T.Helper()
@@ -122,10 +107,10 @@ func (mr *MockRequestMockRecorder) Headers() *gomock.Call {
 }
 
 // HeadersArray mocks base method.
-func (m *MockRequest) HeadersArray() (playwright.HeadersArray, error) {
+func (m *MockRequest) HeadersArray() ([]playwright.NameValue, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "HeadersArray")
-	ret0, _ := ret[0].(playwright.HeadersArray)
+	ret0, _ := ret[0].([]playwright.NameValue)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -281,10 +266,10 @@ func (mr *MockRequestMockRecorder) Sizes() *gomock.Call {
 }
 
 // Timing mocks base method.
-func (m *MockRequest) Timing() *playwright.ResourceTiming {
+func (m *MockRequest) Timing() *playwright.RequestTiming {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Timing")
-	ret0, _ := ret[0].(*playwright.ResourceTiming)
+	ret0, _ := ret[0].(*playwright.RequestTiming)
 	return ret0
 }
 

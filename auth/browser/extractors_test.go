@@ -9,9 +9,7 @@ import (
 
 const testMultipart = "-----------------------------37168696061856579082739228613\r\nContent-Disposition: form-data; name=\"token\"\r\n\r\nxoxc-888888888888-888888888888-8888888888888-fffffffffffffffa915fe069d70a8ad81743b0ec4ee9c81540af43f5e143264b\r\n-----------------------------37168696061856579082739228613\r\nContent-Disposition: form-data; name=\"platform\"\r\n\r\nsonic\r\n-----------------------------37168696061856579082739228613\r\nContent-Disposition: form-data; name=\"_x_should_cache\"\r\n\r\nfalse\r\n-----------------------------37168696061856579082739228613\r\nContent-Disposition: form-data; name=\"_x_allow_cached\"\r\n\r\ntrue\r\n-----------------------------37168696061856579082739228613\r\nContent-Disposition: form-data; name=\"_x_team_id\"\r\n\r\nTFCSDNRL5\r\n-----------------------------37168696061856579082739228613\r\nContent-Disposition: form-data; name=\"_x_gantry\"\r\n\r\ntrue\r\n-----------------------------37168696061856579082739228613\r\nContent-Disposition: form-data; name=\"_x_sonic\"\r\n\r\ntrue\r\n-----------------------------37168696061856579082739228613--\r\n"
 
-var testHdrValues = []string{
-	"multipart/form-data; boundary=---------------------------37168696061856579082739228613",
-}
+var testHdrValues = "multipart/form-data; boundary=---------------------------37168696061856579082739228613"
 
 const testBoundary = "---------------------------37168696061856579082739228613"
 
@@ -86,7 +84,7 @@ func Test_boundary(t *testing.T) {
 		{
 			"ok",
 			func(r *MockRequest) {
-				r.EXPECT().HeaderValues("Content-Type").Return(testHdrValues, nil)
+				r.EXPECT().HeaderValue("Content-Type").Return(testHdrValues, nil)
 			},
 			testBoundary,
 			false,
@@ -94,7 +92,7 @@ func Test_boundary(t *testing.T) {
 		{
 			"no header",
 			func(r *MockRequest) {
-				r.EXPECT().HeaderValues("Content-Type").Return(nil, nil)
+				r.EXPECT().HeaderValue("Content-Type").Return("", nil)
 			},
 			"",
 			true,
@@ -102,7 +100,7 @@ func Test_boundary(t *testing.T) {
 		{
 			"bad header",
 			func(r *MockRequest) {
-				r.EXPECT().HeaderValues("Content-Type").Return([]string{"bad"}, nil)
+				r.EXPECT().HeaderValue("Content-Type").Return("bad", nil)
 			},
 			"",
 			true,
@@ -110,7 +108,7 @@ func Test_boundary(t *testing.T) {
 		{
 			"error",
 			func(r *MockRequest) {
-				r.EXPECT().HeaderValues("Content-Type").Return(nil, errors.New("bad"))
+				r.EXPECT().HeaderValue("Content-Type").Return("", errors.New("bad"))
 			},
 			"",
 			true,
