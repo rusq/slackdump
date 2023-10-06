@@ -84,12 +84,14 @@ func (cl *Client) Authenticate(ctx context.Context) (string, []*http.Cookie, err
 	defer context.Close()
 
 	// disable the "cookies" nag screen.
-	if err := context.AddCookies(playwright.BrowserContextAddCookiesOptionsCookies{
-		Domain:  _s(slackDomain),
-		Path:    _s("/"),
-		Name:    _s("OptanonAlertBoxClosed"),
-		Value:   _s(time.Now().Add(-10 * time.Minute).Format(time.RFC3339)),
-		Expires: _f(float64(time.Now().AddDate(0, 0, 30).Unix())),
+	if err := context.AddCookies([]playwright.OptionalCookie{
+		{
+			Domain:  _s(slackDomain),
+			Path:    _s("/"),
+			Name:    "OptanonAlertBoxClosed",
+			Value:   time.Now().Add(-10 * time.Minute).Format(time.RFC3339),
+			Expires: _f(float64(time.Now().AddDate(0, 0, 30).Unix())),
+		},
 	}); err != nil {
 		return "", nil, err
 	}
@@ -109,7 +111,7 @@ func (cl *Client) Authenticate(ctx context.Context) (string, []*http.Cookie, err
 
 	var r playwright.Request
 	if err := cl.withBrowserGuard(ctx, func() {
-		r = page.WaitForRequest(uri + "/api/api.features*")
+		r, err = page.ExpectRequest(uri+"/api/api.features*", func() error { return nil })
 	}); err != nil {
 		return "", nil, err
 	}
@@ -164,16 +166,18 @@ func convertCookies(pwc []playwright.Cookie) []*http.Cookie {
 	return ret
 }
 
-var str2samesite = map[string]http.SameSite{
-	"":       http.SameSiteDefaultMode,
-	"Lax":    http.SameSiteLaxMode,
-	"None":   http.SameSiteNoneMode,
-	"Strict": http.SameSiteStrictMode,
-}
-
 // sameSite returns the constant value that maps to the string value of SameSite.
-func sameSite(val string) http.SameSite {
-	return str2samesite[val]
+func sameSite(val *playwright.SameSiteAttribute) http.SameSite {
+	switch val {
+	case playwright.SameSiteAttributeLax:
+		return http.SameSiteLaxMode
+	case playwright.SameSiteAttributeNone:
+		return http.SameSiteNoneMode
+	case playwright.SameSiteAttributeStrict:
+		return http.SameSiteStrictMode
+	default:
+		return http.SameSiteDefaultMode
+	}
 }
 
 // float2time converts a float value of Unix time to time, nanoseconds value

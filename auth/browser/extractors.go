@@ -86,10 +86,11 @@ func tokenFromMultipart(s string, boundary string) (string, error) {
 
 // boundary extracts boundary from the request.
 func boundary(r playwright.Request) (string, error) {
-	values, err := r.HeaderValues("Content-Type")
+	v, err := r.HeaderValue("Content-Type")
 	if err != nil {
 		return "", err
 	}
+	values := strings.Split(v, ",")
 	if len(values) != 1 {
 		return "", ErrInvalidContentType
 	}
