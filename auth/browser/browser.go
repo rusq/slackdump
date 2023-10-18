@@ -3,9 +3,13 @@ package browser
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/playwright-community/playwright-go"
 )
+
+// DefLoginTimeout is the default Slack login timeout
+const DefLoginTimeout = 5 * time.Minute
 
 //go:generate stringer -type Browser -trimprefix=B browser.go
 type Browser int
@@ -23,6 +27,15 @@ func OptBrowser(b Browser) Option {
 			b = Bfirefox
 		}
 		c.br = b
+	}
+}
+
+func OptTimeout(d time.Duration) Option {
+	return func(c *Client) {
+		if d < 0 {
+			return
+		}
+		c.loginTimeout = float64(d.Milliseconds())
 	}
 }
 

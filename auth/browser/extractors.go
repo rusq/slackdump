@@ -26,6 +26,9 @@ var (
 
 // extractToken extracts token from the request.
 func extractToken(r playwright.Request) (string, error) {
+	if r == nil {
+		return "", errors.New("no request")
+	}
 	if r.Method() == http.MethodGet {
 		return extractTokenGet(r.URL())
 	} else if r.Method() == http.MethodPost {
