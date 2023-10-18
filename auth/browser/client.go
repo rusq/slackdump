@@ -125,9 +125,6 @@ func (cl *Client) Authenticate(ctx context.Context) (string, []*http.Cookie, err
 	}); err != nil {
 		return "", nil, err
 	}
-	if r == nil {
-		return "", nil, errors.New("failed waiting for the request")
-	}
 
 	token, err := extractToken(r)
 	if err != nil {
