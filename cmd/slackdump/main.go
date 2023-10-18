@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"runtime/trace"
 	"syscall"
+	"time"
 
 	"github.com/joho/godotenv"
 	"github.com/rusq/dlog"
@@ -52,10 +53,11 @@ var secrets = []string{".env", ".env.txt", "secrets.txt"}
 
 // params is the command line parameters
 type params struct {
-	appCfg    config.Params
-	creds     app.SlackCreds
-	authReset bool
-	browser   browser.Browser
+	appCfg         config.Params
+	creds          app.SlackCreds
+	authReset      bool
+	browser        browser.Browser
+	browserTimeout time.Duration
 
 	traceFile string // trace file
 	logFile   string //log file, if not specified, outputs to stderr.
@@ -253,6 +255,7 @@ func parseCmdLine(args []string) (params, error) {
 	fs.StringVar(&p.creds.Cookie, "cookie", osenv.Secret(envSlackCookie, ""), "d= cookie `value` or a path to a cookie.txt file (environment: "+envSlackCookie+")")
 	fs.BoolVar(&p.authReset, "auth-reset", false, "reset EZ-Login 3000 authentication.")
 	fs.Var(&p.browser, "browser", "set the browser to use for authentication: 'chromium' or 'firefox' (default: firefox)")
+	fs.DurationVar(&p.browserTimeout, "browser-timeout", browser.DefLoginTimeout, "browser login timeout")
 	fs.StringVar(&p.workspace, "w", "", "set the Slack `workspace` name.  If not specifed, the slackdump will show an\ninteractive prompt.")
 
 	// operation mode

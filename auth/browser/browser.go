@@ -8,7 +8,8 @@ import (
 	"github.com/playwright-community/playwright-go"
 )
 
-const defLoginTimeout = 5 * time.Minute // default login timeout.
+// DefLoginTimeout is the default Slack login timeout
+const DefLoginTimeout = 5 * time.Minute
 
 //go:generate stringer -type Browser -trimprefix=B browser.go
 type Browser int

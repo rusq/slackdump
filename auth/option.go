@@ -1,6 +1,10 @@
 package auth
 
-import "github.com/rusq/slackdump/v2/auth/browser"
+import (
+	"time"
+
+	"github.com/rusq/slackdump/v2/auth/browser"
+)
 
 type options struct {
 	*browserOpts
@@ -26,5 +30,14 @@ func BrowserWithWorkspace(name string) Option {
 func BrowserWithBrowser(b browser.Browser) Option {
 	return func(o *options) {
 		o.browserOpts.browser = b
+	}
+}
+
+func BrowserWithTimeout(d time.Duration) Option {
+	return func(o *options) {
+		if d < 0 {
+			return
+		}
+		o.browserOpts.loginTimeout = d
 	}
 }

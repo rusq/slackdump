@@ -39,7 +39,7 @@ func New(workspace string, opts ...Option) (*Client, error) {
 		workspace:    workspace,
 		pageClosed:   make(chan bool, 1),
 		br:           Bfirefox,
-		loginTimeout: float64(defLoginTimeout.Milliseconds()),
+		loginTimeout: float64(DefLoginTimeout.Milliseconds()),
 	}
 	for _, opt := range opts {
 		opt(cl)
