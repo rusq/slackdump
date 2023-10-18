@@ -28,10 +28,11 @@ var (
 	ConfigFile   string
 	Workspace    string
 
-	SlackToken  string
-	SlackCookie string
-	Browser     browser.Browser
-	Limits      = slackdump.DefLimits
+	SlackToken   string
+	SlackCookie  string
+	Browser      browser.Browser
+	LoginTimeout time.Duration = browser.DefLoginTimeout
+	Limits                     = slackdump.DefLimits
 
 	DumpFiles    bool
 	NoChunkCache bool
@@ -87,6 +88,7 @@ func SetBaseFlags(fs *flag.FlagSet, mask FlagMask) {
 		// COOKIE environment variable is deprecated and will be removed in v2.5.0, use SLACK_COOKIE instead.
 		fs.StringVar(&SlackCookie, "cookie", osenv.Secret("SLACK_COOKIE", osenv.Secret("COOKIE", "")), "d= cookie `value` or a path to a cookie.txt file\n(environment: SLACK_COOKIE)")
 		fs.Var(&Browser, "browser", "browser to use for EZ-Login 3000 (default: firefox)")
+		fs.DurationVar(&LoginTimeout, "browser-timeout", LoginTimeout, "Browser login `timeout`")
 	}
 	if mask&OmitDownloadFlag == 0 {
 		fs.BoolVar(&DumpFiles, "files", true, "enables file attachments (to disable, specify: -files=false)")
