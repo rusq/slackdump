@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/rusq/slackdump/v2"
+	"github.com/rusq/slackdump/v2/auth/browser"
 	"github.com/rusq/slackdump/v2/internal/app"
 	"github.com/rusq/slackdump/v2/internal/app/config"
 	"github.com/rusq/slackdump/v2/internal/structures"
@@ -63,15 +64,17 @@ func Test_checkParameters(t *testing.T) {
 					Token:  "x",
 					Cookie: "d",
 				},
+				browserTimeout: browser.DefLoginTimeout,
 				appCfg: config.Params{
 					ListFlags: config.ListFlags{
 						Users:    false,
 						Channels: true,
 					},
 					FilenameTemplate: defFilenameTemplate,
-					Input:            config.Input{List: &structures.EntityList{}},
-					Output:           config.Output{Filename: "-", Format: "text"},
-					Options:          slackdump.DefOptions,
+
+					Input:   config.Input{List: &structures.EntityList{}},
+					Output:  config.Output{Filename: "-", Format: "text"},
+					Options: slackdump.DefOptions,
 				}},
 			false,
 		},
@@ -83,6 +86,7 @@ func Test_checkParameters(t *testing.T) {
 					Token:  "x",
 					Cookie: "d",
 				},
+				browserTimeout: browser.DefLoginTimeout,
 				appCfg: config.Params{
 					ListFlags: config.ListFlags{
 						Channels: false,

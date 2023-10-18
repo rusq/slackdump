@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/rusq/slackdump/v2/auth/auth_ui"
 	"github.com/rusq/slackdump/v2/auth/browser"
@@ -20,9 +21,10 @@ type BrowserAuth struct {
 }
 
 type browserOpts struct {
-	workspace string
-	browser   browser.Browser
-	flow      BrowserAuthUI
+	workspace    string
+	browser      browser.Browser
+	flow         BrowserAuthUI
+	loginTimeout time.Duration
 }
 
 type BrowserAuthUI interface {
@@ -33,8 +35,9 @@ type BrowserAuthUI interface {
 func NewBrowserAuth(ctx context.Context, opts ...Option) (BrowserAuth, error) {
 	var br = BrowserAuth{
 		opts: browserOpts{
-			flow:    defaultFlow,
-			browser: browser.Bfirefox,
+			flow:         defaultFlow,
+			browser:      browser.Bfirefox,
+			loginTimeout: browser.DefLoginTimeout,
 		},
 	}
 	for _, opt := range opts {
@@ -55,7 +58,7 @@ func NewBrowserAuth(ctx context.Context, opts ...Option) (BrowserAuth, error) {
 		br.opts.workspace = wsp
 	}
 
-	auther, err := browser.New(br.opts.workspace, browser.OptBrowser(br.opts.browser))
+	auther, err := browser.New(br.opts.workspace, browser.OptBrowser(br.opts.browser), browser.OptTimeout(br.opts.loginTimeout))
 	if err != nil {
 		return br, err
 	}
