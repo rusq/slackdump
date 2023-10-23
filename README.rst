@@ -4,8 +4,9 @@ Slack Dumper
 
 - Join the discussion in Telegram_ or Slack_.
 - |go ref|
-- Buy me a cup of tea:
-  
+- `Buy me a cup of tea`_:
+
+  - Patreon: https://patreon.com/rusq_nz
   - TON: ``EQAA5gzAI499UQgvLJUXWuDZRFNkVZzizq2kpKOMqa1RDCtS``
   - USDT (TRC20): ``TN2cTi5A51SNUfwMKnJKYpKUVoeN3y6zcn``
   - BTC: ``1K6eceS3h7SaTrJTGfmvTa9vY4jyfiTMFc``
@@ -231,7 +232,7 @@ Messages that were conveyed with the donations:
   they owe to their employees.
 
 
-.. _`Buy me a cup of tea`: https://www.paypal.com/donate/?hosted_button_id=GUHCLSM7E54ZW
+.. _`Buy me a cup of tea`: https://patreon.com/rusq_nz
 .. _Telegram: https://t.me/slackdump
 .. _Slack: https://slackdump.herokuapp.com/
 .. _`Read the overview on Medium.com`: https://medium.com/@gilyazov/downloading-your-private-slack-conversations-52e50428b3c2
