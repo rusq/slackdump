@@ -6,7 +6,7 @@ Slack Dumper
 - |go ref|
 - `Buy me a cup of tea`_:
 
-  - Patreon: https://patreon/rusq_nz
+  - Patreon: https://patreon.com/rusq_nz
   - TON: ``EQAA5gzAI499UQgvLJUXWuDZRFNkVZzizq2kpKOMqa1RDCtS``
   - USDT (TRC20): ``TN2cTi5A51SNUfwMKnJKYpKUVoeN3y6zcn``
   - BTC: ``1K6eceS3h7SaTrJTGfmvTa9vY4jyfiTMFc``
