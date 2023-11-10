@@ -55,7 +55,7 @@ type emojidumper interface {
 	DumpEmojis(ctx context.Context) (map[string]string, error)
 }
 
-func download(ctx context.Context, sess emojidumper, base string, ignoreErrors bool) error {
+func download(ctx context.Context, sess emojidumper, base string, failFast bool) error {
 	fsa, err := fsadapter.New(base)
 	if err != nil {
 		return fmt.Errorf("unable to initialise adapter for %s: %w", base, err)
@@ -74,7 +74,7 @@ func download(ctx context.Context, sess emojidumper, base string, ignoreErrors b
 		return fmt.Errorf("failed writing emoji index: %w", err)
 	}
 
-	return fetch(ctx, fsa, emojis, true)
+	return fetch(ctx, fsa, emojis, failFast)
 }
 
 // fetch downloads the emojis and saves them to the fsa. It spawns numWorker
