@@ -35,11 +35,11 @@ var installFn = playwright.Install
 
 // New create new browser based client.
 func New(workspace string, opts ...Option) (*Client, error) {
-	if workspace == "" {
+	if strings.TrimSpace(workspace) == "" {
 		return nil, errors.New("workspace can't be empty")
 	}
 	cl := &Client{
-		workspace:    workspace,
+		workspace:    strings.ToLower(workspace),
 		pageClosed:   make(chan bool, 1),
 		br:           Bfirefox,
 		loginTimeout: float64(DefLoginTimeout.Milliseconds()),

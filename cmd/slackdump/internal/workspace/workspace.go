@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"runtime/trace"
+	"strings"
 
 	"github.com/rusq/slackdump/v2/auth"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/cfg"
@@ -65,11 +66,11 @@ type manager interface {
 // if it is. Otherwise, it checks the first (with index zero) argument in args,
 // and if it set, returns it.  Otherwise, it returns an empty string.
 func argsWorkspace(args []string, defaultWsp string) string {
-	if defaultWsp != "" {
-		return defaultWsp
+	if strings.TrimSpace(defaultWsp) != "" {
+		return strings.ToLower(defaultWsp)
 	}
 	if len(args) > 0 && args[0] != "" {
-		return args[0]
+		return strings.ToLower(args[0])
 	}
 
 	return ""

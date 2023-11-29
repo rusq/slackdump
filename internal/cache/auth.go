@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"runtime/trace"
+	"strings"
 
 	"github.com/rusq/encio"
 
@@ -67,6 +68,7 @@ func (c SlackCreds) AuthProvider(ctx context.Context, workspace string, opts ...
 	if err != nil {
 		return nil, err
 	}
+	workspace = strings.ToLower(workspace)
 
 	opts = append([]auth.Option{auth.BrowserWithWorkspace(workspace)}, opts...)
 
@@ -154,7 +156,7 @@ func initProvider(ctx context.Context, cacheDir string, filename string, workspa
 
 	// init the authentication provider
 	trace.Log(ctx, "info", "getting credentals from file or browser")
-	provider, err := creds.AuthProvider(ctx, workspace, opts...)
+	provider, err := creds.AuthProvider(ctx, strings.ToLower(workspace), opts...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialise the auth provider: %w", err)
 	}
