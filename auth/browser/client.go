@@ -16,7 +16,10 @@ import (
 	"github.com/rusq/slackdump/v2/logger"
 )
 
-const slackDomain = ".slack.com"
+const (
+	slackDomain    = ".slack.com"
+	requestTimeout = 600 * time.Second
+)
 
 // Client is the client for Browser Auth Provider.
 type Client struct {
@@ -32,11 +35,11 @@ var installFn = playwright.Install
 
 // New create new browser based client.
 func New(workspace string, opts ...Option) (*Client, error) {
-	if workspace == "" {
+	if strings.TrimSpace(workspace) == "" {
 		return nil, errors.New("workspace can't be empty")
 	}
 	cl := &Client{
-		workspace:    workspace,
+		workspace:    strings.ToLower(workspace),
 		pageClosed:   make(chan bool, 1),
 		br:           Bfirefox,
 		loginTimeout: float64(DefLoginTimeout.Milliseconds()),
@@ -142,15 +145,13 @@ func (cl *Client) Authenticate(ctx context.Context) (string, []*http.Cookie, err
 	return token, convertCookies(state.Cookies), nil
 }
 
-var errPageClosed = errors.New("browser closed or timed out")
+var ErrBrowserClosed = errors.New("browser closed or timed out")
 
 // withBrowserGuard starts the function fn in a goroutine, and waits for it to
 // finish.  If the context is canceled, or the page is closed, it returns
 // the appropriate error.
 func (cl *Client) withBrowserGuard(ctx context.Context, fn func() error) error {
-	var (
-		errC = make(chan error)
-	)
+	var errC = make(chan error, 1)
 	go func() {
 		defer close(errC)
 		errC <- fn()
@@ -159,7 +160,7 @@ func (cl *Client) withBrowserGuard(ctx context.Context, fn func() error) error {
 	case <-ctx.Done():
 		return ctx.Err()
 	case <-cl.pageClosed:
-		return errPageClosed
+		return ErrBrowserClosed
 	case err := <-errC:
 		return err
 	}

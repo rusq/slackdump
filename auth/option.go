@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"strings"
 	"time"
 
 	"github.com/rusq/slackdump/v2/auth/browser"
@@ -23,7 +24,7 @@ func BrowserWithAuthFlow(flow BrowserAuthUI) Option {
 
 func BrowserWithWorkspace(name string) Option {
 	return func(o *options) {
-		o.browserOpts.workspace = name
+		o.browserOpts.workspace = strings.ToLower(name)
 	}
 }
 
