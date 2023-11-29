@@ -13,6 +13,8 @@ import (
 	"github.com/slack-go/slack"
 )
 
+const SlackURL = "https://slack.com"
+
 // Type is the auth type.
 //
 //go:generate stringer -type Type -linecomment
@@ -41,11 +43,14 @@ type Provider interface {
 	Validate() error
 	// Test tests if credentials are valid.
 	Test(ctx context.Context) error
+	// Client returns an authenticated HTTP client
+	HTTPClient() (*http.Client, error)
 }
 
 var (
-	ErrNoToken   = errors.New("no token")
-	ErrNoCookies = errors.New("no cookies")
+	ErrNoToken      = errors.New("no token")
+	ErrNoCookies    = errors.New("no cookies")
+	ErrNotSupported = errors.New("not supported")
 )
 
 type simpleProvider struct {
@@ -114,16 +119,20 @@ func (s simpleProvider) Test(ctx context.Context) error {
 	ctx, task := trace.NewTask(ctx, "TestAuth")
 	defer task.End()
 
-	httpCl, err := chttp.New("https://slack.com", s.Cookies())
+	httpCl, err := s.HTTPClient()
 	if err != nil {
-		return err
+		return &Error{Err: err}
 	}
 	cl := slack.New(s.Token, slack.OptionHTTPClient(httpCl))
 
-	region := trace.StartRegion(ctx, "AuthTestContext")
+	region := trace.StartRegion(ctx, "simpleProvider.Test")
 	defer region.End()
 	if _, err := cl.AuthTestContext(ctx); err != nil {
 		return &Error{Err: err}
 	}
 	return nil
+}
+
+func (s simpleProvider) HTTPClient() (*http.Client, error) {
+	return chttp.New(SlackURL, s.Cookies())
 }

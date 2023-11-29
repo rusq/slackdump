@@ -6,10 +6,15 @@ import "fmt"
 // an API error returned by slack.AuthTest call.
 type Error struct {
 	Err error
+	Msg string
 }
 
 func (ae *Error) Error() string {
-	return fmt.Sprintf("failed to authenticate: %s", ae.Err)
+	var msg string = ae.Msg
+	if msg == "" {
+		msg = ae.Err.Error()
+	}
+	return fmt.Sprintf("authentication error: %s", msg)
 }
 
 func (ae *Error) Unwrap() error {
