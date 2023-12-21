@@ -26,8 +26,7 @@ If applicable, add output to help explain your problem.
 **Desktop (please complete the following information):**
  - OS: [e.g. macOS]
  - OS Version: [e.g. 14.1]
-
-
+ - Slackdump Version: [e.g. 2.4.2]
 
 **Additional context**
 Add any other context about the problem here.
