@@ -9,7 +9,7 @@ require (
 	github.com/fatih/color v1.15.0
 	github.com/golang/mock v1.6.0
 	github.com/joho/godotenv v1.5.1
-	github.com/playwright-community/playwright-go v0.3700.0
+	github.com/playwright-community/playwright-go v0.4001.0
 	github.com/rusq/chttp v1.0.2
 	github.com/rusq/dlog v1.4.0
 	github.com/rusq/osenv/v2 v2.0.1
@@ -27,7 +27,7 @@ require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/go-jose/go-jose/v3 v3.0.1 // indirect
 	github.com/go-stack/stack v1.8.1 // indirect
-	github.com/gorilla/websocket v1.5.0 // indirect
+	github.com/gorilla/websocket v1.5.1 // indirect
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
