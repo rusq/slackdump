@@ -63,7 +63,10 @@ func Test_pwRepair(t *testing.T) {
 		// create a fake node file with the wrong permissions.
 		makeFakeNode(t, fakePwDir, 0o644)
 		// run the repair function.
-		if err := pwRepair(baseDir); err != nil {
+		runopts := &playwright.RunOptions{
+			Browsers: []string{"chromium"},
+		}
+		if err := pwRepair(runopts); err != nil {
 			t.Fatal(err)
 		}
 
