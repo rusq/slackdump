@@ -90,12 +90,6 @@ func main() {
 			return
 		}
 	}
-	if params.browserReinstall {
-		dlog.Printf("Reinstalling %s", params.browser)
-		if err := browser.Reinstall(params.browser.String()); err != nil {
-			dlog.Fatalf("browser reinstall error: %s", err)
-		}
-	}
 	if errors.Is(cfgErr, config.ErrNothingToDo) {
 		// if the user hasn't provided any required flags, let's offer
 		// an interactive prompt to fill them.
@@ -140,6 +134,13 @@ func run(ctx context.Context, p params) error {
 	// initialise context with trace task.
 	ctx, task := trace.NewTask(ctx, "main.run")
 	defer task.End()
+
+	if p.browserReinstall {
+		dlog.Printf("Reinstalling %s", p.browser)
+		if err := browser.Reinstall(p.browser, p.verbose); err != nil {
+			return fmt.Errorf("error reinstalling %s: %w", p.browser, err)
+		}
+	}
 
 	provider, err := app.InitProvider(ctx, p.appCfg.Options.CacheDir, p.workspace, p.creds, p.browser)
 	if err != nil {
