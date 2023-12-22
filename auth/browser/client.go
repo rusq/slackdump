@@ -234,6 +234,14 @@ func pwRepair(runopts *playwright.RunOptions) error {
 	return reinstall(runopts)
 }
 
+// Reinstall cleans and reinstalls the browser.
+func Reinstall(browser string) error {
+	runopts := &playwright.RunOptions{
+		Browsers: []string{browser},
+	}
+	return reinstall(runopts)
+}
+
 func reinstall(runopts *playwright.RunOptions) error {
 	drv, err := newDriverFn(runopts)
 	if err != nil {

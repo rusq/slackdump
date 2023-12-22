@@ -53,11 +53,12 @@ var secrets = []string{".env", ".env.txt", "secrets.txt"}
 
 // params is the command line parameters
 type params struct {
-	appCfg         config.Params
-	creds          app.SlackCreds
-	authReset      bool
-	browser        browser.Browser
-	browserTimeout time.Duration
+	appCfg           config.Params
+	creds            app.SlackCreds
+	authReset        bool
+	browser          browser.Browser
+	browserTimeout   time.Duration
+	browserReinstall bool
 
 	traceFile string // trace file
 	logFile   string //log file, if not specified, outputs to stderr.
@@ -89,7 +90,13 @@ func main() {
 			return
 		}
 	}
-	if cfgErr == config.ErrNothingToDo {
+	if params.browserReinstall {
+		dlog.Printf("Reinstalling %s", params.browser)
+		if err := browser.Reinstall(params.browser.String()); err != nil {
+			dlog.Fatalf("browser reinstall error: %s", err)
+		}
+	}
+	if errors.Is(cfgErr, config.ErrNothingToDo) {
 		// if the user hasn't provided any required flags, let's offer
 		// an interactive prompt to fill them.
 		if err := Interactive(&params); err != nil {
@@ -257,6 +264,7 @@ func parseCmdLine(args []string) (params, error) {
 	fs.Var(&p.browser, "browser", "set the browser to use for authentication: 'chromium' or 'firefox' (default: firefox)")
 	fs.DurationVar(&p.browserTimeout, "browser-timeout", browser.DefLoginTimeout, "browser login timeout")
 	fs.StringVar(&p.workspace, "w", "", "set the Slack `workspace` name.  If not specifed, the slackdump will show an\ninteractive prompt.")
+	fs.BoolVar(&p.browserReinstall, "browser-reinstall", false, "reinstall the playwright browser")
 
 	// operation mode
 	fs.BoolVar(&p.appCfg.ListFlags.Channels, "c", false, "same as -list-channels")
