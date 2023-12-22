@@ -31,7 +31,12 @@ type Client struct {
 
 var Logger logger.Interface = logger.Default
 
-var installFn = playwright.Install
+var (
+	installFn = playwright.Install
+	// newDriverFn is the function that creates a new driver.  It is set to
+	// playwright.NewDriver by default, but can be overridden for testing.
+	newDriverFn = playwright.NewDriver
+)
 
 // New create new browser based client.
 func New(workspace string, opts ...Option) (*Client, error) {
@@ -47,13 +52,14 @@ func New(workspace string, opts ...Option) (*Client, error) {
 	for _, opt := range opts {
 		opt(cl)
 	}
-	if err := installFn(&playwright.RunOptions{
+	runopts := &playwright.RunOptions{
 		Browsers: []string{cl.br.String()},
-	}); err != nil {
+	}
+	if err := installFn(runopts); err != nil {
 		if !strings.Contains(err.Error(), "could not run driver") || runtime.GOOS == "windows" {
 			return nil, err
 		}
-		if err := pwRepair(cl.br.String()); err != nil {
+		if err := pwRepair(runopts); err != nil {
 			return nil, err
 		}
 	}
@@ -215,24 +221,22 @@ func l() logger.Interface {
 	return Logger
 }
 
-// newDriverFn is the function that creates a new driver.  It is set to
-// playwright.NewDriver by default, but can be overridden for testing.
-var newDriverFn = playwright.NewDriver
-
 // pwRepair attempts to repair the playwright installation.
-func pwRepair(browser string) error {
-	if browser == "" {
-		return nil
-	}
-	drv, err := newDriverFn(&playwright.RunOptions{
-		Browsers: []string{browser},
-	})
+func pwRepair(runopts *playwright.RunOptions) error {
+	drv, err := newDriverFn(runopts)
 	if err != nil {
 		return err
 	}
-
 	// check node permissions
 	if err := pwIsKnownProblem(drv.DriverDirectory); err != nil {
+		return err
+	}
+	return reinstall(runopts)
+}
+
+func reinstall(runopts *playwright.RunOptions) error {
+	drv, err := newDriverFn(runopts)
+	if err != nil {
 		return err
 	}
 	if err := os.RemoveAll(drv.DriverDirectory); err != nil {
@@ -240,9 +244,7 @@ func pwRepair(browser string) error {
 	}
 
 	// attempt to reinstall
-	if err := installFn(&playwright.RunOptions{
-		Browsers: []string{browser},
-	}); err != nil {
+	if err := installFn(runopts); err != nil {
 		// we did everything we could, but it still failed.
 		return err
 	}
