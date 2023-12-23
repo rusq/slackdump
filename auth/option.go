@@ -42,3 +42,9 @@ func BrowserWithTimeout(d time.Duration) Option {
 		o.browserOpts.loginTimeout = d
 	}
 }
+
+func BrowserWithVerbose(b bool) Option {
+	return func(o *options) {
+		o.browserOpts.verbose = b
+	}
+}

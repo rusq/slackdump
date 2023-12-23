@@ -25,6 +25,7 @@ type browserOpts struct {
 	browser      browser.Browser
 	flow         BrowserAuthUI
 	loginTimeout time.Duration
+	verbose      bool
 }
 
 type BrowserAuthUI interface {
@@ -61,7 +62,7 @@ func NewBrowserAuth(ctx context.Context, opts ...Option) (BrowserAuth, error) {
 		br.opts.workspace = wsp
 	}
 
-	auther, err := browser.New(br.opts.workspace, browser.OptBrowser(br.opts.browser), browser.OptTimeout(br.opts.loginTimeout))
+	auther, err := browser.New(br.opts.workspace, browser.OptBrowser(br.opts.browser), browser.OptTimeout(br.opts.loginTimeout), browser.OptVerbose(br.opts.verbose))
 	if err != nil {
 		return br, err
 	}
