@@ -27,6 +27,7 @@ type Client struct {
 	pageClosed   chan bool // will receive a notification that the page is closed prematurely.
 	br           Browser
 	loginTimeout float64 // slack login page timeout in milliseconds.
+	verbose      bool
 }
 
 var Logger logger.Interface = logger.Default
@@ -48,19 +49,22 @@ func New(workspace string, opts ...Option) (*Client, error) {
 		pageClosed:   make(chan bool, 1),
 		br:           Bfirefox,
 		loginTimeout: float64(DefLoginTimeout.Milliseconds()),
+		verbose:      false,
 	}
 	for _, opt := range opts {
 		opt(cl)
 	}
+	l().Debugf("browser=%s, timeout=%f", cl.br, cl.loginTimeout)
 	runopts := &playwright.RunOptions{
 		Browsers: []string{cl.br.String()},
+		Verbose:  cl.verbose,
 	}
 	if err := installFn(runopts); err != nil {
 		if !strings.Contains(err.Error(), "could not run driver") || runtime.GOOS == "windows" {
-			return nil, err
+			return nil, fmt.Errorf("can't install the browser: %w", err)
 		}
 		if err := pwRepair(runopts); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to repair the browser installation: %w", err)
 		}
 	}
 	return cl, nil
@@ -235,23 +239,27 @@ func pwRepair(runopts *playwright.RunOptions) error {
 }
 
 // Reinstall cleans and reinstalls the browser.
-func Reinstall(browser string) error {
+func Reinstall(browser Browser, verbose bool) error {
 	runopts := &playwright.RunOptions{
-		Browsers: []string{browser},
+		Browsers: []string{browser.String()},
+		Verbose:  verbose,
 	}
 	return reinstall(runopts)
 }
 
 func reinstall(runopts *playwright.RunOptions) error {
+	l().Debugf("reinstalling browser: %s", runopts.Browsers[0])
 	drv, err := newDriverFn(runopts)
 	if err != nil {
 		return err
 	}
+	l().Debugf("removing %s", drv.DriverDirectory)
 	if err := os.RemoveAll(drv.DriverDirectory); err != nil {
 		return err
 	}
 
 	// attempt to reinstall
+	l().Debugf("reinstalling %s", drv.DriverDirectory)
 	if err := installFn(runopts); err != nil {
 		// we did everything we could, but it still failed.
 		return err
