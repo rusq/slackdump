@@ -55,9 +55,9 @@ func (c SlackCreds) Type(ctx context.Context) (auth.Type, error) {
 		return auth.TypeInvalid, ErrUnsupported
 	}
 	if !ezLoginTested() {
-		return auth.TypeBrowser, ErrNotTested
+		return auth.TypeRod, ErrNotTested
 	}
-	return auth.TypeBrowser, nil
+	return auth.TypeRod, nil
 
 }
 
@@ -73,6 +73,8 @@ func (c SlackCreds) AuthProvider(ctx context.Context, workspace string, browser 
 		return nil, err
 	}
 	switch authType {
+	case auth.TypeRod:
+		return auth.NewRODAuth(ctx, auth.RodWithWorkspace(workspace))
 	case auth.TypeBrowser:
 		return auth.NewBrowserAuth(ctx, auth.BrowserWithWorkspace(workspace), auth.BrowserWithBrowser(browser))
 	case auth.TypeCookieFile:
