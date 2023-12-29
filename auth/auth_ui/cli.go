@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/fatih/color"
+	"golang.org/x/term"
 )
 
 type CLI struct{}
@@ -30,6 +31,35 @@ func (cl *CLI) RequestWorkspace(w io.Writer) (string, error) {
 		return "", err
 	}
 	return workspace, nil
+}
+
+func (cl *CLI) RequestEmail(w io.Writer) (string, error) {
+	fmt.Fprint(w, "Enter Email: ")
+	username, err := readln(os.Stdin)
+	if err != nil {
+		return "", err
+	}
+	return username, nil
+}
+
+func (cl *CLI) RequestPassword(w io.Writer) (string, error) {
+	fmt.Fprint(w, "Enter Password (won't be visible): ")
+	password, err := term.ReadPassword(int(os.Stdin.Fd()))
+	if err != nil {
+		return "", err
+	}
+	fmt.Fprintln(w)
+	return string(password), nil
+}
+
+func (cl *CLI) YesNo(w io.Writer, message string) (bool, error) {
+	fmt.Fprintf(w, "%s [y/N]: ", message)
+	answer, err := readln(os.Stdin)
+	if err != nil {
+		return false, err
+	}
+	answer = strings.ToLower(answer)
+	return answer == "y" || answer == "yes", nil
 }
 
 func (*CLI) Stop() {}

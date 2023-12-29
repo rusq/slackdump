@@ -39,6 +39,12 @@ func OptTimeout(d time.Duration) Option {
 	}
 }
 
+func OptVerbose(b bool) Option {
+	return func(c *Client) {
+		c.verbose = b
+	}
+}
+
 func (e *Browser) Set(v string) error {
 	v = strings.ToLower(v)
 	for i := 0; i < len(_Browser_index)-1; i++ {

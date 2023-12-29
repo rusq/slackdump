@@ -3,9 +3,7 @@ package auth
 import (
 	"context"
 	"io"
-	"net/url"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/rusq/slackdump/v2/auth/auth_ui"
@@ -25,11 +23,19 @@ type browserOpts struct {
 	browser      browser.Browser
 	flow         BrowserAuthUI
 	loginTimeout time.Duration
+	verbose      bool
 }
 
 type BrowserAuthUI interface {
 	RequestWorkspace(w io.Writer) (string, error)
 	Stop()
+}
+
+type BrowserAuthUIExt interface {
+	BrowserAuthUI
+	RequestEmail(w io.Writer) (string, error)
+	RequestPassword(w io.Writer) (string, error)
+	YesNo(w io.Writer, message string) (bool, error)
 }
 
 func NewBrowserAuth(ctx context.Context, opts ...Option) (BrowserAuth, error) {
@@ -61,7 +67,7 @@ func NewBrowserAuth(ctx context.Context, opts ...Option) (BrowserAuth, error) {
 		br.opts.workspace = wsp
 	}
 
-	auther, err := browser.New(br.opts.workspace, browser.OptBrowser(br.opts.browser), browser.OptTimeout(br.opts.loginTimeout))
+	auther, err := browser.New(br.opts.workspace, browser.OptBrowser(br.opts.browser), browser.OptTimeout(br.opts.loginTimeout), browser.OptVerbose(br.opts.verbose))
 	if err != nil {
 		return br, err
 	}
@@ -78,22 +84,6 @@ func NewBrowserAuth(ctx context.Context, opts ...Option) (BrowserAuth, error) {
 
 func (BrowserAuth) Type() Type {
 	return TypeBrowser
-}
-
-func sanitize(workspace string) (string, error) {
-	if !strings.Contains(workspace, ".slack.com") {
-		return workspace, nil
-	}
-	if strings.HasPrefix(workspace, "https://") {
-		uri, err := url.Parse(workspace)
-		if err != nil {
-			return "", err
-		}
-		workspace = uri.Host
-	}
-	// parse
-	parts := strings.Split(workspace, ".")
-	return parts[0], nil
 }
 
 func isDocker() bool {

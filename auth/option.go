@@ -9,6 +9,7 @@ import (
 
 type options struct {
 	*browserOpts
+	*rodOpts
 }
 
 type Option func(*options)
@@ -40,5 +41,11 @@ func BrowserWithTimeout(d time.Duration) Option {
 			return
 		}
 		o.browserOpts.loginTimeout = d
+	}
+}
+
+func BrowserWithVerbose(b bool) Option {
+	return func(o *options) {
+		o.browserOpts.verbose = b
 	}
 }
