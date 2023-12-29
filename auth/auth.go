@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"net/url"
 	"runtime/trace"
 	"strings"
 
@@ -26,6 +27,7 @@ const (
 	TypeValue                  // Value
 	TypeCookieFile             // Cookie File
 	TypeBrowser                // EZ-Login 3000
+	TypeRod
 )
 
 // Provider is the Slack Authentication provider.
@@ -135,4 +137,20 @@ func (s simpleProvider) Test(ctx context.Context) error {
 
 func (s simpleProvider) HTTPClient() (*http.Client, error) {
 	return chttp.New(SlackURL, s.Cookies())
+}
+
+func sanitize(workspace string) (string, error) {
+	if !strings.Contains(workspace, ".slack.com") {
+		return workspace, nil
+	}
+	if strings.HasPrefix(workspace, "https://") {
+		uri, err := url.Parse(workspace)
+		if err != nil {
+			return "", err
+		}
+		workspace = uri.Host
+	}
+	// parse
+	parts := strings.Split(workspace, ".")
+	return parts[0], nil
 }
