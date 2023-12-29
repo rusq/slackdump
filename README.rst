@@ -2,18 +2,23 @@
 Slack Dumper
 ============
 
-- Join the discussion in Telegram_ or Slack_.
-- |go ref|
+- Join the discussion in Telegram_.
+- Learn:
+
+  - |go ref|
+  - `Step by Step guide by Viviana Marquez`_ (requires Medium subscription)
+  - `Read the overview on Medium.com`_  (outdated)
+  - `Mattermost migration`_ steps
+
 - `Buy me a cup of tea`_:
 
-  - Patreon: https://patreon.com/rusq_nz
-  - TON: ``EQAA5gzAI499UQgvLJUXWuDZRFNkVZzizq2kpKOMqa1RDCtS``
-  - USDT (TRC20): ``TN2cTi5A51SNUfwMKnJKYpKUVoeN3y6zcn``
-  - BTC: ``1K6eceS3h7SaTrJTGfmvTa9vY4jyfiTMFc``
-  - Or use **Github Sponsors** button on the top of the page.
+  - Use **Github Sponsors** button on the top of the page; or
+  - Patreon: https://patreon.com/rusq_nz; or
+  - Crypto:
+    
+    - USDT (TRC20): ``TN2cTi5A51SNUfwMKnJKYpKUVoeN3y6zcn``
+    - BTC: ``1K6eceS3h7SaTrJTGfmvTa9vY4jyfiTMFc``
 
-- `Read the overview on Medium.com`_  (outdated)
-- `Mattermost migration`_ steps
 .. contents::
    :depth: 2
 
@@ -251,6 +256,7 @@ Messages that were conveyed with the donations:
 .. _Slackord2: https://github.com/thomasloupe/Slackord2
 .. _SlackLogViewer: https://github.com/thayakawa-gh/SlackLogViewer/releases
 .. _Slackdump2Html: https://github.com/kununu/slackdump2html
+.. _`Step by Step guide by Viviana Marquez`: https://vivianamarquez.medium.com/a-step-by-step-guide-to-downloading-slack-messages-without-admin-rights-954f20397e83
 
 ..
   bulletin board links
