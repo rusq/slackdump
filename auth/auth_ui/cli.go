@@ -14,7 +14,7 @@ import (
 type CLI struct{}
 
 func (*CLI) instructions(w io.Writer) {
-	const welcome = "Welcome to Slackdump EZ-Login 3000"
+	const welcome = "Welcome to Slackdump EZ-Login 3500"
 	underline := color.Set(color.Underline)
 	fmt.Fprintf(w, "%s\n\n", underline.Sprint(welcome))
 	fmt.Fprintf(w, "Please read these instructions carefully:\n\n")
