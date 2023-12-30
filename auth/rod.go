@@ -22,11 +22,11 @@ func (p RodAuth) Type() Type {
 }
 
 type rodOpts struct {
-	ui        BrowserAuthUIExt
+	ui        browserAuthUIExt
 	workspace string
 }
 
-type BrowserAuthUIExt interface {
+type browserAuthUIExt interface {
 	BrowserAuthUI
 	RequestEmail(w io.Writer) (string, error)
 	RequestPassword(w io.Writer, account string) (string, error)
