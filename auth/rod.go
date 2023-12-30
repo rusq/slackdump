@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"time"
 
 	"github.com/rusq/slackauth"
 	"github.com/rusq/slackdump/v2/auth/auth_ui"
+	"github.com/schollz/progressbar/v3"
 )
 
 type RodAuth struct {
@@ -37,10 +39,12 @@ func RodWithWorkspace(name string) Option {
 	}
 }
 
+const expectedLoginDuration = 16 * time.Second
+
 func NewRODAuth(ctx context.Context, opts ...Option) (RodAuth, error) {
 	r := RodAuth{
 		opts: rodOpts{
-			ui: &auth_ui.CLI{},
+			ui: &auth_ui.Huh{},
 		},
 	}
 	for _, opt := range opts {
@@ -90,8 +94,10 @@ func NewRODAuth(ctx context.Context, opts ...Option) (RodAuth, error) {
 		if password == "" {
 			return r, fmt.Errorf("password cannot be empty")
 		}
-		fmt.Fprintln(os.Stderr, "Please wait while Slackdump logs into Slack...")
+		done, finished := fakeProgress("Logging in...", int(expectedLoginDuration.Seconds())*10, 100*time.Millisecond)
 		sp.Token, sp.Cookie, err = slackauth.Headless(ctx, r.opts.workspace, username, password)
+		close(done)
+		<-finished
 		if err != nil {
 			return r, err
 		}
@@ -101,4 +107,39 @@ func NewRODAuth(ctx context.Context, opts ...Option) (RodAuth, error) {
 	return RodAuth{
 		simpleProvider: sp,
 	}, nil
+}
+
+// fakeProgress starts a fake spinner and returns a channel that must be closed
+// once the operation completes. interval is interval between iterations. If not
+// set, will default to 50ms.
+func fakeProgress(title string, max int, interval time.Duration) (chan<- struct{}, <-chan struct{}) {
+	if interval == 0 {
+		interval = 50 * time.Millisecond
+	}
+	var (
+		done     = make(chan struct{})
+		finished = make(chan struct{})
+	)
+	go func() {
+		bar := progressbar.NewOptions(
+			max,
+			progressbar.OptionSetDescription(title),
+			progressbar.OptionSpinnerType(9),
+		)
+		t := time.NewTicker(interval)
+		defer t.Stop()
+
+		for {
+			select {
+			case <-done:
+				bar.Finish()
+				fmt.Println()
+				close(finished)
+				return
+			case <-t.C:
+				bar.Add(1)
+			}
+		}
+	}()
+	return done, finished
 }

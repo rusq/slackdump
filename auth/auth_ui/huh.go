@@ -16,7 +16,7 @@ func (*Huh) RequestWorkspace(w io.Writer) (string, error) {
 		Title("Enter Slack workspace name").
 		Value(&workspace).
 		Validate(valRequired).
-		Description("The workspace name is the part of the URL that comes before `.slack.com' in\nhttps://<workspace>.slack.com/.  Both name and URL are acceptable.").
+		Description("The workspace name is the part of the URL that comes before `.slack.com' in\nhttps://<workspace>.slack.com/.  Both workspace name or URL are acceptable.").
 		Run()
 	return Sanitize(workspace)
 }
@@ -27,6 +27,7 @@ func (*Huh) RequestEmail(w io.Writer) (string, error) {
 	var email string
 	huh.NewInput().Title("Enter Slack login email").
 		Value(&email).
+		Description("The email that you use to login to Slack.").
 		Validate(valAND(valEmail, valRequired)).
 		Run()
 	return email, nil
@@ -37,6 +38,7 @@ func (*Huh) RequestPassword(w io.Writer, account string) (string, error) {
 	huh.NewInput().Title("Enter password for " + account).
 		Value(&password).
 		Password(true).
+		Description("This is your Slack password, it will not be saved.").
 		Validate(valRequired).
 		Run()
 	return password, nil

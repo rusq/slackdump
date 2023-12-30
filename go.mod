@@ -5,16 +5,16 @@ go 1.21.4
 require (
 	github.com/AlecAivazis/survey/v2 v2.3.7
 	github.com/MercuryEngineering/CookieMonster v0.0.0-20180304172713-1584578b3403
+	github.com/charmbracelet/huh v0.2.3
 	github.com/denisbrodbeck/machineid v1.0.1
 	github.com/fatih/color v1.15.0
-	github.com/golang/mock v1.6.0
 	github.com/joho/godotenv v1.5.1
 	github.com/playwright-community/playwright-go v0.4001.0
 	github.com/rusq/chttp v1.0.2
 	github.com/rusq/dlog v1.4.0
 	github.com/rusq/osenv/v2 v2.0.1
 	github.com/rusq/secure v0.0.4
-	github.com/rusq/slackauth v0.0.1
+	github.com/rusq/slackauth v0.0.3
 	github.com/rusq/tracer v1.0.1
 	github.com/schollz/progressbar/v3 v3.13.0
 	github.com/slack-go/slack v0.12.1
@@ -34,7 +34,6 @@ require (
 	github.com/charmbracelet/bubbles v0.17.1 // indirect
 	github.com/charmbracelet/bubbletea v0.25.0 // indirect
 	github.com/charmbracelet/glamour v0.6.0 // indirect
-	github.com/charmbracelet/huh v0.2.3 // indirect
 	github.com/charmbracelet/lipgloss v0.9.1 // indirect
 	github.com/containerd/console v1.0.4-0.20230313162750-1ae8d489ac81 // indirect
 	github.com/danwakefield/fnmatch v0.0.0-20160403171240-cbb64ac3d964 // indirect
