@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 
 	"github.com/rusq/slackauth"
@@ -21,6 +22,13 @@ func (p RodAuth) Type() Type {
 type rodOpts struct {
 	ui        BrowserAuthUIExt
 	workspace string
+}
+
+type BrowserAuthUIExt interface {
+	BrowserAuthUI
+	RequestEmail(w io.Writer) (string, error)
+	RequestPassword(w io.Writer, account string) (string, error)
+	RequestLoginType(w io.Writer) (int, error)
 }
 
 func RodWithWorkspace(name string) Option {
@@ -46,18 +54,21 @@ func NewRODAuth(ctx context.Context, opts ...Option) (RodAuth, error) {
 		if err != nil {
 			return r, err
 		}
+		if r.opts.workspace == "" {
+			return r, fmt.Errorf("workspace cannot be empty")
+		}
 	}
-	if wsp, err := sanitize(r.opts.workspace); err != nil {
+	if wsp, err := auth_ui.Sanitize(r.opts.workspace); err != nil {
 		return r, err
 	} else {
 		r.opts.workspace = wsp
 	}
-	usesEmail, err := r.opts.ui.YesNo(os.Stdout, "Do you login with your email/password into Slack (i.e. not using Google or SSO to login)?")
+	resp, err := r.opts.ui.RequestLoginType(os.Stdout)
 	if err != nil {
 		return r, err
 	}
 	var sp simpleProvider
-	if !usesEmail {
+	if resp == auth_ui.LoginSSO {
 		var err error
 		sp.Token, sp.Cookie, err = slackauth.Browser(ctx, r.opts.workspace)
 		if err != nil {
@@ -69,9 +80,15 @@ func NewRODAuth(ctx context.Context, opts ...Option) (RodAuth, error) {
 		if err != nil {
 			return r, err
 		}
-		password, err := r.opts.ui.RequestPassword(os.Stdout)
+		if username == "" {
+			return r, fmt.Errorf("email cannot be empty")
+		}
+		password, err := r.opts.ui.RequestPassword(os.Stdout, username)
 		if err != nil {
 			return r, err
+		}
+		if password == "" {
+			return r, fmt.Errorf("password cannot be empty")
 		}
 		fmt.Fprintln(os.Stderr, "Please wait while Slackdump logs into Slack...")
 		sp.Token, sp.Cookie, err = slackauth.Headless(ctx, r.opts.workspace, username, password)

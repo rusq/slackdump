@@ -30,7 +30,7 @@ func (cl *CLI) RequestWorkspace(w io.Writer) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return workspace, nil
+	return Sanitize(workspace)
 }
 
 func (cl *CLI) RequestEmail(w io.Writer) (string, error) {
@@ -42,8 +42,8 @@ func (cl *CLI) RequestEmail(w io.Writer) (string, error) {
 	return username, nil
 }
 
-func (cl *CLI) RequestPassword(w io.Writer) (string, error) {
-	fmt.Fprint(w, "Enter Password (won't be visible): ")
+func (cl *CLI) RequestPassword(w io.Writer, account string) (string, error) {
+	fmt.Fprintf(w, "Enter Password for %s (won't be visible): ", account)
 	password, err := term.ReadPassword(int(os.Stdin.Fd()))
 	if err != nil {
 		return "", err
@@ -52,14 +52,35 @@ func (cl *CLI) RequestPassword(w io.Writer) (string, error) {
 	return string(password), nil
 }
 
-func (cl *CLI) YesNo(w io.Writer, message string) (bool, error) {
-	fmt.Fprintf(w, "%s [y/N]: ", message)
-	answer, err := readln(os.Stdin)
-	if err != nil {
-		return false, err
+func (cl *CLI) RequestLoginType(w io.Writer) (int, error) {
+	var types = []struct {
+		name  string
+		value int
+	}{
+		{"Email", LoginEmail},
+		{"Google", LoginSSO},
+		{"Apple", LoginSSO},
+		{"Login with Single-Sign-On (SSO)", LoginSSO},
+		{"Other", LoginSSO},
 	}
-	answer = strings.ToLower(answer)
-	return answer == "y" || answer == "yes", nil
+
+	var idx int
+	for idx < 1 || idx > len(types)+1 {
+		fmt.Fprintf(w, "Select login type:\n")
+		for i, t := range types {
+			fmt.Fprintf(w, "\t%d. %s\n", i+1, t.name)
+		}
+		fmt.Fprintf(w, "Enter number: ")
+		_, err := fmt.Fscanf(os.Stdin, "%d", &idx)
+		if err != nil {
+			fmt.Fprintln(w, err)
+			continue
+		}
+		if idx < 1 || idx > len(types)+1 {
+			fmt.Fprintln(w, "invalid login type")
+		}
+	}
+	return types[idx-1].value, nil
 }
 
 func (*CLI) Stop() {}
