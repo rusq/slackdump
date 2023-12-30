@@ -59,6 +59,7 @@ type params struct {
 	browser          browser.Browser
 	browserTimeout   time.Duration
 	browserReinstall bool
+	legacyBrowser    bool // TODO: remove once the new browser is tested
 
 	traceFile string // trace file
 	logFile   string //log file, if not specified, outputs to stderr.
@@ -142,7 +143,7 @@ func run(ctx context.Context, p params) error {
 		}
 	}
 
-	provider, err := app.InitProvider(ctx, p.appCfg.Options.CacheDir, p.workspace, p.creds, p.browser)
+	provider, err := app.InitProvider(ctx, p.appCfg.Options.CacheDir, p.workspace, p.creds, p.browser, p.legacyBrowser)
 	if err != nil {
 		return err
 	} else {
@@ -266,6 +267,7 @@ func parseCmdLine(args []string) (params, error) {
 	fs.DurationVar(&p.browserTimeout, "browser-timeout", browser.DefLoginTimeout, "browser login timeout")
 	fs.StringVar(&p.workspace, "w", "", "set the Slack `workspace` name.  If not specifed, the slackdump will show an\ninteractive prompt.")
 	fs.BoolVar(&p.browserReinstall, "browser-reinstall", false, "reinstall the playwright browser")
+	fs.BoolVar(&p.legacyBrowser, "legacy-browser", false, "use the legacy browser authentication method")
 
 	// operation mode
 	fs.BoolVar(&p.appCfg.ListFlags.Channels, "c", false, "same as -list-channels")

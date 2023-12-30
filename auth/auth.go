@@ -27,7 +27,7 @@ const (
 	TypeValue                  // Value
 	TypeCookieFile             // Cookie File
 	TypeBrowser                // EZ-Login 3000
-	TypeRod
+	TypeRod                    // EZ-Login 3001
 )
 
 // Provider is the Slack Authentication provider.

@@ -12,11 +12,12 @@ func _() {
 	_ = x[TypeValue-1]
 	_ = x[TypeCookieFile-2]
 	_ = x[TypeBrowser-3]
+	_ = x[TypeRod-4]
 }
 
-const _Type_name = "InvalidValueCookie FileEZ-Login 3000"
+const _Type_name = "InvalidValueCookie FileEZ-Login 3000EZ-Login 3001"
 
-var _Type_index = [...]uint8{0, 7, 12, 23, 36}
+var _Type_index = [...]uint8{0, 7, 12, 23, 36, 49}
 
 func (i Type) String() string {
 	if i >= Type(len(_Type_index)-1) {

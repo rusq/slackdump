@@ -52,12 +52,12 @@ func NewRODAuth(ctx context.Context, opts ...Option) (RodAuth, error) {
 	} else {
 		r.opts.workspace = wsp
 	}
-	yes, err := r.opts.ui.YesNo(os.Stdout, "Does your Slack Workspace use Single Sign On (i.e. Google, Okta, Auth0 etc.)?\n\tIf unsure, say yes")
+	usesEmail, err := r.opts.ui.YesNo(os.Stdout, "Do you login with your email/password into Slack (i.e. not using Google or SSO to login)?")
 	if err != nil {
 		return r, err
 	}
 	var sp simpleProvider
-	if yes {
+	if !usesEmail {
 		var err error
 		sp.Token, sp.Cookie, err = slackauth.Browser(ctx, r.opts.workspace)
 		if err != nil {
@@ -73,7 +73,7 @@ func NewRODAuth(ctx context.Context, opts ...Option) (RodAuth, error) {
 		if err != nil {
 			return r, err
 		}
-		fmt.Fprintln(os.Stderr, "Please wait while slackdump authenticates with Slack...")
+		fmt.Fprintln(os.Stderr, "Please wait while Slackdump logs into Slack...")
 		sp.Token, sp.Cookie, err = slackauth.Headless(ctx, r.opts.workspace, username, password)
 		if err != nil {
 			return r, err

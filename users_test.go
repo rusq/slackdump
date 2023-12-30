@@ -10,9 +10,9 @@ import (
 
 	"errors"
 
-	"github.com/golang/mock/gomock"
 	"github.com/slack-go/slack"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/mock/gomock"
 
 	"github.com/rusq/slackdump/v2/internal/encio"
 	"github.com/rusq/slackdump/v2/internal/fixtures"
