@@ -97,7 +97,7 @@ func NewWithOptions(ctx context.Context, authProvider auth.Provider, opts Option
 
 	authTestResp, err := cl.AuthTestContext(ctx)
 	if err != nil {
-		return nil, &AuthError{Err: err}
+		return nil, &auth.Error{Err: err}
 	}
 
 	sd := &Session{
@@ -141,7 +141,7 @@ func TestAuth(ctx context.Context, provider auth.Provider) error {
 	region := trace.StartRegion(ctx, "AuthTestContext")
 	defer region.End()
 	if _, err := cl.AuthTestContext(ctx); err != nil {
-		return &AuthError{Err: err}
+		return &auth.Error{Err: err}
 	}
 	return nil
 }

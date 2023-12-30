@@ -9,12 +9,12 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/golang/mock/gomock"
 	"github.com/rusq/slackdump/v2/auth"
 	"github.com/rusq/slackdump/v2/auth/browser"
 	"github.com/rusq/slackdump/v2/internal/mocks/mock_app"
 	"github.com/rusq/slackdump/v2/internal/mocks/mock_io"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/mock/gomock"
 )
 
 func Test_isExistingFile(t *testing.T) {
@@ -76,7 +76,7 @@ func TestSlackCreds_Type(t *testing.T) {
 				Token:  tt.fields.Token,
 				Cookie: tt.fields.Cookie,
 			}
-			got, err := c.Type(tt.args.ctx)
+			got, err := c.Type(tt.args.ctx, true)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("SlackCreds.Type() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -149,7 +149,7 @@ func TestInitProvider(t *testing.T) {
 			func(m *mock_app.MockCredentials) {
 				m.EXPECT().IsEmpty().Return(false)
 				m.EXPECT().
-					AuthProvider(gomock.Any(), "wsp", browser.Bfirefox).
+					AuthProvider(gomock.Any(), "wsp", browser.Bfirefox, true).
 					Return(storedProv, nil)
 			},
 			nil, //not used in the test
@@ -171,7 +171,7 @@ func TestInitProvider(t *testing.T) {
 			args{context.Background(), testDir, "wsp"},
 			func(m *mock_app.MockCredentials) {
 				m.EXPECT().IsEmpty().Return(true)
-				m.EXPECT().AuthProvider(gomock.Any(), "wsp", browser.Bfirefox).Return(returnedProv, nil)
+				m.EXPECT().AuthProvider(gomock.Any(), "wsp", browser.Bfirefox, true).Return(returnedProv, nil)
 			},
 			errors.New("auth test fail"), // auth test fails
 			returnedProv,
@@ -182,7 +182,7 @@ func TestInitProvider(t *testing.T) {
 			args{context.Background(), testDir, "wsp"},
 			func(m *mock_app.MockCredentials) {
 				m.EXPECT().IsEmpty().Return(false)
-				m.EXPECT().AuthProvider(gomock.Any(), "wsp", browser.Bfirefox).Return(nil, errors.New("authProvider failed"))
+				m.EXPECT().AuthProvider(gomock.Any(), "wsp", browser.Bfirefox, true).Return(nil, errors.New("authProvider failed"))
 			},
 			nil,
 			nil,
@@ -193,7 +193,7 @@ func TestInitProvider(t *testing.T) {
 			args{context.Background(), testDir, "wsp"},
 			func(m *mock_app.MockCredentials) {
 				m.EXPECT().IsEmpty().Return(false)
-				m.EXPECT().AuthProvider(gomock.Any(), "wsp", browser.Bfirefox).Return(returnedProv, nil)
+				m.EXPECT().AuthProvider(gomock.Any(), "wsp", browser.Bfirefox, true).Return(returnedProv, nil)
 			},
 			nil,
 			returnedProv,
@@ -204,7 +204,7 @@ func TestInitProvider(t *testing.T) {
 			args{context.Background(), t.TempDir() + "$", "wsp"},
 			func(m *mock_app.MockCredentials) {
 				m.EXPECT().IsEmpty().Return(false)
-				m.EXPECT().AuthProvider(gomock.Any(), "wsp", browser.Bfirefox).Return(returnedProv, nil)
+				m.EXPECT().AuthProvider(gomock.Any(), "wsp", browser.Bfirefox, true).Return(returnedProv, nil)
 			},
 			nil,
 			returnedProv,
@@ -230,7 +230,7 @@ func TestInitProvider(t *testing.T) {
 			tt.expect(mc)
 
 			// test
-			got, err := InitProvider(tt.args.ctx, tt.args.cacheDir, tt.args.workspace, mc, browser.Bfirefox)
+			got, err := InitProvider(tt.args.ctx, tt.args.cacheDir, tt.args.workspace, mc, browser.Bfirefox, true)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("InitProvider() error = %v, wantErr %v", err, tt.wantErr)
 				return

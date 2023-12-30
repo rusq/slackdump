@@ -1,8 +1,8 @@
-package auth
+package auth_ui
 
 import "testing"
 
-func Test_sanitize(t *testing.T) {
+func TestSanitize(t *testing.T) {
 	type args struct {
 		workspace string
 	}
@@ -20,7 +20,7 @@ func Test_sanitize(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := sanitize(tt.args.workspace)
+			got, err := Sanitize(tt.args.workspace)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("sanitize() error = %v, wantErr %v", err, tt.wantErr)
 				return

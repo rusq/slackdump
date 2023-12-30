@@ -9,6 +9,7 @@ import (
 
 type options struct {
 	*browserOpts
+	*rodOpts
 }
 
 type Option func(*options)

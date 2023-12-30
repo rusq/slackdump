@@ -64,7 +64,7 @@ const (
 )
 
 func run(ctx context.Context, p params) error {
-	prov, err := app.InitProvider(ctx, app.CacheDir(), p.workspace, p.creds, browser.Bfirefox)
+	prov, err := app.InitProvider(ctx, app.CacheDir(), p.workspace, p.creds, browser.Bfirefox, true)
 	if err != nil {
 		return err
 	}

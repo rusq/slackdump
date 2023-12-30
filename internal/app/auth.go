@@ -43,7 +43,11 @@ var (
 // this unfortunate fact could be relayed to the end-user.  If the type of the
 // authentication determined is not supported for the current system, it will
 // return ErrUnsupported.
-func (c SlackCreds) Type(ctx context.Context) (auth.Type, error) {
+func (c SlackCreds) Type(ctx context.Context, legacy bool) (auth.Type, error) {
+	var browserAuth = auth.TypeRod
+	if legacy {
+		browserAuth = auth.TypeBrowser
+	}
 	if !c.IsEmpty() {
 		if isExistingFile(c.Cookie) {
 			return auth.TypeCookieFile, nil
@@ -55,9 +59,9 @@ func (c SlackCreds) Type(ctx context.Context) (auth.Type, error) {
 		return auth.TypeInvalid, ErrUnsupported
 	}
 	if !ezLoginTested() {
-		return auth.TypeBrowser, ErrNotTested
+		return browserAuth, ErrNotTested
 	}
-	return auth.TypeBrowser, nil
+	return browserAuth, nil
 
 }
 
@@ -67,12 +71,14 @@ func (c SlackCreds) IsEmpty() bool {
 
 // AuthProvider returns the appropriate auth Provider depending on the values
 // of the token and cookie.
-func (c SlackCreds) AuthProvider(ctx context.Context, workspace string, browser browser.Browser) (auth.Provider, error) {
-	authType, err := c.Type(ctx)
+func (c SlackCreds) AuthProvider(ctx context.Context, workspace string, browser browser.Browser, legacy bool) (auth.Provider, error) {
+	authType, err := c.Type(ctx, legacy)
 	if err != nil {
 		return nil, err
 	}
 	switch authType {
+	case auth.TypeRod:
+		return auth.NewRODAuth(ctx, auth.RodWithWorkspace(workspace))
 	case auth.TypeBrowser:
 		return auth.NewBrowserAuth(ctx, auth.BrowserWithWorkspace(workspace), auth.BrowserWithBrowser(browser))
 	case auth.TypeCookieFile:
@@ -106,7 +112,7 @@ var filer createOpener = encryptedFile{}
 
 type Credentials interface {
 	IsEmpty() bool
-	AuthProvider(ctx context.Context, workspace string, browser browser.Browser) (auth.Provider, error)
+	AuthProvider(ctx context.Context, workspace string, browser browser.Browser, legacy bool) (auth.Provider, error)
 }
 
 // InitProvider initialises the auth.Provider depending on provided slack
@@ -124,7 +130,7 @@ type Credentials interface {
 // virtual), even another operating system on the same machine, unless it's a
 // clone of the source operating system on which the credentials storage was
 // created.
-func InitProvider(ctx context.Context, cacheDir string, workspace string, creds Credentials, browser browser.Browser) (auth.Provider, error) {
+func InitProvider(ctx context.Context, cacheDir string, workspace string, creds Credentials, browser browser.Browser, legacy bool) (auth.Provider, error) {
 	ctx, task := trace.NewTask(ctx, "InitProvider")
 	defer task.End()
 
@@ -146,7 +152,7 @@ func InitProvider(ctx context.Context, cacheDir string, workspace string, creds 
 
 	// init the authentication provider
 	trace.Log(ctx, "info", "getting credentals from file or browser")
-	provider, err := creds.AuthProvider(ctx, workspace, browser)
+	provider, err := creds.AuthProvider(ctx, workspace, browser, legacy)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialise the auth provider: %w", err)
 	}
