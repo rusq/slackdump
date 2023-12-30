@@ -11,6 +11,7 @@ import (
 	"golang.org/x/term"
 )
 
+// CLI is the archaic fallback UI for auth.
 type CLI struct{}
 
 func (*CLI) instructions(w io.Writer) {
@@ -25,8 +26,7 @@ func (*CLI) instructions(w io.Writer) {
 
 func (cl *CLI) RequestWorkspace(w io.Writer) (string, error) {
 	cl.instructions(w)
-	fmt.Fprint(w, "Enter Slack Workspace Name: ")
-	workspace, err := readln(os.Stdin)
+	workspace, err := prompt(w, "Enter Slack Workspace Name or URL: ", readln)
 	if err != nil {
 		return "", err
 	}
@@ -34,22 +34,12 @@ func (cl *CLI) RequestWorkspace(w io.Writer) (string, error) {
 }
 
 func (cl *CLI) RequestEmail(w io.Writer) (string, error) {
-	fmt.Fprint(w, "Enter Email: ")
-	username, err := readln(os.Stdin)
-	if err != nil {
-		return "", err
-	}
-	return username, nil
+	return prompt(w, "Enter Email: ", readln)
 }
 
 func (cl *CLI) RequestPassword(w io.Writer, account string) (string, error) {
-	fmt.Fprintf(w, "Enter Password for %s (won't be visible): ", account)
-	password, err := term.ReadPassword(int(os.Stdin.Fd()))
-	if err != nil {
-		return "", err
-	}
-	fmt.Fprintln(w)
-	return string(password), nil
+	defer fmt.Fprintln(w)
+	return prompt(w, fmt.Sprintf("Enter Password for %s (won't be visible): ", account), readpwd)
 }
 
 func (cl *CLI) RequestLoginType(w io.Writer) (int, error) {
@@ -64,31 +54,57 @@ func (cl *CLI) RequestLoginType(w io.Writer) (int, error) {
 		{"Other", LoginSSO},
 	}
 
-	var idx int
-	for idx < 1 || idx > len(types)+1 {
+	var idx int = -1
+	for idx < 0 || idx >= len(types) {
 		fmt.Fprintf(w, "Select login type:\n")
 		for i, t := range types {
 			fmt.Fprintf(w, "\t%d. %s\n", i+1, t.name)
 		}
 		fmt.Fprintf(w, "Enter number: ")
+
 		_, err := fmt.Fscanf(os.Stdin, "%d", &idx)
 		if err != nil {
 			fmt.Fprintln(w, err)
 			continue
 		}
-		if idx < 1 || idx > len(types)+1 {
+
+		idx -= 1 // adjusting for 0-index
+
+		if idx < 0 || idx >= len(types) {
 			fmt.Fprintln(w, "invalid login type")
 		}
 	}
-	return types[idx-1].value, nil
+	return types[idx].value, nil
 }
 
 func (*CLI) Stop() {}
 
-func readln(r io.Reader) (string, error) {
+func readln(r *os.File) (string, error) {
 	line, err := bufio.NewReader(r).ReadString('\n')
 	if err != nil {
 		return "", err
 	}
 	return strings.TrimSpace(line), nil
+}
+
+func readpwd(f *os.File) (string, error) {
+	pwd, err := term.ReadPassword(int(f.Fd()))
+	if err != nil {
+		return "", err
+	}
+	return string(pwd), nil
+}
+
+func prompt(w io.Writer, prompt string, readlnFn func(*os.File) (string, error)) (string, error) {
+	for {
+		fmt.Fprint(w, prompt)
+		v, err := readlnFn(os.Stdin)
+		if err != nil {
+			return "", err
+		}
+		if v != "" {
+			return v, nil
+		}
+		fmt.Fprintln(w, "input cannot be empty")
+	}
 }
