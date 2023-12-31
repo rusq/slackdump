@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"runtime/trace"
 
-	"github.com/AlecAivazis/survey/v2"
+	"github.com/charmbracelet/huh"
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/auth"
@@ -205,35 +205,20 @@ func wizard(ctx context.Context, listFn listFunc) error {
 		types = append(types, t.String())
 	}
 
-	q := &survey.Select{
-		Message: "Pick a format:",
-		Options: types,
-		Help:    "Pick a format for the listing",
-		Description: func(value string, index int) string {
-			var v format.Type
-			v.Set(value)
-			return format.Descriptions[v]
-		},
-	}
-	var lt int
-	if err := survey.AskOne(q, &lt); err != nil {
-		return err
-	}
-	listType = format.Type(lt)
-	// pick output type: screen or file/directory
-	q = &survey.Select{
-		Message: "Pick an output type:",
-		Options: []string{"screen", "ZIP file", "directory"},
-		Help:    "Pick an output type for the listing",
-	}
+	var listType format.Type
 	var ot string
-	if err := survey.AskOne(q, &ot); err != nil {
+
+	form := huh.NewForm(
+		huh.NewGroup(
+			huh.NewSelect[format.Type]().Title("Pick a format").Options(huh.NewOptions(format.All()...)...).Value(&listType),
+			huh.NewSelect[string]().Title("Pick an output type").Options(huh.NewOptions("screen", "ZIP file", "directory")...).Value(&ot),
+		))
+	if err := form.Run(); err != nil {
 		return err
 	}
 	if ot != "screen" {
 		return errors.New("not implemented yet")
 	}
-
 	// if file/directory, pick filename
 	return nil
 }
