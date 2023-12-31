@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/AlecAivazis/survey/v2"
+	"github.com/charmbracelet/huh"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 
@@ -105,15 +105,13 @@ func makeMenu(cmds []*base.Command, parent string, title string) (m *menu) {
 
 func show(m *menu, onMatch func(cmd *base.Command) error) error {
 	for {
-		mode := &survey.Select{
-			Message: m.title,
-			Options: m.names,
-			Description: func(value string, index int) string {
-				return m.items[index].Description
-			},
-		}
 		var resp string
-		if err := survey.AskOne(mode, &resp); err != nil {
+		err := huh.NewSelect[string]().
+			Title(m.title).
+			Options(huh.NewOptions(m.names...)...).
+			Value(&resp).
+			Run()
+		if err != nil {
 			return err
 		}
 		if err := run(m, resp, onMatch); err != nil {

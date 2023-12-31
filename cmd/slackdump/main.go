@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"os/signal"
@@ -80,7 +79,7 @@ func main() {
 			// Usage terminates the program.
 		}
 
-		next, err := whatDo(os.Stdout)
+		next, err := whatDo()
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -295,7 +294,7 @@ const (
 	choiceExit    choice = "Exit"
 )
 
-func whatDo(w io.Writer) (choice, error) {
+func whatDo() (choice, error) {
 	fmt.Println()
 	printVersion()
 	fmt.Println()
