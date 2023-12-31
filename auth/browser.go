@@ -11,7 +11,7 @@ import (
 )
 
 var _ Provider = BrowserAuth{}
-var defaultFlow = &auth_ui.CLI{}
+var defaultFlow = &auth_ui.Huh{}
 
 type BrowserAuth struct {
 	simpleProvider
@@ -27,15 +27,11 @@ type browserOpts struct {
 }
 
 type BrowserAuthUI interface {
+	// RequestWorkspace should request the workspace name from the user.
 	RequestWorkspace(w io.Writer) (string, error)
+	// Stop indicates that the auth flow should cleanup and exit, if it is
+	// keeping the state.
 	Stop()
-}
-
-type BrowserAuthUIExt interface {
-	BrowserAuthUI
-	RequestEmail(w io.Writer) (string, error)
-	RequestPassword(w io.Writer) (string, error)
-	YesNo(w io.Writer, message string) (bool, error)
 }
 
 func NewBrowserAuth(ctx context.Context, opts ...Option) (BrowserAuth, error) {
@@ -61,12 +57,11 @@ func NewBrowserAuth(ctx context.Context, opts ...Option) (BrowserAuth, error) {
 		}
 		defer br.opts.flow.Stop()
 	}
-	if wsp, err := sanitize(br.opts.workspace); err != nil {
+	if wsp, err := auth_ui.Sanitize(br.opts.workspace); err != nil {
 		return br, err
 	} else {
 		br.opts.workspace = wsp
 	}
-
 	auther, err := browser.New(br.opts.workspace, browser.OptBrowser(br.opts.browser), browser.OptTimeout(br.opts.loginTimeout), browser.OptVerbose(br.opts.verbose))
 	if err != nil {
 		return br, err

@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	gomock "github.com/golang/mock/gomock"
+	"go.uber.org/mock/gomock"
 )
 
 const testMultipart = "-----------------------------37168696061856579082739228613\r\nContent-Disposition: form-data; name=\"token\"\r\n\r\nxoxc-888888888888-888888888888-8888888888888-fffffffffffffffa915fe069d70a8ad81743b0ec4ee9c81540af43f5e143264b\r\n-----------------------------37168696061856579082739228613\r\nContent-Disposition: form-data; name=\"platform\"\r\n\r\nsonic\r\n-----------------------------37168696061856579082739228613\r\nContent-Disposition: form-data; name=\"_x_should_cache\"\r\n\r\nfalse\r\n-----------------------------37168696061856579082739228613\r\nContent-Disposition: form-data; name=\"_x_allow_cached\"\r\n\r\ntrue\r\n-----------------------------37168696061856579082739228613\r\nContent-Disposition: form-data; name=\"_x_team_id\"\r\n\r\nTFCSDNRL5\r\n-----------------------------37168696061856579082739228613\r\nContent-Disposition: form-data; name=\"_x_gantry\"\r\n\r\ntrue\r\n-----------------------------37168696061856579082739228613\r\nContent-Disposition: form-data; name=\"_x_sonic\"\r\n\r\ntrue\r\n-----------------------------37168696061856579082739228613--\r\n"
