@@ -27,9 +27,6 @@ import (
 	"sync"
 
 	"github.com/rusq/fsadapter"
-	"github.com/rusq/slackdump/v2"
-	"github.com/rusq/slackdump/v2/auth"
-	"github.com/rusq/slackdump/v2/internal/app/config"
 	"github.com/rusq/slackdump/v2/logger"
 )
 
@@ -39,24 +36,6 @@ const (
 )
 
 var fetchFn = fetchEmoji
-
-// Download saves all emojis to "emoji" subdirectory of the Output.Base directory
-// or archive.
-func Download(ctx context.Context, cfg config.Params, prov auth.Provider) error {
-
-	fsa, err := fsadapter.New(cfg.Output.Base)
-	if err != nil {
-		return fmt.Errorf("unable to initialise adapter for %s: %w", cfg.Output.Base, err)
-	}
-	defer fsa.Close()
-
-	sess, err := slackdump.New(ctx, prov, slackdump.WithFilesystem(fsa), slackdump.WithLogger(logger.FromContext(ctx)))
-	if err != nil {
-		return err
-	}
-
-	return DlFS(ctx, sess, fsa, cfg.Emoji.FailOnError)
-}
 
 //go:generate mockgen -source emoji.go -destination emoji_mock_test.go -package emoji
 type emojidumper interface {
