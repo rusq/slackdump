@@ -12,7 +12,7 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/AlecAivazis/survey/v2"
+	"github.com/charmbracelet/huh"
 	"github.com/joho/godotenv"
 	"github.com/rusq/dlog"
 	"github.com/rusq/tracer"
@@ -31,7 +31,6 @@ import (
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/list"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/man"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/record"
-	v1 "github.com/rusq/slackdump/v2/cmd/slackdump/internal/v1"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/wizard"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/workspace"
 	"github.com/rusq/slackdump/v2/logger"
@@ -56,7 +55,6 @@ func init() {
 		emoji.CmdEmoji,
 		workspace.CmdWorkspace,
 		diag.CmdDiag,
-		v1.CmdV1,
 		apiconfig.CmdConfig,
 		format.CmdFormat,
 		CmdVersion,
@@ -301,21 +299,17 @@ func whatDo(w io.Writer) (choice, error) {
 	fmt.Println()
 	printVersion()
 	fmt.Println()
-	q := &survey.Select{
-		Message: "What do you want to do?",
-		Options: []string{
-			string(choiceHelp),
-			string(choiceWizard),
-			string(choiceExit),
-		},
-		Default: "Print help and exit",
-	}
-	var ans string
-	if err := survey.AskOne(q, &ans); err != nil {
-		return choiceUnknown, err
-	}
 
-	return choice(ans), nil
+	var ans choice
+	err := huh.NewSelect[choice]().
+		Title("What do you want to do?").
+		Options(
+			huh.NewOption(string(choiceHelp), choiceHelp),
+			huh.NewOption(string(choiceWizard), choiceWizard),
+			huh.NewOption(string(choiceExit), choiceExit),
+		).Value(&ans).Run()
+
+	return ans, err
 }
 
 // isInteractive returns true if the program is running in the interactive
