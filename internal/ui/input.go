@@ -1,21 +1,19 @@
 package ui
 
 import (
-	"errors"
-
 	"github.com/charmbracelet/huh"
 )
 
 // Input shows a text input field with a custom validator.
-func Input(msg, help string, validator func(s string) error) (string, error) {
-	if validator == nil {
-		validator = noValidation
+func Input(msg, help string, validateFn func(s string) error) (string, error) {
+	if validateFn == nil {
+		validateFn = NoValidation
 	}
 	var resp string
 	if err := huh.NewText().
 		Title(msg).
 		Description(help).
-		Validate(validator).
+		Validate(validateFn).
 		Value(&resp).
 		Run(); err != nil {
 		return "", err
@@ -25,19 +23,10 @@ func Input(msg, help string, validator func(s string) error) (string, error) {
 
 // StringRequire requires user to input string.
 func StringRequire(msg, help string) (string, error) {
-	return Input(msg, help, func(s string) error {
-		if s == "" {
-			return errors.New("value is required")
-		}
-		return nil
-	})
+	return Input(msg, help, ValidateNotEmpty)
 }
 
 // String asks user to input string, accepts an empty input.
 func String(msg, help string) (string, error) {
-	return Input(msg, help, noValidation)
-}
-
-func noValidation(s string) error {
-	return nil
+	return Input(msg, help, NoValidation)
 }

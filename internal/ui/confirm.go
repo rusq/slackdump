@@ -1,18 +1,14 @@
 package ui
 
-import "github.com/AlecAivazis/survey/v2"
+import (
+	"github.com/charmbracelet/huh"
+)
 
-func Confirm(msg string, defavlt bool, opt ...Option) (bool, error) {
+func Confirm(msg string, _ bool, opt ...Option) (bool, error) {
 	var opts = defaultOpts().apply(opt...)
 
-	q := &survey.Confirm{
-		Message: msg,
-		Help:    opts.help,
-		Default: defavlt,
-	}
-
 	var b bool
-	if err := survey.AskOne(q, &b, opts.surveyOpts()...); err != nil {
+	if err := huh.NewConfirm().Title(msg).Description(opts.help).Value(&b).Run(); err != nil {
 		return false, err
 	}
 	return b, nil

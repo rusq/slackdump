@@ -1,28 +1,22 @@
 package ask
 
 import (
-	"github.com/AlecAivazis/survey/v2"
+	"github.com/charmbracelet/huh"
 	"github.com/rusq/slackdump/v2/export"
 )
 
 // ExportType asks the user to select an export type.
 func ExportType() (export.ExportType, error) {
-	mode := &survey.Select{
-		Message: "Export type: ",
-		Options: []string{export.TMattermost.String(), export.TStandard.String()},
-		Description: func(value string, index int) string {
-			descr := []string{
-				"Mattermost bulk upload compatible export (see doc)",
-				"Standard export format",
-			}
-			return descr[index]
-		},
-	}
-	var resp string
-	if err := survey.AskOne(mode, &resp); err != nil {
+	var resp export.ExportType
+	q := huh.NewSelect[export.ExportType]().
+		Title("Export type: ").
+		Options(
+			huh.NewOption("Mattermost bulk upload compatible export (see doc)", export.TMattermost),
+			huh.NewOption("Standard export format", export.TStandard),
+		).
+		Value(&resp)
+	if err := q.Run(); err != nil {
 		return 0, err
 	}
-	var t export.ExportType
-	t.Set(resp)
-	return t, nil
+	return resp, nil
 }

@@ -4,9 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 
-	"github.com/AlecAivazis/survey/v2"
+	"github.com/charmbracelet/huh"
 )
 
 type fileSelectorOpt struct {
@@ -29,43 +28,34 @@ func WithMustExist(b bool) Option {
 func FileSelector(msg, descr string, opt ...Option) (string, error) {
 	var opts = defaultOpts().apply(opt...)
 
-	var q = []*survey.Question{
-		{
-			Name: "filename",
-			Prompt: &survey.Input{
-				Message: msg,
-				Suggest: func(partname string) []string {
-					files, _ := filepath.Glob(partname + "*")
-					return files
-				},
-				Help: descr,
-			},
-			Validate: func(ans interface{}) error {
-				filename := ans.(string)
-				if filename == "" {
-					if opts.defaultFilename == "" {
-						return errors.New("empty filename")
-					} else {
-						if !opts.mustExist {
-							return nil
-						} else {
-							return checkExists(opts.defaultFilename)
-						}
-					}
-				}
-				if opts.mustExist {
-					return checkExists(filename)
-				}
-				return nil
-			},
-		},
-	}
-
 	var resp struct {
 		Filename string
 	}
+	q := huh.NewInput().
+		Title(msg).
+		Description(descr).
+		Value(&resp.Filename).
+		Validate(func(ans string) error {
+			filename := ans
+			if filename == "" {
+				if opts.defaultFilename == "" {
+					return errors.New("empty filename")
+				} else {
+					if !opts.mustExist {
+						return nil
+					} else {
+						return checkExists(opts.defaultFilename)
+					}
+				}
+			}
+			if opts.mustExist {
+				return checkExists(filename)
+			}
+			return nil
+		})
+
 	for {
-		if err := survey.Ask(q, &resp, opts.surveyOpts()...); err != nil {
+		if err := q.Run(); err != nil {
 			return "", err
 		}
 		if resp.Filename == "" && opts.defaultFilename != "" {
