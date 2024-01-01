@@ -20,22 +20,22 @@ var flagmask = cfg.OmitAll
 var CmdWorkspace = &base.Command{
 	Run:       nil,
 	Wizard:    nil,
-	UsageLine: "slackdump workspace",
-	Short:     "authenticate or choose workspace to run on",
+	UsageLine: "slackdump auth",
+	Short:     "authenticate or choose already authenticated workspace to run on",
 	Long: `
-# Workspace Command
+# Auth Command
 
 Slackdump supports working with multiple Slack Workspaces without the need
 to authenticate again (unless login credentials are expired or became invalid
 due to some other reason).
 
-**Workspace** command allows to authenticate in a **new** Slack Workspace,
+**Auth** command allows to authenticate in a **new** Slack Workspace,
 **list** already authenticated workspaces, **select** a workspace that you have
 previously logged in to, or **del**ete an existing workspace.
 
 To learn more about different login options, run:
 
-	slackdump help login
+	slackdump help auth
 
 Workspaces are stored on this device in the Cache directory, which is
 automatically detected to be:

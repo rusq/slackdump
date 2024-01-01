@@ -48,6 +48,9 @@ help, or exit.
 .Sh COMMANDS
 The following commands are supported (listed in alphabetical order):
 .Bl -tag -width workspace
+.It Cm auth
+Manage stored credentials for authenticated workspaces, or authenticates in a
+new workspace.
 .It Cm config Ar subcommand
 Allows to perform different operations on the API limits configuration
 files.
@@ -72,10 +75,10 @@ Display help.  To get the subcommand help, use the combination of
 For example, to get help on the
 .Ar new
 subcommand of the
-.Cm workspace
+.Cm auth
 command, run the following:
 .Bd -literal -offset indent
-.Nm Cm workspace Cm help Ar new
+.Nm Cm auth Cm help Ar new
 .Ed
 .It Cm list
 List channels or users in the desired format
@@ -84,8 +87,6 @@ List channels or users in the desired format
 Export workspace in the internal Chunk format.
 .It Cm version
 Display version information.
-.It Cm workspace
-Manage Slack workspaces authentication.
 .El
 .\"
 .Sh FLAGS
@@ -164,7 +165,7 @@ Enables verbose output, prints a lot of debugging information.
 .It Fl workspace Ar name
 Allows to override the currently selected workspace for the session.
 See also the
-.Cm workspace Ar select
+.Cm auth Ar select
 command.
 .El
 .\"
@@ -174,7 +175,7 @@ The quickest way to get started is to run the following command:
 .Bl -enum -compact
 .It
 Authenticate in a new workspace using the
-.Cm workspace
+.Cm auth
 .Ar new
 command;
 .It
@@ -279,7 +280,7 @@ for more details.
 .It Ev SLACK_WORKSPACE
 Allows to specify Slack workspace name (overrides currently selected
 workspace).  See 
-.Ar workspace
+.Ar auth
 command for more details.
 .It Ev TRACE_FILE
 Contains path to a file where trace output will be written.
@@ -308,7 +309,7 @@ Authenticate in a new workspace
 .Lk https://myworkspace.slack.com
 :
 .Bd -literal -offset indent
-.Nm Cm workspace Cm new Ar myworkspace
+.Nm Cm auth Cm new Ar myworkspace
 .Ed
 .Pp
 Run full workspace export:
