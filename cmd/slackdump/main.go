@@ -18,6 +18,7 @@ import (
 	"golang.org/x/term"
 
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/apiconfig"
+	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/auth"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/convertcmd"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/diag"
@@ -31,7 +32,6 @@ import (
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/man"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/record"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/wizard"
-	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/workspace"
 	"github.com/rusq/slackdump/v2/logger"
 )
 
@@ -52,7 +52,7 @@ func init() {
 		convertcmd.CmdConvert,
 		list.CmdList,
 		emoji.CmdEmoji,
-		workspace.CmdWorkspace,
+		auth.CmdWorkspace,
 		diag.CmdDiag,
 		apiconfig.CmdConfig,
 		format.CmdFormat,
@@ -185,7 +185,7 @@ func invoke(cmd *base.Command, args []string) error {
 	if cmd.RequireAuth {
 		trace.Logf(ctx, "invoke", "command %s requires auth", cmd.Name())
 		var err error
-		ctx, err = workspace.AuthCurrentCtx(ctx, cfg.CacheDir(), cfg.Workspace)
+		ctx, err = auth.AuthCurrentCtx(ctx, cfg.CacheDir(), cfg.Workspace)
 		if err != nil {
 			trace.Logf(ctx, "invoke", "auth error: %s", err)
 			base.SetExitStatus(base.SAuthError)
