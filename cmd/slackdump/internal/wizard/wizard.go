@@ -93,22 +93,29 @@ func makeMenu(cmds []*base.Command, parent string, title string) (m *menu) {
 	}
 	if parent == "" {
 		m.Add(menuitem{
-			Name: "Exit",
+			Name:        "Exit",
+			Description: "Exit the wizard",
 		})
 	} else {
 		m.Add(menuitem{
-			Name: "<< Back",
+			Name:        "<< Back",
+			Description: "Go back to the previous menu",
 		})
 	}
 	return
 }
 
 func show(m *menu, onMatch func(cmd *base.Command) error) error {
+	var options []huh.Option[string]
+	for i, name := range m.names {
+		options = append(options, huh.NewOption(name+" - "+m.items[i].Description, name))
+	}
 	for {
 		var resp string
 		err := huh.NewSelect[string]().
 			Title(m.title).
-			Options(huh.NewOptions(m.names...)...).
+			// Options(huh.NewOptions(m.names...)...).
+			Options(options...).
 			Value(&resp).
 			Run()
 		if err != nil {
