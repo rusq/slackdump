@@ -7,7 +7,7 @@ import (
 
 // datafmt is an enumeration of supported data formats.
 //
-//go:generate stringer -type=datafmt -trimprefix=L
+//go:generate stringer -type=datafmt -trimprefix=F
 type datafmt uint8
 
 const (

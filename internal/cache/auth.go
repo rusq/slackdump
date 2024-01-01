@@ -16,8 +16,10 @@ import (
 	"github.com/rusq/slackdump/v2/auth"
 )
 
+const ezLogin = "EZ-Login 3000"
+
 //go:generate mockgen -source=auth.go -destination=../../mocks/mock_appauth/mock_appauth.go Credentials,createOpener
-//go:generate mockgen -destination=../../mocks/mock_io/mock_io.go io ReadCloser,WriteCloser
+//go:generate mockgen -destination=../mocks/mock_io/mock_io.go io ReadCloser,WriteCloser
 
 // isWSL is true if we're running in the WSL environment
 var isWSL = os.Getenv("WSL_DISTRO_NAME") != ""
@@ -29,8 +31,8 @@ type SlackCreds struct {
 }
 
 var (
-	ErrNotTested   = errors.New("warning, EZ-Login 3000 is not tested on this OS, if it doesn't work, use manual login method")
-	ErrUnsupported = errors.New("EZ-Login 3000 is not supported on this OS, please use the manual login method")
+	ErrNotTested   = errors.New("warning, " + ezLogin + " is not tested on this OS, if it doesn't work, use manual login method")
+	ErrUnsupported = errors.New("" + ezLogin + " is not supported on this OS, please use the manual login method")
 )
 
 // Type returns the authentication type that should be used for the current
@@ -51,9 +53,9 @@ func (c SlackCreds) Type(ctx context.Context) (auth.Type, error) {
 		return auth.TypeInvalid, ErrUnsupported
 	}
 	if !ezLoginTested() {
-		return auth.TypeBrowser, ErrNotTested
+		return auth.TypeRod, ErrNotTested
 	}
-	return auth.TypeBrowser, nil
+	return auth.TypeRod, nil
 
 }
 
@@ -79,6 +81,8 @@ func (c SlackCreds) AuthProvider(ctx context.Context, workspace string, opts ...
 		return auth.NewCookieFileAuth(c.Token, c.Cookie)
 	case auth.TypeValue:
 		return auth.NewValueAuth(c.Token, c.Cookie)
+	case auth.TypeRod:
+		return auth.NewRODAuth(ctx, opts...)
 	}
 	return nil, errors.New("internal error: unsupported auth type")
 }

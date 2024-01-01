@@ -8,8 +8,9 @@ import (
 )
 
 type options struct {
-	*browserOpts
-	*rodOpts
+	browserOpts
+	rodOpts
+	workspace string
 }
 
 type Option func(*options)
@@ -25,7 +26,7 @@ func BrowserWithAuthFlow(flow BrowserAuthUI) Option {
 
 func BrowserWithWorkspace(name string) Option {
 	return func(o *options) {
-		o.browserOpts.workspace = strings.ToLower(name)
+		o.workspace = strings.ToLower(name)
 	}
 }
 

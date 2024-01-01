@@ -8,8 +8,8 @@ import (
 
 	"errors"
 
-	"github.com/golang/mock/gomock"
 	"github.com/slack-go/slack"
+	"go.uber.org/mock/gomock"
 
 	"github.com/rusq/slackdump/v2/internal/fixtures"
 	"github.com/rusq/slackdump/v2/internal/structures"

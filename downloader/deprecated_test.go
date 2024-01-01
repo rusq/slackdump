@@ -11,10 +11,10 @@ import (
 
 	"errors"
 
-	gomock "github.com/golang/mock/gomock"
 	"github.com/slack-go/slack"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	gomock "go.uber.org/mock/gomock"
 	"golang.org/x/time/rate"
 
 	"github.com/rusq/dlog"
