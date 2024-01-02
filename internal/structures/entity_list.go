@@ -35,8 +35,8 @@ func hasFilePrefix(s string) bool {
 	return strings.HasPrefix(s, filePrefix)
 }
 
-// MakeEntityList creates an EntityList from a slice of IDs or URLs (entites).
-func MakeEntityList(entities []string) (*EntityList, error) {
+// NewEntityList creates an EntityList from a slice of IDs or URLs (entites).
+func NewEntityList(entities []string) (*EntityList, error) {
 	var el EntityList
 
 	index, err := buildEntityIndex(entities)
@@ -92,7 +92,7 @@ func readEntityList(r io.Reader, maxEntries int) (*EntityList, error) {
 
 		total++
 	}
-	return MakeEntityList(elements)
+	return NewEntityList(elements)
 }
 
 func (el *EntityList) fromIndex(index map[string]bool) {
