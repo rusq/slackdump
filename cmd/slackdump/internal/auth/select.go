@@ -10,17 +10,20 @@ import (
 )
 
 var CmdWspSelect = &base.Command{
-	UsageLine: "slackdump workspace select [flags]",
+	UsageLine: baseCommand + " select [flags]",
 	Short:     "choose a previously saved workspace",
 	Long: `
-# Workspace Select Command
+# Auth Select Command
 
 **Select** allows to set the current workspace from the list of workspaces
 that you have previously authenticated in.
 
-To get the full list of workspaces, run:
+"Current" means that this workspace will be used by default when running
+other commands, unless you specify a different workspace explicitly.
 
-	` + base.Executable() + ` workspace list
+To get the full list of authenticated workspaces, run:
+
+	` + base.Executable() + ` auth list
 `,
 	FlagMask:   flagmask,
 	PrintFlags: true,

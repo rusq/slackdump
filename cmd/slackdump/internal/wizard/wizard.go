@@ -81,7 +81,8 @@ func makeMenu(cmds []*base.Command, parent string, title string) (m *menu) {
 		}
 		name := titlecase.String(cmd.Name())
 		item := menuitem{
-			Name:        parent + name,
+			// Name:        parent + name,
+			Name:        name,
 			Description: cmd.Short,
 			cmd:         cmd,
 		}
@@ -108,7 +109,7 @@ func makeMenu(cmds []*base.Command, parent string, title string) (m *menu) {
 func show(m *menu, onMatch func(cmd *base.Command) error) error {
 	var options []huh.Option[string]
 	for i, name := range m.names {
-		options = append(options, huh.NewOption(name+" - "+m.items[i].Description, name))
+		options = append(options, huh.NewOption(fmt.Sprintf("%-10s - %s", name, m.items[i].Description), name))
 	}
 	for {
 		var resp string

@@ -115,7 +115,6 @@ BigCmdLoop:
 					base.Exit()
 				}
 				if args[0] == "help" {
-					// Accept 'go mod help' and 'go mod help foo' for 'go help mod' and 'go help mod foo'.
 					help.Help(os.Stdout, append(strings.Split(base.CmdName, " "), args[1:]...))
 					return
 				}
@@ -135,7 +134,7 @@ BigCmdLoop:
 		if i := strings.LastIndex(base.CmdName, " "); i >= 0 {
 			helpArg = " " + base.CmdName[:i]
 		}
-		fmt.Fprintf(os.Stderr, "slackdump %s: unknown command\nRun 'go help%s' for usage.\n", base.CmdName, helpArg)
+		fmt.Fprintf(os.Stderr, "slackdump %s: unknown command\nRun 'slackdump help%s' for usage.\n", base.CmdName, helpArg)
 		base.SetExitStatus(base.SInvalidParameters)
 		base.Exit()
 	}

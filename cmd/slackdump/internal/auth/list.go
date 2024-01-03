@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"runtime/trace"
+	"strings"
 	"text/tabwriter"
 
 	"github.com/slack-go/slack"
@@ -18,10 +19,10 @@ import (
 )
 
 var CmdWspList = &base.Command{
-	UsageLine: "slackdump workspace list [flags]",
-	Short:     "list saved workspaces",
+	UsageLine: baseCommand + " list [flags]",
+	Short:     "list saved authentication information",
 	Long: `
-# Workspace List Command
+# Auth List Command
 
 **List** allows to list Slack Workspaces, that you have previously authenticated in.
 `,
@@ -90,9 +91,18 @@ func printAll(m manager, current string, wsps []string) {
 	tw := tabwriter.NewWriter(os.Stdout, 2, 8, 1, ' ', 0)
 	defer tw.Flush()
 
-	fmt.Fprintln(tw,
-		"C\tname\tfilename\tmodified\tteam\tuser\terror\n"+
-			"-\t-------\t------------\t-------------------\t---------\t--------\t-----")
+	var hdrItems = []hdrItem{
+		{"C", 1},
+		{"name", 7},
+		{"filename", 12},
+		{"modified", 19},
+		{"team", 9},
+		{"user", 8},
+		{"error", 5},
+	}
+
+	fmt.Fprintln(tw, printHeader(hdrItems...))
+
 	// TODO: Concurrent pipeline.
 	for _, name := range wsps {
 		curr := ""
@@ -111,6 +121,47 @@ func printAll(m manager, current string, wsps []string) {
 		}
 		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n", curr, name, fi.Name(), fi.ModTime().Format(timeLayout), info.Team, info.User, "OK")
 	}
+}
+
+type hdrItem struct {
+	name string
+	size int
+}
+
+func (h *hdrItem) String() string {
+	return h.name
+}
+
+func (h *hdrItem) Size() int {
+	if h.size == 0 {
+		h.size = len(h.String())
+	}
+	return h.size
+}
+
+func (h *hdrItem) Underline(char ...string) string {
+	if len(char) == 0 {
+		char = []string{"-"}
+	}
+	return strings.Repeat(char[0], h.Size())
+}
+
+func printHeader(hi ...hdrItem) string {
+	var sb strings.Builder
+	for i, h := range hi {
+		if i > 0 {
+			sb.WriteByte('\t')
+		}
+		sb.WriteString(h.String())
+	}
+	sb.WriteByte('\n')
+	for i, h := range hi {
+		if i > 0 {
+			sb.WriteByte('\t')
+		}
+		sb.WriteString(h.Underline())
+	}
+	return sb.String()
 }
 
 func userInfo(ctx context.Context, m manager, name string) (*slack.AuthTestResponse, error) {
