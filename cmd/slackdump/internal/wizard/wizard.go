@@ -63,6 +63,17 @@ func runWizard(ctx context.Context, cmd *base.Command, args []string) error {
 	return nil
 }
 
+var (
+	miBack = menuitem{
+		Name:        "<< Back",
+		Description: "Go back to the previous menu",
+	}
+	miExit = menuitem{
+		Name:        "Exit",
+		Description: "Exit the wizard",
+	}
+)
+
 func makeMenu(cmds []*base.Command, parent string, title string) (m *menu) {
 	m = &menu{
 		title: title,
@@ -93,15 +104,9 @@ func makeMenu(cmds []*base.Command, parent string, title string) (m *menu) {
 		m.Add(item)
 	}
 	if parent == "" {
-		m.Add(menuitem{
-			Name:        "Exit",
-			Description: "Exit the wizard",
-		})
+		m.Add(miBack)
 	} else {
-		m.Add(menuitem{
-			Name:        "<< Back",
-			Description: "Go back to the previous menu",
-		})
+		m.Add(miExit)
 	}
 	return
 }
