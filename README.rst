@@ -7,6 +7,7 @@ Slack Dumper
 
   - |go ref|
   - `Step by Step guide by Viviana Marquez`_ (requires Medium subscription)
+  - `SlackLogViewerとSlackdumpを一緒に使用する`_
   - `Read the overview on Medium.com`_  (outdated)
   - `Mattermost migration`_ steps
 
@@ -257,6 +258,7 @@ Messages that were conveyed with the donations:
 .. _SlackLogViewer: https://github.com/thayakawa-gh/SlackLogViewer/releases
 .. _Slackdump2Html: https://github.com/kununu/slackdump2html
 .. _`Step by Step guide by Viviana Marquez`: https://vivianamarquez.medium.com/a-step-by-step-guide-to-downloading-slack-messages-without-admin-rights-954f20397e83
+.. _`SlackLogViewerとSlackdumpを一緒に使用する`: https://kenkyu-note.hatenablog.com/entry/2022/09/02/090949
 
 ..
   bulletin board links
