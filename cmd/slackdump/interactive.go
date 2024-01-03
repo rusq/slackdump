@@ -154,6 +154,7 @@ func questOutputFile() (string, error) {
 	return ui.FileSelector(
 		"Output file name (if empty - screen output): ",
 		"Enter the filename to save the data to. Leave empty to print the results on the screen.",
+		ui.WithDefaultFilename("-"),
 	)
 }
 
