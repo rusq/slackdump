@@ -119,7 +119,7 @@ func TestMakeEntityList(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := MakeEntityList(tt.args.entities)
+			got, err := NewEntityList(tt.args.entities)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("MakeEntityList() error = %v, wantErr %v", err, tt.wantErr)
 				return
