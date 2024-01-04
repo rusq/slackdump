@@ -66,11 +66,11 @@ func runWizard(ctx context.Context, cmd *base.Command, args []string) error {
 var (
 	miBack = menuitem{
 		Name:        "<< Back",
-		Description: "Go back to the previous menu",
+		Description: "",
 	}
 	miExit = menuitem{
 		Name:        "Exit",
-		Description: "Exit the wizard",
+		Description: "",
 	}
 )
 
@@ -104,9 +104,9 @@ func makeMenu(cmds []*base.Command, parent string, title string) (m *menu) {
 		m.Add(item)
 	}
 	if parent == "" {
-		m.Add(miBack)
-	} else {
 		m.Add(miExit)
+	} else {
+		m.Add(miBack)
 	}
 	return
 }
@@ -114,7 +114,11 @@ func makeMenu(cmds []*base.Command, parent string, title string) (m *menu) {
 func show(m *menu, onMatch func(cmd *base.Command) error) error {
 	var options []huh.Option[string]
 	for i, name := range m.names {
-		options = append(options, huh.NewOption(fmt.Sprintf("%-10s - %s", name, m.items[i].Description), name))
+		var text = fmt.Sprintf("%-10s - %s", name, m.items[i].Description)
+		if m.items[i].Description == "" {
+			text = fmt.Sprintf("%-10s", name)
+		}
+		options = append(options, huh.NewOption(text, name))
 	}
 	for {
 		var resp string

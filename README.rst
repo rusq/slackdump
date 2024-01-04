@@ -2,6 +2,10 @@
 Slack Dumper
 ============
 
+Purpose: Archive Slack messages, users, files and emojis using browser token
+and cookie.
+
+
 - `Buy me a cup of tea`_
 - Join the discussion in Telegram_ or Slack_.
 - `Read the overview on Medium.com`_
