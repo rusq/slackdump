@@ -52,6 +52,9 @@ var (
 	ErrNoToken      = errors.New("no token")
 	ErrNoCookies    = errors.New("no cookies")
 	ErrNotSupported = errors.New("not supported")
+	// ErrCancelled may be returned by auth providers, if the authentication
+	// process was cancelled.
+	ErrCancelled = errors.New("authentication cancelled")
 )
 
 type simpleProvider struct {

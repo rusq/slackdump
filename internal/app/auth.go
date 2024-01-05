@@ -78,7 +78,7 @@ func (c SlackCreds) AuthProvider(ctx context.Context, workspace string, browser 
 	}
 	switch authType {
 	case auth.TypeRod:
-		return auth.NewRODAuth(ctx, auth.RodWithWorkspace(workspace))
+		return auth.NewRODAuth(ctx, auth.BrowserWithWorkspace(workspace))
 	case auth.TypeBrowser:
 		return auth.NewBrowserAuth(ctx, auth.BrowserWithWorkspace(workspace), auth.BrowserWithBrowser(browser))
 	case auth.TypeCookieFile:
