@@ -6,6 +6,7 @@ Purpose: archive your private and public Slack messages, users, files and
 emojis.
 
 **Quick links**:
+
 - Join the discussion in Telegram_.
 - `Buy me a cup of tea`_, or use **Github Sponsors** button on the top of the page:
 - Reference documentation: |go ref|
