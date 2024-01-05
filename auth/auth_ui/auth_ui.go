@@ -6,8 +6,9 @@ import (
 )
 
 const (
-	LoginEmail = 0
-	LoginSSO   = 1
+	LoginEmail  = 0
+	LoginSSO    = 1
+	LoginCancel = 2
 )
 
 func Sanitize(workspace string) (string, error) {

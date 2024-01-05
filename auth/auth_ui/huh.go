@@ -1,6 +1,7 @@
 package auth_ui
 
 import (
+	"fmt"
 	"io"
 
 	"github.com/charmbracelet/huh"
@@ -29,8 +30,13 @@ func (*Huh) Stop() {}
 func (*Huh) RequestCreds(w io.Writer, workspace string) (email string, passwd string, err error) {
 	f := huh.NewForm(
 		huh.NewGroup(
-			huh.NewInput().Title("Slack email").Inline(true).Value(&email).Validate(valAND(valEmail, valRequired)),
-			huh.NewInput().Title("Slack password").Inline(true).Value(&passwd).Password(true).Validate(valRequired).Password(true),
+			huh.NewInput().
+				Title("You Slack Login Email").Value(&email).
+				Description(fmt.Sprintf("This is the email that you log into %s with.", workspace)).
+				Validate(valAND(valEmail, valRequired)),
+			huh.NewInput().
+				Title("Password").Value(&passwd).
+				Validate(valRequired).Password(true),
 		),
 	)
 	err = f.Run()
@@ -45,7 +51,9 @@ func (*Huh) RequestLoginType(w io.Writer) (int, error) {
 			huh.NewOption("Google", LoginSSO),
 			huh.NewOption("Apple", LoginSSO),
 			huh.NewOption("Login with Single-Sign-On (SSO)", LoginSSO),
-			huh.NewOption("Other", LoginSSO),
+			huh.NewOption("Other/Manual", LoginSSO),
+			huh.NewOption("------", LoginCancel),
+			huh.NewOption("Cancel", LoginCancel),
 		).
 		Value(&loginType).
 		Description("If you are not sure, select 'Other'.").

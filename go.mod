@@ -4,7 +4,7 @@ go 1.21.4
 
 require (
 	github.com/MercuryEngineering/CookieMonster v0.0.0-20180304172713-1584578b3403
-	github.com/charmbracelet/huh v0.2.3
+	github.com/charmbracelet/huh v0.2.4-0.20240104183627-a92fbe913dd7
 	github.com/charmbracelet/huh/spinner v0.0.0-20231222231237-4bd4657a36ac
 	github.com/fatih/color v1.16.0
 	github.com/go-playground/locales v0.14.1

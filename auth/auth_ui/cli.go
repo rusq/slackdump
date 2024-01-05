@@ -51,7 +51,8 @@ func (cl *CLI) RequestLoginType(w io.Writer) (int, error) {
 		{"Google", LoginSSO},
 		{"Apple", LoginSSO},
 		{"Login with Single-Sign-On (SSO)", LoginSSO},
-		{"Other", LoginSSO},
+		{"Other/Manual", LoginSSO},
+		{"Cancel", LoginCancel},
 	}
 
 	var idx int = -1
@@ -60,7 +61,7 @@ func (cl *CLI) RequestLoginType(w io.Writer) (int, error) {
 		for i, t := range types {
 			fmt.Fprintf(w, "\t%d. %s\n", i+1, t.name)
 		}
-		fmt.Fprintf(w, "Enter number: ")
+		fmt.Fprintf(w, "Enter number, and press Enter: ")
 
 		_, err := fmt.Fscanf(os.Stdin, "%d", &idx)
 		if err != nil {

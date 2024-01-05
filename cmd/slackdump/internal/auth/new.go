@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/rusq/slackdump/v2/auth"
@@ -60,6 +61,10 @@ func runWspNew(ctx context.Context, cmd *base.Command, args []string) error {
 	prov, err := m.Auth(ctx, wsp, creds)
 	if err != nil {
 		base.SetExitStatus(base.SAuthError)
+		if errors.Is(err, auth.ErrCancelled) {
+			lg.Println(auth.ErrCancelled)
+			return nil
+		}
 		return err
 	}
 
