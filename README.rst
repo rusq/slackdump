@@ -2,7 +2,7 @@
 Slack Dumper
 ============
 
-Purpose: archive your private and public Slack messages, users, channels,
+Purpose:  archive your private and public Slack messages, users, channels,
 files and emojis.  Generate Slack Export without admin privileges.
 
 |screenshot|
@@ -10,7 +10,8 @@ files and emojis.  Generate Slack Export without admin privileges.
 **Quick links**:
 
 - Join the discussion in Telegram_.
-- `Buy me a cup of tea`_, or use **Github Sponsors** button on the top of the page:
+- `Buy me a cup of tea`_, or use **Github Sponsors** button on the top of the
+  page.
 - Reference documentation: |go ref|
 - How to's:
 
@@ -22,12 +23,8 @@ files and emojis.  Generate Slack Export without admin privileges.
 .. contents::
    :depth: 2
 
-
-
 Description
 ===========
-
-
 
 Typical use scenarios:
 
@@ -39,7 +36,7 @@ Typical use scenarios:
 * create a Slack Export archive without admin access, or
 * save your favourite emojis.
 
-There a three modes of operation (more on this in `User Guide`_) :
+There are four modes of operation (more on this in `User Guide`_) :
 
 #. List users/channels
 #. Dumping messages and threads
