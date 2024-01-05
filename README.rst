@@ -2,23 +2,19 @@
 Slack Dumper
 ============
 
+Purpose: archive your private and public Slack messages, users, files and
+emojis.
+
+**Quick links**:
 - Join the discussion in Telegram_.
-- Learn:
+- `Buy me a cup of tea`_, or use **Github Sponsors** button on the top of the page:
+- Reference documentation: |go ref|
+- How to's:
 
-  - |go ref|
-  - `Step by Step guide by Viviana Marquez`_ (requires Medium subscription)
-  - `SlackLogViewerとSlackdumpを一緒に使用する`_
-  - `Read the overview on Medium.com`_  (outdated)
   - `Mattermost migration`_ steps
-
-- `Buy me a cup of tea`_:
-
-  - Use **Github Sponsors** button on the top of the page; or
-  - Patreon: https://patreon.com/rusq_nz; or
-  - Crypto:
-    
-    - USDT (TRC20): ``TN2cTi5A51SNUfwMKnJKYpKUVoeN3y6zcn``
-    - BTC: ``1K6eceS3h7SaTrJTGfmvTa9vY4jyfiTMFc``
+  - `SlackLogViewerとSlackdumpを一緒に使用する`_
+  - `Step by Step guide by Viviana Marquez`_ (requires Medium subscription)
+  - `Overview on Medium.com`_  (outdated)
 
 .. contents::
    :depth: 2
@@ -28,8 +24,7 @@ Slack Dumper
 Description
 ===========
 
-Purpose: dump Slack messages, users, files and emojis using browser token and
-cookie.
+
 
 Typical use scenarios:
 
@@ -238,11 +233,9 @@ Messages that were conveyed with the donations:
   they owe to their employees.
 
 
-.. _`Buy me a cup of tea`: https://patreon.com/rusq_nz
+.. _`Buy me a cup of tea`: https://ko-fi.com/rusq_
 .. _Telegram: https://t.me/slackdump
-.. _Slack: https://slackdump.herokuapp.com/
 .. _`Read the overview on Medium.com`: https://medium.com/@gilyazov/downloading-your-private-slack-conversations-52e50428b3c2
-.. _`Go templating`: https://pkg.go.dev/html/template
 .. _User Guide: doc/README.rst
 .. _Dumping Conversations: doc/usage-channels.rst
 .. _Mattermost migration: doc/usage-export.rst

@@ -12,36 +12,29 @@ type Huh struct {
 
 func (*Huh) RequestWorkspace(w io.Writer) (string, error) {
 	var workspace string
-	huh.NewInput().
+	err := huh.NewInput().
 		Title("Enter Slack workspace name").
 		Value(&workspace).
 		Validate(valRequired).
 		Description("The workspace name is the part of the URL that comes before `.slack.com' in\nhttps://<workspace>.slack.com/.  Both workspace name or URL are acceptable.").
 		Run()
+	if err != nil {
+		return "", err
+	}
 	return Sanitize(workspace)
 }
 
 func (*Huh) Stop() {}
 
-func (*Huh) RequestEmail(w io.Writer) (string, error) {
-	var email string
-	huh.NewInput().Title("Enter Slack login email").
-		Value(&email).
-		Description("The email that you use to login to Slack.").
-		Validate(valAND(valEmail, valRequired)).
-		Run()
-	return email, nil
-}
-
-func (*Huh) RequestPassword(w io.Writer, account string) (string, error) {
-	var password string
-	huh.NewInput().Title("Enter password for " + account).
-		Value(&password).
-		Password(true).
-		Description("This is your Slack password, it will not be saved.").
-		Validate(valRequired).
-		Run()
-	return password, nil
+func (*Huh) RequestCreds(w io.Writer, workspace string) (email string, passwd string, err error) {
+	f := huh.NewForm(
+		huh.NewGroup(
+			huh.NewInput().Title("Slack email").Inline(true).Value(&email).Validate(valAND(valEmail, valRequired)),
+			huh.NewInput().Title("Slack password").Inline(true).Value(&passwd).Password(true).Validate(valRequired).Password(true),
+		),
+	)
+	err = f.Run()
+	return
 }
 
 func (*Huh) RequestLoginType(w io.Writer) (int, error) {

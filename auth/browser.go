@@ -15,11 +15,10 @@ var defaultFlow = &auth_ui.Huh{}
 
 type BrowserAuth struct {
 	simpleProvider
-	opts browserOpts
+	opts options
 }
 
 type browserOpts struct {
-	workspace    string
 	browser      browser.Browser
 	flow         BrowserAuthUI
 	loginTimeout time.Duration
@@ -36,14 +35,16 @@ type BrowserAuthUI interface {
 
 func NewBrowserAuth(ctx context.Context, opts ...Option) (BrowserAuth, error) {
 	var br = BrowserAuth{
-		opts: browserOpts{
-			flow:         defaultFlow,
-			browser:      browser.Bfirefox,
-			loginTimeout: browser.DefLoginTimeout,
+		opts: options{
+			browserOpts: browserOpts{
+				flow:         defaultFlow,
+				browser:      browser.Bfirefox,
+				loginTimeout: browser.DefLoginTimeout,
+			},
 		},
 	}
 	for _, opt := range opts {
-		opt(&options{browserOpts: &br.opts})
+		opt(&br.opts)
 	}
 	if isDocker() {
 		return BrowserAuth{}, &Error{Err: ErrNotSupported, Msg: "browser auth is not supported in docker, use token/cookie auth instead"}
