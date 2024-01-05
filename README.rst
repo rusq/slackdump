@@ -2,8 +2,8 @@
 Slack Dumper
 ============
 
-Purpose: archive your private and public Slack messages, users, files and
-emojis.
+Purpose: archive your private and public Slack messages, users, channels,
+files and emojis.  Generate Slack Export without admin privileges.
 
 **Quick links**:
 
