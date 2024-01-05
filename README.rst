@@ -5,6 +5,8 @@ Slack Dumper
 Purpose: archive your private and public Slack messages, users, channels,
 files and emojis.  Generate Slack Export without admin privileges.
 
+|screenshot|
+
 **Quick links**:
 
 - Join the discussion in Telegram_.
@@ -20,7 +22,7 @@ files and emojis.  Generate Slack Export without admin privileges.
 .. contents::
    :depth: 2
 
-|screenshot|
+
 
 Description
 ===========
@@ -236,7 +238,7 @@ Messages that were conveyed with the donations:
 
 .. _`Buy me a cup of tea`: https://ko-fi.com/rusq_
 .. _Telegram: https://t.me/slackdump
-.. _`Read the overview on Medium.com`: https://medium.com/@gilyazov/downloading-your-private-slack-conversations-52e50428b3c2
+.. _`Overview on Medium.com`: https://medium.com/@gilyazov/downloading-your-private-slack-conversations-52e50428b3c2
 .. _User Guide: doc/README.rst
 .. _Dumping Conversations: doc/usage-channels.rst
 .. _Mattermost migration: doc/usage-export.rst
