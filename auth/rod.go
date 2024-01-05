@@ -74,7 +74,6 @@ func NewRODAuth(ctx context.Context, opts ...Option) (RodAuth, error) {
 			return r, err
 		}
 	case auth_ui.LoginEmail:
-		var err error
 		username, password, err := r.opts.ui.RequestCreds(os.Stdout, r.opts.workspace)
 		if err != nil {
 			return r, err
@@ -85,13 +84,15 @@ func NewRODAuth(ctx context.Context, opts ...Option) (RodAuth, error) {
 		if password == "" {
 			return r, fmt.Errorf("password cannot be empty")
 		}
-		sctx, cancel := context.WithCancel(ctx)
-		spin := spinner.New().Title("Logging in...").Context(sctx)
-		go spin.Run()
-		sp.Token, sp.Cookie, err = slackauth.Headless(ctx, r.opts.workspace, username, password)
-		cancel()
-		if err != nil {
+		var loginErr error
+		spin := spinner.New().Title("Logging in...").Action(func() {
+			sp.Token, sp.Cookie, loginErr = slackauth.Headless(ctx, r.opts.workspace, username, password)
+		})
+		if err := spin.Run(); err != nil {
 			return r, err
+		}
+		if loginErr != nil {
+			return r, loginErr
 		}
 		fmt.Fprintln(os.Stderr, "authenticated.")
 	case auth_ui.LoginCancel:
