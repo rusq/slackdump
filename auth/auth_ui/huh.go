@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"regexp"
+	"strconv"
 
 	"github.com/charmbracelet/huh"
 )
@@ -101,4 +103,31 @@ func valSepEaster() func(v int) error {
 		}
 		return nil
 	}
+}
+
+func (*Huh) ConfirmationCode(email string) (int, error) {
+	var strCode string
+	q := huh.NewInput().
+		CharLimit(6).
+		Title(fmt.Sprintf("Enter confirmation code sent to %s", email)).
+		Description("Slack did not recognise the browser, and sent a confirmation code.  Please enter the confirmation code below.").
+		Value(&strCode).
+		Validate(valSixDigits)
+	if err := q.Run(); err != nil {
+		return 0, err
+	}
+	code, err := strconv.Atoi(strCode)
+	if err != nil {
+		return 0, err
+	}
+	return code, nil
+}
+
+var numChlgRE = regexp.MustCompile(`^\d{6}$`)
+
+func valSixDigits(s string) error {
+	if numChlgRE.MatchString(s) {
+		return nil
+	}
+	return errors.New("confirmation code must be a sequence of six digits")
 }
