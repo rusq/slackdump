@@ -125,6 +125,7 @@ func (*Huh) ConfirmationCode(email string) (int, error) {
 
 var numChlgRE = regexp.MustCompile(`^\d{6}$`)
 
+// valSixDigits is a validation function for confirmation code input.
 func valSixDigits(s string) error {
 	if numChlgRE.MatchString(s) {
 		return nil
