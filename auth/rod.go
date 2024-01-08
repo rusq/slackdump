@@ -5,9 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"time"
 
-	"github.com/charmbracelet/huh/spinner"
 	"github.com/rusq/slackauth"
 	"github.com/rusq/slackdump/v2/auth/auth_ui"
 )
@@ -29,9 +27,8 @@ type browserAuthUIExt interface {
 	BrowserAuthUI
 	RequestLoginType(w io.Writer) (int, error)
 	RequestCreds(w io.Writer, workspace string) (email string, passwd string, err error)
+	ConfirmationCode(email string) (code int, err error)
 }
-
-const expectedLoginDuration = 16 * time.Second
 
 func NewRODAuth(ctx context.Context, opts ...Option) (RodAuth, error) {
 	r := RodAuth{
@@ -74,25 +71,9 @@ func NewRODAuth(ctx context.Context, opts ...Option) (RodAuth, error) {
 			return r, err
 		}
 	case auth_ui.LoginEmail:
-		username, password, err := r.opts.ui.RequestCreds(os.Stdout, r.opts.workspace)
+		sp, err = headlessFlow(ctx, r.opts.workspace, r.opts.ui)
 		if err != nil {
 			return r, err
-		}
-		if username == "" {
-			return r, fmt.Errorf("email cannot be empty")
-		}
-		if password == "" {
-			return r, fmt.Errorf("password cannot be empty")
-		}
-		var loginErr error
-		spin := spinner.New().Title("Logging in...").Action(func() {
-			sp.Token, sp.Cookie, loginErr = slackauth.Headless(ctx, r.opts.workspace, username, password)
-		})
-		if err := spin.Run(); err != nil {
-			return r, err
-		}
-		if loginErr != nil {
-			return r, loginErr
 		}
 		fmt.Fprintln(os.Stderr, "authenticated.")
 	case auth_ui.LoginCancel:
@@ -102,4 +83,33 @@ func NewRODAuth(ctx context.Context, opts ...Option) (RodAuth, error) {
 	return RodAuth{
 		simpleProvider: sp,
 	}, nil
+}
+
+func headlessFlow(ctx context.Context, workspace string, ui browserAuthUIExt) (sp simpleProvider, err error) {
+	username, password, err := ui.RequestCreds(os.Stdout, workspace)
+	if err != nil {
+		return sp, err
+	}
+	if username == "" {
+		return sp, fmt.Errorf("email cannot be empty")
+	}
+	if password == "" {
+		return sp, fmt.Errorf("password cannot be empty")
+	}
+	fmt.Println("Logging in to Slack, depending on your connection speed, it will take 15-30 seconds...")
+
+	var loginErr error
+	sp.Token, sp.Cookie, loginErr = slackauth.Headless(
+		ctx,
+		workspace,
+		username,
+		password,
+		slackauth.WithChallengeFunc(ui.ConfirmationCode),
+	)
+	if loginErr != nil {
+		return sp, loginErr
+	}
+
+	fmt.Fprintln(os.Stderr, "authenticated.")
+	return
 }
