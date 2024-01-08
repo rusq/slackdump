@@ -10,6 +10,7 @@ import (
 	"github.com/charmbracelet/huh"
 )
 
+// Huh is the Auth UI that uses the huh library to provide a terminal UI.
 type Huh struct {
 	theme huh.Theme
 }
@@ -46,17 +47,17 @@ func (*Huh) RequestCreds(w io.Writer, workspace string) (email string, passwd st
 	return
 }
 
-func (*Huh) RequestLoginType(w io.Writer) (int, error) {
-	var loginType int
-	err := huh.NewSelect[int]().Title("Select login type").
+func (*Huh) RequestLoginType(w io.Writer) (LoginType, error) {
+	var loginType LoginType
+	err := huh.NewSelect[LoginType]().Title("Select login type").
 		Options(
-			huh.NewOption("Email", LoginEmail),
-			huh.NewOption("Google", LoginSSO),
-			huh.NewOption("Apple", LoginSSO),
-			huh.NewOption("Login with Single-Sign-On (SSO)", LoginSSO),
-			huh.NewOption("Other/Manual", LoginSSO),
-			huh.NewOption("------", -1),
-			huh.NewOption("Cancel", LoginCancel),
+			huh.NewOption("Email", LHeadless),
+			huh.NewOption("Google", LInteractive),
+			huh.NewOption("Apple", LInteractive),
+			huh.NewOption("Login with Single-Sign-On (SSO)", LInteractive),
+			huh.NewOption("Other/Manual", LInteractive),
+			huh.NewOption("------", LoginType(-1)),
+			huh.NewOption("Cancel", LCancel),
 		).
 		Value(&loginType).
 		Validate(valSepEaster()).
@@ -65,46 +66,8 @@ func (*Huh) RequestLoginType(w io.Writer) (int, error) {
 	return loginType, err
 }
 
-func valSepEaster() func(v int) error {
-	var phrases = []string{
-		"This is a separator, it does nothing",
-		"Seriously, it does nothing",
-		"Stop clicking on it",
-		"Stop it",
-		"Stop",
-		"Why are you so persistent?",
-		"Fine, you win",
-		"Here's a cookie: 🍪",
-		"🍪",
-		"🍪",
-		"Don't be greedy, you already had three.",
-		"Ok, here's another one: 🍪",
-		"Nothing will happen if you click on it again",
-		"",
-		"",
-		"",
-		"You must have a lot of time on your hands",
-		"Or maybe you're just bored",
-		"Or maybe you're just procrastinating",
-		"Or maybe you're just trying to get a cookie",
-		"These are virtual cookies, you can't eat them, but here's another one: 🍪",
-		"🍪",
-		"You have reached the end of this joke, it will now repeat",
-		"Seriously...",
-		"Ah, shit, here we go again",
-	}
-	var i int
-	return func(v int) error {
-		if v == -1 {
-			// separator selected
-			msg := phrases[i]
-			i = (i + 1) % len(phrases)
-			return errors.New(msg)
-		}
-		return nil
-	}
-}
-
+// ConfirmationCode asks the user to input the confirmation code, does some
+// validation on it and returns it as an int.
 func (*Huh) ConfirmationCode(email string) (int, error) {
 	var strCode string
 	q := huh.NewInput().

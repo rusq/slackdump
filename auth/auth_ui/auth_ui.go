@@ -5,12 +5,20 @@ import (
 	"strings"
 )
 
+// LoginType is the login type, that is used to choose the authentication flow,
+// for example login headlessly or interactively.
+type LoginType int8
+
 const (
-	LoginEmail  = 0
-	LoginSSO    = 1
-	LoginCancel = 2
+	// LHeadless is the email/password login type.
+	LHeadless LoginType = iota
+	// LInteractive is the SSO login type (Google, Apple, etc).
+	LInteractive
+	// LCancel should be returned if the user cancels the login intent.
+	LCancel
 )
 
+// Sanitize takes a workspace name or URL and returns the workspace name.
 func Sanitize(workspace string) (string, error) {
 	if !strings.Contains(workspace, ".slack.com") {
 		return workspace, nil

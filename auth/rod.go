@@ -10,6 +10,17 @@ import (
 	"github.com/rusq/slackdump/v2/auth/auth_ui"
 )
 
+// RodAuth is an authentication provider that uses a headless or interactive
+// browser to authenticate with Slack, depending on the user's choice.  It uses
+// rod library to drive the browser via the CDP protocol.
+//
+// User can choose between:
+//   - Email/password login - will be done headlessly
+//   - SSO authentication - will open the browser and let the user do the thing.
+//   - Cancel - will cancel the login flow.
+//
+// Headless login is a bit fragile.  If it fails, user should be advised to
+// login interactively by choosing SSO auth type.
 type RodAuth struct {
 	simpleProvider
 	opts options
@@ -25,11 +36,19 @@ type rodOpts struct {
 
 type browserAuthUIExt interface {
 	BrowserAuthUI
-	RequestLoginType(w io.Writer) (int, error)
+	// RequestLoginType should request the login type from the user and return
+	// one of the [auth_ui.LoginType] constants.  The implementation should
+	// provide a way to cancel the login flow, returning [auth_ui.LoginCancel].
+	RequestLoginType(w io.Writer) (auth_ui.LoginType, error)
+	// RequestCreds should request the user's email and password and return
+	// them.
 	RequestCreds(w io.Writer, workspace string) (email string, passwd string, err error)
+	// ConfirmationCode should request the confirmation code from the user and
+	// return it.
 	ConfirmationCode(email string) (code int, err error)
 }
 
+// NewRODAuth constructs new RodAuth provider.
 func NewRODAuth(ctx context.Context, opts ...Option) (RodAuth, error) {
 	r := RodAuth{
 		opts: options{
@@ -64,19 +83,19 @@ func NewRODAuth(ctx context.Context, opts ...Option) (RodAuth, error) {
 
 	var sp simpleProvider
 	switch resp {
-	case auth_ui.LoginSSO:
+	case auth_ui.LInteractive:
 		var err error
 		sp.Token, sp.Cookie, err = slackauth.Browser(ctx, r.opts.workspace)
 		if err != nil {
 			return r, err
 		}
-	case auth_ui.LoginEmail:
+	case auth_ui.LHeadless:
 		sp, err = headlessFlow(ctx, r.opts.workspace, r.opts.ui)
 		if err != nil {
 			return r, err
 		}
 		fmt.Fprintln(os.Stderr, "authenticated.")
-	case auth_ui.LoginCancel:
+	case auth_ui.LCancel:
 		return r, ErrCancelled
 	}
 
