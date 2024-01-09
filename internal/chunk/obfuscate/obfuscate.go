@@ -35,11 +35,13 @@ func WithSeed(seed int64) Option {
 	}
 }
 
-func newObfuscator() obfuscator {
-	return obfuscator{
+func newObfuscator(rng *rand.Rand) obfuscator {
+	o := obfuscator{
 		hasher: sha256.New,
-		salt:   randomStringExact(32),
+		rng:    rng,
 	}
+	o.salt = o.randomStringExact(32)
+	return o
 }
 
 // Do obfuscates the slackdump chunk recording from r, writing the obfuscated
@@ -54,8 +56,8 @@ func Do(ctx context.Context, w io.Writer, r io.Reader, options ...Option) error 
 	for _, optFn := range options {
 		optFn(&opts)
 	}
-	rand.Seed(opts.seed)
-	obf := newObfuscator()
+	rng := rand.New(rand.NewSource(opts.seed))
+	obf := newObfuscator(rng)
 	return obfuscate(ctx, obf, w, r)
 }
 
@@ -86,6 +88,7 @@ func obfuscate(ctx context.Context, obf obfuscator, w io.Writer, r io.Reader) er
 type obfuscator struct {
 	hasher func() hash.Hash
 	salt   string
+	rng    *rand.Rand
 }
 
 func (o obfuscator) Chunk(c *chunk.Chunk) {
@@ -136,12 +139,12 @@ func (o obfuscator) OneMessage(m *slack.Message) {
 	if m == nil {
 		return
 	}
-	m.ClientMsgID = notNilFn(m.ClientMsgID, func(s string) string { return randomUUID() })
+	m.ClientMsgID = notNilFn(m.ClientMsgID, func(s string) string { return o.randomUUID() })
 	m.Team = o.TeamID(m.Team)
 	m.Channel = o.UserID(m.Channel)
 	m.User = o.UserID(m.User)
 	if m.Text != "" {
-		m.Text = randomString(len(m.Text))
+		m.Text = o.randomString(len(m.Text))
 	}
 	if m.Edited != nil {
 		m.Edited.User = o.UserID(m.Edited.User)
@@ -156,7 +159,7 @@ func (o obfuscator) OneMessage(m *slack.Message) {
 		m.Attachments = nil // too much hassle to obfuscate
 	}
 	if m.Topic != "" {
-		m.Topic = randomString(len(m.Topic))
+		m.Topic = o.randomString(len(m.Topic))
 	}
 	m.Metadata = slack.SlackMetadata{}
 	m.ParentUserId = o.UserID(m.ParentUserId)
@@ -185,9 +188,9 @@ func (o obfuscator) OneFile(f *slack.File) {
 	ifnotnil := func(s string) string {
 		if s != "" {
 			if strings.HasPrefix(s, fileURLPrefix) {
-				s = fileURLPrefix + randomString(len(s)-len(fileURLPrefix))
+				s = fileURLPrefix + o.randomString(len(s)-len(fileURLPrefix))
 			} else {
-				s = randomString(len(s))
+				s = o.randomString(len(s))
 			}
 		}
 		return s
@@ -230,29 +233,29 @@ func (o obfuscator) OneFile(f *slack.File) {
 }
 
 // randomString returns a random string of length n + random number [0,40).
-func randomString(n int) string {
-	return rndstr(n, rand.Intn(40))
+func (o obfuscator) randomString(n int) string {
+	return o.rndstr(n, o.rng.Intn(40))
 }
 
 // randomStringExact returns a random string of length n.
-func randomStringExact(n int) string {
-	return rndstr(n, 0)
+func (o obfuscator) randomStringExact(n int) string {
+	return o.rndstr(n, 0)
 }
 
 // rndstr returns a random string of length base+add.
-func rndstr(base int, add int) string {
+func (o obfuscator) rndstr(base int, add int) string {
 	var (
 		b   = make([]byte, base+add)
 		src = []byte("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 ")
 	)
 	for i := range b {
-		b[i] = src[rand.Intn(len(src))]
+		b[i] = src[o.rng.Intn(len(src))]
 	}
 	return string(b)
 }
 
 // randomUUID returns a random UUID.
-func randomUUID() string {
+func (o obfuscator) randomUUID() string {
 	var (
 		b   = make([]byte, 36)
 		src = []byte("0123456789abcdef")
@@ -262,7 +265,7 @@ func randomUUID() string {
 		case 8, 13, 18, 23:
 			b[i] = '-'
 		default:
-			b[i] = src[rand.Intn(len(src))]
+			b[i] = src[o.rng.Intn(len(src))]
 		}
 	}
 	return string(b)
@@ -270,7 +273,7 @@ func randomUUID() string {
 
 func (o obfuscator) Reactions(r []slack.ItemReaction) {
 	for i := range r {
-		r[i].Name = randomStringExact(len(r[i].Name))
+		r[i].Name = o.randomStringExact(len(r[i].Name))
 		for j := range r[i].Users {
 			r[i].Users[j] = o.UserID(r[i].Users[j])
 		}
@@ -287,10 +290,10 @@ func (o obfuscator) Channel(c *slack.Channel) {
 	c.NameNormalized = o.ID("", c.NameNormalized)
 	o.OneMessage(c.Latest)
 
-	c.Purpose.Value = randomStringExact(len(c.Purpose.Value))
+	c.Purpose.Value = o.randomStringExact(len(c.Purpose.Value))
 	c.Purpose.Creator = o.UserID(c.Purpose.Creator)
 
-	c.Topic.Value = randomStringExact(len(c.Topic.Value))
+	c.Topic.Value = o.randomStringExact(len(c.Topic.Value))
 	c.Topic.Creator = o.UserID(c.Topic.Creator)
 
 	for i := range c.Members {
@@ -311,7 +314,7 @@ func (o obfuscator) User(u *slack.User) {
 	}
 	u.ID = o.UserID(u.ID)
 	u.Name = o.ID("", u.Name)
-	u.RealName = randomStringExact(len(u.RealName))
+	u.RealName = o.randomStringExact(len(u.RealName))
 	u.TeamID = o.TeamID(u.TeamID)
 	o.Profile(&u.Profile)
 }
@@ -320,44 +323,44 @@ func (o obfuscator) Profile(p *slack.UserProfile) {
 	if p == nil {
 		return
 	}
-	p.DisplayName = randomStringExact(len(p.DisplayName))
-	p.DisplayNameNormalized = randomStringExact(len(p.DisplayNameNormalized))
-	p.RealName = randomStringExact(len(p.RealName))
-	p.RealNameNormalized = randomStringExact(len(p.RealNameNormalized))
-	p.FirstName = randomString(len(p.FirstName))
-	p.LastName = randomString(len(p.LastName))
-	p.Email = randomStringExact(len(p.Email))
-	p.Skype = randomStringExact(len(p.Skype))
-	p.Phone = randomStringExact(len(p.Phone))
-	p.Image24 = randomStringExact(len(p.Image24))
-	p.Image32 = randomStringExact(len(p.Image32))
-	p.Image48 = randomStringExact(len(p.Image48))
-	p.Image72 = randomStringExact(len(p.Image72))
-	p.Image192 = randomStringExact(len(p.Image192))
-	p.Image512 = randomStringExact(len(p.Image512))
-	p.ImageOriginal = randomStringExact(len(p.ImageOriginal))
-	p.StatusText = randomStringExact(len(p.StatusText))
-	p.StatusEmoji = randomStringExact(len(p.StatusEmoji))
+	p.DisplayName = o.randomStringExact(len(p.DisplayName))
+	p.DisplayNameNormalized = o.randomStringExact(len(p.DisplayNameNormalized))
+	p.RealName = o.randomStringExact(len(p.RealName))
+	p.RealNameNormalized = o.randomStringExact(len(p.RealNameNormalized))
+	p.FirstName = o.randomString(len(p.FirstName))
+	p.LastName = o.randomString(len(p.LastName))
+	p.Email = o.randomStringExact(len(p.Email))
+	p.Skype = o.randomStringExact(len(p.Skype))
+	p.Phone = o.randomStringExact(len(p.Phone))
+	p.Image24 = o.randomStringExact(len(p.Image24))
+	p.Image32 = o.randomStringExact(len(p.Image32))
+	p.Image48 = o.randomStringExact(len(p.Image48))
+	p.Image72 = o.randomStringExact(len(p.Image72))
+	p.Image192 = o.randomStringExact(len(p.Image192))
+	p.Image512 = o.randomStringExact(len(p.Image512))
+	p.ImageOriginal = o.randomStringExact(len(p.ImageOriginal))
+	p.StatusText = o.randomStringExact(len(p.StatusText))
+	p.StatusEmoji = o.randomStringExact(len(p.StatusEmoji))
 	p.StatusExpiration = 0
 	p.Team = o.TeamID(p.Team)
 }
 
-func (o *obfuscator) BotProfile(bp *slack.BotProfile) {
+func (o obfuscator) BotProfile(bp *slack.BotProfile) {
 	if bp == nil {
 		return
 	}
 	bp.ID = o.BotID(bp.ID)
 	bp.Deleted = false
-	bp.Name = randomStringExact(len(bp.Name))
+	bp.Name = o.randomStringExact(len(bp.Name))
 	bp.Updated = 0
 	bp.AppID = o.AppID(bp.AppID)
 	bp.TeamID = o.TeamID(bp.TeamID)
-	bp.Icons.Image36 = randomStringExact(len(bp.Icons.Image36))
-	bp.Icons.Image48 = randomStringExact(len(bp.Icons.Image48))
-	bp.Icons.Image72 = randomStringExact(len(bp.Icons.Image72))
+	bp.Icons.Image36 = o.randomStringExact(len(bp.Icons.Image36))
+	bp.Icons.Image48 = o.randomStringExact(len(bp.Icons.Image48))
+	bp.Icons.Image72 = o.randomStringExact(len(bp.Icons.Image72))
 }
 
-func (o *obfuscator) ChannelUsers(cu []string) {
+func (o obfuscator) ChannelUsers(cu []string) {
 	for i := range cu {
 		cu[i] = o.UserID(cu[i])
 	}
@@ -373,8 +376,8 @@ func (o obfuscator) WorkspaceInfo(wi *slack.AuthTestResponse) {
 	wi.BotID = o.BotID(wi.BotID)
 	wi.TeamID = o.TeamID(wi.TeamID)
 	wi.UserID = o.UserID(wi.UserID)
-	wi.URL = randomString(len(wi.URL))
-	wi.Team = randomString(len(wi.Team))
-	wi.User = randomString(len(wi.User))
+	wi.URL = o.randomString(len(wi.URL))
+	wi.Team = o.randomString(len(wi.Team))
+	wi.User = o.randomString(len(wi.User))
 	wi.EnterpriseID = o.EnterpriseID(wi.EnterpriseID)
 }

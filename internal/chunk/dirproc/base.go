@@ -10,7 +10,6 @@ import (
 // baseproc exposes recording functionality for processor, and handles chunk
 // file creation.
 type baseproc struct {
-	// cd     *chunk.Directory
 	wc     io.WriteCloser
 	closed atomic.Bool
 	*chunk.Recorder
@@ -26,7 +25,6 @@ func newBaseProc(cd *chunk.Directory, name chunk.FileID) (*baseproc, error) {
 
 	r := chunk.NewRecorder(wc)
 	return &baseproc{
-		// cd: cd,
 		wc:       wc,
 		Recorder: r,
 	}, nil

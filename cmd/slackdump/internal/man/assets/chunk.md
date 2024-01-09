@@ -9,8 +9,8 @@ The benefit of chunk file format is that it can be converted to other formats,
 such as Slack export format, or Slackdump format.  Chunk file format is used
 internally by Slackdump during processing of the API output, it allows for
 concurrent processing, minimising the memory usage during transformation
-phase.
-
+phase.  Each Chunk corresponds to a single API request that Slackdump issued
+to Slack API.
 
 ## Chunk file format specification
 

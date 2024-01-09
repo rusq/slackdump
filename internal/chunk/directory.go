@@ -33,7 +33,7 @@ const (
 // file with the extension.  All files created by this package will be
 // compressed with GZIP, unless stated otherwise.
 type Directory struct {
-	dir   string
+	dir   string // path to a physical directory on the filesystem
 	cache dcache
 
 	wantCache bool
@@ -298,10 +298,10 @@ func (c *closewrapper) Close() error {
 	return c.underlying.Close()
 }
 
-// WorkspaceInfo returns the workspace info from the directory.  First it tries
-// to find the workspace.json.gz file, if not found, it tries to get the info
-// from users.json.gz and channels.json.gz.
+// WorkspaceInfo returns the workspace info from the directory.
 func (d *Directory) WorkspaceInfo() (*slack.AuthTestResponse, error) {
+	//  First it tries to find the workspace.json.gz file, if not found,
+	// it tries to get the info from users.json.gz and channels.json.gz.
 	for _, name := range []FileID{FWorkspace, FUsers, FChannels} {
 		f, err := d.Open(name)
 		if err != nil {

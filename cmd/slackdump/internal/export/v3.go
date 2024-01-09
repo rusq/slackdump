@@ -64,9 +64,6 @@ func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 	)
 	pb.RenderBlank()
 
-	flags := control.Flags{
-		MemberOnly: params.MemberOnly,
-	}
 	stream := sess.Stream(
 		slackdump.OptOldest(params.Oldest),
 		slackdump.OptLatest(params.Latest),
@@ -77,6 +74,10 @@ func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 			return nil
 		}),
 	)
+
+	flags := control.Flags{
+		MemberOnly: params.MemberOnly,
+	}
 	ctr := control.New(
 		chunkdir,
 		stream,

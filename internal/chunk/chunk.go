@@ -8,8 +8,7 @@ import (
 	"github.com/slack-go/slack"
 )
 
-// ChunkType is the type of chunk that was recorded.  There are three types:
-// messages, thread messages, and files.
+// ChunkType is the type of chunk that was recorded..
 type ChunkType uint8
 
 //go:generate stringer -type=ChunkType -trimprefix=C
@@ -28,30 +27,36 @@ const (
 
 var ErrUnsupChunkType = fmt.Errorf("unsupported chunk type")
 
-// Chunk is a single chunk that was recorded.  It contains the type of chunk,
-// the timestamp of the chunk, the channel ID, and the number of messages or
-// files that were recorded.
+// Chunk is a representation of a single chunk of data retrieved from the API.
+// A single API call always produce a single Chunk.
 type Chunk struct {
 	// header
-	Type      ChunkType `json:"t"`
-	Timestamp int64     `json:"ts"`
-	ChannelID string    `json:"id,omitempty"`
-	Count     int       `json:"n,omitempty"` // number of messages or files
+	// Type is the type of the Chunk
+	Type ChunkType `json:"t"`
+	// Timestamp when the chunk was recorded.
+	Timestamp int64 `json:"ts"`
+	// ChannelID that this chunk relates to.
+	ChannelID string `json:"id,omitempty"`
+	// Count is the count of elements in the chunk, i.e. messages or files.
+	Count int `json:"n,omitempty"`
 
 	// ThreadTS is populated if the chunk contains thread related data.  It
-	// is the timestamp of the thread.
+	// is Slack's thread_ts.
 	ThreadTS string `json:"r,omitempty"`
 	// IsLast is set to true if this is the last chunk for the channel or
-	// thread. Populated by Messages and ThreadMessages methods.
+	// thread.
 	IsLast bool `json:"l,omitempty"`
-	// Number of threads in the message chunk.  Populated by Messages method.
+	// NumThreads is the number of threads in the message chunk.
 	NumThreads int `json:"nt,omitempty"`
 
-	// Channel contains the channel information.  It may not be immediately
-	// followed by messages from the channel.  Populated by ChannelInfo and
-	// Files methods.
+	// Channel contains the channel information.  Within the chunk file, it
+	// may not be immediately followed by messages from the channel due to
+	// concurrent nature of the calls.
+	//
+	// Populated by ChannelInfo and Files methods.
 	Channel *slack.Channel `json:"ci,omitempty"`
 
+	// ChannelUsers contains the user IDs of the users in the channel.
 	ChannelUsers []string `json:"cu,omitempty"` // Populated by ChannelUsers
 
 	// Parent is populated in case the chunk is a thread, or a file. Populated
@@ -66,10 +71,10 @@ type Chunk struct {
 
 	// Users contains a chunk of users as returned by the API. Populated by
 	// Users method.
-	Users []slack.User `json:"u,omitempty"` // Populated by Users
+	Users []slack.User `json:"u,omitempty"`
 	// Channels contains a chunk of channels as returned by the API. Populated
 	// by Channels method.
-	Channels []slack.Channel `json:"ch,omitempty"` // Populated by Channels
+	Channels []slack.Channel `json:"ch,omitempty"`
 	// WorkspaceInfo contains the workspace information as returned by the
 	// API.  Populated by WorkspaceInfo.
 	WorkspaceInfo *slack.AuthTestResponse `json:"w,omitempty"`
@@ -89,7 +94,9 @@ const (
 	channelChunkID GroupID = "lch"
 	starredChunkID GroupID = "ls"
 	wspInfoChunkID GroupID = "iw"
+)
 
+const (
 	threadPrefix    = "t"
 	filePrefix      = "f"
 	chanInfoPrefix  = "ic"

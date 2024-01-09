@@ -1,7 +1,8 @@
-// Package control is the Slack Stream controller.  It runs the API scraping
-// in several goroutines and manages the data flow between them.  It records
-// the output of the API scraper into a chunk directory.  It also manages
-// the transformation of the data, if the caller is interested in it.
+// Package control hold the implmentation of the Slack Stream controller.  It
+// runs the API scraping in several goroutines and manages the data flow
+// between them.  It records the output of the API scraper into a chunk
+// directory.  It also manages the transformation of the data, if the caller
+// is interested in it.
 package control
 
 import (
@@ -11,28 +12,29 @@ import (
 	"runtime/trace"
 	"sync"
 
+	"github.com/slack-go/slack"
+
 	"github.com/rusq/slackdump/v2"
 	"github.com/rusq/slackdump/v2/internal/chunk"
 	"github.com/rusq/slackdump/v2/internal/chunk/dirproc"
 	"github.com/rusq/slackdump/v2/internal/structures"
 	"github.com/rusq/slackdump/v2/logger"
 	"github.com/rusq/slackdump/v2/processor"
-	"github.com/slack-go/slack"
 )
 
 // Controller is the main controller of the Slack Stream.  It runs the API
 // scraping in several goroutines and manages the data flow between them.
 type Controller struct {
-	// chunk directory to store the data.
+	// chunk directory to store the scraped data.
 	cd *chunk.Directory
 	// streamer is the API scraper.
 	s Streamer
-	// transformer, it may not be necessary, if caller is not interested in
-	// transforming the data.
+	// tf is the transformer of the chunk data. It may not be necessary, if
+	// caller is not interested in transforming the data.
 	tf ExportTransformer
 	// files subprocessor, if not configured with options, it's a noop, as
 	// it's not necessary for all use cases.
-	subproc processor.Files
+	subproc processor.Filer
 	// lg is the logger
 	lg logger.Interface
 	// flags
@@ -43,7 +45,7 @@ type Controller struct {
 type Option func(*Controller)
 
 // WithSubproc configures the controller with a file subprocessor.
-func WithSubproc(f processor.Files) Option {
+func WithSubproc(f processor.Filer) Option {
 	return func(c *Controller) {
 		c.subproc = f
 	}

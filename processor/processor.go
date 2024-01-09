@@ -12,7 +12,7 @@ import (
 //go:generate mockgen -destination ../mocks/mock_processor/mock_processor.go github.com/rusq/slackdump/v2/processor Conversations,Users,Channels,ChannelInformer
 type Conversations interface {
 	Messenger
-	Files
+	Filer
 	ChannelInformer
 	io.Closer
 }
@@ -34,7 +34,7 @@ type Messenger interface {
 	ThreadMessages(ctx context.Context, channelID string, parent slack.Message, threadOnly, isLast bool, replies []slack.Message) error
 }
 
-type Files interface {
+type Filer interface {
 	// Files is called for each file that is retrieved. The parent message is
 	// passed in as well.
 	Files(ctx context.Context, channel *slack.Channel, parent slack.Message, ff []slack.File) error

@@ -32,7 +32,8 @@ func DoDir(ctx context.Context, src string, trg string, options ...Option) error
 		return err
 	}
 
-	var obf = newObfuscator()
+	rng := rand.New(rand.NewSource(opts.seed))
+	var obf = newObfuscator(rng)
 
 	var once sync.Once
 	for _, f := range files {

@@ -11,26 +11,27 @@ import (
 	"github.com/slack-go/slack"
 )
 
-// ExportCoordinator is a transformer that takes the chunks produced by the processor
-// and transforms them into a Slack ExportCoordinator format.  It is sutable for async
-// processing, in which case, OnFinalise function is passed to the processor,
-// and the finalisation requests will be queued (up to a [bufferSz]) and
-// will be processed once Start or StartWithUsers is called.
+// ExportCoordinator is a transformer that takes the chunks produced by the
+// processor and transforms them into a Slack Export format.  It is sutable
+// for async processing, in which case, OnFinalise function is passed to the
+// processor, and the finalisation requests will be queued (up to a
+// [bufferSz]) and will be processed once Start or StartWithUsers is called.
 //
 // Please note, that transform requires users to be passed either through
-// options or through StartWithUsers.  If users are not passed, the transform
-// will fail.
+// options or through StartWithUsers.  If users are not passed, the
+// [ExportCoordinator.Start] will return an error.
 //
 // The asynchronous pattern to run the transform is as follows:
 //
 //  1. Create the transform instance.
 //  2. Defer its Close method.
 //  3. In goroutine: Start user processing, and in the same goroutine, after
-//     all users are fetched, call [ExportCoordinator.StartWithUsers], passing the
-//     fetched users slice.
-//  4. In another goroutine, start the ExportCoordinator Conversation processor, passsing
-//     the transformer's OnFinalise function as the finaliser option.  It will
-//     be called by export processor for each channel that was completed.
+//     all users are fetched, call [ExportCoordinator.StartWithUsers], passing
+//     the fetched users slice.
+//  4. In another goroutine, start the ExportCoordinator Conversation
+//     processor, passsing the transformer's OnFinalise function as the
+//     finaliser option.  It will be called by export processor for each
+//     channel that was completed.
 type ExportCoordinator struct {
 	cvt    UserConverter
 	lg     logger.Interface
@@ -68,9 +69,7 @@ func WithUsers(users []slack.User) ExpOption {
 	}
 }
 
-// NewExportCoordinator creates a new Transform instance.  The fsa is the filesystem
-// adapter that holds the transformed data (output), chunkdir is the directory
-// where the chunks, produced by processor, are stored.
+// NewExportCoordinator creates a new ExportCoordinator instance.
 func NewExportCoordinator(ctx context.Context, cvt UserConverter, tfopt ...ExpOption) *ExportCoordinator {
 	t := &ExportCoordinator{
 		cvt:   cvt,
@@ -89,9 +88,9 @@ func NewExportCoordinator(ctx context.Context, cvt UserConverter, tfopt ...ExpOp
 	return t
 }
 
-// Start starts the Transform processor with the provided list of users.
-// Users are used to populate each message with the user profile, as per Slack
-// original export format.
+// StartWithUsers starts the Transform processor with the provided list of
+// users.  Users are used to populate each message with the user profile, as
+// per Slack original export format.
 func (t *ExportCoordinator) StartWithUsers(ctx context.Context, users []slack.User) error {
 	if len(users) == 0 {
 		return errors.New("users list is empty or nil")
@@ -100,9 +99,9 @@ func (t *ExportCoordinator) StartWithUsers(ctx context.Context, users []slack.Us
 	return t.Start(ctx)
 }
 
-// Start starts the Transform processor, the users must have been initialised
-// with the WithUsers option.  Otherwise, use StartWithUsers method.
-// If the processor is already started, it will return nil.
+// Start starts the coordinator, the users must have been initialised with the
+// WithUsers option.  Otherwise, use [ExportCoordinator.StartWithUsers] method.
+// The function doesn't check if coordinator was already started or not.
 func (t *ExportCoordinator) Start(ctx context.Context) error {
 	t.lg.Debugln("transform: starting transform")
 	if !t.cvt.HasUsers() {
@@ -159,10 +158,10 @@ func (t *ExportCoordinator) worker(ctx context.Context) {
 	}
 }
 
-// Close closes the Transform processor.  It must be called once it is
-// guaranteed that OnFinish will not be called anymore, otherwise the call to
-// Transform will panic.  If the transform is already closed, it will return
-// nil.
+// Close closes the coordinator.  It must be called once it is guaranteed that
+// [Transform] will not be called anymore, otherwise the call to Transform
+// will panic with "send on the closed channel". If the coordinator is already
+// closed, it will return nil.
 func (t *ExportCoordinator) Close() (err error) {
 	if t.closed.Load() {
 		return nil

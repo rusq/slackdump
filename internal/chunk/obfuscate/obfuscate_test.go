@@ -17,8 +17,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func init() {
-	rand.Seed(0) // make it deterministic
+const testSeed = 0
+
+func testRNG() *rand.Rand {
+	return rand.New(rand.NewSource(testSeed))
 }
 
 func Test_randomString(t *testing.T) {
@@ -33,22 +35,23 @@ func Test_randomString(t *testing.T) {
 		{
 			name: "empty",
 			args: args{n: 0},
-			want: "jXUJR9JT5pul5g8MDbK7E1ycTwBhzdJG9 ",
+			want: "9 LVwGabEN7FkWNmyD0HtOdvc",
 		},
 		{
 			name: "one",
 			args: args{n: 1},
-			want: "VwGabEN7FkWNmyD0HtOdvcYYvfHfF hVA6",
+			want: "YvfHfF hVA6Nd1BtVOw52BH40tQ4xsZr1rbOE",
 		},
 		{
 			name: "100",
 			args: args{n: 100},
-			want: "d1BtVOw52BH40tQ4xsZr1rbOEdndtLrooKH5L9GzLgWmmWfVTBKfSvym98qEQMYaWdLEKrJCEXzYB2bFiOLzhKfgf0hdxneHm6GIP4BlU7M3cWoFQL4mevBBbRf",
+			want: "ndtLrooKH5L9GzLgWmmWfVTBKfSvym98qEQMYaWdLEKrJCEXzYB2bFiOLzhKfgf0hdxneHm6GIP4BlU7M3cWoFQL4mevBBbRfBaJPco41JqcX",
 		},
 	}
+	o := newObfuscator(testRNG())
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := randomString(tt.args.n); got != tt.want {
+			if got := o.randomString(tt.args.n); got != tt.want {
 				t.Errorf("randomString() = %v, want %v", got, tt.want)
 			}
 		})
@@ -103,7 +106,6 @@ func unmarshalEvents(r io.Reader) []chunk.Chunk {
 }
 
 func Test_obfuscator_OneMessage(t *testing.T) {
-	rand.Seed(0)
 	type fields struct {
 		hasher func() hash.Hash
 		salt   string
@@ -155,6 +157,7 @@ func Test_obfuscator_OneMessage(t *testing.T) {
 			o := obfuscator{
 				hasher: tt.fields.hasher,
 				salt:   tt.fields.salt,
+				rng:    testRNG(),
 			}
 			o.OneMessage(tt.args.m)
 			if !assert.Equal(t, tt.wantMsg, tt.args.m) {
@@ -165,7 +168,6 @@ func Test_obfuscator_OneMessage(t *testing.T) {
 }
 
 func Test_obfuscator_OneFile(t *testing.T) {
-	rand.Seed(0)
 	type fields struct {
 		hasher func() hash.Hash
 		salt   string
@@ -232,6 +234,7 @@ func Test_obfuscator_OneFile(t *testing.T) {
 			o := obfuscator{
 				hasher: tt.fields.hasher,
 				salt:   tt.fields.salt,
+				rng:    testRNG(),
 			}
 			o.OneFile(tt.args.f)
 			if !assert.Equal(t, tt.wantFile, tt.args.f) {
@@ -263,7 +266,6 @@ var testChan = &slack.Channel{
 }
 
 func Test_obfuscator_Channel(t *testing.T) {
-	rand.Seed(0)
 	type fields struct {
 		hasher func() hash.Hash
 		salt   string
@@ -313,6 +315,7 @@ func Test_obfuscator_Channel(t *testing.T) {
 			o := obfuscator{
 				hasher: tt.fields.hasher,
 				salt:   tt.fields.salt,
+				rng:    testRNG(),
 			}
 			o.Channel(tt.args.c)
 			if !assert.Equal(t, tt.wantChan, tt.args.c) {
@@ -361,6 +364,7 @@ func Test_obfuscator_ChannelUsers(t *testing.T) {
 			o := &obfuscator{
 				hasher: tt.fields.hasher,
 				salt:   tt.fields.salt,
+				rng:    testRNG(),
 			}
 			o.ChannelUsers(tt.args.cu)
 			if !assert.Equal(t, tt.want, tt.args.cu) {

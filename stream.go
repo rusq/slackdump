@@ -43,20 +43,24 @@ type Stream struct {
 	resultFn       []func(sr StreamResult) error
 }
 
+// chanCache is used to cache channel info to avoid fetching it multiple times.
 type chanCache struct {
 	m sync.Map
 }
 
-func (c *chanCache) get(id string) *slack.Channel {
-	v, ok := c.m.Load(id)
+// get returns the channel info from the cache.  If it fails to find it, it
+// returns nil.
+func (c *chanCache) get(key string) *slack.Channel {
+	v, ok := c.m.Load(key)
 	if !ok {
 		return nil
 	}
 	return v.(*slack.Channel)
 }
 
-func (c *chanCache) set(id string, ch *slack.Channel) {
-	c.m.Store(id, ch)
+// set sets the channel info in the cache under the respective key.
+func (c *chanCache) set(key string, ch *slack.Channel) {
+	c.m.Store(key, ch)
 }
 
 //go:generate stringer -type=ResultType -trimprefix=RT
@@ -85,6 +89,7 @@ func (s StreamResult) String() string {
 	return fmt.Sprintf("<%s[%s:%s]>", s.Type, s.ChannelID, s.ThreadTS)
 }
 
+// rateLimits contains the rate limiters for the different tiers.
 type rateLimits struct {
 	channels *rate.Limiter
 	threads  *rate.Limiter
@@ -185,12 +190,12 @@ func (cs *Stream) ConversationsCB(ctx context.Context, proc processor.Conversati
 // channelID, channel URL, thread URL or a link in Slackdump format.  fn is
 // called for each result (channel messages, or thread messages).  The fact
 // that fn was called for channel messages, does not mean that all threads for
-// that channel have been processed.  The fn is called for each thread result,
-// and the last thread result is marked with StreamResult.IsLast.  The caller
-// must track the number of threads processed for each channel, and when the
-// thread result with IsLast is received, the caller can assume that all
-// threads and messages for that channel have been processed.  For example,
-// see [cmd/slackdump/internal/export/expproc].
+// that channel were already processed.  The fn is called for each thread
+// result, and the last thread result is marked with StreamResult.IsLast.  The
+// caller must track the number of threads processed for each channel, and
+// when the thread result with IsLast is received, the caller can assume that
+// all threads and messages for that channel have been processed.  For
+// example, see [cmd/slackdump/internal/export/expproc].
 func (cs *Stream) Conversations(ctx context.Context, proc processor.Conversations, links <-chan string) error {
 	ctx, task := trace.NewTask(ctx, "AsyncConversations")
 	defer task.End()
@@ -529,7 +534,7 @@ func procThreadMsg(ctx context.Context, proc processor.Conversations, channel *s
 	return nil
 }
 
-func procFiles(ctx context.Context, proc processor.Files, channel *slack.Channel, msgs ...slack.Message) error {
+func procFiles(ctx context.Context, proc processor.Filer, channel *slack.Channel, msgs ...slack.Message) error {
 	if len(msgs) == 0 {
 		return nil
 	}

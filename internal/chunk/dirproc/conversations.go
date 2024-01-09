@@ -37,7 +37,7 @@ type Conversations struct {
 	// a final archive/directory, avoiding the intermediate step of
 	// downloading files into the temporary directory, and then using
 	// transform to download the files.
-	subproc     processor.Files // files sub-processor
+	subproc     processor.Filer // files sub-processor
 	recordFiles bool
 
 	// tf is the channel transformer that is called for each channel.
@@ -76,7 +76,7 @@ type entityproc struct {
 // be called for each file chunk, tf will be called for each completed channel
 // or thread, when the reference count becomes zero.
 // Reference count is increased with each call to Channel processing functions.
-func NewConversation(cd *chunk.Directory, filesSubproc processor.Files, tf Transformer, opts ...ConvOption) (*Conversations, error) {
+func NewConversation(cd *chunk.Directory, filesSubproc processor.Filer, tf Transformer, opts ...ConvOption) (*Conversations, error) {
 	// validation
 	if filesSubproc == nil {
 		return nil, errors.New("internal error: files subprocessor is nil")
