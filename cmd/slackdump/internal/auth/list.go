@@ -59,7 +59,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) error {
 	if err != nil {
 		if errors.Is(err, cache.ErrNoWorkspaces) {
 			base.SetExitStatus(base.SUserError)
-			return errors.New("no authenticated workspaces, please run \"slackdump workspace new\"")
+			return errors.New("no authenticated workspaces, please run \"slackdump " + baseCommand + " new\"")
 		}
 		base.SetExitStatus(base.SCacheError)
 		return err
