@@ -37,8 +37,8 @@ type Session struct {
 // WorkspaceInfo is an type alias for [slack.AuthTestResponse].
 type WorkspaceInfo = slack.AuthTestResponse
 
-// slacker is the interface with some functions of slack.Client.
-type slacker interface {
+// Slacker is the interface with some functions of slack.Client.
+type Slacker interface {
 	AuthTestContext(context.Context) (response *slack.AuthTestResponse, err error)
 	GetConversationInfoContext(ctx context.Context, input *slack.GetConversationInfoInput) (*slack.Channel, error)
 	GetConversationHistoryContext(ctx context.Context, params *slack.GetConversationHistoryParameters) (*slack.GetConversationHistoryResponse, error)
@@ -53,7 +53,7 @@ type slacker interface {
 // clienter is the interface with some functions of slack.Client with the sole
 // purpose of mocking in tests (see client_mock.go)
 type clienter interface {
-	slacker
+	Slacker
 	GetFile(downloadURL string, writer io.Writer) error
 	GetUsersContext(ctx context.Context, options ...slack.GetUsersOption) ([]slack.User, error)
 	GetEmojiContext(ctx context.Context) (map[string]string, error)

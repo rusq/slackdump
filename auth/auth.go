@@ -37,8 +37,6 @@ type Provider interface {
 	SlackToken() string
 	// Cookies should return a set of Slack Session cookies.
 	Cookies() []*http.Cookie
-	// Type returns the auth type.
-	Type() Type
 	// Validate should return error, in case the token or cookies cannot be
 	// retrieved.
 	Validate() error

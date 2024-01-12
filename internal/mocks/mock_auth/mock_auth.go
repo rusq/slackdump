@@ -13,7 +13,6 @@ import (
 	http "net/http"
 	reflect "reflect"
 
-	auth "github.com/rusq/slackdump/v2/auth"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -95,20 +94,6 @@ func (m *MockProvider) Test(arg0 context.Context) error {
 func (mr *MockProviderMockRecorder) Test(arg0 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Test", reflect.TypeOf((*MockProvider)(nil).Test), arg0)
-}
-
-// Type mocks base method.
-func (m *MockProvider) Type() auth.Type {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Type")
-	ret0, _ := ret[0].(auth.Type)
-	return ret0
-}
-
-// Type indicates an expected call of Type.
-func (mr *MockProviderMockRecorder) Type() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Type", reflect.TypeOf((*MockProvider)(nil).Type))
 }
 
 // Validate mocks base method.

@@ -75,7 +75,7 @@ func runWspNew(ctx context.Context, cmd *base.Command, args []string) error {
 		return fmt.Errorf("failed to select the default workpace: %s", err)
 	}
 	fmt.Printf("Success:  added workspace %q\n", realname(wsp))
-	lg.Debugf("workspace %q type: %q", realname(wsp), prov.Type())
+	lg.Debugf("workspace %q, type %T", realname(wsp), prov)
 	return nil
 }
 

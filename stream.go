@@ -37,7 +37,7 @@ const (
 // use.
 type Stream struct {
 	oldest, latest time.Time
-	client         slacker
+	client         Slacker
 	limits         rateLimits
 	chanCache      *chanCache
 	resultFn       []func(sr StreamResult) error
@@ -139,7 +139,7 @@ func OptState(s *state.State) StreamOption {
 
 // NewStream creates a new Stream instance that allows to stream different
 // slack entities.
-func NewStream(cl slacker, l *Limits, opts ...StreamOption) *Stream {
+func NewStream(cl Slacker, l *Limits, opts ...StreamOption) *Stream {
 	cs := &Stream{
 		client:    cl,
 		limits:    limits(l),

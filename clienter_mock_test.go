@@ -17,31 +17,31 @@ import (
 	gomock "go.uber.org/mock/gomock"
 )
 
-// Mockslacker is a mock of slacker interface.
-type Mockslacker struct {
+// MockSlacker is a mock of Slacker interface.
+type MockSlacker struct {
 	ctrl     *gomock.Controller
-	recorder *MockslackerMockRecorder
+	recorder *MockSlackerMockRecorder
 }
 
-// MockslackerMockRecorder is the mock recorder for Mockslacker.
-type MockslackerMockRecorder struct {
-	mock *Mockslacker
+// MockSlackerMockRecorder is the mock recorder for MockSlacker.
+type MockSlackerMockRecorder struct {
+	mock *MockSlacker
 }
 
-// NewMockslacker creates a new mock instance.
-func NewMockslacker(ctrl *gomock.Controller) *Mockslacker {
-	mock := &Mockslacker{ctrl: ctrl}
-	mock.recorder = &MockslackerMockRecorder{mock}
+// NewMockSlacker creates a new mock instance.
+func NewMockSlacker(ctrl *gomock.Controller) *MockSlacker {
+	mock := &MockSlacker{ctrl: ctrl}
+	mock.recorder = &MockSlackerMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *Mockslacker) EXPECT() *MockslackerMockRecorder {
+func (m *MockSlacker) EXPECT() *MockSlackerMockRecorder {
 	return m.recorder
 }
 
 // AuthTestContext mocks base method.
-func (m *Mockslacker) AuthTestContext(arg0 context.Context) (*slack.AuthTestResponse, error) {
+func (m *MockSlacker) AuthTestContext(arg0 context.Context) (*slack.AuthTestResponse, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AuthTestContext", arg0)
 	ret0, _ := ret[0].(*slack.AuthTestResponse)
@@ -50,13 +50,13 @@ func (m *Mockslacker) AuthTestContext(arg0 context.Context) (*slack.AuthTestResp
 }
 
 // AuthTestContext indicates an expected call of AuthTestContext.
-func (mr *MockslackerMockRecorder) AuthTestContext(arg0 any) *gomock.Call {
+func (mr *MockSlackerMockRecorder) AuthTestContext(arg0 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AuthTestContext", reflect.TypeOf((*Mockslacker)(nil).AuthTestContext), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AuthTestContext", reflect.TypeOf((*MockSlacker)(nil).AuthTestContext), arg0)
 }
 
 // GetConversationHistoryContext mocks base method.
-func (m *Mockslacker) GetConversationHistoryContext(ctx context.Context, params *slack.GetConversationHistoryParameters) (*slack.GetConversationHistoryResponse, error) {
+func (m *MockSlacker) GetConversationHistoryContext(ctx context.Context, params *slack.GetConversationHistoryParameters) (*slack.GetConversationHistoryResponse, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetConversationHistoryContext", ctx, params)
 	ret0, _ := ret[0].(*slack.GetConversationHistoryResponse)
@@ -65,13 +65,13 @@ func (m *Mockslacker) GetConversationHistoryContext(ctx context.Context, params 
 }
 
 // GetConversationHistoryContext indicates an expected call of GetConversationHistoryContext.
-func (mr *MockslackerMockRecorder) GetConversationHistoryContext(ctx, params any) *gomock.Call {
+func (mr *MockSlackerMockRecorder) GetConversationHistoryContext(ctx, params any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetConversationHistoryContext", reflect.TypeOf((*Mockslacker)(nil).GetConversationHistoryContext), ctx, params)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetConversationHistoryContext", reflect.TypeOf((*MockSlacker)(nil).GetConversationHistoryContext), ctx, params)
 }
 
 // GetConversationInfoContext mocks base method.
-func (m *Mockslacker) GetConversationInfoContext(ctx context.Context, input *slack.GetConversationInfoInput) (*slack.Channel, error) {
+func (m *MockSlacker) GetConversationInfoContext(ctx context.Context, input *slack.GetConversationInfoInput) (*slack.Channel, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetConversationInfoContext", ctx, input)
 	ret0, _ := ret[0].(*slack.Channel)
@@ -80,13 +80,13 @@ func (m *Mockslacker) GetConversationInfoContext(ctx context.Context, input *sla
 }
 
 // GetConversationInfoContext indicates an expected call of GetConversationInfoContext.
-func (mr *MockslackerMockRecorder) GetConversationInfoContext(ctx, input any) *gomock.Call {
+func (mr *MockSlackerMockRecorder) GetConversationInfoContext(ctx, input any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetConversationInfoContext", reflect.TypeOf((*Mockslacker)(nil).GetConversationInfoContext), ctx, input)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetConversationInfoContext", reflect.TypeOf((*MockSlacker)(nil).GetConversationInfoContext), ctx, input)
 }
 
 // GetConversationRepliesContext mocks base method.
-func (m *Mockslacker) GetConversationRepliesContext(ctx context.Context, params *slack.GetConversationRepliesParameters) ([]slack.Message, bool, string, error) {
+func (m *MockSlacker) GetConversationRepliesContext(ctx context.Context, params *slack.GetConversationRepliesParameters) ([]slack.Message, bool, string, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetConversationRepliesContext", ctx, params)
 	ret0, _ := ret[0].([]slack.Message)
@@ -97,13 +97,13 @@ func (m *Mockslacker) GetConversationRepliesContext(ctx context.Context, params 
 }
 
 // GetConversationRepliesContext indicates an expected call of GetConversationRepliesContext.
-func (mr *MockslackerMockRecorder) GetConversationRepliesContext(ctx, params any) *gomock.Call {
+func (mr *MockSlackerMockRecorder) GetConversationRepliesContext(ctx, params any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetConversationRepliesContext", reflect.TypeOf((*Mockslacker)(nil).GetConversationRepliesContext), ctx, params)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetConversationRepliesContext", reflect.TypeOf((*MockSlacker)(nil).GetConversationRepliesContext), ctx, params)
 }
 
 // GetConversationsContext mocks base method.
-func (m *Mockslacker) GetConversationsContext(ctx context.Context, params *slack.GetConversationsParameters) ([]slack.Channel, string, error) {
+func (m *MockSlacker) GetConversationsContext(ctx context.Context, params *slack.GetConversationsParameters) ([]slack.Channel, string, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetConversationsContext", ctx, params)
 	ret0, _ := ret[0].([]slack.Channel)
@@ -113,13 +113,13 @@ func (m *Mockslacker) GetConversationsContext(ctx context.Context, params *slack
 }
 
 // GetConversationsContext indicates an expected call of GetConversationsContext.
-func (mr *MockslackerMockRecorder) GetConversationsContext(ctx, params any) *gomock.Call {
+func (mr *MockSlackerMockRecorder) GetConversationsContext(ctx, params any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetConversationsContext", reflect.TypeOf((*Mockslacker)(nil).GetConversationsContext), ctx, params)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetConversationsContext", reflect.TypeOf((*MockSlacker)(nil).GetConversationsContext), ctx, params)
 }
 
 // GetStarredContext mocks base method.
-func (m *Mockslacker) GetStarredContext(ctx context.Context, params slack.StarsParameters) ([]slack.StarredItem, *slack.Paging, error) {
+func (m *MockSlacker) GetStarredContext(ctx context.Context, params slack.StarsParameters) ([]slack.StarredItem, *slack.Paging, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetStarredContext", ctx, params)
 	ret0, _ := ret[0].([]slack.StarredItem)
@@ -129,13 +129,13 @@ func (m *Mockslacker) GetStarredContext(ctx context.Context, params slack.StarsP
 }
 
 // GetStarredContext indicates an expected call of GetStarredContext.
-func (mr *MockslackerMockRecorder) GetStarredContext(ctx, params any) *gomock.Call {
+func (mr *MockSlackerMockRecorder) GetStarredContext(ctx, params any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetStarredContext", reflect.TypeOf((*Mockslacker)(nil).GetStarredContext), ctx, params)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetStarredContext", reflect.TypeOf((*MockSlacker)(nil).GetStarredContext), ctx, params)
 }
 
 // GetUsersInConversationContext mocks base method.
-func (m *Mockslacker) GetUsersInConversationContext(ctx context.Context, params *slack.GetUsersInConversationParameters) ([]string, string, error) {
+func (m *MockSlacker) GetUsersInConversationContext(ctx context.Context, params *slack.GetUsersInConversationParameters) ([]string, string, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetUsersInConversationContext", ctx, params)
 	ret0, _ := ret[0].([]string)
@@ -145,13 +145,13 @@ func (m *Mockslacker) GetUsersInConversationContext(ctx context.Context, params 
 }
 
 // GetUsersInConversationContext indicates an expected call of GetUsersInConversationContext.
-func (mr *MockslackerMockRecorder) GetUsersInConversationContext(ctx, params any) *gomock.Call {
+func (mr *MockSlackerMockRecorder) GetUsersInConversationContext(ctx, params any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUsersInConversationContext", reflect.TypeOf((*Mockslacker)(nil).GetUsersInConversationContext), ctx, params)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUsersInConversationContext", reflect.TypeOf((*MockSlacker)(nil).GetUsersInConversationContext), ctx, params)
 }
 
 // GetUsersPaginated mocks base method.
-func (m *Mockslacker) GetUsersPaginated(options ...slack.GetUsersOption) slack.UserPagination {
+func (m *MockSlacker) GetUsersPaginated(options ...slack.GetUsersOption) slack.UserPagination {
 	m.ctrl.T.Helper()
 	varargs := []any{}
 	for _, a := range options {
@@ -163,13 +163,13 @@ func (m *Mockslacker) GetUsersPaginated(options ...slack.GetUsersOption) slack.U
 }
 
 // GetUsersPaginated indicates an expected call of GetUsersPaginated.
-func (mr *MockslackerMockRecorder) GetUsersPaginated(options ...any) *gomock.Call {
+func (mr *MockSlackerMockRecorder) GetUsersPaginated(options ...any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUsersPaginated", reflect.TypeOf((*Mockslacker)(nil).GetUsersPaginated), options...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUsersPaginated", reflect.TypeOf((*MockSlacker)(nil).GetUsersPaginated), options...)
 }
 
 // ListBookmarks mocks base method.
-func (m *Mockslacker) ListBookmarks(channelID string) ([]slack.Bookmark, error) {
+func (m *MockSlacker) ListBookmarks(channelID string) ([]slack.Bookmark, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListBookmarks", channelID)
 	ret0, _ := ret[0].([]slack.Bookmark)
@@ -178,9 +178,9 @@ func (m *Mockslacker) ListBookmarks(channelID string) ([]slack.Bookmark, error) 
 }
 
 // ListBookmarks indicates an expected call of ListBookmarks.
-func (mr *MockslackerMockRecorder) ListBookmarks(channelID any) *gomock.Call {
+func (mr *MockSlackerMockRecorder) ListBookmarks(channelID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListBookmarks", reflect.TypeOf((*Mockslacker)(nil).ListBookmarks), channelID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListBookmarks", reflect.TypeOf((*MockSlacker)(nil).ListBookmarks), channelID)
 }
 
 // mockClienter is a mock of clienter interface.
