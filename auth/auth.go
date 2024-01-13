@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"os"
 	"runtime/trace"
 	"strings"
 
@@ -137,4 +138,9 @@ func (s simpleProvider) Test(ctx context.Context) error {
 
 func (s simpleProvider) HTTPClient() (*http.Client, error) {
 	return chttp.New(SlackURL, s.Cookies())
+}
+
+func IsDocker() bool {
+	_, err := os.Stat("/.dockerenv")
+	return err == nil
 }

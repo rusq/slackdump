@@ -214,7 +214,7 @@ func (m *Manager) Current() (string, error) {
 // selectDefault selects the default workspace if it exists.
 func (m *Manager) selectDefault() (string, error) {
 	var wsp = defName
-	if !m.Exists(defName) {
+	if !m.HasDefault() {
 		// the default workspace does not exist, pick any
 		w, err := m.firstAvailable()
 		if err != nil {
@@ -226,6 +226,10 @@ func (m *Manager) selectDefault() (string, error) {
 		return "", err
 	}
 	return wsp, nil
+}
+
+func (m *Manager) HasDefault() bool {
+	return m.Exists(defName)
 }
 
 func (m *Manager) firstAvailable() (string, error) {

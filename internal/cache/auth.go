@@ -229,3 +229,13 @@ func (encryptedFile) Open(filename string) (io.ReadCloser, error) {
 func (encryptedFile) Create(filename string) (io.WriteCloser, error) {
 	return encio.Create(filename)
 }
+
+// EZLoginFlags is a diagnostic function that returns the map of flags that
+// describe the EZ-Login feature.
+func EzLoginFlags() map[string]bool {
+	return map[string]bool{
+		"supported": ezLoginSupported(),
+		"tested":    ezLoginTested(),
+		"wsl":       isWSL,
+	}
+}
