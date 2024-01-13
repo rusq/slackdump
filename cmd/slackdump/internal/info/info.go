@@ -40,13 +40,9 @@ package info
 import (
 	"context"
 	"encoding/json"
-	"io/fs"
 	"os"
-	"strings"
 
-	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/golang/base"
-	"github.com/rusq/slackdump/v2/internal/cache"
 )
 
 // CmdInfo is the information command.
@@ -60,65 +56,12 @@ var CmdInfo = &base.Command{
 `,
 }
 
-type sysinfo struct {
-	OS         osinfo    `json:"os"`
-	Workspace  workspace `json:"workspace"`
-	Playwright pwinfo    `json:"playwright"`
-	Rod        rodinfo   `json:"rod"`
-	EzLogin    ezlogin   `json:"ez_login"`
-}
-
-type ezlogin struct {
-	Flags   map[string]bool `json:"flags"`
-	Browser string          `json:"browser"`
-}
-
-func (inf *ezlogin) collect() {
-	inf.Flags = cache.EzLoginFlags()
-	inf.Browser = cfg.Browser.String()
-}
-
 func runInfo(ctx context.Context, cmd *base.Command, args []string) error {
-	var si sysinfo
-	var collectors = []func(){
-		si.Workspace.collect,
-		si.Playwright.collect,
-		si.Rod.collect,
-		si.EzLogin.collect,
-		si.OS.collect,
-	}
-	for _, c := range collectors {
-		c()
-	}
-
 	enc := json.NewEncoder(os.Stdout)
 	enc.SetIndent("", "  ")
-	if err := enc.Encode(si); err != nil {
+	if err := enc.Encode(collect()); err != nil {
 		return err
 	}
 
 	return nil
-}
-
-var homerepl = strings.NewReplacer(should(os.UserHomeDir()), "~").Replace
-
-func should(v string, err error) string {
-	if err != nil {
-		return "$$$ERROR$$$"
-	}
-	return v
-}
-
-func dirnames(des []fs.DirEntry) []string {
-	var res []string
-	for _, de := range des {
-		if de.IsDir() && !strings.HasPrefix(de.Name(), ".") {
-			res = append(res, de.Name())
-		}
-	}
-	return res
-}
-
-func looser(err error) string {
-	return "*ERROR: " + homerepl(err.Error()) + "*"
 }

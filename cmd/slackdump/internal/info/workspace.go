@@ -13,7 +13,7 @@ type workspace struct {
 }
 
 func (inf *workspace) collect() {
-	inf.Path = homerepl(cfg.LocalCacheDir)
+	inf.Path = replaceFn(cfg.LocalCacheDir)
 	inf.Count = -1
 	// Workspace information
 	m, err := cache.NewManager(cfg.LocalCacheDir)

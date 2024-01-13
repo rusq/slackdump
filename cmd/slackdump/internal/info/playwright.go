@@ -26,8 +26,8 @@ func (inf *pwinfo) collect() {
 		inf.Path = looser(err)
 		return
 	}
-	inf.Path = homerepl(pwdrv.DriverDirectory)
-	inf.Script = homerepl(pwdrv.DriverBinaryLocation)
+	inf.Path = replaceFn(pwdrv.DriverDirectory)
+	inf.Script = replaceFn(pwdrv.DriverBinaryLocation)
 	if inf.Script != "" {
 		if stat, err := os.Stat(pwdrv.DriverBinaryLocation); err == nil {
 			inf.ScriptPerm = stat.Mode().String()
