@@ -8,7 +8,7 @@ import (
 	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/cfg"
 )
 
-type pwinfo struct {
+type PwInfo struct {
 	Path              string   `json:"path"`
 	InstalledVersions []string `json:"installed_versions"`
 	InstalledBrowsers []string `json:"installed_browsers"`
@@ -17,7 +17,7 @@ type pwinfo struct {
 	ScriptPerm        string   `json:"script_perm"`
 }
 
-func (inf *pwinfo) collect() {
+func (inf *PwInfo) collect() {
 	pwdrv, err := playwright.NewDriver(&playwright.RunOptions{
 		Browsers:            []string{cfg.Browser.String()},
 		SkipInstallBrowsers: true},

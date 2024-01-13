@@ -21,11 +21,12 @@ open an issue on Github.
 	PrintFlags:  false,
 	RequireAuth: false,
 	Commands: []*base.Command{
-		CmdRawOutput,
-		CmdEzTest,
 		CmdEncrypt,
-		CmdThread,
+		CmdEzTest,
+		CmdInfo,
 		CmdObfuscate,
+		CmdRawOutput,
 		CmdRecord,
+		CmdThread,
 	},
 }

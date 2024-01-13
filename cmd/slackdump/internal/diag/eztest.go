@@ -33,6 +33,7 @@ be printed and the test will be terminated.
 }
 
 type result struct {
+	Engine     string  `json:"engine,omitempty"`
 	HasToken   bool    `json:"has_token,omitempty"`
 	HasCookies bool    `json:"has_cookies,omitempty"`
 	Err        *string `json:"error,omitempty"`
@@ -72,8 +73,9 @@ func runEzLoginTest(ctx context.Context, cmd *base.Command, args []string) error
 		return err
 	}
 
-	token, cookies, err := b.Authenticate(context.Background())
+	token, cookies, err := b.Authenticate(ctx)
 	r := result{
+		Engine:     "playwright",
 		HasToken:   len(token) > 0,
 		HasCookies: len(cookies) > 0,
 	}

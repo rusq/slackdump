@@ -38,30 +38,58 @@
 package info
 
 import (
-	"context"
-	"encoding/json"
+	"io/fs"
 	"os"
-
-	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/golang/base"
+	"strings"
 )
 
-// CmdInfo is the information command.
-var CmdInfo = &base.Command{
-	UsageLine: "slackdump info",
-	Short:     "show information about slackdump environment",
-	Run:       runInfo,
-	Long: `# Info Command
-	
-**Info** shows information about Slackdump environment, such as local system paths, etc.
-`,
+type SysInfo struct {
+	OS         OSInfo    `json:"os"`
+	Workspace  Workspace `json:"workspace"`
+	Playwright PwInfo    `json:"playwright"`
+	Rod        RodInfo   `json:"rod"`
+	EzLogin    EZLogin   `json:"ez_login"`
 }
 
-func runInfo(ctx context.Context, cmd *base.Command, args []string) error {
-	enc := json.NewEncoder(os.Stdout)
-	enc.SetIndent("", "  ")
-	if err := enc.Encode(collect()); err != nil {
-		return err
+func Collect() *SysInfo {
+	var si = new(SysInfo)
+	var collectors = []func(){
+		si.Workspace.collect,
+		si.Playwright.collect,
+		si.Rod.collect,
+		si.EzLogin.collect,
+		si.OS.collect,
 	}
+	for _, c := range collectors {
+		c()
+	}
+	return si
 
-	return nil
+}
+
+const (
+	home = "$HOME"
+)
+
+var replaceFn = strings.NewReplacer(should(os.UserHomeDir()), home).Replace
+
+func should(v string, err error) string {
+	if err != nil {
+		return "$$$ERROR$$$"
+	}
+	return v
+}
+
+func dirnames(des []fs.DirEntry) []string {
+	var res []string
+	for _, de := range des {
+		if de.IsDir() && !strings.HasPrefix(de.Name(), ".") {
+			res = append(res, de.Name())
+		}
+	}
+	return res
+}
+
+func looser(err error) string {
+	return "*ERROR: " + replaceFn(err.Error()) + "*"
 }
