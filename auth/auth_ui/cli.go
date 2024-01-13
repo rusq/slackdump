@@ -42,17 +42,17 @@ func (cl *CLI) RequestPassword(w io.Writer, account string) (string, error) {
 	return prompt(w, fmt.Sprintf("Enter Password for %s (won't be visible): ", account), readpwd)
 }
 
-func (cl *CLI) RequestLoginType(w io.Writer) (int, error) {
+func (cl *CLI) RequestLoginType(w io.Writer) (LoginType, error) {
 	var types = []struct {
 		name  string
-		value int
+		value LoginType
 	}{
-		{"Email", LoginEmail},
-		{"Google", LoginSSO},
-		{"Apple", LoginSSO},
-		{"Login with Single-Sign-On (SSO)", LoginSSO},
-		{"Other/Manual", LoginSSO},
-		{"Cancel", LoginCancel},
+		{"Email", LHeadless},
+		{"Google", LInteractive},
+		{"Apple", LInteractive},
+		{"Login with Single-Sign-On (SSO)", LInteractive},
+		{"Other/Manual", LInteractive},
+		{"Cancel", LCancel},
 	}
 
 	var idx int = -1

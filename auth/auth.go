@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"os"
 	"runtime/trace"
 	"strings"
 
@@ -37,8 +38,6 @@ type Provider interface {
 	SlackToken() string
 	// Cookies should return a set of Slack Session cookies.
 	Cookies() []*http.Cookie
-	// Type returns the auth type.
-	Type() Type
 	// Validate should return error, in case the token or cookies cannot be
 	// retrieved.
 	Validate() error
@@ -139,4 +138,9 @@ func (s simpleProvider) Test(ctx context.Context) error {
 
 func (s simpleProvider) HTTPClient() (*http.Client, error) {
 	return chttp.New(SlackURL, s.Cookies())
+}
+
+func IsDocker() bool {
+	_, err := os.Stat("/.dockerenv")
+	return err == nil
 }

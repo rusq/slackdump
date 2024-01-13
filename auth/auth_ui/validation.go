@@ -59,3 +59,44 @@ func valEmail(s string) error {
 	}
 	return nil
 }
+
+// valSepEaster is probably the most useless validation function ever.
+func valSepEaster() func(v LoginType) error {
+	var phrases = []string{
+		"This is a separator, it does nothing",
+		"Seriously, it does nothing",
+		"Stop clicking on it",
+		"Stop it",
+		"Stop",
+		"Why are you so persistent?",
+		"Fine, you win",
+		"Here's a cookie: 🍪",
+		"🍪",
+		"🍪",
+		"Don't be greedy, you already had three.",
+		"Ok, here's another one: 🍪",
+		"Nothing will happen if you click on it again",
+		"",
+		"",
+		"",
+		"You must have a lot of time on your hands",
+		"Or maybe you're just bored",
+		"Or maybe you're just procrastinating",
+		"Or maybe you're just trying to get a cookie",
+		"These are virtual cookies, you can't eat them, but here's another one: 🍪",
+		"🍪",
+		"You have reached the end of this joke, it will now repeat",
+		"Seriously...",
+		"Ah, shit, here we go again",
+	}
+	var i int
+	return func(v LoginType) error {
+		if v == -1 {
+			// separator selected
+			msg := phrases[i]
+			i = (i + 1) % len(phrases)
+			return errors.New(msg)
+		}
+		return nil
+	}
+}
