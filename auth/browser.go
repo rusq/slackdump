@@ -46,7 +46,7 @@ func NewBrowserAuth(ctx context.Context, opts ...Option) (BrowserAuth, error) {
 	for _, opt := range opts {
 		opt(&br.opts)
 	}
-	if isDocker() {
+	if IsDocker() {
 		return BrowserAuth{}, &Error{Err: ErrNotSupported, Msg: "browser auth is not supported in docker, use token/cookie auth instead"}
 	}
 
@@ -80,9 +80,4 @@ func NewBrowserAuth(ctx context.Context, opts ...Option) (BrowserAuth, error) {
 
 func (BrowserAuth) Type() Type {
 	return TypeBrowser
-}
-
-func isDocker() bool {
-	_, err := os.Stat("/.dockerenv")
-	return err == nil
 }
