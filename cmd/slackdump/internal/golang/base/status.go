@@ -9,8 +9,8 @@ type StatusCode uint8
 const (
 	SNoError StatusCode = iota
 	SGenericError
-	SInvalidParameters
 	SHelpRequested
+	SInvalidParameters
 	SAuthError
 	SApplicationError
 	SWorkspaceError

@@ -94,10 +94,11 @@ func NewRODAuth(ctx context.Context, opts ...Option) (RodAuth, error) {
 		if err != nil {
 			return r, err
 		}
-		fmt.Fprintln(os.Stderr, "authenticated.")
 	case auth_ui.LCancel:
 		return r, ErrCancelled
 	}
+
+	fmt.Fprintln(os.Stderr, "authenticated.")
 
 	return RodAuth{
 		simpleProvider: sp,
@@ -128,7 +129,5 @@ func headlessFlow(ctx context.Context, workspace string, ui browserAuthUIExt) (s
 	if loginErr != nil {
 		return sp, loginErr
 	}
-
-	fmt.Fprintln(os.Stderr, "authenticated.")
 	return
 }

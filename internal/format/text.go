@@ -93,15 +93,15 @@ func (txt *Text) txtConversations(w io.Writer, m []types.Message, prefix string,
 }
 
 func (txt *Text) Users(ctx context.Context, w io.Writer, u []slack.User) error {
-	const strFormat = "%s\t%s\t%s\t%s\t%s\n"
+	const strFormat = "%s\t%s\t%s\t%s\t%s\t%s\n"
 	writer := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
 	defer writer.Flush()
 
 	// header
-	if _, err := fmt.Fprintf(writer, strFormat, "Name", "ID", "Bot?", "Deleted?", "Restricted?"); err != nil {
+	if _, err := fmt.Fprintf(writer, strFormat, "Name", "ID", "Bot?", "Email", "Deleted?", "Restricted?"); err != nil {
 		return fmt.Errorf("writer error: %w", err)
 	}
-	if _, err := fmt.Fprintf(writer, strFormat, "", "", "", "", ""); err != nil {
+	if _, err := fmt.Fprintf(writer, strFormat, "", "", "", "", "", ""); err != nil {
 		return fmt.Errorf("writer error: %w", err)
 	}
 
@@ -133,7 +133,7 @@ func (txt *Text) Users(ctx context.Context, w io.Writer, u []slack.User) error {
 		}
 
 		_, err := fmt.Fprintf(writer, strFormat,
-			name, usermap[name].ID, bot, deleted, restricted,
+			name, usermap[name].ID, bot, usermap[name].Profile.Email, deleted, restricted,
 		)
 		if err != nil {
 			return fmt.Errorf("writer error: %w", err)

@@ -53,15 +53,18 @@ var output = CmdRecordStream.Flag.String("output", "", "output file")
 
 func runRecord(ctx context.Context, _ *base.Command, args []string) error {
 	if len(args) == 0 {
+		base.SetExitStatus(base.SInvalidParameters)
 		return errors.New("missing channel argument")
 	}
 
 	prov, err := auth.FromContext(ctx)
 	if err != nil {
+		base.SetExitStatus(base.SAuthError)
 		return err
 	}
 	sess, err := slackdump.New(ctx, prov)
 	if err != nil {
+		base.SetExitStatus(base.SWorkspaceError)
 		return err
 	}
 
@@ -70,6 +73,7 @@ func runRecord(ctx context.Context, _ *base.Command, args []string) error {
 		w = os.Stdout
 	} else {
 		if f, err := os.Create(*output); err != nil {
+			base.SetExitStatus(base.SApplicationError)
 			return err
 		} else {
 			defer f.Close()
@@ -82,19 +86,26 @@ func runRecord(ctx context.Context, _ *base.Command, args []string) error {
 		cfg.Log.Printf("streaming channel %q", ch)
 		if err := sess.Stream().SyncConversations(ctx, rec, ch); err != nil {
 			if err2 := rec.Close(); err2 != nil {
+				base.SetExitStatus(base.SApplicationError)
 				return fmt.Errorf("error streaming channel %q: %w; error closing recorder: %v", ch, err, err2)
 			}
 			return err
 		}
 	}
 	if err := rec.Close(); err != nil {
+		base.SetExitStatus(base.SApplicationError)
 		return err
 	}
 	st, err := rec.State()
 	if err != nil {
+		base.SetExitStatus(base.SApplicationError)
 		return err
 	}
-	return st.Save(*output + ".state")
+	if err := st.Save(*output + ".state"); err != nil {
+		base.SetExitStatus(base.SApplicationError)
+		return err
+	}
+	return nil
 }
 
 func init() {
@@ -104,23 +115,31 @@ func init() {
 
 func runRecordState(ctx context.Context, _ *base.Command, args []string) error {
 	if len(args) == 0 {
+		base.SetExitStatus(base.SInvalidParameters)
 		return errors.New("missing record file argument")
 	}
 	f, err := os.Open(args[0])
 	if err != nil {
+		base.SetExitStatus(base.SApplicationError)
 		return err
 	}
 	defer f.Close()
 
 	cf, err := chunk.FromReader(f)
 	if err != nil {
+		base.SetExitStatus(base.SApplicationError)
 		return err
 	}
 	state, err := cf.State()
 	if err != nil {
+		base.SetExitStatus(base.SApplicationError)
 		return err
 	}
 	enc := json.NewEncoder(os.Stdout)
 	enc.SetIndent("", "  ")
-	return enc.Encode(state)
+	if err := enc.Encode(state); err != nil {
+		base.SetExitStatus(base.SApplicationError)
+		return err
+	}
+	return nil
 }

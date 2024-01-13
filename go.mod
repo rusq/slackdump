@@ -17,7 +17,7 @@ require (
 	github.com/rusq/encio v0.1.0
 	github.com/rusq/fsadapter v1.0.1
 	github.com/rusq/osenv/v2 v2.0.1
-	github.com/rusq/slackauth v0.0.6
+	github.com/rusq/slackauth v0.0.7
 	github.com/rusq/tracer v1.0.1
 	github.com/schollz/progressbar/v3 v3.13.0
 	github.com/slack-go/slack v0.12.3

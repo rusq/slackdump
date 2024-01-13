@@ -10,8 +10,8 @@ func _() {
 	var x [1]struct{}
 	_ = x[SNoError-0]
 	_ = x[SGenericError-1]
-	_ = x[SInvalidParameters-2]
-	_ = x[SHelpRequested-3]
+	_ = x[SHelpRequested-2]
+	_ = x[SInvalidParameters-3]
 	_ = x[SAuthError-4]
 	_ = x[SApplicationError-5]
 	_ = x[SWorkspaceError-6]
@@ -19,9 +19,9 @@ func _() {
 	_ = x[SUserError-8]
 }
 
-const _StatusCode_name = "NoErrorGenericErrorInvalidParametersHelpRequestedAuthErrorApplicationErrorWorkspaceErrorCacheErrorUserError"
+const _StatusCode_name = "NoErrorGenericErrorHelpRequestedInvalidParametersAuthErrorApplicationErrorWorkspaceErrorCacheErrorUserError"
 
-var _StatusCode_index = [...]uint8{0, 7, 19, 36, 49, 58, 74, 88, 98, 107}
+var _StatusCode_index = [...]uint8{0, 7, 19, 32, 49, 58, 74, 88, 98, 107}
 
 func (i StatusCode) String() string {
 	if i >= StatusCode(len(_StatusCode_index)-1) {
