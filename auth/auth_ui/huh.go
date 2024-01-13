@@ -36,10 +36,12 @@ func (*Huh) RequestCreds(w io.Writer, workspace string) (email string, passwd st
 		huh.NewGroup(
 			huh.NewInput().
 				Title("You Slack Login Email").Value(&email).
+				Placeholder("you@work.com").
 				Description(fmt.Sprintf("This is the email that you log into %s with.", workspace)).
 				Validate(valAND(valEmail, valRequired)),
 			huh.NewInput().
 				Title("Password").Value(&passwd).
+				Placeholder("your slack password").
 				Validate(valRequired).Password(true),
 		),
 	)
