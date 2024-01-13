@@ -53,7 +53,8 @@ func (*Huh) RequestLoginType(w io.Writer) (LoginType, error) {
 	var loginType LoginType
 	err := huh.NewSelect[LoginType]().Title("Select login type").
 		Options(
-			huh.NewOption("Email", LHeadless),
+			huh.NewOption("Email (manual)", LInteractive),
+			huh.NewOption("Email (automatic, experimental)", LHeadless),
 			huh.NewOption("Google", LInteractive),
 			huh.NewOption("Apple", LInteractive),
 			huh.NewOption("Login with Single-Sign-On (SSO)", LInteractive),

@@ -10,10 +10,10 @@ import (
 type LoginType int8
 
 const (
-	// LHeadless is the email/password login type.
-	LHeadless LoginType = iota
 	// LInteractive is the SSO login type (Google, Apple, etc).
-	LInteractive
+	LInteractive LoginType = iota
+	// LHeadless is the email/password login type.
+	LHeadless
 	// LCancel should be returned if the user cancels the login intent.
 	LCancel
 )
