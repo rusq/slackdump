@@ -23,7 +23,7 @@ func (inf *pwinfo) collect() {
 		SkipInstallBrowsers: true},
 	)
 	if err != nil {
-		inf.Path = err.Error()
+		inf.Path = looser(err)
 		return
 	}
 	inf.Path = homerepl(pwdrv.DriverDirectory)
@@ -32,13 +32,19 @@ func (inf *pwinfo) collect() {
 		if stat, err := os.Stat(pwdrv.DriverBinaryLocation); err == nil {
 			inf.ScriptPerm = stat.Mode().String()
 			inf.ScriptExists = true
+		} else {
+			inf.ScriptPerm = looser(err)
 		}
 	}
 	if de, err := os.ReadDir(filepath.Join(pwdrv.DriverDirectory, "..")); err == nil {
 		inf.InstalledVersions = dirnames(de)
+	} else {
+		inf.InstalledVersions = []string{looser(err)}
 	}
 
 	if de, err := os.ReadDir(filepath.Join(pwdrv.DriverDirectory, "..", "..", "ms-playwright")); err == nil {
 		inf.InstalledBrowsers = dirnames(de)
+	} else {
+		inf.InstalledBrowsers = []string{looser(err)}
 	}
 }

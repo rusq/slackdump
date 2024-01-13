@@ -11,6 +11,11 @@
 // collects the information and stores it in the struct.  The struct is then
 // serialized to JSON and printed to stdout.
 //
+// The collect() method can choose not to terminate on error, but, for string
+// methods, populate it with the error message, there's a function called
+// "looser(err)" that returns an error with prefix "ERROR", the string will
+// look like "*ERROR: some error*".
+//
 // Procedure to add new collectors:
 //  1. Create a new file in this package, named after the collector.
 //  2. Define a struct with the name of the collector, alternatively, if
@@ -56,11 +61,11 @@ var CmdInfo = &base.Command{
 }
 
 type sysinfo struct {
+	OS         osinfo    `json:"os"`
 	Workspace  workspace `json:"workspace"`
 	Playwright pwinfo    `json:"playwright"`
 	Rod        rodinfo   `json:"rod"`
 	EzLogin    ezlogin   `json:"ez_login"`
-	OS         osinfo    `json:"os"`
 }
 
 type ezlogin struct {
@@ -112,4 +117,8 @@ func dirnames(des []fs.DirEntry) []string {
 		}
 	}
 	return res
+}
+
+func looser(err error) string {
+	return "*ERROR: " + err.Error() + "*"
 }

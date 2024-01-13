@@ -15,5 +15,7 @@ func (inf *rodinfo) collect() {
 	inf.Path = homerepl(launcher.DefaultBrowserDir)
 	if de, err := os.ReadDir(launcher.DefaultBrowserDir); err == nil {
 		inf.Browsers = dirnames(de)
+	} else {
+		inf.Browsers = []string{looser(err)}
 	}
 }
