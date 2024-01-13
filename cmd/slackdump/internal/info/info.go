@@ -104,7 +104,7 @@ var homerepl = strings.NewReplacer(should(os.UserHomeDir()), "~").Replace
 
 func should(v string, err error) string {
 	if err != nil {
-		return "<ERROR: " + err.Error() + "> "
+		return "$$$ERROR$$$"
 	}
 	return v
 }
@@ -120,5 +120,5 @@ func dirnames(des []fs.DirEntry) []string {
 }
 
 func looser(err error) string {
-	return "*ERROR: " + err.Error() + "*"
+	return "*ERROR: " + homerepl(err.Error()) + "*"
 }
