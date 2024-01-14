@@ -12,12 +12,12 @@ import (
 	"github.com/slack-go/slack"
 	"go.uber.org/mock/gomock"
 
-	"github.com/rusq/slackdump/v2/auth"
-	"github.com/rusq/slackdump/v2/internal/cache"
-	"github.com/rusq/slackdump/v2/internal/chunk"
-	"github.com/rusq/slackdump/v2/internal/chunk/chunktest"
-	"github.com/rusq/slackdump/v2/internal/fixtures"
-	"github.com/rusq/slackdump/v2/mocks/mock_processor"
+	"github.com/rusq/slackdump/v3/auth"
+	"github.com/rusq/slackdump/v3/internal/cache"
+	"github.com/rusq/slackdump/v3/internal/chunk"
+	"github.com/rusq/slackdump/v3/internal/chunk/chunktest"
+	"github.com/rusq/slackdump/v3/internal/fixtures"
+	"github.com/rusq/slackdump/v3/mocks/mock_processor"
 )
 
 const testConversation = "CO720D65C25A"

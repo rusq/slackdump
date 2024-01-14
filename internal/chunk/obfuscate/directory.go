@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/rusq/dlog"
-	"github.com/rusq/slackdump/v2/internal/chunk"
+	"github.com/rusq/slackdump/v3/internal/chunk"
 )
 
 // DoDir obfuscates all files in the directory src, placing obfuscated

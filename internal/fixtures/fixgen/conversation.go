@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/rusq/slackdump/v2/internal/fixtures"
-	"github.com/rusq/slackdump/v2/types"
+	"github.com/rusq/slackdump/v3/internal/fixtures"
+	"github.com/rusq/slackdump/v3/types"
 )
 
 func init() {

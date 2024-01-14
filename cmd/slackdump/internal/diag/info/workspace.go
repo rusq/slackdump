@@ -1,8 +1,8 @@
 package info
 
 import (
-	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/cfg"
-	"github.com/rusq/slackdump/v2/internal/cache"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
+	"github.com/rusq/slackdump/v3/internal/cache"
 )
 
 type Workspace struct {

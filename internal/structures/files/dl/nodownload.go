@@ -7,9 +7,9 @@ import (
 
 	"github.com/slack-go/slack"
 
-	"github.com/rusq/slackdump/v2"
-	"github.com/rusq/slackdump/v2/internal/structures/files"
-	"github.com/rusq/slackdump/v2/types"
+	"github.com/rusq/slackdump/v3"
+	"github.com/rusq/slackdump/v3/internal/structures/files"
+	"github.com/rusq/slackdump/v3/types"
 )
 
 // Nothing does not download any files, it just updates the link adding

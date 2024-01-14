@@ -14,10 +14,10 @@ import (
 
 	"github.com/rusq/chttp"
 
-	"github.com/rusq/slackdump/v2/auth"
-	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/cfg"
-	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/golang/base"
-	"github.com/rusq/slackdump/v2/internal/structures"
+	"github.com/rusq/slackdump/v3/auth"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
+	"github.com/rusq/slackdump/v3/internal/structures"
 )
 
 var CmdRawOutput = &base.Command{

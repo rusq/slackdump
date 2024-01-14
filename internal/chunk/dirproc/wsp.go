@@ -1,6 +1,6 @@
 package dirproc
 
-import "github.com/rusq/slackdump/v2/internal/chunk"
+import "github.com/rusq/slackdump/v3/internal/chunk"
 
 type Workspace struct {
 	*baseproc

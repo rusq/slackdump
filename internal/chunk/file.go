@@ -18,10 +18,10 @@ import (
 	"github.com/slack-go/slack"
 
 	"github.com/rusq/dlog"
-	"github.com/rusq/slackdump/v2/internal/chunk/state"
-	"github.com/rusq/slackdump/v2/internal/osext"
-	"github.com/rusq/slackdump/v2/internal/structures"
-	"github.com/rusq/slackdump/v2/logger"
+	"github.com/rusq/slackdump/v3/internal/chunk/state"
+	"github.com/rusq/slackdump/v3/internal/osext"
+	"github.com/rusq/slackdump/v3/internal/structures"
+	"github.com/rusq/slackdump/v3/logger"
 )
 
 var (

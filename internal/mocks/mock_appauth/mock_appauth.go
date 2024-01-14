@@ -10,7 +10,7 @@ import (
 	reflect "reflect"
 
 	gomock "go.uber.org/mock/gomock"
-	auth "github.com/rusq/slackdump/v2/auth"
+	auth "github.com/rusq/slackdump/v3/auth"
 )
 
 // MockCredentials is a mock of Credentials interface.

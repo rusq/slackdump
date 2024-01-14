@@ -6,7 +6,7 @@ EXECUTABLE=slackdump
 BUILD=$(shell git describe --tags)
 BUILD_YEAR=$(shell date +%Y)
 
-PKG=github.com/rusq/slackdump/v2
+PKG=github.com/rusq/slackdump/v3
 
 LDFLAGS="-s -w -X 'main.build=$(BUILD)' -X 'main.buildYear=$(BUILD_YEAR)'"
 OSES=linux darwin windows

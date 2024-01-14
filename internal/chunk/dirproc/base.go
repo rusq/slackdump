@@ -4,7 +4,7 @@ import (
 	"io"
 	"sync/atomic"
 
-	"github.com/rusq/slackdump/v2/internal/chunk"
+	"github.com/rusq/slackdump/v3/internal/chunk"
 )
 
 // baseproc exposes recording functionality for processor, and handles chunk

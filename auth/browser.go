@@ -6,8 +6,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/rusq/slackdump/v2/auth/auth_ui"
-	"github.com/rusq/slackdump/v2/auth/browser"
+	"github.com/rusq/slackdump/v3/auth/auth_ui"
+	"github.com/rusq/slackdump/v3/auth/browser"
 )
 
 var _ Provider = BrowserAuth{}

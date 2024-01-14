@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rusq/slackdump/v2/internal/chunk/state"
+	"github.com/rusq/slackdump/v3/internal/chunk/state"
 	"github.com/slack-go/slack"
 	"github.com/stretchr/testify/assert"
 )

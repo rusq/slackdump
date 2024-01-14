@@ -9,7 +9,7 @@ import (
 	"runtime/trace"
 	"strconv"
 
-	"github.com/rusq/slackdump/v2/internal/chunk"
+	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/slack-go/slack"
 )
 

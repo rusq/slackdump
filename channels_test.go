@@ -10,8 +10,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 
-	"github.com/rusq/slackdump/v2/logger"
-	"github.com/rusq/slackdump/v2/types"
+	"github.com/rusq/slackdump/v3/logger"
+	"github.com/rusq/slackdump/v3/types"
 )
 
 func TestSession_getChannels(t *testing.T) {

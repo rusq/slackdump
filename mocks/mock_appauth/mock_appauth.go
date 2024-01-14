@@ -13,7 +13,7 @@ import (
 	io "io"
 	reflect "reflect"
 
-	auth "github.com/rusq/slackdump/v2/auth"
+	auth "github.com/rusq/slackdump/v3/auth"
 	gomock "go.uber.org/mock/gomock"
 )
 

@@ -13,7 +13,7 @@ import (
 	"github.com/slack-go/slack"
 	"golang.org/x/time/rate"
 
-	"github.com/rusq/slackdump/v2/logger"
+	"github.com/rusq/slackdump/v3/logger"
 )
 
 // defNumAttempts is the default number of retry attempts.

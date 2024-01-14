@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/playwright-community/playwright-go"
-	"github.com/rusq/slackdump/v2/logger"
+	"github.com/rusq/slackdump/v3/logger"
 )
 
 const (

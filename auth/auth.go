@@ -32,7 +32,7 @@ const (
 
 // Provider is the Slack Authentication provider.
 //
-//go:generate mockgen -destination ../internal/mocks/mock_auth/mock_auth.go github.com/rusq/slackdump/v2/auth Provider
+//go:generate mockgen -destination ../internal/mocks/mock_auth/mock_auth.go github.com/rusq/slackdump/v3/auth Provider
 type Provider interface {
 	// SlackToken should return the Slack Token value.
 	SlackToken() string

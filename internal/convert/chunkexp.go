@@ -11,10 +11,10 @@ import (
 	"sync"
 
 	"github.com/rusq/fsadapter"
-	"github.com/rusq/slackdump/v2/internal/chunk"
-	"github.com/rusq/slackdump/v2/internal/chunk/transform"
-	"github.com/rusq/slackdump/v2/internal/chunk/transform/fileproc"
-	"github.com/rusq/slackdump/v2/logger"
+	"github.com/rusq/slackdump/v3/internal/chunk"
+	"github.com/rusq/slackdump/v3/internal/chunk/transform"
+	"github.com/rusq/slackdump/v3/internal/chunk/transform/fileproc"
+	"github.com/rusq/slackdump/v3/logger"
 	"github.com/slack-go/slack"
 )
 

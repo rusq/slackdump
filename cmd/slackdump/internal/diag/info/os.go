@@ -4,7 +4,7 @@ import (
 	"os"
 	"runtime"
 
-	"github.com/rusq/slackdump/v2/auth"
+	"github.com/rusq/slackdump/v3/auth"
 )
 
 type OSInfo struct {

@@ -12,9 +12,9 @@ import (
 	"github.com/slack-go/slack"
 	"golang.org/x/time/rate"
 
-	"github.com/rusq/slackdump/v2/internal/network"
-	"github.com/rusq/slackdump/v2/internal/structures"
-	"github.com/rusq/slackdump/v2/types"
+	"github.com/rusq/slackdump/v3/internal/network"
+	"github.com/rusq/slackdump/v3/internal/structures"
+	"github.com/rusq/slackdump/v3/types"
 )
 
 // Dump dumps messages or threads specified by link. link can be one of the

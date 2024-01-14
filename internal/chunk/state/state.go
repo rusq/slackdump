@@ -9,7 +9,7 @@ import (
 	"sync"
 
 	"github.com/rusq/fsadapter"
-	"github.com/rusq/slackdump/v2/internal/structures"
+	"github.com/rusq/slackdump/v3/internal/structures"
 )
 
 const Version = 0.1

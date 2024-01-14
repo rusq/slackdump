@@ -1,4 +1,4 @@
-module github.com/rusq/slackdump/v2
+module github.com/rusq/slackdump/v3
 
 go 1.21.4
 

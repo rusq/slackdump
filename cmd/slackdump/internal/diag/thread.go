@@ -11,11 +11,11 @@ import (
 	"github.com/schollz/progressbar/v3"
 	"github.com/slack-go/slack"
 
-	"github.com/rusq/slackdump/v2"
-	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/cfg"
-	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/golang/base"
-	"github.com/rusq/slackdump/v2/internal/network"
-	"github.com/rusq/slackdump/v2/internal/structures"
+	"github.com/rusq/slackdump/v3"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
+	"github.com/rusq/slackdump/v3/internal/network"
+	"github.com/rusq/slackdump/v3/internal/structures"
 )
 
 var _ = godotenv.Load()

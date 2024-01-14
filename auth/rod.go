@@ -7,7 +7,7 @@ import (
 	"os"
 
 	"github.com/rusq/slackauth"
-	"github.com/rusq/slackdump/v2/auth/auth_ui"
+	"github.com/rusq/slackdump/v3/auth/auth_ui"
 )
 
 // RodAuth is an authentication provider that uses a headless or interactive

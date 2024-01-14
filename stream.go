@@ -12,11 +12,11 @@ import (
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/time/rate"
 
-	"github.com/rusq/slackdump/v2/internal/chunk/state"
-	"github.com/rusq/slackdump/v2/internal/network"
-	"github.com/rusq/slackdump/v2/internal/structures"
-	"github.com/rusq/slackdump/v2/logger"
-	"github.com/rusq/slackdump/v2/processor"
+	"github.com/rusq/slackdump/v3/internal/chunk/state"
+	"github.com/rusq/slackdump/v3/internal/network"
+	"github.com/rusq/slackdump/v3/internal/structures"
+	"github.com/rusq/slackdump/v3/logger"
+	"github.com/rusq/slackdump/v3/processor"
 )
 
 const (

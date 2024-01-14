@@ -14,8 +14,8 @@ import (
 
 	"github.com/rusq/encio"
 
-	"github.com/rusq/slackdump/v2/auth"
-	"github.com/rusq/slackdump/v2/types"
+	"github.com/rusq/slackdump/v3/auth"
+	"github.com/rusq/slackdump/v3/types"
 )
 
 // Manager is the workspace manager.

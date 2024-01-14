@@ -5,11 +5,11 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/rusq/slackdump/v2/internal/chunk"
-	"github.com/rusq/slackdump/v2/internal/chunk/dirproc"
-	"github.com/rusq/slackdump/v2/internal/chunk/transform"
-	"github.com/rusq/slackdump/v2/logger"
-	"github.com/rusq/slackdump/v2/processor"
+	"github.com/rusq/slackdump/v3/internal/chunk"
+	"github.com/rusq/slackdump/v3/internal/chunk/dirproc"
+	"github.com/rusq/slackdump/v3/internal/chunk/transform"
+	"github.com/rusq/slackdump/v3/logger"
+	"github.com/rusq/slackdump/v3/processor"
 	"github.com/slack-go/slack"
 )
 

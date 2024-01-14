@@ -13,7 +13,7 @@ import (
 
 	"github.com/rusq/encio"
 
-	"github.com/rusq/slackdump/v2/auth"
+	"github.com/rusq/slackdump/v3/auth"
 )
 
 const ezLogin = "EZ-Login 3000"

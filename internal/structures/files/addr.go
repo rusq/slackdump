@@ -6,7 +6,7 @@ import (
 
 	"github.com/slack-go/slack"
 
-	"github.com/rusq/slackdump/v2/types"
+	"github.com/rusq/slackdump/v3/types"
 )
 
 // Root is the parent address for the topmost message chunk.

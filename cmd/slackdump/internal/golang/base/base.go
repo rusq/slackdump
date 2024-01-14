@@ -17,7 +17,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/cfg"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"golang.org/x/term"
 	"src.elv.sh/pkg/md"
 )

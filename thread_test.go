@@ -12,10 +12,10 @@ import (
 	"go.uber.org/mock/gomock"
 	"golang.org/x/time/rate"
 
-	"github.com/rusq/slackdump/v2/internal/network"
-	"github.com/rusq/slackdump/v2/internal/structures"
-	"github.com/rusq/slackdump/v2/logger"
-	"github.com/rusq/slackdump/v2/types"
+	"github.com/rusq/slackdump/v3/internal/network"
+	"github.com/rusq/slackdump/v3/internal/structures"
+	"github.com/rusq/slackdump/v3/logger"
+	"github.com/rusq/slackdump/v3/types"
 )
 
 func TestSession_DumpThreadWithFiles(t *testing.T) {

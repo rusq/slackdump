@@ -13,11 +13,11 @@ import (
 
 	"github.com/rusq/dlog"
 	"github.com/rusq/fsadapter"
-	"github.com/rusq/slackdump/v2"
-	"github.com/rusq/slackdump/v2/internal/chunk"
-	"github.com/rusq/slackdump/v2/internal/chunk/chunktest"
-	"github.com/rusq/slackdump/v2/internal/structures"
-	"github.com/rusq/slackdump/v2/logger"
+	"github.com/rusq/slackdump/v3"
+	"github.com/rusq/slackdump/v3/internal/chunk"
+	"github.com/rusq/slackdump/v3/internal/chunk/chunktest"
+	"github.com/rusq/slackdump/v3/internal/structures"
+	"github.com/rusq/slackdump/v3/logger"
 	"github.com/slack-go/slack"
 )
 

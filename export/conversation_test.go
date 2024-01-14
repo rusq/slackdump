@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rusq/slackdump/v2/internal/fixtures"
-	"github.com/rusq/slackdump/v2/internal/fixtures/fixgen"
-	"github.com/rusq/slackdump/v2/types"
+	"github.com/rusq/slackdump/v3/internal/fixtures"
+	"github.com/rusq/slackdump/v3/internal/fixtures/fixgen"
+	"github.com/rusq/slackdump/v3/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

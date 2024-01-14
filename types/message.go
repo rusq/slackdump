@@ -4,7 +4,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/rusq/slackdump/v2/internal/structures"
+	"github.com/rusq/slackdump/v3/internal/structures"
 	"github.com/slack-go/slack"
 )
 

@@ -12,7 +12,7 @@ import (
 	"strings"
 	"sync/atomic"
 
-	"github.com/rusq/slackdump/v2/internal/osext"
+	"github.com/rusq/slackdump/v3/internal/osext"
 	"github.com/slack-go/slack"
 )
 

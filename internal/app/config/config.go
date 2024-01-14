@@ -4,11 +4,11 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/rusq/slackdump/v2"
-	"github.com/rusq/slackdump/v2/export"
-	"github.com/rusq/slackdump/v2/internal/nametmpl"
-	"github.com/rusq/slackdump/v2/internal/structures"
-	"github.com/rusq/slackdump/v2/logger"
+	"github.com/rusq/slackdump/v3"
+	"github.com/rusq/slackdump/v3/export"
+	"github.com/rusq/slackdump/v3/internal/nametmpl"
+	"github.com/rusq/slackdump/v3/internal/structures"
+	"github.com/rusq/slackdump/v3/logger"
 )
 
 const (

@@ -12,9 +12,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 
-	"github.com/rusq/slackdump/v2/auth"
-	"github.com/rusq/slackdump/v2/internal/mocks/mock_appauth"
-	"github.com/rusq/slackdump/v2/internal/mocks/mock_io"
+	"github.com/rusq/slackdump/v3/auth"
+	"github.com/rusq/slackdump/v3/internal/mocks/mock_appauth"
+	"github.com/rusq/slackdump/v3/internal/mocks/mock_io"
 )
 
 func Test_isExistingFile(t *testing.T) {

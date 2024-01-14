@@ -6,7 +6,7 @@ import (
 
 	"github.com/slack-go/slack"
 
-	"github.com/rusq/slackdump/v2/types"
+	"github.com/rusq/slackdump/v3/types"
 )
 
 func ReadUsers(r io.Reader) (types.Users, error) {

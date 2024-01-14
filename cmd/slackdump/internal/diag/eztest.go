@@ -9,9 +9,9 @@ import (
 
 	"github.com/playwright-community/playwright-go"
 
-	"github.com/rusq/slackdump/v2/auth/browser"
-	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/golang/base"
-	"github.com/rusq/slackdump/v2/logger"
+	"github.com/rusq/slackdump/v3/auth/browser"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
+	"github.com/rusq/slackdump/v3/logger"
 )
 
 var CmdEzTest = &base.Command{

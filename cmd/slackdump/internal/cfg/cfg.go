@@ -9,10 +9,10 @@ import (
 
 	"github.com/rusq/osenv/v2"
 
-	"github.com/rusq/slackdump/v2"
-	"github.com/rusq/slackdump/v2/auth/browser"
-	"github.com/rusq/slackdump/v2/internal/app/config"
-	"github.com/rusq/slackdump/v2/logger"
+	"github.com/rusq/slackdump/v3"
+	"github.com/rusq/slackdump/v3/auth/browser"
+	"github.com/rusq/slackdump/v3/internal/app/config"
+	"github.com/rusq/slackdump/v3/logger"
 )
 
 const (

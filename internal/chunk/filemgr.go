@@ -8,7 +8,7 @@ import (
 	"os"
 	"sync"
 
-	"github.com/rusq/slackdump/v2/logger"
+	"github.com/rusq/slackdump/v3/logger"
 )
 
 const extIdx = ".idx"

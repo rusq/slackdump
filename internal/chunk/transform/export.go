@@ -13,11 +13,11 @@ import (
 	"github.com/rusq/fsadapter"
 	"github.com/slack-go/slack"
 
-	"github.com/rusq/slackdump/v2/export"
-	"github.com/rusq/slackdump/v2/internal/chunk"
-	"github.com/rusq/slackdump/v2/internal/structures"
-	"github.com/rusq/slackdump/v2/logger"
-	"github.com/rusq/slackdump/v2/types"
+	"github.com/rusq/slackdump/v3/export"
+	"github.com/rusq/slackdump/v3/internal/chunk"
+	"github.com/rusq/slackdump/v3/internal/structures"
+	"github.com/rusq/slackdump/v3/logger"
+	"github.com/rusq/slackdump/v3/types"
 )
 
 type ExpCvtOption func(*ExpConverter)

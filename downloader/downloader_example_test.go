@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/rusq/fsadapter"
-	"github.com/rusq/slackdump/v2/downloader"
+	"github.com/rusq/slackdump/v3/downloader"
 	"github.com/slack-go/slack"
 	"golang.org/x/time/rate"
 )

@@ -10,8 +10,8 @@ import (
 
 	"github.com/slack-go/slack"
 
-	"github.com/rusq/slackdump/v2/internal/network"
-	"github.com/rusq/slackdump/v2/types"
+	"github.com/rusq/slackdump/v3/internal/network"
+	"github.com/rusq/slackdump/v3/types"
 )
 
 const (

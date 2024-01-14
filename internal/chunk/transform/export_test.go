@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/rusq/fsadapter"
-	"github.com/rusq/slackdump/v2/internal/chunk"
+	"github.com/rusq/slackdump/v3/internal/chunk"
 )
 
 func Test_transform(t *testing.T) {

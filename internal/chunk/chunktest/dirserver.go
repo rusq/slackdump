@@ -6,7 +6,7 @@ import (
 	"os"
 	"sync"
 
-	"github.com/rusq/slackdump/v2/internal/chunk"
+	"github.com/rusq/slackdump/v3/internal/chunk"
 )
 
 // DirServer is a test server that serves files from a chunk.Directory.

@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rusq/slackdump/v2/internal/structures"
-	"github.com/rusq/slackdump/v2/logger"
+	"github.com/rusq/slackdump/v3/internal/structures"
+	"github.com/rusq/slackdump/v3/logger"
 )
 
 func TestOptions_IsFilesEnabled(t *testing.T) {

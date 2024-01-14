@@ -11,7 +11,7 @@ import (
 	"github.com/slack-go/slack"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/rusq/slackdump/v2/internal/chunk/state"
+	"github.com/rusq/slackdump/v3/internal/chunk/state"
 )
 
 func TestEvent_ID(t *testing.T) {

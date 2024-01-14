@@ -15,14 +15,14 @@ import (
 	"github.com/rusq/dlog"
 	"github.com/slack-go/slack"
 
-	"github.com/rusq/slackdump/v2"
-	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/auth"
-	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/cfg"
-	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/golang/base"
-	"github.com/rusq/slackdump/v2/internal/cache"
-	"github.com/rusq/slackdump/v2/internal/format"
-	"github.com/rusq/slackdump/v2/logger"
-	"github.com/rusq/slackdump/v2/types"
+	"github.com/rusq/slackdump/v3"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/auth"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
+	"github.com/rusq/slackdump/v3/internal/cache"
+	"github.com/rusq/slackdump/v3/internal/format"
+	"github.com/rusq/slackdump/v3/logger"
+	"github.com/rusq/slackdump/v3/types"
 )
 
 var CmdFormat = &base.Command{

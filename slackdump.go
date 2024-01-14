@@ -13,9 +13,9 @@ import (
 	"golang.org/x/time/rate"
 
 	"github.com/rusq/fsadapter"
-	"github.com/rusq/slackdump/v2/auth"
-	"github.com/rusq/slackdump/v2/internal/network"
-	"github.com/rusq/slackdump/v2/logger"
+	"github.com/rusq/slackdump/v3/auth"
+	"github.com/rusq/slackdump/v3/internal/network"
+	"github.com/rusq/slackdump/v3/logger"
 )
 
 //go:generate mockgen -destination internal/mocks/mock_os/mock_os.go os FileInfo

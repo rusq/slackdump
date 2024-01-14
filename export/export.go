@@ -12,12 +12,12 @@ import (
 	"github.com/slack-go/slack"
 
 	"github.com/rusq/fsadapter"
-	"github.com/rusq/slackdump/v2"
-	"github.com/rusq/slackdump/v2/internal/network"
-	"github.com/rusq/slackdump/v2/internal/structures"
-	"github.com/rusq/slackdump/v2/internal/structures/files/dl"
-	"github.com/rusq/slackdump/v2/logger"
-	"github.com/rusq/slackdump/v2/types"
+	"github.com/rusq/slackdump/v3"
+	"github.com/rusq/slackdump/v3/internal/network"
+	"github.com/rusq/slackdump/v3/internal/structures"
+	"github.com/rusq/slackdump/v3/internal/structures/files/dl"
+	"github.com/rusq/slackdump/v3/logger"
+	"github.com/rusq/slackdump/v3/types"
 )
 
 // Export is the instance of Slack Exporter.

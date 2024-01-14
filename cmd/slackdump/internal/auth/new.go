@@ -5,11 +5,11 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/rusq/slackdump/v2/auth"
-	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/cfg"
-	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/golang/base"
-	"github.com/rusq/slackdump/v2/internal/cache"
-	"github.com/rusq/slackdump/v2/logger"
+	"github.com/rusq/slackdump/v3/auth"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
+	"github.com/rusq/slackdump/v3/internal/cache"
+	"github.com/rusq/slackdump/v3/logger"
 )
 
 var CmdWspNew = &base.Command{

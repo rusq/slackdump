@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rusq/slackdump/v2/types"
+	"github.com/rusq/slackdump/v3/types"
 )
 
 func Test_usercache_get(t *testing.T) {

@@ -6,7 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/rusq/slackdump/v2/internal/osext"
+	"github.com/rusq/slackdump/v3/internal/osext"
 )
 
 // State holds the state of a chunk recording. It contains the filename of the

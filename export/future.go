@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/rusq/slackdump/v2"
-	"github.com/rusq/slackdump/v2/types"
+	"github.com/rusq/slackdump/v3"
+	"github.com/rusq/slackdump/v3/types"
 	"github.com/slack-go/slack"
 )
 

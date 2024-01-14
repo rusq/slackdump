@@ -4,8 +4,8 @@ import (
 	"github.com/slack-go/slack"
 
 	"github.com/rusq/fsadapter"
-	"github.com/rusq/slackdump/v2/internal/structures/files/dl"
-	"github.com/rusq/slackdump/v2/logger"
+	"github.com/rusq/slackdump/v3/internal/structures/files/dl"
+	"github.com/rusq/slackdump/v3/logger"
 )
 
 // newFileExporter returns the appropriate exporter for the ExportType.

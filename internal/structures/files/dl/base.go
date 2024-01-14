@@ -3,7 +3,7 @@ package dl
 import (
 	"context"
 
-	"github.com/rusq/slackdump/v2/logger"
+	"github.com/rusq/slackdump/v3/logger"
 )
 
 const entFiles = "files"

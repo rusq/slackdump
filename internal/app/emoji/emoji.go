@@ -27,7 +27,7 @@ import (
 	"sync"
 
 	"github.com/rusq/fsadapter"
-	"github.com/rusq/slackdump/v2/logger"
+	"github.com/rusq/slackdump/v3/logger"
 )
 
 const (

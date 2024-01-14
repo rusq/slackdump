@@ -4,7 +4,13 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/rusq/slackdump/v2/cmd/slackdump/internal/golang/base"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
+)
+
+var (
+	version = "unknown"
+	commit  = "unknown"
+	date    = "unknown"
 )
 
 var CmdVersion = &base.Command{

@@ -19,9 +19,9 @@ import (
 
 	"github.com/rusq/dlog"
 	"github.com/rusq/fsadapter"
-	"github.com/rusq/slackdump/v2/internal/fixtures"
-	"github.com/rusq/slackdump/v2/internal/mocks/mock_downloader"
-	"github.com/rusq/slackdump/v2/logger"
+	"github.com/rusq/slackdump/v3/internal/fixtures"
+	"github.com/rusq/slackdump/v3/internal/mocks/mock_downloader"
+	"github.com/rusq/slackdump/v3/logger"
 )
 
 var (

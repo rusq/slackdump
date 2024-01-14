@@ -14,12 +14,12 @@ import (
 
 	"github.com/slack-go/slack"
 
-	"github.com/rusq/slackdump/v2"
-	"github.com/rusq/slackdump/v2/internal/chunk"
-	"github.com/rusq/slackdump/v2/internal/chunk/dirproc"
-	"github.com/rusq/slackdump/v2/internal/structures"
-	"github.com/rusq/slackdump/v2/logger"
-	"github.com/rusq/slackdump/v2/processor"
+	"github.com/rusq/slackdump/v3"
+	"github.com/rusq/slackdump/v3/internal/chunk"
+	"github.com/rusq/slackdump/v3/internal/chunk/dirproc"
+	"github.com/rusq/slackdump/v3/internal/structures"
+	"github.com/rusq/slackdump/v3/logger"
+	"github.com/rusq/slackdump/v3/processor"
 )
 
 // Controller is the main controller of the Slack Stream.  It runs the API

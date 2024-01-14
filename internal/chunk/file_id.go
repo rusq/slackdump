@@ -3,7 +3,7 @@ package chunk
 import (
 	"strings"
 
-	"github.com/rusq/slackdump/v2/internal/structures"
+	"github.com/rusq/slackdump/v3/internal/structures"
 )
 
 // FileID is the ID of the file within the Directory (it's basically the file

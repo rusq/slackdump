@@ -2,7 +2,7 @@ package ask
 
 import (
 	"github.com/charmbracelet/huh"
-	"github.com/rusq/slackdump/v2/export"
+	"github.com/rusq/slackdump/v3/export"
 )
 
 // ExportType asks the user to select an export type.

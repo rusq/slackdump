@@ -6,7 +6,7 @@ import (
 
 	"github.com/slack-go/slack"
 
-	"github.com/rusq/slackdump/v2/internal/fixtures"
+	"github.com/rusq/slackdump/v3/internal/fixtures"
 )
 
 var (

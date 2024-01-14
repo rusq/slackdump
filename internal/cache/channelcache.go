@@ -3,7 +3,7 @@ package cache
 import (
 	"time"
 
-	"github.com/rusq/slackdump/v2/types"
+	"github.com/rusq/slackdump/v3/types"
 	"github.com/slack-go/slack"
 )
 

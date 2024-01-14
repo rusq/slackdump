@@ -9,8 +9,8 @@ import (
 
 	"github.com/slack-go/slack"
 
-	"github.com/rusq/slackdump/v2/internal/chunk/state"
-	"github.com/rusq/slackdump/v2/internal/osext"
+	"github.com/rusq/slackdump/v3/internal/chunk/state"
+	"github.com/rusq/slackdump/v3/internal/osext"
 )
 
 // Recorder is a special Channeler that records all the data it receives, so

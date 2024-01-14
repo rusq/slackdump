@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/rusq/fsadapter"
-	"github.com/rusq/slackdump/v2/auth"
-	"github.com/rusq/slackdump/v2/internal/network"
+	"github.com/rusq/slackdump/v3/auth"
+	"github.com/rusq/slackdump/v3/internal/network"
 	"github.com/stretchr/testify/assert"
 )
 

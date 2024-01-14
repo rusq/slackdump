@@ -102,7 +102,7 @@ Download:
 
 .. code:: go
 
-  go get github.com/rusq/slackdump/v2
+  go get github.com/rusq/slackdump/v3
 
 
 Example
@@ -115,8 +115,8 @@ Example
     "context"
     "log"
 
-    "github.com/rusq/slackdump/v2"
-    "github.com/rusq/slackdump/v2/auth"
+    "github.com/rusq/slackdump/v3"
+    "github.com/rusq/slackdump/v3/auth"
   )
 
   func main() {
@@ -256,9 +256,9 @@ Messages that were conveyed with the donations:
 
 .. _`TheSignChef.com`: https://www.glassdoor.com.au/Reviews/TheSignChef-com-Reviews-E793259.htm
 
-.. |go ref| image:: https://pkg.go.dev/badge/github.com/rusq/slackdump/v2.svg
+.. |go ref| image:: https://pkg.go.dev/badge/github.com/rusq/slackdump/v3.svg
               :alt: Go Reference
-           :target: https://pkg.go.dev/github.com/rusq/slackdump/v2/
+           :target: https://pkg.go.dev/github.com/rusq/slackdump/v3/
 
 .. |screenshot| image:: doc/slackdump.webp
                :target: https://github.com/rusq/slackdump/releases/

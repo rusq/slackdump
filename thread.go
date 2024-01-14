@@ -10,9 +10,9 @@ import (
 	"github.com/slack-go/slack"
 	"golang.org/x/time/rate"
 
-	"github.com/rusq/slackdump/v2/internal/network"
-	"github.com/rusq/slackdump/v2/internal/structures"
-	"github.com/rusq/slackdump/v2/types"
+	"github.com/rusq/slackdump/v3/internal/network"
+	"github.com/rusq/slackdump/v3/internal/structures"
+	"github.com/rusq/slackdump/v3/types"
 )
 
 type threadFunc func(ctx context.Context, l *rate.Limiter, channelID string, threadTS string, oldest, latest time.Time, processFn ...ProcessFunc) ([]types.Message, error)

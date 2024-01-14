@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	"github.com/rusq/fsadapter"
-	"github.com/rusq/slackdump/v2/internal/chunk"
-	"github.com/rusq/slackdump/v2/internal/nametmpl"
+	"github.com/rusq/slackdump/v3/internal/chunk"
+	"github.com/rusq/slackdump/v3/internal/nametmpl"
 )
 
 func Test_stdConvert(t *testing.T) {

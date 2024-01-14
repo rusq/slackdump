@@ -10,11 +10,11 @@ import (
 	"github.com/slack-go/slack"
 
 	"github.com/rusq/fsadapter"
-	"github.com/rusq/slackdump/v2"
-	"github.com/rusq/slackdump/v2/downloader"
-	"github.com/rusq/slackdump/v2/internal/structures/files"
-	"github.com/rusq/slackdump/v2/logger"
-	"github.com/rusq/slackdump/v2/types"
+	"github.com/rusq/slackdump/v3"
+	"github.com/rusq/slackdump/v3/downloader"
+	"github.com/rusq/slackdump/v3/internal/structures/files"
+	"github.com/rusq/slackdump/v3/logger"
+	"github.com/rusq/slackdump/v3/types"
 )
 
 type Std struct {

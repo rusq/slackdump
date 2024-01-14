@@ -3,8 +3,8 @@ package export
 import (
 	"time"
 
-	"github.com/rusq/slackdump/v2/internal/structures"
-	"github.com/rusq/slackdump/v2/logger"
+	"github.com/rusq/slackdump/v3/internal/structures"
+	"github.com/rusq/slackdump/v3/logger"
 )
 
 // Config allows to configure slack export options.

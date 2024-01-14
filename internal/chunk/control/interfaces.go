@@ -3,8 +3,8 @@ package control
 import (
 	"context"
 
-	"github.com/rusq/slackdump/v2/internal/chunk/dirproc"
-	"github.com/rusq/slackdump/v2/processor"
+	"github.com/rusq/slackdump/v3/internal/chunk/dirproc"
+	"github.com/rusq/slackdump/v3/processor"
 	"github.com/slack-go/slack"
 )
 

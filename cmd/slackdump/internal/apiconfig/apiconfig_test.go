@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/rusq/slackdump/v2"
+	"github.com/rusq/slackdump/v3"
 	"github.com/stretchr/testify/assert"
 )
 
