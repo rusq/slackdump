@@ -110,7 +110,7 @@ func (s *Session) dumpThread(
 			nextCursor string
 		)
 		reqStart := time.Now()
-		if err := withRetry(ctx, l, s.cfg.limits.Tier3.Retries, func() error {
+		if err := network.WithRetry(ctx, l, s.cfg.limits.Tier3.Retries, func() error {
 			var err error
 			trace.WithRegion(ctx, "GetConversationRepliesContext", func() {
 				msgs, hasmore, nextCursor, err = s.client.GetConversationRepliesContext(

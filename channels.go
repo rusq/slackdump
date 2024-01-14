@@ -63,7 +63,7 @@ func (s *Session) getChannels(ctx context.Context, chanTypes []string, cb func(t
 			nextcur string
 		)
 		reqStart := time.Now()
-		if err := withRetry(ctx, limiter, s.cfg.limits.Tier3.Retries, func() error {
+		if err := network.WithRetry(ctx, limiter, s.cfg.limits.Tier3.Retries, func() error {
 			var err error
 			trace.WithRegion(ctx, "GetConversationsContext", func() {
 				chans, nextcur, err = s.client.GetConversationsContext(ctx, params)

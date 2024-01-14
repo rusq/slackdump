@@ -49,7 +49,7 @@ func (s *Session) fetchUsers(ctx context.Context) (types.Users, error) {
 	l := network.NewLimiter(
 		network.Tier2, s.cfg.limits.Tier2.Burst, int(s.cfg.limits.Tier2.Boost),
 	)
-	if err := withRetry(ctx, l, s.cfg.limits.Tier2.Retries, func() error {
+	if err := network.WithRetry(ctx, l, s.cfg.limits.Tier2.Retries, func() error {
 		var err error
 		users, err = s.client.GetUsersContext(ctx)
 		return err

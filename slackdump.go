@@ -181,17 +181,12 @@ func (s *Session) limiter(t network.Tier) *rate.Limiter {
 		tl = s.cfg.limits.Tier2
 	case network.Tier3:
 		tl = s.cfg.limits.Tier3
+	case network.Tier4:
+		tl = s.cfg.limits.Tier4
 	default:
 		tl = s.cfg.limits.Tier3
 	}
 	return network.NewLimiter(t, tl.Burst, int(tl.Boost)) // BUG: tier was always 3, should fix in master too.
-}
-
-// withRetry will run the callback function fn. If the function returns
-// slack.RateLimitedError, it will delay, and then call it again up to
-// maxAttempts times. It will return an error if it runs out of attempts.
-func withRetry(ctx context.Context, l *rate.Limiter, maxAttempts int, fn func() error) error {
-	return network.WithRetry(ctx, l, maxAttempts, fn)
 }
 
 // Info returns a workspace information.  Slackdump retrieves workspace
