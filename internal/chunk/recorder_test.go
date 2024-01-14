@@ -173,19 +173,18 @@ func TestRecorder_worker(t *testing.T) {
 			chunks: make(chan Chunk, 1),
 			errC:   make(chan error), // unbuffered, and we don't read it.
 		}
+
 		go func() {
 			r.chunks <- Chunk{
 				Type:      CMessages,
 				ChannelID: "C123",
 				Messages:  []slack.Message{{Msg: slack.Msg{Text: "hello"}}},
 			}
-			close(r.chunks)
 		}()
 
 		r.worker(&errEncoder{err: errors.New("test error")})
 
-		var gotErr error
-		time.AfterFunc(1*time.Second, func() { gotErr = <-r.errC }) // give it time to brew the error.
+		gotErr := r.Close()
 		if gotErr != nil {
 			t.Errorf("expected nothing, got error: %v", gotErr)
 		}

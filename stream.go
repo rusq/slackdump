@@ -608,21 +608,23 @@ func (cs *Stream) channelUsers(ctx context.Context, proc processor.ChannelInform
 }
 
 // channelInfoWithUsers returns the slack channel with members populated from
-// another api.  It uses errgroup to run the API calls concurrently.
+// another api.
 func (cs *Stream) channelInfoWithUsers(ctx context.Context, proc processor.ChannelInformer, channelID, threadTS string) (*slack.Channel, error) {
 	var eg errgroup.Group
 
-	var ch *slack.Channel
+	var chC = make(chan slack.Channel, 1)
 	eg.Go(func() error {
-		var err error
-		ch, err = cs.channelInfo(ctx, proc, channelID, threadTS)
+		defer close(chC)
+		ch, err := cs.channelInfo(ctx, proc, channelID, threadTS)
+		chC <- *ch
 		return err
 	})
 
-	var m []string
+	var uC = make(chan []string, 1)
 	eg.Go(func() error {
-		var err error
-		m, err = cs.channelUsers(ctx, proc, channelID, threadTS)
+		defer close(uC)
+		m, err := cs.channelUsers(ctx, proc, channelID, threadTS)
+		uC <- m
 		return err
 	})
 
@@ -630,8 +632,9 @@ func (cs *Stream) channelInfoWithUsers(ctx context.Context, proc processor.Chann
 		return nil, err
 	}
 
-	ch.Members = m
-	return ch, nil
+	ch := <-chC
+	ch.Members = <-uC
+	return &ch, nil
 }
 
 // WorkspaceInfo fetches the workspace info and passes it to the processor.
