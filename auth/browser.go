@@ -77,7 +77,3 @@ func NewBrowserAuth(ctx context.Context, opts ...Option) (BrowserAuth, error) {
 	}
 	return br, nil
 }
-
-func (BrowserAuth) Type() Type {
-	return TypeBrowser
-}

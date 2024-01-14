@@ -39,10 +39,6 @@ func NewValueAuth(token string, cookie string) (ValueAuth, error) {
 	return c, nil
 }
 
-func (ValueAuth) Type() Type {
-	return TypeValue
-}
-
 var timeFunc = time.Now
 
 func makeCookie(key, val string) *http.Cookie {

@@ -10,10 +10,6 @@ type fakeProvider struct {
 	simpleProvider
 }
 
-func (fakeProvider) Type() Type {
-	return Type(99)
-}
-
 var fakeTestProvider = &fakeProvider{simpleProvider{Token: "test"}}
 
 var (

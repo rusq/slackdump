@@ -60,15 +60,15 @@ func TestSlackCreds_Type(t *testing.T) {
 		name    string
 		fields  fields
 		args    args
-		want    auth.Type
+		want    AuthType
 		wantErr bool
 	}
 	tests := []test{
-		{"value", fields{Token: "t", Cookie: "c"}, args{context.Background()}, auth.TypeValue, false},
-		{"cookie file", fields{Token: "t", Cookie: testFile}, args{context.Background()}, auth.TypeCookieFile, false},
+		{"value", fields{Token: "t", Cookie: "c"}, args{context.Background()}, ATValue, false},
+		{"cookie file", fields{Token: "t", Cookie: testFile}, args{context.Background()}, ATCookieFile, false},
 	}
 	if !isWSL {
-		tests = append(tests, test{"browser", fields{Token: "", Cookie: ""}, args{context.Background()}, auth.TypeBrowser, false})
+		tests = append(tests, test{"browser", fields{Token: "", Cookie: ""}, args{context.Background()}, ATRod, false})
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

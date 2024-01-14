@@ -26,10 +26,6 @@ type RodAuth struct {
 	opts options
 }
 
-func (p RodAuth) Type() Type {
-	return TypeRod
-}
-
 type rodOpts struct {
 	ui browserAuthUIExt
 }

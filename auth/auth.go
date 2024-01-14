@@ -16,20 +16,6 @@ import (
 
 const SlackURL = "https://slack.com"
 
-// Type is the auth type.
-//
-//go:generate stringer -type Type -linecomment
-type Type uint8
-
-// All supported auth types.
-const (
-	TypeInvalid    Type = iota // Invalid
-	TypeValue                  // Value
-	TypeCookieFile             // Cookie File
-	TypeBrowser                // EZ-Login 3000
-	TypeRod                    // EZ-Login 3001
-)
-
 // Provider is the Slack Authentication provider.
 //
 //go:generate mockgen -destination ../internal/mocks/mock_auth/mock_auth.go github.com/rusq/slackdump/v3/auth Provider

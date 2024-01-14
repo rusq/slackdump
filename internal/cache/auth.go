@@ -35,27 +35,37 @@ var (
 	ErrUnsupported = errors.New("" + ezLogin + " is not supported on this OS, please use the manual login method")
 )
 
+type AuthType int
+
+const (
+	ATInvalid AuthType = iota
+	ATValue
+	ATCookieFile
+	ATRod
+	ATBrowser
+)
+
 // Type returns the authentication type that should be used for the current
 // slack creds.  If the auth type wasn't tested on the system that the slackdump
 // is being executed on it will return the valid type and ErrNotTested, so that
 // this unfortunate fact could be relayed to the end-user.  If the type of the
 // authentication determined is not supported for the current system, it will
 // return ErrUnsupported.
-func (c SlackCreds) Type(ctx context.Context) (auth.Type, error) {
+func (c SlackCreds) Type(ctx context.Context) (AuthType, error) {
 	if !c.IsEmpty() {
 		if isExistingFile(c.Cookie) {
-			return auth.TypeCookieFile, nil
+			return ATCookieFile, nil
 		}
-		return auth.TypeValue, nil
+		return ATValue, nil
 	}
 
 	if !ezLoginSupported() {
-		return auth.TypeInvalid, ErrUnsupported
+		return ATInvalid, ErrUnsupported
 	}
 	if !ezLoginTested() {
-		return auth.TypeRod, ErrNotTested
+		return ATRod, ErrNotTested
 	}
-	return auth.TypeRod, nil
+	return ATRod, nil
 
 }
 
@@ -75,13 +85,13 @@ func (c SlackCreds) AuthProvider(ctx context.Context, workspace string, opts ...
 	opts = append([]auth.Option{auth.BrowserWithWorkspace(workspace)}, opts...)
 
 	switch authType {
-	case auth.TypeBrowser:
+	case ATBrowser:
 		return auth.NewBrowserAuth(ctx, opts...)
-	case auth.TypeCookieFile:
+	case ATCookieFile:
 		return auth.NewCookieFileAuth(c.Token, c.Cookie)
-	case auth.TypeValue:
+	case ATValue:
 		return auth.NewValueAuth(c.Token, c.Cookie)
-	case auth.TypeRod:
+	case ATRod:
 		return auth.NewRODAuth(ctx, opts...)
 	}
 	return nil, errors.New("internal error: unsupported auth type")

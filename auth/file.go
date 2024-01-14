@@ -27,7 +27,3 @@ func NewCookieFileAuth(token string, cookieFile string) (CookieFileAuth, error) 
 	}
 	return fc, nil
 }
-
-func (CookieFileAuth) Type() Type {
-	return TypeCookieFile
-}

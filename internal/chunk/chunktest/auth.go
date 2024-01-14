@@ -3,8 +3,6 @@ package chunktest
 import (
 	"context"
 	"net/http"
-
-	"github.com/rusq/slackdump/v3/auth"
 )
 
 // TestAuth to use with the chunktest server.
@@ -25,11 +23,6 @@ func (a *TestAuth) SlackToken() string {
 // Cookies should return a set of Slack Session cookies.
 func (a *TestAuth) Cookies() []*http.Cookie {
 	return nil
-}
-
-// Type returns the auth type.
-func (a *TestAuth) Type() auth.Type {
-	return auth.Type(255)
 }
 
 // Validate should return error, in case the token or cookies cannot be
