@@ -12,7 +12,6 @@ import (
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/time/rate"
 
-	"github.com/rusq/slackdump/v3/internal/chunk/state"
 	"github.com/rusq/slackdump/v3/internal/network"
 	"github.com/rusq/slackdump/v3/internal/structures"
 	"github.com/rusq/slackdump/v3/logger"
@@ -63,13 +62,16 @@ func (c *chanCache) set(key string, ch *slack.Channel) {
 	c.m.Store(key, ch)
 }
 
+// ResultType helps to identify the type of the result, so that the callback
+// function can handle it appropriately.
+//
 //go:generate stringer -type=ResultType -trimprefix=RT
 type ResultType int8
 
 const (
-	RTMain ResultType = iota
-	RTChannel
-	RTThread
+	RTMain    ResultType = iota // Main function result
+	RTChannel                   // Result containing channel information
+	RTThread                    // Result containing thread information
 )
 
 // StreamResult is sent to the callback function for each channel or thread.
@@ -130,13 +132,6 @@ func OptResultFn(fn func(sr StreamResult) error) StreamOption {
 	}
 }
 
-// OptState allows to set the state of the stream.
-func OptState(s *state.State) StreamOption {
-	return func(cs *Stream) {
-		panic("not implemented")
-	}
-}
-
 // NewStream creates a new Stream instance that allows to stream different
 // slack entities.
 func NewStream(cl Slacker, l *Limits, opts ...StreamOption) *Stream {
@@ -186,16 +181,16 @@ func (cs *Stream) ConversationsCB(ctx context.Context, proc processor.Conversati
 	return nil
 }
 
-// Conversations fetches the conversations from the link which can be a
-// channelID, channel URL, thread URL or a link in Slackdump format.  fn is
-// called for each result (channel messages, or thread messages).  The fact
-// that fn was called for channel messages, does not mean that all threads for
-// that channel were already processed.  The fn is called for each thread
-// result, and the last thread result is marked with StreamResult.IsLast.  The
-// caller must track the number of threads processed for each channel, and
-// when the thread result with IsLast is received, the caller can assume that
-// all threads and messages for that channel have been processed.  For
-// example, see [cmd/slackdump/internal/export/expproc].
+// Conversations fetches the conversations from the links channel.  The link
+// sent on that channel can be a channelID, channel URL, thread URL or a link
+// in Slackdump format.  fn is called for each result (channel messages, or
+// thread messages).  The fact that fn was called for channel messages, does
+// not mean that all threads for that channel were already processed.  Each
+// last thread result is marked with StreamResult.IsLast.  The caller must
+// track the number of threads processed for each channel, and when the thread
+// result with IsLast is received, the caller can assume that all threads and
+// messages for that channel have been processed.  For example, see
+// [cmd/slackdump/internal/export/expproc].
 func (cs *Stream) Conversations(ctx context.Context, proc processor.Conversations, links <-chan string) error {
 	ctx, task := trace.NewTask(ctx, "AsyncConversations")
 	defer task.End()
@@ -244,7 +239,7 @@ func (cs *Stream) Conversations(ctx context.Context, proc processor.Conversation
 					if !more {
 						return
 					}
-					if err := cs.processLink(chansC, threadsC, link); err != nil {
+					if err := processLink(chansC, threadsC, link); err != nil {
 						resultsC <- StreamResult{Type: RTMain, Err: fmt.Errorf("link error: %q: %w", link, err)}
 					}
 				}
@@ -259,9 +254,10 @@ func (cs *Stream) Conversations(ctx context.Context, proc processor.Conversation
 		trace.Log(ctx, "async", "sentinel done")
 	}()
 
+	// result processing.
 	for res := range resultsC {
 		if err := res.Err; err != nil {
-			trace.Log(ctx, "error", err.Error())
+			trace.Logf(ctx, "error", "type: %s, chan_id: %s, thread_ts: %s, error: %s", res.Type, res.ChannelID, res.ThreadTS, err.Error())
 			return err
 		}
 		for _, fn := range cs.resultFn {
@@ -270,12 +266,12 @@ func (cs *Stream) Conversations(ctx context.Context, proc processor.Conversation
 			}
 		}
 	}
-	trace.Log(ctx, "func", "complete")
+	trace.Log(ctx, "info", "complete")
 	return nil
 }
 
-// processLink parses the link and sends it to the appropriate worker.
-func (cs *Stream) processLink(chans chan<- request, threads chan<- request, link string) error {
+// processLink parses the link and sends it to the appropriate output channel.
+func processLink(chans chan<- request, threads chan<- request, link string) error {
 	sl, err := structures.ParseLink(link)
 	if err != nil {
 		return err

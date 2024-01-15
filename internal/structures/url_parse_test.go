@@ -238,7 +238,7 @@ func TestParseLink(t *testing.T) {
 		},
 		{
 			"channel ID and thread TS",
-			args{"C4810" + linkSep + "1577694990.000400"},
+			args{"C4810" + LinkSep + "1577694990.000400"},
 			SlackLink{Channel: "C4810", ThreadTS: "1577694990.000400"},
 			false,
 		},

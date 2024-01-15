@@ -175,13 +175,13 @@ func Test_readEntityList(t *testing.T) {
 		{
 			"oneliner url",
 			args{strings.NewReader("https://fake.slack.com/archives/CHM82GF99/p1577694990000400"), maxFileEntries},
-			&EntityList{Include: []string{"CHM82GF99" + linkSep + "1577694990.000400"}},
+			&EntityList{Include: []string{"CHM82GF99" + LinkSep + "1577694990.000400"}},
 			false,
 		},
 		{
 			"excluded oneliner url",
 			args{strings.NewReader("^https://fake.slack.com/archives/CHM82GF99/p1577694990000400"), maxFileEntries},
-			&EntityList{Exclude: []string{"CHM82GF99" + linkSep + "1577694990.000400"}},
+			&EntityList{Exclude: []string{"CHM82GF99" + LinkSep + "1577694990.000400"}},
 			false,
 		},
 		{

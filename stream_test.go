@@ -4,20 +4,21 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"reflect"
 	"runtime/trace"
 	"testing"
 	"time"
 
 	"github.com/rusq/chttp"
-	"github.com/slack-go/slack"
-	"go.uber.org/mock/gomock"
-
 	"github.com/rusq/slackdump/v3/auth"
 	"github.com/rusq/slackdump/v3/internal/cache"
 	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/internal/chunk/chunktest"
 	"github.com/rusq/slackdump/v3/internal/fixtures"
+	"github.com/rusq/slackdump/v3/internal/structures"
 	"github.com/rusq/slackdump/v3/mocks/mock_processor"
+	"github.com/slack-go/slack"
+	"go.uber.org/mock/gomock"
 )
 
 const testConversation = "CO720D65C25A"
@@ -171,4 +172,106 @@ func Test_processThreadMessages(t *testing.T) {
 			t.Fatal(err)
 		}
 	})
+}
+
+func Test_processLink(t *testing.T) {
+	type args struct {
+		link string
+	}
+	tests := []struct {
+		name              string
+		args              args
+		wantChanRequest   *request
+		wantThreadRequest *request
+		wantErr           bool
+	}{
+		{
+			name: "channel",
+			args: args{
+				link: "CTM1",
+			},
+			wantChanRequest: &request{
+				sl: &structures.SlackLink{
+					Channel: "CTM1",
+				},
+			},
+			wantThreadRequest: nil,
+			wantErr:           false,
+		},
+		{
+			name: "channel URL",
+			args: args{
+				link: "https://test.slack.com/archives/CHYLGDP0D",
+			},
+			wantChanRequest: &request{
+				sl: &structures.SlackLink{
+					Channel: "CHYLGDP0D",
+				},
+			},
+			wantThreadRequest: nil,
+			wantErr:           false,
+		},
+		{
+			name: "thread URL",
+			args: args{
+				link: "https://test.slack.com/archives/CHYLGDP0D/p1610000000000000",
+			},
+			wantChanRequest: nil,
+			wantThreadRequest: &request{
+				sl: &structures.SlackLink{
+					Channel:  "CHYLGDP0D",
+					ThreadTS: "1610000000.000000",
+				},
+				threadOnly: true,
+			},
+			wantErr: false,
+		},
+		{
+			name: "thread Slackdump link URL",
+			args: args{
+				link: "CHYLGDP0D" + structures.LinkSep + "1577694990.000400",
+			},
+			wantChanRequest: nil,
+			wantThreadRequest: &request{
+				sl: &structures.SlackLink{
+					Channel:  "CHYLGDP0D",
+					ThreadTS: "1577694990.000400",
+				},
+				threadOnly: true,
+			},
+			wantErr: false,
+		},
+		{
+			"invalid link",
+			args{
+				link: "https://test.slack.com/archives/CHYLGDP0D/p1610000000000000/xxxx",
+			},
+			nil,
+			nil,
+			true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			chans := make(chan request, 1)
+			threads := make(chan request, 1)
+			if err := processLink(chans, threads, tt.args.link); (err != nil) != tt.wantErr {
+				t.Errorf("processLink() error = %v, wantErr %v", err, tt.wantErr)
+				return // otherwise will block
+			}
+			if tt.wantErr {
+				return // happy times
+			}
+			select {
+			case got := <-chans:
+				if !reflect.DeepEqual(&got, tt.wantChanRequest) {
+					t.Errorf("processLink() got = %v, want %v", got, tt.wantChanRequest)
+				}
+			case got := <-threads:
+				if !reflect.DeepEqual(&got, tt.wantThreadRequest) {
+					t.Errorf("processLink() got = %v, want %v", got, tt.wantThreadRequest)
+				}
+			}
+		})
+	}
 }

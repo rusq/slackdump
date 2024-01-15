@@ -11,7 +11,7 @@ import (
 	"errors"
 )
 
-const linkSep = ":"
+const LinkSep = ":"
 
 var (
 	ErrUnsupportedURL = errors.New("unsupported URL type")
@@ -43,7 +43,7 @@ func (u SlackLink) String() string {
 	if !u.IsThread() {
 		return u.Channel
 	}
-	return strings.Join([]string{u.Channel, u.ThreadTS}, linkSep)
+	return strings.Join([]string{u.Channel, u.ThreadTS}, LinkSep)
 }
 
 var linkRe = regexp.MustCompile(`^[A-Za-z]{1}[A-Za-z0-9]+(:[0-9]+\.[0-9]+)?$`)
@@ -53,6 +53,7 @@ var linkRe = regexp.MustCompile(`^[A-Za-z]{1}[A-Za-z0-9]+(:[0-9]+\.[0-9]+)?$`)
 //   - XXXXXXX                   - channel ID
 //   - XXXXXXX:99999999.99999    - channel ID and thread ID
 //   - https://<valid slack URL> - slack URL link.
+//
 // It returns the SlackLink or error.
 func ParseLink(link string) (SlackLink, error) {
 	if IsURL(link) {
@@ -66,7 +67,7 @@ func ParseLink(link string) (SlackLink, error) {
 		return SlackLink{}, fmt.Errorf("%w: %q", ErrInvalidLink, link)
 	}
 
-	id, ts, _ := strings.Cut(link, linkSep)
+	id, ts, _ := strings.Cut(link, LinkSep)
 	return SlackLink{Channel: id, ThreadTS: ts}, nil
 }
 
