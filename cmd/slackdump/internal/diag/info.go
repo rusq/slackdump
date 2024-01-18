@@ -12,7 +12,7 @@ import (
 // CmdInfo is the information command.
 var CmdInfo = &base.Command{
 	UsageLine: "slackdump tools info",
-	Short:     "show information about slackdump environment",
+	Short:     "show information about Slackdump environment",
 	Run:       runInfo,
 	Long: `# Info Command
 	

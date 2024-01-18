@@ -109,5 +109,5 @@ func saveCache(cacheDir, teamID string, cc types.Channels) error {
 	if err != nil {
 		return err
 	}
-	return m.SaveChannels(teamID, cc)
+	return m.CacheChannels(teamID, cc)
 }

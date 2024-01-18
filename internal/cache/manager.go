@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -204,7 +205,7 @@ func (m *Manager) Current() (string, error) {
 	defer f.Close()
 	wf := m.readWsp(f)
 
-	if !exist(workspaces, wf) {
+	if !slices.Contains(workspaces, wf) {
 		return m.selectDefault()
 	}
 
@@ -273,7 +274,7 @@ func (m *Manager) Exists(name string) bool {
 	if err != nil {
 		return false
 	}
-	return exist(existing, name)
+	return slices.Contains(existing, name)
 }
 
 // filename returns the filename for the workspace name.
@@ -311,7 +312,7 @@ func (m *Manager) readWsp(r io.Reader) string {
 	return strings.TrimSpace(current)
 }
 
-// writeWsp writes the workspace file name to the writer.
+// writeWsp writes the workspace file name to writer w.
 func (*Manager) writeWsp(w io.Writer, filename string) error {
 	_, err := fmt.Fprintln(w, filename)
 	return err
@@ -327,21 +328,6 @@ func wspName(filename string) string {
 		name = name[:len(name)-len(ext)]
 	}
 	return name
-}
-
-// indexOf returns the index of s in ss, or -1 if not found.
-func indexOf[T comparable](ss []T, s T) int {
-	for i := range ss {
-		if s == ss[i] {
-			return i
-		}
-	}
-	return -1
-}
-
-// exist returns true if s is in ss.
-func exist[T comparable](ss []T, s T) bool {
-	return -1 < indexOf(ss, s)
 }
 
 // WalkUsers scans the cache directory and calls userFn for each user file
@@ -367,20 +353,22 @@ func (m *Manager) WalkUsers(userFn func(path string, r io.Reader) error) error {
 	return err
 }
 
-// loadUsers loads user cache file no older than maxAge for teamID.
+// LoadUsers loads user cache file no older than maxAge for teamID.
 func (m *Manager) LoadUsers(teamID string, maxAge time.Duration) (types.Users, error) {
 	return loadUsers(m.dir, m.userFile, teamID, maxAge)
 }
 
-// saveUsers saves users to user cache file for teamID.
-func (m *Manager) SaveUsers(teamID string, uu types.Users) error {
+// CacheUsers saves users to user cache file for teamID.
+func (m *Manager) CacheUsers(teamID string, uu types.Users) error {
 	return saveUsers(m.dir, m.userFile, teamID, uu)
 }
 
+// LoadChannels loads channel cache no older than maxAge.
 func (m *Manager) LoadChannels(teamID string, maxAge time.Duration) (types.Channels, error) {
 	return loadChannels(m.dir, m.channelFile, teamID, maxAge)
 }
 
-func (m *Manager) SaveChannels(teamID string, cc types.Channels) error {
+// CacheChannels saves channels to cache.
+func (m *Manager) CacheChannels(teamID string, cc types.Channels) error {
 	return saveChannels(m.dir, m.channelFile, teamID, cc)
 }

@@ -79,8 +79,8 @@ func argsWorkspace(args []string, defaultWsp string) string {
 
 // Auth authenticates in the workspace wsp, and saves, or reuses the credentials
 // in the dir.
-func Auth(ctx context.Context, dir string, wsp string) (auth.Provider, error) {
-	m, err := cache.NewManager(dir)
+func Auth(ctx context.Context, cacheDir string, wsp string) (auth.Provider, error) {
+	m, err := cache.NewManager(cacheDir)
 	if err != nil {
 		return nil, err
 	}
@@ -124,8 +124,8 @@ func AuthCurrentCtx(pctx context.Context, cacheDir string, overrideWsp string) (
 // Current returns the current workspace in the directory dir, based on the
 // configuration values.  If cfg.Workspace is set, it checks if the workspace
 // cfg.Workspace exists in the directory dir, and returns it.
-func Current(dir string, override string) (wsp string, err error) {
-	m, err := cache.NewManager(dir)
+func Current(cacheDir string, override string) (wsp string, err error) {
+	m, err := cache.NewManager(cacheDir)
 	if err != nil {
 		return "", err
 	}

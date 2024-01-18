@@ -117,14 +117,17 @@ func list(ctx context.Context, listFn listFunc) error {
 	teamID := sess.Info().TeamID
 	users, err := m.LoadUsers(teamID, cfg.UserCacheRetention)
 	if err != nil {
-		lg.Println("user cache expired, caching users")
+		if !errors.Is(err, cache.ErrExpired) && !errors.Is(err, cache.ErrEmpty) {
+			return err
+		}
+		lg.Println("user cache expired or empty, caching users")
 
 		users, err = sess.GetUsers(ctx)
 		if err != nil {
 			return err
 		}
 
-		if err := m.SaveUsers(teamID, users); err != nil {
+		if err := m.CacheUsers(teamID, users); err != nil {
 			trace.Logf(ctx, "error", "saving user cache to %q, error: %s", userCacheBase, err)
 			lg.Printf("error saving user cache to %q: %s, but nevermind, let's continue", userCacheBase, err)
 		}
@@ -140,9 +143,11 @@ func list(ctx context.Context, listFn listFunc) error {
 			return err
 		}
 	}
+
 	if !quiet {
 		return fmtPrint(ctx, os.Stdout, data, listType, users)
 	}
+
 	return nil
 }
 

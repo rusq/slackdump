@@ -50,6 +50,11 @@ func checkCacheFile(filename string, maxAge time.Duration) error {
 	return validateCache(fi, maxAge)
 }
 
+var (
+	ErrEmpty   = errors.New("empty cache file")
+	ErrExpired = errors.New("cache expired")
+)
+
 // validateCache tests whether the provided file info meets the requirements
 // for a valid cache file. It returns an error if the file does not meet the
 // requirements.
@@ -58,10 +63,10 @@ func validateCache(fi os.FileInfo, maxAge time.Duration) error {
 		return errors.New("cache file is a directory")
 	}
 	if fi.Size() == 0 {
-		return errors.New("empty cache file")
+		return ErrEmpty
 	}
 	if time.Since(fi.ModTime()) > maxAge {
-		return errors.New("cache expired")
+		return ErrExpired
 	}
 	return nil
 }
@@ -112,7 +117,7 @@ func load[T any](cacheDir, filename string, suffix string, maxAge time.Duration)
 	filename = makeCacheFilename(cacheDir, filename, suffix)
 
 	if err := checkCacheFile(filename, maxAge); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%s: %w", filename, err)
 	}
 
 	f, err := encio.Open(filename)

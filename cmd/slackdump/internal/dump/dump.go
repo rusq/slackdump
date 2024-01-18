@@ -46,7 +46,7 @@ var CmdDump = &base.Command{
 func init() {
 	CmdDump.Run = RunDump
 	CmdDump.Wizard = WizDump
-	CmdDump.Long = HelpDump(CmdDump)
+	CmdDump.Long = helpDump(CmdDump)
 }
 
 // ErrNothingToDo is returned if there's no links to dump.
@@ -160,27 +160,29 @@ func (p *dumpparams) validate() error {
 	return nil
 }
 
+// dump is the current version of dump.
 func dump(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, p dumpparams) error {
+	// it uses Stream to generate a chunk file, then process it and generate
+	// dump JSON.
 	ctx, task := trace.NewTask(ctx, "dump")
 	defer task.End()
 
-	if err := p.validate(); err != nil {
-		return err
-	}
 	if fsa == nil {
-		return fmt.Errorf("no filesystem adapter")
+		return errors.New("no filesystem adapter")
 	}
-
-	lg := logger.FromContext(ctx)
-
 	if p.list.IsEmpty() {
 		return ErrNothingToDo
+	}
+	if err := p.validate(); err != nil {
+		return err
 	}
 
 	dir, err := os.MkdirTemp("", "slackdump-*")
 	if err != nil {
 		return fmt.Errorf("failed to create temp directory: %w", err)
 	}
+
+	lg := logger.FromContext(ctx)
 	lg.Debugf("using directory: %s", dir)
 
 	// files subprocessor
@@ -250,20 +252,22 @@ func dump(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, p dump
 	return nil
 }
 
+// dumpv2 is the obsolete version of dump (compatibility)
 func dumpv2(ctx context.Context, sess *slackdump.Session, fs fsadapter.FS, p dumpparams) error {
 	for _, link := range p.list.Include {
 		conv, err := sess.Dump(ctx, link, time.Time(p.oldest), time.Time(p.latest))
 		if err != nil {
 			return err
 		}
-		if err := save(ctx, fs, p.tmpl.Execute(conv), conv); err != nil {
+		if err := writeJSON(ctx, fs, p.tmpl.Execute(conv), conv); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func save(ctx context.Context, fs fsadapter.FS, filename string, conv *types.Conversation) error {
+// writeJSON writes a Slackdump conversation conv to filename within fs.
+func writeJSON(ctx context.Context, fs fsadapter.FS, filename string, conv *types.Conversation) error {
 	_, task := trace.NewTask(ctx, "saveData")
 	defer task.End()
 
@@ -278,8 +282,8 @@ func save(ctx context.Context, fs fsadapter.FS, filename string, conv *types.Con
 
 var helpTmpl = template.Must(template.New("dumphelp").Parse(string(dumpMd)))
 
-// HelpDump returns the help message for the dump command.
-func HelpDump(cmd *base.Command) string {
+// helpDump returns the help message for the dump command.
+func helpDump(cmd *base.Command) string {
 	var buf strings.Builder
 	if err := helpTmpl.Execute(&buf, cmd); err != nil {
 		panic(err)
