@@ -123,15 +123,6 @@ type Credentials interface {
 	AuthProvider(ctx context.Context, workspace string, opts ...auth.Option) (auth.Provider, error)
 }
 
-// InitProvider initialises the auth.Provider depending on provided slack
-// credentials.  It returns auth.Provider or an error.  The logic diagram is
-// available in the doc/diagrams/auth_flow.puml.
-//
-// Deprecated: Use [Manager.Auth].
-func InitProvider(ctx context.Context, cacheDir string, workspace string, creds Credentials) (auth.Provider, error) {
-	return initProvider(ctx, cacheDir, defCredsFile, workspace, creds)
-}
-
 // initProvider initialises the auth.Provider depending on provided slack
 // credentials.  It returns auth.Provider or an error.  The logic diagram is
 // available in the doc/diagrams/auth_flow.puml.
@@ -147,7 +138,7 @@ func InitProvider(ctx context.Context, cacheDir string, workspace string, creds 
 // operating system on the same machine, unless it's a clone of the source
 // operating system on which the credentials storage was created.
 func initProvider(ctx context.Context, cacheDir string, filename string, workspace string, creds Credentials, opts ...auth.Option) (auth.Provider, error) {
-	ctx, task := trace.NewTask(ctx, "InitProvider")
+	ctx, task := trace.NewTask(ctx, "initProvider")
 	defer task.End()
 
 	credsFile := filename

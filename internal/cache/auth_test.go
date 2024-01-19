@@ -224,7 +224,7 @@ func TestInitProvider(t *testing.T) {
 			tt.expect(mc)
 
 			// test
-			got, err := InitProvider(tt.args.ctx, tt.args.cacheDir, tt.args.workspace, mc)
+			got, err := initProvider(tt.args.ctx, tt.args.cacheDir, defCredsFile, tt.args.workspace, mc)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("InitProvider() error = %v, wantErr %v", err, tt.wantErr)
 				return

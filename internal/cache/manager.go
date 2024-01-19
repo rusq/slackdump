@@ -19,7 +19,19 @@ import (
 	"github.com/rusq/slackdump/v3/types"
 )
 
-// Manager is the workspace manager.
+// Manager is the workspace manager.  It is an abstraction over the directory
+// with files with credentials for Slack workspaces.
+//
+// There are several types of files that one could find in the managed
+// directory:
+//   - "provider.bin" - the default workspace file, it contains the credentials
+//     for the "default" workspace.  It exists for historical reasons, for
+//     migration from the previous version of the slackdump.  It contains
+//     credentials for the workspace that slackdump v2 was authenticated in.
+//   - "*.bin" - other workspaces, the filename is the name of the workspace.
+//   - "workspace.txt" - a pointer to the current workspace, it contains the
+//     current workspace name.
+//   - "*.cache" - cache files, they contain the cache for users and channels.
 type Manager struct {
 	dir         string
 	authOptions []auth.Option
@@ -85,9 +97,8 @@ func maybeAppendExt(filename string, ext string) string {
 	return filename
 }
 
-// NewManager creates a new workspace manager over the directory dir.
-// The cache directory is created with rwx------ permissions, if it does
-// not exist.
+// NewManager creates a new workspace manager over the directory dir.  The
+// directory is created with rwx------ permissions, if it does not exist.
 //
 // TODO: test with empty dir.
 func NewManager(dir string, opts ...Option) (*Manager, error) {
@@ -126,6 +137,8 @@ func (m *Manager) Auth(ctx context.Context, name string, c Credentials) (auth.Pr
 	return initProvider(ctx, m.dir, m.filename(name), name, c, m.authOptions...)
 }
 
+// ErrWorkspace is the error returned by the workspace manager, it contains the
+// workspace name, the error message and the underlying error.
 type ErrWorkspace struct {
 	Workspace string
 	Message   string
@@ -139,13 +152,13 @@ func (ew *ErrWorkspace) Error() string {
 	return fmt.Sprintf("workspace %q: %s (error: %s)", ew.Workspace, ew.Message, ew.Err)
 }
 
-func newErrNoWorkspace(name string) *ErrWorkspace {
-	return &ErrWorkspace{Workspace: name, Message: "no such workspace"}
-}
-
 // Unwrap returns the underlying error.
 func (ew *ErrWorkspace) Unwrap() error {
 	return ew.Err
+}
+
+func newErrNoWorkspace(name string) *ErrWorkspace {
+	return &ErrWorkspace{Workspace: name, Message: "no such workspace"}
 }
 
 // Delete deletes the workspace file.

@@ -97,6 +97,8 @@ func save[T any](cacheDir, filename string, suffix string, uu []T) error {
 	return nil
 }
 
+// read reads the data from the reader r until it reaches the EOF and returns
+// it as a slice of T.
 func read[T any](r io.Reader) ([]T, error) {
 	dec := json.NewDecoder(r)
 	var tt = make([]T, 0, 500) // 500 T. reasonable?
@@ -113,6 +115,8 @@ func read[T any](r io.Reader) ([]T, error) {
 	return tt, nil
 }
 
+// load loads the data from the file in the cache directory, and returns
+// the data as a slice of T.
 func load[T any](cacheDir, filename string, suffix string, maxAge time.Duration) ([]T, error) {
 	filename = makeCacheFilename(cacheDir, filename, suffix)
 
