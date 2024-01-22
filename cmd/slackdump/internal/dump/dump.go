@@ -13,7 +13,6 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/rusq/dlog"
 	"github.com/rusq/fsadapter"
 
 	"github.com/rusq/slackdump/v3"
@@ -78,6 +77,8 @@ func RunDump(ctx context.Context, _ *base.Command, args []string) error {
 		return ErrNothingToDo
 	}
 
+	lg := logger.FromContext(ctx)
+
 	// Retrieve the Authentication provider.
 	prov, err := auth.FromContext(ctx)
 	if err != nil {
@@ -110,7 +111,11 @@ func RunDump(ctx context.Context, _ *base.Command, args []string) error {
 		base.SetExitStatus(base.SApplicationError)
 		return err
 	}
-	defer fsa.Close()
+	defer func() {
+		if err := fsa.Close(); err != nil {
+			lg.Printf("warning: failed to close the filesystem: %v", err)
+		}
+	}()
 
 	sess, err := slackdump.New(ctx, prov, slackdump.WithLogger(logger.FromContext(ctx)), slackdump.WithFilesystem(fsa))
 	if err != nil {
@@ -138,7 +143,7 @@ func RunDump(ctx context.Context, _ *base.Command, args []string) error {
 		base.SetExitStatus(base.SApplicationError)
 		return err
 	}
-	dlog.FromContext(ctx).Printf("dumped %d conversations in %s", len(p.list.Include), time.Since(start))
+	lg.Printf("dumped %d conversations in %s", len(p.list.Include), time.Since(start))
 	return nil
 }
 
@@ -239,7 +244,9 @@ func dump(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, p dump
 			if sr.Err != nil {
 				return sr.Err
 			}
-			dlog.Printf("conversation %s dumped", sr)
+			if sr.IsLast {
+				lg.Printf("%s dumped", sr)
+			}
 			return nil
 		}),
 	).Conversations(ctx, proc, p.list.Generator(ctx)); err != nil {

@@ -11,10 +11,10 @@ import (
 	"github.com/slack-go/slack"
 )
 
-// ExportCoordinator is a transformer that takes the chunks produced by the
-// processor and transforms them into a Slack Export format.  It is sutable
+// ExportCoordinator is a takes the chunks produced by the
+// processor and transforms them into a Slack Export format.  It is suitable
 // for async processing, in which case, OnFinalise function is passed to the
-// processor, and the finalisation requests will be queued (up to a
+// processor, the finalisation requests will be queued (up to a
 // [bufferSz]) and will be processed once Start or StartWithUsers is called.
 //
 // Please note, that transform requires users to be passed either through
@@ -29,8 +29,8 @@ import (
 //     all users are fetched, call [ExportCoordinator.StartWithUsers], passing
 //     the fetched users slice.
 //  4. In another goroutine, start the ExportCoordinator Conversation
-//     processor, passsing the transformer's OnFinalise function as the
-//     finaliser option.  It will be called by export processor for each
+//     processor, passing the transformer's OnFinalise function as the
+//     Finaliser option.  It will be called by export processor for each
 //     channel that was completed.
 type ExportCoordinator struct {
 	cvt    UserConverter

@@ -612,16 +612,22 @@ func (cs *Stream) channelInfoWithUsers(ctx context.Context, proc processor.Chann
 	eg.Go(func() error {
 		defer close(chC)
 		ch, err := cs.channelInfo(ctx, proc, channelID, threadTS)
+		if err != nil {
+			return err
+		}
 		chC <- *ch
-		return err
+		return nil
 	})
 
 	var uC = make(chan []string, 1)
 	eg.Go(func() error {
 		defer close(uC)
 		m, err := cs.channelUsers(ctx, proc, channelID, threadTS)
+		if err != nil {
+			return err
+		}
 		uC <- m
-		return err
+		return nil
 	})
 
 	if err := eg.Wait(); err != nil {
