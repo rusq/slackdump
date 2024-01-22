@@ -37,7 +37,7 @@ func (a *TestAuth) Test(ctx context.Context) error {
 	return a.WantTestError
 }
 
-// Client returns an authenticated HTTP client
+// HTTPClient returns an authenticated HTTP client
 func (a *TestAuth) HTTPClient() (*http.Client, error) {
 	return a.WantHTTPClient, a.WantHTTPClientErr
 }

@@ -13,8 +13,7 @@ import (
 	"github.com/rusq/slackdump/v3/internal/osext"
 )
 
-// Recorder is a special Channeler that records all the data it receives, so
-// that it can be replayed later.
+// Recorder records all the data it receives, so that it can be replayed later.
 type Recorder struct {
 	chunks chan Chunk
 	errC   chan error
@@ -35,6 +34,7 @@ func WithEncoder(enc Encoder) Option {
 	}
 }
 
+// NewRecorder creates a new recorder.
 func NewRecorder(w io.Writer, options ...Option) *Recorder {
 	filename := "unknown"
 	if f, ok := w.(osext.Namer); ok {

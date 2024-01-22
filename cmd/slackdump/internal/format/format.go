@@ -16,7 +16,7 @@ import (
 	"github.com/slack-go/slack"
 
 	"github.com/rusq/slackdump/v3"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/auth"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/authcmd"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/internal/cache"
@@ -240,7 +240,7 @@ func getUsers(ctx context.Context, dmp *dump, isOnline bool) ([]slack.User, erro
 }
 
 func getUsersOnline(ctx context.Context, cacheDir, wsp string) ([]slack.User, error) {
-	prov, err := auth.AuthCurrent(ctx, cacheDir, wsp)
+	prov, err := authcmd.AuthCurrent(ctx, cacheDir, wsp)
 	if err != nil {
 		return nil, err
 	}

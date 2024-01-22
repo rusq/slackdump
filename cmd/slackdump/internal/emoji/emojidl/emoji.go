@@ -1,4 +1,4 @@
-// Package emoji provides functions to dump the all slack emojis for a workspace.
+// Package emojidl provides functions to dump the all slack emojis for a workspace.
 // It skips the "alias" emojis, so only original an emoji with an original name
 // is present. If you need to find the alias - lookup the index.json. The
 // directory structure is the following:
@@ -48,6 +48,7 @@ func DlFS(ctx context.Context, sess emojidumper, fsa fsadapter.FS, failFast bool
 	if err != nil {
 		return fmt.Errorf("error during emoji dump: %w", err)
 	}
+
 	bIndex, err := json.Marshal(emojis)
 	if err != nil {
 		return fmt.Errorf("error marshalling emoji index: %w", err)

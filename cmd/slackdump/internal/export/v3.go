@@ -81,7 +81,7 @@ func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 	ctr := control.New(
 		chunkdir,
 		stream,
-		control.WithSubproc(fileproc.NewExport(params.ExportStorageType, sdl)),
+		control.WithFiler(fileproc.NewExport(params.ExportStorageType, sdl)),
 		control.WithLogger(lg),
 		control.WithFlags(flags),
 		control.WithTransformer(tf),

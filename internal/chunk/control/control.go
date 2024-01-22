@@ -1,4 +1,4 @@
-// Package control hold the implmentation of the Slack Stream controller.  It
+// Package control hold the implementation of the Slack Stream controller.  It
 // runs the API scraping in several goroutines and manages the data flow
 // between them.  It records the output of the API scraper into a chunk
 // directory.  It also manages the transformation of the data, if the caller
@@ -34,7 +34,7 @@ type Controller struct {
 	tf ExportTransformer
 	// files subprocessor, if not configured with options, it's a noop, as
 	// it's not necessary for all use cases.
-	subproc processor.Filer
+	filer processor.Filer
 	// lg is the logger
 	lg logger.Interface
 	// flags
@@ -44,10 +44,10 @@ type Controller struct {
 // Option is a functional option for the Controller.
 type Option func(*Controller)
 
-// WithSubproc configures the controller with a file subprocessor.
-func WithSubproc(f processor.Filer) Option {
+// WithFiler configures the controller with a file subprocessor.
+func WithFiler(f processor.Filer) Option {
 	return func(c *Controller) {
-		c.subproc = f
+		c.filer = f
 	}
 }
 
@@ -79,11 +79,11 @@ func WithLogger(lg logger.Interface) Option {
 // New creates a new [Controller].
 func New(cd *chunk.Directory, s Streamer, opts ...Option) *Controller {
 	c := &Controller{
-		cd:      cd,
-		s:       s,
-		subproc: &noopFiler{},
-		tf:      &noopTransformer{},
-		lg:      logger.Default,
+		cd:    cd,
+		s:     s,
+		filer: &noopFiler{},
+		tf:    &noopTransformer{},
+		lg:    logger.Default,
 	}
 	for _, opt := range opts {
 		opt(c)
@@ -170,7 +170,7 @@ func (c *Controller) Run(ctx context.Context, list *structures.EntityList) error
 	}
 	// conversations goroutine
 	{
-		conv, err := dirproc.NewConversation(c.cd, c.subproc, c.tf)
+		conv, err := dirproc.NewConversation(c.cd, c.filer, c.tf)
 		if err != nil {
 			return fmt.Errorf("error initialising conversation processor: %w", err)
 		}

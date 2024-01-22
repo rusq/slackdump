@@ -18,7 +18,7 @@ import (
 	"golang.org/x/term"
 
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/apiconfig"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/auth"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/authcmd"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/convertcmd"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/diag"
@@ -46,7 +46,7 @@ func init() {
 		convertcmd.CmdConvert,
 		list.CmdList,
 		emoji.CmdEmoji,
-		auth.CmdWorkspace,
+		authcmd.CmdWorkspace,
 		diag.CmdDiag,
 		apiconfig.CmdConfig,
 		format.CmdFormat,
@@ -178,7 +178,7 @@ func invoke(cmd *base.Command, args []string) error {
 	if cmd.RequireAuth {
 		trace.Logf(ctx, "invoke", "command %s requires auth", cmd.Name())
 		var err error
-		ctx, err = auth.AuthCurrentCtx(ctx, cfg.CacheDir(), cfg.Workspace)
+		ctx, err = authcmd.AuthCurrentCtx(ctx, cfg.CacheDir(), cfg.Workspace)
 		if err != nil {
 			trace.Logf(ctx, "invoke", "auth error: %s", err)
 			base.SetExitStatus(base.SAuthError)

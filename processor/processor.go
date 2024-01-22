@@ -14,6 +14,7 @@ type Conversations interface {
 	Messenger
 	Filer
 	ChannelInformer
+
 	io.Closer
 }
 
@@ -27,21 +28,21 @@ type ChannelInformer interface {
 
 // Messenger is the interface that implements only the message fetching.
 type Messenger interface {
-	// Messages is called for each message that is retrieved.
+	// Messages method is called for each message that is retrieved.
 	Messages(ctx context.Context, channelID string, numThreads int, isLast bool, messages []slack.Message) error
-	// ThreadMessages is called for each of the thread messages that are
+	// ThreadMessages method is called for each of the thread messages that are
 	// retrieved. The parent message is passed in as well.
 	ThreadMessages(ctx context.Context, channelID string, parent slack.Message, threadOnly, isLast bool, replies []slack.Message) error
 }
 
 type Filer interface {
-	// Files is called for each file that is retrieved. The parent message is
+	// Files method is called for each file that is retrieved. The parent message is
 	// passed in as well.
 	Files(ctx context.Context, channel *slack.Channel, parent slack.Message, ff []slack.File) error
 }
 
 type Users interface {
-	// Users is called for each user chunk that is retrieved.
+	// Users method is called for each user chunk that is retrieved.
 	Users(ctx context.Context, users []slack.User) error
 }
 
