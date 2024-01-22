@@ -42,12 +42,7 @@ func StdWithLogger(log logger.Interface) StdOption {
 }
 
 // NewStandard creates a new standard dump transformer.
-func NewStandard(fsa fsadapter.FS, dir string, opts ...StdOption) (*StdConverter, error) {
-	cd, err := chunk.OpenDir(dir)
-	if err != nil {
-		return nil, err
-	}
-	defer cd.Close()
+func NewStandard(fsa fsadapter.FS, cd *chunk.Directory, opts ...StdOption) (*StdConverter, error) {
 	std := &StdConverter{
 		cd:   cd,
 		fsa:  fsa,

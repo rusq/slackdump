@@ -33,8 +33,8 @@ var (
 	LoginTimeout time.Duration = browser.DefLoginTimeout
 	Limits                     = slackdump.DefLimits
 
-	DumpFiles    bool
-	NoChunkCache bool
+	DownloadFiles bool
+	NoChunkCache  bool
 
 	// Oldest is the default timestamp of the oldest message to fetch, that is
 	// used by the dump and export commands.
@@ -90,7 +90,7 @@ func SetBaseFlags(fs *flag.FlagSet, mask FlagMask) {
 		fs.DurationVar(&LoginTimeout, "browser-timeout", LoginTimeout, "Browser login `timeout`")
 	}
 	if mask&OmitDownloadFlag == 0 {
-		fs.BoolVar(&DumpFiles, "files", true, "enables file attachments (to disable, specify: -files=false)")
+		fs.BoolVar(&DownloadFiles, "files", true, "enables file attachments (to disable, specify: -files=false)")
 	}
 	if mask&OmitConfigFlag == 0 {
 		fs.StringVar(&ConfigFile, "api-config", "", "configuration `file` with Slack API limits overrides.\nYou can generate one with default values with 'slackdump config new`")

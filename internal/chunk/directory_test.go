@@ -123,3 +123,7 @@ type nopCloser struct {
 func (n nopCloser) Close() error { return nil }
 
 func (n nopCloser) Name() string { return n.name }
+
+func TestOpenDir(t *testing.T) {
+
+}

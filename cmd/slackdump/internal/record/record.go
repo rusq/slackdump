@@ -67,7 +67,7 @@ func RunRecord(ctx context.Context, cmd *base.Command, args []string) error {
 	)
 	dl, stop := fileproc.NewDownloader(
 		ctx,
-		cfg.DumpFiles,
+		cfg.DownloadFiles,
 		sess.Client(),
 		fsadapter.NewDirectory(cd.Name()),
 		lg,

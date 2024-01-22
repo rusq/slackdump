@@ -64,7 +64,7 @@ func runConvert(ctx context.Context, cmd *base.Command, args []string) error {
 	lg.Printf("converting (%s) %q to (%s) %q", params.inputfmt, args[0], params.outputfmt, cfg.BaseLocation)
 
 	cflg := convertflags{
-		withFiles: cfg.DumpFiles,
+		withFiles: cfg.DownloadFiles,
 		stt:       params.storageType,
 	}
 	start := time.Now()

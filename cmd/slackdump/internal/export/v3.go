@@ -52,7 +52,7 @@ func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 	defer tf.Close()
 
 	// starting the downloader
-	dlEnabled := cfg.DumpFiles && params.ExportStorageType != fileproc.STnone
+	dlEnabled := cfg.DownloadFiles && params.ExportStorageType != fileproc.STnone
 	sdl, stop := fileproc.NewDownloader(ctx, dlEnabled, sess.Client(), fsa, lg)
 	defer stop()
 
