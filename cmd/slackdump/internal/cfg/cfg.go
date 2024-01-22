@@ -11,7 +11,6 @@ import (
 
 	"github.com/rusq/slackdump/v3"
 	"github.com/rusq/slackdump/v3/auth/browser"
-	"github.com/rusq/slackdump/v3/internal/app/config"
 	"github.com/rusq/slackdump/v3/logger"
 )
 
@@ -39,11 +38,11 @@ var (
 
 	// Oldest is the default timestamp of the oldest message to fetch, that is
 	// used by the dump and export commands.
-	Oldest = config.TimeValue(time.Time{})
+	Oldest = TimeValue(time.Time{})
 	// Latest is the default timestamp of the newest message to fetch, that is
 	// used by the dump and export commands.  It is set to an exact value
 	// for the dump to be consistent.
-	Latest = config.TimeValue(time.Now())
+	Latest = TimeValue(time.Now())
 
 	LocalCacheDir      string
 	UserCacheRetention time.Duration

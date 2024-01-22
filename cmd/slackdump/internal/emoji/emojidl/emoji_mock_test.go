@@ -6,7 +6,7 @@
 //	mockgen -source emoji.go -destination emoji_mock_test.go -package emoji
 //
 // Package emoji is a generated GoMock package.
-package emoji
+package emojidl
 
 import (
 	context "context"

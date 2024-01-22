@@ -74,7 +74,8 @@ func New(filename string) *State {
 	}
 }
 
-// AddMessage should be called when a message is processed.
+// AddMessage indexes the message.  It should be called when a message is
+// processed.
 func (s *State) AddMessage(channelID, messageTS string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -84,7 +85,8 @@ func (s *State) AddMessage(channelID, messageTS string) {
 	tsUpdate(s.Channels, channelID, messageTS)
 }
 
-// AddThread should be called when a thread is processed.
+// AddThread adds a thread to index.  It should be called when a thread is
+// processed.
 func (s *State) AddThread(channelID, threadTS, ts string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -95,7 +97,7 @@ func (s *State) AddThread(channelID, threadTS, ts string) {
 	tsUpdate(s.Threads, threadID(channelID, threadTS), ts)
 }
 
-// AddFile should be called when a file is processed.
+// AddFile adds a file to index.  It should be called when a file is processed.
 func (s *State) AddFile(channelID, fileID string, path string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()

@@ -1,4 +1,4 @@
-// Package ui contains some common UI elements, that use Survey library.
+// Package ui contains some common UI elements.
 package ui
 
 type inputOptions struct {

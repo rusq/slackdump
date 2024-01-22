@@ -13,7 +13,7 @@
 //
 // Where index.json contains the emoji index, and *.png files under emojis
 // directory are individual emojis.
-package emoji
+package emojidl
 
 import (
 	"context"
@@ -43,7 +43,7 @@ type emojidumper interface {
 }
 
 // DlFS downloads all emojis from the workspace and saves them to the fsa.
-func DlFS(ctx context.Context, sess emojidumper, fsa fsadapter.FS, ignoreErrors bool) error {
+func DlFS(ctx context.Context, sess emojidumper, fsa fsadapter.FS, failFast bool) error {
 	emojis, err := sess.DumpEmojis(ctx)
 	if err != nil {
 		return fmt.Errorf("error during emoji dump: %w", err)
@@ -56,7 +56,7 @@ func DlFS(ctx context.Context, sess emojidumper, fsa fsadapter.FS, ignoreErrors 
 		return fmt.Errorf("failed writing emoji index: %w", err)
 	}
 
-	return fetch(ctx, fsa, emojis, true)
+	return fetch(ctx, fsa, emojis, failFast)
 }
 
 // fetch downloads the emojis and saves them to the fsa. It spawns numWorker

@@ -8,8 +8,8 @@ import (
 	"github.com/rusq/slackdump/v3"
 	"github.com/rusq/slackdump/v3/auth"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/emoji/emojidl"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
-	"github.com/rusq/slackdump/v3/internal/app/emoji"
 	"github.com/rusq/slackdump/v3/logger"
 )
 
@@ -52,7 +52,7 @@ func run(ctx context.Context, cmd *base.Command, args []string) error {
 		return fmt.Errorf("application error: %s", err)
 	}
 
-	if err := emoji.DlFS(ctx, sess, fsa, ignoreErrors); err != nil {
+	if err := emojidl.DlFS(ctx, sess, fsa, ignoreErrors); err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return fmt.Errorf("application error: %s", err)
 	}
