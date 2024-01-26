@@ -14,6 +14,7 @@ import (
 	"github.com/rusq/encio"
 
 	"github.com/rusq/slackdump/v3/auth"
+	"github.com/rusq/slackdump/v3/logger"
 )
 
 const ezLogin = "EZ-Login 3000"
@@ -66,7 +67,6 @@ func (c SlackCreds) Type(ctx context.Context) (AuthType, error) {
 		return ATRod, ErrNotTested
 	}
 	return ATRod, nil
-
 }
 
 func (c SlackCreds) IsEmpty() bool {
@@ -143,18 +143,25 @@ func initProvider(ctx context.Context, cacheDir string, filename string, workspa
 
 	credsFile := filename
 	if cacheDir != "" {
-		if err := os.MkdirAll(cacheDir, 0700); err != nil {
+		if err := os.MkdirAll(cacheDir, 0o700); err != nil {
 			return nil, fmt.Errorf("failed to create cache directory:  %w", err)
 		}
 		credsFile = filepath.Join(cacheDir, filename)
 	}
 
 	// try to load the existing credentials, if saved earlier.
+	lg := logger.FromContext(ctx)
 	if creds == nil || creds.IsEmpty() {
 		if prov, err := tryLoad(ctx, credsFile); err != nil {
-			trace.Logf(ctx, "warn", "no saved credentials: %s", err)
+			msg := fmt.Sprintf("failed to load saved credentials: %s", err)
+			trace.Logf(ctx, "warn", msg)
+			if auth.IsInvalidAuthErr(err) {
+				lg.Println("authentication details expired, relogin is necessary")
+			}
 		} else {
-			trace.Log(ctx, "info", "loaded saved credentials")
+			msg := "loaded saved credentials"
+			lg.Debug(msg)
+			trace.Log(ctx, "info", msg)
 			return prov, nil
 		}
 	}

@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"testing"
+
+	"github.com/slack-go/slack"
 )
 
 var errSample = errors.New("test error")
@@ -73,6 +75,43 @@ func TestAuthError_Is(t *testing.T) {
 			}
 			if got := ae.Is(tt.args.target); got != tt.want {
 				t.Errorf("AuthError.Is() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestIsInvalidAuthErr(t *testing.T) {
+	type args struct {
+		err error
+	}
+	tests := []struct {
+		name string
+		args args
+		want bool
+	}{
+		{
+			"not an auth error",
+			args{
+				errors.New("not me bro"),
+			},
+			false,
+		},
+		{
+			"auth error",
+			args{
+				&Error{
+					Err: slack.SlackErrorResponse{
+						Err: "invalid_auth",
+					},
+				},
+			},
+			true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := IsInvalidAuthErr(tt.args.err); got != tt.want {
+				t.Errorf("IsInvalidAuthErr() = %v, want %v", got, tt.want)
 			}
 		})
 	}
