@@ -38,7 +38,6 @@ func (s *Session) GetUsers(ctx context.Context) (types.Users, error) {
 	}
 	s.uc.set(users)
 	return users, err
-
 }
 
 // fetchUsers fetches users from the API.
@@ -46,9 +45,8 @@ func (s *Session) fetchUsers(ctx context.Context) (types.Users, error) {
 	var (
 		users []slack.User
 	)
-	l := network.NewLimiter(
-		network.Tier2, s.cfg.limits.Tier2.Burst, int(s.cfg.limits.Tier2.Boost),
-	)
+
+	l := s.limiter(network.Tier2)
 	if err := network.WithRetry(ctx, l, s.cfg.limits.Tier2.Retries, func() error {
 		var err error
 		users, err = s.client.GetUsersContext(ctx)

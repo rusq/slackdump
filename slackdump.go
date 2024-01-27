@@ -186,7 +186,7 @@ func (s *Session) limiter(t network.Tier) *rate.Limiter {
 	default:
 		tl = s.cfg.limits.Tier3
 	}
-	return network.NewLimiter(t, tl.Burst, int(tl.Boost)) // BUG: tier was always 3, should fix in master too.
+	return network.NewLimiter(t, tl.Burst, int(tl.Boost))
 }
 
 // Info returns a workspace information.  Slackdump retrieves workspace

@@ -48,7 +48,7 @@ func (s *Session) getChannels(ctx context.Context, chanTypes []string, cb func(t
 	ctx, task := trace.NewTask(ctx, "getChannels")
 	defer task.End()
 
-	limiter := network.NewLimiter(network.Tier2, s.cfg.limits.Tier2.Burst, int(s.cfg.limits.Tier2.Boost))
+	limiter := s.limiter(network.Tier2)
 
 	if chanTypes == nil {
 		chanTypes = AllChanTypes

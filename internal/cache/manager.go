@@ -14,9 +14,9 @@ import (
 	"time"
 
 	"github.com/rusq/encio"
+	"github.com/slack-go/slack"
 
 	"github.com/rusq/slackdump/v3/auth"
-	"github.com/rusq/slackdump/v3/types"
 )
 
 // Manager is the workspace manager.  It is an abstraction over the directory
@@ -367,21 +367,21 @@ func (m *Manager) WalkUsers(userFn func(path string, r io.Reader) error) error {
 }
 
 // LoadUsers loads user cache file no older than maxAge for teamID.
-func (m *Manager) LoadUsers(teamID string, maxAge time.Duration) (types.Users, error) {
+func (m *Manager) LoadUsers(teamID string, maxAge time.Duration) ([]slack.User, error) {
 	return loadUsers(m.dir, m.userFile, teamID, maxAge)
 }
 
 // CacheUsers saves users to user cache file for teamID.
-func (m *Manager) CacheUsers(teamID string, uu types.Users) error {
+func (m *Manager) CacheUsers(teamID string, uu []slack.User) error {
 	return saveUsers(m.dir, m.userFile, teamID, uu)
 }
 
 // LoadChannels loads channel cache no older than maxAge.
-func (m *Manager) LoadChannels(teamID string, maxAge time.Duration) (types.Channels, error) {
+func (m *Manager) LoadChannels(teamID string, maxAge time.Duration) ([]slack.Channel, error) {
 	return loadChannels(m.dir, m.channelFile, teamID, maxAge)
 }
 
 // CacheChannels saves channels to cache.
-func (m *Manager) CacheChannels(teamID string, cc types.Channels) error {
+func (m *Manager) CacheChannels(teamID string, cc []slack.Channel) error {
 	return saveChannels(m.dir, m.channelFile, teamID, cc)
 }

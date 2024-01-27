@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime/trace"
+	"time"
 
 	"github.com/charmbracelet/huh"
 	"github.com/rusq/fsadapter"
@@ -113,23 +114,12 @@ func list(ctx context.Context, listFn listFunc) error {
 		return err
 	}
 
-	lg := logger.FromContext(ctx)
 	teamID := sess.Info().TeamID
-	users, err := m.LoadUsers(teamID, cfg.UserCacheRetention)
-	if err != nil {
-		if !errors.Is(err, cache.ErrExpired) && !errors.Is(err, cache.ErrEmpty) {
-			return err
-		}
-		lg.Println("user cache expired or empty, caching users")
-
-		users, err = sess.GetUsers(ctx)
+	users, ok := data.(types.Users)
+	if !ok {
+		users, err = getCachedUsers(ctx, sess, m, teamID)
 		if err != nil {
 			return err
-		}
-
-		if err := m.CacheUsers(teamID, users); err != nil {
-			trace.Logf(ctx, "error", "saving user cache to %q, error: %s", userCacheBase, err)
-			lg.Printf("error saving user cache to %q: %s, but nevermind, let's continue", userCacheBase, err)
 		}
 	}
 
@@ -154,20 +144,56 @@ func list(ctx context.Context, listFn listFunc) error {
 // saveData saves the given data to the given filename.
 func saveData(ctx context.Context, fs fsadapter.FS, data any, filename string, typ format.Type, users []slack.User) error {
 	// save to a filesystem.
-	if err := writeData(ctx, fs, filename, data, typ, users); err != nil {
-		return err
-	}
-	logger.FromContext(ctx).Printf("Data saved to:  %q\n", filepath.Join(cfg.BaseLocation, filename))
-	return nil
-}
-
-func writeData(ctx context.Context, fs fsadapter.FS, filename string, data any, typ format.Type, users []slack.User) error {
 	f, err := fs.Create(filename)
 	if err != nil {
 		return fmt.Errorf("failed to create file: %w", err)
 	}
 	defer f.Close()
-	return fmtPrint(ctx, f, data, typ, users)
+	if err := fmtPrint(ctx, f, data, typ, users); err != nil {
+		return err
+	}
+	logger.FromContext(ctx).Printf("Data saved to:  %q\n", filepath.Join(cfg.BaseLocation, filename))
+
+	return nil
+}
+
+type userGetter interface {
+	GetUsers(ctx context.Context) (types.Users, error)
+}
+
+type userCacher interface {
+	LoadUsers(teamID string, retention time.Duration) ([]slack.User, error)
+	CacheUsers(teamID string, users []slack.User) error
+}
+
+func getCachedUsers(ctx context.Context, ug userGetter, m userCacher, teamID string) ([]slack.User, error) {
+	users, err := m.LoadUsers(teamID, cfg.UserCacheRetention)
+	if err == nil {
+		return users, nil
+	}
+
+	// failed to load from cache
+	if !errors.Is(err, cache.ErrExpired) && !errors.Is(err, cache.ErrEmpty) {
+		// some funky error
+		return nil, err
+	}
+
+	lg := logger.FromContext(ctx)
+	lg.Println("user cache expired or empty, caching users")
+
+	// getting users from API
+	users, err = ug.GetUsers(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// saving users to cache, will ignore any errors, but notify the user.
+	if err := m.CacheUsers(teamID, users); err != nil {
+		trace.Logf(ctx, "error", "saving user cache to %q, error: %s", userCacheBase, err)
+		lg.Printf("warning: failed saving user cache to %q: %s, but nevermind, let's continue", userCacheBase, err)
+	}
+
+	return users, nil
 }
 
 // fmtPrint prints the given data to the given writer, using the given format.
