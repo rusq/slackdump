@@ -29,7 +29,7 @@ func Test_newFileExporter(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			fe := newFileExporter(tt.args.t, tt.args.fs, tt.args.cl, tt.args.l, tt.args.token)
+			fe := newV2FileExporter(tt.args.t, tt.args.fs, tt.args.cl, tt.args.l, tt.args.token)
 			stype := fmt.Sprintf("%T", fe)
 			if stype != tt.wantT {
 				t.Errorf("typeof(newFileExporter()) = %s, want %s", stype, tt.wantT)

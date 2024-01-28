@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/rusq/dlog"
@@ -60,7 +61,8 @@ func init() {
 
 func runExport(ctx context.Context, cmd *base.Command, args []string) error {
 	start := time.Now()
-	if cfg.BaseLocation == "" {
+	if strings.TrimSpace(cfg.BaseLocation) == "" {
+		base.SetExitStatus(base.SInvalidParameters)
 		return errors.New("use -base to set the base output location")
 	}
 	if !cfg.DownloadFiles {
@@ -68,15 +70,18 @@ func runExport(ctx context.Context, cmd *base.Command, args []string) error {
 	}
 	list, err := structures.NewEntityList(args)
 	if err != nil {
+		base.SetExitStatus(base.SUserError)
 		return fmt.Errorf("error parsing the entity list: %w", err)
 	}
 
 	prov, err := auth.FromContext(ctx)
 	if err != nil {
+		base.SetExitStatus(base.SApplicationError)
 		return err
 	}
 	sess, err := slackdump.New(ctx, prov, slackdump.WithLogger(logger.FromContext(ctx)), slackdump.WithLimits(cfg.Limits))
 	if err != nil {
+		base.SetExitStatus(base.SApplicationError)
 		return err
 	}
 

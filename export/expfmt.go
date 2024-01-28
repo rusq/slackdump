@@ -8,8 +8,8 @@ import (
 	"github.com/rusq/slackdump/v3/logger"
 )
 
-// newFileExporter returns the appropriate exporter for the ExportType.
-func newFileExporter(t ExportType, fs fsadapter.FS, cl *slack.Client, l logger.Interface, token string) dl.Exporter {
+// newV2FileExporter returns the appropriate exporter for the ExportType.
+func newV2FileExporter(t ExportType, fs fsadapter.FS, cl *slack.Client, l logger.Interface, token string) dl.Exporter {
 	switch t {
 	default:
 		l.Printf("unknown export type %s, not downloading any files", t)

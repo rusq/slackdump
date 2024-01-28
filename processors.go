@@ -22,10 +22,11 @@ const (
 	filesCbufSz = 20
 )
 
-// ProcessFunc is the signature of the function Dump* functions accept and
-// call for each API call result.  It can be used to modify in-place the slice
-// of messages, returned from API, before they are appended to the slice that
-// will be returned by Dump*.  Messages passed to this function are unsorted.
+// ProcessFunc is the signature of the processor function that Dump* family
+// functions accept and call for each API call result.  It can be used to
+// modify in-place the slice of messages, returned from API, before they are
+// appended to the slice that will be returned by Dump*.  Messages passed to
+// this function are unsorted.
 type ProcessFunc func(msg []types.Message, channelID string) (ProcessResult, error)
 
 // ProcessResult contains the result of processing.

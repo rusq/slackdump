@@ -44,7 +44,7 @@ func New(sd *slackdump.Session, fs fsadapter.FS, cfg Config) *Export {
 		sd:   sd,
 		lg:   cfg.Logger,
 		opts: cfg,
-		dl:   newFileExporter(cfg.Type, fs, sd.Client(), cfg.Logger, cfg.ExportToken),
+		dl:   newV2FileExporter(cfg.Type, fs, sd.Client(), cfg.Logger, cfg.ExportToken),
 	}
 	return se
 }
