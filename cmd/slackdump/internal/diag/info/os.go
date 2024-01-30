@@ -14,7 +14,7 @@ type OSInfo struct {
 	IsXactive bool   `json:"is_x_active"`
 }
 
-func (inf *OSInfo) collect() {
+func (inf *OSInfo) collect(PathReplFunc) {
 	inf.OS = runtime.GOOS
 	inf.Arch = runtime.GOARCH
 	inf.IsDocker = auth.IsDocker()

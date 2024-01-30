@@ -12,13 +12,13 @@ type Workspace struct {
 	Count      int    `json:"count"`
 }
 
-func (inf *Workspace) collect() {
+func (inf *Workspace) collect(replaceFn PathReplFunc) {
 	inf.Path = replaceFn(cfg.LocalCacheDir)
 	inf.Count = -1
 	// Workspace information
 	m, err := cache.NewManager(cfg.LocalCacheDir)
 	if err != nil {
-		inf.Path = err.Error()
+		inf.Path = loser(err)
 		return
 	}
 	if _, err := m.Current(); err == nil {

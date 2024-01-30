@@ -5,25 +5,28 @@ import (
 	"path/filepath"
 
 	"github.com/playwright-community/playwright-go"
+
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 )
 
 type PwInfo struct {
 	Path              string   `json:"path"`
 	InstalledVersions []string `json:"installed_versions"`
+	BrowsersPath      string
 	InstalledBrowsers []string `json:"installed_browsers"`
 	Script            string   `json:"script"`
 	ScriptExists      bool     `json:"script_exists"`
 	ScriptPerm        string   `json:"script_perm"`
 }
 
-func (inf *PwInfo) collect() {
+func (inf *PwInfo) collect(replaceFn PathReplFunc) {
 	pwdrv, err := playwright.NewDriver(&playwright.RunOptions{
 		Browsers:            []string{cfg.Browser.String()},
-		SkipInstallBrowsers: true},
+		SkipInstallBrowsers: true,
+	},
 	)
 	if err != nil {
-		inf.Path = looser(err)
+		inf.Path = loser(err)
 		return
 	}
 	inf.Path = replaceFn(pwdrv.DriverDirectory)
@@ -33,18 +36,21 @@ func (inf *PwInfo) collect() {
 			inf.ScriptPerm = stat.Mode().String()
 			inf.ScriptExists = true
 		} else {
-			inf.ScriptPerm = looser(err)
+			inf.ScriptPerm = loser(err)
 		}
 	}
 	if de, err := os.ReadDir(filepath.Join(pwdrv.DriverDirectory, "..")); err == nil {
 		inf.InstalledVersions = dirnames(de)
 	} else {
-		inf.InstalledVersions = []string{looser(err)}
+		inf.InstalledVersions = []string{loser(err)}
 	}
 
-	if de, err := os.ReadDir(filepath.Join(pwdrv.DriverDirectory, "..", "..", "ms-playwright")); err == nil {
+	browserPath := filepath.Join(pwdrv.DriverDirectory, "..", "..", "ms-playwright")
+	inf.BrowsersPath = replaceFn(browserPath)
+
+	if de, err := os.ReadDir(browserPath); err == nil {
 		inf.InstalledBrowsers = dirnames(de)
 	} else {
-		inf.InstalledBrowsers = []string{looser(err)}
+		inf.InstalledBrowsers = []string{loser(err)}
 	}
 }

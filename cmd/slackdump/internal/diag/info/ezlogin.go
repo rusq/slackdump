@@ -10,7 +10,7 @@ type EZLogin struct {
 	Browser string          `json:"browser"`
 }
 
-func (inf *EZLogin) collect() {
+func (inf *EZLogin) collect(PathReplFunc) {
 	inf.Flags = cache.EzLoginFlags()
 	inf.Browser = cfg.Browser.String()
 }

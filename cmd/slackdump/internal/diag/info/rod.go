@@ -11,11 +11,11 @@ type RodInfo struct {
 	Browsers []string `json:"browsers"`
 }
 
-func (inf *RodInfo) collect() {
+func (inf *RodInfo) collect(replaceFn PathReplFunc) {
 	inf.Path = replaceFn(launcher.DefaultBrowserDir)
 	if de, err := os.ReadDir(launcher.DefaultBrowserDir); err == nil {
 		inf.Browsers = dirnames(de)
 	} else {
-		inf.Browsers = []string{looser(err)}
+		inf.Browsers = []string{loser(err)}
 	}
 }

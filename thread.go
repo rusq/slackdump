@@ -158,5 +158,6 @@ func (s *Session) dumpThread(
 		}
 		cursor = nextCursor
 	}
+
 	return thread, nil
 }

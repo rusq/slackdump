@@ -29,9 +29,11 @@ var (
 
 	SlackToken   string
 	SlackCookie  string
-	Browser      browser.Browser
 	LoginTimeout time.Duration = browser.DefLoginTimeout
 	Limits                     = slackdump.DefLimits
+	// playwright stuff
+	Browser       browser.Browser
+	LegacyBrowser bool
 
 	DownloadFiles bool
 	NoChunkCache  bool
@@ -88,6 +90,7 @@ func SetBaseFlags(fs *flag.FlagSet, mask FlagMask) {
 		fs.StringVar(&SlackCookie, "cookie", osenv.Secret("SLACK_COOKIE", osenv.Secret("COOKIE", "")), "d= cookie `value` or a path to a cookie.txt file\n(environment: SLACK_COOKIE)")
 		fs.Var(&Browser, "browser", "browser to use for EZ-Login 3000 (default: firefox)")
 		fs.DurationVar(&LoginTimeout, "browser-timeout", LoginTimeout, "Browser login `timeout`")
+		fs.BoolVar(&LegacyBrowser, "legacy-browser", false, "use legacy browser automation (playwright) for EZ-Login 3000")
 	}
 	if mask&OmitDownloadFlag == 0 {
 		fs.BoolVar(&DownloadFiles, "files", true, "enables file attachments (to disable, specify: -files=false)")

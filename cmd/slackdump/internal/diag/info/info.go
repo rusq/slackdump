@@ -51,9 +51,21 @@ type SysInfo struct {
 	EzLogin    EZLogin   `json:"ez_login"`
 }
 
+// Collect collects system information, replacing user's name in paths with
+// "$HOME".
 func Collect() *SysInfo {
-	var si = new(SysInfo)
-	var collectors = []func(){
+	return collect(homeReplacer)
+}
+
+// CollectWithPathReplacer collects the informaiton with the custom path
+// replacing function.
+func CollectRaw() *SysInfo {
+	return collect(noopReplacer)
+}
+
+func collect(fn func(string) string) *SysInfo {
+	si := new(SysInfo)
+	collectors := []func(PathReplFunc){
 		si.Workspace.collect,
 		si.Playwright.collect,
 		si.Rod.collect,
@@ -61,17 +73,22 @@ func Collect() *SysInfo {
 		si.OS.collect,
 	}
 	for _, c := range collectors {
-		c()
+		c(fn)
 	}
 	return si
-
 }
 
 const (
 	home = "$HOME"
 )
 
-var replaceFn = strings.NewReplacer(should(os.UserHomeDir()), home).Replace
+// PathReplFunc is the signature of the function that replaces paths.
+type PathReplFunc func(string) string
+
+var (
+	homeReplacer = strings.NewReplacer(should(os.UserHomeDir()), home).Replace
+	noopReplacer = func(s string) string { return s }
+)
 
 func should(v string, err error) string {
 	if err != nil {
@@ -90,6 +107,6 @@ func dirnames(des []fs.DirEntry) []string {
 	return res
 }
 
-func looser(err error) string {
-	return "*ERROR: " + replaceFn(err.Error()) + "*"
+func loser(err error) string {
+	return "*ERROR: " + homeReplacer(err.Error()) + "*"
 }
