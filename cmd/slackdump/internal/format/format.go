@@ -223,7 +223,7 @@ func unmarshal[OUT any](rs io.ReadSeeker) (OUT, error) {
 
 func getUsers(ctx context.Context, dmp *dump, isOnline bool) ([]slack.User, error) {
 	if isOnline {
-		return getUsersOnline(ctx, cfg.CacheDir(), cfg.Workspace)
+		return getUsersOnline(ctx, cfg.CacheDir(), cfg.Workspace, cfg.LegacyBrowser)
 	}
 	rgn := trace.StartRegion(ctx, "userIDs")
 	ids := dmp.userIDs()
@@ -239,8 +239,8 @@ func getUsers(ctx context.Context, dmp *dump, isOnline bool) ([]slack.User, erro
 	return uu, nil
 }
 
-func getUsersOnline(ctx context.Context, cacheDir, wsp string) ([]slack.User, error) {
-	prov, err := authcmd.AuthCurrent(ctx, cacheDir, wsp)
+func getUsersOnline(ctx context.Context, cacheDir, wsp string, usePlaywright bool) ([]slack.User, error) {
+	prov, err := authcmd.AuthCurrent(ctx, cacheDir, wsp, usePlaywright)
 	if err != nil {
 		return nil, err
 	}

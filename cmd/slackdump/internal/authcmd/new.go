@@ -9,7 +9,6 @@ import (
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/internal/cache"
-	"github.com/rusq/slackdump/v3/logger"
 )
 
 var CmdWspNew = &base.Command{
@@ -20,21 +19,23 @@ var CmdWspNew = &base.Command{
 
 **New** allows you to authenticate in an existing Slack Workspace.
 `,
-	FlagMask:   flagmask &^ cfg.OmitAuthFlags,
+	FlagMask:   flagmask &^ cfg.OmitAuthFlags, // only auth flags.
 	PrintFlags: true,
 }
 
-var (
-	newConfirm = CmdWspNew.Flag.Bool("y", false, "answer yes to all questions")
-)
+var newParams = struct {
+	confirm bool
+}{}
 
 func init() {
+	CmdWspNew.Flag.BoolVar(&newParams.confirm, "y", false, "answer yes to all questions")
+
 	CmdWspNew.Run = runWspNew
 }
 
 // runWspNew authenticates in the new workspace.
 func runWspNew(ctx context.Context, cmd *base.Command, args []string) error {
-	lg := logger.FromContext(ctx)
+	lg := cfg.Log
 	m, err := cache.NewManager(cfg.CacheDir(), cache.WithAuthOpts(auth.BrowserWithBrowser(cfg.Browser), auth.BrowserWithTimeout(cfg.LoginTimeout)))
 	if err != nil {
 		base.SetExitStatus(base.SCacheError)
@@ -44,7 +45,7 @@ func runWspNew(ctx context.Context, cmd *base.Command, args []string) error {
 	wsp := argsWorkspace(args, cfg.Workspace)
 
 	if m.Exists(realname(wsp)) {
-		if !*newConfirm && !base.YesNo(fmt.Sprintf("Workspace %q already exists. Overwrite", realname(wsp))) {
+		if !newParams.confirm && !base.YesNo(fmt.Sprintf("Workspace %q already exists. Overwrite", realname(wsp))) {
 			return ErrOpCancelled
 		}
 		if err := m.Delete(realname(wsp)); err != nil {
@@ -54,11 +55,12 @@ func runWspNew(ctx context.Context, cmd *base.Command, args []string) error {
 	}
 
 	lg.Debugln("requesting authentication...")
-	creds := cache.SlackCreds{
-		Token:  cfg.SlackToken,
-		Cookie: cfg.SlackCookie,
+	ad := cache.AuthData{
+		Token:         cfg.SlackToken,
+		Cookie:        cfg.SlackCookie,
+		UsePlaywright: cfg.LegacyBrowser,
 	}
-	prov, err := m.Auth(ctx, wsp, creds)
+	prov, err := m.Auth(ctx, wsp, ad)
 	if err != nil {
 		base.SetExitStatus(base.SAuthError)
 		if errors.Is(err, auth.ErrCancelled) {

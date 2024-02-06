@@ -50,8 +50,9 @@ func TestSlackCreds_Type(t *testing.T) {
 		t.Fatal(err)
 	}
 	type fields struct {
-		Token  string
-		Cookie string
+		Token         string
+		Cookie        string
+		UsePlaywright bool
 	}
 	type args struct {
 		ctx context.Context
@@ -68,13 +69,15 @@ func TestSlackCreds_Type(t *testing.T) {
 		{"cookie file", fields{Token: "t", Cookie: testFile}, args{context.Background()}, ATCookieFile, false},
 	}
 	if !isWSL {
-		tests = append(tests, test{"browser", fields{Token: "", Cookie: ""}, args{context.Background()}, ATRod, false})
+		tests = append(tests, test{"rod", fields{Token: "", Cookie: ""}, args{context.Background()}, ATRod, false})
+		tests = append(tests, test{"playwright", fields{Token: "", Cookie: "", UsePlaywright: true}, args{context.Background()}, ATPlaywright, false})
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := SlackCreds{
-				Token:  tt.fields.Token,
-				Cookie: tt.fields.Cookie,
+			c := AuthData{
+				Token:         tt.fields.Token,
+				Cookie:        tt.fields.Cookie,
+				UsePlaywright: tt.fields.UsePlaywright,
 			}
 			got, err := c.Type(tt.args.ctx)
 			if (err != nil) != tt.wantErr {
@@ -106,7 +109,7 @@ func TestSlackCreds_IsEmpty(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := SlackCreds{
+			c := AuthData{
 				Token:  tt.fields.Token,
 				Cookie: tt.fields.Cookie,
 			}

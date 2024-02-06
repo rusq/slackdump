@@ -74,7 +74,8 @@ const (
 		OmitWorkspaceFlag |
 		OmitAuthFlags |
 		OmitUserCacheFlag |
-		OmitTimeframeFlag
+		OmitTimeframeFlag |
+		OmitChunkCacheFlag
 )
 
 // SetBaseFlags sets base flags

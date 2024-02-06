@@ -79,7 +79,7 @@ func argsWorkspace(args []string, defaultWsp string) string {
 
 // Auth authenticates in the workspace wsp, and saves, or reuses the credentials
 // in the dir.
-func Auth(ctx context.Context, cacheDir string, wsp string) (auth.Provider, error) {
+func Auth(ctx context.Context, cacheDir string, wsp string, usePlaywright bool) (auth.Provider, error) {
 	m, err := cache.NewManager(cacheDir)
 	if err != nil {
 		return nil, err
@@ -88,7 +88,7 @@ func Auth(ctx context.Context, cacheDir string, wsp string) (auth.Provider, erro
 		return nil, fmt.Errorf("workspace does not exist: %q", cfg.Workspace)
 	}
 
-	prov, err := m.Auth(ctx, wsp, cache.SlackCreds{Token: cfg.SlackToken, Cookie: cfg.SlackCookie})
+	prov, err := m.Auth(ctx, wsp, cache.AuthData{Token: cfg.SlackToken, Cookie: cfg.SlackCookie, UsePlaywright: usePlaywright})
 	if err != nil {
 		return nil, err
 	}
@@ -97,28 +97,18 @@ func Auth(ctx context.Context, cacheDir string, wsp string) (auth.Provider, erro
 
 // AuthCurrent authenticates in the current workspace, or overrideWsp if it's
 // provided.
-func AuthCurrent(ctx context.Context, cacheDir string, overrideWsp string) (auth.Provider, error) {
+func AuthCurrent(ctx context.Context, cacheDir string, overrideWsp string, usePlaywright bool) (auth.Provider, error) {
 	wsp, err := Current(cacheDir, overrideWsp)
 	if err != nil {
 		return nil, err
 	}
 	trace.Logf(ctx, "AuthCurrent", "current workspace=%s", wsp)
 
-	prov, err := Auth(ctx, cacheDir, wsp)
+	prov, err := Auth(ctx, cacheDir, wsp, usePlaywright)
 	if err != nil {
 		return nil, err
 	}
 	return prov, nil
-}
-
-// AuthCurrentCtx authenticates in the current or overriden workspace and
-// returns the context with the auth.Provider.
-func AuthCurrentCtx(pctx context.Context, cacheDir string, overrideWsp string) (context.Context, error) {
-	prov, err := AuthCurrent(pctx, cacheDir, overrideWsp)
-	if err != nil {
-		return nil, err
-	}
-	return auth.WithContext(pctx, prov), nil
 }
 
 // Current returns the current workspace in the directory dir, based on the

@@ -25,10 +25,11 @@ const ezLogin = "EZ-Login 3000"
 // isWSL is true if we're running in the WSL environment
 var isWSL = os.Getenv("WSL_DISTRO_NAME") != ""
 
-// SlackCreds holds the Token and Cookie reference.
-type SlackCreds struct {
-	Token  string
-	Cookie string
+// AuthData is the authentication data.
+type AuthData struct {
+	Token         string
+	Cookie        string
+	UsePlaywright bool
 }
 
 var (
@@ -43,7 +44,7 @@ const (
 	ATValue
 	ATCookieFile
 	ATRod
-	ATBrowser
+	ATPlaywright
 )
 
 // Type returns the authentication type that should be used for the current
@@ -52,7 +53,11 @@ const (
 // this unfortunate fact could be relayed to the end-user.  If the type of the
 // authentication determined is not supported for the current system, it will
 // return ErrUnsupported.
-func (c SlackCreds) Type(ctx context.Context) (AuthType, error) {
+func (c AuthData) Type(context.Context) (AuthType, error) {
+	ez := ATRod
+	if c.UsePlaywright {
+		ez = ATPlaywright
+	}
 	if !c.IsEmpty() {
 		if isExistingFile(c.Cookie) {
 			return ATCookieFile, nil
@@ -64,18 +69,18 @@ func (c SlackCreds) Type(ctx context.Context) (AuthType, error) {
 		return ATInvalid, ErrUnsupported
 	}
 	if !ezLoginTested() {
-		return ATRod, ErrNotTested
+		return ez, ErrNotTested
 	}
-	return ATRod, nil
+	return ez, nil
 }
 
-func (c SlackCreds) IsEmpty() bool {
+func (c AuthData) IsEmpty() bool {
 	return c.Token == "" || (auth.IsClientToken(c.Token) && c.Cookie == "")
 }
 
 // AuthProvider returns the appropriate auth Provider depending on the values
 // of the token and cookie.
-func (c SlackCreds) AuthProvider(ctx context.Context, workspace string, opts ...auth.Option) (auth.Provider, error) {
+func (c AuthData) AuthProvider(ctx context.Context, workspace string, opts ...auth.Option) (auth.Provider, error) {
 	authType, err := c.Type(ctx)
 	if err != nil {
 		return nil, err
@@ -85,14 +90,14 @@ func (c SlackCreds) AuthProvider(ctx context.Context, workspace string, opts ...
 	opts = append([]auth.Option{auth.BrowserWithWorkspace(workspace)}, opts...)
 
 	switch authType {
-	case ATBrowser:
-		return auth.NewBrowserAuth(ctx, opts...)
 	case ATCookieFile:
 		return auth.NewCookieFileAuth(c.Token, c.Cookie)
 	case ATValue:
 		return auth.NewValueAuth(c.Token, c.Cookie)
 	case ATRod:
 		return auth.NewRODAuth(ctx, opts...)
+	case ATPlaywright:
+		return auth.NewBrowserAuth(ctx, opts...)
 	}
 	return nil, errors.New("internal error: unsupported auth type")
 }

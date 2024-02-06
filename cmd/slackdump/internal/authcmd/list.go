@@ -165,7 +165,7 @@ func printHeader(hi ...hdrItem) string {
 }
 
 func userInfo(ctx context.Context, m manager, name string) (*slack.AuthTestResponse, error) {
-	prov, err := m.Auth(ctx, name, cache.SlackCreds{})
+	prov, err := m.Auth(ctx, name, cache.AuthData{})
 	if err != nil {
 		return nil, err
 	}

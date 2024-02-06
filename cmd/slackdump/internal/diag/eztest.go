@@ -9,7 +9,7 @@ import (
 
 	"github.com/playwright-community/playwright-go"
 
-	"github.com/rusq/slackdump/v3/auth/browser"
+	"github.com/rusq/slackdump/v3/auth"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/logger"
 )
@@ -50,6 +50,7 @@ func runEzLoginTest(ctx context.Context, cmd *base.Command, args []string) error
 	lg := logger.FromContext(ctx)
 
 	wsp := cmd.Flag.String("w", "", "Slack `workspace` to login to.")
+	legacy := cmd.Flag.Bool("legacy-browser", false, "run with playwright")
 
 	if err := cmd.Flag.Parse(args); err != nil {
 		base.SetExitStatus(base.SInvalidParameters)
@@ -62,40 +63,68 @@ func runEzLoginTest(ctx context.Context, cmd *base.Command, args []string) error
 		return nil
 	}
 
-	if err := playwright.Install(&playwright.RunOptions{Browsers: []string{"firefox"}}); err != nil {
-		base.SetExitStatus(base.SApplicationError)
-		return fmt.Errorf("playwright installation error: %w", err)
-	}
+	var (
+		res result
+	)
 
-	b, err := browser.New(*wsp)
-	if err != nil {
-		base.SetExitStatus(base.SApplicationError)
-		return err
-	}
-
-	token, cookies, err := b.Authenticate(ctx)
-	r := result{
-		Engine:     "playwright",
-		HasToken:   len(token) > 0,
-		HasCookies: len(cookies) > 0,
-	}
-	if err != nil {
-		errStr := err.Error()
-		r.Err = &errStr
+	if *legacy {
+		res = tryPlaywrightAuth(ctx, *wsp)
+	} else {
+		res = tryRodAuth(ctx, *wsp)
 	}
 
 	enc := json.NewEncoder(os.Stdout)
 	enc.SetIndent("", "  ")
-	if err := enc.Encode(r); err != nil {
+	if err := enc.Encode(res); err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return err
 	}
-	if r.Err == nil {
+	if res.Err == nil {
 		lg.Println("OK")
 	} else {
 		lg.Println("ERROR")
 		base.SetExitStatus(base.SApplicationError)
-		return errors.New(*r.Err)
+		return errors.New(*res.Err)
 	}
 	return nil
+
+}
+
+func tryPlaywrightAuth(ctx context.Context, wsp string) result {
+	var res = result{Engine: "playwright"}
+
+	if err := playwright.Install(&playwright.RunOptions{Browsers: []string{"firefox"}}); err != nil {
+		res.Err = ptr(fmt.Sprintf("playwright installation error: %s", err))
+		return res
+	}
+
+	prov, err := auth.NewBrowserAuth(ctx, auth.BrowserWithWorkspace(wsp))
+	if err != nil {
+		res.Err = ptr(err.Error())
+		return res
+	}
+
+	res.HasToken = len(prov.SlackToken()) > 0
+	res.HasCookies = len(prov.Cookies()) > 0
+	if err != nil {
+		res.Err = ptr(err.Error())
+		return res
+	}
+	return res
+}
+
+func ptr[T any](t T) *T {
+	return &t
+}
+
+func tryRodAuth(ctx context.Context, wsp string) result {
+	ret := result{Engine: "rod"}
+	prov, err := auth.NewRODAuth(ctx, auth.BrowserWithWorkspace(wsp))
+	if err != nil {
+		ret.Err = ptr(err.Error())
+		return ret
+	}
+	ret.HasCookies = len(prov.Cookies()) > 0
+	ret.HasToken = len(prov.SlackToken()) > 0
+	return ret
 }

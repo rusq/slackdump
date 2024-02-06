@@ -7,14 +7,17 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"regexp"
 	"runtime/trace"
-	"strings"
 
 	"github.com/rusq/chttp"
 	"github.com/slack-go/slack"
 )
 
 const SlackURL = "https://slack.com"
+
+// tokenRE is the regexp that matches a valid Slack Client token.
+var tokenRE = regexp.MustCompile(`xoxc-[0-9]+-[0-9]+-[0-9]+-[0-9a-z]{64}`)
 
 // Provider is the Slack Authentication provider.
 //
@@ -99,7 +102,7 @@ func Save(w io.Writer, p Provider) error {
 
 // IsClientToken returns true if the tok is a web-client token.
 func IsClientToken(tok string) bool {
-	return strings.HasPrefix(tok, "xoxc-")
+	return tokenRE.MatchString(tok)
 }
 
 // TestAuth attempts to authenticate with the given provider.  It will return

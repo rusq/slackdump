@@ -22,7 +22,7 @@ var CmdUninstall = &base.Command{
 	PrintFlags:  true,
 }
 
-// reinstall parameters
+// uninstallParams holds supported command line parameters
 var uninstallParams = struct {
 	legacy    bool // playwright
 	dry       bool // dry run
