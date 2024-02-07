@@ -174,7 +174,16 @@ func (sd *Session) SetFS(fs fsadapter.FS) {
 }
 
 func (sd *Session) limiter(t network.Tier) *rate.Limiter {
-	return network.NewLimiter(t, sd.options.Tier3Burst, int(sd.options.Tier3Boost))
+	switch t {
+	case network.Tier2:
+		return network.NewLimiter(t, sd.options.Tier2Burst, int(sd.options.Tier2Boost))
+	case network.Tier3:
+		return network.NewLimiter(t, sd.options.Tier3Burst, int(sd.options.Tier3Boost))
+	case network.Tier4:
+		return network.NewLimiter(t, sd.options.Tier4Burst, int(sd.options.Tier4Boost))
+	default:
+		return network.NewLimiter(t, sd.options.Tier3Burst, int(sd.options.Tier3Boost))
+	}
 }
 
 func checkCacheFile(filename string, maxAge time.Duration) error {
