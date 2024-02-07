@@ -17,7 +17,7 @@ require (
 	github.com/rusq/slackauth v0.0.8
 	github.com/rusq/tracer v1.0.1
 	github.com/schollz/progressbar/v3 v3.13.0
-	github.com/slack-go/slack v0.12.3
+	github.com/slack-go/slack v0.12.1
 	github.com/stretchr/testify v1.8.4
 	go.uber.org/mock v0.4.0
 	golang.org/x/sync v0.6.0
