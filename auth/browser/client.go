@@ -59,10 +59,12 @@ func New(workspace string, opts ...Option) (*Client, error) {
 		Browsers: []string{cl.br.String()},
 		Verbose:  cl.verbose,
 	}
+	l().Println("Initialising playwright browser, please wait ...")
 	if err := installFn(runopts); err != nil {
 		if !strings.Contains(err.Error(), "could not run driver") || runtime.GOOS == "windows" {
 			return nil, fmt.Errorf("can't install the browser: %w", err)
 		}
+		l().Println("Failed to install the browser, attempting to repair ...")
 		if err := pwRepair(runopts); err != nil {
 			return nil, fmt.Errorf("failed to repair the browser installation: %w", err)
 		}
@@ -248,18 +250,18 @@ func Reinstall(browser Browser, verbose bool) error {
 }
 
 func reinstall(runopts *playwright.RunOptions) error {
-	l().Debugf("reinstalling browser: %s", runopts.Browsers[0])
+	l().Printf("reinstalling browser: %s", runopts.Browsers[0])
 	drv, err := newDriverFn(runopts)
 	if err != nil {
 		return err
 	}
-	l().Debugf("removing %s", drv.DriverDirectory)
+	l().Printf("removing %s", drv.DriverDirectory)
 	if err := os.RemoveAll(drv.DriverDirectory); err != nil {
 		return err
 	}
 
 	// attempt to reinstall
-	l().Debugf("reinstalling %s", drv.DriverDirectory)
+	l().Printf("reinstalling %s", drv.DriverDirectory)
 	if err := installFn(runopts); err != nil {
 		// we did everything we could, but it still failed.
 		return err

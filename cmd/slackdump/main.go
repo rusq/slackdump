@@ -9,7 +9,6 @@ import (
 	"os/signal"
 	"runtime/trace"
 	"strings"
-	"syscall"
 
 	"github.com/charmbracelet/huh"
 	"github.com/joho/godotenv"
@@ -161,11 +160,11 @@ func invoke(cmd *base.Command, args []string) error {
 		return fmt.Errorf("failed to start trace: %s", err)
 	}
 
-	ctx, task := trace.NewTask(context.Background(), "command")
-	defer task.End()
-
-	ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
+
+	ctx, task := trace.NewTask(ctx, "command")
+	defer task.End()
 
 	// initialise default logging.
 	if lg, err := initLog(cfg.LogFile, cfg.Verbose); err != nil {

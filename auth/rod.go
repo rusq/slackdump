@@ -7,7 +7,9 @@ import (
 	"os"
 
 	"github.com/rusq/slackauth"
+
 	"github.com/rusq/slackdump/v3/auth/auth_ui"
+	"github.com/rusq/slackdump/v3/logger"
 )
 
 // RodAuth is an authentication provider that uses a headless or interactive
@@ -77,9 +79,11 @@ func NewRODAuth(ctx context.Context, opts ...Option) (RodAuth, error) {
 		return r, err
 	}
 
+	lg := logger.FromContext(ctx)
 	var sp simpleProvider
 	switch resp {
 	case auth_ui.LInteractive:
+		lg.Printf("ℹ️ Initialising browser, once the browser appears, login as usual")
 		var err error
 		sp.Token, sp.Cookie, err = slackauth.Browser(ctx, r.opts.workspace)
 		if err != nil {
@@ -94,7 +98,7 @@ func NewRODAuth(ctx context.Context, opts ...Option) (RodAuth, error) {
 		return r, ErrCancelled
 	}
 
-	fmt.Fprintln(os.Stderr, "authenticated.")
+	lg.Println("✅ authenticated.")
 
 	return RodAuth{
 		simpleProvider: sp,
@@ -112,7 +116,7 @@ func headlessFlow(ctx context.Context, workspace string, ui browserAuthUIExt) (s
 	if password == "" {
 		return sp, fmt.Errorf("password cannot be empty")
 	}
-	fmt.Println("Logging in to Slack, depending on your connection speed, it will take 15-30 seconds...")
+	logger.FromContext(ctx).Println("⏳ Logging in to Slack, depending on your connection speed, it will take 15-30 seconds...")
 
 	var loginErr error
 	sp.Token, sp.Cookie, loginErr = slackauth.Headless(

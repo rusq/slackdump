@@ -33,13 +33,14 @@ func (cl *CLI) RequestWorkspace(w io.Writer) (string, error) {
 	return Sanitize(workspace)
 }
 
-func (cl *CLI) RequestEmail(w io.Writer) (string, error) {
-	return prompt(w, "Enter Email: ", readln)
-}
-
-func (cl *CLI) RequestPassword(w io.Writer, account string) (string, error) {
+func (*CLI) RequestCreds(w io.Writer, workspace string) (email string, passwd string, err error) {
+	email, err = prompt(w, "Enter Email: ", readln)
+	if err != nil {
+		return
+	}
 	defer fmt.Fprintln(w)
-	return prompt(w, fmt.Sprintf("Enter Password for %s (won't be visible): ", account), readpwd)
+	passwd, err = prompt(w, fmt.Sprintf("Enter Password for %s (won't be visible): ", email), readpwd)
+	return
 }
 
 func (cl *CLI) RequestLoginType(w io.Writer) (LoginType, error) {
