@@ -13,6 +13,7 @@ import (
 	"go.uber.org/mock/gomock"
 
 	"github.com/rusq/slackdump/v3/auth"
+	"github.com/rusq/slackdump/v3/internal/fixtures"
 	"github.com/rusq/slackdump/v3/internal/mocks/mock_appauth"
 	"github.com/rusq/slackdump/v3/internal/mocks/mock_io"
 )
@@ -43,7 +44,7 @@ func Test_isExistingFile(t *testing.T) {
 	}
 }
 
-func TestSlackCreds_Type(t *testing.T) {
+func TestAuthData_Type(t *testing.T) {
 	dir := t.TempDir()
 	testFile := filepath.Join(dir, "fake_cookie")
 	if err := os.WriteFile(testFile, []byte("unittest"), 0644); err != nil {
@@ -81,17 +82,17 @@ func TestSlackCreds_Type(t *testing.T) {
 			}
 			got, err := c.Type(tt.args.ctx)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("SlackCreds.Type() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("AuthData.Type() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("SlackCreds.Type() = %v, want %v", got, tt.want)
+				t.Errorf("AuthData.Type() = %v, want %v", got, tt.want)
 			}
 		})
 	}
 }
 
-func TestSlackCreds_IsEmpty(t *testing.T) {
+func TestAuthData_IsEmpty(t *testing.T) {
 	type fields struct {
 		Token  string
 		Cookie string
@@ -103,9 +104,9 @@ func TestSlackCreds_IsEmpty(t *testing.T) {
 	}{
 		{"empty", fields{Token: "", Cookie: ""}, true},
 		{"no token", fields{Token: "", Cookie: "x"}, true},
-		{"xoxc: token and cookie present", fields{Token: "xoxc-", Cookie: "x"}, false},
-		{"xoxc: no cookie is not ok", fields{Token: "xoxc-", Cookie: ""}, true},
-		{"other: no cookie is ok", fields{Token: "xoxp-", Cookie: ""}, false},
+		{"xoxc: token and cookie present", fields{Token: fixtures.TestClientToken, Cookie: "x"}, false},
+		{"xoxc: no cookie is not ok", fields{Token: fixtures.TestClientToken, Cookie: ""}, true},
+		{"personal token: no cookie is ok", fields{Token: fixtures.TestPersonalToken, Cookie: ""}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -114,7 +115,7 @@ func TestSlackCreds_IsEmpty(t *testing.T) {
 				Cookie: tt.fields.Cookie,
 			}
 			if got := c.IsEmpty(); got != tt.want {
-				t.Errorf("SlackCreds.IsEmpty() = %v, want %v", got, tt.want)
+				t.Errorf("AuthData.IsEmpty() = %v, want %v", got, tt.want)
 			}
 		})
 	}

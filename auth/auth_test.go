@@ -7,6 +7,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/rusq/slackdump/v3/internal/fixtures"
 )
 
 func TestLoad(t *testing.T) {
@@ -82,14 +84,14 @@ func TestSave(t *testing.T) {
 		},
 		{
 			"cookies missing on client token",
-			args{ValueAuth{simpleProvider{Token: "xoxc-blah", Cookie: []*http.Cookie{}}}},
+			args{ValueAuth{simpleProvider{Token: fixtures.TestClientToken, Cookie: []*http.Cookie{}}}},
 			"",
 			true,
 		},
 		{
 			"cookies missing on non-client token",
-			args{ValueAuth{simpleProvider{Token: "xoxp-blah", Cookie: []*http.Cookie{}}}},
-			`{"Token":"xoxp-blah","Cookie":[]}
+			args{ValueAuth{simpleProvider{Token: fixtures.TestPersonalToken, Cookie: []*http.Cookie{}}}},
+			`{"Token":"` + fixtures.TestPersonalToken + `","Cookie":[]}
 `,
 			false,
 		},
