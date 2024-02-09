@@ -62,7 +62,7 @@ var opts options
 // initDumpFlagset initializes the flagset for the dump command.
 func initDumpFlagset(fs *flag.FlagSet) {
 	fs.StringVar(&opts.nameTemplate, "ft", nametmpl.Default, "output file naming template.\n")
-	fs.BoolVar(&opts.compat, "compat", false, "compatibility mode")
+	fs.BoolVar(&opts.compat, "compat", false, "v2 compatibility mode")
 	fs.BoolVar(&opts.updateLinks, "update-links", false, "update file links to point to the downloaded files.")
 }
 

@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	sampleLimitsYaml = `# yaml-language-server: $schema=https://raw.githubusercontent.com/rusq/slackdump/cli-remake/cmd/slackdump/internal/apiconfig/schema.json
+	sampleLimitsYaml = `# yaml-language-server: $schema=https://raw.githubusercontent.com/rusq/slackdump/v3/cmd/slackdump/internal/apiconfig/schema.json
 workers: 4
 download_retries: 3
 tier_2:

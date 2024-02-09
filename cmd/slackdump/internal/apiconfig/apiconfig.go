@@ -17,7 +17,7 @@ import (
 // schemaJSONpath is the path to the schema JSON file for the limits yaml
 // configuration file.
 // TODO: update once released
-const schemaJSONpath = "https://raw.githubusercontent.com/rusq/slackdump/cli-remake/cmd/slackdump/internal/apiconfig/schema.json"
+const schemaJSONpath = "https://raw.githubusercontent.com/rusq/slackdump/v3/cmd/slackdump/internal/apiconfig/schema.json"
 
 var CmdConfig = &base.Command{
 	UsageLine: "slackdump config",
