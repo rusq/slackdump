@@ -27,7 +27,7 @@ By default it converts a directory with chunks to an archive or directory
 in Slack Export format.
 `,
 	CustomFlags: false,
-	FlagMask:    cfg.OmitAll & ^cfg.OmitDownloadFlag &^ cfg.OmitBaseLocFlag,
+	FlagMask:    cfg.OmitAll & ^cfg.OmitDownloadFlag &^ cfg.OmitOutputFlag,
 	PrintFlags:  true,
 }
 
@@ -61,14 +61,14 @@ func runConvert(ctx context.Context, cmd *base.Command, args []string) error {
 	}
 
 	lg := logger.FromContext(ctx)
-	lg.Printf("converting (%s) %q to (%s) %q", params.inputfmt, args[0], params.outputfmt, cfg.BaseLocation)
+	lg.Printf("converting (%s) %q to (%s) %q", params.inputfmt, args[0], params.outputfmt, cfg.Output)
 
 	cflg := convertflags{
 		withFiles: cfg.DownloadFiles,
 		stt:       params.storageType,
 	}
 	start := time.Now()
-	if err := fn(ctx, args[0], cfg.BaseLocation, cflg); err != nil {
+	if err := fn(ctx, args[0], cfg.Output, cflg); err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return err
 	}

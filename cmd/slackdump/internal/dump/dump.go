@@ -106,7 +106,7 @@ func RunDump(ctx context.Context, _ *base.Command, args []string) error {
 		return fmt.Errorf("file template error: %w", err)
 	}
 
-	fsa, err := fsadapter.New(cfg.BaseLocation)
+	fsa, err := fsadapter.New(cfg.Output)
 	if err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return err

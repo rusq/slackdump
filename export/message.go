@@ -17,11 +17,11 @@ type ExportMessage struct {
 
 	// additional fields not defined by the slack library, but present
 	// in slack exports
-	UserTeam        string             `json:"user_team"`
-	SourceTeam      string             `json:"source_team"`
-	UserProfile     *ExportUserProfile `json:"user_profile"`
-	ReplyUsersCount int                `json:"reply_users_count"`
-	slackdumpTime   time.Time          `json:"-"`
+	UserTeam        string             `json:"user_team,omitempty"`
+	SourceTeam      string             `json:"source_team,omitempty"`
+	UserProfile     *ExportUserProfile `json:"user_profile,omitempty"`
+	ReplyUsersCount int                `json:"reply_users_count,omitempty"`
+	slackdumpTime   time.Time          `json:"-"` // to speedup sorting
 }
 
 type ExportUserProfile struct {

@@ -45,9 +45,9 @@ func RunRecord(ctx context.Context, cmd *base.Command, args []string) error {
 	}
 
 	// hack
-	cfg.BaseLocation = strings.TrimSuffix(cfg.BaseLocation, ".zip")
+	cfg.Output = strings.TrimSuffix(cfg.Output, ".zip")
 
-	cd, err := chunk.CreateDir(cfg.BaseLocation)
+	cd, err := chunk.CreateDir(cfg.Output)
 	if err != nil {
 		base.SetExitStatus(base.SGenericError)
 		return err

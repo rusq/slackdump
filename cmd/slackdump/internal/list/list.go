@@ -124,7 +124,7 @@ func list(ctx context.Context, listFn listFunc) error {
 	}
 
 	if !nosave {
-		fsa, err := fsadapter.New(cfg.BaseLocation)
+		fsa, err := fsadapter.New(cfg.Output)
 		if err != nil {
 			return err
 		}
@@ -152,7 +152,7 @@ func saveData(ctx context.Context, fs fsadapter.FS, data any, filename string, t
 	if err := fmtPrint(ctx, f, data, typ, users); err != nil {
 		return err
 	}
-	logger.FromContext(ctx).Printf("Data saved to:  %q\n", filepath.Join(cfg.BaseLocation, filename))
+	logger.FromContext(ctx).Printf("Data saved to:  %q\n", filepath.Join(cfg.Output, filename))
 
 	return nil
 }

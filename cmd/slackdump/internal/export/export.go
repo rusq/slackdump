@@ -61,7 +61,7 @@ func init() {
 
 func runExport(ctx context.Context, cmd *base.Command, args []string) error {
 	start := time.Now()
-	if strings.TrimSpace(cfg.BaseLocation) == "" {
+	if strings.TrimSpace(cfg.Output) == "" {
 		base.SetExitStatus(base.SInvalidParameters)
 		return errors.New("use -base to set the base output location")
 	}
@@ -85,7 +85,7 @@ func runExport(ctx context.Context, cmd *base.Command, args []string) error {
 		return err
 	}
 
-	fsa, err := fsadapter.New(cfg.BaseLocation)
+	fsa, err := fsadapter.New(cfg.Output)
 	if err != nil {
 		base.SetExitStatus(base.SUserError)
 		return err
