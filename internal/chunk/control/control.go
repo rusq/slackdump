@@ -107,7 +107,7 @@ type Error struct {
 }
 
 func (e Error) Error() string {
-	return fmt.Sprintf("controller error in %s on %s: %v", e.Subroutine, e.Stage, e.Err)
+	return fmt.Sprintf("controller error in subroutine %s on stage %s: %v", e.Subroutine, e.Stage, e.Err)
 }
 
 func (c *Controller) Run(ctx context.Context, list *structures.EntityList) error {

@@ -136,6 +136,9 @@ func caller(steps int) string {
 	return name
 }
 
+// ensure ensures that the file index was generated.
+//
+// TODO: maybe it shouldn't panic.
 func (f *File) ensure() {
 	if f.idx == nil {
 		log.Panicf("internal error:  %s called before File.Open", caller(1))
@@ -267,9 +270,20 @@ func (p *File) AllChannels() ([]slack.Channel, error) {
 // info API.
 func (f *File) AllChannelInfos() ([]slack.Channel, error) {
 	f.ensure()
-	return allForOffsets(f, f.idx.offsetsWithPrefix(chanInfoPrefix), func(c *Chunk) []slack.Channel {
+	chans, err := allForOffsets(f, f.idx.offsetsWithPrefix(chanInfoPrefix), func(c *Chunk) []slack.Channel {
 		return []slack.Channel{*c.Channel}
 	})
+	if err != nil {
+		return nil, err
+	}
+	for i := range chans {
+		members, err := f.ChannelUsers(chans[i].ID)
+		if err != nil {
+			return nil, err
+		}
+		chans[i].Members = members
+	}
+	return chans, nil
 }
 
 // AllChannelInfoWithMembers returns all channels with Members populated.

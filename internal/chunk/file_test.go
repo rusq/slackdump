@@ -713,6 +713,12 @@ func mkindex(rs io.ReadSeeker) index {
 }
 
 func TestFile_AllChannelInfos(t *testing.T) {
+	c0wus := *testChunks[0].Channel
+	c0wus.Members = testChunks[1].ChannelUsers
+
+	c6wus := *testChunks[6].Channel
+	c6wus.Members = testChunks[7].ChannelUsers
+
 	type fields struct {
 		rs io.ReadSeeker
 	}
@@ -728,8 +734,8 @@ func TestFile_AllChannelInfos(t *testing.T) {
 				rs: marshalChunks(testChunks...),
 			},
 			[]slack.Channel{
-				*testChunks[0].Channel,
-				*testChunks[6].Channel,
+				c0wus,
+				c6wus,
 			},
 			false,
 		},
@@ -745,9 +751,7 @@ func TestFile_AllChannelInfos(t *testing.T) {
 				t.Errorf("File.AllChannelInfos() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("File.AllChannelInfos() = %v, want %v", got, tt.want)
-			}
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }

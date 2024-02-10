@@ -16,7 +16,7 @@ import (
 	"github.com/slack-go/slack"
 )
 
-const ext = ".json.gz"
+const chunkExt = ".json.gz"
 
 // common filenames
 const (
@@ -119,7 +119,7 @@ func (d *Directory) Channels() ([]slack.Channel, error) {
 		if err != nil {
 			return err
 		}
-		if !strings.HasSuffix(path, ext) {
+		if !strings.HasSuffix(path, chunkExt) {
 			return nil
 		} else if de.IsDir() {
 			return nil
@@ -145,6 +145,7 @@ func (d *Directory) Name() string {
 	return d.dir
 }
 
+// loadChanInfo loads the channel info from the file with full path.
 func (d *Directory) loadChanInfo(fullpath string) ([]slack.Channel, error) {
 	f, err := d.openRAW(fullpath)
 	if err != nil {
@@ -255,7 +256,7 @@ func openfile(filename string) (*os.File, error) {
 
 // filename returns the full path of the chunk file with the given fileID.
 func (d *Directory) filename(id FileID) string {
-	return filepath.Join(d.dir, string(id)+ext)
+	return filepath.Join(d.dir, string(id)+chunkExt)
 }
 
 // Create creates the chunk file with the given name.  Extension is appended
