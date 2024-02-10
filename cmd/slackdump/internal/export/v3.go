@@ -89,6 +89,7 @@ func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 
 	lg.Print("running export...")
 	if err := ctr.Run(ctx, list); err != nil {
+		pb.Finish()
 		return err
 	}
 	pb.Finish()

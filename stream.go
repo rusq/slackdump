@@ -557,7 +557,9 @@ func (cs *Stream) channelInfo(ctx context.Context, proc processor.ChannelInforme
 		if err := network.WithRetry(ctx, cs.limits.channels, cs.limits.tier.Tier3.Retries, func() error {
 			var err error
 			info, err = cs.client.GetConversationInfoContext(ctx, &slack.GetConversationInfoInput{
-				ChannelID: channelID,
+				ChannelID:         channelID,
+				IncludeLocale:     true,
+				IncludeNumMembers: true,
 			})
 			if err != nil {
 				return fmt.Errorf("error getting channel information: %w", err)

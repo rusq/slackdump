@@ -1,5 +1,10 @@
 #!/bin/sh
-
+#
+# This script is used to generate the data for the comparison between v2 and
+# v3 It will export the data from the channels in the CHANNELS variable and
+# store it in the tmp/deleteme directory.
+#
+# 2024-02-09
 V2_BRANCH=master
 V3_BRANCH=v3
 DIR=tmp/deleteme
