@@ -1,0 +1,12 @@
+#!/bin/sh
+
+V2_BRANCH=master
+V3_BRANCH=v3
+DIR=tmp/deleteme
+CHANNELS="D010JKVT38T C04AJH95SQ5"
+
+mkdir -p $DIR
+git checkout $V2_BRANCH
+go run ./cmd/slackdump -export $DIR/$V2_BRANCH $CHANNELS
+git checkout $V3_BRANCH
+go run ./cmd/slackdump export -files=false -base $DIR/$V3_BRANCH $CHANNELS
