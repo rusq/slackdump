@@ -12,8 +12,8 @@ import (
 	"strings"
 	"sync/atomic"
 
+	"github.com/rusq/slack"
 	"github.com/rusq/slackdump/v3/internal/osext"
-	"github.com/slack-go/slack"
 )
 
 const chunkExt = ".json.gz"

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/rusq/chttp"
+	"github.com/rusq/slack"
 	"github.com/rusq/slackdump/v3/auth"
 	"github.com/rusq/slackdump/v3/internal/cache"
 	"github.com/rusq/slackdump/v3/internal/chunk"
@@ -17,7 +18,6 @@ import (
 	"github.com/rusq/slackdump/v3/internal/fixtures"
 	"github.com/rusq/slackdump/v3/internal/structures"
 	"github.com/rusq/slackdump/v3/mocks/mock_processor"
-	"github.com/slack-go/slack"
 	"go.uber.org/mock/gomock"
 )
 

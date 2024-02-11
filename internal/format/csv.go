@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/rusq/slack"
 	"github.com/rusq/slackdump/v3/types"
-	"github.com/slack-go/slack"
 )
 
 type CSV struct {

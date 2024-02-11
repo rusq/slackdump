@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/slack-go/slack"
+	"github.com/rusq/slack"
 	"golang.org/x/time/rate"
 
 	"github.com/rusq/slackdump/v3/logger"

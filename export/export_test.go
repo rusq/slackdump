@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/rusq/fsadapter"
+	"github.com/rusq/slack"
 	"github.com/rusq/slackdump/v3"
 	"github.com/rusq/slackdump/v3/internal/fixtures"
 	"github.com/rusq/slackdump/v3/internal/mocks/mock_dl"
@@ -21,7 +22,6 @@ import (
 	"github.com/rusq/slackdump/v3/internal/mocks/mock_io"
 	"github.com/rusq/slackdump/v3/internal/structures"
 	"github.com/rusq/slackdump/v3/types"
-	"github.com/slack-go/slack"
 	"github.com/stretchr/testify/assert"
 	gomock "go.uber.org/mock/gomock"
 )

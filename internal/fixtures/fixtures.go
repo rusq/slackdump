@@ -6,7 +6,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/slack-go/slack"
+	"github.com/rusq/slack"
 )
 
 const (

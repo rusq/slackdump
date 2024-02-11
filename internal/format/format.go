@@ -9,9 +9,9 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/rusq/slack"
 	"github.com/rusq/slackdump/v3/internal/structures"
 	"github.com/rusq/slackdump/v3/types"
-	"github.com/slack-go/slack"
 )
 
 // Type is the converter type.

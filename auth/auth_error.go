@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/slack-go/slack"
+	"github.com/rusq/slack"
 )
 
 // Error is the error returned by New, the underlying Err contains

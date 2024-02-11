@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"sync/atomic"
 
+	"github.com/rusq/slack"
 	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/logger"
-	"github.com/slack-go/slack"
 )
 
 // ExportCoordinator is a takes the chunks produced by the

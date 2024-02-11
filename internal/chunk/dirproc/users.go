@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/rusq/slack"
 	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/processor"
-	"github.com/slack-go/slack"
 )
 
 // Users is a users processor.

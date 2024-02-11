@@ -4,9 +4,9 @@ import (
 	"context"
 	"time"
 
+	"github.com/rusq/slack"
 	"github.com/rusq/slackdump/v3"
 	"github.com/rusq/slackdump/v3/types"
-	"github.com/slack-go/slack"
 )
 
 // this file is named future.go to avoid conflicts when merging with the v3.0.0

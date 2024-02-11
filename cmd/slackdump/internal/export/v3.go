@@ -5,8 +5,8 @@ import (
 	"os"
 
 	"github.com/rusq/fsadapter"
+	"github.com/rusq/slack"
 	"github.com/schollz/progressbar/v3"
-	"github.com/slack-go/slack"
 
 	"github.com/rusq/slackdump/v3"
 

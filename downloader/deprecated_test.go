@@ -11,7 +11,7 @@ import (
 
 	"errors"
 
-	"github.com/slack-go/slack"
+	"github.com/rusq/slack"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	gomock "go.uber.org/mock/gomock"

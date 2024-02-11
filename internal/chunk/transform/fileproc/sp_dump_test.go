@@ -3,7 +3,7 @@ package fileproc
 import (
 	"testing"
 
-	"github.com/slack-go/slack"
+	"github.com/rusq/slack"
 	"github.com/stretchr/testify/assert"
 )
 

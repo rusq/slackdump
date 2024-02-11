@@ -6,10 +6,10 @@ import (
 	"runtime/trace"
 	"sync"
 
+	"github.com/rusq/slack"
 	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/logger"
 	"github.com/rusq/slackdump/v3/processor"
-	"github.com/slack-go/slack"
 )
 
 // Transformer is an interface that is called when the processor is finished

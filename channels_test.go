@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/slack-go/slack"
+	"github.com/rusq/slack"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 

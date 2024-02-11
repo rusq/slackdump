@@ -8,10 +8,10 @@ import (
 	"context"
 
 	"github.com/rusq/fsadapter"
+	"github.com/rusq/slack"
 	"github.com/rusq/slackdump/v3/downloader"
 	"github.com/rusq/slackdump/v3/internal/structures/files"
 	"github.com/rusq/slackdump/v3/logger"
-	"github.com/slack-go/slack"
 )
 
 // Downloader is the interface that wraps the Download method.

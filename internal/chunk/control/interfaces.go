@@ -3,9 +3,9 @@ package control
 import (
 	"context"
 
+	"github.com/rusq/slack"
 	"github.com/rusq/slackdump/v3/internal/chunk/dirproc"
 	"github.com/rusq/slackdump/v3/processor"
-	"github.com/slack-go/slack"
 )
 
 // Streamer is the interface for the API scraper.

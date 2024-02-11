@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"github.com/rusq/fsadapter"
-	"github.com/slack-go/slack"
+	"github.com/rusq/slack"
 
 	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/internal/nametmpl"

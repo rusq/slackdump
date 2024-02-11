@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"github.com/rusq/encio"
-	"github.com/slack-go/slack"
+	"github.com/rusq/slack"
 
 	"github.com/rusq/slackdump/v3/auth"
 )

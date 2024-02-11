@@ -1,6 +1,6 @@
 package fixtures
 
-import "github.com/slack-go/slack"
+import "github.com/rusq/slack"
 
 var TestUsers = []slack.User{
 	{ID: "LOL1", Name: "yippi", Deleted: false},

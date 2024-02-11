@@ -7,7 +7,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/slack-go/slack"
+	"github.com/rusq/slack"
 
 	"github.com/rusq/slackdump/v3/internal/chunk/state"
 	"github.com/rusq/slackdump/v3/internal/osext"

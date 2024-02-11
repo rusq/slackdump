@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 
+	"github.com/rusq/slack"
 	"github.com/rusq/slackdump/v3/internal/chunk"
-	"github.com/slack-go/slack"
 )
 
 var ErrClosed = errors.New("transformer is closed")

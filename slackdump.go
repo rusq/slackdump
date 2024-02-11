@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/go-playground/validator/v10"
-	"github.com/slack-go/slack"
+	"github.com/rusq/slack"
 	"golang.org/x/time/rate"
 
 	"github.com/rusq/fsadapter"

@@ -8,7 +8,7 @@ import (
 
 	"errors"
 
-	"github.com/slack-go/slack"
+	"github.com/rusq/slack"
 	"go.uber.org/mock/gomock"
 
 	"github.com/rusq/slackdump/v3/internal/fixtures"

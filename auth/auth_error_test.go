@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/slack-go/slack"
+	"github.com/rusq/slack"
 )
 
 var errSample = errors.New("test error")

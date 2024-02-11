@@ -11,7 +11,7 @@ import (
 	"runtime/trace"
 
 	"github.com/rusq/chttp"
-	"github.com/slack-go/slack"
+	"github.com/rusq/slack"
 )
 
 const SlackURL = "https://slack.com"

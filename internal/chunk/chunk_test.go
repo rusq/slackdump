@@ -6,7 +6,7 @@ import (
 	"io"
 	"testing"
 
-	"github.com/slack-go/slack"
+	"github.com/rusq/slack"
 )
 
 func TestChunk_ID(t *testing.T) {

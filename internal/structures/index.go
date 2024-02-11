@@ -9,7 +9,7 @@ import (
 
 	"github.com/rusq/fsadapter"
 
-	"github.com/slack-go/slack"
+	"github.com/rusq/slack"
 )
 
 // ExportIndex is the ExportIndex of the export archive.  filename tags are used to

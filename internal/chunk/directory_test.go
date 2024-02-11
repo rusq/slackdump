@@ -6,9 +6,9 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/rusq/slack"
 	"github.com/rusq/slackdump/v3/internal/fixtures"
 	"github.com/rusq/slackdump/v3/internal/osext"
-	"github.com/slack-go/slack"
 )
 
 // assortment of channel info chunks

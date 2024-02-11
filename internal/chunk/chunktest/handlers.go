@@ -9,8 +9,8 @@ import (
 	"runtime/trace"
 	"strconv"
 
+	"github.com/rusq/slack"
 	"github.com/rusq/slackdump/v3/internal/chunk"
-	"github.com/slack-go/slack"
 )
 
 func router(p *chunk.Player, userID string) *http.ServeMux {

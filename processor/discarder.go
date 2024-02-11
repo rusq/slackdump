@@ -5,7 +5,7 @@ import (
 	"runtime"
 
 	"github.com/rusq/dlog"
-	"github.com/slack-go/slack"
+	"github.com/rusq/slack"
 )
 
 var _ Conversations = new(Printer)

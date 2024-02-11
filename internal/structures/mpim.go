@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/slack-go/slack"
+	"github.com/rusq/slack"
 )
 
 const (

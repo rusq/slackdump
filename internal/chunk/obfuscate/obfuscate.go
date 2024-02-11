@@ -18,8 +18,8 @@ import (
 	"time"
 
 	"github.com/rusq/dlog"
+	"github.com/rusq/slack"
 	"github.com/rusq/slackdump/v3/internal/chunk"
-	"github.com/slack-go/slack"
 )
 
 type doOpts struct {

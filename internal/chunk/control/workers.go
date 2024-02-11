@@ -5,12 +5,12 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/rusq/slack"
 	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/internal/chunk/dirproc"
 	"github.com/rusq/slackdump/v3/internal/chunk/transform"
 	"github.com/rusq/slackdump/v3/logger"
 	"github.com/rusq/slackdump/v3/processor"
-	"github.com/slack-go/slack"
 )
 
 func userWorker(ctx context.Context, s Streamer, chunkdir *chunk.Directory, tf TransformStarter) error {

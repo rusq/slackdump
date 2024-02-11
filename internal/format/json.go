@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"io"
 
+	"github.com/rusq/slack"
 	"github.com/rusq/slackdump/v3/types"
-	"github.com/slack-go/slack"
 )
 
 type jsonOptions struct {

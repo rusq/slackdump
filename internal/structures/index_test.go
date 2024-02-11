@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/rusq/fsadapter"
-	"github.com/slack-go/slack"
+	"github.com/rusq/slack"
 )
 
 func TestIndex_Marshal(t *testing.T) {

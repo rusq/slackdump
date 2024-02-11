@@ -102,7 +102,6 @@ func SetBaseFlags(fs *flag.FlagSet, mask FlagMask) {
 	if mask&OmitOutputFlag == 0 {
 		base := fmt.Sprintf("slackdump_%s.zip", time.Now().Format(filenameLayout))
 		fs.StringVar(&Output, "o", osenv.Value("BASE_LOC", base), "a `location` (a directory or a ZIP file) on the local disk to save\ndownloaded files to.")
-		fs.StringVar(&Output, "output", osenv.Value("BASE_LOC", base), "synonym for -o")
 	}
 	if mask&OmitCacheDir == 0 {
 		fs.StringVar(&LocalCacheDir, "cache-dir", osenv.Value("CACHE_DIR", CacheDir()), "cache `directory` location\n")

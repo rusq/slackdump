@@ -3,8 +3,8 @@ package cache
 import (
 	"time"
 
+	"github.com/rusq/slack"
 	"github.com/rusq/slackdump/v3/types"
-	"github.com/slack-go/slack"
 )
 
 // loadUsers tries to load the users from the file. If the file does not exist

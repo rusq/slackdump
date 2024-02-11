@@ -8,7 +8,7 @@ import (
 	"runtime/trace"
 	"time"
 
-	"github.com/slack-go/slack"
+	"github.com/rusq/slack"
 
 	"github.com/rusq/slackdump/v3/internal/network"
 	"github.com/rusq/slackdump/v3/types"

@@ -7,7 +7,7 @@ import (
 
 	"errors"
 
-	"github.com/slack-go/slack"
+	"github.com/rusq/slack"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 	"golang.org/x/time/rate"

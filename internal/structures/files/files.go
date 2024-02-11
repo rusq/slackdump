@@ -3,7 +3,7 @@ package files
 import (
 	"net/url"
 
-	"github.com/slack-go/slack"
+	"github.com/rusq/slack"
 )
 
 // UpdateFunc is the signature of the function that modifies the file passed

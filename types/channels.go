@@ -1,7 +1,7 @@
 package types
 
 import (
-	"github.com/slack-go/slack"
+	"github.com/rusq/slack"
 )
 
 // Channels keeps slice of channels.

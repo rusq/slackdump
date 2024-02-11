@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"path/filepath"
 
+	"github.com/rusq/slack"
 	"github.com/rusq/slackdump/v3/internal/chunk/transform"
 	"github.com/rusq/slackdump/v3/processor"
-	"github.com/slack-go/slack"
 )
 
 // NewExport initialises an export file subprocessor based on the given export

@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/rusq/fsadapter"
-	"github.com/slack-go/slack"
+	"github.com/rusq/slack"
 
 	"github.com/rusq/slackdump/v3/export"
 	"github.com/rusq/slackdump/v3/internal/chunk"

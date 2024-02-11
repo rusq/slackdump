@@ -5,7 +5,7 @@ package dl
 import (
 	"context"
 
-	"github.com/slack-go/slack"
+	"github.com/rusq/slack"
 
 	"github.com/rusq/slackdump/v3"
 	"github.com/rusq/slackdump/v3/internal/structures/files"

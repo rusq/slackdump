@@ -13,6 +13,7 @@ import (
 
 	"github.com/charmbracelet/huh"
 	"github.com/rusq/fsadapter"
+	"github.com/rusq/slack"
 	"github.com/rusq/slackdump/v3"
 	"github.com/rusq/slackdump/v3/auth"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
@@ -21,7 +22,6 @@ import (
 	"github.com/rusq/slackdump/v3/internal/format"
 	"github.com/rusq/slackdump/v3/logger"
 	"github.com/rusq/slackdump/v3/types"
-	"github.com/slack-go/slack"
 )
 
 const (

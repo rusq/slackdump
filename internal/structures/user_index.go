@@ -3,7 +3,7 @@ package structures
 import (
 	"strings"
 
-	"github.com/slack-go/slack"
+	"github.com/rusq/slack"
 )
 
 // UserIndex is a mapping of user ID to the *slack.User.

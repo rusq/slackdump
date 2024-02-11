@@ -2,8 +2,6 @@ module github.com/rusq/slackdump/v3
 
 go 1.21.4
 
-// replace github.com/slack-go/slack => ../slack
-
 require (
 	github.com/MercuryEngineering/CookieMonster v0.0.0-20180304172713-1584578b3403
 	github.com/charmbracelet/huh v0.3.0
@@ -64,6 +62,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rivo/uniseg v0.4.6 // indirect
 	github.com/rusq/secure v0.0.4 // indirect
+	github.com/rusq/slack v0.9.6-0.20240211120639-93c163940e55 // indirect
 	github.com/ysmood/fetchup v0.2.4 // indirect
 	github.com/ysmood/goob v0.4.0 // indirect
 	github.com/ysmood/got v0.39.4 // indirect

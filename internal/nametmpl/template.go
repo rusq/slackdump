@@ -6,8 +6,8 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/rusq/slack"
 	"github.com/rusq/slackdump/v3/types"
-	"github.com/slack-go/slack"
 )
 
 const filenameTmplName = "nametmpl"

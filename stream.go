@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/slack-go/slack"
+	"github.com/rusq/slack"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/time/rate"
 

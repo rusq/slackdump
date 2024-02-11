@@ -13,7 +13,7 @@ import (
 	io "io"
 	reflect "reflect"
 
-	slack "github.com/slack-go/slack"
+	slack "github.com/rusq/slack"
 	gomock "go.uber.org/mock/gomock"
 )
 

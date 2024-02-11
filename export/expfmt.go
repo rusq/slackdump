@@ -1,7 +1,7 @@
 package export
 
 import (
-	"github.com/slack-go/slack"
+	"github.com/rusq/slack"
 
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/slackdump/v3/internal/structures/files/dl"

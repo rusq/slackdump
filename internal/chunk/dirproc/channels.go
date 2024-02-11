@@ -3,8 +3,8 @@ package dirproc
 import (
 	"context"
 
+	"github.com/rusq/slack"
 	"github.com/rusq/slackdump/v3/internal/chunk"
-	"github.com/slack-go/slack"
 )
 
 type Channels struct {

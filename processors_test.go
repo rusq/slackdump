@@ -5,9 +5,9 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/rusq/slack"
 	"github.com/rusq/slackdump/v3/downloader"
 	"github.com/rusq/slackdump/v3/types"
-	"github.com/slack-go/slack"
 	"github.com/stretchr/testify/assert"
 )
 

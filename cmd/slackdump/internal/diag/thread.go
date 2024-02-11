@@ -8,8 +8,8 @@ import (
 
 	"github.com/joho/godotenv"
 	"github.com/rusq/osenv/v2"
+	"github.com/rusq/slack"
 	"github.com/schollz/progressbar/v3"
-	"github.com/slack-go/slack"
 
 	"github.com/rusq/slackdump/v3"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"

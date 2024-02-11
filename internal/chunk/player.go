@@ -6,7 +6,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/slack-go/slack"
+	"github.com/rusq/slack"
 )
 
 var ErrExhausted = errors.New("exhausted")

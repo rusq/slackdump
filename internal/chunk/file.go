@@ -15,7 +15,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/slack-go/slack"
+	"github.com/rusq/slack"
 
 	"github.com/rusq/dlog"
 	"github.com/rusq/slackdump/v3/internal/chunk/state"

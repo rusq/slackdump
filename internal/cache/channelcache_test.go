@@ -4,9 +4,9 @@ import (
 	"testing"
 
 	"github.com/rusq/encio"
+	"github.com/rusq/slack"
 	"github.com/rusq/slackdump/v3/internal/fixtures"
 	"github.com/rusq/slackdump/v3/types"
-	"github.com/slack-go/slack"
 	"github.com/stretchr/testify/assert"
 )
 

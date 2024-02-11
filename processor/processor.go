@@ -4,7 +4,7 @@ import (
 	"context"
 	"io"
 
-	"github.com/slack-go/slack"
+	"github.com/rusq/slack"
 )
 
 // Conversations is the interface for conversation fetching with files.

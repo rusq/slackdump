@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/rusq/encio"
-	"github.com/slack-go/slack"
+	"github.com/rusq/slack"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 

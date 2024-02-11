@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/rusq/slack"
 	"github.com/rusq/slackdump/v3/internal/structures"
-	"github.com/slack-go/slack"
 )
 
 // ChunkType is the type of chunk that was recorded..

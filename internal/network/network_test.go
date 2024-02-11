@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/slack-go/slack"
+	"github.com/rusq/slack"
 	"golang.org/x/time/rate"
 )
 

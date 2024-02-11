@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	"github.com/rusq/fsadapter"
+	"github.com/rusq/slack"
 	"github.com/rusq/slackdump/v3/logger"
-	"github.com/slack-go/slack"
 )
 
 func Test_newFileExporter(t *testing.T) {

@@ -4,8 +4,8 @@ import (
 	"sort"
 	"time"
 
+	"github.com/rusq/slack"
 	"github.com/rusq/slackdump/v3/internal/structures"
-	"github.com/slack-go/slack"
 )
 
 // Message is the internal representation of message with thread.
