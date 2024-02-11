@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io"
 	"os"
+	"testing"
 
 	"github.com/rusq/slack"
 )
@@ -52,4 +53,14 @@ func DummyChannel(id string) *slack.Channel {
 	var ch slack.Channel
 	ch.ID = id
 	return &ch
+}
+
+func DebugTempDir(t *testing.T) string {
+	t.Helper()
+	d, err := os.MkdirTemp("", t.Name()+"*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("tempdir: %s", d)
+	return d
 }

@@ -45,6 +45,15 @@ var (
 			},
 		},
 	}
+	TestChannelUsers = Chunk{
+		ChannelID: "C01SPFM1KNY",
+		Type:      CChannelUsers,
+		ChannelUsers: []string{
+			"U01SPFM1KNY",
+			"U01SPFM1KNZ",
+			"U01SPFM1KNA",
+		},
+	}
 )
 
 // assortment of message chunks
@@ -74,7 +83,7 @@ func Test_readChanInfo(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "test",
+			name: "channel info without user chunks (no error)",
 			fields: fields{
 				wantCache: true,
 			},
@@ -83,6 +92,24 @@ func Test_readChanInfo(t *testing.T) {
 					filepath.Join(dir, "unit"),
 					TestPublicChannelInfo,
 					TestPublicChannelMessages,
+				),
+			},
+			want: []slack.Channel{
+				*TestPublicChannelInfo.Channel,
+			},
+			wantErr: false,
+		},
+		{
+			name: "channel info with user chunks",
+			fields: fields{
+				wantCache: true,
+			},
+			args: args{
+				r: testfilewrapper(
+					filepath.Join(dir, "unit"),
+					TestPublicChannelInfo,
+					TestPublicChannelMessages,
+					TestChannelUsers,
 				),
 			},
 			want: []slack.Channel{

@@ -279,6 +279,11 @@ func (f *File) AllChannelInfos() ([]slack.Channel, error) {
 	for i := range chans {
 		members, err := f.ChannelUsers(chans[i].ID)
 		if err != nil {
+			if errors.Is(err, ErrNotFound) {
+				// ignoring missing channel users
+				logger.Default.Printf("no users for channel %s: %v (never mind, let's continue)", chans[i].ID, err)
+				continue
+			}
 			return nil, err
 		}
 		chans[i].Members = members
