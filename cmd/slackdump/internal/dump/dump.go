@@ -245,11 +245,12 @@ func dump(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, p dump
 				return sr.Err
 			}
 			if sr.IsLast {
+				//TODO:  this is unbeautiful.
 				lg.Printf("%s dumped", sr)
 			}
 			return nil
 		}),
-	).Conversations(ctx, proc, p.list.Generator(ctx)); err != nil {
+	).Conversations(ctx, proc, p.list.C(ctx)); err != nil {
 		return fmt.Errorf("failed to dump conversations: %w", err)
 	}
 
