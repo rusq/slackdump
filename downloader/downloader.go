@@ -267,12 +267,11 @@ func (c *Client) Stop() {
 // ErrNotStarted. Will place the file to the download queue.
 func (c *Client) Download(fullpath string, url string) error {
 	c.mu.Lock()
-	started := c.started
-	c.mu.Unlock()
-
-	if !started {
+	defer c.mu.Unlock()
+	if !c.started {
 		return ErrNotStarted
 	}
+
 	c.requests <- Request{Fullpath: fullpath, URL: url}
 	return nil
 }
