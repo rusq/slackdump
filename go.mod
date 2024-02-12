@@ -8,7 +8,7 @@ require (
 	github.com/fatih/color v1.16.0
 	github.com/go-playground/locales v0.14.1
 	github.com/go-playground/universal-translator v0.18.1
-	github.com/go-playground/validator/v10 v10.17.0
+	github.com/go-playground/validator/v10 v10.18.0
 	github.com/go-rod/rod v0.114.7
 	github.com/joho/godotenv v1.5.1
 	github.com/playwright-community/playwright-go v0.4101.1
@@ -17,10 +17,10 @@ require (
 	github.com/rusq/encio v0.1.0
 	github.com/rusq/fsadapter v1.0.1
 	github.com/rusq/osenv/v2 v2.0.1
+	github.com/rusq/slack v0.9.6-0.20240211120639-93c163940e55
 	github.com/rusq/slackauth v0.0.8
 	github.com/rusq/tracer v1.0.1
 	github.com/schollz/progressbar/v3 v3.13.0
-	github.com/slack-go/slack v0.12.4-0.20240209181618-f6b09b870589
 	github.com/stretchr/testify v1.8.4
 	go.uber.org/mock v0.4.0
 	golang.org/x/crypto v0.19.0
@@ -60,9 +60,8 @@ require (
 	github.com/muesli/reflow v0.3.0 // indirect
 	github.com/muesli/termenv v0.15.2 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/rivo/uniseg v0.4.6 // indirect
+	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/rusq/secure v0.0.4 // indirect
-	github.com/rusq/slack v0.9.6-0.20240211120639-93c163940e55 // indirect
 	github.com/ysmood/fetchup v0.2.4 // indirect
 	github.com/ysmood/goob v0.4.0 // indirect
 	github.com/ysmood/got v0.39.4 // indirect
