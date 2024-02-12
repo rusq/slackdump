@@ -26,7 +26,7 @@ And by the way, version is: ` + version + `, commit: ` + commit + `, built on ` 
 	Run: versionRun,
 }
 
-func versionRun(ctx context.Context, cmd *base.Command, args []string) error {
+func versionRun(context.Context, *base.Command, []string) error {
 	printVersion()
 	return nil
 }

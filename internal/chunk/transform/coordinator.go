@@ -10,14 +10,15 @@ import (
 
 type COption func(*Coordinator)
 
-// Coordinator is the transform coordinator.
+// Coordinator coordinates the conversion of chunk files to the desired format.
+// It is used to convert files in parallel.
 type Coordinator struct {
 	idC  chan chunk.FileID
 	errC chan error
 	cvt  Converter
 }
 
-// WithIDC allows to use an external ID channel.
+// WithIDChan allows to use an external ID channel.
 func WithIDChan(idC chan chunk.FileID) COption {
 	return func(c *Coordinator) {
 		if idC != nil {
@@ -26,6 +27,7 @@ func WithIDChan(idC chan chunk.FileID) COption {
 	}
 }
 
+// NewCoordinator creates a new Coordinator.
 func NewCoordinator(ctx context.Context, cvt Converter, opts ...COption) *Coordinator {
 	c := &Coordinator{
 		cvt:  cvt,

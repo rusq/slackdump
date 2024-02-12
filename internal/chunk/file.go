@@ -226,7 +226,7 @@ func (f *File) State() (*state.State, error) {
 }
 
 // AllMessages returns all the messages for the given channel posted to it (no
-// thread).
+// thread).  The messages are in the order as they appear in the file.
 func (f *File) AllMessages(channelID string) ([]slack.Message, error) {
 	m, err := f.allMessagesForID(GroupID(channelID))
 	if err != nil {
@@ -235,8 +235,9 @@ func (f *File) AllMessages(channelID string) ([]slack.Message, error) {
 	return m, nil
 }
 
-// AllThreadMessages returns all the messages for the given thread.  It does not
-// return the parent message in the result, use [File.ThreadParent] for that.
+// AllThreadMessages returns all the messages for the given thread.  It does
+// not return the parent message in the result, use [File.ThreadParent] for
+// that.  The messages are in the order as they appear in the file.
 func (f *File) AllThreadMessages(channelID, threadTS string) ([]slack.Message, error) {
 	return f.allMessagesForID(threadID(channelID, threadTS))
 }

@@ -492,7 +492,7 @@ func procChanMsg(ctx context.Context, proc processor.Conversations, threadC chan
 		// "expected" threads to processor, to ensure that processor will
 		// start processing the channel and will have the initial reference
 		// count, if it needs it.
-		if mm[i].Msg.ThreadTimestamp != "" && mm[i].Msg.SubType != "thread_broadcast" && mm[i].LatestReply != structures.NoRepliesLatestReply {
+		if mm[i].Msg.ThreadTimestamp != "" && mm[i].Msg.SubType != structures.SubTypeThreadBroadcast && mm[i].LatestReply != structures.LatestReplyNoReplies {
 			lg.Debugf("- message #%d/channel=%s,thread: id=%s, thread_ts=%s", i, channel.ID, mm[i].Timestamp, mm[i].Msg.ThreadTimestamp)
 			trs = append(trs, request{
 				sl: &structures.SlackLink{

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sort"
 
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/slack"
@@ -41,7 +42,7 @@ func StdWithLogger(log logger.Interface) StdOption {
 	}
 }
 
-// NewStandard creates a new standard dump transformer.
+// NewStandard creates a new standard dump converter.
 func NewStandard(fsa fsadapter.FS, cd *chunk.Directory, opts ...StdOption) (*StdConverter, error) {
 	std := &StdConverter{
 		cd:   cd,
@@ -55,11 +56,12 @@ func NewStandard(fsa fsadapter.FS, cd *chunk.Directory, opts ...StdOption) (*Std
 	return std, nil
 }
 
-// pipelineFunc is a function that transforms a slice of slack messages.
-// defining a type alias for brevity.
+// pipelineFunc is a function that performs caller-defined transformations of
+// a slice of slack messages.  The type alias is defined for brevity.
 type pipelineFunc = func(channelID string, threadTS string, mm []slack.Message) error
 type pipeline []pipelineFunc
 
+// apply applies the pipeline functions in order.
 func (p pipeline) apply(channelID, threadTS string, mm []slack.Message) error {
 	for i, f := range p {
 		if err := f(channelID, threadTS, mm); err != nil {
@@ -69,14 +71,16 @@ func (p pipeline) apply(channelID, threadTS string, mm []slack.Message) error {
 	return nil
 }
 
+// StdConverter is a converter of chunk files into the Slackdump format.
 type StdConverter struct {
-	cd       *chunk.Directory
-	fsa      fsadapter.FS
-	tmpl     Templater
-	lg       logger.Interface
-	pipeline []pipelineFunc
+	cd       *chunk.Directory // working chunk directory
+	fsa      fsadapter.FS     // output file system
+	tmpl     Templater        // file name template
+	lg       logger.Interface // logger
+	pipeline []pipelineFunc   // pipeline filter functions
 }
 
+// Convert converts the chunk file to Slackdump json format.
 func (s *StdConverter) Convert(ctx context.Context, id chunk.FileID) error {
 	cf, err := s.cd.Open(id)
 	if err != nil {
@@ -117,6 +121,22 @@ func (s *StdConverter) Convert(ctx context.Context, id chunk.FileID) error {
 	return json.NewEncoder(f).Encode(conv)
 }
 
+type msgsorter []slack.Message
+
+func (m msgsorter) Len() int { return len(m) }
+func (m msgsorter) Less(i, j int) bool {
+	tsi, err := structures.TS2int(m[i].Timestamp)
+	if err != nil {
+		return false
+	}
+	tsj, err := structures.TS2int(m[j].Timestamp)
+	if err != nil {
+		return false
+	}
+	return tsi < tsj
+}
+func (m msgsorter) Swap(i, j int) { m[i], m[j] = m[j], m[i] }
+
 // stdConversation is the function that does the transformation of the whole
 // channel with threads.
 func stdConversation(cf *chunk.File, ci *slack.Channel, pipeline pipeline) ([]types.Message, error) {
@@ -124,18 +144,19 @@ func stdConversation(cf *chunk.File, ci *slack.Channel, pipeline pipeline) ([]ty
 	if err != nil {
 		return nil, err
 	}
+	sort.Sort(msgsorter(mm))
 	if err := pipeline.apply(ci.ID, "", mm); err != nil {
 		return nil, fmt.Errorf("conversation: %w", err)
 	}
 	msgs := make([]types.Message, 0, len(mm))
 	for i := range mm {
-		if mm[i].SubType == "thread_broadcast" {
+		if mm[i].SubType == structures.SubTypeThreadBroadcast {
 			// this we don't eat.  Skip thread broadcasts.
 			continue
 		}
 		var sdm types.Message // slackdump message
 		sdm.Message = mm[i]
-		if mm[i].ThreadTimestamp != "" && mm[i].ThreadTimestamp == mm[i].Timestamp && mm[i].LatestReply != structures.NoRepliesLatestReply { // process thread only for parent messages
+		if mm[i].ThreadTimestamp != "" && mm[i].ThreadTimestamp == mm[i].Timestamp && mm[i].LatestReply != structures.LatestReplyNoReplies { // process thread only for parent messages
 			// if there's a thread timestamp, we need to find and add it.
 			thread, err := cf.AllThreadMessages(ci.ID, mm[i].ThreadTimestamp)
 			if err != nil {
@@ -155,6 +176,7 @@ func stdThread(cf *chunk.File, ci *slack.Channel, threadTS string, pipeline pipe
 	if err != nil {
 		return nil, err
 	}
+
 	// get parent message
 	parent, err := cf.ThreadParent(ci.ID, threadTS) // TODO: implement
 	if err != nil {
@@ -165,6 +187,9 @@ func stdThread(cf *chunk.File, ci *slack.Channel, threadTS string, pipeline pipe
 	if err := pipeline.apply(ci.ID, threadTS, mm); err != nil {
 		return nil, fmt.Errorf("conversation: %w", err)
 	}
+
+	// sort messages by timestamp
+	sort.Sort(msgsorter(mm))
 
 	return types.ConvertMsgs(mm), nil
 }
