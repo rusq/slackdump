@@ -13,10 +13,10 @@ const (
 	mpimPrefix  = "mpdm-"
 )
 
-// FixMpIMmembers verifies Channel.Members to contain all channel members, if
-// not, it attempts to populate it by parsing out the usernames from
+// FixMpIMmembers verifies that Channel.Members contains all channel members,
+// if not, it attempts to populate it by parsing out the usernames from
 // name_normalized, and populating Channel.Members with IDs of the users
-// discovered.  usernameIDs is a mapping of username -> user_id.
+// discovered.
 func FixMpIMmembers(ch *slack.Channel, users []slack.User) (*slack.Channel, error) {
 	if !isMpIM(ch) {
 		return nil, fmt.Errorf("not a MpIM channel: %s (IsMpIM=%v)", ch.ID, ch.IsMpIM)
@@ -47,16 +47,11 @@ func parseMpIMmembers(nn string, usernameIDs map[string]string) ([]string, error
 	if len(usernameIDs) == 0 {
 		return nil, errors.New("no user mapping")
 	}
-	nn = strings.TrimRight(strings.TrimLeft(nn, mpimPrefix), "-1")
+	nn = strings.TrimSuffix(strings.TrimPrefix(nn, mpimPrefix), "-1")
 	names := strings.Split(nn, mpimNameSep)
 	var members = make([]string, len(names))
 	for i := range names {
-		var ok bool
-		members[i], ok = usernameIDs[names[i]]
-		if !ok {
-			// TODO: log?
-			continue
-		}
+		members[i] = usernameIDs[names[i]]
 	}
 	return members, nil
 }
