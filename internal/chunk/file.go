@@ -109,6 +109,7 @@ type decoder interface {
 
 // indexChunks indexes the records in the reader and returns an index.
 func indexChunks(dec decoder) (index, error) {
+	start := time.Now()
 	idx := make(index, 200) // buffer for 200 chunks to avoid reallocations.
 	var id GroupID
 	for i := 0; ; i++ {
@@ -124,7 +125,8 @@ func indexChunks(dec decoder) (index, error) {
 		id = chunk.ID()
 		idx[id] = append(idx[id], offset)
 	}
-	logger.Default.Debugf("indexing chunks: %d: called from %v", len(idx), caller(2))
+
+	logger.Default.Debugf("indexing chunks: %d: called from %v, took %s (%.2f/sec)", len(idx), caller(2), time.Since(start), float64(len(idx))/time.Since(start).Seconds())
 	return idx, nil
 }
 

@@ -155,7 +155,7 @@ func channelUsersID(channelID string) GroupID {
 }
 
 func (c *Chunk) String() string {
-	return fmt.Sprintf("%s: %s", c.Type, c.ID())
+	return c.Type.String() + ": " + string(c.ID())
 }
 
 // Timestamps returns the timestamps of the messages in the chunk.  For files
