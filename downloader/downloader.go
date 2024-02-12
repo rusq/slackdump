@@ -321,10 +321,9 @@ var ErrNotStarted = errors.New("downloader not started")
 // filesystem.
 func (c *Client) DownloadFile(dir string, f slack.File) (string, error) {
 	c.mu.Lock()
-	started := c.started
-	c.mu.Unlock()
+	defer c.mu.Unlock()
 
-	if !started {
+	if !c.started {
 		return "", ErrNotStarted
 	}
 	c.fileRequests <- fileRequest{Directory: dir, File: &f}
