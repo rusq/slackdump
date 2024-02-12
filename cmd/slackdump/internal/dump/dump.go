@@ -166,7 +166,7 @@ func (p *dumpparams) validate() error {
 	return nil
 }
 
-// dump is the current version of dump.
+// dump generates the files in slackdump format.
 func dump(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, p dumpparams) error {
 	// it uses Stream to generate a chunk file, then process it and generate
 	// dump JSON.
@@ -261,7 +261,8 @@ func dump(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, p dump
 	return nil
 }
 
-// dumpv2 is the obsolete version of dump (compatibility)
+// dumpv2 is the obsolete version of dump (compatibility mode)
+// Deprecated: to be removed in v3.1.0.
 func dumpv2(ctx context.Context, sess *slackdump.Session, fs fsadapter.FS, p dumpparams) error {
 	for _, link := range p.list.Include {
 		conv, err := sess.Dump(ctx, link, p.oldest, p.latest)
@@ -277,7 +278,7 @@ func dumpv2(ctx context.Context, sess *slackdump.Session, fs fsadapter.FS, p dum
 
 // writeJSON writes a Slackdump conversation conv to filename within fs.
 func writeJSON(ctx context.Context, fs fsadapter.FS, filename string, conv *types.Conversation) error {
-	_, task := trace.NewTask(ctx, "saveData")
+	_, task := trace.NewTask(ctx, "writeJSON")
 	defer task.End()
 
 	f, err := fs.Create(filename)
