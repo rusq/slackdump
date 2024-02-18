@@ -44,8 +44,6 @@ func Test_currentWsp(t *testing.T) {
 	}
 }
 
-var workspaceFiles = []string{"ora600.bin", "sdump.bin", "foo.bin", "bar.bin", "provider.bin"}
-
 func prepareDir(t *testing.T, dir string) {
 	for _, filename := range testFiles(dir) {
 		if err := os.WriteFile(filename, []byte("dummy"), 0600); err != nil {
@@ -53,6 +51,8 @@ func prepareDir(t *testing.T, dir string) {
 		}
 	}
 }
+
+var workspaceFiles = []string{"ora600.bin", "sdump.bin", "foo.bin", "bar.bin", "provider.bin", "default.bin"}
 
 func testFiles(dir string) []string {
 	files := make([]string, 0, len(workspaceFiles))
