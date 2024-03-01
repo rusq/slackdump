@@ -149,7 +149,7 @@ function dump {
 	fi
 
 	echo "Dumping messages from \"$PREVIOUS_DATE\" to \"$CURRENT_DATE\""
- 	$SLACKDUMP_B -download -r json $FROM_FLAG $TO_FLAG -base "$BASE_DIR" "$CHANNEL_ID" > "$LOG_FILE" 2>&1
+ 	$SLACKDUMP_B -download -r json "$FROM_FLAG" "$TO_FLAG" -base "$BASE_DIR" "$CHANNEL_ID" > "$LOG_FILE" 2>&1
  	
  	local NEW_MESSAGE_COUNT=$($JQ_B -r '.messages | length' "$CHANNEL_FILE")
  	echo "Found '$NEW_MESSAGE_COUNT' new message(s)."
@@ -158,7 +158,7 @@ function dump {
 	if [ -r "$CHANNEL_FILE_OLD" ]; then
 		# If there are new messages, merge the old channel messages with the new messages
 		# and remove the old file
-		if [ $NEW_MESSAGE_COUNT -gt 0 ]; then
+		if [ "$NEW_MESSAGE_COUNT" -gt 0 ]; then
 			# See https://stackoverflow.com/a/75597380/397210
 			local MERGED_CONTENT=$($JQ_B -s '.[0] as $o1 | .[1] as $o2 | ($o1 + $o2) | .messages = ($o1.messages + $o2.messages)' "$CHANNEL_FILE_OLD" "$CHANNEL_FILE")
 			echo "$MERGED_CONTENT" > "$CHANNEL_FILE"
