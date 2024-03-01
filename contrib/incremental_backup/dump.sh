@@ -27,6 +27,14 @@
 # Levi Brown (@levigroker)
 # v1.0.1 2023-03-07
 # https://gist.github.com/levigroker/fa7b231373e68269843aeeee5cc845a3
+#
+# TODOs:
+#
+# - Should be addressed to robustify in case of channel names with spaces etc.
+# shellcheck disable=SC2207
+#
+#
+
 ##
 
 ### Configuration
