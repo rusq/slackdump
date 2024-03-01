@@ -27,14 +27,6 @@
 # Levi Brown (@levigroker)
 # v1.0.1 2023-03-07
 # https://gist.github.com/levigroker/fa7b231373e68269843aeeee5cc845a3
-#
-# TODOs:
-#
-# - Should be addressed to robustify in case of channel names with spaces etc.
-# shellcheck disable=SC2207
-#
-#
-
 ##
 
 ### Configuration
@@ -64,6 +56,23 @@ SLACKDUMP_B="./slackdump"
 
 ### Functions
 
+function append_to_array {
+	local array_name="$1"
+	shift
+
+	# Read output of the command into a temporary array, splitting on newline
+	# shellcheck disable=SC2034
+	if [ -n "$*" ]; then
+		IFS=$'\n' read -r -d '' -a temp_array < <("$@")
+	else
+		# no command provided -- read from stdin
+		IFS=$'\n' read -r -d '' -a temp_array
+	fi
+
+	# Use eval to safely append temp_array to the named array
+	eval "$array_name+=(\"\${temp_array[@]}\")"
+}
+
 function get_users {
 	local LOG_FILE="${OUTPUT_DIR}/_log.txt"
 	$SLACKDUMP_B -list-users -r json -o "${USER_LIST_FILE}" > "$LOG_FILE" 2>&1
@@ -87,14 +96,14 @@ function channel_names {
 function im_channels {
 	# Get a list of all 1-1 direct messages
 	local LIST=()
-	LIST+=($(echo "$CHANNEL_LIST_JSON" | $JQ_B -r 'map(select(.is_im == true)) | .[] | .user, .id'))
+	append_to_array LIST < <(echo "$CHANNEL_LIST_JSON" | $JQ_B -r 'map(select(.is_im == true)) | .[] | .user, .id')
 	# Map the 1-1 direct message channel ID to user name
 	while [ ${#LIST[@]} -gt 1 ]; do
 		local USER_ID=${LIST[0]}
 		local CHANNEL_ID=${LIST[1]}
 		LIST=( "${LIST[@]:2}" )
 		local USER_NAME
-		USER_NAME=$(echo "$USER_LIST_JSON" | $JQ_B -r "map(select(.id == \"${USER_ID}\")) | .[].name")
+		append_to_array USER_NAME < <(echo "$USER_LIST_JSON" | $JQ_B -r "map(select(.id == \"${USER_ID}\")) | .[].name")
 		# Filter the list by username, as per the configured INCLUDE_USER_NAME_REGEX list 
 		for NAME_REGEX in "${INCLUDE_USER_NAME_REGEX[@]+"${INCLUDE_USER_NAME_REGEX[@]}"}"; do
 			if [[ "${USER_NAME}" =~ $NAME_REGEX ]]; then
@@ -201,9 +210,9 @@ function dump {
 function dump_list {
 	local LIST=()
 	# Add all 1-1 direct message channels
-	LIST+=( $(im_channels) )
+	append_to_array LIST im_channels
 	# Add all group message channels
-	LIST+=( $(group_channels) )
+	append_to_array LIST group_channels
 
 	# Iterate over each matching channel and archive the channel contents
 	while [ ${#LIST[@]} -gt 1 ]; do
