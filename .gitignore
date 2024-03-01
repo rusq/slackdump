@@ -27,7 +27,7 @@
 *.json
 *.yml
 *.yaml
-!.github/workflows/codespell.yml
+!.github/workflows/*.yml
 json/*
 examples/*
 experiments/*
