@@ -49,6 +49,7 @@ INCLUDE_GROUP_CHANNEL_NAME_REGEX=(
 
 ### Qualify needed binaries
 JQ_B=$(which jq)
+# shellcheck disable=SC2181
 [ $? -ne 0 ] && echo "Please be sure jq is available in your PATH. https://stedolan.github.io/jq/" && exit 1
 SLACKDUMP_B="./slackdump"
 [ ! -x "$SLACKDUMP_B" ] && echo "Please be sure slackdump is located at '$SLACKDUMP_B'. https://github.com/rusq/slackdump" && exit 1
@@ -71,7 +72,7 @@ function get_list {
 
 # Echo out all channel names. This excludes any direct message groups and 1-1 messages.
 function channel_names {
-	echo "$CHANNEL_LIST_JSON" | $JQ_B -r '[ map(select( (.name_normalized != "") and (.name_normalized | startswith("mpdm-") | not) ) ) | .[] | .name_normalized ] | sort | .[]'
+	echo "$CHANNEL_LIST_JSON" | "$JQ_B" -r '[ map(select( (.name_normalized != "") and (.name_normalized | startswith("mpdm-") | not) ) ) | .[] | .name_normalized ] | sort | .[]'
 }
 
 # Echo out all 1-1 direct message channels as user_name channel_id pairs
@@ -84,7 +85,8 @@ function im_channels {
 		local USER_ID=${LIST[0]}
 		local CHANNEL_ID=${LIST[1]}
 		LIST=( "${LIST[@]:2}" )
-		local USER_NAME=$(echo "$USER_LIST_JSON" | $JQ_B -r "map(select(.id == \"${USER_ID}\")) | .[].name")
+		local USER_NAME
+		USER_NAME=$(echo "$USER_LIST_JSON" | $JQ_B -r "map(select(.id == \"${USER_ID}\")) | .[].name")
 		# Filter the list by username, as per the configured INCLUDE_USER_NAME_REGEX list 
 		for NAME_REGEX in "${INCLUDE_USER_NAME_REGEX[@]+"${INCLUDE_USER_NAME_REGEX[@]}"}"; do
 			if [[ "${USER_NAME}" =~ $NAME_REGEX ]]; then
@@ -122,9 +124,11 @@ function dump {
 		echo "{}" > "$META_FILE"
 	fi
 	# Read the meta into memory
-	local META_JSON=$(<"$META_FILE")
+	local META_JSON
+	META_JSON=$(<"$META_FILE")
 
-	local PREVIOUS_DATE="$(echo "$META_JSON" | $JQ_B -r '.last_updated | select(. != null)')"
+	local PREVIOUS_DATE
+	PREVIOUS_DATE="$(echo "$META_JSON" | $JQ_B -r '.last_updated | select(. != null)')"
 	local FROM_FLAG=""
 	if [ "$PREVIOUS_DATE" != "" ]; then
 		FROM_FLAG="-dump-from $PREVIOUS_DATE"
@@ -151,7 +155,8 @@ function dump {
 	echo "Dumping messages from \"$PREVIOUS_DATE\" to \"$CURRENT_DATE\""
  	$SLACKDUMP_B -download -r json "$FROM_FLAG" "$TO_FLAG" -base "$BASE_DIR" "$CHANNEL_ID" > "$LOG_FILE" 2>&1
  	
- 	local NEW_MESSAGE_COUNT=$($JQ_B -r '.messages | length' "$CHANNEL_FILE")
+ 	local NEW_MESSAGE_COUNT
+	NEW_MESSAGE_COUNT=$($JQ_B -r '.messages | length' "$CHANNEL_FILE")
  	echo "Found '$NEW_MESSAGE_COUNT' new message(s)."
 
 	# If we have an old file...
@@ -160,7 +165,9 @@ function dump {
 		# and remove the old file
 		if [ "$NEW_MESSAGE_COUNT" -gt 0 ]; then
 			# See https://stackoverflow.com/a/75597380/397210
-			local MERGED_CONTENT=$($JQ_B -s '.[0] as $o1 | .[1] as $o2 | ($o1 + $o2) | .messages = ($o1.messages + $o2.messages)' "$CHANNEL_FILE_OLD" "$CHANNEL_FILE")
+			local MERGED_CONTENT
+			# shellcheck disable=SC2016
+			MERGED_CONTENT=$($JQ_B -s '.[0] as $o1 | .[1] as $o2 | ($o1 + $o2) | .messages = ($o1.messages + $o2.messages)' "$CHANNEL_FILE_OLD" "$CHANNEL_FILE")
 			echo "$MERGED_CONTENT" > "$CHANNEL_FILE"
 			rm -f "$CHANNEL_FILE_OLD"
 		else
@@ -169,7 +176,8 @@ function dump {
 			mv "$CHANNEL_FILE_OLD" "$CHANNEL_FILE"
 		fi
 	fi
-	local TOTAL_MESSAGE_COUNT=$($JQ_B -r '.messages | length' "$CHANNEL_FILE")
+	local TOTAL_MESSAGE_COUNT
+	TOTAL_MESSAGE_COUNT=$($JQ_B -r '.messages | length' "$CHANNEL_FILE")
 	echo "Total messages for '$CHANNEL_NAME' channel: $TOTAL_MESSAGE_COUNT"
 
 	# Update the last updated date
