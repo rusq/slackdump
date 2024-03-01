@@ -153,11 +153,11 @@ function dump {
 	fi
 
 	echo "Dumping messages from \"$PREVIOUS_DATE\" to \"$CURRENT_DATE\""
- 	$SLACKDUMP_B -download -r json "$FROM_FLAG" "$TO_FLAG" -base "$BASE_DIR" "$CHANNEL_ID" > "$LOG_FILE" 2>&1
- 	
- 	local NEW_MESSAGE_COUNT
+	$SLACKDUMP_B -download -r json "$FROM_FLAG" "$TO_FLAG" -base "$BASE_DIR" "$CHANNEL_ID" > "$LOG_FILE" 2>&1
+	
+	local NEW_MESSAGE_COUNT
 	NEW_MESSAGE_COUNT=$($JQ_B -r '.messages | length' "$CHANNEL_FILE")
- 	echo "Found '$NEW_MESSAGE_COUNT' new message(s)."
+	echo "Found '$NEW_MESSAGE_COUNT' new message(s)."
 
 	# If we have an old file...
 	if [ -r "$CHANNEL_FILE_OLD" ]; then
