@@ -57,7 +57,7 @@ Command line flags are described as of version ``v2.1.0``.
 
 \-dl-retries number
    rate limit retries for file downloads. (default 3).  If the file
-   download process hits the Slack Rate Limit reponse (HTTP ERROR
+   download process hits the Slack Rate Limit response (HTTP ERROR
    429), slackdump will retry the download this number of times, for
    each file.
 

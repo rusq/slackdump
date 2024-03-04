@@ -28,7 +28,7 @@ func TestNewReadWriter(t *testing.T) {
 		t.Errorf("error closing writer: %s", err)
 	}
 	if n != len(plaintext) {
-		t.Errorf("incosistent write byte count: want=%d, got=%d", len(plaintext), n)
+		t.Errorf("inconsistent write byte count: want=%d, got=%d", len(plaintext), n)
 	}
 	if sz := len(plaintext) + aes.BlockSize; sz != buf.Len() {
 		t.Errorf("invalid encrypted message size: want=%d, got=%d", sz, buf.Len())

@@ -89,7 +89,7 @@ func (sd *Session) dumpChannel(ctx context.Context, channelID string, oldest, la
 	trace.Logf(ctx, "info", "channelID: %q, oldest: %s, latest: %s", channelID, oldest, latest)
 
 	var (
-		// slack rate limits are per method, so we're safe to use different limiters for different mehtods.
+		// slack rate limits are per method, so we're safe to use different limiters for different methods.
 		convLimiter   = sd.limiter(network.Tier3)
 		threadLimiter = sd.limiter(network.Tier3)
 	)

@@ -56,7 +56,7 @@ var Filename FilenameFunc = stdFilenameFn
 // Downloader is the file downloader interface.  It exists primarily for mocking
 // in tests.
 type Downloader interface {
-	// GetFile retreives a given file from its private download URL
+	// GetFile retrieves a given file from its private download URL
 	GetFile(downloadURL string, writer io.Writer) error
 }
 

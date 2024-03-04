@@ -35,7 +35,7 @@ func Test_addToken(t *testing.T) {
 			false,
 		},
 		{
-			"preseves other parameters",
+			"preserves other parameters",
 			args{"https://slack.com/files/BLAHBLAH/x.jpg?t=xoxe-yyyyy&q=bbbb", "xoxe-xxxxx"},
 			"https://slack.com/files/BLAHBLAH/x.jpg?q=bbbb&t=xoxe-xxxxx",
 			false,

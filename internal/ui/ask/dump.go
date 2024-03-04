@@ -15,8 +15,8 @@ func ConversationList(msg string) (*structures.EntityList, error) {
 		chanStr, err := ui.String(
 			msg,
 			"Enter whitespace separated conversation IDs or URLs to export.\n"+
-				"   - prefix with ^ (caret) to exclude the converation\n"+
-				"   - prefix with @ to read the list of converations from the file.\n\n"+
+				"   - prefix with ^ (caret) to exclude the conversation\n"+
+				"   - prefix with @ to read the list of conversations from the file.\n\n"+
 				"For more details, see https://github.com/rusq/slackdump/blob/master/doc/usage-export.rst#providing-the-list-in-a-file",
 		)
 		if err != nil {
