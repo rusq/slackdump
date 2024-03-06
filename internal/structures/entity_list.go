@@ -35,7 +35,7 @@ func hasFilePrefix(s string) bool {
 	return strings.HasPrefix(s, filePrefix)
 }
 
-// NewEntityList creates an EntityList from a slice of IDs or URLs (entites).
+// NewEntityList creates an EntityList from a slice of IDs or URLs (entities).
 func NewEntityList(entities []string) (*EntityList, error) {
 	var el EntityList
 
@@ -48,7 +48,7 @@ func NewEntityList(entities []string) (*EntityList, error) {
 	return &el, nil
 }
 
-// MakeEntityList creates an EntityList from a slice of IDs or URLs (entites).
+// MakeEntityList creates an EntityList from a slice of IDs or URLs (entities).
 func LoadEntityList(filename string) (*EntityList, error) {
 	f, err := os.Open(filename)
 	if err != nil {

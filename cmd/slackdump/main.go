@@ -265,7 +265,7 @@ func parseCmdLine(args []string) (params, error) {
 	fs.BoolVar(&p.authReset, "auth-reset", false, "reset EZ-Login 3000 authentication.")
 	fs.Var(&p.browser, "browser", "set the browser to use for authentication: 'chromium' or 'firefox' (default: firefox)")
 	fs.DurationVar(&p.browserTimeout, "browser-timeout", browser.DefLoginTimeout, "browser login timeout")
-	fs.StringVar(&p.workspace, "w", "", "set the Slack `workspace` name.  If not specifed, the slackdump will show an\ninteractive prompt.")
+	fs.StringVar(&p.workspace, "w", "", "set the Slack `workspace` name.  If not specified, the slackdump will show an\ninteractive prompt.")
 	fs.BoolVar(&p.browserReinstall, "browser-reinstall", false, "reinstall the playwright browser")
 	fs.BoolVar(&p.legacyBrowser, "legacy-browser", false, "use the legacy browser authentication method")
 

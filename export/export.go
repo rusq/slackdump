@@ -213,7 +213,7 @@ func (se *Export) inclusiveExport(ctx context.Context, uidx structures.UserIndex
 
 		eg.Go(func() error {
 			if err := se.exportConversation(ctx, uidx, *ch); err != nil {
-				return fmt.Errorf("error exporting convesation %s: %w", ch.ID, err)
+				return fmt.Errorf("error exporting conversation %s: %w", ch.ID, err)
 			}
 			return nil
 		})
