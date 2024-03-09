@@ -2,23 +2,21 @@ package downloader
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path"
 	"path/filepath"
 	"testing"
 	"time"
 
-	"errors"
-
+	"github.com/rusq/slackdump/v2/fsadapter"
+	"github.com/rusq/slackdump/v2/internal/fixtures"
+	"github.com/rusq/slackdump/v2/internal/mocks/mock_downloader"
 	"github.com/slack-go/slack"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 	"golang.org/x/time/rate"
-
-	"github.com/rusq/slackdump/v2/fsadapter"
-	"github.com/rusq/slackdump/v2/internal/fixtures"
-	"github.com/rusq/slackdump/v2/internal/mocks/mock_downloader"
 )
 
 var (
@@ -465,4 +463,63 @@ func TestClient_DownloadFile(t *testing.T) {
 
 		c.Stop()
 	})
+}
+
+func TestIsValid(t *testing.T) {
+	type args struct {
+		f *slack.File
+	}
+	tests := []struct {
+		name string
+		args args
+		want bool
+	}{
+		{
+			"valid file",
+			args{&file1},
+			true,
+		},
+		{
+			"tombstone",
+			args{&slack.File{Mode: "tombstone", Name: "foo"}},
+			false,
+		},
+		{
+			"external file",
+			args{&slack.File{Mode: "external", Name: "foo", IsExternal: true}},
+			false,
+		},
+		{
+			"hidden by limit",
+			args{&slack.File{Mode: "hidden_by_limit", Name: "foo"}},
+			false,
+		},
+		{
+			"tombstone",
+			args{&slack.File{Mode: "tombstone", Name: "foo"}},
+			false,
+		},
+		{
+			"external file",
+			args{&slack.File{Mode: "", Name: "foo", IsExternal: true}},
+			false,
+		},
+		{
+			"empty name",
+			args{&slack.File{Mode: "", Name: "", IsExternal: false}},
+			false,
+		},
+		{
+			"nil file",
+			args{nil},
+			false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := IsValid(tt.args.f); got != tt.want {
+				t.Errorf("IsValid() = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }

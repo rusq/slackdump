@@ -239,7 +239,7 @@ func (c *Client) saveFile(ctx context.Context, dir string, sf *slack.File) (int6
 	if c.fs == nil {
 		return 0, ErrNoFS
 	}
-	if mode := sf.Mode; mode == "hidden_by_limit" || mode == "external" || sf.IsExternal {
+	if !IsValid(sf) {
 		trace.Logf(ctx, "info", "file %q is not downloadable", sf.Name)
 		return 0, nil
 	}
@@ -336,4 +336,21 @@ func (c *Client) l() logger.Interface {
 		return logger.Default
 	}
 	return c.dlog
+}
+
+var invalidModes = map[string]struct{}{
+	"hidden_by_limit": {},
+	"external":        {},
+	"tombstone":       {},
+}
+
+// IsValid returns true if the file can be downloaded and is valid.
+func IsValid(f *slack.File) bool {
+	if f == nil {
+		return false
+	}
+	if _, ok := invalidModes[f.Mode]; ok {
+		return false
+	}
+	return !f.IsExternal && f.Name != ""
 }
