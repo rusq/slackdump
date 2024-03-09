@@ -83,9 +83,21 @@ func ExportTokenUpdateFn(token string) func(msg *slack.Message) error {
 	}
 }
 
+var invalidModes = map[string]struct{}{
+	"hidden_by_limit": {},
+	"external":        {},
+	"tombstone":       {},
+}
+
 // IsValid returns true if the file can be downloaded and is valid.
 func IsValid(f *slack.File) bool {
-	return f.Mode != "hidden_by_limit" && f.Mode != "external" && !f.IsExternal && f.Mode != "tombstone" && f.Name != ""
+	if f == nil {
+		return false
+	}
+	if _, ok := invalidModes[f.Mode]; ok {
+		return false
+	}
+	return !f.IsExternal && f.Name != ""
 }
 
 type NoopDownloader struct{}
