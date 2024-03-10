@@ -2,28 +2,29 @@
 package viewer
 
 import (
+	"context"
 	"embed"
+	"errors"
 	"html/template"
 	"net/http"
 	"strings"
 
 	"github.com/rusq/slack"
 	"github.com/rusq/slackdump/v3/internal/chunk"
+	"github.com/rusq/slackdump/v3/internal/structures"
+	"github.com/rusq/slackdump/v3/logger"
 )
 
 //go:embed templates
 var fsys embed.FS
 
-var tmpl = template.Must(template.New("").Funcs(
-	template.FuncMap{
-		"rendername": name,
-	},
-).ParseFS(fsys, "templates/*.html"))
-
 type Viewer struct {
-	ch  channels
-	d   *chunk.Directory
-	srv *http.Server
+	ch   channels
+	um   structures.UserIndex
+	d    *chunk.Directory
+	srv  *http.Server
+	lg   logger.Interface
+	tmpl *template.Template
 }
 
 type channels struct {
@@ -33,7 +34,7 @@ type channels struct {
 	DM      []slack.Channel
 }
 
-func New(dir *chunk.Directory, addr string) (*Viewer, error) {
+func New(ctx context.Context, dir *chunk.Directory, addr string) (*Viewer, error) {
 	all, err := dir.Channels()
 	if err != nil {
 		return nil, err
@@ -52,10 +53,25 @@ func New(dir *chunk.Directory, addr string) (*Viewer, error) {
 			cc.Public = append(cc.Public, c)
 		}
 	}
+	uu, err := dir.Users()
+	if err != nil {
+		return nil, err
+	}
 
 	v := &Viewer{
 		d:  dir,
 		ch: cc,
+		um: structures.NewUserIndex(uu),
+		lg: logger.FromContext(ctx),
+	}
+	// postinit
+	{
+		var tmpl = template.Must(template.New("").Funcs(
+			template.FuncMap{
+				"rendername": v.name,
+			},
+		).ParseFS(fsys, "templates/*.html"))
+		v.tmpl = tmpl
 	}
 
 	mux := http.NewServeMux()
@@ -79,12 +95,22 @@ func (v *Viewer) ListenAndServe() error {
 }
 
 func (v *Viewer) Close() error {
-	return v.srv.Close()
+	var ee error
+	if err := v.d.Close(); err != nil {
+		ee = errors.Join(err)
+	}
+	if err := v.srv.Close(); err != nil {
+		ee = errors.Join(err)
+	}
+	v.lg.Debug("server closed")
+	if ee != nil {
+		v.lg.Printf("errors: %v", ee)
+	}
+	return ee
 }
 
 func (v *Viewer) indexHandler(w http.ResponseWriter, r *http.Request) {
-	err := tmpl.ExecuteTemplate(w, "index.html", v.ch)
-	if err != nil {
+	if err := v.tmpl.ExecuteTemplate(w, "index.html", v.ch); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
@@ -113,11 +139,11 @@ func channelType(ch slack.Channel) int {
 	}
 }
 
-func name(ch slack.Channel) (who string) {
+func (v *Viewer) name(ch slack.Channel) (who string) {
 	t := channelType(ch)
 	switch t {
 	case CIM:
-		who = "@" + ch.NameNormalized
+		who = "@" + v.um.DisplayName(ch.User)
 	case CMPIM:
 		who = strings.Replace(ch.Purpose.Value, " messaging with", "", -1)
 	case CPrivate:

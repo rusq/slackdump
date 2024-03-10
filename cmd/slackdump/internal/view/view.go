@@ -53,7 +53,7 @@ func RunView(ctx context.Context, cmd *base.Command, args []string) error {
 	}
 	defer dir.Close()
 
-	v, err := viewer.New(dir, listenAddr)
+	v, err := viewer.New(ctx, dir, listenAddr)
 	if err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return err
