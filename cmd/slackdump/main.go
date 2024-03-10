@@ -31,6 +31,7 @@ import (
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/list"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/man"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/record"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/view"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/wizard"
 	"github.com/rusq/slackdump/v3/logger"
 )
@@ -50,6 +51,7 @@ func init() {
 		diag.CmdDiag,
 		apiconfig.CmdConfig,
 		format.CmdFormat,
+		view.CmdView,
 		CmdVersion,
 
 		man.WhatsNew,
