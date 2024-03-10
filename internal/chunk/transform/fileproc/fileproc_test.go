@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/rusq/slack"
+	"github.com/rusq/slackdump/v3/internal/fixtures"
 )
 
 func TestIsValid(t *testing.T) {
@@ -21,7 +22,7 @@ func TestIsValid(t *testing.T) {
 	}{
 		{
 			"valid file",
-			args{&file1},
+			args{fixtures.LoadPtr[slack.File](fixtures.FileJPEG)},
 			true,
 		},
 		{
