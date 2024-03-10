@@ -110,7 +110,14 @@ func (v *Viewer) Close() error {
 }
 
 func (v *Viewer) indexHandler(w http.ResponseWriter, r *http.Request) {
-	if err := v.tmpl.ExecuteTemplate(w, "index.html", v.ch); err != nil {
+	var page = struct {
+		Name string
+		channels
+	}{
+		Name:     v.d.Name(),
+		channels: v.ch,
+	}
+	if err := v.tmpl.ExecuteTemplate(w, "index.html", page); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
