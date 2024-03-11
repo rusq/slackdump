@@ -5,43 +5,26 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Slackdump Viewer</title>
-    <style>
-        .container {
-            display: flex;
-            height: 100vh;
-        }
-
-        .channel-list {
-            flex: 0 0 25%;
-            overflow-y: auto;
-            border-right: 1px solid #ccc;
-        }
-
-        .conversations,
-        .thread {
-            flex: 1;
-            overflow-y: auto;
-        }
-
-        .thread {
-            display: none;
-        }
-    </style>
+    {{ template "hx_css" . }}
+    <script src="https://unpkg.com/htmx.org@1.9.10"
+        integrity="sha384-D1Kt99CQMDuVetoL1lrYwg5t+9QdHe7NLX/SoJYkXDFfX37iInKRy5xLSi8nO7UC"
+        crossorigin="anonymous"></script>
 </head>
 
 <body>
-    <h1>Slackdump ({{.Name}})</h1>
     <div class="container">
         <section class="channel-list">
+            <h1>Slackdump</h1>
+            <small class="subtitle">{{.Name}}</small>
             <!-- Channel list goes here -->
             {{ if ( or .Public .Private) }}
             <h2>Channels</h2>
             <menu>
                 {{ range $i, $el := .Public }}
-                <li><a href="#">{{ rendername $el }}</a></li>
+                <li><a href="#" hx-get="/archives/{{$el.ID}}" hx-target="#conversation">{{ rendername $el }}</a></li>
                 {{ end }}
                 {{ range $i, $el := .Private }}
-                <li><a href="#">{{ rendername $el }}</a></li>
+                <li><a href="#" hx-get="/archives/{{$el.ID}}" hx-target="#conversation">{{ rendername $el }}</a></li>
                 {{ end }}
             </menu>
             {{ end }}
@@ -49,69 +32,117 @@
             <h2>Direct</h2>
             <menu>
                 {{ range $i, $el := .MPIM }}
-                <li><a href="#">{{ rendername $el }}</a></li>
+                <li><a href="#" hx-get="/archives/{{$el.ID}}" hx-target="#conversation">{{ rendername $el }}</a></li>
                 {{ end }}
                 {{ range $i, $el := .DM }}
-                <li><a href="#">{{ rendername $el }}</a></li>
+                <li><a href="#" hx-get="/archives/{{$el.ID}}" hx-target="#conversation">{{ rendername $el }}</a></li>
                 {{ end }}
             </menu>
             {{ end }}
         </section>
-        <section class="conversations">
+        <section id="conversation" class="conversations">
             <!-- Conversations go here -->
-            <article class="message">
-                <div class="message-header">
-                    <span class="message-sender">@user1</span>
-                    <span class="message-timestamp">10:00 AM</span>
-                </div>
-                <div class="message-content">
-                    Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed euismod, nunc ac aliquet tincidunt,
-                    justo
-                    mauris
-                    tincidunt urna, vitae lacinia nisl nunc id nunc. Sed euismod, nunc ac aliquet tincidunt, justo
-                    mauris
-                    tincidunt urna, vitae lacinia nisl nunc id nunc.
-                </div>
-                <div class="thread-info"><a href="#">Replies: 42</a></div>
-            </article>
+            <p>Welcome to Slackdump archive viewer! Select the conversation on the left to view messages.</p>
         </section>
-        <section class="thread">
+        <section id="thread" class="thread">
             <!-- Thread messages go here -->
-            <h2>Thread: 124912041.293</h2>
-            <p>Close: <a id="close-thread" href="#">X</a></p>
-            <article class="message">
-                <div class="message-header">
-                    <span class="message-sender">@user2</span>
-                    <span class="message-timestamp">10:05 AM</span>
-                </div>
-                <div class="message-content">
-                    Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed euismod, nunc ac aliquet tincidunt,
-                    justo
-                    mauris
-                    tincidunt urna, vitae lacinia nisl nunc id nunc. Sed euismod, nunc ac aliquet tincidunt, justo
-                    mauris
-                    tincidunt urna, vitae lacinia nisl nunc id nunc.
-                </div>
         </section>
     </div>
-    <script>
-        document.querySelectorAll('.thread-info a').forEach(function (link) {
-            link.addEventListener('click', function (e) {
-                e.preventDefault();
-                // document.querySelector('.conversations').style.display = 'none';
-                // document.querySelector('.thread').style.display = 'block';
-                document.querySelector('.conversations').style.flex = '0 0 40%';
-                document.querySelector('.thread').style.display = 'block';
-                document.querySelector('.thread').style.flex = '1';
-                // Load thread messages into .thread div here
-            });
-        });
-        document.getElementById('close-thread').addEventListener('click', function (e) {
-            e.preventDefault();
-            document.querySelector('.conversations').style.flex = '1';
-            document.querySelector('.thread').style.display = 'none';
-        });
-    </script>
 </body>
 
 </html>
+
+
+{{define "hx_conversation"}}
+{{ if .Conversation.ID }}
+{{ $id := .Conversation.ID }}
+<h2>{{ rendername .Conversation }}</h2>
+{{ range $i, $el := .Messages }}
+<article class="message">
+    {{ template "render_message" . }}
+    {{ if is_thread_start $el }}
+    <div class="thread-info">
+        <a href="#" hx-get="/archives/{{$id}}/{{ $el.ThreadTimestamp }}" hx-target="#thread">Replies: {{ $el.ReplyCount
+            }}</a>
+    </div>
+    {{ end }}
+    <hr>
+</article>
+{{end}}
+{{ else }}
+<p>No Messages.</p>
+{{ end }}
+<script>
+    document.querySelectorAll('.thread-info a').forEach(function (link) {
+        link.addEventListener('click', function (e) {
+            e.preventDefault();
+            // document.querySelector('.conversations').style.display = 'none';
+            // document.querySelector('.thread').style.display = 'block';
+            document.querySelector('.conversations').style.flex = '0 0 40%';
+            document.querySelector('.thread').style.display = 'block';
+            document.querySelector('.thread').style.flex = '1';
+            // Load thread messages into .thread div here
+        });
+    });
+</script>
+{{ end }}
+
+
+
+{{define "hx_thread"}}
+<h2>Thread: {{ .ThreadID }}</h2>
+<p>Close: <a id="close-thread" href="#">X</a></p>
+{{ range $i, $el := .Messages }}
+<article class="message">
+    {{ template "render_message" . }}
+    <hr>
+</article>
+{{end}}
+<script>
+    document.getElementById('close-thread').addEventListener('click', function (e) {
+        e.preventDefault();
+        document.querySelector('.conversations').style.flex = '1';
+        document.querySelector('.thread').style.display = 'none';
+    });
+</script>
+{{end}}
+
+{{ define "render_message" }}
+<div class="message-header">
+    <span class="message-sender">{{ displayname .User }}</span>
+    <span class="message-timestamp">{{ time $.Timestamp }}</span>
+</div>
+<div class="message-content">
+    {{ .Text | markdown }}
+</div>
+{{ end }}
+
+{{ define "hx_css" }}
+<style>
+    .container {
+        display: flex;
+        height: 97vh;
+    }
+    .subtitle {
+        display: block;
+        margin-bottom: 1em;
+        color: #777;
+    }
+
+    .channel-list {
+        flex: 0 0 20%;
+        overflow-y: auto;
+        border-right: 1px solid #ccc;
+    }
+
+    .conversations,
+    .thread {
+        flex: 1;
+        overflow-y: auto;
+    }
+
+    .thread {
+        display: none;
+    }
+</style>
+{{ end }}

@@ -59,3 +59,4 @@ slackdump_2*
 *.ps
 *.html
 \#*\#
+__debug_bin*

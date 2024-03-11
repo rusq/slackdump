@@ -5,13 +5,24 @@ import (
 	"context"
 	"embed"
 	"errors"
+	"html"
 	"html/template"
+	"log/slog"
 	"net/http"
 	"strings"
+	"time"
 
+	"github.com/go-chi/chi/v5/middleware"
 	"github.com/rusq/slack"
+	"github.com/yuin/goldmark"
+	emoji "github.com/yuin/goldmark-emoji"
+	"github.com/yuin/goldmark/extension"
+	gparser "github.com/yuin/goldmark/parser"
+	ghtml "github.com/yuin/goldmark/renderer/html"
+	"golang.org/x/exp/slices"
+
 	"github.com/rusq/slackdump/v3/internal/chunk"
-	"github.com/rusq/slackdump/v3/internal/structures"
+	st "github.com/rusq/slackdump/v3/internal/structures"
 	"github.com/rusq/slackdump/v3/logger"
 )
 
@@ -19,12 +30,16 @@ import (
 var fsys embed.FS
 
 type Viewer struct {
+	// data
 	ch   channels
-	um   structures.UserIndex
+	um   st.UserIndex
 	d    *chunk.Directory
-	srv  *http.Server
-	lg   logger.Interface
 	tmpl *template.Template
+
+	// handles
+	srv *http.Server
+	lg  logger.Interface
+	r   Renderer
 }
 
 type channels struct {
@@ -41,13 +56,13 @@ func New(ctx context.Context, dir *chunk.Directory, addr string) (*Viewer, error
 	}
 	var cc channels
 	for _, c := range all {
-		t := channelType(c)
+		t := st.ChannelType(c)
 		switch t {
-		case CIM:
+		case st.CIM:
 			cc.DM = append(cc.DM, c)
-		case CMPIM:
+		case st.CMPIM:
 			cc.MPIM = append(cc.MPIM, c)
-		case CPrivate:
+		case st.CPrivate:
 			cc.Private = append(cc.Private, c)
 		default:
 			cc.Public = append(cc.Public, c)
@@ -61,14 +76,19 @@ func New(ctx context.Context, dir *chunk.Directory, addr string) (*Viewer, error
 	v := &Viewer{
 		d:  dir,
 		ch: cc,
-		um: structures.NewUserIndex(uu),
+		um: st.NewUserIndex(uu),
 		lg: logger.FromContext(ctx),
+		r:  &debugrender{},
 	}
 	// postinit
 	{
 		var tmpl = template.Must(template.New("").Funcs(
 			template.FuncMap{
-				"rendername": v.name,
+				"rendername":      v.name,
+				"displayname":     v.um.DisplayName,
+				"time":            localtime,
+				"markdown":        v.r.Render,
+				"is_thread_start": st.IsThreadStart,
 			},
 		).ParseFS(fsys, "templates/*.html"))
 		v.tmpl = tmpl
@@ -78,16 +98,57 @@ func New(ctx context.Context, dir *chunk.Directory, addr string) (*Viewer, error
 	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
 	mux.HandleFunc("/", v.indexHandler)
 	// https: //ora600.slack.com/archives/CHY5HUESG
-	mux.HandleFunc("/archives/{id}", v.channelHandler)
+	mux.HandleFunc("/archives/{id}", v.newFileHandler(v.channelHandler))
 	// https: //ora600.slack.com/archives/DHMAB25DY/p1710063528879959
-	mux.HandleFunc("/channel/{id}/{ts}", v.threadHandler)
+	mux.HandleFunc("/archives/{id}/{ts}", v.newFileHandler(v.threadHandler))
 	mux.HandleFunc("/files/{id}", v.fileHandler)
 	v.srv = &http.Server{
 		Addr:    addr,
-		Handler: mux,
+		Handler: middleware.Logger(mux),
 	}
 
 	return v, nil
+}
+
+type goldmrk struct {
+	r goldmark.Markdown
+}
+
+func newGold() *goldmrk {
+	md := goldmark.New(
+		goldmark.WithExtensions(extension.GFM, emoji.Emoji, extension.DefinitionList),
+		goldmark.WithParserOptions(
+			gparser.WithAutoHeadingID(),
+		),
+		goldmark.WithRendererOptions(
+			ghtml.WithHardWraps(),
+			ghtml.WithXHTML(),
+		),
+	)
+	return &goldmrk{r: md}
+}
+
+type Renderer interface {
+	Render(s string) (v template.HTML)
+}
+
+func (g *goldmrk) Render(s string) (v template.HTML) {
+	var buf strings.Builder
+	if err := g.r.Convert([]byte(s), &buf); err != nil {
+		slog.Debug("error", "error", err)
+		return template.HTML(s)
+	}
+	return template.HTML(buf.String())
+}
+
+type debugrender struct{}
+
+func (d *debugrender) Render(s string) (v template.HTML) {
+	return template.HTML("<pre>" + html.EscapeString(s) + "</pre>")
+}
+
+func init() {
+	slog.SetLogLoggerLevel(slog.LevelDebug)
 }
 
 func (v *Viewer) ListenAndServe() error {
@@ -111,49 +172,77 @@ func (v *Viewer) Close() error {
 
 func (v *Viewer) indexHandler(w http.ResponseWriter, r *http.Request) {
 	var page = struct {
-		Name string
+		Conversation slack.Channel
+		Name         string
 		channels
 	}{
-		Name:     v.d.Name(),
-		channels: v.ch,
+		Conversation: slack.Channel{}, //blank.
+		Name:         v.d.Name(),
+		channels:     v.ch,
 	}
 	if err := v.tmpl.ExecuteTemplate(w, "index.html", page); err != nil {
+		v.lg.Printf("error: %v", err)
+		//http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+func (v *Viewer) newFileHandler(fn func(w http.ResponseWriter, r *http.Request, id string, f *chunk.File)) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+		if id == "" {
+			http.NotFound(w, r)
+			return
+		}
+		f, err := v.d.Open(chunk.ToFileID(id, "", false))
+		if err != nil {
+			v.lg.Printf("%s: error: %v", id, err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		defer f.Close()
+		fn(w, r, id, f)
+	}
+}
+
+func (v *Viewer) channelHandler(w http.ResponseWriter, r *http.Request, id string, f *chunk.File) {
+	mm, err := f.AllMessages(id)
+	if err != nil {
+		v.lg.Printf("%s: error: %v", id, err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	slices.Reverse(mm)
+
+	v.lg.Debugf("conversation: %s, got %d messages", id, len(mm))
+
+	ci, err := f.ChannelInfo(id)
+	if err != nil {
+		v.lg.Printf("error: %v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	var page = struct {
+		Conversation slack.Channel
+		Messages     []slack.Message
+	}{
+		Conversation: *ci,
+		Messages:     mm,
+	}
+	if err := v.tmpl.ExecuteTemplate(w, "hx_conversation", page); err != nil {
+		v.lg.Printf("error: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
 
-func (v *Viewer) channelHandler(w http.ResponseWriter, r *http.Request) {
-}
-
-const (
-	CUnknown = iota
-	CIM
-	CMPIM
-	CPrivate
-	CPublic
-)
-
-func channelType(ch slack.Channel) int {
-	switch {
-	case ch.IsIM:
-		return CIM
-	case ch.IsMpIM:
-		return CMPIM
-	case ch.IsPrivate:
-		return CPrivate
-	default:
-		return CPublic
-	}
-}
-
 func (v *Viewer) name(ch slack.Channel) (who string) {
-	t := channelType(ch)
+	t := st.ChannelType(ch)
 	switch t {
-	case CIM:
+	case st.CIM:
 		who = "@" + v.um.DisplayName(ch.User)
-	case CMPIM:
+	case st.CMPIM:
 		who = strings.Replace(ch.Purpose.Value, " messaging with", "", -1)
-	case CPrivate:
+	case st.CPrivate:
 		who = "🔒 " + ch.NameNormalized
 	default:
 		who = "#" + ch.NameNormalized
@@ -161,8 +250,50 @@ func (v *Viewer) name(ch slack.Channel) (who string) {
 	return who
 }
 
-func (v *Viewer) threadHandler(w http.ResponseWriter, r *http.Request) {
+func (v *Viewer) threadHandler(w http.ResponseWriter, r *http.Request, id string, f *chunk.File) {
+	ts := r.PathValue("ts")
+	if ts == "" {
+		http.NotFound(w, r)
+		return
+	}
+	mm, err := f.AllThreadMessages(id, ts)
+	if err != nil {
+		v.lg.Printf("%s: error: %v", id, err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	slices.Reverse(mm)
+
+	v.lg.Debugf("conversation: %s, thread: %s, got %d messages", id, ts, len(mm))
+
+	ci, err := f.ChannelInfo(id)
+	if err != nil {
+		v.lg.Printf("error: %v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	var page = struct {
+		Conversation slack.Channel
+		Messages     []slack.Message
+		ThreadID     string
+	}{
+		ThreadID:     ts,
+		Conversation: *ci,
+		Messages:     mm,
+	}
+	if err := v.tmpl.ExecuteTemplate(w, "hx_thread", page); err != nil {
+		v.lg.Printf("error: %v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
 }
 
 func (v *Viewer) fileHandler(w http.ResponseWriter, r *http.Request) {
+}
+
+func localtime(ts string) string {
+	t, err := st.ParseSlackTS(ts)
+	if err != nil {
+		return ts
+	}
+	return t.Local().Format(time.DateTime)
 }
