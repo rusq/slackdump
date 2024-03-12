@@ -121,7 +121,7 @@
 {{ define "render_message" }}
 <div class="message-header">
     <span class="message-sender">
-        <a href="#" hx-get="/team/{{ .User }}" hx-target="#thread"> {{ displayname .User }} </a>
+        <a href="#" hx-get="/team/{{ .User }}" hx-target="#thread"> {{ displayname .User }}</a>
     </span>
     <span class="message-timestamp">{{ time $.Timestamp }}</span>
 </div>
@@ -166,7 +166,16 @@
 <p>Close: <a id="close-user" href="#">X</a></p>
 <article class="user">
     {{ if . }}
-    {{ displayname .ID }}
+    {{ displayname .ID }}<br>
+    <a href="mailto:{{ .Profile.Email}}" target="_blank">{{ .Profile.Email }}</a><br>
+    <a href="{{.Profile.Image512}}" target="_blank">
+        <img src="{{ .Profile.Image192}}" alt="{{ displayname .ID }}">
+    </a><br>
+    <ul>
+        {{ if .Profile.RealName }}<li>Real name: {{ .Profile.RealName }}</li>{{ end }}
+        {{ if .Profile.Skype }}<li>Skype: {{ .Profile.Skype }}</li>{{ end }}
+        {{ if .Profile.Team }}<li>Team: {{ .Profile.Team }}</li>{{ end }}
+    </ul>
     {{ else }}
     <p>Unknown</p>
     {{ end }}

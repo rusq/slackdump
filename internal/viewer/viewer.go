@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/rusq/slack"
 	"golang.org/x/exp/slices"
@@ -259,6 +260,7 @@ func (v *Viewer) userHandler(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
+	spew.Dump(u)
 
 	if err := v.tmpl.ExecuteTemplate(w, "hx_user", u); err != nil {
 		v.lg.Printf("error: %v", err)
