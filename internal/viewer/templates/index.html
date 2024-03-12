@@ -84,6 +84,17 @@
             // Load thread messages into .thread div here
         });
     });
+    document.querySelectorAll('.message-sender a').forEach(function (link) {
+        link.addEventListener('click', function (e) {
+            e.preventDefault();
+            // document.querySelector('.conversations').style.display = 'none';
+            // document.querySelector('.thread').style.display = 'block';
+            document.querySelector('.conversations').style.flex = '0 0 40%';
+            document.querySelector('.thread').style.display = 'block';
+            document.querySelector('.thread').style.flex = '1';
+            // Load thread messages into .thread div here
+        });
+    });
 </script>
 {{ end }}
 
@@ -109,7 +120,9 @@
 
 {{ define "render_message" }}
 <div class="message-header">
-    <span class="message-sender">{{ displayname .User }}</span>
+    <span class="message-sender">
+        <a href="#" hx-get="/team/{{ .User }}" hx-target="#thread"> {{ displayname .User }} </a>
+    </span>
     <span class="message-timestamp">{{ time $.Timestamp }}</span>
 </div>
 <div class="message-content">
@@ -123,6 +136,7 @@
         display: flex;
         height: 97vh;
     }
+
     .subtitle {
         display: block;
         margin-bottom: 1em;
@@ -145,4 +159,23 @@
         display: none;
     }
 </style>
+{{ end }}
+
+{{ define "hx_user" }}
+<h2>User: {{ displayname .ID }}</h2>
+<p>Close: <a id="close-user" href="#">X</a></p>
+<article class="user">
+    {{ if . }}
+    {{ displayname .ID }}
+    {{ else }}
+    <p>Unknown</p>
+    {{ end }}
+</article>
+<script>
+    document.getElementById('close-user').addEventListener('click', function (e) {
+        e.preventDefault();
+        document.querySelector('.conversations').style.flex = '1';
+        document.querySelector('.thread').style.display = 'none';
+    });
+</script>
 {{ end }}

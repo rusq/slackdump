@@ -5,7 +5,6 @@ import (
 	"context"
 	"embed"
 	"errors"
-	"html"
 	"html/template"
 	"log/slog"
 	"net/http"
@@ -14,11 +13,6 @@ import (
 
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/rusq/slack"
-	"github.com/yuin/goldmark"
-	emoji "github.com/yuin/goldmark-emoji"
-	"github.com/yuin/goldmark/extension"
-	gparser "github.com/yuin/goldmark/parser"
-	ghtml "github.com/yuin/goldmark/renderer/html"
 	"golang.org/x/exp/slices"
 
 	"github.com/rusq/slackdump/v3/internal/chunk"
@@ -87,7 +81,7 @@ func New(ctx context.Context, dir *chunk.Directory, addr string) (*Viewer, error
 				"rendername":      v.name,
 				"displayname":     v.um.DisplayName,
 				"time":            localtime,
-				"markdown":        v.r.Render,
+				"markdown":        v.r.RenderText,
 				"is_thread_start": st.IsThreadStart,
 			},
 		).ParseFS(fsys, "templates/*.html"))
@@ -102,49 +96,13 @@ func New(ctx context.Context, dir *chunk.Directory, addr string) (*Viewer, error
 	// https: //ora600.slack.com/archives/DHMAB25DY/p1710063528879959
 	mux.HandleFunc("/archives/{id}/{ts}", v.newFileHandler(v.threadHandler))
 	mux.HandleFunc("/files/{id}", v.fileHandler)
+	mux.HandleFunc("/team/{user_id}", v.userHandler)
 	v.srv = &http.Server{
 		Addr:    addr,
 		Handler: middleware.Logger(mux),
 	}
 
 	return v, nil
-}
-
-type goldmrk struct {
-	r goldmark.Markdown
-}
-
-func newGold() *goldmrk {
-	md := goldmark.New(
-		goldmark.WithExtensions(extension.GFM, emoji.Emoji, extension.DefinitionList),
-		goldmark.WithParserOptions(
-			gparser.WithAutoHeadingID(),
-		),
-		goldmark.WithRendererOptions(
-			ghtml.WithHardWraps(),
-			ghtml.WithXHTML(),
-		),
-	)
-	return &goldmrk{r: md}
-}
-
-type Renderer interface {
-	Render(s string) (v template.HTML)
-}
-
-func (g *goldmrk) Render(s string) (v template.HTML) {
-	var buf strings.Builder
-	if err := g.r.Convert([]byte(s), &buf); err != nil {
-		slog.Debug("error", "error", err)
-		return template.HTML(s)
-	}
-	return template.HTML(buf.String())
-}
-
-type debugrender struct{}
-
-func (d *debugrender) Render(s string) (v template.HTML) {
-	return template.HTML("<pre>" + html.EscapeString(s) + "</pre>")
 }
 
 func init() {
@@ -288,6 +246,24 @@ func (v *Viewer) threadHandler(w http.ResponseWriter, r *http.Request, id string
 }
 
 func (v *Viewer) fileHandler(w http.ResponseWriter, r *http.Request) {
+}
+
+func (v *Viewer) userHandler(w http.ResponseWriter, r *http.Request) {
+	uid := r.PathValue("user_id")
+	if uid == "" {
+		http.NotFound(w, r)
+		return
+	}
+	u, found := v.um[uid]
+	if !found {
+		http.NotFound(w, r)
+		return
+	}
+
+	if err := v.tmpl.ExecuteTemplate(w, "hx_user", u); err != nil {
+		v.lg.Printf("error: %v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
 }
 
 func localtime(ts string) string {
