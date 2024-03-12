@@ -5,6 +5,7 @@ go 1.22
 require (
 	github.com/MercuryEngineering/CookieMonster v0.0.0-20180304172713-1584578b3403
 	github.com/charmbracelet/huh v0.3.0
+	github.com/davecgh/go-spew v1.1.1
 	github.com/fatih/color v1.16.0
 	github.com/go-chi/chi/v5 v5.0.12
 	github.com/go-playground/locales v0.14.1
@@ -23,8 +24,11 @@ require (
 	github.com/rusq/tracer v1.0.1
 	github.com/schollz/progressbar/v3 v3.13.0
 	github.com/stretchr/testify v1.8.4
+	github.com/yuin/goldmark v1.7.0
+	github.com/yuin/goldmark-emoji v1.0.2
 	go.uber.org/mock v0.4.0
 	golang.org/x/crypto v0.19.0
+	golang.org/x/exp v0.0.0-20240205201215-2c58cdc269a3
 	golang.org/x/sync v0.6.0
 	golang.org/x/term v0.17.0
 	golang.org/x/text v0.14.0
@@ -41,13 +45,11 @@ require (
 	github.com/charmbracelet/bubbletea v0.25.0 // indirect
 	github.com/charmbracelet/lipgloss v0.9.1 // indirect
 	github.com/containerd/console v1.0.4 // indirect
-	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/deckarep/golang-set/v2 v2.6.0 // indirect
 	github.com/denisbrodbeck/machineid v1.0.1 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.3 // indirect
 	github.com/go-jose/go-jose/v3 v3.0.1 // indirect
 	github.com/go-stack/stack v1.8.1 // indirect
-	github.com/gomarkdown/markdown v0.0.0-20231222211730-1d6d20845b47 // indirect
 	github.com/gorilla/websocket v1.5.1 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect
@@ -69,10 +71,7 @@ require (
 	github.com/ysmood/got v0.39.4 // indirect
 	github.com/ysmood/gson v0.7.3 // indirect
 	github.com/ysmood/leakless v0.8.0 // indirect
-	github.com/yuin/goldmark v1.7.0 // indirect
-	github.com/yuin/goldmark-emoji v1.0.2 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	golang.org/x/exp v0.0.0-20240205201215-2c58cdc269a3 // indirect
 	golang.org/x/net v0.21.0 // indirect
 	golang.org/x/sys v0.17.0 // indirect
 )

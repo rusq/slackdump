@@ -61,10 +61,10 @@
 <article class="message">
     {{ template "render_message" . }}
     {{ if is_thread_start $el }}
-    <div class="thread-info">
+    <footer class="thread-info">
         <a href="#" hx-get="/archives/{{$id}}/{{ $el.ThreadTimestamp }}" hx-target="#thread">Replies: {{ $el.ReplyCount
             }}</a>
-    </div>
+        </footer>
     {{ end }}
     <hr>
 </article>
@@ -119,14 +119,14 @@
 {{end}}
 
 {{ define "render_message" }}
-<div class="message-header">
+<header class="message-header">
     <span class="message-sender">
         <a href="#" hx-get="/team/{{ .User }}" hx-target="#thread"> {{ displayname .User }}</a>
     </span>
     <span class="message-timestamp">{{ time $.Timestamp }}</span>
-</div>
+</header>
 <div class="message-content">
-    {{ .Text | markdown }}
+    <p>{{ .Text | markdown }}</p>
 </div>
 {{ end }}
 
