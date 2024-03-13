@@ -18,6 +18,7 @@ import (
 
 	"github.com/rusq/slackdump/v3/internal/chunk"
 	st "github.com/rusq/slackdump/v3/internal/structures"
+	"github.com/rusq/slackdump/v3/internal/viewer/renderer"
 	"github.com/rusq/slackdump/v3/logger"
 )
 
@@ -34,7 +35,7 @@ type Viewer struct {
 	// handles
 	srv *http.Server
 	lg  logger.Interface
-	r   Renderer
+	r   renderer.Renderer
 }
 
 type channels struct {
@@ -73,7 +74,7 @@ func New(ctx context.Context, dir *chunk.Directory, addr string) (*Viewer, error
 		ch: cc,
 		um: st.NewUserIndex(uu),
 		lg: logger.FromContext(ctx),
-		r:  &debugrender{},
+		r:  &renderer.Debug{},
 	}
 	// postinit
 	{
@@ -82,7 +83,8 @@ func New(ctx context.Context, dir *chunk.Directory, addr string) (*Viewer, error
 				"rendername":      v.name,
 				"displayname":     v.um.DisplayName,
 				"time":            localtime,
-				"markdown":        v.r.RenderText,
+				"rendertext":      v.r.RenderText, // render message text
+				"render":          v.r.Render,     // render message
 				"is_thread_start": st.IsThreadStart,
 			},
 		).ParseFS(fsys, "templates/*.html"))

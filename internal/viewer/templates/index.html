@@ -126,7 +126,7 @@
     <span class="message-timestamp">{{ time $.Timestamp }}</span>
 </header>
 <div class="message-content">
-    <p>{{ .Text | markdown }}</p>
+    <p>{{/* .Text | rendertext */}}{{ render . }}</p>
 </div>
 {{ end }}
 
