@@ -58,4 +58,133 @@ const (
 	]
 	}
 `
+	fxtrMsgNestedLists = `{
+		"client_msg_id": "229a6d45-a202-4c1f-86bc-24bded55cc0a",
+		"type": "message",
+		"user": "UHSD97ZA5",
+		"text": "Enumerated:\n1. First (1)\n2. Second(2)\n    a. Nested (2.a)\n    b. Nested (2.b)\n        ▪︎ Nexted bullet point\n            • Another nested bullet\n                a. Nested enumeration",
+		"ts": "1710144832.176569",
+		"team": "THY5HTZ8U",
+		"replace_original": false,
+		"delete_original": false,
+		"metadata": {
+		  "event_type": "",
+		  "event_payload": null
+		},
+		"blocks": [
+		  {
+			"type": "rich_text",
+			"block_id": "hqvjh",
+			"elements": [
+			  {
+				"type": "rich_text_section",
+				"elements": [
+				  {
+					"type": "text",
+					"text": "Enumerated:\n"
+				  }
+				]
+			  },
+			  {
+				"type": "rich_text_list",
+				"elements": [
+				  {
+					"type": "rich_text_section",
+					"elements": [
+					  {
+						"type": "text",
+						"text": "First (1)"
+					  }
+					]
+				  },
+				  {
+					"type": "rich_text_section",
+					"elements": [
+					  {
+						"type": "text",
+						"text": "Second(2)"
+					  }
+					]
+				  }
+				],
+				"style": "ordered",
+				"indent": 0
+			  },
+			  {
+				"type": "rich_text_list",
+				"elements": [
+				  {
+					"type": "rich_text_section",
+					"elements": [
+					  {
+						"type": "text",
+						"text": "Nested (2.a)"
+					  }
+					]
+				  },
+				  {
+					"type": "rich_text_section",
+					"elements": [
+					  {
+						"type": "text",
+						"text": "Nested (2.b)"
+					  }
+					]
+				  }
+				],
+				"style": "ordered",
+				"indent": 1
+			  },
+			  {
+				"type": "rich_text_list",
+				"elements": [
+				  {
+					"type": "rich_text_section",
+					"elements": [
+					  {
+						"type": "text",
+						"text": "Nexted bullet point"
+					  }
+					]
+				  }
+				],
+				"style": "bullet",
+				"indent": 2
+			  },
+			  {
+				"type": "rich_text_list",
+				"elements": [
+				  {
+					"type": "rich_text_section",
+					"elements": [
+					  {
+						"type": "text",
+						"text": "Another nested bullet"
+					  }
+					]
+				  }
+				],
+				"style": "bullet",
+				"indent": 3
+			  },
+			  {
+				"type": "rich_text_list",
+				"elements": [
+				  {
+					"type": "rich_text_section",
+					"elements": [
+					  {
+						"type": "text",
+						"text": "Nested enumeration"
+					  }
+					]
+				  }
+				],
+				"style": "ordered",
+				"indent": 4
+			  }
+			]
+		  }
+		]
+	  }`
 )
