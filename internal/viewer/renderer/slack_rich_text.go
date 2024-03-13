@@ -59,10 +59,11 @@ func rteSection(ie slack.RichTextElement) (string, error) {
 }
 
 var rtseHandlers = map[slack.RichTextSectionElementType]func(slack.RichTextSectionElement) (string, error){
-	slack.RTSEText:  rtseText,
-	slack.RTSELink:  rtseLink,
-	slack.RTSEUser:  rtseUser,
-	slack.RTSEEmoji: rtseEmoji,
+	slack.RTSEText:    rtseText,
+	slack.RTSELink:    rtseLink,
+	slack.RTSEUser:    rtseUser,
+	slack.RTSEEmoji:   rtseEmoji,
+	slack.RTSEChannel: rtseChannel,
 }
 
 func rtseText(ie slack.RichTextSectionElement) (string, error) {
@@ -197,4 +198,12 @@ func rtseEmoji(ie slack.RichTextSectionElement) (string, error) {
 	}
 	// TODO: resolve and render emoji.
 	return applyStyle(fmt.Sprintf(":%s:", e.Name), e.Style), nil
+}
+
+func rtseChannel(ie slack.RichTextSectionElement) (string, error) {
+	e, ok := ie.(*slack.RichTextSectionChannelElement)
+	if !ok {
+		return "", fmt.Errorf("%T: %w", ie, ErrIncorrectBlockType)
+	}
+	return applyStyle(fmt.Sprintf("<#%s>", e.ChannelID), e.Style), nil
 }
