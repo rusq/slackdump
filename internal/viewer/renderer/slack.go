@@ -2,7 +2,7 @@ package renderer
 
 import (
 	"encoding/json"
-	"errors"
+	"fmt"
 	"html"
 	"html/template"
 	"log/slog"
@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/rusq/slack"
+	"github.com/rusq/slackdump/v3/internal/osext"
 )
 
 const debug = true
@@ -62,5 +63,38 @@ var blockAction = map[slack.MessageBlockType]func(slack.Block) (string, error){
 	slack.MBTContext:  mbtContext,
 }
 
-// ErrIncorrectBlockType is returned when the block type is not handled.
-var ErrIncorrectBlockType = errors.New("incorrect block type")
+const stackframe = 1
+
+type ErrIncorrectBlockType struct {
+	Caller string
+	Want   any
+	Got    any
+}
+
+func (e *ErrIncorrectBlockType) Error() string {
+	return fmt.Sprintf("incorrect block type for block %s: want %T, got %T", e.Caller, e.Want, e.Got)
+}
+
+func NewErrIncorrectType(want, got any) error {
+	return &ErrIncorrectBlockType{
+		Caller: osext.Caller(stackframe),
+		Want:   want,
+		Got:    got,
+	}
+}
+
+type ErrMissingHandler struct {
+	Caller string
+	Type   any
+}
+
+func (e *ErrMissingHandler) Error() string {
+	return fmt.Sprintf("missing handler for type %v called in %s", e.Type, e.Caller)
+}
+
+func NewErrMissingHandler(t any) error {
+	return &ErrMissingHandler{
+		Caller: osext.Caller(stackframe),
+		Type:   t,
+	}
+}

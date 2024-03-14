@@ -8,7 +8,6 @@ import (
 	"io"
 	"log"
 	"path/filepath"
-	"runtime"
 	"runtime/trace"
 	"sort"
 	"strings"
@@ -126,16 +125,8 @@ func indexChunks(dec decoder) (index, error) {
 		idx[id] = append(idx[id], offset)
 	}
 
-	logger.Default.Debugf("indexing chunks: %d: called from %v, took %s (%.2f/sec)", len(idx), caller(2), time.Since(start), float64(len(idx))/time.Since(start).Seconds())
+	logger.Default.Debugf("indexing chunks: %d: called from %v, took %s (%.2f/sec)", len(idx), osext.Caller(2), time.Since(start), float64(len(idx))/time.Since(start).Seconds())
 	return idx, nil
-}
-
-func caller(steps int) string {
-	name := "?"
-	if pc, _, _, ok := runtime.Caller(steps + 1); ok {
-		name = filepath.Base(runtime.FuncForPC(pc).Name())
-	}
-	return name
 }
 
 // ensure ensures that the file index was generated.
@@ -143,7 +134,7 @@ func caller(steps int) string {
 // TODO: maybe it shouldn't panic.
 func (f *File) ensure() {
 	if f.idx == nil {
-		log.Panicf("internal error:  %s called before File.Open", caller(1))
+		log.Panicf("internal error:  %s called before File.Open", osext.Caller(1))
 	}
 }
 
