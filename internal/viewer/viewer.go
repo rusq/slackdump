@@ -3,13 +3,10 @@ package viewer
 
 import (
 	"context"
-	"embed"
 	"errors"
 	"html/template"
 	"log/slog"
 	"net/http"
-	"strings"
-	"time"
 
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/rusq/slack"
@@ -18,9 +15,6 @@ import (
 	"github.com/rusq/slackdump/v3/internal/viewer/renderer"
 	"github.com/rusq/slackdump/v3/logger"
 )
-
-//go:embed templates
-var fsys embed.FS
 
 type Viewer struct {
 	// data
@@ -42,52 +36,48 @@ type channels struct {
 	DM      []slack.Channel
 }
 
+func initChannels(c []slack.Channel) channels {
+	var cc channels
+	for _, ch := range c {
+		t := st.ChannelType(ch)
+		switch t {
+		case st.CIM:
+			cc.DM = append(cc.DM, ch)
+		case st.CMPIM:
+			cc.MPIM = append(cc.MPIM, ch)
+		case st.CPrivate:
+			cc.Private = append(cc.Private, ch)
+		default:
+			cc.Public = append(cc.Public, ch)
+		}
+	}
+	return cc
+}
+
 func New(ctx context.Context, r Retriever, addr string) (*Viewer, error) {
 	all, err := r.Channels()
 	if err != nil {
 		return nil, err
 	}
-	var cc channels
-	for _, c := range all {
-		t := st.ChannelType(c)
-		switch t {
-		case st.CIM:
-			cc.DM = append(cc.DM, c)
-		case st.CMPIM:
-			cc.MPIM = append(cc.MPIM, c)
-		case st.CPrivate:
-			cc.Private = append(cc.Private, c)
-		default:
-			cc.Public = append(cc.Public, c)
-		}
-	}
+	cc := initChannels(all)
+
 	uu, err := r.Users()
 	if err != nil {
 		return nil, err
 	}
+	um := st.NewUserIndex(uu)
+
 	sr := renderer.NewSlack(renderer.WithUsers(indexusers(uu)), renderer.WithChannels(indexchannels(all)))
 	// sr := &renderer.Debug{}
 	v := &Viewer{
 		rtr: r,
 		ch:  cc,
-		um:  st.NewUserIndex(uu),
+		um:  um,
 		lg:  logger.FromContext(ctx),
 		r:   sr,
 	}
 	// postinit
-	{
-		var tmpl = template.Must(template.New("").Funcs(
-			template.FuncMap{
-				"rendername":      v.name,
-				"displayname":     v.um.DisplayName,
-				"time":            localtime,
-				"rendertext":      func(s string) template.HTML { return v.r.RenderText(context.Background(), s) },     // render message text
-				"render":          func(m *slack.Message) template.HTML { return v.r.Render(context.Background(), m) }, // render message
-				"is_thread_start": st.IsThreadStart,
-			},
-		).ParseFS(fsys, "templates/*.html"))
-		v.tmpl = tmpl
-	}
+	initTemplates(v)
 
 	mux := http.NewServeMux()
 	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
@@ -124,29 +114,6 @@ func (v *Viewer) Close() error {
 		v.lg.Printf("errors: %v", ee)
 	}
 	return ee
-}
-
-func localtime(ts string) string {
-	t, err := st.ParseSlackTS(ts)
-	if err != nil {
-		return ts
-	}
-	return t.Local().Format(time.DateTime)
-}
-
-func (v *Viewer) name(ch slack.Channel) (who string) {
-	t := st.ChannelType(ch)
-	switch t {
-	case st.CIM:
-		who = "@" + v.um.DisplayName(ch.User)
-	case st.CMPIM:
-		who = strings.Replace(ch.Purpose.Value, " messaging with", "", -1)
-	case st.CPrivate:
-		who = "🔒 " + ch.NameNormalized
-	default:
-		who = "#" + ch.NameNormalized
-	}
-	return who
 }
 
 func indexusers(uu []slack.User) (m map[string]slack.User) {
