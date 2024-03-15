@@ -6,10 +6,10 @@ import (
 	"github.com/rusq/slack"
 )
 
-func mbtImage(ib slack.Block) (string, error) {
+func (*Slack) mbtImage(ib slack.Block) (string, error) {
 	b, ok := ib.(*slack.ImageBlock)
 	if !ok {
 		return "", NewErrIncorrectType(&slack.ImageBlock{}, ib)
 	}
-	return fmt.Sprintf(`<img src="%s" alt="%s">`, b.ImageURL, b.AltText), nil
+	return fmt.Sprintf(`<figure><img src="%[1]s" alt="%[2]s"><figcaption>%[2]s</figcaption></figure>`, b.ImageURL, b.AltText), nil
 }

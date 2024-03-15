@@ -1,6 +1,7 @@
 package renderer
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"html"
@@ -15,16 +16,41 @@ import (
 
 const debug = true
 
-type Slack struct{}
+type Slack struct {
+	uu map[string]slack.User    // map of user id to user
+	cc map[string]slack.Channel // map of channel id to channel
+}
 
-func (*Slack) RenderText(s string) (v template.HTML) {
+type SlackOption func(*Slack)
+
+func WithUsers(uu map[string]slack.User) SlackOption {
+	return func(sm *Slack) {
+		sm.uu = uu
+	}
+}
+
+func WithChannels(cc map[string]slack.Channel) SlackOption {
+	return func(sm *Slack) {
+		sm.cc = cc
+	}
+}
+
+func NewSlack(opts ...SlackOption) *Slack {
+	s := &Slack{}
+	for _, opt := range opts {
+		opt(s)
+	}
+	return s
+}
+
+func (*Slack) RenderText(ctx context.Context, s string) (v template.HTML) {
 	// TODO parse legacy markdown
 	return template.HTML("<pre>" + html.EscapeString(s) + "</pre>")
 }
 
-func (sm *Slack) Render(m *slack.Message) (v template.HTML) {
+func (s *Slack) Render(ctx context.Context, m *slack.Message) (v template.HTML) {
 	if len(m.Blocks.BlockSet) == 0 {
-		return sm.RenderText(m.Text)
+		return s.RenderText(ctx, m.Text)
 	}
 
 	attrMsgID := slog.String("message_ts", m.Timestamp)
@@ -33,17 +59,17 @@ func (sm *Slack) Render(m *slack.Message) (v template.HTML) {
 	for _, b := range m.Blocks.BlockSet {
 		fn, ok := blockAction[b.BlockType()]
 		if !ok {
-			slog.Warn("unhandled block type", "block_type", b.BlockType(), attrMsgID)
+			slog.WarnContext(ctx, "unhandled block type", "block_type", b.BlockType(), attrMsgID)
 			maybeprint(b)
 			continue
 		}
-		s, err := fn(b)
+		html, err := fn(s, b)
 		if err != nil {
-			slog.Error("error rendering block", "error", err, "block_type", b.BlockType(), attrMsgID)
+			slog.ErrorContext(ctx, "error rendering block", "error", err, "block_type", b.BlockType(), attrMsgID)
 			maybeprint(b)
 			continue
 		}
-		buf.WriteString(string(s))
+		buf.WriteString(html)
 	}
 	return template.HTML(buf.String())
 }
@@ -57,10 +83,10 @@ func maybeprint(b slack.Block) {
 	}
 }
 
-var blockAction = map[slack.MessageBlockType]func(slack.Block) (string, error){
-	slack.MBTRichText: mbtRichText,
-	slack.MBTImage:    mbtImage,
-	slack.MBTContext:  mbtContext,
+var blockAction = map[slack.MessageBlockType]func(*Slack, slack.Block) (string, error){
+	slack.MBTRichText: (*Slack).mbtRichText,
+	slack.MBTImage:    (*Slack).mbtImage,
+	slack.MBTContext:  (*Slack).mbtContext,
 }
 
 const stackframe = 1

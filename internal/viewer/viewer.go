@@ -66,13 +66,14 @@ func New(ctx context.Context, dir *chunk.Directory, addr string) (*Viewer, error
 	if err != nil {
 		return nil, err
 	}
-
+	sr := renderer.NewSlack(renderer.WithUsers(indexusers(uu)), renderer.WithChannels(indexchannels(all)))
+	// sr := &renderer.Debug{}
 	v := &Viewer{
 		d:  dir,
 		ch: cc,
 		um: st.NewUserIndex(uu),
 		lg: logger.FromContext(ctx),
-		r:  &renderer.Slack{},
+		r:  sr,
 	}
 	// postinit
 	{
@@ -81,8 +82,8 @@ func New(ctx context.Context, dir *chunk.Directory, addr string) (*Viewer, error
 				"rendername":      v.name,
 				"displayname":     v.um.DisplayName,
 				"time":            localtime,
-				"rendertext":      v.r.RenderText, // render message text
-				"render":          v.r.Render,     // render message
+				"rendertext":      func(s string) template.HTML { return v.r.RenderText(context.Background(), s) },     // render message text
+				"render":          func(m *slack.Message) template.HTML { return v.r.Render(context.Background(), m) }, // render message
 				"is_thread_start": st.IsThreadStart,
 			},
 		).ParseFS(fsys, "templates/*.html"))
@@ -150,4 +151,20 @@ func (v *Viewer) name(ch slack.Channel) (who string) {
 		who = "#" + ch.NameNormalized
 	}
 	return who
+}
+
+func indexusers(uu []slack.User) (m map[string]slack.User) {
+	m = make(map[string]slack.User, len(uu))
+	for i := range uu {
+		m[uu[i].ID] = uu[i]
+	}
+	return m
+}
+
+func indexchannels(cc []slack.Channel) (m map[string]slack.Channel) {
+	m = make(map[string]slack.Channel, len(cc))
+	for i := range cc {
+		m[cc[i].ID] = cc[i]
+	}
+	return m
 }

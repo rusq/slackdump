@@ -12,12 +12,14 @@ func Test_rtseText(t *testing.T) {
 	}
 	tests := []struct {
 		name    string
+		s       *Slack
 		args    args
 		want    string
 		wantErr bool
 	}{
 		{
 			"valid text section",
+			&Slack{},
 			args{
 				ie: slack.RichTextSectionElement(slack.NewRichTextSectionTextElement("New Message", nil)),
 			},
@@ -26,6 +28,7 @@ func Test_rtseText(t *testing.T) {
 		},
 		{
 			"multiline",
+			&Slack{},
 			args{
 				ie: slack.RichTextSectionElement(slack.NewRichTextSectionTextElement("New\nMessage", nil)),
 			},
@@ -34,6 +37,7 @@ func Test_rtseText(t *testing.T) {
 		},
 		{
 			"bold",
+			&Slack{},
 			args{
 				ie: slack.RichTextSectionElement(slack.NewRichTextSectionTextElement("New Message", &slack.RichTextSectionTextStyle{Bold: true})),
 			},
@@ -42,6 +46,7 @@ func Test_rtseText(t *testing.T) {
 		},
 		{
 			"italic",
+			&Slack{},
 			args{
 				ie: slack.RichTextSectionElement(slack.NewRichTextSectionTextElement("New Message", &slack.RichTextSectionTextStyle{Italic: true})),
 			},
@@ -50,6 +55,7 @@ func Test_rtseText(t *testing.T) {
 		},
 		{
 			"strike",
+			&Slack{},
 			args{
 				ie: slack.RichTextSectionElement(slack.NewRichTextSectionTextElement("New Message", &slack.RichTextSectionTextStyle{Strike: true})),
 			},
@@ -58,6 +64,7 @@ func Test_rtseText(t *testing.T) {
 		},
 		{
 			"code",
+			&Slack{},
 			args{
 				ie: slack.RichTextSectionElement(slack.NewRichTextSectionTextElement("Code message", &slack.RichTextSectionTextStyle{Code: true})),
 			},
@@ -66,6 +73,7 @@ func Test_rtseText(t *testing.T) {
 		},
 		{
 			"bold italic",
+			&Slack{},
 			args{
 				ie: slack.RichTextSectionElement(slack.NewRichTextSectionTextElement("New Message", &slack.RichTextSectionTextStyle{Bold: true, Italic: true})),
 			},
@@ -75,7 +83,7 @@ func Test_rtseText(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := rtseText(tt.args.ie)
+			got, err := tt.s.rtseText(tt.args.ie)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("rtseText() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -93,12 +101,14 @@ func Test_rtseLink(t *testing.T) {
 	}
 	tests := []struct {
 		name    string
+		s       *Slack
 		args    args
 		want    string
 		wantErr bool
 	}{
 		{
 			"valid link",
+			&Slack{},
 			args{
 				ie: slack.RichTextSectionElement(slack.NewRichTextSectionLinkElement("https://example.com", "example.com", nil)),
 			},
@@ -107,6 +117,7 @@ func Test_rtseLink(t *testing.T) {
 		},
 		{
 			"empty text",
+			&Slack{},
 			args{
 				ie: slack.RichTextSectionElement(slack.NewRichTextSectionLinkElement("https://example.com", "", nil)),
 			},
@@ -116,7 +127,7 @@ func Test_rtseLink(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := rtseLink(tt.args.ie)
+			got, err := tt.s.rtseLink(tt.args.ie)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("rtseLink() error = %v, wantErr %v", err, tt.wantErr)
 				return

@@ -1,6 +1,7 @@
 package renderer
 
 import (
+	"context"
 	"html/template"
 	"reflect"
 	"testing"
@@ -31,7 +32,7 @@ func TestSlack_Render(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			sm := &Slack{}
-			if gotV := sm.Render(tt.args.m); !reflect.DeepEqual(gotV, tt.wantV) {
+			if gotV := sm.Render(context.Background(), tt.args.m); !reflect.DeepEqual(gotV, tt.wantV) {
 				t.Errorf("Slack.Render() = %v, want %v", gotV, tt.wantV)
 			}
 		})

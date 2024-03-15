@@ -119,11 +119,11 @@
 {{end}}
 
 {{ define "render_message" }}
-<header class="message-header">
+<header class="message-header" id="#{{.Timestamp}}">
     <span class="message-sender">
         <a href="#" hx-get="/team/{{ .User }}" hx-target="#thread"> {{ displayname .User }}</a>
     </span>
-    <span class="message-timestamp">{{ time $.Timestamp }}</span>
+    <span class="message-timestamp">{{ time .Timestamp }}</span>
 </header>
 <div class="message-content">
     <p>{{/* .Text | rendertext */}}{{ render . }}</p>

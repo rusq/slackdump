@@ -2,21 +2,23 @@ package renderer
 
 import (
 	"fmt"
+	"log/slog"
 	"strings"
 
+	emj "github.com/enescakir/emoji"
 	"github.com/rusq/slack"
 )
 
-var rteTypeHandlers = map[slack.RichTextElementType]func(slack.RichTextElement) (string, error){}
+var rteTypeHandlers = map[slack.RichTextElementType]func(*Slack, slack.RichTextElement) (string, error){}
 
 func init() {
-	rteTypeHandlers[slack.RTESection] = rteSection
-	rteTypeHandlers[slack.RTEList] = rteList
-	rteTypeHandlers[slack.RTEQuote] = rteQuote
-	rteTypeHandlers[slack.RTEPreformatted] = rtePreformatted
+	rteTypeHandlers[slack.RTESection] = (*Slack).rteSection
+	rteTypeHandlers[slack.RTEList] = (*Slack).rteList
+	rteTypeHandlers[slack.RTEQuote] = (*Slack).rteQuote
+	rteTypeHandlers[slack.RTEPreformatted] = (*Slack).rtePreformatted
 }
 
-func mbtRichText(ib slack.Block) (string, error) {
+func (s *Slack) mbtRichText(ib slack.Block) (string, error) {
 	b, ok := ib.(*slack.RichTextBlock)
 	if !ok {
 		return "", NewErrIncorrectType(&slack.RichTextBlock{}, ib)
@@ -27,7 +29,7 @@ func mbtRichText(ib slack.Block) (string, error) {
 		if !ok {
 			return "", NewErrMissingHandler(el.RichTextElementType())
 		}
-		s, err := fn(el)
+		s, err := fn(s, el)
 		if err != nil {
 			return "", err
 		}
@@ -37,7 +39,7 @@ func mbtRichText(ib slack.Block) (string, error) {
 	return buf.String(), nil
 }
 
-func rteSection(ie slack.RichTextElement) (string, error) {
+func (s *Slack) rteSection(ie slack.RichTextElement) (string, error) {
 	e, ok := ie.(*slack.RichTextSection)
 	if !ok {
 		return "", NewErrIncorrectType(&slack.RichTextSection{}, ie)
@@ -48,7 +50,7 @@ func rteSection(ie slack.RichTextElement) (string, error) {
 		if !ok {
 			return "", NewErrMissingHandler(el.RichTextSectionElementType())
 		}
-		s, err := fn(el)
+		s, err := fn(s, el)
 		if err != nil {
 			return "", err
 		}
@@ -58,15 +60,15 @@ func rteSection(ie slack.RichTextElement) (string, error) {
 	return buf.String(), nil
 }
 
-var rtseHandlers = map[slack.RichTextSectionElementType]func(slack.RichTextSectionElement) (string, error){
-	slack.RTSEText:    rtseText,
-	slack.RTSELink:    rtseLink,
-	slack.RTSEUser:    rtseUser,
-	slack.RTSEEmoji:   rtseEmoji,
-	slack.RTSEChannel: rtseChannel,
+var rtseHandlers = map[slack.RichTextSectionElementType]func(*Slack, slack.RichTextSectionElement) (string, error){
+	slack.RTSEText:    (*Slack).rtseText,
+	slack.RTSELink:    (*Slack).rtseLink,
+	slack.RTSEUser:    (*Slack).rtseUser,
+	slack.RTSEEmoji:   (*Slack).rtseEmoji,
+	slack.RTSEChannel: (*Slack).rtseChannel,
 }
 
-func rtseText(ie slack.RichTextSectionElement) (string, error) {
+func (s *Slack) rtseText(ie slack.RichTextSectionElement) (string, error) {
 	e, ok := ie.(*slack.RichTextSectionTextElement)
 	if !ok {
 		return "", NewErrIncorrectType(&slack.RichTextSectionTextElement{}, ie)
@@ -95,7 +97,7 @@ func applyStyle(s string, style *slack.RichTextSectionTextStyle) string {
 	return s
 }
 
-func rtseLink(ie slack.RichTextSectionElement) (string, error) {
+func (s *Slack) rtseLink(ie slack.RichTextSectionElement) (string, error) {
 	e, ok := ie.(*slack.RichTextSectionLinkElement)
 	if !ok {
 		return "", NewErrIncorrectType(&slack.RichTextSectionLinkElement{}, ie)
@@ -106,7 +108,7 @@ func rtseLink(ie slack.RichTextSectionElement) (string, error) {
 	return fmt.Sprintf("<a href=\"%s\">%s</a>", e.URL, e.Text), nil
 }
 
-func rteList(ie slack.RichTextElement) (string, error) {
+func (s *Slack) rteList(ie slack.RichTextElement) (string, error) {
 	e, ok := ie.(*slack.RichTextList)
 	if !ok {
 		return "", NewErrIncorrectType(&slack.RichTextList{}, ie)
@@ -128,7 +130,7 @@ func rteList(ie slack.RichTextElement) (string, error) {
 		if !ok {
 			return "", NewErrMissingHandler(el.RichTextElementType())
 		}
-		s, err := fn(el)
+		s, err := fn(s, el)
 		if err != nil {
 			return "", err
 		}
@@ -138,7 +140,7 @@ func rteList(ie slack.RichTextElement) (string, error) {
 	return buf.String(), nil
 }
 
-func rteQuote(ie slack.RichTextElement) (string, error) {
+func (s *Slack) rteQuote(ie slack.RichTextElement) (string, error) {
 	e, ok := ie.(*slack.RichTextQuote)
 	if !ok {
 		return "", NewErrIncorrectType(&slack.RichTextQuote{}, ie)
@@ -150,7 +152,7 @@ func rteQuote(ie slack.RichTextElement) (string, error) {
 		if !ok {
 			return "", NewErrMissingHandler(el.RichTextSectionElementType())
 		}
-		s, err := fn(el)
+		s, err := fn(s, el)
 		if err != nil {
 			return "", err
 		}
@@ -160,7 +162,7 @@ func rteQuote(ie slack.RichTextElement) (string, error) {
 	return buf.String(), nil
 }
 
-func rtePreformatted(ie slack.RichTextElement) (string, error) {
+func (s *Slack) rtePreformatted(ie slack.RichTextElement) (string, error) {
 	e, ok := ie.(*slack.RichTextPreformatted)
 	if !ok {
 		return "", NewErrIncorrectType(&slack.RichTextPreformatted{}, ie)
@@ -172,7 +174,7 @@ func rtePreformatted(ie slack.RichTextElement) (string, error) {
 		if !ok {
 			return "", NewErrMissingHandler(el.RichTextSectionElementType())
 		}
-		s, err := fn(el)
+		s, err := fn(s, el)
 		if err != nil {
 			return "", err
 		}
@@ -182,28 +184,47 @@ func rtePreformatted(ie slack.RichTextElement) (string, error) {
 	return buf.String(), nil
 }
 
-func rtseUser(ie slack.RichTextSectionElement) (string, error) {
+func (s *Slack) rtseUser(ie slack.RichTextSectionElement) (string, error) {
 	e, ok := ie.(*slack.RichTextSectionUserElement)
 	if !ok {
 		return "", NewErrIncorrectType(&slack.RichTextSectionUserElement{}, ie)
 	}
+	var name string
+	u, ok := s.uu[e.UserID]
+	if ok {
+		name = u.Name
+	} else {
+		slog.Warn("user not found", "user_id", e.UserID, "user", u)
+		name = e.UserID
+	}
+
 	// TODO: link user.
-	return applyStyle(fmt.Sprintf("<@%s>", e.UserID), e.Style), nil
+	return applyStyle(fmt.Sprintf("<@%s>", name), e.Style), nil
 }
 
-func rtseEmoji(ie slack.RichTextSectionElement) (string, error) {
+func (s *Slack) rtseEmoji(ie slack.RichTextSectionElement) (string, error) {
 	e, ok := ie.(*slack.RichTextSectionEmojiElement)
 	if !ok {
 		return "", NewErrIncorrectType(&slack.RichTextSectionEmojiElement{}, ie)
 	}
 	// TODO: resolve and render emoji.
-	return applyStyle(fmt.Sprintf(":%s:", e.Name), e.Style), nil
+	em := emj.Parse(fmt.Sprintf(":%s:", e.Name))
+	return applyStyle(em, e.Style), nil
 }
 
-func rtseChannel(ie slack.RichTextSectionElement) (string, error) {
+func (s *Slack) rtseChannel(ie slack.RichTextSectionElement) (string, error) {
 	e, ok := ie.(*slack.RichTextSectionChannelElement)
 	if !ok {
 		return "", NewErrIncorrectType(&slack.RichTextSectionChannelElement{}, ie)
 	}
-	return applyStyle(fmt.Sprintf("<#%s>", e.ChannelID), e.Style), nil
+	var name string
+	c, ok := s.uu[e.ChannelID]
+	if ok {
+		name = c.Name
+	} else {
+		slog.Warn("channel not found", "channel_id", e.ChannelID)
+		name = e.ChannelID
+	}
+
+	return applyStyle(fmt.Sprintf("<#%s>", name), e.Style), nil
 }

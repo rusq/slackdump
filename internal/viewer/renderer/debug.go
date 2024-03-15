@@ -1,6 +1,7 @@
 package renderer
 
 import (
+	"context"
 	"encoding/json"
 	"html"
 	"html/template"
@@ -10,11 +11,11 @@ import (
 
 type Debug struct{}
 
-func (d *Debug) RenderText(s string) (v template.HTML) {
+func (d *Debug) RenderText(ctx context.Context, s string) (v template.HTML) {
 	return template.HTML("<pre>" + html.EscapeString(s) + "</pre>")
 }
 
-func (d *Debug) Render(m *slack.Message) (v template.HTML) {
+func (d *Debug) Render(ctx context.Context, m *slack.Message) (v template.HTML) {
 	b, err := json.MarshalIndent(m, "", "  ")
 	if err != nil {
 		panic(err)
