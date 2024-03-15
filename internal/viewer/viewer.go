@@ -14,7 +14,6 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/rusq/slack"
 
-	"github.com/rusq/slackdump/v3/internal/chunk"
 	st "github.com/rusq/slackdump/v3/internal/structures"
 	"github.com/rusq/slackdump/v3/internal/viewer/renderer"
 	"github.com/rusq/slackdump/v3/logger"
@@ -27,7 +26,7 @@ type Viewer struct {
 	// data
 	ch   channels
 	um   st.UserIndex
-	d    *chunk.Directory
+	rtr  Retriever
 	tmpl *template.Template
 
 	// handles
@@ -43,8 +42,8 @@ type channels struct {
 	DM      []slack.Channel
 }
 
-func New(ctx context.Context, dir *chunk.Directory, addr string) (*Viewer, error) {
-	all, err := dir.Channels()
+func New(ctx context.Context, r Retriever, addr string) (*Viewer, error) {
+	all, err := r.Channels()
 	if err != nil {
 		return nil, err
 	}
@@ -62,18 +61,18 @@ func New(ctx context.Context, dir *chunk.Directory, addr string) (*Viewer, error
 			cc.Public = append(cc.Public, c)
 		}
 	}
-	uu, err := dir.Users()
+	uu, err := r.Users()
 	if err != nil {
 		return nil, err
 	}
 	sr := renderer.NewSlack(renderer.WithUsers(indexusers(uu)), renderer.WithChannels(indexchannels(all)))
 	// sr := &renderer.Debug{}
 	v := &Viewer{
-		d:  dir,
-		ch: cc,
-		um: st.NewUserIndex(uu),
-		lg: logger.FromContext(ctx),
-		r:  sr,
+		rtr: r,
+		ch:  cc,
+		um:  st.NewUserIndex(uu),
+		lg:  logger.FromContext(ctx),
+		r:   sr,
 	}
 	// postinit
 	{
@@ -117,9 +116,6 @@ func (v *Viewer) ListenAndServe() error {
 
 func (v *Viewer) Close() error {
 	var ee error
-	if err := v.d.Close(); err != nil {
-		ee = errors.Join(err)
-	}
 	if err := v.srv.Close(); err != nil {
 		ee = errors.Join(err)
 	}
