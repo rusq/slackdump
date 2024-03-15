@@ -57,7 +57,7 @@ func (s *Slack) Render(ctx context.Context, m *slack.Message) (v template.HTML) 
 
 	var buf strings.Builder
 	for _, b := range m.Blocks.BlockSet {
-		fn, ok := blockAction[b.BlockType()]
+		fn, ok := blockTypeHandlers[b.BlockType()]
 		if !ok {
 			slog.WarnContext(ctx, "unhandled block type", "block_type", b.BlockType(), attrMsgID)
 			maybeprint(b)
@@ -81,12 +81,6 @@ func maybeprint(b slack.Block) {
 		enc.Encode(b)
 		os.Stderr.Sync()
 	}
-}
-
-var blockAction = map[slack.MessageBlockType]func(*Slack, slack.Block) (string, error){
-	slack.MBTRichText: (*Slack).mbtRichText,
-	slack.MBTImage:    (*Slack).mbtImage,
-	slack.MBTContext:  (*Slack).mbtContext,
 }
 
 const stackframe = 1
@@ -123,4 +117,9 @@ func NewErrMissingHandler(t any) error {
 		Caller: osext.Caller(stackframe),
 		Type:   t,
 	}
+}
+
+// classes
+func div(class string, s string) string {
+	return fmt.Sprintf(`<div class=\"%s\">%s</div>`, class, s)
 }

@@ -21,12 +21,20 @@ func TestSlack_Render(t *testing.T) {
 		wantV template.HTML
 	}{
 		{
+			"simple message",
+			&Slack{},
+			args{
+				m: load(t, fxtrRtseText),
+			},
+			template.HTML("New message"),
+		},
+		{
 			"nested lists",
 			&Slack{},
 			args{
 				m: nestedLists,
 			},
-			template.HTML(`numerated:<br><ol><li>First (1)</li><li>Second(2)</li></ol><ol><ol><li>Nested (2.a)</li><li>Nested (2.b)</li></ol></ol><ul><ul><ul><li>Nexted bullet point</li></ul></ul></ul><ul><ul><ul><ul><li>Another nested bullet</li></ul></ul></ul></ul><ol><ol><ol><ol><ol><li>Nested enumeration</li></ol></ol></ol></ol></ol>`),
+			template.HTML(`Enumerated:<br><ol><li>First (1)</li><li>Second(2)</li></ol><ol><ol><li>Nested (2.a)</li><li>Nested (2.b)</li></ol></ol><ul><ul><ul><li>Nexted bullet point</li></ul></ul></ul><ul><ul><ul><ul><li>Another nested bullet</li></ul></ul></ul></ul><ol><ol><ol><ol><ol><li>Nested enumeration</li></ol></ol></ol></ol></ol>`),
 		},
 	}
 	for _, tt := range tests {
