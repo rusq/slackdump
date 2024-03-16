@@ -641,4 +641,28 @@ const (
 		}
 	]
 `
+	AppMessageJSON = `{
+	"type": "message",
+	"ts": "1586042786.000100",
+	"attachments": [
+	  {
+		"color": "4183c4",
+		"fallback": "[xxx:v2] \u003chttps://bitbucket.org/xxx/xxx/commits/4e762b01256229a840784529a44381445ccb10b1|1 new commit\u003e by John Smoth",
+		"id": 1,
+		"pretext": "[xxx:v2] 1 new commit by John Smoth:",
+		"text": "\u003chttps://wakatime.com/projects/project/commits|10 hrs 57 mins\u003e - \u003chttps://bitbucket.org/xxx/xxx/commits/4e762b01256229a840784529a44381445ccb10b1|4e762b0\u003e - iometer -\u0026gt; transport - John Smoth",
+		"blocks": null
+	  }
+	],
+	"subtype": "bot_message",
+	"bot_id": "B011D8MSHK7",
+	"username": "WakaTime",
+	"replace_original": false,
+	"delete_original": false,
+	"metadata": {
+	  "event_type": "",
+	  "event_payload": null
+	},
+	"blocks": null
+  }`
 )

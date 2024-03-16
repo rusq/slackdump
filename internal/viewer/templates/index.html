@@ -15,7 +15,7 @@
     <div class="container">
         <section class="channel-list">
             <h1>Slackdump</h1>
-            <small class="subtitle">{{.Name}}</small>
+            <small class="subtitle grey">{{.Name}}</small>
             <!-- Channel list goes here -->
             {{ if ( or .Public .Private) }}
             <h2>Channels</h2>
@@ -62,8 +62,9 @@
     {{ template "render_message" . }}
     {{ if is_thread_start $el }}
     <footer class="thread-info">
-        <a href="#" hx-get="/archives/{{$id}}/{{ $el.ThreadTimestamp }}" hx-target="#thread">Replies: {{ $el.ReplyCount
-            }}</a>
+        <a href="#" hx-get="/archives/{{$id}}/{{ $el.ThreadTimestamp }}" hx-target="#thread">
+            Replies: {{ $el.ReplyCount -}}
+        </a> <span class="latest-reply grey">Last reply: {{ time $el.LatestReply }}</span>
         </footer>
     {{ end }}
     <hr>
@@ -121,7 +122,11 @@
 {{ define "render_message" }}
 <header class="message-header" id="#{{.Timestamp}}">
     <span class="message-sender">
-        <a href="#" hx-get="/team/{{ .User }}" hx-target="#thread"> {{ displayname .User }}</a>
+        {{if is_app_msg . -}}
+            {{ username . }}
+        {{- else -}} 
+            <a href="#" hx-get="/team/{{ .User }}" hx-target="#thread"> {{ username . }}</a>
+        {{- end }}
     </span>
     <span class="message-timestamp">{{ time .Timestamp }}</span>
 </header>
@@ -132,6 +137,10 @@
 
 {{ define "hx_css" }}
 <style>
+    body{
+        font-family: -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    }
+
     .container {
         display: flex;
         height: 97vh;
@@ -140,7 +149,6 @@
     .subtitle {
         display: block;
         margin-bottom: 1em;
-        color: #777;
     }
 
     .channel-list {
@@ -157,6 +165,10 @@
 
     .thread {
         display: none;
+    }
+    
+    .grey {
+        color: #777;
     }
 </style>
 {{ end }}

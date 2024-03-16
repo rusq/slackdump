@@ -73,6 +73,11 @@ func initChannels(c []slack.Channel) channels {
 	return cc
 }
 
+// New creates new viewer instance.  Once [Viewer.ListenAndServe] is called, the
+// viewer will start serving the web interface on the given address.  The
+// address should be in the form of ":8080". The viewer will use the given
+// [Sourcer] to retrieve the data, see "source" package for available options.
+// It will initialise the logger from the context.
 func New(ctx context.Context, addr string, r Sourcer) (*Viewer, error) {
 	all, err := r.Channels()
 	if err != nil {
@@ -86,8 +91,8 @@ func New(ctx context.Context, addr string, r Sourcer) (*Viewer, error) {
 	}
 	um := st.NewUserIndex(uu)
 
-	sr := renderer.NewSlack(renderer.WithUsers(indexusers(uu)), renderer.WithChannels(indexchannels(all)))
-	// sr := &renderer.Debug{}
+	// sr := renderer.NewSlack(renderer.WithUsers(indexusers(uu)), renderer.WithChannels(indexchannels(all)))
+	sr := &renderer.Debug{}
 	v := &Viewer{
 		rtr: r,
 		ch:  cc,
@@ -133,20 +138,4 @@ func (v *Viewer) Close() error {
 		v.lg.Printf("errors: %v", ee)
 	}
 	return ee
-}
-
-func indexusers(uu []slack.User) (m map[string]slack.User) {
-	m = make(map[string]slack.User, len(uu))
-	for i := range uu {
-		m[uu[i].ID] = uu[i]
-	}
-	return m
-}
-
-func indexchannels(cc []slack.Channel) (m map[string]slack.Channel) {
-	m = make(map[string]slack.Channel, len(cc))
-	for i := range cc {
-		m[cc[i].ID] = cc[i]
-	}
-	return m
 }

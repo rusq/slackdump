@@ -42,7 +42,7 @@ func RunView(ctx context.Context, cmd *base.Command, args []string) error {
 		base.SetExitStatus(base.SInvalidParameters)
 		return fmt.Errorf("viewing slackdump files requires at least one argument")
 	}
-	src, err := loadSource(args[0])
+	src, err := loadSource(ctx, args[0])
 	if err != nil {
 		base.SetExitStatus(base.SUserError)
 		return err
@@ -84,28 +84,43 @@ const (
 	sfZIP
 	sfChunk
 	sfExport
+	sfDump
 )
 
-func loadSource(src string) (viewer.Sourcer, error) {
+func loadSource(ctx context.Context, src string) (viewer.Sourcer, error) {
+	lg := logger.FromContext(ctx)
 	fi, err := os.Stat(src)
 	if err != nil {
 		return nil, err
 	}
 	switch srcType(src, fi) {
 	case sfChunk | sfDirectory:
+		lg.Debugf("loading chunk directory: %s", src)
 		dir, err := chunk.OpenDir(src)
 		if err != nil {
 			return nil, err
 		}
 		return source.NewChunkDir(dir), nil
 	case sfExport | sfZIP:
+		lg.Debugf("loading export zip: %s", src)
 		f, err := zip.OpenReader(src)
 		if err != nil {
 			return nil, err
 		}
 		return source.NewExport(f, src)
 	case sfExport | sfDirectory:
+		lg.Debugf("loading export directory: %s", src)
 		return source.NewExport(os.DirFS(src), src)
+	case sfDump | sfZIP:
+		lg.Debugf("loading dump zip: %s", src)
+		f, err := zip.OpenReader(src)
+		if err != nil {
+			return nil, err
+		}
+		return source.NewDump(f, src)
+	case sfDump | sfDirectory:
+		lg.Debugf("loading dump directory: %s", src)
+		return source.NewDump(os.DirFS(src), src)
 	default:
 		return nil, fmt.Errorf("unsupported source type: %s", src)
 	}
@@ -126,15 +141,17 @@ func srcType(src string, fi fs.FileInfo) sourceFlags {
 		fsys = f
 		flags |= sfZIP
 	}
-	if _, err := fs.Stat(fsys, "channels.json"); err == nil {
-		// this is an export.
-		return flags | sfExport
+	if ff, err := fs.Glob(fsys, "[CD]*.json"); err == nil && len(ff) > 0 {
+		return flags | sfDump
 	}
 	if _, err := fs.Stat(fsys, "workspace.json.gz"); err == nil {
 		if flags&sfZIP != 0 {
 			return sfUnknown // compressed chunk directories are not supported
 		}
 		return flags | sfChunk
+	}
+	if _, err := fs.Stat(fsys, "channels.json"); err == nil {
+		return flags | sfExport
 	}
 	return sfUnknown
 }

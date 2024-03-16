@@ -86,7 +86,7 @@ func (c *CSV) Channels(ctx context.Context, w io.Writer, u []slack.User, chans [
 	for _, u := range chans {
 		if err := csv.Write([]string{
 			u.ID,
-			nvl(u.Name, ui.DisplayName(u.User)),
+			NVL(u.Name, ui.DisplayName(u.User)),
 			_ft(int64(u.Created)),
 			_fb(u.IsArchived),
 			_fb(u.IsChannel),
@@ -101,7 +101,7 @@ func (c *CSV) Channels(ctx context.Context, w io.Writer, u []slack.User, chans [
 	return nil
 }
 
-func nvl(s string, rest ...string) string {
+func NVL(s string, rest ...string) string {
 	if s != "" {
 		return s
 	}

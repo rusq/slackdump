@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"html"
 	"html/template"
 	"log/slog"
 	"os"
@@ -44,8 +43,7 @@ func NewSlack(opts ...SlackOption) *Slack {
 }
 
 func (*Slack) RenderText(ctx context.Context, s string) (v template.HTML) {
-	// TODO parse legacy markdown
-	return template.HTML("<pre>" + html.EscapeString(s) + "</pre>")
+	return template.HTML(parseSlackMd(s))
 }
 
 func (s *Slack) Render(ctx context.Context, m *slack.Message) (v template.HTML) {
