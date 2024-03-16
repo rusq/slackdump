@@ -28,7 +28,16 @@ func (c *ChunkDir) AllThreadMessages(channelID, threadID string) ([]slack.Messag
 		return nil, err
 	}
 	defer f.Close()
-	return f.AllThreadMessages(channelID, threadID)
+	parent, err := f.ThreadParent(channelID, threadID)
+	if err != nil {
+		return nil, err
+	}
+	rest, err := f.AllThreadMessages(channelID, threadID)
+	if err != nil {
+		return nil, err
+	}
+
+	return append([]slack.Message{*parent}, rest...), nil
 }
 
 func (c *ChunkDir) ChannelInfo(channelID string) (*slack.Channel, error) {

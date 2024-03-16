@@ -152,7 +152,7 @@ func (txt *Text) Channels(ctx context.Context, w io.Writer, u []slack.User, cc [
 
 	fmt.Fprintf(writer, strFormat, "ID", "Arch", "What")
 	for i, ch := range cc {
-		who := ui.ChannelName(&ch)
+		who := ui.ChannelName(ch)
 		archived := "-"
 		if cc[i].IsArchived || ui.IsDeleted(ch.User) {
 			archived = "arch"

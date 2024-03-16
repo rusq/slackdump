@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/rusq/slack"
-	"github.com/rusq/slackdump/v3/internal/structures"
+	"github.com/rusq/slackdump/v3/internal/fasttime"
 )
 
 // ChunkType is the type of chunk that was recorded..
@@ -173,7 +173,7 @@ func (c *Chunk) Timestamps() ([]int64, error) {
 func (c *Chunk) messageTimestamps() ([]int64, error) {
 	ts := make([]int64, len(c.Messages))
 	for i := range c.Messages {
-		iTS, err := structures.TS2int(c.Messages[i].Timestamp)
+		iTS, err := fasttime.TS2int(c.Messages[i].Timestamp)
 		if err != nil {
 			return nil, fmt.Errorf("invalid timestamp: %q: %w", c.Messages[i].Timestamp, err)
 		}

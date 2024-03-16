@@ -18,8 +18,8 @@ import (
 
 	"github.com/rusq/dlog"
 	"github.com/rusq/slackdump/v3/internal/chunk/state"
+	"github.com/rusq/slackdump/v3/internal/fasttime"
 	"github.com/rusq/slackdump/v3/internal/osext"
-	"github.com/rusq/slackdump/v3/internal/structures"
 	"github.com/rusq/slackdump/v3/logger"
 )
 
@@ -525,7 +525,7 @@ func (f *File) Sorted(ctx context.Context, desc bool, fn func(ts time.Time, m *s
 			prevOffset = tmOff.Offset
 		}
 
-		if err := fn(structures.Int2Time(ts).UTC(), &chunk.Messages[tmOff.Index]); err != nil {
+		if err := fn(fasttime.Int2Time(ts).UTC(), &chunk.Messages[tmOff.Index]); err != nil {
 			return err
 		}
 	}

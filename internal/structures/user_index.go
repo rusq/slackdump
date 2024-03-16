@@ -94,16 +94,17 @@ func (idx UserIndex) IsDeleted(id string) bool {
 }
 
 // ChannelName return the "beautified" name of the channel.
-func (idx UserIndex) ChannelName(channel *slack.Channel) (who string) {
-	switch {
-	case channel.IsIM:
-		who = "@" + idx.Username(channel.User)
-	case channel.IsMpIM:
-		who = strings.Replace(channel.Purpose.Value, " messaging with", "", -1)
-	case channel.IsPrivate:
-		who = "🔒 " + channel.NameNormalized
+func (idx UserIndex) ChannelName(ch slack.Channel) (who string) {
+	t := ChannelType(ch)
+	switch t {
+	case CIM:
+		who = "@" + idx.Username(ch.User)
+	case CMPIM:
+		who = strings.Replace(ch.Purpose.Value, " messaging with", "", -1)
+	case CPrivate:
+		who = "🔒 " + nvl(ch.NameNormalized, ch.Name)
 	default:
-		who = "#" + channel.NameNormalized
+		who = "#" + nvl(ch.NameNormalized, ch.Name)
 	}
 	return who
 }

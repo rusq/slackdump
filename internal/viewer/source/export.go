@@ -82,8 +82,17 @@ func (e *Export) AllMessages(channelID string) ([]slack.Message, error) {
 }
 
 func (e *Export) AllThreadMessages(channelID, threadID string) ([]slack.Message, error) {
-	//TODO implement me
-	panic("implement me")
+	m, err := e.AllMessages(channelID)
+	if err != nil {
+		return nil, err
+	}
+	var tm []slack.Message
+	for _, msg := range m {
+		if msg.ThreadTimestamp == threadID {
+			tm = append(tm, msg)
+		}
+	}
+	return tm, nil
 }
 
 func (e *Export) ChannelInfo(channelID string) (*slack.Channel, error) {

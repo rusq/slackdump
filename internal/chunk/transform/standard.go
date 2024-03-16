@@ -10,6 +10,7 @@ import (
 	"github.com/rusq/slack"
 
 	"github.com/rusq/slackdump/v3/internal/chunk"
+	"github.com/rusq/slackdump/v3/internal/fasttime"
 	"github.com/rusq/slackdump/v3/internal/nametmpl"
 	"github.com/rusq/slackdump/v3/internal/structures"
 	"github.com/rusq/slackdump/v3/logger"
@@ -125,11 +126,11 @@ type msgsorter []slack.Message
 
 func (m msgsorter) Len() int { return len(m) }
 func (m msgsorter) Less(i, j int) bool {
-	tsi, err := structures.TS2int(m[i].Timestamp)
+	tsi, err := fasttime.TS2int(m[i].Timestamp)
 	if err != nil {
 		return false
 	}
-	tsj, err := structures.TS2int(m[j].Timestamp)
+	tsj, err := fasttime.TS2int(m[j].Timestamp)
 	if err != nil {
 		return false
 	}

@@ -9,7 +9,7 @@ import (
 	"sync"
 
 	"github.com/rusq/fsadapter"
-	"github.com/rusq/slackdump/v3/internal/structures"
+	"github.com/rusq/slackdump/v3/internal/fasttime"
 )
 
 const Version = 0.1
@@ -141,7 +141,7 @@ func (s *State) FilePath(channelID, fileID string) string {
 
 // tsUpdate updates the map with the given ID and value if the value is greater.
 func tsUpdate(m map[string]int64, id string, val string) {
-	currVal, err := structures.TS2int(val)
+	currVal, err := fasttime.TS2int(val)
 	if err != nil {
 		return // not updating crooked values
 	}
@@ -213,7 +213,7 @@ func latest(m map[string]int64, id string) string {
 	if m == nil {
 		return ""
 	}
-	return structures.Int2TS(m[id])
+	return fasttime.Int2TS(m[id])
 }
 
 // FileChannelID returns the channel ID where the file was last seen.

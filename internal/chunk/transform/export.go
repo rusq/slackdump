@@ -15,6 +15,7 @@ import (
 
 	"github.com/rusq/slackdump/v3/export"
 	"github.com/rusq/slackdump/v3/internal/chunk"
+	"github.com/rusq/slackdump/v3/internal/fasttime"
 	"github.com/rusq/slackdump/v3/internal/structures"
 	"github.com/rusq/slackdump/v3/logger"
 	"github.com/rusq/slackdump/v3/types"
@@ -212,11 +213,11 @@ func toExportMessage(m *slack.Message, thread []slack.Message, user *slack.User)
 			em.ReplyUsers = append(em.ReplyUsers, rm.User)
 		}
 		sort.Slice(em.Msg.Replies, func(i, j int) bool {
-			tsi, err := structures.TS2int(em.Msg.Replies[i].Timestamp)
+			tsi, err := fasttime.TS2int(em.Msg.Replies[i].Timestamp)
 			if err != nil {
 				return false
 			}
-			tsj, err := structures.TS2int(em.Msg.Replies[j].Timestamp)
+			tsj, err := fasttime.TS2int(em.Msg.Replies[j].Timestamp)
 			if err != nil {
 				return false
 			}

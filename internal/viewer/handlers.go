@@ -5,6 +5,7 @@ import (
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/rusq/slack"
+	"github.com/rusq/slackdump/v3/internal/fasttime"
 	"golang.org/x/exp/slices"
 )
 
@@ -42,7 +43,23 @@ func (v *Viewer) channelHandler(w http.ResponseWriter, r *http.Request, id strin
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	slices.Reverse(mm)
+	if len(mm) > 0 {
+		first, err := fasttime.TS2int(mm[0].Timestamp)
+		if err != nil {
+			v.lg.Printf("error: %v", err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		last, err := fasttime.TS2int(mm[len(mm)-1].Timestamp)
+		if err != nil {
+			v.lg.Printf("error: %v", err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		if first > last {
+			slices.Reverse(mm)
+		}
+	}
 
 	v.lg.Debugf("conversation: %s, got %d messages", id, len(mm))
 

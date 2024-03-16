@@ -177,7 +177,7 @@ func (s *Slack) rtseUser(ie slack.RichTextSectionElement) (string, error) {
 	if u, ok := s.uu[e.UserID]; s.uu != nil && ok {
 		name = u.Name
 	} else {
-		slog.Warn("user not found", "user_id", e.UserID, "user", u)
+		slog.Warn("user not found", "user_id", e.UserID)
 		name = e.UserID
 	}
 
