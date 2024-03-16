@@ -2,6 +2,7 @@ package viewer
 
 import (
 	"net/http"
+	"path/filepath"
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/rusq/slack"
@@ -13,10 +14,12 @@ func (v *Viewer) indexHandler(w http.ResponseWriter, r *http.Request) {
 	var page = struct {
 		Conversation slack.Channel
 		Name         string
+		Type         string
 		channels
 	}{
 		Conversation: slack.Channel{}, //blank.
-		Name:         v.rtr.Name(),
+		Name:         filepath.Base(v.src.Name()),
+		Type:         v.src.Type(),
 		channels:     v.ch,
 	}
 	if err := v.tmpl.ExecuteTemplate(w, "index.html", page); err != nil {
@@ -37,7 +40,7 @@ func (v *Viewer) newFileHandler(fn func(w http.ResponseWriter, r *http.Request, 
 }
 
 func (v *Viewer) channelHandler(w http.ResponseWriter, r *http.Request, id string) {
-	mm, err := v.rtr.AllMessages(id)
+	mm, err := v.src.AllMessages(id)
 	if err != nil {
 		v.lg.Printf("%s: error: %v", id, err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -63,7 +66,7 @@ func (v *Viewer) channelHandler(w http.ResponseWriter, r *http.Request, id strin
 
 	v.lg.Debugf("conversation: %s, got %d messages", id, len(mm))
 
-	ci, err := v.rtr.ChannelInfo(id)
+	ci, err := v.src.ChannelInfo(id)
 	if err != nil {
 		v.lg.Printf("error: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -89,7 +92,7 @@ func (v *Viewer) threadHandler(w http.ResponseWriter, r *http.Request, id string
 		http.NotFound(w, r)
 		return
 	}
-	mm, err := v.rtr.AllThreadMessages(id, ts)
+	mm, err := v.src.AllThreadMessages(id, ts)
 	if err != nil {
 		v.lg.Printf("%s: error: %v", id, err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -98,7 +101,7 @@ func (v *Viewer) threadHandler(w http.ResponseWriter, r *http.Request, id string
 
 	v.lg.Debugf("conversation: %s, thread: %s, got %d messages", id, ts, len(mm))
 
-	ci, err := v.rtr.ChannelInfo(id)
+	ci, err := v.src.ChannelInfo(id)
 	if err != nil {
 		v.lg.Printf("error: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)

@@ -15,7 +15,7 @@
     <div class="container">
         <section class="channel-list">
             <h1>Slackdump</h1>
-            <small class="subtitle grey">{{.Name}}</small>
+            <small class="subtitle grey">{{.Type}}: {{.Name}}</small>
             <!-- Channel list goes here -->
             {{ if ( or .Public .Private) }}
             <h2>Channels</h2>
@@ -64,8 +64,8 @@
     <footer class="thread-info">
         <a href="#" hx-get="/archives/{{$id}}/{{ $el.ThreadTimestamp }}" hx-target="#thread">
             Replies: {{ $el.ReplyCount -}}
-        </a> <span class="latest-reply grey">Last reply: {{ time $el.LatestReply }}</span>
-        </footer>
+        </a> <span class="last-reply grey">Last reply: {{ time $el.LatestReply }}</span>
+    </footer>
     {{ end }}
     <hr>
 </article>
@@ -123,12 +123,12 @@
 <header class="message-header" id="#{{.Timestamp}}">
     <span class="message-sender">
         {{if is_app_msg . -}}
-            {{ username . }}
-        {{- else -}} 
-            <a href="#" hx-get="/team/{{ .User }}" hx-target="#thread"> {{ username . }}</a>
+        {{ username . }}
+        {{- else -}}
+        <a href="#" hx-get="/team/{{ .User }}" hx-target="#thread"> {{ username . }}</a>
         {{- end }}
     </span>
-    <span class="message-timestamp">{{ time .Timestamp }}</span>
+    <span class="message-timestamp grey">{{ time .Timestamp }}</span>
 </header>
 <div class="message-content">
     <p>{{/* .Text | rendertext */}}{{ render . }}</p>
@@ -137,10 +137,28 @@
 
 {{ define "hx_css" }}
 <style>
-    body{
+    body {
         font-family: -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
     }
 
+    @media (prefers-color-scheme: dark) {
+        body {
+            /* Use dark background if system is in dark mode */
+            background-color: #202224;
+            color: #fff;
+        }
+        a {
+            color: #72b2ff;
+        }
+
+        a:hover {
+            color: #ff7b72;
+        }
+        a:visited {
+            color: #9669ff;
+        }
+    }
+    
     .container {
         display: flex;
         height: 97vh;
@@ -166,7 +184,12 @@
     .thread {
         display: none;
     }
-    
+
+    .message-timestamp,
+    .last-reply {
+        font-size: 12px;
+    }
+
     .grey {
         color: #777;
     }

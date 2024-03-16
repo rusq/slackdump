@@ -52,6 +52,10 @@ func (e *Export) Name() string {
 	return e.name
 }
 
+func (e *Export) Type() string {
+	return "export"
+}
+
 func (e *Export) AllMessages(channelID string) ([]slack.Message, error) {
 	// find the channel
 	name, ok := e.chanNames[channelID]

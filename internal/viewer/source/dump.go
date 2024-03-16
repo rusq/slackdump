@@ -34,6 +34,10 @@ func (d Dump) Name() string {
 	return d.name
 }
 
+func (d Dump) Type() string {
+	return "dump"
+}
+
 func (d Dump) Channels() ([]slack.Channel, error) {
 	// if user was diligent enough to dump channels and save them in a file,
 	// we can use that.

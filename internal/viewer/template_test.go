@@ -47,7 +47,7 @@ func TestViewer_username(t *testing.T) {
 			v := &Viewer{
 				ch:   tt.fields.ch,
 				um:   tt.fields.um,
-				rtr:  tt.fields.rtr,
+				src:  tt.fields.rtr,
 				tmpl: tt.fields.tmpl,
 				srv:  tt.fields.srv,
 				lg:   tt.fields.lg,

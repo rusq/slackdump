@@ -57,6 +57,10 @@ func (c *ChunkDir) Name() string {
 	return c.d.Name()
 }
 
+func (c *ChunkDir) Type() string {
+	return "chunk"
+}
+
 func (c *ChunkDir) Users() ([]slack.User, error) {
 	return c.d.Users()
 }

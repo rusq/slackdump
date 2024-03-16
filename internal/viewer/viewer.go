@@ -20,7 +20,7 @@ type Viewer struct {
 	// data
 	ch   channels
 	um   st.UserIndex
-	rtr  Sourcer
+	src  Sourcer
 	tmpl *template.Template
 
 	// handles
@@ -34,6 +34,8 @@ type Sourcer interface {
 	// Name should return the name of the retriever underlying media, i.e.
 	// directory or archive.
 	Name() string
+	// Type should return the type of the retriever, i.e. "chunk" or "export".
+	Type() string
 	// Channels should return all channels.
 	Channels() ([]slack.Channel, error)
 	// Users should return all users.
@@ -91,10 +93,10 @@ func New(ctx context.Context, addr string, r Sourcer) (*Viewer, error) {
 	}
 	um := st.NewUserIndex(uu)
 
-	// sr := renderer.NewSlack(renderer.WithUsers(indexusers(uu)), renderer.WithChannels(indexchannels(all)))
-	sr := &renderer.Debug{}
+	sr := renderer.NewSlack(renderer.WithUsers(indexusers(uu)), renderer.WithChannels(indexchannels(all)))
+	// sr := &renderer.Debug{}
 	v := &Viewer{
-		rtr: r,
+		src: r,
 		ch:  cc,
 		um:  um,
 		lg:  logger.FromContext(ctx),
@@ -138,4 +140,20 @@ func (v *Viewer) Close() error {
 		v.lg.Printf("errors: %v", ee)
 	}
 	return ee
+}
+
+func indexusers(uu []slack.User) map[string]slack.User {
+	var um = make(map[string]slack.User, len(uu))
+	for _, u := range uu {
+		um[u.ID] = u
+	}
+	return um
+}
+
+func indexchannels(cc []slack.Channel) map[string]slack.Channel {
+	var cm = make(map[string]slack.Channel, len(cc))
+	for _, c := range cc {
+		cm[c.ID] = c
+	}
+	return cm
 }
