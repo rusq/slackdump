@@ -11,6 +11,7 @@ import (
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/internal/viewer"
+	"github.com/rusq/slackdump/v3/internal/viewer/source"
 	"github.com/rusq/slackdump/v3/logger"
 )
 
@@ -53,7 +54,9 @@ func RunView(ctx context.Context, cmd *base.Command, args []string) error {
 	}
 	defer dir.Close()
 
-	v, err := viewer.New(ctx, viewer.NewChunkRetriever(dir), listenAddr)
+	src := source.NewChunkDir(dir)
+
+	v, err := viewer.New(ctx, listenAddr, src)
 	if err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return err

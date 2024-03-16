@@ -432,4 +432,213 @@ const (
         "thread_ts": "1648085300.726649",
         "parent_user_id": "U034HM0P7RB"
     }`
+
+	TestChannelEveryoneMessagesNativeExport = `[
+		{
+			"type": "message",
+			"subtype": "channel_join",
+			"ts": "1555493778.000200",
+			"user": "UHSD97ZA5",
+			"text": "<@UHSD97ZA5> has joined the channel"
+		},
+    {
+        "type": "message",
+        "subtype": "channel_join",
+        "ts": "1563609394.000200",
+        "user": "ULLLZ6SAH",
+        "text": "<@ULLLZ6SAH> has joined the channel"
+    },
+    {
+        "client_msg_id": "6A910F66-48E3-450B-973C-7C0F3AFBE282",
+        "type": "message",
+        "text": "Fjdj",
+        "user": "UHSD97ZA5",
+        "ts": "1563609673.000400",
+        "blocks": [
+            {
+                "type": "rich_text",
+                "block_id": "klx4M",
+                "elements": [
+                    {
+                        "type": "rich_text_section",
+                        "elements": [
+                            {
+                                "type": "text",
+                                "text": "Fjdj"
+                            }
+                        ]
+                    }
+                ]
+            }
+        ],
+        "team": "THY5HTZ8U",
+        "user_team": "THY5HTZ8U",
+        "source_team": "THY5HTZ8U",
+        "user_profile": {
+            "avatar_hash": "g1eca2328d65",
+            "image_72": "https:\/\/secure.gravatar.com\/avatar\/41eca2328d6510133f47ffceae7b912a.jpg?s=72&d=https%3A%2F%2Fa.slack-edge.com%2Fdf10d%2Fimg%2Favatars%2Fava_0022-72.png",
+            "first_name": "Rustam",
+            "real_name": "Rustam Gilyazov",
+            "display_name": "",
+            "team": "THY5HTZ8U",
+            "name": "gilyazov",
+            "is_restricted": false,
+            "is_ultra_restricted": false
+        }
+    },
+		{
+			"type": "message",
+			"text": "Test message with a file.",
+			"files": [
+				{
+					"id": "F02PM6A1AUA",
+					"mode": "hidden_by_limit"
+				}
+			],
+			"upload": false,
+			"user": "UHSD97ZA5",
+			"display_as_bot": false,
+			"ts": "1658222446.866019",
+			"blocks": [
+				{
+					"type": "rich_text",
+					"block_id": "6Ak",
+					"elements": [
+						{
+							"type": "rich_text_section",
+							"elements": [
+								{
+									"type": "text",
+									"text": "Test message with a file."
+								}
+							]
+						}
+					]
+				}
+			],
+			"client_msg_id": "c5f20b81-059d-486c-a1a5-6144eb59e15c"
+		},
+		{
+			"type": "message",
+			"text": "",
+			"files": [
+				{
+					"id": "F03Q1KNGE3C",
+					"mode": "hidden_by_limit"
+				}
+			],
+			"upload": false,
+			"user": "UHSD97ZA5",
+			"display_as_bot": false,
+			"ts": "1658222457.282419",
+			"client_msg_id": "9de354dd-fe35-43d4-9992-1cfb4e475f8e"
+		},
+		{
+			"type": "message",
+			"text": "",
+			"files": [
+				{
+					"id": "F03Q1KPCADQ",
+					"mode": "hidden_by_limit"
+				}
+			],
+			"upload": false,
+			"user": "UHSD97ZA5",
+			"display_as_bot": false,
+			"ts": "1658222467.643489",
+			"client_msg_id": "67a1d92c-ffea-420f-a597-f4f43f121d83"
+		},
+		{
+			"type": "message",
+			"text": "",
+			"files": [
+				{
+					"id": "F03PYM54C2H",
+					"mode": "hidden_by_limit"
+				}
+			],
+			"upload": false,
+			"user": "UHSD97ZA5",
+			"display_as_bot": false,
+			"ts": "1658222478.048689",
+			"client_msg_id": "4539ec8b-4dfb-4e48-ab8e-eaf94a5ef9dd"
+		},
+		{
+			"client_msg_id": "44b5c5ae-c637-4673-82d2-2c8c2fc00cbe",
+			"type": "message",
+			"text": "test message",
+			"user": "UHSD97ZA5",
+			"ts": "1658222505.879599",
+			"blocks": [
+				{
+					"type": "rich_text",
+					"block_id": "AUyAY",
+					"elements": [
+						{
+							"type": "rich_text_section",
+							"elements": [
+								{
+									"type": "text",
+									"text": "test message"
+								}
+							]
+						}
+					]
+				}
+			],
+			"team": "THY5HTZ8U",
+			"user_team": "THY5HTZ8U",
+			"source_team": "THY5HTZ8U",
+			"user_profile": {
+				"avatar_hash": "g1eca2328d65",
+				"image_72": "https:\/\/secure.gravatar.com\/avatar\/41eca2328d6510133f47ffceae7b912a.jpg?s=72&d=https%3A%2F%2Fa.slack-edge.com%2Fdf10d%2Fimg%2Favatars%2Fava_0022-72.png",
+				"first_name": "Rustam",
+				"real_name": "Rustam Gilyazov",
+				"display_name": "",
+				"team": "THY5HTZ8U",
+				"name": "gilyazov",
+				"is_restricted": false,
+				"is_ultra_restricted": false
+			}
+		},
+		{
+			"client_msg_id": "784c7c78-e7a7-46fa-95ff-948de0893754",
+			"type": "message",
+			"text": "test message 2",
+			"user": "UHSD97ZA5",
+			"ts": "1658222508.798439",
+			"blocks": [
+				{
+					"type": "rich_text",
+					"block_id": "j24",
+					"elements": [
+						{
+							"type": "rich_text_section",
+							"elements": [
+								{
+									"type": "text",
+									"text": "test message 2"
+								}
+							]
+						}
+					]
+				}
+			],
+			"team": "THY5HTZ8U",
+			"user_team": "THY5HTZ8U",
+			"source_team": "THY5HTZ8U",
+			"user_profile": {
+				"avatar_hash": "g1eca2328d65",
+				"image_72": "https:\/\/secure.gravatar.com\/avatar\/41eca2328d6510133f47ffceae7b912a.jpg?s=72&d=https%3A%2F%2Fa.slack-edge.com%2Fdf10d%2Fimg%2Favatars%2Fava_0022-72.png",
+				"first_name": "Rustam",
+				"real_name": "Rustam Gilyazov",
+				"display_name": "",
+				"team": "THY5HTZ8U",
+				"name": "gilyazov",
+				"is_restricted": false,
+				"is_ultra_restricted": false
+			}
+		}
+	]
+`
 )

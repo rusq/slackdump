@@ -20,13 +20,32 @@ type Viewer struct {
 	// data
 	ch   channels
 	um   st.UserIndex
-	rtr  Retriever
+	rtr  Sourcer
 	tmpl *template.Template
 
 	// handles
 	srv *http.Server
 	lg  logger.Interface
 	r   renderer.Renderer
+}
+
+// Sourcer is an interface for retrieving data from different sources.
+type Sourcer interface {
+	// Name should return the name of the retriever underlying media, i.e.
+	// directory or archive.
+	Name() string
+	// Channels should return all channels.
+	Channels() ([]slack.Channel, error)
+	// Users should return all users.
+	Users() ([]slack.User, error)
+	// AllMessages should return all messages for the given channel id.
+	AllMessages(channelID string) ([]slack.Message, error)
+	// AllThreadMessages should return all messages for the given tuple
+	// (channelID, threadID).
+	AllThreadMessages(channelID, threadID string) ([]slack.Message, error)
+	// ChannelInfo should return the channel information for the given channel
+	// id.
+	ChannelInfo(channelID string) (*slack.Channel, error)
 }
 
 type channels struct {
@@ -54,7 +73,7 @@ func initChannels(c []slack.Channel) channels {
 	return cc
 }
 
-func New(ctx context.Context, r Retriever, addr string) (*Viewer, error) {
+func New(ctx context.Context, addr string, r Sourcer) (*Viewer, error) {
 	all, err := r.Channels()
 	if err != nil {
 		return nil, err
