@@ -1,11 +1,16 @@
 package view
 
 import (
+	"archive/zip"
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	"io/fs"
 	"net/http"
 	"os"
+	"path"
+	"strings"
 
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
@@ -37,24 +42,14 @@ func RunView(ctx context.Context, cmd *base.Command, args []string) error {
 		base.SetExitStatus(base.SInvalidParameters)
 		return fmt.Errorf("viewing slackdump files requires at least one argument")
 	}
-	fi, err := os.Stat(args[0])
-	if err != nil {
-		base.SetExitStatus(base.SUserError)
-		return fmt.Errorf("not found: %s", args[0])
-	}
-	if !fi.IsDir() {
-		base.SetExitStatus(base.SUserError)
-		return fmt.Errorf("not a directory: %s", args[0])
-	}
-
-	dir, err := chunk.OpenDir(args[0])
+	src, err := loadSource(args[0])
 	if err != nil {
 		base.SetExitStatus(base.SUserError)
 		return err
 	}
-	defer dir.Close()
-
-	src := source.NewChunkDir(dir)
+	if cl, ok := src.(io.Closer); ok {
+		defer cl.Close()
+	}
 
 	v, err := viewer.New(ctx, listenAddr, src)
 	if err != nil {
@@ -79,4 +74,67 @@ func RunView(ctx context.Context, cmd *base.Command, args []string) error {
 		return err
 	}
 	return nil
+}
+
+type sourceFlags int16
+
+const (
+	sfUnknown   sourceFlags = 0
+	sfDirectory sourceFlags = 1 << iota
+	sfZIP
+	sfChunk
+	sfExport
+)
+
+func loadSource(src string) (viewer.Sourcer, error) {
+	fi, err := os.Stat(src)
+	if err != nil {
+		return nil, err
+	}
+	switch srcType(src, fi) {
+	case sfChunk | sfDirectory:
+		dir, err := chunk.OpenDir(src)
+		if err != nil {
+			return nil, err
+		}
+		return source.NewChunkDir(dir), nil
+	case sfExport | sfZIP:
+		f, err := zip.OpenReader(src)
+		if err != nil {
+			return nil, err
+		}
+		return source.NewExport(f, src)
+	case sfExport | sfDirectory:
+		return source.NewExport(os.DirFS(src), src)
+	default:
+		return nil, fmt.Errorf("unsupported source type: %s", src)
+	}
+}
+
+func srcType(src string, fi fs.FileInfo) sourceFlags {
+	var fsys fs.FS // this will be our media for accessing files
+	var flags sourceFlags
+	if fi.IsDir() {
+		fsys = os.DirFS(src)
+		flags |= sfDirectory
+	} else if fi.Mode().IsRegular() && strings.ToLower(path.Ext(src)) == ".zip" {
+		f, err := zip.OpenReader(src)
+		if err != nil {
+			return sfUnknown
+		}
+		defer f.Close()
+		fsys = f
+		flags |= sfZIP
+	}
+	if _, err := fs.Stat(fsys, "channels.json"); err == nil {
+		// this is an export.
+		return flags | sfExport
+	}
+	if _, err := fs.Stat(fsys, "workspace.json.gz"); err == nil {
+		if flags&sfZIP != 0 {
+			return sfUnknown // compressed chunk directories are not supported
+		}
+		return flags | sfChunk
+	}
+	return sfUnknown
 }
