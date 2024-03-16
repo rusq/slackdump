@@ -16,8 +16,9 @@ import (
 const debug = true
 
 type Slack struct {
-	uu map[string]slack.User    // map of user id to user
-	cc map[string]slack.Channel // map of channel id to channel
+	tmpl *template.Template
+	uu   map[string]slack.User    // map of user id to user
+	cc   map[string]slack.Channel // map of channel id to channel
 }
 
 type SlackOption func(*Slack)
@@ -34,8 +35,10 @@ func WithChannels(cc map[string]slack.Channel) SlackOption {
 	}
 }
 
-func NewSlack(opts ...SlackOption) *Slack {
-	s := &Slack{}
+func NewSlack(tmpl *template.Template, opts ...SlackOption) *Slack {
+	s := &Slack{
+		tmpl: tmpl,
+	}
 	for _, opt := range opts {
 		opt(s)
 	}
@@ -51,10 +54,19 @@ func (s *Slack) Render(ctx context.Context, m *slack.Message) (v template.HTML) 
 		return s.RenderText(ctx, m.Text)
 	}
 
-	attrMsgID := slog.String("message_ts", m.Timestamp)
-
 	var buf strings.Builder
-	for _, b := range m.Blocks.BlockSet {
+	s.renderBlocks(ctx, &buf, m.Timestamp, m.Blocks.BlockSet)
+	s.renderAttachments(ctx, &buf, m.Timestamp, m.Attachments)
+
+	return template.HTML(buf.String())
+}
+
+// renderBlocks renders the blocks to the buffer.  msgTS is used to identify
+// the message which failed to render in the logs.
+func (s *Slack) renderBlocks(ctx context.Context, buf *strings.Builder, msgTS string, blocks []slack.Block) {
+	attrMsgID := slog.String("message_ts", msgTS)
+
+	for _, b := range blocks {
 		fn, ok := blockTypeHandlers[b.BlockType()]
 		if !ok {
 			slog.WarnContext(ctx, "unhandled block type", "block_type", b.BlockType(), attrMsgID)
@@ -69,14 +81,22 @@ func (s *Slack) Render(ctx context.Context, m *slack.Message) (v template.HTML) 
 		}
 		buf.WriteString(html)
 	}
-	return template.HTML(buf.String())
 }
 
-func maybeprint(b slack.Block) {
+func (s *Slack) renderAttachments(ctx context.Context, buf *strings.Builder, msgTS string, attachments []slack.Attachment) {
+	attrMsgID := slog.String("message_ts", msgTS)
+	for _, a := range attachments {
+		if err := s.tmpl.ExecuteTemplate(buf, "attachment.html", a); err != nil {
+			slog.ErrorContext(ctx, "error rendering attachment", "error", err, attrMsgID)
+		}
+	}
+}
+
+func maybeprint(v any) {
 	if debug {
 		enc := json.NewEncoder(os.Stderr)
 		enc.SetIndent("", "  ")
-		enc.Encode(b)
+		enc.Encode(v)
 		os.Stderr.Sync()
 	}
 }
@@ -118,6 +138,19 @@ func NewErrMissingHandler(t any) error {
 }
 
 // classes
-func div(class string, s string) string {
-	return fmt.Sprintf(`<div class=\"%s\">%s</div>`, class, s)
+var (
+	div        = element("div", true)
+	figure     = element("figure", true)
+	blockquote = element("blockquote", true)
+)
+
+func element(el string, close bool) func(class string, s string) string {
+	return func(class, s string) string {
+		var buf strings.Builder
+		fmt.Fprintf(&buf, `<%s class="%s">%s`, el, class, s)
+		if close {
+			fmt.Fprintf(&buf, `</%s>`, el)
+		}
+		return buf.String()
+	}
 }

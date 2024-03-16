@@ -42,7 +42,10 @@
         </section>
         <section id="conversation" class="conversations">
             <!-- Conversations go here -->
-            <p>Welcome to Slackdump archive viewer! Select the conversation on the left to view messages.</p>
+            <article class="welcome">
+                <h1>Slackdump Browser</h1>
+                <p>Please select the conversation on the left to view messages.</p>
+            </article>
         </section>
         <section id="thread" class="thread">
             <!-- Thread messages go here -->
@@ -63,11 +66,10 @@
     {{ if is_thread_start $el }}
     <footer class="thread-info">
         <a href="#" hx-get="/archives/{{$id}}/{{ $el.ThreadTimestamp }}" hx-target="#thread">
-            Replies: {{ $el.ReplyCount -}}
+            {{ $el.ReplyCount }} replies
         </a> <span class="last-reply grey">Last reply: {{ time $el.LatestReply }}</span>
     </footer>
     {{ end }}
-    <hr>
 </article>
 {{end}}
 {{ else }}
@@ -103,7 +105,7 @@
 
 {{define "hx_thread"}}
 <h2>Thread: {{ .ThreadID }}</h2>
-<p>Close: <a id="close-thread" href="#">X</a></p>
+<p><a id="close-thread" href="#">Close Pane</a></p>
 {{ range $i, $el := .Messages }}
 <article class="message">
     {{ template "render_message" . }}
@@ -147,6 +149,7 @@
             background-color: #202224;
             color: #fff;
         }
+
         a {
             color: #72b2ff;
         }
@@ -154,11 +157,19 @@
         a:hover {
             color: #ff7b72;
         }
+
         a:visited {
             color: #9669ff;
         }
     }
-    
+
+    blockquote {
+        margin: 0;
+        padding: 0;
+        border-left: 2px solid gray;
+        margin-left: 1em;
+    }
+
     .container {
         display: flex;
         height: 97vh;
@@ -175,6 +186,23 @@
         border-right: 1px solid #ccc;
     }
 
+    .message {
+        margin-left: 1em;
+    }
+
+    .message-content {
+        margin-left: 1em;
+    }
+
+    .thread-info {
+        margin-left: 1em;
+        margin-bottom: 1em;
+    }
+
+    .welcome {
+        text-align: center;
+    }
+
     .conversations,
     .thread {
         flex: 1;
@@ -186,8 +214,17 @@
     }
 
     .message-timestamp,
-    .last-reply {
+    .last-reply,
+    .small {
         font-size: 12px;
+    }
+
+    .slack-attachment .icon {
+        max-width: 16px;
+    }
+    .slack-attachment .attachment-image {
+        max-width: 64px;
+        border-radius: 5px;
     }
 
     .grey {
@@ -198,7 +235,7 @@
 
 {{ define "hx_user" }}
 <h2>User: {{ displayname .ID }}</h2>
-<p>Close: <a id="close-user" href="#">X</a></p>
+<p><a id="close-user" href="#">Close pane</a></p>
 <article class="user">
     {{ if . }}
     {{ displayname .ID }}<br>

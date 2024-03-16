@@ -16,6 +16,12 @@ import (
 	"github.com/rusq/slackdump/v3/logger"
 )
 
+const debug = true
+
+func init() {
+	slog.SetLogLoggerLevel(slog.LevelDebug)
+}
+
 type Viewer struct {
 	// data
 	ch   channels
@@ -50,31 +56,6 @@ type Sourcer interface {
 	ChannelInfo(channelID string) (*slack.Channel, error)
 }
 
-type channels struct {
-	Public  []slack.Channel
-	Private []slack.Channel
-	MPIM    []slack.Channel
-	DM      []slack.Channel
-}
-
-func initChannels(c []slack.Channel) channels {
-	var cc channels
-	for _, ch := range c {
-		t := st.ChannelType(ch)
-		switch t {
-		case st.CIM:
-			cc.DM = append(cc.DM, ch)
-		case st.CMPIM:
-			cc.MPIM = append(cc.MPIM, ch)
-		case st.CPrivate:
-			cc.Private = append(cc.Private, ch)
-		default:
-			cc.Public = append(cc.Public, ch)
-		}
-	}
-	return cc
-}
-
 // New creates new viewer instance.  Once [Viewer.ListenAndServe] is called, the
 // viewer will start serving the web interface on the given address.  The
 // address should be in the form of ":8080". The viewer will use the given
@@ -93,17 +74,23 @@ func New(ctx context.Context, addr string, r Sourcer) (*Viewer, error) {
 	}
 	um := st.NewUserIndex(uu)
 
-	sr := renderer.NewSlack(renderer.WithUsers(indexusers(uu)), renderer.WithChannels(indexchannels(all)))
-	// sr := &renderer.Debug{}
 	v := &Viewer{
 		src: r,
 		ch:  cc,
 		um:  um,
 		lg:  logger.FromContext(ctx),
-		r:   sr,
 	}
 	// postinit
 	initTemplates(v)
+	if debug {
+		v.r = &renderer.Debug{}
+	} else {
+		v.r = renderer.NewSlack(
+			v.tmpl,
+			renderer.WithUsers(indexusers(uu)),
+			renderer.WithChannels(indexchannels(all)),
+		)
+	}
 
 	mux := http.NewServeMux()
 	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
@@ -120,10 +107,6 @@ func New(ctx context.Context, addr string, r Sourcer) (*Viewer, error) {
 	}
 
 	return v, nil
-}
-
-func init() {
-	slog.SetLogLoggerLevel(slog.LevelDebug)
 }
 
 func (v *Viewer) ListenAndServe() error {
@@ -156,4 +139,29 @@ func indexchannels(cc []slack.Channel) map[string]slack.Channel {
 		cm[c.ID] = c
 	}
 	return cm
+}
+
+type channels struct {
+	Public  []slack.Channel
+	Private []slack.Channel
+	MPIM    []slack.Channel
+	DM      []slack.Channel
+}
+
+func initChannels(c []slack.Channel) channels {
+	var cc channels
+	for _, ch := range c {
+		t := st.ChannelType(ch)
+		switch t {
+		case st.CIM:
+			cc.DM = append(cc.DM, ch)
+		case st.CMPIM:
+			cc.MPIM = append(cc.MPIM, ch)
+		case st.CPrivate:
+			cc.Private = append(cc.Private, ch)
+		default:
+			cc.Public = append(cc.Public, ch)
+		}
+	}
+	return cc
 }

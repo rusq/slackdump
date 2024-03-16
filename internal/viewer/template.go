@@ -3,7 +3,9 @@ package viewer
 import (
 	"context"
 	"embed"
+	"encoding/json"
 	"html/template"
+	"log/slog"
 	"time"
 
 	"github.com/rusq/slack"
@@ -21,6 +23,7 @@ func initTemplates(v *Viewer) {
 			"displayname":     v.um.DisplayName,
 			"username":        v.username, // username returns the username for the message
 			"time":            localtime,
+			"epoch":           epoch,
 			"rendertext":      func(s string) template.HTML { return v.r.RenderText(context.Background(), s) },     // render message text
 			"render":          func(m *slack.Message) template.HTML { return v.r.Render(context.Background(), m) }, // render message
 			"is_thread_start": st.IsThreadStart,
@@ -35,6 +38,15 @@ func localtime(ts string) string {
 		return ts
 	}
 	return t.Local().Format(time.DateTime)
+}
+
+func epoch(ts json.Number) string {
+	t, err := ts.Int64()
+	if err != nil {
+		slog.Debug("epoch: %v", err, "ts", ts)
+		return ts.String()
+	}
+	return time.Unix(t, 0).Local().Format(time.DateTime)
 }
 
 type sender int
