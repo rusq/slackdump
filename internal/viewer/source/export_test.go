@@ -2,6 +2,7 @@ package source
 
 import (
 	"archive/zip"
+	"io/fs"
 	"path/filepath"
 	"reflect"
 	"testing"
@@ -22,10 +23,11 @@ func openTestZip(t *testing.T, name string) *zip.ReadCloser {
 	return zr
 }
 
-func TestZIPExport_Channels(t *testing.T) {
+func TestExport_Channels(t *testing.T) {
 	type fields struct {
-		z         *zip.ReadCloser
+		z         fs.FS
 		chanNames map[string]string
+		name      string
 	}
 	tests := []struct {
 		name    string
@@ -44,25 +46,26 @@ func TestZIPExport_Channels(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			e := &ZIPExport{
-				z:         tt.fields.z,
+			e := &Export{
+				fs:        tt.fields.z,
 				chanNames: tt.fields.chanNames,
+				name:      tt.fields.name,
 			}
 			got, err := e.Channels()
 			if (err != nil) != tt.wantErr {
-				t.Errorf("ZIPExport.Channels() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("Export.Channels() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("ZIPExport.Channels() = %v, want %v", got, tt.want)
+				t.Errorf("Export.Channels() = %v, want %v", got, tt.want)
 			}
 		})
 	}
 }
 
-func TestZIPExport_AllMessages(t *testing.T) {
+func TestExport_AllMessages(t *testing.T) {
 	type fields struct {
-		z         *zip.ReadCloser
+		z         fs.FS
 		chanNames map[string]string
 		name      string
 	}
@@ -93,8 +96,8 @@ func TestZIPExport_AllMessages(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			e := &ZIPExport{
-				z:         tt.fields.z,
+			e := &Export{
+				fs:        tt.fields.z,
 				chanNames: tt.fields.chanNames,
 				name:      tt.fields.name,
 			}

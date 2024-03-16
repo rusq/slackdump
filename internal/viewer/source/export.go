@@ -1,39 +1,26 @@
 package source
 
 import (
-	"archive/zip"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"io"
 	"io/fs"
 	"path"
-	"path/filepath"
-	"strings"
 
 	"github.com/rusq/slack"
 	"github.com/rusq/slackdump/v3/export"
 )
 
-// ZIPExport implements viewer.Sourcer for the zip file Slack export format.
-type ZIPExport struct {
-	z         *zip.ReadCloser
+// Export implements viewer.Sourcer for the zip file Slack export format.
+type Export struct {
+	fs        fs.FS
 	chanNames map[string]string // maps the channel id to the channel name.
 	name      string            // name of the file
 }
 
-func NewExport(zipfile string) (*ZIPExport, error) {
-	if strings.ToLower(filepath.Ext(zipfile)) != ".zip" {
-		return nil, errors.New("not a zip file")
-	}
-	// init from zip
-	rc, err := zip.OpenReader(zipfile)
-	if err != nil {
-		return nil, err
-	}
-	z := &ZIPExport{
-		z:    rc,
-		name: zipfile,
+func NewExport(fsys fs.FS, name string) (*Export, error) {
+	z := &Export{
+		fs:   fsys,
+		name: name,
 	}
 
 	// initialise channels for quick lookup
@@ -49,83 +36,39 @@ func NewExport(zipfile string) (*ZIPExport, error) {
 	return z, nil
 }
 
-func (*ZIPExport) findByName(z *zip.ReadCloser, name string) (*zip.File, error) {
-	for _, f := range z.File {
-		if strings.EqualFold(f.Name, name) {
-			return f, nil
-		}
-	}
-	return nil, fmt.Errorf("%w: %s", fs.ErrNotExist, name)
+func (e *Export) Channels() ([]slack.Channel, error) {
+	return unmarshal[[]slack.Channel](e.fs, "channels.json")
 }
 
-func (e *ZIPExport) openFile(f string) (io.ReadCloser, error) {
-	zf, err := e.findByName(e.z, f)
-	if err != nil {
-		return nil, err
-	}
-	return zf.Open()
+func (e *Export) Users() ([]slack.User, error) {
+	return unmarshal[[]slack.User](e.fs, "users.json")
 }
 
-func (e *ZIPExport) Channels() ([]slack.Channel, error) {
-	rc, err := e.openFile("channels.json")
-	if err != nil {
-		return nil, err
-	}
-	defer rc.Close()
-	var c []slack.Channel
-	if err := json.NewDecoder(rc).Decode(&c); err != nil {
-		return nil, err
-	}
-	return c, nil
+func (e *Export) Close() error {
+	return nil
 }
 
-func (e *ZIPExport) Users() ([]slack.User, error) {
-	rc, err := e.openFile("users.json")
-	if err != nil {
-		return nil, err
-	}
-	defer rc.Close()
-	var u []slack.User
-	if err := json.NewDecoder(rc).Decode(&u); err != nil {
-		return nil, err
-	}
-	return u, nil
-}
-
-func (e *ZIPExport) Close() error {
-	return e.z.Close()
-}
-
-func (e *ZIPExport) Name() string {
+func (e *Export) Name() string {
 	return e.name
 }
 
-func (e *ZIPExport) AllMessages(channelID string) ([]slack.Message, error) {
+func (e *Export) AllMessages(channelID string) ([]slack.Message, error) {
 	// find the channel
 	name, ok := e.chanNames[channelID]
 	if !ok {
 		return nil, fmt.Errorf("%w: %s", fs.ErrNotExist, channelID)
 	}
 	var mm []slack.Message
-	if err := fs.WalkDir(e.z, name, func(pth string, d fs.DirEntry, err error) error {
+	if err := fs.WalkDir(e.fs, name, func(pth string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
-		if d.IsDir() {
-			return nil
-		}
-		if path.Ext(pth) != ".json" {
+		if d.IsDir() || path.Ext(pth) != ".json" {
 			return nil
 		}
 		// read the file
-		var em []export.ExportMessage
-		f, err := e.z.Open(pth)
+		em, err := unmarshal[[]export.ExportMessage](e.fs, pth)
 		if err != nil {
-			return err
-		}
-		defer f.Close()
-		dec := json.NewDecoder(f)
-		if err := dec.Decode(&em); err != nil {
 			return err
 		}
 		for _, m := range em {
@@ -138,12 +81,33 @@ func (e *ZIPExport) AllMessages(channelID string) ([]slack.Message, error) {
 	return mm, nil
 }
 
-func (e *ZIPExport) AllThreadMessages(channelID, threadID string) ([]slack.Message, error) {
+func (e *Export) AllThreadMessages(channelID, threadID string) ([]slack.Message, error) {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (e *ZIPExport) ChannelInfo(channelID string) (*slack.Channel, error) {
-	//TODO implement me
-	panic("implement me")
+func (e *Export) ChannelInfo(channelID string) (*slack.Channel, error) {
+	c, err := e.Channels()
+	if err != nil {
+		return nil, err
+	}
+	for _, ch := range c {
+		if ch.ID == channelID {
+			return &ch, nil
+		}
+	}
+	return nil, fmt.Errorf("%s: %s", "channel not found", channelID)
+}
+
+func unmarshal[T ~[]S, S any](fsys fs.FS, name string) (T, error) {
+	f, err := fsys.Open(name)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	var v T
+	if err := json.NewDecoder(f).Decode(&v); err != nil {
+		return nil, err
+	}
+	return v, nil
 }
