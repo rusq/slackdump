@@ -60,3 +60,4 @@ slackdump_2*
 *.html
 \#*\#
 __debug_bin*
+!internal/viewer/templates/*.html

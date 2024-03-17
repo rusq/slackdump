@@ -1,0 +1,31 @@
+{{if . }}
+<section class="slack-files">
+    <p>{{len .}} files:</p>
+    {{ range $i, $f := . }}
+    {{ if $f.ID }}
+    {{ $path := ( printf "/slackdump/file/%s/%s" $f.ID $f.Name ) }}
+    {{ if (eq $f.Mode "hidden_by_limit") }}
+        <div class="file-hidden">
+            <p>File {{$f.ID}} hidden by limit</p>
+        </div>
+    {{ else }}
+        {{ if (eq (mimetype $f.Mimetype) "image") }}
+            <img class="file-image" src="{{ $path }}" alt="{{ $f.Name }}" />
+        {{ else if (eq (mimetype $f.Mimetype) "video") }}
+            <video class="file-video" controls>
+                <source src="{{ $path }}" type="{{ $f.Mimetype }}">
+                Your browser does not support the video tag.
+            </video>
+        {{ else if (eq (mimetype $f.Mimetype) "audio") }}
+            <audio class="file-audio" controls>
+                <source src="{{ $path }}" type="{{ $f.Mimetype }}">
+                Your browser does not support the audio tag.
+            </audio>
+        {{ else }}
+        <a class="file-link" href="{{ $path }}" download="{{ $f.Name }}"> {{ $f.Name }} </a>
+        {{ end }}
+    {{ end }}{{/* hidden_by_limit */}}
+    {{ end }}{{/* f.ID */}}
+    {{ end }}{{/* range */}}
+</section>
+{{end}}
