@@ -1,7 +1,10 @@
 package viewer
 
 import (
+	"errors"
+	"io"
 	"net/http"
+	"os"
 	"path/filepath"
 
 	"github.com/davecgh/go-spew/spew"
@@ -123,6 +126,31 @@ func (v *Viewer) threadHandler(w http.ResponseWriter, r *http.Request, id string
 }
 
 func (v *Viewer) fileHandler(w http.ResponseWriter, r *http.Request) {
+	var (
+		id       = r.PathValue("id")
+		filename = r.PathValue("filename")
+	)
+	if id == "" || filename == "" {
+		http.NotFound(w, r)
+		return
+	}
+	f, err := v.src.File(id, filename)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			http.NotFound(w, r)
+			return
+		}
+		v.lg.Printf("error: %v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	fi, err := f.Stat()
+	if err != nil {
+		v.lg.Printf("error: %v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	http.ServeContent(w, r, filename, fi.ModTime(), f.(io.ReadSeeker)) // TODO: hack
 }
 
 func (v *Viewer) userHandler(w http.ResponseWriter, r *http.Request) {

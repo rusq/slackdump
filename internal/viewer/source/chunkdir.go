@@ -1,6 +1,8 @@
 package source
 
 import (
+	"io/fs"
+
 	"github.com/rusq/slack"
 	"github.com/rusq/slackdump/v3/internal/chunk"
 )
@@ -63,4 +65,8 @@ func (c *ChunkDir) Type() string {
 
 func (c *ChunkDir) Users() ([]slack.User, error) {
 	return c.d.Users()
+}
+
+func (c *ChunkDir) File(fileID string, filename string) (f fs.File, err error) {
+	return c.d.File(fileID, filename)
 }

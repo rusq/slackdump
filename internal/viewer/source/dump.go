@@ -130,3 +130,7 @@ func (d Dump) ChannelInfo(channelID string) (*slack.Channel, error) {
 	}
 	return nil, fs.ErrNotExist
 }
+
+func (d Dump) File(id string, filename string) (f fs.File, err error) {
+	panic("not implemented")
+}

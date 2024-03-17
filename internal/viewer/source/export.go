@@ -1,7 +1,6 @@
 package source
 
 import (
-	"encoding/json"
 	"fmt"
 	"io/fs"
 	"path"
@@ -37,7 +36,12 @@ func NewExport(fsys fs.FS, name string) (*Export, error) {
 }
 
 func (e *Export) Channels() ([]slack.Channel, error) {
-	return unmarshal[[]slack.Channel](e.fs, "channels.json")
+	cc, err := unmarshal[[]slack.Channel](e.fs, "channels.json")
+	if err != nil {
+		return nil, err
+	}
+	// TODO: check dms.json and groups.json
+	return cc, nil
 }
 
 func (e *Export) Users() ([]slack.User, error) {
@@ -112,28 +116,6 @@ func (e *Export) ChannelInfo(channelID string) (*slack.Channel, error) {
 	return nil, fmt.Errorf("%s: %s", "channel not found", channelID)
 }
 
-func unmarshalOne[T any](fsys fs.FS, name string) (T, error) {
-	var v T
-	f, err := fsys.Open(name)
-	if err != nil {
-		return v, err
-	}
-	defer f.Close()
-	if err := json.NewDecoder(f).Decode(&v); err != nil {
-		return v, err
-	}
-	return v, nil
-}
-
-func unmarshal[T ~[]S, S any](fsys fs.FS, name string) (T, error) {
-	f, err := fsys.Open(name)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-	var v T
-	if err := json.NewDecoder(f).Decode(&v); err != nil {
-		return nil, err
-	}
-	return v, nil
+func (e *Export) File(id string, name string) (fs.File, error) {
+	panic("not implemented")
 }

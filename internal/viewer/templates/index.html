@@ -133,7 +133,7 @@
     <span class="message-timestamp grey">{{ time .Timestamp }}</span>
 </header>
 <div class="message-content">
-    <p>{{/* .Text | rendertext */}}{{ render . }}</p>
+    <p>{{ render . }}</p>
 </div>
 {{ end }}
 
@@ -221,10 +221,17 @@
 
     .slack-attachment .icon {
         max-width: 16px;
+        max-height: 16px;
     }
     .slack-attachment .attachment-image {
-        max-width: 64px;
+        max-height: 136px;
+        max-width: 136px;
         border-radius: 5px;
+    }
+
+    .slack-files img {
+        max-width: 320px;
+        max-height: 320px;
     }
 
     .grey {

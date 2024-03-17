@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"html/template"
 	"log/slog"
+	"mime"
+	"strings"
 	"time"
 
 	"github.com/rusq/slack"
@@ -27,6 +29,7 @@ func initTemplates(v *Viewer) {
 			"rendertext":      func(s string) template.HTML { return v.r.RenderText(context.Background(), s) },     // render message text
 			"render":          func(m *slack.Message) template.HTML { return v.r.Render(context.Background(), m) }, // render message
 			"is_thread_start": st.IsThreadStart,
+			"mimetype":        mimetype,
 		},
 	).ParseFS(fsys, "templates/*.html"))
 	v.tmpl = tmpl
@@ -41,10 +44,18 @@ func localtime(ts string) string {
 }
 
 func epoch(ts json.Number) string {
+	if ts == "" {
+		return ""
+	}
 	t, err := ts.Int64()
 	if err != nil {
-		slog.Debug("epoch: %v", err, "ts", ts)
-		return ts.String()
+		slog.Debug("epoch Int64 error, trying float", "err", err, "ts", ts)
+		tf, err := ts.Float64()
+		if err != nil {
+			slog.Debug("epoch Float64 error", "err", err, "ts", ts)
+			return ts.String()
+		}
+		t = int64(tf)
 	}
 	return time.Unix(t, 0).Local().Format(time.DateTime)
 }
@@ -90,4 +101,18 @@ func (v *Viewer) username(m *slack.Message) string {
 
 func isAppMsg(m *slack.Message) bool {
 	return msgsender(m) == sApp
+}
+
+func mimetype(mt string) string {
+	mm, _, err := mime.ParseMediaType(mt)
+	if err != nil || mt == "" {
+		slog.Debug("isImage", "err", err, "mimetype", mt)
+		return "application"
+	}
+	slog.Debug("isImage", "t", mm, "mimetype", mt)
+	t, _, found := strings.Cut(mm, "/")
+	if !found {
+		return "application"
+	}
+	return t
 }

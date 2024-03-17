@@ -343,7 +343,7 @@ func (f *File) ChannelUsers(channelID string) ([]string, error) {
 	})
 }
 
-func (f *File) channelInfo(channelID string, thread bool) (*slack.Channel, error) {
+func (f *File) channelInfo(channelID string, _ bool) (*slack.Channel, error) {
 	chunk, err := f.firstChunkForID(channelInfoID(channelID))
 	if err != nil {
 		return nil, err

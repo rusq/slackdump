@@ -50,12 +50,14 @@ func (*Slack) RenderText(ctx context.Context, s string) (v template.HTML) {
 }
 
 func (s *Slack) Render(ctx context.Context, m *slack.Message) (v template.HTML) {
-	if len(m.Blocks.BlockSet) == 0 {
-		return s.RenderText(ctx, m.Text)
-	}
-
 	var buf strings.Builder
-	s.renderBlocks(ctx, &buf, m.Timestamp, m.Blocks.BlockSet)
+
+	if len(m.Blocks.BlockSet) == 0 {
+		s.RenderText(ctx, m.Text)
+	} else {
+		s.renderBlocks(ctx, &buf, m.Timestamp, m.Blocks.BlockSet)
+	}
+	s.renderFiles(ctx, &buf, m.Timestamp, m.Files)
 	s.renderAttachments(ctx, &buf, m.Timestamp, m.Attachments)
 
 	return template.HTML(buf.String())
@@ -84,11 +86,22 @@ func (s *Slack) renderBlocks(ctx context.Context, buf *strings.Builder, msgTS st
 }
 
 func (s *Slack) renderAttachments(ctx context.Context, buf *strings.Builder, msgTS string, attachments []slack.Attachment) {
-	attrMsgID := slog.String("message_ts", msgTS)
 	for _, a := range attachments {
-		if err := s.tmpl.ExecuteTemplate(buf, "attachment.html", a); err != nil {
-			slog.ErrorContext(ctx, "error rendering attachment", "error", err, attrMsgID)
-		}
+		s.renderAttachment(ctx, buf, msgTS, a)
+	}
+}
+
+func (s *Slack) renderAttachment(ctx context.Context, buf *strings.Builder, msgTS string, a slack.Attachment) {
+	attrMsgID := slog.String("message_ts", msgTS)
+	if err := s.tmpl.ExecuteTemplate(buf, "attachment.html", a); err != nil {
+		slog.ErrorContext(ctx, "error rendering attachment", "error", err, attrMsgID)
+	}
+}
+
+func (s *Slack) renderFiles(ctx context.Context, buf *strings.Builder, msgTS string, files []slack.File) {
+	attrMsgID := slog.String("message_ts", msgTS)
+	if err := s.tmpl.ExecuteTemplate(buf, "file.html", files); err != nil {
+		slog.ErrorContext(ctx, "error rendering files", "error", err, attrMsgID)
 	}
 }
 

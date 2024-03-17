@@ -5,8 +5,11 @@ import (
 	"context"
 	"errors"
 	"html/template"
+	"io/fs"
 	"log/slog"
 	"net/http"
+	"os"
+	"time"
 
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/rusq/slack"
@@ -16,7 +19,7 @@ import (
 	"github.com/rusq/slackdump/v3/logger"
 )
 
-const debug = true
+var debug = os.Getenv("DEBUG") != ""
 
 func init() {
 	slog.SetLogLoggerLevel(slog.LevelDebug)
@@ -54,7 +57,13 @@ type Sourcer interface {
 	// ChannelInfo should return the channel information for the given channel
 	// id.
 	ChannelInfo(channelID string) (*slack.Channel, error)
+	// File should return the [io.ReadCloser] for the given file ID.
+	File(fileID string, filename string) (fs.File, error)
 }
+
+const (
+	hour = 60 * time.Minute
+)
 
 // New creates new viewer instance.  Once [Viewer.ListenAndServe] is called, the
 // viewer will start serving the web interface on the given address.  The
@@ -99,8 +108,8 @@ func New(ctx context.Context, addr string, r Sourcer) (*Viewer, error) {
 	mux.HandleFunc("/archives/{id}", v.newFileHandler(v.channelHandler))
 	// https: //ora600.slack.com/archives/DHMAB25DY/p1710063528879959
 	mux.HandleFunc("/archives/{id}/{ts}", v.newFileHandler(v.threadHandler))
-	mux.HandleFunc("/files/{id}", v.fileHandler)
 	mux.HandleFunc("/team/{user_id}", v.userHandler)
+	mux.Handle("/slackdump/file/{id}/{filename}", cacheMwareFunc(3*hour)(http.HandlerFunc(v.fileHandler)))
 	v.srv = &http.Server{
 		Addr:    addr,
 		Handler: middleware.Logger(mux),

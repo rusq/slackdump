@@ -4,6 +4,7 @@ import (
 	"context"
 	"html/template"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/rusq/slack"
@@ -43,6 +44,37 @@ func TestSlack_Render(t *testing.T) {
 			if gotV := sm.Render(context.Background(), tt.args.m); !reflect.DeepEqual(gotV, tt.wantV) {
 				t.Errorf("Slack.Render() = %v, want %v", gotV, tt.wantV)
 			}
+		})
+	}
+}
+
+func TestSlack_renderAttachment(t *testing.T) {
+	type fields struct {
+		tmpl *template.Template
+		uu   map[string]slack.User
+		cc   map[string]slack.Channel
+	}
+	type args struct {
+		ctx   context.Context
+		buf   *strings.Builder
+		msgTS string
+		a     slack.Attachment
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+	}{
+		// TODO: Add test cases.
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := &Slack{
+				tmpl: tt.fields.tmpl,
+				uu:   tt.fields.uu,
+				cc:   tt.fields.cc,
+			}
+			s.renderAttachment(tt.args.ctx, tt.args.buf, tt.args.msgTS, tt.args.a)
 		})
 	}
 }
