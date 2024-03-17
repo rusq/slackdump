@@ -16,6 +16,7 @@ import (
 
 	st "github.com/rusq/slackdump/v3/internal/structures"
 	"github.com/rusq/slackdump/v3/internal/viewer/renderer"
+	"github.com/rusq/slackdump/v3/internal/viewer/source"
 	"github.com/rusq/slackdump/v3/logger"
 )
 
@@ -25,6 +26,7 @@ func init() {
 	slog.SetLogLoggerLevel(slog.LevelDebug)
 }
 
+// Viewer is the slackdump viewer.
 type Viewer struct {
 	// data
 	ch   channels
@@ -57,12 +59,22 @@ type Sourcer interface {
 	// ChannelInfo should return the channel information for the given channel
 	// id.
 	ChannelInfo(channelID string) (*slack.Channel, error)
-	// File should return the [io.ReadCloser] for the given file ID.
-	File(fileID string, filename string) (fs.File, error)
+	// FS should return the filesystem with file attachments.
+	FS() fs.FS
+	// File should return the path of the file within the filesystem returned
+	// by FS().
+	File(fileID string, filename string) (string, error)
 }
 
 const (
 	hour = 60 * time.Minute
+)
+
+// type assertion
+var (
+	_ Sourcer = &source.Export{}
+	_ Sourcer = &source.ChunkDir{}
+	_ Sourcer = &source.Dump{}
 )
 
 // New creates new viewer instance.  Once [Viewer.ListenAndServe] is called, the

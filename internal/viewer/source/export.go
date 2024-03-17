@@ -14,6 +14,7 @@ type Export struct {
 	fs        fs.FS
 	chanNames map[string]string // maps the channel id to the channel name.
 	name      string            // name of the file
+	filestorage
 }
 
 func NewExport(fsys fs.FS, name string) (*Export, error) {
@@ -31,8 +32,26 @@ func NewExport(fsys fs.FS, name string) (*Export, error) {
 	for _, ch := range c {
 		z.chanNames[ch.ID] = ch.Name
 	}
+	// determine files path
+	rslv, err := exportType(fsys)
+	if err != nil {
+		return nil, err
+	}
+	z.filestorage = rslv
 
 	return z, nil
+}
+
+// exportType determines the type of the file storage used.
+func exportType(fsys fs.FS) (filestorage, error) {
+	if _, err := fs.Stat(fsys, "__uploads"); err == nil {
+		return newMattermostStorage(fsys)
+	}
+	idx, err := buildFileIndex(fsys, ".")
+	if err != nil || len(idx) == 0 {
+		return fstNotFound{}, nil
+	}
+	return newStandardStorage(fsys, idx), nil
 }
 
 func (e *Export) Channels() ([]slack.Channel, error) {
@@ -114,8 +133,4 @@ func (e *Export) ChannelInfo(channelID string) (*slack.Channel, error) {
 		}
 	}
 	return nil, fmt.Errorf("%s: %s", "channel not found", channelID)
-}
-
-func (e *Export) File(id string, name string) (fs.File, error) {
-	panic("not implemented")
 }

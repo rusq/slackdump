@@ -1,7 +1,7 @@
 package source
 
 import (
-	"io/fs"
+	"os"
 
 	"github.com/rusq/slack"
 	"github.com/rusq/slackdump/v3/internal/chunk"
@@ -9,10 +9,15 @@ import (
 
 type ChunkDir struct {
 	d *chunk.Directory
+	filestorage
 }
 
 func NewChunkDir(d *chunk.Directory) *ChunkDir {
-	return &ChunkDir{d: d}
+	var st filestorage = fstNotFound{}
+	if fst, err := newMattermostStorage(os.DirFS(d.Name())); err == nil {
+		st = fst
+	}
+	return &ChunkDir{d: d, filestorage: st}
 }
 
 func (c *ChunkDir) AllMessages(channelID string) ([]slack.Message, error) {
@@ -65,8 +70,4 @@ func (c *ChunkDir) Type() string {
 
 func (c *ChunkDir) Users() ([]slack.User, error) {
 	return c.d.Users()
-}
-
-func (c *ChunkDir) File(fileID string, filename string) (f fs.File, err error) {
-	return c.d.File(fileID, filename)
 }

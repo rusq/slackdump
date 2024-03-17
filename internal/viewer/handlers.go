@@ -2,7 +2,7 @@ package viewer
 
 import (
 	"errors"
-	"io"
+	"io/fs"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -45,6 +45,10 @@ func (v *Viewer) newFileHandler(fn func(w http.ResponseWriter, r *http.Request, 
 func (v *Viewer) channelHandler(w http.ResponseWriter, r *http.Request, id string) {
 	mm, err := v.src.AllMessages(id)
 	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			http.NotFound(w, r)
+			return
+		}
 		v.lg.Printf("%s: error: %v", id, err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -134,7 +138,8 @@ func (v *Viewer) fileHandler(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	f, err := v.src.File(id, filename)
+	fs := v.src.FS()
+	path, err := v.src.File(id, filename)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			http.NotFound(w, r)
@@ -144,13 +149,8 @@ func (v *Viewer) fileHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	fi, err := f.Stat()
-	if err != nil {
-		v.lg.Printf("error: %v", err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	http.ServeContent(w, r, filename, fi.ModTime(), f.(io.ReadSeeker)) // TODO: hack
+
+	http.ServeFileFS(w, r, fs, path)
 }
 
 func (v *Viewer) userHandler(w http.ResponseWriter, r *http.Request) {

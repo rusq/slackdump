@@ -14,12 +14,18 @@ type Dump struct {
 	c    []slack.Channel
 	fs   fs.FS
 	name string
+	filestorage
 }
 
 func NewDump(fsys fs.FS, name string) (*Dump, error) {
+	var st filestorage = fstNotFound{}
+	if fst, err := newDumpStorage(fsys); err == nil {
+		st = fst
+	}
 	d := &Dump{
-		fs:   fsys,
-		name: name,
+		fs:          fsys,
+		name:        name,
+		filestorage: st,
 	}
 	// initialise channels for quick lookup
 	c, err := d.Channels()
@@ -129,8 +135,4 @@ func (d Dump) ChannelInfo(channelID string) (*slack.Channel, error) {
 		}
 	}
 	return nil, fs.ErrNotExist
-}
-
-func (d Dump) File(id string, filename string) (f fs.File, err error) {
-	panic("not implemented")
 }

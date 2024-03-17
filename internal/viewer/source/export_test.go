@@ -3,6 +3,7 @@ package source
 import (
 	"archive/zip"
 	"io/fs"
+	"os"
 	"path/filepath"
 	"reflect"
 	"testing"
@@ -108,6 +109,41 @@ func TestExport_AllMessages(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("ZIPExport.AllMessages() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_buildFileIndex(t *testing.T) {
+	type args struct {
+		fsys fs.FS
+		dir  string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    map[string]string
+		wantErr bool
+	}{
+		{
+			name: "test",
+			args: args{
+				fsys: os.DirFS(filepath.Join("..", "..", "..", "tmp", "stdexport")),
+				dir:  ".",
+			},
+			want:    map[string]string{},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := buildFileIndex(tt.args.fsys, tt.args.dir)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("buildFileIndex() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("buildFileIndex() = %v, want %v", got, tt.want)
 			}
 		})
 	}
