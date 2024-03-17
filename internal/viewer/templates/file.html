@@ -10,7 +10,7 @@
         </div>
     {{ else }}
         {{ if (eq (mimetype $f.Mimetype) "image") }}
-            <img class="file-image" src="{{ $path }}" alt="{{ $f.Name }}" />
+            <a href="{{ $path }}" target="_blank"><img class="file-image" src="{{ $path }}" alt="{{ $f.Name }}" /></a>
         {{ else if (eq (mimetype $f.Mimetype) "video") }}
             <video class="file-video" controls>
                 <source src="{{ $path }}" type="{{ $f.Mimetype }}">

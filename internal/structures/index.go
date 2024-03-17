@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"reflect"
 	"strings"
 
@@ -117,7 +118,7 @@ func (idx *ExportIndex) Marshal(fs fsadapter.FS) error {
 	return nil
 }
 
-func serializeToFS(fs fsadapter.FS, filename string, data interface{}) error {
+func serializeToFS(fs fsadapter.FS, filename string, data any) error {
 	f, err := fs.Create(filename)
 	if err != nil {
 		return err
@@ -126,4 +127,95 @@ func serializeToFS(fs fsadapter.FS, filename string, data interface{}) error {
 	enc := json.NewEncoder(f)
 	enc.SetIndent("", "  ")
 	return enc.Encode(data)
+}
+
+// loadFromFS unmarshals the file with filename from the fsys into data.
+func loadFromFS(fsys fs.FS, filename string, data any) error {
+	f, err := fsys.Open(filename)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	dec := json.NewDecoder(f)
+	return dec.Decode(data)
+}
+
+func (idx *ExportIndex) Unmarshal(fsys fs.FS) error {
+	var newIdx ExportIndex
+
+	st := reflect.TypeOf(*idx)
+	val := reflect.ValueOf(&newIdx).Elem()
+	for i := 0; i < st.NumField(); i++ {
+		field := st.Field(i)
+		tg := field.Tag.Get("filename")
+		if tg == "" {
+			continue
+		}
+		filename, _, _ := strings.Cut(tg, ",")
+		if err := loadFromFS(fsys, filename, val.Field(i).Addr().Interface()); err != nil {
+			if errors.Is(err, fs.ErrNotExist) {
+				continue
+			}
+			return err
+		}
+	}
+	*idx = newIdx
+	return nil
+}
+
+// Restore restores the index to the original state (minus the lost DM
+// data).
+func (idx *ExportIndex) Restore() []slack.Channel {
+	me := idx.me()
+	var chans = make([]slack.Channel, 0, len(idx.Channels)+len(idx.Groups)+len(idx.MPIMs)+len(idx.DMs))
+	chans = append(chans, idx.Channels...)
+	chans = append(chans, idx.Groups...)
+	chans = append(chans, idx.MPIMs...)
+	for _, dm := range idx.DMs {
+		chans = append(chans, slack.Channel{
+			GroupConversation: slack.GroupConversation{
+				Conversation: slack.Conversation{
+					ID:      dm.ID,
+					Created: slack.JSONTime(dm.Created),
+					IsIM:    true,
+					User:    notMe(me, dm.Members),
+				},
+				Members: dm.Members,
+			},
+		})
+	}
+	return chans
+}
+
+func notMe(me string, members []string) string {
+	for _, m := range members {
+		if m != me {
+			return m
+		}
+	}
+	return ""
+}
+
+// me attempts to identify the current user in the index.  It uses the DMs of
+// the index. If DMs are empty, or it's unable to identify the user, it
+// returns an empty string.  The user, who appears in "Members" slices the
+// most, is considered the current user.
+func (idx *ExportIndex) me() string {
+	var counts = make(map[string]int)
+	for _, dm := range idx.DMs {
+		for _, m := range dm.Members {
+			counts[m]++
+		}
+	}
+	var (
+		max int
+		id  string
+	)
+	for k, v := range counts {
+		if v > max {
+			max = v
+			id = k
+		}
+	}
+	return id
 }

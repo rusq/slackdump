@@ -53,7 +53,7 @@ func (s *Slack) Render(ctx context.Context, m *slack.Message) (v template.HTML) 
 	var buf strings.Builder
 
 	if len(m.Blocks.BlockSet) == 0 {
-		s.RenderText(ctx, m.Text)
+		fmt.Fprint(&buf, parseSlackMd(m.Text))
 	} else {
 		s.renderBlocks(ctx, &buf, m.Timestamp, m.Blocks.BlockSet)
 	}

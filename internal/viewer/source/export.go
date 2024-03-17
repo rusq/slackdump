@@ -7,43 +7,49 @@ import (
 
 	"github.com/rusq/slack"
 	"github.com/rusq/slackdump/v3/export"
+	"github.com/rusq/slackdump/v3/internal/structures"
 )
 
 // Export implements viewer.Sourcer for the zip file Slack export format.
 type Export struct {
 	fs        fs.FS
+	channels  []slack.Channel
 	chanNames map[string]string // maps the channel id to the channel name.
 	name      string            // name of the file
+	idx       structures.ExportIndex
 	filestorage
 }
 
 func NewExport(fsys fs.FS, name string) (*Export, error) {
-	z := &Export{
-		fs:   fsys,
-		name: name,
-	}
-
-	// initialise channels for quick lookup
-	c, err := z.Channels()
-	if err != nil {
+	var idx structures.ExportIndex
+	if err := idx.Unmarshal(fsys); err != nil {
 		return nil, err
 	}
-	z.chanNames = make(map[string]string, len(c))
-	for _, ch := range c {
-		z.chanNames[ch.ID] = ch.Name
+	chans := idx.Restore()
+	z := &Export{
+		fs:        fsys,
+		name:      name,
+		idx:       idx,
+		channels:  chans,
+		chanNames: make(map[string]string, len(chans)),
+	}
+	// initialise channels for quick lookup
+	for _, ch := range z.channels {
+		z.chanNames[ch.ID] = structures.NVL(ch.Name, ch.ID)
 	}
 	// determine files path
-	rslv, err := exportType(fsys)
+	fst, err := loadStorage(fsys)
 	if err != nil {
 		return nil, err
 	}
-	z.filestorage = rslv
+	z.filestorage = fst
 
 	return z, nil
 }
 
-// exportType determines the type of the file storage used.
-func exportType(fsys fs.FS) (filestorage, error) {
+// loadStorage determines the type of the file storage used and initialises
+// appropriate filestorage implementation.
+func loadStorage(fsys fs.FS) (filestorage, error) {
 	if _, err := fs.Stat(fsys, "__uploads"); err == nil {
 		return newMattermostStorage(fsys)
 	}
@@ -55,16 +61,11 @@ func exportType(fsys fs.FS) (filestorage, error) {
 }
 
 func (e *Export) Channels() ([]slack.Channel, error) {
-	cc, err := unmarshal[[]slack.Channel](e.fs, "channels.json")
-	if err != nil {
-		return nil, err
-	}
-	// TODO: check dms.json and groups.json
-	return cc, nil
+	return e.channels, nil
 }
 
 func (e *Export) Users() ([]slack.User, error) {
-	return unmarshal[[]slack.User](e.fs, "users.json")
+	return e.idx.Users, nil
 }
 
 func (e *Export) Close() error {
@@ -85,6 +86,11 @@ func (e *Export) AllMessages(channelID string) ([]slack.Message, error) {
 	if !ok {
 		return nil, fmt.Errorf("%w: %s", fs.ErrNotExist, channelID)
 	}
+	_, err := fs.Stat(e.fs, name)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %s", fs.ErrNotExist, name)
+	}
+
 	var mm []slack.Message
 	if err := fs.WalkDir(e.fs, name, func(pth string, d fs.DirEntry, err error) error {
 		if err != nil {
