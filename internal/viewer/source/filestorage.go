@@ -126,7 +126,7 @@ func (r *fstStandard) File(id string, _ string) (string, error) {
 type fakefs struct{}
 
 func (fakefs) Open(name string) (fs.File, error) {
-	return nil, fs.ErrNotExist
+	return nil, &fs.PathError{Op: "open", Path: name, Err: fs.ErrNotExist}
 }
 
 // fstNotFound is the filestorage that returns fs.ErrNotExist for all files.

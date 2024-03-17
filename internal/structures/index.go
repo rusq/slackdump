@@ -111,35 +111,15 @@ func (idx *ExportIndex) Marshal(fs fsadapter.FS) error {
 		if found && (option == "omitempty" && val.Field(i).IsZero()) {
 			continue
 		}
-		if err := serializeToFS(fs, filename, val.Field(i).Interface()); err != nil {
+		if err := marshalFileFSA(fs, filename, val.Field(i).Interface()); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func serializeToFS(fs fsadapter.FS, filename string, data any) error {
-	f, err := fs.Create(filename)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	enc := json.NewEncoder(f)
-	enc.SetIndent("", "  ")
-	return enc.Encode(data)
-}
-
-// loadFromFS unmarshals the file with filename from the fsys into data.
-func loadFromFS(fsys fs.FS, filename string, data any) error {
-	f, err := fsys.Open(filename)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	dec := json.NewDecoder(f)
-	return dec.Decode(data)
-}
-
+// Unmarshal reads the index from the filesystem in a set of files specified in
+// `filename` tags of the structure.
 func (idx *ExportIndex) Unmarshal(fsys fs.FS) error {
 	var newIdx ExportIndex
 
@@ -152,7 +132,7 @@ func (idx *ExportIndex) Unmarshal(fsys fs.FS) error {
 			continue
 		}
 		filename, _, _ := strings.Cut(tg, ",")
-		if err := loadFromFS(fsys, filename, val.Field(i).Addr().Interface()); err != nil {
+		if err := unmarshalFileFS(fsys, filename, val.Field(i).Addr().Interface()); err != nil {
 			if errors.Is(err, fs.ErrNotExist) {
 				continue
 			}
@@ -163,10 +143,10 @@ func (idx *ExportIndex) Unmarshal(fsys fs.FS) error {
 	return nil
 }
 
-// Restore restores the index to the original state (minus the lost DM
-// data).
+// Restore restores the index to the original channels slice (minus the lost
+// data from DMs).
 func (idx *ExportIndex) Restore() []slack.Channel {
-	me := idx.me()
+	me := idx.me(idx.DMs)
 	var chans = make([]slack.Channel, 0, len(idx.Channels)+len(idx.Groups)+len(idx.MPIMs)+len(idx.DMs))
 	chans = append(chans, idx.Channels...)
 	chans = append(chans, idx.Groups...)
@@ -178,7 +158,7 @@ func (idx *ExportIndex) Restore() []slack.Channel {
 					ID:      dm.ID,
 					Created: slack.JSONTime(dm.Created),
 					IsIM:    true,
-					User:    notMe(me, dm.Members),
+					User:    idx.notMe(me, dm.Members),
 				},
 				Members: dm.Members,
 			},
@@ -187,7 +167,31 @@ func (idx *ExportIndex) Restore() []slack.Channel {
 	return chans
 }
 
-func notMe(me string, members []string) string {
+func marshalFileFSA(fs fsadapter.FS, filename string, data any) error {
+	f, err := fs.Create(filename)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	enc := json.NewEncoder(f)
+	enc.SetIndent("", "  ")
+	return enc.Encode(data)
+}
+
+// unmarshalFileFS unmarshals the file with filename from the fsys into data.
+func unmarshalFileFS(fsys fs.FS, filename string, data any) error {
+	f, err := fsys.Open(filename)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	dec := json.NewDecoder(f)
+	return dec.Decode(data)
+}
+
+// notMe returns the first member of the slice that is not me, or empty string
+// if not found.
+func (ExportIndex) notMe(me string, members []string) string {
 	for _, m := range members {
 		if m != me {
 			return m
@@ -200,9 +204,9 @@ func notMe(me string, members []string) string {
 // the index. If DMs are empty, or it's unable to identify the user, it
 // returns an empty string.  The user, who appears in "Members" slices the
 // most, is considered the current user.
-func (idx *ExportIndex) me() string {
+func (ExportIndex) me(dms []DM) string {
 	var counts = make(map[string]int)
-	for _, dm := range idx.DMs {
+	for _, dm := range dms {
 		for _, m := range dm.Members {
 			counts[m]++
 		}
