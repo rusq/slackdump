@@ -14,9 +14,12 @@
     "is_mpim": true,
     "unlinked": 0,
     "name_normalized": "mpdm-smith--seymore.a--jane.d-1",
-    "num_members": 0,
+    "num_members": 3,
     "priority": 0,
     "user": "",
+    "shared_team_ids": [
+      "TFCSDNRL5"
+    ],
     "name": "mpdm-smith--seymore.a--jane.d-1",
     "creator": "UGTRHT2SH",
     "is_archived": false,
@@ -55,9 +58,12 @@
     "is_mpim": true,
     "unlinked": 0,
     "name_normalized": "mpdm-smith--john.s--jane.d-1",
-    "num_members": 0,
+    "num_members": 3,
     "priority": 0,
     "user": "",
+    "shared_team_ids": [
+      "TFCSDNRL5"
+    ],
     "name": "mpdm-smith--john.s--jane.d-1",
     "creator": "UGTRHT2SH",
     "is_archived": false,

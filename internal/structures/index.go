@@ -64,11 +64,7 @@ func MakeExportIndex(channels []slack.Channel, users []slack.User, currentUserID
 	for _, ch := range channels {
 		switch {
 		case ch.IsIM:
-			idx.DMs = append(idx.DMs, DM{
-				ID:      ch.ID,
-				Created: int64(ch.Created),
-				Members: ch.Members,
-			})
+			idx.DMs = append(idx.DMs, convertToDM(currentUserID, ch))
 		case ch.IsMpIM:
 			// TODO: verify this is not needed
 			// fixed, err := FixMpIMmembers(&ch, users)
@@ -237,4 +233,20 @@ func mostFrequentMember(dms []DM) string {
 		}
 	}
 	return id
+}
+
+func convertToDM(me string, ch slack.Channel) DM {
+	d := DM{
+		ID:      ch.ID,
+		Created: int64(ch.Created),
+	}
+	switch len(ch.Members) {
+	case 0:
+		d.Members = []string{ch.User, me}
+	case 1:
+		d.Members = []string{ch.Members[0], me}
+	default:
+		d.Members = ch.Members
+	}
+	return d
 }

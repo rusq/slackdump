@@ -3,6 +3,7 @@ package structures
 import (
 	"io/fs"
 	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
 	"testing/fstest"
@@ -17,7 +18,7 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
-func TestExportIndex_mostFrequentMember(t *testing.T) {
+func TestMostFrequentMember(t *testing.T) {
 	type args struct {
 		dms []DM
 	}
@@ -40,13 +41,13 @@ func TestExportIndex_mostFrequentMember(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := mostFrequentMember(tt.args.dms); got != tt.want {
-				t.Errorf("ExportIndex.me() = %v, want %v", got, tt.want)
+				t.Errorf("mostFrequentMember() = %v, want %v", got, tt.want)
 			}
 		})
 	}
 }
 
-func TestExportIndex_except(t *testing.T) {
+func TestExcept(t *testing.T) {
 	type args struct {
 		me      string
 		members []string
@@ -325,6 +326,12 @@ func TestExportIndex_Unmarshal(t *testing.T) {
 			args{sys},
 			false,
 		},
+		{
+			"test export fs",
+			fields{},
+			args{fixtures.TestExportFS},
+			false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -343,6 +350,11 @@ func TestExportIndex_Unmarshal(t *testing.T) {
 }
 
 func TestExportIndex_Marshal(t *testing.T) {
+	dir := t.TempDir()
+	type resultfile struct {
+		name string
+		size int64
+	}
 	type fields struct {
 		Channels []slack.Channel
 		Groups   []slack.Channel
@@ -357,9 +369,28 @@ func TestExportIndex_Marshal(t *testing.T) {
 		name    string
 		fields  fields
 		args    args
+		checks  []resultfile
 		wantErr bool
 	}{
-		// TODO: Add test cases.
+		{
+			"marshals to fs",
+			fields{
+				Channels: fixtures.Load[[]slack.Channel](string(fixtures.TestExpChannelsJSON)),
+				Groups:   fixtures.Load[[]slack.Channel](string(fixtures.TestExpGroupsJSON)),
+				MPIMs:    fixtures.Load[[]slack.Channel](string(fixtures.TestExpMPIMsJSON)),
+				DMs:      fixtures.Load[[]DM](string(fixtures.TestExpDMsJSON)),
+				Users:    fixtures.Load[[]slack.User](string(fixtures.TestExpUsersJSON)),
+			},
+			args{fsadapter.NewDirectory(dir)},
+			[]resultfile{
+				{"channels.json", 1777},
+				{"groups.json", 3},
+				{"mpims.json", 1970},
+				{"dms.json", 955},
+				{"users.json", 16878},
+			},
+			false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -372,6 +403,15 @@ func TestExportIndex_Marshal(t *testing.T) {
 			}
 			if err := idx.Marshal(tt.args.fs); (err != nil) != tt.wantErr {
 				t.Errorf("ExportIndex.Marshal() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			for _, check := range tt.checks {
+				fi, err := os.Stat(filepath.Join(dir, check.name))
+				if err != nil {
+					t.Errorf("ExportIndex.Marshal() file %s not found", check.name)
+				}
+				if fi.Size() != check.size {
+					t.Errorf("ExportIndex.Marshal() file %s size = %d, want %d", check.name, fi.Size(), check.size)
+				}
 			}
 		})
 	}
@@ -389,7 +429,22 @@ func TestMakeExportIndex(t *testing.T) {
 		want    *ExportIndex
 		wantErr bool
 	}{
-		// TODO: Add test cases.
+		{
+			"makes index",
+			args{
+				fixtures.Load[[]slack.Channel](string(fixtures.TestExpReferenceChannelsJSON)),
+				fixtures.Load[[]slack.User](string(fixtures.TestExpUsersJSON)),
+				"UGTRHT2SH",
+			},
+			&ExportIndex{
+				Channels: fixtures.Load[[]slack.Channel](string(fixtures.TestExpChannelsJSON)),
+				Groups:   fixtures.Load[[]slack.Channel](string(fixtures.TestExpGroupsJSON)),
+				MPIMs:    fixtures.Load[[]slack.Channel](string(fixtures.TestExpMPIMsJSON)),
+				DMs:      fixtures.Load[[]DM](string(fixtures.TestExpDMsJSON)),
+				Users:    fixtures.Load[[]slack.User](string(fixtures.TestExpUsersJSON)),
+			},
+			false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -398,9 +453,74 @@ func TestMakeExportIndex(t *testing.T) {
 				t.Errorf("MakeExportIndex() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("MakeExportIndex() = %v, want %v", got, tt.want)
-			}
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+const testDMsSubset = `[
+	{
+		"id": "DNC8S27U5",
+		"created": 1568448961,
+		"members": [
+		  "UNEERHWJJ",
+		  "UGTRHT2SH"
+		]
+	  },
+	  {
+		"id": "DKJQ93AHG",
+		"created": 1561497029,
+		"members": [
+		  "UKW73CTS4",
+		  "UGTRHT2SH"
+		]
+	  }
+]`
+
+func Test_dmsToChannels(t *testing.T) {
+	type args struct {
+		DMs []DM
+	}
+	tests := []struct {
+		name string
+		args args
+		want []slack.Channel
+	}{
+		{
+			"works on export dms",
+			args{
+				fixtures.Load[[]DM](testDMsSubset),
+			},
+			[]slack.Channel{
+				{
+					GroupConversation: slack.GroupConversation{
+						Conversation: slack.Conversation{
+							ID:      "DNC8S27U5",
+							Created: slack.JSONTime(1568448961),
+							IsIM:    true,
+							User:    "UNEERHWJJ",
+						},
+						Members: []string{"UNEERHWJJ", "UGTRHT2SH"},
+					},
+				},
+				{
+					GroupConversation: slack.GroupConversation{
+						Conversation: slack.Conversation{
+							ID:      "DKJQ93AHG",
+							Created: slack.JSONTime(1561497029),
+							IsIM:    true,
+							User:    "UKW73CTS4",
+						},
+						Members: []string{"UKW73CTS4", "UGTRHT2SH"},
+					},
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := dmsToChannels(tt.args.DMs)
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }

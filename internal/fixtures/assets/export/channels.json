@@ -16,6 +16,9 @@
     "num_members": 2,
     "priority": 0,
     "user": "",
+    "shared_team_ids": [
+      "TFCSDNRL5"
+    ],
     "name": "general",
     "creator": "UFCFJSRA8",
     "is_archived": false,
@@ -52,6 +55,9 @@
     "num_members": 0,
     "priority": 0,
     "user": "",
+    "shared_team_ids": [
+      "TFCSDNRL5"
+    ],
     "name": "slackdump-discussions",
     "creator": "UFCFJSRA8",
     "is_archived": true,

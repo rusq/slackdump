@@ -1,6 +1,7 @@
 package fixtures
 
 import (
+	"embed"
 	_ "embed"
 )
 
@@ -453,4 +454,10 @@ var (
 
 	//go:embed assets/export/users.json
 	TestExpUsersJSON []byte
+
+	//go:embed assets/export/ref-channels.json
+	TestExpReferenceChannelsJSON []byte
 )
+
+//go:embed assets/export/*.json
+var TestExportFS embed.FS
