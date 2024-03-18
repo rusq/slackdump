@@ -11,82 +11,70 @@ import (
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/fsadapter/mocks/mock_fsadapter"
 	"github.com/rusq/slack"
+	"github.com/rusq/slackdump/v3/internal/fixtures"
 	"github.com/rusq/slackdump/v3/internal/mocks/mock_io"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 )
 
-func TestExportIndex_me(t *testing.T) {
-	type fields struct {
-	}
+func TestExportIndex_mostFrequentMember(t *testing.T) {
 	type args struct {
 		dms []DM
 	}
 	tests := []struct {
-		name   string
-		fields fields
-		args   args
-		want   string
+		name string
+		args args
+		want string
 	}{
 		{
 			"finds me",
-			fields{},
 			args{[]DM{{Members: []string{"me"}}}},
 			"me",
 		},
 		{
 			"finds me in several dms",
-			fields{},
 			args{[]DM{{Members: []string{"me", "you"}}, {Members: []string{"me", "someone_else"}}, {Members: []string{"me"}}}},
 			"me",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			e := ExportIndex{}
-			if got := e.me(tt.args.dms); got != tt.want {
+			if got := mostFrequentMember(tt.args.dms); got != tt.want {
 				t.Errorf("ExportIndex.me() = %v, want %v", got, tt.want)
 			}
 		})
 	}
 }
 
-func TestExportIndex_notMe(t *testing.T) {
-	type fields struct {
-	}
+func TestExportIndex_except(t *testing.T) {
 	type args struct {
 		me      string
 		members []string
 	}
 	tests := []struct {
-		name   string
-		fields fields
-		args   args
-		want   string
+		name string
+		args args
+		want string
 	}{
 		{
 			"finds not me",
-			fields{},
 			args{"me", []string{"you", "me"}},
 			"you",
 		},
 		{
 			"finds not me in several members",
-			fields{},
 			args{"me", []string{"you", "me", "someone_else"}},
 			"you",
 		},
 		{
 			"returns empty string if no not me",
-			fields{},
 			args{"me", []string{"me"}},
 			"",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			e := ExportIndex{}
-			if got := e.notMe(tt.args.me, tt.args.members); got != tt.want {
+			if got := except(tt.args.me, tt.args.members); got != tt.want {
 				t.Errorf("ExportIndex.notMe() = %v, want %v", got, tt.want)
 			}
 		})
@@ -287,6 +275,34 @@ func TestExportIndex_Restore(t *testing.T) {
 }
 
 func TestExportIndex_Unmarshal(t *testing.T) {
+	sampleTime := time.Date(1999, 12, 31, 23, 59, 59, 0, time.UTC)
+	sys := fstest.MapFS{
+		"channels.json": &fstest.MapFile{
+			Data:    fixtures.TestExpChannelsJSON,
+			Mode:    0644,
+			ModTime: sampleTime,
+		},
+		"groups.json": &fstest.MapFile{
+			Data:    fixtures.TestExpGroupsJSON,
+			Mode:    0644,
+			ModTime: sampleTime,
+		},
+		"mpims.json": &fstest.MapFile{
+			Data:    fixtures.TestExpMPIMsJSON,
+			Mode:    0644,
+			ModTime: sampleTime,
+		},
+		"dms.json": &fstest.MapFile{
+			Data:    fixtures.TestExpDMsJSON,
+			Mode:    0644,
+			ModTime: sampleTime,
+		},
+		"users.json": &fstest.MapFile{
+			Data:    fixtures.TestExpUsersJSON,
+			Mode:    0644,
+			ModTime: sampleTime,
+		},
+	}
 	type fields struct {
 		Channels []slack.Channel
 		Groups   []slack.Channel
@@ -303,7 +319,12 @@ func TestExportIndex_Unmarshal(t *testing.T) {
 		args    args
 		wantErr bool
 	}{
-		// TODO: Add test cases.
+		{
+			"unmarshals from fs",
+			fields{},
+			args{sys},
+			false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -1,0 +1,74 @@
+[
+  {
+    "id": "CFCHDMLG3",
+    "created": 1547420340,
+    "is_open": false,
+    "is_group": false,
+    "is_shared": false,
+    "is_im": false,
+    "is_ext_shared": false,
+    "is_org_shared": false,
+    "is_pending_ext_shared": false,
+    "is_private": false,
+    "is_mpim": false,
+    "unlinked": 0,
+    "name_normalized": "general",
+    "num_members": 2,
+    "priority": 0,
+    "user": "",
+    "name": "general",
+    "creator": "UFCFJSRA8",
+    "is_archived": false,
+    "members": null,
+    "topic": {
+      "value": "Company-wide announcements and work-based matters",
+      "creator": "UFCFJSRA8",
+      "last_set": 1547420340
+    },
+    "purpose": {
+      "value": "This channel is for workspace-wide communication and announcements. All members are in this channel.",
+      "creator": "UFCFJSRA8",
+      "last_set": 1547420340
+    },
+    "is_channel": true,
+    "is_general": true,
+    "is_member": true,
+    "locale": ""
+  },
+  {
+    "id": "CGTR9ED29",
+    "created": 1552084362,
+    "is_open": false,
+    "is_group": false,
+    "is_shared": false,
+    "is_im": false,
+    "is_ext_shared": false,
+    "is_org_shared": false,
+    "is_pending_ext_shared": false,
+    "is_private": false,
+    "is_mpim": false,
+    "unlinked": 0,
+    "name_normalized": "slackdump-discussions",
+    "num_members": 0,
+    "priority": 0,
+    "user": "",
+    "name": "slackdump-discussions",
+    "creator": "UFCFJSRA8",
+    "is_archived": true,
+    "members": null,
+    "topic": {
+      "value": "",
+      "creator": "",
+      "last_set": 0
+    },
+    "purpose": {
+      "value": "",
+      "creator": "",
+      "last_set": 0
+    },
+    "is_channel": true,
+    "is_general": false,
+    "is_member": false,
+    "locale": ""
+  }
+]

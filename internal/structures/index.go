@@ -96,19 +96,19 @@ func (idx *ExportIndex) Marshal(fs fsadapter.FS) error {
 	val := reflect.ValueOf(*idx)
 	for i := 0; i < st.NumField(); i++ {
 		field := st.Field(i)
-		tg := field.Tag.Get("filename")
-		if tg == "" {
+		tag := field.Tag.Get(filenameTag)
+		if tag == "" {
 			continue
 		}
-		filename, option, found := strings.Cut(tg, ",")
+		filename, option, found := strings.Cut(tag, tagSep)
 		switch filename {
 		case "-":
 			continue
 		case "":
-			return fmt.Errorf("empty filename for: %s", field.Name)
+			return fmt.Errorf("missing filename for: %s", field.Name)
 		default:
 		}
-		if found && (option == "omitempty" && val.Field(i).IsZero()) {
+		if found && (option == omitemptyTagOpt && val.Field(i).IsZero()) {
 			continue
 		}
 		if err := marshalFileFSA(fs, filename, val.Field(i).Interface()); err != nil {
@@ -117,6 +117,12 @@ func (idx *ExportIndex) Marshal(fs fsadapter.FS) error {
 	}
 	return nil
 }
+
+const (
+	filenameTag     = "filename"
+	omitemptyTagOpt = "omitempty"
+	tagSep          = ","
+)
 
 // Unmarshal reads the index from the filesystem in a set of files specified in
 // `filename` tags of the structure.
@@ -127,11 +133,11 @@ func (idx *ExportIndex) Unmarshal(fsys fs.FS) error {
 	val := reflect.ValueOf(&newIdx).Elem()
 	for i := 0; i < st.NumField(); i++ {
 		field := st.Field(i)
-		tg := field.Tag.Get("filename")
+		tg := field.Tag.Get(filenameTag)
 		if tg == "" {
 			continue
 		}
-		filename, _, _ := strings.Cut(tg, ",")
+		filename, _, _ := strings.Cut(tg, tagSep)
 		if err := unmarshalFileFS(fsys, filename, val.Field(i).Addr().Interface()); err != nil {
 			if errors.Is(err, fs.ErrNotExist) {
 				continue
@@ -146,19 +152,27 @@ func (idx *ExportIndex) Unmarshal(fsys fs.FS) error {
 // Restore restores the index to the original channels slice (minus the lost
 // data from DMs).
 func (idx *ExportIndex) Restore() []slack.Channel {
-	me := idx.me(idx.DMs)
 	var chans = make([]slack.Channel, 0, len(idx.Channels)+len(idx.Groups)+len(idx.MPIMs)+len(idx.DMs))
+
 	chans = append(chans, idx.Channels...)
 	chans = append(chans, idx.Groups...)
 	chans = append(chans, idx.MPIMs...)
-	for _, dm := range idx.DMs {
+	chans = append(chans, dmsToChannels(idx.DMs)...)
+
+	return chans
+}
+
+func dmsToChannels(DMs []DM) []slack.Channel {
+	me := mostFrequentMember(DMs)
+	var chans = make([]slack.Channel, 0, len(DMs))
+	for _, dm := range DMs {
 		chans = append(chans, slack.Channel{
 			GroupConversation: slack.GroupConversation{
 				Conversation: slack.Conversation{
 					ID:      dm.ID,
 					Created: slack.JSONTime(dm.Created),
 					IsIM:    true,
-					User:    idx.notMe(me, dm.Members),
+					User:    except(me, dm.Members),
 				},
 				Members: dm.Members,
 			},
@@ -189,22 +203,22 @@ func unmarshalFileFS(fsys fs.FS, filename string, data any) error {
 	return dec.Decode(data)
 }
 
-// notMe returns the first member of the slice that is not me, or empty string
+// except returns the first string of the slice that is not s, or empty string
 // if not found.
-func (ExportIndex) notMe(me string, members []string) string {
-	for _, m := range members {
-		if m != me {
-			return m
+func except(s string, ss []string) string {
+	for _, t := range ss {
+		if t != s {
+			return t
 		}
 	}
 	return ""
 }
 
-// me attempts to identify the current user in the index.  It uses the DMs of
+// mostFrequentMember attempts to identify the current user in the index.  It uses the DMs of
 // the index. If DMs are empty, or it's unable to identify the user, it
 // returns an empty string.  The user, who appears in "Members" slices the
 // most, is considered the current user.
-func (ExportIndex) me(dms []DM) string {
+func mostFrequentMember(dms []DM) string {
 	var counts = make(map[string]int)
 	for _, dm := range dms {
 		for _, m := range dm.Members {
