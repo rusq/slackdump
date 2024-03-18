@@ -383,9 +383,9 @@ func TestExportIndex_Marshal(t *testing.T) {
 			},
 			args{fsadapter.NewDirectory(dir)},
 			[]resultfile{
-				{"channels.json", 1777},
+				{"channels.json", 1877},
 				{"groups.json", 3},
-				{"mpims.json", 1970},
+				{"mpims.json", 2070},
 				{"dms.json", 955},
 				{"users.json", 16878},
 			},
@@ -521,6 +521,99 @@ func Test_dmsToChannels(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got := dmsToChannels(tt.args.DMs)
 			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func Test_convertToDM(t *testing.T) {
+	type args struct {
+		me string
+		ch slack.Channel
+	}
+	tests := []struct {
+		name string
+		args args
+		want DM
+	}{
+		{
+			"converts to dm channel with members",
+			args{"UGTRHT2SH", slack.Channel{
+				GroupConversation: slack.GroupConversation{
+					Conversation: slack.Conversation{
+						ID:      "DNC8S27U5",
+						Created: slack.JSONTime(1568448961),
+						IsIM:    true,
+					},
+					Members: []string{"UNEERHWJJ", "UGTRHT2SH"},
+				},
+			}},
+			DM{
+				ID:      "DNC8S27U5",
+				Created: 1568448961,
+				Members: []string{"UNEERHWJJ", "UGTRHT2SH"},
+			},
+		},
+		{
+			"restores zero members",
+			args{"UGTRHT2SH", slack.Channel{
+				GroupConversation: slack.GroupConversation{
+					Conversation: slack.Conversation{
+						ID:      "DNC8S27U5",
+						User:    "UNEERHWJJ",
+						Created: slack.JSONTime(1568448961),
+						IsIM:    true,
+					},
+				},
+			}},
+			DM{
+				ID:      "DNC8S27U5",
+				Created: 1568448961,
+				Members: []string{"UNEERHWJJ", "UGTRHT2SH"},
+			},
+		},
+		{
+			"user's own dm",
+			args{"UGTRHT2SH", slack.Channel{
+				GroupConversation: slack.GroupConversation{
+					Conversation: slack.Conversation{
+						ID:      "DNC8S27U5",
+						User:    "UGTRHT2SH",
+						Created: slack.JSONTime(1568448961),
+						IsIM:    true,
+					},
+					Members: []string{"UGTRHT2SH"},
+				},
+			}},
+			DM{
+				ID:      "DNC8S27U5",
+				Created: 1568448961,
+				Members: []string{"UGTRHT2SH", "UGTRHT2SH"},
+			},
+		},
+		{
+			"slackbot",
+			args{"UGTRHT2SH", slack.Channel{
+				GroupConversation: slack.GroupConversation{
+					Conversation: slack.Conversation{
+						ID:      "DNC8S27U5",
+						User:    "USLACKBOT",
+						Created: slack.JSONTime(1568448961),
+						IsIM:    true,
+					},
+				},
+			}},
+			DM{
+				ID:      "DNC8S27U5",
+				Created: 1568448961,
+				Members: []string{"USLACKBOT", "UGTRHT2SH"},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := convertToDM(tt.args.me, tt.args.ch); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("convertToDM() = %v, want %v", got, tt.want)
+			}
 		})
 	}
 }

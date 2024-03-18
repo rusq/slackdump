@@ -66,12 +66,9 @@ func MakeExportIndex(channels []slack.Channel, users []slack.User, currentUserID
 		case ch.IsIM:
 			idx.DMs = append(idx.DMs, convertToDM(currentUserID, ch))
 		case ch.IsMpIM:
-			// TODO: verify this is not needed
-			// fixed, err := FixMpIMmembers(&ch, users)
-			// if err != nil {
-			// 	return nil, err
-			// }
-			// idx.MPIMs = append(idx.MPIMs, *fixed)
+			if ch.NumMembers == 0 {
+				ch.NumMembers = len(ch.Members)
+			}
 			idx.MPIMs = append(idx.MPIMs, ch)
 		case ch.IsGroup:
 			idx.Groups = append(idx.Groups, ch)
@@ -244,7 +241,7 @@ func convertToDM(me string, ch slack.Channel) DM {
 	case 0:
 		d.Members = []string{ch.User, me}
 	case 1:
-		d.Members = []string{ch.Members[0], me}
+		d.Members = []string{ch.User, me}
 	default:
 		d.Members = ch.Members
 	}
