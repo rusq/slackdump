@@ -203,15 +203,16 @@ func unmarshalFileFS(fsys fs.FS, filename string, data any) error {
 	return dec.Decode(data)
 }
 
-// except returns the first string of the slice that is not s, or empty string
+// except returns the first element of the slice that is not s, or zero value
 // if not found.
-func except(s string, ss []string) string {
+func except[S ~[]T, T comparable](s T, ss S) T {
+	var zero T
 	for _, t := range ss {
 		if t != s {
 			return t
 		}
 	}
-	return ""
+	return zero
 }
 
 // mostFrequentMember attempts to identify the current user in the index.  It uses the DMs of
