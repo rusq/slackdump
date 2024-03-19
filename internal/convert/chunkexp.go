@@ -266,7 +266,8 @@ func (c *ChunkToExport) fileCopy(ch *slack.Channel, msg *slack.Message) error {
 		return nil
 	}
 	for _, f := range msg.Files {
-		if !fileproc.IsValid(&f) {
+		if err := fileproc.IsValidWithReason(&f); err != nil {
+			c.lg.Printf("skipping file %q: %v", f.ID, err)
 			continue
 		}
 

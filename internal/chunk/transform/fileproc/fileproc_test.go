@@ -48,7 +48,12 @@ func TestIsValid(t *testing.T) {
 		{
 			"external file",
 			args{&slack.File{Mode: "", Name: "foo", IsExternal: true}},
-			false,
+			true,
+		},
+		{
+			"external false name is not empty",
+			args{&slack.File{Mode: "", Name: "foo", IsExternal: false}},
+			true,
 		},
 		{
 			"empty name",

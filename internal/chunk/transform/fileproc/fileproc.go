@@ -6,6 +6,8 @@ package fileproc
 
 import (
 	"context"
+	"errors"
+	"fmt"
 
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/slack"
@@ -91,13 +93,20 @@ var invalidModes = map[string]struct{}{
 
 // IsValid returns true if the file can be downloaded and is valid.
 func IsValid(f *slack.File) bool {
+	return IsValidWithReason(f) == nil
+}
+
+func IsValidWithReason(f *slack.File) error {
 	if f == nil {
-		return false
+		return errors.New("file is nil")
 	}
 	if _, ok := invalidModes[f.Mode]; ok {
-		return false
+		return fmt.Errorf("invalid file mode %q", f.Mode)
 	}
-	return !f.IsExternal && f.Name != ""
+	if !f.IsExternal && f.Name == "" {
+		return fmt.Errorf("invalid file: external=%v, name=%q", f.IsExternal, f.Name)
+	}
+	return nil
 }
 
 type NoopDownloader struct{}
