@@ -38,18 +38,20 @@ func init() {
 // rtse - rich text section element
 var (
 	rtseTypeHandlers = map[slack.RichTextSectionElementType]func(*Slack, slack.RichTextSectionElement) (string, error){
-		slack.RTSEText:    (*Slack).rtseText,
-		slack.RTSELink:    (*Slack).rtseLink,
-		slack.RTSEUser:    (*Slack).rtseUser,
-		slack.RTSEEmoji:   (*Slack).rtseEmoji,
-		slack.RTSEChannel: (*Slack).rtseChannel,
+		slack.RTSEText:      (*Slack).rtseText,
+		slack.RTSELink:      (*Slack).rtseLink,
+		slack.RTSEUser:      (*Slack).rtseUser,
+		slack.RTSEEmoji:     (*Slack).rtseEmoji,
+		slack.RTSEChannel:   (*Slack).rtseChannel,
+		slack.RTSEBroadcast: (*Slack).rtseBroadcast,
 	}
 
 	rtseTypeClass = map[slack.RichTextSectionElementType]string{
-		slack.RTSEText:    "slack-rich-text-section-text",
-		slack.RTSELink:    "slack-rich-text-section-link",
-		slack.RTSEUser:    "slack-rich-text-section-user",
-		slack.RTSEEmoji:   "slack-rich-text-section-emoji",
-		slack.RTSEChannel: "slack-rich-text-section-channel",
+		slack.RTSEText:      "slack-rich-text-section-text",
+		slack.RTSELink:      "slack-rich-text-section-link",
+		slack.RTSEUser:      "slack-rich-text-section-user",
+		slack.RTSEEmoji:     "slack-rich-text-section-emoji",
+		slack.RTSEChannel:   "slack-rich-text-section-channel",
+		slack.RTSEBroadcast: "slack-rich-text-section-broadcast",
 	}
 )

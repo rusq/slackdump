@@ -208,5 +208,13 @@ func (s *Slack) rtseChannel(ie slack.RichTextSectionElement) (string, error) {
 		name = e.ChannelID
 	}
 
-	return div("slack-rtse-channel", applyStyle(fmt.Sprintf("<#%s>", name), e.Style)), nil
+	return div(rtseTypeClass[slack.RTSEChannel], applyStyle(fmt.Sprintf("<#%s>", name), e.Style)), nil
+}
+
+func (s *Slack) rtseBroadcast(ie slack.RichTextSectionElement) (string, error) {
+	e, ok := ie.(*slack.RichTextSectionBroadcastElement)
+	if !ok {
+		return "", NewErrIncorrectType(&slack.RichTextSectionBroadcastElement{}, ie)
+	}
+	return strong(rtseTypeClass[slack.RTSEBroadcast], fmt.Sprintf("@%s ", e.Range)), nil
 }

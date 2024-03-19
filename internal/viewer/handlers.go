@@ -14,20 +14,30 @@ import (
 )
 
 func (v *Viewer) indexHandler(w http.ResponseWriter, r *http.Request) {
-	var page = struct {
-		Conversation slack.Channel
-		Name         string
-		Type         string
-		channels
-	}{
-		Conversation: slack.Channel{}, //blank.
-		Name:         filepath.Base(v.src.Name()),
-		Type:         v.src.Type(),
-		channels:     v.ch,
-	}
+	page := v.view()
 	if err := v.tmpl.ExecuteTemplate(w, "index.html", page); err != nil {
 		v.lg.Printf("error: %v", err)
-		//http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+type mainView struct {
+	channels
+	Name           string
+	Type           string
+	Conversation   slack.Channel
+	Messages       []slack.Message
+	ThreadMessages []slack.Message
+	ThreadID       string
+}
+
+// view returns a mainView struct with the channels and the name and type of
+// the source.
+func (v *Viewer) view() mainView {
+	return mainView{
+		channels: v.ch,
+		Name:     filepath.Base(v.src.Name()),
+		Type:     v.src.Type(),
 	}
 }
 
@@ -80,17 +90,22 @@ func (v *Viewer) channelHandler(w http.ResponseWriter, r *http.Request, id strin
 		return
 	}
 
-	var page = struct {
-		Conversation slack.Channel
-		Messages     []slack.Message
-	}{
-		Conversation: *ci,
-		Messages:     mm,
+	page := v.view()
+	page.Conversation = *ci
+	page.Messages = mm
+	template := "index.html"
+	if isHXRequest(r) {
+		template = "hx_conversation"
 	}
-	if err := v.tmpl.ExecuteTemplate(w, "hx_conversation", page); err != nil {
+	if err := v.tmpl.ExecuteTemplate(w, template, page); err != nil {
 		v.lg.Printf("error: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
+
+}
+
+func isHXRequest(r *http.Request) bool {
+	return r.Header.Get("HX-Request") == "true"
 }
 
 func (v *Viewer) threadHandler(w http.ResponseWriter, r *http.Request, id string) {
@@ -114,15 +129,11 @@ func (v *Viewer) threadHandler(w http.ResponseWriter, r *http.Request, id string
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	var page = struct {
-		Conversation slack.Channel
-		Messages     []slack.Message
-		ThreadID     string
-	}{
-		ThreadID:     ts,
-		Conversation: *ci,
-		Messages:     mm,
-	}
+
+	page := v.view()
+	page.Conversation = *ci
+	page.ThreadMessages = mm
+	page.ThreadID = ts
 	if err := v.tmpl.ExecuteTemplate(w, "hx_thread", page); err != nil {
 		v.lg.Printf("error: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)

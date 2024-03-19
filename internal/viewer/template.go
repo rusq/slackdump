@@ -106,10 +106,10 @@ func isAppMsg(m *slack.Message) bool {
 func mimetype(mt string) string {
 	mm, _, err := mime.ParseMediaType(mt)
 	if err != nil || mt == "" {
-		slog.Debug("isImage", "err", err, "mimetype", mt)
+		slog.Debug("mimetype", "err", err, "mimetype", mt)
 		return "application"
 	}
-	slog.Debug("isImage", "t", mm, "mimetype", mt)
+	slog.Debug("mimetype", "t", mm, "mimetype", mt)
 	t, _, found := strings.Cut(mm, "/")
 	if !found {
 		return "application"

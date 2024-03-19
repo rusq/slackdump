@@ -155,6 +155,7 @@ var (
 	div        = element("div", true)
 	figure     = element("figure", true)
 	blockquote = element("blockquote", true)
+	strong     = element("strong", true)
 )
 
 func element(el string, close bool) func(class string, s string) string {

@@ -17,35 +17,18 @@
             <h1>Slackdump</h1>
             <small class="subtitle grey">{{.Type}}: {{.Name}}</small>
             <!-- Channel list goes here -->
-            {{ if ( or .Public .Private) }}
-            <h2>Channels</h2>
-            <menu>
-                {{ range $i, $el := .Public }}
-                <li><a href="#" hx-get="/archives/{{$el.ID}}" hx-target="#conversation">{{ rendername $el }}</a></li>
-                {{ end }}
-                {{ range $i, $el := .Private }}
-                <li><a href="#" hx-get="/archives/{{$el.ID}}" hx-target="#conversation">{{ rendername $el }}</a></li>
-                {{ end }}
-            </menu>
-            {{ end }}
-            {{ if (or .MPIM .DM) }}
-            <h2>Direct</h2>
-            <menu>
-                {{ range $i, $el := .MPIM }}
-                <li><a href="#" hx-get="/archives/{{$el.ID}}" hx-target="#conversation">{{ rendername $el }}</a></li>
-                {{ end }}
-                {{ range $i, $el := .DM }}
-                <li><a href="#" hx-get="/archives/{{$el.ID}}" hx-target="#conversation">{{ rendername $el }}</a></li>
-                {{ end }}
-            </menu>
-            {{ end }}
+            {{ template "channel_list" . }}
         </section>
         <section id="conversation" class="conversations">
             <!-- Conversations go here -->
+            {{ if .Messages }}
+            {{ template "hx_conversation" . }}
+            {{ else }}
             <article class="welcome">
                 <h1>Slackdump Browser</h1>
                 <p>Please select the conversation on the left to view messages.</p>
             </article>
+            {{ end }}
         </section>
         <section id="thread" class="thread">
             <!-- Thread messages go here -->
@@ -55,6 +38,30 @@
 
 </html>
 
+{{ define "channel_list" }}
+{{ if ( or .Public .Private) }}
+<h2>Channels</h2>
+<menu>
+    {{ range $i, $el := .Public }}
+    <li><a href="#" hx-get="/archives/{{$el.ID}}" hx-target="#conversation" hx-push-url="true">{{ rendername $el }}</a></li>
+    {{ end }}
+    {{ range $i, $el := .Private }}
+    <li><a href="#" hx-get="/archives/{{$el.ID}}" hx-target="#conversation" hx-push-url="true">{{ rendername $el }}</a></li>
+    {{ end }}
+</menu>
+{{ end }}
+{{ if (or .MPIM .DM) }}
+<h2>Direct</h2>
+<menu>
+    {{ range $i, $el := .MPIM }}
+    <li><a href="#" hx-get="/archives/{{$el.ID}}" hx-target="#conversation" hx-push-url="true">{{ rendername $el }}</a></li>
+    {{ end }}
+    {{ range $i, $el := .DM }}
+    <li><a href="#" hx-get="/archives/{{$el.ID}}" hx-target="#conversation" hx-push-url="true">{{ rendername $el }}</a></li>
+    {{ end }}
+</menu>
+{{ end }}
+{{ end }}
 
 {{define "hx_conversation"}}
 {{ if .Conversation.ID }}
@@ -106,9 +113,9 @@
 {{define "hx_thread"}}
 <h2>Thread: {{ .ThreadID }}</h2>
 <p><a id="close-thread" href="#">Close Pane</a></p>
-{{ range $i, $el := .Messages }}
+{{ range $i, $el := .ThreadMessages }}
 <article class="message">
-    {{ template "render_message" . }}
+    {{ template "render_message" $el }}
     <hr>
 </article>
 {{end}}
