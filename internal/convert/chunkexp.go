@@ -210,7 +210,6 @@ func (c *ChunkToExport) Convert(ctx context.Context) error {
 		// 2.3. workers sentinel
 		go func() {
 			wg.Wait()
-			close(errC)
 			close(c.request)
 		}()
 	}
@@ -221,8 +220,10 @@ LOOP:
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case err := <-errC:
-			return err
+		case err := <-errC: // get rid of this shit.
+			if err != nil {
+				return err
+			}
 		case res, more := <-c.result:
 			if !more {
 				break LOOP
