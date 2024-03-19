@@ -93,7 +93,8 @@ func (v *Viewer) channelHandler(w http.ResponseWriter, r *http.Request, id strin
 	page := v.view()
 	page.Conversation = *ci
 	page.Messages = mm
-	template := "index.html"
+
+	template := "index.html" // for deep links
 	if isHXRequest(r) {
 		template = "hx_conversation"
 	}
@@ -134,7 +135,23 @@ func (v *Viewer) threadHandler(w http.ResponseWriter, r *http.Request, id string
 	page.Conversation = *ci
 	page.ThreadMessages = mm
 	page.ThreadID = ts
-	if err := v.tmpl.ExecuteTemplate(w, "hx_thread", page); err != nil {
+
+	var template string
+	if isHXRequest(r) {
+		template = "hx_thread"
+	} else {
+		template = "index.html"
+
+		// if we're deep linking, channel view might not contain the messages,
+		// so we need to fetch them.
+		msg, err := v.src.AllMessages(id)
+		if err != nil {
+			v.lg.Printf("error: %v", err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+		page.Messages = msg
+	}
+	if err := v.tmpl.ExecuteTemplate(w, template, page); err != nil {
 		v.lg.Printf("error: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}

@@ -32,6 +32,9 @@
         </section>
         <section id="thread" class="thread">
             <!-- Thread messages go here -->
+            {{ if .ThreadMessages }}
+            {{ template "hx_thread" . }}
+            {{ end }}
         </section>
     </div>
 </body>
@@ -112,7 +115,8 @@
 
 {{define "hx_thread"}}
 <h2>Thread: {{ .ThreadID }}</h2>
-<p><a id="close-thread" href="#">Close Pane</a></p>
+<p><a id="close-thread" href="#">[X]</a></p>
+<p><a id="thread-link" href="{{.Conversation.ID}}/{{ .ThreadID }}">Link to this thread</a></p>
 {{ range $i, $el := .ThreadMessages }}
 <article class="message">
     {{ template "render_message" $el }}
@@ -142,6 +146,36 @@
 <div class="message-content">
     <p>{{ render . }}</p>
 </div>
+{{ end }}
+
+
+
+{{ define "hx_user" }}
+<h2>User: {{ displayname .ID }}</h2>
+<p><a id="close-user" href="#">[X]</a></p>
+<article class="user">
+    {{ if . }}
+    {{ displayname .ID }}<br>
+    <a href="mailto:{{ .Profile.Email}}" target="_blank">{{ .Profile.Email }}</a><br>
+    <a href="{{.Profile.Image512}}" target="_blank">
+        <img src="{{ .Profile.Image192}}" alt="{{ displayname .ID }}">
+    </a><br>
+    <ul>
+        {{ if .Profile.RealName }}<li>Real name: {{ .Profile.RealName }}</li>{{ end }}
+        {{ if .Profile.Skype }}<li>Skype: {{ .Profile.Skype }}</li>{{ end }}
+        {{ if .Profile.Team }}<li>Team: {{ .Profile.Team }}</li>{{ end }}
+    </ul>
+    {{ else }}
+    <p>Unknown</p>
+    {{ end }}
+</article>
+<script>
+    document.getElementById('close-user').addEventListener('click', function (e) {
+        e.preventDefault();
+        document.querySelector('.conversations').style.flex = '1';
+        document.querySelector('.thread').style.display = 'none';
+    });
+</script>
 {{ end }}
 
 {{ define "hx_css" }}
@@ -210,14 +244,15 @@
         text-align: center;
     }
 
-    .conversations,
-    .thread {
-        flex: 1;
+    .conversations {
+        flex: {{ if .ThreadID }}0 0 40%{{ else }}1{{ end }};
         overflow-y: auto;
     }
 
     .thread {
-        display: none;
+        flex: 1;
+        overflow-y: auto;
+        display: {{ if .ThreadID }}block{{ else }}none{{ end }};
     }
 
     .message-timestamp,
@@ -245,32 +280,4 @@
         color: #777;
     }
 </style>
-{{ end }}
-
-{{ define "hx_user" }}
-<h2>User: {{ displayname .ID }}</h2>
-<p><a id="close-user" href="#">Close pane</a></p>
-<article class="user">
-    {{ if . }}
-    {{ displayname .ID }}<br>
-    <a href="mailto:{{ .Profile.Email}}" target="_blank">{{ .Profile.Email }}</a><br>
-    <a href="{{.Profile.Image512}}" target="_blank">
-        <img src="{{ .Profile.Image192}}" alt="{{ displayname .ID }}">
-    </a><br>
-    <ul>
-        {{ if .Profile.RealName }}<li>Real name: {{ .Profile.RealName }}</li>{{ end }}
-        {{ if .Profile.Skype }}<li>Skype: {{ .Profile.Skype }}</li>{{ end }}
-        {{ if .Profile.Team }}<li>Team: {{ .Profile.Team }}</li>{{ end }}
-    </ul>
-    {{ else }}
-    <p>Unknown</p>
-    {{ end }}
-</article>
-<script>
-    document.getElementById('close-user').addEventListener('click', function (e) {
-        e.preventDefault();
-        document.querySelector('.conversations').style.flex = '1';
-        document.querySelector('.thread').style.display = 'none';
-    });
-</script>
 {{ end }}
