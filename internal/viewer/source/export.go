@@ -80,19 +80,31 @@ func (e *Export) Type() string {
 	return "export"
 }
 
+// All messages returns all channel messages without thread messages.
 func (e *Export) AllMessages(channelID string) ([]slack.Message, error) {
-	// find the channel
+	var mm []slack.Message
+	if err := e.walkChannelMessages(channelID, func(m *slack.Message) error {
+		if isThreadMessage(&m.Msg) && m.SubType != structures.SubTypeThreadBroadcast {
+			return nil
+		}
+		mm = append(mm, *m)
+		return nil
+	}); err != nil {
+		return nil, fmt.Errorf("AllMessages: walk: %s", err)
+	}
+	return mm, nil
+}
+
+func (e *Export) walkChannelMessages(channelID string, fn func(m *slack.Message) error) error {
 	name, ok := e.chanNames[channelID]
 	if !ok {
-		return nil, fmt.Errorf("%w: %s", fs.ErrNotExist, channelID)
+		return fmt.Errorf("%w: %s", fs.ErrNotExist, channelID)
 	}
 	_, err := fs.Stat(e.fs, name)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %s", fs.ErrNotExist, name)
+		return fmt.Errorf("%w: %s", fs.ErrNotExist, name)
 	}
-
-	var mm []slack.Message
-	if err := fs.WalkDir(e.fs, name, func(pth string, d fs.DirEntry, err error) error {
+	return fs.WalkDir(e.fs, name, func(pth string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -105,25 +117,27 @@ func (e *Export) AllMessages(channelID string) ([]slack.Message, error) {
 			return err
 		}
 		for _, m := range em {
-			mm = append(mm, slack.Message{Msg: *m.Msg})
+			if err := fn(&slack.Message{Msg: *m.Msg}); err != nil {
+				return err
+			}
 		}
 		return nil
-	}); err != nil {
-		return nil, fmt.Errorf("AllMessages: walk: %s", err)
-	}
-	return mm, nil
+	})
+}
+
+func isThreadMessage(m *slack.Msg) bool {
+	return m.ThreadTimestamp != "" && m.ThreadTimestamp != m.Timestamp
 }
 
 func (e *Export) AllThreadMessages(channelID, threadID string) ([]slack.Message, error) {
-	m, err := e.AllMessages(channelID)
-	if err != nil {
-		return nil, err
-	}
 	var tm []slack.Message
-	for _, msg := range m {
-		if msg.ThreadTimestamp == threadID {
-			tm = append(tm, msg)
+	if err := e.walkChannelMessages(channelID, func(m *slack.Message) error {
+		if m.ThreadTimestamp == threadID {
+			tm = append(tm, *m)
 		}
+		return nil
+	}); err != nil {
+		return nil, fmt.Errorf("AllThreadMessages: walk: %s", err)
 	}
 	return tm, nil
 }

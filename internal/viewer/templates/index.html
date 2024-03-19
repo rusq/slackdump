@@ -133,7 +133,7 @@
 {{end}}
 
 {{ define "render_message" }}
-<header class="message-header" id="#{{.Timestamp}}">
+<header class="message-header" id="{{.Timestamp}}">
     <span class="message-sender">
         {{if is_app_msg . -}}
         {{ username . }}
@@ -142,6 +142,7 @@
         {{- end }}
     </span>
     <span class="message-timestamp grey">{{ time .Timestamp }}</span>
+    <span class="message-link"><a href="#{{.Timestamp}}">#</a></span>
 </header>
 <div class="message-content">
     <p>{{ render . }}</p>
@@ -176,108 +177,4 @@
         document.querySelector('.thread').style.display = 'none';
     });
 </script>
-{{ end }}
-
-{{ define "hx_css" }}
-<style>
-    body {
-        font-family: -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
-    }
-
-    @media (prefers-color-scheme: dark) {
-        body {
-            /* Use dark background if system is in dark mode */
-            background-color: #202224;
-            color: #fff;
-        }
-
-        a {
-            color: #72b2ff;
-        }
-
-        a:hover {
-            color: #ff7b72;
-        }
-
-        a:visited {
-            color: #9669ff;
-        }
-    }
-
-    blockquote {
-        margin: 0;
-        padding: 0;
-        border-left: 2px solid gray;
-        margin-left: 1em;
-    }
-
-    .container {
-        display: flex;
-        height: 97vh;
-    }
-
-    .subtitle {
-        display: block;
-        margin-bottom: 1em;
-    }
-
-    .channel-list {
-        flex: 0 0 20%;
-        overflow-y: auto;
-        border-right: 1px solid #ccc;
-    }
-
-    .message {
-        margin-left: 1em;
-    }
-
-    .message-content {
-        margin-left: 1em;
-    }
-
-    .thread-info {
-        margin-left: 1em;
-        margin-bottom: 1em;
-    }
-
-    .welcome {
-        text-align: center;
-    }
-
-    .conversations {
-        flex: {{ if .ThreadID }}0 0 40%{{ else }}1{{ end }};
-        overflow-y: auto;
-    }
-
-    .thread {
-        flex: 1;
-        overflow-y: auto;
-        display: {{ if .ThreadID }}block{{ else }}none{{ end }};
-    }
-
-    .message-timestamp,
-    .last-reply,
-    .small {
-        font-size: 12px;
-    }
-
-    .slack-attachment .icon {
-        max-width: 16px;
-        max-height: 16px;
-    }
-    .slack-attachment .attachment-image {
-        max-height: 136px;
-        max-width: 136px;
-        border-radius: 5px;
-    }
-
-    .slack-files img {
-        max-width: 320px;
-        max-height: 320px;
-    }
-
-    .grey {
-        color: #777;
-    }
-</style>
 {{ end }}
