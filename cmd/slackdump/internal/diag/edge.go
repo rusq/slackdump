@@ -3,7 +3,6 @@ package diag
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"os"
 
 	"github.com/rusq/slackdump/v3"
@@ -43,6 +42,11 @@ func runEdge(ctx context.Context, cmd *base.Command, args []string) error {
 		base.SetExitStatus(base.SAuthError)
 		return err
 	}
+	ai, err := prov.Test(ctx)
+	if err != nil {
+		return err
+	}
+	lg.Printf("auth test: %+v", ai)
 
 	lg.Print("connected")
 	sd, err := slackdump.New(ctx, prov)
@@ -50,28 +54,12 @@ func runEdge(ctx context.Context, cmd *base.Command, args []string) error {
 		base.SetExitStatus(base.SAuthError)
 		return err
 	}
-	cl, err := edge.New(cfg.Workspace, sd.Info().TeamID, prov.SlackToken(), prov.Cookies())
+
+	cl, err := edge.NewWithProvider(cfg.Workspace, sd.Info().TeamID, prov)
 	if err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return err
 	}
-	req := edge.UsersListRequest{
-		Channels: []string{edgeParams.channel},
-		Filter:   "everyone AND NOT bots AND NOT apps",
-		Count:    20,
-	}
-	resp, err := cl.Post(ctx, "/users/list", &req)
-	if err != nil {
-		return err
-	}
-	var ur edge.UsersListResponse
-	if err := cl.ParseResponse(&ur, resp); err != nil {
-		return err
-	}
-	if !ur.Ok {
-		return fmt.Errorf("error: %s", ur.Error)
-	}
-	lg.Printf("%+v\n", ur)
 
 	lg.Printf("*** Search for Channels test ***")
 	channels, err := cl.SearchChannels(ctx, "")
@@ -81,6 +69,13 @@ func runEdge(ctx context.Context, cmd *base.Command, args []string) error {
 	enc := json.NewEncoder(os.Stdout)
 	enc.SetIndent("", "  ")
 	enc.Encode(channels)
+
+	lg.Printf("*** DMs test ***")
+	dms, err := cl.DMs(ctx)
+	if err != nil {
+		return err
+	}
+	enc.Encode(dms)
 
 	return nil
 }

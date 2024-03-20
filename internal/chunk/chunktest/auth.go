@@ -3,16 +3,19 @@ package chunktest
 import (
 	"context"
 	"net/http"
+
+	"github.com/rusq/slack"
 )
 
 // TestAuth to use with the chunktest server.
 type TestAuth struct {
-	FakeToken         string
-	FakeCookies       []*http.Cookie
-	WantValidateError error
-	WantTestError     error
-	WantHTTPClient    *http.Client
-	WantHTTPClientErr error
+	FakeToken            string
+	FakeCookies          []*http.Cookie
+	WantValidateError    error
+	WantTestError        error
+	WantHTTPClient       *http.Client
+	WantHTTPClientErr    error
+	WantAuthTestResponse *slack.AuthTestResponse
 }
 
 // SlackToken should return the Slack Token value.
@@ -33,8 +36,8 @@ func (a *TestAuth) Validate() error {
 }
 
 // Test tests if credentials are valid.
-func (a *TestAuth) Test(ctx context.Context) error {
-	return a.WantTestError
+func (a *TestAuth) Test(ctx context.Context) (*slack.AuthTestResponse, error) {
+	return a.WantAuthTestResponse, a.WantTestError
 }
 
 // HTTPClient returns an authenticated HTTP client

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
-	"strconv"
 	"time"
 
 	"github.com/google/uuid"
@@ -55,10 +54,7 @@ type searchForm struct {
 	ExcludeMyChannels    int               `json:"exclude_my_channels"`
 	SearchOnlyMyChannels bool              `json:"search_only_my_channels"`
 	RecommendSource      string            `json:"recommend_source"`
-	XReason              string            `json:"_x_reason"`
-	XMode                string            `json:"_x_mode"`
-	XSonic               bool              `json:"_x_sonic"`
-	XAppName             string            `json:"_x_app_name"`
+	WebClientFields
 }
 
 type searchChannelType string
@@ -110,25 +106,15 @@ func (cl *Client) SearchChannels(ctx context.Context, query string) ([]slack.Cha
 		ExcludeMyChannels:    0,
 		SearchOnlyMyChannels: false,
 		RecommendSource:      "channel-browser",
-		XReason:              "browser-query",
-		XMode:                "online",
-		XSonic:               true,
-		XAppName:             "client",
-	}
-	var sup searchURLParams = searchURLParams{
-		XID:            "0b5495de-" + strconv.FormatInt(time.Now().Unix(), 10) + ".000",
-		SlackRoute:     cl.teamID,
-		XVersionTS:     time.Now().Unix(),
-		XFrontendBuild: "current",
-		XDesktopIA:     4,
-		XGrantry:       true,
-		FP:             1,
-	}
-	var url = fmt.Sprintf("https://%s.slack.com/api/search.modules.channels", cl.workspaceName)
-	if uv := sup.Values(); len(uv) > 0 {
-		url += "?" + uv.Encode()
+		WebClientFields: WebClientFields{
+			XReason:  "browser-query",
+			XMode:    "online",
+			XSonic:   true,
+			XAppName: "client",
+		},
 	}
 
+	var url = cl.webapiURL("search.modules.channels")
 	var cc []slack.Channel
 	for {
 		resp, err := cl.PostFormRaw(ctx, url, form.Values())
@@ -149,7 +135,24 @@ func (cl *Client) SearchChannels(ctx context.Context, query string) ([]slack.Cha
 	return cc, nil
 }
 
-type searchURLParams struct {
+func (cl *Client) webapiURL(endpoint string) string {
+	// var sup webURLParam = webURLParam{
+	// 	XID:            "0b5495de-" + strconv.FormatInt(time.Now().Unix(), 10) + ".000",
+	// 	SlackRoute:     cl.teamID,
+	// 	XVersionTS:     time.Now().Unix(),
+	// 	XFrontendBuild: "current",
+	// 	XDesktopIA:     4,
+	// 	XGrantry:       true,
+	// 	FP:             1,
+	// }
+	url := fmt.Sprintf("https://%s.slack.com/api/%s", cl.workspaceName, endpoint)
+	// if uv := sup.Values(); len(uv) > 0 {
+	// 	url += "?" + uv.Encode()
+	// }
+	return url
+}
+
+type webURLParam struct {
 	XID            string `json:"_x_id,omitempty"`
 	XCSID          string `json:"_x_csid,omitempty"`
 	SlackRoute     string `json:"slack_route,omitempty"`
@@ -160,6 +163,6 @@ type searchURLParams struct {
 	FP             int    `json:"fp,omitempty"`
 }
 
-func (sup searchURLParams) Values() url.Values {
+func (sup webURLParam) Values() url.Values {
 	return values(sup, true)
 }

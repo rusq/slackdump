@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 
+	"github.com/rusq/slack"
 	"github.com/rusq/slackdump/v3/auth"
 	"github.com/rusq/slackdump/v3/internal/fixtures"
 	"github.com/rusq/slackdump/v3/internal/mocks/mock_appauth"
@@ -240,9 +241,9 @@ func TestInitProvider(t *testing.T) {
 	}
 }
 
-func fakeAuthTester(err error) func(_ auth.Provider, ctx context.Context) error {
-	return func(_ auth.Provider, ctx context.Context) error {
-		return err
+func fakeAuthTester(err error) func(_ auth.Provider, ctx context.Context) (*slack.AuthTestResponse, error) {
+	return func(_ auth.Provider, ctx context.Context) (*slack.AuthTestResponse, error) {
+		return nil, err
 	}
 }
 

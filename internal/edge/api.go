@@ -110,6 +110,13 @@ type UserMembershipResponse struct {
 	BaseResponse
 }
 
+type WebClientFields struct {
+	XReason  string `json:"_x_reason"`
+	XMode    string `json:"_x_mode"`
+	XSonic   bool   `json:"_x_sonic"`
+	XAppName string `json:"_x_app_name"`
+}
+
 var ErrNotOK = errors.New("server returned NOT OK")
 
 // GetUsers returns users from the slack edge api for the channel.  User IDs

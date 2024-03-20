@@ -7,6 +7,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strings"
@@ -36,6 +38,7 @@ func NewWithClient(workspaceName string, teamID string, token string, cl *http.C
 		workspaceName: workspaceName,
 		cl:            cl,
 		token:         token,
+		teamID:        teamID,
 		apiPath:       fmt.Sprintf("https://edgeapi.slack.com/cache/%s/", teamID),
 	}, nil
 }
@@ -71,7 +74,8 @@ type BaseResponse struct {
 }
 
 type ResponseMetadata struct {
-	Messages []string `json:"messages,omitempty"`
+	Messages   []string `json:"messages,omitempty"`
+	NextCursor string   `json:"next_cursor,omitempty"`
 }
 
 func (r *BaseRequest) SetToken(token string) {
@@ -105,7 +109,12 @@ func (cl *Client) Post(ctx context.Context, path string, req PostRequest) (*http
 
 func (cl *Client) ParseResponse(req any, resp *http.Response) error {
 	defer resp.Body.Close()
-	dec := json.NewDecoder(resp.Body)
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	slog.Info("response", "body", string(data))
+	dec := json.NewDecoder(bytes.NewReader(data))
 	return dec.Decode(req)
 }
 
