@@ -15,9 +15,10 @@ import (
 var _ = godotenv.Load()
 
 var (
-	testToken  = os.Getenv("EDGE_TOKEN)")
-	testCookie = os.Getenv("EDGE_COOKIE")
-	testTeam   = os.Getenv("EDGE_TEAM")
+	testToken     = os.Getenv("EDGE_TOKEN)")
+	testCookie    = os.Getenv("EDGE_COOKIE")
+	testTeam      = os.Getenv("EDGE_TEAM")
+	testWorkspace = os.Getenv("EDGE_WORKSPACE")
 )
 
 func TestNew(t *testing.T) {
@@ -29,7 +30,7 @@ func TestNew(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cl, err := New(testTeam, prov.SlackToken(), prov.Cookies())
+	cl, err := New(testWorkspace, testTeam, prov.SlackToken(), prov.Cookies())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -57,7 +58,7 @@ func TestGetUsers(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cl, err := NewWithProvider(testTeam, au)
+	cl, err := NewWithProvider(testWorkspace, testTeam, au)
 	if err != nil {
 		t.Fatal(err)
 	}
