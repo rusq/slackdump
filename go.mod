@@ -8,7 +8,7 @@ require (
 	github.com/denisbrodbeck/machineid v1.0.1
 	github.com/fatih/color v1.16.0
 	github.com/joho/godotenv v1.5.1
-	github.com/playwright-community/playwright-go v0.4101.1
+	github.com/playwright-community/playwright-go v0.4201.0
 	github.com/rusq/chttp v1.0.2
 	github.com/rusq/dlog v1.4.0
 	github.com/rusq/osenv/v2 v2.0.1
@@ -30,7 +30,7 @@ require (
 	github.com/catppuccin/go v0.2.0 // indirect
 	github.com/charmbracelet/bubbles v0.18.0 // indirect
 	github.com/charmbracelet/bubbletea v0.25.0 // indirect
-	github.com/charmbracelet/lipgloss v0.9.1 // indirect
+	github.com/charmbracelet/lipgloss v0.10.0 // indirect
 	github.com/containerd/console v1.0.4 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/deckarep/golang-set/v2 v2.6.0 // indirect
@@ -50,7 +50,7 @@ require (
 	github.com/muesli/reflow v0.3.0 // indirect
 	github.com/muesli/termenv v0.15.2 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/rivo/uniseg v0.4.6 // indirect
+	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/ysmood/fetchup v0.2.4 // indirect
 	github.com/ysmood/goob v0.4.0 // indirect
 	github.com/ysmood/got v0.39.4 // indirect
@@ -58,7 +58,7 @@ require (
 	github.com/ysmood/leakless v0.8.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/crypto v0.21.0 // indirect
-	golang.org/x/exp v0.0.0-20240205201215-2c58cdc269a3 // indirect
+	golang.org/x/exp v0.0.0-20240318143956-a85f2c67cd81 // indirect
 	golang.org/x/net v0.22.0 // indirect
 	golang.org/x/sys v0.18.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
