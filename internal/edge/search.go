@@ -3,7 +3,6 @@ package edge
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/url"
 	"time"
 
@@ -114,10 +113,9 @@ func (cl *Client) SearchChannels(ctx context.Context, query string) ([]slack.Cha
 		},
 	}
 
-	var url = cl.webapiURL("search.modules.channels")
 	var cc []slack.Channel
 	for {
-		resp, err := cl.PostFormRaw(ctx, url, form.Values())
+		resp, err := cl.PostForm(ctx, "search.modules.channels", form.Values())
 		if err != nil {
 			return nil, err
 		}
@@ -133,36 +131,4 @@ func (cl *Client) SearchChannels(ctx context.Context, query string) ([]slack.Cha
 		form.Page++
 	}
 	return cc, nil
-}
-
-func (cl *Client) webapiURL(endpoint string) string {
-	// var sup webURLParam = webURLParam{
-	// 	XID:            "0b5495de-" + strconv.FormatInt(time.Now().Unix(), 10) + ".000",
-	// 	SlackRoute:     cl.teamID,
-	// 	XVersionTS:     time.Now().Unix(),
-	// 	XFrontendBuild: "current",
-	// 	XDesktopIA:     4,
-	// 	XGrantry:       true,
-	// 	FP:             1,
-	// }
-	url := fmt.Sprintf("https://%s.slack.com/api/%s", cl.workspaceName, endpoint)
-	// if uv := sup.Values(); len(uv) > 0 {
-	// 	url += "?" + uv.Encode()
-	// }
-	return url
-}
-
-type webURLParam struct {
-	XID            string `json:"_x_id,omitempty"`
-	XCSID          string `json:"_x_csid,omitempty"`
-	SlackRoute     string `json:"slack_route,omitempty"`
-	XVersionTS     int64  `json:"_x_version_ts,omitempty"`
-	XFrontendBuild string `json:"_x_frontend_build,omitempty"`
-	XDesktopIA     int    `json:"_x_desktop_ia,omitempty"`
-	XGrantry       bool   `json:"_x_gantry,omitempty"`
-	FP             int    `json:"fp,omitempty"`
-}
-
-func (sup webURLParam) Values() url.Values {
-	return values(sup, true)
 }

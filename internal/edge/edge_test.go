@@ -30,7 +30,7 @@ func TestNew(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cl, err := New(testWorkspace, testTeam, prov.SlackToken(), prov.Cookies())
+	cl, err := New(context.Background(), prov)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -58,7 +58,7 @@ func TestGetUsers(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cl, err := NewWithProvider(testWorkspace, testTeam, au)
+	cl, err := New(context.Background(), au)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -5,9 +5,7 @@ import (
 	"encoding/json"
 	"os"
 
-	"github.com/rusq/slackdump/v3"
 	"github.com/rusq/slackdump/v3/auth"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/internal/edge"
 	"github.com/rusq/slackdump/v3/logger"
@@ -42,24 +40,13 @@ func runEdge(ctx context.Context, cmd *base.Command, args []string) error {
 		base.SetExitStatus(base.SAuthError)
 		return err
 	}
-	ai, err := prov.Test(ctx)
-	if err != nil {
-		return err
-	}
-	lg.Printf("auth test: %+v", ai)
 
-	lg.Print("connected")
-	sd, err := slackdump.New(ctx, prov)
-	if err != nil {
-		base.SetExitStatus(base.SAuthError)
-		return err
-	}
-
-	cl, err := edge.NewWithProvider(cfg.Workspace, sd.Info().TeamID, prov)
+	cl, err := edge.New(ctx, prov)
 	if err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return err
 	}
+	lg.Print("connected")
 
 	lg.Printf("*** Search for Channels test ***")
 	channels, err := cl.SearchChannels(ctx, "")
