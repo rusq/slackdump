@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/rusq/slack"
+	"github.com/rusq/slackdump/v3/internal/fasttime"
 )
 
 type dmsForm struct {
@@ -31,8 +32,8 @@ type dmsResponse struct {
 type DM struct {
 	ID string `json:"id"`
 	// Message slack.Message `json:"message,omitempty"`
-	Channel Channel `json:"channel,omitempty"`
-	Latest  string  `json:"latest,omitempty"` // i.e. "1710632873.037269"
+	Channel Channel       `json:"channel,omitempty"`
+	Latest  fasttime.Time `json:"latest,omitempty"` // i.e. "1710632873.037269"
 }
 
 type Channel struct {
@@ -45,8 +46,8 @@ type Channel struct {
 	ContextTeamID string         `json:"context_team_id"`
 	Updated       slack.JSONTime `json:"updated"`
 	User          string         `json:"user"`
-	LastRead      string         `json:"last_read"`
-	Latest        string         `json:"latest"`
+	LastRead      fasttime.Time  `json:"last_read"`
+	Latest        fasttime.Time  `json:"latest"`
 	IsOpen        bool           `json:"is_open"`
 }
 
@@ -149,12 +150,12 @@ type CountsResponse struct {
 }
 
 type ChannelSnapshot struct {
-	ID             string `json:"id"`
-	LastRead       string `json:"last_read"`
-	Latest         string `json:"latest"`
-	HistoryInvalid string `json:"history_invalid"`
-	MentionCount   int    `json:"mention_count"`
-	HasUnreads     bool   `json:"has_unreads"`
+	ID             string        `json:"id"`
+	LastRead       fasttime.Time `json:"last_read"`
+	Latest         fasttime.Time `json:"latest"`
+	HistoryInvalid fasttime.Time `json:"history_invalid"`
+	MentionCount   int           `json:"mention_count"`
+	HasUnreads     bool          `json:"has_unreads"`
 }
 
 func (cl *Client) Counts(ctx context.Context) (CountsResponse, error) {
