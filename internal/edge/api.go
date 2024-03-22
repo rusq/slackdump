@@ -181,10 +181,7 @@ func (cl *Client) ChannelMembership(ctx context.Context, req *UserMembershipRequ
 
 func callAPI(ctx context.Context, cl *Client, endpoint string, req PostRequest, resp any) error {
 	r, err := cl.Post(ctx, endpoint, req)
-	if err != nil {
-		return err
-	}
-	if err != nil && err != io.EOF {
+	if err != nil && !errors.Is(err, io.EOF) {
 		return err
 	}
 	if r.StatusCode < http.StatusOK || http.StatusMultipleChoices <= r.StatusCode {

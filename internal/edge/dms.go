@@ -2,13 +2,14 @@ package edge
 
 import (
 	"context"
-	"log/slog"
 	"net/url"
 	"time"
+
+	"github.com/rusq/slack"
 )
 
 type dmsForm struct {
-	Token          string `json:"token"`
+	BaseRequest
 	Count          int    `json:"count"`
 	IncludeClosed  bool   `json:"include_closed"`
 	IncludeChannel bool   `json:"include_channel"`
@@ -25,7 +26,6 @@ type dmsResponse struct {
 	BaseResponse
 	IMs   []DM `json:"ims,omitempty"`
 	MPIMs []DM `json:"mpims,omitempty"` //TODO
-
 }
 
 type DM struct {
@@ -36,23 +36,23 @@ type DM struct {
 }
 
 type Channel struct {
-	ID            string `json:"id"`
-	Created       int64  `json:"created"`
-	IsFrozen      bool   `json:"is_frozen"`
-	IsArchived    bool   `json:"is_archived"`
-	IsIM          bool   `json:"is_im"`
-	IsOrgShared   bool   `json:"is_org_shared"`
-	ContextTeamID string `json:"context_team_id"`
-	Updated       int64  `json:"updated"`
-	User          string `json:"user"`
-	LastRead      string `json:"last_read"`
-	Latest        string `json:"latest"`
-	IsOpen        bool   `json:"is_open"`
+	ID            string         `json:"id"`
+	Created       slack.JSONTime `json:"created"`
+	IsFrozen      bool           `json:"is_frozen"`
+	IsArchived    bool           `json:"is_archived"`
+	IsIM          bool           `json:"is_im"`
+	IsOrgShared   bool           `json:"is_org_shared"`
+	ContextTeamID string         `json:"context_team_id"`
+	Updated       slack.JSONTime `json:"updated"`
+	User          string         `json:"user"`
+	LastRead      string         `json:"last_read"`
+	Latest        string         `json:"latest"`
+	IsOpen        bool           `json:"is_open"`
 }
 
 func (cl *Client) DMs(ctx context.Context) ([]DM, error) {
 	form := dmsForm{
-		Token:          cl.token,
+		BaseRequest:    BaseRequest{Token: cl.token},
 		Count:          250,
 		IncludeClosed:  true,
 		IncludeChannel: true,
@@ -67,10 +67,8 @@ func (cl *Client) DMs(ctx context.Context) ([]DM, error) {
 	}
 
 	var IMs []DM
-	var url = cl.webapiURL("client.dms")
-	slog.Info("url", "url", url)
-	for range 3 {
-		resp, err := cl.PostFormRaw(ctx, url, form.Values())
+	for {
+		resp, err := cl.PostFormRaw(ctx, cl.webapiURL("client.dms"), form.Values())
 		if err != nil {
 			return nil, err
 		}
@@ -87,3 +85,69 @@ func (cl *Client) DMs(ctx context.Context) ([]DM, error) {
 	}
 	return IMs, nil
 }
+
+type imsForm struct {
+	BaseRequest
+	GetLatest    bool   `json:"get_latest"`
+	GetReadState bool   `json:"get_read_state"`
+	Cursor       string `json:"cursor,omitempty"`
+	WebClientFields
+}
+
+type imsResponse struct {
+	BaseResponse
+	IMs []Channel `json:"ims,omitempty"`
+}
+
+func (cl *Client) IMs(ctx context.Context) ([]Channel, error) {
+	form := imsForm{
+		BaseRequest:  BaseRequest{Token: cl.token},
+		GetLatest:    true,
+		GetReadState: true,
+		WebClientFields: WebClientFields{
+			XReason:  "guided-search-people-empty-state",
+			XMode:    "online",
+			XSonic:   true,
+			XAppName: "client",
+		},
+		Cursor: "",
+	}
+
+	var IMs []Channel
+	for {
+		resp, err := cl.PostFormRaw(ctx, cl.webapiURL("im.list"), values(form, true))
+		if err != nil {
+			return nil, err
+		}
+		r := imsResponse{}
+		if err := cl.ParseResponse(&r, resp); err != nil {
+			return nil, err
+		}
+		if r.ResponseMetadata.NextCursor == "" {
+			break
+		}
+		IMs = append(IMs, r.IMs...)
+		time.Sleep(300 * time.Millisecond) //TODO: hax
+		form.Cursor = r.ResponseMetadata.NextCursor
+	}
+	return IMs, nil
+}
+
+/*
+thread_counts_by_channel: true
+org_wide_aware: true
+include_file_channels: true
+_x_reason: client-counts-api/fetchClientCounts
+_x_mode: online
+_x_sonic: true
+_x_app_name: client
+*/
+type countsForm struct {
+	BaseRequest
+	ThreadCountsByChannel bool `json:"thread_counts_by_channel"`
+	OrgWideAware          bool `json:"org_wide_aware"`
+	IncludeFileChannels   bool `json:"include_file_channels"`
+	WebClientFields
+}
+
+// func (cl *Client) Counts(ctx context.Context)

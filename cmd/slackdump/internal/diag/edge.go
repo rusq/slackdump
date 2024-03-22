@@ -53,16 +53,30 @@ func runEdge(ctx context.Context, cmd *base.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	enc := json.NewEncoder(os.Stdout)
-	enc.SetIndent("", "  ")
-	enc.Encode(channels)
+	if err := save("channels.json", channels); err != nil {
+		return err
+	}
 
 	lg.Printf("*** DMs test ***")
 	dms, err := cl.DMs(ctx)
 	if err != nil {
 		return err
 	}
-	enc.Encode(dms)
+	if err := save("dms.json", dms); err != nil {
+		return err
+	}
 
 	return nil
+}
+
+func save(filename string, r any) error {
+	f, err := os.Create(filename)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	enc := json.NewEncoder(f)
+	enc.SetIndent("", "  ")
+	enc.Encode(r)
+	return err
 }

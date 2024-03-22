@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log/slog"
 	"net/http"
 	"net/url"
 	"strings"
@@ -89,6 +88,13 @@ type BaseResponse struct {
 	ResponseMetadata ResponseMetadata `json:"response_metadata,omitempty"`
 }
 
+func (r BaseResponse) validate(ep string) error {
+	if !r.Ok {
+		return &APIError{Err: r.Error, Metadata: r.ResponseMetadata, Endpoint: ep}
+	}
+	return nil
+}
+
 type ResponseMetadata struct {
 	Messages   []string `json:"messages,omitempty"`
 	NextCursor string   `json:"next_cursor,omitempty"`
@@ -124,14 +130,15 @@ func (cl *Client) Post(ctx context.Context, path string, req PostRequest) (*http
 }
 
 func (cl *Client) ParseResponse(req any, resp *http.Response) error {
+	if resp.StatusCode < http.StatusOK || http.StatusMultipleChoices <= resp.StatusCode {
+		return fmt.Errorf("error:  status code: %s", resp.Status)
+	}
 	defer resp.Body.Close()
-	data, err := io.ReadAll(resp.Body)
-	if err != nil {
+	dec := json.NewDecoder(resp.Body)
+	if err := dec.Decode(req); err != nil {
 		return err
 	}
-	slog.Info("response", "body", string(data))
-	dec := json.NewDecoder(bytes.NewReader(data))
-	return dec.Decode(req)
+	return nil
 }
 
 func (cl *Client) PostForm(ctx context.Context, path string, form url.Values) (*http.Response, error) {
@@ -148,9 +155,18 @@ func (cl *Client) PostFormRaw(ctx context.Context, url string, form url.Values) 
 	}
 
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Set("accept-language", "en-NZ,en-AU;q=0.9,en;q=0.8,ru;q=0.7")
-	req.Header.Set("user-agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36")
-	return cl.cl.Do(req)
+	req.Header.Set("Accept-Language", "en-NZ,en-AU;q=0.9,en;q=0.8")
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36")
+	resp, err := cl.cl.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode < http.StatusOK || http.StatusMultipleChoices <= resp.StatusCode {
+		body, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		return nil, fmt.Errorf("error:  status code: %s, body: %s", resp.Status, string(body))
+	}
+	return resp, err
 }
 
 // values returns url.Values from a struct.  If omitempty is true, then the
@@ -166,4 +182,17 @@ func values[T any](s T, omitempty bool) url.Values {
 
 func (cl *Client) webapiURL(endpoint string) string {
 	return cl.webclientAPI + endpoint
+}
+
+type APIError struct {
+	Err      string
+	Metadata ResponseMetadata
+	Endpoint string
+}
+
+func (e *APIError) Error() string {
+	if len(e.Metadata.Messages) > 0 {
+		return e.Err + ": " + e.Metadata.Messages[0]
+	}
+	return e.Err
 }

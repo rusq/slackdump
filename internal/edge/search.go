@@ -30,7 +30,7 @@ type Pagination struct {
 
 // searchForm is the form to be sent to the search endpoint.
 type searchForm struct {
-	Token                string            `json:"token"`
+	BaseRequest
 	Module               string            `json:"module"`
 	Query                string            `json:"query"`
 	Page                 int               `json:"page"`
@@ -47,8 +47,8 @@ type searchForm struct {
 	Browse               string            `json:"browse"`
 	SearchContext        string            `json:"search_context"`
 	MaxFilterSuggestions int               `json:"max_filter_suggestions"`
-	Sort                 string            `json:"sort"`
-	SortDir              string            `json:"sort_dir"`
+	Sort                 searchSortType    `json:"sort"`
+	SortDir              searchSortDir     `json:"sort_dir"`
 	ChannelType          searchChannelType `json:"channel_type"`
 	ExcludeMyChannels    int               `json:"exclude_my_channels"`
 	SearchOnlyMyChannels bool              `json:"search_only_my_channels"`
@@ -68,7 +68,22 @@ const (
 	scpAll             searchChannelType = ""
 )
 
-func (s searchForm) Values() url.Values {
+type searchSortDir string
+
+const (
+	ssdEmpty searchSortDir = ""
+	ssdAsc   searchSortDir = "asc"
+	ssdDesc  searchSortDir = "desc"
+)
+
+type searchSortType string
+
+const (
+	sstRecommended searchSortType = "recommended"
+	sstName        searchSortType = "name"
+)
+
+func (s *searchForm) Values() url.Values {
 	return values(s, false)
 }
 
@@ -82,7 +97,7 @@ func (cl *Client) SearchChannels(ctx context.Context, query string) ([]slack.Cha
 		return nil, err
 	}
 	form := searchForm{
-		Token:                cl.token,
+		BaseRequest:          BaseRequest{Token: cl.token},
 		Module:               "channels",
 		Query:                query,
 		Page:                 1,
@@ -99,8 +114,8 @@ func (cl *Client) SearchChannels(ctx context.Context, query string) ([]slack.Cha
 		Browse:               "standard",
 		SearchContext:        "desktop_channel_browser",
 		MaxFilterSuggestions: 10,
-		Sort:                 "name",
-		SortDir:              "asc",
+		Sort:                 sstName,
+		SortDir:              ssdAsc,
 		ChannelType:          scpAll,
 		ExcludeMyChannels:    0,
 		SearchOnlyMyChannels: false,
@@ -113,14 +128,19 @@ func (cl *Client) SearchChannels(ctx context.Context, query string) ([]slack.Cha
 		},
 	}
 
+	const ep = "search.modules.channels"
+
 	var cc []slack.Channel
 	for {
-		resp, err := cl.PostForm(ctx, "search.modules.channels", form.Values())
+		resp, err := cl.PostForm(ctx, ep, form.Values())
 		if err != nil {
 			return nil, err
 		}
 		var sr SearchResponse[slack.Channel]
 		if err := cl.ParseResponse(&sr, resp); err != nil {
+			return nil, err
+		}
+		if err := sr.validate(ep); err != nil {
 			return nil, err
 		}
 		cc = append(cc, sr.Items...)
