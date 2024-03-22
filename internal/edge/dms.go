@@ -76,10 +76,10 @@ func (cl *Client) DMs(ctx context.Context) ([]DM, error) {
 		if err := cl.ParseResponse(&r, resp); err != nil {
 			return nil, err
 		}
+		IMs = append(IMs, r.IMs...)
 		if r.ResponseMetadata.NextCursor == "" {
 			break
 		}
-		IMs = append(IMs, r.IMs...)
 		time.Sleep(300 * time.Millisecond) //TODO: hax
 		form.Cursor = r.ResponseMetadata.NextCursor
 	}
@@ -123,25 +123,16 @@ func (cl *Client) IMs(ctx context.Context) ([]Channel, error) {
 		if err := cl.ParseResponse(&r, resp); err != nil {
 			return nil, err
 		}
+		IMs = append(IMs, r.IMs...)
 		if r.ResponseMetadata.NextCursor == "" {
 			break
 		}
-		IMs = append(IMs, r.IMs...)
 		time.Sleep(300 * time.Millisecond) //TODO: hax
 		form.Cursor = r.ResponseMetadata.NextCursor
 	}
 	return IMs, nil
 }
 
-/*
-thread_counts_by_channel: true
-org_wide_aware: true
-include_file_channels: true
-_x_reason: client-counts-api/fetchClientCounts
-_x_mode: online
-_x_sonic: true
-_x_app_name: client
-*/
 type countsForm struct {
 	BaseRequest
 	ThreadCountsByChannel bool `json:"thread_counts_by_channel"`
@@ -150,4 +141,43 @@ type countsForm struct {
 	WebClientFields
 }
 
-// func (cl *Client) Counts(ctx context.Context)
+type CountsResponse struct {
+	BaseResponse
+	Channels []ChannelSnapshot `json:"channels,omitempty"`
+	MPIMs    []ChannelSnapshot `json:"mpims,omitempty"`
+	IMs      []ChannelSnapshot `json:"ims,omitempty"`
+}
+
+type ChannelSnapshot struct {
+	ID             string `json:"id"`
+	LastRead       string `json:"last_read"`
+	Latest         string `json:"latest"`
+	HistoryInvalid string `json:"history_invalid"`
+	MentionCount   int    `json:"mention_count"`
+	HasUnreads     bool   `json:"has_unreads"`
+}
+
+func (cl *Client) Counts(ctx context.Context) (CountsResponse, error) {
+	form := countsForm{
+		BaseRequest:           BaseRequest{Token: cl.token},
+		ThreadCountsByChannel: true,
+		OrgWideAware:          true,
+		IncludeFileChannels:   true,
+		WebClientFields: WebClientFields{
+			XReason:  "client-counts-api/fetchClientCounts",
+			XMode:    "online",
+			XSonic:   true,
+			XAppName: "client",
+		},
+	}
+
+	resp, err := cl.PostForm(ctx, "client.counts", values(form, true))
+	if err != nil {
+		return CountsResponse{}, err
+	}
+	r := CountsResponse{}
+	if err := cl.ParseResponse(&r, resp); err != nil {
+		return CountsResponse{}, err
+	}
+	return r, nil
+}

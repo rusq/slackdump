@@ -66,6 +66,24 @@ func runEdge(ctx context.Context, cmd *base.Command, args []string) error {
 		return err
 	}
 
+	lg.Printf("*** IMs test ***")
+	ims, err := cl.IMs(ctx)
+	if err != nil {
+		return err
+	}
+	if err := save("ims.json", ims); err != nil {
+		return err
+	}
+
+	lg.Printf("*** Counts ***")
+	counts, err := cl.Counts(ctx)
+	if err != nil {
+		return err
+	}
+	if err := save("counts.json", counts); err != nil {
+		return err
+	}
+
 	return nil
 }
 
