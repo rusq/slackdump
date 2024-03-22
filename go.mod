@@ -1,6 +1,8 @@
 module github.com/rusq/slackdump/v2
 
-go 1.21.4
+go 1.22
+
+toolchain go1.22.1
 
 require (
 	github.com/MercuryEngineering/CookieMonster v0.0.0-20180304172713-1584578b3403
@@ -13,7 +15,7 @@ require (
 	github.com/rusq/dlog v1.4.0
 	github.com/rusq/osenv/v2 v2.0.1
 	github.com/rusq/secure v0.0.4
-	github.com/rusq/slackauth v0.1.0
+	github.com/rusq/slackauth v0.1.1
 	github.com/rusq/tracer v1.0.1
 	github.com/schollz/progressbar/v3 v3.13.0
 	github.com/slack-go/slack v0.12.5
