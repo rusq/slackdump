@@ -4,11 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"net/url"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/rusq/slack"
 )
+
+// search.* API
 
 type SearchResponse[T any] struct {
 	BaseResponse
@@ -129,7 +130,7 @@ func (cl *Client) SearchChannels(ctx context.Context, query string) ([]slack.Cha
 	}
 
 	const ep = "search.modules.channels"
-
+	lim := tier2.limiter()
 	var cc []slack.Channel
 	for {
 		resp, err := cl.PostForm(ctx, ep, form.Values())
@@ -147,8 +148,8 @@ func (cl *Client) SearchChannels(ctx context.Context, query string) ([]slack.Cha
 		if form.Page == int(sr.Pagination.PageCount) || sr.Pagination.PageCount == 0 {
 			break
 		}
-		time.Sleep(300 * time.Millisecond) //TODO: hax
 		form.Page++
+		lim.Wait(ctx)
 	}
 	return cc, nil
 }

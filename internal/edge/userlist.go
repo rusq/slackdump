@@ -10,14 +10,19 @@ import (
 
 type UsersListRequest struct {
 	BaseRequest
-	Channels     []string `json:"channels"`
-	PresentFirst bool     `json:"present_first"`
-	Filter       string   `json:"filter"`
-	Count        int64    `json:"count"`
+	Channels                []string `json:"channels"`
+	PresentFirst            bool     `json:"present_first,omitempty"`
+	Filter                  string   `json:"filter"`
+	Index                   string   `json:"index,omitempty"`
+	Locale                  string   `json:"locale,omitempty"`
+	IncludeProfileOnlyUsers bool     `json:"include_profile_only_users,omitempty"`
+	Marker                  string   `json:"marker,omitempty"` // pagination, it must contain the next_marker from the previous response
+	Count                   int      `json:"count"`
 }
 
 type UsersListResponse struct {
-	Results []User `json:"results"`
+	Results    []User `json:"results"`
+	NextMarker string `json:"next_marker"` // pagination, marker value which must be used in the next request, if not empty.
 	BaseResponse
 }
 
@@ -97,26 +102,6 @@ type UserInfo struct {
 	WhoCanShareContactCard string  `json:"who_can_share_contact_card"`
 }
 
-type UserMembershipRequest struct {
-	BaseRequest
-	Channel string   `json:"channel"`
-	Users   []string `json:"users"`
-	AsAdmin bool     `json:"as_admin"`
-}
-
-type UserMembershipResponse struct {
-	Channel    string   `json:"channel"`
-	NonMembers []string `json:"non_members"`
-	BaseResponse
-}
-
-type WebClientFields struct {
-	XReason  string `json:"_x_reason"`
-	XMode    string `json:"_x_mode"`
-	XSonic   bool   `json:"_x_sonic"`
-	XAppName string `json:"_x_app_name"`
-}
-
 var ErrNotOK = errors.New("server returned NOT OK")
 
 // GetUsers returns users from the slack edge api for the channel.  User IDs
@@ -124,12 +109,12 @@ var ErrNotOK = errors.New("server returned NOT OK")
 //
 // This tries to replicate the logic of the Slack client, when it fetches
 // the channel users while being logged in as a guest user.
-func (cl *Client) GetUsers(ctx context.Context, ids []string) ([]UserInfo, error) {
-	if len(ids) == 0 {
+func (cl *Client) GetUsers(ctx context.Context, channelIDs []string) ([]UserInfo, error) {
+	if len(channelIDs) == 0 {
 		return []UserInfo{}, nil
 	}
-	var updatedIds = make(map[string]int64, len(ids))
-	for _, id := range ids {
+	var updatedIds = make(map[string]int64, len(channelIDs))
+	for _, id := range channelIDs {
 		updatedIds[id] = 0
 	}
 
@@ -164,23 +149,36 @@ func (cl *Client) GetUsers(ctx context.Context, ids []string) ([]UserInfo, error
 // called again to get the actual user info (see [Client.GetUsers]).
 func (cl *Client) UsersInfo(ctx context.Context, req *UsersInfoRequest) (*UserInfoResponse, error) {
 	var ui UserInfoResponse
-	if err := callAPI(ctx, cl, "users/info", req, &ui); err != nil {
+	if err := cl.callAPI(ctx, &ui, "users/info", req); err != nil {
 		return nil, err
 	}
 	return &ui, nil
 }
 
-// ChannelMembership calls channels.membership endpoint.
-func (cl *Client) ChannelMembership(ctx context.Context, req *UserMembershipRequest) (*UserMembershipResponse, error) {
-	var um UserMembershipResponse
-	if err := callAPI(ctx, cl, "channels/membership", req, &um); err != nil {
+type ChannelsMembershipRequest struct {
+	BaseRequest
+	Channel string   `json:"channel"`
+	Users   []string `json:"users"`
+	AsAdmin bool     `json:"as_admin"`
+}
+
+type ChannelsMembershipResponse struct {
+	Channel    string   `json:"channel"`
+	NonMembers []string `json:"non_members"`
+	BaseResponse
+}
+
+// ChannelsMembership calls channels/membership endpoint.
+func (cl *Client) ChannelsMembership(ctx context.Context, req *ChannelsMembershipRequest) (*ChannelsMembershipResponse, error) {
+	var um ChannelsMembershipResponse
+	if err := cl.callAPI(ctx, &um, "channels/membership", req); err != nil {
 		return nil, err
 	}
 	return &um, nil
 }
 
-func callAPI(ctx context.Context, cl *Client, endpoint string, req PostRequest, resp any) error {
-	r, err := cl.Post(ctx, endpoint, req)
+func (cl *Client) callAPI(ctx context.Context, v any, endpoint string, req PostRequest) error {
+	r, err := cl.EdgePost(ctx, endpoint, req)
 	if err != nil && !errors.Is(err, io.EOF) {
 		return err
 	}
@@ -189,5 +187,43 @@ func callAPI(ctx context.Context, cl *Client, endpoint string, req PostRequest, 
 		r.Body.Close()
 		return fmt.Errorf("error:  status code: %s, body: %s", r.Status, string(body))
 	}
-	return cl.ParseResponse(resp, r)
+	return cl.ParseResponse(v, r)
+}
+
+func (cl *Client) UsersList(ctx context.Context, channelIDs []string) ([]User, error) {
+	const (
+		everyone           = "everyone AND NOT bots AND NOT apps"
+		people             = "people"
+		usersByDisplayName = "users_by_display_name"
+
+		perRequest = 50
+	)
+	req := UsersListRequest{
+		Channels:     channelIDs,
+		Filter:       everyone,
+		PresentFirst: true,
+		Index:        usersByDisplayName,
+		Locale:       "en-US",
+		Marker:       "",
+		Count:        perRequest,
+	}
+
+	lim := tier3.limiter()
+	var uu = make([]User, 0, perRequest)
+	for {
+		var ur UsersListResponse
+		if err := cl.callAPI(ctx, &ur, "users/list", &req); err != nil {
+			return nil, err
+		}
+		if len(ur.Results) == 0 {
+			break
+		}
+		uu = append(uu, ur.Results...)
+		if ur.NextMarker == "" {
+			break
+		}
+		req.Marker = ur.NextMarker
+		lim.Wait(ctx)
+	}
+	return uu, nil
 }

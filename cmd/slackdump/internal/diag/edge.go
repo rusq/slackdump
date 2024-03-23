@@ -58,7 +58,7 @@ func runEdge(ctx context.Context, cmd *base.Command, args []string) error {
 	}
 
 	lg.Printf("*** DMs test ***")
-	dms, err := cl.DMs(ctx)
+	dms, err := cl.ClientDMs(ctx)
 	if err != nil {
 		return err
 	}
@@ -67,7 +67,7 @@ func runEdge(ctx context.Context, cmd *base.Command, args []string) error {
 	}
 
 	lg.Printf("*** IMs test ***")
-	ims, err := cl.IMs(ctx)
+	ims, err := cl.IMList(ctx)
 	if err != nil {
 		return err
 	}
@@ -76,11 +76,20 @@ func runEdge(ctx context.Context, cmd *base.Command, args []string) error {
 	}
 
 	lg.Printf("*** Counts ***")
-	counts, err := cl.Counts(ctx)
+	counts, err := cl.ClientCounts(ctx)
 	if err != nil {
 		return err
 	}
 	if err := save("counts.json", counts); err != nil {
+		return err
+	}
+
+	lg.Print("Conversations Generic Info")
+	ch, err := cl.ConversationsGenericInfo(ctx, "C065H568ZAT")
+	if err != nil {
+		return err
+	}
+	if err := save("conversations_generic_info.json", ch); err != nil {
 		return err
 	}
 

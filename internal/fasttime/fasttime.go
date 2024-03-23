@@ -2,6 +2,7 @@ package fasttime
 
 import (
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -10,7 +11,12 @@ import (
 type Time time.Time
 
 func (t *Time) UnmarshalJSON(data []byte) error {
-	ts, err := TS2int(strings.Trim(string(data), `"`))
+	clean := strings.Trim(string(data), `"`)
+	if clean == "" || clean == "null" {
+		*t = Time{}
+		return nil
+	}
+	ts, err := TS2int(clean)
 	if err != nil {
 		return err
 	}
@@ -23,12 +29,21 @@ func (t Time) MarshalJSON() ([]byte, error) {
 	return []byte(`"` + Int2TS(ts) + `"`), nil
 }
 
+func (t Time) SlackString() string {
+	return Int2TS(time.Time(t).UnixMicro())
+}
+
+var ErrNotATimestamp = errors.New("not a slack timestamp")
+
 // TS2int converts a slack timestamp to an int64 by stripping the dot and
 // converting the string to an int64.  It is useful for fast comparison.
 func TS2int(ts string) (int64, error) {
+	if ts == "" {
+		return 0, nil
+	}
 	before, after, found := strings.Cut(ts, ".")
 	if !found {
-		return 0, errors.New("not a slack timestamp")
+		return 0, fmt.Errorf("%w: %s", ErrNotATimestamp, ts)
 	}
 	return strconv.ParseInt(before+after, 10, 64)
 }

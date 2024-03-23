@@ -12,19 +12,45 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/rusq/slackdump/v3/auth"
 	"github.com/rusq/slackdump/v3/internal/tagmagic"
+	"golang.org/x/time/rate"
 )
 
 type Client struct {
-	cl           *http.Client
-	edgeAPI      string
+	// cl is the http client to use
+	cl *http.Client
+	// edgeAPI is the edge API endpoint
+	edgeAPI string
+	// webclientAPI is the webclient APIs endpoint
 	webclientAPI string
-	token        string
+	// token is the slack token
+	token string
 
+	// teamID is the team ID
 	teamID string
 }
+
+type tier struct {
+	// once every
+	t time.Duration
+	// burst
+	b int
+}
+
+func (t tier) limiter() *rate.Limiter {
+	return rate.NewLimiter(rate.Every(t.t), t.b)
+}
+
+var (
+	// Tier1 is the first tier
+	tier1 = tier{t: 1 * time.Minute, b: 2}
+	tier2 = tier{t: 3 * time.Second, b: 3}
+	tier3 = tier{t: 1200 * time.Millisecond, b: 4}
+	tier4 = tier{t: 60 * time.Millisecond, b: 5}
+)
 
 var (
 	ErrNoTeamID = errors.New("teamID is empty")
@@ -113,7 +139,7 @@ type PostRequest interface {
 	IsTokenSet() bool
 }
 
-func (cl *Client) Post(ctx context.Context, path string, req PostRequest) (*http.Response, error) {
+func (cl *Client) EdgePost(ctx context.Context, path string, req PostRequest) (*http.Response, error) {
 	if !req.IsTokenSet() {
 		req.SetToken(cl.token)
 	}
@@ -161,6 +187,25 @@ func (cl *Client) PostFormRaw(ctx context.Context, url string, form url.Values) 
 	if err != nil {
 		return nil, err
 	}
+	if resp.StatusCode == http.StatusTooManyRequests {
+		strWait := resp.Header.Get("Retry-After")
+		if strWait == "" {
+			return nil, errors.New("got rate limited, but did not get a Retry-After header")
+		}
+		wait, err := time.ParseDuration(strWait + "s")
+		if err != nil {
+			return nil, err
+		}
+		time.Sleep(wait)
+		resp, err = cl.cl.Do(req)
+		if err != nil {
+			return nil, err
+		}
+		// if we are still rate limited, then we are in trouble
+		if resp.StatusCode == http.StatusTooManyRequests {
+			return nil, errors.New("still rate limited after waiting")
+		}
+	}
 	if resp.StatusCode < http.StatusOK || http.StatusMultipleChoices <= resp.StatusCode {
 		body, _ := io.ReadAll(resp.Body)
 		resp.Body.Close()
@@ -195,4 +240,20 @@ func (e *APIError) Error() string {
 		return e.Err + ": " + e.Metadata.Messages[0]
 	}
 	return e.Err
+}
+
+type WebClientFields struct {
+	XReason  string `json:"_x_reason"`
+	XMode    string `json:"_x_mode"`
+	XSonic   bool   `json:"_x_sonic"`
+	XAppName string `json:"_x_app_name"`
+}
+
+func webclientReason(reason string) WebClientFields {
+	return WebClientFields{
+		XReason:  reason,
+		XMode:    "online",
+		XSonic:   true,
+		XAppName: "client",
+	}
 }

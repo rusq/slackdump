@@ -15,10 +15,8 @@ import (
 var _ = godotenv.Load()
 
 var (
-	testToken     = os.Getenv("EDGE_TOKEN)")
-	testCookie    = os.Getenv("EDGE_COOKIE")
-	testTeam      = os.Getenv("EDGE_TEAM")
-	testWorkspace = os.Getenv("EDGE_WORKSPACE")
+	testToken  = os.Getenv("EDGE_TOKEN)")
+	testCookie = os.Getenv("EDGE_COOKIE")
 )
 
 func TestNew(t *testing.T) {
@@ -39,7 +37,7 @@ func TestNew(t *testing.T) {
 		Filter:   "everyone AND NOT bots AND NOT apps",
 		Count:    20,
 	}
-	resp, err := cl.Post(context.Background(), "/users/list", &req)
+	resp, err := cl.EdgePost(context.Background(), "/users/list", &req)
 	if err != nil {
 		t.Fatal(err)
 	}
