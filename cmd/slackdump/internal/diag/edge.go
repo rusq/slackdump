@@ -83,13 +83,23 @@ func runEdge(ctx context.Context, cmd *base.Command, args []string) error {
 	if err := save("counts.json", counts); err != nil {
 		return err
 	}
+	if len(counts.Channels) > 0 {
+		lg.Print("Conversations Generic Info")
+		ci, err := cl.ConversationsGenericInfo(ctx, counts.Channels[0].ID)
+		if err != nil {
+			return err
+		}
+		if err := save("conversations_generic_info.json", ci); err != nil {
+			return err
+		}
+	}
 
-	lg.Print("Conversations Generic Info")
-	ch, err := cl.ConversationsGenericInfo(ctx, "C065H568ZAT")
+	lg.Print("GetConversationsContext")
+	gcc, _, err := cl.GetConversationsContext(ctx, nil)
 	if err != nil {
 		return err
 	}
-	if err := save("conversations_generic_info.json", ch); err != nil {
+	if err := save("get_conversations_context.json", gcc); err != nil {
 		return err
 	}
 

@@ -104,6 +104,7 @@ func (c Channel) SlackChannel() slack.Channel {
 				Created:     c.Created,
 				IsIM:        c.IsIM,
 				IsOrgShared: c.IsOrgShared,
+				User:        c.User,
 				LastRead:    c.LastRead.SlackString(),
 			},
 			IsArchived: c.IsArchived,

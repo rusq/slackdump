@@ -28,16 +28,15 @@ func (cl *Client) GetConversationsContext(ctx context.Context, _ *slack.GetConve
 	if err != nil {
 		return nil, "", err
 	}
-	for _, c := range cr.MPIMs {
-		ch = append(ch, slack.Channel{
-			GroupConversation: slack.GroupConversation{
-				Conversation: slack.Conversation{
-					ID:     c.ID,
-					IsMpIM: true,
-				},
-			},
-		})
+	var ids = make([]string, len(cr.MPIMs))
+	for i, c := range cr.MPIMs {
+		ids[i] = c.ID
 	}
+	mpims, err := cl.ConversationsGenericInfo(ctx, ids...)
+	if err != nil {
+		return nil, "", err
+	}
+	ch = append(ch, mpims...)
 	return ch, "", nil
 }
 
