@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 
+	"github.com/rusq/slack"
 	"github.com/rusq/slackdump/v3/auth"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/internal/edge"
@@ -83,18 +84,8 @@ func runEdge(ctx context.Context, cmd *base.Command, args []string) error {
 	if err := save("counts.json", counts); err != nil {
 		return err
 	}
-	if len(counts.Channels) > 0 {
-		lg.Print("Conversations Generic Info")
-		ci, err := cl.ConversationsGenericInfo(ctx, counts.Channels[0].ID)
-		if err != nil {
-			return err
-		}
-		if err := save("conversations_generic_info.json", ci); err != nil {
-			return err
-		}
-	}
 
-	lg.Print("GetConversationsContext")
+	lg.Print("*** GetConversationsContext ***")
 	gcc, _, err := cl.GetConversationsContext(ctx, nil)
 	if err != nil {
 		return err
@@ -103,6 +94,25 @@ func runEdge(ctx context.Context, cmd *base.Command, args []string) error {
 		return err
 	}
 
+	lg.Print("*** GetUsersInConversationContext ***")
+	if len(gcc) > 0 {
+		guic, _, err := cl.GetUsersInConversationContext(ctx, &slack.GetUsersInConversationParameters{ChannelID: gcc[0].ID})
+		if err != nil {
+			return err
+		}
+		if err := save("get_users_in_conversation_context.json", guic); err != nil {
+			return err
+		}
+		lg.Print("*** Conversations Generic Info ***")
+		ci, err := cl.ConversationsGenericInfo(ctx, gcc[0].ID)
+		if err != nil {
+			return err
+		}
+		if err := save("conversations_generic_info.json", ci); err != nil {
+			return err
+		}
+	}
+	lg.Print("OK")
 	return nil
 }
 
