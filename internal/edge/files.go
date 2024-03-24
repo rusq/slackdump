@@ -29,7 +29,6 @@ func (cl *Client) FilesList(ctx context.Context, channel string, count int) ([]s
 		Count:           count,
 		WebClientFields: webclientReason("about-modal/sharedFiles"),
 	}
-
 	lim := tier3.limiter()
 	var ff []slack.File
 	for {

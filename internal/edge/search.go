@@ -149,7 +149,9 @@ func (cl *Client) SearchChannels(ctx context.Context, query string) ([]slack.Cha
 			break
 		}
 		form.Page++
-		lim.Wait(ctx)
+		if err := lim.Wait(ctx); err != nil {
+			return nil, err
+		}
 	}
 	return cc, nil
 }

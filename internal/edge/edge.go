@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strings"
@@ -34,7 +35,7 @@ type Client struct {
 }
 
 type tier struct {
-	// once every
+	// once eveyr
 	t time.Duration
 	// burst
 	b int
@@ -45,11 +46,12 @@ func (t tier) limiter() *rate.Limiter {
 }
 
 var (
-	// Tier1 is the first tier
-	tier1 = tier{t: 1 * time.Minute, b: 2}
-	tier2 = tier{t: 3 * time.Second, b: 3}
+	// tier1 = tier{t: 1 * time.Minute, b: 2}
+	// tier2 = tier{t: 3 * time.Second, b: 3}
+
+	tier2 = tier{t: 60 * time.Millisecond, b: 5}
 	tier3 = tier{t: 1200 * time.Millisecond, b: 4}
-	tier4 = tier{t: 60 * time.Millisecond, b: 5}
+	// tier4 = tier{t: 60 * time.Millisecond, b: 5}
 )
 
 var (
@@ -139,7 +141,11 @@ type PostRequest interface {
 	IsTokenSet() bool
 }
 
-func (cl *Client) EdgePost(ctx context.Context, path string, req PostRequest) (*http.Response, error) {
+const (
+	hdrContentType = "Content-Type"
+)
+
+func (cl *Client) PostJSON(ctx context.Context, path string, req PostRequest) (*http.Response, error) {
 	if !req.IsTokenSet() {
 		req.SetToken(cl.token)
 	}
@@ -151,20 +157,9 @@ func (cl *Client) EdgePost(ctx context.Context, path string, req PostRequest) (*
 	if err != nil {
 		return nil, err
 	}
-	r.Header.Set("Content-Type", "application/json")
-	return cl.cl.Do(r)
-}
+	r.Header.Set(hdrContentType, "application/json")
 
-func (cl *Client) ParseResponse(req any, resp *http.Response) error {
-	if resp.StatusCode < http.StatusOK || http.StatusMultipleChoices <= resp.StatusCode {
-		return fmt.Errorf("error:  status code: %s", resp.Status)
-	}
-	defer resp.Body.Close()
-	dec := json.NewDecoder(resp.Body)
-	if err := dec.Decode(req); err != nil {
-		return err
-	}
-	return nil
+	return do(cl.cl, r)
 }
 
 func (cl *Client) PostForm(ctx context.Context, path string, form url.Values) (*http.Response, error) {
@@ -179,11 +174,27 @@ func (cl *Client) PostFormRaw(ctx context.Context, url string, form url.Values) 
 	if err != nil {
 		return nil, err
 	}
-
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	return do(cl.cl, req)
+}
+
+func (cl *Client) ParseResponse(req any, resp *http.Response) error {
+	if resp.StatusCode < http.StatusOK || http.StatusMultipleChoices <= resp.StatusCode {
+		return fmt.Errorf("error:  status code: %s", resp.Status)
+	}
+	defer resp.Body.Close()
+	dec := json.NewDecoder(resp.Body)
+	if err := dec.Decode(req); err != nil {
+		return err
+	}
+	return nil
+}
+
+func do(cl *http.Client, req *http.Request) (*http.Response, error) {
 	req.Header.Set("Accept-Language", "en-NZ,en-AU;q=0.9,en;q=0.8")
 	req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36")
-	resp, err := cl.cl.Do(req)
+
+	resp, err := cl.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -192,12 +203,13 @@ func (cl *Client) PostFormRaw(ctx context.Context, url string, form url.Values) 
 		if strWait == "" {
 			return nil, errors.New("got rate limited, but did not get a Retry-After header")
 		}
+		slog.Debug("got rate limited, waiting", "wait", strWait)
 		wait, err := time.ParseDuration(strWait + "s")
 		if err != nil {
 			return nil, err
 		}
 		time.Sleep(wait)
-		resp, err = cl.cl.Do(req)
+		resp, err = cl.Do(req)
 		if err != nil {
 			return nil, err
 		}

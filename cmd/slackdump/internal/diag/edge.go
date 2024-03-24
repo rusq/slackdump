@@ -96,12 +96,23 @@ func runEdge(ctx context.Context, cmd *base.Command, args []string) error {
 
 	lg.Print("*** GetUsersInConversationContext ***")
 	if len(gcc) > 0 {
+		lg.Printf("using: %s", gcc[0].Name)
 		guic, _, err := cl.GetUsersInConversationContext(ctx, &slack.GetUsersInConversationParameters{ChannelID: gcc[0].ID})
 		if err != nil {
 			return err
 		}
 		if err := save("get_users_in_conversation_context.json", guic); err != nil {
 			return err
+		}
+		if len(guic) > 0 {
+			lg.Print("*** GetUsers ***")
+			users, err := cl.GetUsers(ctx, guic...)
+			if err != nil {
+				return err
+			}
+			if err := save("get_users.json", users); err != nil {
+				return err
+			}
 		}
 		lg.Print("*** Conversations Generic Info ***")
 		ci, err := cl.ConversationsGenericInfo(ctx, gcc[0].ID)
@@ -112,6 +123,7 @@ func runEdge(ctx context.Context, cmd *base.Command, args []string) error {
 			return err
 		}
 	}
+
 	lg.Print("OK")
 	return nil
 }

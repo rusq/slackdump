@@ -16,10 +16,10 @@ type imListForm struct {
 
 type imListResponse struct {
 	BaseResponse
-	IMs []Channel `json:"ims,omitempty"`
+	IMs []IM `json:"ims,omitempty"`
 }
 
-func (cl *Client) IMList(ctx context.Context) ([]Channel, error) {
+func (cl *Client) IMList(ctx context.Context) ([]IM, error) {
 	form := imListForm{
 		BaseRequest:  BaseRequest{Token: cl.token},
 		GetLatest:    true,
@@ -33,7 +33,7 @@ func (cl *Client) IMList(ctx context.Context) ([]Channel, error) {
 		Cursor: "",
 	}
 	lim := tier2.limiter()
-	var IMs []Channel
+	var IMs []IM
 	for {
 		resp, err := cl.PostForm(ctx, "im.list", values(form, true))
 		if err != nil {

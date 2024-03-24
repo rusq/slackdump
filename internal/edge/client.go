@@ -77,11 +77,11 @@ type clientDMsResponse struct {
 type ClientDM struct {
 	ID string `json:"id"`
 	// Message slack.Message `json:"message,omitempty"`
-	Channel Channel       `json:"channel,omitempty"`
+	Channel IM            `json:"channel,omitempty"`
 	Latest  fasttime.Time `json:"latest,omitempty"` // i.e. "1710632873.037269"
 }
 
-type Channel struct {
+type IM struct {
 	ID            string         `json:"id"`
 	Created       slack.JSONTime `json:"created"`
 	IsFrozen      bool           `json:"is_frozen"`
@@ -96,7 +96,7 @@ type Channel struct {
 	IsOpen        bool           `json:"is_open"`
 }
 
-func (c Channel) SlackChannel() slack.Channel {
+func (c IM) SlackChannel() slack.Channel {
 	return slack.Channel{
 		GroupConversation: slack.GroupConversation{
 			Conversation: slack.Conversation{

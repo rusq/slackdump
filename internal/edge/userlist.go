@@ -3,9 +3,9 @@ package edge
 import (
 	"context"
 	"errors"
-	"fmt"
 	"io"
-	"net/http"
+
+	"github.com/rusq/slack"
 )
 
 type UsersListRequest struct {
@@ -27,26 +27,26 @@ type UsersListResponse struct {
 }
 
 type User struct {
-	ID                     string  `json:"id"`
-	TeamID                 string  `json:"team_id"`
-	Name                   string  `json:"name"`
-	Deleted                bool    `json:"deleted"`
-	Color                  string  `json:"color"`
-	RealName               string  `json:"real_name"`
-	Tz                     string  `json:"tz"`
-	TzLabel                string  `json:"tz_label"`
-	TzOffset               int64   `json:"tz_offset"`
-	Profile                Profile `json:"profile"`
-	IsAdmin                bool    `json:"is_admin"`
-	IsOwner                bool    `json:"is_owner"`
-	IsPrimaryOwner         bool    `json:"is_primary_owner"`
-	IsRestricted           bool    `json:"is_restricted"`
-	IsUltraRestricted      bool    `json:"is_ultra_restricted"`
-	IsBot                  bool    `json:"is_bot"`
-	IsAppUser              bool    `json:"is_app_user"`
-	Updated                int64   `json:"updated"`
-	IsEmailConfirmed       bool    `json:"is_email_confirmed"`
-	WhoCanShareContactCard string  `json:"who_can_share_contact_card"`
+	ID                     string         `json:"id"`
+	TeamID                 string         `json:"team_id"`
+	Name                   string         `json:"name"`
+	Deleted                bool           `json:"deleted"`
+	Color                  string         `json:"color"`
+	RealName               string         `json:"real_name"`
+	Tz                     string         `json:"tz"`
+	TzLabel                string         `json:"tz_label"`
+	TzOffset               int64          `json:"tz_offset"`
+	Profile                Profile        `json:"profile"`
+	IsAdmin                bool           `json:"is_admin"`
+	IsOwner                bool           `json:"is_owner"`
+	IsPrimaryOwner         bool           `json:"is_primary_owner"`
+	IsRestricted           bool           `json:"is_restricted"`
+	IsUltraRestricted      bool           `json:"is_ultra_restricted"`
+	IsBot                  bool           `json:"is_bot"`
+	IsAppUser              bool           `json:"is_app_user"`
+	Updated                slack.JSONTime `json:"updated"`
+	IsEmailConfirmed       bool           `json:"is_email_confirmed"`
+	WhoCanShareContactCard string         `json:"who_can_share_contact_card"`
 }
 
 type Profile struct {
@@ -109,15 +109,16 @@ var ErrNotOK = errors.New("server returned NOT OK")
 //
 // This tries to replicate the logic of the Slack client, when it fetches
 // the channel users while being logged in as a guest user.
-func (cl *Client) GetUsers(ctx context.Context, channelIDs []string) ([]UserInfo, error) {
-	if len(channelIDs) == 0 {
+func (cl *Client) GetUsers(ctx context.Context, userID ...string) ([]UserInfo, error) {
+	if len(userID) == 0 {
 		return []UserInfo{}, nil
 	}
-	var updatedIds = make(map[string]int64, len(channelIDs))
-	for _, id := range channelIDs {
+	var updatedIds = make(map[string]int64, len(userID))
+	for _, id := range userID {
 		updatedIds[id] = 0
 	}
 
+	lim := tier3.limiter()
 	var users []UserInfo
 	for {
 		uiresp, err := cl.UsersInfo(ctx, &UsersInfoRequest{
@@ -139,6 +140,9 @@ func (cl *Client) GetUsers(ctx context.Context, channelIDs []string) ([]UserInfo
 		}
 		for _, ui := range uiresp.Results {
 			updatedIds[ui.ID] = ui.Updated
+		}
+		if err := lim.Wait(ctx); err != nil {
+			return nil, err
 		}
 	}
 	return users, nil
@@ -178,14 +182,9 @@ func (cl *Client) ChannelsMembership(ctx context.Context, req *ChannelsMembershi
 }
 
 func (cl *Client) callAPI(ctx context.Context, v any, endpoint string, req PostRequest) error {
-	r, err := cl.EdgePost(ctx, endpoint, req)
+	r, err := cl.PostJSON(ctx, endpoint, req)
 	if err != nil && !errors.Is(err, io.EOF) {
 		return err
-	}
-	if r.StatusCode < http.StatusOK || http.StatusMultipleChoices <= r.StatusCode {
-		body, _ := io.ReadAll(r.Body)
-		r.Body.Close()
-		return fmt.Errorf("error:  status code: %s, body: %s", r.Status, string(body))
 	}
 	return cl.ParseResponse(v, r)
 }
@@ -223,7 +222,9 @@ func (cl *Client) UsersList(ctx context.Context, channelIDs []string) ([]User, e
 			break
 		}
 		req.Marker = ur.NextMarker
-		lim.Wait(ctx)
+		if err := lim.Wait(ctx); err != nil {
+			return nil, err
+		}
 	}
 	return uu, nil
 }
