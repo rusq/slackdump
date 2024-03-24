@@ -1,10 +1,8 @@
 package edge
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"time"
 
 	"github.com/rusq/slack"
@@ -24,13 +22,13 @@ type clientUserBootForm struct {
 
 // ClientUserBoot calls the client.userBoot API.
 func (cl *Client) ClientUserBoot(ctx context.Context) (*ClientUserBootResponse, error) {
+	future := time.Now().Add(24 * time.Hour)
 	form := clientUserBootForm{
 		BaseRequest:                BaseRequest{Token: cl.token},
-		MinChannelUpdated:          time.Now().AddDate(0, 0, -21).UnixMilli(),
 		IncludeMinVersionBumpCheck: 1,
-		VersionTS:                  time.Now().Unix(),
-		BuildVersionTS:             time.Now().Unix(),
-		WebClientFields:            webclientReason("deferred-data"),
+		VersionTS:                  future.Unix(),
+		BuildVersionTS:             future.Unix(),
+		WebClientFields:            webclientReason("initial-data"),
 	}
 	var ub ClientUserBootResponse
 	resp, err := cl.PostForm(ctx, "client.userBoot", values(form, true))
@@ -62,7 +60,7 @@ type ClientUserBootResponse struct {
 	Workspaces               []Workspace       `json:"workspaces"`
 	DefaultWorkspace         string            `json:"default_workspace"`
 	AccountTypes             AccountTypes      `json:"account_types"`
-	AcceptTosURL             interface{}       `json:"accept_tos_url"`
+	AcceptTosURL             any               `json:"accept_tos_url"`
 	IsOpen                   []string          `json:"is_open"`
 	IsEurope                 bool              `json:"is_europe"`
 	TranslationsCacheTs      fasttime.Time     `json:"translations_cache_ts"`
@@ -70,16 +68,16 @@ type ClientUserBootResponse struct {
 	AppCommandsCacheTs       fasttime.Time     `json:"app_commands_cache_ts"`
 	CacheTsVersion           string            `json:"cache_ts_version"`
 	DND                      DND               `json:"dnd"`
-	Prefs                    map[string]*Pref  `json:"prefs"`
+	Prefs                    map[string]any    `json:"prefs"`
 	Subteams                 Subteams          `json:"subteams"`
 	MobileAppRequiresUpgrade bool              `json:"mobile_app_requires_upgrade"`
-	Starred                  []interface{}     `json:"starred"`
+	Starred                  []any             `json:"starred"`
 	ChannelsPriority         ChannelsPriority  `json:"channels_priority"`
 	ReadOnlyChannels         []string          `json:"read_only_channels"`
-	NonThreadableChannels    []interface{}     `json:"non_threadable_channels"`
-	ThreadOnlyChannels       []interface{}     `json:"thread_only_channels"`
+	NonThreadableChannels    []any             `json:"non_threadable_channels"`
+	ThreadOnlyChannels       []any             `json:"thread_only_channels"`
 	Channels                 []UserBootChannel `json:"channels"`
-	UnchangedChannelIDS      []interface{}     `json:"unchanged_channel_ids"`
+	UnchangedChannelIDS      []any             `json:"unchanged_channel_ids"`
 	CacheVersion             string            `json:"cache_version"`
 	SlackRoute               string            `json:"slack_route"`
 	AuthMinLastFetched       int64             `json:"auth_min_last_fetched"`
@@ -119,17 +117,68 @@ type UserBootChannel struct {
 	Purpose                 Purpose           `json:"purpose"`
 	Properties              *Properties       `json:"properties,omitempty"`
 	PreviousNames           []json.RawMessage `json:"previous_names"`
-	IsMember                *bool             `json:"is_member,omitempty"`
+	IsMember                bool              `json:"is_member,omitempty"`
 	LastRead                fasttime.Time     `json:"last_read,omitempty"`
 	Latest                  fasttime.Time     `json:"latest,omitempty"`
-	IsOpen                  *bool             `json:"is_open,omitempty"`
+	IsOpen                  bool              `json:"is_open,omitempty"`
 	Members                 []string          `json:"members"`
 }
 
+func (c *UserBootChannel) SlackChannel() slack.Channel {
+	return slack.Channel{
+		GroupConversation: slack.GroupConversation{
+			Conversation: slack.Conversation{
+				ID:                 c.ID,
+				Created:            slack.JSONTime(c.Created),
+				IsOpen:             c.IsOpen,
+				LastRead:           c.LastRead.SlackString(),
+				Latest:             &slack.Message{},
+				UnreadCount:        0,
+				UnreadCountDisplay: 0,
+				IsGroup:            c.IsGroup,
+				IsShared:           c.IsShared,
+				IsIM:               c.IsIM,
+				IsExtShared:        c.IsEXTShared,
+				IsOrgShared:        c.IsOrgShared,
+				IsGlobalShared:     false,
+				IsPendingExtShared: c.IsPendingEXTShared,
+				IsPrivate:          c.IsPrivate,
+				IsMpIM:             c.IsMpim,
+				Unlinked:           int(c.Unlinked),
+				NameNormalized:     c.NameNormalized,
+				NumMembers:         len(c.Members),
+				Priority:           0,
+				User:               "",
+				ConnectedTeamIDs:   []string{},
+				SharedTeamIDs:      []string{},
+				InternalTeamIDs:    []string{},
+			},
+			Name:       c.Name,
+			Creator:    c.Creator,
+			IsArchived: c.IsArchived,
+			Members:    c.Members,
+			Topic: slack.Topic{
+				Value:   c.Topic.Value,
+				Creator: c.Topic.Creator,
+				LastSet: slack.JSONTime(c.Topic.LastSet),
+			},
+			Purpose: slack.Purpose{
+				Value:   c.Purpose.Value,
+				Creator: c.Purpose.Creator,
+				LastSet: slack.JSONTime(c.Purpose.LastSet),
+			},
+		},
+		IsChannel: c.IsChannel,
+		IsGeneral: c.IsGeneral,
+		IsMember:  c.IsMember,
+		Locale:    "",
+	}
+}
+
 type AccountTypes struct {
-	IsAdmin        []interface{} `json:"is_admin"`
-	IsOwner        []interface{} `json:"is_owner"`
-	IsPrimaryOwner []interface{} `json:"is_primary_owner"`
+	IsAdmin        []any `json:"is_admin"`
+	IsOwner        []any `json:"is_owner"`
+	IsPrimaryOwner []any `json:"is_primary_owner"`
 }
 
 type Properties struct {
@@ -187,28 +236,28 @@ type Self struct {
 }
 
 type Profile1 struct {
-	Title                  string        `json:"title"`
-	Phone                  string        `json:"phone"`
-	Skype                  string        `json:"skype"`
-	RealName               string        `json:"real_name"`
-	RealNameNormalized     string        `json:"real_name_normalized"`
-	DisplayName            string        `json:"display_name"`
-	DisplayNameNormalized  string        `json:"display_name_normalized"`
-	Fields                 interface{}   `json:"fields"`
-	StatusText             string        `json:"status_text"`
-	StatusEmoji            string        `json:"status_emoji"`
-	StatusEmojiDisplayInfo []interface{} `json:"status_emoji_display_info"`
-	StatusExpiration       int64         `json:"status_expiration"`
-	AvatarHash             string        `json:"avatar_hash"`
-	Email                  string        `json:"email"`
-	FirstName              string        `json:"first_name"`
-	LastName               string        `json:"last_name"`
-	StatusTextCanonical    string        `json:"status_text_canonical"`
-	Team                   string        `json:"team"`
+	Title                  string `json:"title"`
+	Phone                  string `json:"phone"`
+	Skype                  string `json:"skype"`
+	RealName               string `json:"real_name"`
+	RealNameNormalized     string `json:"real_name_normalized"`
+	DisplayName            string `json:"display_name"`
+	DisplayNameNormalized  string `json:"display_name_normalized"`
+	Fields                 any    `json:"fields"`
+	StatusText             string `json:"status_text"`
+	StatusEmoji            string `json:"status_emoji"`
+	StatusEmojiDisplayInfo []any  `json:"status_emoji_display_info"`
+	StatusExpiration       int64  `json:"status_expiration"`
+	AvatarHash             string `json:"avatar_hash"`
+	Email                  string `json:"email"`
+	FirstName              string `json:"first_name"`
+	LastName               string `json:"last_name"`
+	StatusTextCanonical    string `json:"status_text_canonical"`
+	Team                   string `json:"team"`
 }
 
 type Subteams struct {
-	Self []interface{} `json:"self"`
+	Self []any `json:"self"`
 }
 
 type Team struct {
@@ -295,7 +344,7 @@ type Prefs struct {
 	AllowVideoClipSharingSlackConnect                              bool                           `json:"allow_video_clip_sharing_slack_connect"`
 	AllowVideoClips                                                bool                           `json:"allow_video_clips"`
 	AppDirOnly                                                     bool                           `json:"app_dir_only"`
-	AppManagementApps                                              []interface{}                  `json:"app_management_apps"`
+	AppManagementApps                                              []any                          `json:"app_management_apps"`
 	AppWhitelistEnabled                                            bool                           `json:"app_whitelist_enabled"`
 	AppWhitelistRequestsRequireCommentEnabled                      bool                           `json:"app_whitelist_requests_require_comment_enabled"`
 	AtlasOrgChartsAccess                                           string                         `json:"atlas_org_charts_access"`
@@ -307,7 +356,7 @@ type Prefs struct {
 	BlockFileTypes                                                 bool                           `json:"block_file_types"`
 	BoxAppInstalled                                                bool                           `json:"box_app_installed"`
 	CallsApps                                                      CallsApps                      `json:"calls_apps"`
-	CallsLocations                                                 []interface{}                  `json:"calls_locations"`
+	CallsLocations                                                 []any                          `json:"calls_locations"`
 	CanAcceptSlackConnectChannelInvites                            bool                           `json:"can_accept_slack_connect_channel_invites"`
 	CanCreateExternalLimitedInvite                                 bool                           `json:"can_create_external_limited_invite"`
 	CanCreateSlackConnectChannelInvite                             bool                           `json:"can_create_slack_connect_channel_invite"`
@@ -320,7 +369,7 @@ type Prefs struct {
 	ComplianceExportStart                                          int64                          `json:"compliance_export_start"`
 	ContentReviewEnabled                                           bool                           `json:"content_review_enabled"`
 	CreatedWithGoogle                                              bool                           `json:"created_with_google"`
-	CustomContactEmail                                             interface{}                    `json:"custom_contact_email"`
+	CustomContactEmail                                             any                            `json:"custom_contact_email"`
 	CustomStatusDefaultEmoji                                       string                         `json:"custom_status_default_emoji"`
 	CustomStatusPresets                                            [][]string                     `json:"custom_status_presets"`
 	DailyPromptsEnabled                                            bool                           `json:"daily_prompts_enabled"`
@@ -333,8 +382,8 @@ type Prefs struct {
 	DisableFileEditing                                             bool                           `json:"disable_file_editing"`
 	DisableFileUploads                                             string                         `json:"disable_file_uploads"`
 	DisablePrivacyAndCookiePolicy                                  bool                           `json:"disable_privacy_and_cookie_policy"`
-	DisableSidebarConnectPrompts                                   []interface{}                  `json:"disable_sidebar_connect_prompts"`
-	DisableSidebarInstallPrompts                                   []interface{}                  `json:"disable_sidebar_install_prompts"`
+	DisableSidebarConnectPrompts                                   []any                          `json:"disable_sidebar_connect_prompts"`
+	DisableSidebarInstallPrompts                                   []any                          `json:"disable_sidebar_install_prompts"`
 	DisallowPublicFileUrls                                         bool                           `json:"disallow_public_file_urls"`
 	Discoverable                                                   string                         `json:"discoverable"`
 	DisplayAnniversaryCelebration                                  bool                           `json:"display_anniversary_celebration"`
@@ -380,11 +429,11 @@ type Prefs struct {
 	EnableInfoBarriers                                             bool                           `json:"enable_info_barriers"`
 	EnableMpdmToPrivateChannelConversion                           bool                           `json:"enable_mpdm_to_private_channel_conversion"`
 	EnableSharedChannels                                           int64                          `json:"enable_shared_channels"`
-	EnterpriseDefaultChannels                                      []interface{}                  `json:"enterprise_default_channels"`
+	EnterpriseDefaultChannels                                      []any                          `json:"enterprise_default_channels"`
 	EnterpriseHasCorporateExports                                  bool                           `json:"enterprise_has_corporate_exports"`
 	EnterpriseIntuneEnabled                                        bool                           `json:"enterprise_intune_enabled"`
-	EnterpriseJointeamRequests                                     interface{}                    `json:"enterprise_jointeam_requests"`
-	EnterpriseMandatoryChannels                                    []interface{}                  `json:"enterprise_mandatory_channels"`
+	EnterpriseJointeamRequests                                     any                            `json:"enterprise_jointeam_requests"`
+	EnterpriseMandatoryChannels                                    []any                          `json:"enterprise_mandatory_channels"`
 	EnterpriseMdmDateEnabled                                       int64                          `json:"enterprise_mdm_date_enabled"`
 	EnterpriseMdmDisableFileDownload                               bool                           `json:"enterprise_mdm_disable_file_download"`
 	EnterpriseMdmLevel                                             int64                          `json:"enterprise_mdm_level"`
@@ -398,7 +447,7 @@ type Prefs struct {
 	FileRetentionType                                              int64                          `json:"file_retention_type"`
 	FilepickerAppFirstInstall                                      bool                           `json:"filepicker_app_first_install"`
 	FlagContentAdminDash                                           bool                           `json:"flag_content_admin_dash"`
-	FlagMessageUsersToNotify                                       []interface{}                  `json:"flag_message_users_to_notify"`
+	FlagMessageUsersToNotify                                       []any                          `json:"flag_message_users_to_notify"`
 	GdprEnabled                                                    bool                           `json:"gdpr_enabled"`
 	GdriveEnabledTeam                                              bool                           `json:"gdrive_enabled_team"`
 	GroupRetentionDuration                                         int64                          `json:"group_retention_duration"`
@@ -453,7 +502,7 @@ type Prefs struct {
 	SingleUserExports                                              bool                           `json:"single_user_exports"`
 	SlackAIDailyRecapOptOut                                        bool                           `json:"slack_ai_daily_recap_opt_out"`
 	SlackAIDetailedFeedbackOptOut                                  bool                           `json:"slack_ai_detailed_feedback_opt_out"`
-	SlackAISearchSuggestedQueries                                  []interface{}                  `json:"slack_ai_search_suggested_queries"`
+	SlackAISearchSuggestedQueries                                  []any                          `json:"slack_ai_search_suggested_queries"`
 	SlackConnectAccountVisibility                                  string                         `json:"slack_connect_account_visibility"`
 	SlackConnectAllowedWorkspaces                                  SlackConnectAllowedWorkspaces  `json:"slack_connect_allowed_workspaces"`
 	SlackConnectApprovalType                                       string                         `json:"slack_connect_approval_type"`
@@ -475,7 +524,7 @@ type Prefs struct {
 	TwoFactorAuthRequired                                          int64                          `json:"two_factor_auth_required"`
 	TwoFactorPreventSMS                                            int64                          `json:"two_factor_prevent_sms"`
 	TwoFactorRequired                                              bool                           `json:"two_factor_required"`
-	UneditableUserProfileFields                                    []interface{}                  `json:"uneditable_user_profile_fields"`
+	UneditableUserProfileFields                                    []any                          `json:"uneditable_user_profile_fields"`
 	UseBrowserPicker                                               bool                           `json:"use_browser_picker"`
 	UseWorkspaceIconForSingleWorkspaceUsers                        bool                           `json:"use_workspace_icon_for_single_workspace_users"`
 	UsesCustomizedCustomStatusPresets                              bool                           `json:"uses_customized_custom_status_presets"`
@@ -514,8 +563,8 @@ type Prefs struct {
 }
 
 type CallsApps struct {
-	Video []interface{} `json:"video"`
-	Audio []interface{} `json:"audio"`
+	Video []any `json:"video"`
+	Audio []any `json:"audio"`
 }
 
 type DefaultFunctionReuseVisibility struct {
@@ -536,8 +585,8 @@ type PremiumWorkflowNotifications struct {
 }
 
 type WhoCanManageP struct {
-	User []interface{} `json:"user"`
-	Type []string      `json:"type"`
+	User []any    `json:"user"`
+	Type []string `json:"type"`
 }
 
 type WhoCanViewMessageActivity struct {
@@ -555,140 +604,4 @@ type Workspace struct {
 	AvatarBaseURL string `json:"avatar_base_url"`
 	IsVerified    bool   `json:"is_verified"`
 	Prefs         Prefs  `json:"prefs"`
-}
-
-type Pref struct {
-	Bool      *bool
-	Integer   *int64
-	String    *string
-	StringMap map[string]string
-}
-
-func (x *Pref) UnmarshalJSON(data []byte) error {
-	x.StringMap = nil
-	object, err := unmarshalUnion(data, &x.Integer, nil, &x.Bool, &x.String, false, nil, false, nil, true, &x.StringMap, false, nil, true)
-	if err != nil {
-		return err
-	}
-	if object {
-	}
-	return nil
-}
-
-func (x *Pref) MarshalJSON() ([]byte, error) {
-	return marshalUnion(x.Integer, nil, x.Bool, x.String, false, nil, false, nil, x.StringMap != nil, x.StringMap, false, nil, true)
-}
-
-func unmarshalUnion(data []byte, pi **int64, pf **float64, pb **bool, ps **string, haveArray bool, pa interface{}, haveObject bool, pc interface{}, haveMap bool, pm interface{}, haveEnum bool, pe interface{}, nullable bool) (bool, error) {
-	if pi != nil {
-		*pi = nil
-	}
-	if pf != nil {
-		*pf = nil
-	}
-	if pb != nil {
-		*pb = nil
-	}
-	if ps != nil {
-		*ps = nil
-	}
-
-	dec := json.NewDecoder(bytes.NewReader(data))
-	dec.UseNumber()
-	tok, err := dec.Token()
-	if err != nil {
-		return false, err
-	}
-
-	switch v := tok.(type) {
-	case json.Number:
-		if pi != nil {
-			i, err := v.Int64()
-			if err == nil {
-				*pi = &i
-				return false, nil
-			}
-		}
-		if pf != nil {
-			f, err := v.Float64()
-			if err == nil {
-				*pf = &f
-				return false, nil
-			}
-			return false, errors.New("Unparsable number")
-		}
-		return false, errors.New("Union does not contain number")
-	case float64:
-		return false, errors.New("Decoder should not return float64")
-	case bool:
-		if pb != nil {
-			*pb = &v
-			return false, nil
-		}
-		return false, errors.New("Union does not contain bool")
-	case string:
-		if haveEnum {
-			return false, json.Unmarshal(data, pe)
-		}
-		if ps != nil {
-			*ps = &v
-			return false, nil
-		}
-		return false, errors.New("Union does not contain string")
-	case nil:
-		if nullable {
-			return false, nil
-		}
-		return false, errors.New("Union does not contain null")
-	case json.Delim:
-		if v == '{' {
-			if haveObject {
-				return true, json.Unmarshal(data, pc)
-			}
-			if haveMap {
-				return false, json.Unmarshal(data, pm)
-			}
-			return false, errors.New("Union does not contain object")
-		}
-		if v == '[' {
-			if haveArray {
-				return false, json.Unmarshal(data, pa)
-			}
-			return false, errors.New("Union does not contain array")
-		}
-		return false, errors.New("Cannot handle delimiter")
-	}
-	return false, errors.New("Cannot unmarshal union")
-
-}
-
-func marshalUnion(pi *int64, pf *float64, pb *bool, ps *string, haveArray bool, pa interface{}, haveObject bool, pc interface{}, haveMap bool, pm interface{}, haveEnum bool, pe interface{}, nullable bool) ([]byte, error) {
-	if pi != nil {
-		return json.Marshal(*pi)
-	}
-	if pf != nil {
-		return json.Marshal(*pf)
-	}
-	if pb != nil {
-		return json.Marshal(*pb)
-	}
-	if ps != nil {
-		return json.Marshal(*ps)
-	}
-	if haveArray {
-		return json.Marshal(pa)
-	}
-	if haveObject {
-		return json.Marshal(pc)
-	}
-	if haveMap {
-		return json.Marshal(pm)
-	}
-	if haveEnum {
-		return json.Marshal(pe)
-	}
-	if nullable {
-		return json.Marshal(nil)
-	}
-	return nil, errors.New("Union must not be null")
 }

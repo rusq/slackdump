@@ -3,6 +3,8 @@ package edge
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"net/url"
 
 	"github.com/google/uuid"
@@ -10,6 +12,12 @@ import (
 )
 
 // search.* API
+
+const perPage = 100
+
+var (
+	ErrPagination = errors.New("pagination fault")
+)
 
 type SearchResponse[T any] struct {
 	BaseResponse
@@ -20,11 +28,19 @@ type SearchResponse[T any] struct {
 	Items      []T             `json:"items"`
 }
 
+// Pagination contains the pagination information.  It is truly fucked, Slack
+// does not allow to seek past Page 100, when page > 100 requested, Slack
+// returns the first page (Page=1).  Seems to be an internal limitation.  The
+// workaround would be to use the Query parameter, to be more specific about
+// the channel names, but to get all channels, this would require iterating
+// through all 65536 runes of unicode give or take the special characters.
+//
+// For now, this doesn't work as a replacement for conversation.list (202403).
 type Pagination struct {
 	TotalCount int64 `json:"total_count"`
-	Page       int64 `json:"page"`
-	PerPage    int64 `json:"per_page"`
-	PageCount  int64 `json:"page_count"`
+	Page       int   `json:"page"`
+	PerPage    int   `json:"per_page"`
+	PageCount  int   `json:"page_count"`
 	First      int64 `json:"first"`
 	Last       int64 `json:"last"`
 }
@@ -108,7 +124,7 @@ func (cl *Client) SearchChannels(ctx context.Context, query string) ([]slack.Cha
 		Highlight:            0,
 		ExtraMsg:             0,
 		NoUserProfile:        1,
-		Count:                50,
+		Count:                perPage,
 		FileTitleOnly:        false,
 		QueryRewriteDisabled: false,
 		IncludeFilesShares:   1,
@@ -147,6 +163,12 @@ func (cl *Client) SearchChannels(ctx context.Context, query string) ([]slack.Cha
 		cc = append(cc, sr.Items...)
 		if form.Page == int(sr.Pagination.PageCount) || sr.Pagination.PageCount == 0 {
 			break
+		}
+		if sr.Pagination.PerPage < perPage {
+			return nil, fmt.Errorf("%w: per page requested: %d, received: %d", ErrPagination, perPage, sr.Pagination.PerPage)
+		}
+		if sr.Pagination.Page < form.Page {
+			return nil, fmt.Errorf("%w: page requested: %d, received: %d", ErrPagination, form.Page, sr.Pagination.Page)
 		}
 		form.Page++
 		if err := lim.Wait(ctx); err != nil {

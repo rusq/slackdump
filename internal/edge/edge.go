@@ -12,6 +12,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 
@@ -32,6 +33,7 @@ type Client struct {
 
 	// teamID is the team ID
 	teamID string
+	tape   io.WriteCloser
 }
 
 type tier struct {
@@ -66,12 +68,17 @@ func NewWithClient(workspaceName string, teamID string, token string, cl *http.C
 	if token == "" {
 		return nil, fmt.Errorf("token is empty")
 	}
+	tape, err := os.Create("tape.txt")
+	if err != nil {
+		return nil, err
+	}
 	return &Client{
 		cl:           cl,
 		token:        token,
 		teamID:       teamID,
 		webclientAPI: fmt.Sprintf("https://%s.slack.com/api/", workspaceName),
 		edgeAPI:      fmt.Sprintf("https://edgeapi.slack.com/cache/%s/", teamID),
+		tape:         tape,
 	}, nil
 }
 
@@ -92,18 +99,27 @@ func New(ctx context.Context, prov auth.Provider) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
+	tape, err := os.Create("tape.txt")
+	if err != nil {
+		return nil, err
+	}
 	cl := &Client{
 		cl:           hcl,
 		token:        prov.SlackToken(),
 		teamID:       info.TeamID,
 		webclientAPI: info.URL + "api/",
 		edgeAPI:      fmt.Sprintf("https://edgeapi.slack.com/cache/%s/", info.TeamID),
+		tape:         tape,
 	}
 	return cl, nil
 }
 
 func (cl *Client) Raw() *http.Client {
 	return cl.cl
+}
+
+func (cl *Client) Close() error {
+	return cl.tape.Close()
 }
 
 type BaseRequest struct {
@@ -153,7 +169,9 @@ func (cl *Client) PostJSON(ctx context.Context, path string, req PostRequest) (*
 	if err != nil {
 		return nil, err
 	}
-	r, err := http.NewRequestWithContext(ctx, http.MethodPost, cl.edgeAPI+path, bytes.NewReader(data))
+	tape := io.TeeReader(bytes.NewReader(data), cl.tape)
+	defer cl.tape.Write([]byte("\n\n"))
+	r, err := http.NewRequestWithContext(ctx, http.MethodPost, cl.edgeAPI+path, tape)
 	if err != nil {
 		return nil, err
 	}
@@ -170,7 +188,9 @@ func (cl *Client) PostFormRaw(ctx context.Context, url string, form url.Values) 
 	if form["token"] == nil {
 		form.Set("token", cl.token)
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, strings.NewReader(form.Encode()))
+	tape := io.TeeReader(strings.NewReader(form.Encode()), cl.tape)
+	defer cl.tape.Write([]byte("\n\n"))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, tape)
 	if err != nil {
 		return nil, err
 	}
@@ -178,12 +198,13 @@ func (cl *Client) PostFormRaw(ctx context.Context, url string, form url.Values) 
 	return do(cl.cl, req)
 }
 
-func (cl *Client) ParseResponse(req any, resp *http.Response) error {
-	if resp.StatusCode < http.StatusOK || http.StatusMultipleChoices <= resp.StatusCode {
-		return fmt.Errorf("error:  status code: %s", resp.Status)
+func (cl *Client) ParseResponse(req any, r *http.Response) error {
+	if r.StatusCode < http.StatusOK || http.StatusMultipleChoices <= r.StatusCode {
+		return fmt.Errorf("error:  status code: %s", r.Status)
 	}
-	defer resp.Body.Close()
-	dec := json.NewDecoder(resp.Body)
+	defer r.Body.Close()
+	tape := io.TeeReader(r.Body, cl.tape)
+	dec := json.NewDecoder(tape)
 	if err := dec.Decode(req); err != nil {
 		return err
 	}

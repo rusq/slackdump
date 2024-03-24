@@ -3,10 +3,11 @@ package diag
 import (
 	"context"
 	"encoding/json"
+	"log/slog"
 	"os"
 
-	"github.com/rusq/slack"
 	"github.com/rusq/slackdump/v3/auth"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/internal/edge"
 	"github.com/rusq/slackdump/v3/logger"
@@ -34,6 +35,9 @@ func init() {
 }
 
 func runEdge(ctx context.Context, cmd *base.Command, args []string) error {
+	if cfg.Verbose {
+		slog.SetLogLoggerLevel(slog.LevelDebug)
+	}
 	lg := logger.FromContext(ctx)
 
 	prov, err := auth.FromContext(ctx)
@@ -47,6 +51,7 @@ func runEdge(ctx context.Context, cmd *base.Command, args []string) error {
 		base.SetExitStatus(base.SApplicationError)
 		return err
 	}
+	defer cl.Close()
 	lg.Print("connected")
 
 	lg.Printf("*** Search for Channels test ***")
@@ -58,71 +63,62 @@ func runEdge(ctx context.Context, cmd *base.Command, args []string) error {
 		return err
 	}
 
-	lg.Printf("*** DMs test ***")
-	dms, err := cl.ClientDMs(ctx)
-	if err != nil {
-		return err
-	}
-	if err := save("dms.json", dms); err != nil {
-		return err
-	}
+	// lg.Printf("*** IMs test ***")
+	// ims, err := cl.IMList(ctx)
+	// if err != nil {
+	// 	return err
+	// }
+	// if err := save("ims.json", ims); err != nil {
+	// 	return err
+	// }
 
-	lg.Printf("*** IMs test ***")
-	ims, err := cl.IMList(ctx)
-	if err != nil {
-		return err
-	}
-	if err := save("ims.json", ims); err != nil {
-		return err
-	}
+	// lg.Printf("*** Counts ***")
+	// counts, err := cl.ClientCounts(ctx)
+	// if err != nil {
+	// 	return err
+	// }
+	// if err := save("counts.json", counts); err != nil {
+	// 	return err
+	// }
 
-	lg.Printf("*** Counts ***")
-	counts, err := cl.ClientCounts(ctx)
-	if err != nil {
-		return err
-	}
-	if err := save("counts.json", counts); err != nil {
-		return err
-	}
+	// lg.Print("*** GetConversationsContext ***")
+	// gcc, _, err := cl.GetConversationsContext(ctx, nil)
+	// if err != nil {
+	// 	return err
+	// }
+	// if err := save("get_conversations_context.json", gcc); err != nil {
+	// 	return err
+	// }
 
-	lg.Print("*** GetConversationsContext ***")
-	gcc, _, err := cl.GetConversationsContext(ctx, nil)
-	if err != nil {
-		return err
-	}
-	if err := save("get_conversations_context.json", gcc); err != nil {
-		return err
-	}
-
-	lg.Print("*** GetUsersInConversationContext ***")
-	if len(gcc) > 0 {
-		lg.Printf("using: %s", gcc[0].Name)
-		guic, _, err := cl.GetUsersInConversationContext(ctx, &slack.GetUsersInConversationParameters{ChannelID: gcc[0].ID})
-		if err != nil {
-			return err
-		}
-		if err := save("get_users_in_conversation_context.json", guic); err != nil {
-			return err
-		}
-		if len(guic) > 0 {
-			lg.Print("*** GetUsers ***")
-			users, err := cl.GetUsers(ctx, guic...)
-			if err != nil {
-				return err
-			}
-			if err := save("get_users.json", users); err != nil {
-				return err
-			}
-		}
-		lg.Print("*** Conversations Generic Info ***")
-		ci, err := cl.ConversationsGenericInfo(ctx, gcc[0].ID)
-		if err != nil {
-			return err
-		}
-		if err := save("conversations_generic_info.json", ci); err != nil {
-			return err
-		}
-	}
+	// lg.Print("*** GetUsersInConversationContext ***")
+	// if len(gcc) > 0 {
+	// 	lg.Printf("using: %s", gcc[0].Name)
+	// 	guic, _, err := cl.GetUsersInConversationContext(ctx, &slack.GetUsersInConversationParameters{ChannelID: gcc[0].ID})
+	// 	if err != nil {
+	// 		return err
+	// 	}
+	// 	if err := save("get_users_in_conversation_context.json", guic); err != nil {
+	// 		return err
+	// 	}
+	// 	if len(guic) > 0 {
+	// 		lg.Print("*** GetUsers ***")
+	// 		users, err := cl.GetUsers(ctx, guic...)
+	// 		if err != nil {
+	// 			return err
+	// 		}
+	// 		if err := save("get_users.json", users); err != nil {
+	// 			return err
+	// 		}
+	// 	}
+	// 	lg.Print("*** Conversations Generic Info ***")
+	// 	ci, err := cl.ConversationsGenericInfo(ctx, gcc[0].ID)
+	// 	if err != nil {
+	// 		return err
+	// 	}
+	// 	if err := save("conversations_generic_info.json", ci); err != nil {
+	// 		return err
+	// 	}
+	// }
 
 	lg.Print("OK")
 	return nil

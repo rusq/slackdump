@@ -29,6 +29,7 @@ func (t Time) MarshalJSON() ([]byte, error) {
 	return []byte(`"` + Int2TS(ts) + `"`), nil
 }
 
+// SlackString returns the time as a slack timestamp (i.e. "1234567890.123456").
 func (t Time) SlackString() string {
 	return Int2TS(time.Time(t).UnixMicro())
 }
