@@ -18,7 +18,7 @@ require (
 	github.com/rusq/fsadapter v1.0.1
 	github.com/rusq/osenv/v2 v2.0.1
 	github.com/rusq/slack v0.9.6-0.20240211120639-93c163940e55
-	github.com/rusq/slackauth v0.0.8
+	github.com/rusq/slackauth v0.1.1
 	github.com/rusq/tracer v1.0.1
 	github.com/schollz/progressbar/v3 v3.13.0
 	github.com/stretchr/testify v1.8.4

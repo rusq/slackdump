@@ -117,6 +117,8 @@ github.com/rusq/slack v0.9.6-0.20240211120639-93c163940e55 h1:JdOHVL0ES/T5bvEFmE
 github.com/rusq/slack v0.9.6-0.20240211120639-93c163940e55/go.mod h1:9O0zQAFN6W47z4KpTQbe6vOHOzBO76vMg1+gthPwaTI=
 github.com/rusq/slackauth v0.0.8 h1:qJVnEsfXeqQ32WsQUqigBA1yWJEOf1029/2at98qVog=
 github.com/rusq/slackauth v0.0.8/go.mod h1:4fDQ7VFncP2F1k/oHPXCOjIVw//IkoJcu1Ho3tgxVi8=
+github.com/rusq/slackauth v0.1.1 h1:nTAjZQ6UHoGzfV02IQQUyUrAR0JeEqfy6snD7D6cMzk=
+github.com/rusq/slackauth v0.1.1/go.mod h1:0fWxVftSfAgULWCcflvy4q20/qY39aB8v0jLDaDLejM=
 github.com/rusq/tracer v1.0.1 h1:5u4PCV8NGO97VuAINQA4gOVRkPoqHimLE2jpezRVNMU=
 github.com/rusq/tracer v1.0.1/go.mod h1:Rqu48C3/K8bA5NPmF20Hft73v431MQIdM+Co+113pME=
 github.com/schollz/progressbar/v3 v3.13.0 h1:9TeeWRcjW2qd05I8Kf9knPkW4vLM/hYoa6z9ABvxje8=

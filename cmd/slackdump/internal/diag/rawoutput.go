@@ -41,13 +41,13 @@ Running this tool may be requested by developers.
 	Commands:    nil,
 }
 
-type params struct {
+type rawOutputParams struct {
 	output string
 
 	idOrURL string
 }
 
-var p params
+var p rawOutputParams
 
 func init() {
 	CmdRawOutput.Run = runRawOutput
@@ -74,7 +74,7 @@ const (
 	baseURL = domain + "/api/"
 )
 
-func run(ctx context.Context, p params) error {
+func run(ctx context.Context, p rawOutputParams) error {
 	prov, err := auth.FromContext(ctx)
 	if err != nil {
 		return err
