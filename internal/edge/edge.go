@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/rusq/slack"
 	"github.com/rusq/slackdump/v3/auth"
 	"github.com/rusq/slackdump/v3/internal/tagmagic"
 	"golang.org/x/time/rate"
@@ -90,11 +91,7 @@ func NewWithToken(ctx context.Context, workspaceName string, teamID string, toke
 	return New(ctx, prov)
 }
 
-func New(ctx context.Context, prov auth.Provider) (*Client, error) {
-	info, err := prov.Test(ctx)
-	if err != nil {
-		return nil, err
-	}
+func NewWithInfo(info *slack.AuthTestResponse, prov auth.Provider) (*Client, error) {
 	hcl, err := prov.HTTPClient()
 	if err != nil {
 		return nil, err
@@ -103,15 +100,23 @@ func New(ctx context.Context, prov auth.Provider) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	cl := &Client{
+	return &Client{
 		cl:           hcl,
 		token:        prov.SlackToken(),
 		teamID:       info.TeamID,
 		webclientAPI: info.URL + "api/",
 		edgeAPI:      fmt.Sprintf("https://edgeapi.slack.com/cache/%s/", info.TeamID),
 		tape:         tape,
+	}, nil
+
+}
+
+func New(ctx context.Context, prov auth.Provider) (*Client, error) {
+	info, err := prov.Test(ctx)
+	if err != nil {
+		return nil, err
 	}
-	return cl, nil
+	return NewWithInfo(info, prov)
 }
 
 func (cl *Client) Raw() *http.Client {
@@ -119,7 +124,11 @@ func (cl *Client) Raw() *http.Client {
 }
 
 func (cl *Client) Close() error {
-	return cl.tape.Close()
+	if cl.tape != nil {
+		return cl.tape.Close()
+
+	}
+	return nil
 }
 
 type BaseRequest struct {
@@ -169,8 +178,8 @@ func (cl *Client) PostJSON(ctx context.Context, path string, req PostRequest) (*
 	if err != nil {
 		return nil, err
 	}
-	tape := io.TeeReader(bytes.NewReader(data), cl.tape)
-	defer cl.tape.Write([]byte("\n\n"))
+	tape := cl.recorder(bytes.NewReader(data))
+	defer cl.record([]byte("\n\n"))
 	r, err := http.NewRequestWithContext(ctx, http.MethodPost, cl.edgeAPI+path, tape)
 	if err != nil {
 		return nil, err
@@ -184,13 +193,19 @@ func (cl *Client) PostForm(ctx context.Context, path string, form url.Values) (*
 	return cl.PostFormRaw(ctx, cl.webclientAPI+path, form)
 }
 
+func (cl *Client) record(b []byte) {
+	if cl.tape != nil {
+		cl.tape.Write(b)
+	}
+}
+
 func (cl *Client) PostFormRaw(ctx context.Context, url string, form url.Values) (*http.Response, error) {
 	if form["token"] == nil {
 		form.Set("token", cl.token)
 	}
-	tape := io.TeeReader(strings.NewReader(form.Encode()), cl.tape)
-	defer cl.tape.Write([]byte("\n\n"))
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, tape)
+	r := cl.recorder(strings.NewReader(form.Encode()))
+	defer cl.record([]byte("\n\n"))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, r)
 	if err != nil {
 		return nil, err
 	}
@@ -203,8 +218,7 @@ func (cl *Client) ParseResponse(req any, r *http.Response) error {
 		return fmt.Errorf("error:  status code: %s", r.Status)
 	}
 	defer r.Body.Close()
-	tape := io.TeeReader(r.Body, cl.tape)
-	dec := json.NewDecoder(tape)
+	dec := json.NewDecoder(cl.recorder(r.Body))
 	if err := dec.Decode(req); err != nil {
 		return err
 	}
@@ -289,4 +303,11 @@ func webclientReason(reason string) WebClientFields {
 		XSonic:   true,
 		XAppName: "client",
 	}
+}
+
+func (cl *Client) recorder(r io.Reader) io.Reader {
+	if cl.tape == nil {
+		return r
+	}
+	return io.TeeReader(r, cl.tape)
 }

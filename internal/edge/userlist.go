@@ -189,7 +189,8 @@ func (cl *Client) callAPI(ctx context.Context, v any, endpoint string, req PostR
 	return cl.ParseResponse(v, r)
 }
 
-func (cl *Client) UsersList(ctx context.Context, channelIDs []string) ([]User, error) {
+// UserList lists users in the conversation(s).
+func (cl *Client) UsersList(ctx context.Context, channelIDs ...string) ([]User, error) {
 	const (
 		everyone           = "everyone AND NOT bots AND NOT apps"
 		people             = "people"
@@ -197,6 +198,10 @@ func (cl *Client) UsersList(ctx context.Context, channelIDs []string) ([]User, e
 
 		perRequest = 50
 	)
+	if len(channelIDs) == 0 {
+		return nil, errors.New("no channel IDs provided")
+
+	}
 	req := UsersListRequest{
 		Channels:     channelIDs,
 		Filter:       everyone,

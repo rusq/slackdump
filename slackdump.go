@@ -14,6 +14,7 @@ import (
 
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/slackdump/v3/auth"
+	"github.com/rusq/slackdump/v3/internal/edge"
 	"github.com/rusq/slackdump/v3/internal/network"
 	"github.com/rusq/slackdump/v3/logger"
 )
@@ -40,14 +41,16 @@ type WorkspaceInfo = slack.AuthTestResponse
 // Slacker is the interface with some functions of slack.Client.
 type Slacker interface {
 	AuthTestContext(context.Context) (response *slack.AuthTestResponse, err error)
-	GetConversationInfoContext(ctx context.Context, input *slack.GetConversationInfoInput) (*slack.Channel, error)
 	GetConversationHistoryContext(ctx context.Context, params *slack.GetConversationHistoryParameters) (*slack.GetConversationHistoryResponse, error)
 	GetConversationRepliesContext(ctx context.Context, params *slack.GetConversationRepliesParameters) (msgs []slack.Message, hasMore bool, nextCursor string, err error)
-	GetConversationsContext(ctx context.Context, params *slack.GetConversationsParameters) (channels []slack.Channel, nextCursor string, err error)
-	GetStarredContext(ctx context.Context, params slack.StarsParameters) ([]slack.StarredItem, *slack.Paging, error)
 	GetUsersPaginated(options ...slack.GetUsersOption) slack.UserPagination
-	GetUsersInConversationContext(ctx context.Context, params *slack.GetUsersInConversationParameters) ([]string, string, error)
+
+	GetStarredContext(ctx context.Context, params slack.StarsParameters) ([]slack.StarredItem, *slack.Paging, error)
 	ListBookmarks(channelID string) ([]slack.Bookmark, error)
+
+	GetConversationsContext(ctx context.Context, params *slack.GetConversationsParameters) (channels []slack.Channel, nextCursor string, err error)
+	GetConversationInfoContext(ctx context.Context, input *slack.GetConversationInfoInput) (*slack.Channel, error)
+	GetUsersInConversationContext(ctx context.Context, params *slack.GetUsersInConversationParameters) ([]string, string, error)
 }
 
 // clienter is the interface with some functions of slack.Client with the sole
@@ -135,13 +138,23 @@ func New(ctx context.Context, prov auth.Provider, opts ...Option) (*Session, err
 		return nil, err
 	}
 	cl := slack.New(prov.SlackToken(), slack.OptionHTTPClient(httpCl))
+	authResp, err := cl.AuthTestContext(ctx)
+	if err != nil {
+		return nil, &auth.Error{Err: err}
+	}
+	// construct fallback conversationer client
+	ecl, err := edge.NewWithInfo(authResp, prov)
+	if err != nil {
+		return nil, err
+	}
 
 	sd := &Session{
-		client: cl,
+		client: newFallbackClient(ctx, cl, ecl.NewWrapper(cl)),
 		cfg:    defConfig,
 		uc:     new(usercache),
 
-		log: logger.Default,
+		log:     logger.Default,
+		wspInfo: authResp,
 	}
 	for _, opt := range opts {
 		opt(sd)
@@ -155,18 +168,13 @@ func New(ctx context.Context, prov auth.Provider, opts ...Option) (*Session, err
 		}
 		return nil, err
 	}
-	authResp, err := sd.client.AuthTestContext(ctx)
-	if err != nil {
-		return nil, &auth.Error{Err: err}
-	}
-	sd.wspInfo = authResp
 
 	return sd, nil
 }
 
 // Client returns the underlying slack.Client.
 func (s *Session) Client() *slack.Client {
-	return s.client.(*slack.Client)
+	return s.client.(*fallbackClient).Client()
 }
 
 // CurrentUserID returns the user ID of the authenticated user.

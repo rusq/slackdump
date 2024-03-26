@@ -2,121 +2,62 @@ package edge
 
 import (
 	"context"
-	"errors"
-	"sync"
+	"io"
 
 	"github.com/rusq/slack"
 )
 
-var ErrParameterMissing = errors.New("required parameter missing")
-
-// High level functions that wrap low level calls to webclient API to return
-// the data in the format close to the  Slack API.
-
-func (cl *Client) GetConversationsContext(ctx context.Context, _ *slack.GetConversationsParameters) (channels []slack.Channel, _ string, err error) {
-	type result struct {
-		Channels []slack.Channel
-		Err      error
-	}
-
-	var resultC = make(chan result, 2)
-	var pipeline = []func(){
-		func() {
-			// getting client.userBoot information
-			ub, err := cl.ClientUserBoot(ctx)
-			if err != nil {
-				resultC <- result{Err: err}
-				return
-			}
-			var ch = make([]slack.Channel, 0, len(ub.Channels))
-			for _, c := range ub.Channels {
-				ch = append(ch, c.SlackChannel())
-			}
-			resultC <- result{Channels: ch, Err: err}
-		},
-		func() {
-			// collecting the IMs.
-			ims, err := cl.IMList(ctx)
-			var ch = make([]slack.Channel, 0, len(ims))
-			for _, c := range ims {
-				ch = append(ch, c.SlackChannel())
-			}
-			resultC <- result{Channels: ch, Err: err}
-		},
-		func() {
-			// collecting the channels.
-			ch, err := cl.SearchChannels(ctx, "")
-			resultC <- result{Channels: ch, Err: err}
-		},
-	}
-
-	var wg sync.WaitGroup
-	wg.Add(len(pipeline))
-	for _, f := range pipeline {
-		go func(f func()) {
-			defer wg.Done()
-			f()
-		}(f)
-	}
-	go func() {
-		wg.Wait()
-		close(resultC)
-	}()
-
-	// create a map of channels that we have already seen
-	var seenChannels = make(map[string]struct{})
-	for r := range resultC {
-		if r.Err != nil {
-			return nil, "", r.Err
-		}
-		for _, c := range r.Channels {
-			if _, seen := seenChannels[c.ID]; !seen {
-				seenChannels[c.ID] = struct{}{}
-				channels = append(channels, c)
-			}
-		}
-	}
-
-	// ClientCounts hopefully returns MPIM IDs that we haven't seen in the
-	// user boot response.
-	cr, err := cl.ClientCounts(ctx)
-	if err != nil {
-		return nil, "", err
-	}
-
-	// determine which mpims are already in the list, and which need to be
-	// fetched
-	var fetchIDs = make([]string, 0, len(cr.MPIMs))
-	for _, c := range cr.MPIMs {
-		if _, seen := seenChannels[c.ID]; !seen {
-			fetchIDs = append(fetchIDs, c.ID)
-		}
-	}
-
-	// getting the info on any MPIMs that we haven't seen yet.
-	mpims, err := cl.ConversationsGenericInfo(ctx, fetchIDs...)
-	if err != nil {
-		return nil, "", err
-	}
-	channels = append(channels, mpims...)
-	return channels, "", nil
+type Wrapper struct {
+	cl  *slack.Client
+	ecl *Client
 }
 
-func (cl *Client) GetUsersInConversationContext(ctx context.Context, p *slack.GetUsersInConversationParameters) (ids []string, _ string, err error) {
-	if p.ChannelID == "" {
-		return nil, "", ErrParameterMissing
+func (cl *Client) NewWrapper(scl *slack.Client) *Wrapper {
+	return &Wrapper{cl: scl, ecl: cl}
+}
 
-	}
-	var channelIDs []string
-	if p.ChannelID != "" {
-		channelIDs = append(channelIDs, p.ChannelID)
-	}
-	uu, err := cl.UsersList(ctx, channelIDs)
-	if err != nil {
-		return nil, "", err
-	}
-	for _, u := range uu {
-		ids = append(ids, u.ID)
-	}
-	return ids, "", nil
+func (w *Wrapper) AuthTestContext(ctx context.Context) (response *slack.AuthTestResponse, err error) {
+	return w.cl.AuthTestContext(ctx)
+}
+
+func (w *Wrapper) GetConversationHistoryContext(ctx context.Context, params *slack.GetConversationHistoryParameters) (*slack.GetConversationHistoryResponse, error) {
+	return w.cl.GetConversationHistoryContext(ctx, params)
+}
+func (w *Wrapper) GetConversationRepliesContext(ctx context.Context, params *slack.GetConversationRepliesParameters) (msgs []slack.Message, hasMore bool, nextCursor string, err error) {
+	return w.cl.GetConversationRepliesContext(ctx, params)
+}
+func (w *Wrapper) GetUsersPaginated(options ...slack.GetUsersOption) slack.UserPagination {
+	return w.cl.GetUsersPaginated(options...)
+}
+
+func (w *Wrapper) GetStarredContext(ctx context.Context, params slack.StarsParameters) ([]slack.StarredItem, *slack.Paging, error) {
+	return w.cl.GetStarredContext(ctx, params)
+}
+
+func (w *Wrapper) ListBookmarks(channelID string) ([]slack.Bookmark, error) {
+	return w.cl.ListBookmarks(channelID)
+}
+
+func (w *Wrapper) GetConversationsContext(ctx context.Context, params *slack.GetConversationsParameters) (channels []slack.Channel, nextCursor string, err error) {
+	return w.ecl.GetConversationsContext(ctx, params)
+}
+
+func (w *Wrapper) GetConversationInfoContext(ctx context.Context, input *slack.GetConversationInfoInput) (*slack.Channel, error) {
+	return w.cl.GetConversationInfoContext(ctx, input)
+}
+
+func (w *Wrapper) GetUsersInConversationContext(ctx context.Context, params *slack.GetUsersInConversationParameters) ([]string, string, error) {
+	return w.ecl.GetUsersInConversationContext(ctx, params)
+}
+
+func (w *Wrapper) GetFile(downloadURL string, writer io.Writer) error {
+	return w.cl.GetFile(downloadURL, writer)
+}
+
+func (w *Wrapper) GetUsersContext(ctx context.Context, options ...slack.GetUsersOption) ([]slack.User, error) {
+	return w.cl.GetUsersContext(ctx, options...)
+}
+
+func (w *Wrapper) GetEmojiContext(ctx context.Context) (map[string]string, error) {
+	return w.cl.GetEmojiContext(ctx)
 }
