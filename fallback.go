@@ -12,6 +12,7 @@ import (
 
 const enterpriseIsRestricted = "enterprise_is_restricted"
 
+//go:generate stringer -type=fallbackMethod -trimprefix=fb
 type fallbackMethod int
 
 const (
@@ -66,6 +67,7 @@ func (fc *fallbackClient) fallback(m fallbackMethod) error {
 		return errNoMoreFallback
 	}
 	fc.methodPtr[m]++
+	fc.lg.Printf("falling back on %s, %d -> %d", m, ptr-1, ptr)
 	return nil
 }
 
@@ -76,6 +78,7 @@ func (fc *fallbackClient) getClient(m fallbackMethod) (clienter, error) {
 	if ptr >= len(fc.cl) {
 		return nil, errNoMoreFallback
 	}
+	fc.lg.Debugf("current method %s[%d]", m, ptr)
 	return fc.cl[ptr], nil
 }
 
