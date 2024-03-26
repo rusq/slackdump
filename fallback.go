@@ -310,6 +310,7 @@ func (fc *fallbackClient) GetEmojiContext(ctx context.Context) (map[string]strin
 }
 
 func isFallbackError(err error) bool {
+	logger.Default.Printf("isFallbackError type: %[1]T, error: %[1]v", err)
 	var serr slack.SlackErrorResponse
 	return errors.As(err, &serr) && serr.Err == enterpriseIsRestricted
 }
