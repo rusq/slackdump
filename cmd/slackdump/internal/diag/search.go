@@ -12,6 +12,7 @@ import (
 	"github.com/rusq/slackdump/v3/auth"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
+	"github.com/rusq/slackdump/v3/internal/network"
 	"github.com/rusq/slackdump/v3/logger"
 	"golang.org/x/time/rate"
 )
@@ -64,8 +65,14 @@ func runSearch(ctx context.Context, cmd *base.Command, args []string) error {
 	enc := json.NewEncoder(os.Stdout)
 	enc.SetIndent("", " ")
 	for {
-		sm, err := cl.SearchMessagesContext(ctx, query, p)
-		if err != nil {
+		var (
+			sm  *slack.SearchMessages
+			err error
+		)
+		if err := network.WithRetry(ctx, lim, 3, func() error {
+			sm, err = cl.SearchMessagesContext(ctx, query, p)
+			return err
+		}); err != nil {
 			return err
 		}
 		enc.Encode(sm.Matches)
