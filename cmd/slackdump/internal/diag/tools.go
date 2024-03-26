@@ -28,6 +28,7 @@ Tools command contains different tools, running which may be requested if you op
 		CmdRawOutput,
 		CmdUninstall,
 		CmdRecord,
+		cmdSearch,
 		CmdThread,
 	},
 }
