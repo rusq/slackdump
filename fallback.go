@@ -39,7 +39,7 @@ type fallbackClient struct {
 }
 
 // newFallbackClient creates a new fallback client, it requires a main client.
-func newFallbackClient(ctx context.Context, main *slack.Client, cl ...clienter) *fallbackClient {
+func newFallbackClient(ctx context.Context, main clienter, cl ...clienter) *fallbackClient {
 	return &fallbackClient{
 		cl: append([]clienter{main}, cl...),
 		methodPtr: map[fallbackMethod]int{
@@ -80,7 +80,15 @@ func (fc *fallbackClient) getClient(m fallbackMethod) (clienter, error) {
 }
 
 func (fc *fallbackClient) Client() *slack.Client {
-	return fc.cl[0].(*slack.Client)
+	// ugly motherfucker
+	switch v := fc.cl[0].(type) {
+	case *fallbackClient:
+		return v.cl[0].(*slack.Client)
+	case *slack.Client:
+		return v
+	default:
+		panic("unable to determine the client type")
+	}
 }
 
 func (fc *fallbackClient) AuthTestContext(ctx context.Context) (*slack.AuthTestResponse, error) {

@@ -118,7 +118,7 @@ func WithUserCacheRetention(d time.Duration) Option {
 // WithSlackClient sets the Slack client to use for the session.  If this
 func WithSlackClient(cl clienter) Option {
 	return func(s *Session) {
-		s.client = cl
+		s.client = newFallbackClient(context.Background(), cl)
 	}
 }
 
@@ -138,23 +138,13 @@ func New(ctx context.Context, prov auth.Provider, opts ...Option) (*Session, err
 		return nil, err
 	}
 	cl := slack.New(prov.SlackToken(), slack.OptionHTTPClient(httpCl))
-	authResp, err := cl.AuthTestContext(ctx)
-	if err != nil {
-		return nil, &auth.Error{Err: err}
-	}
-	// construct fallback conversationer client
-	ecl, err := edge.NewWithInfo(authResp, prov)
-	if err != nil {
-		return nil, err
-	}
 
 	sd := &Session{
-		client: newFallbackClient(ctx, cl, ecl.NewWrapper(cl)),
+		client: newFallbackClient(ctx, cl),
 		cfg:    defConfig,
 		uc:     new(usercache),
 
-		log:     logger.Default,
-		wspInfo: authResp,
+		log: logger.Default,
 	}
 	for _, opt := range opts {
 		opt(sd)
@@ -168,6 +158,19 @@ func New(ctx context.Context, prov auth.Provider, opts ...Option) (*Session, err
 		}
 		return nil, err
 	}
+	authResp, err := sd.client.AuthTestContext(ctx)
+	if err != nil {
+		return nil, &auth.Error{Err: err}
+	}
+	sd.wspInfo = authResp
+
+	// create a new client with the edge client
+	ecl, err := edge.NewWithInfo(authResp, prov)
+	if err != nil {
+		return nil, err
+	}
+	// set it as a fallback
+	sd.client = newFallbackClient(ctx, sd.client, ecl.NewWrapper(cl))
 
 	return sd, nil
 }

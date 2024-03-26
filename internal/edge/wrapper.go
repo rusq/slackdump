@@ -12,6 +12,8 @@ type Wrapper struct {
 	ecl *Client
 }
 
+// NewWrapper wraps the slack.Client with the edge client, so that the edge
+// client can be used as a fallback.
 func (cl *Client) NewWrapper(scl *slack.Client) *Wrapper {
 	return &Wrapper{cl: scl, ecl: cl}
 }
