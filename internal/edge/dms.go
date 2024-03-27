@@ -32,7 +32,7 @@ func (cl *Client) IMList(ctx context.Context) ([]IM, error) {
 		},
 		Cursor: "",
 	}
-	lim := tier2.limiter()
+	lim := tier2boost.limiter()
 	var IMs []IM
 	for {
 		resp, err := cl.PostForm(ctx, "im.list", values(form, true))

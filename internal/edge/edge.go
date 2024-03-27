@@ -51,9 +51,8 @@ func (t tier) limiter() *rate.Limiter {
 var (
 	// tier1 = tier{t: 1 * time.Minute, b: 2}
 	// tier2 = tier{t: 3 * time.Second, b: 3}
-
-	tier2 = tier{t: 60 * time.Millisecond, b: 5}
-	tier3 = tier{t: 1200 * time.Millisecond, b: 4}
+	tier2boost = tier{t: 300 * time.Millisecond, b: 5}
+	tier3      = tier{t: 1200 * time.Millisecond, b: 4}
 	// tier4 = tier{t: 60 * time.Millisecond, b: 5}
 )
 
@@ -310,4 +309,22 @@ func (cl *Client) recorder(r io.Reader) io.Reader {
 		return r
 	}
 	return io.TeeReader(r, cl.tape)
+}
+
+// Pagination contains the pagination information.  It is truly fucked, Slack
+// does not allow to seek past Page 100, when page > 100 requested, Slack
+// returns the first page (Page=1).  Seems to be an internal limitation.  The
+// workaround would be to use the Query parameter, to be more specific about
+// the channel names, but to get all channels, this would require iterating
+// through all 65536 runes of unicode give or take the special characters.
+//
+// For now, this doesn't work as a replacement for conversation.list (202403).
+type Pagination struct {
+	TotalCount int64  `json:"total_count"`
+	Page       int    `json:"page"`
+	PerPage    int    `json:"per_page"`
+	PageCount  int    `json:"page_count"`
+	First      int64  `json:"first"`
+	Last       int64  `json:"last"`
+	NextCursor string `json:"next_cursor,omitempty"`
 }

@@ -4,11 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/url"
 
 	"github.com/google/uuid"
 	"github.com/rusq/slack"
+	"github.com/rusq/slackdump/v3/logger"
 )
 
 // search.* API
@@ -28,29 +28,13 @@ type SearchResponse[T any] struct {
 	Items      []T             `json:"items"`
 }
 
-// Pagination contains the pagination information.  It is truly fucked, Slack
-// does not allow to seek past Page 100, when page > 100 requested, Slack
-// returns the first page (Page=1).  Seems to be an internal limitation.  The
-// workaround would be to use the Query parameter, to be more specific about
-// the channel names, but to get all channels, this would require iterating
-// through all 65536 runes of unicode give or take the special characters.
-//
-// For now, this doesn't work as a replacement for conversation.list (202403).
-type Pagination struct {
-	TotalCount int64 `json:"total_count"`
-	Page       int   `json:"page"`
-	PerPage    int   `json:"per_page"`
-	PageCount  int   `json:"page_count"`
-	First      int64 `json:"first"`
-	Last       int64 `json:"last"`
-}
-
 // searchForm is the form to be sent to the search endpoint.
 type searchForm struct {
 	BaseRequest
+	Cursor               string            `json:"cursor,omitempty"`
 	Module               string            `json:"module"`
 	Query                string            `json:"query"`
-	Page                 int               `json:"page"`
+	Page                 int               `json:"page,omitempty"`
 	ClientReqID          string            `json:"client_req_id"`
 	BrowseID             string            `json:"browse_session_id"`
 	Extracts             int               `json:"extracts"`
@@ -101,10 +85,11 @@ const (
 )
 
 func (s *searchForm) Values() url.Values {
-	return values(s, false)
+	return values(s, true)
 }
 
 func (cl *Client) SearchChannels(ctx context.Context, query string) ([]slack.Channel, error) {
+	lg := logger.FromContext(ctx)
 	clientReq, err := uuid.NewRandom()
 	if err != nil {
 		return nil, err
@@ -117,11 +102,12 @@ func (cl *Client) SearchChannels(ctx context.Context, query string) ([]slack.Cha
 		BaseRequest:          BaseRequest{Token: cl.token},
 		Module:               "channels",
 		Query:                query,
-		Page:                 1,
+		Page:                 0,
 		ClientReqID:          clientReq.String(),
 		BrowseID:             browseID.String(),
 		Extracts:             0,
 		Highlight:            0,
+		Cursor:               "*",
 		ExtraMsg:             0,
 		NoUserProfile:        1,
 		Count:                perPage,
@@ -146,7 +132,7 @@ func (cl *Client) SearchChannels(ctx context.Context, query string) ([]slack.Cha
 	}
 
 	const ep = "search.modules.channels"
-	lim := tier2.limiter()
+	lim := tier2boost.limiter()
 	var cc []slack.Channel
 	for {
 		resp, err := cl.PostForm(ctx, ep, form.Values())
@@ -161,16 +147,12 @@ func (cl *Client) SearchChannels(ctx context.Context, query string) ([]slack.Cha
 			return nil, err
 		}
 		cc = append(cc, sr.Items...)
-		if form.Page == int(sr.Pagination.PageCount) || sr.Pagination.PageCount == 0 {
+		if sr.Pagination.NextCursor == "" {
+			lg.Debug("no more channels")
 			break
 		}
-		if sr.Pagination.PerPage < perPage {
-			return nil, fmt.Errorf("%w: per page requested: %d, received: %d", ErrPagination, perPage, sr.Pagination.PerPage)
-		}
-		if sr.Pagination.Page < form.Page {
-			return nil, fmt.Errorf("%w: page requested: %d, received: %d", ErrPagination, form.Page, sr.Pagination.Page)
-		}
-		form.Page++
+		lg.Debugf("next_cursor=%q", sr.Pagination.NextCursor)
+		form.Cursor = sr.Pagination.NextCursor
 		if err := lim.Wait(ctx); err != nil {
 			return nil, err
 		}

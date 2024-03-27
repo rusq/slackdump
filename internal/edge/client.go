@@ -123,7 +123,7 @@ func (cl *Client) ClientDMs(ctx context.Context) ([]ClientDM, error) {
 		Cursor:          "",
 		WebClientFields: webclientReason("dms-tab-populate"),
 	}
-	lim := tier2.limiter()
+	lim := tier2boost.limiter()
 	var IMs []ClientDM
 	for {
 		resp, err := cl.PostFormRaw(ctx, cl.webapiURL("client.dms"), form.Values())
