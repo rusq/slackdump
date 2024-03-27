@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/rusq/slack"
-	"github.com/rusq/slackdump/v3"
 	"github.com/rusq/slackdump/v3/auth"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
@@ -46,11 +45,11 @@ func runSearch(ctx context.Context, cmd *base.Command, args []string) error {
 		return err
 	}
 
-	sd, err := slackdump.New(ctx, prov)
+	hcl, err := prov.HTTPClient()
 	if err != nil {
 		return err
 	}
-	cl := sd.Client()
+	cl := slack.New(prov.SlackToken(), slack.OptionHTTPClient(hcl))
 
 	query := args[0]
 

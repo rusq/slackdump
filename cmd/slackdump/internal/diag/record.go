@@ -18,10 +18,10 @@ import (
 var CmdRecord = &base.Command{
 	UsageLine: "slackdump tools record",
 	Short:     "chunk record commands",
-	Commands:  []*base.Command{CmdRecordStream, CmdRecordState},
+	Commands:  []*base.Command{cmdRecordStream, cmdRecordState},
 }
 
-var CmdRecordStream = &base.Command{
+var cmdRecordStream = &base.Command{
 	UsageLine: "slackdump tools record stream [options] <channel>",
 	Short:     "dump slack data in a chunk record format",
 	Long: `
@@ -36,7 +36,7 @@ See also: slackdump tool obfuscate
 	RequireAuth: true,
 }
 
-var CmdRecordState = &base.Command{
+var cmdRecordState = &base.Command{
 	UsageLine:   "slackdump tools record state [options] <record_file.jsonl>",
 	Short:       "print state of the record",
 	FlagMask:    cfg.OmitAll,
@@ -46,10 +46,10 @@ var CmdRecordState = &base.Command{
 
 func init() {
 	// break init cycle
-	CmdRecordStream.Run = runRecord
+	cmdRecordStream.Run = runRecord
 }
 
-var output = CmdRecordStream.Flag.String("output", "", "output file")
+var output = cmdRecordStream.Flag.String("output", "", "output file")
 
 func runRecord(ctx context.Context, _ *base.Command, args []string) error {
 	if len(args) == 0 {
@@ -110,7 +110,7 @@ func runRecord(ctx context.Context, _ *base.Command, args []string) error {
 
 func init() {
 	// break init cycle
-	CmdRecordState.Run = runRecordState
+	cmdRecordState.Run = runRecordState
 }
 
 func runRecordState(ctx context.Context, _ *base.Command, args []string) error {
