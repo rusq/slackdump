@@ -13,9 +13,13 @@ import (
 
 const enterpriseIsRestricted = "enterprise_is_restricted"
 
+// fallbackMethod is the type of the fallback method, it is used as the key
+// in the map with current method pointers.
+//
 //go:generate stringer -type=fallbackMethod -trimprefix=fb
 type fallbackMethod int
 
+// method keys
 const (
 	fbAuthTestContext fallbackMethod = iota
 	fbGetConversationHistoryContext
@@ -46,8 +50,28 @@ var _ clienter = (*fallbackClient)(nil)
 // correctly, and no deadlocks occur, as it is locked only once per call.
 // Using mutex also ensures that two parallel goroutines don't cause the
 // function pointer advanced more than once.
+//
+// The logic is the following: if the function returns an error, and the error
+// is of the type that a fallback is applicable to (see isFallbackError), the
+// method pointer is advanced to the next client in the list, and the function
+// is called again.  If the method pointer is already at the end of the list,
+// the error is returned.
+//
+// The fallbackClient is used in the following way:
+//
+//	fc := newFallbackClient(ctx, mainClient, fallbackClient1, fallbackClient2)
+//	resp, err := fc.GetConversationInfoContext(ctx, params)
+//
+// In the example, the GetConversationInfoContext will be called on the
+// mainClient, if it fails with enterprise_is_restricted, the
+// GetConversationInfoContext will be called on the fallbackClient1, and so
+// on.
 type fallbackClient struct {
-	cl        []clienter
+	// cl is a slice of clients, the first one is the main client, the rest
+	// are fallback clients.
+	cl []clienter
+	// methodPtr is a map with the current method pointers, it is used to
+	// determine which client to use next for the given method.
 	methodPtr map[fallbackMethod]int
 	mu        sync.Mutex
 	lg        logger.Interface
@@ -71,11 +95,8 @@ func (fc *fallbackClient) fallback(m fallbackMethod) error {
 	if fc.methodPtr == nil {
 		fc.methodPtr = make(map[fallbackMethod]int)
 	}
-	if _, ok := fc.methodPtr[m]; !ok {
-		fc.methodPtr[m] = 0
-	}
-	ptr := fc.methodPtr[m]
-	if ptr >= len(fc.cl) {
+	ptr := fc.methodPtr[m] // returns 0 if empty.
+	if ptr+1 >= len(fc.cl) {
 		return fmt.Errorf("%w: %s", errNoMoreFallback, m)
 	}
 	fc.methodPtr[m]++
