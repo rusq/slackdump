@@ -3,6 +3,7 @@ package slackdump
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"sync"
 
@@ -32,6 +33,19 @@ const (
 
 var _ clienter = (*fallbackClient)(nil)
 
+// fallbackClient is the clienter, that implements the fallback if the
+// underlying function returns a "fallbackable" error.  It is used to chain
+// multiple clients together, so that if the first client fails, the next one
+// is used.
+//
+// There is a mutex to ensure that the fallback is thread-safe.  The pattern
+// for implementing a function is - if the function is exported, it must lock
+// the mutex (and unlock, after it's done).  All the logic should be
+// implemented in the unexported function with the same name, but no mutex
+// operations.  This ensures that the mutex is always locked and unlocked
+// correctly, and no deadlocks occur, as it is locked only once per call.
+// Using mutex also ensures that two parallel goroutines don't cause the
+// function pointer advanced more than once.
 type fallbackClient struct {
 	cl        []clienter
 	methodPtr map[fallbackMethod]int
@@ -54,8 +68,6 @@ func newFallbackClient(ctx context.Context, main clienter, cl ...clienter) *fall
 var errNoMoreFallback = errors.New("no more fallbacks")
 
 func (fc *fallbackClient) fallback(m fallbackMethod) error {
-	fc.mu.Lock()
-	defer fc.mu.Unlock()
 	if fc.methodPtr == nil {
 		fc.methodPtr = make(map[fallbackMethod]int)
 	}
@@ -64,24 +76,23 @@ func (fc *fallbackClient) fallback(m fallbackMethod) error {
 	}
 	ptr := fc.methodPtr[m]
 	if ptr >= len(fc.cl) {
-		return errNoMoreFallback
+		return fmt.Errorf("%w: %s", errNoMoreFallback, m)
 	}
 	fc.methodPtr[m]++
-	fc.lg.Printf("falling back on %s, %d -> %d", m, ptr-1, ptr)
+	fc.lg.Printf("falling back on %s, %d -> %d", m, ptr, ptr+1)
 	return nil
 }
 
 func (fc *fallbackClient) getClient(m fallbackMethod) (clienter, error) {
-	fc.mu.Lock()
-	defer fc.mu.Unlock()
 	ptr := fc.methodPtr[m]
 	if ptr >= len(fc.cl) {
-		return nil, errNoMoreFallback
+		return nil, fmt.Errorf("%w: %s", errNoMoreFallback, m)
 	}
 	fc.lg.Debugf("current method %s[%d]", m, ptr)
 	return fc.cl[ptr], nil
 }
 
+// Client returns a *slack.Client or panics if no clienter is *slack.Client
 func (fc *fallbackClient) Client() *slack.Client {
 	// ugly motherfucker
 	switch v := fc.cl[0].(type) {
@@ -95,6 +106,11 @@ func (fc *fallbackClient) Client() *slack.Client {
 }
 
 func (fc *fallbackClient) AuthTestContext(ctx context.Context) (*slack.AuthTestResponse, error) {
+	fc.mu.Lock()
+	defer fc.mu.Unlock()
+	return fc.authTestContext(ctx)
+}
+func (fc *fallbackClient) authTestContext(ctx context.Context) (*slack.AuthTestResponse, error) {
 	const this = fbAuthTestContext
 	cl, err := fc.getClient(this)
 	if err != nil {
@@ -103,17 +119,21 @@ func (fc *fallbackClient) AuthTestContext(ctx context.Context) (*slack.AuthTestR
 	resp, err := cl.AuthTestContext(ctx)
 	if err != nil {
 		if isFallbackError(err) {
-			err = fc.fallback(this)
-			if err != nil {
+			if err := fc.fallback(this); err != nil {
 				return nil, err
 			}
-			return fc.AuthTestContext(ctx)
+			return fc.authTestContext(ctx)
 		}
 	}
 	return resp, err
 }
 
 func (fc *fallbackClient) GetConversationHistoryContext(ctx context.Context, params *slack.GetConversationHistoryParameters) (*slack.GetConversationHistoryResponse, error) {
+	fc.mu.Lock()
+	defer fc.mu.Unlock()
+	return fc.getConversationHistoryContext(ctx, params)
+}
+func (fc *fallbackClient) getConversationHistoryContext(ctx context.Context, params *slack.GetConversationHistoryParameters) (*slack.GetConversationHistoryResponse, error) {
 	const this = fbGetConversationHistoryContext
 	cl, err := fc.getClient(this)
 	if err != nil {
@@ -126,13 +146,18 @@ func (fc *fallbackClient) GetConversationHistoryContext(ctx context.Context, par
 			if err != nil {
 				return nil, err
 			}
-			return fc.GetConversationHistoryContext(ctx, params)
+			return fc.getConversationHistoryContext(ctx, params)
 		}
 	}
 	return resp, err
 }
 
 func (fc *fallbackClient) GetConversationRepliesContext(ctx context.Context, params *slack.GetConversationRepliesParameters) (msgs []slack.Message, hasMore bool, nextCursor string, err error) {
+	fc.mu.Lock()
+	defer fc.mu.Unlock()
+	return fc.getConversationRepliesContext(ctx, params)
+}
+func (fc *fallbackClient) getConversationRepliesContext(ctx context.Context, params *slack.GetConversationRepliesParameters) (msgs []slack.Message, hasMore bool, nextCursor string, err error) {
 	const this = fbGetConversationRepliesContext
 	cl, err := fc.getClient(this)
 	if err != nil {
@@ -141,17 +166,21 @@ func (fc *fallbackClient) GetConversationRepliesContext(ctx context.Context, par
 	msgs, hasMore, nextCursor, err = cl.GetConversationRepliesContext(ctx, params)
 	if err != nil {
 		if isFallbackError(err) {
-			err = fc.fallback(this)
-			if err != nil {
+			if err = fc.fallback(this); err != nil {
 				return nil, false, "", err
 			}
-			return fc.GetConversationRepliesContext(ctx, params)
+			return fc.getConversationRepliesContext(ctx, params)
 		}
 	}
 	return msgs, hasMore, nextCursor, err
 }
 
 func (fc *fallbackClient) GetConversationsContext(ctx context.Context, params *slack.GetConversationsParameters) (channels []slack.Channel, nextCursor string, err error) {
+	fc.mu.Lock()
+	defer fc.mu.Unlock()
+	return fc.getConversationsContext(ctx, params)
+}
+func (fc *fallbackClient) getConversationsContext(ctx context.Context, params *slack.GetConversationsParameters) (channels []slack.Channel, nextCursor string, err error) {
 	const this = fbGetConversationsContext
 	cl, err := fc.getClient(this)
 	if err != nil {
@@ -164,13 +193,18 @@ func (fc *fallbackClient) GetConversationsContext(ctx context.Context, params *s
 			if err != nil {
 				return nil, "", err
 			}
-			return fc.GetConversationsContext(ctx, params)
+			return fc.getConversationsContext(ctx, params)
 		}
 	}
 	return channels, nextCursor, err
 }
 
 func (fc *fallbackClient) GetStarredContext(ctx context.Context, params slack.StarsParameters) ([]slack.StarredItem, *slack.Paging, error) {
+	fc.mu.Lock()
+	defer fc.mu.Unlock()
+	return fc.getStarredContext(ctx, params)
+}
+func (fc *fallbackClient) getStarredContext(ctx context.Context, params slack.StarsParameters) ([]slack.StarredItem, *slack.Paging, error) {
 	const this = fbGetStarredContext
 	cl, err := fc.getClient(this)
 	if err != nil {
@@ -183,7 +217,7 @@ func (fc *fallbackClient) GetStarredContext(ctx context.Context, params slack.St
 			if err != nil {
 				return nil, nil, err
 			}
-			return fc.GetStarredContext(ctx, params)
+			return fc.getStarredContext(ctx, params)
 		}
 	}
 	return items, paging, err
@@ -192,11 +226,15 @@ func (fc *fallbackClient) GetStarredContext(ctx context.Context, params slack.St
 
 // GetUserPaginated always calls the first client in the list.
 func (fc *fallbackClient) GetUsersPaginated(options ...slack.GetUsersOption) slack.UserPagination {
-	const this = fbGetUsersPaginated
 	return fc.cl[0].GetUsersPaginated(options...)
 }
 
 func (fc *fallbackClient) ListBookmarks(channelID string) ([]slack.Bookmark, error) {
+	fc.mu.Lock()
+	defer fc.mu.Unlock()
+	return fc.listBookmarks(channelID)
+}
+func (fc *fallbackClient) listBookmarks(channelID string) ([]slack.Bookmark, error) {
 	const this = fbListBookmarks
 	cl, err := fc.getClient(this)
 	if err != nil {
@@ -208,13 +246,18 @@ func (fc *fallbackClient) ListBookmarks(channelID string) ([]slack.Bookmark, err
 			if err = fc.fallback(this); err != nil {
 				return nil, err
 			}
-			return fc.ListBookmarks(channelID)
+			return fc.listBookmarks(channelID)
 		}
 	}
 	return bm, err
 }
 
 func (fc *fallbackClient) GetConversationInfoContext(ctx context.Context, input *slack.GetConversationInfoInput) (*slack.Channel, error) {
+	fc.mu.Lock()
+	defer fc.mu.Unlock()
+	return fc.getConversationInfoContext(ctx, input)
+}
+func (fc *fallbackClient) getConversationInfoContext(ctx context.Context, input *slack.GetConversationInfoInput) (*slack.Channel, error) {
 	const this = fbGetConversationInfo
 	cl, err := fc.getClient(this)
 	if err != nil {
@@ -227,13 +270,18 @@ func (fc *fallbackClient) GetConversationInfoContext(ctx context.Context, input 
 			if err != nil {
 				return nil, err
 			}
-			return fc.GetConversationInfoContext(ctx, input)
+			return fc.getConversationInfoContext(ctx, input)
 		}
 	}
 	return c, err
 }
 
 func (fc *fallbackClient) GetUsersInConversationContext(ctx context.Context, params *slack.GetUsersInConversationParameters) ([]string, string, error) {
+	fc.mu.Lock()
+	defer fc.mu.Unlock()
+	return fc.getUsersInConversationContext(ctx, params)
+}
+func (fc *fallbackClient) getUsersInConversationContext(ctx context.Context, params *slack.GetUsersInConversationParameters) ([]string, string, error) {
 	const this = fbGetConversationInfo
 	cl, err := fc.getClient(this)
 	if err != nil {
@@ -246,13 +294,18 @@ func (fc *fallbackClient) GetUsersInConversationContext(ctx context.Context, par
 			if err != nil {
 				return nil, "", err
 			}
-			return fc.GetUsersInConversationContext(ctx, params)
+			return fc.getUsersInConversationContext(ctx, params)
 		}
 	}
 	return userIDs, next, err
 }
 
 func (fc *fallbackClient) GetFile(downloadURL string, writer io.Writer) error {
+	fc.mu.Lock()
+	defer fc.mu.Unlock()
+	return fc.getFile(downloadURL, writer)
+}
+func (fc *fallbackClient) getFile(downloadURL string, writer io.Writer) error {
 	const this = fbGetFile
 	cl, err := fc.getClient(this)
 	if err != nil {
@@ -265,13 +318,18 @@ func (fc *fallbackClient) GetFile(downloadURL string, writer io.Writer) error {
 			if err != nil {
 				return err
 			}
-			return fc.GetFile(downloadURL, writer)
+			return fc.getFile(downloadURL, writer)
 		}
 	}
 	return err
 }
 
 func (fc *fallbackClient) GetUsersContext(ctx context.Context, options ...slack.GetUsersOption) ([]slack.User, error) {
+	fc.mu.Lock()
+	defer fc.mu.Unlock()
+	return fc.getUsersContext(ctx, options...)
+}
+func (fc *fallbackClient) getUsersContext(ctx context.Context, options ...slack.GetUsersOption) ([]slack.User, error) {
 	const this = fbGetUsersContext
 	cl, err := fc.getClient(this)
 	if err != nil {
@@ -284,13 +342,18 @@ func (fc *fallbackClient) GetUsersContext(ctx context.Context, options ...slack.
 			if err != nil {
 				return nil, err
 			}
-			return fc.GetUsersContext(ctx, options...)
+			return fc.getUsersContext(ctx, options...)
 		}
 	}
 	return users, err
 }
 
 func (fc *fallbackClient) GetEmojiContext(ctx context.Context) (map[string]string, error) {
+	fc.mu.Lock()
+	defer fc.mu.Unlock()
+	return fc.getEmojiContext(ctx)
+}
+func (fc *fallbackClient) getEmojiContext(ctx context.Context) (map[string]string, error) {
 	const this = fbGetEmojiContext
 	cl, err := fc.getClient(this)
 	if err != nil {
@@ -303,7 +366,7 @@ func (fc *fallbackClient) GetEmojiContext(ctx context.Context) (map[string]strin
 			if err != nil {
 				return nil, err
 			}
-			return fc.GetEmojiContext(ctx)
+			return fc.getEmojiContext(ctx)
 		}
 	}
 	return emojis, err
