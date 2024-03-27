@@ -45,7 +45,7 @@ func (w *Wrapper) GetConversationsContext(ctx context.Context, params *slack.Get
 }
 
 func (w *Wrapper) GetConversationInfoContext(ctx context.Context, input *slack.GetConversationInfoInput) (*slack.Channel, error) {
-	return w.cl.GetConversationInfoContext(ctx, input)
+	return w.ecl.GetConversationInfoContext(ctx, input)
 }
 
 func (w *Wrapper) GetUsersInConversationContext(ctx context.Context, params *slack.GetUsersInConversationParameters) ([]string, string, error) {
