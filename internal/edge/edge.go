@@ -19,7 +19,6 @@ import (
 	"github.com/rusq/slack"
 	"github.com/rusq/slackdump/v3/auth"
 	"github.com/rusq/slackdump/v3/internal/tagmagic"
-	"golang.org/x/time/rate"
 )
 
 type Client struct {
@@ -37,36 +36,25 @@ type Client struct {
 	tape   io.WriteCloser
 }
 
-type tier struct {
-	// once eveyr
-	t time.Duration
-	// burst
-	b int
-}
+type Option func(*Client)
 
-func (t tier) limiter() *rate.Limiter {
-	return rate.NewLimiter(rate.Every(t.t), t.b)
+func WithTape(tape io.WriteCloser) Option {
+	return func(cl *Client) {
+		cl.tape = tape
+	}
 }
-
-var (
-	// tier1 = tier{t: 1 * time.Minute, b: 2}
-	// tier2 = tier{t: 3 * time.Second, b: 3}
-	tier2boost = tier{t: 300 * time.Millisecond, b: 5}
-	tier3      = tier{t: 1200 * time.Millisecond, b: 4}
-	// tier4 = tier{t: 60 * time.Millisecond, b: 5}
-)
 
 var (
 	ErrNoTeamID = errors.New("teamID is empty")
 	ErrNoToken  = errors.New("token is empty")
 )
 
-func NewWithClient(workspaceName string, teamID string, token string, cl *http.Client) (*Client, error) {
+func NewWithClient(workspaceName string, teamID string, token string, cl *http.Client, opt ...Option) (*Client, error) {
 	if teamID == "" {
-		return nil, fmt.Errorf("teamID is empty")
+		return nil, ErrNoTeamID
 	}
 	if token == "" {
-		return nil, fmt.Errorf("token is empty")
+		return nil, ErrNoToken
 	}
 	tape, err := os.Create("tape.txt")
 	if err != nil {
@@ -82,7 +70,10 @@ func NewWithClient(workspaceName string, teamID string, token string, cl *http.C
 	}, nil
 }
 
-func NewWithToken(ctx context.Context, workspaceName string, teamID string, token string, cookies []*http.Cookie) (*Client, error) {
+func NewWithToken(ctx context.Context, token string, cookies []*http.Cookie) (*Client, error) {
+	if token == "" {
+		return nil, ErrNoToken
+	}
 	prov, err := auth.NewValueCookiesAuth(token, cookies)
 	if err != nil {
 		return nil, err
@@ -90,32 +81,44 @@ func NewWithToken(ctx context.Context, workspaceName string, teamID string, toke
 	return New(ctx, prov)
 }
 
-func NewWithInfo(info *slack.AuthTestResponse, prov auth.Provider) (*Client, error) {
+type nopTape struct{}
+
+func (nopTape) Write(p []byte) (n int, err error) {
+	return len(p), nil
+}
+
+func (nopTape) Close() error {
+	return nil
+}
+
+// NewWithInfo is the same as New, but doesn't call the AuthTest on
+// initialisation.  Caller must ensure that the token is valid.
+func NewWithInfo(info *slack.AuthTestResponse, prov auth.Provider, opt ...Option) (*Client, error) {
 	hcl, err := prov.HTTPClient()
 	if err != nil {
 		return nil, err
 	}
-	tape, err := os.Create("tape.txt")
-	if err != nil {
-		return nil, err
-	}
-	return &Client{
+	c := &Client{
 		cl:           hcl,
 		token:        prov.SlackToken(),
 		teamID:       info.TeamID,
 		webclientAPI: info.URL + "api/",
 		edgeAPI:      fmt.Sprintf("https://edgeapi.slack.com/cache/%s/", info.TeamID),
-		tape:         tape,
-	}, nil
+		tape:         nopTape{},
+	}
 
+	for _, o := range opt {
+		o(c)
+	}
+	return c, nil
 }
 
-func New(ctx context.Context, prov auth.Provider) (*Client, error) {
+func New(ctx context.Context, prov auth.Provider, opt ...Option) (*Client, error) {
 	info, err := prov.Test(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return NewWithInfo(info, prov)
+	return NewWithInfo(info, prov, opt...)
 }
 
 func (cl *Client) Raw() *http.Client {

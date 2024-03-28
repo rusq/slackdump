@@ -8,14 +8,14 @@ import (
 )
 
 type Wrapper struct {
-	cl  *slack.Client
-	ecl *Client
+	cl   *slack.Client
+	edge *Client
 }
 
 // NewWrapper wraps the slack.Client with the edge client, so that the edge
 // client can be used as a fallback.
 func (cl *Client) NewWrapper(scl *slack.Client) *Wrapper {
-	return &Wrapper{cl: scl, ecl: cl}
+	return &Wrapper{cl: scl, edge: cl}
 }
 
 func (w *Wrapper) AuthTestContext(ctx context.Context) (response *slack.AuthTestResponse, err error) {
@@ -41,15 +41,15 @@ func (w *Wrapper) ListBookmarks(channelID string) ([]slack.Bookmark, error) {
 }
 
 func (w *Wrapper) GetConversationsContext(ctx context.Context, params *slack.GetConversationsParameters) (channels []slack.Channel, nextCursor string, err error) {
-	return w.ecl.GetConversationsContext(ctx, params)
+	return w.edge.GetConversationsContext(ctx, params)
 }
 
 func (w *Wrapper) GetConversationInfoContext(ctx context.Context, input *slack.GetConversationInfoInput) (*slack.Channel, error) {
-	return w.ecl.GetConversationInfoContext(ctx, input)
+	return w.edge.GetConversationInfoContext(ctx, input)
 }
 
 func (w *Wrapper) GetUsersInConversationContext(ctx context.Context, params *slack.GetUsersInConversationParameters) ([]string, string, error) {
-	return w.ecl.GetUsersInConversationContext(ctx, params)
+	return w.edge.GetUsersInConversationContext(ctx, params)
 }
 
 func (w *Wrapper) GetFile(downloadURL string, writer io.Writer) error {
