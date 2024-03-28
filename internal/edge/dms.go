@@ -2,6 +2,7 @@ package edge
 
 import (
 	"context"
+	"runtime/trace"
 )
 
 // im.* API
@@ -20,6 +21,9 @@ type imListResponse struct {
 }
 
 func (cl *Client) IMList(ctx context.Context) ([]IM, error) {
+	ctx, task := trace.NewTask(ctx, "IMList")
+	defer task.End()
+
 	form := imListForm{
 		BaseRequest:  BaseRequest{Token: cl.token},
 		GetLatest:    true,

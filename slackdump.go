@@ -118,7 +118,13 @@ func WithUserCacheRetention(d time.Duration) Option {
 // WithSlackClient sets the Slack client to use for the session.  If this
 func WithSlackClient(cl clienter) Option {
 	return func(s *Session) {
-		s.client = newFallbackClient(context.Background(), cl)
+		s.client = cl
+	}
+}
+
+func WithForceEnterprise(b bool) Option {
+	return func(s *Session) {
+		s.cfg.forceEnterprise = b
 	}
 }
 
@@ -140,7 +146,7 @@ func New(ctx context.Context, prov auth.Provider, opts ...Option) (*Session, err
 	cl := slack.New(prov.SlackToken(), slack.OptionHTTPClient(httpCl))
 
 	sd := &Session{
-		client: newFallbackClient(ctx, cl),
+		client: cl,
 		cfg:    defConfig,
 		uc:     new(usercache),
 
@@ -171,9 +177,11 @@ func New(ctx context.Context, prov auth.Provider, opts ...Option) (*Session, err
 	}
 
 	// Enteprise fix
-	if authResp.EnterpriseID != "" {
+	if authResp.EnterpriseID != "" || sd.cfg.forceEnterprise {
+		sd.log.Debug("enterprise workspace detected or force enteprise is set, using edge client")
 		sd.client = ecl.NewWrapper(cl)
 	} else {
+		sd.log.Debug("using standard client")
 		sd.client = cl
 	}
 
@@ -182,7 +190,14 @@ func New(ctx context.Context, prov auth.Provider, opts ...Option) (*Session, err
 
 // Client returns the underlying slack.Client.
 func (s *Session) Client() *slack.Client {
-	return s.client.(*fallbackClient).Client()
+	switch c := s.client.(type) {
+	case *slack.Client:
+		return c
+	case *edge.Wrapper:
+		return c.SlackClient()
+	default:
+		panic("unknown client type")
+	}
 }
 
 // CurrentUserID returns the user ID of the authenticated user.

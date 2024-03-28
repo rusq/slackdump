@@ -3,6 +3,7 @@ package edge
 import (
 	"context"
 	"net/url"
+	"runtime/trace"
 
 	"github.com/rusq/slack"
 	"github.com/rusq/slackdump/v3/internal/fasttime"
@@ -35,6 +36,9 @@ type ChannelSnapshot struct {
 }
 
 func (cl *Client) ClientCounts(ctx context.Context) (ClientCountsResponse, error) {
+	ctx, task := trace.NewTask(ctx, "ClientCounts")
+	defer task.End()
+
 	form := clientCountsForm{
 		BaseRequest:           BaseRequest{Token: cl.token},
 		ThreadCountsByChannel: true,

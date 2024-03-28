@@ -3,6 +3,7 @@ package edge
 import (
 	"context"
 	"encoding/json"
+	"runtime/trace"
 
 	"github.com/rusq/slack"
 )
@@ -23,6 +24,10 @@ type conversationsGenericInfoResponse struct {
 }
 
 func (cl *Client) ConversationsGenericInfo(ctx context.Context, channelID ...string) ([]slack.Channel, error) {
+	ctx, task := trace.NewTask(ctx, "ConversationsGenericInfo")
+	defer task.End()
+	trace.Logf(ctx, "params", "channelID=%v", channelID)
+
 	updChannel := make(map[string]int, len(channelID))
 	for _, id := range channelID {
 		updChannel[id] = 0
@@ -36,12 +41,7 @@ func (cl *Client) ConversationsGenericInfo(ctx context.Context, channelID ...str
 			Token: cl.token,
 		},
 		UpdatedChannels: string(b),
-		WebClientFields: WebClientFields{
-			XReason:  "fallback:UnknownFetchManager",
-			XMode:    "online",
-			XSonic:   true,
-			XAppName: "client",
-		},
+		WebClientFields: webclientReason("fallback:UnknownFetchManager"),
 	}
 	resp, err := cl.PostForm(ctx, "conversations.genericInfo", values(form, true))
 	if err != nil {

@@ -244,7 +244,7 @@ func getUsersOnline(ctx context.Context, cacheDir, wsp string, usePlaywright boo
 	if err != nil {
 		return nil, err
 	}
-	sess, err := slackdump.New(ctx, prov)
+	sess, err := slackdump.New(ctx, prov, slackdump.WithLogger(logger.FromContext(ctx)), slackdump.WithForceEnterprise(cfg.ForceEnterprise))
 	if err != nil {
 		return nil, err
 	}

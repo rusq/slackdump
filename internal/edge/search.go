@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/url"
+	"runtime/trace"
 
 	"github.com/google/uuid"
 	"github.com/rusq/slack"
@@ -89,6 +90,10 @@ func (s *searchForm) Values() url.Values {
 }
 
 func (cl *Client) SearchChannels(ctx context.Context, query string) ([]slack.Channel, error) {
+	ctx, task := trace.NewTask(ctx, "SearchChannels")
+	defer task.End()
+	trace.Logf(ctx, "params", "query=%q", query)
+
 	lg := logger.FromContext(ctx)
 	clientReq, err := uuid.NewRandom()
 	if err != nil {
@@ -157,5 +162,6 @@ func (cl *Client) SearchChannels(ctx context.Context, query string) ([]slack.Cha
 			return nil, err
 		}
 	}
+	trace.Logf(ctx, "info", "channels found=%d", len(cc))
 	return cc, nil
 }

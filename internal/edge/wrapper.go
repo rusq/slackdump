@@ -18,6 +18,14 @@ func (cl *Client) NewWrapper(scl *slack.Client) *Wrapper {
 	return &Wrapper{cl: scl, edge: cl}
 }
 
+func (w *Wrapper) SlackClient() *slack.Client {
+	return w.cl
+}
+
+func (w *Wrapper) EdgeClient() *Client {
+	return w.edge
+}
+
 func (w *Wrapper) AuthTestContext(ctx context.Context) (response *slack.AuthTestResponse, err error) {
 	return w.cl.AuthTestContext(ctx)
 }

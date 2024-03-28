@@ -79,7 +79,7 @@ func runExport(ctx context.Context, cmd *base.Command, args []string) error {
 		base.SetExitStatus(base.SApplicationError)
 		return err
 	}
-	sess, err := slackdump.New(ctx, prov, slackdump.WithLogger(logger.FromContext(ctx)), slackdump.WithLimits(cfg.Limits))
+	sess, err := slackdump.New(ctx, prov, slackdump.WithLogger(logger.FromContext(ctx)), slackdump.WithLimits(cfg.Limits), slackdump.WithForceEnterprise(cfg.ForceEnterprise))
 	if err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return err

@@ -3,6 +3,7 @@ package edge
 import (
 	"context"
 	"encoding/json"
+	"runtime/trace"
 	"time"
 
 	"github.com/rusq/slack"
@@ -22,6 +23,9 @@ type clientUserBootForm struct {
 
 // ClientUserBoot calls the client.userBoot API.
 func (cl *Client) ClientUserBoot(ctx context.Context) (*ClientUserBootResponse, error) {
+	ctx, task := trace.NewTask(ctx, "ClientUserBoot")
+	defer task.End()
+
 	future := time.Now().Add(24 * time.Hour)
 	form := clientUserBootForm{
 		BaseRequest:                BaseRequest{Token: cl.token},

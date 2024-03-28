@@ -53,7 +53,7 @@ func RunRecord(ctx context.Context, cmd *base.Command, args []string) error {
 		return err
 	}
 
-	sess, err := slackdump.New(ctx, prov, slackdump.WithLogger(logger.FromContext(ctx)))
+	sess, err := slackdump.New(ctx, prov, slackdump.WithLogger(logger.FromContext(ctx)), slackdump.WithForceEnterprise(cfg.ForceEnterprise))
 	if err != nil {
 		base.SetExitStatus(base.SGenericError)
 		return err

@@ -99,7 +99,7 @@ func list(ctx context.Context, listFn listFunc) error {
 	}
 
 	// initialize the session.
-	sess, err := slackdump.New(ctx, prov, slackdump.WithLogger(logger.FromContext(ctx)))
+	sess, err := slackdump.New(ctx, prov, slackdump.WithLogger(logger.FromContext(ctx)), slackdump.WithForceEnterprise(cfg.ForceEnterprise))
 	if err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return err
