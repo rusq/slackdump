@@ -39,6 +39,26 @@ func NewValueAuth(token string, cookie string) (ValueAuth, error) {
 	return c, nil
 }
 
+func NewValueCookiesAuth(token string, cookies []*http.Cookie) (ValueAuth, error) {
+	if token == "" {
+		return ValueAuth{}, ErrNoToken
+	}
+	var found bool
+	for _, c := range cookies {
+		if c.Name == "d" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		return ValueAuth{}, ErrNoCookies
+	}
+	return ValueAuth{simpleProvider{
+		Token:  token,
+		Cookie: cookies,
+	}}, nil
+}
+
 var timeFunc = time.Now
 
 func makeCookie(key, val string) *http.Cookie {

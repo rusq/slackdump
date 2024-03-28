@@ -20,6 +20,7 @@ Tools command contains different tools, running which may be requested if you op
 	PrintFlags:  false,
 	RequireAuth: false,
 	Commands: []*base.Command{
+		CmdEdge,
 		CmdEncrypt,
 		CmdEzTest,
 		CmdInfo,
@@ -27,6 +28,7 @@ Tools command contains different tools, running which may be requested if you op
 		CmdRawOutput,
 		CmdUninstall,
 		CmdRecord,
+		cmdSearch,
 		CmdThread,
 	},
 }

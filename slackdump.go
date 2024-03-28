@@ -14,6 +14,7 @@ import (
 
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/slackdump/v3/auth"
+	"github.com/rusq/slackdump/v3/internal/edge"
 	"github.com/rusq/slackdump/v3/internal/network"
 	"github.com/rusq/slackdump/v3/logger"
 )
@@ -40,14 +41,16 @@ type WorkspaceInfo = slack.AuthTestResponse
 // Slacker is the interface with some functions of slack.Client.
 type Slacker interface {
 	AuthTestContext(context.Context) (response *slack.AuthTestResponse, err error)
-	GetConversationInfoContext(ctx context.Context, input *slack.GetConversationInfoInput) (*slack.Channel, error)
 	GetConversationHistoryContext(ctx context.Context, params *slack.GetConversationHistoryParameters) (*slack.GetConversationHistoryResponse, error)
 	GetConversationRepliesContext(ctx context.Context, params *slack.GetConversationRepliesParameters) (msgs []slack.Message, hasMore bool, nextCursor string, err error)
-	GetConversationsContext(ctx context.Context, params *slack.GetConversationsParameters) (channels []slack.Channel, nextCursor string, err error)
-	GetStarredContext(ctx context.Context, params slack.StarsParameters) ([]slack.StarredItem, *slack.Paging, error)
 	GetUsersPaginated(options ...slack.GetUsersOption) slack.UserPagination
-	GetUsersInConversationContext(ctx context.Context, params *slack.GetUsersInConversationParameters) ([]string, string, error)
+
+	GetStarredContext(ctx context.Context, params slack.StarsParameters) ([]slack.StarredItem, *slack.Paging, error)
 	ListBookmarks(channelID string) ([]slack.Bookmark, error)
+
+	GetConversationsContext(ctx context.Context, params *slack.GetConversationsParameters) (channels []slack.Channel, nextCursor string, err error)
+	GetConversationInfoContext(ctx context.Context, input *slack.GetConversationInfoInput) (*slack.Channel, error)
+	GetUsersInConversationContext(ctx context.Context, params *slack.GetUsersInConversationParameters) ([]string, string, error)
 }
 
 // clienter is the interface with some functions of slack.Client with the sole
@@ -119,6 +122,12 @@ func WithSlackClient(cl clienter) Option {
 	}
 }
 
+func WithForceEnterprise(b bool) Option {
+	return func(s *Session) {
+		s.cfg.forceEnterprise = b
+	}
+}
+
 // New creates new Slackdump session with provided options, and populates the
 // internal cache of users and channels for lookups. If it fails to
 // authenticate, AuthError is returned.
@@ -161,12 +170,33 @@ func New(ctx context.Context, prov auth.Provider, opts ...Option) (*Session, err
 	}
 	sd.wspInfo = authResp
 
+	// Enteprise initialisation.
+	if sd.cfg.forceEnterprise || authResp.EnterpriseID != "" {
+		// create a new client with the edge client
+		ecl, err := edge.NewWithInfo(authResp, prov)
+		if err != nil {
+			return nil, err
+		}
+		sd.log.Debug("enterprise workspace detected or force enteprise is set, using edge client")
+		sd.client = ecl.NewWrapper(cl)
+	} else {
+		sd.log.Debug("using standard client")
+		sd.client = cl
+	}
+
 	return sd, nil
 }
 
 // Client returns the underlying slack.Client.
 func (s *Session) Client() *slack.Client {
-	return s.client.(*slack.Client)
+	switch c := s.client.(type) {
+	case *slack.Client:
+		return c
+	case *edge.Wrapper:
+		return c.SlackClient()
+	default:
+		panic("unknown client type")
+	}
 }
 
 // CurrentUserID returns the user ID of the authenticated user.

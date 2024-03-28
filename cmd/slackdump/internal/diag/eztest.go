@@ -41,7 +41,7 @@ type ezResult struct {
 
 func init() {
 	CmdEzTest.Flag.Usage = func() {
-		fmt.Fprint(os.Stdout, "usage: slackdump diag eztest [flags]\n\nFlags:\n")
+		fmt.Fprint(os.Stdout, "usage: slackdump tools eztest [flags]\n\nFlags:\n")
 		CmdEzTest.Flag.PrintDefaults()
 	}
 }

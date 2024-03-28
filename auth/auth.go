@@ -31,7 +31,7 @@ type Provider interface {
 	// retrieved.
 	Validate() error
 	// Test tests if credentials are valid.
-	Test(ctx context.Context) error
+	Test(ctx context.Context) (*slack.AuthTestResponse, error)
 	// Client returns an authenticated HTTP client
 	HTTPClient() (*http.Client, error)
 }
@@ -107,22 +107,23 @@ func IsClientToken(tok string) bool {
 
 // TestAuth attempts to authenticate with the given provider.  It will return
 // AuthError if failed.
-func (s simpleProvider) Test(ctx context.Context) error {
+func (s simpleProvider) Test(ctx context.Context) (*slack.AuthTestResponse, error) {
 	ctx, task := trace.NewTask(ctx, "TestAuth")
 	defer task.End()
 
 	httpCl, err := s.HTTPClient()
 	if err != nil {
-		return &Error{Err: err}
+		return nil, &Error{Err: err}
 	}
 	cl := slack.New(s.Token, slack.OptionHTTPClient(httpCl))
 
 	region := trace.StartRegion(ctx, "simpleProvider.Test")
 	defer region.End()
-	if _, err := cl.AuthTestContext(ctx); err != nil {
-		return &Error{Err: err}
+	ai, err := cl.AuthTestContext(ctx)
+	if err != nil {
+		return ai, &Error{Err: err}
 	}
-	return nil
+	return ai, nil
 }
 
 func (s simpleProvider) HTTPClient() (*http.Client, error) {
