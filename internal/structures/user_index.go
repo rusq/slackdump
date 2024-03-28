@@ -103,7 +103,7 @@ func (idx UserIndex) ChannelName(channel *slack.Channel) (who string) {
 	case channel.IsPrivate:
 		who = "🔒 " + channel.NameNormalized
 	default:
-		who = "#" + channel.NameNormalized
+		who = "#" + nvl(channel.NameNormalized, channel.Name)
 	}
 	return who
 }
