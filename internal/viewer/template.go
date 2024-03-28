@@ -49,10 +49,9 @@ func epoch(ts json.Number) string {
 	}
 	t, err := ts.Int64()
 	if err != nil {
-		slog.Debug("epoch Int64 error, trying float", "err", err, "ts", ts)
 		tf, err := ts.Float64()
 		if err != nil {
-			slog.Debug("epoch Float64 error", "err", err, "ts", ts)
+			slog.Debug("epoch Float64 error, out of conversion options", "err", err, "ts", ts)
 			return ts.String()
 		}
 		t = int64(tf)

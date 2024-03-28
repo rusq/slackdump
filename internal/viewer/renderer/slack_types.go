@@ -7,14 +7,24 @@ var (
 		slack.MBTRichText: (*Slack).mbtRichText,
 		slack.MBTImage:    (*Slack).mbtImage,
 		slack.MBTContext:  (*Slack).mbtContext,
+		slack.MBTSection:  (*Slack).mbtSection,
+		slack.MBTAction:   (*Slack).mbtAction,
+		"call":            (*Slack).mbtCall,
 	}
 
 	blockTypeClass = map[slack.MessageBlockType]string{
 		slack.MBTRichText: "slack-rich-text-block",
 		slack.MBTImage:    "slack-image-block",
 		slack.MBTContext:  "slack-context-block",
+		slack.MBTSection:  "slack-section-block",
+		slack.MBTAction:   "slack-action-block",
+		"call":            "slack-call-block",
 	}
 )
+
+func mbtTODO(s *Slack, b slack.Block) (string, error) {
+	return "", nil
+}
 
 // rte - rich text element
 var (

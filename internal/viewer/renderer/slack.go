@@ -156,6 +156,7 @@ var (
 	figure     = element("figure", true)
 	blockquote = element("blockquote", true)
 	strong     = element("strong", true)
+	pre        = element("pre", true)
 )
 
 func element(el string, close bool) func(class string, s string) string {
