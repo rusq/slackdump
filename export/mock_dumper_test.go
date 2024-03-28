@@ -13,9 +13,9 @@ import (
 	reflect "reflect"
 	time "time"
 
+	slack "github.com/rusq/slack"
 	slackdump "github.com/rusq/slackdump/v3"
 	types "github.com/rusq/slackdump/v3/types"
-	slack "github.com/rusq/slack"
 	gomock "go.uber.org/mock/gomock"
 )
 

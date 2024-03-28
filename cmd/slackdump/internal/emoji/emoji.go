@@ -6,11 +6,9 @@ import (
 
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/slackdump/v3"
-	"github.com/rusq/slackdump/v3/auth"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/emoji/emojidl"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
-	"github.com/rusq/slackdump/v3/logger"
 )
 
 var CmdEmoji = &base.Command{
@@ -34,19 +32,13 @@ func init() {
 }
 
 func run(ctx context.Context, cmd *base.Command, args []string) error {
-	prov, err := auth.FromContext(ctx)
-	if err != nil {
-		base.SetExitStatus(base.SAuthError)
-		return fmt.Errorf("auth error: %s", err)
-	}
-
 	fsa, err := fsadapter.New(cfg.Output)
 	if err != nil {
 		return err
 	}
 	defer fsa.Close()
 
-	sess, err := slackdump.New(ctx, prov, slackdump.WithFilesystem(fsa), slackdump.WithLogger(logger.FromContext(ctx)))
+	sess, err := cfg.SlackdumpSession(ctx, slackdump.WithFilesystem(fsa))
 	if err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return fmt.Errorf("application error: %s", err)

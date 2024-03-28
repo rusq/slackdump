@@ -12,6 +12,7 @@ const (
 	SHelpRequested
 	SInvalidParameters
 	SAuthError
+	SInitializationError
 	SApplicationError
 	SWorkspaceError
 	SCacheError

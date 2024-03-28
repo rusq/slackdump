@@ -15,7 +15,6 @@ import (
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/slack"
 	"github.com/rusq/slackdump/v3"
-	"github.com/rusq/slackdump/v3/auth"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/internal/cache"
@@ -91,17 +90,10 @@ func list(ctx context.Context, listFn listFunc) error {
 		return errors.New("unknown listing format, seek help")
 	}
 
-	// get the provider from Context.
-	prov, err := auth.FromContext(ctx)
-	if err != nil {
-		base.SetExitStatus(base.SAuthError)
-		return err
-	}
-
 	// initialize the session.
-	sess, err := slackdump.New(ctx, prov, slackdump.WithLogger(logger.FromContext(ctx)), slackdump.WithForceEnterprise(cfg.ForceEnterprise))
+	sess, err := cfg.SlackdumpSession(ctx)
 	if err != nil {
-		base.SetExitStatus(base.SApplicationError)
+		base.SetExitStatus(base.SInitializationError)
 		return err
 	}
 
@@ -167,6 +159,8 @@ type userCacher interface {
 }
 
 func getCachedUsers(ctx context.Context, ug userGetter, m userCacher, teamID string) ([]slack.User, error) {
+	lg := logger.FromContext(ctx)
+
 	users, err := m.LoadUsers(teamID, cfg.UserCacheRetention)
 	if err == nil {
 		return users, nil
@@ -178,7 +172,6 @@ func getCachedUsers(ctx context.Context, ug userGetter, m userCacher, teamID str
 		return nil, err
 	}
 
-	lg := logger.FromContext(ctx)
 	lg.Println("user cache expired or empty, caching users")
 
 	// getting users from API

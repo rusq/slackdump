@@ -170,14 +170,13 @@ func New(ctx context.Context, prov auth.Provider, opts ...Option) (*Session, err
 	}
 	sd.wspInfo = authResp
 
-	// create a new client with the edge client
-	ecl, err := edge.NewWithInfo(authResp, prov)
-	if err != nil {
-		return nil, err
-	}
-
-	// Enteprise fix
-	if authResp.EnterpriseID != "" || sd.cfg.forceEnterprise {
+	// Enteprise initialisation.
+	if sd.cfg.forceEnterprise || authResp.EnterpriseID != "" {
+		// create a new client with the edge client
+		ecl, err := edge.NewWithInfo(authResp, prov)
+		if err != nil {
+			return nil, err
+		}
 		sd.log.Debug("enterprise workspace detected or force enteprise is set, using edge client")
 		sd.client = ecl.NewWrapper(cl)
 	} else {

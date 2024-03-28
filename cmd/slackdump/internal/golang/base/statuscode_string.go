@@ -13,15 +13,16 @@ func _() {
 	_ = x[SHelpRequested-2]
 	_ = x[SInvalidParameters-3]
 	_ = x[SAuthError-4]
-	_ = x[SApplicationError-5]
-	_ = x[SWorkspaceError-6]
-	_ = x[SCacheError-7]
-	_ = x[SUserError-8]
+	_ = x[SInitializationError-5]
+	_ = x[SApplicationError-6]
+	_ = x[SWorkspaceError-7]
+	_ = x[SCacheError-8]
+	_ = x[SUserError-9]
 }
 
-const _StatusCode_name = "NoErrorGenericErrorHelpRequestedInvalidParametersAuthErrorApplicationErrorWorkspaceErrorCacheErrorUserError"
+const _StatusCode_name = "NoErrorGenericErrorHelpRequestedInvalidParametersAuthErrorInitializationErrorApplicationErrorWorkspaceErrorCacheErrorUserError"
 
-var _StatusCode_index = [...]uint8{0, 7, 19, 32, 49, 58, 74, 88, 98, 107}
+var _StatusCode_index = [...]uint8{0, 7, 19, 32, 49, 58, 77, 93, 107, 117, 126}
 
 func (i StatusCode) String() string {
 	if i >= StatusCode(len(_StatusCode_index)-1) {

@@ -8,7 +8,6 @@ import (
 
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/slackdump/v3"
-	"github.com/rusq/slackdump/v3/auth"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/internal/chunk"
@@ -38,12 +37,6 @@ func RunRecord(ctx context.Context, cmd *base.Command, args []string) error {
 		return err
 	}
 
-	prov, err := auth.FromContext(ctx)
-	if err != nil {
-		base.SetExitStatus(base.SAuthError)
-		return err
-	}
-
 	// hack
 	cfg.Output = strings.TrimSuffix(cfg.Output, ".zip")
 
@@ -53,12 +46,11 @@ func RunRecord(ctx context.Context, cmd *base.Command, args []string) error {
 		return err
 	}
 
-	sess, err := slackdump.New(ctx, prov, slackdump.WithLogger(logger.FromContext(ctx)), slackdump.WithForceEnterprise(cfg.ForceEnterprise))
+	sess, err := cfg.SlackdumpSession(ctx)
 	if err != nil {
-		base.SetExitStatus(base.SGenericError)
+		base.SetExitStatus(base.SInitializationError)
 		return err
 	}
-
 	lg := logger.FromContext(ctx)
 	stream := sess.Stream(
 		slackdump.OptLatest(time.Time(cfg.Latest)),
