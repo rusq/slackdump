@@ -169,8 +169,13 @@ func New(ctx context.Context, prov auth.Provider, opts ...Option) (*Session, err
 	if err != nil {
 		return nil, err
 	}
-	// set it as a fallback
-	sd.client = newFallbackClient(ctx, sd.client, ecl.NewWrapper(cl))
+
+	// Enteprise fix
+	if authResp.EnterpriseID != "" {
+		sd.client = ecl.NewWrapper(cl)
+	} else {
+		sd.client = cl
+	}
 
 	return sd, nil
 }
