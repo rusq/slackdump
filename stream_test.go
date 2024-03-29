@@ -2,6 +2,8 @@ package slackdump
 
 import (
 	"context"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -16,8 +18,10 @@ import (
 	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/internal/chunk/chunktest"
 	"github.com/rusq/slackdump/v3/internal/fixtures"
+	"github.com/rusq/slackdump/v3/internal/network"
 	"github.com/rusq/slackdump/v3/internal/structures"
 	"github.com/rusq/slackdump/v3/mocks/mock_processor"
+	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 )
 
@@ -274,4 +278,23 @@ func Test_processLink(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestStream_Users(t *testing.T) {
+	ctx := context.Background()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(`{"ok":false,"error":"not_authed"}`))
+	}))
+	defer srv.Close()
+	l := rateLimits{
+		users: network.NewLimiter(network.NoTier, 100, 100),
+		tier:  &DefLimits,
+	}
+	s := Stream{
+		client: slack.New("test", slack.OptionAPIURL(srv.URL+"/")),
+		limits: l,
+	}
+	m := mock_processor.NewMockUsers(gomock.NewController(t))
+	err := s.Users(ctx, m)
+	assert.NoError(t, err)
 }

@@ -44,11 +44,13 @@ var ErrRetryFailed = errors.New("callback was unable to complete without errors 
 // slack.RateLimitedError, it will delay, and then call it again up to
 // maxAttempts times. It will return an error if it runs out of attempts.
 func WithRetry(ctx context.Context, lim *rate.Limiter, maxAttempts int, fn func() error) error {
+	trace.Logf(ctx, "info", "maxAttempts=%d", maxAttempts)
 	var ok bool
 	if maxAttempts == 0 {
 		maxAttempts = defNumAttempts
 	}
 	for attempt := 0; attempt < maxAttempts; attempt++ {
+		// calling wait to ensure that we don't exceed the rate limit
 		var err error
 		trace.WithRegion(ctx, "WithRetry.wait", func() {
 			err = lim.Wait(ctx)
@@ -59,6 +61,7 @@ func WithRetry(ctx context.Context, lim *rate.Limiter, maxAttempts int, fn func(
 
 		cbErr := fn()
 		if cbErr == nil {
+			trace.Log(ctx, "info", "success")
 			ok = true
 			break
 		}
