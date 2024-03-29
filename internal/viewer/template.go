@@ -3,11 +3,7 @@ package viewer
 import (
 	"context"
 	"embed"
-	"encoding/json"
 	"html/template"
-	"log/slog"
-	"mime"
-	"strings"
 	"time"
 
 	"github.com/rusq/slack"
@@ -25,11 +21,9 @@ func initTemplates(v *Viewer) {
 			"displayname":     v.um.DisplayName,
 			"username":        v.username, // username returns the username for the message
 			"time":            localtime,
-			"epoch":           epoch,
 			"rendertext":      func(s string) template.HTML { return v.r.RenderText(context.Background(), s) },     // render message text
 			"render":          func(m *slack.Message) template.HTML { return v.r.Render(context.Background(), m) }, // render message
 			"is_thread_start": st.IsThreadStart,
-			"mimetype":        mimetype,
 		},
 	).ParseFS(fsys, "templates/*.html"))
 	v.tmpl = tmpl
@@ -41,22 +35,6 @@ func localtime(ts string) string {
 		return ts
 	}
 	return t.Local().Format(time.DateTime)
-}
-
-func epoch(ts json.Number) string {
-	if ts == "" {
-		return ""
-	}
-	t, err := ts.Int64()
-	if err != nil {
-		tf, err := ts.Float64()
-		if err != nil {
-			slog.Debug("epoch Float64 error, out of conversion options", "err", err, "ts", ts)
-			return ts.String()
-		}
-		t = int64(tf)
-	}
-	return time.Unix(t, 0).Local().Format(time.DateTime)
 }
 
 type sender int
@@ -100,18 +78,4 @@ func (v *Viewer) username(m *slack.Message) string {
 
 func isAppMsg(m *slack.Message) bool {
 	return msgsender(m) == sApp
-}
-
-func mimetype(mt string) string {
-	mm, _, err := mime.ParseMediaType(mt)
-	if err != nil || mt == "" {
-		slog.Debug("mimetype", "err", err, "mimetype", mt)
-		return "application"
-	}
-	slog.Debug("mimetype", "t", mm, "mimetype", mt)
-	t, _, found := strings.Cut(mm, "/")
-	if !found {
-		return "application"
-	}
-	return t
 }

@@ -8,7 +8,10 @@ import (
 	"testing"
 
 	"github.com/rusq/slack"
+	"github.com/rusq/slackdump/v3/internal/viewer/renderer/functions"
 )
+
+var tmpl = template.Must(template.New("blocks").Funcs(functions.FuncMap).ParseFS(templates, "templates/*.html"))
 
 func TestSlack_Render(t *testing.T) {
 	nestedLists := load(t, fxtrMsgNestedLists)
@@ -23,7 +26,9 @@ func TestSlack_Render(t *testing.T) {
 	}{
 		{
 			"simple message",
-			&Slack{},
+			&Slack{
+				tmpl: tmpl,
+			},
 			args{
 				m: load(t, fxtrRtseText),
 			},
@@ -31,11 +36,33 @@ func TestSlack_Render(t *testing.T) {
 		},
 		{
 			"nested lists",
-			&Slack{},
+			&Slack{
+				tmpl: tmpl,
+			},
 			args{
 				m: nestedLists,
 			},
 			template.HTML(`Enumerated:<br><ol><li>First (1)</li><li>Second(2)</li></ol><ol><ol><li>Nested (2.a)</li><li>Nested (2.b)</li></ol></ol><ul><ul><ul><li>Nexted bullet point</li></ul></ul></ul><ul><ul><ul><ul><li>Another nested bullet</li></ul></ul></ul></ul><ol><ol><ol><ol><ol><li>Nested enumeration</li></ol></ol></ol></ol></ol>`),
+		},
+		{
+			"template panic",
+			&Slack{
+				tmpl: tmpl,
+			},
+			args{
+				m: load(t, fxtrRtseText),
+			},
+			template.HTML("New message"),
+		},
+		{
+			"started a meeting",
+			&Slack{
+				tmpl: tmpl,
+			},
+			args{
+				m: load(t, fxtrStartedAMeeting),
+			},
+			template.HTML(`<div class="slack-call">(Call)</div><pre class="slack-section-text">Meeting passcode: yyyyy</pre>`),
 		},
 	}
 	for _, tt := range tests {

@@ -16,6 +16,7 @@ func load(t *testing.T, s string) *slack.Message {
 	return &m
 }
 
+// integration tests fixtures
 const (
 	fxtrRtseText = `
 {
@@ -184,6 +185,168 @@ const (
 				"indent": 4
 			  }
 			]
+		  }
+		]
+	  }`
+
+	fxtrMsgPanic = `{
+		"type": "message",
+		"user": "U9UUUUUU",
+		"text": "\u003c@U1XXXXXX\u003e has a poll for you!",
+		"ts": "1602012064.003300",
+		"edited": {
+		  "user": "B9AAAAAAA",
+		  "ts": "1602012344.000000"
+		},
+		"bot_id": "B9AAAAAAA",
+		"bot_profile": {
+		  "app_id": "A0AAAAAAA",
+		  "icons": {
+			"image_36": "https://avata...faaaaa_36.png",
+			"image_48": "https://avata...faaaaa_48.png",
+			"image_72": "https://avat...fbbbbbb_72.png"
+		  },
+		  "id": "B9AAAAAAA",
+		  "name": "Polly",
+		  "team_id": "T02TTTTTT",
+		  "updated": 1542832690
+		},
+		"team": "T02TTTTTT",
+		"replace_original": false,
+		"delete_original": false,
+		"metadata": {
+		  "event_type": "",
+		  "event_payload": null
+		},
+		"blocks": [
+		  {
+			"type": "section",
+			"text": {
+			  "type": "mrkdwn",
+			  "text": "*Poll title*\n",
+			  "verbatim": true
+			},
+			"block_id": "FFF"
+		  },
+		  {
+			"type": "actions",
+			"block_id": "xaaa",
+			"elements": [
+			  {
+				"type": "button",
+				"text": {
+				  "type": "plain_text",
+				  "text": "#channel-name",
+				  "emoji": true
+				},
+				"action_id": "PollMessage(Z29hd2F5Cg==).VotingButton(0)",
+				"value": "one"
+			  },
+			  {
+				"type": "button",
+				"text": {
+				  "type": "plain_text",
+				  "text": "#channel-name2",
+				  "emoji": true
+				},
+				"action_id": "PollMessage(Z29hd2F5Cg==).VotingButton(1)",
+				"value": "two"
+			  }
+			]
+		  },
+		  {
+			"type": "section",
+			"block_id": "9P3",
+			"fields": [
+			  {
+				"type": "mrkdwn",
+				"text": "#channel  \n\n` + "`█████████████████████████`" + `  |  100% (2)\n\n\u003c@UPUUUUUU\u003e, \u003c@UQQQQQQQ\u003e",
+				"verbatim": true
+			  },
+			  {
+				"type": "mrkdwn",
+				"text": "#...  \n\n` + "`⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ `" + `  |  0% (0)\n\n",
+				"verbatim": true
+			  }
+			]
+		  },
+		  {
+			"type": "context",
+			"block_id": "FasC",
+			"elements": [
+			  {
+				"type": "mrkdwn",
+				"text": "*Total Votes*: 2",
+				"verbatim": true
+			  }
+			]
+		  },
+		  {
+			"type": "actions",
+			"block_id": "Pot",
+			"elements": [
+			  {
+				"type": "button",
+				"text": {
+				  "type": "plain_text",
+				  "text": "Add a Comment",
+				  "emoji": true
+				},
+				"action_id": "PollMessage(Z29hd2F5Cg==).AddCommentButton"
+			  },
+			  {
+				"type": "button",
+				"text": {
+				  "type": "plain_text",
+				  "text": "View All Responses",
+				  "emoji": true
+				},
+				"action_id": "PollMessage(Z29hd2F5Cg==).ViewAllResponsesButton"
+			  }
+			]
+		  },
+		  {
+			"type": "divider",
+			"block_id": "2222"
+		  },
+		  {
+			"type": "context",
+			"block_id": "Axxx",
+			"elements": [
+			  {
+				"type": "mrkdwn",
+				"text": "Owner: ...",
+				"verbatim": true
+			  }
+			]
+		  }
+		]
+	  }`
+
+	fxtrStartedAMeeting = `{
+		"type": "message",
+		"text": "xxx has started a meeting",
+		"ts": "1710000000.000000",
+		"subtype": "bot_message",
+		"bot_id": "B0BBBBBBB",
+		"replace_original": false,
+		"delete_original": false,
+		"metadata": {
+		  "event_type": "",
+		  "event_payload": null
+		},
+		"blocks": [
+		  {
+			"type": "call",
+			"block_id": "XXXX"
+		  },
+		  {
+			"type": "section",
+			"text": {
+			  "type": "mrkdwn",
+			  "text": "Meeting passcode: yyyyy"
+			},
+			"block_id": "CCCCC"
 		  }
 		]
 	  }`

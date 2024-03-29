@@ -22,10 +22,6 @@ var (
 	}
 )
 
-func mbtTODO(s *Slack, b slack.Block) (string, error) {
-	return "", nil
-}
-
 // rte - rich text element
 var (
 	rteTypeHandlers = map[slack.RichTextElementType]func(*Slack, slack.RichTextElement) (string, error){}

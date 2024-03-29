@@ -2,6 +2,7 @@ package renderer
 
 import (
 	"context"
+	"embed"
 	"encoding/json"
 	"fmt"
 	"html/template"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/rusq/slack"
 	"github.com/rusq/slackdump/v3/internal/osext"
+	"github.com/rusq/slackdump/v3/internal/viewer/renderer/functions"
 )
 
 const debug = true
@@ -35,9 +37,12 @@ func WithChannels(cc map[string]slack.Channel) SlackOption {
 	}
 }
 
+//go:embed templates/*.html
+var templates embed.FS
+
 func NewSlack(tmpl *template.Template, opts ...SlackOption) *Slack {
 	s := &Slack{
-		tmpl: tmpl,
+		tmpl: template.Must(tmpl.New("blocks").Funcs(functions.FuncMap).ParseFS(templates, "templates/*.html")),
 	}
 	for _, opt := range opts {
 		opt(s)
@@ -100,6 +105,9 @@ func (s *Slack) renderAttachment(ctx context.Context, buf *strings.Builder, msgT
 
 func (s *Slack) renderFiles(ctx context.Context, buf *strings.Builder, msgTS string, files []slack.File) {
 	attrMsgID := slog.String("message_ts", msgTS)
+	if files == nil {
+		return
+	}
 	if err := s.tmpl.ExecuteTemplate(buf, "file.html", files); err != nil {
 		slog.ErrorContext(ctx, "error rendering files", "error", err, attrMsgID)
 	}
