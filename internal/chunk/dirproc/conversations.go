@@ -233,6 +233,7 @@ func (cv *Conversations) ThreadMessages(ctx context.Context, channelID string, p
 		return err
 	}
 	cv.decRef(id)
+	cv.lg.Debugf("decreased ref count for \"%s:%s\"", id, parent.Timestamp)
 	refcnt := cv.refcount(id)
 	trace.Logf(ctx, "ref", "decremented, current=%d", refcnt)
 	lg.Debugf("processor: decreased ref count for %q to %d", id, refcnt)

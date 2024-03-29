@@ -246,7 +246,10 @@ func initTrace(filename string) error {
 // is nil.
 func initLog(filename string, verbose bool) (*dlog.Logger, error) {
 	lg := logger.Default
-	lg.SetDebug(verbose)
+	if verbose {
+		lg.SetDebug(verbose)
+		lg.SetFlags(lg.Flags() | log.Lmicroseconds)
+	}
 
 	if filename == "" {
 		return lg, nil
