@@ -24,7 +24,7 @@ func DoDir(ctx context.Context, src string, trg string, options ...Option) error
 	for _, optFn := range options {
 		optFn(&opts)
 	}
-	rand.Seed(opts.seed)
+	rand.New(rand.NewSource(opts.seed))
 
 	lg := dlog.FromContext(ctx)
 	files, err := os.ReadDir(src)
