@@ -16,6 +16,7 @@ var CmdSearch = &base.Command{
 	Short:       "records search results matching the given query",
 	Long:        `Searches for messages matching criteria.`,
 	RequireAuth: true,
+	FlagMask:    cfg.OmitUserCacheFlag | cfg.OmitCacheDir,
 	Run:         runSearch,
 	PrintFlags:  true,
 }
@@ -26,6 +27,12 @@ func runSearch(ctx context.Context, cmd *base.Command, args []string) error {
 		return errors.New("missing query parameter")
 	}
 	query := strings.Join(args, " ")
+
+	cfg.Output = stripZipExt(cfg.Output)
+	if cfg.Output == "" {
+		base.SetExitStatus(base.SInvalidParameters)
+		return errNoOutput
+	}
 
 	sess, err := cfg.SlackdumpSession(ctx)
 	if err != nil {

@@ -3,7 +3,7 @@ package record
 import (
 	"context"
 	_ "embed"
-	"fmt"
+	"errors"
 	"strings"
 	"time"
 
@@ -23,13 +23,26 @@ var mdRecord string
 
 var CmdRecord = &base.Command{
 	Run:         RunRecord,
-	UsageLine:   "slackdump record [link1[ link 2[ link N]]]",
+	UsageLine:   "slackdump record [flags] [link1[ link 2[ link N]]]",
 	Short:       "record the dump of the workspace or individual conversations",
 	Long:        mdRecord,
 	FlagMask:    cfg.OmitUserCacheFlag | cfg.OmitCacheDir,
 	RequireAuth: true,
 	PrintFlags:  true,
 }
+
+const zipExt = ".ZIP"
+
+func stripZipExt(s string) string {
+	if strings.HasSuffix(strings.ToUpper(s), zipExt) {
+		return s[:len(s)-len(zipExt)]
+	}
+	return s
+}
+
+var (
+	errNoOutput = errors.New("output directory is required")
+)
 
 func RunRecord(ctx context.Context, cmd *base.Command, args []string) error {
 	list, err := structures.NewEntityList(args)
@@ -38,9 +51,10 @@ func RunRecord(ctx context.Context, cmd *base.Command, args []string) error {
 		return err
 	}
 
-	if strings.HasSuffix(strings.ToUpper(cfg.Output), ".ZIP") {
+	cfg.Output = stripZipExt(cfg.Output)
+	if cfg.Output == "" {
 		base.SetExitStatus(base.SInvalidParameters)
-		return fmt.Errorf("record does not support writing to a zip file, please specify a directory")
+		return errNoOutput
 	}
 
 	cd, err := chunk.CreateDir(cfg.Output)
