@@ -67,3 +67,18 @@ func workspaceWorker(ctx context.Context, s Streamer, cd *chunk.Directory) error
 	lg.Debug("workspaceWorker done")
 	return nil
 }
+
+func searchWorker(ctx context.Context, s Streamer, cd *chunk.Directory, query string) error {
+	lg := logger.FromContext(ctx)
+	lg.Debug("searchWorker started")
+	search, err := dirproc.NewSearch(cd)
+	if err != nil {
+		return err
+	}
+	defer search.Close()
+	if err := s.SearchMessages(ctx, search, query); err != nil {
+		return err
+	}
+	lg.Debug("searchWorker done")
+	return nil
+}
