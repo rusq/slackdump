@@ -8,8 +8,8 @@ import (
 	"github.com/rusq/slackdump/v3/internal/primitive"
 )
 
-// tracker keeps track of the files and their processors.
-type tracker struct {
+// filetracker keeps track of the files and their processors.
+type filetracker struct {
 	dir *chunk.Directory
 
 	mu    sync.RWMutex                 // guards map operations
@@ -27,8 +27,8 @@ type entityproc struct {
 	primitive.Counter
 }
 
-func newTracker(cd *chunk.Directory) *tracker {
-	return &tracker{
+func newTracker(cd *chunk.Directory) *filetracker {
+	return &filetracker{
 		dir:   cd,
 		files: make(map[chunk.FileID]*entityproc),
 	}
@@ -36,7 +36,7 @@ func newTracker(cd *chunk.Directory) *tracker {
 
 // create ensures that the channel file is open and the recorder is
 // initialized.
-func (t *tracker) create(id chunk.FileID) error {
+func (t *filetracker) create(id chunk.FileID) error {
 	if _, ok := t.files[id]; ok {
 		// already exists
 		return nil
@@ -55,7 +55,7 @@ func (t *tracker) create(id chunk.FileID) error {
 
 // Unregister closes and removes the file from tracking (file remains on the file
 // system).
-func (t *tracker) Unregister(id chunk.FileID) error {
+func (t *filetracker) Unregister(id chunk.FileID) error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	return t.unregister(id)
@@ -63,7 +63,7 @@ func (t *tracker) Unregister(id chunk.FileID) error {
 
 // unregister is an internal function that closes and removes the file from
 // tracking without locking the mutex.
-func (t *tracker) unregister(id chunk.FileID) error {
+func (t *filetracker) unregister(id chunk.FileID) error {
 	r, ok := t.files[id]
 	if !ok {
 		return nil
@@ -77,7 +77,7 @@ func (t *tracker) unregister(id chunk.FileID) error {
 
 // Recorder returns the processor for the given file.  If the processor
 // doesn't exist, it is created.
-func (t *tracker) Recorder(id chunk.FileID) (*entityproc, error) {
+func (t *filetracker) Recorder(id chunk.FileID) (*entityproc, error) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
@@ -92,7 +92,7 @@ func (t *tracker) Recorder(id chunk.FileID) (*entityproc, error) {
 }
 
 // CloseAll closes all open files.
-func (t *tracker) CloseAll() error {
+func (t *filetracker) CloseAll() error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
@@ -106,7 +106,7 @@ func (t *tracker) CloseAll() error {
 }
 
 // RefCount returns the reference count for the given file.
-func (t *tracker) RefCount(id chunk.FileID) int {
+func (t *filetracker) RefCount(id chunk.FileID) int {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
 

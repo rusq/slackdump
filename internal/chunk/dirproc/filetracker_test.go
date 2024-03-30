@@ -221,7 +221,7 @@ func Test_tracker_unregister(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tr := &tracker{
+			tr := &filetracker{
 				dir:   tt.fields.dir,
 				files: tt.fields.files,
 			}

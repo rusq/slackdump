@@ -26,7 +26,7 @@ type Transformer interface {
 // Zero value is unusable.  Use [NewConversation] to create a new instance.
 type Conversations struct {
 	dir *chunk.Directory
-	t   *tracker
+	t   *filetracker
 	lg  logger.Interface
 
 	// subproc is the files subprocessor, it is called by the Files method
@@ -91,11 +91,6 @@ func (cv *Conversations) ChannelInfo(ctx context.Context, ci *slack.Channel, thr
 		return err
 	}
 	return r.ChannelInfo(ctx, ci, threadTS)
-}
-
-func (cv *Conversations) debugtrace(ctx context.Context, fmt string, args ...any) {
-	cv.lg.Debugf(fmt, args...)
-	trace.Logf(ctx, "debug", fmt, args...)
 }
 
 // Messages is called for each message that is retrieved.
@@ -195,4 +190,9 @@ func (cv *Conversations) ChannelUsers(ctx context.Context, channelID string, thr
 
 func (cv *Conversations) Close() error {
 	return cv.t.CloseAll()
+}
+
+func (cv *Conversations) debugtrace(ctx context.Context, fmt string, args ...any) {
+	cv.lg.Debugf(fmt, args...)
+	trace.Logf(ctx, "debug", fmt, args...)
 }
