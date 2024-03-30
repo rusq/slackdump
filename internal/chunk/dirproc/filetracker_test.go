@@ -18,12 +18,12 @@ func makeTestDir(t *testing.T) *chunk.Directory {
 	return cd
 }
 
-func Test_tracker_create(t *testing.T) {
+func Test_filetracker_create(t *testing.T) {
 	t.Parallel()
 	t.Run("created a new file", func(t *testing.T) {
 		t.Parallel()
 		cd := makeTestDir(t)
-		tr := newTracker(cd)
+		tr := newFileTracker(cd)
 		id := chunk.FileID("test")
 		err := tr.create(id)
 		if err != nil {
@@ -41,7 +41,7 @@ func Test_tracker_create(t *testing.T) {
 		t.Parallel()
 		// creating initial file.
 		cd := makeTestDir(t)
-		tr := newTracker(cd)
+		tr := newFileTracker(cd)
 		id := chunk.FileID("test")
 		if err := tr.create(id); err != nil {
 			t.Fatal(err)
@@ -62,12 +62,12 @@ func Test_tracker_create(t *testing.T) {
 	})
 }
 
-func Test_tracker_Recorder(t *testing.T) {
+func Test_filetracker_Recorder(t *testing.T) {
 	t.Parallel()
 	t.Run("returns existing processor", func(t *testing.T) {
 		t.Parallel()
 		cd := makeTestDir(t)
-		tr := newTracker(cd)
+		tr := newFileTracker(cd)
 		id := chunk.FileID("test")
 		if err := tr.create(id); err != nil {
 			t.Fatal(err)
@@ -84,7 +84,7 @@ func Test_tracker_Recorder(t *testing.T) {
 	t.Run("creates new processor", func(t *testing.T) {
 		t.Parallel()
 		cd := makeTestDir(t)
-		tr := newTracker(cd)
+		tr := newFileTracker(cd)
 		id := chunk.FileID("test")
 		r, err := tr.Recorder(id)
 		if err != nil {
@@ -98,7 +98,7 @@ func Test_tracker_Recorder(t *testing.T) {
 	t.Run("returns another processor for different file", func(t *testing.T) {
 		t.Parallel()
 		cd := makeTestDir(t)
-		tr := newTracker(cd)
+		tr := newFileTracker(cd)
 		id1 := chunk.FileID("test1")
 		id2 := chunk.FileID("test2")
 		r1, err := tr.Recorder(id1)
@@ -123,11 +123,11 @@ func Test_tracker_Recorder(t *testing.T) {
 	})
 }
 
-func Test_tracker_CloseAll(t *testing.T) {
+func Test_filetracker_CloseAll(t *testing.T) {
 	t.Run("closes open files", func(t *testing.T) {
 		t.Parallel()
 		cd := makeTestDir(t)
-		tr := newTracker(cd)
+		tr := newFileTracker(cd)
 		id1 := chunk.FileID("test1")
 		id2 := chunk.FileID("test2")
 
@@ -148,18 +148,18 @@ func Test_tracker_CloseAll(t *testing.T) {
 	t.Run("does nothing if there's no files", func(t *testing.T) {
 		t.Parallel()
 		cd := makeTestDir(t)
-		tr := newTracker(cd)
+		tr := newFileTracker(cd)
 		if err := tr.CloseAll(); err != nil {
 			t.Fatal(err)
 		}
 	})
 }
 
-func Test_tracker_RefCount(t *testing.T) {
+func Test_filetracker_RefCount(t *testing.T) {
 	t.Run("returns reference count", func(t *testing.T) {
 		t.Parallel()
 		cd := makeTestDir(t)
-		tr := newTracker(cd)
+		tr := newFileTracker(cd)
 		id := chunk.FileID("test")
 		if _, err := tr.Recorder(id); err != nil {
 			t.Fatal(err)
@@ -169,15 +169,15 @@ func Test_tracker_RefCount(t *testing.T) {
 	t.Run("returns 0 for non-existing file", func(t *testing.T) {
 		t.Parallel()
 		cd := makeTestDir(t)
-		tr := newTracker(cd)
+		tr := newFileTracker(cd)
 		assert.Equal(t, 0, tr.RefCount(chunk.FileID("test")), "reference count mismatch")
 	})
 }
 
-func Test_tracker_unregister(t *testing.T) {
+func Test_filetracker_unregister(t *testing.T) {
 	// create a test file.
 	cd := makeTestDir(t)
-	tr := newTracker(cd)
+	tr := newFileTracker(cd)
 	testID := chunk.FileID("test")
 	if err := tr.create(testID); err != nil {
 		t.Fatal(err)
@@ -226,7 +226,7 @@ func Test_tracker_unregister(t *testing.T) {
 				files: tt.fields.files,
 			}
 			if err := tr.unregister(tt.args.id); (err != nil) != tt.wantErr {
-				t.Errorf("tracker.unregister() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("filetracker.unregister() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}

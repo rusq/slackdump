@@ -27,7 +27,7 @@ type entityproc struct {
 	primitive.Counter
 }
 
-func newTracker(cd *chunk.Directory) *filetracker {
+func newFileTracker(cd *chunk.Directory) *filetracker {
 	return &filetracker{
 		dir:   cd,
 		files: make(map[chunk.FileID]*entityproc),
@@ -77,7 +77,7 @@ func (t *filetracker) unregister(id chunk.FileID) error {
 
 // Recorder returns the processor for the given file.  If the processor
 // doesn't exist, it is created.
-func (t *filetracker) Recorder(id chunk.FileID) (*entityproc, error) {
+func (t *filetracker) Recorder(id chunk.FileID) (datahandler, error) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
