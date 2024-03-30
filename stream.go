@@ -93,18 +93,24 @@ func (s StreamResult) String() string {
 
 // rateLimits contains the rate limiters for the different tiers.
 type rateLimits struct {
-	channels *rate.Limiter
-	threads  *rate.Limiter
-	users    *rate.Limiter
-	tier     *Limits
+	channels    *rate.Limiter
+	threads     *rate.Limiter
+	users       *rate.Limiter
+	search      *rate.Limiter
+	searchmsg   *rate.Limiter
+	searchfiles *rate.Limiter
+	tier        *Limits
 }
 
 func limits(l *Limits) rateLimits {
 	return rateLimits{
-		channels: network.NewLimiter(network.Tier3, l.Tier3.Burst, int(l.Tier3.Boost)),
-		threads:  network.NewLimiter(network.Tier3, l.Tier3.Burst, int(l.Tier3.Boost)),
-		users:    network.NewLimiter(network.Tier2, l.Tier2.Burst, int(l.Tier2.Boost)),
-		tier:     l,
+		channels:    network.NewLimiter(network.Tier3, l.Tier3.Burst, int(l.Tier3.Boost)),
+		threads:     network.NewLimiter(network.Tier3, l.Tier3.Burst, int(l.Tier3.Boost)),
+		users:       network.NewLimiter(network.Tier2, l.Tier2.Burst, int(l.Tier2.Boost)),
+		search:      network.NewLimiter(network.Tier2, l.Tier2.Burst, int(l.Tier2.Boost)),
+		searchmsg:   network.NewLimiter(network.Tier2, l.Tier2.Burst, int(l.Tier2.Boost)),
+		searchfiles: network.NewLimiter(network.Tier2, l.Tier2.Burst, int(l.Tier2.Boost)),
+		tier:        l,
 	}
 }
 
@@ -720,7 +726,6 @@ func (cs *Stream) SearchMessages(ctx context.Context, proc processor.Search, que
 
 	lg := logger.FromContext(ctx)
 
-	lim := rate.NewLimiter(rate.Every(3*time.Second), 5)
 	var p = slack.SearchParameters{
 		Sort:          "timestamp",
 		SortDirection: "desc",
@@ -732,7 +737,7 @@ func (cs *Stream) SearchMessages(ctx context.Context, proc processor.Search, que
 			sm  *slack.SearchMessages
 			err error
 		)
-		if err := network.WithRetry(ctx, lim, 3, func() error {
+		if err := network.WithRetry(ctx, cs.limits.searchmsg, cs.limits.tier.Tier2.Retries, func() error {
 			sm, err = cs.client.SearchMessagesContext(ctx, query, p)
 			return err
 		}); err != nil {
@@ -742,14 +747,60 @@ func (cs *Stream) SearchMessages(ctx context.Context, proc processor.Search, que
 			return err
 		}
 		if sm.NextCursor == "" {
-			lg.Print("no more messages")
+			lg.Debug("SearchMessages:  no more messages")
 			break
 		}
-		lg.Printf("cursor %s", sm.NextCursor)
 		p.Cursor = sm.NextCursor
-
-		lim.Wait(ctx)
 	}
 
 	return nil
+}
+
+func (cs *Stream) SearchFiles(ctx context.Context, proc processor.Search, query string) error {
+	ctx, task := trace.NewTask(ctx, "SearchMessages")
+	defer task.End()
+
+	lg := logger.FromContext(ctx)
+
+	var p = slack.SearchParameters{
+		Sort:          "timestamp",
+		SortDirection: "desc",
+		Count:         100,
+		Cursor:        "*",
+	}
+	for {
+		var (
+			sm  *slack.SearchFiles
+			err error
+		)
+		if err := network.WithRetry(ctx, cs.limits.searchmsg, cs.limits.tier.Tier2.Retries, func() error {
+			sm, err = cs.client.SearchFilesContext(ctx, query, p)
+			return err
+		}); err != nil {
+			return err
+		}
+		if err := proc.SearchFiles(ctx, query, sm.Matches); err != nil {
+			return err
+		}
+		if sm.NextCursor == "" {
+			lg.Debug("SearchMessages:  no more messages")
+			break
+		}
+		p.Cursor = sm.NextCursor
+	}
+
+	return nil
+}
+
+func (s *Stream) Search(ctx context.Context, proc processor.Search, query string) error {
+	var eg errgroup.Group
+
+	eg.Go(func() error {
+		return s.SearchMessages(ctx, proc, query)
+	})
+	eg.Go(func() error {
+		return s.SearchFiles(ctx, proc, query)
+	})
+
+	return eg.Wait()
 }

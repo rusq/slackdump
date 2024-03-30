@@ -29,12 +29,13 @@ func runSearch(ctx context.Context, cmd *base.Command, args []string) error {
 
 	sess, err := cfg.SlackdumpSession(ctx)
 	if err != nil {
+		base.SetExitStatus(base.SInitializationError)
 		return err
 	}
 
 	cd, err := chunk.CreateDir(cfg.Output)
 	if err != nil {
-		base.SetExitStatus(base.SGenericError)
+		base.SetExitStatus(base.SApplicationError)
 		return err
 	}
 	defer cd.Close()
@@ -42,5 +43,9 @@ func runSearch(ctx context.Context, cmd *base.Command, args []string) error {
 	stream := sess.Stream()
 	ctrl := control.NewSearch(cd, stream)
 
-	return ctrl.Search(ctx, query)
+	if err := ctrl.Search(ctx, query); err != nil {
+		base.SetExitStatus(base.SApplicationError)
+		return err
+	}
+	return nil
 }
