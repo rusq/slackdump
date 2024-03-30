@@ -86,7 +86,7 @@ func NewConversation(cd *chunk.Directory, filesSubproc processor.Filer, tf Trans
 
 // ChannelInfo is called for each channel that is retrieved.
 func (cv *Conversations) ChannelInfo(ctx context.Context, ci *slack.Channel, threadTS string) error {
-	r, err := cv.t.recorder(chunk.ToFileID(ci.ID, threadTS, threadTS != ""))
+	r, err := cv.t.Recorder(chunk.ToFileID(ci.ID, threadTS, threadTS != ""))
 	if err != nil {
 		return err
 	}
@@ -106,11 +106,11 @@ func (cv *Conversations) Messages(ctx context.Context, channelID string, numThre
 	cv.debugtrace(ctx, "%s: Messages: numThreads=%d, isLast=%t, len(mm)=%d", channelID, numThreads, isLast, len(mm))
 
 	id := chunk.ToFileID(channelID, "", false)
-	r, err := cv.t.recorder(id)
+	r, err := cv.t.Recorder(id)
 	if err != nil {
 		return err
 	}
-	n := r.AddN(numThreads)
+	n := r.Add(numThreads)
 	cv.debugtrace(ctx, "%s: Messages: increased by %d to %d", channelID, numThreads, n)
 
 	if err := r.Messages(ctx, channelID, numThreads, isLast, mm); err != nil {
@@ -134,7 +134,7 @@ func (cv *Conversations) ThreadMessages(ctx context.Context, channelID string, p
 	cv.debugtrace(ctx, "%s: ThreadMessages: parent=%s, isLast=%t, len(tm)=%d", channelID, parent.ThreadTimestamp, isLast, len(tm))
 
 	id := chunk.ToFileID(channelID, parent.ThreadTimestamp, threadOnly)
-	r, err := cv.t.recorder(id)
+	r, err := cv.t.Recorder(id)
 	if err != nil {
 		return err
 	}
@@ -152,18 +152,13 @@ func (cv *Conversations) ThreadMessages(ctx context.Context, channelID string, p
 // finalise closes the channel file if there are no more threads to process.
 func (cv *Conversations) finalise(ctx context.Context, id chunk.FileID) error {
 	if tc := cv.t.RefCount(id); tc > 0 {
-		cv.debugtrace(ctx, "%s finalise: not finalising, ref count = %d", id, tc)
+		cv.debugtrace(ctx, "%s: finalise: not finalising, ref count = %d", id, tc)
 		return nil
 	}
-	cv.debugtrace(ctx, "%s finalise: ref count = 0, finalising...", id)
-	r, err := cv.t.recorder(id)
-	if err != nil {
+	cv.debugtrace(ctx, "%s: finalise: ref count = 0, finalising...", id)
+	if err := cv.t.Unregister(id); err != nil {
 		return err
 	}
-	if err := r.Close(); err != nil {
-		return err
-	}
-	cv.t.destroy(id)
 	if cv.tf != nil {
 		return cv.tf.Transform(ctx, id)
 	}
@@ -180,7 +175,7 @@ func (cv *Conversations) Files(ctx context.Context, channel *slack.Channel, pare
 		return nil
 	}
 	id := chunk.ToFileID(channel.ID, parent.ThreadTimestamp, false) // we don't do files for threads in export
-	r, err := cv.t.recorder(id)
+	r, err := cv.t.Recorder(id)
 	if err != nil {
 		return err
 	}
@@ -191,7 +186,7 @@ func (cv *Conversations) Files(ctx context.Context, channel *slack.Channel, pare
 }
 
 func (cv *Conversations) ChannelUsers(ctx context.Context, channelID string, threadTS string, cu []string) error {
-	r, err := cv.t.recorder(chunk.ToFileID(channelID, threadTS, threadTS != ""))
+	r, err := cv.t.Recorder(chunk.ToFileID(channelID, threadTS, threadTS != ""))
 	if err != nil {
 		return err
 	}
