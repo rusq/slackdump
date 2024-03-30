@@ -61,3 +61,9 @@ type Search interface {
 	// SearchFiles is called for each file that is retrieved.
 	SearchFiles(ctx context.Context, query string, files []slack.File) error
 }
+
+type SearchChannelInfoFiler interface {
+	Search
+	ChannelInformer
+	Filer
+}

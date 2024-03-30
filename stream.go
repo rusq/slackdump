@@ -72,6 +72,7 @@ const (
 	RTMain    ResultType = iota // Main function result
 	RTChannel                   // Result containing channel information
 	RTThread                    // Result containing thread information
+	RTChannelInfo
 )
 
 // StreamResult is sent to the callback function for each channel or thread.
@@ -308,39 +309,6 @@ func (we *StreamResult) Unwrap() error {
 	return we.Err
 }
 
-func (cs *Stream) channelWorker(ctx context.Context, proc processor.Conversations, results chan<- StreamResult, threadC chan<- request, reqs <-chan request) {
-	ctx, task := trace.NewTask(ctx, "channelWorker")
-	defer task.End()
-
-	for {
-		select {
-		case <-ctx.Done():
-			results <- StreamResult{Type: RTChannel, Err: ctx.Err()}
-			return
-		case req, more := <-reqs:
-			if !more {
-				return // channel closed
-			}
-			channel, err := cs.channelInfoWithUsers(ctx, proc, req.sl.Channel, req.sl.ThreadTS)
-			if err != nil {
-				results <- StreamResult{Type: RTChannel, ChannelID: req.sl.Channel, Err: err}
-				continue
-			}
-			if err := cs.channel(ctx, req.sl.Channel, func(mm []slack.Message, isLast bool) error {
-				n, err := procChanMsg(ctx, proc, threadC, channel, isLast, mm)
-				if err != nil {
-					return err
-				}
-				results <- StreamResult{Type: RTChannel, ChannelID: req.sl.Channel, ThreadCount: n, IsLast: isLast}
-				return nil
-			}); err != nil {
-				results <- StreamResult{Type: RTChannel, ChannelID: req.sl.Channel, Err: err}
-				continue
-			}
-		}
-	}
-}
-
 func (cs *Stream) channel(ctx context.Context, id string, callback func(mm []slack.Message, isLast bool) error) error {
 	ctx, task := trace.NewTask(ctx, "channel")
 	defer task.End()
@@ -386,49 +354,6 @@ func (cs *Stream) channel(ctx context.Context, id string, callback func(mm []sla
 		cursor = resp.ResponseMetaData.NextCursor
 	}
 	return nil
-}
-
-func (cs *Stream) threadWorker(ctx context.Context, proc processor.Conversations, results chan<- StreamResult, threadReq <-chan request) {
-	ctx, task := trace.NewTask(ctx, "threadWorker")
-	defer task.End()
-
-	for {
-		select {
-		case <-ctx.Done():
-			results <- StreamResult{Type: RTThread, Err: ctx.Err()}
-			return
-		case req, more := <-threadReq:
-			if !more {
-				return // channel closed
-			}
-			if !req.sl.IsThread() {
-				results <- StreamResult{Type: RTThread, Err: fmt.Errorf("invalid thread link: %s", req.sl)}
-				continue
-			}
-
-			var channel = new(slack.Channel)
-			if req.threadOnly {
-				var err error
-				if channel, err = cs.channelInfoWithUsers(ctx, proc, req.sl.Channel, req.sl.ThreadTS); err != nil {
-					results <- StreamResult{Type: RTThread, ChannelID: req.sl.Channel, ThreadTS: req.sl.ThreadTS, Err: err}
-					continue
-				}
-			} else {
-				// hackety hack
-				channel.ID = req.sl.Channel
-			}
-			if err := cs.thread(ctx, req.sl, func(msgs []slack.Message, isLast bool) error {
-				if err := procThreadMsg(ctx, proc, channel, req.sl.ThreadTS, req.threadOnly, isLast, msgs); err != nil {
-					return err
-				}
-				results <- StreamResult{Type: RTThread, ChannelID: req.sl.Channel, ThreadTS: req.sl.ThreadTS, IsLast: isLast}
-				return nil
-			}); err != nil {
-				results <- StreamResult{Type: RTThread, ChannelID: req.sl.Channel, ThreadTS: req.sl.ThreadTS, Err: err}
-				continue
-			}
-		}
-	}
 }
 
 // thread fetches the whole thread identified by SlackLink, calling callback
@@ -720,8 +645,56 @@ func (cs *Stream) ListChannels(ctx context.Context, proc processor.Channels, p *
 	return nil
 }
 
-func (cs *Stream) SearchMessages(ctx context.Context, proc processor.Search, query string) error {
+func (cs *Stream) SearchMessages(ctx context.Context, proc processor.SearchChannelInfoFiler, query string) error {
 	ctx, task := trace.NewTask(ctx, "SearchMessages")
+	defer task.End()
+
+	var (
+		srC        = make(chan StreamResult, 1)
+		channelIdC = make(chan string, 100)
+
+		wg sync.WaitGroup
+	)
+	{
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			defer close(channelIdC)
+			if err := cs.searchmsg(ctx, query, func(sm []slack.SearchMessage) error {
+				if err := proc.SearchMessages(ctx, query, sm); err != nil {
+					return err
+				}
+				for _, m := range sm {
+					channelIdC <- m.Channel.ID
+				}
+				return nil
+			}); err != nil {
+				srC <- StreamResult{Type: RTMain, Err: err}
+			}
+		}()
+	}
+	{
+		wg.Add(1)
+		go func() {
+			cs.channelInfoWorker(ctx, proc, srC, channelIdC)
+			wg.Done()
+		}()
+	}
+	go func() {
+		wg.Wait()
+		close(srC)
+	}()
+	for res := range srC {
+		if err := res.Err; err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (cs *Stream) searchmsg(ctx context.Context, query string, fn func(sm []slack.SearchMessage) error) error {
+	ctx, task := trace.NewTask(ctx, "searchMessages")
 	defer task.End()
 
 	lg := logger.FromContext(ctx)
@@ -743,7 +716,7 @@ func (cs *Stream) SearchMessages(ctx context.Context, proc processor.Search, que
 		}); err != nil {
 			return err
 		}
-		if err := proc.SearchMessages(ctx, query, sm.Matches); err != nil {
+		if err := fn(sm.Matches); err != nil {
 			return err
 		}
 		if sm.NextCursor == "" {
@@ -756,8 +729,8 @@ func (cs *Stream) SearchMessages(ctx context.Context, proc processor.Search, que
 	return nil
 }
 
-func (cs *Stream) SearchFiles(ctx context.Context, proc processor.Search, query string) error {
-	ctx, task := trace.NewTask(ctx, "SearchMessages")
+func (cs *Stream) SearchFiles(ctx context.Context, proc processor.SearchChannelInfoFiler, query string) error {
+	ctx, task := trace.NewTask(ctx, "SearchFiles")
 	defer task.End()
 
 	lg := logger.FromContext(ctx)
@@ -792,7 +765,7 @@ func (cs *Stream) SearchFiles(ctx context.Context, proc processor.Search, query 
 	return nil
 }
 
-func (s *Stream) Search(ctx context.Context, proc processor.Search, query string) error {
+func (s *Stream) Search(ctx context.Context, proc processor.SearchChannelInfoFiler, query string) error {
 	var eg errgroup.Group
 
 	eg.Go(func() error {

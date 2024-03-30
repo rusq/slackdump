@@ -14,7 +14,7 @@ type Streamer interface {
 	ListChannels(ctx context.Context, proc processor.Channels, p *slack.GetConversationsParameters) error
 	Users(ctx context.Context, proc processor.Users, opt ...slack.GetUsersOption) error
 	WorkspaceInfo(ctx context.Context, proc processor.WorkspaceInfo) error
-	SearchMessages(ctx context.Context, proc processor.Search, query string) error
+	SearchMessages(ctx context.Context, proc processor.SearchChannelInfoFiler, query string) error
 }
 
 type TransformStarter interface {

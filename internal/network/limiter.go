@@ -11,7 +11,7 @@ import (
 type Tier int
 
 const (
-	// base throttling defined as events per minute
+	// base throttling defined in events per minute
 	NoTier Tier = 6000 // no Tier is applied
 
 	// Tier1 Tier = 1
