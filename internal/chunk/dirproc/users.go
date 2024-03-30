@@ -9,7 +9,7 @@ import (
 	"github.com/rusq/slackdump/v3/processor"
 )
 
-// Users is a users processor.
+// Users is a users processor, writes users into the users file.
 type Users struct {
 	*baseproc
 	cb func([]slack.User) error

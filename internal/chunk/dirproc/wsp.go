@@ -2,6 +2,8 @@ package dirproc
 
 import "github.com/rusq/slackdump/v3/internal/chunk"
 
+// Workspace is a processor that writes the workspace information into the
+// workspace file.
 type Workspace struct {
 	*baseproc
 }

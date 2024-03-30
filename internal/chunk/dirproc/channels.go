@@ -7,6 +7,8 @@ import (
 	"github.com/rusq/slackdump/v3/internal/chunk"
 )
 
+// Channels is a processor that writes the channel information into the
+// channels file.
 type Channels struct {
 	*baseproc
 	fn func(c []slack.Channel) error
