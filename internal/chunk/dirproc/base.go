@@ -1,6 +1,7 @@
 package dirproc
 
 import (
+	"errors"
 	"io"
 	"sync/atomic"
 
@@ -35,13 +36,13 @@ func (p *baseproc) Close() error {
 	if p.closed.Load() {
 		return nil
 	}
+	var errs error
 	if err := p.Recorder.Close(); err != nil {
-		p.wc.Close()
-		return err
+		errors.Join(errs, err)
 	}
 	p.closed.Store(true)
 	if err := p.wc.Close(); err != nil {
-		return err
+		errors.Join(errs, err)
 	}
-	return nil
+	return errs
 }
