@@ -69,17 +69,17 @@ var DefLimits = Limits{
 	DownloadRetries: 3, // this shouldn't even happen, as we have no limiter on files download.
 	Tier2: TierLimit{
 		Boost:   20, // seems to work fine with this boost
-		Burst:   1,  // limiter will wait indefinitely if it is less than 1.
+		Burst:   3,  // limiter will wait indefinitely if it is less than 1.
 		Retries: 20, // see issue #28, sometimes slack is being difficult
 	},
 	Tier3: TierLimit{
 		Boost:   120, // playing safe there, but generally value of 120 is fine.
-		Burst:   1,   // safe value, who would ever want to modify it? I don't know.
+		Burst:   5,   // safe value, who would ever want to modify it? I don't know.
 		Retries: 3,   // on Tier 3 this was never a problem, even with limiter-boost=120
 	},
 	Tier4: TierLimit{
 		Boost:   10,
-		Burst:   1,
+		Burst:   7,
 		Retries: 3,
 	},
 	Request: RequestLimit{
