@@ -430,7 +430,7 @@ func (f *File) offsetTimestamps(ctx context.Context) (offts, error) {
 	var ret = make(offts, f.idx.OffsetCount())
 	for id, offsets := range f.idx {
 		switch id[0] {
-		case catInfo, catFile, catList: // ignoring files, information and list chunks
+		case catInfo, catFile, catList, catSearch: // ignoring files, information and list chunks
 			continue
 		}
 		for _, offset := range offsets {

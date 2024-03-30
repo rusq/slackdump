@@ -54,3 +54,10 @@ type Channels interface {
 	// Channels is called for each channel chunk that is retrieved.
 	Channels(ctx context.Context, channels []slack.Channel) error
 }
+
+type Search interface {
+	// SearchMessages is called for each message that is retrieved.
+	SearchMessages(ctx context.Context, query string, messages []slack.SearchMessage) error
+	// SearchFiles is called for each file that is retrieved.
+	SearchFiles(ctx context.Context, query string, files []slack.File) error
+}

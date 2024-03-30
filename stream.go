@@ -713,3 +713,43 @@ func (cs *Stream) ListChannels(ctx context.Context, proc processor.Channels, p *
 	}
 	return nil
 }
+
+func (cs *Stream) SearchMessages(ctx context.Context, proc processor.Search, query string) error {
+	ctx, task := trace.NewTask(ctx, "SearchMessages")
+	defer task.End()
+
+	lg := logger.FromContext(ctx)
+
+	lim := rate.NewLimiter(rate.Every(3*time.Second), 5)
+	var p = slack.SearchParameters{
+		Sort:          "timestamp",
+		SortDirection: "desc",
+		Count:         100,
+		Cursor:        "*",
+	}
+	for {
+		var (
+			sm  *slack.SearchMessages
+			err error
+		)
+		if err := network.WithRetry(ctx, lim, 3, func() error {
+			sm, err = cs.client.SearchMessagesContext(ctx, query, p)
+			return err
+		}); err != nil {
+			return err
+		}
+		if err := proc.SearchMessages(ctx, query, sm.Matches); err != nil {
+			return err
+		}
+		if sm.NextCursor == "" {
+			lg.Print("no more messages")
+			break
+		}
+		lg.Printf("cursor %s", sm.NextCursor)
+		p.Cursor = sm.NextCursor
+
+		lim.Wait(ctx)
+	}
+
+	return nil
+}

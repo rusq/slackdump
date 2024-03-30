@@ -3,6 +3,7 @@ package record
 import (
 	"context"
 	_ "embed"
+	"fmt"
 	"strings"
 	"time"
 
@@ -37,8 +38,10 @@ func RunRecord(ctx context.Context, cmd *base.Command, args []string) error {
 		return err
 	}
 
-	// hack
-	cfg.Output = strings.TrimSuffix(cfg.Output, ".zip")
+	if strings.HasSuffix(strings.ToUpper(cfg.Output), ".ZIP") {
+		base.SetExitStatus(base.SInvalidParameters)
+		return fmt.Errorf("record does not support writing to a zip file, please specify a directory")
+	}
 
 	cd, err := chunk.CreateDir(cfg.Output)
 	if err != nil {

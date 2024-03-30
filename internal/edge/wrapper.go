@@ -71,3 +71,11 @@ func (w *Wrapper) GetUsersContext(ctx context.Context, options ...slack.GetUsers
 func (w *Wrapper) GetEmojiContext(ctx context.Context) (map[string]string, error) {
 	return w.cl.GetEmojiContext(ctx)
 }
+
+func (w *Wrapper) SearchMessagesContext(ctx context.Context, query string, params slack.SearchParameters) (*slack.SearchMessages, error) {
+	return w.cl.SearchMessagesContext(ctx, query, params)
+}
+
+func (w *Wrapper) SearchFilesContext(ctx context.Context, query string, params slack.SearchParameters) (*slack.SearchFiles, error) {
+	return w.cl.SearchFilesContext(ctx, query, params)
+}
