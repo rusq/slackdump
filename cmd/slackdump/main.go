@@ -121,7 +121,9 @@ BigCmdLoop:
 				continue
 			}
 			if err := invoke(cmd, args); err != nil {
-				dlog.Printf("Error %03[1]d (%[1]s): %[2]s", base.ExitStatus(), err)
+				msg := fmt.Sprintf("Error %03[1]d (%[1]s): %[2]s", base.ExitStatus(), err)
+				logger.Default.Print(msg)
+				fmt.Fprintln(os.Stderr, msg)
 			}
 			base.Exit()
 			return
