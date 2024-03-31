@@ -11,31 +11,31 @@ import (
 	"github.com/rusq/slackdump/v3/internal/chunk"
 )
 
-// baseproc exposes recording functionality for processor, and handles chunk
+// dirproc exposes recording functionality for processor, and handles chunk
 // file creation.
-type baseproc struct {
+type dirproc struct {
 	wc     io.WriteCloser
 	closed atomic.Bool
 	*chunk.Recorder
 }
 
-// newBaseProc initialises the new base processor which wraps the file
+// newDirProc initialises the new base processor which wraps the file
 // recorder.  It creates a new chunk file in a directory dir which must exist.
-func newBaseProc(cd *chunk.Directory, name chunk.FileID) (*baseproc, error) {
+func newDirProc(cd *chunk.Directory, name chunk.FileID) (*dirproc, error) {
 	wc, err := cd.Create(name)
 	if err != nil {
 		return nil, err
 	}
 
 	r := chunk.NewRecorder(wc)
-	return &baseproc{
+	return &dirproc{
 		wc:       wc,
 		Recorder: r,
 	}, nil
 }
 
 // Close closes the processor and the underlying chunk file.
-func (p *baseproc) Close() error {
+func (p *dirproc) Close() error {
 	if p.closed.Load() {
 		return nil
 	}

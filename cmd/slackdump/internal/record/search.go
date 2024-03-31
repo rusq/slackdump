@@ -16,12 +16,12 @@ import (
 
 var CmdSearch = &base.Command{
 	UsageLine: "slackdump search",
-	Short:     "records search results matching the given query",
+	Short:     "dump search results",
 	Long:      `Searches for messages matching criteria.`,
 	Commands: []*base.Command{
 		cmdSearchMessages,
 		cmdSearchFiles,
-		// cmdSearchAll,
+		cmdSearchAll,
 	},
 }
 
@@ -45,15 +45,15 @@ var cmdSearchFiles = &base.Command{
 	PrintFlags:  true,
 }
 
-// var cmdSearchAll = &base.Command{
-// 	UsageLine:   "slackdump search all [flags] query terms",
-// 	Short:       "records search results matching the given query",
-// 	Long:        `Searches for messages matching criteria.`,
-// 	RequireAuth: true,
-// 	FlagMask:    cfg.OmitUserCacheFlag | cfg.OmitCacheDir,
-// 	Run:         runSearchAll,
-// 	PrintFlags:  true,
-// }
+var cmdSearchAll = &base.Command{
+	UsageLine:   "slackdump search all [flags] query terms",
+	Short:       "Searches for messages and files matching criteria. ",
+	Long:        `Records search message and files results matching the given query`,
+	RequireAuth: true,
+	FlagMask:    cfg.OmitUserCacheFlag | cfg.OmitCacheDir,
+	Run:         runSearchAll,
+	PrintFlags:  true,
+}
 
 func runSearchMsg(ctx context.Context, cmd *base.Command, args []string) error {
 	ctrl, stop, err := initController(ctx, args)
@@ -83,18 +83,19 @@ func runSearchFiles(ctx context.Context, cmd *base.Command, args []string) error
 	return nil
 }
 
-// func runSearchAll(ctx context.Context, cmd *base.Command, args []string) error {
-// 	ctrl, err := initController(ctx, args)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	query := strings.Join(args, " ")
-// 	if err := ctrl.SearchAll(ctx, query); err != nil {
-// 		base.SetExitStatus(base.SApplicationError)
-// 		return err
-// 	}
-// 	return nil
-// }
+func runSearchAll(ctx context.Context, cmd *base.Command, args []string) error {
+	ctrl, stop, err := initController(ctx, args)
+	if err != nil {
+		return err
+	}
+	defer stop()
+	query := strings.Join(args, " ")
+	if err := ctrl.SearchAll(ctx, query); err != nil {
+		base.SetExitStatus(base.SApplicationError)
+		return err
+	}
+	return nil
+}
 
 func initController(ctx context.Context, args []string) (*control.Controller, func(), error) {
 	if len(args) == 0 {

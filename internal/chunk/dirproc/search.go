@@ -11,7 +11,7 @@ import (
 // Search is the search results directory processor.  The results are written
 // to "search.json.gz" file in the chunk directory.
 type Search struct {
-	*baseproc
+	*dirproc
 
 	subproc processor.Filer
 
@@ -20,13 +20,13 @@ type Search struct {
 
 // NewSearch creates a new search processor.
 func NewSearch(dir *chunk.Directory, filer processor.Filer) (*Search, error) {
-	p, err := newBaseProc(dir, "search")
+	p, err := newDirProc(dir, chunk.FSearch)
 	if err != nil {
 		return nil, err
 	}
 	return &Search{
-		baseproc: p,
-		subproc:  filer,
+		dirproc: p,
+		subproc: filer,
 	}, nil
 }
 

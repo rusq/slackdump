@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"runtime/trace"
 
 	"github.com/rusq/slack"
 	"github.com/rusq/slackdump/v3/internal/chunk"
@@ -69,6 +70,9 @@ func workspaceWorker(ctx context.Context, s Streamer, cd *chunk.Directory) error
 }
 
 func searchMsgWorker(ctx context.Context, s Streamer, filer processor.Filer, cd *chunk.Directory, query string) error {
+	ctx, task := trace.NewTask(ctx, "searchMsgWorker")
+	defer task.End()
+
 	lg := logger.FromContext(ctx)
 	lg.Debug("searchMsgWorker started")
 	search, err := dirproc.NewSearch(cd, filer)
@@ -84,6 +88,9 @@ func searchMsgWorker(ctx context.Context, s Streamer, filer processor.Filer, cd 
 }
 
 func searchFileWorker(ctx context.Context, s Streamer, filer processor.Filer, cd *chunk.Directory, query string) error {
+	ctx, task := trace.NewTask(ctx, "searchMsgWorker")
+	defer task.End()
+
 	lg := logger.FromContext(ctx)
 	lg.Debug("searchFileWorker started")
 	search, err := dirproc.NewSearch(cd, filer)

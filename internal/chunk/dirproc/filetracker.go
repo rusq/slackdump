@@ -19,7 +19,7 @@ type filetracker struct {
 // entityproc is a processor for a single entity, which can be a thread or
 // a channel.
 type entityproc struct {
-	*baseproc
+	*dirproc
 	// Counter holds the number threads expected to be processed for the given
 	// channel.  We keep track of the number of threads, to ensure that we
 	// don't close the file until all threads are processed.  The channel file
@@ -41,12 +41,12 @@ func (t *filetracker) create(id chunk.FileID) error {
 		// already exists
 		return nil
 	}
-	bp, err := newBaseProc(t.dir, id)
+	bp, err := newDirProc(t.dir, id)
 	if err != nil {
 		return err
 	}
 	ep := &entityproc{
-		baseproc: bp,
+		dirproc: bp,
 	}
 	ep.Inc() // one for the initial call
 	t.files[id] = ep

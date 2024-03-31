@@ -11,7 +11,7 @@ import (
 
 // Users is a users processor, writes users into the users.json.gz file.
 type Users struct {
-	*baseproc
+	*dirproc
 	cb func([]slack.User) error
 }
 
@@ -28,11 +28,11 @@ func WithUsers(cb func([]slack.User) error) UserOption {
 
 // NewUsers creates a new Users processor.
 func NewUsers(cd *chunk.Directory, opt ...UserOption) (*Users, error) {
-	p, err := newBaseProc(cd, "users")
+	p, err := newDirProc(cd, chunk.FUsers)
 	if err != nil {
 		return nil, err
 	}
-	u := &Users{baseproc: p}
+	u := &Users{dirproc: p}
 	for _, o := range opt {
 		o(u)
 	}
@@ -40,7 +40,7 @@ func NewUsers(cd *chunk.Directory, opt ...UserOption) (*Users, error) {
 }
 
 func (u *Users) Users(ctx context.Context, users []slack.User) error {
-	if err := u.baseproc.Users(ctx, users); err != nil {
+	if err := u.dirproc.Users(ctx, users); err != nil {
 		return err
 	}
 	if u.cb != nil {

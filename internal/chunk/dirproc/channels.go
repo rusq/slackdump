@@ -10,7 +10,7 @@ import (
 // Channels is a processor that writes the channel information into the
 // channels file.
 type Channels struct {
-	*baseproc
+	*dirproc
 	fn func(c []slack.Channel) error
 }
 
@@ -18,11 +18,11 @@ type Channels struct {
 // channel chunk that is retrieved.  The function is called before the chunk
 // is processed by the recorder.
 func NewChannels(dir *chunk.Directory, fn func(c []slack.Channel) error) (*Channels, error) {
-	p, err := newBaseProc(dir, "channels")
+	p, err := newDirProc(dir, chunk.FChannels)
 	if err != nil {
 		return nil, err
 	}
-	return &Channels{baseproc: p, fn: fn}, nil
+	return &Channels{dirproc: p, fn: fn}, nil
 }
 
 // Channels is called for each channel chunk that is retrieved.  Then, the
@@ -32,7 +32,7 @@ func (cp *Channels) Channels(ctx context.Context, channels []slack.Channel) erro
 	if err := cp.fn(channels); err != nil {
 		return err
 	}
-	if err := cp.baseproc.Channels(ctx, channels); err != nil {
+	if err := cp.dirproc.Channels(ctx, channels); err != nil {
 		return err
 	}
 	return nil

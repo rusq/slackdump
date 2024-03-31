@@ -23,6 +23,7 @@ const (
 	FChannels  FileID = "channels"
 	FUsers     FileID = "users"
 	FWorkspace FileID = "workspace"
+	FSearch    FileID = "search"
 )
 
 const uploadsDir = "__uploads" // for serving files
