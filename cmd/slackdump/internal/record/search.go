@@ -15,38 +15,109 @@ import (
 )
 
 var CmdSearch = &base.Command{
-	UsageLine:   "slackdump search [flags] query terms",
+	UsageLine: "slackdump search",
+	Short:     "records search results matching the given query",
+	Long:      `Searches for messages matching criteria.`,
+	Commands: []*base.Command{
+		cmdSearchMessages,
+		cmdSearchFiles,
+		// cmdSearchAll,
+	},
+}
+
+var cmdSearchMessages = &base.Command{
+	UsageLine:   "slackdump search messages [flags] query terms",
 	Short:       "records search results matching the given query",
 	Long:        `Searches for messages matching criteria.`,
 	RequireAuth: true,
 	FlagMask:    cfg.OmitUserCacheFlag | cfg.OmitCacheDir,
-	Run:         runSearch,
+	Run:         runSearchMsg,
 	PrintFlags:  true,
 }
 
-func runSearch(ctx context.Context, cmd *base.Command, args []string) error {
+var cmdSearchFiles = &base.Command{
+	UsageLine:   "slackdump search files [flags] query terms",
+	Short:       "records search results matching the given query",
+	Long:        `Searches for messages matching criteria.`,
+	RequireAuth: true,
+	FlagMask:    cfg.OmitUserCacheFlag | cfg.OmitCacheDir,
+	Run:         runSearchFiles,
+	PrintFlags:  true,
+}
+
+// var cmdSearchAll = &base.Command{
+// 	UsageLine:   "slackdump search all [flags] query terms",
+// 	Short:       "records search results matching the given query",
+// 	Long:        `Searches for messages matching criteria.`,
+// 	RequireAuth: true,
+// 	FlagMask:    cfg.OmitUserCacheFlag | cfg.OmitCacheDir,
+// 	Run:         runSearchAll,
+// 	PrintFlags:  true,
+// }
+
+func runSearchMsg(ctx context.Context, cmd *base.Command, args []string) error {
+	ctrl, stop, err := initController(ctx, args)
+	if err != nil {
+		return err
+	}
+	defer stop()
+	query := strings.Join(args, " ")
+	if err := ctrl.SearchMessages(ctx, query); err != nil {
+		base.SetExitStatus(base.SApplicationError)
+		return err
+	}
+	return nil
+}
+
+func runSearchFiles(ctx context.Context, cmd *base.Command, args []string) error {
+	ctrl, stop, err := initController(ctx, args)
+	if err != nil {
+		return err
+	}
+	defer stop()
+	query := strings.Join(args, " ")
+	if err := ctrl.SearchFiles(ctx, query); err != nil {
+		base.SetExitStatus(base.SApplicationError)
+		return err
+	}
+	return nil
+}
+
+// func runSearchAll(ctx context.Context, cmd *base.Command, args []string) error {
+// 	ctrl, err := initController(ctx, args)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	query := strings.Join(args, " ")
+// 	if err := ctrl.SearchAll(ctx, query); err != nil {
+// 		base.SetExitStatus(base.SApplicationError)
+// 		return err
+// 	}
+// 	return nil
+// }
+
+func initController(ctx context.Context, args []string) (*control.Controller, func(), error) {
 	if len(args) == 0 {
 		base.SetExitStatus(base.SInvalidParameters)
-		return errors.New("missing query parameter")
+		return nil, nil, errors.New("missing query parameter")
 	}
-	query := strings.Join(args, " ")
 
 	cfg.Output = stripZipExt(cfg.Output)
 	if cfg.Output == "" {
 		base.SetExitStatus(base.SInvalidParameters)
-		return errNoOutput
+		return nil, nil, errNoOutput
 	}
 
 	sess, err := cfg.SlackdumpSession(ctx)
 	if err != nil {
 		base.SetExitStatus(base.SInitializationError)
-		return err
+		return nil, nil, err
 	}
 
 	cd, err := chunk.CreateDir(cfg.Output)
 	if err != nil {
 		base.SetExitStatus(base.SApplicationError)
-		return err
+		return nil, nil, err
 	}
 	defer cd.Close()
 
@@ -58,15 +129,10 @@ func runSearch(ctx context.Context, cmd *base.Command, args []string) error {
 		fsadapter.NewDirectory(cd.Name()),
 		lg,
 	)
-	defer stop()
 	var (
 		subproc = fileproc.NewExport(fileproc.STmattermost, dl)
 		stream  = sess.Stream()
 		ctrl    = control.New(cd, stream, control.WithLogger(lg), control.WithFiler(subproc))
 	)
-	if err := ctrl.Search(ctx, query); err != nil {
-		base.SetExitStatus(base.SApplicationError)
-		return err
-	}
-	return nil
+	return ctrl, stop, nil
 }

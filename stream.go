@@ -755,6 +755,9 @@ func (cs *Stream) SearchFiles(ctx context.Context, proc processor.SearchChannelI
 		if err := proc.SearchFiles(ctx, query, sm.Matches); err != nil {
 			return err
 		}
+		if err := proc.Files(ctx, &slack.Channel{GroupConversation: slack.GroupConversation{Conversation: slack.Conversation{ID: "SEARCH"}}}, slack.Message{}, sm.Matches); err != nil {
+			return err
+		}
 		if sm.NextCursor == "" {
 			lg.Debug("SearchMessages:  no more messages")
 			break
