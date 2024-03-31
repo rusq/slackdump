@@ -5,10 +5,13 @@ import (
 	"errors"
 	"strings"
 
+	"github.com/rusq/fsadapter"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/internal/chunk/control"
+	"github.com/rusq/slackdump/v3/internal/chunk/transform/fileproc"
+	"github.com/rusq/slackdump/v3/logger"
 )
 
 var CmdSearch = &base.Command{
@@ -47,9 +50,20 @@ func runSearch(ctx context.Context, cmd *base.Command, args []string) error {
 	}
 	defer cd.Close()
 
-	stream := sess.Stream()
-	ctrl := control.NewSearch(cd, stream)
-
+	lg := logger.FromContext(ctx)
+	dl, stop := fileproc.NewDownloader(
+		ctx,
+		cfg.DownloadFiles,
+		sess.Client(),
+		fsadapter.NewDirectory(cd.Name()),
+		lg,
+	)
+	defer stop()
+	var (
+		subproc = fileproc.NewExport(fileproc.STmattermost, dl)
+		stream  = sess.Stream()
+		ctrl    = control.New(cd, stream, control.WithLogger(lg), control.WithFiler(subproc))
+	)
 	if err := ctrl.Search(ctx, query); err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return err
