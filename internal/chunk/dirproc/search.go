@@ -8,6 +8,8 @@ import (
 	"github.com/rusq/slackdump/v3/processor"
 )
 
+// Search is the search results directory processor.  The results are written
+// to "search.json.gz" file in the chunk directory.
 type Search struct {
 	*baseproc
 
@@ -16,6 +18,7 @@ type Search struct {
 	recordFiles bool
 }
 
+// NewSearch creates a new search processor.
 func NewSearch(dir *chunk.Directory, filer processor.Filer) (*Search, error) {
 	p, err := newBaseProc(dir, "search")
 	if err != nil {

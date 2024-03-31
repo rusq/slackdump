@@ -1,3 +1,6 @@
+// Package dirproc is a processor that writes the data into gzipped files in a
+// directory.  Each conversation is output to a separate gzipped JSONL file.
+// If a thread is given, the filename will have the thread ID in it.
 package dirproc
 
 import (
@@ -16,8 +19,8 @@ type baseproc struct {
 	*chunk.Recorder
 }
 
-// newBaseProc initialises the new base processor.  It creates a new chunk file
-// in a directory dir which must exist.
+// newBaseProc initialises the new base processor which wraps the file
+// recorder.  It creates a new chunk file in a directory dir which must exist.
 func newBaseProc(cd *chunk.Directory, name chunk.FileID) (*baseproc, error) {
 	wc, err := cd.Create(name)
 	if err != nil {

@@ -13,7 +13,7 @@ import (
 	"github.com/rusq/slackdump/v3/internal/osext"
 )
 
-// Recorder records all the data it receives, so that it can be replayed later.
+// Recorder records all the data it receives into a writer.
 type Recorder struct {
 	mu    sync.Mutex
 	enc   Encoder // encoder to use for the chunks
@@ -24,7 +24,7 @@ type Recorder struct {
 type Option func(r *Recorder)
 
 // WithEncoder allows you to specify a custom encoder to use for the chunks.
-// By default, json.NewEncoder is used.
+// By default [json.Encoder] is used.
 func WithEncoder(enc Encoder) Option {
 	return func(r *Recorder) {
 		r.enc = enc
@@ -177,8 +177,6 @@ func (rec *Recorder) State() (*state.State, error) {
 }
 
 func (rec *Recorder) Close() error {
-	rec.mu.Lock()
-	defer rec.mu.Unlock()
 	return nil
 }
 

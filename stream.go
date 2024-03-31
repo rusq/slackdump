@@ -97,7 +97,6 @@ type rateLimits struct {
 	channels    *rate.Limiter
 	threads     *rate.Limiter
 	users       *rate.Limiter
-	search      *rate.Limiter
 	searchmsg   *rate.Limiter
 	searchfiles *rate.Limiter
 	tier        *Limits
@@ -108,7 +107,6 @@ func limits(l *Limits) rateLimits {
 		channels:    network.NewLimiter(network.Tier3, l.Tier3.Burst, int(l.Tier3.Boost)),
 		threads:     network.NewLimiter(network.Tier3, l.Tier3.Burst, int(l.Tier3.Boost)),
 		users:       network.NewLimiter(network.Tier2, l.Tier2.Burst, int(l.Tier2.Boost)),
-		search:      network.NewLimiter(network.Tier2, l.Tier2.Burst, int(l.Tier2.Boost)),
 		searchmsg:   network.NewLimiter(network.Tier2, l.Tier2.Burst, int(l.Tier2.Boost)),
 		searchfiles: network.NewLimiter(network.Tier2, l.Tier2.Burst, int(l.Tier2.Boost)),
 		tier:        l,
