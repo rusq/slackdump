@@ -4,6 +4,8 @@ package edge
 
 import (
 	"context"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"testing"
 
@@ -18,6 +20,13 @@ var (
 	testToken  = os.Getenv("EDGE_TOKEN)")
 	testCookie = os.Getenv("EDGE_COOKIE")
 )
+
+func testServer(status int, payload []byte) *httptest.Server {
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(status)
+		w.Write(payload)
+	}))
+}
 
 func TestNew(t *testing.T) {
 	if testToken == "" {

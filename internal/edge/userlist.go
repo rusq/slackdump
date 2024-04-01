@@ -153,7 +153,7 @@ func (cl *Client) GetUsers(ctx context.Context, userID ...string) ([]UserInfo, e
 // called again to get the actual user info (see [Client.GetUsers]).
 func (cl *Client) UsersInfo(ctx context.Context, req *UsersInfoRequest) (*UserInfoResponse, error) {
 	var ui UserInfoResponse
-	if err := cl.callAPI(ctx, &ui, "users/info", req); err != nil {
+	if err := cl.callEdgeAPI(ctx, &ui, "users/info", req); err != nil {
 		return nil, err
 	}
 	return &ui, nil
@@ -175,13 +175,14 @@ type ChannelsMembershipResponse struct {
 // ChannelsMembership calls channels/membership endpoint.
 func (cl *Client) ChannelsMembership(ctx context.Context, req *ChannelsMembershipRequest) (*ChannelsMembershipResponse, error) {
 	var um ChannelsMembershipResponse
-	if err := cl.callAPI(ctx, &um, "channels/membership", req); err != nil {
+	if err := cl.callEdgeAPI(ctx, &um, "channels/membership", req); err != nil {
 		return nil, err
 	}
 	return &um, nil
 }
 
-func (cl *Client) callAPI(ctx context.Context, v any, endpoint string, req PostRequest) error {
+// callEdgeAPI calls the edge API.
+func (cl *Client) callEdgeAPI(ctx context.Context, v any, endpoint string, req PostRequest) error {
 	r, err := cl.PostJSON(ctx, endpoint, req)
 	if err != nil && !errors.Is(err, io.EOF) {
 		return err
@@ -216,7 +217,7 @@ func (cl *Client) UsersList(ctx context.Context, channelIDs ...string) ([]User, 
 	var uu = make([]User, 0, perRequest)
 	for {
 		var ur UsersListResponse
-		if err := cl.callAPI(ctx, &ur, "users/list", &req); err != nil {
+		if err := cl.callEdgeAPI(ctx, &ur, "users/list", &req); err != nil {
 			return nil, err
 		}
 		if len(ur.Results) == 0 {

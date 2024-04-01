@@ -10,11 +10,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-//go:embed assets/client.userBoot.json
-var clientUserBootJSON []byte
+//go:embed assets/search.module.channels.json
+var searchChannelsJSON []byte
 
-func TestClient_ClientUserBoot(t *testing.T) {
-	srv := testServer(http.StatusOK, clientUserBootJSON)
+func TestClient_SearchChannels(t *testing.T) {
+	srv := testServer(http.StatusOK, searchChannelsJSON)
 	defer srv.Close()
 
 	cl := Client{
@@ -22,9 +22,7 @@ func TestClient_ClientUserBoot(t *testing.T) {
 		edgeAPI:      srv.URL + "/",
 		webclientAPI: srv.URL + "/",
 	}
-	r, err := cl.ClientUserBoot(context.Background())
+	r, err := cl.SearchChannels(context.Background(), "test")
 	require.NoError(t, err)
-	assert.True(t, r.Ok)
-	assert.Equal(t, 3, len(r.Channels))
-	assert.Equal(t, 4, len(r.IMs))
+	assert.Len(t, r, 6)
 }

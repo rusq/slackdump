@@ -128,7 +128,6 @@ func (cl *Client) Raw() *http.Client {
 func (cl *Client) Close() error {
 	if cl.tape != nil {
 		return cl.tape.Close()
-
 	}
 	return nil
 }
@@ -172,6 +171,9 @@ const (
 	hdrContentType = "Content-Type"
 )
 
+// PostJSON posts a request to the edge API.  The request is marshalled to
+// JSON and the response is unmarshalled to the req, which must be a pointer
+// to a struct.
 func (cl *Client) PostJSON(ctx context.Context, path string, req PostRequest) (*http.Response, error) {
 	if !req.IsTokenSet() {
 		req.SetToken(cl.token)
