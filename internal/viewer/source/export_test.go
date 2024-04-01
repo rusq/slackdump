@@ -10,6 +10,7 @@ import (
 
 	"github.com/rusq/slack"
 	"github.com/rusq/slackdump/v3/internal/fixtures"
+	"github.com/stretchr/testify/assert"
 )
 
 var testZipFile = filepath.Join("..", "..", "..", "tmp", "realexport.zip")
@@ -57,9 +58,7 @@ func TestExport_Channels(t *testing.T) {
 				t.Errorf("Export.Channels() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("Export.Channels() = %v, want %v", got, tt.want)
-			}
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }
@@ -142,9 +141,7 @@ func Test_buildFileIndex(t *testing.T) {
 				t.Errorf("buildFileIndex() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("buildFileIndex() = %v, want %v", got, tt.want)
-			}
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }

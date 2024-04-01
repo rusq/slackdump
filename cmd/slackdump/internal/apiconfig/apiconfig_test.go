@@ -58,17 +58,17 @@ var testLimits = slackdump.Limits{
 	DownloadRetries: 3,
 	Tier2: slackdump.TierLimit{
 		Boost:   20,
-		Burst:   1,
+		Burst:   3,
 		Retries: 20,
 	},
 	Tier3: slackdump.TierLimit{
 		Boost:   120,
-		Burst:   1,
+		Burst:   5,
 		Retries: 3,
 	},
 	Tier4: slackdump.TierLimit{
 		Boost:   10,
-		Burst:   1,
+		Burst:   7,
 		Retries: 3,
 	},
 	Request: slackdump.RequestLimit{
