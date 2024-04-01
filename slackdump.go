@@ -161,13 +161,15 @@ func New(ctx context.Context, prov auth.Provider, opts ...Option) (*Session, err
 		return nil, err
 	}
 
-	if err := sd.initClient(ctx, prov); err != nil {
+	if err := sd.initClient(ctx, prov, sd.cfg.forceEnterprise); err != nil {
 		return nil, err
 	}
 
 	return sd, nil
 }
 
+// initWorkspaceInfo gets from the API and sets the workspace information for
+// the session.
 func (s *Session) initWorkspaceInfo(ctx context.Context, cl Slacker) error {
 	info, err := cl.AuthTestContext(ctx)
 	if err != nil {
@@ -177,8 +179,12 @@ func (s *Session) initWorkspaceInfo(ctx context.Context, cl Slacker) error {
 	return nil
 }
 
-// initClient initialises the client with the provided auth.Provider.
-func (s *Session) initClient(ctx context.Context, prov auth.Provider) error {
+// initClient initialises the client that is appropriate for the current
+// workspace.  It will use the initialised auth.Provider for credentials.  If
+// forceEdge is true, it will use th edge client regardless of whether it
+// detects the enterprise instance or not.  If the client was set by the
+// WithClient option, it will not override it.
+func (s *Session) initClient(ctx context.Context, prov auth.Provider, forceEdge bool) error {
 	if s.client != nil {
 		// already initialised, probably through options.
 		return s.initWorkspaceInfo(ctx, s.client)
@@ -188,13 +194,15 @@ func (s *Session) initClient(ctx context.Context, prov auth.Provider) error {
 	if err != nil {
 		return err
 	}
+
 	// initialising default client
 	cl := slack.New(prov.SlackToken(), slack.OptionHTTPClient(httpcl))
 	if err := s.initWorkspaceInfo(ctx, cl); err != nil {
 		return err
 	}
 
-	if s.cfg.forceEnterprise || s.wspInfo.EnterpriseID != "" {
+	isEnterpriseWsp := s.wspInfo.EnterpriseID != ""
+	if forceEdge || isEnterpriseWsp {
 		// replace the client with the edge client
 		ecl, err := edge.NewWithInfo(s.wspInfo, prov)
 		if err != nil {
