@@ -46,10 +46,12 @@ var searchFlags = struct {
 	perPage  uint
 	convert  bool
 	channels string
+	users    string
 }{
 	perPage:  100,
 	convert:  false,
 	channels: "",
+	users:    "",
 }
 
 func init() {
@@ -114,8 +116,8 @@ func runSearch(ctx context.Context, cmd *base.Command, args []string) error {
 
 var cmdSearchConvert = &base.Command{
 	UsageLine:   "slackdump tools search convert",
-	Short:       "converts search output to chunks",
-	Long:        "Experimental command to convert raw search output to chunks.",
+	Short:       "converts experimental search output to chunks",
+	Long:        "Convert results of the experimental search to chunks",
 	RequireAuth: false,
 	Run:         runSearchConvert,
 	FlagMask:    cfg.OmitAll &^ cfg.OmitOutputFlag,
@@ -123,7 +125,8 @@ var cmdSearchConvert = &base.Command{
 }
 
 func init() {
-	cmdSearchConvert.Flag.StringVar(&searchFlags.channels, "channels", searchFlags.channels, "channels file for convert mode")
+	cmdSearchConvert.Flag.StringVar(&searchFlags.channels, "channels", searchFlags.channels, "channels file produced by list channels")
+	cmdSearchConvert.Flag.StringVar(&searchFlags.users, "users", searchFlags.users, "users file produced by list users")
 }
 
 func runSearchConvert(ctx context.Context, _ *base.Command, args []string) error {
@@ -182,6 +185,16 @@ func runSearchConvert(ctx context.Context, _ *base.Command, args []string) error
 			return err
 		}
 	}
+	if searchFlags.users != "" {
+		dpu, err := dirproc.NewUsers(cd)
+		if err != nil {
+			return err
+		}
+		defer dpu.Close()
+		if err := convertUsers(ctx, dpu, searchFlags.users); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -204,4 +217,18 @@ func convertChannels(ctx context.Context, dps *dirproc.Search, filename string, 
 		}
 	}
 	return nil
+}
+
+func convertUsers(ctx context.Context, dpu *dirproc.Users, filename string) error {
+	f, err := os.Open(filename)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	var uu types.Users
+	if err := json.NewDecoder(f).Decode(&uu); err != nil {
+		return err
+	}
+	return dpu.Users(ctx, uu)
 }
