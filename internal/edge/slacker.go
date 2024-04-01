@@ -11,7 +11,7 @@ import (
 var ErrParameterMissing = errors.New("required parameter missing")
 
 // High level functions that wrap low level calls to webclient API to return
-// the data in the format close to the  Slack API.
+// the data in the format close to the Slack API.
 
 func (cl *Client) GetConversationsContext(ctx context.Context, _ *slack.GetConversationsParameters) (channels []slack.Channel, _ string, err error) {
 	type result struct {
@@ -105,13 +105,8 @@ func (cl *Client) GetConversationsContext(ctx context.Context, _ *slack.GetConve
 func (cl *Client) GetUsersInConversationContext(ctx context.Context, p *slack.GetUsersInConversationParameters) (ids []string, _ string, err error) {
 	if p.ChannelID == "" {
 		return nil, "", ErrParameterMissing
-
 	}
-	var channelIDs []string
-	if p.ChannelID != "" {
-		channelIDs = append(channelIDs, p.ChannelID)
-	}
-	uu, err := cl.UsersList(ctx, channelIDs...)
+	uu, err := cl.UsersList(ctx, p.ChannelID)
 	if err != nil {
 		return nil, "", err
 	}

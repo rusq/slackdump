@@ -2,7 +2,6 @@ package edge
 
 import (
 	"context"
-	"net/url"
 	"runtime/trace"
 
 	"github.com/rusq/slack"
@@ -68,10 +67,6 @@ type clientDMsForm struct {
 	WebClientFields
 }
 
-func (d clientDMsForm) Values() url.Values {
-	return values(d, true)
-}
-
 type clientDMsResponse struct {
 	BaseResponse
 	IMs   []ClientDM `json:"ims,omitempty"`
@@ -130,7 +125,7 @@ func (cl *Client) ClientDMs(ctx context.Context) ([]ClientDM, error) {
 	lim := tier2boost.limiter()
 	var IMs []ClientDM
 	for {
-		resp, err := cl.PostFormRaw(ctx, cl.webapiURL("client.dms"), form.Values())
+		resp, err := cl.PostFormRaw(ctx, cl.webapiURL("client.dms"), values(form, true))
 		if err != nil {
 			return nil, err
 		}

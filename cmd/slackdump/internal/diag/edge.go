@@ -3,11 +3,9 @@ package diag
 import (
 	"context"
 	"encoding/json"
-	"log/slog"
 	"os"
 
 	"github.com/rusq/slackdump/v3/auth"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/internal/edge"
 	"github.com/rusq/slackdump/v3/logger"
@@ -35,9 +33,6 @@ func init() {
 }
 
 func runEdge(ctx context.Context, cmd *base.Command, args []string) error {
-	if cfg.Verbose {
-		slog.SetLogLoggerLevel(slog.LevelDebug)
-	}
 	lg := logger.FromContext(ctx)
 
 	prov, err := auth.FromContext(ctx)

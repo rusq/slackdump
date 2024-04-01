@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"net/url"
 	"runtime/trace"
 
 	"github.com/google/uuid"
@@ -85,10 +84,6 @@ const (
 	sstName        searchSortType = "name"
 )
 
-func (s *searchForm) Values() url.Values {
-	return values(s, true)
-}
-
 func (cl *Client) SearchChannels(ctx context.Context, query string) ([]slack.Channel, error) {
 	ctx, task := trace.NewTask(ctx, "SearchChannels")
 	defer task.End()
@@ -140,7 +135,7 @@ func (cl *Client) SearchChannels(ctx context.Context, query string) ([]slack.Cha
 	lim := tier2boost.limiter()
 	var cc []slack.Channel
 	for {
-		resp, err := cl.PostForm(ctx, ep, form.Values())
+		resp, err := cl.PostForm(ctx, ep, values(form, true))
 		if err != nil {
 			return nil, err
 		}

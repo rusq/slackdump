@@ -1,5 +1,7 @@
 // Package edge provides a limited implementation of undocumented Slack Edge
 // API necessary to get the data from a slack workspace.
+//
+// It handles rate limit retries internally (but only once).
 package edge
 
 import (
@@ -9,7 +11,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
@@ -19,6 +20,7 @@ import (
 	"github.com/rusq/slack"
 	"github.com/rusq/slackdump/v3/auth"
 	"github.com/rusq/slackdump/v3/internal/tagmagic"
+	"github.com/rusq/slackdump/v3/logger"
 )
 
 type Client struct {
@@ -190,7 +192,7 @@ func (cl *Client) PostJSON(ctx context.Context, path string, req PostRequest) (*
 	}
 	r.Header.Set(hdrContentType, "application/json")
 
-	return do(cl.cl, r)
+	return do(ctx, cl.cl, r)
 }
 
 func (cl *Client) PostForm(ctx context.Context, path string, form url.Values) (*http.Response, error) {
@@ -214,7 +216,7 @@ func (cl *Client) PostFormRaw(ctx context.Context, url string, form url.Values) 
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	return do(cl.cl, req)
+	return do(ctx, cl.cl, req)
 }
 
 func (cl *Client) ParseResponse(req any, r *http.Response) error {
@@ -229,7 +231,12 @@ func (cl *Client) ParseResponse(req any, r *http.Response) error {
 	return nil
 }
 
-func do(cl *http.Client, req *http.Request) (*http.Response, error) {
+// do is a helper function to do the request and handle rate limiting.  it
+// tries to handle the rate limiting by waiting for the Retry-After only once,
+// if it receives another rate limit error, it returns slack.RateLimitedError
+// to let the caller handle it.
+func do(ctx context.Context, cl *http.Client, req *http.Request) (*http.Response, error) {
+	lg := logger.FromContext(ctx)
 	req.Header.Set("Accept-Language", "en-NZ,en-AU;q=0.9,en;q=0.8")
 	req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36")
 
@@ -238,15 +245,12 @@ func do(cl *http.Client, req *http.Request) (*http.Response, error) {
 		return nil, err
 	}
 	if resp.StatusCode == http.StatusTooManyRequests {
-		strWait := resp.Header.Get("Retry-After")
-		if strWait == "" {
-			return nil, errors.New("got rate limited, but did not get a Retry-After header")
-		}
-		slog.Debug("got rate limited, waiting", "wait", strWait)
-		wait, err := time.ParseDuration(strWait + "s")
+		wait, err := parseRetryAfter(resp)
 		if err != nil {
 			return nil, err
 		}
+		lg.Debugf("got rate limited, waiting %s", wait)
+
 		time.Sleep(wait)
 		resp, err = cl.Do(req)
 		if err != nil {
@@ -254,15 +258,32 @@ func do(cl *http.Client, req *http.Request) (*http.Response, error) {
 		}
 		// if we are still rate limited, then we are in trouble
 		if resp.StatusCode == http.StatusTooManyRequests {
-			return nil, errors.New("still rate limited after waiting")
+			lg.Debug("edge.do: did my best, but still rate limited, giving up, not my problem")
+			wait, err = parseRetryAfter(resp)
+			if err != nil {
+				return nil, err
+			}
+			return nil, &slack.RateLimitedError{RetryAfter: wait}
 		}
 	}
 	if resp.StatusCode < http.StatusOK || http.StatusMultipleChoices <= resp.StatusCode {
 		body, _ := io.ReadAll(resp.Body)
 		resp.Body.Close()
-		return nil, fmt.Errorf("error:  status code: %s, body: %s", resp.Status, string(body))
+		return nil, slack.StatusCodeError{Code: resp.StatusCode, Status: string(body)}
 	}
 	return resp, err
+}
+
+func parseRetryAfter(resp *http.Response) (time.Duration, error) {
+	strWait := resp.Header.Get("Retry-After")
+	if strWait == "" {
+		return 0, errors.New("got rate limited, but did not get a Retry-After header")
+	}
+	wait, err := time.ParseDuration(strWait + "s")
+	if err != nil {
+		return 0, err
+	}
+	return wait, nil
 }
 
 // values returns url.Values from a struct.  If omitempty is true, then the
