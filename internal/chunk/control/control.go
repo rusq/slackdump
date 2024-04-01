@@ -217,7 +217,7 @@ func genListChannel(ctx context.Context, links chan<- string, list *structures.E
 	for _, ch := range list.Include {
 		select {
 		case <-ctx.Done():
-			return ctx.Err()
+			return context.Cause(ctx)
 		case links <- ch:
 		}
 	}
@@ -242,7 +242,7 @@ func genAPIChannel(s Streamer, cd *chunk.Directory, memberOnly bool) linkFeederF
 
 				select {
 				case <-ctx.Done():
-					return ctx.Err()
+					return context.Cause(ctx)
 				case links <- ch.ID:
 
 				}

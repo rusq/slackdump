@@ -11,6 +11,12 @@ import (
 	"github.com/rusq/slackdump/v3/logger"
 )
 
+type UserConverter interface {
+	Converter
+	SetUsers([]slack.User)
+	HasUsers() bool
+}
+
 // ExportCoordinator is a takes the chunks produced by the
 // processor and transforms them into a Slack Export format.  It is suitable
 // for async processing, in which case, OnFinalise function is passed to the

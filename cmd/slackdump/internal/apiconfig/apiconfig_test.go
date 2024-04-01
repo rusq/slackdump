@@ -3,7 +3,6 @@ package apiconfig
 import (
 	"bytes"
 	"io"
-	"reflect"
 	"strings"
 	"testing"
 
@@ -17,15 +16,15 @@ workers: 4
 download_retries: 3
 tier_2:
     boost: 20
-    burst: 1
+    burst: 3
     retries: 20
 tier_3:
     boost: 120
-    burst: 1
+    burst: 5
     retries: 3
 tier_4:
     boost: 10
-    burst: 1
+    burst: 7
     retries: 3
 per_request:
     conversations: 100
@@ -139,9 +138,7 @@ func Test_readConfig(t *testing.T) {
 				t.Errorf("readConfig() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("readConfig() = %v, want %v", got, tt.want)
-			}
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }

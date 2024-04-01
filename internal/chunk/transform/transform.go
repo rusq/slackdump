@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 
-	"github.com/rusq/slack"
 	"github.com/rusq/slackdump/v3/internal/chunk"
 )
 
@@ -15,10 +14,4 @@ var ErrClosed = errors.New("transformer is closed")
 type Converter interface {
 	// Convert should convert the chunk to the Converters' output format.
 	Convert(ctx context.Context, id chunk.FileID) error
-}
-
-type UserConverter interface {
-	Converter
-	SetUsers([]slack.User)
-	HasUsers() bool
 }

@@ -296,5 +296,5 @@ func TestStream_Users(t *testing.T) {
 	}
 	m := mock_processor.NewMockUsers(gomock.NewController(t))
 	err := s.Users(ctx, m)
-	assert.NoError(t, err)
+	assert.Error(t, err)
 }

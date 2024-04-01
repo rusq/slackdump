@@ -26,8 +26,8 @@ var (
 	// The wait time for a transient error depends on the current retry
 	// attempt number and is calculated as: (attempt+2)^3 seconds, capped at
 	// maxAllowedWaitTime.
-	maxAllowedWaitTime                  = 5 * time.Minute
-	lg                 logger.Interface = logger.Default
+	maxAllowedWaitTime = 5 * time.Minute
+
 	// waitFn returns the amount of time to wait before retrying depending on
 	// the current attempt.  This variable exists to reduce the test time.
 	waitFn    = cubicWait
@@ -44,7 +44,7 @@ var ErrRetryFailed = errors.New("callback was unable to complete without errors 
 // slack.RateLimitedError, it will delay, and then call it again up to
 // maxAttempts times. It will return an error if it runs out of attempts.
 func WithRetry(ctx context.Context, lim *rate.Limiter, maxAttempts int, fn func() error) error {
-	trace.Logf(ctx, "info", "maxAttempts=%d", maxAttempts)
+	tracelogf(ctx, "info", "maxAttempts=%d", maxAttempts)
 	var ok bool
 	if maxAttempts == 0 {
 		maxAttempts = defNumAttempts
@@ -61,7 +61,7 @@ func WithRetry(ctx context.Context, lim *rate.Limiter, maxAttempts int, fn func(
 
 		cbErr := fn()
 		if cbErr == nil {
-			trace.Log(ctx, "info", "success")
+			tracelogf(ctx, "info", "success")
 			ok = true
 			break
 		}
@@ -131,20 +131,9 @@ func expWait(attempt int) time.Duration {
 func tracelogf(ctx context.Context, category string, fmt string, a ...any) {
 	mu.RLock()
 	defer mu.RUnlock()
-
+	lg := logger.FromContext(ctx)
 	trace.Logf(ctx, category, fmt, a...)
 	lg.Debugf(fmt, a...)
-}
-
-// SetLogger sets the package logger.
-func SetLogger(l logger.Interface) {
-	mu.Lock()
-	defer mu.Unlock()
-	if l == nil {
-		l = logger.Default
-		return
-	}
-	lg = l
 }
 
 // SetMaxAllowedWaitTime sets the maximum time to wait for a transient error.

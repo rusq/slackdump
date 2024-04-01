@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"runtime/trace"
 	"time"
 
@@ -142,23 +143,15 @@ func New(ctx context.Context, prov auth.Provider, opts ...Option) (*Session, err
 		return nil, fmt.Errorf("auth provider validation error: %s", err)
 	}
 
-	httpCl, err := prov.HTTPClient()
-	if err != nil {
-		return nil, err
-	}
-	cl := slack.New(prov.SlackToken(), slack.OptionHTTPClient(httpCl))
-
 	sd := &Session{
-		client: cl,
-		cfg:    defConfig,
-		uc:     new(usercache),
+		cfg: defConfig,
+		uc:  new(usercache),
 
 		log: logger.Default,
 	}
 	for _, opt := range opts {
 		opt(sd)
 	}
-	network.SetLogger(sd.log) // set the logger for the network package
 
 	if err := sd.cfg.limits.Validate(); err != nil {
 		var vErr validator.ValidationErrors
@@ -167,27 +160,53 @@ func New(ctx context.Context, prov auth.Provider, opts ...Option) (*Session, err
 		}
 		return nil, err
 	}
-	authResp, err := sd.client.AuthTestContext(ctx)
-	if err != nil {
-		return nil, &auth.Error{Err: err}
-	}
-	sd.wspInfo = authResp
 
-	// Enteprise initialisation.
-	if sd.cfg.forceEnterprise || authResp.EnterpriseID != "" {
-		// create a new client with the edge client
-		ecl, err := edge.NewWithInfo(authResp, prov)
-		if err != nil {
-			return nil, err
-		}
-		sd.log.Debug("enterprise workspace detected or force enteprise is set, using edge client")
-		sd.client = ecl.NewWrapper(cl)
-	} else {
-		sd.log.Debug("using standard client")
-		sd.client = cl
+	if err := sd.initClient(ctx, prov); err != nil {
+		return nil, err
 	}
 
 	return sd, nil
+}
+
+func (s *Session) initWorkspaceInfo(ctx context.Context, cl Slacker) error {
+	info, err := cl.AuthTestContext(ctx)
+	if err != nil {
+		return err
+	}
+	s.wspInfo = info
+	return nil
+}
+
+// initClient initialises the client with the provided auth.Provider.
+func (s *Session) initClient(ctx context.Context, prov auth.Provider) error {
+	if s.client != nil {
+		// already initialised, probably through options.
+		return s.initWorkspaceInfo(ctx, s.client)
+	}
+
+	httpcl, err := prov.HTTPClient()
+	if err != nil {
+		return err
+	}
+	// initialising default client
+	cl := slack.New(prov.SlackToken(), slack.OptionHTTPClient(httpcl))
+	if err := s.initWorkspaceInfo(ctx, cl); err != nil {
+		return err
+	}
+
+	if s.cfg.forceEnterprise || s.wspInfo.EnterpriseID != "" {
+		// replace the client with the edge client
+		ecl, err := edge.NewWithInfo(s.wspInfo, prov)
+		if err != nil {
+			return err
+		}
+		s.log.Debug("enterprise workspace detected or force enteprise is set, using edge client")
+		s.client = ecl.NewWrapper(cl)
+	} else {
+		s.log.Debug("using standard client")
+		s.client = cl
+	}
+	return nil
 }
 
 // Client returns the underlying slack.Client.
@@ -198,8 +217,9 @@ func (s *Session) Client() *slack.Client {
 	case *edge.Wrapper:
 		return c.SlackClient()
 	default:
-		panic("unknown client type")
+		log.Panicf("internal error:  unknown client type %T", s.client)
 	}
+	return nil // never gets here
 }
 
 // CurrentUserID returns the user ID of the authenticated user.
