@@ -33,7 +33,7 @@ var CmdRecord = &base.Command{
 
 const zipExt = ".ZIP"
 
-func stripZipExt(s string) string {
+func StripZipExt(s string) string {
 	if strings.HasSuffix(strings.ToUpper(s), zipExt) {
 		return s[:len(s)-len(zipExt)]
 	}
@@ -51,7 +51,7 @@ func RunRecord(ctx context.Context, cmd *base.Command, args []string) error {
 		return err
 	}
 
-	cfg.Output = stripZipExt(cfg.Output)
+	cfg.Output = StripZipExt(cfg.Output)
 	if cfg.Output == "" {
 		base.SetExitStatus(base.SInvalidParameters)
 		return errNoOutput

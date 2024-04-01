@@ -3,7 +3,9 @@ package diag
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"time"
 
@@ -11,13 +13,27 @@ import (
 	"github.com/rusq/slackdump/v3/auth"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/record"
+	"github.com/rusq/slackdump/v3/internal/chunk"
+	"github.com/rusq/slackdump/v3/internal/chunk/dirproc"
 	"github.com/rusq/slackdump/v3/internal/network"
 	"github.com/rusq/slackdump/v3/logger"
+	"github.com/rusq/slackdump/v3/types"
 	"golang.org/x/time/rate"
 )
 
 var cmdSearch = &base.Command{
-	UsageLine:   "slackdump tools search",
+	UsageLine: "slackdump tools search",
+	Short:     "searches for messages matching criteria",
+	Long:      "Experimental command to search for messages matching criteria.",
+	Commands: []*base.Command{
+		cmdSearchRun,
+		cmdSearchConvert,
+	},
+}
+
+var cmdSearchRun = &base.Command{
+	UsageLine:   "slackdump tools search query [flags]",
 	Short:       "searches for messages matching criteria",
 	Long:        "Experimental command to search for messages matching criteria.",
 	RequireAuth: true,
@@ -27,9 +43,13 @@ var cmdSearch = &base.Command{
 }
 
 var searchFlags = struct {
-	perPage uint
+	perPage  uint
+	convert  bool
+	channels string
 }{
-	perPage: 50,
+	perPage:  100,
+	convert:  false,
+	channels: "",
 }
 
 func init() {
@@ -37,6 +57,9 @@ func init() {
 }
 
 func runSearch(ctx context.Context, cmd *base.Command, args []string) error {
+	if searchFlags.convert {
+		return runSearchConvert(ctx, cmd, args)
+	}
 	if len(args) < 1 {
 		return fmt.Errorf("missing query parameter")
 	}
@@ -86,5 +109,99 @@ func runSearch(ctx context.Context, cmd *base.Command, args []string) error {
 		lim.Wait(ctx)
 	}
 
+	return nil
+}
+
+var cmdSearchConvert = &base.Command{
+	UsageLine:   "slackdump tools search convert",
+	Short:       "converts search output to chunks",
+	Long:        "Experimental command to convert raw search output to chunks.",
+	RequireAuth: false,
+	Run:         runSearchConvert,
+	FlagMask:    cfg.OmitAll &^ cfg.OmitOutputFlag,
+	PrintFlags:  true,
+}
+
+func init() {
+	cmdSearchConvert.Flag.StringVar(&searchFlags.channels, "channels", searchFlags.channels, "channels file for convert mode")
+}
+
+func runSearchConvert(ctx context.Context, _ *base.Command, args []string) error {
+	var r io.ReadCloser
+	if len(args) == 0 {
+		r = os.Stdin
+	} else {
+		f, err := os.Open(args[0])
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+		r = f
+	}
+	cfg.Output = record.StripZipExt(cfg.Output)
+	if cfg.Output == "" {
+		return errors.New("output is empty")
+	}
+
+	if err := os.MkdirAll(cfg.Output, 0755); err != nil {
+		return err
+	}
+
+	cd, err := chunk.OpenDir(cfg.Output)
+	if err != nil {
+		return err
+	}
+	defer cd.Close()
+
+	dps, err := dirproc.NewSearch(cd, nil)
+	if err != nil {
+		return err
+	}
+	defer dps.Close()
+
+	var chans = make(map[string]struct{})
+	dec := json.NewDecoder(r)
+	for {
+		var sm []slack.SearchMessage
+		if err := dec.Decode(&sm); err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			return err
+		}
+		for _, m := range sm {
+			chans[m.Channel.ID] = struct{}{}
+		}
+		if err := dps.SearchMessages(ctx, "query", sm); err != nil {
+			return err
+		}
+	}
+
+	if searchFlags.channels != "" {
+		if err := convertChannels(ctx, dps, searchFlags.channels, chans); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func convertChannels(ctx context.Context, dps *dirproc.Search, filename string, chans map[string]struct{}) error {
+	f, err := os.Open(filename)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	var ch types.Channels
+	if err := json.NewDecoder(f).Decode(&ch); err != nil {
+		return err
+	}
+	for _, c := range ch {
+		if _, found := chans[c.ID]; found {
+			if err := dps.ChannelInfo(ctx, &c, ""); err != nil {
+				return err
+			}
+		}
+	}
 	return nil
 }
