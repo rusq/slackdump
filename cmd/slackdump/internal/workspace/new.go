@@ -1,4 +1,4 @@
-package authcmd
+package workspace
 
 import (
 	"context"

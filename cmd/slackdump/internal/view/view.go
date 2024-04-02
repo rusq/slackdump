@@ -12,6 +12,7 @@ import (
 	"path"
 	"strings"
 
+	br "github.com/pkg/browser"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/internal/chunk"
@@ -65,6 +66,11 @@ func RunView(ctx context.Context, cmd *base.Command, args []string) error {
 	lg := logger.FromContext(ctx)
 
 	lg.Printf("listening on %s", listenAddr)
+	go func() {
+		if err := br.OpenURL(fmt.Sprintf("http://%s", listenAddr)); err != nil {
+			lg.Printf("unable to open browser: %s", err)
+		}
+	}()
 	if err := v.ListenAndServe(); err != nil {
 		if errors.Is(err, http.ErrServerClosed) {
 			lg.Print("bye")
@@ -73,6 +79,7 @@ func RunView(ctx context.Context, cmd *base.Command, args []string) error {
 		base.SetExitStatus(base.SApplicationError)
 		return err
 	}
+
 	return nil
 }
 

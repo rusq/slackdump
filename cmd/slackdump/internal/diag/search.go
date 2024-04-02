@@ -11,9 +11,9 @@ import (
 
 	"github.com/rusq/slack"
 	"github.com/rusq/slackdump/v3/auth"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/archive"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/record"
 	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/internal/chunk/dirproc"
 	"github.com/rusq/slackdump/v3/internal/network"
@@ -141,7 +141,7 @@ func runSearchConvert(ctx context.Context, _ *base.Command, args []string) error
 		defer f.Close()
 		r = f
 	}
-	cfg.Output = record.StripZipExt(cfg.Output)
+	cfg.Output = archive.StripZipExt(cfg.Output)
 	if cfg.Output == "" {
 		return errors.New("output is empty")
 	}

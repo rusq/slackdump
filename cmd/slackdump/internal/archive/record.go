@@ -1,4 +1,4 @@
-package record
+package archive
 
 import (
 	"context"
@@ -19,13 +19,13 @@ import (
 )
 
 //go:embed assets/record.md
-var mdRecord string
+var mdArchive string
 
 var CmdRecord = &base.Command{
 	Run:         RunRecord,
-	UsageLine:   "slackdump record [flags] [link1[ link 2[ link N]]]",
-	Short:       "record the dump of the workspace or individual conversations",
-	Long:        mdRecord,
+	UsageLine:   "slackdump archive [flags] [link1[ link 2[ link N]]]",
+	Short:       "archive the workspace or individual conversations on disk",
+	Long:        mdArchive,
 	FlagMask:    cfg.OmitUserCacheFlag | cfg.OmitCacheDir,
 	RequireAuth: true,
 	PrintFlags:  true,

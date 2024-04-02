@@ -1,4 +1,4 @@
-package authcmd
+package workspace
 
 import (
 	"context"
@@ -14,7 +14,7 @@ import (
 	"github.com/rusq/slackdump/v3/internal/cache"
 )
 
-const baseCommand = "slackdump auth"
+const baseCommand = "slackdump workspace"
 
 var flagmask = cfg.OmitAll
 
@@ -22,23 +22,23 @@ var CmdWorkspace = &base.Command{
 	Run:       nil,
 	Wizard:    nil,
 	UsageLine: baseCommand,
-	Short:     "authenticate or choose already authenticated workspace to run on",
+	Short:     "add or choose already existing workspace to run on",
 	Long: `
-# Auth Command
+# Workspace Command
 
 Slackdump supports working with multiple Slack Workspaces without the need
 to authenticate again (unless login credentials are expired or became invalid
 due to some other reason).
 
-**Auth** command allows to authenticate in a **new** Slack Workspace,
-**list** already authenticated workspaces, **select** a workspace that you have
-previously logged in to, or **del**ete an existing workspace.
+**Workspace** command allows to **add** a new Slack Workspace, **list** already 
+authenticated workspaces, **select** a workspace that you have previously
+logged in to, or **del**ete an existing workspace.
 
 To learn more about different login options, run:
 
-	slackdump help auth
+	slackdump help workspace
 
-Workspaces are stored on this device in the Cache directory, which is
+Workspaces are stored on this device in the system Cache directory, which is
 automatically detected to be:
     ` + cfg.CacheDir() + `
 `,
