@@ -94,8 +94,8 @@ func RunRecord(ctx context.Context, cmd *base.Command, args []string) error {
 	return nil
 }
 
-func resultLogger(lg logger.Interface) func(sr stream.StreamResult) error {
-	return func(sr stream.StreamResult) error {
+func resultLogger(lg logger.Interface) func(sr stream.Result) error {
+	return func(sr stream.Result) error {
 		lg.Printf("%s", sr)
 		return nil
 	}

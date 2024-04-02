@@ -68,7 +68,7 @@ func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 	stream := sess.Stream(
 		stream.OptOldest(params.Oldest),
 		stream.OptLatest(params.Latest),
-		stream.OptResultFn(func(sr stream.StreamResult) error {
+		stream.OptResultFn(func(sr stream.Result) error {
 			lg.Debugf("conversations: %s", sr.String())
 			pb.Describe(sr.String())
 			pb.Add(1)

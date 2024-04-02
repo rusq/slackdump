@@ -233,7 +233,7 @@ func dump(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, p dump
 	if err := sess.Stream(
 		stream.OptOldest(p.oldest),
 		stream.OptLatest(p.latest),
-		stream.OptResultFn(func(sr stream.StreamResult) error {
+		stream.OptResultFn(func(sr stream.Result) error {
 			if sr.Err != nil {
 				return sr.Err
 			}

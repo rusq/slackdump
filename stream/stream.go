@@ -57,7 +57,7 @@ type Stream struct {
 	client         Slacker
 	limits         rateLimits
 	chanCache      *chanCache
-	resultFn       []func(sr StreamResult) error
+	resultFn       []func(sr Result) error
 }
 
 // chanCache is used to cache channel info to avoid fetching it multiple times.
@@ -93,8 +93,8 @@ const (
 	RTChannelInfo
 )
 
-// StreamResult is sent to the callback function for each channel or thread.
-type StreamResult struct {
+// Result is sent to the callback function for each channel or thread.
+type Result struct {
 	Type        ResultType // see below.
 	ChannelID   string
 	ThreadTS    string
@@ -103,7 +103,7 @@ type StreamResult struct {
 	Err         error
 }
 
-func (s StreamResult) String() string {
+func (s Result) String() string {
 	if s.ThreadTS == "" {
 		return "<" + s.ChannelID + ">"
 	}
@@ -149,7 +149,7 @@ func OptLatest(t time.Time) StreamOption {
 }
 
 // OptResultFn sets the callback function that is called for each result.
-func OptResultFn(fn func(sr StreamResult) error) StreamOption {
+func OptResultFn(fn func(sr Result) error) StreamOption {
 	return func(cs *Stream) {
 		cs.resultFn = append(cs.resultFn, fn)
 	}
@@ -176,13 +176,13 @@ func NewStream(cl Slacker, l *network.Limits, opts ...StreamOption) *Stream {
 // channelID, channel URL, thread URL or a link in Slackdump format.
 func (cs *Stream) SyncConversations(ctx context.Context, proc processor.Conversations, link ...string) error {
 	lg := logger.FromContext(ctx)
-	return cs.ConversationsCB(ctx, proc, link, func(sr StreamResult) error {
+	return cs.ConversationsCB(ctx, proc, link, func(sr Result) error {
 		lg.Debugf("stream: finished processing: %s", sr)
 		return nil
 	})
 }
 
-func (cs *Stream) ConversationsCB(ctx context.Context, proc processor.Conversations, link []string, cb func(StreamResult) error) error {
+func (cs *Stream) ConversationsCB(ctx context.Context, proc processor.Conversations, link []string, cb func(Result) error) error {
 	ctx, task := trace.NewTask(ctx, "channelStream.Conversations")
 	defer task.End()
 
@@ -222,7 +222,7 @@ func (cs *Stream) Conversations(ctx context.Context, proc processor.Conversation
 	chansC := make(chan request, msgChanSz)
 	threadsC := make(chan request, threadChanSz)
 
-	resultsC := make(chan StreamResult, resultSz)
+	resultsC := make(chan Result, resultSz)
 
 	var wg sync.WaitGroup
 	{
@@ -256,14 +256,14 @@ func (cs *Stream) Conversations(ctx context.Context, proc processor.Conversation
 			for {
 				select {
 				case <-ctx.Done():
-					resultsC <- StreamResult{Type: RTMain, Err: ctx.Err()}
+					resultsC <- Result{Type: RTMain, Err: ctx.Err()}
 					return
 				case link, more := <-links:
 					if !more {
 						return
 					}
 					if err := processLink(chansC, threadsC, link); err != nil {
-						resultsC <- StreamResult{Type: RTMain, Err: fmt.Errorf("link error: %q: %w", link, err)}
+						resultsC <- Result{Type: RTMain, Err: fmt.Errorf("link error: %q: %w", link, err)}
 					}
 				}
 			}
@@ -317,11 +317,11 @@ type request struct {
 	threadOnly bool
 }
 
-func (we *StreamResult) Error() string {
+func (we *Result) Error() string {
 	return fmt.Sprintf("%s channel %s: %v", we.Type, structures.SlackLink{Channel: we.ChannelID, ThreadTS: we.ThreadTS}, we.Err)
 }
 
-func (we *StreamResult) Unwrap() error {
+func (we *Result) Unwrap() error {
 	return we.Err
 }
 
@@ -666,7 +666,7 @@ func (cs *Stream) SearchMessages(ctx context.Context, proc processor.SearchChann
 	defer task.End()
 
 	var (
-		srC        = make(chan StreamResult, 1)
+		srC        = make(chan Result, 1)
 		channelIdC = make(chan string, 100)
 
 		wg sync.WaitGroup
@@ -686,7 +686,7 @@ func (cs *Stream) SearchMessages(ctx context.Context, proc processor.SearchChann
 				}
 				return nil
 			}); err != nil {
-				srC <- StreamResult{Type: RTMain, Err: err}
+				srC <- Result{Type: RTMain, Err: err}
 			}
 		}()
 	}
