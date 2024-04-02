@@ -12,7 +12,11 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-func (cs *Stream) SearchMessages(ctx context.Context, proc processor.SearchChannelInfoFiler, query string) error {
+// SearchMessages executes the search query and calls the processor for each
+// message results, it will also collect information about the channels.
+// Message search results do not have files attached, so do not expect Files
+// method to be called.
+func (cs *Stream) SearchMessages(ctx context.Context, proc processor.MessageSearcher, query string) error {
 	ctx, task := trace.NewTask(ctx, "SearchMessages")
 	defer task.End()
 
@@ -33,6 +37,7 @@ func (cs *Stream) SearchMessages(ctx context.Context, proc processor.SearchChann
 					return err
 				}
 				for _, m := range sm {
+					// collect channel ids
 					channelIdC <- m.Channel.ID
 				}
 				return nil
@@ -96,7 +101,9 @@ func (cs *Stream) searchmsg(ctx context.Context, query string, fn func(sm []slac
 	return nil
 }
 
-func (cs *Stream) SearchFiles(ctx context.Context, proc processor.SearchChannelInfoFiler, query string) error {
+// SearchFiles executes the search query and calls the processor for each
+// returned slice of files.  Channels do not have the file information.
+func (cs *Stream) SearchFiles(ctx context.Context, proc processor.FileSearcher, query string) error {
 	ctx, task := trace.NewTask(ctx, "SearchFiles")
 	defer task.End()
 
@@ -135,7 +142,7 @@ func (cs *Stream) SearchFiles(ctx context.Context, proc processor.SearchChannelI
 	return nil
 }
 
-func (s *Stream) Search(ctx context.Context, proc processor.SearchChannelInfoFiler, query string) error {
+func (s *Stream) Search(ctx context.Context, proc processor.Searcher, query string) error {
 	var eg errgroup.Group
 
 	eg.Go(func() error {

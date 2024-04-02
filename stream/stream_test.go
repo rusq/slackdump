@@ -57,7 +57,7 @@ func TestChannelStream(t *testing.T) {
 	rec := chunk.NewRecorder(f)
 	defer rec.Close()
 
-	cs := NewStream(sd, &network.DefLimits)
+	cs := New(sd, &network.DefLimits)
 	if err := cs.SyncConversations(context.Background(), rec, testConversation); err != nil {
 		t.Fatal(err)
 	}
@@ -86,7 +86,7 @@ func TestRecorderStream(t *testing.T) {
 	defer rec.Close()
 
 	rgnStream := trace.StartRegion(ctx, "Stream")
-	cs := NewStream(sd, &network.NoLimits)
+	cs := New(sd, &network.NoLimits)
 	if err := cs.SyncConversations(ctx, rec, fixtures.ChunkFileChannelID); err != nil {
 		t.Fatal(err)
 	}

@@ -152,9 +152,9 @@ func OptResultFn(fn func(sr Result) error) Option {
 	}
 }
 
-// NewStream creates a new Stream instance that allows to stream different
+// New creates a new Stream instance that allows to stream different
 // slack entities.
-func NewStream(cl Slacker, l *network.Limits, opts ...Option) *Stream {
+func New(cl Slacker, l *network.Limits, opts ...Option) *Stream {
 	cs := &Stream{
 		client:    cl,
 		limits:    limits(l),

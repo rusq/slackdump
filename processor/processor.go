@@ -55,15 +55,23 @@ type Channels interface {
 	Channels(ctx context.Context, channels []slack.Channel) error
 }
 
-type Search interface {
-	// SearchMessages is called for each message that is retrieved.
+// MessageSearcher is the interface for searching messages.
+type MessageSearcher interface {
+	// SearchMessages is called for each message chunk that is retrieved.
 	SearchMessages(ctx context.Context, query string, messages []slack.SearchMessage) error
-	// SearchFiles is called for each file that is retrieved.
-	SearchFiles(ctx context.Context, query string, files []slack.File) error
+	ChannelInformer
 }
 
-type SearchChannelInfoFiler interface {
-	Search
-	ChannelInformer
+// FileSearcher is the interface for searching files.
+type FileSearcher interface {
+	// SearchFiles is called for each of the file chunks that are retrieved.
+	SearchFiles(ctx context.Context, query string, files []slack.File) error
+	// Filer is embedded here to allow for the Files method to be called.
 	Filer
+}
+
+// Searcher is the combined interface for searching messages and files.
+type Searcher interface {
+	MessageSearcher
+	FileSearcher
 }
