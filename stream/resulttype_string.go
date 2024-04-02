@@ -11,11 +11,12 @@ func _() {
 	_ = x[RTMain-0]
 	_ = x[RTChannel-1]
 	_ = x[RTThread-2]
+	_ = x[RTChannelInfo-3]
 }
 
-const _ResultType_name = "MainChannelThread"
+const _ResultType_name = "MainChannelThreadChannelInfo"
 
-var _ResultType_index = [...]uint8{0, 4, 11, 17}
+var _ResultType_index = [...]uint8{0, 4, 11, 17, 28}
 
 func (i ResultType) String() string {
 	if i < 0 || i >= ResultType(len(_ResultType_index)-1) {
