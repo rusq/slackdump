@@ -18,7 +18,7 @@ import (
 	"github.com/rusq/slackdump/v3/stream"
 )
 
-//go:embed assets/record.md
+//go:embed assets/archive.md
 var mdArchive string
 
 var CmdRecord = &base.Command{
