@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 
+	"github.com/rusq/slackdump/v3/internal/network"
 	"github.com/rusq/slackdump/v3/logger"
 	"github.com/rusq/slackdump/v3/types"
 )
@@ -39,7 +40,7 @@ func TestSession_getChannels(t *testing.T) {
 			},
 			func(mc *mockClienter) {
 				mc.EXPECT().GetConversationsContext(gomock.Any(), &slack.GetConversationsParameters{
-					Limit: DefLimits.Request.Channels,
+					Limit: network.DefLimits.Request.Channels,
 					Types: AllChanTypes,
 				}).Return(types.Channels{
 					slack.Channel{GroupConversation: slack.GroupConversation{
@@ -62,7 +63,7 @@ func TestSession_getChannels(t *testing.T) {
 			},
 			func(mc *mockClienter) {
 				mc.EXPECT().GetConversationsContext(gomock.Any(), &slack.GetConversationsParameters{
-					Limit: DefLimits.Request.Channels,
+					Limit: network.DefLimits.Request.Channels,
 					Types: AllChanTypes,
 				}).Return(
 					nil,

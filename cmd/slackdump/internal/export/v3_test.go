@@ -17,6 +17,7 @@ import (
 	"github.com/rusq/slackdump/v3"
 	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/internal/chunk/chunktest"
+	"github.com/rusq/slackdump/v3/internal/network"
 	"github.com/rusq/slackdump/v3/internal/structures"
 	"github.com/rusq/slackdump/v3/logger"
 )
@@ -73,7 +74,7 @@ func Test_exportV3(t *testing.T) {
 			FakeToken:      "xoxp-1234567890-1234567890-1234567890-1234567890",
 			WantHTTPClient: http.DefaultClient,
 		}
-		sess, err := slackdump.New(ctx, prov, slackdump.WithSlackClient(cl), slackdump.WithLimits(slackdump.NoLimits))
+		sess, err := slackdump.New(ctx, prov, slackdump.WithSlackClient(cl), slackdump.WithLimits(network.NoLimits))
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -1,4 +1,4 @@
-package slackdump
+package stream
 
 import (
 	"context"

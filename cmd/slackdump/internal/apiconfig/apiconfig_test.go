@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/rusq/slackdump/v3"
+	"github.com/rusq/slackdump/v3/internal/network"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -53,25 +53,25 @@ per_request:
 `
 )
 
-var testLimits = slackdump.Limits{
+var testLimits = network.Limits{
 	Workers:         4,
 	DownloadRetries: 3,
-	Tier2: slackdump.TierLimit{
+	Tier2: network.TierLimit{
 		Boost:   20,
 		Burst:   3,
 		Retries: 20,
 	},
-	Tier3: slackdump.TierLimit{
+	Tier3: network.TierLimit{
 		Boost:   120,
 		Burst:   5,
 		Retries: 3,
 	},
-	Tier4: slackdump.TierLimit{
+	Tier4: network.TierLimit{
 		Boost:   10,
 		Burst:   7,
 		Retries: 3,
 	},
-	Request: slackdump.RequestLimit{
+	Request: network.RequestLimit{
 		Conversations: 100,
 		Channels:      100,
 		Replies:       200,
@@ -85,43 +85,43 @@ func Test_readConfig(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    args
-		want    slackdump.Limits
+		want    network.Limits
 		wantErr bool
 	}{
 		{
 			"sample config (ok)",
 			args{strings.NewReader(sampleLimitsYaml)},
-			slackdump.DefLimits,
+			network.DefLimits,
 			false,
 		},
 		{
 			"workers invalid",
 			args{strings.NewReader("workers: -1")},
-			slackdump.Limits{},
+			network.Limits{},
 			true,
 		},
 		{
 			"one parameter override",
 			args{strings.NewReader(updatedConfigYaml)},
-			slackdump.Limits{
+			network.Limits{
 				Workers:         55,
 				DownloadRetries: 3,
-				Tier2: slackdump.TierLimit{
+				Tier2: network.TierLimit{
 					Boost:   20,
 					Burst:   1,
 					Retries: 330,
 				},
-				Tier3: slackdump.TierLimit{
+				Tier3: network.TierLimit{
 					Boost:   120,
 					Burst:   1,
 					Retries: 3,
 				},
-				Tier4: slackdump.TierLimit{
+				Tier4: network.TierLimit{
 					Boost:   10,
 					Burst:   1,
 					Retries: 3,
 				},
-				Request: slackdump.RequestLimit{
+				Request: network.RequestLimit{
 					Channels:      100,
 					Conversations: 100,
 					Replies:       200,
@@ -145,7 +145,7 @@ func Test_readConfig(t *testing.T) {
 
 func Test_writeLimits(t *testing.T) {
 	type args struct {
-		cfg slackdump.Limits
+		cfg network.Limits
 	}
 	tests := []struct {
 		name    string

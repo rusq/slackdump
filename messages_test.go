@@ -87,7 +87,7 @@ func TestSession_DumpMessages(t *testing.T) {
 					gomock.Any(),
 					&slack.GetConversationHistoryParameters{
 						ChannelID: "CHANNEL",
-						Limit:     DefLimits.Request.Conversations,
+						Limit:     network.DefLimits.Request.Conversations,
 						Inclusive: true,
 					}).Return(
 					&slack.GetConversationHistoryResponse{
@@ -129,7 +129,7 @@ func TestSession_DumpMessages(t *testing.T) {
 						gomock.Any(),
 						&slack.GetConversationHistoryParameters{
 							ChannelID: "CHANNEL",
-							Limit:     DefLimits.Request.Conversations,
+							Limit:     network.DefLimits.Request.Conversations,
 							Inclusive: true,
 						}).
 					Return(
@@ -152,7 +152,7 @@ func TestSession_DumpMessages(t *testing.T) {
 						&slack.GetConversationHistoryParameters{
 							ChannelID: "CHANNEL",
 							Cursor:    "cur",
-							Limit:     DefLimits.Request.Conversations,
+							Limit:     network.DefLimits.Request.Conversations,
 							Inclusive: true,
 						}).
 					Return(

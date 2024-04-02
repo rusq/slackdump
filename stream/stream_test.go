@@ -1,4 +1,4 @@
-package slackdump
+package stream
 
 import (
 	"context"
@@ -57,7 +57,7 @@ func TestChannelStream(t *testing.T) {
 	rec := chunk.NewRecorder(f)
 	defer rec.Close()
 
-	cs := NewStream(sd, &DefLimits)
+	cs := NewStream(sd, &network.DefLimits)
 	if err := cs.SyncConversations(context.Background(), rec, testConversation); err != nil {
 		t.Fatal(err)
 	}
@@ -86,7 +86,7 @@ func TestRecorderStream(t *testing.T) {
 	defer rec.Close()
 
 	rgnStream := trace.StartRegion(ctx, "Stream")
-	cs := NewStream(sd, &NoLimits)
+	cs := NewStream(sd, &network.NoLimits)
 	if err := cs.SyncConversations(ctx, rec, fixtures.ChunkFileChannelID); err != nil {
 		t.Fatal(err)
 	}
@@ -288,7 +288,7 @@ func TestStream_Users(t *testing.T) {
 	defer srv.Close()
 	l := rateLimits{
 		users: network.NewLimiter(network.NoTier, 100, 100),
-		tier:  &DefLimits,
+		tier:  &network.DefLimits,
 	}
 	s := Stream{
 		client: slack.New("test", slack.OptionAPIURL(srv.URL+"/")),

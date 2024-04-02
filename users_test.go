@@ -12,6 +12,7 @@ import (
 	"go.uber.org/mock/gomock"
 
 	"github.com/rusq/slackdump/v3/internal/fixtures"
+	"github.com/rusq/slackdump/v3/internal/network"
 	"github.com/rusq/slackdump/v3/internal/structures"
 	"github.com/rusq/slackdump/v3/logger"
 	"github.com/rusq/slackdump/v3/types"
@@ -133,9 +134,9 @@ func TestSession_GetUsers(t *testing.T) {
 		{
 			"everything goes as planned",
 			fields{
-				config: config{limits: Limits{
-					Tier2: TierLimit{Burst: 1},
-					Tier3: TierLimit{Burst: 1},
+				config: config{limits: network.Limits{
+					Tier2: network.TierLimit{Burst: 1},
+					Tier3: network.TierLimit{Burst: 1},
 				}},
 				usercache: usercache{},
 			},
@@ -149,9 +150,9 @@ func TestSession_GetUsers(t *testing.T) {
 		{
 			"loaded from cache",
 			fields{
-				config: config{limits: Limits{
-					Tier2: TierLimit{Burst: 1},
-					Tier3: TierLimit{Burst: 1},
+				config: config{limits: network.Limits{
+					Tier2: network.TierLimit{Burst: 1},
+					Tier3: network.TierLimit{Burst: 1},
 				}},
 				usercache: usercache{
 					users:    testUsers,

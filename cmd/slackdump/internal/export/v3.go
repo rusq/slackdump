@@ -17,6 +17,7 @@ import (
 	"github.com/rusq/slackdump/v3/internal/chunk/transform/fileproc"
 	"github.com/rusq/slackdump/v3/internal/structures"
 	"github.com/rusq/slackdump/v3/logger"
+	"github.com/rusq/slackdump/v3/stream"
 )
 
 // TODO: check if the features is on par with Export v2.
@@ -65,9 +66,9 @@ func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 	pb.RenderBlank()
 
 	stream := sess.Stream(
-		slackdump.OptOldest(params.Oldest),
-		slackdump.OptLatest(params.Latest),
-		slackdump.OptResultFn(func(sr slackdump.StreamResult) error {
+		stream.OptOldest(params.Oldest),
+		stream.OptLatest(params.Latest),
+		stream.OptResultFn(func(sr stream.StreamResult) error {
 			lg.Debugf("conversations: %s", sr.String())
 			pb.Describe(sr.String())
 			pb.Add(1)

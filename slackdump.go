@@ -18,6 +18,7 @@ import (
 	"github.com/rusq/slackdump/v3/internal/edge"
 	"github.com/rusq/slackdump/v3/internal/network"
 	"github.com/rusq/slackdump/v3/logger"
+	"github.com/rusq/slackdump/v3/stream"
 )
 
 //go:generate mockgen -destination internal/mocks/mock_os/mock_os.go os FileInfo
@@ -91,7 +92,7 @@ func WithFilesystem(fs fsadapter.FS) Option {
 // WithLimits sets the API limits to use for the session.  If this option is
 // not given, the default limits are initialised with the values specified in
 // DefLimits.
-func WithLimits(l Limits) Option {
+func WithLimits(l network.Limits) Option {
 	return func(s *Session) {
 		if l.Validate() == nil {
 			s.cfg.limits = l
@@ -156,7 +157,7 @@ func New(ctx context.Context, prov auth.Provider, opts ...Option) (*Session, err
 	if err := sd.cfg.limits.Validate(); err != nil {
 		var vErr validator.ValidationErrors
 		if errors.As(err, &vErr) {
-			return nil, fmt.Errorf("API limits failed validation: %s", vErr.Translate(OptErrTranslations))
+			return nil, fmt.Errorf("API limits failed validation: %s", vErr.Translate(network.OptErrTranslations))
 		}
 		return nil, err
 	}
@@ -236,7 +237,7 @@ func (s *Session) CurrentUserID() string {
 }
 
 func (s *Session) limiter(t network.Tier) *rate.Limiter {
-	var tl TierLimit
+	var tl network.TierLimit
 	switch t {
 	case network.Tier2:
 		tl = s.cfg.limits.Tier2
@@ -258,6 +259,6 @@ func (s *Session) Info() *WorkspaceInfo {
 }
 
 // Stream streams the channel, calling proc functions for each chunk.
-func (s *Session) Stream(opts ...StreamOption) *Stream {
-	return NewStream(s.client, &s.cfg.limits, opts...)
+func (s *Session) Stream(opts ...stream.StreamOption) *stream.Stream {
+	return stream.NewStream(s.client, &s.cfg.limits, opts...)
 }

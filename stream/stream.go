@@ -1,4 +1,4 @@
-package slackdump
+package stream
 
 import (
 	"context"
@@ -31,6 +31,24 @@ const (
 	// messages, and 1 for threads.
 	resultSz = 2
 )
+
+// Slacker is the interface with some functions of slack.Client.
+type Slacker interface {
+	AuthTestContext(context.Context) (response *slack.AuthTestResponse, err error)
+	GetConversationHistoryContext(ctx context.Context, params *slack.GetConversationHistoryParameters) (*slack.GetConversationHistoryResponse, error)
+	GetConversationRepliesContext(ctx context.Context, params *slack.GetConversationRepliesParameters) (msgs []slack.Message, hasMore bool, nextCursor string, err error)
+	GetUsersPaginated(options ...slack.GetUsersOption) slack.UserPagination
+
+	GetStarredContext(ctx context.Context, params slack.StarsParameters) ([]slack.StarredItem, *slack.Paging, error)
+	ListBookmarks(channelID string) ([]slack.Bookmark, error)
+
+	GetConversationsContext(ctx context.Context, params *slack.GetConversationsParameters) (channels []slack.Channel, nextCursor string, err error)
+	GetConversationInfoContext(ctx context.Context, input *slack.GetConversationInfoInput) (*slack.Channel, error)
+	GetUsersInConversationContext(ctx context.Context, params *slack.GetUsersInConversationParameters) ([]string, string, error)
+
+	SearchMessagesContext(ctx context.Context, query string, params slack.SearchParameters) (*slack.SearchMessages, error)
+	SearchFilesContext(ctx context.Context, query string, params slack.SearchParameters) (*slack.SearchFiles, error)
+}
 
 // Stream is used to fetch conversations from Slack.  It is safe for concurrent
 // use.
@@ -99,10 +117,10 @@ type rateLimits struct {
 	users       *rate.Limiter
 	searchmsg   *rate.Limiter
 	searchfiles *rate.Limiter
-	tier        *Limits
+	tier        *network.Limits
 }
 
-func limits(l *Limits) rateLimits {
+func limits(l *network.Limits) rateLimits {
 	return rateLimits{
 		channels:    network.NewLimiter(network.Tier3, l.Tier3.Burst, int(l.Tier3.Boost)),
 		threads:     network.NewLimiter(network.Tier3, l.Tier3.Burst, int(l.Tier3.Boost)),
@@ -139,7 +157,7 @@ func OptResultFn(fn func(sr StreamResult) error) StreamOption {
 
 // NewStream creates a new Stream instance that allows to stream different
 // slack entities.
-func NewStream(cl Slacker, l *Limits, opts ...StreamOption) *Stream {
+func NewStream(cl Slacker, l *network.Limits, opts ...StreamOption) *Stream {
 	cs := &Stream{
 		client:    cl,
 		limits:    limits(l),

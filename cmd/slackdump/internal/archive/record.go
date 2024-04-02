@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/rusq/fsadapter"
-	"github.com/rusq/slackdump/v3"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/internal/chunk"
@@ -16,6 +15,7 @@ import (
 	"github.com/rusq/slackdump/v3/internal/chunk/transform/fileproc"
 	"github.com/rusq/slackdump/v3/internal/structures"
 	"github.com/rusq/slackdump/v3/logger"
+	"github.com/rusq/slackdump/v3/stream"
 )
 
 //go:embed assets/record.md
@@ -70,9 +70,9 @@ func RunRecord(ctx context.Context, cmd *base.Command, args []string) error {
 	}
 	lg := logger.FromContext(ctx)
 	stream := sess.Stream(
-		slackdump.OptLatest(time.Time(cfg.Latest)),
-		slackdump.OptOldest(time.Time(cfg.Oldest)),
-		slackdump.OptResultFn(resultLogger(lg)),
+		stream.OptLatest(time.Time(cfg.Latest)),
+		stream.OptOldest(time.Time(cfg.Oldest)),
+		stream.OptResultFn(resultLogger(lg)),
 	)
 	dl, stop := fileproc.NewDownloader(
 		ctx,
@@ -94,8 +94,8 @@ func RunRecord(ctx context.Context, cmd *base.Command, args []string) error {
 	return nil
 }
 
-func resultLogger(lg logger.Interface) func(sr slackdump.StreamResult) error {
-	return func(sr slackdump.StreamResult) error {
+func resultLogger(lg logger.Interface) func(sr stream.StreamResult) error {
+	return func(sr stream.StreamResult) error {
 		lg.Printf("%s", sr)
 		return nil
 	}

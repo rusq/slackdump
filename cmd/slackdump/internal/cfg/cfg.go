@@ -9,8 +9,8 @@ import (
 
 	"github.com/rusq/osenv/v2"
 
-	"github.com/rusq/slackdump/v3"
 	"github.com/rusq/slackdump/v3/auth/browser"
+	"github.com/rusq/slackdump/v3/internal/network"
 	"github.com/rusq/slackdump/v3/logger"
 )
 
@@ -30,7 +30,7 @@ var (
 	SlackToken   string
 	SlackCookie  string
 	LoginTimeout time.Duration = browser.DefLoginTimeout
-	Limits                     = slackdump.DefLimits
+	Limits                     = network.DefLimits
 	// playwright stuff
 	Browser         browser.Browser
 	LegacyBrowser   bool

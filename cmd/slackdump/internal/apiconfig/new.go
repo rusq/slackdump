@@ -8,9 +8,9 @@ import (
 	"path/filepath"
 	"runtime/trace"
 
-	"github.com/rusq/slackdump/v3"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
+	"github.com/rusq/slackdump/v3/internal/network"
 	"github.com/rusq/slackdump/v3/internal/ui"
 )
 
@@ -56,7 +56,7 @@ func runConfigNew(ctx context.Context, cmd *base.Command, args []string) error {
 		return fmt.Errorf("file or directory exists: %q, use -y flag to overwrite (will not overwrite directory)", filename)
 	}
 
-	if err := Save(filename, slackdump.DefLimits); err != nil {
+	if err := Save(filename, network.DefLimits); err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return fmt.Errorf("error writing the API limits config %q: %w", filename, err)
 	}
@@ -79,7 +79,7 @@ RESTART:
 	if err != nil {
 		return err
 	}
-	if err := Save(filename, slackdump.DefLimits); err != nil {
+	if err := Save(filename, network.DefLimits); err != nil {
 		fmt.Printf("Error: %s, please retry\n", err)
 		trace.Logf(ctx, "error", "error saving file to %q: %s, survey restarted", filename, err)
 		goto RESTART

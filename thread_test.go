@@ -49,7 +49,7 @@ func TestSession_DumpThreadWithFiles(t *testing.T) {
 				mc.EXPECT().
 					GetConversationRepliesContext(
 						gomock.Any(),
-						&slack.GetConversationRepliesParameters{ChannelID: "CHANNEL", Timestamp: "THREAD", Limit: DefLimits.Request.Replies, Inclusive: true},
+						&slack.GetConversationRepliesParameters{ChannelID: "CHANNEL", Timestamp: "THREAD", Limit: network.DefLimits.Request.Replies, Inclusive: true},
 					).
 					Return(
 						[]slack.Message{testMsg1.Message, testMsg2.Message, testMsg3.Message},
@@ -80,7 +80,7 @@ func TestSession_DumpThreadWithFiles(t *testing.T) {
 						&slack.GetConversationRepliesParameters{
 							ChannelID: "CHANNEL",
 							Timestamp: "THREAD",
-							Limit:     DefLimits.Request.Replies,
+							Limit:     network.DefLimits.Request.Replies,
 							Oldest:    "1609459199.000000",
 							Latest:    "1640995199.000000",
 							Inclusive: true,
@@ -106,7 +106,7 @@ func TestSession_DumpThreadWithFiles(t *testing.T) {
 				mc.EXPECT().
 					GetConversationRepliesContext(
 						gomock.Any(),
-						&slack.GetConversationRepliesParameters{ChannelID: "CHANNEL", Timestamp: "THREAD", Limit: DefLimits.Request.Replies, Inclusive: true},
+						&slack.GetConversationRepliesParameters{ChannelID: "CHANNEL", Timestamp: "THREAD", Limit: network.DefLimits.Request.Replies, Inclusive: true},
 					).
 					Return(
 						[]slack.Message{testMsg1.Message},
@@ -118,7 +118,7 @@ func TestSession_DumpThreadWithFiles(t *testing.T) {
 				mc.EXPECT().
 					GetConversationRepliesContext(
 						gomock.Any(),
-						&slack.GetConversationRepliesParameters{ChannelID: "CHANNEL", Timestamp: "THREAD", Cursor: "blah", Limit: DefLimits.Request.Replies, Inclusive: true},
+						&slack.GetConversationRepliesParameters{ChannelID: "CHANNEL", Timestamp: "THREAD", Cursor: "blah", Limit: network.DefLimits.Request.Replies, Inclusive: true},
 					).
 					Return(
 						[]slack.Message{testMsg2.Message},
@@ -319,7 +319,7 @@ func TestSession_dumpThread(t *testing.T) {
 						&slack.GetConversationRepliesParameters{
 							ChannelID: "CHANNEL",
 							Timestamp: "THREAD",
-							Limit:     DefLimits.Request.Replies,
+							Limit:     network.DefLimits.Request.Replies,
 							Inclusive: true,
 						},
 					).
@@ -337,7 +337,7 @@ func TestSession_dumpThread(t *testing.T) {
 							ChannelID: "CHANNEL",
 							Cursor:    "blah",
 							Timestamp: "THREAD",
-							Limit:     DefLimits.Request.Replies,
+							Limit:     network.DefLimits.Request.Replies,
 							Inclusive: true,
 						},
 					).

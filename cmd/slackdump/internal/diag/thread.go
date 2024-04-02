@@ -11,7 +11,6 @@ import (
 	"github.com/rusq/slack"
 	"github.com/schollz/progressbar/v3"
 
-	"github.com/rusq/slackdump/v3"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/internal/network"
@@ -106,7 +105,7 @@ func generateThread(ctx context.Context, client *slack.Client, channelID string,
 		return fmt.Errorf("failed to send initial message: %w", err)
 	}
 
-	l := network.NewLimiter(network.Tier3, slackdump.DefLimits.Tier3.Burst, int(slackdump.DefLimits.Tier3.Boost))
+	l := network.NewLimiter(network.Tier3, network.DefLimits.Tier3.Burst, int(network.DefLimits.Tier3.Boost))
 	pb := progressbar.Default(int64(numMsg))
 	pb.Describe("posting messages")
 	defer pb.Finish()
@@ -147,7 +146,7 @@ func delMessages(ctx context.Context, client *slack.Client, channelID string, ms
 
 	defer pb.Finish()
 
-	l := network.NewLimiter(network.Tier3, slackdump.DefLimits.Tier3.Burst, int(slackdump.DefLimits.Tier3.Boost))
+	l := network.NewLimiter(network.Tier3, network.DefLimits.Tier3.Burst, int(network.DefLimits.Tier3.Boost))
 	for _, m := range msgs {
 		err := network.WithRetry(ctx, l, 3, func() error {
 			_, _, err := client.DeleteMessageContext(ctx, channelID, m.Timestamp)

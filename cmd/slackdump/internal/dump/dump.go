@@ -26,6 +26,7 @@ import (
 	"github.com/rusq/slackdump/v3/internal/nametmpl"
 	"github.com/rusq/slackdump/v3/internal/structures"
 	"github.com/rusq/slackdump/v3/logger"
+	"github.com/rusq/slackdump/v3/stream"
 	"github.com/rusq/slackdump/v3/types"
 )
 
@@ -230,9 +231,9 @@ func dump(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, p dump
 	}()
 
 	if err := sess.Stream(
-		slackdump.OptOldest(p.oldest),
-		slackdump.OptLatest(p.latest),
-		slackdump.OptResultFn(func(sr slackdump.StreamResult) error {
+		stream.OptOldest(p.oldest),
+		stream.OptLatest(p.latest),
+		stream.OptResultFn(func(sr stream.StreamResult) error {
 			if sr.Err != nil {
 				return sr.Err
 			}

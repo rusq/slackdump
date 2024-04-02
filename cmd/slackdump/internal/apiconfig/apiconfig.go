@@ -9,9 +9,9 @@ import (
 	"github.com/go-playground/validator/v10"
 	"gopkg.in/yaml.v3"
 
-	"github.com/rusq/slackdump/v3"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
+	"github.com/rusq/slackdump/v3/internal/network"
 )
 
 // schemaJSONpath is the path to the schema JSON file for the limits yaml
@@ -37,10 +37,10 @@ configuration file.
 var ErrConfigInvalid = errors.New("config validation failed")
 
 // Load reads, parses and validates the config file.
-func Load(filename string) (slackdump.Limits, error) {
+func Load(filename string) (network.Limits, error) {
 	f, err := os.Open(filename)
 	if err != nil {
-		return slackdump.Limits{}, err
+		return network.Limits{}, err
 	}
 	defer f.Close()
 
@@ -48,7 +48,7 @@ func Load(filename string) (slackdump.Limits, error) {
 }
 
 // Save saves the config to the file.
-func Save(filename string, limits slackdump.Limits) error {
+func Save(filename string, limits network.Limits) error {
 	f, err := os.Create(filename)
 	if err != nil {
 		return err
@@ -60,24 +60,24 @@ func Save(filename string, limits slackdump.Limits) error {
 
 // applyLimits reads the limits from the reader, validates them and applies to
 // the global config.
-func applyLimits(r io.Reader) (slackdump.Limits, error) {
-	var limits slackdump.Limits
+func applyLimits(r io.Reader) (network.Limits, error) {
+	var limits network.Limits
 	dec := yaml.NewDecoder(r)
 	dec.KnownFields(true)
 	if err := dec.Decode(&limits); err != nil {
-		return slackdump.Limits{}, err
+		return network.Limits{}, err
 	}
 
 	if err := cfg.Limits.Apply(limits); err != nil {
 		if err := printErrors(os.Stderr, err); err != nil {
-			return slackdump.Limits{}, err
+			return network.Limits{}, err
 		}
-		return slackdump.Limits{}, ErrConfigInvalid
+		return network.Limits{}, ErrConfigInvalid
 	}
 	return limits, nil
 }
 
-func writeLimits(w io.Writer, cfg slackdump.Limits) error {
+func writeLimits(w io.Writer, cfg network.Limits) error {
 	fmt.Fprintf(w, "# yaml-language-server: $schema=%s\n", schemaJSONpath)
 	return yaml.NewEncoder(w).Encode(cfg)
 }
@@ -103,7 +103,7 @@ func printErrors(w io.Writer, err error) error {
 		return err
 	}
 	for i, entry := range vErr {
-		printErr("\t%2d: %s\n", i+1, entry.Translate(slackdump.OptErrTranslations))
+		printErr("\t%2d: %s\n", i+1, entry.Translate(network.OptErrTranslations))
 	}
 	return wErr
 }
