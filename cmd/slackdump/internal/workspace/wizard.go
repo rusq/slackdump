@@ -60,18 +60,19 @@ func wizSelect(ctx context.Context, cmd *base.Command, args []string) error {
 	s := table.DefaultStyles()
 	s.Header = s.Header.
 		BorderStyle(lipgloss.NormalBorder()).
+		Foreground(cfg.Theme.Focused.NoteTitle.GetForeground()).
 		BorderForeground(lipgloss.Color("240")).
 		BorderBottom(true).
 		Bold(false)
 	s.Selected = s.Selected.
-		Foreground(lipgloss.Color("229")).
-		Background(lipgloss.Color("57")).
+		Foreground(cfg.Theme.Focused.Option.GetBackground()).
+		Background(cfg.Theme.Focused.SelectedOption.GetForeground()).
 		Bold(false)
 	t.SetStyles(s)
 
 	mod, err := tea.NewProgram(model{table: t}).Run()
 	if err != nil {
-		return fmt.Errorf("error running program: %w", err)
+		return fmt.Errorf("workspace select wizard error: %w", err)
 	}
 	if newWsp := mod.(model).selected; newWsp != "" {
 		if err := m.Select(newWsp); err != nil {
@@ -84,13 +85,16 @@ func wizSelect(ctx context.Context, cmd *base.Command, args []string) error {
 	return nil
 }
 
-var baseStyle = lipgloss.NewStyle().
-	BorderStyle(lipgloss.NormalBorder()).
-	BorderForeground(lipgloss.Color("240"))
+// var baseStyle = lipgloss.NewStyle().
+// 	BorderStyle(lipgloss.NormalBorder()).
+// 	BorderForeground(lipgloss.Color("240"))
+
+var baseStyle = cfg.Theme.Form
 
 type model struct {
 	table    table.Model
 	selected string
+	finished bool
 }
 
 func (m model) Init() tea.Cmd { return nil }
@@ -100,16 +104,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
-		case "esc":
-			if m.table.Focused() {
-				m.table.Blur()
-			} else {
-				m.table.Focus()
-			}
-		case "q", "ctrl+c":
+		case "q", "ctrl+c", "esc":
+			m.finished = true
 			return m, tea.Quit
 		case "enter":
 			m.selected = m.table.SelectedRow()[1]
+			m.finished = true
 			return m, tea.Quit
 		}
 	}
@@ -118,8 +118,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) View() string {
-	if m.selected == "" {
-		return baseStyle.Render(m.table.View()) + "\n"
+	if m.finished {
+		return "" // don't render the table if we've selected a workspace
 	}
-	return ""
+	return baseStyle.Render(m.table.View()) + "\n\n" + cfg.Theme.Help.Ellipsis.Render("Select the workspace with arrow keys, press [Enter] to confirm, [Esc] to cancel.")
 }

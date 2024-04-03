@@ -14,6 +14,8 @@ type model struct {
 	val  string
 }
 
+const kSelection = "selection" // selection key
+
 func newModel(m *menu) model {
 	var options []huh.Option[string]
 	for i, name := range m.names {
@@ -27,12 +29,12 @@ func newModel(m *menu) model {
 		form: huh.NewForm(
 			huh.NewGroup(
 				huh.NewSelect[string]().
-					Key("selection").
+					Key(kSelection).
 					Title(m.title).
 					Description(currentWsp()).
 					Options(options...),
 			),
-		),
+		).WithTheme(cfg.Theme),
 	}
 }
 
@@ -57,7 +59,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	if m.form.State == huh.StateCompleted {
-		m.val = m.form.GetString("selection")
+		m.val = m.form.GetString(kSelection)
 		cmds = append(cmds, tea.Quit)
 	}
 
