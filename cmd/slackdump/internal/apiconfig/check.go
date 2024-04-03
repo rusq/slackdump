@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui"
 )
@@ -46,14 +47,12 @@ func runConfigCheck(ctx context.Context, cmd *base.Command, args []string) error
 }
 
 func wizConfigCheck(ctx context.Context, cmd *base.Command, args []string) error {
-	filename, err := ui.FileSelector(
-		"Input a config file name to check",
-		"Enter the config file name.  It must exist and be a regular file.",
-		ui.WithMustExist(true),
-	)
+	fp := ui.NewFilePicker("Select a config file to check", ".", "yaml", "yml")
+	ret, err := tea.NewProgram(fp).Run()
 	if err != nil {
 		return err
 	}
+	fp = ret.(ui.FileSystemModel)
 
-	return runConfigCheck(ctx, cmd, []string{filename})
+	return runConfigCheck(ctx, cmd, []string{fp.SelectedFile})
 }
