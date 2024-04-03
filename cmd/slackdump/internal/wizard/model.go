@@ -10,8 +10,9 @@ import (
 )
 
 type model struct {
-	form *huh.Form
-	val  string
+	form     *huh.Form
+	val      string
+	finished bool
 }
 
 const kSelection = "selection" // selection key
@@ -47,6 +48,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "esc", "ctrl+c", "q":
+			m.finished = true
 			return m, tea.Quit
 		}
 	}
@@ -67,6 +69,9 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *model) View() string {
+	if m.finished {
+		return ""
+	}
 	return m.form.View()
 }
 

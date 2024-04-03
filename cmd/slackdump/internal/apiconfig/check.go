@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
-	"github.com/rusq/slackdump/v3/internal/ui"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui"
 )
 
 var CmdConfigCheck = &base.Command{

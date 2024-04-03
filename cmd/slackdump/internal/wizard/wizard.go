@@ -136,6 +136,9 @@ var (
 )
 
 func run(m *menu, choice string, onMatch func(cmd *base.Command) error) error {
+	if choice == "" {
+		return errBack
+	}
 	for _, mi := range m.items {
 		if choice != mi.Name {
 			continue
