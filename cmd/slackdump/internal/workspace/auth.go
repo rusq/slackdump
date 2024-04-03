@@ -61,6 +61,7 @@ type manager interface {
 	Exists(name string) bool
 	FileInfo(name string) (os.FileInfo, error)
 	List() ([]string, error)
+	LoadProvider(name string) (auth.Provider, error)
 }
 
 // argsWorkspace checks if the current workspace override is set, and returns it

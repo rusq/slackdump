@@ -27,6 +27,7 @@ To get the full list of authenticated workspaces, run:
 `,
 	FlagMask:   flagmask,
 	PrintFlags: true,
+	Wizard:     wizSelect,
 }
 
 func init() {
