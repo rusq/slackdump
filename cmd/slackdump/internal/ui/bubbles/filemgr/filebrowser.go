@@ -13,13 +13,14 @@ import (
 )
 
 type Model struct {
-	Glob      string
+	Globs     []string
 	Selected  string
 	Directory string
+	Height    int
+	ShowHelp  bool
+	Style     Style
 	files     []fs.FileInfo
 	finished  bool
-	Style     Style
-	Height    int
 	st        state
 	viewStack stack[state]
 
@@ -27,14 +28,21 @@ type Model struct {
 	last  string // last key pressed
 }
 
-func NewModel(glob string, dir string) Model {
+type Style struct {
+	Normal    lipgloss.Style
+	Directory lipgloss.Style
+	Inverted  lipgloss.Style
+}
+
+func NewModel(dir string, height int, globs ...string) Model {
 	return Model{
-		Glob:      glob,
+		Globs:     globs,
 		Directory: dir,
-		Height:    24,
+		Height:    height,
 		Style: Style{
-			Normal:   lipgloss.NewStyle().Foreground(lipgloss.Color("7")),
-			Inverted: lipgloss.NewStyle().Foreground(lipgloss.Color("7")).Background(lipgloss.Color("240")),
+			Normal:    lipgloss.NewStyle().Foreground(lipgloss.Color("7")),
+			Directory: lipgloss.NewStyle().Foreground(lipgloss.Color("7")),
+			Inverted:  lipgloss.NewStyle().Foreground(lipgloss.Color("7")).Background(lipgloss.Color("240")),
 		},
 	}
 }
@@ -68,11 +76,6 @@ func (s stack[T]) Peek() T {
 	return s[len(s)-1]
 }
 
-type Style struct {
-	Normal   lipgloss.Style
-	Inverted lipgloss.Style
-}
-
 type wmReadDir struct {
 	dir   string
 	files []fs.FileInfo
@@ -84,23 +87,36 @@ func (m Model) Init() tea.Cmd {
 		if err != nil {
 			return err
 		}
-		entries, err := fs.Glob(os.DirFS(m.Directory), m.Glob)
+		files, err := collectFiles(m.Directory, m.Globs...)
 		if err != nil {
 			return err
 		}
-		var files []fs.FileInfo
-		for _, f := range entries {
-			fi, err := fs.Stat(os.DirFS(m.Directory), f)
-			if err != nil {
-				return err
-			}
-			if fi.IsDir() { //skipping dirs, they are already in dirs
-				continue
-			}
-			files = append(files, fi)
-		}
-		return wmReadDir{m.Directory, append(dirs, files...)}
+		return wmReadDir{m.Directory, append(files, dirs...)}
 	}
+}
+
+func collectFiles(dir string, globs ...string) (files []fs.FileInfo, err error) {
+	err = fs.WalkDir(os.DirFS(dir), ".", func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() && path != "." {
+			return fs.SkipDir
+		}
+		for _, glob := range globs {
+			if ok, err := filepath.Match(glob, d.Name()); err != nil {
+				return err
+			} else if ok {
+				fi, err := d.Info()
+				if err != nil {
+					return err
+				}
+				files = append(files, fi)
+			}
+		}
+		return nil
+	})
+	return
 }
 
 func collectDirs(dir string) ([]fs.FileInfo, error) {
@@ -118,13 +134,22 @@ func collectDirs(dir string) ([]fs.FileInfo, error) {
 				return err
 			}
 			dirs = append(dirs, dir)
+			return fs.SkipDir
 		}
 		return nil
 	})
 	return dirs, err
 }
 
+func (m Model) height() int {
+	if m.ShowHelp {
+		return m.Height - 2
+	}
+	return m.Height
+}
+
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
+	var cmds []tea.Cmd
 	switch msg := msg.(type) {
 	case error:
 		log.Printf("error: %v", msg)
@@ -135,7 +160,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		case "ctrl+c", "q":
 			m.finished = true
 			return m, tea.Quit
-		case "up", "ctrl+p":
+		case "up", "ctrl+p", "k":
 			if m.st.cursor > 0 {
 				m.st.cursor--
 			}
@@ -143,7 +168,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				m.st.min--
 				m.st.max--
 			}
-		case "down", "ctrl+n":
+		case "down", "ctrl+n", "j":
 			if m.st.cursor < len(m.files)-1 {
 				m.st.cursor++
 			}
@@ -151,31 +176,31 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				m.st.min++
 				m.st.max++
 			}
-		case "right", "pgdown", "ctrl+v":
-			m.st.cursor += m.Height
+		case "right", "pgdown", "ctrl+v", "ctrl+f":
+			m.st.cursor += m.height()
 			if m.st.cursor > len(m.files)-1 {
 				m.st.cursor = len(m.files) - 1
 			}
-			m.st.min += m.Height
-			m.st.max += m.Height
+			m.st.min += m.height()
+			m.st.max += m.height()
 			if m.st.max >= len(m.files) {
 				m.st.max = len(m.files) - 1
-				m.st.min = m.st.max - (m.Height - 1)
+				m.st.min = m.st.max - (m.height() - 1)
 			}
-		case "left", "pgup", "alt+v":
-			m.st.cursor -= m.Height
+		case "left", "pgup", "alt+v", "ctrl+b":
+			m.st.cursor -= m.height()
 			if m.st.cursor < 0 {
 				m.st.cursor = 0
 			}
-			m.st.min -= m.Height
-			m.st.max -= m.Height
+			m.st.min -= m.height()
+			m.st.max -= m.height()
 			if m.st.min < 0 {
 				m.st.min = 0
-				m.st.max = m.Height - 1
+				m.st.max = m.height() - 1
 			}
 		case "ctrl+r":
 			return m, tea.Batch(m.Init())
-		case "enter", "ctrl+f":
+		case "enter", "ctrl+m":
 			if len(m.files) == 0 {
 				break
 			}
@@ -185,9 +210,8 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				m.st = state{}
 				return m, tea.Batch(m.Init())
 			}
-			m.Selected = filepath.Join(m.Directory, m.files[m.st.cursor].Name())
-			return m, selectedCmd(m.Selected)
-		case "backspace", "ctrl+b":
+			cmds = append(cmds, selectedCmd(m.Directory, m.files[m.st.cursor]))
+		case "backspace", "ctrl+h":
 			if m.viewStack.Len() > 0 {
 				m.st = m.viewStack.Pop()
 				m.Directory = filepath.Dir(m.Directory)
@@ -196,20 +220,24 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		}
 	case wmReadDir:
 		m.files = msg.files
-		m.st.max = max(m.st.max, m.Height-1)
+		m.st.max = max(m.st.max, m.height()-1)
 	}
 
-	return m, nil
+	return m, tea.Batch(cmds...)
 }
 
-func selectedCmd(s string) tea.Cmd {
+func selectedCmd(dir string, fi fs.FileInfo) tea.Cmd {
 	return func() tea.Msg {
-		return WMSelected{s}
+		return WMSelected{
+			Filepath: filepath.Join(dir, fi.Name()),
+			IsDir:    fi.IsDir(),
+		}
 	}
 }
 
 type WMSelected struct {
 	Filepath string
+	IsDir    bool
 }
 
 // humanizeSize returns a human-readable string representing a file size.
@@ -237,7 +265,7 @@ func humanizeSize(size int64) string {
 	}
 }
 
-const width = 40
+const Width = 40
 
 func printFile(fi fs.FileInfo) string {
 	// filename.extension  <DIR>  02-01-2006 15:04
@@ -246,7 +274,7 @@ func printFile(fi fs.FileInfo) string {
 		dirMarker  = "<DIR>"
 		filesizeSz = 6
 		dttmSz     = len(dttmLayout)
-		filenameSz = width - filesizeSz - dttmSz - 3
+		filenameSz = Width - filesizeSz - dttmSz - 3
 	)
 
 	var sz = dirMarker
@@ -275,7 +303,7 @@ func (m Model) View() string {
 		fmt.Fprintf(&buf, "last: %q\n", m.last)
 		fmt.Fprintf(&buf, "dir: %q\n", m.Directory)
 		fmt.Fprintf(&buf, "selected: %q\n", m.Selected)
-		for i := range width {
+		for i := range Width {
 			if i%10 == 0 {
 				buf.WriteByte('|')
 			} else {
@@ -284,24 +312,32 @@ func (m Model) View() string {
 		}
 		fmt.Fprintln(&buf)
 	}
-
-	for i, file := range m.files {
-		if i < m.st.min || i > m.st.max {
-			continue
+	if len(m.files) == 0 {
+		buf.WriteString(m.Style.Normal.Render("No files found, press [Backspace]") + "\n")
+		for i := 0; i < m.height()-1; i++ {
+			fmt.Fprintln(&buf, m.Style.Normal.Render(strings.Repeat(" ", Width-1))) //padding
 		}
-		style := m.Style.Normal
-		if i == m.st.cursor {
-			style = m.Style.Inverted
+	} else {
+		for i, file := range m.files {
+			if i < m.st.min || i > m.st.max {
+				continue
+			}
+			style := m.Style.Normal
+			if file.IsDir() {
+				style = m.Style.Directory
+			}
+			if i == m.st.cursor {
+				style = m.Style.Inverted
+			}
+			fmt.Fprintln(&buf, style.Render(printFile(file)))
 		}
-		fmt.Fprintln(&buf, style.Render(printFile(file)))
+		numDisplayed := min(len(m.files), m.st.max-m.st.min+1)
+		for i := 0; i < m.height()-numDisplayed; i++ {
+			fmt.Fprintln(&buf, m.Style.Normal.Render(strings.Repeat(" ", Width-1)))
+		}
 	}
-	buf.WriteString("\n ↑ ↓ move, [Return] select, [q] quit\n")
+	if m.ShowHelp {
+		buf.WriteString("\n ↑ ↓ move・[⏎] select・[⇤] back・[q] quit\n")
+	}
 	return buf.String()
-}
-
-func max[T ~int](a, b T) T {
-	if a > b {
-		return a
-	}
-	return b
 }

@@ -29,8 +29,8 @@ Config command allows to perform different operations on the API limits
 configuration file.
 `,
 	Commands: []*base.Command{
-		CmdConfigNew,
 		CmdConfigCheck,
+		CmdConfigNew,
 	},
 }
 

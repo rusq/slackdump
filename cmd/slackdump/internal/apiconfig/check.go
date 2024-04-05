@@ -4,10 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
+	"os"
 
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/bubbles/filemgr"
 )
@@ -40,68 +42,42 @@ func runConfigCheck(ctx context.Context, cmd *base.Command, args []string) error
 		return errors.New("config filename must be specified")
 	}
 	filename := args[0]
-	if _, err := Load(filename); err != nil {
+	if err := checkFile(filename); err != nil {
 		base.SetExitStatus(base.SUserError)
-		return fmt.Errorf("config file %q not OK: %s", filename, err)
+		return err
 	}
 	fmt.Printf("Config file %q: OK\n", filename)
 	return nil
 }
 
-func wizConfigCheck(ctx context.Context, cmd *base.Command, args []string) error {
-	f := filemgr.NewModel("*.yaml", ".")
-	f.Height = 8
-	m := checkerModel{
-		files: f,
-		view:  viewport.New(40, f.Height+2),
+func checkFile(filename string) error {
+	if _, err := Load(filename); err != nil {
+		return fmt.Errorf("config file %q not OK: %s", filename, err)
 	}
-	_, err := tea.NewProgram(m).Run()
-	if err != nil {
-		return err
-	}
-
-	// return runConfigCheck(ctx, cmd, []string{fp.files})
 	return nil
 }
 
-type checkerModel struct {
-	files     filemgr.Model
-	view      viewport.Model
-	finishing bool
-}
-
-func (m checkerModel) Init() tea.Cmd {
-	return tea.Batch(m.files.Init(), m.view.Init())
-}
-
-func (m checkerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		switch msg.String() {
-		case "ctrl+c", "q":
-			m.finishing = true
-			return m, tea.Quit
-		}
+func wizConfigCheck(ctx context.Context, cmd *base.Command, args []string) error {
+	f := filemgr.NewModel(".", 15, "*.yaml", "*.yml")
+	f.ShowHelp = true
+	f.Debug = os.Getenv("DEBUG") != ""
+	f.Style = filemgr.Style{
+		Normal:    cfg.Theme.Focused.File,
+		Directory: cfg.Theme.Focused.Directory,
+		Inverted: lipgloss.NewStyle().
+			Foreground(cfg.Theme.Focused.FocusedButton.GetForeground()).
+			Background(cfg.Theme.Focused.FocusedButton.GetBackground()),
+	}
+	vp := viewport.New(80-filemgr.Width, f.Height)
+	vp.Style = lipgloss.NewStyle().Border(lipgloss.DoubleBorder(), true).Margin(0, 2)
+	m := checkerModel{
+		files: f,
+		view:  vp,
 	}
 
-	var cmds []tea.Cmd
-	var cmd tea.Cmd
-	m.files, cmd = m.files.Update(msg)
-	if cmd != nil {
-		cmds = append(cmds, cmd)
+	if _, err := tea.NewProgram(m).Run(); err != nil {
+		return err
 	}
-	m.view, cmd = m.view.Update(msg)
-	if cmd != nil {
-		cmds = append(cmds, cmd)
-	}
-	return m, tea.Batch(cmds...)
-}
 
-func (m checkerModel) View() string {
-	if m.finishing {
-		return ""
-	}
-	var buf strings.Builder
-	fmt.Fprintf(&buf, "%s\n%s", m.view.View(), m.files.View())
-	return buf.String()
+	return nil
 }
