@@ -1,6 +1,8 @@
 package apiconfig
 
 import (
+	"strings"
+
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -55,10 +57,15 @@ func (m checkerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m checkerModel) View() string {
+	const crlf = "\r\n"
 	if m.finishing {
 		return ""
 	}
-	return lipgloss.JoinHorizontal(lipgloss.Top, m.files.View(), m.view.View())
+	var buf strings.Builder
+	buf.WriteString(strings.Repeat("⎯", m.width) + crlf)
+	buf.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, m.files.View(), m.view.View()) + crlf)
+	buf.WriteString(strings.Repeat("⎯", m.width))
+	return buf.String()
 }
 
 type wmSetText struct {

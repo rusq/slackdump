@@ -79,6 +79,7 @@ RESTART:
 	if err != nil {
 		return err
 	}
+	filename = maybeFixExt(filename)
 	if err := Save(filename, network.DefLimits); err != nil {
 		fmt.Printf("Error: %s, please retry\n", err)
 		trace.Logf(ctx, "error", "error saving file to %q: %s, survey restarted", filename, err)

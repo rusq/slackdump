@@ -70,6 +70,7 @@ func wizConfigCheck(ctx context.Context, cmd *base.Command, args []string) error
 	}
 	vp := viewport.New(80-filemgr.Width, f.Height)
 	vp.Style = lipgloss.NewStyle().Border(lipgloss.DoubleBorder(), true).Margin(0, 2)
+	vp.SetContent("Select a config file to check and press [Enter].")
 	m := checkerModel{
 		files: f,
 		view:  vp,
