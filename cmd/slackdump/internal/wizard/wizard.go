@@ -10,6 +10,7 @@ import (
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/bootstrap"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 )
 
@@ -20,7 +21,7 @@ var CmdWizard = &base.Command{
 	Long: `
 Slackdump Wizard guides through the dumping process.
 `,
-	RequireAuth: true,
+	RequireAuth: false,
 }
 
 var titlecase = cases.Title(language.English)
@@ -55,7 +56,17 @@ func runWizard(ctx context.Context, cmd *base.Command, args []string) error {
 
 	menu := makeMenu(baseCommands, "", "What would you like to do?")
 	if err := show(menu, func(cmd *base.Command) error {
-		return cmd.Wizard(ctx, cmd, args)
+		var cmdCtx context.Context
+		if cmd.RequireAuth {
+			var err error
+			ctx, err = bootstrap.CurrentProviderCtx(ctx)
+			if err != nil {
+				return err
+			}
+		} else {
+			cmdCtx = ctx
+		}
+		return cmd.Wizard(cmdCtx, cmd, args)
 	}); err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return fmt.Errorf("error running wizard: %s", err)
@@ -103,9 +114,9 @@ func makeMenu(cmds []*base.Command, parent string, title string) (m *menu) {
 
 		m.Add(item)
 	}
-	if parent == "" {
-		m.Add(miExit)
-	} else {
+	if parent != "" {
+		// m.Add(miExit)
+		// } else {
 		m.Add(miBack)
 	}
 	return

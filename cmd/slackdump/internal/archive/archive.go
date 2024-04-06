@@ -21,8 +21,8 @@ import (
 //go:embed assets/archive.md
 var mdArchive string
 
-var CmdRecord = &base.Command{
-	Run:         RunRecord,
+var CmdArchive = &base.Command{
+	Run:         RunArchive,
 	UsageLine:   "slackdump archive [flags] [link1[ link 2[ link N]]]",
 	Short:       "archive the workspace or individual conversations on disk",
 	Long:        mdArchive,
@@ -44,7 +44,7 @@ var (
 	errNoOutput = errors.New("output directory is required")
 )
 
-func RunRecord(ctx context.Context, cmd *base.Command, args []string) error {
+func RunArchive(ctx context.Context, cmd *base.Command, args []string) error {
 	list, err := structures.NewEntityList(args)
 	if err != nil {
 		base.SetExitStatus(base.SUserError)
