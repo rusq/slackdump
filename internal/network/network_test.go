@@ -122,7 +122,7 @@ func Test_withRetry(t *testing.T) {
 			true,
 			calcRunDuration(testRateLimit, 2),
 		},
-		{"rate limiter test 4 lmited attempts, 100 ms each",
+		{"rate limiter test 4 limited attempts, 100 ms each",
 			args{
 				context.Background(),
 				rate.NewLimiter(10.0, 1),
@@ -283,11 +283,12 @@ func Test_cubicWait(t *testing.T) {
 		args args
 		want time.Duration
 	}{
-		{"attempt 0", args{0}, 8 * time.Second},
-		{"attempt 1", args{1}, 27 * time.Second},
-		{"attempt 2", args{2}, 64 * time.Second},
-		{"attempt 2", args{4}, 216 * time.Second},
-		{"attempt 100", args{5}, maxAllowedWaitTime}, // check if capped properly
+		{"attempt 0", args{0}, 1 * time.Second},
+		{"attempt 1", args{1}, 8 * time.Second},
+		{"attempt 2", args{2}, 27 * time.Second},
+		{"attempt 4", args{4}, 125 * time.Second},
+		{"attempt 5", args{5}, 216 * time.Second},
+		{"attempt 6", args{6}, maxAllowedWaitTime}, // check if capped properly
 		{"attempt 100", args{1000}, maxAllowedWaitTime},
 	}
 	for _, tt := range tests {
