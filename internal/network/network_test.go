@@ -122,7 +122,7 @@ func Test_withRetry(t *testing.T) {
 			true,
 			calcRunDuration(testRateLimit, 2),
 		},
-		{"rate limiter test 4 lmited attempts, 100 ms each",
+		{"rate limiter test 4 limited attempts, 100 ms each",
 			args{
 				context.Background(),
 				rate.NewLimiter(10.0, 1),
