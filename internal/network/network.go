@@ -38,7 +38,22 @@ var (
 
 // ErrRetryFailed is returned if number of retry attempts exceeded the retry attempts limit and
 // function wasn't able to complete without errors.
-var ErrRetryFailed = errors.New("callback was unable to complete without errors within the allowed number of retries")
+type ErrRetryFailed struct {
+	Err error
+}
+
+func (e *ErrRetryFailed) Error() string {
+	return fmt.Sprintf("callback was unable to complete without errors within the allowed number of retries: %s", e.Err)
+}
+
+func (e *ErrRetryFailed) Unwrap() error {
+	return e.Err
+}
+
+func (e *ErrRetryFailed) Is(target error) bool {
+	_, ok := target.(*ErrRetryFailed)
+	return ok
+}
 
 // WithRetry will run the callback function fn. If the function returns
 // slack.RateLimitedError, it will delay, and then call it again up to
@@ -49,6 +64,8 @@ func WithRetry(ctx context.Context, lim *rate.Limiter, maxAttempts int, fn func(
 	if maxAttempts == 0 {
 		maxAttempts = defNumAttempts
 	}
+
+	var lastErr error
 	for attempt := 0; attempt < maxAttempts; attempt++ {
 		// calling wait to ensure that we don't exceed the rate limit
 		var err error
@@ -65,6 +82,7 @@ func WithRetry(ctx context.Context, lim *rate.Limiter, maxAttempts int, fn func(
 			ok = true
 			break
 		}
+		lastErr = cbErr
 
 		tracelogf(ctx, "error", "WithRetry: %[1]s (%[1]T) after %[2]d attempts", cbErr, attempt+1)
 		var (
@@ -74,14 +92,14 @@ func WithRetry(ctx context.Context, lim *rate.Limiter, maxAttempts int, fn func(
 		)
 		switch {
 		case errors.As(cbErr, &rle):
-			tracelogf(ctx, "info", "got rate limited, sleeping %s", rle.RetryAfter)
+			tracelogf(ctx, "info", "got rate limited, sleeping %s (%s)", rle.RetryAfter, cbErr)
 			time.Sleep(rle.RetryAfter)
 			continue
 		case errors.As(cbErr, &sce):
 			if isRecoverable(sce.Code) {
 				// possibly transient error
 				delay := waitFn(attempt)
-				tracelogf(ctx, "info", "got server error %d, sleeping %s", sce.Code, delay)
+				tracelogf(ctx, "info", "got server error %d, sleeping %s (%s)", sce.Code, delay, cbErr)
 				time.Sleep(delay)
 				continue
 			}
@@ -89,7 +107,7 @@ func WithRetry(ctx context.Context, lim *rate.Limiter, maxAttempts int, fn func(
 			if ne.Op == "read" || ne.Op == "write" {
 				// possibly transient error
 				delay := netWaitFn(attempt)
-				tracelogf(ctx, "info", "got network error %s, sleeping %s", ne.Op, delay)
+				tracelogf(ctx, "info", "got network error %s on %q, sleeping %s", cbErr, ne.Op, delay)
 				time.Sleep(delay)
 				continue
 			}
@@ -98,7 +116,7 @@ func WithRetry(ctx context.Context, lim *rate.Limiter, maxAttempts int, fn func(
 		return fmt.Errorf("callback error: %w", cbErr)
 	}
 	if !ok {
-		return ErrRetryFailed
+		return &ErrRetryFailed{Err: lastErr}
 	}
 	return nil
 }
@@ -112,7 +130,7 @@ func isRecoverable(statusCode int) bool {
 // where x is the current attempt number. The maximum wait time is capped at 5
 // minutes.
 func cubicWait(attempt int) time.Duration {
-	x := attempt + 2 // this is to ensure that we sleep at least 8 seconds.
+	x := attempt + 1 // this is to ensure that we sleep at least a second.
 	delay := time.Duration(x*x*x) * time.Second
 	if delay > maxAllowedWaitTime {
 		return maxAllowedWaitTime
