@@ -54,3 +54,5 @@ dist/
 /tmp
 *.dot
 *.gz
+
+*.html

@@ -14,7 +14,6 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/rusq/slackdump/v2"
-	"github.com/rusq/slackdump/v2/internal/network"
 	"github.com/rusq/slackdump/v2/internal/structures"
 	"github.com/rusq/slackdump/v2/internal/structures/files/dl"
 	"github.com/rusq/slackdump/v2/logger"
@@ -38,7 +37,6 @@ func New(sd *slackdump.Session, fs fsadapter.FS, cfg Options) *Export {
 	if cfg.Logger == nil {
 		cfg.Logger = logger.Default
 	}
-	network.SetLogger(cfg.Logger)
 
 	se := &Export{
 		fs:   fs,
