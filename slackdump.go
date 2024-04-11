@@ -107,8 +107,6 @@ func NewWithOptions(ctx context.Context, authProvider auth.Provider, opts Option
 		fs:      fsadapter.NewDirectory("."), // default is to save attachments to the current directory.
 	}
 
-	network.SetLogger(sd.l())
-
 	if err := os.MkdirAll(opts.CacheDir, 0700); err != nil {
 		return nil, fmt.Errorf("failed to create the cache directory: %s", err)
 	}
