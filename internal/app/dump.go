@@ -88,9 +88,9 @@ func (app *dump) Dump(ctx context.Context) (int, error) {
 	}
 
 	total := 0
-	if err := app.cfg.Input.Producer(func(channelID string) error {
-		if err := app.dumpOne(ctx, fs, tmpl, channelID, app.sess.Dump); err != nil {
-			app.log.Printf("error processing: %q (conversation will be skipped): %s", channelID, err)
+	if err := app.cfg.Input.Producer(func(channelItem *structures.EntityItem) error {
+		if err := app.dumpOne(ctx, fs, tmpl, channelItem, app.sess.Dump); err != nil {
+			app.log.Printf("error processing: %q (conversation will be skipped): %s", channelItem.Id, err)
 			return config.ErrSkip
 		}
 		total++
@@ -116,8 +116,19 @@ func renderFilename(tmpl *template.Template, c *types.Conversation) string {
 
 // dumpOneChannel dumps just one channel specified by channelInput.  If
 // generateText is true, it will also generate a ID.txt text file.
-func (app *dump) dumpOne(ctx context.Context, fs fsadapter.FS, filetmpl *template.Template, channelInput string, fn dumpFunc) error {
-	cnv, err := fn(ctx, channelInput, time.Time(app.cfg.Oldest), time.Time(app.cfg.Latest))
+func (app *dump) dumpOne(ctx context.Context, fs fsadapter.FS, filetmpl *template.Template, channelItem *structures.EntityItem, fn dumpFunc) error {
+
+	eOldest := time.Time(app.cfg.Oldest)
+	eLatest := time.Time(app.cfg.Latest)
+
+	if !channelItem.Oldest.IsZero() {
+		eOldest = channelItem.Oldest
+	}
+	if !channelItem.Latest.IsZero() {
+		eLatest = channelItem.Latest
+	}
+
+	cnv, err := fn(ctx, channelItem.Id, eOldest, eLatest)
 	if err != nil {
 		return err
 	}

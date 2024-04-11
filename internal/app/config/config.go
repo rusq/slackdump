@@ -73,16 +73,18 @@ func (in *Input) IsValid() bool {
 
 // listProducer iterates over the input.List.Include, and calls fn for each
 // entry.
-func (in *Input) listProducer(fn func(string) error) error {
+func (in *Input) listProducer(fn func(*structures.EntityItem) error) error {
 	if !in.List.HasIncludes() {
 		return ErrInvalidInput
 	}
-	for _, entry := range in.List.Include {
-		if err := fn(entry); err != nil {
-			if errors.Is(err, ErrSkip) {
-				continue
+	for _, entry := range in.List.Index() {
+		if entry.Include {
+			if err := fn(entry); err != nil {
+				if errors.Is(err, ErrSkip) {
+					continue
+				}
+				return err
 			}
-			return err
 		}
 	}
 	return nil
@@ -192,7 +194,7 @@ func (p *Params) compileValidateTemplate() error {
 
 // Producer iterates over the list or reads the list from the file and calls
 // fn for each entry.
-func (in Input) Producer(fn func(string) error) error {
+func (in Input) Producer(fn func(*structures.EntityItem) error) error {
 	if !in.IsValid() {
 		return ErrInvalidInput
 	}

@@ -20,7 +20,10 @@ ZIPFILES=$(foreach s,$(OSES),$(OUTPUT)-$s.zip)
 $(OUTPUT)-windows.zip: EXECUTABLE=$(OUTPUT).exe
 
 $(foreach s,$(OSES),$(eval $(OUTPUT)-$s.zip: GOOS=$s))
-$(foreach s,$(OSES),$(eval $(OUTPUT)-$s.zip: $(EXECUTABLE)))
+$(foreach s,$(OSES),$(eval $(OUTPUT)-$s.zip: $(OUTPUT)))
+
+$(foreach s,$(OSES),$(eval $(OUTPUT)-$s: GOOS=$s))
+$(foreach s,$(OSES),$(eval $(OUTPUT)-$s: $(OUTPUT)))
 
 
 all: $(EXECUTABLE)
