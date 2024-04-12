@@ -405,7 +405,8 @@ func TestExport_exportConversation(t *testing.T) {
 						Return(tt.mocks.rets.closeErr)
 				}
 			}
-			if err := exp.exportConversation(context.Background(), testUserIdx, tt.args.ch); (err != nil) != tt.wantErr {
+			exportItem := &structures.EntityItem{Id: tt.args.ch.ID}
+			if err := exp.exportConversation(context.Background(), testUserIdx, tt.args.ch, exportItem); (err != nil) != tt.wantErr {
 				t.Errorf("Export.exportConversation() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

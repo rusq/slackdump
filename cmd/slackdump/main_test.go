@@ -47,6 +47,7 @@ func Test_checkParameters(t *testing.T) {
 	slackdump.DefOptions.CacheDir = app.CacheDir()
 
 	// test
+	emptyEntityList, _ := structures.NewEntityList([]string{})
 	type args struct {
 		args []string
 	}
@@ -72,7 +73,7 @@ func Test_checkParameters(t *testing.T) {
 					},
 					FilenameTemplate: defFilenameTemplate,
 
-					Input:   config.Input{List: &structures.EntityList{}},
+					Input:   config.Input{List: emptyEntityList},
 					Output:  config.Output{Filename: "-", Format: "text"},
 					Options: slackdump.DefOptions,
 				}},
@@ -93,7 +94,7 @@ func Test_checkParameters(t *testing.T) {
 						Users:    true,
 					},
 					FilenameTemplate: defFilenameTemplate,
-					Input:            config.Input{List: &structures.EntityList{}},
+					Input:            config.Input{List: emptyEntityList},
 					Output:           config.Output{Filename: "-", Format: "text"},
 					Options:          slackdump.DefOptions,
 				}},
