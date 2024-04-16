@@ -9,9 +9,9 @@ import (
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/rusq/rbubbles/filemgr"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/bubbles/filemgr"
 )
 
 var CmdConfigCheck = &base.Command{
@@ -58,9 +58,9 @@ func checkFile(filename string) error {
 }
 
 func wizConfigCheck(ctx context.Context, cmd *base.Command, args []string) error {
-	f := filemgr.NewModel(".", 15, "*.yaml", "*.yml")
+	f := filemgr.New(os.DirFS("."), ".", 15, "*.yaml", "*.yml")
+	f.Focus()
 	f.ShowHelp = true
-	f.Debug = os.Getenv("DEBUG") != ""
 	f.Style = filemgr.Style{
 		Normal:    cfg.Theme.Focused.File,
 		Directory: cfg.Theme.Focused.Directory,
@@ -72,8 +72,10 @@ func wizConfigCheck(ctx context.Context, cmd *base.Command, args []string) error
 	vp.Style = lipgloss.NewStyle().Border(lipgloss.DoubleBorder(), true).Margin(0, 2)
 	vp.SetContent("Select a config file to check and press [Enter].")
 	m := checkerModel{
-		files: f,
-		view:  vp,
+		files:      f,
+		view:       vp,
+		BorderSel:  cfg.Theme.Focused.FocusedButton.GetBackground(), // TODO: I DONT LIKE THIS!
+		BorderBlur: cfg.Theme.Focused.Directory.GetForeground(),     // TODO: AND THIS TOO, THIS MUST GO!  but ok for now.
 	}
 
 	if _, err := tea.NewProgram(m).Run(); err != nil {

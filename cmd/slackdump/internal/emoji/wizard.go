@@ -4,11 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/charmbracelet/lipgloss"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/bubbles/status"
 )
 
 func wizard(ctx context.Context, cmd *base.Command, args []string) error {
@@ -32,17 +30,4 @@ func wizard(ctx context.Context, cmd *base.Command, args []string) error {
 		return err
 	}
 	return run(ctx, cmd, args)
-}
-
-type model struct {
-	s status.Model
-}
-
-func newModel() *model {
-	style := lipgloss.NewStyle().Border(lipgloss.RoundedBorder(), true)
-	return &model{
-		s: status.New(2, style, []status.Parameter{
-			{Name: "Output", Value: cfg.Output},
-		}),
-	}
 }
