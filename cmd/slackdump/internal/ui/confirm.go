@@ -5,11 +5,15 @@ import (
 )
 
 func Confirm(msg string, _ bool, opt ...Option) (bool, error) {
-	var opts = defaultOpts().apply(opt...)
-
 	var b bool
-	if err := huh.NewConfirm().Title(msg).Description(opts.help).Value(&b).Run(); err != nil {
+	if err := FieldConfirm(&b, msg, false, opt...).Run(); err != nil {
 		return false, err
 	}
 	return b, nil
+}
+
+func FieldConfirm(b *bool, msg string, _ bool, opt ...Option) huh.Field {
+	var opts = defaultOpts().apply(opt...)
+	f := huh.NewConfirm().Title(msg).Description(opts.help).Value(b)
+	return f
 }
