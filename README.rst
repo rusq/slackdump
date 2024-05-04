@@ -2,25 +2,29 @@
 Slack Dumper
 ============
 
-Purpose: Archive Slack messages, users, files and emojis using browser token
-and cookie.
-
-
-- `Buy me a cup of tea`_
-- Join the discussion in Telegram_ or Slack_.
-- `Read the overview on Medium.com`_
-- |go ref|
-- `Mattermost migration`_ steps
-.. contents::
-   :depth: 2
+Purpose:  archive your private and public Slack messages, users, channels,
+files and emojis.  Generate Slack Export without admin privileges.
 
 |screenshot|
 
+**Quick links**:
+
+- Join the discussion in Telegram_.
+- `Buy me a cup of tea`_, or use **Github Sponsors** button on the top of the
+  page.
+- Reference documentation: |go ref|
+- How to's:
+
+  - `Mattermost migration`_ steps
+  - `SlackLogViewerとSlackdumpを一緒に使用する`_
+  - `Step by Step guide by Viviana Marquez`_ (requires Medium subscription)
+  - `Overview on Medium.com`_  (outdated)
+
+.. contents::
+   :depth: 2
+
 Description
 ===========
-
-Purpose: dump Slack messages, users, files and emojis using browser token and
-cookie.
 
 Typical use scenarios:
 
@@ -32,7 +36,7 @@ Typical use scenarios:
 * create a Slack Export archive without admin access, or
 * save your favourite emojis.
 
-There a three modes of operation (more on this in `User Guide`_) :
+There are four modes of operation (more on this in `User Guide`_) :
 
 #. List users/channels
 #. Dumping messages and threads
@@ -102,7 +106,7 @@ Download:
 
 .. code:: go
 
-  go get github.com/rusq/slackdump/v3
+  go get github.com/rusq/slackdump/v2
 
 
 Example
@@ -115,8 +119,8 @@ Example
     "context"
     "log"
 
-    "github.com/rusq/slackdump/v3"
-    "github.com/rusq/slackdump/v3/auth"
+    "github.com/rusq/slackdump/v2"
+    "github.com/rusq/slackdump/v2/auth"
   )
 
   func main() {
@@ -130,7 +134,6 @@ Example
         log.Print(err)
         return
     }
-    defer sd.Close()
     _ = sd
   }
 
@@ -163,7 +166,6 @@ Good news is logrus_ can be plugged in straight away, as it implements the
         return
     }
   }
-  defer sd.Close()
 
 
 Glog and others
@@ -231,11 +233,9 @@ Messages that were conveyed with the donations:
   they owe to their employees.
 
 
-.. _`Buy me a cup of tea`: https://www.paypal.com/donate/?hosted_button_id=GUHCLSM7E54ZW
+.. _`Buy me a cup of tea`: https://ko-fi.com/rusq_
 .. _Telegram: https://t.me/slackdump
-.. _Slack: https://slackdump.herokuapp.com/
-.. _`Read the overview on Medium.com`: https://medium.com/@gilyazov/downloading-your-private-slack-conversations-52e50428b3c2
-.. _`Go templating`: https://pkg.go.dev/html/template
+.. _`Overview on Medium.com`: https://medium.com/@gilyazov/downloading-your-private-slack-conversations-52e50428b3c2
 .. _User Guide: doc/README.rst
 .. _Dumping Conversations: doc/usage-channels.rst
 .. _Mattermost migration: doc/usage-export.rst
@@ -250,15 +250,17 @@ Messages that were conveyed with the donations:
 .. _Slackord2: https://github.com/thomasloupe/Slackord2
 .. _SlackLogViewer: https://github.com/thayakawa-gh/SlackLogViewer/releases
 .. _Slackdump2Html: https://github.com/kununu/slackdump2html
+.. _`Step by Step guide by Viviana Marquez`: https://vivianamarquez.medium.com/a-step-by-step-guide-to-downloading-slack-messages-without-admin-rights-954f20397e83
+.. _`SlackLogViewerとSlackdumpを一緒に使用する`: https://kenkyu-note.hatenablog.com/entry/2022/09/02/090949
 
 ..
   bulletin board links
 
 .. _`TheSignChef.com`: https://www.glassdoor.com.au/Reviews/TheSignChef-com-Reviews-E793259.htm
 
-.. |go ref| image:: https://pkg.go.dev/badge/github.com/rusq/slackdump/v3.svg
+.. |go ref| image:: https://pkg.go.dev/badge/github.com/rusq/slackdump/v2.svg
               :alt: Go Reference
-           :target: https://pkg.go.dev/github.com/rusq/slackdump/v3/
+           :target: https://pkg.go.dev/github.com/rusq/slackdump/v2/
 
 .. |screenshot| image:: doc/slackdump.webp
                :target: https://github.com/rusq/slackdump/releases/
