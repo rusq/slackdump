@@ -19,7 +19,7 @@ TOKEN
 #. Switch to the console tab.
 #. Paste the following snippet and press ENTER to execute::
 
-     JSON.parse(localStorage.localConfig_v2).teams[document.location.pathname.match(/^\/client\/(T[A-Z0-9]+)/)[1]].token
+     JSON.parse(localStorage.localConfig_v2).teams[document.location.pathname.match(/^\/client\/([A-Z0-9]+)/)[1]].token
 
 #. Token value is printed right after the executed command (it starts with
    "``xoxc-``"), save it somewhere for now.
