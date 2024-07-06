@@ -46,7 +46,7 @@ func Export(ctx context.Context, cfg config.Params, prov auth.Provider) error {
 	}()
 
 	cfg.Logger().Debugf("Export:  filesystem: %s", fs)
-	cfg.Logger().Printf("Export:  staring export to: %s", fs)
+	cfg.Logger().Printf("Export:  starting export to: %s", fs)
 
 	e := export.New(sess, fs, makeExportOptions(cfg))
 	if err := e.Run(ctx); err != nil {
