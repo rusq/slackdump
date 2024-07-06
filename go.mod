@@ -10,7 +10,7 @@ require (
 	github.com/denisbrodbeck/machineid v1.0.1
 	github.com/fatih/color v1.16.0
 	github.com/joho/godotenv v1.5.1
-	github.com/playwright-community/playwright-go v0.4201.0
+	github.com/playwright-community/playwright-go v0.4401.1
 	github.com/rusq/chttp v1.0.2
 	github.com/rusq/dlog v1.4.0
 	github.com/rusq/osenv/v2 v2.0.1
@@ -37,7 +37,7 @@ require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/deckarep/golang-set/v2 v2.6.0 // indirect
 	github.com/go-jose/go-jose/v3 v3.0.3 // indirect
-	github.com/go-rod/rod v0.114.8 // indirect
+	github.com/go-rod/rod v0.116.1 // indirect
 	github.com/go-stack/stack v1.8.1 // indirect
 	github.com/gorilla/websocket v1.5.1 // indirect
 	github.com/kr/text v0.2.0 // indirect
@@ -55,12 +55,12 @@ require (
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/ysmood/fetchup v0.2.4 // indirect
 	github.com/ysmood/goob v0.4.0 // indirect
-	github.com/ysmood/got v0.39.4 // indirect
+	github.com/ysmood/got v0.40.0 // indirect
 	github.com/ysmood/gson v0.7.3 // indirect
 	github.com/ysmood/leakless v0.8.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/crypto v0.25.0 // indirect
-	golang.org/x/exp v0.0.0-20240318143956-a85f2c67cd81 // indirect
+	golang.org/x/exp v0.0.0-20240613232115-7f521ea00fb8 // indirect
 	golang.org/x/net v0.27.0 // indirect
 	golang.org/x/sys v0.22.0 // indirect
 	golang.org/x/text v0.16.0 // indirect
