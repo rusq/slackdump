@@ -225,14 +225,26 @@ func l() logger.Interface {
 	return Logger
 }
 
+func nvl(first string, rest ...string) string {
+	if first != "" {
+		return first
+	}
+	for _, s := range rest {
+		if s != "" {
+			return s
+		}
+	}
+	return ""
+}
+
 // pwRepair attempts to repair the playwright installation.
 func pwRepair(runopts *playwright.RunOptions) error {
-	drv, err := newDriverFn(runopts)
+	driverDirectory, err := pwDriverDir(runopts)
 	if err != nil {
 		return err
 	}
 	// check node permissions
-	if err := pwIsKnownProblem(drv.DriverDirectory); err != nil {
+	if err := pwIsKnownProblem(driverDirectory); err != nil {
 		return err
 	}
 	return reinstall(runopts)
@@ -249,17 +261,17 @@ func Reinstall(browser Browser, verbose bool) error {
 
 func reinstall(runopts *playwright.RunOptions) error {
 	l().Debugf("reinstalling browser: %s", runopts.Browsers[0])
-	drv, err := newDriverFn(runopts)
+	drvdir, err := pwDriverDir(runopts)
 	if err != nil {
 		return err
 	}
-	l().Debugf("removing %s", drv.DriverDirectory)
-	if err := os.RemoveAll(drv.DriverDirectory); err != nil {
+	l().Debugf("removing %s", drvdir)
+	if err := os.RemoveAll(drvdir); err != nil {
 		return err
 	}
 
 	// attempt to reinstall
-	l().Debugf("reinstalling %s", drv.DriverDirectory)
+	l().Debugf("reinstalling %s", drvdir)
 	if err := installFn(runopts); err != nil {
 		// we did everything we could, but it still failed.
 		return err
