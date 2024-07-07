@@ -44,6 +44,8 @@ func NewDriver(runopts *playwright.RunOptions) (*playwright.PlaywrightDriver, er
 	return drv, nil
 }
 
+// DriverDir returns the driver directory, broken in this commit:
+// https://github.com/playwright-community/playwright-go/pull/449/commits/372e209c776222f4681cf1b24a1379e3648dd982
 func DriverDir(runopts *playwright.RunOptions) (string, error) {
 	drv, err := NewDriver(runopts)
 	if err != nil {
