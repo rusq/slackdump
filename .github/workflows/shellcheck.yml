@@ -1,3 +1,4 @@
+# Codespell configuration is within .codespellrc
 ---
 name: Shellcheck
 
@@ -12,12 +13,14 @@ permissions:
 
 jobs:
   shellcheck:
-    name: Check shell scripts
+    name: Check shell scripts and spelling errors.
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Codespell
+        uses: codespell-project/actions-codespell@v2
       - name: Install dependencies
         run: |
           sudo apt update && sudo apt install -y shellcheck
