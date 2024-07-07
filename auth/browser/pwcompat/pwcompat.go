@@ -1,4 +1,7 @@
-package browser
+// Package pwcompat provides a compatibility layer, so when the playwright-go
+// team decides to break compatibility again, there's a place to write a
+// workaround.
+package pwcompat
 
 import (
 	"errors"
@@ -10,9 +13,14 @@ import (
 	"github.com/playwright-community/playwright-go"
 )
 
-// Just because some motherfuck decided that unexporting DriverDirectory is a good idea.
+// Workaround for unexported driver dir in playwright.
+
+// newDriverFn is the function that creates a new driver.  It is set to
+// playwright.NewDriver by default, but can be overridden for testing.
+var newDriverFn = playwright.NewDriver
 
 func getDefaultCacheDirectory() (string, error) {
+	// pinched from playwright
 	userHomeDir, err := os.UserHomeDir()
 	if err != nil {
 		return "", fmt.Errorf("could not get user home directory: %w", err)
@@ -28,10 +36,18 @@ func getDefaultCacheDirectory() (string, error) {
 	return "", errors.New("could not determine cache directory")
 }
 
-func pwDriverDir(runopts *playwright.RunOptions) (string, error) {
+func NewDriver(runopts *playwright.RunOptions) (*playwright.PlaywrightDriver, error) {
 	drv, err := newDriverFn(runopts)
 	if err != nil {
-		return "", fmt.Errorf("error initialising driver: %w", err)
+		return nil, fmt.Errorf("error initialising driver: %w", err)
+	}
+	return drv, nil
+}
+
+func DriverDir(runopts *playwright.RunOptions) (string, error) {
+	drv, err := NewDriver(runopts)
+	if err != nil {
+		return "", err
 	}
 	baseDriverDirectory, err := getDefaultCacheDirectory()
 	if err != nil {
@@ -39,4 +55,16 @@ func pwDriverDir(runopts *playwright.RunOptions) (string, error) {
 	}
 	driverDirectory := filepath.Join(nvl(runopts.DriverDirectory, baseDriverDirectory), "ms-playwright-go", drv.Version)
 	return driverDirectory, nil
+}
+
+func nvl(first string, rest ...string) string {
+	if first != "" {
+		return first
+	}
+	for _, s := range rest {
+		if s != "" {
+			return s
+		}
+	}
+	return ""
 }
