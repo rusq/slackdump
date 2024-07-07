@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/playwright-community/playwright-go"
+	"github.com/rusq/slackdump/v2/auth/browser/pwcompat"
 	"github.com/rusq/slackdump/v2/logger"
 )
 
@@ -34,9 +35,6 @@ var Logger logger.Interface = logger.Default
 
 var (
 	installFn = playwright.Install
-	// newDriverFn is the function that creates a new driver.  It is set to
-	// playwright.NewDriver by default, but can be overridden for testing.
-	newDriverFn = playwright.NewDriver
 )
 
 // New create new browser based client.
@@ -227,12 +225,12 @@ func l() logger.Interface {
 
 // pwRepair attempts to repair the playwright installation.
 func pwRepair(runopts *playwright.RunOptions) error {
-	drv, err := newDriverFn(runopts)
+	driverDirectory, err := pwcompat.DriverDir(runopts)
 	if err != nil {
 		return err
 	}
 	// check node permissions
-	if err := pwIsKnownProblem(drv.DriverDirectory); err != nil {
+	if err := pwIsKnownProblem(driverDirectory); err != nil {
 		return err
 	}
 	return reinstall(runopts)
@@ -249,17 +247,17 @@ func Reinstall(browser Browser, verbose bool) error {
 
 func reinstall(runopts *playwright.RunOptions) error {
 	l().Debugf("reinstalling browser: %s", runopts.Browsers[0])
-	drv, err := newDriverFn(runopts)
+	drvdir, err := pwcompat.DriverDir(runopts)
 	if err != nil {
 		return err
 	}
-	l().Debugf("removing %s", drv.DriverDirectory)
-	if err := os.RemoveAll(drv.DriverDirectory); err != nil {
+	l().Debugf("removing %s", drvdir)
+	if err := os.RemoveAll(drvdir); err != nil {
 		return err
 	}
 
 	// attempt to reinstall
-	l().Debugf("reinstalling %s", drv.DriverDirectory)
+	l().Debugf("reinstalling %s", drvdir)
 	if err := installFn(runopts); err != nil {
 		// we did everything we could, but it still failed.
 		return err
