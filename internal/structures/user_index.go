@@ -32,7 +32,7 @@ func (idx UserIndex) Username(id string) string {
 // DisplayName tries to resolve the display name by ID. if the index is empty, it
 // returns the user ID. If the user is not found in index, is assumes that it is
 // an external user and returns ID with "external" prefix. If it does find the
-// user and display name is unavailble, it returns the Real Name.
+// user and display name is unavailable, it returns the Real Name.
 func (idx UserIndex) DisplayName(id string) string {
 	return idx.userattr(id, func(user *slack.User) string {
 		return nvl(user.Profile.DisplayName, user.RealName)
