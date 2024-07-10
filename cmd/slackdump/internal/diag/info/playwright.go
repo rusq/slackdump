@@ -21,10 +21,11 @@ type PwInfo struct {
 }
 
 func (inf *PwInfo) collect(replaceFn PathReplFunc) {
-	pwdrv, err := pwcompat.NewDriver(&playwright.RunOptions{
+	opts := &playwright.RunOptions{
 		Browsers:            []string{cfg.Browser.String()},
 		SkipInstallBrowsers: true,
-	})
+	}
+	pwdrv, err := pwcompat.NewAdapter(opts)
 	if err != nil {
 		inf.Path = loser(err)
 		return

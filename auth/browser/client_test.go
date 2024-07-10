@@ -57,7 +57,11 @@ func Test_pwRepair(t *testing.T) {
 			Browsers:        []string{"chromium"},
 			DriverDirectory: baseDir,
 		}
-		dir, err := pwcompat.DriverDir(runopts)
+		ad, err := pwcompat.NewAdapter(runopts)
+		if err != nil {
+			t.Fatal(err)
+		}
+		dir := ad.DriverDirectory
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -81,7 +85,7 @@ func makeFakeNode(t *testing.T, dir string, mode fs.FileMode) {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, "node"), []byte("hello"), mode); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, pwcompat.NodeExe), []byte("hello"), mode); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -90,14 +94,14 @@ func Test_pwIsKnownProblem(t *testing.T) {
 	t.Run("known executable permissions problem", func(t *testing.T) {
 		baseDir := t.TempDir()
 		makeFakeNode(t, baseDir, 0o644)
-		if err := pwIsKnownProblem(baseDir); err != nil {
+		if err := pwWrongNodePerms(filepath.Join(baseDir, pwcompat.NodeExe)); err != nil {
 			t.Fatal(err)
 		}
 	})
 	t.Run("other problem", func(t *testing.T) {
 		baseDir := t.TempDir()
 		makeFakeNode(t, baseDir, 0o755)
-		err := pwIsKnownProblem(baseDir)
+		err := pwWrongNodePerms(filepath.Join(baseDir, pwcompat.NodeExe))
 		if err == nil {
 			t.Fatal("unexpected success")
 		}
