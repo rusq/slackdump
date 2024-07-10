@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/rusq/slack"
-	"github.com/rusq/slackdump/v3/internal/structures"
+	"github.com/rusq/slackdump/v3/internal/fasttime"
 )
 
 // ChunkType is the type of chunk that was recorded..
@@ -23,6 +23,8 @@ const (
 	CChannelUsers
 	CStarredItems
 	CBookmarks
+	CSearchMessages
+	CSearchFiles
 )
 
 var ErrUnsupChunkType = fmt.Errorf("unsupported chunk type")
@@ -78,10 +80,16 @@ type Chunk struct {
 	// WorkspaceInfo contains the workspace information as returned by the
 	// API.  Populated by WorkspaceInfo.
 	WorkspaceInfo *slack.AuthTestResponse `json:"w,omitempty"`
-	//
+	// StarredItems contains the starred items.
 	StarredItems []slack.StarredItem `json:"st,omitempty"` // Populated by StarredItems
-	//
+	// Bookmarks contains the bookmarks.
 	Bookmarks []slack.Bookmark `json:"b,omitempty"` // Populated by Bookmarks
+	// SearchQuery contains the search query.
+	SearchQuery string `json:"sq,omitempty"` // Populated by SearchMessages and SearchFiles.
+	// SearchMessages contains the search results.
+	SearchMessages []slack.SearchMessage `json:"sm,omitempty"` // Populated by SearchMessages
+	// SearchFiles contains the search results.
+	SearchFiles []slack.File `json:"sf,omitempty"` // Populated by SearchFiles
 }
 
 // GroupID is a unique ID for a chunk group.  It is used to group chunks of
@@ -90,10 +98,12 @@ type Chunk struct {
 type GroupID string
 
 const (
-	userChunkID    GroupID = "lusr"
-	channelChunkID GroupID = "lch"
-	starredChunkID GroupID = "ls"
-	wspInfoChunkID GroupID = "iw"
+	userChunkID     GroupID = "lusr" // list users
+	channelChunkID  GroupID = "lch"  // list channels
+	starredChunkID  GroupID = "ls"   // list starred
+	wspInfoChunkID  GroupID = "iw"   // info workspace
+	srchMsgChunkID  GroupID = "sm"   // search messages results
+	srchFileChunkID GroupID = "sf"   // search file results
 )
 
 const (
@@ -106,9 +116,10 @@ const (
 
 // Chunk ID categories
 const (
-	catFile = 'f'
-	catInfo = 'i'
-	catList = 'l'
+	catFile   = 'f'
+	catInfo   = 'i'
+	catList   = 'l'
+	catSearch = 's'
 )
 
 // ID returns a Group ID for the chunk.
@@ -134,6 +145,10 @@ func (c *Chunk) ID() GroupID {
 		return starredChunkID // static
 	case CBookmarks:
 		return id(bookmarkPrefix, c.ChannelID)
+	case CSearchMessages:
+		return srchMsgChunkID
+	case CSearchFiles:
+		return srchFileChunkID
 	}
 	return GroupID(fmt.Sprintf("<unknown:%s>", c.Type))
 }
@@ -173,7 +188,7 @@ func (c *Chunk) Timestamps() ([]int64, error) {
 func (c *Chunk) messageTimestamps() ([]int64, error) {
 	ts := make([]int64, len(c.Messages))
 	for i := range c.Messages {
-		iTS, err := structures.TS2int(c.Messages[i].Timestamp)
+		iTS, err := fasttime.TS2int(c.Messages[i].Timestamp)
 		if err != nil {
 			return nil, fmt.Errorf("invalid timestamp: %q: %w", c.Messages[i].Timestamp, err)
 		}
@@ -190,4 +205,9 @@ func (g GroupID) isInfo() bool {
 // isList returns true, if the chunk is a list chunk.
 func (g GroupID) isList() bool {
 	return g[0] == catList
+}
+
+// isSearch returns true, if the chunk is a search chunk.
+func (g GroupID) isSearch() bool {
+	return g[0] == catSearch
 }

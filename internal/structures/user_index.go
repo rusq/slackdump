@@ -35,11 +35,11 @@ func (idx UserIndex) Username(id string) string {
 // user and display name is unavailble, it returns the Real Name.
 func (idx UserIndex) DisplayName(id string) string {
 	return idx.userattr(id, func(user *slack.User) string {
-		return nvl(user.Profile.DisplayName, user.RealName)
+		return NVL(user.Profile.DisplayName, user.RealName, user.Name)
 	})
 }
 
-func nvl(s string, ss ...string) string {
+func NVL(s string, ss ...string) string {
 	if s != "" {
 		return s
 	}
@@ -94,16 +94,17 @@ func (idx UserIndex) IsDeleted(id string) bool {
 }
 
 // ChannelName return the "beautified" name of the channel.
-func (idx UserIndex) ChannelName(channel *slack.Channel) (who string) {
-	switch {
-	case channel.IsIM:
-		who = "@" + idx.Username(channel.User)
-	case channel.IsMpIM:
-		who = strings.Replace(channel.Purpose.Value, " messaging with", "", -1)
-	case channel.IsPrivate:
-		who = "🔒 " + channel.NameNormalized
+func (idx UserIndex) ChannelName(ch slack.Channel) (who string) {
+	t := ChannelType(ch)
+	switch t {
+	case CIM:
+		who = "@" + idx.Username(ch.User)
+	case CMPIM:
+		who = strings.Replace(ch.Purpose.Value, " messaging with", "", -1)
+	case CPrivate:
+		who = "🔒 " + NVL(ch.NameNormalized, ch.Name)
 	default:
-		who = "#" + channel.NameNormalized
+		who = "#" + NVL(ch.NameNormalized, ch.Name)
 	}
 	return who
 }

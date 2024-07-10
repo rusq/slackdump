@@ -147,3 +147,138 @@ const TestChannels = `[
     }
 ]
 `
+
+// TestChannelsNativeExport are from the real Slack workspace export.
+const TestChannelsNativeExport = `[
+    {
+        "id": "CHM82GF99",
+        "name": "everything",
+        "created": 1555493779,
+        "creator": "UHSD97ZA5",
+        "is_archived": false,
+        "is_general": false,
+        "members": [
+            "UHSD97ZA5",
+            "ULLLZ6SAH"
+        ],
+        "topic": {
+            "value": "",
+            "creator": "",
+            "last_set": 0
+        },
+        "purpose": {
+            "value": "",
+            "creator": "",
+            "last_set": 0
+        }
+    },
+    {
+        "id": "CHY5HUESG",
+        "name": "everyone",
+        "created": 1555493778,
+        "creator": "UHSD97ZA5",
+        "is_archived": false,
+        "is_general": true,
+        "members": [
+            "UHSD97ZA5",
+            "ULLLZ6SAH"
+        ],
+        "topic": {
+            "value": "Company-wide announcements and work-based matters",
+            "creator": "UHSD97ZA5",
+            "last_set": 1555493778
+        },
+        "purpose": {
+            "value": "This channel is for workspace-wide communication and announcements. All members are in this channel.",
+            "creator": "UHSD97ZA5",
+            "last_set": 1555493778
+        }
+    },
+    {
+        "id": "CHYLGDP0D",
+        "name": "random",
+        "created": 1555493778,
+        "creator": "UHSD97ZA5",
+        "is_archived": false,
+        "is_general": false,
+        "members": [
+            "UHSD97ZA5",
+            "ULLLZ6SAH",
+            "U034HM0P7RB"
+        ],
+        "topic": {
+            "value": "Non-work banter and water cooler conversation",
+            "creator": "UHSD97ZA5",
+            "last_set": 1555493778
+        },
+        "purpose": {
+            "value": "A place for non-work-related flimflam, faffing, hodge-podge or jibber-jabber you'd prefer to keep out of more focused work-related channels.",
+            "creator": "UHSD97ZA5",
+            "last_set": 1555493778
+        }
+    },
+    {
+        "id": "C011D885FP0",
+        "name": "wakatime",
+        "created": 1586035665,
+        "creator": "UHSD97ZA5",
+        "is_archived": false,
+        "is_general": false,
+        "members": [
+            "UHSD97ZA5"
+        ],
+        "topic": {
+            "value": "",
+            "creator": "",
+            "last_set": 0
+        },
+        "purpose": {
+            "value": "Timesheet",
+            "creator": "UHSD97ZA5",
+            "last_set": 1586035666
+        }
+    },
+    {
+        "id": "C045TUGSSTW",
+        "name": "adapt_w_3dビューア",
+        "created": 1665307423,
+        "creator": "UHSD97ZA5",
+        "is_archived": false,
+        "is_general": false,
+        "members": [
+            "UHSD97ZA5"
+        ],
+        "topic": {
+            "value": "",
+            "creator": "",
+            "last_set": 0
+        },
+        "purpose": {
+            "value": "Issue 44 test",
+            "creator": "UHSD97ZA5",
+            "last_set": 1665307423
+        }
+    },
+    {
+        "id": "C04BJATRQRL",
+        "name": "slackdump",
+        "created": 1668926667,
+        "creator": "UHSD97ZA5",
+        "is_archived": false,
+        "is_general": false,
+        "members": [
+            "UHSD97ZA5"
+        ],
+        "topic": {
+            "value": "",
+            "creator": "",
+            "last_set": 0
+        },
+        "purpose": {
+            "value": "",
+            "creator": "",
+            "last_set": 0
+        }
+    }
+    ]
+`

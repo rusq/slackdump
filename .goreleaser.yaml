@@ -1,11 +1,14 @@
 # This is an example .goreleaser.yml file with some sensible defaults.
 # Make sure to check the documentation at https://goreleaser.com
+version: 2
+project_name: slackdump
 before:
   hooks:
     # You may remove this if you don't use go modules.
     - go mod tidy
 builds:
-  - env:
+  - id: slackdump
+    env:
       - CGO_ENABLED=0
     goos:
       - linux
@@ -17,7 +20,8 @@ builds:
     main: ./cmd/slackdump
 
 archives:
-  - format: tar.gz
+  - id: default
+    format: tar.gz
     # this name template makes the OS and Arch compatible with the results of uname.
     name_template: >-
       {{ .ProjectName }}_
@@ -30,6 +34,10 @@ archives:
     format_overrides:
     - goos: windows
       format: zip
+    files:
+      - LICENSE
+      - README.rst
+      - slackdump.1
 checksum:
   name_template: 'checksums.txt'
 snapshot:
@@ -40,6 +48,26 @@ changelog:
     exclude:
       - '^docs:'
       - '^test:'
+
+nfpms:
+  -
+    vendor: Rustam
+    homepage: https://github.com/rusq
+    maintainer: Rustam <rusq@github.com>
+    description: Save or export your private and public Slack messages, threads, files, and users locally without admin privileges. 
+    license: GPL-3.0
+    formats:
+      - apk
+      - deb
+      - rpm
+      - termux.deb
+      - archlinux
+    release: 1
+    section: default
+    priority: extra
+    contents:
+      - src: ./slackdump.1
+        dst: /usr/share/man/man1/slackdump.1
 
 # The lines beneath this are called `modelines`. See `:help modeline`
 # Feel free to remove those if you don't want/use them.

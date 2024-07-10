@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 
-	"github.com/rusq/dlog"
 	"github.com/rusq/slackdump/v3/internal/chunk"
+	"github.com/rusq/slackdump/v3/logger"
 )
 
 type COption func(*Coordinator)
@@ -42,11 +42,12 @@ func NewCoordinator(ctx context.Context, cvt Converter, opts ...COption) *Coordi
 }
 
 func (c *Coordinator) worker(ctx context.Context) {
+	lg := logger.FromContext(ctx)
 	defer close(c.errC)
 
 	for id := range c.idC {
 		if err := c.cvt.Convert(ctx, id); err != nil {
-			dlog.Printf("error converting %q: %v", id, err)
+			lg.Printf("error converting %q: %v", id, err)
 			c.errC <- err
 		}
 	}
@@ -71,7 +72,7 @@ func (s *Coordinator) Transform(ctx context.Context, id chunk.FileID) error {
 	}
 	select {
 	case <-ctx.Done():
-		return ctx.Err()
+		return context.Cause(ctx)
 	case s.idC <- id:
 		// keep going
 	}

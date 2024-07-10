@@ -13,6 +13,7 @@ import (
 	http "net/http"
 	reflect "reflect"
 
+	slack "github.com/rusq/slack"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -83,11 +84,12 @@ func (mr *MockProviderMockRecorder) SlackToken() *gomock.Call {
 }
 
 // Test mocks base method.
-func (m *MockProvider) Test(arg0 context.Context) error {
+func (m *MockProvider) Test(arg0 context.Context) (*slack.AuthTestResponse, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Test", arg0)
-	ret0, _ := ret[0].(error)
-	return ret0
+	ret0, _ := ret[0].(*slack.AuthTestResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // Test indicates an expected call of Test.

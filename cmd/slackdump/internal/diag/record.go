@@ -8,8 +8,6 @@ import (
 	"io"
 	"os"
 
-	"github.com/rusq/slackdump/v3"
-	"github.com/rusq/slackdump/v3/auth"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/internal/chunk"
@@ -18,10 +16,10 @@ import (
 var CmdRecord = &base.Command{
 	UsageLine: "slackdump tools record",
 	Short:     "chunk record commands",
-	Commands:  []*base.Command{CmdRecordStream, CmdRecordState},
+	Commands:  []*base.Command{cmdRecordStream, cmdRecordState},
 }
 
-var CmdRecordStream = &base.Command{
+var cmdRecordStream = &base.Command{
 	UsageLine: "slackdump tools record stream [options] <channel>",
 	Short:     "dump slack data in a chunk record format",
 	Long: `
@@ -36,7 +34,7 @@ See also: slackdump tool obfuscate
 	RequireAuth: true,
 }
 
-var CmdRecordState = &base.Command{
+var cmdRecordState = &base.Command{
 	UsageLine:   "slackdump tools record state [options] <record_file.jsonl>",
 	Short:       "print state of the record",
 	FlagMask:    cfg.OmitAll,
@@ -46,10 +44,10 @@ var CmdRecordState = &base.Command{
 
 func init() {
 	// break init cycle
-	CmdRecordStream.Run = runRecord
+	cmdRecordStream.Run = runRecord
 }
 
-var output = CmdRecordStream.Flag.String("output", "", "output file")
+var output = cmdRecordStream.Flag.String("output", "", "output file")
 
 func runRecord(ctx context.Context, _ *base.Command, args []string) error {
 	if len(args) == 0 {
@@ -57,14 +55,9 @@ func runRecord(ctx context.Context, _ *base.Command, args []string) error {
 		return errors.New("missing channel argument")
 	}
 
-	prov, err := auth.FromContext(ctx)
+	sess, err := cfg.SlackdumpSession(ctx)
 	if err != nil {
-		base.SetExitStatus(base.SAuthError)
-		return err
-	}
-	sess, err := slackdump.New(ctx, prov)
-	if err != nil {
-		base.SetExitStatus(base.SWorkspaceError)
+		base.SetExitStatus(base.SInitializationError)
 		return err
 	}
 
@@ -110,7 +103,7 @@ func runRecord(ctx context.Context, _ *base.Command, args []string) error {
 
 func init() {
 	// break init cycle
-	CmdRecordState.Run = runRecordState
+	cmdRecordState.Run = runRecordState
 }
 
 func runRecordState(ctx context.Context, _ *base.Command, args []string) error {

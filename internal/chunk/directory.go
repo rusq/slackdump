@@ -23,7 +23,10 @@ const (
 	FChannels  FileID = "channels"
 	FUsers     FileID = "users"
 	FWorkspace FileID = "workspace"
+	FSearch    FileID = "search"
 )
+
+const uploadsDir = "__uploads" // for serving files
 
 // Directory is an abstraction over the directory with chunk files.  It
 // provides a way to write chunk files and read channels, users and messages
@@ -33,7 +36,9 @@ const (
 // file with the extension.  All files created by this package will be
 // compressed with GZIP, unless stated otherwise.
 type Directory struct {
-	dir   string // path to a physical directory on the filesystem
+	// dir is a path to a physical directory on the filesystem with chunks and
+	// uploads.
+	dir   string
 	cache dcache
 
 	wantCache bool
@@ -348,4 +353,9 @@ func cachedFromReader(wf osext.ReadSeekCloseNamer, wantCache bool) (*File, error
 		return nil, err
 	}
 	return cf, nil
+}
+
+// File returns the file with the given id and name.
+func (d *Directory) File(id string, name string) (fs.File, error) {
+	return os.Open(filepath.Join(d.dir, uploadsDir, id, name))
 }

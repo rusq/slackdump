@@ -37,6 +37,7 @@ func FilledBuffer(sz int) *bytes.Buffer {
 	return &buf
 }
 
+// FilledFile returns a file that filled with sz bytes of 0x00.
 func FilledFile(sz int) *os.File {
 	f, err := os.CreateTemp("", "sdunit*")
 	if err != nil {
@@ -55,6 +56,8 @@ func DummyChannel(id string) *slack.Channel {
 	return &ch
 }
 
+// DebugTempDir creates a temporary directory for debugging purposes.
+// It does not get removed after the test.
 func DebugTempDir(t *testing.T) string {
 	t.Helper()
 	d, err := os.MkdirTemp("", t.Name()+"*")

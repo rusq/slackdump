@@ -37,7 +37,7 @@ const (
 
 var fetchFn = fetchEmoji
 
-//go:generate mockgen -source emoji.go -destination emoji_mock_test.go -package emoji
+//go:generate mockgen -source emoji.go -destination emoji_mock_test.go -package emojidl
 type emojidumper interface {
 	DumpEmojis(ctx context.Context) (map[string]string, error)
 }

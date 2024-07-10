@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"runtime/trace"
 	"time"
 
@@ -14,8 +15,10 @@ import (
 
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/slackdump/v3/auth"
+	"github.com/rusq/slackdump/v3/internal/edge"
 	"github.com/rusq/slackdump/v3/internal/network"
 	"github.com/rusq/slackdump/v3/logger"
+	"github.com/rusq/slackdump/v3/stream"
 )
 
 //go:generate mockgen -destination internal/mocks/mock_os/mock_os.go os FileInfo
@@ -40,14 +43,19 @@ type WorkspaceInfo = slack.AuthTestResponse
 // Slacker is the interface with some functions of slack.Client.
 type Slacker interface {
 	AuthTestContext(context.Context) (response *slack.AuthTestResponse, err error)
-	GetConversationInfoContext(ctx context.Context, input *slack.GetConversationInfoInput) (*slack.Channel, error)
 	GetConversationHistoryContext(ctx context.Context, params *slack.GetConversationHistoryParameters) (*slack.GetConversationHistoryResponse, error)
 	GetConversationRepliesContext(ctx context.Context, params *slack.GetConversationRepliesParameters) (msgs []slack.Message, hasMore bool, nextCursor string, err error)
-	GetConversationsContext(ctx context.Context, params *slack.GetConversationsParameters) (channels []slack.Channel, nextCursor string, err error)
-	GetStarredContext(ctx context.Context, params slack.StarsParameters) ([]slack.StarredItem, *slack.Paging, error)
 	GetUsersPaginated(options ...slack.GetUsersOption) slack.UserPagination
-	GetUsersInConversationContext(ctx context.Context, params *slack.GetUsersInConversationParameters) ([]string, string, error)
+
+	GetStarredContext(ctx context.Context, params slack.StarsParameters) ([]slack.StarredItem, *slack.Paging, error)
 	ListBookmarks(channelID string) ([]slack.Bookmark, error)
+
+	GetConversationsContext(ctx context.Context, params *slack.GetConversationsParameters) (channels []slack.Channel, nextCursor string, err error)
+	GetConversationInfoContext(ctx context.Context, input *slack.GetConversationInfoInput) (*slack.Channel, error)
+	GetUsersInConversationContext(ctx context.Context, params *slack.GetUsersInConversationParameters) ([]string, string, error)
+
+	SearchMessagesContext(ctx context.Context, query string, params slack.SearchParameters) (*slack.SearchMessages, error)
+	SearchFilesContext(ctx context.Context, query string, params slack.SearchParameters) (*slack.SearchFiles, error)
 }
 
 // clienter is the interface with some functions of slack.Client with the sole
@@ -84,7 +92,7 @@ func WithFilesystem(fs fsadapter.FS) Option {
 // WithLimits sets the API limits to use for the session.  If this option is
 // not given, the default limits are initialised with the values specified in
 // DefLimits.
-func WithLimits(l Limits) Option {
+func WithLimits(l network.Limits) Option {
 	return func(s *Session) {
 		if l.Validate() == nil {
 			s.cfg.limits = l
@@ -119,6 +127,12 @@ func WithSlackClient(cl clienter) Option {
 	}
 }
 
+func WithForceEnterprise(b bool) Option {
+	return func(s *Session) {
+		s.cfg.forceEnterprise = b
+	}
+}
+
 // New creates new Slackdump session with provided options, and populates the
 // internal cache of users and channels for lookups. If it fails to
 // authenticate, AuthError is returned.
@@ -130,43 +144,91 @@ func New(ctx context.Context, prov auth.Provider, opts ...Option) (*Session, err
 		return nil, fmt.Errorf("auth provider validation error: %s", err)
 	}
 
-	httpCl, err := prov.HTTPClient()
-	if err != nil {
-		return nil, err
-	}
-	cl := slack.New(prov.SlackToken(), slack.OptionHTTPClient(httpCl))
-
 	sd := &Session{
-		client: cl,
-		cfg:    defConfig,
-		uc:     new(usercache),
+		cfg: defConfig,
+		uc:  new(usercache),
 
 		log: logger.Default,
 	}
 	for _, opt := range opts {
 		opt(sd)
 	}
-	network.SetLogger(sd.log) // set the logger for the network package
 
 	if err := sd.cfg.limits.Validate(); err != nil {
 		var vErr validator.ValidationErrors
 		if errors.As(err, &vErr) {
-			return nil, fmt.Errorf("API limits failed validation: %s", vErr.Translate(OptErrTranslations))
+			return nil, fmt.Errorf("API limits failed validation: %s", vErr.Translate(network.OptErrTranslations))
 		}
 		return nil, err
 	}
-	authResp, err := sd.client.AuthTestContext(ctx)
-	if err != nil {
-		return nil, &auth.Error{Err: err}
+
+	if err := sd.initClient(ctx, prov, sd.cfg.forceEnterprise); err != nil {
+		return nil, err
 	}
-	sd.wspInfo = authResp
 
 	return sd, nil
 }
 
+// initWorkspaceInfo gets from the API and sets the workspace information for
+// the session.
+func (s *Session) initWorkspaceInfo(ctx context.Context, cl Slacker) error {
+	info, err := cl.AuthTestContext(ctx)
+	if err != nil {
+		return err
+	}
+	s.wspInfo = info
+	return nil
+}
+
+// initClient initialises the client that is appropriate for the current
+// workspace.  It will use the initialised auth.Provider for credentials.  If
+// forceEdge is true, it will use th edge client regardless of whether it
+// detects the enterprise instance or not.  If the client was set by the
+// WithClient option, it will not override it.
+func (s *Session) initClient(ctx context.Context, prov auth.Provider, forceEdge bool) error {
+	if s.client != nil {
+		// already initialised, probably through options.
+		return s.initWorkspaceInfo(ctx, s.client)
+	}
+
+	httpcl, err := prov.HTTPClient()
+	if err != nil {
+		return err
+	}
+
+	// initialising default client
+	cl := slack.New(prov.SlackToken(), slack.OptionHTTPClient(httpcl))
+	if err := s.initWorkspaceInfo(ctx, cl); err != nil {
+		return err
+	}
+
+	isEnterpriseWsp := s.wspInfo.EnterpriseID != ""
+	if forceEdge || isEnterpriseWsp {
+		// replace the client with the edge client
+		ecl, err := edge.NewWithInfo(s.wspInfo, prov)
+		if err != nil {
+			return err
+		}
+		s.log.Debug("enterprise workspace detected or force enteprise is set, using edge client")
+		s.client = ecl.NewWrapper(cl)
+	} else {
+		s.log.Debug("using standard client")
+		s.client = cl
+	}
+	return nil
+}
+
 // Client returns the underlying slack.Client.
 func (s *Session) Client() *slack.Client {
-	return s.client.(*slack.Client)
+	switch c := s.client.(type) {
+	case *slack.Client:
+		return c
+	case *edge.Wrapper:
+		return c.SlackClient()
+	default:
+		log.Panicf("internal error:  unknown client type %T", s.client)
+	}
+	return nil // never gets here
 }
 
 // CurrentUserID returns the user ID of the authenticated user.
@@ -175,7 +237,7 @@ func (s *Session) CurrentUserID() string {
 }
 
 func (s *Session) limiter(t network.Tier) *rate.Limiter {
-	var tl TierLimit
+	var tl network.TierLimit
 	switch t {
 	case network.Tier2:
 		tl = s.cfg.limits.Tier2
@@ -197,6 +259,6 @@ func (s *Session) Info() *WorkspaceInfo {
 }
 
 // Stream streams the channel, calling proc functions for each chunk.
-func (s *Session) Stream(opts ...StreamOption) *Stream {
-	return NewStream(s.client, &s.cfg.limits, opts...)
+func (s *Session) Stream(opts ...stream.Option) *stream.Stream {
+	return stream.New(s.client, &s.cfg.limits, opts...)
 }

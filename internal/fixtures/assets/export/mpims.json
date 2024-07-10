@@ -1,0 +1,90 @@
+[
+  {
+    "id": "GJPBBJKE0",
+    "created": 1557900439,
+    "is_open": true,
+    "last_read": "1566289818.001700",
+    "is_group": true,
+    "is_shared": false,
+    "is_im": false,
+    "is_ext_shared": false,
+    "is_org_shared": false,
+    "is_pending_ext_shared": false,
+    "is_private": true,
+    "is_mpim": true,
+    "unlinked": 0,
+    "name_normalized": "mpdm-smith--seymore.a--jane.d-1",
+    "num_members": 3,
+    "priority": 0,
+    "user": "",
+    "shared_team_ids": [
+      "TFCSDNRL5"
+    ],
+    "name": "mpdm-smith--seymore.a--jane.d-1",
+    "creator": "UGTRHT2SH",
+    "is_archived": false,
+    "members": [
+      "UGTRHT2SH",
+      "UGTLW32F4",
+      "UHC8YKG2W"
+    ],
+    "topic": {
+      "value": "",
+      "creator": "",
+      "last_set": 0
+    },
+    "purpose": {
+      "value": "Group messaging with: @smith @seymore.a @jane.d",
+      "creator": "UGTRHT2SH",
+      "last_set": 1557900439
+    },
+    "is_channel": false,
+    "is_general": false,
+    "is_member": true,
+    "locale": ""
+  },
+  {
+    "id": "GM27XUQT0",
+    "created": 1564733127,
+    "is_open": true,
+    "last_read": "0000000000.000000",
+    "is_group": true,
+    "is_shared": false,
+    "is_im": false,
+    "is_ext_shared": false,
+    "is_org_shared": false,
+    "is_pending_ext_shared": false,
+    "is_private": true,
+    "is_mpim": true,
+    "unlinked": 0,
+    "name_normalized": "mpdm-smith--john.s--jane.d-1",
+    "num_members": 3,
+    "priority": 0,
+    "user": "",
+    "shared_team_ids": [
+      "TFCSDNRL5"
+    ],
+    "name": "mpdm-smith--john.s--jane.d-1",
+    "creator": "UGTRHT2SH",
+    "is_archived": false,
+    "members": [
+      "UGTRHT2SH",
+      "UFCFJSRA8",
+      "UHC8YKG2W"
+    ],
+    "topic": {
+      "value": "",
+      "creator": "",
+      "last_set": 0
+    },
+    "purpose": {
+      "value": "Group messaging with: @smith @john.s @jane.d",
+      "creator": "UGTRHT2SH",
+      "last_set": 1564733127
+    },
+    "is_channel": false,
+    "is_general": false,
+    "is_member": true,
+    "locale": ""
+  }
+]

@@ -9,8 +9,8 @@ import (
 
 	"github.com/rusq/osenv/v2"
 
-	"github.com/rusq/slackdump/v3"
 	"github.com/rusq/slackdump/v3/auth/browser"
+	"github.com/rusq/slackdump/v3/internal/network"
 	"github.com/rusq/slackdump/v3/logger"
 )
 
@@ -30,10 +30,11 @@ var (
 	SlackToken   string
 	SlackCookie  string
 	LoginTimeout time.Duration = browser.DefLoginTimeout
-	Limits                     = slackdump.DefLimits
+	Limits                     = network.DefLimits
 	// playwright stuff
-	Browser       browser.Browser
-	LegacyBrowser bool
+	Browser         browser.Browser
+	LegacyBrowser   bool
+	ForceEnterprise bool
 
 	DownloadFiles bool
 	NoChunkCache  bool
@@ -92,6 +93,7 @@ func SetBaseFlags(fs *flag.FlagSet, mask FlagMask) {
 		fs.Var(&Browser, "browser", "browser to use for EZ-Login 3000 (default: firefox)")
 		fs.DurationVar(&LoginTimeout, "browser-timeout", LoginTimeout, "Browser login `timeout`")
 		fs.BoolVar(&LegacyBrowser, "legacy-browser", false, "use legacy browser automation (playwright) for EZ-Login 3000")
+		fs.BoolVar(&ForceEnterprise, "enterprise", false, "enable Enteprise workarounds")
 	}
 	if mask&OmitDownloadFlag == 0 {
 		fs.BoolVar(&DownloadFiles, "files", true, "enables file attachments (to disable, specify: -files=false)")

@@ -78,7 +78,7 @@ func Test_nvl(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := nvl(tt.args.s, tt.args.ss...); got != tt.want {
+			if got := NVL(tt.args.s, tt.args.ss...); got != tt.want {
 				t.Errorf("nvl() = %v, want %v", got, tt.want)
 			}
 		})

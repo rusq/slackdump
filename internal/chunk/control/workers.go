@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"runtime/trace"
 
 	"github.com/rusq/slack"
 	"github.com/rusq/slackdump/v3/internal/chunk"
@@ -65,5 +66,41 @@ func workspaceWorker(ctx context.Context, s Streamer, cd *chunk.Directory) error
 		return err
 	}
 	lg.Debug("workspaceWorker done")
+	return nil
+}
+
+func searchMsgWorker(ctx context.Context, s Streamer, filer processor.Filer, cd *chunk.Directory, query string) error {
+	ctx, task := trace.NewTask(ctx, "searchMsgWorker")
+	defer task.End()
+
+	lg := logger.FromContext(ctx)
+	lg.Debug("searchMsgWorker started")
+	search, err := dirproc.NewSearch(cd, filer)
+	if err != nil {
+		return err
+	}
+	defer search.Close()
+	if err := s.SearchMessages(ctx, search, query); err != nil {
+		return err
+	}
+	lg.Debug("searchWorker done")
+	return nil
+}
+
+func searchFileWorker(ctx context.Context, s Streamer, filer processor.Filer, cd *chunk.Directory, query string) error {
+	ctx, task := trace.NewTask(ctx, "searchMsgWorker")
+	defer task.End()
+
+	lg := logger.FromContext(ctx)
+	lg.Debug("searchFileWorker started")
+	search, err := dirproc.NewSearch(cd, filer)
+	if err != nil {
+		return err
+	}
+	defer search.Close()
+	if err := s.SearchFiles(ctx, search, query); err != nil {
+		return err
+	}
+	lg.Debug("searchFileWorker done")
 	return nil
 }

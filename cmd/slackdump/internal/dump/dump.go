@@ -16,7 +16,6 @@ import (
 	"github.com/rusq/fsadapter"
 
 	"github.com/rusq/slackdump/v3"
-	"github.com/rusq/slackdump/v3/auth"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/downloader"
@@ -27,6 +26,7 @@ import (
 	"github.com/rusq/slackdump/v3/internal/nametmpl"
 	"github.com/rusq/slackdump/v3/internal/structures"
 	"github.com/rusq/slackdump/v3/logger"
+	"github.com/rusq/slackdump/v3/stream"
 	"github.com/rusq/slackdump/v3/types"
 )
 
@@ -79,13 +79,6 @@ func RunDump(ctx context.Context, _ *base.Command, args []string) error {
 
 	lg := logger.FromContext(ctx)
 
-	// Retrieve the Authentication provider.
-	prov, err := auth.FromContext(ctx)
-	if err != nil {
-		base.SetExitStatus(base.SApplicationError)
-		return err
-	}
-
 	// initialize the list of entities to dump.
 	list, err := structures.NewEntityList(args)
 	if err != nil {
@@ -117,9 +110,9 @@ func RunDump(ctx context.Context, _ *base.Command, args []string) error {
 		}
 	}()
 
-	sess, err := slackdump.New(ctx, prov, slackdump.WithLogger(logger.FromContext(ctx)), slackdump.WithFilesystem(fsa))
+	sess, err := cfg.SlackdumpSession(ctx, slackdump.WithFilesystem(fsa))
 	if err != nil {
-		base.SetExitStatus(base.SApplicationError)
+		base.SetExitStatus(base.SInitializationError)
 		return err
 	}
 
@@ -238,9 +231,9 @@ func dump(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, p dump
 	}()
 
 	if err := sess.Stream(
-		slackdump.OptOldest(p.oldest),
-		slackdump.OptLatest(p.latest),
-		slackdump.OptResultFn(func(sr slackdump.StreamResult) error {
+		stream.OptOldest(p.oldest),
+		stream.OptLatest(p.latest),
+		stream.OptResultFn(func(sr stream.Result) error {
 			if sr.Err != nil {
 				return sr.Err
 			}

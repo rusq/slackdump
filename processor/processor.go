@@ -9,7 +9,7 @@ import (
 
 // Conversations is the interface for conversation fetching with files.
 //
-//go:generate mockgen -destination ../mocks/mock_processor/mock_processor.go github.com/rusq/slackdump/v3/processor Conversations,Users,Channels,ChannelInformer
+//go:generate mockgen -destination ../mocks/mock_processor/mock_processor.go github.com/rusq/slackdump/v3/processor Conversations,Users,Channels,ChannelInformer,Filer
 type Conversations interface {
 	Messenger
 	Filer
@@ -53,4 +53,25 @@ type WorkspaceInfo interface {
 type Channels interface {
 	// Channels is called for each channel chunk that is retrieved.
 	Channels(ctx context.Context, channels []slack.Channel) error
+}
+
+// MessageSearcher is the interface for searching messages.
+type MessageSearcher interface {
+	// SearchMessages is called for each message chunk that is retrieved.
+	SearchMessages(ctx context.Context, query string, messages []slack.SearchMessage) error
+	ChannelInformer
+}
+
+// FileSearcher is the interface for searching files.
+type FileSearcher interface {
+	// SearchFiles is called for each of the file chunks that are retrieved.
+	SearchFiles(ctx context.Context, query string, files []slack.File) error
+	// Filer is embedded here to allow for the Files method to be called.
+	Filer
+}
+
+// Searcher is the combined interface for searching messages and files.
+type Searcher interface {
+	MessageSearcher
+	FileSearcher
 }

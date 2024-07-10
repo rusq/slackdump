@@ -13,7 +13,6 @@ import (
 
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/slackdump/v3"
-	"github.com/rusq/slackdump/v3/internal/network"
 	"github.com/rusq/slackdump/v3/internal/structures"
 	"github.com/rusq/slackdump/v3/internal/structures/files/dl"
 	"github.com/rusq/slackdump/v3/logger"
@@ -37,7 +36,6 @@ func New(sd *slackdump.Session, fs fsadapter.FS, cfg Config) *Export {
 	if cfg.Logger == nil {
 		cfg.Logger = logger.Default
 	}
-	network.SetLogger(cfg.Logger)
 
 	se := &Export{
 		fs:   fs,

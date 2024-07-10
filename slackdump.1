@@ -48,9 +48,9 @@ help, or exit.
 .Sh COMMANDS
 The following commands are supported (listed in alphabetical order):
 .Bl -tag -width workspace
-.It Cm auth
-Manage stored credentials for authenticated workspaces, or authenticates in a
-new workspace.
+.It Cm archive
+Archive the workspace data in the Chunk format, that can be converted to
+other formats, such as Slack Export or Dump.
 .It Cm config Ar subcommand
 Allows to perform different operations on the API limits configuration
 files.
@@ -83,10 +83,11 @@ command, run the following:
 .It Cm list
 List channels or users in the desired format
 .Pq default output is text
-.It Cm record
-Export workspace in the internal Chunk format.
 .It Cm version
 Display version information.
+.It Cm workspace
+Manage stored credentials for authenticated workspaces, or authenticates in a
+new workspace.
 .El
 .\"
 .Sh FLAGS
@@ -182,7 +183,7 @@ command;
 Run
 .Cm dump
 ,
-.Cm record
+.Cm archive
 or
 .Cm export
 , depending on your requirements.

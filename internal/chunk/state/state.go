@@ -2,14 +2,17 @@ package state
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
 
 	"github.com/rusq/fsadapter"
-	"github.com/rusq/slackdump/v3/internal/structures"
+	"github.com/rusq/slackdump/v3/internal/fasttime"
+	"github.com/rusq/slackdump/v3/internal/osext"
 )
 
 const Version = 0.1
@@ -72,6 +75,33 @@ func New(filename string) *State {
 		Threads:       make(map[_idAndThread]int64),
 		Files:         make(map[_id]_id),
 	}
+}
+
+// State holds the state of a chunk recording. It contains the filename of the
+// chunk recording file, as well as the path to the downloaded files.
+
+var ErrNoChunkFile = errors.New("no linked chunk file")
+
+// OpenChunks attempts to open the chunk file linked in the State. If the
+// chunk is compressed, it will be decompressed and a temporary file will be
+// created. The temporary file will be removed when the OpenChunks is
+// closed.
+func (st *State) OpenChunks(basePath string) (io.ReadSeekCloser, error) {
+	if st.ChunkFilename == "" {
+		return nil, ErrNoChunkFile
+	}
+	f, err := os.Open(filepath.Join(basePath, st.ChunkFilename))
+	if err != nil {
+		return nil, err
+	}
+	if st.IsCompressed {
+		tf, err := osext.UnGZIP(f)
+		if err != nil {
+			return nil, err
+		}
+		return osext.RemoveOnClose(tf), nil
+	}
+	return f, nil
 }
 
 // AddMessage indexes the message.  It should be called when a message is
@@ -141,7 +171,7 @@ func (s *State) FilePath(channelID, fileID string) string {
 
 // tsUpdate updates the map with the given ID and value if the value is greater.
 func tsUpdate(m map[string]int64, id string, val string) {
-	currVal, err := structures.TS2int(val)
+	currVal, err := fasttime.TS2int(val)
 	if err != nil {
 		return // not updating crooked values
 	}
@@ -213,7 +243,7 @@ func latest(m map[string]int64, id string) string {
 	if m == nil {
 		return ""
 	}
-	return structures.Int2TS(m[id])
+	return fasttime.Int2TS(m[id])
 }
 
 // FileChannelID returns the channel ID where the file was last seen.

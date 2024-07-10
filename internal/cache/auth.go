@@ -193,7 +193,7 @@ func tryLoad(ctx context.Context, filename string) (auth.Provider, error) {
 		return nil, err
 	}
 	// test the loaded credentials
-	if err := authTester(prov, ctx); err != nil {
+	if _, err := authTester(prov, ctx); err != nil {
 		return nil, err
 	}
 	return prov, nil

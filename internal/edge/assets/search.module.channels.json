@@ -1,0 +1,87 @@
+{
+    "ok": true,
+    "module": "channels",
+    "query": "",
+    "filters": {},
+    "pagination": {
+        "total_count": 6,
+        "page": 1,
+        "per_page": 50,
+        "first": 1,
+        "last": 6
+    },
+    "items": [
+        {
+            "iid": "87914a28-8d36-4751-8fd1-7b30cad64ce3",
+            "id": "CHY5HUESG",
+            "is_member": false,
+            "member_count": 2,
+            "name": "everyone",
+            "purpose": {
+                "value": "This channel is for workspace-wide communication and announcements. All members are in this channel.",
+                "creator": "UHSD97ZA5",
+                "last_set": 1555493778
+            }
+        },
+        {
+            "iid": "cd71827f-1d55-4791-a1a2-33d70bffa616",
+            "id": "C045TUGSSTW",
+            "is_member": false,
+            "member_count": 1,
+            "name": "adapt_w_3dビューア",
+            "purpose": {
+                "value": "Issue 44 test",
+                "creator": "UHSD97ZA5",
+                "last_set": 1665307423
+            }
+        },
+        {
+            "iid": "7b596f2f-03c4-4c0f-b528-e13cc993c6ff",
+            "id": "C04BJATRQRL",
+            "is_member": false,
+            "member_count": 1,
+            "name": "slackdump",
+            "purpose": {
+                "value": "",
+                "creator": "",
+                "last_set": 0
+            }
+        },
+        {
+            "iid": "57c2302a-fbe2-48f8-9bc7-3be9c5cdd4f4",
+            "id": "CHYLGDP0D",
+            "is_member": false,
+            "member_count": 3,
+            "name": "random",
+            "purpose": {
+                "value": "A place for non-work-related flimflam, faffing, hodge-podge or jibber-jabber you'd prefer to keep out of more focused work-related channels.",
+                "creator": "UHSD97ZA5",
+                "last_set": 1555493778
+            }
+        },
+        {
+            "iid": "7e91cbe8-e7af-47d9-a9f8-3173cee7977c",
+            "id": "CHM82GF99",
+            "is_member": false,
+            "member_count": 2,
+            "name": "everything",
+            "purpose": {
+                "value": "",
+                "creator": "",
+                "last_set": 0
+            }
+        },
+        {
+            "iid": "7fd17a45-514d-4c40-91be-5dd8afb4b110",
+            "id": "C011D885FP0",
+            "is_member": false,
+            "member_count": 1,
+            "name": "wakatime",
+            "purpose": {
+                "value": "Timesheet",
+                "creator": "UHSD97ZA5",
+                "last_set": 1586035666
+            }
+        }
+    ]
+}

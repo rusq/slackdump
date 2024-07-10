@@ -18,7 +18,7 @@ import (
 
 	"github.com/rusq/slackdump/v3/auth"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/apiconfig"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/authcmd"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/archive"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/convertcmd"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/diag"
@@ -30,8 +30,9 @@ import (
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/help"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/list"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/man"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/record"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/view"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/wizard"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/workspace"
 	"github.com/rusq/slackdump/v3/logger"
 )
 
@@ -42,14 +43,16 @@ func init() {
 		wizard.CmdWizard,
 		export.CmdExport,
 		dump.CmdDump,
-		record.CmdRecord,
+		archive.CmdRecord,
+		archive.CmdSearch,
 		convertcmd.CmdConvert,
 		list.CmdList,
 		emoji.CmdEmoji,
-		authcmd.CmdWorkspace,
+		workspace.CmdWorkspace,
 		diag.CmdDiag,
 		apiconfig.CmdConfig,
 		format.CmdFormat,
+		view.CmdView,
 		CmdVersion,
 
 		man.WhatsNew,
@@ -119,7 +122,9 @@ BigCmdLoop:
 				continue
 			}
 			if err := invoke(cmd, args); err != nil {
-				dlog.Printf("Error %03[1]d (%[1]s): %[2]s", base.ExitStatus(), err)
+				msg := fmt.Sprintf("Error %03[1]d (%[1]s): %[2]s", base.ExitStatus(), err)
+				logger.Default.Print(msg)
+				fmt.Fprintln(os.Stderr, msg)
 			}
 			base.Exit()
 			return
@@ -178,7 +183,7 @@ func invoke(cmd *base.Command, args []string) error {
 	if cmd.RequireAuth {
 		trace.Logf(ctx, "invoke", "command %s requires auth", cmd.Name())
 		var err error
-		prov, err := authcmd.AuthCurrent(ctx, cfg.CacheDir(), cfg.Workspace, cfg.LegacyBrowser)
+		prov, err := workspace.AuthCurrent(ctx, cfg.CacheDir(), cfg.Workspace, cfg.LegacyBrowser)
 		if err != nil {
 			trace.Logf(ctx, "invoke", "auth error: %s", err)
 			base.SetExitStatus(base.SAuthError)
@@ -244,7 +249,10 @@ func initTrace(filename string) error {
 // is nil.
 func initLog(filename string, verbose bool) (*dlog.Logger, error) {
 	lg := logger.Default
-	lg.SetDebug(verbose)
+	if verbose {
+		lg.SetDebug(verbose)
+		lg.SetFlags(lg.Flags() | log.Lmicroseconds)
+	}
 
 	if filename == "" {
 		return lg, nil

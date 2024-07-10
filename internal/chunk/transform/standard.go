@@ -5,11 +5,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/slack"
 
 	"github.com/rusq/slackdump/v3/internal/chunk"
+	"github.com/rusq/slackdump/v3/internal/fasttime"
 	"github.com/rusq/slackdump/v3/internal/nametmpl"
 	"github.com/rusq/slackdump/v3/internal/structures"
 	"github.com/rusq/slackdump/v3/logger"
@@ -125,11 +127,11 @@ type msgsorter []slack.Message
 
 func (m msgsorter) Len() int { return len(m) }
 func (m msgsorter) Less(i, j int) bool {
-	tsi, err := structures.TS2int(m[i].Timestamp)
+	tsi, err := fasttime.TS2int(m[i].Timestamp)
 	if err != nil {
 		return false
 	}
-	tsj, err := structures.TS2int(m[j].Timestamp)
+	tsj, err := fasttime.TS2int(m[j].Timestamp)
 	if err != nil {
 		return false
 	}
@@ -150,13 +152,14 @@ func stdConversation(cf *chunk.File, ci *slack.Channel, pipeline pipeline) ([]ty
 	}
 	msgs := make([]types.Message, 0, len(mm))
 	for i := range mm {
-		if mm[i].SubType == structures.SubTypeThreadBroadcast {
+		if strings.EqualFold(mm[i].SubType, structures.SubTypeThreadBroadcast) {
 			// this we don't eat.  Skip thread broadcasts.
 			continue
 		}
 		var sdm types.Message // slackdump message
 		sdm.Message = mm[i]
-		if mm[i].ThreadTimestamp != "" && mm[i].ThreadTimestamp == mm[i].Timestamp && mm[i].LatestReply != structures.LatestReplyNoReplies { // process thread only for parent messages
+		if mm[i].ThreadTimestamp != "" && mm[i].ThreadTimestamp == mm[i].Timestamp && mm[i].LatestReply != structures.LatestReplyNoReplies {
+			// process thread only for parent messages
 			// if there's a thread timestamp, we need to find and add it.
 			thread, err := cf.AllThreadMessages(ci.ID, mm[i].ThreadTimestamp)
 			if err != nil {

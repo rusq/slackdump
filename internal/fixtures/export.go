@@ -1,5 +1,10 @@
 package fixtures
 
+import (
+	"embed"
+	_ "embed"
+)
+
 const TestConversationExportJSON = `{
 	"2019-04-17": [
 	  {
@@ -432,3 +437,27 @@ const TestConversationExportJSON = `{
 	  }
 	]
   }`
+
+// Export fixtures.
+var (
+	//go:embed assets/export/dms.json
+	TestExpDMsJSON []byte
+
+	//go:embed assets/export/mpims.json
+	TestExpMPIMsJSON []byte
+
+	//go:embed assets/export/groups.json
+	TestExpGroupsJSON []byte
+
+	//go:embed assets/export/channels.json
+	TestExpChannelsJSON []byte
+
+	//go:embed assets/export/users.json
+	TestExpUsersJSON []byte
+
+	//go:embed assets/export/ref-channels.json
+	TestExpReferenceChannelsJSON []byte
+)
+
+//go:embed assets/export/*.json
+var TestExportFS embed.FS

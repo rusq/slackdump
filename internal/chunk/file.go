@@ -8,7 +8,6 @@ import (
 	"io"
 	"log"
 	"path/filepath"
-	"runtime"
 	"runtime/trace"
 	"sort"
 	"strings"
@@ -19,8 +18,8 @@ import (
 
 	"github.com/rusq/dlog"
 	"github.com/rusq/slackdump/v3/internal/chunk/state"
+	"github.com/rusq/slackdump/v3/internal/fasttime"
 	"github.com/rusq/slackdump/v3/internal/osext"
-	"github.com/rusq/slackdump/v3/internal/structures"
 	"github.com/rusq/slackdump/v3/logger"
 )
 
@@ -126,16 +125,8 @@ func indexChunks(dec decoder) (index, error) {
 		idx[id] = append(idx[id], offset)
 	}
 
-	logger.Default.Debugf("indexing chunks: %d: called from %v, took %s (%.2f/sec)", len(idx), caller(2), time.Since(start), float64(len(idx))/time.Since(start).Seconds())
+	logger.Default.Debugf("indexing chunks: %d: called from %v, took %s (%.2f/sec)", len(idx), osext.Caller(2), time.Since(start), float64(len(idx))/time.Since(start).Seconds())
 	return idx, nil
-}
-
-func caller(steps int) string {
-	name := "?"
-	if pc, _, _, ok := runtime.Caller(steps + 1); ok {
-		name = filepath.Base(runtime.FuncForPC(pc).Name())
-	}
-	return name
 }
 
 // ensure ensures that the file index was generated.
@@ -143,7 +134,7 @@ func caller(steps int) string {
 // TODO: maybe it shouldn't panic.
 func (f *File) ensure() {
 	if f.idx == nil {
-		log.Panicf("internal error:  %s called before File.Open", caller(1))
+		log.Panicf("internal error:  %s called before File.Open", osext.Caller(1))
 	}
 }
 
@@ -352,7 +343,7 @@ func (f *File) ChannelUsers(channelID string) ([]string, error) {
 	})
 }
 
-func (f *File) channelInfo(channelID string, thread bool) (*slack.Channel, error) {
+func (f *File) channelInfo(channelID string, _ bool) (*slack.Channel, error) {
 	chunk, err := f.firstChunkForID(channelInfoID(channelID))
 	if err != nil {
 		return nil, err
@@ -439,7 +430,7 @@ func (f *File) offsetTimestamps(ctx context.Context) (offts, error) {
 	var ret = make(offts, f.idx.OffsetCount())
 	for id, offsets := range f.idx {
 		switch id[0] {
-		case catInfo, catFile, catList: // ignoring files, information and list chunks
+		case catInfo, catFile, catList, catSearch: // ignoring files, information and list chunks
 			continue
 		}
 		for _, offset := range offsets {
@@ -534,7 +525,7 @@ func (f *File) Sorted(ctx context.Context, desc bool, fn func(ts time.Time, m *s
 			prevOffset = tmOff.Offset
 		}
 
-		if err := fn(structures.Int2Time(ts).UTC(), &chunk.Messages[tmOff.Index]); err != nil {
+		if err := fn(fasttime.Int2Time(ts).UTC(), &chunk.Messages[tmOff.Index]); err != nil {
 			return err
 		}
 	}

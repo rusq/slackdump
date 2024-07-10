@@ -59,3 +59,8 @@ slackdump_2*
 *.ps
 *.html
 \#*\#
+__debug_bin*
+debug.test*
+!internal/viewer/templates/*.html
+!internal/viewer/renderer/templates/*.html
+!internal/fixtures/**/*.json

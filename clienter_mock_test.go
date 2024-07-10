@@ -183,6 +183,36 @@ func (mr *MockSlackerMockRecorder) ListBookmarks(channelID any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListBookmarks", reflect.TypeOf((*MockSlacker)(nil).ListBookmarks), channelID)
 }
 
+// SearchFilesContext mocks base method.
+func (m *MockSlacker) SearchFilesContext(ctx context.Context, query string, params slack.SearchParameters) (*slack.SearchFiles, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SearchFilesContext", ctx, query, params)
+	ret0, _ := ret[0].(*slack.SearchFiles)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// SearchFilesContext indicates an expected call of SearchFilesContext.
+func (mr *MockSlackerMockRecorder) SearchFilesContext(ctx, query, params any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SearchFilesContext", reflect.TypeOf((*MockSlacker)(nil).SearchFilesContext), ctx, query, params)
+}
+
+// SearchMessagesContext mocks base method.
+func (m *MockSlacker) SearchMessagesContext(ctx context.Context, query string, params slack.SearchParameters) (*slack.SearchMessages, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SearchMessagesContext", ctx, query, params)
+	ret0, _ := ret[0].(*slack.SearchMessages)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// SearchMessagesContext indicates an expected call of SearchMessagesContext.
+func (mr *MockSlackerMockRecorder) SearchMessagesContext(ctx, query, params any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SearchMessagesContext", reflect.TypeOf((*MockSlacker)(nil).SearchMessagesContext), ctx, query, params)
+}
+
 // mockClienter is a mock of clienter interface.
 type mockClienter struct {
 	ctrl     *gomock.Controller
@@ -396,4 +426,34 @@ func (m *mockClienter) ListBookmarks(channelID string) ([]slack.Bookmark, error)
 func (mr *mockClienterMockRecorder) ListBookmarks(channelID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListBookmarks", reflect.TypeOf((*mockClienter)(nil).ListBookmarks), channelID)
+}
+
+// SearchFilesContext mocks base method.
+func (m *mockClienter) SearchFilesContext(ctx context.Context, query string, params slack.SearchParameters) (*slack.SearchFiles, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SearchFilesContext", ctx, query, params)
+	ret0, _ := ret[0].(*slack.SearchFiles)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// SearchFilesContext indicates an expected call of SearchFilesContext.
+func (mr *mockClienterMockRecorder) SearchFilesContext(ctx, query, params any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SearchFilesContext", reflect.TypeOf((*mockClienter)(nil).SearchFilesContext), ctx, query, params)
+}
+
+// SearchMessagesContext mocks base method.
+func (m *mockClienter) SearchMessagesContext(ctx context.Context, query string, params slack.SearchParameters) (*slack.SearchMessages, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SearchMessagesContext", ctx, query, params)
+	ret0, _ := ret[0].(*slack.SearchMessages)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// SearchMessagesContext indicates an expected call of SearchMessagesContext.
+func (mr *mockClienterMockRecorder) SearchMessagesContext(ctx, query, params any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SearchMessagesContext", reflect.TypeOf((*mockClienter)(nil).SearchMessagesContext), ctx, query, params)
 }

@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Slackdump Viewer</title>
+    {{ template "hx_css" . }}
+    <script src="https://unpkg.com/htmx.org@1.9.10"
+        integrity="sha384-D1Kt99CQMDuVetoL1lrYwg5t+9QdHe7NLX/SoJYkXDFfX37iInKRy5xLSi8nO7UC"
+        crossorigin="anonymous"></script>
+</head>
+
+<body>
+    <div class="container">
+        <section class="channel-list">
+            <h1>Slackdump</h1>
+            <small class="subtitle grey">{{.Type}}: {{.Name}}</small>
+            <!-- Channel list goes here -->
+            {{ template "channel_list" . }}
+        </section>
+        <section id="conversation" class="conversations">
+            <!-- Conversations go here -->
+            {{ if .Messages }}
+            {{ template "hx_conversation" . }}
+            {{ else }}
+            <article class="welcome">
+                <h1>Slackdump Browser</h1>
+                <p>Please select the conversation on the left to view messages.</p>
+            </article>
+            {{ end }}
+        </section>
+        <section id="thread" class="thread">
+            <!-- Thread messages go here -->
+            {{ if .ThreadMessages }}
+            {{ template "hx_thread" . }}
+            {{ end }}
+        </section>
+    </div>
+</body>
+
+</html>
+
+{{ define "channel_list" }}
+{{ if ( or .Public .Private) }}
+<h2>Channels</h2>
+<menu>
+    {{ range $i, $el := .Public }}
+    <li><a href="#" hx-get="/archives/{{$el.ID}}" hx-target="#conversation" hx-push-url="true">{{ rendername $el }}</a></li>
+    {{ end }}
+    {{ range $i, $el := .Private }}
+    <li><a href="#" hx-get="/archives/{{$el.ID}}" hx-target="#conversation" hx-push-url="true">{{ rendername $el }}</a></li>
+    {{ end }}
+</menu>
+{{ end }}
+{{ if (or .MPIM .DM) }}
+<h2>Direct</h2>
+<menu>
+    {{ range $i, $el := .MPIM }}
+    <li><a href="#" hx-get="/archives/{{$el.ID}}" hx-target="#conversation" hx-push-url="true">{{ rendername $el }}</a></li>
+    {{ end }}
+    {{ range $i, $el := .DM }}
+    <li><a href="#" hx-get="/archives/{{$el.ID}}" hx-target="#conversation" hx-push-url="true">{{ rendername $el }}</a></li>
+    {{ end }}
+</menu>
+{{ end }}
+{{ end }}
+
+{{define "hx_conversation"}}
+{{ if .Conversation.ID }}
+{{ $id := .Conversation.ID }}
+<h2>{{ rendername .Conversation }}</h2>
+{{ range $i, $el := .Messages }}
+<article class="message">
+    {{ template "render_message" . }}
+    {{ if is_thread_start $el }}
+    <footer class="thread-info">
+        <a href="#" hx-get="/archives/{{$id}}/{{ $el.ThreadTimestamp }}" hx-target="#thread">
+            {{ $el.ReplyCount }} replies
+        </a> <span class="last-reply grey">Last reply: {{ time $el.LatestReply }}</span>
+    </footer>
+    {{ end }}
+</article>
+{{end}}
+{{ else }}
+<p>No Messages.</p>
+{{ end }}
+<script>
+    document.querySelectorAll('.thread-info a').forEach(function (link) {
+        link.addEventListener('click', function (e) {
+            e.preventDefault();
+            // document.querySelector('.conversations').style.display = 'none';
+            // document.querySelector('.thread').style.display = 'block';
+            document.querySelector('.conversations').style.flex = '0 0 40%';
+            document.querySelector('.thread').style.display = 'block';
+            document.querySelector('.thread').style.flex = '1';
+            // Load thread messages into .thread div here
+        });
+    });
+    document.querySelectorAll('.message-sender a').forEach(function (link) {
+        link.addEventListener('click', function (e) {
+            e.preventDefault();
+            // document.querySelector('.conversations').style.display = 'none';
+            // document.querySelector('.thread').style.display = 'block';
+            document.querySelector('.conversations').style.flex = '0 0 40%';
+            document.querySelector('.thread').style.display = 'block';
+            document.querySelector('.thread').style.flex = '1';
+            // Load thread messages into .thread div here
+        });
+    });
+</script>
+{{ end }}
+
+
+
+{{define "hx_thread"}}
+<h2>Thread: {{ .ThreadID }}</h2>
+<p><a id="close-thread" href="#">[X]</a></p>
+<p><a id="thread-link" href="{{.Conversation.ID}}/{{ .ThreadID }}">Link to this thread</a></p>
+{{ range $i, $el := .ThreadMessages }}
+<article class="message">
+    {{ template "render_message" $el }}
+    <hr>
+</article>
+{{end}}
+<script>
+    document.getElementById('close-thread').addEventListener('click', function (e) {
+        e.preventDefault();
+        document.querySelector('.conversations').style.flex = '1';
+        document.querySelector('.thread').style.display = 'none';
+    });
+</script>
+{{end}}
+
+{{ define "render_message" }}
+<header class="message-header" id="{{.Timestamp}}">
+    <span class="message-sender">
+        {{if is_app_msg . -}}
+        {{ username . }}
+        {{- else -}}
+        <a href="#" hx-get="/team/{{ .User }}" hx-target="#thread"> {{ username . }}</a>
+        {{- end }}
+    </span>
+    <span class="message-timestamp grey">{{ time .Timestamp }}</span>
+    <span class="message-link"><a href="#{{.Timestamp}}">#</a></span>
+</header>
+<div class="message-content">
+    <p>{{ render . }}</p>
+</div>
+{{ end }}
+
+
+
+{{ define "hx_user" }}
+<h2>User: {{ displayname .ID }}</h2>
+<p><a id="close-user" href="#">[X]</a></p>
+<article class="user">
+    {{ if . }}
+    {{ displayname .ID }}<br>
+    <a href="mailto:{{ .Profile.Email}}" target="_blank">{{ .Profile.Email }}</a><br>
+    <a href="{{.Profile.Image512}}" target="_blank">
+        <img src="{{ .Profile.Image192}}" alt="{{ displayname .ID }}">
+    </a><br>
+    <ul>
+        {{ if .Profile.RealName }}<li>Real name: {{ .Profile.RealName }}</li>{{ end }}
+        {{ if .Profile.Skype }}<li>Skype: {{ .Profile.Skype }}</li>{{ end }}
+        {{ if .Profile.Team }}<li>Team: {{ .Profile.Team }}</li>{{ end }}
+    </ul>
+    {{ else }}
+    <p>Unknown</p>
+    {{ end }}
+</article>
+<script>
+    document.getElementById('close-user').addEventListener('click', function (e) {
+        e.preventDefault();
+        document.querySelector('.conversations').style.flex = '1';
+        document.querySelector('.thread').style.display = 'none';
+    });
+</script>
+{{ end }}

@@ -3,14 +3,16 @@ package dirproc
 import (
 	"context"
 	"errors"
+	"io"
 	"runtime/trace"
-	"sync"
 
 	"github.com/rusq/slack"
 	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/logger"
 	"github.com/rusq/slackdump/v3/processor"
 )
+
+//go:generate mockgen -source=conversations.go -destination=dirproc_mock_test.go -package=dirproc
 
 // Transformer is an interface that is called when the processor is finished
 // processing a channel or thread.
@@ -26,10 +28,8 @@ type Transformer interface {
 // Conversations is a processor that writes the channel and thread messages.
 // Zero value is unusable.  Use [NewConversation] to create a new instance.
 type Conversations struct {
-	dir *chunk.Directory
-	cw  map[chunk.FileID]*entityproc
-	mu  sync.RWMutex
-	lg  logger.Interface
+	t  tracker
+	lg logger.Interface
 
 	// subproc is the files subprocessor, it is called by the Files method
 	// in addition to recording the files in the chunk file (if recordFiles is
@@ -42,6 +42,31 @@ type Conversations struct {
 
 	// tf is the channel transformer that is called for each channel.
 	tf Transformer
+}
+
+// tracker is an interface for a recorder of data.
+
+type tracker interface {
+	Recorder(id chunk.FileID) (datahandler, error)
+	RefCount(id chunk.FileID) int
+	Unregister(id chunk.FileID) error
+	CloseAll() error
+}
+
+// datahandler is an interface for the data processor
+type datahandler interface {
+	processor.ChannelInformer
+	processor.Messenger
+	processor.Filer
+	counter
+	io.Closer
+}
+
+type counter interface {
+	Inc() int
+	Dec() int
+	Add(int) int
+	N() int
 }
 
 // ConvOption is a function that configures the Conversations processor.
@@ -61,16 +86,10 @@ func WithRecordFiles(b bool) ConvOption {
 	}
 }
 
-// entityproc is a processor for a single entity, which can be a thread or
-// a channel.
-type entityproc struct {
-	*baseproc
-	// refcnt is the number of threads are expected to be processed for
-	// the given channel.  We keep track of the number of threads, to ensure
-	// that we don't close the file until all threads are processed.
-	// The channel file can be closed when the number of threads is zero.
-	refcnt int
-}
+var (
+	errNilSubproc     = errors.New("internal error: files subprocessor is nil")
+	errNilTransformer = errors.New("internal error: transformer is nil")
+)
 
 // NewConversation returns the new conversation processor.  filesSubproc will
 // be called for each file chunk, tf will be called for each completed channel
@@ -79,15 +98,14 @@ type entityproc struct {
 func NewConversation(cd *chunk.Directory, filesSubproc processor.Filer, tf Transformer, opts ...ConvOption) (*Conversations, error) {
 	// validation
 	if filesSubproc == nil {
-		return nil, errors.New("internal error: files subprocessor is nil")
+		return nil, errNilSubproc
 	} else if tf == nil {
-		return nil, errors.New("internal error: transformer is nil")
+		return nil, errNilTransformer
 	}
 
 	c := &Conversations{
-		dir:     cd,
+		t:       newFileTracker(cd),
 		lg:      logger.Default,
-		cw:      make(map[chunk.FileID]*entityproc),
 		subproc: filesSubproc,
 		tf:      tf,
 	}
@@ -97,76 +115,13 @@ func NewConversation(cd *chunk.Directory, filesSubproc processor.Filer, tf Trans
 	return c, nil
 }
 
-// ensure ensures that the channel file is open and the recorder is
-// initialized.
-func (cv *Conversations) ensure(id chunk.FileID) error {
-	cv.mu.Lock()
-	defer cv.mu.Unlock()
-	if _, ok := cv.cw[id]; ok {
-		return nil
-	}
-	bp, err := newBaseProc(cv.dir, id)
-	if err != nil {
-		return err
-	}
-	cv.cw[id] = &entityproc{
-		baseproc: bp,
-		refcnt:   1, // the id itself is a reference
-	}
-	return nil
-}
-
 // ChannelInfo is called for each channel that is retrieved.
 func (cv *Conversations) ChannelInfo(ctx context.Context, ci *slack.Channel, threadTS string) error {
-	r, err := cv.recorder(chunk.ToFileID(ci.ID, threadTS, threadTS != ""))
+	r, err := cv.t.Recorder(chunk.ToFileID(ci.ID, threadTS, threadTS != ""))
 	if err != nil {
 		return err
 	}
 	return r.ChannelInfo(ctx, ci, threadTS)
-}
-
-func (cv *Conversations) recorder(id chunk.FileID) (*baseproc, error) {
-	cv.mu.RLock()
-	r, ok := cv.cw[id]
-	cv.mu.RUnlock()
-	if ok {
-		return r.baseproc, nil
-	}
-	if err := cv.ensure(id); err != nil {
-		return nil, err
-	}
-	cv.mu.RLock()
-	defer cv.mu.RUnlock()
-	return cv.cw[id].baseproc, nil
-}
-
-// refcount returns the number of references that are expected to be
-// processed for the given channel.
-func (cv *Conversations) refcount(id chunk.FileID) int {
-	cv.mu.RLock()
-	defer cv.mu.RUnlock()
-	if _, ok := cv.cw[id]; !ok {
-		return 0
-	}
-	return cv.cw[id].refcnt
-}
-
-func (cv *Conversations) incRefN(id chunk.FileID, n int) {
-	cv.mu.Lock()
-	defer cv.mu.Unlock()
-	if _, ok := cv.cw[id]; !ok {
-		return
-	}
-	cv.cw[id].refcnt += n
-}
-
-func (cv *Conversations) decRef(id chunk.FileID) {
-	cv.mu.Lock()
-	defer cv.mu.Unlock()
-	if _, ok := cv.cw[id]; !ok {
-		return
-	}
-	cv.cw[id].refcnt--
 }
 
 // Messages is called for each message that is retrieved.
@@ -174,26 +129,64 @@ func (cv *Conversations) Messages(ctx context.Context, channelID string, numThre
 	ctx, task := trace.NewTask(ctx, "Messages")
 	defer task.End()
 
-	lg := logger.FromContext(ctx)
-	lg.Debugf("processor: channelID=%s, numThreads=%d, isLast=%t, len(mm)=%d", channelID, numThreads, isLast, len(mm))
+	cv.debugtrace(ctx, "%s: Messages: numThreads=%d, isLast=%t, len(mm)=%d", channelID, numThreads, isLast, len(mm))
 
 	id := chunk.ToFileID(channelID, "", false)
-	r, err := cv.recorder(id)
+	r, err := cv.t.Recorder(id)
 	if err != nil {
 		return err
 	}
-	if numThreads > 0 {
-		cv.incRefN(id, numThreads) // one for each thread
-		trace.Logf(ctx, "ref", "added %d", numThreads)
-		lg.Debugf("processor: increased ref count for %q to %d", channelID, cv.refcount(id))
-	}
+	n := r.Add(numThreads)
+	cv.debugtrace(ctx, "%s: Messages: increased by %d to %d", channelID, numThreads, n)
+
 	if err := r.Messages(ctx, channelID, numThreads, isLast, mm); err != nil {
 		return err
 	}
+
 	if isLast {
-		trace.Log(ctx, "isLast", "true, decrease ref count")
-		cv.decRef(id)
+		n := r.Dec()
+		cv.debugtrace(ctx, "%s: Messages: decreased by 1 to %d, finalising", channelID, n)
 		return cv.finalise(ctx, id)
+	}
+	return nil
+}
+
+// ThreadMessages is called for each of the thread messages that are
+// retrieved. The parent message is passed in as well.
+func (cv *Conversations) ThreadMessages(ctx context.Context, channelID string, parent slack.Message, threadOnly bool, isLast bool, tm []slack.Message) error {
+	ctx, task := trace.NewTask(ctx, "ThreadMessages")
+	defer task.End()
+
+	cv.debugtrace(ctx, "%s: ThreadMessages: parent=%s, isLast=%t, len(tm)=%d", channelID, parent.ThreadTimestamp, isLast, len(tm))
+
+	id := chunk.ToFileID(channelID, parent.ThreadTimestamp, threadOnly)
+	r, err := cv.t.Recorder(id)
+	if err != nil {
+		return err
+	}
+	if err := r.ThreadMessages(ctx, channelID, parent, threadOnly, isLast, tm); err != nil {
+		return err
+	}
+	if isLast {
+		n := r.Dec()
+		cv.debugtrace(ctx, "%s:%s: ThreadMessages: decreased by 1 to %d, finalising", id, parent.Timestamp, n)
+		return cv.finalise(ctx, id)
+	}
+	return nil
+}
+
+// finalise closes the channel file if there are no more threads to process.
+func (cv *Conversations) finalise(ctx context.Context, id chunk.FileID) error {
+	if tc := cv.t.RefCount(id); tc > 0 {
+		cv.debugtrace(ctx, "%s: finalise: not finalising, ref count = %d", id, tc)
+		return nil
+	}
+	cv.debugtrace(ctx, "%s: finalise: ref count = 0, finalising...", id)
+	if err := cv.t.Unregister(id); err != nil {
+		return err
+	}
+	if cv.tf != nil {
+		return cv.tf.Transform(ctx, id)
 	}
 	return nil
 }
@@ -204,74 +197,22 @@ func (cv *Conversations) Files(ctx context.Context, channel *slack.Channel, pare
 	if err := cv.subproc.Files(ctx, channel, parent, ff); err != nil {
 		return err
 	}
-	if cv.recordFiles {
-		id := chunk.ToFileID(channel.ID, parent.ThreadTimestamp, false) // we don't do files for threads in export
-		r, err := cv.recorder(id)
-		if err != nil {
-			return err
-		}
-		if err := r.Files(ctx, channel, parent, ff); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// ThreadMessages is called for each of the thread messages that are
-// retrieved. The parent message is passed in as well.
-func (cv *Conversations) ThreadMessages(ctx context.Context, channelID string, parent slack.Message, threadOnly bool, isLast bool, tm []slack.Message) error {
-	ctx, task := trace.NewTask(ctx, "ThreadMessages")
-	defer task.End()
-	lg := logger.FromContext(ctx)
-
-	id := chunk.ToFileID(channelID, parent.ThreadTimestamp, threadOnly)
-	r, err := cv.recorder(id)
-	if err != nil {
-		return err
-	}
-	if err := r.ThreadMessages(ctx, channelID, parent, threadOnly, isLast, tm); err != nil {
-		return err
-	}
-	cv.decRef(id)
-	refcnt := cv.refcount(id)
-	trace.Logf(ctx, "ref", "decremented, current=%d", refcnt)
-	lg.Debugf("processor: decreased ref count for %q to %d", id, refcnt)
-	if isLast {
-		trace.Log(ctx, "isLast", "true")
-		lg.Debugf("processor: isLast=true, finalising thread %s", id)
-		return cv.finalise(ctx, id)
-	}
-	return nil
-}
-
-// finalise closes the channel file if there are no more threads to process.
-func (cv *Conversations) finalise(ctx context.Context, id chunk.FileID) error {
-	lg := logger.FromContext(ctx)
-	if tc := cv.refcount(id); tc > 0 {
-		trace.Logf(ctx, "ref", "not finalising %q because ref count = %d", id, tc)
-		lg.Debugf("channel %s: still processing %d ref count", id, tc)
+	if !cv.recordFiles {
 		return nil
 	}
-	trace.Logf(ctx, "ref", "= 0, id %s finalise", id)
-	lg.Debugf("id %s: closing channel file", id)
-	r, err := cv.recorder(id)
+	id := chunk.ToFileID(channel.ID, parent.ThreadTimestamp, false) // we don't do files for threads in export
+	r, err := cv.t.Recorder(id)
 	if err != nil {
 		return err
 	}
-	if err := r.Close(); err != nil {
+	if err := r.Files(ctx, channel, parent, ff); err != nil {
 		return err
-	}
-	cv.mu.Lock()
-	defer cv.mu.Unlock()
-	delete(cv.cw, id)
-	if cv.tf != nil {
-		return cv.tf.Transform(ctx, id)
 	}
 	return nil
 }
 
 func (cv *Conversations) ChannelUsers(ctx context.Context, channelID string, threadTS string, cu []string) error {
-	r, err := cv.recorder(chunk.ToFileID(channelID, threadTS, threadTS != ""))
+	r, err := cv.t.Recorder(chunk.ToFileID(channelID, threadTS, threadTS != ""))
 	if err != nil {
 		return err
 	}
@@ -279,12 +220,10 @@ func (cv *Conversations) ChannelUsers(ctx context.Context, channelID string, thr
 }
 
 func (cv *Conversations) Close() error {
-	cv.mu.Lock()
-	defer cv.mu.Unlock()
-	for _, r := range cv.cw {
-		if err := r.Close(); err != nil {
-			return err
-		}
-	}
-	return nil
+	return cv.t.CloseAll()
+}
+
+func (cv *Conversations) debugtrace(ctx context.Context, fmt string, args ...any) {
+	cv.lg.Debugf(fmt, args...)
+	trace.Logf(ctx, "debug", fmt, args...)
 }

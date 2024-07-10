@@ -32,7 +32,7 @@ be printed and the test will be terminated.
 	CustomFlags: true,
 }
 
-type result struct {
+type ezResult struct {
 	Engine     string  `json:"engine,omitempty"`
 	HasToken   bool    `json:"has_token,omitempty"`
 	HasCookies bool    `json:"has_cookies,omitempty"`
@@ -41,7 +41,7 @@ type result struct {
 
 func init() {
 	CmdEzTest.Flag.Usage = func() {
-		fmt.Fprint(os.Stdout, "usage: slackdump diag eztest [flags]\n\nFlags:\n")
+		fmt.Fprint(os.Stdout, "usage: slackdump tools eztest [flags]\n\nFlags:\n")
 		CmdEzTest.Flag.PrintDefaults()
 	}
 }
@@ -64,7 +64,7 @@ func runEzLoginTest(ctx context.Context, cmd *base.Command, args []string) error
 	}
 
 	var (
-		res result
+		res ezResult
 	)
 
 	if *legacy {
@@ -90,8 +90,8 @@ func runEzLoginTest(ctx context.Context, cmd *base.Command, args []string) error
 
 }
 
-func tryPlaywrightAuth(ctx context.Context, wsp string) result {
-	var res = result{Engine: "playwright"}
+func tryPlaywrightAuth(ctx context.Context, wsp string) ezResult {
+	var res = ezResult{Engine: "playwright"}
 
 	if err := playwright.Install(&playwright.RunOptions{Browsers: []string{"firefox"}}); err != nil {
 		res.Err = ptr(fmt.Sprintf("playwright installation error: %s", err))
@@ -117,8 +117,8 @@ func ptr[T any](t T) *T {
 	return &t
 }
 
-func tryRodAuth(ctx context.Context, wsp string) result {
-	ret := result{Engine: "rod"}
+func tryRodAuth(ctx context.Context, wsp string) ezResult {
+	ret := ezResult{Engine: "rod"}
 	prov, err := auth.NewRODAuth(ctx, auth.BrowserWithWorkspace(wsp))
 	if err != nil {
 		ret.Err = ptr(err.Error())
