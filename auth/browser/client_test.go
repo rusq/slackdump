@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/playwright-community/playwright-go"
+	"github.com/rusq/slackdump/v3/auth/browser/pwcompat"
 )
 
 func Test_float2time(t *testing.T) {
@@ -40,7 +41,6 @@ func Test_pwRepair(t *testing.T) {
 	}
 	t.Run("known executable permissions problem causes reinstall", func(t *testing.T) {
 		baseDir := t.TempDir()
-		fakePwDir := filepath.Join(baseDir, "playwright-99.20.0")
 
 		// installCalledi should be set to true if the install function is
 		// called.
@@ -52,20 +52,21 @@ func Test_pwRepair(t *testing.T) {
 			installCalled = true
 			return nil
 		}
-		oldNewDriverFn := newDriverFn
-		defer func() { newDriverFn = oldNewDriverFn }()
-		newDriverFn = func(*playwright.RunOptions) (*playwright.PlaywrightDriver, error) {
-			return &playwright.PlaywrightDriver{
-				DriverDirectory: fakePwDir,
-			}, nil
-		}
-
-		// create a fake node file with the wrong permissions.
-		makeFakeNode(t, fakePwDir, 0o644)
 		// run the repair function.
 		runopts := &playwright.RunOptions{
-			Browsers: []string{"chromium"},
+			Browsers:        []string{"chromium"},
+			DriverDirectory: baseDir,
 		}
+		ad, err := pwcompat.NewAdapter(runopts)
+		if err != nil {
+			t.Fatal(err)
+		}
+		dir := ad.DriverDirectory
+		if err != nil {
+			t.Fatal(err)
+		}
+		// create a fake node file with the wrong permissions.
+		makeFakeNode(t, dir, 0o644)
 		if err := pwRepair(runopts); err != nil {
 			t.Fatal(err)
 		}
@@ -74,7 +75,7 @@ func Test_pwRepair(t *testing.T) {
 			t.Fatal("install was not called")
 		}
 		// check that the directory was removed
-		if _, err := os.Stat(fakePwDir); !os.IsNotExist(err) {
+		if _, err := os.Stat(dir); !os.IsNotExist(err) {
 			t.Fatal("directory was not removed")
 		}
 	})
@@ -84,7 +85,7 @@ func makeFakeNode(t *testing.T, dir string, mode fs.FileMode) {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, "node"), []byte("hello"), mode); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, pwcompat.NodeExe), []byte("hello"), mode); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -93,14 +94,14 @@ func Test_pwIsKnownProblem(t *testing.T) {
 	t.Run("known executable permissions problem", func(t *testing.T) {
 		baseDir := t.TempDir()
 		makeFakeNode(t, baseDir, 0o644)
-		if err := pwIsKnownProblem(baseDir); err != nil {
+		if err := pwWrongNodePerms(filepath.Join(baseDir, pwcompat.NodeExe)); err != nil {
 			t.Fatal(err)
 		}
 	})
 	t.Run("other problem", func(t *testing.T) {
 		baseDir := t.TempDir()
 		makeFakeNode(t, baseDir, 0o755)
-		err := pwIsKnownProblem(baseDir)
+		err := pwWrongNodePerms(filepath.Join(baseDir, pwcompat.NodeExe))
 		if err == nil {
 			t.Fatal("unexpected success")
 		}

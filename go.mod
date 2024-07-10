@@ -14,10 +14,11 @@ require (
 	github.com/go-playground/locales v0.14.1
 	github.com/go-playground/universal-translator v0.18.1
 	github.com/go-playground/validator/v10 v10.19.0
-	github.com/go-rod/rod v0.114.8
+	github.com/go-rod/rod v0.116.1
 	github.com/google/uuid v1.6.0
 	github.com/joho/godotenv v1.5.1
-	github.com/playwright-community/playwright-go v0.4201.0
+	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c
+	github.com/playwright-community/playwright-go v0.4501.0
 	github.com/rusq/chttp v1.0.2
 	github.com/rusq/dlog v1.4.0
 	github.com/rusq/encio v0.1.0
@@ -32,8 +33,8 @@ require (
 	github.com/yuin/goldmark-emoji v1.0.2
 	go.uber.org/mock v0.4.0
 	golang.org/x/crypto v0.21.0
-	golang.org/x/exp v0.0.0-20240318143956-a85f2c67cd81
-	golang.org/x/sync v0.6.0
+	golang.org/x/exp v0.0.0-20240506185415-9bf2ced13842
+	golang.org/x/sync v0.7.0
 	golang.org/x/term v0.18.0
 	golang.org/x/text v0.14.0
 	golang.org/x/time v0.5.0
@@ -69,13 +70,12 @@ require (
 	github.com/muesli/cancelreader v0.2.2 // indirect
 	github.com/muesli/reflow v0.3.0 // indirect
 	github.com/muesli/termenv v0.15.2 // indirect
-	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/rusq/secure v0.0.4 // indirect
 	github.com/ysmood/fetchup v0.2.4 // indirect
 	github.com/ysmood/goob v0.4.0 // indirect
-	github.com/ysmood/got v0.39.4 // indirect
+	github.com/ysmood/got v0.40.0 // indirect
 	github.com/ysmood/gson v0.7.3 // indirect
 	github.com/ysmood/leakless v0.8.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect

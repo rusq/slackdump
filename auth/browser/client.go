@@ -6,13 +6,13 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"path/filepath"
 	"runtime"
 	"runtime/trace"
 	"strings"
 	"time"
 
 	"github.com/playwright-community/playwright-go"
+	"github.com/rusq/slackdump/v3/auth/browser/pwcompat"
 	"github.com/rusq/slackdump/v3/logger"
 )
 
@@ -34,9 +34,6 @@ var Logger logger.Interface = logger.Default
 
 var (
 	installFn = playwright.Install
-	// newDriverFn is the function that creates a new driver.  It is set to
-	// playwright.NewDriver by default, but can be overridden for testing.
-	newDriverFn = playwright.NewDriver
 )
 
 // New create new browser based client.
@@ -59,12 +56,10 @@ func New(workspace string, opts ...Option) (*Client, error) {
 		Browsers: []string{cl.br.String()},
 		Verbose:  cl.verbose,
 	}
-	l().Println("Initialising playwright browser, please wait ...")
 	if err := installFn(runopts); err != nil {
 		if !strings.Contains(err.Error(), "could not run driver") || runtime.GOOS == "windows" {
 			return nil, fmt.Errorf("can't install the browser: %w", err)
 		}
-		l().Println("Failed to install the browser, attempting to repair ...")
 		if err := pwRepair(runopts); err != nil {
 			return nil, fmt.Errorf("failed to repair the browser installation: %w", err)
 		}
@@ -229,12 +224,12 @@ func l() logger.Interface {
 
 // pwRepair attempts to repair the playwright installation.
 func pwRepair(runopts *playwright.RunOptions) error {
-	drv, err := newDriverFn(runopts)
-	if err != nil {
-		return err
-	}
+	ad, err := pwcompat.NewAdapter(runopts)
 	// check node permissions
-	if err := pwIsKnownProblem(drv.DriverDirectory); err != nil {
+	if err != nil {
+		return fmt.Errorf("repair: %w", err)
+	}
+	if err := pwWrongNodePerms(ad.DriverBinaryLocation); err != nil {
 		return err
 	}
 	return reinstall(runopts)
@@ -250,18 +245,18 @@ func Reinstall(browser Browser, verbose bool) error {
 }
 
 func reinstall(runopts *playwright.RunOptions) error {
-	l().Printf("reinstalling browser: %s", runopts.Browsers[0])
-	drv, err := newDriverFn(runopts)
+	l().Debugf("reinstalling browser: %s", runopts.Browsers[0])
+	ad, err := pwcompat.NewAdapter(runopts)
 	if err != nil {
 		return err
 	}
-	l().Printf("removing %s", drv.DriverDirectory)
-	if err := os.RemoveAll(drv.DriverDirectory); err != nil {
+	l().Debugf("removing %s", ad.DriverDirectory)
+	if err := os.RemoveAll(ad.DriverDirectory); err != nil {
 		return err
 	}
 
 	// attempt to reinstall
-	l().Printf("reinstalling %s", drv.DriverDirectory)
+	l().Debugf("reinstalling %s", ad.DriverDirectory)
 	if err := installFn(runopts); err != nil {
 		// we did everything we could, but it still failed.
 		return err
@@ -271,17 +266,17 @@ func reinstall(runopts *playwright.RunOptions) error {
 
 var errUnknownProblem = errors.New("unknown problem")
 
-// pwIsKnownProblem checks if the playwright installation is in a known
+// pwWrongNodePerms checks if the playwright installation is in a known
 // problematic state, and if yes, return nil.  If the problem is unknown,
 // returns an errUnknownProblem.
-func pwIsKnownProblem(path string) error {
+func pwWrongNodePerms(path string) error {
 	if runtime.GOOS == "windows" {
 		// this should not ever happen on windows, as this problem relates to
 		// executable flag not being set, which is not a thing in a
 		// DOS/Windows world.
 		return errors.New("impossible has just happened, call the exorcist")
 	}
-	fi, err := os.Stat(filepath.Join(path, "node"))
+	fi, err := os.Stat(path)
 	if err != nil {
 		return err
 	}
