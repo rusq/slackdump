@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/playwright-community/playwright-go"
+	"github.com/rusq/slackdump/v3/auth/browser/pwcompat"
 	"github.com/rusq/slackdump/v3/logger"
 )
 
@@ -34,9 +35,6 @@ var Logger logger.Interface = logger.Default
 
 var (
 	installFn = playwright.Install
-	// newDriverFn is the function that creates a new driver.  It is set to
-	// playwright.NewDriver by default, but can be overridden for testing.
-	newDriverFn = playwright.NewDriver
 )
 
 // New create new browser based client.
@@ -59,12 +57,10 @@ func New(workspace string, opts ...Option) (*Client, error) {
 		Browsers: []string{cl.br.String()},
 		Verbose:  cl.verbose,
 	}
-	l().Println("Initialising playwright browser, please wait ...")
 	if err := installFn(runopts); err != nil {
 		if !strings.Contains(err.Error(), "could not run driver") || runtime.GOOS == "windows" {
 			return nil, fmt.Errorf("can't install the browser: %w", err)
 		}
-		l().Println("Failed to install the browser, attempting to repair ...")
 		if err := pwRepair(runopts); err != nil {
 			return nil, fmt.Errorf("failed to repair the browser installation: %w", err)
 		}
@@ -229,12 +225,12 @@ func l() logger.Interface {
 
 // pwRepair attempts to repair the playwright installation.
 func pwRepair(runopts *playwright.RunOptions) error {
-	drv, err := newDriverFn(runopts)
+	driverDirectory, err := pwcompat.DriverDir(runopts)
 	if err != nil {
 		return err
 	}
 	// check node permissions
-	if err := pwIsKnownProblem(drv.DriverDirectory); err != nil {
+	if err := pwIsKnownProblem(driverDirectory); err != nil {
 		return err
 	}
 	return reinstall(runopts)
@@ -250,18 +246,18 @@ func Reinstall(browser Browser, verbose bool) error {
 }
 
 func reinstall(runopts *playwright.RunOptions) error {
-	l().Printf("reinstalling browser: %s", runopts.Browsers[0])
-	drv, err := newDriverFn(runopts)
+	l().Debugf("reinstalling browser: %s", runopts.Browsers[0])
+	drvdir, err := pwcompat.DriverDir(runopts)
 	if err != nil {
 		return err
 	}
-	l().Printf("removing %s", drv.DriverDirectory)
-	if err := os.RemoveAll(drv.DriverDirectory); err != nil {
+	l().Debugf("removing %s", drvdir)
+	if err := os.RemoveAll(drvdir); err != nil {
 		return err
 	}
 
 	// attempt to reinstall
-	l().Printf("reinstalling %s", drv.DriverDirectory)
+	l().Debugf("reinstalling %s", drvdir)
 	if err := installFn(runopts); err != nil {
 		// we did everything we could, but it still failed.
 		return err
