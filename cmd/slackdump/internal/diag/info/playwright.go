@@ -6,6 +6,7 @@ import (
 
 	"github.com/playwright-community/playwright-go"
 
+	"github.com/rusq/slackdump/v3/auth/browser/pwcompat"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 )
 
@@ -20,15 +21,15 @@ type PwInfo struct {
 }
 
 func (inf *PwInfo) collect(replaceFn PathReplFunc) {
-	pwdrv, err := playwright.NewDriver(&playwright.RunOptions{
+	pwdrv, err := pwcompat.NewDriver(&playwright.RunOptions{
 		Browsers:            []string{cfg.Browser.String()},
 		SkipInstallBrowsers: true,
-	},
-	)
+	})
 	if err != nil {
 		inf.Path = loser(err)
 		return
 	}
+
 	inf.Path = replaceFn(pwdrv.DriverDirectory)
 	inf.Script = replaceFn(pwdrv.DriverBinaryLocation)
 	if inf.Script != "" {
