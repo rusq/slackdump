@@ -4,59 +4,58 @@
 package pwcompat
 
 import (
-	"errors"
-	"fmt"
+	"log"
 	"os"
 	"path/filepath"
-	"runtime"
 
 	"github.com/playwright-community/playwright-go"
 )
 
 // Workaround for unexported driver dir in playwright.
 
-// newDriverFn is the function that creates a new driver.  It is set to
-// playwright.NewDriver by default, but can be overridden for testing.
-var newDriverFn = playwright.NewDriver
+var (
+	// environment related variables
+	homedir  string = must(os.UserHomeDir())
+	cacheDir string // platform dependent
+	NodeExe  string = "node"
+)
 
-func getDefaultCacheDirectory() (string, error) {
-	// pinched from playwright
-	userHomeDir, err := os.UserHomeDir()
-	if err != nil {
-		return "", fmt.Errorf("could not get user home directory: %w", err)
+func must[T any](v T, e error) T {
+	if e != nil {
+		log.Panicf("error getting user home directory: %s", e)
 	}
-	switch runtime.GOOS {
-	case "windows":
-		return filepath.Join(userHomeDir, "AppData", "Local"), nil
-	case "darwin":
-		return filepath.Join(userHomeDir, "Library", "Caches"), nil
-	case "linux":
-		return filepath.Join(userHomeDir, ".cache"), nil
-	}
-	return "", errors.New("could not determine cache directory")
+	return v
 }
 
-func NewDriver(runopts *playwright.RunOptions) (*playwright.PlaywrightDriver, error) {
-	drv, err := newDriverFn(runopts)
-	if err != nil {
-		return nil, fmt.Errorf("error initialising driver: %w", err)
-	}
-	return drv, nil
+type Adapter struct {
+	DriverDirectory      string
+	DriverBinaryLocation string
+
+	drv  *playwright.PlaywrightDriver
+	opts *playwright.RunOptions
 }
 
-// DriverDir returns the driver directory, broken in this commit:
-// https://github.com/playwright-community/playwright-go/pull/449/commits/372e209c776222f4681cf1b24a1379e3648dd982
-func DriverDir(runopts *playwright.RunOptions) (string, error) {
-	drv, err := NewDriver(runopts)
+func NewAdapter(runopts *playwright.RunOptions) (*Adapter, error) {
+	drv, err := playwright.NewDriver(runopts)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	baseDriverDirectory, err := getDefaultCacheDirectory()
-	if err != nil {
-		return "", fmt.Errorf("it's just not your day: %w", err)
+	if cacheDir == "" { // i.e. freebsd etc.
+		cacheDir, _ = os.UserCacheDir()
 	}
-	driverDirectory := filepath.Join(nvl(runopts.DriverDirectory, baseDriverDirectory), "ms-playwright-go", drv.Version)
-	return driverDirectory, nil
+	drvdir := filepath.Join(nvl(runopts.DriverDirectory, cacheDir), "ms-playwright-go", drv.Version)
+	drvbin := filepath.Join(drvdir, NodeExe)
+
+	return &Adapter{
+		drv:                  drv,
+		opts:                 runopts,
+		DriverDirectory:      drvdir,
+		DriverBinaryLocation: drvbin,
+	}, nil
+}
+
+func (a *Adapter) Driver() *playwright.PlaywrightDriver {
+	return a.drv
 }
 
 func nvl(first string, rest ...string) string {

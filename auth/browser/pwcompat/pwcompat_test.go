@@ -3,48 +3,43 @@
 // workaround.
 package pwcompat
 
-import (
-	"testing"
+import "testing"
 
-	"github.com/playwright-community/playwright-go"
-)
-
-func TestNewDriver(t *testing.T) {
-	t.Parallel()
+func Test_nvl(t *testing.T) {
 	type args struct {
-		runopts *playwright.RunOptions
+		first string
+		rest  []string
 	}
 	tests := []struct {
-		name    string
-		args    args
-		wantErr bool
+		name string
+		args args
+		want string
 	}{
 		{
-			"default dir",
-			args{&playwright.RunOptions{
-				DriverDirectory:     "",
-				SkipInstallBrowsers: true,
-				Browsers:            []string{"chrome"}},
-			},
-			false,
+			"first",
+			args{"first", []string{"second", "third"}},
+			"first",
 		},
 		{
-			"custom dir",
-			args{&playwright.RunOptions{
-				DriverDirectory:     t.TempDir(),
-				SkipInstallBrowsers: true,
-				Browsers:            []string{"chrome"}},
-			},
-			false,
+			"second",
+			args{"", []string{"second", "third"}},
+			"second",
+		},
+		{
+			"third",
+			args{"", []string{"", "third"}},
+			"third",
+		},
+		{
+			"empty",
+			args{"", []string{""}},
+			"",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			_, err := NewDriver(tt.args.runopts)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("NewDriver() error = %v, wantErr %v", err, tt.wantErr)
-				return
+			if got := nvl(tt.args.first, tt.args.rest...); got != tt.want {
+				t.Errorf("nvl() = %v, want %v", got, tt.want)
 			}
 		})
 	}
