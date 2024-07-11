@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"path/filepath"
 	"runtime"
 	"runtime/trace"
 	"strings"
@@ -225,12 +224,12 @@ func l() logger.Interface {
 
 // pwRepair attempts to repair the playwright installation.
 func pwRepair(runopts *playwright.RunOptions) error {
-	driverDirectory, err := pwcompat.DriverDir(runopts)
-	if err != nil {
-		return err
-	}
+	ad, err := pwcompat.NewAdapter(runopts)
 	// check node permissions
-	if err := pwIsKnownProblem(driverDirectory); err != nil {
+	if err != nil {
+		return fmt.Errorf("repair: %w", err)
+	}
+	if err := pwWrongNodePerms(ad.DriverBinaryLocation); err != nil {
 		return err
 	}
 	return reinstall(runopts)
@@ -247,17 +246,17 @@ func Reinstall(browser Browser, verbose bool) error {
 
 func reinstall(runopts *playwright.RunOptions) error {
 	l().Debugf("reinstalling browser: %s", runopts.Browsers[0])
-	drvdir, err := pwcompat.DriverDir(runopts)
+	ad, err := pwcompat.NewAdapter(runopts)
 	if err != nil {
 		return err
 	}
-	l().Debugf("removing %s", drvdir)
-	if err := os.RemoveAll(drvdir); err != nil {
+	l().Debugf("removing %s", ad.DriverDirectory)
+	if err := os.RemoveAll(ad.DriverDirectory); err != nil {
 		return err
 	}
 
 	// attempt to reinstall
-	l().Debugf("reinstalling %s", drvdir)
+	l().Debugf("reinstalling %s", ad.DriverDirectory)
 	if err := installFn(runopts); err != nil {
 		// we did everything we could, but it still failed.
 		return err
@@ -267,17 +266,17 @@ func reinstall(runopts *playwright.RunOptions) error {
 
 var errUnknownProblem = errors.New("unknown problem")
 
-// pwIsKnownProblem checks if the playwright installation is in a known
+// pwWrongNodePerms checks if the playwright installation is in a known
 // problematic state, and if yes, return nil.  If the problem is unknown,
 // returns an errUnknownProblem.
-func pwIsKnownProblem(path string) error {
+func pwWrongNodePerms(path string) error {
 	if runtime.GOOS == "windows" {
 		// this should not ever happen on windows, as this problem relates to
 		// executable flag not being set, which is not a thing in a
 		// DOS/Windows world.
 		return errors.New("impossible has just happened, call the exorcist")
 	}
-	fi, err := os.Stat(filepath.Join(path, "node"))
+	fi, err := os.Stat(path)
 	if err != nil {
 		return err
 	}
