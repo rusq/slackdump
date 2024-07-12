@@ -3,7 +3,7 @@ package renderer
 import "github.com/rusq/slack"
 
 var (
-	blockTypeHandlers = map[slack.MessageBlockType]func(*Slack, slack.Block) (string, error){
+	blockTypeHandlers = map[slack.MessageBlockType]func(*Slack, slack.Block) (string, string, error){
 		slack.MBTRichText: (*Slack).mbtRichText,
 		slack.MBTImage:    (*Slack).mbtImage,
 		slack.MBTContext:  (*Slack).mbtContext,
@@ -24,7 +24,7 @@ var (
 
 // rte - rich text element
 var (
-	rteTypeHandlers = map[slack.RichTextElementType]func(*Slack, slack.RichTextElement) (string, error){}
+	rteTypeHandlers = map[slack.RichTextElementType]func(*Slack, slack.RichTextElement) (string, string, error){}
 
 	rteTypeClass = map[slack.RichTextElementType]string{
 		slack.RTESection:      "slack-rich-text-section",
@@ -43,13 +43,15 @@ func init() {
 
 // rtse - rich text section element
 var (
-	rtseTypeHandlers = map[slack.RichTextSectionElementType]func(*Slack, slack.RichTextSectionElement) (string, error){
+	rtseTypeHandlers = map[slack.RichTextSectionElementType]func(*Slack, slack.RichTextSectionElement) (string, string, error){
 		slack.RTSEText:      (*Slack).rtseText,
 		slack.RTSELink:      (*Slack).rtseLink,
 		slack.RTSEUser:      (*Slack).rtseUser,
 		slack.RTSEEmoji:     (*Slack).rtseEmoji,
 		slack.RTSEChannel:   (*Slack).rtseChannel,
+		slack.RTSEUserGroup: (*Slack).rtseUserGroup,
 		slack.RTSEBroadcast: (*Slack).rtseBroadcast,
+		slack.RTSEColor:     (*Slack).rtseColor,
 	}
 
 	rtseTypeClass = map[slack.RichTextSectionElementType]string{
@@ -59,5 +61,7 @@ var (
 		slack.RTSEEmoji:     "slack-rich-text-section-emoji",
 		slack.RTSEChannel:   "slack-rich-text-section-channel",
 		slack.RTSEBroadcast: "slack-rich-text-section-broadcast",
+		slack.RTSEUserGroup: "slack-rich-text-section-user-group",
+		slack.RTSEColor:     "slack-rich-text-section-color",
 	}
 )

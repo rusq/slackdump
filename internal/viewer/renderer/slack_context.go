@@ -7,44 +7,45 @@ import (
 	"github.com/rusq/slack"
 )
 
-func (s *Slack) mbtContext(ib slack.Block) (string, error) {
+func (s *Slack) mbtContext(ib slack.Block) (string, string, error) {
 	b, ok := ib.(*slack.ContextBlock)
 	if !ok {
-		return "", NewErrIncorrectType(&slack.ContextBlock{}, ib)
+		return "", "", NewErrIncorrectType(&slack.ContextBlock{}, ib)
 	}
-	var buf strings.Builder
+	var buf, cbuf strings.Builder
 	for _, el := range b.ContextElements.Elements {
 		fn, ok := contextElementHandlers[el.MixedElementType()]
 		if !ok {
-			return "", NewErrMissingHandler(el.MixedElementType())
+			return "", "", NewErrMissingHandler(el.MixedElementType())
 		}
-		s, err := fn(s, el)
+		s, cl, err := fn(s, el)
 		if err != nil {
-			return "", err
+			return "", "", err
 		}
 		buf.WriteString(s)
+		cbuf.WriteString(cl)
 	}
 
-	return buf.String(), nil
+	return buf.String(), cbuf.String(), nil
 }
 
-var contextElementHandlers = map[slack.MixedElementType]func(*Slack, slack.MixedElement) (string, error){
+var contextElementHandlers = map[slack.MixedElementType]func(*Slack, slack.MixedElement) (string, string, error){
 	slack.MixedElementImage: (*Slack).metImage,
 	slack.MixedElementText:  (*Slack).metText,
 }
 
-func (*Slack) metImage(ie slack.MixedElement) (string, error) {
+func (*Slack) metImage(ie slack.MixedElement) (string, string, error) {
 	e, ok := ie.(*slack.ImageBlockElement)
 	if !ok {
-		return "", NewErrIncorrectType(&slack.ImageBlockElement{}, ie)
+		return "", "", NewErrIncorrectType(&slack.ImageBlockElement{}, ie)
 	}
-	return fmt.Sprintf(`<img src="%s" alt="%s">`, e.ImageURL, e.AltText), nil
+	return fmt.Sprintf(`<img src="%s" alt="%s">`, e.ImageURL, e.AltText), "", nil
 }
 
-func (*Slack) metText(ie slack.MixedElement) (string, error) {
+func (*Slack) metText(ie slack.MixedElement) (string, string, error) {
 	e, ok := ie.(*slack.TextBlockObject)
 	if !ok {
-		return "", NewErrIncorrectType(&slack.TextBlockObject{}, ie)
+		return "", "", NewErrIncorrectType(&slack.TextBlockObject{}, ie)
 	}
-	return e.Text, nil
+	return e.Text, "", nil
 }

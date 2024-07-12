@@ -14,7 +14,7 @@ import (
 var tmpl = template.Must(template.New("blocks").Funcs(functions.FuncMap).ParseFS(templates, "templates/*.html"))
 
 func TestSlack_Render(t *testing.T) {
-	nestedLists := load(t, fxtrMsgNestedLists)
+	nestedLists := loadmsg(t, fxtrMsgNestedLists)
 	type args struct {
 		m *slack.Message
 	}
@@ -30,7 +30,7 @@ func TestSlack_Render(t *testing.T) {
 				tmpl: tmpl,
 			},
 			args{
-				m: load(t, fxtrRtseText),
+				m: loadmsg(t, fxtrRtseText),
 			},
 			template.HTML("New message"),
 		},
@@ -50,7 +50,7 @@ func TestSlack_Render(t *testing.T) {
 				tmpl: tmpl,
 			},
 			args{
-				m: load(t, fxtrRtseText),
+				m: loadmsg(t, fxtrRtseText),
 			},
 			template.HTML("New message"),
 		},
@@ -60,7 +60,7 @@ func TestSlack_Render(t *testing.T) {
 				tmpl: tmpl,
 			},
 			args{
-				m: load(t, fxtrStartedAMeeting),
+				m: loadmsg(t, fxtrStartedAMeeting),
 			},
 			template.HTML(`<div class="slack-call">(Call)</div><pre class="slack-section-text">Meeting passcode: yyyyy</pre>`),
 		},

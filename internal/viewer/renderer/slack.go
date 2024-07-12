@@ -80,13 +80,14 @@ func (s *Slack) renderBlocks(ctx context.Context, buf *strings.Builder, msgTS st
 			maybeprint(b)
 			continue
 		}
-		html, err := fn(s, b)
+		html, cl, err := fn(s, b)
 		if err != nil {
 			slog.ErrorContext(ctx, "error rendering block", "error", err, "block_type", b.BlockType(), attrMsgID)
 			maybeprint(b)
 			continue
 		}
 		buf.WriteString(html)
+		buf.WriteString(cl)
 	}
 }
 

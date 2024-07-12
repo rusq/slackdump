@@ -19,6 +19,7 @@ func TestSlack_mbtImage(t *testing.T) {
 		fields  fields
 		args    args
 		want    string
+		want1   string
 		wantErr bool
 	}{
 		// TODO: Add test cases.
@@ -29,13 +30,16 @@ func TestSlack_mbtImage(t *testing.T) {
 				uu: tt.fields.uu,
 				cc: tt.fields.cc,
 			}
-			got, err := s.mbtImage(tt.args.ib)
+			got, got1, err := s.mbtImage(tt.args.ib)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Slack.mbtImage() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if got != tt.want {
 				t.Errorf("Slack.mbtImage() = %v, want %v", got, tt.want)
+			}
+			if got1 != tt.want1 {
+				t.Errorf("Slack.mbtImage() = %v, want %v", got1, tt.want1)
 			}
 		})
 	}
