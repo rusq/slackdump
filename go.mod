@@ -1,12 +1,15 @@
 module github.com/rusq/slackdump/v3
 
-go 1.22
+go 1.22.1
 
-toolchain go1.22.1
+toolchain go1.22.2
 
 require (
 	github.com/MercuryEngineering/CookieMonster v0.0.0-20180304172713-1584578b3403
+	github.com/charmbracelet/bubbles v0.18.0
+	github.com/charmbracelet/bubbletea v0.26.6
 	github.com/charmbracelet/huh v0.5.1
+	github.com/charmbracelet/lipgloss v0.11.0
 	github.com/davecgh/go-spew v1.1.1
 	github.com/enescakir/emoji v1.0.0
 	github.com/fatih/color v1.17.0
@@ -24,11 +27,12 @@ require (
 	github.com/rusq/encio v0.1.0
 	github.com/rusq/fsadapter v1.0.2
 	github.com/rusq/osenv/v2 v2.0.1
-	github.com/rusq/slack v0.9.6-0.20240326123841-3c46349abfdc
+	github.com/rusq/rbubbles v0.0.2
+	github.com/rusq/slack v0.9.6-0.20240712095442-5a0e2e405a99
 	github.com/rusq/slackauth v0.1.1
 	github.com/rusq/tracer v1.0.1
 	github.com/schollz/progressbar/v3 v3.13.0
-	github.com/stretchr/testify v1.8.4
+	github.com/stretchr/testify v1.9.0
 	github.com/yuin/goldmark v1.7.0
 	github.com/yuin/goldmark-emoji v1.0.2
 	go.uber.org/mock v0.4.0
@@ -46,15 +50,11 @@ require (
 	github.com/atotto/clipboard v0.1.4 // indirect
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
 	github.com/catppuccin/go v0.2.0 // indirect
-	github.com/charmbracelet/bubbles v0.18.0 // indirect
-	github.com/charmbracelet/bubbletea v0.26.6 // indirect
-	github.com/charmbracelet/lipgloss v0.11.0 // indirect
 	github.com/charmbracelet/x/ansi v0.1.2 // indirect
 	github.com/charmbracelet/x/exp/strings v0.0.0-20240709134850-9d428570ae29 // indirect
 	github.com/charmbracelet/x/input v0.1.2 // indirect
 	github.com/charmbracelet/x/term v0.1.1 // indirect
 	github.com/charmbracelet/x/windows v0.1.2 // indirect
-	github.com/containerd/console v1.0.4 // indirect
 	github.com/deckarep/golang-set/v2 v2.6.0 // indirect
 	github.com/denisbrodbeck/machineid v1.0.1 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
@@ -74,7 +74,6 @@ require (
 	github.com/mitchellh/hashstructure/v2 v2.0.2 // indirect
 	github.com/muesli/ansi v0.0.0-20230316100256-276c6243b2f6 // indirect
 	github.com/muesli/cancelreader v0.2.2 // indirect
-	github.com/muesli/reflow v0.3.0 // indirect
 	github.com/muesli/termenv v0.15.2 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect

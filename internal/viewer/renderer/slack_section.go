@@ -15,10 +15,10 @@ import (
    }
 */
 
-func (*Slack) mbtSection(ib slack.Block) (string, error) {
+func (*Slack) mbtSection(ib slack.Block) (string, string, error) {
 	b, ok := ib.(*slack.SectionBlock)
 	if !ok {
-		return "", NewErrIncorrectType(&slack.SectionBlock{}, ib)
+		return "", "", NewErrIncorrectType(&slack.SectionBlock{}, ib)
 	}
-	return pre("slack-section-text", b.Text.Text), nil
+	return pre("slack-section-text", b.Text.Text), "", nil
 }

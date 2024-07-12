@@ -24,10 +24,10 @@ import (
     },
 */
 
-func (*Slack) mbtAction(ib slack.Block) (string, error) {
+func (*Slack) mbtAction(ib slack.Block) (string, string, error) {
 	b, ok := ib.(*slack.ActionBlock)
 	if !ok {
-		return "", NewErrIncorrectType(&slack.ActionBlock{}, ib)
+		return "", "", NewErrIncorrectType(&slack.ActionBlock{}, ib)
 	}
 	var buf strings.Builder
 	for _, e := range b.Elements.ElementSet {
@@ -38,5 +38,5 @@ func (*Slack) mbtAction(ib slack.Block) (string, error) {
 			fmt.Fprintf(&buf, "[ELEMENT: %T]", e)
 		}
 	}
-	return div("slack-actions", buf.String()), nil
+	return div("slack-actions", buf.String()), "", nil
 }

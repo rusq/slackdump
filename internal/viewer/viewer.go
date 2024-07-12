@@ -23,7 +23,9 @@ import (
 var debug = os.Getenv("DEBUG") != ""
 
 func init() {
-	slog.SetLogLoggerLevel(slog.LevelDebug)
+	if debug {
+		slog.SetLogLoggerLevel(slog.LevelDebug)
+	}
 }
 
 // Viewer is the slackdump viewer.

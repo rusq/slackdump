@@ -16,9 +16,9 @@ import (
 	"github.com/rusq/tracer"
 	"golang.org/x/term"
 
-	"github.com/rusq/slackdump/v3/auth"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/apiconfig"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/archive"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/bootstrap"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/convertcmd"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/diag"
@@ -43,7 +43,7 @@ func init() {
 		wizard.CmdWizard,
 		export.CmdExport,
 		dump.CmdDump,
-		archive.CmdRecord,
+		archive.CmdArchive,
 		archive.CmdSearch,
 		convertcmd.CmdConvert,
 		list.CmdList,
@@ -183,13 +183,12 @@ func invoke(cmd *base.Command, args []string) error {
 	if cmd.RequireAuth {
 		trace.Logf(ctx, "invoke", "command %s requires auth", cmd.Name())
 		var err error
-		prov, err := workspace.AuthCurrent(ctx, cfg.CacheDir(), cfg.Workspace, cfg.LegacyBrowser)
+		ctx, err = bootstrap.CurrentProviderCtx(ctx)
 		if err != nil {
 			trace.Logf(ctx, "invoke", "auth error: %s", err)
 			base.SetExitStatus(base.SAuthError)
 			return fmt.Errorf("auth error: %w", err)
 		}
-		ctx = auth.WithContext(ctx, prov)
 	}
 	trace.Log(ctx, "command", fmt.Sprint("Running ", cmd.Name(), " command"))
 	return cmd.Run(ctx, cmd, args)

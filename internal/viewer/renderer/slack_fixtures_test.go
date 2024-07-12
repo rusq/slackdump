@@ -7,13 +7,22 @@ import (
 	"github.com/rusq/slack"
 )
 
-func load(t *testing.T, s string) *slack.Message {
+func loadmsg(t *testing.T, s string) *slack.Message {
 	t.Helper()
 	var m slack.Message
 	if err := json.Unmarshal([]byte(s), &m); err != nil {
 		t.Fatal(err)
 	}
 	return &m
+}
+
+func load[T any](t *testing.T, s string) T {
+	t.Helper()
+	var v T
+	if err := json.Unmarshal([]byte(s), &v); err != nil {
+		t.Fatal(err)
+	}
+	return v
 }
 
 // integration tests fixtures

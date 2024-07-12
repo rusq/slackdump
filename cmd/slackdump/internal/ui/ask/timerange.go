@@ -4,7 +4,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/rusq/slackdump/v3/internal/ui"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui"
 )
 
 func MaybeTimeRange() (oldest, latest time.Time, err error) {

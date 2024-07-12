@@ -4,9 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 
+	"github.com/charmbracelet/bubbles/viewport"
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
+	"github.com/rusq/rbubbles/filemgr"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
-	"github.com/rusq/slackdump/v3/internal/ui"
 )
 
 var CmdConfigCheck = &base.Command{
@@ -37,23 +42,45 @@ func runConfigCheck(ctx context.Context, cmd *base.Command, args []string) error
 		return errors.New("config filename must be specified")
 	}
 	filename := args[0]
-	if _, err := Load(filename); err != nil {
+	if err := checkFile(filename); err != nil {
 		base.SetExitStatus(base.SUserError)
-		return fmt.Errorf("config file %q not OK: %s", filename, err)
+		return err
 	}
 	fmt.Printf("Config file %q: OK\n", filename)
 	return nil
 }
 
+func checkFile(filename string) error {
+	if _, err := Load(filename); err != nil {
+		return fmt.Errorf("config file %q not OK: %s", filename, err)
+	}
+	return nil
+}
+
 func wizConfigCheck(ctx context.Context, cmd *base.Command, args []string) error {
-	filename, err := ui.FileSelector(
-		"Input a config file name to check",
-		"Enter the config file name.  It must exist and be a regular file.",
-		ui.WithMustExist(true),
-	)
-	if err != nil {
+	f := filemgr.New(os.DirFS("."), ".", 15, "*.yaml", "*.yml")
+	f.Focus()
+	f.ShowHelp = true
+	f.Style = filemgr.Style{
+		Normal:    cfg.Theme.Focused.File,
+		Directory: cfg.Theme.Focused.Directory,
+		Inverted: lipgloss.NewStyle().
+			Foreground(cfg.Theme.Focused.FocusedButton.GetForeground()).
+			Background(cfg.Theme.Focused.FocusedButton.GetBackground()),
+	}
+	vp := viewport.New(80-filemgr.Width, f.Height)
+	vp.Style = lipgloss.NewStyle().Border(lipgloss.DoubleBorder(), true).Margin(0, 2)
+	vp.SetContent("Select a config file to check and press [Enter].")
+	m := checkerModel{
+		files:      f,
+		view:       vp,
+		BorderSel:  cfg.Theme.Focused.FocusedButton.GetBackground(), // TODO: I DONT LIKE THIS!
+		BorderBlur: cfg.Theme.Focused.Directory.GetForeground(),     // TODO: AND THIS TOO, THIS MUST GO!  but ok for now.
+	}
+
+	if _, err := tea.NewProgram(m).Run(); err != nil {
 		return err
 	}
 
-	return runConfigCheck(ctx, cmd, []string{filename})
+	return nil
 }

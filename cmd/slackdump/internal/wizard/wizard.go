@@ -6,10 +6,11 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/charmbracelet/huh"
+	tea "github.com/charmbracelet/bubbletea"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/bootstrap"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 )
 
@@ -20,7 +21,7 @@ var CmdWizard = &base.Command{
 	Long: `
 Slackdump Wizard guides through the dumping process.
 `,
-	RequireAuth: true,
+	RequireAuth: false,
 }
 
 var titlecase = cases.Title(language.English)
@@ -55,7 +56,17 @@ func runWizard(ctx context.Context, cmd *base.Command, args []string) error {
 
 	menu := makeMenu(baseCommands, "", "What would you like to do?")
 	if err := show(menu, func(cmd *base.Command) error {
-		return cmd.Wizard(ctx, cmd, args)
+		var cmdCtx context.Context
+		if cmd.RequireAuth {
+			var err error
+			ctx, err = bootstrap.CurrentProviderCtx(ctx)
+			if err != nil {
+				return err
+			}
+		} else {
+			cmdCtx = ctx
+		}
+		return cmd.Wizard(cmdCtx, cmd, args)
 	}); err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return fmt.Errorf("error running wizard: %s", err)
@@ -103,35 +114,22 @@ func makeMenu(cmds []*base.Command, parent string, title string) (m *menu) {
 
 		m.Add(item)
 	}
-	if parent == "" {
-		m.Add(miExit)
-	} else {
+	if parent != "" {
+		// m.Add(miExit)
+		// } else {
 		m.Add(miBack)
 	}
 	return
 }
 
 func show(m *menu, onMatch func(cmd *base.Command) error) error {
-	var options []huh.Option[string]
-	for i, name := range m.names {
-		var text = fmt.Sprintf("%-10s - %s", name, m.items[i].Description)
-		if m.items[i].Description == "" {
-			text = fmt.Sprintf("%-10s", name)
-		}
-		options = append(options, huh.NewOption(text, name))
-	}
 	for {
-		var resp string
-		err := huh.NewSelect[string]().
-			Title(m.title).
-			// Options(huh.NewOptions(m.names...)...).
-			Options(options...).
-			Value(&resp).
-			Run()
-		if err != nil {
+		mod := newModel(m)
+		p := tea.NewProgram(&mod)
+		if _, err := p.Run(); err != nil {
 			return err
 		}
-		if err := run(m, resp, onMatch); err != nil {
+		if err := run(m, mod.val, onMatch); err != nil {
 			if errors.Is(err, errBack) {
 				return nil
 			} else if errors.Is(err, errInvalid) {
@@ -141,7 +139,6 @@ func show(m *menu, onMatch func(cmd *base.Command) error) error {
 			}
 		}
 	}
-
 }
 
 var (
@@ -150,6 +147,9 @@ var (
 )
 
 func run(m *menu, choice string, onMatch func(cmd *base.Command) error) error {
+	if choice == "" {
+		return errBack
+	}
 	for _, mi := range m.items {
 		if choice != mi.Name {
 			continue

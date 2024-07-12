@@ -137,6 +137,11 @@ func (m *Manager) Auth(ctx context.Context, name string, c Credentials) (auth.Pr
 	return initProvider(ctx, m.dir, m.filename(name), name, c, m.authOptions...)
 }
 
+// LoadProvider loads the file from disk without any checks.
+func (m *Manager) LoadProvider(name string) (auth.Provider, error) {
+	return loadCreds(filer, filepath.Join(m.dir, m.filename(name)))
+}
+
 // ErrWorkspace is the error returned by the workspace manager, it contains the
 // workspace name, the error message and the underlying error.
 type ErrWorkspace struct {

@@ -10,8 +10,8 @@ import (
 
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui"
 	"github.com/rusq/slackdump/v3/internal/network"
-	"github.com/rusq/slackdump/v3/internal/ui"
 )
 
 var CmdConfigNew = &base.Command{
@@ -79,6 +79,7 @@ RESTART:
 	if err != nil {
 		return err
 	}
+	filename = maybeFixExt(filename)
 	if err := Save(filename, network.DefLimits); err != nil {
 		fmt.Printf("Error: %s, please retry\n", err)
 		trace.Logf(ctx, "error", "error saving file to %q: %s, survey restarted", filename, err)

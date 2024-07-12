@@ -31,28 +31,7 @@ func FileSelector(msg, descr string, opt ...Option) (string, error) {
 	var resp struct {
 		Filename string
 	}
-	q := huh.NewInput().
-		Title(msg).
-		Description(descr).
-		Value(&resp.Filename).
-		Validate(func(ans string) error {
-			filename := ans
-			if filename == "" {
-				if opts.defaultFilename == "" {
-					return errors.New("empty filename")
-				} else {
-					if !opts.mustExist {
-						return nil
-					} else {
-						return checkExists(opts.defaultFilename)
-					}
-				}
-			}
-			if opts.mustExist {
-				return checkExists(filename)
-			}
-			return nil
-		})
+	q := fieldFileInput(&resp.Filename, msg, descr, *opts)
 
 	for {
 		if err := q.Run(); err != nil {
@@ -87,4 +66,35 @@ func checkExists(filename string) error {
 		}
 	}
 	return nil
+}
+
+func FieldFileInput(filename *string, msg, descr string, opt ...Option) huh.Field {
+	var opts = defaultOpts().apply(opt...)
+	return fieldFileInput(filename, msg, descr, *opts)
+}
+
+func fieldFileInput(filename *string, msg, descr string, opts inputOptions) huh.Field {
+	q := huh.NewInput().
+		Title(msg).
+		Description(descr).
+		Value(filename).
+		Validate(func(ans string) error {
+			filename := ans
+			if filename == "" {
+				if opts.defaultFilename == "" {
+					return errors.New("empty filename")
+				} else {
+					if !opts.mustExist {
+						return nil
+					} else {
+						return checkExists(opts.defaultFilename)
+					}
+				}
+			}
+			if opts.mustExist {
+				return checkExists(filename)
+			}
+			return nil
+		})
+	return q
 }

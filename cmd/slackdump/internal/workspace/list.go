@@ -6,16 +6,16 @@ import (
 	"fmt"
 	"os"
 	"runtime/trace"
+	"sort"
 	"strings"
+	"sync"
 	"text/tabwriter"
 
 	"github.com/rusq/slack"
 
-	"github.com/rusq/slackdump/v3"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/internal/cache"
-	"github.com/rusq/slackdump/v3/logger"
 )
 
 var CmdWspList = &base.Command{
@@ -84,6 +84,16 @@ func runList(ctx context.Context, cmd *base.Command, args []string) error {
 
 const defMark = "=>"
 
+var hdrItems = []hdrItem{
+	{"C", 1},
+	{"name", 7},
+	{"filename", 12},
+	{"modified", 19},
+	{"team", 9},
+	{"user", 8},
+	{"error", 5},
+}
+
 func printAll(m manager, current string, wsps []string) {
 	ctx, task := trace.NewTask(context.Background(), "printAll")
 	defer task.End()
@@ -91,36 +101,60 @@ func printAll(m manager, current string, wsps []string) {
 	tw := tabwriter.NewWriter(os.Stdout, 2, 8, 1, ' ', 0)
 	defer tw.Flush()
 
-	var hdrItems = []hdrItem{
-		{"C", 1},
-		{"name", 7},
-		{"filename", 12},
-		{"modified", 19},
-		{"team", 9},
-		{"user", 8},
-		{"error", 5},
-	}
-
 	fmt.Fprintln(tw, printHeader(hdrItems...))
 
-	// TODO: Concurrent pipeline.
-	for _, name := range wsps {
-		curr := ""
-		if current == name {
-			curr = "*"
-		}
-		fi, err := m.FileInfo(name)
-		if err != nil {
-			fmt.Fprintf(tw, "%s\t%s\t\t\t\t\t%s\n", curr, name, err)
-			continue
-		}
-		info, err := userInfo(ctx, m, name)
-		if err != nil {
-			fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t\t\t%s\n", curr, name, fi.Name(), fi.ModTime().Format(timeLayout), err)
-			continue
-		}
-		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n", curr, name, fi.Name(), fi.ModTime().Format(timeLayout), info.Team, info.User, "OK")
+	rows := wspInfo(ctx, m, current, wsps)
+	for _, row := range rows {
+		fmt.Fprintln(tw, strings.Join(row, "\t"))
 	}
+}
+
+func wspInfo(ctx context.Context, m manager, current string, wsps []string) [][]string {
+	var rows = [][]string{}
+
+	var (
+		wg   sync.WaitGroup
+		rowC = make(chan []string)
+		pool = make(chan struct{}, 8)
+	)
+	for _, name := range wsps {
+		wg.Add(1)
+		go func() {
+			pool <- struct{}{}
+			defer func() {
+				<-pool
+				wg.Done()
+			}()
+			rowC <- wspRow(ctx, m, current, name)
+		}()
+	}
+	go func() {
+		wg.Wait()
+		close(rowC)
+	}()
+	for row := range rowC {
+		rows = append(rows, row)
+	}
+	sort.Slice(rows, func(i, j int) bool {
+		return rows[i][1] < rows[j][1]
+	})
+	return rows
+}
+
+func wspRow(ctx context.Context, m manager, current, name string) []string {
+	curr := ""
+	if current == name {
+		curr = "*"
+	}
+	fi, err := m.FileInfo(name)
+	if err != nil {
+		return []string{curr, name, "", "", "", "", err.Error()}
+	}
+	info, err := userInfo(ctx, m, name)
+	if err != nil {
+		return []string{curr, name, fi.Name(), fi.ModTime().Format(timeLayout), "", "", err.Error()}
+	}
+	return []string{curr, name, fi.Name(), fi.ModTime().Format(timeLayout), info.Team, info.User, "OK"}
 }
 
 type hdrItem struct {
@@ -165,39 +199,38 @@ func printHeader(hi ...hdrItem) string {
 }
 
 func userInfo(ctx context.Context, m manager, name string) (*slack.AuthTestResponse, error) {
-	prov, err := m.Auth(ctx, name, cache.AuthData{})
+	prov, err := m.LoadProvider(name)
 	if err != nil {
 		return nil, err
 	}
-	sess, err := slackdump.New(ctx, prov, slackdump.WithLogger(logger.Silent), slackdump.WithForceEnterprise(cfg.ForceEnterprise))
-	if err != nil {
-		return nil, err
-	}
-	return sess.Client().AuthTest()
+	return prov.Test(ctx)
 }
 
 func printFull(m manager, current string, wsps []string) {
 	fmt.Printf("Workspaces in %q:\n\n", cfg.CacheDir())
-	for _, name := range wsps {
-		fmt.Println("\t" + formatWsp(m, current, name))
+	for _, row := range simpleList(context.Background(), m, current, wsps) {
+		fmt.Printf("%s (file: %s, last modified: %s)", row[0], row[1], row[2])
 	}
 	fmt.Printf("\nCurrent workspace is marked with ' %s '.\n", defMark)
 }
 
-func formatWsp(m manager, current string, name string) string {
-	timestamp := "unknown"
-	filename := "-"
-	if fi, err := m.FileInfo(name); err == nil {
-		timestamp = fi.ModTime().Format(timeLayout)
-		filename = fi.Name()
+func simpleList(_ context.Context, m manager, current string, wsps []string) [][]string {
+	var rows = make([][]string, 0, len(wsps))
+	for _, name := range wsps {
+		timestamp := "unknown"
+		filename := "-"
+		if fi, err := m.FileInfo(name); err == nil {
+			timestamp = fi.ModTime().Format(timeLayout)
+			filename = fi.Name()
+		}
+		if name == current {
+			name = defMark + " " + name
+		} else {
+			name = "   " + name
+		}
+		rows = append(rows, []string{name, filename, timestamp})
 	}
-	if name == current {
-		name = defMark + " " + name
-	} else {
-		name = "   " + name
-	}
-
-	return fmt.Sprintf("%s (file: %s, last modified: %s)", name, filename, timestamp)
+	return rows
 }
 
 func printBare(_ manager, current string, workspaces []string) {
