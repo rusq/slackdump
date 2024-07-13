@@ -8,8 +8,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"runtime/trace"
-	"time"
 
 	"github.com/charmbracelet/huh"
 	"github.com/rusq/fsadapter"
@@ -19,7 +17,6 @@ import (
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/internal/cache"
 	"github.com/rusq/slackdump/v3/internal/format"
-	"github.com/rusq/slackdump/v3/internal/osext"
 	"github.com/rusq/slackdump/v3/logger"
 	"github.com/rusq/slackdump/v3/types"
 )
@@ -110,7 +107,11 @@ func list(ctx context.Context, listFn listFunc) error {
 	teamID := sess.Info().TeamID
 	users, ok := data.(types.Users) // Hax
 	if !ok && !noresolve {
-		users, err = getCachedUsers(ctx, sess, m, teamID, cfg.NoUserCache)
+		if cfg.NoUserCache {
+			users, err = sess.GetUsers(ctx)
+		} else {
+			users, err = getCachedUsers(ctx, sess, m, teamID)
+		}
 		if err != nil {
 			return err
 		}
@@ -150,48 +151,6 @@ func saveData(ctx context.Context, fs fsadapter.FS, data any, filename string, t
 	return nil
 }
 
-type userGetter interface {
-	GetUsers(ctx context.Context) (types.Users, error)
-}
-
-type userCacher interface {
-	LoadUsers(teamID string, retention time.Duration) ([]slack.User, error)
-	CacheUsers(teamID string, users []slack.User) error
-}
-
-func getCachedUsers(ctx context.Context, ug userGetter, m userCacher, teamID string, forceAPI bool) ([]slack.User, error) {
-	lg := logger.FromContext(ctx)
-
-	var users []slack.User
-	if !forceAPI {
-		users, err := m.LoadUsers(teamID, cfg.UserCacheRetention)
-		if err == nil {
-			return users, nil
-		}
-
-		// failed to load from cache
-		if !errors.Is(err, cache.ErrExpired) && !errors.Is(err, cache.ErrEmpty) && !os.IsNotExist(err) && !osext.IsPathError(err) {
-			// some funky error
-			return nil, err
-		}
-		lg.Println("user cache expired or empty, caching users")
-	}
-
-	// getting users from API
-	users, err := ug.GetUsers(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	// saving users to cache, will ignore any errors, but notify the user.
-	if err := m.CacheUsers(teamID, users); err != nil {
-		trace.Logf(ctx, "error", "saving user cache to %q, error: %s", userCacheBase, err)
-		lg.Printf("warning: failed saving user cache to %q: %s, but nevermind, let's continue", userCacheBase, err)
-	}
-
-	return users, nil
-}
-
 // fmtPrint prints the given data to the given writer, using the given format.
 // It should be supplied with prepopulated users, as it may need to look up
 // users by ID.
@@ -225,7 +184,7 @@ func makeFilename(prefix string, teamID string, ext string) string {
 	return fmt.Sprintf("%s-%s%s", prefix, teamID, ext)
 }
 
-func wizard(ctx context.Context, listFn listFunc) error {
+func wizard(context.Context, listFunc) error {
 	// pick format
 	var types []string
 	for _, t := range format.All() {
