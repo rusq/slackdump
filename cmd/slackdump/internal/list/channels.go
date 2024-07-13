@@ -37,9 +37,12 @@ and -chan-cache-retention flags to control the cache behavior.
 	RequireAuth: true,
 }
 
+var noresolve bool
+
 func init() {
 	CmdListChannels.Flag.BoolVar(&chanCacheOpts.Disabled, "no-chan-cache", chanCacheOpts.Disabled, "disable channel cache")
 	CmdListChannels.Flag.DurationVar(&chanCacheOpts.Retention, "chan-cache-retention", chanCacheOpts.Retention, "channel cache retention time.  After this time, the cache is considered stale and will be refreshed.")
+	CmdListChannels.Flag.BoolVar(&noresolve, "no-resolve", noresolve, "do not resolve user IDs to names")
 }
 
 func listChannels(ctx context.Context, cmd *base.Command, args []string) error {
@@ -62,7 +65,7 @@ func listChannels(ctx context.Context, cmd *base.Command, args []string) error {
 		trace.Logf(ctx, "cache miss", "teamID=%s", teamID)
 		cc, err := sess.GetChannels(ctx)
 		if err != nil {
-			return nil, "", err
+			return nil, "", fmt.Errorf("error getting channels: %w", err)
 		}
 		if err := saveCache(cfg.CacheDir(), teamID, cc); err != nil {
 			// warn, but don't fail
