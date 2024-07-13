@@ -19,6 +19,7 @@ import (
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/internal/cache"
 	"github.com/rusq/slackdump/v3/internal/format"
+	"github.com/rusq/slackdump/v3/internal/osext"
 	"github.com/rusq/slackdump/v3/logger"
 	"github.com/rusq/slackdump/v3/types"
 )
@@ -107,9 +108,9 @@ func list(ctx context.Context, listFn listFunc) error {
 	}
 
 	teamID := sess.Info().TeamID
-	users, ok := data.(types.Users)
-	if !ok && !cfg.NoUserCache {
-		users, err = getCachedUsers(ctx, sess, m, teamID)
+	users, ok := data.(types.Users) // Hax
+	if !ok && !noresolve {
+		users, err = getCachedUsers(ctx, sess, m, teamID, cfg.NoUserCache)
 		if err != nil {
 			return err
 		}
@@ -158,24 +159,26 @@ type userCacher interface {
 	CacheUsers(teamID string, users []slack.User) error
 }
 
-func getCachedUsers(ctx context.Context, ug userGetter, m userCacher, teamID string) ([]slack.User, error) {
+func getCachedUsers(ctx context.Context, ug userGetter, m userCacher, teamID string, forceAPI bool) ([]slack.User, error) {
 	lg := logger.FromContext(ctx)
 
-	users, err := m.LoadUsers(teamID, cfg.UserCacheRetention)
-	if err == nil {
-		return users, nil
-	}
+	var users []slack.User
+	if !forceAPI {
+		users, err := m.LoadUsers(teamID, cfg.UserCacheRetention)
+		if err == nil {
+			return users, nil
+		}
 
-	// failed to load from cache
-	if !errors.Is(err, cache.ErrExpired) && !errors.Is(err, cache.ErrEmpty) {
-		// some funky error
-		return nil, err
+		// failed to load from cache
+		if !errors.Is(err, cache.ErrExpired) && !errors.Is(err, cache.ErrEmpty) && !os.IsNotExist(err) && !osext.IsPathError(err) {
+			// some funky error
+			return nil, err
+		}
+		lg.Println("user cache expired or empty, caching users")
 	}
-
-	lg.Println("user cache expired or empty, caching users")
 
 	// getting users from API
-	users, err = ug.GetUsers(ctx)
+	users, err := ug.GetUsers(ctx)
 	if err != nil {
 		return nil, err
 	}
