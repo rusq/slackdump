@@ -62,7 +62,7 @@ func listChannels(ctx context.Context, cmd *base.Command, args []string) error {
 		trace.Logf(ctx, "cache miss", "teamID=%s", teamID)
 		cc, err := sess.GetChannels(ctx)
 		if err != nil {
-			return nil, "", err
+			return nil, "", fmt.Errorf("error getting channels: %w", err)
 		}
 		if err := saveCache(cfg.CacheDir(), teamID, cc); err != nil {
 			// warn, but don't fail

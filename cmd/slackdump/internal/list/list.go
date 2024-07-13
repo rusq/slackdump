@@ -108,7 +108,7 @@ func list(ctx context.Context, listFn listFunc) error {
 
 	teamID := sess.Info().TeamID
 	users, ok := data.(types.Users)
-	if !ok {
+	if !ok && !cfg.NoUserCache {
 		users, err = getCachedUsers(ctx, sess, m, teamID)
 		if err != nil {
 			return err
