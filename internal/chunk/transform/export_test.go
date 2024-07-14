@@ -6,9 +6,11 @@ import (
 
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/slackdump/v3/internal/chunk"
+	"github.com/rusq/slackdump/v3/internal/fixtures"
 )
 
 func Test_transform(t *testing.T) {
+	fixtures.SkipInCI(t)
 	// TODO: automate.
 	// MANUAL
 	const (

@@ -6,10 +6,13 @@ import (
 
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/slackdump/v3/internal/chunk"
+	"github.com/rusq/slackdump/v3/internal/fixtures"
 	"github.com/rusq/slackdump/v3/internal/nametmpl"
 )
 
 func Test_stdConvert(t *testing.T) {
+	fixtures.SkipInCI(t)
+
 	var testNames = []chunk.FileID{
 		"CHYLGDP0D-1682335799.257359",
 		"CHYLGDP0D-1682375167.836499",

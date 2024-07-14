@@ -11,6 +11,7 @@ import (
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/slack"
 	"github.com/rusq/slackdump/v3/internal/chunk"
+	"github.com/rusq/slackdump/v3/internal/fixtures"
 	"github.com/rusq/slackdump/v3/logger"
 )
 
@@ -21,6 +22,7 @@ const (
 var testLogger = dlog.New(os.Stderr, "unit ", log.Lshortfile|log.LstdFlags, true)
 
 func TestChunkToExport_Validate(t *testing.T) {
+	fixtures.SkipInCI(t)
 	srcDir, err := chunk.OpenDir(testSrcDir)
 	if err != nil {
 		t.Fatal(err)
@@ -95,6 +97,7 @@ func TestChunkToExport_Validate(t *testing.T) {
 }
 
 func TestChunkToExport_Convert(t *testing.T) {
+	fixtures.SkipInCI(t)
 	cd, err := chunk.OpenDir(testSrcDir)
 	if err != nil {
 		t.Fatal(err)
