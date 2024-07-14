@@ -16,6 +16,8 @@ import (
 var testZipFile = filepath.Join("..", "..", "..", "tmp", "realexport.zip")
 
 func openTestZip(t *testing.T, name string) *zip.ReadCloser {
+	fixtures.SkipInCI(t)
+
 	t.Helper()
 	zr, err := zip.OpenReader(name)
 	if err != nil {
@@ -114,6 +116,8 @@ func TestExport_AllMessages(t *testing.T) {
 }
 
 func Test_buildFileIndex(t *testing.T) {
+	fixtures.SkipInCI(t)
+
 	type args struct {
 		fsys fs.FS
 		dir  string
