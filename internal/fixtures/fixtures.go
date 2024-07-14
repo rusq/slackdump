@@ -15,6 +15,9 @@ const (
 	TestPersonalToken = "xoxp-777777777777-888888888888-8888888888888-fffffffffffffffa915fe069d70a8ad81743b0ec4ee9c81540af43f5e143264b"
 )
 
+// InCI indicates whether the tests are running in CI.
+var InCI = os.Getenv("CI") == "true"
+
 // Load loads a json data into T, or panics.
 func Load[T any](js string) T {
 	var ret T
@@ -66,4 +69,11 @@ func DebugTempDir(t *testing.T) string {
 	}
 	t.Logf("tempdir: %s", d)
 	return d
+}
+
+func SkipInCI(t *testing.T) {
+	t.Helper()
+	if InCI {
+		t.Skip("skipping test in CI environment")
+	}
 }

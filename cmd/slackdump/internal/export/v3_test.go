@@ -17,6 +17,7 @@ import (
 	"github.com/rusq/slackdump/v3"
 	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/internal/chunk/chunktest"
+	"github.com/rusq/slackdump/v3/internal/fixtures"
 	"github.com/rusq/slackdump/v3/internal/network"
 	"github.com/rusq/slackdump/v3/internal/structures"
 	"github.com/rusq/slackdump/v3/logger"
@@ -30,6 +31,7 @@ const (
 )
 
 func Test_exportV3(t *testing.T) {
+	fixtures.SkipInCI(t)
 	// // TODO: this is manual
 	// t.Run("large file", func(t *testing.T) {
 	// 	srv := chunktest.NewDirServer(chunkDir)

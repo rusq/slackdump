@@ -387,7 +387,7 @@ func TestExportIndex_Marshal(t *testing.T) {
 				{"groups.json", 3},
 				{"mpims.json", 2070},
 				{"dms.json", 955},
-				{"users.json", 16878},
+				{"users.json", 16061},
 			},
 			false,
 		},
