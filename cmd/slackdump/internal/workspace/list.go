@@ -209,7 +209,7 @@ func userInfo(ctx context.Context, m manager, name string) (*slack.AuthTestRespo
 func printFull(m manager, current string, wsps []string) {
 	fmt.Printf("Workspaces in %q:\n\n", cfg.CacheDir())
 	for _, row := range simpleList(context.Background(), m, current, wsps) {
-		fmt.Printf("%s (file: %s, last modified: %s)", row[0], row[1], row[2])
+		fmt.Printf("%s (file: %s, last modified: %s)\n", row[0], row[1], row[2])
 	}
 	fmt.Printf("\nCurrent workspace is marked with ' %s '.\n", defMark)
 }
