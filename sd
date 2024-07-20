@@ -1,0 +1,4 @@
+#!/bin/sh
+
+# shortcut to run the slackdump cmd
+go run ./cmd/slackdump $@
