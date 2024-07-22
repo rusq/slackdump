@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"runtime/trace"
 	"sort"
@@ -78,8 +79,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) error {
 
 	}
 
-	formatter(m, current, entries)
-	return nil
+	return formatter(os.Stdout, m, current, entries)
 }
 
 const defMark = "=>"
@@ -94,19 +94,23 @@ var hdrItems = []hdrItem{
 	{"error", 5},
 }
 
-func printAll(m manager, current string, wsps []string) {
-	ctx, task := trace.NewTask(context.Background(), "printAll")
+func printAll(w io.Writer, m manager, current string, wsps []string) error {
+	ctx, task := trace.NewTask(context.TODO(), "printAll")
 	defer task.End()
 
-	tw := tabwriter.NewWriter(os.Stdout, 2, 8, 1, ' ', 0)
+	ew := &errWriter{w: w}
+	tw := tabwriter.NewWriter(ew, 2, 8, 1, ' ', 0)
 	defer tw.Flush()
 
-	fmt.Fprintln(tw, printHeader(hdrItems...))
+	fmt.Fprintln(tw, makeHeader(hdrItems...))
 
 	rows := wspInfo(ctx, m, current, wsps)
 	for _, row := range rows {
-		fmt.Fprintln(tw, strings.Join(row, "\t"))
+		if _, err := fmt.Fprintln(tw, strings.Join(row, "\t")); err != nil {
+			return err
+		}
 	}
+	return ew.Err()
 }
 
 func wspInfo(ctx context.Context, m manager, current string, wsps []string) [][]string {
@@ -180,7 +184,13 @@ func (h *hdrItem) Underline(char ...string) string {
 	return strings.Repeat(char[0], h.Size())
 }
 
-func printHeader(hi ...hdrItem) string {
+// makeHeader creates header, separating columns with tabs and underlining
+// them with dashes.
+// Example:
+//
+//	C	name	filename	modified	team	user	error
+//	-	----	--------	--------	----	----	-----
+func makeHeader(hi ...hdrItem) string {
 	var sb strings.Builder
 	for i, h := range hi {
 		if i > 0 {
@@ -206,15 +216,34 @@ func userInfo(ctx context.Context, m manager, name string) (*slack.AuthTestRespo
 	return prov.Test(ctx)
 }
 
-func printFull(m manager, current string, wsps []string) {
-	fmt.Printf("Workspaces in %q:\n\n", cfg.CacheDir())
-	for _, row := range simpleList(context.Background(), m, current, wsps) {
-		fmt.Printf("%s (file: %s, last modified: %s)\n", row[0], row[1], row[2])
-	}
-	fmt.Printf("\nCurrent workspace is marked with ' %s '.\n", defMark)
+type errWriter struct {
+	w   io.Writer
+	err error
 }
 
-func simpleList(_ context.Context, m manager, current string, wsps []string) [][]string {
+func (ew *errWriter) Write(p []byte) (n int, err error) {
+	if ew.err != nil {
+		return 0, nil
+	}
+	n, ew.err = ew.w.Write(p)
+	return n, ew.err
+}
+
+func (ew *errWriter) Err() error {
+	return ew.err
+}
+
+func printFull(w io.Writer, m manager, current string, wsps []string) error {
+	ew := &errWriter{w: w}
+	fmt.Fprintf(ew, "Workspaces in %q:\n\n", cfg.CacheDir())
+	for _, row := range simpleList(m, current, wsps) {
+		fmt.Fprintf(ew, "%s (file: %s, last modified: %s)\n", row[0], row[1], row[2])
+	}
+	fmt.Fprintf(ew, "\nCurrent workspace is marked with ' %s '.\n", defMark)
+	return ew.Err()
+}
+
+func simpleList(m manager, current string, wsps []string) [][]string {
 	var rows = make([][]string, 0, len(wsps))
 	for _, name := range wsps {
 		timestamp := "unknown"
@@ -233,11 +262,13 @@ func simpleList(_ context.Context, m manager, current string, wsps []string) [][
 	return rows
 }
 
-func printBare(_ manager, current string, workspaces []string) {
+func printBare(w io.Writer, _ manager, current string, workspaces []string) error {
+	ew := &errWriter{w: w}
 	for _, name := range workspaces {
 		if current == name {
-			fmt.Print("*")
+			fmt.Fprint(ew, "*")
 		}
-		fmt.Println(name)
+		fmt.Fprintln(ew, name)
 	}
+	return ew.Err()
 }
