@@ -16,7 +16,7 @@ import (
 
 const baseCommand = "slackdump workspace"
 
-var flagmask = cfg.OmitAll
+var flagmask = cfg.OmitAll &^ cfg.OmitCacheDir
 
 var CmdWorkspace = &base.Command{
 	Run:       nil,

@@ -17,6 +17,7 @@ import (
 	"github.com/rusq/slack"
 
 	"github.com/rusq/slackdump/v3/auth"
+	"github.com/rusq/slackdump/v3/internal/osext"
 )
 
 // Manager is the workspace manager.  It is an abstraction over the directory
@@ -312,7 +313,9 @@ func (m *Manager) filepath(name string) string {
 
 // name returns the workspace name from the filename.
 func (m *Manager) name(filename string) (string, error) {
-	if filedir := filepath.Dir(filename); !strings.EqualFold(filedir, m.dir) {
+	filedir := filepath.Dir(filename)
+	same, err := osext.Same(filedir, m.dir)
+	if err != nil || !same {
 		return "", fmt.Errorf("incorrect directory: %s", filedir)
 	}
 	if filepath.Ext(filename) != wspExt {
