@@ -289,11 +289,20 @@ func (m *Manager) FileInfo(name string) (fs.FileInfo, error) {
 // Exists returns true if the workspace with name "name" exists in the list of
 // authenticated workspaces.
 func (m *Manager) Exists(name string) bool {
-	existing, err := m.List()
+	return m.ExistsErr(name) == nil
+}
+
+// ExistsErr checks if the workspace exists, and returns any errors that may
+// occur.
+func (m *Manager) ExistsErr(name string) error {
+	ws, err := m.List()
 	if err != nil {
-		return false
+		return err
 	}
-	return slices.Contains(existing, name)
+	if !slices.Contains(ws, name) {
+		return newErrNoWorkspace(name)
+	}
+	return nil
 }
 
 // filename returns the filename for the workspace name.

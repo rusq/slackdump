@@ -44,6 +44,7 @@ func Test_currentWsp(t *testing.T) {
 	}
 }
 
+// prepareDir creates a directory with test files.
 func prepareDir(t *testing.T, dir string) {
 	for _, filename := range testFiles(dir) {
 		if err := os.WriteFile(filename, []byte("dummy"), 0600); err != nil {
@@ -111,4 +112,43 @@ func TestManager_listFiles(t *testing.T) {
 			assert.Equalf(t, want, got, "List()")
 		})
 	}
+}
+
+func TestManager_ExistsErr(t *testing.T) {
+	t.Parallel()
+	t.Run("empty directory", func(t *testing.T) {
+		t.Parallel()
+
+		tempdir := t.TempDir()
+		m := &Manager{
+			dir: tempdir,
+		}
+		err := m.ExistsErr("foo")
+		assert.ErrorIs(t, err, ErrNoWorkspaces)
+	})
+	t.Run("workspace exists", func(t *testing.T) {
+		t.Parallel()
+
+		tempdir := t.TempDir()
+		prepareDir(t, tempdir)
+		m := &Manager{
+			dir: tempdir,
+		}
+		err := m.ExistsErr("foo")
+		assert.NoError(t, err)
+	})
+	t.Run("workspace does not exist", func(t *testing.T) {
+		t.Parallel()
+
+		tempdir := t.TempDir()
+		prepareDir(t, tempdir)
+		m := &Manager{
+			dir: tempdir,
+		}
+		err := m.ExistsErr("baz")
+		var e *ErrWorkspace
+		assert.ErrorAs(t, err, &e)
+		assert.Equal(t, e.Message, "no such workspace")
+		assert.Equal(t, e.Workspace, "baz")
+	})
 }
