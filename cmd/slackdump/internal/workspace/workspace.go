@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"runtime/trace"
-	"slices"
 	"strings"
 
 	"github.com/rusq/slackdump/v3/auth"
@@ -79,28 +78,6 @@ func argsWorkspace(args []string, defaultWsp string) string {
 	return ""
 }
 
-// Auth authenticates in the workspace wsp, and saves, or reuses the credentials
-// in the dir.
-func Auth(ctx context.Context, cacheDir string, wsp string, usePlaywright bool) (auth.Provider, error) {
-	m, err := cache.NewManager(cacheDir)
-	if err != nil {
-		return nil, err
-	}
-	all, err := m.List()
-	if err != nil {
-		return nil, err
-	}
-	if !slices.Contains(all, wsp) {
-		return nil, fmt.Errorf("%w: %q", ErrNotExists, cfg.Workspace)
-	}
-
-	prov, err := m.Auth(ctx, wsp, cache.AuthData{Token: cfg.SlackToken, Cookie: cfg.SlackCookie, UsePlaywright: usePlaywright})
-	if err != nil {
-		return nil, err
-	}
-	return prov, nil
-}
-
 // AuthCurrent authenticates in the current workspace, or overrideWsp if it's
 // provided.
 func AuthCurrent(ctx context.Context, cacheDir string, overrideWsp string, usePlaywright bool) (auth.Provider, error) {
@@ -110,7 +87,7 @@ func AuthCurrent(ctx context.Context, cacheDir string, overrideWsp string, usePl
 	}
 	trace.Logf(ctx, "AuthCurrent", "current workspace=%s", wsp)
 
-	prov, err := Auth(ctx, cacheDir, wsp, usePlaywright)
+	prov, err := authWsp(ctx, cacheDir, wsp, usePlaywright)
 	if err != nil {
 		return nil, err
 	}
@@ -141,4 +118,23 @@ func Current(cacheDir string, override string) (wsp string, err error) {
 		}
 	}
 	return wsp, nil
+}
+
+// authWsp authenticates in the workspace wsp, and saves, or reuses the
+// credentials in the cacheDir.  It returns ErrNotExists if the workspace
+// doesn't exist in the cacheDir.
+func authWsp(ctx context.Context, cacheDir string, wsp string, usePlaywright bool) (auth.Provider, error) {
+	m, err := cache.NewManager(cacheDir)
+	if err != nil {
+		return nil, err
+	}
+	if err := m.ExistsErr(wsp); err != nil {
+		return nil, err
+	}
+
+	prov, err := m.Auth(ctx, wsp, cache.AuthData{Token: cfg.SlackToken, Cookie: cfg.SlackCookie, UsePlaywright: usePlaywright})
+	if err != nil {
+		return nil, err
+	}
+	return prov, nil
 }
