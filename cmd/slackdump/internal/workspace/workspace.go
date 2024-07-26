@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"runtime/trace"
+	"slices"
 	"strings"
 
 	"github.com/rusq/slackdump/v3/auth"
@@ -85,8 +86,12 @@ func Auth(ctx context.Context, cacheDir string, wsp string, usePlaywright bool) 
 	if err != nil {
 		return nil, err
 	}
-	if !m.Exists(wsp) {
-		return nil, fmt.Errorf("workspace does not exist: %q", cfg.Workspace)
+	all, err := m.List()
+	if err != nil {
+		return nil, err
+	}
+	if !slices.Contains(all, wsp) {
+		return nil, fmt.Errorf("%w: %q", ErrNotExists, cfg.Workspace)
 	}
 
 	prov, err := m.Auth(ctx, wsp, cache.AuthData{Token: cfg.SlackToken, Cookie: cfg.SlackCookie, UsePlaywright: usePlaywright})
@@ -120,12 +125,11 @@ func Current(cacheDir string, override string) (wsp string, err error) {
 	if err != nil {
 		return "", err
 	}
-
 	if override != "" {
 		if m.Exists(override) {
 			return override, nil
 		}
-		return "", fmt.Errorf("workspace does not exist: %q", override)
+		return "", fmt.Errorf("%w: %q", ErrNotExists, override)
 	}
 
 	wsp, err = m.Current()
