@@ -5,6 +5,7 @@
 //
 //	mockgen -destination=mock_dumper_test.go -source=future.go -package=export dumper
 //
+
 // Package export is a generated GoMock package.
 package export
 

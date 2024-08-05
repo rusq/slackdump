@@ -18,11 +18,12 @@ func _() {
 	_ = x[SWorkspaceError-7]
 	_ = x[SCacheError-8]
 	_ = x[SUserError-9]
+	_ = x[SCancelled-10]
 }
 
-const _StatusCode_name = "No ErrorGeneric ErrorHelp RequestedInvalid ParametersAuthentication ErrorInitialization ErrorApplication ErrorWorkspace ErrorCache ErrorUser Error"
+const _StatusCode_name = "No ErrorGeneric ErrorHelp RequestedInvalid ParametersAuthentication ErrorInitialization ErrorApplication ErrorWorkspace ErrorCache ErrorUser ErrorCancelled"
 
-var _StatusCode_index = [...]uint8{0, 8, 21, 35, 53, 73, 93, 110, 125, 136, 146}
+var _StatusCode_index = [...]uint8{0, 8, 21, 35, 53, 73, 93, 110, 125, 136, 146, 155}
 
 func (i StatusCode) String() string {
 	if i >= StatusCode(len(_StatusCode_index)-1) {

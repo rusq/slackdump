@@ -5,6 +5,7 @@
 //
 //	mockgen -destination ../mocks/mock_processor/mock_processor.go github.com/rusq/slackdump/v3/processor Conversations,Users,Channels,ChannelInformer,Filer
 //
+
 // Package mock_processor is a generated GoMock package.
 package mock_processor
 

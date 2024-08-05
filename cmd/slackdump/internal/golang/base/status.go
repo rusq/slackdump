@@ -17,4 +17,5 @@ const (
 	SWorkspaceError                        // Workspace Error
 	SCacheError                            // Cache Error
 	SUserError                             // User Error
+	SCancelled                             // Cancelled
 )

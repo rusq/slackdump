@@ -5,6 +5,7 @@
 //
 //	mockgen -destination internal/mocks/mock_os/mock_os.go os FileInfo
 //
+
 // Package mock_os is a generated GoMock package.
 package mock_os
 

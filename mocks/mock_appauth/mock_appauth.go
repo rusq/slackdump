@@ -5,6 +5,7 @@
 //
 //	mockgen -source=auth.go -destination=../../mocks/mock_appauth/mock_appauth.go Credentials,createOpener
 //
+
 // Package mock_cache is a generated GoMock package.
 package mock_cache
 

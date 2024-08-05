@@ -13,7 +13,7 @@ var CmdWspSelect = &base.Command{
 	UsageLine: baseCommand + " select [flags]",
 	Short:     "choose a previously saved workspace",
 	Long: `
-# Auth Select Command
+# Workspace Select Command
 
 **Select** allows to set the current workspace from the list of workspaces
 that you have previously authenticated in.

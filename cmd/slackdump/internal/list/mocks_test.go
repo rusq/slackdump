@@ -5,6 +5,7 @@
 //
 //	mockgen -source=users.go -destination=mocks_test.go -package=list userGetter,userCacher
 //
+
 // Package list is a generated GoMock package.
 package list
 

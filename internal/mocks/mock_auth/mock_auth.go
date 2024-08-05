@@ -5,6 +5,7 @@
 //
 //	mockgen -destination ../internal/mocks/mock_auth/mock_auth.go github.com/rusq/slackdump/v3/auth Provider
 //
+
 // Package mock_auth is a generated GoMock package.
 package mock_auth
 

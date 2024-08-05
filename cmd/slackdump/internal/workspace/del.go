@@ -17,16 +17,16 @@ var (
 
 var CmdWspDel = &base.Command{
 	UsageLine: baseCommand + " del [flags]",
-	Short:     "deletes the saved authentication information",
+	Short:     "deletes the saved workspace credentials",
 	Long: `
-# Auth Del(ete) Command
+# Workspace Delete Command
 
 Use ` + "`del`" + ` to delete the Slack Workspace login information ("forget"
 the workspace).
 
-If the workspace login information is deleted, in case you will need to use this
-workspace again, you will need to login into that workspace again by running 
-` + " `slackdump auth new <name>`." + `
+If the workspace login information is deleted, you will need to login into that
+workspace again by running ` + " `slackdump auth new <name>`" + `, in case you
+need to use this workspace again.
 
 Slackdump will ask for the confirmation before deleting.  To omit the
 question, use ` + "`-y`" + ` flag.
@@ -42,7 +42,7 @@ func init() {
 
 var (
 	delAll     = CmdWspDel.Flag.Bool("a", false, "delete all workspaces")
-	delConfirm = CmdWspDel.Flag.Bool("y", false, "answer yes to all questions")
+	delConfirm = CmdWspDel.Flag.Bool("y", false, "answer 'yes' to all questions")
 )
 
 func runWspDel(ctx context.Context, cmd *base.Command, args []string) error {

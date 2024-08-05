@@ -54,6 +54,8 @@ automatically detected to be:
 	},
 }
 
+//go:generate mockgen -destination=mocks_test.go -package=workspace -source=workspace.go manager
+
 // manager is used for test rigging.
 type manager interface {
 	Auth(ctx context.Context, name string, c cache.Credentials) (auth.Provider, error)
@@ -62,6 +64,7 @@ type manager interface {
 	FileInfo(name string) (os.FileInfo, error)
 	List() ([]string, error)
 	LoadProvider(name string) (auth.Provider, error)
+	Select(name string) error
 }
 
 // argsWorkspace checks if the current workspace override is set, and returns it

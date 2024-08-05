@@ -5,6 +5,7 @@
 //
 //	mockgen -destination=../mocks/mock_io/mock_io.go io ReadCloser,WriteCloser
 //
+
 // Package mock_io is a generated GoMock package.
 package mock_io
 

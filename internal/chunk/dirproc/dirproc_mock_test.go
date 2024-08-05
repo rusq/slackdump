@@ -5,6 +5,7 @@
 //
 //	mockgen -source=conversations.go -destination=dirproc_mock_test.go -package=dirproc
 //
+
 // Package dirproc is a generated GoMock package.
 package dirproc
 

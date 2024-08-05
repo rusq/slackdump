@@ -5,6 +5,7 @@
 //
 //	mockgen -source slackdump.go -destination clienter_mock_test.go -package slackdump -mock_names clienter=mockClienter,Reporter=mockReporter
 //
+
 // Package slackdump is a generated GoMock package.
 package slackdump
 
