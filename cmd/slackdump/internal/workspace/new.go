@@ -50,7 +50,7 @@ func runWspNew(ctx context.Context, cmd *base.Command, args []string) error {
 	return nil
 }
 
-// canOverwrite exists for testing purposes.
+// canOverwrite defined as a variable for testing purposes.
 var canOverwrite = func(wsp string) bool {
 	return base.YesNoWR(os.Stdout, os.Stdin, fmt.Sprintf("Workspace %q already exists. Overwrite", realname(wsp)))
 }

@@ -3,12 +3,11 @@ package cache
 import (
 	"errors"
 	"io"
-	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 	"testing"
 
+	"github.com/rusq/slackdump/v3/internal/fixtures"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -44,23 +43,12 @@ func Test_currentWsp(t *testing.T) {
 	}
 }
 
-// prepareDir creates a directory with test files.
 func prepareDir(t *testing.T, dir string) {
-	for _, filename := range testFiles(dir) {
-		if err := os.WriteFile(filename, []byte("dummy"), 0600); err != nil {
-			t.Fatalf("error writing %q: %s", filename, err)
-		}
-	}
+	fixtures.PrepareDir(t, dir, "dummy", fixtures.WorkspaceFiles...)
 }
 
-var workspaceFiles = []string{"ora600.bin", "sdump.bin", "foo.bin", "bar.bin", "provider.bin", "default.bin"}
-
 func testFiles(dir string) []string {
-	files := make([]string, 0, len(workspaceFiles))
-	for _, filename := range workspaceFiles {
-		files = append(files, filepath.Join(dir, filename))
-	}
-	return files
+	return fixtures.JoinPath(dir, fixtures.WorkspaceFiles...)
 }
 
 func TestManager_listFiles(t *testing.T) {
