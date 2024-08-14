@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	auth "github.com/rusq/slackdump/v3/auth"
+	"github.com/rusq/slackdump/v3/auth"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/logger"
 	"go.uber.org/mock/gomock"
@@ -135,6 +135,46 @@ func Test_createWsp(t *testing.T) {
 			tt.expectFn(m)
 			if err := createWsp(tt.args.ctx, m, tt.args.wsp, tt.args.confirmed); (err != nil) != tt.wantErr {
 				t.Errorf("createWsp() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func Test_realname(t *testing.T) {
+	type args struct {
+		name string
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+		{
+			name: "empty",
+			args: args{
+				name: "",
+			},
+			want: "default",
+		},
+		{
+			name: "spaces",
+			args: args{
+				name: "  ",
+			},
+			want: "default",
+		},
+		{
+			name: "test",
+			args: args{
+				name: "test",
+			},
+			want: "test",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := realname(tt.args.name); got != tt.want {
+				t.Errorf("realname() = %v, want %v", got, tt.want)
 			}
 		})
 	}

@@ -123,6 +123,8 @@ func Current(cacheDir string, override string) (wsp string, err error) {
 	return wsp, nil
 }
 
+var yesno = base.YesNo
+
 // authWsp authenticates in the workspace wsp, and saves, or reuses the
 // credentials in the cacheDir.  It returns ErrNotExists if the workspace
 // doesn't exist in the cacheDir.

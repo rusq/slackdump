@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/rusq/slackdump/v3/auth"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
@@ -52,7 +53,7 @@ func runWspNew(ctx context.Context, cmd *base.Command, args []string) error {
 
 // canOverwrite defined as a variable for testing purposes.
 var canOverwrite = func(wsp string) bool {
-	return base.YesNoWR(os.Stdout, os.Stdin, fmt.Sprintf("Workspace %q already exists. Overwrite", realname(wsp)))
+	return yesno(fmt.Sprintf("Workspace %q already exists. Overwrite", realname(wsp)))
 }
 
 // createWsp creates a new workspace interactively.
@@ -101,6 +102,7 @@ func createWsp(ctx context.Context, m manager, wsp string, confirmed bool) error
 // string with "default".  Empty workspace name is possible if the user
 // hasn't specified the workspace name on the command line.
 func realname(name string) string {
+	name = strings.TrimSpace(name)
 	if name == "" {
 		return "default"
 	}

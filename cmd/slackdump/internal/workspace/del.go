@@ -58,8 +58,6 @@ func runWspDel(ctx context.Context, cmd *base.Command, args []string) error {
 	}
 }
 
-var yesno = base.YesNo
-
 func delAllWsp(m manager) error {
 	workspaces, err := m.List()
 	if err != nil {
