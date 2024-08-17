@@ -57,6 +57,21 @@ func (mr *MockmanagerMockRecorder) Auth(ctx, name, c any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Auth", reflect.TypeOf((*Mockmanager)(nil).Auth), ctx, name, c)
 }
 
+// Current mocks base method.
+func (m *Mockmanager) Current() (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Current")
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Current indicates an expected call of Current.
+func (mr *MockmanagerMockRecorder) Current() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Current", reflect.TypeOf((*Mockmanager)(nil).Current))
+}
+
 // Delete mocks base method.
 func (m *Mockmanager) Delete(name string) error {
 	m.ctrl.T.Helper()

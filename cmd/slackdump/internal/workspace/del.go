@@ -52,21 +52,21 @@ func runWspDel(ctx context.Context, cmd *base.Command, args []string) error {
 		return err
 	}
 	if *delAll {
-		return delAllWsp(m)
+		return delAllWsp(m, *delConfirm)
 	} else {
 		return delOneWsp(m, args)
 	}
 }
 
-func delAllWsp(m manager) error {
+func delAllWsp(m manager, confirm bool) error {
 	workspaces, err := m.List()
 	if err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return err
 	}
 
-	if !*delConfirm && !yesno("This will delete ALL workspaces") {
-		base.SetExitStatus(base.SNoError)
+	if !confirm && !yesno("This will delete ALL workspaces") {
+		base.SetExitStatus(base.SCancelled)
 		return ErrOpCancelled
 	}
 	for _, name := range workspaces {

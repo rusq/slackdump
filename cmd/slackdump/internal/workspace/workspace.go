@@ -65,6 +65,7 @@ type manager interface {
 	List() ([]string, error)
 	LoadProvider(name string) (auth.Provider, error)
 	Select(name string) error
+	Current() (string, error)
 }
 
 // argsWorkspace checks if the current workspace override is set, and returns it

@@ -57,10 +57,10 @@ var canOverwrite = func(wsp string) bool {
 }
 
 // createWsp creates a new workspace interactively.
-func createWsp(ctx context.Context, m manager, wsp string, confirmed bool) error {
+func createWsp(ctx context.Context, m manager, wsp string, confirm bool) error {
 	lg := cfg.Log
 	if m.Exists(realname(wsp)) {
-		if !confirmed && !canOverwrite(wsp) {
+		if !confirm && !canOverwrite(wsp) {
 			base.SetExitStatus(base.SCancelled)
 			return ErrOpCancelled
 		}
