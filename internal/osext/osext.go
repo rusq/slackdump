@@ -1,7 +1,11 @@
 // Package osext provides some helpful os functions.
 package osext
 
-import "fmt"
+import (
+	"fmt"
+	"path/filepath"
+	"runtime"
+)
 
 type Error struct {
 	File string
@@ -17,4 +21,12 @@ type Namer interface {
 	// Name should return the name of the file.  *os.File implements this
 	// interface.
 	Name() string
+}
+
+func Caller(steps int) string {
+	name := "?"
+	if pc, _, _, ok := runtime.Caller(steps + 1); ok {
+		name = filepath.Base(runtime.FuncForPC(pc).Name())
+	}
+	return name
 }

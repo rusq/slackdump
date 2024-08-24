@@ -172,7 +172,7 @@ func Test_withRetry(t *testing.T) {
 			}
 			runTime := time.Since(start)
 			ξ := dAbs(runTime - tt.mustCompleteIn)
-			t.Logf("runtime = %s, mustCompleteIn = %s, ξ = ABS(%[1]s - %[2]s) = %[3]s", runTime, tt.mustCompleteIn, ξ)
+			t.Logf("runtime = %s, mustCompleteIn = %s, ξ = |%[1]s - %[2]s| = %[3]s", runTime, tt.mustCompleteIn, ξ)
 			if ξ > maxRunDurationError {
 				t.Errorf("runtime error %s is not within allowed threshold: %s", ξ, maxRunDurationError)
 			}

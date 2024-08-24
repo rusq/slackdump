@@ -4,9 +4,11 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	fx "github.com/rusq/slackdump/v3/internal/fixtures"
 )
 
-func TestSame(t *testing.T) {
+func TestIsSame(t *testing.T) {
 	baseDir := t.TempDir()
 
 	file1 := filepath.Join(baseDir, "file1")
@@ -55,13 +57,74 @@ func TestSame(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := Same(tt.args.path1, tt.args.path2)
+			got, err := IsSame(tt.args.path1, tt.args.path2)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Same() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if got != tt.want {
 				t.Errorf("Same() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestDirExists(t *testing.T) {
+	d := t.TempDir()
+
+	// creating fixtures
+	testFile := filepath.Join(d, "file")
+	fx.MkTestFileName(t, testFile, "test")
+
+	testDir := filepath.Join(d, "dir")
+	if err := os.Mkdir(testDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	// creating a symlink to the testDir
+	testDirSym := filepath.Join(d, "dir-sym")
+	if err := os.Symlink(testDir, testDirSym); err != nil {
+		t.Fatal(err)
+	}
+
+	testFileSym := filepath.Join(d, "file-sym")
+	if err := os.Symlink(testFile, testFileSym); err != nil {
+		t.Fatal(err)
+	}
+
+	type args struct {
+		dir string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+	}{
+		{
+			"directory - ok",
+			args{testDir},
+			false,
+		},
+		{
+			"directory symlink - ok",
+			args{testDirSym},
+			false,
+		},
+		{
+			"file - not a directory",
+			args{testFile},
+			true,
+		},
+		{
+			"file symlink - not a directory",
+			args{testFileSym},
+			true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := DirExists(tt.args.dir); (err != nil) != tt.wantErr {
+				t.Errorf("DirExists() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}

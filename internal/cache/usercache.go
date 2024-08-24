@@ -19,8 +19,8 @@ func ReadUsers(r io.Reader) (types.Users, error) {
 
 // loadUsers tries to load the users from the file. If the file does not exist
 // or is older than maxAge, it returns an error.
-func loadUsers(cacheDir, filename string, suffix string, maxAge time.Duration) (types.Users, error) {
-	uu, err := load[slack.User](cacheDir, filename, suffix, maxAge)
+func loadUsers(dirname, filename string, suffix string, maxAge time.Duration) (types.Users, error) {
+	uu, err := load[slack.User](dirname, filename, suffix, maxAge)
 	if err != nil {
 		return nil, err
 	}
@@ -29,6 +29,6 @@ func loadUsers(cacheDir, filename string, suffix string, maxAge time.Duration) (
 
 // saveUsers saves the users to a file, naming the file based on the filename
 // and the suffix. The file will be saved in the cache directory.
-func saveUsers(cacheDir, filename string, suffix string, uu types.Users) error {
-	return save(cacheDir, filename, suffix, []slack.User(uu))
+func saveUsers(dirname, filename string, suffix string, uu types.Users) error {
+	return save(dirname, filename, suffix, []slack.User(uu))
 }

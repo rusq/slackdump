@@ -323,7 +323,7 @@ func (m *Manager) filepath(name string) string {
 // name returns the workspace name from the filename.
 func (m *Manager) name(filename string) (string, error) {
 	filedir := filepath.Dir(filename)
-	same, err := osext.Same(filedir, m.dir)
+	same, err := osext.IsSame(filedir, m.dir)
 	if err != nil || !same {
 		return "", fmt.Errorf("incorrect directory: %s", filedir)
 	}

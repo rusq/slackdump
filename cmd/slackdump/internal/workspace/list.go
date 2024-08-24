@@ -58,15 +58,15 @@ func runList(ctx context.Context, cmd *base.Command, args []string) error {
 		return err
 	}
 
-	// default formatter is print full.
-	formatter := printDefault
+	// default fmtFn is print full.
+	fmtFn := printDefault
 	if *bare {
-		formatter = printBare
+		fmtFn = printBare
 	} else if *all {
-		formatter = printAll
+		fmtFn = printAll
 	}
 
-	return list(m, formatter)
+	return list(m, fmtFn)
 }
 
 type formatFunc func(io.Writer, manager, string, []string) error
