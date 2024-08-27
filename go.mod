@@ -1,8 +1,6 @@
 module github.com/rusq/slackdump/v2
 
-go 1.22
-
-toolchain go1.22.1
+go 1.23
 
 require (
 	github.com/MercuryEngineering/CookieMonster v0.0.0-20180304172713-1584578b3403

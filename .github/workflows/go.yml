@@ -11,12 +11,12 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
 
     - name: Set up Go
-      uses: actions/setup-go@v2
+      uses: actions/setup-go@v5
       with:
-        go-version: "1.21"
+        go-version: "1.23"
 
     - name: Build
       run: go build -v ./...
@@ -24,6 +24,9 @@ jobs:
     - name: Check Catalogue
       run: |
         BASE_DIR="contrib" go run ./contrib/_gen -v
+
+    - name: AUR build test
+      run: make aurtest
 
     - name: Test
       run: make test

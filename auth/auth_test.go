@@ -69,7 +69,7 @@ func TestSave(t *testing.T) {
 			args{ValueAuth{simpleProvider{Token: "token_value", Cookie: []*http.Cookie{
 				{Name: "d", Value: "abc"},
 			}}}},
-			`{"Token":"token_value","Cookie":[{"Name":"d","Value":"abc","Path":"","Domain":"","Expires":"0001-01-01T00:00:00Z","RawExpires":"","MaxAge":0,"Secure":false,"HttpOnly":false,"SameSite":0,"Raw":"","Unparsed":null}]}` + "\n",
+			`{"Token":"token_value","Cookie":[{"Name":"d","Value":"abc","Quoted":false,"Path":"","Domain":"","Expires":"0001-01-01T00:00:00Z","RawExpires":"","MaxAge":0,"Secure":false,"HttpOnly":false,"SameSite":0,"Partitioned":false,"Raw":"","Unparsed":null}]}` + "\n",
 			false,
 		},
 		{
