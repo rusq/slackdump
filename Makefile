@@ -54,7 +54,7 @@ clean:
 
 test:
 	go test -race -cover -count=3 ./...
-aurtest: test
+aurtest:
 	GOFLAGS="-buildmode=pie -trimpath -ldflags=-linkmode=external -mod=readonly -modcacherw" go build -o 'deleteme' ./cmd/...
 	rm deleteme
 .PHONY: aurtest
