@@ -54,6 +54,10 @@ clean:
 
 test:
 	go test -race -cover -count=3 ./...
+aurtest: test
+	GOFLAGS="-buildmode=pie -trimpath -ldflags=-linkmode=external -mod=readonly -modcacherw" go build -o 'deleteme' ./cmd/...
+	rm deleteme
+.PHONY: aurtest
 
 docker_test:
 	docker build .
