@@ -53,7 +53,7 @@ Quick Start
 ===========
 
 #. Download the latest release for your operating system from the releases_
-   page. (If you're using **macOS**, download **Darwin** executable).
+   page.
 #. Unpack the archive to any directory.
 #. Run the ``./slackdump`` or ``slackdump.exe`` executable (see note below).
 #. You know the drill:  use arrow keys to select the menu item, and Enter (or
