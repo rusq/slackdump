@@ -13,7 +13,7 @@ require (
 	github.com/rusq/dlog v1.4.0
 	github.com/rusq/osenv/v2 v2.0.1
 	github.com/rusq/secure v0.0.4
-	github.com/rusq/slackauth v0.1.3
+	github.com/rusq/slackauth v0.2.0
 	github.com/rusq/tracer v1.0.1
 	github.com/schollz/progressbar/v3 v3.13.0
 	github.com/slack-go/slack v0.12.5
