@@ -85,7 +85,7 @@ func NewRODAuth(ctx context.Context, opts ...Option) (RodAuth, error) {
 	switch resp {
 	case auth_ui.LInteractive:
 		var err error
-		sp.Token, sp.Cookie, err = slackauth.Browser(ctx, r.opts.workspace)
+		sp.Token, sp.Cookie, err = slackauth.Browser(ctx, r.opts.workspace, slackauth.WithUserAgentAuto())
 		if err != nil {
 			return r, err
 		}
@@ -125,6 +125,7 @@ func headlessFlow(ctx context.Context, workspace string, ui browserAuthUIExt) (s
 		username,
 		password,
 		slackauth.WithChallengeFunc(ui.ConfirmationCode),
+		slackauth.WithUserAgentAuto(),
 	)
 	if loginErr != nil {
 		return sp, loginErr
