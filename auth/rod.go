@@ -81,16 +81,25 @@ func NewRODAuth(ctx context.Context, opts ...Option) (RodAuth, error) {
 		return r, err
 	}
 
+	cl, err := slackauth.New(
+		r.opts.workspace,
+		slackauth.WithChallengeFunc(r.opts.ui.ConfirmationCode),
+	)
+	if err != nil {
+		return r, err
+	}
+	defer cl.Close()
+
 	var sp simpleProvider
 	switch resp {
 	case auth_ui.LInteractive:
 		var err error
-		sp.Token, sp.Cookie, err = slackauth.Browser(ctx, r.opts.workspace, slackauth.WithUserAgentAuto())
+		sp.Token, sp.Cookie, err = cl.Manual(ctx)
 		if err != nil {
 			return r, err
 		}
 	case auth_ui.LHeadless:
-		sp, err = headlessFlow(ctx, r.opts.workspace, r.opts.ui)
+		sp, err = headlessFlow(ctx, cl, r.opts.workspace, r.opts.ui)
 		if err != nil {
 			return r, err
 		}
@@ -105,7 +114,7 @@ func NewRODAuth(ctx context.Context, opts ...Option) (RodAuth, error) {
 	}, nil
 }
 
-func headlessFlow(ctx context.Context, workspace string, ui browserAuthUIExt) (sp simpleProvider, err error) {
+func headlessFlow(ctx context.Context, cl *slackauth.Client, workspace string, ui browserAuthUIExt) (sp simpleProvider, err error) {
 	username, password, err := ui.RequestCreds(os.Stdout, workspace)
 	if err != nil {
 		return sp, err
@@ -116,17 +125,9 @@ func headlessFlow(ctx context.Context, workspace string, ui browserAuthUIExt) (s
 	if password == "" {
 		return sp, fmt.Errorf("password cannot be empty")
 	}
-	fmt.Println("Logging in to Slack, depending on your connection speed, it will take 15-30 seconds...")
-
+	fmt.Println("Logging in to Slack, depending on your connection speed, it will take 25-40 seconds...")
 	var loginErr error
-	sp.Token, sp.Cookie, loginErr = slackauth.Headless(
-		ctx,
-		workspace,
-		username,
-		password,
-		slackauth.WithChallengeFunc(ui.ConfirmationCode),
-		slackauth.WithUserAgentAuto(),
-	)
+	sp.Token, sp.Cookie, loginErr = cl.Headless(ctx, username, password)
 	if loginErr != nil {
 		return sp, loginErr
 	}
