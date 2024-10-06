@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"time"
 
 	"github.com/rusq/slackauth"
 	"github.com/rusq/slackdump/v2/auth/auth_ui"
@@ -32,9 +31,7 @@ func (p RodAuth) Type() Type {
 }
 
 type rodOpts struct {
-	ui          browserAuthUIExt
-	autoTimeout time.Duration
-	useragent   string
+	ui browserAuthUIExt
 }
 
 type browserAuthUIExt interface {
