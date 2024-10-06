@@ -5,6 +5,7 @@
 //
 //	mockgen -package browser -destination playwright_test.go github.com/playwright-community/playwright-go Request
 //
+
 // Package browser is a generated GoMock package.
 package browser
 

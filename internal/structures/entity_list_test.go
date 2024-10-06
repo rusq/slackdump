@@ -2,10 +2,11 @@ package structures
 
 import (
 	"io"
-	"os"
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/rusq/slackdump/v3/internal/fixtures"
 )
 
 func TestHasExcludePrefix(t *testing.T) {
@@ -435,9 +436,9 @@ func Test_buildEntityIndex(t *testing.T) {
 				"^OVERRIDE0ME",
 				"INLINE0INCLUDE",
 				"^INLINE0EXCLUDE",
-				"@" + mkTestFile(td, "OVERRIDE0ME\n^EXCLUDED\n#comment\nADD0ME"),
+				"@" + fixtures.MkTestFile(t, td, "OVERRIDE0ME\n^EXCLUDED\n#comment\nADD0ME"),
 				"ANOTHER0INLINE0INCLUDE",
-				"@" + mkTestFile(td, "SECOND0FILE0INCLUDE\n^SECOND0FILE0EXCLUDE"),
+				"@" + fixtures.MkTestFile(t, td, "SECOND0FILE0INCLUDE\n^SECOND0FILE0EXCLUDE"),
 			}},
 			map[string]bool{
 				"OVERRIDE0ME":            false,
@@ -464,16 +465,4 @@ func Test_buildEntityIndex(t *testing.T) {
 			}
 		})
 	}
-}
-
-func mkTestFile(dir string, content string) string {
-	f, err := os.CreateTemp(dir, "")
-	if err != nil {
-		panic(err)
-	}
-	defer f.Close()
-	if _, err := io.Copy(f, strings.NewReader(content)); err != nil {
-		panic(err)
-	}
-	return f.Name()
 }

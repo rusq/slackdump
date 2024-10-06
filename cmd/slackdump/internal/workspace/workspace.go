@@ -54,6 +54,8 @@ automatically detected to be:
 	},
 }
 
+//go:generate mockgen -destination=mocks_test.go -package=workspace -source=workspace.go manager
+
 // manager is used for test rigging.
 type manager interface {
 	Auth(ctx context.Context, name string, c cache.Credentials) (auth.Provider, error)
@@ -62,6 +64,8 @@ type manager interface {
 	FileInfo(name string) (os.FileInfo, error)
 	List() ([]string, error)
 	LoadProvider(name string) (auth.Provider, error)
+	Select(name string) error
+	Current() (string, error)
 }
 
 // argsWorkspace checks if the current workspace override is set, and returns it
@@ -119,6 +123,8 @@ func Current(cacheDir string, override string) (wsp string, err error) {
 	}
 	return wsp, nil
 }
+
+var yesno = base.YesNo
 
 // authWsp authenticates in the workspace wsp, and saves, or reuses the
 // credentials in the cacheDir.  It returns ErrNotExists if the workspace

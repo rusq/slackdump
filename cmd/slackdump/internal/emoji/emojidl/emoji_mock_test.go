@@ -5,6 +5,7 @@
 //
 //	mockgen -source emoji.go -destination emoji_mock_test.go -package emojidl
 //
+
 // Package emojidl is a generated GoMock package.
 package emojidl
 

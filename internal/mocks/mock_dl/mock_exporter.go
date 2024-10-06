@@ -5,6 +5,7 @@
 //
 //	mockgen -destination ../../../../internal/mocks/mock_dl/mock_exporter.go github.com/rusq/slackdump/v3/internal/structures/files/dl Exporter
 //
+
 // Package mock_dl is a generated GoMock package.
 package mock_dl
 

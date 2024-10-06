@@ -23,15 +23,24 @@ var CmdWspList = &base.Command{
 	UsageLine: baseCommand + " list [flags]",
 	Short:     "list saved authentication information",
 	Long: `
-# Auth List Command
+# Workspace List Command
 
-**List** allows to list Slack Workspaces, that you have previously authenticated in.
+**List** allows to list Slack Workspaces, that you have previously authenticated
+in.  It supports several output formats:
+- full (default): outputs workspace names, filenames, and last modification.
+- bare: outputs just workspace names, with the current workspace marked with an
+  asterisk.
+- all: outputs all information, including the team name and the user name for
+  each workspace.
+
+If the "all" listing is requested, Slackdump will interrogate the Slack API to
+get the team name and the user name for each workspace.  This may take some
+time, as it involves multiple network requests, depending on your network
+speed and the number of workspaces.
 `,
 	FlagMask:   flagmask,
 	PrintFlags: true,
 }
-
-const timeLayout = "2006-01-02 15:04:05"
 
 var (
 	bare = CmdWspList.Flag.Bool("b", false, "bare output format (just names)")
@@ -49,18 +58,25 @@ func runList(ctx context.Context, cmd *base.Command, args []string) error {
 		return err
 	}
 
-	formatter := printFull
+	// default fmtFn is print full.
+	fmtFn := printDefault
 	if *bare {
-		formatter = printBare
+		fmtFn = printBare
 	} else if *all {
-		formatter = printAll
+		fmtFn = printAll
 	}
 
+	return list(m, fmtFn)
+}
+
+type formatFunc func(io.Writer, manager, string, []string) error
+
+func list(m manager, formatter formatFunc) error {
 	entries, err := m.List()
 	if err != nil {
 		if errors.Is(err, cache.ErrNoWorkspaces) {
 			base.SetExitStatus(base.SUserError)
-			return errors.New("no authenticated workspaces, please run \"slackdump " + baseCommand + " new\"")
+			return errors.New("no authenticated workspaces, please run \"" + baseCommand + " new\"")
 		}
 		base.SetExitStatus(base.SCacheError)
 		return err
@@ -82,16 +98,14 @@ func runList(ctx context.Context, cmd *base.Command, args []string) error {
 	return formatter(os.Stdout, m, current, entries)
 }
 
-const defMark = "=>"
-
-var hdrItems = []hdrItem{
-	{"C", 1},
-	{"name", 7},
-	{"filename", 12},
-	{"modified", 19},
-	{"team", 9},
-	{"user", 8},
-	{"error", 5},
+func printDefault(w io.Writer, m manager, current string, wsps []string) error {
+	ew := &errWriter{w: w}
+	fmt.Fprintf(ew, "Workspaces in %q:\n\n", cfg.CacheDir())
+	for _, row := range simpleList(m, current, wsps) {
+		fmt.Fprintf(ew, "%s (file: %s, last modified: %s)\n", row[0], row[1], row[2])
+	}
+	fmt.Fprintf(ew, "\nCurrent workspace is marked with ' %s '.\n", defMark)
+	return ew.Err()
 }
 
 func printAll(w io.Writer, m manager, current string, wsps []string) error {
@@ -109,6 +123,17 @@ func printAll(w io.Writer, m manager, current string, wsps []string) error {
 		if _, err := fmt.Fprintln(tw, strings.Join(row, "\t")); err != nil {
 			return err
 		}
+	}
+	return ew.Err()
+}
+
+func printBare(w io.Writer, _ manager, current string, workspaces []string) error {
+	ew := &errWriter{w: w}
+	for _, name := range workspaces {
+		if current == name {
+			fmt.Fprint(ew, "*")
+		}
+		fmt.Fprintln(ew, name)
 	}
 	return ew.Err()
 }
@@ -161,114 +186,11 @@ func wspRow(ctx context.Context, m manager, current, name string) []string {
 	return []string{curr, name, fi.Name(), fi.ModTime().Format(timeLayout), info.Team, info.User, "OK"}
 }
 
-type hdrItem struct {
-	name string
-	size int
-}
-
-func (h *hdrItem) String() string {
-	return h.name
-}
-
-func (h *hdrItem) Size() int {
-	if h.size == 0 {
-		h.size = len(h.String())
-	}
-	return h.size
-}
-
-func (h *hdrItem) Underline(char ...string) string {
-	if len(char) == 0 {
-		char = []string{"-"}
-	}
-	return strings.Repeat(char[0], h.Size())
-}
-
-// makeHeader creates header, separating columns with tabs and underlining
-// them with dashes.
-// Example:
-//
-//	C	name	filename	modified	team	user	error
-//	-	----	--------	--------	----	----	-----
-func makeHeader(hi ...hdrItem) string {
-	var sb strings.Builder
-	for i, h := range hi {
-		if i > 0 {
-			sb.WriteByte('\t')
-		}
-		sb.WriteString(h.String())
-	}
-	sb.WriteByte('\n')
-	for i, h := range hi {
-		if i > 0 {
-			sb.WriteByte('\t')
-		}
-		sb.WriteString(h.Underline())
-	}
-	return sb.String()
-}
-
+// userInfo returns the team and user information for the given workspace.
 func userInfo(ctx context.Context, m manager, name string) (*slack.AuthTestResponse, error) {
 	prov, err := m.LoadProvider(name)
 	if err != nil {
 		return nil, err
 	}
 	return prov.Test(ctx)
-}
-
-type errWriter struct {
-	w   io.Writer
-	err error
-}
-
-func (ew *errWriter) Write(p []byte) (n int, err error) {
-	if ew.err != nil {
-		return 0, nil
-	}
-	n, ew.err = ew.w.Write(p)
-	return n, ew.err
-}
-
-func (ew *errWriter) Err() error {
-	return ew.err
-}
-
-func printFull(w io.Writer, m manager, current string, wsps []string) error {
-	ew := &errWriter{w: w}
-	fmt.Fprintf(ew, "Workspaces in %q:\n\n", cfg.CacheDir())
-	for _, row := range simpleList(m, current, wsps) {
-		fmt.Fprintf(ew, "%s (file: %s, last modified: %s)\n", row[0], row[1], row[2])
-	}
-	fmt.Fprintf(ew, "\nCurrent workspace is marked with ' %s '.\n", defMark)
-	return ew.Err()
-}
-
-func simpleList(m manager, current string, wsps []string) [][]string {
-	var rows = make([][]string, 0, len(wsps))
-	for _, name := range wsps {
-		timestamp := "unknown"
-		filename := "-"
-		if fi, err := m.FileInfo(name); err == nil {
-			timestamp = fi.ModTime().Format(timeLayout)
-			filename = fi.Name()
-		}
-		if name == current {
-			name = defMark + " " + name
-		} else {
-			name = "   " + name
-		}
-		rows = append(rows, []string{name, filename, timestamp})
-	}
-	return rows
-}
-
-func printBare(w io.Writer, _ manager, current string, workspaces []string) error {
-	ew := &errWriter{w: w}
-	for _, name := range workspaces {
-		if current == name {
-			fmt.Fprint(ew, "*")
-		}
-		fmt.Fprintln(ew, name)
-	}
-	return ew.Err()
 }
