@@ -58,6 +58,8 @@ github.com/go-playground/validator/v10 v10.22.0 h1:k6HsTZ0sTnROkhS//R0O+55JgM8C4
 github.com/go-playground/validator/v10 v10.22.0/go.mod h1:dbuPbCMFw/DrkbEynArYaCwl3amGuJotoKCe95atGMM=
 github.com/go-rod/rod v0.116.1 h1:BDMZY3qm/14SmvHBV7DoFUhXeJ2MbUYgumQ88b+v2WE=
 github.com/go-rod/rod v0.116.1/go.mod h1:3Ash9fYwznqz9S1uLQgQRStur4fCXjoxxGW+ym6TYjU=
+github.com/go-rod/rod v0.116.2 h1:A5t2Ky2A+5eD/ZJQr1EfsQSe5rms5Xof/qj296e+ZqA=
+github.com/go-rod/rod v0.116.2/go.mod h1:H+CMO9SCNc2TJ2WfrG+pKhITz57uGNYU43qYHh438Mg=
 github.com/go-stack/stack v1.8.1 h1:ntEHSVwIt7PNXNpgPmVfMrNhLtgjlmnZha2kOpuRiDw=
 github.com/go-stack/stack v1.8.1/go.mod h1:dcoOX6HbPZSZptuspn9bctJ+N/CnF5gGygcUP3XYfe4=
 github.com/go-test/deep v1.0.4 h1:u2CU3YKy9I2pmu9pX0eq50wCgjfGIt539SqR7FbHiho=
@@ -137,6 +139,8 @@ github.com/rusq/slack v0.9.6-0.20240712095442-5a0e2e405a99 h1:dqEcNs9hMc2PiMwhw8
 github.com/rusq/slack v0.9.6-0.20240712095442-5a0e2e405a99/go.mod h1:9O0zQAFN6W47z4KpTQbe6vOHOzBO76vMg1+gthPwaTI=
 github.com/rusq/slackauth v0.1.1 h1:nTAjZQ6UHoGzfV02IQQUyUrAR0JeEqfy6snD7D6cMzk=
 github.com/rusq/slackauth v0.1.1/go.mod h1:0fWxVftSfAgULWCcflvy4q20/qY39aB8v0jLDaDLejM=
+github.com/rusq/slackauth v0.3.1 h1:lAFuMQMVfe2VGZVCd8Hrwhqfrd8cy6nOzG0mhX9BvSg=
+github.com/rusq/slackauth v0.3.1/go.mod h1:/+6JZULYSpWk7/Dc232132wF6UbFOLV8DhSz55zBcnw=
 github.com/rusq/tracer v1.0.1 h1:5u4PCV8NGO97VuAINQA4gOVRkPoqHimLE2jpezRVNMU=
 github.com/rusq/tracer v1.0.1/go.mod h1:Rqu48C3/K8bA5NPmF20Hft73v431MQIdM+Co+113pME=
 github.com/schollz/progressbar/v3 v3.13.0 h1:9TeeWRcjW2qd05I8Kf9knPkW4vLM/hYoa6z9ABvxje8=
@@ -163,6 +167,8 @@ github.com/ysmood/gson v0.7.3 h1:QFkWbTH8MxyUTKPkVWAENJhxqdBa4lYTQWqZCiLG6kE=
 github.com/ysmood/gson v0.7.3/go.mod h1:3Kzs5zDl21g5F/BlLTNcuAGAYLKt2lV5G8D1zF3RNmg=
 github.com/ysmood/leakless v0.8.0 h1:BzLrVoiwxikpgEQR0Lk8NyBN5Cit2b1z+u0mgL4ZJak=
 github.com/ysmood/leakless v0.8.0/go.mod h1:R8iAXPRaG97QJwqxs74RdwzcRHT1SWCGTNqY8q0JvMQ=
+github.com/ysmood/leakless v0.9.0 h1:qxCG5VirSBvmi3uynXFkcnLMzkphdh3xx5FtrORwDCU=
+github.com/ysmood/leakless v0.9.0/go.mod h1:R8iAXPRaG97QJwqxs74RdwzcRHT1SWCGTNqY8q0JvMQ=
 github.com/yuin/goldmark v1.3.7/go.mod h1:mwnBkeHKe2W/ZEtQ+71ViKU8L12m81fl3OWwC1Zlc8k=
 github.com/yuin/goldmark v1.4.13/go.mod h1:6yULJ656Px+3vBD8DxQVa3kxgyrAnzto9xy5taEt/CY=
 github.com/yuin/goldmark v1.7.0 h1:EfOIvIMZIzHdB/R/zVrikYLPPwJlfMcNczJFMs1m6sA=
