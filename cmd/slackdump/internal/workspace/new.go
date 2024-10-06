@@ -37,7 +37,14 @@ func init() {
 
 // runWspNew authenticates in the new workspace.
 func runWspNew(ctx context.Context, cmd *base.Command, args []string) error {
-	m, err := cache.NewManager(cfg.CacheDir(), cache.WithAuthOpts(auth.BrowserWithBrowser(cfg.Browser), auth.BrowserWithTimeout(cfg.LoginTimeout)))
+	m, err := cache.NewManager(
+		cfg.CacheDir(),
+		cache.WithAuthOpts(
+			auth.BrowserWithBrowser(cfg.Browser),
+			auth.BrowserWithTimeout(cfg.LoginTimeout),
+			auth.RODWithRODHeadlessTimeout(cfg.HeadlessTimeout),
+			auth.RODWithUserAgent(cfg.RODUserAgent),
+		))
 	if err != nil {
 		base.SetExitStatus(base.SCacheError)
 		return fmt.Errorf("error initialising workspace manager: %s", err)

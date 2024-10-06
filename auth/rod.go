@@ -5,12 +5,18 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"time"
 
 	"github.com/rusq/slackauth"
 
 	"github.com/rusq/slackdump/v3/auth/auth_ui"
 	"github.com/rusq/slackdump/v3/logger"
 )
+
+// RODHeadlessTimeout is the default timeout for the headless login flow.
+// It is a net time of headless browser interaction, without the browser
+// starting time.
+const RODHeadlessTimeout = 40 * time.Second
 
 // RodAuth is an authentication provider that uses a headless or interactive
 // browser to authenticate with Slack, depending on the user's choice.  It uses
@@ -29,7 +35,9 @@ type RodAuth struct {
 }
 
 type rodOpts struct {
-	ui browserAuthUIExt
+	ui          browserAuthUIExt
+	autoTimeout time.Duration
+	userAgent   string
 }
 
 type browserAuthUIExt interface {
@@ -51,7 +59,9 @@ func NewRODAuth(ctx context.Context, opts ...Option) (RodAuth, error) {
 	r := RodAuth{
 		opts: options{
 			rodOpts: rodOpts{
-				ui: &auth_ui.Huh{},
+				ui:          &auth_ui.Huh{},
+				autoTimeout: RODHeadlessTimeout,
+				userAgent:   "", // slackauth default user agent.
 			},
 		},
 	}
@@ -79,18 +89,29 @@ func NewRODAuth(ctx context.Context, opts ...Option) (RodAuth, error) {
 		return r, err
 	}
 
+	cl, err := slackauth.New(
+		r.opts.workspace,
+		slackauth.WithChallengeFunc(r.opts.ui.ConfirmationCode),
+		slackauth.WithUserAgent(r.opts.userAgent),
+		slackauth.WithAutologinTimeout(r.opts.autoTimeout),
+	)
+	if err != nil {
+		return r, err
+	}
+	defer cl.Close()
+
 	lg := logger.FromContext(ctx)
 	var sp simpleProvider
 	switch resp {
 	case auth_ui.LInteractive:
 		lg.Printf("ℹ️ Initialising browser, once the browser appears, login as usual")
 		var err error
-		sp.Token, sp.Cookie, err = slackauth.Browser(ctx, r.opts.workspace)
+		sp.Token, sp.Cookie, err = cl.Manual(ctx)
 		if err != nil {
 			return r, err
 		}
 	case auth_ui.LHeadless:
-		sp, err = headlessFlow(ctx, r.opts.workspace, r.opts.ui)
+		sp, err = headlessFlow(ctx, cl, r.opts.workspace, r.opts.ui)
 		if err != nil {
 			return r, err
 		}
@@ -105,7 +126,7 @@ func NewRODAuth(ctx context.Context, opts ...Option) (RodAuth, error) {
 	}, nil
 }
 
-func headlessFlow(ctx context.Context, workspace string, ui browserAuthUIExt) (sp simpleProvider, err error) {
+func headlessFlow(ctx context.Context, cl *slackauth.Client, workspace string, ui browserAuthUIExt) (sp simpleProvider, err error) {
 	username, password, err := ui.RequestCreds(os.Stdout, workspace)
 	if err != nil {
 		return sp, err
@@ -116,16 +137,10 @@ func headlessFlow(ctx context.Context, workspace string, ui browserAuthUIExt) (s
 	if password == "" {
 		return sp, fmt.Errorf("password cannot be empty")
 	}
-	logger.FromContext(ctx).Println("⏳ Logging in to Slack, depending on your connection speed, it will take 15-30 seconds...")
+	logger.FromContext(ctx).Println("⏳ Logging in to Slack, depending on your connection speed, it will take 25-40 seconds...")
 
 	var loginErr error
-	sp.Token, sp.Cookie, loginErr = slackauth.Headless(
-		ctx,
-		workspace,
-		username,
-		password,
-		slackauth.WithChallengeFunc(ui.ConfirmationCode),
-	)
+	sp.Token, sp.Cookie, loginErr = cl.Headless(ctx, username, password)
 	if loginErr != nil {
 		return sp, loginErr
 	}

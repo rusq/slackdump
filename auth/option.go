@@ -50,3 +50,24 @@ func BrowserWithVerbose(b bool) Option {
 		o.browserOpts.verbose = b
 	}
 }
+
+// RODWithRODHeadlessTimeout sets the timeout for the headless browser
+// interaction.  It is a net time of headless browser interaction, without the
+// browser starting time.
+func RODWithRODHeadlessTimeout(d time.Duration) Option {
+	return func(o *options) {
+		if d <= 0 {
+			return
+		}
+		o.rodOpts.autoTimeout = d
+	}
+}
+
+// RODWithUserAgent sets the user agent string for the headless browser.
+func RODWithUserAgent(ua string) Option {
+	return func(o *options) {
+		if ua != "" {
+			o.rodOpts.userAgent = ua
+		}
+	}
+}
