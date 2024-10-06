@@ -52,6 +52,12 @@ Slackdump accepts two types of input (see `Dumping Conversations`_ section):
 Quick Start
 ===========
 
+On macOS::
+
+  brew install slackdump
+
+On other OSes:
+
 #. Download the latest release for your operating system from the releases_
    page.
 #. Unpack the archive to any directory.
