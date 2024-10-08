@@ -14,6 +14,8 @@ const (
 	LInteractive LoginType = iota
 	// LHeadless is the email/password login type.
 	LHeadless
+	// LGoogleAuth is the google auth option
+	LGoogleAuth
 	// LCancel should be returned if the user cancels the login intent.
 	LCancel
 )

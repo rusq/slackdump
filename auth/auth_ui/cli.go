@@ -49,7 +49,7 @@ func (cl *CLI) RequestLoginType(w io.Writer) (LoginType, error) {
 		value LoginType
 	}{
 		{"Email", LHeadless},
-		{"Google", LInteractive},
+		{"Google", LGoogleAuth},
 		{"Apple", LInteractive},
 		{"Login with Single-Sign-On (SSO)", LInteractive},
 		{"Other/Manual", LInteractive},

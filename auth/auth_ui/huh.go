@@ -42,7 +42,7 @@ func (*Huh) RequestCreds(w io.Writer, workspace string) (email string, passwd st
 			huh.NewInput().
 				Title("Password").Value(&passwd).
 				Placeholder("your slack password").
-				Validate(valRequired).Password(true),
+				Validate(valRequired).EchoMode(huh.EchoModePassword),
 		),
 	)
 	err = f.Run()
@@ -54,8 +54,8 @@ func (*Huh) RequestLoginType(w io.Writer) (LoginType, error) {
 	err := huh.NewSelect[LoginType]().Title("Select login type").
 		Options(
 			huh.NewOption("Email (manual)", LInteractive),
-			huh.NewOption("Email (automatic, experimental)", LHeadless),
-			huh.NewOption("Google", LInteractive),
+			huh.NewOption("Email (automatic)", LHeadless),
+			huh.NewOption("Google", LGoogleAuth),
 			huh.NewOption("Apple", LInteractive),
 			huh.NewOption("Login with Single-Sign-On (SSO)", LInteractive),
 			huh.NewOption("Other/Manual", LInteractive),
