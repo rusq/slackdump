@@ -35,9 +35,28 @@ type RodAuth struct {
 }
 
 type rodOpts struct {
-	ui          browserAuthUIExt
-	autoTimeout time.Duration
-	userAgent   string
+	ui             browserAuthUIExt
+	autoTimeout    time.Duration
+	userAgent      string
+	usermode       bool
+	bundledBrowser bool
+}
+
+func (ro rodOpts) slackauthOpts() []slackauth.Option {
+	sopts := []slackauth.Option{
+		slackauth.WithChallengeFunc(ro.ui.ConfirmationCode),
+		slackauth.WithAutologinTimeout(ro.autoTimeout),
+	}
+	if ro.userAgent != "" {
+		sopts = append(sopts, slackauth.WithUserAgent(ro.userAgent))
+	}
+	if ro.usermode {
+		sopts = append(sopts, slackauth.WithForceUser())
+	}
+	if ro.bundledBrowser {
+		sopts = append(sopts, slackauth.WithBundledBrowser())
+	}
+	return sopts
 }
 
 type browserAuthUIExt interface {
@@ -59,9 +78,11 @@ func NewRODAuth(ctx context.Context, opts ...Option) (RodAuth, error) {
 	r := RodAuth{
 		opts: options{
 			rodOpts: rodOpts{
-				ui:          &auth_ui.Huh{},
-				autoTimeout: RODHeadlessTimeout,
-				userAgent:   "", // slackauth default user agent.
+				ui:             &auth_ui.Huh{},
+				autoTimeout:    RODHeadlessTimeout,
+				userAgent:      "", // slackauth default user agent.
+				usermode:       false,
+				bundledBrowser: false,
 			},
 		},
 	}
@@ -88,12 +109,16 @@ func NewRODAuth(ctx context.Context, opts ...Option) (RodAuth, error) {
 	if err != nil {
 		return r, err
 	}
+	sopts := r.opts.slackauthOpts()
+	if resp == auth_ui.LGoogleAuth {
+		// it doesn't need to know that this browser is just a puppet in the
+		// masterful hands.
+		sopts = append(sopts, slackauth.WithForceUser())
+	}
 
 	cl, err := slackauth.New(
 		r.opts.workspace,
-		slackauth.WithChallengeFunc(r.opts.ui.ConfirmationCode),
-		slackauth.WithUserAgent(r.opts.userAgent),
-		slackauth.WithAutologinTimeout(r.opts.autoTimeout),
+		sopts...,
 	)
 	if err != nil {
 		return r, err
@@ -101,9 +126,10 @@ func NewRODAuth(ctx context.Context, opts ...Option) (RodAuth, error) {
 	defer cl.Close()
 
 	lg := logger.FromContext(ctx)
+	t := time.Now()
 	var sp simpleProvider
 	switch resp {
-	case auth_ui.LInteractive:
+	case auth_ui.LInteractive, auth_ui.LGoogleAuth:
 		lg.Printf("ℹ️ Initialising browser, once the browser appears, login as usual")
 		var err error
 		sp.Token, sp.Cookie, err = cl.Manual(ctx)
@@ -119,7 +145,7 @@ func NewRODAuth(ctx context.Context, opts ...Option) (RodAuth, error) {
 		return r, ErrCancelled
 	}
 
-	lg.Println("✅ authenticated.")
+	lg.Printf("✅ authenticated (time taken: %s)", time.Since(t))
 
 	return RodAuth{
 		simpleProvider: sp,
