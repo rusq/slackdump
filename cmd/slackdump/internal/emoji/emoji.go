@@ -6,6 +6,7 @@ import (
 
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/slackdump/v3"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/bootstrap"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/emoji/emojidl"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
@@ -38,7 +39,7 @@ func run(ctx context.Context, cmd *base.Command, args []string) error {
 	}
 	defer fsa.Close()
 
-	sess, err := cfg.SlackdumpSession(ctx, slackdump.WithFilesystem(fsa))
+	sess, err := bootstrap.SlackdumpSession(ctx, slackdump.WithFilesystem(fsa))
 	if err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return fmt.Errorf("application error: %s", err)

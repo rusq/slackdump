@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/rusq/fsadapter"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/bootstrap"
 
 	"github.com/rusq/slackdump/v3"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
@@ -110,7 +111,7 @@ func RunDump(ctx context.Context, _ *base.Command, args []string) error {
 		}
 	}()
 
-	sess, err := cfg.SlackdumpSession(ctx, slackdump.WithFilesystem(fsa))
+	sess, err := bootstrap.SlackdumpSession(ctx, slackdump.WithFilesystem(fsa))
 	if err != nil {
 		base.SetExitStatus(base.SInitializationError)
 		return err

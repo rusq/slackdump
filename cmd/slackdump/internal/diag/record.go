@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/bootstrap"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/internal/chunk"
@@ -55,7 +56,7 @@ func runRecord(ctx context.Context, _ *base.Command, args []string) error {
 		return errors.New("missing channel argument")
 	}
 
-	sess, err := cfg.SlackdumpSession(ctx)
+	sess, err := bootstrap.SlackdumpSession(ctx)
 	if err != nil {
 		base.SetExitStatus(base.SInitializationError)
 		return err

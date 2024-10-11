@@ -9,6 +9,7 @@ import (
 
 	"github.com/rusq/dlog"
 	"github.com/rusq/fsadapter"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/bootstrap"
 
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
@@ -72,7 +73,7 @@ func runExport(ctx context.Context, cmd *base.Command, args []string) error {
 		return fmt.Errorf("error parsing the entity list: %w", err)
 	}
 
-	sess, err := cfg.SlackdumpSession(ctx)
+	sess, err := bootstrap.SlackdumpSession(ctx)
 	if err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return err
