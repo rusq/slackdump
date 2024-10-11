@@ -44,11 +44,12 @@ import (
 )
 
 type SysInfo struct {
-	OS         OSInfo    `json:"os"`
-	Workspace  Workspace `json:"workspace"`
-	Playwright PwInfo    `json:"playwright"`
-	Rod        RodInfo   `json:"rod"`
-	EzLogin    EZLogin   `json:"ez_login"`
+	Slackdump  SlackdumpInfo `json:"slackdump"`
+	OS         OSInfo        `json:"os"`
+	Workspace  Workspace     `json:"workspace"`
+	Playwright PwInfo        `json:"playwright"`
+	Rod        RodInfo       `json:"rod"`
+	EzLogin    EZLogin       `json:"ez_login"`
 }
 
 // Collect collects system information, replacing user's name in paths with
@@ -71,6 +72,7 @@ func collect(fn func(string) string) *SysInfo {
 		si.Rod.collect,
 		si.EzLogin.collect,
 		si.OS.collect,
+		si.Slackdump.collect,
 	}
 	for _, c := range collectors {
 		c(fn)

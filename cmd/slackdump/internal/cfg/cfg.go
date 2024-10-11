@@ -55,7 +55,19 @@ var (
 	NoUserCache        bool
 
 	Log logger.Interface
+
+	Version BuildInfo // version propagated by main package.
 )
+
+type BuildInfo struct {
+	Version string `json:"version"`
+	Commit  string `json:"commit"`
+	Date    string `json:"date"`
+}
+
+func (b BuildInfo) String() string {
+	return fmt.Sprintf("Slackdump %s (commit: %s) built on: %s", b.Version, b.Commit, b.Date)
+}
 
 type FlagMask uint16
 

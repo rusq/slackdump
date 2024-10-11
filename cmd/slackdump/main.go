@@ -288,7 +288,7 @@ func initLog(filename string, verbose bool) (*dlog.Logger, error) {
 }
 
 // secrets defines the names of the supported secret files that we load our
-// secrets from.  Inexperienced windows users might have bad experience trying
+// secrets from.  Inexperienced Windows users might have bad experience trying
 // to create .env file with the notepad as it will battle for having the
 // "txt" extension.  Let it have it.
 var secretFiles = []string{".env", ".env.txt", "secrets.txt"}
@@ -310,9 +310,7 @@ const (
 )
 
 func whatDo() (choice, error) {
-	fmt.Println()
-	printVersion()
-	fmt.Println()
+	fmt.Print("\n" + cfg.Version.String() + "\n")
 
 	var ans choice
 	err := huh.NewSelect[choice]().
