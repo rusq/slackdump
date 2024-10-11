@@ -1,15 +1,12 @@
 package chunk
 
 import (
-	"errors"
 	"io"
 	"sync"
 	"sync/atomic"
 
 	"github.com/rusq/slack"
 )
-
-var ErrExhausted = errors.New("exhausted")
 
 // offsets holds the index of the current offset in the index for each chunk
 // ID.

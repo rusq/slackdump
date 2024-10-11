@@ -205,6 +205,7 @@ func (s *Session) initClient(ctx context.Context, prov auth.Provider, forceEdge 
 	isEnterpriseWsp := s.wspInfo.EnterpriseID != ""
 	if forceEdge || isEnterpriseWsp {
 		// replace the client with the edge client
+		// TODO: this is hacky af.
 		ecl, err := edge.NewWithInfo(s.wspInfo, prov)
 		if err != nil {
 			return err

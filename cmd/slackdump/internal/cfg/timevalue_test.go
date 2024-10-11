@@ -30,6 +30,20 @@ func TestTimeValue_Set(t *testing.T) {
 			tv(time.Date(2009, 9, 16, 20, 30, 40, 0, time.UTC)),
 			false,
 		},
+		{
+			"empty value",
+			&TimeValue{},
+			args{""},
+			tv(time.Time{}),
+			false,
+		},
+		{
+			"invalid value",
+			&TimeValue{},
+			args{"invalid"},
+			tv(time.Time{}),
+			true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -38,6 +52,33 @@ func TestTimeValue_Set(t *testing.T) {
 				t.Errorf("TimeValue.Set() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			assert.Equal(t, tt.wantTime, tv)
+		})
+	}
+}
+
+func TestTimeValue_String(t *testing.T) {
+	tests := []struct {
+		name string
+		tv   *TimeValue
+		want string
+	}{
+		{
+			"zero value",
+			tv(time.Time{}),
+			"",
+		},
+		{
+			"valid value",
+			tv(time.Date(2009, 9, 16, 20, 30, 40, 0, time.UTC)),
+			"2009-09-16T20:30:40",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tv := tt.tv
+			if got := tv.String(); got != tt.want {
+				t.Errorf("TimeValue.String() = %v, want %v", got, tt.want)
+			}
 		})
 	}
 }

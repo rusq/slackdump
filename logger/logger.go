@@ -45,10 +45,13 @@ const (
 	logCtxKey logCtx = iota
 )
 
+// NewContext returns a new context with the logger.
 func NewContext(ctx context.Context, l Interface) context.Context {
 	return context.WithValue(ctx, logCtxKey, l)
 }
 
+// FromContext returns the logger from the context.  If no logger is found,
+// the Default logger is returned.
 func FromContext(ctx context.Context) Interface {
 	if l, ok := ctx.Value(logCtxKey).(Interface); ok {
 		return l
