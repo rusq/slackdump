@@ -1,7 +1,9 @@
 package fasttime
 
 import (
+	"math"
 	"reflect"
+	"strconv"
 	"testing"
 	"time"
 )
@@ -32,6 +34,12 @@ func TestTs2int(t *testing.T) {
 			"real ts",
 			args{"1674255434.388009"},
 			1674255434388009,
+			false,
+		},
+		{
+			"maxint64",
+			args{strconv.FormatInt(math.MaxInt64/1000, 10) + ".000"},
+			math.MaxInt64 / 1000 * 1000,
 			false,
 		},
 		{

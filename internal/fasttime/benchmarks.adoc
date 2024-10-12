@@ -1,0 +1,48 @@
+= BenchmarkTs2Int
+
+== i7-4600U
+=== 32bit
+
+[source]
+---
+PS C:\slackdump\internal\fasttime>go test . -bench ".*" -count=10
+goos: windows
+goarch: 386
+pkg: github.com/rusq/slackdump/v3/internal/fasttime
+cpu: Intel(R) Core(TM) i7-4600U CPU @ 2.10GHz
+BenchmarkTs2Int-4        3084236               388.5 ns/op
+BenchmarkTs2Int-4        3130807               379.5 ns/op
+BenchmarkTs2Int-4        3134098               382.9 ns/op
+BenchmarkTs2Int-4        3142426               378.4 ns/op
+BenchmarkTs2Int-4        3133819               382.8 ns/op
+BenchmarkTs2Int-4        3152484               376.7 ns/op
+BenchmarkTs2Int-4        3076028               377.8 ns/op
+BenchmarkTs2Int-4        3143527               379.2 ns/op
+BenchmarkTs2Int-4        3134566               380.1 ns/op
+BenchmarkTs2Int-4        3152730               378.8 ns/op
+PASS
+ok      github.com/rusq/slackdump/v3/internal/fasttime  16.000s
+---
+
+=== 64bit
+
+[source]
+---   
+PS C:\slackdump\internal\fasttime> go test . -bench ".*" -count=10
+goos: windows
+goarch: amd64
+pkg: github.com/rusq/slackdump/v3/internal/fasttime
+cpu: Intel(R) Core(TM) i7-4600U CPU @ 2.10GHz
+BenchmarkTs2Int-4       15718426                73.29 ns/op
+BenchmarkTs2Int-4       16554610                72.74 ns/op
+BenchmarkTs2Int-4       13828022                73.78 ns/op
+BenchmarkTs2Int-4       14210768                72.53 ns/op
+BenchmarkTs2Int-4       14328169                74.43 ns/op
+BenchmarkTs2Int-4       16349811                72.58 ns/op
+BenchmarkTs2Int-4       16485547                72.99 ns/op
+BenchmarkTs2Int-4       16368154                72.58 ns/op
+BenchmarkTs2Int-4       13619184                73.89 ns/op
+BenchmarkTs2Int-4       16509716                72.28 ns/op
+PASS
+ok      github.com/rusq/slackdump/v3/internal/fasttime  18.064s
+---
