@@ -95,3 +95,24 @@ PASS
 ok  	github.com/rusq/slackdump/v3/internal/fasttime	12.895s
 ---
 
+== Raspberry PI 5
+=== 64-bit arm
+
+[source]
+---
+goos: linux
+goarch: arm64
+pkg: github.com/rusq/slackdump/v3/internal/fasttime
+BenchmarkTs2Int-4   	18843753	        63.67 ns/op
+BenchmarkTs2Int-4   	18833313	        63.59 ns/op
+BenchmarkTs2Int-4   	18854378	        63.66 ns/op
+BenchmarkTs2Int-4   	18791438	        63.65 ns/op
+BenchmarkTs2Int-4   	18855210	        63.66 ns/op
+BenchmarkTs2Int-4   	18888588	        63.08 ns/op
+BenchmarkTs2Int-4   	18831703	        63.65 ns/op
+BenchmarkTs2Int-4   	18925939	        63.64 ns/op
+BenchmarkTs2Int-4   	18885816	        63.39 ns/op
+BenchmarkTs2Int-4   	18879703	        63.73 ns/op
+PASS
+ok  	github.com/rusq/slackdump/v3/internal/fasttime	12.651s
+---
