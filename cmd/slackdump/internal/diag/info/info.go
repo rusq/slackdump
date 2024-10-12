@@ -58,7 +58,7 @@ func Collect() *SysInfo {
 	return collect(homeReplacer)
 }
 
-// CollectWithPathReplacer collects the informaiton with the custom path
+// CollectRaw collects the information with the custom path
 // replacing function.
 func CollectRaw() *SysInfo {
 	return collect(noopReplacer)

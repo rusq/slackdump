@@ -190,7 +190,7 @@ func (c *Chunk) messageTimestamps() ([]int64, error) {
 	for i := range c.Messages {
 		iTS, err := fasttime.TS2int(c.Messages[i].Timestamp)
 		if err != nil {
-			return nil, fmt.Errorf("invalid timestamp: %q: %w", c.Messages[i].Timestamp, err)
+			return nil, err
 		}
 		ts[i] = iTS
 	}

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
+	"reflect"
 	"testing"
 
 	"github.com/rusq/slack"
@@ -99,6 +100,34 @@ func TestChunk_ID(t *testing.T) {
 			want: channelChunkID,
 		},
 		{
+			name:   "workspace info",
+			fields: fields{Type: CWorkspaceInfo},
+			want:   wspInfoChunkID,
+		},
+		{
+			name:   "starred items",
+			fields: fields{Type: CStarredItems},
+			want:   starredChunkID,
+		},
+		{
+			name: "bookmarks",
+			fields: fields{
+				Type:      CBookmarks,
+				ChannelID: "C123",
+			},
+			want: id(bookmarkPrefix, "C123"),
+		},
+		{
+			name:   "search messages",
+			fields: fields{Type: CSearchMessages},
+			want:   srchMsgChunkID,
+		},
+		{
+			name:   "search files",
+			fields: fields{Type: CSearchFiles},
+			want:   srchFileChunkID,
+		},
+		{
 			name: "unknown",
 			fields: fields{
 				Type:      ChunkType(255),
@@ -141,4 +170,109 @@ func marshalChunks(chunks ...Chunk) io.ReadSeeker {
 		}
 	}
 	return bytes.NewReader(b.Bytes())
+}
+
+func TestChunk_messageTimestamps(t *testing.T) {
+	type fields struct {
+		Type           ChunkType
+		Timestamp      int64
+		ChannelID      string
+		Count          int
+		ThreadTS       string
+		IsLast         bool
+		NumThreads     int
+		Channel        *slack.Channel
+		ChannelUsers   []string
+		Parent         *slack.Message
+		Messages       []slack.Message
+		Files          []slack.File
+		Users          []slack.User
+		Channels       []slack.Channel
+		WorkspaceInfo  *slack.AuthTestResponse
+		StarredItems   []slack.StarredItem
+		Bookmarks      []slack.Bookmark
+		SearchQuery    string
+		SearchMessages []slack.SearchMessage
+		SearchFiles    []slack.File
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		want    []int64
+		wantErr bool
+	}{
+		{
+			name: "no messages",
+			fields: fields{
+				Messages: nil,
+			},
+			want:    []int64{},
+			wantErr: false,
+		},
+		{
+			name: "one message",
+			fields: fields{
+				Messages: []slack.Message{
+					{Msg: slack.Msg{Timestamp: "1234.567"}},
+				},
+			},
+			want:    []int64{1234567},
+			wantErr: false,
+		},
+		{
+			name: "two messages",
+			fields: fields{
+				Messages: []slack.Message{
+					{Msg: slack.Msg{Timestamp: "1234.567"}},
+					{Msg: slack.Msg{Timestamp: "1234.568"}},
+				},
+			},
+			want:    []int64{1234567, 1234568},
+			wantErr: false,
+		},
+		{
+			name: "invalid timestamp",
+			fields: fields{
+				Messages: []slack.Message{
+					{Msg: slack.Msg{Timestamp: "1234567"}},
+				},
+			},
+			want:    nil,
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := &Chunk{
+				Type:           tt.fields.Type,
+				Timestamp:      tt.fields.Timestamp,
+				ChannelID:      tt.fields.ChannelID,
+				Count:          tt.fields.Count,
+				ThreadTS:       tt.fields.ThreadTS,
+				IsLast:         tt.fields.IsLast,
+				NumThreads:     tt.fields.NumThreads,
+				Channel:        tt.fields.Channel,
+				ChannelUsers:   tt.fields.ChannelUsers,
+				Parent:         tt.fields.Parent,
+				Messages:       tt.fields.Messages,
+				Files:          tt.fields.Files,
+				Users:          tt.fields.Users,
+				Channels:       tt.fields.Channels,
+				WorkspaceInfo:  tt.fields.WorkspaceInfo,
+				StarredItems:   tt.fields.StarredItems,
+				Bookmarks:      tt.fields.Bookmarks,
+				SearchQuery:    tt.fields.SearchQuery,
+				SearchMessages: tt.fields.SearchMessages,
+				SearchFiles:    tt.fields.SearchFiles,
+			}
+			got, err := c.messageTimestamps()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Chunk.messageTimestamps() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Chunk.messageTimestamps() = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }

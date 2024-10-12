@@ -112,3 +112,13 @@ func TestInt2Time(t *testing.T) {
 		})
 	}
 }
+
+func BenchmarkTs2Int(b *testing.B) {
+	var n int64
+	for i := 0; i < b.N; i++ {
+		n, _ = TS2int("1638494510.037400")
+	}
+	if n != 1638494510037400 {
+		b.Errorf("Expected 1638494510037400, got %d", n)
+	}
+}

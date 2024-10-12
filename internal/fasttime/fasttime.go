@@ -42,11 +42,12 @@ func TS2int(ts string) (int64, error) {
 	if ts == "" {
 		return 0, nil
 	}
-	before, after, found := strings.Cut(ts, ".")
-	if !found {
-		return 0, fmt.Errorf("%w: %s", ErrNotATimestamp, ts)
+	i := strings.IndexByte(ts, '.')
+	if i == -1 {
+		return 0, fmt.Errorf("%w: %q", ErrNotATimestamp, ts)
 	}
-	return strconv.ParseInt(before+after, 10, 64)
+	val, err := strconv.ParseUint(ts[:i]+ts[i+1:], 10, 64)
+	return int64(val), err
 }
 
 // Int2TS converts an int64 to a slack timestamp by inserting a dot in the

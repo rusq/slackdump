@@ -6,7 +6,6 @@ import (
 	"github.com/rusq/slackdump/v3"
 	"github.com/rusq/slackdump/v3/auth"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/workspace"
 )
 
 // SlackdumpSession returns the Slackdump Session initialised with the provider
@@ -31,13 +30,4 @@ func SlackdumpSession(ctx context.Context, opts ...slackdump.Option) (*slackdump
 		prov,
 		stdOpts...,
 	)
-}
-
-// CurrentProviderCtx returns the context with the current provider.
-func CurrentProviderCtx(ctx context.Context) (context.Context, error) {
-	prov, err := workspace.AuthCurrent(ctx, cfg.CacheDir(), cfg.Workspace, cfg.LegacyBrowser)
-	if err != nil {
-		return ctx, err
-	}
-	return auth.WithContext(ctx, prov), nil
 }
