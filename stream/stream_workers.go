@@ -89,6 +89,11 @@ func (cs *Stream) channelInfoWorker(ctx context.Context, proc processor.ChannelI
 	ctx, task := trace.NewTask(ctx, "channelInfoWorker")
 	defer task.End()
 
+	infoFetcher := cs.channelInfoWithUsers
+	if cs.fastSearch {
+		infoFetcher = cs.channelInfo
+	}
+
 	var seen = make(map[string]struct{}, 512)
 
 	for {
@@ -105,7 +110,8 @@ func (cs *Stream) channelInfoWorker(ctx context.Context, proc processor.ChannelI
 			if _, ok := seen[id]; ok {
 				continue
 			}
-			if _, err := cs.channelInfo(ctx, proc, id, ""); err != nil {
+
+			if _, err := infoFetcher(ctx, proc, id, ""); err != nil {
 				srC <- Result{Type: RTChannelInfo, ChannelID: id, Err: fmt.Errorf("channelInfoWorker: %s: %s", id, err)}
 			}
 			seen[id] = struct{}{}

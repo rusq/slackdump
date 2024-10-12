@@ -13,6 +13,7 @@ import (
 	"github.com/rusq/slackdump/v3/internal/chunk/control"
 	"github.com/rusq/slackdump/v3/internal/chunk/transform/fileproc"
 	"github.com/rusq/slackdump/v3/logger"
+	"github.com/rusq/slackdump/v3/stream"
 )
 
 var CmdSearch = &base.Command{
@@ -54,6 +55,14 @@ var cmdSearchAll = &base.Command{
 	FlagMask:    cfg.OmitUserCacheFlag | cfg.OmitCacheDir,
 	Run:         runSearchAll,
 	PrintFlags:  true,
+}
+
+var fastSearch bool
+
+func init() {
+	for _, cmd := range []*base.Command{cmdSearchMessages, cmdSearchFiles, cmdSearchAll} {
+		cmd.Flag.BoolVar(&fastSearch, "fast", false, "skip channel users ~2.5x faster")
+	}
 }
 
 func runSearchMsg(ctx context.Context, cmd *base.Command, args []string) error {
@@ -131,9 +140,15 @@ func initController(ctx context.Context, args []string) (*control.Controller, fu
 		fsadapter.NewDirectory(cd.Name()),
 		lg,
 	)
+
+	var sopts []stream.Option
+	if fastSearch {
+		sopts = append(sopts, stream.OptFastSearch())
+	}
+
 	var (
 		subproc = fileproc.NewExport(fileproc.STmattermost, dl)
-		stream  = sess.Stream()
+		stream  = sess.Stream(sopts...)
 		ctrl    = control.New(cd, stream, control.WithLogger(lg), control.WithFiler(subproc))
 	)
 	return ctrl, stop, nil
