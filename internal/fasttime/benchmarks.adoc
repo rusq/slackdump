@@ -46,3 +46,27 @@ BenchmarkTs2Int-4       16509716                72.28 ns/op
 PASS
 ok      github.com/rusq/slackdump/v3/internal/fasttime  18.064s
 ---
+
+== i9-9880H @ 2.30GHz
+== 64bit
+
+[source]
+---
+[3:30:15] 0:slackdump/internal/fasttime (v3-tests)> go test . -bench '.*' -count=10
+goos: darwin
+goarch: amd64
+pkg: github.com/rusq/slackdump/v3/internal/fasttime
+cpu: Intel(R) Core(TM) i9-9880H CPU @ 2.30GHz
+BenchmarkTs2Int-16      29724420                34.15 ns/op
+BenchmarkTs2Int-16      30925324                34.26 ns/op
+BenchmarkTs2Int-16      29584566                33.91 ns/op
+BenchmarkTs2Int-16      35253584                34.05 ns/op
+BenchmarkTs2Int-16      29480674                35.25 ns/op
+BenchmarkTs2Int-16      29552312                34.18 ns/op
+BenchmarkTs2Int-16      31243936                34.79 ns/op
+BenchmarkTs2Int-16      29591794                34.35 ns/op
+BenchmarkTs2Int-16      30912422                34.46 ns/op
+BenchmarkTs2Int-16      34785256                34.28 ns/op
+PASS
+ok      github.com/rusq/slackdump/v3/internal/fasttime  13.389s
+---
