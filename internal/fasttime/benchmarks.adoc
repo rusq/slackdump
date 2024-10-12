@@ -10,41 +10,41 @@ goos: windows
 goarch: 386
 pkg: github.com/rusq/slackdump/v3/internal/fasttime
 cpu: Intel(R) Core(TM) i7-4600U CPU @ 2.10GHz
-BenchmarkTs2Int-4        3084236               388.5 ns/op
-BenchmarkTs2Int-4        3130807               379.5 ns/op
-BenchmarkTs2Int-4        3134098               382.9 ns/op
-BenchmarkTs2Int-4        3142426               378.4 ns/op
-BenchmarkTs2Int-4        3133819               382.8 ns/op
-BenchmarkTs2Int-4        3152484               376.7 ns/op
-BenchmarkTs2Int-4        3076028               377.8 ns/op
-BenchmarkTs2Int-4        3143527               379.2 ns/op
-BenchmarkTs2Int-4        3134566               380.1 ns/op
-BenchmarkTs2Int-4        3152730               378.8 ns/op
+BenchmarkTs2Int-4        3395229               342.9 ns/op
+BenchmarkTs2Int-4        3516256               330.3 ns/op
+BenchmarkTs2Int-4        3571240               334.7 ns/op
+BenchmarkTs2Int-4        3588696               332.4 ns/op
+BenchmarkTs2Int-4        3579144               330.6 ns/op
+BenchmarkTs2Int-4        3565935               331.5 ns/op
+BenchmarkTs2Int-4        3505794               333.7 ns/op
+BenchmarkTs2Int-4        3601692               331.8 ns/op
+BenchmarkTs2Int-4        3552079               332.3 ns/op
+BenchmarkTs2Int-4        3594452               334.0 ns/op
 PASS
-ok      github.com/rusq/slackdump/v3/internal/fasttime  16.000s
+ok      github.com/rusq/slackdump/v3/internal/fasttime  15.460s
 ---
 
 === 64bit
 
 [source]
 ---   
-PS C:\slackdump\internal\fasttime> go test . -bench ".*" -count=10
+PS C:\slackdump\internal\fasttime>go test . -bench=".*" -count=10
 goos: windows
 goarch: amd64
 pkg: github.com/rusq/slackdump/v3/internal/fasttime
 cpu: Intel(R) Core(TM) i7-4600U CPU @ 2.10GHz
-BenchmarkTs2Int-4       15718426                73.29 ns/op
-BenchmarkTs2Int-4       16554610                72.74 ns/op
-BenchmarkTs2Int-4       13828022                73.78 ns/op
-BenchmarkTs2Int-4       14210768                72.53 ns/op
-BenchmarkTs2Int-4       14328169                74.43 ns/op
-BenchmarkTs2Int-4       16349811                72.58 ns/op
-BenchmarkTs2Int-4       16485547                72.99 ns/op
-BenchmarkTs2Int-4       16368154                72.58 ns/op
-BenchmarkTs2Int-4       13619184                73.89 ns/op
-BenchmarkTs2Int-4       16509716                72.28 ns/op
+BenchmarkTs2Int-4       24260755                46.94 ns/op
+BenchmarkTs2Int-4       22409967                46.41 ns/op
+BenchmarkTs2Int-4       23303821                47.15 ns/op
+BenchmarkTs2Int-4       22653648                46.85 ns/op
+BenchmarkTs2Int-4       23203335                46.85 ns/op
+BenchmarkTs2Int-4       23275254                46.59 ns/op
+BenchmarkTs2Int-4       23464814                46.64 ns/op
+BenchmarkTs2Int-4       22861932                47.32 ns/op
+BenchmarkTs2Int-4       22373408                46.77 ns/op
+BenchmarkTs2Int-4       23907906                46.81 ns/op
 PASS
-ok      github.com/rusq/slackdump/v3/internal/fasttime  18.064s
+ok      github.com/rusq/slackdump/v3/internal/fasttime  12.546s
 ---
 
 == i9-9880H @ 2.30GHz
