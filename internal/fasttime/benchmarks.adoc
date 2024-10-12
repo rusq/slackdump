@@ -70,3 +70,28 @@ BenchmarkTs2Int-16      34785256                34.28 ns/op
 PASS
 ok      github.com/rusq/slackdump/v3/internal/fasttime  13.389s
 ---
+
+= Apple M2 Pro
+== 64bit
+
+[source]
+---
+[0:slackdump/internal/fasttime (v3-tests)> go test . -bench='.*' -count=10
+goos: darwin
+goarch: arm64
+pkg: github.com/rusq/slackdump/v3/internal/fasttime
+cpu: Apple M2 Pro
+BenchmarkTs2Int-12    	42965772	        26.23 ns/op
+BenchmarkTs2Int-12    	46241808	        25.96 ns/op
+BenchmarkTs2Int-12    	46265431	        26.06 ns/op
+BenchmarkTs2Int-12    	46032642	        26.04 ns/op
+BenchmarkTs2Int-12    	45946497	        26.06 ns/op
+BenchmarkTs2Int-12    	46274054	        26.08 ns/op
+BenchmarkTs2Int-12    	45322496	        26.23 ns/op
+BenchmarkTs2Int-12    	45914998	        26.02 ns/op
+BenchmarkTs2Int-12    	45696441	        26.22 ns/op
+BenchmarkTs2Int-12    	46148742	        26.25 ns/op
+PASS
+ok  	github.com/rusq/slackdump/v3/internal/fasttime	12.895s
+---
+
