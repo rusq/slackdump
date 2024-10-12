@@ -19,8 +19,9 @@ type dirproc struct {
 	*chunk.Recorder
 }
 
-// newDirProc initialises the new base processor which wraps the file
-// recorder.  It creates a new chunk file in a directory dir which must exist.
+// newDirProc initialises the new directory processor which wraps the file
+// recorder.  It creates a new chunk file in a directory cd. Directory cd
+// must exist.
 func newDirProc(cd *chunk.Directory, name chunk.FileID) (*dirproc, error) {
 	wc, err := cd.Create(name)
 	if err != nil {

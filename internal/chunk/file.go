@@ -131,11 +131,13 @@ func indexChunks(dec decoder) (index, error) {
 }
 
 // ensure ensures that the file index was generated.
-//
-// TODO: maybe it shouldn't panic.
 func (f *File) ensure() {
 	if f.idx == nil {
-		log.Panicf("internal error:  %s called before File.Open", osext.Caller(1))
+		var err error
+		f.idx, err = indexChunks(json.NewDecoder(f.rs))
+		if err != nil {
+			log.Panicf("%s: index error: %s", osext.Caller(1), err)
+		}
 	}
 }
 

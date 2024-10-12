@@ -39,13 +39,15 @@ func NewUsers(cd *chunk.Directory, opt ...UserOption) (*Users, error) {
 	return u, nil
 }
 
+// Users processes chunk of users.  If the callback is set, it will be called
+// with the users slice.
 func (u *Users) Users(ctx context.Context, users []slack.User) error {
 	if err := u.dirproc.Users(ctx, users); err != nil {
 		return err
 	}
 	if u.cb != nil {
 		if err := u.cb(users); err != nil {
-			return fmt.Errorf("users callback: %w", err)
+			return fmt.Errorf("users callback returned an error: %w", err)
 		}
 	}
 	return nil

@@ -30,7 +30,7 @@ const (
 var ErrUnsupChunkType = fmt.Errorf("unsupported chunk type")
 
 // Chunk is a representation of a single chunk of data retrieved from the API.
-// A single API call always produce a single Chunk.
+// A single API call always produces a single Chunk.
 type Chunk struct {
 	// header
 	// Type is the type of the Chunk

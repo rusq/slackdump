@@ -52,7 +52,7 @@ ok      github.com/rusq/slackdump/v3/internal/fasttime  12.546s
 
 [source]
 ---
-[3:30:15] 0:slackdump/internal/fasttime (v3-tests)> go test . -bench '.*' -count=10
+[0:slackdump/internal/fasttime (v3-tests)> go test . -bench '.*' -count=10
 goos: darwin
 goarch: amd64
 pkg: github.com/rusq/slackdump/v3/internal/fasttime
@@ -71,8 +71,8 @@ PASS
 ok      github.com/rusq/slackdump/v3/internal/fasttime  13.389s
 ---
 
-= Apple M2 Pro
-== 64bit
+== Apple M2 Pro
+=== 64bit
 
 [source]
 ---
