@@ -187,3 +187,112 @@ func comparecontents(t *testing.T, f *wrappedfile, want string) {
 	}
 	assert.Equal(t, want, string(buf))
 }
+
+func Test_wrappedfile_Close(t *testing.T) {
+	dir := t.TempDir()
+	creategz(t, dir, "hello.gz", "hello")
+	dp := &filemgr{
+		tmpdir:  t.TempDir(), // another temporary directory
+		once:    new(sync.Once),
+		known:   make(map[string]string),
+		handles: make(map[string]io.Closer),
+	}
+	f, err := dp.Open(filepath.Join(dir, "hello.gz"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Close(); err != nil {
+		t.Fatal(err)
+	}
+	assert.Len(t, dp.handles, 0)
+	assert.Len(t, dp.known, 1)
+	if assert.True(t, dp.mu.TryLock(), "mutex should be unlocked") {
+		dp.mu.Unlock()
+	}
+}
+
+func Test_filemgr_Destroy(t *testing.T) {
+	t.Run("destroys the temporary directory", func(t *testing.T) {
+		dp := &filemgr{
+			tmpdir:  t.TempDir(),
+			once:    new(sync.Once),
+			known:   make(map[string]string),
+			handles: make(map[string]io.Closer),
+		}
+		if err := dp.Destroy(); err != nil {
+			t.Fatal(err)
+		}
+		_, err := os.Stat(dp.tmpdir)
+		assert.True(t, os.IsNotExist(err))
+	})
+	t.Run("closes all open file handles", func(t *testing.T) {
+		dir := t.TempDir()
+		creategz(t, dir, "hello.gz", "hello")
+		creategz(t, dir, "world.gz", "world")
+		dp := &filemgr{
+			tmpdir:  t.TempDir(), // another temporary directory
+			once:    new(sync.Once),
+			known:   make(map[string]string),
+			handles: make(map[string]io.Closer),
+		}
+		if _, err := dp.Open(filepath.Join(dir, "hello.gz")); err != nil {
+			t.Fatal(err)
+		}
+
+		if _, err := dp.Open(filepath.Join(dir, "world.gz")); err != nil {
+			t.Fatal(err)
+		}
+		assert.Len(t, dp.handles, 2)
+
+		if err := dp.Destroy(); err != nil {
+			t.Fatal(err)
+		}
+
+		assert.Len(t, dp.handles, 0)
+		assert.Len(t, dp.known, 2)
+		if assert.True(t, dp.mu.TryLock(), "mutex should be unlocked") {
+			dp.mu.Unlock()
+		}
+	})
+	t.Run("removeall called on non-existing directory", func(t *testing.T) {
+		dp := &filemgr{
+			tmpdir:  t.TempDir(),
+			once:    new(sync.Once),
+			known:   make(map[string]string),
+			handles: make(map[string]io.Closer),
+		}
+		os.Chmod(dp.tmpdir, 0o000)
+		t.Cleanup(func() {
+			os.Chmod(dp.tmpdir, 0o755)
+		})
+		dp.tmpdir = filepath.Join(dp.tmpdir, "non-existing")
+		if err := dp.Destroy(); err == nil {
+			t.Fatal("expected an error")
+		}
+	})
+	t.Run("errors closing file handles", func(t *testing.T) {
+		dir := t.TempDir()
+		creategz(t, dir, "hello.gz", "hello")
+		dp := &filemgr{
+			tmpdir:  t.TempDir(), // another temporary directory
+			once:    new(sync.Once),
+			known:   make(map[string]string),
+			handles: make(map[string]io.Closer),
+		}
+		if _, err := dp.Open(filepath.Join(dir, "hello.gz")); err != nil {
+			t.Fatal(err)
+		}
+		dp.handles["hello"] = &errcloser{err: assert.AnError}
+		if err := dp.Destroy(); err == nil {
+			t.Fatal("expected an error")
+		}
+	})
+}
+
+type errcloser struct {
+	err error
+}
+
+func (ec *errcloser) Close() error {
+	return ec.err
+}

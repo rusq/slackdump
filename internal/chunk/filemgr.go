@@ -48,11 +48,13 @@ func (dp *filemgr) Destroy() error {
 	dp.mu.Lock()
 	defer dp.mu.Unlock()
 	var errcount int
-	for _, f := range dp.handles {
+	for hash, f := range dp.handles {
 		if err := f.Close(); err != nil {
 			logger.Default.Printf("error closing file: %v", err)
 			errcount++
+			continue
 		}
+		delete(dp.handles, hash)
 	}
 	var errs error
 	if errcount > 0 {
@@ -82,7 +84,7 @@ func (dp *filemgr) Open(name string) (*wrappedfile, error) {
 
 	// check if the file already exists
 	tmpname := hash(name)
-	if tempfile, ok := dp.known[name]; ok {
+	if tempfile, ok := dp.known[tmpname]; ok {
 		f, err := os.Open(tempfile) // existing temporary file
 		if err != nil {
 			return nil, err
@@ -114,7 +116,7 @@ func (dp *filemgr) Open(name string) (*wrappedfile, error) {
 	if _, err := tf.Seek(0, io.SeekStart); err != nil {
 		return nil, err
 	}
-	dp.known[name] = tf.Name()
+	dp.known[tmpname] = tf.Name()
 	dp.handles[tmpname] = tf
 	return &wrappedfile{
 		hash: tmpname,
