@@ -1,6 +1,15 @@
 package chunk
 
-import "testing"
+import (
+	"compress/gzip"
+	"io"
+	"os"
+	"path/filepath"
+	"sync"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
 
 func Test_hash(t *testing.T) {
 	type args struct {
@@ -35,4 +44,146 @@ func Benchmark_hash(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		hash("hello")
 	}
+}
+
+func creategz(t *testing.T, dir string, name string, contents string) string {
+	t.Helper()
+	filename := filepath.Join(dir, name)
+	f, err := os.Create(filename)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	gz := gzip.NewWriter(f)
+	if _, err := gz.Write([]byte(contents)); err != nil {
+		t.Fatal(err)
+	}
+	defer gz.Close()
+	return filename
+}
+
+func Test_filemgr_Open(t *testing.T) {
+	// prepare some test files
+	// workdir is the working directory.
+	workdir := t.TempDir()
+
+	// create compressed files
+	creategz(t, workdir, "hello.gz", "hello")
+	creategz(t, workdir, "world.gz", "world")
+
+	type fields struct {
+		// tmpdir  string // provided by t.TempDir()
+		once    *sync.Once
+		known   map[string]string
+		handles map[string]io.Closer
+	}
+	type args struct {
+		name string
+	}
+	tests := []struct {
+		name         string
+		fields       fields
+		args         args
+		wantContents string
+		wantErr      bool
+	}{
+		{
+			"hello",
+			fields{
+				once:    new(sync.Once),
+				known:   make(map[string]string),
+				handles: make(map[string]io.Closer),
+			},
+			args{filepath.Join(workdir, "hello.gz")},
+			"hello",
+			false,
+		},
+		{
+			"world",
+			fields{
+				once:    new(sync.Once),
+				known:   make(map[string]string),
+				handles: make(map[string]io.Closer),
+			},
+			args{filepath.Join(workdir, "world.gz")},
+			"world",
+			false,
+		},
+		{
+			"file not found",
+			fields{
+				once:    new(sync.Once),
+				known:   make(map[string]string),
+				handles: make(map[string]io.Closer),
+			},
+			args{filepath.Join(workdir, "notfound.gz")},
+			"",
+			true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dp := &filemgr{
+				tmpdir:  t.TempDir(), // another temporary directory
+				once:    tt.fields.once,
+				known:   tt.fields.known,
+				handles: tt.fields.handles,
+			}
+			got, err := dp.Open(tt.args.name)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("filemgr.Open() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if err == nil {
+				defer got.Close()
+				comparecontents(t, got, tt.wantContents)
+			}
+		})
+	}
+	t.Run("reopens the existing file", func(t *testing.T) {
+		dp := &filemgr{
+			tmpdir:  t.TempDir(), // another temporary directory
+			once:    new(sync.Once),
+			known:   make(map[string]string),
+			handles: make(map[string]io.Closer),
+		}
+		f1, err := dp.Open(filepath.Join(workdir, "hello.gz"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		comparecontents(t, f1, "hello")
+		assert.Len(t, dp.handles, 1)
+		f1.Close()
+		assert.Len(t, dp.handles, 0)
+		assert.Len(t, dp.known, 1)
+
+		f2, err := dp.Open(filepath.Join(workdir, "hello.gz"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		comparecontents(t, f2, "hello")
+		assert.Len(t, dp.handles, 1)
+		f2.Close()
+		assert.Len(t, dp.handles, 0)
+		assert.Len(t, dp.known, 1)
+
+		f3, err := dp.Open(filepath.Join(workdir, "world.gz"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		comparecontents(t, f3, "world")
+		assert.Len(t, dp.handles, 1)
+		f3.Close()
+		assert.Len(t, dp.handles, 0)
+		assert.Len(t, dp.known, 2)
+	})
+}
+
+func comparecontents(t *testing.T, f *wrappedfile, want string) {
+	t.Helper()
+	buf, err := io.ReadAll(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, want, string(buf))
 }

@@ -15,11 +15,11 @@ import (
 
 // filemgr manages temporary files and handles for compressed files.
 type filemgr struct {
-	tmpdir   string               // temporary storage directory
-	once     *sync.Once           // ensures that the temporary directory is created only once
-	mu       sync.Mutex           // protects the following
-	existing map[string]string    // map of unpacked files (real name to the temporary file name)
-	handles  map[string]io.Closer // map of the temporary file name to its handle
+	tmpdir  string               // temporary storage directory
+	once    *sync.Once           // ensures that the temporary directory is created only once
+	mu      sync.Mutex           // protects the following
+	known   map[string]string    // map of unpacked files (real name to the temporary file name)
+	handles map[string]io.Closer // map of the temporary file name to its handle
 }
 
 // newFileMgr creates a new file manager.
@@ -30,10 +30,10 @@ func newFileMgr() (*filemgr, error) {
 	}
 	logger.Default.Debugf("created temporary directory: %s", tmpdir)
 	return &filemgr{
-		tmpdir:   tmpdir,
-		once:     new(sync.Once),
-		existing: make(map[string]string),
-		handles:  make(map[string]io.Closer),
+		tmpdir:  tmpdir,
+		once:    new(sync.Once),
+		known:   make(map[string]string),
+		handles: make(map[string]io.Closer),
 	}, nil
 }
 
@@ -56,7 +56,7 @@ func (dp *filemgr) Destroy() error {
 	}
 	var errs error
 	if errcount > 0 {
-		errs = fmt.Errorf("there were %d errors closing files", errcount)
+		errs = fmt.Errorf("there were %d errors closing file handles", errcount)
 	}
 	if err := os.RemoveAll(dp.tmpdir); err != nil {
 		errs = errors.Join(errs, err)
@@ -80,17 +80,17 @@ func (dp *filemgr) Open(name string) (*wrappedfile, error) {
 		return nil, mkdirerr
 	}
 
-	// check if the file is already open
-	if tempfile, ok := dp.existing[name]; ok {
+	// check if the file already exists
+	tmpname := hash(name)
+	if tempfile, ok := dp.known[name]; ok {
 		f, err := os.Open(tempfile) // existing temporary file
 		if err != nil {
 			return nil, err
 		}
-		dp.handles[f.Name()] = f
-		return &wrappedfile{f, dp}, nil
+		dp.handles[tmpname] = f
+		return &wrappedfile{hash: tmpname, File: f, dp: dp}, nil
 	}
 	// open the compressed file
-	tmpname := hash(name)
 	cf, err := os.Open(name)
 	if err != nil {
 		return nil, err
@@ -114,14 +114,19 @@ func (dp *filemgr) Open(name string) (*wrappedfile, error) {
 	if _, err := tf.Seek(0, io.SeekStart); err != nil {
 		return nil, err
 	}
-	dp.existing[name] = tf.Name()
+	dp.known[name] = tf.Name()
 	dp.handles[tmpname] = tf
-	return &wrappedfile{tf, dp}, nil
+	return &wrappedfile{
+		hash: tmpname,
+		File: tf,
+		dp:   dp,
+	}, nil
 }
 
 // wrappedfile is a struct that wraps an os.File and holds a reference to the
 // file manager.
 type wrappedfile struct {
+	hash string
 	*os.File
 	dp *filemgr
 }
@@ -131,6 +136,6 @@ type wrappedfile struct {
 func (wf *wrappedfile) Close() error {
 	wf.dp.mu.Lock()
 	defer wf.dp.mu.Unlock()
-	delete(wf.dp.handles, wf.Name())
+	delete(wf.dp.handles, wf.hash)
 	return wf.File.Close()
 }
