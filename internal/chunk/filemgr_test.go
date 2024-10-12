@@ -46,7 +46,7 @@ func Benchmark_hash(b *testing.B) {
 	}
 }
 
-func creategz(t *testing.T, dir string, name string, contents string) string {
+func creategzfile(t *testing.T, dir string, name string, contents string) string {
 	t.Helper()
 	filename := filepath.Join(dir, name)
 	f, err := os.Create(filename)
@@ -62,14 +62,28 @@ func creategz(t *testing.T, dir string, name string, contents string) string {
 	return filename
 }
 
+func createfile(t *testing.T, dir string, name string, contents string) string {
+	t.Helper()
+	filename := filepath.Join(dir, name)
+	f, err := os.Create(filename)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	if _, err := f.WriteString(contents); err != nil {
+		t.Fatal(err)
+	}
+	return filename
+}
+
 func Test_filemgr_Open(t *testing.T) {
 	// prepare some test files
 	// workdir is the working directory.
 	workdir := t.TempDir()
 
 	// create compressed files
-	creategz(t, workdir, "hello.gz", "hello")
-	creategz(t, workdir, "world.gz", "world")
+	creategzfile(t, workdir, "hello.gz", "hello")
+	creategzfile(t, workdir, "world.gz", "world")
 
 	type fields struct {
 		// tmpdir  string // provided by t.TempDir()
@@ -177,6 +191,34 @@ func Test_filemgr_Open(t *testing.T) {
 		assert.Len(t, dp.handles, 0)
 		assert.Len(t, dp.known, 2)
 	})
+	t.Run("mkdirall fails", func(t *testing.T) {
+		dp := &filemgr{
+			tmpdir:  t.TempDir(), // another temporary directory
+			once:    new(sync.Once),
+			known:   make(map[string]string),
+			handles: make(map[string]io.Closer),
+		}
+		os.Chmod(dp.tmpdir, 0o000)
+		t.Cleanup(func() {
+			os.Chmod(dp.tmpdir, 0o755)
+		})
+		dp.tmpdir = filepath.Join(dp.tmpdir, "non-existing")
+		if _, err := dp.Open(filepath.Join(workdir, "hello.gz")); err == nil {
+			t.Fatal("expected an error")
+		}
+	})
+	t.Run("fails on non-compressed file", func(t *testing.T) {
+		dp := &filemgr{
+			tmpdir:  t.TempDir(), // another temporary directory
+			once:    new(sync.Once),
+			known:   make(map[string]string),
+			handles: make(map[string]io.Closer),
+		}
+		filename := createfile(t, workdir, "hello.txt", "hello")
+		if _, err := dp.Open(filename); err == nil {
+			t.Fatal("expected an error")
+		}
+	})
 }
 
 func comparecontents(t *testing.T, f *wrappedfile, want string) {
@@ -190,7 +232,7 @@ func comparecontents(t *testing.T, f *wrappedfile, want string) {
 
 func Test_wrappedfile_Close(t *testing.T) {
 	dir := t.TempDir()
-	creategz(t, dir, "hello.gz", "hello")
+	creategzfile(t, dir, "hello.gz", "hello")
 	dp := &filemgr{
 		tmpdir:  t.TempDir(), // another temporary directory
 		once:    new(sync.Once),
@@ -227,8 +269,8 @@ func Test_filemgr_Destroy(t *testing.T) {
 	})
 	t.Run("closes all open file handles", func(t *testing.T) {
 		dir := t.TempDir()
-		creategz(t, dir, "hello.gz", "hello")
-		creategz(t, dir, "world.gz", "world")
+		creategzfile(t, dir, "hello.gz", "hello")
+		creategzfile(t, dir, "world.gz", "world")
 		dp := &filemgr{
 			tmpdir:  t.TempDir(), // another temporary directory
 			once:    new(sync.Once),
@@ -272,7 +314,7 @@ func Test_filemgr_Destroy(t *testing.T) {
 	})
 	t.Run("errors closing file handles", func(t *testing.T) {
 		dir := t.TempDir()
-		creategz(t, dir, "hello.gz", "hello")
+		creategzfile(t, dir, "hello.gz", "hello")
 		dp := &filemgr{
 			tmpdir:  t.TempDir(), // another temporary directory
 			once:    new(sync.Once),

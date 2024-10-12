@@ -71,16 +71,13 @@ func (dp *filemgr) Destroy() error {
 // compressed file, unpacks it into a temporary file, and returns the handle.
 // The file is expected to be a gzip-compressed file.
 func (dp *filemgr) Open(name string) (*wrappedfile, error) {
+	// create the directory if it doesn't exist
+	if err := os.MkdirAll(dp.tmpdir, 0o755); err != nil {
+		return nil, err
+	}
+
 	dp.mu.Lock()
 	defer dp.mu.Unlock()
-	// create the directory if it doesn't exist
-	var mkdirerr error
-	dp.once.Do(func() {
-		mkdirerr = os.MkdirAll(dp.tmpdir, 0o755)
-	})
-	if mkdirerr != nil {
-		return nil, mkdirerr
-	}
 
 	// check if the file already exists
 	tmpname := hash(name)
@@ -102,6 +99,7 @@ func (dp *filemgr) Open(name string) (*wrappedfile, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer gz.Close()
 	// create a temporary file
 	tf, err := os.CreateTemp(dp.tmpdir, "filemgr-*")
 	if err != nil {
