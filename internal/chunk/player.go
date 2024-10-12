@@ -8,8 +8,8 @@ import (
 	"github.com/rusq/slack"
 )
 
-// offsets holds the index of the current offset in the index for each chunk
-// ID.
+// offsets holds the pointer to the current offset in the File offset index
+// for each group ID.
 type offsets map[GroupID]int
 
 // Player replays the chunks from a file, it is able to emulate the API

@@ -228,6 +228,14 @@ var testChunks = []Chunk{
 			},
 		},
 	},
+	{
+		Type:        CSearchMessages,
+		Timestamp:   1234567890,
+		SearchQuery: "hello",
+		SearchMessages: []slack.SearchMessage{
+			{},
+		},
+	},
 }
 
 func Test_indexRecords(t *testing.T) {
