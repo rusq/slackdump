@@ -208,6 +208,7 @@ func (rec *Recorder) ChannelUsers(ctx context.Context, channelID string, threadT
 	chunk := Chunk{
 		Type:         CChannelUsers,
 		ChannelID:    channelID,
+		Count:        len(users),
 		Timestamp:    time.Now().UnixNano(),
 		ChannelUsers: users,
 	}
@@ -225,6 +226,7 @@ func (rec *Recorder) SearchMessages(ctx context.Context, query string, sm []slac
 	chunk := Chunk{
 		Type:           CSearchMessages,
 		Timestamp:      time.Now().UnixNano(),
+		Count:          len(sm),
 		SearchQuery:    query,
 		SearchMessages: sm,
 	}
@@ -241,6 +243,7 @@ func (rec *Recorder) SearchFiles(ctx context.Context, query string, sf []slack.F
 	chunk := Chunk{
 		Type:        CSearchFiles,
 		Timestamp:   time.Now().UnixNano(),
+		Count:       len(sf),
 		SearchQuery: query,
 		SearchFiles: sf,
 	}
