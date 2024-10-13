@@ -61,7 +61,7 @@ var fastSearch bool
 
 func init() {
 	for _, cmd := range []*base.Command{cmdSearchMessages, cmdSearchFiles, cmdSearchAll} {
-		cmd.Flag.BoolVar(&fastSearch, "fast", false, "skip channel users ~2.5x faster")
+		cmd.Flag.BoolVar(&fastSearch, "-no-channel-users", false, "skip channel users (approx ~2.5x faster)")
 	}
 }
 
