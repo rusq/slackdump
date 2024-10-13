@@ -269,9 +269,9 @@ func (cs *Stream) thread(ctx context.Context, sl *structures.SlackLink, callback
 	return nil
 }
 
-// procChanMsg processes the messages in the channel and sends
-// thread requests for the threads in the channel, if it discovers messages
-// with threads.  It returns thread count in the mm and error if any.
+// procChanMsg processes the message slice mm, for each threaded message, it
+// sends the thread request on threadC.  It returns thread count in the mm and
+// error if any.
 func procChanMsg(ctx context.Context, proc processor.Conversations, threadC chan<- request, channel *slack.Channel, isLast bool, mm []slack.Message) (int, error) {
 	lg := logger.FromContext(ctx)
 
@@ -334,8 +334,8 @@ func procFiles(ctx context.Context, proc processor.Filer, channel *slack.Channel
 	return nil
 }
 
-// channelInfo fetches the channel info and passes it to the processor.
-func (cs *Stream) channelInfo(ctx context.Context, proc processor.ChannelInformer, channelID string, threadTS string) (*slack.Channel, error) {
+// procChannelInfo fetches the channel info and passes it to the processor.
+func (cs *Stream) procChannelInfo(ctx context.Context, proc processor.ChannelInformer, channelID string, threadTS string) (*slack.Channel, error) {
 	ctx, task := trace.NewTask(ctx, "channelInfo")
 	defer task.End()
 
@@ -367,8 +367,9 @@ func (cs *Stream) channelInfo(ctx context.Context, proc processor.ChannelInforme
 	return info, nil
 }
 
-func (cs *Stream) channelUsers(ctx context.Context, proc processor.ChannelInformer, channelID, threadTS string) ([]string, error) {
-	var uu []string
+func (cs *Stream) procChannelUsers(ctx context.Context, proc processor.ChannelInformer, channelID, threadTS string) ([]string, error) {
+	var users []string
+
 	var cursor string
 	for {
 		var u []string
@@ -383,27 +384,31 @@ func (cs *Stream) channelUsers(ctx context.Context, proc processor.ChannelInform
 		}); err != nil {
 			return nil, fmt.Errorf("error getting conversation users: %w", err)
 		}
+		if len(u) == 0 && next == "" {
+			break
+		}
 		if err := proc.ChannelUsers(ctx, channelID, threadTS, u); err != nil {
 			return nil, err
 		}
-		uu = append(uu, u...)
+		users = append(users, u...)
 		if next == "" {
 			break
 		}
 		cursor = next
 	}
-	return uu, nil
+
+	return users, nil
 }
 
-// channelInfoWithUsers returns the slack channel with members populated from
+// procChannelInfoWithUsers returns the slack channel with members populated from
 // another api.
-func (cs *Stream) channelInfoWithUsers(ctx context.Context, proc processor.ChannelInformer, channelID, threadTS string) (*slack.Channel, error) {
+func (cs *Stream) procChannelInfoWithUsers(ctx context.Context, proc processor.ChannelInformer, channelID, threadTS string) (*slack.Channel, error) {
 	var eg errgroup.Group
 
 	var chC = make(chan slack.Channel, 1)
 	eg.Go(func() error {
 		defer close(chC)
-		ch, err := cs.channelInfo(ctx, proc, channelID, threadTS)
+		ch, err := cs.procChannelInfo(ctx, proc, channelID, threadTS)
 		if err != nil {
 			return err
 		}
@@ -414,7 +419,7 @@ func (cs *Stream) channelInfoWithUsers(ctx context.Context, proc processor.Chann
 	var uC = make(chan []string, 1)
 	eg.Go(func() error {
 		defer close(uC)
-		m, err := cs.channelUsers(ctx, proc, channelID, threadTS)
+		m, err := cs.procChannelUsers(ctx, proc, channelID, threadTS)
 		if err != nil {
 			return err
 		}

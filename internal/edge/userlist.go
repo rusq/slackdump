@@ -3,9 +3,9 @@ package edge
 import (
 	"context"
 	"errors"
-	"io"
 
 	"github.com/rusq/slack"
+	"golang.org/x/sync/errgroup"
 )
 
 type UsersListRequest struct {
@@ -47,6 +47,7 @@ type User struct {
 	Updated                slack.JSONTime `json:"updated"`
 	IsEmailConfirmed       bool           `json:"is_email_confirmed"`
 	WhoCanShareContactCard string         `json:"who_can_share_contact_card"`
+	Has2Fa                 *bool          `json:"has_2fa,omitempty"`
 }
 
 type Profile struct {
@@ -181,46 +182,66 @@ func (cl *Client) ChannelsMembership(ctx context.Context, req *ChannelsMembershi
 	return &um, nil
 }
 
-// callEdgeAPI calls the edge API.
-func (cl *Client) callEdgeAPI(ctx context.Context, v any, endpoint string, req PostRequest) error {
-	r, err := cl.PostJSON(ctx, endpoint, req)
-	if err != nil && !errors.Is(err, io.EOF) {
-		return err
-	}
-	return cl.ParseResponse(v, r)
-}
-
 // UserList lists users in the conversation(s).
 func (cl *Client) UsersList(ctx context.Context, channelIDs ...string) ([]User, error) {
-	const (
-		everyone           = "everyone AND NOT bots AND NOT apps"
-		people             = "people"
-		usersByDisplayName = "users_by_display_name"
-
-		perRequest = 50
-	)
 	if len(channelIDs) == 0 {
 		return nil, errors.New("no channel IDs provided")
-
 	}
+	channelIDs, dmIDs := splitDMs(channelIDs)
+	var uu []User
+	var eg errgroup.Group
+	if len(channelIDs) > 0 {
+		eg.Go(func() error {
+			u, err := cl.publicUserList(ctx, channelIDs)
+			if err != nil {
+				return err
+			}
+			uu = append(uu, u...)
+			return nil
+		})
+	}
+	if len(dmIDs) > 0 {
+		eg.Go(func() error {
+			u, err := cl.directUserList(ctx, dmIDs)
+			if err != nil {
+				return err
+			}
+			uu = append(uu, u...)
+			return nil
+		})
+	}
+	if err := eg.Wait(); err != nil {
+		return nil, err
+	}
+	return uu, nil
+}
+
+func (cl *Client) publicUserList(ctx context.Context, channelIDs []string) ([]User, error) {
+	const (
+		// everyone = "everyone AND NOT bots AND NOT apps"
+		everyone = "everyone"
+		filter   = "people"
+		index    = "users_by_display_name"
+
+		count = 50
+	)
 	req := UsersListRequest{
 		Channels:     channelIDs,
 		Filter:       everyone,
-		PresentFirst: true,
-		Index:        usersByDisplayName,
+		PresentFirst: false,
+		Index:        index,
 		Locale:       "en-US",
 		Marker:       "",
-		Count:        perRequest,
+		Count:        count,
 	}
-
+	var uu = make([]User, 0, count)
 	lim := tier3.limiter()
-	var uu = make([]User, 0, perRequest)
 	for {
 		var ur UsersListResponse
 		if err := cl.callEdgeAPI(ctx, &ur, "users/list", &req); err != nil {
 			return nil, err
 		}
-		if len(ur.Results) == 0 {
+		if len(ur.Results) == 0 && ur.NextMarker == "" {
 			break
 		}
 		uu = append(uu, ur.Results...)
@@ -233,4 +254,40 @@ func (cl *Client) UsersList(ctx context.Context, channelIDs ...string) ([]User, 
 		}
 	}
 	return uu, nil
+}
+
+// directUserList tries to get users from the direct message channels.  It is
+// much slower than getting users from the public channels, as it uses
+// conversations.view endpoint.
+func (cl *Client) directUserList(ctx context.Context, dmIDs []string) ([]User, error) {
+	if len(dmIDs) == 0 {
+		return nil, errors.New("no direct message IDs provided")
+	}
+	var ret []User
+	lim := tier3.limiter()
+	for _, id := range dmIDs {
+		resp, err := cl.ConversationsView(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+		ret = append(ret, resp.Users...)
+		if err := lim.Wait(ctx); err != nil {
+			return nil, err
+		}
+	}
+	return ret, nil
+}
+
+func splitDMs(IDs []string) (chans []string, dms []string) {
+	for _, id := range IDs {
+		if len(id) == 0 {
+			continue
+		}
+		if len(id) > 0 && id[0] == 'D' {
+			dms = append(dms, id)
+		} else {
+			chans = append(chans, id)
+		}
+	}
+	return chans, dms
 }

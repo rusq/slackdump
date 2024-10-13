@@ -89,6 +89,7 @@ const (
 	RTChannel                   // Result containing channel information
 	RTThread                    // Result containing thread information
 	RTChannelInfo
+	RTChannelUsers
 )
 
 // Result is sent to the callback function for each channel or thread.
