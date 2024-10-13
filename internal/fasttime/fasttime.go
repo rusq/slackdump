@@ -2,7 +2,6 @@ package fasttime
 
 import (
 	"errors"
-	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -35,19 +34,6 @@ func (t Time) SlackString() string {
 }
 
 var ErrNotATimestamp = errors.New("not a slack timestamp")
-
-// TS2int converts a slack timestamp to an int64 by stripping the dot and
-// converting the string to an int64.  It is useful for fast comparison.
-func TS2int(ts string) (int64, error) {
-	if ts == "" {
-		return 0, nil
-	}
-	before, after, found := strings.Cut(ts, ".")
-	if !found {
-		return 0, fmt.Errorf("%w: %s", ErrNotATimestamp, ts)
-	}
-	return strconv.ParseInt(before+after, 10, 64)
-}
 
 // Int2TS converts an int64 to a slack timestamp by inserting a dot in the
 // right place.

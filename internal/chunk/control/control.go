@@ -1,5 +1,5 @@
-// Package control hold the implementation of the Slack Stream controller.  It
-// runs the API scraping in several goroutines and manages the data flow
+// Package control holds the implementation of the Slack Stream controller.
+// It runs the API scraping in several goroutines and manages the data flow
 // between them.  It records the output of the API scraper into a chunk
 // directory.  It also manages the transformation of the data, if the caller
 // is interested in it.
@@ -126,10 +126,10 @@ func (c *Controller) Run(ctx context.Context, list *structures.EntityList) error
 		var generator linkFeederFunc
 		if list.HasIncludes() {
 			// inclusive export, processes only included channels.
-			generator = genListChannel
+			generator = genChFromList
 		} else {
 			// exclusive export (process only excludes, if any)
-			generator = genAPIChannel(c.s, c.cd, c.flags.MemberOnly)
+			generator = genChFromAPI(c.s, c.cd, c.flags.MemberOnly)
 		}
 
 		wg.Add(1)
@@ -208,12 +208,12 @@ func (c *Controller) Run(ctx context.Context, list *structures.EntityList) error
 
 type linkFeederFunc func(ctx context.Context, links chan<- string, list *structures.EntityList) error
 
-// genListChannel feeds the channel IDs that it gets from the list to
+// genChFromList feeds the channel IDs that it gets from the list to
 // the links channel.  It does not fetch the channel list from the api, so
 // it's blazing fast in comparison to apiChannelFeeder.  When needed, get the
 // channel information from the conversations chunk files (they contain the
 // chunk with channel information).
-func genListChannel(ctx context.Context, links chan<- string, list *structures.EntityList) error {
+func genChFromList(ctx context.Context, links chan<- string, list *structures.EntityList) error {
 	for _, ch := range list.Include {
 		select {
 		case <-ctx.Done():
@@ -224,11 +224,11 @@ func genListChannel(ctx context.Context, links chan<- string, list *structures.E
 	return nil
 }
 
-// genAPIChannel feeds the channel IDs that it gets from the API to the
+// genChFromAPI feeds the channel IDs that it gets from the API to the
 // links channel.  It also filters out channels that are excluded in the list.
 // It does not account for "included".  It ignores the thread links in the
 // list.  It writes the channels to the tmpdir.
-func genAPIChannel(s Streamer, cd *chunk.Directory, memberOnly bool) linkFeederFunc {
+func genChFromAPI(s Streamer, cd *chunk.Directory, memberOnly bool) linkFeederFunc {
 	return func(ctx context.Context, links chan<- string, list *structures.EntityList) error {
 		chIdx := list.Index()
 		chanproc, err := dirproc.NewChannels(cd, func(c []slack.Channel) error {

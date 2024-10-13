@@ -3,6 +3,8 @@ package chunk
 import (
 	"compress/gzip"
 	"crypto/sha1"
+	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -11,16 +13,16 @@ import (
 	"github.com/rusq/slackdump/v3/logger"
 )
 
-const extIdx = ".idx"
-
+// filemgr manages temporary files and handles for compressed files.
 type filemgr struct {
-	tmpdir string // temporary storage directory
-
-	mu       sync.Mutex           // protects the following
-	existing map[string]string    // map of unpacked files (real name to the temporary file name)
-	handles  map[string]io.Closer // map of the temporary file name to it's handle
+	tmpdir  string               // temporary storage directory
+	once    *sync.Once           // ensures that the temporary directory is created only once
+	mu      sync.Mutex           // protects the following
+	known   map[string]string    // map of unpacked files (real name to the temporary file name)
+	handles map[string]io.Closer // map of the temporary file name to its handle
 }
 
+// newFileMgr creates a new file manager.
 func newFileMgr() (*filemgr, error) {
 	tmpdir, err := os.MkdirTemp("", "slackdump-*")
 	if err != nil {
@@ -28,45 +30,66 @@ func newFileMgr() (*filemgr, error) {
 	}
 	logger.Default.Debugf("created temporary directory: %s", tmpdir)
 	return &filemgr{
-		tmpdir:   tmpdir,
-		existing: make(map[string]string),
-		handles:  make(map[string]io.Closer),
+		tmpdir:  tmpdir,
+		once:    new(sync.Once),
+		known:   make(map[string]string),
+		handles: make(map[string]io.Closer),
 	}, nil
 }
 
-// hash returns a hex encoded sha256 hash of the string.
+// hash returns a hex encoded sha1 hash of the string.
 func hash(s string) string {
-	return fmt.Sprintf("%x", sha1.Sum([]byte(s)))
+	v := sha1.Sum([]byte(s))
+	return hex.EncodeToString(v[:])
 }
 
+// Destroy closes all open file handles and removes the temporary directory.
 func (dp *filemgr) Destroy() error {
 	dp.mu.Lock()
 	defer dp.mu.Unlock()
-	for _, f := range dp.handles {
-		f.Close()
+	var errcount int
+	for hash, f := range dp.handles {
+		if err := f.Close(); err != nil {
+			logger.Default.Printf("error closing file: %v", err)
+			errcount++
+			continue
+		}
+		delete(dp.handles, hash)
 	}
-	return os.RemoveAll(dp.tmpdir)
+	var errs error
+	if errcount > 0 {
+		errs = fmt.Errorf("there were %d errors closing file handles", errcount)
+	}
+	if err := os.RemoveAll(dp.tmpdir); err != nil {
+		errs = errors.Join(errs, err)
+	}
+	return errs
 }
 
-// Open
+// Open opens the file with the given name. If the file is already open, it
+// returns the existing handle. If the file is not open, it opens the
+// compressed file, unpacks it into a temporary file, and returns the handle.
+// The file is expected to be a gzip-compressed file.
 func (dp *filemgr) Open(name string) (*wrappedfile, error) {
 	// create the directory if it doesn't exist
 	if err := os.MkdirAll(dp.tmpdir, 0o755); err != nil {
 		return nil, err
 	}
-	// check if the file is already open
+
 	dp.mu.Lock()
 	defer dp.mu.Unlock()
-	if tempfile, ok := dp.existing[name]; ok {
-		etf, err := os.Open(tempfile) // existing temporary file
+
+	// check if the file already exists
+	tmpname := hash(name)
+	if tempfile, ok := dp.known[tmpname]; ok {
+		f, err := os.Open(tempfile) // existing temporary file
 		if err != nil {
 			return nil, err
 		}
-		dp.handles[etf.Name()] = etf
-		return &wrappedfile{etf, dp}, nil
+		dp.handles[tmpname] = f
+		return &wrappedfile{hash: tmpname, File: f, dp: dp}, nil
 	}
 	// open the compressed file
-	tmpname := hash(name)
 	cf, err := os.Open(name)
 	if err != nil {
 		return nil, err
@@ -76,6 +99,7 @@ func (dp *filemgr) Open(name string) (*wrappedfile, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer gz.Close()
 	// create a temporary file
 	tf, err := os.CreateTemp(dp.tmpdir, "filemgr-*")
 	if err != nil {
@@ -90,19 +114,28 @@ func (dp *filemgr) Open(name string) (*wrappedfile, error) {
 	if _, err := tf.Seek(0, io.SeekStart); err != nil {
 		return nil, err
 	}
-	dp.existing[name] = tf.Name()
+	dp.known[tmpname] = tf.Name()
 	dp.handles[tmpname] = tf
-	return &wrappedfile{tf, dp}, nil
+	return &wrappedfile{
+		hash: tmpname,
+		File: tf,
+		dp:   dp,
+	}, nil
 }
 
+// wrappedfile is a struct that wraps an os.File and holds a reference to the
+// file manager.
 type wrappedfile struct {
+	hash string
 	*os.File
 	dp *filemgr
 }
 
+// Close closes the file handle and removes it from the file manager's handles
+// map.
 func (wf *wrappedfile) Close() error {
 	wf.dp.mu.Lock()
 	defer wf.dp.mu.Unlock()
-	delete(wf.dp.handles, wf.Name())
+	delete(wf.dp.handles, wf.hash)
 	return wf.File.Close()
 }

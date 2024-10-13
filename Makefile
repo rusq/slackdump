@@ -4,11 +4,12 @@ CMD=./cmd/slackdump
 OUTPUT=slackdump
 EXECUTABLE=slackdump
 BUILD=$(shell git describe --tags)
-BUILD_YEAR=$(shell date +%Y)
+BUILD_DATE=$(shell TZ=UTC date +%Y-%m-%d\ %H:%M:%SZ)
+COMMIT=$(shell git rev-parse --short HEAD)
 
 PKG=github.com/rusq/slackdump/v3
 
-LDFLAGS="-s -w -X 'main.build=$(BUILD)' -X 'main.buildYear=$(BUILD_YEAR)'"
+LDFLAGS="-s -w -X 'main.commit=$(COMMIT)' -X 'main.version=$(BUILD)' -X 'main.date=$(BUILD_DATE)'"
 OSES=linux darwin windows
 DISTFILES=README.rst LICENSE
 ZIPFILES=$(foreach s,$(OSES),$(OUTPUT)-$s.zip)

@@ -323,6 +323,8 @@ func (d *Directory) WorkspaceInfo() (*slack.AuthTestResponse, error) {
 	return nil, errors.New("no workspace info found")
 }
 
+const extIdx = ".idx"
+
 func cachedFromReader(wf osext.ReadSeekCloseNamer, wantCache bool) (*File, error) {
 	if !wantCache {
 		return FromReader(wf)

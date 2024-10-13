@@ -87,6 +87,7 @@ func fromReaderWithIndex(rs io.ReadSeeker, idx index) (*File, error) {
 	if _, err := rs.Seek(0, io.SeekStart); err != nil { // reset offset
 		return nil, err
 	}
+	// TODO: validate index.
 	return &File{
 		rs:  rs,
 		idx: idx,
@@ -130,11 +131,13 @@ func indexChunks(dec decoder) (index, error) {
 }
 
 // ensure ensures that the file index was generated.
-//
-// TODO: maybe it shouldn't panic.
 func (f *File) ensure() {
 	if f.idx == nil {
-		log.Panicf("internal error:  %s called before File.Open", osext.Caller(1))
+		var err error
+		f.idx, err = indexChunks(json.NewDecoder(f.rs))
+		if err != nil {
+			log.Panicf("%s: index error: %s", osext.Caller(1), err)
+		}
 	}
 }
 
@@ -145,10 +148,13 @@ func (f *File) Offsets(id GroupID) ([]int64, bool) {
 	return ret, ok && len(ret) > 0
 }
 
+// HasUsers returns true if there is at least one user chunk in the file.
 func (f *File) HasUsers() bool {
 	return f.HasChunks(userChunkID)
 }
 
+// HasChannels returns true if there is at least one channel chunk in the
+// file.
 func (f *File) HasChannels() bool {
 	return f.HasChunks(channelChunkID)
 }
@@ -392,7 +398,7 @@ func (p *File) AllChannelIDs() []string {
 	var ids = make([]string, 0, 1)
 	for gid := range p.idx {
 		id := string(gid)
-		if !strings.Contains(id, ":") && !gid.isInfo() && !gid.isList() {
+		if !strings.Contains(id, ":") && !gid.isInfo() && !gid.isList() && !gid.isSearch() {
 			ids = append(ids, id)
 		}
 	}

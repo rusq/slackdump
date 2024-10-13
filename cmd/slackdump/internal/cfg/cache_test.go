@@ -13,16 +13,27 @@ func TestCacheDir(t *testing.T) {
 		t.Fatal(err)
 	}
 	tests := []struct {
-		name string
-		want string
+		name          string
+		localDirCache string // set the LocalDirCache to this value
+		want          string
 	}{
 		{
-			"returns the UserCacheDir value",
+			"returns the UserCacheDir value if global LocalDirCache is empty",
+			"",
 			filepath.Join(ucd, cacheDirName),
+		},
+		{
+			"returns the LocalDirCache value if it's set",
+			"local",
+			"local",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			old := LocalCacheDir
+			LocalCacheDir = tt.localDirCache
+			t.Cleanup(func() { LocalCacheDir = old })
+
 			if got := CacheDir(); got != tt.want {
 				t.Errorf("CacheDir() = %v, want %v", got, tt.want)
 			}

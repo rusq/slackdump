@@ -54,6 +54,7 @@ type Stream struct {
 	client         Slacker
 	limits         rateLimits
 	chanCache      *chanCache
+	fastSearch     bool
 	resultFn       []func(sr Result) error
 }
 
@@ -88,6 +89,7 @@ const (
 	RTChannel                   // Result containing channel information
 	RTThread                    // Result containing thread information
 	RTChannelInfo
+	RTChannelUsers
 )
 
 // Result is sent to the callback function for each channel or thread.
@@ -149,6 +151,12 @@ func OptLatest(t time.Time) Option {
 func OptResultFn(fn func(sr Result) error) Option {
 	return func(cs *Stream) {
 		cs.resultFn = append(cs.resultFn, fn)
+	}
+}
+
+func OptFastSearch() Option {
+	return func(cs *Stream) {
+		cs.fastSearch = true
 	}
 }
 

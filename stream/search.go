@@ -21,8 +21,9 @@ func (cs *Stream) SearchMessages(ctx context.Context, proc processor.MessageSear
 	defer task.End()
 
 	var (
-		srC        = make(chan Result, 1)
-		channelIdC = make(chan string, 100)
+		srC          = make(chan Result, 1)
+		channelInfoC = make(chan string, 100)
+		// channelUsersC = make(chan string, 200)
 
 		wg sync.WaitGroup
 	)
@@ -30,15 +31,17 @@ func (cs *Stream) SearchMessages(ctx context.Context, proc processor.MessageSear
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
+			defer close(channelInfoC)
+			// defer close(channelUsersC)
 
-			defer close(channelIdC)
 			if err := cs.searchmsg(ctx, query, func(sm []slack.SearchMessage) error {
 				if err := proc.SearchMessages(ctx, query, sm); err != nil {
 					return err
 				}
 				for _, m := range sm {
 					// collect channel ids
-					channelIdC <- m.Channel.ID
+					channelInfoC <- m.Channel.ID
+					// channelUsersC <- m.Channel.ID
 				}
 				return nil
 			}); err != nil {
@@ -49,10 +52,17 @@ func (cs *Stream) SearchMessages(ctx context.Context, proc processor.MessageSear
 	{
 		wg.Add(1)
 		go func() {
-			cs.channelInfoWorker(ctx, proc, srC, channelIdC)
+			cs.channelInfoWorker(ctx, proc, srC, channelInfoC)
 			wg.Done()
 		}()
 	}
+	// {
+	// 	wg.Add(1)
+	// 	go func() {
+	// 		cs.channelUsersWorker(ctx, proc, srC, channelUsersC)
+	// 		wg.Done()
+	// 	}()
+	// }
 	go func() {
 		wg.Wait()
 		close(srC)
@@ -133,7 +143,7 @@ func (cs *Stream) SearchFiles(ctx context.Context, proc processor.FileSearcher, 
 			return err
 		}
 		if sm.NextCursor == "" {
-			lg.Debug("SearchMessages:  no more messages")
+			lg.Debug("SearchFiles:  no more messages")
 			break
 		}
 		p.Cursor = sm.NextCursor

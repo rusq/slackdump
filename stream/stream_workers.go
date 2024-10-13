@@ -22,7 +22,7 @@ func (cs *Stream) channelWorker(ctx context.Context, proc processor.Conversation
 			if !more {
 				return // channel closed
 			}
-			channel, err := cs.channelInfoWithUsers(ctx, proc, req.sl.Channel, req.sl.ThreadTS)
+			channel, err := cs.procChannelInfoWithUsers(ctx, proc, req.sl.Channel, req.sl.ThreadTS)
 			if err != nil {
 				results <- Result{Type: RTChannel, ChannelID: req.sl.Channel, Err: err}
 				continue
@@ -63,7 +63,7 @@ func (cs *Stream) threadWorker(ctx context.Context, proc processor.Conversations
 			var channel = new(slack.Channel)
 			if req.threadOnly {
 				var err error
-				if channel, err = cs.channelInfoWithUsers(ctx, proc, req.sl.Channel, req.sl.ThreadTS); err != nil {
+				if channel, err = cs.procChannelInfoWithUsers(ctx, proc, req.sl.Channel, req.sl.ThreadTS); err != nil {
 					results <- Result{Type: RTThread, ChannelID: req.sl.Channel, ThreadTS: req.sl.ThreadTS, Err: err}
 					continue
 				}
@@ -89,6 +89,11 @@ func (cs *Stream) channelInfoWorker(ctx context.Context, proc processor.ChannelI
 	ctx, task := trace.NewTask(ctx, "channelInfoWorker")
 	defer task.End()
 
+	infoFetcher := cs.procChannelInfoWithUsers
+	if cs.fastSearch {
+		infoFetcher = cs.procChannelInfo
+	}
+
 	var seen = make(map[string]struct{}, 512)
 
 	for {
@@ -105,8 +110,39 @@ func (cs *Stream) channelInfoWorker(ctx context.Context, proc processor.ChannelI
 			if _, ok := seen[id]; ok {
 				continue
 			}
-			if _, err := cs.channelInfo(ctx, proc, id, ""); err != nil {
+
+			if _, err := infoFetcher(ctx, proc, id, ""); err != nil {
+				// if _, err := cs.procChannelInfo(ctx, proc, id, ""); err != nil {
 				srC <- Result{Type: RTChannelInfo, ChannelID: id, Err: fmt.Errorf("channelInfoWorker: %s: %s", id, err)}
+			}
+			seen[id] = struct{}{}
+		}
+	}
+}
+
+func (cs *Stream) channelUsersWorker(ctx context.Context, proc processor.ChannelInformer, srC chan<- Result, channelIdC <-chan string) {
+	ctx, task := trace.NewTask(ctx, "channelUsersWorker")
+	defer task.End()
+
+	var seen = make(map[string]struct{}, 512)
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case id, more := <-channelIdC:
+			if !more {
+				return
+			}
+			if id == "" {
+				continue
+			}
+			if _, ok := seen[id]; ok {
+				continue
+			}
+
+			if _, err := cs.procChannelUsers(ctx, proc, id, ""); err != nil {
+				srC <- Result{Type: RTChannelUsers, ChannelID: id, Err: fmt.Errorf("channelUsersWorker: %s: %s", id, err)}
 			}
 			seen[id] = struct{}{}
 		}

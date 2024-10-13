@@ -1,7 +1,9 @@
 package fasttime
 
 import (
+	"math"
 	"reflect"
+	"strconv"
 	"testing"
 	"time"
 )
@@ -32,6 +34,12 @@ func TestTs2int(t *testing.T) {
 			"real ts",
 			args{"1674255434.388009"},
 			1674255434388009,
+			false,
+		},
+		{
+			"maxint64",
+			args{strconv.FormatInt(math.MaxInt64/1000, 10) + ".000"},
+			math.MaxInt64 / 1000 * 1000,
 			false,
 		},
 		{
@@ -110,5 +118,15 @@ func TestInt2Time(t *testing.T) {
 				t.Errorf("Int2Time() = %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+func BenchmarkTs2Int(b *testing.B) {
+	var n int64
+	for i := 0; i < b.N; i++ {
+		n, _ = TS2int("1638494510.037400")
+	}
+	if n != 1638494510037400 {
+		b.Errorf("Expected 1638494510037400, got %d", n)
 	}
 }

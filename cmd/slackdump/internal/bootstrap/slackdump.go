@@ -1,11 +1,11 @@
-package cfg
+package bootstrap
 
 import (
 	"context"
 
 	"github.com/rusq/slackdump/v3"
 	"github.com/rusq/slackdump/v3/auth"
-	"github.com/rusq/slackdump/v3/logger"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 )
 
 // SlackdumpSession returns the Slackdump Session initialised with the provider
@@ -13,16 +13,15 @@ import (
 // configuration.  One can provide additional options to override the
 // defaults.
 func SlackdumpSession(ctx context.Context, opts ...slackdump.Option) (*slackdump.Session, error) {
-	lg := logger.FromContext(ctx)
 	prov, err := auth.FromContext(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	var stdOpts = []slackdump.Option{
-		slackdump.WithLogger(lg),
-		slackdump.WithForceEnterprise(ForceEnterprise),
-		slackdump.WithLimits(Limits),
+		slackdump.WithLogger(cfg.Log),
+		slackdump.WithForceEnterprise(cfg.ForceEnterprise),
+		slackdump.WithLimits(cfg.Limits),
 	}
 
 	stdOpts = append(stdOpts, opts...)

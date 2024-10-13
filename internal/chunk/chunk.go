@@ -30,7 +30,7 @@ const (
 var ErrUnsupChunkType = fmt.Errorf("unsupported chunk type")
 
 // Chunk is a representation of a single chunk of data retrieved from the API.
-// A single API call always produce a single Chunk.
+// A single API call always produces a single Chunk.
 type Chunk struct {
 	// header
 	// Type is the type of the Chunk
@@ -190,7 +190,7 @@ func (c *Chunk) messageTimestamps() ([]int64, error) {
 	for i := range c.Messages {
 		iTS, err := fasttime.TS2int(c.Messages[i].Timestamp)
 		if err != nil {
-			return nil, fmt.Errorf("invalid timestamp: %q: %w", c.Messages[i].Timestamp, err)
+			return nil, err
 		}
 		ts[i] = iTS
 	}

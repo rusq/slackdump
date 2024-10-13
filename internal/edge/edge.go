@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/rusq/slack"
+	"github.com/rusq/slackauth"
 	"github.com/rusq/slackdump/v3/auth"
 	"github.com/rusq/slackdump/v3/internal/tagmagic"
 	"github.com/rusq/slackdump/v3/logger"
@@ -195,6 +196,15 @@ func (cl *Client) PostJSON(ctx context.Context, path string, req PostRequest) (*
 	return do(ctx, cl.cl, r)
 }
 
+// callEdgeAPI calls the edge API.
+func (cl *Client) callEdgeAPI(ctx context.Context, v any, endpoint string, req PostRequest) error {
+	r, err := cl.PostJSON(ctx, endpoint, req)
+	if err != nil && !errors.Is(err, io.EOF) {
+		return err
+	}
+	return cl.ParseResponse(v, r)
+}
+
 func (cl *Client) PostForm(ctx context.Context, path string, form url.Values) (*http.Response, error) {
 	return cl.PostFormRaw(ctx, cl.webclientAPI+path, form)
 }
@@ -238,7 +248,7 @@ func (cl *Client) ParseResponse(req any, r *http.Response) error {
 func do(ctx context.Context, cl *http.Client, req *http.Request) (*http.Response, error) {
 	lg := logger.FromContext(ctx)
 	req.Header.Set("Accept-Language", "en-NZ,en-AU;q=0.9,en;q=0.8")
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36")
+	req.Header.Set("User-Agent", slackauth.DefaultUserAgent)
 
 	resp, err := cl.Do(req)
 	if err != nil {
@@ -315,8 +325,8 @@ func (e *APIError) Error() string {
 }
 
 type WebClientFields struct {
-	XReason  string `json:"_x_reason"`
-	XMode    string `json:"_x_mode"`
+	XReason  string `json:"_x_reason,omitempty"`
+	XMode    string `json:"_x_mode,omitempty"`
 	XSonic   bool   `json:"_x_sonic"`
 	XAppName string `json:"_x_app_name"`
 }

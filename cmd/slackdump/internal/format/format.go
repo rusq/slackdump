@@ -14,6 +14,7 @@ import (
 
 	"github.com/rusq/dlog"
 	"github.com/rusq/slack"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/bootstrap"
 
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
@@ -238,7 +239,7 @@ func getUsers(ctx context.Context, dmp *dump, isOnline bool) ([]slack.User, erro
 }
 
 func getUsersOnline(ctx context.Context, cacheDir, wsp string, usePlaywright bool) ([]slack.User, error) {
-	sess, err := cfg.SlackdumpSession(ctx)
+	sess, err := bootstrap.SlackdumpSession(ctx)
 	if err != nil {
 		return nil, err
 	}

@@ -121,8 +121,9 @@ func (rec *Recorder) ThreadMessages(ctx context.Context, channelID string, paren
 	return nil
 }
 
-// isThread should be set to true, if channelinfo is called while streaming a
-// thread (user requested a thread).
+// ChannelInfo records a channel information.  threadTS should be set to
+// threadTS, if ChannelInfo is called while streaming a thread (user requested
+// a thread).
 func (rec *Recorder) ChannelInfo(ctx context.Context, channel *slack.Channel, threadTS string) error {
 	rec.mu.Lock()
 	defer rec.mu.Unlock()
@@ -141,6 +142,7 @@ func (rec *Recorder) ChannelInfo(ctx context.Context, channel *slack.Channel, th
 	return nil
 }
 
+// Users records a slice of users.
 func (rec *Recorder) Users(ctx context.Context, users []slack.User) error {
 	chunk := Chunk{
 		Type:      CUsers,
@@ -154,6 +156,7 @@ func (rec *Recorder) Users(ctx context.Context, users []slack.User) error {
 	return nil
 }
 
+// Channel records a slice of channels.
 func (rec *Recorder) Channels(ctx context.Context, channels []slack.Channel) error {
 	rec.mu.Lock()
 	defer rec.mu.Unlock()
@@ -169,6 +172,7 @@ func (rec *Recorder) Channels(ctx context.Context, channels []slack.Channel) err
 	return nil
 }
 
+// State returns the current recorder state.
 func (rec *Recorder) State() (*state.State, error) {
 	rec.mu.Lock()
 	defer rec.mu.Unlock()
@@ -176,6 +180,7 @@ func (rec *Recorder) State() (*state.State, error) {
 	return rec.state, nil
 }
 
+// Close closes the recorder (it's a noop for now).
 func (rec *Recorder) Close() error {
 	return nil
 }
@@ -203,6 +208,7 @@ func (rec *Recorder) ChannelUsers(ctx context.Context, channelID string, threadT
 	chunk := Chunk{
 		Type:         CChannelUsers,
 		ChannelID:    channelID,
+		Count:        len(users),
 		Timestamp:    time.Now().UnixNano(),
 		ChannelUsers: users,
 	}
@@ -213,13 +219,14 @@ func (rec *Recorder) ChannelUsers(ctx context.Context, channelID string, threadT
 	return nil
 }
 
-// SearchMessages records the search messages.
+// SearchMessages records the result of a message search.
 func (rec *Recorder) SearchMessages(ctx context.Context, query string, sm []slack.SearchMessage) error {
 	rec.mu.Lock()
 	defer rec.mu.Unlock()
 	chunk := Chunk{
 		Type:           CSearchMessages,
 		Timestamp:      time.Now().UnixNano(),
+		Count:          len(sm),
 		SearchQuery:    query,
 		SearchMessages: sm,
 	}
@@ -229,12 +236,14 @@ func (rec *Recorder) SearchMessages(ctx context.Context, query string, sm []slac
 	return nil
 }
 
+// SearchMessages records the result of a file search.
 func (rec *Recorder) SearchFiles(ctx context.Context, query string, sf []slack.File) error {
 	rec.mu.Lock()
 	defer rec.mu.Unlock()
 	chunk := Chunk{
 		Type:        CSearchFiles,
 		Timestamp:   time.Now().UnixNano(),
+		Count:       len(sf),
 		SearchQuery: query,
 		SearchFiles: sf,
 	}

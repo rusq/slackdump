@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 )
 
@@ -12,6 +13,14 @@ var (
 	commit  = "unknown"
 	date    = "unknown"
 )
+
+func init() {
+	cfg.Version = cfg.BuildInfo{
+		Version: version,
+		Commit:  commit,
+		Date:    date,
+	}
+}
 
 var CmdVersion = &base.Command{
 	UsageLine: "version",
@@ -27,10 +36,6 @@ And by the way, version is: ` + version + `, commit: ` + commit + `, built on ` 
 }
 
 func versionRun(context.Context, *base.Command, []string) error {
-	printVersion()
+	fmt.Println(cfg.Version)
 	return nil
-}
-
-func printVersion() {
-	fmt.Printf("Slackdump %s (commit: %s) built on: %s\n", version, commit, date)
 }
