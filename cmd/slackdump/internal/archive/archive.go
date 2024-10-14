@@ -4,11 +4,9 @@ import (
 	"context"
 	_ "embed"
 	"errors"
-	"fmt"
 	"strings"
 	"time"
 
-	"github.com/charmbracelet/huh"
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/bootstrap"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
@@ -104,63 +102,4 @@ func resultLogger(lg logger.Interface) func(sr stream.Result) error {
 		lg.Printf("%s", sr)
 		return nil
 	}
-}
-
-func archiveWizard(ctx context.Context, cmd *base.Command, args []string) error {
-	selected := "dates"
-LOOP:
-	for {
-		form := huh.NewForm(
-			huh.NewGroup(
-				huh.NewSelect[string]().
-					Key("selection").
-					Title("Select the workspace or conversation to archive").
-					Description("Select the workspace or conversation to archive").
-					Options(
-						huh.NewOption("Specify date range", "dates"),
-						huh.NewOption("Custom API limits config file", "config"),
-						huh.NewOption(fmt.Sprintf("Enterprise mode enabled? (%v)", cfg.ForceEnterprise), "enterprise"),
-						huh.NewOption(fmt.Sprintf("Export files? (%v)", cfg.DownloadFiles), "files"),
-						huh.NewOption(fmt.Sprintf("Output directory:  %q", StripZipExt(cfg.Output)), "output"),
-						huh.NewOption("Run!", "run"),
-						huh.NewOption(strings.Repeat("-", 10), ""),
-						huh.NewOption("Exit archive wizard", "exit"),
-					).Value(&selected).
-					DescriptionFunc(func() string {
-						switch selected {
-						case "dates":
-							return "Specify the date range for the archive"
-						case "config":
-							return "Specify the custom API limits configuration file"
-						case "enterprise":
-							return "Enable or disable enterprise mode"
-						case "files":
-							return "Enable or disable files download"
-						case "output":
-							return "Specify the output directory, or use the default one"
-						case "run":
-							return "Run the archive"
-						case "exit":
-							return "Exit the archive wizard"
-						default:
-							return ""
-						}
-					}, &selected).
-					WithTheme(cfg.Theme),
-			),
-		)
-		if err := form.Run(); err != nil {
-			return err
-		}
-		switch selected {
-		case "exit":
-			break LOOP
-		case "enterprise":
-			cfg.ForceEnterprise = !cfg.ForceEnterprise
-		case "files":
-			cfg.DownloadFiles = !cfg.DownloadFiles
-		}
-	}
-
-	return nil
 }

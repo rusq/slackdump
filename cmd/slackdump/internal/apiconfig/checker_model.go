@@ -50,7 +50,7 @@ func (m checkerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	case filemgr.WMSelected:
 		filename := msg.Filepath
-		if err := checkFile(filename); err != nil {
+		if err := CheckFile(filename); err != nil {
 			cmds = append(cmds, wcmdErr(filename, err))
 		} else {
 			cmds = append(cmds, wcmdOK(filename))

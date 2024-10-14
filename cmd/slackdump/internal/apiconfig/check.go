@@ -42,7 +42,7 @@ func runConfigCheck(ctx context.Context, cmd *base.Command, args []string) error
 		return errors.New("config filename must be specified")
 	}
 	filename := args[0]
-	if err := checkFile(filename); err != nil {
+	if err := CheckFile(filename); err != nil {
 		base.SetExitStatus(base.SUserError)
 		return err
 	}
@@ -50,7 +50,7 @@ func runConfigCheck(ctx context.Context, cmd *base.Command, args []string) error
 	return nil
 }
 
-func checkFile(filename string) error {
+func CheckFile(filename string) error {
 	if _, err := Load(filename); err != nil {
 		return fmt.Errorf("config file %q not OK: %s", filename, err)
 	}
