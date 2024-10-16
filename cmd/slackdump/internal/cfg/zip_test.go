@@ -1,4 +1,4 @@
-package archive
+package cfg
 
 import (
 	_ "embed"

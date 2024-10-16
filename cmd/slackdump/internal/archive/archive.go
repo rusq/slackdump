@@ -4,7 +4,6 @@ import (
 	"context"
 	_ "embed"
 	"errors"
-	"strings"
 	"time"
 
 	"github.com/rusq/fsadapter"
@@ -33,16 +32,6 @@ var CmdArchive = &base.Command{
 	PrintFlags:  true,
 }
 
-const zipExt = ".ZIP"
-
-// StripZipExt removes the .zip extension from the string.
-func StripZipExt(s string) string {
-	if strings.HasSuffix(strings.ToUpper(s), zipExt) {
-		return s[:len(s)-len(zipExt)]
-	}
-	return s
-}
-
 var (
 	errNoOutput = errors.New("output directory is required")
 )
@@ -54,7 +43,7 @@ func RunArchive(ctx context.Context, cmd *base.Command, args []string) error {
 		return err
 	}
 
-	cfg.Output = StripZipExt(cfg.Output)
+	cfg.Output = cfg.StripZipExt(cfg.Output)
 	if cfg.Output == "" {
 		base.SetExitStatus(base.SInvalidParameters)
 		return errNoOutput
