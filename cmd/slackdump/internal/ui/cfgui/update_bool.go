@@ -12,10 +12,11 @@ func (m boolUpdateModel) Init() tea.Cmd {
 	return cmdSetValue("", !*m.v)
 }
 
-// cmdSetValue returns a command that sets a value to v.
+// cmdSetValue returns a command that sets a value to v, key is implementation
+// specific, may not be used by the caller.
 func cmdSetValue[T any](key string, v T) func() tea.Msg {
 	return func() tea.Msg {
-		return wmSetValue[T]{key: "", v: v}
+		return wmSetValue[T]{key: key, v: v}
 	}
 }
 
@@ -35,5 +36,6 @@ func (m boolUpdateModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m boolUpdateModel) View() string {
-	return ""
+	// View is not being used, but it's here for tests.
+	return checkbox(*m.v)
 }
