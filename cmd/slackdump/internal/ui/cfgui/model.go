@@ -1,7 +1,6 @@
 package cfgui
 
 import (
-	"context"
 	"fmt"
 	"strings"
 
@@ -16,26 +15,9 @@ const (
 	cursor     = ">"
 	alignGroup = ""
 	alignParam = "  "
+
+	notFound = -1
 )
-
-func New() configmodel {
-	cfg := effectiveConfig()
-	end := 0
-	for _, group := range cfg {
-		end += len(group.params)
-	}
-	end--
-	return configmodel{
-		cfg: effectiveConfig(),
-		end: end,
-	}
-}
-
-func Show(ctx context.Context) error {
-	p := tea.NewProgram(New())
-	_, err := p.Run()
-	return err
-}
 
 type configmodel struct {
 	finished bool
@@ -52,12 +34,19 @@ func (m configmodel) Init() tea.Cmd {
 
 func (m configmodel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
+
+	if _, ok := msg.(wmClose); m.child != nil && !ok {
+		child, cmd := m.child.Update(msg)
+		m.child = child
+		return m, cmd
+	}
+
 	switch msg := msg.(type) {
-	case closeMsg:
+	case wmClose:
 		// child sends a close message
 		m.child = nil
 		cmds = append(cmds, refreshCfgCmd)
-	case refreshMsg:
+	case wmRefresh:
 		m.cfg = msg.cfg
 	case tea.KeyMsg:
 		switch msg.String() {
@@ -83,25 +72,34 @@ func (m configmodel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmds = append(cmds, refreshCfgCmd)
 		case "enter":
 			i, j := locateParam(m.cfg, m.cursor)
-			if i == -1 || j == -1 {
+			if i == notFound || j == notFound {
 				return m, nil
 			}
 			if m.cfg[i].params[j].Model != nil {
 				m.child = m.cfg[i].params[j].Model
+				cmds = append(cmds, m.child.Init())
 			}
 		case "q", "esc", "ctrl+c":
+			// child is active
+			if m.child != nil {
+				break
+			}
 			m.finished = true
 			return m, tea.Quit
 		}
 	}
 
-	if m.child != nil {
-		_, cmd := m.child.Update(msg)
-		cmds = append(cmds, cmd)
-	}
-
 	return m, tea.Batch(cmds...)
 }
+
+// formatting functions
+var (
+	fmtgrp       = cfg.Theme.Focused.Title.Render
+	fmtname      = cfg.Theme.Focused.SelectedOption.Render
+	fmtvalactive = cfg.Theme.Focused.UnselectedOption.Render
+	fmtvalinact  = cfg.Theme.Focused.Description.Render
+	fmtdescr     = cfg.Theme.Focused.Description.Render
+)
 
 func (m configmodel) View() string {
 	if m.finished {
@@ -111,19 +109,11 @@ func (m configmodel) View() string {
 		return m.child.View()
 	}
 
-	// formatting functions
-	var (
-		sGrp   = cfg.Theme.Focused.Title.Render
-		sKey   = cfg.Theme.Focused.SelectedOption.Render
-		sVal   = cfg.Theme.Focused.UnselectedOption.Render
-		sDescr = cfg.Theme.Focused.Description.Render
-	)
-
 	var buf strings.Builder
 	line := 0
 	descr := ""
 	for i, group := range m.cfg {
-		buf.WriteString(alignGroup + sGrp(group.name))
+		buf.WriteString(alignGroup + fmtgrp(group.name))
 		buf.WriteString("\n")
 		keyLen, valLen := group.maxLen()
 		for j, param := range group.params {
@@ -133,14 +123,19 @@ func (m configmodel) View() string {
 			} else {
 				buf.WriteString(" ")
 			}
+			valfmt := fmtvalinact
+			if param.Model != nil {
+				valfmt = fmtvalactive
+			}
+
 			fmt.Fprintf(&buf, alignParam+
-				sKey(fmt.Sprintf("% *s", keyLen, param.Name))+"  "+
-				sVal(fmt.Sprintf("%-*s", valLen, nvl(param.Value)))+"\n",
+				fmtname(fmt.Sprintf("% *s", keyLen, param.Name))+"  "+
+				valfmt(fmt.Sprintf("%-*s", valLen, nvl(param.Value)))+"\n",
 			)
 			line++
 		}
 	}
-	buf.WriteString(alignGroup + sDescr(descr))
+	buf.WriteString(alignGroup + fmtdescr(descr))
 
 	return buf.String()
 }
@@ -173,17 +168,17 @@ func checkbox(b bool) string {
 
 // commands
 func refreshCfgCmd() tea.Msg {
-	return refreshMsg{effectiveConfig()}
+	return wmRefresh{effectiveConfig()}
 }
 
-type refreshMsg struct {
+type wmRefresh struct {
 	cfg configuration
 }
 
-type closeMsg = struct{}
+type wmClose = struct{}
 
 func cmdClose() tea.Msg {
-	return closeMsg{}
+	return wmClose{}
 }
 
 func locateParam(cfg configuration, line int) (int, int) {
@@ -194,5 +189,5 @@ func locateParam(cfg configuration, line int) (int, int) {
 			return i, line - (end - len(group.params))
 		}
 	}
-	return -1, -1
+	return notFound, notFound
 }

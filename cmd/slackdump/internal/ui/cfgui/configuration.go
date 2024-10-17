@@ -1,7 +1,12 @@
 package cfgui
 
 import (
+	"errors"
+	"os"
+
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/rusq/rbubbles/filemgr"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/apiconfig"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/bootstrap"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 )
@@ -76,6 +81,18 @@ func effectiveConfig() configuration {
 					Name:        "API limits file",
 					Value:       cfg.ConfigFile,
 					Description: "API limits file",
+					Model: newFileUpdate(
+						&cfg.ConfigFile,
+						filemgr.New(os.DirFS("."), ".", 15, "*.yaml", "*.yml"),
+						validateAPIconfig,
+					),
+					// huh.NewFilePicker().
+					// Title("API limits configuration file").
+					// Description("No file means default limits").
+					// AllowedTypes([]string{".yaml", ".yml"}).
+					// Validate(validateAPIconfig).
+					// CurrentDirectory(".").
+					// Value(&cfg.ConfigFile),
 				},
 				{
 					Name:        "Output",
@@ -110,4 +127,17 @@ func effectiveConfig() configuration {
 			},
 		},
 	}
+}
+
+func validateAPIconfig(s string) error {
+	if s == "" {
+		return nil
+	}
+	if _, err := os.Stat(s); err != nil {
+		return err
+	}
+	if err := apiconfig.CheckFile(s); err != nil {
+		return errors.New("not a valid API limits configuration file")
+	}
+	return nil
 }
