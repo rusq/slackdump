@@ -7,12 +7,31 @@ type boolUpdateModel struct {
 }
 
 func (m boolUpdateModel) Init() tea.Cmd {
-	return nil
+	// we have only one goal - to invert the value for the given boolean
+	// pointer, when this component activates.
+	return cmdSetValue("", !*m.v)
+}
+
+// cmdSetValue returns a command that sets a value to v.
+func cmdSetValue[T any](key string, v T) func() tea.Msg {
+	return func() tea.Msg {
+		return wmSetValue[T]{key: "", v: v}
+	}
+}
+
+// wmSetValue is a message that bears a value to set.
+type wmSetValue[T any] struct {
+	key string
+	v   T
 }
 
 func (m boolUpdateModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	*m.v = !*m.v
-	return m, cmdClose
+	switch msg := msg.(type) {
+	case wmSetValue[bool]:
+		*m.v = msg.v
+		return m, cmdClose
+	}
+	return m, nil
 }
 
 func (m boolUpdateModel) View() string {

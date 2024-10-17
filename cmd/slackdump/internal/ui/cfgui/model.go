@@ -55,10 +55,10 @@ func (m configmodel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.cursor--
 			} else {
 				// wrap around
-				m.cursor = m.end - 1
+				m.cursor = m.end
 			}
 		case "down", "j":
-			if m.cursor < m.end-1 {
+			if m.cursor < m.end {
 				m.cursor++
 			} else {
 				// wrap around
@@ -105,7 +105,7 @@ func (m configmodel) View() string {
 	if m.finished {
 		return ""
 	}
-	if m.child != nil {
+	if m.child != nil && len(m.child.View()) > 0 {
 		return m.child.View()
 	}
 
