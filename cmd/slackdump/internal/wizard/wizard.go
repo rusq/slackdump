@@ -61,7 +61,7 @@ func runWizard(ctx context.Context, cmd *base.Command, args []string) error {
 
 		if cmd.RequireAuth {
 			var err error
-			ctx, err = bootstrap.CurrentProviderCtx(ctx)
+			ctx, err = bootstrap.CurrentOrNewProviderCtx(ctx)
 			if err != nil {
 				return err
 			}

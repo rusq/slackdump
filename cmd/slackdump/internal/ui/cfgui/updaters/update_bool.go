@@ -1,15 +1,19 @@
-package cfgui
+package updaters
 
 import tea "github.com/charmbracelet/bubbletea"
 
-type boolUpdateModel struct {
-	v *bool
+type BoolModel struct {
+	Value *bool
 }
 
-func (m boolUpdateModel) Init() tea.Cmd {
+func NewBool(ptrBool *bool) BoolModel {
+	return BoolModel{Value: ptrBool}
+}
+
+func (m BoolModel) Init() tea.Cmd {
 	// we have only one goal - to invert the value for the given boolean
 	// pointer, when this component activates.
-	return cmdSetValue("", !*m.v)
+	return cmdSetValue("", !*m.Value)
 }
 
 // cmdSetValue returns a command that sets a value to v, key is implementation
@@ -26,16 +30,19 @@ type wmSetValue[T any] struct {
 	v   T
 }
 
-func (m boolUpdateModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m BoolModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case wmSetValue[bool]:
-		*m.v = msg.v
-		return m, cmdClose
+		*m.Value = msg.v
+		return m, OnClose
 	}
 	return m, nil
 }
 
-func (m boolUpdateModel) View() string {
+func (m BoolModel) View() string {
 	// View is not being used, but it's here for tests.
-	return checkbox(*m.v)
+	if *m.Value {
+		return "[x]"
+	}
+	return "[ ]"
 }

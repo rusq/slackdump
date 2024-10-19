@@ -1,4 +1,4 @@
-package cfgui
+package updaters
 
 import (
 	"reflect"
@@ -20,7 +20,7 @@ func Test_boolUpdateModel_Update(t *testing.T) {
 		name   string
 		fields fields
 		args   args
-		want   boolUpdateModel
+		want   BoolModel
 		want1  tea.Cmd
 	}{
 		{
@@ -31,8 +31,8 @@ func Test_boolUpdateModel_Update(t *testing.T) {
 			args: args{
 				msg: cmdSetValue("", true)(),
 			},
-			want:  boolUpdateModel{v: ptr(true)},
-			want1: cmdClose,
+			want:  BoolModel{Value: ptr(true)},
+			want1: OnClose,
 		},
 		{
 			name: "unknown message",
@@ -42,14 +42,14 @@ func Test_boolUpdateModel_Update(t *testing.T) {
 			args: args{
 				msg: tea.Key{},
 			},
-			want:  boolUpdateModel{v: ptr(false)},
+			want:  BoolModel{Value: ptr(false)},
 			want1: nil,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m := boolUpdateModel{
-				v: tt.fields.v,
+			m := BoolModel{
+				Value: tt.fields.v,
 			}
 			got, got1 := m.Update(tt.args.msg)
 			if !reflect.DeepEqual(got, tt.want) {
@@ -74,7 +74,7 @@ func Test_boolUpdateModel_Init(t *testing.T) {
 		want   tea.Cmd
 	}{
 		{
-			name: "init",
+			name: "init should invert the stored value",
 			fields: fields{
 				v: ptr(false),
 			},
@@ -83,8 +83,8 @@ func Test_boolUpdateModel_Init(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m := boolUpdateModel{
-				v: tt.fields.v,
+			m := BoolModel{
+				Value: tt.fields.v,
 			}
 			if got := m.Init(); !reflect.DeepEqual(got(), tt.want()) {
 				t.Errorf("boolUpdateModel.Init() = %v, want %v", got, tt.want)

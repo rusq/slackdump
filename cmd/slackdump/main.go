@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -34,7 +33,6 @@ import (
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/view"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/wizard"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/workspace"
-	"github.com/rusq/slackdump/v3/internal/cache"
 	"github.com/rusq/slackdump/v3/logger"
 )
 
@@ -184,24 +182,10 @@ func invoke(cmd *base.Command, args []string) error {
 	if cmd.RequireAuth {
 		trace.Logf(ctx, "invoke", "command %s requires auth", cmd.Name())
 		var err error
-		ctx, err = bootstrap.CurrentProviderCtx(ctx)
+		ctx, err = bootstrap.CurrentOrNewProviderCtx(ctx)
 		if err != nil {
-			trace.Logf(ctx, "invoke", "auth error: %s", err)
-			if errors.Is(err, cache.ErrNoWorkspaces) {
-				// ask to create a new workspace
-				if err := workspace.CmdWspNew.Run(ctx, cmd, args); err != nil {
-					base.SetExitStatus(base.SAuthError)
-					return fmt.Errorf("auth error: %w", err)
-				}
-				ctx, err = bootstrap.CurrentProviderCtx(ctx)
-				if err != nil {
-					base.SetExitStatus(base.SAuthError)
-					return fmt.Errorf("auth error: %w", err)
-				}
-			} else {
-				base.SetExitStatus(base.SAuthError)
-				return fmt.Errorf("auth error: %w", err)
-			}
+			base.SetExitStatus(base.SAuthError)
+			return fmt.Errorf("auth error: %w", err)
 		}
 	}
 	trace.Log(ctx, "command", fmt.Sprint("Running ", cmd.Name(), " command"))

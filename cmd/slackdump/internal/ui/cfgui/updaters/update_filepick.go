@@ -1,4 +1,4 @@
-package cfgui
+package updaters
 
 import (
 	"strings"
@@ -9,7 +9,7 @@ import (
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 )
 
-type fileUpdateModel struct {
+type FileModel struct {
 	fp       filemgr.Model
 	v        *string
 	validate func(s string) error
@@ -17,7 +17,7 @@ type fileUpdateModel struct {
 	errStyle lipgloss.Style
 }
 
-func newFileUpdate(ptrStr *string, f filemgr.Model, validateFn func(s string) error) fileUpdateModel {
+func NewExistingFile(ptrStr *string, f filemgr.Model, validateFn func(s string) error) FileModel {
 	f.Focus()
 	f.ShowHelp = true
 	f.Style = filemgr.Style{
@@ -27,7 +27,7 @@ func newFileUpdate(ptrStr *string, f filemgr.Model, validateFn func(s string) er
 			Foreground(cfg.Theme.Focused.FocusedButton.GetForeground()).
 			Background(cfg.Theme.Focused.FocusedButton.GetBackground()),
 	}
-	return fileUpdateModel{
+	return FileModel{
 		fp:       f,
 		v:        ptrStr,
 		validate: validateFn,
@@ -35,11 +35,11 @@ func newFileUpdate(ptrStr *string, f filemgr.Model, validateFn func(s string) er
 	}
 }
 
-func (m fileUpdateModel) Init() tea.Cmd {
+func (m FileModel) Init() tea.Cmd {
 	return m.fp.Init()
 }
 
-func (m fileUpdateModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m FileModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// cfg.Log.Printf("fileUpdateModel.Update: %[1]T %[1]v", msg)
 	var cmd tea.Cmd
 	var cmds []tea.Cmd
@@ -48,7 +48,7 @@ func (m fileUpdateModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "esc", "ctrl+c", "q":
-			return m, cmdClose
+			return m, OnClose
 		}
 	case filemgr.WMSelected:
 		*m.v = msg.Filepath
@@ -58,7 +58,7 @@ func (m fileUpdateModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.err = err
 			} else {
 				// we are done.
-				return m, cmdClose
+				return m, OnClose
 			}
 		}
 	}
@@ -69,7 +69,7 @@ func (m fileUpdateModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
-func (m fileUpdateModel) View() string {
+func (m FileModel) View() string {
 	var buf strings.Builder
 	buf.WriteString(m.fp.View())
 	if m.err != nil {

@@ -112,7 +112,13 @@ func prompt(w io.Writer, prompt string, readlnFn func(*os.File) (string, error))
 }
 
 func (*CLI) ConfirmationCode(email string) (code int, err error) {
-	fmt.Printf("Enter confirmation code sent to %s: ", email)
-	_, err = fmt.Fscanf(os.Stdin, "%d", &code)
+	for {
+		fmt.Printf("Enter confirmation code sent to %s: ", email)
+		_, err = fmt.Fscanf(os.Stdin, "%d", &code)
+		if err == nil {
+			break
+		}
+		fmt.Println("invalid confirmation code")
+	}
 	return
 }

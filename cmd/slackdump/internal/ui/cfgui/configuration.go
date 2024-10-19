@@ -9,6 +9,8 @@ import (
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/apiconfig"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/bootstrap"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/cfgui/updaters"
 )
 
 type configuration []group
@@ -59,18 +61,13 @@ func effectiveConfig() configuration {
 					Name:        "Enterprise mode",
 					Value:       checkbox(cfg.ForceEnterprise),
 					Description: "Force enterprise mode",
-					Model:       boolUpdateModel{&cfg.ForceEnterprise},
+					Model:       updaters.NewBool(&cfg.ForceEnterprise),
 				},
 				{
 					Name:        "Download files",
 					Value:       checkbox(cfg.DownloadFiles),
 					Description: "Download files",
-					Model:       boolUpdateModel{&cfg.DownloadFiles},
-				},
-				{
-					Name:        "No Chunk Cache",
-					Value:       checkbox(cfg.NoChunkCache),
-					Description: "Disable chunk cache",
+					Model:       updaters.NewBool(&cfg.DownloadFiles),
 				},
 			},
 		},
@@ -81,28 +78,22 @@ func effectiveConfig() configuration {
 					Name:        "API limits file",
 					Value:       cfg.ConfigFile,
 					Description: "API limits file",
-					Model: newFileUpdate(
+					Model: updaters.NewExistingFile(
 						&cfg.ConfigFile,
 						filemgr.New(os.DirFS("."), ".", 15, "*.yaml", "*.yml"),
 						validateAPIconfig,
 					),
-					// huh.NewFilePicker().
-					// Title("API limits configuration file").
-					// Description("No file means default limits").
-					// AllowedTypes([]string{".yaml", ".yml"}).
-					// Validate(validateAPIconfig).
-					// CurrentDirectory(".").
-					// Value(&cfg.ConfigFile),
 				},
 				{
 					Name:        "Output",
 					Value:       cfg.Output,
 					Description: "Output directory",
+					Model:       updaters.NewString(&cfg.Output, ui.ValidateNotExists),
 				},
 			},
 		},
 		{
-			name: "Cache",
+			name: "Cache Control",
 			params: []parameter{
 				{
 					Name:        "Local Cache Directory",
@@ -118,11 +109,13 @@ func effectiveConfig() configuration {
 					Name:        "Disable User Cache",
 					Value:       checkbox(cfg.NoUserCache),
 					Description: "Disable User Cache",
+					Model:       updaters.NewBool(&cfg.NoUserCache),
 				},
 				{
 					Name:        "Disable Chunk Cache",
 					Value:       checkbox(cfg.NoChunkCache),
 					Description: "Disable Chunk Cache",
+					Model:       updaters.NewBool(&cfg.NoChunkCache),
 				},
 			},
 		},

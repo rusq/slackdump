@@ -6,6 +6,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/cfgui/updaters"
 )
 
 const (
@@ -35,14 +36,14 @@ func (m configmodel) Init() tea.Cmd {
 func (m configmodel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
-	if _, ok := msg.(wmClose); m.child != nil && !ok {
+	if _, ok := msg.(updaters.WMClose); m.child != nil && !ok {
 		child, cmd := m.child.Update(msg)
 		m.child = child
 		return m, cmd
 	}
 
 	switch msg := msg.(type) {
-	case wmClose:
+	case updaters.WMClose:
 		// child sends a close message
 		m.child = nil
 		cmds = append(cmds, refreshCfgCmd)
@@ -173,12 +174,6 @@ func refreshCfgCmd() tea.Msg {
 
 type wmRefresh struct {
 	cfg configuration
-}
-
-type wmClose = struct{}
-
-func cmdClose() tea.Msg {
-	return wmClose{}
 }
 
 func locateParam(cfg configuration, line int) (int, int) {
