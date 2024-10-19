@@ -2,6 +2,9 @@ package updaters
 
 import tea "github.com/charmbracelet/bubbletea"
 
+// BoolModel is a model for updating a boolean value.  On startup, it sends
+// a message to set the value to the opposite of the current value, and sends
+// OnClose message. It has no view.
 type BoolModel struct {
 	Value *bool
 }
