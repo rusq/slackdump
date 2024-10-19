@@ -1,6 +1,8 @@
 package updaters
 
 import (
+	"strings"
+
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -54,5 +56,14 @@ func (m StringModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m StringModel) View() string {
-	return m.m.View()
+	var buf strings.Builder
+	buf.WriteString(m.m.View())
+	if m.m.Err != nil {
+		buf.WriteString("\n" + m.errStyle.Render(m.m.Err.Error()))
+	}
+	return buf.String()
+}
+
+func (m StringModel) Err() error {
+	return m.m.Err
 }

@@ -9,7 +9,6 @@ import (
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/apiconfig"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/bootstrap"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/cfgui/updaters"
 )
 
@@ -88,7 +87,7 @@ func effectiveConfig() configuration {
 					Name:        "Output",
 					Value:       cfg.Output,
 					Description: "Output directory",
-					Model:       updaters.NewString(&cfg.Output, ui.ValidateNotExists),
+					Model:       updaters.NewFileNew(&cfg.Output, true),
 				},
 			},
 		},
