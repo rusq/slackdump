@@ -54,7 +54,18 @@ func effectiveConfig() configuration {
 			},
 		},
 		{
-			name: "Options",
+			name: "Output",
+			params: []parameter{
+				{
+					Name:        "Output",
+					Value:       cfg.Output,
+					Description: "Output directory",
+					Model:       updaters.NewFileNew(&cfg.Output, true),
+				},
+			},
+		},
+		{
+			name: "API options",
 			params: []parameter{
 				{
 					Name:        "Enterprise mode",
@@ -62,17 +73,6 @@ func effectiveConfig() configuration {
 					Description: "Force enterprise mode",
 					Model:       updaters.NewBool(&cfg.ForceEnterprise),
 				},
-				{
-					Name:        "Download files",
-					Value:       checkbox(cfg.DownloadFiles),
-					Description: "Download files",
-					Model:       updaters.NewBool(&cfg.DownloadFiles),
-				},
-			},
-		},
-		{
-			name: "Various",
-			params: []parameter{
 				{
 					Name:        "API limits file",
 					Value:       cfg.ConfigFile,
@@ -84,10 +84,10 @@ func effectiveConfig() configuration {
 					),
 				},
 				{
-					Name:        "Output",
-					Value:       cfg.Output,
-					Description: "Output directory",
-					Model:       updaters.NewFileNew(&cfg.Output, true),
+					Name:        "Download files",
+					Value:       checkbox(cfg.DownloadFiles),
+					Description: "Download files",
+					Model:       updaters.NewBool(&cfg.DownloadFiles),
 				},
 			},
 		},
