@@ -6,7 +6,7 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/cfgui/updaters"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/bubbles/btime"
 )
 
 const logname = "time.log"
@@ -19,7 +19,9 @@ func main() {
 	defer logf.Close()
 	log.SetOutput(logf)
 
-	m := updaters.NewTime(time.Now())
+	m := btime.NewTime(time.Now())
+	m.Focused = true
+	m.ShowHelp = true
 	p, err := tea.NewProgram(m).Run()
 	if err != nil {
 		log.Fatal(err)
