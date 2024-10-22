@@ -7,6 +7,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	datepicker "github.com/ethanefung/bubble-datepicker"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/bubbles/btime"
 )
 
@@ -14,6 +15,8 @@ type DateModel struct {
 	Value       *time.Time
 	dm          datepicker.Model
 	tm          *btime.Model
+	focusstyle  lipgloss.Style
+	blurstyle   lipgloss.Style
 	finishing   bool
 	timeEnabled bool
 	state       state
@@ -23,10 +26,14 @@ func NewDTTM(ptrTime *time.Time) DateModel {
 	m := datepicker.New(*ptrTime)
 	t := btime.New(m.Time)
 	m.SelectDate()
+	focusStyle := lipgloss.NewStyle().BorderStyle(lipgloss.RoundedBorder()).BorderForeground(cfg.Theme.Focused.Title.GetForeground())
+	blurStyle := lipgloss.NewStyle().BorderStyle(lipgloss.RoundedBorder()).BorderForeground(cfg.Theme.Blurred.Description.GetForeground())
 	return DateModel{
 		Value:       ptrTime,
 		dm:          m,
 		tm:          t,
+		focusstyle:  focusStyle,
+		blurstyle:   blurStyle,
 		timeEnabled: true,
 	}
 }
@@ -99,11 +106,33 @@ func (m DateModel) View() string {
 	}
 
 	var b strings.Builder
-	if m.timeEnabled {
-		b.WriteString(lipgloss.JoinVertical(lipgloss.Center, m.dm.View(), m.tm.View()))
+
+	help := cfg.Theme.Help.Ellipsis.Render("arrow keys: adjust • tab/shift+tab: switch fields • enter: select")
+
+	var dateStyle lipgloss.Style
+	var timeStyle lipgloss.Style
+
+	if m.state == scalendar {
+		dateStyle = m.focusstyle
+		timeStyle = m.blurstyle
 	} else {
-		b.WriteString(m.dm.View())
+		dateStyle = m.blurstyle
+		timeStyle = m.focusstyle
 	}
-	b.WriteString("\n\n" + m.dm.Styles.Text.Render("Use arrow keys to navigate, tab/shift+tab to switch between fields, and enter to select."))
+
+	if m.timeEnabled {
+		b.WriteString(lipgloss.JoinVertical(
+			lipgloss.Center,
+			dateStyle.Render(m.dm.View()),
+			timeStyle.Render(m.tm.View()),
+			help,
+		))
+	} else {
+		b.WriteString(lipgloss.JoinVertical(
+			lipgloss.Center,
+			dateStyle.Render(m.dm.View()),
+			help,
+		))
+	}
 	return b.String()
 }
