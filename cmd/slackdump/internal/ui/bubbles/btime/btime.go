@@ -91,6 +91,11 @@ func (m *Model) Blur() {
 	m.Focused = false
 }
 
+func (m *Model) SetTime(t time.Time) {
+	m.Time = t
+	m.toEntry()
+}
+
 func (m *Model) Init() tea.Cmd {
 	return nil
 }

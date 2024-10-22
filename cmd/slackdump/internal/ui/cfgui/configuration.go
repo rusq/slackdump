@@ -3,6 +3,7 @@ package cfgui
 import (
 	"errors"
 	"os"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/rusq/rbubbles/filemgr"
@@ -45,11 +46,13 @@ func effectiveConfig() configuration {
 					Name:        "Start date",
 					Value:       cfg.Oldest.String(),
 					Description: "The oldest message to fetch",
+					Model:       updaters.NewDTTM((*time.Time)(&cfg.Oldest)),
 				},
 				{
 					Name:        "End date",
 					Value:       cfg.Latest.String(),
 					Description: "The newest message to fetch",
+					Model:       updaters.NewDTTM((*time.Time)(&cfg.Latest)),
 				},
 			},
 		},

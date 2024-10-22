@@ -39,7 +39,12 @@ func NewDTTM(ptrTime *time.Time) DateModel {
 }
 
 func (m DateModel) Init() tea.Cmd {
-	return m.dm.Init()
+	var cmds []tea.Cmd
+	if m.Value == nil || m.Value.IsZero() {
+		cmds = append(cmds, cmdSetValue("", time.Now()))
+	}
+	cmds = append(cmds, m.dm.Init(), m.tm.Init())
+	return tea.Batch(cmds...)
 }
 
 type state int
@@ -54,14 +59,23 @@ func (m DateModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
 	switch msg := msg.(type) {
+	case wmSetValue[time.Time]:
+		*m.Value = msg.v
+		m.dm.SetTime(msg.v)
+		m.tm.SetTime(msg.v)
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "esc", "ctrl+c":
+			m.finishing = true
 			return m, OnClose
 		case "enter":
 			d := m.dm.Time
 			t := m.tm.Value()
 			*m.Value = time.Date(d.Year(), d.Month(), d.Day(), t.Hour(), t.Minute(), t.Second(), 0, m.Value.Location())
+			m.finishing = true
+			return m, OnClose
+		case "backspace":
+			*m.Value = time.Time{}
 			m.finishing = true
 			return m, OnClose
 		case "tab":
@@ -107,7 +121,7 @@ func (m DateModel) View() string {
 
 	var b strings.Builder
 
-	help := cfg.Theme.Help.Ellipsis.Render("arrow keys: adjust • tab/shift+tab: switch fields • enter: select")
+	help := cfg.Theme.Help.Ellipsis.Render("arrow keys: adjust • tab/shift+tab: switch fields\nenter: select • backspace: clear • esc: cancel")
 
 	var dateStyle lipgloss.Style
 	var timeStyle lipgloss.Style
