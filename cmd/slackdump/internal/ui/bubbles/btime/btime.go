@@ -24,7 +24,7 @@ type KeyMap struct {
 	Quit      key.Binding
 }
 
-type TimeModel struct {
+type Model struct {
 	Time   time.Time
 	entry  [6]int
 	maxnum [3]int
@@ -68,8 +68,8 @@ func DefaultStyles() Styles {
 	}
 }
 
-func NewTime(t time.Time) *TimeModel {
-	tm := &TimeModel{
+func New(t time.Time) *Model {
+	tm := &Model{
 		Time:     t,
 		entry:    [6]int{0, 0, 0, 0, 0, 0},
 		maxnum:   [3]int{23, 59, 59},
@@ -83,17 +83,21 @@ func NewTime(t time.Time) *TimeModel {
 	return tm
 }
 
-func (m *TimeModel) Focus() {
+func (m *Model) Focus() {
 	m.Focused = true
 }
 
-func (m *TimeModel) Init() tea.Cmd {
+func (m *Model) Blur() {
+	m.Focused = false
+}
+
+func (m *Model) Init() tea.Cmd {
 	return nil
 }
 
 var digitsRe = regexp.MustCompile(`\d`)
 
-func (m *TimeModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 	if !m.Focused {
 		return m, nil
 	}
@@ -178,21 +182,26 @@ func (m *TimeModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m *TimeModel) whatIf(digit int, hasVal int) int {
+func (m *Model) whatIf(digit int, hasVal int) int {
 	whatIf := make([]int, len(m.entry))
 	copy(whatIf, m.entry[:])
 	whatIf[digit] = hasVal
 	return tupleVal(whatIf, m.cursor/2)
 }
 
-func (m *TimeModel) updateTime() {
+func (m *Model) updateTime() {
 	hour := tupleVal(m.entry[:], 0)
 	minute := tupleVal(m.entry[:], 1)
 	second := tupleVal(m.entry[:], 2)
 	m.Time = time.Date(m.Time.Year(), m.Time.Month(), m.Time.Day(), hour, minute, second, 0, time.UTC)
 }
 
-func (m *TimeModel) toEntry() {
+func (m *Model) Value() time.Time {
+	m.updateTime()
+	return m.Time
+}
+
+func (m *Model) toEntry() {
 	hour := m.Time.Hour()
 	minute := m.Time.Minute()
 	second := m.Time.Second()
@@ -211,7 +220,7 @@ func tupleVal(entry []int, tuple int) int {
 	return entry[tuple*2]*10 + entry[tuple*2+1]
 }
 
-func (m *TimeModel) View() string {
+func (m *Model) View() string {
 	if m.finishing {
 		return ""
 	}
@@ -231,9 +240,9 @@ func (m *TimeModel) View() string {
 	)
 
 	var buf strings.Builder
-	buf.WriteString(cursor(m.cursor, 2, '↑') + "\n")
+	buf.WriteString(drawCursor(m.cursor, 2, '↑', 3) + "\n")
 	buf.WriteString(r(0) + r(1) + sep + r(2) + r(3) + sep + r(4) + r(5) + "\n")
-	buf.WriteString(cursor(m.cursor, 2, '↓'))
+	buf.WriteString(drawCursor(m.cursor, 2, '↓', 3))
 	if m.ShowHelp {
 		buf.WriteString("\n\n" + m.Styles.Help.Render(
 			"↓/↑ change, tab jump, backspace zero, delete clear, enter to finish",
@@ -243,14 +252,14 @@ func (m *TimeModel) View() string {
 	return buf.String()
 }
 
-func cursor(pos int, tupleSz int, char rune) string {
+// numTuples is the size of the field in tuples.
+func drawCursor(pos int, tupleSz int, char rune, numTuples int) string {
 	var buf strings.Builder
-	numTuples := pos / tupleSz
-	offset := pos % tupleSz
+	const fill = " "
 
-	for i := 0; i < numTuples; i++ {
-		buf.WriteString(strings.Repeat(" ", tupleSz) + " ")
-	}
-	buf.WriteString(strings.Repeat(" ", offset) + string(char))
+	before := pos + (pos / tupleSz)
+	after := numTuples*tupleSz - before + 1
+
+	buf.WriteString(strings.Repeat(fill, before) + string(char) + strings.Repeat(fill, after))
 	return buf.String()
 }

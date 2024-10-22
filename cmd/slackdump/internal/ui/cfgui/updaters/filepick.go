@@ -40,7 +40,6 @@ func (m FileModel) Init() tea.Cmd {
 }
 
 func (m FileModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	// cfg.Log.Printf("fileUpdateModel.Update: %[1]T %[1]v", msg)
 	var cmd tea.Cmd
 	var cmds []tea.Cmd
 
