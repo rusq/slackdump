@@ -26,14 +26,12 @@ func NewDTTM(ptrTime *time.Time) DateModel {
 	m := datepicker.New(*ptrTime)
 	t := btime.New(m.Time)
 	m.SelectDate()
-	focusStyle := lipgloss.NewStyle().BorderStyle(lipgloss.RoundedBorder()).BorderForeground(cfg.Theme.Focused.Title.GetForeground())
-	blurStyle := lipgloss.NewStyle().BorderStyle(lipgloss.RoundedBorder()).BorderForeground(cfg.Theme.Blurred.Description.GetForeground())
 	return DateModel{
 		Value:       ptrTime,
 		dm:          m,
 		tm:          t,
-		focusstyle:  focusStyle,
-		blurstyle:   blurStyle,
+		focusstyle:  cfg.WizStyle.FocusedBorder,
+		blurstyle:   cfg.WizStyle.BlurredBorder,
 		timeEnabled: true,
 	}
 }

@@ -9,9 +9,9 @@ import (
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/rusq/rbubbles/filemgr"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/bubbles/filemgr"
 )
 
 var CmdConfigCheck = &base.Command{
@@ -67,15 +67,16 @@ func wizConfigCheck(ctx context.Context, cmd *base.Command, args []string) error
 		Inverted: lipgloss.NewStyle().
 			Foreground(cfg.Theme.Focused.FocusedButton.GetForeground()).
 			Background(cfg.Theme.Focused.FocusedButton.GetBackground()),
+		Shaded: cfg.WizStyle.ShadedCursor,
 	}
 	vp := viewport.New(80-filemgr.Width, f.Height)
-	vp.Style = lipgloss.NewStyle().Border(lipgloss.DoubleBorder(), true).Margin(0, 2)
+	vp.Style = lipgloss.NewStyle().Margin(0, 2)
 	vp.SetContent("Select a config file to check and press [Enter].")
 	m := checkerModel{
 		files:      f,
 		view:       vp,
-		BorderSel:  cfg.Theme.Focused.FocusedButton.GetBackground(), // TODO: I DONT LIKE THIS!
-		BorderBlur: cfg.Theme.Focused.Directory.GetForeground(),     // TODO: AND THIS TOO, THIS MUST GO!  but ok for now.
+		FocusStyle: cfg.WizStyle.FocusedBorder,
+		BlurStyle:  cfg.WizStyle.BlurredBorder,
 	}
 
 	if _, err := tea.NewProgram(m).Run(); err != nil {
