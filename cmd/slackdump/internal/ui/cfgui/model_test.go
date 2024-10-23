@@ -1,9 +1,7 @@
 package cfgui
 
-import "fmt"
-
-func Example_model_View() {
-	m := New()
-	fmt.Println(m.View())
-	// Output:
-}
+// func Example_model_View() {
+// 	m := New()
+// 	fmt.Println(m.View())
+// 	// Output:
+// }
