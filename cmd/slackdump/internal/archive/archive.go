@@ -27,9 +27,12 @@ var CmdArchive = &base.Command{
 	Short:       "archive the workspace or individual conversations on disk",
 	Long:        mdArchive,
 	FlagMask:    cfg.OmitUserCacheFlag | cfg.OmitCacheDir,
-	Wizard:      archiveWizard,
 	RequireAuth: true,
 	PrintFlags:  true,
+}
+
+func init() {
+	CmdArchive.Wizard = archiveWizard
 }
 
 var (

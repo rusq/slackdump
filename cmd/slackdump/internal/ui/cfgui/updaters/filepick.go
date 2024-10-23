@@ -53,7 +53,7 @@ func (m FileModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		*m.v = msg.Filepath
 		if m.validate != nil {
 			if err := m.validate(*m.v); err != nil {
-				// send error message
+				// set error message
 				m.err = err
 			} else {
 				// we are done.

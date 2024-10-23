@@ -50,7 +50,9 @@ LOOP:
 				return err
 			}
 		case "run":
-			//TODO: implement archive
+			if err := RunArchive(ctx, CmdArchive, nil); err != nil {
+				return err
+			}
 		}
 	}
 
