@@ -6,15 +6,15 @@ import (
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/rusq/rbubbles/filemgr"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/bubbles/filemgr"
 )
 
 type checkerModel struct {
 	files      filemgr.Model
 	view       viewport.Model
-	BorderBlur lipgloss.TerminalColor
-	BorderSel  lipgloss.TerminalColor
-	viewing    bool
+	BlurStyle  lipgloss.Style
+	FocusStyle lipgloss.Style
+	state      wizState
 	width      int
 	finishing  bool
 }
@@ -22,6 +22,13 @@ type checkerModel struct {
 func (m checkerModel) Init() tea.Cmd {
 	return tea.Batch(m.files.Init(), m.view.Init())
 }
+
+type wizState int
+
+const (
+	wizStateFile wizState = iota
+	wizStateView
+)
 
 func (m checkerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
@@ -40,17 +47,18 @@ func (m checkerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.finishing = true
 			return m, tea.Quit
 		case "tab":
-			if !m.viewing {
-				m.viewing = true
+			switch m.state {
+			case wizStateFile:
+				m.state = wizStateView
 				m.files.Blur()
-			} else {
-				m.viewing = false
+			case wizStateView:
+				m.state = wizStateFile
 				m.files.Focus()
 			}
 		}
 	case filemgr.WMSelected:
 		filename := msg.Filepath
-		if err := checkFile(filename); err != nil {
+		if err := CheckFile(filename); err != nil {
 			cmds = append(cmds, wcmdErr(filename, err))
 		} else {
 			cmds = append(cmds, wcmdOK(filename))
@@ -62,7 +70,7 @@ func (m checkerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if cmd != nil {
 		cmds = append(cmds, cmd)
 	}
-	if !keymsg || m.viewing {
+	if !keymsg || m.state == wizStateView {
 		// we do not propagate key messages to the viewport.
 		m.view, cmd = m.view.Update(msg)
 		if cmd != nil {
@@ -77,14 +85,17 @@ func (m checkerModel) View() string {
 	if m.finishing {
 		return ""
 	}
-	if m.viewing {
-		m.view.Style.BorderForeground(m.BorderSel)
-	} else {
-		m.view.Style.BorderForeground(m.BorderBlur)
+
+	styFiles := m.FocusStyle
+	styView := m.BlurStyle
+	switch m.state {
+	case wizStateView:
+		styFiles = m.BlurStyle
+		styView = m.FocusStyle
 	}
 	var buf strings.Builder
 	buf.WriteString(strings.Repeat("⎯", m.width) + crlf)
-	buf.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, m.files.View(), m.view.View()) + crlf)
+	buf.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, styFiles.Render(m.files.View()), styView.Render(m.view.View())) + crlf)
 	buf.WriteString(strings.Repeat("⎯", m.width))
 	return buf.String()
 }

@@ -5,8 +5,8 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/huh"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/bootstrap"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/workspace"
 )
 
 type model struct {
@@ -32,7 +32,7 @@ func newModel(m *menu) model {
 				huh.NewSelect[string]().
 					Key(kSelection).
 					Title(m.title).
-					Description(currentWsp()).
+					Description("Slack workspace:  " + bootstrap.CurrentWsp()).
 					Options(options...),
 			),
 		).WithTheme(cfg.Theme),
@@ -73,11 +73,4 @@ func (m *model) View() string {
 		return ""
 	}
 	return m.form.View()
-}
-
-func currentWsp() string {
-	if current, err := workspace.Current(cfg.CacheDir(), cfg.Workspace); err == nil {
-		return fmt.Sprintf("Slack Workspace:  %s", current)
-	}
-	return ""
 }

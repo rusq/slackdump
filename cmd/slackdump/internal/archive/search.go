@@ -113,7 +113,7 @@ func initController(ctx context.Context, args []string) (*control.Controller, fu
 		return nil, nil, errors.New("missing query parameter")
 	}
 
-	cfg.Output = StripZipExt(cfg.Output)
+	cfg.Output = cfg.StripZipExt(cfg.Output)
 	if cfg.Output == "" {
 		base.SetExitStatus(base.SInvalidParameters)
 		return nil, nil, errNoOutput

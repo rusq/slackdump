@@ -13,28 +13,24 @@ import (
 	"github.com/rusq/slackdump/v3/logger"
 )
 
-func wizSelect(ctx context.Context, cmd *base.Command, args []string) error {
-	m, err := cache.NewManager(cfg.CacheDir())
+// TODO: organise as a self-sufficient model with proper error handling.
+
+func WorkspaceSelectModel(ctx context.Context, m *cache.Manager) (tea.Model, error) {
+	wspList, err := m.List()
 	if err != nil {
 		base.SetExitStatus(base.SCacheError)
-		return err
+		return nil, err
 	}
 
-	wsps, err := m.List()
-	if err != nil {
-		base.SetExitStatus(base.SCacheError)
-		return err
-	}
-
-	if len(wsps) == 0 {
+	if len(wspList) == 0 {
 		fmt.Println("No workspaces found")
-		return nil
+		return nil, nil // TODO
 	}
 
 	current, err := m.Current()
 	if err != nil {
 		base.SetExitStatus(base.SWorkspaceError)
-		return fmt.Errorf("error getting the current workspace: %s", err)
+		return nil, fmt.Errorf("error getting the current workspace: %s", err)
 	}
 
 	columns := []table.Column{
@@ -46,7 +42,7 @@ func wizSelect(ctx context.Context, cmd *base.Command, args []string) error {
 	}
 
 	var rows []table.Row
-	for _, w := range wspInfo(ctx, m, current, wsps) {
+	for _, w := range wspInfo(ctx, m, current, wspList) {
 		rows = append(rows, table.Row{w[0], w[1], w[4], w[5], w[6]})
 	}
 
@@ -70,11 +66,29 @@ func wizSelect(ctx context.Context, cmd *base.Command, args []string) error {
 		Bold(false)
 	t.SetStyles(s)
 
-	mod, err := tea.NewProgram(model{table: t}).Run()
+	return selectModel{table: t}, nil
+}
+
+func wizSelect(ctx context.Context, cmd *base.Command, args []string) error {
+	m, err := cache.NewManager(cfg.CacheDir())
+	if err != nil {
+		base.SetExitStatus(base.SCacheError)
+		return err
+	}
+
+	sm, err := WorkspaceSelectModel(ctx, m)
+	if err != nil {
+		return err
+	}
+	if sm == nil {
+		// TODO: handle this case
+		return nil
+	}
+	mod, err := tea.NewProgram(sm).Run()
 	if err != nil {
 		return fmt.Errorf("workspace select wizard error: %w", err)
 	}
-	if newWsp := mod.(model).selected; newWsp != "" {
+	if newWsp := mod.(selectModel).selected; newWsp != "" {
 		if err := m.Select(newWsp); err != nil {
 			base.SetExitStatus(base.SWorkspaceError)
 			return fmt.Errorf("error setting the current workspace: %s", err)
@@ -85,21 +99,17 @@ func wizSelect(ctx context.Context, cmd *base.Command, args []string) error {
 	return nil
 }
 
-// var baseStyle = lipgloss.NewStyle().
-// 	BorderStyle(lipgloss.NormalBorder()).
-// 	BorderForeground(lipgloss.Color("240"))
-
 var baseStyle = cfg.Theme.Form
 
-type model struct {
+type selectModel struct {
 	table    table.Model
 	selected string
 	finished bool
 }
 
-func (m model) Init() tea.Cmd { return nil }
+func (m selectModel) Init() tea.Cmd { return nil }
 
-func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m selectModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
@@ -117,7 +127,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-func (m model) View() string {
+func (m selectModel) View() string {
 	if m.finished {
 		return "" // don't render the table if we've selected a workspace
 	}

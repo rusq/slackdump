@@ -20,9 +20,10 @@ const (
 )
 
 var (
-	TraceFile string
-	LogFile   string
-	Verbose   bool
+	TraceFile      string
+	LogFile        string
+	Verbose        bool
+	AccessibleMode = (os.Getenv("ACCESSIBLE") != "" && os.Getenv("ACCESSIBLE") != "0")
 
 	Output     string
 	ConfigFile string
@@ -145,7 +146,7 @@ func SetBaseFlags(fs *flag.FlagSet, mask FlagMask) {
 	if mask&OmitTimeframeFlag == 0 {
 		fs.Var(&Oldest, "time-from", "timestamp of the oldest message to fetch (UTC timezone)")
 		fs.Var(&Latest, "time-to", "timestamp of the newest message to fetch (UTC timezone)")
-		fs.Var(&Oldest, "date-from", "timestamp of the oldest message to fetch (UTC timezone) (DEPRECATED)")
-		fs.Var(&Latest, "date-to", "timestamp of the newest message to fetch (UTC timezone) (DEPRECATED)")
+		fs.Var(&Oldest, "date-from", "alias for -time-from (DEPRECATED)")
+		fs.Var(&Latest, "date-to", "alias for -time-to (DEPRECATED)")
 	}
 }

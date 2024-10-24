@@ -4,7 +4,6 @@ import (
 	"context"
 	_ "embed"
 	"errors"
-	"strings"
 	"time"
 
 	"github.com/rusq/fsadapter"
@@ -32,13 +31,8 @@ var CmdArchive = &base.Command{
 	PrintFlags:  true,
 }
 
-const zipExt = ".ZIP"
-
-func StripZipExt(s string) string {
-	if strings.HasSuffix(strings.ToUpper(s), zipExt) {
-		return s[:len(s)-len(zipExt)]
-	}
-	return s
+func init() {
+	CmdArchive.Wizard = archiveWizard
 }
 
 var (
@@ -52,7 +46,7 @@ func RunArchive(ctx context.Context, cmd *base.Command, args []string) error {
 		return err
 	}
 
-	cfg.Output = StripZipExt(cfg.Output)
+	cfg.Output = cfg.StripZipExt(cfg.Output)
 	if cfg.Output == "" {
 		base.SetExitStatus(base.SInvalidParameters)
 		return errNoOutput

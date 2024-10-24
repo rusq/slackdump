@@ -56,17 +56,17 @@ func runWizard(ctx context.Context, cmd *base.Command, args []string) error {
 
 	menu := makeMenu(baseCommands, "", "What would you like to do?")
 	if err := show(menu, func(cmd *base.Command) error {
-		var cmdCtx context.Context
+		ctx, cancel := context.WithCancel(ctx)
+		defer cancel()
+
 		if cmd.RequireAuth {
 			var err error
-			ctx, err = bootstrap.CurrentProviderCtx(ctx)
+			ctx, err = bootstrap.CurrentOrNewProviderCtx(ctx)
 			if err != nil {
 				return err
 			}
-		} else {
-			cmdCtx = ctx
 		}
-		return cmd.Wizard(cmdCtx, cmd, args)
+		return cmd.Wizard(ctx, cmd, args)
 	}); err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return fmt.Errorf("error running wizard: %s", err)
@@ -115,9 +115,9 @@ func makeMenu(cmds []*base.Command, parent string, title string) (m *menu) {
 		m.Add(item)
 	}
 	if parent != "" {
-		// m.Add(miExit)
-		// } else {
 		m.Add(miBack)
+	} else {
+		m.Add(miExit)
 	}
 	return
 }

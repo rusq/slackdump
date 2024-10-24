@@ -13,6 +13,9 @@ var ErrNoProvider = errors.New("internal error:  no provider in context")
 
 // FromContext returns the auth provider from the context.
 func FromContext(ctx context.Context) (Provider, error) {
+	if ctx == nil {
+		return nil, errors.New("internal error:  nil context")
+	}
 	prov, ok := ctx.Value(providerKey).(Provider)
 	if !ok {
 		return nil, ErrNoProvider
