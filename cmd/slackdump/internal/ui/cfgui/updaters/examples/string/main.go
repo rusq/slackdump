@@ -12,7 +12,7 @@ import (
 func main() {
 	var s string = "previous value"
 	updaters.OnClose = tea.Quit
-	m := updaters.NewString(&s, ui.ValidateNotExists)
+	m := updaters.NewString(&s, "Enter ZIP file or directory name", true, ui.ValidateNotExists)
 	mod, err := tea.NewProgram(m).Run()
 	if err != nil {
 		panic(err)

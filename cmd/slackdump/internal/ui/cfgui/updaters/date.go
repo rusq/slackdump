@@ -6,9 +6,9 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	datepicker "github.com/ethanefung/bubble-datepicker"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/bubbles/btime"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/bubbles/datepicker"
 )
 
 type DateModel struct {
@@ -24,14 +24,22 @@ type DateModel struct {
 
 func NewDTTM(ptrTime *time.Time) DateModel {
 	m := datepicker.New(*ptrTime)
+	m.Styles = datepicker.Styles{
+		HeaderPad:    lipgloss.NewStyle().Padding(1, 0, 0),
+		DatePad:      lipgloss.NewStyle().Padding(0, 1, 1),
+		HeaderText:   lipgloss.NewStyle().Bold(true),
+		Text:         lipgloss.NewStyle().Foreground(lipgloss.Color("247")),
+		SelectedText: lipgloss.NewStyle().Bold(true),
+		FocusedText:  lipgloss.NewStyle().Foreground(lipgloss.Color("212")).Bold(true),
+	}
 	t := btime.New(m.Time)
 	m.SelectDate()
 	return DateModel{
 		Value:       ptrTime,
 		dm:          m,
 		tm:          t,
-		focusstyle:  cfg.WizStyle.FocusedBorder,
-		blurstyle:   cfg.WizStyle.BlurredBorder,
+		focusstyle:  ui.DefaultTheme().Focused.Border,
+		blurstyle:   ui.DefaultTheme().Blurred.Border,
 		timeEnabled: true,
 	}
 }
@@ -119,7 +127,7 @@ func (m DateModel) View() string {
 
 	var b strings.Builder
 
-	help := cfg.Theme.Help.Ellipsis.Render("arrow keys: adjust • tab/shift+tab: switch fields\nenter: select • backspace: clear • esc: cancel")
+	help := ui.DefaultTheme().Help.Ellipsis.Render("arrow keys: adjust • tab/shift+tab: switch fields\nenter: select • backspace: clear • esc: cancel")
 
 	var dateStyle lipgloss.Style
 	var timeStyle lipgloss.Style

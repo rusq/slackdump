@@ -4,6 +4,7 @@ import (
 	"context"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui"
 )
 
 // Show initialises and runs the configuration UI.
@@ -23,5 +24,15 @@ func New() configmodel {
 	return configmodel{
 		cfg: effectiveConfig(),
 		end: end,
+		Style: Style{
+			Border:        ui.DefaultTheme().Focused.Border,
+			Title:         ui.DefaultTheme().Focused.Options.Section,
+			Description:   ui.DefaultTheme().Focused.Description,
+			Name:          ui.DefaultTheme().Focused.Options.Name,
+			ValueEnabled:  ui.DefaultTheme().Focused.Options.EnabledValue,
+			ValueDisabled: ui.DefaultTheme().Focused.Options.DisabledValue,
+			SelectedName:  ui.DefaultTheme().Focused.Options.SelectedName,
+			Cursor:        ui.DefaultTheme().Focused.Cursor,
+		},
 	}
 }

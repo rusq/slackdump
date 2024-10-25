@@ -6,32 +6,32 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/rusq/rbubbles/filemgr"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui"
 )
 
 type FileModel struct {
-	fp       filemgr.Model
-	v        *string
-	validate func(s string) error
-	err      error
-	errStyle lipgloss.Style
+	fp          filemgr.Model
+	v           *string
+	validate    func(s string) error
+	err         error
+	borderStyle lipgloss.Style
+	errStyle    lipgloss.Style
 }
 
 func NewExistingFile(ptrStr *string, f filemgr.Model, validateFn func(s string) error) FileModel {
 	f.Focus()
 	f.ShowHelp = true
 	f.Style = filemgr.Style{
-		Normal:    cfg.Theme.Focused.File,
-		Directory: cfg.Theme.Focused.Directory,
-		Inverted: lipgloss.NewStyle().
-			Foreground(cfg.Theme.Focused.FocusedButton.GetForeground()).
-			Background(cfg.Theme.Focused.FocusedButton.GetBackground()),
+		Normal:    ui.DefaultTheme().Focused.UnselectedFile,
+		Directory: ui.DefaultTheme().Focused.Directory,
+		Inverted:  ui.DefaultTheme().Focused.SelectedFile,
 	}
 	return FileModel{
-		fp:       f,
-		v:        ptrStr,
-		validate: validateFn,
-		errStyle: cfg.Theme.Focused.ErrorMessage,
+		fp:          f,
+		v:           ptrStr,
+		validate:    validateFn,
+		borderStyle: ui.DefaultTheme().Focused.Border,
+		errStyle:    ui.DefaultTheme().Error,
 	}
 }
 
@@ -74,5 +74,5 @@ func (m FileModel) View() string {
 	if m.err != nil {
 		buf.WriteString(m.errStyle.Render(m.err.Error()))
 	}
-	return buf.String()
+	return m.borderStyle.Render(buf.String())
 }

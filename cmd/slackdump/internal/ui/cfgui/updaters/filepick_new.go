@@ -16,9 +16,9 @@ type FileNewModel struct {
 	finishing  bool
 }
 
-func NewFileNew(v *string, overwrite bool) FileNewModel {
+func NewFileNew(v *string, placeholder string, showPrompt bool, overwrite bool) FileNewModel {
 	m := FileNewModel{
-		entry:     NewString(v, ui.ValidateNotExists),
+		entry:     NewString(v, placeholder, showPrompt, ui.ValidateNotExists),
 		cnfrm:     newConfirmForm(),
 		allowOvwr: overwrite,
 	}
@@ -107,7 +107,6 @@ func (m FileNewModel) View() string {
 		return ""
 	}
 	var buf strings.Builder
-	buf.WriteString("Enter the name of the new filename:\n\n")
 	buf.WriteString(m.entry.View())
 	if m.confirming {
 		buf.WriteString("\n\n" + m.cnfrm.View())

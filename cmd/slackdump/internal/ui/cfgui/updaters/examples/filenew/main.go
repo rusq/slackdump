@@ -11,7 +11,7 @@ import (
 func main() {
 	var s string = "main.go"
 	updaters.OnClose = tea.Quit
-	m := updaters.NewFileNew(&s, true)
+	m := updaters.NewFileNew(&s, "enter filename", true, true)
 	mod, err := tea.NewProgram(m).Run()
 	if err != nil {
 		panic(err)
