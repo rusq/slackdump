@@ -9,7 +9,7 @@ import (
 
 func wizExport(ctx context.Context, cmd *base.Command, args []string) error {
 	w := &dumpui.Wizard{
-		Title:       "Export Slackdump workspace",
+		Title:       "Export Slack Workspace",
 		Particulars: "Export",
 		Cmd:         cmd,
 	}
