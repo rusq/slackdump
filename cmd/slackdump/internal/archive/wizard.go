@@ -9,7 +9,7 @@ import (
 
 func archiveWizard(ctx context.Context, cmd *base.Command, args []string) error {
 	w := &dumpui.Wizard{
-		Title:       "Archive Slackdump workspace",
+		Title:       "Archive Slack Workspace",
 		Particulars: "Archive",
 		Cmd:         cmd,
 	}

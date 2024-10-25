@@ -17,9 +17,15 @@ type Wizard struct {
 	Cmd         *base.Command
 }
 
+const (
+	actRun    = "run"
+	actConfig = "config"
+	actExit   = "exit"
+)
+
 func (w *Wizard) Run(ctx context.Context) error {
 	var (
-		action string = "run"
+		action string = actRun
 	)
 
 	menu := func() *huh.Form {
@@ -28,10 +34,10 @@ func (w *Wizard) Run(ctx context.Context) error {
 				huh.NewSelect[string]().
 					Title(w.Title).
 					Options(
-						huh.NewOption("Run "+w.Particulars, "run"),
-						huh.NewOption("Configuration", "config"),
+						huh.NewOption("Run "+w.Particulars, actRun),
+						huh.NewOption("Configuration...", actConfig),
 						huh.NewOption(ui.MenuSeparator, ""),
-						huh.NewOption("Exit to Main Menu", "exit"),
+						huh.NewOption("<< Exit to Main Menu", actExit),
 					).Value(&action),
 			),
 		).WithTheme(ui.HuhTheme).WithAccessible(cfg.AccessibleMode)
@@ -43,16 +49,16 @@ LOOP:
 			return err
 		}
 		switch action {
-		case "exit":
-			break LOOP
-		case "config":
-			if err := cfgui.Show(ctx); err != nil {
-				return err
-			}
-		case "run":
+		case actRun:
 			if err := w.Cmd.Run(ctx, w.Cmd, nil); err != nil {
 				return err
 			}
+		case actConfig:
+			if err := cfgui.Show(ctx); err != nil {
+				return err
+			}
+		case actExit:
+			break LOOP
 		}
 	}
 
