@@ -6,7 +6,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/huh"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/bootstrap"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui"
 )
 
 type model struct {
@@ -35,7 +35,7 @@ func newModel(m *menu) model {
 					Description("Slack workspace:  " + bootstrap.CurrentWsp()).
 					Options(options...),
 			),
-		).WithTheme(cfg.Theme),
+		).WithTheme(ui.HuhTheme),
 	}
 }
 

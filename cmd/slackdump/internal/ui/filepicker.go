@@ -7,7 +7,6 @@ import (
 
 	"github.com/charmbracelet/bubbles/filepicker"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 )
 
 type FileSystemModel struct {
@@ -22,7 +21,7 @@ func NewFilePicker(prompt string, homedir string, allowedExt ...string) FileSyst
 	fp := filepicker.New()
 	fp.AllowedTypes = allowedExt
 	fp.CurrentDirectory = homedir
-	fp.Styles.Cursor = cfg.Theme.Focused.SelectedOption
+	fp.Styles.Cursor = HuhTheme.Focused.SelectedOption
 
 	return FileSystemModel{
 		filepicker: fp,

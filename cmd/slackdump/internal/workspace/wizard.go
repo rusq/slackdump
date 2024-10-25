@@ -9,6 +9,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui"
 	"github.com/rusq/slackdump/v3/internal/cache"
 	"github.com/rusq/slackdump/v3/logger"
 )
@@ -56,13 +57,13 @@ func WorkspaceSelectModel(ctx context.Context, m *cache.Manager) (tea.Model, err
 	s := table.DefaultStyles()
 	s.Header = s.Header.
 		BorderStyle(lipgloss.NormalBorder()).
-		Foreground(cfg.Theme.Focused.NoteTitle.GetForeground()).
+		Foreground(ui.HuhTheme.Focused.NoteTitle.GetForeground()).
 		BorderForeground(lipgloss.Color("240")).
 		BorderBottom(true).
 		Bold(false)
 	s.Selected = s.Selected.
-		Foreground(cfg.Theme.Focused.Option.GetBackground()).
-		Background(cfg.Theme.Focused.SelectedOption.GetForeground()).
+		Foreground(ui.HuhTheme.Focused.Option.GetBackground()).
+		Background(ui.HuhTheme.Focused.SelectedOption.GetForeground()).
 		Bold(false)
 	t.SetStyles(s)
 
@@ -99,7 +100,7 @@ func wizSelect(ctx context.Context, cmd *base.Command, args []string) error {
 	return nil
 }
 
-var baseStyle = cfg.Theme.Form
+var baseStyle = ui.HuhTheme.Form
 
 type selectModel struct {
 	table    table.Model
@@ -131,5 +132,5 @@ func (m selectModel) View() string {
 	if m.finished {
 		return "" // don't render the table if we've selected a workspace
 	}
-	return baseStyle.Render(m.table.View()) + "\n\n" + cfg.Theme.Help.Ellipsis.Render("Select the workspace with arrow keys, press [Enter] to confirm, [Esc] to cancel.")
+	return baseStyle.Render(m.table.View()) + "\n\n" + ui.HuhTheme.Help.Ellipsis.Render("Select the workspace with arrow keys, press [Enter] to confirm, [Esc] to cancel.")
 }

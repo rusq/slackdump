@@ -71,7 +71,7 @@ func (m DateModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.tm.SetTime(msg.v)
 	case tea.KeyMsg:
 		switch msg.String() {
-		case "esc", "ctrl+c":
+		case "esc", "ctrl+c", "q":
 			m.finishing = true
 			return m, OnClose
 		case "enter":
@@ -145,7 +145,6 @@ func (m DateModel) View() string {
 			lipgloss.Center,
 			dateStyle.Render(m.dm.View()),
 			timeStyle.Render(m.tm.View()),
-			help,
 		))
 	} else {
 		b.WriteString(lipgloss.JoinVertical(
