@@ -5,7 +5,8 @@ import (
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
+	"github.com/charmbracelet/lipgloss"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/cfgui/updaters"
 )
 
@@ -13,30 +14,51 @@ const (
 	sEmpty     = "<empty>"
 	sTrue      = "[x]"
 	sFalse     = "[ ]"
-	cursor     = ">"
+	cursorChar = ">"
 	alignGroup = ""
 	alignParam = "  "
 
 	notFound = -1
 )
 
+type Style struct {
+	Border        lipgloss.Style
+	Title         lipgloss.Style
+	Description   lipgloss.Style
+	Name          lipgloss.Style
+	ValueEnabled  lipgloss.Style
+	ValueDisabled lipgloss.Style
+	SelectedName  lipgloss.Style
+	Cursor        lipgloss.Style
+}
+
 type configmodel struct {
 	finished bool
 	cfg      configuration
 	cursor   int
 	end      int
+	Style    Style
 
 	child tea.Model
+	state state
 }
 
 func (m configmodel) Init() tea.Cmd {
 	return nil
 }
 
+type state uint8
+
+const (
+	selecting state = iota
+	editing
+	inline
+)
+
 func (m configmodel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
-	if _, ok := msg.(updaters.WMClose); m.child != nil && !ok {
+	if _, ok := msg.(updaters.WMClose); m.child != nil && !ok && m.state != selecting {
 		child, cmd := m.child.Update(msg)
 		m.child = child
 		return m, cmd
@@ -45,6 +67,7 @@ func (m configmodel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case updaters.WMClose:
 		// child sends a close message
+		m.state = selecting
 		m.child = nil
 		cmds = append(cmds, refreshCfgCmd)
 	case wmRefresh:
@@ -76,13 +99,18 @@ func (m configmodel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if i == notFound || j == notFound {
 				return m, nil
 			}
-			if m.cfg[i].params[j].Model != nil {
-				m.child = m.cfg[i].params[j].Model
+			if params := m.cfg[i].params[j]; params.Model != nil {
+				if params.Inline {
+					m.state = inline
+				} else {
+					m.state = editing
+				}
+				m.child = params.Model
 				cmds = append(cmds, m.child.Init())
 			}
 		case "q", "esc", "ctrl+c":
 			// child is active
-			if m.child != nil {
+			if m.state != selecting {
 				break
 			}
 			m.finished = true
@@ -93,50 +121,52 @@ func (m configmodel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
-// formatting functions
-var (
-	fmtgrp       = cfg.Theme.Focused.Title.Render
-	fmtname      = cfg.Theme.Focused.SelectedOption.Render
-	fmtvalactive = cfg.Theme.Focused.UnselectedOption.Render
-	fmtvalinact  = cfg.Theme.Focused.Description.Render
-	fmtdescr     = cfg.Theme.Focused.Description.Render
-)
-
 func (m configmodel) View() string {
 	if m.finished {
 		return ""
 	}
-	if m.child != nil && len(m.child.View()) > 0 {
+	if m.child != nil && len(m.child.View()) > 0 && m.state == editing {
 		return m.child.View()
 	}
+	return ui.DefaultTheme().Focused.Border.Render(m.view())
+}
 
+func (m configmodel) view() string {
 	var buf strings.Builder
 	line := 0
 	descr := ""
 	for i, group := range m.cfg {
-		buf.WriteString(alignGroup + fmtgrp(group.name))
+		buf.WriteString(alignGroup + m.Style.Title.Render(group.name))
 		buf.WriteString("\n")
 		keyLen, valLen := group.maxLen()
 		for j, param := range group.params {
-			if line == m.cursor {
-				buf.WriteString(cursor)
+			selected := line == m.cursor
+			if selected {
+				buf.WriteString(m.Style.Cursor.Render(cursorChar))
 				descr = m.cfg[i].params[j].Description
 			} else {
 				buf.WriteString(" ")
 			}
-			valfmt := fmtvalinact
+
+			valfmt := m.Style.ValueDisabled
 			if param.Model != nil {
-				valfmt = fmtvalactive
+				valfmt = m.Style.ValueEnabled
 			}
 
-			fmt.Fprintf(&buf, alignParam+
-				fmtname(fmt.Sprintf("% *s", keyLen, param.Name))+"  "+
-				valfmt(fmt.Sprintf("%-*s", valLen, nvl(param.Value)))+"\n",
-			)
+			namefmt := m.Style.Name
+			if selected {
+				namefmt = m.Style.SelectedName
+			}
+			fmt.Fprintf(&buf, alignParam+namefmt.Render(fmt.Sprintf("% *s", keyLen, param.Name))+"  ")
+			if selected && m.state == inline {
+				buf.WriteString(m.child.View() + "\n")
+			} else {
+				fmt.Fprintf(&buf, valfmt.Render(fmt.Sprintf("%-*s", valLen, nvl(param.Value)))+"\n")
+			}
 			line++
 		}
 	}
-	buf.WriteString(alignGroup + fmtdescr(descr))
+	buf.WriteString(alignGroup + m.Style.Description.Render(descr))
 
 	return buf.String()
 }

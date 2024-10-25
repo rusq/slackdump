@@ -9,8 +9,8 @@ import (
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/bubbles/filemgr"
 )
 
@@ -62,12 +62,10 @@ func wizConfigCheck(ctx context.Context, cmd *base.Command, args []string) error
 	f.Focus()
 	f.ShowHelp = true
 	f.Style = filemgr.Style{
-		Normal:    cfg.Theme.Focused.File,
-		Directory: cfg.Theme.Focused.Directory,
-		Inverted: lipgloss.NewStyle().
-			Foreground(cfg.Theme.Focused.FocusedButton.GetForeground()).
-			Background(cfg.Theme.Focused.FocusedButton.GetBackground()),
-		Shaded: cfg.WizStyle.ShadedCursor,
+		Normal:    ui.DefaultTheme().Focused.UnselectedFile,
+		Directory: ui.DefaultTheme().Focused.Directory,
+		Inverted:  ui.DefaultTheme().Focused.SelectedFile,
+		Shaded:    ui.DefaultTheme().Focused.DisabledFile,
 	}
 	vp := viewport.New(80-filemgr.Width, f.Height)
 	vp.Style = lipgloss.NewStyle().Margin(0, 2)
@@ -75,8 +73,8 @@ func wizConfigCheck(ctx context.Context, cmd *base.Command, args []string) error
 	m := checkerModel{
 		files:      f,
 		view:       vp,
-		FocusStyle: cfg.WizStyle.FocusedBorder,
-		BlurStyle:  cfg.WizStyle.BlurredBorder,
+		FocusStyle: ui.DefaultTheme().Focused.Border,
+		BlurStyle:  ui.DefaultTheme().Blurred.Border,
 	}
 
 	if _, err := tea.NewProgram(m).Run(); err != nil {

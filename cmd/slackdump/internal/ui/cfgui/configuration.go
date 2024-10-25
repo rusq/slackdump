@@ -24,6 +24,7 @@ type parameter struct {
 	Name        string
 	Value       string
 	Description string
+	Inline      bool
 	Model       tea.Model
 }
 
@@ -62,8 +63,9 @@ func effectiveConfig() configuration {
 				{
 					Name:        "Output",
 					Value:       cfg.Output,
+					Inline:      true,
 					Description: "Output directory",
-					Model:       updaters.NewFileNew(&cfg.Output, true),
+					Model:       updaters.NewFileNew(&cfg.Output, "ZIP or Directory", false, true),
 				},
 			},
 		},

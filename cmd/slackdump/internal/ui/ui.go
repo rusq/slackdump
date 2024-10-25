@@ -1,6 +1,11 @@
 // Package ui contains some common UI elements.
 package ui
 
+const (
+	// MenuSeparator is the separator to use in the wizard menus.
+	MenuSeparator = "────────────"
+)
+
 type inputOptions struct {
 	fileSelectorOpt
 	help string
