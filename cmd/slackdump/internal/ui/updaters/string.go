@@ -55,6 +55,9 @@ func (m StringModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.finishing = true
 			return m, OnClose
 		case "enter":
+			if m.m.Err != nil { // if there is an error, don't allow to finish
+				return m, nil
+			}
 			m.finishing = true
 			*m.Value = m.m.Value()
 			return m, OnClose

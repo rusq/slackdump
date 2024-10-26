@@ -14,9 +14,8 @@ import (
 	"time"
 
 	"github.com/rusq/fsadapter"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/bootstrap"
-
 	"github.com/rusq/slackdump/v3"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/bootstrap"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/downloader"

@@ -6,7 +6,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/cfgui/updaters"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/updaters"
 )
 
 func main() {

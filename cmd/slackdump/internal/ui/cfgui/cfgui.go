@@ -7,32 +7,41 @@ import (
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui"
 )
 
-// Show initialises and runs the configuration UI.
-func Show(ctx context.Context) error {
-	p := tea.NewProgram(New())
+// Global initialises and runs the configuration UI.
+func Global(ctx context.Context) error {
+	p := tea.NewProgram(NewConfigUI(DefaultStyle(), globalConfig))
 	_, err := p.Run()
 	return err
 }
 
-func New() configmodel {
-	cfg := effectiveConfig()
+func Local(ctx context.Context, cfgFn func() Configuration) error {
+	p := tea.NewProgram(NewConfigUI(DefaultStyle(), cfgFn))
+	_, err := p.Run()
+	return err
+}
+
+func NewConfigUI(sty Style, cfgFn func() Configuration) tea.Model {
 	end := 0
-	for _, group := range cfg {
-		end += len(group.params)
+	for _, group := range cfgFn() {
+		end += len(group.Params)
 	}
 	end--
 	return configmodel{
-		cfg: effectiveConfig(),
-		end: end,
-		Style: Style{
-			Border:        ui.DefaultTheme().Focused.Border,
-			Title:         ui.DefaultTheme().Focused.Options.Section,
-			Description:   ui.DefaultTheme().Focused.Description,
-			Name:          ui.DefaultTheme().Focused.Options.Name,
-			ValueEnabled:  ui.DefaultTheme().Focused.Options.EnabledValue,
-			ValueDisabled: ui.DefaultTheme().Focused.Options.DisabledValue,
-			SelectedName:  ui.DefaultTheme().Focused.Options.SelectedName,
-			Cursor:        ui.DefaultTheme().Focused.Cursor,
-		},
+		cfgFn: cfgFn,
+		end:   end,
+		Style: sty,
+	}
+}
+
+func DefaultStyle() Style {
+	return Style{
+		Border:        ui.DefaultTheme().Focused.Border,
+		Title:         ui.DefaultTheme().Focused.Options.Section,
+		Description:   ui.DefaultTheme().Focused.Description,
+		Name:          ui.DefaultTheme().Focused.Options.Name,
+		ValueEnabled:  ui.DefaultTheme().Focused.Options.EnabledValue,
+		ValueDisabled: ui.DefaultTheme().Focused.Options.DisabledValue,
+		SelectedName:  ui.DefaultTheme().Focused.Options.SelectedName,
+		Cursor:        ui.DefaultTheme().Focused.Cursor,
 	}
 }

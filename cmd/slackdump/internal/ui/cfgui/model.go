@@ -34,7 +34,7 @@ type Style struct {
 
 type configmodel struct {
 	finished bool
-	cfg      configuration
+	cfgFn    func() Configuration
 	cursor   int
 	end      int
 	Style    Style
@@ -70,8 +70,6 @@ func (m configmodel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.state = selecting
 		m.child = nil
 		cmds = append(cmds, refreshCfgCmd)
-	case wmRefresh:
-		m.cfg = msg.cfg
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "up", "k":
@@ -95,17 +93,17 @@ func (m configmodel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "f5":
 			cmds = append(cmds, refreshCfgCmd)
 		case "enter":
-			i, j := locateParam(m.cfg, m.cursor)
+			i, j := locateParam(m.cfgFn(), m.cursor)
 			if i == notFound || j == notFound {
 				return m, nil
 			}
-			if params := m.cfg[i].params[j]; params.Model != nil {
+			if params := m.cfgFn()[i].Params[j]; params.Updater != nil {
 				if params.Inline {
 					m.state = inline
 				} else {
 					m.state = editing
 				}
-				m.child = params.Model
+				m.child = params.Updater
 				cmds = append(cmds, m.child.Init())
 			}
 		case "q", "esc", "ctrl+c":
@@ -135,21 +133,21 @@ func (m configmodel) view() string {
 	var buf strings.Builder
 	line := 0
 	descr := ""
-	for i, group := range m.cfg {
-		buf.WriteString(alignGroup + m.Style.Title.Render(group.name))
+	for i, group := range m.cfgFn() {
+		buf.WriteString(alignGroup + m.Style.Title.Render(group.Name))
 		buf.WriteString("\n")
 		keyLen, valLen := group.maxLen()
-		for j, param := range group.params {
+		for j, param := range group.Params {
 			selected := line == m.cursor
 			if selected {
 				buf.WriteString(m.Style.Cursor.Render(cursorChar))
-				descr = m.cfg[i].params[j].Description
+				descr = m.cfgFn()[i].Params[j].Description
 			} else {
 				buf.WriteString(" ")
 			}
 
 			valfmt := m.Style.ValueDisabled
-			if param.Model != nil {
+			if param.Updater != nil {
 				valfmt = m.Style.ValueEnabled
 			}
 
@@ -178,8 +176,8 @@ func nvl(s string) string {
 	return s
 }
 
-func (g group) maxLen() (key int, val int) {
-	for _, param := range g.params {
+func (g ParamGroup) maxLen() (key int, val int) {
+	for _, param := range g.Params {
 		if l := len(param.Name); l > key {
 			key = l
 		}
@@ -190,7 +188,7 @@ func (g group) maxLen() (key int, val int) {
 	return key, val
 }
 
-func checkbox(b bool) string {
+func Checkbox(b bool) string {
 	if b {
 		return sTrue
 	}
@@ -199,19 +197,19 @@ func checkbox(b bool) string {
 
 // commands
 func refreshCfgCmd() tea.Msg {
-	return wmRefresh{effectiveConfig()}
+	return wmRefresh{globalConfig()}
 }
 
 type wmRefresh struct {
-	cfg configuration
+	cfg Configuration
 }
 
-func locateParam(cfg configuration, line int) (int, int) {
+func locateParam(cfg Configuration, line int) (int, int) {
 	end := 0
 	for i, group := range cfg {
-		end += len(group.params)
+		end += len(group.Params)
 		if line < end {
-			return i, line - (end - len(group.params))
+			return i, line - (end - len(group.Params))
 		}
 	}
 	return notFound, notFound

@@ -68,7 +68,7 @@ func DefaultTheme() Theme {
 		Focused: ControlStyle{
 			Border:         lipgloss.NewStyle().BorderLeft(true).BorderForeground(cyan).BorderStyle(lipgloss.ThickBorder()).Padding(0, 1),
 			Title:          lipgloss.NewStyle().Foreground(green).Bold(true),
-			Description:    lipgloss.NewStyle().Foreground(white),
+			Description:    lipgloss.NewStyle().Foreground(gray),
 			Cursor:         lipgloss.NewStyle().Foreground(yellow),
 			SelectedLine:   lipgloss.NewStyle().Background(green).Foreground(black),
 			Selected:       lipgloss.NewStyle().Foreground(green),
