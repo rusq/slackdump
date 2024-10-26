@@ -10,7 +10,7 @@ import (
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/apiconfig"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/bootstrap"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/cfgui/updaters"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/updaters"
 )
 
 type configuration []group
@@ -82,7 +82,7 @@ func effectiveConfig() configuration {
 					Name:        "API limits file",
 					Value:       cfg.ConfigFile,
 					Description: "API limits file",
-					Model: updaters.NewExistingFile(
+					Model: updaters.NewFilepickModel(
 						&cfg.ConfigFile,
 						filemgr.New(os.DirFS("."), ".", 15, "*.yaml", "*.yml"),
 						validateAPIconfig,
