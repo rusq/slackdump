@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/charmbracelet/bubbles/help"
+	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/updaters"
 )
 
@@ -21,29 +21,37 @@ const (
 	notFound = -1
 )
 
-type Style struct {
-	Border        lipgloss.Style
-	Title         lipgloss.Style
-	Description   lipgloss.Style
-	Name          lipgloss.Style
-	ValueEnabled  lipgloss.Style
-	ValueDisabled lipgloss.Style
-	SelectedName  lipgloss.Style
-	Cursor        lipgloss.Style
-}
-
 type configmodel struct {
 	finished bool
-	cfgFn    func() Configuration
+	focused  bool
 	cursor   int
-	end      int
-	Style    Style
+	last     int
+	state    state
+	help     help.Model
+
+	style  *Style
+	keymap *Keymap
 
 	child tea.Model
-	state state
+	cfgFn func() Configuration
 }
 
-func (m configmodel) Init() tea.Cmd {
+func NewConfigUI(sty *Style, cfgFn func() Configuration) tea.Model {
+	end := 0
+	for _, group := range cfgFn() {
+		end += len(group.Params)
+	}
+	end--
+	return &configmodel{
+		cfgFn:  cfgFn,
+		last:   end,
+		keymap: DefaultKeymap(),
+		style:  sty,
+		help:   help.New(),
+	}
+}
+
+func (m *configmodel) Init() tea.Cmd {
 	return nil
 }
 
@@ -55,7 +63,11 @@ const (
 	inline
 )
 
-func (m configmodel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m *configmodel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if !m.focused {
+		return m, nil
+	}
+
 	var cmds []tea.Cmd
 
 	if _, ok := msg.(updaters.WMClose); m.child != nil && !ok && m.state != selecting {
@@ -71,28 +83,28 @@ func (m configmodel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.child = nil
 		cmds = append(cmds, refreshCfgCmd)
 	case tea.KeyMsg:
-		switch msg.String() {
-		case "up", "k":
+		switch {
+		case key.Matches(msg, m.keymap.Up):
 			if m.cursor > 0 {
 				m.cursor--
 			} else {
 				// wrap around
-				m.cursor = m.end
+				m.cursor = m.last
 			}
-		case "down", "j":
-			if m.cursor < m.end {
+		case key.Matches(msg, m.keymap.Down):
+			if m.cursor < m.last {
 				m.cursor++
 			} else {
 				// wrap around
 				m.cursor = 0
 			}
-		case "home":
+		case key.Matches(msg, m.keymap.Home):
 			m.cursor = 0
-		case "end":
-			m.cursor = m.end
-		case "f5":
+		case key.Matches(msg, m.keymap.End):
+			m.cursor = m.last
+		case key.Matches(msg, m.keymap.Refresh):
 			cmds = append(cmds, refreshCfgCmd)
-		case "enter":
+		case key.Matches(msg, m.keymap.Select):
 			i, j := locateParam(m.cfgFn(), m.cursor)
 			if i == notFound || j == notFound {
 				return m, nil
@@ -106,7 +118,7 @@ func (m configmodel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.child = params.Updater
 				cmds = append(cmds, m.child.Init())
 			}
-		case "q", "esc", "ctrl+c":
+		case key.Matches(msg, m.keymap.Quit):
 			// child is active
 			if m.state != selecting {
 				break
@@ -119,41 +131,59 @@ func (m configmodel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
-func (m configmodel) View() string {
+func (m *configmodel) SetFocus(b bool) {
+	m.focused = b
+}
+
+func (m *configmodel) IsFocused() bool {
+	return m.focused
+}
+
+func (m *configmodel) Reset() {
+	m.finished = false
+	m.state = selecting
+	m.child = nil
+}
+
+func (m *configmodel) View() string {
 	if m.finished {
 		return ""
+	}
+	var sty = m.style.Focused
+	if !m.focused {
+		sty = m.style.Blurred
 	}
 	if m.child != nil && len(m.child.View()) > 0 && m.state == editing {
 		return m.child.View()
 	}
-	return ui.DefaultTheme().Focused.Border.Render(m.view())
+	return sty.Border.Render(m.view(sty))
 }
 
-func (m configmodel) view() string {
+func (m *configmodel) view(sty StyleSet) string {
 	var buf strings.Builder
 	line := 0
 	descr := ""
 	for i, group := range m.cfgFn() {
-		buf.WriteString(alignGroup + m.Style.Title.Render(group.Name))
+		buf.WriteString(alignGroup + sty.Title.Render(group.Name))
 		buf.WriteString("\n")
 		keyLen, valLen := group.maxLen()
 		for j, param := range group.Params {
 			selected := line == m.cursor
 			if selected {
-				buf.WriteString(m.Style.Cursor.Render(cursorChar))
+				buf.WriteString(sty.Cursor.Render(cursorChar))
 				descr = m.cfgFn()[i].Params[j].Description
 			} else {
 				buf.WriteString(" ")
 			}
 
-			valfmt := m.Style.ValueDisabled
+			valfmt := sty.ValueDisabled
 			if param.Updater != nil {
-				valfmt = m.Style.ValueEnabled
+				valfmt = sty.ValueEnabled
 			}
 
-			namefmt := m.Style.Name
+			namefmt := sty.Name
 			if selected {
-				namefmt = m.Style.SelectedName
+				namefmt = sty.SelectedName
 			}
 			fmt.Fprintf(&buf, alignParam+namefmt.Render(fmt.Sprintf("% *s", keyLen, param.Name))+"  ")
 			if selected && m.state == inline {
@@ -164,7 +194,8 @@ func (m configmodel) view() string {
 			line++
 		}
 	}
-	buf.WriteString(alignGroup + m.Style.Description.Render(descr))
+	buf.WriteString(alignGroup + sty.Description.Render(descr) + "\n")
+	buf.WriteString(m.help.ShortHelpView(m.keymap.Bindings()))
 
 	return buf.String()
 }

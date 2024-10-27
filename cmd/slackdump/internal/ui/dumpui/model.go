@@ -7,12 +7,16 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui"
 )
 
 type Model struct {
-	Title     string
-	Items     []MenuItem
+	// Selected will be set to the selected item from the items.
+	Selected MenuItem
+
+	title     string
+	items     []MenuItem
 	finishing bool
 	focused   bool
 	Style     *Style
@@ -23,65 +27,10 @@ type Model struct {
 	cursor int
 }
 
-type Style struct {
-	Focused StyleSet
-	Blurred StyleSet
-}
-
-type StyleSet struct {
-	Border       lipgloss.Style
-	Title        lipgloss.Style
-	Description  lipgloss.Style
-	Cursor       lipgloss.Style
-	Item         lipgloss.Style
-	ItemSelected lipgloss.Style
-	ItemDisabled lipgloss.Style
-}
-
-func DefaultStyle() *Style {
-	t := ui.DefaultTheme()
-	return &Style{
-		Focused: StyleSet{
-			Border:       t.Focused.Border,
-			Title:        t.Focused.Title,
-			Description:  t.Focused.Description,
-			Cursor:       t.Focused.Cursor,
-			Item:         t.Focused.Text,
-			ItemSelected: t.Focused.Selected,
-			ItemDisabled: t.Blurred.Text,
-		},
-		Blurred: StyleSet{
-			Border:       t.Blurred.Border,
-			Title:        t.Blurred.Title,
-			Description:  t.Blurred.Description,
-			Cursor:       t.Blurred.Cursor,
-			Item:         t.Blurred.Text,
-			ItemSelected: t.Blurred.Selected,
-			ItemDisabled: t.Blurred.Text,
-		},
-	}
-}
-
-type Keymap struct {
-	Up     key.Binding
-	Down   key.Binding
-	Select key.Binding
-	Quit   key.Binding
-}
-
-func DefaultKeymap() *Keymap {
-	return &Keymap{
-		Up:     key.NewBinding(key.WithKeys("up", "k"), key.WithHelp("↑", "up")),
-		Down:   key.NewBinding(key.WithKeys("down", "j"), key.WithHelp("↓", "down")),
-		Select: key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "submit")),
-		Quit:   key.NewBinding(key.WithKeys("q", "ctrl+c"), key.WithHelp("q", "quit")),
-	}
-}
-
 func NewModel(title string, items []MenuItem) *Model {
 	return &Model{
-		Title:     title,
-		Items:     items,
+		title:     title,
+		items:     items,
 		Style:     DefaultStyle(),
 		Keymap:    DefaultKeymap(),
 		help:      help.New(),
@@ -95,6 +44,24 @@ func (m *Model) Init() tea.Cmd {
 }
 
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	child := m.items[m.cursor].Model
+	cfg.Log.Debugf("msg: %v, child is nil? %t", msg, child == nil)
+
+	if child != nil && child.IsFocused() {
+		ch, cmd := child.Update(msg)
+		m.items[m.cursor].Model = ch.(FocusModel)
+		if cmd != nil && cmd() != nil {
+			if _, ok := cmd().(tea.QuitMsg); ok {
+				// if child quit, we need to set focus back to the menu.
+				m.SetFocus(true)
+				child.SetFocus(false)
+				child.Reset()
+				return m, nil
+			}
+		}
+		return m, cmd
+	}
+
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch {
@@ -106,25 +73,33 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if m.cursor > 0 {
 					m.cursor--
 				}
-				if !m.Items[m.cursor].Disabled && !m.Items[m.cursor].Separator {
+				if !m.items[m.cursor].Separator {
 					break
 				}
 			}
 		case key.Matches(msg, m.Keymap.Down):
 			for {
-				if m.cursor < len(m.Items)-1 {
+				if m.cursor < len(m.items)-1 {
 					m.cursor++
 				}
-				if !m.Items[m.cursor].Disabled && !m.Items[m.cursor].Separator {
+				if !m.items[m.cursor].Separator {
 					break
 				}
 			}
 		case key.Matches(msg, m.Keymap.Select):
-			if m.Items[m.cursor].Disabled || m.Items[m.cursor].Separator {
+			dfn := m.items[m.cursor].IsDisabled
+			if m.items[m.cursor].Separator || (dfn != nil && dfn()) {
 				return m, nil
 			}
+			m.Selected = m.items[m.cursor]
+
+			if child := m.items[m.cursor].Model; child != nil {
+				m.SetFocus(false)
+				child.SetFocus(true)
+				return m, nil
+			}
+
 			m.finishing = true
-			// TODO: return the selected choice
 			return m, tea.Quit
 		}
 	}
@@ -135,10 +110,21 @@ func (m *Model) SetFocus(b bool) {
 	m.focused = b
 }
 
+func (m *Model) IsFocused() bool {
+	return m.focused
+}
+
 func (m *Model) View() string {
 	if m.finishing {
 		return ""
 	}
+	if m.items[m.cursor].Model != nil {
+		return lipgloss.JoinHorizontal(lipgloss.Top, m.view(), m.items[m.cursor].Model.View())
+	}
+	return m.view()
+}
+
+func (m *Model) view() string {
 	var b strings.Builder
 
 	sty := m.Style.Focused
@@ -147,43 +133,33 @@ func (m *Model) View() string {
 	}
 	p := b.WriteString
 	// Header
-	p(sty.Title.Render(m.Title) + "\n")
-	p(sty.Description.Render(m.Items[m.cursor].Help))
+	p(sty.Title.Render(m.title) + "\n")
+	p(sty.Description.Render(m.items[m.cursor].Help))
 	const (
 		padding = "  "
 		pointer = "> "
 	)
-	for i, itm := range m.Items {
+	for i, itm := range m.items {
 		p("\n")
 		if itm.Separator {
 			p(padding + ui.MenuSeparator)
 			continue
 		}
-		if itm.Disabled {
+
+		if itm.IsDisabled != nil && itm.IsDisabled() {
 			p(sty.ItemDisabled.Render(padding + itm.Name))
 			continue
 		}
 		if i == m.cursor {
 			p(sty.Cursor.Render(pointer) + sty.ItemSelected.Render(itm.Name))
 		} else {
-			if itm.Disabled {
-				p(sty.ItemDisabled.Render(padding + itm.Name))
-			} else {
-				p(sty.Item.Render(padding + itm.Name))
-			}
+			p(sty.Item.Render(padding + itm.Name))
 		}
 	}
-	b.WriteString("\n\n" + m.footer())
+	b.WriteString("\n" + m.footer())
 	return sty.Border.Render(b.String())
 }
 
 func (m *Model) footer() string {
-	return m.help.ShortHelpView([]key.Binding{m.Keymap.Up, m.Keymap.Down, m.Keymap.Select, m.Keymap.Quit})
-}
-
-type MenuItem struct {
-	Name      string
-	Help      string
-	Disabled  bool
-	Separator bool
+	return m.help.ShortHelpView(m.Keymap.Bindings())
 }
