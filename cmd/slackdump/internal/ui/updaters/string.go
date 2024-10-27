@@ -1,6 +1,8 @@
 package updaters
 
 import (
+	"context"
+	"runtime/trace"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/textinput"
@@ -10,11 +12,10 @@ import (
 )
 
 type StringModel struct {
-	Value       *string
-	m           textinput.Model
-	errStyle    lipgloss.Style
-	borderStyle lipgloss.Style
-	finishing   bool
+	Value     *string
+	m         textinput.Model
+	errStyle  lipgloss.Style
+	finishing bool
 }
 
 // NewString creates a new stringUpdateModel
@@ -45,6 +46,9 @@ func (m StringModel) Init() tea.Cmd {
 }
 
 func (m StringModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	_, task := trace.NewTask(context.Background(), "updaters.StringModel.Update")
+	defer task.End()
+
 	var cmd tea.Cmd
 	var cmds []tea.Cmd
 
@@ -71,6 +75,8 @@ func (m StringModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m StringModel) View() string {
+	_, task := trace.NewTask(context.Background(), "updaters.StringModel.View")
+	defer task.End()
 	if m.finishing {
 		return ""
 	}

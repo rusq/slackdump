@@ -29,7 +29,7 @@ func DefaultStyle() *Style {
 			Description:  t.Focused.Description,
 			Cursor:       t.Focused.Cursor,
 			Item:         t.Focused.Text,
-			ItemSelected: t.Focused.Selected,
+			ItemSelected: t.Focused.SelectedLine,
 			ItemDisabled: t.Blurred.Text,
 		},
 		Blurred: StyleSet{
@@ -38,7 +38,7 @@ func DefaultStyle() *Style {
 			Description:  t.Blurred.Description,
 			Cursor:       t.Blurred.Cursor,
 			Item:         t.Blurred.Text,
-			ItemSelected: t.Blurred.Selected,
+			ItemSelected: t.Blurred.SelectedLine,
 			ItemDisabled: t.Blurred.Text,
 		},
 	}

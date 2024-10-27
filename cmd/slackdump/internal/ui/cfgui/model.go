@@ -1,7 +1,9 @@
 package cfgui
 
 import (
+	"context"
 	"fmt"
+	"runtime/trace"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/help"
@@ -21,7 +23,7 @@ const (
 	notFound = -1
 )
 
-type configmodel struct {
+type Model struct {
 	finished bool
 	focused  bool
 	cursor   int
@@ -36,13 +38,13 @@ type configmodel struct {
 	cfgFn func() Configuration
 }
 
-func NewConfigUI(sty *Style, cfgFn func() Configuration) tea.Model {
+func NewConfigUI(sty *Style, cfgFn func() Configuration) *Model {
 	end := 0
 	for _, group := range cfgFn() {
 		end += len(group.Params)
 	}
 	end--
-	return &configmodel{
+	return &Model{
 		cfgFn:  cfgFn,
 		last:   end,
 		keymap: DefaultKeymap(),
@@ -51,7 +53,7 @@ func NewConfigUI(sty *Style, cfgFn func() Configuration) tea.Model {
 	}
 }
 
-func (m *configmodel) Init() tea.Cmd {
+func (m *Model) Init() tea.Cmd {
 	return nil
 }
 
@@ -63,7 +65,10 @@ const (
 	inline
 )
 
-func (m *configmodel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	ctx, task := trace.NewTask(context.Background(), "cfgui.Update")
+	defer task.End()
+
 	if !m.focused {
 		return m, nil
 	}
@@ -71,7 +76,9 @@ func (m *configmodel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
 	if _, ok := msg.(updaters.WMClose); m.child != nil && !ok && m.state != selecting {
+		rgn := trace.StartRegion(ctx, "child.Update")
 		child, cmd := m.child.Update(msg)
+		rgn.End()
 		m.child = child
 		return m, cmd
 	}
@@ -131,21 +138,23 @@ func (m *configmodel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
-func (m *configmodel) SetFocus(b bool) {
+func (m *Model) SetFocus(b bool) {
 	m.focused = b
 }
 
-func (m *configmodel) IsFocused() bool {
+func (m *Model) IsFocused() bool {
 	return m.focused
 }
 
-func (m *configmodel) Reset() {
+func (m *Model) Reset() {
 	m.finished = false
 	m.state = selecting
 	m.child = nil
 }
 
-func (m *configmodel) View() string {
+func (m *Model) View() string {
+	_, task := trace.NewTask(context.Background(), "cfgui.View")
+	defer task.End()
 	if m.finished {
 		return ""
 	}
@@ -159,7 +168,7 @@ func (m *configmodel) View() string {
 	return sty.Border.Render(m.view(sty))
 }
 
-func (m *configmodel) view(sty StyleSet) string {
+func (m *Model) view(sty StyleSet) string {
 	var buf strings.Builder
 	line := 0
 	descr := ""

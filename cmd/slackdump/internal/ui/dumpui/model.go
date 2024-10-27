@@ -7,13 +7,13 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui"
 )
 
 type Model struct {
 	// Selected will be set to the selected item from the items.
-	Selected MenuItem
+	Selected  MenuItem
+	Cancelled bool
 
 	title     string
 	items     []MenuItem
@@ -45,7 +45,6 @@ func (m *Model) Init() tea.Cmd {
 
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	child := m.items[m.cursor].Model
-	cfg.Log.Debugf("msg: %v, child is nil? %t", msg, child == nil)
 
 	if child != nil && child.IsFocused() {
 		ch, cmd := child.Update(msg)
@@ -55,7 +54,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				// if child quit, we need to set focus back to the menu.
 				m.SetFocus(true)
 				child.SetFocus(false)
-				child.Reset()
+				child.Reset() // reset the configuration from finished state.
 				return m, nil
 			}
 		}
@@ -67,6 +66,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch {
 		case key.Matches(msg, m.Keymap.Quit):
 			m.finishing = true
+			m.Cancelled = true
 			return m, tea.Quit
 		case key.Matches(msg, m.Keymap.Up):
 			for {
@@ -87,8 +87,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 		case key.Matches(msg, m.Keymap.Select):
-			dfn := m.items[m.cursor].IsDisabled
-			if m.items[m.cursor].Separator || (dfn != nil && dfn()) {
+			dfn := m.items[m.cursor].Validate
+			if m.items[m.cursor].Separator || (dfn != nil && dfn() != nil) {
 				return m, nil
 			}
 			m.Selected = m.items[m.cursor]
@@ -119,7 +119,10 @@ func (m *Model) View() string {
 		return ""
 	}
 	if m.items[m.cursor].Model != nil {
-		return lipgloss.JoinHorizontal(lipgloss.Top, m.view(), m.items[m.cursor].Model.View())
+		if m.focused {
+			return lipgloss.JoinHorizontal(lipgloss.Top, m.view(), m.items[m.cursor].Model.View())
+		}
+		return m.items[m.cursor].Model.View()
 	}
 	return m.view()
 }
@@ -131,10 +134,18 @@ func (m *Model) view() string {
 	if !m.focused {
 		sty = m.Style.Blurred
 	}
+
+	currentItem := m.items[m.cursor]
+	currentDisabled := currentItem.Validate != nil && currentItem.Validate() != nil
+
 	p := b.WriteString
 	// Header
 	p(sty.Title.Render(m.title) + "\n")
-	p(sty.Description.Render(m.items[m.cursor].Help))
+	if currentDisabled {
+		p(sty.Description.Render(currentItem.Validate().Error()))
+	} else {
+		p(sty.Description.Render(m.items[m.cursor].Help))
+	}
 	const (
 		padding = "  "
 		pointer = "> "
@@ -146,18 +157,29 @@ func (m *Model) view() string {
 			continue
 		}
 
-		if itm.IsDisabled != nil && itm.IsDisabled() {
-			p(sty.ItemDisabled.Render(padding + itm.Name))
+		var (
+			current  = i == m.cursor
+			disabled = itm.Validate != nil && itm.Validate() != nil
+		)
+		if disabled {
+			p(sty.ItemDisabled.Render(iftrue(current, pointer, padding) + itm.Name))
 			continue
 		}
-		if i == m.cursor {
-			p(sty.Cursor.Render(pointer) + sty.ItemSelected.Render(itm.Name))
-		} else {
-			p(sty.Item.Render(padding + itm.Name))
-		}
+		p(iftrue(
+			current,
+			sty.Cursor.Render(pointer)+sty.ItemSelected.Render(itm.Name),
+			sty.Item.Render(padding+itm.Name),
+		))
 	}
 	b.WriteString("\n" + m.footer())
 	return sty.Border.Render(b.String())
+}
+
+func iftrue(t bool, a, b string) string {
+	if t {
+		return a
+	}
+	return b
 }
 
 func (m *Model) footer() string {

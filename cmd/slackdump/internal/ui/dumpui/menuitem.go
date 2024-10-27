@@ -4,7 +4,8 @@ package dumpui
 type MenuItem struct {
 	// ID is an arbitrary ID, up to caller.
 	ID string
-	// Separator is a flag that determines whether the item is a separator or not.
+	// Separator is a flag that determines whether the item is a separator or
+	// not.
 	Separator bool
 	// Name is the name of the Item, will be displayed in the menu.
 	Name string
@@ -14,7 +15,21 @@ type MenuItem struct {
 	// Model is any model that should be displayed when the item is selected,
 	// or executed when the user presses enter.
 	Model FocusModel
-	// IsDisabled determines whether the item is disabled or not. It should
-	// complete in reasonable time, as it is called on every render.
-	IsDisabled func() bool // when to enable the item
+	// Validate determines whether the item is disabled or not. It should
+	// complete in reasonable time, as it is called on every render.  The
+	// return error is used in the description for the item.
+	Validate func() error // when to enable the item
+}
+
+func (m MenuItem) IsDisabled() bool {
+	return m.Validate != nil && m.Validate() != nil
+}
+
+func (m MenuItem) DisabledReason() string {
+	if m.Validate != nil {
+		if err := m.Validate(); err != nil {
+			return err.Error()
+		}
+	}
+	return ""
 }

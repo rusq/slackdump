@@ -1,8 +1,10 @@
 package cfgui
 
 import (
+	"context"
 	"errors"
 	"os"
+	"runtime/trace"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -127,6 +129,8 @@ func globalConfig() Configuration {
 }
 
 func validateAPIconfig(s string) error {
+	_, task := trace.NewTask(context.Background(), "validateAPIconfig")
+	defer task.End()
 	if s == "" {
 		return nil
 	}

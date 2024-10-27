@@ -14,7 +14,7 @@ func DefaultKeymap() *Keymap {
 		Up:     key.NewBinding(key.WithKeys("up", "k"), key.WithHelp("↑", "up")),
 		Down:   key.NewBinding(key.WithKeys("down", "j"), key.WithHelp("↓", "down")),
 		Select: key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "submit")),
-		Quit:   key.NewBinding(key.WithKeys("q", "ctrl+c"), key.WithHelp("q", "quit")),
+		Quit:   key.NewBinding(key.WithKeys("q", "ctrl+c", "esc"), key.WithHelp("q", "quit")),
 	}
 }
 

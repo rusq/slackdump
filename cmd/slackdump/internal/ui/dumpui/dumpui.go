@@ -4,10 +4,8 @@ package dumpui
 import (
 	"context"
 
-	"github.com/charmbracelet/huh"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/cfgui"
 )
 
@@ -42,49 +40,53 @@ var description = map[string]string{
 }
 
 func (w *Wizard) Run(ctx context.Context) error {
-	var (
-		action string = actRun
-	)
+	var menu = func() *Model {
+		items := []MenuItem{
+			{
+				ID:   actRun,
+				Name: "Run " + w.Name,
+				Help: description[actRun],
+				Validate: func() error {
+					if w.ValidateParamsFn != nil {
+						return w.ValidateParamsFn()
+					}
+					return nil
+				},
+			},
+		}
+		if w.LocalConfig != nil {
+			items = append(items, MenuItem{
+				ID:    actLocalConfig,
+				Name:  w.Name + " Configuration...",
+				Help:  description[actLocalConfig],
+				Model: cfgui.NewConfigUI(cfgui.DefaultStyle(), w.LocalConfig),
+			})
+		}
+		items = append(
+			items,
+			MenuItem{
+				ID:    actGlobalConfig,
+				Name:  "Global Configuration...",
+				Help:  description[actGlobalConfig],
+				Model: cfgui.NewConfigUI(cfgui.DefaultStyle(), cfgui.GlobalConfig), // TODO: filthy cast
+			},
+			MenuItem{Separator: true},
+			MenuItem{ID: actExit, Name: "Exit", Help: description[actExit]},
+		)
 
-	menu := func(opts ...huh.Option[string]) *huh.Form {
-		return huh.NewForm(
-			huh.NewGroup(
-				huh.NewSelect[string]().
-					Title(w.Title).
-					Options(
-						opts...,
-					).Value(&action).
-					DescriptionFunc(func() string { return description[action] }, &action),
-			),
-		).WithTheme(ui.HuhTheme).WithAccessible(cfg.AccessibleMode)
+		return NewModel(w.Title, items)
 	}
 
 LOOP:
 	for {
-		var opts []huh.Option[string]
-		if w.ValidateParamsFn != nil && w.LocalConfig != nil {
-			if err := w.ValidateParamsFn(); err == nil {
-				opts = append(opts, huh.NewOption("Run "+w.Name, actRun))
-			}
-			action = actLocalConfig
-		} else {
-			opts = append(opts, huh.NewOption("Run "+w.Name, actRun))
-		}
-		// local config
-		if w.LocalConfig != nil {
-			opts = append(opts, huh.NewOption(w.Name+" Configuration...", actLocalConfig))
-		}
-		// final options
-		opts = append(opts,
-			huh.NewOption("Global Configuration...", actGlobalConfig),
-			huh.NewOption(ui.MenuSeparator, ""),
-			huh.NewOption("<< Exit to Main Menu", actExit),
-		)
-
-		if err := menu(opts...).RunWithContext(ctx); err != nil {
+		m := menu()
+		if _, err := tea.NewProgram(m, tea.WithContext(ctx)).Run(); err != nil {
 			return err
 		}
-		switch action {
+		if m.Cancelled {
+			break
+		}
+		switch m.Selected.ID {
 		case actRun:
 			if w.ValidateParamsFn != nil {
 				if err := w.ValidateParamsFn(); err != nil {
@@ -96,14 +98,6 @@ LOOP:
 				args = w.ArgsFn()
 			}
 			if err := w.Cmd.Run(ctx, w.Cmd, args); err != nil {
-				return err
-			}
-		case actGlobalConfig:
-			if err := cfgui.Global(ctx); err != nil {
-				return err
-			}
-		case actLocalConfig:
-			if err := cfgui.Local(ctx, w.LocalConfig); err != nil {
 				return err
 			}
 		case actExit:
