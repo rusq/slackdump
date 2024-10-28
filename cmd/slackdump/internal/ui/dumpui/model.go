@@ -8,6 +8,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/cfgui"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/updaters"
 )
 
@@ -49,7 +50,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	child := m.items[m.cursor].Model
 
 	if !m.focused {
-		if wmclose, ok := msg.(updaters.WMClose); ok && wmclose.WndID == "cfgui" {
+		if wmclose, ok := msg.(updaters.WMClose); ok && wmclose.WndID == cfgui.ModelID {
 			child.Reset()
 			child.SetFocus(false)
 			m.SetFocus(true)
@@ -70,7 +71,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.finishing = true
 			m.Cancelled = true
 			m.Selected = m.items[m.cursor]
-			return m, tea.Quit
+			cmds = append(cmds, tea.Quit)
 		case key.Matches(msg, m.Keymap.Up):
 			for {
 				if m.cursor > 0 {
@@ -90,21 +91,21 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 		case key.Matches(msg, m.Keymap.Select):
-			dfn := m.items[m.cursor].Validate
-			if m.items[m.cursor].Separator || (dfn != nil && dfn() != nil) {
-				return m, nil
-			}
-
-			if child := m.items[m.cursor].Model; child != nil {
-				// If there is a child model, focus it.
-				m.SetFocus(false)
-				child.SetFocus(true)
-				cmds = append(cmds, child.Init())
+			validate := m.items[m.cursor].Validate
+			if m.items[m.cursor].Separator || (validate != nil && validate() != nil) {
+				// do nothing
 			} else {
-				// otherwise, return selected item and quit
-				m.Selected = m.items[m.cursor]
-				m.finishing = true
-				cmds = append(cmds, tea.Quit)
+				if child := m.items[m.cursor].Model; child != nil {
+					// If there is a child model, focus it.
+					m.SetFocus(false)
+					child.SetFocus(true)
+					cmds = append(cmds, child.Init())
+				} else {
+					// otherwise, return selected item and quit
+					m.Selected = m.items[m.cursor]
+					m.finishing = true
+					cmds = append(cmds, tea.Quit)
+				}
 			}
 		}
 	}
