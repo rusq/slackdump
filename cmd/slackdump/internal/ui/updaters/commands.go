@@ -2,15 +2,23 @@ package updaters
 
 import tea "github.com/charmbracelet/bubbletea"
 
-type WMClose struct{}
+const ModelID = "updater"
+
+type WMClose struct {
+	// WndID is the window ID to close.  If empty, the current window
+	// will be closed.
+	WndID string
+}
 
 // OnClose defines the global command to close the program.  It is set
 // by default to [CmdClose], but if running standalone, one must set it
 // to [tea.Quit], otherwise the program will not exit.
-var OnClose = CmdClose
+var OnClose = CmdClose(ModelID)
 
-func CmdClose() tea.Msg {
-	return WMClose{}
+func CmdClose(id string) func() tea.Msg {
+	return func() tea.Msg {
+		return WMClose{id}
+	}
 }
 
 // WMError is sent when an error occurs, for example, a validation error,

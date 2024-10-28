@@ -12,6 +12,8 @@ import (
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/updaters"
 )
 
+const ModelID = "cfgui"
+
 const (
 	sEmpty     = "<empty>"
 	sTrue      = "[x]"
@@ -86,9 +88,13 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case updaters.WMClose:
 		// child sends a close message
-		m.state = selecting
-		m.child = nil
-		cmds = append(cmds, refreshCfgCmd)
+		if msg.WndID == updaters.ModelID {
+			m.state = selecting
+			m.child = nil
+			cmds = append(cmds, refreshCfgCmd)
+		} else if msg.WndID == ModelID {
+			m.finished = true
+		}
 	case tea.KeyMsg:
 		switch {
 		case key.Matches(msg, m.keymap.Up):
@@ -126,12 +132,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				cmds = append(cmds, m.child.Init())
 			}
 		case key.Matches(msg, m.keymap.Quit):
-			// child is active
-			if m.state != selecting {
-				break
-			}
 			m.finished = true
-			return m, tea.Quit
+			cmds = append(cmds, updaters.CmdClose(ModelID))
 		}
 	}
 

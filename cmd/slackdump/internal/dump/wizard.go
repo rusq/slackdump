@@ -56,9 +56,9 @@ func (o *options) configuration() cfgui.Configuration {
 			Name: "Input",
 			Params: []cfgui.Parameter{
 				{
-					Name:        "Channel IDs or URLs",
+					Name:        "* Channel IDs or URLs",
 					Value:       entryList,
-					Description: "List of channel IDs or URLs to dump",
+					Description: "List of channel IDs or URLs to dump (REQUIRED)",
 					Inline:      true,
 					Updater:     updaters.NewString(&entryList, "", true, validateEntryList),
 				},

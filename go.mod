@@ -10,7 +10,7 @@ require (
 	github.com/charmbracelet/lipgloss v0.13.1
 	github.com/davecgh/go-spew v1.1.1
 	github.com/enescakir/emoji v1.0.0
-	github.com/fatih/color v1.17.0
+	github.com/fatih/color v1.18.0
 	github.com/go-chi/chi/v5 v5.0.12
 	github.com/go-playground/locales v0.14.1
 	github.com/go-playground/universal-translator v0.18.1
@@ -48,7 +48,7 @@ require (
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
 	github.com/catppuccin/go v0.2.0 // indirect
 	github.com/charmbracelet/x/ansi v0.4.0 // indirect
-	github.com/charmbracelet/x/exp/strings v0.0.0-20241017213443-f2394f742aee // indirect
+	github.com/charmbracelet/x/exp/strings v0.0.0-20241025155609-902b1d1de0be // indirect
 	github.com/charmbracelet/x/term v0.2.0 // indirect
 	github.com/deckarep/golang-set/v2 v2.6.0 // indirect
 	github.com/denisbrodbeck/machineid v1.0.1 // indirect

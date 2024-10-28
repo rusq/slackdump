@@ -8,6 +8,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/updaters"
 )
 
 type Model struct {
@@ -44,21 +45,22 @@ func (m *Model) Init() tea.Cmd {
 }
 
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmds []tea.Cmd
 	child := m.items[m.cursor].Model
 
-	if child != nil && child.IsFocused() {
-		ch, cmd := child.Update(msg)
-		m.items[m.cursor].Model = ch.(FocusModel)
-		if cmd != nil && cmd() != nil {
-			if _, ok := cmd().(tea.QuitMsg); ok {
-				// if child quit, we need to set focus back to the menu.
-				m.SetFocus(true)
-				child.SetFocus(false)
-				child.Reset() // reset the configuration from finished state.
-				return m, nil
-			}
+	if !m.focused {
+		if wmclose, ok := msg.(updaters.WMClose); ok && wmclose.WndID == "cfgui" {
+			child.Reset()
+			child.SetFocus(false)
+			m.SetFocus(true)
+			return m, nil
 		}
-		return m, cmd
+		ch, cmd := child.Update(msg)
+		if ch, ok := ch.(FocusModel); ok {
+			m.items[m.cursor].Model = ch
+		}
+		cmds = append(cmds, cmd)
+		return m, tea.Batch(cmds...)
 	}
 
 	switch msg := msg.(type) {
@@ -67,6 +69,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, m.Keymap.Quit):
 			m.finishing = true
 			m.Cancelled = true
+			m.Selected = m.items[m.cursor]
 			return m, tea.Quit
 		case key.Matches(msg, m.Keymap.Up):
 			for {
@@ -91,19 +94,21 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.items[m.cursor].Separator || (dfn != nil && dfn() != nil) {
 				return m, nil
 			}
-			m.Selected = m.items[m.cursor]
 
 			if child := m.items[m.cursor].Model; child != nil {
+				// If there is a child model, focus it.
 				m.SetFocus(false)
 				child.SetFocus(true)
-				return m, nil
+				cmds = append(cmds, child.Init())
+			} else {
+				// otherwise, return selected item and quit
+				m.Selected = m.items[m.cursor]
+				m.finishing = true
+				cmds = append(cmds, tea.Quit)
 			}
-
-			m.finishing = true
-			return m, tea.Quit
 		}
 	}
-	return m, nil
+	return m, tea.Batch(cmds...)
 }
 
 func (m *Model) SetFocus(b bool) {
