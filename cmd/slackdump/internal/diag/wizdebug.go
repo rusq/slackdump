@@ -79,7 +79,7 @@ func debugDumpUI(ctx context.Context) error {
 			Help: "Exit to main menu",
 		},
 	}
-	w := dumpui.NewModel("Wizard Debug", menu)
+	w := dumpui.NewModel("Wizard Debug", menu, false)
 
 	if _, err := tea.NewProgram(w, tea.WithContext(ctx)).Run(); err != nil {
 		return err

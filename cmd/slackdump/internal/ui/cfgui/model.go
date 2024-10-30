@@ -3,6 +3,7 @@ package cfgui
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"runtime/trace"
 	"strings"
 
@@ -134,11 +135,17 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, m.keymap.Quit):
 			m.finished = true
 			cmds = append(cmds, updaters.CmdClose(ModelID))
+		case reNumber.MatchString(msg.String()):
+			if 0 < m.cursor || m.cursor < m.last {
+				m.cursor = int(msg.String()[0] - '1')
+			}
 		}
 	}
 
 	return m, tea.Batch(cmds...)
 }
+
+var reNumber = regexp.MustCompile(`^[1-9]$`)
 
 func (m *Model) SetFocus(b bool) {
 	m.focused = b

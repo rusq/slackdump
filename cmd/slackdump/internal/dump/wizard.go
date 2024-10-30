@@ -2,7 +2,6 @@ package dump
 
 import (
 	"context"
-	"errors"
 	"strings"
 
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
@@ -23,7 +22,7 @@ func WizDump(ctx context.Context, cmd *base.Command, args []string) error {
 			return splitEntryList(entryList)
 		},
 		ValidateParamsFn: func() error {
-			return validateEntryList(entryList)
+			return structures.ValidateEntityList(entryList)
 		},
 	}
 	return w.Run(ctx)
@@ -35,33 +34,16 @@ func splitEntryList(s string) []string {
 	return strings.Split(s, " ")
 }
 
-func validateEntryList(s string) error {
-	if len(s) == 0 {
-		return errors.New("no entries")
-	}
-	ee := strings.Split(s, " ")
-	if len(ee) == 0 {
-		return errors.New("no entries")
-	}
-	_, err := structures.NewEntityList(ee)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
 func (o *options) configuration() cfgui.Configuration {
 	return cfgui.Configuration{
 		{
-			Name: "Input",
+			Name: "Required",
 			Params: []cfgui.Parameter{
-				{
-					Name:        "* Channel IDs or URLs",
-					Value:       entryList,
-					Description: "List of channel IDs or URLs to dump (REQUIRED)",
-					Inline:      true,
-					Updater:     updaters.NewString(&entryList, "", true, validateEntryList),
-				},
+				cfgui.ChannelIDs(&entryList),
+			},
+		}, {
+			Name: "Optional",
+			Params: []cfgui.Parameter{
 				{
 					Name:        "File naming template",
 					Value:       o.nameTemplate,
@@ -73,9 +55,9 @@ func (o *options) configuration() cfgui.Configuration {
 					}),
 				},
 				{
-					Name:        "Compatibility mode",
+					Name:        "V2 Compatibility mode",
 					Value:       cfgui.Checkbox(o.compat),
-					Description: "Use compatibility mode",
+					Description: "Use V2 compatibility mode (slower)",
 					Updater:     updaters.NewBool(&o.compat),
 				},
 				{

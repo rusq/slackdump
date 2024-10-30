@@ -466,3 +466,136 @@ func Test_buildEntityIndex(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateEntityList(t *testing.T) {
+	type args struct {
+		s string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+	}{
+		{
+			"ok",
+			args{"C123 C234 ^C345 C456"},
+			false,
+		},
+		{
+			"empty",
+			args{""},
+			true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := ValidateEntityList(tt.args.s); (err != nil) != tt.wantErr {
+				t.Errorf("ValidateEntityList() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestNewEntityListFromString(t *testing.T) {
+	type args struct {
+		s string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    *EntityList
+		wantErr bool
+	}{
+		{
+			"ok",
+			args{"C123 C234 ^C345 C456"},
+			&EntityList{
+				Include: []string{"C123", "C234", "C456"},
+				Exclude: []string{"C345"},
+			},
+			false,
+		},
+		{
+			"empty",
+			args{""},
+			nil,
+			true,
+		},
+		{
+			"only includes",
+			args{"one two three"},
+			&EntityList{
+				Include: []string{"one", "three", "two"},
+			},
+			false,
+		},
+		{
+			"only excludes",
+			args{"^one ^two ^three"},
+			&EntityList{
+				Exclude: []string{"one", "three", "two"},
+			},
+			false,
+		},
+		{
+			"mixed",
+			args{"one ^two three"},
+			&EntityList{
+				Include: []string{"one", "three"},
+				Exclude: []string{"two"},
+			},
+			false,
+		},
+		{
+			"same element included and excluded",
+			args{"one ^two three two"},
+			&EntityList{
+				Include: []string{"one", "three"},
+				Exclude: []string{"two"},
+			},
+			false,
+		},
+		{
+			"duplicate element",
+			args{"one ^two three one"},
+			&EntityList{
+				Include: []string{"one", "three"},
+				Exclude: []string{"two"},
+			},
+			false,
+		},
+		{
+			"empty element",
+			args{"one ^two three  four ^"},
+			&EntityList{
+				Include: []string{"four", "one", "three"},
+				Exclude: []string{"two"},
+			},
+			false,
+		},
+		{
+			"everything is empty",
+			args{""},
+			nil,
+			true,
+		},
+		{
+			"nil",
+			args{""},
+			nil,
+			true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := NewEntityListFromString(tt.args.s)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("NewEntityListFromString() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("NewEntityListFromString() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

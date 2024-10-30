@@ -74,7 +74,7 @@ func (w *Wizard) Run(ctx context.Context) error {
 			MenuItem{ID: actExit, Name: "Exit", Help: description[actExit]},
 		)
 
-		return NewModel(w.Title, items)
+		return NewModel(w.Title, items, false)
 	}
 
 LOOP:

@@ -21,6 +21,7 @@ type Model struct {
 	items     []MenuItem
 	finishing bool
 	focused   bool
+	preview   bool // preview child model
 	Style     *Style
 	Keymap    *Keymap
 
@@ -29,7 +30,7 @@ type Model struct {
 	cursor int
 }
 
-func NewModel(title string, items []MenuItem) *Model {
+func NewModel(title string, items []MenuItem, preview bool) *Model {
 	return &Model{
 		title:     title,
 		items:     items,
@@ -37,6 +38,7 @@ func NewModel(title string, items []MenuItem) *Model {
 		Keymap:    DefaultKeymap(),
 		help:      help.New(),
 		focused:   true,
+		preview:   preview,
 		finishing: false,
 	}
 }
@@ -126,7 +128,11 @@ func (m *Model) View() string {
 	}
 	if m.items[m.cursor].Model != nil {
 		if m.focused {
-			return lipgloss.JoinHorizontal(lipgloss.Top, m.view(), m.items[m.cursor].Model.View())
+			if m.preview {
+				return lipgloss.JoinHorizontal(lipgloss.Top, m.view(), m.items[m.cursor].Model.View())
+			} else {
+				return m.view()
+			}
 		}
 		return m.items[m.cursor].Model.View()
 	}
