@@ -64,7 +64,7 @@ type browserAuthUIExt interface {
 	// RequestLoginType should request the login type from the user and return
 	// one of the [auth_ui.LoginType] constants.  The implementation should
 	// provide a way to cancel the login flow, returning [auth_ui.LoginCancel].
-	RequestLoginType(w io.Writer) (auth_ui.LoginType, error)
+	RequestLoginType(w io.Writer) (auth_ui.LoginOpts, error)
 	// RequestCreds should request the user's email and password and return
 	// them.
 	RequestCreds(w io.Writer, workspace string) (email string, passwd string, err error)
@@ -110,10 +110,10 @@ func NewRODAuth(ctx context.Context, opts ...Option) (RodAuth, error) {
 		return r, err
 	}
 	sopts := r.opts.slackauthOpts()
-	if resp == auth_ui.LGoogleAuth {
+	if resp.Type == auth_ui.LUserBrowser {
 		// it doesn't need to know that this browser is just a puppet in the
 		// masterful hands.
-		sopts = append(sopts, slackauth.WithForceUser())
+		sopts = append(sopts, slackauth.WithForceUser(), slackauth.WithLocalBrowser(resp.BrowserPath))
 	}
 
 	cl, err := slackauth.New(
@@ -128,8 +128,8 @@ func NewRODAuth(ctx context.Context, opts ...Option) (RodAuth, error) {
 	lg := logger.FromContext(ctx)
 	t := time.Now()
 	var sp simpleProvider
-	switch resp {
-	case auth_ui.LInteractive, auth_ui.LGoogleAuth:
+	switch resp.Type {
+	case auth_ui.LInteractive, auth_ui.LUserBrowser:
 		lg.Printf("ℹ️ Initialising browser, once the browser appears, login as usual")
 		var err error
 		sp.Token, sp.Cookie, err = cl.Manual(ctx)
