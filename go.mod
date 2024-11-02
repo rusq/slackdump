@@ -7,11 +7,11 @@ require (
 	github.com/charmbracelet/bubbles v0.20.0
 	github.com/charmbracelet/bubbletea v1.1.2
 	github.com/charmbracelet/huh v0.6.0
-	github.com/charmbracelet/lipgloss v0.13.1
+	github.com/charmbracelet/lipgloss v1.0.0
 	github.com/davecgh/go-spew v1.1.1
 	github.com/enescakir/emoji v1.0.0
 	github.com/fatih/color v1.18.0
-	github.com/go-chi/chi/v5 v5.0.12
+	github.com/go-chi/chi/v5 v5.1.0
 	github.com/go-playground/locales v0.14.1
 	github.com/go-playground/universal-translator v0.18.1
 	github.com/go-playground/validator/v10 v10.22.1
@@ -29,26 +29,26 @@ require (
 	github.com/rusq/slack v0.9.6-0.20240712095442-5a0e2e405a99
 	github.com/rusq/slackauth v0.5.1
 	github.com/rusq/tracer v1.0.1
-	github.com/schollz/progressbar/v3 v3.13.0
+	github.com/schollz/progressbar/v3 v3.17.0
 	github.com/stretchr/testify v1.9.0
-	github.com/yuin/goldmark v1.7.0
-	github.com/yuin/goldmark-emoji v1.0.2
-	go.uber.org/mock v0.4.0
+	github.com/yuin/goldmark v1.7.8
+	github.com/yuin/goldmark-emoji v1.0.4
+	go.uber.org/mock v0.5.0
 	golang.org/x/crypto v0.28.0
 	golang.org/x/sync v0.8.0
 	golang.org/x/term v0.25.0
 	golang.org/x/text v0.19.0
 	golang.org/x/time v0.7.0
 	gopkg.in/yaml.v3 v3.0.1
-	src.elv.sh v0.19.2
+	src.elv.sh v0.21.0
 )
 
 require (
 	github.com/atotto/clipboard v0.1.4 // indirect
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
 	github.com/catppuccin/go v0.2.0 // indirect
-	github.com/charmbracelet/x/ansi v0.4.0 // indirect
-	github.com/charmbracelet/x/exp/strings v0.0.0-20241025155609-902b1d1de0be // indirect
+	github.com/charmbracelet/x/ansi v0.4.2 // indirect
+	github.com/charmbracelet/x/exp/strings v0.0.0-20241101155414-3df16cb7eefd // indirect
 	github.com/charmbracelet/x/term v0.2.0 // indirect
 	github.com/deckarep/golang-set/v2 v2.6.0 // indirect
 	github.com/denisbrodbeck/machineid v1.0.1 // indirect
