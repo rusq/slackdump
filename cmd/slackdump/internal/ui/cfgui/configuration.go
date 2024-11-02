@@ -1,8 +1,10 @@
 package cfgui
 
 import (
+	"context"
 	"errors"
 	"os"
+	"runtime/trace"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -10,29 +12,29 @@ import (
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/apiconfig"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/bootstrap"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/cfgui/updaters"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/updaters"
 )
 
-type configuration []group
+type Configuration []ParamGroup
 
-type group struct {
-	name   string
-	params []parameter
+type ParamGroup struct {
+	Name   string
+	Params []Parameter
 }
 
-type parameter struct {
+type Parameter struct {
 	Name        string
 	Value       string
 	Description string
 	Inline      bool
-	Model       tea.Model
+	Updater     tea.Model
 }
 
-func effectiveConfig() configuration {
-	return configuration{
+func globalConfig() Configuration {
+	return Configuration{
 		{
-			name: "Authentication",
-			params: []parameter{
+			Name: "Authentication",
+			Params: []Parameter{
 				{
 					Name:        "Slack Workspace",
 					Value:       bootstrap.CurrentWsp(),
@@ -41,64 +43,64 @@ func effectiveConfig() configuration {
 			},
 		},
 		{
-			name: "Timeframe",
-			params: []parameter{
+			Name: "Timeframe",
+			Params: []Parameter{
 				{
 					Name:        "Start date",
 					Value:       cfg.Oldest.String(),
 					Description: "The oldest message to fetch",
-					Model:       updaters.NewDTTM((*time.Time)(&cfg.Oldest)),
+					Updater:     updaters.NewDTTM((*time.Time)(&cfg.Oldest)),
 				},
 				{
 					Name:        "End date",
 					Value:       cfg.Latest.String(),
 					Description: "The newest message to fetch",
-					Model:       updaters.NewDTTM((*time.Time)(&cfg.Latest)),
+					Updater:     updaters.NewDTTM((*time.Time)(&cfg.Latest)),
 				},
 			},
 		},
 		{
-			name: "Output",
-			params: []parameter{
+			Name: "Output",
+			Params: []Parameter{
 				{
 					Name:        "Output",
 					Value:       cfg.Output,
 					Inline:      true,
 					Description: "Output directory",
-					Model:       updaters.NewFileNew(&cfg.Output, "ZIP or Directory", false, true),
+					Updater:     updaters.NewFileNew(&cfg.Output, "ZIP or Directory", false, true),
 				},
 			},
 		},
 		{
-			name: "API options",
-			params: []parameter{
+			Name: "API options",
+			Params: []Parameter{
+				{
+					Name:        "Download files",
+					Value:       Checkbox(cfg.DownloadFiles),
+					Description: "Download files",
+					Updater:     updaters.NewBool(&cfg.DownloadFiles),
+				},
 				{
 					Name:        "Enterprise mode",
-					Value:       checkbox(cfg.ForceEnterprise),
+					Value:       Checkbox(cfg.ForceEnterprise),
 					Description: "Force enterprise mode",
-					Model:       updaters.NewBool(&cfg.ForceEnterprise),
+					Updater:     updaters.NewBool(&cfg.ForceEnterprise),
 				},
 				{
 					Name:        "API limits file",
 					Value:       cfg.ConfigFile,
 					Description: "API limits file",
-					Model: updaters.NewExistingFile(
+					Updater: updaters.NewFilepickModel(
 						&cfg.ConfigFile,
 						filemgr.New(os.DirFS("."), ".", 15, "*.yaml", "*.yml"),
 						validateAPIconfig,
 					),
 				},
-				{
-					Name:        "Download files",
-					Value:       checkbox(cfg.DownloadFiles),
-					Description: "Download files",
-					Model:       updaters.NewBool(&cfg.DownloadFiles),
-				},
 			},
 		},
 		{
-			name: "Cache Control",
-			params: []parameter{
+			Name: "Cache Control",
+			Params: []Parameter{
 				{
 					Name:        "Local Cache Directory",
 					Value:       cfg.LocalCacheDir,
@@ -111,15 +113,15 @@ func effectiveConfig() configuration {
 				},
 				{
 					Name:        "Disable User Cache",
-					Value:       checkbox(cfg.NoUserCache),
+					Value:       Checkbox(cfg.NoUserCache),
 					Description: "Disable User Cache",
-					Model:       updaters.NewBool(&cfg.NoUserCache),
+					Updater:     updaters.NewBool(&cfg.NoUserCache),
 				},
 				{
 					Name:        "Disable Chunk Cache",
-					Value:       checkbox(cfg.NoChunkCache),
+					Value:       Checkbox(cfg.NoChunkCache),
 					Description: "Disable Chunk Cache",
-					Model:       updaters.NewBool(&cfg.NoChunkCache),
+					Updater:     updaters.NewBool(&cfg.NoChunkCache),
 				},
 			},
 		},
@@ -127,6 +129,8 @@ func effectiveConfig() configuration {
 }
 
 func validateAPIconfig(s string) error {
+	_, task := trace.NewTask(context.Background(), "validateAPIconfig")
+	defer task.End()
 	if s == "" {
 		return nil
 	}

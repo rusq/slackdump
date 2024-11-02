@@ -8,6 +8,7 @@ import (
 	"strconv"
 
 	"github.com/charmbracelet/huh"
+	"github.com/rusq/slackauth"
 )
 
 // Huh is the Auth UI that uses the huh library to provide a terminal UI.
@@ -48,20 +49,52 @@ func (*Huh) RequestCreds(w io.Writer, workspace string) (email string, passwd st
 	return
 }
 
-func (*Huh) RequestLoginType(w io.Writer) (LoginType, error) {
+type methodMenuItem struct {
+	MenuItem  string
+	ShortDesc string
+	Type      LoginType
+}
+
+func (m methodMenuItem) String() string {
+	return fmt.Sprintf("%-20s - %s", m.MenuItem, m.ShortDesc)
+}
+
+var methods = []methodMenuItem{
+	{
+		"Manual",
+		"Works with most authentication schemes, except Google.",
+		LInteractive,
+	},
+	{
+		"Automatic",
+		"Only suitable for email/password auth",
+		LHeadless,
+	},
+	{
+		"User's Browser",
+		"Loads your user profile, works with Google Auth",
+		LUserBrowser,
+	},
+}
+
+type LoginOpts struct {
+	Type        LoginType
+	BrowserPath string
+}
+
+func (*Huh) RequestLoginType(w io.Writer) (LoginOpts, error) {
+	var opts = make([]huh.Option[LoginType], 0, len(methods))
+	for _, m := range methods {
+		opts = append(opts, huh.NewOption(m.String(), m.Type))
+	}
+	opts = append(opts,
+		huh.NewOption("------", LoginType(-1)),
+		huh.NewOption("Cancel", LCancel),
+	)
 	var loginType LoginType
 	err := huh.NewForm(huh.NewGroup(
 		huh.NewSelect[LoginType]().Title("Select login type").
-			Options(
-				huh.NewOption("Email (manual)", LInteractive),
-				huh.NewOption("Email (automatic)", LHeadless),
-				huh.NewOption("Google", LGoogleAuth),
-				huh.NewOption("Apple", LInteractive),
-				huh.NewOption("Login with Single-Sign-On (SSO)", LInteractive),
-				huh.NewOption("Other/Manual", LInteractive),
-				huh.NewOption("", LoginType(-1)),
-				huh.NewOption("Cancel", LCancel),
-			).
+			Options(opts...).
 			Value(&loginType).
 			Validate(valSepEaster()).
 			DescriptionFunc(func() string {
@@ -70,7 +103,7 @@ func (*Huh) RequestLoginType(w io.Writer) (LoginType, error) {
 					return "Clean browser will open on a Slack Login page."
 				case LHeadless:
 					return "You will be prompted to enter your email and password, login is automated."
-				case LGoogleAuth:
+				case LUserBrowser:
 					return "System browser will open on a Slack Login page."
 				case LCancel:
 					return "Cancel the login process."
@@ -79,7 +112,46 @@ func (*Huh) RequestLoginType(w io.Writer) (LoginType, error) {
 				}
 			}, &loginType),
 	)).Run()
-	return loginType, err
+	if err != nil {
+		return LoginOpts{Type: LCancel}, err
+	}
+	if loginType == LUserBrowser {
+		path, err := chooseBrowser()
+		if err != nil {
+			return LoginOpts{Type: LCancel}, err
+		}
+		return LoginOpts{
+			Type:        LUserBrowser,
+			BrowserPath: path,
+		}, err
+	}
+	return LoginOpts{Type: loginType}, nil
+}
+
+func chooseBrowser() (string, error) {
+	browsers, err := slackauth.ListBrowsers()
+	if err != nil {
+		return "", err
+	}
+	var opts = make([]huh.Option[int], 0, len(browsers))
+	for i, b := range browsers {
+		opts = append(opts, huh.NewOption(b.Name, i))
+	}
+
+	var selection int
+	err = huh.NewForm(huh.NewGroup(
+		huh.NewSelect[int]().
+			Title("Detected browsers on your system").
+			Options(opts...).
+			Value(&selection).
+			DescriptionFunc(func() string {
+				return browsers[selection].Path
+			}, &selection),
+	)).Run()
+	if err != nil {
+		return "", err
+	}
+	return browsers[selection].Path, nil
 }
 
 // ConfirmationCode asks the user to input the confirmation code, does some

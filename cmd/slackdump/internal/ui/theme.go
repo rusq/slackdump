@@ -27,11 +27,11 @@ type ControlStyle struct {
 
 	Text lipgloss.Style
 
-	Cursor       lipgloss.Style
+	// Cursor is the pointer to the selected item, i.e. the ">" in a list.
+	Cursor lipgloss.Style
+	// SelectedLine is the style for the selected line in a list, next to the pointer.
 	SelectedLine lipgloss.Style
-
-	Selected   lipgloss.Style
-	Unselected lipgloss.Style
+	Unselected   lipgloss.Style
 
 	SelectedFile   lipgloss.Style
 	UnselectedFile lipgloss.Style
@@ -68,10 +68,9 @@ func DefaultTheme() Theme {
 		Focused: ControlStyle{
 			Border:         lipgloss.NewStyle().BorderLeft(true).BorderForeground(cyan).BorderStyle(lipgloss.ThickBorder()).Padding(0, 1),
 			Title:          lipgloss.NewStyle().Foreground(green).Bold(true),
-			Description:    lipgloss.NewStyle().Foreground(white),
+			Description:    lipgloss.NewStyle().Foreground(gray),
 			Cursor:         lipgloss.NewStyle().Foreground(yellow),
 			SelectedLine:   lipgloss.NewStyle().Background(green).Foreground(black),
-			Selected:       lipgloss.NewStyle().Foreground(green),
 			Unselected:     lipgloss.NewStyle().Foreground(white),
 			SelectedFile:   lipgloss.NewStyle().Foreground(green),
 			UnselectedFile: lipgloss.NewStyle().Foreground(white),
@@ -92,7 +91,6 @@ func DefaultTheme() Theme {
 			Description:    lipgloss.NewStyle().Foreground(gray),
 			Cursor:         lipgloss.NewStyle().Foreground(gray),
 			SelectedLine:   lipgloss.NewStyle().Background(gray).Foreground(black),
-			Selected:       lipgloss.NewStyle().Foreground(gray),
 			Unselected:     lipgloss.NewStyle().Foreground(gray),
 			SelectedFile:   lipgloss.NewStyle().Foreground(gray),
 			UnselectedFile: lipgloss.NewStyle().Foreground(gray),

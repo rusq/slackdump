@@ -9,7 +9,7 @@ import (
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui"
 )
 
-type FileModel struct {
+type FilepickModel struct {
 	fp          filemgr.Model
 	v           *string
 	validate    func(s string) error
@@ -18,7 +18,7 @@ type FileModel struct {
 	errStyle    lipgloss.Style
 }
 
-func NewExistingFile(ptrStr *string, f filemgr.Model, validateFn func(s string) error) FileModel {
+func NewFilepickModel(ptrStr *string, f filemgr.Model, validateFn func(s string) error) FilepickModel {
 	f.Focus()
 	f.ShowHelp = true
 	f.Style = filemgr.Style{
@@ -26,7 +26,7 @@ func NewExistingFile(ptrStr *string, f filemgr.Model, validateFn func(s string) 
 		Directory: ui.DefaultTheme().Focused.Directory,
 		Inverted:  ui.DefaultTheme().Focused.SelectedFile,
 	}
-	return FileModel{
+	return FilepickModel{
 		fp:          f,
 		v:           ptrStr,
 		validate:    validateFn,
@@ -35,11 +35,11 @@ func NewExistingFile(ptrStr *string, f filemgr.Model, validateFn func(s string) 
 	}
 }
 
-func (m FileModel) Init() tea.Cmd {
+func (m FilepickModel) Init() tea.Cmd {
 	return m.fp.Init()
 }
 
-func (m FileModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m FilepickModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	var cmds []tea.Cmd
 
@@ -68,7 +68,7 @@ func (m FileModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
-func (m FileModel) View() string {
+func (m FilepickModel) View() string {
 	var buf strings.Builder
 	buf.WriteString(m.fp.View())
 	if m.err != nil {

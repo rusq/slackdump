@@ -25,6 +25,7 @@ const (
 
 var (
 	ErrMaxFileSize = errors.New("maximum file size exceeded")
+	ErrEmptyList   = errors.New("empty list")
 )
 
 // EntityList is an Inclusion/Exclusion list
@@ -53,6 +54,25 @@ func NewEntityList(entities []string) (*EntityList, error) {
 	el.fromIndex(index)
 
 	return &el, nil
+}
+
+// NewEntityListFromString creates an EntityList from a space-separated list of
+// entities.
+func NewEntityListFromString(s string) (*EntityList, error) {
+	if len(s) == 0 {
+		return nil, ErrEmptyList
+	}
+	ee := strings.Split(s, " ")
+	if len(ee) == 0 {
+		return nil, ErrEmptyList
+	}
+	return NewEntityList(ee)
+}
+
+// ValidateEntityList validates a space-separated list of entities.
+func ValidateEntityList(s string) error {
+	_, err := NewEntityListFromString(s)
+	return err
 }
 
 // LoadEntityList creates an EntityList from a slice of IDs or URLs (entites).

@@ -6,11 +6,11 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/rusq/slack"
 	"github.com/rusq/slackdump/v3/internal/fasttime"
-	"golang.org/x/exp/slices"
 )
 
 func (v *Viewer) indexHandler(w http.ResponseWriter, r *http.Request) {

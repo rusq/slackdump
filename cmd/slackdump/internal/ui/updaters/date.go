@@ -4,6 +4,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/bubbles/help"
+	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui"
@@ -20,6 +22,8 @@ type DateModel struct {
 	finishing   bool
 	timeEnabled bool
 	state       state
+	keymap      dateKeymap
+	help        help.Model
 }
 
 func NewDTTM(ptrTime *time.Time) DateModel {
@@ -40,7 +44,36 @@ func NewDTTM(ptrTime *time.Time) DateModel {
 		tm:          t,
 		focusstyle:  ui.DefaultTheme().Focused.Border,
 		blurstyle:   ui.DefaultTheme().Blurred.Border,
+		keymap:      defaultDateKeymap(),
 		timeEnabled: true,
+		help:        help.New(),
+	}
+}
+
+type dateKeymap struct {
+	NextField key.Binding
+	PrevField key.Binding
+	Arrows    key.Binding
+	Select    key.Binding
+	Cancel    key.Binding
+	Clear     key.Binding
+}
+
+func defaultDateKeymap() dateKeymap {
+	return dateKeymap{
+		NextField: key.NewBinding(key.WithKeys("tab"), key.WithHelp("↹", "next")),
+		PrevField: key.NewBinding(key.WithKeys("shift+tab"), key.WithHelp("⇧ + ↹", "prev")),
+		Arrows:    key.NewBinding(key.WithKeys("esc", "ctrl+c", "q"), key.WithHelp("←↑↓→", "move")),
+		Select:    key.NewBinding(key.WithKeys("enter"), key.WithHelp("↵", "select")),
+		Cancel:    key.NewBinding(key.WithKeys("esc", "ctrl+c", "q"), key.WithHelp("Esc", "cancel")),
+		Clear:     key.NewBinding(key.WithKeys("backspace"), key.WithHelp("backspace", "clear")),
+	}
+}
+
+func (m dateKeymap) keybindings() [][]key.Binding {
+	return [][]key.Binding{
+		{m.NextField, m.PrevField, m.Arrows},
+		{m.Select, m.Cancel, m.Clear},
 	}
 }
 
@@ -127,7 +160,7 @@ func (m DateModel) View() string {
 
 	var b strings.Builder
 
-	help := ui.DefaultTheme().Help.Ellipsis.Render("arrow keys: adjust • tab/shift+tab: switch fields\nenter: select • backspace: clear • esc: cancel")
+	help := m.help.FullHelpView(m.keymap.keybindings())
 
 	var dateStyle lipgloss.Style
 	var timeStyle lipgloss.Style
@@ -147,11 +180,7 @@ func (m DateModel) View() string {
 			timeStyle.Render(m.tm.View()),
 		))
 	} else {
-		b.WriteString(lipgloss.JoinVertical(
-			lipgloss.Center,
-			dateStyle.Render(m.dm.View()),
-			help,
-		))
+		b.WriteString(dateStyle.Render(m.dm.View()))
 	}
-	return b.String()
+	return lipgloss.JoinVertical(lipgloss.Left, b.String(), help)
 }
