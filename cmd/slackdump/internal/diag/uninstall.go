@@ -93,7 +93,7 @@ func uninstallRod(_ context.Context, si info.RodInfo) error {
 		return errors.New("unable to determine rod browser path")
 	}
 	lg := cfg.Log
-	lg.Printf("Deleting Incogniton Browser...")
+	lg.Printf("Deleting incognito Browser...")
 	_ = slackauth.RemoveBrowser() // just to make sure.
 	lg.Printf("Deleting %s...", si.Path)
 	if err := os.RemoveAll(si.Path); err != nil {
