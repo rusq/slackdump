@@ -95,7 +95,7 @@ func Test_exportV3(t *testing.T) {
 }
 
 func load(t *testing.T, filename string) io.ReadSeeker {
-	absPath, err := filepath.Abs(largeFile)
+	absPath, err := filepath.Abs(filename)
 	if err != nil {
 		t.Fatal(err)
 	}
