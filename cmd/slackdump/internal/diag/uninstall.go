@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/rusq/slackauth"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/diag/info"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
@@ -87,12 +88,14 @@ func uninstallPlaywright(ctx context.Context, si info.PwInfo) error {
 	return nil
 }
 
-func uninstallRod(ctx context.Context, si info.RodInfo) error {
+func uninstallRod(_ context.Context, si info.RodInfo) error {
 	if si.Path == "" {
 		return errors.New("unable to determine rod browser path")
 	}
-	lg := logger.FromContext(ctx)
-	lg.Printf("Deleting %s", si.Path)
+	lg := cfg.Log
+	lg.Printf("Deleting Incogniton Browser...")
+	_ = slackauth.RemoveBrowser() // just to make sure.
+	lg.Printf("Deleting %s...", si.Path)
 	if err := os.RemoveAll(si.Path); err != nil {
 		return fmt.Errorf("failed to remove the rod browser: %w", err)
 	}
