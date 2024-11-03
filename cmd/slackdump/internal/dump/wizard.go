@@ -2,7 +2,6 @@ package dump
 
 import (
 	"context"
-	"strings"
 
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/cfgui"
@@ -19,7 +18,7 @@ func WizDump(ctx context.Context, cmd *base.Command, args []string) error {
 		LocalConfig: opts.configuration,
 		Cmd:         cmd,
 		ArgsFn: func() []string {
-			return splitEntryList(entryList)
+			return structures.SplitEntryList(entryList)
 		},
 		ValidateParamsFn: func() error {
 			return structures.ValidateEntityList(entryList)
@@ -30,16 +29,12 @@ func WizDump(ctx context.Context, cmd *base.Command, args []string) error {
 
 var entryList string
 
-func splitEntryList(s string) []string {
-	return strings.Split(s, " ")
-}
-
 func (o *options) configuration() cfgui.Configuration {
 	return cfgui.Configuration{
 		{
 			Name: "Required",
 			Params: []cfgui.Parameter{
-				cfgui.ChannelIDs(&entryList),
+				cfgui.ChannelIDs(&entryList, true),
 			},
 		}, {
 			Name: "Optional",

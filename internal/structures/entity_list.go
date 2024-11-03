@@ -75,6 +75,11 @@ func ValidateEntityList(s string) error {
 	return err
 }
 
+// SplitEntryList splits the string by space.
+func SplitEntryList(s string) []string {
+	return strings.Split(s, " ")
+}
+
 // LoadEntityList creates an EntityList from a slice of IDs or URLs (entites).
 func LoadEntityList(filename string) (*EntityList, error) {
 	f, err := os.Open(filename)

@@ -63,7 +63,7 @@ var (
 )
 
 func DefaultTheme() Theme {
-	// https://gist.github.com/JBlond/2fea43a3049b38287e5e9cefc87b2124
+	// https://gist.github.com/JBlond/2fea43a3049b38287e5e9c`efc87b2124
 	return Theme{
 		Focused: ControlStyle{
 			Border:         lipgloss.NewStyle().BorderLeft(true).BorderForeground(cyan).BorderStyle(lipgloss.ThickBorder()).Padding(0, 1),
@@ -82,7 +82,7 @@ func DefaultTheme() Theme {
 				Name:          lipgloss.NewStyle().Foreground(green),
 				EnabledValue:  lipgloss.NewStyle().Foreground(white),
 				DisabledValue: lipgloss.NewStyle().Foreground(green),
-				SelectedName:  lipgloss.NewStyle().Foreground(black).Background(green),
+				SelectedName:  lipgloss.NewStyle().Foreground(black).Underline(true).Background(green),
 			},
 		},
 		Blurred: ControlStyle{

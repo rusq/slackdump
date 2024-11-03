@@ -11,6 +11,7 @@ import (
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/dumpui"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/updaters"
 	"github.com/rusq/slackdump/v3/internal/chunk/transform/fileproc"
+	"github.com/rusq/slackdump/v3/internal/structures"
 )
 
 func wizExport(ctx context.Context, cmd *base.Command, args []string) error {
@@ -19,15 +20,24 @@ func wizExport(ctx context.Context, cmd *base.Command, args []string) error {
 		Name:        "Export",
 		Cmd:         cmd,
 		LocalConfig: options.configuration,
+		ArgsFn: func() []string {
+			if len(entryList) > 0 {
+				return structures.SplitEntryList(entryList)
+			}
+			return nil
+		},
 	}
 	return w.Run(ctx)
 }
+
+var entryList string
 
 func (fl *exportFlags) configuration() cfgui.Configuration {
 	return cfgui.Configuration{
 		{
 			Name: "Optional",
 			Params: []cfgui.Parameter{
+				cfgui.ChannelIDs(&entryList, false),
 				{
 					Name:        "Export Storage Type",
 					Value:       fl.ExportStorageType.String(),

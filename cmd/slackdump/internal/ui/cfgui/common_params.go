@@ -7,11 +7,17 @@ import (
 
 // Common reusable parameters
 
-func ChannelIDs(v *string) Parameter {
+func ChannelIDs(v *string, required bool) Parameter {
+	name := "Channel IDs or URLs"
+	descr := "List of channel IDs or URLs to dump"
+	if required {
+		name = "* " + name
+		descr = descr + " (REQUIRED)"
+	}
 	return Parameter{
-		Name:        "* Channel IDs or URLs",
+		Name:        name,
 		Value:       *v,
-		Description: "List of channel IDs or URLs to dump (REQUIRED)",
+		Description: descr,
 		Inline:      true,
 		Updater:     updaters.NewString(v, "", true, structures.ValidateEntityList),
 	}

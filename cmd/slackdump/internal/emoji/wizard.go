@@ -2,32 +2,35 @@ package emoji
 
 import (
 	"context"
-	"fmt"
 
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/cfgui"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/dumpui"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/updaters"
 )
 
 func wizard(ctx context.Context, cmd *base.Command, args []string) error {
-	var baseloc string
-	for {
-		var err error
-		baseloc, err = ui.FileSelector("Enter directory or ZIP file name: ", "Emojis will be saved to this directory or ZIP file")
-		if err != nil {
-			return err
-		}
-		if baseloc != "-" && baseloc != "" {
-			break
-		}
-		fmt.Println("invalid filename")
+	w := dumpui.Wizard{
+		Title:       "Emoji dump",
+		Name:        "Emoji",
+		Cmd:         CmdEmoji,
+		LocalConfig: cmdFlags.configuration,
 	}
-	cfg.Output = baseloc
+	return w.Run(ctx)
+}
 
-	var err error
-	ignoreErrors, err = ui.Confirm("Ignore download errors?", true)
-	if err != nil {
-		return err
+func (o *options) configuration() cfgui.Configuration {
+	return cfgui.Configuration{
+		cfgui.ParamGroup{
+			Name: "Download Options",
+			Params: []cfgui.Parameter{
+				{
+					Name:        "Ignore Download Errors",
+					Value:       cfgui.Checkbox(o.ignoreErrors),
+					Description: "Ignore download errors and continue",
+					Updater:     updaters.NewBool(&o.ignoreErrors),
+				},
+			},
+		},
 	}
-	return run(ctx, cmd, args)
 }
