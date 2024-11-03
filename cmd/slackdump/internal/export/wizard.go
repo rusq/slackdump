@@ -5,10 +5,12 @@ import (
 	"errors"
 	"regexp"
 
+	"github.com/charmbracelet/huh"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/cfgui"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/dumpui"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/updaters"
+	"github.com/rusq/slackdump/v3/internal/chunk/transform/fileproc"
 )
 
 func wizExport(ctx context.Context, cmd *base.Command, args []string) error {
@@ -30,8 +32,15 @@ func (fl *exportFlags) configuration() cfgui.Configuration {
 					Name:        "Export Storage Type",
 					Value:       fl.ExportStorageType.String(),
 					Description: "Export file storage type",
-					Inline:      true,
-					// TODO: V3 Implement Updater for ExportStorageType
+					Inline:      false,
+					Updater: updaters.NewPicklist(&fl.ExportStorageType, huh.NewSelect[fileproc.StorageType]().
+						Title("Choose File storage type").
+						Description("test").
+						Options(
+							huh.NewOption("Mattermost", fileproc.STmattermost),
+							huh.NewOption("Standard", fileproc.STstandard),
+							huh.NewOption("Disable", fileproc.STnone),
+						)),
 				},
 				{
 					Name:        "Member Only",
