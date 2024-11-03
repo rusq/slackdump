@@ -20,8 +20,8 @@ import (
 	"github.com/rusq/slack"
 	"github.com/rusq/slackauth"
 	"github.com/rusq/slackdump/v3/auth"
-	"github.com/rusq/slackdump/v3/internal/tagmagic"
 	"github.com/rusq/slackdump/v3/logger"
+	"github.com/rusq/tagops"
 )
 
 type Client struct {
@@ -298,9 +298,9 @@ func parseRetryAfter(resp *http.Response) (time.Duration, error) {
 
 // values returns url.Values from a struct.  If omitempty is true, then the
 // empty values are omitted for the fields that have the `omitempty` tag.
-func values[T any](s T, omitempty bool) url.Values {
+func values(s any, omitempty bool) url.Values {
 	var v = make(url.Values)
-	m := tagmagic.ToMap(s, omitempty)
+	m := tagops.ToMap(s, "json", omitempty, true)
 	for k, val := range m {
 		v.Set(k, fmt.Sprint(val))
 	}

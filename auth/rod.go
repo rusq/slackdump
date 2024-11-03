@@ -7,6 +7,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/charmbracelet/huh/spinner"
 	"github.com/rusq/slackauth"
 
 	"github.com/rusq/slackdump/v3/auth/auth_ui"
@@ -60,11 +61,10 @@ func (ro rodOpts) slackauthOpts() []slackauth.Option {
 }
 
 type browserAuthUIExt interface {
-	BrowserAuthUI
 	// RequestLoginType should request the login type from the user and return
 	// one of the [auth_ui.LoginType] constants.  The implementation should
 	// provide a way to cancel the login flow, returning [auth_ui.LoginCancel].
-	RequestLoginType(w io.Writer) (auth_ui.LoginOpts, error)
+	RequestLoginType(w io.Writer, workspace string) (auth_ui.LoginOpts, error)
 	// RequestCreds should request the user's email and password and return
 	// them.
 	RequestCreds(w io.Writer, workspace string) (email string, passwd string, err error)
@@ -89,23 +89,13 @@ func NewRODAuth(ctx context.Context, opts ...Option) (RodAuth, error) {
 	for _, opt := range opts {
 		opt(&r.opts)
 	}
-	if r.opts.workspace == "" {
-		var err error
-		r.opts.workspace, err = r.opts.ui.RequestWorkspace(os.Stdout)
-		if err != nil {
-			return r, err
-		}
-		if r.opts.workspace == "" {
-			return r, fmt.Errorf("workspace cannot be empty")
-		}
-	}
 	if wsp, err := auth_ui.Sanitize(r.opts.workspace); err != nil {
 		return r, err
 	} else {
 		r.opts.workspace = wsp
 	}
 
-	resp, err := r.opts.ui.RequestLoginType(os.Stdout)
+	resp, err := r.opts.ui.RequestLoginType(os.Stdout, r.opts.workspace)
 	if err != nil {
 		return r, err
 	}
@@ -117,7 +107,7 @@ func NewRODAuth(ctx context.Context, opts ...Option) (RodAuth, error) {
 	}
 
 	cl, err := slackauth.New(
-		r.opts.workspace,
+		resp.Workspace,
 		sopts...,
 	)
 	if err != nil {
@@ -137,14 +127,13 @@ func NewRODAuth(ctx context.Context, opts ...Option) (RodAuth, error) {
 			return r, err
 		}
 	case auth_ui.LHeadless:
-		sp, err = headlessFlow(ctx, cl, r.opts.workspace, r.opts.ui)
+		sp, err = headlessFlow(ctx, cl, resp.Workspace, r.opts.ui)
 		if err != nil {
 			return r, err
 		}
 	case auth_ui.LCancel:
 		return r, ErrCancelled
 	}
-
 	lg.Printf("✅ authenticated (time taken: %s)", time.Since(t))
 
 	return RodAuth{
@@ -163,12 +152,22 @@ func headlessFlow(ctx context.Context, cl *slackauth.Client, workspace string, u
 	if password == "" {
 		return sp, fmt.Errorf("password cannot be empty")
 	}
-	logger.FromContext(ctx).Println("⏳ Logging in to Slack, depending on your connection speed, it will take 25-40 seconds...")
+
+	sctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	go func() {
+		_ = spinner.New().
+			Type(spinner.Dots).
+			Title("Logging in to Slack, it will take 25-40 seconds").
+			Context(sctx).
+			Run()
+	}()
 
 	var loginErr error
 	sp.Token, sp.Cookie, loginErr = cl.Headless(ctx, username, password)
 	if loginErr != nil {
 		return sp, loginErr
 	}
+
 	return
 }

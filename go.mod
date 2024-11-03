@@ -7,6 +7,7 @@ require (
 	github.com/charmbracelet/bubbles v0.20.0
 	github.com/charmbracelet/bubbletea v1.1.2
 	github.com/charmbracelet/huh v0.6.0
+	github.com/charmbracelet/huh/spinner v0.0.0-20241028115900-20a4d21717a8
 	github.com/charmbracelet/lipgloss v1.0.0
 	github.com/davecgh/go-spew v1.1.1
 	github.com/enescakir/emoji v1.0.0
@@ -28,6 +29,7 @@ require (
 	github.com/rusq/rbubbles v0.0.2
 	github.com/rusq/slack v0.9.6-0.20240712095442-5a0e2e405a99
 	github.com/rusq/slackauth v0.5.1
+	github.com/rusq/tagops v0.0.2
 	github.com/rusq/tracer v1.0.1
 	github.com/schollz/progressbar/v3 v3.17.0
 	github.com/stretchr/testify v1.9.0
