@@ -20,13 +20,13 @@ func (h *Huh) RequestWorkspace(w io.Writer) (string, error) {
 		huh.NewInput().
 			Title("Enter Slack workspace name").
 			Value(&workspace).
-			Validate(valRequired).
+			Validate(valWorkspace).
 			Description("The workspace name is the part of the URL that comes before `.slack.com' in\nhttps://<workspace>.slack.com/.  Both workspace name or URL are acceptable."),
 	)).Run()
 	if err != nil {
 		return "", err
 	}
-	return Sanitize(workspace)
+	return workspace, nil
 }
 
 func (*Huh) Stop() {}
@@ -61,7 +61,7 @@ func (m methodMenuItem) String() string {
 
 var methods = []methodMenuItem{
 	{
-		"Manual",
+		"Interactive",
 		"Works with most authentication schemes, except Google.",
 		LInteractive,
 	},
@@ -71,18 +71,33 @@ var methods = []methodMenuItem{
 		LHeadless,
 	},
 	{
-		"User's Browser",
+		"User Browser",
 		"Loads your user profile, works with Google Auth",
 		LUserBrowser,
 	},
 }
 
 type LoginOpts struct {
+	Workspace   string
 	Type        LoginType
 	BrowserPath string
 }
 
-func (*Huh) RequestLoginType(w io.Writer) (LoginOpts, error) {
+func valWorkspace(s string) error {
+	if err := valRequired(s); err != nil {
+		return err
+	}
+	_, err := Sanitize(s)
+	return err
+}
+
+func (*Huh) RequestLoginType(w io.Writer, workspace string) (LoginOpts, error) {
+	var ret = LoginOpts{
+		Workspace:   workspace,
+		Type:        LInteractive,
+		BrowserPath: "",
+	}
+
 	var opts = make([]huh.Option[LoginType], 0, len(methods))
 	for _, m := range methods {
 		opts = append(opts, huh.NewOption(m.String(), m.Type))
@@ -91,41 +106,49 @@ func (*Huh) RequestLoginType(w io.Writer) (LoginOpts, error) {
 		huh.NewOption("------", LoginType(-1)),
 		huh.NewOption("Cancel", LCancel),
 	)
-	var loginType LoginType
-	err := huh.NewForm(huh.NewGroup(
-		huh.NewSelect[LoginType]().Title("Select login type").
-			Options(opts...).
-			Value(&loginType).
-			Validate(valSepEaster()).
-			DescriptionFunc(func() string {
-				switch loginType {
-				case LInteractive:
-					return "Clean browser will open on a Slack Login page."
-				case LHeadless:
-					return "You will be prompted to enter your email and password, login is automated."
-				case LUserBrowser:
-					return "System browser will open on a Slack Login page."
-				case LCancel:
-					return "Cancel the login process."
-				default:
-					return ""
-				}
-			}, &loginType),
-	)).Run()
-	if err != nil {
-		return LoginOpts{Type: LCancel}, err
+	var fields []huh.Field
+	if workspace == "" {
+		fields = append(fields, huh.NewInput().
+			Title("Enter Slack workspace name").
+			Value(&ret.Workspace).
+			Validate(valWorkspace).
+			Description("The workspace name is the part of the URL that comes before `.slack.com' in\nhttps://<workspace>.slack.com/.  Both workspace name or URL are acceptable."),
+		)
 	}
-	if loginType == LUserBrowser {
+
+	fields = append(fields, huh.NewSelect[LoginType]().
+		TitleFunc(func() string {
+			return fmt.Sprintf("Select login type for [%s]", ret.Workspace)
+		}, &ret.Workspace).
+		Options(opts...).
+		Value(&ret.Type).
+		Validate(valSepEaster()).
+		DescriptionFunc(func() string {
+			switch ret.Type {
+			case LInteractive:
+				return "Clean browser will open on a Slack Login page."
+			case LHeadless:
+				return "You will be prompted to enter your email and password, login is automated."
+			case LUserBrowser:
+				return "System browser will open on a Slack Login page."
+			case LCancel:
+				return "Cancel the login process."
+			default:
+				return ""
+			}
+		}, &ret.Type))
+	if err := huh.NewForm(huh.NewGroup(fields...)).Run(); err != nil {
+		return ret, err
+	}
+	if ret.Type == LUserBrowser {
 		path, err := chooseBrowser()
 		if err != nil {
-			return LoginOpts{Type: LCancel}, err
+			return ret, err
 		}
-		return LoginOpts{
-			Type:        LUserBrowser,
-			BrowserPath: path,
-		}, err
+		ret.BrowserPath = path
+		return ret, err
 	}
-	return LoginOpts{Type: loginType}, nil
+	return ret, nil
 }
 
 func chooseBrowser() (string, error) {
