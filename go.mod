@@ -5,6 +5,7 @@ go 1.23
 require (
 	github.com/MercuryEngineering/CookieMonster v0.0.0-20180304172713-1584578b3403
 	github.com/charmbracelet/huh v0.6.0
+	github.com/charmbracelet/huh/spinner v0.0.0-20241028115900-20a4d21717a8
 	github.com/denisbrodbeck/machineid v1.0.1
 	github.com/fatih/color v1.17.0
 	github.com/joho/godotenv v1.5.1
