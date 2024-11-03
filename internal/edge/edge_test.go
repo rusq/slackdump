@@ -6,12 +6,13 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"testing"
 
 	"github.com/joho/godotenv"
-
 	"github.com/rusq/slackdump/v3/auth"
+	"github.com/stretchr/testify/assert"
 )
 
 var _ = godotenv.Load()
@@ -74,4 +75,57 @@ func TestGetUsers(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Error(ui)
+}
+
+func Test_values(t *testing.T) {
+	type args struct {
+		s         any
+		omitempty bool
+	}
+	tests := []struct {
+		name string
+		args args
+		want url.Values
+	}{
+		{
+			name: "empty",
+			args: args{
+				s:         conversationsGenericInfoForm{},
+				omitempty: true,
+			},
+			want: url.Values{
+				"_x_app_name":      []string{""},
+				"_x_sonic":         []string{"false"},
+				"token":            []string{""},
+				"updated_channels": []string{""},
+			},
+		},
+		{
+			name: "converts fields to url.Values",
+			args: args{
+				s: conversationsGenericInfoForm{
+					BaseRequest: BaseRequest{
+						Token: "token-value",
+					},
+					UpdatedChannels: `{"C0412851":0}`,
+					WebClientFields: webclientReason("fallback:UnknownFetchManager"),
+				},
+				omitempty: true,
+			},
+			want: url.Values{
+				"token":            []string{"token-value"},
+				"updated_channels": []string{`{"C0412851":0}`},
+				"_x_reason":        []string{"fallback:UnknownFetchManager"},
+				"_x_mode":          []string{"online"},
+				"_x_sonic":         []string{"true"},
+				"_x_app_name":      []string{"client"},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := values(tt.args.s, tt.args.omitempty)
+			assert.Equal(t, tt.want, got)
+		})
+	}
 }
