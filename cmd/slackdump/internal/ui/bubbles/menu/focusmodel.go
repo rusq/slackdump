@@ -1,4 +1,4 @@
-package dumpui
+package menu
 
 import tea "github.com/charmbracelet/bubbletea"
 

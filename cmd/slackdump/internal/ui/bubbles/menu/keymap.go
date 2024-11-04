@@ -1,4 +1,4 @@
-package dumpui
+package menu
 
 import "github.com/charmbracelet/bubbles/key"
 

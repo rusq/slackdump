@@ -6,6 +6,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/bubbles/menu"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/cfgui"
 )
 
@@ -42,10 +43,10 @@ var description = map[string]string{
 }
 
 func (w *Wizard) Run(ctx context.Context) error {
-	var menu = func() *Model {
-		var items []MenuItem
+	var menu = func() *menu.Model {
+		var items []menu.MenuItem
 		if w.LocalConfig != nil {
-			items = append(items, MenuItem{
+			items = append(items, menu.MenuItem{
 				ID:    actLocalConfig,
 				Name:  "Configure " + w.Name + "...",
 				Help:  description[actLocalConfig],
@@ -55,7 +56,7 @@ func (w *Wizard) Run(ctx context.Context) error {
 
 		items = append(
 			items,
-			MenuItem{
+			menu.MenuItem{
 				ID:   actRun,
 				Name: "Run " + w.Name,
 				Help: description[actRun],
@@ -68,7 +69,7 @@ func (w *Wizard) Run(ctx context.Context) error {
 			},
 		)
 		if w.Help != "" {
-			items = append(items, MenuItem{
+			items = append(items, menu.MenuItem{
 				ID:   "help",
 				Name: "Help",
 				Help: "Read help for " + w.Name,
@@ -76,18 +77,18 @@ func (w *Wizard) Run(ctx context.Context) error {
 		}
 
 		items = append(items,
-			MenuItem{Separator: true},
-			MenuItem{
+			menu.MenuItem{Separator: true},
+			menu.MenuItem{
 				ID:    actGlobalConfig,
 				Name:  "Global Configuration...",
 				Help:  description[actGlobalConfig],
 				Model: cfgui.NewConfigUI(cfgui.DefaultStyle(), cfgui.GlobalConfig), // TODO: filthy cast
 			},
-			MenuItem{Separator: true},
-			MenuItem{ID: actExit, Name: "Exit", Help: description[actExit]},
+			menu.MenuItem{Separator: true},
+			menu.MenuItem{ID: actExit, Name: "Exit", Help: description[actExit]},
 		)
 
-		return NewModel(w.Title, items, false)
+		return menu.New(w.Title, items, false)
 	}
 
 LOOP:

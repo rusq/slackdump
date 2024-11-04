@@ -1,4 +1,4 @@
-package dumpui
+package menu
 
 // MenuItem is an item in a menu.
 type MenuItem struct {

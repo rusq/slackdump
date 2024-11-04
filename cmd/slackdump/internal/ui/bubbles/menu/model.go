@@ -1,4 +1,4 @@
-package dumpui
+package menu
 
 import (
 	"strings"
@@ -30,7 +30,7 @@ type Model struct {
 	cursor int
 }
 
-func NewModel(title string, items []MenuItem, preview bool) *Model {
+func New(title string, items []MenuItem, preview bool) *Model {
 	return &Model{
 		title:     title,
 		items:     items,
