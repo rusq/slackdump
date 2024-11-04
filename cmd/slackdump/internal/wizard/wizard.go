@@ -108,7 +108,7 @@ func makeMenu(cmds []*base.Command, parent string, title string) (m *menu) {
 			Description: cmd.Short,
 			cmd:         cmd,
 		}
-		if len(cmd.Commands) > 0 {
+		if hasSubcommands && !hasWizard {
 			item.Submenu = makeMenu(cmd.Commands, name, name)
 		}
 

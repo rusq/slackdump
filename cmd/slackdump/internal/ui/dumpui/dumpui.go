@@ -23,6 +23,8 @@ type Wizard struct {
 	ValidateParamsFn func() error
 	// Cmd is the command to run.
 	Cmd *base.Command
+	// Help is the markdown help text.
+	Help string
 }
 
 const (
@@ -41,8 +43,19 @@ var description = map[string]string{
 
 func (w *Wizard) Run(ctx context.Context) error {
 	var menu = func() *Model {
-		items := []MenuItem{
-			{
+		var items []MenuItem
+		if w.LocalConfig != nil {
+			items = append(items, MenuItem{
+				ID:    actLocalConfig,
+				Name:  "Configure " + w.Name + "...",
+				Help:  description[actLocalConfig],
+				Model: cfgui.NewConfigUI(cfgui.DefaultStyle(), w.LocalConfig),
+			})
+		}
+
+		items = append(
+			items,
+			MenuItem{
 				ID:   actRun,
 				Name: "Run " + w.Name,
 				Help: description[actRun],
@@ -53,17 +66,17 @@ func (w *Wizard) Run(ctx context.Context) error {
 					return nil
 				},
 			},
-		}
-		if w.LocalConfig != nil {
+		)
+		if w.Help != "" {
 			items = append(items, MenuItem{
-				ID:    actLocalConfig,
-				Name:  w.Name + " Configuration...",
-				Help:  description[actLocalConfig],
-				Model: cfgui.NewConfigUI(cfgui.DefaultStyle(), w.LocalConfig),
+				ID:   "help",
+				Name: "Help",
+				Help: "Read help for " + w.Name,
 			})
 		}
-		items = append(
-			items,
+
+		items = append(items,
+			MenuItem{Separator: true},
 			MenuItem{
 				ID:    actGlobalConfig,
 				Name:  "Global Configuration...",

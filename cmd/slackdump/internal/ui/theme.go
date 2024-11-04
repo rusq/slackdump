@@ -82,7 +82,7 @@ func DefaultTheme() Theme {
 				Name:          lipgloss.NewStyle().Foreground(green),
 				EnabledValue:  lipgloss.NewStyle().Foreground(white),
 				DisabledValue: lipgloss.NewStyle().Foreground(green),
-				SelectedName:  lipgloss.NewStyle().Foreground(black).Underline(true).Background(green),
+				SelectedName:  lipgloss.NewStyle().Foreground(black).Background(green),
 			},
 		},
 		Blurred: ControlStyle{
