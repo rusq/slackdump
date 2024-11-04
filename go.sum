@@ -14,6 +14,8 @@ github.com/charmbracelet/bubbles v0.20.0 h1:jSZu6qD8cRQ6k9OMfR1WlM+ruM8fkPWkHvQW
 github.com/charmbracelet/bubbles v0.20.0/go.mod h1:39slydyswPy+uVOHZ5x/GjwVAFkCsV8IIVy+4MhzwwU=
 github.com/charmbracelet/bubbletea v1.1.2 h1:naQXF2laRxyLyil/i7fxdpiz1/k06IKquhm4vBfHsIc=
 github.com/charmbracelet/bubbletea v1.1.2/go.mod h1:9HIU/hBV24qKjlehyj8z1r/tR9TYTQEag+cWZnuXo8E=
+github.com/charmbracelet/huh v0.5.3 h1:3KLP4a/K1/S4dq4xFMTNMt3XWhgMl/yx8NYtygQ0bmg=
+github.com/charmbracelet/huh v0.5.3/go.mod h1:OZC3lshuF+/y8laj//DoZdFSHxC51OrtXLJI8xWVouQ=
 github.com/charmbracelet/huh v0.6.0 h1:mZM8VvZGuE0hoDXq6XLxRtgfWyTI3b2jZNKh0xWmax8=
 github.com/charmbracelet/huh v0.6.0/go.mod h1:GGNKeWCeNzKpEOh/OJD8WBwTQjV3prFAtQPpLv+AVwU=
 github.com/charmbracelet/huh/spinner v0.0.0-20241028115900-20a4d21717a8 h1:g+Bz64hsMLTf3lAgUqI6Rj1YEAlm/HN39IuhyneCokc=

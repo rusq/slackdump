@@ -9,9 +9,9 @@ import (
 )
 
 type Model[T comparable] struct {
-	s         *huh.Select[T]
-	finishing bool
+	s         huh.Field
 	help      help.Model
+	finishing bool
 
 	// value
 	initial T
@@ -19,12 +19,11 @@ type Model[T comparable] struct {
 }
 
 func NewPicklist[T comparable](v *T, s *huh.Select[T]) *Model[T] {
-	s = s.Value(v).
-		WithTheme(ui.HuhTheme).
-		WithKeyMap(huh.NewDefaultKeyMap()).(*huh.Select[T])
-
 	m := &Model[T]{
-		s:    s,
+		s: s.Value(v).
+			Description("Select an option").
+			WithTheme(ui.HuhTheme).
+			WithKeyMap(huh.NewDefaultKeyMap()),
 		help: help.New(),
 
 		initial: *v,
@@ -55,7 +54,7 @@ func (m *Model[T]) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	{
 		// update the select control
 		mod, cmd := m.s.Update(msg)
-		if mod, ok := mod.(*huh.Select[T]); ok {
+		if mod, ok := mod.(huh.Field); ok {
 			m.s = mod
 		}
 		cmds = append(cmds, cmd)

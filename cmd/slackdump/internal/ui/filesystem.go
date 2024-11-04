@@ -31,7 +31,7 @@ func FileSelector(msg, descr string, opt ...Option) (string, error) {
 	var resp struct {
 		Filename string
 	}
-	q := fieldFileInput(&resp.Filename, msg, descr, *opts)
+	q := huh.NewForm(huh.NewGroup(fieldFileInput(&resp.Filename, msg, descr, *opts))).WithTheme(HuhTheme)
 
 	for {
 		if err := q.Run(); err != nil {

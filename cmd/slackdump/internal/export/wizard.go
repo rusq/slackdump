@@ -45,7 +45,6 @@ func (fl *exportFlags) configuration() cfgui.Configuration {
 					Inline:      false,
 					Updater: updaters.NewPicklist(&fl.ExportStorageType, huh.NewSelect[fileproc.StorageType]().
 						Title("Choose File storage type").
-						Description("test").
 						Options(
 							huh.NewOption("Mattermost", fileproc.STmattermost),
 							huh.NewOption("Standard", fileproc.STstandard),

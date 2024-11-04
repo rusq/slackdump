@@ -12,12 +12,10 @@ import (
 
 func main() {
 	var result fileproc.StorageType
-
 	updaters.OnClose = tea.Quit
 
 	l := updaters.NewPicklist(&result, huh.NewSelect[fileproc.StorageType]().
 		Title("Title").
-		Description("Description").
 		Options(
 			huh.NewOption("None", fileproc.STnone),
 			huh.NewOption("Standard", fileproc.STstandard),
@@ -27,5 +25,6 @@ func main() {
 	if _, err := tea.NewProgram(l).Run(); err != nil {
 		log.Fatal(err)
 	}
+
 	fmt.Println("selected: ", result)
 }

@@ -83,7 +83,7 @@ func searchCfg() cfgui.Configuration {
 						default:
 							return "undefined search action"
 						}
-					}, &action)),
+					}, &action).Title("Search Scope")),
 				},
 			},
 		},

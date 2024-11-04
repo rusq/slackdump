@@ -184,11 +184,11 @@ func (m *Model) view() string {
 			p(sty.ItemDisabled.Render(iftrue(current, pointer, padding) + itm.Name))
 			continue
 		}
-		p(iftrue(
-			current,
-			sty.Cursor.Render(pointer)+sty.ItemSelected.Render(itm.Name),
-			sty.Item.Render(padding+itm.Name),
-		))
+		if current {
+			p(sty.Cursor.Render(pointer) + sty.ItemSelected.Render(itm.Name))
+		} else {
+			p(sty.Item.Render(padding + itm.Name))
+		}
 	}
 	p("\n" + m.footer())
 	return sty.Border.Render(b.String())

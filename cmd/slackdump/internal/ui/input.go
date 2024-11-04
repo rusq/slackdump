@@ -10,11 +10,11 @@ func Input(msg, help string, validateFn func(s string) error) (string, error) {
 		validateFn = NoValidation
 	}
 	var resp string
-	if err := huh.NewText().
+	if err := huh.NewForm(huh.NewGroup(huh.NewText().
 		Title(msg).
 		Description(help).
 		Validate(validateFn).
-		Value(&resp).
+		Value(&resp))).WithTheme(HuhTheme).
 		Run(); err != nil {
 		return "", err
 	}
