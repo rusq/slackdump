@@ -112,6 +112,21 @@ var testThreadsIndex = index{
 	"tC1234567890:1234567890.123458": []int64{619},
 }
 
+var archivedChannel = []Chunk{
+	{Type: CChannelInfo, ChannelID: TestChannelID, Channel: &slack.Channel{GroupConversation: slack.GroupConversation{IsArchived: true, Conversation: slack.Conversation{ID: TestChannelID}}}},
+	{Type: CMessages, ChannelID: TestChannelID, Messages: []slack.Message{
+		{Msg: slack.Msg{Timestamp: "1234567890.100000", Text: "message1"}},
+		{Msg: slack.Msg{Timestamp: "1234567890.200000", Text: "message2"}},
+		{Msg: slack.Msg{Timestamp: "1234567890.300000", Text: "message3"}},
+		{Msg: slack.Msg{Timestamp: "1234567890.400000", Text: "message4"}},
+		{Msg: slack.Msg{Timestamp: "1234567890.500000", Text: "message5"}},
+	}},
+	{Type: CMessages, ChannelID: TestChannelID, Messages: []slack.Message{
+		{Msg: slack.Msg{Timestamp: "1234567890.600000", Text: "Hello, again!"}},
+		{Msg: slack.Msg{Timestamp: "1234567890.700000", Text: "And again!"}},
+	}},
+}
+
 var testChunks = []Chunk{
 	{Type: CChannelInfo, ChannelID: TestChannelID, Channel: &slack.Channel{GroupConversation: slack.GroupConversation{Conversation: slack.Conversation{ID: TestChannelID}}}},
 	{Type: CChannelUsers, ChannelID: TestChannelID, ChannelUsers: []string{"user1", "user2"}},
@@ -801,6 +816,57 @@ func TestFile_AllChannelInfoWithMembers(t *testing.T) {
 				return
 			}
 			assert.Equal(t, got, tt.want)
+		})
+	}
+}
+
+func TestFile_ChannelInfo(t *testing.T) {
+	chanWithUsers := *testChunks[0].Channel
+	chanWithUsers.Members = testChunks[1].ChannelUsers
+	type args struct {
+		channelID string
+	}
+	tests := []struct {
+		name    string
+		file    *File
+		args    args
+		want    *slack.Channel
+		wantErr bool
+	}{
+		{
+			name: "normal channel",
+			file: &File{
+				rs:  marshalChunks(testChunks...),
+				idx: mkindex(marshalChunks(testChunks...)),
+			},
+			args: args{
+				channelID: TestChannelID,
+			},
+			want:    &chanWithUsers,
+			wantErr: false,
+		},
+		{
+			name: "archived channel",
+			file: &File{
+				rs:  marshalChunks(archivedChannel...),
+				idx: mkindex(marshalChunks(archivedChannel...)),
+			},
+			args: args{
+				channelID: TestChannelID,
+			},
+			want:    archivedChannel[0].Channel,
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := tt.file
+			got, err := f.ChannelInfo(tt.args.channelID)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("File.ChannelInfo() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }
