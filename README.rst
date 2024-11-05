@@ -52,6 +52,15 @@ Slackdump accepts two types of input (see `Dumping Conversations`_ section):
 Quick Start
 ===========
 
+On macOS, you can install Slackdump with Homebrew::
+
+.. code:: bash
+  
+  brew install slackdump
+
+
+On other Operating Systems, please follow these steps:
+
 #. Download the latest release for your operating system from the releases_
    page.
 #. Unpack the archive to any directory.
