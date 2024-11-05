@@ -96,6 +96,7 @@ func (idx UserIndex) IsDeleted(id string) bool {
 // ChannelName return the "beautified" name of the channel.
 func (idx UserIndex) ChannelName(ch slack.Channel) (who string) {
 	t := ChannelType(ch)
+
 	switch t {
 	case CIM:
 		who = "@" + idx.Username(ch.User)
@@ -106,5 +107,12 @@ func (idx UserIndex) ChannelName(ch slack.Channel) (who string) {
 	default:
 		who = "#" + NVL(ch.NameNormalized, ch.Name)
 	}
-	return who
+	return who + iftrue(ch.IsArchived, " (archived)", "")
+}
+
+func iftrue[T any](b bool, t, f T) T {
+	if b {
+		return t
+	}
+	return f
 }
