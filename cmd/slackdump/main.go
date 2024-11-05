@@ -40,10 +40,9 @@ func init() {
 	loadSecrets(secretFiles)
 
 	base.Slackdump.Commands = []*base.Command{
-		wizard.CmdWizard,
+		archive.CmdArchive,
 		export.CmdExport,
 		dump.CmdDump,
-		archive.CmdArchive,
 		archive.CmdSearch,
 		convertcmd.CmdConvert,
 		list.CmdList,
@@ -53,6 +52,7 @@ func init() {
 		apiconfig.CmdConfig,
 		format.CmdFormat,
 		view.CmdView,
+		wizard.CmdWizard,
 		CmdVersion,
 
 		man.WhatsNew,

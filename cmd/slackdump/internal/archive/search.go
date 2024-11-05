@@ -17,9 +17,11 @@ import (
 )
 
 var CmdSearch = &base.Command{
-	UsageLine: "slackdump search",
-	Short:     "dump search results",
-	Long:      `Searches for messages matching criteria.`,
+	UsageLine:   "slackdump search",
+	Short:       "dump search results",
+	Long:        `Searches for messages matching criteria.`,
+	Wizard:      wizSearch,
+	RequireAuth: true,
 	Commands: []*base.Command{
 		cmdSearchMessages,
 		cmdSearchFiles,

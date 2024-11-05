@@ -14,6 +14,8 @@ github.com/charmbracelet/bubbles v0.20.0 h1:jSZu6qD8cRQ6k9OMfR1WlM+ruM8fkPWkHvQW
 github.com/charmbracelet/bubbles v0.20.0/go.mod h1:39slydyswPy+uVOHZ5x/GjwVAFkCsV8IIVy+4MhzwwU=
 github.com/charmbracelet/bubbletea v1.1.2 h1:naQXF2laRxyLyil/i7fxdpiz1/k06IKquhm4vBfHsIc=
 github.com/charmbracelet/bubbletea v1.1.2/go.mod h1:9HIU/hBV24qKjlehyj8z1r/tR9TYTQEag+cWZnuXo8E=
+github.com/charmbracelet/huh v0.5.3 h1:3KLP4a/K1/S4dq4xFMTNMt3XWhgMl/yx8NYtygQ0bmg=
+github.com/charmbracelet/huh v0.5.3/go.mod h1:OZC3lshuF+/y8laj//DoZdFSHxC51OrtXLJI8xWVouQ=
 github.com/charmbracelet/huh v0.6.0 h1:mZM8VvZGuE0hoDXq6XLxRtgfWyTI3b2jZNKh0xWmax8=
 github.com/charmbracelet/huh v0.6.0/go.mod h1:GGNKeWCeNzKpEOh/OJD8WBwTQjV3prFAtQPpLv+AVwU=
 github.com/charmbracelet/huh/spinner v0.0.0-20241028115900-20a4d21717a8 h1:g+Bz64hsMLTf3lAgUqI6Rj1YEAlm/HN39IuhyneCokc=
@@ -133,6 +135,8 @@ github.com/rusq/secure v0.0.4 h1:svpiZHfHnx89eEDCCFI9OXG1Y8hL9kUWUG6fJbrWUOI=
 github.com/rusq/secure v0.0.4/go.mod h1:F1QilMKreuFRjov0UY7DZSIXn77/8RqMVGu2zV0RtqY=
 github.com/rusq/slack v0.9.6-0.20240712095442-5a0e2e405a99 h1:dqEcNs9hMc2PiMwhw8+Zi3wF8GNUHIK5OItZ01iM0Vk=
 github.com/rusq/slack v0.9.6-0.20240712095442-5a0e2e405a99/go.mod h1:9O0zQAFN6W47z4KpTQbe6vOHOzBO76vMg1+gthPwaTI=
+github.com/rusq/slack v0.9.6-0.20241104074952-d9b6e02955fa h1:meNaDH2eLwjAqvOxMlgb5+gaLz3Kufm9rVFkALhsCRs=
+github.com/rusq/slack v0.9.6-0.20241104074952-d9b6e02955fa/go.mod h1:9O0zQAFN6W47z4KpTQbe6vOHOzBO76vMg1+gthPwaTI=
 github.com/rusq/slackauth v0.5.1 h1:l+Gj96kYzHmljMYglRv76kgzuOJr/QbXDDA8JHyN71Q=
 github.com/rusq/slackauth v0.5.1/go.mod h1:wAtNCbeKH0pnaZnqJjG5RKY3e5BF9F2L/YTzhOjBIb0=
 github.com/rusq/tagops v0.0.2 h1:LkWsmpYSH5Q5IX3pv0Qm5PEKOtfjKqrwbJ3c19C1pvM=

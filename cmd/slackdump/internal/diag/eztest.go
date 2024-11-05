@@ -106,16 +106,10 @@ func tryPlaywrightAuth(ctx context.Context, wsp string) ezResult {
 
 	res.HasToken = len(prov.SlackToken()) > 0
 	res.HasCookies = len(prov.Cookies()) > 0
-	if err != nil {
-		res.Err = ptr(err.Error())
-		return res
-	}
 	return res
 }
 
-func ptr[T any](t T) *T {
-	return &t
-}
+func ptr[T any](t T) *T { return &t }
 
 func tryRodAuth(ctx context.Context, wsp string) ezResult {
 	ret := ezResult{Engine: "rod"}

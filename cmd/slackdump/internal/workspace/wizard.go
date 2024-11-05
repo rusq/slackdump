@@ -6,7 +6,6 @@ import (
 
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui"
@@ -54,19 +53,13 @@ func WorkspaceSelectModel(ctx context.Context, m *cache.Manager) (tea.Model, err
 		table.WithHeight(7),
 	)
 
-	s := table.DefaultStyles()
-	s.Header = s.Header.
-		BorderStyle(lipgloss.NormalBorder()).
-		Foreground(ui.HuhTheme.Focused.NoteTitle.GetForeground()).
-		BorderForeground(lipgloss.Color("240")).
-		BorderBottom(true).
-		Bold(false)
-	s.Selected = s.Selected.
-		Foreground(ui.HuhTheme.Focused.Option.GetBackground()).
-		Background(ui.HuhTheme.Focused.SelectedOption.GetForeground()).
-		Bold(false)
+	s := table.Styles{
+		Header:   ui.DefaultTheme().Focused.Title.Padding(0, 1),
+		Selected: ui.DefaultTheme().Focused.SelectedLine.Bold(true),
+		Cell:     ui.DefaultTheme().Focused.Text.Padding(0, 1),
+	}
 	t.SetStyles(s)
-
+	t.Focus()
 	return selectModel{table: t}, nil
 }
 

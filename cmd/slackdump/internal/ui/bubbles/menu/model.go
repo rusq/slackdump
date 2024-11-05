@@ -1,4 +1,4 @@
-package dumpui
+package menu
 
 import (
 	"strings"
@@ -30,7 +30,7 @@ type Model struct {
 	cursor int
 }
 
-func NewModel(title string, items []MenuItem, preview bool) *Model {
+func New(title string, items []MenuItem, preview bool) *Model {
 	return &Model{
 		title:     title,
 		items:     items,
@@ -139,6 +139,13 @@ func (m *Model) View() string {
 	return m.view()
 }
 
+func capfirst(s string) string {
+	if s == "" {
+		return ""
+	}
+	return strings.ToUpper(s[:1]) + s[1:]
+}
+
 func (m *Model) view() string {
 	var b strings.Builder
 
@@ -154,7 +161,7 @@ func (m *Model) view() string {
 	// Header
 	p(sty.Title.Render(m.title) + "\n")
 	if currentDisabled {
-		p(sty.Description.Render(currentItem.Validate().Error()))
+		p(sty.Description.Render("Requirements not met: " + capfirst(currentItem.Validate().Error())))
 	} else {
 		p(sty.Description.Render(m.items[m.cursor].Help))
 	}
@@ -177,13 +184,13 @@ func (m *Model) view() string {
 			p(sty.ItemDisabled.Render(iftrue(current, pointer, padding) + itm.Name))
 			continue
 		}
-		p(iftrue(
-			current,
-			sty.Cursor.Render(pointer)+sty.ItemSelected.Render(itm.Name),
-			sty.Item.Render(padding+itm.Name),
-		))
+		if current {
+			p(sty.Cursor.Render(pointer) + sty.ItemSelected.Render(itm.Name))
+		} else {
+			p(sty.Item.Render(padding + itm.Name))
+		}
 	}
-	b.WriteString("\n" + m.footer())
+	p("\n" + m.footer())
 	return sty.Border.Render(b.String())
 }
 

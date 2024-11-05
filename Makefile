@@ -51,7 +51,7 @@ clean:
 	-rm slackdump slackdump.exe $(wildcard *.zip)
 
 test:
-	go test -race -cover -count=3 ./...
+	go test -race -cover ./...
 
 aurtest:
 	GOFLAGS="-buildmode=pie -trimpath -ldflags=-linkmode=external -mod=readonly -modcacherw" go build -o 'deleteme' ./cmd/slackdump

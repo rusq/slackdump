@@ -383,9 +383,9 @@ func TestExportIndex_Marshal(t *testing.T) {
 			},
 			args{fsadapter.NewDirectory(dir)},
 			[]resultfile{
-				{"channels.json", 1877},
+				{"channels.json", 1979},
 				{"groups.json", 3},
-				{"mpims.json", 2070},
+				{"mpims.json", 2172},
 				{"dms.json", 955},
 				{"users.json", 16061},
 			},

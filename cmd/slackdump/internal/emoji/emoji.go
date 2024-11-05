@@ -14,7 +14,6 @@ import (
 
 var CmdEmoji = &base.Command{
 	Run:         run,
-	Wizard:      wizard,
 	UsageLine:   "slackdump emoji [flags]",
 	Short:       "download workspace emojis",
 	Long:        "", // TODO: add long description
@@ -23,13 +22,18 @@ var CmdEmoji = &base.Command{
 	PrintFlags:  true,
 }
 
-// emoji specific flags
-var (
+type options struct {
 	ignoreErrors bool
-)
+}
+
+// emoji specific flags
+var cmdFlags = options{
+	ignoreErrors: false,
+}
 
 func init() {
-	CmdEmoji.Flag.BoolVar(&ignoreErrors, "ignore-errors", true, "ignore download errors (skip failed emojis)")
+	CmdEmoji.Wizard = wizard
+	CmdEmoji.Flag.BoolVar(&cmdFlags.ignoreErrors, "ignore-errors", true, "ignore download errors (skip failed emojis)")
 }
 
 func run(ctx context.Context, cmd *base.Command, args []string) error {
@@ -45,7 +49,7 @@ func run(ctx context.Context, cmd *base.Command, args []string) error {
 		return fmt.Errorf("application error: %s", err)
 	}
 
-	if err := emojidl.DlFS(ctx, sess, fsa, ignoreErrors); err != nil {
+	if err := emojidl.DlFS(ctx, sess, fsa, cmdFlags.ignoreErrors); err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return fmt.Errorf("application error: %s", err)
 	}
