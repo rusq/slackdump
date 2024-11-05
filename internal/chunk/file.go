@@ -277,6 +277,10 @@ func (f *File) AllChannelInfos() ([]slack.Channel, error) {
 		return nil, err
 	}
 	for i := range chans {
+		if chans[i].IsArchived {
+			logger.Default.Debugf("skipping archived channel %s", chans[i].ID)
+			continue
+		}
 		members, err := f.ChannelUsers(chans[i].ID)
 		if err != nil {
 			if errors.Is(err, ErrNotFound) {
@@ -335,11 +339,13 @@ func (f *File) ChannelInfo(channelID string) (*slack.Channel, error) {
 	if err != nil {
 		return nil, err
 	}
-	users, err := f.ChannelUsers(channelID)
-	if err != nil {
-		return nil, fmt.Errorf("failed getting channel users for %q: %w", channelID, err)
+	if !info.IsArchived {
+		users, err := f.ChannelUsers(channelID)
+		if err != nil {
+			return nil, fmt.Errorf("failed getting channel users for %q: %w", channelID, err)
+		}
+		info.Members = users
 	}
-	info.Members = users
 	return info, nil
 }
 
