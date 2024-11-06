@@ -15,6 +15,9 @@ type MenuItem struct {
 	// Model is any model that should be displayed when the item is selected,
 	// or executed when the user presses enter.
 	Model FocusModel
+	// Preview suggests that the Model should attempt to show the preview
+	// of this item.
+	Preview bool
 	// Validate determines whether the item is disabled or not. It should
 	// complete in reasonable time, as it is called on every render.  The
 	// return error is used in the description for the item.
