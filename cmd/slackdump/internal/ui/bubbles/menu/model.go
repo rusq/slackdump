@@ -126,10 +126,10 @@ func (m *Model) View() string {
 	if m.finishing {
 		return ""
 	}
-	if m.items[m.cursor].Model != nil {
+	if item := m.items[m.cursor]; item.Model != nil {
 		if m.focused {
-			if m.preview {
-				return lipgloss.JoinHorizontal(lipgloss.Top, m.view(), m.items[m.cursor].Model.View())
+			if item.Preview && m.preview {
+				return lipgloss.JoinHorizontal(lipgloss.Top, m.view(), item.Model.View())
 			} else {
 				return m.view()
 			}

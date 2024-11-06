@@ -47,10 +47,11 @@ func (w *Wizard) Run(ctx context.Context) error {
 		var items []menu.MenuItem
 		if w.LocalConfig != nil {
 			items = append(items, menu.MenuItem{
-				ID:    actLocalConfig,
-				Name:  "Configure " + w.Name + "...",
-				Help:  description[actLocalConfig],
-				Model: cfgui.NewConfigUI(cfgui.DefaultStyle(), w.LocalConfig),
+				ID:      actLocalConfig,
+				Name:    w.Name + " Options...",
+				Help:    description[actLocalConfig],
+				Preview: true,
+				Model:   cfgui.NewConfigUI(cfgui.DefaultStyle(), w.LocalConfig),
 			})
 		}
 
@@ -88,7 +89,7 @@ func (w *Wizard) Run(ctx context.Context) error {
 			menu.MenuItem{ID: actExit, Name: "Exit", Help: description[actExit]},
 		)
 
-		return menu.New(w.Title, items, false)
+		return menu.New(w.Title, items, true)
 	}
 
 LOOP:
