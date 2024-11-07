@@ -22,7 +22,6 @@ import (
 
 var CmdRawOutput = &base.Command{
 	Run:       nil, // populated by init to break the init cycle
-	Wizard:    func(context.Context, *base.Command, []string) error { panic("not implemented") },
 	UsageLine: "slackdump tools rawoutput [flags] <id>",
 	Short:     "record raw API output",
 	Long: `
@@ -39,6 +38,7 @@ Running this tool may be requested by developers.
 	PrintFlags:  true,
 	RequireAuth: true,
 	Commands:    nil,
+	HideWizard:  true,
 }
 
 type rawOutputParams struct {
