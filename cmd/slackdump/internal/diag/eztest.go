@@ -16,7 +16,6 @@ import (
 
 var CmdEzTest = &base.Command{
 	Run:       runEzLoginTest,
-	Wizard:    func(ctx context.Context, cmd *base.Command, args []string) error { panic("not implemented") },
 	UsageLine: "slack tools eztest",
 	Short:     "EZ-Login 3000 test",
 	Long: `
@@ -87,7 +86,6 @@ func runEzLoginTest(ctx context.Context, cmd *base.Command, args []string) error
 		return errors.New(*res.Err)
 	}
 	return nil
-
 }
 
 func tryPlaywrightAuth(ctx context.Context, wsp string) ezResult {

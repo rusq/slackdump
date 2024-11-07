@@ -15,9 +15,10 @@ import (
 )
 
 var CmdRecord = &base.Command{
-	UsageLine: "slackdump tools record",
-	Short:     "chunk record commands",
-	Commands:  []*base.Command{cmdRecordStream, cmdRecordState},
+	UsageLine:  "slackdump tools record",
+	Short:      "chunk record commands",
+	Commands:   []*base.Command{cmdRecordStream, cmdRecordState},
+	HideWizard: true,
 }
 
 var cmdRecordStream = &base.Command{

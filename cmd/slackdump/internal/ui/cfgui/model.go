@@ -205,15 +205,17 @@ func (m *Model) view(sty StyleSet) string {
 			}
 			fmt.Fprintf(&buf, alignParam+namefmt.Render(fmt.Sprintf("% *s", keyLen, param.Name))+"  ")
 			if selected && m.state == inline {
-				buf.WriteString(m.child.View() + "\n")
+				buf.WriteString(m.child.View())
 			} else {
-				fmt.Fprintf(&buf, valfmt.Render(fmt.Sprintf("%-*s", valLen, nvl(param.Value)))+"\n")
+				fmt.Fprint(&buf, valfmt.Render(fmt.Sprintf("%-*s\n", valLen, nvl(param.Value))))
 			}
 			line++
 		}
 	}
-	buf.WriteString(alignGroup + sty.Description.Render(descr) + "\n")
-	buf.WriteString(m.help.ShortHelpView(m.keymap.Bindings()))
+	if m.focused {
+		buf.WriteString(alignGroup + sty.Description.Render(descr))
+		buf.WriteString("\n" + m.help.ShortHelpView(m.keymap.Bindings()))
+	}
 
 	return buf.String()
 }

@@ -13,10 +13,10 @@ import (
 
 var CmdEdge = &base.Command{
 	Run:         runEdge,
-	Wizard:      func(ctx context.Context, cmd *base.Command, args []string) error { panic("not implemented") },
 	UsageLine:   "slack tools edge",
 	Short:       "Edge test",
 	RequireAuth: true,
+	HideWizard:  true,
 	Long: `
 # Slack Edge API test tool
 
