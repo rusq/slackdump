@@ -19,12 +19,12 @@ import (
 )
 
 var CmdListUsers = &base.Command{
-	Run:        listUsers,
-	Wizard:     wizUsers,
-	UsageLine:  "slackdump list users [flags] [filename]",
-	PrintFlags: true,
-	FlagMask:   cfg.OmitDownloadFlag,
-	Short:      "list workspace users",
+	Run:         listUsers,
+	UsageLine:   "slackdump list users [flags] [filename]",
+	PrintFlags:  true,
+	FlagMask:    cfg.OmitDownloadFlag,
+	Short:       "list workspace users",
+	RequireAuth: true,
 	Long: fmt.Sprintf(`
 # List Users
 
@@ -34,7 +34,10 @@ Users are cached for %v.  To disable caching, use '-no-user-cache' flag and
 '-user-cache-retention' flag to control the caching behaviour.
 `+
 		sectListFormat, cfg.UserCacheRetention),
-	RequireAuth: true,
+}
+
+func init() {
+	CmdListUsers.Wizard = wizUsers
 }
 
 func listUsers(ctx context.Context, cmd *base.Command, args []string) error {
@@ -49,14 +52,6 @@ func listUsers(ctx context.Context, cmd *base.Command, args []string) error {
 		return err
 	}
 	return nil
-}
-
-func wizUsers(ctx context.Context, cmd *base.Command, args []string) error {
-	return wizard(ctx, func(ctx context.Context, sess *slackdump.Session) (any, string, error) {
-		var filename = makeFilename("users", sess.Info().TeamID, ".json")
-		users, err := sess.GetUsers(ctx)
-		return users, filename, err
-	})
 }
 
 //go:generate mockgen -source=users.go -destination=mocks_test.go -package=list userGetter,userCacher
