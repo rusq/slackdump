@@ -32,17 +32,39 @@ workspace has lots of them.
 
 The channels are cached, and the cache is valid for %s.  Use the -no-chan-cache
 and -chan-cache-retention flags to control the cache behavior.
-`+sectListFormat, chanCacheOpts.Retention),
+`+sectListFormat, chanFlags.cache.Retention),
 
 	RequireAuth: true,
 }
 
-var noresolve bool
+func init() {
+	CmdListChannels.Wizard = wizChannels
+}
+
+type channelOptions struct {
+	noResolve bool
+	cache     cacheOpts
+}
+
+type cacheOpts struct {
+	Disabled  bool
+	Retention time.Duration
+	Filename  string
+}
+
+var chanFlags = channelOptions{
+	noResolve: false,
+	cache: cacheOpts{
+		Disabled:  false,
+		Retention: 20 * time.Minute,
+		Filename:  "channels.json",
+	},
+}
 
 func init() {
-	CmdListChannels.Flag.BoolVar(&chanCacheOpts.Disabled, "no-chan-cache", chanCacheOpts.Disabled, "disable channel cache")
-	CmdListChannels.Flag.DurationVar(&chanCacheOpts.Retention, "chan-cache-retention", chanCacheOpts.Retention, "channel cache retention time.  After this time, the cache is considered stale and will be refreshed.")
-	CmdListChannels.Flag.BoolVar(&noresolve, "no-resolve", noresolve, "do not resolve user IDs to names")
+	CmdListChannels.Flag.BoolVar(&chanFlags.cache.Disabled, "no-chan-cache", chanFlags.cache.Disabled, "disable channel cache")
+	CmdListChannels.Flag.DurationVar(&chanFlags.cache.Retention, "chan-cache-retention", chanFlags.cache.Retention, "channel cache retention time.  After this time, the cache is considered stale and will be refreshed.")
+	CmdListChannels.Flag.BoolVar(&chanFlags.noResolve, "no-resolve", chanFlags.noResolve, "do not resolve user IDs to names")
 }
 
 func listChannels(ctx context.Context, cmd *base.Command, args []string) error {
@@ -79,20 +101,8 @@ func listChannels(ctx context.Context, cmd *base.Command, args []string) error {
 	return nil
 }
 
-type cacheConfig struct {
-	Disabled  bool
-	Retention time.Duration
-	Filename  string
-}
-
-var chanCacheOpts = cacheConfig{
-	Disabled:  false,
-	Retention: 20 * time.Minute,
-	Filename:  "channels.json",
-}
-
 func maybeLoadChanCache(cacheDir string, teamID string) (types.Channels, bool) {
-	if chanCacheOpts.Disabled {
+	if chanFlags.cache.Disabled {
 		// channel cache disabled
 		return nil, false
 	}
@@ -100,7 +110,7 @@ func maybeLoadChanCache(cacheDir string, teamID string) (types.Channels, bool) {
 	if err != nil {
 		return nil, false
 	}
-	cc, err := m.LoadChannels(teamID, chanCacheOpts.Retention)
+	cc, err := m.LoadChannels(teamID, chanFlags.cache.Retention)
 	if err != nil {
 		return nil, false
 	}

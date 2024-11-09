@@ -9,7 +9,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/charmbracelet/huh"
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/slack"
 	"github.com/rusq/slackdump/v3"
@@ -49,7 +48,7 @@ channel cache — %s.  This is to speed up consecutive runs of the command.
 
 The caching can be turned off by using flags "-no-user-cache" and
 "-no-chan-cache".
-`, cfg.UserCacheRetention, chanCacheOpts.Retention),
+`, cfg.UserCacheRetention, chanFlags.cache.Retention),
 	Commands: []*base.Command{
 		CmdListUsers,
 		CmdListChannels,
@@ -57,11 +56,15 @@ The caching can be turned off by using flags "-no-user-cache" and
 }
 
 // common flags
-var (
-	listType format.Type = format.CText
-	quiet    bool        // quiet mode:  don't print anything on the screen, just save the file
-	nosave   bool        // nosave mode:  don't save the data to a file, just print it to the screen
-)
+type listOptions struct {
+	listType format.Type
+	quiet    bool // quiet mode:  don't print anything on the screen, just save the file
+	nosave   bool // nosave mode:  don't save the data to a file, just print it to the screen
+}
+
+var commonParams = listOptions{
+	listType: format.CText,
+}
 
 func init() {
 	for _, cmd := range CmdList.Commands {
@@ -71,9 +74,9 @@ func init() {
 
 // addCommonFlags adds common flags to the flagset.
 func addCommonFlags(fs *flag.FlagSet) {
-	fs.Var(&listType, "format", fmt.Sprintf("listing format, should be one of: %v", format.All()))
-	fs.BoolVar(&quiet, "q", false, "quiet mode:  don't print anything on the screen, just save the file")
-	fs.BoolVar(&nosave, "no-json", false, "don't save the data to a file, just print it to the screen")
+	fs.Var(&commonParams.listType, "format", fmt.Sprintf("listing format, should be one of: %v", format.All()))
+	fs.BoolVar(&commonParams.quiet, "q", false, "quiet mode:  don't print anything on the screen, just save the file")
+	fs.BoolVar(&commonParams.nosave, "no-json", false, "don't save the data to a file, just print it to the screen")
 }
 
 // listFunc is a function that lists something from the Slack API.  It should
@@ -85,7 +88,7 @@ type listFunc func(ctx context.Context, sess *slackdump.Session) (a any, filenam
 // listFn must return the object from the api, a JSON filename and an error.
 func list(ctx context.Context, listFn listFunc) error {
 	// TODO fix users saving JSON to a text file within archive
-	if listType == format.CUnknown {
+	if commonParams.listType == format.CUnknown {
 		return errors.New("unknown listing format, seek help")
 	}
 
@@ -107,7 +110,7 @@ func list(ctx context.Context, listFn listFunc) error {
 
 	teamID := sess.Info().TeamID
 	users, ok := data.(types.Users) // Hax
-	if !ok && !noresolve {
+	if !ok && !chanFlags.noResolve {
 		if cfg.NoUserCache {
 			users, err = sess.GetUsers(ctx)
 		} else {
@@ -118,7 +121,7 @@ func list(ctx context.Context, listFn listFunc) error {
 		}
 	}
 
-	if !nosave {
+	if !commonParams.nosave {
 		fsa, err := fsadapter.New(cfg.Output)
 		if err != nil {
 			return err
@@ -129,8 +132,8 @@ func list(ctx context.Context, listFn listFunc) error {
 		}
 	}
 
-	if !quiet {
-		return fmtPrint(ctx, os.Stdout, data, listType, users)
+	if !commonParams.quiet {
+		return fmtPrint(ctx, os.Stdout, data, commonParams.listType, users)
 	}
 
 	return nil
@@ -183,29 +186,4 @@ func fmtPrint(ctx context.Context, w io.Writer, a any, typ format.Type, u []slac
 // channels and users.
 func makeFilename(prefix string, teamID string, ext string) string {
 	return fmt.Sprintf("%s-%s%s", prefix, teamID, ext)
-}
-
-func wizard(context.Context, listFunc) error {
-	// pick format
-	var types []string
-	for _, t := range format.All() {
-		types = append(types, t.String())
-	}
-
-	var listType format.Type
-	var ot string
-
-	form := huh.NewForm(
-		huh.NewGroup(
-			huh.NewSelect[format.Type]().Title("Pick a format").Options(huh.NewOptions(format.All()...)...).Value(&listType),
-			huh.NewSelect[string]().Title("Pick an output type").Options(huh.NewOptions("screen", "ZIP file", "directory")...).Value(&ot),
-		))
-	if err := form.Run(); err != nil {
-		return err
-	}
-	if ot != "screen" {
-		return errors.New("not implemented yet")
-	}
-	// if file/directory, pick filename
-	return nil
 }
