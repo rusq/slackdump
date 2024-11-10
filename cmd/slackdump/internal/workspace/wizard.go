@@ -6,6 +6,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui"
@@ -60,7 +61,12 @@ func WorkspaceSelectModel(ctx context.Context, m *cache.Manager) (tea.Model, err
 	}
 	t.SetStyles(s)
 	t.Focus()
-	return selectModel{table: t}, nil
+	return selectModel{
+		table: t,
+		style: style{
+			FocusedBorder: ui.DefaultTheme().Focused.Border,
+		},
+	}, nil
 }
 
 func wizSelect(ctx context.Context, cmd *base.Command, args []string) error {
@@ -93,12 +99,15 @@ func wizSelect(ctx context.Context, cmd *base.Command, args []string) error {
 	return nil
 }
 
-var baseStyle = ui.HuhTheme.Form
-
 type selectModel struct {
 	table    table.Model
 	selected string
 	finished bool
+	style    style
+}
+
+type style struct {
+	FocusedBorder lipgloss.Style
 }
 
 func (m selectModel) Init() tea.Cmd { return nil }
@@ -125,5 +134,5 @@ func (m selectModel) View() string {
 	if m.finished {
 		return "" // don't render the table if we've selected a workspace
 	}
-	return baseStyle.Render(m.table.View()) + "\n\n" + ui.HuhTheme.Help.Ellipsis.Render("Select the workspace with arrow keys, press [Enter] to confirm, [Esc] to cancel.")
+	return m.style.FocusedBorder.Render((m.table.View()) + "\n\n" + ui.HuhTheme.Help.Ellipsis.Render("Select the workspace with arrow keys, press [Enter] to confirm, [Esc] to cancel."))
 }
