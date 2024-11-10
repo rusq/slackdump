@@ -2,27 +2,19 @@ package list
 
 import (
 	"context"
-	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 
-	"github.com/rusq/fsadapter"
 	"github.com/rusq/slack"
 	"github.com/rusq/slackdump/v3"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/bootstrap"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/internal/cache"
 	"github.com/rusq/slackdump/v3/internal/format"
 	"github.com/rusq/slackdump/v3/logger"
 	"github.com/rusq/slackdump/v3/types"
-)
-
-const (
-	userCacheBase = "users.cache"
 )
 
 // CmdList is the list command.  The logic is in the subcommands.
@@ -55,14 +47,26 @@ The caching can be turned off by using flags "-no-user-cache" and
 	},
 }
 
+type lister[T any] interface {
+	// Type should return the type of the lister.
+	Type() string
+	// Retrieve should retrieve the data from the API or cache.
+	Retrieve(ctx context.Context, sess *slackdump.Session, m *cache.Manager) error
+	// Data should return the retrieved data.
+	Data() T
+	// Users should return the users for the data, or nil, which indicates
+	// that there are no associated users or that the users are not resolved.
+	Users() []slack.User
+}
+
 // common flags
-type listOptions struct {
+type commonOpts struct {
 	listType format.Type
 	quiet    bool // quiet mode:  don't print anything on the screen, just save the file
 	nosave   bool // nosave mode:  don't save the data to a file, just print it to the screen
 }
 
-var commonParams = listOptions{
+var commonFlags = commonOpts{
 	listType: format.CText,
 }
 
@@ -74,75 +78,55 @@ func init() {
 
 // addCommonFlags adds common flags to the flagset.
 func addCommonFlags(fs *flag.FlagSet) {
-	fs.Var(&commonParams.listType, "format", fmt.Sprintf("listing format, should be one of: %v", format.All()))
-	fs.BoolVar(&commonParams.quiet, "q", false, "quiet mode:  don't print anything on the screen, just save the file")
-	fs.BoolVar(&commonParams.nosave, "no-json", false, "don't save the data to a file, just print it to the screen")
+	fs.Var(&commonFlags.listType, "format", fmt.Sprintf("listing format, should be one of: %v", format.All()))
+	fs.BoolVar(&commonFlags.quiet, "q", false, "quiet mode:  don't print anything on the screen, just save the file")
+	fs.BoolVar(&commonFlags.nosave, "no-json", false, "don't save the data to a file, just print it to the screen")
 }
 
-// listFunc is a function that lists something from the Slack API.  It should
-// return the object from the api, a filename to save the data to and an
-// error.
-type listFunc func(ctx context.Context, sess *slackdump.Session) (a any, filename string, err error)
-
-// list authenticates and creates a slackdump instance, then calls a listFn.
-// listFn must return the object from the api, a JSON filename and an error.
-func list(ctx context.Context, listFn listFunc) error {
-	// TODO fix users saving JSON to a text file within archive
-	if commonParams.listType == format.CUnknown {
-		return errors.New("unknown listing format, seek help")
-	}
-
-	// initialize the session.
-	sess, err := bootstrap.SlackdumpSession(ctx)
-	if err != nil {
-		base.SetExitStatus(base.SInitializationError)
-		return err
-	}
-
-	data, filename, err := listFn(ctx, sess)
-	if err != nil {
-		return err
-	}
-	m, err := cache.NewManager(cfg.CacheDir(), cache.WithUserCacheBase(userCacheBase))
+func list[T any](ctx context.Context, sess *slackdump.Session, l lister[T], filename string) error {
+	m, err := cache.NewManager(cfg.CacheDir())
 	if err != nil {
 		return err
 	}
 
-	teamID := sess.Info().TeamID
-	users, ok := data.(types.Users) // Hax
-	if !ok && !chanFlags.noResolve {
-		if cfg.NoUserCache {
-			users, err = sess.GetUsers(ctx)
-		} else {
-			users, err = getCachedUsers(ctx, sess, m, teamID)
-		}
-		if err != nil {
+	if err := l.Retrieve(ctx, sess, m); err != nil {
+		return err
+	}
+
+	if !commonFlags.quiet {
+		if err := fmtPrint(ctx, os.Stdout, l.Data(), commonFlags.listType, l.Users()); err != nil {
 			return err
 		}
 	}
 
-	if !commonParams.nosave {
-		fsa, err := fsadapter.New(cfg.Output)
-		if err != nil {
-			return err
+	if !commonFlags.nosave {
+		if filename == "" {
+			filename = makeFilename(l.Type(), sess.Info().TeamID, extForType(commonFlags.listType))
 		}
-		defer fsa.Close()
-		if err := saveData(ctx, fsa, data, filename, format.CJSON, users); err != nil {
+		if err := saveData(ctx, l.Data(), filename, commonFlags.listType, l.Users()); err != nil {
 			return err
 		}
 	}
-
-	if !commonParams.quiet {
-		return fmtPrint(ctx, os.Stdout, data, commonParams.listType, users)
-	}
-
 	return nil
 }
 
+func extForType(typ format.Type) string {
+	switch typ {
+	case format.CJSON:
+		return ".json"
+	case format.CText:
+		return ".txt"
+	case format.CCSV:
+		return ".csv"
+	default:
+		return ".json"
+	}
+}
+
 // saveData saves the given data to the given filename.
-func saveData(ctx context.Context, fs fsadapter.FS, data any, filename string, typ format.Type, users []slack.User) error {
+func saveData(ctx context.Context, data any, filename string, typ format.Type, users []slack.User) error {
 	// save to a filesystem.
-	f, err := fs.Create(filename)
+	f, err := os.Create(filename)
 	if err != nil {
 		return fmt.Errorf("failed to create file: %w", err)
 	}
@@ -150,7 +134,7 @@ func saveData(ctx context.Context, fs fsadapter.FS, data any, filename string, t
 	if err := fmtPrint(ctx, f, data, typ, users); err != nil {
 		return err
 	}
-	logger.FromContext(ctx).Printf("Data saved to:  %q\n", filepath.Join(cfg.Output, filename))
+	logger.FromContext(ctx).Printf("Data saved to:  %q\n", filename)
 
 	return nil
 }

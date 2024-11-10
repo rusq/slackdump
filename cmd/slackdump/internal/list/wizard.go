@@ -63,7 +63,7 @@ func userConfiguration() cfgui.Configuration {
 			},
 		},
 	}
-	return append(c, commonParams.configuration()...)
+	return append(c, commonFlags.configuration()...)
 }
 
 func filenameParam(placeholder string) cfgui.Parameter {
@@ -72,7 +72,7 @@ func filenameParam(placeholder string) cfgui.Parameter {
 		Value:       filename,
 		Description: "The filename to save the output to",
 		Inline:      true,
-		Updater:     updaters.NewFileNew(&filename, placeholder, true, true),
+		Updater:     updaters.NewFileNew(&filename, placeholder, false, true),
 	}
 }
 
@@ -83,10 +83,10 @@ func (o *channelOptions) configuration() cfgui.Configuration {
 			Params: []cfgui.Parameter{
 				filenameParam("channels.json"),
 				{
-					Name:        "Do not Resolve Users",
-					Value:       cfgui.Checkbox(o.noResolve),
-					Description: "Do not resolve user IDs to names",
-					Updater:     updaters.NewBool(&o.noResolve),
+					Name:        "Resolve Users",
+					Value:       cfgui.Checkbox(o.resolveUsers),
+					Description: "Resolve user IDs to names. Slow on large Slack workspaces.",
+					Updater:     updaters.NewBool(&o.resolveUsers),
 				},
 			},
 		},
@@ -95,31 +95,31 @@ func (o *channelOptions) configuration() cfgui.Configuration {
 			Params: []cfgui.Parameter{
 				{
 					Name:        "Disable Cache",
-					Value:       cfgui.Checkbox(o.cache.Disabled),
+					Value:       cfgui.Checkbox(o.cache.Enabled),
 					Description: "Disable channel cache",
-					Updater:     updaters.NewBool(&o.cache.Disabled),
+					Updater:     updaters.NewBool(&o.cache.Enabled),
 				},
 				{
 					Name:        "Cache Retention",
 					Value:       o.cache.Retention.String(),
 					Description: "Channel cache retention time. After this time, the cache is considered stale and will be refreshed.",
 					Inline:      true,
-					Updater:     updaters.NewDuration(&o.cache.Retention, true),
+					Updater:     updaters.NewDuration(&o.cache.Retention, false),
 				},
 				{
 					Name:        "Cache Filename",
 					Value:       o.cache.Filename,
 					Description: "The filename of the cache",
 					Inline:      true,
-					Updater:     updaters.NewString(&o.cache.Filename, "channels.json", true, huh.ValidateNotEmpty()),
+					Updater:     updaters.NewString(&o.cache.Filename, "channels.json", false, huh.ValidateNotEmpty()),
 				},
 			},
 		},
 	}
-	return append(c, commonParams.configuration()...)
+	return append(c, commonFlags.configuration()...)
 }
 
-func (l *listOptions) configuration() cfgui.Configuration {
+func (l *commonOpts) configuration() cfgui.Configuration {
 	c := cfgui.Configuration{
 		cfgui.ParamGroup{
 			Name: "Common Options",
