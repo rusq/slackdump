@@ -110,6 +110,7 @@ func globalConfig() Configuration {
 					Name:        "User Cache Retention",
 					Value:       cfg.UserCacheRetention.String(),
 					Description: "For how long user cache is kept, until it is fetched again",
+					Inline:      true,
 					Updater:     updaters.NewDuration(&cfg.UserCacheRetention, false),
 				},
 				{

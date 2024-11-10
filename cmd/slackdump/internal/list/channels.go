@@ -3,10 +3,13 @@ package list
 import (
 	"context"
 	"fmt"
+	"log"
 	"runtime/trace"
 	"time"
 
+	"github.com/rusq/slack"
 	"github.com/rusq/slackdump/v3"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/bootstrap"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/internal/cache"
@@ -15,7 +18,7 @@ import (
 )
 
 var CmdListChannels = &base.Command{
-	Run:        listChannels,
+	Run:        runListChannels,
 	UsageLine:  "slackdump list channels [flags] [filename]",
 	PrintFlags: true,
 	FlagMask:   cfg.OmitDownloadFlag,
@@ -37,90 +40,109 @@ and -chan-cache-retention flags to control the cache behavior.
 	RequireAuth: true,
 }
 
-func init() {
-	CmdListChannels.Wizard = wizChannels
-}
+type (
+	channelOptions struct {
+		resolveUsers bool
+		cache        cacheOpts
+	}
 
-type channelOptions struct {
-	noResolve bool
-	cache     cacheOpts
-}
-
-type cacheOpts struct {
-	Disabled  bool
-	Retention time.Duration
-	Filename  string
-}
+	cacheOpts struct {
+		Enabled   bool
+		Retention time.Duration
+		Filename  string
+	}
+)
 
 var chanFlags = channelOptions{
-	noResolve: false,
+	resolveUsers: false,
 	cache: cacheOpts{
-		Disabled:  false,
+		Enabled:   false,
 		Retention: 20 * time.Minute,
 		Filename:  "channels.json",
 	},
 }
 
 func init() {
-	CmdListChannels.Flag.BoolVar(&chanFlags.cache.Disabled, "no-chan-cache", chanFlags.cache.Disabled, "disable channel cache")
+	CmdListChannels.Wizard = wizChannels
+
+	CmdListChannels.Flag.BoolVar(&chanFlags.cache.Enabled, "no-chan-cache", chanFlags.cache.Enabled, "disable channel cache")
 	CmdListChannels.Flag.DurationVar(&chanFlags.cache.Retention, "chan-cache-retention", chanFlags.cache.Retention, "channel cache retention time.  After this time, the cache is considered stale and will be refreshed.")
-	CmdListChannels.Flag.BoolVar(&chanFlags.noResolve, "no-resolve", chanFlags.noResolve, "do not resolve user IDs to names")
+	CmdListChannels.Flag.BoolVar(&chanFlags.resolveUsers, "resolve", chanFlags.resolveUsers, "resolve user IDs to names")
 }
 
-func listChannels(ctx context.Context, cmd *base.Command, args []string) error {
-	if err := list(ctx, func(ctx context.Context, sess *slackdump.Session) (any, string, error) {
-		ctx, task := trace.NewTask(ctx, "listChannels")
-		defer task.End()
-
-		var filename = makeFilename("channels", sess.Info().TeamID, ".json")
-		if len(args) > 0 {
-			filename = args[0]
-		}
-		teamID := sess.Info().TeamID
-		cc, ok := maybeLoadChanCache(cfg.CacheDir(), teamID)
-		if ok {
-			// cache hit
-			trace.Logf(ctx, "cache hit", "teamID=%s", teamID)
-			return cc, filename, nil
-		}
-		// cache miss, load from API
-		trace.Logf(ctx, "cache miss", "teamID=%s", teamID)
-		cc, err := sess.GetChannels(ctx)
-		if err != nil {
-			return nil, "", fmt.Errorf("error getting channels: %w", err)
-		}
-		if err := saveCache(cfg.CacheDir(), teamID, cc); err != nil {
-			// warn, but don't fail
-			logger.FromContext(ctx).Printf("failed to save cache: %v", err)
-		}
-		return cc, filename, nil
-	}); err != nil {
+func runListChannels(ctx context.Context, cmd *base.Command, args []string) error {
+	sess, err := bootstrap.SlackdumpSession(ctx)
+	if err != nil {
+		base.SetExitStatus(base.SInitializationError)
 		return err
 	}
 
+	var l = &channels{
+		opts:   chanFlags,
+		common: commonFlags,
+	}
+
+	return list(ctx, sess, l, filename)
+}
+
+type channels struct {
+	channels types.Channels
+	users    types.Users
+
+	opts   channelOptions
+	common commonOpts
+}
+
+func (l *channels) Type() string {
+	return "channels"
+}
+
+func (l *channels) Data() types.Channels {
+	return l.channels
+}
+
+func (l *channels) Users() []slack.User {
+	return l.users
+}
+
+func (l *channels) Retrieve(ctx context.Context, sess *slackdump.Session, m *cache.Manager) error {
+	ctx, task := trace.NewTask(ctx, "channels.List")
+	defer task.End()
+	lg := cfg.Log
+
+	teamID := sess.Info().TeamID
+
+	usersc := make(chan []slack.User)
+	go func() {
+		defer close(usersc)
+		if l.opts.resolveUsers {
+
+			lg.Println("getting users to resolve DM names")
+			u, err := fetchUsers(ctx, sess, m, cfg.NoUserCache, teamID)
+			if err != nil {
+				log.Printf("error getting users to resolve DM names (ignored): %s", err)
+				return
+			}
+			usersc <- u
+		}
+	}()
+
+	if l.opts.cache.Enabled {
+		var err error
+		l.channels, err = m.LoadChannels(teamID, l.opts.cache.Retention)
+		if err == nil {
+			l.users = <-usersc
+			return nil
+		}
+	}
+	cc, err := sess.GetChannels(ctx)
+	if err != nil {
+		return fmt.Errorf("error getting channels: %w", err)
+	}
+	l.channels = cc
+	l.users = <-usersc
+	if err := m.CacheChannels(teamID, cc); err != nil {
+		logger.FromContext(ctx).Printf("warning: failed to cache channels (ignored): %s", err)
+	}
 	return nil
-}
-
-func maybeLoadChanCache(cacheDir string, teamID string) (types.Channels, bool) {
-	if chanFlags.cache.Disabled {
-		// channel cache disabled
-		return nil, false
-	}
-	m, err := cache.NewManager(cacheDir)
-	if err != nil {
-		return nil, false
-	}
-	cc, err := m.LoadChannels(teamID, chanFlags.cache.Retention)
-	if err != nil {
-		return nil, false
-	}
-	return cc, true
-}
-
-func saveCache(cacheDir, teamID string, cc types.Channels) error {
-	m, err := cache.NewManager(cacheDir)
-	if err != nil {
-		return err
-	}
-	return m.CacheChannels(teamID, cc)
 }
