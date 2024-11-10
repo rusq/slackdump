@@ -25,7 +25,6 @@ func TimeRange() (oldest, latest time.Time, err error) {
 	if oldest, err = ui.Time("Earliest message"); err != nil && !errors.Is(err, ui.ErrEmptyOptionalInput) {
 		return
 	}
-	err = nil
 	if latest, err = ui.Time("Latest message"); err != nil && !errors.Is(err, ui.ErrEmptyOptionalInput) {
 		return
 	}

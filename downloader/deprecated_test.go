@@ -33,6 +33,8 @@ var (
 	file9 = slack.File{ID: "f9", Name: "filename9.ext", URLPrivateDownload: "file9_url", Size: 900}
 )
 
+// TODO: figure out why this is deprecated.
+
 func TestSession_SaveFileTo(t *testing.T) {
 	tmpdir := t.TempDir()
 
@@ -73,7 +75,7 @@ func TestSession_SaveFileTo(t *testing.T) {
 			func(mc *mock_downloader.MockDownloader) {
 				mc.EXPECT().
 					GetFile("file1_url", gomock.Any()).
-					SetArg(1, *fixtures.FilledFile(file1.Size)). // to mock the file size.
+					SetArg(1, *fixtures.FilledFile(t, file1.Size)). // to mock the file size.
 					Return(nil)
 			},
 			int64(file1.Size),
@@ -171,7 +173,7 @@ func TestSession_saveFile(t *testing.T) {
 			func(mc *mock_downloader.MockDownloader) {
 				mc.EXPECT().
 					GetFile("file1_url", gomock.Any()).
-					SetArg(1, *fixtures.FilledFile(file1.Size)).
+					SetArg(1, *fixtures.FilledFile(t, file1.Size)).
 					Return(nil)
 			},
 			int64(file1.Size),

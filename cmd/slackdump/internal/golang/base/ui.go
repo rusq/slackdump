@@ -15,7 +15,11 @@ func YesNoWR(w io.Writer, r io.Reader, message string) bool {
 	for {
 		fmt.Fprint(w, message, "? (y/N) ")
 		var resp string
-		fmt.Fscanln(r, &resp)
+		_, err := fmt.Fscanln(r, &resp)
+		if err != nil {
+			fmt.Fprintln(w, "Please answer yes or no and press Enter or Return.")
+			continue
+		}
 		resp = strings.TrimSpace(resp)
 		if len(resp) > 0 {
 			switch strings.ToLower(resp)[0] {

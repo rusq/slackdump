@@ -186,7 +186,10 @@ func sendReq(w io.Writer, cl *http.Client, ep string, v url.Values) (bool, error
 		log.Printf("error while retrieving body: %s", err)
 	}
 	if resp.StatusCode != http.StatusOK {
-		io.Copy(w, bytes.NewReader(data))
+		_, err := io.Copy(w, bytes.NewReader(data))
+		if err != nil {
+			return false, err
+		}
 		return false, fmt.Errorf("server NOT OK: %s", resp.Status)
 	}
 	if len(data) == 0 {

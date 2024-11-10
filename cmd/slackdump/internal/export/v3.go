@@ -38,7 +38,7 @@ func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 	}
 	defer chunkdir.Close()
 	if !lg.IsDebug() {
-		defer chunkdir.RemoveAll()
+		defer func() { _ = chunkdir.RemoveAll() }()
 	}
 	updFn := func() func(_ *slack.Channel, m *slack.Message) error {
 		// hack: wrapper around the message update function, which does not
@@ -63,7 +63,7 @@ func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 		progressbar.OptionSpinnerType(8)),
 		lg.IsDebug(),
 	)
-	pb.RenderBlank()
+	_ = pb.RenderBlank()
 
 	stream := sess.Stream(
 		stream.OptOldest(params.Oldest),
@@ -71,7 +71,7 @@ func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 		stream.OptResultFn(func(sr stream.Result) error {
 			lg.Debugf("conversations: %s", sr.String())
 			pb.Describe(sr.String())
-			pb.Add(1)
+			_ = pb.Add(1)
 			return nil
 		}),
 	)
@@ -90,10 +90,10 @@ func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 
 	lg.Print("running export...")
 	if err := ctr.Run(ctx, list); err != nil {
-		pb.Finish()
+		_ = pb.Finish()
 		return err
 	}
-	pb.Finish()
+	_ = pb.Finish()
 	// at this point no goroutines are running, we are safe to assume that
 	// everything we need is in the chunk directory.
 	if err := conv.WriteIndex(); err != nil {

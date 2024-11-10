@@ -23,6 +23,6 @@ func TestServer(t *testing.T, code int, response []byte) *httptest.Server {
 	t.Helper()
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(code)
-		w.Write(response)
+		_, _ = w.Write(response)
 	}))
 }

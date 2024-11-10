@@ -159,7 +159,7 @@ func initProvider(ctx context.Context, cacheDir string, filename string, workspa
 	if creds == nil || creds.IsEmpty() {
 		if prov, err := tryLoad(ctx, credsFile); err != nil {
 			msg := fmt.Sprintf("failed to load saved credentials: %s", err)
-			trace.Logf(ctx, "warn", msg)
+			trace.Log(ctx, "warn", msg)
 			if auth.IsInvalidAuthErr(err) {
 				lg.Println("authentication details expired, relogin is necessary")
 			}

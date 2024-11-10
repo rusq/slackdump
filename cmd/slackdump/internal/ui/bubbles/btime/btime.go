@@ -187,13 +187,6 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m *Model) whatIf(digit int, hasVal int) int {
-	whatIf := make([]int, len(m.entry))
-	copy(whatIf, m.entry[:])
-	whatIf[digit] = hasVal
-	return tupleVal(whatIf, m.cursor/2)
-}
-
 func (m *Model) updateTime() {
 	hour := tupleVal(m.entry[:], 0)
 	minute := tupleVal(m.entry[:], 1)
