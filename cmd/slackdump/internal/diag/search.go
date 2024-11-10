@@ -107,7 +107,9 @@ func runSearch(ctx context.Context, cmd *base.Command, args []string) error {
 		lg.Printf("cursor %s", sm.NextCursor)
 		p.Cursor = sm.NextCursor
 
-		lim.Wait(ctx)
+		if err := lim.Wait(ctx); err != nil {
+			return err
+		}
 	}
 
 	return nil

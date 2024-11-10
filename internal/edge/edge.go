@@ -211,7 +211,9 @@ func (cl *Client) PostForm(ctx context.Context, path string, form url.Values) (*
 
 func (cl *Client) record(b []byte) {
 	if cl.tape != nil {
-		cl.tape.Write(b)
+		if _, err := cl.tape.Write(b); err != nil {
+			logger.Default.Printf("error writing to tape: %s", err)
+		}
 	}
 }
 

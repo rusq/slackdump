@@ -81,7 +81,11 @@ func (cl *Client) Authenticate(ctx context.Context) (string, []*http.Cookie, err
 	if err != nil {
 		return "", nil, err
 	}
-	defer pw.Stop()
+	defer func() {
+		if err := pw.Stop(); err != nil {
+			l().Printf("failed to stop playwright: %v", err)
+		}
+	}()
 
 	opts := playwright.BrowserTypeLaunchOptions{
 		Headless: _b(false),

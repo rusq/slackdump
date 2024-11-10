@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
+	"log"
 	"log/slog"
 	"os"
 	"strings"
@@ -118,8 +119,12 @@ func maybeprint(v any) {
 	if debug {
 		enc := json.NewEncoder(os.Stderr)
 		enc.SetIndent("", "  ")
-		enc.Encode(v)
-		os.Stderr.Sync()
+		if err := enc.Encode(v); err != nil {
+			log.Printf("error printing value: %s", err)
+		}
+		if err := os.Stderr.Sync(); err != nil {
+			log.Printf("error flushing stderr: %s", err)
+		}
 	}
 }
 

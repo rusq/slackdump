@@ -77,7 +77,6 @@ func (u *users) Retrieve(ctx context.Context, sess *slackdump.Session, m *cache.
 	if err != nil {
 		return err
 	}
-	m.CacheUsers(sess.Info().TeamID, users)
 	u.data = users
 	return nil
 }

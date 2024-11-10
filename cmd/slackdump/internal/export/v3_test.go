@@ -1,10 +1,7 @@
 package export
 
 import (
-	"bytes"
-	"compress/gzip"
 	"context"
-	"io"
 	"log"
 	"net/http"
 	"os"
@@ -92,27 +89,4 @@ func Test_exportV3(t *testing.T) {
 			t.Fatal(err)
 		}
 	})
-}
-
-func load(t *testing.T, filename string) io.ReadSeeker {
-	absPath, err := filepath.Abs(filename)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Log("test file", absPath)
-	f, err := os.Open(absPath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer f.Close()
-	gz, err := gzip.NewReader(f)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var buf bytes.Buffer
-	_, err = io.Copy(&buf, gz)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return bytes.NewReader(buf.Bytes())
 }

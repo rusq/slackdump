@@ -283,7 +283,11 @@ func Test_processLink(t *testing.T) {
 func TestStream_Users(t *testing.T) {
 	ctx := context.Background()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(`{"ok":false,"error":"not_authed"}`))
+		t.Helper()
+		_, err := w.Write([]byte(`{"ok":false,"error":"not_authed"}`))
+		if err != nil {
+			t.Error(err)
+		}
 	}))
 	defer srv.Close()
 	l := rateLimits{
