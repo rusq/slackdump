@@ -16,7 +16,37 @@ import (
 
 // TODO: organise as a self-sufficient model with proper error handling.
 
-func WorkspaceSelectModel(ctx context.Context, m *cache.Manager) (tea.Model, error) {
+func wizSelect(ctx context.Context, cmd *base.Command, args []string) error {
+	m, err := cache.NewManager(cfg.CacheDir())
+	if err != nil {
+		base.SetExitStatus(base.SCacheError)
+		return err
+	}
+
+	sm, err := workspaceSelectModel(ctx, m)
+	if err != nil {
+		return err
+	}
+	if sm == nil {
+		// TODO: handle this case
+		return nil
+	}
+	mod, err := tea.NewProgram(sm).Run()
+	if err != nil {
+		return fmt.Errorf("workspace select wizard error: %w", err)
+	}
+	if newWsp := mod.(selectModel).selected; newWsp != "" {
+		if err := m.Select(newWsp); err != nil {
+			base.SetExitStatus(base.SWorkspaceError)
+			return fmt.Errorf("error setting the current workspace: %s", err)
+		}
+		logger.FromContext(ctx).Debugf("selected workspace: %s", newWsp)
+	}
+
+	return nil
+}
+
+func workspaceSelectModel(ctx context.Context, m *cache.Manager) (tea.Model, error) {
 	wspList, err := m.List()
 	if err != nil {
 		base.SetExitStatus(base.SCacheError)
@@ -39,7 +69,7 @@ func WorkspaceSelectModel(ctx context.Context, m *cache.Manager) (tea.Model, err
 		{Title: "Name", Width: 14},
 		{Title: "Team", Width: 15},
 		{Title: "User", Width: 15},
-		{Title: "Error", Width: 30},
+		{Title: "Status", Width: 30},
 	}
 
 	var rows []table.Row
@@ -67,36 +97,6 @@ func WorkspaceSelectModel(ctx context.Context, m *cache.Manager) (tea.Model, err
 			FocusedBorder: ui.DefaultTheme().Focused.Border,
 		},
 	}, nil
-}
-
-func wizSelect(ctx context.Context, cmd *base.Command, args []string) error {
-	m, err := cache.NewManager(cfg.CacheDir())
-	if err != nil {
-		base.SetExitStatus(base.SCacheError)
-		return err
-	}
-
-	sm, err := WorkspaceSelectModel(ctx, m)
-	if err != nil {
-		return err
-	}
-	if sm == nil {
-		// TODO: handle this case
-		return nil
-	}
-	mod, err := tea.NewProgram(sm).Run()
-	if err != nil {
-		return fmt.Errorf("workspace select wizard error: %w", err)
-	}
-	if newWsp := mod.(selectModel).selected; newWsp != "" {
-		if err := m.Select(newWsp); err != nil {
-			base.SetExitStatus(base.SWorkspaceError)
-			return fmt.Errorf("error setting the current workspace: %s", err)
-		}
-		logger.FromContext(ctx).Debugf("selected workspace: %s", newWsp)
-	}
-
-	return nil
 }
 
 type selectModel struct {

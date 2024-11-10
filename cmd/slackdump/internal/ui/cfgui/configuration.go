@@ -10,7 +10,6 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/rusq/rbubbles/filemgr"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/apiconfig"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/bootstrap"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/updaters"
 )
@@ -32,16 +31,6 @@ type Parameter struct {
 
 func globalConfig() Configuration {
 	return Configuration{
-		{
-			Name: "Authentication",
-			Params: []Parameter{
-				{
-					Name:        "Slack Workspace",
-					Value:       bootstrap.CurrentWsp(),
-					Description: "Currently selected Slack Workspace",
-				},
-			},
-		},
 		{
 			Name: "Timeframe",
 			Params: []Parameter{
