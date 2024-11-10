@@ -1,7 +1,7 @@
 package menu
 
-// MenuItem is an item in a menu.
-type MenuItem struct {
+// Item is an item in a menu.
+type Item struct {
 	// ID is an arbitrary ID, up to caller.
 	ID string
 	// Separator is a flag that determines whether the item is a separator or
@@ -24,11 +24,11 @@ type MenuItem struct {
 	Validate func() error // when to enable the item
 }
 
-func (m MenuItem) IsDisabled() bool {
+func (m Item) IsDisabled() bool {
 	return m.Validate != nil && m.Validate() != nil
 }
 
-func (m MenuItem) DisabledReason() string {
+func (m Item) DisabledReason() string {
 	if m.Validate != nil {
 		if err := m.Validate(); err != nil {
 			return err.Error()

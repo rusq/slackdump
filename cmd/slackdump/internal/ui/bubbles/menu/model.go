@@ -15,11 +15,11 @@ import (
 
 type Model struct {
 	// Selected will be set to the selected item from the items.
-	Selected  MenuItem
+	Selected  Item
 	Cancelled bool
 
 	title     string
-	items     []MenuItem
+	items     []Item
 	finishing bool
 	focused   bool
 	preview   bool // preview child model
@@ -31,7 +31,7 @@ type Model struct {
 	cursor int
 }
 
-func New(title string, items []MenuItem, preview bool) *Model {
+func New(title string, items []Item, preview bool) *Model {
 	return &Model{
 		title:     title,
 		items:     items,
@@ -164,7 +164,7 @@ func (m *Model) view() string {
 	// Header
 	p(sty.Title.Render(m.title) + "\n")
 	if currentDisabled {
-		p(sty.Description.Render("Requirements not satisfied: " + capfirst(currentItem.Validate().Error())))
+		p(sty.Description.Render("Requirements not met: " + capfirst(currentItem.Validate().Error())))
 	} else {
 		p(sty.Description.Render(m.items[m.cursor].Help))
 	}

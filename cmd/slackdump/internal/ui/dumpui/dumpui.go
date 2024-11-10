@@ -44,9 +44,9 @@ var description = map[string]string{
 
 func (w *Wizard) Run(ctx context.Context) error {
 	var menu = func() *menu.Model {
-		var items []menu.MenuItem
+		var items []menu.Item
 		if w.LocalConfig != nil {
-			items = append(items, menu.MenuItem{
+			items = append(items, menu.Item{
 				ID:      actLocalConfig,
 				Name:    w.Name + " Options...",
 				Help:    description[actLocalConfig],
@@ -57,7 +57,7 @@ func (w *Wizard) Run(ctx context.Context) error {
 
 		items = append(
 			items,
-			menu.MenuItem{
+			menu.Item{
 				ID:   actRun,
 				Name: "Run " + w.Name,
 				Help: description[actRun],
@@ -70,7 +70,7 @@ func (w *Wizard) Run(ctx context.Context) error {
 			},
 		)
 		if w.Help != "" {
-			items = append(items, menu.MenuItem{
+			items = append(items, menu.Item{
 				ID:   "help",
 				Name: "Help",
 				Help: "Read help for " + w.Name,
@@ -78,15 +78,15 @@ func (w *Wizard) Run(ctx context.Context) error {
 		}
 
 		items = append(items,
-			menu.MenuItem{Separator: true},
-			menu.MenuItem{
+			menu.Item{Separator: true},
+			menu.Item{
 				ID:    actGlobalConfig,
 				Name:  "Global Configuration...",
 				Help:  description[actGlobalConfig],
 				Model: cfgui.NewConfigUI(cfgui.DefaultStyle(), cfgui.GlobalConfig), // TODO: filthy cast
 			},
-			menu.MenuItem{Separator: true},
-			menu.MenuItem{ID: actExit, Name: "Exit", Help: description[actExit]},
+			menu.Item{Separator: true},
+			menu.Item{ID: actExit, Name: "Exit", Help: description[actExit]},
 		)
 
 		return menu.New(w.Title, items, true)

@@ -10,6 +10,7 @@ import (
 	"github.com/rusq/slackdump/v3/auth"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/workspace/workspaceui"
 	"github.com/rusq/slackdump/v3/internal/cache"
 )
 
@@ -23,6 +24,7 @@ var CmdWspNew = &base.Command{
 `,
 	FlagMask:   flagmask &^ cfg.OmitAuthFlags, // only auth flags.
 	PrintFlags: true,
+	Wizard:     workspaceui.WorkspaceNew,
 }
 
 var newParams = struct {

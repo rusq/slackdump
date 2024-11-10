@@ -56,7 +56,7 @@ func runWizDebug(ctx context.Context, cmd *base.Command, args []string) error {
 }
 
 func debugDumpUI(ctx context.Context) error {
-	mnu := []menu.MenuItem{
+	mnu := []menu.Item{
 		{
 			ID:   "run",
 			Name: "Run",
