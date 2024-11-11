@@ -1,4 +1,5 @@
-package export
+// Package structures provides functions to parse Slack data types.
+package structures
 
 import (
 	"testing"
@@ -6,7 +7,7 @@ import (
 	"github.com/rusq/slackdump/v3/internal/fixtures"
 )
 
-func Test_validateToken(t *testing.T) {
+func TestValidateToken(t *testing.T) {
 	type args struct {
 		token string
 	}
@@ -68,7 +69,7 @@ func Test_validateToken(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := validateToken(tt.args.token); (err != nil) != tt.wantErr {
+			if err := ValidateToken(tt.args.token); (err != nil) != tt.wantErr {
 				t.Errorf("validateToken() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

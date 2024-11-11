@@ -1,0 +1,132 @@
+package workspaceui
+
+import (
+	"context"
+
+	"github.com/charmbracelet/huh"
+	"github.com/rusq/slackdump/v3/auth"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui"
+	"github.com/rusq/slackdump/v3/internal/structures"
+)
+
+const sampleToken = "xoxc-610187951300-604451271234-3473161557912-4c426dd426a45208707725b710302b32dda0ab002b80ccd8c4c8ac9971a11558"
+
+func prgTokenCookie(ctx context.Context, m manager) error {
+	var (
+		token     string
+		cookie    string
+		workspace string
+		confirmed bool
+	)
+	for !confirmed {
+		f := huh.NewForm(huh.NewGroup(
+			huh.NewInput().Title("Token").
+				Description("Token value").
+				Placeholder(sampleToken).
+				Value(&token).
+				Validate(structures.ValidateToken),
+			huh.NewInput().Title("Cookie").
+				Description("Session cookie").
+				Placeholder("xoxd-...").
+				Value(&cookie),
+			huh.NewConfirm().Title("Confirm creation of workspace?").
+				Description("Once confirmed this will create a new workspace with the provided token and cookie").
+				Value(&confirmed).
+				Validate(makeValidator(ctx, &token, &cookie, auth.NewValueAuth)),
+		)).WithTheme(ui.HuhTheme)
+		if err := f.Run(); err != nil {
+			return err
+		}
+		if !confirmed {
+			return nil
+		}
+
+		prov, err := auth.NewValueAuth(token, cookie)
+		if err != nil {
+			return err
+		}
+		name, err := createAndSelect(ctx, m, prov)
+		if err != nil {
+			confirmed = false
+			retry := askRetry(ctx, name, err)
+			if !retry {
+				return nil
+			}
+		} else {
+			workspace = name
+			break
+		}
+	}
+
+	return success(ctx, workspace)
+}
+
+// makeValidator creates a validator function that uses the newProvFn to
+// create a new provider and test it.  newProvFn should be a function that
+// creates a new provider from a token and a value, where value is either a
+// cookie or a file with cookies.
+func makeValidator[P auth.Provider](ctx context.Context, token *string, val *string, newProvFn func(string, string) (P, error)) func(bool) error {
+	return func(b bool) error {
+		if !b {
+			return nil
+		}
+		p, err := newProvFn(*token, *val)
+		if err != nil {
+			return err
+		}
+		_, err = p.Test(ctx)
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+}
+
+func prgTokenCookieFile(ctx context.Context, m manager) error {
+	var (
+		token      string
+		cookiefile string
+		workspace  string
+		confirmed  bool
+	)
+	for !confirmed {
+		f := huh.NewForm(huh.NewGroup(
+			huh.NewInput().Title("Token").
+				Description("Token value").
+				Placeholder(sampleToken).
+				Value(&token).
+				Validate(structures.ValidateToken),
+			huh.NewFilePicker().Title("Cookie File").
+				Description("Select a cookies.txt file in Mozilla Format").AllowedTypes([]string{"txt"}).
+				FileAllowed(true).
+				ShowSize(true).
+				ShowPermissions(true).
+				Value(&cookiefile),
+			huh.NewConfirm().Title("Is this correct?").
+				Description("Once confirmed this will create a new workspace with the provided token and cookie").
+				Value(&confirmed).
+				Validate(makeValidator(ctx, &token, &cookiefile, auth.NewCookieFileAuth)),
+		)).WithTheme(ui.HuhTheme)
+		if err := f.Run(); err != nil {
+			return err
+		}
+
+		prov, err := auth.NewValueAuth(token, cookiefile)
+		if err != nil {
+			return err
+		}
+		name, err := createAndSelect(ctx, m, prov)
+		if err != nil {
+			confirmed = false
+			retry := askRetry(ctx, name, err)
+			if !retry {
+				return nil
+			}
+		} else {
+			workspace = name
+			break
+		}
+	}
+
+	return success(ctx, workspace)
+}
