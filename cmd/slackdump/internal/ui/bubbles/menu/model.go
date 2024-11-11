@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/cfgui"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/updaters"
@@ -29,9 +30,18 @@ type Model struct {
 	help help.Model
 
 	cursor int
+	last   int
 }
 
 func New(title string, items []Item, preview bool) *Model {
+	var last = len(items) - 1
+	for i := last; i >= 0; i++ {
+		if !items[i].Separator {
+			break
+		}
+		last--
+	}
+
 	return &Model{
 		title:     title,
 		items:     items,
@@ -41,6 +51,8 @@ func New(title string, items []Item, preview bool) *Model {
 		focused:   true,
 		preview:   preview,
 		finishing: false,
+		cursor:    0,
+		last:      last,
 	}
 }
 
@@ -76,21 +88,29 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.Selected = m.items[m.cursor]
 			cmds = append(cmds, tea.Quit)
 		case key.Matches(msg, m.Keymap.Up):
-			for {
-				if m.cursor > 0 {
-					m.cursor--
-				}
-				if !m.items[m.cursor].Separator {
-					break
+			if m.cursor == 0 {
+				m.cursor = m.last
+			} else {
+				for {
+					if m.cursor > 0 {
+						m.cursor--
+					}
+					if !m.items[m.cursor].Separator {
+						break
+					}
 				}
 			}
 		case key.Matches(msg, m.Keymap.Down):
-			for {
-				if m.cursor < len(m.items)-1 {
-					m.cursor++
-				}
-				if !m.items[m.cursor].Separator {
-					break
+			if m.cursor == m.last {
+				m.cursor = 0
+			} else {
+				for {
+					if m.cursor < m.last {
+						m.cursor++
+					}
+					if !m.items[m.cursor].Separator {
+						break
+					}
 				}
 			}
 		case key.Matches(msg, m.Keymap.Select):

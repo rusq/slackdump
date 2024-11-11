@@ -138,8 +138,9 @@ func ThemeBase16Ext() *huh.Theme {
 	t.Focused.SelectedOption = t.Focused.SelectedOption.Foreground(black).Background(green)
 	t.Focused.SelectedPrefix = t.Focused.SelectedPrefix.Foreground(green)
 	t.Focused.UnselectedOption = t.Focused.UnselectedOption.Foreground(white)
-	t.Focused.FocusedButton = t.Focused.FocusedButton.Foreground(white).Background(purple)
+	t.Focused.FocusedButton = t.Focused.FocusedButton.Foreground(white).Background(green)
 	t.Focused.BlurredButton = t.Focused.BlurredButton.Foreground(white).Background(black)
+	t.Focused.NoteTitle = t.Focused.NoteTitle.Foreground(cyan)
 
 	t.Focused.TextInput.Cursor.Foreground(purple)
 	t.Focused.TextInput.Placeholder.Foreground(gray)
