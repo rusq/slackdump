@@ -21,7 +21,7 @@ func NewFilePicker(prompt string, homedir string, allowedExt ...string) FileSyst
 	fp := filepicker.New()
 	fp.AllowedTypes = allowedExt
 	fp.CurrentDirectory = homedir
-	fp.Styles.Cursor = HuhTheme.Focused.SelectedOption
+	fp.Styles.Cursor = HuhTheme().Focused.SelectedOption
 
 	return FileSystemModel{
 		filepicker: fp,

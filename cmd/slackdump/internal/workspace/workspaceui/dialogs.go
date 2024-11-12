@@ -18,7 +18,7 @@ func askRetry(ctx context.Context, name string, err error) (retry bool) {
 		huh.NewConfirm().Title("Error Creating Workspace").
 			Description(msg).
 			Value(&retry).Affirmative("Retry").Negative("Cancel"),
-	)).WithTheme(ui.HuhTheme).RunWithContext(ctx); err != nil {
+	)).WithTheme(ui.HuhTheme()).RunWithContext(ctx); err != nil {
 		return false
 	}
 	return retry
@@ -30,5 +30,5 @@ func success(ctx context.Context, workspace string) error {
 			Description(fmt.Sprintf("Workspace %q was added and selected.\n\n", workspace)).
 			Next(true).
 			NextLabel("Exit"),
-	)).WithTheme(ui.HuhTheme).RunWithContext(ctx)
+	)).WithTheme(ui.HuhTheme()).RunWithContext(ctx)
 }

@@ -22,7 +22,7 @@ func NewPicklist[T comparable](v *T, s *huh.Select[T]) *Model[T] {
 	m := &Model[T]{
 		s: s.Value(v).
 			Description("Select an option").
-			WithTheme(ui.HuhTheme).
+			WithTheme(ui.HuhTheme()).
 			WithKeyMap(huh.NewDefaultKeyMap()),
 		help: help.New(),
 

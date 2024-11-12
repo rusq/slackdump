@@ -134,5 +134,5 @@ func (m selectModel) View() string {
 	if m.finished {
 		return "" // don't render the table if we've selected a workspace
 	}
-	return m.style.FocusedBorder.Render((m.table.View()) + "\n\n" + ui.HuhTheme.Help.Ellipsis.Render("Select the workspace with arrow keys, press [Enter] to confirm, [Esc] to cancel."))
+	return m.style.FocusedBorder.Render((m.table.View()) + "\n\n" + ui.HuhTheme().Help.Ellipsis.Render("Select the workspace with arrow keys, press [Enter] to confirm, [Esc] to cancel."))
 }
