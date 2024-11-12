@@ -6,7 +6,8 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-var HuhTheme = ThemeBase16Ext() // Theme is the default Wizard theme.
+// HuhTheme is the default Wizard theme.
+var HuhTheme = ThemeBase16Ext
 
 type Theme struct {
 	Focused ControlStyle
@@ -127,7 +128,7 @@ func ThemeBase16Ext() *huh.Theme {
 	t.Focused.Title = t.Focused.Title.Foreground(cyan)
 	t.Focused.NoteTitle = t.Focused.NoteTitle.Foreground(cyan)
 	t.Focused.Directory = t.Focused.Directory.Foreground(cyan)
-	t.Focused.Description = t.Focused.Description.Foreground(gray)
+	t.Focused.Description = t.Focused.Description.Foreground(white)
 	t.Focused.ErrorIndicator = t.Focused.ErrorIndicator.Foreground(ltred)
 	t.Focused.ErrorMessage = t.Focused.ErrorMessage.Foreground(ltred)
 	t.Focused.SelectSelector = t.Focused.SelectSelector.Foreground(yellow)

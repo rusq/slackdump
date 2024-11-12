@@ -18,6 +18,7 @@ func prgTokenCookie(ctx context.Context, m manager) error {
 		workspace string
 		confirmed bool
 	)
+
 	for !confirmed {
 		f := huh.NewForm(huh.NewGroup(
 			huh.NewInput().Title("Token").
@@ -30,11 +31,11 @@ func prgTokenCookie(ctx context.Context, m manager) error {
 				Placeholder("xoxd-...").
 				Value(&cookie),
 			huh.NewConfirm().Title("Confirm creation of workspace?").
-				Description("Once confirmed this will create a new workspace with the provided token and cookie").
+				Description("Once confirmed this will check the credentials for validity, detect the workspace \nand create a new workspace with the provided token and cookie").
 				Value(&confirmed).
 				Validate(makeValidator(ctx, &token, &cookie, auth.NewValueAuth)),
-		)).WithTheme(ui.HuhTheme)
-		if err := f.Run(); err != nil {
+		)).WithTheme(ui.HuhTheme()).WithKeyMap(ui.DefaultHuhKeymap)
+		if err := f.RunWithContext(ctx); err != nil {
 			return err
 		}
 		if !confirmed {
@@ -106,7 +107,7 @@ func prgTokenCookieFile(ctx context.Context, m manager) error {
 				Description("Once confirmed this will create a new workspace with the provided token and cookie").
 				Value(&confirmed).
 				Validate(makeValidator(ctx, &token, &cookiefile, auth.NewCookieFileAuth)),
-		)).WithTheme(ui.HuhTheme)
+		)).WithTheme(ui.HuhTheme()).WithKeyMap(ui.DefaultHuhKeymap)
 		if err := f.Run(); err != nil {
 			return err
 		}

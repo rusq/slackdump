@@ -58,6 +58,14 @@ func WorkspaceNew(ctx context.Context, _ *base.Command, _ []string) error {
 		},
 	}
 
+	// new workspace methods
+	var methods = map[string]func(context.Context, manager) error{
+		actLogin:     ezLogin3000,
+		actToken:     prgTokenCookie,
+		actTokenFile: prgTokenCookieFile,
+		actSecrets:   fileWithSecrets,
+	}
+
 LOOP:
 	for {
 		m := menu.New("New Workspace", items, true)
@@ -67,16 +75,14 @@ LOOP:
 		if m.Cancelled {
 			break LOOP
 		}
-		var err error
-		switch m.Selected.ID {
-		case actToken:
-			err = prgTokenCookie(ctx, mgr)
-		case actTokenFile:
-			err = prgTokenCookieFile(ctx, mgr)
-		case actExit:
+		if m.Selected.ID == actExit {
 			break LOOP
 		}
-		if err != nil {
+		fn, ok := methods[m.Selected.ID]
+		if !ok {
+			return errors.New("internal error:  unhandled login option")
+		}
+		if err := fn(ctx, mgr); err != nil {
 			if errors.Is(err, huh.ErrUserAborted) {
 				continue
 			}
