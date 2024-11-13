@@ -2,11 +2,13 @@ package menu
 
 import (
 	"strings"
+	"unicode"
 
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/cfgui"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/updaters"
@@ -14,11 +16,11 @@ import (
 
 type Model struct {
 	// Selected will be set to the selected item from the items.
-	Selected  MenuItem
+	Selected  Item
 	Cancelled bool
 
 	title     string
-	items     []MenuItem
+	items     []Item
 	finishing bool
 	focused   bool
 	preview   bool // preview child model
@@ -28,9 +30,18 @@ type Model struct {
 	help help.Model
 
 	cursor int
+	last   int
 }
 
-func New(title string, items []MenuItem, preview bool) *Model {
+func New(title string, items []Item, preview bool) *Model {
+	var last = len(items) - 1
+	for i := last; i >= 0; i++ {
+		if !items[i].Separator {
+			break
+		}
+		last--
+	}
+
 	return &Model{
 		title:     title,
 		items:     items,
@@ -40,6 +51,8 @@ func New(title string, items []MenuItem, preview bool) *Model {
 		focused:   true,
 		preview:   preview,
 		finishing: false,
+		cursor:    0,
+		last:      last,
 	}
 }
 
@@ -75,21 +88,29 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.Selected = m.items[m.cursor]
 			cmds = append(cmds, tea.Quit)
 		case key.Matches(msg, m.Keymap.Up):
-			for {
-				if m.cursor > 0 {
-					m.cursor--
-				}
-				if !m.items[m.cursor].Separator {
-					break
+			if m.cursor == 0 {
+				m.cursor = m.last
+			} else {
+				for {
+					if m.cursor > 0 {
+						m.cursor--
+					}
+					if !m.items[m.cursor].Separator {
+						break
+					}
 				}
 			}
 		case key.Matches(msg, m.Keymap.Down):
-			for {
-				if m.cursor < len(m.items)-1 {
-					m.cursor++
-				}
-				if !m.items[m.cursor].Separator {
-					break
+			if m.cursor == m.last {
+				m.cursor = 0
+			} else {
+				for {
+					if m.cursor < m.last {
+						m.cursor++
+					}
+					if !m.items[m.cursor].Separator {
+						break
+					}
 				}
 			}
 		case key.Matches(msg, m.Keymap.Select):
@@ -126,10 +147,10 @@ func (m *Model) View() string {
 	if m.finishing {
 		return ""
 	}
-	if m.items[m.cursor].Model != nil {
+	if item := m.items[m.cursor]; item.Model != nil {
 		if m.focused {
-			if m.preview {
-				return lipgloss.JoinHorizontal(lipgloss.Top, m.view(), m.items[m.cursor].Model.View())
+			if item.Preview && m.preview {
+				return lipgloss.JoinHorizontal(lipgloss.Top, m.view(), item.Model.View())
 			} else {
 				return m.view()
 			}
@@ -143,7 +164,9 @@ func capfirst(s string) string {
 	if s == "" {
 		return ""
 	}
-	return strings.ToUpper(s[:1]) + s[1:]
+	r := []rune(s)
+	r[0] = unicode.ToUpper(r[0])
+	return string(r)
 }
 
 func (m *Model) view() string {

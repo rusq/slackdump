@@ -64,6 +64,9 @@ type Command struct {
 	// The order here is the order in which they are printed by 'slackdump help'.
 	// Note that subcommands are in general best avoided.
 	Commands []*Command
+
+	//HideWizard if set to true disables the display in wizard.
+	HideWizard bool
 }
 
 var Slackdump = &Command{

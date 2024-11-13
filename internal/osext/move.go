@@ -45,6 +45,7 @@ func MoveFile(src string, fs fsadapter.FS, dst string) error {
 		// if err := fs.Chmod(dst, si.Mode()); err != nil {
 		// 	return fmt.Errorf("chmod: %s", err)
 		// }
+		_ = err // ignore SA9003 in golang-ci-lint
 	}
 
 	if err := os.Remove(src); err != nil {

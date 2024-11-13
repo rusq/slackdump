@@ -25,7 +25,7 @@ func SlackdumpSession(ctx context.Context, opts ...slackdump.Option) (*slackdump
 	}
 
 	stdOpts = append(stdOpts, opts...)
-	return slackdump.New(
+	return slackdump.NewNoValidate(
 		ctx,
 		prov,
 		stdOpts...,

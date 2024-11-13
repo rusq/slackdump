@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
 
 	"github.com/playwright-community/playwright-go"
@@ -16,7 +17,6 @@ import (
 
 var CmdEzTest = &base.Command{
 	Run:       runEzLoginTest,
-	Wizard:    func(ctx context.Context, cmd *base.Command, args []string) error { panic("not implemented") },
 	UsageLine: "slack tools eztest",
 	Short:     "EZ-Login 3000 test",
 	Long: `
@@ -30,34 +30,49 @@ You will see "OK" in the end if there were no issues, otherwise an error will
 be printed and the test will be terminated.
 `,
 	CustomFlags: true,
+	PrintFlags:  true,
 }
 
 type ezResult struct {
-	Engine     string  `json:"engine,omitempty"`
-	HasToken   bool    `json:"has_token,omitempty"`
-	HasCookies bool    `json:"has_cookies,omitempty"`
-	Err        *string `json:"error,omitempty"`
+	Engine      string       `json:"engine,omitempty"`
+	HasToken    bool         `json:"has_token,omitempty"`
+	HasCookies  bool         `json:"has_cookies,omitempty"`
+	Err         *string      `json:"error,omitempty"`
+	Credentials *Credentials `json:"credentials,omitempty"`
 }
+
+type Credentials struct {
+	Token   string         `json:"token,omitempty"`
+	Cookies []*http.Cookie `json:"cookie,omitempty"`
+}
+
+type eztestOpts struct {
+	printCreds bool
+	wsp        string
+	legacy     bool
+}
+
+var eztestFlags eztestOpts
 
 func init() {
 	CmdEzTest.Flag.Usage = func() {
 		fmt.Fprint(os.Stdout, "usage: slackdump tools eztest [flags]\n\nFlags:\n")
 		CmdEzTest.Flag.PrintDefaults()
 	}
+	CmdEzTest.Flag.BoolVar(&eztestFlags.printCreds, "p", false, "print credentials")
+	CmdEzTest.Flag.BoolVar(&eztestFlags.legacy, "legacy-browser", false, "run with playwright")
+	CmdEzTest.Flag.StringVar(&eztestFlags.wsp, "w", "", "Slack `workspace` to login to.")
 }
 
 func runEzLoginTest(ctx context.Context, cmd *base.Command, args []string) error {
 	lg := logger.FromContext(ctx)
-
-	wsp := cmd.Flag.String("w", "", "Slack `workspace` to login to.")
-	legacy := cmd.Flag.Bool("legacy-browser", false, "run with playwright")
 
 	if err := cmd.Flag.Parse(args); err != nil {
 		base.SetExitStatus(base.SInvalidParameters)
 		return err
 	}
 
-	if *wsp == "" {
+	if eztestFlags.wsp == "" {
 		base.SetExitStatus(base.SInvalidParameters)
 		cmd.Flag.Usage()
 		return nil
@@ -67,10 +82,10 @@ func runEzLoginTest(ctx context.Context, cmd *base.Command, args []string) error
 		res ezResult
 	)
 
-	if *legacy {
-		res = tryPlaywrightAuth(ctx, *wsp)
+	if eztestFlags.legacy {
+		res = tryPlaywrightAuth(ctx, eztestFlags.wsp, eztestFlags.printCreds)
 	} else {
-		res = tryRodAuth(ctx, *wsp)
+		res = tryRodAuth(ctx, eztestFlags.wsp, eztestFlags.printCreds)
 	}
 
 	enc := json.NewEncoder(os.Stdout)
@@ -87,31 +102,36 @@ func runEzLoginTest(ctx context.Context, cmd *base.Command, args []string) error
 		return errors.New(*res.Err)
 	}
 	return nil
-
 }
 
-func tryPlaywrightAuth(ctx context.Context, wsp string) ezResult {
-	var res = ezResult{Engine: "playwright"}
+func tryPlaywrightAuth(ctx context.Context, wsp string, populateCreds bool) ezResult {
+	var ret = ezResult{Engine: "playwright"}
 
 	if err := playwright.Install(&playwright.RunOptions{Browsers: []string{"firefox"}}); err != nil {
-		res.Err = ptr(fmt.Sprintf("playwright installation error: %s", err))
-		return res
+		ret.Err = ptr(fmt.Sprintf("playwright installation error: %s", err))
+		return ret
 	}
 
 	prov, err := auth.NewBrowserAuth(ctx, auth.BrowserWithWorkspace(wsp))
 	if err != nil {
-		res.Err = ptr(err.Error())
-		return res
+		ret.Err = ptr(err.Error())
+		return ret
 	}
 
-	res.HasToken = len(prov.SlackToken()) > 0
-	res.HasCookies = len(prov.Cookies()) > 0
-	return res
+	ret.HasToken = len(prov.SlackToken()) > 0
+	ret.HasCookies = len(prov.Cookies()) > 0
+	if populateCreds {
+		ret.Credentials = &Credentials{
+			Token:   prov.SlackToken(),
+			Cookies: prov.Cookies(),
+		}
+	}
+	return ret
 }
 
 func ptr[T any](t T) *T { return &t }
 
-func tryRodAuth(ctx context.Context, wsp string) ezResult {
+func tryRodAuth(ctx context.Context, wsp string, populateCreds bool) ezResult {
 	ret := ezResult{Engine: "rod"}
 	prov, err := auth.NewRODAuth(ctx, auth.BrowserWithWorkspace(wsp))
 	if err != nil {
@@ -120,5 +140,11 @@ func tryRodAuth(ctx context.Context, wsp string) ezResult {
 	}
 	ret.HasCookies = len(prov.Cookies()) > 0
 	ret.HasToken = len(prov.SlackToken()) > 0
+	if populateCreds {
+		ret.Credentials = &Credentials{
+			Token:   prov.SlackToken(),
+			Cookies: prov.Cookies(),
+		}
+	}
 	return ret
 }

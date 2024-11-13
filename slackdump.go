@@ -9,7 +9,6 @@ import (
 	"runtime/trace"
 	"time"
 
-	"github.com/go-playground/validator/v10"
 	"github.com/rusq/slack"
 	"golang.org/x/time/rate"
 
@@ -144,6 +143,13 @@ func New(ctx context.Context, prov auth.Provider, opts ...Option) (*Session, err
 		return nil, fmt.Errorf("auth provider validation error: %s", err)
 	}
 
+	return NewNoValidate(ctx, prov, opts...)
+}
+
+// NewNoValidate creates new Slackdump session with provided options, and
+// populates the internal cache of users and channels for lookups.  This
+// function does not validate the auth.Provider.
+func NewNoValidate(ctx context.Context, prov auth.Provider, opts ...Option) (*Session, error) {
 	sd := &Session{
 		cfg: defConfig,
 		uc:  new(usercache),
@@ -152,14 +158,6 @@ func New(ctx context.Context, prov auth.Provider, opts ...Option) (*Session, err
 	}
 	for _, opt := range opts {
 		opt(sd)
-	}
-
-	if err := sd.cfg.limits.Validate(); err != nil {
-		var vErr validator.ValidationErrors
-		if errors.As(err, &vErr) {
-			return nil, fmt.Errorf("API limits failed validation: %s", vErr.Translate(network.OptErrTranslations))
-		}
-		return nil, err
 	}
 
 	if err := sd.initClient(ctx, prov, sd.cfg.forceEnterprise); err != nil {

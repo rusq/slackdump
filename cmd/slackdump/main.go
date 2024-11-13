@@ -30,6 +30,7 @@ import (
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/help"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/list"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/man"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/view"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/wizard"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/workspace"
@@ -40,6 +41,7 @@ func init() {
 	loadSecrets(secretFiles)
 
 	base.Slackdump.Commands = []*base.Command{
+		workspace.CmdWorkspace,
 		archive.CmdArchive,
 		export.CmdExport,
 		dump.CmdDump,
@@ -47,7 +49,6 @@ func init() {
 		convertcmd.CmdConvert,
 		list.CmdList,
 		emoji.CmdEmoji,
-		workspace.CmdWorkspace,
 		diag.CmdDiag,
 		apiconfig.CmdConfig,
 		format.CmdFormat,
@@ -297,13 +298,13 @@ func whatDo() (choice, error) {
 	fmt.Print("\n" + cfg.Version.String() + "\n")
 
 	var ans choice
-	err := huh.NewSelect[choice]().
+	err := huh.NewForm(huh.NewGroup(huh.NewSelect[choice]().
 		Title("What do you want to do?").
 		Options(
 			huh.NewOption(string(choiceHelp), choiceHelp),
 			huh.NewOption(string(choiceWizard), choiceWizard),
 			huh.NewOption(string(choiceExit), choiceExit),
-		).Value(&ans).Run()
+		).Value(&ans))).WithTheme(ui.HuhTheme()).Run()
 
 	return ans, err
 }

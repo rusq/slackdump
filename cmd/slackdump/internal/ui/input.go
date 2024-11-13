@@ -14,7 +14,7 @@ func Input(msg, help string, validateFn func(s string) error) (string, error) {
 		Title(msg).
 		Description(help).
 		Validate(validateFn).
-		Value(&resp))).WithTheme(HuhTheme).
+		Value(&resp))).WithTheme(HuhTheme()).
 		Run(); err != nil {
 		return "", err
 	}

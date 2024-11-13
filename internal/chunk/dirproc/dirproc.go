@@ -37,16 +37,15 @@ func newDirProc(cd *chunk.Directory, name chunk.FileID) (*dirproc, error) {
 
 // Close closes the processor and the underlying chunk file.
 func (p *dirproc) Close() error {
-	if p.closed.Load() {
+	if !p.closed.CompareAndSwap(false, true) {
 		return nil
 	}
 	var errs error
 	if err := p.Recorder.Close(); err != nil {
-		errors.Join(errs, err)
+		errs = errors.Join(errs, err)
 	}
-	p.closed.Store(true)
 	if err := p.wc.Close(); err != nil {
-		errors.Join(errs, err)
+		errs = errors.Join(errs, err)
 	}
 	return errs
 }

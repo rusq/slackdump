@@ -140,7 +140,12 @@ func (m *Manager) Auth(ctx context.Context, name string, c Credentials) (auth.Pr
 
 // LoadProvider loads the file from disk without any checks.
 func (m *Manager) LoadProvider(name string) (auth.Provider, error) {
-	return loadCreds(filer, filepath.Join(m.dir, m.filename(name)))
+	return loadCreds(filer, m.filepath(name))
+}
+
+// SaveProvider saves the provider to the file, no questions asked.
+func (m *Manager) SaveProvider(name string, p auth.Provider) error {
+	return saveCreds(filer, m.filepath(name), p)
 }
 
 // ErrWorkspace is the error returned by the workspace manager, it contains the
