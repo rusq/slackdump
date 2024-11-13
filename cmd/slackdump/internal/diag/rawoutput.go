@@ -22,7 +22,6 @@ import (
 
 var CmdRawOutput = &base.Command{
 	Run:       nil, // populated by init to break the init cycle
-	Wizard:    func(context.Context, *base.Command, []string) error { panic("not implemented") },
 	UsageLine: "slackdump tools rawoutput [flags] <id>",
 	Short:     "record raw API output",
 	Long: `
@@ -39,6 +38,7 @@ Running this tool may be requested by developers.
 	PrintFlags:  true,
 	RequireAuth: true,
 	Commands:    nil,
+	HideWizard:  true,
 }
 
 type rawOutputParams struct {
@@ -186,7 +186,10 @@ func sendReq(w io.Writer, cl *http.Client, ep string, v url.Values) (bool, error
 		log.Printf("error while retrieving body: %s", err)
 	}
 	if resp.StatusCode != http.StatusOK {
-		io.Copy(w, bytes.NewReader(data))
+		_, err := io.Copy(w, bytes.NewReader(data))
+		if err != nil {
+			return false, err
+		}
 		return false, fmt.Errorf("server NOT OK: %s", resp.Status)
 	}
 	if len(data) == 0 {

@@ -13,7 +13,6 @@ import (
 	"reflect"
 	"sync"
 	"testing"
-	"time"
 
 	"go.uber.org/mock/gomock"
 
@@ -35,10 +34,6 @@ func setGlobalFetchFn(fn fetchFunc) {
 	mu.Lock()
 	defer mu.Unlock()
 	fetchFn = fn
-}
-
-func init() {
-	rand.Seed(time.Now().UnixNano())
 }
 
 func Test_fetchEmoji(t *testing.T) {

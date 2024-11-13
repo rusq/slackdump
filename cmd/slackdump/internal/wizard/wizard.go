@@ -96,14 +96,13 @@ func makeMenu(cmds []*base.Command, parent string, title string) (m *menu) {
 	}
 	for _, cmd := range cmds {
 		hasSubcommands := len(cmd.Commands) > 0
-		hasWizard := cmd.Wizard != nil
+		hasWizard := cmd.Wizard != nil && !cmd.HideWizard
 		isMe := strings.EqualFold(cmd.Name(), CmdWizard.Name())
 		if !(hasWizard || hasSubcommands) || isMe {
 			continue
 		}
 		name := titlecase.String(cmd.Name())
 		item := menuitem{
-			// Name:        parent + name,
 			Name:        name,
 			Description: cmd.Short,
 			cmd:         cmd,

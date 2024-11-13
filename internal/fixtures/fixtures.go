@@ -44,13 +44,18 @@ func FilledBuffer(sz int) *bytes.Buffer {
 }
 
 // FilledFile returns a file that filled with sz bytes of 0x00.
-func FilledFile(sz int) *os.File {
+func FilledFile(t *testing.T, sz int) *os.File {
+	t.Helper()
 	f, err := os.CreateTemp("", "sdunit*")
 	if err != nil {
 		panic(err)
 	}
-	f.Write(bytes.Repeat([]byte{0x00}, sz))
-	f.Seek(0, io.SeekStart)
+	if _, err := f.Write(bytes.Repeat([]byte{0x00}, sz)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.Seek(0, io.SeekStart); err != nil {
+		t.Fatal(err)
+	}
 	return f
 }
 

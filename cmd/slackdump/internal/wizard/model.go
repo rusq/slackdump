@@ -35,7 +35,7 @@ func newModel(m *menu) model {
 					Description("Slack workspace:  " + bootstrap.CurrentWsp()).
 					Options(options...),
 			),
-		).WithTheme(ui.HuhTheme),
+		).WithTheme(ui.HuhTheme()),
 	}
 }
 

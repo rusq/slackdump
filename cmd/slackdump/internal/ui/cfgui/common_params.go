@@ -19,6 +19,6 @@ func ChannelIDs(v *string, required bool) Parameter {
 		Value:       *v,
 		Description: descr,
 		Inline:      true,
-		Updater:     updaters.NewString(v, "", true, structures.ValidateEntityList),
+		Updater:     updaters.NewString(v, "", false, structures.ValidateEntityList),
 	}
 }

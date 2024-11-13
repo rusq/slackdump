@@ -26,7 +26,7 @@ func wizSearch(ctx context.Context, cmd *base.Command, args []string) error {
 				return errors.New("select action")
 			}
 			if len(terms) == 0 {
-				return errors.New("search terms are not specified")
+				return errors.New("specify search terms in Search Options")
 			}
 			return nil
 		},
@@ -62,7 +62,6 @@ func searchCfg() cfgui.Configuration {
 		cfgui.ParamGroup{
 			Name: "Other parameters",
 			Params: []cfgui.Parameter{
-
 				{
 					Name:        "Scope",
 					Description: "Choose the search scope.",

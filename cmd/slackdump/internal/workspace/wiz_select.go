@@ -6,6 +6,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui"
@@ -15,54 +16,6 @@ import (
 
 // TODO: organise as a self-sufficient model with proper error handling.
 
-func WorkspaceSelectModel(ctx context.Context, m *cache.Manager) (tea.Model, error) {
-	wspList, err := m.List()
-	if err != nil {
-		base.SetExitStatus(base.SCacheError)
-		return nil, err
-	}
-
-	if len(wspList) == 0 {
-		fmt.Println("No workspaces found")
-		return nil, nil // TODO
-	}
-
-	current, err := m.Current()
-	if err != nil {
-		base.SetExitStatus(base.SWorkspaceError)
-		return nil, fmt.Errorf("error getting the current workspace: %s", err)
-	}
-
-	columns := []table.Column{
-		{Title: "C", Width: 1},
-		{Title: "Name", Width: 14},
-		{Title: "Team", Width: 15},
-		{Title: "User", Width: 15},
-		{Title: "Error", Width: 30},
-	}
-
-	var rows []table.Row
-	for _, w := range wspInfo(ctx, m, current, wspList) {
-		rows = append(rows, table.Row{w[0], w[1], w[4], w[5], w[6]})
-	}
-
-	t := table.New(
-		table.WithColumns(columns),
-		table.WithRows(rows),
-		table.WithFocused(true),
-		table.WithHeight(7),
-	)
-
-	s := table.Styles{
-		Header:   ui.DefaultTheme().Focused.Title.Padding(0, 1),
-		Selected: ui.DefaultTheme().Focused.SelectedLine.Bold(true),
-		Cell:     ui.DefaultTheme().Focused.Text.Padding(0, 1),
-	}
-	t.SetStyles(s)
-	t.Focus()
-	return selectModel{table: t}, nil
-}
-
 func wizSelect(ctx context.Context, cmd *base.Command, args []string) error {
 	m, err := cache.NewManager(cfg.CacheDir())
 	if err != nil {
@@ -70,7 +23,7 @@ func wizSelect(ctx context.Context, cmd *base.Command, args []string) error {
 		return err
 	}
 
-	sm, err := WorkspaceSelectModel(ctx, m)
+	sm, err := workspaceSelectModel(ctx, m)
 	if err != nil {
 		return err
 	}
@@ -93,12 +46,68 @@ func wizSelect(ctx context.Context, cmd *base.Command, args []string) error {
 	return nil
 }
 
-var baseStyle = ui.HuhTheme.Form
+func workspaceSelectModel(ctx context.Context, m *cache.Manager) (tea.Model, error) {
+	wspList, err := m.List()
+	if err != nil {
+		base.SetExitStatus(base.SCacheError)
+		return nil, err
+	}
+
+	if len(wspList) == 0 {
+		fmt.Println("No workspaces found")
+		return nil, nil // TODO
+	}
+
+	current, err := m.Current()
+	if err != nil {
+		base.SetExitStatus(base.SWorkspaceError)
+		return nil, fmt.Errorf("error getting the current workspace: %s", err)
+	}
+
+	columns := []table.Column{
+		{Title: "C", Width: 1},
+		{Title: "Name", Width: 14},
+		{Title: "Team", Width: 15},
+		{Title: "User", Width: 15},
+		{Title: "Status", Width: 30},
+	}
+
+	var rows []table.Row
+	for _, w := range wspInfo(ctx, m, current, wspList) {
+		rows = append(rows, table.Row{w[0], w[1], w[4], w[5], w[6]})
+	}
+
+	t := table.New(
+		table.WithColumns(columns),
+		table.WithRows(rows),
+		table.WithFocused(true),
+		table.WithHeight(7),
+	)
+
+	s := table.Styles{
+		Header:   ui.DefaultTheme().Focused.Title.Padding(0, 1),
+		Selected: ui.DefaultTheme().Focused.SelectedLine.Bold(true),
+		Cell:     ui.DefaultTheme().Focused.Text.Padding(0, 1),
+	}
+	t.SetStyles(s)
+	t.Focus()
+	return selectModel{
+		table: t,
+		style: style{
+			FocusedBorder: ui.DefaultTheme().Focused.Border,
+		},
+	}, nil
+}
 
 type selectModel struct {
 	table    table.Model
 	selected string
 	finished bool
+	style    style
+}
+
+type style struct {
+	FocusedBorder lipgloss.Style
 }
 
 func (m selectModel) Init() tea.Cmd { return nil }
@@ -125,5 +134,5 @@ func (m selectModel) View() string {
 	if m.finished {
 		return "" // don't render the table if we've selected a workspace
 	}
-	return baseStyle.Render(m.table.View()) + "\n\n" + ui.HuhTheme.Help.Ellipsis.Render("Select the workspace with arrow keys, press [Enter] to confirm, [Esc] to cancel.")
+	return m.style.FocusedBorder.Render((m.table.View()) + "\n\n" + ui.HuhTheme().Help.Ellipsis.Render("Select the workspace with arrow keys, press [Enter] to confirm, [Esc] to cancel."))
 }

@@ -2,8 +2,6 @@ package export
 
 import (
 	"context"
-	"errors"
-	"regexp"
 
 	"github.com/charmbracelet/huh"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
@@ -63,22 +61,9 @@ func (fl *exportFlags) configuration() cfgui.Configuration {
 					Value:       fl.ExportToken,
 					Description: "File export token to append to each of the file URLs",
 					Inline:      true,
-					Updater:     updaters.NewString(&fl.ExportToken, "", false, validateToken),
+					Updater:     updaters.NewString(&fl.ExportToken, "", false, structures.ValidateToken),
 				},
 			},
 		},
 	}
-}
-
-// tokenRe is a loose regular expression to match Slack API tokens.
-// a - app, b - bot, c - client, e - export, p - legacy
-var tokenRE = regexp.MustCompile(`xox[abcep]-[0-9]+-[0-9]+-[0-9]+-[0-9a-z]{64}`)
-
-var errInvalidToken = errors.New("token must start with xoxa-, xoxb-, xoxc- or xoxe- and be followed by 4 numbers and 64 lowercase letters")
-
-func validateToken(token string) error {
-	if !tokenRE.MatchString(token) {
-		return errInvalidToken
-	}
-	return nil
 }

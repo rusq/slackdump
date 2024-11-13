@@ -14,6 +14,8 @@ import (
 // Huh is the Auth UI that uses the huh library to provide a terminal UI.
 type Huh struct{}
 
+var Theme = huh.ThemeBase16()
+
 func (h *Huh) RequestWorkspace(w io.Writer) (string, error) {
 	var workspace string
 	err := huh.NewForm(huh.NewGroup(
@@ -22,7 +24,7 @@ func (h *Huh) RequestWorkspace(w io.Writer) (string, error) {
 			Value(&workspace).
 			Validate(valWorkspace).
 			Description("The workspace name is the part of the URL that comes before `.slack.com' in\nhttps://<workspace>.slack.com/.  Both workspace name or URL are acceptable."),
-	)).Run()
+	)).WithTheme(Theme).Run()
 	if err != nil {
 		return "", err
 	}
@@ -44,7 +46,7 @@ func (*Huh) RequestCreds(w io.Writer, workspace string) (email string, passwd st
 				Placeholder("your slack password").
 				Validate(valRequired).EchoMode(huh.EchoModePassword),
 		),
-	)
+	).WithTheme(Theme)
 	err = f.Run()
 	return
 }
@@ -137,7 +139,7 @@ func (*Huh) RequestLoginType(w io.Writer, workspace string) (LoginOpts, error) {
 				return ""
 			}
 		}, &ret.Type))
-	if err := huh.NewForm(huh.NewGroup(fields...)).Run(); err != nil {
+	if err := huh.NewForm(huh.NewGroup(fields...)).WithTheme(Theme).Run(); err != nil {
 		return ret, err
 	}
 	if ret.Type == LUserBrowser {
@@ -170,7 +172,7 @@ func chooseBrowser() (string, error) {
 			DescriptionFunc(func() string {
 				return browsers[selection].Path
 			}, &selection),
-	)).Run()
+	)).WithTheme(Theme).Run()
 	if err != nil {
 		return "", err
 	}
@@ -189,7 +191,7 @@ func (*Huh) ConfirmationCode(email string) (int, error) {
 			Description("Slack did not recognise the browser, and sent a confirmation code.  Please enter the confirmation code below.").
 			Value(&strCode).
 			Validate(valSixDigits),
-	))
+	)).WithTheme(Theme)
 	if err := q.Run(); err != nil {
 		return 0, err
 	}
