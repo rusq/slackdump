@@ -75,3 +75,12 @@ goreleaser:
 
 tags:
 	gotags -R *.go > $@
+
+generate: | install_tools
+	go generate ./...
+.PHONY:generate
+
+install_tools:
+	go install go.uber.org/mock/mockgen@latest
+	go install golang.org/x/tools/cmd/stringer@latest
+.PHONY: install_tools

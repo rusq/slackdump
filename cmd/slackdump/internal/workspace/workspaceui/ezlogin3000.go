@@ -18,8 +18,8 @@ func ezLogin3000(ctx context.Context, mgr manager) error {
 	)
 	form := huh.NewForm(huh.NewGroup(
 		huh.NewConfirm().
-			Title("Use legacy EZ-Login?").
-			Description("Do you want to use the legacy login?").
+			Title("Do you want to use the legacy login?").
+			Description("Choose 'Yes' if you had problems in the past with the current EZ-Login.").
 			Value(&legacy),
 	)).WithTheme(ui.HuhTheme()).WithKeyMap(ui.DefaultHuhKeymap)
 	if err := form.RunWithContext(ctx); err != nil {
@@ -28,11 +28,20 @@ func ezLogin3000(ctx context.Context, mgr manager) error {
 		}
 		return err
 	}
-	if legacy {
-		return playwrightLogin(ctx, mgr)
-	}
-	return rodLogin(ctx, mgr)
 
+	var err error
+	if legacy {
+		err = playwrightLogin(ctx, mgr)
+	} else {
+		err = rodLogin(ctx, mgr)
+	}
+	if err != nil {
+		if errors.Is(err, auth.ErrCancelled) {
+			return nil
+		}
+		return err
+	}
+	return nil
 }
 
 func playwrightLogin(ctx context.Context, mgr manager) error {

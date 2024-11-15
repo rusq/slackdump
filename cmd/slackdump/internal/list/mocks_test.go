@@ -23,6 +23,7 @@ import (
 type MockuserGetter struct {
 	ctrl     *gomock.Controller
 	recorder *MockuserGetterMockRecorder
+	isgomock struct{}
 }
 
 // MockuserGetterMockRecorder is the mock recorder for MockuserGetter.
@@ -61,6 +62,7 @@ func (mr *MockuserGetterMockRecorder) GetUsers(ctx any) *gomock.Call {
 type MockuserCacher struct {
 	ctrl     *gomock.Controller
 	recorder *MockuserCacherMockRecorder
+	isgomock struct{}
 }
 
 // MockuserCacherMockRecorder is the mock recorder for MockuserCacher.

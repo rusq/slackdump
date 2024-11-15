@@ -1,12 +1,14 @@
 package auth_ui
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
 	"regexp"
 	"strconv"
 
+	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/huh"
 	"github.com/rusq/slackauth"
 )
@@ -33,7 +35,7 @@ func (h *Huh) RequestWorkspace(w io.Writer) (string, error) {
 
 func (*Huh) Stop() {}
 
-func (*Huh) RequestCreds(w io.Writer, workspace string) (email string, passwd string, err error) {
+func (*Huh) RequestCreds(ctx context.Context, w io.Writer, workspace string) (email string, passwd string, err error) {
 	f := huh.NewForm(
 		huh.NewGroup(
 			huh.NewInput().
@@ -46,8 +48,8 @@ func (*Huh) RequestCreds(w io.Writer, workspace string) (email string, passwd st
 				Placeholder("your slack password").
 				Validate(valRequired).EchoMode(huh.EchoModePassword),
 		),
-	).WithTheme(Theme)
-	err = f.Run()
+	).WithTheme(Theme).WithKeyMap(keymap)
+	err = f.RunWithContext(ctx)
 	return
 }
 
@@ -85,15 +87,13 @@ type LoginOpts struct {
 	BrowserPath string
 }
 
-func valWorkspace(s string) error {
-	if err := valRequired(s); err != nil {
-		return err
-	}
-	_, err := Sanitize(s)
-	return err
+var keymap = huh.NewDefaultKeyMap()
+
+func init() {
+	keymap.Quit = key.NewBinding(key.WithKeys("esc", "ctrl+c"), key.WithHelp("esc", "Quit"))
 }
 
-func (*Huh) RequestLoginType(w io.Writer, workspace string) (LoginOpts, error) {
+func (*Huh) RequestLoginType(ctx context.Context, w io.Writer, workspace string) (LoginOpts, error) {
 	var ret = LoginOpts{
 		Workspace:   workspace,
 		Type:        LInteractive,
@@ -120,7 +120,11 @@ func (*Huh) RequestLoginType(w io.Writer, workspace string) (LoginOpts, error) {
 
 	fields = append(fields, huh.NewSelect[LoginType]().
 		TitleFunc(func() string {
-			return fmt.Sprintf("Select login type for [%s]", ret.Workspace)
+			wsp, err := Sanitize(ret.Workspace)
+			if err != nil {
+				return "Select login type"
+			}
+			return fmt.Sprintf("Select login type for [%s]", wsp)
 		}, &ret.Workspace).
 		Options(opts...).
 		Value(&ret.Type).
@@ -139,21 +143,31 @@ func (*Huh) RequestLoginType(w io.Writer, workspace string) (LoginOpts, error) {
 				return ""
 			}
 		}, &ret.Type))
-	if err := huh.NewForm(huh.NewGroup(fields...)).WithTheme(Theme).Run(); err != nil {
+
+	form := huh.NewForm(huh.NewGroup(fields...)).WithTheme(Theme).WithKeyMap(keymap)
+
+	if err := form.RunWithContext(ctx); err != nil {
 		return ret, err
 	}
+	var err error
+	ret.Workspace, err = Sanitize(ret.Workspace)
+	if err != nil {
+		return ret, err
+	}
+
 	if ret.Type == LUserBrowser {
-		path, err := chooseBrowser()
+		path, err := chooseBrowser(ctx)
 		if err != nil {
 			return ret, err
 		}
 		ret.BrowserPath = path
 		return ret, err
 	}
+
 	return ret, nil
 }
 
-func chooseBrowser() (string, error) {
+func chooseBrowser(ctx context.Context) (string, error) {
 	browsers, err := slackauth.ListBrowsers()
 	if err != nil {
 		return "", err
@@ -172,7 +186,7 @@ func chooseBrowser() (string, error) {
 			DescriptionFunc(func() string {
 				return browsers[selection].Path
 			}, &selection),
-	)).WithTheme(Theme).Run()
+	)).WithTheme(Theme).WithKeyMap(keymap).RunWithContext(ctx)
 	if err != nil {
 		return "", err
 	}

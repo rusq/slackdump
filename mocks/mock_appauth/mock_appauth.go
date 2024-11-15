@@ -22,6 +22,7 @@ import (
 type MockCredentials struct {
 	ctrl     *gomock.Controller
 	recorder *MockCredentialsMockRecorder
+	isgomock struct{}
 }
 
 // MockCredentialsMockRecorder is the mock recorder for MockCredentials.
@@ -79,6 +80,7 @@ func (mr *MockCredentialsMockRecorder) IsEmpty() *gomock.Call {
 type Mockcontainer struct {
 	ctrl     *gomock.Controller
 	recorder *MockcontainerMockRecorder
+	isgomock struct{}
 }
 
 // MockcontainerMockRecorder is the mock recorder for Mockcontainer.
