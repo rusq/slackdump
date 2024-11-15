@@ -3,6 +3,8 @@ package auth_ui
 import (
 	"errors"
 	"regexp"
+
+	"github.com/rusq/slackdump/v3/internal/structures"
 )
 
 var (
@@ -105,6 +107,6 @@ func valWorkspace(s string) error {
 	if err := valRequired(s); err != nil {
 		return err
 	}
-	_, err := Sanitize(s)
+	_, err := structures.ExtractWorkspace(s)
 	return err
 }

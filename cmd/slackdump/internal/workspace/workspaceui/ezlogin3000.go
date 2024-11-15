@@ -65,7 +65,7 @@ func playwrightLogin(ctx context.Context, mgr manager) error {
 		return err
 	}
 
-	name, err := createAndSelect(ctx, mgr, prov)
+	name, err := mgr.CreateAndSelect(ctx, prov)
 	if err != nil {
 		return err
 	}
@@ -77,7 +77,7 @@ func rodLogin(ctx context.Context, mgr manager) error {
 	if err != nil {
 		return err
 	}
-	name, err := createAndSelect(ctx, mgr, prov)
+	name, err := mgr.CreateAndSelect(ctx, prov)
 	if err != nil {
 		return err
 	}

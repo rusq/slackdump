@@ -11,6 +11,7 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/huh"
 	"github.com/rusq/slackauth"
+	"github.com/rusq/slackdump/v3/internal/structures"
 )
 
 // Huh is the Auth UI that uses the huh library to provide a terminal UI.
@@ -120,7 +121,7 @@ func (*Huh) RequestLoginType(ctx context.Context, w io.Writer, workspace string)
 
 	fields = append(fields, huh.NewSelect[LoginType]().
 		TitleFunc(func() string {
-			wsp, err := Sanitize(ret.Workspace)
+			wsp, err := structures.ExtractWorkspace(ret.Workspace)
 			if err != nil {
 				return "Select login type"
 			}
@@ -150,7 +151,7 @@ func (*Huh) RequestLoginType(ctx context.Context, w io.Writer, workspace string)
 		return ret, err
 	}
 	var err error
-	ret.Workspace, err = Sanitize(ret.Workspace)
+	ret.Workspace, err = structures.ExtractWorkspace(ret.Workspace)
 	if err != nil {
 		return ret, err
 	}
