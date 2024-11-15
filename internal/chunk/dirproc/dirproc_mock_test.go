@@ -22,6 +22,7 @@ import (
 type MockTransformer struct {
 	ctrl     *gomock.Controller
 	recorder *MockTransformerMockRecorder
+	isgomock struct{}
 }
 
 // MockTransformerMockRecorder is the mock recorder for MockTransformer.
@@ -59,6 +60,7 @@ func (mr *MockTransformerMockRecorder) Transform(ctx, id any) *gomock.Call {
 type Mocktracker struct {
 	ctrl     *gomock.Controller
 	recorder *MocktrackerMockRecorder
+	isgomock struct{}
 }
 
 // MocktrackerMockRecorder is the mock recorder for Mocktracker.
@@ -139,6 +141,7 @@ func (mr *MocktrackerMockRecorder) Unregister(id any) *gomock.Call {
 type Mockdatahandler struct {
 	ctrl     *gomock.Controller
 	recorder *MockdatahandlerMockRecorder
+	isgomock struct{}
 }
 
 // MockdatahandlerMockRecorder is the mock recorder for Mockdatahandler.
@@ -302,6 +305,7 @@ func (mr *MockdatahandlerMockRecorder) ThreadMessages(ctx, channelID, parent, th
 type Mockcounter struct {
 	ctrl     *gomock.Controller
 	recorder *MockcounterMockRecorder
+	isgomock struct{}
 }
 
 // MockcounterMockRecorder is the mock recorder for Mockcounter.

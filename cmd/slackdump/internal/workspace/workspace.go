@@ -54,9 +54,9 @@ automatically detected to be:
 	},
 }
 
-//go:generate mockgen -destination=mocks_test.go -package=workspace -source=workspace.go manager
-
 // manager is used for test rigging.
+//
+//go:generate mockgen -destination=mocks_test.go -package=workspace -source=workspace.go manager
 type manager interface {
 	Auth(ctx context.Context, name string, c cache.Credentials) (auth.Provider, error)
 	Delete(name string) error

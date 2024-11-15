@@ -22,6 +22,7 @@ import (
 type MockSlacker struct {
 	ctrl     *gomock.Controller
 	recorder *MockSlackerMockRecorder
+	isgomock struct{}
 }
 
 // MockSlackerMockRecorder is the mock recorder for MockSlacker.
@@ -218,6 +219,7 @@ func (mr *MockSlackerMockRecorder) SearchMessagesContext(ctx, query, params any)
 type mockClienter struct {
 	ctrl     *gomock.Controller
 	recorder *mockClienterMockRecorder
+	isgomock struct{}
 }
 
 // mockClienterMockRecorder is the mock recorder for mockClienter.

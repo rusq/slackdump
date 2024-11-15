@@ -160,6 +160,18 @@ func (m *Model) View() string {
 	return m.view()
 }
 
+func (m *Model) Select(id string) {
+	if id == m.items[m.cursor].ID {
+		return
+	}
+	for i, item := range m.items {
+		if item.ID == id && !item.Separator {
+			m.cursor = i
+			break
+		}
+	}
+}
+
 func capfirst(s string) string {
 	if s == "" {
 		return ""

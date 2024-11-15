@@ -17,6 +17,7 @@ func TestSanitize(t *testing.T) {
 		{"url no slash", args{"https://blahblah.slack.com"}, "blahblah", false},
 		{"url no schema slash", args{"blahblah.slack.com/"}, "blahblah", false},
 		{"url no schema no slash", args{"blahblah.slack.com"}, "blahblah", false},
+		{"not a slack domain", args{"blahblah.example.com"}, "", true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

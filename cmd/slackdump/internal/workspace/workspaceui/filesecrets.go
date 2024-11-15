@@ -26,12 +26,13 @@ func fileWithSecrets(ctx context.Context, mgr manager) error {
 			ShowPermissions(true).
 			Value(&filename).
 			Validate(validateSecrets),
-	)).WithTheme(ui.HuhTheme()).WithHeight(10)
+	)).WithTheme(ui.HuhTheme()).WithHeight(10).WithKeyMap(ui.DefaultHuhKeymap)
 	if err := form.RunWithContext(ctx); err != nil {
 		if errors.Is(err, huh.ErrUserAborted) {
 			return nil
 		}
 	}
+
 	tok, cookie, err := parseSecretsTxt(filename)
 	if err != nil {
 		return err
@@ -54,6 +55,12 @@ func validateSecrets(filename string) error {
 }
 
 func parseSecretsTxt(filename string) (string, string, error) {
+	const (
+		tokenKey  = "SLACK_TOKEN"
+		cookieKey = "SLACK_COOKIE"
+
+		clientTokenPrefix = "xoxc-"
+	)
 	f, err := os.Open(filename)
 	if err != nil {
 		return "", "", err
@@ -63,19 +70,19 @@ func parseSecretsTxt(filename string) (string, string, error) {
 	if err != nil {
 		return "", "", errors.New("not a secrets file")
 	}
-	token, ok := secrets["SLACK_TOKEN"]
+	token, ok := secrets[tokenKey]
 	if !ok {
-		return "", "", errors.New("no SLACK_TOKEN found")
+		return "", "", errors.New("no SLACK_TOKEN found in the file")
 	}
 	if err := structures.ValidateToken(token); err != nil {
 		return "", "", err
 	}
-	if !strings.HasPrefix(token, "xoxc-") {
+	if !strings.HasPrefix(token, clientTokenPrefix) {
 		return token, "", nil
 	}
-	cook, ok := secrets["SLACK_COOKIE"]
+	cook, ok := secrets[cookieKey]
 	if !ok {
-		return "", "", errors.New("no SLACK_COOKIE found")
+		return "", "", errors.New("no SLACK_COOKIE found in the file")
 	}
 	if !strings.HasPrefix(cook, "xoxd-") {
 		return "", "", errors.New("invalid cookie")
