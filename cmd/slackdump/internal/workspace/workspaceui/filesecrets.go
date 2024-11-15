@@ -26,7 +26,7 @@ func fileWithSecrets(ctx context.Context, mgr manager) error {
 			ShowPermissions(true).
 			Value(&filename).
 			Validate(validateSecrets),
-	)).WithTheme(ui.HuhTheme()).WithHeight(10)
+	)).WithTheme(ui.HuhTheme()).WithHeight(10).WithKeyMap(ui.DefaultHuhKeymap)
 	if err := form.RunWithContext(ctx); err != nil {
 		if errors.Is(err, huh.ErrUserAborted) {
 			return nil
