@@ -64,10 +64,10 @@ type browserAuthUIExt interface {
 	// RequestLoginType should request the login type from the user and return
 	// one of the [auth_ui.LoginType] constants.  The implementation should
 	// provide a way to cancel the login flow, returning [auth_ui.LoginCancel].
-	RequestLoginType(w io.Writer, workspace string) (auth_ui.LoginOpts, error)
+	RequestLoginType(ctx context.Context, w io.Writer, workspace string) (auth_ui.LoginOpts, error)
 	// RequestCreds should request the user's email and password and return
 	// them.
-	RequestCreds(w io.Writer, workspace string) (email string, passwd string, err error)
+	RequestCreds(ctx context.Context, w io.Writer, workspace string) (email string, passwd string, err error)
 	// ConfirmationCode should request the confirmation code from the user and
 	// return it.
 	ConfirmationCode(email string) (code int, err error)
@@ -95,7 +95,7 @@ func NewRODAuth(ctx context.Context, opts ...Option) (RodAuth, error) {
 		r.opts.workspace = wsp
 	}
 
-	resp, err := r.opts.ui.RequestLoginType(os.Stdout, r.opts.workspace)
+	resp, err := r.opts.ui.RequestLoginType(ctx, os.Stdout, r.opts.workspace)
 	if err != nil {
 		return r, err
 	}
@@ -142,7 +142,7 @@ func NewRODAuth(ctx context.Context, opts ...Option) (RodAuth, error) {
 }
 
 func headlessFlow(ctx context.Context, cl *slackauth.Client, workspace string, ui browserAuthUIExt) (sp simpleProvider, err error) {
-	username, password, err := ui.RequestCreds(os.Stdout, workspace)
+	username, password, err := ui.RequestCreds(ctx, os.Stdout, workspace)
 	if err != nil {
 		return sp, err
 	}

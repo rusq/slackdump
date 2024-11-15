@@ -100,3 +100,11 @@ func valSepEaster() func(v LoginType) error {
 		return nil
 	}
 }
+
+func valWorkspace(s string) error {
+	if err := valRequired(s); err != nil {
+		return err
+	}
+	_, err := Sanitize(s)
+	return err
+}

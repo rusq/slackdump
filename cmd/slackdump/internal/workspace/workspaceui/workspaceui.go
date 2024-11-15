@@ -31,12 +31,12 @@ func WorkspaceNew(ctx context.Context, _ *base.Command, _ []string) error {
 		{
 			ID:   actLogin,
 			Name: "Login in Browser",
-			Help: "Login to Slack in your browser",
+			Help: "Opens the browser and lets you login in a familiar way.",
 		},
 		{
 			ID:   actToken,
 			Name: "Token/Cookie",
-			Help: "Enter token and cookie that you grabbed from the browser",
+			Help: "Enter token and cookie that you grabbed from the browser.",
 		},
 		{
 			ID:   actTokenFile,
@@ -66,12 +66,15 @@ func WorkspaceNew(ctx context.Context, _ *base.Command, _ []string) error {
 		actSecrets:   fileWithSecrets,
 	}
 
+	var lastID string = actLogin
 LOOP:
 	for {
 		m := menu.New("New Workspace", items, true)
+		m.Select(lastID)
 		if _, err := tea.NewProgram(&wizModel{m: m}, tea.WithContext(ctx)).Run(); err != nil {
 			return err
 		}
+		lastID = m.Selected.ID
 		if m.Cancelled {
 			break LOOP
 		}
