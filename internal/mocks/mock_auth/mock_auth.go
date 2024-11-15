@@ -22,6 +22,7 @@ import (
 type MockProvider struct {
 	ctrl     *gomock.Controller
 	recorder *MockProviderMockRecorder
+	isgomock struct{}
 }
 
 // MockProviderMockRecorder is the mock recorder for MockProvider.
@@ -85,18 +86,18 @@ func (mr *MockProviderMockRecorder) SlackToken() *gomock.Call {
 }
 
 // Test mocks base method.
-func (m *MockProvider) Test(arg0 context.Context) (*slack.AuthTestResponse, error) {
+func (m *MockProvider) Test(ctx context.Context) (*slack.AuthTestResponse, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Test", arg0)
+	ret := m.ctrl.Call(m, "Test", ctx)
 	ret0, _ := ret[0].(*slack.AuthTestResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Test indicates an expected call of Test.
-func (mr *MockProviderMockRecorder) Test(arg0 any) *gomock.Call {
+func (mr *MockProviderMockRecorder) Test(ctx any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Test", reflect.TypeOf((*MockProvider)(nil).Test), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Test", reflect.TypeOf((*MockProvider)(nil).Test), ctx)
 }
 
 // Validate mocks base method.

@@ -20,6 +20,7 @@ import (
 type MockRequest struct {
 	ctrl     *gomock.Controller
 	recorder *MockRequestMockRecorder
+	isgomock struct{}
 }
 
 // MockRequestMockRecorder is the mock recorder for MockRequest.
@@ -83,18 +84,18 @@ func (mr *MockRequestMockRecorder) Frame() *gomock.Call {
 }
 
 // HeaderValue mocks base method.
-func (m *MockRequest) HeaderValue(arg0 string) (string, error) {
+func (m *MockRequest) HeaderValue(name string) (string, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "HeaderValue", arg0)
+	ret := m.ctrl.Call(m, "HeaderValue", name)
 	ret0, _ := ret[0].(string)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // HeaderValue indicates an expected call of HeaderValue.
-func (mr *MockRequestMockRecorder) HeaderValue(arg0 any) *gomock.Call {
+func (mr *MockRequestMockRecorder) HeaderValue(name any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HeaderValue", reflect.TypeOf((*MockRequest)(nil).HeaderValue), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HeaderValue", reflect.TypeOf((*MockRequest)(nil).HeaderValue), name)
 }
 
 // Headers mocks base method.
@@ -185,17 +186,17 @@ func (mr *MockRequestMockRecorder) PostDataBuffer() *gomock.Call {
 }
 
 // PostDataJSON mocks base method.
-func (m *MockRequest) PostDataJSON(arg0 any) error {
+func (m *MockRequest) PostDataJSON(v any) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "PostDataJSON", arg0)
+	ret := m.ctrl.Call(m, "PostDataJSON", v)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // PostDataJSON indicates an expected call of PostDataJSON.
-func (mr *MockRequestMockRecorder) PostDataJSON(arg0 any) *gomock.Call {
+func (mr *MockRequestMockRecorder) PostDataJSON(v any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PostDataJSON", reflect.TypeOf((*MockRequest)(nil).PostDataJSON), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PostDataJSON", reflect.TypeOf((*MockRequest)(nil).PostDataJSON), v)
 }
 
 // RedirectedFrom mocks base method.

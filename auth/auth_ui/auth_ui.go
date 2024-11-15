@@ -1,6 +1,8 @@
 package auth_ui
 
 import (
+	"errors"
+	"fmt"
 	"net/url"
 	"strings"
 )
@@ -20,9 +22,11 @@ const (
 	LCancel
 )
 
+var ErrInvalidDomain = errors.New("invalid domain")
+
 // Sanitize takes a workspace name or URL and returns the workspace name.
 func Sanitize(workspace string) (string, error) {
-	if !strings.Contains(workspace, ".slack.com") {
+	if !strings.Contains(workspace, ".slack.com") && !strings.Contains(workspace, ".") {
 		return workspace, nil
 	}
 	if strings.HasPrefix(workspace, "https://") {
@@ -33,6 +37,12 @@ func Sanitize(workspace string) (string, error) {
 		workspace = uri.Host
 	}
 	// parse
-	parts := strings.Split(workspace, ".")
-	return parts[0], nil
+	name, domain, found := strings.Cut(workspace, ".")
+	if !found {
+		return "", errors.New("workspace name is empty")
+	}
+	if strings.TrimRight(domain, "/") != "slack.com" {
+		return "", fmt.Errorf("%s: %w", domain, ErrInvalidDomain)
+	}
+	return name, nil
 }
