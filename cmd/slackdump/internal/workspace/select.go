@@ -19,7 +19,8 @@ var CmdWspSelect = &base.Command{
 that you have previously authenticated in.
 
 "Current" means that this workspace will be used by default when running
-other commands, unless you specify a different workspace explicitly.
+other commands, unless you specify a different workspace explicitly with
+the ` + "`-w`" + ` flag.
 
 To get the full list of authenticated workspaces, run:
 
