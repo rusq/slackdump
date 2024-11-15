@@ -19,6 +19,7 @@ import (
 type MockReadCloser struct {
 	ctrl     *gomock.Controller
 	recorder *MockReadCloserMockRecorder
+	isgomock struct{}
 }
 
 // MockReadCloserMockRecorder is the mock recorder for MockReadCloser.
@@ -53,24 +54,25 @@ func (mr *MockReadCloserMockRecorder) Close() *gomock.Call {
 }
 
 // Read mocks base method.
-func (m *MockReadCloser) Read(arg0 []byte) (int, error) {
+func (m *MockReadCloser) Read(p []byte) (int, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Read", arg0)
+	ret := m.ctrl.Call(m, "Read", p)
 	ret0, _ := ret[0].(int)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Read indicates an expected call of Read.
-func (mr *MockReadCloserMockRecorder) Read(arg0 any) *gomock.Call {
+func (mr *MockReadCloserMockRecorder) Read(p any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Read", reflect.TypeOf((*MockReadCloser)(nil).Read), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Read", reflect.TypeOf((*MockReadCloser)(nil).Read), p)
 }
 
 // MockWriteCloser is a mock of WriteCloser interface.
 type MockWriteCloser struct {
 	ctrl     *gomock.Controller
 	recorder *MockWriteCloserMockRecorder
+	isgomock struct{}
 }
 
 // MockWriteCloserMockRecorder is the mock recorder for MockWriteCloser.
@@ -105,16 +107,16 @@ func (mr *MockWriteCloserMockRecorder) Close() *gomock.Call {
 }
 
 // Write mocks base method.
-func (m *MockWriteCloser) Write(arg0 []byte) (int, error) {
+func (m *MockWriteCloser) Write(p []byte) (int, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Write", arg0)
+	ret := m.ctrl.Call(m, "Write", p)
 	ret0, _ := ret[0].(int)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Write indicates an expected call of Write.
-func (mr *MockWriteCloserMockRecorder) Write(arg0 any) *gomock.Call {
+func (mr *MockWriteCloserMockRecorder) Write(p any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Write", reflect.TypeOf((*MockWriteCloser)(nil).Write), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Write", reflect.TypeOf((*MockWriteCloser)(nil).Write), p)
 }

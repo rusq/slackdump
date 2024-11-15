@@ -21,6 +21,7 @@ import (
 type MockExporter struct {
 	ctrl     *gomock.Controller
 	recorder *MockExporterMockRecorder
+	isgomock struct{}
 }
 
 // MockExporterMockRecorder is the mock recorder for MockExporter.
@@ -41,29 +42,29 @@ func (m *MockExporter) EXPECT() *MockExporterMockRecorder {
 }
 
 // ProcessFunc mocks base method.
-func (m *MockExporter) ProcessFunc(arg0 string) slackdump.ProcessFunc {
+func (m *MockExporter) ProcessFunc(channelName string) slackdump.ProcessFunc {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ProcessFunc", arg0)
+	ret := m.ctrl.Call(m, "ProcessFunc", channelName)
 	ret0, _ := ret[0].(slackdump.ProcessFunc)
 	return ret0
 }
 
 // ProcessFunc indicates an expected call of ProcessFunc.
-func (mr *MockExporterMockRecorder) ProcessFunc(arg0 any) *gomock.Call {
+func (mr *MockExporterMockRecorder) ProcessFunc(channelName any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ProcessFunc", reflect.TypeOf((*MockExporter)(nil).ProcessFunc), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ProcessFunc", reflect.TypeOf((*MockExporter)(nil).ProcessFunc), channelName)
 }
 
 // Start mocks base method.
-func (m *MockExporter) Start(arg0 context.Context) {
+func (m *MockExporter) Start(ctx context.Context) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "Start", arg0)
+	m.ctrl.Call(m, "Start", ctx)
 }
 
 // Start indicates an expected call of Start.
-func (mr *MockExporterMockRecorder) Start(arg0 any) *gomock.Call {
+func (mr *MockExporterMockRecorder) Start(ctx any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Start", reflect.TypeOf((*MockExporter)(nil).Start), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Start", reflect.TypeOf((*MockExporter)(nil).Start), ctx)
 }
 
 // Stop mocks base method.
