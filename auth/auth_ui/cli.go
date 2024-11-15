@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/fatih/color"
+	"github.com/rusq/slackdump/v3/internal/structures"
 	"golang.org/x/term"
 )
 
@@ -30,7 +31,7 @@ func (cl *CLI) RequestWorkspace(w io.Writer) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return Sanitize(workspace)
+	return structures.ExtractWorkspace(workspace)
 }
 
 func (*CLI) RequestCreds(w io.Writer, workspace string) (email string, passwd string, err error) {

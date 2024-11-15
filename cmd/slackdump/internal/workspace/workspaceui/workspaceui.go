@@ -7,11 +7,17 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/huh"
 
+	"github.com/rusq/slackdump/v3/auth"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/bubbles/menu"
 	"github.com/rusq/slackdump/v3/internal/cache"
 )
+
+//go:generate mockgen -package workspaceui -destination=test_mock_manager.go -source api.go manager
+type manager interface {
+	CreateAndSelect(ctx context.Context, p auth.Provider) (string, error)
+}
 
 func WorkspaceNew(ctx context.Context, _ *base.Command, _ []string) error {
 	const (

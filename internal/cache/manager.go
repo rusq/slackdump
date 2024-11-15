@@ -18,6 +18,7 @@ import (
 
 	"github.com/rusq/slackdump/v3/auth"
 	"github.com/rusq/slackdump/v3/internal/osext"
+	"github.com/rusq/slackdump/v3/internal/structures"
 )
 
 // Manager is the workspace manager.  It is an abstraction over the directory
@@ -406,4 +407,26 @@ func (m *Manager) LoadChannels(teamID string, maxAge time.Duration) ([]slack.Cha
 // CacheChannels saves channels to cache.
 func (m *Manager) CacheChannels(teamID string, cc []slack.Channel) error {
 	return saveChannels(m.dir, m.channelFile, teamID, cc)
+}
+
+func (m *Manager) CreateAndSelect(ctx context.Context, prov auth.Provider) (string, error) {
+	authInfo, err := prov.Test(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	wsp, err := structures.ExtractWorkspace(authInfo.URL)
+	if err != nil {
+		return "", err
+	}
+	if wsp == "" {
+		return "", errors.New("workspace name is empty")
+	}
+	if err := m.SaveProvider(wsp, prov); err != nil {
+		return "", err
+	}
+	if err := m.Select(wsp); err != nil {
+		return "", err
+	}
+	return wsp, nil
 }

@@ -1,14 +1,20 @@
 package cache
 
 import (
+	"context"
 	"errors"
 	"io"
+	"net/http"
 	"sort"
 	"strings"
 	"testing"
 
+	"github.com/rusq/slack"
+	"github.com/rusq/slackdump/v3/auth"
 	"github.com/rusq/slackdump/v3/internal/fixtures"
+	"github.com/rusq/slackdump/v3/internal/mocks/mock_auth"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/mock/gomock"
 )
 
 func Test_currentWsp(t *testing.T) {
@@ -139,4 +145,109 @@ func TestManager_ExistsErr(t *testing.T) {
 		assert.Equal(t, e.Message, "no such workspace")
 		assert.Equal(t, e.Workspace, "baz")
 	})
+}
+
+func TestManager_CreateAndSelect(t *testing.T) {
+	type fields struct {
+		// dir         string
+		authOptions []auth.Option
+		userFile    string
+		channelFile string
+	}
+	type args struct {
+		ctx context.Context
+		// prov auth.Provider
+	}
+	tests := []struct {
+		name     string
+		fields   fields
+		expectFn func(mp *mock_auth.MockProvider)
+		args     args
+		want     string
+		wantErr  bool
+	}{
+		{
+			name: "provider test fails",
+			args: args{
+				ctx: context.Background(),
+			},
+			expectFn: func(mp *mock_auth.MockProvider) {
+				mp.EXPECT().Test(gomock.Any()).Return(nil, assert.AnError)
+			},
+			want:    "",
+			wantErr: true,
+		},
+		{
+			name: "url empty fails",
+			args: args{
+				ctx: context.Background(),
+			},
+			expectFn: func(mp *mock_auth.MockProvider) {
+				mp.EXPECT().Test(gomock.Any()).Return(&slack.AuthTestResponse{URL: ""}, nil)
+			},
+			want:    "",
+			wantErr: true,
+		},
+		{
+			name: "url sanitize fails",
+			args: args{
+				ctx: context.Background(),
+			},
+			expectFn: func(mp *mock_auth.MockProvider) {
+				mp.EXPECT().Test(gomock.Any()).Return(&slack.AuthTestResponse{URL: "ftp://lol.example.com"}, nil)
+			},
+			want:    "",
+			wantErr: true,
+		},
+		{
+			name: "success",
+			args: args{
+				ctx: context.Background(),
+			},
+			expectFn: func(mp *mock_auth.MockProvider) {
+				mp.EXPECT().Test(gomock.Any()).Return(fixtures.LoadPtr[slack.AuthTestResponse](string(fixtures.TestAuthTestInfo)), nil)
+				mp.EXPECT().Validate().Return(nil)
+				mp.EXPECT().SlackToken().Return(fixtures.TestClientToken)
+				mp.EXPECT().Cookies().Return([]*http.Cookie{})
+			},
+			want:    "test",
+			wantErr: false,
+		},
+		{
+			name: "save provider fails",
+			args: args{
+				ctx: context.Background(),
+			},
+			expectFn: func(mp *mock_auth.MockProvider) {
+				mp.EXPECT().Test(gomock.Any()).Return(fixtures.LoadPtr[slack.AuthTestResponse](string(fixtures.TestAuthTestInfo)), nil)
+				mp.EXPECT().Validate().Return(assert.AnError) // emulate the provider validation error
+			},
+			want:    "",
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			m := &Manager{
+				dir:         dir,
+				authOptions: tt.fields.authOptions,
+				userFile:    tt.fields.userFile,
+				channelFile: tt.fields.channelFile,
+			}
+			ctrl := gomock.NewController(t)
+			mp := mock_auth.NewMockProvider(ctrl)
+			if tt.expectFn != nil {
+				tt.expectFn(mp)
+			}
+			got, err := m.CreateAndSelect(tt.args.ctx, mp)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Manager.CreateAndSelect() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("Manager.CreateAndSelect() = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }

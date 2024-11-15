@@ -41,12 +41,12 @@ func fileWithSecrets(ctx context.Context, mgr manager) error {
 	if err != nil {
 		return err
 	}
-	wsp, err := createAndSelect(ctx, mgr, prov)
+	name, err := mgr.CreateAndSelect(ctx, prov)
 	if err != nil {
 		return err
 	}
 
-	return success(ctx, wsp)
+	return success(ctx, name)
 }
 
 func validateSecrets(filename string) error {

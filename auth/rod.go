@@ -11,6 +11,7 @@ import (
 	"github.com/rusq/slackauth"
 
 	"github.com/rusq/slackdump/v3/auth/auth_ui"
+	"github.com/rusq/slackdump/v3/internal/structures"
 	"github.com/rusq/slackdump/v3/logger"
 )
 
@@ -89,7 +90,7 @@ func NewRODAuth(ctx context.Context, opts ...Option) (RodAuth, error) {
 	for _, opt := range opts {
 		opt(&r.opts)
 	}
-	if wsp, err := auth_ui.Sanitize(r.opts.workspace); err != nil {
+	if wsp, err := structures.ExtractWorkspace(r.opts.workspace); err != nil {
 		return r, err
 	} else {
 		r.opts.workspace = wsp

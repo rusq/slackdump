@@ -11,7 +11,7 @@ import (
 
 const sampleToken = "xoxc-610187951300-604451271234-3473161557912-4c426dd426a45208707725b710302b32dda0ab002b80ccd8c4c8ac9971a11558"
 
-func prgTokenCookie(ctx context.Context, m manager) error {
+func prgTokenCookie(ctx context.Context, mgr manager) error {
 	var (
 		token     string
 		cookie    string
@@ -46,7 +46,7 @@ func prgTokenCookie(ctx context.Context, m manager) error {
 		if err != nil {
 			return err
 		}
-		name, err := createAndSelect(ctx, m, prov)
+		name, err := mgr.CreateAndSelect(ctx, prov)
 		if err != nil {
 			confirmed = false
 			retry := askRetry(ctx, name, err)
@@ -83,7 +83,7 @@ func makeValidator[P auth.Provider](ctx context.Context, token *string, val *str
 	}
 }
 
-func prgTokenCookieFile(ctx context.Context, m manager) error {
+func prgTokenCookieFile(ctx context.Context, mgr manager) error {
 	var (
 		token      string
 		cookiefile string
@@ -116,7 +116,7 @@ func prgTokenCookieFile(ctx context.Context, m manager) error {
 		if err != nil {
 			return err
 		}
-		name, err := createAndSelect(ctx, m, prov)
+		name, err := mgr.CreateAndSelect(ctx, prov)
 		if err != nil {
 			confirmed = false
 			retry := askRetry(ctx, name, err)
