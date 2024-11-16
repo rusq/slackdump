@@ -48,6 +48,7 @@ automatically detected to be:
 	RequireAuth: false,
 	Commands: []*base.Command{
 		CmdWspNew,
+		CmdImport,
 		CmdWspList,
 		CmdWspSelect,
 		CmdWspDel,

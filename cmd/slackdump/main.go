@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"log/slog"
 	"os"
 	"os/signal"
 	"runtime/trace"
@@ -239,15 +240,16 @@ func initTrace(filename string) error {
 	return nil
 }
 
-// initLog initialises the logging and returns the context with the Logger. If
-// the filename is not empty, the file will be opened, and the logger output will
-// be switch to that file. Returns the initialised logger, stop function and an
-// error, if any. The stop function must be called in the deferred call, it will
-// close the log file, if it is open. If the error is returned the stop function
-// is nil.
+// initLog initialises the logging and returns the context with the Logger. If the
+// filename is not empty, the file will be opened, and the logger output will
+// be switch to that file. Returns the initialised logger, stop function and
+// an error, if any. The stop function must be called in the deferred call, it
+// will close the log file, if it is open. If the error is returned the stop
+// function is nil.
 func initLog(filename string, verbose bool) (*dlog.Logger, error) {
 	lg := logger.Default
 	if verbose {
+		slog.SetLogLoggerLevel(slog.LevelDebug)
 		lg.SetDebug(verbose)
 		lg.SetFlags(lg.Flags() | log.Lmicroseconds)
 	}
@@ -262,6 +264,10 @@ func initLog(filename string, verbose bool) (*dlog.Logger, error) {
 		return lg, fmt.Errorf("failed to create the log file: %w", err)
 	}
 	lg.SetOutput(lf)
+	sl := slog.New(slog.NewTextHandler(lf, &slog.HandlerOptions{
+		Level: iftrue(verbose, slog.LevelDebug, slog.LevelInfo),
+	}))
+	slog.SetDefault(sl)
 
 	base.AtExit(func() {
 		if err := lf.Close(); err != nil {
@@ -270,6 +276,13 @@ func initLog(filename string, verbose bool) (*dlog.Logger, error) {
 	})
 
 	return lg, nil
+}
+
+func iftrue[T any](cond bool, t T, f T) T {
+	if cond {
+		return t
+	}
+	return f
 }
 
 // secrets defines the names of the supported secret files that we load our
@@ -295,16 +308,17 @@ const (
 )
 
 func whatDo() (choice, error) {
-	fmt.Print("\n" + cfg.Version.String() + "\n")
+	versionstr := cfg.Version.String()
 
 	var ans choice
 	err := huh.NewForm(huh.NewGroup(huh.NewSelect[choice]().
-		Title("What do you want to do?").
+		Title(versionstr).
+		Description("What do you want to do?").
 		Options(
 			huh.NewOption(string(choiceHelp), choiceHelp),
 			huh.NewOption(string(choiceWizard), choiceWizard),
 			huh.NewOption(string(choiceExit), choiceExit),
-		).Value(&ans))).WithTheme(ui.HuhTheme()).Run()
+		).Value(&ans))).WithTheme(ui.HuhTheme()).WithKeyMap(ui.DefaultHuhKeymap).Run()
 
 	return ans, err
 }
