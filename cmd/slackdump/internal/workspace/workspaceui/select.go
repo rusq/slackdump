@@ -1,6 +1,8 @@
 package workspaceui
 
 import (
+	"github.com/charmbracelet/bubbles/help"
+	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -13,6 +15,8 @@ type SelectModel struct {
 	table    table.Model
 	finished bool
 	style    style
+	keymap   selKeymap
+	help     help.Model
 }
 
 func NewSelectModel(columns []table.Column, rows []table.Row) SelectModel {
@@ -35,11 +39,31 @@ func NewSelectModel(columns []table.Column, rows []table.Row) SelectModel {
 		style: style{
 			FocusedBorder: ui.DefaultTheme().Focused.Border,
 		},
+		keymap: defSelKeymap(),
+		help:   help.New(),
 	}
 }
 
 type style struct {
 	FocusedBorder lipgloss.Style
+}
+
+type selKeymap struct {
+	Select key.Binding
+	Delete key.Binding
+	Quit   key.Binding
+}
+
+func (k selKeymap) Bindings() []key.Binding {
+	return []key.Binding{k.Select, k.Delete, k.Quit}
+}
+
+func defSelKeymap() selKeymap {
+	return selKeymap{
+		Select: key.NewBinding(key.WithKeys("enter"), key.WithHelp("Enter", "Select")),
+		Delete: key.NewBinding(key.WithKeys("x", "delete"), key.WithHelp("del", "Delete")),
+		Quit:   key.NewBinding(key.WithKeys("q", "ctrl+c", "esc"), key.WithHelp("esc", "Quit")),
+	}
 }
 
 func (m SelectModel) Init() tea.Cmd { return nil }
@@ -49,11 +73,11 @@ func (m SelectModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		switch msg.String() {
-		case "q", "ctrl+c", "esc":
+		switch {
+		case key.Matches(msg, m.keymap.Quit):
 			m.finished = true
 			cmds = append(cmds, tea.Quit)
-		case "enter":
+		case key.Matches(msg, m.keymap.Select):
 			m.Selected = m.table.SelectedRow()[1]
 			m.finished = true
 			cmds = append(cmds, tea.Quit)
@@ -68,5 +92,5 @@ func (m SelectModel) View() string {
 	if m.finished {
 		return "" // don't render the table if we've selected a workspace
 	}
-	return m.style.FocusedBorder.Render((m.table.View()) + "\n\n" + ui.HuhTheme().Help.Ellipsis.Render("Select the workspace with arrow keys, press [Enter] to confirm, [Esc] to cancel."))
+	return m.style.FocusedBorder.Render((m.table.View()) + "\n\n" + m.help.ShortHelpView(m.keymap.Bindings()))
 }
