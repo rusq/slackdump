@@ -1,4 +1,4 @@
-package workspaceui
+package auth
 
 import (
 	"os"
@@ -26,7 +26,7 @@ func writeEnvFile(t *testing.T, filename string, m map[string]string) string {
 	return filename
 }
 
-func Test_parseSecretsTxt(t *testing.T) {
+func Test_ParseDotEnv(t *testing.T) {
 	dir := t.TempDir()
 	type args struct {
 		filename string
@@ -121,16 +121,16 @@ func Test_parseSecretsTxt(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, got1, err := parseSecretsTxt(tt.args.filename)
+			got, got1, err := ParseDotEnv(tt.args.filename)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("parseSecretsTxt() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("ParseDotEnv() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if got != tt.want {
-				t.Errorf("parseSecretsTxt() got = %v, want %v", got, tt.want)
+				t.Errorf("ParseDotEnv() got = %v, want %v", got, tt.want)
 			}
 			if got1 != tt.want1 {
-				t.Errorf("parseSecretsTxt() got1 = %v, want %v", got1, tt.want1)
+				t.Errorf("ParseDotEnv() got1 = %v, want %v", got1, tt.want1)
 			}
 		})
 	}

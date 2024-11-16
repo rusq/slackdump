@@ -76,7 +76,7 @@ func TestValidateToken(t *testing.T) {
 	}
 }
 
-func TestSanitize(t *testing.T) {
+func TestExtractWorkspace(t *testing.T) {
 	type args struct {
 		workspace string
 	}
@@ -97,11 +97,11 @@ func TestSanitize(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := ExtractWorkspace(tt.args.workspace)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("sanitize() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("ExtractWorkspace() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if got != tt.want {
-				t.Errorf("sanitize() got = %v, want %v", got, tt.want)
+				t.Errorf("ExtractWorkspace() got = %v, want %v", got, tt.want)
 			}
 		})
 	}

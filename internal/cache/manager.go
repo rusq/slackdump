@@ -144,8 +144,8 @@ func (m *Manager) LoadProvider(name string) (auth.Provider, error) {
 	return loadCreds(filer, m.filepath(name))
 }
 
-// SaveProvider saves the provider to the file, no questions asked.
-func (m *Manager) SaveProvider(name string, p auth.Provider) error {
+// saveProvider saves the provider to the file, no questions asked.
+func (m *Manager) saveProvider(name string, p auth.Provider) error {
 	return saveCreds(filer, m.filepath(name), p)
 }
 
@@ -422,7 +422,7 @@ func (m *Manager) CreateAndSelect(ctx context.Context, prov auth.Provider) (stri
 	if wsp == "" {
 		return "", errors.New("workspace name is empty")
 	}
-	if err := m.SaveProvider(wsp, prov); err != nil {
+	if err := m.saveProvider(wsp, prov); err != nil {
 		return "", err
 	}
 	if err := m.Select(wsp); err != nil {
