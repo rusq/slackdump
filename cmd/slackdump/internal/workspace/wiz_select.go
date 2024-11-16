@@ -44,16 +44,11 @@ func wizSelect(ctx context.Context, cmd *base.Command, args []string) error {
 }
 
 // newWspSelectModel creates a new workspace selection model.
-func newWspSelectModel(ctx context.Context, m manager) (tea.Model, error) {
-	wspList, err := m.List()
+func newWspSelectModel(ctx context.Context, m *cache.Manager) (tea.Model, error) {
+	_, err := m.List()
 	if err != nil {
 		if errors.Is(err, cache.ErrNoWorkspaces) {
 			if err := workspaceui.ShowUI(ctx, true); err != nil {
-				return nil, err
-			}
-			// retry
-			wspList, err = m.List()
-			if err != nil {
 				return nil, err
 			}
 		} else {
@@ -62,24 +57,33 @@ func newWspSelectModel(ctx context.Context, m manager) (tea.Model, error) {
 		}
 	}
 
-	current, err := m.Current()
-	if err != nil {
+	if _, err := m.Current(); err != nil {
 		base.SetExitStatus(base.SWorkspaceError)
 		return nil, fmt.Errorf("error getting the current workspace: %s", err)
 	}
 
-	columns := []table.Column{
-		{Title: "C", Width: 1},
-		{Title: "Name", Width: 14},
-		{Title: "Team", Width: 15},
-		{Title: "User", Width: 15},
-		{Title: "Status", Width: 30},
+	var refreshFn = func() (cols []table.Column, rows []table.Row, err error) {
+		cols = []table.Column{
+			{Title: "C", Width: 1},
+			{Title: "Name", Width: 14},
+			{Title: "Team", Width: 15},
+			{Title: "User", Width: 15},
+			{Title: "Status", Width: 30},
+		}
+
+		wspList, err := m.List()
+		if err != nil {
+			return
+		}
+		current, err := m.Current()
+		if err != nil {
+			return
+		}
+		for _, w := range wspInfo(ctx, m, current, wspList) {
+			rows = append(rows, table.Row{w[0], w[1], w[4], w[5], w[6]})
+		}
+		return cols, rows, nil
 	}
 
-	var rows []table.Row
-	for _, w := range wspInfo(ctx, m, current, wspList) {
-		rows = append(rows, table.Row{w[0], w[1], w[4], w[5], w[6]})
-	}
-
-	return workspaceui.NewSelectModel(columns, rows), nil
+	return workspaceui.NewSelectModel(m, refreshFn), nil
 }

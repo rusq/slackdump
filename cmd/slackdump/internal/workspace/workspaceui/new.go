@@ -19,6 +19,8 @@ import (
 //go:generate mockgen -package workspaceui -destination=test_mock_manager.go -source api.go manager
 type manager interface {
 	CreateAndSelect(ctx context.Context, p auth.Provider) (string, error)
+	Select(name string) error
+	Delete(name string) error
 }
 
 func WorkspaceNew(ctx context.Context, _ *base.Command, _ []string) error {
