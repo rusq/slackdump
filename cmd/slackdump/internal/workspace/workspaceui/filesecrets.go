@@ -3,15 +3,11 @@ package workspaceui
 import (
 	"context"
 	"errors"
-	"os"
-	"strings"
 
 	"github.com/charmbracelet/huh"
-	"github.com/joho/godotenv"
 
 	"github.com/rusq/slackdump/v3/auth"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui"
-	"github.com/rusq/slackdump/v3/internal/structures"
 )
 
 func fileWithSecrets(ctx context.Context, mgr manager) error {
@@ -33,7 +29,7 @@ func fileWithSecrets(ctx context.Context, mgr manager) error {
 		}
 	}
 
-	tok, cookie, err := parseSecretsTxt(filename)
+	tok, cookie, err := auth.ParseDotEnv(filename)
 	if err != nil {
 		return err
 	}
@@ -50,42 +46,6 @@ func fileWithSecrets(ctx context.Context, mgr manager) error {
 }
 
 func validateSecrets(filename string) error {
-	_, _, err := parseSecretsTxt(filename)
+	_, _, err := auth.ParseDotEnv(filename)
 	return err
-}
-
-func parseSecretsTxt(filename string) (string, string, error) {
-	const (
-		tokenKey  = "SLACK_TOKEN"
-		cookieKey = "SLACK_COOKIE"
-
-		clientTokenPrefix = "xoxc-"
-	)
-	f, err := os.Open(filename)
-	if err != nil {
-		return "", "", err
-	}
-	defer f.Close()
-	secrets, err := godotenv.Parse(f)
-	if err != nil {
-		return "", "", errors.New("not a secrets file")
-	}
-	token, ok := secrets[tokenKey]
-	if !ok {
-		return "", "", errors.New("no SLACK_TOKEN found in the file")
-	}
-	if err := structures.ValidateToken(token); err != nil {
-		return "", "", err
-	}
-	if !strings.HasPrefix(token, clientTokenPrefix) {
-		return token, "", nil
-	}
-	cook, ok := secrets[cookieKey]
-	if !ok {
-		return "", "", errors.New("no SLACK_COOKIE found in the file")
-	}
-	if !strings.HasPrefix(cook, "xoxd-") {
-		return "", "", errors.New("invalid cookie")
-	}
-	return token, cook, nil
 }
