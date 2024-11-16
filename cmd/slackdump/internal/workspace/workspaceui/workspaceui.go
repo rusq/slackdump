@@ -20,6 +20,12 @@ type manager interface {
 }
 
 func WorkspaceNew(ctx context.Context, _ *base.Command, _ []string) error {
+	return ShowUI(ctx, false)
+}
+
+// ShowUI shows the authentication menu.  If quicklogin is set to true,
+// it will quit after the user has successfully authenticated.
+func ShowUI(ctx context.Context, quicklogin bool) error {
 	const (
 		actLogin     = "ezlogin"
 		actToken     = "token"
@@ -96,6 +102,9 @@ LOOP:
 				continue
 			}
 			return err
+		}
+		if quicklogin {
+			return nil
 		}
 	}
 
