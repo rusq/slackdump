@@ -27,7 +27,7 @@ func (h *Huh) RequestWorkspace(w io.Writer) (string, error) {
 			Value(&workspace).
 			Validate(valWorkspace).
 			Description("The workspace name is the part of the URL that comes before `.slack.com' in\nhttps://<workspace>.slack.com/.  Both workspace name or URL are acceptable."),
-	)).WithTheme(Theme).Run()
+	)).WithTheme(Theme).WithKeyMap(keymap).Run()
 	if err != nil {
 		return "", err
 	}

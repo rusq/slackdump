@@ -2,14 +2,14 @@ package workspace
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/workspace/workspaceui"
 	"github.com/rusq/slackdump/v3/internal/cache"
 	"github.com/rusq/slackdump/v3/logger"
 )
@@ -35,7 +35,7 @@ func wizSelect(ctx context.Context, cmd *base.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("workspace select wizard error: %w", err)
 	}
-	if newWsp := mod.(selectModel).selected; newWsp != "" {
+	if newWsp := mod.(workspaceui.SelectModel).Selected; newWsp != "" {
 		if err := m.Select(newWsp); err != nil {
 			base.SetExitStatus(base.SWorkspaceError)
 			return fmt.Errorf("error setting the current workspace: %s", err)
@@ -46,16 +46,22 @@ func wizSelect(ctx context.Context, cmd *base.Command, args []string) error {
 	return nil
 }
 
-func workspaceSelectModel(ctx context.Context, m *cache.Manager) (tea.Model, error) {
+func workspaceSelectModel(ctx context.Context, m manager) (tea.Model, error) {
 	wspList, err := m.List()
 	if err != nil {
-		base.SetExitStatus(base.SCacheError)
-		return nil, err
-	}
-
-	if len(wspList) == 0 {
-		fmt.Println("No workspaces found")
-		return nil, nil // TODO
+		if errors.Is(err, cache.ErrNoWorkspaces) {
+			if err := workspaceui.ShowUI(ctx, true); err != nil {
+				return nil, err
+			}
+			// retry
+			wspList, err = m.List()
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			base.SetExitStatus(base.SUserError)
+			return nil, err
+		}
 	}
 
 	current, err := m.Current()
@@ -77,62 +83,5 @@ func workspaceSelectModel(ctx context.Context, m *cache.Manager) (tea.Model, err
 		rows = append(rows, table.Row{w[0], w[1], w[4], w[5], w[6]})
 	}
 
-	t := table.New(
-		table.WithColumns(columns),
-		table.WithRows(rows),
-		table.WithFocused(true),
-		table.WithHeight(7),
-	)
-
-	s := table.Styles{
-		Header:   ui.DefaultTheme().Focused.Title.Padding(0, 1),
-		Selected: ui.DefaultTheme().Focused.SelectedLine.Bold(true),
-		Cell:     ui.DefaultTheme().Focused.Text.Padding(0, 1),
-	}
-	t.SetStyles(s)
-	t.Focus()
-	return selectModel{
-		table: t,
-		style: style{
-			FocusedBorder: ui.DefaultTheme().Focused.Border,
-		},
-	}, nil
-}
-
-type selectModel struct {
-	table    table.Model
-	selected string
-	finished bool
-	style    style
-}
-
-type style struct {
-	FocusedBorder lipgloss.Style
-}
-
-func (m selectModel) Init() tea.Cmd { return nil }
-
-func (m selectModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	var cmd tea.Cmd
-	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		switch msg.String() {
-		case "q", "ctrl+c", "esc":
-			m.finished = true
-			return m, tea.Quit
-		case "enter":
-			m.selected = m.table.SelectedRow()[1]
-			m.finished = true
-			return m, tea.Quit
-		}
-	}
-	m.table, cmd = m.table.Update(msg)
-	return m, cmd
-}
-
-func (m selectModel) View() string {
-	if m.finished {
-		return "" // don't render the table if we've selected a workspace
-	}
-	return m.style.FocusedBorder.Render((m.table.View()) + "\n\n" + ui.HuhTheme().Help.Ellipsis.Render("Select the workspace with arrow keys, press [Enter] to confirm, [Esc] to cancel."))
+	return workspaceui.NewSelectModel(columns, rows), nil
 }
