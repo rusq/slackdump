@@ -23,14 +23,11 @@ func wizSelect(ctx context.Context, cmd *base.Command, args []string) error {
 		return err
 	}
 
-	sm, err := workspaceSelectModel(ctx, m)
+	sm, err := newWspSelectModel(ctx, m)
 	if err != nil {
 		return err
 	}
-	if sm == nil {
-		// TODO: handle this case
-		return nil
-	}
+
 	mod, err := tea.NewProgram(sm).Run()
 	if err != nil {
 		return fmt.Errorf("workspace select wizard error: %w", err)
@@ -46,7 +43,8 @@ func wizSelect(ctx context.Context, cmd *base.Command, args []string) error {
 	return nil
 }
 
-func workspaceSelectModel(ctx context.Context, m manager) (tea.Model, error) {
+// newWspSelectModel creates a new workspace selection model.
+func newWspSelectModel(ctx context.Context, m manager) (tea.Model, error) {
 	wspList, err := m.List()
 	if err != nil {
 		if errors.Is(err, cache.ErrNoWorkspaces) {
