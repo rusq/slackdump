@@ -11,6 +11,8 @@ import (
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/bubbles/menu"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/cfgui"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/updaters"
 	"github.com/rusq/slackdump/v3/internal/cache"
 )
 
@@ -27,11 +29,12 @@ func WorkspaceNew(ctx context.Context, _ *base.Command, _ []string) error {
 // it will quit after the user has successfully authenticated.
 func ShowUI(ctx context.Context, quicklogin bool) error {
 	const (
-		actLogin     = "ezlogin"
-		actToken     = "token"
-		actTokenFile = "tokenfile"
-		actSecrets   = "secrets"
-		actExit      = "exit"
+		actLogin       = "ezlogin"
+		actToken       = "token"
+		actTokenFile   = "tokenfile"
+		actSecrets     = "secrets"
+		actBrowserOpts = "ezopts"
+		actExit        = "exit"
 	)
 
 	mgr, err := cache.NewManager(cfg.CacheDir())
@@ -39,11 +42,23 @@ func ShowUI(ctx context.Context, quicklogin bool) error {
 		return err
 	}
 
+	var brwsOpts browserOptions
+
 	items := []menu.Item{
 		{
 			ID:   actLogin,
 			Name: "Login in Browser",
 			Help: "Opens the browser and lets you login in a familiar way.",
+		},
+		{
+			ID:      actBrowserOpts,
+			Name:    "Browser Options",
+			Help:    "Show browser options",
+			Preview: true,
+			Model:   cfgui.NewConfigUI(cfgui.DefaultStyle(), configuration(&brwsOpts)),
+		},
+		{
+			Separator: true,
 		},
 		{
 			ID:   actToken,
@@ -54,6 +69,9 @@ func ShowUI(ctx context.Context, quicklogin bool) error {
 			ID:   actTokenFile,
 			Name: "Token/Cookie from file",
 			Help: "Provide token value and cookies from file",
+		},
+		{
+			Separator: true,
 		},
 		{
 			ID:   actSecrets,
@@ -72,7 +90,7 @@ func ShowUI(ctx context.Context, quicklogin bool) error {
 
 	// new workspace methods
 	var methods = map[string]func(context.Context, manager) error{
-		actLogin:     ezLogin3000,
+		actLogin:     brwsLogin(&brwsOpts),
 		actToken:     prgTokenCookie,
 		actTokenFile: prgTokenCookieFile,
 		actSecrets:   fileWithSecrets,
@@ -117,3 +135,25 @@ type wizModel struct{ m *menu.Model }
 func (m *wizModel) Init() tea.Cmd                           { return m.m.Init() }
 func (m *wizModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) { return m.m.Update(msg) }
 func (m *wizModel) View() string                            { return m.m.View() }
+
+type browserOptions struct {
+	UsePlaywright bool
+}
+
+func configuration(opts *browserOptions) func() cfgui.Configuration {
+	return func() cfgui.Configuration {
+		return cfgui.Configuration{
+			{
+				Name: "EZ-Login options",
+				Params: []cfgui.Parameter{
+					{
+						Name:        "Use Playwright",
+						Description: "Use Playwright to automate the browser instead of Rod.",
+						Value:       cfgui.Checkbox(opts.UsePlaywright),
+						Updater:     updaters.NewBool(&opts.UsePlaywright),
+					},
+				},
+			},
+		}
+	}
+}

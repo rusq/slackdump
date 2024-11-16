@@ -85,7 +85,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.child = child
 		return m, cmd
 	}
-
+CASE:
 	switch msg := msg.(type) {
 	case updaters.WMClose:
 		// child sends a close message
@@ -121,7 +121,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, m.keymap.Select):
 			i, j := locateParam(m.cfgFn(), m.cursor)
 			if i == notFound || j == notFound {
-				return m, nil
+				break CASE
 			}
 			if params := m.cfgFn()[i].Params[j]; params.Updater != nil {
 				if params.Inline {

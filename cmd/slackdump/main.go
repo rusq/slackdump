@@ -12,7 +12,6 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/huh"
-	"github.com/joho/godotenv"
 	"github.com/rusq/dlog"
 	"github.com/rusq/tracer"
 	"golang.org/x/term"
@@ -39,7 +38,6 @@ import (
 )
 
 func init() {
-	loadSecrets(secretFiles)
 
 	base.Slackdump.Commands = []*base.Command{
 		workspace.CmdWorkspace,
@@ -285,19 +283,6 @@ func iftrue[T any](cond bool, t T, f T) T {
 	return f
 }
 
-// secrets defines the names of the supported secret files that we load our
-// secrets from.  Inexperienced Windows users might have bad experience trying
-// to create .env file with the notepad as it will battle for having the
-// "txt" extension.  Let it have it.
-var secretFiles = []string{".env", ".env.txt", "secrets.txt"}
-
-// loadSecrets load secrets from the files in secrets slice.
-func loadSecrets(files []string) {
-	for _, f := range files {
-		_ = godotenv.Load(f)
-	}
-}
-
 type choice string
 
 const (
@@ -313,7 +298,7 @@ func whatDo() (choice, error) {
 	var ans choice
 	err := huh.NewForm(huh.NewGroup(huh.NewSelect[choice]().
 		Title(versionstr).
-		Description("What do you want to do?").
+		Description("What would you like to do?").
 		Options(
 			huh.NewOption(string(choiceHelp), choiceHelp),
 			huh.NewOption(string(choiceWizard), choiceWizard),

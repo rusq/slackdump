@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"io"
+	"log/slog"
 	"os"
 	"time"
 
@@ -64,6 +65,9 @@ func NewBrowserAuth(ctx context.Context, opts ...Option) (BrowserAuth, error) {
 	} else {
 		br.opts.workspace = wsp
 	}
+	slog.Info("Please wait while Playwright is initialising.")
+	slog.Info("If you're running it for the first time, it will take a couple of minutes...")
+
 	auther, err := browser.New(br.opts.workspace, browser.OptBrowser(br.opts.browser), browser.OptTimeout(br.opts.loginTimeout), browser.OptVerbose(br.opts.verbose))
 	if err != nil {
 		return br, err
