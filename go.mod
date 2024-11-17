@@ -3,6 +3,7 @@ module github.com/rusq/slackdump/v3
 go 1.23
 
 require (
+	github.com/BurntSushi/toml v1.4.0
 	github.com/MercuryEngineering/CookieMonster v0.0.0-20180304172713-1584578b3403
 	github.com/ProtonMail/go-crypto v1.1.2
 	github.com/charmbracelet/bubbles v0.20.0

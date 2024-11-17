@@ -24,7 +24,7 @@ Allows to check the config for errors and invalid values.
 
 Example:
 
-    slackdump config check myconfig.yaml
+    slackdump config check myconfig.toml
 
 It will check for duplicate and unknown keys, and also ensure that values are
 within the allowed boundaries.
@@ -58,7 +58,7 @@ func CheckFile(filename string) error {
 }
 
 func wizConfigCheck(ctx context.Context, cmd *base.Command, args []string) error {
-	f := filemgr.New(os.DirFS("."), ".", 15, "*.yaml", "*.yml")
+	f := filemgr.New(os.DirFS("."), ".", 15, "*.toml", "*.tml")
 	f.Focus()
 	f.ShowHelp = true
 	f.Style = filemgr.Style{
