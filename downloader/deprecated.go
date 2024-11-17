@@ -26,7 +26,7 @@ const (
 
 // ClientV1 is the instance of the downloader.
 //
-// Deprecated: Use Client.
+// Deprecated: Use [Client].
 type ClientV1 struct {
 	v2     *Client
 	nameFn FilenameFunc
@@ -90,7 +90,7 @@ func WithNameFunc(fn FilenameFunc) OptionV1 {
 
 // NewV1 initialises new file downloader.
 //
-// Deprecated: use NewV2 instead.
+// Deprecated: use [New] instead.
 func NewV1(client Downloader, fs fsadapter.FS, opts ...OptionV1) *ClientV1 {
 	c := &ClientV1{
 		v2:     New(client, fs),

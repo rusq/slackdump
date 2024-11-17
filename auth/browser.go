@@ -3,11 +3,13 @@ package auth
 import (
 	"context"
 	"io"
+	"log/slog"
 	"os"
 	"time"
 
 	"github.com/rusq/slackdump/v3/auth/auth_ui"
 	"github.com/rusq/slackdump/v3/auth/browser"
+	"github.com/rusq/slackdump/v3/internal/structures"
 )
 
 var _ Provider = BrowserAuth{}
@@ -58,11 +60,14 @@ func NewBrowserAuth(ctx context.Context, opts ...Option) (BrowserAuth, error) {
 		}
 		defer br.opts.flow.Stop()
 	}
-	if wsp, err := auth_ui.Sanitize(br.opts.workspace); err != nil {
+	if wsp, err := structures.ExtractWorkspace(br.opts.workspace); err != nil {
 		return br, err
 	} else {
 		br.opts.workspace = wsp
 	}
+	slog.Info("Please wait while Playwright is initialising.")
+	slog.Info("If you're running it for the first time, it will take a couple of minutes...")
+
 	auther, err := browser.New(br.opts.workspace, browser.OptBrowser(br.opts.browser), browser.OptTimeout(br.opts.loginTimeout), browser.OptVerbose(br.opts.verbose))
 	if err != nil {
 		return br, err

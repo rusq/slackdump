@@ -64,7 +64,7 @@ func dAbs(d time.Duration) time.Duration {
 	return d
 }
 
-func Test_withRetry(t *testing.T) {
+func TestWithRetry(t *testing.T) {
 	t.Parallel()
 	type args struct {
 		ctx         context.Context
@@ -166,6 +166,7 @@ func Test_withRetry(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			start := time.Now()
 			if err := WithRetry(tt.args.ctx, tt.args.l, tt.args.maxAttempts, tt.args.fn); (err != nil) != tt.wantErr {
 				t.Errorf("withRetry() error = %v, wantErr %v", err, tt.wantErr)
@@ -179,6 +180,7 @@ func Test_withRetry(t *testing.T) {
 		})
 	}
 	t.Run("500 error handling", func(t *testing.T) {
+		t.Parallel()
 		waitFn = func(attempt int) time.Duration { return 50 * time.Millisecond }
 		defer func() {
 			waitFn = cubicWait
@@ -275,6 +277,7 @@ func Test_withRetry(t *testing.T) {
 }
 
 func Test_cubicWait(t *testing.T) {
+	t.Parallel()
 	type args struct {
 		attempt int
 	}
@@ -293,6 +296,7 @@ func Test_cubicWait(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			if got := cubicWait(tt.args.attempt); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("waitTime() = %v, want %v", got, tt.want)
 			}
@@ -301,6 +305,7 @@ func Test_cubicWait(t *testing.T) {
 }
 
 func Test_isRecoverable(t *testing.T) {
+	t.Parallel()
 	type args struct {
 		statusCode int
 	}
@@ -323,6 +328,7 @@ func Test_isRecoverable(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			if got := isRecoverable(tt.args.statusCode); got != tt.want {
 				t.Errorf("isRecoverable() = %v, want %v", got, tt.want)
 			}

@@ -3,7 +3,7 @@ package ui
 
 const (
 	// MenuSeparator is the separator to use in the wizard menus.
-	MenuSeparator = "────────────"
+	MenuSeparator = "────────────────"
 )
 
 type inputOptions struct {
