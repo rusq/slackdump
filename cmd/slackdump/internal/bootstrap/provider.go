@@ -18,7 +18,7 @@ func CurrentOrNewProviderCtx(ctx context.Context) (context.Context, error) {
 	if err != nil {
 		if errors.Is(err, cache.ErrNoWorkspaces) {
 			// ask to create a new workspace
-			if err := workspaceui.ShowUI(ctx, true); err != nil {
+			if err := workspaceui.ShowUI(ctx, workspaceui.WithQuickLogin(), workspaceui.WithTitle("No workspaces, please choose a login method")); err != nil {
 				return ctx, fmt.Errorf("auth error: %w", err)
 			}
 			// one more time...
