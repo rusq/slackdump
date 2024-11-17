@@ -30,7 +30,7 @@ type TierLimit struct {
 	// Tier limiter burst
 	Burst uint `json:"burst,omitempty" yaml:"burst,omitempty" validate:"gte=1" toml:"burst,omitempty"`
 	// Tier retries when getting transient errors, i.e. 429 or 500-599.
-	Retries int `json:"retries,omitempty" yaml:"retries,omitempty" toml:"retries,omitempty" validate:"gte=1"`
+	Retries int `json:"retries,omitempty" yaml:"retries,omitempty" toml:"retries,omitempty"`
 }
 
 // RequestLimit defines the limits on the requests that are sent to the API.
