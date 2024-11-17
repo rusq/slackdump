@@ -23,6 +23,23 @@ func wizSelect(ctx context.Context, cmd *base.Command, args []string) error {
 		return err
 	}
 
+	if _, err := m.List(); err != nil {
+		if errors.Is(err, cache.ErrNoWorkspaces) {
+			if err := workspaceui.ShowUI(ctx, workspaceui.WithQuickLogin(), workspaceui.WithTitle("No workspaces, please choose the login method:")); err != nil {
+				return err
+			}
+			return nil
+		} else {
+			base.SetExitStatus(base.SUserError)
+			return err
+		}
+	}
+
+	if _, err := m.Current(); err != nil {
+		base.SetExitStatus(base.SWorkspaceError)
+		return fmt.Errorf("error getting the current workspace: %s", err)
+	}
+
 	sm, err := newWspSelectModel(ctx, m)
 	if err != nil {
 		return err
@@ -45,22 +62,6 @@ func wizSelect(ctx context.Context, cmd *base.Command, args []string) error {
 
 // newWspSelectModel creates a new workspace selection model.
 func newWspSelectModel(ctx context.Context, m *cache.Manager) (tea.Model, error) {
-	_, err := m.List()
-	if err != nil {
-		if errors.Is(err, cache.ErrNoWorkspaces) {
-			if err := workspaceui.ShowUI(ctx, true); err != nil {
-				return nil, err
-			}
-		} else {
-			base.SetExitStatus(base.SUserError)
-			return nil, err
-		}
-	}
-
-	if _, err := m.Current(); err != nil {
-		base.SetExitStatus(base.SWorkspaceError)
-		return nil, fmt.Errorf("error getting the current workspace: %s", err)
-	}
 
 	var refreshFn = func() (cols []table.Column, rows []table.Row, err error) {
 		cols = []table.Column{

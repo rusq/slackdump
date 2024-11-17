@@ -24,12 +24,27 @@ type manager interface {
 }
 
 func WorkspaceNew(ctx context.Context, _ *base.Command, _ []string) error {
-	return ShowUI(ctx, false)
+	return ShowUI(ctx)
+}
+
+type options struct {
+	title      string
+	quicklogin bool
+}
+
+type UIOption func(*options)
+
+func WithTitle(title string) UIOption {
+	return func(o *options) { o.title = title }
+}
+
+func WithQuickLogin() UIOption {
+	return func(o *options) { o.quicklogin = true }
 }
 
 // ShowUI shows the authentication menu.  If quicklogin is set to true,
 // it will quit after the user has successfully authenticated.
-func ShowUI(ctx context.Context, quicklogin bool) error {
+func ShowUI(ctx context.Context, opts ...UIOption) error {
 	const (
 		actLogin       = "ezlogin"
 		actToken       = "token"
@@ -42,6 +57,13 @@ func ShowUI(ctx context.Context, quicklogin bool) error {
 	mgr, err := cache.NewManager(cfg.CacheDir())
 	if err != nil {
 		return err
+	}
+
+	var uiOpts = options{
+		title: "New Workspace",
+	}
+	for _, o := range opts {
+		o(&uiOpts)
 	}
 
 	var brwsOpts browserOptions
@@ -101,7 +123,7 @@ func ShowUI(ctx context.Context, quicklogin bool) error {
 	var lastID string = actLogin
 LOOP:
 	for {
-		m := menu.New("New Workspace", items, true)
+		m := menu.New(uiOpts.title, items, uiOpts.quicklogin)
 		m.Select(lastID)
 		if _, err := tea.NewProgram(&wizModel{m: m}, tea.WithContext(ctx)).Run(); err != nil {
 			return err
@@ -123,7 +145,7 @@ LOOP:
 			}
 			return err
 		}
-		if quicklogin {
+		if uiOpts.quicklogin {
 			return nil
 		}
 	}
