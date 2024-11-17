@@ -1,8 +1,6 @@
 package network
 
 import (
-	"reflect"
-
 	"github.com/go-playground/locales/en"
 	ut "github.com/go-playground/universal-translator"
 	"github.com/go-playground/validator/v10"
@@ -11,39 +9,39 @@ import (
 
 type Limits struct {
 	// number of file-saving workers
-	Workers int `json:"workers,omitempty" yaml:"workers,omitempty" validate:"gte=1,lte=128"`
+	Workers int `json:"workers,omitempty" yaml:"workers,omitempty" toml:"workers,omitempty" validate:"gte=1,lte=128"`
 	// if we get rate limited on file downloads, this is how many times we're
 	// going to retry
-	DownloadRetries int `json:"download_retries,omitempty" yaml:"download_retries,omitempty"`
+	DownloadRetries int `json:"download_retries,omitempty" yaml:"download_retries,omitempty" toml:"download_retries,omitempty"`
 	// Tier-2 limits
-	Tier2 TierLimit `json:"tier_2,omitempty" yaml:"tier_2,omitempty"`
+	Tier2 TierLimit `json:"tier_2,omitempty" yaml:"tier_2,omitempty" toml:"tier_2,omitempty"`
 	// Tier-3 limits
-	Tier3 TierLimit `json:"tier_3,omitempty" yaml:"tier_3,omitempty"`
+	Tier3 TierLimit `json:"tier_3,omitempty" yaml:"tier_3,omitempty" toml:"tier_3,omitempty"`
 	// Tier-4 limits
-	Tier4 TierLimit `json:"tier_4,omitempty" yaml:"tier_4,omitempty"`
+	Tier4 TierLimit `json:"tier_4,omitempty" yaml:"tier_4,omitempty" toml:"tier_4,omitempty"`
 	// Request Limits
-	Request RequestLimit `json:"per_request,omitempty" yaml:"per_request,omitempty"`
+	Request RequestLimit `json:"per_request,omitempty" yaml:"per_request,omitempty" toml:"per_request,omitempty"`
 }
 
 // TierLimit represents a Slack API Tier limits.
 type TierLimit struct {
 	// Tier limiter boost
-	Boost uint `json:"boost,omitempty" yaml:"boost,omitempty"`
+	Boost uint `json:"boost,omitempty" yaml:"boost,omitempty" toml:"boost,omitempty"`
 	// Tier limiter burst
-	Burst uint `json:"burst,omitempty" yaml:"burst,omitempty" validate:"gte=1"`
+	Burst uint `json:"burst,omitempty" yaml:"burst,omitempty" validate:"gte=1" toml:"burst,omitempty"`
 	// Tier retries when getting transient errors, i.e. 429 or 500-599.
-	Retries int `json:"retries,omitempty" yaml:"retries,omitempty"`
+	Retries int `json:"retries,omitempty" yaml:"retries,omitempty" toml:"retries,omitempty"`
 }
 
 // RequestLimit defines the limits on the requests that are sent to the API.
 type RequestLimit struct {
 	// number of messages we get per 1 API request. bigger the number, fewer
 	// requests, but they become more beefy.
-	Conversations int `json:"conversations,omitempty" yaml:"conversations,omitempty" validate:"gt=0,lte=100"`
+	Conversations int `json:"conversations,omitempty" yaml:"conversations,omitempty" validate:"gt=0,lte=100" toml:"conversations,omitempty"`
 	// number of channels to fetch per 1 API request.
-	Channels int `json:"channels,omitempty" yaml:"channels,omitempty" validate:"gt=0,lte=1000"`
+	Channels int `json:"channels,omitempty" yaml:"channels,omitempty" validate:"gt=0,lte=1000" toml:"channels,omitempty"`
 	// number of thread replies per request (slack default: 1000)
-	Replies int `json:"replies,omitempty" yaml:"replies,omitempty" validate:"gt=0,lte=1000"`
+	Replies int `json:"replies,omitempty" yaml:"replies,omitempty" validate:"gt=0,lte=1000" toml:"replies,omitempty"`
 }
 
 var DefLimits = Limits{
@@ -143,6 +141,6 @@ func apply[T comparable](this *T, other T) {
 	}
 }
 
-func isZero(a any) bool {
-	return a == reflect.Zero(reflect.TypeOf(a)).Interface()
-}
+// func isZero(a any) bool {
+// 	return a == reflect.Zero(reflect.TypeOf(a)).Interface()
+// }

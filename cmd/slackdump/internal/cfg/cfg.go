@@ -57,6 +57,10 @@ var (
 
 	Log logger.Interface
 
+	// LoadSecrets is a flag that indicates whether to load secrets from the
+	// environment variables.
+	LoadSecrets bool
+
 	Version BuildInfo // version propagated by main package.
 )
 
@@ -104,14 +108,14 @@ func SetBaseFlags(fs *flag.FlagSet, mask FlagMask) {
 
 	if mask&OmitAuthFlags == 0 {
 		fs.StringVar(&SlackToken, "token", osenv.Secret("SLACK_TOKEN", ""), "Slack `token`")
-		// COOKIE environment variable is deprecated and will be removed in v2.5.0, use SLACK_COOKIE instead.
-		fs.StringVar(&SlackCookie, "cookie", osenv.Secret("SLACK_COOKIE", osenv.Secret("COOKIE", "")), "d= cookie `value` or a path to a cookie.txt file\n(environment: SLACK_COOKIE)")
+		fs.StringVar(&SlackCookie, "cookie", osenv.Secret("SLACK_COOKIE", ""), "d= cookie `value` or a path to a cookie.txt file\n(environment: SLACK_COOKIE)")
 		fs.Var(&Browser, "browser", "browser to use for legacy EZ-Login 3000 (default: firefox)")
 		fs.DurationVar(&LoginTimeout, "browser-timeout", LoginTimeout, "Browser login `timeout`")
 		fs.DurationVar(&HeadlessTimeout, "autologin-timeout", HeadlessTimeout, "headless autologin `timeout`, without the browser starting time, just the interaction time")
 		fs.BoolVar(&LegacyBrowser, "legacy-browser", false, "use legacy browser automation (playwright) for EZ-Login 3000")
 		fs.BoolVar(&ForceEnterprise, "enterprise", false, "enable Enteprise module, you need to specify this option if you're using Slack Enterprise Grid")
 		fs.StringVar(&RODUserAgent, "user-agent", "", "override the user agent string for EZ-Login 3000")
+		fs.BoolVar(&LoadSecrets, "load-env", false, "load secrets from the .env, .env.txt or secrets.txt file")
 	}
 	if mask&OmitDownloadFlag == 0 {
 		fs.BoolVar(&DownloadFiles, "files", true, "enables file attachments (to disable, specify: -files=false)")
@@ -146,7 +150,5 @@ func SetBaseFlags(fs *flag.FlagSet, mask FlagMask) {
 	if mask&OmitTimeframeFlag == 0 {
 		fs.Var(&Oldest, "time-from", "timestamp of the oldest message to fetch (UTC timezone)")
 		fs.Var(&Latest, "time-to", "timestamp of the newest message to fetch (UTC timezone)")
-		fs.Var(&Oldest, "date-from", "alias for -time-from (DEPRECATED)")
-		fs.Var(&Latest, "date-to", "alias for -time-to (DEPRECATED)")
 	}
 }

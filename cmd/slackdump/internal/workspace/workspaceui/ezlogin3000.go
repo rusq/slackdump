@@ -12,36 +12,22 @@ import (
 	"github.com/charmbracelet/huh"
 )
 
-func ezLogin3000(ctx context.Context, mgr manager) error {
-	var (
-		legacy bool
-	)
-	form := huh.NewForm(huh.NewGroup(
-		huh.NewConfirm().
-			Title("Do you want to use the legacy login?").
-			Description("Choose 'Yes' if you had problems in the past with the current EZ-Login.").
-			Value(&legacy),
-	)).WithTheme(ui.HuhTheme()).WithKeyMap(ui.DefaultHuhKeymap)
-	if err := form.RunWithContext(ctx); err != nil {
-		if errors.Is(err, huh.ErrUserAborted) {
-			return nil
+func brwsLogin(opts *browserOptions) func(ctx context.Context, mgr manager) error {
+	return func(ctx context.Context, mgr manager) error {
+		var err error
+		if opts.UsePlaywright {
+			err = playwrightLogin(ctx, mgr)
+		} else {
+			err = rodLogin(ctx, mgr)
 		}
-		return err
-	}
-
-	var err error
-	if legacy {
-		err = playwrightLogin(ctx, mgr)
-	} else {
-		err = rodLogin(ctx, mgr)
-	}
-	if err != nil {
-		if errors.Is(err, auth.ErrCancelled) {
-			return nil
+		if err != nil {
+			if errors.Is(err, auth.ErrCancelled) {
+				return nil
+			}
+			return err
 		}
-		return err
+		return nil
 	}
-	return nil
 }
 
 func playwrightLogin(ctx context.Context, mgr manager) error {
@@ -52,6 +38,8 @@ func playwrightLogin(ctx context.Context, mgr manager) error {
 				huh.NewOption("Chromium", browser.Bchromium),
 				huh.NewOption("Firefox", browser.Bfirefox),
 			).
+			Title("Playwright login").
+			Description("Choose the browser to use for authentication").
 			Value(&brws),
 	)).WithTheme(ui.HuhTheme()).WithKeyMap(ui.DefaultHuhKeymap)
 	if err := formBrowser.RunWithContext(ctx); err != nil {
@@ -65,7 +53,7 @@ func playwrightLogin(ctx context.Context, mgr manager) error {
 		return err
 	}
 
-	name, err := createAndSelect(ctx, mgr, prov)
+	name, err := mgr.CreateAndSelect(ctx, prov)
 	if err != nil {
 		return err
 	}
@@ -77,7 +65,7 @@ func rodLogin(ctx context.Context, mgr manager) error {
 	if err != nil {
 		return err
 	}
-	name, err := createAndSelect(ctx, mgr, prov)
+	name, err := mgr.CreateAndSelect(ctx, prov)
 	if err != nil {
 		return err
 	}
