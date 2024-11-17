@@ -6,18 +6,13 @@ import (
 	"io"
 	"os"
 
+	"github.com/BurntSushi/toml"
 	"github.com/go-playground/validator/v10"
-	"gopkg.in/yaml.v3"
 
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/internal/network"
 )
-
-// schemaJSONpath is the path to the schema JSON file for the limits yaml
-// configuration file.
-// TODO: update once released
-const schemaJSONpath = "https://raw.githubusercontent.com/rusq/slackdump/v3/cmd/slackdump/internal/apiconfig/schema.json"
 
 var CmdConfig = &base.Command{
 	UsageLine: "slackdump config",
@@ -62,9 +57,8 @@ func Save(filename string, limits network.Limits) error {
 // the global config.
 func applyLimits(r io.Reader) (network.Limits, error) {
 	var limits network.Limits
-	dec := yaml.NewDecoder(r)
-	dec.KnownFields(true)
-	if err := dec.Decode(&limits); err != nil {
+	dec := toml.NewDecoder(r)
+	if _, err := dec.Decode(&limits); err != nil {
 		return network.Limits{}, err
 	}
 
@@ -78,8 +72,7 @@ func applyLimits(r io.Reader) (network.Limits, error) {
 }
 
 func writeLimits(w io.Writer, cfg network.Limits) error {
-	fmt.Fprintf(w, "# yaml-language-server: $schema=%s\n", schemaJSONpath)
-	return yaml.NewEncoder(w).Encode(cfg)
+	return toml.NewEncoder(w).Encode(cfg)
 }
 
 // printErrors prints configuration errors, if error is not nill and is of

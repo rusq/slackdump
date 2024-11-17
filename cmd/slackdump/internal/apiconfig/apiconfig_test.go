@@ -11,45 +11,52 @@ import (
 )
 
 const (
-	sampleLimitsYaml = `# yaml-language-server: $schema=https://raw.githubusercontent.com/rusq/slackdump/v3/cmd/slackdump/internal/apiconfig/schema.json
-workers: 4
-download_retries: 3
-tier_2:
-    boost: 20
-    burst: 3
-    retries: 20
-tier_3:
-    boost: 120
-    burst: 5
-    retries: 3
-tier_4:
-    boost: 10
-    burst: 7
-    retries: 3
-per_request:
-    conversations: 100
-    channels: 100
-    replies: 200
+	sampleLimitsYaml = `workers = 4
+download_retries = 3
+
+[tier_2]
+  boost = 20
+  burst = 3
+  retries = 20
+
+[tier_3]
+  boost = 120
+  burst = 5
+  retries = 3
+
+[tier_4]
+  boost = 10
+  burst = 7
+  retries = 3
+
+[per_request]
+  conversations = 100
+  channels = 100
+  replies = 200
 `
 	// workers set to 55 in this one, tier2.retries to 330
-	updatedConfigYaml = `workers: 55
-download_retries: 3
-tier_2:
-  boost: 20
-  burst: 1
-  retries: 330
-tier_3:
-  boost: 120
-  burst: 1
-  retries: 3
-tier_4:
-  boost: 10
-  burst: 1
-  retries: 3
-per_request:
-  conversations: 100
-  channels: 100
-  replies: 200
+	updatedConfigYaml = `workers = 55
+download_retries = 3
+
+[tier_2]
+  boost = 20
+  burst = 3
+  retries = 330
+
+[tier_3]
+  boost = 120
+  burst = 5
+  retries = 3
+
+[tier_4]
+  boost = 10
+  burst = 7
+  retries = 3
+
+[per_request]
+  conversations = 100
+  channels = 100
+  replies = 200
 `
 )
 
@@ -108,17 +115,17 @@ func Test_readConfig(t *testing.T) {
 				DownloadRetries: 3,
 				Tier2: network.TierLimit{
 					Boost:   20,
-					Burst:   1,
+					Burst:   3,
 					Retries: 330,
 				},
 				Tier3: network.TierLimit{
 					Boost:   120,
-					Burst:   1,
+					Burst:   5,
 					Retries: 3,
 				},
 				Tier4: network.TierLimit{
 					Boost:   10,
-					Burst:   1,
+					Burst:   7,
 					Retries: 3,
 				},
 				Request: network.RequestLimit{

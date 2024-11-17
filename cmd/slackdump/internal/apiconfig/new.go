@@ -23,9 +23,9 @@ var CmdConfigNew = &base.Command{
 Creates a new API configuration file containing default values. You will need
 to specify the filename, for example:
 
-    slackdump config new myconfig.yaml
+    slackdump config new myconfig.toml
 
-If the extension is omitted, ".yaml" is automatically appended to the filename.
+If the extension is omitted, ".toml" is automatically appended to the filename.
 `,
 	FlagMask:   cfg.OmitAll,
 	PrintFlags: true,
@@ -100,11 +100,11 @@ func shouldOverwrite(filename string, override bool) bool {
 	return err != nil || override
 }
 
-// maybeFixExt checks if the extension is one of .yaml or .yml, and if not
+// maybeFixExt checks if the extension is one of .toml or .tml, and if not
 // appends it to the file.
 func maybeFixExt(filename string) string {
-	if ext := filepath.Ext(filename); !(ext == ".yaml" || ext == ".yml") {
-		return maybeAppendExt(filename, ".yaml")
+	if ext := filepath.Ext(filename); !(ext == ".toml" || ext == ".tml") {
+		return maybeAppendExt(filename, ".toml")
 	}
 	return filename
 }
