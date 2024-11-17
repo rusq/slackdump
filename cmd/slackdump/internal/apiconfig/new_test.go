@@ -62,24 +62,24 @@ func Test_maybeFixExt(t *testing.T) {
 		want string
 	}{
 		{
-			"already yaml",
-			args{filename: "lol.yaml"},
-			"lol.yaml",
+			"already toml",
+			args{filename: "lol.toml"},
+			"lol.toml",
 		},
 		{
-			"already yml",
-			args{filename: "lol.yml"},
-			"lol.yml",
+			"already tml",
+			args{filename: "lol.tml"},
+			"lol.tml",
 		},
 		{
 			"no extension",
 			args{filename: "foo"},
-			"foo.yaml",
+			"foo.toml",
 		},
 		{
 			"different extension",
 			args{filename: "foo.bar"},
-			"foo.bar.yaml",
+			"foo.bar.toml",
 		},
 	}
 	for _, tt := range tests {
@@ -154,7 +154,7 @@ func Test_shouldOverwrite(t *testing.T) {
 
 func Test_runConfigNew(t *testing.T) {
 	dir := t.TempDir()
-	existingDir := filepath.Join(dir, "test.yaml")
+	existingDir := filepath.Join(dir, "test.toml")
 	if err := os.MkdirAll(existingDir, 0777); err != nil {
 		t.Fatal(err)
 	}
@@ -175,12 +175,12 @@ func Test_runConfigNew(t *testing.T) {
 		},
 		{
 			"file is created",
-			args{[]string{filepath.Join(dir, "sample.yml")}},
+			args{[]string{filepath.Join(dir, "sample.tml")}},
 			false,
 			true,
 		},
 		{
-			"directory test.yaml",
+			"directory test.toml",
 			args{[]string{existingDir}},
 			true,
 			true,
