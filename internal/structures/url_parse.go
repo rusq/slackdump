@@ -4,6 +4,7 @@ package structures
 
 import (
 	"fmt"
+	"log/slog"
 	"net/url"
 	"regexp"
 	"strings"
@@ -30,6 +31,13 @@ func (u SlackLink) IsThread() bool {
 		return false
 	}
 	return u.ThreadTS != ""
+}
+
+func (u SlackLink) LogValue() slog.Value {
+	if u.ThreadTS == "" {
+		return slog.GroupValue(slog.Group("channel", slog.String("id", u.Channel)))
+	}
+	return slog.GroupValue(slog.Group("thread", slog.String("channel_id", u.Channel), slog.String("thread_ts", u.ThreadTS)))
 }
 
 func (u SlackLink) IsValid() bool {
