@@ -22,6 +22,7 @@ const (
 var (
 	TraceFile      string
 	LogFile        string
+	JsonHandler    bool
 	Verbose        bool
 	AccessibleMode = (os.Getenv("ACCESSIBLE") != "" && os.Getenv("ACCESSIBLE") != "0")
 
@@ -103,6 +104,7 @@ const (
 func SetBaseFlags(fs *flag.FlagSet, mask FlagMask) {
 	fs.StringVar(&TraceFile, "trace", os.Getenv("TRACE_FILE"), "trace `filename`")
 	fs.StringVar(&LogFile, "log", os.Getenv("LOG_FILE"), "log `file`, if not specified, messages are printed to STDERR")
+	fs.BoolVar(&JsonHandler, "log-json", osenv.Value("JSON_LOG", false), "log in JSON format")
 	fs.BoolVar(&Verbose, "v", osenv.Value("DEBUG", false), "verbose messages")
 
 	if mask&OmitAuthFlags == 0 {

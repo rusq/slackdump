@@ -175,7 +175,7 @@ func invoke(cmd *base.Command, args []string) error {
 	defer task.End()
 
 	// initialise default logging.
-	if lg, err := initLog(cfg.LogFile, cfg.Verbose); err != nil {
+	if lg, err := initLog(cfg.LogFile, cfg.JsonHandler, cfg.Verbose); err != nil {
 		return err
 	} else {
 		lg.With("command", cmd.Name())
@@ -247,30 +247,36 @@ func initTrace(filename string) error {
 // an error, if any. The stop function must be called in the deferred call, it
 // will close the log file, if it is open. If the error is returned the stop
 // function is nil.
-func initLog(filename string, verbose bool) (*slog.Logger, error) {
+func initLog(filename string, jsonHandler bool, verbose bool) (*slog.Logger, error) {
 	if verbose {
 		slog.SetLogLoggerLevel(slog.LevelDebug)
 	}
-
-	if filename == "" {
-		return slog.Default(), nil
-	}
-
-	slog.Debug("log messages will be written to file", "filename", filename)
-	lf, err := os.OpenFile(filename, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0666)
-	if err != nil {
-		return slog.Default(), fmt.Errorf("failed to create the log file: %w", err)
-	}
-	sl := slog.New(slog.NewTextHandler(lf, &slog.HandlerOptions{
+	var opts = &slog.HandlerOptions{
 		Level: iftrue(verbose, slog.LevelDebug, slog.LevelInfo),
-	}))
-	slog.SetDefault(sl)
-
-	base.AtExit(func() {
-		if err := lf.Close(); err != nil {
-			dlog.Printf("failed to close the log file: %s", err)
+	}
+	if jsonHandler {
+		slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stderr, opts)))
+	}
+	if filename != "" {
+		slog.Debug("log messages will be written to file", "filename", filename)
+		lf, err := os.OpenFile(filename, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0666)
+		if err != nil {
+			return slog.Default(), fmt.Errorf("failed to create the log file: %w", err)
 		}
-	})
+
+		var h slog.Handler = slog.NewTextHandler(lf, opts)
+		if jsonHandler {
+			h = slog.NewJSONHandler(lf, opts)
+		}
+
+		sl := slog.New(h)
+		slog.SetDefault(sl)
+		base.AtExit(func() {
+			if err := lf.Close(); err != nil {
+				dlog.Printf("failed to close the log file: %s", err)
+			}
+		})
+	}
 
 	return slog.Default(), nil
 }

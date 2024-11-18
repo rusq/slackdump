@@ -225,8 +225,8 @@ func (cs *Stream) thread(ctx context.Context, sl *structures.SlackLink, callback
 		return fmt.Errorf("not a thread: %s", sl)
 	}
 
-	lg := slog.With("slack_link", sl.String())
-	lg.DebugContext(ctx, "- getting", sl)
+	lg := slog.With("slack_link", sl)
+	lg.DebugContext(ctx, "- getting")
 
 	var cursor string
 	for {
