@@ -165,7 +165,7 @@ Slackdump uses a simple [rusq/dlog][dlog] as a default logger (it is a wrapper a
 the standard logger that adds `Debug*` functions).
 
 If you want to use the same default logger that Slackdump uses in your
-application, it is available as `logger.Default`.
+application, it is available as `slog.Default()`.
 
 No doubts that everyone has their own favourite logger that is better than other
 miserable loggers.  Please read below for instructions on plugging your

@@ -35,7 +35,6 @@ import (
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/view"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/wizard"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/workspace"
-	"github.com/rusq/slackdump/v3/logger"
 )
 
 func init() {
@@ -124,7 +123,7 @@ BigCmdLoop:
 			}
 			if err := invoke(cmd, args); err != nil {
 				msg := fmt.Sprintf("Error %03[1]d (%[1]s): %[2]s", base.ExitStatus(), err)
-				logger.Default.Print(msg)
+				slog.Error(msg, "command", base.CmdName, "error", err, "code", base.ExitStatus(), "status", base.ExitStatus().String())
 			}
 			base.Exit()
 			return
@@ -179,8 +178,7 @@ func invoke(cmd *base.Command, args []string) error {
 	if lg, err := initLog(cfg.LogFile, cfg.Verbose); err != nil {
 		return err
 	} else {
-		lg.SetPrefix(cmd.Name() + ": ")
-		ctx = logger.NewContext(ctx, lg)
+		lg.With("command", cmd.Name())
 		cfg.Log = lg
 	}
 
@@ -249,24 +247,20 @@ func initTrace(filename string) error {
 // an error, if any. The stop function must be called in the deferred call, it
 // will close the log file, if it is open. If the error is returned the stop
 // function is nil.
-func initLog(filename string, verbose bool) (*dlog.Logger, error) {
-	lg := logger.Default
+func initLog(filename string, verbose bool) (*slog.Logger, error) {
 	if verbose {
 		slog.SetLogLoggerLevel(slog.LevelDebug)
-		lg.SetDebug(verbose)
-		lg.SetFlags(lg.Flags() | log.Lmicroseconds)
 	}
 
 	if filename == "" {
-		return lg, nil
+		return slog.Default(), nil
 	}
 
-	lg.Debugf("log messages will be written to: %q", filename)
+	slog.Debug("log messages will be written to file", "filename", filename)
 	lf, err := os.OpenFile(filename, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0666)
 	if err != nil {
-		return lg, fmt.Errorf("failed to create the log file: %w", err)
+		return slog.Default(), fmt.Errorf("failed to create the log file: %w", err)
 	}
-	lg.SetOutput(lf)
 	sl := slog.New(slog.NewTextHandler(lf, &slog.HandlerOptions{
 		Level: iftrue(verbose, slog.LevelDebug, slog.LevelInfo),
 	}))
@@ -278,7 +272,7 @@ func initLog(filename string, verbose bool) (*dlog.Logger, error) {
 		}
 	})
 
-	return lg, nil
+	return slog.Default(), nil
 }
 
 func iftrue[T any](cond bool, t T, f T) T {

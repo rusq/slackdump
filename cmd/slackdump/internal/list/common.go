@@ -13,7 +13,6 @@ import (
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/internal/cache"
 	"github.com/rusq/slackdump/v3/internal/format"
-	"github.com/rusq/slackdump/v3/logger"
 	"github.com/rusq/slackdump/v3/types"
 )
 
@@ -134,7 +133,7 @@ func saveData(ctx context.Context, data any, filename string, typ format.Type, u
 	if err := fmtPrint(ctx, f, data, typ, users); err != nil {
 		return err
 	}
-	logger.FromContext(ctx).Printf("Data saved to:  %q\n", filename)
+	cfg.Log.InfoContext(ctx, "Data saved", "filename", filename)
 
 	return nil
 }

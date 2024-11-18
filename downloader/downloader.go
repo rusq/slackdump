@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"hash/crc64"
 	"io"
+	"log/slog"
 	"os"
 	"path"
 	"runtime/trace"
@@ -12,7 +13,6 @@ import (
 
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/slackdump/v3/internal/network"
-	"github.com/rusq/slackdump/v3/logger"
 	"golang.org/x/time/rate"
 )
 
@@ -21,7 +21,7 @@ type Client struct {
 	sc      Downloader
 	limiter *rate.Limiter
 	fsa     fsadapter.FS
-	lg      logger.Interface
+	lg      *slog.Logger
 
 	retries int
 	workers int
@@ -66,11 +66,11 @@ func Workers(n int) Option {
 }
 
 // Logger allows to use an external log library, that satisfies the
-// logger.Interface.
-func WithLogger(l logger.Interface) Option {
+// *slog.Logger.
+func WithLogger(l *slog.Logger) Option {
 	return func(c *Client) {
 		if l == nil {
-			l = logger.Default
+			l = slog.Default()
 		}
 		c.lg = l
 	}
@@ -86,7 +86,7 @@ func New(sc Downloader, fs fsadapter.FS, opts ...Option) *Client {
 		sc:        sc,
 		fsa:       fs,
 		limiter:   rate.NewLimiter(defLimit, 1),
-		lg:        logger.Default,
+		lg:        slog.Default(),
 		chanBufSz: defFileBufSz,
 		retries:   defRetries,
 		workers:   defNumWorkers,
@@ -133,7 +133,7 @@ func (c *Client) startWorkers(ctx context.Context, req <-chan Request) *sync.Wai
 		go func(workerNum int) {
 			c.worker(ctx, seen)
 			wg.Done()
-			c.lg.Debugf("download worker %d terminated", workerNum)
+			c.lg.DebugContext(ctx, "download worker terminated", "worker", workerNum)
 		}(i)
 	}
 	return &wg
@@ -183,13 +183,14 @@ func (c *Client) worker(ctx context.Context, reqC <-chan Request) {
 			if !moar {
 				return
 			}
-			c.lg.Debugf("saving %q to %s", path.Base(req.URL), req.Fullpath)
+			lg := c.lg.With("filename", path.Base(req.URL), "destination", req.Fullpath)
+			lg.DebugContext(ctx, "saving file")
 			n, err := c.download(ctx, req.Fullpath, req.URL)
 			if err != nil {
-				c.lg.Printf("error saving %q to %q: %s", path.Base(req.URL), req.Fullpath, err)
+				lg.ErrorContext(ctx, "error saving file", "error", err)
 				break
 			}
-			c.lg.Debugf("file %q saved to %s: %d bytes written", path.Base(req.URL), req.Fullpath, n)
+			lg.DebugContext(ctx, "file saved", "bytes_written", n)
 		}
 	}
 }
@@ -215,7 +216,7 @@ func (c *Client) download(ctx context.Context, fullpath string, url string) (int
 
 		if err := c.sc.GetFile(url, tf); err != nil {
 			if _, err := tf.Seek(0, io.SeekStart); err != nil {
-				c.lg.Debugf("seek error: %s", err)
+				c.lg.ErrorContext(ctx, "seek", "error", err)
 			}
 			return fmt.Errorf("download to %q failed, [src=%s]: %w", fullpath, url, err)
 		}
@@ -254,9 +255,9 @@ func (c *Client) Stop() {
 	}
 
 	close(c.requests)
-	c.lg.Debugf("requests channel closed, waiting for all downloads to complete")
+	c.lg.Debug("requests channel closed, waiting for all downloads to complete")
 	c.wg.Wait()
-	c.lg.Debugf("wait complete:  no more files to download")
+	c.lg.Debug("wait complete:  no more files to download")
 
 	c.requests = nil
 	c.wg = nil
@@ -283,7 +284,7 @@ func (c *Client) AsyncDownloader(ctx context.Context, queueC <-chan Request) (<-
 		defer close(done)
 		for r := range queueC {
 			if err := c.Download(r.Fullpath, r.URL); err != nil {
-				c.lg.Printf("error downloading %q: %s", r.URL, err)
+				c.lg.Error("download error", "url", r.URL, "error", err)
 			}
 		}
 		c.Stop()

@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/rusq/dlog"
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/bootstrap"
 
@@ -15,7 +14,6 @@ import (
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/internal/chunk/transform/fileproc"
 	"github.com/rusq/slackdump/v3/internal/structures"
-	"github.com/rusq/slackdump/v3/logger"
 )
 
 var CmdExport = &base.Command{
@@ -84,8 +82,9 @@ func runExport(ctx context.Context, cmd *base.Command, args []string) error {
 		base.SetExitStatus(base.SUserError)
 		return err
 	}
+	lg := cfg.Log
 	defer func() {
-		dlog.Debugln("closing the fsadapter")
+		lg.DebugContext(ctx, "closing the fsadapter")
 		fsa.Close()
 	}()
 
@@ -99,7 +98,6 @@ func runExport(ctx context.Context, cmd *base.Command, args []string) error {
 		return fmt.Errorf("export failed: %w", err)
 	}
 
-	lg := logger.FromContext(ctx)
-	lg.Printf("export completed in %s", time.Since(start).Truncate(time.Second).String())
+	lg.InfoContext(ctx, "export completed", "took", time.Since(start).String())
 	return nil
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net"
 	"net/http"
 	"runtime/trace"
@@ -12,8 +13,6 @@ import (
 
 	"github.com/rusq/slack"
 	"golang.org/x/time/rate"
-
-	"github.com/rusq/slackdump/v3/logger"
 )
 
 // defNumAttempts is the default number of retry attempts.
@@ -63,6 +62,7 @@ func WithRetry(ctx context.Context, lim *rate.Limiter, maxAttempts int, fn func(
 	if maxAttempts == 0 {
 		maxAttempts = defNumAttempts
 	}
+	lg := slog.With("maxAttempts", maxAttempts)
 
 	var lastErr error
 	for attempt := 0; attempt < maxAttempts; attempt++ {
@@ -82,7 +82,7 @@ func WithRetry(ctx context.Context, lim *rate.Limiter, maxAttempts int, fn func(
 		}
 		lastErr = cbErr
 
-		tracelogf(ctx, "error", "WithRetry: %[1]s (%[1]T) after %[2]d attempts", cbErr, attempt+1)
+		lg.ErrorContext(ctx, "WithRetry", "error", cbErr, "attempt", attempt+1)
 		var (
 			rle *slack.RateLimitedError
 			sce slack.StatusCodeError
@@ -90,6 +90,7 @@ func WithRetry(ctx context.Context, lim *rate.Limiter, maxAttempts int, fn func(
 		)
 		switch {
 		case errors.As(cbErr, &rle):
+			slog.InfoContext(ctx, "got rate limited, sleeping", "retry_after_sec", rle.RetryAfter, "error", cbErr)
 			tracelogf(ctx, "info", "got rate limited, sleeping %s (%s)", rle.RetryAfter, cbErr)
 			time.Sleep(rle.RetryAfter)
 			continue
@@ -97,6 +98,7 @@ func WithRetry(ctx context.Context, lim *rate.Limiter, maxAttempts int, fn func(
 			if isRecoverable(sce.Code) {
 				// possibly transient error
 				delay := waitFn(attempt)
+				slog.WarnContext(ctx, "got server error, sleeping", "status_code", sce.Code, "error", cbErr, "delay", delay.String())
 				tracelogf(ctx, "info", "got server error %d, sleeping %s (%s)", sce.Code, delay, cbErr)
 				time.Sleep(delay)
 				continue
@@ -105,6 +107,7 @@ func WithRetry(ctx context.Context, lim *rate.Limiter, maxAttempts int, fn func(
 			if ne.Op == "read" || ne.Op == "write" {
 				// possibly transient error
 				delay := netWaitFn(attempt)
+				slog.WarnContext(ctx, "got network error, sleeping", "op", ne.Op, "error", cbErr, "delay", delay.String())
 				tracelogf(ctx, "info", "got network error %s on %q, sleeping %s", cbErr, ne.Op, delay)
 				time.Sleep(delay)
 				continue
@@ -144,12 +147,10 @@ func expWait(attempt int) time.Duration {
 	return delay
 }
 
-func tracelogf(ctx context.Context, category string, fmt string, a ...any) {
+func tracelogf(ctx context.Context, category string, format string, a ...any) {
 	mu.RLock()
 	defer mu.RUnlock()
-	lg := logger.FromContext(ctx)
-	trace.Logf(ctx, category, fmt, a...)
-	lg.Debugf(fmt, a...)
+	trace.Logf(ctx, category, format, a...)
 }
 
 // SetMaxAllowedWaitTime sets the maximum time to wait for a transient error.

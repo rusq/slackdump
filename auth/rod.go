@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"time"
 
@@ -12,7 +13,6 @@ import (
 
 	"github.com/rusq/slackdump/v3/auth/auth_ui"
 	"github.com/rusq/slackdump/v3/internal/structures"
-	"github.com/rusq/slackdump/v3/logger"
 )
 
 // RODHeadlessTimeout is the default timeout for the headless login flow.
@@ -116,12 +116,12 @@ func NewRODAuth(ctx context.Context, opts ...Option) (RodAuth, error) {
 	}
 	defer cl.Close()
 
-	lg := logger.FromContext(ctx)
+	lg := slog.Default()
 	t := time.Now()
 	var sp simpleProvider
 	switch resp.Type {
 	case auth_ui.LInteractive, auth_ui.LUserBrowser:
-		lg.Printf("ℹ️ Initialising browser, once the browser appears, login as usual")
+		lg.InfoContext(ctx, "ℹ️ Initialising browser, once the browser appears, login as usual")
 		var err error
 		sp.Token, sp.Cookie, err = cl.Manual(ctx)
 		if err != nil {
@@ -135,7 +135,7 @@ func NewRODAuth(ctx context.Context, opts ...Option) (RodAuth, error) {
 	case auth_ui.LCancel:
 		return r, ErrCancelled
 	}
-	lg.Printf("✅ authenticated (time taken: %s)", time.Since(t))
+	lg.InfoContext(ctx, "✅ authenticated", "time_taken", time.Since(t).String())
 
 	return RodAuth{
 		simpleProvider: sp,

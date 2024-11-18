@@ -3,16 +3,16 @@ package workspace
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"testing"
 
 	"github.com/rusq/slackdump/v3/auth"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
-	"github.com/rusq/slackdump/v3/logger"
 	"go.uber.org/mock/gomock"
 )
 
 func init() {
-	cfg.Log = logger.Silent
+	cfg.Log = slog.Default()
 }
 
 func Test_createWsp(t *testing.T) {

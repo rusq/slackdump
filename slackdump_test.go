@@ -3,6 +3,7 @@ package slackdump
 import (
 	"context"
 	"log"
+	"log/slog"
 	"math"
 	"net/http"
 	"os"
@@ -16,7 +17,6 @@ import (
 	"github.com/rusq/slackdump/v3/internal/edge"
 	"github.com/rusq/slackdump/v3/internal/mocks/mock_auth"
 	"github.com/rusq/slackdump/v3/internal/network"
-	"github.com/rusq/slackdump/v3/logger"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 )
@@ -213,7 +213,7 @@ func TestSession_initClient(t *testing.T) {
 
 		s := Session{
 			client: nil,
-			log:    logger.Default,
+			log:    slog.Default(),
 		}
 		err := s.initClient(context.Background(), mprov, false)
 		assert.NoError(t, err, "unexpected error")
@@ -232,7 +232,7 @@ func TestSession_initClient(t *testing.T) {
 
 		s := Session{
 			client: nil,
-			log:    logger.Default,
+			log:    slog.Default(),
 		}
 		err := s.initClient(context.Background(), mprov, false)
 		assert.NoError(t, err, "unexpected error")
@@ -250,7 +250,7 @@ func TestSession_initClient(t *testing.T) {
 
 		s := Session{
 			client: nil,
-			log:    logger.Default,
+			log:    slog.Default(),
 		}
 		err := s.initClient(context.Background(), mprov, true)
 		assert.NoError(t, err, "unexpected error")

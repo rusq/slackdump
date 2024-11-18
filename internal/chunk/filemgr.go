@@ -7,10 +7,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"sync"
-
-	"github.com/rusq/slackdump/v3/logger"
 )
 
 // filemgr manages temporary files and handles for compressed files.
@@ -28,7 +27,7 @@ func newFileMgr() (*filemgr, error) {
 	if err != nil {
 		return nil, err
 	}
-	logger.Default.Debugf("created temporary directory: %s", tmpdir)
+	slog.Default().Debug("created temporary directory", "dir", tmpdir)
 	return &filemgr{
 		tmpdir:  tmpdir,
 		once:    new(sync.Once),
@@ -50,7 +49,7 @@ func (dp *filemgr) Destroy() error {
 	var errcount int
 	for hash, f := range dp.handles {
 		if err := f.Close(); err != nil {
-			logger.Default.Printf("error closing file: %v", err)
+			slog.Default().Error("error closing file", "err", err)
 			errcount++
 			continue
 		}

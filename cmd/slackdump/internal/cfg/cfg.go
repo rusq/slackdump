@@ -4,6 +4,7 @@ package cfg
 import (
 	"flag"
 	"fmt"
+	"log/slog"
 	"os"
 	"time"
 
@@ -12,7 +13,6 @@ import (
 	"github.com/rusq/slackdump/v3/auth"
 	"github.com/rusq/slackdump/v3/auth/browser"
 	"github.com/rusq/slackdump/v3/internal/network"
-	"github.com/rusq/slackdump/v3/logger"
 )
 
 const (
@@ -55,8 +55,7 @@ var (
 	UserCacheRetention time.Duration
 	NoUserCache        bool
 
-	Log logger.Interface
-
+	Log *slog.Logger = slog.Default()
 	// LoadSecrets is a flag that indicates whether to load secrets from the
 	// environment variables.
 	LoadSecrets bool

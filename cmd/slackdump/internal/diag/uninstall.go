@@ -15,7 +15,6 @@ import (
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/cfgui"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/dumpui"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/updaters"
-	"github.com/rusq/slackdump/v3/logger"
 )
 
 var CmdUninstall = &base.Command{
@@ -82,12 +81,12 @@ func removeFunc(dry bool) func(string) error {
 
 func uninstallPlaywright(ctx context.Context, si info.PwInfo, dry bool) error {
 	removeFn := removeFunc(dry)
-	lg := logger.FromContext(ctx)
-	lg.Printf("Deleting %s", si.Path)
+	lg := cfg.Log
+	lg.InfoContext(ctx, "Deleting", "path", si.Path)
 	if err := removeFn(si.Path); err != nil {
 		return fmt.Errorf("failed to remove the playwright library: %w", err)
 	}
-	lg.Printf("Deleting browsers in %s", si.BrowsersPath)
+	lg.InfoContext(ctx, "Deleting browsers", "browsers_path", si.BrowsersPath)
 
 	if err := removeFn(si.BrowsersPath); err != nil {
 		return fmt.Errorf("failed to remove the playwright browsers: %w", err)
@@ -96,7 +95,7 @@ func uninstallPlaywright(ctx context.Context, si info.PwInfo, dry bool) error {
 	if len(dir) == 0 {
 		return errors.New("unable to reliably determine playwright path")
 	}
-	lg.Printf("Deleting all playwright versions from:  %s", dir)
+	lg.InfoContext(ctx, "Deleting all playwright versions", "dir", dir)
 	if err := removeFn(dir); err != nil {
 		return fmt.Errorf("failed to remove the playwright versions: %w", err)
 	}
@@ -104,20 +103,20 @@ func uninstallPlaywright(ctx context.Context, si info.PwInfo, dry bool) error {
 	return nil
 }
 
-func uninstallRod(_ context.Context, si info.RodInfo, dry bool) error {
+func uninstallRod(ctx context.Context, si info.RodInfo, dry bool) error {
 	removeFn := removeFunc(dry)
 	if si.Path == "" {
 		return errors.New("unable to determine rod browser path")
 	}
 	lg := cfg.Log
-	lg.Printf("Deleting incognito Browser...")
+	lg.InfoContext(ctx, "Deleting incognito Browser...")
 	if !dry {
 		_ = slackauth.RemoveBrowser() // just to make sure.
 	} else {
-		lg.Printf("Would remove incognito browser")
+		lg.InfoContext(ctx, "Would remove incognito browser")
 	}
 
-	lg.Printf("Deleting %s...", si.Path)
+	lg.InfoContext(ctx, "Deleting...", "path", si.Path)
 	if err := removeFn(si.Path); err != nil {
 		return fmt.Errorf("failed to remove the rod browser: %w", err)
 	}

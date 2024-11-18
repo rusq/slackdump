@@ -59,7 +59,8 @@ func importFile(ctx context.Context, filename string) error {
 		base.SetExitStatus(base.SCacheError)
 		return err
 	}
-	cfg.Log.Printf("Workspace %q added and selected. It is advised that you delete the file %q", wsp, filename)
+	cfg.Log.InfoContext(ctx, "Workspace added and selected", "workspace", wsp)
+	cfg.Log.InfoContext(ctx, "It is advised that you delete the file", "filename", filename)
 
 	return nil
 }

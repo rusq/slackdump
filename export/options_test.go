@@ -1,18 +1,18 @@
 package export
 
 import (
+	"log/slog"
 	"testing"
 	"time"
 
 	"github.com/rusq/slackdump/v3/internal/structures"
-	"github.com/rusq/slackdump/v3/logger"
 )
 
 func TestOptions_IsFilesEnabled(t *testing.T) {
 	type fields struct {
 		Oldest      time.Time
 		Latest      time.Time
-		Logger      logger.Interface
+		Logger      *slog.Logger
 		List        *structures.EntityList
 		Type        ExportType
 		ExportToken string

@@ -4,6 +4,7 @@ import (
 	"context"
 	_ "embed"
 	"errors"
+	"log/slog"
 	"time"
 
 	"github.com/rusq/fsadapter"
@@ -14,7 +15,6 @@ import (
 	"github.com/rusq/slackdump/v3/internal/chunk/control"
 	"github.com/rusq/slackdump/v3/internal/chunk/transform/fileproc"
 	"github.com/rusq/slackdump/v3/internal/structures"
-	"github.com/rusq/slackdump/v3/logger"
 	"github.com/rusq/slackdump/v3/stream"
 )
 
@@ -63,7 +63,7 @@ func RunArchive(ctx context.Context, cmd *base.Command, args []string) error {
 		base.SetExitStatus(base.SInitializationError)
 		return err
 	}
-	lg := logger.FromContext(ctx)
+	lg := cfg.Log
 	stream := sess.Stream(
 		stream.OptLatest(time.Time(cfg.Latest)),
 		stream.OptOldest(time.Time(cfg.Oldest)),
@@ -84,14 +84,14 @@ func RunArchive(ctx context.Context, cmd *base.Command, args []string) error {
 		base.SetExitStatus(base.SApplicationError)
 		return err
 	}
-	lg.Printf("Recorded workspace data to %s", cd.Name())
+	lg.Info("Recorded workspace data", "filename", cd.Name())
 
 	return nil
 }
 
-func resultLogger(lg logger.Interface) func(sr stream.Result) error {
+func resultLogger(lg *slog.Logger) func(sr stream.Result) error {
 	return func(sr stream.Result) error {
-		lg.Printf("%s", sr)
+		lg.Info("stream", "result", sr.String())
 		return nil
 	}
 }

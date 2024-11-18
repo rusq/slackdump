@@ -3,9 +3,9 @@ package transform
 import (
 	"context"
 	"errors"
+	"log/slog"
 
 	"github.com/rusq/slackdump/v3/internal/chunk"
-	"github.com/rusq/slackdump/v3/logger"
 )
 
 type COption func(*Coordinator)
@@ -42,12 +42,13 @@ func NewCoordinator(ctx context.Context, cvt Converter, opts ...COption) *Coordi
 }
 
 func (c *Coordinator) worker(ctx context.Context) {
-	lg := logger.FromContext(ctx)
 	defer close(c.errC)
+
+	lg := slog.Default()
 
 	for id := range c.idC {
 		if err := c.cvt.Convert(ctx, id); err != nil {
-			lg.Printf("error converting %q: %v", id, err)
+			lg.Error("worker: conversion failed", "id", id, "error", err)
 			c.errC <- err
 		}
 	}

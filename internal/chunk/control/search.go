@@ -19,7 +19,7 @@ func (s *Controller) SearchMessages(ctx context.Context, query string) error {
 	if err := eg.Wait(); err != nil {
 		return err
 	}
-	s.lg.Printf("search for query %q completed in: %s", query, time.Since(start))
+	s.lg.InfoContext(ctx, "search completed ", "query", query, "took", time.Since(start).String())
 	return nil
 }
 
@@ -35,7 +35,7 @@ func (s *Controller) SearchFiles(ctx context.Context, query string) error {
 	if err := eg.Wait(); err != nil {
 		return err
 	}
-	s.lg.Printf("search for query %q completed in: %s", query, time.Since(start))
+	s.lg.InfoContext(ctx, "search completed ", "query", query, "took", time.Since(start).String())
 	return nil
 }
 
@@ -54,6 +54,6 @@ func (s *Controller) SearchAll(ctx context.Context, query string) error {
 	if err := eg.Wait(); err != nil {
 		return err
 	}
-	s.lg.Printf("search for query %q completed in: %s", query, time.Since(start))
+	s.lg.InfoContext(ctx, "search completed ", "query", query, "took", time.Since(start).String())
 	return nil
 }

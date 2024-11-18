@@ -2,7 +2,7 @@ package downloader
 
 import (
 	"context"
-	"log"
+	"log/slog"
 	"os"
 	"path"
 	"path/filepath"
@@ -17,11 +17,9 @@ import (
 	gomock "go.uber.org/mock/gomock"
 	"golang.org/x/time/rate"
 
-	"github.com/rusq/dlog"
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/slackdump/v3/internal/fixtures"
 	"github.com/rusq/slackdump/v3/internal/mocks/mock_downloader"
-	"github.com/rusq/slackdump/v3/logger"
 )
 
 var (
@@ -264,7 +262,7 @@ func TestSession_newFileDownloader(t *testing.T) {
 				limiter: tl,
 				retries: 3,
 				workers: 4,
-				lg:      dlog.New(os.Stderr, "unit ", log.LstdFlags+log.Lshortfile, true),
+				lg:      slog.Default(),
 			},
 			nameFn: Filename,
 		}
@@ -301,7 +299,7 @@ func TestSession_worker(t *testing.T) {
 				limiter: tl,
 				retries: defRetries,
 				workers: defNumWorkers,
-				lg:      dlog.New(os.Stderr, "unit ", log.LstdFlags+log.Lshortfile, true),
+				lg:      slog.Default(),
 			},
 			nameFn: Filename,
 		}
@@ -374,7 +372,7 @@ func TestClient_startWorkers(t *testing.T) {
 				fsa:     fsadapter.NewDirectory(t.TempDir()),
 				limiter: rate.NewLimiter(5000, 1),
 				workers: defNumWorkers,
-				lg:      logger.Default,
+				lg:      slog.Default(),
 			},
 			nameFn: Filename,
 		}
@@ -445,7 +443,7 @@ func clientWithMock(t *testing.T, dir string) *ClientV1 {
 			fsa:     fsadapter.NewDirectory(dir),
 			limiter: rate.NewLimiter(5000, 1),
 			workers: defNumWorkers,
-			lg:      logger.Default,
+			lg:      slog.Default(),
 		},
 		nameFn: Filename,
 	}

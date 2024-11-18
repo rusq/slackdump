@@ -141,14 +141,14 @@ func (s *Session) dumpChannel(ctx context.Context, channelID string, oldest, lat
 
 		messages = append(messages, chunk...)
 
-		s.log.Printf("messages request #%5d, fetched: %4d (%s), total: %8d (speed: %6.2f/sec, avg: %6.2f/sec)\n",
-			i, len(resp.Messages), results, len(messages),
-			float64(len(resp.Messages))/float64(time.Since(reqStart).Seconds()),
-			float64(len(messages))/float64(time.Since(fetchStart).Seconds()),
+		s.log.InfoContext(ctx, "messages", "request", i, "fetched", len(resp.Messages), "total", len(messages),
+			"process results", results,
+			"speed", float64(len(resp.Messages))/time.Since(reqStart).Seconds(),
+			"avg", float64(len(messages))/time.Since(fetchStart).Seconds(),
 		)
 
 		if !resp.HasMore {
-			s.log.Printf("messages fetch complete, total: %d", len(messages))
+			s.log.InfoContext(ctx, "messages fetch complete", "total", len(messages))
 			break
 		}
 
