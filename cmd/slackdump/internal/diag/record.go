@@ -78,7 +78,8 @@ func runRecord(ctx context.Context, _ *base.Command, args []string) error {
 
 	rec := chunk.NewRecorder(w)
 	for _, ch := range args {
-		cfg.Log.Printf("streaming channel %q", ch)
+		lg := cfg.Log.With("channel_id", ch)
+		lg.InfoContext(ctx, "streaming")
 		if err := sess.Stream().SyncConversations(ctx, rec, ch); err != nil {
 			if err2 := rec.Close(); err2 != nil {
 				base.SetExitStatus(base.SApplicationError)

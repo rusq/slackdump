@@ -16,7 +16,6 @@ import (
 	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/internal/chunk/dirproc"
 	"github.com/rusq/slackdump/v3/internal/network"
-	"github.com/rusq/slackdump/v3/logger"
 	"github.com/rusq/slackdump/v3/types"
 	"golang.org/x/time/rate"
 )
@@ -78,7 +77,7 @@ func runSearch(ctx context.Context, cmd *base.Command, args []string) error {
 	query := args[0]
 
 	lim := rate.NewLimiter(rate.Every(3*time.Second), 5)
-	lg := logger.FromContext(ctx)
+	lg := cfg.Log
 	var p = slack.SearchParameters{
 		Sort:          "timestamp",
 		SortDirection: "desc",
@@ -101,10 +100,10 @@ func runSearch(ctx context.Context, cmd *base.Command, args []string) error {
 		enc.Encode(sm.Matches)
 
 		if sm.NextCursor == "" {
-			lg.Print("no more messages")
+			lg.Info("no more messages")
 			break
 		}
-		lg.Printf("cursor %s", sm.NextCursor)
+		lg.Info("paginating", "cursor", sm.NextCursor)
 		p.Cursor = sm.NextCursor
 
 		if err := lim.Wait(ctx); err != nil {

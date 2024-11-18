@@ -2,13 +2,10 @@ package export
 
 import (
 	"context"
-	"log"
 	"net/http"
-	"os"
 	"path/filepath"
 	"testing"
 
-	"github.com/rusq/dlog"
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/slack"
 	"github.com/rusq/slackdump/v3"
@@ -17,7 +14,6 @@ import (
 	"github.com/rusq/slackdump/v3/internal/fixtures"
 	"github.com/rusq/slackdump/v3/internal/network"
 	"github.com/rusq/slackdump/v3/internal/structures"
-	"github.com/rusq/slackdump/v3/logger"
 )
 
 const (
@@ -67,12 +63,11 @@ func Test_exportV3(t *testing.T) {
 		defer srv.Close()
 		cl := slack.New("", slack.OptionAPIURL(srv.URL()))
 
-		lg := dlog.New(os.Stderr, "test ", log.LstdFlags, true)
-		ctx := logger.NewContext(context.Background(), lg)
 		prov := &chunktest.TestAuth{
 			FakeToken:      "xoxp-1234567890-1234567890-1234567890-1234567890",
 			WantHTTPClient: http.DefaultClient,
 		}
+		ctx := context.Background()
 		sess, err := slackdump.New(ctx, prov, slackdump.WithSlackClient(cl), slackdump.WithLimits(network.NoLimits))
 		if err != nil {
 			t.Fatal(err)

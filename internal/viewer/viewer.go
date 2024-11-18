@@ -17,7 +17,6 @@ import (
 	st "github.com/rusq/slackdump/v3/internal/structures"
 	"github.com/rusq/slackdump/v3/internal/viewer/renderer"
 	"github.com/rusq/slackdump/v3/internal/viewer/source"
-	"github.com/rusq/slackdump/v3/logger"
 )
 
 var debug = os.Getenv("DEBUG") != ""
@@ -38,7 +37,7 @@ type Viewer struct {
 
 	// handles
 	srv *http.Server
-	lg  logger.Interface
+	lg  *slog.Logger
 	r   renderer.Renderer
 }
 
@@ -101,7 +100,7 @@ func New(ctx context.Context, addr string, r Sourcer) (*Viewer, error) {
 		src: r,
 		ch:  cc,
 		um:  um,
-		lg:  logger.FromContext(ctx),
+		lg:  slog.Default(),
 	}
 	// postinit
 	initTemplates(v)
@@ -143,7 +142,7 @@ func (v *Viewer) Close() error {
 	}
 	v.lg.Debug("server closed")
 	if ee != nil {
-		v.lg.Printf("errors: %v", ee)
+		v.lg.Error("close", "errors", ee)
 	}
 	return ee
 }

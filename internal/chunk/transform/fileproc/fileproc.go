@@ -8,12 +8,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/slack"
 	"github.com/rusq/slackdump/v3/downloader"
 	"github.com/rusq/slackdump/v3/internal/structures/files"
-	"github.com/rusq/slackdump/v3/logger"
 )
 
 // Downloader is the interface that wraps the Download method.
@@ -117,7 +117,7 @@ func (NoopDownloader) Download(fullpath string, url string) error {
 
 // NewDownloader initializes the downloader and returns it, along with a
 // function that should be called to stop it.
-func NewDownloader(ctx context.Context, gEnabled bool, cl downloader.Downloader, fsa fsadapter.FS, lg logger.Interface) (sdl Downloader, stop func()) {
+func NewDownloader(ctx context.Context, gEnabled bool, cl downloader.Downloader, fsa fsadapter.FS, lg *slog.Logger) (sdl Downloader, stop func()) {
 	if !gEnabled {
 		return NoopDownloader{}, func() {}
 	} else {

@@ -3,6 +3,7 @@ package archive
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"strings"
 
 	"github.com/rusq/fsadapter"
@@ -12,7 +13,6 @@ import (
 	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/internal/chunk/control"
 	"github.com/rusq/slackdump/v3/internal/chunk/transform/fileproc"
-	"github.com/rusq/slackdump/v3/logger"
 	"github.com/rusq/slackdump/v3/stream"
 )
 
@@ -134,7 +134,7 @@ func initController(ctx context.Context, args []string) (*control.Controller, fu
 	}
 	defer cd.Close()
 
-	lg := logger.FromContext(ctx)
+	lg := slog.Default()
 	dl, stop := fileproc.NewDownloader(
 		ctx,
 		cfg.DownloadFiles,

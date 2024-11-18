@@ -3,12 +3,12 @@ package source
 import (
 	"fmt"
 	"io/fs"
+	"log/slog"
 	"path"
 
 	"github.com/rusq/slack"
 	"github.com/rusq/slackdump/v3/export"
 	"github.com/rusq/slackdump/v3/internal/structures"
-	"github.com/rusq/slackdump/v3/logger"
 )
 
 // Export implements viewer.Sourcer for the zip file Slack export format.
@@ -119,7 +119,7 @@ func (e *Export) walkChannelMessages(channelID string, fn func(m *slack.Message)
 		}
 		for i, m := range em {
 			if m.Msg == nil {
-				logger.Default.Debugf("skipping an empty message in %s at index %d", pth, i)
+				slog.Default().Debug("skipping an empty message", "pth", pth, "index", i)
 				continue
 			}
 			if err := fn(&slack.Message{Msg: *m.Msg}); err != nil {

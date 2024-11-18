@@ -11,7 +11,6 @@ import (
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/workspace/workspaceui"
 	"github.com/rusq/slackdump/v3/internal/cache"
-	"github.com/rusq/slackdump/v3/logger"
 )
 
 // TODO: organise as a self-sufficient model with proper error handling.
@@ -54,7 +53,7 @@ func wizSelect(ctx context.Context, cmd *base.Command, args []string) error {
 			base.SetExitStatus(base.SWorkspaceError)
 			return fmt.Errorf("error setting the current workspace: %s", err)
 		}
-		logger.FromContext(ctx).Debugf("selected workspace: %s", newWsp)
+		cfg.Log.Debug("selected workspace", "workspace", newWsp)
 	}
 
 	return nil

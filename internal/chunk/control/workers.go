@@ -4,13 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"runtime/trace"
 
 	"github.com/rusq/slack"
 	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/internal/chunk/dirproc"
 	"github.com/rusq/slackdump/v3/internal/chunk/transform"
-	"github.com/rusq/slackdump/v3/logger"
 	"github.com/rusq/slackdump/v3/processor"
 )
 
@@ -32,7 +32,7 @@ func userWorker(ctx context.Context, s Streamer, chunkdir *chunk.Directory, tf T
 	if err := userproc.Close(); err != nil {
 		return fmt.Errorf("error closing user processor: %w", err)
 	}
-	logger.FromContext(ctx).Debug("users done")
+	slog.DebugContext(ctx, "users done")
 	if len(users) == 0 {
 		return fmt.Errorf("unable to proceed, no users found")
 	}
@@ -43,7 +43,7 @@ func userWorker(ctx context.Context, s Streamer, chunkdir *chunk.Directory, tf T
 }
 
 func conversationWorker(ctx context.Context, s Streamer, proc processor.Conversations, links <-chan string) error {
-	lg := logger.FromContext(ctx)
+	lg := slog.Default()
 	if err := s.Conversations(ctx, proc, links); err != nil {
 		if errors.Is(err, transform.ErrClosed) {
 			return fmt.Errorf("upstream error: %w", err)
@@ -55,7 +55,7 @@ func conversationWorker(ctx context.Context, s Streamer, proc processor.Conversa
 }
 
 func workspaceWorker(ctx context.Context, s Streamer, cd *chunk.Directory) error {
-	lg := logger.FromContext(ctx)
+	lg := slog.Default()
 	lg.Debug("workspaceWorker started")
 	wsproc, err := dirproc.NewWorkspace(cd)
 	if err != nil {
@@ -73,7 +73,7 @@ func searchMsgWorker(ctx context.Context, s Streamer, filer processor.Filer, cd 
 	ctx, task := trace.NewTask(ctx, "searchMsgWorker")
 	defer task.End()
 
-	lg := logger.FromContext(ctx)
+	lg := slog.Default()
 	lg.Debug("searchMsgWorker started")
 	search, err := dirproc.NewSearch(cd, filer)
 	if err != nil {
@@ -91,7 +91,7 @@ func searchFileWorker(ctx context.Context, s Streamer, filer processor.Filer, cd
 	ctx, task := trace.NewTask(ctx, "searchMsgWorker")
 	defer task.End()
 
-	lg := logger.FromContext(ctx)
+	lg := slog.Default()
 	lg.Debug("searchFileWorker started")
 	search, err := dirproc.NewSearch(cd, filer)
 	if err != nil {

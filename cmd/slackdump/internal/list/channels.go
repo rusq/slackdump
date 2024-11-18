@@ -3,7 +3,6 @@ package list
 import (
 	"context"
 	"fmt"
-	"log"
 	"runtime/trace"
 	"time"
 
@@ -13,7 +12,6 @@ import (
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/internal/cache"
-	"github.com/rusq/slackdump/v3/logger"
 	"github.com/rusq/slackdump/v3/types"
 )
 
@@ -116,11 +114,10 @@ func (l *channels) Retrieve(ctx context.Context, sess *slackdump.Session, m *cac
 	go func() {
 		defer close(usersc)
 		if l.opts.resolveUsers {
-
-			lg.Println("getting users to resolve DM names")
+			lg.InfoContext(ctx, "getting users to resolve DM names")
 			u, err := fetchUsers(ctx, sess, m, cfg.NoUserCache, teamID)
 			if err != nil {
-				log.Printf("error getting users to resolve DM names (ignored): %s", err)
+				lg.ErrorContext(ctx, "error getting users to resolve DM names", "error", err)
 				return
 			}
 			usersc <- u
@@ -142,7 +139,7 @@ func (l *channels) Retrieve(ctx context.Context, sess *slackdump.Session, m *cac
 	l.channels = cc
 	l.users = <-usersc
 	if err := m.CacheChannels(teamID, cc); err != nil {
-		logger.FromContext(ctx).Printf("warning: failed to cache channels (ignored): %s", err)
+		lg.WarnContext(ctx, "failed to cache channels (ignored)", "error", err)
 	}
 	return nil
 }

@@ -27,7 +27,7 @@ import (
 	"sync"
 
 	"github.com/rusq/fsadapter"
-	"github.com/rusq/slackdump/v3/logger"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 )
 
 const (
@@ -63,7 +63,7 @@ func DlFS(ctx context.Context, sess emojidumper, fsa fsadapter.FS, failFast bool
 // fetch downloads the emojis and saves them to the fsa. It spawns numWorker
 // goroutines for getting the files. It will call fetchFn for each emoji.
 func fetch(ctx context.Context, fsa fsadapter.FS, emojis map[string]string, failFast bool) error {
-	lg := logger.FromContext(ctx)
+	lg := cfg.Log.With("in", "fetch", "dir", emojiDir, "numWorkers", numWorkers, "failFast", failFast)
 
 	var (
 		emojiC  = make(chan emoji)
@@ -105,6 +105,7 @@ func fetch(ctx context.Context, fsa fsadapter.FS, emojis map[string]string, fail
 		total = len(emojis)
 		count = 0
 	)
+	lg = lg.With("total", total)
 	for res := range resultC {
 		if res.err != nil {
 			if errors.Is(res.err, context.Canceled) {
@@ -113,10 +114,10 @@ func fetch(ctx context.Context, fsa fsadapter.FS, emojis map[string]string, fail
 			if failFast {
 				return fmt.Errorf("failed: %q: %w", res.name, res.err)
 			}
-			lg.Printf("failed: %q: %s", res.name, res.err)
+			lg.WarnContext(ctx, "failed", "name", res.name, "error", res.err)
 		}
 		count++
-		lg.Printf("downloaded % 5d/%d %q", count, total, res.name)
+		lg.InfoContext(ctx, "downloaded", "count", count, "name", res.name)
 	}
 
 	return nil

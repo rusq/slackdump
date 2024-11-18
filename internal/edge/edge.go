@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
@@ -20,7 +21,6 @@ import (
 	"github.com/rusq/slack"
 	"github.com/rusq/slackauth"
 	"github.com/rusq/slackdump/v3/auth"
-	"github.com/rusq/slackdump/v3/logger"
 	"github.com/rusq/tagops"
 )
 
@@ -212,7 +212,7 @@ func (cl *Client) PostForm(ctx context.Context, path string, form url.Values) (*
 func (cl *Client) record(b []byte) {
 	if cl.tape != nil {
 		if _, err := cl.tape.Write(b); err != nil {
-			logger.Default.Printf("error writing to tape: %s", err)
+			slog.Default().Error("error writing to tape", "error", err)
 		}
 	}
 }
@@ -248,7 +248,7 @@ func (cl *Client) ParseResponse(req any, r *http.Response) error {
 // if it receives another rate limit error, it returns slack.RateLimitedError
 // to let the caller handle it.
 func do(ctx context.Context, cl *http.Client, req *http.Request) (*http.Response, error) {
-	lg := logger.FromContext(ctx)
+	lg := slog.Default()
 	req.Header.Set("Accept-Language", "en-NZ,en-AU;q=0.9,en;q=0.8")
 	req.Header.Set("User-Agent", slackauth.DefaultUserAgent)
 
@@ -261,7 +261,7 @@ func do(ctx context.Context, cl *http.Client, req *http.Request) (*http.Response
 		if err != nil {
 			return nil, err
 		}
-		lg.Debugf("got rate limited, waiting %s", wait)
+		lg.Debug("got rate limited, waiting", "delay", wait)
 
 		time.Sleep(wait)
 		resp, err = cl.Do(req)
@@ -270,7 +270,7 @@ func do(ctx context.Context, cl *http.Client, req *http.Request) (*http.Response
 		}
 		// if we are still rate limited, then we are in trouble
 		if resp.StatusCode == http.StatusTooManyRequests {
-			lg.Debug("edge.do: did my best, but still rate limited, giving up, not my problem")
+			lg.DebugContext(ctx, "edge.do: did my best, but still rate limited, giving up, not my problem")
 			wait, err = parseRetryAfter(resp)
 			if err != nil {
 				return nil, err

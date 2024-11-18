@@ -14,7 +14,6 @@ import (
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/internal/cache"
 	"github.com/rusq/slackdump/v3/internal/osext"
-	"github.com/rusq/slackdump/v3/logger"
 	"github.com/rusq/slackdump/v3/types"
 )
 
@@ -93,7 +92,7 @@ type userCacher interface {
 }
 
 func fetchUsers(ctx context.Context, ug userGetter, m userCacher, skipCache bool, teamID string) ([]slack.User, error) {
-	lg := logger.FromContext(ctx)
+	lg := cfg.Log.With("team_id", teamID, "cache", !skipCache)
 
 	if !skipCache {
 		// attempt to load from cache
@@ -107,7 +106,7 @@ func fetchUsers(ctx context.Context, ug userGetter, m userCacher, skipCache bool
 			// some funky error
 			return nil, err
 		}
-		lg.Println("user cache expired or empty, caching users")
+		lg.InfoContext(ctx, "user cache expired or empty, caching users")
 	}
 	// getting users from API
 	users, err := ug.GetUsers(ctx)
@@ -117,7 +116,7 @@ func fetchUsers(ctx context.Context, ug userGetter, m userCacher, skipCache bool
 
 	// saving users to cache, will ignore any errors, but notify the user.
 	if err := m.CacheUsers(teamID, users); err != nil {
-		lg.Printf("warning: failed saving user cache (ignored): %s", err)
+		lg.WarnContext(ctx, "failed saving user cache (ignored)", "error", err)
 	}
 
 	return users, nil

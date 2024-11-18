@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log/slog"
 	"path"
 	"path/filepath"
 
@@ -14,7 +15,6 @@ import (
 	"golang.org/x/time/rate"
 
 	"github.com/rusq/fsadapter"
-	"github.com/rusq/slackdump/v3/logger"
 )
 
 const (
@@ -72,7 +72,7 @@ func WorkersV1(n int) OptionV1 {
 
 // LoggerV1 allows to use an external log library, that satisfies the
 // logger.Interface.
-func LoggerV1(l logger.Interface) OptionV1 {
+func LoggerV1(l *slog.Logger) OptionV1 {
 	return func(c *ClientV1) {
 		WithLogger(l)(c.v2)
 	}

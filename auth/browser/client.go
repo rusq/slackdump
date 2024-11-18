@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"runtime"
@@ -13,7 +14,6 @@ import (
 
 	"github.com/playwright-community/playwright-go"
 	"github.com/rusq/slackdump/v3/auth/browser/pwcompat"
-	"github.com/rusq/slackdump/v3/logger"
 )
 
 const (
@@ -30,7 +30,7 @@ type Client struct {
 	verbose      bool
 }
 
-var Logger logger.Interface = logger.Default
+var Logger = slog.Default()
 
 var (
 	installFn = playwright.Install
@@ -51,7 +51,7 @@ func New(workspace string, opts ...Option) (*Client, error) {
 	for _, opt := range opts {
 		opt(cl)
 	}
-	l().Debugf("browser=%s, timeout=%f", cl.br, cl.loginTimeout)
+	slog.Debug("New", "workspace", cl.workspace, "browser", cl.br, "timeout", cl.loginTimeout)
 	runopts := &playwright.RunOptions{
 		Browsers: []string{cl.br.String()},
 		Verbose:  cl.verbose,
@@ -77,13 +77,14 @@ func (cl *Client) Authenticate(ctx context.Context) (string, []*http.Cookie, err
 		_b = playwright.Bool
 	)
 
+	lg := slog.Default()
 	pw, err := playwright.Run()
 	if err != nil {
 		return "", nil, err
 	}
 	defer func() {
 		if err := pw.Stop(); err != nil {
-			l().Printf("failed to stop playwright: %v", err)
+			lg.ErrorContext(ctx, "failed to stop playwright", "error", err)
 		}
 	}()
 
@@ -124,7 +125,7 @@ func (cl *Client) Authenticate(ctx context.Context) (string, []*http.Cookie, err
 	page.On("close", func() { trace.Log(ctx, "user", "page closed"); close(cl.pageClosed) })
 
 	uri := fmt.Sprintf("https://%s"+slackDomain, cl.workspace)
-	l().Debugf("opening browser URL=%s", uri)
+	lg.Debug("opening browser", "URL", uri)
 
 	if _, err := page.Goto(uri); err != nil {
 		return "", nil, err
@@ -219,13 +220,6 @@ func float2time(v float64) time.Time {
 	return time.Unix(int64(v), 0)
 }
 
-func l() logger.Interface {
-	if Logger == nil {
-		return logger.Default
-	}
-	return Logger
-}
-
 // pwRepair attempts to repair the playwright installation.
 func pwRepair(runopts *playwright.RunOptions) error {
 	ad, err := pwcompat.NewAdapter(runopts)
@@ -249,18 +243,21 @@ func Reinstall(browser Browser, verbose bool) error {
 }
 
 func reinstall(runopts *playwright.RunOptions) error {
-	l().Debugf("reinstalling browser: %s", runopts.Browsers[0])
+	lg := slog.With("browser", runopts.Browsers[0])
+
+	lg.Debug("reinstalling browser")
 	ad, err := pwcompat.NewAdapter(runopts)
 	if err != nil {
 		return err
 	}
-	l().Debugf("removing %s", ad.DriverDirectory)
+	lg = lg.With("driver_directory", ad.DriverDirectory)
+	lg.Debug("removing driver directory")
 	if err := os.RemoveAll(ad.DriverDirectory); err != nil {
 		return err
 	}
 
 	// attempt to reinstall
-	l().Debugf("reinstalling %s", ad.DriverDirectory)
+	lg.Debug("reinstalling")
 	if err := installFn(runopts); err != nil {
 		// we did everything we could, but it still failed.
 		return err

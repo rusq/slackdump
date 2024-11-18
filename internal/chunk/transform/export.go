@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"path/filepath"
 	"runtime/trace"
 	"sort"
@@ -17,7 +18,6 @@ import (
 	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/internal/fasttime"
 	"github.com/rusq/slackdump/v3/internal/structures"
-	"github.com/rusq/slackdump/v3/logger"
 	"github.com/rusq/slackdump/v3/types"
 )
 
@@ -67,11 +67,11 @@ func (e *ExpConverter) Convert(ctx context.Context, id chunk.FileID) error {
 	ctx, task := trace.NewTask(ctx, "transform")
 	defer task.End()
 
-	lg := logger.FromContext(ctx)
+	lg := slog.With("file_id", id)
 	{
 		userCnt := len(e.users)
 		trace.Logf(ctx, "input", "len(users)=%d", userCnt)
-		lg.Debugf("transforming channel %s, user len=%d", id, userCnt)
+		lg.DebugContext(ctx, "transforming channel", "id", id, "user_count", userCnt)
 	}
 
 	// load the chunk file
@@ -95,7 +95,7 @@ func (e *ExpConverter) Convert(ctx context.Context, id chunk.FileID) error {
 }
 
 func (e *ExpConverter) writeMessages(ctx context.Context, pl *chunk.File, ci *slack.Channel) error {
-	lg := logger.FromContext(ctx)
+	lg := slog.With("in", "writeMessages", "channel", ci.ID)
 	uidx := types.Users(e.users).IndexByID()
 	trgdir := ExportChanName(ci)
 
@@ -127,7 +127,7 @@ func (e *ExpConverter) writeMessages(ctx context.Context, pl *chunk.File, ci *sl
 				} else {
 					// this shouldn't happen as we have the guard in the if
 					// condition, but if it does (i.e. API changed), log it.
-					lg.Printf("not an error, possibly deleted thread: %q not found in chunk file", ci.ID+":"+m.ThreadTimestamp)
+					lg.Warn("not an error, possibly deleted thread not found in chunk file", "slack_link", ci.ID+":"+m.ThreadTimestamp)
 				}
 			}
 		}

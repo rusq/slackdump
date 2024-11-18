@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"runtime/trace"
@@ -15,7 +16,6 @@ import (
 	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/internal/chunk/transform"
 	"github.com/rusq/slackdump/v3/internal/chunk/transform/fileproc"
-	"github.com/rusq/slackdump/v3/logger"
 )
 
 const (
@@ -40,7 +40,7 @@ type ChunkToExport struct {
 	srcFileLoc func(*slack.Channel, *slack.File) string
 	trgFileLoc func(*slack.Channel, *slack.File) string
 
-	lg logger.Interface
+	lg *slog.Logger
 
 	workers int // number of workers to use to convert channels
 
@@ -76,7 +76,7 @@ func WithTrgFileLoc(fn func(*slack.Channel, *slack.File) string) C2EOption {
 }
 
 // WithLogger sets the logger.
-func WithLogger(lg logger.Interface) C2EOption {
+func WithLogger(lg *slog.Logger) C2EOption {
 	return func(c *ChunkToExport) {
 		if lg != nil {
 			c.lg = lg
@@ -91,7 +91,7 @@ func NewChunkToExport(src *chunk.Directory, trg fsadapter.FS, opt ...C2EOption) 
 		includeFiles: false,
 		srcFileLoc:   fileproc.MattermostFilepath,
 		trgFileLoc:   fileproc.MattermostFilepath,
-		lg:           logger.Default,
+		lg:           slog.Default(),
 		request:      make(chan copyrequest, 1),
 		result:       make(chan copyresult, 1),
 		workers:      defWorkers,
@@ -139,8 +139,6 @@ func (c *ChunkToExport) Validate() error {
 func (c *ChunkToExport) Convert(ctx context.Context) error {
 	ctx, task := trace.NewTask(ctx, "convert.ChunkToExport")
 	defer task.End()
-
-	lg := logger.FromContext(ctx)
 
 	if err := c.Validate(); err != nil {
 		return err
@@ -190,7 +188,8 @@ func (c *ChunkToExport) Convert(ctx context.Context) error {
 			go func() {
 				defer wg.Done()
 				for ch := range chC {
-					lg.Debugf("processing channel %q", ch.ID)
+					lg := c.lg.With("channel", ch.ID)
+					lg.Debug("processing channel")
 					if err := conv.Convert(ctx, chunk.ToFileID(ch.ID, "", false)); err != nil {
 						errC <- fmt.Errorf("converter: failed to process %q: %w", ch.ID, err)
 						return
@@ -202,7 +201,7 @@ func (c *ChunkToExport) Convert(ctx context.Context) error {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			lg.Debugf("writing index for %s", c.src.Name())
+			c.lg.DebugContext(ctx, "writing index", "name", c.src.Name())
 			if err := conv.WriteIndex(); err != nil {
 				errC <- err
 			}
@@ -268,7 +267,7 @@ func (c *ChunkToExport) fileCopy(ch *slack.Channel, msg *slack.Message) error {
 	}
 	for _, f := range msg.Files {
 		if err := fileproc.IsValidWithReason(&f); err != nil {
-			c.lg.Printf("skipping file %q: %v", f.ID, err)
+			c.lg.Warn("skipping", "file", f.ID, "error", err)
 			continue
 		}
 
@@ -281,7 +280,7 @@ func (c *ChunkToExport) fileCopy(ch *slack.Channel, msg *slack.Message) error {
 		if _, err := os.Stat(srcpath); err != nil {
 			return &copyerror{f.ID, err}
 		}
-		c.lg.Debugf("copying %q to %q", srcpath, trgpath)
+		c.lg.Debug("copying", "srcpath", srcpath, "trgpath", trgpath)
 		if err := copy2trg(c.trg, trgpath, srcpath); err != nil {
 			return &copyerror{f.ID, err}
 		}
