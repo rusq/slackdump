@@ -39,12 +39,14 @@ There are four modes of operation (more on this in [User Guide][ug]):
 1. Creating a Slack Export in Mattermost or Standard modes.
 1. Emoji download mode.
 
-Slackdump accepts two types of input (see `Dumping Conversations`_ section):
+Slackdump accepts two types of input (see [Dumping
+Conversations][usage-channels] section):
 
 1. the URL/link of the channel or thread, OR
 1. the ID of the channel.
 
 [ug]: doc/README.rst
+[usage-channels]: doc/usage-channels.rst
 
 Quick Start
 ===========
@@ -170,7 +172,9 @@ default slog logger to the one you want to use.
 
 No, you don't.  Just run the application and EZ-Login 3000 will take
 care of the authentication or, alternatively, grab that token and
-cookie from the browser Slack session.  See `User Guide`_.
+cookie from the browser Slack session.  See [User's Guide][ug].
+
+
 
 #### I'm getting "invalid_auth" error
 
