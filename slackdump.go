@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"log/slog"
 	"runtime/trace"
 	"time"
 
@@ -16,7 +17,6 @@ import (
 	"github.com/rusq/slackdump/v3/auth"
 	"github.com/rusq/slackdump/v3/internal/edge"
 	"github.com/rusq/slackdump/v3/internal/network"
-	"github.com/rusq/slackdump/v3/logger"
 	"github.com/rusq/slackdump/v3/stream"
 )
 
@@ -26,10 +26,10 @@ import (
 // Session stores basic session parameters.  Zero value is not usable, must be
 // initialised with New.
 type Session struct {
-	client clienter         // Slack client
-	uc     *usercache       // usercache contains the list of users.
-	fs     fsadapter.FS     // filesystem adapter
-	log    logger.Interface // logger
+	client clienter     // Slack client
+	uc     *usercache   // usercache contains the list of users.
+	fs     fsadapter.FS // filesystem adapter
+	log    *slog.Logger // logger
 
 	wspInfo *WorkspaceInfo // workspace info
 
@@ -103,7 +103,7 @@ func WithLimits(l network.Limits) Option {
 // given, the default logger is initialised with the filename specified in
 // Config.Logfile.  If the Config.Logfile is empty, the default logger writes
 // to STDERR.
-func WithLogger(l logger.Interface) Option {
+func WithLogger(l *slog.Logger) Option {
 	return func(s *Session) {
 		if l != nil {
 			s.log = l
@@ -154,7 +154,7 @@ func NewNoValidate(ctx context.Context, prov auth.Provider, opts ...Option) (*Se
 		cfg: defConfig,
 		uc:  new(usercache),
 
-		log: logger.Default,
+		log: slog.Default(),
 	}
 	for _, opt := range opts {
 		opt(sd)

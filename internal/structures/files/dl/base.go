@@ -2,8 +2,7 @@ package dl
 
 import (
 	"context"
-
-	"github.com/rusq/slackdump/v3/logger"
+	"log/slog"
 )
 
 const entFiles = "files"
@@ -11,7 +10,7 @@ const entFiles = "files"
 type base struct {
 	dl    exportDownloader
 	token string // token is the token that will be appended to each file URL.
-	l     logger.Interface
+	l     *slog.Logger
 }
 
 func (bd *base) Start(ctx context.Context) {

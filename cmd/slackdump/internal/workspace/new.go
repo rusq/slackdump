@@ -79,7 +79,7 @@ func createWsp(ctx context.Context, m manager, wsp string, confirm bool) error {
 		}
 	}
 
-	lg.Debugln("requesting authentication...")
+	lg.DebugContext(ctx, "requesting authentication...")
 	ad := cache.AuthData{
 		Token:         cfg.SlackToken,
 		Cookie:        cfg.SlackCookie,
@@ -89,21 +89,21 @@ func createWsp(ctx context.Context, m manager, wsp string, confirm bool) error {
 	if err != nil {
 		if errors.Is(err, auth.ErrCancelled) {
 			base.SetExitStatus(base.SCancelled)
-			lg.Println(auth.ErrCancelled)
+			lg.WarnContext(ctx, auth.ErrCancelled.Error())
 			return ErrOpCancelled
 		}
 		base.SetExitStatus(base.SAuthError)
 		return err
 	}
 
-	lg.Debugf("selecting %q as current...", realname(wsp))
+	lg.Debug("selecting as current...", "workspace", realname(wsp))
 	// select it
 	if err := m.Select(realname(wsp)); err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return fmt.Errorf("failed to select the default workpace: %s", err)
 	}
 	fmt.Fprintf(os.Stdout, "Success:  added workspace %q\n", realname(wsp))
-	lg.Debugf("workspace %q, type %T", realname(wsp), prov)
+	lg.DebugContext(ctx, "workspace type", "workspace", realname(wsp), "type", fmt.Sprintf("%T", prov))
 	return nil
 }
 

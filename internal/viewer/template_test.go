@@ -2,6 +2,7 @@ package viewer
 
 import (
 	"html/template"
+	"log/slog"
 	"net/http"
 	"testing"
 
@@ -9,7 +10,6 @@ import (
 	"github.com/rusq/slackdump/v3/internal/fixtures"
 	st "github.com/rusq/slackdump/v3/internal/structures"
 	"github.com/rusq/slackdump/v3/internal/viewer/renderer"
-	"github.com/rusq/slackdump/v3/logger"
 )
 
 func TestViewer_username(t *testing.T) {
@@ -19,7 +19,7 @@ func TestViewer_username(t *testing.T) {
 		rtr  Sourcer
 		tmpl *template.Template
 		srv  *http.Server
-		lg   logger.Interface
+		lg   *slog.Logger
 		r    renderer.Renderer
 	}
 	type args struct {
@@ -35,6 +35,7 @@ func TestViewer_username(t *testing.T) {
 			"bot message",
 			fields{
 				um: st.UserIndex{},
+				lg: slog.Default(),
 			},
 			args{
 				m: fixtures.Load[*slack.Message](fixtures.AppMessageJSON),

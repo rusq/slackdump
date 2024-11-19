@@ -18,7 +18,6 @@ import (
 	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/internal/viewer"
 	"github.com/rusq/slackdump/v3/internal/viewer/source"
-	"github.com/rusq/slackdump/v3/logger"
 )
 
 var CmdView = &base.Command{
@@ -63,17 +62,17 @@ func RunView(ctx context.Context, cmd *base.Command, args []string) error {
 		v.Close()
 	}()
 
-	lg := logger.FromContext(ctx)
+	lg := cfg.Log
 
-	lg.Printf("listening on %s", listenAddr)
+	lg.InfoContext(ctx, "listening on", "addr", listenAddr)
 	go func() {
 		if err := br.OpenURL(fmt.Sprintf("http://%s", listenAddr)); err != nil {
-			lg.Printf("unable to open browser: %s", err)
+			lg.WarnContext(ctx, "unable to open browser", "error", err)
 		}
 	}()
 	if err := v.ListenAndServe(); err != nil {
 		if errors.Is(err, http.ErrServerClosed) {
-			lg.Print("bye")
+			lg.InfoContext(ctx, "bye")
 			return nil
 		}
 		base.SetExitStatus(base.SApplicationError)
@@ -95,38 +94,38 @@ const (
 )
 
 func loadSource(ctx context.Context, src string) (viewer.Sourcer, error) {
-	lg := logger.FromContext(ctx)
+	lg := cfg.Log.With("source", src)
 	fi, err := os.Stat(src)
 	if err != nil {
 		return nil, err
 	}
 	switch srcType(src, fi) {
 	case sfChunk | sfDirectory:
-		lg.Debugf("loading chunk directory: %s", src)
+		lg.DebugContext(ctx, "loading chunk directory")
 		dir, err := chunk.OpenDir(src)
 		if err != nil {
 			return nil, err
 		}
 		return source.NewChunkDir(dir), nil
 	case sfExport | sfZIP:
-		lg.Debugf("loading export zip: %s", src)
+		lg.DebugContext(ctx, "loading export zip")
 		f, err := zip.OpenReader(src)
 		if err != nil {
 			return nil, err
 		}
 		return source.NewExport(f, src)
 	case sfExport | sfDirectory:
-		lg.Debugf("loading export directory: %s", src)
+		lg.DebugContext(ctx, "loading export directory")
 		return source.NewExport(os.DirFS(src), src)
 	case sfDump | sfZIP:
-		lg.Debugf("loading dump zip: %s", src)
+		lg.DebugContext(ctx, "loading dump zip")
 		f, err := zip.OpenReader(src)
 		if err != nil {
 			return nil, err
 		}
 		return source.NewDump(f, src)
 	case sfDump | sfDirectory:
-		lg.Debugf("loading dump directory: %s", src)
+		lg.DebugContext(ctx, "loading dump directory")
 		return source.NewDump(os.DirFS(src), src)
 	default:
 		return nil, fmt.Errorf("unsupported source type: %s", src)

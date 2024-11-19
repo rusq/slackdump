@@ -12,12 +12,12 @@ import (
 	"errors"
 	"hash"
 	"io"
+	"log"
 	"math/rand"
 	"runtime/trace"
 	"strings"
 	"time"
 
-	"github.com/rusq/dlog"
 	"github.com/rusq/slack"
 	"github.com/rusq/slackdump/v3/internal/chunk"
 )
@@ -114,7 +114,7 @@ func (o obfuscator) Chunk(c *chunk.Chunk) {
 	case chunk.CWorkspaceInfo:
 		o.WorkspaceInfo(c.WorkspaceInfo)
 	default:
-		dlog.Panicf("unknown chunk type: %s", c.Type)
+		log.Panicf("unknown chunk type: %s", c.Type)
 	}
 
 }

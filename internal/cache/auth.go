@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -14,7 +15,6 @@ import (
 	"github.com/rusq/encio"
 
 	"github.com/rusq/slackdump/v3/auth"
-	"github.com/rusq/slackdump/v3/logger"
 )
 
 const ezLogin = "EZ-Login 3000"
@@ -155,13 +155,14 @@ func initProvider(ctx context.Context, cacheDir string, filename string, workspa
 	}
 
 	// try to load the existing credentials, if saved earlier.
-	lg := logger.FromContext(ctx)
+	lg := slog.With("cache_dir", cacheDir, "filename", filename, "workspace", workspace)
 	if creds == nil || creds.IsEmpty() {
 		if prov, err := tryLoad(ctx, credsFile); err != nil {
 			msg := fmt.Sprintf("failed to load saved credentials: %s", err)
 			trace.Log(ctx, "warn", msg)
+			slog.DebugContext(ctx, msg)
 			if auth.IsInvalidAuthErr(err) {
-				lg.Println("authentication details expired, relogin is necessary")
+				lg.InfoContext(ctx, "authentication details expired, relogin is necessary")
 			}
 		} else {
 			msg := "loaded saved credentials"

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"log/slog"
 	"path/filepath"
 	"runtime/trace"
 	"sort"
@@ -16,11 +17,9 @@ import (
 
 	"github.com/rusq/slack"
 
-	"github.com/rusq/dlog"
 	"github.com/rusq/slackdump/v3/internal/chunk/state"
 	"github.com/rusq/slackdump/v3/internal/fasttime"
 	"github.com/rusq/slackdump/v3/internal/osext"
-	"github.com/rusq/slackdump/v3/logger"
 )
 
 var (
@@ -53,7 +52,7 @@ func (idx index) offsetsWithPrefix(prefix string) []int64 {
 	var offsets []int64
 	for id, off := range idx {
 		if len(id) == 0 {
-			dlog.Panicf("internal error:  invalid id: %q", id)
+			log.Panicf("internal error:  invalid id: %q", id)
 		}
 		if strings.HasPrefix(string(id), prefix) {
 			offsets = append(offsets, off...)
@@ -126,7 +125,7 @@ func indexChunks(dec decoder) (index, error) {
 		idx[id] = append(idx[id], offset)
 	}
 
-	logger.Default.Debugf("indexing chunks: %d: called from %v, took %s (%.2f/sec)", len(idx), osext.Caller(2), time.Since(start), float64(len(idx))/time.Since(start).Seconds())
+	slog.Default().Debug("indexing chunks", "len(idx)", len(idx), "caller", osext.Caller(2), "took", time.Since(start).String(), "took", float64(len(idx))/time.Since(start).Seconds())
 	return idx, nil
 }
 
@@ -136,7 +135,7 @@ func (f *File) ensure() {
 		var err error
 		f.idx, err = indexChunks(json.NewDecoder(f.rs))
 		if err != nil {
-			log.Panicf("%s: index error: %s", osext.Caller(1), err)
+			log.Panicf("internal error: %s: index error: %s", osext.Caller(1), err)
 		}
 	}
 }
@@ -278,14 +277,14 @@ func (f *File) AllChannelInfos() ([]slack.Channel, error) {
 	}
 	for i := range chans {
 		if chans[i].IsArchived {
-			logger.Default.Debugf("skipping archived channel %s", chans[i].ID)
+			slog.Default().Debug("skipping archived channel", "i", i, "id", chans[i].ID)
 			continue
 		}
 		members, err := f.ChannelUsers(chans[i].ID)
 		if err != nil {
 			if errors.Is(err, ErrNotFound) {
 				// ignoring missing channel users
-				logger.Default.Printf("no users for channel %s: %v (never mind, let's continue)", chans[i].ID, err)
+				slog.Default().Warn("no users", "channel_id", chans[i].ID, "error", err)
 				continue
 			}
 			return nil, err

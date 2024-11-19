@@ -1,10 +1,9 @@
 package cfg
 
 import (
+	"log/slog"
 	"os"
 	"path/filepath"
-
-	"github.com/rusq/dlog"
 )
 
 const (
@@ -15,7 +14,7 @@ const (
 func ucd(ucdFn func() (string, error)) string {
 	ucd, err := ucdFn()
 	if err != nil {
-		dlog.Debug(err)
+		slog.Debug("ucd", "error", err)
 		return "."
 	}
 	return filepath.Join(ucd, cacheDirName)

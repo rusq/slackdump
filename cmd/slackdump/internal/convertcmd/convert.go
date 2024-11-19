@@ -11,7 +11,6 @@ import (
 	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/internal/chunk/transform/fileproc"
 	"github.com/rusq/slackdump/v3/internal/convert"
-	"github.com/rusq/slackdump/v3/logger"
 )
 
 var CmdConvert = &base.Command{
@@ -60,8 +59,8 @@ func runConvert(ctx context.Context, cmd *base.Command, args []string) error {
 		return errors.New("unsupported conversion type")
 	}
 
-	lg := logger.FromContext(ctx)
-	lg.Printf("converting (%s) %q to (%s) %q", params.inputfmt, args[0], params.outputfmt, cfg.Output)
+	lg := cfg.Log
+	lg.InfoContext(ctx, "converting", "input_format", params.inputfmt, "source", args[0], "output_format", params.outputfmt, "output", cfg.Output)
 
 	cflg := convertflags{
 		withFiles: cfg.DownloadFiles,
@@ -73,7 +72,7 @@ func runConvert(ctx context.Context, cmd *base.Command, args []string) error {
 		return err
 	}
 
-	lg.Printf("completed in %s", time.Since(start))
+	lg.InfoContext(ctx, "completed", "took", time.Since(start))
 	return nil
 }
 
@@ -123,7 +122,7 @@ func chunk2export(ctx context.Context, src, trg string, cflg convertflags) error
 		fsa,
 		convert.WithIncludeFiles(cflg.withFiles),
 		convert.WithTrgFileLoc(sttFn),
-		convert.WithLogger(logger.FromContext(ctx)),
+		convert.WithLogger(cfg.Log),
 	)
 	if err := cvt.Convert(ctx); err != nil {
 		return err

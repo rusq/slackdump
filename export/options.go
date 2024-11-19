@@ -1,17 +1,17 @@
 package export
 
 import (
+	"log/slog"
 	"time"
 
 	"github.com/rusq/slackdump/v3/internal/structures"
-	"github.com/rusq/slackdump/v3/logger"
 )
 
 // Config allows to configure slack export options.
 type Config struct {
 	Oldest      time.Time
 	Latest      time.Time
-	Logger      logger.Interface
+	Logger      *slog.Logger
 	List        *structures.EntityList
 	Type        ExportType
 	MemberOnly  bool

@@ -11,8 +11,8 @@ import (
 	"github.com/playwright-community/playwright-go"
 
 	"github.com/rusq/slackdump/v3/auth"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
-	"github.com/rusq/slackdump/v3/logger"
 )
 
 var CmdEzTest = &base.Command{
@@ -65,7 +65,7 @@ func init() {
 }
 
 func runEzLoginTest(ctx context.Context, cmd *base.Command, args []string) error {
-	lg := logger.FromContext(ctx)
+	lg := cfg.Log
 
 	if err := cmd.Flag.Parse(args); err != nil {
 		base.SetExitStatus(base.SInvalidParameters)
@@ -95,9 +95,9 @@ func runEzLoginTest(ctx context.Context, cmd *base.Command, args []string) error
 		return err
 	}
 	if res.Err == nil {
-		lg.Println("OK")
+		lg.Info("OK")
 	} else {
-		lg.Println("ERROR")
+		lg.Error("ERROR", "error", *res.Err)
 		base.SetExitStatus(base.SApplicationError)
 		return errors.New(*res.Err)
 	}

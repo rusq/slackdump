@@ -16,7 +16,7 @@ import (
 func (v *Viewer) indexHandler(w http.ResponseWriter, r *http.Request) {
 	page := v.view()
 	if err := v.tmpl.ExecuteTemplate(w, "index.html", page); err != nil {
-		v.lg.Printf("error: %v", err)
+		v.lg.ErrorContext(r.Context(), "indexHandler", "error", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
@@ -53,26 +53,28 @@ func (v *Viewer) newFileHandler(fn func(w http.ResponseWriter, r *http.Request, 
 }
 
 func (v *Viewer) channelHandler(w http.ResponseWriter, r *http.Request, id string) {
+	ctx := r.Context()
+	lg := v.lg.With("in", "channelHandler", "channel", id)
 	mm, err := v.src.AllMessages(id)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
 			http.NotFound(w, r)
 			return
 		}
-		v.lg.Printf("%s: error: %v", id, err)
+		lg.ErrorContext(ctx, "AllMessages", "error", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	if len(mm) > 0 {
 		first, err := fasttime.TS2int(mm[0].Timestamp)
 		if err != nil {
-			v.lg.Printf("error: %v", err)
+			lg.ErrorContext(ctx, "TS2int", "idx", 0, "error", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 		last, err := fasttime.TS2int(mm[len(mm)-1].Timestamp)
 		if err != nil {
-			v.lg.Printf("error: %v", err)
+			lg.ErrorContext(ctx, "TS2int", "idx", -1, "error", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -81,11 +83,11 @@ func (v *Viewer) channelHandler(w http.ResponseWriter, r *http.Request, id strin
 		}
 	}
 
-	v.lg.Debugf("conversation: %s, got %d messages", id, len(mm))
+	lg.DebugContext(ctx, "conversation", "id", id, "message_count", len(mm))
 
 	ci, err := v.src.ChannelInfo(id)
 	if err != nil {
-		v.lg.Printf("error: %v", err)
+		lg.ErrorContext(ctx, "src.ChannelInfo", "error", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -99,7 +101,7 @@ func (v *Viewer) channelHandler(w http.ResponseWriter, r *http.Request, id strin
 		template = "hx_conversation"
 	}
 	if err := v.tmpl.ExecuteTemplate(w, template, page); err != nil {
-		v.lg.Printf("error: %v", err)
+		lg.ErrorContext(ctx, "ExecuteTemplate", "error", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 
@@ -115,18 +117,20 @@ func (v *Viewer) threadHandler(w http.ResponseWriter, r *http.Request, id string
 		http.NotFound(w, r)
 		return
 	}
+	ctx := r.Context()
+	lg := v.lg.With("in", "threadHandler", "channel", id, "thread", ts)
 	mm, err := v.src.AllThreadMessages(id, ts)
 	if err != nil {
-		v.lg.Printf("%s: error: %v", id, err)
+		lg.ErrorContext(ctx, "AllThreadMessages", "error", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	v.lg.Debugf("conversation: %s, thread: %s, got %d messages", id, ts, len(mm))
+	lg.DebugContext(ctx, "Messages", "mm_count", len(mm))
 
 	ci, err := v.src.ChannelInfo(id)
 	if err != nil {
-		v.lg.Printf("error: %v", err)
+		lg.ErrorContext(ctx, "ChannelInfo", "error", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -146,13 +150,13 @@ func (v *Viewer) threadHandler(w http.ResponseWriter, r *http.Request, id string
 		// so we need to fetch them.
 		msg, err := v.src.AllMessages(id)
 		if err != nil {
-			v.lg.Printf("error: %v", err)
+			lg.ErrorContext(ctx, "AllMessages", "error", err, "template", template)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 		page.Messages = msg
 	}
 	if err := v.tmpl.ExecuteTemplate(w, template, page); err != nil {
-		v.lg.Printf("error: %v", err)
+		lg.ErrorContext(ctx, "ExecuteTemplate", "error", err, "template", template)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
@@ -161,11 +165,13 @@ func (v *Viewer) fileHandler(w http.ResponseWriter, r *http.Request) {
 	var (
 		id       = r.PathValue("id")
 		filename = r.PathValue("filename")
+		ctx      = r.Context()
 	)
 	if id == "" || filename == "" {
 		http.NotFound(w, r)
 		return
 	}
+	lg := v.lg.With("in", "fileHandler", "id", id, "filename", filename)
 	fs := v.src.FS()
 	path, err := v.src.File(id, filename)
 	if err != nil {
@@ -173,7 +179,7 @@ func (v *Viewer) fileHandler(w http.ResponseWriter, r *http.Request) {
 			http.NotFound(w, r)
 			return
 		}
-		v.lg.Printf("error: %v", err)
+		lg.ErrorContext(ctx, "File", "error", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -187,6 +193,8 @@ func (v *Viewer) userHandler(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
+	ctx := r.Context()
+	lg := v.lg.With("in", "userHandler", "user_id", uid)
 	u, found := v.um[uid]
 	if !found {
 		http.NotFound(w, r)
@@ -195,7 +203,7 @@ func (v *Viewer) userHandler(w http.ResponseWriter, r *http.Request) {
 	spew.Dump(u)
 
 	if err := v.tmpl.ExecuteTemplate(w, "hx_user", u); err != nil {
-		v.lg.Printf("error: %v", err)
+		lg.ErrorContext(ctx, "ExecuteTemplate", "error", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }

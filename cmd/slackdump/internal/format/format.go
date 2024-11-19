@@ -8,11 +8,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"runtime/trace"
 
-	"github.com/rusq/dlog"
 	"github.com/rusq/slack"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/bootstrap"
 
@@ -20,7 +20,6 @@ import (
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/internal/cache"
 	"github.com/rusq/slackdump/v3/internal/format"
-	"github.com/rusq/slackdump/v3/logger"
 	"github.com/rusq/slackdump/v3/types"
 )
 
@@ -111,13 +110,13 @@ type idextractor interface {
 func convert(ctx context.Context, w io.Writer, cvt format.Formatter, rs io.ReadSeeker) error {
 	ctx, task := trace.NewTask(ctx, "convert")
 	defer task.End()
-	lg := logger.FromContext(ctx)
+	lg := cfg.Log
 
 	dump, err := detectAndRead(rs)
 	if err != nil {
 		return err
 	}
-	lg.Printf("Detected dump type: %q", dump.filetype)
+	lg.InfoContext(ctx, "Successfully detected file type", "type", dump.filetype)
 
 	if dump.filetype == dtUsers {
 		// special case.  Users do not need to have users fetched from slack etc,
@@ -267,7 +266,7 @@ func searchCache(ctx context.Context, cacheDir string, ids []string) ([]slack.Us
 			}
 			return err1
 		}
-		dlog.Printf("matching file: %s", path)
+		slog.InfoContext(ctx, "matching file", "path", path)
 		return filepath.SkipDir
 	})
 	if err != nil {

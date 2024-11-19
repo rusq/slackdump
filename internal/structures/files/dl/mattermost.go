@@ -4,6 +4,7 @@ package dl
 
 import (
 	"errors"
+	"log/slog"
 	"path/filepath"
 
 	"github.com/rusq/slack"
@@ -12,7 +13,6 @@ import (
 	"github.com/rusq/slackdump/v3"
 	"github.com/rusq/slackdump/v3/downloader"
 	"github.com/rusq/slackdump/v3/internal/structures/files"
-	"github.com/rusq/slackdump/v3/logger"
 	"github.com/rusq/slackdump/v3/types"
 )
 
@@ -23,7 +23,7 @@ type Mattermost struct {
 // NewMattermost returns the dl, that downloads the files into
 // the __uploads directory, so that it could be transformed into bulk import
 // by mmetl and imported into mattermost with mmctl import bulk.
-func NewMattermost(fs fsadapter.FS, cl *slack.Client, l logger.Interface, token string) *Mattermost {
+func NewMattermost(fs fsadapter.FS, cl *slack.Client, l *slog.Logger, token string) *Mattermost {
 	return &Mattermost{
 		base: base{
 			l:     l,

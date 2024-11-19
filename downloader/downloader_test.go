@@ -1,11 +1,16 @@
 package downloader
 
 import (
+	"log/slog"
 	"testing"
 
 	"github.com/rusq/slackdump/v3/internal/fixtures"
 	"github.com/stretchr/testify/assert"
 )
+
+func init() {
+	slog.SetLogLoggerLevel(slog.LevelDebug)
+}
 
 func Test_fltSeen(t *testing.T) {
 	t.Run("ensure that we don't get dup files", func(t *testing.T) {

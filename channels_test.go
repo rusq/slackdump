@@ -3,6 +3,7 @@ package slackdump
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"reflect"
 	"testing"
 
@@ -11,7 +12,6 @@ import (
 	"go.uber.org/mock/gomock"
 
 	"github.com/rusq/slackdump/v3/internal/network"
-	"github.com/rusq/slackdump/v3/logger"
 	"github.com/rusq/slackdump/v3/types"
 )
 
@@ -80,7 +80,7 @@ func TestSession_getChannels(t *testing.T) {
 			sd := &Session{
 				client: mc,
 				cfg:    tt.fields.config,
-				log:    logger.Silent,
+				log:    slog.Default(),
 			}
 
 			if tt.expectFn != nil {

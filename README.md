@@ -39,12 +39,14 @@ There are four modes of operation (more on this in [User Guide][ug]):
 1. Creating a Slack Export in Mattermost or Standard modes.
 1. Emoji download mode.
 
-Slackdump accepts two types of input (see `Dumping Conversations`_ section):
+Slackdump accepts two types of input (see [Dumping
+Conversations][usage-channels] section):
 
 1. the URL/link of the channel or thread, OR
 1. the ID of the channel.
 
 [ug]: doc/README.rst
+[usage-channels]: doc/usage-channels.rst
 
 Quick Start
 ===========
@@ -161,43 +163,16 @@ func main() {
 See [Package Documentation][godoc].
 
 ### Using Custom Logger
-Slackdump uses a simple [rusq/dlog][dlog] as a default logger (it is a wrapper around
-the standard logger that adds `Debug*` functions).
+Slackdump uses a "log/slog" package, it defaults to "slog.Default()".  Set the
+default slog logger to the one you want to use.
 
-If you want to use the same default logger that Slackdump uses in your
-application, it is available as `logger.Default`.
+If you were using `logger.Silent` before, you would need to
+[implement][slog-handler-guide] a discarding [Handler][godoc-slog-handler] for slog.
 
-No doubts that everyone has their own favourite logger that is better than other
-miserable loggers.  Please read below for instructions on plugging your
-favourite logger.
-
-[dlog]: https://github.com/rusq/dlog
-
-#### Logrus
-Good news is [logrus] can be plugged in straight away, as it implements the
-`logger.Interface` out of the box.
+[slog-handler-guide]: https://github.com/golang/example/blob/master/slog-handler-guide/README.md
+[godoc-slog-handler]: https://pkg.go.dev/log/slog#Handler
 
 ```go
-  lg := logrus.New()
-  sd, err := slackdump.New(context.Background(), provider, WithLogger(lg))
-  if err != nil {
-      log.Print(err)
-      return
-  }
-```
-
-[logrus]: https://github.com/sirupsen/logrus
-
-
-#### Glog and others
-If you need to use some other logger, such as [glog], it is a matter of wrapping
-the calls to satisfy the `logger.Interface` (defined in the [logger]
-package), and then setting the `Logger` variable in `slackdump.Options` (see
-[options.go]), or using `WithLogger` option.
-
-[glog]:https://github.com/golang/glog
-[logger]: logger/logger.go
-[options.go]: options.go
 
 ## FAQ
 
@@ -205,7 +180,9 @@ package), and then setting the `Logger` variable in `slackdump.Options` (see
 
 No, you don't.  Just run the application and EZ-Login 3000 will take
 care of the authentication or, alternatively, grab that token and
-cookie from the browser Slack session.  See `User Guide`_.
+cookie from the browser Slack session.  See [User's Guide][ug].
+
+
 
 #### I'm getting "invalid_auth" error
 

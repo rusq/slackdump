@@ -4,11 +4,11 @@ import (
 	"context"
 	"errors"
 	"io"
+	"log/slog"
 	"runtime/trace"
 
 	"github.com/rusq/slack"
 	"github.com/rusq/slackdump/v3/internal/chunk"
-	"github.com/rusq/slackdump/v3/logger"
 	"github.com/rusq/slackdump/v3/processor"
 )
 
@@ -29,7 +29,7 @@ type Transformer interface {
 // Zero value is unusable.  Use [NewConversation] to create a new instance.
 type Conversations struct {
 	t  tracker
-	lg logger.Interface
+	lg *slog.Logger
 
 	// subproc is the files subprocessor, it is called by the Files method
 	// in addition to recording the files in the chunk file (if recordFiles is
@@ -73,7 +73,7 @@ type counter interface {
 type ConvOption func(*Conversations)
 
 // WithLogger sets the logger for the processor.
-func WithLogger(lg logger.Interface) ConvOption {
+func WithLogger(lg *slog.Logger) ConvOption {
 	return func(cv *Conversations) {
 		cv.lg = lg
 	}
@@ -105,7 +105,7 @@ func NewConversation(cd *chunk.Directory, filesSubproc processor.Filer, tf Trans
 
 	c := &Conversations{
 		t:       newFileTracker(cd),
-		lg:      logger.Default,
+		lg:      slog.Default(),
 		subproc: filesSubproc,
 		tf:      tf,
 	}
@@ -129,6 +129,8 @@ func (cv *Conversations) Messages(ctx context.Context, channelID string, numThre
 	ctx, task := trace.NewTask(ctx, "Messages")
 	defer task.End()
 
+	lg := cv.lg.With("in", "Messages", "channel_id", channelID, "num_threads", numThreads, "is_last", isLast, "len_messages", len(mm))
+	lg.Debug("started")
 	cv.debugtrace(ctx, "%s: Messages: numThreads=%d, isLast=%t, len(mm)=%d", channelID, numThreads, isLast, len(mm))
 
 	id := chunk.ToFileID(channelID, "", false)
@@ -137,7 +139,9 @@ func (cv *Conversations) Messages(ctx context.Context, channelID string, numThre
 		return err
 	}
 	n := r.Add(numThreads)
+
 	cv.debugtrace(ctx, "%s: Messages: increased by %d to %d", channelID, numThreads, n)
+	lg.DebugContext(ctx, "count increased", "by", numThreads, "current", n)
 
 	if err := r.Messages(ctx, channelID, numThreads, isLast, mm); err != nil {
 		return err
@@ -146,6 +150,7 @@ func (cv *Conversations) Messages(ctx context.Context, channelID string, numThre
 	if isLast {
 		n := r.Dec()
 		cv.debugtrace(ctx, "%s: Messages: decreased by 1 to %d, finalising", channelID, n)
+		lg.DebugContext(ctx, "count decreased", "by", 1, "current", n)
 		return cv.finalise(ctx, id)
 	}
 	return nil
@@ -157,6 +162,8 @@ func (cv *Conversations) ThreadMessages(ctx context.Context, channelID string, p
 	ctx, task := trace.NewTask(ctx, "ThreadMessages")
 	defer task.End()
 
+	lg := cv.lg.With("in", "ThreadMessages", "channel_id", channelID, "parent_ts", parent.ThreadTimestamp, "is_last", isLast, "len(tm)", len(tm))
+	lg.Debug("started")
 	cv.debugtrace(ctx, "%s: ThreadMessages: parent=%s, isLast=%t, len(tm)=%d", channelID, parent.ThreadTimestamp, isLast, len(tm))
 
 	id := chunk.ToFileID(channelID, parent.ThreadTimestamp, threadOnly)
@@ -169,6 +176,7 @@ func (cv *Conversations) ThreadMessages(ctx context.Context, channelID string, p
 	}
 	if isLast {
 		n := r.Dec()
+		lg.DebugContext(ctx, "count decreased, finalising", "by", 1, "current", n)
 		cv.debugtrace(ctx, "%s:%s: ThreadMessages: decreased by 1 to %d, finalising", id, parent.Timestamp, n)
 		return cv.finalise(ctx, id)
 	}
@@ -177,10 +185,13 @@ func (cv *Conversations) ThreadMessages(ctx context.Context, channelID string, p
 
 // finalise closes the channel file if there are no more threads to process.
 func (cv *Conversations) finalise(ctx context.Context, id chunk.FileID) error {
+	lg := cv.lg.With("in", "finalise", "file_id", id)
 	if tc := cv.t.RefCount(id); tc > 0 {
+		lg.DebugContext(ctx, "not finalising", "ref_count", tc)
 		cv.debugtrace(ctx, "%s: finalise: not finalising, ref count = %d", id, tc)
 		return nil
 	}
+	lg.Debug("finalising", "ref_count", 0)
 	cv.debugtrace(ctx, "%s: finalise: ref count = 0, finalising...", id)
 	if err := cv.t.Unregister(id); err != nil {
 		return err
@@ -224,6 +235,5 @@ func (cv *Conversations) Close() error {
 }
 
 func (cv *Conversations) debugtrace(ctx context.Context, fmt string, args ...any) {
-	cv.lg.Debugf(fmt, args...)
 	trace.Logf(ctx, "debug", fmt, args...)
 }
