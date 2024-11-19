@@ -126,11 +126,11 @@ func (v *Viewer) threadHandler(w http.ResponseWriter, r *http.Request, id string
 		return
 	}
 
-	lg.DebugContext(ctx, "mm_count", len(mm))
+	lg.DebugContext(ctx, "Messages", "mm_count", len(mm))
 
 	ci, err := v.src.ChannelInfo(id)
 	if err != nil {
-		lg.ErrorContext(ctx, "error", err)
+		lg.ErrorContext(ctx, "ChannelInfo", "error", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
