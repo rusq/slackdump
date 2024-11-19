@@ -125,8 +125,6 @@ github.com/rogpeppe/go-internal v1.11.0 h1:cWPaGQEPrBb5/AsnsZesgZZ9yb1OQ+GOISoDN
 github.com/rogpeppe/go-internal v1.11.0/go.mod h1:ddIwULY96R17DhadqLgMfk9H9tvdUzkipdSkR5nkCZA=
 github.com/rusq/chttp v1.0.2 h1:bc8FTKE/l318Kie3sb2KrGi7Fu5tSDQY+JiXMsq4fO8=
 github.com/rusq/chttp v1.0.2/go.mod h1:bmuoQMUFs9fmigUmT7xbp8s0rHyzUrf7+78yLklr1so=
-github.com/rusq/dlog v1.4.0 h1:64oHTSzHjzG6TXKvMbPKQzvqADCZRn6XgAWnp7ASr5k=
-github.com/rusq/dlog v1.4.0/go.mod h1:kjZAEvBu7m3+mnJQKoIeLul1YB3kJq/6lZBdDTZmpzA=
 github.com/rusq/encio v0.1.0 h1:DauNaVtIf79kILExhMGIsE5svYwPnDSksdYP0oVVcr8=
 github.com/rusq/encio v0.1.0/go.mod h1:AP3lDpo/BkcHcOMNduBlZdd0sbwhruq6+NZtYm5Mxb0=
 github.com/rusq/fsadapter v1.0.2 h1:T+hG8nvA4WlM5oLRcUMEPEOdmDWEd9wmD2oNpztwz90=

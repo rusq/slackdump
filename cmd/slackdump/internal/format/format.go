@@ -8,11 +8,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"runtime/trace"
 
-	"github.com/rusq/dlog"
 	"github.com/rusq/slack"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/bootstrap"
 
@@ -266,7 +266,7 @@ func searchCache(ctx context.Context, cacheDir string, ids []string) ([]slack.Us
 			}
 			return err1
 		}
-		dlog.Printf("matching file: %s", path)
+		slog.InfoContext(ctx, "matching file", "path", path)
 		return filepath.SkipDir
 	})
 	if err != nil {

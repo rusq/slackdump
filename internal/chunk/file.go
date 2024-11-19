@@ -17,7 +17,6 @@ import (
 
 	"github.com/rusq/slack"
 
-	"github.com/rusq/dlog"
 	"github.com/rusq/slackdump/v3/internal/chunk/state"
 	"github.com/rusq/slackdump/v3/internal/fasttime"
 	"github.com/rusq/slackdump/v3/internal/osext"
@@ -53,7 +52,7 @@ func (idx index) offsetsWithPrefix(prefix string) []int64 {
 	var offsets []int64
 	for id, off := range idx {
 		if len(id) == 0 {
-			dlog.Panicf("internal error:  invalid id: %q", id)
+			log.Panicf("internal error:  invalid id: %q", id)
 		}
 		if strings.HasPrefix(string(id), prefix) {
 			offsets = append(offsets, off...)
