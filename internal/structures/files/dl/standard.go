@@ -4,6 +4,7 @@ package dl
 
 import (
 	"errors"
+	"log/slog"
 	"path"
 	"path/filepath"
 
@@ -13,7 +14,6 @@ import (
 	"github.com/rusq/slackdump/v3"
 	"github.com/rusq/slackdump/v3/downloader"
 	"github.com/rusq/slackdump/v3/internal/structures/files"
-	"github.com/rusq/slackdump/v3/logger"
 	"github.com/rusq/slackdump/v3/types"
 )
 
@@ -23,7 +23,7 @@ type Std struct {
 
 // NewStd returns standard dl, which downloads files into
 // "channel_id/attachments" directory.
-func NewStd(fs fsadapter.FS, cl *slack.Client, l logger.Interface, token string) *Std {
+func NewStd(fs fsadapter.FS, cl *slack.Client, l *slog.Logger, token string) *Std {
 	return &Std{
 		base: base{
 			dl:    downloader.NewV1(cl, fs, downloader.LoggerV1(l)),
@@ -50,7 +50,7 @@ func (d *Std) ProcessFunc(channelName string) slackdump.ProcessFunc {
 			if err != nil {
 				return err
 			}
-			d.l.Debugf("submitted for download: %s", file.Name)
+			d.l.Debug("submitted for download", "filename", file.Name)
 			total++
 			if d.token != "" {
 				if err := files.Update(msg, addr, files.UpdateTokenFn(d.token)); err != nil {

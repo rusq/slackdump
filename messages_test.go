@@ -3,6 +3,7 @@ package slackdump
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"reflect"
 	"testing"
 
@@ -13,7 +14,6 @@ import (
 
 	"github.com/rusq/slackdump/v3/internal/fixtures"
 	"github.com/rusq/slackdump/v3/internal/network"
-	"github.com/rusq/slackdump/v3/logger"
 	"github.com/rusq/slackdump/v3/types"
 )
 
@@ -219,7 +219,7 @@ func TestSession_DumpMessages(t *testing.T) {
 			sd := &Session{
 				client: mc,
 				cfg:    tt.fields.config,
-				log:    logger.Silent,
+				log:    slog.Default(),
 			}
 			got, err := sd.DumpAll(tt.args.ctx, tt.args.channelID)
 			if (err != nil) != tt.wantErr {
@@ -300,7 +300,7 @@ func TestSession_DumpAll(t *testing.T) {
 			sd := &Session{
 				client: mc,
 				cfg:    tt.fields.config,
-				log:    logger.Silent,
+				log:    slog.Default(),
 			}
 			got, err := sd.DumpAll(tt.args.ctx, tt.args.slackURL)
 			if (err != nil) != tt.wantErr {

@@ -4,11 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"runtime/trace"
 
 	"github.com/google/uuid"
 	"github.com/rusq/slack"
-	"github.com/rusq/slackdump/v3/logger"
 )
 
 // search.* API
@@ -87,9 +87,10 @@ const (
 func (cl *Client) SearchChannels(ctx context.Context, query string) ([]slack.Channel, error) {
 	ctx, task := trace.NewTask(ctx, "SearchChannels")
 	defer task.End()
+	lg := slog.With(ctx, "in", "SearchChannels", "query", query)
+
 	trace.Logf(ctx, "params", "query=%q", query)
 
-	lg := logger.FromContext(ctx)
 	clientReq, err := uuid.NewRandom()
 	if err != nil {
 		return nil, err
@@ -151,12 +152,13 @@ func (cl *Client) SearchChannels(ctx context.Context, query string) ([]slack.Cha
 			lg.Debug("no more channels")
 			break
 		}
-		lg.Debugf("next_cursor=%q", sr.Pagination.NextCursor)
+		lg.DebugContext(ctx, "pagination", "next_cursor", sr.Pagination.NextCursor)
 		form.Cursor = sr.Pagination.NextCursor
 		if err := lim.Wait(ctx); err != nil {
 			return nil, err
 		}
 	}
 	trace.Logf(ctx, "info", "channels found=%d", len(cc))
+	lg.DebugContext(ctx, "channels", "count", len(cc))
 	return cc, nil
 }

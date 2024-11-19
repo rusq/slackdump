@@ -2,6 +2,7 @@ package slackdump
 
 import (
 	"context"
+	"log/slog"
 	"testing"
 	"time"
 
@@ -14,7 +15,6 @@ import (
 
 	"github.com/rusq/slackdump/v3/internal/network"
 	"github.com/rusq/slackdump/v3/internal/structures"
-	"github.com/rusq/slackdump/v3/logger"
 	"github.com/rusq/slackdump/v3/types"
 )
 
@@ -166,7 +166,7 @@ func TestSession_DumpThreadWithFiles(t *testing.T) {
 			sd := &Session{
 				client: mc,
 				cfg:    tt.fields.config,
-				log:    logger.Silent,
+				log:    slog.Default(),
 			}
 			got, err := sd.dumpThreadAsConversation(tt.args.ctx, structures.SlackLink{Channel: tt.args.channelID, ThreadTS: tt.args.threadTS}, tt.args.oldest, tt.args.latest)
 			if (err != nil) != tt.wantErr {
@@ -384,7 +384,7 @@ func TestSession_dumpThread(t *testing.T) {
 			sd := &Session{
 				client: mc,
 				cfg:    tt.fields.config,
-				log:    logger.Silent,
+				log:    slog.Default(),
 			}
 			got, err := sd.dumpThread(tt.args.ctx, tt.args.l, tt.args.channelID, tt.args.threadTS, tt.args.oldest, tt.args.latest)
 			if (err != nil) != tt.wantErr {

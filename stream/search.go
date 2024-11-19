@@ -2,12 +2,12 @@ package stream
 
 import (
 	"context"
+	"log/slog"
 	"runtime/trace"
 	"sync"
 
 	"github.com/rusq/slack"
 	"github.com/rusq/slackdump/v3/internal/network"
-	"github.com/rusq/slackdump/v3/logger"
 	"github.com/rusq/slackdump/v3/processor"
 	"golang.org/x/sync/errgroup"
 )
@@ -79,7 +79,7 @@ func (cs *Stream) searchmsg(ctx context.Context, query string, fn func(sm []slac
 	ctx, task := trace.NewTask(ctx, "searchMessages")
 	defer task.End()
 
-	lg := logger.FromContext(ctx)
+	lg := slog.With("query", query)
 
 	var p = slack.SearchParameters{
 		Sort:          "timestamp",
@@ -102,7 +102,7 @@ func (cs *Stream) searchmsg(ctx context.Context, query string, fn func(sm []slac
 			return err
 		}
 		if sm.NextCursor == "" {
-			lg.Debug("SearchMessages:  no more messages")
+			lg.DebugContext(ctx, "SearchMessages:  no more messages")
 			break
 		}
 		p.Cursor = sm.NextCursor
@@ -117,7 +117,7 @@ func (cs *Stream) SearchFiles(ctx context.Context, proc processor.FileSearcher, 
 	ctx, task := trace.NewTask(ctx, "SearchFiles")
 	defer task.End()
 
-	lg := logger.FromContext(ctx)
+	lg := slog.With("query", query)
 
 	var p = slack.SearchParameters{
 		Sort:          "timestamp",
@@ -143,7 +143,7 @@ func (cs *Stream) SearchFiles(ctx context.Context, proc processor.FileSearcher, 
 			return err
 		}
 		if sm.NextCursor == "" {
-			lg.Debug("SearchFiles:  no more messages")
+			lg.DebugContext(ctx, "SearchFiles:  no more messages")
 			break
 		}
 		p.Cursor = sm.NextCursor

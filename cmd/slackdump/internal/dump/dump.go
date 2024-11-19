@@ -25,7 +25,6 @@ import (
 	"github.com/rusq/slackdump/v3/internal/chunk/transform/fileproc"
 	"github.com/rusq/slackdump/v3/internal/nametmpl"
 	"github.com/rusq/slackdump/v3/internal/structures"
-	"github.com/rusq/slackdump/v3/logger"
 	"github.com/rusq/slackdump/v3/stream"
 	"github.com/rusq/slackdump/v3/types"
 )
@@ -77,7 +76,7 @@ func RunDump(ctx context.Context, _ *base.Command, args []string) error {
 		return ErrNothingToDo
 	}
 
-	lg := logger.FromContext(ctx)
+	lg := cfg.Log
 
 	// initialize the list of entities to dump.
 	list, err := structures.NewEntityList(args)
@@ -106,7 +105,7 @@ func RunDump(ctx context.Context, _ *base.Command, args []string) error {
 	}
 	defer func() {
 		if err := fsa.Close(); err != nil {
-			lg.Printf("warning: failed to close the filesystem: %v", err)
+			lg.WarnContext(ctx, "warning: failed to close the filesystem", "error", err)
 		}
 	}()
 
@@ -136,7 +135,7 @@ func RunDump(ctx context.Context, _ *base.Command, args []string) error {
 		base.SetExitStatus(base.SApplicationError)
 		return err
 	}
-	lg.Printf("dumped %d conversations in %s", len(p.list.Include), time.Since(start))
+	lg.InfoContext(ctx, "conversation dump finished", "count", len(p.list.Include), "took", time.Since(start))
 	return nil
 }
 
@@ -181,8 +180,8 @@ func dump(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, p dump
 		return fmt.Errorf("failed to create temp directory: %w", err)
 	}
 
-	lg := logger.FromContext(ctx)
-	lg.Debugf("using directory: %s", dir)
+	lg := cfg.Log
+	lg.Debug("using directory", "dir", dir)
 
 	// files subprocessor
 	var sdl fileproc.Downloader
@@ -226,7 +225,7 @@ func dump(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, p dump
 	}
 	defer func() {
 		if err := proc.Close(); err != nil {
-			lg.Printf("failed to close conversation processor: %v", err)
+			lg.WarnContext(ctx, "failed to close conversation processor", "error", err)
 		}
 	}()
 
@@ -239,7 +238,7 @@ func dump(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, p dump
 			}
 			if sr.IsLast {
 				//TODO:  this is unbeautiful.
-				lg.Printf("%s dumped", sr)
+				lg.InfoContext(ctx, "dumped", "sr", sr.String())
 			}
 			return nil
 		}),
@@ -247,7 +246,7 @@ func dump(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, p dump
 		return fmt.Errorf("failed to dump conversations: %w", err)
 	}
 
-	lg.Debugln("stream complete, waiting for all goroutines to finish")
+	lg.DebugContext(ctx, "stream complete, waiting for all goroutines to finish")
 	if err := coord.Wait(); err != nil {
 		return err
 	}

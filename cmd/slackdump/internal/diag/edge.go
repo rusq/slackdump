@@ -6,9 +6,9 @@ import (
 	"os"
 
 	"github.com/rusq/slackdump/v3/auth"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/internal/edge"
-	"github.com/rusq/slackdump/v3/logger"
 )
 
 var CmdEdge = &base.Command{
@@ -33,7 +33,7 @@ func init() {
 }
 
 func runEdge(ctx context.Context, cmd *base.Command, args []string) error {
-	lg := logger.FromContext(ctx)
+	lg := cfg.Log
 
 	prov, err := auth.FromContext(ctx)
 	if err != nil {
@@ -47,9 +47,9 @@ func runEdge(ctx context.Context, cmd *base.Command, args []string) error {
 		return err
 	}
 	defer cl.Close()
-	lg.Print("connected")
+	lg.Info("connected")
 
-	lg.Printf("*** Search for Channels test ***")
+	lg.Info("*** Search for Channels test ***")
 	channels, err := cl.SearchChannels(ctx, "")
 	if err != nil {
 		return err
@@ -115,7 +115,7 @@ func runEdge(ctx context.Context, cmd *base.Command, args []string) error {
 	// 	}
 	// }
 
-	lg.Print("OK")
+	lg.Info("OK")
 	return nil
 }
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"sort"
 	"strings"
 
@@ -14,7 +15,6 @@ import (
 	"github.com/rusq/slackdump/v3/internal/fasttime"
 	"github.com/rusq/slackdump/v3/internal/nametmpl"
 	"github.com/rusq/slackdump/v3/internal/structures"
-	"github.com/rusq/slackdump/v3/logger"
 	"github.com/rusq/slackdump/v3/types"
 )
 
@@ -38,7 +38,7 @@ func StdWithPipeline(f ...func(channelID string, threadTS string, mm []slack.Mes
 	}
 }
 
-func StdWithLogger(log logger.Interface) StdOption {
+func StdWithLogger(log *slog.Logger) StdOption {
 	return func(s *StdConverter) {
 		s.lg = log
 	}
@@ -49,7 +49,7 @@ func NewStandard(fsa fsadapter.FS, cd *chunk.Directory, opts ...StdOption) (*Std
 	std := &StdConverter{
 		cd:   cd,
 		fsa:  fsa,
-		lg:   logger.Default,
+		lg:   slog.Default(),
 		tmpl: nametmpl.NewDefault(),
 	}
 	for _, opt := range opts {
@@ -78,7 +78,7 @@ type StdConverter struct {
 	cd       *chunk.Directory // working chunk directory
 	fsa      fsadapter.FS     // output file system
 	tmpl     Templater        // file name template
-	lg       logger.Interface // logger
+	lg       *slog.Logger     // logger
 	pipeline []pipelineFunc   // pipeline filter functions
 }
 

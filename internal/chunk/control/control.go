@@ -9,6 +9,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"runtime/trace"
 	"sync"
 
@@ -18,7 +19,6 @@ import (
 	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/internal/chunk/dirproc"
 	"github.com/rusq/slackdump/v3/internal/structures"
-	"github.com/rusq/slackdump/v3/logger"
 	"github.com/rusq/slackdump/v3/processor"
 )
 
@@ -36,7 +36,7 @@ type Controller struct {
 	// it's not necessary for all use cases.
 	filer processor.Filer
 	// lg is the logger
-	lg logger.Interface
+	lg *slog.Logger
 	// flags
 	flags Flags
 }
@@ -68,7 +68,7 @@ func WithTransformer(tf ExportTransformer) Option {
 }
 
 // WithLogger configures the controller with a logger.
-func WithLogger(lg logger.Interface) Option {
+func WithLogger(lg *slog.Logger) Option {
 	return func(c *Controller) {
 		if lg != nil {
 			c.lg = lg
@@ -83,7 +83,7 @@ func New(cd *chunk.Directory, s Streamer, opts ...Option) *Controller {
 		s:     s,
 		filer: &noopFiler{},
 		tf:    &noopTransformer{},
-		lg:    logger.Default,
+		lg:    slog.Default(),
 	}
 	for _, opt := range opts {
 		opt(c)
@@ -111,10 +111,10 @@ func (e Error) Error() string {
 }
 
 func (c *Controller) Run(ctx context.Context, list *structures.EntityList) error {
-	ctx, task := trace.NewTask(logger.NewContext(ctx, c.lg), "Controller.Run")
+	ctx, task := trace.NewTask(ctx, "Controller.Run")
 	defer task.End()
 
-	lg := c.lg
+	lg := c.lg.With("in", "controller.Run")
 
 	var (
 		wg    sync.WaitGroup
@@ -136,7 +136,7 @@ func (c *Controller) Run(ctx context.Context, list *structures.EntityList) error
 		go func() {
 			defer wg.Done()
 			defer close(linkC)
-			defer lg.Debug("channels done")
+			defer lg.DebugContext(ctx, "channels done")
 
 			if err := generator(ctx, linkC, list); err != nil {
 				errC <- Error{"channel generator", "generator", err}
@@ -149,7 +149,7 @@ func (c *Controller) Run(ctx context.Context, list *structures.EntityList) error
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			defer lg.Debug("workspace info done")
+			defer lg.DebugContext(ctx, "workspace info done")
 			if err := workspaceWorker(ctx, c.s, c.cd); err != nil {
 				errC <- Error{"workspace", "worker", err}
 				return
@@ -244,7 +244,6 @@ func genChFromAPI(s Streamer, cd *chunk.Directory, memberOnly bool) linkFeederFu
 				case <-ctx.Done():
 					return context.Cause(ctx)
 				case links <- ch.ID:
-
 				}
 			}
 			return nil
@@ -259,7 +258,7 @@ func genChFromAPI(s Streamer, cd *chunk.Directory, memberOnly bool) linkFeederFu
 		if err := chanproc.Close(); err != nil {
 			return fmt.Errorf("error closing channel processor: %w", err)
 		}
-		logger.FromContext(ctx).Debug("channels done")
+		slog.DebugContext(ctx, "channels done")
 		return nil
 	}
 }

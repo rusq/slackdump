@@ -2,11 +2,11 @@ package export
 
 import (
 	"fmt"
+	"log/slog"
 	"testing"
 
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/slack"
-	"github.com/rusq/slackdump/v3/logger"
 )
 
 func Test_newFileExporter(t *testing.T) {
@@ -14,7 +14,7 @@ func Test_newFileExporter(t *testing.T) {
 		t     ExportType
 		fs    fsadapter.FS
 		cl    *slack.Client
-		l     logger.Interface
+		l     *slog.Logger
 		token string
 	}
 	tests := []struct {
@@ -22,10 +22,10 @@ func Test_newFileExporter(t *testing.T) {
 		args  args
 		wantT string
 	}{
-		{"unknown is nodownload", args{t: ExportType(255), l: logger.Silent, token: "abcd"}, "dl.Nothing"},
-		{"no", args{t: TNoDownload, l: logger.Silent, token: "abcd"}, "dl.Nothing"},
-		{"standard", args{t: TStandard, fs: fsadapter.NewDirectory("."), cl: &slack.Client{}, l: logger.Silent, token: "abcd"}, "*dl.Std"},
-		{"mattermost", args{t: TMattermost, fs: fsadapter.NewDirectory("."), cl: &slack.Client{}, l: logger.Silent, token: "abcd"}, "*dl.Mattermost"},
+		{"unknown is nodownload", args{t: ExportType(255), l: slog.Default(), token: "abcd"}, "dl.Nothing"},
+		{"no", args{t: TNoDownload, l: slog.Default(), token: "abcd"}, "dl.Nothing"},
+		{"standard", args{t: TStandard, fs: fsadapter.NewDirectory("."), cl: &slack.Client{}, l: slog.Default(), token: "abcd"}, "*dl.Std"},
+		{"mattermost", args{t: TMattermost, fs: fsadapter.NewDirectory("."), cl: &slack.Client{}, l: slog.Default(), token: "abcd"}, "*dl.Mattermost"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

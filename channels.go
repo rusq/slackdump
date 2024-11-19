@@ -79,14 +79,13 @@ func (s *Session) getChannels(ctx context.Context, chanTypes []string, cb func(t
 		}
 		total += len(chans)
 
-		s.log.Printf("channels request #%5d, fetched: %4d, total: %8d (speed: %6.2f/sec, avg: %6.2f/sec)\n",
-			i, len(chans), total,
-			float64(len(chans))/float64(time.Since(reqStart).Seconds()),
-			float64(total)/float64(time.Since(fetchStart).Seconds()),
+		s.log.InfoContext(ctx, "channels", "request", i, "fetched", len(chans), "total", total,
+			"speed", float64(len(chans))/time.Since(reqStart).Seconds(),
+			"avg", float64(total)/time.Since(fetchStart).Seconds(),
 		)
 
 		if nextcur == "" {
-			s.log.Printf("channels fetch complete, total: %d channels", total)
+			s.log.InfoContext(ctx, "channels fetch complete", "total", total)
 			break
 		}
 

@@ -4,13 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"runtime/trace"
 	"sync"
 
 	"github.com/rusq/slack"
 	"github.com/rusq/slackdump/v3/internal/network"
 	"github.com/rusq/slackdump/v3/internal/structures"
-	"github.com/rusq/slackdump/v3/logger"
 	"github.com/rusq/slackdump/v3/processor"
 	"golang.org/x/sync/errgroup"
 )
@@ -18,9 +18,9 @@ import (
 // SyncConversations fetches the conversations from the link which can be a
 // channelID, channel URL, thread URL or a link in Slackdump format.
 func (cs *Stream) SyncConversations(ctx context.Context, proc processor.Conversations, link ...string) error {
-	lg := logger.FromContext(ctx)
+	lg := slog.With("links", link)
 	return cs.ConversationsCB(ctx, proc, link, func(sr Result) error {
-		lg.Debugf("stream: finished processing: %s", sr)
+		lg.DebugContext(ctx, "stream: finished processing", "result", sr)
 		return nil
 	})
 }
@@ -29,7 +29,7 @@ func (cs *Stream) ConversationsCB(ctx context.Context, proc processor.Conversati
 	ctx, task := trace.NewTask(ctx, "channelStream.Conversations")
 	defer task.End()
 
-	lg := logger.FromContext(ctx)
+	lg := slog.With("links", link)
 	cs.resultFn = append(cs.resultFn, cb)
 
 	linkC := make(chan string, 1)
@@ -38,7 +38,7 @@ func (cs *Stream) ConversationsCB(ctx context.Context, proc processor.Conversati
 		for _, l := range link {
 			linkC <- l
 		}
-		lg.Debugf("stream: sent %d links", len(link))
+		lg.DebugContext(ctx, "stream: sent link count", "len", len(link))
 	}()
 
 	if err := cs.Conversations(ctx, proc, linkC); err != nil {
@@ -172,7 +172,7 @@ func (cs *Stream) channel(ctx context.Context, id string, callback func(mm []sla
 	ctx, task := trace.NewTask(ctx, "channel")
 	defer task.End()
 
-	lg := logger.FromContext(ctx)
+	lg := slog.With("channel_id", id)
 
 	cursor := ""
 	for {
@@ -207,7 +207,7 @@ func (cs *Stream) channel(ctx context.Context, id string, callback func(mm []sla
 		}
 
 		if !resp.HasMore {
-			lg.Debugf("server reported channel %s done", id)
+			lg.DebugContext(ctx, "server reported channel done")
 			break
 		}
 		cursor = resp.ResponseMetaData.NextCursor
@@ -225,8 +225,8 @@ func (cs *Stream) thread(ctx context.Context, sl *structures.SlackLink, callback
 		return fmt.Errorf("not a thread: %s", sl)
 	}
 
-	lg := logger.FromContext(ctx)
-	lg.Debugf("- getting: %s", sl)
+	lg := slog.With("slack_link", sl)
+	lg.DebugContext(ctx, "- getting")
 
 	var cursor string
 	for {
@@ -273,7 +273,7 @@ func (cs *Stream) thread(ctx context.Context, sl *structures.SlackLink, callback
 // sends the thread request on threadC.  It returns thread count in the mm and
 // error if any.
 func procChanMsg(ctx context.Context, proc processor.Conversations, threadC chan<- request, channel *slack.Channel, isLast bool, mm []slack.Message) (int, error) {
-	lg := logger.FromContext(ctx)
+	lg := slog.With("channel_id", channel.ID, "is_last", isLast, "msg_count", len(mm))
 
 	var trs = make([]request, 0, len(mm))
 	for i := range mm {
@@ -283,7 +283,7 @@ func procChanMsg(ctx context.Context, proc processor.Conversations, threadC chan
 		// start processing the channel and will have the initial reference
 		// count, if it needs it.
 		if mm[i].Msg.ThreadTimestamp != "" && mm[i].Msg.SubType != structures.SubTypeThreadBroadcast && mm[i].LatestReply != structures.LatestReplyNoReplies {
-			lg.Debugf("- message #%d/channel=%s,thread: id=%s, thread_ts=%s", i, channel.ID, mm[i].Timestamp, mm[i].Msg.ThreadTimestamp)
+			lg.DebugContext(ctx, "- message", "i", i, "thread", mm[i].Timestamp, "thread_ts", mm[i].Msg.ThreadTimestamp)
 			trs = append(trs, request{
 				sl: &structures.SlackLink{
 					Channel:  channel.ID,

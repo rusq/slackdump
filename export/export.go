@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"path/filepath"
 	"runtime/trace"
 
@@ -15,7 +16,6 @@ import (
 	"github.com/rusq/slackdump/v3"
 	"github.com/rusq/slackdump/v3/internal/structures"
 	"github.com/rusq/slackdump/v3/internal/structures/files/dl"
-	"github.com/rusq/slackdump/v3/logger"
 	"github.com/rusq/slackdump/v3/types"
 )
 
@@ -23,7 +23,7 @@ import (
 type Export struct {
 	fs fsadapter.FS // target filesystem
 	sd dumper       // Session instance
-	lg logger.Interface
+	lg *slog.Logger
 	dl dl.Exporter
 
 	// options
@@ -34,7 +34,7 @@ type Export struct {
 // provided fs.
 func New(sd *slackdump.Session, fs fsadapter.FS, cfg Config) *Export {
 	if cfg.Logger == nil {
-		cfg.Logger = logger.Default
+		cfg.Logger = slog.Default()
 	}
 
 	se := &Export{
@@ -76,8 +76,10 @@ func (se *Export) messages(ctx context.Context, users types.Users) error {
 		se.dl.Start(ctx)
 		defer func() {
 			se.td(ctx, "info", "waiting for downloads to finish")
+			se.lg.DebugContext(ctx, "waiting for downloads to finish")
 			se.dl.Stop()
 			se.td(ctx, "info", "dl stopped")
+			se.lg.DebugContext(ctx, "downloader stopped")
 		}()
 	}
 
@@ -123,7 +125,7 @@ func (se *Export) exclusiveExport(ctx context.Context, uidx structures.UserIndex
 	if err := se.sd.StreamChannels(ctx, slackdump.AllChanTypes, func(ch slack.Channel) error {
 		if listIdx.IsExcluded(ch.ID) {
 			trace.Logf(ctx, "info", "skipping %s", ch.ID)
-			se.lg.Printf("skipping: %s", ch.ID)
+			se.lg.InfoContext(ctx, "skipping (excluded)", "channel_id", ch.ID)
 			return nil
 		}
 		if err := se.exportConversation(ctx, uidx, ch); err != nil {
@@ -136,7 +138,7 @@ func (se *Export) exclusiveExport(ctx context.Context, uidx structures.UserIndex
 	}); err != nil {
 		return nil, fmt.Errorf("channels: error: %w", err)
 	}
-	se.lg.Printf("  out of which exported:  %d", len(chans))
+	se.lg.InfoContext(ctx, "  out of which exported:  ", "n", len(chans))
 	return chans, nil
 }
 
@@ -160,7 +162,7 @@ func (se *Export) inclusiveExport(ctx context.Context, uidx structures.UserIndex
 	for _, entry := range list.Include {
 		if elIdx.IsExcluded(entry) {
 			se.td(ctx, "info", "skipping %s", entry)
-			se.lg.Printf("skipping: %s", entry)
+			se.lg.InfoContext(ctx, "skipping (excluded)", "entry", entry)
 			continue
 		}
 		sl, err := structures.ParseLink(entry)
@@ -257,6 +259,5 @@ func serialize(w io.Writer, data any) error {
 
 // td outputs the message to trace and logs a debug message.
 func (se *Export) td(ctx context.Context, category string, fmt string, a ...any) {
-	se.lg.Debugf(fmt, a...)
 	trace.Logf(ctx, category, fmt, a...)
 }

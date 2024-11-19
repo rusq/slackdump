@@ -13,7 +13,6 @@ import (
 
 	"github.com/charmbracelet/huh"
 	"github.com/joho/godotenv"
-	"github.com/rusq/dlog"
 	"github.com/rusq/tracer"
 	"golang.org/x/term"
 
@@ -35,7 +34,6 @@ import (
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/view"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/wizard"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/workspace"
-	"github.com/rusq/slackdump/v3/logger"
 )
 
 func init() {
@@ -64,7 +62,7 @@ func init() {
 
 func main() {
 	if isRoot() {
-		dlog.Fatal("slackdump:  cowardly refusing to run as root")
+		log.Fatal("slackdump:  cowardly refusing to run as root")
 	}
 
 	flag.Usage = base.Usage
@@ -124,7 +122,7 @@ BigCmdLoop:
 			}
 			if err := invoke(cmd, args); err != nil {
 				msg := fmt.Sprintf("Error %03[1]d (%[1]s): %[2]s", base.ExitStatus(), err)
-				logger.Default.Print(msg)
+				slog.Error(msg, "command", base.CmdName, "error", err, "code", base.ExitStatus(), "status", base.ExitStatus().String())
 			}
 			base.Exit()
 			return
@@ -176,11 +174,10 @@ func invoke(cmd *base.Command, args []string) error {
 	defer task.End()
 
 	// initialise default logging.
-	if lg, err := initLog(cfg.LogFile, cfg.Verbose); err != nil {
+	if lg, err := initLog(cfg.LogFile, cfg.JsonHandler, cfg.Verbose); err != nil {
 		return err
 	} else {
-		lg.SetPrefix(cmd.Name() + ": ")
-		ctx = logger.NewContext(ctx, lg)
+		lg.With("command", cmd.Name())
 		cfg.Log = lg
 	}
 
@@ -227,7 +224,7 @@ func initTrace(filename string) error {
 		return nil
 	}
 
-	dlog.Printf("trace will be written to %q", filename)
+	slog.Info("trace will be written to", "filename", filename)
 
 	trc := tracer.New(filename)
 	if err := trc.Start(); err != nil {
@@ -236,7 +233,7 @@ func initTrace(filename string) error {
 
 	stop := func() {
 		if err := trc.End(); err != nil {
-			dlog.Printf("failed to write the trace file: %s", err)
+			slog.Warn("failed to write the trace file", "filename", filename, "error", err)
 		}
 	}
 	base.AtExit(stop)
@@ -249,36 +246,39 @@ func initTrace(filename string) error {
 // an error, if any. The stop function must be called in the deferred call, it
 // will close the log file, if it is open. If the error is returned the stop
 // function is nil.
-func initLog(filename string, verbose bool) (*dlog.Logger, error) {
-	lg := logger.Default
+func initLog(filename string, jsonHandler bool, verbose bool) (*slog.Logger, error) {
 	if verbose {
 		slog.SetLogLoggerLevel(slog.LevelDebug)
-		lg.SetDebug(verbose)
-		lg.SetFlags(lg.Flags() | log.Lmicroseconds)
 	}
-
-	if filename == "" {
-		return lg, nil
-	}
-
-	lg.Debugf("log messages will be written to: %q", filename)
-	lf, err := os.OpenFile(filename, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0666)
-	if err != nil {
-		return lg, fmt.Errorf("failed to create the log file: %w", err)
-	}
-	lg.SetOutput(lf)
-	sl := slog.New(slog.NewTextHandler(lf, &slog.HandlerOptions{
+	var opts = &slog.HandlerOptions{
 		Level: iftrue(verbose, slog.LevelDebug, slog.LevelInfo),
-	}))
-	slog.SetDefault(sl)
-
-	base.AtExit(func() {
-		if err := lf.Close(); err != nil {
-			dlog.Printf("failed to close the log file: %s", err)
+	}
+	if jsonHandler {
+		slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stderr, opts)))
+	}
+	if filename != "" {
+		slog.Debug("log messages will be written to file", "filename", filename)
+		lf, err := os.OpenFile(filename, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0666)
+		if err != nil {
+			return slog.Default(), fmt.Errorf("failed to create the log file: %w", err)
 		}
-	})
+		log.SetOutput(lf) // redirect the standard log to the file just in case, panics will be logged there.
 
-	return lg, nil
+		var h slog.Handler = slog.NewTextHandler(lf, opts)
+		if jsonHandler {
+			h = slog.NewJSONHandler(lf, opts)
+		}
+
+		sl := slog.New(h)
+		slog.SetDefault(sl)
+		base.AtExit(func() {
+			if err := lf.Close(); err != nil {
+				slog.Error("failed to close the log file", "error", err)
+			}
+		})
+	}
+
+	return slog.Default(), nil
 }
 
 func iftrue[T any](cond bool, t T, f T) T {

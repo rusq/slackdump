@@ -2,24 +2,22 @@ package convert
 
 import (
 	"context"
-	"log"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"testing"
 
-	"github.com/rusq/dlog"
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/slack"
 	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/internal/fixtures"
-	"github.com/rusq/slackdump/v3/logger"
 )
 
 const (
 	testSrcDir = "../../tmp/ora600" // TODO: fix manual nature of this/obfuscate
 )
 
-var testLogger = dlog.New(os.Stderr, "unit ", log.Lshortfile|log.LstdFlags, true)
+var testLogger = slog.Default()
 
 func TestChunkToExport_Validate(t *testing.T) {
 	fixtures.SkipInCI(t)
@@ -117,7 +115,8 @@ func TestChunkToExport_Convert(t *testing.T) {
 
 	c := NewChunkToExport(cd, fsa, WithIncludeFiles(true))
 
-	ctx := logger.NewContext(context.Background(), testLogger)
+	ctx := context.Background()
+	c.lg = testLogger
 	if err := c.Convert(ctx); err != nil {
 		t.Fatal(err)
 	}

@@ -4,11 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"sync/atomic"
 
 	"github.com/rusq/slack"
 	"github.com/rusq/slackdump/v3/internal/chunk"
-	"github.com/rusq/slackdump/v3/logger"
 )
 
 type UserConverter interface {
@@ -40,7 +40,7 @@ type UserConverter interface {
 //     channel that was completed.
 type ExportCoordinator struct {
 	cvt    UserConverter
-	lg     logger.Interface
+	lg     *slog.Logger
 	closed atomic.Bool
 
 	start chan struct{}
@@ -79,7 +79,7 @@ func WithUsers(users []slack.User) ExpOption {
 func NewExportCoordinator(ctx context.Context, cvt UserConverter, tfopt ...ExpOption) *ExportCoordinator {
 	t := &ExportCoordinator{
 		cvt:   cvt,
-		lg:    logger.FromContext(ctx),
+		lg:    slog.Default(),
 		start: make(chan struct{}),
 		ids:   make(chan chunk.FileID, bufferSz),
 		err:   make(chan error, 1),
@@ -109,7 +109,7 @@ func (t *ExportCoordinator) StartWithUsers(ctx context.Context, users []slack.Us
 // WithUsers option.  Otherwise, use [ExportCoordinator.StartWithUsers] method.
 // The function doesn't check if coordinator was already started or not.
 func (t *ExportCoordinator) Start(ctx context.Context) error {
-	t.lg.Debugln("transform: starting transform")
+	t.lg.DebugContext(ctx, "transform: starting transform")
 	if !t.cvt.HasUsers() {
 		return errors.New("internal error: users not initialised")
 	}
@@ -143,7 +143,7 @@ func (t *ExportCoordinator) Transform(ctx context.Context, id chunk.FileID) erro
 	if t.closed.Load() {
 		return ErrClosed
 	}
-	t.lg.Debugln("transform: placing channel in the queue", id)
+	t.lg.Debug("transform: placing channel (file) in the queue", "id", id)
 	t.ids <- id
 	return nil
 }
@@ -151,13 +151,15 @@ func (t *ExportCoordinator) Transform(ctx context.Context, id chunk.FileID) erro
 func (t *ExportCoordinator) worker(ctx context.Context) {
 	defer close(t.err)
 
-	t.lg.Debugln("transform: worker waiting")
+	lg := t.lg.With("in", "ExportCoordinator.worker")
+
+	lg.Debug("worker waiting")
 	<-t.start
-	t.lg.Debugln("transform: worker started")
+	lg.Debug("worker started")
 	for id := range t.ids {
-		t.lg.Debugf("transform: transforming channel %s", id)
+		lg.Debug("transforming channel", "channel_id", id)
 		if err := t.cvt.Convert(ctx, chunk.FileID(id)); err != nil {
-			t.lg.Debugf("transform: error transforming channel %s: %s", id, err)
+			lg.Debug("transforming channel failure", "channel_id", id, "error", err)
 			t.err <- err
 			continue
 		}
@@ -172,11 +174,11 @@ func (t *ExportCoordinator) Close() (err error) {
 	if t.closed.Load() {
 		return nil
 	}
-	t.lg.Debugln("transform: closing transform")
+	t.lg.Debug("transform: closing transform")
 	t.closed.Store(true)
 	close(t.ids)
 	close(t.start)
-	t.lg.Debugln("transform: waiting for workers to finish")
+	t.lg.Debug("transform: waiting for workers to finish")
 
 	return <-t.err
 }

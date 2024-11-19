@@ -3,12 +3,12 @@ package dirproc
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"testing"
 
 	"github.com/rusq/slack"
 	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/internal/fixtures"
-	"github.com/rusq/slackdump/v3/logger"
 	"github.com/rusq/slackdump/v3/mocks/mock_processor"
 	"github.com/rusq/slackdump/v3/processor"
 	"go.uber.org/mock/gomock"
@@ -152,7 +152,7 @@ func TestConversations_Messages(t *testing.T) {
 			mh := NewMockdatahandler(ctrl)
 			cv := &Conversations{
 				t:           mt,
-				lg:          logger.Default,
+				lg:          slog.Default(),
 				subproc:     tt.fields.subproc,
 				recordFiles: tt.fields.recordFiles,
 				tf:          tt.fields.tf,
@@ -305,7 +305,7 @@ func TestConversations_ThreadMessages(t *testing.T) {
 			mh := NewMockdatahandler(ctrl)
 			cv := &Conversations{
 				t:           mt,
-				lg:          logger.Default,
+				lg:          slog.Default(),
 				subproc:     tt.fields.subproc,
 				recordFiles: tt.fields.recordFiles,
 				tf:          tt.fields.tf,
@@ -400,7 +400,7 @@ func TestConversations_ChannelInfo(t *testing.T) {
 
 			cv := &Conversations{
 				t:           mt,
-				lg:          logger.Default,
+				lg:          slog.Default(),
 				subproc:     tt.fields.subproc,
 				recordFiles: tt.fields.recordFiles,
 				tf:          tt.fields.tf,
@@ -504,7 +504,7 @@ func TestConversations_finalise(t *testing.T) {
 			tt.expectFn(mt, mtf)
 			cv := &Conversations{
 				t:           mt,
-				lg:          logger.Default,
+				lg:          slog.Default(),
 				subproc:     tt.fields.subproc,
 				recordFiles: tt.fields.recordFiles,
 				tf:          mtf,
@@ -635,7 +635,7 @@ func TestConversations_Files(t *testing.T) {
 			tt.expectFn(mt, mfh, mf)
 			cv := &Conversations{
 				t:           mt,
-				lg:          logger.Default,
+				lg:          slog.Default(),
 				subproc:     mf,
 				recordFiles: tt.fields.recordFiles,
 				tf:          tt.fields.tf,
@@ -732,7 +732,7 @@ func TestConversations_ChannelUsers(t *testing.T) {
 			tt.expectFn(mt, mdh)
 			cv := &Conversations{
 				t:           mt,
-				lg:          logger.Default,
+				lg:          slog.Default(),
 				subproc:     tt.fields.subproc,
 				recordFiles: tt.fields.recordFiles,
 				tf:          tt.fields.tf,

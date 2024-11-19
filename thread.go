@@ -145,15 +145,10 @@ func (s *Session) dumpThread(
 			return nil, err
 		}
 
-		s.log.Printf("  thread request #%5d, fetched: %4d, total: %8d, process results: %s (speed: %6.2f/sec, avg: %6.2f/sec)\n",
-			i+1, len(msgs), len(thread),
-			prs,
-			float64(len(msgs))/time.Since(reqStart).Seconds(),
-			float64(len(thread))/time.Since(fetchStart).Seconds(),
-		)
+		s.log.InfoContext(ctx, "  thread", "request", i+1, "fetched", len(msgs), "total", len(thread), "process results", prs, "speed", float64(len(msgs))/time.Since(reqStart).Seconds(), "avg", float64(len(thread))/time.Since(fetchStart).Seconds())
 
 		if !hasmore {
-			s.log.Printf("  thread fetch complete, total: %d", len(thread))
+			s.log.InfoContext(ctx, "  thread fetch complete", "total", len(thread))
 			break
 		}
 		cursor = nextCursor

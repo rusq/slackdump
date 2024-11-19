@@ -2,6 +2,7 @@ package slackdump
 
 import (
 	"context"
+	"log/slog"
 	"reflect"
 	"testing"
 	"time"
@@ -14,7 +15,6 @@ import (
 	"github.com/rusq/slackdump/v3/internal/fixtures"
 	"github.com/rusq/slackdump/v3/internal/network"
 	"github.com/rusq/slackdump/v3/internal/structures"
-	"github.com/rusq/slackdump/v3/logger"
 	"github.com/rusq/slackdump/v3/types"
 )
 
@@ -178,7 +178,7 @@ func TestSession_GetUsers(t *testing.T) {
 				wspInfo: &slack.AuthTestResponse{TeamID: testSuffix},
 				cfg:     tt.fields.config,
 				uc:      &tt.fields.usercache,
-				log:     logger.Silent,
+				log:     slog.Default(),
 			}
 			got, err := sd.GetUsers(tt.args.ctx)
 			if (err != nil) != tt.wantErr {

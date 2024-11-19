@@ -2,6 +2,7 @@ package export
 
 import (
 	"context"
+	"log/slog"
 	"os"
 
 	"github.com/rusq/fsadapter"
@@ -16,7 +17,6 @@ import (
 	"github.com/rusq/slackdump/v3/internal/chunk/transform"
 	"github.com/rusq/slackdump/v3/internal/chunk/transform/fileproc"
 	"github.com/rusq/slackdump/v3/internal/structures"
-	"github.com/rusq/slackdump/v3/logger"
 	"github.com/rusq/slackdump/v3/stream"
 )
 
@@ -24,20 +24,20 @@ import (
 
 // exportV3 runs the export v3.
 func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, list *structures.EntityList, params exportFlags) error {
-	lg := logger.FromContext(ctx)
+	lg := cfg.Log
 
 	tmpdir, err := os.MkdirTemp("", "slackdump-*")
 	if err != nil {
 		return err
 	}
 
-	lg.Printf("using %s as the temporary directory", tmpdir)
+	lg.InfoContext(ctx, "temporary directory in use", "tmpdir", tmpdir)
 	chunkdir, err := chunk.OpenDir(tmpdir)
 	if err != nil {
 		return err
 	}
 	defer chunkdir.Close()
-	if !lg.IsDebug() {
+	if !lg.Enabled(ctx, slog.LevelDebug) {
 		defer func() { _ = chunkdir.RemoveAll() }()
 	}
 	updFn := func() func(_ *slack.Channel, m *slack.Message) error {
@@ -61,7 +61,7 @@ func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 		-1,
 		progressbar.OptionClearOnFinish(),
 		progressbar.OptionSpinnerType(8)),
-		lg.IsDebug(),
+		lg.Enabled(ctx, slog.LevelDebug),
 	)
 	_ = pb.RenderBlank()
 
@@ -69,7 +69,7 @@ func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 		stream.OptOldest(params.Oldest),
 		stream.OptLatest(params.Latest),
 		stream.OptResultFn(func(sr stream.Result) error {
-			lg.Debugf("conversations: %s", sr.String())
+			lg.DebugContext(ctx, "conversations", "sr", sr.String())
 			pb.Describe(sr.String())
 			_ = pb.Add(1)
 			return nil
@@ -88,7 +88,7 @@ func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 		control.WithTransformer(tf),
 	)
 
-	lg.Print("running export...")
+	lg.InfoContext(ctx, "running export...")
 	if err := ctr.Run(ctx, list); err != nil {
 		_ = pb.Finish()
 		return err
@@ -104,8 +104,8 @@ func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 	}
 	pb.Describe("OK")
 	lg.Debug("index written")
-	lg.Println("conversations export finished")
-	lg.Debugf("chunk files in: %s", tmpdir)
+	lg.InfoContext(ctx, "conversations export finished")
+	lg.DebugContext(ctx, "chunk files retained", "dir", tmpdir)
 	return nil
 }
 
