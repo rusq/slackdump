@@ -79,8 +79,11 @@ mode.
 
   - **on Windows**: click "more information", and press "Run
     Anyway" button.
-  - **on macOS**: open the folder in Finder, hold Option and double click the
-    executable, choose Run.
+  - **on macOS** 14 Sonoma and prior:  open the folder in Finder, hold Option
+    and double click the executable, choose Run.
+  - **on macOS** 15 Sequoia and later:  start the slackdump, OS will show the
+    "Unknown developer" window, then go to System Preferences -> Security and
+    Privacy -> General, and press "Open Anyway" button.
 
 
 ## Slackord2: Migrating to Discord
