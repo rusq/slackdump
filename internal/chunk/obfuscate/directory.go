@@ -4,6 +4,7 @@ import (
 	"compress/gzip"
 	"context"
 	"fmt"
+	"log/slog"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -11,7 +12,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/rusq/dlog"
 	"github.com/rusq/slackdump/v3/internal/chunk"
 )
 
@@ -26,7 +26,7 @@ func DoDir(ctx context.Context, src string, trg string, options ...Option) error
 	}
 	rand.New(rand.NewSource(opts.seed))
 
-	lg := dlog.FromContext(ctx)
+	lg := slog.Default()
 	files, err := os.ReadDir(src)
 	if err != nil {
 		return err
@@ -41,9 +41,9 @@ func DoDir(ctx context.Context, src string, trg string, options ...Option) error
 			continue
 		}
 		if !strings.HasSuffix(f.Name(), ".json.gz") {
-			lg.Printf("skipping %s", f.Name())
+			lg.DebugContext(ctx, "skipping", "filename", f.Name())
 		}
-		lg.Debugf("processing %s", f.Name())
+		lg.DebugContext(ctx, "processing %s", "filename", f.Name())
 		once.Do(func() {
 			err = os.MkdirAll(trg, 0755)
 		})

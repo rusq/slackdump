@@ -31,7 +31,6 @@ func Test_exportV3(t *testing.T) {
 	// 	defer srv.Close()
 	// 	cl := slack.New("", slack.OptionAPIURL(srv.URL()))
 
-	// 	lg := dlog.New(os.Stderr, "test ", log.LstdFlags, true)
 	// 	ctx := logger.NewContext(context.Background(), lg)
 	// 	prov := &chunktest.TestAuth{
 	// 		FakeToken:      "xoxp-1234567890-1234567890-1234567890-1234567890",

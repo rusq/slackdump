@@ -24,7 +24,6 @@ require (
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c
 	github.com/playwright-community/playwright-go v0.4702.0
 	github.com/rusq/chttp v1.0.2
-	github.com/rusq/dlog v1.4.0
 	github.com/rusq/encio v0.1.0
 	github.com/rusq/fsadapter v1.0.2
 	github.com/rusq/osenv/v2 v2.0.1
@@ -42,7 +41,6 @@ require (
 	golang.org/x/term v0.25.0
 	golang.org/x/text v0.19.0
 	golang.org/x/time v0.7.0
-	gopkg.in/yaml.v3 v3.0.1
 	src.elv.sh v0.21.0
 )
 
@@ -87,4 +85,5 @@ require (
 	golang.org/x/exp v0.0.0-20241009180824-f66d83c29e7c // indirect
 	golang.org/x/net v0.30.0 // indirect
 	golang.org/x/sys v0.26.0 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

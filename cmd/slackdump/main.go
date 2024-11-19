@@ -13,7 +13,6 @@ import (
 
 	"github.com/charmbracelet/huh"
 	"github.com/joho/godotenv"
-	"github.com/rusq/dlog"
 	"github.com/rusq/tracer"
 	"golang.org/x/term"
 
@@ -63,7 +62,7 @@ func init() {
 
 func main() {
 	if isRoot() {
-		dlog.Fatal("slackdump:  cowardly refusing to run as root")
+		log.Fatal("slackdump:  cowardly refusing to run as root")
 	}
 
 	flag.Usage = base.Usage
@@ -225,7 +224,7 @@ func initTrace(filename string) error {
 		return nil
 	}
 
-	dlog.Printf("trace will be written to %q", filename)
+	slog.Info("trace will be written to", "filename", filename)
 
 	trc := tracer.New(filename)
 	if err := trc.Start(); err != nil {
@@ -234,7 +233,7 @@ func initTrace(filename string) error {
 
 	stop := func() {
 		if err := trc.End(); err != nil {
-			dlog.Printf("failed to write the trace file: %s", err)
+			slog.Warn("failed to write the trace file", "filename", filename, "error", err)
 		}
 	}
 	base.AtExit(stop)
@@ -263,6 +262,7 @@ func initLog(filename string, jsonHandler bool, verbose bool) (*slog.Logger, err
 		if err != nil {
 			return slog.Default(), fmt.Errorf("failed to create the log file: %w", err)
 		}
+		log.SetOutput(lf) // redirect the standard log to the file just in case, panics will be logged there.
 
 		var h slog.Handler = slog.NewTextHandler(lf, opts)
 		if jsonHandler {
@@ -273,7 +273,7 @@ func initLog(filename string, jsonHandler bool, verbose bool) (*slog.Logger, err
 		slog.SetDefault(sl)
 		base.AtExit(func() {
 			if err := lf.Close(); err != nil {
-				dlog.Printf("failed to close the log file: %s", err)
+				slog.Error("failed to close the log file", "error", err)
 			}
 		})
 	}
