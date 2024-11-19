@@ -103,7 +103,7 @@ func createWsp(ctx context.Context, m manager, wsp string, confirm bool) error {
 		return fmt.Errorf("failed to select the default workpace: %s", err)
 	}
 	fmt.Fprintf(os.Stdout, "Success:  added workspace %q\n", realname(wsp))
-	lg.DebugContext(ctx, "workspace type", "workspace", realname(wsp), fmt.Sprintf("%T", prov))
+	lg.DebugContext(ctx, "workspace type", "workspace", realname(wsp), "type", fmt.Sprintf("%T", prov))
 	return nil
 }
 

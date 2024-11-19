@@ -105,7 +105,7 @@ func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 	pb.Describe("OK")
 	lg.Debug("index written")
 	lg.InfoContext(ctx, "conversations export finished")
-	lg.DebugContext(ctx, "chunk files in: %s", tmpdir)
+	lg.DebugContext(ctx, "chunk files retained", "dir", tmpdir)
 	return nil
 }
 
