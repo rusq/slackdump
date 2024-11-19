@@ -70,10 +70,10 @@ On other Operating Systems, please follow these steps:
 By default, Slackdump uses the EZ-Login 3000 automatic login, and interactive
 mode.
 
-.. NOTE::
-  On Windows and macOS you may be presented with "Unknown developer" window,
-  this is fine.  Reason for this is that the executable hasn't been signed by
-  the developer certificate.
+> [!NOTE] 
+> On Windows and macOS you may be presented with "Unknown developer" window,
+> this is fine.  Reason for this is that the executable hasn't been signed by
+> the developer certificate.
 
   To work around this:
 
