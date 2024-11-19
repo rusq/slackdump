@@ -166,6 +166,14 @@ See [Package Documentation][godoc].
 Slackdump uses a "log/slog" package, it defaults to "slog.Default()".  Set the
 default slog logger to the one you want to use.
 
+If you were using `logger.Silent` before, you would need to
+[implement][slog-handler-guide] a discarding [Handler][godoc-slog-handler] for slog.
+
+[slog-handler-guide]: https://github.com/golang/example/blob/master/slog-handler-guide/README.md
+[godoc-slog-handler]: https://pkg.go.dev/log/slog#Handler
+
+```go
+
 ## FAQ
 
 #### Do I need to create a Slack application?
