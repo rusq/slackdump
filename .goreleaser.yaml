@@ -36,12 +36,12 @@ archives:
       format: zip
     files:
       - LICENSE
-      - README.rst
+      - README.md
       - slackdump.1
 checksum:
   name_template: 'checksums.txt'
 snapshot:
-  name_template: "{{ incpatch .Version }}-next"
+  version_template: "{{ incpatch .Version }}-next"
 changelog:
   sort: asc
   filters:
