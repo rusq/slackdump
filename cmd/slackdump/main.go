@@ -121,8 +121,8 @@ BigCmdLoop:
 				continue
 			}
 			if err := invoke(cmd, args); err != nil {
-				msg := fmt.Sprintf("Error %03[1]d (%[1]s): %[2]s", base.ExitStatus(), err)
-				slog.Error(msg, "command", base.CmdName, "error", err, "code", base.ExitStatus(), "status", base.ExitStatus().String())
+				msg := fmt.Sprintf("%03[1]d (%[1]s): %[2]s.", base.ExitStatus(), err)
+				slog.Error(msg)
 			}
 			base.Exit()
 			return
