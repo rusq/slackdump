@@ -1,4 +1,16 @@
 .\" https://man.openbsd.org/mdoc.7
+.\" macros:
+.de BOOL
+If set to
+.Dq Ar true
+(or any of 
+.Dq Ar 1
+,
+.Dq Ar t
+or
+.Dq Ar yes
+),
+..
 .Dd $Mdocdate$
 .Dt SLACKDUMP 1
 .Os
@@ -38,6 +50,8 @@ private group conversations;
 .It
 direct messages (private conversations between two users).
 .El
+.It Em search
+Searches for messages and/or files in the workspace.
 .El
 .Pp
 If no command is given, on a dumb terminal, the 
@@ -56,10 +70,6 @@ Allows to perform different operations on the API limits configuration
 files.
 .It Cm convert
 Convert between formats.
-.It Cm tools Ar subcommand
-Contains various diagnostic and convenience utilities.  Developers might ask
-to run these commands to help with debugging.  See TOOLS section for more
-information.
 .It Cm dump
 Dump selected channels or threads.
 .It Cm emoji
@@ -75,14 +85,21 @@ Display help.  To get the subcommand help, use the combination of
 For example, to get help on the
 .Ar new
 subcommand of the
-.Cm auth
+.Cm workspace
 command, run the following:
 .Bd -literal -offset indent
-.Nm Cm auth Cm help Ar new
+.Nm Cm workspace Cm help Ar new
 .Ed
 .It Cm list
 List channels or users in the desired format
 .Pq default output is text
+.It Cm search Ar subcommand
+Search for messages, files, or both in the workspace and save the results in
+archive format.  The discovered files are saved to disk as well.
+.It Cm tools Ar subcommand
+Contains various diagnostic and convenience utilities.  Developers might ask
+to run these commands to help with debugging.  See TOOLS section for more
+information.
 .It Cm version
 Display version information.
 .It Cm workspace
@@ -126,8 +143,10 @@ Enables or disables attachment files downloading.  The default is enabled.  To
 disable downloading, use
 .Dq Fl files=false .
 .It Fl log Ar path
-Specifies the log file path.  If the flag is not specified, the log is written
-to the standard output.
+Specifies the log file path and or filename.  If the flag is not specified, the
+log is written to the error output (STDERR).
+.It Fl log-json=true|false
+Enables or disables JSON log format.  The default is disabled.
 .It Fl token Ar token
 Specifies the token to use for the authentication.  This flag is only used
 with the manual authentication methods.
@@ -166,7 +185,7 @@ Enables verbose output, prints a lot of debugging information.
 .It Fl workspace Ar name
 Allows to override the currently selected workspace for the session.
 See also the
-.Cm auth Ar select
+.Cm workspace Ar select
 command.
 .El
 .\"
@@ -176,7 +195,7 @@ The quickest way to get started is to run the following command:
 .Bl -enum -compact
 .It
 Authenticate in a new workspace using the
-.Cm auth
+.Cm workspace
 .Ar new
 command;
 .It
@@ -189,7 +208,7 @@ or
 , depending on your requirements.
 .El
 .Sh AUTHENTICATION
-Slackdump supports multiple authentication methods, listed below.
+Slackdump supports multiple authentication methods listed below.
 .Ss Automatic login (EZ-LOGIN 3000)
 This is the default authentication mode, and so far is the most convenient one.
 It requires no additional configuration and works out of the box.  However, it
@@ -200,6 +219,10 @@ If the automatic login does not work for some reason, you can try to use one of
 the manual login methods, described in the next section.
 
 This method works on Single-Sign-On enabled workspaces as well in most cases.
+
+For Google Authentication, you must use the "User Browser" login method to
+avoid bot detection algorithms.
+
 .Ss Manual login methods
 .Bl -tag -width token+cookie
 .It Em token
@@ -254,20 +277,12 @@ flag for more details.
 Contains path to a directory where cache files will be stored.  See flag
 .Fl cache-dir
 for more details.
-.It Ev COOKIE
-See 
-.Ev SLACK_COOKIE
-below.
 .It Ev DEBUG
-If set to
-.Dq Ar true
-(or any of 
-.Dq Ar 1
-,
-.Dq Ar t
-or
-.Dq Ar yes
-), enables debug output.
+.BOOL
+enables debug output and switches the viewer output to RAW (JSON) format.
+.It Ev JSON_LOG
+.BOOL
+enables JSON log format.
 .It Ev LOG_FILE
 Contains path to a file where log output will be written.
 .It Ev SLACK_COOKIE
@@ -281,7 +296,7 @@ for more details.
 .It Ev SLACK_WORKSPACE
 Allows to specify Slack workspace name (overrides currently selected
 workspace).  See 
-.Ar auth
+.Ar workspace
 command for more details.
 .It Ev TRACE_FILE
 Contains path to a file where trace output will be written.
@@ -310,7 +325,7 @@ Authenticate in a new workspace
 .Lk https://myworkspace.slack.com
 :
 .Bd -literal -offset indent
-.Nm Cm auth Cm new Ar myworkspace
+.Nm Cm workspace Cm new Ar myworkspace
 .Ed
 .Pp
 Run full workspace export:
