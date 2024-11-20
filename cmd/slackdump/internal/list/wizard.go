@@ -21,17 +21,24 @@ func wizUsers(ctx context.Context, _ *base.Command, _ []string) error {
 		return err
 	}
 
-	filename = makeFilename("users", sess.Info().TeamID, ".json")
+	filename = ""
 	w := dumpui.Wizard{
 		Title:       "List Users",
 		Name:        "List",
 		LocalConfig: userConfiguration,
 		Cmd:         CmdListUsers,
-		ArgsFn: func() []string {
-			return []string{filename}
-		},
+		ArgsFn:      listArgsFn(sess.Info().TeamID, "users"),
 	}
 	return w.Run(ctx)
+}
+
+func listArgsFn(teamID string, prefix string) func() []string {
+	return func() []string {
+		if filename == "" {
+			filename = makeFilename(prefix, teamID, extForType(commonFlags.listType))
+		}
+		return []string{filename}
+	}
 }
 
 func wizChannels(ctx context.Context, _ *base.Command, _ []string) error {
@@ -41,15 +48,13 @@ func wizChannels(ctx context.Context, _ *base.Command, _ []string) error {
 		return err
 	}
 
-	filename = makeFilename("channels", sess.Info().TeamID, ".json")
+	filename = makeFilename("channels", sess.Info().TeamID, extForType(commonFlags.listType))
 	w := dumpui.Wizard{
 		Title:       "List Channels",
 		Name:        "List",
 		LocalConfig: chanFlags.configuration,
 		Cmd:         CmdListChannels,
-		ArgsFn: func() []string {
-			return []string{filename}
-		},
+		ArgsFn:      listArgsFn(sess.Info().TeamID, "channels"),
 	}
 	return w.Run(ctx)
 }
@@ -59,7 +64,7 @@ func userConfiguration() cfgui.Configuration {
 		cfgui.ParamGroup{
 			Name: "User List Options",
 			Params: []cfgui.Parameter{
-				filenameParam("users.json"),
+				filenameParam("users" + extForType(commonFlags.listType)),
 			},
 		},
 	}
@@ -81,7 +86,7 @@ func (o *channelOptions) configuration() cfgui.Configuration {
 		cfgui.ParamGroup{
 			Name: "Channel Options",
 			Params: []cfgui.Parameter{
-				filenameParam("channels.json"),
+				filenameParam("channels" + extForType(commonFlags.listType)),
 				{
 					Name:        "Resolve Users",
 					Value:       cfgui.Checkbox(o.resolveUsers),
