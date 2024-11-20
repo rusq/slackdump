@@ -92,7 +92,7 @@ func TestExtractWorkspace(t *testing.T) {
 		{"url no schema slash", args{"blahblah.slack.com/"}, "blahblah", false},
 		{"url no schema no slash", args{"blahblah.slack.com"}, "blahblah", false},
 		{"not a slack domain", args{"blahblah.example.com"}, "", true},
-		{"enterprise domain", args{"https://acme-co.enterprise.slack.com/"}, "acme-co", false},
+		{"enterprise domain", args{"https://grid-lightspeedhq.enterprise.slack.com/"}, "grid-lightspeedhq", false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
