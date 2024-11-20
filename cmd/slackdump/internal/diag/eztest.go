@@ -10,6 +10,7 @@ import (
 
 	"github.com/playwright-community/playwright-go"
 
+	"github.com/rusq/slack"
 	"github.com/rusq/slackdump/v3/auth"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
@@ -34,11 +35,12 @@ be printed and the test will be terminated.
 }
 
 type ezResult struct {
-	Engine      string       `json:"engine,omitempty"`
-	HasToken    bool         `json:"has_token,omitempty"`
-	HasCookies  bool         `json:"has_cookies,omitempty"`
-	Err         *string      `json:"error,omitempty"`
-	Credentials *Credentials `json:"credentials,omitempty"`
+	Engine      string                  `json:"engine,omitempty"`
+	HasToken    bool                    `json:"has_token,omitempty"`
+	HasCookies  bool                    `json:"has_cookies,omitempty"`
+	Err         *string                 `json:"error,omitempty"`
+	Credentials *Credentials            `json:"credentials,omitempty"`
+	Response    *slack.AuthTestResponse `json:"response,omitempty"`
 }
 
 type Credentials struct {
@@ -125,6 +127,12 @@ func tryPlaywrightAuth(ctx context.Context, wsp string, populateCreds bool) ezRe
 			Token:   prov.SlackToken(),
 			Cookies: prov.Cookies(),
 		}
+		resp, err := prov.Test(ctx)
+		if err != nil {
+			ret.Err = ptr(err.Error())
+			return ret
+		}
+		ret.Response = resp
 	}
 	return ret
 }
@@ -138,6 +146,7 @@ func tryRodAuth(ctx context.Context, wsp string, populateCreds bool) ezResult {
 		ret.Err = ptr(err.Error())
 		return ret
 	}
+
 	ret.HasCookies = len(prov.Cookies()) > 0
 	ret.HasToken = len(prov.SlackToken()) > 0
 	if populateCreds {
@@ -145,6 +154,12 @@ func tryRodAuth(ctx context.Context, wsp string, populateCreds bool) ezResult {
 			Token:   prov.SlackToken(),
 			Cookies: prov.Cookies(),
 		}
+		resp, err := prov.Test(ctx)
+		if err != nil {
+			ret.Err = ptr(err.Error())
+			return ret
+		}
+		ret.Response = resp
 	}
 	return ret
 }

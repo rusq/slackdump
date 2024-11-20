@@ -34,7 +34,7 @@ var ErrInvalidDomain = errors.New("invalid domain")
 
 // ExtractWorkspace takes a workspace name or URL and returns the workspace name.
 func ExtractWorkspace(workspace string) (string, error) {
-	if !strings.Contains(workspace, ".slack.com") && !strings.Contains(workspace, ".") {
+	if !strings.Contains(workspace, ".") {
 		return workspace, nil
 	}
 	if strings.HasPrefix(workspace, "https://") {
@@ -44,13 +44,15 @@ func ExtractWorkspace(workspace string) (string, error) {
 		}
 		workspace = uri.Host
 	}
-	// parse
-	name, domain, found := strings.Cut(workspace, ".")
-	if !found {
-		return "", errors.New("workspace name is empty")
+	if !strings.Contains(workspace, ".slack.com") {
+		return "", ErrInvalidDomain
 	}
-	if strings.TrimRight(domain, "/") != "slack.com" {
-		return "", fmt.Errorf("%s: %w", domain, ErrInvalidDomain)
+
+	parts := strings.Split(workspace, ".")
+	switch len(parts) {
+	case 3, 4:
+		return parts[0], nil
+	default:
+		return "", fmt.Errorf("invalid workspace: %s", workspace)
 	}
-	return name, nil
 }
