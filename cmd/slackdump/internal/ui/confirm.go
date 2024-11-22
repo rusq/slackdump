@@ -12,8 +12,10 @@ func Confirm(msg string, _ bool, opt ...Option) (bool, error) {
 	return b, nil
 }
 
-func FieldConfirm(b *bool, msg string, _ bool, opt ...Option) huh.Field {
+func FieldConfirm(b *bool, msg string, _ bool, opt ...Option) *huh.Form {
 	var opts = defaultOpts().apply(opt...)
-	f := huh.NewConfirm().Title(msg).Description(opts.help).Value(b)
+	f := huh.NewForm(huh.NewGroup(
+		huh.NewConfirm().Title(msg).Description(opts.help).Value(b),
+	)).WithTheme(HuhTheme()).WithKeyMap(DefaultHuhKeymap)
 	return f
 }

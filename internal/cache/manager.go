@@ -409,6 +409,8 @@ func (m *Manager) CacheChannels(teamID string, cc []slack.Channel) error {
 	return saveChannels(m.dir, m.channelFile, teamID, cc)
 }
 
+// CreateAndSelect creates a new workspace with the given provider and selects
+// it.
 func (m *Manager) CreateAndSelect(ctx context.Context, prov auth.Provider) (string, error) {
 	authInfo, err := prov.Test(ctx)
 	if err != nil {
@@ -429,4 +431,13 @@ func (m *Manager) CreateAndSelect(ctx context.Context, prov auth.Provider) (stri
 		return "", err
 	}
 	return wsp, nil
+}
+
+// RemoveAll deletes all the files in the cache directory, and the cache directory
+// itself.
+func (m *Manager) RemoveAll() error {
+	if err := os.RemoveAll(m.dir); err != nil {
+		return fmt.Errorf("failed to remove cache directory: %w", err)
+	}
+	return nil
 }
