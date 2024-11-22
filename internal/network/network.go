@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"runtime/trace"
+	"strings"
 	"sync"
 	"time"
 
@@ -82,7 +83,9 @@ func WithRetry(ctx context.Context, lim *rate.Limiter, maxAttempts int, fn func(
 		}
 		lastErr = cbErr
 
-		lg.ErrorContext(ctx, "WithRetry", "error", cbErr, "attempt", attempt+1)
+		if !strings.EqualFold(cbErr.Error(), "pagination complete") {
+			lg.ErrorContext(ctx, "WithRetry", "error", cbErr, "attempt", attempt+1)
+		}
 		var (
 			rle *slack.RateLimitedError
 			sce slack.StatusCodeError
