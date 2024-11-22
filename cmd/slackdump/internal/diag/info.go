@@ -10,8 +10,8 @@ import (
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 )
 
-// CmdInfo is the information command.
-var CmdInfo = &base.Command{
+// dmdInfo is the information command.
+var dmdInfo = &base.Command{
 	UsageLine: "slackdump tools info",
 	Short:     "show information about Slackdump environment",
 	Run:       runInfo,
@@ -29,7 +29,7 @@ var infoParams = struct {
 }
 
 func init() {
-	CmdInfo.Flag.BoolVar(&infoParams.auth, "auth", false, "show authentication diagnostic information")
+	dmdInfo.Flag.BoolVar(&infoParams.auth, "auth", false, "show authentication diagnostic information")
 }
 
 func runInfo(ctx context.Context, cmd *base.Command, args []string) error {

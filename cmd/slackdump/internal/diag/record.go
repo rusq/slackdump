@@ -14,7 +14,7 @@ import (
 	"github.com/rusq/slackdump/v3/internal/chunk"
 )
 
-var CmdRecord = &base.Command{
+var cmdRecord = &base.Command{
 	UsageLine:  "slackdump tools record",
 	Short:      "chunk record commands",
 	Commands:   []*base.Command{cmdRecordStream, cmdRecordState},

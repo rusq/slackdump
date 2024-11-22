@@ -267,6 +267,24 @@ session by running
 .Nm Cm help Ar login
 .Be
 .\" 
+.Sh TOOLS
+The following tools are available:
+.Bl -tag -width uninstall
+.It Em encrypt
+encrypt files for secure transmission, i.e. encrypting trace.out before
+posting it in Github Issues.
+.It Em eztest
+test the EZ-LOGIN 3000 method.
+.It Em info
+show information about Slackdump environment
+.It Em obfuscate
+obfuscate the sensitive data in Slackdump archive.  Works only on
+archive file format.
+.It Em uninstall
+uninstall Slackdump components or purge it from the system.
+.It Em thread
+thread utility, used to create threads in the Slack workspace for tests.
+.El
 .Sh ENVIRONMENT
 .Bl -tag -width SLACK_WORKSPACE
 .It Ev BASE_LOC

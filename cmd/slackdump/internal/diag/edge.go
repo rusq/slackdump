@@ -11,7 +11,7 @@ import (
 	"github.com/rusq/slackdump/v3/internal/edge"
 )
 
-var CmdEdge = &base.Command{
+var cmdEdge = &base.Command{
 	Run:         runEdge,
 	UsageLine:   "slack tools edge",
 	Short:       "Edge test",
@@ -29,7 +29,7 @@ var edgeParams = struct {
 }{}
 
 func init() {
-	CmdEdge.Flag.StringVar(&edgeParams.channel, "channel", "CHY5HUESG", "channel to get users from")
+	cmdEdge.Flag.StringVar(&edgeParams.channel, "channel", "CHY5HUESG", "channel to get users from")
 }
 
 func runEdge(ctx context.Context, cmd *base.Command, args []string) error {

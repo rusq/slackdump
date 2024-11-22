@@ -20,7 +20,7 @@ import (
 	"github.com/rusq/slackdump/v3/internal/structures"
 )
 
-var CmdRawOutput = &base.Command{
+var cmdRawOutput = &base.Command{
 	Run:       nil, // populated by init to break the init cycle
 	UsageLine: "slackdump tools rawoutput [flags] <id>",
 	Short:     "record raw API output",
@@ -50,8 +50,8 @@ type rawOutputParams struct {
 var p rawOutputParams
 
 func init() {
-	CmdRawOutput.Run = runRawOutput
-	CmdRawOutput.Flag.StringVar(&p.output, "o", "slackdump_raw.log", "output file")
+	cmdRawOutput.Run = runRawOutput
+	cmdRawOutput.Flag.StringVar(&p.output, "o", "slackdump_raw.log", "output file")
 }
 
 func runRawOutput(ctx context.Context, cmd *base.Command, args []string) error {

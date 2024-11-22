@@ -10,7 +10,7 @@ import (
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/cfgui"
 )
 
-var CmdWizDebug = &base.Command{
+var cmdWizDebug = &base.Command{
 	UsageLine:  "slackdump tools wizdebug",
 	Short:      "run the wizard debug command",
 	Run:        runWizDebug,

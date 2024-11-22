@@ -19,7 +19,7 @@ import (
 	"github.com/rusq/slackdump/v3/internal/cache"
 )
 
-var CmdUninstall = &base.Command{
+var cmdUninstall = &base.Command{
 	UsageLine:   "slackdump tools uninstall",
 	Short:       "performs uninstallation of components",
 	RequireAuth: false,
@@ -29,7 +29,7 @@ var CmdUninstall = &base.Command{
 }
 
 func init() {
-	CmdUninstall.Wizard = wizUninstall
+	cmdUninstall.Wizard = wizUninstall
 }
 
 type uninstOptions struct {
@@ -77,13 +77,13 @@ func (o uninstOptions) String() string {
 var uninstParams = uninstOptions{}
 
 func init() {
-	CmdUninstall.Flag.BoolVar(&uninstParams.playwright, "legacy-browser", false, "alias for -playwright")
-	CmdUninstall.Flag.BoolVar(&uninstParams.playwright, "playwright", false, "remove playwright environment")
-	CmdUninstall.Flag.BoolVar(&uninstParams.rod, "browser", false, "remove rod browser")
-	CmdUninstall.Flag.BoolVar(&uninstParams.cache, "cache", false, "remove saved workspaces and user/channel cache")
-	CmdUninstall.Flag.BoolVar(&uninstParams.purge, "purge", false, "remove everything (same as -rod -playwright -cache)")
-	CmdUninstall.Flag.BoolVar(&uninstParams.dry, "dry", false, "dry run")
-	CmdUninstall.Flag.BoolVar(&uninstParams.noConfirm, "no-confirm", false, "no confirmation from the user")
+	cmdUninstall.Flag.BoolVar(&uninstParams.playwright, "legacy-browser", false, "alias for -playwright")
+	cmdUninstall.Flag.BoolVar(&uninstParams.playwright, "playwright", false, "remove playwright environment")
+	cmdUninstall.Flag.BoolVar(&uninstParams.rod, "browser", false, "remove rod browser")
+	cmdUninstall.Flag.BoolVar(&uninstParams.cache, "cache", false, "remove saved workspaces and user/channel cache")
+	cmdUninstall.Flag.BoolVar(&uninstParams.purge, "purge", false, "remove everything (same as -rod -playwright -cache)")
+	cmdUninstall.Flag.BoolVar(&uninstParams.dry, "dry", false, "dry run")
+	cmdUninstall.Flag.BoolVar(&uninstParams.noConfirm, "no-confirm", false, "no confirmation from the user")
 
 }
 
@@ -201,7 +201,7 @@ func wizUninstall(ctx context.Context, cmd *base.Command, args []string) error {
 		Name:        "Uninstall",
 		Title:       "Uninstall Slackdump Components",
 		LocalConfig: uninstParams.configuration,
-		Cmd:         CmdUninstall,
+		Cmd:         cmdUninstall,
 	}
 	return w.Run(ctx)
 }
