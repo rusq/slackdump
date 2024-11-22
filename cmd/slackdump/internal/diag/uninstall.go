@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/rusq/slackauth"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
@@ -15,6 +16,7 @@ import (
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/cfgui"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/dumpui"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/updaters"
+	"github.com/rusq/slackdump/v3/internal/cache"
 )
 
 var CmdUninstall = &base.Command{
@@ -31,26 +33,76 @@ func init() {
 }
 
 type uninstOptions struct {
-	legacy    bool // playwright
+	playwright bool // remove playwright
+	rod        bool // remove rod
+	cache      bool // remove user cache
+	purge      bool // remove everything
+
 	dry       bool // dry run
 	noConfirm bool // no confirmation from the user
+}
+
+func (o uninstOptions) selected() []string {
+	const (
+		rod   = "Rod Browser"
+		pw    = "Playwright Browsers"
+		cache = "User Cache"
+	)
+	items := []string{}
+	if o.purge {
+		return []string{rod, pw, cache}
+	}
+	if o.rod {
+		items = append(items, rod)
+	}
+	if o.playwright {
+		items = append(items, pw)
+	}
+	if o.cache {
+		items = append(items, cache)
+	}
+	return items
+}
+
+func (o uninstOptions) String() string {
+	var buf strings.Builder
+	for _, s := range o.selected() {
+		buf.WriteString("* " + s)
+		buf.WriteString("\n")
+	}
+	return buf.String()
 }
 
 // uninstParams holds supported command line parameters
 var uninstParams = uninstOptions{}
 
 func init() {
-	CmdUninstall.Flag.BoolVar(&uninstParams.legacy, "legacy-browser", false, "operate on playwright environment (default: rod envronment)")
+	CmdUninstall.Flag.BoolVar(&uninstParams.playwright, "legacy-browser", false, "alias for -playwright")
+	CmdUninstall.Flag.BoolVar(&uninstParams.playwright, "playwright", false, "remove playwright environment")
+	CmdUninstall.Flag.BoolVar(&uninstParams.rod, "browser", false, "remove rod browser")
+	CmdUninstall.Flag.BoolVar(&uninstParams.cache, "cache", false, "remove saved workspaces and user/channel cache")
+	CmdUninstall.Flag.BoolVar(&uninstParams.purge, "purge", false, "remove everything (same as -rod -playwright -cache)")
 	CmdUninstall.Flag.BoolVar(&uninstParams.dry, "dry", false, "dry run")
 	CmdUninstall.Flag.BoolVar(&uninstParams.noConfirm, "no-confirm", false, "no confirmation from the user")
+
 }
 
 func runUninstall(ctx context.Context, cmd *base.Command, args []string) error {
 	if len(args) != 0 {
 		base.SetExitStatus(base.SInvalidParameters)
 	}
+	if len(uninstParams.selected()) == 0 {
+		base.SetExitStatus(base.SInvalidParameters)
+		return errors.New("nothing to uninstall")
+	}
+
+	m, err := cache.NewManager(cfg.CacheDir())
+	if err != nil {
+		base.SetExitStatus(base.SCacheError)
+		return err
+	}
 	if !uninstParams.noConfirm {
-		confirmed, err := ui.Confirm("This will uninstall the EZ-Login browser", true)
+		confirmed, err := ui.Confirm(fmt.Sprintf("This will uninstall the following:\n\n%s", uninstParams), true)
 		if err != nil {
 			return err
 		}
@@ -61,27 +113,46 @@ func runUninstall(ctx context.Context, cmd *base.Command, args []string) error {
 
 	si := info.CollectRaw()
 
-	if uninstParams.legacy {
-		return uninstallPlaywright(ctx, si.Playwright, uninstParams.dry)
-	} else {
-		return uninstallRod(ctx, si.Rod, uninstParams.dry)
+	if uninstParams.purge {
+		uninstParams.cache = true
+		uninstParams.playwright = true
+		uninstParams.rod = true
 	}
+
+	if uninstParams.cache {
+		if err := removeCache(m, uninstParams.dry); err != nil {
+			base.SetExitStatus(base.SCacheError)
+			return err
+		}
+	}
+	if uninstParams.playwright {
+		if err := uninstallPlaywright(ctx, si.Playwright, uninstParams.dry); err != nil {
+			base.SetExitStatus(base.SApplicationError)
+			return err
+		}
+	}
+	if uninstParams.rod {
+		if err := uninstallRod(ctx, si.Rod, uninstParams.dry); err != nil {
+			base.SetExitStatus(base.SApplicationError)
+			return err
+		}
+	}
+	return nil
 }
 
 func removeFunc(dry bool) func(string) error {
-	var removeFn = os.RemoveAll
-	if dry {
-		removeFn = func(name string) error {
-			fmt.Printf("Would remove %s\n", name)
-			return nil
-		}
+	if !dry {
+		return os.RemoveAll
 	}
-	return removeFn
+	return func(name string) error {
+		fmt.Printf("Would remove %s\n", name)
+		return nil
+	}
 }
 
 func uninstallPlaywright(ctx context.Context, si info.PwInfo, dry bool) error {
 	removeFn := removeFunc(dry)
-	lg := cfg.Log
+	lg := cfg.Log.WithGroup("playwright")
 	lg.InfoContext(ctx, "Deleting", "path", si.Path)
 	if err := removeFn(si.Path); err != nil {
 		return fmt.Errorf("failed to remove the playwright library: %w", err)
@@ -104,12 +175,13 @@ func uninstallPlaywright(ctx context.Context, si info.PwInfo, dry bool) error {
 }
 
 func uninstallRod(ctx context.Context, si info.RodInfo, dry bool) error {
+	lg := cfg.Log.WithGroup("rod")
+
 	removeFn := removeFunc(dry)
 	if si.Path == "" {
 		return errors.New("unable to determine rod browser path")
 	}
-	lg := cfg.Log
-	lg.InfoContext(ctx, "Deleting incognito Browser...")
+	lg.InfoContext(ctx, "Deleting ROD Browser...")
 	if !dry {
 		_ = slackauth.RemoveBrowser() // just to make sure.
 	} else {
@@ -127,7 +199,7 @@ func uninstallRod(ctx context.Context, si info.RodInfo, dry bool) error {
 func wizUninstall(ctx context.Context, cmd *base.Command, args []string) error {
 	w := dumpui.Wizard{
 		Name:        "Uninstall",
-		Title:       "Uninstall Slackdump",
+		Title:       "Uninstall Slackdump Components",
 		LocalConfig: uninstParams.configuration,
 		Cmd:         CmdUninstall,
 	}
@@ -142,9 +214,9 @@ func (p *uninstOptions) configuration() cfgui.Configuration {
 			Params: []cfgui.Parameter{
 				{
 					Name:        "Playwright",
-					Value:       cfgui.Checkbox(p.legacy),
+					Value:       cfgui.Checkbox(p.playwright),
 					Description: "Environment to uninstall (if unselected, uninstalls Rod)",
-					Updater:     updaters.NewBool(&p.legacy),
+					Updater:     updaters.NewBool(&p.playwright),
 				},
 				{
 					Name:        "Dry run",
@@ -156,4 +228,17 @@ func (p *uninstOptions) configuration() cfgui.Configuration {
 			},
 		},
 	}
+}
+
+func removeCache(m *cache.Manager, dry bool) error {
+	lg := cfg.Log.WithGroup("cache")
+	lg.Info("Removing cache at ", "path", cfg.CacheDir())
+	if dry {
+		fmt.Println("Would remove cache")
+		return nil
+	}
+	if err := m.RemoveAll(); err != nil {
+		return fmt.Errorf("failed to remove cache: %w", err)
+	}
+	return nil
 }
