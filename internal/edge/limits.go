@@ -22,5 +22,5 @@ var (
 	// tier2 = tier{t: 3 * time.Second, b: 3}
 	tier2boost = tier{t: 300 * time.Millisecond, b: 5}
 	tier3      = tier{t: 1200 * time.Millisecond, b: 4}
-	// tier4 = tier{t: 60 * time.Millisecond, b: 5}
+	// tier4      = tier{t: 60 * time.Millisecond, b: 5}
 )

@@ -28,7 +28,6 @@ import (
 
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
-	"github.com/rusq/slackdump/v3/internal/edge"
 )
 
 const (
@@ -39,13 +38,13 @@ const (
 var fetchFn = fetchEmoji
 
 //go:generate mockgen -source emoji.go -destination emoji_mock_test.go -package emojidl
-type emojidumper interface {
-	AdminEmojiList(ctx context.Context) (edge.EmojiResult, error)
+type EmojiDumper interface {
+	DumpEmojis(ctx context.Context) (map[string]string, error)
 }
 
 // DlFS downloads all emojis from the workspace and saves them to the fsa.
-func DlFS(ctx context.Context, sess emojidumper, fsa fsadapter.FS, failFast bool) error {
-	emojis, err := sess.AdminEmojiList(ctx)
+func DlFS(ctx context.Context, sess EmojiDumper, fsa fsadapter.FS, failFast bool) error {
+	emojis, err := sess.DumpEmojis(ctx)
 	if err != nil {
 		return fmt.Errorf("error during emoji dump: %w", err)
 	}
@@ -63,7 +62,7 @@ func DlFS(ctx context.Context, sess emojidumper, fsa fsadapter.FS, failFast bool
 
 // fetch downloads the emojis and saves them to the fsa. It spawns numWorker
 // goroutines for getting the files. It will call fetchFn for each emoji.
-func fetch(ctx context.Context, fsa fsadapter.FS, emojis edge.EmojiResult, failFast bool) error {
+func fetch(ctx context.Context, fsa fsadapter.FS, emojis map[string]string, failFast bool) error {
 	lg := cfg.Log.With("in", "fetch", "dir", emojiDir, "numWorkers", numWorkers, "failFast", failFast)
 
 	var (
@@ -76,11 +75,11 @@ func fetch(ctx context.Context, fsa fsadapter.FS, emojis edge.EmojiResult, failF
 	// 1. generator, send emojis into the emojiC channel.
 	go func() {
 		defer close(emojiC)
-		for _, e := range emojis.Emoji {
+		for name, uri := range emojis {
 			select {
 			case <-ctx.Done():
 				return
-			case emojiC <- emoji{e.Name, e.URL}:
+			case emojiC <- emoji{name, uri}:
 			}
 		}
 	}()
@@ -103,7 +102,7 @@ func fetch(ctx context.Context, fsa fsadapter.FS, emojis edge.EmojiResult, failF
 	// 4. Result processor, receives download results and logs any errors that
 	//    may have occurred.
 	var (
-		total = len(emojis.Emoji)
+		total = len(emojis)
 		count = 0
 	)
 	lg = lg.With("total", total)

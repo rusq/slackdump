@@ -3,6 +3,7 @@ package diag
 import (
 	"context"
 	"encoding/json"
+	"log/slog"
 	"os"
 
 	"github.com/rusq/slackdump/v3/auth"
@@ -59,11 +60,20 @@ func runEdge(ctx context.Context, cmd *base.Command, args []string) error {
 	// }
 
 	lg.Info("*** AdminEmojiList test ***")
-	emojis, err := cl.AdminEmojiList(ctx)
-	if err != nil {
-		return err
+	var allEmoji edge.EmojiResult
+
+	var iter = 0
+	for res, err := range cl.AdminEmojiList(ctx) {
+		if err != nil {
+			return err
+		}
+		slog.Info("got emojis", "count", len(res.Emoji), "disabled", len(res.DisabledEmoji), "iter", iter)
+		iter++
+		allEmoji.Emoji = append(allEmoji.Emoji, res.Emoji...)
+		allEmoji.DisabledEmoji = append(allEmoji.DisabledEmoji, res.DisabledEmoji...)
 	}
-	if err := save("emoji.json", emojis); err != nil {
+
+	if err := save("emoji.json", allEmoji); err != nil {
 		return err
 	}
 
