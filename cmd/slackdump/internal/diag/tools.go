@@ -20,7 +20,7 @@ Tools command contains different tools, running which may be requested if you op
 	PrintFlags:  false,
 	RequireAuth: false,
 	Commands: []*base.Command{
-		// cmdEdge,
+		cmdEdge,
 		dmdEncrypt,
 		dmdEzTest,
 		dmdInfo,

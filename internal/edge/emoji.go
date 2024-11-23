@@ -11,7 +11,7 @@ type EmojiResponse struct {
 
 type EmojiResult struct {
 	Emoji         []Emoji `json:"emoji"`
-	DisabledEmoji []Emoji `json:"disabled_emoji"`
+	DisabledEmoji []Emoji `json:"disabled_emoji,omitempty"`
 }
 
 type Emoji struct {
@@ -80,7 +80,7 @@ func (cl *Client) AdminEmojiList(ctx context.Context) (EmojiResult, error) {
 		if r.Paging.isLastPage() {
 			break
 		}
-		r.Paging.nextPage()
+		req.Paging.nextPage()
 		if err := l.Wait(ctx); err != nil {
 			return res, err
 		}

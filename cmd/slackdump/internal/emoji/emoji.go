@@ -5,11 +5,11 @@ import (
 	"fmt"
 
 	"github.com/rusq/fsadapter"
-	"github.com/rusq/slackdump/v3"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/bootstrap"
+	"github.com/rusq/slackdump/v3/auth"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/emoji/emojidl"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
+	"github.com/rusq/slackdump/v3/internal/edge"
 )
 
 var CmdEmoji = &base.Command{
@@ -43,11 +43,17 @@ func run(ctx context.Context, cmd *base.Command, args []string) error {
 	}
 	defer fsa.Close()
 
-	sess, err := bootstrap.SlackdumpSession(ctx, slackdump.WithFilesystem(fsa))
+	prov, err := auth.FromContext(ctx)
 	if err != nil {
 		base.SetExitStatus(base.SApplicationError)
-		return fmt.Errorf("application error: %s", err)
+		return err
 	}
+	sess, err := edge.New(ctx, prov)
+	if err != nil {
+		base.SetExitStatus(base.SApplicationError)
+		return err
+	}
+	defer sess.Close()
 
 	if err := emojidl.DlFS(ctx, sess, fsa, cmdFlags.ignoreErrors); err != nil {
 		base.SetExitStatus(base.SApplicationError)

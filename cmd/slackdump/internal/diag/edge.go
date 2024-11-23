@@ -49,12 +49,21 @@ func runEdge(ctx context.Context, cmd *base.Command, args []string) error {
 	defer cl.Close()
 	lg.Info("connected")
 
-	lg.Info("*** Search for Channels test ***")
-	channels, err := cl.SearchChannels(ctx, "")
+	// lg.Info("*** Search for Channels test ***")
+	// channels, err := cl.SearchChannels(ctx, "")
+	// if err != nil {
+	// 	return err
+	// }
+	// if err := save("channels.json", channels); err != nil {
+	// 	return err
+	// }
+
+	lg.Info("*** AdminEmojiList test ***")
+	emojis, err := cl.AdminEmojiList(ctx)
 	if err != nil {
 		return err
 	}
-	if err := save("channels.json", channels); err != nil {
+	if err := save("emoji.json", emojis); err != nil {
 		return err
 	}
 
