@@ -213,7 +213,12 @@ suggested a feature, helped to reproduce, or spent time chatting with me on
 the Telegram or Slack to help to understand the issue and tested the proposed
 solution.
 
-Also, I'd like to thank all those who made a donation to support the project:
+Also, I'd like to thank current sponsors:
+
+- [<img class="avatar avatar-user" src="https://avatars.githubusercontent.com/u/9138285?s=60&amp;v=4" width="30" height="30" alt="@malsatin">](https://github.com/malsatin) @malsatin
+
+And everyone who made a donation to support the project in the past and keep
+supporting the project:
 
 - Vivek R.
 - Fabian I.
