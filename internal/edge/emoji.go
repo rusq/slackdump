@@ -52,6 +52,7 @@ type adminEmojiListRequest struct {
 	Paging
 }
 
+// AdminEmojiList returns a list of custom emoji for the workspace.
 func (cl *Client) AdminEmojiList(ctx context.Context) (EmojiResult, error) {
 	var res EmojiResult
 	req := adminEmojiListRequest{
@@ -64,7 +65,7 @@ func (cl *Client) AdminEmojiList(ctx context.Context) (EmojiResult, error) {
 		},
 		WebClientFields: webclientReason("customize-emoji-new-query"),
 	}
-	l := tier3.limiter()
+	l := tier2boost.limiter()
 	for {
 		resp, err := cl.Post(ctx, "emoji.adminList", req)
 		if err != nil {

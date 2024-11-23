@@ -27,7 +27,6 @@ import (
 	"sync"
 
 	"github.com/rusq/fsadapter"
-	"github.com/rusq/slack"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 )
 
@@ -40,13 +39,12 @@ var fetchFn = fetchEmoji
 
 //go:generate mockgen -source emoji.go -destination emoji_mock_test.go -package emojidl
 type emojidumper interface {
-	// DumpEmojis(ctx context.Context) (map[string]string, error)
-	DumpEmojisAdmin(ctx context.Context) (map[string]slack.Emoji, error)
+	DumpEmojis(ctx context.Context) (map[string]string, error)
 }
 
 // DlFS downloads all emojis from the workspace and saves them to the fsa.
 func DlFS(ctx context.Context, sess emojidumper, fsa fsadapter.FS, failFast bool) error {
-	emojis, err := sess.DumpEmojisAdmin(ctx)
+	emojis, err := sess.DumpEmojis(ctx)
 	if err != nil {
 		return fmt.Errorf("error during emoji dump: %w", err)
 	}
@@ -64,7 +62,7 @@ func DlFS(ctx context.Context, sess emojidumper, fsa fsadapter.FS, failFast bool
 
 // fetch downloads the emojis and saves them to the fsa. It spawns numWorker
 // goroutines for getting the files. It will call fetchFn for each emoji.
-func fetch(ctx context.Context, fsa fsadapter.FS, emojis map[string]slack.Emoji, failFast bool) error {
+func fetch(ctx context.Context, fsa fsadapter.FS, emojis map[string]string, failFast bool) error {
 	lg := cfg.Log.With("in", "fetch", "dir", emojiDir, "numWorkers", numWorkers, "failFast", failFast)
 
 	var (
@@ -77,11 +75,11 @@ func fetch(ctx context.Context, fsa fsadapter.FS, emojis map[string]slack.Emoji,
 	// 1. generator, send emojis into the emojiC channel.
 	go func() {
 		defer close(emojiC)
-		for name, em := range emojis {
+		for name, uri := range emojis {
 			select {
 			case <-ctx.Done():
 				return
-			case emojiC <- emoji{name, em.URL}:
+			case emojiC <- emoji{name, uri}:
 			}
 		}
 	}()

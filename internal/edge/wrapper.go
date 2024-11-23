@@ -79,8 +79,3 @@ func (w *Wrapper) SearchMessagesContext(ctx context.Context, query string, param
 func (w *Wrapper) SearchFilesContext(ctx context.Context, query string, params slack.SearchParameters) (*slack.SearchFiles, error) {
 	return w.cl.SearchFilesContext(ctx, query, params)
 }
-
-func (w *Wrapper) AdminEmojiList(ctx context.Context, params slack.AdminEmojiListParameters) (map[string]slack.Emoji, string, error) {
-	// TODO: switch to edge client
-	return w.cl.AdminEmojiList(ctx, params)
-}

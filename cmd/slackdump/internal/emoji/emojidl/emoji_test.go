@@ -17,7 +17,6 @@ import (
 	"go.uber.org/mock/gomock"
 
 	"github.com/rusq/fsadapter"
-	"github.com/rusq/slack"
 )
 
 type fetchFunc func(ctx context.Context, fsa fsadapter.FS, dir string, name string, uri string) error
@@ -226,10 +225,10 @@ func Test_fetch(t *testing.T) {
 	}
 }
 
-func generateEmojis(n int) (ret map[string]slack.Emoji) {
-	ret = make(map[string]slack.Emoji, n)
+func generateEmojis(n int) (ret map[string]string) {
+	ret = make(map[string]string, n)
 	for i := 0; i < n; i++ {
-		ret[randString(10)] = slack.Emoji{URL: "https://emoji.slack.com/" + randString(20)}
+		ret[randString(10)] = "https://emoji.slack.com/" + randString(20)
 	}
 	return
 }
@@ -269,9 +268,9 @@ func Test_download(t *testing.T) {
 			emptyFetchFn,
 			func(m *Mockemojidumper) {
 				m.EXPECT().
-					DumpEmojisAdmin(gomock.Any()).
-					Return(map[string]slack.Emoji{
-						"test": {URL: "https://blahblah.png"},
+					DumpEmojis(gomock.Any()).
+					Return(map[string]string{
+						"test": "https://blahblah.png",
 					}, nil)
 			},
 			false,
@@ -286,9 +285,9 @@ func Test_download(t *testing.T) {
 			emptyFetchFn,
 			func(m *Mockemojidumper) {
 				m.EXPECT().
-					DumpEmojisAdmin(gomock.Any()).
-					Return(map[string]slack.Emoji{
-						"test": {URL: "https://blahblah.png"},
+					DumpEmojis(gomock.Any()).
+					Return(map[string]string{
+						"test": "https://blahblah.png",
 					}, nil)
 			},
 			false,
@@ -303,9 +302,9 @@ func Test_download(t *testing.T) {
 			errorFetchFn,
 			func(m *Mockemojidumper) {
 				m.EXPECT().
-					DumpEmojisAdmin(gomock.Any()).
-					Return(map[string]slack.Emoji{
-						"test": {URL: "https://blahblah.png"},
+					DumpEmojis(gomock.Any()).
+					Return(map[string]string{
+						"test": "https://blahblah.png",
 					}, nil)
 			},
 			true,
@@ -320,7 +319,7 @@ func Test_download(t *testing.T) {
 			errorFetchFn,
 			func(m *Mockemojidumper) {
 				m.EXPECT().
-					DumpEmojisAdmin(gomock.Any()).
+					DumpEmojis(gomock.Any()).
 					Return(nil, errors.New("no emojis for you, it's 1991."))
 			},
 			true,

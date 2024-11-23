@@ -239,22 +239,6 @@ func (m *mockClienter) EXPECT() *mockClienterMockRecorder {
 	return m.recorder
 }
 
-// AdminEmojiList mocks base method.
-func (m *mockClienter) AdminEmojiList(ctx context.Context, params slack.AdminEmojiListParameters) (map[string]slack.Emoji, string, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AdminEmojiList", ctx, params)
-	ret0, _ := ret[0].(map[string]slack.Emoji)
-	ret1, _ := ret[1].(string)
-	ret2, _ := ret[2].(error)
-	return ret0, ret1, ret2
-}
-
-// AdminEmojiList indicates an expected call of AdminEmojiList.
-func (mr *mockClienterMockRecorder) AdminEmojiList(ctx, params any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AdminEmojiList", reflect.TypeOf((*mockClienter)(nil).AdminEmojiList), ctx, params)
-}
-
 // AuthTestContext mocks base method.
 func (m *mockClienter) AuthTestContext(arg0 context.Context) (*slack.AuthTestResponse, error) {
 	m.ctrl.T.Helper()
