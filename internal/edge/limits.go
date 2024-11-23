@@ -7,7 +7,7 @@ import (
 )
 
 type tier struct {
-	// once eveyr
+	// once every
 	t time.Duration
 	// burst
 	b int

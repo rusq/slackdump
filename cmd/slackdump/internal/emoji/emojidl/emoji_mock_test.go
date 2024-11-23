@@ -13,6 +13,7 @@ import (
 	context "context"
 	reflect "reflect"
 
+	slack "github.com/rusq/slack"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -40,17 +41,17 @@ func (m *Mockemojidumper) EXPECT() *MockemojidumperMockRecorder {
 	return m.recorder
 }
 
-// DumpEmojis mocks base method.
-func (m *Mockemojidumper) DumpEmojis(ctx context.Context) (map[string]string, error) {
+// DumpEmojisAdmin mocks base method.
+func (m *Mockemojidumper) DumpEmojisAdmin(ctx context.Context) (map[string]slack.Emoji, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DumpEmojis", ctx)
-	ret0, _ := ret[0].(map[string]string)
+	ret := m.ctrl.Call(m, "DumpEmojisAdmin", ctx)
+	ret0, _ := ret[0].(map[string]slack.Emoji)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// DumpEmojis indicates an expected call of DumpEmojis.
-func (mr *MockemojidumperMockRecorder) DumpEmojis(ctx any) *gomock.Call {
+// DumpEmojisAdmin indicates an expected call of DumpEmojisAdmin.
+func (mr *MockemojidumperMockRecorder) DumpEmojisAdmin(ctx any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DumpEmojis", reflect.TypeOf((*Mockemojidumper)(nil).DumpEmojis), ctx)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DumpEmojisAdmin", reflect.TypeOf((*Mockemojidumper)(nil).DumpEmojisAdmin), ctx)
 }

@@ -205,6 +205,13 @@ func (cl *Client) callEdgeAPI(ctx context.Context, v any, endpoint string, req P
 	return cl.ParseResponse(v, r)
 }
 
+// PostForm sends a POST request to a webclient API, it marshals the form
+// values to url.Values, omitting empty fields, and sends the request.
+func (cl *Client) Post(ctx context.Context, path string, a any) (*http.Response, error) {
+	return cl.PostFormRaw(ctx, cl.webclientAPI+path, values(a, true))
+}
+
+// PostForm sends a POST request to a webclient API with form values.
 func (cl *Client) PostForm(ctx context.Context, path string, form url.Values) (*http.Response, error) {
 	return cl.PostFormRaw(ctx, cl.webclientAPI+path, form)
 }

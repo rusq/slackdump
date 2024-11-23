@@ -32,7 +32,7 @@ func (cl *Client) FilesList(ctx context.Context, channel string, count int) ([]s
 	lim := tier3.limiter()
 	var ff []slack.File
 	for {
-		resp, err := cl.PostForm(ctx, "files.list", values(form, true))
+		resp, err := cl.Post(ctx, "files.list", form)
 		if err != nil {
 			return nil, err
 		}
