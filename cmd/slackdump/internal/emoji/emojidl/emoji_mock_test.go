@@ -16,32 +16,32 @@ import (
 	gomock "go.uber.org/mock/gomock"
 )
 
-// Mockemojidumper is a mock of emojidumper interface.
-type Mockemojidumper struct {
+// MockEmojiDumper is a mock of EmojiDumper interface.
+type MockEmojiDumper struct {
 	ctrl     *gomock.Controller
-	recorder *MockemojidumperMockRecorder
+	recorder *MockEmojiDumperMockRecorder
 	isgomock struct{}
 }
 
-// MockemojidumperMockRecorder is the mock recorder for Mockemojidumper.
-type MockemojidumperMockRecorder struct {
-	mock *Mockemojidumper
+// MockEmojiDumperMockRecorder is the mock recorder for MockEmojiDumper.
+type MockEmojiDumperMockRecorder struct {
+	mock *MockEmojiDumper
 }
 
-// NewMockemojidumper creates a new mock instance.
-func NewMockemojidumper(ctrl *gomock.Controller) *Mockemojidumper {
-	mock := &Mockemojidumper{ctrl: ctrl}
-	mock.recorder = &MockemojidumperMockRecorder{mock}
+// NewMockEmojiDumper creates a new mock instance.
+func NewMockEmojiDumper(ctrl *gomock.Controller) *MockEmojiDumper {
+	mock := &MockEmojiDumper{ctrl: ctrl}
+	mock.recorder = &MockEmojiDumperMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *Mockemojidumper) EXPECT() *MockemojidumperMockRecorder {
+func (m *MockEmojiDumper) EXPECT() *MockEmojiDumperMockRecorder {
 	return m.recorder
 }
 
 // DumpEmojis mocks base method.
-func (m *Mockemojidumper) DumpEmojis(ctx context.Context) (map[string]string, error) {
+func (m *MockEmojiDumper) DumpEmojis(ctx context.Context) (map[string]string, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DumpEmojis", ctx)
 	ret0, _ := ret[0].(map[string]string)
@@ -50,7 +50,7 @@ func (m *Mockemojidumper) DumpEmojis(ctx context.Context) (map[string]string, er
 }
 
 // DumpEmojis indicates an expected call of DumpEmojis.
-func (mr *MockemojidumperMockRecorder) DumpEmojis(ctx any) *gomock.Call {
+func (mr *MockEmojiDumperMockRecorder) DumpEmojis(ctx any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DumpEmojis", reflect.TypeOf((*Mockemojidumper)(nil).DumpEmojis), ctx)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DumpEmojis", reflect.TypeOf((*MockEmojiDumper)(nil).DumpEmojis), ctx)
 }

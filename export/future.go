@@ -32,4 +32,7 @@ type dumper interface {
 
 	// DumpRaw gets data from the Slack API and returns a Conversation object.
 	DumpRaw(ctx context.Context, link string, oldest time.Time, latest time.Time, processFn ...slackdump.ProcessFunc) (*types.Conversation, error)
+
+	// GetChannelMembers gets the list of members for a channel.
+	GetChannelMembers(ctx context.Context, channelID string) ([]string, error)
 }

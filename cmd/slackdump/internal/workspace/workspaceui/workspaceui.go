@@ -16,7 +16,7 @@ import (
 	"github.com/rusq/slackdump/v3/internal/cache"
 )
 
-//go:generate mockgen -package workspaceui -destination=test_mock_manager.go -source api.go manager
+//go:generate mockgen -package workspaceui -destination=test_mock_manager.go -source workspaceui.go manager
 type manager interface {
 	CreateAndSelect(ctx context.Context, p auth.Provider) (string, error)
 	Select(name string) error

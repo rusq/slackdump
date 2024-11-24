@@ -255,7 +255,7 @@ func Test_download(t *testing.T) {
 		name    string
 		args    args
 		fetchFn fetchFunc
-		expect  func(m *Mockemojidumper)
+		expect  func(m *MockEmojiDumper)
 		wantErr bool
 	}{
 		{
@@ -266,7 +266,7 @@ func Test_download(t *testing.T) {
 				failFast: true,
 			},
 			emptyFetchFn,
-			func(m *Mockemojidumper) {
+			func(m *MockEmojiDumper) {
 				m.EXPECT().
 					DumpEmojis(gomock.Any()).
 					Return(map[string]string{
@@ -283,7 +283,7 @@ func Test_download(t *testing.T) {
 				failFast: true,
 			},
 			emptyFetchFn,
-			func(m *Mockemojidumper) {
+			func(m *MockEmojiDumper) {
 				m.EXPECT().
 					DumpEmojis(gomock.Any()).
 					Return(map[string]string{
@@ -300,7 +300,7 @@ func Test_download(t *testing.T) {
 				failFast: true,
 			},
 			errorFetchFn,
-			func(m *Mockemojidumper) {
+			func(m *MockEmojiDumper) {
 				m.EXPECT().
 					DumpEmojis(gomock.Any()).
 					Return(map[string]string{
@@ -317,7 +317,7 @@ func Test_download(t *testing.T) {
 				failFast: false,
 			},
 			errorFetchFn,
-			func(m *Mockemojidumper) {
+			func(m *MockEmojiDumper) {
 				m.EXPECT().
 					DumpEmojis(gomock.Any()).
 					Return(nil, errors.New("no emojis for you, it's 1991."))
@@ -328,7 +328,7 @@ func Test_download(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			setGlobalFetchFn(tt.fetchFn)
-			sess := NewMockemojidumper(gomock.NewController(t))
+			sess := NewMockEmojiDumper(gomock.NewController(t))
 			tt.expect(sess)
 			fs, err := fsadapter.New(tt.args.output)
 			if err != nil {
