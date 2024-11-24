@@ -20,7 +20,7 @@ var (
 )
 
 type SearchResponse[T any] struct {
-	BaseResponse
+	baseResponse
 	Module     string          `json:"module"`
 	Query      string          `json:"query"`
 	Filters    json.RawMessage `json:"filters"`

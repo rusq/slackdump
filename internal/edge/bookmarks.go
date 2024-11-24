@@ -16,7 +16,7 @@ type bookmarksListForm struct {
 }
 
 type bookmarksListResponse struct {
-	BaseResponse
+	baseResponse
 	Bookmarks []Bookmark `json:"bookmarks"`
 }
 

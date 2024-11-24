@@ -19,7 +19,7 @@ import (
 
 var _ = godotenv.Load()
 
-var CmdThread = &base.Command{
+var cmdThread = &base.Command{
 	Run:       nil,
 	UsageLine: "slackdump tools thread [flags]",
 	Short:     "thread utilities",
@@ -33,19 +33,19 @@ testing, i.e. deletion of the threads, or generation of large threads.
 }
 
 func init() {
-	CmdThread.Run = runThread
-	CmdThread.Flag.Usage = func() {
+	cmdThread.Run = runThread
+	cmdThread.Flag.Usage = func() {
 		fmt.Fprint(os.Stdout, "usage: slackdump diag thread [flags]\n\nFlags:\n")
-		CmdThread.Flag.PrintDefaults()
+		cmdThread.Flag.PrintDefaults()
 	}
 }
 
 var (
 	// TODO: test with client auth.
-	token        = CmdThread.Flag.String("app-token", os.Getenv("APP_TOKEN"), "Slack application or bot token")
-	channel      = CmdThread.Flag.String("channel", osenv.Value("CHANNEL", ""), "channel to operate on")
-	numThreadMsg = CmdThread.Flag.Int("num", 2, "number of messages to generate in the thread")
-	delThread    = CmdThread.Flag.String("del", "", "`URL` of the thread to delete")
+	token        = cmdThread.Flag.String("app-token", os.Getenv("APP_TOKEN"), "Slack application or bot token")
+	channel      = cmdThread.Flag.String("channel", osenv.Value("CHANNEL", ""), "channel to operate on")
+	numThreadMsg = cmdThread.Flag.Int("num", 2, "number of messages to generate in the thread")
+	delThread    = cmdThread.Flag.String("del", "", "`URL` of the thread to delete")
 )
 
 func runThread(ctx context.Context, cmd *base.Command, args []string) error {

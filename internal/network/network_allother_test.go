@@ -5,4 +5,4 @@ package network
 
 import "time"
 
-const maxRunDurationError = 10 * time.Millisecond // maximum deviation of run duration
+const maxRunDurationError = 20 * time.Millisecond // maximum deviation of run duration

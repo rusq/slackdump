@@ -28,6 +28,7 @@ import (
 
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
+	"github.com/rusq/slackdump/v3/internal/edge"
 )
 
 const (
@@ -38,12 +39,12 @@ const (
 var fetchFn = fetchEmoji
 
 //go:generate mockgen -source emoji.go -destination emoji_mock_test.go -package emojidl
-type emojidumper interface {
+type EmojiDumper interface {
 	DumpEmojis(ctx context.Context) (map[string]string, error)
 }
 
 // DlFS downloads all emojis from the workspace and saves them to the fsa.
-func DlFS(ctx context.Context, sess emojidumper, fsa fsadapter.FS, failFast bool) error {
+func DlFS(ctx context.Context, sess EmojiDumper, fsa fsadapter.FS, failFast bool, cb StatusFunc) error {
 	emojis, err := sess.DumpEmojis(ctx)
 	if err != nil {
 		return fmt.Errorf("error during emoji dump: %w", err)
@@ -57,17 +58,34 @@ func DlFS(ctx context.Context, sess emojidumper, fsa fsadapter.FS, failFast bool
 		return fmt.Errorf("failed writing emoji index: %w", err)
 	}
 
-	return fetch(ctx, fsa, emojis, failFast)
+	return fetch(ctx, fsa, emojis, failFast, cb)
+}
+
+func ift[T any](cond bool, t, f T) T {
+	if cond {
+		return t
+	}
+	return f
 }
 
 // fetch downloads the emojis and saves them to the fsa. It spawns numWorker
 // goroutines for getting the files. It will call fetchFn for each emoji.
-func fetch(ctx context.Context, fsa fsadapter.FS, emojis map[string]string, failFast bool) error {
-	lg := cfg.Log.With("in", "fetch", "dir", emojiDir, "numWorkers", numWorkers, "failFast", failFast)
+func fetch(ctx context.Context, fsa fsadapter.FS, emojis map[string]string, failFast bool, cb StatusFunc) error {
+	lg := cfg.Log
+	lg.DebugContext(ctx, "startup params", "dir", emojiDir, "numWorkers", numWorkers, "failFast", failFast)
+
+	if cb == nil {
+		cb = func(name string, total, count int) {}
+	}
 
 	var (
-		emojiC  = make(chan emoji)
+		emojiC  = make(chan edge.Emoji)
 		resultC = make(chan result)
+	)
+
+	const (
+		aliasPrefix = "alias:"
+		aliasLen    = len(aliasPrefix)
 	)
 
 	// Async download pipeline.
@@ -75,11 +93,19 @@ func fetch(ctx context.Context, fsa fsadapter.FS, emojis map[string]string, fail
 	// 1. generator, send emojis into the emojiC channel.
 	go func() {
 		defer close(emojiC)
+
 		for name, uri := range emojis {
+			isAlias := strings.HasPrefix(uri, aliasPrefix)
+			emoji := edge.Emoji{
+				Name:     name,
+				URL:      uri,
+				IsAlias:  ift(isAlias, 1, 0),
+				AliasFor: ift(isAlias, uri[aliasLen:], ""),
+			}
 			select {
 			case <-ctx.Done():
 				return
-			case emojiC <- emoji{name, uri}:
+			case emojiC <- emoji:
 			}
 		}
 	}()
@@ -107,51 +133,21 @@ func fetch(ctx context.Context, fsa fsadapter.FS, emojis map[string]string, fail
 	)
 	lg = lg.With("total", total)
 	for res := range resultC {
+		lg := lg.With("name", res.emoji.Name)
 		if res.err != nil {
 			if errors.Is(res.err, context.Canceled) {
 				return res.err
 			}
 			if failFast {
-				return fmt.Errorf("failed: %q: %w", res.name, res.err)
+				return fmt.Errorf("failed: %q: %w", res.emoji.Name, res.err)
 			}
-			lg.WarnContext(ctx, "failed", "name", res.name, "error", res.err)
+			lg.WarnContext(ctx, "failed", "error", res.err)
 		}
 		count++
-		lg.InfoContext(ctx, "downloaded", "count", count, "name", res.name)
+		cb(res.emoji.Name, total, count)
 	}
 
 	return nil
-}
-
-// emoji is an array containing name and url of the emoji.
-type emoji [2]string
-
-type result struct {
-	name string
-	err  error
-}
-
-// worker is the function that runs in a separate goroutine and downloads emoji
-// received from emojiC. The result of the operation is sent to resultC channel.
-// fn is called for each received emoji.
-func worker(ctx context.Context, fsa fsadapter.FS, emojiC <-chan emoji, resultC chan<- result) {
-	for {
-		select {
-		case <-ctx.Done():
-			resultC <- result{err: ctx.Err()}
-			return
-		case emoji, more := <-emojiC:
-			if !more {
-				return
-			}
-			if strings.HasPrefix(emoji[1], "alias:") {
-				resultC <- result{name: emoji[0] + "(alias, skipped)"}
-				break
-			}
-			err := fetchFn(ctx, fsa, emojiDir, emoji[0], emoji[1])
-			resultC <- result{name: emoji[0], err: err}
-		}
-	}
 }
 
 // fetchEmoji downloads one emoji file from uri into the filename dir/name.png

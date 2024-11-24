@@ -14,9 +14,11 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/rusq/fsadapter"
+	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 
-	"github.com/rusq/fsadapter"
+	"github.com/rusq/slackdump/v3/internal/edge"
 )
 
 type fetchFunc func(ctx context.Context, fsa fsadapter.FS, dir string, name string, uri string) error
@@ -110,8 +112,8 @@ func Test_fetchEmoji(t *testing.T) {
 	}
 }
 
-func testEmojiC(emojis []emoji, wantClosed bool) <-chan emoji {
-	ch := make(chan emoji)
+func testEmojiC(emojis []edge.Emoji, wantClosed bool) <-chan edge.Emoji {
+	ch := make(chan edge.Emoji)
 	go func() {
 		for _, e := range emojis {
 			ch <- e
@@ -126,7 +128,7 @@ func testEmojiC(emojis []emoji, wantClosed bool) <-chan emoji {
 func Test_worker(t *testing.T) {
 	type args struct {
 		ctx    context.Context
-		emojiC <-chan emoji
+		emojiC <-chan edge.Emoji
 	}
 	tests := []struct {
 		name       string
@@ -138,39 +140,39 @@ func Test_worker(t *testing.T) {
 			"all ok",
 			args{
 				ctx:    context.Background(),
-				emojiC: testEmojiC([]emoji{{"test", "passed"}}, true),
+				emojiC: testEmojiC([]edge.Emoji{{Name: "test", URL: "passed"}}, true),
 			},
 			func(ctx context.Context, fsa fsadapter.FS, dir string, name string, uri string) error {
 				return nil
 			},
 			[]result{
-				{name: "test"},
+				{emoji: edge.Emoji{Name: "test", URL: "passed"}},
 			},
 		},
 		{
 			"cancelled context",
 			args{
 				ctx:    func() context.Context { ctx, cancel := context.WithCancel(context.Background()); cancel(); return ctx }(),
-				emojiC: testEmojiC([]emoji{}, false),
+				emojiC: testEmojiC([]edge.Emoji{}, false),
 			},
 			func(ctx context.Context, fsa fsadapter.FS, dir string, name string, uri string) error {
 				return nil
 			},
 			[]result{
-				{name: "", err: context.Canceled},
+				{emoji: edge.Emoji{Name: ""}, err: context.Canceled},
 			},
 		},
 		{
 			"fetch error",
 			args{
 				ctx:    context.Background(),
-				emojiC: testEmojiC([]emoji{{"test", "passed"}}, true),
+				emojiC: testEmojiC([]edge.Emoji{{Name: "test", URL: "passed"}}, true),
 			},
 			func(ctx context.Context, fsa fsadapter.FS, dir string, name string, uri string) error {
 				return io.EOF
 			},
 			[]result{
-				{name: "test", err: io.EOF},
+				{emoji: edge.Emoji{Name: "test", URL: "passed"}, err: io.EOF},
 			},
 		},
 	}
@@ -195,9 +197,7 @@ func Test_worker(t *testing.T) {
 			for r := range resultC {
 				results = append(results, r)
 			}
-			if !reflect.DeepEqual(results, tt.wantResult) {
-				t.Errorf("results mismatch:\n\twant=%v\n\tgot =%v", tt.wantResult, results)
-			}
+			assert.Equal(t, tt.wantResult, results)
 		})
 	}
 }
@@ -216,7 +216,7 @@ func Test_fetch(t *testing.T) {
 		return nil
 	})
 
-	err := fetch(context.Background(), fsa, emojis, true)
+	err := fetch(context.Background(), fsa, emojis, true, nil)
 	if err != nil {
 		t.Errorf("unexpected error: %s", err)
 	}
@@ -334,7 +334,7 @@ func Test_download(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if err := DlFS(tt.args.ctx, sess, fs, tt.args.failFast); (err != nil) != tt.wantErr {
+			if err := DlFS(tt.args.ctx, sess, fs, tt.args.failFast, nil); (err != nil) != tt.wantErr {
 				t.Errorf("download() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

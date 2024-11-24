@@ -76,7 +76,7 @@ func ShowUI(ctx context.Context, opts ...UIOption) error {
 		},
 		{
 			ID:      actBrowserOpts,
-			Name:    "Browser Options",
+			Name:    "Browser Options...",
 			Help:    "Show browser options",
 			Preview: true,
 			Model:   cfgui.NewConfigUI(cfgui.DefaultStyle(), configuration(&brwsOpts)),
@@ -123,7 +123,7 @@ func ShowUI(ctx context.Context, opts ...UIOption) error {
 	var lastID string = actLogin
 LOOP:
 	for {
-		m := menu.New(uiOpts.title, items, uiOpts.quicklogin)
+		m := menu.New(uiOpts.title, items, true)
 		m.Select(lastID)
 		if _, err := tea.NewProgram(&wizModel{m: m}, tea.WithContext(ctx)).Run(); err != nil {
 			return err

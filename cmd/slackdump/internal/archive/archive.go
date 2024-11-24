@@ -40,6 +40,7 @@ var (
 )
 
 func RunArchive(ctx context.Context, cmd *base.Command, args []string) error {
+	start := time.Now()
 	list, err := structures.NewEntityList(args)
 	if err != nil {
 		base.SetExitStatus(base.SUserError)
@@ -84,7 +85,7 @@ func RunArchive(ctx context.Context, cmd *base.Command, args []string) error {
 		base.SetExitStatus(base.SApplicationError)
 		return err
 	}
-	lg.Info("Recorded workspace data", "filename", cd.Name())
+	lg.Info("Recorded workspace data", "filename", cd.Name(), "took", time.Since(start))
 
 	return nil
 }

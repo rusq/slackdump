@@ -152,13 +152,12 @@ func TestWithRetry(t *testing.T) {
 			true,
 			calcRunDuration(10.0, 4),
 		},
-		{
-			"network error (#234)",
+		{"network error (#234)",
 			args{
 				context.Background(),
 				rate.NewLimiter(10.0, 1),
 				3,
-				errSeqFn(&net.OpError{Op: "read"}, 2, nil),
+				errSeqFn(&net.OpError{Op: "read", Err: errors.New("network error")}, 2, nil),
 			},
 			false,
 			calcExpRunDuration(2),

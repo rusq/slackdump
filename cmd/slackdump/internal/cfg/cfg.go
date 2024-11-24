@@ -20,11 +20,10 @@ const (
 )
 
 var (
-	TraceFile      string
-	LogFile        string
-	JsonHandler    bool
-	Verbose        bool
-	AccessibleMode = (os.Getenv("ACCESSIBLE") != "" && os.Getenv("ACCESSIBLE") != "0")
+	TraceFile   string
+	LogFile     string
+	JsonHandler bool
+	Verbose     bool
 
 	Output     string
 	ConfigFile string

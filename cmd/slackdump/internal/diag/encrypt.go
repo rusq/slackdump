@@ -74,7 +74,7 @@ DKOKJRTJslrewS0MeTopOa/NUI5zC1z9GsqWBAzrbUU=
 -----END PGP PUBLIC KEY BLOCK-----
 `
 
-var CmdEncrypt = &base.Command{
+var cmdEncrypt = &base.Command{
 	Run:       runEncrypt,
 	UsageLine: "slackdump tools encrypt [flags] file",
 	Short:     "encrypts a file to post in github issues",
@@ -111,8 +111,8 @@ func init() {
 	if err := initRecipient(); err != nil {
 		panic(err)
 	}
-	CmdEncrypt.Flag.BoolVar(&gArm, "a", false, "shorthand for -armor")
-	CmdEncrypt.Flag.BoolVar(&gArm, "armor", false, "armor the output")
+	cmdEncrypt.Flag.BoolVar(&gArm, "a", false, "shorthand for -armor")
+	cmdEncrypt.Flag.BoolVar(&gArm, "armor", false, "armor the output")
 }
 
 func initRecipient() error {

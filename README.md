@@ -175,8 +175,6 @@ If you were using `logger.Silent` before, you would need to
 [slog-handler-guide]: https://github.com/golang/example/blob/master/slog-handler-guide/README.md
 [godoc-slog-handler]: https://pkg.go.dev/log/slog#Handler
 
-```go
-
 ## FAQ
 
 #### Do I need to create a Slack application?
