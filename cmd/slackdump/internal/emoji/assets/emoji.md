@@ -6,6 +6,9 @@ There are two modes of operation:
 - **Standard**: download only the names and URLs of the custom emojis;
 - **Full**: Download all the custom emojis from the workspace.
 
+Full mode is approx. 2.3 times slower than the standard mode, but it provides
+more information about the custom emojis.
+
 In both modes:
 - aliases are skipped, as they just point to the main emoji;
 - emoji files and saves in the "emojis" directory within the archive directory

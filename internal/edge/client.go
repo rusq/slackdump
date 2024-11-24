@@ -19,7 +19,7 @@ type clientCountsForm struct {
 }
 
 type ClientCountsResponse struct {
-	BaseResponse
+	baseResponse
 	Channels []ChannelSnapshot `json:"channels,omitempty"`
 	MPIMs    []ChannelSnapshot `json:"mpims,omitempty"`
 	IMs      []ChannelSnapshot `json:"ims,omitempty"`
@@ -68,7 +68,7 @@ type clientDMsForm struct {
 }
 
 type clientDMsResponse struct {
-	BaseResponse
+	baseResponse
 	IMs   []ClientDM `json:"ims,omitempty"`
 	MPIMs []ClientDM `json:"mpims,omitempty"` //TODO
 }

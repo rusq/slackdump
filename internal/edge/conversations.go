@@ -18,7 +18,7 @@ type conversationsGenericInfoForm struct {
 }
 
 type conversationsGenericInfoResponse struct {
-	BaseResponse
+	baseResponse
 	Channels            []slack.Channel `json:"channels"`
 	UnchangedChannelIDs []string        `json:"unchanged_channel_ids"`
 }
@@ -105,7 +105,7 @@ func (cl *Client) ConversationsView(ctx context.Context, channelID string) (Conv
 		return ConversationsViewResponse{}, err
 	}
 	var r = struct {
-		BaseResponse
+		baseResponse
 		ConversationsViewResponse
 	}{}
 	if err := cl.ParseResponse(&r, resp); err != nil {

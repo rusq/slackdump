@@ -33,16 +33,22 @@ type EdgeEmojiLister interface {
 	AdminEmojiList(ctx context.Context) iter.Seq2[edge.EmojiResult, error]
 }
 
+type StatusFunc func(name string, total, count int)
+
 // DlEdgeFS downloads the emojis and saves them to the fsa. It spawns numWorker
 // goroutines for getting the files. It will call fetchFn for each emoji.
-func DlEdgeFS(ctx context.Context, sess EdgeEmojiLister, fsa fsadapter.FS, failFast bool) error {
-	lg := cfg.Log.With("in", "fetch", "dir", emojiDir, "numWorkers", numWorkers, "failFast", failFast)
+func DlEdgeFS(ctx context.Context, sess EdgeEmojiLister, fsa fsadapter.FS, failFast bool, cb StatusFunc) error {
+	lg := cfg.Log
+	lg.DebugContext(ctx, "startup params", "dir", emojiDir, "numWorkers", numWorkers, "failFast", failFast)
+	if cb == nil {
+		cb = func(name string, total, count int) {}
+	}
 
 	var (
 		emojiC  = make(chan edge.Emoji)
 		totalC  = make(chan int)
 		genErrC = make(chan error)
-		resultC = make(chan edgeResult)
+		resultC = make(chan result)
 	)
 
 	// Async download pipeline.
@@ -51,7 +57,6 @@ func DlEdgeFS(ctx context.Context, sess EdgeEmojiLister, fsa fsadapter.FS, failF
 	go func() {
 		var once sync.Once
 		defer close(totalC)
-
 		defer close(emojiC)
 
 		for chunk, err := range sess.AdminEmojiList(ctx) {
@@ -76,7 +81,7 @@ func DlEdgeFS(ctx context.Context, sess EdgeEmojiLister, fsa fsadapter.FS, failF
 	for i := 0; i < numWorkers; i++ {
 		wg.Add(1)
 		go func() {
-			worker2(ctx, fsa, emojiC, resultC)
+			worker(ctx, fsa, emojiC, resultC)
 			wg.Done()
 		}()
 	}
@@ -90,14 +95,14 @@ func DlEdgeFS(ctx context.Context, sess EdgeEmojiLister, fsa fsadapter.FS, failF
 	//    may have occurred.
 	var (
 		count = 0
-		total = <-totalC
+		total = <-totalC // if there's a generator error, this will receive 0.
 	)
 	var emojis = make(map[string]edge.Emoji, total)
 LOOP:
 	for {
 		select {
-
 		case genErr := <-genErrC:
+			// generator error.
 			if genErr != nil {
 				return fmt.Errorf("failed to get emoji list: %w", genErr)
 			}
@@ -105,6 +110,7 @@ LOOP:
 			if !more {
 				break LOOP
 			}
+			lg := lg.With("name", res.emoji.Name)
 			if res.err != nil {
 				if errors.Is(res.err, context.Canceled) {
 					return res.err
@@ -112,11 +118,11 @@ LOOP:
 				if failFast {
 					return fmt.Errorf("failed: %q: %w", res.emoji.Name, res.err)
 				}
-				lg.WarnContext(ctx, "failed", "name", res.emoji.Name, "error", res.err)
+				lg.WarnContext(ctx, "failed", "error", res.err)
 			}
 			emojis[res.emoji.Name] = res.emoji // to resemble the legacy code.
 			count++
-			lg.InfoContext(ctx, "downloaded", "count", count, "total", total, "name", res.emoji.Name)
+			cb(res.emoji.Name, total, count)
 		}
 	}
 	out, err := fsa.Create("index.json")
@@ -131,7 +137,7 @@ LOOP:
 	return nil
 }
 
-type edgeResult struct {
+type result struct {
 	emoji   edge.Emoji
 	skipped bool
 	err     error
@@ -140,22 +146,22 @@ type edgeResult struct {
 // worker is the function that runs in a separate goroutine and downloads emoji
 // received from emojiC. The result of the operation is sent to resultC channel.
 // fn is called for each received emoji.
-func worker2(ctx context.Context, fsa fsadapter.FS, emojiC <-chan edge.Emoji, resultC chan<- edgeResult) {
+func worker(ctx context.Context, fsa fsadapter.FS, emojiC <-chan edge.Emoji, resultC chan<- result) {
 	for {
 		select {
 		case <-ctx.Done():
-			resultC <- edgeResult{err: ctx.Err()}
+			resultC <- result{err: ctx.Err()}
 			return
 		case em, more := <-emojiC:
 			if !more {
 				return
 			}
 			if em.IsAlias != 0 {
-				resultC <- edgeResult{emoji: em, skipped: true}
+				resultC <- result{emoji: em, skipped: true}
 				break
 			}
 			err := fetchFn(ctx, fsa, emojiDir, em.Name, em.URL)
-			resultC <- edgeResult{emoji: em, err: err}
+			resultC <- result{emoji: em, err: err}
 		}
 	}
 }

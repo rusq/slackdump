@@ -16,7 +16,7 @@ type imListForm struct {
 }
 
 type imListResponse struct {
-	BaseResponse
+	baseResponse
 	IMs []IM `json:"ims,omitempty"`
 }
 

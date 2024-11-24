@@ -14,7 +14,7 @@ type pinsListRequest struct {
 }
 
 type pinsListResponse struct {
-	BaseResponse
+	baseResponse
 	Items []PinnedItem `json:"items"`
 }
 

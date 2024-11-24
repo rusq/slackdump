@@ -26,9 +26,9 @@ func (o *options) configuration() cfgui.Configuration {
 			Params: []cfgui.Parameter{
 				{
 					Name:        "Full Emoji Information",
-					Value:       cfgui.Checkbox(o.fullInfo),
+					Value:       cfgui.Checkbox(o.full),
 					Description: "Uses edge API to fetch full emoji information, including usernames",
-					Updater:     updaters.NewBool(&o.fullInfo),
+					Updater:     updaters.NewBool(&o.full),
 				},
 			},
 		},

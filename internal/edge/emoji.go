@@ -7,21 +7,26 @@ import (
 )
 
 type emojiResponse struct {
-	BaseResponse
+	baseResponse
 	EmojiResult
 	CustomEmojiTotalCount int64  `json:"custom_emoji_total_count"`
 	Paging                Paging `json:"paging"`
 }
 
+// EmojiResult is a subset of the response from the emoji.adminList API.
 type EmojiResult struct {
-	Emoji         []Emoji `json:"emoji"`
+	// Emoji is the list of custom emoji.
+	Emoji []Emoji `json:"emoji"`
+	// DisabledEmoji is the list of disabled custom emoji (supposedly).
 	DisabledEmoji []Emoji `json:"disabled_emoji,omitempty"`
-	Total         int
+	// Total is the total number of custom emoji.
+	Total int
 }
 
+// Emoji represents a custom emoji as read by the Client API.
 type Emoji struct {
 	Name            string   `json:"name"`
-	IsAlias         int64    `json:"is_alias,omitempty"`
+	IsAlias         int      `json:"is_alias,omitempty"`
 	AliasFor        string   `json:"alias_for,omitempty"`
 	URL             string   `json:"url"`
 	TeamID          string   `json:"team_id,omitempty"`

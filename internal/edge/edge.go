@@ -140,13 +140,13 @@ type BaseRequest struct {
 	Token string `json:"token"`
 }
 
-type BaseResponse struct {
+type baseResponse struct {
 	Ok               bool             `json:"ok"`
 	Error            string           `json:"error,omitempty"`
 	ResponseMetadata ResponseMetadata `json:"response_metadata,omitempty"`
 }
 
-func (r BaseResponse) validate(ep string) error {
+func (r baseResponse) validate(ep string) error {
 	if !r.Ok {
 		return &APIError{Err: r.Error, Metadata: r.ResponseMetadata, Endpoint: ep}
 	}

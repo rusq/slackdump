@@ -17,7 +17,7 @@ type filesListForm struct {
 }
 
 type filesListResponse struct {
-	BaseResponse
+	baseResponse
 	Files []slack.File `json:"files"`
 	Pagination
 }
