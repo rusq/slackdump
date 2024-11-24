@@ -22,6 +22,17 @@ func wizard(ctx context.Context, cmd *base.Command, args []string) error {
 func (o *options) configuration() cfgui.Configuration {
 	return cfgui.Configuration{
 		cfgui.ParamGroup{
+			Name: "API Options",
+			Params: []cfgui.Parameter{
+				{
+					Name:        "Full Emoji Information",
+					Value:       cfgui.Checkbox(o.fullInfo),
+					Description: "Uses edge API to fetch full emoji information, including usernames",
+					Updater:     updaters.NewBool(&o.fullInfo),
+				},
+			},
+		},
+		cfgui.ParamGroup{
 			Name: "Download Options",
 			Params: []cfgui.Parameter{
 				{

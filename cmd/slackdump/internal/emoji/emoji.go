@@ -2,6 +2,7 @@ package emoji
 
 import (
 	"context"
+	_ "embed"
 	"fmt"
 
 	"github.com/rusq/fsadapter"
@@ -14,12 +15,15 @@ import (
 	"github.com/rusq/slackdump/v3/internal/edge"
 )
 
+//go:embed assets/emoji.md
+var emojiMD string
+
 var CmdEmoji = &base.Command{
 	Run:         run,
 	UsageLine:   "slackdump emoji [flags]",
-	Short:       "download workspace emojis",
-	Long:        "", // TODO: add long description
-	FlagMask:    cfg.OmitDownloadFlag | cfg.OmitConfigFlag,
+	Short:       "download custom workspace emojis",
+	Long:        emojiMD, // TODO: add long description
+	FlagMask:    cfg.OmitDownloadFlag | cfg.OmitConfigFlag | cfg.OmitChunkCacheFlag | cfg.OmitUserCacheFlag,
 	RequireAuth: true,
 	PrintFlags:  true,
 }
@@ -37,7 +41,7 @@ var cmdFlags = options{
 func init() {
 	CmdEmoji.Wizard = wizard
 	CmdEmoji.Flag.BoolVar(&cmdFlags.ignoreErrors, "ignore-errors", true, "ignore download errors (skip failed emojis)")
-	CmdEmoji.Flag.BoolVar(&cmdFlags.fullInfo, "full-info", true, "fetch emojis using Edge API to get full emoji information, including usernames")
+	CmdEmoji.Flag.BoolVar(&cmdFlags.fullInfo, "full-info", false, "fetch emojis using Edge API to get full emoji information, including usernames")
 }
 
 func run(ctx context.Context, cmd *base.Command, args []string) error {

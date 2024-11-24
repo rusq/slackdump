@@ -17,9 +17,10 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
+	"github.com/charmbracelet/glamour"
 	"golang.org/x/term"
-	"src.elv.sh/pkg/md"
+
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 )
 
 var CmdName string
@@ -170,22 +171,24 @@ func Executable() string {
 // escape sequences for the terminal output.  The width of output is calculated
 // based on the terminal width.
 func Render(s string) string {
-	const (
-		defWidth = 80
-	)
-	width, _, err := term.GetSize(int(os.Stdout.Fd()))
+	_, _, err := term.GetSize(int(os.Stdout.Fd()))
 	if err != nil {
 		// we're not running in the terminal, output the markdown source.
 		return s
 	}
-	if width < 40 {
-		width = defWidth
+	return renderGlam(s)
+}
+
+func renderGlam(s string) string {
+	r, err := glamour.NewTermRenderer(glamour.WithAutoStyle())
+	if err != nil {
+		return s
 	}
+	defer r.Close()
 
-	return md.RenderString(s, &md.TTYCodec{Width: width - 2})
-
-	// heavy-weight alternative:
-	// leftIndent := int(float64(width) * 0.075)
-	// rightIndent := int(float64(width) * 0.02)
-	// return string(markdown.Render(s, width-rightIndent, leftIndent))
+	out, err := r.Render(s)
+	if err != nil {
+		return s
+	}
+	return out
 }
