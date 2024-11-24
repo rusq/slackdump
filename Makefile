@@ -11,7 +11,7 @@ PKG=github.com/rusq/slackdump/v3
 
 LDFLAGS="-s -w -X 'main.commit=$(COMMIT)' -X 'main.version=$(BUILD)' -X 'main.date=$(BUILD_DATE)'"
 OSES=linux darwin windows
-DISTFILES=README.rst LICENSE
+DISTFILES=README.md LICENSE
 ZIPFILES=$(foreach s,$(OSES),$(OUTPUT)-$s.zip)
 
 
@@ -60,11 +60,6 @@ aurtest:
 
 docker_test:
 	docker build .
-
-man: slackdump.1
-
-slackdump.1: README.rst
-	rst2man.py $< $@ --syntax-highlight=none
 
 callvis:
 	go-callvis -group pkg,type -limit $(PKG) $(PKG)/cmd/slackdump
