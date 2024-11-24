@@ -11,6 +11,7 @@ import (
 	"runtime/trace"
 
 	"github.com/rusq/slack"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/slackdump/v3"
@@ -128,10 +129,33 @@ func (se *Export) exclusiveExport(ctx context.Context, uidx structures.UserIndex
 			se.lg.InfoContext(ctx, "skipping (excluded)", "channel_id", ch.ID)
 			return nil
 		}
-		if err := se.exportConversation(ctx, uidx, ch); err != nil {
+
+		var eg errgroup.Group
+
+		// 1. get members
+		var members []string
+		eg.Go(func() error {
+			var err error
+			members, err = se.sd.GetChannelMembers(ctx, ch.ID)
+			if err != nil {
+				return fmt.Errorf("error getting info for %s: %w", ch.ID, err)
+			}
+			return nil
+		})
+
+		// 2. export conversation
+		eg.Go(func() error {
+			if err := se.exportConversation(ctx, uidx, ch); err != nil {
+				return fmt.Errorf("error exporting conversation %s: %w", ch.ID, err)
+			}
+			return nil
+		})
+
+		// wait for both to finish
+		if err := eg.Wait(); err != nil {
 			return err
 		}
-
+		ch.Members = members
 		chans = append(chans, ch)
 		return nil
 
@@ -174,10 +198,29 @@ func (se *Export) inclusiveExport(ctx context.Context, uidx structures.UserIndex
 			return nil, fmt.Errorf("error getting info for %s: %w", sl, err)
 		}
 
-		if err := se.exportConversation(ctx, uidx, *ch); err != nil {
+		var eg errgroup.Group
+		var members []string
+		eg.Go(func() error {
+			var err error
+			members, err = se.sd.GetChannelMembers(ctx, ch.ID)
+			if err != nil {
+				return fmt.Errorf("error getting members for %s: %w", sl, err)
+			}
+			return nil
+		})
+
+		eg.Go(func() error {
+			if err := se.exportConversation(ctx, uidx, *ch); err != nil {
+				return fmt.Errorf("error exporting convesation %s: %w", ch.ID, err)
+			}
+			return nil
+		})
+
+		if err := eg.Wait(); err != nil {
 			return nil, err
 		}
 
+		ch.Members = members
 		chans = append(chans, *ch)
 	}
 
