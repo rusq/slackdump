@@ -16,7 +16,7 @@ import (
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 )
 
-var dmdEzTest = &base.Command{
+var cmdEzTest = &base.Command{
 	Run:       runEzLoginTest,
 	UsageLine: "slack tools eztest",
 	Short:     "EZ-Login 3000 test",
@@ -57,13 +57,13 @@ type eztestOpts struct {
 var eztestFlags eztestOpts
 
 func init() {
-	dmdEzTest.Flag.Usage = func() {
+	cmdEzTest.Flag.Usage = func() {
 		fmt.Fprint(os.Stdout, "usage: slackdump tools eztest [flags]\n\nFlags:\n")
-		dmdEzTest.Flag.PrintDefaults()
+		cmdEzTest.Flag.PrintDefaults()
 	}
-	dmdEzTest.Flag.BoolVar(&eztestFlags.printCreds, "p", false, "print credentials")
-	dmdEzTest.Flag.BoolVar(&eztestFlags.legacy, "legacy-browser", false, "run with playwright")
-	dmdEzTest.Flag.StringVar(&eztestFlags.wsp, "w", "", "Slack `workspace` to login to.")
+	cmdEzTest.Flag.BoolVar(&eztestFlags.printCreds, "p", false, "print credentials")
+	cmdEzTest.Flag.BoolVar(&eztestFlags.legacy, "legacy-browser", false, "run with playwright")
+	cmdEzTest.Flag.StringVar(&eztestFlags.wsp, "w", "", "Slack `workspace` to login to.")
 }
 
 func runEzLoginTest(ctx context.Context, cmd *base.Command, args []string) error {

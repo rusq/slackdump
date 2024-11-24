@@ -12,9 +12,9 @@ import (
 	"github.com/rusq/slackdump/v3/internal/chunk/obfuscate"
 )
 
-// dmdObfuscate is the command to obfuscate sensitive data in a slackdump
+// cmdObfuscate is the command to obfuscate sensitive data in a slackdump
 // recording.
-var dmdObfuscate = &base.Command{
+var cmdObfuscate = &base.Command{
 	UsageLine: "slackdump tools obfuscate [options] [input] [output]",
 	Short:     "obfuscate sensitive data in a slackdump recording",
 	Long: `
@@ -36,10 +36,10 @@ var obfparam struct {
 }
 
 func init() {
-	dmdObfuscate.Run = runObfuscate
+	cmdObfuscate.Run = runObfuscate
 
-	dmdObfuscate.Flag.BoolVar(&obfparam.overwrite, "f", false, "force overwrite")
-	dmdObfuscate.Flag.Int64Var(&obfparam.seed, "seed", time.Now().UnixNano(), "seed for the random number generator")
+	cmdObfuscate.Flag.BoolVar(&obfparam.overwrite, "f", false, "force overwrite")
+	cmdObfuscate.Flag.Int64Var(&obfparam.seed, "seed", time.Now().UnixNano(), "seed for the random number generator")
 }
 
 const (
@@ -68,15 +68,15 @@ func objtype(name string) int {
 }
 
 func runObfuscate(ctx context.Context, cmd *base.Command, args []string) error {
-	if err := dmdObfuscate.Flag.Parse(args); err != nil {
+	if err := cmdObfuscate.Flag.Parse(args); err != nil {
 		return err
 	}
 
-	if dmdObfuscate.Flag.NArg() == 2 {
-		obfparam.input = dmdObfuscate.Flag.Arg(0)
-		obfparam.output = dmdObfuscate.Flag.Arg(1)
-	} else if dmdObfuscate.Flag.NArg() == 1 {
-		obfparam.input = dmdObfuscate.Flag.Arg(0)
+	if cmdObfuscate.Flag.NArg() == 2 {
+		obfparam.input = cmdObfuscate.Flag.Arg(0)
+		obfparam.output = cmdObfuscate.Flag.Arg(1)
+	} else if cmdObfuscate.Flag.NArg() == 1 {
+		obfparam.input = cmdObfuscate.Flag.Arg(0)
 		obfparam.output = "-"
 	} else {
 		obfparam.input = "-"
