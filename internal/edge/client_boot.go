@@ -57,7 +57,7 @@ func (r *ClientUserBootResponse) Marshal() ([]byte, error) {
 
 // "client.userBoot"
 type ClientUserBootResponse struct {
-	BaseResponse
+	baseResponse
 	Self                     Self              `json:"self"`
 	Team                     Team              `json:"team"`
 	IMs                      []IM              `json:"ims"`

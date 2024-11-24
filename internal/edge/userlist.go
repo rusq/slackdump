@@ -23,7 +23,7 @@ type UsersListRequest struct {
 type UsersListResponse struct {
 	Results    []User `json:"results"`
 	NextMarker string `json:"next_marker"` // pagination, marker value which must be used in the next request, if not empty.
-	BaseResponse
+	baseResponse
 }
 
 type User struct {
@@ -86,7 +86,7 @@ type UserInfoResponse struct {
 	FailedIDS   []string        `json:"failed_ids"`
 	PendingIDS  []string        `json:"pending_ids"`
 	CanInteract map[string]bool `json:"can_interact"`
-	BaseResponse
+	baseResponse
 }
 
 type UserInfo struct {
@@ -170,7 +170,7 @@ type ChannelsMembershipRequest struct {
 type ChannelsMembershipResponse struct {
 	Channel    string   `json:"channel"`
 	NonMembers []string `json:"non_members"`
-	BaseResponse
+	baseResponse
 }
 
 // ChannelsMembership calls channels/membership endpoint.
