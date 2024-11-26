@@ -8,7 +8,7 @@ import (
 )
 
 type options struct {
-	browserOpts
+	playwrightOptions
 	rodOpts
 	workspace string
 }
@@ -20,7 +20,7 @@ func BrowserWithAuthFlow(flow BrowserAuthUI) Option {
 		if flow == nil {
 			return
 		}
-		o.browserOpts.flow = flow
+		o.playwrightOptions.flow = flow
 	}
 }
 
@@ -32,7 +32,7 @@ func BrowserWithWorkspace(name string) Option {
 
 func BrowserWithBrowser(b browser.Browser) Option {
 	return func(o *options) {
-		o.browserOpts.browser = b
+		o.playwrightOptions.browser = b
 	}
 }
 
@@ -41,13 +41,13 @@ func BrowserWithTimeout(d time.Duration) Option {
 		if d < 0 {
 			return
 		}
-		o.browserOpts.loginTimeout = d
+		o.playwrightOptions.loginTimeout = d
 	}
 }
 
 func BrowserWithVerbose(b bool) Option {
 	return func(o *options) {
-		o.browserOpts.verbose = b
+		o.playwrightOptions.verbose = b
 	}
 }
 

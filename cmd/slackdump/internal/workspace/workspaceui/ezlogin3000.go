@@ -48,7 +48,7 @@ func playwrightLogin(ctx context.Context, mgr manager) error {
 		}
 		return err
 	}
-	prov, err := auth.NewBrowserAuth(ctx, auth.BrowserWithBrowser(brws))
+	prov, err := auth.NewPlaywrightAuth(ctx, auth.BrowserWithBrowser(brws))
 	if err != nil {
 		return err
 	}

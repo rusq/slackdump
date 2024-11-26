@@ -12,15 +12,18 @@ import (
 	"github.com/rusq/slackdump/v3/internal/structures"
 )
 
-var _ Provider = BrowserAuth{}
+var _ Provider = PlaywrightAuth{}
 var defaultFlow = &auth_ui.Huh{}
 
-type BrowserAuth struct {
+// PlaywrightAuth is the playwright browser authentication provider.
+//
+// Deprecated: Use the [RodAuth] provider instead.
+type PlaywrightAuth struct {
 	simpleProvider
 	opts options
 }
 
-type browserOpts struct {
+type playwrightOptions struct {
 	browser      browser.Browser
 	flow         BrowserAuthUI
 	loginTimeout time.Duration
@@ -35,10 +38,10 @@ type BrowserAuthUI interface {
 	Stop()
 }
 
-func NewBrowserAuth(ctx context.Context, opts ...Option) (BrowserAuth, error) {
-	var br = BrowserAuth{
+func NewPlaywrightAuth(ctx context.Context, opts ...Option) (PlaywrightAuth, error) {
+	var br = PlaywrightAuth{
 		opts: options{
-			browserOpts: browserOpts{
+			playwrightOptions: playwrightOptions{
 				flow:         defaultFlow,
 				browser:      browser.Bfirefox,
 				loginTimeout: browser.DefLoginTimeout,
@@ -49,7 +52,7 @@ func NewBrowserAuth(ctx context.Context, opts ...Option) (BrowserAuth, error) {
 		opt(&br.opts)
 	}
 	if IsDocker() {
-		return BrowserAuth{}, &Error{Err: ErrNotSupported, Msg: "browser auth is not supported in docker, use token/cookie auth instead"}
+		return PlaywrightAuth{}, &Error{Err: ErrNotSupported, Msg: "browser auth is not supported in docker, use token/cookie auth instead"}
 	}
 
 	if br.opts.workspace == "" {
