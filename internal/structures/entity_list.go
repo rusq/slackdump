@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"sort"
 	"strings"
 	"sync"
+	"time"
 )
 
 const (
@@ -17,6 +17,8 @@ const (
 	// for export or when downloading conversations.
 	excludePrefix = "^"
 	filePrefix    = "@"
+	timeSeparator = "|"
+	timeFmt       = "2006-01-02T15:04:05"
 
 	// maxFileEntries is the maximum non-empty entries that will be read from
 	// the file.
@@ -28,11 +30,19 @@ var (
 	ErrEmptyList   = errors.New("empty list")
 )
 
+type EntityItem struct {
+	Id      string
+	Oldest  time.Time
+	Latest  time.Time
+	Include bool
+}
+
 // EntityList is an Inclusion/Exclusion list
 type EntityList struct {
-	Include []string
-	Exclude []string
-	mu      sync.RWMutex
+	index       map[string]*EntityItem
+	mu          sync.RWMutex
+	hasIncludes bool
+	hasExcludes bool
 }
 
 func HasExcludePrefix(s string) bool {
@@ -81,20 +91,20 @@ func SplitEntryList(s string) []string {
 }
 
 // LoadEntityList creates an EntityList from a slice of IDs or URLs (entites).
-func LoadEntityList(filename string) (*EntityList, error) {
+func loadEntityIndex(filename string) (map[string]bool, error) {
 	f, err := os.Open(filename)
 	if err != nil {
 		return nil, err
 	}
 	defer f.Close()
-	return readEntityList(f, maxFileEntries)
+	return readEntityIndex(f, maxFileEntries)
 }
 
 // readEntityList is a rather naïve implementation that reads the entire file up
 // to maxEntries entities (empty lines are skipped), and populates the slice of
 // strings, which is then passed to NewEntityList.  On large lists it will
 // probably use a silly amount of memory.
-func readEntityList(r io.Reader, maxEntries int) (*EntityList, error) {
+func readEntityIndex(r io.Reader, maxEntries int) (map[string]bool, error) {
 	br := bufio.NewReader(r)
 	var elements []string
 	total := 0
@@ -124,42 +134,49 @@ func readEntityList(r io.Reader, maxEntries int) (*EntityList, error) {
 
 		total++
 	}
-	return NewEntityList(elements)
+	return buildEntryIndex(elements)
+}
+
+func getTimeTuple(item string) []string {
+	if strings.HasPrefix(item, filePrefix) {
+		return []string{item}
+	}
+	return strings.SplitN(item, timeSeparator, 3)
 }
 
 func (el *EntityList) fromIndex(index map[string]bool) {
+	el.index = make(map[string]*EntityItem, len(index))
+
 	el.mu.Lock()
 	defer el.mu.Unlock()
 
 	for ent, include := range index {
+		parts := getTimeTuple(ent)
+
+		item := &EntityItem{
+			Id:      parts[0],
+			Include: include,
+		}
+		if len(parts) > 1 {
+			item.Oldest, _ = time.Parse(timeFmt, parts[1])
+		}
+		if len(parts) == 3 {
+			item.Latest, _ = time.Parse(timeFmt, parts[2])
+		}
+
+		el.index[item.Id] = item
 		if include {
-			el.Include = append(el.Include, ent)
+			el.hasIncludes = true
 		} else {
-			el.Exclude = append(el.Exclude, ent)
+			el.hasExcludes = true
 		}
 	}
-	sort.Strings(el.Include)
-	sort.Strings(el.Exclude)
 }
 
 // Index returns a map where key is entity, and value show if the entity
 // should be processed (true) or not (false).
-func (el *EntityList) Index() EntityIndex {
-	if el == nil {
-		return map[string]bool{}
-	}
-
-	el.mu.RLock()
-	defer el.mu.RUnlock()
-
-	idx := make(map[string]bool, len(el.Include)+len(el.Exclude))
-	for _, v := range el.Include {
-		idx[v] = true
-	}
-	for _, v := range el.Exclude {
-		idx[v] = false
-	}
-	return idx
+func (el *EntityList) Index() map[string]*EntityItem {
+	return el.index
 }
 
 type EntityIndex map[string]bool
@@ -180,17 +197,17 @@ func (ei EntityIndex) IsIncluded(ent string) bool {
 
 // HasIncludes returns true if there's any included entities.
 func (el *EntityList) HasIncludes() bool {
-	return len(el.Include) > 0
+	return el.hasIncludes
 }
 
 // HasExcludes returns true if there's any excluded entities.
 func (el *EntityList) HasExcludes() bool {
-	return len(el.Exclude) > 0
+	return el.hasExcludes
 }
 
 // IsEmpty returns true if there's no entries in the list.
 func (el *EntityList) IsEmpty() bool {
-	return len(el.Include)+len(el.Exclude) == 0
+	return len(el.index) == 0
 }
 
 func buildEntryIndex(links []string) (map[string]bool, error) {
@@ -202,9 +219,10 @@ func buildEntryIndex(links []string) (map[string]bool, error) {
 		if ent == "" {
 			continue
 		}
+		parts := getTimeTuple(ent)
 		switch {
-		case HasExcludePrefix(ent):
-			trimmed := strings.TrimPrefix(ent, excludePrefix)
+		case HasExcludePrefix(parts[0]):
+			trimmed := strings.TrimPrefix(parts[0], excludePrefix)
 			if trimmed == "" {
 				continue
 			}
@@ -212,29 +230,31 @@ func buildEntryIndex(links []string) (map[string]bool, error) {
 			if err != nil {
 				return nil, err
 			}
-			excluded = append(excluded, sl.String())
-		case hasFilePrefix(ent):
-			trimmed := strings.TrimPrefix(ent, filePrefix)
+			parts[0] = sl.String()
+			excluded = append(excluded, strings.Join(parts, timeSeparator))
+		case hasFilePrefix(parts[0]):
+			trimmed := strings.TrimPrefix(parts[0], filePrefix)
 			if trimmed == "" {
 				continue
 			}
 			files = append(files, trimmed)
 		default:
 			// no prefix
-			sl, err := ParseLink(ent)
+			sl, err := ParseLink(parts[0])
 			if err != nil {
 				return nil, err
 			}
-			index[sl.String()] = true
+			parts[0] = sl.String()
+			index[strings.Join(parts, timeSeparator)] = true
 		}
 	}
 	// process files
 	for _, file := range files {
-		el, err := LoadEntityList(file)
+		index2, err := loadEntityIndex(file)
 		if err != nil {
 			return nil, err
 		}
-		for ent, include := range el.Index() {
+		for ent, include := range index2 {
 			if include {
 				index[ent] = true
 			} else {
@@ -253,9 +273,16 @@ func buildEntryIndex(links []string) (map[string]bool, error) {
 // is cancelled.
 func (el *EntityList) C(ctx context.Context) <-chan string {
 	ch := make(chan string)
+	var include []string
+	for ent, item := range el.index {
+		if item.Include {
+			include = append(include, ent)
+		}
+	}
+
 	go func() {
 		defer close(ch)
-		for _, ent := range el.Include {
+		for _, ent := range include {
 			select {
 			case <-ctx.Done():
 				return
