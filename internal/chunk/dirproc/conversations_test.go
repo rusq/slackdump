@@ -143,6 +143,51 @@ func TestConversations_Messages(t *testing.T) {
 			},
 			wantErr: true,
 		},
+		{
+			name: "empty message slice, not last",
+			fields: fields{
+				subproc:     nil,
+				recordFiles: false,
+				tf:          nil,
+			},
+			args: args{
+				ctx:        textCtx,
+				channelID:  "channelID",
+				numThreads: 0,
+				isLast:     false,
+				mm:         []slack.Message{},
+			},
+			expectFn: func(mt *Mocktracker, mh *Mockdatahandler) {
+				mt.EXPECT().Recorder(gomock.Any()).Return(mh, nil)
+				mh.EXPECT().Messages(gomock.Any(), "channelID", 0, false, []slack.Message{}).Return(nil)
+				mh.EXPECT().Add(0).Return(0)
+			},
+			wantErr: false,
+		},
+		{
+			name: "empty message slice, last",
+			fields: fields{
+				subproc:     nil,
+				recordFiles: false,
+				tf:          nil,
+			},
+			args: args{
+				ctx:        textCtx,
+				channelID:  "channelID",
+				numThreads: 0,
+				isLast:     true,
+				mm:         []slack.Message{},
+			},
+			expectFn: func(mt *Mocktracker, mh *Mockdatahandler) {
+				mt.EXPECT().Recorder(gomock.Any()).Return(mh, nil)
+				mh.EXPECT().Messages(gomock.Any(), "channelID", 0, true, []slack.Message{}).Return(nil)
+				mh.EXPECT().Add(0).Return(1)
+				mh.EXPECT().Dec().Return(0)
+				mt.EXPECT().RefCount(chunk.ToFileID("channelID", "", false)).Return(0)
+				mt.EXPECT().Unregister(chunk.ToFileID("channelID", "", false)).Return(nil)
+			},
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
