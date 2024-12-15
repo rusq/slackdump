@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"runtime/trace"
 
+	"github.com/charmbracelet/huh/spinner"
 	"github.com/rusq/chttp"
 	"github.com/rusq/slack"
 )
@@ -133,4 +134,16 @@ func (s simpleProvider) HTTPClient() (*http.Client, error) {
 func IsDocker() bool {
 	_, err := os.Stat("/.dockerenv")
 	return err == nil
+}
+
+func pleaseWait(ctx context.Context, msg string) func() {
+	sctx, stopSpinner := context.WithCancel(ctx)
+	go func() {
+		_ = spinner.New().
+			Type(spinner.Dots).
+			Title(msg).
+			Context(sctx).
+			Run()
+	}()
+	return stopSpinner
 }

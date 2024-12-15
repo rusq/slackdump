@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"os"
@@ -51,10 +52,12 @@ func New(workspace string, opts ...Option) (*Client, error) {
 	for _, opt := range opts {
 		opt(cl)
 	}
+
 	slog.Debug("New", "workspace", cl.workspace, "browser", cl.br, "timeout", cl.loginTimeout)
 	runopts := &playwright.RunOptions{
 		Browsers: []string{cl.br.String()},
 		Verbose:  cl.verbose,
+		Stdout:   io.Discard,
 	}
 	if err := installFn(runopts); err != nil {
 		if !strings.Contains(err.Error(), "could not run driver") || runtime.GOOS == "windows" {
