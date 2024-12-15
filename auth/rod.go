@@ -8,7 +8,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/charmbracelet/huh/spinner"
 	"github.com/rusq/slackauth"
 
 	"github.com/rusq/slackdump/v3/auth/auth_ui"
@@ -70,7 +69,8 @@ type browserAuthUIExt interface {
 	// them.
 	RequestCreds(ctx context.Context, w io.Writer, workspace string) (email string, passwd string, err error)
 	// ConfirmationCode should request the confirmation code from the user and
-	// return it.
+	// return it.  Callback function is called to indicate that the code is
+	// requested.
 	ConfirmationCode(email string) (code int, err error)
 }
 
@@ -154,18 +154,9 @@ func headlessFlow(ctx context.Context, cl *slackauth.Client, workspace string, u
 		return sp, fmt.Errorf("password cannot be empty")
 	}
 
-	sctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-	go func() {
-		_ = spinner.New().
-			Type(spinner.Dots).
-			Title("Logging in to Slack, it will take 25-40 seconds").
-			Context(sctx).
-			Run()
-	}()
-
+	stopSpinnerFn := pleaseWait(ctx, "Logging in to Slack, it will take 25-40 seconds")
 	var loginErr error
-	sp.Token, sp.Cookie, loginErr = cl.Headless(ctx, username, password)
+	sp.Token, sp.Cookie, loginErr = cl.Headless(ctx, username, password, stopSpinnerFn)
 	if loginErr != nil {
 		return sp, loginErr
 	}
