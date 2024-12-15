@@ -138,12 +138,18 @@ func IsDocker() bool {
 
 func pleaseWait(ctx context.Context, msg string) func() {
 	sctx, stopSpinner := context.WithCancel(ctx)
+	done := make(chan struct{})
 	go func() {
+		defer close(done)
 		_ = spinner.New().
 			Type(spinner.Dots).
 			Title(msg).
 			Context(sctx).
 			Run()
 	}()
-	return stopSpinner
+
+	return func() {
+		stopSpinner()
+		<-done
+	}
 }

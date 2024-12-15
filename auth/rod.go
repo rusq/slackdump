@@ -155,11 +155,11 @@ func headlessFlow(ctx context.Context, cl *slackauth.Client, workspace string, u
 	}
 
 	stopSpinnerFn := pleaseWait(ctx, "Logging in to Slack, it will take 25-40 seconds")
+	defer stopSpinnerFn()
 	var loginErr error
 	sp.Token, sp.Cookie, loginErr = cl.Headless(ctx, username, password, stopSpinnerFn)
 	if loginErr != nil {
 		return sp, loginErr
 	}
-
 	return
 }
