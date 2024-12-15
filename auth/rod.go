@@ -70,7 +70,8 @@ type browserAuthUIExt interface {
 	// them.
 	RequestCreds(ctx context.Context, w io.Writer, workspace string) (email string, passwd string, err error)
 	// ConfirmationCode should request the confirmation code from the user and
-	// return it.
+	// return it.  Callback function is called to indicate that the code is
+	// requested.
 	ConfirmationCode(email string) (code int, err error)
 }
 
@@ -154,8 +155,8 @@ func headlessFlow(ctx context.Context, cl *slackauth.Client, workspace string, u
 		return sp, fmt.Errorf("password cannot be empty")
 	}
 
-	sctx, cancel := context.WithCancel(ctx)
-	defer cancel()
+	sctx, stopSpinner := context.WithCancel(ctx)
+	defer stopSpinner()
 	go func() {
 		_ = spinner.New().
 			Type(spinner.Dots).
@@ -165,7 +166,7 @@ func headlessFlow(ctx context.Context, cl *slackauth.Client, workspace string, u
 	}()
 
 	var loginErr error
-	sp.Token, sp.Cookie, loginErr = cl.Headless(ctx, username, password)
+	sp.Token, sp.Cookie, loginErr = cl.Headless(ctx, username, password, stopSpinner)
 	if loginErr != nil {
 		return sp, loginErr
 	}
