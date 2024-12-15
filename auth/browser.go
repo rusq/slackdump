@@ -70,11 +70,26 @@ func NewPlaywrightAuth(ctx context.Context, opts ...Option) (PlaywrightAuth, err
 	}
 	slog.Info("Please wait while Playwright is initialising.")
 	slog.Info("If you're running it for the first time, it will take a couple of minutes...")
-
+	pwctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	go func(pwctx context.Context) {
+		ticker := time.NewTicker(10 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				slog.Info("Still initialising...")
+			case <-pwctx.Done():
+				return
+			}
+		}
+	}(pwctx)
 	auther, err := browser.New(br.opts.workspace, browser.OptBrowser(br.opts.browser), browser.OptTimeout(br.opts.loginTimeout), browser.OptVerbose(br.opts.verbose))
 	if err != nil {
 		return br, err
 	}
+	cancel()
+
 	token, cookies, err := auther.Authenticate(ctx)
 	if err != nil {
 		return br, err
