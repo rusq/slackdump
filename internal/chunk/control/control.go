@@ -119,7 +119,7 @@ func (c *Controller) Run(ctx context.Context, list *structures.EntityList) error
 	var (
 		wg    sync.WaitGroup
 		errC  = make(chan error, 1)
-		linkC = make(chan string)
+		linkC = make(chan structures.EntityItem)
 	)
 	// Generator of channel IDs.
 	{
@@ -206,19 +206,21 @@ func (c *Controller) Run(ctx context.Context, list *structures.EntityList) error
 	return nil
 }
 
-type linkFeederFunc func(ctx context.Context, links chan<- string, list *structures.EntityList) error
+type linkFeederFunc func(ctx context.Context, links chan<- structures.EntityItem, list *structures.EntityList) error
 
 // genChFromList feeds the channel IDs that it gets from the list to
 // the links channel.  It does not fetch the channel list from the api, so
 // it's blazing fast in comparison to apiChannelFeeder.  When needed, get the
 // channel information from the conversations chunk files (they contain the
 // chunk with channel information).
-func genChFromList(ctx context.Context, links chan<- string, list *structures.EntityList) error {
-	for _, ch := range list.Include {
-		select {
-		case <-ctx.Done():
-			return context.Cause(ctx)
-		case links <- ch:
+func genChFromList(ctx context.Context, links chan<- structures.EntityItem, list *structures.EntityList) error {
+	for _, entry := range list.Index() {
+		if entry.Include {
+			select {
+			case <-ctx.Done():
+				return context.Cause(ctx)
+			case links <- *entry:
+			}
 		}
 	}
 	return nil
@@ -229,21 +231,26 @@ func genChFromList(ctx context.Context, links chan<- string, list *structures.En
 // It does not account for "included".  It ignores the thread links in the
 // list.  It writes the channels to the tmpdir.
 func genChFromAPI(s Streamer, cd *chunk.Directory, memberOnly bool) linkFeederFunc {
-	return func(ctx context.Context, links chan<- string, list *structures.EntityList) error {
+	return func(ctx context.Context, links chan<- structures.EntityItem, list *structures.EntityList) error {
 		chIdx := list.Index()
 		chanproc, err := dirproc.NewChannels(cd, func(c []slack.Channel) error {
+		LOOP:
 			for _, ch := range c {
 				if memberOnly && !ch.IsMember {
 					continue
 				}
-				if chIdx.IsExcluded(ch.ID) {
-					continue
+				for _, entry := range chIdx {
+					if entry.Id == ch.ID && !entry.Include {
+						continue LOOP
+					}
 				}
-
 				select {
 				case <-ctx.Done():
 					return context.Cause(ctx)
-				case links <- ch.ID:
+				case links <- structures.EntityItem{
+					Id:      ch.ID,
+					Include: true,
+				}:
 				}
 			}
 			return nil

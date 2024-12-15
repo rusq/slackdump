@@ -12,6 +12,7 @@ import (
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/internal/chunk"
+	"github.com/rusq/slackdump/v3/internal/structures"
 )
 
 var cmdRecord = &base.Command{
@@ -80,7 +81,7 @@ func runRecord(ctx context.Context, _ *base.Command, args []string) error {
 	for _, ch := range args {
 		lg := cfg.Log.With("channel_id", ch)
 		lg.InfoContext(ctx, "streaming")
-		if err := sess.Stream().SyncConversations(ctx, rec, ch); err != nil {
+		if err := sess.Stream().SyncConversations(ctx, rec, structures.EntityItem{Id: ch}); err != nil {
 			if err2 := rec.Close(); err2 != nil {
 				base.SetExitStatus(base.SApplicationError)
 				return fmt.Errorf("error streaming channel %q: %w; error closing recorder: %v", ch, err, err2)

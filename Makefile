@@ -4,8 +4,10 @@ CMD=./cmd/slackdump
 OUTPUT=slackdump
 EXECUTABLE=slackdump
 BUILD=$(shell git describe --tags)
-BUILD_DATE=$(shell TZ=UTC date +%Y-%m-%d\ %H:%M:%SZ)
 COMMIT=$(shell git rev-parse --short HEAD)
+ifeq ($(BUILD_DATE),)
+	BUILD_DATE=$(shell TZ=UTC date -u '+%Y-%m-%d %H:%M:%SZ')
+endif
 
 PKG=github.com/rusq/slackdump/v3
 

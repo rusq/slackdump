@@ -2,7 +2,9 @@
 package structures
 
 import (
+	"reflect"
 	"testing"
+	"time"
 
 	"github.com/rusq/slackdump/v3/internal/fixtures"
 )
@@ -103,6 +105,42 @@ func TestExtractWorkspace(t *testing.T) {
 			}
 			if got != tt.want {
 				t.Errorf("ExtractWorkspace() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestNVLTime(t *testing.T) {
+	type args struct {
+		t   time.Time
+		def time.Time
+	}
+	tests := []struct {
+		name string
+		args args
+		want time.Time
+	}{
+		{
+			"t is zero",
+			args{
+				time.Time{},
+				time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC),
+			},
+			time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC),
+		},
+		{
+			"t is not zero",
+			args{
+				time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC),
+				time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC),
+			},
+			time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := NVLTime(tt.args.t, tt.args.def); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("nvlTime() = %v, want %v", got, tt.want)
 			}
 		})
 	}

@@ -14,10 +14,17 @@ var (
 	date    = "unknown"
 )
 
+func truncate(s string, n int) string {
+	if len(s) > n {
+		return s[:n]
+	}
+	return s
+}
+
 func init() {
 	cfg.Version = cfg.BuildInfo{
 		Version: version,
-		Commit:  commit,
+		Commit:  truncate(commit, 8), // to fit "Homebrew"
 		Date:    date,
 	}
 }

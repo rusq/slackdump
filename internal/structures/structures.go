@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
+	"time"
 )
 
 const (
@@ -55,4 +56,12 @@ func ExtractWorkspace(workspace string) (string, error) {
 	default:
 		return "", fmt.Errorf("invalid workspace: %s", workspace)
 	}
+}
+
+// NVLTime returns the default time if the given time is zero.
+func NVLTime(t time.Time, def time.Time) time.Time {
+	if t.IsZero() {
+		return def
+	}
+	return t
 }

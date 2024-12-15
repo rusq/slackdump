@@ -58,7 +58,7 @@ func TestChannelStream(t *testing.T) {
 	defer rec.Close()
 
 	cs := New(sd, &network.DefLimits)
-	if err := cs.SyncConversations(context.Background(), rec, testConversation); err != nil {
+	if err := cs.SyncConversations(context.Background(), rec, structures.EntityItem{Id: testConversation}); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -87,7 +87,7 @@ func TestRecorderStream(t *testing.T) {
 
 	rgnStream := trace.StartRegion(ctx, "Stream")
 	cs := New(sd, &network.NoLimits)
-	if err := cs.SyncConversations(ctx, rec, fixtures.ChunkFileChannelID); err != nil {
+	if err := cs.SyncConversations(ctx, rec, structures.EntityItem{Id: fixtures.ChunkFileChannelID}); err != nil {
 		t.Fatal(err)
 	}
 	rgnStream.End()
@@ -180,7 +180,7 @@ func Test_processThreadMessages(t *testing.T) {
 
 func Test_processLink(t *testing.T) {
 	type args struct {
-		link string
+		item structures.EntityItem
 	}
 	tests := []struct {
 		name              string
@@ -192,7 +192,7 @@ func Test_processLink(t *testing.T) {
 		{
 			name: "channel",
 			args: args{
-				link: "CTM1",
+				item: structures.EntityItem{Id: "CTM1"},
 			},
 			wantChanRequest: &request{
 				sl: &structures.SlackLink{
@@ -205,7 +205,7 @@ func Test_processLink(t *testing.T) {
 		{
 			name: "channel URL",
 			args: args{
-				link: "https://test.slack.com/archives/CHYLGDP0D",
+				item: structures.EntityItem{Id: "https://test.slack.com/archives/CHYLGDP0D"},
 			},
 			wantChanRequest: &request{
 				sl: &structures.SlackLink{
@@ -218,7 +218,7 @@ func Test_processLink(t *testing.T) {
 		{
 			name: "thread URL",
 			args: args{
-				link: "https://test.slack.com/archives/CHYLGDP0D/p1610000000000000",
+				item: structures.EntityItem{Id: "https://test.slack.com/archives/CHYLGDP0D/p1610000000000000"},
 			},
 			wantChanRequest: nil,
 			wantThreadRequest: &request{
@@ -233,7 +233,7 @@ func Test_processLink(t *testing.T) {
 		{
 			name: "thread Slackdump link URL",
 			args: args{
-				link: "CHYLGDP0D" + structures.LinkSep + "1577694990.000400",
+				item: structures.EntityItem{Id: "CHYLGDP0D" + structures.LinkSep + "1577694990.000400"},
 			},
 			wantChanRequest: nil,
 			wantThreadRequest: &request{
@@ -248,18 +248,58 @@ func Test_processLink(t *testing.T) {
 		{
 			"invalid link",
 			args{
-				link: "https://test.slack.com/archives/CHYLGDP0D/p1610000000000000/xxxx",
+				item: structures.EntityItem{Id: "https://test.slack.com/archives/CHYLGDP0D/p1610000000000000/xxxx"},
 			},
 			nil,
 			nil,
 			true,
+		},
+		{
+			name: "channel with oldest and latest set",
+			args: args{
+				item: structures.EntityItem{
+					Id:     "CTM1",
+					Oldest: time.Date(2021, 1, 7, 0, 0, 0, 0, time.UTC),
+					Latest: time.Date(2021, 1, 8, 0, 0, 0, 0, time.UTC),
+				},
+			},
+			wantChanRequest: &request{
+				sl: &structures.SlackLink{
+					Channel: "CTM1",
+				},
+				Oldest: time.Date(2021, 1, 7, 0, 0, 0, 0, time.UTC),
+				Latest: time.Date(2021, 1, 8, 0, 0, 0, 0, time.UTC),
+			},
+			wantThreadRequest: nil,
+			wantErr:           false,
+		},
+		{
+			name: "thread with oldest and latest set",
+			args: args{
+				item: structures.EntityItem{
+					Id:     "CTM1:1610000000.000000",
+					Oldest: time.Date(2021, 1, 7, 0, 0, 0, 0, time.UTC),
+					Latest: time.Date(2021, 1, 8, 0, 0, 0, 0, time.UTC),
+				},
+			},
+			wantChanRequest: nil,
+			wantThreadRequest: &request{
+				sl: &structures.SlackLink{
+					Channel:  "CTM1",
+					ThreadTS: "1610000000.000000",
+				},
+				threadOnly: true,
+				Oldest:     time.Date(2021, 1, 7, 0, 0, 0, 0, time.UTC),
+				Latest:     time.Date(2021, 1, 8, 0, 0, 0, 0, time.UTC),
+			},
+			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			chans := make(chan request, 1)
 			threads := make(chan request, 1)
-			if err := processLink(chans, threads, tt.args.link); (err != nil) != tt.wantErr {
+			if err := processLink(chans, threads, tt.args.item); (err != nil) != tt.wantErr {
 				t.Errorf("processLink() error = %v, wantErr %v", err, tt.wantErr)
 				return // otherwise will block
 			}

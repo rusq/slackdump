@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/rusq/slackdump/v3/internal/fixtures"
 )
@@ -57,7 +58,22 @@ func TestMakeEntityList(t *testing.T) {
 			"only includes",
 			args{[]string{"one", "two", "three"}},
 			&EntityList{
-				Include: []string{"one", "three", "two"},
+				index: map[string]*EntityItem{
+					"one": {
+						Id:      "one",
+						Include: true,
+					},
+					"three": {
+						Id:      "three",
+						Include: true,
+					},
+					"two": {
+						Id:      "two",
+						Include: true,
+					},
+				},
+				hasIncludes: true,
+				hasExcludes: false,
 			},
 			false,
 		},
@@ -65,7 +81,22 @@ func TestMakeEntityList(t *testing.T) {
 			"only excludes",
 			args{[]string{"^one", "^two", "^three"}},
 			&EntityList{
-				Exclude: []string{"one", "three", "two"},
+				index: map[string]*EntityItem{
+					"one": {
+						Id:      "one",
+						Include: false,
+					},
+					"three": {
+						Id:      "three",
+						Include: false,
+					},
+					"two": {
+						Id:      "two",
+						Include: false,
+					},
+				},
+				hasIncludes: false,
+				hasExcludes: true,
 			},
 			false,
 		},
@@ -73,8 +104,23 @@ func TestMakeEntityList(t *testing.T) {
 			"mixed",
 			args{[]string{"one", "^two", "three"}},
 			&EntityList{
-				Include: []string{"one", "three"},
-				Exclude: []string{"two"},
+				index: map[string]*EntityItem{
+
+					"one": {
+						Id:      "one",
+						Include: true,
+					},
+					"three": {
+						Id:      "three",
+						Include: true,
+					},
+					"two": {
+						Id:      "two",
+						Include: false,
+					},
+				},
+				hasIncludes: true,
+				hasExcludes: true,
 			},
 			false,
 		},
@@ -82,8 +128,22 @@ func TestMakeEntityList(t *testing.T) {
 			"same element included and excluded",
 			args{[]string{"one", "^two", "three", "two"}},
 			&EntityList{
-				Include: []string{"one", "three"},
-				Exclude: []string{"two"},
+				index: map[string]*EntityItem{
+					"one": {
+						Id:      "one",
+						Include: true,
+					},
+					"three": {
+						Id:      "three",
+						Include: true,
+					},
+					"two": {
+						Id:      "two",
+						Include: false,
+					},
+				},
+				hasIncludes: true,
+				hasExcludes: true,
 			},
 			false,
 		},
@@ -91,8 +151,22 @@ func TestMakeEntityList(t *testing.T) {
 			"duplicate element",
 			args{[]string{"one", "^two", "three", "one"}},
 			&EntityList{
-				Include: []string{"one", "three"},
-				Exclude: []string{"two"},
+				index: map[string]*EntityItem{
+					"one": {
+						Id:      "one",
+						Include: true,
+					},
+					"three": {
+						Id:      "three",
+						Include: true,
+					},
+					"two": {
+						Id:      "two",
+						Include: false,
+					},
+				},
+				hasIncludes: true,
+				hasExcludes: true,
 			},
 			false,
 		},
@@ -100,21 +174,97 @@ func TestMakeEntityList(t *testing.T) {
 			"empty element",
 			args{[]string{"one", "^two", "three", "", "four", "^"}},
 			&EntityList{
-				Include: []string{"four", "one", "three"},
-				Exclude: []string{"two"},
+				index: map[string]*EntityItem{
+
+					"four": {
+						Id:      "four",
+						Include: true,
+					},
+					"one": {
+						Id:      "one",
+						Include: true,
+					},
+					"three": {
+						Id:      "three",
+						Include: true,
+					},
+					"two": {
+						Id:      "two",
+						Include: false,
+					},
+				},
+				hasIncludes: true,
+				hasExcludes: true,
 			},
 			false,
 		},
 		{
 			"everything is empty",
 			args{[]string{}},
-			&EntityList{},
+			&EntityList{
+				index: map[string]*EntityItem{},
+			},
 			false,
 		},
 		{
 			"nil",
 			args{nil},
-			&EntityList{},
+			&EntityList{
+				index: map[string]*EntityItem{},
+			},
+			false,
+		},
+		{
+			"with date limits",
+			args{[]string{"one||", "^two||", "three|bad|2024-01-10T23:02:12", "four|2023-12-10T23:02:12|2024-01-10T23:02:12", "^five|2023-12-10T23:02:12|2024-01-10T23:02:12", "six|2023-12-10T23:02:12|2024-01-10T23:02:12||", "seven|2024-04-07T23:02:12"}},
+			&EntityList{
+				index: map[string]*EntityItem{
+					"one": {
+						Id:      "one",
+						Include: true,
+						Oldest:  time.Time{},
+						Latest:  time.Time{},
+					},
+					"two": {
+						Id:      "two",
+						Include: false,
+						Oldest:  time.Time{},
+						Latest:  time.Time{},
+					},
+					"three": {
+						Id:      "three",
+						Include: true,
+						Oldest:  time.Time{},
+						Latest:  time.Date(2024, time.January, 10, 23, 2, 12, 0, time.UTC),
+					},
+					"four": {
+						Id:      "four",
+						Include: true,
+						Oldest:  time.Date(2023, time.December, 10, 23, 2, 12, 0, time.UTC),
+						Latest:  time.Date(2024, time.January, 10, 23, 2, 12, 0, time.UTC),
+					},
+					"five": {
+						Id:      "five",
+						Include: false,
+						Oldest:  time.Date(2023, time.December, 10, 23, 2, 12, 0, time.UTC),
+						Latest:  time.Date(2024, time.January, 10, 23, 2, 12, 0, time.UTC),
+					},
+					"six": {
+						Id:      "six",
+						Include: true,
+						Oldest:  time.Date(2023, time.December, 10, 23, 2, 12, 0, time.UTC),
+						Latest:  time.Time{},
+					},
+					"seven": {
+						Id:      "seven",
+						Include: true,
+						Oldest:  time.Date(2024, time.April, 7, 23, 2, 12, 0, time.UTC),
+						Latest:  time.Time{},
+					},
+				},
+				hasIncludes: true,
+				hasExcludes: true,
+			},
 			false,
 		},
 	}
@@ -132,7 +282,7 @@ func TestMakeEntityList(t *testing.T) {
 	}
 }
 
-func Test_readEntityList(t *testing.T) {
+func Test_readEntityIndex(t *testing.T) {
 	type args struct {
 		r          io.Reader
 		maxEntries int
@@ -140,55 +290,65 @@ func Test_readEntityList(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    args
-		want    *EntityList
+		want    map[string]bool
 		wantErr bool
 	}{
 		{
 			"two lines one comment, no CR",
 			args{strings.NewReader("C555\n C123\n#C555\n^C321\n\t^C333"), maxFileEntries},
-			&EntityList{
-				Include: []string{"C123", "C555"},
-				Exclude: []string{"C321", "C333"},
+			map[string]bool{
+				"C123": true,
+				"C555": true,
+				"C321": false,
+				"C333": false,
 			},
 			false,
 		},
 		{
 			"two lines one comment",
 			args{strings.NewReader("C123\n#C555\n^C321\n"), maxFileEntries},
-			&EntityList{
-				Include: []string{"C123"},
-				Exclude: []string{"C321"},
+			map[string]bool{
+				"C123": true,
+				"C321": false,
 			},
 			false,
 		},
 		{
 			"last line comment",
 			args{strings.NewReader("C123\n #C555\n#C321\n"), maxFileEntries},
-			&EntityList{Include: []string{"C123"}},
+			map[string]bool{
+				"C123": true,
+			},
 			false,
 		},
 		{
 			"oneliner",
 			args{strings.NewReader("C321"), maxFileEntries},
-			&EntityList{Include: []string{"C321"}},
+			map[string]bool{
+				"C321": true,
+			},
 			false,
 		},
 		{
 			"oneliner url",
 			args{strings.NewReader("https://fake.slack.com/archives/CHM82GF99/p1577694990000400"), maxFileEntries},
-			&EntityList{Include: []string{"CHM82GF99" + LinkSep + "1577694990.000400"}},
+			map[string]bool{
+				"CHM82GF99" + LinkSep + "1577694990.000400": true,
+			},
 			false,
 		},
 		{
 			"excluded oneliner url",
 			args{strings.NewReader("^https://fake.slack.com/archives/CHM82GF99/p1577694990000400"), maxFileEntries},
-			&EntityList{Exclude: []string{"CHM82GF99" + LinkSep + "1577694990.000400"}},
+			map[string]bool{
+				"CHM82GF99" + LinkSep + "1577694990.000400": false,
+			},
 			false,
 		},
 		{
 			"empty file",
 			args{strings.NewReader(""), maxFileEntries},
-			&EntityList{},
+			map[string]bool{},
 			false,
 		},
 		{
@@ -206,34 +366,27 @@ func Test_readEntityList(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := readEntityList(tt.args.r, tt.args.maxEntries)
+			got, err := readEntityIndex(tt.args.r, tt.args.maxEntries)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("readEntityList() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("readEntityIndex() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("readEntityList() = %v, want %v", got, tt.want)
+				t.Errorf("readEntityIndex() = %v, want %v", got, tt.want)
 			}
 		})
 	}
 }
 
 func TestEntityList_Index(t *testing.T) {
-	type fields struct {
-		Include []string
-		Exclude []string
-	}
 	tests := []struct {
-		name   string
-		fields fields
-		want   EntityIndex
+		name string
+		args []string
+		want EntityIndex
 	}{
 		{
 			"simple",
-			fields{
-				Include: []string{"C123", "C234"},
-				Exclude: []string{"C456", "C567"},
-			},
+			[]string{"C123", "C234", "^C456", "^C567"},
 			EntityIndex{
 				"C123": true,
 				"C234": true,
@@ -243,10 +396,7 @@ func TestEntityList_Index(t *testing.T) {
 		},
 		{
 			"intersecting",
-			fields{
-				Include: []string{"C123", "C234"},
-				Exclude: []string{"C234", "C567"},
-			},
+			[]string{"C123", "C234", "^C234", "^C567"},
 			EntityIndex{
 				"C123": true,
 				"C234": false,
@@ -255,143 +405,132 @@ func TestEntityList_Index(t *testing.T) {
 		},
 		{
 			"nil",
-			fields{},
+			nil,
 			EntityIndex{},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			el := &EntityList{
-				Include: tt.fields.Include,
-				Exclude: tt.fields.Exclude,
-			}
-			if got := el.Index(); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("EntityList.Index() = %v, want %v", got, tt.want)
+			if el, err := NewEntityList(tt.args); err == nil {
+				index := el.Index()
+				for k, include := range tt.want {
+					if item, ok := index[k]; !ok || item.Include != include {
+						t.Errorf("EntityList.Index()[%v] = %v", k, include)
+					}
+				}
+			} else {
+				t.Errorf("EntityList.Index() = %v; error: %v", tt.want, err)
 			}
 		})
 	}
 }
 
 func TestEntityList_HasIncludes(t *testing.T) {
-	type fields struct {
-		Include []string
-		Exclude []string
-	}
 	tests := []struct {
-		name   string
-		fields fields
-		want   bool
+		name string
+		args []string
+		want bool
 	}{
 		{
 			"yes",
-			fields{Include: []string{"1"}},
+			[]string{"A1"},
 			true,
 		},
 		{
 			"no",
-			fields{Include: []string{}},
+			[]string{},
 			false,
 		},
 		{
 			"no",
-			fields{Exclude: []string{"2"}},
+			[]string{"^A2"},
 			false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			el := &EntityList{
-				Include: tt.fields.Include,
-				Exclude: tt.fields.Exclude,
-			}
-			if got := el.HasIncludes(); got != tt.want {
-				t.Errorf("EntityList.HasIncludes() = %v, want %v", got, tt.want)
+			if el, err := NewEntityList(tt.args); err == nil {
+				if got := el.HasIncludes(); got != tt.want {
+					t.Errorf("EntityList.HasIncludes() = %v, want %v", got, tt.want)
+				}
+			} else {
+				t.Errorf("EntityList.HasIncludes() = %v; error: %v", tt.want, err)
 			}
 		})
 	}
 }
 
 func TestEntityList_HasExcludes(t *testing.T) {
-	type fields struct {
-		Include []string
-		Exclude []string
-	}
 	tests := []struct {
-		name   string
-		fields fields
-		want   bool
+		name string
+		args []string
+		want bool
 	}{
 		{
 			"yes",
-			fields{Exclude: []string{"1"}},
+			[]string{"^A1"},
 			true,
 		},
 		{
 			"no",
-			fields{Exclude: []string{}},
+			[]string{},
 			false,
 		},
 		{
 			"no",
-			fields{Include: []string{"2"}},
+			[]string{"A2"},
 			false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			el := &EntityList{
-				Include: tt.fields.Include,
-				Exclude: tt.fields.Exclude,
-			}
-			if got := el.HasExcludes(); got != tt.want {
-				t.Errorf("EntityList.HasExcludes() = %v, want %v", got, tt.want)
+			if el, err := NewEntityList(tt.args); err == nil {
+				if got := el.HasExcludes(); got != tt.want {
+					t.Errorf("EntityList.HasExcludes() = %v, want %v", got, tt.want)
+				}
+			} else {
+				t.Errorf("EntityList.HasExcludes() = %v; error: %v", tt.want, err)
 			}
 		})
 	}
 }
 
 func TestEntityList_IsEmpty(t *testing.T) {
-	type fields struct {
-		Include []string
-		Exclude []string
-	}
+
 	tests := []struct {
-		name   string
-		fields fields
-		want   bool
+		name string
+		args []string
+		want bool
 	}{
 		{
 			"empty",
-			fields{},
+			[]string{},
 			true,
 		},
 		{
 			"not empty",
-			fields{Include: []string{"1"}},
+			[]string{"A1"},
 			false,
 		},
 		{
 			"not empty",
-			fields{Exclude: []string{"1"}},
+			[]string{"^A1"},
 			false,
 		},
 		{
 			"not empty",
-			fields{
-				Include: []string{"1"},
-				Exclude: []string{"2"},
-			},
+			[]string{"A1", "^A2"},
 			false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			el := &EntityList{
-				Include: tt.fields.Include,
-				Exclude: tt.fields.Exclude,
-			}
-			if got := el.IsEmpty(); got != tt.want {
-				t.Errorf("EntityList.IsEmpty() = %v, want %v", got, tt.want)
+			if el, err := NewEntityList(tt.args); err == nil {
+				if got := el.IsEmpty(); got != tt.want {
+					t.Errorf("EntityList.IsEmpty() = %v, want %v", got, tt.want)
+				}
+			} else {
+				t.Errorf("EntityList.IsEmpty() = %v; error: %v", tt.want, err)
 			}
 		})
 	}
@@ -449,6 +588,26 @@ func Test_buildEntityIndex(t *testing.T) {
 				"ANOTHER0INLINE0INCLUDE": true,
 				"SECOND0FILE0INCLUDE":    true,
 				"SECOND0FILE0EXCLUDE":    false,
+			},
+			false,
+		},
+		{
+			"with dates",
+			args{[]string{
+				"one||",
+				"^two||",
+				"three|bad|2024-01-10T23:02:12",
+				"four|2023-12-10T23:02:12|2024-01-10T23:02:12",
+				"^five|2023-12-10T23:02:12|2024-01-10T23:02:12",
+				"six|2023-12-10T23:02:12|2024-01-10T23:02:12||",
+			}},
+			map[string]bool{
+				"one||":                         true,
+				"two||":                         false,
+				"three|bad|2024-01-10T23:02:12": true,
+				"four|2023-12-10T23:02:12|2024-01-10T23:02:12":  true,
+				"five|2023-12-10T23:02:12|2024-01-10T23:02:12":  false,
+				"six|2023-12-10T23:02:12|2024-01-10T23:02:12||": true,
 			},
 			false,
 		},
@@ -510,8 +669,14 @@ func TestNewEntityListFromString(t *testing.T) {
 			"ok",
 			args{"C123 C234 ^C345 C456"},
 			&EntityList{
-				Include: []string{"C123", "C234", "C456"},
-				Exclude: []string{"C345"},
+				index: map[string]*EntityItem{
+					"C123": {Id: "C123", Include: true},
+					"C234": {Id: "C234", Include: true},
+					"C345": {Id: "C345", Include: false},
+					"C456": {Id: "C456", Include: true},
+				},
+				hasIncludes: true,
+				hasExcludes: true,
 			},
 			false,
 		},
@@ -525,7 +690,13 @@ func TestNewEntityListFromString(t *testing.T) {
 			"only includes",
 			args{"one two three"},
 			&EntityList{
-				Include: []string{"one", "three", "two"},
+				index: map[string]*EntityItem{
+					"one":   {Id: "one", Include: true},
+					"three": {Id: "three", Include: true},
+					"two":   {Id: "two", Include: true},
+				},
+				hasIncludes: true,
+				hasExcludes: false,
 			},
 			false,
 		},
@@ -533,7 +704,13 @@ func TestNewEntityListFromString(t *testing.T) {
 			"only excludes",
 			args{"^one ^two ^three"},
 			&EntityList{
-				Exclude: []string{"one", "three", "two"},
+				index: map[string]*EntityItem{
+					"one":   {Id: "one", Include: false},
+					"two":   {Id: "two", Include: false},
+					"three": {Id: "three", Include: false},
+				},
+				hasIncludes: false,
+				hasExcludes: true,
 			},
 			false,
 		},
@@ -541,8 +718,13 @@ func TestNewEntityListFromString(t *testing.T) {
 			"mixed",
 			args{"one ^two three"},
 			&EntityList{
-				Include: []string{"one", "three"},
-				Exclude: []string{"two"},
+				index: map[string]*EntityItem{
+					"one":   {Id: "one", Include: true},
+					"two":   {Id: "two", Include: false},
+					"three": {Id: "three", Include: true},
+				},
+				hasIncludes: true,
+				hasExcludes: true,
 			},
 			false,
 		},
@@ -550,8 +732,13 @@ func TestNewEntityListFromString(t *testing.T) {
 			"same element included and excluded",
 			args{"one ^two three two"},
 			&EntityList{
-				Include: []string{"one", "three"},
-				Exclude: []string{"two"},
+				index: map[string]*EntityItem{
+					"one":   {Id: "one", Include: true},
+					"two":   {Id: "two", Include: false},
+					"three": {Id: "three", Include: true},
+				},
+				hasIncludes: true,
+				hasExcludes: true,
 			},
 			false,
 		},
@@ -559,8 +746,13 @@ func TestNewEntityListFromString(t *testing.T) {
 			"duplicate element",
 			args{"one ^two three one"},
 			&EntityList{
-				Include: []string{"one", "three"},
-				Exclude: []string{"two"},
+				index: map[string]*EntityItem{
+					"one":   {Id: "one", Include: true},
+					"two":   {Id: "two", Include: false},
+					"three": {Id: "three", Include: true},
+				},
+				hasIncludes: true,
+				hasExcludes: true,
 			},
 			false,
 		},
@@ -568,8 +760,14 @@ func TestNewEntityListFromString(t *testing.T) {
 			"empty element",
 			args{"one ^two three  four ^"},
 			&EntityList{
-				Include: []string{"four", "one", "three"},
-				Exclude: []string{"two"},
+				index: map[string]*EntityItem{
+					"one":   {Id: "one", Include: true},
+					"two":   {Id: "two", Include: false},
+					"three": {Id: "three", Include: true},
+					"four":  {Id: "four", Include: true},
+				},
+				hasIncludes: true,
+				hasExcludes: true,
 			},
 			false,
 		},

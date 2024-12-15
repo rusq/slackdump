@@ -97,7 +97,7 @@ func (c AuthData) AuthProvider(ctx context.Context, workspace string, opts ...au
 	case ATRod:
 		return auth.NewRODAuth(ctx, opts...)
 	case ATPlaywright:
-		return auth.NewBrowserAuth(ctx, opts...)
+		return auth.NewPlaywrightAuth(ctx, opts...)
 	}
 	return nil, errors.New("internal error: unsupported auth type")
 }

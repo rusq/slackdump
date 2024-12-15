@@ -121,13 +121,21 @@ func (se *Export) exclusiveExport(ctx context.Context, uidx structures.UserIndex
 
 	chans := make([]slack.Channel, 0)
 
-	listIdx := el.Index()
+	items := el.Index()
 	// we need the current user to be able to build an index of DMs.
 	if err := se.sd.StreamChannels(ctx, slackdump.AllChanTypes, func(ch slack.Channel) error {
-		if listIdx.IsExcluded(ch.ID) {
-			trace.Logf(ctx, "info", "skipping %s", ch.ID)
-			se.lg.InfoContext(ctx, "skipping (excluded)", "channel_id", ch.ID)
-			return nil
+		item, ok := items[ch.ID]
+		if ok {
+			if !item.Include && item.Oldest.IsZero() && item.Latest.IsZero() {
+				trace.Logf(ctx, "info", "skipping %s", ch.ID)
+				slog.Info("skipping", "channel", ch.ID)
+				return nil
+			}
+		} else {
+			item = &structures.EntityItem{
+				Id:      ch.ID,
+				Include: true,
+			}
 		}
 
 		var eg errgroup.Group
@@ -145,7 +153,7 @@ func (se *Export) exclusiveExport(ctx context.Context, uidx structures.UserIndex
 
 		// 2. export conversation
 		eg.Go(func() error {
-			if err := se.exportConversation(ctx, uidx, ch); err != nil {
+			if err := se.exportConversation(ctx, uidx, ch, item); err != nil {
 				return fmt.Errorf("error exporting conversation %s: %w", ch.ID, err)
 			}
 			return nil
@@ -178,13 +186,11 @@ func (se *Export) inclusiveExport(ctx context.Context, uidx structures.UserIndex
 
 	// preallocate, some channels might be excluded, so this is optimistic
 	// allocation
-	chans := make([]slack.Channel, 0, len(list.Include))
-
-	elIdx := list.Index()
+	chans := make([]slack.Channel, 0, len(list.Index()))
 
 	// we need the current user to be able to build an index of DMs.
-	for _, entry := range list.Include {
-		if elIdx.IsExcluded(entry) {
+	for entry, item := range list.Index() {
+		if !item.Include && item.Oldest.IsZero() && item.Latest.IsZero() {
 			se.td(ctx, "info", "skipping %s", entry)
 			se.lg.InfoContext(ctx, "skipping (excluded)", "entry", entry)
 			continue
@@ -210,7 +216,7 @@ func (se *Export) inclusiveExport(ctx context.Context, uidx structures.UserIndex
 		})
 
 		eg.Go(func() error {
-			if err := se.exportConversation(ctx, uidx, *ch); err != nil {
+			if err := se.exportConversation(ctx, uidx, *ch, item); err != nil {
 				return fmt.Errorf("error exporting convesation %s: %w", ch.ID, err)
 			}
 			return nil
@@ -228,11 +234,13 @@ func (se *Export) inclusiveExport(ctx context.Context, uidx structures.UserIndex
 }
 
 // exportConversation exports one conversation.
-func (se *Export) exportConversation(ctx context.Context, userIdx structures.UserIndex, ch slack.Channel) error {
+func (se *Export) exportConversation(ctx context.Context, userIdx structures.UserIndex, ch slack.Channel, exportItem *structures.EntityItem) error {
 	ctx, task := trace.NewTask(ctx, "export.conversation")
 	defer task.End()
 
-	messages, err := se.sd.DumpRaw(ctx, ch.ID, se.opts.Oldest, se.opts.Latest, se.dl.ProcessFunc(validName(ch)))
+	eOldest := structures.NVLTime(exportItem.Oldest, se.opts.Oldest)
+	eLatest := structures.NVLTime(exportItem.Latest, se.opts.Latest)
+	messages, err := se.sd.DumpRaw(ctx, ch.ID, eOldest, eLatest, se.dl.ProcessFunc(validName(ch)))
 	if err != nil {
 		return fmt.Errorf("failed to dump %q (%s): %w", ch.Name, ch.ID, err)
 	}

@@ -1,3 +1,6 @@
+// Package browser provides the playwright browser authentication provider.
+//
+// Deprecated: Use the [auth.RodAuth] provider instead.
 package browser
 
 import (

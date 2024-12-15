@@ -7,6 +7,8 @@ import (
 	"log/slog"
 	"runtime/trace"
 
+	"github.com/rusq/slackdump/v3/internal/structures"
+
 	"github.com/rusq/slack"
 	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/internal/chunk/dirproc"
@@ -42,7 +44,7 @@ func userWorker(ctx context.Context, s Streamer, chunkdir *chunk.Directory, tf T
 	return nil
 }
 
-func conversationWorker(ctx context.Context, s Streamer, proc processor.Conversations, links <-chan string) error {
+func conversationWorker(ctx context.Context, s Streamer, proc processor.Conversations, links <-chan structures.EntityItem) error {
 	lg := slog.Default()
 	if err := s.Conversations(ctx, proc, links); err != nil {
 		if errors.Is(err, transform.ErrClosed) {

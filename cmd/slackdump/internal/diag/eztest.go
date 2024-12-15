@@ -114,7 +114,7 @@ func tryPlaywrightAuth(ctx context.Context, wsp string, populateCreds bool) ezRe
 		return ret
 	}
 
-	prov, err := auth.NewBrowserAuth(ctx, auth.BrowserWithWorkspace(wsp))
+	prov, err := auth.NewPlaywrightAuth(ctx, auth.BrowserWithWorkspace(wsp))
 	if err != nil {
 		ret.Err = ptr(err.Error())
 		return ret
