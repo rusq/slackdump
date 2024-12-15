@@ -37,12 +37,53 @@ type EntityItem struct {
 	Include bool
 }
 
+func (ei *EntityItem) String() string {
+	var sb strings.Builder
+	if !ei.Include {
+		sb.WriteString(excludePrefix)
+	}
+	sb.WriteString(ei.Id)
+	if !ei.Oldest.IsZero() {
+		sb.WriteString(timeSeparator)
+		sb.WriteString(ei.Oldest.Format(timeFmt))
+	}
+	if !ei.Latest.IsZero() {
+		sb.WriteString(timeSeparator)
+		sb.WriteString(ei.Latest.Format(timeFmt))
+	}
+	return sb.String()
+}
+
 // EntityList is an Inclusion/Exclusion list
 type EntityList struct {
 	index       map[string]*EntityItem
 	mu          sync.RWMutex
 	hasIncludes bool
 	hasExcludes bool
+}
+
+func (el *EntityList) IncludeCount() int {
+	el.mu.RLock()
+	defer el.mu.RUnlock()
+	var count int
+	for _, item := range el.index {
+		if item.Include {
+			count++
+		}
+	}
+	return count
+}
+
+func (el *EntityList) ExcludeCount() int {
+	el.mu.RLock()
+	defer el.mu.RUnlock()
+	var count int
+	for _, item := range el.index {
+		if !item.Include {
+			count++
+		}
+	}
+	return count
 }
 
 func HasExcludePrefix(s string) bool {
@@ -176,6 +217,8 @@ func (el *EntityList) fromIndex(index map[string]bool) {
 // Index returns a map where key is entity, and value show if the entity
 // should be processed (true) or not (false).
 func (el *EntityList) Index() map[string]*EntityItem {
+	el.mu.RLock()
+	defer el.mu.RUnlock()
 	return el.index
 }
 
@@ -271,12 +314,12 @@ func buildEntryIndex(links []string) (map[string]bool, error) {
 // C returns a channel where all included entries are streamed.
 // The channel is closed when all entries have been sent, or when the context
 // is cancelled.
-func (el *EntityList) C(ctx context.Context) <-chan string {
-	ch := make(chan string)
-	var include []string
-	for ent, item := range el.index {
+func (el *EntityList) C(ctx context.Context) <-chan EntityItem {
+	ch := make(chan EntityItem)
+	var include []EntityItem
+	for _, item := range el.Index() {
 		if item.Include {
-			include = append(include, ent)
+			include = append(include, *item)
 		}
 	}
 

@@ -3,6 +3,8 @@ package control
 import (
 	"context"
 
+	"github.com/rusq/slackdump/v3/internal/structures"
+
 	"github.com/rusq/slack"
 	"github.com/rusq/slackdump/v3/internal/chunk/dirproc"
 	"github.com/rusq/slackdump/v3/processor"
@@ -10,7 +12,7 @@ import (
 
 // Streamer is the interface for the API scraper.
 type Streamer interface {
-	Conversations(ctx context.Context, proc processor.Conversations, links <-chan string) error
+	Conversations(ctx context.Context, proc processor.Conversations, links <-chan structures.EntityItem) error
 	ListChannels(ctx context.Context, proc processor.Channels, p *slack.GetConversationsParameters) error
 	Users(ctx context.Context, proc processor.Users, opt ...slack.GetUsersOption) error
 	WorkspaceInfo(ctx context.Context, proc processor.WorkspaceInfo) error

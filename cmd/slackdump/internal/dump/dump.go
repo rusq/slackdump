@@ -120,8 +120,6 @@ func RunDump(ctx context.Context, _ *base.Command, args []string) error {
 		tmpl:          tmpl,
 		updatePath:    opts.updateLinks,
 		downloadFiles: cfg.DownloadFiles,
-		oldest:        time.Time(cfg.Oldest),
-		latest:        time.Time(cfg.Latest),
 	}
 
 	// leave the compatibility mode to the user, if the new version is playing
@@ -135,17 +133,15 @@ func RunDump(ctx context.Context, _ *base.Command, args []string) error {
 		base.SetExitStatus(base.SApplicationError)
 		return err
 	}
-	lg.InfoContext(ctx, "conversation dump finished", "count", len(p.list.Include), "took", time.Since(start))
+	lg.InfoContext(ctx, "conversation dump finished", "count", p.list.IncludeCount(), "took", time.Since(start))
 	return nil
 }
 
 type dumpparams struct {
 	list          *structures.EntityList // list of entities to dump
 	tmpl          *nametmpl.Template     // file naming template
-	oldest        time.Time
-	latest        time.Time
-	updatePath    bool // update filepath to point to the downloaded file?
-	downloadFiles bool // download files?
+	updatePath    bool                   // update filepath to point to the downloaded file?
+	downloadFiles bool                   // download files?
 }
 
 func (p *dumpparams) validate() error {
@@ -230,8 +226,8 @@ func dump(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, p dump
 	}()
 
 	if err := sess.Stream(
-		stream.OptOldest(p.oldest),
-		stream.OptLatest(p.latest),
+		stream.OptOldest(time.Time(cfg.Oldest)),
+		stream.OptLatest(time.Time(cfg.Latest)),
 		stream.OptResultFn(func(sr stream.Result) error {
 			if sr.Err != nil {
 				return sr.Err
@@ -257,8 +253,17 @@ func dump(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, p dump
 // dumpv2 is the obsolete version of dump (compatibility mode)
 // Deprecated: to be removed in v3.1.0.
 func dumpv2(ctx context.Context, sess *slackdump.Session, fs fsadapter.FS, p dumpparams) error {
-	for _, link := range p.list.Include {
-		conv, err := sess.Dump(ctx, link, p.oldest, p.latest)
+	items := p.list.Index()
+	for _, link := range items {
+		if !link.Include {
+			continue
+		}
+		conv, err := sess.Dump(
+			ctx,
+			link.Id,
+			structures.NVLTime(link.Oldest, time.Time(cfg.Oldest)),
+			structures.NVLTime(link.Latest, time.Time(cfg.Latest)),
+		)
 		if err != nil {
 			return err
 		}

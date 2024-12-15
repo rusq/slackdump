@@ -32,16 +32,12 @@ type exportFlags struct {
 	ExportStorageType fileproc.StorageType
 	MemberOnly        bool
 	ExportToken       string
-	Oldest            time.Time
-	Latest            time.Time
 }
 
 var (
 	compat  bool
 	options = exportFlags{
 		ExportStorageType: fileproc.STmattermost,
-		Oldest:            time.Time(cfg.Oldest),
-		Latest:            time.Time(cfg.Latest),
 	}
 )
 

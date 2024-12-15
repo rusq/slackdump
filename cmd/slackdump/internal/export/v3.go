@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"os"
+	"time"
 
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/slack"
@@ -66,8 +67,8 @@ func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, li
 	_ = pb.RenderBlank()
 
 	stream := sess.Stream(
-		stream.OptOldest(params.Oldest),
-		stream.OptLatest(params.Latest),
+		stream.OptOldest(time.Time(cfg.Oldest)),
+		stream.OptLatest(time.Time(cfg.Latest)),
 		stream.OptResultFn(func(sr stream.Result) error {
 			lg.DebugContext(ctx, "conversations", "sr", sr.String())
 			pb.Describe(sr.String())

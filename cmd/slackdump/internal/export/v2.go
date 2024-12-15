@@ -13,8 +13,8 @@ import (
 
 func exportV2(ctx context.Context, sess *slackdump.Session, fs fsadapter.FS, list *structures.EntityList, flags exportFlags) error {
 	config := export.Config{
-		Oldest:      time.Time(flags.Oldest),
-		Latest:      time.Time(flags.Latest),
+		Oldest:      time.Time(cfg.Oldest),
+		Latest:      time.Time(cfg.Latest),
 		Logger:      cfg.Log,
 		List:        list,
 		Type:        export.ExportType(flags.ExportStorageType),
