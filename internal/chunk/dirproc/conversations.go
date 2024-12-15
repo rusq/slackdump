@@ -124,7 +124,7 @@ func (cv *Conversations) ChannelInfo(ctx context.Context, ci *slack.Channel, thr
 	return r.ChannelInfo(ctx, ci, threadTS)
 }
 
-// Messages is called for each message that is retrieved.
+// Messages is called for each message slice that is retrieved.
 func (cv *Conversations) Messages(ctx context.Context, channelID string, numThreads int, isLast bool, mm []slack.Message) error {
 	ctx, task := trace.NewTask(ctx, "Messages")
 	defer task.End()

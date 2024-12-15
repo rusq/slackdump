@@ -2,7 +2,6 @@ package stream
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 	"runtime/trace"
@@ -296,7 +295,10 @@ func procChanMsg(ctx context.Context, proc processor.Conversations, threadC chan
 		}
 	}
 	if err := proc.Messages(ctx, channel.ID, len(trs), isLast, mm); err != nil {
-		return 0, fmt.Errorf("failed to process message chunk starting with id=%s (size=%d): %w", mm[0].Msg.Timestamp, len(mm), err)
+		if len(mm) == 0 {
+			return 0, fmt.Errorf("channel %s: failed to process empty message chunk: %w", channel.ID, err)
+		}
+		return 0, fmt.Errorf("channel %s: failed to process message chunk starting with id=%s (size=%d): %w", channel.ID, mm[0].Msg.Timestamp, len(mm), err)
 	}
 	for _, tr := range trs {
 		threadC <- tr
@@ -305,17 +307,23 @@ func procChanMsg(ctx context.Context, proc processor.Conversations, threadC chan
 }
 
 func procThreadMsg(ctx context.Context, proc processor.Conversations, channel *slack.Channel, threadTS string, threadOnly bool, isLast bool, msgs []slack.Message) error {
-	// extract files from thread messages
+	lg := slog.With("channel_id", channel.ID, "thread_ts", threadTS, "is_last", isLast, "msg_count", len(msgs))
 	if len(msgs) == 0 {
-		return errors.New("empty messages slice")
-	}
-	if err := procFiles(ctx, proc, channel, msgs[1:]...); err != nil {
-		return err
+		lg.Debug("empty thread messages")
+		return nil
 	}
 	// slack returns the thread starter as the first message with every
-	// call, so we use it as a parent message.
-	if err := proc.ThreadMessages(ctx, channel.ID, msgs[0], threadOnly, isLast, msgs[1:]); err != nil {
-		return fmt.Errorf("failed to process thread message id=%s, thread_ts=%s: %w", msgs[0].Msg.Timestamp, threadTS, err)
+	// call, so we use it as a head message.
+	head, rest := msgs[0], []slack.Message{}
+	if len(msgs) > 1 {
+		rest = msgs[1:]
+	}
+	// extract files from thread messages
+	if err := procFiles(ctx, proc, channel, rest...); err != nil {
+		return err
+	}
+	if err := proc.ThreadMessages(ctx, channel.ID, head, threadOnly, isLast, rest); err != nil {
+		return fmt.Errorf("failed to process thread message id=%s, thread_ts=%s: %w", head.Msg.Timestamp, threadTS, err)
 	}
 	return nil
 }
