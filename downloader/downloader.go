@@ -2,6 +2,7 @@ package downloader
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"hash/crc64"
 	"io"
@@ -12,9 +13,29 @@ import (
 	"sync"
 
 	"github.com/rusq/fsadapter"
+	"github.com/rusq/slack"
 	"github.com/rusq/slackdump/v3/internal/network"
 	"golang.org/x/time/rate"
 )
+
+const (
+	defRetries    = 3    // default number of retries if download fails
+	defNumWorkers = 4    // number of download processes
+	defLimit      = 5000 // default API limit, in events per second.
+	defFileBufSz  = 100  // default download channel buffer.
+)
+
+var (
+	ErrNoFS       = errors.New("fs adapter not initialised")
+	ErrNotStarted = errors.New("downloader not started")
+)
+
+// Downloader is the file downloader interface.  It exists primarily for mocking
+// in tests.
+type Downloader interface {
+	// GetFile retreives a given file from its private download URL
+	GetFile(downloadURL string, writer io.Writer) error
+}
 
 // Client is the instance of the downloader.
 type Client struct {
@@ -35,6 +56,13 @@ type Client struct {
 
 // Option is the function signature for the option functions.
 type Option func(*Client)
+
+// FilenameFunc is the file naming function that should return the output
+// filename for slack.File.
+type FilenameFunc func(*slack.File) string
+
+// Filename returns name of the file generated from the slack.File.
+var Filename FilenameFunc = stdFilenameFn
 
 // Limiter uses the initialised limiter instead of built in.
 func Limiter(l *rate.Limiter) Option {
@@ -291,4 +319,8 @@ func (c *Client) AsyncDownloader(ctx context.Context, queueC <-chan Request) (<-
 	}()
 
 	return done, nil
+}
+
+func stdFilenameFn(f *slack.File) string {
+	return fmt.Sprintf("%s-%s", f.ID, f.Name)
 }

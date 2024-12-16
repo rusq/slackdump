@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 
 	"github.com/rusq/fsadapter"
@@ -115,9 +116,14 @@ func (NoopDownloader) Download(fullpath string, url string) error {
 	return nil
 }
 
+type FileGetter interface {
+	// GetFile retreives a given file from its private download URL
+	GetFile(downloadURL string, writer io.Writer) error
+}
+
 // NewDownloader initializes the downloader and returns it, along with a
 // function that should be called to stop it.
-func NewDownloader(ctx context.Context, gEnabled bool, cl downloader.Downloader, fsa fsadapter.FS, lg *slog.Logger) (sdl Downloader, stop func()) {
+func NewDownloader(ctx context.Context, gEnabled bool, cl FileGetter, fsa fsadapter.FS, lg *slog.Logger) (sdl Downloader, stop func()) {
 	if !gEnabled {
 		return NoopDownloader{}, func() {}
 	} else {
