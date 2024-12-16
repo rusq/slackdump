@@ -78,15 +78,16 @@ func TestSession_pipeFiles(t *testing.T) {
 	})
 }
 
-func pipeTestSuite(t *testing.T, msgs []types.Message, dir string) []slack.File {
+func pipeTestSuite(t *testing.T, msgs []types.Message, dir string) []downloader.Request {
+	t.Helper()
 	var wg sync.WaitGroup
 
-	var got []slack.File
-	filesC := make(chan *slack.File)
-	go func(c <-chan *slack.File) {
+	var got []downloader.Request
+	filesC := make(chan downloader.Request)
+	go func(c <-chan downloader.Request) {
 		// catcher
 		for f := range c {
-			got = append(got, *f)
+			got = append(got, f)
 		}
 		wg.Done()
 	}(filesC)

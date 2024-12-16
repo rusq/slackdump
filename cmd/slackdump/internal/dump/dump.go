@@ -3,7 +3,6 @@ package dump
 import (
 	"context"
 	_ "embed"
-	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -26,7 +25,6 @@ import (
 	"github.com/rusq/slackdump/v3/internal/nametmpl"
 	"github.com/rusq/slackdump/v3/internal/structures"
 	"github.com/rusq/slackdump/v3/stream"
-	"github.com/rusq/slackdump/v3/types"
 )
 
 //go:embed assets/list_conversation.md
@@ -52,7 +50,6 @@ var ErrNothingToDo = errors.New("no conversations to dump, run \"slackdump help 
 
 type options struct {
 	nameTemplate string // NameTemplate is the template for the output file name.
-	compat       bool   // compatibility mode
 	updateLinks  bool   // update file links to point to the downloaded files
 }
 
@@ -61,7 +58,6 @@ var opts options
 // initDumpFlagset initializes the flagset for the dump command.
 func initDumpFlagset(fs *flag.FlagSet) {
 	fs.StringVar(&opts.nameTemplate, "ft", nametmpl.Default, "output file naming template.\n")
-	fs.BoolVar(&opts.compat, "compat", false, "v2 compatibility mode")
 	fs.BoolVar(&opts.updateLinks, "update-links", false, "update file links to point to the downloaded files.")
 }
 
@@ -125,11 +121,7 @@ func RunDump(ctx context.Context, _ *base.Command, args []string) error {
 	// leave the compatibility mode to the user, if the new version is playing
 	// tricks.
 	start := time.Now()
-	dumpFn := dump
-	if opts.compat {
-		dumpFn = dumpv2
-	}
-	if err := dumpFn(ctx, sess, fsa, p); err != nil {
+	if err := dump(ctx, sess, fsa, p); err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return err
 	}
@@ -248,44 +240,6 @@ func dump(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, p dump
 	}
 
 	return nil
-}
-
-// dumpv2 is the obsolete version of dump (compatibility mode)
-// Deprecated: to be removed in v3.1.0.
-func dumpv2(ctx context.Context, sess *slackdump.Session, fs fsadapter.FS, p dumpparams) error {
-	items := p.list.Index()
-	for _, link := range items {
-		if !link.Include {
-			continue
-		}
-		conv, err := sess.Dump(
-			ctx,
-			link.Id,
-			structures.NVLTime(link.Oldest, time.Time(cfg.Oldest)),
-			structures.NVLTime(link.Latest, time.Time(cfg.Latest)),
-		)
-		if err != nil {
-			return err
-		}
-		if err := writeJSON(ctx, fs, p.tmpl.Execute(conv), conv); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// writeJSON writes a Slackdump conversation conv to filename within fs.
-func writeJSON(ctx context.Context, fs fsadapter.FS, filename string, conv *types.Conversation) error {
-	_, task := trace.NewTask(ctx, "writeJSON")
-	defer task.End()
-
-	f, err := fs.Create(filename)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	return json.NewEncoder(f).Encode(conv)
 }
 
 var helpTmpl = template.Must(template.New("dumphelp").Parse(dumpMd))
