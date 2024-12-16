@@ -78,7 +78,8 @@ func TestWithRetry(t *testing.T) {
 		wantErr        bool
 		mustCompleteIn time.Duration // approximate runtime duration (within 2% threshold)
 	}{
-		{"no errors",
+		{
+			"no errors",
 			args{
 				context.Background(),
 				rate.NewLimiter(testRateLimit, 1),
@@ -90,7 +91,8 @@ func TestWithRetry(t *testing.T) {
 			false,
 			calcRunDuration(testRateLimit, 1), // 1/100 sec
 		},
-		{"generic error",
+		{
+			"generic error",
 			args{
 				context.Background(),
 				rate.NewLimiter(testRateLimit, 1),
@@ -102,7 +104,8 @@ func TestWithRetry(t *testing.T) {
 			true,
 			calcRunDuration(testRateLimit, 1),
 		},
-		{"3 retries, no error",
+		{
+			"3 retries, no error",
 			args{
 				context.Background(),
 				rate.NewLimiter(testRateLimit, 1),
@@ -112,7 +115,8 @@ func TestWithRetry(t *testing.T) {
 			false,
 			calcRunDuration(testRateLimit, 2),
 		},
-		{"3 retries, error on the second attempt",
+		{
+			"3 retries, error on the second attempt",
 			args{
 				context.Background(),
 				rate.NewLimiter(testRateLimit, 1),
@@ -122,7 +126,8 @@ func TestWithRetry(t *testing.T) {
 			true,
 			calcRunDuration(testRateLimit, 2),
 		},
-		{"rate limiter test 4 limited attempts, 100 ms each",
+		{
+			"rate limiter test 4 limited attempts, 100 ms each",
 			args{
 				context.Background(),
 				rate.NewLimiter(10.0, 1),
@@ -132,7 +137,8 @@ func TestWithRetry(t *testing.T) {
 			false,
 			calcRunDuration(10.0, 4),
 		},
-		{"should honour the value in the rate limit error",
+		{
+			"should honour the value in the rate limit error",
 			args{
 				context.Background(),
 				rate.NewLimiter(1000, 1),
@@ -142,7 +148,8 @@ func TestWithRetry(t *testing.T) {
 			false,
 			calcRunDuration(10.0, 4),
 		},
-		{"running out of retries",
+		{
+			"running out of retries",
 			args{
 				context.Background(),
 				rate.NewLimiter(10.0, 1),
@@ -152,7 +159,8 @@ func TestWithRetry(t *testing.T) {
 			true,
 			calcRunDuration(10.0, 4),
 		},
-		{"network error (#234)",
+		{
+			"network error (#234)",
 			args{
 				context.Background(),
 				rate.NewLimiter(10.0, 1),
@@ -180,17 +188,16 @@ func TestWithRetry(t *testing.T) {
 	}
 	t.Run("500 error handling", func(t *testing.T) {
 		t.Parallel()
-		waitFn = func(attempt int) time.Duration { return 50 * time.Millisecond }
+		setWaitFunc(func(attempt int) time.Duration { return 50 * time.Millisecond })
 		defer func() {
-			waitFn = cubicWait
+			setWaitFunc(cubicWait)
 		}()
 
-		var codes = []int{500, 502, 503, 504, 598}
+		codes := []int{500, 502, 503, 504, 598}
 		for _, code := range codes {
-			var thisCode = code
+			thisCode := code
 			// This test is to ensure that we handle 500 errors correctly.
 			t.Run(fmt.Sprintf("%d error", code), func(t *testing.T) {
-
 				const (
 					testRetryCount = 1
 					waitThreshold  = 100 * time.Millisecond
@@ -219,10 +226,9 @@ func TestWithRetry(t *testing.T) {
 				}
 
 				dur := time.Since(start)
-				if dur < waitFn(testRetryCount-1)-waitThreshold || waitFn(testRetryCount-1)+waitThreshold < dur {
-					t.Errorf("expected duration to be around %s, got %s", waitFn(testRetryCount), dur)
+				if dur < wait(testRetryCount-1)-waitThreshold || wait(testRetryCount-1)+waitThreshold < dur {
+					t.Errorf("expected duration to be around %s, got %s", wait(testRetryCount), dur)
 				}
-
 			})
 		}
 		t.Run("404 error", func(t *testing.T) {
@@ -261,7 +267,7 @@ func TestWithRetry(t *testing.T) {
 	})
 	t.Run("meaningful error message", func(t *testing.T) {
 		t.Parallel()
-		var errFunc = func() error {
+		errFunc := func() error {
 			return slack.StatusCodeError{Code: 500, Status: "Internal Server Error"}
 		}
 		err := WithRetry(context.Background(), rate.NewLimiter(1, 1), 1, errFunc)

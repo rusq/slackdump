@@ -36,6 +36,31 @@ var (
 	mu sync.RWMutex
 )
 
+func setWaitFunc(fn func(int) time.Duration) {
+	mu.Lock()
+	defer mu.Unlock()
+	waitFn = fn
+}
+
+func setNetWaitFunc(fn func(int) time.Duration) {
+	mu.Lock()
+	defer mu.Unlock()
+
+	netWaitFn = fn
+}
+
+func wait(n int) time.Duration {
+	mu.RLock()
+	defer mu.RUnlock()
+	return waitFn(n)
+}
+
+func netWait(n int) time.Duration {
+	mu.RLock()
+	defer mu.RUnlock()
+	return netWaitFn(n)
+}
+
 // ErrRetryFailed is returned if number of retry attempts exceeded the retry attempts limit and
 // function wasn't able to complete without errors.
 type ErrRetryFailed struct {
@@ -100,7 +125,7 @@ func WithRetry(ctx context.Context, lim *rate.Limiter, maxAttempts int, fn func(
 		case errors.As(cbErr, &sce):
 			if isRecoverable(sce.Code) {
 				// possibly transient error
-				delay := waitFn(attempt)
+				delay := wait(attempt)
 				slog.WarnContext(ctx, "got server error, sleeping", "status_code", sce.Code, "error", cbErr, "delay", delay.String())
 				tracelogf(ctx, "info", "got server error %d, sleeping %s (%s)", sce.Code, delay, cbErr)
 				time.Sleep(delay)
@@ -109,7 +134,7 @@ func WithRetry(ctx context.Context, lim *rate.Limiter, maxAttempts int, fn func(
 		case errors.As(cbErr, &ne):
 			if ne.Op == "read" || ne.Op == "write" {
 				// possibly transient error
-				delay := netWaitFn(attempt)
+				delay := netWait(attempt)
 				slog.WarnContext(ctx, "got network error, sleeping", "op", ne.Op, "error", cbErr, "delay", delay.String())
 				tracelogf(ctx, "info", "got network error %s on %q, sleeping %s", cbErr, ne.Op, delay)
 				time.Sleep(delay)
