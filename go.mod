@@ -30,7 +30,7 @@ require (
 	github.com/rusq/osenv/v2 v2.0.1
 	github.com/rusq/rbubbles v0.0.2
 	github.com/rusq/slack v0.9.6-0.20241117083852-278084780c45
-	github.com/rusq/slackauth v0.6.0
+	github.com/rusq/slackauth v0.6.1
 	github.com/rusq/tagops v0.0.2
 	github.com/rusq/tracer v1.0.1
 	github.com/schollz/progressbar/v3 v3.17.1
