@@ -45,8 +45,13 @@ func TestSession_pipeFiles(t *testing.T) {
 	)
 
 	t.Run("ensure all files make it to channel", func(t *testing.T) {
-		want := []slack.File{
-			file1, file2, file3, file4, file5, file6,
+		want := []downloader.Request{
+			{Fullpath: "test/f1-filename1.ext", URL: file1.URLPrivateDownload},
+			{Fullpath: "test/f2-filename2.ext", URL: file2.URLPrivateDownload},
+			{Fullpath: "test/f3-filename3.ext", URL: file3.URLPrivateDownload},
+			{Fullpath: "test/f4-filename4.ext", URL: file4.URLPrivateDownload},
+			{Fullpath: "test/f5-filename5.ext", URL: file5.URLPrivateDownload},
+			{Fullpath: "test/f6-filename6.ext", URL: file6.URLPrivateDownload},
 		}
 		msgs := []types.Message{testFileMsg1, testFileMsg2}
 		got := pipeTestSuite(t, msgs, "test")

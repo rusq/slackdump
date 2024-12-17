@@ -2,7 +2,9 @@ package downloader
 
 import (
 	"log/slog"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/rusq/slackdump/v3/internal/fixtures"
 	"github.com/stretchr/testify/assert"
@@ -83,4 +85,52 @@ func makeFileReqQ(numReq int) []Request {
 		reqQ[i] = Request{Fullpath: fixtures.RandString(8), URL: fixtures.RandString(16)}
 	}
 	return reqQ
+}
+
+func TestClient_Stop(t *testing.T) {
+	t.Run("already stopped", func(t *testing.T) {
+		c := &Client{
+			requests: make(chan Request),
+			wg:       new(sync.WaitGroup),
+			options:  options{lg: slog.Default()},
+		}
+		c.started.Store(true)
+		c.Stop()
+		assert.False(t, c.started.Load(), "expected started to be false")
+		// shouldn't panic because the channel is closed
+		assert.NotPanics(t, c.Stop)
+		assert.False(t, c.started.Load(), "expected started to be false")
+	})
+}
+
+func TestClient_Download(t *testing.T) {
+	t.Run("not started", func(t *testing.T) {
+		c := &Client{
+			requests: make(chan Request),
+
+			wg:      new(sync.WaitGroup),
+			options: options{lg: slog.Default()},
+		}
+		err := c.Download("x/file", "http://example.com")
+		assert.Error(t, err, "expected error")
+	})
+	t.Run("started", func(t *testing.T) {
+		requests := make(chan Request, 1)
+		c := &Client{
+			requests: requests,
+			wg:       new(sync.WaitGroup),
+			options:  options{lg: slog.Default()},
+		}
+		c.started.Store(true)
+		err := c.Download("x/file", "http://example.com")
+		assert.NoError(t, err, "expected no error")
+		tm := time.NewTicker(1 * time.Second)
+		select {
+		case <-tm.C:
+			t.Fatal("expected request to be sent")
+		case r := <-requests:
+			assert.Equal(t, Request{Fullpath: "x/file", URL: "http://example.com"}, r, "expected request to be sent")
+		}
+
+	})
 }
