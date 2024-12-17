@@ -50,12 +50,6 @@ func (o *options) configuration() cfgui.Configuration {
 					}),
 				},
 				{
-					Name:        "V2 Compatibility mode",
-					Value:       cfgui.Checkbox(o.compat),
-					Description: "Use V2 compatibility mode (slower)",
-					Updater:     updaters.NewBool(&o.compat),
-				},
-				{
 					Name:        "Update links",
 					Value:       cfgui.Checkbox(o.updateLinks),
 					Description: "Update file links to point to the downloaded files",

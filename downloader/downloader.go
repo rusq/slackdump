@@ -2,6 +2,7 @@ package downloader
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"hash/crc64"
 	"io"
@@ -10,35 +11,68 @@ import (
 	"path"
 	"runtime/trace"
 	"sync"
+	"sync/atomic"
 
 	"github.com/rusq/fsadapter"
+	"github.com/rusq/slack"
 	"github.com/rusq/slackdump/v3/internal/network"
 	"golang.org/x/time/rate"
 )
 
+const (
+	defRetries    = 3    // default number of retries if download fails
+	defNumWorkers = 4    // number of download processes
+	defLimit      = 5000 // default API limit, in events per second.
+	defFileBufSz  = 100  // default download channel buffer.
+)
+
+var (
+	ErrNoFS       = errors.New("fs adapter not initialised")
+	ErrNotStarted = errors.New("downloader not started")
+)
+
+// Downloader is the file downloader interface.  It exists primarily for mocking
+// in tests.
+type Downloader interface {
+	// GetFile retreives a given file from its private download URL
+	GetFile(downloadURL string, writer io.Writer) error
+}
+
 // Client is the instance of the downloader.
 type Client struct {
-	sc      Downloader
-	limiter *rate.Limiter
-	fsa     fsadapter.FS
-	lg      *slog.Logger
+	sc  Downloader
+	fsa fsadapter.FS
 
-	retries int
-	workers int
+	requests chan Request
+	wg       *sync.WaitGroup
 
-	mu        sync.Mutex // mutex prevents race condition when starting/stopping
-	requests  chan Request
-	chanBufSz int
-	wg        *sync.WaitGroup
-	started   bool
+	mu      sync.Mutex // mutex prevents race condition when starting/stopping
+	started atomic.Bool
+
+	options
 }
 
 // Option is the function signature for the option functions.
-type Option func(*Client)
+type Option func(*options)
+
+type options struct {
+	limiter   *rate.Limiter
+	retries   int
+	workers   int
+	lg        *slog.Logger
+	chanBufSz int
+}
+
+// FilenameFunc is the file naming function that should return the output
+// filename for slack.File.
+type FilenameFunc func(*slack.File) string
+
+// Filename returns name of the file generated from the slack.File.
+var Filename FilenameFunc = stdFilenameFn
 
 // Limiter uses the initialised limiter instead of built in.
 func Limiter(l *rate.Limiter) Option {
-	return func(c *Client) {
+	return func(c *options) {
 		if l != nil {
 			c.limiter = l
 		}
@@ -47,7 +81,7 @@ func Limiter(l *rate.Limiter) Option {
 
 // Retries sets the number of attempts that will be taken for the file download.
 func Retries(n int) Option {
-	return func(c *Client) {
+	return func(c *options) {
 		if n <= 0 {
 			n = defRetries
 		}
@@ -57,7 +91,7 @@ func Retries(n int) Option {
 
 // Workers sets the number of workers for the download queue.
 func Workers(n int) Option {
-	return func(c *Client) {
+	return func(c *options) {
 		if n <= 0 {
 			n = defNumWorkers
 		}
@@ -68,7 +102,7 @@ func Workers(n int) Option {
 // Logger allows to use an external log library, that satisfies the
 // *slog.Logger.
 func WithLogger(l *slog.Logger) Option {
-	return func(c *Client) {
+	return func(c *options) {
 		if l == nil {
 			l = slog.Default()
 		}
@@ -83,16 +117,18 @@ func New(sc Downloader, fs fsadapter.FS, opts ...Option) *Client {
 		panic("programming error:  client is nil")
 	}
 	c := &Client{
-		sc:        sc,
-		fsa:       fs,
-		limiter:   rate.NewLimiter(defLimit, 1),
-		lg:        slog.Default(),
-		chanBufSz: defFileBufSz,
-		retries:   defRetries,
-		workers:   defNumWorkers,
+		sc:  sc,
+		fsa: fs,
+		options: options{
+			lg:        slog.Default(),
+			limiter:   rate.NewLimiter(defLimit, 1),
+			retries:   defRetries,
+			workers:   defNumWorkers,
+			chanBufSz: defFileBufSz,
+		},
 	}
 	for _, opt := range opts {
-		opt(c)
+		opt(&c.options)
 	}
 	return c
 }
@@ -108,7 +144,7 @@ func (c *Client) Start(ctx context.Context) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	if c.started {
+	if c.started.CompareAndSwap(true, true) {
 		// already started
 		return
 	}
@@ -116,7 +152,7 @@ func (c *Client) Start(ctx context.Context) {
 
 	c.requests = req
 	c.wg = c.startWorkers(ctx, req)
-	c.started = true
+	c.started.Store(true)
 }
 
 // startWorkers starts download workers.  It returns a sync.WaitGroup.  If the
@@ -149,14 +185,14 @@ func fltSeen(reqC <-chan Request) <-chan Request {
 
 		// seen contains file ids that already been seen,
 		// so we don't download the same file twice
-		seen := make(map[uint64]bool, 1000)
+		seen := make(map[uint64]struct{}, 1000)
 		// files queue must be closed by the caller (see DumpToDir.(1))
 		for r := range reqC {
 			h := hash(r.URL + r.Fullpath)
 			if _, ok := seen[h]; ok {
 				continue
 			}
-			seen[h] = true
+			seen[h] = struct{}{}
 			filtered <- r
 		}
 	}()
@@ -250,7 +286,7 @@ func (c *Client) Stop() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	if !c.started {
+	if !c.started.CompareAndSwap(true, false) {
 		return
 	}
 
@@ -261,7 +297,6 @@ func (c *Client) Stop() {
 
 	c.requests = nil
 	c.wg = nil
-	c.started = false
 }
 
 // Download requires a started downloader, otherwise it will return
@@ -269,7 +304,7 @@ func (c *Client) Stop() {
 func (c *Client) Download(fullpath string, url string) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if !c.started {
+	if !c.started.Load() {
 		return ErrNotStarted
 	}
 
@@ -291,4 +326,8 @@ func (c *Client) AsyncDownloader(ctx context.Context, queueC <-chan Request) (<-
 	}()
 
 	return done, nil
+}
+
+func stdFilenameFn(f *slack.File) string {
+	return fmt.Sprintf("%s-%s", f.ID, f.Name)
 }

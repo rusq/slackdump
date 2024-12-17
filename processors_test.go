@@ -45,8 +45,13 @@ func TestSession_pipeFiles(t *testing.T) {
 	)
 
 	t.Run("ensure all files make it to channel", func(t *testing.T) {
-		want := []slack.File{
-			file1, file2, file3, file4, file5, file6,
+		want := []downloader.Request{
+			{Fullpath: "test/f1-filename1.ext", URL: file1.URLPrivateDownload},
+			{Fullpath: "test/f2-filename2.ext", URL: file2.URLPrivateDownload},
+			{Fullpath: "test/f3-filename3.ext", URL: file3.URLPrivateDownload},
+			{Fullpath: "test/f4-filename4.ext", URL: file4.URLPrivateDownload},
+			{Fullpath: "test/f5-filename5.ext", URL: file5.URLPrivateDownload},
+			{Fullpath: "test/f6-filename6.ext", URL: file6.URLPrivateDownload},
 		}
 		msgs := []types.Message{testFileMsg1, testFileMsg2}
 		got := pipeTestSuite(t, msgs, "test")
@@ -78,15 +83,16 @@ func TestSession_pipeFiles(t *testing.T) {
 	})
 }
 
-func pipeTestSuite(t *testing.T, msgs []types.Message, dir string) []slack.File {
+func pipeTestSuite(t *testing.T, msgs []types.Message, dir string) []downloader.Request {
+	t.Helper()
 	var wg sync.WaitGroup
 
-	var got []slack.File
-	filesC := make(chan *slack.File)
-	go func(c <-chan *slack.File) {
+	var got []downloader.Request
+	filesC := make(chan downloader.Request)
+	go func(c <-chan downloader.Request) {
 		// catcher
 		for f := range c {
-			got = append(got, *f)
+			got = append(got, f)
 		}
 		wg.Done()
 	}(filesC)

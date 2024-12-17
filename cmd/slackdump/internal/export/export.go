@@ -46,7 +46,6 @@ func init() {
 	CmdExport.Flag.Var(&options.ExportStorageType, "type", "export file storage type")
 	CmdExport.Flag.BoolVar(&options.MemberOnly, "member-only", false, "export only channels, which current user belongs to")
 	CmdExport.Flag.StringVar(&options.ExportToken, "export-token", "", "file export token to append to each of the file URLs")
-	CmdExport.Flag.BoolVar(&compat, "compat", false, "use the v2 export code")
 
 	CmdExport.Run = runExport
 	CmdExport.Wizard = wizExport
@@ -84,12 +83,7 @@ func runExport(ctx context.Context, cmd *base.Command, args []string) error {
 		fsa.Close()
 	}()
 
-	var expfn = exportV3
-	if compat {
-		expfn = exportV2
-	}
-
-	if err := expfn(ctx, sess, fsa, list, options); err != nil {
+	if err := export(ctx, sess, fsa, list, options); err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return fmt.Errorf("export failed: %w", err)
 	}

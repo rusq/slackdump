@@ -77,31 +77,24 @@ func (s *Session) newFileProcessFn(ctx context.Context, dir string, l *rate.Limi
 	if s.fs == nil {
 		return nil, nil, errors.New("filesystem not set, unable to download files")
 	}
+	dl := downloader.New(s.client, s.fs, downloader.Limiter(l), downloader.Retries(s.cfg.limits.DownloadRetries), downloader.Workers(s.cfg.limits.Workers))
 	// set up a file downloader and add it to the post-process functions
 	// slice
-	dl := downloader.NewV1(
-		s.client,
-		s.fs,
-		downloader.LimiterV1(l),
-		downloader.RetriesV1(s.cfg.limits.DownloadRetries),
-		downloader.WorkersV1(s.cfg.limits.Workers),
-		downloader.LoggerV1(s.log),
-	)
-	filesC := make(chan *slack.File, filesCbufSz)
+	fileRequests := make(chan downloader.Request, filesCbufSz)
 
-	dlDoneC, err := dl.AsyncDownloader(ctx, dir, filesC)
+	dlDoneC, err := dl.AsyncDownloader(ctx, fileRequests)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	fn := func(msg []types.Message, _ string) (ProcessResult, error) {
-		n := pipeAndUpdateFiles(filesC, msg, dir)
+		n := pipeAndUpdateFiles(fileRequests, msg, dir)
 		return ProcessResult{Entity: "files", Count: n}, nil
 	}
 
 	cancelFn := func() {
 		trace.Log(ctx, "info", "closing files channel")
-		close(filesC)
+		close(fileRequests)
 		<-dlDoneC
 	}
 	return fn, cancelFn, nil
@@ -109,11 +102,14 @@ func (s *Session) newFileProcessFn(ctx context.Context, dir string, l *rate.Limi
 
 // pipeAndUpdateFiles scans the messages and sends all the files discovered to
 // the filesC.
-func pipeAndUpdateFiles(filesC chan<- *slack.File, msgs []types.Message, dir string) int {
+func pipeAndUpdateFiles(filesC chan<- downloader.Request, msgs []types.Message, dir string) int {
 	// place files in the download queue
 	total := 0
 	_ = files.Extract(msgs, files.Root, func(file slack.File, addr files.Addr) error {
-		filesC <- &file
+		filesC <- downloader.Request{
+			Fullpath: path.Join(dir, downloader.Filename(&file)),
+			URL:      file.URLPrivateDownload,
+		}
 		total++
 		return files.Update(msgs, addr, files.UpdatePathFn(path.Join(dir, downloader.Filename(&file))))
 	})

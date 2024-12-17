@@ -23,8 +23,8 @@ import (
 
 // TODO: check if the features is on par with Export v2.
 
-// exportV3 runs the export v3.
-func exportV3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, list *structures.EntityList, params exportFlags) error {
+// export runs the export v3.
+func export(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, list *structures.EntityList, params exportFlags) error {
 	lg := cfg.Log
 
 	tmpdir, err := os.MkdirTemp("", "slackdump-*")
