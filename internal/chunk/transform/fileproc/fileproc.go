@@ -13,6 +13,7 @@ import (
 
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/slack"
+
 	"github.com/rusq/slackdump/v3/downloader"
 	"github.com/rusq/slackdump/v3/internal/structures/files"
 )
@@ -118,7 +119,7 @@ func (NoopDownloader) Download(fullpath string, url string) error {
 
 type FileGetter interface {
 	// GetFile retreives a given file from its private download URL
-	GetFile(downloadURL string, writer io.Writer) error
+	GetFileContext(ctx context.Context, downloadURL string, writer io.Writer) error
 }
 
 // NewDownloader initializes the downloader and returns it, along with a

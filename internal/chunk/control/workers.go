@@ -39,6 +39,9 @@ func userWorker(ctx context.Context, s Streamer, chunkdir *chunk.Directory, tf T
 		return fmt.Errorf("unable to proceed, no users found")
 	}
 	if err := tf.StartWithUsers(ctx, users); err != nil {
+		if errors.Is(err, context.Canceled) {
+			return nil
+		}
 		return fmt.Errorf("error starting the transformer: %w", err)
 	}
 	return nil

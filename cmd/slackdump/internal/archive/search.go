@@ -5,8 +5,11 @@ import (
 	"errors"
 	"log/slog"
 	"strings"
+	"sync"
 
 	"github.com/rusq/fsadapter"
+	"github.com/schollz/progressbar/v3"
+
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/bootstrap"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
@@ -29,12 +32,14 @@ var CmdSearch = &base.Command{
 	},
 }
 
+const flagMask = cfg.OmitUserCacheFlag | cfg.OmitCacheDir | cfg.OmitTimeframeFlag
+
 var cmdSearchMessages = &base.Command{
 	UsageLine:   "slackdump search messages [flags] query terms",
 	Short:       "records search results matching the given query",
 	Long:        `Searches for messages matching criteria.`,
 	RequireAuth: true,
-	FlagMask:    cfg.OmitUserCacheFlag | cfg.OmitCacheDir,
+	FlagMask:    flagMask,
 	Run:         runSearchMsg,
 	PrintFlags:  true,
 }
@@ -44,7 +49,7 @@ var cmdSearchFiles = &base.Command{
 	Short:       "records search results matching the given query",
 	Long:        `Searches for messages matching criteria.`,
 	RequireAuth: true,
-	FlagMask:    cfg.OmitUserCacheFlag | cfg.OmitCacheDir,
+	FlagMask:    flagMask,
 	Run:         runSearchFiles,
 	PrintFlags:  true,
 }
@@ -54,7 +59,7 @@ var cmdSearchAll = &base.Command{
 	Short:       "Searches for messages and files matching criteria. ",
 	Long:        `Records search message and files results matching the given query`,
 	RequireAuth: true,
-	FlagMask:    cfg.OmitUserCacheFlag | cfg.OmitCacheDir,
+	FlagMask:    flagMask,
 	Run:         runSearchAll,
 	PrintFlags:  true,
 }
@@ -135,7 +140,7 @@ func initController(ctx context.Context, args []string) (*control.Controller, fu
 	defer cd.Close()
 
 	lg := slog.Default()
-	dl, stop := fileproc.NewDownloader(
+	dl, dlstop := fileproc.NewDownloader(
 		ctx,
 		cfg.DownloadFiles,
 		sess.Client(),
@@ -143,7 +148,22 @@ func initController(ctx context.Context, args []string) (*control.Controller, fu
 		lg,
 	)
 
-	var sopts []stream.Option
+	pb := bootstrap.ProgressBar(ctx, lg, progressbar.OptionShowCount()) // progress bar
+	stop := func() {
+		dlstop()
+		pb.Finish()
+	}
+
+	var once sync.Once
+
+	sopts := []stream.Option{
+		stream.OptResultFn(func(sr stream.Result) error {
+			lg.DebugContext(ctx, "stream", "result", sr.String())
+			once.Do(func() { pb.Describe(sr.String()) })
+			pb.Add(sr.Count)
+			return nil
+		}),
+	}
 	if fastSearch {
 		sopts = append(sopts, stream.OptFastSearch())
 	}

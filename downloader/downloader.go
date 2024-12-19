@@ -15,8 +15,9 @@ import (
 
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/slack"
-	"github.com/rusq/slackdump/v3/internal/network"
 	"golang.org/x/time/rate"
+
+	"github.com/rusq/slackdump/v3/internal/network"
 )
 
 const (
@@ -35,7 +36,7 @@ var (
 // in tests.
 type Downloader interface {
 	// GetFile retreives a given file from its private download URL
-	GetFile(downloadURL string, writer io.Writer) error
+	GetFileContext(ctx context.Context, downloadURL string, writer io.Writer) error
 }
 
 // Client is the instance of the downloader.
@@ -152,6 +153,11 @@ func (c *Client) Start(ctx context.Context) {
 
 	c.requests = req
 	c.wg = c.startWorkers(ctx, req)
+	go func() {
+		// if all workers die, we should stop the downloader
+		c.wg.Wait()
+		slog.Debug("all workers terminated, stopping downloader")
+	}()
 	c.started.Store(true)
 }
 
@@ -164,7 +170,7 @@ func (c *Client) startWorkers(ctx context.Context, req <-chan Request) *sync.Wai
 	seen := fltSeen(req)
 	var wg sync.WaitGroup
 	// create workers
-	for i := 0; i < c.workers; i++ {
+	for i := range c.workers {
 		wg.Add(1)
 		go func(workerNum int) {
 			c.worker(ctx, seen)
@@ -195,6 +201,7 @@ func fltSeen(reqC <-chan Request) <-chan Request {
 			seen[h] = struct{}{}
 			filtered <- r
 		}
+		slog.Debug("all files processed")
 	}()
 	return filtered
 }
@@ -210,22 +217,17 @@ func hash(s string) uint64 {
 // worker receives requests from reqC and passes them to saveFile function.
 // It will stop if either context is Done, or reqC is closed.
 func (c *Client) worker(ctx context.Context, reqC <-chan Request) {
-	for {
-		select {
-		case <-ctx.Done():
-			trace.Log(ctx, "info", "worker context cancelled")
-			return
-		case req, moar := <-reqC:
-			if !moar {
-				return
-			}
-			lg := c.lg.With("filename", path.Base(req.URL), "destination", req.Fullpath)
-			lg.DebugContext(ctx, "saving file")
-			n, err := c.download(ctx, req.Fullpath, req.URL)
-			if err != nil {
+	for req := range reqC {
+		lg := c.lg.With("filename", path.Base(req.URL), "destination", req.Fullpath)
+		lg.DebugContext(ctx, "saving file")
+		n, err := c.download(ctx, req.Fullpath, req.URL)
+		if err != nil {
+			if errors.Is(err, context.Canceled) {
+				lg.DebugContext(ctx, "download cancelled")
+			} else {
 				lg.ErrorContext(ctx, "error saving file", "error", err)
-				break
 			}
+		} else {
 			lg.DebugContext(ctx, "file saved", "bytes_written", n)
 		}
 	}
@@ -250,7 +252,7 @@ func (c *Client) download(ctx context.Context, fullpath string, url string) (int
 		region := trace.StartRegion(ctx, "GetFile")
 		defer region.End()
 
-		if err := c.sc.GetFile(url, tf); err != nil {
+		if err := c.sc.GetFileContext(ctx, url, tf); err != nil {
 			if _, err := tf.Seek(0, io.SeekStart); err != nil {
 				c.lg.ErrorContext(ctx, "seek", "error", err)
 			}
@@ -283,14 +285,16 @@ func (c *Client) download(ctx context.Context, fullpath string, url string) (int
 
 // Stop waits for all transfers to finish, and stops the downloader.
 func (c *Client) Stop() {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
 	if !c.started.CompareAndSwap(true, false) {
 		return
 	}
 
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	slog.Debug("mutex locked, stopping downloader")
 	close(c.requests)
+
 	c.lg.Debug("requests channel closed, waiting for all downloads to complete")
 	c.wg.Wait()
 	c.lg.Debug("wait complete:  no more files to download")
@@ -309,6 +313,7 @@ func (c *Client) Download(fullpath string, url string) error {
 	}
 
 	c.requests <- Request{Fullpath: fullpath, URL: url}
+
 	return nil
 }
 

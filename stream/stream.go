@@ -90,6 +90,7 @@ const (
 	RTThread                    // Result containing thread information
 	RTChannelInfo
 	RTChannelUsers
+	RTSearch
 )
 
 // Result is sent to the callback function for each channel or thread.
@@ -99,14 +100,23 @@ type Result struct {
 	ThreadTS    string
 	ThreadCount int
 	IsLast      bool // true if this is the last message for the channel or thread
-	Err         error
+	// Count contains the count of entities in the result. Right now it's
+	// populated only for search results.
+	Count int
+	// Err contains the error if the result is an error.
+	Err error
 }
 
 func (s Result) String() string {
-	if s.ThreadTS == "" {
-		return "<" + s.ChannelID + ">"
+	switch s.Type {
+	case RTSearch:
+		return "<search>"
+	default:
+		if s.ThreadTS == "" {
+			return "<" + s.ChannelID + ">"
+		}
+		return fmt.Sprintf("<%s[%s:%s]>", s.Type, s.ChannelID, s.ThreadTS)
 	}
-	return fmt.Sprintf("<%s[%s:%s]>", s.Type, s.ChannelID, s.ThreadTS)
 }
 
 // rateLimits contains the rate limiters for the different tiers.

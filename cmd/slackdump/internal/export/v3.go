@@ -12,6 +12,7 @@ import (
 
 	"github.com/rusq/slackdump/v3"
 
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/bootstrap"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/internal/chunk/control"
@@ -58,13 +59,7 @@ func export(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, list
 	sdl, stop := fileproc.NewDownloader(ctx, dlEnabled, sess.Client(), fsa, lg)
 	defer stop()
 
-	pb := newProgressBar(progressbar.NewOptions(
-		-1,
-		progressbar.OptionClearOnFinish(),
-		progressbar.OptionSpinnerType(8)),
-		lg.Enabled(ctx, slog.LevelDebug),
-	)
-	_ = pb.RenderBlank()
+	pb := bootstrap.ProgressBar(ctx, lg, progressbar.OptionShowCount()) // progress bar
 
 	stream := sess.Stream(
 		stream.OptOldest(time.Time(cfg.Oldest)),
@@ -108,13 +103,6 @@ func export(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, list
 	lg.InfoContext(ctx, "conversations export finished")
 	lg.DebugContext(ctx, "chunk files retained", "dir", tmpdir)
 	return nil
-}
-
-func newProgressBar(pb *progressbar.ProgressBar, debug bool) progresser {
-	if debug {
-		return progressbar.DefaultSilent(0)
-	}
-	return pb
 }
 
 // progresser is an interface for progress bars.

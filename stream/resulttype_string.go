@@ -13,11 +13,12 @@ func _() {
 	_ = x[RTThread-2]
 	_ = x[RTChannelInfo-3]
 	_ = x[RTChannelUsers-4]
+	_ = x[RTSearch-5]
 }
 
-const _ResultType_name = "MainChannelThreadChannelInfoChannelUsers"
+const _ResultType_name = "MainChannelThreadChannelInfoChannelUsersSearch"
 
-var _ResultType_index = [...]uint8{0, 4, 11, 17, 28, 40}
+var _ResultType_index = [...]uint8{0, 4, 11, 17, 28, 40, 46}
 
 func (i ResultType) String() string {
 	if i < 0 || i >= ResultType(len(_ResultType_index)-1) {

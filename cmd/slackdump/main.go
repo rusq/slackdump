@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -37,7 +38,6 @@ import (
 )
 
 func init() {
-
 	base.Slackdump.Commands = []*base.Command{
 		workspace.CmdWorkspace,
 		archive.CmdArchive,
@@ -121,8 +121,12 @@ BigCmdLoop:
 				continue
 			}
 			if err := invoke(cmd, args); err != nil {
-				msg := fmt.Sprintf("%03[1]d (%[1]s): %[2]s.", base.ExitStatus(), err)
-				slog.Error(msg)
+				if errors.Is(err, context.Canceled) {
+					slog.Info("operation cancelled")
+				} else {
+					msg := fmt.Sprintf("%03[1]d (%[1]s): %[2]s.", base.ExitStatus(), err)
+					slog.Error(msg)
+				}
 			}
 			base.Exit()
 			return
@@ -250,7 +254,7 @@ func initLog(filename string, jsonHandler bool, verbose bool) (*slog.Logger, err
 	if verbose {
 		slog.SetLogLoggerLevel(slog.LevelDebug)
 	}
-	var opts = &slog.HandlerOptions{
+	opts := &slog.HandlerOptions{
 		Level: iftrue(verbose, slog.LevelDebug, slog.LevelInfo),
 	}
 	if jsonHandler {
@@ -258,7 +262,7 @@ func initLog(filename string, jsonHandler bool, verbose bool) (*slog.Logger, err
 	}
 	if filename != "" {
 		slog.Debug("log messages will be written to file", "filename", filename)
-		lf, err := os.OpenFile(filename, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0666)
+		lf, err := os.OpenFile(filename, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o666)
 		if err != nil {
 			return slog.Default(), fmt.Errorf("failed to create the log file: %w", err)
 		}

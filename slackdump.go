@@ -14,6 +14,7 @@ import (
 	"golang.org/x/time/rate"
 
 	"github.com/rusq/fsadapter"
+
 	"github.com/rusq/slackdump/v3/auth"
 	"github.com/rusq/slackdump/v3/internal/edge"
 	"github.com/rusq/slackdump/v3/internal/network"
@@ -61,7 +62,7 @@ type Slacker interface {
 // purpose of mocking in tests (see client_mock.go)
 type clienter interface {
 	Slacker
-	GetFile(downloadURL string, writer io.Writer) error
+	GetFileContext(ctx context.Context, downloadURL string, writer io.Writer) error
 	GetUsersContext(ctx context.Context, options ...slack.GetUsersOption) ([]slack.User, error)
 	GetEmojiContext(ctx context.Context) (map[string]string, error)
 }
