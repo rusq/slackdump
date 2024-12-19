@@ -7,9 +7,10 @@ import (
 	"sync"
 
 	"github.com/rusq/slack"
+	"golang.org/x/sync/errgroup"
+
 	"github.com/rusq/slackdump/v3/internal/network"
 	"github.com/rusq/slackdump/v3/processor"
-	"golang.org/x/sync/errgroup"
 )
 
 // SearchMessages executes the search query and calls the processor for each
@@ -39,10 +40,20 @@ func (cs *Stream) SearchMessages(ctx context.Context, proc processor.MessageSear
 					return err
 				}
 				for _, m := range sm {
-					// collect channel ids
-					channelInfoC <- m.Channel.ID
-					// channelUsersC <- m.Channel.ID
+					select {
+					case <-ctx.Done():
+						return context.Cause(ctx)
+						// collect channel ids
+					case channelInfoC <- m.Channel.ID:
+						// channelUsersC <- m.Channel.ID
+					}
 				}
+				for _, fn := range cs.resultFn {
+					if err := fn(Result{Type: RTSearch, Count: len(sm)}); err != nil {
+						return err
+					}
+				}
+
 				return nil
 			}); err != nil {
 				srC <- Result{Type: RTMain, Err: err}
@@ -81,7 +92,7 @@ func (cs *Stream) searchmsg(ctx context.Context, query string, fn func(sm []slac
 
 	lg := slog.With("query", query)
 
-	var p = slack.SearchParameters{
+	p := slack.SearchParameters{
 		Sort:          "timestamp",
 		SortDirection: "desc",
 		Count:         100,
@@ -119,7 +130,7 @@ func (cs *Stream) SearchFiles(ctx context.Context, proc processor.FileSearcher, 
 
 	lg := slog.With("query", query)
 
-	var p = slack.SearchParameters{
+	p := slack.SearchParameters{
 		Sort:          "timestamp",
 		SortDirection: "desc",
 		Count:         100,

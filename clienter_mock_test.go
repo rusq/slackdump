@@ -332,18 +332,18 @@ func (mr *mockClienterMockRecorder) GetEmojiContext(ctx any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEmojiContext", reflect.TypeOf((*mockClienter)(nil).GetEmojiContext), ctx)
 }
 
-// GetFile mocks base method.
-func (m *mockClienter) GetFile(downloadURL string, writer io.Writer) error {
+// GetFileContext mocks base method.
+func (m *mockClienter) GetFileContext(ctx context.Context, downloadURL string, writer io.Writer) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetFile", downloadURL, writer)
+	ret := m.ctrl.Call(m, "GetFileContext", ctx, downloadURL, writer)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// GetFile indicates an expected call of GetFile.
-func (mr *mockClienterMockRecorder) GetFile(downloadURL, writer any) *gomock.Call {
+// GetFileContext indicates an expected call of GetFileContext.
+func (mr *mockClienterMockRecorder) GetFileContext(ctx, downloadURL, writer any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetFile", reflect.TypeOf((*mockClienter)(nil).GetFile), downloadURL, writer)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetFileContext", reflect.TypeOf((*mockClienter)(nil).GetFileContext), ctx, downloadURL, writer)
 }
 
 // GetStarredContext mocks base method.

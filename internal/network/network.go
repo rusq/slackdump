@@ -108,7 +108,7 @@ func WithRetry(ctx context.Context, lim *rate.Limiter, maxAttempts int, fn func(
 		}
 		lastErr = cbErr
 
-		if !strings.EqualFold(cbErr.Error(), "pagination complete") {
+		if !strings.EqualFold(cbErr.Error(), "pagination complete") && !errors.Is(cbErr, context.Canceled) {
 			lg.ErrorContext(ctx, "WithRetry", "error", cbErr, "attempt", attempt+1)
 		}
 		var (
@@ -120,7 +120,10 @@ func WithRetry(ctx context.Context, lim *rate.Limiter, maxAttempts int, fn func(
 		case errors.As(cbErr, &rle):
 			slog.InfoContext(ctx, "got rate limited, sleeping", "retry_after_sec", rle.RetryAfter, "error", cbErr)
 			tracelogf(ctx, "info", "got rate limited, sleeping %s (%s)", rle.RetryAfter, cbErr)
-			time.Sleep(rle.RetryAfter)
+			if err := sleepCtx(ctx, rle.RetryAfter); err != nil {
+				return err
+			}
+			slog.Info("resuming after rate limit")
 			continue
 		case errors.As(cbErr, &sce):
 			if isRecoverable(sce.Code) {
@@ -128,7 +131,9 @@ func WithRetry(ctx context.Context, lim *rate.Limiter, maxAttempts int, fn func(
 				delay := wait(attempt)
 				slog.WarnContext(ctx, "got server error, sleeping", "status_code", sce.Code, "error", cbErr, "delay", delay.String())
 				tracelogf(ctx, "info", "got server error %d, sleeping %s (%s)", sce.Code, delay, cbErr)
-				time.Sleep(delay)
+				if err := sleepCtx(ctx, delay); err != nil {
+					return err
+				}
 				continue
 			}
 		case errors.As(cbErr, &ne):
@@ -137,7 +142,9 @@ func WithRetry(ctx context.Context, lim *rate.Limiter, maxAttempts int, fn func(
 				delay := netWait(attempt)
 				slog.WarnContext(ctx, "got network error, sleeping", "op", ne.Op, "error", cbErr, "delay", delay.String())
 				tracelogf(ctx, "info", "got network error %s on %q, sleeping %s", cbErr, ne.Op, delay)
-				time.Sleep(delay)
+				if err := sleepCtx(ctx, delay); err != nil {
+					return err
+				}
 				continue
 			}
 		}
@@ -148,6 +155,17 @@ func WithRetry(ctx context.Context, lim *rate.Limiter, maxAttempts int, fn func(
 		return &ErrRetryFailed{Err: lastErr}
 	}
 	return nil
+}
+
+func sleepCtx(ctx context.Context, d time.Duration) error {
+	t := time.NewTimer(d)
+	defer t.Stop()
+	select {
+	case <-t.C:
+		return nil
+	case <-ctx.Done():
+		return context.Cause(ctx)
+	}
 }
 
 // isRecoverable returns true if the status code is a recoverable error.

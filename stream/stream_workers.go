@@ -6,6 +6,7 @@ import (
 	"runtime/trace"
 
 	"github.com/rusq/slack"
+
 	"github.com/rusq/slackdump/v3/processor"
 )
 
@@ -60,7 +61,7 @@ func (cs *Stream) threadWorker(ctx context.Context, proc processor.Conversations
 				continue
 			}
 
-			var channel = new(slack.Channel)
+			channel := new(slack.Channel)
 			if req.threadOnly {
 				var err error
 				if channel, err = cs.procChannelInfoWithUsers(ctx, proc, req.sl.Channel, req.sl.ThreadTS); err != nil {
@@ -94,7 +95,7 @@ func (cs *Stream) channelInfoWorker(ctx context.Context, proc processor.ChannelI
 		infoFetcher = cs.procChannelInfo
 	}
 
-	var seen = make(map[string]struct{}, 512)
+	seen := make(map[string]struct{}, 512)
 
 	for {
 		select {
@@ -124,7 +125,7 @@ func (cs *Stream) channelUsersWorker(ctx context.Context, proc processor.Channel
 	ctx, task := trace.NewTask(ctx, "channelUsersWorker")
 	defer task.End()
 
-	var seen = make(map[string]struct{}, 512)
+	seen := make(map[string]struct{}, 512)
 
 	for {
 		select {

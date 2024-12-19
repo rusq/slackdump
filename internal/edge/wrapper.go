@@ -33,9 +33,11 @@ func (w *Wrapper) AuthTestContext(ctx context.Context) (response *slack.AuthTest
 func (w *Wrapper) GetConversationHistoryContext(ctx context.Context, params *slack.GetConversationHistoryParameters) (*slack.GetConversationHistoryResponse, error) {
 	return w.cl.GetConversationHistoryContext(ctx, params)
 }
+
 func (w *Wrapper) GetConversationRepliesContext(ctx context.Context, params *slack.GetConversationRepliesParameters) (msgs []slack.Message, hasMore bool, nextCursor string, err error) {
 	return w.cl.GetConversationRepliesContext(ctx, params)
 }
+
 func (w *Wrapper) GetUsersPaginated(options ...slack.GetUsersOption) slack.UserPagination {
 	return w.cl.GetUsersPaginated(options...)
 }
@@ -60,8 +62,8 @@ func (w *Wrapper) GetUsersInConversationContext(ctx context.Context, params *sla
 	return w.edge.GetUsersInConversationContext(ctx, params)
 }
 
-func (w *Wrapper) GetFile(downloadURL string, writer io.Writer) error {
-	return w.cl.GetFile(downloadURL, writer)
+func (w *Wrapper) GetFileContext(ctx context.Context, downloadURL string, writer io.Writer) error {
+	return w.cl.GetFileContext(ctx, downloadURL, writer)
 }
 
 func (w *Wrapper) GetUsersContext(ctx context.Context, options ...slack.GetUsersOption) ([]slack.User, error) {
