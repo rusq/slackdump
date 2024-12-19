@@ -149,16 +149,8 @@ func (c *Client) Start(ctx context.Context) {
 		// already started
 		return
 	}
-	req := make(chan Request, c.chanBufSz)
-
-	c.requests = req
-	c.wg = c.startWorkers(ctx, req)
-	go func() {
-		// if all workers die, we should stop the downloader
-		c.wg.Wait()
-		slog.Debug("all workers terminated, stopping downloader")
-	}()
-	c.started.Store(true)
+	c.requests = make(chan Request, c.chanBufSz)
+	c.wg = c.startWorkers(ctx, c.requests)
 }
 
 // startWorkers starts download workers.  It returns a sync.WaitGroup.  If the
@@ -217,6 +209,10 @@ func hash(s string) uint64 {
 // worker receives requests from reqC and passes them to saveFile function.
 // It will stop if either context is Done, or reqC is closed.
 func (c *Client) worker(ctx context.Context, reqC <-chan Request) {
+	// we deliberately not handling context errors here, because we want to
+	// drain the requestC channel, so that Download would unlock the mutex and
+	// not wait to send on the request channel that no worker is servicing due
+	// to exiting by context cancellation.
 	for req := range reqC {
 		lg := c.lg.With("filename", path.Base(req.URL), "destination", req.Fullpath)
 		lg.DebugContext(ctx, "saving file")
