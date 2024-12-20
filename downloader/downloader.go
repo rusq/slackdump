@@ -144,13 +144,14 @@ type Request struct {
 func (c *Client) Start(ctx context.Context) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	slog.Debug("starting downloader")
 
-	if c.started.CompareAndSwap(true, true) {
-		// already started
+	if c.started.Load() {
 		return
 	}
 	c.requests = make(chan Request, c.chanBufSz)
 	c.wg = c.startWorkers(ctx, c.requests)
+	c.started.Store(true)
 }
 
 // startWorkers starts download workers.  It returns a sync.WaitGroup.  If the
