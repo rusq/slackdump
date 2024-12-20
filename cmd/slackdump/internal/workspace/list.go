@@ -55,12 +55,12 @@ func runList(ctx context.Context, cmd *base.Command, args []string) error {
 		fmtFn = printAll
 	}
 
-	return list(m, fmtFn)
+	return list(ctx, m, fmtFn)
 }
 
-type formatFunc func(io.Writer, manager, string, []string) error
+type formatFunc func(context.Context, io.Writer, manager, string, []string) error
 
-func list(m manager, formatter formatFunc) error {
+func list(ctx context.Context, m manager, formatter formatFunc) error {
 	entries, err := m.List()
 	if err != nil {
 		if errors.Is(err, cache.ErrNoWorkspaces) {
@@ -84,10 +84,10 @@ func list(m manager, formatter formatFunc) error {
 
 	}
 
-	return formatter(os.Stdout, m, current, entries)
+	return formatter(ctx, os.Stdout, m, current, entries)
 }
 
-func printDefault(w io.Writer, m manager, current string, wsps []string) error {
+func printDefault(_ context.Context, w io.Writer, m manager, current string, wsps []string) error {
 	ew := &errWriter{w: w}
 	fmt.Fprintf(ew, "Workspaces in %q:\n\n", cfg.CacheDir())
 	for _, row := range simpleList(m, current, wsps) {
@@ -97,8 +97,8 @@ func printDefault(w io.Writer, m manager, current string, wsps []string) error {
 	return ew.Err()
 }
 
-func printAll(w io.Writer, m manager, current string, wsps []string) error {
-	ctx, task := trace.NewTask(context.TODO(), "printAll")
+func printAll(ctx context.Context, w io.Writer, m manager, current string, wsps []string) error {
+	ctx, task := trace.NewTask(ctx, "printAll")
 	defer task.End()
 
 	ew := &errWriter{w: w}
@@ -116,7 +116,7 @@ func printAll(w io.Writer, m manager, current string, wsps []string) error {
 	return ew.Err()
 }
 
-func printBare(w io.Writer, _ manager, current string, workspaces []string) error {
+func printBare(_ context.Context, w io.Writer, _ manager, current string, workspaces []string) error {
 	ew := &errWriter{w: w}
 	for _, name := range workspaces {
 		if current == name {

@@ -40,8 +40,8 @@ var (
 	LegacyBrowser   bool
 	ForceEnterprise bool
 
+	MemberOnly    bool
 	DownloadFiles bool
-	NoChunkCache  bool
 
 	// Oldest is the default timestamp of the oldest message to fetch, that is
 	// used by the dump and export commands.
@@ -54,6 +54,7 @@ var (
 	LocalCacheDir      string
 	UserCacheRetention time.Duration
 	NoUserCache        bool
+	NoChunkCache       bool
 
 	Log *slog.Logger = slog.Default()
 	// LoadSecrets is a flag that indicates whether to load secrets from the
@@ -86,6 +87,7 @@ const (
 	OmitUserCacheFlag
 	OmitTimeframeFlag
 	OmitChunkCacheFlag
+	OmitMemberOnlyFlag
 
 	OmitAll = OmitConfigFlag |
 		OmitDownloadFlag |
@@ -95,11 +97,11 @@ const (
 		OmitAuthFlags |
 		OmitUserCacheFlag |
 		OmitTimeframeFlag |
-		OmitChunkCacheFlag
+		OmitChunkCacheFlag |
+		OmitMemberOnlyFlag
 )
 
 // SetBaseFlags sets base flags
-// TODO: tests.
 func SetBaseFlags(fs *flag.FlagSet, mask FlagMask) {
 	fs.StringVar(&TraceFile, "trace", os.Getenv("TRACE_FILE"), "trace `filename`")
 	fs.StringVar(&LogFile, "log", os.Getenv("LOG_FILE"), "log `file`, if not specified, messages are printed to STDERR")
@@ -136,7 +138,7 @@ func SetBaseFlags(fs *flag.FlagSet, mask FlagMask) {
 		LocalCacheDir = CacheDir()
 	}
 	if mask&OmitWorkspaceFlag == 0 {
-		fs.StringVar(&Workspace, "workspace", osenv.Value("SLACK_WORKSPACE", ""), "Slack workspace to use") // TODO: load from configuration.
+		fs.StringVar(&Workspace, "workspace", osenv.Value("SLACK_WORKSPACE", ""), "Slack workspace to use")
 	}
 	if mask&OmitUserCacheFlag == 0 {
 		fs.BoolVar(&NoUserCache, "no-user-cache", false, "disable user cache (file cache)")
@@ -150,5 +152,8 @@ func SetBaseFlags(fs *flag.FlagSet, mask FlagMask) {
 	if mask&OmitTimeframeFlag == 0 {
 		fs.Var(&Oldest, "time-from", "timestamp of the oldest message to fetch (UTC timezone)")
 		fs.Var(&Latest, "time-to", "timestamp of the newest message to fetch (UTC timezone)")
+	}
+	if mask&OmitMemberOnlyFlag == 0 {
+		fs.BoolVar(&MemberOnly, "member-only", false, "export only channels, which the current user belongs to (if no channels are specified)")
 	}
 }

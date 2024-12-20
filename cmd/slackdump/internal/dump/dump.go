@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/rusq/fsadapter"
+
 	"github.com/rusq/slackdump/v3"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/bootstrap"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
@@ -37,6 +38,7 @@ var CmdDump = &base.Command{
 	Long:        dumpMd,
 	RequireAuth: true,
 	PrintFlags:  true,
+	FlagMask:    cfg.OmitMemberOnlyFlag,
 }
 
 func init() {
@@ -225,7 +227,6 @@ func dump(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, p dump
 				return sr.Err
 			}
 			if sr.IsLast {
-				//TODO:  this is unbeautiful.
 				lg.InfoContext(ctx, "dumped", "sr", sr.String())
 			}
 			return nil

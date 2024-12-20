@@ -11,6 +11,7 @@ or
 .Dq Ar yes
 ),
 ..
+
 .Dd $Mdocdate$
 .Dt SLACKDUMP 1
 .Os
@@ -36,9 +37,9 @@ Includes all message replies or, in other words — threads.
 Files are dumped along with messages they belong to.
 .It Em emojis
 Emojis are dumped along with their index which contains their names and aliases
-as a JSON file.
+as a JSON file, in the "slow" mode -- includes the user ID of the uploader.
 .It Em users
-Users include full profile information without custom fields.
+Users includes full profile information without custom fields.
 .It Em channels
 Channels, that are visible to the current authenticated user.  This includes:
 .Bl -dash -compact
@@ -51,14 +52,14 @@ private group conversations;
 direct messages (private conversations between two users).
 .El
 .It Em search
-Searches for messages and/or files in the workspace.
+Searches and saves messages and/or files from the workspace.
 .El
 .Pp
 If no command is given, on a dumb terminal, the 
 .Cm help
 command is assumed.  On an interactive terminal a list of options will
-be presented, allowing the user to enter an interactive mode, display
-help, or exit.
+be presented, allowing the user to enter an interactive mode (wizard),
+display help, or exit.
 .Sh COMMANDS
 The following commands are supported (listed in alphabetical order):
 .Bl -tag -width workspace
@@ -102,6 +103,10 @@ to run these commands to help with debugging.  See TOOLS section for more
 information.
 .It Cm version
 Display version information.
+.It Cm view
+Allows to view the exported data (archive, dump and export) in the browser.
+.It Cm wiz
+Starts up an interactive mode.
 .It Cm workspace
 Manage stored credentials for authenticated workspaces, or authenticates in a
 new workspace.
@@ -112,7 +117,7 @@ This section lists all available flags, availability of which depends on the
 command.  The flags are listed in alphabetical order.
 .Bl -tag -width -base dir
 .It Fl api-config Ar path
-Use the specified API limits configuration file (see the
+Use the specified API limits configuration TOML file (see the
 .Cm config
 command).
 .It Fl base Ar path
@@ -150,6 +155,10 @@ Enables or disables JSON log format.  The default is disabled.
 .It Fl token Ar token
 Specifies the token to use for the authentication.  This flag is only used
 with the manual authentication methods.
+.It Fl member-only
+Specify this flag to export only conversations (channels) that the current user
+is part of.  Works only if the list of channels/threads is not explicitly
+specified.
 .It Fl no-user-cache
 Disables caching of users for the subcommands of the
 .Cm list

@@ -32,7 +32,7 @@ var CmdSearch = &base.Command{
 	},
 }
 
-const flagMask = cfg.OmitUserCacheFlag | cfg.OmitCacheDir | cfg.OmitTimeframeFlag
+const flagMask = cfg.OmitUserCacheFlag | cfg.OmitCacheDir | cfg.OmitTimeframeFlag | cfg.OmitMemberOnlyFlag
 
 var cmdSearchMessages = &base.Command{
 	UsageLine:   "slackdump search messages [flags] query terms",

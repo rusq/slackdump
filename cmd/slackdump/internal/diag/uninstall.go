@@ -224,7 +224,7 @@ func (p *uninstOptions) configuration() cfgui.Configuration {
 					Description: "Do not perform the uninstallation, just show what would be done",
 					Updater:     updaters.NewBool(&p.dry),
 				},
-				// TODO: delete slackdump from user cache options.
+				// TODO: add an option to delete slackdump from user cache options.
 			},
 		},
 	}

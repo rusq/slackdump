@@ -2,6 +2,7 @@ package workspace
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -45,7 +46,7 @@ func Test_printBare(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			w := &bytes.Buffer{}
-			if err := printBare(w, nil, tt.args.current, tt.args.workspaces); (err != nil) != tt.wantErr {
+			if err := printBare(context.Background(), w, nil, tt.args.current, tt.args.workspaces); (err != nil) != tt.wantErr {
 				t.Errorf("printBare() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
@@ -133,14 +134,14 @@ func Test_list(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			mm := NewMockmanager(ctrl)
 			tt.expectFn(mm)
-			if err := list(mm, tt.args.formatter); (err != nil) != tt.wantErr {
+			if err := list(context.Background(), mm, tt.args.formatter); (err != nil) != tt.wantErr {
 				t.Errorf("list() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
 }
 
-func testFmt(w io.Writer, m manager, current string, wsps []string) error {
+func testFmt(_ context.Context, w io.Writer, m manager, current string, wsps []string) error {
 	for _, wsp := range wsps {
 		if wsp == current {
 			fmt.Fprint(w, ">")

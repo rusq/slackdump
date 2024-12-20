@@ -3,9 +3,11 @@ package archive
 import (
 	"context"
 
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/cfgui"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/dumpui"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/updaters"
 	"github.com/rusq/slackdump/v3/internal/structures"
 )
 
@@ -33,6 +35,13 @@ func configuration() cfgui.Configuration {
 			Name: "Optional parameters",
 			Params: []cfgui.Parameter{
 				cfgui.ChannelIDs(&entryList, false),
+				{
+					Name:        "Member Only",
+					Value:       cfgui.Checkbox(cfg.MemberOnly),
+					Description: "Export only channels, which current user belongs to",
+					Inline:      true,
+					Updater:     updaters.NewBool(&cfg.MemberOnly),
+				},
 			},
 		},
 	}

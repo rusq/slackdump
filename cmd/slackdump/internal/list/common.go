@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"github.com/rusq/slack"
+
 	"github.com/rusq/slackdump/v3"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
@@ -15,6 +16,8 @@ import (
 	"github.com/rusq/slackdump/v3/internal/format"
 	"github.com/rusq/slackdump/v3/types"
 )
+
+const flagMask = cfg.OmitDownloadFlag | cfg.OmitMemberOnlyFlag
 
 // CmdList is the list command.  The logic is in the subcommands.
 var CmdList = &base.Command{

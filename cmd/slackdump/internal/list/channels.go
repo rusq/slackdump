@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/rusq/slack"
+
 	"github.com/rusq/slackdump/v3"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/bootstrap"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
@@ -19,7 +20,7 @@ var CmdListChannels = &base.Command{
 	Run:        runListChannels,
 	UsageLine:  "slackdump list channels [flags] [filename]",
 	PrintFlags: true,
-	FlagMask:   cfg.OmitDownloadFlag,
+	FlagMask:   flagMask,
 	Short:      "list workspace channels",
 	Long: fmt.Sprintf(`
 # List Channels Command
@@ -75,7 +76,7 @@ func runListChannels(ctx context.Context, cmd *base.Command, args []string) erro
 		return err
 	}
 
-	var l = &channels{
+	l := &channels{
 		opts:   chanFlags,
 		common: commonFlags,
 	}
