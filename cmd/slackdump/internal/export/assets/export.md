@@ -5,7 +5,8 @@ By default, it exports the entire workspace that your user can access.
 You can customize the archive to include specific channels, groups, or
 direct messages by providing their URLs or IDs.
 
-The ZIP file it generates is compatible with the Slack Export format with Slackdump specific extensions.
+The ZIP file it generates is compatible with the Slack Export format with
+Slackdump specific extensions.
 
 The export file is understood by Slack Import feature with the following
 caveat:
@@ -21,7 +22,7 @@ caveat:
 /
 ├── __uploads              : all uploaded files are placed in this dir.
 │   └── F02PM6A1AUA        : slack file ID is used as a directory name
-|       └── Chevy.jpg      : file attachment
+│       └── Chevy.jpg      : file attachment
 ├── everyone               : channel "#everyone"
 │   ├── 2022-01-01.json    :   all messages for the 1 Jan 2022.
 │   └── 2022-01-04.json    :    "     "      "   "  4 Jan 2022.
@@ -36,11 +37,13 @@ caveat:
 ### Channels
 The channels are be saved in directories, named after the channel title,
 i.e. `#random` would be saved to "random" directory. The directory will
-contain a set of JSON files, one per each day.
+contain a set of JSON files, one per each day.  If there were no
+conversations on some particular day, there will be no JSON file for that
+day.
 
 ### Users
-User directories will have an "D" prefix, to find out the user name,
-check `users.json` file.
+User directories will have a "D" prefix, to find out the user name, check
+`users.json` file.
 
 ### Group Messages
 Group messages will have all involved user handles in their name.

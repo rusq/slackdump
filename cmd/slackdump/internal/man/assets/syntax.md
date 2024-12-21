@@ -1,13 +1,14 @@
 # Slackdump Channel List Syntax
 
-Slackdump major modes like `archive`, `export` and `dump` support
-including or excluding channels from the operation. This document
-describes how to use the inclusive and exclusive modes, along with
-examples.
+Slackdump major commands like `archive`, `export`, and `dump` allow you
+to include or exclude specific channels from an operation. This document
+explains the inclusive and exclusive modes, their syntax, and provides
+examples for practical use.
 
-Slackdump accepts channel IDs or URLs as arguments separated by space.
-The channel ID is the last part of the channel URL. For example, in the
-URL
+## Syntax
+
+Slackdump accepts channel IDs or URLs as arguments, separated by spaces.  
+The **channel ID** is the last part of the channel URL. For example, in the URL:
 
 ```
 https://xxx.slack.com/archives/C12345678
@@ -15,54 +16,85 @@ https://xxx.slack.com/archives/C12345678
 
 the channel ID is `C12345678`.
 
-You can also get all available channel IDs by running the `slackdump list channels` command.
+To get a list of all available channel IDs, run:
+```bash
+slackdump list channels
+```
 
-## Syntax
+The syntax for specifying entities is as follows:
+```
+[[prefix]term[/[time_from]/[time_to]]|@file]
+```
 
-- No prefix: include the channel in the operation.
-- `^`: exclude the channel from the operation.
-- `@`: read the channels from a file.
+Where:
+- `prefix`: Determines how the channel is processed.
+  - No prefix: Include the channel in the operation.
+  - `^`: Exclude the channel from the operation.
+- `term`: The channel ID, URL, or filename.
+- `time_from` and `time_to`: Optional parameters specifying the time
+  range for the operation in `YYYY-MM-DDTHH:MM:SS` format.
+  - If only `time_from` is specified, the operation includes all messages
+    starting from that time.
+  - If only `time_to` is specified, the operation includes all messages
+    up to that time.
+  - If both are specified, the operation includes messages within that
+    time range.
 
-File can contain one or more channel IDs or URLs, one per line.
-
-Below, we'll look at some examples.
+A file can contain one or more channel IDs or URLs, with each entry on a
+new line.
 
 ## Examples
 
-### Exporting Only Channels You Need
+### 1. Exporting Specific Channels
 
-To include only those channels you're interested in, use the following
-syntax:
+To include only specific channels in the operation:
 
 ```bash
 slackdump export C12401724 https://xxx.slack.com/archives/C4812934
 ```
 
-The command above will export ONLY channels `C12401724` and `C4812934`.
+This command exports **only** channels `C12401724` and `C4812934`.
 
-### Exporting Everything Except Some Unwanted Channels
+### 2. Exclude Specific Channels
 
-To exclude one or more channels from the export, prefix the channel with
-the caret "^" character. For example, you want to export everything
-except channel `C123456`:
+To exclude one or more channels, prefix them with ^. For example, to
+export everything except channel C123456:
 
 ```bash
-slackdump -export my-workspace.zip ^C123456
+slackdump export ^C123456
 ```
+This excludes `C123456` while exporting the rest.
 
-### Providing the List in a File
+### 3. Using a File for Channel Lists
 
-You can specify the filename instead of listing all the channels on the
-command line. To include the channels from the file, use the "@"
-character prefix. The following example shows how to load the channels
-from the file named "data.txt":
+You can specify a file containing channel IDs or URLs. To include
+channels from a file:
+
 ```bash
 slackdump archive @data.txt
 ```
-It is also possible to combine files and channels, i.e.:
+You can also combine files and individual channel exclusions. For
+example:
+
 ```bash
 slackdump archive @data.txt ^C123456
 ```
-The command above will read the channels from data.txt and exclude the
-channel `C123456` from the Export.
+This command includes channels listed in data.txt but excludes C123456.
+
+### 4. Using Time Ranges
+
+To include messages from a specific time range:
+
+```bash
+slackdump archive C123456/2022-01-01T00:00:00/2022-01-31T23:59:59
+```
+
+This command archives messages from channel `C123456` between January 1st
+and January 31st, 2022.
+
+## TL;DR
+
+- Use the `@` prefix for files and the `^` prefix for exclusions.
+- Time range parameters are optional but can refine your export or
+  archive operation.
 

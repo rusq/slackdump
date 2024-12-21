@@ -22,6 +22,8 @@ var cmdEdge = &base.Command{
 # Slack Edge API test tool
 
 Edge test attempts to call the Edge API with the provided credentials.
+
+Not particularly useful for end users, but can be used to test the Edge API.
 `,
 }
 
@@ -62,7 +64,7 @@ func runEdge(ctx context.Context, cmd *base.Command, args []string) error {
 	lg.Info("*** AdminEmojiList test ***")
 	var allEmoji edge.EmojiResult
 
-	var iter = 0
+	iter := 0
 	for res, err := range cl.AdminEmojiList(ctx) {
 		if err != nil {
 			return err

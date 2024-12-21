@@ -3,6 +3,7 @@ package view
 import (
 	"archive/zip"
 	"context"
+	_ "embed"
 	"errors"
 	"fmt"
 	"io"
@@ -13,6 +14,7 @@ import (
 	"strings"
 
 	br "github.com/pkg/browser"
+
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/internal/chunk"
@@ -20,12 +22,13 @@ import (
 	"github.com/rusq/slackdump/v3/internal/viewer/source"
 )
 
+//go:embed assets/view.md
+var mdView string
+
 var CmdView = &base.Command{
-	Short:     "View the slackdump files",
-	UsageLine: "slackdump view [flags]",
-	Long: `
-View the slackdump files.
-`,
+	Short:      "View the slackdump files",
+	UsageLine:  "slackdump view [flags]",
+	Long:       mdView,
 	PrintFlags: true,
 	FlagMask:   cfg.OmitAll,
 	Run:        RunView,
