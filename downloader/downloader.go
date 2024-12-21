@@ -144,34 +144,34 @@ type Request struct {
 func (c *Client) Start(ctx context.Context) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	slog.Debug("starting downloader")
-
 	if c.started.Load() {
+		slog.Debug("downloader already started")
 		return
 	}
-	c.requests = make(chan Request, c.chanBufSz)
-	c.wg = c.startWorkers(ctx, c.requests)
+	slog.Debug("starting downloader")
+	c.startWorkers(ctx)
 	c.started.Store(true)
 }
 
 // startWorkers starts download workers.  It returns a sync.WaitGroup.  If the
 // req channel is closed, workers will stop, and wg.Wait() completes.
-func (c *Client) startWorkers(ctx context.Context, req <-chan Request) *sync.WaitGroup {
+func (c *Client) startWorkers(ctx context.Context) {
 	if c.workers == 0 {
 		c.workers = defNumWorkers
 	}
-	seen := fltSeen(req)
-	var wg sync.WaitGroup
+	c.requests = make(chan Request, c.chanBufSz)
+	c.wg = new(sync.WaitGroup)
+
+	seen := fltSeen(c.requests)
 	// create workers
 	for i := range c.workers {
-		wg.Add(1)
+		c.wg.Add(1)
 		go func(workerNum int) {
 			c.worker(ctx, seen)
-			wg.Done()
+			c.wg.Done()
 			c.lg.DebugContext(ctx, "download worker terminated", "worker", workerNum)
 		}(i)
 	}
-	return &wg
 }
 
 // fltSeen filters the files from filesC to ensure that no duplicates
