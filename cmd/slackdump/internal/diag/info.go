@@ -6,15 +6,18 @@ import (
 	"io"
 	"os"
 
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/diag/info"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 )
 
 // cmdInfo is the information command.
 var cmdInfo = &base.Command{
-	UsageLine: "slackdump tools info",
-	Short:     "show information about Slackdump environment",
-	Run:       runInfo,
+	UsageLine:  "slackdump tools info",
+	Short:      "show information about Slackdump environment",
+	Run:        runInfo,
+	FlagMask:   cfg.OmitAll,
+	PrintFlags: true,
 
 	Long: `# Info Command
 	

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/rusq/fsadapter"
+
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/bootstrap"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
@@ -35,9 +36,7 @@ func init() {
 	CmdArchive.Wizard = archiveWizard
 }
 
-var (
-	errNoOutput = errors.New("output directory is required")
-)
+var errNoOutput = errors.New("output directory is required")
 
 func RunArchive(ctx context.Context, cmd *base.Command, args []string) error {
 	start := time.Now()
@@ -80,7 +79,13 @@ func RunArchive(ctx context.Context, cmd *base.Command, args []string) error {
 	defer stop()
 	// we are using the same file subprocessor as the mattermost export.
 	subproc := fileproc.NewExport(fileproc.STmattermost, dl)
-	ctrl := control.New(cd, stream, control.WithLogger(lg), control.WithFiler(subproc))
+	ctrl := control.New(
+		cd,
+		stream,
+		control.WithLogger(lg),
+		control.WithFiler(subproc),
+		control.WithFlags(control.Flags{MemberOnly: cfg.MemberOnly}),
+	)
 	if err := ctrl.Run(ctx, list); err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return err

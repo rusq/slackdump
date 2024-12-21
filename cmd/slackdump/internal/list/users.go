@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/rusq/slack"
+
 	"github.com/rusq/slackdump/v3"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/bootstrap"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
@@ -21,7 +22,7 @@ var CmdListUsers = &base.Command{
 	Run:         runListUsers,
 	UsageLine:   "slackdump list users [flags] [filename]",
 	PrintFlags:  true,
-	FlagMask:    cfg.OmitDownloadFlag,
+	FlagMask:    flagMask,
 	Short:       "list workspace users",
 	RequireAuth: true,
 	Long: fmt.Sprintf(`
@@ -46,7 +47,7 @@ func runListUsers(ctx context.Context, cmd *base.Command, args []string) error {
 		return err
 	}
 
-	var l = &users{
+	l := &users{
 		common: commonFlags,
 	}
 
@@ -81,7 +82,6 @@ func (u *users) Retrieve(ctx context.Context, sess *slackdump.Session, m *cache.
 }
 
 //go:generate mockgen -source=users.go -destination=mocks_test.go -package=list userGetter,userCacher
-
 type userGetter interface {
 	GetUsers(ctx context.Context) (types.Users, error)
 }

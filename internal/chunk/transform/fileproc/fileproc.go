@@ -129,7 +129,10 @@ func NewDownloader(ctx context.Context, gEnabled bool, cl FileGetter, fsa fsadap
 		return NoopDownloader{}, func() {}
 	} else {
 		dl := downloader.New(cl, fsa, downloader.WithLogger(lg))
-		dl.Start(ctx)
+		if err := dl.Start(ctx); err != nil {
+			lg.Error("failed to start downloader", "error", err)
+			return NoopDownloader{}, func() {}
+		}
 		return dl, dl.Stop
 	}
 }

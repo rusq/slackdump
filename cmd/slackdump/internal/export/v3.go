@@ -22,8 +22,6 @@ import (
 	"github.com/rusq/slackdump/v3/stream"
 )
 
-// TODO: check if the features is on par with Export v2.
-
 // export runs the export v3.
 func export(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, list *structures.EntityList, params exportFlags) error {
 	lg := cfg.Log
@@ -73,7 +71,7 @@ func export(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, list
 	)
 
 	flags := control.Flags{
-		MemberOnly: params.MemberOnly,
+		MemberOnly: cfg.MemberOnly,
 	}
 	ctr := control.New(
 		chunkdir,

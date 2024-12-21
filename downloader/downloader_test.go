@@ -1,13 +1,15 @@
 package downloader
 
 import (
+	"context"
 	"log/slog"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/rusq/slackdump/v3/internal/fixtures"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/rusq/slackdump/v3/internal/fixtures"
 )
 
 func init() {
@@ -62,7 +64,6 @@ func Test_fltSeen(t *testing.T) {
 var benchInput = makeFileReqQ(100_000)
 
 func BenchmarkFltSeen(b *testing.B) {
-
 	inputC := make(chan Request)
 	go func() {
 		defer close(inputC)
@@ -131,6 +132,49 @@ func TestClient_Download(t *testing.T) {
 		case r := <-requests:
 			assert.Equal(t, Request{Fullpath: "x/file", URL: "http://example.com"}, r, "expected request to be sent")
 		}
+	})
+}
 
+func TestClient_startWorkers(t *testing.T) {
+	t.Parallel()
+	t.Run("starts workers", func(t *testing.T) {
+		t.Parallel()
+		c := &Client{
+			requests: make(chan Request),
+			wg:       new(sync.WaitGroup),
+			options:  options{lg: slog.Default(), workers: 3},
+		}
+		defer close(c.requests)
+		c.startWorkers(context.Background())
+		assert.Equal(t, 3, c.options.workers)
+		assert.NotNil(t, c.wg)
+	})
+	t.Run("no workers specified", func(t *testing.T) {
+		t.Parallel()
+		c := &Client{
+			requests: make(chan Request),
+			wg:       new(sync.WaitGroup),
+			options:  options{lg: slog.Default()},
+		}
+		defer close(c.requests)
+		c.startWorkers(context.Background())
+		assert.Equal(t, defNumWorkers, c.options.workers)
+		assert.NotNil(t, c.wg)
+	})
+}
+
+func TestStart(t *testing.T) {
+	t.Parallel()
+	t.Run("already started", func(t *testing.T) {
+		c := &Client{}
+		c.lg = slog.Default()
+		c.started.Store(true)
+		assert.Error(t, c.Start(context.Background()), "expected error")
+	})
+	t.Run("not started", func(t *testing.T) {
+		c := &Client{}
+		c.lg = slog.Default()
+		assert.NoError(t, c.Start(context.Background()), "expected no error")
+		assert.True(t, c.started.Load(), "expected started to be true")
 	})
 }

@@ -110,6 +110,10 @@ func (e Error) Error() string {
 	return fmt.Sprintf("controller error in subroutine %s on stage %s: %v", e.Subroutine, e.Stage, e.Err)
 }
 
+func (e Error) Unwrap() error {
+	return e.Err
+}
+
 func (c *Controller) Run(ctx context.Context, list *structures.EntityList) error {
 	ctx, task := trace.NewTask(ctx, "Controller.Run")
 	defer task.End()

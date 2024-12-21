@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/rusq/fsadapter"
+
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/bootstrap"
 
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
@@ -30,7 +31,6 @@ var CmdExport = &base.Command{
 
 type exportFlags struct {
 	ExportStorageType fileproc.StorageType
-	MemberOnly        bool
 	ExportToken       string
 }
 
@@ -42,9 +42,7 @@ var (
 )
 
 func init() {
-	// TODO: move TimeValue somewhere more appropriate once v1 is sunset.
 	CmdExport.Flag.Var(&options.ExportStorageType, "type", "export file storage type")
-	CmdExport.Flag.BoolVar(&options.MemberOnly, "member-only", false, "export only channels, which current user belongs to")
 	CmdExport.Flag.StringVar(&options.ExportToken, "export-token", "", "file export token to append to each of the file URLs")
 
 	CmdExport.Run = runExport
