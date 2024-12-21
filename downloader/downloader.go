@@ -28,8 +28,9 @@ const (
 )
 
 var (
-	ErrNoFS       = errors.New("fs adapter not initialised")
-	ErrNotStarted = errors.New("downloader not started")
+	ErrNoFS           = errors.New("fs adapter not initialised")
+	ErrNotStarted     = errors.New("downloader not started")
+	ErrAlreadyStarted = errors.New("downloader already started")
 )
 
 // Downloader is the file downloader interface.  It exists primarily for mocking
@@ -141,16 +142,16 @@ type Request struct {
 
 // Start starts an async file downloader.  If the downloader is already
 // started, it does nothing.
-func (c *Client) Start(ctx context.Context) {
+func (c *Client) Start(ctx context.Context) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.started.Load() {
-		slog.Debug("downloader already started")
-		return
+		return ErrAlreadyStarted
 	}
-	slog.Debug("starting downloader")
+	c.lg.Debug("starting downloader")
 	c.startWorkers(ctx)
 	c.started.Store(true)
+	return nil
 }
 
 // startWorkers starts download workers.  It returns a sync.WaitGroup.  If the
@@ -316,7 +317,10 @@ func (c *Client) Download(fullpath string, url string) error {
 
 func (c *Client) AsyncDownloader(ctx context.Context, queueC <-chan Request) (<-chan struct{}, error) {
 	done := make(chan struct{})
-	c.Start(ctx)
+	if err := c.Start(ctx); err != nil {
+		close(done)
+		return done, err
+	}
 	go func() {
 		defer close(done)
 		for r := range queueC {

@@ -177,7 +177,9 @@ func dump(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, p dump
 	var sdl fileproc.Downloader
 	if p.downloadFiles {
 		dl := downloader.New(sess.Client(), fsa, downloader.WithLogger(lg))
-		dl.Start(ctx)
+		if err := dl.Start(ctx); err != nil {
+			return err
+		}
 		defer dl.Stop()
 		sdl = dl
 	} else {

@@ -148,7 +148,6 @@ func TestClient_startWorkers(t *testing.T) {
 		c.startWorkers(context.Background())
 		assert.Equal(t, 3, c.options.workers)
 		assert.NotNil(t, c.wg)
-		assert.True(t, c.started.Load())
 	})
 	t.Run("no workers specified", func(t *testing.T) {
 		t.Parallel()
@@ -161,6 +160,21 @@ func TestClient_startWorkers(t *testing.T) {
 		c.startWorkers(context.Background())
 		assert.Equal(t, defNumWorkers, c.options.workers)
 		assert.NotNil(t, c.wg)
-		assert.True(t, c.started.Load())
+	})
+}
+
+func TestStart(t *testing.T) {
+	t.Parallel()
+	t.Run("already started", func(t *testing.T) {
+		c := &Client{}
+		c.lg = slog.Default()
+		c.started.Store(true)
+		assert.Error(t, c.Start(context.Background()), "expected error")
+	})
+	t.Run("not started", func(t *testing.T) {
+		c := &Client{}
+		c.lg = slog.Default()
+		assert.NoError(t, c.Start(context.Background()), "expected no error")
+		assert.True(t, c.started.Load(), "expected started to be true")
 	})
 }
