@@ -11,14 +11,16 @@ import (
 	"testing"
 
 	"github.com/joho/godotenv"
-	"github.com/rusq/slackdump/v3/auth"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/rusq/slackdump/v3/auth"
 )
 
 var _ = godotenv.Load()
 
 var (
-	testToken  = os.Getenv("EDGE_TOKEN)")
+	// preferrably guest workspace token.
+	testToken  = os.Getenv("EDGE_TOKEN")
 	testCookie = os.Getenv("EDGE_COOKIE")
 )
 

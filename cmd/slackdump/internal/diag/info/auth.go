@@ -8,9 +8,9 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"text/tabwriter"
 
 	"github.com/rusq/encio"
+
 	"github.com/rusq/slackdump/v3/auth"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/internal/cache"
@@ -43,6 +43,7 @@ func CollectAuth(ctx context.Context, w io.Writer) error {
 	if err != nil {
 		return fmt.Errorf("cache error: %w", err)
 	}
+	fmt.Fprintf(w, "TOKEN=%s\n", prov.Token)
 	if err := dumpCookiesMozilla(ctx, w, prov.Cookies()); err != nil {
 		return err
 	}
@@ -51,12 +52,8 @@ func CollectAuth(ctx context.Context, w io.Writer) error {
 
 // dumpCookiesMozilla dumps cookies in Mozilla format.
 func dumpCookiesMozilla(_ context.Context, w io.Writer, cookies []*http.Cookie) error {
-	tw := tabwriter.NewWriter(w, 0, 8, 0, '\t', 0)
-	defer tw.Flush()
-	fmt.Fprintf(tw, "# name@domain\tvalue_len\tflag\tpath\tsecure\texpiration\n")
 	for _, c := range cookies {
-		fmt.Fprintf(tw, "%s\t%9d\t%s\t%s\t%s\t%d\n",
-			c.Name+"@"+c.Domain, len(c.Value), "TRUE", c.Path, strings.ToUpper(fmt.Sprintf("%v", c.Secure)), c.Expires.Unix())
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%d\t%s\t%s\n", c.Domain, "TRUE", c.Path, strings.ToUpper(fmt.Sprintf("%v", c.Secure)), c.Expires.Unix(), c.Name, c.Value)
 	}
 	return nil
 }
