@@ -27,8 +27,8 @@ var emojiMD string
 var CmdEmoji = &base.Command{
 	Run:         run,
 	UsageLine:   "slackdump emoji [flags]",
-	Short:       "download custom workspace emojis",
-	Long:        emojiMD, // TODO: add long description
+	Short:       "download workspace emoticons ಠ_ಠ",
+	Long:        emojiMD,
 	FlagMask:    cfg.OmitDownloadFlag | cfg.OmitConfigFlag | cfg.OmitChunkCacheFlag | cfg.OmitUserCacheFlag,
 	RequireAuth: true,
 	PrintFlags:  true,
@@ -94,7 +94,6 @@ func statusReporter() (emojidl.StatusFunc, io.Closer) {
 		})
 		pb.Add(1)
 	}, pb
-
 }
 
 func runLegacy(ctx context.Context, fsa fsadapter.FS, cb emojidl.StatusFunc) error {

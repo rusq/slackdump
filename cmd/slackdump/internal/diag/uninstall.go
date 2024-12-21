@@ -157,8 +157,8 @@ func uninstallPlaywright(ctx context.Context, si info.PwInfo, dry bool) error {
 	if err := removeFn(si.Path); err != nil {
 		return fmt.Errorf("failed to remove the playwright library: %w", err)
 	}
-	lg.InfoContext(ctx, "Deleting browsers", "browsers_path", si.BrowsersPath)
 
+	lg.InfoContext(ctx, "Deleting browsers", "browsers_path", si.BrowsersPath)
 	if err := removeFn(si.BrowsersPath); err != nil {
 		return fmt.Errorf("failed to remove the playwright browsers: %w", err)
 	}
@@ -219,12 +219,23 @@ func (p *uninstOptions) configuration() cfgui.Configuration {
 					Updater:     updaters.NewBool(&p.playwright),
 				},
 				{
+					Name:        "Rod Browser",
+					Value:       cfgui.Checkbox(p.rod),
+					Description: "Browser to uninstall (if unselected, uninstalls Playwright)",
+					Updater:     updaters.NewBool(&p.rod),
+				},
+				{
+					Name:        "User cache",
+					Value:       cfgui.Checkbox(p.cache),
+					Description: "Remove all saved workspaces and user/channel cache",
+					Updater:     updaters.NewBool(&p.cache),
+				},
+				{
 					Name:        "Dry run",
 					Value:       cfgui.Checkbox(p.dry),
 					Description: "Do not perform the uninstallation, just show what would be done",
 					Updater:     updaters.NewBool(&p.dry),
 				},
-				// TODO: add an option to delete slackdump from user cache options.
 			},
 		},
 	}

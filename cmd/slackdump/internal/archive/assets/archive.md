@@ -1,33 +1,43 @@
-# Archive Command
+# Command: archive
 
-The archive command archives the Slack workspace into a directory of files.
-By default, it will perform the archiving of the full workspace that is accessible
-to your user.
+The `archive` command saves your Slack workspace as a directory of files. By
+default, it archives the entire workspace that your user can access. You can
+customize the archive to include specific channels, groups, or direct messages
+by providing their URLs or IDs.
 
-Optionally, one can select channels, groups and DMs to archive.  For this, one
-needs to specify the URLs or IDs of the channels.
+## Features
 
-The workspace is archived in the "Chunk" format, that can be viewed with the
-`view` command, or converted to other supported formats, such as native Slack
-Export format.
+### Default Behavior
+- Archives the full workspace accessible to your user.
 
-## What is contained in the archive?
+### Optional Customization
+- Specify channels, groups, or DMs to archive by providing their URLs or IDs.
 
-"Archive" behaves similarly to the Slackdump export feature, the output of a
-successful run contains the following:
-- channels.json.gz - list of channels in the workspace (full archives only);
-- users.json.gz - list of users in the workspace;
-- CXXXXXXX.json.gz - channel or group conversation messages, where XXXXXXX is
-  the channel ID;
-- DXXXXXXX.json.gz - direct messages, where XXXXXXX is the user ID;
+### Output Format
+- The archive uses the **"Chunk" format**, which can be:
+  - Viewed using the `view` command.
+  - Converted to other formats, including the native Slack Export format.
 
-Output format:
+## Archive Contents
 
-- Each file is a JSONL file compressed with GZIP.
+The archive behaves like the Slackdump export feature. A successful run
+output includes:
 
-Please note that "archive" can not create ZIP files, but you can zip the output
-directory manually.
+- **`channels.json.gz`**: A list of channels in the workspace (only for full
+  archives).
+- **`users.json.gz`**: A list of users in the workspace.
+- **`CXXXXXXX.json.gz`**: Messages from a channel or group, where `XXXXXXX` is
+  the channel ID.
+- **`DXXXXXXX.json.gz`**: Direct messages, where `XXXXXXX` is the user ID.
 
-## What is chunk file format?
+### File Format
+- Files are saved as **JSONL** (newline-delimited JSON) and compressed with
+  **GZIP**.
+- Note: The `archive` command does not create ZIP files, but you can manually
+  compress the output directory into a ZIP file if needed.
 
-Run `slackdump help chunk` for the format specification.
+## What is the Chunk Format?
+
+The Chunk format is a specific structure used for archiving data. For details
+on this format, run:  `slackdump help chunk`
+

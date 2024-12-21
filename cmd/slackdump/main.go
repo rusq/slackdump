@@ -55,6 +55,7 @@ func init() {
 		CmdVersion,
 
 		man.WhatsNew,
+		man.Syntax,
 		man.Login,
 		man.Chunk,
 	}

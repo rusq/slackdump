@@ -1,14 +1,17 @@
-# Workspace List Command
+# Command: workspace list
 
-**List** allows to list Slack Workspaces, that you have previously
-authenticated in.  It supports several output formats:
-- full (default): outputs workspace names, filenames, and last modification.
-- bare: outputs just workspace names, with the current workspace marked with
+The workspace list command displays the Slack workspaces you have previously
+authenticated. It supports several output formats:
+
+- **full** (default): Displays workspace names, filenames, and last
+  modification dates.
+- **bare**: Displays only workspace names, with the current workspace marked by
   an asterisk.
-- all: outputs all information, including the team name and the user name for
-  each workspace.
+- **all**: Displays all available information, including the team name and user
+  name for each workspace.
 
-If the "all" listing is requested, Slackdump will interrogate the Slack API to
-get the team name and the user name for each workspace.  This may take some
-time, as it involves multiple network requests, depending on your network
-speed and the number of workspaces.
+When the "all" format is selected, Slackdump will query the Slack API to
+retrieve the team name and user name for each workspace. This may take some
+time, depending on your network speed and the number of workspaces, as it
+involves multiple network requests.
+

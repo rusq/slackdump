@@ -2,6 +2,7 @@ package archive
 
 import (
 	"context"
+	_ "embed"
 	"errors"
 	"log/slog"
 	"strings"
@@ -22,7 +23,7 @@ import (
 var CmdSearch = &base.Command{
 	UsageLine:   "slackdump search",
 	Short:       "dump search results",
-	Long:        `Searches for messages matching criteria.`,
+	Long:        searchMD,
 	Wizard:      wizSearch,
 	RequireAuth: true,
 	Commands: []*base.Command{
@@ -31,6 +32,9 @@ var CmdSearch = &base.Command{
 		cmdSearchAll,
 	},
 }
+
+//go:embed assets/search.md
+var searchMD string
 
 const flagMask = cfg.OmitUserCacheFlag | cfg.OmitCacheDir | cfg.OmitTimeframeFlag | cfg.OmitMemberOnlyFlag
 
