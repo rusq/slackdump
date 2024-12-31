@@ -1,13 +1,13 @@
-# Emoji Command
-This command allows you to download all the custom emojis from the Slack
-workspace.
+# Command: emoji ฅ(^•ﻌ•^ฅ)
+This command allows you to download all emoticons from the Slack Workspace.
 
 There are two modes of operation:
-- **Standard**: download only the names and URLs of the custom emojis;
-- **Full**: Download all the custom emojis from the workspace.
+- **Standard**: download only the names and URLs of the workspace emojis;
+- **Full**: downloads all the information about the custom emojis from the
+  workspace.
 
-Full mode is approx. 2.3 times slower than the standard mode, but it provides
-more information about the custom emojis.
+Full mode is approximately 2.3 times slower than the standard mode, but it
+provides more information about the custom emojis.
 
 In both modes:
 - aliases are skipped, as they just point to the main emoji;

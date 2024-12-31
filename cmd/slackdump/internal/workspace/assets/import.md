@@ -1,24 +1,26 @@
-# Workspace Import Command
+# Command: "workspace import"
 
-**Import** allows you to import credentials from a .env or secrets.txt file.
+The `workspace import` command allows you to import credentials from a `.env`
+or `secrets.txt` file.
 
-It requires the file to have the following format:
-```
+The file should have the following format:
+```shell
 SLACK_TOKEN=xoxc-...
 SLACK_COOKIE=xoxd-...
 ```
 
-`SLACK_TOKEN` can be one of the following:
+**SLACK_TOKEN** can be one of the following types:
 
-- xoxa-...: app token
-- xoxb-...: bot token
-- xoxc-...: client token
-- xoxe-...: export token
-- xoxp-...: legacy user token
+- xoxa-...: App token
+- xoxb-...: Bot token
+- xoxc-...: Client token
+- xoxe-...: Export token
+- xoxp-...: Legacy user token
 
-`SLACK_COOKIE` is only required, if the `SLACK_TOKEN` is a client type token
-(starts with `xoxc-`).
+**SLACK_COOKIE** is required only if the `SLACK_TOKEN` is a client token
+(`xoxc-...`).
 
-It will test the provided credentials, and if successful, encrypt and save
-them to the to the slackdump credential storage.  It is recommended to delete
-the .env file afterwards.
+The command will test the provided credentials, and if successful, it will
+encrypt and save them to Slackdump's credential storage. It is recommended to
+delete the .env or secrets.txt file after the import to ensure security.
+

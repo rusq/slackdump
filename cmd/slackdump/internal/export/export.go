@@ -2,6 +2,7 @@ package export
 
 import (
 	"context"
+	_ "embed"
 	"errors"
 	"fmt"
 	"strings"
@@ -23,23 +24,23 @@ var CmdExport = &base.Command{
 	UsageLine:   "slackdump export",
 	Short:       "exports the Slack Workspace or individual conversations",
 	FlagMask:    cfg.OmitUserCacheFlag,
-	Long:        ``, // TODO: add long description
+	Long:        mdExport, // TODO: add long description
 	CustomFlags: false,
 	PrintFlags:  true,
 	RequireAuth: true,
 }
+
+//go:embed assets/export.md
+var mdExport string
 
 type exportFlags struct {
 	ExportStorageType fileproc.StorageType
 	ExportToken       string
 }
 
-var (
-	compat  bool
-	options = exportFlags{
-		ExportStorageType: fileproc.STmattermost,
-	}
-)
+var options = exportFlags{
+	ExportStorageType: fileproc.STmattermost,
+}
 
 func init() {
 	CmdExport.Flag.Var(&options.ExportStorageType, "type", "export file storage type")

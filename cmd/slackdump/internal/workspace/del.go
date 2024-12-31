@@ -2,6 +2,7 @@ package workspace
 
 import (
 	"context"
+	_ "embed"
 	"errors"
 	"fmt"
 
@@ -15,21 +16,13 @@ var (
 	ErrNotExists   = errors.New("workspace does not exist")
 )
 
+//go:embed assets/del.md
+var delMD string
+
 var CmdWspDel = &base.Command{
-	UsageLine: baseCommand + " del [flags]",
-	Short:     "deletes the saved workspace credentials",
-	Long: `
-# Workspace Delete Command
-
-Use ` + "`del`" + ` to delete the Slack Workspace login information ("forget"
-the workspace).
-
-If the workspace login information is deleted, you will need to login into that
-workspace again by running ` + " `slackdump workspace new <name>`" + `.
-
-Slackdump will ask for the confirmation before deleting.  To omit the
-question, use ` + "`-y`" + ` flag.
-`,
+	UsageLine:   baseCommand + " del [flags]",
+	Short:       "deletes the saved workspace credentials",
+	Long:        delMD,
 	CustomFlags: false,
 	FlagMask:    cfg.OmitAll,
 	PrintFlags:  true,

@@ -2,6 +2,7 @@ package source
 
 import (
 	"io/fs"
+	"path"
 	"path/filepath"
 	"strings"
 )
@@ -47,7 +48,7 @@ func (r *fstMattermost) FS() fs.FS {
 }
 
 func (r *fstMattermost) File(id string, name string) (string, error) {
-	pth := filepath.Join(id, name)
+	pth := path.Join(id, name)
 	_, err := fs.Stat(r.fs, pth)
 	if err != nil {
 		return "", err
@@ -79,7 +80,7 @@ func newStandardStorage(rootfs fs.FS, idx map[string]string) *fstStandard {
 // buildFileIndex walks the fsys, finding all "attachments" subdirectories, and
 // indexes files in them.
 func buildFileIndex(fsys fs.FS, dir string) (map[string]string, error) {
-	var idx = make(map[string]string) // maps the file id to the file name
+	idx := make(map[string]string) // maps the file id to the file name
 	if err := fs.WalkDir(fsys, dir, func(pth string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -174,7 +175,7 @@ func newDumpStorage(fsys fs.FS) (*fstDump, error) {
 
 // indexDump indexes the files in the dump format.
 func indexDump(fsys fs.FS) (map[string]string, error) {
-	var idx = make(map[string]string)
+	idx := make(map[string]string)
 	// 1. find all json files in the root directory, and use their names as the
 	// channel IDs.
 	var chans []string

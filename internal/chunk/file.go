@@ -102,7 +102,7 @@ func (f *File) Close() error {
 }
 
 type decoder interface {
-	Decode(interface{}) error
+	Decode(any) error
 	InputOffset() int64
 }
 
@@ -400,7 +400,7 @@ func allForID[T any](p *File, id GroupID, fn func(*Chunk) []T) ([]T, error) {
 
 // AllChannelIDs returns all the channels in the chunkfile.
 func (p *File) AllChannelIDs() []string {
-	var ids = make([]string, 0, 1)
+	ids := make([]string, 0, 1)
 	for gid := range p.idx {
 		id := string(gid)
 		if !strings.Contains(id, ":") && !gid.isInfo() && !gid.isList() && !gid.isSearch() {
@@ -438,7 +438,7 @@ func (f *File) offsetTimestamps(ctx context.Context) (offts, error) {
 	ctx, task := trace.NewTask(ctx, "offsetTimestamps")
 	defer task.End()
 
-	var ret = make(offts, f.idx.OffsetCount())
+	ret := make(offts, f.idx.OffsetCount())
 	for id, offsets := range f.idx {
 		switch id[0] {
 		case catInfo, catFile, catList, catSearch: // ignoring files, information and list chunks
@@ -478,7 +478,7 @@ type Addr struct {
 // string timestamp to an int64 timestamp using structures.TS2int, but the
 // original string timestamp returned in the TimeOffset struct.
 func timeOffsets(ots offts) map[int64]Addr {
-	var ret = make(map[int64]Addr, len(ots))
+	ret := make(map[int64]Addr, len(ots))
 	for offset, info := range ots {
 		for i, ts := range info.Timestamps {
 			ret[ts] = Addr{
@@ -506,7 +506,7 @@ func (f *File) Sorted(ctx context.Context, desc bool, fn func(ts time.Time, m *s
 	rgnTos := trace.StartRegion(ctx, "timeOffsets")
 	tos := timeOffsets(ots)
 	rgnTos.End()
-	var tsList = make([]int64, 0, len(tos))
+	tsList := make([]int64, 0, len(tos))
 	for ts := range tos {
 		tsList = append(tsList, ts)
 	}

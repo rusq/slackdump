@@ -12,8 +12,6 @@ import (
 // overwritten.
 //
 // Adopted solution from https://stackoverflow.com/questions/50740902/move-a-file-to-a-different-drive-with-go
-// TODO: This is a temporary solution.  We should use os.Rename() instead, but
-// that doesn't work across filesystems, see the above link.
 func MoveFile(src string, fs fsadapter.FS, dst string) error {
 	in, err := os.Open(src)
 	if err != nil {

@@ -2,6 +2,7 @@ package workspace
 
 import (
 	"context"
+	_ "embed"
 	"errors"
 	"fmt"
 	"os"
@@ -14,14 +15,13 @@ import (
 	"github.com/rusq/slackdump/v3/internal/cache"
 )
 
-var CmdWspNew = &base.Command{
-	UsageLine: baseCommand + " new [flags] <name>",
-	Short:     "authenticate in a Slack Workspace",
-	Long: `
-# Workspace New Command
+//go:embed assets/new.md
+var newMD string
 
-**New** allows you to authenticate in an existing Slack Workspace.
-`,
+var CmdWspNew = &base.Command{
+	UsageLine:  baseCommand + " new [flags] <name>",
+	Short:      "authenticate in a Slack Workspace",
+	Long:       newMD,
 	FlagMask:   flagmask &^ cfg.OmitAuthFlags, // only auth flags.
 	PrintFlags: true,
 	Wizard:     workspaceui.WorkspaceNew,
