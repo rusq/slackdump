@@ -8,6 +8,7 @@ import (
 
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/slack"
+
 	"github.com/rusq/slackdump/v3"
 	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/internal/chunk/chunktest"
@@ -16,15 +17,16 @@ import (
 	"github.com/rusq/slackdump/v3/internal/structures"
 )
 
-const (
-	baseDir   = "../../../../"
-	chunkDir  = baseDir + "tmp/2/"
-	guestDir  = baseDir + "tmp/guest/"
-	largeFile = chunkDir + "C0BBSGYFN.json.gz"
+var (
+	baseDir   = filepath.Join("..", "..", "..", "..")
+	chunkDir  = filepath.Join(baseDir, "tmp", "2")
+	guestDir  = filepath.Join(baseDir, "tmp", "guest")
+	largeFile = filepath.Join(chunkDir, "C0BBSGYFN.json.gz")
 )
 
 func Test_exportV3(t *testing.T) {
 	fixtures.SkipInCI(t)
+	fixtures.SkipOnWindows(t)
 	// // TODO: this is manual
 	// t.Run("large file", func(t *testing.T) {
 	// 	srv := chunktest.NewDirServer(chunkDir)

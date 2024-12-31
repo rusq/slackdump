@@ -38,6 +38,8 @@ func Test_parseArgs(t *testing.T) {
 
 		in, out, arm, err := parseArgs([]string{filepath.Join(dir, "foo"), "-"})
 		require.NoError(t, err)
+		defer out.Close()
+		defer in.Close()
 		assert.Equal(t, os.Stdout, out)
 		assert.True(t, arm)
 
@@ -51,6 +53,8 @@ func Test_parseArgs(t *testing.T) {
 		dir := t.TempDir()
 		in, out, arm, err := parseArgs([]string{"-", filepath.Join(dir, "bar")})
 		require.NoError(t, err)
+		defer out.Close()
+		defer in.Close()
 		assert.Equal(t, os.Stdin, in)
 		assert.False(t, arm)
 
