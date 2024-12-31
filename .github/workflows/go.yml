@@ -27,3 +27,23 @@ jobs:
 
     - name: Test
       run: make test
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: "1.23"
+
+    - name: Build
+      run: go build -v ./...
+
+    - name: Check Catalogue
+      run: |
+        BASE_DIR="contrib" go run ./contrib/_gen -v
+
+    - name: Test
+      run: go test ./... -race
