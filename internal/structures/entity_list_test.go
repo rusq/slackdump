@@ -105,7 +105,6 @@ func TestMakeEntityList(t *testing.T) {
 			args{[]string{"one", "^two", "three"}},
 			&EntityList{
 				index: map[string]*EntityItem{
-
 					"one": {
 						Id:      "one",
 						Include: true,
@@ -175,7 +174,6 @@ func TestMakeEntityList(t *testing.T) {
 			args{[]string{"one", "^two", "three", "", "four", "^"}},
 			&EntityList{
 				index: map[string]*EntityItem{
-
 					"four": {
 						Id:      "four",
 						Include: true,
@@ -216,7 +214,7 @@ func TestMakeEntityList(t *testing.T) {
 		},
 		{
 			"with date limits",
-			args{[]string{"one||", "^two||", "three|bad|2024-01-10T23:02:12", "four|2023-12-10T23:02:12|2024-01-10T23:02:12", "^five|2023-12-10T23:02:12|2024-01-10T23:02:12", "six|2023-12-10T23:02:12|2024-01-10T23:02:12||", "seven|2024-04-07T23:02:12"}},
+			args{[]string{"one,,", "^two,,", "three,bad,2024-01-10T23:02:12", "four,2023-12-10T23:02:12,2024-01-10T23:02:12", "^five,2023-12-10T23:02:12,2024-01-10T23:02:12", "six,2023-12-10T23:02:12,2024-01-10T23:02:12,,", "seven,2024-04-07T23:02:12"}},
 			&EntityList{
 				index: map[string]*EntityItem{
 					"one": {
@@ -496,7 +494,6 @@ func TestEntityList_HasExcludes(t *testing.T) {
 }
 
 func TestEntityList_IsEmpty(t *testing.T) {
-
 	tests := []struct {
 		name string
 		args []string
@@ -594,20 +591,20 @@ func Test_buildEntityIndex(t *testing.T) {
 		{
 			"with dates",
 			args{[]string{
-				"one||",
-				"^two||",
-				"three|bad|2024-01-10T23:02:12",
-				"four|2023-12-10T23:02:12|2024-01-10T23:02:12",
-				"^five|2023-12-10T23:02:12|2024-01-10T23:02:12",
-				"six|2023-12-10T23:02:12|2024-01-10T23:02:12||",
+				"one,,",
+				"^two,,",
+				"three,bad,2024-01-10T23:02:12",
+				"four,2023-12-10T23:02:12,2024-01-10T23:02:12",
+				"^five,2023-12-10T23:02:12,2024-01-10T23:02:12",
+				"six,2023-12-10T23:02:12,2024-01-10T23:02:12,,",
 			}},
 			map[string]bool{
-				"one||":                         true,
-				"two||":                         false,
-				"three|bad|2024-01-10T23:02:12": true,
-				"four|2023-12-10T23:02:12|2024-01-10T23:02:12":  true,
-				"five|2023-12-10T23:02:12|2024-01-10T23:02:12":  false,
-				"six|2023-12-10T23:02:12|2024-01-10T23:02:12||": true,
+				"one,,":                         true,
+				"two,,":                         false,
+				"three,bad,2024-01-10T23:02:12": true,
+				"four,2023-12-10T23:02:12,2024-01-10T23:02:12":  true,
+				"five,2023-12-10T23:02:12,2024-01-10T23:02:12":  false,
+				"six,2023-12-10T23:02:12,2024-01-10T23:02:12,,": true,
 			},
 			false,
 		},

@@ -17,7 +17,7 @@ const (
 	// exclusions, i.e. for export or when downloading conversations.
 	excludePrefix = "^"
 	filePrefix    = "@"
-	timeSeparator = "/"
+	timeSeparator = ","
 	timeFmt       = "2006-01-02T15:04:05"
 
 	// maxFileEntries is the maximum non-empty entries that will be read
