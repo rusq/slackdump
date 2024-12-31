@@ -9,6 +9,7 @@ import (
 
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/slack"
+
 	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/internal/fixtures"
 )
@@ -21,12 +22,13 @@ var testLogger = slog.Default()
 
 func TestChunkToExport_Validate(t *testing.T) {
 	fixtures.SkipInCI(t)
+	fixtures.SkipIfNotExist(t, testSrcDir)
 	srcDir, err := chunk.OpenDir(testSrcDir)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer srcDir.Close()
-	var testTrgDir = t.TempDir()
+	testTrgDir := t.TempDir()
 
 	type fields struct {
 		Src          *chunk.Directory
@@ -96,6 +98,7 @@ func TestChunkToExport_Validate(t *testing.T) {
 
 func TestChunkToExport_Convert(t *testing.T) {
 	fixtures.SkipInCI(t)
+	fixtures.SkipIfNotExist(t, testSrcDir)
 	cd, err := chunk.OpenDir(testSrcDir)
 	if err != nil {
 		t.Fatal(err)
@@ -127,7 +130,7 @@ func Test_copy2trg(t *testing.T) {
 		srcdir := t.TempDir()
 		trgdir := t.TempDir()
 
-		if err := os.WriteFile(filepath.Join(srcdir, "test.txt"), []byte("test"), 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(srcdir, "test.txt"), []byte("test"), 0o644); err != nil {
 			t.Fatal(err)
 		}
 		trgfs := fsadapter.NewDirectory(trgdir)

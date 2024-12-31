@@ -9,6 +9,7 @@ import (
 )
 
 func TestIsSame(t *testing.T) {
+	fx.SkipOnWindows(t)
 	baseDir := t.TempDir()
 
 	file1 := filepath.Join(baseDir, "file1")
@@ -70,6 +71,7 @@ func TestIsSame(t *testing.T) {
 }
 
 func TestDirExists(t *testing.T) {
+	fx.SkipOnWindows(t) // symlinks
 	d := t.TempDir()
 
 	// creating fixtures

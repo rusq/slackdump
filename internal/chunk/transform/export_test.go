@@ -2,22 +2,24 @@ package transform
 
 import (
 	"context"
+	"path/filepath"
 	"testing"
 
 	"github.com/rusq/fsadapter"
+
 	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/internal/fixtures"
 )
 
 func Test_transform(t *testing.T) {
-	fixtures.SkipInCI(t)
 	// TODO: automate.
 	// MANUAL
-	const (
-		base   = "../../../"
-		srcdir = base + "tmp/exportv3"
+	var (
+		base   = filepath.Join("..", "..", "..")
+		srcdir = filepath.Join(base, "tmp", "exportv3")
 	)
-	var fsaDir = t.TempDir()
+	fixtures.SkipIfNotExist(t, srcdir)
+	fsaDir := t.TempDir()
 	type args struct {
 		ctx    context.Context
 		fsa    fsadapter.FS
