@@ -3,9 +3,11 @@ package fileproc
 import (
 	"context"
 	"fmt"
+	"path"
 	"path/filepath"
 
 	"github.com/rusq/slack"
+
 	"github.com/rusq/slackdump/v3/internal/chunk/transform"
 	"github.com/rusq/slackdump/v3/processor"
 )
@@ -40,12 +42,12 @@ func MattermostFilepath(_ *slack.Channel, f *slack.File) string {
 // directory, but it follows the mattermost naming pattern.
 func MattermostFilepathWithDir(dir string) func(*slack.Channel, *slack.File) string {
 	return func(_ *slack.Channel, f *slack.File) string {
-		return filepath.Join(dir, f.ID, f.Name)
+		return path.Join(dir, f.ID, f.Name)
 	}
 }
 
 func StdFilepath(ci *slack.Channel, f *slack.File) string {
-	return filepath.Join(transform.ExportChanName(ci), "attachments", fmt.Sprintf("%s-%s", f.ID, f.Name))
+	return path.Join(transform.ExportChanName(ci), "attachments", fmt.Sprintf("%s-%s", f.ID, f.Name))
 }
 
 // nopsubproc is the no-op subprocessor.

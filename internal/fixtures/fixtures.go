@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io"
 	"os"
+	"runtime"
 	"testing"
 
 	"github.com/rusq/slack"
@@ -83,5 +84,23 @@ func SkipInCI(t *testing.T) {
 	t.Helper()
 	if InCI {
 		t.Skip("skipping test in CI environment")
+	}
+}
+
+func SkipOnWindows(t *testing.T) {
+	t.Helper()
+	if runtime.GOOS == "windows" {
+		t.Skip("skipping on windows")
+	}
+}
+
+func SkipIfNotExist(t *testing.T, path string) {
+	t.Helper()
+
+	if _, err := os.Stat(path); err != nil {
+		if os.IsNotExist(err) {
+			t.Skipf("skipping, test file not found: %s", path)
+		}
+		t.Fatal(err)
 	}
 }

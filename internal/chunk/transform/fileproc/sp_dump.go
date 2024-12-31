@@ -1,9 +1,10 @@
 package fileproc
 
 import (
-	"path/filepath"
+	"path"
 
 	"github.com/rusq/slack"
+
 	"github.com/rusq/slackdump/v3/internal/chunk"
 )
 
@@ -16,5 +17,5 @@ func NewDumpSubproc(dl Downloader) Subprocessor {
 }
 
 func DumpFilepath(ci *slack.Channel, f *slack.File) string {
-	return filepath.Join(chunk.ToFileID(ci.ID, "", false).String(), f.ID+"-"+f.Name)
+	return path.Join(chunk.ToFileID(ci.ID, "", false).String(), f.ID+"-"+f.Name)
 }

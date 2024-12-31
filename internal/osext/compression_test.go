@@ -7,8 +7,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	fx "github.com/rusq/slackdump/v3/internal/fixtures"
 	"github.com/stretchr/testify/assert"
+
+	fx "github.com/rusq/slackdump/v3/internal/fixtures"
 )
 
 func TestUnGZIP(t *testing.T) {
@@ -23,6 +24,7 @@ func TestUnGZIP(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer uncF.Close()
 
 	// compressed file
 	compressed := filepath.Join(d, "file.gz")
@@ -81,10 +83,10 @@ func TestUnGZIP(t *testing.T) {
 				t.Errorf("UnGZIP() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
+			defer got.Close()
 			if tt.wantContent == nil {
 				return
 			}
-			defer got.Close()
 			d, err := io.ReadAll(got)
 			if err != nil {
 				t.Fatal(err)

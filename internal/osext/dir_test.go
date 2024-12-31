@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/rusq/slackdump/v3/internal/fixtures"
 	fx "github.com/rusq/slackdump/v3/internal/fixtures"
 )
 
@@ -70,6 +71,7 @@ func TestIsSame(t *testing.T) {
 }
 
 func TestDirExists(t *testing.T) {
+	fixtures.SkipOnWindows(t) // symlinks
 	d := t.TempDir()
 
 	// creating fixtures
