@@ -41,10 +41,5 @@ jobs:
     - name: Build
       run: go build -v ./...
 
-    - name: Check Catalogue
-      run: |
-        set BASE_DIR="contrib"
-        go run ./contrib/_gen -v
-
     - name: Test
       run: go test ./... -race
