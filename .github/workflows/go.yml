@@ -43,7 +43,8 @@ jobs:
 
     - name: Check Catalogue
       run: |
-        BASE_DIR="contrib" go run ./contrib/_gen -v
+        set BASE_DIR="contrib"
+        go run ./contrib/_gen -v
 
     - name: Test
       run: go test ./... -race
