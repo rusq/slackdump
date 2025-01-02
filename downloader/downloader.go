@@ -33,16 +33,18 @@ var (
 	ErrAlreadyStarted = errors.New("downloader already started")
 )
 
-// Downloader is the file downloader interface.  It exists primarily for mocking
+// GetFiler is the file downloader interface.  It exists primarily for mocking
 // in tests.
-type Downloader interface {
+//
+//go:generate mockgen -destination=../mocks/mock_downloader/mock_getfiler.go . GetFiler
+type GetFiler interface {
 	// GetFile retreives a given file from its private download URL
 	GetFileContext(ctx context.Context, downloadURL string, writer io.Writer) error
 }
 
 // Client is the instance of the downloader.
 type Client struct {
-	sc  Downloader
+	sc  GetFiler
 	fsa fsadapter.FS
 
 	requests chan Request
@@ -113,7 +115,7 @@ func WithLogger(l *slog.Logger) Option {
 }
 
 // New initialises new file downloader.
-func New(sc Downloader, fs fsadapter.FS, opts ...Option) *Client {
+func New(sc GetFiler, fs fsadapter.FS, opts ...Option) *Client {
 	if sc == nil {
 		// better safe than sorry
 		panic("programming error:  client is nil")

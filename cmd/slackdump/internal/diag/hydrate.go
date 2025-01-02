@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/rusq/fsadapter"
+	"github.com/rusq/slack"
 
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
@@ -160,21 +161,28 @@ func download(ctx context.Context, archive, target string, dry bool) error {
 	trg := fsadapter.NewDirectory(target)
 	defer trg.Close()
 
-	if err := downloadFiles(ctx, trg, src, dry); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func downloadFiles(ctx context.Context, trg fsadapter.FS, src *source.Export, dry bool) error {
-	var d downloader.Downloader
+	var d downloader.GetFiler
 	if dry {
 		d = debugdl{}
 	} else {
 		d = httpget{}
 	}
 
+	if err := downloadFiles(ctx, d, trg, src); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+//go:generate mockgen -destination=hydrate_mock_test.go -package=diag -source hydrate.go sourcer
+type sourcer interface {
+	Channels() ([]slack.Channel, error)
+	AllMessages(channelID string) ([]slack.Message, error)
+	AllThreadMessages(channelID, threadTimestamp string) ([]slack.Message, error)
+}
+
+func downloadFiles(ctx context.Context, d downloader.GetFiler, trg fsadapter.FS, src sourcer) error {
 	dl := downloader.New(d, trg, downloader.WithLogger(cfg.Log))
 	if err := dl.Start(ctx); err != nil {
 		return err
