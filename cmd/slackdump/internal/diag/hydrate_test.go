@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/rusq/slack"
 	gomock "go.uber.org/mock/gomock"
@@ -167,6 +168,10 @@ func Test_downloadFiles(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			time.AfterFunc(5*time.Second, func() {
+				t.Errorf("timeout")
+			})
+
 			ctrl := gomock.NewController(t)
 			ms := NewMocksourcer(ctrl)
 			fs := mock_fsadapter.NewMockFS(ctrl)
