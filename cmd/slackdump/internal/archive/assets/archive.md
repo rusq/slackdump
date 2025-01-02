@@ -7,7 +7,7 @@ by providing their URLs or IDs.
 
 ## Features
 
-### Default Behavior
+### Default Behaviour
 - Archives the full workspace accessible to your user.
 
 ### Optional Customization
