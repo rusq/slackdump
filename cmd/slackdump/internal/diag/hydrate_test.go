@@ -169,7 +169,7 @@ func Test_downloadFiles(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			time.AfterFunc(5*time.Second, func() {
-				t.Errorf("timeout")
+				t.Fatal("timeout")
 			})
 
 			ctrl := gomock.NewController(t)
