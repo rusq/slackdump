@@ -48,7 +48,7 @@ type Client struct {
 	fsa fsadapter.FS
 
 	requests chan Request
-	wg       *sync.WaitGroup
+	done     chan struct{} // when all workers complete, this channel gets a message.
 
 	mu      sync.Mutex // mutex prevents race condition when starting/stopping
 	started atomic.Bool
@@ -121,8 +121,9 @@ func New(sc GetFiler, fs fsadapter.FS, opts ...Option) *Client {
 		panic("programming error:  client is nil")
 	}
 	c := &Client{
-		sc:  sc,
-		fsa: fs,
+		sc:   sc,
+		fsa:  fs,
+		done: make(chan struct{}, 1),
 		options: options{
 			lg:        slog.Default(),
 			limiter:   rate.NewLimiter(defLimit, 1),
@@ -163,18 +164,22 @@ func (c *Client) startWorkers(ctx context.Context) {
 		c.workers = defNumWorkers
 	}
 	c.requests = make(chan Request, c.chanBufSz)
-	c.wg = new(sync.WaitGroup)
-
+	var wg sync.WaitGroup
 	seen := fltSeen(c.requests)
 	// create workers
 	for i := range c.workers {
-		c.wg.Add(1)
+		wg.Add(1)
 		go func(workerNum int) {
 			c.worker(ctx, seen)
-			c.wg.Done()
+			wg.Done()
 			c.lg.DebugContext(ctx, "download worker terminated", "worker", workerNum)
 		}(i)
 	}
+	go func() {
+		// start sentinel
+		wg.Done()
+		c.done <- struct{}{}
+	}()
 }
 
 // fltSeen filters the files from filesC to ensure that no duplicates
@@ -213,10 +218,10 @@ func hash(s string) uint64 {
 // worker receives requests from reqC and passes them to saveFile function.
 // It will stop if either context is Done, or reqC is closed.
 func (c *Client) worker(ctx context.Context, reqC <-chan Request) {
-	// we deliberately not handling context errors here, because we want to
-	// drain the requestC channel, so that Download would unlock the mutex and
-	// not wait to send on the request channel that no worker is servicing due
-	// to exiting by context cancellation.
+	// we deliberately not handling context cancellation here, because we want
+	// to drain the reqC channel, so that Download would unlock the mutex
+	// and not wait to send on the request channel that no worker is servicing
+	// due to exiting by context cancellation.
 	for req := range reqC {
 		lg := c.lg.With("filename", path.Base(req.URL), "destination", req.Fullpath)
 		lg.DebugContext(ctx, "saving file")
@@ -296,11 +301,10 @@ func (c *Client) Stop() {
 	close(c.requests)
 
 	c.lg.Debug("requests channel closed, waiting for all downloads to complete")
-	c.wg.Wait()
+	<-c.done
 	c.lg.Debug("wait complete:  no more files to download")
 
 	c.requests = nil
-	c.wg = nil
 }
 
 // Download requires a started downloader, otherwise it will return
