@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -14,6 +15,10 @@ import (
 	"github.com/rusq/slackdump/v3/internal/mocks/mock_fsadapter"
 	"github.com/rusq/slackdump/v3/mocks/mock_downloader"
 )
+
+func init() {
+	slog.SetLogLoggerLevel(slog.LevelDebug)
+}
 
 func Test_httpget_GetFileContext(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
