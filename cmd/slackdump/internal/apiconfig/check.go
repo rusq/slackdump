@@ -9,6 +9,7 @@ import (
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/bubbles/filemgr"
@@ -18,16 +19,14 @@ var CmdConfigCheck = &base.Command{
 	UsageLine: "slackdump config check",
 	Short:     "validate the existing config for errors",
 	Long: `
-# Config Check Command
+# Check Command
 
-Allows to check the config for errors and invalid values.
+Validates the configuration file for errors and invalid values.
 
 Example:
 
     slackdump config check myconfig.toml
 
-It will check for duplicate and unknown keys, and also ensure that values are
-within the allowed boundaries.
 `,
 }
 
