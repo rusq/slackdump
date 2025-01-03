@@ -13,15 +13,6 @@ On Examples
 The provided examples are for Linux and macOS if you're using windows, replace
 ``./slackdump`` with ``slackdump`` in the examples.
 
-User Cache
-++++++++++
-
-Slackdump always pre-caches the Slack Workspace Users to be able to resolve the
-usernames.  If the amount of users is large in your Workspace, disable user
-caching with ``-no-user-cache`` flag, i.e.::
-
-  slackdump -no-user-cache ...
-
 Output Format
 +++++++++++++
 
@@ -29,7 +20,7 @@ The default output format for Conversations or Threads is ``json``.
 Additionally, slackdump can generate a text file with formatted conversation.
 To enable generation of the text file::
 
-  slackdump -r text ...
+  slackdump format text <archive.zip or directory>
 
 Save to Another Directory or ZIP File
 +++++++++++++++++++++++++++++++++++++
@@ -40,19 +31,19 @@ Slackdump write to another directory or ZIP file:
 
 Output to Directory with the name of "some_dir"::
   
-  slackdump -base some_dir ...
+  slackdump dump -o some_dir ...
 
 Output to a ZIP file named "my_archive.zip"::
 
-  slackdump -base my_archive.zip ...
+  slackdump -o my_archive.zip ...
 
 Downloading file and image attachments
 ++++++++++++++++++++++++++++++++++++++
 
-By default, Slackdump does not fetch any attachments.  To enable fetching
-attachments, use ``-download`` flag::
+By default, Slackdump does fetches all files attached to messages.  To disable
+fetching attachments, use ``-download`` flag::
 
-  slackdump -download ...
+  slackdump -files=false ...
 
 If the base directory is set, it will use it to save attachments.
 
@@ -64,7 +55,7 @@ on the command line, or a file.
 
 Providing the list on the command line::
 
-  ./slackdump CXXXXXX DXXXXXXX https://xx.slack.com/archives/CXXXXXX
+  ./slackdump dump CXXXXXX DXXXXXXX https://xx.slack.com/archives/CXXXXXX
 
 The URL can be URL of the conversation or thread.  Thread URLs are explained
 in details later in this section.
@@ -75,14 +66,12 @@ Example
 You want to dump conversations with @alice and @bob to text files and save all
 the files (attachments) that you all shared in those conversations::
 
-  slackdump -r text -download DNF3XXXXX DLY4XXXXX https://....
-            ━━━┯━━━ ━┯━━━━━━━ ━━━┯━━━━━ ━━━┯━━━━━ ━━━━┯━━━━━┅┅
-               │     │           │         │          │
-               │     │           │         ╰─: @alice │
-               │     │           ╰───────────: @bob   │
-               │     ╰────────────────: save files    ┊
-               ╰──────────────────────: text file output (can also be "json")
-                  thread or conversation URL :────────╯
+  slackdump dump DNF3XXXXX DLY4XXXXX https://....
+                 ━━━┯━━━━━ ━━━┯━━━━━ ━━━━┯━━━━━┅┅
+                    │         │          │
+                    │         ╰─: @alice │
+                    ╰───────────: @bob   │
+     thread or conversation URL :────────╯
 
 Reading data from the file
 --------------------------
@@ -95,16 +84,16 @@ file.
 2. Copy/paste all the IDs and URLs into that file, one per line.
 3. Run slackdump with "@links.txt" on the command line::
 
-     slackdump @links.txt
-               ━━━━┯━━━━━
-                   │
-                   ╰───────: instructs slackdump to use the file input
+     slackdump dump @links.txt
+                    ━━━━┯━━━━━
+                        │
+                        ╰───────: instructs slackdump to use the file input
 
    "@" character instructs slackdump to read entries from the file.
 
 File input can be combined with channel IDs or URLs, i.e.::
 
-  slackdump CHANNELID1 @links.txt https://xx.slack.com/...
+  slackdump dump CHANNELID1 @links.txt https://xx.slack.com/...
 
 Conversation URL
 ----------------
@@ -126,10 +115,10 @@ Thread URL
 
 Run the slackdump and provide the URL link as an input::
 
-  slackdump -f  https://xxxxxx.slack.com/archives/CHM82GX00/p1577694990000400
-            ━┯  ━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-             │        ╰─────: URL of the thread
-             ╰──────────────: save files (shorthand for -download)
+  slackdump -files=true  https://xxxxxx.slack.com/archives/CHM82GX00/p1577694990000400
+            ━┯━━━━━━━━━  ━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+             │                 ╰─────: URL of the thread
+             ╰──────────────: save files (default)
 
 Internal Thread Link Format
 +++++++++++++++++++++++++++

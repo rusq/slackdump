@@ -59,6 +59,7 @@ func init() {
 		man.Syntax,
 		man.Login,
 		man.Chunk,
+		man.Migration,
 	}
 }
 

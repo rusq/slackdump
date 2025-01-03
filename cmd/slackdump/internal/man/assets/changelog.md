@@ -1,10 +1,36 @@
-# v2.3.0
+# v3.0.0
+
+Gist:
+- 2.6x dump speed improvement on channels with threads;
+- Support for enteprise workspaces;
+- json logging on demand;
+- new structured CLI;
+- improved TUI for the wizardry with bells and whistles;
+- multiple workspaces with ability to switch between them without `-auth-reset`;
+- api limits configuration files;
+- uninstallation tool;
+- slackdump system information tool;
+- pgp encryption for traces (under tools);
+- search results archival;
+
+## New Archive format
+
+Consider using the new `archive` command to save your workspace data.  You can read about
+it in the `slackdump help archive` command and the format it produces in the
+`slackdump help chunk` command.
+
+## Viewer
+
+Slackdump V3 introduces a viewer for exported data.  To view the exported data, run:
+```
+slackdump view <export file or directory>
+```
+
+NOTE: search results are not supported by the viewer yet.
+
 
 ## Breaking changes
 
-- legacy command line interface moved under "v1" command, so if you need to
-  use the old CLI, instead of `./slackdump`, run `./slackdump v1`. The legacy
-  CLI will be phased out:  deprecated in v2.4.0, and removed in v2.5.0;
 - `-download` flag renamed to `-files` and is set to "true" by default;
 - `-r` flag that allowed to generate text files was replaced by
   `slackdump convert` command.
@@ -21,7 +47,7 @@
       `workspace select` command;
     - The "_Current_" workspace can be overridden by providing the `-w <name>`
       flag.
-- Slackdump `record` mode allows to dump the entire workspace into a directory
+- Slackdump `archive` mode allows to dump the entire workspace into a directory
   of chunk files.
 - Slackdump `convert` mode allows to convert chunk files into other formats,
   such as Slack export format, or Slackdump format.

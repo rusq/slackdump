@@ -1,4 +1,4 @@
-# Command: view
+# View Command
 
 The `view` command allows you to view the contents of an archive, 
 export, or dump directory or ZIP file.
