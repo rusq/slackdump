@@ -163,12 +163,13 @@ func (c *Client) startWorkers(ctx context.Context) {
 	if c.workers == 0 {
 		c.workers = defNumWorkers
 	}
-	c.requests = make(chan Request, c.chanBufSz)
+	c.requests = make(chan Request, defFileBufSz)
 	var wg sync.WaitGroup
-	seen := fltSeen(c.requests)
+	seen := fltSeen(c.requests, 0)
 	// create workers
 	for i := range c.workers {
 		wg.Add(1)
+		slog.DebugContext(ctx, "started worker", "i", i)
 		go func(workerNum int) {
 			c.worker(ctx, seen)
 			wg.Done()
@@ -177,14 +178,14 @@ func (c *Client) startWorkers(ctx context.Context) {
 	}
 	go func() {
 		// start sentinel
-		wg.Done()
+		wg.Wait()
 		c.done <- struct{}{}
 	}()
 }
 
 // fltSeen filters the files from filesC to ensure that no duplicates
 // are downloaded.
-func fltSeen(reqC <-chan Request) <-chan Request {
+func fltSeen(reqC <-chan Request, bufSz int) <-chan Request {
 	filtered := make(chan Request)
 	go func() {
 		// closing stop will lead to all worker goroutines to terminate.
@@ -192,7 +193,7 @@ func fltSeen(reqC <-chan Request) <-chan Request {
 
 		// seen contains file ids that already been seen,
 		// so we don't download the same file twice
-		seen := make(map[uint64]struct{}, 1000)
+		seen := make(map[uint64]struct{}, bufSz)
 		// files queue must be closed by the caller (see DumpToDir.(1))
 		for r := range reqC {
 			h := hash(r.URL + r.Fullpath)
@@ -236,6 +237,7 @@ func (c *Client) worker(ctx context.Context, reqC <-chan Request) {
 			lg.DebugContext(ctx, "file saved", "bytes_written", n)
 		}
 	}
+	slog.DebugContext(ctx, "worker exiting")
 }
 
 // saveFileWithLimiter saves the file to specified directory, it will use the provided limiter l for throttling.
@@ -290,12 +292,12 @@ func (c *Client) download(ctx context.Context, fullpath string, url string) (int
 
 // Stop waits for all transfers to finish, and stops the downloader.
 func (c *Client) Stop() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	if !c.started.CompareAndSwap(true, false) {
 		return
 	}
-
-	c.mu.Lock()
-	defer c.mu.Unlock()
 
 	slog.Debug("mutex locked, stopping downloader")
 	close(c.requests)
