@@ -7,8 +7,8 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"testing"
-	"time"
 
 	"github.com/rusq/slack"
 	gomock "go.uber.org/mock/gomock"
@@ -105,29 +105,34 @@ var (
 	TestFile3 = slack.File{ID: "3", Name: "file3", URLPrivateDownload: "testURL3"}
 	TestFile4 = slack.File{ID: "4", Name: "file4", URLPrivateDownload: "testURL4"}
 
+	TestMsgWFile1 = slack.Message{
+		Msg: slack.Msg{
+			Timestamp: "1",
+			Files:     []slack.File{TestFile1, TestFile2},
+		},
+	}
+	TestThreadStartWFile = slack.Message{
+		Msg: slack.Msg{
+			Timestamp:       "2",
+			ThreadTimestamp: "2",
+			Files:           []slack.File{TestFile3},
+		},
+	}
+	TestThreadMsgWFile = slack.Message{
+		Msg: slack.Msg{
+			ThreadTimestamp: "2",
+			Files:           []slack.File{TestFile4},
+		},
+	}
+
 	TestChannels = []slack.Channel{
 		{GroupConversation: slack.GroupConversation{
 			Conversation: slack.Conversation{ID: "C01"},
 			Name:         "channel1",
 		}},
 	}
-	TestMessages = []slack.Message{
-		{Msg: slack.Msg{
-			Timestamp: "1",
-			Files:     []slack.File{TestFile1, TestFile2},
-		}},
-		{Msg: slack.Msg{
-			Timestamp:       "2",
-			ThreadTimestamp: "2",
-			Files:           []slack.File{TestFile3},
-		}},
-	}
-	TestThreadMessages = []slack.Message{
-		{Msg: slack.Msg{
-			ThreadTimestamp: "2",
-			Files:           []slack.File{TestFile4},
-		}},
-	}
+	TestMessages       = []slack.Message{TestMsgWFile1, TestThreadStartWFile}
+	TestThreadMessages = []slack.Message{TestThreadMsgWFile}
 )
 
 type fakewritecloser struct{}
@@ -147,16 +152,30 @@ func Test_downloadFiles(t *testing.T) {
 		wantErr  bool
 	}{
 		{
+			"single message w 2 files",
+			func(m *Mocksourcer, fs *mock_fsadapter.MockFS, d *mock_downloader.MockGetFiler) {
+				m.EXPECT().Channels().Return(TestChannels, nil)
+				m.EXPECT().AllMessages("C01").Return([]slack.Message{TestMsgWFile1}, nil)
+
+				fs.EXPECT().Create(filepath.Join("__uploads", "1", "file1")).Return(&fakewritecloser{}, nil)
+				fs.EXPECT().Create(filepath.Join("__uploads", "2", "file2")).Return(&fakewritecloser{}, nil)
+
+				d.EXPECT().GetFileContext(gomock.Any(), "testURL1", gomock.Any()).Return(nil)
+				d.EXPECT().GetFileContext(gomock.Any(), "testURL2", gomock.Any()).Return(nil)
+			},
+			false,
+		},
+		{
 			"all ok",
 			func(m *Mocksourcer, fs *mock_fsadapter.MockFS, d *mock_downloader.MockGetFiler) {
 				m.EXPECT().Channels().Return(TestChannels, nil)
 				m.EXPECT().AllMessages("C01").Return(TestMessages, nil)
 				m.EXPECT().AllThreadMessages("C01", "2").Return(TestThreadMessages, nil)
 
-				fs.EXPECT().Create("__uploads/1/file1").Return(&fakewritecloser{}, nil)
-				fs.EXPECT().Create("__uploads/2/file2").Return(&fakewritecloser{}, nil)
-				fs.EXPECT().Create("__uploads/3/file3").Return(&fakewritecloser{}, nil)
-				fs.EXPECT().Create("__uploads/4/file4").Return(&fakewritecloser{}, nil)
+				fs.EXPECT().Create(filepath.Join("__uploads", "1", "file1")).Return(&fakewritecloser{}, nil)
+				fs.EXPECT().Create(filepath.Join("__uploads", "2", "file2")).Return(&fakewritecloser{}, nil)
+				fs.EXPECT().Create(filepath.Join("__uploads", "3", "file3")).Return(&fakewritecloser{}, nil)
+				fs.EXPECT().Create(filepath.Join("__uploads", "4", "file4")).Return(&fakewritecloser{}, nil)
 
 				d.EXPECT().GetFileContext(gomock.Any(), "testURL1", gomock.Any()).Return(nil)
 				d.EXPECT().GetFileContext(gomock.Any(), "testURL2", gomock.Any()).Return(nil)
@@ -168,10 +187,6 @@ func Test_downloadFiles(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			time.AfterFunc(5*time.Second, func() {
-				t.Fatal("timeout")
-			})
-
 			ctrl := gomock.NewController(t)
 			ms := NewMocksourcer(ctrl)
 			fs := mock_fsadapter.NewMockFS(ctrl)

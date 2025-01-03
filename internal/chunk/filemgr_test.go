@@ -9,6 +9,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/rusq/slackdump/v3/internal/fixtures"
 )
 
 func Test_hash(t *testing.T) {
@@ -192,6 +194,7 @@ func Test_filemgr_Open(t *testing.T) {
 		assert.Len(t, dp.known, 2)
 	})
 	t.Run("mkdirall fails", func(t *testing.T) {
+		fixtures.SkipOnWindows(t) // nix-specific attributes
 		dp := &filemgr{
 			tmpdir:  t.TempDir(), // another temporary directory
 			once:    new(sync.Once),
@@ -203,7 +206,8 @@ func Test_filemgr_Open(t *testing.T) {
 			os.Chmod(dp.tmpdir, 0o755)
 		})
 		dp.tmpdir = filepath.Join(dp.tmpdir, "non-existing")
-		if _, err := dp.Open(filepath.Join(workdir, "hello.gz")); err == nil {
+		if f, err := dp.Open(filepath.Join(workdir, "hello.gz")); err == nil {
+			f.Close()
 			t.Fatal("expected an error")
 		}
 	})
@@ -297,6 +301,7 @@ func Test_filemgr_Destroy(t *testing.T) {
 		}
 	})
 	t.Run("removeall called on non-existing directory", func(t *testing.T) {
+		fixtures.SkipOnWindows(t) // file mode magic
 		dp := &filemgr{
 			tmpdir:  t.TempDir(),
 			once:    new(sync.Once),

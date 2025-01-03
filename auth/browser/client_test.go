@@ -11,7 +11,9 @@ import (
 	"time"
 
 	"github.com/playwright-community/playwright-go"
+
 	"github.com/rusq/slackdump/v3/auth/browser/pwcompat"
+	"github.com/rusq/slackdump/v3/internal/fixtures"
 )
 
 func Test_float2time(t *testing.T) {
@@ -40,6 +42,7 @@ func Test_pwRepair(t *testing.T) {
 		t.Skip("skipping test on windows")
 	}
 	t.Run("known executable permissions problem causes reinstall", func(t *testing.T) {
+		fixtures.SkipOnWindows(t)
 		baseDir := t.TempDir()
 
 		// installCalledi should be set to true if the install function is
@@ -92,6 +95,7 @@ func makeFakeNode(t *testing.T, dir string, mode fs.FileMode) {
 
 func Test_pwIsKnownProblem(t *testing.T) {
 	t.Run("known executable permissions problem", func(t *testing.T) {
+		fixtures.SkipOnWindows(t)
 		baseDir := t.TempDir()
 		makeFakeNode(t, baseDir, 0o644)
 		if err := pwWrongNodePerms(filepath.Join(baseDir, pwcompat.NodeExe)); err != nil {
@@ -99,6 +103,7 @@ func Test_pwIsKnownProblem(t *testing.T) {
 		}
 	})
 	t.Run("other problem", func(t *testing.T) {
+		fixtures.SkipOnWindows(t)
 		baseDir := t.TempDir()
 		makeFakeNode(t, baseDir, 0o755)
 		err := pwWrongNodePerms(filepath.Join(baseDir, pwcompat.NodeExe))

@@ -234,7 +234,7 @@ func generateEmojis(n int) (ret map[string]string) {
 }
 
 func randString(n int) string {
-	var chars = []rune("0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+	chars := []rune("0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
 
 	b := make([]rune, n)
 	for i := range b {
@@ -334,6 +334,7 @@ func Test_download(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			defer fs.Close()
 			if err := DlFS(tt.args.ctx, sess, fs, tt.args.failFast, nil); (err != nil) != tt.wantErr {
 				t.Errorf("download() error = %v, wantErr %v", err, tt.wantErr)
 			}

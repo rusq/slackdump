@@ -3,8 +3,9 @@ package dirproc
 import (
 	"testing"
 
-	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/rusq/slackdump/v3/internal/chunk"
 )
 
 func makeTestDir(t *testing.T) *chunk.Directory {
@@ -161,9 +162,11 @@ func Test_filetracker_RefCount(t *testing.T) {
 		cd := makeTestDir(t)
 		tr := newFileTracker(cd)
 		id := chunk.FileID("test")
-		if _, err := tr.Recorder(id); err != nil {
+		r, err := tr.Recorder(id);
+		if err != nil {
 			t.Fatal(err)
 		}
+		defer r.Close()
 		assert.Equal(t, 1, tr.RefCount(id), "reference count mismatch")
 	})
 	t.Run("returns 0 for non-existing file", func(t *testing.T) {

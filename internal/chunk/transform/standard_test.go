@@ -2,24 +2,26 @@ package transform
 
 import (
 	"context"
+	"path/filepath"
 	"testing"
 
 	"github.com/rusq/fsadapter"
+
 	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/internal/fixtures"
 	"github.com/rusq/slackdump/v3/internal/nametmpl"
 )
 
 func Test_stdConvert(t *testing.T) {
-	fixtures.SkipInCI(t)
-
-	var testNames = []chunk.FileID{
+	testNames := []chunk.FileID{
 		"CHYLGDP0D-1682335799.257359",
 		"CHYLGDP0D-1682375167.836499",
 		"CHM82GF99",
 	}
 	t.Run("manual", func(t *testing.T) {
-		const testDir = "../../../tmp/3"
+		testDir := filepath.Join("..", "..", "..", "tmp", "3")
+		fixtures.SkipIfNotExist(t, testDir)
+
 		cd, err := chunk.OpenDir(testDir)
 		if err != nil {
 			t.Fatal(err)

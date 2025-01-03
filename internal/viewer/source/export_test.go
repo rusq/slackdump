@@ -9,14 +9,16 @@ import (
 	"testing"
 
 	"github.com/rusq/slack"
-	"github.com/rusq/slackdump/v3/internal/fixtures"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/rusq/slackdump/v3/internal/fixtures"
 )
 
 var testZipFile = filepath.Join("..", "..", "..", "tmp", "realexport.zip")
 
 func openTestZip(t *testing.T, name string) *zip.ReadCloser {
 	fixtures.SkipInCI(t)
+	fixtures.SkipIfNotExist(t, name)
 
 	t.Helper()
 	zr, err := zip.OpenReader(name)
@@ -116,7 +118,8 @@ func TestExport_AllMessages(t *testing.T) {
 }
 
 func Test_buildFileIndex(t *testing.T) {
-	fixtures.SkipInCI(t)
+	testpath := filepath.Join("..", "..", "..", "tmp", "stdexport")
+	fixtures.SkipIfNotExist(t, testpath)
 
 	type args struct {
 		fsys fs.FS
@@ -131,7 +134,7 @@ func Test_buildFileIndex(t *testing.T) {
 		{
 			name: "test",
 			args: args{
-				fsys: os.DirFS(filepath.Join("..", "..", "..", "tmp", "stdexport")),
+				fsys: os.DirFS(testpath),
 				dir:  ".",
 			},
 			want:    map[string]string{},
