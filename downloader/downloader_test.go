@@ -3,7 +3,6 @@ package downloader
 import (
 	"context"
 	"log/slog"
-	"sync"
 	"testing"
 	"time"
 
@@ -51,7 +50,7 @@ func Test_fltSeen(t *testing.T) {
 			}
 		}()
 
-		dlqC := fltSeen(filesC)
+		dlqC := fltSeen(filesC, 4)
 
 		var got []Request
 		for f := range dlqC {
@@ -71,7 +70,7 @@ func BenchmarkFltSeen(b *testing.B) {
 			inputC <- req
 		}
 	}()
-	outputC := fltSeen(inputC)
+	outputC := fltSeen(inputC, 4)
 
 	for n := 0; n < b.N; n++ {
 		for out := range outputC {
@@ -92,9 +91,12 @@ func TestClient_Stop(t *testing.T) {
 	t.Run("already stopped", func(t *testing.T) {
 		c := &Client{
 			requests: make(chan Request),
-			wg:       new(sync.WaitGroup),
 			options:  options{lg: slog.Default()},
+			done:     make(chan struct{}, 1),
 		}
+		go func() {
+			c.done <- struct{}{}
+		}()
 		c.started.Store(true)
 		c.Stop()
 		assert.False(t, c.started.Load(), "expected started to be false")
@@ -108,9 +110,7 @@ func TestClient_Download(t *testing.T) {
 	t.Run("not started", func(t *testing.T) {
 		c := &Client{
 			requests: make(chan Request),
-
-			wg:      new(sync.WaitGroup),
-			options: options{lg: slog.Default()},
+			options:  options{lg: slog.Default()},
 		}
 		err := c.Download("x/file", "http://example.com")
 		assert.Error(t, err, "expected error")
@@ -119,7 +119,6 @@ func TestClient_Download(t *testing.T) {
 		requests := make(chan Request, 1)
 		c := &Client{
 			requests: requests,
-			wg:       new(sync.WaitGroup),
 			options:  options{lg: slog.Default()},
 		}
 		c.started.Store(true)
@@ -141,25 +140,21 @@ func TestClient_startWorkers(t *testing.T) {
 		t.Parallel()
 		c := &Client{
 			requests: make(chan Request),
-			wg:       new(sync.WaitGroup),
 			options:  options{lg: slog.Default(), workers: 3},
 		}
 		defer close(c.requests)
 		c.startWorkers(context.Background())
 		assert.Equal(t, 3, c.options.workers)
-		assert.NotNil(t, c.wg)
 	})
 	t.Run("no workers specified", func(t *testing.T) {
 		t.Parallel()
 		c := &Client{
 			requests: make(chan Request),
-			wg:       new(sync.WaitGroup),
 			options:  options{lg: slog.Default()},
 		}
 		defer close(c.requests)
 		c.startWorkers(context.Background())
 		assert.Equal(t, defNumWorkers, c.options.workers)
-		assert.NotNil(t, c.wg)
 	})
 }
 

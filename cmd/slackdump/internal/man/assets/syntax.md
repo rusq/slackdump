@@ -1,14 +1,15 @@
 # Slackdump Channel List Syntax
 
-Slackdump major commands like `archive`, `export`, and `dump` allow you
-to include or exclude specific channels from an operation. This document
-explains the inclusive and exclusive modes, their syntax, and provides
-examples for practical use.
+Slackdump major commands like `archive`, `export`, and `dump` allow
+you to include or exclude specific channels from an operation.  This
+document explains the inclusive and exclusive modes, their syntax,
+and provides examples for practical use.
 
 ## Syntax
 
-Slackdump accepts channel IDs or URLs as arguments, separated by spaces.  
-The **channel ID** is the last part of the channel URL. For example, in the URL:
+Slackdump accepts channel IDs or URLs as arguments, separated by
+spaces.  The **channel ID** is the last part of the channel URL.
+For example, in the URL:
 
 ```
 https://xxx.slack.com/archives/C12345678
@@ -23,25 +24,27 @@ slackdump list channels
 
 The syntax for specifying entities is as follows:
 ```
-[[prefix]term[/[time_from]/[time_to]]|@file]
+[[prefix]term[,[time_from],[time_to]]|@file]
 ```
+
+Please note that there are no spaces before or after the commas
+",".
 
 Where:
 - `prefix`: Determines how the channel is processed.
   - No prefix: Include the channel in the operation.
   - `^`: Exclude the channel from the operation.
 - `term`: The channel ID, URL, or filename.
-- `time_from` and `time_to`: Optional parameters specifying the time
-  range for the operation in `YYYY-MM-DDTHH:MM:SS` format.
+- `time_from` and `time_to`: Optional parameters specifying the time range for
+  the operation in `YYYY-MM-DDTHH:MM:SS` format.
   - If only `time_from` is specified, the operation includes all messages
     starting from that time.
-  - If only `time_to` is specified, the operation includes all messages
-    up to that time.
-  - If both are specified, the operation includes messages within that
-    time range.
-
-A file can contain one or more channel IDs or URLs, with each entry on a
-new line.
+  - If only `time_to` is specified, the operation includes all messages up to
+    that time.
+  - If both are specified, the operation includes messages within that time
+    range.
+- `@file`: A file containing channel IDs or URLs, with each entry on a new
+  line.
 
 ## Examples
 
@@ -57,8 +60,8 @@ This command exports **only** channels `C12401724` and `C4812934`.
 
 ### 2. Exclude Specific Channels
 
-To exclude one or more channels, prefix them with ^. For example, to
-export everything except channel C123456:
+To exclude one or more channels, prefix them with ^.  For example,
+to export everything except channel C123456:
 
 ```bash
 slackdump export ^C123456
@@ -67,13 +70,13 @@ This excludes `C123456` while exporting the rest.
 
 ### 3. Using a File for Channel Lists
 
-You can specify a file containing channel IDs or URLs. To include
+You can specify a file containing channel IDs or URLs.  To include
 channels from a file:
 
 ```bash
 slackdump archive @data.txt
 ```
-You can also combine files and individual channel exclusions. For
+You can also combine files and individual channel exclusions.  For
 example:
 
 ```bash
@@ -86,15 +89,32 @@ This command includes channels listed in data.txt but excludes C123456.
 To include messages from a specific time range:
 
 ```bash
-slackdump archive C123456/2022-01-01T00:00:00/2022-01-31T23:59:59
+slackdump archive C123456,2022-01-01T00:00:00,2022-01-31T23:59:59
 ```
 
-This command archives messages from channel `C123456` between January 1st
-and January 31st, 2022.
+This command archives messages from channel `C123456` between January
+1st and January 31st, 2022.
+
+Before some date:
+
+```bash
+slackdump archive C123456,2022-01-01T00:00:00
+# or
+slackdump archive C123456,2022-01-01T00:00:00,
+```
+
+After some date:
+
+```bash
+slackdump archive C123456,,2022-01-31T23:59:59
+```
 
 ## TL;DR
 
 - Use the `@` prefix for files and the `^` prefix for exclusions.
 - Time range parameters are optional but can refine your export or
   archive operation.
+  - Time ranges are specified as `time_from` and `time_to` in
+    `YYYY-MM-DDTHH:MM:SS` format.
+  - They should be separated by commas without spaces.
 
