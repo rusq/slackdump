@@ -92,7 +92,11 @@ func TestClient_Stop(t *testing.T) {
 		c := &Client{
 			requests: make(chan Request),
 			options:  options{lg: slog.Default()},
+			done:     make(chan struct{}, 1),
 		}
+		go func() {
+			c.done <- struct{}{}
+		}()
 		c.started.Store(true)
 		c.Stop()
 		assert.False(t, c.started.Load(), "expected started to be false")
