@@ -9,7 +9,7 @@ Slackdump allows to dump all workspace emojis.
 
 Emoji mode requires only one parameter:
 
-- base directory or ZIP file (``-base``)
+- base directory or ZIP file (``-o``)
 
 Optional parameters:
 
@@ -30,6 +30,7 @@ GUI Usage
    depending on your OS;
 
 #. choose "``Emojis``" from the main menu;
+#. Specify options, if needed;
 #. input the output directory or ZIP file name;
 #. wait for download process to complete.
 
@@ -38,22 +39,22 @@ CLI Usage
 
 On windows::
 
-  slackdump.exe -emoji -base <directory or zip file>
+  slackdump.exe emoji
 
 On *nix (including macOS)::
 
-  ./slackdump -emoji -base <directory or zip file>
+  ./slackdump emoji
 
 Usage Examples
 ~~~~~~~~~~~~~~
 
 Create a ``my_emojis.zip`` ZIP archive on linux::
 
-  ./slackdump -emoji -base my_emojis.zip
+  ./slackdump emoji -o my_emojis.zip
 
 Create an ``emoji_dir`` on Windows::
 
-  slackdump.exe -emoji -base emoji_dir
+  slackdump.exe emoji -o emoji_dir
 
 Output structure
 ----------------

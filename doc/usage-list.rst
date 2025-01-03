@@ -10,27 +10,18 @@ General Information
 
 Both Users and Channels dump modes support the following flags:
 
-- ``-r`` - sets the output format, can be ``text`` or ``json``.  Default is
-  ``text``.
+- ``-format`` - sets the output format, can be ``text``, ``json`` or ``csv``.
+  Default is ``text``.
 - ``-o`` - optional flag to set the output filename.  If output filename is not
   specified, the Users or Channels will be printed on the screen.
+- ``-q`` - quiet mode, suppresses all output except errors.
 
 Dumping users
 -------------
 
 To view all users, run::
 
-  slackdump -list-users
-
-or::
-
-  slackdump -u
-
-
-If the channel list in your Slack Workspace is too large, you can skip the
-caching of users by specifying the ``-no-user-cache`` flag::
-
-  slackdump -no-user-cache
+  slackdump list users
 
 In this case, the users will not be cached.  This flag works with both `generic
 dump`_ and `Slack Export`_ modes.
@@ -41,11 +32,12 @@ Viewing Conversations
 To view all Conversations, that are visible to your account, including group
 conversations, archived chats and public channels, run::
 
-  slackdump -list-channels
+  slackdump list channels
 
-or::
+If the user list in your Slack Workspace is too large, you can skip the
+caching of users by specifying the ``-no-user-cache`` flag::
 
-  slackdump -c
+  slackdump list channels -no-user-cache
 
 The output may look like this::
 

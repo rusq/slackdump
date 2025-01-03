@@ -2,10 +2,12 @@ package convertcmd
 
 import (
 	"context"
+	_ "embed"
 	"errors"
 	"time"
 
 	"github.com/rusq/fsadapter"
+
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/internal/chunk"
@@ -13,17 +15,15 @@ import (
 	"github.com/rusq/slackdump/v3/internal/convert"
 )
 
+//go:embed assets/convert.md
+var convertMd string
+
 var CmdConvert = &base.Command{
 	Run:       runConvert,
 	UsageLine: "slackdump convert [flags] <source>",
 	Short:     "convert slackdump chunks to various formats",
 	Long: `
-# Convert Command
 
-Convert slackdump Chunks (output of "record") to various formats.
-
-By default it converts a directory with chunks to an archive or directory
-in Slack Export format.
 `,
 	CustomFlags: false,
 	FlagMask:    cfg.OmitAll & ^cfg.OmitDownloadFlag &^ cfg.OmitOutputFlag,

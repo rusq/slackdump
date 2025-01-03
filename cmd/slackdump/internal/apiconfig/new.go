@@ -18,22 +18,21 @@ var CmdConfigNew = &base.Command{
 	UsageLine: "slackdump config new",
 	Short:     "creates a new API config with the default values",
 	Long: `
-# Config New Command
+# "New" Command
 
 Creates a new API configuration file containing default values. You will need
 to specify the filename, for example:
 
     slackdump config new myconfig.toml
 
-If the extension is omitted, ".toml" is automatically appended to the filename.
+If the extension is omitted, ".toml" is automatically appended to the name of
+the file.
 `,
 	FlagMask:   cfg.OmitAll,
 	PrintFlags: true,
 }
 
-var (
-	fNewOverride = CmdConfigNew.Flag.Bool("y", false, "confirm the overwrite of the existing config")
-)
+var fNewOverride = CmdConfigNew.Flag.Bool("y", false, "confirm the overwrite of the existing config")
 
 func init() {
 	CmdConfigNew.Run = runConfigNew

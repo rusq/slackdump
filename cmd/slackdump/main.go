@@ -54,10 +54,12 @@ func init() {
 		wizard.CmdWizard,
 		CmdVersion,
 
+		man.Quickstart,
 		man.WhatsNew,
 		man.Syntax,
 		man.Login,
 		man.Chunk,
+		man.Migration,
 	}
 }
 

@@ -2,7 +2,7 @@
 
 Slackdump supports the following login methods:
 
-Automatic:
+Automated:
 - Browser authentication (**_EZ-Login 3000_**);
 
 Manual:
@@ -14,8 +14,7 @@ Manual:
 
 ## EZ-Login 3000 ##
 
-If the `-token` flag is not specified, Slackdump starts the **_EZ-Login 3000_**.
-The process of login is as follows:
+For detailed guide, see this [Wiki article](https://github.com/rusq/slackdump/wiki/EZ-Login-3000)
 
 1. You will be asked the **Slack workspace** name that you wish to log in to;
 2. After you have entered the workspace name, the browser will open.  This

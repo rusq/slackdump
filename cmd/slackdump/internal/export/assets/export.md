@@ -1,4 +1,4 @@
-# Command: export
+# Export Command
 
 The `export` command saves your Slack workspace as a directory of files.
 By default, it exports the entire workspace that your user can access.
@@ -7,6 +7,9 @@ direct messages by providing their URLs or IDs.
 
 The ZIP file it generates is compatible with the Slack Export format with
 Slackdump specific extensions.
+
+__NOTE__: If you have an official Slack workspace export file, you can
+hydrate it with files by running `slackdump tools hydrate <export_file>`.
 
 The export file is understood by Slack Import feature with the following
 caveat:

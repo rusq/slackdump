@@ -1,4 +1,4 @@
-# Command: search
+# Search Command
 
 The `search` command allows you to search and export messages or files from a
 Slack workspace based on specified query terms. This command supports searching

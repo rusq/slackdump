@@ -17,7 +17,8 @@ Releases_ page, extract and run it:
 
 #. Download the archive from the Releases_ page for your operating system.
 
-   .. tip:: **MacOS users** should download ``darwin`` release file.
+   .. tip:: **MacOS users** can use ``brew install slackdump`` to install the
+      latest version.
 #. Unpack;
 #. Change directory to where you have unpacked the archive;
 #. Run ``./slackdump -h`` to view help options.
@@ -26,18 +27,22 @@ For compiling from sources see: `Compiling from sources`_
 
 Logging in
 ----------
-There are two types of login options available:
 
-- Automatic_ (**EZ-Login 3000**, works only in 64-bit systems); OR
-- Manual_
+See the quickstart_ guide on how to login.
 
-Automatic_ login is the default one, it requires no prior setup, and the
-general recommendation is to use the Automatic login.  If the Automatic login
-doesn't work for some reason, fallback to Manual_ login steps.
+If you need a token, you can use Manual_ steps, save them to the file and then
+import them with::
+
+  slackdump workspace import <filename>
+
+Read more in Workspace Import_.
+
+.. _quickstart: https://github.com/rusq/slackdump/blob/master/cmd/slackdump/internal/man/assets/quickstart.md
+.. _Import: https://github.com/rusq/slackdump/blob/master/cmd/slackdump/internal/workspace/assets/import.md
 
 Usage
 -----
-There are four modes of operation:
+There are several modes of operation:
 
 - `Listing users/channels`_
 - `Dumping messages and threads`_ (private and public)
@@ -45,7 +50,6 @@ There are four modes of operation:
 - `Downloading all Emojis`_
 
 
-.. _Automatic:  login-auto.rst
 .. _Manual: login-manual.rst
 .. _Installation: usage-install.rst
 .. _Dumping messages and threads: usage-channels.rst

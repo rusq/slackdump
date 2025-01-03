@@ -7,28 +7,20 @@ Creating Slack Export
 This feature allows one to create a slack export of the Slack workspace in
 standard or Mattermost compatible format.
 
-There are four main export specific command line flags that control the export
-behaviour:
+To run the export:
 
--export string
-  Enables the export mode and allows to specify the file or directory to save
-  the data to, for example::
-    
-    -export my_export.zip
+- In GUI mode, choose "Export" from the main menu.
 
--export-type string (optional)
-  Allows to specify the export type.  It mainly affects how the location of
-  attachments files within the archive.  It can accept the following values::
-    
-    standard    - attachments are placed into channel_id/attachments directory.
-    mattermost  - attachments are placed into __uploads/ directory
+- In CLI mode, run the following command::
 
-  ``standard`` is the default export mode, if this parameter is not specified.
+    slackdump export
+
 
 Example::
     
     slackdump -export my_export.zip -export-type mattermost
 
+Optional arguments:
 
 -export-token string (optional)
   Allows to append a custom export token to all attachment files (even if the
@@ -39,19 +31,19 @@ Example::
 
     SLACK_FILE_TOKEN=xoxe-.... slackdump -export my_export.zip
 
--download (optional)
-  If this flag is present, Slackdump will download attachments::
 
-    slackdump -export my_export.zip -download
+Read more by running: ``slackdump help export`` or read online_.
+
+.. _online: https://github.com/rusq/slackdump/blob/master/cmd/slackdump/internal/export/assets/export.md
 
 
 Export Types
 ~~~~~~~~~~~~
 
-By default, Slackdump generates the Standard type Export. 
+By default, Slackdump generates the Mattermost type Export. 
 
 The export file or directory will include emails and, if
-``-download`` flag is specified, attachments.
+``-files=true`` flag is specified, attachments.
 
 Mattermost Export
 +++++++++++++++++
@@ -72,11 +64,11 @@ Steps to export from Slack and import to Mattermost:
 
 #. Run Slackdump in mattermost mode to export the workspace::
 
-     slackdump -export my-workspace.zip -export-type mattermost -download
+     slackdump export -o my-workspace.zip
 
    optionally, you can specify list of conversation to export::
 
-     slackdump -export my-workspace.zip -export-type mattermost -download C12301120 D4012041
+     slackdump export my-workspace.zip C12301120 D4012041
 
 #. Download the ``mmetl`` tool for your architecture from `mmetl
    github page`_.  In the example we'll be using the Linux version::
@@ -151,119 +143,6 @@ Mattermost team.
 More detailed instructions can be found in the `Mattermost
 documentation`_
 
-Mattermost Export Directory Structure
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-The Mattermost type archive will have the following structure::
-
-  /
-  ├── __uploads              : all uploaded files are placed in this dir.
-  │   └── F02PM6A1AUA        : slack file ID is used as a directory name
-  |       └── Chevy.jpg      : file attachment
-  ├── everyone               : channel "#everyone"
-  │   ├── 2022-01-01.json    :   all messages for the 1 Jan 2022.
-  │   └── 2022-01-04.json    :    "     "      "   "  4 Jan 2022.
-  ├── DM12345678             : Your DMs with Scumbag Steve^
-  │   └── 2022-01-04.json    :   (you did not have much to discuss —
-  │                          :    Steve turned out to be a scumbag)
-  ├── channels.json          : all workspace channels information
-  ├── dms.json               : direct message information
-  └── users.json             : all workspace users information
-
-Standard Export
-+++++++++++++++
-
-To run in Slack Export standard mode, one must start Slackdump
-specifying the slack export directory or zip file, i.e.::
-
-  slackdump -export my-workspace -export-type standard
-
-  < OR, for a ZIP file >
-
-  slackdump -export my-workspace.zip -export-type standard
-
-Slackdump will export the whole workspace.  If ' ``-download``' flag is
-specified, all files will be saved under the channel's '``attachments``'
-directory.
-
-Standard Export Directory Structure
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Sample directory or ZIP file structure::
-
-  /
-  ├── everyone               : channel "#everyone"
-  │   ├── 2022-01-01.json    :   all messages for the 1 Jan 2022.
-  │   ├── 2022-01-04.json    :    "     "      "   "  4 Jan 2022.
-  │   └── attachments        :   message files
-  │       └── F02PM6A1AUA-Chevy.jpg       : message attachment
-  ├── DM12345678             : Your DMs with Scumbag Steve^
-  │   └── 2022-01-04.json    :   (you did not have much to discuss —
-  │                          :    Steve turned out to be a scumbag)
-  ├── channels.json          : all workspace channels information
-  ├── dms.json               : direct message information
-  └── users.json             : all workspace users information
-
-Channels
-  The channels are be saved in directories, named after the channel title, i.e.
-  ``#random`` would be saved to "random" directory.  The directory will contain
-  a set of JSON files, one per each day.
-
-Users
-  User directories will have an "D" prefix, to find out the user name, check
-  ``users.json`` file.
-
-Group Messages
-  Group messages will have name listing all the users handles involved.
-
-^In case you're wondering who's `Scumbag Steve`_.
-
-Inclusive and Exclusive Export
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-It is possible to **include** or **exclude** channels in/from the Export.
-
-Exporting Only Channels You Need
-++++++++++++++++++++++++++++++++
-
-To **include** only those channels you're interested in, use the following
-syntax::
-
-  slackdump -export my-workspace.zip C12401724 https://xxx.slack.com/archives/C4812934
-
-The command above will export ONLY channels ``C12401724`` and ``C4812934``.
-
-Exporting Everything Except Some Unwanted Channels
-++++++++++++++++++++++++++++++++++++++++++++++++++
-
-To **exclude** one or more channels from the export, prefix the channel with "^"
-character.  For example, you want to export everything except channel C123456::
-
-  slackdump -export my-workspace.zip ^C123456
-
-Providing the List in a File
-++++++++++++++++++++++++++++
-
-You can specify the filename instead of listing all the channels on the command
-line.  To include the channels from the file, use the "@" character prefix.  The
-following example shows how to load the channels from the file named
-"data.txt"::
-
-  slackdump -export my-workspace.zip @data.txt
-
-It is also possible to combine files and channels, i.e.::
-
-  slackdump -export everything.zip @data.txt ^C123456
-
-The command above will read the channels from ``data.txt`` and exclude the
-channel ``C123456`` from the Export.
-
-.. Note::
-
-  Slack Export is currently in beta development stage, please open an
-  issue_ in Github Issues, if you run into problems.
-
-
 Migrating to
 ~~~~~~~~~~~~
 
@@ -276,6 +155,12 @@ compatibility issues, please open a Github issue_.
 
 Viewing export
 ~~~~~~~~~~~~~~
+
+Slackdump has a native viewer - ::
+
+   slackdump view <export_file>
+
+Alternatively you can use the following tools, listed below.
 
 SlackLogViewer
 ++++++++++++++
@@ -299,11 +184,9 @@ slack-like GUI.
 
 [Index_]
 
-.. _`Scumbag Steve`: https://www.google.com/search?q=Scumbag+Steve
 .. _Index: README.rst
 .. _mmetl github page: https://github.com/mattermost/mmetl
 .. _Mattermost documentation: https://docs.mattermost.com/onboard/migrating-to-mattermost.html#migrating-from-slack-using-the-mattermost-mmetl-tool-and-bulk-import
 .. _Slackord2: https://github.com/thomasloupe/Slackord2
-.. _issue: https://github.com/rusq/slackdump/issues
 .. _SlackLogViewer: https://github.com/thayakawa-gh/SlackLogViewer
 .. _Download SlackLogViewer: https://github.com/thayakawa-gh/SlackLogViewer/releases
