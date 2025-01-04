@@ -82,7 +82,7 @@ func globalConfig() Configuration {
 					Description: "API limits file",
 					Updater: updaters.NewFilepickModel(
 						&cfg.ConfigFile,
-						filemgr.New(os.DirFS("."), ".", 15, "*.toml", "*.tml"),
+						filemgr.New(os.DirFS("."), ".", 15, apiconfig.ConfigExts...),
 						validateAPIconfig,
 					),
 				},

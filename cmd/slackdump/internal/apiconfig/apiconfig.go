@@ -29,6 +29,8 @@ configuration file.
 	},
 }
 
+var ConfigExts = []string{"*.toml", "*.tml"}
+
 var ErrConfigInvalid = errors.New("config validation failed")
 
 // Load reads, parses and validates the config file.
@@ -83,7 +85,7 @@ func printErrors(w io.Writer, err error) error {
 	}
 
 	var wErr error
-	var printErr = func(format string, a ...any) {
+	printErr := func(format string, a ...any) {
 		if wErr != nil {
 			return
 		}

@@ -57,7 +57,7 @@ func CheckFile(filename string) error {
 }
 
 func wizConfigCheck(ctx context.Context, cmd *base.Command, args []string) error {
-	f := filemgr.New(os.DirFS("."), ".", 15, "*.toml", "*.tml")
+	f := filemgr.New(os.DirFS("."), ".", 15, ConfigExts...)
 	f.Focus()
 	f.ShowHelp = true
 	f.Style = filemgr.Style{
