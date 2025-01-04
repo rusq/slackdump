@@ -9,6 +9,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/rusq/rbubbles/filemgr"
+
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/apiconfig"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/updaters"
@@ -81,7 +82,7 @@ func globalConfig() Configuration {
 					Description: "API limits file",
 					Updater: updaters.NewFilepickModel(
 						&cfg.ConfigFile,
-						filemgr.New(os.DirFS("."), ".", 15, "*.yaml", "*.yml"),
+						filemgr.New(os.DirFS("."), ".", 15, apiconfig.ConfigExts...),
 						validateAPIconfig,
 					),
 				},
