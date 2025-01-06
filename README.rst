@@ -2,6 +2,11 @@
 Slack Dumper
 ============
 
+> [!WARNING]
+> You are reading a historical readme file for version 2.  Versions
+> 2 and below are no longer maintained.  Switch to ``master`` branch
+> for the current version.
+
 Purpose:  archive your private and public Slack messages, users, channels,
 files and emojis.  Generate Slack Export without admin privileges.
 
