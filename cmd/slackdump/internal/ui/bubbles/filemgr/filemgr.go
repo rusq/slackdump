@@ -95,7 +95,7 @@ func (m Model) Init() tea.Cmd {
 }
 
 func readFS(fsys fs.FS, dir string, globs ...string) (wmReadDir, error) {
-	sub, err := fs.Sub(fsys, dir)
+	sub, err := fs.Sub(fsys, filepath.Clean(dir))
 	if err != nil {
 		return wmReadDir{}, fmt.Errorf("sub: %w", err)
 	}
@@ -107,7 +107,7 @@ func readFS(fsys fs.FS, dir string, globs ...string) (wmReadDir, error) {
 	if err != nil {
 		return wmReadDir{}, fmt.Errorf("collectFiles: %w", err)
 	}
-	if !(dir == "." || dir == "/" || dir == "") {
+	if dir != "." && dir != string(filepath.Separator) && dir != "" {
 		files = append([]fs.FileInfo{specialDir{".."}}, files...)
 	}
 	return wmReadDir{dir, append(files, dirs...)}, nil
