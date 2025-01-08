@@ -4,12 +4,12 @@ import (
 	"bytes"
 	"io/fs"
 	"reflect"
+	"runtime"
 	"slices"
 	"testing"
 	"testing/fstest"
 
 	"github.com/rusq/rbubbles/display"
-
 	"github.com/stretchr/testify/assert"
 )
 
@@ -387,6 +387,46 @@ func TestModel_printDebug(t *testing.T) {
 			w := &bytes.Buffer{}
 			m.printDebug(w)
 			assert.Equal(t, tt.wantW, w.String())
+		})
+	}
+}
+
+func TestModel_shorten(t *testing.T) {
+	type args struct {
+		dirpath string
+	}
+	tests := []struct {
+		name    string
+		windows bool
+		args    args
+		want    string
+	}{
+		{
+			name:    "very short path",
+			windows: false,
+			args: args{
+				dirpath: "/",
+			},
+			want: "/",
+		},
+		{
+			name:    "longer path",
+			windows: false,
+			args: args{
+				dirpath: "/home/user/Downloads/Funky/Long/Path/Longer/Than/40/Characters",
+			},
+			want: "/h/u/D/F/L/P/L/T/4/Characters",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if isWindows := (runtime.GOOS == "windows"); isWindows != tt.windows {
+				t.Skip("skipping test on non-windows OS")
+			}
+			m := Model{}
+			if got := m.shorten(tt.args.dirpath); got != tt.want {
+				t.Errorf("Model.shorten() = %v, want %v", got, tt.want)
+			}
 		})
 	}
 }

@@ -57,7 +57,12 @@ func CheckFile(filename string) error {
 }
 
 func wizConfigCheck(ctx context.Context, cmd *base.Command, args []string) error {
-	f := filemgr.New(os.DirFS("."), ".", 15, ConfigExts...)
+	cwd, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+
+	f := filemgr.New(os.DirFS(cwd), cwd, ".", 15, ConfigExts...)
 	f.Focus()
 	f.ShowHelp = true
 	f.Style = filemgr.Style{
@@ -65,6 +70,7 @@ func wizConfigCheck(ctx context.Context, cmd *base.Command, args []string) error
 		Directory: ui.DefaultTheme().Focused.Directory,
 		Inverted:  ui.DefaultTheme().Focused.SelectedFile,
 		Shaded:    ui.DefaultTheme().Focused.DisabledFile,
+		CurDir:    ui.DefaultTheme().Focused.Description,
 	}
 	vp := viewport.New(80-filemgr.Width, f.Height)
 	vp.Style = lipgloss.NewStyle().Margin(0, 2)
