@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"log/slog"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -454,6 +455,9 @@ func (m Model) shorten(dirpath string) string {
 		s = append(s, string(parts[i][0]))
 	}
 	s = append(s, parts[len(parts)-1])
+	if runtime.GOOS=="windows" {
+		s[1] = "\\"+s[1]
+	}
 	res := filepath.Join(s...)
 	if dirpath[0] == '/' {
 		res = "/" + res

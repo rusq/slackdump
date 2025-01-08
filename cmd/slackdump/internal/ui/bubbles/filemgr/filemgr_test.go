@@ -402,16 +402,14 @@ func TestModel_shorten(t *testing.T) {
 		want    string
 	}{
 		{
-			name:    "very short path",
-			windows: false,
+			name: "very short path",
 			args: args{
 				dirpath: "/",
 			},
 			want: "/",
 		},
 		{
-			name:    "longer path",
-			windows: false,
+			name: "longer path",
 			args: args{
 				dirpath: "/home/user/Downloads/Funky/Long/Path/Longer/Than/40/Characters",
 			},
@@ -424,10 +422,34 @@ func TestModel_shorten(t *testing.T) {
 			},
 			want: "…/A/E/L/T/T/A/T/S/M/A/E/L/T/T/A/T/Some",
 		},
+		{
+			name:    "windows",
+			windows: true,
+			args: args{
+				dirpath: "D:\\Users\\User\\Downloads",
+			},
+			want: "D:\\Users\\User\\Downloads",
+		},
+		{
+			name:    "very long windows path",
+			windows: true,
+			args: args{
+				dirpath: "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Some Funky\\Path That\\Nobody In Sane\\Mind Can\\Remember\\Or Type\\Without Making\\Over 9000\\Typos",
+			},
+			want: "C:\\P\\M\\2\\C\\S\\P\\N\\M\\R\\O\\W\\O\\Typos",
+		},
+		{
+			name:    "longer than width",
+			windows: true,
+			args: args{
+				dirpath: "C:\\P\\M\\2\\C\\S\\P\\N\\M\\R\\O\\W\\O\\T\\S\\F\\K\\L\\M\\N\\O\\P\\Q\\R\\",
+			},
+			want: "…S\\P\\N\\M\\R\\O\\W\\O\\T\\S\\F\\K\\L\\M\\N\\O\\P\\Q\\R",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if isWindows := (runtime.GOOS == "windows"); isWindows != tt.windows {
+			if (runtime.GOOS == "windows") != tt.windows {
 				t.Skip("skipping test on non-windows OS")
 			}
 			m := Model{}
