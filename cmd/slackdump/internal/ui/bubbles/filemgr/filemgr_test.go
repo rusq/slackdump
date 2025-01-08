@@ -459,3 +459,23 @@ func TestModel_shorten(t *testing.T) {
 		})
 	}
 }
+
+func Test_toFSpath(t *testing.T) {
+	type args struct {
+		p string
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+		// TODO: Add test cases.
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := toFSpath(tt.args.p); got != tt.want {
+				t.Errorf("toFSpath() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

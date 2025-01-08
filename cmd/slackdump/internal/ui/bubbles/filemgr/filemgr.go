@@ -95,7 +95,7 @@ func (m Model) Init() tea.Cmd {
 }
 
 func readFS(fsys fs.FS, dir string, globs ...string) (wmReadDir, error) {
-	sub, err := fs.Sub(fsys, filepath.Clean(dir))
+	sub, err := fs.Sub(fsys, toFSpath(dir))
 	if err != nil {
 		return wmReadDir{}, fmt.Errorf("sub: %w", err)
 	}
@@ -466,4 +466,15 @@ func (m Model) shorten(dirpath string) string {
 		res = "…" + res[len(res)-Width+3:]
 	}
 	return res
+}
+
+var pathrepfn = strings.NewReplacer(string(filepath.Separator), "/").Replace
+
+func toFSpath(p string) string {
+	r
+	if runtime.GOOS != "windows" {
+		// already '/'
+		return p
+	}
+	return pathrepfn(p)
 }
