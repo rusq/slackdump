@@ -432,7 +432,7 @@ func (s specialDir) Sys() interface{} {
 // shorten returns a shortened version of a path.
 func (m Model) shorten(dirpath string) string {
 	dirpath = filepath.Clean(dirpath)
-	if len(dirpath) < Width {
+	if len(dirpath) < Width-1 {
 		return dirpath
 	}
 	dirpath = filepath.Clean(dirpath)
@@ -454,5 +454,12 @@ func (m Model) shorten(dirpath string) string {
 		s = append(s, string(parts[i][0]))
 	}
 	s = append(s, parts[len(parts)-1])
-	return filepath.Join(s...)
+	res := filepath.Join(s...)
+	if dirpath[0] == '/' {
+		res = "/" + res
+	}
+	if len(res) > Width-1 {
+		res = "…" + res[len(res)-Width+3:]
+	}
+	return res
 }

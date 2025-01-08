@@ -417,6 +417,13 @@ func TestModel_shorten(t *testing.T) {
 			},
 			want: "/h/u/D/F/L/P/L/T/4/Characters",
 		},
+		{
+			name: "really long path",
+			args: args{
+				dirpath: "/home/user/Downloads/Funky/Long/Path/Longer/Than/40/Characters/And/Even/Longer/Than/That/And/Then/Some/More/And/Even/Longer/Than/That/And/Then/Some",
+			},
+			want: "…/A/E/L/T/T/A/T/S/M/A/E/L/T/T/A/T/Some",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -25,6 +25,7 @@ func Test_filetracker_create(t *testing.T) {
 		t.Parallel()
 		cd := makeTestDir(t)
 		tr := newFileTracker(cd)
+		defer tr.CloseAll()
 		id := chunk.FileID("test")
 		err := tr.create(id)
 		if err != nil {
@@ -43,6 +44,7 @@ func Test_filetracker_create(t *testing.T) {
 		// creating initial file.
 		cd := makeTestDir(t)
 		tr := newFileTracker(cd)
+		defer tr.CloseAll()
 		id := chunk.FileID("test")
 		if err := tr.create(id); err != nil {
 			t.Fatal(err)
@@ -162,7 +164,7 @@ func Test_filetracker_RefCount(t *testing.T) {
 		cd := makeTestDir(t)
 		tr := newFileTracker(cd)
 		id := chunk.FileID("test")
-		r, err := tr.Recorder(id);
+		r, err := tr.Recorder(id)
 		if err != nil {
 			t.Fatal(err)
 		}
