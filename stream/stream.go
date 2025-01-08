@@ -30,6 +30,8 @@ const (
 )
 
 // Slacker is the interface with some functions of slack.Client.
+//
+//go:generate mockgen -destination mock_stream/mock_stream.go . Slacker
 type Slacker interface {
 	AuthTestContext(context.Context) (response *slack.AuthTestResponse, err error)
 	GetConversationHistoryContext(ctx context.Context, params *slack.GetConversationHistoryParameters) (*slack.GetConversationHistoryResponse, error)
@@ -233,12 +235,12 @@ func (cs *Stream) ListChannels(ctx context.Context, proc processor.Channels, p *
 	var next string
 	for {
 		p.Cursor = next
-		var (
-			ch  []slack.Channel
-			err error
-		)
-		ch, next, err = cs.client.GetConversationsContext(ctx, p)
-		if err != nil {
+		var ch []slack.Channel
+		if err := network.WithRetry(ctx, cs.limits.channels, cs.limits.tier.Tier3.Retries, func() error {
+			var err error
+			ch, next, err = cs.client.GetConversationsContext(ctx, p)
+			return err
+		}); err != nil {
 			return fmt.Errorf("API error: %w", err)
 		}
 

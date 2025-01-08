@@ -13,6 +13,9 @@ import (
 
 	"github.com/rusq/chttp"
 	"github.com/rusq/slack"
+	"github.com/stretchr/testify/assert"
+	"go.uber.org/mock/gomock"
+
 	"github.com/rusq/slackdump/v3/auth"
 	"github.com/rusq/slackdump/v3/internal/cache"
 	"github.com/rusq/slackdump/v3/internal/chunk"
@@ -21,8 +24,7 @@ import (
 	"github.com/rusq/slackdump/v3/internal/network"
 	"github.com/rusq/slackdump/v3/internal/structures"
 	"github.com/rusq/slackdump/v3/mocks/mock_processor"
-	"github.com/stretchr/testify/assert"
-	"go.uber.org/mock/gomock"
+	"github.com/rusq/slackdump/v3/stream/mock_stream"
 )
 
 const testConversation = "CO720D65C25A"
@@ -341,4 +343,103 @@ func TestStream_Users(t *testing.T) {
 	m := mock_processor.NewMockUsers(gomock.NewController(t))
 	err := s.Users(ctx, m)
 	assert.Error(t, err)
+}
+
+func TestStream_ListChannels(t *testing.T) {
+	testlimits := rateLimits{
+		channels: network.NewLimiter(network.NoTier, 100, 100),
+		tier:     &network.DefLimits,
+	}
+	type args struct {
+		ctx context.Context
+		// proc processor.Channels
+		p *slack.GetConversationsParameters
+	}
+	tests := []struct {
+		name     string
+		cs       *Stream
+		args     args
+		expectFn func(ms *mock_stream.MockSlacker, mc *mock_processor.MockChannels)
+		wantErr  bool
+	}{
+		{
+			name: "happy path",
+			cs:   &Stream{limits: testlimits},
+			args: args{ctx: context.Background(), p: &slack.GetConversationsParameters{}},
+			expectFn: func(ms *mock_stream.MockSlacker, mc *mock_processor.MockChannels) {
+				ms.EXPECT().
+					GetConversationsContext(gomock.Any(), gomock.Any()).
+					Return(fixtures.Load[[]slack.Channel](fixtures.TestChannels), "", nil)
+				mc.EXPECT().
+					Channels(gomock.Any(), gomock.Any()).
+					Return(nil)
+			},
+			wantErr: false,
+		},
+		{
+			name: "No channels returned, processor not called",
+			cs:   &Stream{limits: testlimits},
+			args: args{ctx: context.Background(), p: &slack.GetConversationsParameters{}},
+			expectFn: func(ms *mock_stream.MockSlacker, mc *mock_processor.MockChannels) {
+				ms.EXPECT().
+					GetConversationsContext(gomock.Any(), gomock.Any()).
+					Return([]slack.Channel{}, "", nil)
+			},
+			wantErr: false,
+		},
+		{
+			name: "next cursor causes another iteration",
+			cs:   &Stream{limits: testlimits},
+			args: args{ctx: context.Background(), p: &slack.GetConversationsParameters{}},
+			expectFn: func(ms *mock_stream.MockSlacker, mc *mock_processor.MockChannels) {
+				ms.EXPECT().
+					GetConversationsContext(gomock.Any(), gomock.Any()).
+					Return(fixtures.Load[[]slack.Channel](fixtures.TestChannels), "next", nil)
+				ms.EXPECT().
+					GetConversationsContext(gomock.Any(), gomock.Any()).
+					Return([]slack.Channel{}, "", nil)
+				mc.EXPECT().
+					Channels(gomock.Any(), gomock.Any()).
+					Return(nil)
+			},
+			wantErr: false,
+		},
+		{
+			name: "rate limiting error causes retry",
+			cs:   &Stream{limits: testlimits},
+			args: args{ctx: context.Background(), p: &slack.GetConversationsParameters{}},
+			expectFn: func(ms *mock_stream.MockSlacker, mc *mock_processor.MockChannels) {
+				call := ms.EXPECT().
+					GetConversationsContext(gomock.Any(), gomock.Any()).
+					Return([]slack.Channel{}, "", &slack.RateLimitedError{RetryAfter: 100 * time.Millisecond})
+				ms.EXPECT().
+					GetConversationsContext(gomock.Any(), gomock.Any()).
+					Return(fixtures.Load[[]slack.Channel](fixtures.TestChannels), "", nil).
+					After(call)
+
+				mc.EXPECT().
+					Channels(gomock.Any(), gomock.Any()).
+					Return(nil)
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			ctrl := gomock.NewController(t)
+			ms := mock_stream.NewMockSlacker(ctrl)
+			mc := mock_processor.NewMockChannels(ctrl)
+
+			cs := tt.cs
+			cs.client = ms
+			if tt.expectFn != nil {
+				tt.expectFn(ms, mc)
+			}
+
+			if err := cs.ListChannels(tt.args.ctx, mc, tt.args.p); (err != nil) != tt.wantErr {
+				t.Errorf("Stream.ListChannels() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
 }
