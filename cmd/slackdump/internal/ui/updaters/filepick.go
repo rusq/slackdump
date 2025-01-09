@@ -5,8 +5,9 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/rusq/rbubbles/filemgr"
+
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/bubbles/filemgr"
 )
 
 type FilepickModel struct {
@@ -25,6 +26,7 @@ func NewFilepickModel(ptrStr *string, f filemgr.Model, validateFn func(s string)
 		Normal:    ui.DefaultTheme().Focused.UnselectedFile,
 		Directory: ui.DefaultTheme().Focused.Directory,
 		Inverted:  ui.DefaultTheme().Focused.SelectedFile,
+		CurDir:    ui.DefaultTheme().Focused.Description,
 	}
 	return FilepickModel{
 		fp:          f,

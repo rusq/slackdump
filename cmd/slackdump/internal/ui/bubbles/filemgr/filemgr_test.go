@@ -4,12 +4,12 @@ import (
 	"bytes"
 	"io/fs"
 	"reflect"
+	"runtime"
 	"slices"
 	"testing"
 	"testing/fstest"
 
 	"github.com/rusq/rbubbles/display"
-
 	"github.com/stretchr/testify/assert"
 )
 
@@ -387,6 +387,114 @@ func TestModel_printDebug(t *testing.T) {
 			w := &bytes.Buffer{}
 			m.printDebug(w)
 			assert.Equal(t, tt.wantW, w.String())
+		})
+	}
+}
+
+func TestModel_shorten(t *testing.T) {
+	type args struct {
+		dirpath string
+	}
+	tests := []struct {
+		name    string
+		windows bool
+		args    args
+		want    string
+	}{
+		{
+			name: "very short path",
+			args: args{
+				dirpath: "/",
+			},
+			want: "/",
+		},
+		{
+			name: "longer path",
+			args: args{
+				dirpath: "/home/user/Downloads/Funky/Long/Path/Longer/Than/40/Characters",
+			},
+			want: "/h/u/D/F/L/P/L/T/4/Characters",
+		},
+		{
+			name: "really long path",
+			args: args{
+				dirpath: "/home/user/Downloads/Funky/Long/Path/Longer/Than/40/Characters/And/Even/Longer/Than/That/And/Then/Some/More/And/Even/Longer/Than/That/And/Then/Some",
+			},
+			want: "…/A/E/L/T/T/A/T/S/M/A/E/L/T/T/A/T/Some",
+		},
+		{
+			name:    "windows",
+			windows: true,
+			args: args{
+				dirpath: "D:\\Users\\User\\Downloads",
+			},
+			want: "D:\\Users\\User\\Downloads",
+		},
+		{
+			name:    "very long windows path",
+			windows: true,
+			args: args{
+				dirpath: "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Some Funky\\Path That\\Nobody In Sane\\Mind Can\\Remember\\Or Type\\Without Making\\Over 9000\\Typos",
+			},
+			want: "C:\\P\\M\\2\\C\\S\\P\\N\\M\\R\\O\\W\\O\\Typos",
+		},
+		{
+			name:    "longer than width",
+			windows: true,
+			args: args{
+				dirpath: "C:\\P\\M\\2\\C\\S\\P\\N\\M\\R\\O\\W\\O\\T\\S\\F\\K\\L\\M\\N\\O\\P\\Q\\R\\",
+			},
+			want: "…S\\P\\N\\M\\R\\O\\W\\O\\T\\S\\F\\K\\L\\M\\N\\O\\P\\Q\\R",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if (runtime.GOOS == "windows") != tt.windows {
+				t.Skip("skipping test on non-windows OS")
+			}
+			m := Model{}
+			if got := m.shorten(tt.args.dirpath); got != tt.want {
+				t.Errorf("Model.shorten() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_toFSpath(t *testing.T) {
+	type args struct {
+		p string
+	}
+	tests := []struct {
+		name    string
+		windows bool
+		args    args
+		want    string
+	}{
+		{
+			name:    "updates path on windows",
+			windows: true,
+			args: args{
+				p: "C:\\Program Files\\Microsoft Office 95",
+			},
+			want: "C:/Program Files/Microsoft Office 95",
+		},
+		{
+			name:    "returns as is on non-windows",
+			windows: false,
+			args: args{
+				p: "/var/spool/mail/root",
+			},
+			want: "/var/spool/mail/root",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if (runtime.GOOS == "windows") != tt.windows {
+				t.Skip("skipping")
+			}
+			if got := toFSpath(tt.args.p); got != tt.want {
+				t.Errorf("toFSpath() = %v, want %v", got, tt.want)
+			}
 		})
 	}
 }

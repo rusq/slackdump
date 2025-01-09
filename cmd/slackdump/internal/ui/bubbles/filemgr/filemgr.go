@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"log/slog"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -16,18 +17,20 @@ import (
 )
 
 type Model struct {
-	Globs     []string
-	Selected  string
-	FS        fs.FS
-	Directory string
-	Height    int
-	ShowHelp  bool
-	Style     Style
-	files     []fs.FileInfo
-	finished  bool
-	focus     bool
-	st        display.State
-	viewStack display.Stack[display.State]
+	Globs      []string
+	Selected   string
+	FS         fs.FS
+	BaseDir    string
+	Directory  string
+	Height     int
+	ShowHelp   bool
+	ShowCurDir bool
+	Style      Style
+	files      []fs.FileInfo
+	finished   bool
+	focus      bool
+	st         display.State
+	viewStack  display.Stack[display.State]
 
 	Debug bool
 	last  string // last key pressed
@@ -38,6 +41,7 @@ type Style struct {
 	Directory lipgloss.Style
 	Inverted  lipgloss.Style
 	Shaded    lipgloss.Style
+	CurDir    lipgloss.Style
 }
 
 // Messages
@@ -54,17 +58,25 @@ type (
 	}
 )
 
-func New(fsys fs.FS, dir string, height int, globs ...string) Model {
+// New creates a new file manager model over the filesystem fsys.  The base
+// directory is what will be displayed in the file manager.  The dir is the
+// current directory within the fsys.  The height is the number of lines to
+// display.  The globs are the file globs to display.
+func New(fsys fs.FS, base string, dir string, height int, globs ...string) Model {
 	return Model{
-		Globs:     globs,
-		FS:        fsys,
-		Directory: dir,
-		Height:    height,
-		focus:     false,
+		Globs:      globs,
+		FS:         fsys,
+		Directory:  dir,
+		BaseDir:    base,
+		Height:     height,
+		focus:      false,
+		ShowCurDir: true,
+		// Sensible defaults
 		Style: Style{
 			Normal:    lipgloss.NewStyle().Foreground(lipgloss.Color("7")),
 			Directory: lipgloss.NewStyle().Foreground(lipgloss.Color("7")),
 			Inverted:  lipgloss.NewStyle().Foreground(lipgloss.Color("7")).Background(lipgloss.Color("240")),
+			CurDir:    lipgloss.NewStyle().Foreground(lipgloss.Color("7")),
 		},
 	}
 }
@@ -83,19 +95,19 @@ func (m Model) Init() tea.Cmd {
 }
 
 func readFS(fsys fs.FS, dir string, globs ...string) (wmReadDir, error) {
-	sub, err := fs.Sub(fsys, dir)
+	sub, err := fs.Sub(fsys, toFSpath(dir))
 	if err != nil {
-		return wmReadDir{}, err
+		return wmReadDir{}, fmt.Errorf("sub: %w", err)
 	}
 	dirs, err := collectDirs(sub)
 	if err != nil {
-		return wmReadDir{}, err
+		return wmReadDir{}, fmt.Errorf("collect dirs: %w", err)
 	}
 	files, err := collectFiles(sub, globs...)
 	if err != nil {
-		return wmReadDir{}, err
+		return wmReadDir{}, fmt.Errorf("collectFiles: %w", err)
 	}
-	if !(dir == "." || dir == "/" || dir == "") {
+	if dir != "." && dir != string(filepath.Separator) && dir != "" {
 		files = append([]fs.FileInfo{specialDir{".."}}, files...)
 	}
 	return wmReadDir{dir, append(files, dirs...)}, nil
@@ -289,7 +301,7 @@ func printFile(fi fs.FileInfo) string {
 		filenameSz = Width - filesizeSz - dttmSz - 3
 	)
 
-	var sz = dirMarker
+	sz := dirMarker
 	if !fi.IsDir() {
 		sz = humanizeSize(fi.Size())
 	}
@@ -321,10 +333,20 @@ func (m Model) View() string {
 	if m.Debug {
 		m.printDebug(&buf)
 	}
+	if m.ShowCurDir {
+		buf.WriteString(
+			m.Style.CurDir.Render(
+				fmt.Sprintf("DIR: %s", m.shorten(filepath.Join(
+					filepath.Clean(m.BaseDir),
+					filepath.Clean(m.Directory),
+				))),
+			) + "\n",
+		)
+	}
 	if len(m.files) == 0 {
 		buf.WriteString(m.Style.Normal.Render("No files found, press [Backspace]") + "\n")
 		for i := 0; i < m.height()-1; i++ {
-			fmt.Fprintln(&buf, m.Style.Normal.Render(strings.Repeat(" ", Width-1))) //padding
+			fmt.Fprintln(&buf, m.Style.Normal.Render(strings.Repeat(" ", Width-1))) // padding
 		}
 	} else {
 		for i, file := range m.files {
@@ -406,4 +428,52 @@ func (s specialDir) IsDir() bool {
 
 func (s specialDir) Sys() interface{} {
 	return s
+}
+
+// shorten returns a shortened version of a path.
+func (m Model) shorten(dirpath string) string {
+	dirpath = filepath.Clean(dirpath)
+	if len(dirpath) < Width-1 {
+		return dirpath
+	}
+	dirpath = filepath.Clean(dirpath)
+	// split the path into parts
+	parts := strings.Split(dirpath, string(filepath.Separator))
+	var s []string
+	if len(parts) < 2 {
+		return dirpath
+	}
+	for i := 0; i < len(parts)-1; i++ {
+		if len(parts[i]) == 0 {
+			s = append(s, "")
+			continue
+		}
+		if strings.HasSuffix(parts[i], ":") {
+			s = append(s, parts[i])
+			continue
+		}
+		s = append(s, string(parts[i][0]))
+	}
+	s = append(s, parts[len(parts)-1])
+	if runtime.GOOS == "windows" {
+		s[1] = "\\" + s[1]
+	}
+	res := filepath.Join(s...)
+	if dirpath[0] == '/' {
+		res = "/" + res
+	}
+	if len(res) > Width-1 {
+		res = "…" + res[len(res)-Width+3:]
+	}
+	return res
+}
+
+var pathrepfn = strings.NewReplacer(string(filepath.Separator), "/").Replace
+
+func toFSpath(p string) string {
+	if runtime.GOOS != "windows" {
+		// already '/'
+		return p
+	}
+	return pathrepfn(p)
 }
