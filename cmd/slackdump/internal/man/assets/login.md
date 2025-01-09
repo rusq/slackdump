@@ -6,9 +6,9 @@ Automated:
 - Browser authentication (**_EZ-Login 3000_**);
 
 Manual:
-- Login with Client Token and a cookie value;
+- Login with Client Token (`xoxc-`) and a cookie value;
 - Login with Client Token and a Cookie file, exported from your browser;
-- Login with Legacy `xoxp-`, Application `xoxa-` or Bot `xoxb-` Token 
+- Login with Legacy `xoxp-`, Application `xapp-` or Bot `xoxb-` Token 
   (no cookie needed).
 
 
