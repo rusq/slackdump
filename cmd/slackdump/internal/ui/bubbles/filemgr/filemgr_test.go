@@ -465,14 +465,33 @@ func Test_toFSpath(t *testing.T) {
 		p string
 	}
 	tests := []struct {
-		name string
-		args args
-		want string
+		name    string
+		windows bool
+		args    args
+		want    string
 	}{
-		// TODO: Add test cases.
+		{
+			name:    "updates path on windows",
+			windows: true,
+			args: args{
+				p: "C:\\Program Files\\Microsoft Office 95",
+			},
+			want: "C:/Program Files/Microsoft Office 95",
+		},
+		{
+			name:    "returns as is on non-windows",
+			windows: false,
+			args: args{
+				p: "/var/spool/mail/root",
+			},
+			want: "/var/spool/mail/root",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			if (runtime.GOOS == "windows") != tt.windows {
+				t.Skip("skipping")
+			}
 			if got := toFSpath(tt.args.p); got != tt.want {
 				t.Errorf("toFSpath() = %v, want %v", got, tt.want)
 			}

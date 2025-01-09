@@ -471,7 +471,6 @@ func (m Model) shorten(dirpath string) string {
 var pathrepfn = strings.NewReplacer(string(filepath.Separator), "/").Replace
 
 func toFSpath(p string) string {
-	r
 	if runtime.GOOS != "windows" {
 		// already '/'
 		return p
