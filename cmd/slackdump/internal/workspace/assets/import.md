@@ -17,7 +17,7 @@ current.
 
 **SLACK_TOKEN** can be one of the following types:
 
-- xoxa-...: App token
+- xapp-...: App token
 - xoxb-...: Bot token
 - xoxc-...: Client token
 - xoxe-...: Export token

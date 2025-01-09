@@ -20,15 +20,21 @@ const (
 
 // tokenRe is a loose regular expression to match Slack API tokens.
 // a - app, b - bot, c - client, e - export, p - legacy
-var tokenRE = regexp.MustCompile(`xox[abcep]-[0-9]+-[0-9]+-[0-9]+-[0-9a-f]{64}`)
+var (
+	tokenRE    = regexp.MustCompile(`\bxox[abcep]-[0-9]+-[0-9]+-[0-9]+-[0-9a-fA-F]{64}\b`)
+	appTokenRE = regexp.MustCompile(`\bx(?:app|oxa)-(?:\d-)?(?:[a-zA-Z0-9]{1,20}-)+[a-fA-F0-9]{1,64}\b`)
+	botTokenRE = regexp.MustCompile(`\bxoxb-(?:[a-zA-Z0-9]{1,20}-){2}[a-zA-Z0-9]{1,40}\b`)
+)
 
-var errInvalidToken = errors.New("token must start with xoxa-, xoxb-, xoxc-, xoxe- or xoxp- and be followed by 3 group of numbers and then 64 hexadecimal characters")
+var ErrInvalidToken = errors.New("token must start with xoxa-, xoxb-, xoxc-, xoxe- or xoxp- and be followed by 3 group of numbers and then 64 hexadecimal characters")
 
 func ValidateToken(token string) error {
-	if !tokenRE.MatchString(token) {
-		return errInvalidToken
+	for _, pattern := range []*regexp.Regexp{appTokenRE, botTokenRE, tokenRE} {
+		if pattern.MatchString(token) {
+			return nil
+		}
 	}
-	return nil
+	return ErrInvalidToken
 }
 
 var ErrInvalidDomain = errors.New("invalid domain")
