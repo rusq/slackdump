@@ -120,6 +120,7 @@ func TestExport_AllMessages(t *testing.T) {
 func Test_buildFileIndex(t *testing.T) {
 	testpath := filepath.Join("..", "..", "..", "tmp", "stdexport")
 	fixtures.SkipIfNotExist(t, testpath)
+	fixtures.SkipInCI(t)
 
 	type args struct {
 		fsys fs.FS

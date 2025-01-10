@@ -77,14 +77,14 @@ func RunArchive(ctx context.Context, cmd *base.Command, args []string) error {
 		lg,
 	)
 	defer stop()
-	// we are using the same file subprocessor as the mattermost export.
+	// archive format has files stored in mattermost format.
 	subproc := fileproc.NewExport(fileproc.STmattermost, dl)
 	ctrl := control.New(
 		cd,
 		stream,
 		control.WithLogger(lg),
 		control.WithFiler(subproc),
-		control.WithFlags(control.Flags{MemberOnly: cfg.MemberOnly}),
+		control.WithFlags(control.Flags{MemberOnly: cfg.MemberOnly, RecordFiles: cfg.RecordFiles}),
 	)
 	if err := ctrl.Run(ctx, list); err != nil {
 		base.SetExitStatus(base.SApplicationError)

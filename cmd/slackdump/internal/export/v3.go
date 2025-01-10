@@ -71,7 +71,8 @@ func export(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, list
 	)
 
 	flags := control.Flags{
-		MemberOnly: cfg.MemberOnly,
+		MemberOnly:  cfg.MemberOnly,
+		RecordFiles: false, // archive format is transitory, don't need extra info.
 	}
 	ctr := control.New(
 		chunkdir,
