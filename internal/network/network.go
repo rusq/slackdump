@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net"
 	"net/http"
@@ -117,6 +118,16 @@ func WithRetry(ctx context.Context, lim *rate.Limiter, maxAttempts int, fn func(
 			ne  *net.OpError // read tcp error: see #234
 		)
 		switch {
+		case errors.Is(cbErr, io.EOF):
+			// EOF is a transient error
+			delay := wait(attempt)
+			slog.WarnContext(ctx, "got EOF, sleeping", "error", cbErr, "delay", delay.String())
+			tracelogf(ctx, "info", "got EOF, sleeping %s (%s)", delay, cbErr)
+			if err := sleepCtx(ctx, delay); err != nil {
+				return err
+			}
+			slog.Debug("resuming after EOF")
+			continue
 		case errors.As(cbErr, &rle):
 			slog.InfoContext(ctx, "got rate limited, sleeping", "retry_after_sec", rle.RetryAfter, "error", cbErr)
 			tracelogf(ctx, "info", "got rate limited, sleeping %s (%s)", rle.RetryAfter, cbErr)

@@ -9,10 +9,11 @@ import (
 	"time"
 
 	"github.com/rusq/slack"
+	"golang.org/x/sync/errgroup"
+
 	"github.com/rusq/slackdump/v3/internal/network"
 	"github.com/rusq/slackdump/v3/internal/structures"
 	"github.com/rusq/slackdump/v3/processor"
-	"golang.org/x/sync/errgroup"
 )
 
 // SyncConversations fetches the conversations from the link which can be a
@@ -277,7 +278,7 @@ func (cs *Stream) thread(ctx context.Context, req request, callback func(mm []sl
 func procChanMsg(ctx context.Context, proc processor.Conversations, threadC chan<- request, channel *slack.Channel, isLast bool, mm []slack.Message) (int, error) {
 	lg := slog.With("channel_id", channel.ID, "is_last", isLast, "msg_count", len(mm))
 
-	var trs = make([]request, 0, len(mm))
+	trs := make([]request, 0, len(mm))
 	for i := range mm {
 		// collecting threads to get their count.  But we don't start
 		// processing them yet, before we send the messages with the number of
@@ -326,11 +327,12 @@ func procThreadMsg(ctx context.Context, proc processor.Conversations, channel *s
 		return err
 	}
 	if err := proc.ThreadMessages(ctx, channel.ID, head, threadOnly, isLast, rest); err != nil {
-		return fmt.Errorf("failed to process thread message id=%s, thread_ts=%s: %w", head.Msg.Timestamp, threadTS, err)
+		return fmt.Errorf("failed to process thread message id=%s, thread_ts=%s: %w", head.Timestamp, threadTS, err)
 	}
 	return nil
 }
 
+// procFiles proceses the files in slice of Messages msgs.
 func procFiles(ctx context.Context, proc processor.Filer, channel *slack.Channel, msgs ...slack.Message) error {
 	if len(msgs) == 0 {
 		return nil
@@ -416,7 +418,7 @@ func (cs *Stream) procChannelUsers(ctx context.Context, proc processor.ChannelIn
 func (cs *Stream) procChannelInfoWithUsers(ctx context.Context, proc processor.ChannelInformer, channelID, threadTS string) (*slack.Channel, error) {
 	var eg errgroup.Group
 
-	var chC = make(chan slack.Channel, 1)
+	chC := make(chan slack.Channel, 1)
 	eg.Go(func() error {
 		defer close(chC)
 		ch, err := cs.procChannelInfo(ctx, proc, channelID, threadTS)
@@ -427,7 +429,7 @@ func (cs *Stream) procChannelInfoWithUsers(ctx context.Context, proc processor.C
 		return nil
 	})
 
-	var uC = make(chan []string, 1)
+	uC := make(chan []string, 1)
 	eg.Go(func() error {
 		defer close(uC)
 		m, err := cs.procChannelUsers(ctx, proc, channelID, threadTS)
