@@ -44,7 +44,7 @@ func NewSubprocessor(dl Downloader, fp func(ci *slack.Channel, f *slack.File) st
 	}
 }
 
-func (b Subprocessor) Files(ctx context.Context, channel *slack.Channel, msg slack.Message, ff []slack.File) error {
+func (b Subprocessor) Files(ctx context.Context, channel *slack.Channel, _ slack.Message, ff []slack.File) error {
 	for _, f := range ff {
 		if !IsValid(&f) {
 			continue

@@ -8,6 +8,7 @@ import (
 	"runtime/trace"
 
 	"github.com/rusq/slack"
+
 	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/processor"
 )

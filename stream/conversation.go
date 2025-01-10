@@ -171,6 +171,7 @@ func (we *Result) Unwrap() error {
 	return we.Err
 }
 
+// channel fetches the channel data as defined in req, calling callback function for each API response.
 func (cs *Stream) channel(ctx context.Context, req request, callback func(mm []slack.Message, isLast bool) error) error {
 	ctx, task := trace.NewTask(ctx, "channel")
 	defer task.End()
