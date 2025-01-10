@@ -43,7 +43,7 @@ var cmdSearchMessages = &base.Command{
 	Short:       "records search results matching the given query",
 	Long:        `Searches for messages matching criteria.`,
 	RequireAuth: true,
-	FlagMask:    flagMask,
+	FlagMask:    flagMask | cfg.OmitRecordFilesFlag,
 	Run:         runSearchMsg,
 	PrintFlags:  true,
 }
@@ -175,7 +175,7 @@ func initController(ctx context.Context, args []string) (*control.Controller, fu
 	var (
 		subproc = fileproc.NewExport(fileproc.STmattermost, dl)
 		stream  = sess.Stream(sopts...)
-		ctrl    = control.New(cd, stream, control.WithLogger(lg), control.WithFiler(subproc))
+		ctrl    = control.New(cd, stream, control.WithLogger(lg), control.WithFiler(subproc), control.WithFlags(control.Flags{RecordFiles: cfg.RecordFiles}))
 	)
 	return ctrl, stop, nil
 }

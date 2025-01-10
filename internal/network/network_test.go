@@ -15,6 +15,8 @@ import (
 	"github.com/rusq/slack"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/time/rate"
+
+	"github.com/rusq/slackdump/v3/internal/fixtures"
 )
 
 const (
@@ -189,6 +191,7 @@ func TestWithRetry(t *testing.T) {
 	}
 	// setting fast wait function
 	t.Run("500 error handling", func(t *testing.T) {
+		fixtures.SkipOnWindows(t)
 		setWaitFunc(func(attempt int) time.Duration { return 50 * time.Millisecond })
 		t.Cleanup(func() { setWaitFunc(cubicWait) })
 

@@ -93,7 +93,8 @@ func New(cd *chunk.Directory, s Streamer, opts ...Option) *Controller {
 
 // Flags are the controller flags.
 type Flags struct {
-	MemberOnly bool
+	MemberOnly  bool
+	RecordFiles bool
 }
 
 // Error is a controller error.
@@ -174,7 +175,7 @@ func (c *Controller) Run(ctx context.Context, list *structures.EntityList) error
 	}
 	// conversations goroutine
 	{
-		conv, err := dirproc.NewConversation(c.cd, c.filer, c.tf)
+		conv, err := dirproc.NewConversation(c.cd, c.filer, c.tf, dirproc.WithRecordFiles(c.flags.RecordFiles))
 		if err != nil {
 			return fmt.Errorf("error initialising conversation processor: %w", err)
 		}

@@ -42,6 +42,7 @@ var (
 
 	MemberOnly    bool
 	DownloadFiles bool
+	RecordFiles   bool // record file chunks in chunk files.
 
 	// Oldest is the default timestamp of the oldest message to fetch, that is
 	// used by the dump and export commands.
@@ -88,6 +89,7 @@ const (
 	OmitTimeframeFlag
 	OmitChunkCacheFlag
 	OmitMemberOnlyFlag
+	OmitRecordFilesFlag
 
 	OmitAll = OmitConfigFlag |
 		OmitDownloadFlag |
@@ -98,7 +100,8 @@ const (
 		OmitUserCacheFlag |
 		OmitTimeframeFlag |
 		OmitChunkCacheFlag |
-		OmitMemberOnlyFlag
+		OmitMemberOnlyFlag |
+		OmitRecordFilesFlag
 )
 
 // SetBaseFlags sets base flags
@@ -120,7 +123,10 @@ func SetBaseFlags(fs *flag.FlagSet, mask FlagMask) {
 		fs.BoolVar(&LoadSecrets, "load-env", false, "load secrets from the .env, .env.txt or secrets.txt file")
 	}
 	if mask&OmitDownloadFlag == 0 {
-		fs.BoolVar(&DownloadFiles, "files", true, "enables file attachments (to disable, specify: -files=false)")
+		fs.BoolVar(&DownloadFiles, "files", true, "enables file attachments download (to disable, specify: -files=false)")
+	}
+	if mask&OmitRecordFilesFlag == 0 && mask&OmitDownloadFlag == 0 {
+		fs.BoolVar(&RecordFiles, "files-rec", false, "include file chunks in chunk files")
 	}
 	if mask&OmitConfigFlag == 0 {
 		fs.StringVar(&ConfigFile, "api-config", "", "configuration `file` with Slack API limits overrides.\nYou can generate one with default values with 'slackdump config new`")
