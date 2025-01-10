@@ -123,9 +123,9 @@ func SetBaseFlags(fs *flag.FlagSet, mask FlagMask) {
 		fs.BoolVar(&LoadSecrets, "load-env", false, "load secrets from the .env, .env.txt or secrets.txt file")
 	}
 	if mask&OmitDownloadFlag == 0 {
-		fs.BoolVar(&DownloadFiles, "files", true, "enables file attachments (to disable, specify: -files=false)")
+		fs.BoolVar(&DownloadFiles, "files", true, "enables file attachments download (to disable, specify: -files=false)")
 	}
-	if mask&OmitRecordFilesFlag == 0 {
+	if mask&OmitRecordFilesFlag == 0 && mask&OmitDownloadFlag == 0 {
 		fs.BoolVar(&RecordFiles, "files-rec", false, "include file chunks in chunk files")
 	}
 	if mask&OmitConfigFlag == 0 {
