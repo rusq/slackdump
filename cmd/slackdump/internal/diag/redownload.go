@@ -21,8 +21,19 @@ import (
 )
 
 var cmdRedownload = &base.Command{
-	UsageLine:   "tools redownload [flags] <archive_dir>",
-	Short:       "attempts to redownload missing files from the archive",
+	UsageLine: "tools redownload [flags] <archive_dir>",
+	Short:     "attempts to redownload missing files from the archive",
+	Long: `# File redownload tool
+Redownload tool scans the directory with Slackdump Archive, validating the files.
+If a file is missing or has zero length, it will be redownloaded from the Slack API.
+The tool will not overwrite existing files, so it is safe to run multiple times.
+
+Please note:
+
+1. It requires you to have a valid authentication in the selected workspace.
+2. Ensure that you have selected the correct workspace using "slackdump workspace select".
+3. It only works with Slackdump Archive directories, Slack exports and dumps
+are not supported.`,
 	FlagMask:    cfg.OmitAll &^ cfg.OmitAuthFlags,
 	Run:         runRedownload,
 	PrintFlags:  true,
