@@ -2,7 +2,9 @@ package stream
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"log/slog"
 	"runtime/trace"
 
 	"github.com/rusq/slack"
@@ -27,6 +29,12 @@ func (cs *Stream) channelWorker(ctx context.Context, proc processor.Conversation
 			if err != nil {
 				results <- Result{Type: RTChannel, ChannelID: req.sl.Channel, Err: err}
 				continue
+			}
+			if channel.Properties != nil && !channel.Properties.Canvas.IsEmpty {
+				if err := cs.canvas(ctx, proc, channel, channel.Properties.Canvas.FileId); err != nil {
+					// ignore canvas errors
+					slog.Warn("canvas error: %s", "err", err)
+				}
 			}
 			if err := cs.channel(ctx, req, func(mm []slack.Message, isLast bool) error {
 				n, err := procChanMsg(ctx, proc, threadC, channel, isLast, mm)
@@ -114,7 +122,7 @@ func (cs *Stream) channelInfoWorker(ctx context.Context, proc processor.ChannelI
 
 			if _, err := infoFetcher(ctx, proc, id, ""); err != nil {
 				// if _, err := cs.procChannelInfo(ctx, proc, id, ""); err != nil {
-				srC <- Result{Type: RTChannelInfo, ChannelID: id, Err: fmt.Errorf("channelInfoWorker: %s: %s", id, err)}
+				srC <- Result{Type: RTChannelInfo, ChannelID: id, Err: fmt.Errorf("channelInfoWorker: %s: %w", id, err)}
 			}
 			seen[id] = struct{}{}
 		}
@@ -143,9 +151,26 @@ func (cs *Stream) channelUsersWorker(ctx context.Context, proc processor.Channel
 			}
 
 			if _, err := cs.procChannelUsers(ctx, proc, id, ""); err != nil {
-				srC <- Result{Type: RTChannelUsers, ChannelID: id, Err: fmt.Errorf("channelUsersWorker: %s: %s", id, err)}
+				srC <- Result{Type: RTChannelUsers, ChannelID: id, Err: fmt.Errorf("channelUsersWorker: %s: %w", id, err)}
 			}
 			seen[id] = struct{}{}
 		}
 	}
+}
+
+func (cs *Stream) canvas(ctx context.Context, proc processor.Conversations, channel *slack.Channel, fileId string) error {
+	if fileId == "" {
+		return nil
+	}
+	file, _, _, err := cs.client.GetFileInfoContext(ctx, fileId, 0, 1)
+	if err != nil {
+		return fmt.Errorf("canvas: %s: %w", fileId, err)
+	}
+	if file == nil {
+		return errors.New("canvas: file not found")
+	}
+	if err := proc.Files(ctx, channel, slack.Message{}, []slack.File{*file}); err != nil {
+		return fmt.Errorf("canvas: %s: %w", fileId, err)
+	}
+	return nil
 }
