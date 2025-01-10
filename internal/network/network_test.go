@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -186,12 +187,10 @@ func TestWithRetry(t *testing.T) {
 			}
 		})
 	}
+	// setting fast wait function
 	t.Run("500 error handling", func(t *testing.T) {
-		t.Parallel()
 		setWaitFunc(func(attempt int) time.Duration { return 50 * time.Millisecond })
-		defer func() {
-			setWaitFunc(cubicWait)
-		}()
+		t.Cleanup(func() { setWaitFunc(cubicWait) })
 
 		codes := []int{500, 502, 503, 504, 598}
 		for _, code := range codes {
@@ -232,8 +231,6 @@ func TestWithRetry(t *testing.T) {
 			})
 		}
 		t.Run("404 error", func(t *testing.T) {
-			t.Parallel()
-
 			const (
 				testRetryCount = 1
 			)
@@ -265,8 +262,27 @@ func TestWithRetry(t *testing.T) {
 			}
 		})
 	})
+	t.Run("EOF error", func(t *testing.T) {
+		setWaitFunc(func(attempt int) time.Duration { return 50 * time.Millisecond })
+		t.Cleanup(func() { setWaitFunc(cubicWait) })
+
+		reterr := []error{io.EOF, io.EOF, nil}
+		var retries int
+
+		ctx := context.Background()
+		err := WithRetry(ctx, rate.NewLimiter(1, 1), 3, func() error {
+			err := reterr[retries]
+			if err != nil {
+				retries++
+			}
+			return err
+		})
+		assert.NoError(t, err)
+		assert.Equal(t, 2, retries)
+	})
 	t.Run("meaningful error message", func(t *testing.T) {
-		t.Parallel()
+		setWaitFunc(func(attempt int) time.Duration { return 50 * time.Millisecond })
+		t.Cleanup(func() { setWaitFunc(cubicWait) })
 		errFunc := func() error {
 			return slack.StatusCodeError{Code: 500, Status: "Internal Server Error"}
 		}

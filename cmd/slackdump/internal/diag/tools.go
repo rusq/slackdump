@@ -31,6 +31,7 @@ Tools command contains different tools, running which may be requested if you op
 		// cmdSearch,
 		cmdThread,
 		cmdHydrate,
+		cmdRedownload,
 		// cmdWizDebug,
 	},
 }
