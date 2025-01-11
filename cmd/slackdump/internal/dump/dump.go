@@ -38,7 +38,7 @@ var CmdDump = &base.Command{
 	Long:        dumpMd,
 	RequireAuth: true,
 	PrintFlags:  true,
-	FlagMask:    cfg.OmitMemberOnlyFlag | cfg.OmitRecordFilesFlag,
+	FlagMask:    cfg.OmitMemberOnlyFlag | cfg.OmitRecordFilesFlag | cfg.OmitDownloadAvatarsFlag,
 }
 
 func init() {

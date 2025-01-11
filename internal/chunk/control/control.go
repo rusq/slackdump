@@ -35,6 +35,8 @@ type Controller struct {
 	// files subprocessor, if not configured with options, it's a noop, as
 	// it's not necessary for all use cases.
 	filer processor.Filer
+	// avp is avatar downloader
+	avp processor.Avatars
 	// lg is the logger
 	lg *slog.Logger
 	// flags
@@ -48,6 +50,13 @@ type Option func(*Controller)
 func WithFiler(f processor.Filer) Option {
 	return func(c *Controller) {
 		c.filer = f
+	}
+}
+
+// WithAvatarProcessor configures the controller with an avatar downloader.
+func WithAvatarProcessor(avp processor.Avatars) Option {
+	return func(c *Controller) {
+		c.avp = avp
 	}
 }
 
@@ -83,6 +92,7 @@ func New(cd *chunk.Directory, s Streamer, opts ...Option) *Controller {
 		s:     s,
 		filer: &noopFiler{},
 		tf:    &noopTransformer{},
+		avp:   &noopAvatarProc{},
 		lg:    slog.Default(),
 	}
 	for _, opt := range opts {
@@ -167,7 +177,7 @@ func (c *Controller) Run(ctx context.Context, list *structures.EntityList) error
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			if err := userWorker(ctx, c.s, c.cd, c.tf); err != nil {
+			if err := userWorker(ctx, c.s, c.avp, c.cd, c.tf); err != nil {
 				errC <- Error{"user", "worker", err}
 				return
 			}

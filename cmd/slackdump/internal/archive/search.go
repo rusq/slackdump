@@ -151,7 +151,6 @@ func initController(ctx context.Context, args []string) (*control.Controller, fu
 		fsadapter.NewDirectory(cd.Name()),
 		lg,
 	)
-
 	pb := bootstrap.ProgressBar(ctx, lg, progressbar.OptionShowCount()) // progress bar
 	stop := func() {
 		dlstop()
@@ -175,7 +174,13 @@ func initController(ctx context.Context, args []string) (*control.Controller, fu
 	var (
 		subproc = fileproc.NewExport(fileproc.STmattermost, dl)
 		stream  = sess.Stream(sopts...)
-		ctrl    = control.New(cd, stream, control.WithLogger(lg), control.WithFiler(subproc), control.WithFlags(control.Flags{RecordFiles: cfg.RecordFiles}))
+		ctrl    = control.New(
+			cd,
+			stream,
+			control.WithLogger(lg),
+			control.WithFiler(subproc),
+			control.WithFlags(control.Flags{RecordFiles: cfg.RecordFiles}),
+		)
 	)
 	return ctrl, stop, nil
 }

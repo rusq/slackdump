@@ -121,6 +121,7 @@ func chunk2export(ctx context.Context, src, trg string, cflg convertflags) error
 		cd,
 		fsa,
 		convert.WithIncludeFiles(cflg.withFiles),
+		convert.WithSrcFileLoc(sttFn),
 		convert.WithTrgFileLoc(sttFn),
 		convert.WithLogger(cfg.Log),
 	)

@@ -10,16 +10,20 @@ import (
 	"github.com/rusq/slackdump/v3/internal/structures"
 
 	"github.com/rusq/slack"
+
 	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/internal/chunk/dirproc"
 	"github.com/rusq/slackdump/v3/internal/chunk/transform"
 	"github.com/rusq/slackdump/v3/processor"
 )
 
-func userWorker(ctx context.Context, s Streamer, chunkdir *chunk.Directory, tf TransformStarter) error {
-	var users = make([]slack.User, 0, 100)
+func userWorker(ctx context.Context, s Streamer, avp processor.Avatars, chunkdir *chunk.Directory, tf TransformStarter) error {
+	users := make([]slack.User, 0, 100)
 	userproc, err := dirproc.NewUsers(chunkdir, dirproc.WithUsers(func(us []slack.User) error {
 		users = append(users, us...)
+		if err := avp.Avatars(ctx, us); err != nil {
+			slog.Warn("error downloading avatars", "error", err)
+		}
 		return nil
 	}))
 	if err != nil {

@@ -41,9 +41,10 @@ var (
 	ForceEnterprise bool
 	MachineIDOvr    string // Machine ID override
 
-	MemberOnly    bool
-	DownloadFiles bool
-	RecordFiles   bool // record file chunks in chunk files.
+	MemberOnly      bool
+	DownloadFiles   bool
+	DownloadAvatars bool
+	RecordFiles     bool // record file chunks in chunk files.
 
 	// Oldest is the default timestamp of the oldest message to fetch, that is
 	// used by the dump and export commands.
@@ -91,6 +92,7 @@ const (
 	OmitChunkCacheFlag
 	OmitMemberOnlyFlag
 	OmitRecordFilesFlag
+	OmitDownloadAvatarsFlag
 
 	OmitAll = OmitConfigFlag |
 		OmitDownloadFlag |
@@ -102,7 +104,8 @@ const (
 		OmitTimeframeFlag |
 		OmitChunkCacheFlag |
 		OmitMemberOnlyFlag |
-		OmitRecordFilesFlag
+		OmitRecordFilesFlag |
+		OmitDownloadAvatarsFlag
 )
 
 // SetBaseFlags sets base flags
@@ -129,9 +132,12 @@ func SetBaseFlags(fs *flag.FlagSet, mask FlagMask) {
 	}
 	if mask&OmitDownloadFlag == 0 {
 		fs.BoolVar(&DownloadFiles, "files", true, "enables file attachments download (to disable, specify: -files=false)")
+		if mask&OmitRecordFilesFlag == 0 {
+			fs.BoolVar(&RecordFiles, "files-rec", false, "include file chunks in chunk files")
+		}
 	}
-	if mask&OmitRecordFilesFlag == 0 && mask&OmitDownloadFlag == 0 {
-		fs.BoolVar(&RecordFiles, "files-rec", false, "include file chunks in chunk files")
+	if mask&OmitDownloadAvatarsFlag == 0 {
+		fs.BoolVar(&DownloadAvatars, "avatars", true, "enables user avatar download (placed in __avatars directory)")
 	}
 	if mask&OmitConfigFlag == 0 {
 		fs.StringVar(&ConfigFile, "api-config", "", "configuration `file` with Slack API limits overrides.\nYou can generate one with default values with 'slackdump config new`")

@@ -13,6 +13,7 @@ import (
 
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/slack"
+
 	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/internal/chunk/transform"
 	"github.com/rusq/slackdump/v3/internal/chunk/transform/fileproc"
@@ -36,8 +37,9 @@ type ChunkToExport struct {
 	trg fsadapter.FS
 	// UploadDir is the upload directory name (relative to Src)
 	includeFiles bool
-	// FindFile should return the path to the file within the upload directory
+	// srcFileLoc should return the file location within the source directory.
 	srcFileLoc func(*slack.Channel, *slack.File) string
+	// trgFileLoc should return the file location within the target directory
 	trgFileLoc func(*slack.Channel, *slack.File) string
 
 	lg *slog.Logger
@@ -151,7 +153,7 @@ func (c *ChunkToExport) Convert(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	var tfopts = []transform.ExpCvtOption{
+	tfopts := []transform.ExpCvtOption{
 		transform.ExpWithUsers(users),
 	}
 	if c.includeFiles {
@@ -169,7 +171,7 @@ func (c *ChunkToExport) Convert(ctx context.Context) error {
 	}
 
 	// 1. generator
-	var chC = make(chan slack.Channel)
+	chC := make(chan slack.Channel)
 	go func() {
 		defer close(chC)
 		for _, ch := range channels {
