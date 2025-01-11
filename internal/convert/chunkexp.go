@@ -35,19 +35,24 @@ type ChunkToExport struct {
 	src *chunk.Directory
 	// trg is the target FS for the export
 	trg fsadapter.FS
-	// UploadDir is the upload directory name (relative to Src)
+	// includeFiles is a flag to include files in the export
 	includeFiles bool
+	// includeAvatars is a flag to include avatars in the export
+	includeAvatars bool
 	// srcFileLoc should return the file location within the source directory.
 	srcFileLoc func(*slack.Channel, *slack.File) string
 	// trgFileLoc should return the file location within the target directory
 	trgFileLoc func(*slack.Channel, *slack.File) string
+	// avtrFileLoc should return the avatar file location.
+	avtrFileLoc func(*slack.User) string
 
 	lg *slog.Logger
 
 	workers int // number of workers to use to convert channels
 
-	request chan copyrequest
-	result  chan copyresult
+	filerequest chan copyrequest
+	fileresult  chan copyresult
+	avtrresult  chan copyresult
 }
 
 type C2EOption func(*ChunkToExport)
@@ -56,6 +61,13 @@ type C2EOption func(*ChunkToExport)
 func WithIncludeFiles(b bool) C2EOption {
 	return func(c *ChunkToExport) {
 		c.includeFiles = b
+	}
+}
+
+// WithIncludeAvatars sets the IncludeAvataars option.
+func WithIncludeAvatars(b bool) C2EOption {
+	return func(c *ChunkToExport) {
+		c.includeAvatars = b
 	}
 }
 
@@ -88,15 +100,18 @@ func WithLogger(lg *slog.Logger) C2EOption {
 
 func NewChunkToExport(src *chunk.Directory, trg fsadapter.FS, opt ...C2EOption) *ChunkToExport {
 	c := &ChunkToExport{
-		src:          src,
-		trg:          trg,
-		includeFiles: false,
-		srcFileLoc:   fileproc.MattermostFilepath,
-		trgFileLoc:   fileproc.MattermostFilepath,
-		lg:           slog.Default(),
-		request:      make(chan copyrequest, 1),
-		result:       make(chan copyresult, 1),
-		workers:      defWorkers,
+		src:            src,
+		trg:            trg,
+		includeFiles:   false,
+		includeAvatars: false,
+		srcFileLoc:     fileproc.MattermostFilepath,
+		trgFileLoc:     fileproc.MattermostFilepath,
+		avtrFileLoc:    fileproc.AvatarPath,
+		lg:             slog.Default(),
+		filerequest:    make(chan copyrequest, 1),
+		fileresult:     make(chan copyresult, 1),
+		avtrresult:     make(chan copyresult, 1),
+		workers:        defWorkers,
 	}
 	for _, o := range opt {
 		o(c)
@@ -106,16 +121,21 @@ func NewChunkToExport(src *chunk.Directory, trg fsadapter.FS, opt ...C2EOption) 
 
 // Validate validates the input parameters.
 func (c *ChunkToExport) Validate() error {
+	const format = "convert: internal error: %s: %w"
 	if c.src == nil || c.trg == nil {
 		return errors.New("convert: source and target must be set")
 	}
 	if c.includeFiles {
-		const format = "convert: internal error: %s: %w"
 		if c.srcFileLoc == nil {
 			return fmt.Errorf(format, "source", ErrNoLocFunction)
 		}
 		if c.trgFileLoc == nil {
 			return fmt.Errorf(format, "target", ErrNoLocFunction)
+		}
+	}
+	if c.includeAvatars {
+		if c.avtrFileLoc == nil {
+			return fmt.Errorf(format, "avatar", ErrNoLocFunction)
 		}
 	}
 	// users chunk is required
@@ -130,14 +150,14 @@ func (c *ChunkToExport) Validate() error {
 	return nil
 }
 
-// Convert converts the chunk directory contents to the export format.
-// It validates the input parameters.
+// Convert converts the chunk directory contents to the export format. It
+// validates the input parameters.
 //
 // # Restrictions
 //
-// Currently, one chunk file per channel is supported.  If there are multiple
-// chunk files per channel, the behaviour is undefined, but I expect it to
-// overwrite the previous files.
+// TODO: Currently, one chunk file per channel is supported.  If there are
+// multiple chunk files per channel, the behaviour is undefined, but I expect
+// it to overwrite the previous files.
 func (c *ChunkToExport) Convert(ctx context.Context) error {
 	ctx, task := trace.NewTask(ctx, "convert.ChunkToExport")
 	defer task.End()
@@ -153,23 +173,11 @@ func (c *ChunkToExport) Convert(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	if c.includeFiles {
+	}
 	tfopts := []transform.ExpCvtOption{
 		transform.ExpWithUsers(users),
 	}
-	if c.includeFiles {
-		tfopts = append(tfopts, transform.ExpWithMsgUpdateFunc(func(ch *slack.Channel, m *slack.Message) error {
-			// copy in a separate goroutine to avoid blocking the transform in
-			// case of a synchronous fsadapter (e.g. zip file adapter can
-			// write only one file at a time).
-			c.request <- copyrequest{
-				channel: ch,
-				message: m,
-			}
-			return nil
-		}))
-		go c.copyworker(c.result, c.request)
-	}
-
 	// 1. generator
 	chC := make(chan slack.Channel)
 	go func() {
@@ -182,9 +190,36 @@ func (c *ChunkToExport) Convert(ctx context.Context) error {
 	errC := make(chan error, c.workers)
 	{
 		// 2. workers
+		var filewg sync.WaitGroup
+
+		if c.includeFiles {
+			tfopts = append(tfopts, transform.ExpWithMsgUpdateFunc(func(ch *slack.Channel, m *slack.Message) error {
+				// copy in a separate goroutine to avoid blocking the transform in
+				// case of a synchronous fsadapter (e.g. zip file adapter can write
+				// only one file at a time).
+				c.filerequest <- copyrequest{
+					channel: ch,
+					message: m,
+				}
+				return nil
+			}))
+			filewg.Add(1)
+			go func() {
+				c.copyworker(c.filerequest)
+				filewg.Done()
+			}()
+		}
+		if c.includeAvatars {
+			filewg.Add(1)
+			go func() {
+				c.avatarWorker(users)
+				filewg.Done()
+			}()
+		}
+
 		// 2.1 converter
-		conv := transform.NewExpConverter(c.src, c.trg, tfopts...)
 		var wg sync.WaitGroup
+		conv := transform.NewExpConverter(c.src, c.trg, tfopts...)
 		for i := 0; i < c.workers; i++ {
 			wg.Add(1)
 			go func() {
@@ -208,24 +243,23 @@ func (c *ChunkToExport) Convert(ctx context.Context) error {
 				errC <- err
 			}
 		}()
-		// 2.3. workers sentinel
+		// 2.3. workers sentinels
 		go func() {
 			wg.Wait()
-			close(c.request)
+			close(c.filerequest)
 		}()
 	}
-
 	// 3. result processor
 LOOP:
 	for {
 		select {
 		case <-ctx.Done():
-			return ctx.Err()
+			return context.Cause(ctx)
 		case err := <-errC: // get rid of this shit.
 			if err != nil {
 				return err
 			}
-		case res, more := <-c.result:
+		case res, more := <-c.fileresult:
 			if !more {
 				break LOOP
 			}
@@ -236,6 +270,27 @@ LOOP:
 	}
 
 	return nil
+}
+
+func merge(resC ...<-chan copyresult) chan<- copyresult {
+	var wg sync.WaitGroup
+	out := make(chan<- copyresult, 1)
+
+	output := func(c <-chan copyresult) {
+		for res := range c {
+			out <- res
+		}
+		wg.Done()
+	}
+	wg.Add(len(resC))
+	for _, c := range resC {
+		go output(c)
+	}
+	go func() {
+		wg.Wait()
+		close(out)
+	}()
+	return out
 }
 
 type copyerror struct {
@@ -276,11 +331,13 @@ func (c *ChunkToExport) fileCopy(ch *slack.Channel, msg *slack.Message) error {
 		srcpath := filepath.Join(c.src.Name(), c.srcFileLoc(ch, &f))
 		trgpath := c.trgFileLoc(ch, &f)
 
-		if _, err := os.Stat(srcpath); err != nil {
+		sfi, err := os.Stat(srcpath)
+		if err != nil {
 			return &copyerror{f.ID, err}
 		}
-		if _, err := os.Stat(srcpath); err != nil {
-			return &copyerror{f.ID, err}
+		if sfi.Size() == 0 {
+			c.lg.Warn("skipping", "file", f.ID, "reason", "empty file")
+			continue
 		}
 		c.lg.Debug("copying", "srcpath", srcpath, "trgpath", trgpath)
 		if err := copy2trg(c.trg, trgpath, srcpath); err != nil {
@@ -327,12 +384,20 @@ func (cr copyresult) Unwrap() error {
 	return cr.err
 }
 
-func (c *ChunkToExport) copyworker(res chan<- copyresult, req <-chan copyrequest) {
-	defer close(res)
+func (c *ChunkToExport) copyworker(req <-chan copyrequest) {
 	for fr := range req {
-		res <- copyresult{
+		c.fileresult <- copyresult{
 			fr:  fr,
 			err: c.fileCopy(fr.channel, fr.message),
+		}
+	}
+}
+
+func (c *ChunkToExport) avatarWorker(users []slack.User) {
+	for _, u := range users {
+		loc := c.avtrFileLoc(&u)
+		c.avtrresult <- copyresult{
+			err: copy2trg(c.trg, loc, loc),
 		}
 	}
 }

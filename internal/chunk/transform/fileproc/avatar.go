@@ -16,7 +16,7 @@ type AvatarProc struct {
 func NewAvatarProc(dl Downloader) AvatarProc {
 	return AvatarProc{
 		dl:       dl,
-		filepath: avatarPath,
+		filepath: AvatarPath,
 	}
 }
 
@@ -33,7 +33,7 @@ func (a AvatarProc) Avatars(ctx context.Context, users []slack.User) error {
 	return nil
 }
 
-func avatarPath(u *slack.User) string {
+func AvatarPath(u *slack.User) string {
 	filename := path.Base(u.Profile.ImageOriginal)
 	return filepath.Join(
 		"__avatars",

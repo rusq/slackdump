@@ -29,7 +29,7 @@ var CmdEmoji = &base.Command{
 	UsageLine:   "slackdump emoji [flags]",
 	Short:       "download workspace emoticons ಠ_ಠ",
 	Long:        emojiMD,
-	FlagMask:    cfg.OmitDownloadFlag | cfg.OmitConfigFlag | cfg.OmitChunkCacheFlag | cfg.OmitUserCacheFlag | cfg.OmitRecordFilesFlag,
+	FlagMask:    cfg.OmitAll &^ cfg.OmitAuthFlags,
 	RequireAuth: true,
 	PrintFlags:  true,
 }
