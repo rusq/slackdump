@@ -104,3 +104,10 @@ func SkipIfNotExist(t *testing.T, path string) {
 		t.Fatal(err)
 	}
 }
+
+func SkipIfRoot(t *testing.T) {
+	t.Helper()
+	if os.Getuid() == 0 {
+		t.Skip("skipping test as root")
+	}
+}

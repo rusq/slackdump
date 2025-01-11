@@ -195,6 +195,7 @@ func Test_filemgr_Open(t *testing.T) {
 	})
 	t.Run("mkdirall fails", func(t *testing.T) {
 		fixtures.SkipOnWindows(t) // nix-specific attributes
+		fixtures.SkipIfRoot(t)
 		dp := &filemgr{
 			tmpdir:  t.TempDir(), // another temporary directory
 			once:    new(sync.Once),
@@ -302,6 +303,7 @@ func Test_filemgr_Destroy(t *testing.T) {
 	})
 	t.Run("removeall called on non-existing directory", func(t *testing.T) {
 		fixtures.SkipOnWindows(t) // file mode magic
+		fixtures.SkipIfRoot(t)
 		dp := &filemgr{
 			tmpdir:  t.TempDir(),
 			once:    new(sync.Once),

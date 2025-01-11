@@ -1,15 +1,16 @@
-FROM golang:1.19-alpine3.17 AS stage
+FROM golang:alpine AS stage
 
 WORKDIR /build
 
 COPY . .
 
 ENV CGO_ENABLED=0
+ENV CI=true
 
 RUN go test ./... \
     && go build -ldflags="-s -w" ./cmd/slackdump
 
-FROM alpine:3.17
+FROM alpine:latest
 
 COPY --from=stage /build/slackdump /usr/local/bin/slackdump
 

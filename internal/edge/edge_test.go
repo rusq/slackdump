@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/rusq/slackdump/v3/auth"
+	"github.com/rusq/slackdump/v3/internal/fixtures"
 )
 
 var _ = godotenv.Load()
@@ -32,6 +33,7 @@ func testServer(status int, payload []byte) *httptest.Server {
 }
 
 func TestNew(t *testing.T) {
+	fixtures.SkipInCI(t)
 	if testToken == "" {
 		t.Skip("test token not set")
 	}
@@ -61,6 +63,7 @@ func TestNew(t *testing.T) {
 }
 
 func TestGetUsers(t *testing.T) {
+	fixtures.SkipInCI(t)
 	if testToken == "" {
 		t.Skip("test token not set")
 	}
