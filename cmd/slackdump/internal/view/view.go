@@ -37,7 +37,7 @@ var CmdView = &base.Command{
 var listenAddr string
 
 func init() {
-	CmdView.Flag.StringVar(&listenAddr, "listen", "localhost:8080", "address to listen on")
+	CmdView.Flag.StringVar(&listenAddr, "listen", "127.0.0.1:8080", "address to listen on")
 }
 
 func RunView(ctx context.Context, cmd *base.Command, args []string) error {
