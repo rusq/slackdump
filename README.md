@@ -60,7 +60,7 @@ On other Operating Systems, please follow these steps:
 1. Run the `./slackdump` or `slackdump.exe` executable (see note below).
 1. You know the drill:  use arrow keys to select the menu item, and Enter (or
    Return) to confirm.
-1. Follow these [qickstart instructions][man-quickstart].
+1. Follow these [quickstart instructions][man-quickstart].
 
 [releases]: https://github.com/rusq/slackdump/releases/
 
