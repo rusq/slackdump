@@ -39,6 +39,7 @@ var (
 	Browser         browser.Browser
 	LegacyBrowser   bool
 	ForceEnterprise bool
+	MachineID       string // Machine ID override
 
 	MemberOnly    bool
 	DownloadFiles bool
@@ -90,6 +91,7 @@ const (
 	OmitChunkCacheFlag
 	OmitMemberOnlyFlag
 	OmitRecordFilesFlag
+	OmitMachineIDOvrFlag
 
 	OmitAll = OmitConfigFlag |
 		OmitDownloadFlag |
@@ -101,7 +103,8 @@ const (
 		OmitTimeframeFlag |
 		OmitChunkCacheFlag |
 		OmitMemberOnlyFlag |
-		OmitRecordFilesFlag
+		OmitRecordFilesFlag |
+		OmitMachineIDOvrFlag
 )
 
 // SetBaseFlags sets base flags
@@ -121,6 +124,9 @@ func SetBaseFlags(fs *flag.FlagSet, mask FlagMask) {
 		fs.BoolVar(&ForceEnterprise, "enterprise", false, "enable Enteprise module, you need to specify this option if you're using Slack Enterprise Grid")
 		fs.StringVar(&RODUserAgent, "user-agent", "", "override the user agent string for EZ-Login 3000")
 		fs.BoolVar(&LoadSecrets, "load-env", false, "load secrets from the .env, .env.txt or secrets.txt file")
+	}
+	if mask&OmitMachineIDOvrFlag == 0 {
+		fs.StringVar(&MachineID, "machine-id", osenv.Secret("MACHINE_ID", ""), "override the machine ID for encryption")
 	}
 	if mask&OmitDownloadFlag == 0 {
 		fs.BoolVar(&DownloadFiles, "files", true, "enables file attachments download (to disable, specify: -files=false)")

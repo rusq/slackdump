@@ -39,7 +39,7 @@ func Test_isExistingFile(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := isExistingFile(tt.args.cookie); got != tt.want {
+			if got := exists.cookie); got != tt.want {
 				t.Errorf("isExistingFile() = %v, want %v", got, tt.want)
 			}
 		})
