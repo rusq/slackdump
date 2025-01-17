@@ -59,7 +59,7 @@ func (c AuthData) Type(context.Context) (AuthType, error) {
 		ez = ATPlaywright
 	}
 	if !c.IsEmpty() {
-		if isExistingFile(c.Cookie) {
+		if exists(c.Cookie) {
 			return ATCookieFile, nil
 		}
 		return ATValue, nil
@@ -102,7 +102,7 @@ func (c AuthData) AuthProvider(ctx context.Context, workspace string, opts ...au
 	return nil, errors.New("internal error: unsupported auth type")
 }
 
-func isExistingFile(name string) bool {
+func exists(name string) bool {
 	fi, err := os.Stat(name)
 	return err == nil && !fi.IsDir()
 }
@@ -126,14 +126,14 @@ type Credentials interface {
 }
 
 type authenticator struct {
-	container container
-	cacheDir  string
+	ct  createOpener
+	dir string
 }
 
 func newAuthenticator(cacheDir, machineID string) authenticator {
 	return authenticator{
-		cacheDir:  cacheDir,
-		container: encryptedFile{machineID: machineID},
+		dir: cacheDir,
+		ct:  encryptedFile{machineID: machineID},
 	}
 }
 
@@ -150,21 +150,22 @@ func newAuthenticator(cacheDir, machineID string) authenticator {
 // the operating system (see package encio), it makes it impossible use the
 // stored credentials on another machine (including virtual), even another
 // operating system on the same machine, unless it's a clone of the source
-// operating system on which the credentials storage was created.
+// operating system on which the credentials storage was created. Optionally it
+// can be overridden by providing a machine ID override to [newAuthenticator].
 func (a authenticator) initProvider(ctx context.Context, filename string, workspace string, creds Credentials, opts ...auth.Option) (auth.Provider, error) {
 	ctx, task := trace.NewTask(ctx, "initProvider")
 	defer task.End()
 
 	credsFile := filename
-	if a.cacheDir != "" {
-		if err := os.MkdirAll(a.cacheDir, 0o700); err != nil {
+	if a.dir != "" {
+		if err := os.MkdirAll(a.dir, 0o700); err != nil {
 			return nil, fmt.Errorf("failed to create cache directory:  %w", err)
 		}
-		credsFile = filepath.Join(a.cacheDir, filename)
+		credsFile = filepath.Join(a.dir, filename)
 	}
 
 	// try to load the existing credentials, if saved earlier.
-	lg := slog.With("cache_dir", a.cacheDir, "filename", filename, "workspace", workspace)
+	lg := slog.With("cache_dir", a.dir, "filename", filename, "workspace", workspace)
 	if creds == nil || creds.IsEmpty() {
 		if prov, err := a.tryLoad(ctx, credsFile); err != nil {
 			msg := fmt.Sprintf("failed to load saved credentials: %s", err)
@@ -188,7 +189,7 @@ func (a authenticator) initProvider(ctx context.Context, filename string, worksp
 		return nil, fmt.Errorf("failed to initialise the auth provider: %w", err)
 	}
 
-	if err := saveCreds(a.container, credsFile, provider); err != nil {
+	if err := saveCreds(a.ct, credsFile, provider); err != nil {
 		trace.Logf(ctx, "error", "failed to save credentials to: %s", credsFile)
 	}
 
@@ -198,7 +199,7 @@ func (a authenticator) initProvider(ctx context.Context, filename string, worksp
 var authTester = (auth.Provider).Test
 
 func (a authenticator) tryLoad(ctx context.Context, filename string) (auth.Provider, error) {
-	prov, err := loadCreds(a.container, filename)
+	prov, err := loadCreds(a.ct, filename)
 	if err != nil {
 		return nil, err
 	}
@@ -210,7 +211,7 @@ func (a authenticator) tryLoad(ctx context.Context, filename string) (auth.Provi
 }
 
 // loadCreds loads the encrypted credentials from the file.
-func loadCreds(ct container, filename string) (auth.Provider, error) {
+func loadCreds(ct createOpener, filename string) (auth.Provider, error) {
 	f, err := ct.Open(filename)
 	if err != nil {
 		return nil, errors.New("failed to load stored credentials")
@@ -221,7 +222,7 @@ func loadCreds(ct container, filename string) (auth.Provider, error) {
 }
 
 // saveCreds encrypts and saves the credentials.
-func saveCreds(ct container, filename string, p auth.Provider) error {
+func saveCreds(ct createOpener, filename string, p auth.Provider) error {
 	f, err := ct.Create(filename)
 	if err != nil {
 		return err
@@ -236,11 +237,13 @@ func AuthReset(cacheDir string) error {
 	return os.Remove(filepath.Join(cacheDir, defCredsFile))
 }
 
-// container is the interface to operate with credentials container.
-type container interface {
+// createOpener is the interface to operate with credentials createOpener.
+type createOpener interface {
 	Create(filename string) (io.WriteCloser, error)
 	Open(filename string) (io.ReadCloser, error)
 }
+
+var _ createOpener = encryptedFile{}
 
 // encryptedFile is the encrypted file container.
 type encryptedFile struct {

@@ -304,7 +304,7 @@ func Test_tryLoad(t *testing.T) {
 			authTester = fakeAuthTester(tt.authTestErr)
 
 			a := authenticator{
-				container: encryptedFile{},
+				ct: encryptedFile{},
 			}
 
 			got, err := a.tryLoad(tt.args.ctx, tt.args.filename)
@@ -543,6 +543,14 @@ func Test_encryptedFile_Open(t *testing.T) {
 			[]byte("unit test"),
 			args{mkfile("456", []byte("unit test"))},
 			false,
+			false,
+		},
+		{
+			"machine ID",
+			fields{},
+			[]byte("unit test"),
+			args{mkfile("", []byte("unit test"))},
+			true,
 			false,
 		},
 	}
