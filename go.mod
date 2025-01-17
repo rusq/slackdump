@@ -25,7 +25,7 @@ require (
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c
 	github.com/playwright-community/playwright-go v0.4901.0
 	github.com/rusq/chttp v1.0.2
-	github.com/rusq/encio v0.1.0
+	github.com/rusq/encio v0.2.0
 	github.com/rusq/fsadapter v1.0.2
 	github.com/rusq/osenv/v2 v2.0.1
 	github.com/rusq/rbubbles v0.0.2
@@ -39,7 +39,7 @@ require (
 	github.com/yuin/goldmark-emoji v1.0.4
 	go.uber.org/mock v0.5.0
 	golang.org/x/sync v0.10.0
-	golang.org/x/term v0.27.0
+	golang.org/x/term v0.28.0
 	golang.org/x/text v0.21.0
 	golang.org/x/time v0.8.0
 )
@@ -87,8 +87,8 @@ require (
 	github.com/ysmood/got v0.40.0 // indirect
 	github.com/ysmood/gson v0.7.3 // indirect
 	github.com/ysmood/leakless v0.9.0 // indirect
-	golang.org/x/crypto v0.31.0 // indirect
+	golang.org/x/crypto v0.32.0 // indirect
 	golang.org/x/net v0.33.0 // indirect
-	golang.org/x/sys v0.28.0 // indirect
+	golang.org/x/sys v0.29.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

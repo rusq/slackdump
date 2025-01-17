@@ -40,6 +40,8 @@ type Manager struct {
 
 	userFile    string
 	channelFile string
+	// machineID is the machine ID override for encryption/decryption.
+	machineID string
 }
 
 const (
@@ -62,6 +64,15 @@ type Option func(m *Manager)
 func WithAuthOpts(opts ...auth.Option) Option {
 	return func(m *Manager) {
 		m.authOptions = opts
+	}
+}
+
+// WithMachineID allows to set the machine ID for encryption/decryption.
+func WithMachineID(id string) Option {
+	return func(m *Manager) {
+		if id != "" {
+			m.machineID = id
+		}
 	}
 }
 
@@ -113,7 +124,7 @@ func NewManager(dir string, opts ...Option) (*Manager, error) {
 		opt(m)
 	}
 	if m.dir != "" {
-		if err := os.MkdirAll(dir, 0700); err != nil {
+		if err := os.MkdirAll(dir, 0o700); err != nil {
 			return nil, err
 		}
 	}
@@ -136,16 +147,19 @@ func NewManager(dir string, opts ...Option) (*Manager, error) {
 // operating system on the same machine, unless it's a clone of the source
 // operating system on which the credentials storage was created.
 func (m *Manager) Auth(ctx context.Context, name string, c Credentials) (auth.Provider, error) {
-	return initProvider(ctx, m.dir, m.filename(name), name, c, m.authOptions...)
+	a := newAuthenticator(m.dir, m.machineID)
+	return a.initProvider(ctx, m.filename(name), name, c, m.authOptions...)
 }
 
 // LoadProvider loads the file from disk without any checks.
 func (m *Manager) LoadProvider(name string) (auth.Provider, error) {
+	filer := encryptedFile{machineID: m.machineID}
 	return loadCreds(filer, m.filepath(name))
 }
 
 // saveProvider saves the provider to the file, no questions asked.
 func (m *Manager) saveProvider(name string, p auth.Provider) error {
+	filer := encryptedFile{machineID: m.machineID}
 	return saveCreds(filer, m.filepath(name), p)
 }
 
@@ -189,7 +203,7 @@ func (m *Manager) List() ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	var workspaces = make([]string, len(files))
+	workspaces := make([]string, len(files))
 	for i := range files {
 		name, err := m.name(files[i])
 		if err != nil {
@@ -239,7 +253,7 @@ func (m *Manager) Current() (string, error) {
 
 // selectDefault selects the default workspace if it exists.
 func (m *Manager) selectDefault() (string, error) {
-	var wsp = defName
+	wsp := defName
 	if !m.HasDefault() {
 		// the default workspace does not exist, pick any
 		w, err := m.firstAvailable()
@@ -369,6 +383,10 @@ func wspName(filename string) string {
 // WalkUsers scans the cache directory and calls userFn for each user file
 // discovered.
 func (m *Manager) WalkUsers(userFn func(path string, r io.Reader) error) error {
+	var encopts []encio.Option
+	if m.machineID != "" {
+		encopts = append(encopts, encio.WithID(m.machineID))
+	}
 	userSuffix := filepath.Ext(m.userFile)
 	userPrefix := m.userFile[0 : len(m.userFile)-len(userSuffix)]
 	err := filepath.WalkDir(m.dir, func(path string, d fs.DirEntry, err error) error {
@@ -379,7 +397,7 @@ func (m *Manager) WalkUsers(userFn func(path string, r io.Reader) error) error {
 			// skip non-matching files
 			return nil
 		}
-		f, err := encio.Open(path)
+		f, err := encio.Open(path, encopts...)
 		if err != nil {
 			return err
 		}
