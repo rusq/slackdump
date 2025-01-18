@@ -1,6 +1,7 @@
 package renderer
 
 import (
+	_ "embed"
 	"encoding/json"
 	"testing"
 
@@ -440,4 +441,11 @@ const (
 		"original_url": "https://www.bbc.co.uk/news/business-68150306",
 		"blocks": null
 	  }`
+)
+
+var (
+	//go:embed fixtures/polly.json
+	fxtrPolly string
+	//go:embed fixtures/polly.html
+	fxtrPollyHTML string
 )

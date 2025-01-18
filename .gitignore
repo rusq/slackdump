@@ -39,6 +39,7 @@ cmd/sdconv/sdconv
 /TODO.*
 /*.txt
 *~
+*.swp
 .env
 *.cache
 *.log

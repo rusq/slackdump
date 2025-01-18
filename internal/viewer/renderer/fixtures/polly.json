@@ -1,0 +1,195 @@
+{
+  "type": "message",
+  "user": "U089AJ964TE",
+  "text": "*Maybe Peter* (Polly Sender: \u003c@UHSD97ZA5\u003e) has a polly for you!",
+  "ts": "1737160363.583369",
+  "edited": {
+    "user": "B089LPE68BB",
+    "ts": "1737160371.000000"
+  },
+  "bot_id": "B089LPE68BB",
+  "bot_profile": {
+    "app_id": "A04E6JX41",
+    "icons": {
+      "image_36": "https://avatars.slack-edge.com/2020-10-26/1466083688641_05afc842ead4d799a4fc_36.png",
+      "image_48": "https://avatars.slack-edge.com/2020-10-26/1466083688641_05afc842ead4d799a4fc_48.png",
+      "image_72": "https://avatars.slack-edge.com/2020-10-26/1466083688641_05afc842ead4d799a4fc_72.png"
+    },
+    "id": "B089LPE68BB",
+    "name": "Polly",
+    "team_id": "THY5HTZ8U",
+    "updated": 1737160196
+  },
+  "team": "THY5HTZ8U",
+  "replace_original": false,
+  "delete_original": false,
+  "metadata": {
+    "event_type": "",
+    "event_payload": null
+  },
+  "blocks": [
+    {
+      "type": "section",
+      "text": {
+        "type": "mrkdwn",
+        "text": "*Test Poll #406*",
+        "verbatim": true
+      },
+      "block_id": "xv7cA",
+      "accessory": {
+        "type": "overflow",
+        "action_id": "PollMessage(j2vEyaqwEwErYhA2Y).PollMessageOverflowMenu()",
+        "options": [
+          {
+            "text": {
+              "type": "plain_text",
+              "text": "Settings",
+              "emoji": true
+            },
+            "value": "settings"
+          }
+        ]
+      }
+    },
+    {
+      "type": "actions",
+      "block_id": "2BTuw",
+      "elements": [
+        {
+          "type": "button",
+          "text": {
+            "type": "plain_text",
+            "text": "Monday",
+            "emoji": true
+          },
+          "action_id": "PollMessage(j2vEyaqwEwErYhA2Y).VotingButton(0)",
+          "value": "one"
+        },
+        {
+          "type": "button",
+          "text": {
+            "type": "plain_text",
+            "text": "Tuesday",
+            "emoji": true
+          },
+          "action_id": "PollMessage(j2vEyaqwEwErYhA2Y).VotingButton(1)",
+          "value": "two"
+        },
+        {
+          "type": "button",
+          "text": {
+            "type": "plain_text",
+            "text": "Wednesday",
+            "emoji": true
+          },
+          "action_id": "PollMessage(j2vEyaqwEwErYhA2Y).VotingButton(2)",
+          "value": "three"
+        },
+        {
+          "type": "button",
+          "text": {
+            "type": "plain_text",
+            "text": "Thurdsday",
+            "emoji": true
+          },
+          "action_id": "PollMessage(j2vEyaqwEwErYhA2Y).VotingButton(3)",
+          "value": "four"
+        },
+        {
+          "type": "button",
+          "text": {
+            "type": "plain_text",
+            "text": "Friday",
+            "emoji": true
+          },
+          "action_id": "PollMessage(j2vEyaqwEwErYhA2Y).VotingButton(4)",
+          "value": "five"
+        }
+      ]
+    },
+    {
+      "type": "section",
+      "block_id": "nl1gk",
+      "fields": [
+        {
+          "type": "mrkdwn",
+          "text": "Monday  \n\n`█████████████████████████`  |  100% (1)\n\n\u003c@UHSD97ZA5\u003e",
+          "verbatim": true
+        },
+        {
+          "type": "mrkdwn",
+          "text": "Tuesday  \n\n`⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ `  |  0% (0)",
+          "verbatim": true
+        }
+      ]
+    },
+    {
+      "type": "section",
+      "block_id": "fmNoP",
+      "fields": [
+        {
+          "type": "mrkdwn",
+          "text": "Wednesday  \n\n`⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ `  |  0% (0)",
+          "verbatim": true
+        },
+        {
+          "type": "mrkdwn",
+          "text": "Thurdsday  \n\n`⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ `  |  0% (0)",
+          "verbatim": true
+        }
+      ]
+    },
+    {
+      "type": "section",
+      "block_id": "YdkD+",
+      "fields": [
+        {
+          "type": "mrkdwn",
+          "text": "Friday  \n\n`⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ ⁢ `  |  0% (0)",
+          "verbatim": true
+        }
+      ]
+    },
+    {
+      "type": "context",
+      "block_id": "2ZI/p",
+      "elements": [
+        {
+          "type": "mrkdwn",
+          "text": "*Total Votes*: 1",
+          "verbatim": true
+        }
+      ]
+    },
+    {
+      "type": "actions",
+      "block_id": "7kaNy",
+      "elements": [
+        {
+          "type": "button",
+          "text": {
+            "type": "plain_text",
+            "text": "View All Responses ",
+            "emoji": true
+          },
+          "action_id": "PollMessage(j2vEyaqwEwErYhA2Y).ViewAllResponsesButton"
+        }
+      ]
+    },
+    {
+      "type": "divider",
+      "block_id": "Vx4ym"
+    },
+    {
+      "type": "context",
+      "block_id": "2dckx",
+      "elements": [
+        {
+          "type": "mrkdwn",
+          "text": "Sender: Maybe Peter | :unlock: *Responses:* Non-Anonymous | *:clock930: Closes: *\u003c!date^1737765162^{date_short} at {time}|Jan 25, 2025 at 00:32 AM\u003e",
+          "verbatim": true
+        }
+      ]
+    }
+  ]
+}
