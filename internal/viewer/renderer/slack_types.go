@@ -9,6 +9,7 @@ var (
 		slack.MBTContext:  (*Slack).mbtContext,
 		slack.MBTSection:  (*Slack).mbtSection,
 		slack.MBTAction:   (*Slack).mbtAction,
+		slack.MBTDivider:  (*Slack).mbtDivider,
 		"call":            (*Slack).mbtCall,
 	}
 
