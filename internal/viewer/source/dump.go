@@ -2,10 +2,12 @@ package source
 
 import (
 	"io/fs"
+	"log/slog"
 	"os"
 	"path"
 
 	"github.com/rusq/slack"
+
 	"github.com/rusq/slackdump/v3/internal/structures"
 	"github.com/rusq/slackdump/v3/types"
 )
@@ -92,15 +94,52 @@ func (d Dump) Users() ([]slack.User, error) {
 }
 
 func (d Dump) AllMessages(channelID string) ([]slack.Message, error) {
-	c, err := unmarshalOne[types.Conversation](d.fs, channelID+".json")
+	var cm []types.Message
+	c, err := unmarshalOne[types.Conversation](d.fs, d.channelFile(channelID))
+	if err != nil {
+		if !os.IsNotExist(err) {
+			return nil, err
+		}
+		// we may be hitting a thread
+		cm, err = d.threadHeadMessages(channelID)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		cm = c.Messages
+	}
+	return convertMessages(cm), nil
+}
+
+func (d Dump) threadHeadMessages(channelID string) ([]types.Message, error) {
+	// find all threads that belong to this channel that may have been
+	// exported as separate files.
+	files, err := fs.Glob(d.fs, d.threadFile(channelID, "*"))
 	if err != nil {
 		return nil, err
 	}
-	return convertMessages(c.Messages), nil
+	if len(files) == 0 {
+		return nil, fs.ErrNotExist
+	}
+	// collect all thread start messages
+	var cm []types.Message
+	for _, f := range files {
+		c, err := unmarshalOne[types.Conversation](d.fs, f)
+		if err != nil {
+			return nil, err
+		}
+		if len(c.Messages) == 0 {
+			slog.Debug("no messages in file", "file", f)
+			continue
+		}
+		// we only need the messages that start the threads.
+		cm = append(cm, c.Messages[0])
+	}
+	return cm, nil
 }
 
 func convertMessages(cm []types.Message) []slack.Message {
-	var mm = make([]slack.Message, len(cm))
+	mm := make([]slack.Message, len(cm))
 	for i := range cm {
 		mm[i] = cm[i].Message
 	}
@@ -108,15 +147,29 @@ func convertMessages(cm []types.Message) []slack.Message {
 }
 
 func (d Dump) AllThreadMessages(channelID, threadID string) ([]slack.Message, error) {
-	cm, err := d.findThread(channelID, threadID)
+	cm, err := d.findThreadInChannel(channelID, threadID)
 	if err != nil {
-		return nil, err
+		if !os.IsNotExist(err) {
+			return nil, err
+		}
+		cm, err = d.findThreadFile(channelID, threadID)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return convertMessages(cm), nil
 }
 
-func (d Dump) findThread(channelID, threadID string) ([]types.Message, error) {
-	c, err := unmarshalOne[types.Conversation](d.fs, channelID+".json")
+func (d Dump) channelFile(channelID string) string {
+	return channelID + ".json"
+}
+
+func (d Dump) threadFile(channelID, threadID string) string {
+	return channelID + "-" + threadID + ".json"
+}
+
+func (d Dump) findThreadInChannel(channelID, threadID string) ([]types.Message, error) {
+	c, err := unmarshalOne[types.Conversation](d.fs, d.channelFile(channelID))
 	if err != nil {
 		return nil, err
 	}
@@ -126,6 +179,14 @@ func (d Dump) findThread(channelID, threadID string) ([]types.Message, error) {
 		}
 	}
 	return nil, fs.ErrNotExist
+}
+
+func (d Dump) findThreadFile(channelID, threadID string) ([]types.Message, error) {
+	c, err := unmarshalOne[types.Conversation](d.fs, d.threadFile(channelID, threadID))
+	if err != nil {
+		return nil, err
+	}
+	return c.Messages, nil
 }
 
 func (d Dump) ChannelInfo(channelID string) (*slack.Channel, error) {
