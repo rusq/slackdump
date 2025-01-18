@@ -1,13 +1,16 @@
 package renderer
 
 import (
+	"bytes"
+	"compress/gzip"
 	"context"
 	"html/template"
-	"reflect"
+	"io"
 	"strings"
 	"testing"
 
 	"github.com/rusq/slack"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/rusq/slackdump/v3/internal/viewer/renderer/functions"
 )
@@ -73,17 +76,30 @@ func TestSlack_Render(t *testing.T) {
 			args{
 				m: loadmsg(t, fxtrPolly),
 			},
-			template.HTML(fxtrPollyHTML),
+			template.HTML(strings.TrimSpace(ungzip(t, fxtrPollyHTML))),
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			sm := &Slack{}
-			if gotV := sm.Render(context.Background(), tt.args.m); !reflect.DeepEqual(gotV, tt.wantV) {
-				t.Errorf("Slack.Render() = %v, want %v", gotV, tt.wantV)
-			}
+			gotV := sm.Render(context.Background(), tt.args.m)
+			assert.Equal(t, gotV, tt.wantV)
 		})
 	}
+}
+
+func ungzip(t *testing.T, b []byte) string {
+	t.Helper()
+	gr, err := gzip.NewReader(bytes.NewReader(b))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer gr.Close()
+	var buf strings.Builder
+	if _, err := io.Copy(&buf, gr); err != nil {
+		t.Fatal(err)
+	}
+	return buf.String()
 }
 
 func TestSlack_renderAttachment(t *testing.T) {

@@ -11,3 +11,7 @@ import "github.com/rusq/slack"
 func (*Slack) mbtCall(slack.Block) (string, string, error) {
 	return div("slack-call", "(Call)"), "", nil
 }
+
+func (*Slack) mbtDivider(slack.Block) (string, string, error) {
+	return div("slack-divider", "<hr/>"), "", nil
+}
