@@ -19,7 +19,7 @@ import (
 
 const ezLogin = "EZ-Login 3000"
 
-//go:generate mockgen -source=auth.go -destination=../../mocks/mock_appauth/mock_appauth.go Credentials,createOpener
+//go:generate mockgen -source=auth.go -destination=../mocks/mock_cache/mock_cache.go Credentials,createOpener
 //go:generate mockgen -destination=../mocks/mock_io/mock_io.go io ReadCloser,WriteCloser
 
 // isWSL is true if we're running in the WSL environment
@@ -59,7 +59,7 @@ func (c AuthData) Type(context.Context) (AuthType, error) {
 		ez = ATPlaywright
 	}
 	if !c.IsEmpty() {
-		if isExistingFile(c.Cookie) {
+		if exists(c.Cookie) {
 			return ATCookieFile, nil
 		}
 		return ATValue, nil
@@ -102,7 +102,7 @@ func (c AuthData) AuthProvider(ctx context.Context, workspace string, opts ...au
 	return nil, errors.New("internal error: unsupported auth type")
 }
 
-func isExistingFile(name string) bool {
+func exists(name string) bool {
 	fi, err := os.Stat(name)
 	return err == nil && !fi.IsDir()
 }
@@ -120,12 +120,21 @@ func ezLoginTested() bool {
 	}
 }
 
-// filer is openCreator that will be used by InitProvider.
-var filer container = encryptedFile{}
-
 type Credentials interface {
 	IsEmpty() bool
 	AuthProvider(ctx context.Context, workspace string, opts ...auth.Option) (auth.Provider, error)
+}
+
+type authenticator struct {
+	ct  createOpener
+	dir string
+}
+
+func newAuthenticator(cacheDir, machineID string) authenticator {
+	return authenticator{
+		dir: cacheDir,
+		ct:  encryptedFile{machineID: machineID},
+	}
 }
 
 // initProvider initialises the auth.Provider depending on provided slack
@@ -141,23 +150,24 @@ type Credentials interface {
 // the operating system (see package encio), it makes it impossible use the
 // stored credentials on another machine (including virtual), even another
 // operating system on the same machine, unless it's a clone of the source
-// operating system on which the credentials storage was created.
-func initProvider(ctx context.Context, cacheDir string, filename string, workspace string, creds Credentials, opts ...auth.Option) (auth.Provider, error) {
+// operating system on which the credentials storage was created. Optionally it
+// can be overridden by providing a machine ID override to [newAuthenticator].
+func (a authenticator) initProvider(ctx context.Context, filename string, workspace string, creds Credentials, opts ...auth.Option) (auth.Provider, error) {
 	ctx, task := trace.NewTask(ctx, "initProvider")
 	defer task.End()
 
 	credsFile := filename
-	if cacheDir != "" {
-		if err := os.MkdirAll(cacheDir, 0o700); err != nil {
+	if a.dir != "" {
+		if err := os.MkdirAll(a.dir, 0o700); err != nil {
 			return nil, fmt.Errorf("failed to create cache directory:  %w", err)
 		}
-		credsFile = filepath.Join(cacheDir, filename)
+		credsFile = filepath.Join(a.dir, filename)
 	}
 
 	// try to load the existing credentials, if saved earlier.
-	lg := slog.With("cache_dir", cacheDir, "filename", filename, "workspace", workspace)
+	lg := slog.With("cache_dir", a.dir, "filename", filename, "workspace", workspace)
 	if creds == nil || creds.IsEmpty() {
-		if prov, err := tryLoad(ctx, credsFile); err != nil {
+		if prov, err := a.tryLoad(ctx, credsFile); err != nil {
 			msg := fmt.Sprintf("failed to load saved credentials: %s", err)
 			trace.Log(ctx, "warn", msg)
 			slog.DebugContext(ctx, msg)
@@ -179,7 +189,7 @@ func initProvider(ctx context.Context, cacheDir string, filename string, workspa
 		return nil, fmt.Errorf("failed to initialise the auth provider: %w", err)
 	}
 
-	if err := saveCreds(filer, credsFile, provider); err != nil {
+	if err := saveCreds(a.ct, credsFile, provider); err != nil {
 		trace.Logf(ctx, "error", "failed to save credentials to: %s", credsFile)
 	}
 
@@ -188,8 +198,8 @@ func initProvider(ctx context.Context, cacheDir string, filename string, workspa
 
 var authTester = (auth.Provider).Test
 
-func tryLoad(ctx context.Context, filename string) (auth.Provider, error) {
-	prov, err := loadCreds(filer, filename)
+func (a authenticator) tryLoad(ctx context.Context, filename string) (auth.Provider, error) {
+	prov, err := loadCreds(a.ct, filename)
 	if err != nil {
 		return nil, err
 	}
@@ -200,19 +210,26 @@ func tryLoad(ctx context.Context, filename string) (auth.Provider, error) {
 	return prov, nil
 }
 
+var ErrFailed = errors.New("failed to load stored credentials")
+
 // loadCreds loads the encrypted credentials from the file.
-func loadCreds(ct container, filename string) (auth.Provider, error) {
+func loadCreds(ct createOpener, filename string) (auth.Provider, error) {
 	f, err := ct.Open(filename)
 	if err != nil {
-		return nil, errors.New("failed to load stored credentials")
+		return nil, ErrFailed
 	}
 	defer f.Close()
 
-	return auth.Load(f)
+	p, err := auth.Load(f)
+	if err != nil {
+		slog.Debug("failed to load credentials, possibly mismatched machine ID", "err", err)
+		return nil, ErrFailed
+	}
+	return p, nil
 }
 
 // saveCreds encrypts and saves the credentials.
-func saveCreds(ct container, filename string, p auth.Provider) error {
+func saveCreds(ct createOpener, filename string, p auth.Provider) error {
 	f, err := ct.Create(filename)
 	if err != nil {
 		return err
@@ -227,21 +244,35 @@ func AuthReset(cacheDir string) error {
 	return os.Remove(filepath.Join(cacheDir, defCredsFile))
 }
 
-// container is the interface to operate with credentials container.
-type container interface {
+// createOpener is the interface to operate with credentials createOpener.
+type createOpener interface {
 	Create(filename string) (io.WriteCloser, error)
 	Open(filename string) (io.ReadCloser, error)
 }
 
-// encryptedFile is the encrypted file container.
-type encryptedFile struct{}
+var _ createOpener = encryptedFile{}
 
-func (encryptedFile) Open(filename string) (io.ReadCloser, error) {
-	return encio.Open(filename)
+// encryptedFile is the encrypted file wrapper.
+type encryptedFile struct {
+	// machineID is the machine ID override. If it is empty, the actual machine
+	// ID is used.
+	machineID string
 }
 
-func (encryptedFile) Create(filename string) (io.WriteCloser, error) {
-	return encio.Create(filename)
+func (f encryptedFile) Open(filename string) (io.ReadCloser, error) {
+	var opts []encio.Option
+	if f.machineID != "" {
+		opts = append(opts, encio.WithID(f.machineID))
+	}
+	return encio.Open(filename, opts...)
+}
+
+func (f encryptedFile) Create(filename string) (io.WriteCloser, error) {
+	var opts []encio.Option
+	if f.machineID != "" {
+		opts = append(opts, encio.WithID(f.machineID))
+	}
+	return encio.Create(filename, opts...)
 }
 
 // EZLoginFlags is a diagnostic function that returns the map of flags that

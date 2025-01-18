@@ -2,7 +2,6 @@ package fixtures
 
 import (
 	"embed"
-	_ "embed"
 )
 
 const TestConversationExportJSON = `{

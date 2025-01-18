@@ -5,9 +5,10 @@ import (
 
 	"github.com/rusq/encio"
 	"github.com/rusq/slack"
+	"github.com/stretchr/testify/assert"
+
 	"github.com/rusq/slackdump/v3/internal/fixtures"
 	"github.com/rusq/slackdump/v3/types"
-	"github.com/stretchr/testify/assert"
 )
 
 // testChannels is a test fixture for channels.
@@ -19,7 +20,8 @@ func TestSaveChannels(t *testing.T) {
 	dir := t.TempDir()
 	testfile := "test-chans.json"
 
-	assert.NoError(t, saveChannels(dir, testfile, testSuffix, testChannels))
+	var m Manager
+	assert.NoError(t, m.saveChannels(dir, testfile, testSuffix, testChannels))
 
 	reopenedF, err := encio.Open(makeCacheFilename(dir, testfile, testSuffix))
 	if err != nil {

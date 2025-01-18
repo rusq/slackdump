@@ -86,11 +86,12 @@ func runObfuscate(ctx context.Context, cmd *base.Command, args []string) error {
 	inType := objtype(obfparam.input)
 
 	var fn func(context.Context) error
-	if inType == otFile || inType == otTerm {
+	switch inType {
+	case otFile, otTerm:
 		fn = obfFile
-	} else if inType == otDir {
+	case otDir:
 		fn = obfDir
-	} else {
+	default:
 		base.SetExitStatus(base.SInvalidParameters)
 		return fmt.Errorf("input %s is invalid", obfparam.input)
 	}
@@ -194,7 +195,7 @@ func obfDir(ctx context.Context) error {
 			InName:  obfparam.input,
 		}
 	case otNotExist:
-		if err := os.MkdirAll(obfparam.output, 0755); err != nil {
+		if err := os.MkdirAll(obfparam.output, 0o755); err != nil {
 			return err
 		}
 	case otDir:

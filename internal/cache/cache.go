@@ -82,10 +82,14 @@ func writeSlice[T any](w io.Writer, tt []T) error {
 
 // save saves the users to a file, naming the file based on the filename
 // and the suffix. The file will be saved in the cache directory.
-func save[T any](cacheDir, filename string, suffix string, uu []T) error {
+func save[T any](cacheDir, filename string, suffix string, uu []T, machineID string) error {
 	filename = makeCacheFilename(cacheDir, filename, suffix)
 
-	f, err := encio.Create(filename)
+	var opts []encio.Option
+	if machineID != "" {
+		opts = append(opts, encio.WithID(machineID))
+	}
+	f, err := encio.Create(filename, opts...)
 	if err != nil {
 		return fmt.Errorf("failed to create file %s: %w", filename, err)
 	}
@@ -101,7 +105,7 @@ func save[T any](cacheDir, filename string, suffix string, uu []T) error {
 // it as a slice of T.
 func read[T any](r io.Reader) ([]T, error) {
 	dec := json.NewDecoder(r)
-	var tt = make([]T, 0, 500) // 500 T. reasonable?
+	tt := make([]T, 0, 500) // 500 T. reasonable?
 	for {
 		var t T
 		if err := dec.Decode(&t); err != nil {
@@ -117,14 +121,18 @@ func read[T any](r io.Reader) ([]T, error) {
 
 // load loads the data from the file in the cache directory, and returns
 // the data as a slice of T.
-func load[T any](cacheDir, filename string, suffix string, maxAge time.Duration) ([]T, error) {
+func load[T any](cacheDir, filename, suffix string, maxAge time.Duration, machineID string) ([]T, error) {
+	var opts []encio.Option
+	if machineID != "" {
+		opts = append(opts, encio.WithID(machineID))
+	}
 	filename = makeCacheFilename(cacheDir, filename, suffix)
 
 	if err := checkCacheFile(filename, maxAge); err != nil {
 		return nil, fmt.Errorf("%s: %w", filename, err)
 	}
 
-	f, err := encio.Open(filename)
+	f, err := encio.Open(filename, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open %s: %w", filename, err)
 	}

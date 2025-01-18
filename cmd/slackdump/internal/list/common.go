@@ -12,6 +12,7 @@ import (
 	"github.com/rusq/slackdump/v3"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/workspace"
 	"github.com/rusq/slackdump/v3/internal/cache"
 	"github.com/rusq/slackdump/v3/internal/format"
 	"github.com/rusq/slackdump/v3/types"
@@ -86,7 +87,7 @@ func addCommonFlags(fs *flag.FlagSet) {
 }
 
 func list[T any](ctx context.Context, sess *slackdump.Session, l lister[T], filename string) error {
-	m, err := cache.NewManager(cfg.CacheDir())
+	m, err := workspace.CacheMgr()
 	if err != nil {
 		return err
 	}

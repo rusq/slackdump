@@ -8,7 +8,6 @@ import (
 	"github.com/rusq/slackdump/v3/auth"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
-	"github.com/rusq/slackdump/v3/internal/cache"
 )
 
 //go:embed assets/import.md
@@ -44,7 +43,7 @@ func importFile(ctx context.Context, filename string) error {
 		base.SetExitStatus(base.SUserError)
 		return err
 	}
-	m, err := cache.NewManager(cfg.CacheDir())
+	m, err := CacheMgr()
 	if err != nil {
 		base.SetExitStatus(base.SCacheError)
 		return err

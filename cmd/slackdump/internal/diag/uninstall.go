@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/rusq/slackauth"
+
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/diag/info"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
@@ -16,6 +17,7 @@ import (
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/cfgui"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/dumpui"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/updaters"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/workspace"
 	"github.com/rusq/slackdump/v3/internal/cache"
 )
 
@@ -84,7 +86,6 @@ func init() {
 	cmdUninstall.Flag.BoolVar(&uninstParams.purge, "purge", false, "remove everything (same as -rod -playwright -cache)")
 	cmdUninstall.Flag.BoolVar(&uninstParams.dry, "dry", false, "dry run")
 	cmdUninstall.Flag.BoolVar(&uninstParams.noConfirm, "no-confirm", false, "no confirmation from the user")
-
 }
 
 func runUninstall(ctx context.Context, cmd *base.Command, args []string) error {
@@ -96,7 +97,7 @@ func runUninstall(ctx context.Context, cmd *base.Command, args []string) error {
 		return errors.New("nothing to uninstall")
 	}
 
-	m, err := cache.NewManager(cfg.CacheDir())
+	m, err := workspace.CacheMgr()
 	if err != nil {
 		base.SetExitStatus(base.SCacheError)
 		return err

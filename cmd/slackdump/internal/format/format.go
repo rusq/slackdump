@@ -263,7 +263,7 @@ var errNoMatch = errors.New("no matching users")
 func searchCache(ctx context.Context, cacheDir string, ids []string) ([]slack.User, error) {
 	_, task := trace.NewTask(ctx, "searchCache")
 	defer task.End()
-	m, err := cache.NewManager(cacheDir)
+	m, err := cache.NewManager(cacheDir, cache.WithMachineID(cfg.MachineIDOvr))
 	if err != nil {
 		return nil, err
 	}

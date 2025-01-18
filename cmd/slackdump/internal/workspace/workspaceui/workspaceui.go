@@ -54,12 +54,12 @@ func ShowUI(ctx context.Context, opts ...UIOption) error {
 		actExit        = "exit"
 	)
 
-	mgr, err := cache.NewManager(cfg.CacheDir())
+	mgr, err := cache.NewManager(cfg.CacheDir(), cache.WithMachineID(cfg.MachineIDOvr)) // avoiding import cycle
 	if err != nil {
 		return err
 	}
 
-	var uiOpts = options{
+	uiOpts := options{
 		title: "New Workspace",
 	}
 	for _, o := range opts {
@@ -113,7 +113,7 @@ func ShowUI(ctx context.Context, opts ...UIOption) error {
 	}
 
 	// new workspace methods
-	var methods = map[string]func(context.Context, manager) error{
+	methods := map[string]func(context.Context, manager) error{
 		actLogin:     brwsLogin(&brwsOpts),
 		actToken:     prgTokenCookie,
 		actTokenFile: prgTokenCookieFile,

@@ -25,7 +25,8 @@ func TestSaveUserCache(t *testing.T) {
 	dir := t.TempDir()
 	testfile := "test.json"
 
-	assert.NoError(t, saveUsers(dir, testfile, testSuffix, testUsers))
+	var m Manager
+	assert.NoError(t, m.saveUsers(dir, testfile, testSuffix, testUsers))
 
 	reopenedF, err := encio.Open(makeCacheFilename(dir, testfile, testSuffix))
 	if err != nil {
@@ -64,7 +65,8 @@ func TestLoadUserCache(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := loadUsers("", tt.args.filename, testSuffix, tt.args.maxAge)
+			var m Manager
+			got, err := m.loadUsers("", tt.args.filename, testSuffix, tt.args.maxAge)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Session.loadUserCache() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -187,7 +189,8 @@ func gimmeTempFile(t *testing.T, dir string) string {
 
 func gimmeTempFileWithUsers(t *testing.T, dir string) string {
 	f := gimmeTempFile(t, dir)
-	if err := saveUsers("", f, testSuffix, testUsers); err != nil {
+	var m Manager
+	if err := m.saveUsers("", f, testSuffix, testUsers); err != nil {
 		t.Fatal(err)
 	}
 	return f

@@ -41,7 +41,7 @@ func runSelect(ctx context.Context, cmd *base.Command, args []string) error {
 		base.SetExitStatus(base.SInvalidParameters)
 		return cache.ErrNameRequired
 	}
-	m, err := cache.NewManager(cfg.CacheDir())
+	m, err := CacheMgr()
 	if err != nil {
 		base.SetExitStatus(base.SCacheError)
 		return fmt.Errorf("unable to initialise cache: %s", err)

@@ -4,24 +4,25 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"reflect"
 	"testing"
 
+	"github.com/rusq/slack"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 
-	"github.com/rusq/slack"
 	"github.com/rusq/slackdump/v3/auth"
 	"github.com/rusq/slackdump/v3/internal/fixtures"
-	"github.com/rusq/slackdump/v3/internal/mocks/mock_appauth"
+	"github.com/rusq/slackdump/v3/internal/mocks/mock_cache"
 	"github.com/rusq/slackdump/v3/internal/mocks/mock_io"
 )
 
-func Test_isExistingFile(t *testing.T) {
+func Test_exists(t *testing.T) {
 	testfile := filepath.Join(t.TempDir(), "cookies.txt")
-	if err := os.WriteFile(testfile, []byte("blah"), 0600); err != nil {
+	if err := os.WriteFile(testfile, []byte("blah"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -38,7 +39,7 @@ func Test_isExistingFile(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := isExistingFile(tt.args.cookie); got != tt.want {
+			if got := exists(tt.args.cookie); got != tt.want {
 				t.Errorf("isExistingFile() = %v, want %v", got, tt.want)
 			}
 		})
@@ -48,7 +49,7 @@ func Test_isExistingFile(t *testing.T) {
 func TestAuthData_Type(t *testing.T) {
 	dir := t.TempDir()
 	testFile := filepath.Join(dir, "fake_cookie")
-	if err := os.WriteFile(testFile, []byte("unittest"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("unittest"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	type fields struct {
@@ -137,7 +138,7 @@ func TestInitProvider(t *testing.T) {
 	tests := []struct {
 		name        string
 		args        args
-		expect      func(m *mock_appauth.MockCredentials)
+		expect      func(m *mock_cache.MockCredentials)
 		authTestErr error
 		want        auth.Provider
 		wantErr     bool
@@ -145,20 +146,20 @@ func TestInitProvider(t *testing.T) {
 		{
 			"empty creds, no errors",
 			args{context.Background(), testDir, "wsp"},
-			func(m *mock_appauth.MockCredentials) {
+			func(m *mock_cache.MockCredentials) {
 				m.EXPECT().IsEmpty().Return(false)
 				m.EXPECT().
 					AuthProvider(gomock.Any(), "wsp").
 					Return(storedProv, nil)
 			},
-			nil, //not used in the test
+			nil, // not used in the test
 			storedProv,
 			false,
 		},
 		{
 			"creds empty, tryLoad succeeds",
 			args{context.Background(), testDir, "wsp"},
-			func(m *mock_appauth.MockCredentials) {
+			func(m *mock_cache.MockCredentials) {
 				m.EXPECT().IsEmpty().Return(true)
 			},
 			nil,
@@ -168,7 +169,7 @@ func TestInitProvider(t *testing.T) {
 		{
 			"creds empty, tryLoad fails",
 			args{context.Background(), testDir, "wsp"},
-			func(m *mock_appauth.MockCredentials) {
+			func(m *mock_cache.MockCredentials) {
 				m.EXPECT().IsEmpty().Return(true)
 				m.EXPECT().AuthProvider(gomock.Any(), "wsp").Return(returnedProv, nil)
 			},
@@ -179,7 +180,7 @@ func TestInitProvider(t *testing.T) {
 		{
 			"creds non-empty, provider failed",
 			args{context.Background(), testDir, "wsp"},
-			func(m *mock_appauth.MockCredentials) {
+			func(m *mock_cache.MockCredentials) {
 				m.EXPECT().IsEmpty().Return(false)
 				m.EXPECT().AuthProvider(gomock.Any(), "wsp").Return(nil, errors.New("authProvider failed"))
 			},
@@ -190,7 +191,7 @@ func TestInitProvider(t *testing.T) {
 		{
 			"creds non-empty, provider succeeds, save succeeds",
 			args{context.Background(), testDir, "wsp"},
-			func(m *mock_appauth.MockCredentials) {
+			func(m *mock_cache.MockCredentials) {
 				m.EXPECT().IsEmpty().Return(false)
 				m.EXPECT().AuthProvider(gomock.Any(), "wsp").Return(returnedProv, nil)
 			},
@@ -201,7 +202,7 @@ func TestInitProvider(t *testing.T) {
 		{
 			"creds non-empty, provider succeeds, save fails",
 			args{context.Background(), t.TempDir() + "$", "wsp"},
-			func(m *mock_appauth.MockCredentials) {
+			func(m *mock_cache.MockCredentials) {
 				m.EXPECT().IsEmpty().Return(false)
 				m.EXPECT().AuthProvider(gomock.Any(), "wsp").Return(returnedProv, nil)
 			},
@@ -221,15 +222,17 @@ func TestInitProvider(t *testing.T) {
 
 			// resetting credentials
 			credsFile := filepath.Join(testDir, defCredsFile)
-			if err := saveCreds(filer, credsFile, storedProv); err != nil {
+			co := encryptedFile{}
+			if err := saveCreds(co, credsFile, storedProv); err != nil {
 				t.Fatal(err)
 			}
 
-			mc := mock_appauth.NewMockCredentials(gomock.NewController(t))
+			mc := mock_cache.NewMockCredentials(gomock.NewController(t))
 			tt.expect(mc)
 
+			auther := newAuthenticator(tt.args.cacheDir, "")
 			// test
-			got, err := initProvider(tt.args.ctx, tt.args.cacheDir, defCredsFile, tt.args.workspace, mc)
+			got, err := auther.initProvider(tt.args.ctx, defCredsFile, tt.args.workspace, mc)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("InitProvider() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -252,6 +255,8 @@ func Test_tryLoad(t *testing.T) {
 	testDir := t.TempDir()
 	testProvider, _ := auth.NewValueAuth("xoxc", "xoxd")
 	credsFile := filepath.Join(testDir, defCredsFile)
+
+	filer := encryptedFile{}
 	if err := saveCreds(filer, credsFile, testProvider); err != nil {
 		t.Fatal(err)
 	}
@@ -298,7 +303,11 @@ func Test_tryLoad(t *testing.T) {
 			}()
 			authTester = fakeAuthTester(tt.authTestErr)
 
-			got, err := tryLoad(tt.args.ctx, tt.args.filename)
+			a := authenticator{
+				ct: encryptedFile{},
+			}
+
+			got, err := a.tryLoad(tt.args.ctx, tt.args.filename)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("tryLoad() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -316,7 +325,7 @@ func Test_loadCreds(t *testing.T) {
 	if err := auth.Save(&buf, testProv); err != nil {
 		t.Fatal(err)
 	}
-	var testProvBytes = buf.Bytes()
+	testProvBytes := buf.Bytes()
 
 	type args struct {
 		filename string
@@ -324,14 +333,14 @@ func Test_loadCreds(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    args
-		expect  func(mco *mock_appauth.Mockcontainer, mrc *mock_io.MockReadCloser)
+		expect  func(mco *mock_cache.MockcreateOpener, mrc *mock_io.MockReadCloser)
 		want    auth.Provider
 		wantErr bool
 	}{
 		{
 			"all ok",
 			args{"fakefile.ext"},
-			func(mco *mock_appauth.Mockcontainer, mrc *mock_io.MockReadCloser) {
+			func(mco *mock_cache.MockcreateOpener, mrc *mock_io.MockReadCloser) {
 				readCall := mrc.EXPECT().
 					Read(gomock.Any()).
 					DoAndReturn(func(b []byte) (int, error) {
@@ -349,7 +358,7 @@ func Test_loadCreds(t *testing.T) {
 		{
 			"auth.Read error",
 			args{"fakefile.ext"},
-			func(mco *mock_appauth.Mockcontainer, mrc *mock_io.MockReadCloser) {
+			func(mco *mock_cache.MockcreateOpener, mrc *mock_io.MockReadCloser) {
 				readCall := mrc.EXPECT().
 					Read(gomock.Any()).
 					Return(0, errors.New("auth.Read error"))
@@ -359,13 +368,13 @@ func Test_loadCreds(t *testing.T) {
 					Open("fakefile.ext").
 					Return(mrc, nil)
 			},
-			auth.ValueAuth{},
+			nil,
 			true,
 		},
 		{
 			"read error",
 			args{"fakefile.ext"},
-			func(mco *mock_appauth.Mockcontainer, mrc *mock_io.MockReadCloser) {
+			func(mco *mock_cache.MockcreateOpener, mrc *mock_io.MockReadCloser) {
 				mco.EXPECT().
 					Open("fakefile.ext").
 					Return(nil, errors.New("it was at this moment that test framework knew:  it fucked up"))
@@ -377,7 +386,7 @@ func Test_loadCreds(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			mco := mock_appauth.NewMockcontainer(ctrl)
+			mco := mock_cache.NewMockcreateOpener(ctrl)
 			mrc := mock_io.NewMockReadCloser(ctrl)
 			tt.expect(mco, mrc)
 
@@ -400,7 +409,7 @@ func Test_saveCreds(t *testing.T) {
 	if err := auth.Save(&buf, testProv); err != nil {
 		t.Fatal(err)
 	}
-	var testProvBytes = buf.Bytes()
+	testProvBytes := buf.Bytes()
 
 	type args struct {
 		filename string
@@ -409,13 +418,13 @@ func Test_saveCreds(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    args
-		expect  func(m *mock_appauth.Mockcontainer, mwc *mock_io.MockWriteCloser)
+		expect  func(m *mock_cache.MockcreateOpener, mwc *mock_io.MockWriteCloser)
 		wantErr bool
 	}{
 		{
 			"all ok",
 			args{filename: "filename.ext", p: testProv},
-			func(m *mock_appauth.Mockcontainer, mwc *mock_io.MockWriteCloser) {
+			func(m *mock_cache.MockcreateOpener, mwc *mock_io.MockWriteCloser) {
 				wc := mwc.EXPECT().Write(testProvBytes).Return(len(testProvBytes), nil)
 				mwc.EXPECT().Close().After(wc).Return(nil)
 
@@ -426,7 +435,7 @@ func Test_saveCreds(t *testing.T) {
 		{
 			"create fails",
 			args{filename: "filename.ext", p: testProv},
-			func(m *mock_appauth.Mockcontainer, mwc *mock_io.MockWriteCloser) {
+			func(m *mock_cache.MockcreateOpener, mwc *mock_io.MockWriteCloser) {
 				m.EXPECT().Create("filename.ext").Return(nil, errors.New("create fail"))
 			},
 			true,
@@ -434,7 +443,7 @@ func Test_saveCreds(t *testing.T) {
 		{
 			"write fails",
 			args{filename: "filename.ext", p: testProv},
-			func(m *mock_appauth.Mockcontainer, mwc *mock_io.MockWriteCloser) {
+			func(m *mock_cache.MockcreateOpener, mwc *mock_io.MockWriteCloser) {
 				wc := mwc.EXPECT().Write(testProvBytes).Return(0, errors.New("write fail"))
 				mwc.EXPECT().Close().After(wc).Return(nil)
 
@@ -446,7 +455,7 @@ func Test_saveCreds(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			mco := mock_appauth.NewMockcontainer(ctrl)
+			mco := mock_cache.NewMockcreateOpener(ctrl)
 			mwc := mock_io.NewMockWriteCloser(ctrl)
 			tt.expect(mco, mwc)
 
@@ -461,7 +470,7 @@ func TestAuthReset(t *testing.T) {
 	t.Run("file is removed", func(t *testing.T) {
 		tmpDir := t.TempDir()
 		testFile := filepath.Join(tmpDir, defCredsFile)
-		if err := os.WriteFile(testFile, []byte("unit"), 0644); err != nil {
+		if err := os.WriteFile(testFile, []byte("unit"), 0o644); err != nil {
 			t.Fatal(err)
 		}
 		if err := AuthReset(tmpDir); err != nil {
@@ -471,4 +480,99 @@ func TestAuthReset(t *testing.T) {
 			t.Errorf("expected the %s to be removed, but it is there", testFile)
 		}
 	})
+}
+
+func Test_encryptedFile_Open(t *testing.T) {
+	tmpdir := t.TempDir()
+	mkfile := func(machineID string, contents []byte) string {
+		c := encryptedFile{machineID: machineID}
+		tf, err := os.CreateTemp(tmpdir, "")
+		if err != nil {
+			panic(err)
+		}
+		tf.Close()
+
+		ef, err := c.Create(tf.Name())
+		if err != nil {
+			panic(err)
+		}
+		defer ef.Close()
+		if _, err := io.Copy(ef, bytes.NewReader(contents)); err != nil {
+			panic(err)
+		}
+		return tf.Name()
+	}
+
+	type fields struct {
+		machineID string
+	}
+	type args struct {
+		filename string
+	}
+	tests := []struct {
+		name      string
+		fields    fields
+		contents  []byte
+		args      args
+		wantMatch bool
+		wantErr   bool
+	}{
+		{
+			"encrypted with the same machine ID",
+			fields{
+				machineID: "123",
+			},
+			[]byte("unit test"),
+			args{mkfile("123", []byte("unit test"))},
+			true,
+			false,
+		},
+		{
+			"different machine ID",
+			fields{
+				machineID: "123",
+			},
+			[]byte("unit test"),
+			args{mkfile("456", []byte("unit test"))},
+			false,
+			false,
+		},
+		{
+			"override vs real ID",
+			fields{},
+			[]byte("unit test"),
+			args{mkfile("456", []byte("unit test"))},
+			false,
+			false,
+		},
+		{
+			"machine ID",
+			fields{},
+			[]byte("unit test"),
+			args{mkfile("", []byte("unit test"))},
+			true,
+			false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := encryptedFile{
+				machineID: tt.fields.machineID,
+			}
+			got, err := f.Open(tt.args.filename)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("encryptedFile.Open() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			defer got.Close()
+			var contents bytes.Buffer
+			if _, err := io.Copy(&contents, got); err != nil {
+				t.Fatalf("failed to read the test file: %s", err)
+			}
+
+			if bytes.Equal(contents.Bytes(), tt.contents) != tt.wantMatch {
+				t.Errorf("encryptedFile.Open() = %#v, want %#v", contents.Bytes(), tt.contents)
+			}
+		})
+	}
 }

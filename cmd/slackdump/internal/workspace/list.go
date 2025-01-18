@@ -41,7 +41,7 @@ func init() {
 }
 
 func runList(ctx context.Context, cmd *base.Command, args []string) error {
-	m, err := cache.NewManager(cfg.CacheDir())
+	m, err := CacheMgr()
 	if err != nil {
 		base.SetExitStatus(base.SCacheError)
 		return err
@@ -128,7 +128,7 @@ func printBare(_ context.Context, w io.Writer, _ manager, current string, worksp
 }
 
 func wspInfo(ctx context.Context, m manager, current string, wsps []string) [][]string {
-	var rows = [][]string{}
+	rows := [][]string{}
 
 	var (
 		wg   sync.WaitGroup
