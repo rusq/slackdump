@@ -59,7 +59,7 @@ func (s *Slack) rtseText(ie slack.RichTextSectionElement) (string, string, error
 	if !ok {
 		return "", "", NewErrIncorrectType(&slack.RichTextSectionTextElement{}, ie)
 	}
-	var t = strings.Replace(e.Text, "\n", "<br>", -1)
+	t := strings.ReplaceAll(e.Text, "\n", "<br>")
 
 	return applyStyle(t, e.Style), "", nil
 }

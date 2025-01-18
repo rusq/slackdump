@@ -1,8 +1,11 @@
 package renderer
 
 import (
+	"bytes"
+	"compress/gzip"
 	"context"
 	"html/template"
+	"io"
 	"strings"
 	"testing"
 
@@ -73,7 +76,7 @@ func TestSlack_Render(t *testing.T) {
 			args{
 				m: loadmsg(t, fxtrPolly),
 			},
-			template.HTML(strings.TrimSpace(fxtrPollyHTML)),
+			template.HTML(strings.TrimSpace(ungzip(t, fxtrPollyHTML))),
 		},
 	}
 	for _, tt := range tests {
@@ -83,6 +86,20 @@ func TestSlack_Render(t *testing.T) {
 			assert.Equal(t, gotV, tt.wantV)
 		})
 	}
+}
+
+func ungzip(t *testing.T, b []byte) string {
+	t.Helper()
+	gr, err := gzip.NewReader(bytes.NewReader(b))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer gr.Close()
+	var buf strings.Builder
+	if _, err := io.Copy(&buf, gr); err != nil {
+		t.Fatal(err)
+	}
+	return buf.String()
 }
 
 func TestSlack_renderAttachment(t *testing.T) {

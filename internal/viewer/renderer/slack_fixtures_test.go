@@ -446,6 +446,6 @@ const (
 var (
 	//go:embed fixtures/polly.json
 	fxtrPolly string
-	//go:embed fixtures/polly.html
-	fxtrPollyHTML string
+	//go:embed fixtures/polly.html.gz
+	fxtrPollyHTML []byte
 )
