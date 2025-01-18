@@ -135,6 +135,7 @@ func (d Dump) threadHeadMessages(channelID string) ([]types.Message, error) {
 		// we only need the messages that start the threads.
 		cm = append(cm, c.Messages[0])
 	}
+	types.SortMessages(cm)
 	return cm, nil
 }
 
