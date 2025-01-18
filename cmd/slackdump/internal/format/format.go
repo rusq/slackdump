@@ -16,6 +16,7 @@ import (
 	"github.com/rusq/slack"
 
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/bootstrap"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/workspace"
 
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
@@ -263,7 +264,7 @@ var errNoMatch = errors.New("no matching users")
 func searchCache(ctx context.Context, cacheDir string, ids []string) ([]slack.User, error) {
 	_, task := trace.NewTask(ctx, "searchCache")
 	defer task.End()
-	m, err := cache.NewManager(cacheDir)
+	m, err := workspace.CacheMgr()
 	if err != nil {
 		return nil, err
 	}

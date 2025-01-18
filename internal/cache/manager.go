@@ -151,7 +151,7 @@ func (m *Manager) Auth(ctx context.Context, name string, c Credentials) (auth.Pr
 	return a.initProvider(ctx, m.filename(name), name, c, m.authOptions...)
 }
 
-// LoadProvider loads the file from disk without any checks.
+// LoadProvider loads the file from disk without any logical validation.
 func (m *Manager) LoadProvider(name string) (auth.Provider, error) {
 	filer := encryptedFile{machineID: m.machineID}
 	return loadCreds(filer, m.filepath(name))

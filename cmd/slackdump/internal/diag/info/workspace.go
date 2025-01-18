@@ -2,7 +2,7 @@ package info
 
 import (
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
-	"github.com/rusq/slackdump/v3/internal/cache"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/workspace"
 )
 
 type Workspace struct {
@@ -13,10 +13,10 @@ type Workspace struct {
 }
 
 func (inf *Workspace) collect(replaceFn PathReplFunc) {
-	inf.Path = replaceFn(cfg.LocalCacheDir)
+	inf.Path = replaceFn(cfg.CacheDir())
 	inf.Count = -1
 	// Workspace information
-	m, err := cache.NewManager(cfg.LocalCacheDir)
+	m, err := workspace.CacheMgr()
 	if err != nil {
 		inf.Path = loser(err)
 		return

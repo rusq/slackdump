@@ -22,7 +22,7 @@ var CmdWspNew = &base.Command{
 	UsageLine:  baseCommand + " new [flags] <name>",
 	Short:      "authenticate in a Slack Workspace",
 	Long:       newMD,
-	FlagMask:   flagmask &^ cfg.OmitAuthFlags, // only auth flags.
+	FlagMask:   flagmask &^ cfg.OmitAuthFlags, // only auth and machine-id override flags.
 	PrintFlags: true,
 	Wizard:     workspaceui.WorkspaceNew,
 }
@@ -39,8 +39,7 @@ func init() {
 
 // runWspNew authenticates in the new workspace.
 func runWspNew(ctx context.Context, cmd *base.Command, args []string) error {
-	m, err := cache.NewManager(
-		cfg.CacheDir(),
+	m, err := CacheMgr(
 		cache.WithAuthOpts(
 			auth.BrowserWithBrowser(cfg.Browser),
 			auth.BrowserWithTimeout(cfg.LoginTimeout),

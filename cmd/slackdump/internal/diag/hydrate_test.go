@@ -13,7 +13,8 @@ import (
 	"github.com/rusq/slack"
 	gomock "go.uber.org/mock/gomock"
 
-	"github.com/rusq/slackdump/v3/internal/mocks/mock_fsadapter"
+	"github.com/rusq/fsadapter/mocks/mock_fsadapter"
+
 	"github.com/rusq/slackdump/v3/mocks/mock_downloader"
 )
 
@@ -148,12 +149,12 @@ func (f *fakewritecloser) Close() error {
 func Test_downloadFiles(t *testing.T) {
 	tests := []struct {
 		name     string
-		expectFn func(m *Mocksourcer, fs *mock_fsadapter.MockFS, d *mock_downloader.MockGetFiler)
+		expectFn func(m *Mocksourcer, fs *mock_fsadapter.MockFSCloser, d *mock_downloader.MockGetFiler)
 		wantErr  bool
 	}{
 		{
 			"single message w 2 files",
-			func(m *Mocksourcer, fs *mock_fsadapter.MockFS, d *mock_downloader.MockGetFiler) {
+			func(m *Mocksourcer, fs *mock_fsadapter.MockFSCloser, d *mock_downloader.MockGetFiler) {
 				m.EXPECT().Channels().Return(TestChannels, nil)
 				m.EXPECT().AllMessages("C01").Return([]slack.Message{TestMsgWFile1}, nil)
 
@@ -167,7 +168,7 @@ func Test_downloadFiles(t *testing.T) {
 		},
 		{
 			"all ok",
-			func(m *Mocksourcer, fs *mock_fsadapter.MockFS, d *mock_downloader.MockGetFiler) {
+			func(m *Mocksourcer, fs *mock_fsadapter.MockFSCloser, d *mock_downloader.MockGetFiler) {
 				m.EXPECT().Channels().Return(TestChannels, nil)
 				m.EXPECT().AllMessages("C01").Return(TestMessages, nil)
 				m.EXPECT().AllThreadMessages("C01", "2").Return(TestThreadMessages, nil)
@@ -189,7 +190,7 @@ func Test_downloadFiles(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			ms := NewMocksourcer(ctrl)
-			fs := mock_fsadapter.NewMockFS(ctrl)
+			fs := mock_fsadapter.NewMockFSCloser(ctrl)
 			d := mock_downloader.NewMockGetFiler(ctrl)
 			if tt.expectFn != nil {
 				tt.expectFn(ms, fs, d)

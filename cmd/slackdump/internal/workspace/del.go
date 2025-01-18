@@ -38,7 +38,7 @@ var (
 )
 
 func runWspDel(ctx context.Context, cmd *base.Command, args []string) error {
-	m, err := cache.NewManager(cfg.CacheDir())
+	m, err := CacheMgr()
 	if err != nil {
 		base.SetExitStatus(base.SCacheError)
 		return err

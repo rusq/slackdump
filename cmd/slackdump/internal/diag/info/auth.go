@@ -13,16 +13,15 @@ import (
 
 	"github.com/rusq/slackdump/v3/auth"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
-	"github.com/rusq/slackdump/v3/internal/cache"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/workspace"
 )
 
 func CollectAuth(ctx context.Context, w io.Writer) error {
-	// lg := logger.FromContext(ctx)
 	fmt.Fprintln(os.Stderr, "To confirm the operation, please enter your OS password.")
 	if err := osValidateUser(ctx, os.Stderr); err != nil {
 		return err
 	}
-	m, err := cache.NewManager(cfg.CacheDir())
+	m, err := workspace.CacheMgr()
 	if err != nil {
 		return fmt.Errorf("cache error: %w", err)
 	}
@@ -34,7 +33,7 @@ func CollectAuth(ctx context.Context, w io.Writer) error {
 	if err != nil {
 		return fmt.Errorf("cache error: %w", err)
 	}
-	f, err := encio.Open(filepath.Join(cfg.CacheDir(), fi.Name()))
+	f, err := encio.Open(filepath.Join(cfg.CacheDir(), fi.Name()), encio.WithID(cfg.MachineIDOvr))
 	if err != nil {
 		return fmt.Errorf("cache error: %w", err)
 	}

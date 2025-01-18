@@ -7,6 +7,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
+
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/workspace/workspaceui"
@@ -16,7 +17,7 @@ import (
 // TODO: organise as a self-sufficient model with proper error handling.
 
 func wizSelect(ctx context.Context, cmd *base.Command, args []string) error {
-	m, err := cache.NewManager(cfg.CacheDir())
+	m, err := CacheMgr()
 	if err != nil {
 		base.SetExitStatus(base.SCacheError)
 		return err
@@ -61,8 +62,7 @@ func wizSelect(ctx context.Context, cmd *base.Command, args []string) error {
 
 // newWspSelectModel creates a new workspace selection model.
 func newWspSelectModel(ctx context.Context, m *cache.Manager) (tea.Model, error) {
-
-	var refreshFn = func() (cols []table.Column, rows []table.Row, err error) {
+	refreshFn := func() (cols []table.Column, rows []table.Row, err error) {
 		cols = []table.Column{
 			{Title: "C", Width: 1},
 			{Title: "Name", Width: 14},

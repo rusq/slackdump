@@ -103,7 +103,7 @@ func AuthCurrent(ctx context.Context, cacheDir string, overrideWsp string, usePl
 // configuration values.  If cfg.Workspace is set, it checks if the workspace
 // cfg.Workspace exists in the directory dir, and returns it.
 func Current(cacheDir string, override string) (wsp string, err error) {
-	m, err := cache.NewManager(cacheDir)
+	m, err := cache.NewManager(cacheDir, cache.WithMachineID(cfg.MachineIDOvr))
 	if err != nil {
 		return "", err
 	}
@@ -131,7 +131,7 @@ var yesno = base.YesNo
 // credentials in the cacheDir.  It returns ErrNotExists if the workspace
 // doesn't exist in the cacheDir.
 func authWsp(ctx context.Context, cacheDir string, wsp string, usePlaywright bool) (auth.Provider, error) {
-	m, err := cache.NewManager(cacheDir)
+	m, err := cache.NewManager(cacheDir, cache.WithMachineID(cfg.MachineIDOvr))
 	if err != nil {
 		return nil, err
 	}
@@ -144,4 +144,9 @@ func authWsp(ctx context.Context, cacheDir string, wsp string, usePlaywright boo
 		return nil, err
 	}
 	return prov, nil
+}
+
+func CacheMgr(opts ...cache.Option) (*cache.Manager, error) {
+	opts = append([]cache.Option{cache.WithMachineID(cfg.MachineIDOvr)}, opts...)
+	return cache.NewManager(cfg.CacheDir(), opts...)
 }

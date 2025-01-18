@@ -19,7 +19,7 @@ import (
 
 const ezLogin = "EZ-Login 3000"
 
-//go:generate mockgen -source=auth.go -destination=../../mocks/mock_appauth/mock_appauth.go Credentials,createOpener
+//go:generate mockgen -source=auth.go -destination=../mocks/mock_cache/mock_cache.go Credentials,createOpener
 //go:generate mockgen -destination=../mocks/mock_io/mock_io.go io ReadCloser,WriteCloser
 
 // isWSL is true if we're running in the WSL environment
@@ -210,15 +210,22 @@ func (a authenticator) tryLoad(ctx context.Context, filename string) (auth.Provi
 	return prov, nil
 }
 
+var ErrFailed = errors.New("failed to load stored credentials")
+
 // loadCreds loads the encrypted credentials from the file.
 func loadCreds(ct createOpener, filename string) (auth.Provider, error) {
 	f, err := ct.Open(filename)
 	if err != nil {
-		return nil, errors.New("failed to load stored credentials")
+		return nil, ErrFailed
 	}
 	defer f.Close()
 
-	return auth.Load(f)
+	p, err := auth.Load(f)
+	if err != nil {
+		slog.Debug("failed to load credentials, possibly mismatched machine ID", "err", err)
+		return nil, ErrFailed
+	}
+	return p, nil
 }
 
 // saveCreds encrypts and saves the credentials.

@@ -10,11 +10,12 @@ import (
 	"testing"
 
 	"github.com/rusq/slack"
+	"github.com/stretchr/testify/assert"
+	"go.uber.org/mock/gomock"
+
 	"github.com/rusq/slackdump/v3/auth"
 	"github.com/rusq/slackdump/v3/internal/fixtures"
 	"github.com/rusq/slackdump/v3/internal/mocks/mock_auth"
-	"github.com/stretchr/testify/assert"
-	"go.uber.org/mock/gomock"
 )
 
 func Test_currentWsp(t *testing.T) {
@@ -50,6 +51,7 @@ func Test_currentWsp(t *testing.T) {
 }
 
 func prepareDir(t *testing.T, dir string) {
+	t.Helper()
 	fixtures.PrepareDir(t, dir, "dummy", fixtures.WorkspaceFiles...)
 }
 
@@ -250,4 +252,48 @@ func TestManager_CreateAndSelect(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestManager_LoadProvider(t *testing.T) {
+	t.Run("loads provider", func(t *testing.T) {
+		dir := t.TempDir()
+		m := &Manager{
+			dir: dir,
+		}
+		prov, err := auth.NewValueAuth(fixtures.TestClientToken, "xoxd-1234567890-1234567890-1234567890-1234567890")
+		assert.NoError(t, err)
+
+		m.saveProvider("test.bin", prov)
+		got, err := m.LoadProvider("test.bin")
+		assert.NoError(t, err)
+		assert.Equal(t, prov, got)
+	})
+	t.Run("encrypted with different machineID", func(t *testing.T) {
+		dir := t.TempDir()
+		m := &Manager{
+			dir: dir,
+		}
+		prov, err := auth.NewValueAuth(fixtures.TestClientToken, "xoxd-1234567890-1234567890-1234567890-1234567890")
+		assert.NoError(t, err)
+
+		m.saveProvider("test.bin", prov)
+		m.machineID = "1234567890"
+		got, err := m.LoadProvider("test.bin")
+		assert.Error(t, err)
+		assert.NotEqual(t, prov, got)
+	})
+	t.Run("encrypted with the same machine ID override", func(t *testing.T) {
+		dir := t.TempDir()
+		m := &Manager{
+			dir:       dir,
+			machineID: "1234567890",
+		}
+		prov, err := auth.NewValueAuth(fixtures.TestClientToken, "xoxd-1234567890-1234567890-1234567890-1234567890")
+		assert.NoError(t, err)
+
+		m.saveProvider("test.bin", prov)
+		got, err := m.LoadProvider("test.bin")
+		assert.NoError(t, err)
+		assert.Equal(t, prov, got)
+	})
 }

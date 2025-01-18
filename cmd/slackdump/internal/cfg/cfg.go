@@ -39,7 +39,7 @@ var (
 	Browser         browser.Browser
 	LegacyBrowser   bool
 	ForceEnterprise bool
-	MachineID       string // Machine ID override
+	MachineIDOvr    string // Machine ID override
 
 	MemberOnly    bool
 	DownloadFiles bool
@@ -91,7 +91,6 @@ const (
 	OmitChunkCacheFlag
 	OmitMemberOnlyFlag
 	OmitRecordFilesFlag
-	OmitMachineIDOvrFlag
 
 	OmitAll = OmitConfigFlag |
 		OmitDownloadFlag |
@@ -103,8 +102,7 @@ const (
 		OmitTimeframeFlag |
 		OmitChunkCacheFlag |
 		OmitMemberOnlyFlag |
-		OmitRecordFilesFlag |
-		OmitMachineIDOvrFlag
+		OmitRecordFilesFlag
 )
 
 // SetBaseFlags sets base flags
@@ -125,8 +123,9 @@ func SetBaseFlags(fs *flag.FlagSet, mask FlagMask) {
 		fs.StringVar(&RODUserAgent, "user-agent", "", "override the user agent string for EZ-Login 3000")
 		fs.BoolVar(&LoadSecrets, "load-env", false, "load secrets from the .env, .env.txt or secrets.txt file")
 	}
-	if mask&OmitMachineIDOvrFlag == 0 {
-		fs.StringVar(&MachineID, "machine-id", osenv.Secret("MACHINE_ID", ""), "override the machine ID for encryption")
+	if mask&OmitAuthFlags == 0 || mask&OmitCacheDir == 0 {
+		// machine-id flag will be automatically enabled if auth flags or cache dir flags are enabled.
+		fs.StringVar(&MachineIDOvr, "machine-id", osenv.Secret("MACHINE_ID_OVERRIDE", ""), "override the machine ID for encryption")
 	}
 	if mask&OmitDownloadFlag == 0 {
 		fs.BoolVar(&DownloadFiles, "files", true, "enables file attachments download (to disable, specify: -files=false)")
