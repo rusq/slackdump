@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 
 	"github.com/playwright-community/playwright-go"
+
+	"github.com/rusq/slackdump/v3/internal/structures"
 )
 
 // Workaround for unexported driver dir in playwright.
@@ -43,7 +45,7 @@ func NewAdapter(runopts *playwright.RunOptions) (*Adapter, error) {
 	if cacheDir == "" { // i.e. freebsd etc.
 		cacheDir, _ = os.UserCacheDir()
 	}
-	drvdir := filepath.Join(nvl(runopts.DriverDirectory, cacheDir), "ms-playwright-go", drv.Version)
+	drvdir := filepath.Join(structures.NVL(runopts.DriverDirectory, cacheDir), "ms-playwright-go", drv.Version)
 	drvbin := filepath.Join(drvdir, NodeExe)
 
 	return &Adapter{
@@ -56,16 +58,4 @@ func NewAdapter(runopts *playwright.RunOptions) (*Adapter, error) {
 
 func (a *Adapter) Driver() *playwright.PlaywrightDriver {
 	return a.drv
-}
-
-func nvl(first string, rest ...string) string {
-	if first != "" {
-		return first
-	}
-	for _, s := range rest {
-		if s != "" {
-			return s
-		}
-	}
-	return ""
 }
