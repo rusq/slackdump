@@ -252,7 +252,7 @@ type createOpener interface {
 
 var _ createOpener = encryptedFile{}
 
-// encryptedFile is the encrypted file container.
+// encryptedFile is the encrypted file wrapper.
 type encryptedFile struct {
 	// machineID is the machine ID override. If it is empty, the actual machine
 	// ID is used.

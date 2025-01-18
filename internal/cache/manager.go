@@ -409,22 +409,22 @@ func (m *Manager) WalkUsers(userFn func(path string, r io.Reader) error) error {
 
 // LoadUsers loads user cache file no older than maxAge for teamID.
 func (m *Manager) LoadUsers(teamID string, maxAge time.Duration) ([]slack.User, error) {
-	return loadUsers(m.dir, m.userFile, teamID, maxAge)
+	return m.loadUsers(m.dir, m.userFile, teamID, maxAge)
 }
 
 // CacheUsers saves users to user cache file for teamID.
 func (m *Manager) CacheUsers(teamID string, uu []slack.User) error {
-	return saveUsers(m.dir, m.userFile, teamID, uu)
+	return m.saveUsers(m.dir, m.userFile, teamID, uu)
 }
 
 // LoadChannels loads channel cache no older than maxAge.
 func (m *Manager) LoadChannels(teamID string, maxAge time.Duration) ([]slack.Channel, error) {
-	return loadChannels(m.dir, m.channelFile, teamID, maxAge)
+	return m.loadChannels(m.dir, m.channelFile, teamID, maxAge)
 }
 
 // CacheChannels saves channels to cache.
 func (m *Manager) CacheChannels(teamID string, cc []slack.Channel) error {
-	return saveChannels(m.dir, m.channelFile, teamID, cc)
+	return m.saveChannels(m.dir, m.channelFile, teamID, cc)
 }
 
 // CreateAndSelect creates a new workspace with the given provider and selects

@@ -222,8 +222,8 @@ func TestInitProvider(t *testing.T) {
 
 			// resetting credentials
 			credsFile := filepath.Join(testDir, defCredsFile)
-			container := encryptedFile{}
-			if err := saveCreds(container, credsFile, storedProv); err != nil {
+			co := encryptedFile{}
+			if err := saveCreds(co, credsFile, storedProv); err != nil {
 				t.Fatal(err)
 			}
 
