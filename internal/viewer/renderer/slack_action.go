@@ -33,7 +33,7 @@ func (*Slack) mbtAction(ib slack.Block) (string, string, error) {
 	for _, e := range b.Elements.ElementSet {
 		switch e := e.(type) {
 		case *slack.ButtonBlockElement:
-			fmt.Fprintf(&buf, `[BUTTON: %s: %s]`, e.ActionID, e.Text.Text)
+			fmt.Fprintf(&buf, `<BUTTON alt="%s">%s</BUTTON>`, e.ActionID, e.Text.Text)
 		default:
 			fmt.Fprintf(&buf, "[ELEMENT: %T]", e)
 		}

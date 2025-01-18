@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/rusq/slack"
+
 	"github.com/rusq/slackdump/v3/internal/viewer/renderer/functions"
 )
 
@@ -63,6 +64,16 @@ func TestSlack_Render(t *testing.T) {
 				m: loadmsg(t, fxtrStartedAMeeting),
 			},
 			template.HTML(`<div class="slack-call">(Call)</div><pre class="slack-section-text">Meeting passcode: yyyyy</pre>`),
+		},
+		{
+			"polly message",
+			&Slack{
+				tmpl: tmpl,
+			},
+			args{
+				m: loadmsg(t, fxtrPolly),
+			},
+			template.HTML(fxtrPollyHTML),
 		},
 	}
 	for _, tt := range tests {
