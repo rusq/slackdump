@@ -120,8 +120,15 @@ command.  The flags are listed in alphabetical order.
 Use the specified API limits configuration TOML file (see the
 .Cm config
 command).
-.It Fl base Ar path
-Specifies the base directory or zip file where all data will be stored.
+.It Fl autologin-timeout Ar duration
+Headless autologin timeout, without the browser starting time, just the
+interaction time. The duration must be specified in the following format:
+.Dq XhYmZs ,
+for example,
+.Dq 1h20m32s
+would set the timeout to 1 hour, 20 minutes, 32 seconds.
+.It Fl o Ar path
+Specifies the output directory or zip file where all data will be stored.
 If the path ends with
 .Dq .zip ,
 the data will be stored in the zip file, otherwise
@@ -215,13 +222,25 @@ Authenticate in a new workspace using the
 command;
 .It
 Run
-.Cm dump
-,
 .Cm archive
-or
+,
 .Cm export
-, depending on your requirements.
+or
+.Cm dump
+, depending on your requirements.  The
+.Dq archive
+format can be converted to
+.Dq export
+or
+.Dq dump
+formats using the
+.Cm convert
+command.
 .El
+See also:
+.Bd -literal -offset indent
+.Nm Cm help Ar quickstart
+.Ed
 .Sh AUTHENTICATION
 Slackdump supports multiple authentication methods listed below.
 .Ss Automatic login (EZ-LOGIN 3000)
@@ -290,11 +309,16 @@ encrypt files for secure transmission, i.e. encrypting trace.out before
 posting it in Github Issues.
 .It Em eztest
 test the EZ-LOGIN 3000 method.
+.It Em hydrate
+allows to "hydrate" the native Slack Exports with attachments.  It downloads
+attachments from Slack and creates a copy of the export with downloaded files.
 .It Em info
 show information about Slackdump environment
 .It Em obfuscate
 obfuscate the sensitive data in Slackdump archive.  Works only on
 archive file format.
+.It Em redownload
+downloads any files that failed to download while running the archival process.
 .It Em uninstall
 uninstall Slackdump components or purge it from the system.
 .It Em thread
@@ -318,6 +342,11 @@ enables debug output and switches the viewer output to RAW (JSON) format.
 enables JSON log format.
 .It Ev LOG_FILE
 Contains path to a file where log output will be written.
+.It Ev MACHINE_ID_OVERRIDE
+Allows to override the Machine ID when opening or saving credentials and cache
+files.  See flag
+.Fl machine-id
+for more details.
 .It Ev SLACK_COOKIE
 Contains Slack cookie (for token+cookie-based authentication).  See
 .Sx Authentication

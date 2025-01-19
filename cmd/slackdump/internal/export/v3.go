@@ -56,6 +56,9 @@ func export(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, list
 	dlEnabled := cfg.DownloadFiles && params.ExportStorageType != fileproc.STnone
 	sdl, stop := fileproc.NewDownloader(ctx, dlEnabled, sess.Client(), fsa, lg)
 	defer stop()
+	avdl, avstop := fileproc.NewDownloader(ctx, cfg.DownloadAvatars, sess.Client(), fsa, lg)
+	defer avstop()
+	avp := fileproc.NewAvatarProc(avdl)
 
 	pb := bootstrap.ProgressBar(ctx, lg, progressbar.OptionShowCount()) // progress bar
 
@@ -81,6 +84,7 @@ func export(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, list
 		control.WithLogger(lg),
 		control.WithFlags(flags),
 		control.WithTransformer(tf),
+		control.WithAvatarProcessor(avp),
 	)
 
 	lg.InfoContext(ctx, "running export...")

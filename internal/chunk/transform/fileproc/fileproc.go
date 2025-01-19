@@ -124,8 +124,8 @@ type FileGetter interface {
 
 // NewDownloader initializes the downloader and returns it, along with a
 // function that should be called to stop it.
-func NewDownloader(ctx context.Context, gEnabled bool, cl FileGetter, fsa fsadapter.FS, lg *slog.Logger) (sdl Downloader, stop func()) {
-	if !gEnabled {
+func NewDownloader(ctx context.Context, enabled bool, cl FileGetter, fsa fsadapter.FS, lg *slog.Logger) (sdl Downloader, stop func()) {
+	if !enabled {
 		return NoopDownloader{}, func() {}
 	} else {
 		dl := downloader.New(cl, fsa, downloader.WithLogger(lg))

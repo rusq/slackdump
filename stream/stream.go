@@ -205,7 +205,8 @@ func (cs *Stream) WorkspaceInfo(ctx context.Context, proc processor.WorkspaceInf
 	return proc.WorkspaceInfo(ctx, atr)
 }
 
-// Users returns all users in the workspace.
+// Users processes all users in the workspace, calling proc for each batch of
+// users returned by the API.
 func (cs *Stream) Users(ctx context.Context, proc processor.Users, opt ...slack.GetUsersOption) error {
 	ctx, task := trace.NewTask(ctx, "Users")
 	defer task.End()

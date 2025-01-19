@@ -77,14 +77,26 @@ func RunArchive(ctx context.Context, cmd *base.Command, args []string) error {
 		lg,
 	)
 	defer stop()
-	// archive format has files stored in mattermost format.
-	subproc := fileproc.NewExport(fileproc.STmattermost, dl)
+	avdl, avstop := fileproc.NewDownloader(
+		ctx,
+		cfg.DownloadAvatars,
+		sess.Client(),
+		fsadapter.NewDirectory(cd.Name()),
+		lg,
+	)
+	defer avstop()
+	var (
+		// archive format has files stored in mattermost format.
+		subproc = fileproc.NewExport(fileproc.STmattermost, dl)
+		avproc  = fileproc.NewAvatarProc(avdl)
+	)
 	ctrl := control.New(
 		cd,
 		stream,
 		control.WithLogger(lg),
 		control.WithFiler(subproc),
 		control.WithFlags(control.Flags{MemberOnly: cfg.MemberOnly, RecordFiles: cfg.RecordFiles}),
+		control.WithAvatarProcessor(avproc),
 	)
 	if err := ctrl.Run(ctx, list); err != nil {
 		base.SetExitStatus(base.SApplicationError)

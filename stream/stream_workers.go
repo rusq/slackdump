@@ -30,12 +30,15 @@ func (cs *Stream) channelWorker(ctx context.Context, proc processor.Conversation
 				results <- Result{Type: RTChannel, ChannelID: req.sl.Channel, Err: err}
 				continue
 			}
+
+			// get the channel canvas
 			if channel.Properties != nil && !channel.Properties.Canvas.IsEmpty {
 				if err := cs.canvas(ctx, proc, channel, channel.Properties.Canvas.FileId); err != nil {
 					// ignore canvas errors
 					slog.Warn("canvas error: %s", "err", err)
 				}
 			}
+
 			if err := cs.channel(ctx, req, func(mm []slack.Message, isLast bool) error {
 				n, err := procChanMsg(ctx, proc, threadC, channel, isLast, mm)
 				if err != nil {

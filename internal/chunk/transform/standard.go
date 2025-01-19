@@ -60,8 +60,10 @@ func NewStandard(fsa fsadapter.FS, cd *chunk.Directory, opts ...StdOption) (*Std
 
 // pipelineFunc is a function that performs caller-defined transformations of
 // a slice of slack messages.  The type alias is defined for brevity.
-type pipelineFunc = func(channelID string, threadTS string, mm []slack.Message) error
-type pipeline []pipelineFunc
+type (
+	pipelineFunc = func(channelID string, threadTS string, mm []slack.Message) error
+	pipeline     []pipelineFunc
+)
 
 // apply applies the pipeline functions in order.
 func (p pipeline) apply(channelID, threadTS string, mm []slack.Message) error {
@@ -158,7 +160,7 @@ func stdConversation(cf *chunk.File, ci *slack.Channel, pipeline pipeline) ([]ty
 		}
 		var sdm types.Message // slackdump message
 		sdm.Message = mm[i]
-		if mm[i].ThreadTimestamp != "" && mm[i].ThreadTimestamp == mm[i].Timestamp && mm[i].LatestReply != structures.LatestReplyNoReplies {
+		if mm[i].ThreadTimestamp != "" && structures.IsThreadStart(&mm[i]) && mm[i].LatestReply != structures.LatestReplyNoReplies {
 			// process thread only for parent messages
 			// if there's a thread timestamp, we need to find and add it.
 			thread, err := cf.AllThreadMessages(ci.ID, mm[i].ThreadTimestamp)
