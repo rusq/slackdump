@@ -150,6 +150,17 @@ func (c *ChunkToExport) Validate() error {
 	return nil
 }
 
+func sliceToChan[T any](s []T) <-chan T {
+	ch := make(chan T)
+	go func() {
+		defer close(ch)
+		for _, v := range s {
+			ch <- v
+		}
+	}()
+	return ch
+}
+
 // Convert converts the chunk directory contents to the export format. It
 // validates the input parameters.
 //
@@ -173,19 +184,12 @@ func (c *ChunkToExport) Convert(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	if c.includeFiles {
-	}
+
 	tfopts := []transform.ExpCvtOption{
 		transform.ExpWithUsers(users),
 	}
 	// 1. generator
-	chC := make(chan slack.Channel)
-	go func() {
-		defer close(chC)
-		for _, ch := range channels {
-			chC <- ch
-		}
-	}()
+	chC := sliceToChan(channels)
 
 	errC := make(chan error, c.workers)
 	{
@@ -208,22 +212,27 @@ func (c *ChunkToExport) Convert(ctx context.Context) error {
 				c.copyworker(c.filerequest)
 				filewg.Done()
 			}()
+		} else {
+			close(c.fileresult)
 		}
+
 		if c.includeAvatars {
 			filewg.Add(1)
 			go func() {
 				c.avatarWorker(users)
 				filewg.Done()
 			}()
+		} else {
+			close(c.avtrresult)
 		}
 
 		// 2.1 converter
-		var wg sync.WaitGroup
+		var msgwg sync.WaitGroup
 		conv := transform.NewExpConverter(c.src, c.trg, tfopts...)
-		for i := 0; i < c.workers; i++ {
-			wg.Add(1)
+		for range c.workers {
+			msgwg.Add(1)
 			go func() {
-				defer wg.Done()
+				defer msgwg.Done()
 				for ch := range chC {
 					lg := c.lg.With("channel", ch.ID)
 					lg.Debug("processing channel")
@@ -235,9 +244,9 @@ func (c *ChunkToExport) Convert(ctx context.Context) error {
 			}()
 		}
 		// 2.2 index writer
-		wg.Add(1)
+		msgwg.Add(1)
 		go func() {
-			defer wg.Done()
+			defer msgwg.Done()
 			c.lg.DebugContext(ctx, "writing index", "name", c.src.Name())
 			if err := conv.WriteIndex(); err != nil {
 				errC <- err
@@ -245,36 +254,53 @@ func (c *ChunkToExport) Convert(ctx context.Context) error {
 		}()
 		// 2.3. workers sentinels
 		go func() {
-			wg.Wait()
+			msgwg.Wait()
+			c.lg.Debug("messages wait group done, closing file requests")
 			close(c.filerequest)
+			filewg.Wait()
+			c.lg.Debug("file workers done, finalising")
+			close(errC)
 		}()
 	}
 	// 3. result processor
+	fileresults := merge(c.fileresult, c.avtrresult)
+	go func() {
+		for res := range fileresults {
+			if res.err != nil {
+				if res.fr.message != nil {
+					c.lg.Error("file converter: error processing message", "ts", res.fr.message.Timestamp, "err", res.err)
+				} else {
+					c.lg.Error("file converter", "err", res.err)
+				}
+				errC <- res.err
+			}
+		}
+	}()
+
+	var failed bool
 LOOP:
 	for {
 		select {
 		case <-ctx.Done():
 			return context.Cause(ctx)
-		case err := <-errC: // get rid of this shit.
-			if err != nil {
-				return err
-			}
-		case res, more := <-c.fileresult:
+		case err, more := <-errC:
 			if !more {
 				break LOOP
 			}
-			if res.err != nil {
-				return fmt.Errorf("error processing message with ts=%s: %w", res.fr.message.Timestamp, res.err)
+			if err != nil {
+				failed = true
 			}
 		}
 	}
-
+	if failed {
+		return errors.New("convert: there were errors")
+	}
 	return nil
 }
 
-func merge(resC ...<-chan copyresult) chan<- copyresult {
+func merge(resC ...<-chan copyresult) <-chan copyresult {
 	var wg sync.WaitGroup
-	out := make(chan<- copyresult, 1)
+	out := make(chan copyresult, 1)
 
 	output := func(c <-chan copyresult) {
 		for res := range c {
@@ -324,7 +350,7 @@ func (c *ChunkToExport) fileCopy(ch *slack.Channel, msg *slack.Message) error {
 	}
 	for _, f := range msg.Files {
 		if err := fileproc.IsValidWithReason(&f); err != nil {
-			c.lg.Warn("skipping", "file", f.ID, "error", err)
+			c.lg.Info("skipping", "file", f.ID, "error", err)
 			continue
 		}
 
@@ -385,19 +411,37 @@ func (cr copyresult) Unwrap() error {
 }
 
 func (c *ChunkToExport) copyworker(req <-chan copyrequest) {
-	for fr := range req {
+	defer close(c.fileresult)
+	c.lg.Debug("copy worker started")
+	for r := range req {
 		c.fileresult <- copyresult{
-			fr:  fr,
-			err: c.fileCopy(fr.channel, fr.message),
+			fr:  r,
+			err: c.fileCopy(r.channel, r.message),
 		}
 	}
+	c.lg.Debug("copy worker done")
 }
 
 func (c *ChunkToExport) avatarWorker(users []slack.User) {
+	c.lg.Debug("avatar worker started")
+	defer close(c.avtrresult)
 	for _, u := range users {
-		loc := c.avtrFileLoc(&u)
-		c.avtrresult <- copyresult{
-			err: copy2trg(c.trg, loc, loc),
+		if u.Profile.ImageOriginal == "" {
+			continue
 		}
+		c.lg.Debug("processing avatar", "user", u.ID)
+		loc := c.avtrFileLoc(&u)
+		err := copy2trg(c.trg, loc, filepath.Join(c.src.Name(), loc))
+		if err != nil {
+			err = fmt.Errorf("error copying avatar for user %s: %w", u.ID, err)
+		}
+		c.avtrresult <- copyresult{
+			err: err,
+		}
+		if err != nil {
+			continue
+		}
+		c.lg.Debug("avatar processed", "user", u.ID)
 	}
+	c.lg.Debug("avatar worker done")
 }

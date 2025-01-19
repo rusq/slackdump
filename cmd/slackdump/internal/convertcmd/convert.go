@@ -28,7 +28,7 @@ Convert slackdump archive format to various formats.
 Currently only "export" format is supported.
 `,
 	CustomFlags: false,
-	FlagMask:    cfg.OmitAll & ^cfg.OmitDownloadFlag &^ cfg.OmitOutputFlag,
+	FlagMask:    cfg.OmitAll & ^cfg.OmitDownloadFlag &^ cfg.OmitOutputFlag &^ cfg.OmitDownloadAvatarsFlag,
 	PrintFlags:  true,
 }
 
@@ -65,8 +65,9 @@ func runConvert(ctx context.Context, cmd *base.Command, args []string) error {
 	lg.InfoContext(ctx, "converting", "input_format", params.inputfmt, "source", args[0], "output_format", params.outputfmt, "output", cfg.Output)
 
 	cflg := convertflags{
-		withFiles: cfg.DownloadFiles,
-		stt:       params.storageType,
+		withFiles:   cfg.DownloadFiles,
+		withAvatars: cfg.DownloadAvatars,
+		stt:         params.storageType,
 	}
 	start := time.Now()
 	if err := fn(ctx, args[0], cfg.Output, cflg); err != nil {
@@ -98,8 +99,9 @@ var converters = map[datafmt]map[datafmt]convertFunc{
 }
 
 type convertflags struct {
-	withFiles bool
-	stt       fileproc.StorageType
+	withFiles   bool
+	withAvatars bool
+	stt         fileproc.StorageType
 }
 
 func chunk2export(ctx context.Context, src, trg string, cflg convertflags) error {
@@ -123,6 +125,7 @@ func chunk2export(ctx context.Context, src, trg string, cflg convertflags) error
 		cd,
 		fsa,
 		convert.WithIncludeFiles(cflg.withFiles),
+		convert.WithIncludeAvatars(cflg.withAvatars),
 		convert.WithSrcFileLoc(sttFn),
 		convert.WithTrgFileLoc(sttFn),
 		convert.WithLogger(cfg.Log),
