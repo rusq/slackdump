@@ -60,6 +60,7 @@ func init() {
 		man.Login,
 		man.Chunk,
 		man.Migration,
+		man.Transfer,
 	}
 }
 

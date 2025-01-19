@@ -155,6 +155,12 @@ Enables or disables JSON log format.  The default is disabled.
 .It Fl token Ar token
 Specifies the token to use for the authentication.  This flag is only used
 with the manual authentication methods.
+.It Fl machine-id Ar value
+Allows to override the machine ID. To read how to use it to transfer the credentials
+between machine, run:
+.Bd -literal -offset indent
+slackdump help transfer
+.Ed
 .It Fl member-only
 Specify this flag to export only conversations (channels) that the current user
 is part of.  Works only if the list of channels/threads is not explicitly
