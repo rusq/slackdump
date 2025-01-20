@@ -31,6 +31,7 @@ import (
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/help"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/list"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/man"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/server"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/view"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/wizard"
@@ -50,6 +51,7 @@ func init() {
 		diag.CmdDiag,
 		apiconfig.CmdConfig,
 		format.CmdFormat,
+		server.CmdServer,
 		view.CmdView,
 		wizard.CmdWizard,
 		CmdVersion,

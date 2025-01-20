@@ -122,7 +122,7 @@ func New(ctx context.Context, addr string, r Sourcer) (*Viewer, error) {
 	// https: //ora600.slack.com/archives/DHMAB25DY/p1710063528879959
 	mux.HandleFunc("/archives/{id}/{ts}", v.newFileHandler(v.threadHandler))
 	mux.HandleFunc("/team/{user_id}", v.userHandler)
-	mux.Handle("/slackdump/file/{id}/{filename}", cacheMwareFunc(3*hour)(http.HandlerFunc(v.fileHandler)))
+	mux.Handle("/slackdump/file/{id}/{filename}", cacheMwareFunc(3*hour)(http.HandlerFunc(NewFileHandler(v.src, v.lg))))
 	v.srv = &http.Server{
 		Addr:    addr,
 		Handler: middleware.Logger(mux),
@@ -148,7 +148,7 @@ func (v *Viewer) Close() error {
 }
 
 func indexusers(uu []slack.User) map[string]slack.User {
-	var um = make(map[string]slack.User, len(uu))
+	um := make(map[string]slack.User, len(uu))
 	for _, u := range uu {
 		um[u.ID] = u
 	}
@@ -156,7 +156,7 @@ func indexusers(uu []slack.User) map[string]slack.User {
 }
 
 func indexchannels(cc []slack.Channel) map[string]slack.Channel {
-	var cm = make(map[string]slack.Channel, len(cc))
+	cm := make(map[string]slack.Channel, len(cc))
 	for _, c := range cc {
 		cm[c.ID] = c
 	}

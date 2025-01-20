@@ -62,7 +62,8 @@ func (e *ExpConverter) SetUsers(users []slack.User) {
 // Convert is the chunk file export converter.  It transforms the chunk file
 // for the channel with ID into a slack export format.  It expects the chunk
 // file to be in the <srcdir>/<id>.json.gz file, and the attachments to be in
-// the <srcdir>/<id> directory.
+// the <srcdir>/<id> directory.  It is also expects that there's no more
+// than one channel in the chunk file.
 func (e *ExpConverter) Convert(ctx context.Context, id chunk.FileID) error {
 	ctx, task := trace.NewTask(ctx, "transform")
 	defer task.End()
@@ -94,15 +95,30 @@ func (e *ExpConverter) Convert(ctx context.Context, id chunk.FileID) error {
 	return nil
 }
 
-func (e *ExpConverter) writeMessages(ctx context.Context, pl *chunk.File, ci *slack.Channel) error {
+type filer interface {
+	// Sorted should return messages in sorted order.  If desc is true, the
+	// messages should be returned in descending order.  The callback function
+	// fn should be called for each message.  If fn returns an error, the
+	// iteration should stop and the error should be returned.
+	Sorted(ctx context.Context, desc bool, fn func(time.Time, string, *slack.Message) error) error
+	// AllThreadMessages should return all messages in the thread with threadID
+	// in the channel with channelID.  If the thread is not found, it should
+	// return chunk.ErrNotFound.
+	AllThreadMessages(channelID, threadID string) ([]slack.Message, error)
+}
+
+func (e *ExpConverter) writeMessages(ctx context.Context, pl filer, ci *slack.Channel) error {
 	lg := slog.With("in", "writeMessages", "channel", ci.ID)
 	uidx := types.Users(e.users).IndexByID()
 	trgdir := ExportChanName(ci)
 
-	var mm []export.ExportMessage = make([]export.ExportMessage, 0, 100)
+	mm := make([]export.ExportMessage, 0, 100)
 	var prevDt string
 	var currDt string
-	if err := pl.Sorted(ctx, false, func(ts time.Time, m *slack.Message) error {
+	if err := pl.Sorted(ctx, false, func(ts time.Time, channelID string, m *slack.Message) error {
+		if channelID != ci.ID {
+			return nil // skip messages from other channels
+		}
 		currDt = ts.Format("2006-01-02")
 		if currDt != prevDt || prevDt == "" {
 			if prevDt != "" {
@@ -117,7 +133,7 @@ func (e *ExpConverter) writeMessages(ctx context.Context, pl *chunk.File, ci *sl
 		// the "thread" is only used to collect statistics.  Thread messages
 		// are passed by Sorted and written as a normal course of action.
 		var thread []slack.Message
-		if m.ThreadTimestamp == m.Timestamp && m.LatestReply != structures.LatestReplyNoReplies {
+		if structures.IsThreadStart(m) && m.LatestReply != structures.LatestReplyNoReplies {
 			// get the thread for the initial thread message only.
 			var err error
 			thread, err = pl.AllThreadMessages(ci.ID, m.ThreadTimestamp)

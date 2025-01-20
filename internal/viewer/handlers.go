@@ -3,6 +3,7 @@ package viewer
 import (
 	"errors"
 	"io/fs"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/rusq/slack"
+
 	"github.com/rusq/slackdump/v3/internal/fasttime"
 )
 
@@ -104,7 +106,6 @@ func (v *Viewer) channelHandler(w http.ResponseWriter, r *http.Request, id strin
 		lg.ErrorContext(ctx, "ExecuteTemplate", "error", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
-
 }
 
 func isHXRequest(r *http.Request) bool {
@@ -161,30 +162,34 @@ func (v *Viewer) threadHandler(w http.ResponseWriter, r *http.Request, id string
 	}
 }
 
-func (v *Viewer) fileHandler(w http.ResponseWriter, r *http.Request) {
-	var (
-		id       = r.PathValue("id")
-		filename = r.PathValue("filename")
-		ctx      = r.Context()
-	)
-	if id == "" || filename == "" {
-		http.NotFound(w, r)
-		return
-	}
-	lg := v.lg.With("in", "fileHandler", "id", id, "filename", filename)
-	fs := v.src.FS()
-	path, err := v.src.File(id, filename)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
+// NewFileHandler returns an http.HandlerFunc that serves files from the source.
+// It expects the path to contain the file "id" and the "filename" components.
+func NewFileHandler(src Sourcer, lg *slog.Logger) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var (
+			id       = r.PathValue("id")
+			filename = r.PathValue("filename")
+			ctx      = r.Context()
+		)
+		if id == "" || filename == "" {
 			http.NotFound(w, r)
 			return
 		}
-		lg.ErrorContext(ctx, "File", "error", err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
+		lg := lg.With("in", "fileHandler", "id", id, "filename", filename)
+		fs := src.FS()
+		path, err := src.File(id, filename)
+		if err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				http.NotFound(w, r)
+				return
+			}
+			lg.ErrorContext(ctx, "File", "error", err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 
-	http.ServeFileFS(w, r, fs, path)
+		http.ServeFileFS(w, r, fs, path)
+	}
 }
 
 func (v *Viewer) userHandler(w http.ResponseWriter, r *http.Request) {

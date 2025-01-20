@@ -11,8 +11,9 @@ import (
 	"time"
 
 	"github.com/rusq/slack"
-	"github.com/rusq/slackdump/v3/internal/chunk/state"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/rusq/slackdump/v3/internal/chunk/state"
 )
 
 const (
@@ -775,47 +776,6 @@ func TestFile_AllChannelInfos(t *testing.T) {
 				return
 			}
 			assert.Equal(t, tt.want, got)
-		})
-	}
-}
-
-func TestFile_AllChannelInfoWithMembers(t *testing.T) {
-	memchans := []slack.Channel{
-		*testChunks[0].Channel,
-		*testChunks[6].Channel,
-	}
-	memchans[0].Members = testChunks[1].ChannelUsers
-	memchans[1].Members = testChunks[7].ChannelUsers
-	type fields struct {
-		rs io.ReadSeeker
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		want    []slack.Channel
-		wantErr bool
-	}{
-		{
-			"finds all users and channels",
-			fields{
-				marshalChunks(testChunks...),
-			},
-			memchans,
-			false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			f := &File{
-				rs:  tt.fields.rs,
-				idx: mkindex(tt.fields.rs),
-			}
-			got, err := f.AllChannelInfoWithMembers()
-			if (err != nil) != tt.wantErr {
-				t.Errorf("File.AllChannelInfoWithMembers() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			assert.Equal(t, got, tt.want)
 		})
 	}
 }

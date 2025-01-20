@@ -45,7 +45,7 @@ func RunView(ctx context.Context, cmd *base.Command, args []string) error {
 		base.SetExitStatus(base.SInvalidParameters)
 		return fmt.Errorf("viewing slackdump files requires at least one argument")
 	}
-	src, err := loadSource(ctx, args[0])
+	src, err := LoadSource(ctx, args[0])
 	if err != nil {
 		base.SetExitStatus(base.SUserError)
 		return err
@@ -96,7 +96,7 @@ const (
 	sfDump
 )
 
-func loadSource(ctx context.Context, src string) (viewer.Sourcer, error) {
+func LoadSource(ctx context.Context, src string) (viewer.Sourcer, error) {
 	lg := cfg.Log.With("source", src)
 	fi, err := os.Stat(src)
 	if err != nil {

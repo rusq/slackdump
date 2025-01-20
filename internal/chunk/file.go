@@ -266,7 +266,7 @@ func (p *File) AllChannels() ([]slack.Channel, error) {
 }
 
 // AllChannelInfos returns all the channel information collected by the channel
-// info API.
+// info API with members populated for non-archived channels.
 func (f *File) AllChannelInfos() ([]slack.Channel, error) {
 	f.ensure()
 	chans, err := allForOffsets(f, f.idx.offsetsWithPrefix(chanInfoPrefix), func(c *Chunk) []slack.Channel {
@@ -292,22 +292,6 @@ func (f *File) AllChannelInfos() ([]slack.Channel, error) {
 		chans[i].Members = members
 	}
 	return chans, nil
-}
-
-// AllChannelInfoWithMembers returns all channels with Members populated.
-func (f *File) AllChannelInfoWithMembers() ([]slack.Channel, error) {
-	c, err := f.AllChannelInfos()
-	if err != nil {
-		return nil, err
-	}
-	for i := range c {
-		members, err := f.ChannelUsers(c[i].ID)
-		if err != nil {
-			return nil, err
-		}
-		c[i].Members = members
-	}
-	return c, nil
 }
 
 // int64s implements sort.Interface for []int64.
@@ -492,7 +476,7 @@ func timeOffsets(ots offts) map[int64]Addr {
 
 // Sorted iterates over all the messages in the chunkfile in chronological
 // order.  If desc is true, the slice will be iterated in reverse order.
-func (f *File) Sorted(ctx context.Context, desc bool, fn func(ts time.Time, m *slack.Message) error) error {
+func (f *File) Sorted(ctx context.Context, desc bool, fn func(ts time.Time, channelID string, m *slack.Message) error) error {
 	ctx, task := trace.NewTask(ctx, "file.Sorted")
 	defer task.End()
 
@@ -536,7 +520,7 @@ func (f *File) Sorted(ctx context.Context, desc bool, fn func(ts time.Time, m *s
 			prevOffset = tmOff.Offset
 		}
 
-		if err := fn(fasttime.Int2Time(ts).UTC(), &chunk.Messages[tmOff.Index]); err != nil {
+		if err := fn(fasttime.Int2Time(ts).UTC(), chunk.ChannelID, &chunk.Messages[tmOff.Index]); err != nil {
 			return err
 		}
 	}
