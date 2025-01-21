@@ -11,12 +11,13 @@ import (
 	"os"
 	"time"
 
+	source2 "github.com/rusq/slackdump/v3/internal/source"
+
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/rusq/slack"
 
 	st "github.com/rusq/slackdump/v3/internal/structures"
 	"github.com/rusq/slackdump/v3/internal/viewer/renderer"
-	"github.com/rusq/slackdump/v3/internal/viewer/source"
 )
 
 var debug = os.Getenv("DEBUG") != ""
@@ -73,9 +74,9 @@ const (
 
 // type assertion
 var (
-	_ Sourcer = &source.Export{}
-	_ Sourcer = &source.ChunkDir{}
-	_ Sourcer = &source.Dump{}
+	_ Sourcer = &source2.Export{}
+	_ Sourcer = &source2.ChunkDir{}
+	_ Sourcer = &source2.Dump{}
 )
 
 // New creates new viewer instance.  Once [Viewer.ListenAndServe] is called, the

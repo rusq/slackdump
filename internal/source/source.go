@@ -1,3 +1,9 @@
+// Package source provides archive readers for different output formats.
+//
+// Currently, the following formats are supported:
+//   - archive
+//   - Slack Export
+//   - dump
 package source
 
 import (

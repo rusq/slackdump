@@ -20,6 +20,10 @@ func NewChunkDir(d *chunk.Directory) *ChunkDir {
 	return &ChunkDir{d: d, filestorage: st}
 }
 
+// AllMessages returns all messages for the channel.  Current restriction -
+// it expects for all messages for the requested file to be in the file ID.json.gz.
+// If messages for the channel are scattered across multiple file, it will not
+// return all of them.
 func (c *ChunkDir) AllMessages(channelID string) ([]slack.Message, error) {
 	f, err := c.d.Open(chunk.ToFileID(channelID, "", false))
 	if err != nil {
