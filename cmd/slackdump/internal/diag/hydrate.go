@@ -13,6 +13,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/rusq/slackdump/v3/internal/source"
+
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/slack"
 
@@ -21,7 +23,6 @@ import (
 	"github.com/rusq/slackdump/v3/downloader"
 	"github.com/rusq/slackdump/v3/internal/chunk/transform/fileproc"
 	"github.com/rusq/slackdump/v3/internal/structures"
-	"github.com/rusq/slackdump/v3/internal/viewer/source"
 )
 
 var cmdHydrate = &base.Command{

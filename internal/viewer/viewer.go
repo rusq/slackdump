@@ -5,18 +5,18 @@ import (
 	"context"
 	"errors"
 	"html/template"
-	"io/fs"
 	"log/slog"
 	"net/http"
 	"os"
 	"time"
+
+	"github.com/rusq/slackdump/v3/internal/source"
 
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/rusq/slack"
 
 	st "github.com/rusq/slackdump/v3/internal/structures"
 	"github.com/rusq/slackdump/v3/internal/viewer/renderer"
-	"github.com/rusq/slackdump/v3/internal/viewer/source"
 )
 
 var debug = os.Getenv("DEBUG") != ""
@@ -32,7 +32,7 @@ type Viewer struct {
 	// data
 	ch   channels
 	um   st.UserIndex
-	src  Sourcer
+	src  source.Sourcer
 	tmpl *template.Template
 
 	// handles
@@ -41,41 +41,8 @@ type Viewer struct {
 	r   renderer.Renderer
 }
 
-// Sourcer is an interface for retrieving data from different sources.
-type Sourcer interface {
-	// Name should return the name of the retriever underlying media, i.e.
-	// directory or archive.
-	Name() string
-	// Type should return the type of the retriever, i.e. "chunk" or "export".
-	Type() string
-	// Channels should return all channels.
-	Channels() ([]slack.Channel, error)
-	// Users should return all users.
-	Users() ([]slack.User, error)
-	// AllMessages should return all messages for the given channel id.
-	AllMessages(channelID string) ([]slack.Message, error)
-	// AllThreadMessages should return all messages for the given tuple
-	// (channelID, threadID).
-	AllThreadMessages(channelID, threadID string) ([]slack.Message, error)
-	// ChannelInfo should return the channel information for the given channel
-	// id.
-	ChannelInfo(channelID string) (*slack.Channel, error)
-	// FS should return the filesystem with file attachments.
-	FS() fs.FS
-	// File should return the path of the file within the filesystem returned
-	// by FS().
-	File(fileID string, filename string) (string, error)
-}
-
 const (
 	hour = 60 * time.Minute
-)
-
-// type assertion
-var (
-	_ Sourcer = &source.Export{}
-	_ Sourcer = &source.ChunkDir{}
-	_ Sourcer = &source.Dump{}
 )
 
 // New creates new viewer instance.  Once [Viewer.ListenAndServe] is called, the
@@ -83,7 +50,7 @@ var (
 // address should be in the form of ":8080". The viewer will use the given
 // [Sourcer] to retrieve the data, see "source" package for available options.
 // It will initialise the logger from the context.
-func New(ctx context.Context, addr string, r Sourcer) (*Viewer, error) {
+func New(ctx context.Context, addr string, r source.Sourcer) (*Viewer, error) {
 	all, err := r.Channels()
 	if err != nil {
 		return nil, err

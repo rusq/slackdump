@@ -5,21 +5,22 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+
+	"github.com/rusq/slackdump/v3/internal/chunk"
 )
 
 const (
-	mmuploads     = "__uploads"
 	attachmentDir = "attachments"
 )
 
-// filestorage is the interface for the file storage used by the source types.
-type filestorage interface {
+// Storage is the interface for the file storage used by the source types.
+type Storage interface {
 	FS() fs.FS
 	File(id string, name string) (string, error)
 }
 
-// fstMattermost is the filestorage for the mattermost export format.  Files
-// are stored in the __uploads subdirectory, and the filestorage is the
+// STMattermost is the Storage for the mattermost export format.  Files
+// are stored in the __uploads subdirectory, and the Storage is the
 // filesystem of the __uploads directory.
 //
 // Directory structure:
@@ -28,26 +29,26 @@ type filestorage interface {
 //	  +-- <file_id1>/filename.ext
 //	  +-- <file_id2>/otherfile.ext
 //	  +-- ...
-type fstMattermost struct {
+type STMattermost struct {
 	fs fs.FS
 }
 
-// newMattermostStorage returns the resolver for the mattermost export format.
+// NewMattermostStorage returns the resolver for the mattermost export format.
 // rootfs is the root filesystem of the export.
-func newMattermostStorage(rootfs fs.FS) (*fstMattermost, error) {
+func NewMattermostStorage(rootfs fs.FS) (*STMattermost, error) {
 	// mattermost export format has files in the __uploads subdirectory.
-	fsys, err := fs.Sub(rootfs, mmuploads)
+	fsys, err := fs.Sub(rootfs, chunk.UploadsDir)
 	if err != nil {
 		return nil, err
 	}
-	return &fstMattermost{fs: fsys}, nil
+	return &STMattermost{fs: fsys}, nil
 }
 
-func (r *fstMattermost) FS() fs.FS {
+func (r *STMattermost) FS() fs.FS {
 	return r.fs
 }
 
-func (r *fstMattermost) File(id string, name string) (string, error) {
+func (r *STMattermost) File(id string, name string) (string, error) {
 	pth := path.Join(id, name)
 	_, err := fs.Stat(r.fs, pth)
 	if err != nil {
@@ -56,8 +57,8 @@ func (r *fstMattermost) File(id string, name string) (string, error) {
 	return pth, nil
 }
 
-// fstStandard is the filestorage for the standard export format.  Files are
-// stored in the "attachments" subdirectories, and the filestorage is the
+// STStandard is the Storage for the standard export format.  Files are
+// stored in the "attachments" subdirectories, and the Storage is the
 // filesystem of the export.
 //
 // Directory structure:
@@ -68,13 +69,13 @@ func (r *fstMattermost) File(id string, name string) (string, error) {
 //	  |   +-- attachments/<file_id2>-otherfile.ext
 //	  |   +-- ...
 //	  +-- ...
-type fstStandard struct {
+type STStandard struct {
 	fs  fs.FS
 	idx map[string]string
 }
 
-func newStandardStorage(rootfs fs.FS, idx map[string]string) *fstStandard {
-	return &fstStandard{fs: rootfs, idx: idx}
+func NewStandardStorage(rootfs fs.FS, idx map[string]string) *STStandard {
+	return &STStandard{fs: rootfs, idx: idx}
 }
 
 // buildFileIndex walks the fsys, finding all "attachments" subdirectories, and
@@ -109,11 +110,11 @@ func buildFileIndex(fsys fs.FS, dir string) (map[string]string, error) {
 	return idx, nil
 }
 
-func (r *fstStandard) FS() fs.FS {
+func (r *STStandard) FS() fs.FS {
 	return r.fs
 }
 
-func (r *fstStandard) File(id string, _ string) (string, error) {
+func (r *STStandard) File(id string, _ string) (string, error) {
 	pth, ok := r.idx[id]
 	if !ok {
 		return "", fs.ErrNotExist
@@ -130,7 +131,7 @@ func (fakefs) Open(name string) (fs.File, error) {
 	return nil, &fs.PathError{Op: "open", Path: name, Err: fs.ErrNotExist}
 }
 
-// fstNotFound is the filestorage that returns fs.ErrNotExist for all files.
+// fstNotFound is the Storage that returns fs.ErrNotExist for all files.
 type fstNotFound struct{}
 
 func (fstNotFound) FS() fs.FS {
@@ -141,7 +142,7 @@ func (fstNotFound) File(id string, name string) (string, error) {
 	return "", fs.ErrNotExist
 }
 
-// fstDump is the filestorage for the dump format.  Files are stored in the
+// STDump is the Storage for the dump format.  Files are stored in the
 // directories named after the channel IDs.
 //
 // Directory structure:
@@ -158,19 +159,19 @@ func (fstNotFound) File(id string, name string) (string, error) {
 //	  |   +-- ...
 //	  +-- <channel_id2>.json
 //	  +-- ...
-type fstDump struct {
+type STDump struct {
 	fs  fs.FS
 	idx map[string]string
 }
 
-// newDumpStorage returns the file storage of the slackdumpdump format.  fsys
+// NewDumpStorage returns the file storage of the slackdumpdump format.  fsys
 // is the root of the dump.
-func newDumpStorage(fsys fs.FS) (*fstDump, error) {
+func NewDumpStorage(fsys fs.FS) (*STDump, error) {
 	idx, err := indexDump(fsys)
 	if err != nil {
 		return nil, err
 	}
-	return &fstDump{fs: fsys, idx: idx}, nil
+	return &STDump{fs: fsys, idx: idx}, nil
 }
 
 // indexDump indexes the files in the dump format.
@@ -221,11 +222,11 @@ func indexDump(fsys fs.FS) (map[string]string, error) {
 	return idx, nil
 }
 
-func (r *fstDump) FS() fs.FS {
+func (r *STDump) FS() fs.FS {
 	return r.fs
 }
 
-func (r *fstDump) File(id string, name string) (string, error) {
+func (r *STDump) File(id string, name string) (string, error) {
 	pth, ok := r.idx[id]
 	if !ok {
 		return "", fs.ErrNotExist

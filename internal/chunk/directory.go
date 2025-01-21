@@ -9,14 +9,22 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync/atomic"
 
+	"github.com/rusq/slackdump/v3/internal/structures"
+
 	"github.com/rusq/slack"
+
 	"github.com/rusq/slackdump/v3/internal/osext"
 )
 
-const chunkExt = ".json.gz"
+// file extensions
+const (
+	chunkExt = ".json.gz"
+	extIdx   = ".idx"
+)
 
 // common filenames
 const (
@@ -26,7 +34,7 @@ const (
 	FSearch    FileID = "search"
 )
 
-const uploadsDir = "__uploads" // for serving files
+const UploadsDir = "__uploads" // for serving files
 
 // Directory is an abstraction over the directory with chunk files.  It
 // provides a way to write chunk files and read channels, users and messages
@@ -107,8 +115,6 @@ func (d *Directory) Close() error {
 	return nil
 }
 
-var errNoChannelInfo = errors.New("no channel info")
-
 // Channels collects all channels from the chunk directory.  First, it
 // attempts to find the channel.json.gz file, if it's not present, it will go
 // through all conversation files and try to get "ChannelInfo" chunk from the
@@ -120,23 +126,13 @@ func (d *Directory) Channels() ([]slack.Channel, error) {
 	// we are not using the channel.json.gz file because it doesn't contain
 	// members.
 	var ch []slack.Channel
-	if err := filepath.WalkDir(d.dir, func(path string, de fs.DirEntry, err error) error {
+	if err := d.Walk(func(name string, f *File, err error) error {
 		if err != nil {
 			return err
 		}
-		if !strings.HasSuffix(path, chunkExt) {
-			return nil
-		} else if de.IsDir() {
-			return nil
-		}
-		chs, err := d.loadChanInfo(path)
-		if err != nil {
-			if errors.Is(err, errNoChannelInfo) {
-				return nil
-			}
-			return err
-		}
-		ch = append(ch, chs...)
+		ci, err := f.AllChannelInfos()
+		ch = append(ch, ci...)
+
 		return nil
 	}); err != nil {
 		return nil, err
@@ -145,33 +141,31 @@ func (d *Directory) Channels() ([]slack.Channel, error) {
 	return ch, nil
 }
 
+// Walk iterates over all chunk files in the directory and calls the function
+// for each file.  If the function returns an error, the iteration stops.
+func (d *Directory) Walk(fn func(name string, f *File, err error) error) error {
+	return filepath.WalkDir(d.dir, func(path string, de fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if !strings.HasSuffix(path, chunkExt) || de.IsDir() {
+			return nil
+		}
+		f, err := d.openRAW(path)
+		if err != nil {
+			return fn(path, nil, err)
+		}
+		cf, err := cachedFromReader(f, d.wantCache)
+		if err == nil {
+			defer cf.Close()
+		}
+		return fn(path, cf, err)
+	})
+}
+
 // Name returns the full directory path.
 func (d *Directory) Name() string {
 	return d.dir
-}
-
-// loadChanInfo loads the channel info from the file with full path.
-func (d *Directory) loadChanInfo(fullpath string) ([]slack.Channel, error) {
-	f, err := d.openRAW(fullpath)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-	ch, err := d.readChanInfo(f)
-	if err != nil {
-		return nil, err
-	}
-	return ch, nil
-}
-
-// readChanInfo returns the Channels from all the ChannelInfo chunks in the
-// file.
-func (d *Directory) readChanInfo(wf osext.ReadSeekCloseNamer) ([]slack.Channel, error) {
-	cf, err := cachedFromReader(wf, d.wantCache)
-	if err != nil {
-		return nil, err
-	}
-	return cf.AllChannelInfos()
 }
 
 // loadChannelsJSON loads channels json file and returns a slice of
@@ -323,8 +317,6 @@ func (d *Directory) WorkspaceInfo() (*slack.AuthTestResponse, error) {
 	return nil, errors.New("no workspace info found")
 }
 
-const extIdx = ".idx"
-
 func cachedFromReader(wf osext.ReadSeekCloseNamer, wantCache bool) (*File, error) {
 	if !wantCache {
 		return FromReader(wf)
@@ -359,5 +351,90 @@ func cachedFromReader(wf osext.ReadSeekCloseNamer, wantCache bool) (*File, error
 
 // File returns the file with the given id and name.
 func (d *Directory) File(id string, name string) (fs.File, error) {
-	return os.Open(filepath.Join(d.dir, uploadsDir, id, name))
+	return os.Open(filepath.Join(d.dir, UploadsDir, id, name))
+}
+
+func (d *Directory) AllMessages(channelID string) ([]slack.Message, error) {
+	var mm structures.Messages
+	err := d.Walk(func(name string, f *File, err error) error {
+		if err != nil {
+			return err
+		}
+		m, err := f.AllMessages(channelID)
+		if err != nil {
+			if errors.Is(err, ErrNotFound) {
+				return nil
+			}
+			return err
+		}
+		mm = append(mm, m...)
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	sort.Sort(mm)
+	return mm, nil
+}
+
+func (d *Directory) AllThreadMessages(channelID, threadID string) ([]slack.Message, error) {
+	var mm structures.Messages
+	var parent *slack.Message
+	err := d.Walk(func(name string, f *File, err error) error {
+		if err != nil {
+			return err
+		}
+		if parent == nil {
+			par, err := f.ThreadParent(channelID, threadID)
+			if err != nil {
+				if !errors.Is(err, ErrNotFound) {
+					return err
+				}
+			} else {
+				parent = par
+			}
+		}
+		rest, err := f.AllThreadMessages(channelID, threadID)
+		if err != nil && !errors.Is(err, ErrNotFound) {
+			return err
+		}
+		mm = append(mm, rest...)
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	if parent == nil {
+		return nil, fmt.Errorf("parent not found for channel: %s, thread: %s", channelID, threadID)
+	}
+	sort.Sort(mm)
+	return append([]slack.Message{*parent}, mm...), nil
+}
+
+func (d *Directory) FastAllThreadMessages(channelID, threadID string) ([]slack.Message, error) {
+	f, err := d.Open(ToFileID(channelID, "", false))
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	parent, err := f.ThreadParent(channelID, threadID)
+	if err != nil {
+		return nil, err
+	}
+	rest, err := f.AllThreadMessages(channelID, threadID)
+	if err != nil {
+		return nil, err
+	}
+
+	return append([]slack.Message{*parent}, rest...), nil
+}
+
+func (d *Directory) FastAllMessages(channelID string) ([]slack.Message, error) {
+	f, err := d.Open(FileID(channelID))
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	return f.AllMessages(channelID)
 }

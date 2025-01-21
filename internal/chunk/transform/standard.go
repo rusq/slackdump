@@ -12,7 +12,6 @@ import (
 	"github.com/rusq/slack"
 
 	"github.com/rusq/slackdump/v3/internal/chunk"
-	"github.com/rusq/slackdump/v3/internal/fasttime"
 	"github.com/rusq/slackdump/v3/internal/nametmpl"
 	"github.com/rusq/slackdump/v3/internal/structures"
 	"github.com/rusq/slackdump/v3/types"
@@ -125,22 +124,6 @@ func (s *StdConverter) Convert(ctx context.Context, id chunk.FileID) error {
 	return json.NewEncoder(f).Encode(conv)
 }
 
-type msgsorter []slack.Message
-
-func (m msgsorter) Len() int { return len(m) }
-func (m msgsorter) Less(i, j int) bool {
-	tsi, err := fasttime.TS2int(m[i].Timestamp)
-	if err != nil {
-		return false
-	}
-	tsj, err := fasttime.TS2int(m[j].Timestamp)
-	if err != nil {
-		return false
-	}
-	return tsi < tsj
-}
-func (m msgsorter) Swap(i, j int) { m[i], m[j] = m[j], m[i] }
-
 // stdConversation is the function that does the transformation of the whole
 // channel with threads.
 func stdConversation(cf *chunk.File, ci *slack.Channel, pipeline pipeline) ([]types.Message, error) {
@@ -148,7 +131,7 @@ func stdConversation(cf *chunk.File, ci *slack.Channel, pipeline pipeline) ([]ty
 	if err != nil {
 		return nil, err
 	}
-	sort.Sort(msgsorter(mm))
+	sort.Sort(structures.Messages(mm))
 	if err := pipeline.apply(ci.ID, "", mm); err != nil {
 		return nil, fmt.Errorf("conversation: %w", err)
 	}
@@ -194,7 +177,7 @@ func stdThread(cf *chunk.File, ci *slack.Channel, threadTS string, pipeline pipe
 	}
 
 	// sort messages by timestamp
-	sort.Sort(msgsorter(mm))
+	sort.Sort(structures.Messages(mm))
 
 	return types.ConvertMsgs(mm), nil
 }
