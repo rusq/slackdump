@@ -27,7 +27,7 @@ func (m Message) IsThread() bool {
 	return m.Msg.ThreadTimestamp != ""
 }
 
-// IsThreadChild will return true if the message is the parent message of a
+// IsThreadParent will return true if the message is the parent message of a
 // conversation (has more than 0 replies)
 func (m Message) IsThreadParent() bool {
 	return m.IsThread() && m.Msg.ReplyCount != 0

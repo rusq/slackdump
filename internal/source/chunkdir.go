@@ -4,20 +4,29 @@ import (
 	"os"
 
 	"github.com/rusq/slack"
+
 	"github.com/rusq/slackdump/v3/internal/chunk"
 )
 
+// ChunkDir is the chunk directory source.
+//
+// TODO: create an index of entries, otherwise it does the
+// full scan of the directory.
 type ChunkDir struct {
-	d *chunk.Directory
+	d    *chunk.Directory
+	fast bool
 	filestorage
 }
 
-func NewChunkDir(d *chunk.Directory) *ChunkDir {
+// NewChunkDir creates a new ChurkDir source.  It expects the attachments to be
+// in the mattermost storage format.  If the attachments are not in the
+// mattermost storage format, it will assume they were not downloaded.
+func NewChunkDir(d *chunk.Directory, fast bool) *ChunkDir {
 	var st filestorage = fstNotFound{}
 	if fst, err := newMattermostStorage(os.DirFS(d.Name())); err == nil {
 		st = fst
 	}
-	return &ChunkDir{d: d, filestorage: st}
+	return &ChunkDir{d: d, filestorage: st, fast: fast}
 }
 
 // AllMessages returns all messages for the channel.  Current restriction -
@@ -25,30 +34,18 @@ func NewChunkDir(d *chunk.Directory) *ChunkDir {
 // If messages for the channel are scattered across multiple file, it will not
 // return all of them.
 func (c *ChunkDir) AllMessages(channelID string) ([]slack.Message, error) {
-	f, err := c.d.Open(chunk.ToFileID(channelID, "", false))
-	if err != nil {
-		return nil, err
+	if c.fast {
+		return c.d.FastAllMessages(channelID)
+	} else {
+		return c.d.AllMessages(channelID)
 	}
-	defer f.Close()
-	return f.AllMessages(channelID)
 }
 
 func (c *ChunkDir) AllThreadMessages(channelID, threadID string) ([]slack.Message, error) {
-	f, err := c.d.Open(chunk.ToFileID(channelID, "", false))
-	if err != nil {
-		return nil, err
+	if c.fast {
+		return c.d.FastAllThreadMessages(channelID, threadID)
 	}
-	defer f.Close()
-	parent, err := f.ThreadParent(channelID, threadID)
-	if err != nil {
-		return nil, err
-	}
-	rest, err := f.AllThreadMessages(channelID, threadID)
-	if err != nil {
-		return nil, err
-	}
-
-	return append([]slack.Message{*parent}, rest...), nil
+	return c.d.AllThreadMessages(channelID, threadID)
 }
 
 func (c *ChunkDir) ChannelInfo(channelID string) (*slack.Channel, error) {

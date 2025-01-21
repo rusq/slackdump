@@ -81,7 +81,7 @@ func (e *Export) Type() string {
 	return "export"
 }
 
-// All messages returns all channel messages without thread messages.
+// AllMessages returns all channel messages without thread messages.
 func (e *Export) AllMessages(channelID string) ([]slack.Message, error) {
 	var mm []slack.Message
 	if err := e.walkChannelMessages(channelID, func(m *slack.Message) error {

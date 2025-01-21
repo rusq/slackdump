@@ -398,6 +398,11 @@ func allForID[T any](p *File, id GroupID, fn func(*Chunk) []T) ([]T, error) {
 	return ret, nil
 }
 
+type Result[T any] struct {
+	Err error
+	Val T
+}
+
 // AllChannelIDs returns all the channels in the chunkfile.
 func (p *File) AllChannelIDs() []string {
 	ids := make([]string, 0, 1)

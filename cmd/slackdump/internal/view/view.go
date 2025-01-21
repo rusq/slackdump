@@ -13,13 +13,12 @@ import (
 	"path"
 	"strings"
 
-	source2 "github.com/rusq/slackdump/v3/internal/source"
-
 	br "github.com/pkg/browser"
 
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/internal/chunk"
+	"github.com/rusq/slackdump/v3/internal/source"
 	"github.com/rusq/slackdump/v3/internal/viewer"
 )
 
@@ -110,27 +109,27 @@ func loadSource(ctx context.Context, src string) (viewer.Sourcer, error) {
 		if err != nil {
 			return nil, err
 		}
-		return source2.NewChunkDir(dir), nil
+		return source.NewChunkDir(dir, true), nil
 	case sfExport | sfZIP:
 		lg.DebugContext(ctx, "loading export zip")
 		f, err := zip.OpenReader(src)
 		if err != nil {
 			return nil, err
 		}
-		return source2.NewExport(f, src)
+		return source.NewExport(f, src)
 	case sfExport | sfDirectory:
 		lg.DebugContext(ctx, "loading export directory")
-		return source2.NewExport(os.DirFS(src), src)
+		return source.NewExport(os.DirFS(src), src)
 	case sfDump | sfZIP:
 		lg.DebugContext(ctx, "loading dump zip")
 		f, err := zip.OpenReader(src)
 		if err != nil {
 			return nil, err
 		}
-		return source2.NewDump(f, src)
+		return source.NewDump(f, src)
 	case sfDump | sfDirectory:
 		lg.DebugContext(ctx, "loading dump directory")
-		return source2.NewDump(os.DirFS(src), src)
+		return source.NewDump(os.DirFS(src), src)
 	default:
 		return nil, fmt.Errorf("unsupported source type: %s", src)
 	}
