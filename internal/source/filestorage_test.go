@@ -5,12 +5,14 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/rusq/slackdump/v3/internal/chunk"
 )
 
 func Test_fstMattermost_File(t *testing.T) {
 	dir := t.TempDir()
 	// Create a file in the __uploads directory.
-	uploads := filepath.Join(dir, mmuploads, "file_id1")
+	uploads := filepath.Join(dir, chunk.UploadsDir, "file_id1")
 	err := os.MkdirAll(uploads, 0o755)
 	if err != nil {
 		t.Fatal(err)
@@ -20,7 +22,7 @@ func Test_fstMattermost_File(t *testing.T) {
 		t.Fatal(err)
 	}
 	fsys := os.DirFS(dir)
-	sub, err := fs.Sub(fsys, mmuploads)
+	sub, err := fs.Sub(fsys, chunk.UploadsDir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -66,16 +68,16 @@ func Test_fstMattermost_File(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			r := &fstMattermost{
+			r := &STMattermost{
 				fs: tt.fields.fs,
 			}
 			got, err := r.File(tt.args.id, tt.args.name)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("fstMattermost.File() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("STMattermost.File() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if got != tt.want {
-				t.Errorf("fstMattermost.File() = %v, want %v", got, tt.want)
+				t.Errorf("STMattermost.File() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -101,17 +103,17 @@ func Test_fstStandard_File(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			r := &fstStandard{
+			r := &STStandard{
 				fs:  tt.fields.fs,
 				idx: tt.fields.idx,
 			}
 			got, err := r.File(tt.args.id, tt.args.in1)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("fstStandard.File() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("STStandard.File() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if got != tt.want {
-				t.Errorf("fstStandard.File() = %v, want %v", got, tt.want)
+				t.Errorf("STStandard.File() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -166,17 +168,17 @@ func Test_fstDump_File(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			r := &fstDump{
+			r := &STDump{
 				fs:  tt.fields.fs,
 				idx: tt.fields.idx,
 			}
 			got, err := r.File(tt.args.id, tt.args.name)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("fstDump.File() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("STDump.File() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if got != tt.want {
-				t.Errorf("fstDump.File() = %v, want %v", got, tt.want)
+				t.Errorf("STDump.File() = %v, want %v", got, tt.want)
 			}
 		})
 	}

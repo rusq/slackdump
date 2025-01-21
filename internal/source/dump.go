@@ -16,18 +16,18 @@ type Dump struct {
 	c    []slack.Channel
 	fs   fs.FS
 	name string
-	filestorage
+	Storage
 }
 
 func NewDump(fsys fs.FS, name string) (*Dump, error) {
-	var st filestorage = fstNotFound{}
-	if fst, err := newDumpStorage(fsys); err == nil {
+	var st Storage = fstNotFound{}
+	if fst, err := NewDumpStorage(fsys); err == nil {
 		st = fst
 	}
 	d := &Dump{
-		fs:          fsys,
-		name:        name,
-		filestorage: st,
+		fs:      fsys,
+		name:    name,
+		Storage: st,
 	}
 	// initialise channels for quick lookup
 	c, err := d.Channels()

@@ -6,6 +6,8 @@ import (
 	"path"
 	"path/filepath"
 
+	"github.com/rusq/slackdump/v3/internal/chunk"
+
 	"github.com/rusq/slack"
 
 	"github.com/rusq/slackdump/v3/internal/chunk/transform"
@@ -35,7 +37,7 @@ func NewExport(typ StorageType, dl Downloader) processor.Filer {
 // MattermostFilepath returns the path to the file within the __uploads
 // directory.
 func MattermostFilepath(_ *slack.Channel, f *slack.File) string {
-	return filepath.Join("__uploads", f.ID, f.Name)
+	return filepath.Join(chunk.UploadsDir, f.ID, f.Name)
 }
 
 // MattermostFilepathWithDir returns the path to the file within the given

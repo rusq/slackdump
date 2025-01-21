@@ -20,7 +20,11 @@ import (
 	"github.com/rusq/slackdump/v3/internal/osext"
 )
 
-const chunkExt = ".json.gz"
+// file extensions
+const (
+	chunkExt = ".json.gz"
+	extIdx   = ".idx"
+)
 
 // common filenames
 const (
@@ -30,7 +34,7 @@ const (
 	FSearch    FileID = "search"
 )
 
-const uploadsDir = "__uploads" // for serving files
+const UploadsDir = "__uploads" // for serving files
 
 // Directory is an abstraction over the directory with chunk files.  It
 // provides a way to write chunk files and read channels, users and messages
@@ -110,8 +114,6 @@ func (d *Directory) Close() error {
 	}
 	return nil
 }
-
-var errNoChannelInfo = errors.New("no channel info")
 
 // Channels collects all channels from the chunk directory.  First, it
 // attempts to find the channel.json.gz file, if it's not present, it will go
@@ -315,8 +317,6 @@ func (d *Directory) WorkspaceInfo() (*slack.AuthTestResponse, error) {
 	return nil, errors.New("no workspace info found")
 }
 
-const extIdx = ".idx"
-
 func cachedFromReader(wf osext.ReadSeekCloseNamer, wantCache bool) (*File, error) {
 	if !wantCache {
 		return FromReader(wf)
@@ -351,7 +351,7 @@ func cachedFromReader(wf osext.ReadSeekCloseNamer, wantCache bool) (*File, error
 
 // File returns the file with the given id and name.
 func (d *Directory) File(id string, name string) (fs.File, error) {
-	return os.Open(filepath.Join(d.dir, uploadsDir, id, name))
+	return os.Open(filepath.Join(d.dir, UploadsDir, id, name))
 }
 
 func (d *Directory) AllMessages(channelID string) ([]slack.Message, error) {

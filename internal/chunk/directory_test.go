@@ -1,14 +1,10 @@
 package chunk
 
 import (
-	"io"
-	"path/filepath"
-	"reflect"
 	"testing"
 
 	"github.com/rusq/slack"
 	"github.com/rusq/slackdump/v3/internal/fixtures"
-	"github.com/rusq/slackdump/v3/internal/osext"
 )
 
 // assortment of channel info chunks
@@ -66,90 +62,6 @@ var (
 		},
 	}
 )
-
-func Test_readChanInfo(t *testing.T) {
-	dir := t.TempDir()
-	type fields struct {
-		wantCache bool
-	}
-	type args struct {
-		r osext.ReadSeekCloseNamer
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		want    []slack.Channel
-		wantErr bool
-	}{
-		{
-			name: "channel info without user chunks (no error)",
-			fields: fields{
-				wantCache: true,
-			},
-			args: args{
-				r: testfilewrapper(
-					filepath.Join(dir, "unit"),
-					TestPublicChannelInfo,
-					TestPublicChannelMessages,
-				),
-			},
-			want: []slack.Channel{
-				*TestPublicChannelInfo.Channel,
-			},
-			wantErr: false,
-		},
-		{
-			name: "channel info with user chunks",
-			fields: fields{
-				wantCache: true,
-			},
-			args: args{
-				r: testfilewrapper(
-					filepath.Join(dir, "unit"),
-					TestPublicChannelInfo,
-					TestPublicChannelMessages,
-					TestChannelUsers,
-				),
-			},
-			want: []slack.Channel{
-				*TestPublicChannelInfo.Channel,
-			},
-			wantErr: false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			d := &Directory{
-				wantCache: tt.fields.wantCache,
-			}
-			got, err := d.readChanInfo(tt.args.r)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("readChanInfo() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("readChanInfo() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func testfilewrapper(name string, chunks ...Chunk) osext.ReadSeekCloseNamer {
-	return nopCloser{
-		ReadSeeker: marshalChunks(chunks...),
-		name:       name,
-	}
-}
-
-type nopCloser struct {
-	name string
-	io.ReadSeeker
-}
-
-func (n nopCloser) Close() error { return nil }
-
-func (n nopCloser) Name() string { return n.name }
 
 func TestOpenDir(t *testing.T) {
 

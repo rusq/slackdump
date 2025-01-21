@@ -8,6 +8,7 @@ import (
 
 	"github.com/rusq/slack"
 	"github.com/rusq/slackdump/v3/internal/fixtures"
+	"github.com/rusq/slackdump/v3/internal/source"
 	st "github.com/rusq/slackdump/v3/internal/structures"
 	"github.com/rusq/slackdump/v3/internal/viewer/renderer"
 )
@@ -16,7 +17,7 @@ func TestViewer_username(t *testing.T) {
 	type fields struct {
 		ch   channels
 		um   st.UserIndex
-		rtr  Sourcer
+		rtr  source.Sourcer
 		tmpl *template.Template
 		srv  *http.Server
 		lg   *slog.Logger

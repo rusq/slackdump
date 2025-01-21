@@ -15,18 +15,18 @@ import (
 type ChunkDir struct {
 	d    *chunk.Directory
 	fast bool
-	filestorage
+	Storage
 }
 
 // NewChunkDir creates a new ChurkDir source.  It expects the attachments to be
 // in the mattermost storage format.  If the attachments are not in the
 // mattermost storage format, it will assume they were not downloaded.
 func NewChunkDir(d *chunk.Directory, fast bool) *ChunkDir {
-	var st filestorage = fstNotFound{}
-	if fst, err := newMattermostStorage(os.DirFS(d.Name())); err == nil {
+	var st Storage = fstNotFound{}
+	if fst, err := NewMattermostStorage(os.DirFS(d.Name())); err == nil {
 		st = fst
 	}
-	return &ChunkDir{d: d, filestorage: st, fast: fast}
+	return &ChunkDir{d: d, Storage: st, fast: fast}
 }
 
 // AllMessages returns all messages for the channel.  Current restriction -

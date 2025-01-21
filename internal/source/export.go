@@ -6,6 +6,8 @@ import (
 	"log/slog"
 	"path"
 
+	"github.com/rusq/slackdump/v3/internal/chunk"
+
 	"github.com/rusq/slack"
 	"github.com/rusq/slackdump/v3/export"
 	"github.com/rusq/slackdump/v3/internal/structures"
@@ -18,7 +20,7 @@ type Export struct {
 	chanNames map[string]string // maps the channel id to the channel name.
 	name      string            // name of the file
 	idx       structures.ExportIndex
-	filestorage
+	Storage
 }
 
 func NewExport(fsys fs.FS, name string) (*Export, error) {
@@ -43,22 +45,22 @@ func NewExport(fsys fs.FS, name string) (*Export, error) {
 	if err != nil {
 		return nil, err
 	}
-	z.filestorage = fst
+	z.Storage = fst
 
 	return z, nil
 }
 
 // loadStorage determines the type of the file storage used and initialises
-// appropriate filestorage implementation.
-func loadStorage(fsys fs.FS) (filestorage, error) {
-	if _, err := fs.Stat(fsys, "__uploads"); err == nil {
-		return newMattermostStorage(fsys)
+// appropriate Storage implementation.
+func loadStorage(fsys fs.FS) (Storage, error) {
+	if _, err := fs.Stat(fsys, chunk.UploadsDir); err == nil {
+		return NewMattermostStorage(fsys)
 	}
 	idx, err := buildFileIndex(fsys, ".")
 	if err != nil || len(idx) == 0 {
 		return fstNotFound{}, nil
 	}
-	return newStandardStorage(fsys, idx), nil
+	return NewStandardStorage(fsys, idx), nil
 }
 
 func (e *Export) Channels() ([]slack.Channel, error) {
