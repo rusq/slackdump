@@ -7,6 +7,7 @@ import (
 	"context"
 
 	"github.com/rusq/slack"
+
 	"github.com/rusq/slackdump/v3/internal/chunk"
 )
 
@@ -27,5 +28,11 @@ func (n *noopTransformer) Transform(ctx context.Context, id chunk.FileID) error 
 }
 
 func (n *noopTransformer) Wait() error {
+	return nil
+}
+
+type noopAvatarProc struct{}
+
+func (n *noopAvatarProc) Avatars(ctx context.Context, users []slack.User) error {
 	return nil
 }

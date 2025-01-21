@@ -99,7 +99,7 @@ func (e *ExpConverter) writeMessages(ctx context.Context, pl *chunk.File, ci *sl
 	uidx := types.Users(e.users).IndexByID()
 	trgdir := ExportChanName(ci)
 
-	var mm []export.ExportMessage = make([]export.ExportMessage, 0, 100)
+	mm := make([]export.ExportMessage, 0, 100)
 	var prevDt string
 	var currDt string
 	if err := pl.Sorted(ctx, false, func(ts time.Time, m *slack.Message) error {
@@ -117,7 +117,7 @@ func (e *ExpConverter) writeMessages(ctx context.Context, pl *chunk.File, ci *sl
 		// the "thread" is only used to collect statistics.  Thread messages
 		// are passed by Sorted and written as a normal course of action.
 		var thread []slack.Message
-		if m.ThreadTimestamp == m.Timestamp && m.LatestReply != structures.LatestReplyNoReplies {
+		if structures.IsThreadStart(m) && m.LatestReply != structures.LatestReplyNoReplies {
 			// get the thread for the initial thread message only.
 			var err error
 			thread, err = pl.AllThreadMessages(ci.ID, m.ThreadTimestamp)
