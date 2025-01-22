@@ -140,8 +140,8 @@ func (f *File) ensure() {
 	}
 }
 
-// Offsets returns all offsets for the given id.
-func (f *File) Offsets(id GroupID) ([]int64, bool) {
+// offsets returns all offsets for the given id.
+func (f *File) offsets(id GroupID) ([]int64, bool) {
 	f.ensure()
 	ret, ok := f.idx[id]
 	return ret, ok && len(ret) > 0
@@ -276,8 +276,8 @@ func (f *File) AllChannelInfos() ([]slack.Channel, error) {
 		return nil, err
 	}
 	for i := range chans {
-		if chans[i].IsArchived {
-			slog.Default().Debug("skipping archived channel", "i", i, "id", chans[i].ID)
+		if chans[i].IsArchived || chans[i].NumMembers == 0 {
+			slog.Default().Debug("skipping empty or archived channel", "i", i, "id", chans[i].ID)
 			continue
 		}
 		members, err := f.ChannelUsers(chans[i].ID)
@@ -334,11 +334,11 @@ func allForOffsets[T any](p *File, offsets []int64, fn func(c *Chunk) []T) ([]T,
 
 // ChannelInfo returns the information for the given channel.
 func (f *File) ChannelInfo(channelID string) (*slack.Channel, error) {
-	info, err := f.channelInfo(channelID, false)
+	info, err := f.channelInfo(channelID)
 	if err != nil {
 		return nil, err
 	}
-	if !info.IsArchived {
+	if !info.IsArchived && info.NumMembers > 0 {
 		users, err := f.ChannelUsers(channelID)
 		if err != nil {
 			return nil, fmt.Errorf("failed getting channel users for %q: %w", channelID, err)
@@ -354,7 +354,7 @@ func (f *File) ChannelUsers(channelID string) ([]string, error) {
 	})
 }
 
-func (f *File) channelInfo(channelID string, _ bool) (*slack.Channel, error) {
+func (f *File) channelInfo(channelID string) (*slack.Channel, error) {
 	chunk, err := f.firstChunkForID(channelInfoID(channelID))
 	if err != nil {
 		return nil, err
@@ -367,7 +367,7 @@ func (f *File) channelInfo(channelID string, _ bool) (*slack.Channel, error) {
 
 // firstChunkForID returns the first chunk in the file for the given id.
 func (f *File) firstChunkForID(id GroupID) (*Chunk, error) {
-	ofs, ok := f.Offsets(id)
+	ofs, ok := f.offsets(id)
 	if !ok {
 		return nil, ErrNotFound
 	}

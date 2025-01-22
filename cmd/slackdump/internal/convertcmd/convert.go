@@ -13,6 +13,7 @@ import (
 	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/internal/chunk/transform/fileproc"
 	"github.com/rusq/slackdump/v3/internal/convert"
+	"github.com/rusq/slackdump/v3/internal/source"
 )
 
 //go:embed assets/convert.md
@@ -105,6 +106,10 @@ type convertflags struct {
 }
 
 func chunk2export(ctx context.Context, src, trg string, cflg convertflags) error {
+	st, err := source.Type(src)
+	if err != nil {
+		return err
+	}
 	cd, err := chunk.OpenDir(src)
 	if err != nil {
 		return err
@@ -121,11 +126,16 @@ func chunk2export(ctx context.Context, src, trg string, cflg convertflags) error
 		return errors.New("unknown storage type")
 	}
 
+	var (
+		includeFiles   = cflg.withFiles && (st&source.FMattermost != 0)
+		includeAvatars = cflg.withAvatars && (st&source.FAvatars != 0)
+	)
+
 	cvt := convert.NewChunkToExport(
 		cd,
 		fsa,
-		convert.WithIncludeFiles(cflg.withFiles),
-		convert.WithIncludeAvatars(cflg.withAvatars),
+		convert.WithIncludeFiles(includeFiles),
+		convert.WithIncludeAvatars(includeAvatars),
 		convert.WithSrcFileLoc(sttFn),
 		convert.WithTrgFileLoc(sttFn),
 		convert.WithLogger(cfg.Log),

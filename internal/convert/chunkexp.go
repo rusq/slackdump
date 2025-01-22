@@ -288,6 +288,7 @@ LOOP:
 				break LOOP
 			}
 			if err != nil {
+				slog.Error("worker error", "err", err)
 				failed = true
 			}
 		}

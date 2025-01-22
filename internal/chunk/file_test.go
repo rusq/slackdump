@@ -672,12 +672,12 @@ func TestFile_Offsets(t *testing.T) {
 			f := &File{
 				idx: tt.fields.idx,
 			}
-			got, got1 := f.Offsets(tt.args.id)
+			got, got1 := f.offsets(tt.args.id)
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("File.Offsets() got = %v, want %v", got, tt.want)
+				t.Errorf("File.offsets() got = %v, want %v", got, tt.want)
 			}
 			if got1 != tt.want1 {
-				t.Errorf("File.Offsets() got1 = %v, want %v", got1, tt.want1)
+				t.Errorf("File.offsets() got1 = %v, want %v", got1, tt.want1)
 			}
 		})
 	}

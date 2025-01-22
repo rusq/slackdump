@@ -37,6 +37,9 @@ type STMattermost struct {
 // rootfs is the root filesystem of the export.
 func NewMattermostStorage(rootfs fs.FS) (*STMattermost, error) {
 	// mattermost export format has files in the __uploads subdirectory.
+	if _, err := fs.Stat(rootfs, chunk.UploadsDir); err != nil {
+		return nil, err
+	}
 	fsys, err := fs.Sub(rootfs, chunk.UploadsDir)
 	if err != nil {
 		return nil, err
@@ -106,6 +109,10 @@ func buildFileIndex(fsys fs.FS, dir string) (map[string]string, error) {
 		})
 	}); err != nil {
 		return nil, err
+	}
+	if len(idx) == 0 {
+		// no files found.
+		return nil, fs.ErrNotExist
 	}
 	return idx, nil
 }
