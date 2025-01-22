@@ -2,6 +2,7 @@ package chunk
 
 import (
 	"compress/gzip"
+	"context"
 	"encoding/gob"
 	"errors"
 	"fmt"
@@ -11,13 +12,13 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"sync/atomic"
-
-	"github.com/rusq/slackdump/v3/internal/structures"
 
 	"github.com/rusq/slack"
 
 	"github.com/rusq/slackdump/v3/internal/osext"
+	"github.com/rusq/slackdump/v3/internal/structures"
 )
 
 // file extensions
@@ -49,8 +50,9 @@ type Directory struct {
 	dir   string
 	cache dcache
 
-	wantCache bool
-	fm        *filemgr
+	wantCache  bool
+	fm         *filemgr
+	numWorkers int
 }
 
 type dcache struct {
@@ -65,6 +67,12 @@ func WithCache(enabled bool) DirOption {
 	}
 }
 
+func WithNumWorkers(n int) DirOption {
+	return func(d *Directory) {
+		d.numWorkers = n
+	}
+}
+
 // OpenDir "opens" an existing directory for read and write operations.
 // It expects the directory to exist and to be a directory, otherwise it will
 // return an error.
@@ -75,8 +83,9 @@ func OpenDir(dir string, opt ...DirOption) (*Directory, error) {
 		return nil, fmt.Errorf("not a directory: %s", dir)
 	}
 	d := &Directory{
-		dir:       dir,
-		wantCache: true,
+		dir:        dir,
+		wantCache:  true,
+		numWorkers: 16,
 	}
 	for _, o := range opt {
 		o(d)
@@ -115,34 +124,107 @@ func (d *Directory) Close() error {
 	return nil
 }
 
-// Channels collects all channels from the chunk directory.  First, it
-// attempts to find the channel.json.gz file, if it's not present, it will go
-// through all conversation files and try to get "ChannelInfo" chunk from the
-// each file.
-func (d *Directory) Channels() ([]slack.Channel, error) {
+type resultt[T any] struct {
+	v   []T
+	err error
+}
+
+func collectAll[T any](ctx context.Context, d *Directory, numwrk int, fn func(*File) ([]T, error)) ([]T, error) {
+	var all []T
+	fileC := make(chan *File)
+	errC := make(chan error, 1)
+	go func() {
+		defer close(fileC)
+		defer close(errC)
+		errC <- d.Walk(func(name string, f *File, err error) error {
+			if err != nil {
+				return err
+			}
+			fileC <- f
+			return nil
+		})
+	}()
+
+	resultsC := make(chan resultt[T])
+	var wg sync.WaitGroup
+	wg.Add(numwrk)
+	for range numwrk {
+		go func() {
+			collectWorker(fileC, resultsC, fn)
+			wg.Done()
+		}()
+	}
+	go func() {
+		wg.Wait()
+		close(resultsC)
+	}()
+
+LOOP:
+	for {
+		select {
+		case <-ctx.Done():
+			return nil, context.Cause(ctx)
+		case res, more := <-resultsC:
+			if !more {
+				break LOOP
+			}
+			if res.err != nil {
+				return nil, res.err
+			}
+			all = append(all, res.v...)
+		}
+	}
+	if err := <-errC; err != nil {
+		return nil, err
+	}
+	return all, nil
+}
+
+func collectWorker[T any](fileC <-chan *File, resultsC chan<- resultt[T], fn func(*File) ([]T, error)) {
+	for f := range fileC {
+		v, err := fn(f)
+		resultsC <- resultt[T]{v, err}
+		f.Close()
+	}
+}
+
+// Channels collects all channels from the chunk directory.  First, it attempts
+// to find the channel.json.gz file, if it's not present, it will go through
+// all conversation files and try to get "ChannelInfo" chunk from each file.
+func (d *Directory) Channels(ctx context.Context) ([]slack.Channel, error) {
 	if val := d.cache.channels.Load(); val != nil {
 		return val.([]slack.Channel), nil
 	}
-	// we are not using the channel.json.gz file because it doesn't contain
-	// members.
-	var ch []slack.Channel
-	if err := d.Walk(func(name string, f *File, err error) error {
+	ch, err := collectAll(ctx, d, d.numWorkers, func(f *File) ([]slack.Channel, error) {
+		c, err := f.AllChannels()
 		if err != nil {
-			return err
+			if errors.Is(err, ErrNotFound) {
+				return nil, nil
+			}
+			return nil, err
 		}
-		ci, err := f.AllChannelInfos()
-		ch = append(ch, ci...)
-
-		return nil
-	}); err != nil {
+		return c, nil
+	})
+	if err != nil {
 		return nil, err
 	}
+	sort.Slice(ch, func(i, j int) bool {
+		return ch[i].NameNormalized < ch[j].NameNormalized
+	})
+
 	d.cache.channels.Store(ch)
 	return ch, nil
 }
 
+type result struct {
+	ci  []slack.Channel
+	err error
+}
+
 // Walk iterates over all chunk files in the directory and calls the function
 // for each file.  If the function returns an error, the iteration stops.
+// It does not close files after the callback is called, so it's a caller's
+// responsibility to close it.
 func (d *Directory) Walk(fn func(name string, f *File, err error) error) error {
 	return filepath.WalkDir(d.dir, func(path string, de fs.DirEntry, err error) error {
 		if err != nil {
@@ -156,10 +238,16 @@ func (d *Directory) Walk(fn func(name string, f *File, err error) error) error {
 			return fn(path, nil, err)
 		}
 		cf, err := cachedFromReader(f, d.wantCache)
-		if err == nil {
-			defer cf.Close()
-		}
 		return fn(path, cf, err)
+	})
+}
+
+// WalkSync is the same as Walk, but it closes the file after the callback is
+// called.
+func (d *Directory) WalkSync(fn func(name string, f *File, err error) error) error {
+	return d.Walk(func(name string, f *File, err error) error {
+		defer f.Close()
+		return fn(name, f, err)
 	})
 }
 
@@ -356,7 +444,7 @@ func (d *Directory) File(id string, name string) (fs.File, error) {
 
 func (d *Directory) AllMessages(channelID string) ([]slack.Message, error) {
 	var mm structures.Messages
-	err := d.Walk(func(name string, f *File, err error) error {
+	err := d.WalkSync(func(name string, f *File, err error) error {
 		if err != nil {
 			return err
 		}
@@ -380,7 +468,7 @@ func (d *Directory) AllMessages(channelID string) ([]slack.Message, error) {
 func (d *Directory) AllThreadMessages(channelID, threadID string) ([]slack.Message, error) {
 	var mm structures.Messages
 	var parent *slack.Message
-	err := d.Walk(func(name string, f *File, err error) error {
+	err := d.WalkSync(func(name string, f *File, err error) error {
 		if err != nil {
 			return err
 		}

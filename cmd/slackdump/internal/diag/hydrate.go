@@ -178,7 +178,7 @@ func download(ctx context.Context, archive, target string, dry bool) error {
 
 //go:generate mockgen -destination=hydrate_mock_test.go -package=diag -source hydrate.go sourcer
 type sourcer interface {
-	Channels() ([]slack.Channel, error)
+	Channels(ctx context.Context) ([]slack.Channel, error)
 	AllMessages(channelID string) ([]slack.Message, error)
 	AllThreadMessages(channelID, threadTimestamp string) ([]slack.Message, error)
 }
@@ -192,7 +192,7 @@ func downloadFiles(ctx context.Context, d downloader.GetFiler, trg fsadapter.FS,
 
 	proc := fileproc.NewExport(fileproc.STmattermost, dl)
 
-	channels, err := src.Channels()
+	channels, err := src.Channels(ctx)
 	if err != nil {
 		return fmt.Errorf("error reading channels: %w", err)
 	}

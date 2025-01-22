@@ -95,7 +95,7 @@ func export(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, list
 	_ = pb.Finish()
 	// at this point no goroutines are running, we are safe to assume that
 	// everything we need is in the chunk directory.
-	if err := conv.WriteIndex(); err != nil {
+	if err := conv.WriteIndex(ctx); err != nil {
 		return err
 	}
 	if err := tf.Close(); err != nil {

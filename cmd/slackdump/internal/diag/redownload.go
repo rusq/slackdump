@@ -82,7 +82,7 @@ func redownload(ctx context.Context, dir string) (int, error) {
 	}
 	defer cd.Close()
 
-	channels, err := cd.Channels()
+	channels, err := cd.Channels(ctx)
 	if err != nil {
 		return 0, fmt.Errorf("error reading channels: %w", err)
 	}

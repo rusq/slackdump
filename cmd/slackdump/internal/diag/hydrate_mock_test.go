@@ -10,6 +10,7 @@
 package diag
 
 import (
+	context "context"
 	reflect "reflect"
 
 	slack "github.com/rusq/slack"
@@ -71,16 +72,16 @@ func (mr *MocksourcerMockRecorder) AllThreadMessages(channelID, threadTimestamp 
 }
 
 // Channels mocks base method.
-func (m *Mocksourcer) Channels() ([]slack.Channel, error) {
+func (m *Mocksourcer) Channels(ctx context.Context) ([]slack.Channel, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Channels")
+	ret := m.ctrl.Call(m, "Channels", ctx)
 	ret0, _ := ret[0].([]slack.Channel)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Channels indicates an expected call of Channels.
-func (mr *MocksourcerMockRecorder) Channels() *gomock.Call {
+func (mr *MocksourcerMockRecorder) Channels(ctx any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Channels", reflect.TypeOf((*Mocksourcer)(nil).Channels))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Channels", reflect.TypeOf((*Mocksourcer)(nil).Channels), ctx)
 }

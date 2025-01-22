@@ -1,6 +1,7 @@
 package source
 
 import (
+	"context"
 	"fmt"
 	"io/fs"
 	"log/slog"
@@ -9,6 +10,7 @@ import (
 	"github.com/rusq/slackdump/v3/internal/chunk"
 
 	"github.com/rusq/slack"
+
 	"github.com/rusq/slackdump/v3/export"
 	"github.com/rusq/slackdump/v3/internal/structures"
 )
@@ -63,7 +65,7 @@ func loadStorage(fsys fs.FS) (Storage, error) {
 	return NewStandardStorage(fsys, idx), nil
 }
 
-func (e *Export) Channels() ([]slack.Channel, error) {
+func (e *Export) Channels(context.Context) ([]slack.Channel, error) {
 	return e.channels, nil
 }
 
@@ -149,8 +151,8 @@ func (e *Export) AllThreadMessages(channelID, threadID string) ([]slack.Message,
 	return tm, nil
 }
 
-func (e *Export) ChannelInfo(channelID string) (*slack.Channel, error) {
-	c, err := e.Channels()
+func (e *Export) ChannelInfo(ctx context.Context, channelID string) (*slack.Channel, error) {
+	c, err := e.Channels(ctx)
 	if err != nil {
 		return nil, err
 	}

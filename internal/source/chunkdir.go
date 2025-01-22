@@ -1,6 +1,7 @@
 package source
 
 import (
+	"context"
 	"os"
 
 	"github.com/rusq/slack"
@@ -48,7 +49,7 @@ func (c *ChunkDir) AllThreadMessages(channelID, threadID string) ([]slack.Messag
 	return c.d.AllThreadMessages(channelID, threadID)
 }
 
-func (c *ChunkDir) ChannelInfo(channelID string) (*slack.Channel, error) {
+func (c *ChunkDir) ChannelInfo(_ context.Context, channelID string) (*slack.Channel, error) {
 	f, err := c.d.Open(chunk.ToFileID(channelID, "", false))
 	if err != nil {
 		return nil, err
@@ -57,8 +58,8 @@ func (c *ChunkDir) ChannelInfo(channelID string) (*slack.Channel, error) {
 	return f.ChannelInfo(channelID)
 }
 
-func (c *ChunkDir) Channels() ([]slack.Channel, error) {
-	return c.d.Channels()
+func (c *ChunkDir) Channels(ctx context.Context) ([]slack.Channel, error) {
+	return c.d.Channels(ctx)
 }
 
 func (c *ChunkDir) Name() string {

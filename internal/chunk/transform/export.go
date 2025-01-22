@@ -256,12 +256,12 @@ func ExportChanName(ch *slack.Channel) string {
 // WriteIndex generates and writes the export index files.  It must be called
 // once all transformations are done, because it might require to read channel
 // files.
-func (t *ExpConverter) WriteIndex() error {
+func (t *ExpConverter) WriteIndex(ctx context.Context) error {
 	wsp, err := t.cd.WorkspaceInfo()
 	if err != nil {
 		return fmt.Errorf("failed to get the workspace info: %w", err)
 	}
-	chans, err := t.cd.Channels() // this might read the channel files if it doesn't find the channels list chunks.
+	chans, err := t.cd.Channels(ctx)
 	if err != nil {
 		return fmt.Errorf("error indexing channels: %w", err)
 	}

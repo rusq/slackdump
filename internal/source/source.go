@@ -18,6 +18,7 @@ import (
 	"strings"
 
 	"github.com/rusq/slack"
+
 	"github.com/rusq/slackdump/v3/internal/chunk"
 )
 
@@ -40,7 +41,7 @@ type Sourcer interface {
 	// Type should return the type of the retriever, i.e. "chunk" or "export".
 	Type() string
 	// Channels should return all channels.
-	Channels() ([]slack.Channel, error)
+	Channels(ctx context.Context) ([]slack.Channel, error)
 	// Users should return all users.
 	Users() ([]slack.User, error)
 	// AllMessages should return all messages for the given channel id.
@@ -50,7 +51,7 @@ type Sourcer interface {
 	AllThreadMessages(channelID, threadID string) ([]slack.Message, error)
 	// ChannelInfo should return the channel information for the given channel
 	// id.
-	ChannelInfo(channelID string) (*slack.Channel, error)
+	ChannelInfo(ctx context.Context, channelID string) (*slack.Channel, error)
 	// FS should return the filesystem with file attachments.
 	FS() fs.FS
 	// File should return the path of the file within the filesystem returned
@@ -96,10 +97,10 @@ func Load(ctx context.Context, src string) (Sourcer, error) {
 		if err != nil {
 			return nil, err
 		}
-		return NewDump(f, src)
+		return NewDump(ctx, f, src)
 	case FDump | FDirectory:
 		lg.DebugContext(ctx, "loading dump directory")
-		return NewDump(os.DirFS(src), src)
+		return NewDump(ctx, os.DirFS(src), src)
 	default:
 		return nil, fmt.Errorf("unsupported source type: %s", src)
 	}

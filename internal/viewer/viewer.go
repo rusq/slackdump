@@ -51,7 +51,7 @@ const (
 // [Sourcer] to retrieve the data, see "source" package for available options.
 // It will initialise the logger from the context.
 func New(ctx context.Context, addr string, r source.Sourcer) (*Viewer, error) {
-	all, err := r.Channels()
+	all, err := r.Channels(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -115,7 +115,7 @@ func (v *Viewer) Close() error {
 }
 
 func indexusers(uu []slack.User) map[string]slack.User {
-	var um = make(map[string]slack.User, len(uu))
+	um := make(map[string]slack.User, len(uu))
 	for _, u := range uu {
 		um[u.ID] = u
 	}
@@ -123,7 +123,7 @@ func indexusers(uu []slack.User) map[string]slack.User {
 }
 
 func indexchannels(cc []slack.Channel) map[string]slack.Channel {
-	var cm = make(map[string]slack.Channel, len(cc))
+	cm := make(map[string]slack.Channel, len(cc))
 	for _, c := range cc {
 		cm[c.ID] = c
 	}
