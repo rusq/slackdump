@@ -11,8 +11,9 @@ import (
 	"time"
 
 	"github.com/rusq/slack"
-	"github.com/rusq/slackdump/v3/internal/chunk/state"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/rusq/slackdump/v3/internal/chunk/state"
 )
 
 const (
@@ -128,7 +129,7 @@ var archivedChannel = []Chunk{
 }
 
 var testChunks = []Chunk{
-	{Type: CChannelInfo, ChannelID: TestChannelID, Channel: &slack.Channel{GroupConversation: slack.GroupConversation{Conversation: slack.Conversation{ID: TestChannelID}}}},
+	{Type: CChannelInfo, ChannelID: TestChannelID, Channel: &slack.Channel{GroupConversation: slack.GroupConversation{Conversation: slack.Conversation{ID: TestChannelID, NumMembers: 2}}}},
 	{Type: CChannelUsers, ChannelID: TestChannelID, ChannelUsers: []string{"user1", "user2"}},
 	{Type: CMessages, ChannelID: TestChannelID, Messages: []slack.Message{
 		{Msg: slack.Msg{Timestamp: "1234567890.100000", Text: "message1"}},
@@ -186,7 +187,7 @@ var testChunks = []Chunk{
 		},
 	},
 	// chunks from another channel
-	{Type: CChannelInfo, ChannelID: TestChannelID2, Channel: &slack.Channel{GroupConversation: slack.GroupConversation{Conversation: slack.Conversation{ID: TestChannelID2}}}},
+	{Type: CChannelInfo, ChannelID: TestChannelID2, Channel: &slack.Channel{GroupConversation: slack.GroupConversation{Conversation: slack.Conversation{ID: TestChannelID2, NumMembers: 2}}}},
 	{Type: CChannelUsers, ChannelID: TestChannelID2, ChannelUsers: []string{"user3", "user4"}},
 	{Type: CMessages, ChannelID: TestChannelID2, Messages: []slack.Message{
 		{Msg: slack.Msg{Timestamp: "1234567890.100000", Text: "message1"}},
