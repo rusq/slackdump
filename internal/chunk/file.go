@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"iter"
 	"log"
 	"log/slog"
 	"path/filepath"
@@ -398,11 +399,6 @@ func allForID[T any](p *File, id GroupID, fn func(*Chunk) []T) ([]T, error) {
 	return ret, nil
 }
 
-type Result[T any] struct {
-	Err error
-	Val T
-}
-
 // AllChannelIDs returns all the channels in the chunkfile.
 func (p *File) AllChannelIDs() []string {
 	ids := make([]string, 0, 1)
@@ -572,4 +568,75 @@ func (f *File) WorkspaceInfo() (*slack.AuthTestResponse, error) {
 	}
 
 	return chunk.WorkspaceInfo, nil
+}
+
+// iterator functions
+
+// Result is the iterator result
+type Result[T any] struct {
+	Err error
+	Val T
+}
+
+func (r Result[T]) Unwrap() error {
+	if r.Err != nil {
+		return r.Err
+	}
+	return nil
+}
+
+func (r Result[T]) Error() string {
+	if r.Err != nil {
+		return r.Err.Error()
+	}
+	return ""
+}
+
+func allForIDIter[T any](f *File, id GroupID, extractFn func(c *Chunk) T) (iter.Seq[Result[T]], error) {
+	offsets, ok := f.idx[id]
+	if !ok {
+		return nil, fmt.Errorf("chunk %q: %w", id, ErrNotFound)
+	}
+	return func(yield func(Result[T]) bool) {
+		for _, offset := range offsets {
+			chunk, err := f.chunkAt(offset)
+			if err != nil {
+				if !yield(Result[T]{Err: err}) {
+					return
+				}
+				continue
+			}
+			if !yield(Result[T]{Val: extractFn(chunk)}) {
+				return
+			}
+		}
+	}, nil
+}
+
+// Latest returns the latest timestamps for the channels and threads
+// in the file.
+func (f *File) Latest(ctx context.Context) (map[GroupID]time.Time, error) {
+	f.ensure()
+	ots, err := f.offsetTimestamps(ctx)
+	if err != nil {
+		return nil, err
+	}
+	ret := make(map[GroupID]time.Time, len(ots))
+	for _, info := range ots {
+		if info.Type != CMessages && info.Type != CThreadMessages {
+			continue
+		}
+		if len(info.Timestamps) == 0 {
+			continue
+		}
+		curr, ok := ret[info.ID]
+		if !ok {
+			ret[info.ID] = fasttime.Int2Time(info.Timestamps[0])
+			continue
+		}
+		if fasttime.Int2Time(info.Timestamps[0]).After(curr) {
+			ret[info.ID] = fasttime.Int2Time(info.Timestamps[0])
+		}
+	}
+	return ret, nil
 }

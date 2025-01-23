@@ -2,11 +2,15 @@ package source
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"os"
+	"time"
 
 	"github.com/rusq/slack"
 
 	"github.com/rusq/slackdump/v3/internal/chunk"
+	"github.com/rusq/slackdump/v3/internal/structures"
 )
 
 // ChunkDir is the chunk directory source.
@@ -72,4 +76,28 @@ func (c *ChunkDir) Type() string {
 
 func (c *ChunkDir) Users() ([]slack.User, error) {
 	return c.d.Users()
+}
+
+func (c *ChunkDir) Close() error {
+	return c.d.Close()
+}
+
+var ErrUnknownLinkType = errors.New("unknown link type")
+
+func (c *ChunkDir) Latest(ctx context.Context) (map[structures.SlackLink]time.Time, error) {
+	l, err := c.d.Latest(ctx)
+	if err != nil {
+		return nil, err
+	}
+	mm := make(map[structures.SlackLink]time.Time, len(l))
+	for k, v := range l {
+		if ch, ok := k.AsChannelID(); ok {
+			mm[structures.SlackLink{Channel: ch}] = v
+		} else if ch, th, ok := k.AsThreadID(); ok {
+			mm[structures.SlackLink{Channel: ch, ThreadTS: th}] = v
+		} else {
+			return nil, fmt.Errorf("%q: %w", k, ErrUnknownLinkType)
+		}
+	}
+	return mm, nil
 }

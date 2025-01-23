@@ -31,6 +31,7 @@ import (
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/help"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/list"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/man"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/resume"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/view"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/wizard"
@@ -44,6 +45,7 @@ func init() {
 		export.CmdExport,
 		dump.CmdDump,
 		archive.CmdSearch,
+		resume.CmdResume,
 		convertcmd.CmdConvert,
 		list.CmdList,
 		emoji.CmdEmoji,

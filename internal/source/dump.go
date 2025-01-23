@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"path"
+	"time"
 
 	"github.com/rusq/slack"
 
@@ -198,4 +199,12 @@ func (d Dump) ChannelInfo(_ context.Context, channelID string) (*slack.Channel, 
 		}
 	}
 	return nil, fs.ErrNotExist
+}
+
+func (d Dump) Close() error {
+	return nil
+}
+
+func (d Dump) Latest(ctx context.Context) (map[structures.SlackLink]time.Time, error) {
+	panic("not implemented")
 }
