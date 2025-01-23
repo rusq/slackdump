@@ -59,7 +59,7 @@ func (p *Player) SetState(ptrs map[GroupID]int) {
 func (p *Player) next(id GroupID) (*Chunk, error) {
 	p.ptrMu.Lock()
 	defer p.ptrMu.Unlock()
-	offsets, ok := p.f.Offsets(id)
+	offsets, ok := p.f.offsets(id)
 	if !ok {
 		return nil, ErrNotFound
 	}
@@ -118,7 +118,7 @@ func (p *Player) HasMoreMessages(channelID string) bool {
 func (p *Player) hasMore(id GroupID) bool {
 	p.ptrMu.RLock()
 	defer p.ptrMu.RUnlock()
-	offsets, ok := p.f.Offsets(id)
+	offsets, ok := p.f.offsets(id)
 	if !ok {
 		return false // no such id
 	}

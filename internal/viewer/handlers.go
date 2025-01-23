@@ -10,6 +10,7 @@ import (
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/rusq/slack"
+
 	"github.com/rusq/slackdump/v3/internal/fasttime"
 )
 
@@ -85,7 +86,7 @@ func (v *Viewer) channelHandler(w http.ResponseWriter, r *http.Request, id strin
 
 	lg.DebugContext(ctx, "conversation", "id", id, "message_count", len(mm))
 
-	ci, err := v.src.ChannelInfo(id)
+	ci, err := v.src.ChannelInfo(r.Context(), id)
 	if err != nil {
 		lg.ErrorContext(ctx, "src.ChannelInfo", "error", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -104,7 +105,6 @@ func (v *Viewer) channelHandler(w http.ResponseWriter, r *http.Request, id strin
 		lg.ErrorContext(ctx, "ExecuteTemplate", "error", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
-
 }
 
 func isHXRequest(r *http.Request) bool {
@@ -128,7 +128,7 @@ func (v *Viewer) threadHandler(w http.ResponseWriter, r *http.Request, id string
 
 	lg.DebugContext(ctx, "Messages", "mm_count", len(mm))
 
-	ci, err := v.src.ChannelInfo(id)
+	ci, err := v.src.ChannelInfo(r.Context(), id)
 	if err != nil {
 		lg.ErrorContext(ctx, "ChannelInfo", "error", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)

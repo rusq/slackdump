@@ -18,6 +18,7 @@ import (
 	"strings"
 
 	"github.com/rusq/slack"
+
 	"github.com/rusq/slackdump/v3/internal/chunk"
 )
 
@@ -30,6 +31,8 @@ const (
 	FChunk
 	FExport
 	FDump
+	FAvatars
+	FMattermost
 )
 
 // Sourcer is an interface for retrieving data from different sources.
@@ -40,7 +43,7 @@ type Sourcer interface {
 	// Type should return the type of the retriever, i.e. "chunk" or "export".
 	Type() string
 	// Channels should return all channels.
-	Channels() ([]slack.Channel, error)
+	Channels(ctx context.Context) ([]slack.Channel, error)
 	// Users should return all users.
 	Users() ([]slack.User, error)
 	// AllMessages should return all messages for the given channel id.
@@ -50,7 +53,7 @@ type Sourcer interface {
 	AllThreadMessages(channelID, threadID string) ([]slack.Message, error)
 	// ChannelInfo should return the channel information for the given channel
 	// id.
-	ChannelInfo(channelID string) (*slack.Channel, error)
+	ChannelInfo(ctx context.Context, channelID string) (*slack.Channel, error)
 	// FS should return the filesystem with file attachments.
 	FS() fs.FS
 	// File should return the path of the file within the filesystem returned
@@ -68,11 +71,14 @@ var (
 // Load loads the source from file src.
 func Load(ctx context.Context, src string) (Sourcer, error) {
 	lg := slog.With("source", src)
-	fi, err := os.Stat(src)
+	st, err := Type(src)
 	if err != nil {
 		return nil, err
 	}
-	switch srcType(src, fi) {
+	if st == FUnknown {
+		return nil, fmt.Errorf("unsupported source type: %s", src)
+	}
+	switch st {
 	case FChunk | FDirectory:
 		lg.DebugContext(ctx, "loading chunk directory")
 		dir, err := chunk.OpenDir(src)
@@ -96,13 +102,21 @@ func Load(ctx context.Context, src string) (Sourcer, error) {
 		if err != nil {
 			return nil, err
 		}
-		return NewDump(f, src)
+		return NewDump(ctx, f, src)
 	case FDump | FDirectory:
 		lg.DebugContext(ctx, "loading dump directory")
-		return NewDump(os.DirFS(src), src)
+		return NewDump(ctx, os.DirFS(src), src)
 	default:
 		return nil, fmt.Errorf("unsupported source type: %s", src)
 	}
+}
+
+func Type(src string) (Flags, error) {
+	fi, err := os.Stat(src)
+	if err != nil {
+		return FUnknown, err
+	}
+	return srcType(src, fi), nil
 }
 
 func srcType(src string, fi fs.FileInfo) Flags {
@@ -119,6 +133,14 @@ func srcType(src string, fi fs.FileInfo) Flags {
 		defer f.Close()
 		fsys = f
 		flags |= FZip
+	} else {
+		return FUnknown
+	}
+	if _, err := fs.Stat(fsys, "__avatars"); err == nil {
+		flags |= FAvatars
+	}
+	if _, err := fs.Stat(fsys, chunk.UploadsDir); err == nil {
+		flags |= FMattermost
 	}
 	if ff, err := fs.Glob(fsys, "[CD]*.json"); err == nil && len(ff) > 0 {
 		return flags | FDump

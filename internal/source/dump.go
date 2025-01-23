@@ -1,6 +1,7 @@
 package source
 
 import (
+	"context"
 	"io/fs"
 	"log/slog"
 	"os"
@@ -19,7 +20,7 @@ type Dump struct {
 	Storage
 }
 
-func NewDump(fsys fs.FS, name string) (*Dump, error) {
+func NewDump(ctx context.Context, fsys fs.FS, name string) (*Dump, error) {
 	var st Storage = fstNotFound{}
 	if fst, err := NewDumpStorage(fsys); err == nil {
 		st = fst
@@ -30,7 +31,7 @@ func NewDump(fsys fs.FS, name string) (*Dump, error) {
 		Storage: st,
 	}
 	// initialise channels for quick lookup
-	c, err := d.Channels()
+	c, err := d.Channels(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -46,7 +47,7 @@ func (d Dump) Type() string {
 	return "dump"
 }
 
-func (d Dump) Channels() ([]slack.Channel, error) {
+func (d Dump) Channels(context.Context) ([]slack.Channel, error) {
 	// if user was diligent enough to dump channels and save them in a file,
 	// we can use that.
 	if cc, err := unmarshal[[]slack.Channel](d.fs, "channels.json"); err == nil {
@@ -190,7 +191,7 @@ func (d Dump) findThreadFile(channelID, threadID string) ([]types.Message, error
 	return c.Messages, nil
 }
 
-func (d Dump) ChannelInfo(channelID string) (*slack.Channel, error) {
+func (d Dump) ChannelInfo(_ context.Context, channelID string) (*slack.Channel, error) {
 	for _, c := range d.c {
 		if c.ID == channelID {
 			return &c, nil

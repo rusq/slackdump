@@ -155,7 +155,7 @@ func Test_downloadFiles(t *testing.T) {
 		{
 			"single message w 2 files",
 			func(m *Mocksourcer, fs *mock_fsadapter.MockFSCloser, d *mock_downloader.MockGetFiler) {
-				m.EXPECT().Channels().Return(TestChannels, nil)
+				m.EXPECT().Channels(gomock.Any()).Return(TestChannels, nil)
 				m.EXPECT().AllMessages("C01").Return([]slack.Message{TestMsgWFile1}, nil)
 
 				fs.EXPECT().Create(filepath.Join("__uploads", "1", "file1")).Return(&fakewritecloser{}, nil)
@@ -169,7 +169,7 @@ func Test_downloadFiles(t *testing.T) {
 		{
 			"all ok",
 			func(m *Mocksourcer, fs *mock_fsadapter.MockFSCloser, d *mock_downloader.MockGetFiler) {
-				m.EXPECT().Channels().Return(TestChannels, nil)
+				m.EXPECT().Channels(gomock.Any()).Return(TestChannels, nil)
 				m.EXPECT().AllMessages("C01").Return(TestMessages, nil)
 				m.EXPECT().AllThreadMessages("C01", "2").Return(TestThreadMessages, nil)
 

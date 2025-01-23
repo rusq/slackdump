@@ -40,29 +40,31 @@ def main(args: list[str]):
         print("node [shape=box];")
         for line in file:
             chunk = json.loads(line)
-            if chunk["_t"] == CHUNK_MESSAGE:
-                for msg in chunk["_m"]:
+            chunk_type = chunk["t"]
+            if chunk_type == CHUNK_MESSAGE:
+                for msg in chunk["m"]:
                     print(f"{msg['ts']} [fillcolor=\"{COLOR_MSG}\"; style=filled];")
                     if files := msg.get("files"):
                         if files:
                             for file in files:
                                 print(f"_{file['id']}[fillcolor=\"{COLOR_MSG_FILE}\"; style=filled];")
                                 print(f"{msg['ts']} -> _{file['id']};")
-            elif chunk["_t"] == CHUNK_THREAD:
-                for msg in chunk["_m"]:
+            elif chunk_type == CHUNK_THREAD:
+                for msg in chunk["m"]:
                     print(f"{msg['ts']}[fillcolor=\"{COLOR_THREAD}\"; style=filled];")
-                    print(f"{chunk['_p']['ts']} -> {msg['ts']};")
+                    print(f"{chunk['p']['ts']} -> {msg['ts']};")
                     if files := msg.get("files"):
                         if files:
                             for file in files:
                                 print(f"_{file['id']}[fillcolor=\"{COLOR_MSG_FILE}\"; style=filled];")
                                 print(f"{msg['ts']} -> _{file['id']};")
-            elif chunk["_t"] == CHUNK_FILE:
-                for file in chunk["_f"]:
+            elif chunk_type == CHUNK_FILE:
+                for file in chunk["f"]:
                     print(f"{file['id']}[fillcolor=\"{COLOR_FILE}\"; style=filled];")
                     print(f"{chunk['_p']['ts']} -> {file['id']};")
             else:
-                raise("Unknown chunk type: " + str(chunk["_t"]))
+                # raise ValueError("Unknown chunk type: " + str(chunk_type))
+                pass
         print("}")
 if __name__ == '__main__':
     main(sys.argv[1:])

@@ -176,7 +176,7 @@ func (c *ChunkToExport) Convert(ctx context.Context) error {
 	if err := c.Validate(); err != nil {
 		return err
 	}
-	channels, err := c.src.Channels()
+	channels, err := c.src.Channels(ctx)
 	if err != nil {
 		return err
 	}
@@ -248,7 +248,7 @@ func (c *ChunkToExport) Convert(ctx context.Context) error {
 		go func() {
 			defer msgwg.Done()
 			c.lg.DebugContext(ctx, "writing index", "name", c.src.Name())
-			if err := conv.WriteIndex(); err != nil {
+			if err := conv.WriteIndex(ctx); err != nil {
 				errC <- err
 			}
 		}()
@@ -288,6 +288,7 @@ LOOP:
 				break LOOP
 			}
 			if err != nil {
+				slog.Error("worker error", "err", err)
 				failed = true
 			}
 		}

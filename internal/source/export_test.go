@@ -2,6 +2,7 @@ package source
 
 import (
 	"archive/zip"
+	"context"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -57,7 +58,7 @@ func TestExport_Channels(t *testing.T) {
 				chanNames: tt.fields.chanNames,
 				name:      tt.fields.name,
 			}
-			got, err := e.Channels()
+			got, err := e.Channels(context.Background())
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Export.Channels() error = %v, wantErr %v", err, tt.wantErr)
 				return
