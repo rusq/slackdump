@@ -63,12 +63,9 @@ func RunArchive(ctx context.Context, cmd *base.Command, args []string) error {
 		base.SetExitStatus(base.SInitializationError)
 		return err
 	}
+
 	lg := cfg.Log
-	stream := sess.Stream(
-		stream.OptLatest(time.Time(cfg.Latest)),
-		stream.OptOldest(time.Time(cfg.Oldest)),
-		stream.OptResultFn(resultLogger(lg)),
-	)
+	// start attachment downloader
 	dl, stop := fileproc.NewDownloader(
 		ctx,
 		cfg.DownloadFiles,
@@ -77,6 +74,8 @@ func RunArchive(ctx context.Context, cmd *base.Command, args []string) error {
 		lg,
 	)
 	defer stop()
+	subproc := fileproc.NewExport(fileproc.STmattermost, dl)
+	// start avatar downloader
 	avdl, avstop := fileproc.NewDownloader(
 		ctx,
 		cfg.DownloadAvatars,
@@ -85,10 +84,12 @@ func RunArchive(ctx context.Context, cmd *base.Command, args []string) error {
 		lg,
 	)
 	defer avstop()
-	var (
-		// archive format has files stored in mattermost format.
-		subproc = fileproc.NewExport(fileproc.STmattermost, dl)
-		avproc  = fileproc.NewAvatarProc(avdl)
+	avproc := fileproc.NewAvatarProc(avdl)
+
+	stream := sess.Stream(
+		stream.OptLatest(time.Time(cfg.Latest)),
+		stream.OptOldest(time.Time(cfg.Oldest)),
+		stream.OptResultFn(resultLogger(lg)),
 	)
 	ctrl := control.New(
 		cd,

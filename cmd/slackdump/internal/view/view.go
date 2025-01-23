@@ -5,7 +5,6 @@ import (
 	_ "embed"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 
 	"github.com/rusq/slackdump/v3/internal/source"
@@ -26,7 +25,7 @@ var CmdView = &base.Command{
 	Long:       mdView,
 	PrintFlags: true,
 	FlagMask:   cfg.OmitAll,
-	Run:        RunView,
+	Run:        runView,
 }
 
 var listenAddr string
@@ -35,7 +34,7 @@ func init() {
 	CmdView.Flag.StringVar(&listenAddr, "listen", "127.0.0.1:8080", "address to listen on")
 }
 
-func RunView(ctx context.Context, cmd *base.Command, args []string) error {
+func runView(ctx context.Context, cmd *base.Command, args []string) error {
 	if len(args) < 1 {
 		base.SetExitStatus(base.SInvalidParameters)
 		return fmt.Errorf("viewing slackdump files requires at least one argument")
@@ -45,9 +44,7 @@ func RunView(ctx context.Context, cmd *base.Command, args []string) error {
 		base.SetExitStatus(base.SUserError)
 		return err
 	}
-	if cl, ok := src.(io.Closer); ok {
-		defer cl.Close()
-	}
+	defer src.Close()
 
 	v, err := viewer.New(ctx, listenAddr, src)
 	if err != nil {

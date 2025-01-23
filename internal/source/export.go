@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"log/slog"
 	"path"
+	"time"
 
 	"github.com/rusq/slackdump/v3/internal/chunk"
 
@@ -162,4 +163,8 @@ func (e *Export) ChannelInfo(ctx context.Context, channelID string) (*slack.Chan
 		}
 	}
 	return nil, fmt.Errorf("%s: %s", "channel not found", channelID)
+}
+
+func (e *Export) Latest(ctx context.Context) (map[structures.SlackLink]time.Time, error) {
+	panic("not implemented")
 }
