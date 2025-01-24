@@ -54,10 +54,9 @@ func export(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, list
 
 	// starting the downloader
 	dlEnabled := cfg.DownloadFiles && params.ExportStorageType != fileproc.STnone
-	sdl, stop := fileproc.NewDownloader(ctx, dlEnabled, sess.Client(), fsa, lg)
-	defer stop()
-	avdl, avstop := fileproc.NewDownloader(ctx, cfg.DownloadAvatars, sess.Client(), fsa, lg)
-	defer avstop()
+	sdl := fileproc.NewDownloader(ctx, dlEnabled, sess.Client(), fsa, lg)
+	fp := fileproc.NewExport(params.ExportStorageType, sdl)
+	avdl := fileproc.NewDownloader(ctx, cfg.DownloadAvatars, sess.Client(), fsa, lg)
 	avp := fileproc.NewAvatarProc(avdl)
 
 	pb := bootstrap.ProgressBar(ctx, lg, progressbar.OptionShowCount()) // progress bar
@@ -80,12 +79,13 @@ func export(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, list
 	ctr := control.New(
 		chunkdir,
 		stream,
-		control.WithFiler(fileproc.NewExport(params.ExportStorageType, sdl)),
+		control.WithFiler(fp),
 		control.WithLogger(lg),
 		control.WithFlags(flags),
 		control.WithTransformer(tf),
 		control.WithAvatarProcessor(avp),
 	)
+	defer ctr.Close()
 
 	lg.InfoContext(ctx, "running export...")
 	if err := ctr.Run(ctx, list); err != nil {
@@ -98,11 +98,11 @@ func export(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, list
 	if err := conv.WriteIndex(ctx); err != nil {
 		return err
 	}
+	lg.Debug("index written")
 	if err := tf.Close(); err != nil {
 		return err
 	}
 	pb.Describe("OK")
-	lg.Debug("index written")
 	lg.InfoContext(ctx, "conversations export finished")
 	lg.DebugContext(ctx, "chunk files retained", "dir", tmpdir)
 	return nil

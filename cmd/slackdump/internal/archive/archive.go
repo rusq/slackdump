@@ -9,6 +9,7 @@ import (
 
 	"github.com/rusq/fsadapter"
 
+	"github.com/rusq/slackdump/v3"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/bootstrap"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
@@ -45,45 +46,59 @@ func RunArchive(ctx context.Context, cmd *base.Command, args []string) error {
 		base.SetExitStatus(base.SUserError)
 		return err
 	}
-
-	cfg.Output = cfg.StripZipExt(cfg.Output)
-	if cfg.Output == "" {
-		base.SetExitStatus(base.SInvalidParameters)
-		return errNoOutput
-	}
-
-	cd, err := chunk.CreateDir(cfg.Output)
-	if err != nil {
-		base.SetExitStatus(base.SGenericError)
-		return err
-	}
-
 	sess, err := bootstrap.SlackdumpSession(ctx)
 	if err != nil {
 		base.SetExitStatus(base.SInitializationError)
 		return err
 	}
 
+	ctrl, err := ArchiveController(ctx, sess)
+	if err != nil {
+		return err
+	}
+	defer ctrl.Close()
+	if err := ctrl.Run(ctx, list); err != nil {
+		base.SetExitStatus(base.SApplicationError)
+		return err
+	}
+	cfg.Log.Info("Recorded workspace data", "filename", cfg.Output, "took", time.Since(start))
+
+	return nil
+}
+
+// ArchiveController returns the default archive controller initialised based
+// on global configuration parameters.
+func ArchiveController(ctx context.Context, sess *slackdump.Session) (*control.Controller, error) {
+	cfg.Output = cfg.StripZipExt(cfg.Output)
+	if cfg.Output == "" {
+		base.SetExitStatus(base.SInvalidParameters)
+		return nil, errNoOutput
+	}
+
+	cd, err := chunk.CreateDir(cfg.Output)
+	if err != nil {
+		base.SetExitStatus(base.SGenericError)
+		return nil, err
+	}
+
 	lg := cfg.Log
 	// start attachment downloader
-	dl, stop := fileproc.NewDownloader(
+	dl := fileproc.NewDownloader(
 		ctx,
 		cfg.DownloadFiles,
 		sess.Client(),
 		fsadapter.NewDirectory(cd.Name()),
 		lg,
 	)
-	defer stop()
-	subproc := fileproc.NewExport(fileproc.STmattermost, dl)
+	fp := fileproc.NewExport(fileproc.STmattermost, dl)
 	// start avatar downloader
-	avdl, avstop := fileproc.NewDownloader(
+	avdl := fileproc.NewDownloader(
 		ctx,
 		cfg.DownloadAvatars,
 		sess.Client(),
 		fsadapter.NewDirectory(cd.Name()),
 		lg,
 	)
-	defer avstop()
 	avproc := fileproc.NewAvatarProc(avdl)
 
 	stream := sess.Stream(
@@ -95,17 +110,11 @@ func RunArchive(ctx context.Context, cmd *base.Command, args []string) error {
 		cd,
 		stream,
 		control.WithLogger(lg),
-		control.WithFiler(subproc),
 		control.WithFlags(control.Flags{MemberOnly: cfg.MemberOnly, RecordFiles: cfg.RecordFiles}),
+		control.WithFiler(fp),
 		control.WithAvatarProcessor(avproc),
 	)
-	if err := ctrl.Run(ctx, list); err != nil {
-		base.SetExitStatus(base.SApplicationError)
-		return err
-	}
-	lg.Info("Recorded workspace data", "filename", cd.Name(), "took", time.Since(start))
-
-	return nil
+	return ctrl, nil
 }
 
 func resultLogger(lg *slog.Logger) func(sr stream.Result) error {

@@ -23,6 +23,7 @@ type Downloader interface {
 	// Download should download the file at the given URL and save it to the
 	// given path.
 	Download(fullpath string, url string) error
+	Stop()
 }
 
 // Subprocessor is the file subprocessor, that downloads files to the path
@@ -53,6 +54,11 @@ func (b Subprocessor) Files(ctx context.Context, channel *slack.Channel, _ slack
 			return err
 		}
 	}
+	return nil
+}
+
+func (b Subprocessor) Close() error {
+	b.dcl.Stop()
 	return nil
 }
 
@@ -113,9 +119,8 @@ func IsValidWithReason(f *slack.File) error {
 
 type NoopDownloader struct{}
 
-func (NoopDownloader) Download(fullpath string, url string) error {
-	return nil
-}
+func (NoopDownloader) Download(fullpath string, url string) error { return nil }
+func (NoopDownloader) Stop()                                      {}
 
 type FileGetter interface {
 	// GetFile retreives a given file from its private download URL
@@ -124,15 +129,15 @@ type FileGetter interface {
 
 // NewDownloader initializes the downloader and returns it, along with a
 // function that should be called to stop it.
-func NewDownloader(ctx context.Context, enabled bool, cl FileGetter, fsa fsadapter.FS, lg *slog.Logger) (sdl Downloader, stop func()) {
+func NewDownloader(ctx context.Context, enabled bool, cl FileGetter, fsa fsadapter.FS, lg *slog.Logger) (sdl Downloader) {
 	if !enabled {
-		return NoopDownloader{}, func() {}
+		return NoopDownloader{}
 	} else {
 		dl := downloader.New(cl, fsa, downloader.WithLogger(lg))
 		if err := dl.Start(ctx); err != nil {
 			lg.Error("failed to start downloader", "error", err)
-			return NoopDownloader{}, func() {}
+			return NoopDownloader{}
 		}
-		return dl, dl.Stop
+		return dl
 	}
 }

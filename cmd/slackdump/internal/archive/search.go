@@ -77,10 +77,11 @@ func init() {
 }
 
 func runSearchMsg(ctx context.Context, cmd *base.Command, args []string) error {
-	ctrl, stop, err := initController(ctx, args)
+	ctrl, stop, err := searchController(ctx, args)
 	if err != nil {
 		return err
 	}
+	defer ctrl.Close()
 	defer stop()
 	query := strings.Join(args, " ")
 	if err := ctrl.SearchMessages(ctx, query); err != nil {
@@ -91,10 +92,11 @@ func runSearchMsg(ctx context.Context, cmd *base.Command, args []string) error {
 }
 
 func runSearchFiles(ctx context.Context, cmd *base.Command, args []string) error {
-	ctrl, stop, err := initController(ctx, args)
+	ctrl, stop, err := searchController(ctx, args)
 	if err != nil {
 		return err
 	}
+	defer ctrl.Close()
 	defer stop()
 	query := strings.Join(args, " ")
 	if err := ctrl.SearchFiles(ctx, query); err != nil {
@@ -105,10 +107,11 @@ func runSearchFiles(ctx context.Context, cmd *base.Command, args []string) error
 }
 
 func runSearchAll(ctx context.Context, cmd *base.Command, args []string) error {
-	ctrl, stop, err := initController(ctx, args)
+	ctrl, stop, err := searchController(ctx, args)
 	if err != nil {
 		return err
 	}
+	defer ctrl.Close()
 	defer stop()
 	query := strings.Join(args, " ")
 	if err := ctrl.SearchAll(ctx, query); err != nil {
@@ -118,7 +121,7 @@ func runSearchAll(ctx context.Context, cmd *base.Command, args []string) error {
 	return nil
 }
 
-func initController(ctx context.Context, args []string) (*control.Controller, func(), error) {
+func searchController(ctx context.Context, args []string) (*control.Controller, func(), error) {
 	if len(args) == 0 {
 		base.SetExitStatus(base.SInvalidParameters)
 		return nil, nil, errors.New("missing query parameter")
@@ -144,7 +147,7 @@ func initController(ctx context.Context, args []string) (*control.Controller, fu
 	defer cd.Close()
 
 	lg := slog.Default()
-	dl, dlstop := fileproc.NewDownloader(
+	dl := fileproc.NewDownloader(
 		ctx,
 		cfg.DownloadFiles,
 		sess.Client(),
@@ -153,7 +156,6 @@ func initController(ctx context.Context, args []string) (*control.Controller, fu
 	)
 	pb := bootstrap.ProgressBar(ctx, lg, progressbar.OptionShowCount()) // progress bar
 	stop := func() {
-		dlstop()
 		pb.Finish()
 	}
 

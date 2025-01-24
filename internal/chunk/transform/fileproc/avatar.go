@@ -33,6 +33,11 @@ func (a AvatarProc) Avatars(ctx context.Context, users []slack.User) error {
 	return nil
 }
 
+func (a AvatarProc) Close() error {
+	a.dl.Stop()
+	return nil
+}
+
 func AvatarPath(u *slack.User) string {
 	filename := path.Base(u.Profile.ImageOriginal)
 	return filepath.Join(

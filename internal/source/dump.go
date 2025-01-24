@@ -2,6 +2,7 @@ package source
 
 import (
 	"context"
+	"errors"
 	"io/fs"
 	"log/slog"
 	"os"
@@ -206,5 +207,5 @@ func (d Dump) Close() error {
 }
 
 func (d Dump) Latest(ctx context.Context) (map[structures.SlackLink]time.Time, error) {
-	panic("not implemented")
+	return nil, errors.New("not supported yet")
 }
