@@ -197,7 +197,7 @@ func (d *Directory) Channels(ctx context.Context) ([]slack.Channel, error) {
 		return val.([]slack.Channel), nil
 	}
 	ch, err := collectAll(ctx, d, d.numWorkers, func(f *File) ([]slack.Channel, error) {
-		c, err := f.AllChannels()
+		c, err := f.AllChannelInfos()
 		if err != nil {
 			if errors.Is(err, ErrNotFound) {
 				return nil, nil
