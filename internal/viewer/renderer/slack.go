@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/rusq/slack"
+
 	"github.com/rusq/slackdump/v3/internal/osext"
 	"github.com/rusq/slackdump/v3/internal/viewer/renderer/functions"
 )
@@ -51,8 +52,8 @@ func NewSlack(tmpl *template.Template, opts ...SlackOption) *Slack {
 	return s
 }
 
-func (*Slack) RenderText(ctx context.Context, s string) (v template.HTML) {
-	return template.HTML(parseSlackMd(s))
+func (*Slack) RenderText(ctx context.Context, s string) (v string) {
+	return parseSlackMd(s)
 }
 
 func (s *Slack) Render(ctx context.Context, m *slack.Message) (v template.HTML) {

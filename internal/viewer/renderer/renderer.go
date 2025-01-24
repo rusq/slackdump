@@ -8,6 +8,6 @@ import (
 )
 
 type Renderer interface {
-	RenderText(ctx context.Context, s string) (v template.HTML)
+	RenderText(ctx context.Context, s string) (v string)
 	Render(ctx context.Context, m *slack.Message) (v template.HTML)
 }

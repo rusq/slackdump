@@ -88,6 +88,16 @@ func Test_rtseText(t *testing.T) {
 			"",
 			false,
 		},
+		{
+			"marquee",
+			&Slack{},
+			args{
+				ie: slack.RichTextSectionElement(slack.NewRichTextSectionTextElement("Hello <MARQUEE> frenchesco's old\nfriend", nil)),
+			},
+			"Hello &lt;MARQUEE&gt; frenchesco&#39;s old<br>friend",
+			"",
+			false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

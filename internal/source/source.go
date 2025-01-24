@@ -78,32 +78,32 @@ func Load(ctx context.Context, src string) (Sourcer, error) {
 	if st == FUnknown {
 		return nil, fmt.Errorf("unsupported source type: %s", src)
 	}
-	switch st {
-	case FChunk | FDirectory:
+	switch {
+	case st&(FChunk|FDirectory) != 0:
 		lg.DebugContext(ctx, "loading chunk directory")
 		dir, err := chunk.OpenDir(src)
 		if err != nil {
 			return nil, err
 		}
 		return NewChunkDir(dir, true), nil
-	case FExport | FZip:
+	case st&(FExport|FZip) != 0:
 		lg.DebugContext(ctx, "loading export zip")
 		f, err := zip.OpenReader(src)
 		if err != nil {
 			return nil, err
 		}
 		return NewExport(f, src)
-	case FExport | FDirectory:
+	case st&(FExport|FDirectory) != 0:
 		lg.DebugContext(ctx, "loading export directory")
 		return NewExport(os.DirFS(src), src)
-	case FDump | FZip:
+	case st&(FDump|FZip) != 0:
 		lg.DebugContext(ctx, "loading dump zip")
 		f, err := zip.OpenReader(src)
 		if err != nil {
 			return nil, err
 		}
 		return NewDump(ctx, f, src)
-	case FDump | FDirectory:
+	case st&(FDump|FDirectory) != 0:
 		lg.DebugContext(ctx, "loading dump directory")
 		return NewDump(ctx, os.DirFS(src), src)
 	default:
