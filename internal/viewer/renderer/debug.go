@@ -11,8 +11,8 @@ import (
 
 type Debug struct{}
 
-func (d *Debug) RenderText(ctx context.Context, s string) (v template.HTML) {
-	return template.HTML("<pre>" + html.EscapeString(s) + "</pre>")
+func (d *Debug) RenderText(ctx context.Context, s string) (v string) {
+	return "<pre>" + html.EscapeString(s) + "</pre>"
 }
 
 func (d *Debug) Render(ctx context.Context, m *slack.Message) (v template.HTML) {

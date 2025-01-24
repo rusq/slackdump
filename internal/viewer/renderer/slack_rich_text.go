@@ -2,6 +2,7 @@ package renderer
 
 import (
 	"fmt"
+	"html"
 	"log/slog"
 	"strings"
 
@@ -59,7 +60,7 @@ func (s *Slack) rtseText(ie slack.RichTextSectionElement) (string, string, error
 	if !ok {
 		return "", "", NewErrIncorrectType(&slack.RichTextSectionTextElement{}, ie)
 	}
-	t := strings.ReplaceAll(e.Text, "\n", "<br>")
+	t := strings.ReplaceAll(html.EscapeString(e.Text), "\n", "<br>")
 
 	return applyStyle(t, e.Style), "", nil
 }
@@ -90,6 +91,8 @@ func (s *Slack) rtseLink(ie slack.RichTextSectionElement) (string, string, error
 	}
 	if e.Text == "" {
 		e.Text = e.URL
+	} else {
+		e.Text = html.EscapeString(e.Text)
 	}
 	return fmt.Sprintf("<a href=\"%s\">%s</a>", e.URL, e.Text), "", nil
 }

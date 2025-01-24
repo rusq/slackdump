@@ -83,7 +83,7 @@ func TestSlack_Render(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			sm := &Slack{}
 			gotV := sm.Render(context.Background(), tt.args.m)
-			assert.Equal(t, gotV, tt.wantV)
+			assert.Equal(t, tt.wantV, gotV)
 		})
 	}
 }

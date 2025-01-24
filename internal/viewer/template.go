@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/rusq/slack"
+
 	st "github.com/rusq/slackdump/v3/internal/structures"
 )
 
@@ -14,14 +15,14 @@ import (
 var fsys embed.FS
 
 func initTemplates(v *Viewer) {
-	var tmpl = template.Must(template.New("").Funcs(
+	tmpl := template.Must(template.New("").Funcs(
 		template.FuncMap{
 			"rendername":      v.um.ChannelName,
 			"is_app_msg":      isAppMsg,
 			"displayname":     v.um.DisplayName,
 			"username":        v.username, // username returns the username for the message
 			"time":            localtime,
-			"rendertext":      func(s string) template.HTML { return v.r.RenderText(context.Background(), s) },     // render message text
+			"rendertext":      func(s string) string { return v.r.RenderText(context.Background(), s) },            // render message text
 			"render":          func(m *slack.Message) template.HTML { return v.r.Render(context.Background(), m) }, // render message
 			"is_thread_start": st.IsThreadStart,
 		},
