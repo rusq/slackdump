@@ -95,14 +95,14 @@ func redownload(ctx context.Context, dir string) (int, error) {
 	if err != nil {
 		return 0, fmt.Errorf("error creating slackdump session: %w", err)
 	}
-	dl, stop := fileproc.NewDownloader(
+	dl := fileproc.NewDownloader(
 		ctx,
 		true,
 		sess.Client(),
 		fsadapter.NewDirectory(cd.Name()),
 		cfg.Log,
 	)
-	defer stop()
+	defer dl.Stop()
 	// we are using the same file subprocessor as the mattermost export.
 	fproc := fileproc.NewExport(fileproc.STmattermost, dl)
 

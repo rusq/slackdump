@@ -149,7 +149,7 @@ func srcType(src string, fi fs.FileInfo) Flags {
 	if _, err := fs.Stat(fsys, chunk.UploadsDir); err == nil {
 		flags |= FMattermost
 	}
-	if ff, err := fs.Glob(fsys, "[CD]*.json"); err == nil && len(ff) > 0 {
+	if ff, err := fs.Glob(fsys, "[CDG]*.json"); err == nil && len(ff) > 0 {
 		return flags | FDump
 	}
 	if _, err := fs.Stat(fsys, "workspace.json.gz"); err == nil {

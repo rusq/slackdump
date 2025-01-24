@@ -277,6 +277,20 @@ func (m *MockFiler) EXPECT() *MockFilerMockRecorder {
 	return m.recorder
 }
 
+// Close mocks base method.
+func (m *MockFiler) Close() error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Close")
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Close indicates an expected call of Close.
+func (mr *MockFilerMockRecorder) Close() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockFiler)(nil).Close))
+}
+
 // Files mocks base method.
 func (m *MockFiler) Files(ctx context.Context, channel *slack.Channel, parent slack.Message, ff []slack.File) error {
 	m.ctrl.T.Helper()

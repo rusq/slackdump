@@ -18,7 +18,6 @@ import (
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/bootstrap"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
-	"github.com/rusq/slackdump/v3/downloader"
 	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/internal/chunk/dirproc"
 	"github.com/rusq/slackdump/v3/internal/chunk/transform"
@@ -174,19 +173,9 @@ func dump(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, p dump
 	lg.Debug("using directory", "dir", dir)
 
 	// files subprocessor
-	var sdl fileproc.Downloader
-	if p.downloadFiles {
-		dl := downloader.New(sess.Client(), fsa, downloader.WithLogger(lg))
-		if err := dl.Start(ctx); err != nil {
-			return err
-		}
-		defer dl.Stop()
-		sdl = dl
-	} else {
-		sdl = fileproc.NoopDownloader{}
-	}
-
+	sdl := fileproc.NewDownloader(ctx, p.downloadFiles, sess.Client(), fsa, cfg.Log)
 	subproc := fileproc.NewDumpSubproc(sdl)
+	defer subproc.Close()
 
 	opts := []transform.StdOption{
 		transform.StdWithTemplate(p.tmpl),

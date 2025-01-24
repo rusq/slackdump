@@ -2,6 +2,7 @@ package source
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io/fs"
 	"log/slog"
@@ -166,5 +167,5 @@ func (e *Export) ChannelInfo(ctx context.Context, channelID string) (*slack.Chan
 }
 
 func (e *Export) Latest(ctx context.Context) (map[structures.SlackLink]time.Time, error) {
-	panic("not implemented")
+	return nil, errors.New("not supported yet")
 }

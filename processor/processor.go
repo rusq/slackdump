@@ -39,6 +39,7 @@ type Filer interface {
 	// Files method is called for each file that is retrieved. The parent message is
 	// passed in as well.
 	Files(ctx context.Context, channel *slack.Channel, parent slack.Message, ff []slack.File) error
+	io.Closer
 }
 
 type Users interface {
@@ -80,4 +81,5 @@ type Searcher interface {
 type Avatars interface {
 	// Avatars should download avatars for the slice of users.
 	Avatars(ctx context.Context, users []slack.User) error
+	io.Closer
 }

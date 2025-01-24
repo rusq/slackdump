@@ -58,3 +58,7 @@ type nopsubproc struct{}
 func (nopsubproc) Files(ctx context.Context, channel *slack.Channel, _ slack.Message, ff []slack.File) error {
 	return nil
 }
+
+func (nopsubproc) Close() error {
+	return nil
+}

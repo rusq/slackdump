@@ -4,18 +4,23 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
+	"os"
+	"text/tabwriter"
+	"time"
 
 	"github.com/rusq/slackdump/v3"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/archive"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/bootstrap"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/internal/source"
+	"github.com/rusq/slackdump/v3/internal/structures"
 )
 
 var CmdResume = &base.Command{
 	UsageLine:   "slackdump resume [flags] <archive or directory>",
 	Short:       "resume resumes archive process from the last checkpoint",
-	FlagMask:    cfg.OmitAll &^ (cfg.OmitAuthFlags | cfg.OmitCacheDir | cfg.OmitDownloadFlag | cfg.OmitDownloadAvatarsFlag),
 	PrintFlags:  true,
 	RequireAuth: true,
 }
@@ -67,7 +72,7 @@ func runResume(ctx context.Context, cmd *base.Command, args []string) error {
 }
 
 func Resume(ctx context.Context, sess *slackdump.Session, src source.Sourcer, flags source.Flags, p ResumeParams) error {
-	lg := cfg.Log.With("source", src.Name())
+	lg := cfg.Log.With("source", src.Name(), "flags", src.Type())
 	lg.Info("resuming archive")
 	channels, err := src.Channels(ctx)
 	if err != nil {
@@ -88,10 +93,58 @@ func Resume(ctx context.Context, sess *slackdump.Session, src source.Sourcer, fl
 		return fmt.Errorf("error loading latest timestamps: %w", err)
 	}
 
-	fmt.Println(l)
-
 	// by this point we have all the channels and maybe threads along with their
 	// respective latest timestamps.
+	if slog.Default().Enabled(ctx, slog.LevelDebug) {
+		printLatest(l)
+	}
+	// remove all threads from the list if they are disabled
+	el := make([]structures.EntityItem, 0, len(l))
+	for sl, ts := range l {
+		if sl.IsThread() && !p.IncludeThreads {
+			continue
+		}
+		item := structures.EntityItem{
+			Id:      sl.String(),
+			Oldest:  tmin(time.Time(cfg.Oldest), ts),
+			Latest:  time.Time(cfg.Latest),
+			Include: true,
+		}
+		el = append(el, item)
+	}
+	list := structures.NewEntityListFromItems(el...)
+
+	ctrl, err := archive.ArchiveController(ctx, sess)
+	if err != nil {
+		return fmt.Errorf("error creating archive controller: %w", err)
+	}
+	defer ctrl.Close()
+	if err := ctrl.Run(ctx, list); err != nil {
+		return fmt.Errorf("error running archive controller: %w", err)
+	}
 
 	return nil
+}
+
+func tmin(a, b time.Time) time.Time {
+	if a.Before(b) {
+		return a
+	}
+	return b
+}
+
+func tmax(a, b time.Time) time.Time {
+	if a.After(b) {
+		return a
+	}
+	return b
+}
+
+func printLatest(l map[structures.SlackLink]time.Time) {
+	tw := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', 0)
+	fmt.Fprintln(tw, "Group ID\tLatest")
+	for gid, ts := range l {
+		fmt.Fprintf(tw, "%s\t%s\n", gid, ts.Format("2006-01-02 15:04:05"))
+	}
+	tw.Flush()
 }
