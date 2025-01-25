@@ -114,7 +114,13 @@ func Resume(ctx context.Context, sess *slackdump.Session, src source.Sourcer, fl
 	}
 	list := structures.NewEntityListFromItems(el...)
 
-	ctrl, err := archive.ArchiveController(ctx, sess)
+	cd, err := archive.NewDirectory(cfg.Output)
+	if err != nil {
+		return fmt.Errorf("error creating archive directory: %w", err)
+	}
+	defer cd.Close()
+
+	ctrl, err := archive.ArchiveController(ctx, cd, sess)
 	if err != nil {
 		return fmt.Errorf("error creating archive controller: %w", err)
 	}

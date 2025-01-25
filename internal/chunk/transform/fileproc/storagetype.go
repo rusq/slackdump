@@ -12,7 +12,12 @@ type StorageType uint8
 //go:generate stringer -type=StorageType -trimprefix=ST
 const (
 	STnone StorageType = iota
+	// STstandard is the storage type for the standard file storage.
+	//
+	// Deprecated: should be used only for reading existing archives.  For new
+	// use [STmattermost] instead.
 	STstandard
+	// STmattermost is the storage type for Mattermost.
 	STmattermost
 )
 

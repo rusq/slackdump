@@ -85,7 +85,8 @@ func WithLogger(lg *slog.Logger) Option {
 	}
 }
 
-// New creates a new [Controller]. Once the [Control.Close] is called it closes all file processors.
+// New creates a new [Controller]. Once the [Control.Close] is called it
+// closes all file processors.
 func New(cd *chunk.Directory, s Streamer, opts ...Option) *Controller {
 	c := &Controller{
 		cd: cd,
@@ -223,6 +224,7 @@ func (c *Controller) Run(ctx context.Context, list *structures.EntityList) error
 	return nil
 }
 
+// Close closes the controller and all its file processors.
 func (c *Controller) Close() error {
 	var errs error
 	if c.avp != nil {

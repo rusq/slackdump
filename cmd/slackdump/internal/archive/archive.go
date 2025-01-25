@@ -51,8 +51,14 @@ func RunArchive(ctx context.Context, cmd *base.Command, args []string) error {
 		base.SetExitStatus(base.SInitializationError)
 		return err
 	}
+	cd, err := NewDirectory(cfg.Output)
+	if err != nil {
+		base.SetExitStatus(base.SUserError)
+		return err
+	}
+	defer cd.Close()
 
-	ctrl, err := ArchiveController(ctx, sess)
+	ctrl, err := ArchiveController(ctx, cd, sess)
 	if err != nil {
 		return err
 	}
@@ -61,26 +67,29 @@ func RunArchive(ctx context.Context, cmd *base.Command, args []string) error {
 		base.SetExitStatus(base.SApplicationError)
 		return err
 	}
-	cfg.Log.Info("Recorded workspace data", "filename", cfg.Output, "took", time.Since(start))
+	cfg.Log.Info("Recorded workspace data", "filename", cd.Name(), "took", time.Since(start))
 
 	return nil
 }
 
-// ArchiveController returns the default archive controller initialised based
-// on global configuration parameters.
-func ArchiveController(ctx context.Context, sess *slackdump.Session) (*control.Controller, error) {
-	cfg.Output = cfg.StripZipExt(cfg.Output)
-	if cfg.Output == "" {
-		base.SetExitStatus(base.SInvalidParameters)
+// NewDirectory creates a new chunk directory with name.  If name has a .zip
+// extension it is stripped.
+func NewDirectory(name string) (*chunk.Directory, error) {
+	name = cfg.StripZipExt(name)
+	if name == "" {
 		return nil, errNoOutput
 	}
 
-	cd, err := chunk.CreateDir(cfg.Output)
+	cd, err := chunk.CreateDir(name)
 	if err != nil {
-		base.SetExitStatus(base.SGenericError)
 		return nil, err
 	}
+	return cd, nil
+}
 
+// ArchiveController returns the default archive controller initialised based
+// on global configuration parameters.
+func ArchiveController(ctx context.Context, cd *chunk.Directory, sess *slackdump.Session) (*control.Controller, error) {
 	lg := cfg.Log
 	// start attachment downloader
 	dl := fileproc.NewDownloader(
@@ -90,7 +99,6 @@ func ArchiveController(ctx context.Context, sess *slackdump.Session) (*control.C
 		fsadapter.NewDirectory(cd.Name()),
 		lg,
 	)
-	fp := fileproc.NewExport(fileproc.STmattermost, dl)
 	// start avatar downloader
 	avdl := fileproc.NewDownloader(
 		ctx,
@@ -99,8 +107,6 @@ func ArchiveController(ctx context.Context, sess *slackdump.Session) (*control.C
 		fsadapter.NewDirectory(cd.Name()),
 		lg,
 	)
-	avproc := fileproc.NewAvatarProc(avdl)
-
 	stream := sess.Stream(
 		stream.OptLatest(time.Time(cfg.Latest)),
 		stream.OptOldest(time.Time(cfg.Oldest)),
@@ -111,8 +117,8 @@ func ArchiveController(ctx context.Context, sess *slackdump.Session) (*control.C
 		stream,
 		control.WithLogger(lg),
 		control.WithFlags(control.Flags{MemberOnly: cfg.MemberOnly, RecordFiles: cfg.RecordFiles}),
-		control.WithFiler(fp),
-		control.WithAvatarProcessor(avproc),
+		control.WithFiler(fileproc.NewFiler(dl)),
+		control.WithAvatarProcessor(fileproc.NewAvatarProc(avdl)),
 	)
 	return ctrl, nil
 }
