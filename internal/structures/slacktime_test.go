@@ -16,15 +16,16 @@ func Test_parseSlackTS(t *testing.T) {
 		want    time.Time
 		wantErr bool
 	}{
-		{"valid time", args{"1534552745.065949"}, time.Date(2018, 8, 18, 0, 39, 05, 65949, time.UTC), false},
-		{"another valid time", args{"1638494510.037400"}, time.Date(2021, 12, 3, 1, 21, 50, 37400, time.UTC), false},
-		{"the time when I slipped", args{"1645551829.244659"}, time.Date(2022, 2, 22, 17, 43, 49, 244659, time.UTC), false},
-		{"time without millis", args{"0"}, time.Date(1970, 1, 1, 0, 00, 00, 0, time.UTC), false},
+		{"valid time", args{"1534552745.065949"}, time.UnixMicro(1534552745065949).UTC(), false},
+		{"another valid time", args{"1638494510.037400"}, time.Date(2021, 12, 3, 1, 21, 50, 37400000, time.UTC), false},
+		{"the time when I slipped", args{"1645551829.244659"}, time.Date(2022, 2, 22, 17, 43, 49, 244659000, time.UTC), false},
+		{"time without millis", args{"0"}, time.Date(1970, 1, 1, 0, 0o0, 0o0, 0, time.UTC), false},
 		{"invalid time", args{"x"}, time.Time{}, true},
 		{"invalid time", args{"x.x"}, time.Time{}, true},
 		{"invalid time", args{"4.x"}, time.Time{}, true},
 		{"invalid time", args{"x.4"}, time.Time{}, true},
 		{"invalid time", args{".4"}, time.Time{}, true},
+		{"polly time", args{"1737160363.583369"}, time.UnixMicro(1737160363583369).UTC(), false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -40,7 +41,7 @@ func Test_parseSlackTS(t *testing.T) {
 	}
 }
 
-func Test_formatSlackTS(t *testing.T) {
+func Test_FormatSlackTS(t *testing.T) {
 	type args struct {
 		ts time.Time
 	}
@@ -49,11 +50,12 @@ func Test_formatSlackTS(t *testing.T) {
 		args args
 		want string
 	}{
-		{"ok", args{time.Date(2018, 8, 18, 0, 39, 05, 65949, time.UTC)}, "1534552745.065949"},
-		{"another valid time", args{time.Date(2021, 12, 3, 1, 21, 50, 37400, time.UTC)}, "1638494510.037400"},
+		{"ok", args{time.Date(2018, 8, 18, 0, 39, 0o5, 65949000, time.UTC)}, "1534552745.065949"},
+		{"another valid time", args{time.Date(2021, 12, 3, 1, 21, 50, 37400000, time.UTC)}, "1638494510.037400"},
 		{"empty", args{time.Time{}}, ""},
 		{"Happy new 1970 year", args{time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC)}, "0.000000"},
 		{"prepare for the future", args{time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC).Add(-1 * time.Nanosecond)}, ""},
+		{"polly message", args{time.UnixMicro(1737160363583369)}, "1737160363.583369"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -77,7 +79,7 @@ func Test_parseThreadID(t *testing.T) {
 		{
 			"valid threadID",
 			args{"p1577694990000400"},
-			time.Date(2019, 12, 30, 8, 36, 30, 400, time.UTC),
+			time.Date(2019, 12, 30, 8, 36, 30, 400000, time.UTC),
 			false,
 		},
 		{

@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"os"
+	"strings"
 	"text/tabwriter"
 	"time"
 
@@ -16,6 +16,7 @@ import (
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/internal/source"
 	"github.com/rusq/slackdump/v3/internal/structures"
+	"github.com/rusq/slackdump/v3/stream"
 )
 
 var CmdResume = &base.Command{
@@ -88,29 +89,28 @@ func Resume(ctx context.Context, sess *slackdump.Session, src source.Sourcer, fl
 
 	lg.Info("scanning messages")
 
-	l, err := src.Latest(ctx)
+	latest, err := src.Latest(ctx)
 	if err != nil {
 		return fmt.Errorf("error loading latest timestamps: %w", err)
 	}
 
 	// by this point we have all the channels and maybe threads along with their
 	// respective latest timestamps.
-	if slog.Default().Enabled(ctx, slog.LevelDebug) {
-		printLatest(l)
-	}
+	debugprint(strlatest(latest))
 	// remove all threads from the list if they are disabled
-	el := make([]structures.EntityItem, 0, len(l))
-	for sl, ts := range l {
+	el := make([]structures.EntityItem, 0, len(latest))
+	for sl, ts := range latest {
 		if sl.IsThread() && !p.IncludeThreads {
 			continue
 		}
 		item := structures.EntityItem{
 			Id:      sl.String(),
-			Oldest:  tmin(time.Time(cfg.Oldest), ts),
+			Oldest:  ts,
 			Latest:  time.Time(cfg.Latest),
 			Include: true,
 		}
 		el = append(el, item)
+		debugprint(fmt.Sprintf("%s: %d->%d", item.Id, ts.UTC().UnixMicro(), item.Oldest.UnixMicro()))
 	}
 	list := structures.NewEntityListFromItems(el...)
 
@@ -120,7 +120,7 @@ func Resume(ctx context.Context, sess *slackdump.Session, src source.Sourcer, fl
 	}
 	defer cd.Close()
 
-	ctrl, err := archive.ArchiveController(ctx, cd, sess)
+	ctrl, err := archive.ArchiveController(ctx, cd, sess, stream.OptInclusive(false))
 	if err != nil {
 		return fmt.Errorf("error creating archive controller: %w", err)
 	}
@@ -132,25 +132,19 @@ func Resume(ctx context.Context, sess *slackdump.Session, src source.Sourcer, fl
 	return nil
 }
 
-func tmin(a, b time.Time) time.Time {
-	if a.Before(b) {
-		return a
+func debugprint(a ...any) {
+	if slog.Default().Enabled(context.Background(), slog.LevelDebug) {
+		fmt.Println(a...)
 	}
-	return b
 }
 
-func tmax(a, b time.Time) time.Time {
-	if a.After(b) {
-		return a
-	}
-	return b
-}
-
-func printLatest(l map[structures.SlackLink]time.Time) {
-	tw := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', 0)
+func strlatest(l map[structures.SlackLink]time.Time) string {
+	var buf strings.Builder
+	tw := tabwriter.NewWriter(&buf, 0, 0, 1, ' ', 0)
 	fmt.Fprintln(tw, "Group ID\tLatest")
 	for gid, ts := range l {
-		fmt.Fprintf(tw, "%s\t%s\n", gid, ts.Format("2006-01-02 15:04:05"))
+		fmt.Fprintf(tw, "%s\t%s\n", gid, ts.Format("2006-01-02 15:04:05 MST"))
 	}
 	tw.Flush()
+	return buf.String()
 }
