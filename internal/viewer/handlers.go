@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/rusq/slack"
@@ -111,12 +112,17 @@ func isHXRequest(r *http.Request) bool {
 	return r.Header.Get("HX-Request") == "true"
 }
 
+func isInvalid(path string) bool {
+	return strings.Contains(path, "..") || strings.Contains(path, "~") || strings.Contains(path, "/") || strings.Contains(path, "\\")
+}
+
 func (v *Viewer) threadHandler(w http.ResponseWriter, r *http.Request, id string) {
 	ts := r.PathValue("ts")
-	if ts == "" {
+	if ts == "" || isInvalid(ts) {
 		http.NotFound(w, r)
 		return
 	}
+
 	ctx := r.Context()
 	lg := v.lg.With("in", "threadHandler", "channel", id, "thread", ts)
 	mm, err := v.src.AllThreadMessages(id, ts)
@@ -167,7 +173,7 @@ func (v *Viewer) fileHandler(w http.ResponseWriter, r *http.Request) {
 		filename = r.PathValue("filename")
 		ctx      = r.Context()
 	)
-	if id == "" || filename == "" {
+	if id == "" || filename == "" || isInvalid(filename) || isInvalid(id) {
 		http.NotFound(w, r)
 		return
 	}
