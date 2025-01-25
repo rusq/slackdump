@@ -3,12 +3,11 @@ package structures
 // in this file: slack timestamp parsing functions
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
 	"time"
-
-	"errors"
 )
 
 // ParseThreadID parses the thread id (ie. p1577694990000400) and returns
@@ -29,20 +28,21 @@ func ParseSlackTS(timestamp string) (time.Time, error) {
 		base = 10
 		bit  = 64
 	)
-	sHi, sLo, found := strings.Cut(timestamp, ".")
-
-	var hi, lo int64
-	hi, err := strconv.ParseInt(sHi, base, bit)
+	sSec, sMicro, found := strings.Cut(timestamp, ".")
+	if sSec == "" {
+		return time.Time{}, errors.New("empty timestamp")
+	}
+	var t int64
+	var err error
+	if !found {
+		t, err = strconv.ParseInt(sSec+"000000", base, bit)
+	} else {
+		t, err = strconv.ParseInt(sSec+sMicro, base, bit)
+	}
 	if err != nil {
 		return time.Time{}, err
 	}
-	if found {
-		lo, err = strconv.ParseInt(sLo, base, bit)
-		if err != nil {
-			return time.Time{}, err
-		}
-	}
-	return time.Unix(hi, lo).UTC(), nil
+	return time.UnixMicro(t).UTC(), nil
 }
 
 func FormatSlackTS(ts time.Time) string {
@@ -50,6 +50,6 @@ func FormatSlackTS(ts time.Time) string {
 		return ""
 	}
 	hi := ts.Unix()
-	lo := ts.UnixNano() % 1_000_000
+	lo := ts.UnixMicro() % 1_000_000
 	return fmt.Sprintf("%d.%06d", hi, lo)
 }
