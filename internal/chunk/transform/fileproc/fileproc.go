@@ -34,8 +34,8 @@ type FileProcessor struct {
 	filepath func(ci *slack.Channel, f *slack.File) string
 }
 
-// New initialises the file processor.
-func New(dl Downloader, fp func(ci *slack.Channel, f *slack.File) string) FileProcessor {
+// NewWithPathFn initialises the file processor.
+func NewWithPathFn(dl Downloader, fp func(ci *slack.Channel, f *slack.File) string) FileProcessor {
 	if fp == nil {
 		panic("filepath function is nil")
 	}

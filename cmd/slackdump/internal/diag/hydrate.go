@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/rusq/slackdump/v3/internal/chunk/transform/fileproc"
 	"github.com/rusq/slackdump/v3/internal/source"
 
 	"github.com/rusq/fsadapter"
@@ -21,7 +22,6 @@ import (
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/downloader"
-	"github.com/rusq/slackdump/v3/internal/chunk/transform/fileproc"
 	"github.com/rusq/slackdump/v3/internal/structures"
 )
 
@@ -190,7 +190,7 @@ func downloadFiles(ctx context.Context, d downloader.GetFiler, trg fsadapter.FS,
 	}
 	defer dl.Stop()
 
-	proc := fileproc.NewExport(fileproc.STmattermost, dl)
+	proc := fileproc.New(dl)
 
 	channels, err := src.Channels(ctx)
 	if err != nil {

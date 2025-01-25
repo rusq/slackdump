@@ -152,7 +152,7 @@ func searchController(ctx context.Context, cd *chunk.Directory, sess *slackdump.
 			cd,
 			sess.Stream(sopts...),
 			control.WithLogger(lg),
-			control.WithFiler(fileproc.NewFiler(dl)),
+			control.WithFiler(fileproc.New(dl)),
 			control.WithFlags(control.Flags{RecordFiles: cfg.RecordFiles}),
 		)
 	)

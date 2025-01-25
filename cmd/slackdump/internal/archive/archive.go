@@ -117,7 +117,7 @@ func ArchiveController(ctx context.Context, cd *chunk.Directory, sess *slackdump
 		stream,
 		control.WithLogger(lg),
 		control.WithFlags(control.Flags{MemberOnly: cfg.MemberOnly, RecordFiles: cfg.RecordFiles}),
-		control.WithFiler(fileproc.NewFiler(dl)),
+		control.WithFiler(fileproc.New(dl)),
 		control.WithAvatarProcessor(fileproc.NewAvatarProc(avdl)),
 	)
 	return ctrl, nil

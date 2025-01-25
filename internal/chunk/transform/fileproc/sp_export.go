@@ -18,22 +18,22 @@ import (
 // type.  This subprocessor can be later plugged into the
 // [expproc.Conversations] processor.
 //
-// Deprecated: use [NewFiler] instead.
+// Deprecated: use [New] instead.
 func NewExport(typ StorageType, dl Downloader) processor.Filer {
 	switch typ {
 	case STstandard:
-		return New(dl, StdFilepath)
+		return NewWithPathFn(dl, StdFilepath)
 	case STmattermost:
-		return New(dl, MattermostFilepath)
+		return NewWithPathFn(dl, MattermostFilepath)
 	default:
 		return nopsubproc{}
 	}
 }
 
-// NewFiler creates a new file processor that uses mattermost file naming
+// New creates a new file processor that uses mattermost file naming
 // pattern.
-func NewFiler(dl Downloader) processor.Filer {
-	return New(dl, MattermostFilepath)
+func New(dl Downloader) processor.Filer {
+	return NewWithPathFn(dl, MattermostFilepath)
 }
 
 // MattermostFilepath returns the path to the file within the __uploads

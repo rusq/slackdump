@@ -246,7 +246,7 @@ type linkFeederFunc func(ctx context.Context, links chan<- structures.EntityItem
 // the links channel.  It does not fetch the channel list from the api, so
 // it's blazing fast in comparison to apiChannelFeeder.  When needed, get the
 // channel information from the conversations chunk files (they contain the
-// chunk with channel information).qwer
+// chunk with channel information).
 func genChFromList(ctx context.Context, links chan<- structures.EntityItem, list *structures.EntityList) error {
 	for _, entry := range list.Index() {
 		if entry.Include {

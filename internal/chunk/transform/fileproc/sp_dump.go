@@ -10,7 +10,7 @@ import (
 
 // NewDump returns a new Dump File FileProcessor.
 func NewDump(dl Downloader) FileProcessor {
-	return New(dl, DumpFilepath)
+	return NewWithPathFn(dl, DumpFilepath)
 }
 
 func DumpFilepath(ci *slack.Channel, f *slack.File) string {
