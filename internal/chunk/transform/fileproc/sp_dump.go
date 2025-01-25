@@ -8,12 +8,9 @@ import (
 	"github.com/rusq/slackdump/v3/internal/chunk"
 )
 
-// NewDumpSubproc returns a new Dump File Subprocessor.
-func NewDumpSubproc(dl Downloader) Subprocessor {
-	return Subprocessor{
-		dcl:      dl,
-		filepath: DumpFilepath,
-	}
+// NewDump returns a new Dump File FileProcessor.
+func NewDump(dl Downloader) FileProcessor {
+	return New(dl, DumpFilepath)
 }
 
 func DumpFilepath(ci *slack.Channel, f *slack.File) string {

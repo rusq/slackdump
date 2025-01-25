@@ -58,7 +58,7 @@ func Test_dumpSubproc_PathUpdate(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			d := Subprocessor{
+			d := FileProcessor{
 				filepath: DumpFilepath,
 			}
 			if err := d.PathUpdateFunc(tt.args.channelID, tt.args.threadTS, tt.args.mm); (err != nil) != tt.wantErr {

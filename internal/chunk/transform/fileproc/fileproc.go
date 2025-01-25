@@ -26,26 +26,26 @@ type Downloader interface {
 	Stop()
 }
 
-// Subprocessor is the file subprocessor, that downloads files to the path
+// FileProcessor is the file processor, that downloads files to the path
 // returned by the filepath function.
 // Zero value of this type is not usable.
-type Subprocessor struct {
+type FileProcessor struct {
 	dcl      Downloader
 	filepath func(ci *slack.Channel, f *slack.File) string
 }
 
-// NewSubprocessor initialises the subprocessor.
-func NewSubprocessor(dl Downloader, fp func(ci *slack.Channel, f *slack.File) string) Subprocessor {
+// New initialises the file processor.
+func New(dl Downloader, fp func(ci *slack.Channel, f *slack.File) string) FileProcessor {
 	if fp == nil {
 		panic("filepath function is nil")
 	}
-	return Subprocessor{
+	return FileProcessor{
 		dcl:      dl,
 		filepath: fp,
 	}
 }
 
-func (b Subprocessor) Files(ctx context.Context, channel *slack.Channel, _ slack.Message, ff []slack.File) error {
+func (b FileProcessor) Files(_ context.Context, channel *slack.Channel, _ slack.Message, ff []slack.File) error {
 	for _, f := range ff {
 		if !IsValid(&f) {
 			continue
@@ -57,7 +57,7 @@ func (b Subprocessor) Files(ctx context.Context, channel *slack.Channel, _ slack
 	return nil
 }
 
-func (b Subprocessor) Close() error {
+func (b FileProcessor) Close() error {
 	b.dcl.Stop()
 	return nil
 }
@@ -65,7 +65,7 @@ func (b Subprocessor) Close() error {
 // PathUpdateFunc updates the path in URLDownload and URLPrivateDownload of every
 // file in the given message slice to point to the physical downloaded file
 // location.  It can be plugged in the pipeline of Dump.
-func (b Subprocessor) PathUpdateFunc(channelID, threadTS string, mm []slack.Message) error {
+func (b FileProcessor) PathUpdateFunc(channelID, threadTS string, mm []slack.Message) error {
 	for i := range mm {
 		for j := range mm[i].Files {
 			ch := new(slack.Channel)

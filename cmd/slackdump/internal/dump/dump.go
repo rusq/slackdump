@@ -174,7 +174,7 @@ func dump(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, p dump
 
 	// files subprocessor
 	sdl := fileproc.NewDownloader(ctx, p.downloadFiles, sess.Client(), fsa, cfg.Log)
-	subproc := fileproc.NewDumpSubproc(sdl)
+	subproc := fileproc.NewDump(sdl)
 	defer subproc.Close()
 
 	opts := []transform.StdOption{

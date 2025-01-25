@@ -20,15 +20,9 @@ import (
 func NewExport(typ StorageType, dl Downloader) processor.Filer {
 	switch typ {
 	case STstandard:
-		return Subprocessor{
-			dcl:      dl,
-			filepath: StdFilepath,
-		}
+		return New(dl, StdFilepath)
 	case STmattermost:
-		return Subprocessor{
-			dcl:      dl,
-			filepath: MattermostFilepath,
-		}
+		return New(dl, MattermostFilepath)
 	default:
 		return nopsubproc{}
 	}
