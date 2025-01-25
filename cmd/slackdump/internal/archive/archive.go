@@ -89,8 +89,16 @@ func NewDirectory(name string) (*chunk.Directory, error) {
 
 // ArchiveController returns the default archive controller initialised based
 // on global configuration parameters.
-func ArchiveController(ctx context.Context, cd *chunk.Directory, sess *slackdump.Session) (*control.Controller, error) {
+func ArchiveController(ctx context.Context, cd *chunk.Directory, sess *slackdump.Session, opts ...stream.Option) (*control.Controller, error) {
 	lg := cfg.Log
+
+	sopts := []stream.Option{
+		stream.OptLatest(time.Time(cfg.Latest)),
+		stream.OptOldest(time.Time(cfg.Oldest)),
+		stream.OptResultFn(resultLogger(lg)),
+	}
+	sopts = append(sopts, opts...)
+
 	// start attachment downloader
 	dl := fileproc.NewDownloader(
 		ctx,
@@ -107,14 +115,10 @@ func ArchiveController(ctx context.Context, cd *chunk.Directory, sess *slackdump
 		fsadapter.NewDirectory(cd.Name()),
 		lg,
 	)
-	stream := sess.Stream(
-		stream.OptLatest(time.Time(cfg.Latest)),
-		stream.OptOldest(time.Time(cfg.Oldest)),
-		stream.OptResultFn(resultLogger(lg)),
-	)
+
 	ctrl := control.New(
 		cd,
-		stream,
+		sess.Stream(sopts...),
 		control.WithLogger(lg),
 		control.WithFlags(control.Flags{MemberOnly: cfg.MemberOnly, RecordFiles: cfg.RecordFiles}),
 		control.WithFiler(fileproc.New(dl)),

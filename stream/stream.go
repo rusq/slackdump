@@ -58,6 +58,7 @@ type Stream struct {
 	limits         rateLimits
 	chanCache      *chanCache
 	fastSearch     bool
+	inclusive      bool
 	resultFn       []func(sr Result) error
 }
 
@@ -173,6 +174,12 @@ func OptFastSearch() Option {
 	}
 }
 
+func OptInclusive(b bool) Option {
+	return func(cs *Stream) {
+		cs.inclusive = b
+	}
+}
+
 // New creates a new Stream instance that allows to stream different
 // slack entities.
 func New(cl Slacker, l *network.Limits, opts ...Option) *Stream {
@@ -180,6 +187,7 @@ func New(cl Slacker, l *network.Limits, opts ...Option) *Stream {
 		client:    cl,
 		limits:    limits(l),
 		chanCache: new(chanCache),
+		inclusive: true,
 	}
 	for _, opt := range opts {
 		opt(cs)

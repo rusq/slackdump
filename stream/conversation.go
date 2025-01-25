@@ -191,7 +191,7 @@ func (cs *Stream) channel(ctx context.Context, req request, callback func(mm []s
 				Limit:     cs.limits.tier.Request.Conversations,
 				Oldest:    structures.FormatSlackTS(structures.NVLTime(req.Oldest, cs.oldest)),
 				Latest:    structures.FormatSlackTS(structures.NVLTime(req.Latest, cs.latest)),
-				Inclusive: true,
+				Inclusive: cs.inclusive,
 			})
 			return apiErr
 		}); err != nil {
@@ -247,7 +247,7 @@ func (cs *Stream) thread(ctx context.Context, req request, callback func(mm []sl
 				Limit:     cs.limits.tier.Request.Replies,
 				Oldest:    structures.FormatSlackTS(structures.NVLTime(req.Oldest, cs.oldest)),
 				Latest:    structures.FormatSlackTS(structures.NVLTime(req.Latest, cs.latest)),
-				Inclusive: true,
+				Inclusive: cs.inclusive,
 			})
 			return apiErr
 		}); err != nil {
