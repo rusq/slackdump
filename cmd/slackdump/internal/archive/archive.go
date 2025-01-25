@@ -9,6 +9,7 @@ import (
 
 	"github.com/rusq/fsadapter"
 
+	"github.com/rusq/slackdump/v3"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/bootstrap"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
@@ -45,66 +46,81 @@ func RunArchive(ctx context.Context, cmd *base.Command, args []string) error {
 		base.SetExitStatus(base.SUserError)
 		return err
 	}
-
-	cfg.Output = cfg.StripZipExt(cfg.Output)
-	if cfg.Output == "" {
-		base.SetExitStatus(base.SInvalidParameters)
-		return errNoOutput
-	}
-
-	cd, err := chunk.CreateDir(cfg.Output)
-	if err != nil {
-		base.SetExitStatus(base.SGenericError)
-		return err
-	}
-
 	sess, err := bootstrap.SlackdumpSession(ctx)
 	if err != nil {
 		base.SetExitStatus(base.SInitializationError)
 		return err
 	}
+	cd, err := NewDirectory(cfg.Output)
+	if err != nil {
+		base.SetExitStatus(base.SUserError)
+		return err
+	}
+	defer cd.Close()
+
+	ctrl, err := ArchiveController(ctx, cd, sess)
+	if err != nil {
+		return err
+	}
+	defer ctrl.Close()
+	if err := ctrl.Run(ctx, list); err != nil {
+		base.SetExitStatus(base.SApplicationError)
+		return err
+	}
+	cfg.Log.Info("Recorded workspace data", "filename", cd.Name(), "took", time.Since(start))
+
+	return nil
+}
+
+// NewDirectory creates a new chunk directory with name.  If name has a .zip
+// extension it is stripped.
+func NewDirectory(name string) (*chunk.Directory, error) {
+	name = cfg.StripZipExt(name)
+	if name == "" {
+		return nil, errNoOutput
+	}
+
+	cd, err := chunk.CreateDir(name)
+	if err != nil {
+		return nil, err
+	}
+	return cd, nil
+}
+
+// ArchiveController returns the default archive controller initialised based
+// on global configuration parameters.
+func ArchiveController(ctx context.Context, cd *chunk.Directory, sess *slackdump.Session) (*control.Controller, error) {
 	lg := cfg.Log
-	stream := sess.Stream(
-		stream.OptLatest(time.Time(cfg.Latest)),
-		stream.OptOldest(time.Time(cfg.Oldest)),
-		stream.OptResultFn(resultLogger(lg)),
-	)
-	dl, stop := fileproc.NewDownloader(
+	// start attachment downloader
+	dl := fileproc.NewDownloader(
 		ctx,
 		cfg.DownloadFiles,
 		sess.Client(),
 		fsadapter.NewDirectory(cd.Name()),
 		lg,
 	)
-	defer stop()
-	avdl, avstop := fileproc.NewDownloader(
+	// start avatar downloader
+	avdl := fileproc.NewDownloader(
 		ctx,
 		cfg.DownloadAvatars,
 		sess.Client(),
 		fsadapter.NewDirectory(cd.Name()),
 		lg,
 	)
-	defer avstop()
-	var (
-		// archive format has files stored in mattermost format.
-		subproc = fileproc.NewExport(fileproc.STmattermost, dl)
-		avproc  = fileproc.NewAvatarProc(avdl)
+	stream := sess.Stream(
+		stream.OptLatest(time.Time(cfg.Latest)),
+		stream.OptOldest(time.Time(cfg.Oldest)),
+		stream.OptResultFn(resultLogger(lg)),
 	)
 	ctrl := control.New(
 		cd,
 		stream,
 		control.WithLogger(lg),
-		control.WithFiler(subproc),
 		control.WithFlags(control.Flags{MemberOnly: cfg.MemberOnly, RecordFiles: cfg.RecordFiles}),
-		control.WithAvatarProcessor(avproc),
+		control.WithFiler(fileproc.New(dl)),
+		control.WithAvatarProcessor(fileproc.NewAvatarProc(avdl)),
 	)
-	if err := ctrl.Run(ctx, list); err != nil {
-		base.SetExitStatus(base.SApplicationError)
-		return err
-	}
-	lg.Info("Recorded workspace data", "filename", cd.Name(), "took", time.Since(start))
-
-	return nil
+	return ctrl, nil
 }
 
 func resultLogger(lg *slog.Logger) func(sr stream.Result) error {

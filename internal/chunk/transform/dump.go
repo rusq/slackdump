@@ -166,7 +166,7 @@ func stdThread(cf *chunk.File, ci *slack.Channel, threadTS string, pipeline pipe
 	}
 
 	// get parent message
-	parent, err := cf.ThreadParent(ci.ID, threadTS) // TODO: implement
+	parent, err := cf.ThreadParent(ci.ID, threadTS)
 	if err != nil {
 		return nil, err
 	}

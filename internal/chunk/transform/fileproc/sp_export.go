@@ -17,21 +17,23 @@ import (
 // NewExport initialises an export file subprocessor based on the given export
 // type.  This subprocessor can be later plugged into the
 // [expproc.Conversations] processor.
+//
+// Deprecated: use [New] instead.
 func NewExport(typ StorageType, dl Downloader) processor.Filer {
 	switch typ {
 	case STstandard:
-		return Subprocessor{
-			dcl:      dl,
-			filepath: StdFilepath,
-		}
+		return NewWithPathFn(dl, StdFilepath)
 	case STmattermost:
-		return Subprocessor{
-			dcl:      dl,
-			filepath: MattermostFilepath,
-		}
+		return NewWithPathFn(dl, MattermostFilepath)
 	default:
 		return nopsubproc{}
 	}
+}
+
+// New creates a new file processor that uses mattermost file naming
+// pattern.
+func New(dl Downloader) processor.Filer {
+	return NewWithPathFn(dl, MattermostFilepath)
 }
 
 // MattermostFilepath returns the path to the file within the __uploads
@@ -56,5 +58,9 @@ func StdFilepath(ci *slack.Channel, f *slack.File) string {
 type nopsubproc struct{}
 
 func (nopsubproc) Files(ctx context.Context, channel *slack.Channel, _ slack.Message, ff []slack.File) error {
+	return nil
+}
+
+func (nopsubproc) Close() error {
 	return nil
 }

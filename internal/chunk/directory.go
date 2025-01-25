@@ -14,6 +14,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/rusq/slack"
 
@@ -196,7 +197,7 @@ func (d *Directory) Channels(ctx context.Context) ([]slack.Channel, error) {
 		return val.([]slack.Channel), nil
 	}
 	ch, err := collectAll(ctx, d, d.numWorkers, func(f *File) ([]slack.Channel, error) {
-		c, err := f.AllChannels()
+		c, err := f.AllChannelInfos()
 		if err != nil {
 			if errors.Is(err, ErrNotFound) {
 				return nil, nil
@@ -525,4 +526,30 @@ func (d *Directory) FastAllMessages(channelID string) ([]slack.Message, error) {
 	defer f.Close()
 
 	return f.AllMessages(channelID)
+}
+
+// Latest returns the latest timestamps for the channels and threads
+// in the directory.
+func (d *Directory) Latest(ctx context.Context) (map[GroupID]time.Time, error) {
+	latest := make(map[GroupID]time.Time)
+	err := d.WalkSync(func(name string, f *File, err error) error {
+		if err != nil {
+			return err
+		}
+		li, err := f.Latest(ctx)
+		if err != nil {
+			return err
+		}
+		for k, v := range li {
+			current, ok := latest[k]
+			if !ok || v.After(current) {
+				latest[k] = v
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return latest, nil
 }

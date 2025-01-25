@@ -11,7 +11,7 @@ type UserIndex map[string]*slack.User
 
 // NewUserIndex creates a new UserIndex from slack Users slice
 func NewUserIndex(us []slack.User) UserIndex {
-	var usermap = make(UserIndex, len(us))
+	usermap := make(UserIndex, len(us))
 
 	for i := range us {
 		usermap[(us)[i].ID] = &us[i]
@@ -101,7 +101,7 @@ func (idx UserIndex) ChannelName(ch slack.Channel) (who string) {
 	case CIM:
 		who = "@" + idx.Username(ch.User)
 	case CMPIM:
-		who = strings.Replace(ch.Purpose.Value, " messaging with", "", -1)
+		who = strings.ReplaceAll(ch.Purpose.Value, " messaging with", "")
 	case CPrivate:
 		who = "🔒 " + NVL(ch.NameNormalized, ch.Name)
 	default:

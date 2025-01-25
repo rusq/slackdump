@@ -16,6 +16,7 @@ import (
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/internal/chunk/transform/fileproc"
+	"github.com/rusq/slackdump/v3/internal/source"
 	"github.com/rusq/slackdump/v3/internal/structures"
 	"github.com/rusq/slackdump/v3/processor"
 )
@@ -46,32 +47,45 @@ func runRedownload(ctx context.Context, _ *base.Command, args []string) error {
 		return errors.New("expected exactly one argument")
 	}
 	dir := args[0]
-	if fi, err := os.Stat(dir); err != nil {
-		base.SetExitStatus(base.SUserError)
-		return fmt.Errorf("error accessing the directory: %w", err)
-	} else if !fi.IsDir() {
-		base.SetExitStatus(base.SUserError)
-		return errors.New("expected a directory")
+
+	if err := validate(dir); err != nil {
+		return err
 	}
-	if fi, err := os.Stat(filepath.Join(dir, "workspace.json.gz")); err != nil {
+
+	n, err := redownload(ctx, dir)
+	if err != nil {
+		base.SetExitStatus(base.SApplicationError)
+		return err
+	}
+	if n == 0 {
+		slog.Info("no missing files found")
+	} else {
+		slog.Info("redownloaded missing files", "num_files", n)
+	}
+
+	return nil
+}
+
+// validate ensures that the directory is a Slackdump Archive directory.
+// It sets the exit status according to the error type.
+func validate(dir string) error {
+	flags, err := source.Type(dir)
+	if err != nil {
+		base.SetExitStatus(base.SUserError)
+		return fmt.Errorf("error determining source type: %w", err)
+	}
+	if flags&source.FChunk == 0 {
+		base.SetExitStatus(base.SUserError)
+		return errors.New("expected a Slackdump Archive directory")
+	}
+
+	if fi, err := os.Stat(filepath.Join(dir, string(chunk.FWorkspace)+".json.gz")); err != nil {
 		base.SetExitStatus(base.SUserError)
 		return fmt.Errorf("error accessing the workspace file: %w", err)
 	} else if fi.IsDir() {
 		base.SetExitStatus(base.SUserError)
 		return errors.New("this does not look like an archive directory")
 	}
-
-	if n, err := redownload(ctx, dir); err != nil {
-		base.SetExitStatus(base.SApplicationError)
-		return err
-	} else {
-		if n == 0 {
-			slog.Info("no missing files found")
-		} else {
-			slog.Info("redownloaded missing files", "num_files", n)
-		}
-	}
-
 	return nil
 }
 
@@ -95,16 +109,16 @@ func redownload(ctx context.Context, dir string) (int, error) {
 	if err != nil {
 		return 0, fmt.Errorf("error creating slackdump session: %w", err)
 	}
-	dl, stop := fileproc.NewDownloader(
+	dl := fileproc.NewDownloader(
 		ctx,
 		true,
 		sess.Client(),
 		fsadapter.NewDirectory(cd.Name()),
 		cfg.Log,
 	)
-	defer stop()
+	defer dl.Stop()
 	// we are using the same file subprocessor as the mattermost export.
-	fproc := fileproc.NewExport(fileproc.STmattermost, dl)
+	fproc := fileproc.New(dl)
 
 	total := 0
 	for _, ch := range channels {

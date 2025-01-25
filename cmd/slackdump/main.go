@@ -44,6 +44,7 @@ func init() {
 		export.CmdExport,
 		dump.CmdDump,
 		archive.CmdSearch,
+		// resume.CmdResume,
 		convertcmd.CmdConvert,
 		list.CmdList,
 		emoji.CmdEmoji,

@@ -794,3 +794,82 @@ func TestNewEntityListFromString(t *testing.T) {
 		})
 	}
 }
+
+func TestNewEntityListFromItems(t *testing.T) {
+	var (
+		t1 = time.Date(2023, time.December, 10, 23, 2, 12, 0, time.UTC)
+		t2 = time.Date(2024, time.January, 10, 23, 2, 12, 0, time.UTC)
+		t3 = time.Date(2024, time.April, 7, 23, 2, 12, 0, time.UTC)
+	)
+	type args struct {
+		items []EntityItem
+	}
+	tests := []struct {
+		name string
+		args args
+		want *EntityList
+	}{
+		{
+			name: "includes only",
+			args: args{
+				items: []EntityItem{
+					{Id: "one", Include: true, Oldest: t1, Latest: t2},
+					{Id: "two", Include: true, Oldest: t3},
+					{Id: "three", Include: true, Latest: t2},
+				},
+			},
+			want: &EntityList{
+				index: map[string]*EntityItem{
+					"one":   {Id: "one", Include: true, Oldest: t1, Latest: t2},
+					"two":   {Id: "two", Include: true, Oldest: t3},
+					"three": {Id: "three", Include: true, Latest: t2},
+				},
+				hasIncludes: true,
+				hasExcludes: false,
+			},
+		},
+		{
+			name: "includes and excludes",
+			args: args{
+				items: []EntityItem{
+					{Id: "one", Include: true, Oldest: t1, Latest: t2},
+					{Id: "two", Include: false, Oldest: t3},
+					{Id: "three", Include: true, Latest: t2},
+				},
+			},
+			want: &EntityList{
+				index: map[string]*EntityItem{
+					"one":   {Id: "one", Include: true, Oldest: t1, Latest: t2},
+					"two":   {Id: "two", Include: false, Oldest: t3},
+					"three": {Id: "three", Include: true, Latest: t2},
+				},
+				hasIncludes: true,
+				hasExcludes: true,
+			},
+		},
+		{
+			name: "excludes only",
+			args: args{
+				items: []EntityItem{
+					{Id: "two", Include: false, Oldest: t3},
+					{Id: "three", Include: false, Latest: t2},
+				},
+			},
+			want: &EntityList{
+				index: map[string]*EntityItem{
+					"two":   {Id: "two", Include: false, Oldest: t3},
+					"three": {Id: "three", Include: false, Latest: t2},
+				},
+				hasIncludes: false,
+				hasExcludes: true,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := NewEntityListFromItems(tt.args.items...); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("NewEntityListFromItems() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

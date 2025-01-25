@@ -137,7 +137,7 @@ func SetBaseFlags(fs *flag.FlagSet, mask FlagMask) {
 		}
 	}
 	if mask&OmitDownloadAvatarsFlag == 0 {
-		fs.BoolVar(&DownloadAvatars, "avatars", true, "enables user avatar download (placed in __avatars directory)")
+		fs.BoolVar(&DownloadAvatars, "avatars", false, "enables user avatar download (placed in __avatars directory)")
 	}
 	if mask&OmitConfigFlag == 0 {
 		fs.StringVar(&ConfigFile, "api-config", "", "configuration `file` with Slack API limits overrides.\nYou can generate one with default values with 'slackdump config new`")

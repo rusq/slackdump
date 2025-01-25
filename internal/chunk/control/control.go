@@ -85,15 +85,18 @@ func WithLogger(lg *slog.Logger) Option {
 	}
 }
 
-// New creates a new [Controller].
+// New creates a new [Controller]. Once the [Control.Close] is called it
+// closes all file processors.
 func New(cd *chunk.Directory, s Streamer, opts ...Option) *Controller {
 	c := &Controller{
-		cd:    cd,
-		s:     s,
+		cd: cd,
+		s:  s,
+		lg: slog.Default(),
+
+		tf: &noopTransformer{},
+
 		filer: &noopFiler{},
-		tf:    &noopTransformer{},
 		avp:   &noopAvatarProc{},
-		lg:    slog.Default(),
 	}
 	for _, opt := range opts {
 		opt(c)
@@ -118,7 +121,7 @@ type Error struct {
 }
 
 func (e Error) Error() string {
-	return fmt.Sprintf("controller error in subroutine %s on stage %s: %v", e.Subroutine, e.Stage, e.Err)
+	return fmt.Sprintf("error in subroutine %s on stage %s: %v", e.Subroutine, e.Stage, e.Err)
 }
 
 func (e Error) Unwrap() error {
@@ -219,6 +222,22 @@ func (c *Controller) Run(ctx context.Context, list *structures.EntityList) error
 		return allErr
 	}
 	return nil
+}
+
+// Close closes the controller and all its file processors.
+func (c *Controller) Close() error {
+	var errs error
+	if c.avp != nil {
+		if err := c.avp.Close(); err != nil {
+			errs = errors.Join(errs, fmt.Errorf("error closing avatar processor: %w", err))
+		}
+	}
+	if c.filer != nil {
+		if err := c.filer.Close(); err != nil {
+			errs = errors.Join(errs, fmt.Errorf("error closing file processor: %w", err))
+		}
+	}
+	return errs
 }
 
 type linkFeederFunc func(ctx context.Context, links chan<- structures.EntityItem, list *structures.EntityList) error

@@ -276,3 +276,42 @@ func TestChunk_messageTimestamps(t *testing.T) {
 		})
 	}
 }
+
+func TestGroupID_AsThreadID(t *testing.T) {
+	tests := []struct {
+		name          string
+		id            GroupID
+		wantChannelID string
+		wantThreadTS  string
+		wantOk        bool
+	}{
+		{
+			name:          "channel",
+			id:            "C123",
+			wantChannelID: "",
+			wantThreadTS:  "",
+			wantOk:        false,
+		},
+		{
+			name:          "thread",
+			id:            "tC123:1234",
+			wantChannelID: "C123",
+			wantThreadTS:  "1234",
+			wantOk:        true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotChannelID, gotThreadTS, gotOk := tt.id.AsThreadID()
+			if gotChannelID != tt.wantChannelID {
+				t.Errorf("GroupID.AsThreadID() gotChannelID = %v, want %v", gotChannelID, tt.wantChannelID)
+			}
+			if gotThreadTS != tt.wantThreadTS {
+				t.Errorf("GroupID.AsThreadID() gotThreadTS = %v, want %v", gotThreadTS, tt.wantThreadTS)
+			}
+			if gotOk != tt.wantOk {
+				t.Errorf("GroupID.AsThreadID() gotOk = %v, want %v", gotOk, tt.wantOk)
+			}
+		})
+	}
+}

@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/rusq/slack"
+
 	"github.com/rusq/slackdump/v3/internal/fasttime"
 )
 
@@ -153,12 +154,47 @@ func (c *Chunk) ID() GroupID {
 	return GroupID(fmt.Sprintf("<unknown:%s>", c.Type))
 }
 
+// asChannelID returns the channel ID from the GroupID.  If the GroupID is not
+// a channel ID, it returns false.
+func (id GroupID) AsChannelID() (channelID string, ok bool) {
+	return string(id), id.IsChannel()
+}
+
+func (id GroupID) IsChannel() bool {
+	if len(id) < 1 {
+		return false
+	}
+	switch id[0] {
+	case 'C', 'D', 'G':
+		return true
+	default:
+		return false
+	}
+}
+
 func id(prefix string, ids ...string) GroupID {
 	return GroupID(prefix + strings.Join(ids, ":"))
 }
 
 func threadID(channelID, threadTS string) GroupID {
 	return id(threadPrefix, channelID, threadTS)
+}
+
+func (id GroupID) IsThread() bool {
+	return strings.HasPrefix(string(id), threadPrefix)
+}
+
+// asThreadID returns the channelID and threadTS from the GroupID.  If the
+// GroupID is not a thread ID, it returns false.
+func (id GroupID) AsThreadID() (channelID, threadTS string, ok bool) {
+	if !strings.HasPrefix(string(id), threadPrefix) {
+		return "", "", false
+	}
+	parts := strings.Split(string(id[1:]), ":")
+	if len(parts) != 2 {
+		return "", "", false
+	}
+	return parts[0], parts[1], true
 }
 
 func channelInfoID(channelID string) GroupID {

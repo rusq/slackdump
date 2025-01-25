@@ -11,15 +11,18 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/fs"
 	"log/slog"
 	"os"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/rusq/slack"
 
 	"github.com/rusq/slackdump/v3/internal/chunk"
+	"github.com/rusq/slackdump/v3/internal/structures"
 )
 
 type Flags int16
@@ -59,6 +62,10 @@ type Sourcer interface {
 	// File should return the path of the file within the filesystem returned
 	// by FS().
 	File(fileID string, filename string) (string, error)
+	// Latest should return the latest timestamp of the data.
+	Latest(ctx context.Context) (map[structures.SlackLink]time.Time, error)
+
+	io.Closer
 }
 
 // type assertion
@@ -142,7 +149,7 @@ func srcType(src string, fi fs.FileInfo) Flags {
 	if _, err := fs.Stat(fsys, chunk.UploadsDir); err == nil {
 		flags |= FMattermost
 	}
-	if ff, err := fs.Glob(fsys, "[CD]*.json"); err == nil && len(ff) > 0 {
+	if ff, err := fs.Glob(fsys, "[CDG]*.json"); err == nil && len(ff) > 0 {
 		return flags | FDump
 	}
 	if _, err := fs.Stat(fsys, "workspace.json.gz"); err == nil {

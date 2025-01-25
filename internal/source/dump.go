@@ -2,10 +2,12 @@ package source
 
 import (
 	"context"
+	"errors"
 	"io/fs"
 	"log/slog"
 	"os"
 	"path"
+	"time"
 
 	"github.com/rusq/slack"
 
@@ -198,4 +200,12 @@ func (d Dump) ChannelInfo(_ context.Context, channelID string) (*slack.Channel, 
 		}
 	}
 	return nil, fs.ErrNotExist
+}
+
+func (d Dump) Close() error {
+	return nil
+}
+
+func (d Dump) Latest(ctx context.Context) (map[structures.SlackLink]time.Time, error) {
+	return nil, errors.New("not supported yet")
 }

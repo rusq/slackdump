@@ -120,6 +120,21 @@ func NewEntityListFromString(s string) (*EntityList, error) {
 	return NewEntityList(ee)
 }
 
+func NewEntityListFromItems(items ...EntityItem) *EntityList {
+	el := EntityList{
+		index: make(map[string]*EntityItem, len(items)),
+	}
+	for _, item := range items {
+		el.index[item.Id] = &item
+		if item.Include && !el.hasIncludes {
+			el.hasIncludes = true
+		} else if !item.Include && !el.hasExcludes {
+			el.hasExcludes = true
+		}
+	}
+	return &el
+}
+
 // ValidateEntityList validates a space-separated list of entities.
 func ValidateEntityList(s string) error {
 	_, err := NewEntityListFromString(s)

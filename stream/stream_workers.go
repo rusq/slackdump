@@ -35,7 +35,7 @@ func (cs *Stream) channelWorker(ctx context.Context, proc processor.Conversation
 			if channel.Properties != nil && !channel.Properties.Canvas.IsEmpty {
 				if err := cs.canvas(ctx, proc, channel, channel.Properties.Canvas.FileId); err != nil {
 					// ignore canvas errors
-					slog.Warn("canvas error: %s", "err", err)
+					slog.Warn("canvas error", "err", err)
 				}
 			}
 
