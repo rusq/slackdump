@@ -1,0 +1,55 @@
+[
+  {
+    "id": "CO69735E8A",
+    "created": 1555493778,
+    "is_open": false,
+    "last_read": "1737716342.919259",
+    "is_group": false,
+    "is_shared": false,
+    "is_im": false,
+    "is_ext_shared": false,
+    "is_org_shared": false,
+    "is_global_shared": false,
+    "is_pending_ext_shared": false,
+    "is_private": false,
+    "is_read_only": false,
+    "is_mpim": false,
+    "unlinked": 0,
+    "name_normalized": "B75B4C7",
+    "num_members": 3,
+    "priority": 0,
+    "user": "",
+    "shared_team_ids": [
+      "THY5HTZ8U"
+    ],
+    "name": "B75B4C7",
+    "creator": "UOF82F39AE",
+    "is_archived": false,
+    "members": [
+      "UOF82F39AE",
+      "UO9EBC728B",
+      "UOB5F987BF17"
+    ],
+    "topic": {
+      "value": "0g5UsT9gJoI0bJJIsXBWsTKEBh3sNcV4fyJeSEfkPxKiwRZ2x",
+      "creator": "UOF82F39AE",
+      "last_set": 1555493778
+    },
+    "purpose": {
+      "value": "910QL4 jzCQmul1NI2aKsOOv9FNmCFGFDeoC SPMYryMLRYW1Iefx3el6lfEMAnbVzg bGmOmLMfoOKeDtLhgJw4y2YYcDZaRHqK",
+      "creator": "UOF82F39AE",
+      "last_set": 1555493778
+    },
+    "is_channel": true,
+    "is_general": true,
+    "is_member": true,
+    "locale": "en-US",
+    "properties": {
+      "canvas": {
+        "file_id": "F07HWGVPVFS",
+        "is_empty": false,
+        "quip_thread_id": "CVN9AAfDGAY"
+      }
+    }
+  }
+]

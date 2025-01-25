@@ -98,7 +98,7 @@ func runObfuscate(ctx context.Context, cmd *base.Command, args []string) error {
 	if err := fn(ctx); err != nil {
 		return err
 	}
-	fmt.Println("OK")
+	fmt.Fprintln(os.Stderr, "OK")
 	return nil
 }
 

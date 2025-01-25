@@ -25,19 +25,6 @@ import (
 	"github.com/rusq/slackdump/v3/internal/structures"
 )
 
-type Flags int16
-
-const (
-	FUnknown   Flags = 0
-	FDirectory Flags = 1 << iota
-	FZip
-	FChunk
-	FExport
-	FDump
-	FAvatars
-	FMattermost
-)
-
 // Sourcer is an interface for retrieving data from different sources.
 type Sourcer interface {
 	// Name should return the name of the retriever underlying media, i.e.
@@ -68,6 +55,36 @@ type Sourcer interface {
 	io.Closer
 }
 
+type Flags int16
+
+const (
+	FUnknown   Flags = 0
+	FDirectory Flags = 1 << iota
+	FZip
+	FChunk
+	FExport
+	FDump
+	FAvatars
+	FMattermost
+)
+
+func (f Flags) String() string {
+	const flg = "_________MAUXCZD"
+	var buf strings.Builder
+	for i := 16; i >= 0; i-- {
+		if f&(1<<uint(i)) != 0 {
+			buf.WriteByte(flg[16-i])
+		} else {
+			buf.WriteByte('.')
+		}
+	}
+	return buf.String()
+}
+
+func (f Flags) Has(ff Flags) bool {
+	return f&ff == ff
+}
+
 // type assertion
 var (
 	_ Sourcer = &Export{}
@@ -86,31 +103,31 @@ func Load(ctx context.Context, src string) (Sourcer, error) {
 		return nil, fmt.Errorf("unsupported source type: %s", src)
 	}
 	switch {
-	case st&(FChunk|FDirectory) != 0:
+	case st.Has(FChunk | FDirectory):
 		lg.DebugContext(ctx, "loading chunk directory")
 		dir, err := chunk.OpenDir(src)
 		if err != nil {
 			return nil, err
 		}
 		return NewChunkDir(dir, true), nil
-	case st&(FExport|FZip) != 0:
+	case st.Has(FExport | FZip):
 		lg.DebugContext(ctx, "loading export zip")
 		f, err := zip.OpenReader(src)
 		if err != nil {
 			return nil, err
 		}
 		return NewExport(f, src)
-	case st&(FExport|FDirectory) != 0:
+	case st.Has(FExport | FDirectory):
 		lg.DebugContext(ctx, "loading export directory")
 		return NewExport(os.DirFS(src), src)
-	case st&(FDump|FZip) != 0:
+	case st.Has(FDump | FZip):
 		lg.DebugContext(ctx, "loading dump zip")
 		f, err := zip.OpenReader(src)
 		if err != nil {
 			return nil, err
 		}
 		return NewDump(ctx, f, src)
-	case st&(FDump|FDirectory) != 0:
+	case st.Has(FDump | FDirectory):
 		lg.DebugContext(ctx, "loading dump directory")
 		return NewDump(ctx, os.DirFS(src), src)
 	default:

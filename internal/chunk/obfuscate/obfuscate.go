@@ -14,11 +14,14 @@ import (
 	"io"
 	"log"
 	"math/rand"
+	"os"
+	"os/signal"
 	"runtime/trace"
 	"strings"
 	"time"
 
 	"github.com/rusq/slack"
+
 	"github.com/rusq/slackdump/v3/internal/chunk"
 )
 
@@ -50,7 +53,7 @@ func Do(ctx context.Context, w io.Writer, r io.Reader, options ...Option) error 
 	_, task := trace.NewTask(ctx, "obfuscate.Do")
 	defer task.End()
 
-	var opts = doOpts{
+	opts := doOpts{
 		seed: time.Now().UnixNano(),
 	}
 	for _, optFn := range options {
@@ -62,6 +65,7 @@ func Do(ctx context.Context, w io.Writer, r io.Reader, options ...Option) error 
 }
 
 func obfuscate(ctx context.Context, obf obfuscator, w io.Writer, r io.Reader) error {
+	signal.Reset(os.Interrupt)
 	var (
 		dec = json.NewDecoder(r)
 		enc = json.NewEncoder(w)
@@ -116,7 +120,6 @@ func (o obfuscator) Chunk(c *chunk.Chunk) {
 	default:
 		log.Panicf("unknown chunk type: %s", c.Type)
 	}
-
 }
 
 // obfuscateManyMessages obfuscates a slice of messages.
