@@ -1,0 +1,78 @@
+[
+  {
+    "client_msg_id": "c02383e6-9879-1093-8ce7-c20b00ad3096",
+    "type": "message",
+    "user": "UOF82F39AE",
+    "text": "CYmxt38hm",
+    "ts": "1736478514.897649",
+    "team": "TO16BA84F53",
+    "replace_original": false,
+    "delete_original": false,
+    "metadata": {
+      "event_type": "",
+      "event_payload": null
+    },
+    "blocks": null,
+    "user_team": "TO16BA84F53",
+    "source_team": "TO16BA84F53",
+    "user_profile": {
+      "avatar_hash": "",
+      "image_72": "yddtdruvtlUSBbnY8i5BiycOTFSuHNjfVRUoUuO5rn5pC98t9g4or9V5yvGbNOOIzYYoO7vuMtlguNiw2jo7ZkYT j6IHw8nuYnBuWvzkM95 K5m6YHmtw6niJsTCeIF16nJNU8JHATPb  0yKyMvRm",
+      "first_name": "sMzz45ztMvr4suyWyeFoNwn3l uVm0gCleRuqUKjR",
+      "real_name": "WgO268Xc0KtFylJ",
+      "display_name": "",
+      "team": "TOAC06ADF3",
+      "name": "080EB6B",
+      "is_restricted": false,
+      "is_ultra_restricted": false
+    }
+  },
+  {
+    "client_msg_id": "4a065b30-8047-4c77-ce21-3332c74313b6",
+    "type": "message",
+    "user": "UOF82F39AE",
+    "text": "dtUeWsjQpQO8 TFoFBeQ",
+    "ts": "1736478630.905399",
+    "thread_ts": "1736478630.905399",
+    "last_read": "1736554783.040199",
+    "subscribed": true,
+    "reply_count": 2,
+    "reply_users": [
+      "UOB5F987BF17",
+      "UOF82F39AE"
+    ],
+    "replies": [
+      {
+        "user": "UOB5F987BF17",
+        "ts": "1736554746.482349"
+      },
+      {
+        "user": "UOF82F39AE",
+        "ts": "1736554783.040199"
+      }
+    ],
+    "latest_reply": "1736554783.040199",
+    "team": "TO16BA84F53",
+    "replace_original": false,
+    "delete_original": false,
+    "metadata": {
+      "event_type": "",
+      "event_payload": null
+    },
+    "blocks": null,
+    "user_team": "TO16BA84F53",
+    "source_team": "TO16BA84F53",
+    "user_profile": {
+      "avatar_hash": "",
+      "image_72": "yddtdruvtlUSBbnY8i5BiycOTFSuHNjfVRUoUuO5rn5pC98t9g4or9V5yvGbNOOIzYYoO7vuMtlguNiw2jo7ZkYT j6IHw8nuYnBuWvzkM95 K5m6YHmtw6niJsTCeIF16nJNU8JHATPb  0yKyMvRm",
+      "first_name": "sMzz45ztMvr4suyWyeFoNwn3l uVm0gCleRuqUKjR",
+      "real_name": "WgO268Xc0KtFylJ",
+      "display_name": "",
+      "team": "TOAC06ADF3",
+      "name": "080EB6B",
+      "is_restricted": false,
+      "is_ultra_restricted": false
+    },
+    "reply_users_count": 2
+  }
+]
