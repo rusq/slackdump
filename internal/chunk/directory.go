@@ -37,7 +37,10 @@ const (
 	FSearch    FileID = "search"
 )
 
-const UploadsDir = "__uploads" // for serving files
+const (
+	UploadsDir = "__uploads" // for serving files
+	AvatarsDir = "__avatars"
+)
 
 // Directory is an abstraction over the directory with chunk files.  It
 // provides a way to write chunk files and read channels, users and messages
@@ -52,9 +55,11 @@ type Directory struct {
 	dir   string
 	cache dcache
 
-	wantCache  bool
 	fm         *filemgr
 	numWorkers int
+
+	wantCache bool
+	readOnly  bool
 }
 
 type dcache struct {
@@ -72,6 +77,12 @@ func WithCache(enabled bool) DirOption {
 func WithNumWorkers(n int) DirOption {
 	return func(d *Directory) {
 		d.numWorkers = n
+	}
+}
+
+func WithReadOnly() DirOption {
+	return func(d *Directory) {
+		d.readOnly = true
 	}
 }
 
@@ -104,16 +115,19 @@ func OpenDir(dir string, opt ...DirOption) (*Directory, error) {
 
 // CreateDir creates and opens a directory.  It will create all parent
 // directories if they don't exist.
-func CreateDir(dir string) (*Directory, error) {
+func CreateDir(dir string, opt ...DirOption) (*Directory, error) {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return nil, err
 	}
-	return OpenDir(dir)
+	return OpenDir(dir, opt...)
 }
 
 // RemoveAll deletes the directory and all its contents.  Make sure all files
 // are closed.
 func (d *Directory) RemoveAll() error {
+	if d.readOnly {
+		return nil
+	}
 	_ = d.Close()
 	return os.RemoveAll(d.dir)
 }
@@ -361,6 +375,9 @@ func (d *Directory) filename(id FileID) string {
 // It will NOT overwrite an existing file and will return an error if the file
 // exists.
 func (d *Directory) Create(fileID FileID) (io.WriteCloser, error) {
+	if d.readOnly {
+		return nil, os.ErrPermission
+	}
 	filename := d.filename(fileID)
 	if fi, err := os.Stat(filename); err == nil {
 		if fi.IsDir() {

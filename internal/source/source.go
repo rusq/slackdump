@@ -111,7 +111,7 @@ func Load(ctx context.Context, src string) (Sourcer, error) {
 	switch {
 	case st.Has(FChunk | FDirectory):
 		lg.DebugContext(ctx, "loading chunk directory")
-		dir, err := chunk.OpenDir(src)
+		dir, err := chunk.OpenDir(src, chunk.WithReadOnly())
 		if err != nil {
 			return nil, err
 		}
@@ -166,7 +166,7 @@ func srcType(src string, fi fs.FileInfo) Flags {
 	} else {
 		return FUnknown
 	}
-	if _, err := fs.Stat(fsys, "__avatars"); err == nil {
+	if _, err := fs.Stat(fsys, chunk.AvatarsDir); err == nil {
 		flags |= FAvatars
 	}
 	if _, err := fs.Stat(fsys, chunk.UploadsDir); err == nil {
