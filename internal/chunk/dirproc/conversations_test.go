@@ -198,7 +198,7 @@ func TestConversations_Messages(t *testing.T) {
 			cv := &Conversations{
 				t:           mt,
 				lg:          slog.Default(),
-				subproc:     tt.fields.subproc,
+				filer:       tt.fields.subproc,
 				recordFiles: tt.fields.recordFiles,
 				tf:          tt.fields.tf,
 			}
@@ -351,7 +351,7 @@ func TestConversations_ThreadMessages(t *testing.T) {
 			cv := &Conversations{
 				t:           mt,
 				lg:          slog.Default(),
-				subproc:     tt.fields.subproc,
+				filer:       tt.fields.subproc,
 				recordFiles: tt.fields.recordFiles,
 				tf:          tt.fields.tf,
 			}
@@ -446,7 +446,7 @@ func TestConversations_ChannelInfo(t *testing.T) {
 			cv := &Conversations{
 				t:           mt,
 				lg:          slog.Default(),
-				subproc:     tt.fields.subproc,
+				filer:       tt.fields.subproc,
 				recordFiles: tt.fields.recordFiles,
 				tf:          tt.fields.tf,
 			}
@@ -550,7 +550,7 @@ func TestConversations_finalise(t *testing.T) {
 			cv := &Conversations{
 				t:           mt,
 				lg:          slog.Default(),
-				subproc:     tt.fields.subproc,
+				filer:       tt.fields.subproc,
 				recordFiles: tt.fields.recordFiles,
 				tf:          mtf,
 			}
@@ -681,7 +681,7 @@ func TestConversations_Files(t *testing.T) {
 			cv := &Conversations{
 				t:           mt,
 				lg:          slog.Default(),
-				subproc:     mf,
+				filer:       mf,
 				recordFiles: tt.fields.recordFiles,
 				tf:          tt.fields.tf,
 			}
@@ -778,7 +778,7 @@ func TestConversations_ChannelUsers(t *testing.T) {
 			cv := &Conversations{
 				t:           mt,
 				lg:          slog.Default(),
-				subproc:     tt.fields.subproc,
+				filer:       tt.fields.subproc,
 				recordFiles: tt.fields.recordFiles,
 				tf:          tt.fields.tf,
 			}

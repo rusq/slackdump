@@ -32,13 +32,13 @@ type Conversations struct {
 	t  tracker
 	lg *slog.Logger
 
-	// subproc is the files subprocessor, it is called by the Files method
+	// filer is the files subprocessor, it is called by the Files method
 	// in addition to recording the files in the chunk file (if recordFiles is
 	// set).  It it useful, when one needs to download the file directly into
 	// a final archive/directory, avoiding the intermediate step of
 	// downloading files into the temporary directory, and then using
 	// transform to download the files.
-	subproc     processor.Filer // files sub-processor
+	filer       processor.Filer // files sub-processor
 	recordFiles bool
 
 	// tf is the channel transformer that is called for each channel.
@@ -46,7 +46,6 @@ type Conversations struct {
 }
 
 // tracker is an interface for a recorder of data.
-
 type tracker interface {
 	Recorder(id chunk.FileID) (datahandler, error)
 	RefCount(id chunk.FileID) int
@@ -96,19 +95,19 @@ var (
 // be called for each file chunk, tf will be called for each completed channel
 // or thread, when the reference count becomes zero.
 // Reference count is increased with each call to Channel processing functions.
-func NewConversation(cd *chunk.Directory, filesSubproc processor.Filer, tf Transformer, opts ...ConvOption) (*Conversations, error) {
+func NewConversation(cd *chunk.Directory, fileproc processor.Filer, tf Transformer, opts ...ConvOption) (*Conversations, error) {
 	// validation
-	if filesSubproc == nil {
+	if fileproc == nil {
 		return nil, errNilSubproc
 	} else if tf == nil {
 		return nil, errNilTransformer
 	}
 
 	c := &Conversations{
-		t:       newFileTracker(cd),
-		lg:      slog.Default(),
-		subproc: filesSubproc,
-		tf:      tf,
+		t:     newFileTracker(cd),
+		lg:    slog.Default(),
+		filer: fileproc,
+		tf:    tf,
 	}
 	for _, opt := range opts {
 		opt(c)
@@ -157,8 +156,8 @@ func (cv *Conversations) Messages(ctx context.Context, channelID string, numThre
 	return nil
 }
 
-// ThreadMessages is called for each of the thread messages that are
-// retrieved. The parent message is passed in as well.
+// ThreadMessages is called for each of the thread messages that are retrieved.
+// The parent message is passed in as well.
 func (cv *Conversations) ThreadMessages(ctx context.Context, channelID string, parent slack.Message, threadOnly bool, isLast bool, tm []slack.Message) error {
 	ctx, task := trace.NewTask(ctx, "ThreadMessages")
 	defer task.End()
@@ -206,7 +205,7 @@ func (cv *Conversations) finalise(ctx context.Context, id chunk.FileID) error {
 // Files is called for each file that is retrieved. The parent message is
 // passed in as well.
 func (cv *Conversations) Files(ctx context.Context, channel *slack.Channel, parent slack.Message, ff []slack.File) error {
-	if err := cv.subproc.Files(ctx, channel, parent, ff); err != nil {
+	if err := cv.filer.Files(ctx, channel, parent, ff); err != nil {
 		return err
 	}
 	if !cv.recordFiles {

@@ -126,7 +126,7 @@ func indexChunks(dec decoder) (index, error) {
 		idx[id] = append(idx[id], offset)
 	}
 
-	slog.Default().Debug("indexing chunks", "len(idx)", len(idx), "caller", osext.Caller(2), "took", time.Since(start).String(), "per_sec", float64(len(idx))/time.Since(start).Seconds())
+	slog.Debug("indexing chunks", "len(idx)", len(idx), "caller", osext.Caller(2), "took", time.Since(start).String(), "per_sec", float64(len(idx))/time.Since(start).Seconds())
 	return idx, nil
 }
 
@@ -629,13 +629,15 @@ func (f *File) Latest(ctx context.Context) (map[GroupID]time.Time, error) {
 		if len(info.Timestamps) == 0 {
 			continue
 		}
+		sort.Sort(sort.Reverse(int64s(info.Timestamps)))
+		latest := fasttime.Int2Time(info.Timestamps[0])
 		curr, ok := ret[info.ID]
 		if !ok {
-			ret[info.ID] = fasttime.Int2Time(info.Timestamps[0])
+			ret[info.ID] = latest
 			continue
 		}
-		if fasttime.Int2Time(info.Timestamps[0]).After(curr) {
-			ret[info.ID] = fasttime.Int2Time(info.Timestamps[0])
+		if latest.After(curr) {
+			ret[info.ID] = latest
 		}
 	}
 	return ret, nil

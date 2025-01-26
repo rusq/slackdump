@@ -11,7 +11,9 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -57,6 +59,7 @@ type Directory struct {
 
 	fm         *filemgr
 	numWorkers int
+	timestamp  int64
 
 	wantCache bool
 	readOnly  bool
@@ -77,6 +80,12 @@ func WithCache(enabled bool) DirOption {
 func WithNumWorkers(n int) DirOption {
 	return func(d *Directory) {
 		d.numWorkers = n
+	}
+}
+
+func WithTimestamp(ts int64) DirOption {
+	return func(d *Directory) {
+		d.timestamp = ts
 	}
 }
 
@@ -196,6 +205,9 @@ LOOP:
 	return all, nil
 }
 
+// collectWorker collects the results by calling the function fn on each file
+// from the fileC channel.  It sends the results to the resultsC channel.  It
+// closes the file after the function is called.
 func collectWorker[T any](fileC <-chan *File, resultsC chan<- resultt[T], fn func(*File) ([]T, error)) {
 	for f := range fileC {
 		v, err := fn(f)
@@ -204,9 +216,7 @@ func collectWorker[T any](fileC <-chan *File, resultsC chan<- resultt[T], fn fun
 	}
 }
 
-// Channels collects all channels from the chunk directory.  First, it attempts
-// to find the channel.json.gz file, if it's not present, it will go through
-// all conversation files and try to get "ChannelInfo" chunk from each file.
+// Channels collects all channels from the chunk directory.
 func (d *Directory) Channels(ctx context.Context) ([]slack.Channel, error) {
 	if val := d.cache.channels.Load(); val != nil {
 		slog.Debug("channels: cache hit")
@@ -315,6 +325,60 @@ func (d *Directory) Open(id FileID) (*File, error) {
 		return nil, err
 	}
 	return cachedFromReader(f, d.wantCache)
+}
+
+// Versions returns the versions of the chunk file id in the directory.
+// each version is a timestamp of when the directory was updated, i.e. during
+// consequent runs of "resume" command.
+func (d *Directory) Versions(id FileID) ([]int64, error) {
+	names, err := filepath.Glob(d.filever(id, -1))
+	if err != nil {
+		return nil, err
+	}
+	return d.versions(names...)
+}
+
+func (d *Directory) versions(names ...string) ([]int64, error) {
+	versions := make([]int64, 0, len(names))
+	for _, name := range names {
+		ver, err := d.version(name)
+		if err != nil {
+			return nil, fmt.Errorf("versions: %s: %w", name, err)
+		}
+		versions = append(versions, ver)
+	}
+	slices.Sort(versions)
+	return versions, nil
+}
+
+// version returns the version of the file with the given name.
+// it expects the name to be in the format "channels_1612345678.json.gz".
+func (*Directory) version(name string) (int64, error) {
+	base := filepath.Base(name)
+	// base version
+	if !strings.Contains(base, "_") {
+		return 0, nil
+	}
+	_, ver, found := strings.Cut(strings.TrimSuffix(base, chunkExt), "_")
+	if !found {
+		return 0, fmt.Errorf("version not found in %s", name)
+	}
+	return strconv.ParseInt(ver, 10, 64)
+}
+
+// filever returns the filename of the FileID with the given version. If ver is
+// -1, it returns the filemask for the glob function to find all versions of
+// the file.  If the version is 0, it returns the base file name (legacy
+// behaviour).
+func (d *Directory) filever(id FileID, ver int64) string {
+	switch ver {
+	case -1:
+		return filepath.Join(d.dir, fmt.Sprintf("%s_*%s", id, chunkExt))
+	case 0:
+		return d.filename(id)
+	default:
+		return filepath.Join(d.dir, fmt.Sprintf("%s_%d%s", id, ver, chunkExt))
+	}
 }
 
 // OpenRAW opens a compressed chunk file with filename within the directory,
