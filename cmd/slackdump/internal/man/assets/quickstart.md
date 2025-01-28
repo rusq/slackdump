@@ -13,7 +13,7 @@ There are two ways to use Slackdump:
    3. If your workspace uses Google Authentication, select __User Browser__ and
       pick the one installed on your system.
    4. In all other cases, choose __Interactive__ mode.
-   5. The browser will open, login as usual. The new workspace is automatically
+   5. The browser will open, login as usual. Choose "Open this workspace in browser." The new workspace is automatically
       selected, and ready to use.  (You can switch between workspaces using the
       __Workspace__ menu).
    3. Exit the Workspace menu by choosing __Exit__ to exit to workspace menu
