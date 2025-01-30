@@ -8,16 +8,31 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-
-	"github.com/rusq/slack"
 )
 
-func versions(names ...string) ([]int64, error) {
-	versions := make([]int64, 0, len(names))
-	for _, name := range names {
-		_, ver, err := version(name)
+// versions returns all versions of the files with the given names.  Files
+// should be of the same FileID group, it takes the first file as the common
+// file ID and will return an error if any of the other files have a different
+// file ID.  It will also return an error if there's a duplicate version for
+// the same file ID.
+func versions(filenames ...string) ([]int64, error) {
+	versions := make([]int64, 0, len(filenames))
+	var seenVersions = make(map[int64]struct{}, len(filenames))
+	var commonGroupID FileID
+	for _, name := range filenames {
+		id, ver, err := version(name)
 		if err != nil {
 			return nil, fmt.Errorf("versions: %s: %w", name, err)
+		}
+		if commonGroupID == "" {
+			commonGroupID = id
+		} else if commonGroupID != id {
+			return nil, fmt.Errorf("versions: %s: expected %s, got %s", name, commonGroupID, id)
+		}
+		if _, ok := seenVersions[ver]; ok {
+			return nil, fmt.Errorf("versions: %s: duplicate version %d", name, ver)
+		} else {
+			seenVersions[ver] = struct{}{}
 		}
 		versions = append(versions, ver)
 	}
@@ -28,16 +43,21 @@ func versions(names ...string) ([]int64, error) {
 	return versions, nil
 }
 
+const versionSep = "_"
+
 // version returns the version of the file with the given name. it expects the
 // name to be in the format "channels_1612345678.json.gz".
 func version(name string) (FileID, int64, error) {
+	if !strings.HasSuffix(name, chunkExt) {
+		return "", 0, fmt.Errorf("expected %s to have extension %s", name, chunkExt)
+	}
 	base := filepath.Base(name)
 	// base version
 	noExt := strings.TrimSuffix(base, chunkExt)
-	if !strings.Contains(base, "_") {
+	if !strings.Contains(base, versionSep) {
 		return FileID(noExt), 0, nil
 	}
-	id, sVer, found := strings.Cut(noExt, "_")
+	id, sVer, found := strings.Cut(noExt, versionSep)
 	if !found {
 		return "", 0, fmt.Errorf("version not found in %s", name)
 	}
@@ -46,125 +66,6 @@ func version(name string) (FileID, int64, error) {
 		return "", 0, fmt.Errorf("version: %w", err)
 	}
 	return FileID(id), ver, nil
-}
-
-type versioner[T any] interface {
-	// All should return all entities from the file with the given version.
-	All(ver int64) ([]T, error)
-	// ID should return the unique identifier of the entity.
-	ID(T) string
-}
-
-type catalogue interface {
-	Versions(FileID) ([]int64, error)
-}
-
-// latestVer returns the latest versions of the entities from the given file IDs.
-func latestVer[T any](d catalogue, v versioner[T], ids ...FileID) ([]T, error) {
-	idx := make(map[string]int, 100)
-	var all []T
-	for _, id := range ids {
-		// we expect versions to be sorted in descending order
-		versions, err := d.Versions(id)
-		if err != nil {
-			return nil, err
-		}
-		if len(versions) == 0 {
-			continue
-		}
-		for _, ver := range versions {
-			chunk, err := v.All(ver)
-			if err != nil {
-				return nil, err
-			}
-			if len(all) == 0 {
-				all = chunk
-				for i, el := range all {
-					idx[v.ID(el)] = i
-				}
-			} else {
-				updateIdx(all, idx, chunk, v.ID)
-			}
-		}
-	}
-	return all, nil
-}
-
-// updateIdx updates the index and the all slice with the new chunk of data,
-// replacing the existing data if it exists with the newer versions. idfn is a
-// function that returns the unique identifier of the element.  It does not
-// update the existing data, as it expects versions to be sorted in descending
-// order (newest first).
-func updateIdx[T any](all []T, idx map[string]int, elements []T, idfn func(T) string) {
-	for _, u := range elements {
-		id := idfn(u)
-		if _, ok := idx[id]; !ok {
-			idx[id] = len(all)
-			all = append(all, u)
-			// as we expect versions to be sorted in descending order, we don't
-			// need to update the existing data
-		}
-	}
-}
-
-type userVersion struct {
-	Directory versionOpener
-}
-
-func (uv *userVersion) All(ver int64) ([]slack.User, error) {
-	f, err := uv.Directory.OpenVersion(FUsers, ver)
-	if err != nil {
-		return nil, fmt.Errorf("unable to open users file: %w", err)
-	}
-	defer f.Close()
-	users, err := f.AllUsers()
-	if err != nil {
-		return nil, err
-	}
-	return users, nil
-}
-
-func (uv *userVersion) ID(u slack.User) string {
-	return u.ID
-}
-
-type versionOpener interface {
-	OpenVersion(FileID, int64) (*File, error)
-}
-
-type workspaceInfoVersion struct {
-	Directory versionOpener
-}
-
-func (wiv *workspaceInfoVersion) All(ver int64) ([]*slack.AuthTestResponse, error) {
-	for _, name := range []FileID{FWorkspace, FUsers, FChannels} {
-		f, err := wiv.Directory.OpenVersion(name, ver)
-		if err != nil {
-			continue
-		}
-		defer f.Close()
-		wi, err := f.WorkspaceInfo()
-		if err != nil {
-			continue
-		}
-		return []*slack.AuthTestResponse{wi}, nil
-	}
-	return nil, errors.New("no workspace info found")
-}
-
-func (wiv *workspaceInfoVersion) ID(wi *slack.AuthTestResponse) string {
-	return wi.TeamID
-}
-
-func filever(id FileID, ver int64) string {
-	switch ver {
-	case -1:
-		return fmt.Sprintf("%s*%s", id, chunkExt)
-	case 0:
-		return fmt.Sprintf("%s%s", id, chunkExt)
-	default:
-		return fmt.Sprintf("%s_%d%s", id, ver, chunkExt)
-	}
 }
 
 // fileversions is a struct that contains information about the file and its
@@ -180,6 +81,9 @@ func collectVersions(fsys fs.FS) ([]fileversions, error) {
 	names, err := fs.Glob(fsys, "*"+chunkExt)
 	if err != nil {
 		return nil, err
+	}
+	if len(names) == 0 {
+		return nil, fs.ErrNotExist
 	}
 	var fvs []fileversions
 	seenIDs := make(map[FileID]struct{})
@@ -198,6 +102,19 @@ func collectVersions(fsys fs.FS) ([]fileversions, error) {
 		}
 	}
 	return fvs, nil
+}
+
+func walkVer(fsys fs.FS, fn func(id FileID, versions []int64, err error) error) error {
+	fvs, err := collectVersions(fsys)
+	if err != nil {
+		return err
+	}
+	for _, fv := range fvs {
+		if err := fn(fv.ID, fv.V, nil); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // allVersions returns all versions of the file with the given ID on the

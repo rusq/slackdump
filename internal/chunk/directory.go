@@ -270,8 +270,9 @@ func (d *Directory) Walk(fn func(name string, f *File, err error) error) error {
 	})
 }
 
-// func (d *Directory) WalkVer(fn func(id FileID, versions []int64, err error) error) error {
-// }
+func (d *Directory) WalkVer(fn func(id FileID, versions []int64, err error) error) error {
+	return walkVer(os.DirFS(d.dir), fn)
+}
 
 // WalkSync is the same as Walk, but it closes the file after the callback is
 // called.
@@ -299,7 +300,7 @@ func (d *Directory) StatVersion(id FileID, ver int64) (fs.FileInfo, error) {
 func (d *Directory) Users() ([]slack.User, error) {
 	// versions are expected to be sorted ascending
 	uv := &userVersion{Directory: d}
-	return latestVer(d, uv, FUsers)
+	return latestRec(os.DirFS(d.dir), uv, FUsers)
 }
 
 // Open opens a chunk file with the given name.  Extension is appended
@@ -377,11 +378,6 @@ func openfile(filename string) (*os.File, error) {
 	return os.Open(filename)
 }
 
-// filename returns the full path of the chunk file with the given fileID.
-func (d *Directory) filename(id FileID) string {
-	return filepath.Join(d.dir, string(id)+chunkExt)
-}
-
 // Create creates the chunk file with the given name.  Extension is appended
 // automatically.
 //
@@ -428,7 +424,7 @@ func (c *closewrapper) Close() error {
 // WorkspaceInfo returns the workspace info from the directory.
 func (d *Directory) WorkspaceInfo() (*slack.AuthTestResponse, error) {
 	wiv := &workspaceInfoVersion{Directory: d}
-	wi, err := latestVer(d, wiv, FWorkspace, FUsers, FChannels)
+	wi, err := latestRec(os.DirFS(d.dir), wiv, FWorkspace, FUsers, FChannels)
 	if err != nil {
 		return nil, err
 	}

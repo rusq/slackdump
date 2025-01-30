@@ -39,6 +39,13 @@ func Test_version(t *testing.T) {
 			want:    0,
 			wantErr: true,
 		},
+		{
+			name:    "invalid extension",
+			args:    args{name: "channels_123.json"},
+			wantID:  "",
+			want:    0,
+			wantErr: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -87,6 +94,22 @@ func Test_versions(t *testing.T) {
 			name: "parse error",
 			args: args{
 				names: []string{"channels.json.gz", "channels_abc.json.gz", "channels_456.json.gz"},
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "different file IDs",
+			args: args{
+				names: []string{"channels.json.gz", "users_123.json.gz"},
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "duplicate file versions",
+			args: args{
+				names: []string{"channels_123.json.gz", "channels_123.json.gz"},
 			},
 			want:    nil,
 			wantErr: true,
@@ -144,6 +167,17 @@ func Test_collectVersions(t *testing.T) {
 			want:    nil,
 			wantErr: true,
 		},
+		{
+			name: "no supported files",
+			args: args{
+				fsys: fstest.MapFS{
+					"channels_123.json": &fstest.MapFile{},
+					"channels_abc.json": &fstest.MapFile{},
+				},
+			},
+			want:    nil,
+			wantErr: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -154,6 +188,56 @@ func Test_collectVersions(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("Directory.collectVersions() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_walkVer(t *testing.T) {
+	type args struct {
+		fsys fs.FS
+		// fn   func(id FileID, versions []int64, err error) error
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    []fileversions
+		wantErr bool
+	}{
+		{
+			name: "returns proper versions",
+			args: args{
+				fsys: fstest.MapFS{
+					"channels_123.json.gz": &fstest.MapFile{},
+					"channels_124.json.gz": &fstest.MapFile{},
+					"channels.json.gz":     &fstest.MapFile{},
+					"C123451.json.gz":      &fstest.MapFile{},
+					"C123451_123.json.gz":  &fstest.MapFile{},
+					"some.txt":             &fstest.MapFile{}, // should be ignored.
+				},
+			},
+			want: []fileversions{
+				{ID: "C123451", V: []int64{123, 0}},
+				{ID: FChannels, V: []int64{124, 123, 0}},
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var fvs []fileversions
+			collectorFn := func(id FileID, versions []int64, err error) error {
+				if err != nil {
+					return err
+				}
+				fvs = append(fvs, fileversions{ID: id, V: versions})
+				return nil
+			}
+			if err := walkVer(tt.args.fsys, collectorFn); (err != nil) != tt.wantErr {
+				t.Errorf("walkVer() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if !reflect.DeepEqual(fvs, tt.want) {
+				t.Errorf("walkVer() = %v, want %v", fvs, tt.want)
 			}
 		})
 	}
