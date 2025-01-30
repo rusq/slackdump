@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
-	"os"
 	"path/filepath"
 	"strings"
 
@@ -17,10 +17,10 @@ import (
 )
 
 func CollectAuth(ctx context.Context, w io.Writer) error {
-	fmt.Fprintln(os.Stderr, "To confirm the operation, please enter your OS password.")
-	if err := osValidateUser(ctx, os.Stderr); err != nil {
-		return err
-	}
+	// fmt.Fprintln(os.Stderr, "To confirm the operation, please enter your OS password.")
+	// if err := osValidateUser(ctx, os.Stderr); err != nil {
+	// 	return err
+	// }
 	m, err := workspace.CacheMgr()
 	if err != nil {
 		return fmt.Errorf("cache error: %w", err)
@@ -46,6 +46,13 @@ func CollectAuth(ctx context.Context, w io.Writer) error {
 	if err := dumpCookiesMozilla(ctx, w, prov.Cookies()); err != nil {
 		return err
 	}
+	slog.Info("Testing credentials...")
+	if ai, err := prov.Test(ctx); err != nil {
+		return fmt.Errorf("test error: %w", err)
+	} else {
+		slog.Info("Credentials are valid.", "team", ai.Team, "user", ai.User)
+	}
+
 	return nil
 }
 

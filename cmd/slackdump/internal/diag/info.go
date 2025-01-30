@@ -16,7 +16,7 @@ var cmdInfo = &base.Command{
 	UsageLine:  "slackdump tools info",
 	Short:      "show information about Slackdump environment",
 	Run:        runInfo,
-	FlagMask:   cfg.OmitAll,
+	FlagMask:   cfg.OmitAll &^ cfg.OmitCacheDir,
 	PrintFlags: true,
 
 	Long: `# Info Command
