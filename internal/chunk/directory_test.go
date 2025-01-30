@@ -2,7 +2,6 @@ package chunk
 
 import (
 	"path/filepath"
-	"reflect"
 	"testing"
 
 	"github.com/rusq/slack"
@@ -66,145 +65,6 @@ var (
 	}
 )
 
-func TestOpenDir(t *testing.T) {
-}
-
-func TestDirectory_version(t *testing.T) {
-	type fields struct {
-		dir        string
-		cache      dcache
-		fm         *filemgr
-		numWorkers int
-		timestamp  int64
-		wantCache  bool
-		readOnly   bool
-	}
-	type args struct {
-		name string
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		want    int64
-		wantErr bool
-	}{
-		{
-			name:    "test",
-			fields:  fields{},
-			args:    args{name: "channels.json.gz"},
-			want:    0,
-			wantErr: false,
-		},
-		{
-			name:    "some version",
-			fields:  fields{},
-			args:    args{name: "channels_123.json.gz"},
-			want:    123,
-			wantErr: false,
-		},
-		{
-			name:    "parse error",
-			fields:  fields{},
-			args:    args{name: "channels_abc.json.gz"},
-			want:    0,
-			wantErr: true,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			d := &Directory{
-				dir:        tt.fields.dir,
-				cache:      tt.fields.cache,
-				fm:         tt.fields.fm,
-				numWorkers: tt.fields.numWorkers,
-				timestamp:  tt.fields.timestamp,
-				wantCache:  tt.fields.wantCache,
-				readOnly:   tt.fields.readOnly,
-			}
-			got, err := d.version(tt.args.name)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("Directory.version() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if got != tt.want {
-				t.Errorf("Directory.version() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestDirectory_versions(t *testing.T) {
-	type fields struct {
-		dir        string
-		cache      dcache
-		fm         *filemgr
-		numWorkers int
-		timestamp  int64
-		wantCache  bool
-		readOnly   bool
-	}
-	type args struct {
-		names []string
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		want    []int64
-		wantErr bool
-	}{
-		{
-			name:   "single file",
-			fields: fields{},
-			args: args{
-				names: []string{"channels.json.gz"},
-			},
-			want:    []int64{0},
-			wantErr: false,
-		},
-		{
-			name:   "multiple files",
-			fields: fields{},
-			args: args{
-				names: []string{"channels.json.gz", "channels_123.json.gz", "channels_456.json.gz"},
-			},
-			want:    []int64{0, 123, 456},
-			wantErr: false,
-		},
-		{
-			name:   "parse error",
-			fields: fields{},
-			args: args{
-				names: []string{"channels.json.gz", "channels_abc.json.gz", "channels_456.json.gz"},
-			},
-			want:    nil,
-			wantErr: true,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			d := &Directory{
-				dir:        tt.fields.dir,
-				cache:      tt.fields.cache,
-				fm:         tt.fields.fm,
-				numWorkers: tt.fields.numWorkers,
-				timestamp:  tt.fields.timestamp,
-				wantCache:  tt.fields.wantCache,
-				readOnly:   tt.fields.readOnly,
-			}
-			got, err := d.versions(tt.args.names...)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("Directory.versions() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("Directory.versions() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
 func TestDirectory_filever(t *testing.T) {
 	type fields struct {
 		dir        string
@@ -250,7 +110,7 @@ func TestDirectory_filever(t *testing.T) {
 				id:  FChannels,
 				ver: -1,
 			},
-			want: filepath.Join("testdata", "channels_*.json.gz"),
+			want: filepath.Join("testdata", "channels*.json.gz"),
 		},
 	}
 	for _, tt := range tests {

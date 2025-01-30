@@ -129,20 +129,20 @@ var archivedChannel = []Chunk{
 }
 
 var testChunks = []Chunk{
-	{Type: CChannelInfo, ChannelID: TestChannelID, Channel: &slack.Channel{GroupConversation: slack.GroupConversation{Conversation: slack.Conversation{ID: TestChannelID, NumMembers: 2}}}},
-	{Type: CChannelUsers, ChannelID: TestChannelID, ChannelUsers: []string{"user1", "user2"}},
-	{Type: CMessages, ChannelID: TestChannelID, Messages: []slack.Message{
+	{Type: CChannelInfo, Timestamp: 123456, ChannelID: TestChannelID, Channel: &slack.Channel{GroupConversation: slack.GroupConversation{Conversation: slack.Conversation{ID: TestChannelID, NumMembers: 2}}}},
+	{Type: CChannelUsers, Timestamp: 123456, ChannelID: TestChannelID, ChannelUsers: []string{"user1", "user2"}},
+	{Type: CMessages, Timestamp: 123456, ChannelID: TestChannelID, Messages: []slack.Message{
 		{Msg: slack.Msg{Timestamp: "1234567890.100000", Text: "message1"}},
 		{Msg: slack.Msg{Timestamp: "1234567890.200000", Text: "message2"}},
 		{Msg: slack.Msg{Timestamp: "1234567890.300000", Text: "message3"}},
 		{Msg: slack.Msg{Timestamp: "1234567890.400000", Text: "message4"}},
 		{Msg: slack.Msg{Timestamp: "1234567890.500000", Text: "message5"}},
 	}},
-	{Type: CMessages, ChannelID: TestChannelID, Messages: []slack.Message{
+	{Type: CMessages, Timestamp: 123456, ChannelID: TestChannelID, Messages: []slack.Message{
 		{Msg: slack.Msg{Timestamp: "1234567890.600000", Text: "Hello, again!"}},
 		{Msg: slack.Msg{Timestamp: "1234567890.700000", Text: "And again!"}},
 	}},
-	{Type: CMessages, ChannelID: TestChannelID, Messages: []slack.Message{
+	{Type: CMessages, Timestamp: 123456, ChannelID: TestChannelID, Messages: []slack.Message{
 		{Msg: slack.Msg{Timestamp: "1234567890.800000", Text: "And again!"}},
 		{
 			Msg: slack.Msg{
@@ -187,20 +187,20 @@ var testChunks = []Chunk{
 		},
 	},
 	// chunks from another channel
-	{Type: CChannelInfo, ChannelID: TestChannelID2, Channel: &slack.Channel{GroupConversation: slack.GroupConversation{Conversation: slack.Conversation{ID: TestChannelID2, NumMembers: 2}}}},
-	{Type: CChannelUsers, ChannelID: TestChannelID2, ChannelUsers: []string{"user3", "user4"}},
-	{Type: CMessages, ChannelID: TestChannelID2, Messages: []slack.Message{
+	{Type: CChannelInfo, Timestamp: 123456, ChannelID: TestChannelID2, Channel: &slack.Channel{GroupConversation: slack.GroupConversation{Conversation: slack.Conversation{ID: TestChannelID2, NumMembers: 2}}}},
+	{Type: CChannelUsers, Timestamp: 123456, ChannelID: TestChannelID2, ChannelUsers: []string{"user3", "user4"}},
+	{Type: CMessages, Timestamp: 123456, ChannelID: TestChannelID2, Messages: []slack.Message{
 		{Msg: slack.Msg{Timestamp: "1234567890.100000", Text: "message1"}},
 		{Msg: slack.Msg{Timestamp: "1234567890.200000", Text: "message2"}},
 		{Msg: slack.Msg{Timestamp: "1234567890.300000", Text: "message3"}},
 		{Msg: slack.Msg{Timestamp: "1234567890.400000", Text: "message4"}},
 		{Msg: slack.Msg{Timestamp: "1234567890.500000", Text: "message5"}},
 	}},
-	{Type: CMessages, ChannelID: TestChannelID2, Messages: []slack.Message{
+	{Type: CMessages, Timestamp: 123456, ChannelID: TestChannelID2, Messages: []slack.Message{
 		{Msg: slack.Msg{Timestamp: "1234567890.600000", Text: "Hello, again!"}},
 		{Msg: slack.Msg{Timestamp: "1234567890.700000", Text: "And again!"}},
 	}},
-	{Type: CMessages, ChannelID: TestChannelID2, Messages: []slack.Message{
+	{Type: CMessages, Timestamp: 123456, ChannelID: TestChannelID2, Messages: []slack.Message{
 		{Msg: slack.Msg{Timestamp: "1234567890.800000", Text: "And again!"}},
 		{
 			Msg: slack.Msg{
@@ -458,14 +458,14 @@ func TestFile_offsetTimestamps(t *testing.T) {
 				rs: marshalChunks(testChunks...),
 			},
 			want: offts{
-				661:  offsetInfo{ID: TestChannelID, Timestamps: []int64{1234567890100000, 1234567890200000, 1234567890300000, 1234567890400000, 1234567890500000}},
-				1491: offsetInfo{ID: TestChannelID, Timestamps: []int64{1234567890600000, 1234567890700000}},
-				1854: offsetInfo{ID: TestChannelID, Timestamps: []int64{1234567890800000, 1234567890800000}},
-				2305: offsetInfo{ID: "tC1234567890:1234567890.800000", Type: CThreadMessages, Timestamps: []int64{1234567890900000, 1234567891100000}},
-				3798: offsetInfo{ID: TestChannelID2, Timestamps: []int64{1234567890100000, 1234567890200000, 1234567890300000, 1234567890400000, 1234567890500000}},
-				4627: offsetInfo{ID: TestChannelID2, Timestamps: []int64{1234567890600000, 1234567890700000}},
-				4989: offsetInfo{ID: TestChannelID2, Timestamps: []int64{1234567890800000, 1234567890800000}},
-				5439: offsetInfo{ID: "tC987654321:1234567890.800000", Type: CThreadMessages, Timestamps: []int64{1234567890900000, 1234567891100000}},
+				671:  offsetInfo{ID: TestChannelID, TS: 123456, Timestamps: []int64{1234567890100000, 1234567890200000, 1234567890300000, 1234567890400000, 1234567890500000}},
+				1506: offsetInfo{ID: TestChannelID, TS: 123456, Timestamps: []int64{1234567890600000, 1234567890700000}},
+				1874: offsetInfo{ID: TestChannelID, TS: 123456, Timestamps: []int64{1234567890800000, 1234567890800000}},
+				2330: offsetInfo{ID: "tC1234567890:1234567890.800000", Type: CThreadMessages, TS: 1234567890, Timestamps: []int64{1234567890900000, 1234567891100000}},
+				3833: offsetInfo{ID: TestChannelID2, TS: 123456, Timestamps: []int64{1234567890100000, 1234567890200000, 1234567890300000, 1234567890400000, 1234567890500000}},
+				4667: offsetInfo{ID: TestChannelID2, TS: 123456, Timestamps: []int64{1234567890600000, 1234567890700000}},
+				5034: offsetInfo{ID: TestChannelID2, TS: 123456, Timestamps: []int64{1234567890800000, 1234567890800000}},
+				5489: offsetInfo{ID: "tC987654321:1234567890.800000", Type: CThreadMessages, TS: 1234567890, Timestamps: []int64{1234567890900000, 1234567891100000}},
 			},
 		},
 	}
@@ -776,47 +776,6 @@ func TestFile_AllChannelInfos(t *testing.T) {
 				return
 			}
 			assert.Equal(t, tt.want, got)
-		})
-	}
-}
-
-func TestFile_AllChannelInfoWithMembers(t *testing.T) {
-	memchans := []slack.Channel{
-		*testChunks[0].Channel,
-		*testChunks[6].Channel,
-	}
-	memchans[0].Members = testChunks[1].ChannelUsers
-	memchans[1].Members = testChunks[7].ChannelUsers
-	type fields struct {
-		rs io.ReadSeeker
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		want    []slack.Channel
-		wantErr bool
-	}{
-		{
-			"finds all users and channels",
-			fields{
-				marshalChunks(testChunks...),
-			},
-			memchans,
-			false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			f := &File{
-				rs:  tt.fields.rs,
-				idx: mkindex(tt.fields.rs),
-			}
-			got, err := f.AllChannelInfoWithMembers()
-			if (err != nil) != tt.wantErr {
-				t.Errorf("File.AllChannelInfoWithMembers() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			assert.Equal(t, got, tt.want)
 		})
 	}
 }

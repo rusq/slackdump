@@ -11,9 +11,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
-	"slices"
 	"sort"
-	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -108,6 +106,7 @@ func OpenDir(dir string, opt ...DirOption) (*Directory, error) {
 		dir:        dir,
 		wantCache:  true,
 		numWorkers: 16,
+		timestamp:  time.Now().Unix(),
 	}
 	for _, o := range opt {
 		o(d)
@@ -154,9 +153,14 @@ type resultt[T any] struct {
 	err error
 }
 
-func collectAll[T any](ctx context.Context, d *Directory, numwrk int, fn func(*File) ([]T, error)) ([]T, error) {
+type filereq struct {
+	name string
+	f    *File
+}
+
+func collectAll[T any](ctx context.Context, d *Directory, numwrk int, fn func(name string, f *File) ([]T, error)) ([]T, error) {
 	var all []T
-	fileC := make(chan *File)
+	fileC := make(chan filereq)
 	errC := make(chan error, 1)
 	go func() {
 		defer close(fileC)
@@ -165,7 +169,7 @@ func collectAll[T any](ctx context.Context, d *Directory, numwrk int, fn func(*F
 			if err != nil {
 				return err
 			}
-			fileC <- f
+			fileC <- filereq{name: name, f: f}
 			return nil
 		})
 	}()
@@ -208,22 +212,23 @@ LOOP:
 // collectWorker collects the results by calling the function fn on each file
 // from the fileC channel.  It sends the results to the resultsC channel.  It
 // closes the file after the function is called.
-func collectWorker[T any](fileC <-chan *File, resultsC chan<- resultt[T], fn func(*File) ([]T, error)) {
+func collectWorker[T any](fileC <-chan filereq, resultsC chan<- resultt[T], fn func(name string, f *File) ([]T, error)) {
 	for f := range fileC {
-		v, err := fn(f)
+		v, err := fn(f.name, f.f)
 		resultsC <- resultt[T]{v, err}
-		f.Close()
+		f.f.Close()
 	}
 }
 
 // Channels collects all channels from the chunk directory.
+// TODO: versioning
 func (d *Directory) Channels(ctx context.Context) ([]slack.Channel, error) {
 	if val := d.cache.channels.Load(); val != nil {
 		slog.Debug("channels: cache hit")
 		return val.([]slack.Channel), nil
 	}
 	slog.Debug("channels: cache miss")
-	ch, err := collectAll(ctx, d, d.numWorkers, func(f *File) ([]slack.Channel, error) {
+	ch, err := collectAll(ctx, d, d.numWorkers, func(name string, f *File) ([]slack.Channel, error) {
 		c, err := f.AllChannelInfos()
 		if err != nil {
 			if errors.Is(err, ErrNotFound) {
@@ -242,11 +247,6 @@ func (d *Directory) Channels(ctx context.Context) ([]slack.Channel, error) {
 
 	d.cache.channels.Store(ch)
 	return ch, nil
-}
-
-type result struct {
-	ci  []slack.Channel
-	err error
 }
 
 // Walk iterates over all chunk files in the directory and calls the function
@@ -270,6 +270,9 @@ func (d *Directory) Walk(fn func(name string, f *File, err error) error) error {
 	})
 }
 
+// func (d *Directory) WalkVer(fn func(id FileID, versions []int64, err error) error) error {
+// }
+
 // WalkSync is the same as Walk, but it closes the file after the callback is
 // called.
 func (d *Directory) WalkSync(fn func(name string, f *File, err error) error) error {
@@ -284,45 +287,35 @@ func (d *Directory) Name() string {
 	return d.dir
 }
 
-// loadChannelsJSON loads channels json file and returns a slice of
-// slack.Channel.  It expects it to be GZIP compressed.
-func (d *Directory) loadChannelsJSON(fullpath string) ([]slack.Channel, error) {
-	f, err := d.openRAW(fullpath)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-	cf, err := cachedFromReader(f, d.wantCache)
-	if err != nil {
-		return nil, err
-	}
-	return cf.AllChannels()
+func (d *Directory) Stat(id FileID) (fs.FileInfo, error) {
+	return d.StatVersion(id, 0)
 }
 
-func (d *Directory) Stat(id FileID) (fs.FileInfo, error) {
-	return os.Stat(d.filename(id))
+func (d *Directory) StatVersion(id FileID, ver int64) (fs.FileInfo, error) {
+	return os.Stat(d.filever(id, ver))
 }
 
 // Users returns the collected users from the directory.
 func (d *Directory) Users() ([]slack.User, error) {
-	f, err := d.Open(FUsers)
-	if err != nil {
-		return nil, fmt.Errorf("unable to open users file %q: %w", d.filename(FUsers), err)
-	}
-	defer f.Close()
-	users, err := f.AllUsers()
-	if err != nil {
-		return nil, err
-	}
-	return users, nil
+	// versions are expected to be sorted ascending
+	uv := &userVersion{Directory: d}
+	return latestVer(d, uv, FUsers)
 }
 
 // Open opens a chunk file with the given name.  Extension is appended
 // automatically.
 func (d *Directory) Open(id FileID) (*File, error) {
-	f, err := d.openRAW(d.filename(id))
+	return d.OpenVersion(id, 0)
+}
+
+// OpenVersion opens a chunk file with the given name and version.  Extension
+// is appended automatically.  You can discover the versions of the file with
+// the [Versions] method.
+func (d *Directory) OpenVersion(id FileID, ver int64) (*File, error) {
+	filename := d.filever(id, ver)
+	f, err := d.openRAW(filename)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%s: %w", filename, err)
 	}
 	return cachedFromReader(f, d.wantCache)
 }
@@ -331,39 +324,7 @@ func (d *Directory) Open(id FileID) (*File, error) {
 // each version is a timestamp of when the directory was updated, i.e. during
 // consequent runs of "resume" command.
 func (d *Directory) Versions(id FileID) ([]int64, error) {
-	names, err := filepath.Glob(d.filever(id, -1))
-	if err != nil {
-		return nil, err
-	}
-	return d.versions(names...)
-}
-
-func (d *Directory) versions(names ...string) ([]int64, error) {
-	versions := make([]int64, 0, len(names))
-	for _, name := range names {
-		ver, err := d.version(name)
-		if err != nil {
-			return nil, fmt.Errorf("versions: %s: %w", name, err)
-		}
-		versions = append(versions, ver)
-	}
-	slices.Sort(versions)
-	return versions, nil
-}
-
-// version returns the version of the file with the given name.
-// it expects the name to be in the format "channels_1612345678.json.gz".
-func (*Directory) version(name string) (int64, error) {
-	base := filepath.Base(name)
-	// base version
-	if !strings.Contains(base, "_") {
-		return 0, nil
-	}
-	_, ver, found := strings.Cut(strings.TrimSuffix(base, chunkExt), "_")
-	if !found {
-		return 0, fmt.Errorf("version not found in %s", name)
-	}
-	return strconv.ParseInt(ver, 10, 64)
+	return allVersions(os.DirFS(d.dir), id)
 }
 
 // filever returns the filename of the FileID with the given version. If ver is
@@ -371,14 +332,7 @@ func (*Directory) version(name string) (int64, error) {
 // the file.  If the version is 0, it returns the base file name (legacy
 // behaviour).
 func (d *Directory) filever(id FileID, ver int64) string {
-	switch ver {
-	case -1:
-		return filepath.Join(d.dir, fmt.Sprintf("%s_*%s", id, chunkExt))
-	case 0:
-		return d.filename(id)
-	default:
-		return filepath.Join(d.dir, fmt.Sprintf("%s_%d%s", id, ver, chunkExt))
-	}
+	return filepath.Join(d.dir, filever(id, ver))
 }
 
 // OpenRAW opens a compressed chunk file with filename within the directory,
@@ -442,7 +396,7 @@ func (d *Directory) Create(fileID FileID) (io.WriteCloser, error) {
 	if d.readOnly {
 		return nil, os.ErrPermission
 	}
-	filename := d.filename(fileID)
+	filename := d.filever(fileID, d.timestamp)
 	if fi, err := os.Stat(filename); err == nil {
 		if fi.IsDir() {
 			return nil, fmt.Errorf("is a directory: %s", filename)
@@ -473,21 +427,12 @@ func (c *closewrapper) Close() error {
 
 // WorkspaceInfo returns the workspace info from the directory.
 func (d *Directory) WorkspaceInfo() (*slack.AuthTestResponse, error) {
-	//  First it tries to find the workspace.json.gz file, if not found,
-	// it tries to get the info from users.json.gz and channels.json.gz.
-	for _, name := range []FileID{FWorkspace, FUsers, FChannels} {
-		f, err := d.Open(name)
-		if err != nil {
-			continue
-		}
-		defer f.Close()
-		wi, err := f.WorkspaceInfo()
-		if err != nil {
-			continue
-		}
-		return wi, nil
+	wiv := &workspaceInfoVersion{Directory: d}
+	wi, err := latestVer(d, wiv, FWorkspace, FUsers, FChannels)
+	if err != nil {
+		return nil, err
 	}
-	return nil, errors.New("no workspace info found")
+	return wi[0], nil
 }
 
 func cachedFromReader(wf osext.ReadSeekCloseNamer, wantCache bool) (*File, error) {

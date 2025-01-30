@@ -295,22 +295,6 @@ func (f *File) AllChannelInfos() ([]slack.Channel, error) {
 	return chans, nil
 }
 
-// AllChannelInfoWithMembers returns all channels with Members populated.
-func (f *File) AllChannelInfoWithMembers() ([]slack.Channel, error) {
-	c, err := f.AllChannelInfos()
-	if err != nil {
-		return nil, err
-	}
-	for i := range c {
-		members, err := f.ChannelUsers(c[i].ID)
-		if err != nil {
-			return nil, err
-		}
-		c[i].Members = members
-	}
-	return c, nil
-}
-
 // int64s implements sort.Interface for []int64.
 type int64s []int64
 
@@ -420,6 +404,7 @@ type offts map[int64]offsetInfo
 type offsetInfo struct {
 	ID         GroupID
 	Type       ChunkType
+	TS         int64 // timestamp of the chunk
 	Timestamps []int64
 }
 
@@ -461,6 +446,7 @@ func (f *File) offsetTimestamps(ctx context.Context) (offts, error) {
 			ret[offset] = offsetInfo{
 				ID:         chunk.ID(),
 				Type:       chunk.Type,
+				TS:         chunk.Timestamp,
 				Timestamps: ts,
 			}
 		}
