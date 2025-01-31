@@ -2,6 +2,7 @@ package viewer
 
 import (
 	"errors"
+	"fmt"
 	"io/fs"
 	"net/http"
 	"os"
@@ -54,6 +55,25 @@ func (v *Viewer) newFileHandler(fn func(w http.ResponseWriter, r *http.Request, 
 	}
 }
 
+func maybeReverse(mm []slack.Message) error {
+	if len(mm) == 0 {
+		return nil
+	}
+
+	first, err := fasttime.TS2int(mm[0].Timestamp)
+	if err != nil {
+		return fmt.Errorf("TS2int at 0: %w", err)
+	}
+	last, err := fasttime.TS2int(mm[len(mm)-1].Timestamp)
+	if err != nil {
+		return fmt.Errorf("TS2int at -1: %w", err)
+	}
+	if first > last {
+		slices.Reverse(mm)
+	}
+	return nil
+}
+
 func (v *Viewer) channelHandler(w http.ResponseWriter, r *http.Request, id string) {
 	ctx := r.Context()
 	lg := v.lg.With("in", "channelHandler", "channel", id)
@@ -67,22 +87,11 @@ func (v *Viewer) channelHandler(w http.ResponseWriter, r *http.Request, id strin
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	if len(mm) > 0 {
-		first, err := fasttime.TS2int(mm[0].Timestamp)
-		if err != nil {
-			lg.ErrorContext(ctx, "TS2int", "idx", 0, "error", err)
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		last, err := fasttime.TS2int(mm[len(mm)-1].Timestamp)
-		if err != nil {
-			lg.ErrorContext(ctx, "TS2int", "idx", -1, "error", err)
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		if first > last {
-			slices.Reverse(mm)
-		}
+
+	if err := maybeReverse(mm); err != nil {
+		lg.ErrorContext(ctx, "maybeReverse", "error", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 
 	lg.DebugContext(ctx, "conversation", "id", id, "message_count", len(mm))
@@ -158,6 +167,11 @@ func (v *Viewer) threadHandler(w http.ResponseWriter, r *http.Request, id string
 		if err != nil {
 			lg.ErrorContext(ctx, "AllMessages", "error", err, "template", template)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+		if err := maybeReverse(msg); err != nil {
+			lg.ErrorContext(ctx, "maybeReverse", "error", err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
 		}
 		page.Messages = msg
 	}

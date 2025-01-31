@@ -116,7 +116,7 @@
 {{define "hx_thread"}}
 <h2>Thread: {{ .ThreadID }}</h2>
 <p><a id="close-thread" href="#">[X]</a></p>
-<p><a id="thread-link" href="{{.Conversation.ID}}/{{ .ThreadID }}">Link to this thread</a></p>
+<p><a id="thread-link" href="/archives/{{.Conversation.ID}}/{{ .ThreadID }}#{{.ThreadID}}">Link to this thread</a></p>
 {{ range $i, $el := .ThreadMessages }}
 <article class="message">
     {{ template "render_message" $el }}
