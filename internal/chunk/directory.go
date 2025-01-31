@@ -240,8 +240,8 @@ func (d *Directory) Walk(fn func(name string, f *File, err error) error) error {
 	})
 }
 
-func (d *Directory) WalkVer(fn func(id FileID, versions []int64, err error) error) error {
-	return walkVer(os.DirFS(d.dir), fn)
+func (d *Directory) WalkVer(fn func(gid FileGroup, err error) error) error {
+	return walkGroup(os.DirFS(d.dir), fn)
 }
 
 // WalkSync is the same as Walk, but it closes the file after the callback is
@@ -279,12 +279,12 @@ func (d *Directory) Channels(context.Context) ([]slack.Channel, error) {
 	}
 	var ch []slack.Channel
 	fsys := os.DirFS(d.dir)
-	if err := d.WalkVer(func(id FileID, versions []int64, err error) error {
+	if err := d.WalkVer(func(gid FileGroup, err error) error {
 		if err != nil {
 			return err
 		}
 		civ := &channelInfoVersion{Directory: d}
-		cis, err := latestRec(fsys, civ, id)
+		cis, err := latestRec(fsys, civ, gid.ID)
 		if err != nil {
 			return err
 		}
@@ -467,12 +467,12 @@ func (d *Directory) File(id string, name string) (fs.File, error) {
 
 func (d *Directory) AllMessages(channelID string) ([]slack.Message, error) {
 	var mm structures.Messages
-	err := d.WalkVer(func(id FileID, _ []int64, err error) error {
+	err := d.WalkVer(func(gid FileGroup, err error) error {
 		if err != nil {
 			return err
 		}
 		mv := &messageVersion{Directory: d, ChannelID: channelID}
-		m, err := latestRec(os.DirFS(d.dir), mv, id)
+		m, err := latestRec(os.DirFS(d.dir), mv, gid.ID)
 		if err != nil {
 			if errors.Is(err, ErrNotFound) {
 				return nil
@@ -492,7 +492,7 @@ func (d *Directory) AllMessages(channelID string) ([]slack.Message, error) {
 func (d *Directory) AllThreadMessages(channelID, threadID string) ([]slack.Message, error) {
 	var mm structures.Messages
 	var parent *slack.Message
-	err := d.WalkVer(func(id FileID, _ []int64, err error) error {
+	err := d.WalkVer(func(gid FileGroup, err error) error {
 		if err != nil {
 			return err
 		}
@@ -501,7 +501,7 @@ func (d *Directory) AllThreadMessages(channelID, threadID string) ([]slack.Messa
 			tmv = &threadMessageVersion{Directory: d, ChannelID: channelID, ThreadID: threadID}
 		)
 		if parent == nil {
-			par, err := oneRec(os.DirFS(d.dir), pmv, id)
+			par, err := oneRec(os.DirFS(d.dir), pmv, gid.ID)
 			if err != nil {
 				if !errors.Is(err, ErrNotFound) {
 					return nil
@@ -510,7 +510,7 @@ func (d *Directory) AllThreadMessages(channelID, threadID string) ([]slack.Messa
 				parent = &par
 			}
 		}
-		rest, err := latestRec(os.DirFS(d.dir), tmv, id)
+		rest, err := latestRec(os.DirFS(d.dir), tmv, gid.ID)
 		if err != nil && !errors.Is(err, ErrNotFound) {
 			return err
 		}

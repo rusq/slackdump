@@ -70,16 +70,16 @@ func version(name string) (FileID, int64, error) {
 	return FileID(id), ver, nil
 }
 
-// fileversions is a struct that contains information about the file and its
-// versions.
-type fileversions struct {
+// FileGroup is a struct that contains information about a group of files
+// having the same FileID and different versions.
+type FileGroup struct {
 	ID FileID
 	V  []int64
 }
 
-// collectVersions collects all versions of the file chunks in the root of the
+// collectGroups collects all versions of the file chunks in the root of the
 // fsys.
-func collectVersions(fsys fs.FS) ([]fileversions, error) {
+func collectGroups(fsys fs.FS) ([]FileGroup, error) {
 	names, err := fs.Glob(fsys, "*"+chunkExt)
 	if err != nil {
 		return nil, err
@@ -87,7 +87,7 @@ func collectVersions(fsys fs.FS) ([]fileversions, error) {
 	if len(names) == 0 {
 		return nil, fs.ErrNotExist
 	}
-	var fvs []fileversions
+	var fvs []FileGroup
 	seenIDs := make(map[FileID]struct{})
 	for _, name := range names {
 		id, _, err := version(name)
@@ -99,20 +99,20 @@ func collectVersions(fsys fs.FS) ([]fileversions, error) {
 			if err != nil {
 				return nil, fmt.Errorf("%s: %w", id, err)
 			}
-			fvs = append(fvs, fileversions{ID: id, V: versions})
+			fvs = append(fvs, FileGroup{ID: id, V: versions})
 			seenIDs[id] = struct{}{}
 		}
 	}
 	return fvs, nil
 }
 
-func walkVer(fsys fs.FS, fn func(id FileID, versions []int64, err error) error) error {
-	fvs, err := collectVersions(fsys)
+func walkGroup(fsys fs.FS, fn func(gid FileGroup, err error) error) error {
+	fvs, err := collectGroups(fsys)
 	if err != nil {
 		return err
 	}
 	for _, fv := range fvs {
-		if err := fn(fv.ID, fv.V, nil); err != nil {
+		if err := fn(fv, nil); err != nil {
 			return err
 		}
 	}

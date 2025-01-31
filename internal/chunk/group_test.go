@@ -129,14 +129,14 @@ func Test_versions(t *testing.T) {
 	}
 }
 
-func Test_collectVersions(t *testing.T) {
+func Test_collectGroups(t *testing.T) {
 	type args struct {
 		fsys fs.FS
 	}
 	tests := []struct {
 		name    string
 		args    args
-		want    []fileversions
+		want    []FileGroup
 		wantErr bool
 	}{
 		{
@@ -150,7 +150,7 @@ func Test_collectVersions(t *testing.T) {
 					"C123451_123.json.gz":  &fstest.MapFile{},
 				},
 			},
-			want: []fileversions{
+			want: []FileGroup{
 				{ID: "C123451", V: []int64{123, 0}},
 				{ID: FChannels, V: []int64{124, 123, 0}},
 			},
@@ -181,27 +181,27 @@ func Test_collectVersions(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := collectVersions(tt.args.fsys)
+			got, err := collectGroups(tt.args.fsys)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("Directory.collectVersions() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("collectGroups() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("Directory.collectVersions() = %v, want %v", got, tt.want)
+				t.Errorf("collectGroups() = %v, want %v", got, tt.want)
 			}
 		})
 	}
 }
 
-func Test_walkVer(t *testing.T) {
+func Test_walkGroup(t *testing.T) {
 	type args struct {
 		fsys fs.FS
-		// fn   func(id FileID, versions []int64, err error) error
+		// fn   func(gid FileGroup, err error) error
 	}
 	tests := []struct {
 		name    string
 		args    args
-		want    []fileversions
+		want    []FileGroup
 		wantErr bool
 	}{
 		{
@@ -216,7 +216,7 @@ func Test_walkVer(t *testing.T) {
 					"some.txt":             &fstest.MapFile{}, // should be ignored.
 				},
 			},
-			want: []fileversions{
+			want: []FileGroup{
 				{ID: "C123451", V: []int64{123, 0}},
 				{ID: FChannels, V: []int64{124, 123, 0}},
 			},
@@ -225,19 +225,19 @@ func Test_walkVer(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var fvs []fileversions
-			collectorFn := func(id FileID, versions []int64, err error) error {
+			var fgs []FileGroup
+			collectorFn := func(gid FileGroup, err error) error {
 				if err != nil {
 					return err
 				}
-				fvs = append(fvs, fileversions{ID: id, V: versions})
+				fgs = append(fgs, gid)
 				return nil
 			}
-			if err := walkVer(tt.args.fsys, collectorFn); (err != nil) != tt.wantErr {
-				t.Errorf("walkVer() error = %v, wantErr %v", err, tt.wantErr)
+			if err := walkGroup(tt.args.fsys, collectorFn); (err != nil) != tt.wantErr {
+				t.Errorf("walkGroup() error = %v, wantErr %v", err, tt.wantErr)
 			}
-			if !reflect.DeepEqual(fvs, tt.want) {
-				t.Errorf("walkVer() = %v, want %v", fvs, tt.want)
+			if !reflect.DeepEqual(fgs, tt.want) {
+				t.Errorf("walkGroup() = %v, want %v", fgs, tt.want)
 			}
 		})
 	}

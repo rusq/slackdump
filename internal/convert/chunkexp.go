@@ -139,9 +139,9 @@ func (c *ChunkToExport) Validate() error {
 		}
 	}
 	// users chunk is required
-	if fi, err := c.src.Stat(chunk.FUsers); err != nil {
+	if vv, err := c.src.Versions(chunk.FUsers); err != nil {
 		return fmt.Errorf("users chunk: %w", err)
-	} else if fi.Size() == 0 {
+	} else if len(vv) == 0 {
 		return fmt.Errorf("users chunk: %w", ErrEmptyChunk)
 	}
 	// we are not checking for channels chunk because channel information will

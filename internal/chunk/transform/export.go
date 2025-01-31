@@ -103,7 +103,12 @@ func (e *ExpConverter) Convert(ctx context.Context, id chunk.FileID) error {
 	return nil
 }
 
-func (e *ExpConverter) writeMessages(ctx context.Context, pl *chunk.File, ci *slack.Channel) error {
+type filer interface {
+	Sorted(context.Context, bool, func(time.Time, *slack.Message) error) error
+	AllThreadMessages(channelID, threadTS string) ([]slack.Message, error)
+}
+
+func (e *ExpConverter) writeMessages(ctx context.Context, pl filer, ci *slack.Channel) error {
 	lg := slog.With("in", "writeMessages", "channel", ci.ID)
 	uidx := types.Users(e.getUsers()).IndexByID()
 	trgdir := ExportChanName(ci)
