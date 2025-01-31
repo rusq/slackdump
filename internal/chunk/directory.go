@@ -240,8 +240,8 @@ func (d *Directory) Walk(fn func(name string, f *File, err error) error) error {
 	})
 }
 
-func (d *Directory) WalkVer(fn func(gid FileGroup, err error) error) error {
-	return walkGroup(os.DirFS(d.dir), fn)
+func (d *Directory) WalkVer(fn func(gid fileVersions, err error) error) error {
+	return walkVersion(os.DirFS(d.dir), fn)
 }
 
 // WalkSync is the same as Walk, but it closes the file after the callback is
@@ -279,7 +279,7 @@ func (d *Directory) Channels(context.Context) ([]slack.Channel, error) {
 	}
 	var ch []slack.Channel
 	fsys := os.DirFS(d.dir)
-	if err := d.WalkVer(func(gid FileGroup, err error) error {
+	if err := d.WalkVer(func(gid fileVersions, err error) error {
 		if err != nil {
 			return err
 		}
@@ -467,7 +467,7 @@ func (d *Directory) File(id string, name string) (fs.File, error) {
 
 func (d *Directory) AllMessages(channelID string) ([]slack.Message, error) {
 	var mm structures.Messages
-	err := d.WalkVer(func(gid FileGroup, err error) error {
+	err := d.WalkVer(func(gid fileVersions, err error) error {
 		if err != nil {
 			return err
 		}
@@ -492,7 +492,7 @@ func (d *Directory) AllMessages(channelID string) ([]slack.Message, error) {
 func (d *Directory) AllThreadMessages(channelID, threadID string) ([]slack.Message, error) {
 	var mm structures.Messages
 	var parent *slack.Message
-	err := d.WalkVer(func(gid FileGroup, err error) error {
+	err := d.WalkVer(func(gid fileVersions, err error) error {
 		if err != nil {
 			return err
 		}

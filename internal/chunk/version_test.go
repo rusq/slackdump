@@ -51,14 +51,14 @@ func Test_version(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			gotID, got, err := version(tt.args.name)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("Directory.version() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("version() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if got != tt.want {
-				t.Errorf("Directory.version() = %v, want %v", got, tt.want)
+				t.Errorf("version() = %v, want %v", got, tt.want)
 			}
 			if gotID != tt.wantID {
-				t.Errorf("Directory.version() = %v, want %v", gotID, tt.wantID)
+				t.Errorf("version() = %v, want %v", gotID, tt.wantID)
 			}
 		})
 	}
@@ -119,24 +119,24 @@ func Test_versions(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := versions(tt.args.names...)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("Directory.versions() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("versions() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("Directory.versions() = %v, want %v", got, tt.want)
+				t.Errorf("versions() = %v, want %v", got, tt.want)
 			}
 		})
 	}
 }
 
-func Test_collectGroups(t *testing.T) {
+func Test_collectVersions(t *testing.T) {
 	type args struct {
 		fsys fs.FS
 	}
 	tests := []struct {
 		name    string
 		args    args
-		want    []FileGroup
+		want    []fileVersions
 		wantErr bool
 	}{
 		{
@@ -150,7 +150,7 @@ func Test_collectGroups(t *testing.T) {
 					"C123451_123.json.gz":  &fstest.MapFile{},
 				},
 			},
-			want: []FileGroup{
+			want: []fileVersions{
 				{ID: "C123451", V: []int64{123, 0}},
 				{ID: FChannels, V: []int64{124, 123, 0}},
 			},
@@ -181,19 +181,19 @@ func Test_collectGroups(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := collectGroups(tt.args.fsys)
+			got, err := collectVersions(tt.args.fsys)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("collectGroups() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("collectVersions() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("collectGroups() = %v, want %v", got, tt.want)
+				t.Errorf("collectVersions() = %v, want %v", got, tt.want)
 			}
 		})
 	}
 }
 
-func Test_walkGroup(t *testing.T) {
+func Test_walkVersion(t *testing.T) {
 	type args struct {
 		fsys fs.FS
 		// fn   func(gid FileGroup, err error) error
@@ -201,7 +201,7 @@ func Test_walkGroup(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    args
-		want    []FileGroup
+		want    []fileVersions
 		wantErr bool
 	}{
 		{
@@ -216,7 +216,7 @@ func Test_walkGroup(t *testing.T) {
 					"some.txt":             &fstest.MapFile{}, // should be ignored.
 				},
 			},
-			want: []FileGroup{
+			want: []fileVersions{
 				{ID: "C123451", V: []int64{123, 0}},
 				{ID: FChannels, V: []int64{124, 123, 0}},
 			},
@@ -225,19 +225,19 @@ func Test_walkGroup(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var fgs []FileGroup
-			collectorFn := func(gid FileGroup, err error) error {
+			var fgs []fileVersions
+			collectorFn := func(gid fileVersions, err error) error {
 				if err != nil {
 					return err
 				}
 				fgs = append(fgs, gid)
 				return nil
 			}
-			if err := walkGroup(tt.args.fsys, collectorFn); (err != nil) != tt.wantErr {
-				t.Errorf("walkGroup() error = %v, wantErr %v", err, tt.wantErr)
+			if err := walkVersion(tt.args.fsys, collectorFn); (err != nil) != tt.wantErr {
+				t.Errorf("walkVersion() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if !reflect.DeepEqual(fgs, tt.want) {
-				t.Errorf("walkGroup() = %v, want %v", fgs, tt.want)
+				t.Errorf("walkVersion() = %v, want %v", fgs, tt.want)
 			}
 		})
 	}

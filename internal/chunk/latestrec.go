@@ -87,12 +87,8 @@ func updateIdx[T any](all []T, idx map[string]int, elements []T, idfn func(T) st
 	}
 }
 
-type versionOpener interface {
-	OpenVersion(FileID, int64) (*File, error)
-}
-
 type userVersion struct {
-	Directory versionOpener
+	Directory Catalogue
 }
 
 func (uv *userVersion) All(id FileID, ver int64) ([]slack.User, error) {
@@ -113,7 +109,7 @@ func (uv *userVersion) ID(u slack.User) string {
 }
 
 type workspaceInfoVersion struct {
-	Directory versionOpener
+	Directory Catalogue
 }
 
 func (wiv *workspaceInfoVersion) All(_ FileID, ver int64) ([]*slack.AuthTestResponse, error) {
@@ -148,7 +144,7 @@ func filever(id FileID, ver int64) string {
 }
 
 type channelInfoVersion struct {
-	Directory versionOpener
+	Directory Catalogue
 }
 
 func (civ *channelInfoVersion) All(id FileID, ver int64) ([]slack.Channel, error) {
@@ -169,7 +165,7 @@ func (civ *channelInfoVersion) ID(c slack.Channel) string {
 }
 
 type messageVersion struct {
-	Directory versionOpener
+	Directory Catalogue
 	ChannelID string
 }
 
@@ -191,7 +187,7 @@ func (mv *messageVersion) ID(m slack.Message) string {
 }
 
 type parentMessageVersion struct {
-	Directory versionOpener
+	Directory Catalogue
 	ChannelID string
 	ThreadID  string
 }
@@ -214,7 +210,7 @@ func (pmv *parentMessageVersion) ID(m slack.Message) string {
 }
 
 type threadMessageVersion struct {
-	Directory versionOpener
+	Directory Catalogue
 	ChannelID string
 	ThreadID  string
 }
