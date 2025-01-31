@@ -16,9 +16,11 @@ import (
 // file ID.  It will also return an error if there's a duplicate version for
 // the same file ID.
 func versions(filenames ...string) ([]int64, error) {
-	versions := make([]int64, 0, len(filenames))
-	var seenVersions = make(map[int64]struct{}, len(filenames))
-	var commonGroupID FileID
+	var (
+		versions      = make([]int64, 0, len(filenames))
+		seenVersions  = make(map[int64]struct{}, len(filenames))
+		commonGroupID FileID
+	)
 	for _, name := range filenames {
 		id, ver, err := version(name)
 		if err != nil {
@@ -93,7 +95,7 @@ func collectVersions(fsys fs.FS) ([]fileversions, error) {
 			return nil, fmt.Errorf("%s: %v", name, err)
 		}
 		if _, ok := seenIDs[id]; !ok {
-			versions, err := allVersions(fsys, id)
+			versions, err := AllVersions(fsys, id)
 			if err != nil {
 				return nil, fmt.Errorf("%s: %w", id, err)
 			}
@@ -117,9 +119,9 @@ func walkVer(fsys fs.FS, fn func(id FileID, versions []int64, err error) error) 
 	return nil
 }
 
-// allVersions returns all versions of the file with the given ID on the
+// AllVersions returns all versions of the file with the given ID on the
 // filesystem fsys.
-func allVersions(fsys fs.FS, id FileID) ([]int64, error) {
+func AllVersions(fsys fs.FS, id FileID) ([]int64, error) {
 	names, err := fs.Glob(fsys, filever(id, -1))
 	if err != nil {
 		return nil, err

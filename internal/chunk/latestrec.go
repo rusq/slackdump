@@ -10,7 +10,7 @@ import (
 
 type versioner[T any] interface {
 	// All should return all entities from the file with the given version.
-	All(ver int64) ([]T, error)
+	All(id FileID, ver int64) ([]T, error)
 	// ID should return the unique identifier of the entity.
 	ID(T) string
 }
@@ -21,7 +21,7 @@ func latestRec[T any](fsys fs.FS, v versioner[T], ids ...FileID) ([]T, error) {
 	var all []T
 	for _, id := range ids {
 		// we expect versions to be sorted in descending order
-		versions, err := allVersions(fsys, id)
+		versions, err := AllVersions(fsys, id)
 		if err != nil {
 			return nil, err
 		}
@@ -29,7 +29,7 @@ func latestRec[T any](fsys fs.FS, v versioner[T], ids ...FileID) ([]T, error) {
 			continue
 		}
 		for _, ver := range versions {
-			elements, err := v.All(ver)
+			elements, err := v.All(id, ver)
 			if err != nil {
 				return nil, err
 			}
@@ -45,6 +45,29 @@ func latestRec[T any](fsys fs.FS, v versioner[T], ids ...FileID) ([]T, error) {
 		}
 	}
 	return all, nil
+}
+
+func oneRec[T any](fsys fs.FS, v versioner[T], id FileID) (T, error) {
+	var t T
+	versions, err := AllVersions(fsys, id)
+	if err != nil {
+		return t, err
+	}
+	if len(versions) == 0 {
+		return t, fmt.Errorf("no versions found for %s", id)
+	}
+	// find the first occurrence of the data
+	for _, ver := range versions {
+		elements, err := v.All(id, ver)
+		if err != nil {
+			return t, err
+		}
+		if len(elements) == 0 {
+			continue
+		}
+		return elements[0], nil
+	}
+	return t, fmt.Errorf("%s: %w", id, ErrNotFound)
 }
 
 // updateIdx updates the index and the all slice with the new chunk of data,
@@ -72,8 +95,8 @@ type userVersion struct {
 	Directory versionOpener
 }
 
-func (uv *userVersion) All(ver int64) ([]slack.User, error) {
-	f, err := uv.Directory.OpenVersion(FUsers, ver)
+func (uv *userVersion) All(id FileID, ver int64) ([]slack.User, error) {
+	f, err := uv.Directory.OpenVersion(id, ver)
 	if err != nil {
 		return nil, fmt.Errorf("unable to open users file: %w", err)
 	}
@@ -93,7 +116,7 @@ type workspaceInfoVersion struct {
 	Directory versionOpener
 }
 
-func (wiv *workspaceInfoVersion) All(ver int64) ([]*slack.AuthTestResponse, error) {
+func (wiv *workspaceInfoVersion) All(_ FileID, ver int64) ([]*slack.AuthTestResponse, error) {
 	for _, name := range []FileID{FWorkspace, FUsers, FChannels} {
 		f, err := wiv.Directory.OpenVersion(name, ver)
 		if err != nil {
@@ -122,4 +145,93 @@ func filever(id FileID, ver int64) string {
 	default:
 		return fmt.Sprintf("%s_%d%s", id, ver, chunkExt)
 	}
+}
+
+type channelInfoVersion struct {
+	Directory versionOpener
+}
+
+func (civ *channelInfoVersion) All(id FileID, ver int64) ([]slack.Channel, error) {
+	f, err := civ.Directory.OpenVersion(id, ver)
+	if err != nil {
+		return nil, fmt.Errorf("unable to open channels file: %w", err)
+	}
+	defer f.Close()
+	channels, err := f.AllChannelInfos()
+	if err != nil {
+		return nil, err
+	}
+	return channels, nil
+}
+
+func (civ *channelInfoVersion) ID(c slack.Channel) string {
+	return c.ID
+}
+
+type messageVersion struct {
+	Directory versionOpener
+	ChannelID string
+}
+
+func (mv *messageVersion) All(id FileID, ver int64) ([]slack.Message, error) {
+	f, err := mv.Directory.OpenVersion(id, ver)
+	if err != nil {
+		return nil, fmt.Errorf("unable to open messages file: %w", err)
+	}
+	defer f.Close()
+	messages, err := f.AllMessages(mv.ChannelID)
+	if err != nil {
+		return nil, err
+	}
+	return messages, nil
+}
+
+func (mv *messageVersion) ID(m slack.Message) string {
+	return m.Timestamp
+}
+
+type parentMessageVersion struct {
+	Directory versionOpener
+	ChannelID string
+	ThreadID  string
+}
+
+func (pmv *parentMessageVersion) All(id FileID, ver int64) ([]slack.Message, error) {
+	f, err := pmv.Directory.OpenVersion(id, ver)
+	if err != nil {
+		return nil, fmt.Errorf("unable to open messages file: %w", err)
+	}
+	defer f.Close()
+	message, err := f.ThreadParent(pmv.ChannelID, pmv.ThreadID)
+	if err != nil {
+		return nil, err
+	}
+	return []slack.Message{*message}, nil
+}
+
+func (pmv *parentMessageVersion) ID(m slack.Message) string {
+	return m.Timestamp
+}
+
+type threadMessageVersion struct {
+	Directory versionOpener
+	ChannelID string
+	ThreadID  string
+}
+
+func (tmv *threadMessageVersion) All(id FileID, ver int64) ([]slack.Message, error) {
+	f, err := tmv.Directory.OpenVersion(id, ver)
+	if err != nil {
+		return nil, fmt.Errorf("unable to open messages file: %w", err)
+	}
+	defer f.Close()
+	messages, err := f.AllThreadMessages(tmv.ChannelID, tmv.ThreadID)
+	if err != nil {
+		return nil, err
+	}
+	return messages, nil
+}
+
+func (tmv *threadMessageVersion) ID(m slack.Message) string {
+	return m.Timestamp
 }

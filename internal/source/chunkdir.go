@@ -54,12 +54,7 @@ func (c *ChunkDir) AllThreadMessages(channelID, threadID string) ([]slack.Messag
 }
 
 func (c *ChunkDir) ChannelInfo(_ context.Context, channelID string) (*slack.Channel, error) {
-	f, err := c.d.Open(chunk.ToFileID(channelID, "", false))
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-	return f.ChannelInfo(channelID)
+	return c.d.ChannelInfo(channelID)
 }
 
 func (c *ChunkDir) Channels(ctx context.Context) ([]slack.Channel, error) {

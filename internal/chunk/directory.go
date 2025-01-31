@@ -222,7 +222,7 @@ func collectWorker[T any](fileC <-chan filereq, resultsC chan<- resultt[T], fn f
 
 // Channels collects all channels from the chunk directory.
 // TODO: versioning
-func (d *Directory) Channels(ctx context.Context) ([]slack.Channel, error) {
+func (d *Directory) Channels2(ctx context.Context) ([]slack.Channel, error) {
 	if val := d.cache.channels.Load(); val != nil {
 		slog.Debug("channels: cache hit")
 		return val.([]slack.Channel), nil
@@ -303,6 +303,33 @@ func (d *Directory) Users() ([]slack.User, error) {
 	return latestRec(os.DirFS(d.dir), uv, FUsers)
 }
 
+func (d *Directory) Channels(context.Context) ([]slack.Channel, error) {
+	if val := d.cache.channels.Load(); val != nil {
+		return val.([]slack.Channel), nil
+	}
+	var ch []slack.Channel
+	fsys := os.DirFS(d.dir)
+	if err := d.WalkVer(func(id FileID, versions []int64, err error) error {
+		if err != nil {
+			return err
+		}
+		civ := &channelInfoVersion{Directory: d}
+		cis, err := latestRec(fsys, civ, id)
+		if err != nil {
+			return err
+		}
+		ch = append(ch, cis...)
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+	sort.Slice(ch, func(i, j int) bool {
+		return ch[i].NameNormalized < ch[j].NameNormalized
+	})
+	d.cache.channels.Store(ch)
+	return ch, nil
+}
+
 // Open opens a chunk file with the given name.  Extension is appended
 // automatically.
 func (d *Directory) Open(id FileID) (*File, error) {
@@ -325,7 +352,7 @@ func (d *Directory) OpenVersion(id FileID, ver int64) (*File, error) {
 // each version is a timestamp of when the directory was updated, i.e. during
 // consequent runs of "resume" command.
 func (d *Directory) Versions(id FileID) ([]int64, error) {
-	return allVersions(os.DirFS(d.dir), id)
+	return AllVersions(os.DirFS(d.dir), id)
 }
 
 // filever returns the filename of the FileID with the given version. If ver is
@@ -526,31 +553,30 @@ func (d *Directory) AllThreadMessages(channelID, threadID string) ([]slack.Messa
 }
 
 func (d *Directory) FastAllThreadMessages(channelID, threadID string) ([]slack.Message, error) {
-	f, err := d.Open(ToFileID(channelID, "", false))
+	var (
+		pmv  = &parentMessageVersion{Directory: d, ChannelID: channelID, ThreadID: threadID}
+		tmv  = &threadMessageVersion{Directory: d, ChannelID: channelID, ThreadID: threadID}
+		fsys = os.DirFS(d.dir)
+	)
+	parent, err := oneRec(fsys, pmv, ToFileID(channelID, "", false))
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
-	parent, err := f.ThreadParent(channelID, threadID)
-	if err != nil {
-		return nil, err
-	}
-	rest, err := f.AllThreadMessages(channelID, threadID)
+	rest, err := latestRec(fsys, tmv, ToFileID(channelID, "", false))
 	if err != nil {
 		return nil, err
 	}
 
-	return append([]slack.Message{*parent}, rest...), nil
+	return append([]slack.Message{parent}, rest...), nil
 }
 
 func (d *Directory) FastAllMessages(channelID string) ([]slack.Message, error) {
-	f, err := d.Open(FileID(channelID))
+	mv := &messageVersion{Directory: d, ChannelID: channelID}
+	mm, err := latestRec(os.DirFS(d.dir), mv, FileID(channelID))
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
-
-	return f.AllMessages(channelID)
+	return mm, nil
 }
 
 // Latest returns the latest timestamps for the channels and threads
@@ -577,4 +603,13 @@ func (d *Directory) Latest(ctx context.Context) (map[GroupID]time.Time, error) {
 		return nil, err
 	}
 	return latest, nil
+}
+
+func (d *Directory) ChannelInfo(id string) (*slack.Channel, error) {
+	civ := &channelInfoVersion{Directory: d}
+	cis, err := oneRec(os.DirFS(d.dir), civ, FileID(id))
+	if err != nil {
+		return nil, err
+	}
+	return &cis, nil
 }

@@ -175,15 +175,13 @@ func srcType(src string, fi fs.FileInfo) Flags {
 	if ff, err := fs.Glob(fsys, "[CDG]*.json"); err == nil && len(ff) > 0 {
 		return flags | FDump
 	}
-	if _, err := fs.Stat(fsys, "workspace.json.gz"); err == nil {
-		if flags&FZip != 0 {
-			return FUnknown // compressed chunk directories are not supported
-		}
-		return flags | FChunk
-	}
 	if _, err := fs.Stat(fsys, "channels.json"); err == nil {
 		return flags | FExport
 	}
+	if vers, err := chunk.AllVersions(fsys, chunk.FWorkspace); err == nil && len(vers) > 0 && !flags.Has(FZip) {
+		return flags | FChunk
+	}
+
 	return FUnknown
 }
 
