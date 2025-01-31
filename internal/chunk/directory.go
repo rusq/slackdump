@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"log/slog"
 	"os"
 	"path/filepath"
 	"sort"
@@ -218,35 +217,6 @@ func collectWorker[T any](fileC <-chan filereq, resultsC chan<- resultt[T], fn f
 		resultsC <- resultt[T]{v, err}
 		f.f.Close()
 	}
-}
-
-// Channels collects all channels from the chunk directory.
-// TODO: versioning
-func (d *Directory) Channels2(ctx context.Context) ([]slack.Channel, error) {
-	if val := d.cache.channels.Load(); val != nil {
-		slog.Debug("channels: cache hit")
-		return val.([]slack.Channel), nil
-	}
-	slog.Debug("channels: cache miss")
-	ch, err := collectAll(ctx, d, d.numWorkers, func(name string, f *File) ([]slack.Channel, error) {
-		c, err := f.AllChannelInfos()
-		if err != nil {
-			if errors.Is(err, ErrNotFound) {
-				return nil, nil
-			}
-			return nil, err
-		}
-		return c, nil
-	})
-	if err != nil {
-		return nil, err
-	}
-	sort.Slice(ch, func(i, j int) bool {
-		return ch[i].NameNormalized < ch[j].NameNormalized
-	})
-
-	d.cache.channels.Store(ch)
-	return ch, nil
 }
 
 // Walk iterates over all chunk files in the directory and calls the function
@@ -497,11 +467,12 @@ func (d *Directory) File(id string, name string) (fs.File, error) {
 
 func (d *Directory) AllMessages(channelID string) ([]slack.Message, error) {
 	var mm structures.Messages
-	err := d.WalkSync(func(name string, f *File, err error) error {
+	err := d.WalkVer(func(id FileID, _ []int64, err error) error {
 		if err != nil {
 			return err
 		}
-		m, err := f.AllMessages(channelID)
+		mv := &messageVersion{Directory: d, ChannelID: channelID}
+		m, err := latestRec(os.DirFS(d.dir), mv, id)
 		if err != nil {
 			if errors.Is(err, ErrNotFound) {
 				return nil
@@ -521,21 +492,25 @@ func (d *Directory) AllMessages(channelID string) ([]slack.Message, error) {
 func (d *Directory) AllThreadMessages(channelID, threadID string) ([]slack.Message, error) {
 	var mm structures.Messages
 	var parent *slack.Message
-	err := d.WalkSync(func(name string, f *File, err error) error {
+	err := d.WalkVer(func(id FileID, _ []int64, err error) error {
 		if err != nil {
 			return err
 		}
+		var (
+			pmv = &parentMessageVersion{Directory: d, ChannelID: channelID, ThreadID: threadID}
+			tmv = &threadMessageVersion{Directory: d, ChannelID: channelID, ThreadID: threadID}
+		)
 		if parent == nil {
-			par, err := f.ThreadParent(channelID, threadID)
+			par, err := oneRec(os.DirFS(d.dir), pmv, id)
 			if err != nil {
 				if !errors.Is(err, ErrNotFound) {
-					return err
+					return nil
 				}
 			} else {
-				parent = par
+				parent = &par
 			}
 		}
-		rest, err := f.AllThreadMessages(channelID, threadID)
+		rest, err := latestRec(os.DirFS(d.dir), tmv, id)
 		if err != nil && !errors.Is(err, ErrNotFound) {
 			return err
 		}
@@ -552,6 +527,8 @@ func (d *Directory) AllThreadMessages(channelID, threadID string) ([]slack.Messa
 	return append([]slack.Message{*parent}, mm...), nil
 }
 
+// FastAllThreadMessages returns all messages in the thread with the given id.  It assumes
+// that the messages are in the same fileID versions.
 func (d *Directory) FastAllThreadMessages(channelID, threadID string) ([]slack.Message, error) {
 	var (
 		pmv  = &parentMessageVersion{Directory: d, ChannelID: channelID, ThreadID: threadID}
