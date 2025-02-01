@@ -25,6 +25,7 @@ import (
 
 var (
 	ErrNotFound       = errors.New("not found")
+	ErrNoData         = errors.New("no data")
 	ErrDataMisaligned = errors.New("internal error: index and file data misaligned")
 )
 
@@ -482,7 +483,8 @@ func timeOffsets(ots offts, chanID string) map[int64]Addr {
 }
 
 // Sorted iterates over all the messages in the chunkfile in chronological
-// order.  If desc is true, the slice will be iterated in reverse order.
+// order for the requested chanID.  If desc is true, the slice will be
+// iterated in reverse order.
 func (f *File) Sorted(ctx context.Context, chanID string, desc bool, fn func(ts time.Time, m *slack.Message) error) error {
 	ctx, task := trace.NewTask(ctx, "file.Sorted")
 	defer task.End()
@@ -500,6 +502,9 @@ func (f *File) Sorted(ctx context.Context, chanID string, desc bool, fn func(ts 
 	tsList := make([]int64, 0, len(tos))
 	for ts := range tos {
 		tsList = append(tsList, ts)
+	}
+	if len(tsList) == 0 {
+		return ErrNoData
 	}
 
 	trace.WithRegion(ctx, "sorted.sort", func() {

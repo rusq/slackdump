@@ -156,6 +156,10 @@ func (e *ExpConverter) writeMessages(ctx context.Context, f filer, ci *slack.Cha
 		mm = append(mm, *toExportMessage(m, thread, uidx[m.User]))
 		return nil
 	}); err != nil {
+		if errors.Is(err, chunk.ErrNoData) {
+			// no messages in the channel
+			return nil
+		}
 		return fmt.Errorf("sorted callback error: %w", err)
 	}
 
