@@ -590,3 +590,8 @@ func (d *Directory) ChannelInfo(id string) (*slack.Channel, error) {
 	}
 	return &cis, nil
 }
+
+// FS returns the file system for the directory.
+func (d *Directory) FS() fs.FS {
+	return os.DirFS(d.dir)
+}

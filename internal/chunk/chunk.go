@@ -184,6 +184,19 @@ func (id GroupID) IsThread() bool {
 	return strings.HasPrefix(string(id), threadPrefix)
 }
 
+// ExtractChannelID attempts to extract the channel ID from the GroupID if it
+// is a channel or a thread ID.  Otherwise, ok will be false.
+func (id GroupID) ExtractChannelID() (channelID string, ok bool) {
+	if id.IsThread() {
+		channelID, _, ok = id.AsThreadID()
+		return
+	}
+	if id.IsChannel() {
+		return id.AsChannelID()
+	}
+	return "", false
+}
+
 // asThreadID returns the channelID and threadTS from the GroupID.  If the
 // GroupID is not a thread ID, it returns false.
 func (id GroupID) AsThreadID() (channelID, threadTS string, ok bool) {

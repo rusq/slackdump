@@ -104,11 +104,11 @@ func (e *ExpConverter) Convert(ctx context.Context, id chunk.FileID) error {
 }
 
 type filer interface {
-	Sorted(context.Context, bool, func(time.Time, *slack.Message) error) error
+	Sorted(ctx context.Context, channelID string, desc bool, fn func(time.Time, *slack.Message) error) error
 	AllThreadMessages(channelID, threadTS string) ([]slack.Message, error)
 }
 
-func (e *ExpConverter) writeMessages(ctx context.Context, pl filer, ci *slack.Channel) error {
+func (e *ExpConverter) writeMessages(ctx context.Context, f filer, ci *slack.Channel) error {
 	lg := slog.With("in", "writeMessages", "channel", ci.ID)
 	uidx := types.Users(e.getUsers()).IndexByID()
 	trgdir := ExportChanName(ci)
@@ -116,7 +116,7 @@ func (e *ExpConverter) writeMessages(ctx context.Context, pl filer, ci *slack.Ch
 	mm := make([]export.ExportMessage, 0, 100)
 	var prevDt string
 	var currDt string
-	if err := pl.Sorted(ctx, false, func(ts time.Time, m *slack.Message) error {
+	if err := f.Sorted(ctx, ci.ID, false, func(ts time.Time, m *slack.Message) error {
 		currDt = ts.Format("2006-01-02")
 		if currDt != prevDt || prevDt == "" {
 			if prevDt != "" {
@@ -134,7 +134,7 @@ func (e *ExpConverter) writeMessages(ctx context.Context, pl filer, ci *slack.Ch
 		if structures.IsThreadStart(m) && m.LatestReply != structures.LatestReplyNoReplies {
 			// get the thread for the initial thread message only.
 			var err error
-			thread, err = pl.AllThreadMessages(ci.ID, m.ThreadTimestamp)
+			thread, err = f.AllThreadMessages(ci.ID, m.ThreadTimestamp)
 			if err != nil {
 				if !errors.Is(err, chunk.ErrNotFound) {
 					return fmt.Errorf("error getting thread messages for %q: %w", ci.ID+":"+m.ThreadTimestamp, err)

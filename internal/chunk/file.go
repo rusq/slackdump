@@ -464,9 +464,13 @@ type Addr struct {
 // the message with this timestamp within the message slice.  It converts the
 // string timestamp to an int64 timestamp using structures.TS2int, but the
 // original string timestamp returned in the TimeOffset struct.
-func timeOffsets(ots offts) map[int64]Addr {
+func timeOffsets(ots offts, chanID string) map[int64]Addr {
 	ret := make(map[int64]Addr, len(ots))
 	for offset, info := range ots {
+		channelID, ok := info.ID.ExtractChannelID()
+		if !ok || channelID != chanID {
+			continue
+		}
 		for i, ts := range info.Timestamps {
 			ret[ts] = Addr{
 				Offset: offset,
@@ -479,7 +483,7 @@ func timeOffsets(ots offts) map[int64]Addr {
 
 // Sorted iterates over all the messages in the chunkfile in chronological
 // order.  If desc is true, the slice will be iterated in reverse order.
-func (f *File) Sorted(ctx context.Context, desc bool, fn func(ts time.Time, m *slack.Message) error) error {
+func (f *File) Sorted(ctx context.Context, chanID string, desc bool, fn func(ts time.Time, m *slack.Message) error) error {
 	ctx, task := trace.NewTask(ctx, "file.Sorted")
 	defer task.End()
 
@@ -491,7 +495,7 @@ func (f *File) Sorted(ctx context.Context, desc bool, fn func(ts time.Time, m *s
 	}
 
 	rgnTos := trace.StartRegion(ctx, "timeOffsets")
-	tos := timeOffsets(ots)
+	tos := timeOffsets(ots, chanID)
 	rgnTos.End()
 	tsList := make([]int64, 0, len(tos))
 	for ts := range tos {
@@ -513,8 +517,8 @@ func (f *File) Sorted(ctx context.Context, desc bool, fn func(ts time.Time, m *s
 	for _, ts := range tsList {
 		tmOff := tos[ts]
 		// read the new chunk from the file only in case that the offset has
-		// changed.
-		if tmOff.Offset != prevOffset {
+		// changed or the chunk is nil (initial value).
+		if tmOff.Offset != prevOffset || chunk == nil {
 			var err error
 			chunk, err = f.chunkAt(tmOff.Offset)
 			if err != nil {

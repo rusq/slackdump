@@ -487,7 +487,8 @@ func TestFile_offsetTimestamps(t *testing.T) {
 
 func Test_timeOffsets(t *testing.T) {
 	type args struct {
-		ots offts
+		ots    offts
+		chanID string
 	}
 	tests := []struct {
 		name string
@@ -500,6 +501,7 @@ func Test_timeOffsets(t *testing.T) {
 				ots: offts{
 					596: offsetInfo{ID: TestChannelID, Timestamps: []int64{1234567890100000, 1234567890200000, 1234567890300000, 1234567890400000, 1234567890500000}},
 				},
+				chanID: TestChannelID,
 			},
 			want: map[int64]Addr{
 				1234567890100000: {
@@ -527,7 +529,7 @@ func Test_timeOffsets(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, timeOffsets(tt.args.ots))
+			assert.Equal(t, tt.want, timeOffsets(tt.args.ots, tt.args.chanID))
 		})
 	}
 }
@@ -557,7 +559,8 @@ func TestFile_Sorted(t *testing.T) {
 		rs io.ReadSeeker
 	}
 	type args struct {
-		fn func(ts time.Time, m *slack.Message) error
+		channelID string
+		fn        func(ts time.Time, m *slack.Message) error
 	}
 
 	tests := []struct {
@@ -573,6 +576,7 @@ func TestFile_Sorted(t *testing.T) {
 				rs: marshalChunks(testChunks...),
 			},
 			args: args{
+				channelID: TestChannelID,
 				fn: func(ts time.Time, m *slack.Message) error {
 					return nil
 				},
@@ -591,6 +595,20 @@ func TestFile_Sorted(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "different channel",
+			fields: fields{
+				rs: marshalChunks(testChunks...),
+			},
+			args: args{
+				channelID: "different",
+				fn: func(ts time.Time, m *slack.Message) error {
+					return nil
+				},
+			},
+			wantFnCalls: []sortedArgs{},
+			wantErr:     false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -605,7 +623,7 @@ func TestFile_Sorted(t *testing.T) {
 				return nil
 			}
 
-			if err := p.Sorted(context.Background(), false, recorder); (err != nil) != tt.wantErr {
+			if err := p.Sorted(context.Background(), tt.args.channelID, false, recorder); (err != nil) != tt.wantErr {
 				t.Errorf("File.Sorted() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			assert.Equal(t, tt.wantFnCalls.String(), rec.String())
