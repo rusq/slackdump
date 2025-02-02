@@ -8,6 +8,7 @@ import (
 	"sync/atomic"
 
 	"github.com/rusq/slack"
+
 	"github.com/rusq/slackdump/v3/internal/chunk"
 )
 
@@ -118,7 +119,7 @@ func (t *ExportCoordinator) Start(ctx context.Context) error {
 	}
 	select {
 	case <-ctx.Done():
-		return ctx.Err()
+		return context.Cause(ctx)
 	case err := <-t.err:
 		return fmt.Errorf("transform: pending error: %w", err)
 	default:
@@ -171,11 +172,10 @@ func (t *ExportCoordinator) worker(ctx context.Context) {
 // will panic with "send on the closed channel". If the coordinator is already
 // closed, it will return nil.
 func (t *ExportCoordinator) Close() (err error) {
-	if t.closed.Load() {
+	if !t.closed.CompareAndSwap(false, true) {
 		return nil
 	}
 	t.lg.Debug("transform: closing transform")
-	t.closed.Store(true)
 	close(t.ids)
 	close(t.start)
 	t.lg.Debug("transform: waiting for workers to finish")

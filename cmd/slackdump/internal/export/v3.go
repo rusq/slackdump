@@ -57,8 +57,8 @@ func export(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, list
 	if dlEnabled && params.ExportStorageType == fileproc.STstandard {
 		lg.WarnContext(ctx, "Standard storage type is deprecated, and will be removed in future.  Use Mattermost instead.")
 	}
-	sdl := fileproc.NewDownloader(ctx, dlEnabled, sess.Client(), fsa, lg)
-	fp := fileproc.NewExport(params.ExportStorageType, sdl)
+	fdl := fileproc.NewDownloader(ctx, dlEnabled, sess.Client(), fsa, lg)
+	fp := fileproc.NewExport(params.ExportStorageType, fdl)
 	avdl := fileproc.NewDownloader(ctx, cfg.DownloadAvatars, sess.Client(), fsa, lg)
 	avp := fileproc.NewAvatarProc(avdl)
 
