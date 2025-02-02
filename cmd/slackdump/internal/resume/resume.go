@@ -110,7 +110,7 @@ func Resume(ctx context.Context, sess *slackdump.Session, src source.Sourcer, fl
 			Include: true,
 		}
 		el = append(el, item)
-		debugprint(fmt.Sprintf("%s: %d->%d", item.Id, ts.UTC().UnixMicro(), item.Oldest.UnixMicro()))
+		debugprint(fmt.Sprintf("%s: %d->%d", item.Id, ts.UnixMicro(), item.Oldest.UnixMicro()))
 	}
 	list := structures.NewEntityListFromItems(el...)
 

@@ -532,7 +532,7 @@ func (f *File) Sorted(ctx context.Context, chanID string, desc bool, fn func(ts 
 			prevOffset = tmOff.Offset
 		}
 
-		if err := fn(fasttime.Int2Time(ts).UTC(), &chunk.Messages[tmOff.Index]); err != nil {
+		if err := fn(fasttime.Int2Time(ts), &chunk.Messages[tmOff.Index]); err != nil {
 			return err
 		}
 	}

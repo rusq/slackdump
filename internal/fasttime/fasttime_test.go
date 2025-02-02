@@ -109,7 +109,7 @@ func TestInt2Time(t *testing.T) {
 		{
 			"valid ts",
 			args{1645054781942979},
-			time.Unix(1645054781, 942979000),
+			time.Unix(1645054781, 942979000).UTC(),
 		},
 	}
 	for _, tt := range tests {

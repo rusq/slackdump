@@ -160,7 +160,7 @@ func (g *Group) sorted(ctx context.Context, files filegroup, chanID string, desc
 				return fmt.Errorf("chunk at %d: %w", addr.addr.Offset, err)
 			}
 		}
-		if err := fn(fasttime.Int2Time(ts).UTC(), &chunk[i].Messages[addr.addr.Index]); err != nil {
+		if err := fn(fasttime.Int2Time(ts), &chunk[i].Messages[addr.addr.Index]); err != nil {
 			return err
 		}
 	}

@@ -24,13 +24,13 @@ func (t *Time) UnmarshalJSON(data []byte) error {
 }
 
 func (t Time) MarshalJSON() ([]byte, error) {
-	ts := time.Time(t).UnixMicro()
+	ts := time.Time(t).UTC().UnixMicro()
 	return []byte(`"` + Int2TS(ts) + `"`), nil
 }
 
 // SlackString returns the time as a slack timestamp (i.e. "1234567890.123456").
 func (t Time) SlackString() string {
-	return Int2TS(time.Time(t).UnixMicro())
+	return Int2TS(time.Time(t).UTC().UnixMicro())
 }
 
 var ErrNotATimestamp = errors.New("not a slack timestamp")
@@ -49,5 +49,5 @@ func Int2TS(ts int64) string {
 
 // Int2Time converts an int64 to a time.Time.
 func Int2Time(ts int64) time.Time {
-	return time.UnixMicro(ts)
+	return time.UnixMicro(ts).UTC()
 }
