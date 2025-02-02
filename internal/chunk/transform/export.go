@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"runtime/trace"
 	"sort"
+	"sync/atomic"
 	"time"
 
 	"github.com/rusq/fsadapter"
@@ -40,7 +41,7 @@ func ExpWithUsers(users []slack.User) ExpCvtOption {
 type ExpConverter struct {
 	cd      *chunk.Directory
 	fsa     fsadapter.FS
-	users   []slack.User
+	users   atomic.Value
 	msgFunc []msgUpdFunc
 }
 
@@ -56,7 +57,11 @@ func NewExpConverter(cd *chunk.Directory, fsa fsadapter.FS, opt ...ExpCvtOption)
 }
 
 func (e *ExpConverter) SetUsers(users []slack.User) {
-	e.users = users
+	e.users.Store(users)
+}
+
+func (e *ExpConverter) getUsers() []slack.User {
+	return e.users.Load().([]slack.User)
 }
 
 // Convert is the chunk file export converter.  It transforms the chunk file
@@ -69,7 +74,7 @@ func (e *ExpConverter) Convert(ctx context.Context, id chunk.FileID) error {
 
 	lg := slog.With("file_id", id)
 	{
-		userCnt := len(e.users)
+		userCnt := len(e.getUsers())
 		trace.Logf(ctx, "input", "len(users)=%d", userCnt)
 		lg.DebugContext(ctx, "transforming channel", "id", id, "user_count", userCnt)
 	}
@@ -96,7 +101,7 @@ func (e *ExpConverter) Convert(ctx context.Context, id chunk.FileID) error {
 
 func (e *ExpConverter) writeMessages(ctx context.Context, pl *chunk.File, ci *slack.Channel) error {
 	lg := slog.With("in", "writeMessages", "channel", ci.ID)
-	uidx := types.Users(e.users).IndexByID()
+	uidx := types.Users(e.getUsers()).IndexByID()
 	trgdir := ExportChanName(ci)
 
 	mm := make([]export.ExportMessage, 0, 100)
@@ -212,7 +217,7 @@ func toExportMessage(m *slack.Message, thread []slack.Message, user *slack.User)
 			})
 			em.ReplyUsers = append(em.ReplyUsers, rm.User)
 		}
-		sort.Slice(em.Msg.Replies, func(i, j int) bool {
+		sort.Slice(em.Replies, func(i, j int) bool {
 			tsi, err := fasttime.TS2int(em.Msg.Replies[i].Timestamp)
 			if err != nil {
 				return false
@@ -230,6 +235,7 @@ func toExportMessage(m *slack.Message, thread []slack.Message, user *slack.User)
 	return &em
 }
 
+// TODO: replace with an stdlib function.
 func makeUniqueStrings(ss *[]string) {
 	if len(*ss) == 0 {
 		return
@@ -265,7 +271,7 @@ func (t *ExpConverter) WriteIndex(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("error indexing channels: %w", err)
 	}
-	eidx, err := structures.MakeExportIndex(chans, t.users, wsp.UserID)
+	eidx, err := structures.MakeExportIndex(chans, t.getUsers(), wsp.UserID)
 	if err != nil {
 		return fmt.Errorf("error creating export index: %w", err)
 	}
@@ -275,6 +281,7 @@ func (t *ExpConverter) WriteIndex(ctx context.Context) error {
 	return nil
 }
 
+// HasUsers returns true if the converter has users.
 func (t *ExpConverter) HasUsers() bool {
-	return len(t.users) > 0
+	return len(t.getUsers()) > 0
 }

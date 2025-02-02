@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"sort"
@@ -194,8 +195,10 @@ func collectWorker[T any](fileC <-chan *File, resultsC chan<- resultt[T], fn fun
 // all conversation files and try to get "ChannelInfo" chunk from each file.
 func (d *Directory) Channels(ctx context.Context) ([]slack.Channel, error) {
 	if val := d.cache.channels.Load(); val != nil {
+		slog.Debug("channels: cache hit")
 		return val.([]slack.Channel), nil
 	}
+	slog.Debug("channels: cache miss")
 	ch, err := collectAll(ctx, d, d.numWorkers, func(f *File) ([]slack.Channel, error) {
 		c, err := f.AllChannelInfos()
 		if err != nil {
