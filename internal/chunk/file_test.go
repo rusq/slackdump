@@ -607,7 +607,7 @@ func TestFile_Sorted(t *testing.T) {
 				},
 			},
 			wantFnCalls: []sortedArgs{},
-			wantErr:     false,
+			wantErr:     true,
 		},
 	}
 	for _, tt := range tests {

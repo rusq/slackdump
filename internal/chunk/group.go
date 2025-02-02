@@ -105,6 +105,13 @@ type grpMessageIndex struct {
 	tsList []int64
 }
 
+// Sort interface implementation.
+func (idx *grpMessageIndex) Len() int           { return len(idx.tsList) }
+func (idx *grpMessageIndex) Less(i, j int) bool { return idx.tsList[i] < idx.tsList[j] }
+func (idx *grpMessageIndex) Swap(i, j int) {
+	idx.tsList[i], idx.tsList[j] = idx.tsList[j], idx.tsList[i]
+}
+
 // messageIndex returns the message index for the group of files.
 func (fg filegroup) messageIndex(ctx context.Context, chanID string, desc bool) *grpMessageIndex {
 	var (
@@ -138,6 +145,9 @@ func (fg filegroup) messageIndex(ctx context.Context, chanID string, desc bool) 
 
 func (g *Group) sorted(ctx context.Context, files filegroup, chanID string, desc bool, fn func(ts time.Time, m *slack.Message) error) error {
 	gmi := files.messageIndex(ctx, chanID, desc)
+	if gmi.Len() == 0 {
+		return ErrNoData
+	}
 
 	// for each message in the list, load the message and call fn with the
 	// message
