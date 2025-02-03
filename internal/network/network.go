@@ -62,8 +62,12 @@ func netWait(n int) time.Duration {
 	return netWaitFn(n)
 }
 
-// ErrRetryFailed is returned if number of retry attempts exceeded the retry attempts limit and
-// function wasn't able to complete without errors.
+// ErrRetryPlease should be returned by the callback function to indicate that
+// the call should be retried.
+var ErrRetryPlease = errors.New("retry")
+
+// ErrRetryFailed is returned if number of retry attempts exceeded the retry
+// attempts limit and function wasn't able to complete without errors.
 type ErrRetryFailed struct {
 	Err error
 }
@@ -103,7 +107,13 @@ func WithRetry(ctx context.Context, lim *rate.Limiter, maxAttempts int, fn func(
 		}
 
 		cbErr := fn()
+		if errors.Is(cbErr, ErrRetryPlease) {
+			// callback requested a retry
+			lg.DebugContext(ctx, "retry requested", "attempt", attempt+1)
+			continue
+		}
 		if cbErr == nil {
+			// success
 			ok = true
 			break
 		}
