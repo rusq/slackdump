@@ -10,6 +10,7 @@ import (
 	"github.com/ProtonMail/go-crypto/openpgp"
 	"github.com/ProtonMail/go-crypto/openpgp/armor"
 	"github.com/ProtonMail/go-crypto/openpgp/packet"
+
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 )
@@ -76,26 +77,26 @@ DKOKJRTJslrewS0MeTopOa/NUI5zC1z9GsqWBAzrbUU=
 
 var cmdEncrypt = &base.Command{
 	Run:       runEncrypt,
-	UsageLine: "slackdump tools encrypt [flags] file",
+	UsageLine: "slackdump tools encrypt [flags] [input] [output]",
 	Short:     "encrypts a file to post in github issues",
 	Long: `
 # Command Encrypt
 
-Encrypt a file with the developer key to attach to a github issue or send
-as a message.
+Encrypt a file with the developer key to attach to a github issue or send as a
+message.
 
-It uses the assymetric encryption (GPG) to encrypt the file with the
-developer key, and can only be decrypted by the developer.
+It uses the assymetric encryption (GPG) to encrypt the file with the developer
+key, and can only be decrypted by the developer.
+
+If the input is not specified, it reads from stdin. If the output is not
+specified, it writes to stdout.
 
 ## Usage
 
 Encrypt a file to attach as a file to github issue:
 
-	$ slackdump tools encrypt -a file
+	$ slackdump tools encrypt -a slackdump.log slackdump.log.asc
 
-Encrypt a file to post as a message (for small files):
-
-	$ slackdump tools encrypt -a file
 
 `,
 	FlagMask:   cfg.OmitAll,
@@ -173,13 +174,10 @@ func runEncrypt(ctx context.Context, cmd *base.Command, args []string) error {
 //  4. if more than two arguments are given, it's an error
 //  5. if output is stdout, arm the output automatically
 func parseArgs(args []string) (in io.ReadCloser, out io.WriteCloser, arm bool, err error) {
-
-	switch len(args) {
-	case 0:
-		in = os.Stdin
-		out = os.Stdout
-		arm = true
-	case 1:
+	if len(args) == 0 {
+		return os.Stdin, os.Stdout, true, nil
+	}
+	if len(args) >= 1 {
 		if args[0] == "-" {
 			in = os.Stdin
 		} else {
@@ -191,16 +189,8 @@ func parseArgs(args []string) (in io.ReadCloser, out io.WriteCloser, arm bool, e
 		}
 		out = os.Stdout
 		arm = true
-	case 2:
-		if args[0] == "-" {
-			in = os.Stdin
-		} else {
-			in, err = os.Open(args[0])
-			if err != nil {
-				base.SetExitStatus(base.SApplicationError)
-				return nil, nil, false, err
-			}
-		}
+	}
+	if len(args) >= 2 {
 		if args[1] == "-" {
 			out = os.Stdout
 			arm = true
@@ -211,8 +201,10 @@ func parseArgs(args []string) (in io.ReadCloser, out io.WriteCloser, arm bool, e
 				base.SetExitStatus(base.SApplicationError)
 				return nil, nil, false, err
 			}
+			arm = false
 		}
-	default:
+	}
+	if len(args) >= 3 {
 		base.SetExitStatus(base.SInvalidParameters)
 		return nil, nil, false, errors.New("invalid number of arguments")
 	}

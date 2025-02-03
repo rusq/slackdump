@@ -35,7 +35,8 @@ type Controller struct {
 	// files subprocessor, if not configured with options, it's a noop, as
 	// it's not necessary for all use cases.
 	filer processor.Filer
-	// avp is avatar downloader
+	// avp is avatar downloader (subprocessor), if not configured with options,
+	// it's a noop, as it's not necessary
 	avp processor.Avatars
 	// lg is the logger
 	lg *slog.Logger
@@ -139,8 +140,7 @@ func (c *Controller) Run(ctx context.Context, list *structures.EntityList) error
 		errC  = make(chan error, 1)
 		linkC = make(chan structures.EntityItem)
 	)
-	// Generator of channel IDs.
-	{
+	{ // generator of channel IDs
 		var generator linkFeederFunc
 		if list.HasIncludes() {
 			// inclusive export, processes only included channels.
@@ -162,8 +162,7 @@ func (c *Controller) Run(ctx context.Context, list *structures.EntityList) error
 			}
 		}()
 	}
-	{
-		// workspace info
+	{ // workspace info
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -174,9 +173,8 @@ func (c *Controller) Run(ctx context.Context, list *structures.EntityList) error
 			}
 		}()
 	}
-	// user goroutine
-	// once all users are fetched, it triggers the transformer to start.
-	{
+	{ // user goroutine
+		// once all users are fetched, it triggers the transformer to start.
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -186,8 +184,7 @@ func (c *Controller) Run(ctx context.Context, list *structures.EntityList) error
 			}
 		}()
 	}
-	// conversations goroutine
-	{
+	{ // conversations goroutine
 		conv, err := dirproc.NewConversation(c.cd, c.filer, c.tf, dirproc.WithRecordFiles(c.flags.RecordFiles))
 		if err != nil {
 			return fmt.Errorf("error initialising conversation processor: %w", err)
