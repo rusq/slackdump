@@ -176,3 +176,21 @@ func (g *Group) sorted(ctx context.Context, files filegroup, chanID string, desc
 	}
 	return nil
 }
+
+func (g *Group) AllMessages(ctx context.Context, chanID string) ([]slack.Message, error) {
+	mv := &messageVersion{Directory: g.cat, ChannelID: chanID}
+	m, err := latestRec(g.cat.FS(), mv, FileID(g.id))
+	if err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+func (g *Group) AllThreadMessages(ctx context.Context, chanID string, threadTS string) ([]slack.Message, error) {
+	tmv := &threadMessageVersion{Directory: g.cat, ChannelID: chanID, ThreadID: threadTS}
+	m, err := latestRec(g.cat.FS(), tmv, FileID(g.id))
+	if err != nil {
+		return nil, err
+	}
+	return m, nil
+}

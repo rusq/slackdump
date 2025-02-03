@@ -104,6 +104,7 @@ func (e *ExpConverter) Convert(ctx context.Context, id chunk.FileID) error {
 }
 
 type filer interface {
+	ChannelInfo(channelID string) (*slack.Channel, error)
 	Sorted(ctx context.Context, channelID string, desc bool, fn func(time.Time, *slack.Message) error) error
 	AllThreadMessages(channelID, threadTS string) ([]slack.Message, error)
 }
