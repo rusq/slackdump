@@ -873,3 +873,52 @@ func TestNewEntityListFromItems(t *testing.T) {
 		})
 	}
 }
+
+func TestTimeParse(t *testing.T) {
+	type args struct {
+		s string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantT   time.Time
+		wantErr bool
+	}{
+		{
+			"empty",
+			args{""},
+			time.Time{},
+			true,
+		},
+		{
+			"bad",
+			args{"bad"},
+			time.Time{},
+			true,
+		},
+		{
+			"ok",
+			args{"2024-01-10T23:02:12"},
+			time.Date(2024, time.January, 10, 23, 2, 12, 0, time.UTC),
+			false,
+		},
+		{
+			"ok",
+			args{"2024-01-10"},
+			time.Date(2024, time.January, 10, 0, 0, 0, 0, time.UTC),
+			false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotT, err := TimeParse(tt.args.s)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("TimeParse() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(gotT, tt.wantT) {
+				t.Errorf("TimeParse() = %v, want %v", gotT, tt.wantT)
+			}
+		})
+	}
+}
