@@ -181,14 +181,14 @@ Disables caching of chunks for the
 .Cm convert
 command.  This may be useful on small archives.  For big archives caching is
 beneficial, as it allows to reduce the processing time.
-.It Fl time-from Ar YYYY-MM-DDTHH:MI:SS
+.It Fl time-from Ar YYYY-MM-DDTHH:MI:SS | YYYY-MM-DD
 Allows to specify the start time.  The time is specified in the format
-.Dq YYYY-MM-DDTHH:MI:SS
+.Dq YYYY-MM-DDTHH:MI:SS, or YYYY-MM-DD if only the date is needed.
 where
 .Sq T
 is a literal character separating the date and time, for example
 .Dq 2020-12-311T23:59:59
-.It Fl time-to Ar YYYY-MM-DDTHH:MI:SS
+.It Fl time-to Ar YYYY-MM-DDTHH:MI:SS | YYYY-MM-DD
 Allows to specify the end time.  See the
 .Fl time-from
 flag for the format.
