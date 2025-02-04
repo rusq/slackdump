@@ -220,7 +220,8 @@ func (cs *Stream) channel(ctx context.Context, req request, callback func(mm []s
 }
 
 // thread fetches the whole thread identified by SlackLink, calling callback
-// function fn for each slice received.
+// function fn for each slice received. the callback function will be called if
+// there's no messages in the thread, and should handle as it sees fit.
 func (cs *Stream) thread(ctx context.Context, req request, callback func(mm []slack.Message, isLast bool) error) error {
 	ctx, task := trace.NewTask(ctx, "thread")
 	defer task.End()
@@ -230,7 +231,7 @@ func (cs *Stream) thread(ctx context.Context, req request, callback func(mm []sl
 	}
 
 	lg := slog.With("slack_link", req.sl)
-	lg.DebugContext(ctx, "- getting")
+	lg.DebugContext(ctx, "- getting thread")
 
 	var cursor string
 	for {
@@ -249,14 +250,15 @@ func (cs *Stream) thread(ctx context.Context, req request, callback func(mm []sl
 				Latest:    structures.FormatSlackTS(structures.NVLTime(req.Latest, cs.latest)),
 				Inclusive: cs.inclusive,
 			})
+			if apiErr == nil && len(msgs) == 0 {
+				lg.DebugContext(ctx, "  - no messages returned by the API, requesting a retry")
+				// no messages returned by the API, but no error either, let's ask
+				// nicely to retry, maybe Slack is having a bad day.
+				return network.ErrRetryPlease
+			}
 			return apiErr
 		}); err != nil {
 			return err
-		}
-
-		// got just the leader message, no replies
-		if len(msgs) <= 1 {
-			return nil
 		}
 
 		r := trace.StartRegion(ctx, "thread_callback")

@@ -1,7 +1,7 @@
 #!/bin/ksh
 
 ATTEMPTS=${ATTEMPTS:=50}
-CMD="export -machine-id 123 -files -avatars -time-from=2025-01-23T00:00:00 -time-to=2025-01-25T00:00:00"
+CMD="export -machine-id 123 -files -avatars -time-from=2025-01-23T00:00:00 -time-to=2025-02-25T00:00:00"
 echo Building current version...
 go build ./cmd/slackdump
 if [ $? != 0 ] ; then
