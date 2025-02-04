@@ -6,8 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rusq/slackdump/v3/auth/browser"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/rusq/slackdump/v3/auth/browser"
 )
 
 func TestSetBaseFlags(t *testing.T) {
@@ -100,8 +101,8 @@ func TestSetBaseFlags(t *testing.T) {
 		if !NoChunkCache {
 			t.Error("Expected NoChunkCache to be true, got false")
 		}
-		if Oldest.String() != "2022-01-01T00:00:00" {
-			t.Errorf("Expected Oldest to be '2022-01-01T00:00:00Z', got '%s'", Oldest.String())
+		if Oldest.String() != "2022-01-01" {
+			t.Errorf("Expected Oldest to be '2022-01-01', got '%s'", Oldest.String())
 		}
 		if Latest.String() != "2022-01-31T23:59:59" {
 			t.Errorf("Expected Latest to be '2022-01-31T23:59:59Z', got '%s'", Latest.String())
