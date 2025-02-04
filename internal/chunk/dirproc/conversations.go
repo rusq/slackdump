@@ -130,7 +130,7 @@ func (cv *Conversations) Messages(ctx context.Context, channelID string, numThre
 	ctx, task := trace.NewTask(ctx, "Messages")
 	defer task.End()
 
-	lg := cv.lg.With("in", "Messages", "channel_id", channelID, "num_threads", numThreads, "is_last", isLast, "len_messages", len(mm))
+	lg := cv.lg.With("in", "dirproc.Messages", "channel_id", channelID, "num_threads", numThreads, "is_last", isLast, "len_messages", len(mm))
 	lg.Debug("started")
 	cv.debugtrace(ctx, "%s: Messages: numThreads=%d, isLast=%t, len(mm)=%d", channelID, numThreads, isLast, len(mm))
 
@@ -177,8 +177,8 @@ func (cv *Conversations) ThreadMessages(ctx context.Context, channelID string, p
 	}
 	if isLast {
 		n := r.Dec()
-		lg.DebugContext(ctx, "count decreased, finalising", "by", 1, "current", n)
-		cv.debugtrace(ctx, "%s:%s: ThreadMessages: decreased by 1 to %d, finalising", id, parent.Timestamp, n)
+		lg.DebugContext(ctx, "count decreased", "by", 1, "current", n)
+		cv.debugtrace(ctx, "%s:%s: ThreadMessages: decreased by 1 to %d", id, parent.Timestamp, n)
 		return cv.finalise(ctx, id)
 	}
 	return nil

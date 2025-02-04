@@ -18,7 +18,8 @@ const (
 	excludePrefix = "^"
 	filePrefix    = "@"
 	timeSeparator = ","
-	timeFmt       = "2006-01-02T15:04:05"
+	TimeLayout    = "2006-01-02T15:04:05"
+	DateLayout    = time.DateOnly
 
 	// maxFileEntries is the maximum non-empty entries that will be read
 	// from the file.
@@ -45,11 +46,11 @@ func (ei *EntityItem) String() string {
 	sb.WriteString(ei.Id)
 	if !ei.Oldest.IsZero() {
 		sb.WriteString(timeSeparator)
-		sb.WriteString(ei.Oldest.Format(timeFmt))
+		sb.WriteString(ei.Oldest.Format(TimeLayout))
 	}
 	if !ei.Latest.IsZero() {
 		sb.WriteString(timeSeparator)
-		sb.WriteString(ei.Latest.Format(timeFmt))
+		sb.WriteString(ei.Latest.Format(TimeLayout))
 	}
 	return sb.String()
 }
@@ -214,10 +215,10 @@ func (el *EntityList) fromIndex(index map[string]bool) {
 			Include: include,
 		}
 		if len(parts) > 1 {
-			item.Oldest, _ = time.Parse(timeFmt, parts[1])
+			item.Oldest, _ = TimeParse(parts[1])
 		}
 		if len(parts) == 3 {
-			item.Latest, _ = time.Parse(timeFmt, parts[2])
+			item.Latest, _ = TimeParse(parts[2])
 		}
 
 		el.index[item.Id] = item
@@ -227,6 +228,15 @@ func (el *EntityList) fromIndex(index map[string]bool) {
 			el.hasExcludes = true
 		}
 	}
+}
+
+// TimeParse parses a string that can be either a date in 2006-01-02 layout or
+// time in 2006-01-02T15:04:05 layout.
+func TimeParse(s string) (t time.Time, err error) {
+	if t, err = time.Parse(TimeLayout, s); err == nil {
+		return
+	}
+	return time.Parse(DateLayout, s)
 }
 
 // Index returns a map where key is entity, and value show if the entity

@@ -23,7 +23,8 @@ const (
 	testRateLimit = 100.0 // per second
 )
 
-// calcRunDuration is the convenience function to calculate the expected run duration.
+// calcRunDuration is the convenience function to calculate the expected run
+// duration.
 func calcRunDuration(rateLimit float64, attempts int) time.Duration {
 	return time.Duration(attempts) * time.Duration(float64(time.Second)/rateLimit)
 }
@@ -36,8 +37,9 @@ func calcExpRunDuration(attempts int) time.Duration {
 	return sec
 }
 
-// retryFn will return slack.RateLimitedError for numAttempts time and err after.
-func retryFn(numAttempts int, retryAfter time.Duration, err error) func() error {
+// errRateFnFn will return slack.RateLimitedError for numAttempts time and err
+// after.
+func errRateFnFn(numAttempts int, retryAfter time.Duration, err error) func() error {
 	i := 0
 	return func() error {
 		if i < numAttempts {
@@ -113,7 +115,7 @@ func TestWithRetry(t *testing.T) {
 				context.Background(),
 				rate.NewLimiter(testRateLimit, 1),
 				3,
-				retryFn(2, 1*time.Millisecond, nil),
+				errRateFnFn(2, 1*time.Millisecond, nil),
 			},
 			false,
 			calcRunDuration(testRateLimit, 2),
@@ -124,7 +126,7 @@ func TestWithRetry(t *testing.T) {
 				context.Background(),
 				rate.NewLimiter(testRateLimit, 1),
 				3,
-				retryFn(2, 1*time.Millisecond, errors.New("boo boo")),
+				errRateFnFn(2, 1*time.Millisecond, errors.New("boo boo")),
 			},
 			true,
 			calcRunDuration(testRateLimit, 2),
@@ -135,7 +137,7 @@ func TestWithRetry(t *testing.T) {
 				context.Background(),
 				rate.NewLimiter(10.0, 1),
 				5,
-				retryFn(4, 1*time.Millisecond, nil),
+				errRateFnFn(4, 1*time.Millisecond, nil),
 			},
 			false,
 			calcRunDuration(10.0, 4),
@@ -146,7 +148,7 @@ func TestWithRetry(t *testing.T) {
 				context.Background(),
 				rate.NewLimiter(1000, 1),
 				5,
-				retryFn(4, 100*time.Millisecond, nil),
+				errRateFnFn(4, 100*time.Millisecond, nil),
 			},
 			false,
 			calcRunDuration(10.0, 4),
@@ -157,7 +159,7 @@ func TestWithRetry(t *testing.T) {
 				context.Background(),
 				rate.NewLimiter(10.0, 1),
 				5,
-				retryFn(100, 1*time.Millisecond, nil),
+				errRateFnFn(100, 1*time.Millisecond, nil),
 			},
 			true,
 			calcRunDuration(10.0, 4),
@@ -172,6 +174,17 @@ func TestWithRetry(t *testing.T) {
 			},
 			false,
 			calcExpRunDuration(2),
+		},
+		{
+			"callback requests a retry",
+			args{
+				context.Background(),
+				rate.NewLimiter(10.0, 1),
+				3,
+				errSeqFn(ErrRetryPlease, 2, nil),
+			},
+			false,
+			calcRunDuration(10.0, 2),
 		},
 	}
 	for _, tt := range tests {
