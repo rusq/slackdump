@@ -61,11 +61,11 @@ func (e *ExpConverter) SetUsers(users []slack.User) {
 }
 
 func (e *ExpConverter) getUsers() []slack.User {
-	u, ok := e.users.Load().([]slack.User)
+	uu, ok := e.users.Load().([]slack.User)
 	if !ok {
 		return nil
 	}
-	return u
+	return uu
 }
 
 // Convert is the chunk file export converter.  It transforms the chunk file
@@ -192,7 +192,7 @@ func toExportMessage(m *slack.Message, thread []slack.Message, user *slack.User)
 	// export message
 	em := export.ExportMessage{
 		Msg:        &m.Msg,
-		UserTeam:   m.Team,
+		UserTeam:   m.Team, // TODO: user is lacking team, so using the message team.
 		SourceTeam: m.Team,
 	}
 

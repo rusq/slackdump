@@ -3,9 +3,12 @@ package transform
 import (
 	"context"
 	"path/filepath"
+	"reflect"
+	"sync/atomic"
 	"testing"
 
 	"github.com/rusq/fsadapter"
+	"github.com/rusq/slack"
 
 	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/internal/fixtures"
@@ -56,6 +59,53 @@ func Test_transform(t *testing.T) {
 			}
 			if err := cvt.Convert(tt.args.ctx, chunk.FileID(tt.args.id)); (err != nil) != tt.wantErr {
 				t.Errorf("transform() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestExpConverter_getUsers(t *testing.T) {
+	setUsers := func(uu []slack.User) *atomic.Value {
+		var v atomic.Value
+		v.Store(uu)
+		return &v
+	}
+	type fields struct {
+		cd      *chunk.Directory
+		fsa     fsadapter.FS
+		users   atomic.Value
+		msgFunc []msgUpdFunc
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   []slack.User
+	}{
+		{
+			name: "existing users",
+			fields: fields{
+				users: *setUsers(fixtures.TestUsers),
+			},
+			want: fixtures.TestUsers,
+		},
+		{
+			name: "no users",
+			fields: fields{
+				users: *setUsers(nil),
+			},
+			want: nil,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			e := &ExpConverter{
+				cd:      tt.fields.cd,
+				fsa:     tt.fields.fsa,
+				users:   tt.fields.users,
+				msgFunc: tt.fields.msgFunc,
+			}
+			if got := e.getUsers(); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("ExpConverter.getUsers() = %v, want %v", got, tt.want)
 			}
 		})
 	}
