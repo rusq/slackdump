@@ -61,7 +61,11 @@ func (e *ExpConverter) SetUsers(users []slack.User) {
 }
 
 func (e *ExpConverter) getUsers() []slack.User {
-	return e.users.Load().([]slack.User)
+	u, ok := e.users.Load().([]slack.User)
+	if !ok {
+		return nil
+	}
+	return u
 }
 
 // Convert is the chunk file export converter.  It transforms the chunk file
