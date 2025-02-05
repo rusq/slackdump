@@ -53,3 +53,13 @@ func FormatSlackTS(ts time.Time) string {
 	lo := ts.UnixMicro() % 1_000_000
 	return fmt.Sprintf("%d.%06d", hi, lo)
 }
+
+func ThreadIDtoTS(threadID string) string {
+	if len(threadID) == 0 || threadID[0] != 'p' {
+		return ""
+	}
+	if _, err := strconv.ParseInt(threadID[1:], 10, 64); err != nil {
+		return ""
+	}
+	return threadID[1:11] + "." + threadID[11:]
+}

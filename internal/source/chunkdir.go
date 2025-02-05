@@ -101,3 +101,7 @@ func (c *ChunkDir) Latest(ctx context.Context) (map[structures.SlackLink]time.Ti
 	}
 	return mm, nil
 }
+
+func (c *ChunkDir) WorkspaceInfo() (*slack.AuthTestResponse, error) {
+	return c.d.WorkspaceInfo()
+}

@@ -112,7 +112,6 @@ func Test_rtseText(t *testing.T) {
 			if got1 != tt.want1 {
 				t.Errorf("rtseText() = %v, want1 %v", got1, tt.want1)
 			}
-
 		})
 	}
 }
@@ -341,4 +340,43 @@ func TestMbtRichText(t *testing.T) {
 			t.Errorf("Slack.rtseSection() = %v", got)
 		}
 	})
+}
+
+func Test_replaceHost(t *testing.T) {
+	type args struct {
+		src       string
+		wspHost   string
+		localHost string
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+		{
+			"replace",
+			args{
+				src:       "https://example.com/archives/C12341",
+				wspHost:   "example.com",
+				localHost: "localhost",
+			},
+			"http://localhost/archives/C12341",
+		},
+		{
+			"no replace",
+			args{
+				src:       "https://example.com/archives/C12341",
+				wspHost:   "example.org",
+				localHost: "localhost",
+			},
+			"https://example.com/archives/C12341",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := replaceHost(tt.args.src, tt.args.wspHost, tt.args.localHost); got != tt.want {
+				t.Errorf("replaceHost() = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }

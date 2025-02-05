@@ -74,28 +74,45 @@ func New(ctx context.Context, addr string, r source.Sourcer) (*Viewer, error) {
 	if debug {
 		v.r = &renderer.Debug{}
 	} else {
-		v.r = renderer.NewSlack(
-			v.tmpl,
+		opts := []renderer.SlackOption{
 			renderer.WithUsers(indexusers(uu)),
 			renderer.WithChannels(indexchannels(all)),
+		}
+		if wi, err := r.WorkspaceInfo(); err == nil {
+			opts = append(opts, renderer.WithReplaceURL(wi.URL, normalise(addr)))
+		}
+		v.r = renderer.NewSlack(
+			v.tmpl,
+			opts...,
 		)
 	}
 
 	mux := http.NewServeMux()
-	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
-	mux.HandleFunc("/", v.indexHandler)
+	mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
+	mux.HandleFunc("GET /", v.indexHandler)
 	// https: //ora600.slack.com/archives/CHY5HUESG
-	mux.HandleFunc("/archives/{id}", v.newFileHandler(v.channelHandler))
+	mux.HandleFunc("GET /archives/{id}", v.newFileHandler(v.channelHandler))
 	// https: //ora600.slack.com/archives/DHMAB25DY/p1710063528879959
-	mux.HandleFunc("/archives/{id}/{ts}", v.newFileHandler(v.threadHandler))
-	mux.HandleFunc("/team/{user_id}", v.userHandler)
-	mux.Handle("/slackdump/file/{id}/{filename}", cacheMwareFunc(3*hour)(http.HandlerFunc(v.fileHandler)))
+	// https://ora600.slack.com/archives/CHY5HUESG/p1738580940349469?thread_ts=1737716342.919259&cid=CHY5HUESG
+	mux.HandleFunc("GET /archives/{id}/{ts}", v.newFileHandler(v.postRedirectHandler))
+	mux.HandleFunc("GET /team/{user_id}", v.userHandler)
+	mux.Handle("GET /slackdump/file/{id}/{filename}", cacheMwareFunc(3*hour)(http.HandlerFunc(v.fileHandler)))
 	v.srv = &http.Server{
 		Addr:    addr,
 		Handler: middleware.Logger(mux),
 	}
 
 	return v, nil
+}
+
+func normalise(addr string) string {
+	if addr == "" {
+		return "127.0.0.1:8080"
+	}
+	if addr[0] == ':' {
+		return "127.0.0.1" + addr
+	}
+	return addr
 }
 
 func (v *Viewer) ListenAndServe() error {

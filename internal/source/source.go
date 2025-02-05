@@ -10,6 +10,7 @@ import (
 	"archive/zip"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -51,9 +52,14 @@ type Sourcer interface {
 	File(fileID string, filename string) (string, error)
 	// Latest should return the latest timestamp of the data.
 	Latest(ctx context.Context) (map[structures.SlackLink]time.Time, error)
+	// WorkspaceInfo should return the workspace information, if it is available.
+	// If the call is not supported, it should return ErrNotSupported.
+	WorkspaceInfo() (*slack.AuthTestResponse, error)
 
 	io.Closer
 }
+
+var ErrNotSupported = errors.New("feature not supported")
 
 type Flags int16
 

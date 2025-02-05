@@ -8,6 +8,7 @@ import (
 	"html/template"
 	"log"
 	"log/slog"
+	"net/url"
 	"os"
 	"strings"
 
@@ -20,9 +21,11 @@ import (
 const debug = true
 
 type Slack struct {
-	tmpl *template.Template
-	uu   map[string]slack.User    // map of user id to user
-	cc   map[string]slack.Channel // map of channel id to channel
+	tmpl    *template.Template
+	uu      map[string]slack.User    // map of user id to user
+	cc      map[string]slack.Channel // map of channel id to channel
+	wspHost string                   // workspace URL to replace links to local
+	host    string                   // host to replace links to local
 }
 
 type SlackOption func(*Slack)
@@ -36,6 +39,21 @@ func WithUsers(uu map[string]slack.User) SlackOption {
 func WithChannels(cc map[string]slack.Channel) SlackOption {
 	return func(sm *Slack) {
 		sm.cc = cc
+	}
+}
+
+func WithReplaceURL(wspURL, localHost string) SlackOption {
+	return func(sm *Slack) {
+		if localHost == "" {
+			return
+		}
+		u, err := url.Parse(wspURL)
+		if err != nil {
+			slog.Warn("error parsing workspace URL", "error", err)
+			return
+		}
+		sm.wspHost = u.Hostname()
+		sm.host = localHost
 	}
 }
 
