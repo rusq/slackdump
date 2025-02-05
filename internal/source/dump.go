@@ -209,3 +209,7 @@ func (d Dump) Close() error {
 func (d Dump) Latest(ctx context.Context) (map[structures.SlackLink]time.Time, error) {
 	return nil, errors.New("not supported yet")
 }
+
+func (d Dump) WorkspaceInfo() (*slack.AuthTestResponse, error) {
+	return nil, ErrNotSupported
+}

@@ -169,3 +169,9 @@ func (e *Export) ChannelInfo(ctx context.Context, channelID string) (*slack.Chan
 func (e *Export) Latest(ctx context.Context) (map[structures.SlackLink]time.Time, error) {
 	return nil, errors.New("not supported yet")
 }
+
+func (e *Export) WorkspaceInfo() (*slack.AuthTestResponse, error) {
+	// potentially the URL of the workspace is contained in file attachments, but until
+	// AllMessages is implemented with iterators, it's too expensive to get.
+	return nil, ErrNotSupported
+}

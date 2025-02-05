@@ -14,6 +14,7 @@ import (
 	"github.com/rusq/slack"
 
 	"github.com/rusq/slackdump/v3/internal/fasttime"
+	"github.com/rusq/slackdump/v3/internal/structures"
 )
 
 func (v *Viewer) indexHandler(w http.ResponseWriter, r *http.Request) {
@@ -117,6 +118,34 @@ func (v *Viewer) channelHandler(w http.ResponseWriter, r *http.Request, id strin
 	}
 }
 
+func (v *Viewer) postRedirectHandler(w http.ResponseWriter, r *http.Request, id string) {
+	lg := v.lg.With("in", "postRedirectHandler", "channel", id)
+	ts := r.PathValue("ts")
+	if ts == "" || isInvalid(ts) {
+		lg.Error("invalid ts", "ts", ts)
+		http.Redirect(w, r, "/"+id, http.StatusSeeOther)
+		return
+	}
+	if strings.HasPrefix(ts, "p") {
+		values := r.URL.Query()
+		if vts := values.Get("thread_ts"); vts != "" {
+			// in this case the initial p value refers to a message within the thread
+			// https://ora600.slack.com/archives/CHY5HUESG/p1738580940349469?thread_ts=1737716342.919259&cid=CHY5HUESG
+			lg.Debug("redirecting to thread message", "ts", vts)
+			http.Redirect(w, r, "/archives/"+id+"/"+vts+"#"+structures.ThreadIDtoTS(ts), http.StatusSeeOther)
+		} else {
+			// p refers to a message within the channel.
+			// https: //ora600.slack.com/archives/DHMAB25DY/p1710063528879959
+			lg.Debug("redirecting to channel message", "ts", ts)
+			ts = structures.ThreadIDtoTS(ts)
+			http.Redirect(w, r, "/archives/"+id+"#"+ts, http.StatusSeeOther)
+		}
+		return
+	}
+	lg.Debug("redirecting to thread message", "ts", ts)
+	v.threadHandler(w, r, id)
+}
+
 func isHXRequest(r *http.Request) bool {
 	return r.Header.Get("HX-Request") == "true"
 }
@@ -130,6 +159,9 @@ func (v *Viewer) threadHandler(w http.ResponseWriter, r *http.Request, id string
 	if ts == "" || isInvalid(ts) {
 		http.NotFound(w, r)
 		return
+	}
+	if strings.HasPrefix(ts, "p") {
+		ts = structures.ThreadIDtoTS(ts)
 	}
 
 	ctx := r.Context()
