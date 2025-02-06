@@ -19,6 +19,8 @@ type fileVersions struct {
 	V []int64
 }
 
+var ErrNoVersions = errors.New("no versions found")
+
 // versions returns all versions of the files with the given names.  Files
 // should be of the same FileID group, it takes the first file as the common
 // file ID and will return an error if any of the other files have a different
@@ -48,7 +50,7 @@ func versions(filenames ...string) ([]int64, error) {
 		versions = append(versions, ver)
 	}
 	if len(versions) == 0 {
-		return nil, errors.New("no versions found")
+		return nil, ErrNoVersions
 	}
 	sort.Sort(sort.Reverse(int64s(versions)))
 	return versions, nil

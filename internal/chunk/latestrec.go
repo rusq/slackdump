@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"log/slog"
 
 	"github.com/rusq/slack"
 )
@@ -13,17 +14,23 @@ type versioner[T any] interface {
 	All(id FileID, ver int64) ([]T, error)
 	// ID should return the unique identifier of the entity.
 	ID(T) string
+	// Type should return the type of the entity.
+	Type() string
 }
 
 // latestRec returns the latest versions of the entities from the given file IDs.
 func latestRec[T any](fsys fs.FS, v versioner[T], ids ...FileID) ([]T, error) {
+	lg := slog.With("ids", ids, "type", v.Type())
 	idx := make(map[string]int, 100)
 	var all []T
 	for _, id := range ids {
 		// we expect versions to be sorted in descending order
 		versions, err := AllVersions(fsys, id)
 		if err != nil {
-			return nil, err
+			if !errors.Is(err, ErrNoVersions) {
+				lg.Debug("no versions found", "id", id, "err", err)
+				return nil, err
+			}
 		}
 		if len(versions) == 0 {
 			continue
@@ -31,6 +38,9 @@ func latestRec[T any](fsys fs.FS, v versioner[T], ids ...FileID) ([]T, error) {
 		for _, ver := range versions {
 			elements, err := v.All(id, ver)
 			if err != nil {
+				if errors.Is(err, ErrNotFound) {
+					continue
+				}
 				return nil, err
 			}
 			if len(all) == 0 {
@@ -40,9 +50,13 @@ func latestRec[T any](fsys fs.FS, v versioner[T], ids ...FileID) ([]T, error) {
 					idx[v.ID(el)] = i
 				}
 			} else {
-				updateIdx(all, idx, elements, v.ID)
+				updateIdx(&all, idx, elements, v.ID)
 			}
 		}
+	}
+	if len(all) == 0 {
+		lg.Debug("no data found")
+		return nil, fmt.Errorf("no data found: %w", ErrNoData)
 	}
 	return all, nil
 }
@@ -60,6 +74,9 @@ func oneRec[T any](fsys fs.FS, v versioner[T], id FileID) (T, error) {
 	for _, ver := range versions {
 		elements, err := v.All(id, ver)
 		if err != nil {
+			if errors.Is(err, ErrNotFound) {
+				continue
+			}
 			return t, err
 		}
 		if len(elements) == 0 {
@@ -75,12 +92,12 @@ func oneRec[T any](fsys fs.FS, v versioner[T], id FileID) (T, error) {
 // function that returns the unique identifier of the element.  It does not
 // update the existing data, as it expects versions to be sorted in descending
 // order (newest first).
-func updateIdx[T any](all []T, idx map[string]int, elements []T, idfn func(T) string) {
+func updateIdx[T any](all *[]T, idx map[string]int, elements []T, idfn func(T) string) {
 	for _, u := range elements {
 		id := idfn(u)
 		if _, ok := idx[id]; !ok {
-			idx[id] = len(all)
-			all = append(all, u)
+			idx[id] = len(*all)
+			*all = append(*all, u)
 			// as we expect versions to be sorted in descending order, we don't
 			// need to update the existing data
 		}
@@ -89,6 +106,10 @@ func updateIdx[T any](all []T, idx map[string]int, elements []T, idfn func(T) st
 
 type userVersion struct {
 	Directory Catalogue
+}
+
+func (uv *userVersion) Type() string {
+	return "user"
 }
 
 func (uv *userVersion) All(id FileID, ver int64) ([]slack.User, error) {
@@ -110,6 +131,10 @@ func (uv *userVersion) ID(u slack.User) string {
 
 type workspaceInfoVersion struct {
 	Directory Catalogue
+}
+
+func (wiv *workspaceInfoVersion) Type() string {
+	return "workspace"
 }
 
 func (wiv *workspaceInfoVersion) All(_ FileID, ver int64) ([]*slack.AuthTestResponse, error) {
@@ -147,6 +172,10 @@ type channelInfoVersion struct {
 	Directory Catalogue
 }
 
+func (civ *channelInfoVersion) Type() string {
+	return "channel_info"
+}
+
 func (civ *channelInfoVersion) All(id FileID, ver int64) ([]slack.Channel, error) {
 	f, err := civ.Directory.OpenVersion(id, ver)
 	if err != nil {
@@ -167,6 +196,10 @@ func (civ *channelInfoVersion) ID(c slack.Channel) string {
 type messageVersion struct {
 	Directory Catalogue
 	ChannelID string
+}
+
+func (mv *messageVersion) Type() string {
+	return "message"
 }
 
 func (mv *messageVersion) All(id FileID, ver int64) ([]slack.Message, error) {
@@ -192,6 +225,10 @@ type parentMessageVersion struct {
 	ThreadID  string
 }
 
+func (pmv *parentMessageVersion) Type() string {
+	return "parent_message"
+}
+
 func (pmv *parentMessageVersion) All(id FileID, ver int64) ([]slack.Message, error) {
 	f, err := pmv.Directory.OpenVersion(id, ver)
 	if err != nil {
@@ -213,6 +250,10 @@ type threadMessageVersion struct {
 	Directory Catalogue
 	ChannelID string
 	ThreadID  string
+}
+
+func (tmv *threadMessageVersion) Type() string {
+	return "thread_message"
 }
 
 func (tmv *threadMessageVersion) All(id FileID, ver int64) ([]slack.Message, error) {

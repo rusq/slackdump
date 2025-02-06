@@ -286,12 +286,18 @@ func (d *Directory) Channels(context.Context) ([]slack.Channel, error) {
 		civ := &channelInfoVersion{Directory: d}
 		cis, err := latestRec(fsys, civ, gid.ID)
 		if err != nil {
+			if errors.Is(err, ErrNoData) {
+				return nil
+			}
 			return err
 		}
 		ch = append(ch, cis...)
 		return nil
 	}); err != nil {
 		return nil, err
+	}
+	if len(ch) == 0 {
+		return nil, ErrNotFound
 	}
 	sort.Slice(ch, func(i, j int) bool {
 		return ch[i].NameNormalized < ch[j].NameNormalized
@@ -582,13 +588,21 @@ func (d *Directory) Latest(ctx context.Context) (map[GroupID]time.Time, error) {
 	return latest, nil
 }
 
-func (d *Directory) ChannelInfo(id string) (*slack.Channel, error) {
-	civ := &channelInfoVersion{Directory: d}
-	cis, err := oneRec(os.DirFS(d.dir), civ, FileID(id))
+// OpenGroup opens a group of files with the given ID.
+func (d *Directory) OpenGroup(id FileID) (*Group, error) {
+	versions, err := d.Versions(id)
 	if err != nil {
 		return nil, err
 	}
-	return &cis, nil
+	return &Group{cat: d, id: id, ver: versions}, nil
+}
+
+func (d *Directory) ChannelInfo(id string) (*slack.Channel, error) {
+	g, err := d.OpenGroup(FileID(id))
+	if err != nil {
+		return nil, err
+	}
+	return g.ChannelInfo()
 }
 
 // FS returns the file system for the directory.

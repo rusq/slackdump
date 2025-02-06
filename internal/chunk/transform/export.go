@@ -84,14 +84,14 @@ func (e *ExpConverter) Convert(ctx context.Context, id chunk.FileID) error {
 	}
 
 	// load the chunk file
-	cf, err := e.cd.Open(id)
+	cf, err := e.cd.OpenGroup(id)
 	if err != nil {
 		return fmt.Errorf("error opening chunk file %q: %w", id, err)
 	}
 	defer cf.Close()
 
 	channelID, _ := id.Split()
-	ci, err := cf.ChannelInfo(channelID)
+	ci, err := e.cd.ChannelInfo(channelID)
 	if err != nil {
 		return fmt.Errorf("error reading channel info for %q: %w", id, err)
 	}
@@ -104,7 +104,6 @@ func (e *ExpConverter) Convert(ctx context.Context, id chunk.FileID) error {
 }
 
 type filer interface {
-	ChannelInfo(channelID string) (*slack.Channel, error)
 	Sorted(ctx context.Context, channelID string, desc bool, fn func(time.Time, *slack.Message) error) error
 	AllThreadMessages(channelID, threadTS string) ([]slack.Message, error)
 }
@@ -142,7 +141,7 @@ func (e *ExpConverter) writeMessages(ctx context.Context, f filer, ci *slack.Cha
 				} else {
 					// this shouldn't happen as we have the guard in the if
 					// condition, but if it does (i.e. API changed), log it.
-					lg.Warn("not an error, possibly deleted thread not found in chunk file", "slack_link", ci.ID+":"+m.ThreadTimestamp)
+					lg.Warn("not an error, possibly deleted thread not found in chunk file", "slack_link", ci.ID+":"+m.ThreadTimestamp, "error", err)
 				}
 			}
 		}

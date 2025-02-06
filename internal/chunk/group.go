@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"iter"
 	"sort"
 	"sync"
 	"time"
@@ -86,6 +87,20 @@ func (fg filegroup) Close() error {
 	return err
 }
 
+func (g *Group) SortedIter(ctx context.Context, chanID string, desc bool) (iter.Seq2[int, GroupResult], error) {
+	files, err := g.open()
+	if err != nil {
+		return nil, err
+	}
+	defer files.Close()
+
+	it, err := g.sorted(ctx, files, chanID, desc)
+	if err != nil {
+		return nil, err
+	}
+	return it, nil
+}
+
 func (g *Group) Sorted(ctx context.Context, chanID string, desc bool, fn func(ts time.Time, m *slack.Message) error) error {
 	files, err := g.open()
 	if err != nil {
@@ -93,7 +108,19 @@ func (g *Group) Sorted(ctx context.Context, chanID string, desc bool, fn func(ts
 	}
 	defer files.Close()
 
-	return g.sorted(ctx, files, chanID, desc, fn)
+	it, err := g.sorted(ctx, files, chanID, desc)
+	if err != nil {
+		return err
+	}
+	for i, r := range it {
+		if r.Error != nil {
+			return r.Error
+		}
+		if err := fn(r.TS, r.Message); err != nil {
+			return fmt.Errorf("fn at %d: %w", i, err)
+		}
+	}
+	return nil
 }
 
 // grpMessageIndex is the index of the messages in the group of files.
@@ -143,54 +170,72 @@ func (fg filegroup) messageIndex(ctx context.Context, chanID string, desc bool) 
 	return &grpMessageIndex{addrMsg, tsList}
 }
 
-func (g *Group) sorted(ctx context.Context, files filegroup, chanID string, desc bool, fn func(ts time.Time, m *slack.Message) error) error {
+type GroupResult struct {
+	TS      time.Time
+	Message *slack.Message
+	Error   error
+}
+
+func (g *Group) sorted(ctx context.Context, files filegroup, chanID string, desc bool) (iter.Seq2[int, GroupResult], error) {
 	gmi := files.messageIndex(ctx, chanID, desc)
 	if gmi.Len() == 0 {
-		return ErrNoData
+		return nil, ErrNoData
 	}
 
 	// for each message in the list, load the message and call fn with the
 	// message
-	var (
-		prevOffset = make([]int64, len(files))
-		chunk      = make([]*Chunk, len(files))
-	)
-	for _, ts := range gmi.tsList {
+	return func(yield func(int, GroupResult) bool) {
 		var (
-			addr = gmi.addrMsg[ts]
-
-			i = addr.idxFile // file index
-			f = files[i]     // current file
+			prevOffset = make([]int64, len(files))
+			chunk      = make([]*Chunk, len(files))
 		)
+		for i, ts := range gmi.tsList {
+			var (
+				addr = gmi.addrMsg[ts] // address of the message as (file,chunk,index)
 
-		if prevOffset[i] != addr.addr.Offset || chunk[i] == nil {
-			var err error
-			chunk[i], err = f.chunkAt(addr.addr.Offset)
-			if err != nil {
-				return fmt.Errorf("chunk at %d: %w", addr.addr.Offset, err)
+				n = addr.idxFile // file index
+				f = files[n]     // select current file
+			)
+
+			if prevOffset[n] != addr.addr.Offset || chunk[n] == nil {
+				var err error
+				chunk[n], err = f.chunkAt(addr.addr.Offset)
+				if err != nil {
+					yield(i, GroupResult{Error: fmt.Errorf("chunk at %d: %w", addr.addr.Offset, err)})
+					return
+				}
+			}
+			if !yield(i, GroupResult{TS: fasttime.Int2Time(ts), Message: &chunk[n].Messages[addr.addr.Index]}) {
+				return
 			}
 		}
-		if err := fn(fasttime.Int2Time(ts), &chunk[i].Messages[addr.addr.Index]); err != nil {
-			return err
-		}
-	}
-	return nil
+	}, nil
 }
 
 func (g *Group) AllMessages(ctx context.Context, chanID string) ([]slack.Message, error) {
-	mv := &messageVersion{Directory: g.cat, ChannelID: chanID}
-	m, err := latestRec(g.cat.FS(), mv, FileID(g.id))
+	it, err := g.SortedIter(ctx, chanID, false)
 	if err != nil {
 		return nil, err
 	}
-	return m, nil
+	var mm []slack.Message
+	for _, r := range it {
+		if r.Error != nil {
+			return nil, r.Error
+		}
+		mm = append(mm, *r.Message)
+	}
+	return mm, nil
 }
 
-func (g *Group) AllThreadMessages(ctx context.Context, chanID string, threadTS string) ([]slack.Message, error) {
+func (g *Group) AllThreadMessages(chanID string, threadTS string) ([]slack.Message, error) {
 	tmv := &threadMessageVersion{Directory: g.cat, ChannelID: chanID, ThreadID: threadTS}
 	m, err := latestRec(g.cat.FS(), tmv, FileID(g.id))
 	if err != nil {
 		return nil, err
 	}
 	return m, nil
+}
+
+func (g *Group) Close() error {
+	return nil
 }
