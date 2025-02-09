@@ -3,6 +3,7 @@ package dbproc
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/rusq/slack"
@@ -31,6 +32,13 @@ func (p *DBP) InsertChunk(ctx context.Context, c chunk.Chunk) (int64, error) {
 	if err != nil {
 		return 0, fmt.Errorf("insertchunk: %w", err)
 	}
+	n, err := p.insertPayload(ctx, tx, id, c)
+	if err != nil {
+		return 0, fmt.Errorf("insertchunk: %w", err)
+	}
+
+	slog.DebugContext(ctx, "inserted chunk", "id", id, "len", n, "type", c.Type, "final", c.IsLast)
+
 	if err := tx.Commit(); err != nil {
 		return 0, fmt.Errorf("insertchunk: %w", err)
 	}

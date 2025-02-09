@@ -2,12 +2,17 @@ package dbproc
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"log/slog"
 	"runtime"
+	"time"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/rusq/slack"
 
+	"github.com/rusq/slackdump/v3/internal/chunk"
+	"github.com/rusq/slackdump/v3/internal/dbproc/repository"
 	"github.com/rusq/slackdump/v3/internal/structures"
 	"github.com/rusq/slackdump/v3/processor"
 )
@@ -17,6 +22,57 @@ var _ processor.Conversations = new(DBP)
 type DBP struct {
 	conn      *sqlx.DB
 	sessionID int64
+}
+
+type Parameters struct {
+	FromTS         *time.Time
+	ToTS           *time.Time
+	FilesEnabled   bool
+	AvatarsEnabled bool
+	Mode           string
+	Args           string
+}
+
+func New(ctx context.Context, conn *sqlx.DB, p Parameters) (*DBP, error) {
+	if err := repository.Migrate(ctx, conn.DB); err != nil {
+		return nil, fmt.Errorf("migrate: %w", err)
+	}
+	sr := repository.NewSessionRepository()
+	id, err := sr.Insert(ctx, conn, &repository.Session{
+		CreatedAt:      time.Time{},
+		ParentID:       new(int64),
+		FromTS:         p.FromTS,
+		ToTS:           p.ToTS,
+		FilesEnabled:   p.FilesEnabled,
+		AvatarsEnabled: p.AvatarsEnabled,
+		Mode:           p.Mode,
+		Args:           p.Args,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("new: %w", err)
+	}
+	return &DBP{conn: conn, sessionID: id}, nil
+}
+
+func (d *DBP) Close() error {
+	sr := repository.NewSessionRepository()
+	if n, err := sr.Finish(context.Background(), d.conn, d.sessionID); err != nil {
+		return fmt.Errorf("finish: %w", err)
+	} else if n == 0 {
+		return errors.New("finish: no session found")
+	}
+	return nil
+}
+
+func (d *DBP) Encode(ctx context.Context, ch any) error {
+	c, ok := ch.(chunk.Chunk)
+	if !ok {
+		return fmt.Errorf("invalid chunk type %T", ch)
+	}
+	if _, err := d.InsertChunk(ctx, c); err != nil {
+		return fmt.Errorf("encode: %w", err)
+	}
+	return nil
 }
 
 func (d *DBP) Messages(ctx context.Context, channelID string, numThreads int, isLast bool, messages []slack.Message) error {
@@ -54,10 +110,5 @@ func (d *DBP) ChannelInfo(_ context.Context, ch *slack.Channel, threadID string)
 func (d *DBP) ChannelUsers(_ context.Context, ch string, threadID string, u []string) error {
 	sl := structures.SlackLink{Channel: ch, ThreadTS: threadID}
 	slog.Info("Discarding channel users", "slack_link", sl, "users_len", len(u))
-	return nil
-}
-
-func (d *DBP) Close() error {
-	slog.Info("Discarder closing")
 	return nil
 }

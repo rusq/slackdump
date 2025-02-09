@@ -28,14 +28,14 @@ func NewDBUser(chunkID int64, n int, u *slack.User) (*DBUser, error) {
 	}, nil
 }
 
-func (DBUser) Table() string {
+func (*DBUser) Table() string {
 	return "S_USER"
 }
 
-func (DBUser) Columns() []string {
+func (*DBUser) Columns() []string {
 	return []string{"ID", "CHUNK_ID", "IDX", "DATA"}
 }
-func (u DBUser) Values() []any {
+func (u *DBUser) Values() []any {
 	return []any{
 		u.ID,
 		u.ChunkID,

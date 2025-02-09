@@ -29,15 +29,15 @@ func NewDBChannel(chunkID int64, n int, channel *slack.Channel) (*DBChannel, err
 	}, nil
 }
 
-func (c DBChannel) Table() string {
+func (c *DBChannel) Table() string {
 	return "CHANNEL"
 }
 
-func (c DBChannel) Columns() []string {
+func (c *DBChannel) Columns() []string {
 	return []string{"ID", "CHUNK_ID", "NAME", "IDX", "DATA"}
 }
 
-func (c DBChannel) Values() []interface{} {
+func (c *DBChannel) Values() []interface{} {
 	return []interface{}{c.ID, c.ChunkID, c.Name, c.Index, c.Data}
 }
 

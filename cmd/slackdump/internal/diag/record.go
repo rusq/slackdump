@@ -5,13 +5,17 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"os"
+	"strings"
+	"time"
+
+	"github.com/jmoiron/sqlx"
 
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/bootstrap"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/internal/chunk"
+	"github.com/rusq/slackdump/v3/internal/dbproc"
 	"github.com/rusq/slackdump/v3/internal/structures"
 )
 
@@ -64,20 +68,44 @@ func runRecord(ctx context.Context, _ *base.Command, args []string) error {
 		return err
 	}
 
-	var w io.Writer
-	if *output == "" {
-		w = os.Stdout
-	} else {
-		if f, err := os.Create(*output); err != nil {
-			base.SetExitStatus(base.SApplicationError)
-			return err
-		} else {
-			defer f.Close()
-			w = f
-		}
+	// var w io.Writer
+	// if *output == "" {
+	// 	w = os.Stdout
+	// } else {
+	// 	if f, err := os.Create(*output); err != nil {
+	// 		base.SetExitStatus(base.SApplicationError)
+	// 		return err
+	// 	} else {
+	// 		defer f.Close()
+	// 		w = f
+	// 	}
+	// }
+
+	db, err := sqlx.Open("sqlite", "record.db")
+	if err != nil {
+		base.SetExitStatus(base.SApplicationError)
+		return err
+	}
+	defer db.Close()
+
+	runParams := dbproc.Parameters{
+		FromTS:         (*time.Time)(&cfg.Oldest),
+		ToTS:           (*time.Time)(&cfg.Latest),
+		FilesEnabled:   cfg.DownloadFiles,
+		AvatarsEnabled: cfg.DownloadAvatars,
+		Mode:           "record",
+		Args:           strings.Join(os.Args, "|"),
 	}
 
-	rec := chunk.NewRecorder(w)
+	p, err := dbproc.New(ctx, db, runParams)
+	if err != nil {
+		base.SetExitStatus(base.SApplicationError)
+		return err
+	}
+	defer p.Close()
+
+	// rec := chunk.NewRecorder(w)
+	rec := chunk.NewCustomRecorder("record", p)
 	for _, ch := range args {
 		lg := cfg.Log.With("channel_id", ch)
 		lg.InfoContext(ctx, "streaming")
