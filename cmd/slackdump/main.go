@@ -16,6 +16,8 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/rusq/tracer"
 
+	_ "modernc.org/sqlite"
+
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/apiconfig"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/archive"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"

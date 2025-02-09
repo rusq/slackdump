@@ -31,15 +31,35 @@ func WithEncoder(enc Encoder) Option {
 	}
 }
 
-// NewRecorder creates a new recorder.
+type jsonEncoder struct {
+	enc *json.Encoder
+}
+
+func (j *jsonEncoder) Encode(ctx context.Context, chunk interface{}) error {
+	return j.enc.Encode(chunk)
+}
+
+// NewRecorder creates a new recorder to writer.
 func NewRecorder(w io.Writer, options ...Option) *Recorder {
 	filename := "unknown"
 	if f, ok := w.(osext.Namer); ok {
 		filename = f.Name()
 	}
 	rec := &Recorder{
-		enc:   json.NewEncoder(w),
+		enc:   &jsonEncoder{json.NewEncoder(w)},
 		state: state.New(filename),
+	}
+	for _, opt := range options {
+		opt(rec)
+	}
+	return rec
+}
+
+// NewCustomRecorder creates a new recorder with a custom encoder.
+func NewCustomRecorder(name string, enc Encoder, options ...Option) *Recorder {
+	rec := &Recorder{
+		enc:   enc,
+		state: state.New(name),
 	}
 	for _, opt := range options {
 		opt(rec)
@@ -49,7 +69,7 @@ func NewRecorder(w io.Writer, options ...Option) *Recorder {
 
 // Encoder is the interface that wraps the Encode method.
 type Encoder interface {
-	Encode(chunk interface{}) error
+	Encode(ctx context.Context, chunk interface{}) error
 }
 
 // Messages is called for each message chunk that is retrieved.
@@ -64,7 +84,7 @@ func (rec *Recorder) Messages(ctx context.Context, channelID string, numThreads 
 		Count:     len(m),
 		Messages:  m,
 	}
-	if err := rec.enc.Encode(chunk); err != nil {
+	if err := rec.enc.Encode(ctx, chunk); err != nil {
 		return err
 	}
 	for i := range m {
@@ -88,7 +108,7 @@ func (rec *Recorder) Files(ctx context.Context, channel *slack.Channel, parent s
 		Count:     len(f),
 		Files:     f,
 	}
-	if err := rec.enc.Encode(chunk); err != nil {
+	if err := rec.enc.Encode(ctx, chunk); err != nil {
 		return err
 	}
 	for i := range f {
@@ -112,7 +132,7 @@ func (rec *Recorder) ThreadMessages(ctx context.Context, channelID string, paren
 		Count:     len(tm),
 		Messages:  tm,
 	}
-	if err := rec.enc.Encode(chunks); err != nil {
+	if err := rec.enc.Encode(ctx, chunks); err != nil {
 		return err
 	}
 	for i := range tm {
@@ -135,7 +155,7 @@ func (rec *Recorder) ChannelInfo(ctx context.Context, channel *slack.Channel, th
 		ThreadTS:  threadTS,
 		Channel:   channel,
 	}
-	if err := rec.enc.Encode(chunk); err != nil {
+	if err := rec.enc.Encode(ctx, chunk); err != nil {
 		return err
 	}
 	rec.state.AddChannel(channel.ID)
@@ -150,7 +170,7 @@ func (rec *Recorder) Users(ctx context.Context, users []slack.User) error {
 		Count:     len(users),
 		Users:     users,
 	}
-	if err := rec.enc.Encode(chunk); err != nil {
+	if err := rec.enc.Encode(ctx, chunk); err != nil {
 		return err
 	}
 	return nil
@@ -166,7 +186,7 @@ func (rec *Recorder) Channels(ctx context.Context, channels []slack.Channel) err
 		Count:     len(channels),
 		Channels:  channels,
 	}
-	if err := rec.enc.Encode(chunk); err != nil {
+	if err := rec.enc.Encode(ctx, chunk); err != nil {
 		return err
 	}
 	return nil
@@ -195,7 +215,7 @@ func (rec *Recorder) WorkspaceInfo(ctx context.Context, atr *slack.AuthTestRespo
 		Timestamp:     time.Now().UnixNano(),
 		WorkspaceInfo: atr,
 	}
-	if err := rec.enc.Encode(chunk); err != nil {
+	if err := rec.enc.Encode(ctx, chunk); err != nil {
 		return err
 	}
 	return nil
@@ -212,7 +232,7 @@ func (rec *Recorder) ChannelUsers(ctx context.Context, channelID string, threadT
 		Timestamp:    time.Now().UnixNano(),
 		ChannelUsers: users,
 	}
-	if err := rec.enc.Encode(chunk); err != nil {
+	if err := rec.enc.Encode(ctx, chunk); err != nil {
 		return err
 	}
 
@@ -230,7 +250,7 @@ func (rec *Recorder) SearchMessages(ctx context.Context, query string, sm []slac
 		SearchQuery:    query,
 		SearchMessages: sm,
 	}
-	if err := rec.enc.Encode(chunk); err != nil {
+	if err := rec.enc.Encode(ctx, chunk); err != nil {
 		return err
 	}
 	return nil
@@ -247,7 +267,7 @@ func (rec *Recorder) SearchFiles(ctx context.Context, query string, sf []slack.F
 		SearchQuery: query,
 		SearchFiles: sf,
 	}
-	if err := rec.enc.Encode(chunk); err != nil {
+	if err := rec.enc.Encode(ctx, chunk); err != nil {
 		return err
 	}
 	return nil

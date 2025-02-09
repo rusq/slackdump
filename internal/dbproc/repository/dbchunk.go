@@ -19,11 +19,11 @@ type DBChunk struct {
 	Final      bool            `db:"FINAL"`
 }
 
-func (DBChunk) Table() string {
+func (*DBChunk) Table() string {
 	return "CHUNK"
 }
 
-func (DBChunk) Columns() []string {
+func (*DBChunk) Columns() []string {
 	return []string{
 		"SESSION_ID",
 		"UNIX_TS",
@@ -33,7 +33,7 @@ func (DBChunk) Columns() []string {
 	}
 }
 
-func (d DBChunk) Values() []any {
+func (d *DBChunk) Values() []any {
 	return []any{
 		d.SessionID,
 		d.UnixTS,
@@ -52,7 +52,6 @@ type chunkRepository struct {
 }
 
 func NewChunkRepository() ChunkRepository {
-
 	return chunkRepository{newGenericRepository[*DBChunk]()}
 }
 

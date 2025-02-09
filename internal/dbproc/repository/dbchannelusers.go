@@ -17,15 +17,15 @@ func NewDBChannelUser(chunkID int64, n int, channelID, userID string) (*DBChanne
 	}, nil
 }
 
-func (DBChannelUser) Table() string {
+func (*DBChannelUser) Table() string {
 	return "CHANNEL_USER"
 }
 
-func (DBChannelUser) Columns() []string {
+func (*DBChannelUser) Columns() []string {
 	return []string{"ID", "CHUNK_ID", "CHANNEL_ID", "IDX"}
 }
 
-func (c DBChannelUser) Values() []any {
+func (c *DBChannelUser) Values() []any {
 	return []interface{}{c.ID, c.ChunkID, c.ChannelID, c.Index}
 }
 
