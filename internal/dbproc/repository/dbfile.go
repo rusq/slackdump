@@ -1,7 +1,6 @@
 package repository
 
 import (
-	"encoding/json"
 	"time"
 
 	"github.com/rusq/slack"
@@ -23,7 +22,7 @@ type DBFile struct {
 }
 
 func NewDBFile(chunkID int64, idx int, channelID, threadTS string, parentMsgTS string, file *slack.File) (*DBFile, error) {
-	data, err := json.Marshal(file)
+	data, err := marshal(file)
 	if err != nil {
 		return nil, err
 	}

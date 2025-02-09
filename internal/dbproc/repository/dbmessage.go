@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"iter"
 	"time"
@@ -34,7 +33,7 @@ func NewDBMessage(dbchunkID int64, idx int, channelID string, msg *slack.Message
 	if err != nil {
 		return nil, fmt.Errorf("insertMessages fasttime: %w", err)
 	}
-	data, err := json.Marshal(msg)
+	data, err := marshal(msg)
 	if err != nil {
 		return nil, fmt.Errorf("insertMessages marshal: %w", err)
 	}
