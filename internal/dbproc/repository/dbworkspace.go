@@ -1,7 +1,6 @@
 package repository
 
 import (
-	"encoding/json"
 	"time"
 
 	"github.com/rusq/slack"
@@ -21,7 +20,7 @@ type DBWorkspace struct {
 }
 
 func NewDBWorkspace(chunkID int64, wi *slack.AuthTestResponse) (*DBWorkspace, error) {
-	data, err := json.Marshal(wi)
+	data, err := marshal(wi)
 	if err != nil {
 		return nil, err
 	}

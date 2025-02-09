@@ -1,8 +1,6 @@
 package repository
 
 import (
-	"encoding/json"
-
 	"github.com/rusq/slack"
 )
 
@@ -16,7 +14,7 @@ type DBSearchFile struct {
 }
 
 func NewDBSearchFile(chunkID int64, n int, sf *slack.File) (*DBSearchFile, error) {
-	data, err := json.Marshal(sf)
+	data, err := marshal(sf)
 	if err != nil {
 		return nil, err
 	}

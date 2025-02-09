@@ -51,6 +51,10 @@ func New(ctx context.Context, conn *sqlx.DB, p Parameters) (*DBP, error) {
 	if err != nil {
 		return nil, fmt.Errorf("new: %w", err)
 	}
+	// enable foreign keys
+	if _, err := conn.ExecContext(ctx, "PRAGMA foreign_keys = ON"); err != nil {
+		return nil, fmt.Errorf("PRAGMA foreign_keys: %w", err)
+	}
 	return &DBP{conn: conn, sessionID: id}, nil
 }
 

@@ -1,7 +1,6 @@
 package repository
 
 import (
-	"encoding/json"
 	"time"
 
 	"github.com/rusq/slack"
@@ -16,7 +15,7 @@ type DBUser struct {
 }
 
 func NewDBUser(chunkID int64, n int, u *slack.User) (*DBUser, error) {
-	data, err := json.Marshal(u)
+	data, err := marshal(u)
 	if err != nil {
 		return nil, err
 	}

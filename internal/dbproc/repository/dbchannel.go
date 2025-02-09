@@ -1,8 +1,6 @@
 package repository
 
 import (
-	"encoding/json"
-
 	"github.com/rusq/slack"
 )
 
@@ -16,7 +14,7 @@ type DBChannel struct {
 }
 
 func NewDBChannel(chunkID int64, n int, channel *slack.Channel) (*DBChannel, error) {
-	data, err := json.Marshal(channel)
+	data, err := marshal(channel)
 	if err != nil {
 		return nil, err
 	}
