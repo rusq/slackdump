@@ -66,3 +66,5 @@ debug.test*
 !internal/viewer/templates/*.html
 !internal/viewer/renderer/templates/*.html
 !internal/fixtures/**/*.json
+*.sqlite*
+*.db
