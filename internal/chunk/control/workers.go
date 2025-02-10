@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"log/slog"
 	"runtime/trace"
 
@@ -42,36 +41,7 @@ func (u *userCollector) Close() error {
 	return nil
 }
 
-type userProcessor struct {
-	processors []processor.Users
-}
-
-func joinUserProcessors(procs ...processor.Users) *userProcessor {
-	return &userProcessor{processors: procs}
-}
-
-func (u *userProcessor) Users(ctx context.Context, users []slack.User) error {
-	for _, p := range u.processors {
-		if err := p.Users(ctx, users); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (u *userProcessor) Close() error {
-	var errs error
-	for i := len(u.processors) - 1; i >= 0; i-- {
-		if closer, ok := u.processors[i].(io.Closer); ok {
-			if err := closer.Close(); err != nil {
-				errs = errors.Join(errs, err)
-			}
-		}
-	}
-	return errs
-}
-
-func userWorker2(ctx context.Context, s Streamer, up processor.Users) error {
+func userWorker(ctx context.Context, s Streamer, up processor.Users) error {
 	if err := s.Users(ctx, up); err != nil {
 		return fmt.Errorf("error listing users: %w", err)
 	}

@@ -28,3 +28,9 @@ type noopAvatarProc struct{}
 
 func (n *noopAvatarProc) Users(ctx context.Context, users []slack.User) error { return nil }
 func (n *noopAvatarProc) Close() error                                        { return nil }
+
+type nopChannelProcessor struct{}
+
+func (nopChannelProcessor) Channels(ctx context.Context, ch []slack.Channel) error {
+	return nil
+}

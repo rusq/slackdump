@@ -2,6 +2,7 @@ package processor
 
 import (
 	"context"
+	"errors"
 	"io"
 
 	"github.com/rusq/slack"
@@ -81,4 +82,63 @@ type Searcher interface {
 type Avatars interface {
 	Users
 	io.Closer
+}
+
+type JointChannels struct {
+	pp []Channels
+}
+
+func JoinChannels(procs ...Channels) *JointChannels {
+	return &JointChannels{pp: procs}
+}
+
+func (c *JointChannels) Channels(ctx context.Context, ch []slack.Channel) error {
+	for _, p := range c.pp {
+		if err := p.Channels(ctx, ch); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (c *JointChannels) Close() error {
+	var errs error
+	for i := len(c.pp) - 1; i >= 0; i-- {
+		if closer, ok := c.pp[i].(io.Closer); ok {
+			if err := closer.Close(); err != nil {
+				errs = errors.Join(errs, err)
+			}
+		}
+	}
+	return errs
+}
+
+type JointUsers struct {
+	pp []Users
+}
+
+// JoinUsers joins multiple Users processors into one.
+func JoinUsers(procs ...Users) *JointUsers {
+	return &JointUsers{pp: procs}
+}
+
+func (u *JointUsers) Users(ctx context.Context, users []slack.User) error {
+	for _, p := range u.pp {
+		if err := p.Users(ctx, users); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (u *JointUsers) Close() error {
+	var errs error
+	for i := len(u.pp) - 1; i >= 0; i-- {
+		if closer, ok := u.pp[i].(io.Closer); ok {
+			if err := closer.Close(); err != nil {
+				errs = errors.Join(errs, err)
+			}
+		}
+	}
+	return errs
 }
