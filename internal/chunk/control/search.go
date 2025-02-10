@@ -9,7 +9,7 @@ import (
 	"github.com/rusq/slackdump/v3/internal/chunk/dirproc"
 )
 
-func (s *Controller) SearchMessages(ctx context.Context, query string) error {
+func (s *DirController) SearchMessages(ctx context.Context, query string) error {
 	var eg errgroup.Group
 	start := time.Now()
 	eg.Go(func() error {
@@ -30,7 +30,7 @@ func (s *Controller) SearchMessages(ctx context.Context, query string) error {
 	return nil
 }
 
-func (s *Controller) SearchFiles(ctx context.Context, query string) error {
+func (s *DirController) SearchFiles(ctx context.Context, query string) error {
 	var eg errgroup.Group
 	start := time.Now()
 	eg.Go(func() error {
@@ -51,7 +51,7 @@ func (s *Controller) SearchFiles(ctx context.Context, query string) error {
 	return nil
 }
 
-func (s *Controller) SearchAll(ctx context.Context, query string) error {
+func (s *DirController) SearchAll(ctx context.Context, query string) error {
 	var eg errgroup.Group
 	start := time.Now()
 	eg.Go(func() error {

@@ -44,7 +44,7 @@ var cmdSearchMessages = &base.Command{
 	Long:        `Searches for messages matching criteria.`,
 	RequireAuth: true,
 	FlagMask:    flagMask | cfg.OmitRecordFilesFlag,
-	Run:         runSearchFn((*control.Controller).SearchMessages),
+	Run:         runSearchFn((*control.DirController).SearchMessages),
 	PrintFlags:  true,
 }
 
@@ -54,7 +54,7 @@ var cmdSearchFiles = &base.Command{
 	Long:        `Searches for messages matching criteria.`,
 	RequireAuth: true,
 	FlagMask:    flagMask,
-	Run:         runSearchFn((*control.Controller).SearchFiles),
+	Run:         runSearchFn((*control.DirController).SearchFiles),
 	PrintFlags:  true,
 }
 
@@ -64,7 +64,7 @@ var cmdSearchAll = &base.Command{
 	Long:        `Records search message and files results matching the given query`,
 	RequireAuth: true,
 	FlagMask:    flagMask,
-	Run:         runSearchFn((*control.Controller).SearchAll),
+	Run:         runSearchFn((*control.DirController).SearchAll),
 	PrintFlags:  true,
 }
 
@@ -78,7 +78,7 @@ func init() {
 
 var ErrNoQuery = errors.New("missing query parameter")
 
-func runSearchFn(fn func(*control.Controller, context.Context, string) error) func(context.Context, *base.Command, []string) error {
+func runSearchFn(fn func(*control.DirController, context.Context, string) error) func(context.Context, *base.Command, []string) error {
 	return func(ctx context.Context, cmd *base.Command, args []string) error {
 		if len(args) == 0 {
 			base.SetExitStatus(base.SInvalidParameters)
@@ -116,7 +116,7 @@ func runSearchFn(fn func(*control.Controller, context.Context, string) error) fu
 	}
 }
 
-func searchController(ctx context.Context, cd *chunk.Directory, sess *slackdump.Session, terms []string) (*control.Controller, func(), error) {
+func searchController(ctx context.Context, cd *chunk.Directory, sess *slackdump.Session, terms []string) (*control.DirController, func(), error) {
 	if len(terms) == 0 {
 		base.SetExitStatus(base.SInvalidParameters)
 		return nil, nil, errors.New("missing query parameter")
@@ -147,14 +147,12 @@ func searchController(ctx context.Context, cd *chunk.Directory, sess *slackdump.
 		sopts = append(sopts, stream.OptFastSearch())
 	}
 
-	var (
-		ctrl = control.New(
-			cd,
-			sess.Stream(sopts...),
-			control.WithLogger(lg),
-			control.WithFiler(fileproc.New(dl)),
-			control.WithFlags(control.Flags{RecordFiles: cfg.RecordFiles}),
-		)
+	ctrl := control.New(
+		cd,
+		sess.Stream(sopts...),
+		control.WithLogger(lg),
+		control.WithFiler(fileproc.New(dl)),
+		control.WithFlags(control.Flags{RecordFiles: cfg.RecordFiles}),
 	)
 	return ctrl, func() { pb.Finish() }, nil
 }

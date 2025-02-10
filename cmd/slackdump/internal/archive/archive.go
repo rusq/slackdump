@@ -89,7 +89,7 @@ func NewDirectory(name string) (*chunk.Directory, error) {
 
 // ArchiveController returns the default archive controller initialised based
 // on global configuration parameters.
-func ArchiveController(ctx context.Context, cd *chunk.Directory, sess *slackdump.Session, opts ...stream.Option) (*control.Controller, error) {
+func ArchiveController(ctx context.Context, cd *chunk.Directory, sess *slackdump.Session, opts ...stream.Option) (*control.DirController, error) {
 	lg := cfg.Log
 
 	sopts := []stream.Option{
