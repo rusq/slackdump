@@ -68,7 +68,8 @@ func objtype(name string) int {
 }
 
 func runObfuscate(ctx context.Context, cmd *base.Command, args []string) error {
-	if err := cmdObfuscate.Flag.Parse(args); err != nil {
+	if err := cmd.Flag.Parse(args); err != nil {
+		base.SetExitStatus(base.SInvalidParameters)
 		return err
 	}
 
