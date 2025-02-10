@@ -17,8 +17,6 @@ import (
 // NewExport initialises an export file subprocessor based on the given export
 // type.  This subprocessor can be later plugged into the
 // [expproc.Conversations] processor.
-//
-// Deprecated: use [New] instead.
 func NewExport(typ StorageType, dl Downloader) processor.Filer {
 	switch typ {
 	case STstandard:
