@@ -68,7 +68,7 @@ func init() {
 
 func main() {
 	if isRoot() {
-		log.Fatal("slackdump:  cowardly refusing to run as root")
+		slog.Warn("slackdump:  courageously running as root, hope you know what you're doing")
 	}
 
 	flag.Usage = base.Usage
