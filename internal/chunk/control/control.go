@@ -9,6 +9,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"runtime/trace"
 	"sync"
@@ -129,11 +130,83 @@ func (e Error) Unwrap() error {
 	return e.Err
 }
 
+type multiprocessor struct {
+	processor.Conversations
+	processor.Users
+	processor.Channels
+	processor.WorkspaceInfo
+}
+
+func tryClose(errC chan<- error, a any) {
+	defer func() {
+		if r := recover(); r != nil {
+			slog.Debug("recovered from panic", "recover", r)
+		}
+	}()
+	if cl, ok := a.(io.Closer); ok {
+		if err := cl.Close(); err != nil {
+			select {
+			case errC <- fmt.Errorf("error closing %T: %w", a, err):
+			default:
+				// give up
+			}
+		}
+	}
+}
+
+type nopChannelProcessor struct{}
+
+func (nopChannelProcessor) Channels(ctx context.Context, ch []slack.Channel) error {
+	return nil
+}
+
 func (c *Controller) Run(ctx context.Context, list *structures.EntityList) error {
 	ctx, task := trace.NewTask(ctx, "Controller.Run")
 	defer task.End()
 
-	lg := c.lg.With("in", "controller.Run")
+	var chanproc processor.Channels = nopChannelProcessor{}
+	if !list.HasIncludes() {
+		var err error
+		chanproc, err = dirproc.NewChannels(c.cd)
+		if err != nil {
+			return Error{"channel", "init", err}
+		}
+	}
+	wsproc, err := dirproc.NewWorkspace(c.cd)
+	if err != nil {
+		return Error{"workspace", "init", err}
+	}
+	conv, err := dirproc.NewConversation(c.cd, c.filer, c.tf, dirproc.WithRecordFiles(c.flags.RecordFiles))
+	if err != nil {
+		return fmt.Errorf("error initialising conversation processor: %w", err)
+	}
+	collector := &userCollector{
+		users: make([]slack.User, 0, 100),
+		ts:    c.tf,
+		ctx:   ctx,
+	}
+	dup, err := dirproc.NewUsers(c.cd)
+	if err != nil {
+		collector.Close()
+		return Error{"user", "init", err}
+	}
+	userproc := joinUserProcessors(collector, dup, c.avp)
+
+	mp := multiprocessor{
+		Channels:      chanproc,
+		WorkspaceInfo: wsproc,
+		Users:         userproc,
+		Conversations: conv,
+	}
+
+	return runWorkers(ctx, c.s, list, mp, c.flags)
+}
+
+func runWorkers(ctx context.Context, s Streamer, list *structures.EntityList, p multiprocessor, flags Flags) error {
+	ctx, task := trace.NewTask(ctx, "runWorkers")
+	defer task.End()
+
+	lg := slog.With("in", "runWorkers")
 
 	var (
 		wg    sync.WaitGroup
@@ -147,7 +220,7 @@ func (c *Controller) Run(ctx context.Context, list *structures.EntityList) error
 			generator = genChFromList
 		} else {
 			// exclusive export (process only excludes, if any)
-			generator = genChFromAPI(c.s, c.cd, c.flags.MemberOnly)
+			generator = genChFromAPI(s, p.Channels, flags.MemberOnly)
 		}
 
 		wg.Add(1)
@@ -167,7 +240,11 @@ func (c *Controller) Run(ctx context.Context, list *structures.EntityList) error
 		go func() {
 			defer wg.Done()
 			defer lg.DebugContext(ctx, "workspace info done")
-			if err := workspaceWorker(ctx, c.s, c.cd); err != nil {
+
+			defer func() {
+				tryClose(errC, p.WorkspaceInfo)
+			}()
+			if err := workspaceWorker(ctx, s, p.WorkspaceInfo); err != nil {
 				errC <- Error{"workspace", "worker", err}
 				return
 			}
@@ -178,27 +255,23 @@ func (c *Controller) Run(ctx context.Context, list *structures.EntityList) error
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			if err := userWorker(ctx, c.s, c.avp, c.cd, c.tf); err != nil {
+
+			defer func() {
+				tryClose(errC, p.Users)
+			}()
+
+			if err := userWorker2(ctx, s, p.Users); err != nil {
 				errC <- Error{"user", "worker", err}
 				return
 			}
 		}()
 	}
 	{ // conversations goroutine
-		conv, err := dirproc.NewConversation(c.cd, c.filer, c.tf, dirproc.WithRecordFiles(c.flags.RecordFiles))
-		if err != nil {
-			return fmt.Errorf("error initialising conversation processor: %w", err)
-		}
-
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			defer func() {
-				if err := conv.Close(); err != nil {
-					errC <- Error{"conversations", "close", err}
-				}
-			}()
-			if err := conversationWorker(ctx, c.s, conv, linkC); err != nil {
+			tryClose(errC, p.Conversations)
+			if err := conversationWorker(ctx, s, p.Conversations, linkC); err != nil {
 				errC <- Error{"conversations", "worker", err}
 				return
 			}
@@ -220,6 +293,123 @@ func (c *Controller) Run(ctx context.Context, list *structures.EntityList) error
 	}
 	return nil
 }
+
+// func (c *Controller) Run2(ctx context.Context, list *structures.EntityList) error {
+// 	ctx, task := trace.NewTask(ctx, "Controller.Run")
+// 	defer task.End()
+//
+// 	lg := c.lg.With("in", "controller.Run")
+//
+// 	var (
+// 		wg    sync.WaitGroup
+// 		errC  = make(chan error, 1)
+// 		linkC = make(chan structures.EntityItem)
+// 	)
+// 	{ // generator of channel IDs
+// 		var generator linkFeederFunc
+// 		if list.HasIncludes() {
+// 			// inclusive export, processes only included channels.
+// 			generator = genChFromList
+// 		} else {
+// 			// exclusive export (process only excludes, if any)
+// 			generator = genChFromAPI(c.s, c.cd, c.flags.MemberOnly)
+// 		}
+//
+// 		wg.Add(1)
+// 		go func() {
+// 			defer wg.Done()
+// 			defer close(linkC)
+// 			defer lg.DebugContext(ctx, "channels done")
+//
+// 			if err := generator(ctx, linkC, list); err != nil {
+// 				errC <- Error{"channel generator", "generator", err}
+// 				return
+// 			}
+// 		}()
+// 	}
+// 	{ // workspace info
+// 		wg.Add(1)
+// 		go func() {
+// 			defer wg.Done()
+// 			defer lg.DebugContext(ctx, "workspace info done")
+//
+// 			wsproc, err := dirproc.NewWorkspace(c.cd)
+// 			if err != nil {
+// 				errC <- Error{"workspace", "init", err}
+// 				return
+// 			}
+// 			defer wsproc.Close()
+//
+// 			if err := workspaceWorker(ctx, c.s, wsproc); err != nil {
+// 				errC <- Error{"workspace", "worker", err}
+// 				return
+// 			}
+// 		}()
+// 	}
+// 	{ // user goroutine
+// 		// once all users are fetched, it triggers the transformer to start.
+// 		wg.Add(1)
+// 		go func() {
+// 			defer wg.Done()
+//
+// 			collector := &userCollector{
+// 				users: make([]slack.User, 0, 100),
+// 				ts:    c.tf,
+// 				ctx:   ctx,
+// 			}
+// 			dup, err := dirproc.NewUsers(c.cd)
+// 			if err != nil {
+// 				errC <- Error{"user", "init", err}
+// 				return
+// 			}
+// 			userproc := joinUserProcessors(collector, dup, c.avp)
+// 			if err := userWorker2(ctx, c.s, userproc); err != nil {
+// 				userproc.Close()
+// 				errC <- Error{"user", "worker", err}
+// 				return
+// 			}
+// 			if err := userproc.Close(); err != nil {
+// 				errC <- Error{"user", "close", err}
+// 				return
+// 			}
+// 		}()
+// 	}
+// 	{ // conversations goroutine
+// 		conv, err := dirproc.NewConversation(c.cd, c.filer, c.tf, dirproc.WithRecordFiles(c.flags.RecordFiles))
+// 		if err != nil {
+// 			return fmt.Errorf("error initialising conversation processor: %w", err)
+// 		}
+//
+// 		wg.Add(1)
+// 		go func() {
+// 			defer wg.Done()
+// 			defer func() {
+// 				if err := conv.Close(); err != nil {
+// 					errC <- Error{"conversations", "close", err}
+// 				}
+// 			}()
+// 			if err := conversationWorker(ctx, c.s, conv, linkC); err != nil {
+// 				errC <- Error{"conversations", "worker", err}
+// 				return
+// 			}
+// 		}()
+// 	}
+// 	// sentinel
+// 	go func() {
+// 		wg.Wait()
+// 		close(errC)
+// 	}()
+//
+// 	// collect returned errors
+// 	var allErr error
+// 	for cErr := range errC {
+// 		allErr = errors.Join(allErr, cErr)
+// 	}
+// 	if allErr != nil {
+// 		return allErr
+// 	}
+// 	return nil
+// }
 
 // Close closes the controller and all its file processors.
 func (c *Controller) Close() error {
@@ -257,46 +447,88 @@ func genChFromList(ctx context.Context, links chan<- structures.EntityItem, list
 	return nil
 }
 
+type chanGenerator struct {
+	links      chan<- structures.EntityItem
+	list       *structures.EntityList
+	memberOnly bool
+	idx        map[string]*structures.EntityItem
+}
+
+func newChanGenerator(links chan<- structures.EntityItem, list *structures.EntityList, memberOnly bool) *chanGenerator {
+	return &chanGenerator{
+		links:      links,
+		list:       list,
+		memberOnly: memberOnly,
+		idx:        list.Index(),
+	}
+}
+
+func (c *chanGenerator) Channels(ctx context.Context, ch []slack.Channel) error {
+LOOP:
+	for _, ch := range ch {
+		if c.memberOnly && !ch.IsMember {
+			continue
+		}
+		for _, entry := range c.idx {
+			if entry.Id == ch.ID && !entry.Include {
+				continue LOOP
+			}
+		}
+		select {
+		case <-ctx.Done():
+			return context.Cause(ctx)
+		case c.links <- structures.EntityItem{Id: ch.ID, Include: true}:
+		}
+	}
+	return nil
+}
+
+type channelProcessor struct {
+	processors []processor.Channels
+}
+
+func joinChannelProcessors(procs ...processor.Channels) *channelProcessor {
+	return &channelProcessor{processors: procs}
+}
+
+func (c *channelProcessor) Channels(ctx context.Context, ch []slack.Channel) error {
+	for _, p := range c.processors {
+		if err := p.Channels(ctx, ch); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (c *channelProcessor) Close() error {
+	var errs error
+	for i := len(c.processors) - 1; i >= 0; i-- {
+		if closer, ok := c.processors[i].(io.Closer); ok {
+			if err := closer.Close(); err != nil {
+				errs = errors.Join(errs, err)
+			}
+		}
+	}
+	return errs
+}
+
 // genChFromAPI feeds the channel IDs that it gets from the API to the
 // links channel.  It also filters out channels that are excluded in the list.
 // It does not account for "included".  It ignores the thread links in the
 // list.  It writes the channels to the tmpdir.
-func genChFromAPI(s Streamer, cd *chunk.Directory, memberOnly bool) linkFeederFunc {
-	return func(ctx context.Context, links chan<- structures.EntityItem, list *structures.EntityList) error {
-		chIdx := list.Index()
-		chanproc, err := dirproc.NewChannels(cd, func(c []slack.Channel) error {
-		LOOP:
-			for _, ch := range c {
-				if memberOnly && (ch.ID[0] == 'C' && !ch.IsMember) { // include DMs etc
-					continue
-				}
-				for _, entry := range chIdx {
-					if entry.Id == ch.ID && !entry.Include {
-						continue LOOP
-					}
-				}
-				select {
-				case <-ctx.Done():
-					return context.Cause(ctx)
-				case links <- structures.EntityItem{
-					Id:      ch.ID,
-					Include: true,
-				}:
-				}
-			}
-			return nil
-		})
-		if err != nil {
-			return err
-		}
+func genChFromAPI(s Streamer, chanproc processor.Channels, memberOnly bool) linkFeederFunc {
+	return func(ctx context.Context, links chan<- structures.EntityItem, list *structures.EntityList) (err error) {
+		genproc := newChanGenerator(links, list, memberOnly)
+		proc := joinChannelProcessors(genproc, chanproc)
 
-		if err := s.ListChannels(ctx, chanproc, &slack.GetConversationsParameters{Types: slackdump.AllChanTypes}); err != nil {
+		defer func() {
+			err = proc.Close()
+		}()
+
+		if err := s.ListChannels(ctx, proc, &slack.GetConversationsParameters{Types: slackdump.AllChanTypes}); err != nil {
 			return fmt.Errorf("error listing channels: %w", err)
 		}
-		if err := chanproc.Close(); err != nil {
-			return fmt.Errorf("error closing channel processor: %w", err)
-		}
 		slog.DebugContext(ctx, "channels done")
-		return nil
+		return
 	}
 }

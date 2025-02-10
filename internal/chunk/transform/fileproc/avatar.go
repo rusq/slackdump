@@ -20,7 +20,7 @@ func NewAvatarProc(dl Downloader) AvatarProc {
 	}
 }
 
-func (a AvatarProc) Avatars(ctx context.Context, users []slack.User) error {
+func (a AvatarProc) Users(ctx context.Context, users []slack.User) error {
 	for _, u := range users {
 		if u.Profile.ImageOriginal == "" {
 			// skip empty

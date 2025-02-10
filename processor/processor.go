@@ -79,7 +79,6 @@ type Searcher interface {
 
 // Avatars is the interface for downloading avatars.
 type Avatars interface {
-	// Avatars should download avatars for the slice of users.
-	Avatars(ctx context.Context, users []slack.User) error
+	Users
 	io.Closer
 }
