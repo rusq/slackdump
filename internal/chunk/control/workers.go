@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"runtime/trace"
 
@@ -17,36 +18,62 @@ import (
 	"github.com/rusq/slackdump/v3/processor"
 )
 
-func userWorker(ctx context.Context, s Streamer, avp processor.Avatars, chunkdir *chunk.Directory, tf TransformStarter) error {
-	users := make([]slack.User, 0, 100)
-	userproc, err := dirproc.NewUsers(chunkdir, dirproc.WithUsers(func(us []slack.User) error {
-		users = append(users, us...)
-		if err := avp.Avatars(ctx, us); err != nil {
-			slog.Warn("error downloading avatars", "error", err)
-		}
-		return nil
-	}))
-	if err != nil {
-		return err
+type userCollector struct {
+	ctx   context.Context // bad boy, but short-lived, so it's ok
+	users []slack.User
+	ts    TransformStarter
+}
+
+func (u *userCollector) Users(ctx context.Context, users []slack.User) error {
+	u.users = append(u.users, users...)
+	return nil
+}
+
+func (u *userCollector) Close() error {
+	if len(u.users) == 0 {
+		return errors.New("no users collected")
 	}
-	if err := s.Users(ctx, userproc); err != nil {
-		if err2 := userproc.Close(); err2 != nil {
-			err = errors.Join(err2)
-		}
-		return fmt.Errorf("error listing users: %w", err)
-	}
-	if err := userproc.Close(); err != nil {
-		return fmt.Errorf("error closing user processor: %w", err)
-	}
-	slog.DebugContext(ctx, "users done")
-	if len(users) == 0 {
-		return fmt.Errorf("unable to proceed, no users found")
-	}
-	if err := tf.StartWithUsers(ctx, users); err != nil {
+	if err := u.ts.StartWithUsers(u.ctx, u.users); err != nil {
 		if errors.Is(err, context.Canceled) {
 			return nil
 		}
 		return fmt.Errorf("error starting the transformer: %w", err)
+	}
+	return nil
+}
+
+type userProcessor struct {
+	processors []processor.Users
+}
+
+func joinUserProcessors(procs ...processor.Users) *userProcessor {
+	return &userProcessor{processors: procs}
+}
+
+func (u *userProcessor) Users(ctx context.Context, users []slack.User) error {
+	for _, p := range u.processors {
+		if err := p.Users(ctx, users); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (u *userProcessor) Close() error {
+	var errs error
+	for i := len(u.processors) - 1; i >= 0; i-- {
+		if closer, ok := u.processors[i].(io.Closer); ok {
+			if err := closer.Close(); err != nil {
+				errs = errors.Join(errs, err)
+			}
+		}
+	}
+	return errs
+}
+
+func userWorker2(ctx context.Context, s Streamer, up processor.Users) error {
+	if err := s.Users(ctx, up); err != nil {
+		return fmt.Errorf("error listing users: %w", err)
 	}
 	return nil
 }
@@ -63,14 +90,10 @@ func conversationWorker(ctx context.Context, s Streamer, proc processor.Conversa
 	return nil
 }
 
-func workspaceWorker(ctx context.Context, s Streamer, cd *chunk.Directory) error {
+func workspaceWorker(ctx context.Context, s Streamer, wsproc processor.WorkspaceInfo) error {
 	lg := slog.Default()
 	lg.Debug("workspaceWorker started")
-	wsproc, err := dirproc.NewWorkspace(cd)
-	if err != nil {
-		return err
-	}
-	defer wsproc.Close()
+
 	if err := s.WorkspaceInfo(ctx, wsproc); err != nil {
 		return err
 	}
