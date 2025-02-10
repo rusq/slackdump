@@ -62,6 +62,7 @@ func init() {
 		man.Chunk,
 		man.Migration,
 		man.Transfer,
+		man.Troubleshooting,
 	}
 }
 
