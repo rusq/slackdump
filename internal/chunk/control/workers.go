@@ -5,14 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"runtime/trace"
 
 	"github.com/rusq/slackdump/v3/internal/structures"
 
 	"github.com/rusq/slack"
 
-	"github.com/rusq/slackdump/v3/internal/chunk"
-	"github.com/rusq/slackdump/v3/internal/chunk/dirproc"
 	"github.com/rusq/slackdump/v3/internal/chunk/transform"
 	"github.com/rusq/slackdump/v3/processor"
 )
@@ -71,36 +68,20 @@ func workspaceWorker(ctx context.Context, s Streamer, wsproc processor.Workspace
 	return nil
 }
 
-func searchMsgWorker(ctx context.Context, s Streamer, filer processor.Filer, cd *chunk.Directory, query string) error {
-	ctx, task := trace.NewTask(ctx, "searchMsgWorker")
-	defer task.End()
-
+func searchMsgWorker(ctx context.Context, s Streamer, ms processor.MessageSearcher, query string) error {
 	lg := slog.Default()
 	lg.Debug("searchMsgWorker started")
-	search, err := dirproc.NewSearch(cd, filer)
-	if err != nil {
-		return err
-	}
-	defer search.Close()
-	if err := s.SearchMessages(ctx, search, query); err != nil {
+	if err := s.SearchMessages(ctx, ms, query); err != nil {
 		return err
 	}
 	lg.Debug("searchWorker done")
 	return nil
 }
 
-func searchFileWorker(ctx context.Context, s Streamer, filer processor.Filer, cd *chunk.Directory, query string) error {
-	ctx, task := trace.NewTask(ctx, "searchMsgWorker")
-	defer task.End()
-
+func searchFileWorker(ctx context.Context, s Streamer, sf processor.FileSearcher, query string) error {
 	lg := slog.Default()
 	lg.Debug("searchFileWorker started")
-	search, err := dirproc.NewSearch(cd, filer)
-	if err != nil {
-		return err
-	}
-	defer search.Close()
-	if err := s.SearchFiles(ctx, search, query); err != nil {
+	if err := s.SearchFiles(ctx, sf, query); err != nil {
 		return err
 	}
 	lg.Debug("searchFileWorker done")

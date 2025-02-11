@@ -116,7 +116,7 @@ func ArchiveController(ctx context.Context, cd *chunk.Directory, sess *slackdump
 		lg,
 	)
 
-	ctrl := control.New(
+	ctrl := control.NewDir(
 		cd,
 		sess.Stream(sopts...),
 		control.WithLogger(lg),
