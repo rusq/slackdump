@@ -2,30 +2,28 @@ package dbproc
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
-	"log/slog"
-	"runtime"
+	"sync"
 	"time"
 
-	repository2 "github.com/rusq/slackdump/v3/internal/chunk/dbproc/repository"
+	"github.com/rusq/slackdump/v3/internal/chunk/dbproc/repository"
 
 	"github.com/jmoiron/sqlx"
-	"github.com/rusq/slack"
 
 	"github.com/rusq/slackdump/v3/internal/chunk"
-	"github.com/rusq/slackdump/v3/internal/structures"
-	"github.com/rusq/slackdump/v3/processor"
 )
-
-var _ processor.Conversations = new(DBP)
 
 type DBP struct {
 	conn      *sqlx.DB
 	sessionID int64
+	mu        sync.Mutex
 }
 
-type Parameters struct {
+// SessionInfo is the information about the session to be logged in the
+// database.
+type SessionInfo struct {
 	FromTS         *time.Time
 	ToTS           *time.Time
 	FilesEnabled   bool
@@ -34,12 +32,17 @@ type Parameters struct {
 	Args           string
 }
 
-func New(ctx context.Context, conn *sqlx.DB, p Parameters) (*DBP, error) {
-	if err := repository2.Migrate(ctx, conn.DB); err != nil {
+var dbInitCommands = []string{
+	"PRAGMA foreign_keys = ON", // enable foreign keys
+}
+
+// New return the new database processor.
+func New(ctx context.Context, conn *sqlx.DB, p SessionInfo) (*DBP, error) {
+	if err := repository.Migrate(ctx, conn.DB); err != nil {
 		return nil, fmt.Errorf("migrate: %w", err)
 	}
-	sr := repository2.NewSessionRepository()
-	id, err := sr.Insert(ctx, conn, &repository2.Session{
+	sr := repository.NewSessionRepository()
+	id, err := sr.Insert(ctx, conn, &repository.Session{
 		CreatedAt:      time.Time{},
 		ParentID:       new(int64),
 		FromTS:         p.FromTS,
@@ -52,16 +55,30 @@ func New(ctx context.Context, conn *sqlx.DB, p Parameters) (*DBP, error) {
 	if err != nil {
 		return nil, fmt.Errorf("new: %w", err)
 	}
-	// enable foreign keys
-	if _, err := conn.ExecContext(ctx, "PRAGMA foreign_keys = ON"); err != nil {
-		return nil, fmt.Errorf("PRAGMA foreign_keys: %w", err)
+	if err := initDB(ctx, conn); err != nil {
+		return nil, fmt.Errorf("new: %w", err)
 	}
+
 	return &DBP{conn: conn, sessionID: id}, nil
 }
 
+// initDB runs the initialisation commands on the database.
+func initDB(ctx context.Context, conn *sqlx.DB) error {
+	for _, q := range dbInitCommands {
+		if _, err := conn.ExecContext(ctx, q); err != nil {
+			return fmt.Errorf("initDB: %w", err)
+		}
+	}
+	return nil
+}
+
+// Close finalises the session, marking it as finished. It is advised to check
+// the error value.
 func (d *DBP) Close() error {
-	sr := repository2.NewSessionRepository()
-	if n, err := sr.Finish(context.Background(), d.conn, d.sessionID); err != nil {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	sr := repository.NewSessionRepository()
+	if n, err := sr.Finalise(context.Background(), d.conn, d.sessionID); err != nil {
 		return fmt.Errorf("finish: %w", err)
 	} else if n == 0 {
 		return errors.New("finish: no session found")
@@ -74,46 +91,51 @@ func (d *DBP) Encode(ctx context.Context, ch any) error {
 	if !ok {
 		return fmt.Errorf("invalid chunk type %T", ch)
 	}
+	// prevent concurrency on sqlite.
 	if _, err := d.InsertChunk(ctx, c); err != nil {
 		return fmt.Errorf("encode: %w", err)
 	}
 	return nil
 }
 
-func (d *DBP) Messages(ctx context.Context, channelID string, numThreads int, isLast bool, messages []slack.Message) error {
-	for i := range messages {
-		slog.Info("  message", "ts", messages[i].Timestamp)
+// WithConn locks the database connection and calls the function with the
+// connection.
+func (d *DBP) WithConn(fn func(conn *sqlx.DB) error) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if err := fn(d.conn); err != nil {
+		return fmt.Errorf("withconn: %w", err)
 	}
 	return nil
 }
 
-func (d *DBP) ThreadMessages(ctx context.Context, channelID string, parent slack.Message, threadOnly, isLast bool, replies []slack.Message) error {
-	slog.Info("Discarding %d replies to %s", "n", len(replies), "parent_ts", parent.Timestamp)
-	for i := range replies {
-		slog.Info("  reply", "ts", replies[i].Timestamp)
+// WithTx locks the connection and starts a read/write transaction.
+// Caller is responsible in rolling back or committing it.
+func (d *DBP) WithTx(ctx context.Context, fn func(txx *sqlx.Tx) error) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	txx, err := d.conn.BeginTxx(ctx, &sql.TxOptions{ReadOnly: false})
+	if err != nil {
+		return err
+	}
+	if err := fn(txx); err != nil {
+		return err
 	}
 	return nil
 }
 
-func (d *DBP) Files(_ context.Context, ch *slack.Channel, parent slack.Message, files []slack.File) error {
-	slog.Info("Discarding files", "n", len(files), "parent_ts", parent.Timestamp, "is_thread", parent.ThreadTimestamp != "")
-	if parent.Timestamp == "" {
-		runtime.Breakpoint()
+// WithReadTx locks the connectin and starts a read-only transaction. It rolls
+// it back after fn has returned.
+func (d *DBP) WithReadTx(ctx context.Context, fn func(txx *sqlx.Tx) error) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	txx, err := d.conn.BeginTxx(ctx, &sql.TxOptions{ReadOnly: true})
+	if err != nil {
+		return err
 	}
-	for i := range files {
-		slog.Info("  file", "id", files[i].ID)
+	defer txx.Rollback()
+	if err := fn(txx); err != nil {
+		return fmt.Errorf("withReadTx: %w", err)
 	}
-	return nil
-}
-
-func (d *DBP) ChannelInfo(_ context.Context, ch *slack.Channel, threadID string) error {
-	sl := structures.SlackLink{Channel: ch.ID, ThreadTS: threadID}
-	slog.Info("Discarding channel info", "channel_name", ch.Name, "slack_link", sl)
-	return nil
-}
-
-func (d *DBP) ChannelUsers(_ context.Context, ch string, threadID string, u []string) error {
-	sl := structures.SlackLink{Channel: ch, ThreadTS: threadID}
-	slog.Info("Discarding channel users", "slack_link", sl, "users_len", len(u))
 	return nil
 }

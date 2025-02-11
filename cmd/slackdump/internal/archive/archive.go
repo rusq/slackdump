@@ -4,9 +4,14 @@ import (
 	"context"
 	_ "embed"
 	"errors"
+	"io"
 	"log/slog"
+	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
+	"github.com/jmoiron/sqlx"
 	"github.com/rusq/fsadapter"
 
 	"github.com/rusq/slackdump/v3"
@@ -15,6 +20,7 @@ import (
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/internal/chunk/control"
+	"github.com/rusq/slackdump/v3/internal/chunk/dbproc"
 	"github.com/rusq/slackdump/v3/internal/chunk/transform/fileproc"
 	"github.com/rusq/slackdump/v3/internal/structures"
 	"github.com/rusq/slackdump/v3/stream"
@@ -67,7 +73,60 @@ func RunArchive(ctx context.Context, cmd *base.Command, args []string) error {
 		base.SetExitStatus(base.SApplicationError)
 		return err
 	}
-	cfg.Log.Info("Recorded workspace data", "filename", cd.Name(), "took", time.Since(start))
+	cfg.Log.Info("Recorded workspace data", "directory", cd.Name(), "took", time.Since(start))
+	return nil
+}
+
+var CmdDBArchive = &base.Command{
+	Run:         RunDBArchive,
+	UsageLine:   "slackdump db",
+	Short:       "archive the workspace or individual conversations into Sqlite database",
+	Long:        mdArchive,
+	FlagMask:    cfg.OmitUserCacheFlag | cfg.OmitCacheDir,
+	RequireAuth: true,
+	PrintFlags:  true,
+}
+
+func RunDBArchive(ctx context.Context, cmd *base.Command, args []string) error {
+	start := time.Now()
+	list, err := structures.NewEntityList(args)
+	if err != nil {
+		base.SetExitStatus(base.SUserError)
+		return err
+	}
+	sess, err := bootstrap.SlackdumpSession(ctx)
+	if err != nil {
+		base.SetExitStatus(base.SInitializationError)
+		return err
+	}
+
+	dirname := cfg.StripZipExt(cfg.Output)
+	if err := os.MkdirAll(dirname, 0o755); err != nil {
+		return err
+	}
+
+	conn, err := sqlx.Open("sqlite", filepath.Join(dirname, "slackdump.sqlite"))
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	ctrl, err := DBController(ctx, conn, sess)
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		if err := ctrl.Close(); err != nil {
+			slog.ErrorContext(ctx, "unable to close database controller", "error", err)
+		}
+	}()
+
+	if err := ctrl.Run(ctx, list); err != nil {
+		base.SetExitStatus(base.SApplicationError)
+		return err
+	}
+	cfg.Log.Info("Recorded workspace data", "directory", dirname, "took", time.Since(start))
 
 	return nil
 }
@@ -85,6 +144,31 @@ func NewDirectory(name string) (*chunk.Directory, error) {
 		return nil, err
 	}
 	return cd, nil
+}
+
+func DBController(ctx context.Context, conn *sqlx.DB, sess *slackdump.Session, opts ...stream.Option) (RunCloser, error) {
+	dbp, err := dbproc.New(ctx, conn, dbproc.SessionInfo{
+		FromTS:         &time.Time{},
+		ToTS:           &time.Time{},
+		FilesEnabled:   cfg.DownloadFiles,
+		AvatarsEnabled: cfg.DownloadAvatars,
+		Mode:           "archive",
+		Args:           strings.Join(os.Args, "|"),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	ctrl, err := control.NewDB(ctx, sess.Stream(opts...), dbp)
+	if err != nil {
+		return nil, err
+	}
+	return ctrl, nil
+}
+
+type RunCloser interface {
+	Run(context.Context, *structures.EntityList) error
+	io.Closer
 }
 
 // ArchiveController returns the default archive controller initialised based
