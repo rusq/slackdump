@@ -8,11 +8,12 @@ import (
 	"runtime"
 	"time"
 
+	repository2 "github.com/rusq/slackdump/v3/internal/chunk/dbproc/repository"
+
 	"github.com/jmoiron/sqlx"
 	"github.com/rusq/slack"
 
 	"github.com/rusq/slackdump/v3/internal/chunk"
-	"github.com/rusq/slackdump/v3/internal/dbproc/repository"
 	"github.com/rusq/slackdump/v3/internal/structures"
 	"github.com/rusq/slackdump/v3/processor"
 )
@@ -34,11 +35,11 @@ type Parameters struct {
 }
 
 func New(ctx context.Context, conn *sqlx.DB, p Parameters) (*DBP, error) {
-	if err := repository.Migrate(ctx, conn.DB); err != nil {
+	if err := repository2.Migrate(ctx, conn.DB); err != nil {
 		return nil, fmt.Errorf("migrate: %w", err)
 	}
-	sr := repository.NewSessionRepository()
-	id, err := sr.Insert(ctx, conn, &repository.Session{
+	sr := repository2.NewSessionRepository()
+	id, err := sr.Insert(ctx, conn, &repository2.Session{
 		CreatedAt:      time.Time{},
 		ParentID:       new(int64),
 		FromTS:         p.FromTS,
@@ -59,7 +60,7 @@ func New(ctx context.Context, conn *sqlx.DB, p Parameters) (*DBP, error) {
 }
 
 func (d *DBP) Close() error {
-	sr := repository.NewSessionRepository()
+	sr := repository2.NewSessionRepository()
 	if n, err := sr.Finish(context.Background(), d.conn, d.sessionID); err != nil {
 		return fmt.Errorf("finish: %w", err)
 	} else if n == 0 {

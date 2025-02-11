@@ -9,13 +9,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/rusq/slackdump/v3/internal/chunk/dbproc"
+
 	"github.com/jmoiron/sqlx"
 
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/bootstrap"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/internal/chunk"
-	"github.com/rusq/slackdump/v3/internal/dbproc"
 	"github.com/rusq/slackdump/v3/internal/structures"
 )
 
