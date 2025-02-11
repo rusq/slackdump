@@ -147,7 +147,7 @@ func searchController(ctx context.Context, cd *chunk.Directory, sess *slackdump.
 		sopts = append(sopts, stream.OptFastSearch())
 	}
 
-	ctrl := control.New(
+	ctrl := control.NewDir(
 		cd,
 		sess.Stream(sopts...),
 		control.WithLogger(lg),

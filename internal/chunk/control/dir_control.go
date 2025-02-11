@@ -84,9 +84,9 @@ func WithLogger(lg *slog.Logger) Option {
 	}
 }
 
-// New creates a new [DirController]. Once the [Control.Close] is called it
+// NewDir creates a new [DirController]. Once the [Control.Close] is called it
 // closes all file processors.
-func New(cd *chunk.Directory, s Streamer, opts ...Option) *DirController {
+func NewDir(cd *chunk.Directory, s Streamer, opts ...Option) *DirController {
 	c := &DirController{
 		cd: cd,
 		s:  s,
@@ -169,123 +169,6 @@ func (c *DirController) Run(ctx context.Context, list *structures.EntityList) er
 	return runWorkers(ctx, c.s, list, mp, c.flags)
 }
 
-// func (c *Controller) Run2(ctx context.Context, list *structures.EntityList) error {
-// 	ctx, task := trace.NewTask(ctx, "Controller.Run")
-// 	defer task.End()
-//
-// 	lg := c.lg.With("in", "controller.Run")
-//
-// 	var (
-// 		wg    sync.WaitGroup
-// 		errC  = make(chan error, 1)
-// 		linkC = make(chan structures.EntityItem)
-// 	)
-// 	{ // generator of channel IDs
-// 		var generator linkFeederFunc
-// 		if list.HasIncludes() {
-// 			// inclusive export, processes only included channels.
-// 			generator = genChFromList
-// 		} else {
-// 			// exclusive export (process only excludes, if any)
-// 			generator = genChFromAPI(c.s, c.cd, c.flags.MemberOnly)
-// 		}
-//
-// 		wg.Add(1)
-// 		go func() {
-// 			defer wg.Done()
-// 			defer close(linkC)
-// 			defer lg.DebugContext(ctx, "channels done")
-//
-// 			if err := generator(ctx, linkC, list); err != nil {
-// 				errC <- Error{"channel generator", "generator", err}
-// 				return
-// 			}
-// 		}()
-// 	}
-// 	{ // workspace info
-// 		wg.Add(1)
-// 		go func() {
-// 			defer wg.Done()
-// 			defer lg.DebugContext(ctx, "workspace info done")
-//
-// 			wsproc, err := dirproc.NewWorkspace(c.cd)
-// 			if err != nil {
-// 				errC <- Error{"workspace", "init", err}
-// 				return
-// 			}
-// 			defer wsproc.Close()
-//
-// 			if err := workspaceWorker(ctx, c.s, wsproc); err != nil {
-// 				errC <- Error{"workspace", "worker", err}
-// 				return
-// 			}
-// 		}()
-// 	}
-// 	{ // user goroutine
-// 		// once all users are fetched, it triggers the transformer to start.
-// 		wg.Add(1)
-// 		go func() {
-// 			defer wg.Done()
-//
-// 			collector := &userCollector{
-// 				users: make([]slack.User, 0, 100),
-// 				ts:    c.tf,
-// 				ctx:   ctx,
-// 			}
-// 			dup, err := dirproc.NewUsers(c.cd)
-// 			if err != nil {
-// 				errC <- Error{"user", "init", err}
-// 				return
-// 			}
-// 			userproc := joinUserProcessors(collector, dup, c.avp)
-// 			if err := userWorker2(ctx, c.s, userproc); err != nil {
-// 				userproc.Close()
-// 				errC <- Error{"user", "worker", err}
-// 				return
-// 			}
-// 			if err := userproc.Close(); err != nil {
-// 				errC <- Error{"user", "close", err}
-// 				return
-// 			}
-// 		}()
-// 	}
-// 	{ // conversations goroutine
-// 		conv, err := dirproc.NewConversation(c.cd, c.filer, c.tf, dirproc.WithRecordFiles(c.flags.RecordFiles))
-// 		if err != nil {
-// 			return fmt.Errorf("error initialising conversation processor: %w", err)
-// 		}
-//
-// 		wg.Add(1)
-// 		go func() {
-// 			defer wg.Done()
-// 			defer func() {
-// 				if err := conv.Close(); err != nil {
-// 					errC <- Error{"conversations", "close", err}
-// 				}
-// 			}()
-// 			if err := conversationWorker(ctx, c.s, conv, linkC); err != nil {
-// 				errC <- Error{"conversations", "worker", err}
-// 				return
-// 			}
-// 		}()
-// 	}
-// 	// sentinel
-// 	go func() {
-// 		wg.Wait()
-// 		close(errC)
-// 	}()
-//
-// 	// collect returned errors
-// 	var allErr error
-// 	for cErr := range errC {
-// 		allErr = errors.Join(allErr, cErr)
-// 	}
-// 	if allErr != nil {
-// 		return allErr
-// 	}
-// 	return nil
-// }
-
 // Close closes the controller and all its file processors.
 func (c *DirController) Close() error {
 	var errs error
@@ -301,3 +184,4 @@ func (c *DirController) Close() error {
 	}
 	return errs
 }
+
