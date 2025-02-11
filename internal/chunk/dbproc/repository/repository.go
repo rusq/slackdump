@@ -144,9 +144,6 @@ func marshallzw(a any) ([]byte, error) {
 	}
 	var buf bytes.Buffer
 	zw := lzw.NewWriter(&buf, lzw.LSB, 8)
-	if err != nil {
-		return nil, err
-	}
 	if _, err := zw.Write(data); err != nil {
 		zw.Close()
 		return nil, err
