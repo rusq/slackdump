@@ -164,7 +164,7 @@ func Test_sessionRepository_Finish(t *testing.T) {
 				tt.prepFn(t, tt.args.conn)
 			}
 			r := sessionRepository{}
-			got, err := r.Finish(tt.args.ctx, tt.args.conn, tt.args.id)
+			got, err := r.Finalise(tt.args.ctx, tt.args.conn, tt.args.id)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("sessionRepository.Finish() error = %v, wantErr %v", err, tt.wantErr)
 				return

@@ -31,9 +31,9 @@ type SessionRepository interface {
 	// a parent session, it should verify that the parent session exists. It
 	// should return the ID of the newly inserted session.
 	Insert(ctx context.Context, conn sqlx.ExtContext, s *Session) (int64, error)
-	// Finish should mark a [Session] as finished. It should return the number
+	// Finalise should mark a [Session] as finished. It should return the number
 	// of rows affected.
-	Finish(ctx context.Context, conn sqlx.ExtContext, id int64) (int64, error)
+	Finalise(ctx context.Context, conn sqlx.ExtContext, id int64) (int64, error)
 	// Get should retrieve a session from the database by its ID.
 	Get(ctx context.Context, conn sqlx.ExtContext, id int64) (*Session, error)
 	// Update should update a session in the database. It should return the
@@ -87,7 +87,7 @@ func (r sessionRepository) Insert(ctx context.Context, conn sqlx.ExtContext, s *
 	return ret.LastInsertId()
 }
 
-func (r sessionRepository) Finish(ctx context.Context, conn sqlx.ExtContext, id int64) (int64, error) {
+func (r sessionRepository) Finalise(ctx context.Context, conn sqlx.ExtContext, id int64) (int64, error) {
 	ret, err := conn.ExecContext(ctx, conn.Rebind("UPDATE SESSION SET UPDATED_AT = CURRENT_TIMESTAMP, FINISHED = TRUE WHERE ID = ?"), id)
 	if err != nil {
 		return 0, err

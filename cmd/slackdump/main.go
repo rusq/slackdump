@@ -42,6 +42,7 @@ func init() {
 	base.Slackdump.Commands = []*base.Command{
 		workspace.CmdWorkspace,
 		archive.CmdArchive,
+		archive.CmdDBArchive,
 		export.CmdExport,
 		dump.CmdDump,
 		archive.CmdSearch,
