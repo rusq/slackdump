@@ -67,8 +67,12 @@ func (r sessionRepository) Insert(ctx context.Context, conn sqlx.ExtContext, s *
 	addbind(!s.CreatedAt.IsZero(), "CREATED_AT,", s.CreatedAt)
 	addbind(!s.UpdatedAt.IsZero(), "UPDATED_AT,", s.UpdatedAt)
 	addbind(s.ParentID != nil && *s.ParentID > 0, "PAR_SESSION_ID,", s.ParentID)
-	addbind(s.FromTS != nil && !s.FromTS.IsZero(), "FROM_TS,", s.FromTS.UTC())
-	addbind(s.ToTS != nil && !s.ToTS.IsZero(), "TO_TS,", s.ToTS.UTC())
+	if s.FromTS != nil && !s.FromTS.IsZero() {
+		addbind(true, "FROM_TS,", s.FromTS.UTC())
+	}
+	if s.ToTS != nil && !s.ToTS.IsZero() {
+		addbind(true, "TO_TS,", s.ToTS.UTC())
+	}
 	stmt.WriteString("FINISHED,FILES_ENABLED,AVATARS_ENABLED,MODE,ARGS) VALUES (")
 	binds = append(binds, s.Finished, s.FilesEnabled, s.AvatarsEnabled, s.Mode, s.Args)
 
