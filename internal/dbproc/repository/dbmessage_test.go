@@ -21,7 +21,7 @@ func minifyJSON[T any](t *testing.T, s string) []byte {
 	if err := json.Unmarshal([]byte(s), &a); err != nil {
 		t.Fatalf("minifyJSON: %v", err)
 	}
-	b, err := json.Marshal(a)
+	b, err := marshal(a)
 	if err != nil {
 		t.Fatalf("minifyJSON: %v", err)
 	}
