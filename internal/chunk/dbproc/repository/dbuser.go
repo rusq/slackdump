@@ -4,14 +4,18 @@ import (
 	"time"
 
 	"github.com/rusq/slack"
+
+	"github.com/rusq/slackdump/v3/internal/structures"
 )
 
 type DBUser struct {
-	ID       string    `db:"ID"`
-	ChunkID  int64     `db:"CHUNK_ID,omitempty"`
-	LoadDTTM time.Time `db:"LOAD_DTTM,omitempty"`
-	Index    int       `db:"IDX"`
-	Data     []byte    `db:"DATA"`
+	ID          string    `db:"ID"`
+	ChunkID     int64     `db:"CHUNK_ID,omitempty"`
+	LoadDTTM    time.Time `db:"LOAD_DTTM,omitempty"`
+	Username    string    `db:"USERNAME,omitempty"`
+	DisplayName string    `db:"DISPLAY_NAME,omitempty"`
+	Index       int       `db:"IDX"`
+	Data        []byte    `db:"DATA"`
 }
 
 func NewDBUser(chunkID int64, n int, u *slack.User) (*DBUser, error) {
@@ -20,10 +24,12 @@ func NewDBUser(chunkID int64, n int, u *slack.User) (*DBUser, error) {
 		return nil, err
 	}
 	return &DBUser{
-		ID:      u.ID,
-		ChunkID: chunkID,
-		Index:   n,
-		Data:    data,
+		ID:          u.ID,
+		ChunkID:     chunkID,
+		Index:       n,
+		Username:    structures.Username(u),
+		DisplayName: structures.UserDisplayName(u),
+		Data:        data,
 	}, nil
 }
 
@@ -32,12 +38,15 @@ func (*DBUser) Table() string {
 }
 
 func (*DBUser) Columns() []string {
-	return []string{"ID", "CHUNK_ID", "IDX", "DATA"}
+	return []string{"ID", "CHUNK_ID", "USERNAME", "DISPLAY_NAME", "IDX", "DATA"}
 }
+
 func (u *DBUser) Values() []any {
 	return []any{
 		u.ID,
 		u.ChunkID,
+		u.Username,
+		u.DisplayName,
 		u.Index,
 		u.Data,
 	}

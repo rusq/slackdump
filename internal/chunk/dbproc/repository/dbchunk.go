@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"time"
 
 	"github.com/jmoiron/sqlx"
 
@@ -14,6 +15,7 @@ type DBChunk struct {
 	ID         int64           `db:"ID,omitempty"`
 	SessionID  int64           `db:"SESSION_ID,omitempty"`
 	UnixTS     int64           `db:"UNIX_TS,omitempty"`
+	CreatedAt  time.Time       `db:"CREATED_AT,omitempty"`
 	TypeID     chunk.ChunkType `db:"TYPE_ID,omitempty"`
 	NumRecords int             `db:"NUM_REC"`
 	Final      bool            `db:"FINAL"`
