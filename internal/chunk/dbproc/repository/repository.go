@@ -49,7 +49,7 @@ func orNull[T any](b bool, t T) *T {
 	return nil
 }
 
-var marshal = marshalflate
+var marshal = json.Marshal
 
 func marshalgz(a any) ([]byte, error) {
 	data, err := json.Marshal(a)

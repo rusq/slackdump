@@ -111,7 +111,7 @@ func RunDBArchive(ctx context.Context, cmd *base.Command, args []string) error {
 	}
 	defer conn.Close()
 
-	ctrl, err := DBController(ctx, conn, sess)
+	ctrl, err := DBController(ctx, conn, sess, dirname)
 	if err != nil {
 		return err
 	}
@@ -146,7 +146,8 @@ func NewDirectory(name string) (*chunk.Directory, error) {
 	return cd, nil
 }
 
-func DBController(ctx context.Context, conn *sqlx.DB, sess *slackdump.Session, opts ...stream.Option) (RunCloser, error) {
+func DBController(ctx context.Context, conn *sqlx.DB, sess *slackdump.Session, dirname string, opts ...stream.Option) (RunCloser, error) {
+	lg := cfg.Log
 	dbp, err := dbproc.New(ctx, conn, dbproc.SessionInfo{
 		FromTS:         &time.Time{},
 		ToTS:           &time.Time{},
@@ -158,8 +159,36 @@ func DBController(ctx context.Context, conn *sqlx.DB, sess *slackdump.Session, o
 	if err != nil {
 		return nil, err
 	}
+	sopts := []stream.Option{
+		stream.OptLatest(time.Time(cfg.Latest)),
+		stream.OptOldest(time.Time(cfg.Oldest)),
+		stream.OptResultFn(resultLogger(lg)),
+	}
+	sopts = append(sopts, opts...)
+	// start attachment downloader
+	dl := fileproc.NewDownloader(
+		ctx,
+		cfg.DownloadFiles,
+		sess.Client(),
+		fsadapter.NewDirectory(dirname),
+		lg,
+	)
+	// start avatar downloader
+	avdl := fileproc.NewDownloader(
+		ctx,
+		cfg.DownloadAvatars,
+		sess.Client(),
+		fsadapter.NewDirectory(dirname),
+		lg,
+	)
 
-	ctrl, err := control.NewDB(ctx, sess.Stream(opts...), dbp)
+	ctrl, err := control.NewDB(
+		ctx,
+		sess.Stream(sopts...),
+		dbp,
+		fileproc.New(dl),
+		fileproc.NewAvatarProc(avdl),
+	)
 	if err != nil {
 		return nil, err
 	}
