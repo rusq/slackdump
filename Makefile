@@ -17,7 +17,7 @@ DISTFILES=README.md LICENSE
 ZIPFILES=$(foreach s,$(OSES),$(OUTPUT)-$s.zip)
 
 
-.PHONY: dist all test
+.PHONY: dist all
 
 # special guest.
 $(OUTPUT)-windows.zip: EXECUTABLE=$(OUTPUT).exe
@@ -57,9 +57,12 @@ arm_%:
 
 clean:
 	-rm slackdump slackdump.exe $(wildcard *.zip)
+	-rm -rf slackdump_$(shell date +%Y)*
+.PHONY: clean
 
 test:
 	go test -race -cover ./...
+.PHONY: test
 
 aurtest:
 	GOFLAGS="-buildmode=pie -trimpath -ldflags=-linkmode=external -mod=readonly -modcacherw" go build -o 'deleteme' ./cmd/slackdump

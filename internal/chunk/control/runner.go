@@ -99,7 +99,9 @@ func runWorkers(ctx context.Context, s Streamer, list *structures.EntityList, p 
 			defer wg.Done()
 			defer lg.DebugContext(ctx, "conversations done")
 
-			tryClose(errC, p.Conversations)
+			defer func() {
+				tryClose(errC, p.Conversations)
+			}()
 			if err := conversationWorker(ctx, s, p.Conversations, linkC); err != nil {
 				errC <- Error{"conversations", "worker", err}
 				return
@@ -204,7 +206,9 @@ func genChFromAPI(s Streamer, chanproc processor.Channels, memberOnly bool) link
 		proc := processor.JoinChannels(genproc, chanproc)
 
 		defer func() {
-			err = proc.Close()
+			if err2 := proc.Close(); err != nil {
+				err = errors.Join(err, err2)
+			}
 		}()
 
 		if err := s.ListChannels(ctx, proc, &slack.GetConversationsParameters{Types: slackdump.AllChanTypes}); err != nil {
