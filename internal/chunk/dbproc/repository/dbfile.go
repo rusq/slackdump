@@ -45,6 +45,7 @@ func NewDBFile(chunkID int64, idx int, channelID, threadTS string, parentMsgTS s
 		MessageID: ts,
 		ThreadID:  threadID,
 		Index:     idx,
+		Filename:  file.Name,
 		URL:       file.URLPrivate,
 		Data:      data,
 	}, nil
