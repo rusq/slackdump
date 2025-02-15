@@ -30,7 +30,7 @@ func (c *DBChannelUser) values() []any {
 }
 
 type ChannelUserRepository interface {
-	repository[*DBChannelUser]
+	BulkRepository[*DBChannelUser]
 }
 
 func NewChannelUserRepository() ChannelUserRepository {

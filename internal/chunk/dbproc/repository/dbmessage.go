@@ -2,7 +2,6 @@ package repository
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/rusq/slack"
 
@@ -11,18 +10,17 @@ import (
 )
 
 type DBMessage struct {
-	ID        int64     `db:"ID,omitempty"`
-	ChunkID   int64     `db:"CHUNK_ID,omitempty"`
-	LoadDTTM  time.Time `db:"LOAD_DTTM,omitempty"`
-	ChannelID string    `db:"CHANNEL_ID"`
-	TS        string    `db:"TS"`
-	ParentID  *int64    `db:"PARENT_ID,omitempty"`
-	ThreadTS  *string   `db:"THREAD_TS,omitempty"`
-	IsParent  bool      `db:"IS_PARENT"`
-	Index     int       `db:"IDX"`
-	NumFiles  int       `db:"NUM_FILES"`
-	Text      string    `db:"TXT"`
-	Data      []byte    `db:"DATA"`
+	ID        int64   `db:"ID,omitempty"`
+	ChunkID   int64   `db:"CHUNK_ID,omitempty"`
+	ChannelID string  `db:"CHANNEL_ID"`
+	TS        string  `db:"TS"`
+	ParentID  *int64  `db:"PARENT_ID,omitempty"`
+	ThreadTS  *string `db:"THREAD_TS,omitempty"`
+	IsParent  bool    `db:"IS_PARENT"`
+	Index     int     `db:"IDX"`
+	NumFiles  int     `db:"NUM_FILES"`
+	Text      string  `db:"TXT"`
+	Data      []byte  `db:"DATA"`
 }
 
 func NewDBMessage(dbchunkID int64, idx int, channelID string, msg *slack.Message) (*DBMessage, error) {
@@ -34,9 +32,7 @@ func NewDBMessage(dbchunkID int64, idx int, channelID string, msg *slack.Message
 	if err != nil {
 		return nil, fmt.Errorf("insertMessages marshal: %w", err)
 	}
-	var (
-		parentID *int64
-	)
+	var parentID *int64
 	if msg.ThreadTimestamp != "" {
 		if parID, err := fasttime.TS2int(msg.ThreadTimestamp); err != nil {
 			return nil, fmt.Errorf("insertMessages fasttime thread: %w", err)
@@ -97,12 +93,16 @@ func (dbm DBMessage) values() []any {
 	}
 }
 
+func (dbm DBMessage) Val() (slack.Message, error) {
+	return unmarshalt[slack.Message](dbm.Data)
+}
+
 type MessageRepository interface {
-	repository[DBMessage]
+	BulkRepository[DBMessage]
 }
 
 type messageRepository struct {
-	repository[DBMessage]
+	BulkRepository[DBMessage]
 }
 
 func NewMessageRepository() MessageRepository {

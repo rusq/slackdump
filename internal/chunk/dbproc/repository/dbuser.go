@@ -1,21 +1,18 @@
 package repository
 
 import (
-	"time"
-
 	"github.com/rusq/slack"
 
 	"github.com/rusq/slackdump/v3/internal/structures"
 )
 
 type DBUser struct {
-	ID          string    `db:"ID"`
-	ChunkID     int64     `db:"CHUNK_ID,omitempty"`
-	LoadDTTM    time.Time `db:"LOAD_DTTM,omitempty"`
-	Username    string    `db:"USERNAME,omitempty"`
-	DisplayName string    `db:"DISPLAY_NAME,omitempty"`
-	Index       int       `db:"IDX"`
-	Data        []byte    `db:"DATA"`
+	ID          string `db:"ID"`
+	ChunkID     int64  `db:"CHUNK_ID,omitempty"`
+	Username    string `db:"USERNAME,omitempty"`
+	DisplayName string `db:"DISPLAY_NAME,omitempty"`
+	Index       int    `db:"IDX"`
+	Data        []byte `db:"DATA"`
 }
 
 func NewDBUser(chunkID int64, n int, u *slack.User) (*DBUser, error) {
@@ -52,8 +49,12 @@ func (u DBUser) values() []any {
 	}
 }
 
+func (u DBUser) Val() (slack.User, error) {
+	return unmarshalt[slack.User](u.Data)
+}
+
 type UserRepository interface {
-	repository[DBUser]
+	BulkRepository[DBUser]
 }
 
 func NewUserRepository() UserRepository {

@@ -2,8 +2,6 @@ package repository
 
 import (
 	"context"
-	"fmt"
-	"iter"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/rusq/slack"
@@ -50,9 +48,7 @@ func (c DBChannel) Val() (slack.Channel, error) {
 }
 
 type ChannelRepository interface {
-	repository[DBChannel]
-	Count(ctx context.Context, conn sqlx.QueryerContext) (int64, error)
-	All(ctx context.Context, conn sqlx.QueryerContext) (iter.Seq2[DBChannel, error], error)
+	BulkRepository[DBChannel]
 }
 
 type channelRepository struct {
@@ -65,31 +61,4 @@ func NewChannelRepository() ChannelRepository {
 
 func (r channelRepository) Count(ctx context.Context, conn sqlx.QueryerContext) (int64, error) {
 	return r.CountType(ctx, conn, chunk.CChannelInfo)
-}
-
-func (r channelRepository) All(ctx context.Context, conn sqlx.QueryerContext) (iter.Seq2[DBChannel, error], error) {
-	latest, binds := r.stmtLatest(chunk.CChannelInfo)
-	stmt := "with latest as (" + latest + `) select * from latest l join channel c on c.id = l.id and c.chunk_id = l.chunk_id order by c.id`
-	rows, err := conn.QueryxContext(ctx, stmt, binds...)
-	if err != nil {
-		return nil, fmt.Errorf("all: %w", err)
-	}
-	it := func(yield func(DBChannel, error) bool) {
-		defer rows.Close()
-		for rows.Next() {
-			var c DBChannel
-			if err := rows.StructScan(&c); err != nil {
-				yield(DBChannel{}, fmt.Errorf("all: %w", err))
-				return
-			}
-			if !yield(c, nil) {
-				return
-			}
-		}
-		if err := rows.Err(); err != nil {
-			yield(DBChannel{}, fmt.Errorf("all: %w", err))
-			return
-		}
-	}
-	return it, nil
 }

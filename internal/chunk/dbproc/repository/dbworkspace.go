@@ -1,22 +1,19 @@
 package repository
 
 import (
-	"time"
-
 	"github.com/rusq/slack"
 )
 
 type DBWorkspace struct {
-	ID           int64     `db:"ID,omitempty"`
-	ChunkID      int64     `db:"CHUNK_ID"`
-	LoadDTTM     time.Time `db:"LOAD_DTTM,omitempty"`
-	Team         string    `db:"TEAM"`
-	User         string    `db:"USERNAME"`
-	TeamID       string    `db:"TEAM_ID"`
-	UserID       string    `db:"USER_ID"`
-	EnterpriseID *string   `db:"ENTERPRISE_ID"`
-	URL          string    `db:"URL"`
-	Data         []byte    `db:"DATA"`
+	ID           int64   `db:"ID,omitempty"`
+	ChunkID      int64   `db:"CHUNK_ID"`
+	Team         string  `db:"TEAM"`
+	User         string  `db:"USERNAME"`
+	TeamID       string  `db:"TEAM_ID"`
+	UserID       string  `db:"USER_ID"`
+	EnterpriseID *string `db:"ENTERPRISE_ID"`
+	URL          string  `db:"URL"`
+	Data         []byte  `db:"DATA"`
 }
 
 func NewDBWorkspace(chunkID int64, wi *slack.AuthTestResponse) (*DBWorkspace, error) {
@@ -67,7 +64,7 @@ func (w DBWorkspace) values() []any {
 }
 
 type WorkspaceRepository interface {
-	repository[*DBWorkspace]
+	BulkRepository[*DBWorkspace]
 }
 
 func NewWorkspaceRepository() WorkspaceRepository {
