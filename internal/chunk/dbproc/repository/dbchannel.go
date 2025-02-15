@@ -34,34 +34,34 @@ func NewDBChannel(chunkID int64, n int, channel *slack.Channel) (*DBChannel, err
 	}, nil
 }
 
-func (c *DBChannel) tablename() string {
+func (c DBChannel) tablename() string {
 	return "CHANNEL"
 }
 
-func (c *DBChannel) columns() []string {
+func (c DBChannel) columns() []string {
 	return []string{"ID", "CHUNK_ID", "NAME", "IDX", "DATA"}
 }
 
-func (c *DBChannel) values() []interface{} {
+func (c DBChannel) values() []interface{} {
 	return []interface{}{c.ID, c.ChunkID, c.Name, c.Index, c.Data}
 }
 
-func (c *DBChannel) Val() (slack.Channel, error) {
+func (c DBChannel) Val() (slack.Channel, error) {
 	return unmarshalt[slack.Channel](c.Data)
 }
 
 type ChannelRepository interface {
-	repository[*DBChannel]
+	repository[DBChannel]
 	Count(ctx context.Context, conn sqlx.QueryerContext) (int64, error)
 	All(ctx context.Context, conn sqlx.QueryerContext) (iter.Seq2[DBChannel, error], error)
 }
 
 type channelRepository struct {
-	genericRepository[*DBChannel]
+	genericRepository[DBChannel]
 }
 
 func NewChannelRepository() ChannelRepository {
-	return channelRepository{newGenericRepository(new(DBChannel))}
+	return channelRepository{newGenericRepository(DBChannel{})}
 }
 
 func (r channelRepository) Count(ctx context.Context, conn sqlx.QueryerContext) (int64, error) {

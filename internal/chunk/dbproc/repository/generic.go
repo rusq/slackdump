@@ -19,9 +19,9 @@ type dbObject interface {
 
 type repository[T dbObject] interface {
 	// Insert should insert the entity into the database.
-	Insert(ctx context.Context, conn sqlx.ExtContext, t T) error
+	Insert(ctx context.Context, conn sqlx.ExtContext, t *T) error
 	// InsertAll should insert all entities from the iterator into the database.
-	InsertAll(ctx context.Context, pconn PrepareExtContext, files iter.Seq2[T, error]) (int, error)
+	InsertAll(ctx context.Context, pconn PrepareExtContext, tt iter.Seq2[*T, error]) (int, error)
 	// CountType should return the number of entities in the database of a given chunk type.
 	CountType(ctx context.Context, conn sqlx.QueryerContext, chunkTypeID chunk.ChunkType) (int64, error)
 	// Count should return the number of entities in the database.
@@ -68,15 +68,15 @@ func (r genericRepository[T]) stmtLatest(tid chunk.ChunkType) (stmt string, bind
 	return buf.String(), binds
 }
 
-func (r genericRepository[T]) Insert(ctx context.Context, conn sqlx.ExtContext, e T) error {
-	_, err := conn.ExecContext(ctx, conn.Rebind(r.stmtInsert()), e.values()...)
+func (r genericRepository[T]) Insert(ctx context.Context, conn sqlx.ExtContext, e *T) error {
+	_, err := conn.ExecContext(ctx, conn.Rebind(r.stmtInsert()), (*e).values()...)
 	if err != nil {
 		return fmt.Errorf("insert: %w", err)
 	}
 	return nil
 }
 
-func (r genericRepository[T]) InsertAll(ctx context.Context, pconn PrepareExtContext, ee iter.Seq2[T, error]) (int, error) {
+func (r genericRepository[T]) InsertAll(ctx context.Context, pconn PrepareExtContext, tt iter.Seq2[*T, error]) (int, error) {
 	var t T
 	stmt, err := pconn.PrepareContext(ctx, pconn.Rebind(r.stmtInsert()))
 	if err != nil {
@@ -84,12 +84,12 @@ func (r genericRepository[T]) InsertAll(ctx context.Context, pconn PrepareExtCon
 	}
 	defer stmt.Close()
 	var total int
-	for m, err := range ee {
+	for m, err := range tt {
 		if err != nil {
-			return total, fmt.Errorf("insert all: iterator on %s: %w", m.tablename(), err)
+			return total, fmt.Errorf("insert all: iterator on %s: %w", t.tablename(), err)
 		}
-		if _, err := stmt.ExecContext(ctx, m.values()...); err != nil {
-			return total, fmt.Errorf("insert all %s: %w", m.tablename(), err)
+		if _, err := stmt.ExecContext(ctx, (*m).values()...); err != nil {
+			return total, fmt.Errorf("insert all %s: %w", t.tablename(), err)
 		}
 		total++
 	}

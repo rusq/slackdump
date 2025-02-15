@@ -74,13 +74,13 @@ func Test_genericRepository_AllOfType(t *testing.T) {
 		r       genericRepository[T]
 		args    args
 		prepFn  utilityFn
-		want    []testResult[T]
+		want    []testResult[*T]
 		wantErr assert.ErrorAssertionFunc
 	}
-	tests := []testCase[*DBChannel]{
+	tests := []testCase[DBChannel]{
 		{
 			name: "returns most recent versions",
-			r:    genericRepository[*DBChannel]{t: new(DBChannel)},
+			r:    genericRepository[DBChannel]{t: DBChannel{}},
 			args: args{
 				ctx:    context.Background(),
 				conn:   testConn(t),
@@ -96,8 +96,8 @@ func Test_genericRepository_AllOfType(t *testing.T) {
 				require.NoError(t, err)
 			},
 			want: []testResult[*DBChannel]{
-				{V: &DBChannel{ID: "ABC"}, Err: nil},
-				{V: &DBChannel{ID: "BCD"}, Err: nil},
+				{V: &DBChannel{ID: "ABC", ChunkID: 1, Data: data1}, Err: nil},
+				{V: &DBChannel{ID: "BCD", ChunkID: 2, Data: data2}, Err: nil},
 			},
 			wantErr: assert.NoError,
 		},

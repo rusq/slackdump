@@ -39,9 +39,9 @@ func (c DBSearchFile) values() []any {
 }
 
 type SearchFileRepository interface {
-	repository[*DBSearchFile]
+	repository[DBSearchFile]
 }
 
 func NewSearchFileRepository() SearchFileRepository {
-	return newGenericRepository(new(DBSearchFile))
+	return newGenericRepository(DBSearchFile{})
 }
