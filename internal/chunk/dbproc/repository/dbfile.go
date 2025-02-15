@@ -1,24 +1,21 @@
 package repository
 
 import (
-	"time"
-
 	"github.com/rusq/slack"
 
 	"github.com/rusq/slackdump/v3/internal/fasttime"
 )
 
 type DBFile struct {
-	ID        string    `db:"ID"`
-	ChunkID   int64     `db:"CHUNK_ID"`
-	LoadDTTM  time.Time `db:"LOAD_DTTM,omitempty"`
-	ChannelID string    `db:"CHANNEL_ID"`
-	MessageID int64     `db:"MESSAGE_ID"`
-	ThreadID  *int64    `db:"THREAD_ID,omitempty"`
-	Index     int       `db:"IDX"`
-	Filename  string    `db:"FILENAME"`
-	URL       string    `db:"URL"`
-	Data      []byte    `db:"DATA"`
+	ID        string `db:"ID"`
+	ChunkID   int64  `db:"CHUNK_ID"`
+	ChannelID string `db:"CHANNEL_ID"`
+	MessageID int64  `db:"MESSAGE_ID"`
+	ThreadID  *int64 `db:"THREAD_ID,omitempty"`
+	Index     int    `db:"IDX"`
+	Filename  string `db:"FILENAME"`
+	URL       string `db:"URL"`
+	Data      []byte `db:"DATA"`
 }
 
 func NewDBFile(chunkID int64, idx int, channelID, threadTS string, parentMsgTS string, file *slack.File) (*DBFile, error) {
@@ -64,7 +61,7 @@ func (f DBFile) values() []any {
 }
 
 type FileRepository interface {
-	repository[DBFile]
+	BulkRepository[DBFile]
 }
 
 func NewFileRepository() FileRepository {

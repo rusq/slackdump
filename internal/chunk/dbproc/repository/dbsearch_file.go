@@ -5,12 +5,11 @@ import (
 )
 
 type DBSearchFile struct {
-	ID       int64  `db:"ID,omitempty"`
-	ChunkID  int64  `db:"CHUNK_ID"`
-	LoadDTTM string `db:"LOAD_DTTM,omitempty"`
-	FileID   string `db:"FILE_ID"`
-	Index    int    `db:"IDX"`
-	Data     []byte `db:"DATA"`
+	ID      int64  `db:"ID,omitempty"`
+	ChunkID int64  `db:"CHUNK_ID"`
+	FileID  string `db:"FILE_ID"`
+	Index   int    `db:"IDX"`
+	Data    []byte `db:"DATA"`
 }
 
 func NewDBSearchFile(chunkID int64, n int, sf *slack.File) (*DBSearchFile, error) {
@@ -39,7 +38,7 @@ func (c DBSearchFile) values() []any {
 }
 
 type SearchFileRepository interface {
-	repository[DBSearchFile]
+	BulkRepository[DBSearchFile]
 }
 
 func NewSearchFileRepository() SearchFileRepository {

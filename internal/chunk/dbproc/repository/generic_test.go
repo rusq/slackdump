@@ -6,14 +6,16 @@ import (
 	"testing"
 
 	"github.com/rusq/slack"
+
 	"github.com/rusq/slackdump/v3/internal/fixtures"
 
 	"github.com/stretchr/testify/require"
 
 	"github.com/jmoiron/sqlx"
 
-	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/rusq/slackdump/v3/internal/chunk"
 )
 
 func Test_genericRepository_stmtLatest(t *testing.T) {
@@ -98,6 +100,30 @@ func Test_genericRepository_AllOfType(t *testing.T) {
 			},
 			want: []testResult[DBChannel]{
 				{V: DBChannel{ID: "ABC", ChunkID: 2, Name: ptr("new name"), Data: data1}, Err: nil},
+				{V: DBChannel{ID: "BCD", ChunkID: 1, Name: ptr("other name"), Data: data2}, Err: nil},
+			},
+			wantErr: assert.NoError,
+		},
+		{
+			name: "different chunk types are isolated",
+			r:    genericRepository[DBChannel]{t: DBChannel{}},
+			args: args{
+				ctx:    context.Background(),
+				conn:   testConn(t),
+				typeID: chunk.CChannelInfo,
+			},
+			prepFn: func(t *testing.T, conn PrepareExtContext) {
+				prepChunk(chunk.CChannelInfo, chunk.CChannels)(t, conn)
+				cir := NewChannelRepository()
+				_, err := cir.InsertAll(context.Background(), conn, toIter([]testResult[*DBChannel]{
+					{V: &DBChannel{ID: "ABC", ChunkID: 1, Name: ptr("old name"), Data: data1}, Err: nil},
+					{V: &DBChannel{ID: "BCD", ChunkID: 1, Name: ptr("other name"), Data: data2}, Err: nil},
+					{V: &DBChannel{ID: "ABC", ChunkID: 2, Name: ptr("new name"), Data: data1}, Err: nil}, // second chunk has a different type.
+				}))
+				require.NoError(t, err)
+			},
+			want: []testResult[DBChannel]{
+				{V: DBChannel{ID: "ABC", ChunkID: 1, Name: ptr("old name"), Data: data1}, Err: nil},
 				{V: DBChannel{ID: "BCD", ChunkID: 1, Name: ptr("other name"), Data: data2}, Err: nil},
 			},
 			wantErr: assert.NoError,
