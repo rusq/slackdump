@@ -8,8 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"time"
-
-	"github.com/rusq/encio"
 )
 
 // makeCacheFilename converts filename.ext to filename-suffix.ext.
@@ -82,14 +80,9 @@ func writeSlice[T any](w io.Writer, tt []T) error {
 
 // save saves the users to a file, naming the file based on the filename
 // and the suffix. The file will be saved in the cache directory.
-func save[T any](cacheDir, filename string, suffix string, uu []T, machineID string) error {
+func save[T any](cacheDir, filename string, suffix string, uu []T, co createOpener) error {
 	filename = makeCacheFilename(cacheDir, filename, suffix)
-
-	var opts []encio.Option
-	if machineID != "" {
-		opts = append(opts, encio.WithID(machineID))
-	}
-	f, err := encio.Create(filename, opts...)
+	f, err := co.Create(filename)
 	if err != nil {
 		return fmt.Errorf("failed to create file %s: %w", filename, err)
 	}
@@ -121,18 +114,14 @@ func read[T any](r io.Reader) ([]T, error) {
 
 // load loads the data from the file in the cache directory, and returns
 // the data as a slice of T.
-func load[T any](cacheDir, filename, suffix string, maxAge time.Duration, machineID string) ([]T, error) {
-	var opts []encio.Option
-	if machineID != "" {
-		opts = append(opts, encio.WithID(machineID))
-	}
+func load[T any](cacheDir, filename, suffix string, maxAge time.Duration, co createOpener) ([]T, error) {
 	filename = makeCacheFilename(cacheDir, filename, suffix)
 
 	if err := checkCacheFile(filename, maxAge); err != nil {
 		return nil, fmt.Errorf("%s: %w", filename, err)
 	}
 
-	f, err := encio.Open(filename, opts...)
+	f, err := co.Open(filename)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open %s: %w", filename, err)
 	}

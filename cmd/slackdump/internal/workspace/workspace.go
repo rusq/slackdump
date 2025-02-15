@@ -11,6 +11,7 @@ import (
 	"github.com/rusq/slackdump/v3/auth"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/workspace/workspaceui"
 	"github.com/rusq/slackdump/v3/internal/cache"
 )
 
@@ -103,7 +104,7 @@ func AuthCurrent(ctx context.Context, cacheDir string, overrideWsp string, usePl
 // configuration values.  If cfg.Workspace is set, it checks if the workspace
 // cfg.Workspace exists in the directory dir, and returns it.
 func Current(cacheDir string, override string) (wsp string, err error) {
-	m, err := cache.NewManager(cacheDir, cache.WithMachineID(cfg.MachineIDOvr))
+	m, err := cache.NewManager(cacheDir, mgrOpts()...)
 	if err != nil {
 		return "", err
 	}
@@ -125,13 +126,20 @@ func Current(cacheDir string, override string) (wsp string, err error) {
 	return wsp, nil
 }
 
+func CurrentName() string {
+	if current, err := Current(cfg.CacheDir(), cfg.Workspace); err == nil {
+		return current
+	}
+	return "<not set>"
+}
+
 var yesno = base.YesNo
 
 // authWsp authenticates in the workspace wsp, and saves, or reuses the
 // credentials in the cacheDir.  It returns ErrNotExists if the workspace
 // doesn't exist in the cacheDir.
 func authWsp(ctx context.Context, cacheDir string, wsp string, usePlaywright bool) (auth.Provider, error) {
-	m, err := cache.NewManager(cacheDir, cache.WithMachineID(cfg.MachineIDOvr))
+	m, err := cache.NewManager(cacheDir, mgrOpts()...)
 	if err != nil {
 		return nil, err
 	}
@@ -146,7 +154,32 @@ func authWsp(ctx context.Context, cacheDir string, wsp string, usePlaywright boo
 	return prov, nil
 }
 
+func mgrOpts() []cache.Option {
+	return []cache.Option{cache.WithMachineID(cfg.MachineIDOvr), cache.WithNoEncryption(cfg.NoEncryption)}
+}
+
 func CacheMgr(opts ...cache.Option) (*cache.Manager, error) {
-	opts = append([]cache.Option{cache.WithMachineID(cfg.MachineIDOvr)}, opts...)
+	opts = append(mgrOpts(), opts...)
 	return cache.NewManager(cfg.CacheDir(), opts...)
+}
+
+func CurrentOrNewProviderCtx(ctx context.Context) (context.Context, error) {
+	cachedir := cfg.CacheDir()
+	prov, err := AuthCurrent(ctx, cachedir, cfg.Workspace, cfg.LegacyBrowser)
+	if err != nil {
+		if errors.Is(err, cache.ErrNoWorkspaces) {
+			// ask to create a new workspace
+			if err := workspaceui.ShowUI(ctx, workspaceui.WithQuickLogin(), workspaceui.WithTitle("No workspaces, please choose a login method")); err != nil {
+				return ctx, fmt.Errorf("auth error: %w", err)
+			}
+			// one more time...
+			prov, err = AuthCurrent(ctx, cachedir, cfg.Workspace, cfg.LegacyBrowser)
+			if err != nil {
+				return ctx, err
+			}
+		} else {
+			return ctx, err
+		}
+	}
+	return auth.WithContext(ctx, prov), nil
 }

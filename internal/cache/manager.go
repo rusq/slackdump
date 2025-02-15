@@ -13,7 +13,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/rusq/encio"
 	"github.com/rusq/slack"
 
 	"github.com/rusq/slackdump/v3/auth"
@@ -41,7 +40,8 @@ type Manager struct {
 	userFile    string
 	channelFile string
 	// machineID is the machine ID override for encryption/decryption.
-	machineID string
+	machineID    string
+	noEncryption bool
 }
 
 const (
@@ -73,6 +73,13 @@ func WithMachineID(id string) Option {
 		if id != "" {
 			m.machineID = id
 		}
+	}
+}
+
+// WithNoEncryption allows to disable encryption for the cache files.
+func WithNoEncryption(b bool) Option {
+	return func(m *Manager) {
+		m.noEncryption = b
 	}
 }
 
@@ -147,20 +154,35 @@ func NewManager(dir string, opts ...Option) (*Manager, error) {
 // operating system on the same machine, unless it's a clone of the source
 // operating system on which the credentials storage was created.
 func (m *Manager) Auth(ctx context.Context, name string, c Credentials) (auth.Provider, error) {
-	a := newAuthenticator(m.dir, m.machineID)
+	var opts []authOption
+	if m.noEncryption {
+		opts = append(opts, withNoEncryption())
+	} else {
+		opts = append(opts, withMachineIDOverride(m.machineID))
+	}
+	a := newAuthenticator(m.dir, opts...)
 	return a.initProvider(ctx, m.filename(name), name, c, m.authOptions...)
+}
+
+func (m *Manager) Open(name string) (io.ReadCloser, error) {
+	return m.createOpener().Open(name)
+}
+
+func (m *Manager) createOpener() createOpener {
+	if m.noEncryption {
+		return plainFile{}
+	}
+	return encryptedFile{machineID: m.machineID}
 }
 
 // LoadProvider loads the file from disk without any logical validation.
 func (m *Manager) LoadProvider(name string) (auth.Provider, error) {
-	filer := encryptedFile{machineID: m.machineID}
-	return loadCreds(filer, m.filepath(name))
+	return loadCreds(m.createOpener(), m.filepath(name))
 }
 
 // saveProvider saves the provider to the file, no questions asked.
 func (m *Manager) saveProvider(name string, p auth.Provider) error {
-	filer := encryptedFile{machineID: m.machineID}
-	return saveCreds(filer, m.filepath(name), p)
+	return saveCreds(m.createOpener(), m.filepath(name), p)
 }
 
 // ErrWorkspace is the error returned by the workspace manager, it contains the
@@ -383,12 +405,9 @@ func wspName(filename string) string {
 // WalkUsers scans the cache directory and calls userFn for each user file
 // discovered.
 func (m *Manager) WalkUsers(userFn func(path string, r io.Reader) error) error {
-	var encopts []encio.Option
-	if m.machineID != "" {
-		encopts = append(encopts, encio.WithID(m.machineID))
-	}
 	userSuffix := filepath.Ext(m.userFile)
 	userPrefix := m.userFile[0 : len(m.userFile)-len(userSuffix)]
+	opener := m.createOpener()
 	err := filepath.WalkDir(m.dir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -397,7 +416,7 @@ func (m *Manager) WalkUsers(userFn func(path string, r io.Reader) error) error {
 			// skip non-matching files
 			return nil
 		}
-		f, err := encio.Open(path, encopts...)
+		f, err := opener.Open(path)
 		if err != nil {
 			return err
 		}

@@ -9,8 +9,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/rusq/encio"
-
 	"github.com/rusq/slackdump/v3/auth"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/workspace"
@@ -33,7 +31,7 @@ func CollectAuth(ctx context.Context, w io.Writer) error {
 	if err != nil {
 		return fmt.Errorf("cache error: %w", err)
 	}
-	f, err := encio.Open(filepath.Join(cfg.CacheDir(), fi.Name()), encio.WithID(cfg.MachineIDOvr))
+	f, err := m.Open(filepath.Join(cfg.CacheDir(), fi.Name()))
 	if err != nil {
 		return fmt.Errorf("cache error: %w", err)
 	}

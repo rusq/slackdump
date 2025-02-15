@@ -11,13 +11,12 @@ import (
 	"testing"
 
 	"github.com/rusq/slack"
-	"github.com/stretchr/testify/assert"
-	"go.uber.org/mock/gomock"
-
 	"github.com/rusq/slackdump/v3/auth"
 	"github.com/rusq/slackdump/v3/internal/fixtures"
 	"github.com/rusq/slackdump/v3/internal/mocks/mock_cache"
 	"github.com/rusq/slackdump/v3/internal/mocks/mock_io"
+	"github.com/stretchr/testify/assert"
+	"go.uber.org/mock/gomock"
 )
 
 func Test_exists(t *testing.T) {
@@ -230,7 +229,7 @@ func TestInitProvider(t *testing.T) {
 			mc := mock_cache.NewMockCredentials(gomock.NewController(t))
 			tt.expect(mc)
 
-			auther := newAuthenticator(tt.args.cacheDir, "")
+			auther := newAuthenticator(tt.args.cacheDir)
 			// test
 			got, err := auther.initProvider(tt.args.ctx, defCredsFile, tt.args.workspace, mc)
 			if (err != nil) != tt.wantErr {
@@ -575,4 +574,59 @@ func Test_encryptedFile_Open(t *testing.T) {
 			}
 		})
 	}
+}
+
+func Test_newAuthenticator(t *testing.T) {
+	type args struct {
+		cacheDir string
+		opt      []authOption
+	}
+	tests := []struct {
+		name string
+		args args
+		want authenticator
+	}{
+		{
+			"no options",
+			args{"123", nil},
+			authenticator{ct: encryptedFile{}, dir: "123"},
+		},
+		{
+			"with no encryption",
+			args{"123", []authOption{withNoEncryption()}},
+			authenticator{ct: plainFile{}, dir: "123"},
+		},
+		{
+			"with machine ID override",
+			args{"123", []authOption{withMachineIDOverride("456")}},
+			authenticator{ct: encryptedFile{machineID: "456"}, dir: "123"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := newAuthenticator(tt.args.cacheDir, tt.args.opt...); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("newAuthenticator() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_withNoEncryption(t *testing.T) {
+	t.Run("no encryption", func(t *testing.T) {
+		var a authenticator
+		withNoEncryption()(&a)
+		if _, ok := a.ct.(plainFile); !ok {
+			t.Errorf("expected plainFile, got %T", a.ct)
+		}
+	})
+}
+
+func Test_withMachineIDOverride(t *testing.T) {
+	t.Run("machine ID override", func(t *testing.T) {
+		var a authenticator
+		withMachineIDOverride("123")(&a)
+		if ef, ok := a.ct.(encryptedFile); !ok || ef.machineID != "123" {
+			t.Errorf("expected encryptedFile with machine ID 123, got %T", a.ct)
+		}
+	})
 }

@@ -40,6 +40,7 @@ var (
 	LegacyBrowser   bool
 	ForceEnterprise bool
 	MachineIDOvr    string // Machine ID override
+	NoEncryption    bool   // disable encryption
 
 	MemberOnly      bool
 	DownloadFiles   bool
@@ -129,6 +130,7 @@ func SetBaseFlags(fs *flag.FlagSet, mask FlagMask) {
 	if mask&OmitAuthFlags == 0 || mask&OmitCacheDir == 0 {
 		// machine-id flag will be automatically enabled if auth flags or cache dir flags are enabled.
 		fs.StringVar(&MachineIDOvr, "machine-id", osenv.Secret("MACHINE_ID_OVERRIDE", ""), "override the machine ID for encryption")
+		fs.BoolVar(&NoEncryption, "no-encryption", osenv.Value("DISABLE_ENCRYPTION", false), "disable encryption for cache and credential files")
 	}
 	if mask&OmitDownloadFlag == 0 {
 		fs.BoolVar(&DownloadFiles, "files", true, "enables file attachments download (to disable, specify: -files=false)")

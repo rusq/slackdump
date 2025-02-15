@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rusq/encio"
 	"github.com/rusq/slack"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
@@ -28,7 +27,7 @@ func TestSaveUserCache(t *testing.T) {
 	var m Manager
 	assert.NoError(t, m.saveUsers(dir, testfile, testSuffix, testUsers))
 
-	reopenedF, err := encio.Open(makeCacheFilename(dir, testfile, testSuffix))
+	reopenedF, err := m.createOpener().Open(makeCacheFilename(dir, testfile, testSuffix))
 	if err != nil {
 		t.Fatal(err)
 	}
