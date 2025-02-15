@@ -1,12 +1,9 @@
 package repository
 
 import (
-	"context"
 	"fmt"
-	"iter"
 	"time"
 
-	"github.com/jmoiron/sqlx"
 	"github.com/rusq/slack"
 
 	"github.com/rusq/slackdump/v3/internal/fasttime"
@@ -64,11 +61,11 @@ func NewDBMessage(dbchunkID int64, idx int, channelID string, msg *slack.Message
 	return &dbm, nil
 }
 
-func (dbm *DBMessage) tablename() string {
+func (dbm DBMessage) tablename() string {
 	return "MESSAGE"
 }
 
-func (dbm *DBMessage) columns() []string {
+func (dbm DBMessage) columns() []string {
 	return []string{
 		"ID",
 		"CHUNK_ID",
@@ -84,7 +81,7 @@ func (dbm *DBMessage) columns() []string {
 	}
 }
 
-func (dbm *DBMessage) values() []any {
+func (dbm DBMessage) values() []any {
 	return []any{
 		dbm.ID,
 		dbm.ChunkID,
@@ -101,14 +98,13 @@ func (dbm *DBMessage) values() []any {
 }
 
 type MessageRepository interface {
-	Insert(ctx context.Context, conn sqlx.ExtContext, m *DBMessage) error
-	InsertAll(ctx context.Context, tx PrepareExtContext, mm iter.Seq2[*DBMessage, error]) (int, error)
+	repository[DBMessage]
 }
 
 type messageRepository struct {
-	repository[*DBMessage]
+	repository[DBMessage]
 }
 
 func NewMessageRepository() MessageRepository {
-	return messageRepository{newGenericRepository(new(DBMessage))}
+	return messageRepository{newGenericRepository(DBMessage{})}
 }

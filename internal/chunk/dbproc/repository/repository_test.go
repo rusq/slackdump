@@ -72,8 +72,8 @@ func prepChunk(typeID chunk.ChunkType) utilityFn {
 		t.Helper()
 		ctx := context.Background()
 		var (
-			sr sessionRepository
-			cr chunkRepository
+			sr = NewSessionRepository()
+			cr = NewChunkRepository()
 		)
 		id, err := sr.Insert(ctx, conn, &Session{ID: 1})
 		if err != nil {
