@@ -26,15 +26,15 @@ func NewDBSearchFile(chunkID int64, n int, sf *slack.File) (*DBSearchFile, error
 	}, nil
 }
 
-func (DBSearchFile) Table() string {
+func (DBSearchFile) tablename() string {
 	return "SEARCH_FILE"
 }
 
-func (DBSearchFile) Columns() []string {
+func (DBSearchFile) columns() []string {
 	return []string{"CHUNK_ID", "FILE_ID", "IDX", "DATA"}
 }
 
-func (c DBSearchFile) Values() []any {
+func (c DBSearchFile) values() []any {
 	return []interface{}{c.ChunkID, c.FileID, c.Index, c.Data}
 }
 
@@ -43,5 +43,5 @@ type SearchFileRepository interface {
 }
 
 func NewSearchFileRepository() SearchFileRepository {
-	return newGenericRepository[*DBSearchFile]()
+	return newGenericRepository(new(DBSearchFile))
 }

@@ -36,11 +36,11 @@ func NewDBWorkspace(chunkID int64, wi *slack.AuthTestResponse) (*DBWorkspace, er
 	}, nil
 }
 
-func (w DBWorkspace) Table() string {
+func (w DBWorkspace) tablename() string {
 	return "WORKSPACE"
 }
 
-func (w DBWorkspace) Columns() []string {
+func (w DBWorkspace) columns() []string {
 	return []string{
 		"CHUNK_ID",
 		"TEAM",
@@ -53,7 +53,7 @@ func (w DBWorkspace) Columns() []string {
 	}
 }
 
-func (w DBWorkspace) Values() []any {
+func (w DBWorkspace) values() []any {
 	return []any{
 		w.ChunkID,
 		w.Team,
@@ -71,5 +71,5 @@ type WorkspaceRepository interface {
 }
 
 func NewWorkspaceRepository() WorkspaceRepository {
-	return newGenericRepository[*DBWorkspace]()
+	return newGenericRepository(new(DBWorkspace))
 }
