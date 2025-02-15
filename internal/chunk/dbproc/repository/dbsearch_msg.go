@@ -34,15 +34,15 @@ func NewDBSearchMessage(chunkID int64, idx int, sm *slack.SearchMessage) (*DBSea
 	}, nil
 }
 
-func (DBSearchMessage) Table() string {
+func (DBSearchMessage) tablename() string {
 	return "SEARCH_MESSAGE"
 }
 
-func (DBSearchMessage) Columns() []string {
+func (DBSearchMessage) columns() []string {
 	return []string{"CHUNK_ID", "CHANNEL_ID", "CHANNEL_NAME", "TS", "TXT", "IDX", "DATA"}
 }
 
-func (c DBSearchMessage) Values() []any {
+func (c DBSearchMessage) values() []any {
 	return []interface{}{c.ChunkID, c.ChannelID, c.ChannelName, c.TS, c.Text, c.IDX, c.Data}
 }
 
@@ -51,5 +51,5 @@ type SearchMessageRepository interface {
 }
 
 func NewSearchMessageRepository() SearchMessageRepository {
-	return newGenericRepository[*DBSearchMessage]()
+	return newGenericRepository(new(DBSearchMessage))
 }

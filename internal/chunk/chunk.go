@@ -26,6 +26,8 @@ const (
 	CBookmarks
 	CSearchMessages
 	CSearchFiles
+
+	CAny ChunkType = 255 // special value for any type
 )
 
 var ErrUnsupChunkType = fmt.Errorf("unsupported chunk type")

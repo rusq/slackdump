@@ -49,7 +49,19 @@ func orNull[T any](b bool, t T) *T {
 	return nil
 }
 
-var marshal = json.Marshal
+var (
+	marshal   = json.Marshal
+	unmarshal = json.Unmarshal
+)
+
+// unmarshalt is a convenience function to unmarshal data into T.
+func unmarshalt[T any](data []byte) (T, error) {
+	var t T
+	if err := unmarshal(data, &t); err != nil {
+		return t, err
+	}
+	return t, nil
+}
 
 func marshalgz(a any) ([]byte, error) {
 	data, err := json.Marshal(a)
@@ -71,37 +83,37 @@ func marshalgz(a any) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func marshalflate(a any) ([]byte, error) {
-	const dictionary = "https://files.slack.com/files-tmb/" +
-		`"blocks"` +
-		`"client_msg_id"` +
-		`"count"` +
-		`"delete_original"` +
-		`"elements"` +
-		`"event_payload"` +
-		`"event_type"` +
-		`"fallback"` +
-		`"false"` +
-		`"latest_reply"` +
-		`"message""` +
-		`"metadata"` +
-		`"parent_user_id"` +
-		`"replace_original"` +
-		`"reply_count"` +
-		`"reply_users"` +
-		`"rich_text""` +
-		`"rich_text_section""` +
-		`"text""` +
-		`"thread_ts"` +
-		`"thumb_` +
-		`"true"` +
-		`"type""` +
-		`"url_private` +
-		`"users"` +
-		`:[{` +
-		`null` +
-		`}]}]}]},{`
+const dictionary = "https://files.slack.com/files-tmb/" +
+	`"blocks"` +
+	`"client_msg_id"` +
+	`"count"` +
+	`"delete_original"` +
+	`"elements"` +
+	`"event_payload"` +
+	`"event_type"` +
+	`"fallback"` +
+	`"false"` +
+	`"latest_reply"` +
+	`"message""` +
+	`"metadata"` +
+	`"parent_user_id"` +
+	`"replace_original"` +
+	`"reply_count"` +
+	`"reply_users"` +
+	`"rich_text""` +
+	`"rich_text_section""` +
+	`"text""` +
+	`"thread_ts"` +
+	`"thumb_` +
+	`"true"` +
+	`"type""` +
+	`"url_private` +
+	`"users"` +
+	`:[{` +
+	`null` +
+	`}]}]}]},{`
 
+func marshalflate(a any) ([]byte, error) {
 	data, err := json.Marshal(a)
 	if err != nil {
 		return nil, err
@@ -120,4 +132,11 @@ func marshalflate(a any) ([]byte, error) {
 		return nil, err
 	}
 	return buf.Bytes(), nil
+}
+
+func unmarshalflate(data []byte, v any) error {
+	zr := flate.NewReaderDict(bytes.NewReader(data), []byte(dictionary))
+	defer zr.Close()
+	dec := json.NewDecoder(zr)
+	return dec.Decode(v)
 }

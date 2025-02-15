@@ -17,15 +17,15 @@ func NewDBChannelUser(chunkID int64, n int, channelID, userID string) (*DBChanne
 	}, nil
 }
 
-func (*DBChannelUser) Table() string {
+func (*DBChannelUser) tablename() string {
 	return "CHANNEL_USER"
 }
 
-func (*DBChannelUser) Columns() []string {
+func (*DBChannelUser) columns() []string {
 	return []string{"ID", "CHUNK_ID", "CHANNEL_ID", "IDX"}
 }
 
-func (c *DBChannelUser) Values() []any {
+func (c *DBChannelUser) values() []any {
 	return []interface{}{c.ID, c.ChunkID, c.ChannelID, c.Index}
 }
 
@@ -34,5 +34,5 @@ type ChannelUserRepository interface {
 }
 
 func NewChannelUserRepository() ChannelUserRepository {
-	return newGenericRepository[*DBChannelUser]()
+	return newGenericRepository(new(DBChannelUser))
 }

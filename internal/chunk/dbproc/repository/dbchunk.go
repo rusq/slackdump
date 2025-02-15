@@ -21,11 +21,11 @@ type DBChunk struct {
 	Final      bool            `db:"FINAL"`
 }
 
-func (*DBChunk) Table() string {
+func (*DBChunk) tablename() string {
 	return "CHUNK"
 }
 
-func (*DBChunk) Columns() []string {
+func (*DBChunk) columns() []string {
 	return []string{
 		"SESSION_ID",
 		"UNIX_TS",
@@ -35,7 +35,7 @@ func (*DBChunk) Columns() []string {
 	}
 }
 
-func (d *DBChunk) Values() []any {
+func (d *DBChunk) values() []any {
 	return []any{
 		d.SessionID,
 		d.UnixTS,
@@ -54,12 +54,12 @@ type chunkRepository struct {
 }
 
 func NewChunkRepository() ChunkRepository {
-	return chunkRepository{newGenericRepository[*DBChunk]()}
+	return chunkRepository{newGenericRepository(new(DBChunk))}
 }
 
 func (r chunkRepository) Insert(ctx context.Context, conn sqlx.ExtContext, dbchunk *DBChunk) (int64, error) {
-	stmt := r.stmtInsert(dbchunk)
-	res, err := conn.ExecContext(ctx, stmt, dbchunk.Values()...)
+	stmt := r.stmtInsert()
+	res, err := conn.ExecContext(ctx, stmt, dbchunk.values()...)
 	if err != nil {
 		return 0, err
 	}

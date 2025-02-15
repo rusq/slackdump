@@ -64,11 +64,11 @@ func NewDBMessage(dbchunkID int64, idx int, channelID string, msg *slack.Message
 	return &dbm, nil
 }
 
-func (dbm *DBMessage) Table() string {
+func (dbm *DBMessage) tablename() string {
 	return "MESSAGE"
 }
 
-func (dbm *DBMessage) Columns() []string {
+func (dbm *DBMessage) columns() []string {
 	return []string{
 		"ID",
 		"CHUNK_ID",
@@ -84,7 +84,7 @@ func (dbm *DBMessage) Columns() []string {
 	}
 }
 
-func (dbm *DBMessage) Values() []any {
+func (dbm *DBMessage) values() []any {
 	return []any{
 		dbm.ID,
 		dbm.ChunkID,
@@ -110,5 +110,5 @@ type messageRepository struct {
 }
 
 func NewMessageRepository() MessageRepository {
-	return messageRepository{newGenericRepository[*DBMessage]()}
+	return messageRepository{newGenericRepository(new(DBMessage))}
 }

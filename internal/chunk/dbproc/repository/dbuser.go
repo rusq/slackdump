@@ -33,15 +33,15 @@ func NewDBUser(chunkID int64, n int, u *slack.User) (*DBUser, error) {
 	}, nil
 }
 
-func (*DBUser) Table() string {
+func (*DBUser) tablename() string {
 	return "S_USER"
 }
 
-func (*DBUser) Columns() []string {
+func (*DBUser) columns() []string {
 	return []string{"ID", "CHUNK_ID", "USERNAME", "DISPLAY_NAME", "IDX", "DATA"}
 }
 
-func (u *DBUser) Values() []any {
+func (u *DBUser) values() []any {
 	return []any{
 		u.ID,
 		u.ChunkID,
@@ -57,5 +57,5 @@ type UserRepository interface {
 }
 
 func NewUserRepository() UserRepository {
-	return newGenericRepository[*DBUser]()
+	return newGenericRepository(new(DBUser))
 }

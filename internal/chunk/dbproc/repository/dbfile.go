@@ -51,15 +51,15 @@ func NewDBFile(chunkID int64, idx int, channelID, threadTS string, parentMsgTS s
 	}, nil
 }
 
-func (f *DBFile) Table() string {
+func (f *DBFile) tablename() string {
 	return "FILE"
 }
 
-func (f *DBFile) Columns() []string {
+func (f *DBFile) columns() []string {
 	return []string{"ID", "CHUNK_ID", "CHANNEL_ID", "MESSAGE_ID", "THREAD_ID", "IDX", "FILENAME", "URL", "DATA"}
 }
 
-func (f *DBFile) Values() []any {
+func (f *DBFile) values() []any {
 	return []any{f.ID, f.ChunkID, f.ChannelID, f.MessageID, f.ThreadID, f.Index, f.Filename, f.URL, f.Data}
 }
 
@@ -68,5 +68,5 @@ type FileRepository interface {
 }
 
 func NewFileRepository() FileRepository {
-	return newGenericRepository[*DBFile]()
+	return newGenericRepository(new(DBFile))
 }
