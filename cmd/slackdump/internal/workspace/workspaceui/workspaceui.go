@@ -54,7 +54,7 @@ func ShowUI(ctx context.Context, opts ...UIOption) error {
 		actExit        = "exit"
 	)
 
-	mgr, err := cache.NewManager(cfg.CacheDir(), cache.WithMachineID(cfg.MachineIDOvr)) // avoiding import cycle
+	mgr, err := cache.NewManager(cfg.CacheDir(), cache.WithMachineID(cfg.MachineIDOvr), cache.WithNoEncryption(cfg.NoEncryption)) // avoiding import cycle
 	if err != nil {
 		return err
 	}

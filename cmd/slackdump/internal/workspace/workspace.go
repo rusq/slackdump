@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"runtime/trace"
 	"strings"
@@ -11,6 +12,7 @@ import (
 	"github.com/rusq/slackdump/v3/auth"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/workspace/workspaceui"
 	"github.com/rusq/slackdump/v3/internal/cache"
 )
 
@@ -22,7 +24,7 @@ var CmdWorkspace = &base.Command{
 	Run:       nil,
 	Wizard:    nil,
 	UsageLine: baseCommand,
-	Short:     "add or choose already existing workspace to run on",
+	Short:     "manage Slack Workspaces",
 	Long: `
 # Workspace Command
 
@@ -30,9 +32,10 @@ Slackdump supports working with multiple Slack Workspaces without the need
 to authenticate again (unless login credentials are expired or became invalid
 due to some other reason).
 
-**Workspace** command allows to **add** a new Slack Workspace, **list** already 
+**Workspace** command allows to add a **new** Slack Workspace, **list** already
 authenticated workspaces, **select** a workspace that you have previously
-logged in to, or **del**ete an existing workspace.
+logged in to, **del**ete an existing workspace, or **import** credentials from
+an environment file.
 
 To learn more about different login options, run:
 
@@ -91,6 +94,7 @@ func AuthCurrent(ctx context.Context, cacheDir string, overrideWsp string, usePl
 		return nil, err
 	}
 	trace.Logf(ctx, "AuthCurrent", "current workspace=%s", wsp)
+	slog.DebugContext(ctx, "current", "workspace", wsp)
 
 	prov, err := authWsp(ctx, cacheDir, wsp, usePlaywright)
 	if err != nil {
@@ -103,7 +107,7 @@ func AuthCurrent(ctx context.Context, cacheDir string, overrideWsp string, usePl
 // configuration values.  If cfg.Workspace is set, it checks if the workspace
 // cfg.Workspace exists in the directory dir, and returns it.
 func Current(cacheDir string, override string) (wsp string, err error) {
-	m, err := cache.NewManager(cacheDir, cache.WithMachineID(cfg.MachineIDOvr))
+	m, err := cache.NewManager(cacheDir, mgrOpts()...)
 	if err != nil {
 		return "", err
 	}
@@ -125,13 +129,20 @@ func Current(cacheDir string, override string) (wsp string, err error) {
 	return wsp, nil
 }
 
+func CurrentName() string {
+	if current, err := Current(cfg.CacheDir(), cfg.Workspace); err == nil {
+		return current
+	}
+	return "<not set>"
+}
+
 var yesno = base.YesNo
 
 // authWsp authenticates in the workspace wsp, and saves, or reuses the
 // credentials in the cacheDir.  It returns ErrNotExists if the workspace
 // doesn't exist in the cacheDir.
 func authWsp(ctx context.Context, cacheDir string, wsp string, usePlaywright bool) (auth.Provider, error) {
-	m, err := cache.NewManager(cacheDir, cache.WithMachineID(cfg.MachineIDOvr))
+	m, err := cache.NewManager(cacheDir, mgrOpts()...)
 	if err != nil {
 		return nil, err
 	}
@@ -146,7 +157,38 @@ func authWsp(ctx context.Context, cacheDir string, wsp string, usePlaywright boo
 	return prov, nil
 }
 
+func mgrOpts() []cache.Option {
+	return []cache.Option{cache.WithMachineID(cfg.MachineIDOvr), cache.WithNoEncryption(cfg.NoEncryption)}
+}
+
 func CacheMgr(opts ...cache.Option) (*cache.Manager, error) {
-	opts = append([]cache.Option{cache.WithMachineID(cfg.MachineIDOvr)}, opts...)
+	opts = append(mgrOpts(), opts...)
 	return cache.NewManager(cfg.CacheDir(), opts...)
+}
+
+// exported for testing
+var (
+	authCurrent = AuthCurrent
+	showUI      = workspaceui.ShowUI
+)
+
+func CurrentOrNewProviderCtx(ctx context.Context) (context.Context, error) {
+	cachedir := cfg.CacheDir()
+	prov, err := authCurrent(ctx, cachedir, cfg.Workspace, cfg.LegacyBrowser)
+	if err != nil {
+		if errors.Is(err, cache.ErrNoWorkspaces) {
+			// ask to create a new workspace
+			if err := showUI(ctx, workspaceui.WithQuickLogin(), workspaceui.WithTitle("No workspaces, please choose a login method")); err != nil {
+				return ctx, fmt.Errorf("auth error: %w", err)
+			}
+			// one more time...
+			prov, err = authCurrent(ctx, cachedir, cfg.Workspace, cfg.LegacyBrowser)
+			if err != nil {
+				return ctx, err
+			}
+		} else {
+			return ctx, err
+		}
+	}
+	return auth.WithContext(ctx, prov), nil
 }

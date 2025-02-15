@@ -5,17 +5,17 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"reflect"
 	"sort"
 	"strings"
 	"testing"
 
 	"github.com/rusq/slack"
-	"github.com/stretchr/testify/assert"
-	"go.uber.org/mock/gomock"
-
 	"github.com/rusq/slackdump/v3/auth"
 	"github.com/rusq/slackdump/v3/internal/fixtures"
 	"github.com/rusq/slackdump/v3/internal/mocks/mock_auth"
+	"github.com/stretchr/testify/assert"
+	"go.uber.org/mock/gomock"
 )
 
 func Test_currentWsp(t *testing.T) {
@@ -296,4 +296,55 @@ func TestManager_LoadProvider(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, prov, got)
 	})
+}
+
+func TestManager_createOpener(t *testing.T) {
+	type fields struct {
+		dir          string
+		authOptions  []auth.Option
+		userFile     string
+		channelFile  string
+		machineID    string
+		noEncryption bool
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   createOpener
+	}{
+		{
+			"no encryption",
+			fields{
+				noEncryption: true,
+			},
+			plainFile{},
+		},
+		{
+			"encrypted",
+			fields{
+				machineID: "1234567890",
+			},
+			encryptedFile{machineID: "1234567890"},
+		},
+		{
+			"no machine id",
+			fields{},
+			encryptedFile{},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := &Manager{
+				dir:          tt.fields.dir,
+				authOptions:  tt.fields.authOptions,
+				userFile:     tt.fields.userFile,
+				channelFile:  tt.fields.channelFile,
+				machineID:    tt.fields.machineID,
+				noEncryption: tt.fields.noEncryption,
+			}
+			if got := m.createOpener(); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Manager.createOpener() = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }

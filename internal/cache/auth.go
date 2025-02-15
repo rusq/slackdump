@@ -130,11 +130,30 @@ type authenticator struct {
 	dir string
 }
 
-func newAuthenticator(cacheDir, machineID string) authenticator {
-	return authenticator{
-		dir: cacheDir,
-		ct:  encryptedFile{machineID: machineID},
+// authOption is the authenticator option.
+type authOption func(*authenticator)
+
+func withNoEncryption() authOption {
+	return func(a *authenticator) {
+		a.ct = plainFile{}
 	}
+}
+
+func withMachineIDOverride(id string) authOption {
+	return func(a *authenticator) {
+		a.ct = encryptedFile{machineID: id}
+	}
+}
+
+func newAuthenticator(cacheDir string, opt ...authOption) authenticator {
+	a := authenticator{
+		dir: cacheDir,
+		ct:  encryptedFile{},
+	}
+	for _, o := range opt {
+		o(&a)
+	}
+	return a
 }
 
 // initProvider initialises the auth.Provider depending on provided slack
@@ -273,6 +292,16 @@ func (f encryptedFile) Create(filename string) (io.WriteCloser, error) {
 		opts = append(opts, encio.WithID(f.machineID))
 	}
 	return encio.Create(filename, opts...)
+}
+
+type plainFile struct{}
+
+func (plainFile) Create(filename string) (io.WriteCloser, error) {
+	return os.Create(filename)
+}
+
+func (plainFile) Open(filename string) (io.ReadCloser, error) {
+	return os.Open(filename)
 }
 
 // EZLoginFlags is a diagnostic function that returns the map of flags that

@@ -3,7 +3,6 @@ package cache
 import (
 	"testing"
 
-	"github.com/rusq/encio"
 	"github.com/rusq/slack"
 	"github.com/stretchr/testify/assert"
 
@@ -23,7 +22,7 @@ func TestSaveChannels(t *testing.T) {
 	var m Manager
 	assert.NoError(t, m.saveChannels(dir, testfile, testSuffix, testChannels))
 
-	reopenedF, err := encio.Open(makeCacheFilename(dir, testfile, testSuffix))
+	reopenedF, err := m.createOpener().Open(makeCacheFilename(dir, testfile, testSuffix))
 	if err != nil {
 		t.Fatal(err)
 	}

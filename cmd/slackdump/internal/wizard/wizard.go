@@ -10,8 +10,8 @@ import (
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/bootstrap"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/workspace"
 )
 
 var CmdWizard = &base.Command{
@@ -61,7 +61,7 @@ func runWizard(ctx context.Context, cmd *base.Command, args []string) error {
 
 		if cmd.RequireAuth {
 			var err error
-			ctx, err = bootstrap.CurrentOrNewProviderCtx(ctx)
+			ctx, err = workspace.CurrentOrNewProviderCtx(ctx)
 			if err != nil {
 				return err
 			}

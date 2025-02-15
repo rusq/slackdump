@@ -1,10 +1,17 @@
 package workspace
 
 import (
+	"context"
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
+	"github.com/rusq/slackdump/v3/auth"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/workspace/workspaceui"
+	"github.com/rusq/slackdump/v3/internal/cache"
 	fx "github.com/rusq/slackdump/v3/internal/fixtures"
 )
 
@@ -54,7 +61,7 @@ func Test_argsWorkspace(t *testing.T) {
 }
 
 func TestCurrent(t *testing.T) {
-	//fixtures
+	// fixtures
 
 	empty := t.TempDir()
 
@@ -65,17 +72,17 @@ func TestCurrent(t *testing.T) {
 	// case2 has files, and a pointer to the current workspace.
 	case2 := t.TempDir()
 	fx.PrepareDir(t, case2, "dummy", fx.WorkspaceFiles...)
-	os.WriteFile(filepath.Join(case2, "workspace.txt"), []byte(fx.StripExt(fx.WorkspaceFiles[0])+"\n"), 0644)
+	os.WriteFile(filepath.Join(case2, "workspace.txt"), []byte(fx.StripExt(fx.WorkspaceFiles[0])+"\n"), 0o644)
 
 	// case3 has a file, which is specified as a directory to the function
 	// so that manager fails to initialise.
 	case3 := t.TempDir()
-	os.WriteFile(filepath.Join(case3, "cache_dir"), []byte(""), 0644)
+	os.WriteFile(filepath.Join(case3, "cache_dir"), []byte(""), 0o644)
 
 	// case4 workspace pointer points to non-existing file.
 	case4 := t.TempDir()
 	fx.PrepareDir(t, case4, "dummy", fx.WorkspaceFiles...)
-	os.WriteFile(filepath.Join(case4, "workspace.txt"), []byte("doesnotexist\n"), 0644)
+	os.WriteFile(filepath.Join(case4, "workspace.txt"), []byte("doesnotexist\n"), 0o644)
 
 	// tests
 	type args struct {
@@ -147,6 +154,92 @@ func TestCurrent(t *testing.T) {
 			if gotWsp != tt.wantWsp {
 				t.Errorf("Current() = %v, want %v", gotWsp, tt.wantWsp)
 			}
+		})
+	}
+}
+
+type recorder struct {
+	authCurrentCalledTimes int
+	authCurrentRetProv     auth.Provider
+	authCurrentRetErr      error
+
+	showUICalledTimes int
+	showUIRetErr      error
+}
+
+func (r *recorder) AuthCurrent(ctx context.Context, cacheDir string, overrideWsp string, usePlaywright bool) (auth.Provider, error) {
+	r.authCurrentCalledTimes++
+	return r.authCurrentRetProv, r.authCurrentRetErr
+}
+
+func (r *recorder) ShowUI(ctx context.Context, opts ...workspaceui.UIOption) error {
+	r.showUICalledTimes++
+	return r.showUIRetErr
+}
+
+func TestCurrentOrNewProviderCtx(t *testing.T) {
+	type args struct {
+		ctx context.Context
+	}
+	tests := []struct {
+		name                       string
+		args                       args
+		rec                        *recorder
+		want                       context.Context
+		wantErr                    bool
+		wantAuthCurrentCalledTimes int
+		wantShowUICalledTimes      int
+	}{
+		{
+			"authCurrent fails",
+			args{context.Background()},
+			&recorder{
+				authCurrentRetErr: assert.AnError,
+			},
+			context.Background(),
+			true,
+			1,
+			0,
+		},
+		{
+			"authCurrent doesn't find workspace",
+			args{context.Background()},
+			&recorder{
+				authCurrentRetErr: cache.ErrNoWorkspaces,
+			},
+			context.Background(),
+			true,
+			2, // attempts to call authCurrent twice
+			1, // after showing the UI
+		},
+		{
+			"authCurrent succeeds",
+			args{context.Background()},
+			&recorder{
+				authCurrentRetProv: auth.ValueAuth{},
+			},
+			auth.WithContext(context.Background(), auth.ValueAuth{}),
+			false,
+			1,
+			0,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rec := tt.rec
+			authCurrent = rec.AuthCurrent
+			showUI = rec.ShowUI
+
+			got, err := CurrentOrNewProviderCtx(tt.args.ctx)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("CurrentOrNewProviderCtx() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("CurrentOrNewProviderCtx() = %v, want %v", got, tt.want)
+			}
+			assert.Equal(t, rec.authCurrentCalledTimes, tt.wantAuthCurrentCalledTimes)
+			assert.Equal(t, rec.showUICalledTimes, tt.wantShowUICalledTimes)
 		})
 	}
 }
