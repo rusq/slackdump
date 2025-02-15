@@ -67,7 +67,8 @@ func checkCount(table string, want int) utilityFn {
 	}
 }
 
-func prepChunk(typeID chunk.ChunkType) utilityFn {
+// prepChunk prepares number of chunks in the database.
+func prepChunk(typeID ...chunk.ChunkType) utilityFn {
 	return func(t *testing.T, conn PrepareExtContext) {
 		t.Helper()
 		ctx := context.Background()
@@ -80,12 +81,14 @@ func prepChunk(typeID chunk.ChunkType) utilityFn {
 			t.Fatalf("session insert: %v", err)
 		}
 		t.Log("session id", id)
-		c := DBChunk{ID: 1, SessionID: id, UnixTS: time.Now().UnixMilli(), TypeID: typeID}
-		id, err = cr.Insert(ctx, conn, &c)
-		if err != nil {
-			t.Fatalf("chunk insert: %v", err)
+		for i, tid := range typeID {
+			c := DBChunk{ID: int64(i + 1), SessionID: id, UnixTS: time.Now().UnixMilli(), TypeID: tid}
+			id, err = cr.Insert(ctx, conn, &c)
+			if err != nil {
+				t.Fatalf("chunk insert: %v", err)
+			}
+			t.Log("chunk id", id)
 		}
-		t.Log("chunk id", id)
 	}
 }
 
