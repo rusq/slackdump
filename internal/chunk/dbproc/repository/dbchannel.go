@@ -12,12 +12,11 @@ import (
 )
 
 type DBChannel struct {
-	ID       string  `db:"ID"`
-	ChunkID  int64   `db:"CHUNK_ID"`
-	LoadDTTM string  `db:"LOAD_DTTM,omitempty"`
-	Name     *string `db:"NAME"`
-	Index    int     `db:"IDX"`
-	Data     []byte  `db:"DATA"`
+	ID      string  `db:"ID"`
+	ChunkID int64   `db:"CHUNK_ID"`
+	Name    *string `db:"NAME"`
+	Index   int     `db:"IDX"`
+	Data    []byte  `db:"DATA"`
 }
 
 func NewDBChannel(chunkID int64, n int, channel *slack.Channel) (*DBChannel, error) {

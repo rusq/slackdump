@@ -74,7 +74,7 @@ func Test_genericRepository_AllOfType(t *testing.T) {
 		r       genericRepository[T]
 		args    args
 		prepFn  utilityFn
-		want    []testResult[*T]
+		want    []testResult[T]
 		wantErr assert.ErrorAssertionFunc
 	}
 	tests := []testCase[DBChannel]{
@@ -87,17 +87,18 @@ func Test_genericRepository_AllOfType(t *testing.T) {
 				typeID: chunk.CChannelInfo,
 			},
 			prepFn: func(t *testing.T, conn PrepareExtContext) {
-				prepChunk(chunk.CChannelInfo)(t, conn)
+				prepChunk(chunk.CChannelInfo, chunk.CChannelInfo)(t, conn)
 				cir := NewChannelRepository()
 				_, err := cir.InsertAll(context.Background(), conn, toIter([]testResult[*DBChannel]{
-					{V: &DBChannel{ID: "ABC", ChunkID: 1, Data: data1}, Err: nil},
-					{V: &DBChannel{ID: "BCD", ChunkID: 1, Data: data2}, Err: nil},
+					{V: &DBChannel{ID: "ABC", ChunkID: 1, Name: ptr("old name"), Data: data1}, Err: nil},
+					{V: &DBChannel{ID: "BCD", ChunkID: 1, Name: ptr("other name"), Data: data2}, Err: nil},
+					{V: &DBChannel{ID: "ABC", ChunkID: 2, Name: ptr("new name"), Data: data1}, Err: nil},
 				}))
 				require.NoError(t, err)
 			},
-			want: []testResult[*DBChannel]{
-				{V: &DBChannel{ID: "ABC", ChunkID: 1, Data: data1}, Err: nil},
-				{V: &DBChannel{ID: "BCD", ChunkID: 2, Data: data2}, Err: nil},
+			want: []testResult[DBChannel]{
+				{V: DBChannel{ID: "ABC", ChunkID: 2, Name: ptr("new name"), Data: data1}, Err: nil},
+				{V: DBChannel{ID: "BCD", ChunkID: 1, Name: ptr("other name"), Data: data2}, Err: nil},
 			},
 			wantErr: assert.NoError,
 		},
@@ -111,8 +112,14 @@ func Test_genericRepository_AllOfType(t *testing.T) {
 			if !tt.wantErr(t, err, fmt.Sprintf("AllOfType(%v, %v, %v)", tt.args.ctx, tt.args.conn, tt.args.typeID)) {
 				return
 			}
-			collected := collect(t, got)
-			assert.Equal(t, tt.want, collected)
+			var i int
+			for v, err := range got {
+				assert.Equalf(t, tt.want[i].V, v, "value %d", i)
+				if (err != nil) != (tt.want[i].Err != nil) {
+					t.Errorf("got error on %d %v, want %v", i, err, tt.want[i].Err)
+				}
+				i++
+			}
 		})
 	}
 }
