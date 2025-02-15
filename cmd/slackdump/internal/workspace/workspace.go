@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"runtime/trace"
 	"strings"
@@ -23,7 +24,7 @@ var CmdWorkspace = &base.Command{
 	Run:       nil,
 	Wizard:    nil,
 	UsageLine: baseCommand,
-	Short:     "add or choose already existing workspace to run on",
+	Short:     "manage Slack Workspaces",
 	Long: `
 # Workspace Command
 
@@ -31,9 +32,10 @@ Slackdump supports working with multiple Slack Workspaces without the need
 to authenticate again (unless login credentials are expired or became invalid
 due to some other reason).
 
-**Workspace** command allows to **add** a new Slack Workspace, **list** already 
+**Workspace** command allows to add a **new** Slack Workspace, **list** already
 authenticated workspaces, **select** a workspace that you have previously
-logged in to, or **del**ete an existing workspace.
+logged in to, **del**ete an existing workspace, or **import** credentials from
+an environment file.
 
 To learn more about different login options, run:
 
@@ -92,6 +94,7 @@ func AuthCurrent(ctx context.Context, cacheDir string, overrideWsp string, usePl
 		return nil, err
 	}
 	trace.Logf(ctx, "AuthCurrent", "current workspace=%s", wsp)
+	slog.DebugContext(ctx, "current", "workspace", wsp)
 
 	prov, err := authWsp(ctx, cacheDir, wsp, usePlaywright)
 	if err != nil {
@@ -163,17 +166,23 @@ func CacheMgr(opts ...cache.Option) (*cache.Manager, error) {
 	return cache.NewManager(cfg.CacheDir(), opts...)
 }
 
+// exported for testing
+var (
+	authCurrent = AuthCurrent
+	showUI      = workspaceui.ShowUI
+)
+
 func CurrentOrNewProviderCtx(ctx context.Context) (context.Context, error) {
 	cachedir := cfg.CacheDir()
-	prov, err := AuthCurrent(ctx, cachedir, cfg.Workspace, cfg.LegacyBrowser)
+	prov, err := authCurrent(ctx, cachedir, cfg.Workspace, cfg.LegacyBrowser)
 	if err != nil {
 		if errors.Is(err, cache.ErrNoWorkspaces) {
 			// ask to create a new workspace
-			if err := workspaceui.ShowUI(ctx, workspaceui.WithQuickLogin(), workspaceui.WithTitle("No workspaces, please choose a login method")); err != nil {
+			if err := showUI(ctx, workspaceui.WithQuickLogin(), workspaceui.WithTitle("No workspaces, please choose a login method")); err != nil {
 				return ctx, fmt.Errorf("auth error: %w", err)
 			}
 			// one more time...
-			prov, err = AuthCurrent(ctx, cachedir, cfg.Workspace, cfg.LegacyBrowser)
+			prov, err = authCurrent(ctx, cachedir, cfg.Workspace, cfg.LegacyBrowser)
 			if err != nil {
 				return ctx, err
 			}
