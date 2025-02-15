@@ -115,10 +115,10 @@ func (r genericRepository[T]) CountType(ctx context.Context, conn sqlx.QueryerCo
 }
 
 func (r genericRepository[T]) All(ctx context.Context, conn sqlx.QueryerContext) (iter.Seq2[T, error], error) {
-	return r.AllType(ctx, conn, CTypeAny)
+	return r.AllOfType(ctx, conn, CTypeAny)
 }
 
-func (r genericRepository[T]) AllType(ctx context.Context, conn sqlx.QueryerContext, typeID chunk.ChunkType) (iter.Seq2[T, error], error) {
+func (r genericRepository[T]) AllOfType(ctx context.Context, conn sqlx.QueryerContext, typeID chunk.ChunkType) (iter.Seq2[T, error], error) {
 	latest, binds := r.stmtLatest(typeID)
 	var buf strings.Builder
 	buf.WriteString("WITH LATEST AS (\n")

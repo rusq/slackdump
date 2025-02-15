@@ -7,14 +7,12 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-
-	"github.com/jmoiron/sqlx"
 )
 
 func Test_sessionRepository_Insert(t *testing.T) {
 	type args struct {
 		ctx  context.Context
-		conn sqlx.ExtContext
+		conn PrepareExtContext
 		s    *Session
 	}
 	tests := []struct {
@@ -59,7 +57,7 @@ func Test_sessionRepository_Insert(t *testing.T) {
 					Args:     "args",
 				},
 			},
-			prepFn: func(t *testing.T, conn sqlx.ExtContext) {
+			prepFn: func(t *testing.T, conn PrepareExtContext) {
 				if _, err := conn.ExecContext(context.Background(), "INSERT INTO session (id,mode,args) VALUES (1,'test','args')"); err != nil {
 					t.Fatalf("err = %v; want nil", err)
 				}
@@ -112,7 +110,7 @@ func Test_sessionRepository_Insert(t *testing.T) {
 func Test_sessionRepository_Finish(t *testing.T) {
 	type args struct {
 		ctx  context.Context
-		conn sqlx.ExtContext
+		conn PrepareExtContext
 		id   int64
 	}
 	tests := []struct {
@@ -131,14 +129,14 @@ func Test_sessionRepository_Finish(t *testing.T) {
 				conn: testConn(t),
 				id:   1,
 			},
-			prepFn: func(t *testing.T, conn sqlx.ExtContext) {
+			prepFn: func(t *testing.T, conn PrepareExtContext) {
 				r := sessionRepository{}
 				if _, err := r.Insert(context.Background(), conn, &Session{}); err != nil {
 					t.Fatalf("err = %v; want nil", err)
 				}
 			},
 			want: 1,
-			checkFn: func(t *testing.T, conn sqlx.ExtContext) {
+			checkFn: func(t *testing.T, conn PrepareExtContext) {
 				var finished bool
 				if err := conn.QueryRowxContext(context.Background(), "SELECT finished FROM session WHERE id = 1").Scan(&finished); err != nil {
 					t.Fatalf("err = %v; want nil", err)
@@ -182,7 +180,7 @@ func Test_sessionRepository_Finish(t *testing.T) {
 func Test_sessionRepository_Get(t *testing.T) {
 	type args struct {
 		ctx  context.Context
-		conn sqlx.ExtContext
+		conn PrepareExtContext
 		id   int64
 	}
 	tests := []struct {
@@ -196,7 +194,7 @@ func Test_sessionRepository_Get(t *testing.T) {
 		{
 			name: "gets existing session",
 			r:    sessionRepository{},
-			prepFn: func(t *testing.T, conn sqlx.ExtContext) {
+			prepFn: func(t *testing.T, conn PrepareExtContext) {
 				r := sessionRepository{}
 				testSession := &Session{
 					CreatedAt:      time.Date(2009, time.September, 16, 5, 6, 7, 0, time.UTC),
@@ -248,7 +246,7 @@ func Test_sessionRepository_Get(t *testing.T) {
 func Test_sessionRepository_Update(t *testing.T) {
 	type args struct {
 		ctx  context.Context
-		conn sqlx.ExtContext
+		conn PrepareExtContext
 		s    *Session
 	}
 	tests := []struct {
@@ -270,14 +268,14 @@ func Test_sessionRepository_Update(t *testing.T) {
 					Mode: "resume",
 				},
 			},
-			prepFn: func(t *testing.T, conn sqlx.ExtContext) {
+			prepFn: func(t *testing.T, conn PrepareExtContext) {
 				r := sessionRepository{}
 				if _, err := r.Insert(context.Background(), conn, &Session{Mode: "archive"}); err != nil {
 					t.Fatalf("err = %v; want nil", err)
 				}
 			},
 			want: 1,
-			checkFn: func(t *testing.T, conn sqlx.ExtContext) {
+			checkFn: func(t *testing.T, conn PrepareExtContext) {
 				var mode string
 				if err := conn.QueryRowxContext(context.Background(), "SELECT mode FROM session WHERE id = 1").Scan(&mode); err != nil {
 					t.Fatalf("err = %v; want nil", err)
@@ -333,7 +331,7 @@ func Test_sessionRepository_Last(t *testing.T) {
 			Args:           "d",
 		}
 	)
-	twoSess := func(t *testing.T, conn sqlx.ExtContext) {
+	twoSess := func(t *testing.T, conn PrepareExtContext) {
 		r := sessionRepository{}
 		if _, err := r.Insert(context.Background(), conn, testSess1); err != nil {
 			t.Fatalf("err = %v; want nil", err)
@@ -344,7 +342,7 @@ func Test_sessionRepository_Last(t *testing.T) {
 	}
 	type args struct {
 		ctx      context.Context
-		conn     sqlx.ExtContext
+		conn     PrepareExtContext
 		finished *bool
 	}
 	tests := []struct {

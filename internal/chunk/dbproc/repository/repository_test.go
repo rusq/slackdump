@@ -6,6 +6,9 @@ import (
 	"log/slog"
 	"os"
 	"testing"
+	"time"
+
+	"github.com/rusq/slackdump/v3/internal/chunk"
 
 	"github.com/jmoiron/sqlx"
 )
@@ -48,11 +51,11 @@ func testConnDSN(t *testing.T, dsn string) *sqlx.DB {
 
 // utilityFn is a utility function to prepare the database for the test or
 // check results.
-type utilityFn func(t *testing.T, conn sqlx.ExtContext)
+type utilityFn func(t *testing.T, conn PrepareExtContext)
 
 // checkCount returns a utility function to check the count of rows in the table.
 func checkCount(table string, want int) utilityFn {
-	return func(t *testing.T, conn sqlx.ExtContext) {
+	return func(t *testing.T, conn PrepareExtContext) {
 		t.Helper()
 		var count int
 		if err := conn.QueryRowxContext(context.Background(), "SELECT COUNT(*) FROM "+table).Scan(&count); err != nil {
@@ -61,6 +64,28 @@ func checkCount(table string, want int) utilityFn {
 		if count != want {
 			t.Errorf("count = %d; want %d", count, want)
 		}
+	}
+}
+
+func prepChunk(typeID chunk.ChunkType) utilityFn {
+	return func(t *testing.T, conn PrepareExtContext) {
+		t.Helper()
+		ctx := context.Background()
+		var (
+			sr sessionRepository
+			cr chunkRepository
+		)
+		id, err := sr.Insert(ctx, conn, &Session{ID: 1})
+		if err != nil {
+			t.Fatalf("session insert: %v", err)
+		}
+		t.Log("session id", id)
+		c := DBChunk{ID: 1, SessionID: id, UnixTS: time.Now().UnixMilli(), TypeID: typeID}
+		id, err = cr.Insert(ctx, conn, &c)
+		if err != nil {
+			t.Fatalf("chunk insert: %v", err)
+		}
+		t.Log("chunk id", id)
 	}
 }
 
@@ -88,4 +113,13 @@ func toIter[T any](v []testResult[T]) iter.Seq2[T, error] {
 			}
 		}
 	}
+}
+
+func collect[T any](t *testing.T, it iter.Seq2[T, error]) []testResult[T] {
+	t.Helper()
+	var ret []testResult[T]
+	for v, err := range it {
+		ret = append(ret, testResult[T]{v, err})
+	}
+	return ret
 }
