@@ -64,18 +64,22 @@ var ErrNotSupported = errors.New("feature not supported")
 type Flags int16
 
 const (
-	FUnknown   Flags = 0
+	FUnknown Flags = 0
+	// container
 	FDirectory Flags = 1 << iota
 	FZip
+	// main content
 	FChunk
 	FExport
 	FDump
+	FDatabase
+	// attachments
 	FAvatars
 	FMattermost
 )
 
 func (f Flags) String() string {
-	const flg = "_________MAUXCZD"
+	const flg = "________MADUXCZD"
 	var buf strings.Builder
 	for i := 16; i >= 0; i-- {
 		if f&(1<<uint(i)) != 0 {
@@ -152,6 +156,8 @@ func Type(src string) (Flags, error) {
 func srcType(src string, fi fs.FileInfo) Flags {
 	var fsys fs.FS // this will be our media for accessing files
 	var flags Flags
+
+	// determine container
 	if fi.IsDir() {
 		fsys = os.DirFS(src)
 		flags |= FDirectory
@@ -166,12 +172,18 @@ func srcType(src string, fi fs.FileInfo) Flags {
 	} else {
 		return FUnknown
 	}
+
+	// determine content
+
+	// attachments
 	if _, err := fs.Stat(fsys, "__avatars"); err == nil {
 		flags |= FAvatars
 	}
 	if _, err := fs.Stat(fsys, chunk.UploadsDir); err == nil {
 		flags |= FMattermost
 	}
+
+	// main content
 	if ff, err := fs.Glob(fsys, "[CDG]*.json"); err == nil && len(ff) > 0 {
 		return flags | FDump
 	}
@@ -183,6 +195,9 @@ func srcType(src string, fi fs.FileInfo) Flags {
 	}
 	if _, err := fs.Stat(fsys, "channels.json"); err == nil {
 		return flags | FExport
+	}
+	if _, err := fs.Stat(fsys, "slackdump.sqlite"); err == nil {
+		return flags | FDatabase
 	}
 	return FUnknown
 }
