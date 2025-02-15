@@ -5,9 +5,7 @@ import (
 	"encoding/json"
 	"iter"
 	"testing"
-	"time"
 
-	"github.com/jmoiron/sqlx"
 	"github.com/rusq/slack"
 	"github.com/stretchr/testify/assert"
 
@@ -139,26 +137,6 @@ func TestNewDBMessage(t *testing.T) {
 	}
 }
 
-func prepChunk(t *testing.T, conn sqlx.ExtContext) {
-	t.Helper()
-	ctx := context.Background()
-	var (
-		sr sessionRepository
-		cr chunkRepository
-	)
-	id, err := sr.Insert(ctx, conn, &Session{ID: 1})
-	if err != nil {
-		t.Fatalf("session insert: %v", err)
-	}
-	t.Log("session id", id)
-	c := DBChunk{ID: 1, SessionID: id, UnixTS: time.Now().UnixMilli(), TypeID: chunk.CMessages}
-	id, err = cr.Insert(ctx, conn, &c)
-	if err != nil {
-		t.Fatalf("chunk insert: %v", err)
-	}
-	t.Log("chunk id", id)
-}
-
 func Test_messageRepository_Insert(t *testing.T) {
 	// fixtures
 	simpleDBMessage, err := NewDBMessage(1, 0, "C123", fixtures.Load[*slack.Message](fixtures.SimpleMessageJSON))
@@ -168,7 +146,7 @@ func Test_messageRepository_Insert(t *testing.T) {
 
 	type args struct {
 		ctx  context.Context
-		conn sqlx.ExtContext
+		conn PrepareExtContext
 		m    *DBMessage
 	}
 	tests := []struct {
@@ -187,7 +165,7 @@ func Test_messageRepository_Insert(t *testing.T) {
 				conn: testConn(t),
 				m:    simpleDBMessage,
 			},
-			prepFn:  prepChunk,
+			prepFn:  prepChunk(chunk.CMessages),
 			wantErr: false,
 		},
 	}
@@ -231,7 +209,7 @@ func Test_messageRepository_InsertAll(t *testing.T) {
 					toTestResult(NewDBMessage(1, 1, "C123", fixtures.Load[*slack.Message](fixtures.SimpleMessageJSON))),
 				}),
 			},
-			prepFn:  prepChunk,
+			prepFn:  prepChunk(chunk.CMessages),
 			want:    2,
 			wantErr: false,
 		},

@@ -7,7 +7,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/jmoiron/sqlx"
 	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/stretchr/testify/assert"
 )
@@ -15,7 +14,7 @@ import (
 func Test_chunkRepository_Insert(t *testing.T) {
 	type args struct {
 		ctx   context.Context
-		conn  sqlx.ExtContext
+		conn  PrepareExtContext
 		chunk *DBChunk
 	}
 	tests := []struct {
@@ -39,7 +38,7 @@ func Test_chunkRepository_Insert(t *testing.T) {
 					Final:      true,
 				},
 			},
-			prepFn: func(t *testing.T, db sqlx.ExtContext) {
+			prepFn: func(t *testing.T, db PrepareExtContext) {
 				var r sessionRepository
 				id, err := r.Insert(context.Background(), db, &Session{})
 				require.NoError(t, err)
