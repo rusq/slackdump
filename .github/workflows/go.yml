@@ -22,5 +22,7 @@ jobs:
       run: go build -v ./...
 
     - name: Check creds
+      env:
+        ORA600_CREDS: ${{ secrets.ORA600_CREDS }}
       run: |
         ./utils/gha-test.sh
