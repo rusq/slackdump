@@ -25,5 +25,5 @@ md5sum ${OUTPUT}
 
 go build ./cmd/slackdump
 ./slackdump workspace select -v ora600
-./slackdump workspace list -v -no-encryption -a
-./slackdump list channels -v -no-encryption
+./slackdump workspace list -v -machine-id=123 -a
+./slackdump list channels -v -machine-id=123
