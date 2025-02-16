@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"fmt"
+	"iter"
 	"testing"
 
 	"github.com/rusq/slack"
@@ -138,14 +139,22 @@ func Test_genericRepository_AllOfType(t *testing.T) {
 			if !tt.wantErr(t, err, fmt.Sprintf("AllOfType(%v, %v, %v)", tt.args.ctx, tt.args.conn, tt.args.typeID)) {
 				return
 			}
-			var i int
-			for v, err := range got {
-				assert.Equalf(t, tt.want[i].V, v, "value %d", i)
-				if (err != nil) != (tt.want[i].Err != nil) {
-					t.Errorf("got error on %d %v, want %v", i, err, tt.want[i].Err)
-				}
-				i++
-			}
+			assertIterResult(t, tt.want, got)
 		})
+	}
+}
+
+func assertIterResult[T any](t *testing.T, want []testResult[T], got iter.Seq2[T, error]) {
+	t.Helper()
+	var i int
+	for v, err := range got {
+		assert.Equalf(t, want[i].V, v, "value %d", i)
+		if (err != nil) != (want[i].Err != nil) {
+			t.Errorf("got error on %d %v, want %v", i, err, want[i].Err)
+		}
+		i++
+	}
+	if i != len(want) {
+		t.Errorf("got %d results, want %d", i, len(want))
 	}
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"iter"
+	"strings"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/rusq/slack"
@@ -105,6 +106,8 @@ type MessageRepository interface {
 	Inserter[DBMessage]
 	Count(ctx context.Context, conn sqlx.QueryerContext, channelID string) (int64, error)
 	AllForID(ctx context.Context, conn sqlx.QueryerContext, channelID string) (iter.Seq2[DBMessage, error], error)
+	CountThread(ctx context.Context, conn sqlx.QueryerContext, channelID, threadID string) (int64, error)
+	AllForThread(ctx context.Context, conn sqlx.QueryerContext, channelID, threadID string) (iter.Seq2[DBMessage, error], error)
 }
 
 type messageRepository struct {
@@ -121,4 +124,29 @@ func (r messageRepository) Count(ctx context.Context, conn sqlx.QueryerContext, 
 
 func (r messageRepository) AllForID(ctx context.Context, conn sqlx.QueryerContext, channelID string) (iter.Seq2[DBMessage, error], error) {
 	return r.allOfTypeWhere(ctx, conn, chunk.CMessages, "CHANNEL_ID = ?", channelID)
+}
+
+func (r messageRepository) threadCond() string {
+	var buf strings.Builder
+	buf.WriteString("T.CHANNEL_ID = ? AND T.PARENT_ID = ? ")
+	buf.WriteString("JSON_EXTRACT(T.DATA, '$.subtype') IS NULL ")
+	buf.WriteString("OR (JSON_EXTRACT(T.DATA, '$.subtype') = 'thread_broadcast' AND C.TYPE_ID = 1 )")
+	buf.WriteString("   ) ")
+	return buf.String()
+}
+
+func (r messageRepository) CountThread(ctx context.Context, conn sqlx.QueryerContext, channelID, threadID string) (int64, error) {
+	parentID, err := fasttime.TS2int(threadID)
+	if err != nil {
+		return 0, fmt.Errorf("countThread fasttime: %w", err)
+	}
+	return r.countTypeWhere(ctx, conn, CTypeAny, r.threadCond(), channelID, parentID)
+}
+
+func (r messageRepository) AllForThread(ctx context.Context, conn sqlx.QueryerContext, channelID, threadID string) (iter.Seq2[DBMessage, error], error) {
+	parentID, err := fasttime.TS2int(threadID)
+	if err != nil {
+		return nil, fmt.Errorf("allForThread fasttime: %w", err)
+	}
+	return r.allOfTypeWhere(ctx, conn, CTypeAny, r.threadCond(), channelID, parentID)
 }

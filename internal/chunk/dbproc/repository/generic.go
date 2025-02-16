@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"iter"
+	"log/slog"
+	"runtime/trace"
 	"strings"
 
 	"github.com/jmoiron/sqlx"
@@ -19,7 +21,7 @@ type dbObject interface {
 
 type Inserter[T dbObject] interface {
 	// Insert should insert the entity into the database.
-	Insert(ctx context.Context, conn sqlx.ExtContext, t *T) error
+	Insert(ctx context.Context, conn sqlx.ExtContext, t ...*T) error
 	// InsertAll should insert all entities from the iterator into the database.
 	InsertAll(ctx context.Context, pconn PrepareExtContext, tt iter.Seq2[*T, error]) (int, error)
 }
@@ -38,12 +40,20 @@ type Dictionary[T dbObject] interface {
 	All(ctx context.Context, conn sqlx.QueryerContext) (iter.Seq2[T, error], error)
 }
 
+type Getter[T dbObject] interface {
+	// Get should return the entity with the given id.
+	Get(ctx context.Context, conn sqlx.ExtContext, id any) (T, error)
+	// GetType should return the entity with the given id.
+	GetType(ctx context.Context, conn sqlx.ExtContext, ct chunk.ChunkType, id any) (T, error)
+}
+
 // BulkRepository is a generic repository interface without the means to select
 // individual rows.
 type BulkRepository[T dbObject] interface {
 	Inserter[T]
 	Counter[T]
 	Dictionary[T]
+	Getter[T]
 }
 
 var _ BulkRepository[dbObject] = (*genericRepository[dbObject])(nil)
@@ -99,15 +109,47 @@ func (r genericRepository[T]) stmtLatestWhere(tid chunk.ChunkType, where string,
 	return buf.String(), b
 }
 
-func (r genericRepository[T]) Insert(ctx context.Context, conn sqlx.ExtContext, e *T) error {
-	_, err := conn.ExecContext(ctx, conn.Rebind(r.stmtInsert()), (*e).values()...)
-	if err != nil {
-		return fmt.Errorf("insert: %w", err)
+func (r genericRepository[T]) Get(ctx context.Context, conn sqlx.ExtContext, id any) (T, error) {
+	return r.GetType(ctx, conn, CTypeAny, id)
+}
+
+func (r genericRepository[T]) GetType(ctx context.Context, conn sqlx.ExtContext, ct chunk.ChunkType, id any) (T, error) {
+	latest, binds := r.stmtLatestRows(ct)
+	var buf strings.Builder
+	buf.WriteString(latest)
+	buf.WriteString(" AND T.ID = ?")
+	binds = append(binds, id)
+	stmt := buf.String()
+
+	slog.DebugContext(ctx, "get", "stmt", stmt, "binds", binds)
+
+	var t T
+	if err := conn.QueryRowxContext(ctx, stmt, binds...).StructScan(&t); err != nil {
+		return t, fmt.Errorf("get: %w", err)
+	}
+	return t, nil
+}
+
+func (r genericRepository[T]) Insert(ctx context.Context, conn sqlx.ExtContext, e ...*T) error {
+	ctx, task := trace.NewTask(ctx, "Insert")
+	defer task.End()
+	trace.Logf(ctx, "parameters", "Insert: %T", r.t)
+
+	stmt := conn.Rebind(r.stmtInsert())
+	for _, m := range e {
+		_, err := conn.ExecContext(ctx, stmt, (*m).values()...)
+		if err != nil {
+			return fmt.Errorf("insert: %w", err)
+		}
 	}
 	return nil
 }
 
 func (r genericRepository[T]) InsertAll(ctx context.Context, pconn PrepareExtContext, tt iter.Seq2[*T, error]) (int, error) {
+	ctx, task := trace.NewTask(ctx, "InsertAll")
+	defer task.End()
+	trace.Logf(ctx, "parameters", "InsertAll: %T", r.t)
+
 	var t T
 	stmt, err := pconn.PrepareContext(ctx, pconn.Rebind(r.stmtInsert()))
 	if err != nil {
@@ -139,10 +181,16 @@ func (r genericRepository[T]) CountType(ctx context.Context, conn sqlx.QueryerCo
 }
 
 func (r genericRepository[T]) countTypeWhere(ctx context.Context, conn sqlx.QueryerContext, typeID chunk.ChunkType, where string, binds ...any) (int64, error) {
-	var n int64
+	ctx, task := trace.NewTask(ctx, "countTypeWhere")
+	defer task.End()
+	trace.Logf(ctx, "parameters", "countTypeWhere: %T, typeID=%d, where=%s, binds=%v", r.t, typeID, where, binds)
+
 	// TODO: no rebind, not critical, but if the database type changes, this will break
 	latest, b := r.stmtLatestWhere(typeID, where, binds...)
 	stmt := `SELECT COUNT(1) FROM (` + latest + `) as latest`
+	slog.DebugContext(ctx, "count", "stmt", stmt, "binds", b)
+
+	var n int64
 	if err := conn.QueryRowxContext(ctx, stmt, b...).Scan(&n); err != nil {
 		return 0, fmt.Errorf("count: %w", err)
 	}
@@ -157,6 +205,7 @@ func (r genericRepository[T]) All(ctx context.Context, conn sqlx.QueryerContext)
 // entity.
 func (r genericRepository[T]) stmtLatestRows(typeID chunk.ChunkType) (stmt string, binds []any) {
 	latest, binds := r.stmtLatest(typeID)
+
 	var buf strings.Builder
 	buf.WriteString("WITH LATEST AS (\n")
 	buf.WriteString(latest)
@@ -166,6 +215,7 @@ func (r genericRepository[T]) stmtLatestRows(typeID chunk.ChunkType) (stmt strin
 	buf.WriteString(" FROM LATEST L JOIN ")
 	buf.WriteString(r.t.tablename())
 	buf.WriteString(" AS T ON T.ID = L.ID AND T.CHUNK_ID = L.CHUNK_ID WHERE 1=1\n")
+
 	return buf.String(), binds
 }
 
@@ -179,8 +229,15 @@ func (r genericRepository[T]) AllOfType(ctx context.Context, conn sqlx.QueryerCo
 // satisfy the where clause.  If where is empty, all entities are returned.
 // Number of binds must match the number of placeholders in the where clause.
 // For example, if where is "T.ID = ?" then binds must contain one element.
+// Aliases:
+// - "C" is the alias for "CHUNK"
+// - "T" is the alias for the entity type T table.
 func (r genericRepository[T]) allOfTypeWhere(ctx context.Context, conn sqlx.QueryerContext, typeID chunk.ChunkType, where string, binds ...any) (iter.Seq2[T, error], error) {
+	ctx, task := trace.NewTask(ctx, "allOfTypeWhere")
+	trace.Logf(ctx, "parameters", "allOfTypeWhere: %T typeID=%d, where=%s, binds=%v", r.t, typeID, where, binds)
+
 	stmt, b := r.stmtLatestRows(typeID)
+
 	var buf strings.Builder
 	buf.WriteString(stmt)
 	if where != "" {
@@ -189,11 +246,15 @@ func (r genericRepository[T]) allOfTypeWhere(ctx context.Context, conn sqlx.Quer
 	}
 	binds = append(b, binds...)
 	buf.WriteString(" ORDER BY T.ID")
+
+	slog.DebugContext(ctx, "allOfTypeWhere", "stmt", buf.String(), "binds", binds)
+
 	rows, err := conn.QueryxContext(ctx, stmt, binds...)
 	if err != nil {
 		return nil, fmt.Errorf("all: %w", err)
 	}
 	it := func(yield func(T, error) bool) {
+		defer task.End()
 		defer rows.Close()
 		for rows.Next() {
 			var t T
