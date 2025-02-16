@@ -15,7 +15,6 @@ import (
 	"github.com/charmbracelet/huh"
 	"github.com/joho/godotenv"
 	"github.com/rusq/tracer"
-	"golang.org/x/term"
 
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/apiconfig"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/archive"
@@ -34,6 +33,7 @@ import (
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/view"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/wizard"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/workspace"
+	"github.com/rusq/slackdump/v3/internal/osext"
 )
 
 func init() {
@@ -66,7 +66,7 @@ func init() {
 }
 
 func main() {
-	if isRoot() {
+	if osext.IsRoot() {
 		slog.Warn("slackdump:  courageously running as root, hope you know what you're doing")
 	}
 
@@ -75,7 +75,7 @@ func main() {
 
 	args := flag.Args()
 	if len(args) < 1 {
-		if !isInteractive() {
+		if !osext.IsInteractive() {
 			base.Usage()
 			// Usage terminates the program.
 		}
@@ -333,14 +333,4 @@ func whatDo() (choice, error) {
 		).Value(&ans))).WithTheme(ui.HuhTheme()).WithKeyMap(ui.DefaultHuhKeymap).Run()
 
 	return ans, err
-}
-
-// isInteractive returns true if the program is running in the interactive
-// terminal.
-func isInteractive() bool {
-	return term.IsTerminal(int(os.Stdout.Fd())) && term.IsTerminal(int(os.Stdin.Fd())) && os.Getenv("TERM") != "dumb"
-}
-
-func isRoot() bool {
-	return os.Geteuid() == 0
 }
