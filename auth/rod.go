@@ -11,6 +11,7 @@ import (
 	"github.com/rusq/slackauth"
 
 	"github.com/rusq/slackdump/v3/auth/auth_ui"
+	"github.com/rusq/slackdump/v3/internal/osext"
 	"github.com/rusq/slackdump/v3/internal/structures"
 )
 
@@ -76,6 +77,9 @@ type browserAuthUIExt interface {
 
 // NewRODAuth constructs new RodAuth provider.
 func NewRODAuth(ctx context.Context, opts ...Option) (RodAuth, error) {
+	if osext.IsDocker() || !osext.IsInteractive() {
+		return RodAuth{}, &Error{Err: ErrNotSupported, Msg: "browser auth is not supported in dumb terminals, use token/cookie auth instead"}
+	}
 	r := RodAuth{
 		opts: options{
 			rodOpts: rodOpts{
