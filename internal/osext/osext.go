@@ -3,6 +3,7 @@ package osext
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"runtime"
 )
@@ -33,4 +34,10 @@ func Caller(steps int) string {
 		name = filepath.Base(runtime.FuncForPC(pc).Name())
 	}
 	return name
+}
+
+// IsDocker returns true if the process is running in a docker container.
+func IsDocker() bool {
+	_, err := os.Stat("/.dockerenv")
+	return err == nil
 }

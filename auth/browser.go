@@ -9,11 +9,14 @@ import (
 
 	"github.com/rusq/slackdump/v3/auth/auth_ui"
 	"github.com/rusq/slackdump/v3/auth/browser"
+	"github.com/rusq/slackdump/v3/internal/osext"
 	"github.com/rusq/slackdump/v3/internal/structures"
 )
 
-var _ Provider = PlaywrightAuth{}
-var defaultFlow = &auth_ui.Huh{}
+var (
+	_           Provider = PlaywrightAuth{}
+	defaultFlow          = &auth_ui.Huh{}
+)
 
 // PlaywrightAuth is the playwright browser authentication provider.
 //
@@ -39,7 +42,7 @@ type BrowserAuthUI interface {
 }
 
 func NewPlaywrightAuth(ctx context.Context, opts ...Option) (PlaywrightAuth, error) {
-	var br = PlaywrightAuth{
+	br := PlaywrightAuth{
 		opts: options{
 			playwrightOptions: playwrightOptions{
 				flow:         defaultFlow,
@@ -51,8 +54,8 @@ func NewPlaywrightAuth(ctx context.Context, opts ...Option) (PlaywrightAuth, err
 	for _, opt := range opts {
 		opt(&br.opts)
 	}
-	if IsDocker() {
-		return PlaywrightAuth{}, &Error{Err: ErrNotSupported, Msg: "browser auth is not supported in docker, use token/cookie auth instead"}
+	if osext.IsDocker() || !osext.IsInteractive() {
+		return PlaywrightAuth{}, &Error{Err: ErrNotSupported, Msg: "browser auth is not supported in docker or dumb terminals, use token/cookie auth instead"}
 	}
 
 	if br.opts.workspace == "" {
