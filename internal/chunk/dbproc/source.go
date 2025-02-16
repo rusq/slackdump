@@ -3,6 +3,7 @@ package dbproc
 import (
 	"context"
 	"database/sql"
+	"iter"
 
 	"github.com/jmoiron/sqlx"
 
@@ -53,18 +54,7 @@ func (s *Source) Channels(ctx context.Context) ([]slack.Channel, error) {
 	if err != nil {
 		return nil, err
 	}
-	ch := make([]slack.Channel, 0, sz)
-	for c, err := range it {
-		if err != nil {
-			return nil, err
-		}
-		v, err := c.Val()
-		if err != nil {
-			return nil, err
-		}
-		ch = append(ch, v)
-	}
-	return ch, nil
+	return collect(it, int(sz))
 }
 
 func (s *Source) Users(ctx context.Context) ([]slack.User, error) {
@@ -85,7 +75,15 @@ func (s *Source) Users(ctx context.Context) ([]slack.User, error) {
 	if err != nil {
 		return nil, err
 	}
-	us := make([]slack.User, 0, sz)
+	return collect(it, int(sz))
+}
+
+type valuer[T any] interface {
+	Val() (T, error)
+}
+
+func collect[T any, D valuer[T]](it iter.Seq2[D, error], sz int) ([]T, error) {
+	vs := make([]T, 0, sz)
 	for c, err := range it {
 		if err != nil {
 			return nil, err
@@ -94,20 +92,19 @@ func (s *Source) Users(ctx context.Context) ([]slack.User, error) {
 		if err != nil {
 			return nil, err
 		}
-		us = append(us, v)
+		vs = append(vs, v)
 	}
-	return us, nil
+	return vs, nil
 }
 
 func (s *Source) AllMessages(ctx context.Context, channelID string) ([]slack.Message, error) {
-	mr := repository.NewMessageRepository()
-
 	tx, err := s.conn.BeginTxx(ctx, &sql.TxOptions{ReadOnly: true})
 	if err != nil {
 		return nil, err
 	}
 	defer tx.Rollback()
 
+	mr := repository.NewMessageRepository()
 	sz, err := mr.Count(ctx, s.conn, channelID)
 	if err != nil {
 		return nil, err
@@ -117,16 +114,42 @@ func (s *Source) AllMessages(ctx context.Context, channelID string) ([]slack.Mes
 	if err != nil {
 		return nil, err
 	}
-	ms := make([]slack.Message, 0, sz)
-	for c, err := range it {
-		if err != nil {
-			return nil, err
-		}
-		v, err := c.Val()
-		if err != nil {
-			return nil, err
-		}
-		ms = append(ms, v)
+	return collect(it, int(sz))
+}
+
+func (s *Source) AllThreadMessages(ctx context.Context, channelID, threadID string) ([]slack.Message, error) {
+	tx, err := s.conn.BeginTxx(ctx, &sql.TxOptions{ReadOnly: true})
+	if err != nil {
+		return nil, err
 	}
-	return ms, nil
+	defer tx.Rollback()
+
+	mr := repository.NewMessageRepository()
+	sz, err := mr.CountThread(ctx, s.conn, channelID, threadID)
+	if err != nil {
+		return nil, err
+	}
+
+	it, err := mr.AllForThread(ctx, s.conn, channelID, threadID)
+	if err != nil {
+		return nil, err
+	}
+	return collect(it, int(sz))
+}
+
+func (s *Source) ChannelInfo(ctx context.Context, channelID string) (*slack.Channel, error) {
+	cr := repository.NewChannelRepository()
+
+	tx, err := s.conn.BeginTxx(ctx, &sql.TxOptions{ReadOnly: true})
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	c, err := cr.Get(ctx, s.conn, channelID)
+	if err != nil {
+		return nil, err
+	}
+	v, err := c.Val()
+	return &v, err
 }

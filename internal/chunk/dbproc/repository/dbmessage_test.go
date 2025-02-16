@@ -6,6 +6,7 @@ import (
 	"iter"
 	"testing"
 
+	"github.com/jmoiron/sqlx"
 	"github.com/rusq/slack"
 	"github.com/stretchr/testify/assert"
 
@@ -231,6 +232,277 @@ func Test_messageRepository_InsertAll(t *testing.T) {
 			if tt.checkFn != nil {
 				tt.checkFn(t, tt.args.pconn)
 			}
+		})
+	}
+}
+
+var (
+	msgA  = slack.Message{Msg: slack.Msg{Timestamp: "123.456", Text: "A"}}
+	msgB  = slack.Message{Msg: slack.Msg{Timestamp: "124.555", Text: "B"}}
+	msgB_ = slack.Message{Msg: slack.Msg{Timestamp: "124.555", Text: "B'"}}
+	msgC  = slack.Message{Msg: slack.Msg{Timestamp: "125.777", Text: "C"}}
+
+	dbmA  = must(NewDBMessage(1, 0, "C123", &msgA))
+	dbmB  = must(NewDBMessage(1, 1, "C123", &msgB))
+	dbmB_ = must(NewDBMessage(2, 0, "C123", &msgB_))
+	dbmC  = must(NewDBMessage(2, 1, "C123", &msgC))
+)
+
+func messagePrepFn(t *testing.T, conn PrepareExtContext) {
+	// we will use 2 chunks, one old and one new for the same channel
+	// they both will have 2 messages each, such as  (A, B),(B', C)
+	// where B' will be an updated version of B.
+	prepChunk(chunk.CMessages, chunk.CMessages)(t, conn)
+	mr := NewMessageRepository()
+	if err := mr.Insert(context.Background(), conn, dbmA, dbmB, dbmB_, dbmC); err != nil {
+		t.Fatalf("insert: %v", err)
+	}
+}
+
+func Test_messageRepository_Count(t *testing.T) {
+	type fields struct {
+		genericRepository genericRepository[DBMessage]
+	}
+	type args struct {
+		ctx       context.Context
+		conn      sqlx.QueryerContext
+		channelID string
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		prepFn  utilityFn
+		want    int64
+		wantErr bool
+	}{
+		{
+			name: "count the most recent messages, without duplicates",
+			fields: fields{
+				genericRepository: genericRepository[DBMessage]{DBMessage{}},
+			},
+			args: args{
+				ctx:       context.Background(),
+				conn:      testConn(t),
+				channelID: "C123",
+			},
+			prepFn:  messagePrepFn,
+			want:    3,
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.prepFn != nil {
+				tt.prepFn(t, tt.args.conn.(PrepareExtContext))
+			}
+			r := messageRepository{
+				genericRepository: tt.fields.genericRepository,
+			}
+			got, err := r.Count(tt.args.ctx, tt.args.conn, tt.args.channelID)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("messageRepository.Count() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("messageRepository.Count() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_messageRepository_AllForID(t *testing.T) {
+	type fields struct {
+		genericRepository genericRepository[DBMessage]
+	}
+	type args struct {
+		ctx       context.Context
+		conn      sqlx.QueryerContext
+		channelID string
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		prepFn  utilityFn
+		want    []testResult[DBMessage]
+		wantErr bool
+	}{
+		{
+			name: "ok",
+			fields: fields{
+				genericRepository: genericRepository[DBMessage]{DBMessage{}},
+			},
+			args: args{
+				ctx:       context.Background(),
+				conn:      testConn(t),
+				channelID: "C123",
+			},
+			prepFn: messagePrepFn,
+			want: []testResult[DBMessage]{
+				{V: *dbmA},
+				{V: *dbmB_},
+				{V: *dbmC},
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.prepFn != nil {
+				tt.prepFn(t, tt.args.conn.(PrepareExtContext))
+			}
+			r := messageRepository{
+				genericRepository: tt.fields.genericRepository,
+			}
+			got, err := r.AllForID(tt.args.ctx, tt.args.conn, tt.args.channelID)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("messageRepository.AllForID() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			assertIterResult(t, tt.want, got)
+		})
+	}
+}
+
+func Test_messageRepository_CountThread(t *testing.T) {
+	type fields struct {
+		genericRepository genericRepository[DBMessage]
+	}
+	type args struct {
+		ctx       context.Context
+		conn      sqlx.QueryerContext
+		channelID string
+		threadID  string
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		prepFn  utilityFn
+		want    int64
+		wantErr bool
+	}{
+		// TODO: Add test cases.
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.prepFn != nil {
+				tt.prepFn(t, tt.args.conn.(PrepareExtContext))
+			}
+			r := messageRepository{
+				genericRepository: tt.fields.genericRepository,
+			}
+			got, err := r.CountThread(tt.args.ctx, tt.args.conn, tt.args.channelID, tt.args.threadID)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("messageRepository.CountThread() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("messageRepository.CountThread() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+var (
+	tmAParent  = slack.Message{Msg: slack.Msg{Timestamp: "123.456", Text: "A"}}
+	tmBChannel = slack.Message{Msg: slack.Msg{Timestamp: "124.555", ThreadTimestamp: "123.456", Text: "B", SubType: "thread_broadcast"}}
+	tmB        = slack.Message{Msg: slack.Msg{Timestamp: "124.555", ThreadTimestamp: "123.456", Text: "B", SubType: "thread_broadcast"}}
+	tmC        = slack.Message{Msg: slack.Msg{Timestamp: "126.555", ThreadTimestamp: "123.456", Text: "C"}}
+	tmD        = slack.Message{Msg: slack.Msg{Timestamp: "127.555", ThreadTimestamp: "123.456", Text: "D"}}
+	tmC_       = slack.Message{Msg: slack.Msg{Timestamp: "126.555", ThreadTimestamp: "123.456", Text: "C'"}}
+
+	dbtmAParent  = must(NewDBMessage(1, 0, "C123", &tmAParent))
+	dbtmBChannel = must(NewDBMessage(1, 0, "C123", &tmBChannel))
+	dbtmB        = must(NewDBMessage(2, 1, "C123", &tmB))
+	dbtmC        = must(NewDBMessage(2, 1, "C123", &tmC))
+	dbtmD        = must(NewDBMessage(2, 1, "C123", &tmD))
+	dbtmC_       = must(NewDBMessage(3, 1, "C123", &tmC_))
+)
+
+func threadSetupFn(t *testing.T, conn PrepareExtContext) {
+	// thread setup is the following:
+	// chunk type_id subtype message   comment
+	//     1       0    NULL       A   parent message
+	//     1       0   bcast       B   thread broadcast in the channel - should not be included
+	//     2       1   bcast       B   thread broadcast in the thread
+	//     2       1    NULL       C   old thread message
+	//     2       1    NULL       D   thread message
+	//     3       1    NULL      C'   new thread message version of C.
+	//
+	//  The net result should be that we have 4 messages in the thread:
+	//  A, B, C', D
+	//
+	//    chunk_id: 1                    2                    3
+	prepChunk(chunk.CMessages, chunk.CThreadMessages, chunk.CThreadMessages)(t, conn)
+
+	mr := NewMessageRepository()
+	if err := mr.Insert(context.Background(), conn,
+		dbtmAParent,
+		dbtmBChannel,
+		dbtmB,
+		dbtmC,
+		dbtmD,
+		dbtmC_,
+	); err != nil {
+		t.Fatalf("insert: %v", err)
+	}
+}
+
+func Test_messageRepository_AllForThread(t *testing.T) {
+	type fields struct {
+		genericRepository genericRepository[DBMessage]
+	}
+	type args struct {
+		ctx       context.Context
+		conn      sqlx.QueryerContext
+		channelID string
+		threadID  string
+	}
+	tests := []struct {
+		name     string
+		fields   fields
+		args     args
+		preparFn utilityFn
+		want     []testResult[DBMessage]
+		wantErr  bool
+	}{
+		{
+			name: "ok",
+			fields: fields{
+				genericRepository: genericRepository[DBMessage]{DBMessage{}},
+			},
+			args: args{
+				ctx:       context.Background(),
+				conn:      testConn(t),
+				channelID: "C123",
+				threadID:  "123.456",
+			},
+			preparFn: threadSetupFn,
+			want: []testResult[DBMessage]{
+				{V: *dbtmAParent},
+				{V: *dbtmB},
+				{V: *dbtmC_},
+				{V: *dbtmD},
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.preparFn != nil {
+				tt.preparFn(t, tt.args.conn.(PrepareExtContext))
+			}
+			r := messageRepository{
+				genericRepository: tt.fields.genericRepository,
+			}
+			got, err := r.AllForThread(tt.args.ctx, tt.args.conn, tt.args.channelID, tt.args.threadID)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("messageRepository.AllForThread() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			assertIterResult(t, tt.want, got)
 		})
 	}
 }
