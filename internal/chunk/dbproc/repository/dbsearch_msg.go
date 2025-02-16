@@ -47,9 +47,9 @@ func (c DBSearchMessage) values() []any {
 }
 
 type SearchMessageRepository interface {
-	BulkRepository[*DBSearchMessage]
+	BulkRepository[DBSearchMessage]
 }
 
 func NewSearchMessageRepository() SearchMessageRepository {
-	return newGenericRepository(new(DBSearchMessage))
+	return newGenericRepository(DBSearchMessage{})
 }

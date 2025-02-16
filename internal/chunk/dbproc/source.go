@@ -108,12 +108,12 @@ func (s *Source) AllMessages(ctx context.Context, channelID string) ([]slack.Mes
 	}
 	defer tx.Rollback()
 
-	sz, err := mr.Count(ctx, s.conn)
+	sz, err := mr.Count(ctx, s.conn, channelID)
 	if err != nil {
 		return nil, err
 	}
 
-	it, err := mr.AllOfType(ctx, s.conn, chunk.CMessages)
+	it, err := mr.AllForID(ctx, s.conn, channelID)
 	if err != nil {
 		return nil, err
 	}

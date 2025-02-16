@@ -92,6 +92,8 @@ func (e *Export) AllMessages(channelID string) ([]slack.Message, error) {
 	var mm []slack.Message
 	if err := e.walkChannelMessages(channelID, func(m *slack.Message) error {
 		if isThreadMessage(&m.Msg) && m.SubType != structures.SubTypeThreadBroadcast {
+			// removes thread messages, except the broadcast ones, which are
+			// included in the channel message list.
 			return nil
 		}
 		mm = append(mm, *m)

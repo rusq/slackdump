@@ -64,9 +64,9 @@ func (w DBWorkspace) values() []any {
 }
 
 type WorkspaceRepository interface {
-	BulkRepository[*DBWorkspace]
+	BulkRepository[DBWorkspace]
 }
 
 func NewWorkspaceRepository() WorkspaceRepository {
-	return newGenericRepository(new(DBWorkspace))
+	return newGenericRepository(DBWorkspace{})
 }
