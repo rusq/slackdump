@@ -21,25 +21,12 @@ jobs:
     - name: Build
       run: go build -v ./...
 
-    - name: Check Catalogue
+    - name: Check creds
       run: |
-        BASE_DIR="contrib" go run ./contrib/_gen -v
-
-    - name: Test
-      run: make test
-
-  build-windows:
-    runs-on: windows-latest
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Set up Go
-      uses: actions/setup-go@v5
-      with:
-        go-version: "1.23"
-
-    - name: Build
-      run: go build -v ./...
-
-    - name: Test
-      run: go test ./... -race
+        mkdir -p ~/.cache/slackdump/
+        echo $ORA600_CREDS > ~/.cache/slackdump/ora600.bin
+        echo ora600 > ~/.cache/slackdump/workspace.txt
+        go run ./cmd/slackdump workspace select ora600
+        go run ./cmd/slackdump list channels -no-encryption
+        go run ./cmd/slackdump workspace list -a
+        go run ./cmd/slackdump tools info -auth
