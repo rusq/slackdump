@@ -23,10 +23,4 @@ jobs:
 
     - name: Check creds
       run: |
-        mkdir -p ~/.cache/slackdump/
-        echo $ORA600_CREDS > ~/.cache/slackdump/ora600.bin
-        echo ora600 > ~/.cache/slackdump/workspace.txt
-        go run ./cmd/slackdump workspace select ora600
-        go run ./cmd/slackdump list channels -no-encryption
-        go run ./cmd/slackdump workspace list -a
-        go run ./cmd/slackdump tools info -auth
+        ./utils/gha-test.sh
