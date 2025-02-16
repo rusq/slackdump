@@ -14,6 +14,7 @@ import (
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/workspace/workspaceui"
 	"github.com/rusq/slackdump/v3/internal/cache"
+	"github.com/rusq/slackdump/v3/internal/osext"
 )
 
 const baseCommand = "slackdump workspace"
@@ -177,6 +178,9 @@ func CurrentOrNewProviderCtx(ctx context.Context) (context.Context, error) {
 	prov, err := authCurrent(ctx, cachedir, cfg.Workspace, cfg.LegacyBrowser)
 	if err != nil {
 		if errors.Is(err, cache.ErrNoWorkspaces) {
+			if !osext.IsInteractive() {
+				return ctx, errors.New("running on dumb terminal, cannot create a new workspace")
+			}
 			// ask to create a new workspace
 			if err := showUI(ctx, workspaceui.WithQuickLogin(), workspaceui.WithTitle("No workspaces, please choose a login method")); err != nil {
 				return ctx, fmt.Errorf("auth error: %w", err)
