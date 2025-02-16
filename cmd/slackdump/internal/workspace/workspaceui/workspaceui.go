@@ -14,6 +14,7 @@ import (
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/cfgui"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/updaters"
 	"github.com/rusq/slackdump/v3/internal/cache"
+	"github.com/rusq/slackdump/v3/internal/osext"
 )
 
 //go:generate mockgen -package workspaceui -destination=test_mock_manager.go -source workspaceui.go manager
@@ -45,6 +46,9 @@ func WithQuickLogin() UIOption {
 // ShowUI shows the authentication menu.  If quicklogin is set to true,
 // it will quit after the user has successfully authenticated.
 func ShowUI(ctx context.Context, opts ...UIOption) error {
+	if !osext.IsInteractive() {
+		return errors.New("running on dumb terminal, cannot create a new workspace")
+	}
 	const (
 		actLogin       = "ezlogin"
 		actToken       = "token"
