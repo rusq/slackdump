@@ -13,10 +13,10 @@ import (
 
 // cmdInfo is the information command.
 var cmdInfo = &base.Command{
-	UsageLine:  "slackdump tools info",
+	UsageLine:  "slackdump tools info [flags]",
 	Short:      "show information about Slackdump environment",
 	Run:        runInfo,
-	FlagMask:   cfg.OmitAll,
+	FlagMask:   cfg.OmitAll &^ cfg.OmitCacheDir,
 	PrintFlags: true,
 
 	Long: `# Info Command

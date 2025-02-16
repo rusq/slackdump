@@ -42,7 +42,7 @@ a human readable format.  The command takes the format type and the file to
 convert as arguments.
 `, // TODO: add more info
 	CustomFlags: false,
-	FlagMask:    cfg.OmitAll & ^cfg.OmitWorkspaceFlag,
+	FlagMask:    cfg.OmitAll &^ cfg.OmitWorkspaceFlag,
 	PrintFlags:  true,
 	RequireAuth: true,
 }

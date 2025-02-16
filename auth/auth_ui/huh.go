@@ -11,6 +11,7 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/huh"
 	"github.com/rusq/slackauth"
+
 	"github.com/rusq/slackdump/v3/internal/structures"
 )
 
@@ -95,13 +96,13 @@ func init() {
 }
 
 func (*Huh) RequestLoginType(ctx context.Context, w io.Writer, workspace string) (LoginOpts, error) {
-	var ret = LoginOpts{
+	ret := LoginOpts{
 		Workspace:   workspace,
 		Type:        LInteractive,
 		BrowserPath: "",
 	}
 
-	var opts = make([]huh.Option[LoginType], 0, len(methods))
+	opts := make([]huh.Option[LoginType], 0, len(methods))
 	for _, m := range methods {
 		opts = append(opts, huh.NewOption(m.String(), m.Type))
 	}
@@ -173,7 +174,7 @@ func chooseBrowser(ctx context.Context) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	var opts = make([]huh.Option[int], 0, len(browsers))
+	opts := make([]huh.Option[int], 0, len(browsers))
 	for i, b := range browsers {
 		opts = append(opts, huh.NewOption(b.Name, i))
 	}
