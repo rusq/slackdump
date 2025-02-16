@@ -1,10 +1,14 @@
 package repository
 
 import (
+	"context"
 	"fmt"
+	"iter"
 
+	"github.com/jmoiron/sqlx"
 	"github.com/rusq/slack"
 
+	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/internal/fasttime"
 	"github.com/rusq/slackdump/v3/internal/structures"
 )
@@ -98,13 +102,23 @@ func (dbm DBMessage) Val() (slack.Message, error) {
 }
 
 type MessageRepository interface {
-	BulkRepository[DBMessage]
+	Inserter[DBMessage]
+	Count(ctx context.Context, conn sqlx.QueryerContext, channelID string) (int64, error)
+	AllForID(ctx context.Context, conn sqlx.QueryerContext, channelID string) (iter.Seq2[DBMessage, error], error)
 }
 
 type messageRepository struct {
-	BulkRepository[DBMessage]
+	genericRepository[DBMessage]
 }
 
 func NewMessageRepository() MessageRepository {
 	return messageRepository{newGenericRepository(DBMessage{})}
+}
+
+func (r messageRepository) Count(ctx context.Context, conn sqlx.QueryerContext, channelID string) (int64, error) {
+	return r.countTypeWhere(ctx, conn, chunk.CMessages, "CHANNEL_ID = ?", channelID)
+}
+
+func (r messageRepository) AllForID(ctx context.Context, conn sqlx.QueryerContext, channelID string) (iter.Seq2[DBMessage, error], error) {
+	return r.allOfTypeWhere(ctx, conn, chunk.CMessages, "CHANNEL_ID = ?", channelID)
 }
