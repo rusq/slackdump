@@ -6,9 +6,10 @@ if [ -z "${ORA600_CREDS}" ]; then
 fi
 
 OUTPUT=~/.cache/slackdump/ora600.bin
+OUTPUT_DIR=$(dirname ${OUTPUT})
 
 mkdir -p ~/.cache/slackdump/
-curl -o ~/.cache/slackdump/ora600.bin -u "${ORA600_CREDS}" --basic http://tts.endless.lol:12087/ora600.bin 
+curl -o ${OUTPUT} -u "${ORA600_CREDS}" --basic http://tts.endless.lol:12087/ora600.bin 
 
 if [ -s ${OUTPUT} ]; then
   echo "Downloaded ora600.bin"
@@ -17,14 +18,12 @@ else
   exit 1
 fi
 
-echo ora600 > ~/.cache/slackdump/workspace.txt
-ls -l ~/.cache/slackdump/
+echo ora600 > ${OUTPUT_DIR}/workspace.txt
+ls -l ${OUTPUT_DIR}
 
-md5sum ~/.cache/slackdump/ora600.bin
-
+md5sum ${OUTPUT}
 
 go build ./cmd/slackdump
-./slackdump workspace list -v
 ./slackdump workspace select -v ora600
-./slackdump workspace list -v
+./slackdump workspace list -v -no-encryption -a
 ./slackdump list channels -v -no-encryption
