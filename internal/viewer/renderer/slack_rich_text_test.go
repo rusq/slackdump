@@ -328,7 +328,7 @@ func TestMbtRichText(t *testing.T) {
     }
   ]
 }`
-	t.Run("colorfull", func(t *testing.T) {
+	t.Run("colorful", func(t *testing.T) {
 		s := &Slack{}
 		m := load[*slack.RichTextBlock](t, colorful)
 		got, _, err := s.mbtRichText(m)
