@@ -124,7 +124,7 @@ func (d *DBP) WithTx(ctx context.Context, fn func(txx *sqlx.Tx) error) error {
 	return nil
 }
 
-// WithReadTx locks the connectin and starts a read-only transaction. It rolls
+// WithReadTx locks the connection and starts a read-only transaction. It rolls
 // it back after fn has returned.
 func (d *DBP) WithReadTx(ctx context.Context, fn func(txx *sqlx.Tx) error) error {
 	d.mu.Lock()
