@@ -267,7 +267,7 @@ func genChFromAPI(s Streamer, cd *chunk.Directory, memberOnly bool) linkFeederFu
 		chanproc, err := dirproc.NewChannels(cd, func(c []slack.Channel) error {
 		LOOP:
 			for _, ch := range c {
-				if memberOnly && !ch.IsMember {
+				if memberOnly && (ch.ID[0] == 'C' && !ch.IsMember) { // include DMs etc
 					continue
 				}
 				for _, entry := range chIdx {
