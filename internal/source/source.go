@@ -17,6 +17,7 @@ import (
 	"log/slog"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -36,12 +37,12 @@ type Sourcer interface {
 	// Channels should return all channels.
 	Channels(ctx context.Context) ([]slack.Channel, error)
 	// Users should return all users.
-	Users() ([]slack.User, error)
+	Users(ctx context.Context) ([]slack.User, error)
 	// AllMessages should return all messages for the given channel id.
-	AllMessages(channelID string) ([]slack.Message, error)
+	AllMessages(ctx context.Context, channelID string) ([]slack.Message, error)
 	// AllThreadMessages should return all messages for the given tuple
 	// (channelID, threadID).
-	AllThreadMessages(channelID, threadID string) ([]slack.Message, error)
+	AllThreadMessages(ctx context.Context, channelID, threadID string) ([]slack.Message, error)
 	// ChannelInfo should return the channel information for the given channel
 	// id.
 	ChannelInfo(ctx context.Context, channelID string) (*slack.Channel, error)
@@ -54,7 +55,7 @@ type Sourcer interface {
 	Latest(ctx context.Context) (map[structures.SlackLink]time.Time, error)
 	// WorkspaceInfo should return the workspace information, if it is available.
 	// If the call is not supported, it should return ErrNotSupported.
-	WorkspaceInfo() (*slack.AuthTestResponse, error)
+	WorkspaceInfo(ctx context.Context) (*slack.AuthTestResponse, error)
 
 	io.Closer
 }
@@ -100,6 +101,7 @@ var (
 	_ Sourcer = &Export{}
 	_ Sourcer = &ChunkDir{}
 	_ Sourcer = &Dump{}
+	_ Sourcer = &Database{}
 )
 
 // Load loads the source from file src.
@@ -161,14 +163,20 @@ func srcType(src string, fi fs.FileInfo) Flags {
 	if fi.IsDir() {
 		fsys = os.DirFS(src)
 		flags |= FDirectory
-	} else if fi.Mode().IsRegular() && strings.ToLower(path.Ext(src)) == ".zip" {
-		f, err := zip.OpenReader(src)
-		if err != nil {
-			return FUnknown
+	} else if fi.Mode().IsRegular() {
+		if strings.ToLower(path.Ext(src)) == ".zip" {
+			f, err := zip.OpenReader(src)
+			if err != nil {
+				return FUnknown
+			}
+			defer f.Close()
+			fsys = f
+			flags |= FZip
+		} else if strings.EqualFold(filepath.Base(src), "slackdump.sqlite") {
+			// just the database, no attachments
+			flags |= FDatabase
+			return flags
 		}
-		defer f.Close()
-		fsys = f
-		flags |= FZip
 	} else {
 		return FUnknown
 	}
@@ -197,6 +205,7 @@ func srcType(src string, fi fs.FileInfo) Flags {
 		return flags | FExport
 	}
 	if _, err := fs.Stat(fsys, "slackdump.sqlite"); err == nil {
+		// directory with the database
 		return flags | FDatabase
 	}
 	return FUnknown

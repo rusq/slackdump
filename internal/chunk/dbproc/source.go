@@ -153,3 +153,13 @@ func (s *Source) ChannelInfo(ctx context.Context, channelID string) (*slack.Chan
 	v, err := c.Val()
 	return &v, err
 }
+
+func (s *Source) WorkspaceInfo(ctx context.Context) (*slack.AuthTestResponse, error) {
+	cr := repository.NewWorkspaceRepository()
+	dbw, err := cr.GetWorkspace(ctx, s.conn)
+	if err != nil {
+		return nil, err
+	}
+	w, err := dbw.Val()
+	return &w, err
+}

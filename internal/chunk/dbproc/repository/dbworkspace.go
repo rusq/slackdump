@@ -1,14 +1,20 @@
 package repository
 
 import (
+	"context"
+	"errors"
+
+	"github.com/jmoiron/sqlx"
 	"github.com/rusq/slack"
+
+	"github.com/rusq/slackdump/v3/internal/chunk"
 )
 
 type DBWorkspace struct {
 	ID           int64   `db:"ID,omitempty"`
 	ChunkID      int64   `db:"CHUNK_ID"`
 	Team         string  `db:"TEAM"`
-	User         string  `db:"USERNAME"`
+	User         *string `db:"USERNAME"`
 	TeamID       string  `db:"TEAM_ID"`
 	UserID       string  `db:"USER_ID"`
 	EnterpriseID *string `db:"ENTERPRISE_ID"`
@@ -24,7 +30,7 @@ func NewDBWorkspace(chunkID int64, wi *slack.AuthTestResponse) (*DBWorkspace, er
 	return &DBWorkspace{
 		ChunkID:      chunkID,
 		Team:         wi.Team,
-		User:         wi.UserID,
+		User:         orNull(wi.User != "", wi.User),
 		TeamID:       wi.TeamID,
 		UserID:       wi.UserID,
 		EnterpriseID: orNull(wi.EnterpriseID != "", wi.EnterpriseID),
@@ -41,7 +47,7 @@ func (w DBWorkspace) columns() []string {
 	return []string{
 		"CHUNK_ID",
 		"TEAM",
-		"USER_ID",
+		"USERNAME",
 		"TEAM_ID",
 		"USER_ID",
 		"ENTERPRISE_ID",
@@ -54,7 +60,7 @@ func (w DBWorkspace) values() []any {
 	return []any{
 		w.ChunkID,
 		w.Team,
-		w.UserID,
+		w.User,
 		w.TeamID,
 		w.UserID,
 		w.EnterpriseID,
@@ -63,10 +69,36 @@ func (w DBWorkspace) values() []any {
 	}
 }
 
+func (w DBWorkspace) Val() (slack.AuthTestResponse, error) {
+	return unmarshalt[slack.AuthTestResponse](w.Data)
+}
+
 type WorkspaceRepository interface {
-	BulkRepository[DBWorkspace]
+	Inserter[DBWorkspace]
+	GetWorkspace(ctx context.Context, conn sqlx.QueryerContext) (DBWorkspace, error)
+}
+
+type workspaceRepository struct {
+	genericRepository[DBWorkspace]
 }
 
 func NewWorkspaceRepository() WorkspaceRepository {
-	return newGenericRepository(DBWorkspace{})
+	return workspaceRepository{newGenericRepository(DBWorkspace{})}
+}
+
+// GetWorkspace returns the latest version of the workspace.
+func (r workspaceRepository) GetWorkspace(ctx context.Context, conn sqlx.QueryerContext) (DBWorkspace, error) {
+	it, err := r.AllOfType(ctx, conn, chunk.CWorkspaceInfo)
+	if err != nil {
+		return DBWorkspace{}, err
+	}
+	for w, err := range it {
+		if err != nil {
+			return DBWorkspace{}, err
+		}
+		// we just need one, maybe later, when there are multiple workspaces in
+		// a single data base, we will need to return a slice of workspaces
+		return w, nil
+	}
+	return DBWorkspace{}, errors.New("no workspace found")
 }

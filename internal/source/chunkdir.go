@@ -38,7 +38,7 @@ func NewChunkDir(d *chunk.Directory, fast bool) *ChunkDir {
 // it expects for all messages for the requested file to be in the file ID.json.gz.
 // If messages for the channel are scattered across multiple file, it will not
 // return all of them.
-func (c *ChunkDir) AllMessages(channelID string) ([]slack.Message, error) {
+func (c *ChunkDir) AllMessages(_ context.Context, channelID string) ([]slack.Message, error) {
 	if c.fast {
 		return c.d.FastAllMessages(channelID)
 	} else {
@@ -46,7 +46,7 @@ func (c *ChunkDir) AllMessages(channelID string) ([]slack.Message, error) {
 	}
 }
 
-func (c *ChunkDir) AllThreadMessages(channelID, threadID string) ([]slack.Message, error) {
+func (c *ChunkDir) AllThreadMessages(_ context.Context, channelID, threadID string) ([]slack.Message, error) {
 	if c.fast {
 		return c.d.FastAllThreadMessages(channelID, threadID)
 	}
@@ -74,7 +74,7 @@ func (c *ChunkDir) Type() string {
 	return "chunk"
 }
 
-func (c *ChunkDir) Users() ([]slack.User, error) {
+func (c *ChunkDir) Users(context.Context) ([]slack.User, error) {
 	return c.d.Users()
 }
 
@@ -102,6 +102,6 @@ func (c *ChunkDir) Latest(ctx context.Context) (map[structures.SlackLink]time.Ti
 	return mm, nil
 }
 
-func (c *ChunkDir) WorkspaceInfo() (*slack.AuthTestResponse, error) {
+func (c *ChunkDir) WorkspaceInfo(context.Context) (*slack.AuthTestResponse, error) {
 	return c.d.WorkspaceInfo()
 }

@@ -95,7 +95,7 @@ func isDumpJSONFile(name string) bool {
 	return err == nil && match
 }
 
-func (d Dump) Users() ([]slack.User, error) {
+func (d Dump) Users(context.Context) ([]slack.User, error) {
 	u, err := unmarshal[[]slack.User](d.fs, "users.json")
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -106,7 +106,7 @@ func (d Dump) Users() ([]slack.User, error) {
 	return u, nil
 }
 
-func (d Dump) AllMessages(channelID string) ([]slack.Message, error) {
+func (d Dump) AllMessages(_ context.Context, channelID string) ([]slack.Message, error) {
 	var cm []types.Message
 	c, err := unmarshalOne[types.Conversation](d.fs, d.channelFile(channelID))
 	if err != nil {
@@ -160,7 +160,7 @@ func convertMessages(cm []types.Message) []slack.Message {
 	return mm
 }
 
-func (d Dump) AllThreadMessages(channelID, threadID string) ([]slack.Message, error) {
+func (d Dump) AllThreadMessages(_ context.Context, channelID, threadID string) ([]slack.Message, error) {
 	cm, err := d.findThreadInChannel(channelID, threadID)
 	if err != nil {
 		if !os.IsNotExist(err) {
@@ -220,6 +220,6 @@ func (d Dump) Latest(ctx context.Context) (map[structures.SlackLink]time.Time, e
 	return nil, errors.New("not supported yet")
 }
 
-func (d Dump) WorkspaceInfo() (*slack.AuthTestResponse, error) {
+func (d Dump) WorkspaceInfo(context.Context) (*slack.AuthTestResponse, error) {
 	return nil, ErrNotSupported
 }
