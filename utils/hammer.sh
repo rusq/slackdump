@@ -9,9 +9,10 @@ if [ $? != 0 ] ; then
 	exit 1;
 fi
 echo ""
-echo Attempts: ${ATTEMPTS}
+echo Attempts: "${ATTEMPTS}"
 
-for (( i = 0; i < ${ATTEMPTS} ; i++ )) ; do
-	echo Attempt `expr $i + 1` of $ATTEMPTS
-	./slackdump ${CMD} -o dir${i} -trace=trace${i}.out -log=log${i}.log -v
+for (( i = 0; i < "${ATTEMPTS}" ; i++ )) ; do
+	# shellcheck disable=SC2003
+	echo Attempt $(expr $i + 1) of "$ATTEMPTS"
+	./slackdump "${CMD}" -o dir${i} -trace=trace${i}.out -log=log${i}.log -v
 done
