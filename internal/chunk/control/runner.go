@@ -179,7 +179,7 @@ func newChanGenerator(links chan<- structures.EntityItem, list *structures.Entit
 func (c *chanGenerator) Channels(ctx context.Context, ch []slack.Channel) error {
 LOOP:
 	for _, ch := range ch {
-		if c.memberOnly && !ch.IsMember {
+		if c.memberOnly && (ch.ID[0] == 'C' && !ch.IsMember) { // skip public non-member channels
 			continue
 		}
 		for _, entry := range c.idx {
