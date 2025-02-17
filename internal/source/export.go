@@ -71,7 +71,7 @@ func (e *Export) Channels(context.Context) ([]slack.Channel, error) {
 	return e.channels, nil
 }
 
-func (e *Export) Users() ([]slack.User, error) {
+func (e *Export) Users(context.Context) ([]slack.User, error) {
 	return e.idx.Users, nil
 }
 
@@ -88,7 +88,7 @@ func (e *Export) Type() string {
 }
 
 // AllMessages returns all channel messages without thread messages.
-func (e *Export) AllMessages(channelID string) ([]slack.Message, error) {
+func (e *Export) AllMessages(_ context.Context, channelID string) ([]slack.Message, error) {
 	var mm []slack.Message
 	if err := e.walkChannelMessages(channelID, func(m *slack.Message) error {
 		if isThreadMessage(&m.Msg) && m.SubType != structures.SubTypeThreadBroadcast {
@@ -142,7 +142,7 @@ func isThreadMessage(m *slack.Msg) bool {
 	return m.ThreadTimestamp != "" && m.ThreadTimestamp != m.Timestamp
 }
 
-func (e *Export) AllThreadMessages(channelID, threadID string) ([]slack.Message, error) {
+func (e *Export) AllThreadMessages(_ context.Context, channelID, threadID string) ([]slack.Message, error) {
 	var tm []slack.Message
 	if err := e.walkChannelMessages(channelID, func(m *slack.Message) error {
 		if m.ThreadTimestamp == threadID {
@@ -172,7 +172,7 @@ func (e *Export) Latest(ctx context.Context) (map[structures.SlackLink]time.Time
 	return nil, errors.New("not supported yet")
 }
 
-func (e *Export) WorkspaceInfo() (*slack.AuthTestResponse, error) {
+func (e *Export) WorkspaceInfo(context.Context) (*slack.AuthTestResponse, error) {
 	// potentially the URL of the workspace is contained in file attachments, but until
 	// AllMessages is implemented with iterators, it's too expensive to get.
 	return nil, ErrNotSupported
