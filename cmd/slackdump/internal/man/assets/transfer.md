@@ -6,9 +6,14 @@ At times you may need to transfer the credentials to another computer or
 system, such as CI/CD.  As the credentials are encrypted with the
 machine-specific key (machine ID), the credentials will not work straight away.
 
-Slackdump supports Machine ID override, which allows you to define the machine
-ID for a chosen workspace.  Using the same Machine ID on your local and remote
-systems will allow you to use the same credentials on both.
+Slackdump supports the following methods to assist with credentials transfer:
+- specifying a custom Machine ID override, which allows you to define the
+  machine ID for a chosen workspace.  Using the same Machine ID on your local
+  and remote systems will allow you to use the same credentials on both.
+- disabling encryption completely.
+
+While disabling encryption may sound like an easiest option, always consider
+the risks.  It is safer to use -machine-id override.
 
 __IMPORTANT__:  Never share your custom machine ID with anyone.  The machine ID
 is a secret key to your login information.
@@ -68,7 +73,8 @@ To transfer the credentials to another system, follow these steps:
    You should see OK in the last "error" column.  If you see "failed to load
    stored credentials", it means that the credentials are not working.
 
-   If you disabled encryption, you need to use `-no-encryption` flag instead:
+   If you disabled encryption when authenticating in the workspace, you need to
+   use `-no-encryption` flag instead:
    
    ```bash
    slackdump workspace list -a -no-encryption
