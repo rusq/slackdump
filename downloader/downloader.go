@@ -38,7 +38,7 @@ var (
 //
 //go:generate mockgen -destination=../mocks/mock_downloader/mock_getfiler.go . GetFiler
 type GetFiler interface {
-	// GetFile retreives a given file from its private download URL
+	// GetFile retrieves a given file from its private download URL
 	GetFileContext(ctx context.Context, downloadURL string, writer io.Writer) error
 }
 

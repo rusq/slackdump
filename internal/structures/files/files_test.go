@@ -35,7 +35,7 @@ func Test_addToken(t *testing.T) {
 			false,
 		},
 		{
-			"preseves other parameters",
+			"preserves other parameters",
 			args{"https://slack.com/files/BLAHBLAH/x.jpg?t=xoxe-yyyyy&q=bbbb", "xoxe-xxxxx"},
 			"https://slack.com/files/BLAHBLAH/x.jpg?q=bbbb&t=xoxe-xxxxx",
 			false,
@@ -108,8 +108,8 @@ func TestUpdatePathFn(t *testing.T) {
 
 func Test_callForEach(t *testing.T) {
 	t.Run("iterates properly", func(t *testing.T) {
-		var testSlice = []int{1, 2, 3}
-		var got = []*int{&testSlice[0], &testSlice[1], &testSlice[2]}
+		testSlice := []int{1, 2, 3}
+		got := []*int{&testSlice[0], &testSlice[1], &testSlice[2]}
 		err := apply(got, func(el *int) error {
 			*el = *el * (*el)
 			return nil
@@ -123,8 +123,8 @@ func Test_callForEach(t *testing.T) {
 		}
 	})
 	t.Run("propagates error", func(t *testing.T) {
-		var testSlice = []int{1, 2, 3}
-		var got = []*int{&testSlice[0], &testSlice[1], &testSlice[2]}
+		testSlice := []int{1, 2, 3}
+		got := []*int{&testSlice[0], &testSlice[1], &testSlice[2]}
 		err := apply(got, func(el *int) error {
 			return errors.New("not today, sir")
 		})

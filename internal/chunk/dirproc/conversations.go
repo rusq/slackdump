@@ -18,11 +18,11 @@ import (
 // Transformer is an interface that is called when the processor is finished
 // processing a channel or thread.
 type Transformer interface {
-	// Transform is the function that starts the tranformation of the channel
-	// or thread with the given id.  It is called  when the reference count
-	// for the channel id becomes zero (meaning, that there are no more chunks
-	// to process).  It should return [transform.ErrClosed] if the transformer
-	// is closed.
+	// Transform is the function that starts the transformation of the channel
+	// or thread with the given id.  It is called  when the reference count for
+	// the channel id becomes zero (meaning, that there are no more chunks to
+	// process).  It should return [transform.ErrClosed] if the transformer is
+	// closed.
 	Transform(ctx context.Context, id chunk.FileID) error
 }
 

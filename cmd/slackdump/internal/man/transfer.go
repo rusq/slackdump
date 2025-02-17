@@ -11,6 +11,6 @@ var transferMd string
 
 var Transfer = &base.Command{
 	UsageLine: "transfer",
-	Short:     "transfering credentials to another system",
+	Short:     "transferring credentials to another system",
 	Long:      transferMd,
 }

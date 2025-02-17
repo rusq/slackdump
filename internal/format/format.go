@@ -1,4 +1,4 @@
-// Package format provides formatting fuctions for different output format
+// Package format provides formatting functions for different output format
 // types.
 package format
 
@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/rusq/slack"
+
 	"github.com/rusq/slackdump/v3/internal/structures"
 	"github.com/rusq/slackdump/v3/types"
 )
@@ -89,7 +90,7 @@ func userReplacer(userIdx structures.UserIndex) *strings.Replacer {
 	if len(userIdx) == 0 {
 		return strings.NewReplacer()
 	}
-	var replacements = make([]string, 0, len(userIdx)*2)
+	replacements := make([]string, 0, len(userIdx)*2)
 	for k := range userIdx {
 		replacements = append(replacements, k, userIdx.DisplayName(k))
 	}

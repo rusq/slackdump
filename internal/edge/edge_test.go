@@ -20,7 +20,7 @@ import (
 var _ = godotenv.Load()
 
 var (
-	// preferrably guest workspace token.
+	// preferably guest workspace token.
 	testToken  = os.Getenv("EDGE_TOKEN")
 	testCookie = os.Getenv("EDGE_COOKIE")
 )

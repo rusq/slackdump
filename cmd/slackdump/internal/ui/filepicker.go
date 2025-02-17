@@ -14,7 +14,7 @@ type FileSystemModel struct {
 	SelectedFile string
 	quitting     bool
 	err          error
-	Propmt       string
+	Prompt       string
 }
 
 func NewFilePicker(prompt string, homedir string, allowedExt ...string) FileSystemModel {
@@ -25,7 +25,7 @@ func NewFilePicker(prompt string, homedir string, allowedExt ...string) FileSyst
 
 	return FileSystemModel{
 		filepicker: fp,
-		Propmt:     prompt,
+		Prompt:     prompt,
 	}
 }
 
@@ -83,7 +83,7 @@ func (m FileSystemModel) View() string {
 	if m.err != nil {
 		s.WriteString(m.filepicker.Styles.DisabledFile.Render(m.err.Error()))
 	} else if m.SelectedFile == "" {
-		s.WriteString(m.Propmt)
+		s.WriteString(m.Prompt)
 	} else {
 		s.WriteString("Selected file: " + m.filepicker.Styles.Selected.Render(m.SelectedFile))
 	}

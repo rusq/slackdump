@@ -19,7 +19,7 @@
 // Procedure to add new collectors:
 //  1. Create a new file in this package, named after the collector.
 //  2. Define a struct with the name of the collector, alternatively, if
-//     it interfers with the imported package, add "*info" suffix, i.e.
+//     it interferes with the imported package, add "*info" suffix, i.e.
 //     "rodinfo"
 //  3. Define a method "collect" on the struct, that collects the information
 //     and populates struct fields.

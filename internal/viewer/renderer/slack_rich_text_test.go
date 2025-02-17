@@ -257,7 +257,7 @@ func TestSlack_rtseColor(t *testing.T) {
 }
 
 func TestMbtRichText(t *testing.T) {
-	const colorfull = `{
+	const colorful = `{
   "type": "rich_text",
   "block_id": "arhEv",
   "elements": [
@@ -330,7 +330,7 @@ func TestMbtRichText(t *testing.T) {
 }`
 	t.Run("colorfull", func(t *testing.T) {
 		s := &Slack{}
-		m := load[*slack.RichTextBlock](t, colorfull)
+		m := load[*slack.RichTextBlock](t, colorful)
 		got, _, err := s.mbtRichText(m)
 		if err != nil {
 			t.Errorf("Slack.rtseSection() error = %v", err)

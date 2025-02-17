@@ -6,7 +6,7 @@ There are two ways to use Slackdump:
 
 ## Wizard Mode
 1. Start Slackdump without parameters, and choose __Run wizard__.  Alternatively,
-   you can start wizard by runnning `slackdump wiz`).
+   you can start wizard by running `slackdump wiz`).
 2. Add a new workspace:
    1. In the main menu, choose __Workspace => New__
    2. Select __Login In Browser__, and type your workspace name or paste a URL.

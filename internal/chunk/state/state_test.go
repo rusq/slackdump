@@ -164,7 +164,6 @@ func Test_latest(t *testing.T) {
 			"",
 		},
 		{
-
 			"found",
 			args{
 				map[string]int64{
@@ -301,7 +300,7 @@ func TestState_AddMessage(t *testing.T) {
 		wantMap map[_id]int64
 	}{
 		{
-			"empty (shoudn't panic)",
+			"empty (shouldn't panic)",
 			fields{
 				Version:  0.1,
 				Channels: nil,
@@ -485,7 +484,7 @@ func TestState_AddThread(t *testing.T) {
 		want   map[_idAndThread]int64
 	}{
 		{
-			"empty (shoudn't panic)",
+			"empty (shouldn't panic)",
 			fields{
 				Version:  0.1,
 				Channels: nil,
@@ -537,7 +536,7 @@ func TestState_AddFile(t *testing.T) {
 		want   map[_id]_id
 	}{
 		{
-			"empty (shoudn't panic)",
+			"empty (shouldn't panic)",
 			fields{
 				Version:  0.1,
 				Channels: nil,
