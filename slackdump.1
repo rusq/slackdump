@@ -166,12 +166,21 @@ with the manual authentication methods.
 Allows to override the machine ID. To read how to use it to transfer the credentials
 between machine, run:
 .Bd -literal -offset indent
-slackdump help transfer
+.Nm Cm help Ar transfer
 .Ed
+.Pp
+See also
+.Fl no-encryption
 .It Fl member-only
 Specify this flag to export only conversations (channels) that the current user
 is part of.  Works only if the list of channels/threads is not explicitly
 specified.
+.It Fl no-encryption
+Disables the encryption of cache files and credentials.  Use this option if
+you're planning to transfer credentials to another system.  It is highly
+recommended to use
+.Fl machine-id
+flag instead, as it is more secure.
 .It Fl no-user-cache
 Disables caching of users for the subcommands of the
 .Cm list
@@ -325,7 +334,7 @@ uninstall Slackdump components or purge it from the system.
 thread utility, used to create threads in the Slack workspace for tests.
 .El
 .Sh ENVIRONMENT
-.Bl -tag -width SLACK_WORKSPACE
+.Bl -tag -width TRACE_FILE
 .It Ev BASE_LOC
 Contains path to a directory or zip file where all data will be stored.  See
 .Fl base
@@ -339,7 +348,9 @@ for more details.
 enables debug output and switches the viewer output to RAW (JSON) format.
 .It Ev DISABLE_ENCRYPTION
 .BOOL
-disables encryption for the cache and credentials files.
+disables encryption for the cache and credentials files.  See
+.Fl no-encryption
+flag for more details.
 .It Ev JSON_LOG
 .BOOL
 enables JSON log format.

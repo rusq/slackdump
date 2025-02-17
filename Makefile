@@ -25,6 +25,12 @@ $(OUTPUT)-windows.zip: EXECUTABLE=$(OUTPUT).exe
 $(foreach s,$(OSES),$(eval $(OUTPUT)-$s.zip: GOOS=$s))
 $(foreach s,$(OSES),$(eval $(OUTPUT)-$s.zip: $(EXECUTABLE)))
 
+# rules
+%.ps: %.1
+	man -t ./$< > $@
+
+%.pdf: %.ps
+	ps2pdf $< $@
 
 all: $(EXECUTABLE)
 
@@ -81,3 +87,8 @@ install_tools:
 	go install go.uber.org/mock/mockgen@latest
 	go install golang.org/x/tools/cmd/stringer@latest
 .PHONY: install_tools
+
+slackdump.pdf: slackdump.ps
+
+slackdump.ps: slackdump.1
+
