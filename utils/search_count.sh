@@ -3,7 +3,7 @@
 if [ -d "$1" ] ; then
     archive="$1"
 else
-    echo "Usage: $(basename $0) <search_archive>"
+    echo "Usage: $(basename "$0") <search_archive>"
     exit 1
 fi
 

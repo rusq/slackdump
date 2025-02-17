@@ -23,7 +23,7 @@ type ExportIndex struct {
 	Users    []slack.User    `filename:"users.json"`
 }
 
-// DM respresents a direct Message entry in dms.json.
+// DM represents a direct Message entry in dms.json.
 // Structure is based on this post:
 //
 //	https://github.com/RocketChat/Rocket.Chat/issues/13905#issuecomment-477500022
@@ -53,7 +53,7 @@ func MakeExportIndex(channels []slack.Channel, users []slack.User, currentUserID
 		return nil, ErrNoIdent
 	}
 
-	var idx = ExportIndex{
+	idx := ExportIndex{
 		Users:    users,
 		Channels: make([]slack.Channel, 0, len(channels)),
 		Groups:   []slack.Channel{},
@@ -145,7 +145,7 @@ func (idx *ExportIndex) Unmarshal(fsys fs.FS) error {
 // Restore restores the index to the original channels slice (minus the lost
 // data from DMs).
 func (idx *ExportIndex) Restore() []slack.Channel {
-	var chans = make([]slack.Channel, 0, len(idx.Channels)+len(idx.Groups)+len(idx.MPIMs)+len(idx.DMs))
+	chans := make([]slack.Channel, 0, len(idx.Channels)+len(idx.Groups)+len(idx.MPIMs)+len(idx.DMs))
 
 	chans = append(chans, idx.Channels...)
 	chans = append(chans, idx.Groups...)
@@ -157,7 +157,7 @@ func (idx *ExportIndex) Restore() []slack.Channel {
 
 func dmsToChannels(DMs []DM) []slack.Channel {
 	me := mostFrequentMember(DMs)
-	var chans = make([]slack.Channel, 0, len(DMs))
+	chans := make([]slack.Channel, 0, len(DMs))
 	for _, dm := range DMs {
 		chans = append(chans, slack.Channel{
 			GroupConversation: slack.GroupConversation{
@@ -213,7 +213,7 @@ func except[S ~[]T, T comparable](s T, ss S) T {
 // returns an empty string.  The user, who appears in "Members" slices the
 // most, is considered the current user.
 func mostFrequentMember(dms []DM) string {
-	var counts = make(map[string]int)
+	counts := make(map[string]int)
 	for _, dm := range dms {
 		for _, m := range dm.Members {
 			counts[m]++

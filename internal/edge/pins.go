@@ -26,7 +26,7 @@ type PinnedItem struct {
 	Message   slack.Message `json:"message"`
 }
 
-// PinsList resturns a list of pinned items in a conversation.
+// PinsList returns a list of pinned items in a conversation.
 func (cl *Client) PinsList(ctx context.Context, channelID string) ([]PinnedItem, error) {
 	form := &pinsListRequest{
 		BaseRequest:     BaseRequest{Token: cl.token},

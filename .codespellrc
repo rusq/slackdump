@@ -1,0 +1,7 @@
+[codespell]
+# Ref: https://github.com/codespell-project/codespell#using-a-config-file
+skip = .git,go.sum,.codespellrc,.goreleaser.yaml
+check-hidden = true
+# ignore-regex = 
+# ignore some variable names
+ignore-words-list = ser,ans,auther,Nd,FO,Nexted

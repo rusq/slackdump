@@ -89,7 +89,7 @@ func (s *Session) dumpChannel(ctx context.Context, channelID string, oldest, lat
 	trace.Logf(ctx, "info", "channelID: %q, oldest: %s, latest: %s", channelID, oldest, latest)
 
 	var (
-		// slack rate limits are per method, so we're safe to use different limiters for different mehtods.
+		// slack rate limits are per method, so we're safe to use different limiters for different methods.
 		convLimiter   = s.limiter(network.Tier3)
 		threadLimiter = s.limiter(network.Tier3)
 	)
@@ -104,9 +104,7 @@ func (s *Session) dumpChannel(ctx context.Context, channelID string, oldest, lat
 		fetchStart = time.Now()
 	)
 	for i := 1; ; i++ {
-		var (
-			resp *slack.GetConversationHistoryResponse
-		)
+		var resp *slack.GetConversationHistoryResponse
 		reqStart := time.Now()
 		if err := network.WithRetry(ctx, convLimiter, s.cfg.limits.Tier3.Retries, func() error {
 			var err error

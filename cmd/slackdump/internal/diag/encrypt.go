@@ -85,7 +85,7 @@ var cmdEncrypt = &base.Command{
 Encrypt a file with the developer key to attach to a github issue or send as a
 message.
 
-It uses the assymetric encryption (GPG) to encrypt the file with the developer
+It uses the asymmetric encryption (GPG) to encrypt the file with the developer
 key, and can only be decrypted by the developer.
 
 If the input is not specified, it reads from stdin. If the output is not

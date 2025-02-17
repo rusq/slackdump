@@ -335,7 +335,7 @@ func procThreadMsg(ctx context.Context, proc processor.Conversations, channel *s
 	return nil
 }
 
-// procFiles proceses the files in slice of Messages msgs.
+// procFiles processes the files in slice of Messages msgs.
 func procFiles(ctx context.Context, proc processor.Filer, channel *slack.Channel, msgs ...slack.Message) error {
 	if len(msgs) == 0 {
 		return nil

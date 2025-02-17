@@ -1,0 +1,29 @@
+# Codespell configuration is within .codespellrc
+---
+name: Shellcheck
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+permissions:
+  contents: read
+
+jobs:
+  shellcheck:
+    name: Check shell scripts and spelling errors.
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Codespell
+        uses: codespell-project/actions-codespell@v2
+      - name: Install dependencies
+        run: |
+          sudo apt update && sudo apt install -y shellcheck
+      - name: shellcheck
+        run: |
+          git grep -l '^#\( *shellcheck \|!\(/bin/\|/usr/bin/env \)\(sh\|bash\|dash\|ksh\)\)' | xargs shellcheck

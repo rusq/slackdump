@@ -2,7 +2,7 @@ package chunktest
 
 import "net/http/httptest"
 
-// baseServer is a wrapper arund the test HTTP server with some overrides.
+// baseServer is a wrapper around the test HTTP server with some overrides.
 type baseServer struct {
 	*httptest.Server
 }

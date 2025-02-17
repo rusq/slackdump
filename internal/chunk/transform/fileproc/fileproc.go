@@ -123,7 +123,7 @@ func (NoopDownloader) Download(fullpath string, url string) error { return nil }
 func (NoopDownloader) Stop()                                      {}
 
 type FileGetter interface {
-	// GetFile retreives a given file from its private download URL
+	// GetFile retrieves a given file from its private download URL
 	GetFileContext(ctx context.Context, downloadURL string, writer io.Writer) error
 }
 
