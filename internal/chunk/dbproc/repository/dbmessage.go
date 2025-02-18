@@ -66,6 +66,10 @@ func (dbm DBMessage) tablename() string {
 	return "MESSAGE"
 }
 
+func (dbm DBMessage) userkey() []string {
+	return slice("ID")
+}
+
 func (dbm DBMessage) columns() []string {
 	return []string{
 		"ID",
@@ -104,9 +108,13 @@ func (dbm DBMessage) Val() (slack.Message, error) {
 
 type MessageRepository interface {
 	Inserter[DBMessage]
+	// Count returns the number of messages in a channel.
 	Count(ctx context.Context, conn sqlx.QueryerContext, channelID string) (int64, error)
+	// AllForID returns all messages in a channel.
 	AllForID(ctx context.Context, conn sqlx.QueryerContext, channelID string) (iter.Seq2[DBMessage, error], error)
+	// CountThread returns the number of messages in a thread.
 	CountThread(ctx context.Context, conn sqlx.QueryerContext, channelID, threadID string) (int64, error)
+	// AllForThread returns all messages in a thread.
 	AllForThread(ctx context.Context, conn sqlx.QueryerContext, channelID, threadID string) (iter.Seq2[DBMessage, error], error)
 }
 
@@ -126,6 +134,8 @@ func (r messageRepository) AllForID(ctx context.Context, conn sqlx.QueryerContex
 	return r.allOfTypeWhere(ctx, conn, chunk.CMessages, "CHANNEL_ID = ?", channelID)
 }
 
+// threadCond returns a condition for selecting messages that are part of a
+// thread with additional filtering of thread_broadcast subtype.
 func (r messageRepository) threadCond() string {
 	var buf strings.Builder
 	buf.WriteString("T.CHANNEL_ID = ? AND T.PARENT_ID = ? ")

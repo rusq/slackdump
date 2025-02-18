@@ -38,6 +38,10 @@ func (DBSearchMessage) tablename() string {
 	return "SEARCH_MESSAGE"
 }
 
+func (DBSearchMessage) userkey() []string {
+	return slice("CHANNEL_ID")
+}
+
 func (DBSearchMessage) columns() []string {
 	return []string{"CHUNK_ID", "CHANNEL_ID", "CHANNEL_NAME", "TS", "TXT", "IDX", "DATA"}
 }

@@ -29,6 +29,10 @@ func (DBSearchFile) tablename() string {
 	return "SEARCH_FILE"
 }
 
+func (DBSearchFile) userkey() []string {
+	return slice("FILE_ID")
+}
+
 func (DBSearchFile) columns() []string {
 	return []string{"CHUNK_ID", "FILE_ID", "IDX", "DATA"}
 }

@@ -42,33 +42,33 @@ func (m *Mocksourcer) EXPECT() *MocksourcerMockRecorder {
 }
 
 // AllMessages mocks base method.
-func (m *Mocksourcer) AllMessages(channelID string) ([]slack.Message, error) {
+func (m *Mocksourcer) AllMessages(ctx context.Context, channelID string) ([]slack.Message, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AllMessages", channelID)
+	ret := m.ctrl.Call(m, "AllMessages", ctx, channelID)
 	ret0, _ := ret[0].([]slack.Message)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // AllMessages indicates an expected call of AllMessages.
-func (mr *MocksourcerMockRecorder) AllMessages(channelID any) *gomock.Call {
+func (mr *MocksourcerMockRecorder) AllMessages(ctx, channelID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AllMessages", reflect.TypeOf((*Mocksourcer)(nil).AllMessages), channelID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AllMessages", reflect.TypeOf((*Mocksourcer)(nil).AllMessages), ctx, channelID)
 }
 
 // AllThreadMessages mocks base method.
-func (m *Mocksourcer) AllThreadMessages(channelID, threadTimestamp string) ([]slack.Message, error) {
+func (m *Mocksourcer) AllThreadMessages(ctx context.Context, channelID, threadTimestamp string) ([]slack.Message, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AllThreadMessages", channelID, threadTimestamp)
+	ret := m.ctrl.Call(m, "AllThreadMessages", ctx, channelID, threadTimestamp)
 	ret0, _ := ret[0].([]slack.Message)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // AllThreadMessages indicates an expected call of AllThreadMessages.
-func (mr *MocksourcerMockRecorder) AllThreadMessages(channelID, threadTimestamp any) *gomock.Call {
+func (mr *MocksourcerMockRecorder) AllThreadMessages(ctx, channelID, threadTimestamp any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AllThreadMessages", reflect.TypeOf((*Mocksourcer)(nil).AllThreadMessages), channelID, threadTimestamp)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AllThreadMessages", reflect.TypeOf((*Mocksourcer)(nil).AllThreadMessages), ctx, channelID, threadTimestamp)
 }
 
 // Channels mocks base method.

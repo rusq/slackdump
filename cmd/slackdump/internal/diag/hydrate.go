@@ -179,8 +179,8 @@ func download(ctx context.Context, archive, target string, dry bool) error {
 //go:generate mockgen -destination=hydrate_mock_test.go -package=diag -source hydrate.go sourcer
 type sourcer interface {
 	Channels(ctx context.Context) ([]slack.Channel, error)
-	AllMessages(channelID string) ([]slack.Message, error)
-	AllThreadMessages(channelID, threadTimestamp string) ([]slack.Message, error)
+	AllMessages(ctx context.Context, channelID string) ([]slack.Message, error)
+	AllThreadMessages(ctx context.Context, channelID, threadTimestamp string) ([]slack.Message, error)
 }
 
 func downloadFiles(ctx context.Context, d downloader.GetFiler, trg fsadapter.FS, src sourcer) error {
@@ -198,7 +198,7 @@ func downloadFiles(ctx context.Context, d downloader.GetFiler, trg fsadapter.FS,
 	}
 
 	for _, ch := range channels {
-		msgs, err := src.AllMessages(ch.ID)
+		msgs, err := src.AllMessages(ctx, ch.ID)
 		if err != nil {
 			return fmt.Errorf("error reading messages in channel %s: %w", ch.ID, err)
 		}
@@ -209,7 +209,7 @@ func downloadFiles(ctx context.Context, d downloader.GetFiler, trg fsadapter.FS,
 				}
 			}
 			if structures.IsThreadStart(&m) {
-				tm, err := src.AllThreadMessages(ch.ID, m.ThreadTimestamp)
+				tm, err := src.AllThreadMessages(ctx, ch.ID, m.ThreadTimestamp)
 				if err != nil {
 					return fmt.Errorf("error reading thread messages for message %s in channel %s: %w", m.Timestamp, ch.ID, err)
 				}

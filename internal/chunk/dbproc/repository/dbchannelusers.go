@@ -20,6 +20,10 @@ func (DBChannelUser) tablename() string {
 	return "CHANNEL_USER"
 }
 
+func (DBChannelUser) userkey() []string {
+	return slice("ID")
+}
+
 func (DBChannelUser) columns() []string {
 	return []string{"ID", "CHUNK_ID", "CHANNEL_ID", "IDX"}
 }

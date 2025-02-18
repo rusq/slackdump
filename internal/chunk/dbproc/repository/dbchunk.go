@@ -25,6 +25,14 @@ func (DBChunk) tablename() string {
 	return "CHUNK"
 }
 
+func (DBChunk) userkey() []string {
+	// chunk is not meant to be used in "latest" queries, but in a sense, there
+	// will always be a latest chunk for the session, so we can use the session
+	// id as the user key. Calling latest will fail, because it relies on the
+	// table having a CHUNK_ID column in the current implementation.
+	return slice("SESSION_ID")
+}
+
 func (DBChunk) columns() []string {
 	return []string{
 		"SESSION_ID",

@@ -4,10 +4,12 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/rusq/slack"
 
 	"github.com/rusq/slackdump/v3/internal/chunk/dbproc"
+	"github.com/rusq/slackdump/v3/internal/structures"
 )
 
 type Database struct {
@@ -83,6 +85,7 @@ func (d *Database) WorkspaceInfo(ctx context.Context) (*slack.AuthTestResponse, 
 	return d.s.WorkspaceInfo(ctx)
 }
 
-func (d *Database) Latest(ctx context.Context) (map[SlackLink]Time, error) {
-	return d.s.Latest(ctx)
+func (d *Database) Latest(ctx context.Context) (map[structures.SlackLink]time.Time, error) {
+	// return d.s.Latest(ctx)
+	return nil, nil
 }
