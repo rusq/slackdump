@@ -6,17 +6,13 @@ import (
 	"iter"
 	"testing"
 
+	"github.com/jmoiron/sqlx"
 	"github.com/rusq/slack"
-
-	"github.com/rusq/slackdump/v3/internal/fixtures"
-
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/jmoiron/sqlx"
-
-	"github.com/stretchr/testify/assert"
-
 	"github.com/rusq/slackdump/v3/internal/chunk"
+	"github.com/rusq/slackdump/v3/internal/fixtures"
 )
 
 func Test_genericRepository_stmtLatest(t *testing.T) {
@@ -156,5 +152,35 @@ func assertIterResult[T any](t *testing.T, want []testResult[T], got iter.Seq2[T
 	}
 	if i != len(want) {
 		t.Errorf("got %d results, want %d", i, len(want))
+	}
+}
+
+func Test_colAlias(t *testing.T) {
+	type args struct {
+		alias string
+		col   []string
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+		{
+			name: "generates proper string",
+			args: args{alias: "C", col: []string{"ID", "Name"}},
+			want: "C.ID,C.Name",
+		},
+		{
+			name: "no alias is not a problem",
+			args: args{alias: "", col: []string{"ID", "Name"}},
+			want: "ID,Name",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := colAlias(tt.args.alias, tt.args.col...); got != tt.want {
+				t.Errorf("colAlias() = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }

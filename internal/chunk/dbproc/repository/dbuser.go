@@ -7,12 +7,11 @@ import (
 )
 
 type DBUser struct {
-	ID          string `db:"ID"`
-	ChunkID     int64  `db:"CHUNK_ID,omitempty"`
-	Username    string `db:"USERNAME,omitempty"`
-	DisplayName string `db:"DISPLAY_NAME,omitempty"`
-	Index       int    `db:"IDX"`
-	Data        []byte `db:"DATA"`
+	ID       string `db:"ID"`
+	ChunkID  int64  `db:"CHUNK_ID,omitempty"`
+	Username string `db:"USERNAME,omitempty"`
+	Index    int    `db:"IDX"`
+	Data     []byte `db:"DATA"`
 }
 
 func NewDBUser(chunkID int64, n int, u *slack.User) (*DBUser, error) {
@@ -21,12 +20,11 @@ func NewDBUser(chunkID int64, n int, u *slack.User) (*DBUser, error) {
 		return nil, err
 	}
 	return &DBUser{
-		ID:          u.ID,
-		ChunkID:     chunkID,
-		Index:       n,
-		Username:    structures.Username(u),
-		DisplayName: structures.UserDisplayName(u),
-		Data:        data,
+		ID:       u.ID,
+		ChunkID:  chunkID,
+		Index:    n,
+		Username: structures.Username(u),
+		Data:     data,
 	}, nil
 }
 
@@ -34,8 +32,12 @@ func (DBUser) tablename() string {
 	return "S_USER"
 }
 
+func (DBUser) userkey() []string {
+	return slice("ID")
+}
+
 func (DBUser) columns() []string {
-	return []string{"ID", "CHUNK_ID", "USERNAME", "DISPLAY_NAME", "IDX", "DATA"}
+	return []string{"ID", "CHUNK_ID", "USERNAME", "IDX", "DATA"}
 }
 
 func (u DBUser) values() []any {
@@ -43,7 +45,6 @@ func (u DBUser) values() []any {
 		u.ID,
 		u.ChunkID,
 		u.Username,
-		u.DisplayName,
 		u.Index,
 		u.Data,
 	}

@@ -7,15 +7,16 @@ import (
 )
 
 type DBFile struct {
-	ID        string `db:"ID"`
-	ChunkID   int64  `db:"CHUNK_ID"`
-	ChannelID string `db:"CHANNEL_ID"`
-	MessageID int64  `db:"MESSAGE_ID"`
-	ThreadID  *int64 `db:"THREAD_ID,omitempty"`
-	Index     int    `db:"IDX"`
-	Filename  string `db:"FILENAME"`
-	URL       string `db:"URL"`
-	Data      []byte `db:"DATA"`
+	ID        string  `db:"ID"`
+	ChunkID   int64   `db:"CHUNK_ID"`
+	ChannelID string  `db:"CHANNEL_ID"`
+	MessageID *int64  `db:"MESSAGE_ID"`
+	ThreadID  *int64  `db:"THREAD_ID,omitempty"`
+	Index     int     `db:"IDX"`
+	Mode      string  `db:"MODE"`
+	Filename  *string `db:"FILENAME"`
+	URL       *string `db:"URL"`
+	Data      []byte  `db:"DATA"`
 }
 
 func NewDBFile(chunkID int64, idx int, channelID, threadTS string, parentMsgTS string, file *slack.File) (*DBFile, error) {
@@ -23,9 +24,13 @@ func NewDBFile(chunkID int64, idx int, channelID, threadTS string, parentMsgTS s
 	if err != nil {
 		return nil, err
 	}
-	ts, err := fasttime.TS2int(parentMsgTS)
-	if err != nil {
-		return nil, err
+	var messageID *int64
+	if parentMsgTS != "" {
+		ts, err := fasttime.TS2int(parentMsgTS)
+		if err != nil {
+			return nil, err
+		}
+		messageID = &ts
 	}
 	var threadID *int64
 	if threadTS != "" {
@@ -39,11 +44,12 @@ func NewDBFile(chunkID int64, idx int, channelID, threadTS string, parentMsgTS s
 		ID:        file.ID,
 		ChunkID:   chunkID,
 		ChannelID: channelID,
-		MessageID: ts,
+		MessageID: messageID,
 		ThreadID:  threadID,
 		Index:     idx,
-		Filename:  file.Name,
-		URL:       file.URLPrivate,
+		Mode:      file.Mode,
+		Filename:  orNull(file.Name != "", file.Name),
+		URL:       orNull(file.URLPrivate != "", file.URLPrivate),
 		Data:      data,
 	}, nil
 }
@@ -52,12 +58,16 @@ func (f DBFile) tablename() string {
 	return "FILE"
 }
 
+func (f DBFile) userkey() []string {
+	return slice("ID")
+}
+
 func (f DBFile) columns() []string {
-	return []string{"ID", "CHUNK_ID", "CHANNEL_ID", "MESSAGE_ID", "THREAD_ID", "IDX", "FILENAME", "URL", "DATA"}
+	return []string{"ID", "CHUNK_ID", "CHANNEL_ID", "MESSAGE_ID", "THREAD_ID", "IDX", "MODE", "FILENAME", "URL", "DATA"}
 }
 
 func (f DBFile) values() []any {
-	return []any{f.ID, f.ChunkID, f.ChannelID, f.MessageID, f.ThreadID, f.Index, f.Filename, f.URL, f.Data}
+	return []any{f.ID, f.ChunkID, f.ChannelID, f.MessageID, f.ThreadID, f.Index, f.Mode, f.Filename, f.URL, f.Data}
 }
 
 type FileRepository interface {

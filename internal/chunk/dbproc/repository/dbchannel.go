@@ -35,6 +35,10 @@ func (c DBChannel) tablename() string {
 	return "CHANNEL"
 }
 
+func (c DBChannel) userkey() []string {
+	return slice("ID")
+}
+
 func (c DBChannel) columns() []string {
 	return []string{"ID", "CHUNK_ID", "NAME", "IDX", "DATA"}
 }

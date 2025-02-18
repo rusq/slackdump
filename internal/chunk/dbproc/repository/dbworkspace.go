@@ -43,6 +43,10 @@ func (w DBWorkspace) tablename() string {
 	return "WORKSPACE"
 }
 
+func (w DBWorkspace) userkey() []string {
+	return slice("TEAM_ID")
+}
+
 func (w DBWorkspace) columns() []string {
 	return []string{
 		"CHUNK_ID",

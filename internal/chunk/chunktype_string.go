@@ -20,15 +20,25 @@ func _() {
 	_ = x[CBookmarks-9]
 	_ = x[CSearchMessages-10]
 	_ = x[CSearchFiles-11]
+	_ = x[CAny-255]
 }
 
-const _ChunkType_name = "MessagesThreadMessagesFilesUsersChannelsChannelInfoWorkspaceInfoChannelUsersStarredItemsBookmarksSearchMessagesSearchFiles"
+const (
+	_ChunkType_name_0 = "MessagesThreadMessagesFilesUsersChannelsChannelInfoWorkspaceInfoChannelUsersStarredItemsBookmarksSearchMessagesSearchFiles"
+	_ChunkType_name_1 = "Any"
+)
 
-var _ChunkType_index = [...]uint8{0, 8, 22, 27, 32, 40, 51, 64, 76, 88, 97, 111, 122}
+var (
+	_ChunkType_index_0 = [...]uint8{0, 8, 22, 27, 32, 40, 51, 64, 76, 88, 97, 111, 122}
+)
 
 func (i ChunkType) String() string {
-	if i >= ChunkType(len(_ChunkType_index)-1) {
+	switch {
+	case i <= 11:
+		return _ChunkType_name_0[_ChunkType_index_0[i]:_ChunkType_index_0[i+1]]
+	case i == 255:
+		return _ChunkType_name_1
+	default:
 		return "ChunkType(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
-	return _ChunkType_name[_ChunkType_index[i]:_ChunkType_index[i+1]]
 }

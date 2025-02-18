@@ -51,7 +51,7 @@ func Test_workspaceRepository_GetWorkspace(t *testing.T) {
 			},
 			args: args{
 				ctx:  context.Background(),
-				conn: testConnDSN(t, "wsp.sqlite"),
+				conn: testConn(t),
 			},
 			prepFn: func(t *testing.T, conn PrepareExtContext) {
 				t.Helper()

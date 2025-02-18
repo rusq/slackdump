@@ -140,3 +140,8 @@ func unmarshalflate(data []byte, v any) error {
 	dec := json.NewDecoder(zr)
 	return dec.Decode(v)
 }
+
+// slice is a convenience function to create a slice of T.
+func slice[T any](s ...T) []T {
+	return s
+}

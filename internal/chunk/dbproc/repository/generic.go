@@ -14,8 +14,15 @@ import (
 )
 
 type dbObject interface {
+	// tablename should return the table name.
 	tablename() string
+	// userkey should return the user key columns.  User key is the key that
+	// uniquely identifies the logical entity, and is usually a part of primary
+	// key, excluding system column, such as CHUNK_ID.
+	userkey() []string
+	// columns should return the column names.
 	columns() []string
+	// values should return the values of the entity.
 	values() []any
 }
 
@@ -73,7 +80,7 @@ func (r genericRepository[T]) stmtInsert() string {
 	buf.WriteString("INSERT INTO ")
 	buf.WriteString(r.t.tablename())
 	buf.WriteString(" (")
-	buf.WriteString(strings.Join(r.t.columns(), ","))
+	buf.WriteString(colAlias("", r.t.columns()...))
 	buf.WriteString(") VALUES (")
 	buf.WriteString(strings.Join(placeholders(r.t.columns()), ","))
 	buf.WriteString(")")
@@ -89,10 +96,23 @@ func (r genericRepository[T]) stmtLatest(tid chunk.ChunkType) (stmt string, bind
 	return r.stmtLatestWhere(tid, "")
 }
 
+func colAlias(alias string, col ...string) string {
+	var buf strings.Builder
+	var prefix string
+	if alias != "" {
+		prefix = alias + "."
+	}
+	buf.WriteString(prefix)
+	buf.WriteString(strings.Join(col, ","+prefix))
+	return buf.String()
+}
+
 func (r genericRepository[T]) stmtLatestWhere(tid chunk.ChunkType, where string, binds ...any) (string, []any) {
 	var buf strings.Builder
 	var b []any
-	buf.WriteString("SELECT C.ID, MAX(CHUNK_ID) AS CHUNK_ID FROM ")
+	buf.WriteString("SELECT ")
+	buf.WriteString(colAlias("C", r.t.userkey()...))
+	buf.WriteString(", MAX(CHUNK_ID) AS CHUNK_ID FROM ")
 	buf.WriteString(r.t.tablename())
 	buf.WriteString(" AS C JOIN CHUNK AS CH ON CH.ID = C.CHUNK_ID WHERE 1=1 ")
 	if tid != CTypeAny {
@@ -105,7 +125,8 @@ func (r genericRepository[T]) stmtLatestWhere(tid chunk.ChunkType, where string,
 		buf.WriteString(") ")
 		b = append(b, binds...)
 	}
-	buf.WriteString("GROUP BY C.ID")
+	buf.WriteString("GROUP BY ")
+	buf.WriteString(colAlias("C", r.t.userkey()...))
 	return buf.String(), b
 }
 
@@ -214,7 +235,15 @@ func (r genericRepository[T]) stmtLatestRows(typeID chunk.ChunkType) (stmt strin
 	buf.WriteString(strings.Join(r.t.columns(), ",T."))
 	buf.WriteString(" FROM LATEST L JOIN ")
 	buf.WriteString(r.t.tablename())
-	buf.WriteString(" AS T ON T.ID = L.ID AND T.CHUNK_ID = L.CHUNK_ID WHERE 1=1\n")
+	buf.WriteString(" AS T ON 1 = 1 ")
+	for _, col := range r.t.userkey() {
+		buf.WriteString("AND T.")
+		buf.WriteString(col)
+		buf.WriteString(" = L.")
+		buf.WriteString(col)
+		buf.WriteString("\n")
+	}
+	buf.WriteString(" AND T.CHUNK_ID = L.CHUNK_ID WHERE 1=1\n")
 
 	return buf.String(), binds
 }

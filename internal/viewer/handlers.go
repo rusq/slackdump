@@ -78,7 +78,7 @@ func maybeReverse(mm []slack.Message) error {
 func (v *Viewer) channelHandler(w http.ResponseWriter, r *http.Request, id string) {
 	ctx := r.Context()
 	lg := v.lg.With("in", "channelHandler", "channel", id)
-	mm, err := v.src.AllMessages(id)
+	mm, err := v.src.AllMessages(r.Context(), id)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
 			http.NotFound(w, r)
@@ -166,7 +166,7 @@ func (v *Viewer) threadHandler(w http.ResponseWriter, r *http.Request, id string
 
 	ctx := r.Context()
 	lg := v.lg.With("in", "threadHandler", "channel", id, "thread", ts)
-	mm, err := v.src.AllThreadMessages(id, ts)
+	mm, err := v.src.AllThreadMessages(r.Context(), id, ts)
 	if err != nil {
 		lg.ErrorContext(ctx, "AllThreadMessages", "error", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -195,7 +195,7 @@ func (v *Viewer) threadHandler(w http.ResponseWriter, r *http.Request, id string
 
 		// if we're deep linking, channel view might not contain the messages,
 		// so we need to fetch them.
-		msg, err := v.src.AllMessages(id)
+		msg, err := v.src.AllMessages(r.Context(), id)
 		if err != nil {
 			lg.ErrorContext(ctx, "AllMessages", "error", err, "template", template)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
