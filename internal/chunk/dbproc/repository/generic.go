@@ -93,7 +93,7 @@ const CTypeAny = chunk.CAny
 // entity. it is only suitable for dictionary type entries, such as channels or
 // users.
 func (r genericRepository[T]) stmtLatest(tid chunk.ChunkType) (stmt string, binds []any) {
-	return r.stmtLatestWhere(tid, "")
+	return r.stmtLatestWhere(tid, queryParams{})
 }
 
 func colAlias(alias string, col ...string) string {
@@ -107,45 +107,48 @@ func colAlias(alias string, col ...string) string {
 	return buf.String()
 }
 
-func (r genericRepository[T]) stmtLatestWhere(tid chunk.ChunkType, where string, binds ...any) (string, []any) {
+func (r genericRepository[T]) stmtLatestWhere(tid chunk.ChunkType, qp queryParams) (string, []any) {
+	const alias = "T"
 	var buf strings.Builder
 	var b []any
 	buf.WriteString("SELECT ")
-	buf.WriteString(colAlias("C", r.t.userkey()...))
+	buf.WriteString(colAlias(alias, r.t.userkey()...))
 	buf.WriteString(", MAX(CHUNK_ID) AS CHUNK_ID FROM ")
 	buf.WriteString(r.t.tablename())
-	buf.WriteString(" AS C JOIN CHUNK AS CH ON CH.ID = C.CHUNK_ID WHERE 1=1 ")
+	buf.WriteString(" AS " + alias + " JOIN CHUNK AS CH ON CH.ID = " + alias + ".CHUNK_ID WHERE 1=1 ")
 	if tid != CTypeAny {
 		buf.WriteString("AND CH.TYPE_ID = ? ")
 		b = append(b, tid)
 	}
-	if where != "" {
+	if qp.Where != "" {
 		buf.WriteString("AND (")
-		buf.WriteString(where)
+		buf.WriteString(qp.Where)
 		buf.WriteString(") ")
-		b = append(b, binds...)
+		b = append(b, qp.Binds...)
 	}
 	buf.WriteString("GROUP BY ")
-	buf.WriteString(colAlias("C", r.t.userkey()...))
+	buf.WriteString(colAlias(alias, r.t.userkey()...))
 	return buf.String(), b
 }
 
 func (r genericRepository[T]) Get(ctx context.Context, conn sqlx.ExtContext, id any) (T, error) {
-	return r.GetType(ctx, conn, CTypeAny, id)
+	return r.getType(ctx, conn, CTypeAny, id, nil)
 }
 
 func (r genericRepository[T]) GetType(ctx context.Context, conn sqlx.ExtContext, ct chunk.ChunkType, id any) (T, error) {
-	latest, binds := r.stmtLatestRows(ct)
-	var buf strings.Builder
-	buf.WriteString(latest)
-	buf.WriteString(" AND T.ID = ?")
-	binds = append(binds, id)
-	stmt := buf.String()
+	return r.getType(ctx, conn, ct, id, nil)
+}
 
-	slog.DebugContext(ctx, "get", "stmt", stmt, "binds", binds)
+func (r genericRepository[T]) getType(ctx context.Context, conn sqlx.ExtContext, ct chunk.ChunkType, id any, order []string) (T, error) {
+	latest, binds := r.stmtLatestRows(ct, queryParams{Where: "T.ID = ?", Binds: []any{id}})
+	if len(order) > 0 {
+		latest += " ORDER BY " + strings.Join(order, ",")
+	}
+
+	slog.DebugContext(ctx, "get", "stmt", latest, "binds", binds)
 
 	var t T
-	if err := conn.QueryRowxContext(ctx, stmt, binds...).StructScan(&t); err != nil {
+	if err := conn.QueryRowxContext(ctx, latest, binds...).StructScan(&t); err != nil {
 		return t, fmt.Errorf("get: %w", err)
 	}
 	return t, nil
@@ -198,16 +201,16 @@ func (r genericRepository[T]) Count(ctx context.Context, conn sqlx.QueryerContex
 }
 
 func (r genericRepository[T]) CountType(ctx context.Context, conn sqlx.QueryerContext, typeID chunk.ChunkType) (int64, error) {
-	return r.countTypeWhere(ctx, conn, typeID, "")
+	return r.countTypeWhere(ctx, conn, typeID, queryParams{})
 }
 
-func (r genericRepository[T]) countTypeWhere(ctx context.Context, conn sqlx.QueryerContext, typeID chunk.ChunkType, where string, binds ...any) (int64, error) {
+func (r genericRepository[T]) countTypeWhere(ctx context.Context, conn sqlx.QueryerContext, typeID chunk.ChunkType, qp queryParams) (int64, error) {
 	ctx, task := trace.NewTask(ctx, "countTypeWhere")
 	defer task.End()
-	trace.Logf(ctx, "parameters", "countTypeWhere: %T, typeID=%d, where=%s, binds=%v", r.t, typeID, where, binds)
+	trace.Logf(ctx, "parameters", "countTypeWhere: %T, typeID=%d, where=%s, binds=%v", r.t, typeID, qp.Where, qp.Binds)
 
 	// TODO: no rebind, not critical, but if the database type changes, this will break
-	latest, b := r.stmtLatestWhere(typeID, where, binds...)
+	latest, b := r.stmtLatestWhere(typeID, qp)
 	stmt := `SELECT COUNT(1) FROM (` + latest + `) as latest`
 	slog.DebugContext(ctx, "count", "stmt", stmt, "binds", b)
 
@@ -224,8 +227,8 @@ func (r genericRepository[T]) All(ctx context.Context, conn sqlx.QueryerContext)
 
 // stmtLatestRows returns the statement that selects the latest chunk for each
 // entity.
-func (r genericRepository[T]) stmtLatestRows(typeID chunk.ChunkType) (stmt string, binds []any) {
-	latest, binds := r.stmtLatest(typeID)
+func (r genericRepository[T]) stmtLatestRows(typeID chunk.ChunkType, qp queryParams) (stmt string, binds []any) {
+	latest, binds := r.stmtLatestWhere(typeID, qp)
 
 	var buf strings.Builder
 	buf.WriteString("WITH LATEST AS (\n")
@@ -243,7 +246,7 @@ func (r genericRepository[T]) stmtLatestRows(typeID chunk.ChunkType) (stmt strin
 		buf.WriteString(col)
 		buf.WriteString("\n")
 	}
-	buf.WriteString(" AND T.CHUNK_ID = L.CHUNK_ID WHERE 1=1\n")
+	buf.WriteString(" AND T.CHUNK_ID = L.CHUNK_ID JOIN CHUNK CH ON T.CHUNK_ID = CH.ID WHERE 1=1\n")
 
 	return buf.String(), binds
 }
@@ -251,7 +254,14 @@ func (r genericRepository[T]) stmtLatestRows(typeID chunk.ChunkType) (stmt strin
 // AllOfType returns an iterator that yields all latest rows type T for the
 // chunk type typeID.
 func (r genericRepository[T]) AllOfType(ctx context.Context, conn sqlx.QueryerContext, typeID chunk.ChunkType) (iter.Seq2[T, error], error) {
-	return r.allOfTypeWhere(ctx, conn, typeID, "")
+	return r.allOfTypeWhere(ctx, conn, typeID, queryParams{})
+}
+
+type queryParams struct {
+	Where        string
+	Binds        []any
+	Order        []string
+	UserKeyOrder bool
 }
 
 // allOfTypeWhere returns an iterator that yields all latest rows type T that
@@ -261,22 +271,31 @@ func (r genericRepository[T]) AllOfType(ctx context.Context, conn sqlx.QueryerCo
 // Aliases:
 // - "C" is the alias for "CHUNK"
 // - "T" is the alias for the entity type T table.
-func (r genericRepository[T]) allOfTypeWhere(ctx context.Context, conn sqlx.QueryerContext, typeID chunk.ChunkType, where string, binds ...any) (iter.Seq2[T, error], error) {
+func (r genericRepository[T]) allOfTypeWhere(ctx context.Context, conn sqlx.QueryerContext, typeID chunk.ChunkType, qp queryParams) (iter.Seq2[T, error], error) {
 	ctx, task := trace.NewTask(ctx, "allOfTypeWhere")
-	trace.Logf(ctx, "parameters", "allOfTypeWhere: %T typeID=%d, where=%s, binds=%v", r.t, typeID, where, binds)
+	trace.Logf(ctx, "parameters", "allOfTypeWhere: %T typeID=%d, where=%s, binds=%v", r.t, typeID, qp.Where, qp.Binds)
 
-	stmt, b := r.stmtLatestRows(typeID)
+	latest, binds := r.stmtLatestRows(typeID, qp)
 
 	var buf strings.Builder
-	buf.WriteString(stmt)
-	if where != "" {
-		buf.WriteString(" AND ")
-		buf.WriteString(where)
+	buf.WriteString(latest)
+	if qp.Where != "" {
+		buf.WriteString(" AND ( ")
+		buf.WriteString(qp.Where)
+		buf.WriteString(" ) ")
 	}
-	binds = append(b, binds...)
-	buf.WriteString(" ORDER BY T.ID")
+	binds = append(binds, qp.Binds...)
+	if qp.UserKeyOrder {
+		buf.WriteString(" ORDER BY ")
+		buf.WriteString(colAlias("T", r.t.userkey()...))
+	} else if len(qp.Order) > 0 {
+		buf.WriteString(" ORDER BY ")
+		buf.WriteString(strings.Join(qp.Order, ","))
+	}
 
-	slog.DebugContext(ctx, "allOfTypeWhere", "stmt", buf.String(), "binds", binds)
+	stmt := buf.String()
+
+	slog.DebugContext(ctx, "allOfTypeWhere", "stmt", stmt, "binds", binds)
 
 	rows, err := conn.QueryxContext(ctx, stmt, binds...)
 	if err != nil {

@@ -11,6 +11,8 @@ import (
 	"github.com/rusq/slackdump/v3/internal/chunk"
 
 	"github.com/jmoiron/sqlx"
+	// _ "modernc.org/sqlite"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 func init() {

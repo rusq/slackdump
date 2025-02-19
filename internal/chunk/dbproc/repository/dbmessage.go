@@ -127,11 +127,11 @@ func NewMessageRepository() MessageRepository {
 }
 
 func (r messageRepository) Count(ctx context.Context, conn sqlx.QueryerContext, channelID string) (int64, error) {
-	return r.countTypeWhere(ctx, conn, chunk.CMessages, "CHANNEL_ID = ?", channelID)
+	return r.countTypeWhere(ctx, conn, chunk.CMessages, queryParams{Where: "CHANNEL_ID = ?", Binds: []any{channelID}})
 }
 
 func (r messageRepository) AllForID(ctx context.Context, conn sqlx.QueryerContext, channelID string) (iter.Seq2[DBMessage, error], error) {
-	return r.allOfTypeWhere(ctx, conn, chunk.CMessages, "CHANNEL_ID = ?", channelID)
+	return r.allOfTypeWhere(ctx, conn, chunk.CMessages, queryParams{Where: "CHANNEL_ID = ?", Binds: []any{channelID}, UserKeyOrder: true})
 }
 
 // threadCond returns a condition for selecting messages that are part of a
@@ -139,8 +139,8 @@ func (r messageRepository) AllForID(ctx context.Context, conn sqlx.QueryerContex
 func (r messageRepository) threadCond() string {
 	var buf strings.Builder
 	buf.WriteString("T.CHANNEL_ID = ? AND T.PARENT_ID = ? ")
-	buf.WriteString("JSON_EXTRACT(T.DATA, '$.subtype') IS NULL ")
-	buf.WriteString("OR (JSON_EXTRACT(T.DATA, '$.subtype') = 'thread_broadcast' AND C.TYPE_ID = 1 )")
+	buf.WriteString("AND ( JSON_EXTRACT(T.DATA, '$.subtype') IS NULL ")
+	buf.WriteString("OR (JSON_EXTRACT(T.DATA, '$.subtype') = 'thread_broadcast' AND CH.TYPE_ID = 1 )")
 	buf.WriteString("   ) ")
 	return buf.String()
 }
@@ -150,7 +150,7 @@ func (r messageRepository) CountThread(ctx context.Context, conn sqlx.QueryerCon
 	if err != nil {
 		return 0, fmt.Errorf("countThread fasttime: %w", err)
 	}
-	return r.countTypeWhere(ctx, conn, CTypeAny, r.threadCond(), channelID, parentID)
+	return r.countTypeWhere(ctx, conn, CTypeAny, queryParams{Where: r.threadCond(), Binds: []any{channelID, parentID}})
 }
 
 func (r messageRepository) AllForThread(ctx context.Context, conn sqlx.QueryerContext, channelID, threadID string) (iter.Seq2[DBMessage, error], error) {
@@ -158,5 +158,5 @@ func (r messageRepository) AllForThread(ctx context.Context, conn sqlx.QueryerCo
 	if err != nil {
 		return nil, fmt.Errorf("allForThread fasttime: %w", err)
 	}
-	return r.allOfTypeWhere(ctx, conn, CTypeAny, r.threadCond(), channelID, parentID)
+	return r.allOfTypeWhere(ctx, conn, CTypeAny, queryParams{Where: r.threadCond(), Binds: []any{channelID, parentID}, UserKeyOrder: true})
 }

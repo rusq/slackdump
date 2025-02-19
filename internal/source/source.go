@@ -142,6 +142,9 @@ func Load(ctx context.Context, src string) (Sourcer, error) {
 	case st.Has(FDump | FDirectory):
 		lg.DebugContext(ctx, "loading dump directory")
 		return NewDump(ctx, os.DirFS(src), src)
+	case st.Has(FDatabase):
+		lg.DebugContext(ctx, "loading database")
+		return OpenDatabase(src)
 	default:
 		return nil, fmt.Errorf("unsupported source type: %s", src)
 	}

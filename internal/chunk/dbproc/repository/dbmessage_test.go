@@ -242,19 +242,28 @@ var (
 	msgB_ = slack.Message{Msg: slack.Msg{Timestamp: "124.555", Text: "B'"}}
 	msgC  = slack.Message{Msg: slack.Msg{Timestamp: "125.777", Text: "C"}}
 
+	msgX = slack.Message{Msg: slack.Msg{Timestamp: "123.456", Text: "X"}} // these belong to a different channel
+	msgY = slack.Message{Msg: slack.Msg{Timestamp: "124.555", Text: "Y"}}
+	msgZ = slack.Message{Msg: slack.Msg{Timestamp: "125.777", Text: "Z"}}
+
 	dbmA  = must(NewDBMessage(1, 0, "C123", &msgA))
 	dbmB  = must(NewDBMessage(1, 1, "C123", &msgB))
 	dbmB_ = must(NewDBMessage(2, 0, "C123", &msgB_))
 	dbmC  = must(NewDBMessage(2, 1, "C123", &msgC))
+
+	dbmX = must(NewDBMessage(3, 0, "D124", &msgX))
+	dbmY = must(NewDBMessage(3, 1, "D124", &msgY))
+	dbmZ = must(NewDBMessage(4, 0, "D124", &msgZ))
 )
 
 func messagePrepFn(t *testing.T, conn PrepareExtContext) {
 	// we will use 2 chunks, one old and one new for the same channel
 	// they both will have 2 messages each, such as  (A, B),(B', C)
 	// where B' will be an updated version of B.
-	prepChunk(chunk.CMessages, chunk.CMessages)(t, conn)
+	// Also, there are messages from a different channel, X, Y, Z.
+	prepChunk(chunk.CMessages, chunk.CMessages, chunk.CMessages)(t, conn)
 	mr := NewMessageRepository()
-	if err := mr.Insert(context.Background(), conn, dbmA, dbmB, dbmB_, dbmC); err != nil {
+	if err := mr.Insert(context.Background(), conn, dbmA, dbmB, dbmB_, dbmC, dbmX, dbmY, dbmZ); err != nil {
 		t.Fatalf("insert: %v", err)
 	}
 }
@@ -406,12 +415,12 @@ func Test_messageRepository_CountThread(t *testing.T) {
 }
 
 var (
-	tmAParent  = slack.Message{Msg: slack.Msg{Timestamp: "123.456", Text: "A"}}
-	tmBChannel = slack.Message{Msg: slack.Msg{Timestamp: "124.555", ThreadTimestamp: "123.456", Text: "B", SubType: "thread_broadcast"}}
-	tmB        = slack.Message{Msg: slack.Msg{Timestamp: "124.555", ThreadTimestamp: "123.456", Text: "B", SubType: "thread_broadcast"}}
-	tmC        = slack.Message{Msg: slack.Msg{Timestamp: "126.555", ThreadTimestamp: "123.456", Text: "C"}}
-	tmD        = slack.Message{Msg: slack.Msg{Timestamp: "127.555", ThreadTimestamp: "123.456", Text: "D"}}
-	tmC_       = slack.Message{Msg: slack.Msg{Timestamp: "126.555", ThreadTimestamp: "123.456", Text: "C'"}}
+	tmAParent  = slack.Message{Msg: slack.Msg{Timestamp: "123.456", ThreadTimestamp: "123.456", Text: "A"}}
+	tmBChannel = slack.Message{Msg: slack.Msg{Timestamp: "124.000", ThreadTimestamp: "123.456", Text: "B", SubType: "thread_broadcast"}}
+	tmB        = slack.Message{Msg: slack.Msg{Timestamp: "124.000", ThreadTimestamp: "123.456", Text: "B", SubType: "thread_broadcast"}}
+	tmC        = slack.Message{Msg: slack.Msg{Timestamp: "125.000", ThreadTimestamp: "123.456", Text: "C"}}
+	tmD        = slack.Message{Msg: slack.Msg{Timestamp: "126.000", ThreadTimestamp: "123.456", Text: "D"}}
+	tmC_       = slack.Message{Msg: slack.Msg{Timestamp: "125.000", ThreadTimestamp: "123.456", Text: "C'"}}
 
 	dbtmAParent  = must(NewDBMessage(1, 0, "C123", &tmAParent))
 	dbtmBChannel = must(NewDBMessage(1, 0, "C123", &tmBChannel))

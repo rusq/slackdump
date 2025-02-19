@@ -68,5 +68,5 @@ func (r channelRepository) Count(ctx context.Context, conn sqlx.QueryerContext) 
 }
 
 func (r channelRepository) Get(ctx context.Context, conn sqlx.ExtContext, id any) (DBChannel, error) {
-	return r.GetType(ctx, conn, chunk.CChannelInfo, id)
+	return r.getType(ctx, conn, chunk.CChannelInfo, id, []string{"T.NAME"})
 }
