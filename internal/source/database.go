@@ -86,6 +86,6 @@ func (d *Database) WorkspaceInfo(ctx context.Context) (*slack.AuthTestResponse, 
 }
 
 func (d *Database) Latest(ctx context.Context) (map[structures.SlackLink]time.Time, error) {
-	// return d.s.Latest(ctx)
 	return nil, nil
+	// return d.s.Latest(ctx)
 }

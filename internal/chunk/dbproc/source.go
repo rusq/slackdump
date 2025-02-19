@@ -13,6 +13,8 @@ import (
 	"github.com/rusq/slackdump/v3/internal/chunk/dbproc/repository"
 )
 
+const preallocSz = 100
+
 type Source struct {
 	conn *sqlx.DB
 }
@@ -45,16 +47,11 @@ func (s *Source) Channels(ctx context.Context) ([]slack.Channel, error) {
 	}
 	defer tx.Rollback()
 
-	sz, err := cr.Count(ctx, s.conn)
-	if err != nil {
-		return nil, err
-	}
-
 	it, err := cr.AllOfType(ctx, s.conn, chunk.CChannelInfo)
 	if err != nil {
 		return nil, err
 	}
-	return collect(it, int(sz))
+	return collect(it, preallocSz)
 }
 
 func (s *Source) Users(ctx context.Context) ([]slack.User, error) {
@@ -66,16 +63,11 @@ func (s *Source) Users(ctx context.Context) ([]slack.User, error) {
 	}
 	defer tx.Rollback()
 
-	sz, err := ur.Count(ctx, s.conn)
-	if err != nil {
-		return nil, err
-	}
-
 	it, err := ur.AllOfType(ctx, s.conn, chunk.CUsers)
 	if err != nil {
 		return nil, err
 	}
-	return collect(it, int(sz))
+	return collect(it, preallocSz)
 }
 
 type valuer[T any] interface {
@@ -105,16 +97,11 @@ func (s *Source) AllMessages(ctx context.Context, channelID string) ([]slack.Mes
 	defer tx.Rollback()
 
 	mr := repository.NewMessageRepository()
-	sz, err := mr.Count(ctx, s.conn, channelID)
-	if err != nil {
-		return nil, err
-	}
-
 	it, err := mr.AllForID(ctx, s.conn, channelID)
 	if err != nil {
 		return nil, err
 	}
-	return collect(it, int(sz))
+	return collect(it, preallocSz)
 }
 
 func (s *Source) AllThreadMessages(ctx context.Context, channelID, threadID string) ([]slack.Message, error) {
@@ -125,16 +112,11 @@ func (s *Source) AllThreadMessages(ctx context.Context, channelID, threadID stri
 	defer tx.Rollback()
 
 	mr := repository.NewMessageRepository()
-	sz, err := mr.CountThread(ctx, s.conn, channelID, threadID)
-	if err != nil {
-		return nil, err
-	}
-
 	it, err := mr.AllForThread(ctx, s.conn, channelID, threadID)
 	if err != nil {
 		return nil, err
 	}
-	return collect(it, int(sz))
+	return collect(it, preallocSz)
 }
 
 func (s *Source) ChannelInfo(ctx context.Context, channelID string) (*slack.Channel, error) {

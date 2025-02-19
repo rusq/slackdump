@@ -31,14 +31,14 @@ func Test_genericRepository_stmtLatest(t *testing.T) {
 			name:      "generates for all channels",
 			r:         genericRepository[*DBChannel]{t: new(DBChannel)},
 			args:      args{tid: CTypeAny},
-			wantStmt:  `SELECT C.ID, MAX(CHUNK_ID) AS CHUNK_ID FROM CHANNEL AS C JOIN CHUNK AS CH ON CH.ID = C.CHUNK_ID WHERE 1=1 GROUP BY C.ID`,
+			wantStmt:  `SELECT T.ID, MAX(CHUNK_ID) AS CHUNK_ID FROM CHANNEL AS T JOIN CHUNK AS CH ON CH.ID = T.CHUNK_ID WHERE 1=1 GROUP BY T.ID`,
 			wantBinds: nil,
 		},
 		{
 			name:      "generates for concrete type",
 			r:         genericRepository[*DBChannel]{t: new(DBChannel)},
 			args:      args{tid: chunk.CChannelInfo},
-			wantStmt:  `SELECT C.ID, MAX(CHUNK_ID) AS CHUNK_ID FROM CHANNEL AS C JOIN CHUNK AS CH ON CH.ID = C.CHUNK_ID WHERE 1=1 AND CH.TYPE_ID = ? GROUP BY C.ID`,
+			wantStmt:  `SELECT T.ID, MAX(CHUNK_ID) AS CHUNK_ID FROM CHANNEL AS T JOIN CHUNK AS CH ON CH.ID = T.CHUNK_ID WHERE 1=1 AND CH.TYPE_ID = ? GROUP BY T.ID`,
 			wantBinds: []any{chunk.CChannelInfo},
 		},
 	}
