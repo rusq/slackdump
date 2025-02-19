@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"iter"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/rusq/slack"
@@ -68,5 +69,9 @@ func (r channelRepository) Count(ctx context.Context, conn sqlx.QueryerContext) 
 }
 
 func (r channelRepository) Get(ctx context.Context, conn sqlx.ExtContext, id any) (DBChannel, error) {
-	return r.getType(ctx, conn, chunk.CChannelInfo, id, []string{"T.NAME"})
+	return r.GetType(ctx, conn, chunk.CChannelInfo, id)
+}
+
+func (r channelRepository) AllOfType(ctx context.Context, conn sqlx.QueryerContext, typeID chunk.ChunkType) (iter.Seq2[DBChannel, error], error) {
+	return r.allOfTypeWhere(ctx, conn, typeID, queryParams{OrderBy: []string{"T.NAME"}})
 }

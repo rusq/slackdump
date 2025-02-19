@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"testing"
 
-	_ "modernc.org/sqlite"
 )
 
 func TestMigrate(t *testing.T) {

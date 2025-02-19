@@ -45,6 +45,9 @@ func testConnDSN(t *testing.T, dsn string) *sqlx.DB {
 		t.Fatalf("db.Ping() err = %v; want nil", err)
 	}
 	t.Cleanup(func() { db.Close() })
+	if _, err := db.Exec("PRAGMA foreign_keys = ON"); err != nil {
+		t.Fatalf("PRAGMA foreign_keys = ON err = %v; want nil", err)
+	}
 	if err := Migrate(context.Background(), db.DB); err != nil {
 		t.Fatalf("Migrate() err = %v; want nil", err)
 	}
@@ -85,11 +88,11 @@ func prepChunk(typeID ...chunk.ChunkType) utilityFn {
 		t.Log("session id", id)
 		for i, tid := range typeID {
 			c := DBChunk{ID: int64(i + 1), SessionID: id, UnixTS: time.Now().UnixMilli(), TypeID: tid}
-			id, err = cr.Insert(ctx, conn, &c)
+			chunkID, err := cr.Insert(ctx, conn, &c)
 			if err != nil {
 				t.Fatalf("chunk insert: %v", err)
 			}
-			t.Log("chunk id", id)
+			t.Log("chunk id", chunkID)
 		}
 	}
 }
