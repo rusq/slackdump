@@ -2,12 +2,12 @@ package repository
 
 import (
 	"context"
+	"reflect"
 	"testing"
 
 	"github.com/jmoiron/sqlx"
-	"github.com/stretchr/testify/require"
-
 	"github.com/rusq/slack"
+	"github.com/stretchr/testify/require"
 
 	"github.com/rusq/slackdump/v3/internal/chunk"
 )
@@ -43,6 +43,48 @@ func prepChannels(t *testing.T, conn PrepareExtContext) {
 	require.NoError(t, err)
 	err = cr.Insert(ctx, conn, dbchi100, dbchi200, dbchi300, dbchi400) // insert channel info
 	require.NoError(t, err)
+}
+
+func TestNewDBChannel(t *testing.T) {
+	type args struct {
+		chunkID int64
+		n       int
+		channel *slack.Channel
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    *DBChannel
+		wantErr bool
+	}{
+		{
+			name: "creates a new DBChannel",
+			args: args{
+				chunkID: 1,
+				n:       50,
+				channel: ch100,
+			},
+			want: &DBChannel{
+				ID:      "C100",
+				ChunkID: 1,
+				Name:    ptr("channel C 100"),
+				Index:   50,
+				Data:    must(marshal(ch100)),
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := NewDBChannel(tt.args.chunkID, tt.args.n, tt.args.channel)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("NewDBChannel() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("NewDBChannel() = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }
 
 func Test_channelRepository_AllOfType(t *testing.T) {

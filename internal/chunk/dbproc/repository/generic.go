@@ -13,19 +13,6 @@ import (
 	"github.com/rusq/slackdump/v3/internal/chunk"
 )
 
-type dbObject interface {
-	// tablename should return the table name.
-	tablename() string
-	// userkey should return the user key columns.  User key is the key that
-	// uniquely identifies the logical entity, and is usually a part of primary
-	// key, excluding system column, such as CHUNK_ID.
-	userkey() []string
-	// columns should return the column names.
-	columns() []string
-	// values should return the values of the entity.
-	values() []any
-}
-
 type Inserter[T dbObject] interface {
 	// Insert should insert the entity into the database.
 	Insert(ctx context.Context, conn sqlx.ExtContext, t ...*T) error
@@ -253,7 +240,7 @@ func (r genericRepository[T]) AllOfType(ctx context.Context, conn sqlx.QueryerCo
 type queryParams struct {
 	Where        string
 	Binds        []any
-	OrderBy        []string
+	OrderBy      []string
 	UserKeyOrder bool
 }
 
