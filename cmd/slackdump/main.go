@@ -168,6 +168,10 @@ func invoke(cmd *base.Command, args []string) error {
 	if cfg.LoadSecrets {
 		// load secrets only if we're told to.
 		loadSecrets(secretFiles)
+	} else {
+		if os.Getenv("SLACK_TOKEN") != "" {
+			log.Println("warning: SLACK_TOKEN is set in the environment, but not used, run with -env flag to use it")
+		}
 	}
 
 	// maybe start trace
@@ -308,6 +312,8 @@ func loadSecrets(files []string) {
 	for _, f := range files {
 		_ = godotenv.Load(f)
 	}
+	cfg.SlackToken = os.Getenv("SLACK_TOKEN")
+	cfg.SlackCookie = os.Getenv("SLACK_COOKIE")
 }
 
 type choice string
