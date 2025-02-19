@@ -261,7 +261,7 @@ func messagePrepFn(t *testing.T, conn PrepareExtContext) {
 	// they both will have 2 messages each, such as  (A, B),(B', C)
 	// where B' will be an updated version of B.
 	// Also, there are messages from a different channel, X, Y, Z.
-	prepChunk(chunk.CMessages, chunk.CMessages, chunk.CMessages)(t, conn)
+	prepChunk(chunk.CMessages, chunk.CMessages, chunk.CMessages, chunk.CMessages)(t, conn)
 	mr := NewMessageRepository()
 	if err := mr.Insert(context.Background(), conn, dbmA, dbmB, dbmB_, dbmC, dbmX, dbmY, dbmZ); err != nil {
 		t.Fatalf("insert: %v", err)

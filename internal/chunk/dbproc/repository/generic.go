@@ -132,18 +132,11 @@ func (r genericRepository[T]) stmtLatestWhere(tid chunk.ChunkType, qp queryParam
 }
 
 func (r genericRepository[T]) Get(ctx context.Context, conn sqlx.ExtContext, id any) (T, error) {
-	return r.getType(ctx, conn, CTypeAny, id, nil)
+	return r.GetType(ctx, conn, CTypeAny, id)
 }
 
 func (r genericRepository[T]) GetType(ctx context.Context, conn sqlx.ExtContext, ct chunk.ChunkType, id any) (T, error) {
-	return r.getType(ctx, conn, ct, id, nil)
-}
-
-func (r genericRepository[T]) getType(ctx context.Context, conn sqlx.ExtContext, ct chunk.ChunkType, id any, order []string) (T, error) {
 	latest, binds := r.stmtLatestRows(ct, queryParams{Where: "T.ID = ?", Binds: []any{id}})
-	if len(order) > 0 {
-		latest += " ORDER BY " + strings.Join(order, ",")
-	}
 
 	slog.DebugContext(ctx, "get", "stmt", latest, "binds", binds)
 
@@ -260,7 +253,7 @@ func (r genericRepository[T]) AllOfType(ctx context.Context, conn sqlx.QueryerCo
 type queryParams struct {
 	Where        string
 	Binds        []any
-	Order        []string
+	OrderBy        []string
 	UserKeyOrder bool
 }
 
@@ -288,9 +281,9 @@ func (r genericRepository[T]) allOfTypeWhere(ctx context.Context, conn sqlx.Quer
 	if qp.UserKeyOrder {
 		buf.WriteString(" ORDER BY ")
 		buf.WriteString(colAlias("T", r.t.userkey()...))
-	} else if len(qp.Order) > 0 {
+	} else if len(qp.OrderBy) > 0 {
 		buf.WriteString(" ORDER BY ")
-		buf.WriteString(strings.Join(qp.Order, ","))
+		buf.WriteString(strings.Join(qp.OrderBy, ","))
 	}
 
 	stmt := buf.String()
