@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"testing"
-
 )
 
 func TestMigrate(t *testing.T) {
