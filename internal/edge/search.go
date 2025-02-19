@@ -15,9 +15,7 @@ import (
 
 const perPage = 100
 
-var (
-	ErrPagination = errors.New("pagination fault")
-)
+var ErrPagination = errors.New("pagination fault")
 
 type SearchResponse[T any] struct {
 	baseResponse
@@ -87,7 +85,7 @@ const (
 func (cl *Client) SearchChannels(ctx context.Context, query string) ([]slack.Channel, error) {
 	ctx, task := trace.NewTask(ctx, "SearchChannels")
 	defer task.End()
-	lg := slog.With(ctx, "in", "SearchChannels", "query", query)
+	lg := slog.With("in", "SearchChannels", "query", query)
 
 	trace.Logf(ctx, "params", "query=%q", query)
 
