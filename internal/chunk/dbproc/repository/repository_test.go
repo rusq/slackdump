@@ -5,14 +5,16 @@ import (
 	"iter"
 	"log/slog"
 	"os"
+	"reflect"
+	"strings"
 	"testing"
 	"time"
 
-	"github.com/rusq/slackdump/v3/internal/chunk"
-
 	"github.com/jmoiron/sqlx"
-	// _ "modernc.org/sqlite"
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/stretchr/testify/assert"
+
+	"github.com/rusq/slackdump/v3/internal/chunk"
 )
 
 func init() {
@@ -130,4 +132,81 @@ func collect[T any](t *testing.T, it iter.Seq2[T, error]) []testResult[T] {
 		ret = append(ret, testResult[T]{v, err})
 	}
 	return ret
+}
+
+func Test_placeholders(t *testing.T) {
+	type args[T any] struct {
+		v []T
+	}
+	tests := []struct {
+		name string
+		args args[int]
+		want []string
+	}{
+		{
+			name: "empty",
+			args: args[int]{v: nil},
+			want: []string{},
+		},
+		{
+			name: "one",
+			args: args[int]{v: []int{1}},
+			want: []string{"?"},
+		},
+		{
+			name: "three",
+			args: args[int]{v: []int{1, 2, 3}},
+			want: []string{"?", "?", "?"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := placeholders(tt.args.v); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("placeholders() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_orNull(t *testing.T) {
+	type args[T any] struct {
+		b bool
+		t T
+	}
+	tests := []struct {
+		name string
+		args args[int]
+		want *int
+	}{
+		{
+			name: "null",
+			args: args[int]{b: false, t: 42},
+			want: nil,
+		},
+		{
+			name: "not null",
+			args: args[int]{b: true, t: 42},
+			want: ptr(42),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := orNull(tt.args.b, tt.args.t); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("orNull() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_newBindAddFn(t *testing.T) {
+	t.Run("adds bind", func(t *testing.T) {
+		var buf strings.Builder
+		var binds []any
+		fn := newBindAddFn(&buf, &binds)
+		fn(true, "foo = ?", 42)
+		fn(false, "bar < ?", 43)
+		got := buf.String()
+		assert.Equal(t, got, "foo = ?")
+		assert.Equal(t, binds, []any{42})
+	})
 }
