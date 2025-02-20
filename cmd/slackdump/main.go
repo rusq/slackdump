@@ -175,10 +175,8 @@ func invoke(cmd *base.Command, args []string) error {
 	}
 
 	// maybe start trace
-	if err := initTrace(cfg.TraceFile); err != nil {
-		base.SetExitStatus(base.SGenericError)
-		return fmt.Errorf("failed to start trace: %s", err)
-	}
+	traceStop := initTrace(cfg.TraceFile)
+	base.AtExit(traceStop)
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
@@ -188,6 +186,7 @@ func invoke(cmd *base.Command, args []string) error {
 
 	// initialise default logging.
 	if lg, err := initLog(cfg.LogFile, cfg.JsonHandler, cfg.Verbose); err != nil {
+		base.SetExitStatus(base.SInitializationError)
 		return err
 	} else {
 		lg.With("command", cmd.Name())
@@ -232,25 +231,26 @@ func parseFlags(cmd *base.Command, args []string) ([]string, error) {
 // will be opened, trace will write to that file.  Returns the stop function
 // that must be called in the deferred call.  If the error is returned the stop
 // function is nil.
-func initTrace(filename string) error {
+func initTrace(filename string) (stop func()) {
+	stop = func() {}
 	if filename == "" {
-		return nil
+		return
 	}
 
 	slog.Info("trace will be written to", "filename", filename)
 
 	trc := tracer.New(filename)
 	if err := trc.Start(); err != nil {
-		return nil
+		slog.Warn("failed to start the trace", "filename", filename, "error", err)
+		return
 	}
 
-	stop := func() {
+	stop = func() {
 		if err := trc.End(); err != nil {
 			slog.Warn("failed to write the trace file", "filename", filename, "error", err)
 		}
 	}
-	base.AtExit(stop)
-	return nil
+	return
 }
 
 // initLog initialises the logging and returns the context with the Logger. If the
