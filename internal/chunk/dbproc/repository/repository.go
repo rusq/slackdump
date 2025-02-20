@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	dbDriver = "sqlite3"
+	dbDriver = "sqlite"
 	dbTag    = "db"
 )
 

@@ -54,6 +54,7 @@ func (d DBChunk) values() []any {
 }
 
 type ChunkRepository interface {
+	// Insert should insert dbchunk into the repository and return its ID.
 	Insert(ctx context.Context, conn sqlx.ExtContext, dbchunk *DBChunk) (int64, error)
 }
 

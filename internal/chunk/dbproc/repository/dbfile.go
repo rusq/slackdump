@@ -49,7 +49,7 @@ func NewDBFile(chunkID int64, idx int, channelID, threadTS string, parentMsgTS s
 		Index:     idx,
 		Mode:      file.Mode,
 		Filename:  orNull(file.Name != "", file.Name),
-		URL:       orNull(file.URLPrivate != "", file.URLPrivate),
+		URL:       orNull(file.URLPrivateDownload != "", file.URLPrivateDownload),
 		Data:      data,
 	}, nil
 }
