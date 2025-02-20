@@ -114,7 +114,7 @@ new workspace.
 .\"
 .Sh FLAGS
 This section lists all available flags, availability of which depends on the
-command.  The flags are listed in alphabetical order.
+command.  Listed in alphabetical order.
 .Bl -tag -width -base dir
 .It Fl api-config Ar path
 Use the specified API limits configuration TOML file (see the
@@ -127,12 +127,6 @@ interaction time. The duration must be specified in the following format:
 for example,
 .Dq 1h20m32s
 would set the timeout to 1 hour, 20 minutes, 32 seconds.
-.It Fl o Ar path
-Specifies the output directory or zip file where all data will be stored.
-If the path ends with
-.Dq .zip ,
-the data will be stored in the zip file, otherwise
-it will be stored in the directory.
 .Pp
 If the flag is not specified, Slackdump defaults to creating a zip file in the
 current directory using the following pattern:
@@ -150,6 +144,13 @@ Specifies the directory where the authentication information and user/channel
 cache is stored.  If the flag is not specified, the cache is stored in the
 system cache directory.
 .It Fl cookie Ar cookie | cookie_file
+.It Fl env
+Enables loading of the environment variables from environment and
+.Sy .env,
+.Sy .env.txt,
+and
+.Sy secrets.txt
+files.
 .It Fl files=true|false
 Enables or disables attachment files downloading.  The default is enabled.  To
 disable downloading, use
@@ -159,9 +160,6 @@ Specifies the log file path and or filename.  If the flag is not specified, the
 log is written to the error output (STDERR).
 .It Fl log-json=true|false
 Enables or disables JSON log format.  The default is disabled.
-.It Fl token Ar token
-Specifies the token to use for the authentication.  This flag is only used
-with the manual authentication methods.
 .It Fl machine-id Ar value
 Allows to override the machine ID. To read how to use it to transfer the credentials
 between machine, run:
@@ -181,15 +179,21 @@ you're planning to transfer credentials to another system.  It is highly
 recommended to use
 .Fl machine-id
 flag instead, as it is more secure.
-.It Fl no-user-cache
-Disables caching of users for the subcommands of the
-.Cm list
-command.
 .It Fl no-chunk-cache
 Disables caching of chunks for the
 .Cm convert
 command.  This may be useful on small archives.  For big archives caching is
 beneficial, as it allows to reduce the processing time.
+.It Fl no-user-cache
+Disables caching of users for the subcommands of the
+.Cm list
+command.
+.It Fl o Ar path
+Specifies the output directory or zip file where all data will be stored.
+If the path ends with
+.Dq .zip ,
+the data will be stored in the zip file, otherwise
+it will be stored in the directory.
 .It Fl time-from Ar YYYY-MM-DDTHH:MI:SS | YYYY-MM-DD
 Allows to specify the start time.  The time is specified in the format
 .Dq YYYY-MM-DDTHH:MI:SS, or YYYY-MM-DD if only the date is needed.
@@ -201,6 +205,9 @@ is a literal character separating the date and time, for example
 Allows to specify the end time.  See the
 .Fl time-from
 flag for the format.
+.It Fl token Ar token
+Specifies the token to use for the authentication.  This flag is only used
+with the manual authentication methods.
 .It Fl trace Ar filename
 Enables tracing and writes the trace to the specified file.
 .It Fl user-cache-retention Ar duration
@@ -304,6 +311,14 @@ your own risk.  The authors of this utility do not endorse any of the
 extensions mentioned above.
 .El
 .Pp
+If you desire to use
+.Ev SLACK_TOKEN
+and
+.Ev SLACK_COOKIE
+environment variables, you need to specify
+.Fl env
+flag.
+.Pp
 Read more on how to get the token and cookie from your logged-in browser 
 session by running
 .Bd -literal -offset indent
@@ -364,11 +379,15 @@ for more details.
 .It Ev SLACK_COOKIE
 Contains Slack cookie (for token+cookie-based authentication).  See
 .Sx Authentication
-for more details.
+for more details.  Only used when
+.Fl env
+flag is set.
 .It Ev SLACK_TOKEN
 Contains Slack token (for token-based authentication).  See
 .Sx Authentication
-for more details.
+for more details.  Only used when
+.Fl env
+flag is set.
 .It Ev SLACK_WORKSPACE
 Allows to specify Slack workspace name (overrides currently selected
 workspace).  See 
