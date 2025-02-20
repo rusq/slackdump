@@ -312,8 +312,6 @@ func loadSecrets(files []string) {
 	for _, f := range files {
 		_ = godotenv.Load(f)
 	}
-	cfg.SlackToken = os.Getenv("SLACK_TOKEN")
-	cfg.SlackCookie = os.Getenv("SLACK_COOKIE")
 }
 
 type choice string
