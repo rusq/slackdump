@@ -45,3 +45,17 @@ There are two ways to use Slackdump:
 3. Run `slackdump view <archive name>` to view the data.
 
 ## Fallback to Manual login
+If you desire to use SLACK_TOKEN and SLACK_COOKIES instead of automatic login,
+you can do so by following these steps:
+
+1. Create only one of the following "secret" files: `.env`, `.env.txt` or
+   `secrets.txt`.
+2. Add "SLACK_TOKEN" and "SLACK_COOKIE" to the file.  For example:
+   ```
+   SLACK_TOKEN=xoxc-....
+   SLACK_COOKIE=xoxd-....
+   ```
+3. Run `slackdump workspace import <filename>` to import the file and store
+   as credentials.
+4. (Recommended) Remove the "secret" file.
+

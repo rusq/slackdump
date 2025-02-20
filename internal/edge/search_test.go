@@ -14,15 +14,29 @@ import (
 var searchChannelsJSON []byte
 
 func TestClient_SearchChannels(t *testing.T) {
-	srv := testServer(http.StatusOK, searchChannelsJSON)
-	defer srv.Close()
+	t.Run("ok", func(t *testing.T) {
+		srv := testServer(http.StatusOK, searchChannelsJSON)
+		defer srv.Close()
 
-	cl := Client{
-		cl:           http.DefaultClient,
-		edgeAPI:      srv.URL + "/",
-		webclientAPI: srv.URL + "/",
-	}
-	r, err := cl.SearchChannels(context.Background(), "test")
-	require.NoError(t, err)
-	assert.Len(t, r, 6)
+		cl := Client{
+			cl:           http.DefaultClient,
+			edgeAPI:      srv.URL + "/",
+			webclientAPI: srv.URL + "/",
+		}
+		r, err := cl.SearchChannels(context.Background(), "test")
+		require.NoError(t, err)
+		assert.Len(t, r, 6)
+	})
+	t.Run("500", func(t *testing.T) {
+		srv := testServer(http.StatusInternalServerError, nil)
+		defer srv.Close()
+
+		cl := Client{
+			cl:           http.DefaultClient,
+			edgeAPI:      srv.URL + "/",
+			webclientAPI: srv.URL + "/",
+		}
+		_, err := cl.SearchChannels(context.Background(), "test")
+		require.Error(t, err)
+	})
 }
