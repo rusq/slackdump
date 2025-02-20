@@ -4,14 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"iter"
+	"reflect"
 	"testing"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/rusq/slack"
-	"github.com/stretchr/testify/assert"
-
 	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/internal/fixtures"
+	"github.com/stretchr/testify/assert"
 )
 
 func minifyJSON[T any](t *testing.T, s string) []byte {
@@ -392,7 +392,21 @@ func Test_messageRepository_CountThread(t *testing.T) {
 		want    int64
 		wantErr bool
 	}{
-		// TODO: Add test cases.
+		{
+			name: "ok",
+			fields: fields{
+				genericRepository: genericRepository[DBMessage]{DBMessage{}},
+			},
+			args: args{
+				ctx:       context.Background(),
+				conn:      testConn(t),
+				channelID: "C123",
+				threadID:  "123.456",
+			},
+			prepFn:  threadSetupFn,
+			want:    4,
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -512,6 +526,60 @@ func Test_messageRepository_AllForThread(t *testing.T) {
 				return
 			}
 			assertIterResult(t, tt.want, got)
+		})
+	}
+}
+
+func TestDBMessage_Val(t *testing.T) {
+	type fields struct {
+		ID        int64
+		ChunkID   int64
+		ChannelID string
+		TS        string
+		ParentID  *int64
+		ThreadTS  *string
+		IsParent  bool
+		Index     int
+		NumFiles  int
+		Text      string
+		Data      []byte
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		want    slack.Message
+		wantErr bool
+	}{
+		{
+			"ok",
+			fields(*dbmA),
+			msgA,
+			false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dbm := DBMessage{
+				ID:        tt.fields.ID,
+				ChunkID:   tt.fields.ChunkID,
+				ChannelID: tt.fields.ChannelID,
+				TS:        tt.fields.TS,
+				ParentID:  tt.fields.ParentID,
+				ThreadTS:  tt.fields.ThreadTS,
+				IsParent:  tt.fields.IsParent,
+				Index:     tt.fields.Index,
+				NumFiles:  tt.fields.NumFiles,
+				Text:      tt.fields.Text,
+				Data:      tt.fields.Data,
+			}
+			got, err := dbm.Val()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("DBMessage.Val() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("DBMessage.Val() = %v, want %v", got, tt.want)
+			}
 		})
 	}
 }

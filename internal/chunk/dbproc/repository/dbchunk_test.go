@@ -7,8 +7,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/rusq/slackdump/v3/internal/chunk"
 )
 
 func Test_chunkRepository_Insert(t *testing.T) {
@@ -46,6 +47,22 @@ func Test_chunkRepository_Insert(t *testing.T) {
 			},
 			want:    1,
 			wantErr: assert.NoError,
+		},
+		{
+			name: "missing session",
+			args: args{
+				ctx:  context.Background(),
+				conn: testConn(t),
+				chunk: &DBChunk{
+					SessionID:  1,
+					UnixTS:     1234567890,
+					TypeID:     chunk.CMessages,
+					NumRecords: 100,
+					Final:      true,
+				},
+			},
+			want:    0,
+			wantErr: assert.Error,
 		},
 	}
 	for _, tt := range tests {

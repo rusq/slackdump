@@ -76,13 +76,6 @@ func (r genericRepository[T]) stmtInsert() string {
 
 const CTypeAny = chunk.CAny
 
-// stmtLatest returns the statement that selects the latest chunk for each
-// entity. it is only suitable for dictionary type entries, such as channels or
-// users.
-func (r genericRepository[T]) stmtLatest(tid chunk.ChunkType) (stmt string, binds []any) {
-	return r.stmtLatestWhere(tid, queryParams{})
-}
-
 func colAlias(alias string, col ...string) string {
 	var buf strings.Builder
 	var prefix string
@@ -94,6 +87,8 @@ func colAlias(alias string, col ...string) string {
 	return buf.String()
 }
 
+// stmtLatestWhere returns the statement that selects the latest chunk for
+// entity.
 func (r genericRepository[T]) stmtLatestWhere(tid chunk.ChunkType, qp queryParams) (string, []any) {
 	const alias = "T"
 	var buf strings.Builder

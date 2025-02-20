@@ -15,42 +15,6 @@ import (
 	"github.com/rusq/slackdump/v3/internal/fixtures"
 )
 
-func Test_genericRepository_stmtLatest(t *testing.T) {
-	type args struct {
-		tid chunk.ChunkType
-	}
-	type testCase[T dbObject] struct {
-		name      string
-		r         genericRepository[T]
-		args      args
-		wantStmt  string
-		wantBinds []any
-	}
-	tests := []testCase[*DBChannel]{
-		{
-			name:      "generates for all channels",
-			r:         genericRepository[*DBChannel]{t: new(DBChannel)},
-			args:      args{tid: CTypeAny},
-			wantStmt:  `SELECT T.ID, MAX(CHUNK_ID) AS CHUNK_ID FROM CHANNEL AS T JOIN CHUNK AS CH ON CH.ID = T.CHUNK_ID WHERE 1=1 GROUP BY T.ID`,
-			wantBinds: nil,
-		},
-		{
-			name:      "generates for concrete type",
-			r:         genericRepository[*DBChannel]{t: new(DBChannel)},
-			args:      args{tid: chunk.CChannelInfo},
-			wantStmt:  `SELECT T.ID, MAX(CHUNK_ID) AS CHUNK_ID FROM CHANNEL AS T JOIN CHUNK AS CH ON CH.ID = T.CHUNK_ID WHERE 1=1 AND CH.TYPE_ID = ? GROUP BY T.ID`,
-			wantBinds: []any{chunk.CChannelInfo},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			gotStmt, gotBinds := tt.r.stmtLatest(tt.args.tid)
-			assert.Equalf(t, tt.wantStmt, gotStmt, "stmtLatest(%v)", tt.args.tid)
-			assert.Equalf(t, tt.wantBinds, gotBinds, "stmtLatest(%v)", tt.args.tid)
-		})
-	}
-}
-
 func must[T any](t T, err error) T {
 	if err != nil {
 		panic(err)
@@ -58,7 +22,7 @@ func must[T any](t T, err error) T {
 	return t
 }
 
-func Test_genericRepository_AllOfType(t *testing.T) {
+func Test_genericRepository_allOfTypeWhere(t *testing.T) {
 	allTestChans := fixtures.Load[[]slack.Channel](fixtures.TestChannels)
 	data1 := must(marshal(allTestChans[0]))
 	data2 := must(marshal(allTestChans[1]))
@@ -67,6 +31,7 @@ func Test_genericRepository_AllOfType(t *testing.T) {
 		ctx    context.Context
 		conn   sqlx.QueryerContext
 		typeID chunk.ChunkType
+		qp     queryParams
 	}
 	type testCase[T dbObject] struct {
 		name    string
@@ -125,14 +90,75 @@ func Test_genericRepository_AllOfType(t *testing.T) {
 			},
 			wantErr: assert.NoError,
 		},
+		{
+			name: "Additional conditions in the query parameters",
+			r:    genericRepository[DBChannel]{DBChannel{}},
+			args: args{
+				ctx:    context.Background(),
+				conn:   testConn(t),
+				typeID: chunk.CChannelInfo,
+				qp: queryParams{
+					Where:   "T.ID IN (?, ?)",
+					Binds:   []any{"ABC", "CDE"},
+					OrderBy: []string{"T.NAME DESC"}, // NOTE: descending.
+				},
+			},
+			prepFn: func(t *testing.T, conn PrepareExtContext) {
+				prepChunk(chunk.CChannelInfo, chunk.CChannelInfo, chunk.CChannelInfo)(t, conn)
+				cir := NewChannelRepository()
+				_, err := cir.InsertAll(context.Background(), conn, toIter([]testResult[*DBChannel]{
+					{V: &DBChannel{ID: "BCD", ChunkID: 1, Name: ptr("other name"), Data: data2}, Err: nil},
+					{V: &DBChannel{ID: "ABC", ChunkID: 1, Name: ptr("old name"), Data: data1}, Err: nil},
+					{V: &DBChannel{ID: "ABC", ChunkID: 2, Name: ptr("new name"), Data: data1}, Err: nil},
+					{V: &DBChannel{ID: "CDE", ChunkID: 2, Name: ptr("cde channel"), Data: data1}, Err: nil},
+				}))
+				require.NoError(t, err)
+			},
+			want: []testResult[DBChannel]{
+				{V: DBChannel{ID: "ABC", ChunkID: 2, Name: ptr("new name"), Data: data1}, Err: nil},
+				{V: DBChannel{ID: "CDE", ChunkID: 2, Name: ptr("cde channel"), Data: data1}, Err: nil},
+			},
+			wantErr: assert.NoError,
+		},
+		{
+			name: "Same, but user key ordering (ID)",
+			r:    genericRepository[DBChannel]{DBChannel{}},
+			args: args{
+				ctx:    context.Background(),
+				conn:   testConn(t),
+				typeID: chunk.CChannelInfo,
+				qp: queryParams{
+					Where:        "T.ID IN (?, ?)",
+					Binds:        []any{"ABC", "CDE"},
+					UserKeyOrder: true,
+				},
+			},
+			prepFn: func(t *testing.T, conn PrepareExtContext) {
+				prepChunk(chunk.CChannelInfo, chunk.CChannelInfo, chunk.CChannelInfo)(t, conn)
+				cir := NewChannelRepository()
+				_, err := cir.InsertAll(context.Background(), conn, toIter([]testResult[*DBChannel]{
+					{V: &DBChannel{ID: "BCD", ChunkID: 1, Name: ptr("other name"), Data: data2}, Err: nil},
+					{V: &DBChannel{ID: "ABC", ChunkID: 1, Name: ptr("old name"), Data: data1}, Err: nil},
+					{V: &DBChannel{ID: "ABC", ChunkID: 2, Name: ptr("new name"), Data: data1}, Err: nil},
+					{V: &DBChannel{ID: "CDE", ChunkID: 2, Name: ptr("cde channel"), Data: data1}, Err: nil},
+				}))
+				require.NoError(t, err)
+			},
+			want: []testResult[DBChannel]{
+				// user key is ID.
+				{V: DBChannel{ID: "ABC", ChunkID: 2, Name: ptr("new name"), Data: data1}, Err: nil},
+				{V: DBChannel{ID: "CDE", ChunkID: 2, Name: ptr("cde channel"), Data: data1}, Err: nil},
+			},
+			wantErr: assert.NoError,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if tt.prepFn != nil {
 				tt.prepFn(t, tt.args.conn.(PrepareExtContext))
 			}
-			got, err := tt.r.AllOfType(tt.args.ctx, tt.args.conn, tt.args.typeID)
-			if !tt.wantErr(t, err, fmt.Sprintf("AllOfType(%v, %v, %v)", tt.args.ctx, tt.args.conn, tt.args.typeID)) {
+			got, err := tt.r.allOfTypeWhere(tt.args.ctx, tt.args.conn, tt.args.typeID, tt.args.qp)
+			if !tt.wantErr(t, err, fmt.Sprintf("allOfTypeWhere(%v, %v, %v, %v)", tt.args.ctx, tt.args.conn, tt.args.typeID, tt.args.qp)) {
 				return
 			}
 			assertIterResult(t, tt.want, got)
@@ -181,6 +207,53 @@ func Test_colAlias(t *testing.T) {
 			if got := colAlias(tt.args.alias, tt.args.col...); got != tt.want {
 				t.Errorf("colAlias() = %v, want %v", got, tt.want)
 			}
+		})
+	}
+}
+
+func Test_genericRepository_stmtLatestWhere(t *testing.T) {
+	type args struct {
+		tid chunk.ChunkType
+		qp  queryParams
+	}
+	type testCase[T dbObject] struct {
+		name  string
+		r     genericRepository[T]
+		args  args
+		want  string
+		want1 []any
+	}
+	tests := []testCase[DBWorkspace]{
+		{
+			name: "generates for empty query params",
+			r:    genericRepository[DBWorkspace]{DBWorkspace{}},
+			args: args{
+				tid: chunk.CWorkspaceInfo,
+				qp:  queryParams{},
+			},
+			want:  "SELECT T.TEAM_ID, MAX(CHUNK_ID) AS CHUNK_ID FROM WORKSPACE AS T JOIN CHUNK AS CH ON CH.ID = T.CHUNK_ID WHERE 1=1 AND CH.TYPE_ID = ? GROUP BY T.TEAM_ID",
+			want1: []any{chunk.CWorkspaceInfo},
+		},
+		{
+			name: "additional predicates",
+			r:    genericRepository[DBWorkspace]{DBWorkspace{}},
+			args: args{
+				tid: chunk.CWorkspaceInfo,
+				qp: queryParams{
+					Where: "NAME = ?",
+					Binds: []any{2},
+				},
+			},
+			want:  "SELECT T.TEAM_ID, MAX(CHUNK_ID) AS CHUNK_ID FROM WORKSPACE AS T JOIN CHUNK AS CH ON CH.ID = T.CHUNK_ID WHERE 1=1 AND CH.TYPE_ID = ? AND (NAME = ?) GROUP BY T.TEAM_ID",
+			want1: []any{chunk.CWorkspaceInfo, 2},
+		},
+		// ordering not supported by this query, so no test.
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, got1 := tt.r.stmtLatestWhere(tt.args.tid, tt.args.qp)
+			assert.Equalf(t, tt.want, got, "stmtLatestWhere(%v, %v)", tt.args.tid, tt.args.qp)
+			assert.Equalf(t, tt.want1, got1, "stmtLatestWhere(%v, %v)", tt.args.tid, tt.args.qp)
 		})
 	}
 }

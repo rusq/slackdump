@@ -11,8 +11,8 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
-	_ "github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/assert"
+	_ "modernc.org/sqlite"
 
 	"github.com/rusq/slackdump/v3/internal/chunk"
 )

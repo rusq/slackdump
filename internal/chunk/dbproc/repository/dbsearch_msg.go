@@ -9,7 +9,6 @@ import (
 type DBSearchMessage struct {
 	ID          int64   `db:"ID"`
 	ChunkID     int64   `db:"CHUNK_ID"`
-	LoadDTTM    string  `db:"LOAD_DTTM,omitempty"`
 	ChannelID   string  `db:"CHANNEL_ID"`
 	ChannelName *string `db:"CHANNEL_NAME,omitempty"`
 	TS          string  `db:"TS"`
