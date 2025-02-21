@@ -1,7 +1,7 @@
-// Package emojidl provides functions to dump the all slack emojis for a workspace.
-// It skips the "alias" emojis, so only original an emoji with an original name
-// is present. If you need to find the alias - lookup the index.json. The
-// directory structure is the following:
+// Package emojidl provides functions to dump the all slack emojis for a
+// workspace. It skips the "alias" emojis, so only original emoji with an
+// original name is present. If you need to find the alias - look it up in the
+// index.json. The directory structure is the following:
 //
 //	.
 //	+- emojis
@@ -24,6 +24,7 @@ import (
 	"sync"
 
 	"github.com/rusq/fsadapter"
+
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/internal/edge"
 )
@@ -97,7 +98,7 @@ func DlEdgeFS(ctx context.Context, sess EdgeEmojiLister, fsa fsadapter.FS, failF
 		count = 0
 		total = <-totalC // if there's a generator error, this will receive 0.
 	)
-	var emojis = make(map[string]edge.Emoji, total)
+	emojis := make(map[string]edge.Emoji, total)
 LOOP:
 	for {
 		select {

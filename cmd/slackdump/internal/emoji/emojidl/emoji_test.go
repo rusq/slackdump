@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path"
 	"path/filepath"
 	"reflect"
 	"sync"
@@ -40,9 +41,10 @@ func setGlobalFetchFn(fn fetchFunc) {
 
 func Test_fetchEmoji(t *testing.T) {
 	type args struct {
-		ctx  context.Context
-		dir  string
-		name string
+		ctx       context.Context
+		dir       string
+		name      string
+		urlsuffix string
 	}
 	type serverOptions struct {
 		status int
@@ -58,7 +60,15 @@ func Test_fetchEmoji(t *testing.T) {
 	}{
 		{
 			"ok",
-			args{context.Background(), "test", "file"},
+			args{context.Background(), "test", "file", "/somepath/file.png"},
+			serverOptions{status: http.StatusOK, body: []byte("test data")},
+			false,
+			true,
+			[]byte("test data"),
+		},
+		{
+			"gif",
+			args{context.Background(), "test", "file", "/somepath/file.gif"},
 			serverOptions{status: http.StatusOK, body: []byte("test data")},
 			false,
 			true,
@@ -66,7 +76,7 @@ func Test_fetchEmoji(t *testing.T) {
 		},
 		{
 			"404",
-			args{context.Background(), "test", "file"},
+			args{context.Background(), "test", "file", "/somepath/file.png"},
 			serverOptions{status: http.StatusNotFound, body: nil},
 			true,
 			true,
@@ -89,11 +99,12 @@ func Test_fetchEmoji(t *testing.T) {
 				t.Fatalf("failed to create test dir: %s", err)
 			}
 
-			if err := fetchEmoji(tt.args.ctx, fsa, tt.args.dir, tt.args.name, server.URL); (err != nil) != tt.wantErr {
+			if err := fetchEmoji(tt.args.ctx, fsa, tt.args.dir, tt.args.name, server.URL+tt.args.urlsuffix); (err != nil) != tt.wantErr {
 				t.Errorf("fetch() error = %v, wantErr %v", err, tt.wantErr)
 			}
 
-			testfile := filepath.Join(dir, tt.args.dir, tt.args.name+".png")
+			ext := path.Ext(tt.args.urlsuffix)
+			testfile := filepath.Join(dir, tt.args.dir, tt.args.name+ext)
 			_, err = os.Stat(testfile)
 			if notExist := os.IsNotExist(err); notExist != !tt.wantFileExist {
 				t.Errorf("os.IsNotExist=%v tt.wantFileExist=%v", notExist, tt.wantFileExist)

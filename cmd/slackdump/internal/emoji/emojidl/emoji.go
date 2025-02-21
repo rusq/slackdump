@@ -27,6 +27,7 @@ import (
 	"sync"
 
 	"github.com/rusq/fsadapter"
+
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/internal/edge"
 )
@@ -54,7 +55,7 @@ func DlFS(ctx context.Context, sess EmojiDumper, fsa fsadapter.FS, failFast bool
 	if err != nil {
 		return fmt.Errorf("error marshalling emoji index: %w", err)
 	}
-	if err := fsa.WriteFile("index.json", bIndex, 0644); err != nil {
+	if err := fsa.WriteFile("index.json", bIndex, 0o644); err != nil {
 		return fmt.Errorf("failed writing emoji index: %w", err)
 	}
 
@@ -164,7 +165,8 @@ func fetchEmoji(ctx context.Context, fsa fsadapter.FS, dir string, name, uri str
 	}
 	defer resp.Body.Close()
 
-	filename := path.Join(dir, name+".png")
+	emojiExt := path.Ext(uri) // get the extension from the uri.
+	filename := path.Join(dir, name+emojiExt)
 	wc, err := fsa.Create(filename)
 	if err != nil {
 		return err
