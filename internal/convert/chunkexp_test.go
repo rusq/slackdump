@@ -31,12 +31,10 @@ func TestChunkToExport_Validate(t *testing.T) {
 	testTrgDir := t.TempDir()
 
 	type fields struct {
-		Src          *chunk.Directory
-		Trg          fsadapter.FS
-		UploadDir    string
-		IncludeFiles bool
-		SrcFileLoc   func(*slack.Channel, *slack.File) string
-		TrgFileLoc   func(*slack.Channel, *slack.File) string
+		Src       *chunk.Directory
+		Trg       fsadapter.FS
+		opts      options
+		UploadDir string
 	}
 	tests := []struct {
 		name    string
@@ -49,32 +47,38 @@ func TestChunkToExport_Validate(t *testing.T) {
 		{
 			"valid, no files",
 			fields{
-				Src:          srcDir,
-				Trg:          fsadapter.NewDirectory(testTrgDir),
-				IncludeFiles: false,
+				Src: srcDir,
+				Trg: fsadapter.NewDirectory(testTrgDir),
+				opts: options{
+					includeFiles: false,
+				},
 			},
 			false,
 		},
 		{
 			"valid, include files, but no location functions",
 			fields{
-				Src:          srcDir,
-				Trg:          fsadapter.NewDirectory(testTrgDir),
-				IncludeFiles: true,
+				Src: srcDir,
+				Trg: fsadapter.NewDirectory(testTrgDir),
+				opts: options{
+					includeFiles: true,
+				},
 			},
 			true,
 		},
 		{
 			"valid, include files, with location functions",
 			fields{
-				Src:          srcDir,
-				Trg:          fsadapter.NewDirectory(testTrgDir),
-				IncludeFiles: true,
-				SrcFileLoc: func(*slack.Channel, *slack.File) string {
-					return ""
-				},
-				TrgFileLoc: func(*slack.Channel, *slack.File) string {
-					return ""
+				Src: srcDir,
+				Trg: fsadapter.NewDirectory(testTrgDir),
+				opts: options{
+					includeFiles: true,
+					srcFileLoc: func(*slack.Channel, *slack.File) string {
+						return ""
+					},
+					trgFileLoc: func(*slack.Channel, *slack.File) string {
+						return ""
+					},
 				},
 			},
 			false,
@@ -83,11 +87,9 @@ func TestChunkToExport_Validate(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			c := &ChunkToExport{
-				src:          tt.fields.Src,
-				trg:          tt.fields.Trg,
-				includeFiles: tt.fields.IncludeFiles,
-				srcFileLoc:   tt.fields.SrcFileLoc,
-				trgFileLoc:   tt.fields.TrgFileLoc,
+				src:  tt.fields.Src,
+				trg:  tt.fields.Trg,
+				opts: tt.fields.opts,
 			}
 			if err := c.Validate(); (err != nil) != tt.wantErr {
 				t.Errorf("ChunkToExport.Validate() error = %v, wantErr %v", err, tt.wantErr)

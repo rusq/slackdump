@@ -34,19 +34,9 @@ type ChunkToExport struct {
 	// src is the source directory with chunks
 	src *chunk.Directory
 	// trg is the target FS for the export
-	trg fsadapter.FS
-	// includeFiles is a flag to include files in the export
-	includeFiles bool
-	// includeAvatars is a flag to include avatars in the export
-	includeAvatars bool
-	// srcFileLoc should return the file location within the source directory.
-	srcFileLoc func(*slack.Channel, *slack.File) string
-	// trgFileLoc should return the file location within the target directory
-	trgFileLoc func(*slack.Channel, *slack.File) string
-	// avtrFileLoc should return the avatar file location.
-	avtrFileLoc func(*slack.User) string
-
-	lg *slog.Logger
+	trg  fsadapter.FS
+	opts options
+	lg   *slog.Logger
 
 	workers int // number of workers to use to convert channels
 
@@ -55,88 +45,36 @@ type ChunkToExport struct {
 	avtrresult  chan copyresult
 }
 
-type C2EOption func(*ChunkToExport)
-
-// WithIncludeFiles sets the IncludeFiles option.
-func WithIncludeFiles(b bool) C2EOption {
-	return func(c *ChunkToExport) {
-		c.includeFiles = b
-	}
-}
-
-// WithIncludeAvatars sets the IncludeAvataars option.
-func WithIncludeAvatars(b bool) C2EOption {
-	return func(c *ChunkToExport) {
-		c.includeAvatars = b
-	}
-}
-
-// WithSrcFileLoc sets the SrcFileLoc function.
-func WithSrcFileLoc(fn func(*slack.Channel, *slack.File) string) C2EOption {
-	return func(c *ChunkToExport) {
-		if fn != nil {
-			c.srcFileLoc = fn
-		}
-	}
-}
-
-// WithTrgFileLoc sets the TrgFileLoc function.
-func WithTrgFileLoc(fn func(*slack.Channel, *slack.File) string) C2EOption {
-	return func(c *ChunkToExport) {
-		if fn != nil {
-			c.trgFileLoc = fn
-		}
-	}
-}
-
-// WithLogger sets the logger.
-func WithLogger(lg *slog.Logger) C2EOption {
-	return func(c *ChunkToExport) {
-		if lg != nil {
-			c.lg = lg
-		}
-	}
-}
-
 func NewChunkToExport(src *chunk.Directory, trg fsadapter.FS, opt ...C2EOption) *ChunkToExport {
 	c := &ChunkToExport{
-		src:            src,
-		trg:            trg,
-		includeFiles:   false,
-		includeAvatars: false,
-		srcFileLoc:     fileproc.MattermostFilepath,
-		trgFileLoc:     fileproc.MattermostFilepath,
-		avtrFileLoc:    fileproc.AvatarPath,
-		lg:             slog.Default(),
-		filerequest:    make(chan copyrequest, 1),
-		fileresult:     make(chan copyresult, 1),
-		avtrresult:     make(chan copyresult, 1),
-		workers:        defWorkers,
+		src: src,
+		trg: trg,
+		opts: options{
+			includeFiles:   false,
+			includeAvatars: false,
+			srcFileLoc:     fileproc.MattermostFilepath,
+			trgFileLoc:     fileproc.MattermostFilepath,
+			avtrFileLoc:    fileproc.AvatarPath,
+			lg:             slog.Default(),
+		},
+		filerequest: make(chan copyrequest, 1),
+		fileresult:  make(chan copyresult, 1),
+		avtrresult:  make(chan copyresult, 1),
+		workers:     defWorkers,
 	}
 	for _, o := range opt {
-		o(c)
+		o(&c.opts)
 	}
 	return c
 }
 
 // Validate validates the input parameters.
 func (c *ChunkToExport) Validate() error {
-	const format = "convert: internal error: %s: %w"
 	if c.src == nil || c.trg == nil {
 		return errors.New("convert: source and target must be set")
 	}
-	if c.includeFiles {
-		if c.srcFileLoc == nil {
-			return fmt.Errorf(format, "source", ErrNoLocFunction)
-		}
-		if c.trgFileLoc == nil {
-			return fmt.Errorf(format, "target", ErrNoLocFunction)
-		}
-	}
-	if c.includeAvatars {
-		if c.avtrFileLoc == nil {
-			return fmt.Errorf(format, "avatar", ErrNoLocFunction)
-		}
+	if err := c.opts.Validate(); err != nil {
+		return fmt.Errorf("convert: %w", err)
 	}
 	// users chunk is required
 	if fi, err := c.src.Stat(chunk.FUsers); err != nil {
@@ -196,7 +134,7 @@ func (c *ChunkToExport) Convert(ctx context.Context) error {
 		// 2. workers
 		var filewg sync.WaitGroup
 
-		if c.includeFiles {
+		if c.opts.includeFiles {
 			tfopts = append(tfopts, transform.ExpWithMsgUpdateFunc(func(ch *slack.Channel, m *slack.Message) error {
 				// copy in a separate goroutine to avoid blocking the transform in
 				// case of a synchronous fsadapter (e.g. zip file adapter can write
@@ -216,7 +154,7 @@ func (c *ChunkToExport) Convert(ctx context.Context) error {
 			close(c.fileresult)
 		}
 
-		if c.includeAvatars {
+		if c.opts.includeAvatars {
 			filewg.Add(1)
 			go func() {
 				c.avatarWorker(users)
@@ -339,7 +277,7 @@ func (e *copyerror) Unwrap() error {
 // location — by calling trgFileLoc function, and is relative to the target
 // fsadapter root.
 func (c *ChunkToExport) fileCopy(ch *slack.Channel, msg *slack.Message) error {
-	if !c.includeFiles {
+	if !c.opts.includeFiles {
 		return nil
 	}
 	if msg == nil {
@@ -355,8 +293,8 @@ func (c *ChunkToExport) fileCopy(ch *slack.Channel, msg *slack.Message) error {
 			continue
 		}
 
-		srcpath := filepath.Join(c.src.Name(), c.srcFileLoc(ch, &f))
-		trgpath := c.trgFileLoc(ch, &f)
+		srcpath := filepath.Join(c.src.Name(), c.opts.srcFileLoc(ch, &f))
+		trgpath := c.opts.trgFileLoc(ch, &f)
 
 		sfi, err := os.Stat(srcpath)
 		if err != nil {
@@ -431,7 +369,7 @@ func (c *ChunkToExport) avatarWorker(users []slack.User) {
 			continue
 		}
 		c.lg.Debug("processing avatar", "user", u.ID)
-		loc := c.avtrFileLoc(&u)
+		loc := c.opts.avtrFileLoc(&u)
 		err := copy2trg(c.trg, loc, filepath.Join(c.src.Name(), loc))
 		if err != nil {
 			err = fmt.Errorf("error copying avatar for user %s: %w", u.ID, err)
