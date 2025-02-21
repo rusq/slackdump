@@ -446,7 +446,7 @@ func (d *Directory) File(id string, name string) (fs.File, error) {
 	return os.Open(filepath.Join(d.dir, UploadsDir, id, name))
 }
 
-func (d *Directory) AllMessages(channelID string) ([]slack.Message, error) {
+func (d *Directory) AllMessages(_ context.Context, channelID string) ([]slack.Message, error) {
 	var mm structures.Messages
 	err := d.WalkSync(func(name string, f *File, err error) error {
 		if err != nil {
@@ -469,7 +469,7 @@ func (d *Directory) AllMessages(channelID string) ([]slack.Message, error) {
 	return mm, nil
 }
 
-func (d *Directory) AllThreadMessages(channelID, threadID string) ([]slack.Message, error) {
+func (d *Directory) AllThreadMessages(_ context.Context, channelID, threadID string) ([]slack.Message, error) {
 	var mm structures.Messages
 	var parent *slack.Message
 	err := d.WalkSync(func(name string, f *File, err error) error {
