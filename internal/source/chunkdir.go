@@ -38,19 +38,19 @@ func NewChunkDir(d *chunk.Directory, fast bool) *ChunkDir {
 // it expects for all messages for the requested file to be in the file ID.json.gz.
 // If messages for the channel are scattered across multiple file, it will not
 // return all of them.
-func (c *ChunkDir) AllMessages(_ context.Context, channelID string) ([]slack.Message, error) {
+func (c *ChunkDir) AllMessages(ctx context.Context, channelID string) ([]slack.Message, error) {
 	if c.fast {
 		return c.d.FastAllMessages(channelID)
 	} else {
-		return c.d.AllMessages(channelID)
+		return c.d.AllMessages(ctx, channelID)
 	}
 }
 
-func (c *ChunkDir) AllThreadMessages(_ context.Context, channelID, threadID string) ([]slack.Message, error) {
+func (c *ChunkDir) AllThreadMessages(ctx context.Context, channelID, threadID string) ([]slack.Message, error) {
 	if c.fast {
 		return c.d.FastAllThreadMessages(channelID, threadID)
 	}
-	return c.d.AllThreadMessages(channelID, threadID)
+	return c.d.AllThreadMessages(ctx, channelID, threadID)
 }
 
 func (c *ChunkDir) ChannelInfo(_ context.Context, channelID string) (*slack.Channel, error) {
