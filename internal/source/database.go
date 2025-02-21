@@ -2,6 +2,7 @@ package source
 
 import (
 	"context"
+	"iter"
 	"os"
 	"path/filepath"
 	"time"
@@ -69,11 +70,11 @@ func (d *Database) Users(ctx context.Context) ([]slack.User, error) {
 	return d.s.Users(ctx)
 }
 
-func (d *Database) AllMessages(ctx context.Context, channelID string) ([]slack.Message, error) {
+func (d *Database) AllMessages(ctx context.Context, channelID string) (iter.Seq2[slack.Message, error], error) {
 	return d.s.AllMessages(ctx, channelID)
 }
 
-func (d *Database) AllThreadMessages(ctx context.Context, channelID, threadID string) ([]slack.Message, error) {
+func (d *Database) AllThreadMessages(ctx context.Context, channelID, threadID string) (iter.Seq2[slack.Message, error], error) {
 	return d.s.AllThreadMessages(ctx, channelID, threadID)
 }
 

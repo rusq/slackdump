@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"iter"
 	"os"
 	"time"
 
@@ -38,19 +39,46 @@ func NewChunkDir(d *chunk.Directory, fast bool) *ChunkDir {
 // it expects for all messages for the requested file to be in the file ID.json.gz.
 // If messages for the channel are scattered across multiple file, it will not
 // return all of them.
-func (c *ChunkDir) AllMessages(ctx context.Context, channelID string) ([]slack.Message, error) {
+func (c *ChunkDir) AllMessages(ctx context.Context, channelID string) (iter.Seq2[slack.Message, error], error) {
+	var (
+		mm  []slack.Message
+		err error
+	)
 	if c.fast {
-		return c.d.FastAllMessages(channelID)
+		mm, err = c.d.FastAllMessages(channelID)
 	} else {
-		return c.d.AllMessages(ctx, channelID)
+		mm, err = c.d.AllMessages(ctx, channelID)
+	}
+	if err != nil {
+		return nil, err
+	}
+	return toIter(mm), nil
+}
+
+func toIter(mm []slack.Message) iter.Seq2[slack.Message, error] {
+	return func(yield func(slack.Message, error) bool) {
+		for _, m := range mm {
+			if !yield(m, nil) {
+				return
+			}
+		}
 	}
 }
 
-func (c *ChunkDir) AllThreadMessages(ctx context.Context, channelID, threadID string) ([]slack.Message, error) {
+func (c *ChunkDir) AllThreadMessages(ctx context.Context, channelID, threadID string) (iter.Seq2[slack.Message, error], error) {
+	var (
+		mm  []slack.Message
+		err error
+	)
 	if c.fast {
-		return c.d.FastAllThreadMessages(channelID, threadID)
+		mm, err = c.d.FastAllThreadMessages(channelID, threadID)
+	} else {
+		mm, err = c.d.AllThreadMessages(ctx, channelID, threadID)
 	}
-	return c.d.AllThreadMessages(ctx, channelID, threadID)
+	if err != nil {
+		return nil, err
+	}
+	return toIter(mm), nil
 }
 
 func (c *ChunkDir) ChannelInfo(_ context.Context, channelID string) (*slack.Channel, error) {

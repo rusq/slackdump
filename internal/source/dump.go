@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"io/fs"
+	"iter"
 	"log/slog"
 	"os"
 	"path"
@@ -106,7 +107,7 @@ func (d Dump) Users(context.Context) ([]slack.User, error) {
 	return u, nil
 }
 
-func (d Dump) AllMessages(_ context.Context, channelID string) ([]slack.Message, error) {
+func (d Dump) AllMessages(_ context.Context, channelID string) (iter.Seq2[slack.Message, error], error) {
 	var cm []types.Message
 	c, err := unmarshalOne[types.Conversation](d.fs, d.channelFile(channelID))
 	if err != nil {
@@ -152,15 +153,18 @@ func (d Dump) threadHeadMessages(channelID string) ([]types.Message, error) {
 	return cm, nil
 }
 
-func convertMessages(cm []types.Message) []slack.Message {
-	mm := make([]slack.Message, len(cm))
-	for i := range cm {
-		mm[i] = cm[i].Message
+func convertMessages(cm []types.Message) iter.Seq2[slack.Message, error] {
+	iterFn := func(yield func(slack.Message, error) bool) {
+		for _, m := range cm {
+			if !yield(m.Message, nil) {
+				return
+			}
+		}
 	}
-	return mm
+	return iterFn
 }
 
-func (d Dump) AllThreadMessages(_ context.Context, channelID, threadID string) ([]slack.Message, error) {
+func (d Dump) AllThreadMessages(_ context.Context, channelID, threadID string) (iter.Seq2[slack.Message, error], error) {
 	cm, err := d.findThreadInChannel(channelID, threadID)
 	if err != nil {
 		if !os.IsNotExist(err) {
