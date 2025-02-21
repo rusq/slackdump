@@ -12,6 +12,7 @@ import (
 
 	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/internal/fixtures"
+	"github.com/rusq/slackdump/v3/internal/source"
 )
 
 func Test_transform(t *testing.T) {
@@ -53,8 +54,9 @@ func Test_transform(t *testing.T) {
 				t.Fatal(err)
 			}
 			defer cd.Close()
+			src := source.NewChunkDir(cd, true)
 			cvt := ExpConverter{
-				cd:  cd,
+				src: src,
 				fsa: tt.args.fsa,
 			}
 			if err := cvt.Convert(tt.args.ctx, chunk.FileID(tt.args.id)); (err != nil) != tt.wantErr {
@@ -71,7 +73,6 @@ func TestExpConverter_getUsers(t *testing.T) {
 		return &v
 	}
 	type fields struct {
-		cd      *chunk.Directory
 		fsa     fsadapter.FS
 		users   atomic.Value
 		msgFunc []msgUpdFunc
@@ -99,7 +100,6 @@ func TestExpConverter_getUsers(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			e := &ExpConverter{
-				cd:      tt.fields.cd,
 				fsa:     tt.fields.fsa,
 				users:   tt.fields.users,
 				msgFunc: tt.fields.msgFunc,

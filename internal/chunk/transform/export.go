@@ -10,7 +10,6 @@ import (
 	"runtime/trace"
 	"sort"
 	"sync/atomic"
-	"time"
 
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/slack"
@@ -18,6 +17,7 @@ import (
 	"github.com/rusq/slackdump/v3/export"
 	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/internal/fasttime"
+	"github.com/rusq/slackdump/v3/internal/source"
 	"github.com/rusq/slackdump/v3/internal/structures"
 	"github.com/rusq/slackdump/v3/types"
 )
@@ -39,15 +39,15 @@ func ExpWithUsers(users []slack.User) ExpCvtOption {
 }
 
 type ExpConverter struct {
-	cd      *chunk.Directory
+	src     source.Sourcer
 	fsa     fsadapter.FS
 	users   atomic.Value
 	msgFunc []msgUpdFunc
 }
 
-func NewExpConverter(cd *chunk.Directory, fsa fsadapter.FS, opt ...ExpCvtOption) *ExpConverter {
+func NewExpConverter(src source.Sourcer, fsa fsadapter.FS, opt ...ExpCvtOption) *ExpConverter {
 	e := &ExpConverter{
-		cd:  cd,
+		src: src,
 		fsa: fsa,
 	}
 	for _, o := range opt {
@@ -83,27 +83,20 @@ func (e *ExpConverter) Convert(ctx context.Context, id chunk.FileID) error {
 		lg.DebugContext(ctx, "transforming channel", "id", id, "user_count", userCnt)
 	}
 
-	// load the chunk file
-	cf, err := e.cd.Open(id)
-	if err != nil {
-		return fmt.Errorf("error opening chunk file %q: %w", id, err)
-	}
-	defer cf.Close()
-
 	channelID, _ := id.Split()
-	ci, err := cf.ChannelInfo(channelID)
+	ci, err := e.src.ChannelInfo(ctx, channelID)
 	if err != nil {
 		return fmt.Errorf("error reading channel info for %q: %w", id, err)
 	}
 
-	if err := e.writeMessages(ctx, cf, ci); err != nil {
+	if err := e.writeMessages(ctx, ci); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (e *ExpConverter) writeMessages(ctx context.Context, pl *chunk.File, ci *slack.Channel) error {
+func (e *ExpConverter) writeMessages(ctx context.Context, ci *slack.Channel) error {
 	lg := slog.With("in", "writeMessages", "channel", ci.ID)
 	uidx := types.Users(e.getUsers()).IndexByID()
 	trgdir := ExportChanName(ci)
@@ -111,7 +104,18 @@ func (e *ExpConverter) writeMessages(ctx context.Context, pl *chunk.File, ci *sl
 	mm := make([]export.ExportMessage, 0, 100)
 	var prevDt string
 	var currDt string
-	if err := pl.Sorted(ctx, false, func(ts time.Time, m *slack.Message) error {
+	it, err := e.src.AllMessages(ctx, ci.ID)
+	if err != nil {
+		return fmt.Errorf("error getting messages for %q: %w", ci.ID, err)
+	}
+	for m, err := range it {
+		if err != nil {
+			return fmt.Errorf("error reading message: %w", err)
+		}
+		ts, err := structures.ParseSlackTS(m.Timestamp)
+		if err != nil {
+			return fmt.Errorf("error parsing timestamp: %w", err)
+		}
 		currDt = ts.Format("2006-01-02")
 		if currDt != prevDt || prevDt == "" {
 			if prevDt != "" {
@@ -126,10 +130,10 @@ func (e *ExpConverter) writeMessages(ctx context.Context, pl *chunk.File, ci *sl
 		// the "thread" is only used to collect statistics.  Thread messages
 		// are passed by Sorted and written as a normal course of action.
 		var thread []slack.Message
-		if structures.IsThreadStart(m) && m.LatestReply != structures.LatestReplyNoReplies {
+		if structures.IsThreadStart(&m) && m.LatestReply != structures.LatestReplyNoReplies {
 			// get the thread for the initial thread message only.
 			var err error
-			thread, err = pl.AllThreadMessages(ci.ID, m.ThreadTimestamp)
+			itTm, err := e.src.AllThreadMessages(ctx, ci.ID, m.ThreadTimestamp)
 			if err != nil {
 				if !errors.Is(err, chunk.ErrNotFound) {
 					return fmt.Errorf("error getting thread messages for %q: %w", ci.ID+":"+m.ThreadTimestamp, err)
@@ -139,19 +143,24 @@ func (e *ExpConverter) writeMessages(ctx context.Context, pl *chunk.File, ci *sl
 					lg.Warn("not an error, possibly deleted thread not found in chunk file", "slack_link", ci.ID+":"+m.ThreadTimestamp)
 				}
 			}
+			thread = make([]slack.Message, 0, 10)
+			for tm, err := range itTm {
+				if err != nil {
+					return fmt.Errorf("error reading thread message: %w", err)
+				}
+				thread = append(thread, tm)
+			}
 		}
 
 		// apply all message functions.
 		for _, fn := range e.msgFunc {
-			if err := fn(ci, m); err != nil {
+			if err := fn(ci, &m); err != nil {
 				return fmt.Errorf("error updating message: %w", err)
 			}
 		}
 
-		mm = append(mm, *toExportMessage(m, thread, uidx[m.User]))
+		mm = append(mm, *toExportMessage(&m, thread, uidx[m.User]))
 		return nil
-	}); err != nil {
-		return fmt.Errorf("sorted callback error: %w", err)
 	}
 
 	// flush the last day.
@@ -267,11 +276,11 @@ func ExportChanName(ch *slack.Channel) string {
 // once all transformations are done, because it might require to read channel
 // files.
 func (t *ExpConverter) WriteIndex(ctx context.Context) error {
-	wsp, err := t.cd.WorkspaceInfo()
+	wsp, err := t.src.WorkspaceInfo(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get the workspace info: %w", err)
 	}
-	chans, err := t.cd.Channels(ctx)
+	chans, err := t.src.Channels(ctx)
 	if err != nil {
 		return fmt.Errorf("error indexing channels: %w", err)
 	}

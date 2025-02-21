@@ -17,6 +17,7 @@ import (
 	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/internal/chunk/transform"
 	"github.com/rusq/slackdump/v3/internal/chunk/transform/fileproc"
+	"github.com/rusq/slackdump/v3/internal/source"
 )
 
 const (
@@ -32,7 +33,8 @@ var (
 // is not usable.
 type ChunkToExport struct {
 	// src is the source directory with chunks
-	src *chunk.Directory
+	// src *chunk.Directory
+	src source.Sourcer
 	// trg is the target FS for the export
 	trg  fsadapter.FS
 	opts options
@@ -45,7 +47,7 @@ type ChunkToExport struct {
 	avtrresult  chan copyresult
 }
 
-func NewChunkToExport(src *chunk.Directory, trg fsadapter.FS, opt ...C2EOption) *ChunkToExport {
+func NewChunkToExport(src source.Sourcer, trg fsadapter.FS, opt ...C2EOption) *ChunkToExport {
 	c := &ChunkToExport{
 		src: src,
 		trg: trg,
@@ -77,13 +79,9 @@ func (c *ChunkToExport) Validate() error {
 		return fmt.Errorf("convert: %w", err)
 	}
 	// users chunk is required
-	if fi, err := c.src.Stat(chunk.FUsers); err != nil {
-		return fmt.Errorf("users chunk: %w", err)
-	} else if fi.Size() == 0 {
-		return fmt.Errorf("users chunk: %w", ErrEmptyChunk)
+	if _, err := c.src.Users(context.Background()); err != nil {
+		return fmt.Errorf("convert: error getting users: %w", err)
 	}
-	// we are not checking for channels chunk because channel information will
-	// be stored in each of the chunk files, and we can collect it from there.
 
 	return nil
 }
@@ -118,7 +116,7 @@ func (c *ChunkToExport) Convert(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	users, err := c.src.Users()
+	users, err := c.src.Users(ctx)
 	if err != nil {
 		return err
 	}
