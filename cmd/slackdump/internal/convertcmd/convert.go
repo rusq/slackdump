@@ -115,6 +115,7 @@ func chunk2export(ctx context.Context, src, trg string, cflg convertflags) error
 		return err
 	}
 	defer cd.Close()
+
 	fsa, err := fsadapter.New(trg)
 	if err != nil {
 		return err
@@ -131,8 +132,9 @@ func chunk2export(ctx context.Context, src, trg string, cflg convertflags) error
 		includeAvatars = cflg.withAvatars && (st&source.FAvatars != 0)
 	)
 
+	s := source.NewChunkDir(cd, true)
 	cvt := convert.NewChunkToExport(
-		cd,
+		s,
 		fsa,
 		convert.WithIncludeFiles(includeFiles),
 		convert.WithIncludeAvatars(includeAvatars),

@@ -23,8 +23,8 @@ func initTemplates(v *Viewer) {
 			"username":        v.username, // username returns the username for the message
 			"time":            localtime,
 			"rendertext":      func(s string) string { return v.r.RenderText(context.Background(), s) },            // render message text
-			"render":          func(m *slack.Message) template.HTML { return v.r.Render(context.Background(), m) }, // render message
-			"is_thread_start": st.IsThreadStart,
+			"render":          func(m slack.Message) template.HTML { return v.r.Render(context.Background(), &m) }, // render message
+			"is_thread_start": func(m slack.Message) bool { return st.IsThreadStart(&m) },
 		},
 	).ParseFS(fsys, "templates/*.html"))
 	v.tmpl = tmpl
@@ -47,7 +47,7 @@ const (
 	sApp
 )
 
-func msgsender(m *slack.Message) sender {
+func msgsender(m slack.Message) sender {
 	if m.BotID != "" {
 		if m.Username != "" {
 			return sApp
@@ -62,7 +62,7 @@ func msgsender(m *slack.Message) sender {
 	return sUnknown
 }
 
-func (v *Viewer) username(m *slack.Message) string {
+func (v *Viewer) username(m slack.Message) string {
 	switch msgsender(m) {
 	case sUser:
 		return v.um.DisplayName(m.User)
@@ -77,6 +77,6 @@ func (v *Viewer) username(m *slack.Message) string {
 	}
 }
 
-func isAppMsg(m *slack.Message) bool {
+func isAppMsg(m slack.Message) bool {
 	return msgsender(m) == sApp
 }

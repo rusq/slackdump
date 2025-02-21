@@ -18,6 +18,7 @@ import (
 	"github.com/rusq/slackdump/v3/internal/chunk/control"
 	"github.com/rusq/slackdump/v3/internal/chunk/transform"
 	"github.com/rusq/slackdump/v3/internal/chunk/transform/fileproc"
+	"github.com/rusq/slackdump/v3/internal/source"
 	"github.com/rusq/slackdump/v3/internal/structures"
 	"github.com/rusq/slackdump/v3/stream"
 )
@@ -48,7 +49,8 @@ func export(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, list
 			return fn(m)
 		}
 	}
-	conv := transform.NewExpConverter(chunkdir, fsa, transform.ExpWithMsgUpdateFunc(updFn()))
+	src := source.NewChunkDir(chunkdir, false)
+	conv := transform.NewExpConverter(src, fsa, transform.ExpWithMsgUpdateFunc(updFn()))
 	tf := transform.NewExportCoordinator(ctx, conv, transform.WithBufferSize(1000))
 	defer tf.Close()
 

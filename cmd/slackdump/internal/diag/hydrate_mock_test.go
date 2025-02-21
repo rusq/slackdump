@@ -11,6 +11,7 @@ package diag
 
 import (
 	context "context"
+	iter "iter"
 	reflect "reflect"
 
 	slack "github.com/rusq/slack"
@@ -42,10 +43,10 @@ func (m *Mocksourcer) EXPECT() *MocksourcerMockRecorder {
 }
 
 // AllMessages mocks base method.
-func (m *Mocksourcer) AllMessages(ctx context.Context, channelID string) ([]slack.Message, error) {
+func (m *Mocksourcer) AllMessages(ctx context.Context, channelID string) (iter.Seq2[slack.Message, error], error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AllMessages", ctx, channelID)
-	ret0, _ := ret[0].([]slack.Message)
+	ret0, _ := ret[0].(iter.Seq2[slack.Message, error])
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -57,10 +58,10 @@ func (mr *MocksourcerMockRecorder) AllMessages(ctx, channelID any) *gomock.Call 
 }
 
 // AllThreadMessages mocks base method.
-func (m *Mocksourcer) AllThreadMessages(ctx context.Context, channelID, threadTimestamp string) ([]slack.Message, error) {
+func (m *Mocksourcer) AllThreadMessages(ctx context.Context, channelID, threadTimestamp string) (iter.Seq2[slack.Message, error], error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AllThreadMessages", ctx, channelID, threadTimestamp)
-	ret0, _ := ret[0].([]slack.Message)
+	ret0, _ := ret[0].(iter.Seq2[slack.Message, error])
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

@@ -70,15 +70,17 @@
 {{ if .Conversation.ID }}
 {{ $id := .Conversation.ID }}
 <h2>{{ rendername .Conversation }}</h2>
-{{ range $i, $el := .Messages }}
+{{ range $el, $err := .Messages }}
 <article class="message">
-    {{ template "render_message" . }}
-    {{ if is_thread_start $el }}
-    <footer class="thread-info">
-        <a href="#" hx-get="/archives/{{$id}}/{{ $el.ThreadTimestamp }}" hx-target="#thread">
-            {{ $el.ReplyCount }} replies
-        </a> <span class="last-reply grey">Last reply: {{ time $el.LatestReply }}</span>
-    </footer>
+    {{ if $err }} <p>Error: {{ $err }}</p> {{ else }}
+	    {{ template "render_message" $el }}
+	    {{ if is_thread_start $el }}
+	    <footer class="thread-info">
+		<a href="#" hx-get="/archives/{{$id}}/{{ $el.ThreadTimestamp }}" hx-target="#thread">
+		    {{ $el.ReplyCount }} replies
+		</a> <span class="last-reply grey">Last reply: {{ time $el.LatestReply }}</span>
+	    </footer>
+	    {{ end }}
     {{ end }}
 </article>
 {{end}}
@@ -117,9 +119,11 @@
 <h2>Thread: {{ .ThreadID }}</h2>
 <p><a id="close-thread" href="#">[X]</a></p>
 <p><a id="thread-link" href="/archives/{{.Conversation.ID}}/{{ .ThreadID }}#{{.ThreadID}}">Link to this thread</a></p>
-{{ range $i, $el := .ThreadMessages }}
+{{ range $el, $err := .ThreadMessages }}
 <article class="message">
-    {{ template "render_message" $el }}
+    {{ if $err }} <p>Error: {{ $err }}</p> {{ else }}
+	    {{ template "render_message" $el }}
+    {{ end }}
     <hr>
 </article>
 {{end}}
