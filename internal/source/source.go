@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"iter"
 	"log/slog"
 	"os"
 	"path"
@@ -39,10 +40,10 @@ type Sourcer interface {
 	// Users should return all users.
 	Users(ctx context.Context) ([]slack.User, error)
 	// AllMessages should return all messages for the given channel id.
-	AllMessages(ctx context.Context, channelID string) ([]slack.Message, error)
+	AllMessages(ctx context.Context, channelID string) (iter.Seq2[slack.Message, error], error)
 	// AllThreadMessages should return all messages for the given tuple
 	// (channelID, threadID).
-	AllThreadMessages(ctx context.Context, channelID, threadID string) ([]slack.Message, error)
+	AllThreadMessages(ctx context.Context, channelID, threadID string) (iter.Seq2[slack.Message, error], error)
 	// ChannelInfo should return the channel information for the given channel
 	// id.
 	ChannelInfo(ctx context.Context, channelID string) (*slack.Channel, error)
