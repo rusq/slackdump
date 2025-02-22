@@ -30,8 +30,8 @@ func Test_genericRepository_allOfTypeWhere(t *testing.T) {
 	type args struct {
 		ctx    context.Context
 		conn   sqlx.QueryerContext
-		typeID chunk.ChunkType
 		qp     queryParams
+		typeID []chunk.ChunkType
 	}
 	type testCase[T dbObject] struct {
 		name    string
@@ -48,7 +48,7 @@ func Test_genericRepository_allOfTypeWhere(t *testing.T) {
 			args: args{
 				ctx:    context.Background(),
 				conn:   testConn(t),
-				typeID: chunk.CChannelInfo,
+				typeID: []chunk.ChunkType{chunk.CChannelInfo},
 			},
 			prepFn: func(t *testing.T, conn PrepareExtContext) {
 				prepChunk(chunk.CChannelInfo, chunk.CChannelInfo)(t, conn)
@@ -72,7 +72,7 @@ func Test_genericRepository_allOfTypeWhere(t *testing.T) {
 			args: args{
 				ctx:    context.Background(),
 				conn:   testConn(t),
-				typeID: chunk.CChannelInfo,
+				typeID: []chunk.ChunkType{chunk.CChannelInfo},
 			},
 			prepFn: func(t *testing.T, conn PrepareExtContext) {
 				prepChunk(chunk.CChannelInfo, chunk.CChannels)(t, conn)
@@ -94,14 +94,14 @@ func Test_genericRepository_allOfTypeWhere(t *testing.T) {
 			name: "Additional conditions in the query parameters",
 			r:    genericRepository[DBChannel]{DBChannel{}},
 			args: args{
-				ctx:    context.Background(),
-				conn:   testConn(t),
-				typeID: chunk.CChannelInfo,
+				ctx:  context.Background(),
+				conn: testConn(t),
 				qp: queryParams{
 					Where:   "T.ID IN (?, ?)",
 					Binds:   []any{"ABC", "CDE"},
 					OrderBy: []string{"T.NAME DESC"}, // NOTE: descending.
 				},
+				typeID: []chunk.ChunkType{chunk.CChannelInfo},
 			},
 			prepFn: func(t *testing.T, conn PrepareExtContext) {
 				prepChunk(chunk.CChannelInfo, chunk.CChannelInfo, chunk.CChannelInfo)(t, conn)
@@ -124,14 +124,14 @@ func Test_genericRepository_allOfTypeWhere(t *testing.T) {
 			name: "Same, but user key ordering (ID)",
 			r:    genericRepository[DBChannel]{DBChannel{}},
 			args: args{
-				ctx:    context.Background(),
-				conn:   testConn(t),
-				typeID: chunk.CChannelInfo,
+				ctx:  context.Background(),
+				conn: testConn(t),
 				qp: queryParams{
 					Where:        "T.ID IN (?, ?)",
 					Binds:        []any{"ABC", "CDE"},
 					UserKeyOrder: true,
 				},
+				typeID: []chunk.ChunkType{chunk.CChannelInfo},
 			},
 			prepFn: func(t *testing.T, conn PrepareExtContext) {
 				prepChunk(chunk.CChannelInfo, chunk.CChannelInfo, chunk.CChannelInfo)(t, conn)
@@ -157,7 +157,7 @@ func Test_genericRepository_allOfTypeWhere(t *testing.T) {
 			if tt.prepFn != nil {
 				tt.prepFn(t, tt.args.conn.(PrepareExtContext))
 			}
-			got, err := tt.r.allOfTypeWhere(tt.args.ctx, tt.args.conn, tt.args.typeID, tt.args.qp)
+			got, err := tt.r.allOfTypeWhere(tt.args.ctx, tt.args.conn, tt.args.qp, tt.args.typeID...)
 			if !tt.wantErr(t, err, fmt.Sprintf("allOfTypeWhere(%v, %v, %v, %v)", tt.args.ctx, tt.args.conn, tt.args.typeID, tt.args.qp)) {
 				return
 			}
@@ -213,8 +213,8 @@ func Test_colAlias(t *testing.T) {
 
 func Test_genericRepository_stmtLatestWhere(t *testing.T) {
 	type args struct {
-		tid chunk.ChunkType
 		qp  queryParams
+		tid []chunk.ChunkType
 	}
 	type testCase[T dbObject] struct {
 		name  string
@@ -228,30 +228,42 @@ func Test_genericRepository_stmtLatestWhere(t *testing.T) {
 			name: "generates for empty query params",
 			r:    genericRepository[DBWorkspace]{DBWorkspace{}},
 			args: args{
-				tid: chunk.CWorkspaceInfo,
+				tid: []chunk.ChunkType{chunk.CWorkspaceInfo},
 				qp:  queryParams{},
 			},
-			want:  "SELECT T.TEAM_ID, MAX(CHUNK_ID) AS CHUNK_ID FROM WORKSPACE AS T JOIN CHUNK AS CH ON CH.ID = T.CHUNK_ID WHERE 1=1 AND CH.TYPE_ID = ? GROUP BY T.TEAM_ID",
+			want:  "SELECT T.TEAM_ID, MAX(CHUNK_ID) AS CHUNK_ID FROM WORKSPACE AS T JOIN CHUNK AS CH ON CH.ID = T.CHUNK_ID WHERE 1=1 AND CH.TYPE_ID IN (?) GROUP BY T.TEAM_ID",
 			want1: []any{chunk.CWorkspaceInfo},
 		},
 		{
 			name: "additional predicates",
 			r:    genericRepository[DBWorkspace]{DBWorkspace{}},
 			args: args{
-				tid: chunk.CWorkspaceInfo,
 				qp: queryParams{
 					Where: "NAME = ?",
 					Binds: []any{2},
 				},
+				tid: []chunk.ChunkType{chunk.CWorkspaceInfo},
 			},
-			want:  "SELECT T.TEAM_ID, MAX(CHUNK_ID) AS CHUNK_ID FROM WORKSPACE AS T JOIN CHUNK AS CH ON CH.ID = T.CHUNK_ID WHERE 1=1 AND CH.TYPE_ID = ? AND (NAME = ?) GROUP BY T.TEAM_ID",
+			want:  "SELECT T.TEAM_ID, MAX(CHUNK_ID) AS CHUNK_ID FROM WORKSPACE AS T JOIN CHUNK AS CH ON CH.ID = T.CHUNK_ID WHERE 1=1 AND CH.TYPE_ID IN (?) AND (NAME = ?) GROUP BY T.TEAM_ID",
 			want1: []any{chunk.CWorkspaceInfo, 2},
 		},
-		// ordering not supported by this query, so no test.
+		{
+			name: "multiple chunk types",
+			r:    genericRepository[DBWorkspace]{DBWorkspace{}},
+			args: args{
+				qp: queryParams{
+					Where: "NAME = ?",
+					Binds: []any{2},
+				},
+				tid: []chunk.ChunkType{chunk.CWorkspaceInfo, chunk.CMessages},
+			},
+			want:  "SELECT T.TEAM_ID, MAX(CHUNK_ID) AS CHUNK_ID FROM WORKSPACE AS T JOIN CHUNK AS CH ON CH.ID = T.CHUNK_ID WHERE 1=1 AND CH.TYPE_ID IN (?,?) AND (NAME = ?) GROUP BY T.TEAM_ID",
+			want1: []any{chunk.CWorkspaceInfo, chunk.CMessages, 2},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, got1 := tt.r.stmtLatestWhere(tt.args.tid, tt.args.qp)
+			got, got1 := tt.r.stmtLatestWhere(tt.args.qp, tt.args.tid...)
 			assert.Equalf(t, tt.want, got, "stmtLatestWhere(%v, %v)", tt.args.tid, tt.args.qp)
 			assert.Equalf(t, tt.want1, got1, "stmtLatestWhere(%v, %v)", tt.args.tid, tt.args.qp)
 		})
