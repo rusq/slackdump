@@ -51,7 +51,7 @@ func (c *ChunkDir) AllMessages(ctx context.Context, channelID string) (iter.Seq2
 		err error
 	)
 	if c.fast {
-		mm, err = c.d.FastAllMessages(channelID)
+		mm, err = c.d.FastAllMessages(ctx, channelID)
 	} else {
 		mm, err = c.d.AllMessages(ctx, channelID)
 	}

@@ -446,13 +446,13 @@ func (d *Directory) File(id string, name string) (fs.File, error) {
 	return os.Open(filepath.Join(d.dir, UploadsDir, id, name))
 }
 
-func (d *Directory) AllMessages(_ context.Context, channelID string) ([]slack.Message, error) {
+func (d *Directory) AllMessages(ctx context.Context, channelID string) ([]slack.Message, error) {
 	var mm structures.Messages
 	err := d.WalkSync(func(name string, f *File, err error) error {
 		if err != nil {
 			return err
 		}
-		m, err := f.AllMessages(channelID)
+		m, err := f.AllMessages(ctx, channelID)
 		if err != nil {
 			if errors.Is(err, ErrNotFound) {
 				return nil
@@ -521,14 +521,14 @@ func (d *Directory) FastAllThreadMessages(channelID, threadID string) ([]slack.M
 	return append([]slack.Message{*parent}, rest...), nil
 }
 
-func (d *Directory) FastAllMessages(channelID string) ([]slack.Message, error) {
+func (d *Directory) FastAllMessages(ctx context.Context, channelID string) ([]slack.Message, error) {
 	f, err := d.Open(FileID(channelID))
 	if err != nil {
 		return nil, err
 	}
 	defer f.Close()
 
-	return f.AllMessages(channelID)
+	return f.AllMessages(ctx, channelID)
 }
 
 // Latest returns the latest timestamps for the channels and threads
