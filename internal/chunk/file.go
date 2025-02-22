@@ -226,12 +226,22 @@ func (f *File) State() (*state.State, error) {
 
 // AllMessages returns all the messages for the given channel posted to it (no
 // thread).  The messages are in the order as they appear in the file.
-func (f *File) AllMessages(channelID string) ([]slack.Message, error) {
-	m, err := f.allMessagesForID(GroupID(channelID))
+func (f *File) AllMessages(ctx context.Context, channelID string) ([]slack.Message, error) {
+	var mm []slack.Message
+	err := f.Sorted(ctx, false, func(ts time.Time, m *slack.Message) error {
+		if m.Channel != channelID {
+			return nil
+		}
+		if m.ThreadTimestamp != "" && m.ThreadTimestamp != m.Timestamp {
+			return nil
+		}
+		mm = append(mm, *m)
+		return nil
+	})
 	if err != nil {
 		return nil, fmt.Errorf("failed getting messages for %s: %w", channelID, err)
 	}
-	return m, nil
+	return mm, nil
 }
 
 // AllThreadMessages returns all the messages for the given thread.  It does
