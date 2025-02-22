@@ -49,7 +49,7 @@ func export(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, list
 			return fn(m)
 		}
 	}
-	src := source.NewChunkDir(chunkdir, false)
+	src := source.NewChunkDir(chunkdir, true)
 	conv := transform.NewExpConverter(src, fsa, transform.ExpWithMsgUpdateFunc(updFn()))
 	tf := transform.NewExportCoordinator(ctx, conv, transform.WithBufferSize(1000))
 	defer tf.Close()

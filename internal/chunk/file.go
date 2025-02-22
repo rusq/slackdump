@@ -97,7 +97,7 @@ func fromReaderWithIndex(rs io.ReadSeeker, idx index) (*File, error) {
 
 // Close closes the underlying reader if it implements io.Closer.
 func (f *File) Close() error {
-	if c, ok := f.rs.(io.Closer); ok {
+	if c, ok := f.rs.(io.Closer); f.rs != nil && ok {
 		return c.Close()
 	}
 	return nil
