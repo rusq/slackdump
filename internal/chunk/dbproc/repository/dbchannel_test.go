@@ -94,7 +94,7 @@ func Test_channelRepository_AllOfType(t *testing.T) {
 	type args struct {
 		ctx    context.Context
 		conn   sqlx.QueryerContext
-		typeID chunk.ChunkType
+		typeID []chunk.ChunkType
 	}
 	tests := []struct {
 		name    string
@@ -112,7 +112,7 @@ func Test_channelRepository_AllOfType(t *testing.T) {
 			args: args{
 				ctx:    context.Background(),
 				conn:   testConn(t),
-				typeID: chunk.CChannelInfo,
+				typeID: []chunk.ChunkType{chunk.CChannelInfo},
 			},
 			prepFn: prepChannels,
 			want: []testResult[DBChannel]{
@@ -130,7 +130,7 @@ func Test_channelRepository_AllOfType(t *testing.T) {
 			args: args{
 				ctx:    context.Background(),
 				conn:   testConn(t),
-				typeID: chunk.CChannels,
+				typeID: []chunk.ChunkType{chunk.CChannels},
 			},
 			prepFn: prepChannels,
 			want: []testResult[DBChannel]{
@@ -149,7 +149,7 @@ func Test_channelRepository_AllOfType(t *testing.T) {
 			r := channelRepository{
 				genericRepository: tt.fields.genericRepository,
 			}
-			got, err := r.AllOfType(tt.args.ctx, tt.args.conn, tt.args.typeID)
+			got, err := r.AllOfType(tt.args.ctx, tt.args.conn, tt.args.typeID...)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("channelRepository.AllOfType() error = %v, wantErr %v", err, tt.wantErr)
 				return

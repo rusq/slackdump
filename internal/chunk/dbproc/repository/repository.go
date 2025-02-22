@@ -10,6 +10,24 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+// Order is the sort order type.
+type Order bool
+
+// Sort order.
+const (
+	// Asc is an ascending order.
+	Asc Order = false
+	// Desc is a descending order.
+	Desc Order = true
+)
+
+func (o Order) String() string {
+	if o {
+		return "DESC"
+	}
+	return "ASC"
+}
+
 const (
 	dbDriver = "sqlite"
 	dbTag    = "db"

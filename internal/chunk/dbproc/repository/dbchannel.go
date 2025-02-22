@@ -69,9 +69,9 @@ func (r channelRepository) Count(ctx context.Context, conn sqlx.QueryerContext) 
 }
 
 func (r channelRepository) Get(ctx context.Context, conn sqlx.ExtContext, id any) (DBChannel, error) {
-	return r.GetType(ctx, conn, chunk.CChannelInfo, id)
+	return r.GetType(ctx, conn, id, chunk.CChannelInfo)
 }
 
-func (r channelRepository) AllOfType(ctx context.Context, conn sqlx.QueryerContext, typeID chunk.ChunkType) (iter.Seq2[DBChannel, error], error) {
-	return r.allOfTypeWhere(ctx, conn, typeID, queryParams{OrderBy: []string{"T.NAME"}})
+func (r channelRepository) AllOfType(ctx context.Context, conn sqlx.QueryerContext, typeID ...chunk.ChunkType) (iter.Seq2[DBChannel, error], error) {
+	return r.allOfTypeWhere(ctx, conn, queryParams{OrderBy: []string{"T.NAME"}}, typeID...)
 }
