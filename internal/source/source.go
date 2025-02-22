@@ -29,6 +29,8 @@ import (
 )
 
 // Sourcer is an interface for retrieving data from different sources.
+//
+//go:generate mockgen -destination=mock_source/mock_source.go . Sourcer,Storage
 type Sourcer interface {
 	// Name should return the name of the retriever underlying media, i.e.
 	// directory or archive.
@@ -44,6 +46,12 @@ type Sourcer interface {
 	// AllThreadMessages should return all messages for the given tuple
 	// (channelID, threadID).
 	AllThreadMessages(ctx context.Context, channelID, threadID string) (iter.Seq2[slack.Message, error], error)
+	// Sorted should iterate over all (both channel and thread) messages for
+	// the requested channel id.  If desc is true, it must return messages in
+	// descending order (by timestamp), otherwise in ascending order.  The
+	// callback function cb should be called for each message. If cb returns an
+	// error, the iteration should be stopped and the error should be returned.
+	Sorted(ctx context.Context, channelID string, desc bool, cb func(ts time.Time, msg *slack.Message) error) error
 	// ChannelInfo should return the channel information for the given channel
 	// id.
 	ChannelInfo(ctx context.Context, channelID string) (*slack.Channel, error)
@@ -238,4 +246,9 @@ func unmarshal[T ~[]S, S any](fsys fs.FS, name string) (T, error) {
 		return nil, err
 	}
 	return v, nil
+}
+
+func (d *Dump) Sorted(ctx context.Context, channelID string, desc bool, cb func(ts time.Time, msg *slack.Message) error) error {
+	// TODO: implement
+	return errors.New("not implemented")
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"iter"
+	"time"
 
 	"github.com/jmoiron/sqlx"
 
@@ -11,6 +12,7 @@ import (
 
 	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/internal/chunk/dbproc/repository"
+	"github.com/rusq/slackdump/v3/internal/fasttime"
 )
 
 const preallocSz = 100
@@ -133,6 +135,33 @@ func (s *Source) AllThreadMessages(ctx context.Context, channelID, threadID stri
 		return nil, err
 	}
 	return valueIter(it), nil
+}
+
+func (s *Source) Sorted(ctx context.Context, channelID string, desc bool, cb func(ts time.Time, msg *slack.Message) error) error {
+	tx, err := s.conn.BeginTxx(ctx, &sql.TxOptions{ReadOnly: true})
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	mr := repository.NewMessageRepository()
+	it, err := mr.Sorted(ctx, s.conn, channelID, repository.Asc)
+	if err != nil {
+		return err
+	}
+	for c, err := range it {
+		if err != nil {
+			return err
+		}
+		v, err := c.Val()
+		if err != nil {
+			return err
+		}
+		if err := cb(fasttime.Int2Time(c.ID), &v); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (s *Source) ChannelInfo(ctx context.Context, channelID string) (*slack.Channel, error) {

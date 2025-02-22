@@ -10,6 +10,7 @@ import (
 	"runtime/trace"
 	"sort"
 	"sync/atomic"
+	"time"
 
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/slack"
@@ -101,24 +102,13 @@ func (e *ExpConverter) writeMessages(ctx context.Context, ci *slack.Channel) err
 	uidx := types.Users(e.getUsers()).IndexByID()
 	trgdir := ExportChanName(ci)
 
-	it, err := e.src.AllMessages(ctx, ci.ID)
-	if err != nil {
-		return fmt.Errorf("error getting messages for %q: %w", ci.ID, err)
-	}
 	// loop variables
 	var (
 		prevDt string
 		currDt string
 		mm     []export.ExportMessage
 	)
-	for m, err := range it {
-		if err != nil {
-			return fmt.Errorf("error reading message: %w", err)
-		}
-		ts, err := structures.ParseSlackTS(m.Timestamp)
-		if err != nil {
-			return fmt.Errorf("error parsing timestamp: %w", err)
-		}
+	if err := e.src.Sorted(ctx, ci.ID, false, func(ts time.Time, m *slack.Message) error {
 		currDt = ts.Format("2006-01-02")
 		if currDt != prevDt || prevDt == "" {
 			if prevDt != "" {
@@ -131,10 +121,11 @@ func (e *ExpConverter) writeMessages(ctx context.Context, ci *slack.Channel) err
 			prevDt = currDt
 		}
 
-		// the "thread" is only used to collect statistics.  Thread messages
-		// are passed by Sorted and written as a normal course of action.
+		// NOTE: the "thread" is only used to collect statistics.  Thread
+		// messages are passed by Sorted and written as a normal course of
+		// action.
 		var thread []slack.Message
-		if structures.IsThreadStart(&m) && m.LatestReply != structures.LatestReplyNoReplies {
+		if structures.IsThreadStart(m) && m.LatestReply != structures.LatestReplyNoReplies {
 			// get the thread for the initial thread message only.
 			var err error
 			itTm, err := e.src.AllThreadMessages(ctx, ci.ID, m.ThreadTimestamp)
@@ -158,12 +149,19 @@ func (e *ExpConverter) writeMessages(ctx context.Context, ci *slack.Channel) err
 
 		// apply all message functions.
 		for _, fn := range e.msgFunc {
-			if err := fn(ci, &m); err != nil {
+			if err := fn(ci, m); err != nil {
 				return fmt.Errorf("error updating message: %w", err)
 			}
 		}
 
-		mm = append(mm, *toExportMessage(&m, thread, uidx[m.User]))
+		mm = append(mm, *toExportMessage(m, thread, uidx[m.User]))
+		return nil
+	}); err != nil {
+		if errors.Is(err, chunk.ErrNoData) {
+			lg.DebugContext(ctx, "no messages for the channel", "channel", ci.ID)
+			return nil
+		}
+		return fmt.Errorf("error reading messages: %w", err)
 	}
 
 	if len(mm) > 0 {

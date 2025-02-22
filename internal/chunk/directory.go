@@ -559,3 +559,13 @@ func (d *Directory) Latest(ctx context.Context) (map[GroupID]time.Time, error) {
 	}
 	return latest, nil
 }
+
+func (d *Directory) Sorted(ctx context.Context, channelID string, desc bool, cb func(ts time.Time, msg *slack.Message) error) error {
+	// TODO: this is oversimplification.  The messages for the channel in
+	// canonical chunk directory may be stored in multiple files.
+	f, err := d.Open(FileID(channelID))
+	if err != nil {
+		return err
+	}
+	return f.Sorted(ctx, channelID, desc, cb)
+}

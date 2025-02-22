@@ -9,6 +9,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/rusq/slack"
 
+	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/internal/fasttime"
 	"github.com/rusq/slackdump/v3/internal/structures"
 )
@@ -117,7 +118,7 @@ type MessageRepository interface {
 	AllForThread(ctx context.Context, conn sqlx.QueryerContext, channelID, threadID string) (iter.Seq2[DBMessage, error], error)
 	// All returns all thread and channel messages in ascending or descending
 	// time order.
-	All(ctx context.Context, conn sqlx.QueryerContext, channelID string, order Order) (iter.Seq2[DBMessage, error], error)
+	Sorted(ctx context.Context, conn sqlx.QueryerContext, channelID string, order Order) (iter.Seq2[DBMessage, error], error)
 }
 
 type messageRepository struct {
@@ -129,11 +130,11 @@ func NewMessageRepository() MessageRepository {
 }
 
 func (r messageRepository) Count(ctx context.Context, conn sqlx.QueryerContext, channelID string) (int64, error) {
-	return r.countTypeWhere(ctx, conn, queryParams{Where: "CHANNEL_ID = ?", Binds: []any{channelID}})
+	return r.countTypeWhere(ctx, conn, queryParams{Where: "CHANNEL_ID = ?", Binds: []any{channelID}}, chunk.CMessages, chunk.CThreadMessages)
 }
 
 func (r messageRepository) AllForID(ctx context.Context, conn sqlx.QueryerContext, channelID string) (iter.Seq2[DBMessage, error], error) {
-	return r.allOfTypeWhere(ctx, conn, queryParams{Where: "CHANNEL_ID = ?", Binds: []any{channelID}, UserKeyOrder: true})
+	return r.allOfTypeWhere(ctx, conn, queryParams{Where: "CHANNEL_ID = ?", Binds: []any{channelID}, UserKeyOrder: true}, chunk.CMessages, chunk.CThreadMessages)
 }
 
 // threadCond returns a condition for selecting messages that are part of a
@@ -152,7 +153,7 @@ func (r messageRepository) CountThread(ctx context.Context, conn sqlx.QueryerCon
 	if err != nil {
 		return 0, fmt.Errorf("countThread fasttime: %w", err)
 	}
-	return r.countTypeWhere(ctx, conn, queryParams{Where: r.threadCond(), Binds: []any{channelID, parentID}})
+	return r.countTypeWhere(ctx, conn, queryParams{Where: r.threadCond(), Binds: []any{channelID, parentID}}, chunk.CMessages, chunk.CThreadMessages)
 }
 
 func (r messageRepository) AllForThread(ctx context.Context, conn sqlx.QueryerContext, channelID, threadID string) (iter.Seq2[DBMessage, error], error) {
@@ -160,9 +161,9 @@ func (r messageRepository) AllForThread(ctx context.Context, conn sqlx.QueryerCo
 	if err != nil {
 		return nil, fmt.Errorf("allForThread fasttime: %w", err)
 	}
-	return r.allOfTypeWhere(ctx, conn, queryParams{Where: r.threadCond(), Binds: []any{channelID, parentID}, UserKeyOrder: true})
+	return r.allOfTypeWhere(ctx, conn, queryParams{Where: r.threadCond(), Binds: []any{channelID, parentID}, UserKeyOrder: true}, chunk.CMessages, chunk.CThreadMessages)
 }
 
-func (r messageRepository) All(ctx context.Context, conn sqlx.QueryerContext, channelID string, order Order) (iter.Seq2[DBMessage, error], error) {
-	return r.allOfTypeWhere(ctx, conn, queryParams{Where: "CHANNEL_ID = ?", Binds: []any{channelID}, OrderBy: []string{"ID " + order.String()}})
+func (r messageRepository) Sorted(ctx context.Context, conn sqlx.QueryerContext, channelID string, order Order) (iter.Seq2[DBMessage, error], error) {
+	return r.allOfTypeWhere(ctx, conn, queryParams{Where: "CHANNEL_ID = ?", Binds: []any{channelID}, OrderBy: []string{"T.ID " + order.String()}}, chunk.CMessages, chunk.CThreadMessages)
 }

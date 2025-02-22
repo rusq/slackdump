@@ -107,3 +107,7 @@ func (d *Database) Files() Storage {
 func (d *Database) Avatars() Storage {
 	return d.avatars
 }
+
+func (d *Database) Sorted(ctx context.Context, channelID string, desc bool, cb func(ts time.Time, msg *slack.Message) error) error {
+	return d.s.Sorted(ctx, channelID, desc, cb)
+}
