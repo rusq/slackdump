@@ -14,9 +14,10 @@ import (
 )
 
 type Database struct {
-	name string
-	s    *dbproc.Source
-	Storage
+	name    string
+	s       *dbproc.Source
+	files   Storage
+	avatars Storage
 }
 
 // OpenDatabase attempts to open the database at given path. It supports both
@@ -26,7 +27,9 @@ type Database struct {
 func OpenDatabase(path string) (*Database, error) {
 	var (
 		fst    Storage = fstNotFound{}
+		ast    Storage = fstNotFound{}
 		dbfile string
+		name   string
 	)
 
 	if fi, err := os.Stat(path); err != nil {
@@ -34,12 +37,18 @@ func OpenDatabase(path string) (*Database, error) {
 	} else if !fi.IsDir() {
 		// direct file
 		dbfile = path
+		name = filepath.Dir(path)
 	} else {
 		// directory
 		dbfile = filepath.Join(path, "slackdump.sqlite")
-		if st, err := NewMattermostStorage(os.DirFS(path)); err == nil {
+		rootFS := os.DirFS(path)
+		if st, err := NewMattermostStorage(rootFS); err == nil {
 			fst = st
 		}
+		if st, err := NewAvatarStorage(os.DirFS(path)); err == nil {
+			ast = st
+		}
+		name = path
 	}
 
 	s, err := dbproc.Open(dbfile)
@@ -47,7 +56,7 @@ func OpenDatabase(path string) (*Database, error) {
 		return nil, err
 	}
 
-	return &Database{s: s, Storage: fst}, nil
+	return &Database{name: name, s: s, files: fst, avatars: ast}, nil
 }
 
 func (d *Database) Close() error {
@@ -89,4 +98,12 @@ func (d *Database) WorkspaceInfo(ctx context.Context) (*slack.AuthTestResponse, 
 func (d *Database) Latest(ctx context.Context) (map[structures.SlackLink]time.Time, error) {
 	return nil, nil
 	// return d.s.Latest(ctx)
+}
+
+func (d *Database) Files() Storage {
+	return d.files
+}
+
+func (d *Database) Avatars() Storage {
+	return d.avatars
 }

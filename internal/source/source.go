@@ -47,11 +47,10 @@ type Sourcer interface {
 	// ChannelInfo should return the channel information for the given channel
 	// id.
 	ChannelInfo(ctx context.Context, channelID string) (*slack.Channel, error)
-	// FS should return the filesystem with file attachments.
-	FS() fs.FS
-	// File should return the path of the file within the filesystem returned
-	// by FS().
-	File(fileID string, filename string) (string, error)
+	// Files should return file storage
+	Files() Storage
+	// Avatars should return the avatar storage
+	Avatars() Storage
 	// Latest should return the latest timestamp of the data.
 	Latest(ctx context.Context) (map[structures.SlackLink]time.Time, error)
 	// WorkspaceInfo should return the workspace information, if it is available.

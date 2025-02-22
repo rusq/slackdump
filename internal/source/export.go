@@ -25,7 +25,8 @@ type Export struct {
 	chanNames map[string]string // maps the channel id to the channel name.
 	name      string            // name of the file
 	idx       structures.ExportIndex
-	Storage
+	files     Storage
+	avatars   Storage
 }
 
 func NewExport(fsys fs.FS, name string) (*Export, error) {
@@ -40,6 +41,8 @@ func NewExport(fsys fs.FS, name string) (*Export, error) {
 		idx:       idx,
 		channels:  chans,
 		chanNames: make(map[string]string, len(chans)),
+		files:     fstNotFound{},
+		avatars:   fstNotFound{},
 	}
 	// initialise channels for quick lookup
 	for _, ch := range z.channels {
@@ -50,7 +53,10 @@ func NewExport(fsys fs.FS, name string) (*Export, error) {
 	if err != nil {
 		return nil, err
 	}
-	z.Storage = fst
+	z.files = fst
+	if fst, err := NewAvatarStorage(fsys); err == nil {
+		z.avatars = fst
+	}
 
 	return z, nil
 }
@@ -179,4 +185,12 @@ func (e *Export) WorkspaceInfo(context.Context) (*slack.AuthTestResponse, error)
 	// potentially the URL of the workspace is contained in file attachments, but until
 	// AllMessages is implemented with iterators, it's too expensive to get.
 	return nil, ErrNotSupported
+}
+
+func (e *Export) Files() Storage {
+	return e.files
+}
+
+func (e *Export) Avatars() Storage {
+	return e.avatars
 }

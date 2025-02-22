@@ -101,13 +101,16 @@ func (e *ExpConverter) writeMessages(ctx context.Context, ci *slack.Channel) err
 	uidx := types.Users(e.getUsers()).IndexByID()
 	trgdir := ExportChanName(ci)
 
-	mm := make([]export.ExportMessage, 0, 100)
-	var prevDt string
-	var currDt string
 	it, err := e.src.AllMessages(ctx, ci.ID)
 	if err != nil {
 		return fmt.Errorf("error getting messages for %q: %w", ci.ID, err)
 	}
+	// loop variables
+	var (
+		prevDt string
+		currDt string
+		mm     []export.ExportMessage
+	)
 	for m, err := range it {
 		if err != nil {
 			return fmt.Errorf("error reading message: %w", err)
@@ -119,6 +122,7 @@ func (e *ExpConverter) writeMessages(ctx context.Context, ci *slack.Channel) err
 		currDt = ts.Format("2006-01-02")
 		if currDt != prevDt || prevDt == "" {
 			if prevDt != "" {
+				// flush the previous day.
 				if err := e.writeout(filepath.Join(trgdir, prevDt+".json"), mm); err != nil {
 					return err
 				}
@@ -160,14 +164,16 @@ func (e *ExpConverter) writeMessages(ctx context.Context, ci *slack.Channel) err
 		}
 
 		mm = append(mm, *toExportMessage(&m, thread, uidx[m.User]))
-		return nil
 	}
 
-	// flush the last day.
 	if len(mm) > 0 {
+		// flush the last day.
+		lg.DebugContext(ctx, "writing last day", "date", prevDt)
 		if err := e.writeout(filepath.Join(trgdir, prevDt+".json"), mm); err != nil {
 			return err
 		}
+	} else {
+		lg.DebugContext(ctx, "no messages for the channel", "channel", ci.ID)
 	}
 
 	return nil

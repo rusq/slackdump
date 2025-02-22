@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/rusq/slack"
+
 	"github.com/rusq/slackdump/v3/internal/fixtures"
 	"github.com/rusq/slackdump/v3/internal/source"
 	st "github.com/rusq/slackdump/v3/internal/structures"
@@ -24,7 +25,7 @@ func TestViewer_username(t *testing.T) {
 		r    renderer.Renderer
 	}
 	type args struct {
-		m *slack.Message
+		m slack.Message
 	}
 	tests := []struct {
 		name   string
@@ -39,7 +40,7 @@ func TestViewer_username(t *testing.T) {
 				lg: slog.Default(),
 			},
 			args{
-				m: fixtures.Load[*slack.Message](fixtures.AppMessageJSON),
+				m: fixtures.Load[slack.Message](fixtures.AppMessageJSON),
 			},
 			"WakaTime (app)",
 		},

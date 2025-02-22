@@ -120,10 +120,10 @@ func TestChunkToExport_Convert(t *testing.T) {
 	}
 	defer fsa.Close()
 	src := source.NewChunkDir(cd, true)
-	c := NewChunkToExport(src, fsa, WithIncludeFiles(true))
+	c := NewToExport(src, fsa, WithIncludeFiles(true))
 
 	ctx := context.Background()
-	c.lg = testLogger
+	c.opts.lg = testLogger
 	if err := c.Convert(ctx); err != nil {
 		t.Fatal(err)
 	}
@@ -138,8 +138,9 @@ func Test_copy2trg(t *testing.T) {
 			t.Fatal(err)
 		}
 		trgfs := fsadapter.NewDirectory(trgdir)
+		srcfs := os.DirFS(srcdir)
 
-		if err := copy2trg(trgfs, "test-copy.txt", filepath.Join(srcdir, "test.txt")); err != nil {
+		if err := copy2trg(trgfs, "test-copy.txt", srcfs, "test.txt"); err != nil {
 			t.Fatal(err)
 		}
 		// validate
@@ -155,9 +156,10 @@ func Test_copy2trg(t *testing.T) {
 		srcdir := t.TempDir()
 		trgdir := t.TempDir()
 
+		srcfs := os.DirFS(srcdir)
 		trgfs := fsadapter.NewDirectory(trgdir)
 		// source file does not exist.
-		if err := copy2trg(trgfs, "test-copy.txt", filepath.Join(srcdir, "test.txt")); err == nil {
+		if err := copy2trg(trgfs, "test-copy.txt", srcfs, "test.txt"); err == nil {
 			t.Fatal("expected error, but got nil")
 		}
 	})

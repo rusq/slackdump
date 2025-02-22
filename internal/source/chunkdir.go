@@ -19,20 +19,26 @@ import (
 // TODO: create an index of entries, otherwise it does the
 // full scan of the directory.
 type ChunkDir struct {
-	d    *chunk.Directory
-	fast bool
-	Storage
+	d       *chunk.Directory
+	fast    bool
+	files   Storage
+	avatars Storage
 }
 
 // NewChunkDir creates a new ChurkDir source.  It expects the attachments to be
 // in the mattermost storage format.  If the attachments are not in the
 // mattermost storage format, it will assume they were not downloaded.
 func NewChunkDir(d *chunk.Directory, fast bool) *ChunkDir {
-	var st Storage = fstNotFound{}
-	if fst, err := NewMattermostStorage(os.DirFS(d.Name())); err == nil {
-		st = fst
+	rootFS := os.DirFS(d.Name())
+	var stFile Storage = fstNotFound{}
+	if fst, err := NewMattermostStorage(rootFS); err == nil {
+		stFile = fst
 	}
-	return &ChunkDir{d: d, Storage: st, fast: fast}
+	var stAvatars Storage = fstNotFound{}
+	if ast, err := NewAvatarStorage(rootFS); err == nil {
+		stAvatars = ast
+	}
+	return &ChunkDir{d: d, files: stFile, avatars: stAvatars, fast: fast}
 }
 
 // AllMessages returns all messages for the channel.  Current restriction -
@@ -132,4 +138,12 @@ func (c *ChunkDir) Latest(ctx context.Context) (map[structures.SlackLink]time.Ti
 
 func (c *ChunkDir) WorkspaceInfo(context.Context) (*slack.AuthTestResponse, error) {
 	return c.d.WorkspaceInfo()
+}
+
+func (c *ChunkDir) Files() Storage {
+	return c.files
+}
+
+func (c *ChunkDir) Avatars() Storage {
+	return c.avatars
 }
