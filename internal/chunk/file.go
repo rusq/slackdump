@@ -483,8 +483,10 @@ func timeOffsets(ots offts, chanID string) map[int64]Addr {
 }
 
 // Sorted iterates over all the messages in the chunkfile in chronological
-// order for the requested chanID.  If desc is true, the slice will be
-// iterated in reverse order.
+// order for the requested chanID.  If desc is true, the slice will be iterated
+// in reverse order.  It does not differentiate between the channel and thread
+// messages.  The function fn is called for each message in the slice.  If the
+// function returns an error, the iteration stops and the error is returned.
 func (f *File) Sorted(ctx context.Context, chanID string, desc bool, fn func(ts time.Time, m *slack.Message) error) error {
 	ctx, task := trace.NewTask(ctx, "file.Sorted")
 	defer task.End()

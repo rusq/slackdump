@@ -147,3 +147,7 @@ func (c *ChunkDir) Files() Storage {
 func (c *ChunkDir) Avatars() Storage {
 	return c.avatars
 }
+
+func (c *ChunkDir) Sorted(ctx context.Context, id string, desc bool, cb func(ts time.Time, msg *slack.Message) error) error {
+	return c.d.Sorted(ctx, id, desc, cb)
+}

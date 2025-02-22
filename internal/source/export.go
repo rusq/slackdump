@@ -96,7 +96,26 @@ func (e *Export) Type() string {
 
 // AllMessages returns all channel messages without thread messages.
 func (e *Export) AllMessages(_ context.Context, channelID string) (iter.Seq2[slack.Message, error], error) {
-	return e.walkChannelMessages(channelID)
+	it, err := e.walkChannelMessages(channelID)
+	if err != nil {
+		return nil, err
+	}
+	return func(yield func(slack.Message, error) bool) {
+		for m, err := range it {
+			if err != nil {
+				yield(slack.Message{}, err)
+				return
+			}
+
+			if m.ThreadTimestamp != "" && !structures.IsThreadStart(&m) {
+				// skip thread messages
+				continue
+			}
+			if !yield(m, nil) {
+				return
+			}
+		}
+	}, nil
 }
 
 func (e *Export) walkChannelMessages(channelID string) (iter.Seq2[slack.Message, error], error) {
@@ -126,7 +145,8 @@ func (e *Export) walkChannelMessages(channelID string) (iter.Seq2[slack.Message,
 					slog.Default().Debug("skipping an empty message", "pth", pth, "index", i)
 					continue
 				}
-				if !yield(slack.Message{Msg: *m.Msg}, nil) {
+				sm := slack.Message{Msg: *m.Msg}
+				if !yield(sm, nil) {
 					return fs.SkipAll
 				}
 			}
@@ -193,4 +213,9 @@ func (e *Export) Files() Storage {
 
 func (e *Export) Avatars() Storage {
 	return e.avatars
+}
+
+func (e *Export) Sorted(ctx context.Context, channelID string, desc bool, cb func(ts time.Time, msg *slack.Message) error) error {
+	// TODO
+	return errors.New("not supported yet")
 }
