@@ -37,7 +37,10 @@ const (
 	FSearch    FileID = "search"
 )
 
-const UploadsDir = "__uploads" // for serving files
+const (
+	UploadsDir = "__uploads" // for serving files
+	AvatarsDir = "__avatars"
+)
 
 // Directory is an abstraction over the directory with chunk files.  It
 // provides a way to write chunk files and read channels, users and messages
