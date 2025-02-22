@@ -315,3 +315,42 @@ func TestGroupID_AsThreadID(t *testing.T) {
 		})
 	}
 }
+
+func TestGroupID_ExtractChannelID(t *testing.T) {
+	tests := []struct {
+		name          string
+		id            GroupID
+		wantChannelID string
+		wantOk        bool
+	}{
+		{
+			name:          "channel",
+			id:            "C123",
+			wantChannelID: "C123",
+			wantOk:        true,
+		},
+		{
+			name:          "thread",
+			id:            "tC123:1234",
+			wantChannelID: "C123",
+			wantOk:        true,
+		},
+		{
+			name:          "invalid",
+			id:            "invalid",
+			wantChannelID: "",
+			wantOk:        false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotChannelID, gotOk := tt.id.ExtractChannelID()
+			if gotChannelID != tt.wantChannelID {
+				t.Errorf("GroupID.ExtractChannelID() gotChannelID = %v, want %v", gotChannelID, tt.wantChannelID)
+			}
+			if gotOk != tt.wantOk {
+				t.Errorf("GroupID.ExtractChannelID() gotOk = %v, want %v", gotOk, tt.wantOk)
+			}
+		})
+	}
+}
