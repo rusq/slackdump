@@ -8,7 +8,7 @@ import (
 	"github.com/rusq/slack"
 )
 
-type C2EOption func(*options)
+type Option func(*options)
 
 type options struct {
 	// includeFiles is a flag to include files in the export
@@ -26,21 +26,21 @@ type options struct {
 }
 
 // WithIncludeFiles sets the IncludeFiles option.
-func WithIncludeFiles(b bool) C2EOption {
+func WithIncludeFiles(b bool) Option {
 	return func(c *options) {
 		c.includeFiles = b
 	}
 }
 
 // WithIncludeAvatars sets the IncludeAvataars option.
-func WithIncludeAvatars(b bool) C2EOption {
+func WithIncludeAvatars(b bool) Option {
 	return func(c *options) {
 		c.includeAvatars = b
 	}
 }
 
 // WithSrcFileLoc sets the SrcFileLoc function.
-func WithSrcFileLoc(fn func(*slack.Channel, *slack.File) string) C2EOption {
+func WithSrcFileLoc(fn func(*slack.Channel, *slack.File) string) Option {
 	return func(c *options) {
 		if fn != nil {
 			c.srcFileLoc = fn
@@ -49,7 +49,7 @@ func WithSrcFileLoc(fn func(*slack.Channel, *slack.File) string) C2EOption {
 }
 
 // WithTrgFileLoc sets the TrgFileLoc function.
-func WithTrgFileLoc(fn func(*slack.Channel, *slack.File) string) C2EOption {
+func WithTrgFileLoc(fn func(*slack.Channel, *slack.File) string) Option {
 	return func(c *options) {
 		if fn != nil {
 			c.trgFileLoc = fn
@@ -58,7 +58,7 @@ func WithTrgFileLoc(fn func(*slack.Channel, *slack.File) string) C2EOption {
 }
 
 // WithLogger sets the logger.
-func WithLogger(lg *slog.Logger) C2EOption {
+func WithLogger(lg *slog.Logger) Option {
 	return func(c *options) {
 		if lg != nil {
 			c.lg = lg

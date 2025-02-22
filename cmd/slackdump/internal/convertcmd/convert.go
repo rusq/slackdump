@@ -10,7 +10,6 @@ import (
 
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
-	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/internal/chunk/transform/fileproc"
 	"github.com/rusq/slackdump/v3/internal/convert"
 	"github.com/rusq/slackdump/v3/internal/source"
@@ -35,19 +34,16 @@ Currently only "export" format is supported.
 
 type tparams struct {
 	storageType fileproc.StorageType
-	inputfmt    datafmt
 	outputfmt   datafmt
 }
 
 var params = tparams{
 	storageType: fileproc.STmattermost,
-	inputfmt:    Fchunk,
 	outputfmt:   Fexport,
 }
 
 func init() {
 	CmdConvert.Flag.Var(&params.storageType, "storage", "storage type")
-	CmdConvert.Flag.Var(&params.inputfmt, "input", "input format")
 	CmdConvert.Flag.Var(&params.outputfmt, "output", "output format")
 }
 
@@ -56,14 +52,14 @@ func runConvert(ctx context.Context, cmd *base.Command, args []string) error {
 		base.SetExitStatus(base.SInvalidParameters)
 		return errors.New("source and destination are required")
 	}
-	fn, exist := converter(params.inputfmt, params.outputfmt)
+	fn, exist := converter(params.outputfmt)
 	if !exist {
 		base.SetExitStatus(base.SInvalidParameters)
 		return errors.New("unsupported conversion type")
 	}
 
 	lg := cfg.Log
-	lg.InfoContext(ctx, "converting", "input_format", params.inputfmt, "source", args[0], "output_format", params.outputfmt, "output", cfg.Output)
+	lg.InfoContext(ctx, "converting", "source", args[0], "output_format", params.outputfmt, "output", cfg.Output)
 
 	cflg := convertflags{
 		withFiles:   cfg.DownloadFiles,
@@ -80,11 +76,8 @@ func runConvert(ctx context.Context, cmd *base.Command, args []string) error {
 	return nil
 }
 
-func converter(input datafmt, output datafmt) (convertFunc, bool) {
-	if _, ok := converters[input]; !ok {
-		return nil, false
-	}
-	if cvt, ok := converters[input][output]; ok {
+func converter(output datafmt) (convertFunc, bool) {
+	if cvt, ok := converters[output]; ok {
 		return cvt, true
 	}
 	return nil, false
@@ -92,11 +85,8 @@ func converter(input datafmt, output datafmt) (convertFunc, bool) {
 
 type convertFunc func(ctx context.Context, input, output string, cflg convertflags) error
 
-// ..................input.......output..............
-var converters = map[datafmt]map[datafmt]convertFunc{
-	Fchunk: {
-		Fexport: chunk2export,
-	},
+var converters = map[datafmt]convertFunc{
+	Fexport: toExport,
 }
 
 type convertflags struct {
@@ -105,16 +95,16 @@ type convertflags struct {
 	stt         fileproc.StorageType
 }
 
-func chunk2export(ctx context.Context, src, trg string, cflg convertflags) error {
+func toExport(ctx context.Context, src, trg string, cflg convertflags) error {
+	// detect source type
 	st, err := source.Type(src)
 	if err != nil {
 		return err
 	}
-	cd, err := chunk.OpenDir(src)
-	if err != nil {
-		return err
+
+	if st == source.FUnknown {
+		return errors.New("unknown source type")
 	}
-	defer cd.Close()
 
 	fsa, err := fsadapter.New(trg)
 	if err != nil {
@@ -132,8 +122,12 @@ func chunk2export(ctx context.Context, src, trg string, cflg convertflags) error
 		includeAvatars = cflg.withAvatars && (st&source.FAvatars != 0)
 	)
 
-	s := source.NewChunkDir(cd, true)
-	cvt := convert.NewChunkToExport(
+	s, err := source.Load(ctx, src)
+	if err != nil {
+		return err
+	}
+
+	cvt := convert.NewToExport(
 		s,
 		fsa,
 		convert.WithIncludeFiles(includeFiles),

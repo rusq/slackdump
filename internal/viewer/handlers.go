@@ -215,8 +215,8 @@ func (v *Viewer) fileHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	lg := v.lg.With("in", "fileHandler", "id", id, "filename", filename)
-	fs := v.src.FS()
-	path, err := v.src.File(id, filename)
+	fs := v.src.Files().FS()
+	path, err := v.src.Files().File(id, filename)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			http.NotFound(w, r)

@@ -18,10 +18,10 @@ import (
 )
 
 type Dump struct {
-	c    []slack.Channel
-	fs   fs.FS
-	name string
-	Storage
+	c     []slack.Channel
+	fs    fs.FS
+	name  string
+	files Storage
 }
 
 func NewDump(ctx context.Context, fsys fs.FS, name string) (*Dump, error) {
@@ -30,9 +30,9 @@ func NewDump(ctx context.Context, fsys fs.FS, name string) (*Dump, error) {
 		st = fst
 	}
 	d := &Dump{
-		fs:      fsys,
-		name:    name,
-		Storage: st,
+		fs:    fsys,
+		name:  name,
+		files: st,
 	}
 	// initialise channels for quick lookup
 	c, err := d.Channels(ctx)
@@ -226,4 +226,13 @@ func (d Dump) Latest(ctx context.Context) (map[structures.SlackLink]time.Time, e
 
 func (d Dump) WorkspaceInfo(context.Context) (*slack.AuthTestResponse, error) {
 	return nil, ErrNotSupported
+}
+
+func (d Dump) Files() Storage {
+	return d.files
+}
+
+func (d Dump) Avatars() Storage {
+	// Dump does not support avatars.
+	return fstNotFound{}
 }
