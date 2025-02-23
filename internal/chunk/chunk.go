@@ -26,6 +26,8 @@ const (
 	CBookmarks
 	CSearchMessages
 	CSearchFiles
+
+	CAny ChunkType = 255 // Special type, meaning any type of chunk.
 )
 
 var ErrUnsupChunkType = fmt.Errorf("unsupported chunk type")
@@ -182,6 +184,19 @@ func threadID(channelID, threadTS string) GroupID {
 
 func (id GroupID) IsThread() bool {
 	return strings.HasPrefix(string(id), threadPrefix)
+}
+
+// ExtractChannelID attempts to extract the channel ID from the GroupID if it
+// is a channel or a thread ID.  Otherwise, ok will be false.
+func (id GroupID) ExtractChannelID() (channelID string, ok bool) {
+	if id.IsThread() {
+		channelID, _, ok = id.AsThreadID()
+		return
+	}
+	if id.IsChannel() {
+		return id.AsChannelID()
+	}
+	return "", false
 }
 
 // asThreadID returns the channelID and threadTS from the GroupID.  If the

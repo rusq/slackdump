@@ -18,6 +18,7 @@ import (
 	"github.com/rusq/slackdump/v3/internal/chunk/control"
 	"github.com/rusq/slackdump/v3/internal/chunk/transform"
 	"github.com/rusq/slackdump/v3/internal/chunk/transform/fileproc"
+	"github.com/rusq/slackdump/v3/internal/source"
 	"github.com/rusq/slackdump/v3/internal/structures"
 	"github.com/rusq/slackdump/v3/stream"
 )
@@ -48,7 +49,8 @@ func export(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, list
 			return fn(m)
 		}
 	}
-	conv := transform.NewExpConverter(chunkdir, fsa, transform.ExpWithMsgUpdateFunc(updFn()))
+	src := source.NewChunkDir(chunkdir, true)
+	conv := transform.NewExpConverter(src, fsa, transform.ExpWithMsgUpdateFunc(updFn()))
 	tf := transform.NewExportCoordinator(ctx, conv, transform.WithBufferSize(1000))
 	defer tf.Close()
 
@@ -59,6 +61,7 @@ func export(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, list
 	avdl := fileproc.NewDownloader(ctx, cfg.DownloadAvatars, sess.Client(), fsa, lg)
 	avp := fileproc.NewAvatarProc(avdl)
 
+	lg.InfoContext(ctx, "running export...")
 	pb := bootstrap.ProgressBar(ctx, lg, progressbar.OptionShowCount()) // progress bar
 
 	stream := sess.Stream(
@@ -76,7 +79,7 @@ func export(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, list
 		MemberOnly:  cfg.MemberOnly,
 		RecordFiles: false, // archive format is transitory, don't need extra info.
 	}
-	ctr := control.New(
+	ctr := control.NewDir(
 		chunkdir,
 		stream,
 		control.WithFiler(fp),
@@ -87,7 +90,6 @@ func export(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, list
 	)
 	defer ctr.Close()
 
-	lg.InfoContext(ctx, "running export...")
 	if err := ctr.Run(ctx, list); err != nil {
 		_ = pb.Finish()
 		return err

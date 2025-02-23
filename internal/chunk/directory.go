@@ -37,7 +37,10 @@ const (
 	FSearch    FileID = "search"
 )
 
-const UploadsDir = "__uploads" // for serving files
+const (
+	UploadsDir = "__uploads" // for serving files
+	AvatarsDir = "__avatars"
+)
 
 // Directory is an abstraction over the directory with chunk files.  It
 // provides a way to write chunk files and read channels, users and messages
@@ -446,13 +449,13 @@ func (d *Directory) File(id string, name string) (fs.File, error) {
 	return os.Open(filepath.Join(d.dir, UploadsDir, id, name))
 }
 
-func (d *Directory) AllMessages(channelID string) ([]slack.Message, error) {
+func (d *Directory) AllMessages(ctx context.Context, channelID string) ([]slack.Message, error) {
 	var mm structures.Messages
 	err := d.WalkSync(func(name string, f *File, err error) error {
 		if err != nil {
 			return err
 		}
-		m, err := f.AllMessages(channelID)
+		m, err := f.AllMessages(ctx, channelID)
 		if err != nil {
 			if errors.Is(err, ErrNotFound) {
 				return nil
@@ -469,7 +472,7 @@ func (d *Directory) AllMessages(channelID string) ([]slack.Message, error) {
 	return mm, nil
 }
 
-func (d *Directory) AllThreadMessages(channelID, threadID string) ([]slack.Message, error) {
+func (d *Directory) AllThreadMessages(_ context.Context, channelID, threadID string) ([]slack.Message, error) {
 	var mm structures.Messages
 	var parent *slack.Message
 	err := d.WalkSync(func(name string, f *File, err error) error {
@@ -521,14 +524,14 @@ func (d *Directory) FastAllThreadMessages(channelID, threadID string) ([]slack.M
 	return append([]slack.Message{*parent}, rest...), nil
 }
 
-func (d *Directory) FastAllMessages(channelID string) ([]slack.Message, error) {
+func (d *Directory) FastAllMessages(ctx context.Context, channelID string) ([]slack.Message, error) {
 	f, err := d.Open(FileID(channelID))
 	if err != nil {
 		return nil, err
 	}
 	defer f.Close()
 
-	return f.AllMessages(channelID)
+	return f.AllMessages(ctx, channelID)
 }
 
 // Latest returns the latest timestamps for the channels and threads
@@ -555,4 +558,14 @@ func (d *Directory) Latest(ctx context.Context) (map[GroupID]time.Time, error) {
 		return nil, err
 	}
 	return latest, nil
+}
+
+func (d *Directory) Sorted(ctx context.Context, channelID string, desc bool, cb func(ts time.Time, msg *slack.Message) error) error {
+	// TODO: this is oversimplification.  The messages for the channel in
+	// canonical chunk directory may be stored in multiple files.
+	f, err := d.Open(FileID(channelID))
+	if err != nil {
+		return err
+	}
+	return f.Sorted(ctx, channelID, desc, cb)
 }

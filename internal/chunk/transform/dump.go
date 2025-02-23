@@ -127,7 +127,7 @@ func (s *StdConverter) Convert(ctx context.Context, id chunk.FileID) error {
 // stdConversation is the function that does the transformation of the whole
 // channel with threads.
 func stdConversation(cf *chunk.File, ci *slack.Channel, pipeline pipeline) ([]types.Message, error) {
-	mm, err := cf.AllMessages(ci.ID)
+	mm, err := cf.AllMessages(context.TODO(), ci.ID)
 	if err != nil {
 		return nil, err
 	}

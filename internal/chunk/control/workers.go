@@ -5,48 +5,42 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"runtime/trace"
 
 	"github.com/rusq/slackdump/v3/internal/structures"
 
 	"github.com/rusq/slack"
 
-	"github.com/rusq/slackdump/v3/internal/chunk"
-	"github.com/rusq/slackdump/v3/internal/chunk/dirproc"
 	"github.com/rusq/slackdump/v3/internal/chunk/transform"
 	"github.com/rusq/slackdump/v3/processor"
 )
 
-func userWorker(ctx context.Context, s Streamer, avp processor.Avatars, chunkdir *chunk.Directory, tf TransformStarter) error {
-	users := make([]slack.User, 0, 100)
-	userproc, err := dirproc.NewUsers(chunkdir, dirproc.WithUsers(func(us []slack.User) error {
-		users = append(users, us...)
-		if err := avp.Avatars(ctx, us); err != nil {
-			slog.Warn("error downloading avatars", "error", err)
-		}
-		return nil
-	}))
-	if err != nil {
-		return err
+type userCollector struct {
+	ctx   context.Context // bad boy, but short-lived, so it's ok
+	users []slack.User
+	ts    TransformStarter
+}
+
+func (u *userCollector) Users(ctx context.Context, users []slack.User) error {
+	u.users = append(u.users, users...)
+	return nil
+}
+
+func (u *userCollector) Close() error {
+	if len(u.users) == 0 {
+		return errors.New("no users collected")
 	}
-	if err := s.Users(ctx, userproc); err != nil {
-		if err2 := userproc.Close(); err2 != nil {
-			err = errors.Join(err2)
-		}
-		return fmt.Errorf("error listing users: %w", err)
-	}
-	if err := userproc.Close(); err != nil {
-		return fmt.Errorf("error closing user processor: %w", err)
-	}
-	slog.DebugContext(ctx, "users done")
-	if len(users) == 0 {
-		return fmt.Errorf("unable to proceed, no users found")
-	}
-	if err := tf.StartWithUsers(ctx, users); err != nil {
+	if err := u.ts.StartWithUsers(u.ctx, u.users); err != nil {
 		if errors.Is(err, context.Canceled) {
 			return nil
 		}
 		return fmt.Errorf("error starting the transformer: %w", err)
+	}
+	return nil
+}
+
+func userWorker(ctx context.Context, s Streamer, up processor.Users) error {
+	if err := s.Users(ctx, up); err != nil {
+		return fmt.Errorf("error listing users: %w", err)
 	}
 	return nil
 }
@@ -63,14 +57,10 @@ func conversationWorker(ctx context.Context, s Streamer, proc processor.Conversa
 	return nil
 }
 
-func workspaceWorker(ctx context.Context, s Streamer, cd *chunk.Directory) error {
+func workspaceWorker(ctx context.Context, s Streamer, wsproc processor.WorkspaceInfo) error {
 	lg := slog.Default()
 	lg.Debug("workspaceWorker started")
-	wsproc, err := dirproc.NewWorkspace(cd)
-	if err != nil {
-		return err
-	}
-	defer wsproc.Close()
+
 	if err := s.WorkspaceInfo(ctx, wsproc); err != nil {
 		return err
 	}
@@ -78,36 +68,20 @@ func workspaceWorker(ctx context.Context, s Streamer, cd *chunk.Directory) error
 	return nil
 }
 
-func searchMsgWorker(ctx context.Context, s Streamer, filer processor.Filer, cd *chunk.Directory, query string) error {
-	ctx, task := trace.NewTask(ctx, "searchMsgWorker")
-	defer task.End()
-
+func searchMsgWorker(ctx context.Context, s Streamer, ms processor.MessageSearcher, query string) error {
 	lg := slog.Default()
 	lg.Debug("searchMsgWorker started")
-	search, err := dirproc.NewSearch(cd, filer)
-	if err != nil {
-		return err
-	}
-	defer search.Close()
-	if err := s.SearchMessages(ctx, search, query); err != nil {
+	if err := s.SearchMessages(ctx, ms, query); err != nil {
 		return err
 	}
 	lg.Debug("searchWorker done")
 	return nil
 }
 
-func searchFileWorker(ctx context.Context, s Streamer, filer processor.Filer, cd *chunk.Directory, query string) error {
-	ctx, task := trace.NewTask(ctx, "searchMsgWorker")
-	defer task.End()
-
+func searchFileWorker(ctx context.Context, s Streamer, sf processor.FileSearcher, query string) error {
 	lg := slog.Default()
 	lg.Debug("searchFileWorker started")
-	search, err := dirproc.NewSearch(cd, filer)
-	if err != nil {
-		return err
-	}
-	defer search.Close()
-	if err := s.SearchFiles(ctx, search, query); err != nil {
+	if err := s.SearchFiles(ctx, sf, query); err != nil {
 		return err
 	}
 	lg.Debug("searchFileWorker done")

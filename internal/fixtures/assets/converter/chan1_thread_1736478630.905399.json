@@ -1,0 +1,68 @@
+[
+{
+  "client_msg_id": "f6770037-fcf1-41aa-8d11-d2ee103e05d6",
+  "type": "message",
+  "user": "U0887G31L03",
+  "text": "A message from a deactivated account",
+  "ts": "1736554746.482349",
+  "thread_ts": "1736478630.905399",
+  "parent_user_id": "UHSD97ZA5",
+  "team": "THY5HTZ8U",
+  "replace_original": false,
+  "delete_original": false,
+  "metadata": {
+    "event_type": "",
+    "event_payload": null
+  },
+  "blocks": [
+    {
+      "type": "rich_text",
+      "block_id": "gvs1d",
+      "elements": [
+        {
+          "type": "rich_text_section",
+          "elements": [
+            {
+              "type": "text",
+              "text": "A message from a deactivated account"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+},
+{
+  "client_msg_id": "c8c88073-b090-4216-b87c-5f64a8f97bd3",
+  "type": "message",
+  "user": "UHSD97ZA5",
+  "text": "Reply to the same thread",
+  "ts": "1736554783.040199",
+  "thread_ts": "1736478630.905399",
+  "parent_user_id": "UHSD97ZA5",
+  "team": "THY5HTZ8U",
+  "replace_original": false,
+  "delete_original": false,
+  "metadata": {
+    "event_type": "",
+    "event_payload": null
+  },
+  "blocks": [
+    {
+      "type": "rich_text",
+      "block_id": "tiJat",
+      "elements": [
+        {
+          "type": "rich_text_section",
+          "elements": [
+            {
+              "type": "text",
+              "text": "Reply to the same thread"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+]

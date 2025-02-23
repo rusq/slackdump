@@ -6,12 +6,16 @@ func IsThreadStart(m *slack.Message) bool {
 	return m.Timestamp == m.ThreadTimestamp
 }
 
+func IsEmptyThread(m *slack.Message) bool {
+	return m.LatestReply == LatestReplyNoReplies
+}
+
 const (
 	CUnknown = iota
-	CIM
-	CMPIM
-	CPrivate
-	CPublic
+	CIM      // IM
+	CMPIM    // Group IM
+	CPrivate // Private Channel
+	CPublic  // Public Channel
 )
 
 func ChannelType(ch slack.Channel) int {

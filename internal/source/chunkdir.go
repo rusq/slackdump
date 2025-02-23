@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"iter"
 	"os"
 	"time"
 
@@ -18,39 +19,72 @@ import (
 // TODO: create an index of entries, otherwise it does the
 // full scan of the directory.
 type ChunkDir struct {
-	d    *chunk.Directory
-	fast bool
-	Storage
+	d       *chunk.Directory
+	fast    bool
+	files   Storage
+	avatars Storage
 }
 
 // NewChunkDir creates a new ChurkDir source.  It expects the attachments to be
 // in the mattermost storage format.  If the attachments are not in the
 // mattermost storage format, it will assume they were not downloaded.
 func NewChunkDir(d *chunk.Directory, fast bool) *ChunkDir {
-	var st Storage = fstNotFound{}
-	if fst, err := NewMattermostStorage(os.DirFS(d.Name())); err == nil {
-		st = fst
+	rootFS := os.DirFS(d.Name())
+	var stFile Storage = fstNotFound{}
+	if fst, err := NewMattermostStorage(rootFS); err == nil {
+		stFile = fst
 	}
-	return &ChunkDir{d: d, Storage: st, fast: fast}
+	var stAvatars Storage = fstNotFound{}
+	if ast, err := NewAvatarStorage(rootFS); err == nil {
+		stAvatars = ast
+	}
+	return &ChunkDir{d: d, files: stFile, avatars: stAvatars, fast: fast}
 }
 
 // AllMessages returns all messages for the channel.  Current restriction -
 // it expects for all messages for the requested file to be in the file ID.json.gz.
 // If messages for the channel are scattered across multiple file, it will not
 // return all of them.
-func (c *ChunkDir) AllMessages(channelID string) ([]slack.Message, error) {
+func (c *ChunkDir) AllMessages(ctx context.Context, channelID string) (iter.Seq2[slack.Message, error], error) {
+	var (
+		mm  []slack.Message
+		err error
+	)
 	if c.fast {
-		return c.d.FastAllMessages(channelID)
+		mm, err = c.d.FastAllMessages(ctx, channelID)
 	} else {
-		return c.d.AllMessages(channelID)
+		mm, err = c.d.AllMessages(ctx, channelID)
+	}
+	if err != nil {
+		return nil, err
+	}
+	return toIter(mm), nil
+}
+
+func toIter(mm []slack.Message) iter.Seq2[slack.Message, error] {
+	return func(yield func(slack.Message, error) bool) {
+		for _, m := range mm {
+			if !yield(m, nil) {
+				return
+			}
+		}
 	}
 }
 
-func (c *ChunkDir) AllThreadMessages(channelID, threadID string) ([]slack.Message, error) {
+func (c *ChunkDir) AllThreadMessages(ctx context.Context, channelID, threadID string) (iter.Seq2[slack.Message, error], error) {
+	var (
+		mm  []slack.Message
+		err error
+	)
 	if c.fast {
-		return c.d.FastAllThreadMessages(channelID, threadID)
+		mm, err = c.d.FastAllThreadMessages(channelID, threadID)
+	} else {
+		mm, err = c.d.AllThreadMessages(ctx, channelID, threadID)
 	}
-	return c.d.AllThreadMessages(channelID, threadID)
+	if err != nil {
+		return nil, err
+	}
+	return toIter(mm), nil
 }
 
 func (c *ChunkDir) ChannelInfo(_ context.Context, channelID string) (*slack.Channel, error) {
@@ -74,7 +108,7 @@ func (c *ChunkDir) Type() string {
 	return "chunk"
 }
 
-func (c *ChunkDir) Users() ([]slack.User, error) {
+func (c *ChunkDir) Users(context.Context) ([]slack.User, error) {
 	return c.d.Users()
 }
 
@@ -102,6 +136,18 @@ func (c *ChunkDir) Latest(ctx context.Context) (map[structures.SlackLink]time.Ti
 	return mm, nil
 }
 
-func (c *ChunkDir) WorkspaceInfo() (*slack.AuthTestResponse, error) {
+func (c *ChunkDir) WorkspaceInfo(context.Context) (*slack.AuthTestResponse, error) {
 	return c.d.WorkspaceInfo()
+}
+
+func (c *ChunkDir) Files() Storage {
+	return c.files
+}
+
+func (c *ChunkDir) Avatars() Storage {
+	return c.avatars
+}
+
+func (c *ChunkDir) Sorted(ctx context.Context, id string, desc bool, cb func(ts time.Time, msg *slack.Message) error) error {
+	return c.d.Sorted(ctx, id, desc, cb)
 }
