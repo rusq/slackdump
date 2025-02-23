@@ -22,7 +22,7 @@ type Source struct {
 }
 
 func Open(path string) (*Source, error) {
-	conn, err := sqlx.Open("sqlite", "file:"+path+"?mode=ro")
+	conn, err := sqlx.Open(repository.Driver, "file:"+path+"?mode=ro")
 	if err != nil {
 		return nil, err
 	}
@@ -108,12 +108,6 @@ func collect[T any, D valuer[T]](it iter.Seq2[D, error], sz int) ([]T, error) {
 }
 
 func (s *Source) AllMessages(ctx context.Context, channelID string) (iter.Seq2[slack.Message, error], error) {
-	tx, err := s.conn.BeginTxx(ctx, &sql.TxOptions{ReadOnly: true})
-	if err != nil {
-		return nil, err
-	}
-	defer tx.Rollback()
-
 	mr := repository.NewMessageRepository()
 	it, err := mr.AllForID(ctx, s.conn, channelID)
 	if err != nil {
@@ -123,12 +117,6 @@ func (s *Source) AllMessages(ctx context.Context, channelID string) (iter.Seq2[s
 }
 
 func (s *Source) AllThreadMessages(ctx context.Context, channelID, threadID string) (iter.Seq2[slack.Message, error], error) {
-	tx, err := s.conn.BeginTxx(ctx, &sql.TxOptions{ReadOnly: true})
-	if err != nil {
-		return nil, err
-	}
-	defer tx.Rollback()
-
 	mr := repository.NewMessageRepository()
 	it, err := mr.AllForThread(ctx, s.conn, channelID, threadID)
 	if err != nil {
@@ -138,12 +126,6 @@ func (s *Source) AllThreadMessages(ctx context.Context, channelID, threadID stri
 }
 
 func (s *Source) Sorted(ctx context.Context, channelID string, desc bool, cb func(ts time.Time, msg *slack.Message) error) error {
-	tx, err := s.conn.BeginTxx(ctx, &sql.TxOptions{ReadOnly: true})
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-
 	mr := repository.NewMessageRepository()
 	it, err := mr.Sorted(ctx, s.conn, channelID, repository.Asc)
 	if err != nil {
@@ -166,13 +148,6 @@ func (s *Source) Sorted(ctx context.Context, channelID string, desc bool, cb fun
 
 func (s *Source) ChannelInfo(ctx context.Context, channelID string) (*slack.Channel, error) {
 	cr := repository.NewChannelRepository()
-
-	tx, err := s.conn.BeginTxx(ctx, &sql.TxOptions{ReadOnly: true})
-	if err != nil {
-		return nil, err
-	}
-	defer tx.Rollback()
-
 	c, err := cr.Get(ctx, s.conn, channelID)
 	if err != nil {
 		return nil, err

@@ -29,8 +29,8 @@ func (o Order) String() string {
 }
 
 const (
-	dbDriver = "sqlite"
-	dbTag    = "db"
+	Driver = "sqlite"
+	dbTag  = "db"
 )
 
 // PrepareExtContext is a combination of sqlx.PreparerContext and sqlx.ExtContext.

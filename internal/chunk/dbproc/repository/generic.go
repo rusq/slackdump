@@ -260,11 +260,6 @@ func (r genericRepository[T]) allOfTypeWhere(ctx context.Context, conn sqlx.Quer
 
 	var buf strings.Builder
 	buf.WriteString(latest)
-	if qp.Where != "" {
-		buf.WriteString(" AND ( ")
-		buf.WriteString(qp.Where)
-		buf.WriteString(" ) ")
-	}
 	binds = append(binds, qp.Binds...)
 	if qp.UserKeyOrder {
 		buf.WriteString(" ORDER BY ")

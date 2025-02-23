@@ -21,6 +21,8 @@ const (
 
 var (
 	TraceFile   string
+	CPUProfile  string
+	MEMProfile  string
 	LogFile     string
 	JsonHandler bool
 	Verbose     bool
@@ -112,6 +114,8 @@ const (
 // SetBaseFlags sets base flags
 func SetBaseFlags(fs *flag.FlagSet, mask FlagMask) {
 	fs.StringVar(&TraceFile, "trace", os.Getenv("TRACE_FILE"), "trace `filename`")
+	fs.StringVar(&CPUProfile, "cpuprofile", os.Getenv("CPU_PROFILE"), "write CPU profile to `file`")
+	fs.StringVar(&MEMProfile, "memprofile", os.Getenv("MEM_PROFILE"), "write memory profile to `file`")
 	fs.StringVar(&LogFile, "log", os.Getenv("LOG_FILE"), "log `file`, if not specified, messages are printed to STDERR")
 	fs.BoolVar(&JsonHandler, "log-json", osenv.Value("JSON_LOG", false), "log in JSON format")
 	fs.BoolVar(&Verbose, "v", osenv.Value("DEBUG", false), "verbose messages")

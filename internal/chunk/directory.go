@@ -242,7 +242,6 @@ func (d *Directory) Walk(fn func(name string, f *File, err error) error) error {
 		}
 		f, err := d.openRAW(path)
 		if err != nil {
-			slog.Warn("unable to open file", "path", path, "err", err)
 			return fn(path, nil, err)
 		}
 		cf, err := cachedFromReader(f, d.wantCache)

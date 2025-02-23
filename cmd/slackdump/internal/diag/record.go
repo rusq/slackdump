@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/rusq/slackdump/v3/internal/chunk/dbproc"
+	"github.com/rusq/slackdump/v3/internal/chunk/dbproc/repository"
 
 	"github.com/jmoiron/sqlx"
 
@@ -82,7 +83,7 @@ func runRecord(ctx context.Context, _ *base.Command, args []string) error {
 	// 	}
 	// }
 
-	db, err := sqlx.Open("sqlite", "record.db")
+	db, err := sqlx.Open(repository.Driver, "record.db")
 	if err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return err

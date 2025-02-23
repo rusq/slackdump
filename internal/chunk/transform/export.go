@@ -8,7 +8,6 @@ import (
 	"log/slog"
 	"path/filepath"
 	"runtime/trace"
-	"sort"
 	"sync/atomic"
 	"time"
 
@@ -17,7 +16,6 @@ import (
 
 	"github.com/rusq/slackdump/v3/export"
 	"github.com/rusq/slackdump/v3/internal/chunk"
-	"github.com/rusq/slackdump/v3/internal/fasttime"
 	"github.com/rusq/slackdump/v3/internal/source"
 	"github.com/rusq/slackdump/v3/internal/structures"
 	"github.com/rusq/slackdump/v3/types"
@@ -97,81 +95,19 @@ func (e *ExpConverter) Convert(ctx context.Context, id chunk.FileID) error {
 	return nil
 }
 
-func (e *ExpConverter) writeMessages(ctx context.Context, ci *slack.Channel) error {
+func (e *ExpConverter) writeMessages(ctx context.Context, ci *slack.Channel) (err error) {
 	lg := slog.With("in", "writeMessages", "channel", ci.ID)
-	uidx := types.Users(e.getUsers()).IndexByID()
-	trgdir := ExportChanName(ci)
-
-	// loop variables
-	var (
-		prevDt string
-		currDt string
-		mm     []export.ExportMessage
-	)
-	if err := e.src.Sorted(ctx, ci.ID, false, func(ts time.Time, m *slack.Message) error {
-		currDt = ts.Format("2006-01-02")
-		if currDt != prevDt || prevDt == "" {
-			if prevDt != "" {
-				// flush the previous day.
-				if err := e.writeout(filepath.Join(trgdir, prevDt+".json"), mm); err != nil {
-					return err
-				}
-			}
-			mm = make([]export.ExportMessage, 0, 100)
-			prevDt = currDt
-		}
-
-		// NOTE: the "thread" is only used to collect statistics.  Thread
-		// messages are passed by Sorted and written as a normal course of
-		// action.
-		var thread []slack.Message
-		if structures.IsThreadStart(m) && m.LatestReply != structures.LatestReplyNoReplies {
-			// get the thread for the initial thread message only.
-			var err error
-			itTm, err := e.src.AllThreadMessages(ctx, ci.ID, m.ThreadTimestamp)
-			if err != nil {
-				if !errors.Is(err, chunk.ErrNotFound) {
-					return fmt.Errorf("error getting thread messages for %q: %w", ci.ID+":"+m.ThreadTimestamp, err)
-				} else {
-					// this shouldn't happen as we have the guard in the if
-					// condition, but if it does (i.e. API changed), log it.
-					lg.Warn("not an error, possibly deleted thread not found in chunk file", "slack_link", ci.ID+":"+m.ThreadTimestamp)
-				}
-			}
-			thread = make([]slack.Message, 0, 10)
-			for tm, err := range itTm {
-				if err != nil {
-					return fmt.Errorf("error reading thread message: %w", err)
-				}
-				thread = append(thread, tm)
-			}
-		}
-
-		// apply all message functions.
-		for _, fn := range e.msgFunc {
-			if err := fn(ci, m); err != nil {
-				return fmt.Errorf("error updating message: %w", err)
-			}
-		}
-
-		mm = append(mm, *toExportMessage(m, thread, uidx[m.User]))
-		return nil
-	}); err != nil {
+	acc := e.newAccumulator(ctx, ci)
+	defer func() {
+		e := acc.Flush()
+		err = errors.Join(err, e)
+	}()
+	if err := e.src.Sorted(ctx, ci.ID, false, acc.Append); err != nil {
 		if errors.Is(err, chunk.ErrNoData) {
 			lg.DebugContext(ctx, "no messages for the channel", "channel", ci.ID)
 			return nil
 		}
 		return fmt.Errorf("error reading messages: %w", err)
-	}
-
-	if len(mm) > 0 {
-		// flush the last day.
-		lg.DebugContext(ctx, "writing last day", "date", prevDt)
-		if err := e.writeout(filepath.Join(trgdir, prevDt+".json"), mm); err != nil {
-			return err
-		}
-	} else {
-		lg.DebugContext(ctx, "no messages for the channel", "channel", ci.ID)
 	}
 
 	return nil
@@ -196,11 +132,11 @@ type msgUpdFunc func(*slack.Channel, *slack.Message) error
 // toExportMessage converts a slack message m to an export message, populating
 // the fields that are not present in the original message.  To populate the
 // count of replies and reply users on a lead message of a thread, it needs
-// "thread".  If m is not a parent message (m.ts != m.thread_ts) for the
-// thread or thread is nil, it is ignored (this follows the original Slack
-// Export logic).  user is the poster's user information.  Original Slack
-// Export adds the "profile" field on each message with basic profile
-// information about the poster.
+// "thread".  If m is not a parent message (m.ts != m.thread_ts) for the thread
+// or thread is nil, it is ignored (this follows the original Slack Export
+// logic).  user is the poster's user information.  Original Slack Export adds
+// the "profile" field on each message with basic profile information about the
+// poster.
 func toExportMessage(m *slack.Message, thread []slack.Message, user *slack.User) *export.ExportMessage {
 	// export message
 	em := export.ExportMessage{
@@ -225,47 +161,11 @@ func toExportMessage(m *slack.Message, thread []slack.Message, user *slack.User)
 	}
 
 	// add thread information if it is a lead message of a thread.
-	if m.Timestamp == m.ThreadTimestamp && len(thread) > 0 {
-		em.Replies = make([]slack.Reply, 0, len(thread))
-		for _, rm := range thread {
-			em.Replies = append(em.Replies, slack.Reply{
-				User:      rm.User,
-				Timestamp: rm.Timestamp,
-			})
-			em.ReplyUsers = append(em.ReplyUsers, rm.User)
-		}
-		sort.Slice(em.Replies, func(i, j int) bool {
-			tsi, err := fasttime.TS2int(em.Msg.Replies[i].Timestamp)
-			if err != nil {
-				return false
-			}
-			tsj, err := fasttime.TS2int(em.Msg.Replies[j].Timestamp)
-			if err != nil {
-				return false
-			}
-			return tsi < tsj
-		})
-		makeUniqueStrings(&em.ReplyUsers)
-		em.ReplyUsersCount = len(em.ReplyUsers)
+	if structures.IsThreadStart(m) && len(thread) > 0 {
+		em.PopulateReplyFields(thread)
 	}
 
 	return &em
-}
-
-// TODO: replace with an stdlib function.
-func makeUniqueStrings(ss *[]string) {
-	if len(*ss) == 0 {
-		return
-	}
-	sort.Strings(*ss)
-	i := 0
-	for _, s := range *ss {
-		if s != (*ss)[i] {
-			i++
-			(*ss)[i] = s
-		}
-	}
-	*ss = (*ss)[:i+1]
 }
 
 // ExportChanName returns the channel name, or the channel ID if it is a DM.
@@ -279,26 +179,123 @@ func ExportChanName(ch *slack.Channel) string {
 // WriteIndex generates and writes the export index files.  It must be called
 // once all transformations are done, because it might require to read channel
 // files.
-func (t *ExpConverter) WriteIndex(ctx context.Context) error {
-	wsp, err := t.src.WorkspaceInfo(ctx)
+func (e *ExpConverter) WriteIndex(ctx context.Context) error {
+	wsp, err := e.src.WorkspaceInfo(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get the workspace info: %w", err)
 	}
-	chans, err := t.src.Channels(ctx)
+	chans, err := e.src.Channels(ctx)
 	if err != nil {
 		return fmt.Errorf("error indexing channels: %w", err)
 	}
-	eidx, err := structures.MakeExportIndex(chans, t.getUsers(), wsp.UserID)
+	eidx, err := structures.MakeExportIndex(chans, e.getUsers(), wsp.UserID)
 	if err != nil {
 		return fmt.Errorf("error creating export index: %w", err)
 	}
-	if err := eidx.Marshal(t.fsa); err != nil {
+	if err := eidx.Marshal(e.fsa); err != nil {
 		return fmt.Errorf("error writing export index: %w", err)
 	}
 	return nil
 }
 
 // HasUsers returns true if the converter has users.
-func (t *ExpConverter) HasUsers() bool {
-	return len(t.getUsers()) > 0
+func (e *ExpConverter) HasUsers() bool {
+	return len(e.getUsers()) > 0
+}
+
+func (e *ExpConverter) newAccumulator(ctx context.Context, channel *slack.Channel) *expmsgAccum {
+	return &expmsgAccum{
+		ctx:     ctx,
+		channel: channel,
+		src:     e.src,
+		trgdir:  ExportChanName(channel),
+		uidx:    types.Users(e.getUsers()).IndexByID(),
+		msgfunc: e.msgFunc,
+		flushFn: e.writeout,
+	}
+}
+
+// expmsgAccum is the message accumulator for the export conversion.
+type expmsgAccum struct {
+	mm             []export.ExportMessage
+	prevDt, currDt string
+
+	src    source.Sourcer
+	trgdir string
+
+	ctx     context.Context
+	channel *slack.Channel
+	msgfunc []msgUpdFunc
+	uidx    map[string]*slack.User
+	flushFn func(filename string, mm []export.ExportMessage) error
+}
+
+const (
+	msgBufSz    = 50 // on average, on a low-load medium size workspace.
+	threadBufSz = 5  // average thread size is 1.4 messages.
+)
+
+func (a *expmsgAccum) next() {
+	a.mm = make([]export.ExportMessage, 0, msgBufSz)
+	a.prevDt = a.currDt
+}
+
+func (a *expmsgAccum) shouldFlush() bool {
+	return a.currDt != a.prevDt || a.prevDt == ""
+}
+
+// Append appends a message to the accumulator.  It flushes the messages to the
+// file when the date changes. It also updates the message with the user
+// profile information and thread information if it is a lead message of a
+// thread.
+func (a *expmsgAccum) Append(ts time.Time, m *slack.Message) error {
+	a.currDt = ts.Format("2006-01-02")
+	if a.shouldFlush() {
+		// flush the previous day.
+		if err := a.Flush(); err != nil {
+			return err
+		}
+		a.next()
+	}
+
+	// NOTE:  the "thread" is only used to collect statistics.  Thread messages
+	// are passed by Sorted along with channel messages.
+	var thread []slack.Message
+	if structures.IsThreadStart(m) && !structures.IsEmptyThread(m) {
+		// get the thread for the initial thread message only.
+		itTm, err := a.src.AllThreadMessages(a.ctx, a.channel.ID, m.ThreadTimestamp)
+		if err != nil {
+			if !errors.Is(err, chunk.ErrNotFound) {
+				return fmt.Errorf("error getting thread messages for %q: %w", a.channel.ID+":"+m.ThreadTimestamp, err)
+			} else {
+				// this shouldn't happen as we have the guard in the if
+				// condition, but if it does (i.e. API changed), log it.
+				slog.Warn("not an error, possibly deleted thread not found in chunk file", "slack_link", a.channel.ID+":"+m.ThreadTimestamp, "in", "Append", "channel", a.channel.ID)
+			}
+		}
+		thread = make([]slack.Message, 0, threadBufSz)
+		for tm, err := range itTm {
+			if err != nil {
+				return fmt.Errorf("error reading thread message: %w", err)
+			}
+			thread = append(thread, tm)
+		}
+	}
+
+	// apply all message functions.
+	for _, fn := range a.msgfunc {
+		if err := fn(a.channel, m); err != nil {
+			return fmt.Errorf("error updating message: %w", err)
+		}
+	}
+
+	a.mm = append(a.mm, *toExportMessage(m, thread, a.uidx[m.User]))
+	return nil
+}
+
+func (a *expmsgAccum) Flush() error {
+	if a.prevDt != "" && len(a.mm) > 0 {
+		return a.flushFn(filepath.Join(a.trgdir, a.prevDt+".json"), a.mm)
+	}
+	return nil
 }
