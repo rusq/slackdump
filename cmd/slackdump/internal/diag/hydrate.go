@@ -199,11 +199,11 @@ func downloadFiles(ctx context.Context, d downloader.GetFiler, trg fsadapter.FS,
 	}
 
 	for _, ch := range channels {
-		msgs, err := src.AllMessages(ctx, ch.ID)
+		itMsgs, err := src.AllMessages(ctx, ch.ID)
 		if err != nil {
 			return fmt.Errorf("error reading messages in channel %s: %w", ch.ID, err)
 		}
-		for m, err := range msgs {
+		for m, err := range itMsgs {
 			if err != nil {
 				return fmt.Errorf("error reading message in channel %s: %w", ch.ID, err)
 			}

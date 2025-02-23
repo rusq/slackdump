@@ -21,6 +21,7 @@ import (
 	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/internal/chunk/control"
 	"github.com/rusq/slackdump/v3/internal/chunk/dbproc"
+	"github.com/rusq/slackdump/v3/internal/chunk/dbproc/repository"
 	"github.com/rusq/slackdump/v3/internal/chunk/transform/fileproc"
 	"github.com/rusq/slackdump/v3/internal/structures"
 	"github.com/rusq/slackdump/v3/stream"
@@ -105,7 +106,7 @@ func RunDBArchive(ctx context.Context, cmd *base.Command, args []string) error {
 		return err
 	}
 
-	conn, err := sqlx.Open("sqlite", filepath.Join(dirname, "slackdump.sqlite"))
+	conn, err := sqlx.Open(repository.Driver, filepath.Join(dirname, "slackdump.sqlite"))
 	if err != nil {
 		return err
 	}

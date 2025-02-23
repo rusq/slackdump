@@ -61,6 +61,7 @@ func export(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, list
 	avdl := fileproc.NewDownloader(ctx, cfg.DownloadAvatars, sess.Client(), fsa, lg)
 	avp := fileproc.NewAvatarProc(avdl)
 
+	lg.InfoContext(ctx, "running export...")
 	pb := bootstrap.ProgressBar(ctx, lg, progressbar.OptionShowCount()) // progress bar
 
 	stream := sess.Stream(
@@ -89,7 +90,6 @@ func export(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, list
 	)
 	defer ctr.Close()
 
-	lg.InfoContext(ctx, "running export...")
 	if err := ctr.Run(ctx, list); err != nil {
 		_ = pb.Finish()
 		return err

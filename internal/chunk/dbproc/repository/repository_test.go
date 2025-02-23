@@ -12,7 +12,9 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
+
 	_ "modernc.org/sqlite"
+	// _ "github.com/mattn/go-sqlite3"
 
 	"github.com/rusq/slackdump/v3/internal/chunk"
 )
@@ -39,7 +41,7 @@ func testConn(t *testing.T) *sqlx.DB {
 
 func testConnDSN(t *testing.T, dsn string) *sqlx.DB {
 	t.Helper()
-	db, err := sqlx.Open(dbDriver, dsn)
+	db, err := sqlx.Open(Driver, dsn)
 	if err != nil {
 		t.Fatalf("sql.Open() err = %v; want nil", err)
 	}

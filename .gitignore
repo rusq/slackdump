@@ -68,3 +68,5 @@ debug.test*
 !internal/fixtures/**/*.json
 *.sqlite*
 *.db
+*.pprof
+*.prof
