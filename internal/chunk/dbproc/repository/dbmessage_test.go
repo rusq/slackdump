@@ -9,9 +9,11 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	"github.com/rusq/slack"
+	"github.com/stretchr/testify/assert"
+
 	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/internal/fixtures"
-	"github.com/stretchr/testify/assert"
+	"github.com/rusq/slackdump/v3/internal/structures"
 )
 
 func minifyJSON[T any](t *testing.T, s string) []byte {
@@ -435,6 +437,10 @@ var (
 	tmC        = slack.Message{Msg: slack.Msg{Timestamp: "125.000", ThreadTimestamp: "123.456", Text: "C"}}
 	tmD        = slack.Message{Msg: slack.Msg{Timestamp: "126.000", ThreadTimestamp: "123.456", Text: "D"}}
 	tmC_       = slack.Message{Msg: slack.Msg{Timestamp: "125.000", ThreadTimestamp: "123.456", Text: "C'"}}
+	// special additional message to test the reference counter
+	tmXExtra = slack.Message{Msg: slack.Msg{Timestamp: "127.000", ThreadTimestamp: "127.000", Text: "X"}}
+	// thread lead that has replies deleted
+	tmYExtra = slack.Message{Msg: slack.Msg{Timestamp: "128.000", ThreadTimestamp: "128.000", LatestReply: structures.LatestReplyNoReplies, Text: "Y"}}
 
 	dbtmAParent  = must(NewDBMessage(1, 0, "C123", &tmAParent))
 	dbtmBChannel = must(NewDBMessage(1, 0, "C123", &tmBChannel))
@@ -442,6 +448,9 @@ var (
 	dbtmC        = must(NewDBMessage(2, 1, "C123", &tmC))
 	dbtmD        = must(NewDBMessage(2, 1, "C123", &tmD))
 	dbtmC_       = must(NewDBMessage(3, 1, "C123", &tmC_))
+	// these go into chunk 1
+	dbtmXExtra = must(NewDBMessage(1, 0, "C123", &tmXExtra))
+	dbtmYExtra = must(NewDBMessage(1, 0, "C123", &tmYExtra))
 )
 
 func threadSetupFn(t *testing.T, conn PrepareExtContext) {
@@ -579,6 +588,102 @@ func TestDBMessage_Val(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("DBMessage.Val() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_messageRepository_CountUnfinished(t *testing.T) {
+	type fields struct {
+		genericRepository genericRepository[DBMessage]
+	}
+	type args struct {
+		ctx       context.Context
+		conn      sqlx.QueryerContext
+		sessionID int64
+		channelID string
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		prepFn  utilityFn
+		want    int64
+		wantErr bool
+	}{
+		{
+			name: "no unfinished threads",
+			fields: fields{
+				genericRepository: genericRepository[DBMessage]{DBMessage{}},
+			},
+			args: args{
+				ctx:       context.Background(),
+				conn:      testConn(t),
+				sessionID: 1,
+				channelID: "C123",
+			},
+			prepFn: threadSetupFn,
+			want:   0,
+		},
+		{
+			name: "unfinished threads",
+			fields: fields{
+				genericRepository: genericRepository[DBMessage]{DBMessage{}},
+			},
+			args: args{
+				ctx:       context.Background(),
+				conn:      testConn(t),
+				sessionID: 1,
+				channelID: "C123",
+			},
+			prepFn: func(t *testing.T, conn PrepareExtContext) {
+				threadSetupFn(t, conn)
+				// add a new message to the thread
+				mr := NewMessageRepository()
+				if err := mr.Insert(context.Background(), conn, dbtmXExtra); err != nil {
+					t.Fatalf("insert: %v", err)
+				}
+			},
+			want: 1,
+		},
+		{
+			name: "unfinished threads with deleted replies",
+			fields: fields{
+				genericRepository: genericRepository[DBMessage]{DBMessage{}},
+			},
+			args: args{
+				ctx:       context.Background(),
+				conn:      testConn(t),
+				sessionID: 1,
+				channelID: "C123",
+			},
+			prepFn: func(t *testing.T, conn PrepareExtContext) {
+				threadSetupFn(t, conn)
+				// add a new message to the thread
+				mr := NewMessageRepository()
+				if err := mr.Insert(context.Background(), conn, dbtmYExtra); err != nil {
+					t.Fatalf("insert: %v", err)
+				}
+			},
+			want: 0,
+		},
+		// TODO: what happens if there's just a thread?
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.prepFn != nil {
+				tt.prepFn(t, tt.args.conn.(PrepareExtContext))
+			}
+			r := messageRepository{
+				genericRepository: tt.fields.genericRepository,
+			}
+			got, err := r.CountUnfinished(tt.args.ctx, tt.args.conn, tt.args.sessionID, tt.args.channelID)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("messageRepository.CountUnfinished() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("messageRepository.CountUnfinished() = %v, want %v", got, tt.want)
 			}
 		})
 	}

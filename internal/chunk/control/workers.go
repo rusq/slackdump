@@ -8,35 +8,9 @@ import (
 
 	"github.com/rusq/slackdump/v3/internal/structures"
 
-	"github.com/rusq/slack"
-
 	"github.com/rusq/slackdump/v3/internal/chunk/transform"
 	"github.com/rusq/slackdump/v3/processor"
 )
-
-type userCollector struct {
-	ctx   context.Context // bad boy, but short-lived, so it's ok
-	users []slack.User
-	ts    TransformStarter
-}
-
-func (u *userCollector) Users(ctx context.Context, users []slack.User) error {
-	u.users = append(u.users, users...)
-	return nil
-}
-
-func (u *userCollector) Close() error {
-	if len(u.users) == 0 {
-		return errors.New("no users collected")
-	}
-	if err := u.ts.StartWithUsers(u.ctx, u.users); err != nil {
-		if errors.Is(err, context.Canceled) {
-			return nil
-		}
-		return fmt.Errorf("error starting the transformer: %w", err)
-	}
-	return nil
-}
 
 func userWorker(ctx context.Context, s Streamer, up processor.Users) error {
 	if err := s.Users(ctx, up); err != nil {

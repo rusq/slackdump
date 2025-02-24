@@ -131,6 +131,33 @@ func (u *JointUsers) Close() error {
 	return closeall(u.pp)
 }
 
+type JointMessengers struct {
+	pp []Messenger
+}
+
+// JoinMessengers joins multiple Messenger processors into one.
+func JoinMessenger(procs ...Messenger) Messenger {
+	return &JointMessengers{pp: procs}
+}
+
+func (m *JointMessengers) Messages(ctx context.Context, channelID string, numThreads int, isLast bool, messages []slack.Message) error {
+	for _, p := range m.pp {
+		if err := p.Messages(ctx, channelID, numThreads, isLast, messages); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (m *JointMessengers) ThreadMessages(ctx context.Context, channelID string, parent slack.Message, threadOnly, isLast bool, replies []slack.Message) error {
+	for _, p := range m.pp {
+		if err := p.ThreadMessages(ctx, channelID, parent, threadOnly, isLast, replies); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // closeall closes all the io.Closer instances in the slice.
 func closeall[T any](pp []T) error {
 	var errs error
@@ -145,33 +172,55 @@ func closeall[T any](pp []T) error {
 }
 
 // JointConversations is a processor that joins multiple processors.
+// TODO: It's done in a crude way, maybe there's a more elegant way to do this.
 type JointConversations struct {
-	c  Conversations
-	ci []ChannelInformer
-	mm []Messenger
-	ff []Filer
+	// these are executed (b)efore
+	bci []ChannelInformer
+	bmm []Messenger
+	bff []Filer
+	// c is the Conversations processor
+	c Conversations
+	// these are executed (a)fter
+	aci []ChannelInformer
+	amm []Messenger
+	aff []Filer
 }
 
 // PrependChannelInformer prepends the ChannelInformer to the Conversations.
 func PrependChannelInformer(c Conversations, ci ...ChannelInformer) Conversations {
-	return &JointConversations{c: c, ci: ci}
+	return &JointConversations{c: c, bci: ci}
 }
 
 // PrependMessenger prepends the Messenger to the Conversations.
 func PrependMessenger(c Conversations, mm ...Messenger) Conversations {
-	return &JointConversations{c: c, mm: mm}
+	return &JointConversations{c: c, bmm: mm}
 }
 
 // PrependFiler prepends the Filer to the Conversations.
 func PrependFiler(c Conversations, ff ...Filer) Conversations {
-	return &JointConversations{c: c, ff: ff}
+	return &JointConversations{c: c, bff: ff}
+}
+
+// PrependChannelInformer prepends the ChannelInformer to the Conversations.
+func AppendChannelInformer(c Conversations, ci ...ChannelInformer) Conversations {
+	return &JointConversations{c: c, aci: ci}
+}
+
+// PrependMessenger prepends the Messenger to the Conversations.
+func AppendMessenger(c Conversations, mm ...Messenger) Conversations {
+	return &JointConversations{c: c, amm: mm}
+}
+
+// PrependFiler prepends the Filer to the Conversations.
+func AppendFiler(c Conversations, ff ...Filer) Conversations {
+	return &JointConversations{c: c, aff: ff}
 }
 
 // Files executes the prepended Files procssors and then forwards the call to
 // the Conversations processor.
 func (w *JointConversations) Files(ctx context.Context, channel *slack.Channel, parent slack.Message, ff []slack.File) error {
 	var errs error
-	for _, f := range w.ff {
+	for _, f := range w.bff {
 		if err := f.Files(ctx, channel, parent, ff); err != nil {
 			errs = errors.Join(errs, err)
 		}
@@ -179,6 +228,12 @@ func (w *JointConversations) Files(ctx context.Context, channel *slack.Channel, 
 	if err := w.c.Files(ctx, channel, parent, ff); err != nil {
 		errs = errors.Join(errs, err)
 	}
+	for _, f := range w.aff {
+		if err := f.Files(ctx, channel, parent, ff); err != nil {
+			errs = errors.Join(errs, err)
+		}
+	}
+
 	return errs
 }
 
@@ -186,13 +241,18 @@ func (w *JointConversations) Files(ctx context.Context, channel *slack.Channel, 
 // the call to the Conversations processor.
 func (w *JointConversations) ChannelInfo(ctx context.Context, ci *slack.Channel, threadID string) error {
 	var errs error
-	for _, c := range w.ci {
+	for _, c := range w.bci {
 		if err := c.ChannelInfo(ctx, ci, threadID); err != nil {
 			errs = errors.Join(errs, err)
 		}
 	}
 	if err := w.c.ChannelInfo(ctx, ci, threadID); err != nil {
 		errs = errors.Join(errs, err)
+	}
+	for _, c := range w.aci {
+		if err := c.ChannelInfo(ctx, ci, threadID); err != nil {
+			errs = errors.Join(errs, err)
+		}
 	}
 	return errs
 }
@@ -201,13 +261,18 @@ func (w *JointConversations) ChannelInfo(ctx context.Context, ci *slack.Channel,
 // the call to the Conversations processor.
 func (w *JointConversations) ChannelUsers(ctx context.Context, channelID string, threadTS string, users []string) error {
 	var errs error
-	for _, c := range w.ci {
+	for _, c := range w.bci {
 		if err := c.ChannelUsers(ctx, channelID, threadTS, users); err != nil {
 			errs = errors.Join(errs, err)
 		}
 	}
 	if err := w.c.ChannelUsers(ctx, channelID, threadTS, users); err != nil {
 		errs = errors.Join(errs, err)
+	}
+	for _, c := range w.aci {
+		if err := c.ChannelUsers(ctx, channelID, threadTS, users); err != nil {
+			errs = errors.Join(errs, err)
+		}
 	}
 	return errs
 }
@@ -216,13 +281,18 @@ func (w *JointConversations) ChannelUsers(ctx context.Context, channelID string,
 // call to the Conversations processor.
 func (w *JointConversations) Messages(ctx context.Context, channelID string, numThreads int, isLast bool, messages []slack.Message) error {
 	var errs error
-	for _, m := range w.mm {
+	for _, m := range w.bmm {
 		if err := m.Messages(ctx, channelID, numThreads, isLast, messages); err != nil {
 			errs = errors.Join(errs, err)
 		}
 	}
 	if err := w.c.Messages(ctx, channelID, numThreads, isLast, messages); err != nil {
 		errs = errors.Join(errs, err)
+	}
+	for _, m := range w.amm {
+		if err := m.Messages(ctx, channelID, numThreads, isLast, messages); err != nil {
+			errs = errors.Join(errs, err)
+		}
 	}
 	return errs
 }
@@ -231,7 +301,7 @@ func (w *JointConversations) Messages(ctx context.Context, channelID string, num
 // forwards the call to the Conversations processor.
 func (w *JointConversations) ThreadMessages(ctx context.Context, channelID string, parent slack.Message, threadOnly, isLast bool, replies []slack.Message) error {
 	var errs error
-	for _, m := range w.mm {
+	for _, m := range w.bmm {
 		if err := m.ThreadMessages(ctx, channelID, parent, threadOnly, isLast, replies); err != nil {
 			errs = errors.Join(errs, err)
 		}
@@ -239,23 +309,38 @@ func (w *JointConversations) ThreadMessages(ctx context.Context, channelID strin
 	if err := w.c.ThreadMessages(ctx, channelID, parent, threadOnly, isLast, replies); err != nil {
 		errs = errors.Join(errs, err)
 	}
+	for _, m := range w.amm {
+		if err := m.ThreadMessages(ctx, channelID, parent, threadOnly, isLast, replies); err != nil {
+			errs = errors.Join(errs, err)
+		}
+	}
 	return errs
 }
 
 // Close closes all the io.Closer instances in the slice.
 func (w *JointConversations) Close() error {
 	var errs error
-	if err := closeall(w.ff); err != nil {
+	if err := closeall(w.bff); err != nil {
 		errs = errors.Join(errs, err)
 	}
-	if err := closeall(w.ci); err != nil {
+	if err := closeall(w.bci); err != nil {
 		errs = errors.Join(errs, err)
 	}
-	if err := closeall(w.mm); err != nil {
+	if err := closeall(w.bmm); err != nil {
 		errs = errors.Join(errs, err)
 	}
 	if err := w.c.Close(); err != nil {
 		return err
 	}
+	if err := closeall(w.aff); err != nil {
+		errs = errors.Join(errs, err)
+	}
+	if err := closeall(w.aci); err != nil {
+		errs = errors.Join(errs, err)
+	}
+	if err := closeall(w.amm); err != nil {
+		errs = errors.Join(errs, err)
+	}
+
 	return errs
 }

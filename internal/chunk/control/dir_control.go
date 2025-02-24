@@ -58,7 +58,7 @@ func NewDir(cd *chunk.Directory, s Streamer, opts ...Option) *DirController {
 		},
 	}
 	for _, opt := range opts {
-		opt(c)
+		opt(&c.options)
 	}
 	return c
 }

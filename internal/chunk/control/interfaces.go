@@ -6,6 +6,7 @@ import (
 	"github.com/rusq/slackdump/v3/internal/structures"
 
 	"github.com/rusq/slack"
+
 	"github.com/rusq/slackdump/v3/internal/chunk/dirproc"
 	"github.com/rusq/slackdump/v3/processor"
 )
@@ -32,4 +33,12 @@ type TransformStarter interface {
 type ExportTransformer interface {
 	dirproc.Transformer
 	TransformStarter
+}
+
+// ReferenceChecker is an interface that contains functions to check if all
+// messages for the channel were processed.
+type ReferenceChecker interface {
+	// IsFinalised should return true, if all messages and threads for the
+	// channel has been processed.
+	IsFinalised(ctx context.Context, channelID string) (bool, error)
 }

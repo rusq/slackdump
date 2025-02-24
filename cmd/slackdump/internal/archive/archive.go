@@ -187,8 +187,8 @@ func DBController(ctx context.Context, conn *sqlx.DB, sess *slackdump.Session, d
 		ctx,
 		sess.Stream(sopts...),
 		dbp,
-		fileproc.New(dl),
-		fileproc.NewAvatarProc(avdl),
+		control.WithFiler(fileproc.New(dl)),
+		control.WithAvatarProcessor(fileproc.NewAvatarProc(avdl)),
 	)
 	if err != nil {
 		return nil, err

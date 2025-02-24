@@ -37,12 +37,20 @@ func NewDB(ctx context.Context, s Streamer, proc *dbproc.DBP, opts ...Option) (*
 	return d, nil
 }
 
+func (c *DBController) newConvTransformer(ctx context.Context) *conversationTransformer {
+	return &conversationTransformer{
+		ctx:  ctx,
+		tf:   c.tf,
+		rc: c.dbp,
+	}
+}
+
 func (c *DBController) Run(ctx context.Context, list *structures.EntityList) error {
 	rec := chunk.NewCustomRecorder("dbp", c.dbp)
 	defer rec.Close()
 
 	sp := superprocessor{
-		Conversations: processor.PrependFiler(rec, c.filer),
+		Conversations: processor.AppendMessenger(processor.PrependFiler(rec, c.filer), c.newConvTransformer(ctx)),
 		Users:         processor.JoinUsers(c.newUserCollector(ctx), c.avp, rec),
 		Channels:      rec,
 		WorkspaceInfo: rec,

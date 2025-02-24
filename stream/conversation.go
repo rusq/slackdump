@@ -288,12 +288,12 @@ func procChanMsg(ctx context.Context, proc processor.Conversations, threadC chan
 		// "expected" threads to processor, to ensure that processor will
 		// start processing the channel and will have the initial reference
 		// count, if it needs it.
-		if mm[i].Msg.ThreadTimestamp != "" && mm[i].Msg.SubType != structures.SubTypeThreadBroadcast && mm[i].LatestReply != structures.LatestReplyNoReplies {
-			lg.DebugContext(ctx, "- message", "i", i, "thread", mm[i].Timestamp, "thread_ts", mm[i].Msg.ThreadTimestamp)
+		if mm[i].ThreadTimestamp != "" && mm[i].SubType != structures.SubTypeThreadBroadcast && mm[i].LatestReply != structures.LatestReplyNoReplies {
+			lg.DebugContext(ctx, "- message", "i", i, "thread", mm[i].Timestamp, "thread_ts", mm[i].ThreadTimestamp)
 			trs = append(trs, request{
 				sl: &structures.SlackLink{
 					Channel:  channel.ID,
-					ThreadTS: mm[i].Msg.ThreadTimestamp,
+					ThreadTS: mm[i].ThreadTimestamp,
 				},
 			})
 		}
@@ -305,7 +305,7 @@ func procChanMsg(ctx context.Context, proc processor.Conversations, threadC chan
 		if len(mm) == 0 {
 			return 0, fmt.Errorf("channel %s: failed to process empty message chunk: %w", channel.ID, err)
 		}
-		return 0, fmt.Errorf("channel %s: failed to process message chunk starting with id=%s (size=%d): %w", channel.ID, mm[0].Msg.Timestamp, len(mm), err)
+		return 0, fmt.Errorf("channel %s: failed to process message chunk starting with id=%s (size=%d): %w", channel.ID, mm[0].Timestamp, len(mm), err)
 	}
 	for _, tr := range trs {
 		threadC <- tr
