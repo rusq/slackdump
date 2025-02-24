@@ -81,9 +81,9 @@ func (b FileProcessor) PathUpdateFunc(channelID, threadTS string, mm []slack.Mes
 
 // ExportTokenUpdateFn returns a function that appends the token to every file
 // URL in the given message.
-func ExportTokenUpdateFn(token string) func(msg *slack.Message) error {
+func ExportTokenUpdateFn(token string) func(_ *slack.Channel, msg *slack.Message) error {
 	fn := files.UpdateTokenFn(token)
-	return func(msg *slack.Message) error {
+	return func(_ *slack.Channel, msg *slack.Message) error {
 		for i := range msg.Files {
 			if err := fn(&msg.Files[i]); err != nil {
 				return err

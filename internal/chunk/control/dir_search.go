@@ -11,7 +11,7 @@ import (
 )
 
 func (s *DirController) SearchMessages(ctx context.Context, query string) error {
-	var eg errgroup.Group
+	eg, ctx := errgroup.WithContext(ctx)
 	start := time.Now()
 	eg.Go(func() error {
 		return s.wrkSearchMessage(ctx, query)
@@ -27,7 +27,7 @@ func (s *DirController) SearchMessages(ctx context.Context, query string) error 
 }
 
 func (s *DirController) SearchFiles(ctx context.Context, query string) error {
-	var eg errgroup.Group
+	eg, ctx := errgroup.WithContext(ctx)
 	start := time.Now()
 	eg.Go(func() error {
 		return s.wrkSearchFile(ctx, query)
@@ -43,7 +43,7 @@ func (s *DirController) SearchFiles(ctx context.Context, query string) error {
 }
 
 func (s *DirController) SearchAll(ctx context.Context, query string) error {
-	var eg errgroup.Group
+	eg, ctx := errgroup.WithContext(ctx)
 	start := time.Now()
 	eg.Go(func() error {
 		return s.wrkSearchMessage(ctx, query)

@@ -12,8 +12,6 @@ import (
 	"log/slog"
 	"runtime/trace"
 
-	"github.com/rusq/slack"
-
 	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/internal/chunk/dirproc"
 	"github.com/rusq/slackdump/v3/internal/structures"
@@ -27,6 +25,10 @@ type DirController struct {
 	cd *chunk.Directory
 	// streamer is the API scraper.
 	s Streamer
+	options
+}
+
+type options struct {
 	// tf is the transformer of the chunk data. It may not be necessary, if
 	// caller is not interested in transforming the data.
 	tf ExportTransformer
@@ -42,60 +44,18 @@ type DirController struct {
 	flags Flags
 }
 
-// Option is a functional option for the Controller.
-type Option func(*DirController)
-
-// WithFiler configures the controller with a file subprocessor.
-func WithFiler(f processor.Filer) Option {
-	return func(c *DirController) {
-		c.filer = f
-	}
-}
-
-// WithAvatarProcessor configures the controller with an avatar downloader.
-func WithAvatarProcessor(avp processor.Avatars) Option {
-	return func(c *DirController) {
-		c.avp = avp
-	}
-}
-
-// WithFlags configures the controller with flags.
-func WithFlags(f Flags) Option {
-	return func(c *DirController) {
-		c.flags = f
-	}
-}
-
-// WithTransformer configures the controller with a transformer.
-func WithTransformer(tf ExportTransformer) Option {
-	return func(c *DirController) {
-		if tf != nil {
-			c.tf = tf
-		}
-	}
-}
-
-// WithLogger configures the controller with a logger.
-func WithLogger(lg *slog.Logger) Option {
-	return func(c *DirController) {
-		if lg != nil {
-			c.lg = lg
-		}
-	}
-}
-
 // NewDir creates a new [DirController]. Once the [Control.Close] is called it
 // closes all file processors.
 func NewDir(cd *chunk.Directory, s Streamer, opts ...Option) *DirController {
 	c := &DirController{
 		cd: cd,
 		s:  s,
-		lg: slog.Default(),
-
-		tf: &noopTransformer{},
-
-		filer: &noopFiler{},
-		avp:   &noopAvatarProc{},
+		options: options{
+			lg:    slog.Default(),
+			tf:    &noopTransformer{},
+			filer: &noopFiler{},
+			avp:   &noopAvatarProc{},
+		},
 	}
 	for _, opt := range opts {
 		opt(c)
@@ -131,39 +91,39 @@ func (c *DirController) Run(ctx context.Context, list *structures.EntityList) er
 	ctx, task := trace.NewTask(ctx, "Controller.Run")
 	defer task.End()
 
-	var chanproc processor.Channels = nopChannelProcessor{}
-	if !list.HasIncludes() {
-		var err error
-		chanproc, err = dirproc.NewChannels(c.cd)
-		if err != nil {
+	// prefix "d" stands for directory processor
+
+	var dcp processor.Channels = nopChannelProcessor{}
+	if !list.HasIncludes() { // all channels are included
+		if p, err := dirproc.NewChannels(c.cd); err != nil {
 			return Error{"channel", "init", err}
+		} else {
+			dcp = p
 		}
 	}
-	wsproc, err := dirproc.NewWorkspace(c.cd)
+	dwsp, err := dirproc.NewWorkspace(c.cd)
 	if err != nil {
 		return Error{"workspace", "init", err}
 	}
-	conv, err := dirproc.NewConversation(c.cd, c.filer, c.tf, dirproc.WithRecordFiles(c.flags.RecordFiles))
+	dconv, err := dirproc.NewConversation(c.cd, c.filer, c.tf, dirproc.WithRecordFiles(c.flags.RecordFiles))
 	if err != nil {
 		return fmt.Errorf("error initialising conversation processor: %w", err)
 	}
-	collector := &userCollector{
-		users: make([]slack.User, 0, 100),
-		ts:    c.tf,
-		ctx:   ctx,
-	}
-	dup, err := dirproc.NewUsers(c.cd)
+	dusr, err := dirproc.NewUsers(c.cd)
 	if err != nil {
-		collector.Close()
 		return Error{"user", "init", err}
 	}
-	userproc := processor.JoinUsers(collector, dup, c.avp)
+	userproc := processor.JoinUsers(
+		c.newUserCollector(ctx),
+		dusr,
+		c.avp,
+	)
 
 	mp := superprocessor{
-		Channels:      chanproc,
-		WorkspaceInfo: wsproc,
+		Channels:      dcp,
+		WorkspaceInfo: dwsp,
 		Users:         userproc,
-		Conversations: conv,
+		Conversations: dconv,
 	}
 
 	return runWorkers(ctx, c.s, list, mp, c.flags)
@@ -184,4 +144,3 @@ func (c *DirController) Close() error {
 	}
 	return errs
 }
-

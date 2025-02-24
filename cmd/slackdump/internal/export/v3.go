@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/rusq/fsadapter"
-	"github.com/rusq/slack"
 	"github.com/schollz/progressbar/v3"
 
 	"github.com/rusq/slackdump/v3"
@@ -41,16 +40,8 @@ func export(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, list
 	if !lg.Enabled(ctx, slog.LevelDebug) {
 		defer func() { _ = chunkdir.RemoveAll() }()
 	}
-	updFn := func() func(_ *slack.Channel, m *slack.Message) error {
-		// hack: wrapper around the message update function, which does not
-		// have the channel parameter.  TODO: fix this in the library.
-		fn := fileproc.ExportTokenUpdateFn(params.ExportToken)
-		return func(_ *slack.Channel, m *slack.Message) error {
-			return fn(m)
-		}
-	}
 	src := source.NewChunkDir(chunkdir, true)
-	conv := transform.NewExpConverter(src, fsa, transform.ExpWithMsgUpdateFunc(updFn()))
+	conv := transform.NewExpConverter(src, fsa, transform.ExpWithMsgUpdateFunc(fileproc.ExportTokenUpdateFn(params.ExportToken)))
 	tf := transform.NewExportCoordinator(ctx, conv, transform.WithBufferSize(1000))
 	defer tf.Close()
 

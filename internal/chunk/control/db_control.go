@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 
 	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/internal/chunk/dbproc"
@@ -14,17 +15,26 @@ import (
 type DBController struct {
 	dbp *dbproc.DBP
 	s   Streamer
-	fp  processor.Filer
-	avp processor.Avatars
+	options
 }
 
-func NewDB(ctx context.Context, s Streamer, proc *dbproc.DBP, procFiles processor.Filer, procAvatar processor.Avatars) (*DBController, error) {
-	return &DBController{
+// NewDB creates a new [DBController]. Once the [Control.Close] is called it
+// closes all processors, including the [dbproc.DBP].
+func NewDB(ctx context.Context, s Streamer, proc *dbproc.DBP, opts ...Option) (*DBController, error) {
+	d := &DBController{
 		dbp: proc,
 		s:   s,
-		fp:  procFiles,
-		avp: procAvatar,
-	}, nil
+		options: options{
+			lg:    slog.Default(),
+			tf:    &noopTransformer{},
+			filer: &noopFiler{},
+			avp:   &noopAvatarProc{},
+		},
+	}
+	for _, opt := range opts {
+		opt(&d.options)
+	}
+	return d, nil
 }
 
 func (c *DBController) Run(ctx context.Context, list *structures.EntityList) error {
@@ -32,8 +42,8 @@ func (c *DBController) Run(ctx context.Context, list *structures.EntityList) err
 	defer rec.Close()
 
 	sp := superprocessor{
-		Conversations: processor.PrependFiler(rec, c.fp),
-		Users:         processor.JoinUsers(c.avp, rec),
+		Conversations: processor.PrependFiler(rec, c.filer),
+		Users:         processor.JoinUsers(c.newUserCollector(ctx), c.avp, rec),
 		Channels:      rec,
 		WorkspaceInfo: rec,
 	}
@@ -43,8 +53,8 @@ func (c *DBController) Run(ctx context.Context, list *structures.EntityList) err
 
 func (c *DBController) Close() error {
 	var errs error
-	if c.fp != nil {
-		if err := c.fp.Close(); err != nil {
+	if c.filer != nil {
+		if err := c.filer.Close(); err != nil {
 			errs = errors.Join(errs, fmt.Errorf("error closing file processor: %w", err))
 		}
 	}
