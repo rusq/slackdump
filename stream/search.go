@@ -164,7 +164,7 @@ func (cs *Stream) SearchFiles(ctx context.Context, proc processor.FileSearcher, 
 }
 
 func (s *Stream) Search(ctx context.Context, proc processor.Searcher, query string) error {
-	var eg errgroup.Group
+	eg, ctx := errgroup.WithContext(ctx)
 
 	eg.Go(func() error {
 		return s.SearchMessages(ctx, proc, query)

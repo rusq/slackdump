@@ -419,7 +419,7 @@ func (cs *Stream) procChannelUsers(ctx context.Context, proc processor.ChannelIn
 // procChannelInfoWithUsers returns the slack channel with members populated from
 // another api.
 func (cs *Stream) procChannelInfoWithUsers(ctx context.Context, proc processor.ChannelInformer, channelID, threadTS string) (*slack.Channel, error) {
-	var eg errgroup.Group
+	eg, ctx := errgroup.WithContext(ctx)
 
 	chC := make(chan slack.Channel, 1)
 	eg.Go(func() error {
