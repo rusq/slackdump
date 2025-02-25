@@ -21,6 +21,11 @@ type Source struct {
 	conn *sqlx.DB
 }
 
+// Connect uses existing connection to the database.
+func Connect(conn *sqlx.DB) *Source {
+	return &Source{conn: conn}
+}
+
 func Open(path string) (*Source, error) {
 	conn, err := sqlx.Open(repository.Driver, "file:"+path+"?mode=ro")
 	if err != nil {

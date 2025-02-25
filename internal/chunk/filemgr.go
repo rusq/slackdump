@@ -71,8 +71,12 @@ func (dp *filemgr) Destroy() error {
 // The file is expected to be a gzip-compressed file.
 func (dp *filemgr) Open(name string) (*wrappedfile, error) {
 	// create the directory if it doesn't exist
-	if err := os.MkdirAll(dp.tmpdir, 0o755); err != nil {
-		return nil, err
+	var mkdirerr error
+	dp.once.Do(func() {
+		mkdirerr = os.MkdirAll(dp.tmpdir, 0o755)
+	})
+	if mkdirerr != nil {
+		return nil, mkdirerr
 	}
 
 	dp.mu.Lock()

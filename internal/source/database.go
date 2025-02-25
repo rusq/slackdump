@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/jmoiron/sqlx"
 	"github.com/rusq/slack"
 
 	"github.com/rusq/slackdump/v3/internal/chunk/dbproc"
@@ -57,6 +58,10 @@ func OpenDatabase(path string) (*Database, error) {
 	}
 
 	return &Database{name: name, s: s, files: fst, avatars: ast}, nil
+}
+
+func OpenDatabaseConn(conn *sqlx.DB) *Database {
+	return &Database{name: "unknown", s: dbproc.Connect(conn), files: fstNotFound{}, avatars: fstNotFound{}}
 }
 
 func (d *Database) Close() error {

@@ -82,7 +82,7 @@ func runExport(ctx context.Context, cmd *base.Command, args []string) error {
 		fsa.Close()
 	}()
 
-	if err := export(ctx, sess, fsa, list, options); err != nil {
+	if err := exportv31(ctx, sess, fsa, list, options); err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return fmt.Errorf("export failed: %w", err)
 	}

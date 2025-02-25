@@ -280,8 +280,8 @@ func (r genericRepository[T]) allOfTypeWhere(ctx context.Context, conn sqlx.Quer
 	it := func(yield func(T, error) bool) {
 		defer task.End()
 		defer rows.Close()
+		var t T // prevent unnecessary allocations
 		for rows.Next() {
-			var t T
 			if err := rows.StructScan(&t); err != nil {
 				yield(t, fmt.Errorf("all: %w", err))
 				return
