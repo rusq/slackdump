@@ -47,6 +47,14 @@ func init() {
 var errNoOutput = errors.New("output directory is required")
 
 func RunArchive(ctx context.Context, cmd *base.Command, args []string) error {
+	if cfg.UseChunkFiles {
+		return runChunkArchive(ctx, cmd, args)
+	} else {
+		return runDBArchive(ctx, cmd, args)
+	}
+}
+
+func runChunkArchive(ctx context.Context, _ *base.Command, args []string) error {
 	start := time.Now()
 	list, err := structures.NewEntityList(args)
 	if err != nil {
@@ -78,17 +86,7 @@ func RunArchive(ctx context.Context, cmd *base.Command, args []string) error {
 	return nil
 }
 
-var CmdDBArchive = &base.Command{
-	Run:         RunDBArchive,
-	UsageLine:   "slackdump db",
-	Short:       "archive the workspace or individual conversations into Sqlite database",
-	Long:        mdArchive,
-	FlagMask:    cfg.OmitUserCacheFlag | cfg.OmitCacheDir,
-	RequireAuth: true,
-	PrintFlags:  true,
-}
-
-func RunDBArchive(ctx context.Context, cmd *base.Command, args []string) error {
+func runDBArchive(ctx context.Context, _ *base.Command, args []string) error {
 	start := time.Now()
 	list, err := structures.NewEntityList(args)
 	if err != nil {

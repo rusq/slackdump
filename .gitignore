@@ -68,5 +68,7 @@ debug.test*
 !internal/fixtures/**/*.json
 *.sqlite*
 *.db
+# profiler files
 *.pprof
 *.prof
+*.pf

@@ -61,6 +61,7 @@ var (
 	UserCacheRetention time.Duration
 	NoUserCache        bool
 	NoChunkCache       bool
+	UseChunkFiles      bool // Use chunk files for storage, instead of sqlite database.
 
 	Log *slog.Logger = slog.Default()
 	// LoadSecrets is a flag that indicates whether to load secrets from the
@@ -96,6 +97,7 @@ const (
 	OmitMemberOnlyFlag
 	OmitRecordFilesFlag
 	OmitDownloadAvatarsFlag
+	OmitChunkFileMode
 
 	OmitAll = OmitConfigFlag |
 		OmitDownloadFlag |
@@ -108,7 +110,8 @@ const (
 		OmitChunkCacheFlag |
 		OmitMemberOnlyFlag |
 		OmitRecordFilesFlag |
-		OmitDownloadAvatarsFlag
+		OmitDownloadAvatarsFlag |
+		OmitChunkFileMode
 )
 
 // SetBaseFlags sets base flags
@@ -178,5 +181,8 @@ func SetBaseFlags(fs *flag.FlagSet, mask FlagMask) {
 	}
 	if mask&OmitMemberOnlyFlag == 0 {
 		fs.BoolVar(&MemberOnly, "member-only", false, "export only channels, which the current user belongs to (if no channels are specified)")
+	}
+	if mask&OmitChunkFileMode == 0 {
+		fs.BoolVar(&UseChunkFiles, "chunk-files", false, "use chunk files for data storage instead of sqlite database (disables resuming)")
 	}
 }

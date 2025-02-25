@@ -63,6 +63,11 @@ func (em *ExportMessage) PopulateReplyFields(thread []slack.Message) {
 		// reply fields are only populated on the lead message of a thread.
 		return
 	}
+	if m := thread[0]; m.ThreadTimestamp == m.Timestamp {
+		thread = thread[1:] // remove lead message from the start
+	} else if thread[len(thread)-1].ThreadTimestamp == m.Timestamp {
+		thread = thread[:len(thread)-1] // remove lead message from the end
+	}
 
 	replyUsers := make(map[string]struct{}, len(thread))
 	replies := make([]reply, len(thread))

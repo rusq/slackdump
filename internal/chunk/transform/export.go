@@ -244,12 +244,15 @@ func (a *expmsgAccum) shouldFlush() bool {
 	return a.currDt != a.prevDt || a.prevDt == ""
 }
 
+// Seattle timezone
+var exportLoc, _ = time.LoadLocation("America/Los_Angeles")
+
 // Append appends a message to the accumulator.  It flushes the messages to the
 // file when the date changes. It also updates the message with the user
 // profile information and thread information if it is a lead message of a
 // thread.
 func (a *expmsgAccum) Append(ts time.Time, m *slack.Message) error {
-	a.currDt = ts.Format("2006-01-02")
+	a.currDt = ts.In(exportLoc).Format("2006-01-02")
 	if a.shouldFlush() {
 		// flush the previous day.
 		if err := a.Flush(); err != nil {

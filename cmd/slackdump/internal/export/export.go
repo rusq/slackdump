@@ -82,7 +82,15 @@ func runExport(ctx context.Context, cmd *base.Command, args []string) error {
 		fsa.Close()
 	}()
 
-	if err := exportv31(ctx, sess, fsa, list, options); err != nil {
+	// TODO: remove once the database is stable.
+	if cfg.UseChunkFiles {
+		lg.DebugContext(ctx, "using chunk files backend")
+		err = export(ctx, sess, fsa, list, options)
+	} else {
+		lg.DebugContext(ctx, "using database backend")
+		err = exportv31(ctx, sess, fsa, list, options)
+	}
+	if err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return fmt.Errorf("export failed: %w", err)
 	}
