@@ -667,7 +667,7 @@ func Test_messageRepository_CountUnfinished(t *testing.T) {
 			},
 			want: 0,
 		},
-		// TODO: what happens if there's just a thread?
+		// TODO: what happens if there's just a thread, and no parent?
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

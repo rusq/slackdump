@@ -23,6 +23,7 @@ import (
 	"github.com/rusq/slackdump/v3/internal/chunk/transform"
 	"github.com/rusq/slackdump/v3/internal/chunk/transform/fileproc"
 	"github.com/rusq/slackdump/v3/internal/nametmpl"
+	"github.com/rusq/slackdump/v3/internal/source"
 	"github.com/rusq/slackdump/v3/internal/structures"
 	"github.com/rusq/slackdump/v3/stream"
 )
@@ -191,8 +192,9 @@ func dump(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, p dump
 		return err
 	}
 	defer cd.Close()
+	src := source.NewChunkDir(cd, true)
 
-	tf, err := transform.NewStandard(fsa, cd, opts...)
+	tf, err := transform.NewStandard(fsa, src, opts...)
 	if err != nil {
 		return fmt.Errorf("failed to create transform: %w", err)
 	}

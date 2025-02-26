@@ -72,7 +72,7 @@ func runResume(ctx context.Context, cmd *base.Command, args []string) error {
 	return nil
 }
 
-func Resume(ctx context.Context, sess *slackdump.Session, src source.Sourcer, flags source.Flags, p ResumeParams) error {
+func Resume(ctx context.Context, sess *slackdump.Session, src source.SourceCloseResumer, flags source.Flags, p ResumeParams) error {
 	lg := cfg.Log.With("source", src.Name(), "flags", src.Type())
 	lg.Info("resuming archive")
 	channels, err := src.Channels(ctx)

@@ -1,3 +1,13 @@
+# v3.1.0
+
+- Filenames in Slack Exoprt are dated in the America/Los_Angeles timezone to
+  align with the Slack export format;
+- 5x faster conversion to Slack export, when using database backend, compared to
+  the chunk file backend.
+- backend for export, archive and dump formats is changed to database;
+- archive and search formats is changed to database;
+- universal converter to export for any other format.
+
 # v3.0.0
 
 Gist:
@@ -33,7 +43,7 @@ NOTE: search results are not supported by the viewer yet.
 
 - `-download` flag renamed to `-files` and is set to "true" by default;
 - `-r` flag that allowed to generate text files was replaced by
-  `slackdump convert` command.
+  `slackdump format` command.
 
 ## New features
 

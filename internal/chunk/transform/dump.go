@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"iter"
 	"log/slog"
 	"sort"
 	"strings"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/internal/nametmpl"
+	"github.com/rusq/slackdump/v3/internal/source"
 	"github.com/rusq/slackdump/v3/internal/structures"
 	"github.com/rusq/slackdump/v3/types"
 )
@@ -44,9 +46,9 @@ func StdWithLogger(log *slog.Logger) StdOption {
 }
 
 // NewStandard creates a new standard dump converter.
-func NewStandard(fsa fsadapter.FS, cd *chunk.Directory, opts ...StdOption) (*StdConverter, error) {
+func NewStandard(fsa fsadapter.FS, src source.Sourcer, opts ...StdOption) (*StdConverter, error) {
 	std := &StdConverter{
-		cd:   cd,
+		src:  src,
 		fsa:  fsa,
 		lg:   slog.Default(),
 		tmpl: nametmpl.NewDefault(),
@@ -76,35 +78,29 @@ func (p pipeline) apply(channelID, threadTS string, mm []slack.Message) error {
 
 // StdConverter is a converter of chunk files into the Slackdump format.
 type StdConverter struct {
-	cd       *chunk.Directory // working chunk directory
-	fsa      fsadapter.FS     // output file system
-	tmpl     Templater        // file name template
-	lg       *slog.Logger     // logger
-	pipeline []pipelineFunc   // pipeline filter functions
+	src      source.Sourcer // working chunk directory
+	fsa      fsadapter.FS   // output file system
+	tmpl     Templater      // file name template
+	lg       *slog.Logger   // logger
+	pipeline []pipelineFunc // pipeline filter functions
 }
 
 // Convert converts the chunk file to Slackdump json format.
 func (s *StdConverter) Convert(ctx context.Context, id chunk.FileID) error {
-	cf, err := s.cd.Open(id)
-	if err != nil {
-		return err
-	}
-	defer cf.Close()
-
 	// threadTS is only populated on the thread only files.  It is safe to
 	// rely on it being non-empty to determine if we need a thread or a
 	// conversation.
 	channelID, threadID := id.Split()
-	ci, err := cf.ChannelInfo(channelID)
+	ci, err := s.src.ChannelInfo(ctx, channelID)
 	if err != nil {
-		return err
+	return err
 	}
 
 	var msgs []types.Message
 	if threadID == "" {
-		msgs, err = stdConversation(cf, ci, s.pipeline)
+		msgs, err = stdConversation(ctx, s.src, ci, s.pipeline)
 	} else {
-		msgs, err = stdThread(cf, ci, threadID, s.pipeline)
+		msgs, err = stdThread(ctx, s.src, ci, threadID, s.pipeline)
 	}
 	if err != nil {
 		return err
@@ -124,10 +120,25 @@ func (s *StdConverter) Convert(ctx context.Context, id chunk.FileID) error {
 	return json.NewEncoder(f).Encode(conv)
 }
 
+func collect[T any](it iter.Seq2[T, error], sz int) ([]T, error) {
+	vs := make([]T, 0, sz)
+	for c, err := range it {
+		if err != nil {
+			return nil, err
+		}
+		vs = append(vs, c)
+	}
+	return vs, nil
+}
+
 // stdConversation is the function that does the transformation of the whole
 // channel with threads.
-func stdConversation(cf *chunk.File, ci *slack.Channel, pipeline pipeline) ([]types.Message, error) {
-	mm, err := cf.AllMessages(context.TODO(), ci.ID)
+func stdConversation(ctx context.Context, cf source.Sourcer, ci *slack.Channel, pipeline pipeline) ([]types.Message, error) {
+	it, err := cf.AllMessages(ctx, ci.ID)
+	if err != nil {
+		return nil, err
+	}
+	mm, err := collect(it, 100)
 	if err != nil {
 		return nil, err
 	}
@@ -144,9 +155,13 @@ func stdConversation(cf *chunk.File, ci *slack.Channel, pipeline pipeline) ([]ty
 		var sdm types.Message // slackdump message
 		sdm.Message = mm[i]
 		if mm[i].ThreadTimestamp != "" && structures.IsThreadStart(&mm[i]) && mm[i].LatestReply != structures.LatestReplyNoReplies {
+			it, err := cf.AllThreadMessages(ctx, ci.ID, mm[i].ThreadTimestamp)
+			if err != nil {
+				return nil, err
+			}
 			// process thread only for parent messages
 			// if there's a thread timestamp, we need to find and add it.
-			thread, err := cf.AllThreadMessages(ci.ID, mm[i].ThreadTimestamp)
+			thread, err := collect(it, 5)
 			if err != nil {
 				return nil, err
 			}
@@ -158,19 +173,16 @@ func stdConversation(cf *chunk.File, ci *slack.Channel, pipeline pipeline) ([]ty
 }
 
 // stdThread is the function that performs transformation of a single thread.
-func stdThread(cf *chunk.File, ci *slack.Channel, threadTS string, pipeline pipeline) ([]types.Message, error) {
+func stdThread(ctx context.Context, cf source.Sourcer, ci *slack.Channel, threadTS string, pipeline pipeline) ([]types.Message, error) {
 	// this is a thread.
-	mm, err := cf.AllThreadMessages(ci.ID, threadTS)
+	it, err := cf.AllThreadMessages(ctx, ci.ID, threadTS)
 	if err != nil {
 		return nil, err
 	}
-
-	// get parent message
-	parent, err := cf.ThreadParent(ci.ID, threadTS)
+	mm, err := collect(it, 5)
 	if err != nil {
 		return nil, err
 	}
-	mm = append([]slack.Message{*parent}, mm...)
 
 	if err := pipeline.apply(ci.ID, threadTS, mm); err != nil {
 		return nil, fmt.Errorf("conversation: %w", err)

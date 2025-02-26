@@ -18,7 +18,6 @@ import (
 	"log/slog"
 	"os"
 	"path"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -44,7 +43,8 @@ type Sourcer interface {
 	// AllMessages should return all messages for the given channel id.
 	AllMessages(ctx context.Context, channelID string) (iter.Seq2[slack.Message, error], error)
 	// AllThreadMessages should return all messages for the given tuple
-	// (channelID, threadID).
+	// (channelID, threadID). It should return the parent channel message
+	// (thread lead) as a first message.
 	AllThreadMessages(ctx context.Context, channelID, threadID string) (iter.Seq2[slack.Message, error], error)
 	// Sorted should iterate over all (both channel and thread) messages for
 	// the requested channel id.  If desc is true, it must return messages in
@@ -55,17 +55,30 @@ type Sourcer interface {
 	// ChannelInfo should return the channel information for the given channel
 	// id.
 	ChannelInfo(ctx context.Context, channelID string) (*slack.Channel, error)
-	// Files should return file storage
+	// Files should return file [Storage].
 	Files() Storage
-	// Avatars should return the avatar storage
+	// Avatars should return the avatar [Storage].
 	Avatars() Storage
-	// Latest should return the latest timestamp of the data.
-	Latest(ctx context.Context) (map[structures.SlackLink]time.Time, error)
 	// WorkspaceInfo should return the workspace information, if it is available.
 	// If the call is not supported, it should return ErrNotSupported.
 	WorkspaceInfo(ctx context.Context) (*slack.AuthTestResponse, error)
+}
 
+type SourceCloser interface {
+	Sourcer
 	io.Closer
+}
+
+type Resumer interface {
+	// Latest should return the latest timestamps of all channels and threads.
+	Latest(ctx context.Context) (map[structures.SlackLink]time.Time, error)
+}
+
+// Resumer is the interface that should be implemented by sources that can be
+// resumed.
+type SourceCloseResumer interface {
+	SourceCloser
+	Resumer
 }
 
 var ErrNotSupported = errors.New("feature not supported")
@@ -113,7 +126,7 @@ var (
 )
 
 // Load loads the source from file src.
-func Load(ctx context.Context, src string) (Sourcer, error) {
+func Load(ctx context.Context, src string) (SourceCloseResumer, error) {
 	lg := slog.With("source", src)
 	st, err := Type(src)
 	if err != nil {
@@ -183,10 +196,11 @@ func srcType(src string, fi fs.FileInfo) Flags {
 			defer f.Close()
 			fsys = f
 			flags |= FZip
-		} else if strings.EqualFold(filepath.Base(src), "slackdump.sqlite") {
-			// just the database, no attachments
+		} else if ext := strings.ToLower(path.Ext(src)); ext == ".db" || ext == ".sqlite" {
 			flags |= FDatabase
 			return flags
+		} else {
+			return FUnknown
 		}
 	} else {
 		return FUnknown
@@ -206,9 +220,15 @@ func srcType(src string, fi fs.FileInfo) Flags {
 	if ff, err := fs.Glob(fsys, "[CDG]*.json"); err == nil && len(ff) > 0 {
 		return flags | FDump
 	}
+
 	if _, err := fs.Stat(fsys, "workspace.json.gz"); err == nil {
 		if flags&FZip != 0 {
 			return FUnknown // compressed chunk directories are not supported
+		}
+		return flags | FChunk
+	} else if files, err := fs.Glob(fsys, "*.json.gz"); err == nil && len(files) > 0 {
+		if flags&FZip != 0 {
+			return FUnknown
 		}
 		return flags | FChunk
 	}

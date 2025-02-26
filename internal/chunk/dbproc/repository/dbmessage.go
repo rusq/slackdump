@@ -114,7 +114,7 @@ type MessageRepository interface {
 	AllForID(ctx context.Context, conn sqlx.QueryerContext, channelID string) (iter.Seq2[DBMessage, error], error)
 	// CountThread returns the number of messages in a thread.
 	CountThread(ctx context.Context, conn sqlx.QueryerContext, channelID, threadID string) (int64, error)
-	// AllForThread returns all messages in a thread.
+	// AllForThread returns all messages in a thread, including parent message.
 	AllForThread(ctx context.Context, conn sqlx.QueryerContext, channelID, threadID string) (iter.Seq2[DBMessage, error], error)
 	// All returns all thread and channel messages in ascending or descending
 	// time order.
