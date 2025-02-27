@@ -183,6 +183,6 @@ func SetBaseFlags(fs *flag.FlagSet, mask FlagMask) {
 		fs.BoolVar(&MemberOnly, "member-only", false, "export only channels, which the current user belongs to (if no channels are specified)")
 	}
 	if mask&OmitChunkFileMode == 0 {
-		fs.BoolVar(&UseChunkFiles, "chunk-files", false, "use chunk files for data storage instead of sqlite database (disables resuming)")
+		fs.BoolVar(&UseChunkFiles, "legacy", false, "use chunk files for data storage instead of sqlite database (incompatible with resuming)")
 	}
 }

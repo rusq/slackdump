@@ -507,7 +507,13 @@ func (d *Directory) AllThreadMessages(_ context.Context, channelID, threadID str
 }
 
 func (d *Directory) FastAllThreadMessages(channelID, threadID string) ([]slack.Message, error) {
-	f, err := d.Open(ToFileID(channelID, "", false))
+	// try open the thread file
+	fileID := ToFileID(channelID, threadID, true)
+	_, err := d.Stat(fileID)
+	if err != nil {
+		fileID = ToFileID(channelID, threadID, false)
+	}
+	f, err := d.Open(fileID)
 	if err != nil {
 		return nil, err
 	}

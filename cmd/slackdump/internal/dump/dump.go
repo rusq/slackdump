@@ -159,7 +159,7 @@ func dump(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, p dump
 	defer task.End()
 
 	if fsa == nil {
-		return errors.New("no filesystem adapter")
+		return errors.New("internal error:  no filesystem adapter")
 	}
 	if p.list.IsEmpty() {
 		return ErrNothingToDo
@@ -223,6 +223,7 @@ func dumpv3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, p du
 		}
 	}()
 
+	// TODO: use export controller
 	if err := sess.Stream(
 		stream.OptOldest(time.Time(cfg.Oldest)),
 		stream.OptLatest(time.Time(cfg.Latest)),
@@ -341,34 +342,3 @@ func dumpv31(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, p d
 	}
 	return nil
 }
-
-/*
-	coord := transform.NewCoordinator(ctx, tf)
-
-	proc := chunk.NewCustomRecorder("db", tmpdbp)
-	defer proc.Close()
-
-	if err := sess.Stream(
-		stream.OptOldest(time.Time(cfg.Oldest)),
-		stream.OptLatest(time.Time(cfg.Latest)),
-		stream.OptResultFn(func(sr stream.Result) error {
-			if sr.Err != nil {
-				return sr.Err
-			}
-			if sr.IsLast {
-				lg.InfoContext(ctx, "dumped", "sr", sr.String())
-			}
-			return nil
-		}),
-	).Conversations(ctx, proc, p.list.C(ctx)); err != nil {
-		return fmt.Errorf("failed to dump conversations: %w", err)
-	}
-
-	lg.DebugContext(ctx, "stream complete, waiting for all goroutines to finish")
-	if err := coord.Wait(); err != nil {
-		return err
-	}
-
-	return nil
-}
-*/
