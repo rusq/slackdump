@@ -168,6 +168,13 @@ func Test_genericRepository_allOfTypeWhere(t *testing.T) {
 
 func assertIterResult[T any](t *testing.T, want []testResult[T], got iter.Seq2[T, error]) {
 	t.Helper()
+
+	defer func() {
+		if r := recover(); r != nil {
+			t.Errorf("panic, possibly different number of results: %v", r)
+		}
+	}()
+
 	var i int
 	for v, err := range got {
 		assert.Equalf(t, want[i].V, v, "value %d", i)

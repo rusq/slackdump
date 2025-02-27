@@ -51,7 +51,11 @@ func (d *DBP) InsertChunk(ctx context.Context, c chunk.Chunk) (int64, error) {
 // insertPayload calls relevant function to insert the chunk payload.
 func (d *DBP) insertPayload(ctx context.Context, tx repository.PrepareExtContext, dbchunkID int64, c chunk.Chunk) (int, error) {
 	switch c.Type {
-	case chunk.CMessages, chunk.CThreadMessages:
+	case chunk.CMessages:
+		return d.insertMessages(ctx, tx, dbchunkID, c.ChannelID, c.Messages)
+	case chunk.CThreadMessages:
+		// prepend the parent message to the messages slice
+		c.Messages = append([]slack.Message{*c.Parent}, c.Messages...)
 		return d.insertMessages(ctx, tx, dbchunkID, c.ChannelID, c.Messages)
 	case chunk.CFiles:
 		return d.insertFiles(ctx, tx, dbchunkID, c.ChannelID, c.ThreadTS, c.Parent.Timestamp, c.Files)

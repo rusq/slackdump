@@ -239,19 +239,38 @@ func Test_messageRepository_InsertAll(t *testing.T) {
 }
 
 var (
-	msgA  = slack.Message{Msg: slack.Msg{Timestamp: "123.456", Text: "A"}}
-	msgB  = slack.Message{Msg: slack.Msg{Timestamp: "124.555", Text: "B"}}
-	msgB_ = slack.Message{Msg: slack.Msg{Timestamp: "124.555", Text: "B'"}}
-	msgC  = slack.Message{Msg: slack.Msg{Timestamp: "125.777", Text: "C"}}
-
-	msgX = slack.Message{Msg: slack.Msg{Timestamp: "123.456", Text: "X"}} // these belong to a different channel
-	msgY = slack.Message{Msg: slack.Msg{Timestamp: "124.555", Text: "Y"}}
-	msgZ = slack.Message{Msg: slack.Msg{Timestamp: "125.777", Text: "Z"}}
+	// channel C123
+	//
+	// Setup:
+	// Chunk Message
+	// ----- -------
+	//     1 +A
+	//     1 +B'
+	//     2 +C
+	//     5 +C lead
+	//     5 +-- thread msg 1
+	//     5 +-- thread msg 2
+	//
+	msgA   = slack.Message{Msg: slack.Msg{Timestamp: "123.456", Text: "A"}}
+	msgB   = slack.Message{Msg: slack.Msg{Timestamp: "124.555", Text: "B"}}
+	msgB_  = slack.Message{Msg: slack.Msg{Timestamp: "124.555", Text: "B'"}}
+	msgC   = slack.Message{Msg: slack.Msg{Timestamp: "125.777", Text: "C", ThreadTimestamp: "125.777"}}
+	msgCt1 = slack.Message{Msg: slack.Msg{Timestamp: "125.788", Text: "C thread 1", ThreadTimestamp: "123.777"}}
+	msgCt2 = slack.Message{Msg: slack.Msg{Timestamp: "125.799", Text: "C thread 2", ThreadTimestamp: "123.777"}}
 
 	dbmA  = must(NewDBMessage(1, 0, "C123", &msgA))
 	dbmB  = must(NewDBMessage(1, 1, "C123", &msgB))
 	dbmB_ = must(NewDBMessage(2, 0, "C123", &msgB_))
 	dbmC  = must(NewDBMessage(2, 1, "C123", &msgC))
+	// chunk 5 is the CThreadMessages for the thread C
+	dbmCt0 = must(NewDBMessage(5, 0, "C123", &msgC)) // message lead that we got with the thread, same as msg C.
+	dbmCt1 = must(NewDBMessage(5, 1, "C123", &msgCt1))
+	dbmCt2 = must(NewDBMessage(5, 2, "C123", &msgCt2))
+
+	// channel D124
+	msgX = slack.Message{Msg: slack.Msg{Timestamp: "123.456", Text: "X"}}
+	msgY = slack.Message{Msg: slack.Msg{Timestamp: "124.555", Text: "Y"}}
+	msgZ = slack.Message{Msg: slack.Msg{Timestamp: "125.777", Text: "Z"}}
 
 	dbmX = must(NewDBMessage(3, 0, "D124", &msgX))
 	dbmY = must(NewDBMessage(3, 1, "D124", &msgY))
@@ -263,9 +282,10 @@ func messagePrepFn(t *testing.T, conn PrepareExtContext) {
 	// they both will have 2 messages each, such as  (A, B),(B', C)
 	// where B' will be an updated version of B.
 	// Also, there are messages from a different channel, X, Y, Z.
-	prepChunk(chunk.CMessages, chunk.CMessages, chunk.CMessages, chunk.CMessages)(t, conn)
+	prepChunk(chunk.CMessages, chunk.CMessages, chunk.CMessages, chunk.CMessages, chunk.CThreadMessages)(t, conn)
 	mr := NewMessageRepository()
-	if err := mr.Insert(context.Background(), conn, dbmA, dbmB, dbmB_, dbmC, dbmX, dbmY, dbmZ); err != nil {
+	messages := []*DBMessage{dbmA, dbmB, dbmB_, dbmC, dbmCt0, dbmCt1, dbmCt2, dbmX, dbmY, dbmZ}
+	if err := mr.Insert(context.Background(), conn, messages...); err != nil {
 		t.Fatalf("insert: %v", err)
 	}
 }
@@ -340,7 +360,7 @@ func Test_messageRepository_AllForID(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "ok",
+			name: "Get only channel messages for C123 (no thread, and only latest version of the message)",
 			fields: fields{
 				genericRepository: genericRepository[DBMessage]{DBMessage{}},
 			},
@@ -444,6 +464,7 @@ var (
 
 	dbtmAParent  = must(NewDBMessage(1, 0, "C123", &tmAParent))
 	dbtmBChannel = must(NewDBMessage(1, 0, "C123", &tmBChannel))
+	dbtmAthread  = must(NewDBMessage(2, 0, "C123", &tmAParent)) // A message that comes with the thread chunk.
 	dbtmB        = must(NewDBMessage(2, 1, "C123", &tmB))
 	dbtmC        = must(NewDBMessage(2, 1, "C123", &tmC))
 	dbtmD        = must(NewDBMessage(2, 1, "C123", &tmD))
@@ -458,6 +479,7 @@ func threadSetupFn(t *testing.T, conn PrepareExtContext) {
 	// chunk type_id subtype message   comment
 	//     1       0    NULL       A   parent message
 	//     1       0   bcast       B   thread broadcast in the channel - should not be included
+	//     2       1    NULL       A   parent message, that is part of the thread.
 	//     2       1   bcast       B   thread broadcast in the thread
 	//     2       1    NULL       C   old thread message
 	//     2       1    NULL       D   thread message
