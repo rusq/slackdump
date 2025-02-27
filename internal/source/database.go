@@ -60,6 +60,8 @@ func OpenDatabase(path string) (*Database, error) {
 	return &Database{name: name, s: s, files: fst, avatars: ast}, nil
 }
 
+// OpenDatabaseConn uses existing connection to the database.  It does not
+// attempt to open storage etc.
 func OpenDatabaseConn(conn *sqlx.DB) *Database {
 	return &Database{name: "unknown", s: dbproc.Connect(conn), files: fstNotFound{}, avatars: fstNotFound{}}
 }

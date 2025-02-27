@@ -25,7 +25,7 @@ import (
 
 // file extensions
 const (
-	chunkExt = ".json.gz"
+	ChunkExt = ".json.gz"
 	extIdx   = ".idx"
 )
 
@@ -237,7 +237,7 @@ func (d *Directory) Walk(fn func(name string, f *File, err error) error) error {
 		if err != nil {
 			return err
 		}
-		if !strings.HasSuffix(path, chunkExt) || de.IsDir() {
+		if !strings.HasSuffix(path, ChunkExt) || de.IsDir() {
 			return nil
 		}
 		f, err := d.openRAW(path)
@@ -350,7 +350,7 @@ func openfile(filename string) (*os.File, error) {
 
 // filename returns the full path of the chunk file with the given fileID.
 func (d *Directory) filename(id FileID) string {
-	return filepath.Join(d.dir, string(id)+chunkExt)
+	return filepath.Join(d.dir, string(id)+ChunkExt)
 }
 
 // Create creates the chunk file with the given name.  Extension is appended

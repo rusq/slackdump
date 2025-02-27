@@ -8,6 +8,7 @@ import (
 	"github.com/rusq/slack"
 
 	"github.com/rusq/slackdump/v3/internal/chunk"
+	"github.com/rusq/slackdump/v3/internal/chunk/dirproc"
 	"github.com/rusq/slackdump/v3/processor"
 )
 
@@ -46,7 +47,7 @@ func (u *userCollector) Close() error {
 // processor.
 type conversationTransformer struct {
 	ctx context.Context
-	tf  ExportTransformer
+	tf  dirproc.Transformer
 	rc  ReferenceChecker
 }
 
@@ -54,19 +55,19 @@ var _ processor.Messenger = (*conversationTransformer)(nil)
 
 func (ct *conversationTransformer) Messages(ctx context.Context, channelID string, numThreads int, isLast bool, mm []slack.Message) error {
 	if isLast {
-		return ct.mbeTransform(ctx, channelID)
+		return ct.mbeTransform(ctx, channelID, "", false)
 	}
 	return nil
 }
 
 func (ct *conversationTransformer) ThreadMessages(ctx context.Context, channelID string, parent slack.Message, threadOnly bool, isLast bool, tm []slack.Message) error {
 	if isLast {
-		return ct.mbeTransform(ctx, channelID)
+		return ct.mbeTransform(ctx, channelID, parent.ThreadTimestamp, threadOnly)
 	}
 	return nil
 }
 
-func (ct *conversationTransformer) mbeTransform(ctx context.Context, channelID string) error {
+func (ct *conversationTransformer) mbeTransform(ctx context.Context, channelID, threadID string, threadOnly bool) error {
 	finalised, err := ct.rc.IsFinalised(ctx, channelID)
 	if err != nil {
 		return fmt.Errorf("error checking if finalised: %w", err)
@@ -74,7 +75,7 @@ func (ct *conversationTransformer) mbeTransform(ctx context.Context, channelID s
 	if !finalised {
 		return nil
 	}
-	if err := ct.tf.Transform(ctx, chunk.FileID(channelID)); err != nil {
+	if err := ct.tf.Transform(ctx, chunk.ToFileID(channelID, threadID, threadOnly)); err != nil {
 		return fmt.Errorf("error transforming: %w", err)
 	}
 	return nil

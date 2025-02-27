@@ -45,8 +45,8 @@ func StdWithLogger(log *slog.Logger) StdOption {
 	}
 }
 
-// NewStandard creates a new standard dump converter.
-func NewStandard(fsa fsadapter.FS, src source.Sourcer, opts ...StdOption) (*StdConverter, error) {
+// NewStdConverter creates a new standard dump converter.
+func NewStdConverter(fsa fsadapter.FS, src source.Sourcer, opts ...StdOption) (*StdConverter, error) {
 	std := &StdConverter{
 		src:  src,
 		fsa:  fsa,
@@ -93,7 +93,7 @@ func (s *StdConverter) Convert(ctx context.Context, id chunk.FileID) error {
 	channelID, threadID := id.Split()
 	ci, err := s.src.ChannelInfo(ctx, channelID)
 	if err != nil {
-	return err
+		return err
 	}
 
 	var msgs []types.Message
@@ -131,6 +131,11 @@ func collect[T any](it iter.Seq2[T, error], sz int) ([]T, error) {
 	return vs, nil
 }
 
+const (
+	msgPrealloc  = 100
+	tmsgPrealloc = 5
+)
+
 // stdConversation is the function that does the transformation of the whole
 // channel with threads.
 func stdConversation(ctx context.Context, cf source.Sourcer, ci *slack.Channel, pipeline pipeline) ([]types.Message, error) {
@@ -138,7 +143,7 @@ func stdConversation(ctx context.Context, cf source.Sourcer, ci *slack.Channel, 
 	if err != nil {
 		return nil, err
 	}
-	mm, err := collect(it, 100)
+	mm, err := collect(it, msgPrealloc)
 	if err != nil {
 		return nil, err
 	}
@@ -161,7 +166,7 @@ func stdConversation(ctx context.Context, cf source.Sourcer, ci *slack.Channel, 
 			}
 			// process thread only for parent messages
 			// if there's a thread timestamp, we need to find and add it.
-			thread, err := collect(it, 5)
+			thread, err := collect(it, tmsgPrealloc)
 			if err != nil {
 				return nil, err
 			}
@@ -179,7 +184,7 @@ func stdThread(ctx context.Context, cf source.Sourcer, ci *slack.Channel, thread
 	if err != nil {
 		return nil, err
 	}
-	mm, err := collect(it, 5)
+	mm, err := collect(it, tmsgPrealloc)
 	if err != nil {
 		return nil, err
 	}

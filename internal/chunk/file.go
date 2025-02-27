@@ -318,6 +318,8 @@ func allForOffsets[T any](p *File, offsets []int64, fn func(c *Chunk) []T) ([]T,
 	return items, nil
 }
 
+var ErrNoChannelUsers = errors.New("no channel users")
+
 // ChannelInfo returns the information for the given channel.
 func (f *File) ChannelInfo(channelID string) (*slack.Channel, error) {
 	info, err := f.channelInfo(channelID)
@@ -327,7 +329,7 @@ func (f *File) ChannelInfo(channelID string) (*slack.Channel, error) {
 	if !info.IsArchived && info.NumMembers > 0 {
 		users, err := f.ChannelUsers(channelID)
 		if err != nil {
-			return nil, fmt.Errorf("failed getting channel users for %q: %w", channelID, err)
+			return info, fmt.Errorf("failed getting channel users for %q: %w", channelID, ErrNoChannelUsers)
 		}
 		info.Members = users
 	}

@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/fs"
 	"iter"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/rusq/slack"
@@ -87,13 +89,50 @@ func (c *ChunkDir) AllThreadMessages(ctx context.Context, channelID, threadID st
 	return toIter(mm), nil
 }
 
+// ChannelInfo accepts the fileID (so it can treat channel or thread exports equally).  If
+// in doubt, use channelID as the fileID.
 func (c *ChunkDir) ChannelInfo(_ context.Context, channelID string) (*slack.Channel, error) {
-	f, err := c.d.Open(chunk.ToFileID(channelID, "", false))
+	ci, err := c.channelInfo(chunk.FileID(channelID))
+	if err == nil {
+		return ci, nil
+	} else if !errors.Is(err, fs.ErrNotExist) {
+		return nil, err
+	}
+	// try finding a thread file with the info
+	threadfiles, err := filepath.Glob(filepath.Join(c.d.Name(), string(chunk.ToFileID(channelID, "*", true)+chunk.ChunkExt)))
+	if err != nil {
+		return nil, err
+	}
+
+	lastErr := errors.New("no channel info found")
+	for _, tf := range threadfiles {
+		tf := filepath.Base(tf)
+		stripExt := tf[:len(tf)-len(chunk.ChunkExt)]
+		ci, err = c.channelInfo(chunk.FileID(stripExt))
+		if err == nil {
+			// return the first one found
+			return ci, nil
+		}
+		lastErr = err
+	}
+	return nil, lastErr
+}
+
+func (c *ChunkDir) channelInfo(fileID chunk.FileID) (*slack.Channel, error) {
+	f, err := c.d.Open(fileID)
 	if err != nil {
 		return nil, err
 	}
 	defer f.Close()
-	return f.ChannelInfo(channelID)
+	channelID, _ := fileID.Split()
+	ci, err := f.ChannelInfo(channelID)
+	if err != nil {
+		if errors.Is(err, chunk.ErrNoChannelUsers) {
+			return ci, nil
+		}
+		return nil, err
+	}
+	return ci, nil
 }
 
 func (c *ChunkDir) Channels(ctx context.Context) ([]slack.Channel, error) {

@@ -19,6 +19,9 @@ const preallocSz = 100
 
 type Source struct {
 	conn *sqlx.DB
+	// canClose set to false when the connection is passed to the source
+	// and should not be closed by the source.
+	canClose bool
 }
 
 // Connect uses existing connection to the database.
@@ -26,6 +29,7 @@ func Connect(conn *sqlx.DB) *Source {
 	return &Source{conn: conn}
 }
 
+// Open attempts to open the database at given path.
 func Open(path string) (*Source, error) {
 	conn, err := sqlx.Open(repository.Driver, "file:"+path+"?mode=ro")
 	if err != nil {
@@ -34,15 +38,16 @@ func Open(path string) (*Source, error) {
 	if err := conn.Ping(); err != nil {
 		return nil, err
 	}
-	return &Source{conn: conn}, nil
+	return &Source{conn: conn, canClose: true}, nil
 }
 
+// Close closes the database connection.  It is a noop
+// if the [Source] was created with [Connect].
 func (r *Source) Close() error {
+	if !r.canClose {
+		return nil
+	}
 	return r.conn.Close()
-}
-
-func OpenDB(conn *sqlx.DB) *Source {
-	return &Source{conn: conn}
 }
 
 func (s *Source) Channels(ctx context.Context) ([]slack.Channel, error) {

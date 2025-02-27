@@ -5,11 +5,8 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"path/filepath"
-	"strings"
 	"time"
 
-	"github.com/jmoiron/sqlx"
 	"github.com/rusq/fsadapter"
 	"github.com/schollz/progressbar/v3"
 
@@ -20,7 +17,6 @@ import (
 	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/internal/chunk/control"
 	"github.com/rusq/slackdump/v3/internal/chunk/dbproc"
-	"github.com/rusq/slackdump/v3/internal/chunk/dbproc/repository"
 	"github.com/rusq/slackdump/v3/internal/chunk/transform"
 	"github.com/rusq/slackdump/v3/internal/chunk/transform/fileproc"
 	"github.com/rusq/slackdump/v3/internal/source"
@@ -38,20 +34,11 @@ func exportv31(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, l
 	}
 
 	lg.InfoContext(ctx, "temporary directory in use", "tmpdir", tmpdir)
-	dbfile := filepath.Join(tmpdir, "slackdump.sqlite")
-	// wconn is the writer connection
-	wconn, err := sqlx.Open(repository.Driver, dbfile)
+	wconn, si, err := bootstrap.Database(tmpdir, "export")
 	if err != nil {
 		return err
 	}
-	si := dbproc.SessionInfo{
-		FromTS:         (*time.Time)(&cfg.Oldest),
-		ToTS:           (*time.Time)(&cfg.Latest),
-		FilesEnabled:   cfg.DownloadFiles,
-		AvatarsEnabled: cfg.DownloadAvatars,
-		Mode:           "export",
-		Args:           strings.Join(os.Args, "|"),
-	}
+	defer wconn.Close()
 
 	tmpdbp, err := dbproc.New(ctx, wconn, si)
 	if err != nil {

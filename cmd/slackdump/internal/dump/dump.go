@@ -6,6 +6,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"log/slog"
 	"os"
 	"runtime/trace"
 	"strings"
@@ -19,6 +20,8 @@ import (
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/internal/chunk"
+	"github.com/rusq/slackdump/v3/internal/chunk/control"
+	"github.com/rusq/slackdump/v3/internal/chunk/dbproc"
 	"github.com/rusq/slackdump/v3/internal/chunk/dirproc"
 	"github.com/rusq/slackdump/v3/internal/chunk/transform"
 	"github.com/rusq/slackdump/v3/internal/chunk/transform/fileproc"
@@ -165,6 +168,14 @@ func dump(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, p dump
 		return err
 	}
 
+	if cfg.UseChunkFiles {
+		return dumpv3(ctx, sess, fsa, p)
+	} else {
+		return dumpv31(ctx, sess, fsa, p)
+	}
+}
+
+func dumpv3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, p dumpparams) error {
 	dir, err := os.MkdirTemp("", "slackdump-*")
 	if err != nil {
 		return fmt.Errorf("failed to create temp directory: %w", err)
@@ -194,7 +205,7 @@ func dump(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, p dump
 	defer cd.Close()
 	src := source.NewChunkDir(cd, true)
 
-	tf, err := transform.NewStandard(fsa, src, opts...)
+	tf, err := transform.NewStdConverter(fsa, src, opts...)
 	if err != nil {
 		return fmt.Errorf("failed to create transform: %w", err)
 	}
@@ -246,3 +257,118 @@ func helpDump(cmd *base.Command) string {
 	}
 	return buf.String()
 }
+
+func dumpv31(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, p dumpparams) error {
+	lg := cfg.Log
+
+	tmpdir, err := os.MkdirTemp("", "slackdump-*")
+	if err != nil {
+		return fmt.Errorf("failed to create temp directory: %w", err)
+	}
+	if !lg.Enabled(ctx, slog.LevelDebug) {
+		defer func() { _ = os.RemoveAll(tmpdir) }()
+	}
+
+	wconn, si, err := bootstrap.Database(tmpdir, "dump")
+	if err != nil {
+		return err
+	}
+	defer wconn.Close()
+	tmpdbp, err := dbproc.New(ctx, wconn, si)
+	if err != nil {
+		return err
+	}
+	defer tmpdbp.Close()
+
+	lg.DebugContext(ctx, "using database in ", "dir", tmpdir)
+
+	defer func() {
+		if err := tmpdbp.Close(); err != nil {
+			lg.ErrorContext(ctx, "unable to close database processor", "error", err)
+		}
+	}()
+	src := source.OpenDatabaseConn(wconn)
+
+	// files subprocessor
+	sdl := fileproc.NewDownloader(ctx, p.downloadFiles, sess.Client(), fsa, cfg.Log)
+	subproc := fileproc.NewDump(sdl)
+	defer subproc.Close()
+
+	opts := []transform.StdOption{
+		transform.StdWithTemplate(p.tmpl),
+		transform.StdWithLogger(lg),
+	}
+	if p.updatePath && p.downloadFiles {
+		opts = append(opts, transform.StdWithPipeline(subproc.PathUpdateFunc))
+	}
+
+	tf, err := transform.NewStdConverter(fsa, src, opts...)
+	if err != nil {
+		return fmt.Errorf("failed to create transform: %w", err)
+	}
+	coord := transform.NewCoordinator(ctx, tf)
+
+	stream := sess.Stream(
+		stream.OptOldest(time.Time(cfg.Oldest)),
+		stream.OptLatest(time.Time(cfg.Latest)),
+		stream.OptResultFn(func(sr stream.Result) error {
+			if sr.Err != nil {
+				return sr.Err
+			}
+			if sr.IsLast {
+				lg.InfoContext(ctx, "dumped", "sr", sr.String())
+			}
+			return nil
+		}),
+	)
+
+	ctrl, err := control.NewDB(
+		ctx,
+		stream,
+		tmpdbp,
+		control.WithLogger(lg),
+		control.WithFlags(control.Flags{RecordFiles: cfg.DownloadFiles}),
+		control.WithTransformer(coord),
+		control.WithFiler(subproc),
+	)
+	if err != nil {
+		return fmt.Errorf("error creating db controller: %w", err)
+	}
+	defer ctrl.Close()
+
+	if err := ctrl.Run(ctx, p.list); err != nil {
+		return fmt.Errorf("error running db controller: %w", err)
+	}
+	return nil
+}
+
+/*
+	coord := transform.NewCoordinator(ctx, tf)
+
+	proc := chunk.NewCustomRecorder("db", tmpdbp)
+	defer proc.Close()
+
+	if err := sess.Stream(
+		stream.OptOldest(time.Time(cfg.Oldest)),
+		stream.OptLatest(time.Time(cfg.Latest)),
+		stream.OptResultFn(func(sr stream.Result) error {
+			if sr.Err != nil {
+				return sr.Err
+			}
+			if sr.IsLast {
+				lg.InfoContext(ctx, "dumped", "sr", sr.String())
+			}
+			return nil
+		}),
+	).Conversations(ctx, proc, p.list.C(ctx)); err != nil {
+		return fmt.Errorf("failed to dump conversations: %w", err)
+	}
+
+	lg.DebugContext(ctx, "stream complete, waiting for all goroutines to finish")
+	if err := coord.Wait(); err != nil {
+		return err
+	}
+
+	return nil
+}
+*/
