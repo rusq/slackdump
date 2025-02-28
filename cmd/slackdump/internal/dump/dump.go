@@ -224,7 +224,7 @@ func dumpv3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, p du
 	}()
 
 	// TODO: use export controller
-	if err := sess.Stream(
+	s := sess.Stream(
 		stream.OptOldest(time.Time(cfg.Oldest)),
 		stream.OptLatest(time.Time(cfg.Latest)),
 		stream.OptResultFn(func(sr stream.Result) error {
@@ -236,7 +236,8 @@ func dumpv3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, p du
 			}
 			return nil
 		}),
-	).Conversations(ctx, proc, p.list.C(ctx)); err != nil {
+	)
+	if err := s.Conversations(ctx, proc, p.list.C(ctx)); err != nil {
 		return fmt.Errorf("failed to dump conversations: %w", err)
 	}
 
