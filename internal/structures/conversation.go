@@ -2,12 +2,19 @@ package structures
 
 import "github.com/rusq/slack"
 
+// IsThreadStart check if the message is a lead message of a thread.
 func IsThreadStart(m *slack.Message) bool {
 	return m.Timestamp == m.ThreadTimestamp
 }
 
+// IsEmptyThread checks if the message is a thread with no replies.
 func IsEmptyThread(m *slack.Message) bool {
 	return m.LatestReply == LatestReplyNoReplies
+}
+
+// IsThreadMessage checks if the message is a thread message (not lead).
+func IsThreadMessage(m *slack.Msg) bool {
+	return m.ThreadTimestamp != "" && m.ThreadTimestamp != m.Timestamp
 }
 
 const (

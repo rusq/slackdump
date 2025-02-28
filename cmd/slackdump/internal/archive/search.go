@@ -104,7 +104,11 @@ func runSearchFn(fn func(*control.DirController, context.Context, string) error)
 		if err != nil {
 			return err
 		}
-		defer ctrl.Close()
+		defer func() {
+			if err := ctrl.Close(); err != nil {
+				cfg.Log.Error("error closing controller", "err", err)
+			}
+		}()
 		defer stop()
 
 		query := strings.Join(args, " ")

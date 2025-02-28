@@ -33,8 +33,8 @@ func WithFlags(f Flags) Option {
 	}
 }
 
-// WithTransformer configures the controller with a transformer.
-func WithTransformer(tf ExportTransformer) Option {
+// WithCoordinator configures the controller with a transformer.
+func WithCoordinator(tf ExportTransformer) Option {
 	return func(c *options) {
 		if tf != nil {
 			c.tf = tf

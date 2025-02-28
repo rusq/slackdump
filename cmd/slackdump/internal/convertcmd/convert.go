@@ -19,14 +19,10 @@ import (
 var convertMd string
 
 var CmdConvert = &base.Command{
-	Run:       runConvert,
-	UsageLine: "slackdump convert [flags] <source>",
-	Short:     "convert slackdump chunks to various formats",
-	Long: `# Convert Command
-Convert slackdump archive format to various formats.
-
-Currently only "export" format is supported.
-`,
+	Run:         runConvert,
+	UsageLine:   "slackdump convert [flags] <source>",
+	Short:       "convert slackdump chunks to various formats",
+	Long:        convertMd,
 	CustomFlags: false,
 	FlagMask:    cfg.OmitAll & ^cfg.OmitDownloadFlag &^ cfg.OmitOutputFlag &^ cfg.OmitDownloadAvatarsFlag,
 	PrintFlags:  true,

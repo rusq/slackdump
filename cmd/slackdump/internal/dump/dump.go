@@ -22,7 +22,6 @@ import (
 	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/internal/chunk/control"
 	"github.com/rusq/slackdump/v3/internal/chunk/dbproc"
-	"github.com/rusq/slackdump/v3/internal/chunk/dirproc"
 	"github.com/rusq/slackdump/v3/internal/chunk/transform"
 	"github.com/rusq/slackdump/v3/internal/chunk/transform/fileproc"
 	"github.com/rusq/slackdump/v3/internal/nametmpl"
@@ -184,6 +183,14 @@ func dumpv3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, p du
 	lg := cfg.Log
 	lg.Debug("using directory", "dir", dir)
 
+	// Initialise the standard transformer.
+	cd, err := chunk.OpenDir(dir)
+	if err != nil {
+		return err
+	}
+	defer cd.Close()
+	src := source.NewChunkDir(cd, true)
+
 	// files subprocessor
 	sdl := fileproc.NewDownloader(ctx, p.downloadFiles, sess.Client(), fsa, cfg.Log)
 	subproc := fileproc.NewDump(sdl)
@@ -197,31 +204,12 @@ func dumpv3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, p du
 		opts = append(opts, transform.StdWithPipeline(subproc.PathUpdateFunc))
 	}
 
-	// Initialise the standard transformer.
-	cd, err := chunk.OpenDir(dir)
-	if err != nil {
-		return err
-	}
-	defer cd.Close()
-	src := source.NewChunkDir(cd, true)
-
 	tf, err := transform.NewStdConverter(fsa, src, opts...)
 	if err != nil {
 		return fmt.Errorf("failed to create transform: %w", err)
 	}
 
 	coord := transform.NewCoordinator(ctx, tf)
-
-	// Create conversation processor.
-	proc, err := dirproc.NewConversation(cd, subproc, coord, dirproc.WithLogger(lg), dirproc.WithRecordFiles(false))
-	if err != nil {
-		return fmt.Errorf("failed to create conversation processor: %w", err)
-	}
-	defer func() {
-		if err := proc.Close(); err != nil {
-			lg.WarnContext(ctx, "failed to close conversation processor", "error", err)
-		}
-	}()
 
 	// TODO: use export controller
 	s := sess.Stream(
@@ -237,14 +225,21 @@ func dumpv3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, p du
 			return nil
 		}),
 	)
-	if err := s.Conversations(ctx, proc, p.list.C(ctx)); err != nil {
-		return fmt.Errorf("failed to dump conversations: %w", err)
+	ctrl := control.NewDir(cd,
+		s,
+		control.WithLogger(lg),
+		control.WithFlags(control.Flags{RecordFiles: cfg.DownloadFiles}),
+		control.WithCoordinator(coord),
+		control.WithFiler(subproc),
+	)
+	if err := ctrl.Run(ctx, p.list); err != nil {
+		return fmt.Errorf("failed to run controller: %w", err)
+	}
+	if err := coord.Wait(); err != nil {
+		return fmt.Errorf("failed to wait for coordinator: %w", err)
 	}
 
 	lg.DebugContext(ctx, "stream complete, waiting for all goroutines to finish")
-	if err := coord.Wait(); err != nil {
-		return err
-	}
 
 	return nil
 }
@@ -268,9 +263,14 @@ func dumpv31(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, p d
 		return fmt.Errorf("failed to create temp directory: %w", err)
 	}
 	if !lg.Enabled(ctx, slog.LevelDebug) {
-		defer func() { _ = os.RemoveAll(tmpdir) }()
+		defer func() {
+			if err := os.RemoveAll(tmpdir); err != nil {
+				lg.ErrorContext(ctx, "unable to remove temporary directory", "dir", tmpdir, "error", err)
+			}
+		}()
 	}
 
+	// creating a temporary database to hold the data for the converter.
 	wconn, si, err := bootstrap.Database(tmpdir, "dump")
 	if err != nil {
 		return err
@@ -330,7 +330,7 @@ func dumpv31(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, p d
 		tmpdbp,
 		control.WithLogger(lg),
 		control.WithFlags(control.Flags{RecordFiles: cfg.DownloadFiles}),
-		control.WithTransformer(coord),
+		control.WithCoordinator(coord),
 		control.WithFiler(subproc),
 	)
 	if err != nil {
@@ -340,6 +340,9 @@ func dumpv31(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, p d
 
 	if err := ctrl.Run(ctx, p.list); err != nil {
 		return fmt.Errorf("error running db controller: %w", err)
+	}
+	if err := coord.Wait(); err != nil {
+		return fmt.Errorf("error waiting for coordinator: %w", err)
 	}
 	return nil
 }

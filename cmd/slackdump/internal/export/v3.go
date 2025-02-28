@@ -90,7 +90,7 @@ func exportv31(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, l
 		control.WithFiler(fp),
 		control.WithLogger(lg),
 		control.WithFlags(flags),
-		control.WithTransformer(tf),
+		control.WithCoordinator(tf),
 		control.WithAvatarProcessor(avp),
 	)
 	if err != nil {
@@ -172,7 +172,7 @@ func export(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, list
 		control.WithFiler(fp),
 		control.WithLogger(lg),
 		control.WithFlags(flags),
-		control.WithTransformer(tf),
+		control.WithCoordinator(tf),
 		control.WithAvatarProcessor(avp),
 	)
 	defer ctr.Close()
@@ -195,12 +195,4 @@ func export(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, list
 	lg.InfoContext(ctx, "conversations export finished")
 	lg.DebugContext(ctx, "chunk files retained", "dir", tmpdir)
 	return nil
-}
-
-// progresser is an interface for progress bars.
-type progresser interface {
-	RenderBlank() error
-	Describe(description string)
-	Add(num int) error
-	Finish() error
 }
