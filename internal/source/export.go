@@ -159,9 +159,6 @@ func (e *Export) walkChannelMessages(channelID string) (iter.Seq2[slack.Message,
 	return iterFn, nil
 }
 
-func isThreadMessage(m *slack.Msg) bool {
-	return m.ThreadTimestamp != "" && m.ThreadTimestamp != m.Timestamp
-}
 
 func (e *Export) AllThreadMessages(_ context.Context, channelID, threadID string) (iter.Seq2[slack.Message, error], error) {
 	it, err := e.walkChannelMessages(channelID)
