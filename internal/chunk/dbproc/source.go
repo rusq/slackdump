@@ -37,14 +37,23 @@ func Connect(conn *sqlx.DB) (*Source, error) {
 
 // Open attempts to open the database at given path.
 func Open(ctx context.Context, path string) (*Source, error) {
+	// migrate to the latest
+	tmpconn, err := sqlx.Open(repository.Driver, "file:"+path)
+	if err != nil {
+		return nil, err
+	}
+	if err := repository.Migrate(ctx, tmpconn.DB, false); err != nil {
+		_ = tmpconn.Close()
+		return nil, err
+	}
+	if err := tmpconn.Close(); err != nil {
+		return nil, err
+	}
 	conn, err := sqlx.Open(repository.Driver, "file:"+path+"?mode=ro")
 	if err != nil {
 		return nil, err
 	}
 	if err := conn.PingContext(ctx); err != nil {
-		return nil, err
-	}
-	if err := initDB(ctx, conn); err != nil {
 		return nil, err
 	}
 	return &Source{conn: conn, canClose: true}, nil

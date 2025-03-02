@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"github.com/rusq/slack"
+	"golang.org/x/time/rate"
+
 	"github.com/rusq/slackdump/v3/auth"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
@@ -17,7 +19,6 @@ import (
 	"github.com/rusq/slackdump/v3/internal/chunk/dirproc"
 	"github.com/rusq/slackdump/v3/internal/network"
 	"github.com/rusq/slackdump/v3/types"
-	"golang.org/x/time/rate"
 )
 
 var cmdSearch = &base.Command{
@@ -78,7 +79,7 @@ func runSearch(ctx context.Context, cmd *base.Command, args []string) error {
 
 	lim := rate.NewLimiter(rate.Every(3*time.Second), 5)
 	lg := cfg.Log
-	var p = slack.SearchParameters{
+	p := slack.SearchParameters{
 		Sort:          "timestamp",
 		SortDirection: "desc",
 		Count:         int(searchFlags.perPage),
@@ -146,7 +147,7 @@ func runSearchConvert(ctx context.Context, _ *base.Command, args []string) error
 		return errors.New("output is empty")
 	}
 
-	if err := os.MkdirAll(cfg.Output, 0755); err != nil {
+	if err := os.MkdirAll(cfg.Output, 0o755); err != nil {
 		return err
 	}
 
@@ -162,7 +163,7 @@ func runSearchConvert(ctx context.Context, _ *base.Command, args []string) error
 	}
 	defer dps.Close()
 
-	var chans = make(map[string]struct{})
+	chans := make(map[string]struct{})
 	dec := json.NewDecoder(r)
 	for {
 		var sm []slack.SearchMessage

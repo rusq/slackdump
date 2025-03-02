@@ -38,6 +38,8 @@ var dbInitCommands = []string{
 	"PRAGMA foreign_keys = ON",    // enable foreign keys
 }
 
+
+
 // New return the new database processor.
 func New(ctx context.Context, conn *sqlx.DB, p SessionInfo) (*DBP, error) {
 	if err := repository.Migrate(ctx, conn.DB, false); err != nil {
