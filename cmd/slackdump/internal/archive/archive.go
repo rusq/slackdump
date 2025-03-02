@@ -85,7 +85,7 @@ func runChunkArchive(ctx context.Context, _ *base.Command, args []string) error 
 	return nil
 }
 
-func runDBArchive(ctx context.Context, _ *base.Command, args []string) error {
+func runDBArchive(ctx context.Context, cmd *base.Command, args []string) error {
 	start := time.Now()
 	list, err := structures.NewEntityList(args)
 	if err != nil {
@@ -109,7 +109,7 @@ func runDBArchive(ctx context.Context, _ *base.Command, args []string) error {
 	}
 	defer conn.Close()
 
-	ctrl, err := DBController(ctx, conn, sess, dirname)
+	ctrl, err := DBController(ctx, cmd, conn, sess, dirname)
 	if err != nil {
 		return err
 	}
@@ -144,9 +144,9 @@ func NewDirectory(name string) (*chunk.Directory, error) {
 	return cd, nil
 }
 
-func DBController(ctx context.Context, conn *sqlx.DB, sess *slackdump.Session, dirname string, opts ...stream.Option) (RunCloser, error) {
+func DBController(ctx context.Context, cmd *base.Command, conn *sqlx.DB, sess *slackdump.Session, dirname string, opts ...stream.Option) (RunCloser, error) {
 	lg := cfg.Log
-	dbp, err := dbproc.New(ctx, conn, bootstrap.SessionInfo("archive"))
+	dbp, err := dbproc.New(ctx, conn, bootstrap.SessionInfo(cmd.Name()))
 	if err != nil {
 		return nil, err
 	}

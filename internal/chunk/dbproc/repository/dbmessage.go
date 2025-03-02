@@ -218,6 +218,7 @@ func query[T any](ctx context.Context, conn sqlx.QueryerContext, stmt string, bi
 		return nil, err
 	}
 	iterFn := func(yield func(T, error) bool) {
+		defer rows.Close()
 		var t T
 		for rows.Next() {
 			if err := rows.StructScan(&t); err != nil {
@@ -227,6 +228,10 @@ func query[T any](ctx context.Context, conn sqlx.QueryerContext, stmt string, bi
 			if !yield(t, nil) {
 				return
 			}
+		}
+		if err := rows.Err(); err != nil {
+			yield(t, err)
+			return
 		}
 	}
 	return iterFn, nil

@@ -112,8 +112,7 @@ func (d *Database) WorkspaceInfo(ctx context.Context) (*slack.AuthTestResponse, 
 }
 
 func (d *Database) Latest(ctx context.Context) (map[structures.SlackLink]time.Time, error) {
-	return nil, nil
-	// return d.s.Latest(ctx)
+	return d.s.Latest(ctx)
 }
 
 func (d *Database) Files() Storage {

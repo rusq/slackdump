@@ -3,6 +3,7 @@ package dbproc
 import (
 	"context"
 	"iter"
+	"log/slog"
 	"time"
 
 	"github.com/jmoiron/sqlx"
@@ -12,6 +13,7 @@ import (
 	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/internal/chunk/dbproc/repository"
 	"github.com/rusq/slackdump/v3/internal/fasttime"
+	"github.com/rusq/slackdump/v3/internal/structures"
 )
 
 const preallocSz = 100
@@ -179,4 +181,38 @@ func (s *Source) WorkspaceInfo(ctx context.Context) (*slack.AuthTestResponse, er
 	}
 	w, err := dbw.Val()
 	return &w, err
+}
+
+func (s *Source) Latest(ctx context.Context) (map[structures.SlackLink]time.Time, error) {
+	r := repository.NewMessageRepository()
+	m := make(map[structures.SlackLink]time.Time, preallocSz)
+	itm, err := r.LatestMessages(ctx, s.conn)
+	if err != nil {
+		return nil, err
+	}
+	for c, err := range itm {
+		if err != nil {
+			return nil, err
+		}
+		sl := structures.SlackLink{
+			Channel: c.ChannelID,
+		}
+		m[sl] = fasttime.Int2Time(c.ID)
+	}
+	slog.Info("latest threads")
+	ittm, err := r.LatestThreads(ctx, s.conn)
+	if err != nil {
+		return nil, err
+	}
+	for c, err := range ittm {
+		if err != nil {
+			return nil, err
+		}
+		sl := structures.SlackLink{
+			Channel:  c.ChannelID,
+			ThreadTS: c.ThreadTS,
+		}
+		m[sl] = fasttime.Int2Time(c.ID)
+	}
+	return m, nil
 }
