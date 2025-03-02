@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/jmoiron/sqlx"
 	"github.com/rusq/slack"
 
 	"github.com/rusq/slackdump/v3/internal/chunk/dbproc"
@@ -25,7 +24,7 @@ type Database struct {
 // types - when database file is given directly, and when the path is a
 // directory containing the "slackdump.sqlite" file.  In the latter case, it
 // will also attempt to open the mattermost storage.
-func OpenDatabase(path string) (*Database, error) {
+func OpenDatabase(ctx context.Context, path string) (*Database, error) {
 	var (
 		fst    Storage = fstNotFound{}
 		ast    Storage = fstNotFound{}
@@ -52,7 +51,7 @@ func OpenDatabase(path string) (*Database, error) {
 		name = path
 	}
 
-	s, err := dbproc.Open(dbfile)
+	s, err := dbproc.Open(ctx, dbfile)
 	if err != nil {
 		return nil, err
 	}
@@ -60,14 +59,20 @@ func OpenDatabase(path string) (*Database, error) {
 	return &Database{name: name, s: s, files: fst, avatars: ast}, nil
 }
 
-// OpenDatabaseConn uses existing connection to the database.  It does not
-// attempt to open storage etc.
-func OpenDatabaseConn(conn *sqlx.DB) *Database {
-	return &Database{name: "unknown", s: dbproc.Connect(conn), files: fstNotFound{}, avatars: fstNotFound{}}
-}
-
+// DatabaseWithSource returns a new database source with the given database
+// processor source.
 func DatabaseWithSource(source *dbproc.Source) *Database {
 	return &Database{name: "dbproc", s: source, files: fstNotFound{}, avatars: fstNotFound{}}
+}
+
+func (d *Database) SetFiles(fst Storage) *Database {
+	d.files = fst
+	return d
+}
+
+func (d *Database) SetAvatars(fst Storage) *Database {
+	d.avatars = fst
+	return d
 }
 
 func (d *Database) Close() error {

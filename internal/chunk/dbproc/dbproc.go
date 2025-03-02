@@ -33,7 +33,9 @@ type SessionInfo struct {
 }
 
 var dbInitCommands = []string{
-	"PRAGMA foreign_keys = ON", // enable foreign keys
+	"PRAGMA journal_mode=WAL",     // enable WAL mode
+	"PRAGMA synchronous = NORMAL", // enable synchronous mode
+	"PRAGMA foreign_keys = ON",    // enable foreign keys
 }
 
 // New return the new database processor.
@@ -156,7 +158,6 @@ func (d *DBP) IsFinalised(ctx context.Context, channelID string) (bool, error) {
 // Source returns the connection that can be used safely as a source.
 func (d *DBP) Source() *Source {
 	return &Source{
-		mu:       &d.mu,
 		conn:     d.conn,
 		canClose: false,
 	}

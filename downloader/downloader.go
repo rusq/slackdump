@@ -255,7 +255,7 @@ func (c *Client) download(ctx context.Context, fullpath string, url string) (int
 		os.Remove(tf.Name())
 	}()
 
-	if err := network.WithRetry(ctx, c.limiter, c.retries, func() error {
+	if err := network.WithRetry(ctx, c.limiter, c.retries, func(ctx context.Context) error {
 		region := trace.StartRegion(ctx, "GetFile")
 		defer region.End()
 

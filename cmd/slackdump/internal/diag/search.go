@@ -91,7 +91,7 @@ func runSearch(ctx context.Context, cmd *base.Command, args []string) error {
 			sm  *slack.SearchMessages
 			err error
 		)
-		if err := network.WithRetry(ctx, lim, 3, func() error {
+		if err := network.WithRetry(ctx, lim, 3, func(ctx context.Context) error {
 			sm, err = cl.SearchMessagesContext(ctx, query, p)
 			return err
 		}); err != nil {
