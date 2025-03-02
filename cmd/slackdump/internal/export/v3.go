@@ -49,7 +49,7 @@ func exportv31(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, l
 			lg.ErrorContext(ctx, "unable to close database processor", "error", err)
 		}
 	}()
-	src := source.OpenDatabaseConn(wconn)
+	src := source.DatabaseWithSource(tmpdbp.Source())
 	if !lg.Enabled(ctx, slog.LevelDebug) {
 		defer func() { _ = os.RemoveAll(tmpdir) }()
 	}
@@ -68,7 +68,7 @@ func exportv31(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, l
 	lg.InfoContext(ctx, "running export...")
 	pb := bootstrap.ProgressBar(ctx, lg, progressbar.OptionShowCount()) // progress bar
 
-	stream := sess.Stream(
+	s := sess.Stream(
 		stream.OptOldest(time.Time(cfg.Oldest)),
 		stream.OptLatest(time.Time(cfg.Latest)),
 		stream.OptResultFn(func(sr stream.Result) error {
@@ -85,7 +85,7 @@ func exportv31(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, l
 	}
 	ctr, err := control.NewDB(
 		ctx,
-		stream,
+		s,
 		tmpdbp,
 		control.WithFiler(fp),
 		control.WithLogger(lg),

@@ -14,7 +14,7 @@ func TestMigrate(t *testing.T) {
 		}
 		defer db.Close()
 
-		if err := Migrate(context.Background(), db); err != nil {
+		if err := Migrate(context.Background(), db, true); err != nil {
 			t.Fatalf("Migrate() err = %v; want nil", err)
 		}
 	})

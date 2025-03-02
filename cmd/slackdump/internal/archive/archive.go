@@ -8,7 +8,6 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/jmoiron/sqlx"
@@ -147,14 +146,7 @@ func NewDirectory(name string) (*chunk.Directory, error) {
 
 func DBController(ctx context.Context, conn *sqlx.DB, sess *slackdump.Session, dirname string, opts ...stream.Option) (RunCloser, error) {
 	lg := cfg.Log
-	dbp, err := dbproc.New(ctx, conn, dbproc.SessionInfo{
-		FromTS:         &time.Time{},
-		ToTS:           &time.Time{},
-		FilesEnabled:   cfg.DownloadFiles,
-		AvatarsEnabled: cfg.DownloadAvatars,
-		Mode:           "archive",
-		Args:           strings.Join(os.Args, "|"),
-	})
+	dbp, err := dbproc.New(ctx, conn, bootstrap.SessionInfo("archive"))
 	if err != nil {
 		return nil, err
 	}

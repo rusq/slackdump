@@ -72,17 +72,18 @@ func TestNewDBMessage(t *testing.T) {
 				msg:       fixtures.Load[*slack.Message](fixtures.BotMessageThreadParentJSON),
 			},
 			want: &DBMessage{
-				ID:        1648085300726649,
-				ChunkID:   100,
-				ChannelID: "C123",
-				TS:        "1648085300.726649",
-				ParentID:  ptr[int64](1648085300726649),
-				ThreadTS:  ptr("1648085300.726649"),
-				IsParent:  true,
-				Index:     222,
-				NumFiles:  0,
-				Text:      "This content can't be displayed.",
-				Data:      minifyJSON[slack.Message](t, fixtures.BotMessageThreadParentJSON),
+				ID:          1648085300726649,
+				ChunkID:     100,
+				ChannelID:   "C123",
+				TS:          "1648085300.726649",
+				ParentID:    ptr[int64](1648085300726649),
+				ThreadTS:    ptr("1648085300.726649"),
+				LatestReply: ptr("1648085301.269949"),
+				IsParent:    true,
+				Index:       222,
+				NumFiles:    0,
+				Text:        "This content can't be displayed.",
+				Data:        minifyJSON[slack.Message](t, fixtures.BotMessageThreadParentJSON),
 			},
 		},
 		{
@@ -563,17 +564,18 @@ func Test_messageRepository_AllForThread(t *testing.T) {
 
 func TestDBMessage_Val(t *testing.T) {
 	type fields struct {
-		ID        int64
-		ChunkID   int64
-		ChannelID string
-		TS        string
-		ParentID  *int64
-		ThreadTS  *string
-		IsParent  bool
-		Index     int
-		NumFiles  int
-		Text      string
-		Data      []byte
+		ID          int64
+		ChunkID     int64
+		ChannelID   string
+		TS          string
+		ParentID    *int64
+		ThreadTS    *string
+		LatestReply *string
+		IsParent    bool
+		Index       int
+		NumFiles    int
+		Text        string
+		Data        []byte
 	}
 	tests := []struct {
 		name    string
@@ -591,17 +593,18 @@ func TestDBMessage_Val(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			dbm := DBMessage{
-				ID:        tt.fields.ID,
-				ChunkID:   tt.fields.ChunkID,
-				ChannelID: tt.fields.ChannelID,
-				TS:        tt.fields.TS,
-				ParentID:  tt.fields.ParentID,
-				ThreadTS:  tt.fields.ThreadTS,
-				IsParent:  tt.fields.IsParent,
-				Index:     tt.fields.Index,
-				NumFiles:  tt.fields.NumFiles,
-				Text:      tt.fields.Text,
-				Data:      tt.fields.Data,
+				ID:          tt.fields.ID,
+				ChunkID:     tt.fields.ChunkID,
+				ChannelID:   tt.fields.ChannelID,
+				TS:          tt.fields.TS,
+				ParentID:    tt.fields.ParentID,
+				ThreadTS:    tt.fields.ThreadTS,
+				IsParent:    tt.fields.IsParent,
+				LatestReply: tt.fields.LatestReply,
+				Index:       tt.fields.Index,
+				NumFiles:    tt.fields.NumFiles,
+				Text:        tt.fields.Text,
+				Data:        tt.fields.Data,
 			}
 			got, err := dbm.Val()
 			if (err != nil) != tt.wantErr {
@@ -707,6 +710,115 @@ func Test_messageRepository_CountUnfinished(t *testing.T) {
 			if got != tt.want {
 				t.Errorf("messageRepository.CountUnfinished() = %v, want %v", got, tt.want)
 			}
+		})
+	}
+}
+
+func Test_messageRepository_LatestMessages(t *testing.T) {
+	type fields struct {
+		genericRepository genericRepository[DBMessage]
+	}
+	type args struct {
+		ctx  context.Context
+		conn sqlx.QueryerContext
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		prepFn  utilityFn
+		want    []testResult[LatestMessage]
+		wantErr bool
+	}{
+		{
+			name: "returns latest messages timestamps",
+			fields: fields{
+				genericRepository: genericRepository[DBMessage]{DBMessage{}},
+			},
+			args: args{
+				ctx:  context.Background(),
+				conn: testConn(t),
+			},
+			prepFn: messagePrepFn,
+			want: []testResult[LatestMessage]{
+				{V: LatestMessage{ChannelID: "C123", TS: "125.777", ID: 125777}},
+				{V: LatestMessage{ChannelID: "D124", TS: "125.777", ID: 125777}},
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.prepFn != nil {
+				tt.prepFn(t, tt.args.conn.(PrepareExtContext))
+			}
+			r := messageRepository{
+				genericRepository: tt.fields.genericRepository,
+			}
+			got, err := r.LatestMessages(tt.args.ctx, tt.args.conn)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("messageRepository.LatestMessages() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			assertIterResult(t, tt.want, got)
+		})
+	}
+}
+
+func Test_messageRepository_LatestThreads(t *testing.T) {
+	type fields struct {
+		genericRepository genericRepository[DBMessage]
+	}
+	type args struct {
+		ctx  context.Context
+		conn sqlx.QueryerContext
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		prepFn  utilityFn
+		want    []testResult[LatestThread]
+		wantErr bool
+	}{
+		{
+			name: "returns latest threads",
+			fields: fields{
+				genericRepository: genericRepository[DBMessage]{DBMessage{}},
+			},
+			args: args{
+				ctx:  context.Background(),
+				conn: testConn(t),
+			},
+			prepFn: threadSetupFn,
+			want: []testResult[LatestThread]{
+				{V: LatestThread{
+					LatestMessage: LatestMessage{
+						ChannelID: "C123",
+						TS:        "126.000",
+						ID:        126000,
+					},
+					ThreadTS: "123.456",
+					ParentID: 123456,
+				}},
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.prepFn != nil {
+				tt.prepFn(t, tt.args.conn.(PrepareExtContext))
+			}
+			r := messageRepository{
+				genericRepository: tt.fields.genericRepository,
+			}
+			got, err := r.LatestThreads(tt.args.ctx, tt.args.conn)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("messageRepository.LatestThreads() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			assertIterResult(t, tt.want, got)
 		})
 	}
 }

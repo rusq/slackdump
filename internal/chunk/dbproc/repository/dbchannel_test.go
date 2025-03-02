@@ -7,6 +7,7 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	"github.com/rusq/slack"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/rusq/slackdump/v3/internal/chunk"
@@ -155,6 +156,104 @@ func Test_channelRepository_AllOfType(t *testing.T) {
 				return
 			}
 			assertIterResult(t, tt.want, got)
+		})
+	}
+}
+
+func Test_channelRepository_Get(t *testing.T) {
+	type fields struct {
+		genericRepository genericRepository[DBChannel]
+	}
+	type args struct {
+		ctx  context.Context
+		conn sqlx.ExtContext
+		id   any
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		prepFn  utilityFn
+		want    DBChannel
+		wantErr bool
+	}{
+		{
+			name: "gets a channel",
+			fields: fields{
+				genericRepository: genericRepository[DBChannel]{t: DBChannel{}},
+			},
+			args: args{
+				ctx:  context.Background(),
+				conn: testConn(t),
+				id:   "C100",
+			},
+			prepFn: prepChannels,
+			want:   *dbchi100,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.prepFn != nil {
+				tt.prepFn(t, tt.args.conn.(PrepareExtContext))
+			}
+			r := channelRepository{
+				genericRepository: tt.fields.genericRepository,
+			}
+			got, err := r.Get(tt.args.ctx, tt.args.conn, tt.args.id)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("channelRepository.Get() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func Test_channelRepository_Count(t *testing.T) {
+	type fields struct {
+		genericRepository genericRepository[DBChannel]
+	}
+	type args struct {
+		ctx  context.Context
+		conn sqlx.QueryerContext
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		prepFn  utilityFn
+		want    int64
+		wantErr bool
+	}{
+		{
+			name: "returns the number of channels",
+			fields: fields{
+				genericRepository: genericRepository[DBChannel]{t: DBChannel{}},
+			},
+			args: args{
+				ctx:  context.Background(),
+				conn: testConn(t),
+			},
+			prepFn: prepChannels,
+			want:   4,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.prepFn != nil {
+				tt.prepFn(t, tt.args.conn.(PrepareExtContext))
+			}
+			r := channelRepository{
+				genericRepository: tt.fields.genericRepository,
+			}
+			got, err := r.Count(tt.args.ctx, tt.args.conn)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("channelRepository.Count() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("channelRepository.Count() = %v, want %v", got, tt.want)
+			}
 		})
 	}
 }

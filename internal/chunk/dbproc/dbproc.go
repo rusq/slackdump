@@ -18,7 +18,7 @@ import (
 type DBP struct {
 	conn      *sqlx.DB
 	sessionID int64
-	mu        sync.Mutex
+	mu        sync.RWMutex
 }
 
 // SessionInfo is the information about the session to be logged in the
@@ -38,7 +38,7 @@ var dbInitCommands = []string{
 
 // New return the new database processor.
 func New(ctx context.Context, conn *sqlx.DB, p SessionInfo) (*DBP, error) {
-	if err := repository.Migrate(ctx, conn.DB); err != nil {
+	if err := repository.Migrate(ctx, conn.DB, false); err != nil {
 		return nil, fmt.Errorf("migrate: %w", err)
 	}
 	sr := repository.NewSessionRepository()
@@ -143,18 +143,21 @@ func (d *DBP) WithReadTx(ctx context.Context, fn func(txx *sqlx.Tx) error) error
 // IsFinalised returns true if the channel messages have been processed (there
 // are no unfinished threads).
 func (d *DBP) IsFinalised(ctx context.Context, channelID string) (bool, error) {
-	var count int64
-	err := d.WithReadTx(ctx, func(txx *sqlx.Tx) error {
-		mr := repository.NewMessageRepository()
-		n, err := mr.CountUnfinished(ctx, txx, d.sessionID, channelID)
-		if err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
-				return nil
-			}
-			return fmt.Errorf("countUnfinished: %w", err)
-		}
-		count = n
-		return nil
-	})
-	return count <= 0, err
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	mr := repository.NewMessageRepository()
+	n, err := mr.CountUnfinished(ctx, d.conn, d.sessionID, channelID)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return false, fmt.Errorf("countUnfinished: %w", err)
+	}
+	return n <= 0, nil
+}
+
+// Source returns the connection that can be used safely as a source.
+func (d *DBP) Source() *Source {
+	return &Source{
+		mu:       &d.mu,
+		conn:     d.conn,
+		canClose: false,
+	}
 }

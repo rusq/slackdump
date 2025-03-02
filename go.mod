@@ -30,7 +30,7 @@ require (
 	github.com/pressly/goose/v3 v3.24.1
 	github.com/rusq/chttp v1.0.2
 	github.com/rusq/encio v0.2.0
-	github.com/rusq/fsadapter v1.0.2
+	github.com/rusq/fsadapter v1.1.0
 	github.com/rusq/osenv/v2 v2.0.1
 	github.com/rusq/rbubbles v0.0.2
 	github.com/rusq/slack v0.9.6-0.20241117083852-278084780c45

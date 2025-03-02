@@ -4,6 +4,7 @@ import (
 	"context"
 	_ "embed"
 	"errors"
+	"io"
 	"strings"
 	"sync"
 
@@ -14,11 +15,15 @@ import (
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/bootstrap"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
-	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/internal/chunk/control"
+	"github.com/rusq/slackdump/v3/internal/chunk/dbproc"
 	"github.com/rusq/slackdump/v3/internal/chunk/transform/fileproc"
 	"github.com/rusq/slackdump/v3/stream"
 )
+
+// *****
+// TODO: implement database
+// *****
 
 var CmdSearch = &base.Command{
 	UsageLine:   "slackdump search",
@@ -93,15 +98,9 @@ func runSearchFn(fn func(*control.DirController, context.Context, string) error)
 			return err
 		}
 
-		cd, err := NewDirectory(cfg.Output)
+		ctrl, stop, err := searchControllerv3(ctx, cfg.Output, sess, args)
 		if err != nil {
-			base.SetExitStatus(base.SInvalidParameters)
-			return err
-		}
-		defer cd.Close()
-
-		ctrl, stop, err := searchController(ctx, cd, sess, args)
-		if err != nil {
+			base.SetExitStatus(base.SApplicationError)
 			return err
 		}
 		defer func() {
@@ -120,10 +119,16 @@ func runSearchFn(fn func(*control.DirController, context.Context, string) error)
 	}
 }
 
-func searchController(ctx context.Context, cd *chunk.Directory, sess *slackdump.Session, terms []string) (*control.DirController, func(), error) {
+func searchControllerv3(ctx context.Context, dir string, sess *slackdump.Session, terms []string) (*control.DirController, func(), error) {
+	noop := func() {}
 	if len(terms) == 0 {
 		base.SetExitStatus(base.SInvalidParameters)
-		return nil, nil, errors.New("missing query parameter")
+		return nil, noop, errors.New("missing query parameter")
+	}
+
+	cd, err := NewDirectory(dir)
+	if err != nil {
+		return nil, noop, err
 	}
 
 	lg := cfg.Log
@@ -158,5 +163,86 @@ func searchController(ctx context.Context, cd *chunk.Directory, sess *slackdump.
 		control.WithFiler(fileproc.New(dl)),
 		control.WithFlags(control.Flags{RecordFiles: cfg.RecordFiles}),
 	)
-	return ctrl, func() { pb.Finish() }, nil
+	stop := func() {
+		_ = pb.Finish()
+		if err := cd.Close(); err != nil {
+			cfg.Log.Error("error closing directory", "err", err)
+		}
+	}
+	return ctrl, stop, nil
+}
+
+type stopFn []func() error
+
+func (s stopFn) Close() error {
+	var err error
+	for i := len(s) - 1; i >= 0; i-- {
+		if e := s[i](); err != nil {
+			err = errors.Join(err, e)
+		}
+	}
+	return err
+}
+
+func searchControllerv31(ctx context.Context, dir string, sess *slackdump.Session, terms []string) (*control.DBController, io.Closer, error) {
+	var stop stopFn
+	if len(terms) == 0 {
+		base.SetExitStatus(base.SInvalidParameters)
+		return nil, stop, errors.New("missing query parameter")
+	}
+
+	cd, err := NewDirectory(dir)
+	if err != nil {
+		return nil, stop, err
+	}
+	db, si, err := bootstrap.Database(dir, "search")
+	if err != nil {
+		return nil, stop, err
+	}
+	stop = append(stop, db.Close)
+
+	lg := cfg.Log
+
+	dl := fileproc.NewDownloader(
+		ctx,
+		cfg.DownloadFiles,
+		sess.Client(),
+		fsadapter.NewDirectory(cd.Name()),
+		lg,
+	)
+
+	pb := bootstrap.ProgressBar(ctx, lg, progressbar.OptionShowCount()) // progress bar
+	stop = append(stop, pb.Finish)
+
+	var once sync.Once
+	sopts := []stream.Option{
+		stream.OptResultFn(func(sr stream.Result) error {
+			lg.DebugContext(ctx, "stream", "result", sr.String())
+			once.Do(func() { pb.Describe(sr.String()) })
+			pb.Add(sr.Count)
+			return nil
+		}),
+	}
+	if fastSearch {
+		sopts = append(sopts, stream.OptFastSearch())
+	}
+
+	dbp, err := dbproc.New(ctx, db, si)
+	if err != nil {
+		return nil, stop, err
+	}
+	stop = append(stop, dbp.Close)
+
+	ctrl, err := control.NewDB(
+		ctx,
+		sess.Stream(sopts...),
+		dbp,
+		control.WithLogger(lg),
+		control.WithFiler(fileproc.New(dl)),
+		control.WithFlags(control.Flags{RecordFiles: cfg.RecordFiles}),
+	)
+	if err != nil {
+		return nil, stop, err
+	}
+	return ctrl, stop, nil
 }

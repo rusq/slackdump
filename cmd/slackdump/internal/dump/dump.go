@@ -280,7 +280,6 @@ func dumpv31(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, p d
 	if err != nil {
 		return err
 	}
-	defer tmpdbp.Close()
 
 	lg.DebugContext(ctx, "using database in ", "dir", tmpdir)
 
@@ -289,7 +288,7 @@ func dumpv31(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, p d
 			lg.ErrorContext(ctx, "unable to close database processor", "error", err)
 		}
 	}()
-	src := source.OpenDatabaseConn(wconn)
+	src := source.DatabaseWithSource(tmpdbp.Source())
 
 	// files subprocessor
 	sdl := fileproc.NewDownloader(ctx, p.downloadFiles, sess.Client(), fsa, cfg.Log)

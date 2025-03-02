@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"embed"
+	"log"
 
 	"github.com/pressly/goose/v3"
 )
@@ -16,6 +17,11 @@ func init() {
 	goose.SetDialect("sqlite3")
 }
 
-func Migrate(ctx context.Context, db *sql.DB) error {
+func Migrate(ctx context.Context, db *sql.DB, verbose bool) error {
+	if !verbose {
+		goose.SetLogger(goose.NopLogger())
+	} else {
+		goose.SetLogger(log.Default())
+	}
 	return goose.UpContext(ctx, db, "migrations")
 }

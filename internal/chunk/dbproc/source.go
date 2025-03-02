@@ -2,8 +2,8 @@ package dbproc
 
 import (
 	"context"
-	"database/sql"
 	"iter"
+	"sync"
 	"time"
 
 	"github.com/jmoiron/sqlx"
@@ -18,6 +18,7 @@ import (
 const preallocSz = 100
 
 type Source struct {
+	mu   *sync.RWMutex
 	conn *sqlx.DB
 	// canClose set to false when the connection is passed to the source
 	// and should not be closed by the source.
@@ -26,7 +27,10 @@ type Source struct {
 
 // Connect uses existing connection to the database.
 func Connect(conn *sqlx.DB) *Source {
-	return &Source{conn: conn}
+	return &Source{
+		mu:   new(sync.RWMutex),
+		conn: conn,
+	}
 }
 
 // Open attempts to open the database at given path.
@@ -38,28 +42,25 @@ func Open(path string) (*Source, error) {
 	if err := conn.Ping(); err != nil {
 		return nil, err
 	}
-	return &Source{conn: conn, canClose: true}, nil
+	return &Source{mu: new(sync.RWMutex), conn: conn, canClose: true}, nil
 }
 
 // Close closes the database connection.  It is a noop
 // if the [Source] was created with [Connect].
-func (r *Source) Close() error {
-	if !r.canClose {
+func (s *Source) Close() error {
+	if !s.canClose {
 		return nil
 	}
-	return r.conn.Close()
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.conn.Close()
 }
 
 func (s *Source) Channels(ctx context.Context) ([]slack.Channel, error) {
 	cr := repository.NewChannelRepository()
-
-	tx, err := s.conn.BeginTxx(ctx, &sql.TxOptions{ReadOnly: true})
-	if err != nil {
-		return nil, err
-	}
-	defer tx.Rollback()
-
+	s.mu.RLock()
 	it, err := cr.AllOfType(ctx, s.conn, chunk.CChannelInfo)
+	s.mu.RUnlock()
 	if err != nil {
 		return nil, err
 	}
@@ -69,13 +70,9 @@ func (s *Source) Channels(ctx context.Context) ([]slack.Channel, error) {
 func (s *Source) Users(ctx context.Context) ([]slack.User, error) {
 	ur := repository.NewUserRepository()
 
-	tx, err := s.conn.BeginTxx(ctx, &sql.TxOptions{ReadOnly: true})
-	if err != nil {
-		return nil, err
-	}
-	defer tx.Rollback()
-
+	s.mu.RLock()
 	it, err := ur.AllOfType(ctx, s.conn, chunk.CUsers)
+	s.mu.RUnlock()
 	if err != nil {
 		return nil, err
 	}
@@ -119,7 +116,9 @@ func collect[T any, D valuer[T]](it iter.Seq2[D, error], sz int) ([]T, error) {
 
 func (s *Source) AllMessages(ctx context.Context, channelID string) (iter.Seq2[slack.Message, error], error) {
 	mr := repository.NewMessageRepository()
+	s.mu.RLock()
 	it, err := mr.AllForID(ctx, s.conn, channelID)
+	s.mu.RUnlock()
 	if err != nil {
 		return nil, err
 	}
@@ -128,7 +127,9 @@ func (s *Source) AllMessages(ctx context.Context, channelID string) (iter.Seq2[s
 
 func (s *Source) AllThreadMessages(ctx context.Context, channelID, threadID string) (iter.Seq2[slack.Message, error], error) {
 	mr := repository.NewMessageRepository()
+	s.mu.RLock()
 	it, err := mr.AllForThread(ctx, s.conn, channelID, threadID)
+	s.mu.RUnlock()
 	if err != nil {
 		return nil, err
 	}
@@ -137,7 +138,9 @@ func (s *Source) AllThreadMessages(ctx context.Context, channelID, threadID stri
 
 func (s *Source) Sorted(ctx context.Context, channelID string, desc bool, cb func(ts time.Time, msg *slack.Message) error) error {
 	mr := repository.NewMessageRepository()
+	s.mu.RLock()
 	it, err := mr.Sorted(ctx, s.conn, channelID, repository.Asc)
+	s.mu.RUnlock()
 	if err != nil {
 		return err
 	}
@@ -157,6 +160,8 @@ func (s *Source) Sorted(ctx context.Context, channelID string, desc bool, cb fun
 }
 
 func (s *Source) ChannelInfo(ctx context.Context, channelID string) (*slack.Channel, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	cr := repository.NewChannelRepository()
 	c, err := cr.Get(ctx, s.conn, channelID)
 	if err != nil {
@@ -167,6 +172,8 @@ func (s *Source) ChannelInfo(ctx context.Context, channelID string) (*slack.Chan
 }
 
 func (s *Source) WorkspaceInfo(ctx context.Context) (*slack.AuthTestResponse, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	cr := repository.NewWorkspaceRepository()
 	dbw, err := cr.GetWorkspace(ctx, s.conn)
 	if err != nil {

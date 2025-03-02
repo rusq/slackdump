@@ -19,13 +19,16 @@ const (
 	Asc Order = false
 	// Desc is a descending order.
 	Desc Order = true
+
+	oAsc  = " ASC"
+	oDesc = " DESC"
 )
 
 func (o Order) String() string {
 	if o {
-		return "DESC"
+		return oDesc
 	}
-	return "ASC"
+	return oAsc
 }
 
 const (

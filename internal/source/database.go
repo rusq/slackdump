@@ -66,6 +66,10 @@ func OpenDatabaseConn(conn *sqlx.DB) *Database {
 	return &Database{name: "unknown", s: dbproc.Connect(conn), files: fstNotFound{}, avatars: fstNotFound{}}
 }
 
+func DatabaseWithSource(source *dbproc.Source) *Database {
+	return &Database{name: "dbproc", s: source, files: fstNotFound{}, avatars: fstNotFound{}}
+}
+
 func (d *Database) Close() error {
 	return d.s.Close()
 }

@@ -24,7 +24,7 @@ var CmdExport = &base.Command{
 	UsageLine:   "slackdump export",
 	Short:       "exports the Slack Workspace or individual conversations",
 	FlagMask:    cfg.OmitUserCacheFlag | cfg.OmitRecordFilesFlag,
-	Long:        mdExport, // TODO: add long description
+	Long:        mdExport,
 	CustomFlags: false,
 	PrintFlags:  true,
 	RequireAuth: true,

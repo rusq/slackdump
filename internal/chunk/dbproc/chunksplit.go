@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/jmoiron/sqlx"
-
 	"github.com/rusq/slackdump/v3/internal/chunk/dbproc/repository"
 
 	"github.com/rusq/slack"
@@ -15,6 +13,15 @@ import (
 )
 
 func (d *DBP) InsertChunk(ctx context.Context, c chunk.Chunk) (int64, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	txx, err := d.conn.BeginTxx(ctx, nil)
+	if err != nil {
+		return 0, fmt.Errorf("insertchunk: begin: %w", err)
+	}
+	defer txx.Rollback()
+
 	dc := repository.DBChunk{
 		SessionID:  d.sessionID,
 		UnixTS:     c.Timestamp,
@@ -23,24 +30,16 @@ func (d *DBP) InsertChunk(ctx context.Context, c chunk.Chunk) (int64, error) {
 		Final:      c.IsLast,
 	}
 	cr := repository.NewChunkRepository()
-
-	id := int64(0)
-	n := 0
-	if err := d.WithTx(ctx, func(txx *sqlx.Tx) error {
-		defer txx.Rollback()
-
-		var err error
-		id, err = cr.Insert(ctx, txx, &dc)
-		if err != nil {
-			return fmt.Errorf("insertchunk: %w", err)
-		}
-		n, err = d.insertPayload(ctx, txx, id, c)
-		if err != nil {
-			return fmt.Errorf("insertchunk: %w", err)
-		}
-		return txx.Commit()
-	}); err != nil {
-		return id, fmt.Errorf("insertchunk: %w", err)
+	id, err := cr.Insert(ctx, txx, &dc)
+	if err != nil {
+		return 0, fmt.Errorf("insertchunk: insert: %w", err)
+	}
+	n, err := d.insertPayload(ctx, txx, id, c)
+	if err != nil {
+		return 0, fmt.Errorf("insertchunk: payload: %w", err)
+	}
+	if err := txx.Commit(); err != nil {
+		return 0, fmt.Errorf("insertchunk: commit: %w", err)
 	}
 
 	slog.DebugContext(ctx, "inserted chunk", "id", id, "len", n, "type", c.Type, "final", c.IsLast)

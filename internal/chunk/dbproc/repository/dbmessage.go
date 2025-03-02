@@ -15,17 +15,18 @@ import (
 )
 
 type DBMessage struct {
-	ID        int64   `db:"ID,omitempty"`
-	ChunkID   int64   `db:"CHUNK_ID,omitempty"`
-	ChannelID string  `db:"CHANNEL_ID"`
-	TS        string  `db:"TS"`
-	ParentID  *int64  `db:"PARENT_ID,omitempty"`
-	ThreadTS  *string `db:"THREAD_TS,omitempty"`
-	IsParent  bool    `db:"IS_PARENT"`
-	Index     int     `db:"IDX"`
-	NumFiles  int     `db:"NUM_FILES"`
-	Text      string  `db:"TXT"`
-	Data      []byte  `db:"DATA"`
+	ID          int64   `db:"ID,omitempty"`
+	ChunkID     int64   `db:"CHUNK_ID,omitempty"`
+	ChannelID   string  `db:"CHANNEL_ID"`
+	TS          string  `db:"TS"`
+	ParentID    *int64  `db:"PARENT_ID,omitempty"`
+	ThreadTS    *string `db:"THREAD_TS,omitempty"`
+	LatestReply *string `db:"LATEST_REPLY,omitempty"`
+	IsParent    bool    `db:"IS_PARENT"`
+	Index       int     `db:"IDX"`
+	NumFiles    int     `db:"NUM_FILES"`
+	Text        string  `db:"TXT"`
+	Data        []byte  `db:"DATA"`
 }
 
 func NewDBMessage(dbchunkID int64, idx int, channelID string, msg *slack.Message) (*DBMessage, error) {
@@ -47,17 +48,18 @@ func NewDBMessage(dbchunkID int64, idx int, channelID string, msg *slack.Message
 	}
 
 	dbm := DBMessage{
-		ID:        ts,
-		ChunkID:   dbchunkID,
-		ChannelID: channelID,
-		TS:        msg.Timestamp,
-		ParentID:  parentID,
-		ThreadTS:  orNull(msg.ThreadTimestamp != "", msg.ThreadTimestamp),
-		IsParent:  structures.IsThreadStart(msg),
-		Index:     idx,
-		NumFiles:  len(msg.Files),
-		Text:      msg.Text,
-		Data:      data,
+		ID:          ts,
+		ChunkID:     dbchunkID,
+		ChannelID:   channelID,
+		TS:          msg.Timestamp,
+		ParentID:    parentID,
+		ThreadTS:    orNull(msg.ThreadTimestamp != "", msg.ThreadTimestamp),
+		LatestReply: orNull(msg.LatestReply != "", msg.LatestReply),
+		IsParent:    structures.IsThreadStart(msg),
+		Index:       idx,
+		NumFiles:    len(msg.Files),
+		Text:        msg.Text,
+		Data:        data,
 	}
 	return &dbm, nil
 }
@@ -83,6 +85,7 @@ func (dbm DBMessage) columns() []string {
 		"NUM_FILES",
 		"TXT",
 		"DATA",
+		"LATEST_REPLY",
 	}
 }
 
@@ -99,6 +102,7 @@ func (dbm DBMessage) values() []any {
 		dbm.NumFiles,
 		dbm.Text,
 		dbm.Data,
+		dbm.LatestReply,
 	}
 }
 
@@ -121,7 +125,13 @@ type MessageRepository interface {
 	Sorted(ctx context.Context, conn sqlx.QueryerContext, channelID string, order Order) (iter.Seq2[DBMessage, error], error)
 	// CountUnfinished returns the number of unfinished threads in a channel.
 	CountUnfinished(ctx context.Context, conn sqlx.QueryerContext, sessionID int64, channelID string) (int64, error)
+	// LatestMessages returns the latest message in each channel.
+	LatestMessages(ctx context.Context, conn sqlx.QueryerContext) (iter.Seq2[LatestMessage, error], error)
+	// LatestThreads returns the latest thread message in each channel.
+	LatestThreads(ctx context.Context, conn sqlx.QueryerContext) (iter.Seq2[LatestThread, error], error)
 }
+
+var _ MessageRepository = messageRepository{}
 
 type messageRepository struct {
 	genericRepository[DBMessage]
@@ -167,7 +177,7 @@ func (r messageRepository) AllForThread(ctx context.Context, conn sqlx.QueryerCo
 }
 
 func (r messageRepository) Sorted(ctx context.Context, conn sqlx.QueryerContext, channelID string, order Order) (iter.Seq2[DBMessage, error], error) {
-	return r.allOfTypeWhere(ctx, conn, queryParams{Where: "CHANNEL_ID = ?", Binds: []any{channelID}, OrderBy: []string{"T.ID " + order.String()}}, chunk.CMessages, chunk.CThreadMessages)
+	return r.allOfTypeWhere(ctx, conn, queryParams{Where: "CHANNEL_ID = ?", Binds: []any{channelID}, OrderBy: []string{"T.ID" + order.String()}}, chunk.CMessages, chunk.CThreadMessages)
 }
 
 func (r messageRepository) CountUnfinished(ctx context.Context, conn sqlx.QueryerContext, sessionID int64, channelID string) (int64, error) {
@@ -178,4 +188,46 @@ func (r messageRepository) CountUnfinished(ctx context.Context, conn sqlx.Querye
 		return 0, fmt.Errorf("countUnfinished query: %w", err)
 	}
 	return count, nil
+}
+
+type LatestMessage struct {
+	ChannelID string `db:"CHANNEL_ID"`
+	TS        string `db:"TS"`
+	ID        int64  `db:"ID"`
+}
+
+type LatestThread struct {
+	LatestMessage
+	ThreadTS string `db:"THREAD_TS"`
+	ParentID int64  `db:"PARENT_ID"`
+}
+
+func (r messageRepository) LatestMessages(ctx context.Context, conn sqlx.QueryerContext) (iter.Seq2[LatestMessage, error], error) {
+	const stmt = "SELECT CHANNEL_ID, TS, ID FROM V_LATEST_MESSAGE"
+	return query[LatestMessage](ctx, conn, stmt)
+}
+
+func (r messageRepository) LatestThreads(ctx context.Context, conn sqlx.QueryerContext) (iter.Seq2[LatestThread, error], error) {
+	const stmt = "SELECT CHANNEL_ID, TS, ID, THREAD_TS, PARENT_ID FROM V_LATEST_THREAD"
+	return query[LatestThread](ctx, conn, stmt)
+}
+
+func query[T any](ctx context.Context, conn sqlx.QueryerContext, stmt string, binds ...any) (iter.Seq2[T, error], error) {
+	rows, err := conn.QueryxContext(ctx, stmt, binds...)
+	if err != nil {
+		return nil, err
+	}
+	iterFn := func(yield func(T, error) bool) {
+		var t T
+		for rows.Next() {
+			if err := rows.StructScan(&t); err != nil {
+				yield(t, err)
+				return
+			}
+			if !yield(t, nil) {
+				return
+			}
+		}
+	}
+	return iterFn, nil
 }

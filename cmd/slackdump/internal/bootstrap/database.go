@@ -23,10 +23,10 @@ func Database(dir string, mode string) (*sqlx.DB, dbproc.SessionInfo, error) {
 	if err != nil {
 		return nil, dbproc.SessionInfo{}, err
 	}
-	return wconn, sessionInfo(mode), nil
+	return wconn, SessionInfo(mode), nil
 }
 
-func sessionInfo(mode string) dbproc.SessionInfo {
+func SessionInfo(mode string) dbproc.SessionInfo {
 	si := dbproc.SessionInfo{
 		FromTS:         (*time.Time)(&cfg.Oldest),
 		ToTS:           (*time.Time)(&cfg.Latest),
