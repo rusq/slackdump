@@ -109,7 +109,9 @@ func runDBArchive(ctx context.Context, cmd *base.Command, args []string) error {
 	}
 	defer conn.Close()
 
-	ctrl, err := DBController(ctx, cmd, conn, sess, dirname)
+	flags := control.Flags{MemberOnly: cfg.MemberOnly, RecordFiles: cfg.RecordFiles}
+
+	ctrl, err := DBController(ctx, cmd, conn, sess, dirname, flags)
 	if err != nil {
 		return err
 	}
@@ -144,7 +146,11 @@ func NewDirectory(name string) (*chunk.Directory, error) {
 	return cd, nil
 }
 
-func DBController(ctx context.Context, cmd *base.Command, conn *sqlx.DB, sess *slackdump.Session, dirname string, opts ...stream.Option) (RunCloser, error) {
+// DBController returns a new database controller initialised with the given
+// parameters.
+//
+// Obscene, just obscene amount of arguments.
+func DBController(ctx context.Context, cmd *base.Command, conn *sqlx.DB, sess *slackdump.Session, dirname string, flags control.Flags, opts ...stream.Option) (RunCloser, error) {
 	lg := cfg.Log
 	dbp, err := dbproc.New(ctx, conn, bootstrap.SessionInfo(cmd.Name()))
 	if err != nil {
@@ -179,6 +185,7 @@ func DBController(ctx context.Context, cmd *base.Command, conn *sqlx.DB, sess *s
 		dbp,
 		control.WithFiler(fileproc.New(dl)),
 		control.WithAvatarProcessor(fileproc.NewAvatarProc(avdl)),
+		control.WithFlags(flags),
 	)
 	if err != nil {
 		return nil, err

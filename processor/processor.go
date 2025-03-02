@@ -90,7 +90,8 @@ type JointChannels struct {
 	pp []Channels
 }
 
-// JoinChannels joins multiple Channels processors into one.
+// JoinChannels joins multiple Channels processors into one.  Processors are
+// called in the order they are passed in.
 func JoinChannels(procs ...Channels) *JointChannels {
 	return &JointChannels{pp: procs}
 }

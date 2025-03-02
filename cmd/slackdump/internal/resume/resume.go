@@ -13,6 +13,7 @@ import (
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/bootstrap"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
+	"github.com/rusq/slackdump/v3/internal/chunk/control"
 	"github.com/rusq/slackdump/v3/internal/source"
 	"github.com/rusq/slackdump/v3/internal/structures"
 	"github.com/rusq/slackdump/v3/stream"
@@ -74,7 +75,10 @@ func runResume(ctx context.Context, cmd *base.Command, args []string) error {
 	}
 	defer wconn.Close()
 
-	ctrl, err := archive.DBController(ctx, cmd, wconn, sess, loc, stream.OptInclusive(false))
+	cf := control.Flags{
+		Refresh: resumeFlags.Refresh,
+	}
+	ctrl, err := archive.DBController(ctx, cmd, wconn, sess, loc, cf, stream.OptInclusive(false))
 	if err != nil {
 		return fmt.Errorf("error creating archive controller: %w", err)
 	}

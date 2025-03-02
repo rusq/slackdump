@@ -39,9 +39,9 @@ func NewDB(ctx context.Context, s Streamer, proc *dbproc.DBP, opts ...Option) (*
 
 func (c *DBController) newConvTransformer(ctx context.Context) *conversationTransformer {
 	return &conversationTransformer{
-		ctx:  ctx,
-		tf:   c.tf,
-		rc: c.dbp,
+		ctx: ctx,
+		tf:  c.tf,
+		rc:  c.dbp,
 	}
 }
 
@@ -56,7 +56,7 @@ func (c *DBController) Run(ctx context.Context, list *structures.EntityList) err
 		WorkspaceInfo: rec,
 	}
 
-	return runWorkers(ctx, c.s, list, sp, Flags{})
+	return runWorkers(ctx, c.s, list, sp, c.flags)
 }
 
 func (c *DBController) Close() error {

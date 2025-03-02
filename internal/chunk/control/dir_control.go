@@ -63,30 +63,6 @@ func NewDir(cd *chunk.Directory, s Streamer, opts ...Option) *DirController {
 	return c
 }
 
-// Flags are the controller flags.
-type Flags struct {
-	MemberOnly  bool
-	RecordFiles bool
-}
-
-// Error is a controller error.
-type Error struct {
-	// Subroutine is the name of the subroutine that failed.
-	Subroutine string
-	// Stage is the stage of the subroutine that failed.
-	Stage string
-	// Err is the error that caused the failure.
-	Err error
-}
-
-func (e Error) Error() string {
-	return fmt.Sprintf("error in subroutine %s on stage %s: %v", e.Subroutine, e.Stage, e.Err)
-}
-
-func (e Error) Unwrap() error {
-	return e.Err
-}
-
 func (c *DirController) Run(ctx context.Context, list *structures.EntityList) error {
 	ctx, task := trace.NewTask(ctx, "Controller.Run")
 	defer task.End()
