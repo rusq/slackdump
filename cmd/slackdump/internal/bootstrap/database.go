@@ -27,13 +27,18 @@ func Database(dir string, mode string) (*sqlx.DB, dbproc.SessionInfo, error) {
 }
 
 func SessionInfo(mode string) dbproc.SessionInfo {
+	var args string
+	if len(os.Args) > 1 {
+		args = strings.Join(os.Args[1:], "|")
+	}
+
 	si := dbproc.SessionInfo{
 		FromTS:         (*time.Time)(&cfg.Oldest),
 		ToTS:           (*time.Time)(&cfg.Latest),
 		FilesEnabled:   cfg.DownloadFiles,
 		AvatarsEnabled: cfg.DownloadAvatars,
 		Mode:           mode,
-		Args:           strings.Join(os.Args, "|"),
+		Args:           args,
 	}
 	return si
 }

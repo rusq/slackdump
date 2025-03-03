@@ -38,13 +38,37 @@ var dbInitCommands = []string{
 	"PRAGMA foreign_keys = ON",    // enable foreign keys
 }
 
+type options struct {
+	verbose bool
+}
 
+func (o *options) apply(opts ...Option) {
+	for _, opt := range opts {
+		opt(o)
+	}
+}
+
+type Option func(*options)
+
+func WithVerbose(v bool) Option {
+	return func(o *options) {
+		o.verbose = v
+	}
+}
 
 // New return the new database processor.
-func New(ctx context.Context, conn *sqlx.DB, p SessionInfo) (*DBP, error) {
-	if err := repository.Migrate(ctx, conn.DB, false); err != nil {
-		return nil, fmt.Errorf("migrate: %w", err)
+func New(ctx context.Context, conn *sqlx.DB, p SessionInfo, opts ...Option) (*DBP, error) {
+	var options options
+	options.apply(opts...)
+
+	if err := initDB(ctx, conn); err != nil {
+		return nil, fmt.Errorf("new: %w", err)
 	}
+
+	if err := repository.Migrate(ctx, conn.DB, options.verbose); err != nil {
+		return nil, fmt.Errorf("new: %w", err)
+	}
+
 	sr := repository.NewSessionRepository()
 	id, err := sr.Insert(ctx, conn, &repository.Session{
 		CreatedAt:      time.Time{},
@@ -57,9 +81,6 @@ func New(ctx context.Context, conn *sqlx.DB, p SessionInfo) (*DBP, error) {
 		Args:           p.Args,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("new: %w", err)
-	}
-	if err := initDB(ctx, conn); err != nil {
 		return nil, fmt.Errorf("new: %w", err)
 	}
 

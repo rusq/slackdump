@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 	"strings"
 	"text/tabwriter"
 	"time"
@@ -103,6 +102,10 @@ func latest(ctx context.Context, srcpath string) (*structures.EntityList, error)
 		return nil, fmt.Errorf("error loading latest timestamps: %w", err)
 	}
 
+	if cfg.Verbose {
+		strlatest(latest)
+	}
+
 	ei := make([]structures.EntityItem, 0, len(latest))
 	for sl, ts := range latest {
 		if sl.IsThread() && !resumeFlags.IncludeThreads {
@@ -117,14 +120,13 @@ func latest(ctx context.Context, srcpath string) (*structures.EntityList, error)
 		ei = append(ei, item)
 		debugprint(fmt.Sprintf("%s: %d->%d", item.Id, ts.UTC().UnixMicro(), item.Oldest.UnixMicro()))
 	}
-
 	el := structures.NewEntityListFromItems(ei...)
 
 	return el, nil
 }
 
 func debugprint(a ...any) {
-	if slog.Default().Enabled(context.Background(), slog.LevelDebug) {
+	if cfg.Verbose {
 		fmt.Println(a...)
 	}
 }

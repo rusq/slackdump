@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"embed"
+	"fmt"
 	"log"
 
 	"github.com/pressly/goose/v3"
@@ -23,5 +24,8 @@ func Migrate(ctx context.Context, db *sql.DB, verbose bool) error {
 	} else {
 		goose.SetLogger(log.Default())
 	}
-	return goose.UpContext(ctx, db, "migrations")
+	if err := goose.UpContext(ctx, db, "migrations"); err != nil {
+		return fmt.Errorf("migrate: %w", err)
+	}
+	return nil
 }

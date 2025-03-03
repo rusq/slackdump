@@ -11,6 +11,8 @@ import (
 	"github.com/rusq/slackdump/v3/processor"
 )
 
+//go:generate mockgen -destination=mock_control/mock_interfaces.go . Streamer,TransformStarter,ExportTransformer,ReferenceChecker
+
 // Streamer is the interface for the API scraper.
 type Streamer interface {
 	Conversations(ctx context.Context, proc processor.Conversations, links <-chan structures.EntityItem) error

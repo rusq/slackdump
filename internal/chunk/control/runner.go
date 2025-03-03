@@ -54,7 +54,7 @@ type Stage string
 const (
 	// StgGenerator is the generator stage.
 	StgGenerator Stage = "generator"
-	// StgProcessor is the worker stage.
+	// StgWorker is the worker stage.
 	StgWorker Stage = "worker"
 )
 
@@ -185,86 +185,6 @@ func tryClose(errC chan<- error, a any) {
 	}
 }
 
-// genChFromList returns the generator of the channel IDs that it gets from the
-// list to the links channel.  It does not fetch the channel list from the api,
-// so it's blazing fast in comparison to other generators.  When needed, get
-// the channel information from the conversations chunk files (they contain the
-// chunk with channel information).
-func genChFromList(ctx context.Context, errC chan<- error, list *structures.EntityList) <-chan structures.EntityItem {
-	links := make(chan structures.EntityItem)
-	go func() {
-		defer close(links)
-		for entry := range list.C(ctx) {
-			if entry.Include {
-				select {
-				case <-ctx.Done():
-					errC <- Error{"channel generator", "generator", context.Cause(ctx)}
-					return
-				case links <- entry:
-				}
-			}
-		}
-
-		slog.DebugContext(ctx, "channels done")
-	}()
-	return links
-}
-
-// chanFilter is a special processor that filters out channels based on the
-// settings.  It also maintains an index of the channels that are in the list.
-type chanFilter struct {
-	links      chan<- structures.EntityItem
-	list       *structures.EntityList
-	memberOnly bool
-	idx        map[string]*structures.EntityItem
-}
-
-// newChanFilter creates a new channel filter.
-func newChanFilter(links chan<- structures.EntityItem, list *structures.EntityList, memberOnly bool) *chanFilter {
-	return &chanFilter{
-		links:      links,
-		list:       list,
-		memberOnly: memberOnly,
-		idx:        list.Index(),
-	}
-}
-
-// Channels, when called by Stream, scans the channel list ch and if the
-// channel matches the filter, and is not excluded or duplicate, it sends the
-// channel ID (as an EntityItem) to the links channel.
-func (c *chanFilter) Channels(ctx context.Context, ch []slack.Channel) error {
-LOOP:
-	for _, ch := range ch {
-		if c.memberOnly && (ch.ID[0] == 'C' && !ch.IsMember) {
-			// skip public non-member channels
-			continue
-		}
-		for _, entry := range c.idx {
-			if entry.Id == ch.ID && !entry.Include {
-				// skip already seen and excluded items
-				continue LOOP
-			}
-		}
-		select {
-		case <-ctx.Done():
-			return context.Cause(ctx)
-		case c.links <- structures.EntityItem{Id: ch.ID, Include: true}:
-		}
-	}
-	return nil
-}
-
-// errEmitter returns a function that sends the error to the error channel.
-func errEmitter(errC chan<- error, sub string, stage Stage) func(err error) {
-	return func(err error) {
-		errC <- Error{
-			Subroutine: sub,
-			Stage:      stage,
-			Err:        err,
-		}
-	}
-}
-
 // genChFromAPI feeds the channel IDs that it gets from the API to the links
 // channel.  It also filters out channels that are excluded in the list.  It
 // does not account for "included".  It ignores the thread links in the list.
@@ -274,7 +194,7 @@ func genChFromAPI(s Streamer, chanproc processor.Channels, memberOnly bool, chTy
 	}
 	return func(ctx context.Context, errC chan<- error, list *structures.EntityList) <-chan structures.EntityItem {
 		links := make(chan structures.EntityItem)
-		emitErr := errEmitter(errC, "api channel generator", "generator")
+		emitErr := errEmitter(errC, "api channel generator", StgGenerator)
 		go func() {
 			defer close(links)
 
@@ -286,6 +206,9 @@ func genChFromAPI(s Streamer, chanproc processor.Channels, memberOnly bool, chTy
 				}
 			}()
 
+			//
+			// ListChannels -> joined.Channels -(-> (filters) -)-> output to entity item channel
+			//
 			if err := s.ListChannels(ctx, joined, &slack.GetConversationsParameters{Types: chTypes}); err != nil {
 				emitErr(fmt.Errorf("error listing channels: %w", err))
 				return
@@ -305,7 +228,7 @@ func genChCombined(s Streamer, chanproc processor.Channels, chTypes []string) li
 	}
 	return func(ctx context.Context, errC chan<- error, list *structures.EntityList) <-chan structures.EntityItem {
 		links := make(chan structures.EntityItem)
-		emitErr := errEmitter(errC, "combined channel generator", "generator")
+		emitErr := errEmitter(errC, "combined channel generator", StgGenerator)
 
 		go func() {
 			defer close(links)
@@ -347,24 +270,4 @@ func genChCombined(s Streamer, chanproc processor.Channels, chTypes []string) li
 		}()
 		return links
 	}
-}
-
-type combinedChannels struct {
-	output    chan<- structures.EntityItem
-	processed map[string]struct{}
-}
-
-func (c *combinedChannels) Channels(ctx context.Context, ch []slack.Channel) error {
-	for _, ch := range ch {
-		if _, ok := c.processed[ch.ID]; ok {
-			continue
-		}
-		c.processed[ch.ID] = struct{}{}
-		select {
-		case <-ctx.Done():
-			return context.Cause(ctx)
-		case c.output <- structures.EntityItem{Id: ch.ID, Include: true}:
-		}
-	}
-	return nil
 }
