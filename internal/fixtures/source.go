@@ -5,7 +5,7 @@ import (
 	"bytes"
 	"embed"
 	"io/fs"
-	"path/filepath"
+	"path"
 	"testing"
 )
 
@@ -22,7 +22,7 @@ func must[T any](t T, err error) T {
 	return t
 }
 
-var testDumpDirPath = filepath.Join("assets", "source_dump_dir")
+var testDumpDirPath = path.Join("assets", "source_dump_dir")
 
 func init() {
 	FSTestDumpDir = must(fs.Sub(fsTestDumpDir, testDumpDirPath))
