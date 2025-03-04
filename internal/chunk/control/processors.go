@@ -100,7 +100,6 @@ type chanFilter struct {
 func newChanFilter(links chan<- structures.EntityItem, list *structures.EntityList, memberOnly bool) *chanFilter {
 	return &chanFilter{
 		links:      links,
-		list:       list,
 		memberOnly: memberOnly,
 		idx:        list.Index(),
 	}
@@ -119,8 +118,8 @@ LOOP:
 			continue
 		}
 		for _, entry := range c.idx {
-			if entry.Id == ch.ID && !entry.Include {
-				// skip already seen and excluded items
+			if !entry.Include && entry.Id == ch.ID {
+				// skip excluded items
 				continue LOOP
 			}
 		}

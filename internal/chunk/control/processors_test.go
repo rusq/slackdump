@@ -5,12 +5,13 @@ import (
 	"testing"
 
 	"github.com/rusq/slack"
+	"github.com/stretchr/testify/assert"
+	"go.uber.org/mock/gomock"
+
 	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/internal/chunk/control/mock_control"
 	"github.com/rusq/slackdump/v3/internal/chunk/dirproc"
 	"github.com/rusq/slackdump/v3/internal/structures"
-	"github.com/stretchr/testify/assert"
-	"go.uber.org/mock/gomock"
 )
 
 var (
@@ -439,10 +440,51 @@ func Test_conversationTransformer_Messages(t *testing.T) {
 	}
 }
 
+var (
+	testPubChanMember = slack.Channel{
+		GroupConversation: slack.GroupConversation{
+			Conversation: slack.Conversation{
+				ID: "C11111111",
+			},
+			Name: "public",
+		},
+		IsMember: true,
+	}
+
+	testPubChanNonMember = slack.Channel{
+		GroupConversation: slack.GroupConversation{
+			Conversation: slack.Conversation{
+				ID: "C22222222",
+			},
+			Name: "public2",
+		},
+		IsMember: false,
+	}
+
+	testPrivChanNonMember = slack.Channel{
+		GroupConversation: slack.GroupConversation{
+			Conversation: slack.Conversation{
+				ID: "D33333333",
+			},
+			Name: "private",
+		},
+		IsMember: false,
+	}
+
+	testGroupChanNonMember = slack.Channel{
+		GroupConversation: slack.GroupConversation{
+			Conversation: slack.Conversation{
+				ID: "G44444444",
+			},
+			Name: "group",
+		},
+		IsMember: false,
+	}
+)
+
 func Test_chanFilter_Channels(t *testing.T) {
 	type fields struct {
-		links      chan<- structures.EntityItem
-		list       *structures.EntityList
+		// links      chan<- structures.EntityItem
 		memberOnly bool
 		idx        map[string]*structures.EntityItem
 	}
@@ -454,28 +496,108 @@ func Test_chanFilter_Channels(t *testing.T) {
 		name    string
 		fields  fields
 		args    args
+		want    []structures.EntityItem
 		wantErr bool
 	}{
-		// TODO: Add test cases.
+		{
+			name: "test public channel member only",
+			fields: fields{
+				memberOnly: true,
+				idx:        make(map[string]*structures.EntityItem),
+			},
+			args: args{
+				ctx: context.Background(),
+				ch: []slack.Channel{
+					testPubChanMember,
+					testPubChanNonMember,
+					testPrivChanNonMember,
+					testGroupChanNonMember,
+				},
+			},
+			want: []structures.EntityItem{
+				{Id: "C11111111", Include: true},
+				{Id: "D33333333", Include: true},
+				{Id: "G44444444", Include: true},
+			},
+			wantErr: false,
+		},
+		{
+			name: "includes all channels if memberOnly is false",
+			fields: fields{
+				memberOnly: false,
+				idx:        make(map[string]*structures.EntityItem),
+			},
+			args: args{
+				ctx: context.Background(),
+				ch: []slack.Channel{
+					testPubChanMember,
+					testPubChanNonMember,
+					testPrivChanNonMember,
+					testGroupChanNonMember,
+				},
+			},
+			want: []structures.EntityItem{
+				{Id: "C11111111", Include: true},
+				{Id: "C22222222", Include: true},
+				{Id: "D33333333", Include: true},
+				{Id: "G44444444", Include: true},
+			},
+			wantErr: false,
+		},
+		{
+			name: "skips excluded channels",
+			fields: fields{
+				memberOnly: false,
+				idx:        must(structures.NewEntityList([]string{"^C11111111", "^G44444444"})).Index(),
+			},
+			args: args{
+				ctx: context.Background(),
+				ch: []slack.Channel{
+					testPubChanMember,
+					testPubChanNonMember,
+					testPrivChanNonMember,
+					testGroupChanNonMember,
+				},
+			},
+			want: []structures.EntityItem{
+				{Id: "C22222222", Include: true},
+				{Id: "D33333333", Include: true},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			linksC := make(chan structures.EntityItem)
 			c := &chanFilter{
-				links:      tt.fields.links,
-				list:       tt.fields.list,
+				links:      linksC,
 				memberOnly: tt.fields.memberOnly,
 				idx:        tt.fields.idx,
 			}
+
+			done := make(chan struct{})
+			var got []structures.EntityItem
+			go func() {
+				defer close(done)
+				for item := range linksC {
+					got = append(got, item)
+				}
+			}()
+
 			if err := c.Channels(tt.args.ctx, tt.args.ch); (err != nil) != tt.wantErr {
 				t.Errorf("chanFilter.Channels() error = %v, wantErr %v", err, tt.wantErr)
 			}
+
+			close(linksC)
+			<-done
+
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }
 
 func Test_combinedChannels_Channels(t *testing.T) {
 	type fields struct {
-		output    chan<- structures.EntityItem
+		// output    chan<- structures.EntityItem
 		processed map[string]struct{}
 	}
 	type args struct {
@@ -486,19 +608,122 @@ func Test_combinedChannels_Channels(t *testing.T) {
 		name    string
 		fields  fields
 		args    args
+		want    []structures.EntityItem
 		wantErr bool
 	}{
-		// TODO: Add test cases.
+		{
+			name: "no processed channels",
+			fields: fields{
+				processed: make(map[string]struct{}),
+			},
+			args: args{
+				ctx: context.Background(),
+				ch: []slack.Channel{
+					testPubChanMember,
+					testPubChanNonMember,
+					testPrivChanNonMember,
+					testGroupChanNonMember,
+				},
+			},
+			want: []structures.EntityItem{
+				{Id: "C11111111", Include: true},
+				{Id: "C22222222", Include: true},
+				{Id: "D33333333", Include: true},
+				{Id: "G44444444", Include: true},
+			},
+			wantErr: false,
+		},
+		{
+			name: "skips processed channels",
+			fields: fields{
+				processed: map[string]struct{}{
+					"C11111111": {},
+					"D33333333": {},
+				},
+			},
+			args: args{
+				ctx: context.Background(),
+				ch: []slack.Channel{
+					testPubChanMember,
+					testPubChanNonMember,
+					testPrivChanNonMember,
+					testGroupChanNonMember,
+				},
+			},
+			want: []structures.EntityItem{
+				{Id: "C22222222", Include: true},
+				{Id: "G44444444", Include: true},
+			},
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			outputC := make(chan structures.EntityItem)
 			c := &combinedChannels{
-				output:    tt.fields.output,
+				output:    outputC,
 				processed: tt.fields.processed,
 			}
+
+			done := make(chan struct{})
+			var got []structures.EntityItem
+			go func() {
+				defer close(done)
+				for item := range outputC {
+					got = append(got, item)
+				}
+			}()
 			if err := c.Channels(tt.args.ctx, tt.args.ch); (err != nil) != tt.wantErr {
 				t.Errorf("combinedChannels.Channels() error = %v, wantErr %v", err, tt.wantErr)
 			}
+
+			close(outputC)
+			<-done
+
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func must[T any](t T, err error) T {
+	if err != nil {
+		panic(err)
+	}
+	return t
+}
+
+func Test_errEmitter(t *testing.T) {
+	type args struct {
+		// errC  chan<- error
+		sub   string
+		stage Stage
+	}
+	tests := []struct {
+		name string
+		args args
+		call error
+		want error
+	}{
+		{
+			name: "emits error",
+			args: args{
+				sub:   "test",
+				stage: "unit",
+			},
+			call: assert.AnError,
+			want: Error{
+				Subroutine: "test",
+				Stage:      "unit",
+				Err:        assert.AnError,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			errC := make(chan error, 1)
+			e := errEmitter(errC, tt.args.sub, tt.args.stage)
+			e(tt.call)
+			assert.Equal(t, tt.want, <-errC)
 		})
 	}
 }
