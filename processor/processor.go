@@ -10,7 +10,7 @@ import (
 
 // Conversations is the interface for conversation fetching with files.
 //
-//go:generate mockgen -destination ../mocks/mock_processor/mock_processor.go github.com/rusq/slackdump/v3/processor Conversations,Users,Channels,ChannelInformer,Filer
+//go:generate mockgen -destination ../mocks/mock_processor/mock_processor.go github.com/rusq/slackdump/v3/processor Conversations,Users,Channels,ChannelInformer,Filer,WorkspaceInfo,MessageSearcher,FileSearcher,Searcher,Avatars
 type Conversations interface {
 	Messenger
 	Filer
