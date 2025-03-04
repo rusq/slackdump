@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"os"
 	"path"
+	"path/filepath"
 	"time"
 
 	"github.com/rusq/slack"
@@ -63,9 +64,13 @@ func (d Dump) Channels(context.Context) ([]slack.Channel, error) {
 		if err != nil {
 			return err
 		}
-		if de.IsDir() || path.Ext(de.Name()) != ".json" {
+		if de.IsDir() && filepath.Base(pth) != "." { // skip all nested directories
+			return fs.SkipDir
+		}
+		if !isDumpJSONFile(de.Name()) {
 			return nil
 		}
+
 		c, err := unmarshalOne[types.Conversation](d.fs, pth)
 		if err != nil {
 			return err
@@ -83,6 +88,11 @@ func (d Dump) Channels(context.Context) ([]slack.Channel, error) {
 		return nil, err
 	}
 	return cc, nil
+}
+
+func isDumpJSONFile(name string) bool {
+	match, err := path.Match("[C|G|D]*.json", name)
+	return err == nil && match
 }
 
 func (d Dump) Users() ([]slack.User, error) {
