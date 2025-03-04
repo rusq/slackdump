@@ -126,7 +126,7 @@ export results:
 - [Slackdump2Html] - a great Python application that converts Slack Dump to a
   static browsable HTML.  It works on Dump mode files.
 - [slack export viewer][slack-export-viewer] - Slack Export Viewer is a well known viewer for
-  slack export files.
+  slack export files. Supports displaying files if saved in the "Standard" file mode.
 
 [SlackLogViewer]: https://github.com/thayakawa-gh/SlackLogViewer/releases
 [Slackdump2Html]: https://github.com/kununu/slackdump2html
@@ -205,6 +205,23 @@ slackdump view <ZIP-archive or directory>
 No, unfortunately you can't.  Slack doesn't allow to export data older than 90
 days for free workspaces, the API does not return any data before 90 days for
 workspaces on the Free plan.
+
+#### What's the difference between "archive", "export" and "dump"?
+
+"Archive" is the new format introduced in v3, it minimises the memory use
+while scraping the data and also has a universal structure that can be
+converted into export and dump formats at will by using the "convert" command.
+
+"Export" format aims to replicate the files generated when exporting a Slack
+workspace for compatibility.
+
+"Dump" format has one channel per file, there's no workspace information nor
+any users stored.  Should it be required, one must get users and channels by
+running `slackdump list` command.
+
+Behind the scenes slackdump always uses the "archive" file format for all
+operations except "emoji" and "list", and converts to other formats on the
+fly, removing the temporary archive files afterwards.
 
 ## Thank you
 Big thanks to all contributors, who submitted a pull request, reported a bug,
