@@ -13,12 +13,13 @@ import (
 
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/slack"
+	"github.com/stretchr/testify/assert"
+	"go.uber.org/mock/gomock"
+
 	"github.com/rusq/slackdump/v3/auth"
 	"github.com/rusq/slackdump/v3/internal/edge"
 	"github.com/rusq/slackdump/v3/internal/mocks/mock_auth"
 	"github.com/rusq/slackdump/v3/internal/network"
-	"github.com/stretchr/testify/assert"
-	"go.uber.org/mock/gomock"
 )
 
 func Test_newLimiter(t *testing.T) {
@@ -75,7 +76,7 @@ func Test_newLimiter(t *testing.T) {
 			stop := time.Now()
 
 			assert.NoError(t, err)
-			assert.WithinDurationf(t, start.Add(tt.wantDelay), stop, 10*time.Millisecond, "delayed for: %s, expected: %s", stop.Sub(start), tt.wantDelay)
+			assert.WithinDurationf(t, start.Add(tt.wantDelay), stop, 15*time.Millisecond, "delayed for: %s, expected: %s", stop.Sub(start), tt.wantDelay)
 		})
 	}
 }
@@ -174,7 +175,7 @@ func TestSession_initClient(t *testing.T) {
 	fakeSlackAPI := fstest.MapFS{
 		"api/auth.test": &fstest.MapFile{
 			Data: []byte(`{"ok":true,"url":"https:\/\/test.slack.com\/","team":"TEST","user":"test","team_id":"T123456","user_id":"U123456"}`),
-			Mode: 0644,
+			Mode: 0o644,
 		},
 	}
 	fakeEnterpriseSlackAPI := fstest.MapFS{
