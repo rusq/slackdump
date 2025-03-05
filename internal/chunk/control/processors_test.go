@@ -574,22 +574,14 @@ func Test_chanFilter_Channels(t *testing.T) {
 				idx:        tt.fields.idx,
 			}
 
-			done := make(chan struct{})
-			var got []structures.EntityItem
-			go func() {
-				defer close(done)
-				for item := range linksC {
-					got = append(got, item)
-				}
-			}()
+			collected := collectItems(linksC)
 
 			if err := c.Channels(tt.args.ctx, tt.args.ch); (err != nil) != tt.wantErr {
 				t.Errorf("chanFilter.Channels() error = %v, wantErr %v", err, tt.wantErr)
 			}
-
 			close(linksC)
-			<-done
 
+			got := collected()
 			assert.Equal(t, tt.want, got)
 		})
 	}
@@ -665,23 +657,33 @@ func Test_combinedChannels_Channels(t *testing.T) {
 				processed: tt.fields.processed,
 			}
 
-			done := make(chan struct{})
-			var got []structures.EntityItem
-			go func() {
-				defer close(done)
-				for item := range outputC {
-					got = append(got, item)
-				}
-			}()
+			collected := collectItems(outputC)
 			if err := c.Channels(tt.args.ctx, tt.args.ch); (err != nil) != tt.wantErr {
 				t.Errorf("combinedChannels.Channels() error = %v, wantErr %v", err, tt.wantErr)
 			}
-
 			close(outputC)
-			<-done
 
+			got := collected()
 			assert.Equal(t, tt.want, got)
 		})
+	}
+}
+
+// collectItems starts a goroutine to collect the items.  When the return
+// function is called, it waits for the goroutine to finish.  It returns the
+// collected items.
+func collectItems[T any](c <-chan T) func() []T {
+	done := make(chan struct{})
+	items := make([]T, 0)
+	go func() {
+		defer close(done)
+		for item := range c {
+			items = append(items, item)
+		}
+	}()
+	return func() []T {
+		<-done
+		return items
 	}
 }
 

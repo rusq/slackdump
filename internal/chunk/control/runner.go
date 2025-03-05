@@ -95,13 +95,24 @@ func runWorkers(ctx context.Context, s Streamer, list *structures.EntityList, p 
 	// TODO: clean this up, transitional code.
 	if flags.Refresh {
 		// refresh the given list with the channels from the API.
-		linkC = genChCombined(s, p.Channels, flags.ChannelTypes)(ctx, errC, list)
+		g := &combinedGenerator{
+			s:       s,
+			p:       p.Channels,
+			chTypes: flags.ChannelTypes,
+		}
+		linkC = g.Generate(ctx, errC, list)
 	} else if list.HasIncludes() {
 		// inclusive export, processes only included channels.
 		linkC = list.C(ctx)
 	} else {
 		// exclusive export (process only excludes, if any)
-		linkC = genChFromAPI(s, p.Channels, flags.MemberOnly, flags.ChannelTypes)(ctx, errC, list)
+		g := apiGenerator{
+			s:          s,
+			p:          p.Channels,
+			memberOnly: flags.MemberOnly,
+			chTypes:    flags.ChannelTypes,
+		}
+		linkC = g.Generate(ctx, errC, list)
 	}
 
 	{ // workspace info
@@ -185,89 +196,103 @@ func tryClose(errC chan<- error, a any) {
 	}
 }
 
-// genChFromAPI feeds the channel IDs that it gets from the API to the links
-// channel.  It also filters out channels that are excluded in the list.  It
-// does not account for "included".  It ignores the thread links in the list.
-func genChFromAPI(s Streamer, chanproc processor.Channels, memberOnly bool, chTypes []string) linkFeederFunc {
-	if len(chTypes) == 0 {
-		chTypes = slackdump.AllChanTypes
-	}
-	return func(ctx context.Context, errC chan<- error, list *structures.EntityList) <-chan structures.EntityItem {
-		links := make(chan structures.EntityItem)
-		emitErr := errEmitter(errC, "api channel generator", StgGenerator)
-		go func() {
-			defer close(links)
-
-			genproc := newChanFilter(links, list, memberOnly)
-			joined := processor.JoinChannels(genproc, chanproc)
-			defer func() {
-				if err := joined.Close(); err != nil {
-					emitErr(fmt.Errorf("error closing processor: %w", err))
-				}
-			}()
-
-			//
-			// ListChannels -> joined.Channels -(-> (filters) -)-> output to entity item channel
-			//
-			if err := s.ListChannels(ctx, joined, &slack.GetConversationsParameters{Types: chTypes}); err != nil {
-				emitErr(fmt.Errorf("error listing channels: %w", err))
-				return
-			}
-			slog.DebugContext(ctx, "channels done")
-		}()
-		return links
-	}
+type generator interface {
+	Generate(ctx context.Context, errC chan<- error, list *structures.EntityList) <-chan structures.EntityItem
 }
 
-// genChCombined combines the list and channels from the API.  It first sends
-// the channels from the list, then fetches the rest from the API.  It does not
-// account for "included".  It ignores the thread links in the list.
-func genChCombined(s Streamer, chanproc processor.Channels, chTypes []string) linkFeederFunc {
-	if len(chTypes) == 0 {
-		chTypes = slackdump.AllChanTypes
+// apiGenerator feeds the channel IDs that it gets from the API to the links
+// channel.  It also filters out channels that are excluded in the list.  It
+// does not account for "included".  It ignores the thread links in the list.
+type apiGenerator struct {
+	s          Streamer
+	p          processor.Channels
+	memberOnly bool
+	chTypes    []string
+}
+
+func (g *apiGenerator) Generate(ctx context.Context, errC chan<- error, list *structures.EntityList) <-chan structures.EntityItem {
+	if len(g.chTypes) == 0 {
+		g.chTypes = slackdump.AllChanTypes
 	}
-	return func(ctx context.Context, errC chan<- error, list *structures.EntityList) <-chan structures.EntityItem {
-		links := make(chan structures.EntityItem)
-		emitErr := errEmitter(errC, "combined channel generator", StgGenerator)
+	links := make(chan structures.EntityItem)
+	emitErr := errEmitter(errC, "api channel generator", StgGenerator)
 
-		go func() {
-			defer close(links)
+	go func() {
+		defer close(links)
 
-			// TODO: this can be made more efficient, if the processed is pre-cooked.
-			//       API fetching can happen separately and fan in the entries. Drawback
-			//       is that it will be harder to maintain the order of the channels.
-
-			proc := &combinedChannels{
-				output:    links,
-				processed: make(map[string]struct{}),
-			}
-			// joined processor will take care of duplicates and will send only
-			// the channels that are not in the processed list.
-			joined := processor.JoinChannels(proc, chanproc)
-			defer func() {
-				if err := joined.Close(); err != nil {
-					emitErr(fmt.Errorf("error closing processor: %w", err))
-				}
-			}()
-
-			// process the list first
-			for entry := range list.C(ctx) {
-				select {
-				case <-ctx.Done():
-					emitErr(context.Cause(ctx))
-					return
-				case links <- entry:
-					// mark as processed
-					proc.processed[entry.Id] = struct{}{}
-				}
-			}
-
-			// process the rest, if any
-			if err := s.ListChannels(ctx, joined, &slack.GetConversationsParameters{Types: chTypes}); err != nil {
-				emitErr(fmt.Errorf("error listing channels: %w", err))
-				return
+		genproc := newChanFilter(links, list, g.memberOnly)
+		joined := processor.JoinChannels(genproc, g.p)
+		defer func() {
+			if err := joined.Close(); err != nil {
+				emitErr(fmt.Errorf("error closing processor: %w", err))
 			}
 		}()
-		return links
+
+		//
+		// ListChannels -> joined.Channels -(-> (filters) -)-> output to entity item channel
+		//
+		if err := g.s.ListChannels(ctx, joined, &slack.GetConversationsParameters{Types: g.chTypes}); err != nil {
+			emitErr(fmt.Errorf("error listing channels: %w", err))
+			return
+		}
+		slog.DebugContext(ctx, "channels done")
+	}()
+	return links
+}
+
+// combinedGenerator combines the list and channels from the API.  It first sends
+// the channels from the list, then fetches the rest from the API.  It does not
+// account for "included".  It ignores the thread links in the list.
+type combinedGenerator struct {
+	s       Streamer
+	p       processor.Channels
+	chTypes []string
+}
+
+func (g *combinedGenerator) Generate(ctx context.Context, errC chan<- error, list *structures.EntityList) <-chan structures.EntityItem {
+	if len(g.chTypes) == 0 {
+		g.chTypes = slackdump.AllChanTypes
 	}
+	links := make(chan structures.EntityItem)
+	emitErr := errEmitter(errC, "combined channel generator", StgGenerator)
+
+	go func() {
+		defer close(links)
+
+		// TODO: this can be made more efficient, if the processed is pre-cooked.
+		//       API fetching can happen separately and fan in the entries. Drawback
+		//       is that it will be harder to maintain the order of the channels.
+
+		proc := &combinedChannels{
+			output:    links,
+			processed: make(map[string]struct{}),
+		}
+		// joined processor will take care of duplicates and will send only
+		// the channels that are not in the processed list.
+		joined := processor.JoinChannels(proc, g.p)
+		defer func() {
+			if err := joined.Close(); err != nil {
+				emitErr(fmt.Errorf("error closing processor: %w", err))
+			}
+		}()
+
+		// process the list first
+		for entry := range list.C(ctx) {
+			select {
+			case <-ctx.Done():
+				emitErr(context.Cause(ctx))
+				return
+			case links <- entry:
+				// mark as processed
+				proc.processed[entry.Id] = struct{}{}
+			}
+		}
+
+		// process the rest, if any
+		if err := g.s.ListChannels(ctx, joined, &slack.GetConversationsParameters{Types: g.chTypes}); err != nil {
+			emitErr(fmt.Errorf("error listing channels: %w", err))
+			return
+		}
+	}()
+	return links
 }
