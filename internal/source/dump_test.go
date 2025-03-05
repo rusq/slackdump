@@ -15,10 +15,9 @@ import (
 
 func TestDump_Channels(t *testing.T) {
 	type fields struct {
-		c       []slack.Channel
-		fs      fs.FS
-		name    string
-		Storage Storage
+		c    []slack.Channel
+		fs   fs.FS
+		name string
 	}
 	type args struct {
 		in0 context.Context
@@ -74,10 +73,9 @@ func TestDump_Channels(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			d := Dump{
-				c:       tt.fields.c,
-				fs:      tt.fields.fs,
-				name:    tt.fields.name,
-				Storage: tt.fields.Storage,
+				c:    tt.fields.c,
+				fs:   tt.fields.fs,
+				name: tt.fields.name,
 			}
 			got, err := d.Channels(tt.args.in0)
 			if (err != nil) != tt.wantErr {

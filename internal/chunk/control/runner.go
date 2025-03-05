@@ -73,7 +73,28 @@ type superprocessor struct {
 	processor.WorkspaceInfo
 }
 
-type linkFeederFunc func(ctx context.Context, errC chan<- error, list *structures.EntityList) <-chan structures.EntityItem
+func newGenerator(s Streamer, p superprocessor, flags Flags, list *structures.EntityList) generator {
+	// choose your fighter
+	if flags.Refresh {
+		// refresh the given list with the channels from the API.
+		return &combinedGenerator{
+			s:       s,
+			p:       p.Channels,
+			chTypes: flags.ChannelTypes,
+		}
+	} else if list.HasIncludes() {
+		// inclusive export, processes only included channels.
+		return &listGen{}
+	} else {
+		// exclusive export (process only excludes, if any)
+		return &apiGenerator{
+			s:          s,
+			p:          p.Channels,
+			memberOnly: flags.MemberOnly,
+			chTypes:    flags.ChannelTypes,
+		}
+	}
+}
 
 // runWorkers coordinates the workers that fetch the data from the API and
 // process it.  It runs the workers in parallel and waits for all of them to
@@ -87,33 +108,10 @@ func runWorkers(ctx context.Context, s Streamer, list *structures.EntityList, p 
 	var (
 		wg   sync.WaitGroup
 		errC = make(chan error, 1)
+		gen  = newGenerator(s, p, flags, list)
 	)
 
-	var linkC <-chan structures.EntityItem
-
-	// choose your fighter
-	// TODO: clean this up, transitional code.
-	if flags.Refresh {
-		// refresh the given list with the channels from the API.
-		g := &combinedGenerator{
-			s:       s,
-			p:       p.Channels,
-			chTypes: flags.ChannelTypes,
-		}
-		linkC = g.Generate(ctx, errC, list)
-	} else if list.HasIncludes() {
-		// inclusive export, processes only included channels.
-		linkC = list.C(ctx)
-	} else {
-		// exclusive export (process only excludes, if any)
-		g := apiGenerator{
-			s:          s,
-			p:          p.Channels,
-			memberOnly: flags.MemberOnly,
-			chTypes:    flags.ChannelTypes,
-		}
-		linkC = g.Generate(ctx, errC, list)
-	}
+	linkC := gen.Generate(ctx, errC, list)
 
 	{ // workspace info
 		wg.Add(1)
@@ -295,4 +293,12 @@ func (g *combinedGenerator) Generate(ctx context.Context, errC chan<- error, lis
 		}
 	}()
 	return links
+}
+
+// listGen is a simplest generator that just emits the channels from the list
+// passed to it.
+type listGen struct{}
+
+func (g *listGen) Generate(ctx context.Context, _ chan<- error, list *structures.EntityList) <-chan structures.EntityItem {
+	return list.C(ctx)
 }
