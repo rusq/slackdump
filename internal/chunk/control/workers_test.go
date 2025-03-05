@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/rusq/slackdump/v3/internal/chunk/control/mock_control"
+	"github.com/rusq/slackdump/v3/internal/chunk/transform"
 	"github.com/rusq/slackdump/v3/internal/structures"
 	"github.com/rusq/slackdump/v3/mocks/mock_processor"
 	"github.com/rusq/slackdump/v3/processor"
@@ -95,6 +96,18 @@ func Test_conversationWorker(t *testing.T) {
 			},
 			expectFn: func(ms *mock_control.MockStreamer) {
 				ms.EXPECT().Conversations(gomock.Any(), gomock.Any(), gomock.Any()).Return(assert.AnError)
+			},
+			wantErr: true,
+		},
+		{
+			name: "closed error",
+			args: args{
+				ctx:   context.Background(),
+				proc:  &mock_processor.MockConversations{},
+				links: make(<-chan structures.EntityItem),
+			},
+			expectFn: func(ms *mock_control.MockStreamer) {
+				ms.EXPECT().Conversations(gomock.Any(), gomock.Any(), gomock.Any()).Return(transform.ErrClosed)
 			},
 			wantErr: true,
 		},

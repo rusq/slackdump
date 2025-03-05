@@ -2,6 +2,7 @@ package control
 
 import (
 	"context"
+	"reflect"
 	"testing"
 	"time"
 
@@ -403,6 +404,210 @@ func Test_tryClose(t *testing.T) {
 			err := <-errC
 			if (err != nil) != tt.wantErr {
 				t.Errorf("tryClose() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func Test_newGenerator(t *testing.T) {
+	type args struct {
+		s     Streamer
+		p     superprocessor
+		flags Flags
+		list  *structures.EntityList
+	}
+	tests := []struct {
+		name string
+		args args
+		want generator
+	}{
+		{
+			name: "refresh",
+			args: args{
+				s:     nil,
+				flags: Flags{Refresh: true},
+				list:  nil,
+			},
+			want: &combinedGenerator{},
+		},
+		{
+			name: "inclusive",
+			args: args{
+				s:     nil,
+				flags: Flags{},
+				list:  structures.NewEntityListFromItems(structures.EntityItem{Id: "C11111111", Include: true}),
+			},
+			want: &listGen{},
+		},
+		{
+			name: "exclusive",
+			args: args{
+				s:     nil,
+				flags: Flags{},
+				list:  structures.NewEntityListFromItems(structures.EntityItem{Id: "C11111111", Include: false}),
+			},
+			want: &apiGenerator{},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := newGenerator(tt.args.s, tt.args.p, tt.args.flags, tt.args.list); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("newGenerator() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_runWorkers(t *testing.T) {
+	type superMockProcessor struct {
+		*mock_processor.MockConversations
+		*mock_processor.MockUsers
+		*mock_processor.MockChannels
+		*mock_processor.MockWorkspaceInfo
+	}
+	testList := structures.NewEntityListFromItems(
+		structures.EntityItem{Id: "C11111111", Include: true},
+	)
+	type args struct {
+		ctx context.Context
+		// s     Streamer
+		list  *structures.EntityList
+		p     superprocessor
+		flags Flags
+	}
+	tests := []struct {
+		name     string
+		args     args
+		expectFn func(*mock_control.MockStreamer, *superMockProcessor)
+		wantErr  bool
+	}{
+		{
+			name: "one channel",
+			args: args{
+				ctx:   context.Background(),
+				list:  testList,
+				flags: Flags{},
+			},
+			expectFn: func(s *mock_control.MockStreamer, m *superMockProcessor) {
+				s.EXPECT().
+					WorkspaceInfo(gomock.Any(), m.MockWorkspaceInfo).
+					Return(nil)
+				s.EXPECT().
+					Conversations(gomock.Any(), m.MockConversations, gomock.Any()).
+					Return(nil)
+				s.EXPECT().
+					Users(gomock.Any(), m.MockUsers, gomock.Any()).
+					Return(nil)
+				m.MockConversations.EXPECT().Close().Return(nil)
+			},
+			wantErr: false,
+		},
+		{
+			name: "conversations error",
+			args: args{
+				ctx:   context.Background(),
+				list:  testList,
+				flags: Flags{},
+			},
+			expectFn: func(s *mock_control.MockStreamer, m *superMockProcessor) {
+				s.EXPECT().
+					WorkspaceInfo(gomock.Any(), m.MockWorkspaceInfo).
+					Return(nil)
+				s.EXPECT().
+					Conversations(gomock.Any(), m.MockConversations, gomock.Any()).
+					Return(assert.AnError)
+				s.EXPECT().
+					Users(gomock.Any(), m.MockUsers, gomock.Any()).
+					Return(nil)
+				m.MockConversations.EXPECT().Close().Return(nil)
+			},
+			wantErr: true,
+		},
+		{
+			name: "workspace info error",
+			args: args{
+				ctx:   context.Background(),
+				list:  testList,
+				flags: Flags{},
+			},
+			expectFn: func(s *mock_control.MockStreamer, m *superMockProcessor) {
+				s.EXPECT().
+					WorkspaceInfo(gomock.Any(), m.MockWorkspaceInfo).
+					Return(assert.AnError)
+				s.EXPECT().
+					Conversations(gomock.Any(), m.MockConversations, gomock.Any()).
+					Return(nil)
+				s.EXPECT().
+					Users(gomock.Any(), m.MockUsers, gomock.Any()).
+					Return(nil)
+				m.MockConversations.EXPECT().Close().Return(nil)
+			},
+			wantErr: true,
+		},
+		{
+			name: "users error",
+			args: args{
+				ctx:   context.Background(),
+				list:  testList,
+				flags: Flags{},
+			},
+			expectFn: func(s *mock_control.MockStreamer, m *superMockProcessor) {
+				s.EXPECT().
+					WorkspaceInfo(gomock.Any(), m.MockWorkspaceInfo).
+					Return(nil)
+				s.EXPECT().
+					Conversations(gomock.Any(), m.MockConversations, gomock.Any()).
+					Return(nil)
+				s.EXPECT().
+					Users(gomock.Any(), m.MockUsers, gomock.Any()).
+					Return(assert.AnError)
+				m.MockConversations.EXPECT().Close().Return(nil)
+			},
+			wantErr: true,
+		},
+		{
+			name: "close error",
+			args: args{
+				ctx:   context.Background(),
+				list:  testList,
+				flags: Flags{},
+			},
+			expectFn: func(s *mock_control.MockStreamer, m *superMockProcessor) {
+				s.EXPECT().
+					WorkspaceInfo(gomock.Any(), m.MockWorkspaceInfo).
+					Return(nil)
+				s.EXPECT().
+					Conversations(gomock.Any(), m.MockConversations, gomock.Any()).
+					Return(nil)
+				s.EXPECT().
+					Users(gomock.Any(), m.MockUsers, gomock.Any()).
+					Return(nil)
+				m.MockConversations.EXPECT().Close().Return(assert.AnError)
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			s := mock_control.NewMockStreamer(ctrl)
+			m := &superMockProcessor{
+				MockConversations: mock_processor.NewMockConversations(ctrl),
+				MockUsers:         mock_processor.NewMockUsers(ctrl),
+				MockChannels:      mock_processor.NewMockChannels(ctrl),
+				MockWorkspaceInfo: mock_processor.NewMockWorkspaceInfo(ctrl),
+			}
+			if tt.expectFn != nil {
+				tt.expectFn(s, m)
+			}
+			p := superprocessor{
+				Conversations: m.MockConversations,
+				Users:         m.MockUsers,
+				Channels:      m.MockChannels,
+				WorkspaceInfo: m.MockWorkspaceInfo,
+			}
+			if err := runWorkers(tt.args.ctx, s, tt.args.list, p, tt.args.flags); (err != nil) != tt.wantErr {
+				t.Errorf("runWorkers() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
