@@ -1,0 +1,27 @@
+* TODO export compatibility
+  /canvases.json is the list of all channel canvases (just slack files, files
+  are not included).
+
+  /file_conversations.json contains list of all file conversations,
+  conversations are presented as special directories. FC:<FILE_ID>:File_name,
+  and contains date-files.
+
+  /users.json are formatted one json per line, comma at the end of each line,
+  and it's an array.
+
+  message JSON has empty fields omitted, while file JSON does not.
+
+  channel directories have a special "canvases_in_conversation.json" file that
+  contains canvases in the channel as an array of files.
+
+  archived channels are included in the export.
+
+* TODO Database backend
+** DONE Add database backend support to Dump converter, it relies on the files
+** DONE Check if the thread export works as intended.
+** TODO Conversion to and from.
+** TODO Target interface and implementation for all formats.
+
+* TODO Source detection
+** TODO detect standard file storage
+* TODO Universal search controller + tests
