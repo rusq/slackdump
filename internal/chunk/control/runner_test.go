@@ -3,6 +3,7 @@ package control
 import (
 	"context"
 	"reflect"
+	"sort"
 	"testing"
 	"time"
 
@@ -347,6 +348,13 @@ func Test_combinedGenerator_Generate(t *testing.T) {
 			collected := collectItems(listC)
 			got := collected()
 			close(errC)
+
+			sort.Slice(got, func(i, j int) bool {
+				return got[i].Id < got[j].Id
+			})
+			sort.Slice(tt.want, func(i, j int) bool {
+				return tt.want[i].Id < tt.want[j].Id
+			})
 
 			assert.Equal(t, tt.want, got)
 			if err := <-errC; (err != nil) != tt.wantErr {

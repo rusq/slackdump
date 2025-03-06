@@ -184,7 +184,7 @@ func (s stopFn) Close() error {
 	return err
 }
 
-func searchControllerv31(ctx context.Context, dir string, sess *slackdump.Session, terms []string) (*control.DBController, io.Closer, error) {
+func searchControllerv31(ctx context.Context, dir string, sess *slackdump.Session, terms []string) (*control.Controller, io.Closer, error) {
 	var stop stopFn
 	if len(terms) == 0 {
 		base.SetExitStatus(base.SInvalidParameters)
@@ -233,7 +233,7 @@ func searchControllerv31(ctx context.Context, dir string, sess *slackdump.Sessio
 	}
 	stop = append(stop, dbp.Close)
 
-	ctrl, err := control.NewDB(
+	ctrl, err := control.New(
 		ctx,
 		sess.Stream(sopts...),
 		dbp,

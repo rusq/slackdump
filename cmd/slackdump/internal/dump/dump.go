@@ -323,7 +323,7 @@ func dumpv31(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, p d
 		}),
 	)
 
-	ctrl, err := control.NewDB(
+	ctrl, err := control.New(
 		ctx,
 		stream,
 		tmpdbp,

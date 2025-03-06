@@ -2,7 +2,9 @@ package control
 
 import (
 	"context"
+	"io"
 
+	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/internal/structures"
 
 	"github.com/rusq/slack"
@@ -11,7 +13,7 @@ import (
 	"github.com/rusq/slackdump/v3/processor"
 )
 
-//go:generate mockgen -destination=mock_control/mock_interfaces.go . Streamer,TransformStarter,ExportTransformer,ReferenceChecker
+//go:generate mockgen -destination=mock_control/mock_interfaces.go . Streamer,TransformStarter,ExportTransformer,ReferenceChecker,EncodeReferenceCloser
 
 // Streamer is the interface for the API scraper.
 type Streamer interface {
@@ -43,4 +45,12 @@ type ReferenceChecker interface {
 	// IsFinalised should return true, if all messages and threads for the
 	// channel has been processed.
 	IsFinalised(ctx context.Context, channelID string) (bool, error)
+}
+
+// EncodeReferenceCloser is an interface that combines the chunk.Encoder,
+// ReferenceChecker and io.Closer interfaces.
+type EncodeReferenceCloser interface {
+	chunk.Encoder
+	ReferenceChecker
+	io.Closer
 }

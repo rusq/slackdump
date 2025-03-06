@@ -179,7 +179,7 @@ func DBController(ctx context.Context, cmd *base.Command, conn *sqlx.DB, sess *s
 		lg,
 	)
 
-	ctrl, err := control.NewDB(
+	ctrl, err := control.New(
 		ctx,
 		sess.Stream(sopts...),
 		dbp,

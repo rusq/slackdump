@@ -12,6 +12,22 @@ import (
 // Option is a functional option for the Controller.
 type Option func(*options)
 
+type options struct {
+	// tf is the transformer of the chunk data. It may not be necessary, if
+	// caller is not interested in transforming the data.
+	tf ExportTransformer
+	// files subprocessor, if not configured with options, it's a noop, as
+	// it's not necessary for all use cases.
+	filer processor.Filer
+	// avp is avatar downloader (subprocessor), if not configured with options,
+	// it's a noop, as it's not necessary
+	avp processor.Avatars
+	// lg is the logger
+	lg *slog.Logger
+	// flags
+	flags Flags
+}
+
 // WithFiler configures the controller with a file subprocessor.
 func WithFiler(f processor.Filer) Option {
 	return func(c *options) {

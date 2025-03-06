@@ -69,7 +69,7 @@ func NewCustomRecorder(name string, enc Encoder, options ...Option) *Recorder {
 
 // Encoder is the interface that wraps the Encode method.
 type Encoder interface {
-	Encode(ctx context.Context, chunk interface{}) error
+	Encode(ctx context.Context, chunk any) error
 }
 
 // Messages is called for each message chunk that is retrieved.

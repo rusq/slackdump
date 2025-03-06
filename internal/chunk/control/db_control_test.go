@@ -1,0 +1,299 @@
+package control
+
+import (
+	"context"
+	"log/slog"
+	"reflect"
+	"testing"
+
+	"github.com/rusq/slack"
+	"github.com/stretchr/testify/assert"
+	"go.uber.org/mock/gomock"
+
+	"github.com/rusq/slackdump/v3/internal/chunk/control/mock_control"
+	"github.com/rusq/slackdump/v3/internal/structures"
+	"github.com/rusq/slackdump/v3/mocks/mock_processor"
+	"github.com/rusq/slackdump/v3/processor"
+)
+
+func TestController_Close(t *testing.T) {
+	type fields struct {
+		// erc     EncodeReferenceCloser
+		s       Streamer
+		options options
+	}
+	tests := []struct {
+		name     string
+		fields   fields
+		expectFn func(*mock_processor.MockFiler, *mock_processor.MockAvatars, *mock_control.MockEncodeReferenceCloser)
+		wantErr  bool
+	}{
+		{
+			name: "no errors",
+			fields: fields{
+				s: &mock_control.MockStreamer{},
+			},
+			expectFn: func(f *mock_processor.MockFiler, a *mock_processor.MockAvatars, erc *mock_control.MockEncodeReferenceCloser) {
+				f.EXPECT().Close().Return(nil)
+				a.EXPECT().Close().Return(nil)
+				erc.EXPECT().Close().Return(nil)
+			},
+			wantErr: false,
+		},
+		{
+			name: "error closing filer, the rest should continue",
+			fields: fields{
+				s: &mock_control.MockStreamer{},
+			},
+			expectFn: func(f *mock_processor.MockFiler, a *mock_processor.MockAvatars, erc *mock_control.MockEncodeReferenceCloser) {
+				f.EXPECT().Close().Return(assert.AnError)
+				a.EXPECT().Close().Return(nil)
+				erc.EXPECT().Close().Return(nil)
+			},
+			wantErr: true,
+		},
+		{
+			name: "error closing avatar processor, the rest should continue",
+			fields: fields{
+				s: &mock_control.MockStreamer{},
+			},
+			expectFn: func(f *mock_processor.MockFiler, a *mock_processor.MockAvatars, erc *mock_control.MockEncodeReferenceCloser) {
+				f.EXPECT().Close().Return(nil)
+				a.EXPECT().Close().Return(assert.AnError)
+				erc.EXPECT().Close().Return(nil)
+			},
+			wantErr: true,
+		},
+		{
+			name: "error closing erc, the rest should continue",
+			fields: fields{
+				s: &mock_control.MockStreamer{},
+			},
+			expectFn: func(f *mock_processor.MockFiler, a *mock_processor.MockAvatars, erc *mock_control.MockEncodeReferenceCloser) {
+				f.EXPECT().Close().Return(nil)
+				a.EXPECT().Close().Return(nil)
+				erc.EXPECT().Close().Return(assert.AnError)
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var (
+				ctrl = gomock.NewController(t)
+				f    = mock_processor.NewMockFiler(ctrl)
+				a    = mock_processor.NewMockAvatars(ctrl)
+				erc  = mock_control.NewMockEncodeReferenceCloser(ctrl)
+			)
+			if tt.expectFn != nil {
+				tt.expectFn(f, a, erc)
+			}
+			c := &Controller{
+				erc:     erc,
+				s:       tt.fields.s,
+				options: tt.fields.options,
+			}
+			c.options.filer = f
+			c.options.avp = a
+
+			if err := c.Close(); (err != nil) != tt.wantErr {
+				t.Errorf("Controller.Close() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestController_Run(t *testing.T) {
+	type args struct {
+		ctx  context.Context
+		list *structures.EntityList
+	}
+	tests := []struct {
+		name     string
+		args     args
+		expectFn func(
+			*mock_control.MockStreamer,
+			*mock_processor.MockFiler,
+			*mock_processor.MockAvatars,
+			*mock_control.MockExportTransformer,
+			*mock_control.MockEncodeReferenceCloser,
+		)
+		wantErr bool
+	}{
+		{
+			name: "no errors",
+			args: args{
+				ctx:  context.Background(),
+				list: &structures.EntityList{},
+			},
+			expectFn: func(s *mock_control.MockStreamer, f *mock_processor.MockFiler, a *mock_processor.MockAvatars, tf *mock_control.MockExportTransformer, erc *mock_control.MockEncodeReferenceCloser) {
+				testUsers := []slack.User{testUser1, testUser2}
+				// called by the runner
+				s.EXPECT().ListChannels(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
+				s.EXPECT().Users(gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, proc processor.Users, opt ...slack.GetUsersOption) error {
+					proc.Users(ctx, testUsers)
+					return nil
+				})
+				s.EXPECT().Conversations(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
+				s.EXPECT().WorkspaceInfo(gomock.Any(), gomock.Any()).Return(nil)
+				// called by close
+				f.EXPECT().Close().Return(nil)
+				a.EXPECT().Close().Return(nil)
+
+				// Users calls avatars
+				a.EXPECT().Users(gomock.Any(), testUsers).Return(nil)
+				// encoder calls
+				erc.EXPECT().Encode(gomock.Any(), gomock.Any()).Return(nil)
+				// once users are processed, transformer should be started
+				tf.EXPECT().StartWithUsers(gomock.Any(), testUsers).Return(nil)
+			},
+			wantErr: false,
+		},
+		{
+			name: "Users returns error",
+			args: args{
+				ctx:  context.Background(),
+				list: &structures.EntityList{},
+			},
+			expectFn: func(s *mock_control.MockStreamer, f *mock_processor.MockFiler, a *mock_processor.MockAvatars, tf *mock_control.MockExportTransformer, erc *mock_control.MockEncodeReferenceCloser) {
+				// called by the runner
+				s.EXPECT().ListChannels(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
+				s.EXPECT().Users(gomock.Any(), gomock.Any()).Return(assert.AnError)
+				s.EXPECT().Conversations(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
+				s.EXPECT().WorkspaceInfo(gomock.Any(), gomock.Any()).Return(nil)
+				// called by close
+				f.EXPECT().Close().Return(nil)
+				a.EXPECT().Close().Return(nil)
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var (
+				ctrl = gomock.NewController(t)
+				s    = mock_control.NewMockStreamer(ctrl)
+				f    = mock_processor.NewMockFiler(ctrl)
+				a    = mock_processor.NewMockAvatars(ctrl)
+				tf   = mock_control.NewMockExportTransformer(ctrl)
+				erc  = mock_control.NewMockEncodeReferenceCloser(ctrl)
+			)
+			if tt.expectFn != nil {
+				tt.expectFn(s, f, a, tf, erc)
+			}
+			c := &Controller{
+				erc: erc,
+				s:   s,
+				options: options{
+					filer: f,
+					avp:   a,
+					tf:    tf,
+				},
+			}
+			if err := c.Run(tt.args.ctx, tt.args.list); (err != nil) != tt.wantErr {
+				t.Errorf("Controller.Run() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestNew(t *testing.T) {
+	type args struct {
+		ctx  context.Context
+		s    Streamer
+		erc  EncodeReferenceCloser
+		opts []Option
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    *Controller
+		wantErr bool
+	}{
+		{
+			name: "creates new controller",
+			args: args{
+				ctx: context.Background(),
+				s:   &mock_control.MockStreamer{},
+				erc: &mock_control.MockEncodeReferenceCloser{},
+			},
+			want: &Controller{
+				erc: &mock_control.MockEncodeReferenceCloser{},
+				s:   &mock_control.MockStreamer{},
+				options: options{
+					lg:    slog.Default(),
+					tf:    &noopTransformer{},
+					filer: &noopFiler{},
+					avp:   &noopAvatarProc{},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "options get processed",
+			args: args{
+				ctx: context.Background(),
+				s:   &mock_control.MockStreamer{},
+				erc: &mock_control.MockEncodeReferenceCloser{},
+				opts: []Option{
+					WithAvatarProcessor(&mock_processor.MockAvatars{}),
+					WithFiler(&mock_processor.MockFiler{}),
+				},
+			},
+			want: &Controller{
+				erc: &mock_control.MockEncodeReferenceCloser{},
+				s:   &mock_control.MockStreamer{},
+				options: options{
+					lg:    slog.Default(),
+					tf:    &noopTransformer{},
+					filer: &mock_processor.MockFiler{},
+					avp:   &mock_processor.MockAvatars{},
+				},
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := New(tt.args.ctx, tt.args.s, tt.args.erc, tt.args.opts...)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("New() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("New() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestController_newConvTransformer(t *testing.T) {
+	type fields struct {
+		erc     EncodeReferenceCloser
+		s       Streamer
+		options options
+	}
+	type args struct {
+		ctx context.Context
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   *conversationTransformer
+	}{
+		// TODO: Add test cases.
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := &Controller{
+				erc:     tt.fields.erc,
+				s:       tt.fields.s,
+				options: tt.fields.options,
+			}
+			if got := c.newConvTransformer(tt.args.ctx); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Controller.newConvTransformer() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

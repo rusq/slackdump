@@ -28,22 +28,6 @@ type DirController struct {
 	options
 }
 
-type options struct {
-	// tf is the transformer of the chunk data. It may not be necessary, if
-	// caller is not interested in transforming the data.
-	tf ExportTransformer
-	// files subprocessor, if not configured with options, it's a noop, as
-	// it's not necessary for all use cases.
-	filer processor.Filer
-	// avp is avatar downloader (subprocessor), if not configured with options,
-	// it's a noop, as it's not necessary
-	avp processor.Avatars
-	// lg is the logger
-	lg *slog.Logger
-	// flags
-	flags Flags
-}
-
 // NewDir creates a new [DirController]. Once the [Control.Close] is called it
 // closes all file processors.
 func NewDir(cd *chunk.Directory, s Streamer, opts ...Option) *DirController {

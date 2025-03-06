@@ -83,7 +83,7 @@ func exportv31(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, l
 		MemberOnly:  cfg.MemberOnly,
 		RecordFiles: false, // archive format is transitory, don't need extra info.
 	}
-	ctr, err := control.NewDB(
+	ctr, err := control.New(
 		ctx,
 		s,
 		tmpdbp,
