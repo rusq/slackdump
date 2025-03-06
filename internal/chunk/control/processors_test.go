@@ -138,6 +138,17 @@ func Test_userCollector_Close(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "cancelled context",
+			fields: fields{
+				ctx:   testCtx,
+				users: []slack.User{testUser1, testUser2},
+			},
+			expectFn: func(mts *mock_control.MockTransformStarter) {
+				mts.EXPECT().StartWithUsers(gomock.Any(), gomock.Any()).Return(context.Canceled)
+			},
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -483,6 +494,8 @@ var (
 )
 
 func Test_chanFilter_Channels(t *testing.T) {
+	cancelledCtx, cancel := context.WithCancel(context.Background())
+	cancel()
 	type fields struct {
 		// links      chan<- structures.EntityItem
 		memberOnly bool
@@ -564,6 +577,22 @@ func Test_chanFilter_Channels(t *testing.T) {
 				{Id: "D33333333", Include: true},
 			},
 		},
+		{
+			name: "cancelled context",
+			fields: fields{
+				memberOnly: false,
+				idx:        make(map[string]*structures.EntityItem),
+			},
+			args: args{
+				ctx: cancelledCtx,
+				ch: []slack.Channel{
+					testPubChanMember,
+					testPubChanNonMember,
+				},
+			},
+			want:    []structures.EntityItem{},
+			wantErr: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -588,6 +617,8 @@ func Test_chanFilter_Channels(t *testing.T) {
 }
 
 func Test_combinedChannels_Channels(t *testing.T) {
+	cancelledCtx, cancel := context.WithCancel(context.Background())
+	cancel()
 	type fields struct {
 		// output    chan<- structures.EntityItem
 		processed map[string]struct{}
@@ -647,6 +678,23 @@ func Test_combinedChannels_Channels(t *testing.T) {
 				{Id: "G44444444", Include: true},
 			},
 			wantErr: false,
+		},
+		{
+			name: "cancelled context",
+			fields: fields{
+				processed: make(map[string]struct{}),
+			},
+			args: args{
+				ctx: cancelledCtx,
+				ch: []slack.Channel{
+					testPubChanMember,
+					testPubChanNonMember,
+					testPrivChanNonMember,
+					testGroupChanNonMember,
+				},
+			},
+			want:    []structures.EntityItem{},
+			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
