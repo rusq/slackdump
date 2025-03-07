@@ -115,7 +115,6 @@ func runDBArchive(ctx context.Context, cmd *base.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-
 	defer func() {
 		if err := ctrl.Close(); err != nil {
 			slog.ErrorContext(ctx, "unable to close database controller", "error", err)

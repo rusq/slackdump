@@ -20,6 +20,8 @@ import (
 
 // DirController is the main controller of the Slack Stream.  It runs the API
 // scraping in several goroutines and manages the data flow between them.
+//
+// Deprecated: use [Control] instead.
 type DirController struct {
 	// chunk directory to store the scraped data.
 	cd *chunk.Directory
@@ -30,6 +32,8 @@ type DirController struct {
 
 // NewDir creates a new [DirController]. Once the [Control.Close] is called it
 // closes all file processors.
+//
+// Deprecated: use [New] instead.
 func NewDir(cd *chunk.Directory, s Streamer, opts ...Option) *DirController {
 	c := &DirController{
 		cd: cd,

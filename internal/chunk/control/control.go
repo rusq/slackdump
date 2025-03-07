@@ -38,6 +38,7 @@ func New(ctx context.Context, s Streamer, erc EncodeReferenceCloser, opts ...Opt
 	return d, nil
 }
 
+// newConvTransformer creates a new conversation transformer.
 func (c *Controller) newConvTransformer(ctx context.Context) *conversationTransformer {
 	return &conversationTransformer{
 		ctx: ctx,
@@ -46,6 +47,9 @@ func (c *Controller) newConvTransformer(ctx context.Context) *conversationTransf
 	}
 }
 
+// Run starts the scraping of the Slack API. The [EntityList] is used to
+// determine which entities to scrape. The [EntityList] can be created with the
+// [structures.NewEntityList] function.
 func (c *Controller) Run(ctx context.Context, list *structures.EntityList) error {
 	rec := chunk.NewCustomRecorder("generic", c.erc)
 	defer rec.Close()
@@ -94,10 +98,11 @@ func (c *Controller) Search(ctx context.Context, query string, stype SearchType)
 	if err := runSearch(ctx, c.s, s, stype, query); err != nil {
 		return fmt.Errorf("error searching: %w", err)
 	}
-	c.lg.InfoContext(ctx, "search completed ", "query", query, "took", time.Since(start).String())
+	c.lg.InfoContext(ctx, "search completed", "query", query, "took", time.Since(start).String())
 	return nil
 }
 
+// Close closes the controller and all its file processors.
 func (c *Controller) Close() error {
 	var errs error
 	if c.filer != nil {
@@ -110,6 +115,8 @@ func (c *Controller) Close() error {
 			errs = errors.Join(errs, fmt.Errorf("error closing avatar processor: %w", err))
 		}
 	}
+	// TODO: Decide if it is necessary to close the encoder here or leave it
+	// for the caller.
 	if err := c.erc.Close(); err != nil {
 		errs = errors.Join(errs, fmt.Errorf("error closing database processor: %w", err))
 	}

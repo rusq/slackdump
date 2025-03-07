@@ -15,15 +15,18 @@ import (
 
 const defFilename = "slackdump.sqlite"
 
-// Database returns the initialised database connection open for writing.
+// Database returns the database connection open for writing, and a session
+// info based on the mode and the command line arguments.
 func Database(dir string, mode string) (*sqlx.DB, dbproc.SessionInfo, error) {
 	dbfile := filepath.Join(dir, defFilename)
-	// wconn is the writer connection
-	wconn, err := sqlx.Open(repository.Driver, dbfile)
+	db, err := sqlx.Open(repository.Driver, dbfile)
 	if err != nil {
 		return nil, dbproc.SessionInfo{}, err
 	}
-	return wconn, SessionInfo(mode), nil
+	if err := db.Ping(); err != nil {
+		return nil, dbproc.SessionInfo{}, err
+	}
+	return db, SessionInfo(mode), nil
 }
 
 func SessionInfo(mode string) dbproc.SessionInfo {

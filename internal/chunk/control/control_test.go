@@ -297,3 +297,108 @@ func TestController_newConvTransformer(t *testing.T) {
 		})
 	}
 }
+
+func TestController_Search(t *testing.T) {
+	type args struct {
+		ctx   context.Context
+		query string
+		stype SearchType
+	}
+	tests := []struct {
+		name     string
+		expectFn func(
+			*mock_control.MockStreamer,
+			*mock_processor.MockFiler,
+			*mock_processor.MockAvatars,
+			*mock_control.MockExportTransformer,
+			*mock_control.MockEncodeReferenceCloser,
+		)
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "no errors",
+			args: args{
+				ctx:   context.Background(),
+				query: "test",
+				stype: SMessages | SFiles,
+			},
+			expectFn: func(s *mock_control.MockStreamer, f *mock_processor.MockFiler, a *mock_processor.MockAvatars, tf *mock_control.MockExportTransformer, erc *mock_control.MockEncodeReferenceCloser) {
+				s.EXPECT().WorkspaceInfo(gomock.Any(), gomock.Any()).Return(nil)
+				s.EXPECT().SearchMessages(gomock.Any(), gomock.Any(), "test").Return(nil)
+				s.EXPECT().SearchFiles(gomock.Any(), gomock.Any(), "test").Return(nil)
+			},
+			wantErr: false,
+		},
+		{
+			name: "error searching messages",
+			args: args{
+				ctx:   context.Background(),
+				query: "test",
+				stype: SMessages | SFiles,
+			},
+			expectFn: func(s *mock_control.MockStreamer, f *mock_processor.MockFiler, a *mock_processor.MockAvatars, tf *mock_control.MockExportTransformer, erc *mock_control.MockEncodeReferenceCloser) {
+				s.EXPECT().WorkspaceInfo(gomock.Any(), gomock.Any()).Return(nil)
+				s.EXPECT().SearchMessages(gomock.Any(), gomock.Any(), "test").Return(assert.AnError)
+				s.EXPECT().SearchFiles(gomock.Any(), gomock.Any(), "test").Return(nil)
+			},
+			wantErr: true,
+		},
+		{
+			name: "error searching files",
+			args: args{
+				ctx:   context.Background(),
+				query: "test",
+				stype: SMessages | SFiles,
+			},
+			expectFn: func(s *mock_control.MockStreamer, f *mock_processor.MockFiler, a *mock_processor.MockAvatars, tf *mock_control.MockExportTransformer, erc *mock_control.MockEncodeReferenceCloser) {
+				s.EXPECT().WorkspaceInfo(gomock.Any(), gomock.Any()).Return(nil)
+				s.EXPECT().SearchMessages(gomock.Any(), gomock.Any(), "test").Return(nil)
+				s.EXPECT().SearchFiles(gomock.Any(), gomock.Any(), "test").Return(assert.AnError)
+			},
+			wantErr: true,
+		},
+		{
+			name: "error getting workspace info",
+			args: args{
+				ctx:   context.Background(),
+				query: "test",
+				stype: SMessages | SFiles,
+			},
+			expectFn: func(s *mock_control.MockStreamer, f *mock_processor.MockFiler, a *mock_processor.MockAvatars, tf *mock_control.MockExportTransformer, erc *mock_control.MockEncodeReferenceCloser) {
+				s.EXPECT().WorkspaceInfo(gomock.Any(), gomock.Any()).Return(assert.AnError)
+				s.EXPECT().SearchMessages(gomock.Any(), gomock.Any(), "test").Return(nil)
+				s.EXPECT().SearchFiles(gomock.Any(), gomock.Any(), "test").Return(nil)
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var (
+				ctrl = gomock.NewController(t)
+				s    = mock_control.NewMockStreamer(ctrl)
+				f    = mock_processor.NewMockFiler(ctrl)
+				a    = mock_processor.NewMockAvatars(ctrl)
+				tf   = mock_control.NewMockExportTransformer(ctrl)
+				erc  = mock_control.NewMockEncodeReferenceCloser(ctrl)
+			)
+			if tt.expectFn != nil {
+				tt.expectFn(s, f, a, tf, erc)
+			}
+			c := &Controller{
+				erc: erc,
+				s:   s,
+				options: options{
+					lg:    slog.Default(),
+					filer: f,
+					avp:   a,
+					tf:    tf,
+				},
+			}
+			if err := c.Search(tt.args.ctx, tt.args.query, tt.args.stype); (err != nil) != tt.wantErr {
+				t.Errorf("Controller.Search() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}

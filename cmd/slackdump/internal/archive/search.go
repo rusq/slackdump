@@ -4,7 +4,6 @@ import (
 	"context"
 	_ "embed"
 	"errors"
-	"io"
 	"strings"
 	"sync"
 
@@ -20,10 +19,6 @@ import (
 	"github.com/rusq/slackdump/v3/internal/chunk/transform/fileproc"
 	"github.com/rusq/slackdump/v3/stream"
 )
-
-// *****
-// TODO: implement database
-// *****
 
 var CmdSearch = &base.Command{
 	UsageLine:   "slackdump search",
@@ -49,7 +44,7 @@ var cmdSearchMessages = &base.Command{
 	Long:        `Searches for messages matching criteria.`,
 	RequireAuth: true,
 	FlagMask:    flagMask | cfg.OmitRecordFilesFlag,
-	Run:         runSearchFn((*control.DirController).SearchMessages),
+	Run:         runSearchMsg,
 	PrintFlags:  true,
 }
 
@@ -59,7 +54,7 @@ var cmdSearchFiles = &base.Command{
 	Long:        `Searches for messages matching criteria.`,
 	RequireAuth: true,
 	FlagMask:    flagMask,
-	Run:         runSearchFn((*control.DirController).SearchFiles),
+	Run:         runSearchFiles,
 	PrintFlags:  true,
 }
 
@@ -69,7 +64,7 @@ var cmdSearchAll = &base.Command{
 	Long:        `Records search message and files results matching the given query`,
 	RequireAuth: true,
 	FlagMask:    flagMask,
-	Run:         runSearchFn((*control.DirController).SearchAll),
+	Run:         runSearchAll,
 	PrintFlags:  true,
 }
 
@@ -81,100 +76,57 @@ func init() {
 	}
 }
 
-var ErrNoQuery = errors.New("missing query parameter")
-
-func runSearchFn(fn func(*control.DirController, context.Context, string) error) func(context.Context, *base.Command, []string) error {
-	return func(ctx context.Context, cmd *base.Command, args []string) error {
-		if len(args) == 0 {
-			base.SetExitStatus(base.SInvalidParameters)
-			return ErrNoQuery
-		}
-
-		cfg.Log.Info("running command", "cmd", cmd.Name())
-
-		sess, err := bootstrap.SlackdumpSession(ctx)
-		if err != nil {
-			base.SetExitStatus(base.SInitializationError)
-			return err
-		}
-
-		ctrl, stop, err := searchControllerv3(ctx, cfg.Output, sess, args)
-		if err != nil {
-			base.SetExitStatus(base.SApplicationError)
-			return err
-		}
-		defer func() {
-			if err := ctrl.Close(); err != nil {
-				cfg.Log.Error("error closing controller", "err", err)
-			}
-		}()
-		defer stop()
-
-		query := strings.Join(args, " ")
-		if err := fn(ctrl, ctx, query); err != nil {
-			base.SetExitStatus(base.SApplicationError)
-			return err
-		}
-		return nil
-	}
+func runSearchMsg(ctx context.Context, cmd *base.Command, args []string) error {
+	return runSearch(ctx, cmd, args, control.SMessages)
 }
 
-func searchControllerv3(ctx context.Context, dir string, sess *slackdump.Session, terms []string) (*control.DirController, func(), error) {
-	noop := func() {}
-	if len(terms) == 0 {
+func runSearchFiles(ctx context.Context, cmd *base.Command, args []string) error {
+	return runSearch(ctx, cmd, args, control.SFiles)
+}
+
+func runSearchAll(ctx context.Context, cmd *base.Command, args []string) error {
+	return runSearch(ctx, cmd, args, control.SMessages|control.SFiles)
+}
+
+var ErrNoQuery = errors.New("missing query parameter")
+
+func runSearch(ctx context.Context, cmd *base.Command, args []string, typ control.SearchType) error {
+	if len(args) == 0 {
 		base.SetExitStatus(base.SInvalidParameters)
-		return nil, noop, errors.New("missing query parameter")
+		return ErrNoQuery
 	}
 
-	cd, err := NewDirectory(dir)
+	cfg.Log.Info("running command", "cmd", cmd.Name())
+
+	sess, err := bootstrap.SlackdumpSession(ctx)
 	if err != nil {
-		return nil, noop, err
+		base.SetExitStatus(base.SInitializationError)
+		return err
 	}
 
-	lg := cfg.Log
-
-	dl := fileproc.NewDownloader(
-		ctx,
-		cfg.DownloadFiles,
-		sess.Client(),
-		fsadapter.NewDirectory(cd.Name()),
-		lg,
-	)
-
-	pb := bootstrap.ProgressBar(ctx, lg, progressbar.OptionShowCount()) // progress bar
-
-	var once sync.Once
-	sopts := []stream.Option{
-		stream.OptResultFn(func(sr stream.Result) error {
-			lg.DebugContext(ctx, "stream", "result", sr.String())
-			once.Do(func() { pb.Describe(sr.String()) })
-			pb.Add(sr.Count)
-			return nil
-		}),
+	ctrl, stop, err := searchControllerv31(ctx, cfg.Output, sess, args)
+	if err != nil {
+		base.SetExitStatus(base.SApplicationError)
+		return err
 	}
-	if fastSearch {
-		sopts = append(sopts, stream.OptFastSearch())
-	}
-
-	ctrl := control.NewDir(
-		cd,
-		sess.Stream(sopts...),
-		control.WithLogger(lg),
-		control.WithFiler(fileproc.New(dl)),
-		control.WithFlags(control.Flags{RecordFiles: cfg.RecordFiles}),
-	)
-	stop := func() {
-		_ = pb.Finish()
-		if err := cd.Close(); err != nil {
-			cfg.Log.Error("error closing directory", "err", err)
+	defer stop.Stop()
+	defer func() {
+		if err := ctrl.Close(); err != nil {
+			cfg.Log.Error("error closing controller", "err", err)
 		}
+	}()
+
+	query := strings.Join(args, " ")
+	if err := ctrl.Search(ctx, query, typ); err != nil {
+		base.SetExitStatus(base.SApplicationError)
+		return err
 	}
-	return ctrl, stop, nil
+	return nil
 }
 
 type stopFn []func() error
 
-func (s stopFn) Close() error {
+func (s stopFn) Stop() error {
 	var err error
 	for i := len(s) - 1; i >= 0; i-- {
 		if e := s[i](); err != nil {
@@ -184,7 +136,7 @@ func (s stopFn) Close() error {
 	return err
 }
 
-func searchControllerv31(ctx context.Context, dir string, sess *slackdump.Session, terms []string) (*control.Controller, io.Closer, error) {
+func searchControllerv31(ctx context.Context, dir string, sess *slackdump.Session, terms []string) (*control.Controller, stopFn, error) {
 	var stop stopFn
 	if len(terms) == 0 {
 		base.SetExitStatus(base.SInvalidParameters)
@@ -195,7 +147,8 @@ func searchControllerv31(ctx context.Context, dir string, sess *slackdump.Sessio
 	if err != nil {
 		return nil, stop, err
 	}
-	db, si, err := bootstrap.Database(dir, "search")
+	stop = append(stop, cd.Close)
+	db, si, err := bootstrap.Database(cd.Name(), "search")
 	if err != nil {
 		return nil, stop, err
 	}
@@ -210,6 +163,11 @@ func searchControllerv31(ctx context.Context, dir string, sess *slackdump.Sessio
 		fsadapter.NewDirectory(cd.Name()),
 		lg,
 	)
+
+	erc, err := dbproc.New(ctx, db, si)
+	if err != nil {
+		return nil, stop, err
+	}
 
 	pb := bootstrap.ProgressBar(ctx, lg, progressbar.OptionShowCount()) // progress bar
 	stop = append(stop, pb.Finish)
@@ -227,16 +185,10 @@ func searchControllerv31(ctx context.Context, dir string, sess *slackdump.Sessio
 		sopts = append(sopts, stream.OptFastSearch())
 	}
 
-	dbp, err := dbproc.New(ctx, db, si)
-	if err != nil {
-		return nil, stop, err
-	}
-	stop = append(stop, dbp.Close)
-
 	ctrl, err := control.New(
 		ctx,
 		sess.Stream(sopts...),
-		dbp,
+		erc,
 		control.WithLogger(lg),
 		control.WithFiler(fileproc.New(dl)),
 		control.WithFlags(control.Flags{RecordFiles: cfg.RecordFiles}),

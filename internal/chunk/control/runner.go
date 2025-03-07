@@ -17,8 +17,6 @@ import (
 	"github.com/rusq/slackdump/v3/processor"
 )
 
-// TODO: tests
-
 // Flags are the controller flags.
 type Flags struct {
 	// MemberOnly is the flag to fetch only those channels where the user is a
@@ -196,7 +194,11 @@ func tryClose(errC chan<- error, a any) {
 	}
 }
 
+// generator is something that generates the channel IDs.
 type generator interface {
+	// Generate should take the context, error channel, and the list of channels
+	// and return a channel of channel IDs.  It should close the channel when
+	// done.
 	Generate(ctx context.Context, errC chan<- error, list *structures.EntityList) <-chan structures.EntityItem
 }
 
@@ -340,6 +342,5 @@ func runSearch(ctx context.Context, s Streamer, sp supersearcher, stype SearchTy
 	if err := eg.Wait(); err != nil {
 		return fmt.Errorf("error searching: %w", err)
 	}
-	lg.InfoContext(ctx, "search completed ", "query", query)
 	return nil
 }
