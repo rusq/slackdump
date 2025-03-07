@@ -10,6 +10,7 @@ import (
 	"sync"
 
 	"github.com/rusq/slack"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/rusq/slackdump/v3"
 	"github.com/rusq/slackdump/v3/internal/structures"
@@ -66,6 +67,7 @@ func (e Error) Unwrap() error {
 	return e.Err
 }
 
+// superprocessor is a combination of all processors necessary for scraping messages.
 type superprocessor struct {
 	processor.Conversations
 	processor.Users
@@ -301,4 +303,43 @@ type listGen struct{}
 
 func (g *listGen) Generate(ctx context.Context, _ chan<- error, list *structures.EntityList) <-chan structures.EntityItem {
 	return list.C(ctx)
+}
+
+// supersearcher is a combination of all processors necessary for searching.
+type supersearcher struct {
+	processor.WorkspaceInfo
+	processor.MessageSearcher
+	processor.FileSearcher
+}
+
+func runSearch(ctx context.Context, s Streamer, sp supersearcher, stype SearchType, query string) error {
+	if stype == srchUnknown || stype > (SMessages|SFiles) {
+		return errors.New("internal: unknown search type")
+	}
+	lg := slog.With("query", query)
+
+	eg, ctx := errgroup.WithContext(ctx)
+	eg.Go(func() error {
+		return workspaceWorker(ctx, s, sp.WorkspaceInfo)
+	})
+
+	// conditionally start search workers
+
+	if stype&SMessages != 0 {
+		eg.Go(func() error {
+			lg.InfoContext(ctx, "searching messages")
+			return searchMsgWorker(ctx, s, sp.MessageSearcher, query)
+		})
+	}
+	if stype&SFiles != 0 {
+		eg.Go(func() error {
+			lg.InfoContext(ctx, "searching files")
+			return searchFileWorker(ctx, s, sp.FileSearcher, query)
+		})
+	}
+	if err := eg.Wait(); err != nil {
+		return fmt.Errorf("error searching: %w", err)
+	}
+	lg.InfoContext(ctx, "search completed ", "query", query)
+	return nil
 }

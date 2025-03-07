@@ -18,7 +18,6 @@ import (
 
 	slack "github.com/rusq/slack"
 	source "github.com/rusq/slackdump/v3/internal/source"
-	structures "github.com/rusq/slackdump/v3/internal/structures"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -120,20 +119,6 @@ func (mr *MockSourcerMockRecorder) Channels(ctx any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Channels", reflect.TypeOf((*MockSourcer)(nil).Channels), ctx)
 }
 
-// Close mocks base method.
-func (m *MockSourcer) Close() error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Close")
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// Close indicates an expected call of Close.
-func (mr *MockSourcerMockRecorder) Close() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockSourcer)(nil).Close))
-}
-
 // Files mocks base method.
 func (m *MockSourcer) Files() source.Storage {
 	m.ctrl.T.Helper()
@@ -146,21 +131,6 @@ func (m *MockSourcer) Files() source.Storage {
 func (mr *MockSourcerMockRecorder) Files() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Files", reflect.TypeOf((*MockSourcer)(nil).Files))
-}
-
-// Latest mocks base method.
-func (m *MockSourcer) Latest(ctx context.Context) (map[structures.SlackLink]time.Time, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Latest", ctx)
-	ret0, _ := ret[0].(map[structures.SlackLink]time.Time)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// Latest indicates an expected call of Latest.
-func (mr *MockSourcerMockRecorder) Latest(ctx any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Latest", reflect.TypeOf((*MockSourcer)(nil).Latest), ctx)
 }
 
 // Name mocks base method.

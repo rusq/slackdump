@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/internal/structures"
@@ -60,6 +61,41 @@ func (c *Controller) Run(ctx context.Context, list *structures.EntityList) error
 	}
 
 	return runWorkers(ctx, c.s, list, sp, c.flags)
+}
+
+type SearchType int
+
+const (
+	SMessages SearchType = 1 << iota
+	SFiles
+
+	srchUnknown SearchType = 0
+)
+
+// Search starts the search for the query string. The search type is defined by
+// the [SearchType] parameter. The search is done in parallel for messages and
+// files.
+func (c *Controller) Search(ctx context.Context, query string, stype SearchType) error {
+	rec := chunk.NewCustomRecorder("generic", c.erc)
+	defer rec.Close()
+
+	p := &jointFileSearcher{
+		FileSearcher: rec,
+		filer:        processor.JoinFilers(rec, c.filer), // in case we have a downloader, we need to join it
+	}
+
+	s := supersearcher{
+		WorkspaceInfo:   rec,
+		MessageSearcher: rec,
+		FileSearcher:    p,
+	}
+
+	start := time.Now()
+	if err := runSearch(ctx, c.s, s, stype, query); err != nil {
+		return fmt.Errorf("error searching: %w", err)
+	}
+	c.lg.InfoContext(ctx, "search completed ", "query", query, "took", time.Since(start).String())
+	return nil
 }
 
 func (c *Controller) Close() error {

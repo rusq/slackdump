@@ -301,7 +301,7 @@ func (mr *MockEncodeReferenceCloserMockRecorder) Close() *gomock.Call {
 }
 
 // Encode mocks base method.
-func (m *MockEncodeReferenceCloser) Encode(ctx context.Context, chunk any) error {
+func (m *MockEncodeReferenceCloser) Encode(ctx context.Context, chunk chunk.Chunk) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Encode", ctx, chunk)
 	ret0, _ := ret[0].(error)

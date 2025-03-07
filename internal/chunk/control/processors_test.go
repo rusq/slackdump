@@ -12,6 +12,8 @@ import (
 	"github.com/rusq/slackdump/v3/internal/chunk/control/mock_control"
 	"github.com/rusq/slackdump/v3/internal/chunk/dirproc"
 	"github.com/rusq/slackdump/v3/internal/structures"
+	"github.com/rusq/slackdump/v3/mocks/mock_processor"
+	"github.com/rusq/slackdump/v3/processor"
 )
 
 var (
@@ -774,6 +776,99 @@ func Test_errEmitter(t *testing.T) {
 			e := errEmitter(errC, tt.args.sub, tt.args.stage)
 			e(tt.call)
 			assert.Equal(t, tt.want, <-errC)
+		})
+	}
+}
+
+func Test_jointFileSearcher_Files(t *testing.T) {
+	type args struct {
+		ctx   context.Context
+		ch    *slack.Channel
+		msg   slack.Message
+		files []slack.File
+	}
+	tests := []struct {
+		name     string
+		expectFn func(*mock_processor.MockFileSearcher, *mock_processor.MockFiler)
+		args     args
+		wantErr  bool
+	}{
+		{
+			name: "no error",
+			expectFn: func(mfs *mock_processor.MockFileSearcher, mf *mock_processor.MockFiler) {
+				mf.EXPECT().Files(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).Times(1)
+			},
+			args:    args{},
+			wantErr: false,
+		},
+		{
+			name: "error",
+			expectFn: func(mfs *mock_processor.MockFileSearcher, mf *mock_processor.MockFiler) {
+				mf.EXPECT().Files(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(assert.AnError).Times(1)
+			},
+			args:    args{},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			mfs := mock_processor.NewMockFileSearcher(ctrl)
+			mf := mock_processor.NewMockFiler(ctrl)
+			if tt.expectFn != nil {
+				tt.expectFn(mfs, mf)
+			}
+			j := &jointFileSearcher{
+				FileSearcher: mfs,
+				filer:        mf,
+			}
+			// ensure the interface is implemented, and the right method is called
+			var ifs processor.FileSearcher = j
+			if err := ifs.Files(tt.args.ctx, tt.args.ch, tt.args.msg, tt.args.files); (err != nil) != tt.wantErr {
+				t.Errorf("jointFileSearcher.Files() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func Test_jointFileSearcher_Close(t *testing.T) {
+	tests := []struct {
+		name     string
+		expectFn func(*mock_processor.MockFileSearcher, *mock_processor.MockFiler)
+		wantErr  bool
+	}{
+		{
+			name: "no error",
+			expectFn: func(mfs *mock_processor.MockFileSearcher, mf *mock_processor.MockFiler) {
+				mfs.EXPECT().Close().Return(nil).Times(1)
+				mf.EXPECT().Close().Return(nil).Times(1)
+			},
+			wantErr: false,
+		},
+		{
+			name: "error",
+			expectFn: func(mfs *mock_processor.MockFileSearcher, mf *mock_processor.MockFiler) {
+				mfs.EXPECT().Close().Return(assert.AnError).Times(1)
+				mf.EXPECT().Close().Return(assert.AnError).Times(1)
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			mfs := mock_processor.NewMockFileSearcher(ctrl)
+			mf := mock_processor.NewMockFiler(ctrl)
+			if tt.expectFn != nil {
+				tt.expectFn(mfs, mf)
+			}
+			j := &jointFileSearcher{
+				FileSearcher: mfs,
+				filer:        mf,
+			}
+			if err := j.Close(); (err != nil) != tt.wantErr {
+				t.Errorf("jointFileSearcher.Close() error = %v, wantErr %v", err, tt.wantErr)
+			}
 		})
 	}
 }

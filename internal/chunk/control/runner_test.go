@@ -620,3 +620,139 @@ func Test_runWorkers(t *testing.T) {
 		})
 	}
 }
+
+func Test_runSearch(t *testing.T) {
+	type superSearchProcessor struct {
+		*mock_processor.MockWorkspaceInfo
+		*mock_processor.MockMessageSearcher
+		*mock_processor.MockFileSearcher
+	}
+	type args struct {
+		ctx context.Context
+		// s     Streamer
+		// sp    supersearcher
+		stype SearchType
+		query string
+	}
+	tests := []struct {
+		name     string
+		args     args
+		expectFn func(*mock_control.MockStreamer, *superSearchProcessor)
+		wantErr  bool
+	}{
+		{
+			name: "unknown search type",
+			args: args{
+				ctx:   context.Background(),
+				stype: srchUnknown,
+				query: "test",
+			},
+			expectFn: func(*mock_control.MockStreamer, *superSearchProcessor) {
+				// nothing to expect
+			},
+			wantErr: true,
+		},
+		{
+			name: "some other number",
+			args: args{
+				ctx:   context.Background(),
+				stype: 404,
+				query: "test",
+			},
+			expectFn: func(*mock_control.MockStreamer, *superSearchProcessor) {
+				// nothing to expect
+			},
+			wantErr: true,
+		},
+		{
+			name: "search messages",
+			args: args{
+				ctx:   context.Background(),
+				stype: SMessages,
+				query: "test",
+			},
+			expectFn: func(s *mock_control.MockStreamer, m *superSearchProcessor) {
+				s.EXPECT().
+					WorkspaceInfo(gomock.Any(), m.MockWorkspaceInfo).
+					Return(nil)
+				s.EXPECT().
+					SearchMessages(gomock.Any(), m.MockMessageSearcher, "test").Return(nil)
+			},
+			wantErr: false,
+		},
+		{
+			name: "search files",
+			args: args{
+				ctx:   context.Background(),
+				stype: SFiles,
+				query: "test",
+			},
+			expectFn: func(s *mock_control.MockStreamer, m *superSearchProcessor) {
+				s.EXPECT().
+					WorkspaceInfo(gomock.Any(), m.MockWorkspaceInfo).
+					Return(nil)
+				s.EXPECT().
+					SearchFiles(gomock.Any(), m.MockFileSearcher, "test").Return(nil)
+			},
+			wantErr: false,
+		},
+		{
+			name: "search all",
+			args: args{
+				ctx:   context.Background(),
+				stype: SMessages | SFiles,
+				query: "test",
+			},
+			expectFn: func(s *mock_control.MockStreamer, m *superSearchProcessor) {
+				s.EXPECT().
+					WorkspaceInfo(gomock.Any(), m.MockWorkspaceInfo).
+					Return(nil)
+				s.EXPECT().
+					SearchMessages(gomock.Any(), m.MockMessageSearcher, "test").Return(nil)
+				s.EXPECT().
+					SearchFiles(gomock.Any(), m.MockFileSearcher, "test").Return(nil)
+			},
+			wantErr: false,
+		},
+		{
+			name: "search all, error",
+			args: args{
+				ctx:   context.Background(),
+				stype: SMessages | SFiles,
+				query: "test",
+			},
+			expectFn: func(s *mock_control.MockStreamer, m *superSearchProcessor) {
+				s.EXPECT().
+					WorkspaceInfo(gomock.Any(), m.MockWorkspaceInfo).
+					Return(assert.AnError)
+				s.EXPECT().
+					SearchMessages(gomock.Any(), m.MockMessageSearcher, "test").Return(nil).AnyTimes()
+				s.EXPECT().
+					SearchFiles(gomock.Any(), m.MockFileSearcher, "test").Return(nil).AnyTimes()
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			s := mock_control.NewMockStreamer(ctrl)
+			m := &superSearchProcessor{
+				MockWorkspaceInfo:   mock_processor.NewMockWorkspaceInfo(ctrl),
+				MockMessageSearcher: mock_processor.NewMockMessageSearcher(ctrl),
+				MockFileSearcher:    mock_processor.NewMockFileSearcher(ctrl),
+			}
+			if tt.expectFn != nil {
+				tt.expectFn(s, m)
+			}
+			sp := supersearcher{
+				WorkspaceInfo:   m.MockWorkspaceInfo,
+				MessageSearcher: m.MockMessageSearcher,
+				FileSearcher:    m.MockFileSearcher,
+			}
+			if err := runSearch(tt.args.ctx, s, sp, tt.args.stype, tt.args.query); (err != nil) != tt.wantErr {
+				t.Errorf("runSearch() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}

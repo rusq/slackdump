@@ -20,6 +20,11 @@ type Recorder struct {
 	state *state.State
 }
 
+// Encoder is the interface that wraps the Encode method.
+type Encoder interface {
+	Encode(ctx context.Context, chunk Chunk) error
+}
+
 // Option is a function that configures the Recorder.
 type Option func(r *Recorder)
 
@@ -35,7 +40,7 @@ type jsonEncoder struct {
 	enc *json.Encoder
 }
 
-func (j *jsonEncoder) Encode(ctx context.Context, chunk interface{}) error {
+func (j *jsonEncoder) Encode(ctx context.Context, chunk Chunk) error {
 	return j.enc.Encode(chunk)
 }
 
@@ -65,11 +70,6 @@ func NewCustomRecorder(name string, enc Encoder, options ...Option) *Recorder {
 		opt(rec)
 	}
 	return rec
-}
-
-// Encoder is the interface that wraps the Encode method.
-type Encoder interface {
-	Encode(ctx context.Context, chunk any) error
 }
 
 // Messages is called for each message chunk that is retrieved.

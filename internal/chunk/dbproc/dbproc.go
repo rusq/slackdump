@@ -21,6 +21,8 @@ type DBP struct {
 	mu        sync.RWMutex
 }
 
+var _ chunk.Encoder = (*DBP)(nil)
+
 // SessionInfo is the information about the session to be logged in the
 // database.
 type SessionInfo struct {
@@ -111,13 +113,8 @@ func (d *DBP) Close() error {
 	return nil
 }
 
-func (d *DBP) Encode(ctx context.Context, ch any) error {
-	c, ok := ch.(chunk.Chunk)
-	if !ok {
-		return fmt.Errorf("invalid chunk type %T", ch)
-	}
-	// prevent concurrency on sqlite.
-	if _, err := d.InsertChunk(ctx, c); err != nil {
+func (d *DBP) Encode(ctx context.Context, ch chunk.Chunk) error {
+	if _, err := d.InsertChunk(ctx, ch); err != nil {
 		return fmt.Errorf("encode: %w", err)
 	}
 	return nil

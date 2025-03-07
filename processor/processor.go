@@ -345,3 +345,25 @@ func (w *JointConversations) Close() error {
 
 	return errs
 }
+
+type JointFilers struct {
+	pp []Filer
+}
+
+// JoinFilers joins multiple Filer processors into one.
+func JoinFilers(procs ...Filer) Filer {
+	return &JointFilers{pp: procs}
+}
+
+func (f *JointFilers) Files(ctx context.Context, channel *slack.Channel, parent slack.Message, ff []slack.File) error {
+	for _, p := range f.pp {
+		if err := p.Files(ctx, channel, parent, ff); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (f *JointFilers) Close() error {
+	return closeall(f.pp)
+}

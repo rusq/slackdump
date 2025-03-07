@@ -165,3 +165,26 @@ func errEmitter(errC chan<- error, sub string, stage Stage) func(err error) {
 		}
 	}
 }
+
+// jointFileSearcher allows to customize the file processor on file search.
+type jointFileSearcher struct {
+	processor.FileSearcher
+	filer processor.Filer
+}
+
+// Files method override.
+func (j *jointFileSearcher) Files(ctx context.Context, ch *slack.Channel, msg slack.Message, files []slack.File) error {
+	return j.filer.Files(ctx, ch, msg, files)
+}
+
+// Close method override.
+func (j *jointFileSearcher) Close() error {
+	var errs error
+	if err := j.FileSearcher.Close(); err != nil {
+		errs = errors.Join(errs, fmt.Errorf("error closing file searcher: %w", err))
+	}
+	if err := j.filer.Close(); err != nil {
+		errs = errors.Join(errs, fmt.Errorf("error closing file processor: %w", err))
+	}
+	return errs
+}
