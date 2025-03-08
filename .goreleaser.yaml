@@ -15,7 +15,7 @@ builds:
       - windows
       - darwin
       - freebsd
-      - netbsd
+      #      - netbsd
       - openbsd
     main: ./cmd/slackdump
 

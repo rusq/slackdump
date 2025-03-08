@@ -41,9 +41,9 @@ type ExportTransformer interface {
 // ReferenceChecker is an interface that contains functions to check if all
 // messages for the channel were processed.
 type ReferenceChecker interface {
-	// IsFinalised should return true, if all messages and threads for the
+	// IsComplete should return true, if all messages and threads for the
 	// channel has been processed.
-	IsFinalised(ctx context.Context, channelID string) (bool, error)
+	IsComplete(ctx context.Context, channelID string) (bool, error)
 }
 
 // EncodeReferenceCloser is an interface that combines the chunk.Encoder,

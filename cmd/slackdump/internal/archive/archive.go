@@ -21,6 +21,7 @@ import (
 	"github.com/rusq/slackdump/v3/internal/chunk/control"
 	"github.com/rusq/slackdump/v3/internal/chunk/dbproc"
 	"github.com/rusq/slackdump/v3/internal/chunk/dbproc/repository"
+	"github.com/rusq/slackdump/v3/internal/chunk/dirproc"
 	"github.com/rusq/slackdump/v3/internal/chunk/transform/fileproc"
 	"github.com/rusq/slackdump/v3/internal/structures"
 	"github.com/rusq/slackdump/v3/stream"
@@ -199,7 +200,7 @@ type RunCloser interface {
 
 // ArchiveController returns the default archive controller initialised based
 // on global configuration parameters.
-func ArchiveController(ctx context.Context, cd *chunk.Directory, sess *slackdump.Session, opts ...stream.Option) (*control.DirController, error) {
+func ArchiveController(ctx context.Context, cd *chunk.Directory, sess *slackdump.Session, opts ...stream.Option) (*control.Controller, error) {
 	lg := cfg.Log
 
 	sopts := []stream.Option{
@@ -226,14 +227,29 @@ func ArchiveController(ctx context.Context, cd *chunk.Directory, sess *slackdump
 		lg,
 	)
 
-	ctrl := control.NewDir(
-		cd,
+	erc := dirproc.NewERC(cd, lg)
+
+	ctrl, err := control.New(
+		ctx,
 		sess.Stream(sopts...),
+		erc,
 		control.WithLogger(lg),
 		control.WithFlags(control.Flags{MemberOnly: cfg.MemberOnly, RecordFiles: cfg.RecordFiles}),
 		control.WithFiler(fileproc.New(dl)),
 		control.WithAvatarProcessor(fileproc.NewAvatarProc(avdl)),
 	)
+	if err != nil {
+		return nil, err
+	}
+
+	// ctrl := control.NewDir(
+	// 	cd,
+	// 	sess.Stream(sopts...),
+	// 	control.WithLogger(lg),
+	// 	control.WithFlags(control.Flags{MemberOnly: cfg.MemberOnly, RecordFiles: cfg.RecordFiles}),
+	// 	control.WithFiler(fileproc.New(dl)),
+	// 	control.WithAvatarProcessor(fileproc.NewAvatarProc(avdl)),
+	// )
 	return ctrl, nil
 }
 

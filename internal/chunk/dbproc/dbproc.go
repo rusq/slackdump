@@ -131,7 +131,7 @@ func (d *DBP) Encode(ctx context.Context, ch chunk.Chunk) error {
 
 // IsFinalised returns true if the channel messages have been processed (there
 // are no unfinished threads).
-func (d *DBP) IsFinalised(ctx context.Context, channelID string) (bool, error) {
+func (d *DBP) IsComplete(ctx context.Context, channelID string) (bool, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	mr := repository.NewMessageRepository()
@@ -140,6 +140,12 @@ func (d *DBP) IsFinalised(ctx context.Context, channelID string) (bool, error) {
 		return false, fmt.Errorf("countUnfinished: %w", err)
 	}
 	return n <= 0, nil
+}
+
+// Finalise is a no-op for the database processor.
+func (d *DBP) Finalise(ctx context.Context, channelID string) error {
+	// noop
+	return nil
 }
 
 // Source returns the connection that can be used safely as a source.

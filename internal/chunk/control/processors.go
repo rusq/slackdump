@@ -73,9 +73,9 @@ func (ct *conversationTransformer) ThreadMessages(ctx context.Context, channelID
 }
 
 func (ct *conversationTransformer) mbeTransform(ctx context.Context, channelID, threadID string, threadOnly bool) error {
-	finalised, err := ct.rc.IsFinalised(ctx, channelID)
+	finalised, err := ct.rc.IsComplete(ctx, channelID)
 	if err != nil {
-		return fmt.Errorf("error checking if finalised: %w", err)
+		return fmt.Errorf("error checking if complete: %w", err)
 	}
 	if !finalised {
 		return nil

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"log/slog"
 	"sync"
 
@@ -18,7 +17,8 @@ type ERC struct {
 	cd *chunk.Directory
 	lg *slog.Logger
 	// lazy init
-	once opened
+	mu   sync.Mutex
+	once open
 	cv   *Conversations
 	w    *Workspace
 	u    *Users
@@ -26,12 +26,16 @@ type ERC struct {
 	s    *Search
 }
 
-type opened struct {
+type open struct {
 	cv sync.Once
 	w  sync.Once
 	u  sync.Once
 	c  sync.Once
 	s  sync.Once
+}
+
+func NewERC(cd *chunk.Directory, lg *slog.Logger) *ERC {
+	return &ERC{cd: cd, lg: lg}
 }
 
 func (e *ERC) Encode(ctx context.Context, chunk chunk.Chunk) error {
@@ -93,7 +97,7 @@ func (e *ERC) writePayload(ctx context.Context, c chunk.Chunk) error {
 	case chunk.CChannelInfo:
 		return e.cv.ChannelInfo(ctx, c.Channel, c.ThreadTS)
 	case chunk.CChannelUsers:
-		return e.cv.ChannelUsers(ctx, c.Channel.ID, c.ThreadTS, c.ChannelUsers)
+		return e.cv.ChannelUsers(ctx, c.ChannelID, c.ThreadTS, c.ChannelUsers)
 	case chunk.CSearchMessages:
 		return e.s.SearchMessages(ctx, c.SearchQuery, c.SearchMessages)
 	case chunk.CSearchFiles:
@@ -103,18 +107,26 @@ func (e *ERC) writePayload(ctx context.Context, c chunk.Chunk) error {
 	}
 }
 
-func (e *ERC) IsFinalised(ctx context.Context, channelID string) (bool, error) {
+func (e *ERC) IsComplete(ctx context.Context, channelID string) (bool, error) {
 	return e.cv.t.RefCount(chunk.ToFileID(channelID, "", false)) <= 0, nil
 }
 
 func (e *ERC) Close() error {
 	var errs error
-	for _, closer := range []io.Closer{e.cv, e.w, e.u, e.c, e.s} {
-		if closer != nil {
-			if err := closer.Close(); err != nil {
-				errs = errors.Join(errs, err)
-			}
-		}
+	if e.cv != nil {
+		errs = errors.Join(errs, e.cv.Close())
+	}
+	if e.w != nil {
+		errs = errors.Join(errs, e.w.Close())
+	}
+	if e.u != nil {
+		errs = errors.Join(errs, e.u.Close())
+	}
+	if e.c != nil {
+		errs = errors.Join(errs, e.c.Close())
+	}
+	if e.s != nil {
+		errs = errors.Join(errs, e.s.Close())
 	}
 	return errs
 }

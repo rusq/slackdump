@@ -202,7 +202,7 @@ func Test_conversationTransformer_mbeTransform(t *testing.T) {
 				threadOnly: false,
 			},
 			expectFn: func(mrc *mock_control.MockReferenceChecker, mes *mock_control.MockExportTransformer) {
-				mrc.EXPECT().IsFinalised(gomock.Any(), "C12345678").Return(true, nil)
+				mrc.EXPECT().IsComplete(gomock.Any(), "C12345678").Return(true, nil)
 				mes.EXPECT().Transform(gomock.Any(), chunk.FileID("C12345678")).Return(nil)
 			},
 			wantErr: false,
@@ -212,7 +212,7 @@ func Test_conversationTransformer_mbeTransform(t *testing.T) {
 			fields: fields{ctx: testCtx},
 			args:   args{ctx: testCtx, channelID: "C12345678"},
 			expectFn: func(mrc *mock_control.MockReferenceChecker, mes *mock_control.MockExportTransformer) {
-				mrc.EXPECT().IsFinalised(gomock.Any(), "C12345678").Return(false, nil)
+				mrc.EXPECT().IsComplete(gomock.Any(), "C12345678").Return(false, nil)
 			},
 			wantErr: false,
 		},
@@ -221,7 +221,7 @@ func Test_conversationTransformer_mbeTransform(t *testing.T) {
 			fields: fields{ctx: testCtx},
 			args:   args{ctx: testCtx, channelID: "C12345678"},
 			expectFn: func(mrc *mock_control.MockReferenceChecker, mes *mock_control.MockExportTransformer) {
-				mrc.EXPECT().IsFinalised(gomock.Any(), "C12345678").Return(false, assert.AnError)
+				mrc.EXPECT().IsComplete(gomock.Any(), "C12345678").Return(false, assert.AnError)
 			},
 			wantErr: true,
 		},
@@ -230,7 +230,7 @@ func Test_conversationTransformer_mbeTransform(t *testing.T) {
 			fields: fields{ctx: testCtx},
 			args:   args{ctx: testCtx, channelID: "C12345678"},
 			expectFn: func(mrc *mock_control.MockReferenceChecker, mes *mock_control.MockExportTransformer) {
-				mrc.EXPECT().IsFinalised(gomock.Any(), "C12345678").Return(true, nil)
+				mrc.EXPECT().IsComplete(gomock.Any(), "C12345678").Return(true, nil)
 				mes.EXPECT().Transform(gomock.Any(), chunk.FileID("C12345678")).Return(assert.AnError)
 			},
 			wantErr: true,
@@ -240,7 +240,7 @@ func Test_conversationTransformer_mbeTransform(t *testing.T) {
 			fields: fields{ctx: testCtx},
 			args:   args{ctx: testCtx, channelID: "C12345678", threadID: "1234.5678", threadOnly: true},
 			expectFn: func(mrc *mock_control.MockReferenceChecker, mes *mock_control.MockExportTransformer) {
-				mrc.EXPECT().IsFinalised(gomock.Any(), "C12345678").Return(true, nil)
+				mrc.EXPECT().IsComplete(gomock.Any(), "C12345678").Return(true, nil)
 				mes.EXPECT().Transform(gomock.Any(), chunk.ToFileID("C12345678", "1234.5678", true)).Return(nil)
 			},
 			wantErr: false,
@@ -357,12 +357,12 @@ func Test_conversationTransformer_ThreadMessages(t *testing.T) {
 }
 
 func ctMbeTransformError(mrc *mock_control.MockReferenceChecker, mes *mock_control.MockExportTransformer) {
-	mrc.EXPECT().IsFinalised(gomock.Any(), gomock.Any()).Return(true, nil)
+	mrc.EXPECT().IsComplete(gomock.Any(), gomock.Any()).Return(true, nil)
 	mes.EXPECT().Transform(gomock.Any(), gomock.Any()).Return(assert.AnError)
 }
 
 func ctMbeTransformSuccess(mrc *mock_control.MockReferenceChecker, mes *mock_control.MockExportTransformer) {
-	mrc.EXPECT().IsFinalised(gomock.Any(), gomock.Any()).Return(true, nil)
+	mrc.EXPECT().IsComplete(gomock.Any(), gomock.Any()).Return(true, nil)
 	mes.EXPECT().Transform(gomock.Any(), gomock.Any()).Return(nil)
 }
 

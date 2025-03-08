@@ -77,12 +77,13 @@ func (rec *Recorder) Messages(ctx context.Context, channelID string, numThreads 
 	rec.mu.Lock()
 	defer rec.mu.Unlock()
 	chunk := Chunk{
-		Type:      CMessages,
-		Timestamp: time.Now().UnixNano(),
-		ChannelID: channelID,
-		IsLast:    isLast,
-		Count:     len(m),
-		Messages:  m,
+		Type:       CMessages,
+		Timestamp:  time.Now().UnixNano(),
+		ChannelID:  channelID,
+		IsLast:     isLast,
+		Count:      len(m),
+		NumThreads: numThreads,
+		Messages:   m,
 	}
 	if err := rec.enc.Encode(ctx, chunk); err != nil {
 		return err
