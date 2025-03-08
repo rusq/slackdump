@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/rusq/slackdump/v3/internal/chunk/dbproc/repository"
@@ -21,6 +22,7 @@ type DBP struct {
 	mu        sync.RWMutex
 	conn      *sqlx.DB
 	sessionID int64
+	closed    atomic.Bool
 }
 
 func (d *DBP) String() string {
@@ -110,6 +112,9 @@ func initDB(ctx context.Context, conn *sqlx.DB) error {
 func (d *DBP) Close() error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
+	if swapped := d.closed.CompareAndSwap(false, true); !swapped {
+		return nil
+	}
 	sr := repository.NewSessionRepository()
 	if n, err := sr.Finalise(context.Background(), d.conn, d.sessionID); err != nil {
 		return fmt.Errorf("finish: %w", err)

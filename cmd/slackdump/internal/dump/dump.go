@@ -280,14 +280,12 @@ func dumpv31(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, p d
 	if err != nil {
 		return err
 	}
-
-	lg.DebugContext(ctx, "using database in ", "dir", tmpdir)
-
 	defer func() {
 		if err := tmpdbp.Close(); err != nil {
 			lg.ErrorContext(ctx, "unable to close database processor", "error", err)
 		}
 	}()
+	lg.DebugContext(ctx, "using database in ", "dir", tmpdir)
 	src := source.DatabaseWithSource(tmpdbp.Source())
 
 	// files subprocessor

@@ -89,7 +89,10 @@ func (e *ERC) writePayload(ctx context.Context, c chunk.Chunk) error {
 		}
 		return e.cv.Files(ctx, c.Channel, *c.Parent, c.Files)
 	case chunk.CWorkspaceInfo:
-		return e.w.WorkspaceInfo(ctx, c.WorkspaceInfo)
+		if err := e.w.WorkspaceInfo(ctx, c.WorkspaceInfo); err != nil {
+			return fmt.Errorf("insertpayload: %w", err)
+		}
+		return e.w.Close()
 	case chunk.CUsers:
 		return e.u.Users(ctx, c.Users)
 	case chunk.CChannels:

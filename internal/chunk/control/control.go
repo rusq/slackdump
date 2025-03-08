@@ -116,7 +116,7 @@ func (c *Controller) Close() error {
 		}
 	}
 	// TODO: Decide if it is necessary to close the encoder here or leave it
-	// for the caller.
+	// for the caller.  Maybe make it conditional?
 	if err := c.erc.Close(); err != nil {
 		errs = errors.Join(errs, fmt.Errorf("error closing database processor: %w", err))
 	}

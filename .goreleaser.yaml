@@ -15,13 +15,15 @@ builds:
       - windows
       - darwin
       - freebsd
-      #      - netbsd
       - openbsd
     main: ./cmd/slackdump
+    ignore:
+      - goos: openbsd
+        goarch: 386
 
 archives:
   - id: default
-    format: tar.gz
+    formats: [ 'tar.gz' ]
     # this name template makes the OS and Arch compatible with the results of uname.
     name_template: >-
       {{ .ProjectName }}_
@@ -33,7 +35,8 @@ archives:
     # use zip for windows archives
     format_overrides:
     - goos: windows
-      format: zip
+      formats:
+        - zip
     files:
       - LICENSE
       - README.md
