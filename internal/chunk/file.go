@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"iter"
 	"log"
 	"log/slog"
 	"path/filepath"
@@ -589,27 +588,6 @@ func (r Result[T]) Error() string {
 		return r.Err.Error()
 	}
 	return ""
-}
-
-func allForIDIter[T any](f *File, id GroupID, extractFn func(c *Chunk) T) (iter.Seq[Result[T]], error) {
-	offsets, ok := f.idx[id]
-	if !ok {
-		return nil, fmt.Errorf("chunk %q: %w", id, ErrNotFound)
-	}
-	return func(yield func(Result[T]) bool) {
-		for _, offset := range offsets {
-			chunk, err := f.chunkAt(offset)
-			if err != nil {
-				if !yield(Result[T]{Err: err}) {
-					return
-				}
-				continue
-			}
-			if !yield(Result[T]{Val: extractFn(chunk)}) {
-				return
-			}
-		}
-	}, nil
 }
 
 // Latest returns the latest timestamps for the channels and threads

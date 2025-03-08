@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -15,10 +16,15 @@ import (
 	"github.com/rusq/slackdump/v3/internal/chunk"
 )
 
+// DBP is the database processor.
 type DBP struct {
+	mu        sync.RWMutex
 	conn      *sqlx.DB
 	sessionID int64
-	mu        sync.RWMutex
+}
+
+func (d *DBP) String() string {
+	return fmt.Sprintf("<DBP:%d>", d.sessionID)
 }
 
 var _ chunk.Encoder = (*DBP)(nil)
@@ -35,9 +41,9 @@ type SessionInfo struct {
 }
 
 var dbInitCommands = []string{
-	"PRAGMA journal_mode=WAL",     // enable WAL mode
-	"PRAGMA synchronous = NORMAL", // enable synchronous mode
-	"PRAGMA foreign_keys = ON",    // enable foreign keys
+	"PRAGMA journal_mode=WAL",   // enable WAL mode
+	"PRAGMA synchronous=NORMAL", // enable synchronous mode
+	"PRAGMA foreign_keys=ON",    // enable foreign keys
 }
 
 type options struct {
@@ -113,51 +119,12 @@ func (d *DBP) Close() error {
 	return nil
 }
 
+// Encode inserts the chunk into the database.
 func (d *DBP) Encode(ctx context.Context, ch chunk.Chunk) error {
-	if _, err := d.InsertChunk(ctx, ch); err != nil {
+	if n, err := d.InsertChunk(ctx, ch); err != nil {
 		return fmt.Errorf("encode: %w", err)
-	}
-	return nil
-}
-
-// WithConn locks the database connection and calls the function with the
-// connection.
-func (d *DBP) WithConn(fn func(conn *sqlx.DB) error) error {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-	if err := fn(d.conn); err != nil {
-		return fmt.Errorf("withconn: %w", err)
-	}
-	return nil
-}
-
-// WithTx locks the connection and starts a read/write transaction.
-// Caller is responsible in rolling back or committing it.
-func (d *DBP) WithTx(ctx context.Context, fn func(txx *sqlx.Tx) error) error {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-	txx, err := d.conn.BeginTxx(ctx, &sql.TxOptions{ReadOnly: false})
-	if err != nil {
-		return err
-	}
-	if err := fn(txx); err != nil {
-		return err
-	}
-	return nil
-}
-
-// WithReadTx locks the connection and starts a read-only transaction. It rolls
-// it back after fn has returned.
-func (d *DBP) WithReadTx(ctx context.Context, fn func(txx *sqlx.Tx) error) error {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-	txx, err := d.conn.BeginTxx(ctx, &sql.TxOptions{ReadOnly: true})
-	if err != nil {
-		return err
-	}
-	defer txx.Rollback()
-	if err := fn(txx); err != nil {
-		return fmt.Errorf("withReadTx: %w", err)
+	} else {
+		slog.DebugContext(ctx, "inserted chunk", "id", n, "type", ch.Type)
 	}
 	return nil
 }

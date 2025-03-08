@@ -9,7 +9,6 @@ import (
 
 	"github.com/rusq/slack"
 
-	"github.com/rusq/slackdump/v3/internal/chunk/dirproc"
 	"github.com/rusq/slackdump/v3/processor"
 )
 
@@ -35,7 +34,7 @@ type TransformStarter interface {
 // after Users goroutine is done, which can happen any time after the Run has
 // started.
 type ExportTransformer interface {
-	dirproc.Transformer
+	chunk.Transformer
 	TransformStarter
 }
 

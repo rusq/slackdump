@@ -28,8 +28,8 @@ func New(ctx context.Context, s Streamer, erc EncodeReferenceCloser, opts ...Opt
 		options: options{
 			lg:    slog.Default(),
 			tf:    &noopTransformer{},
-			filer: &noopFiler{},
-			avp:   &noopAvatarProc{},
+			filer: &processor.NopFiler{},
+			avp:   &processor.NopAvatars{},
 		},
 	}
 	for _, opt := range opts {

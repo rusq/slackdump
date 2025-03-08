@@ -9,28 +9,17 @@ import (
 	"github.com/rusq/slack"
 
 	"github.com/rusq/slackdump/v3/internal/chunk"
+	"github.com/rusq/slackdump/v3/processor"
 )
 
-type noopFiler struct{}
-
-func (n *noopFiler) Files(ctx context.Context, channel *slack.Channel, parent slack.Message, ff []slack.File) error {
-	return nil
-}
-func (n *noopFiler) Close() error { return nil }
+type (
+	noopFiler            = processor.NopFiler
+	noopAvatarProc       = processor.NopAvatars
+	noopChannelProcessor = processor.NopChannels
+)
 
 type noopTransformer struct{}
 
 func (n *noopTransformer) StartWithUsers(ctx context.Context, users []slack.User) error { return nil }
 func (n *noopTransformer) Transform(ctx context.Context, id chunk.FileID) error         { return nil }
 func (n *noopTransformer) Wait() error                                                  { return nil }
-
-type noopAvatarProc struct{}
-
-func (n *noopAvatarProc) Users(ctx context.Context, users []slack.User) error { return nil }
-func (n *noopAvatarProc) Close() error                                        { return nil }
-
-type nopChannelProcessor struct{}
-
-func (nopChannelProcessor) Channels(ctx context.Context, ch []slack.Channel) error {
-	return nil
-}

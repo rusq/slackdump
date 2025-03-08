@@ -10,7 +10,6 @@ import (
 
 	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/internal/chunk/control/mock_control"
-	"github.com/rusq/slackdump/v3/internal/chunk/dirproc"
 	"github.com/rusq/slackdump/v3/internal/structures"
 	"github.com/rusq/slackdump/v3/mocks/mock_processor"
 	"github.com/rusq/slackdump/v3/processor"
@@ -270,7 +269,7 @@ func Test_conversationTransformer_mbeTransform(t *testing.T) {
 func Test_conversationTransformer_ThreadMessages(t *testing.T) {
 	type fields struct {
 		ctx      context.Context
-		tf       dirproc.Transformer
+		tf       chunk.Transformer
 		expectFn func(*mock_control.MockReferenceChecker, *mock_control.MockExportTransformer)
 		rc       ReferenceChecker
 	}

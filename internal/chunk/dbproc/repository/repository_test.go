@@ -11,10 +11,9 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/rusq/slack"
 	"github.com/stretchr/testify/assert"
 	_ "modernc.org/sqlite"
-
-	"github.com/rusq/slack"
 
 	"github.com/rusq/slackdump/v3/internal/chunk"
 )

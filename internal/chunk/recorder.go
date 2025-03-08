@@ -123,14 +123,15 @@ func (rec *Recorder) ThreadMessages(ctx context.Context, channelID string, paren
 	rec.mu.Lock()
 	defer rec.mu.Unlock()
 	chunks := Chunk{
-		Type:      CThreadMessages,
-		Timestamp: time.Now().UnixNano(),
-		ChannelID: channelID,
-		Parent:    &parent,
-		ThreadTS:  parent.ThreadTimestamp,
-		IsLast:    isLast,
-		Count:     len(tm),
-		Messages:  tm,
+		Type:       CThreadMessages,
+		Timestamp:  time.Now().UnixNano(),
+		ChannelID:  channelID,
+		Parent:     &parent,
+		ThreadTS:   parent.ThreadTimestamp,
+		ThreadOnly: threadOnly,
+		IsLast:     isLast,
+		Count:      len(tm),
+		Messages:   tm,
 	}
 	if err := rec.enc.Encode(ctx, chunks); err != nil {
 		return err

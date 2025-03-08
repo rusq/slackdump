@@ -263,21 +263,6 @@ func (d *Directory) Name() string {
 	return d.dir
 }
 
-// loadChannelsJSON loads channels json file and returns a slice of
-// slack.Channel.  It expects it to be GZIP compressed.
-func (d *Directory) loadChannelsJSON(fullpath string) ([]slack.Channel, error) {
-	f, err := d.openRAW(fullpath)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-	cf, err := cachedFromReader(f, d.wantCache)
-	if err != nil {
-		return nil, err
-	}
-	return cf.AllChannels()
-}
-
 func (d *Directory) Stat(id FileID) (fs.FileInfo, error) {
 	return os.Stat(d.filename(id))
 }

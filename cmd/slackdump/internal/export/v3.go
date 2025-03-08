@@ -24,7 +24,7 @@ import (
 	"github.com/rusq/slackdump/v3/stream"
 )
 
-// export runs the export v3.
+// export runs the export v3.1.
 func exportv31(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, list *structures.EntityList, params exportFlags) error {
 	lg := cfg.Log
 

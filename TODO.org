@@ -24,4 +24,5 @@
 
 * TODO Source detection
 ** TODO detect standard file storage
-* TODO Universal search controller + tests
+* DONE Universal search controller + tests
+  CLOSED: [2025-03-07 Fri 20:31]

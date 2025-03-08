@@ -10,7 +10,6 @@ import (
 	"github.com/rusq/slack"
 
 	"github.com/rusq/slackdump/v3/internal/chunk"
-	"github.com/rusq/slackdump/v3/internal/chunk/dirproc"
 	"github.com/rusq/slackdump/v3/processor"
 )
 
@@ -53,7 +52,7 @@ func (u *userCollector) Close() error {
 // processor.
 type conversationTransformer struct {
 	ctx context.Context
-	tf  dirproc.Transformer
+	tf  chunk.Transformer
 	rc  ReferenceChecker
 }
 

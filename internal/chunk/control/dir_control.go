@@ -57,7 +57,7 @@ func (c *DirController) Run(ctx context.Context, list *structures.EntityList) er
 
 	// prefix "d" stands for directory processor
 
-	var dcp processor.Channels = nopChannelProcessor{}
+	var dcp processor.Channels = &processor.NopChannels{}
 	if !list.HasIncludes() { // all channels are included
 		if p, err := dirproc.NewChannels(c.cd); err != nil {
 			return Error{"channel", "init", err}
