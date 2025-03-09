@@ -7,11 +7,12 @@ import (
 	"testing"
 
 	"github.com/rusq/slack"
+	"go.uber.org/mock/gomock"
+
 	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/internal/fixtures"
 	"github.com/rusq/slackdump/v3/mocks/mock_processor"
 	"github.com/rusq/slackdump/v3/processor"
-	"go.uber.org/mock/gomock"
 )
 
 func TestConversations_Messages(t *testing.T) {
@@ -19,7 +20,7 @@ func TestConversations_Messages(t *testing.T) {
 	type fields struct {
 		subproc     processor.Filer
 		recordFiles bool
-		tf          Transformer
+		tf          chunk.Transformer
 	}
 	type args struct {
 		ctx        context.Context
@@ -215,7 +216,7 @@ func TestConversations_ThreadMessages(t *testing.T) {
 	type fields struct {
 		subproc     processor.Filer
 		recordFiles bool
-		tf          Transformer
+		tf          chunk.Transformer
 	}
 	type args struct {
 		ctx        context.Context
@@ -368,7 +369,7 @@ func TestConversations_ChannelInfo(t *testing.T) {
 	type fields struct {
 		subproc     processor.Filer
 		recordFiles bool
-		tf          Transformer
+		tf          chunk.Transformer
 	}
 	type args struct {
 		ctx      context.Context
@@ -565,7 +566,7 @@ func TestConversations_Files(t *testing.T) {
 	testCtx := context.Background()
 	type fields struct {
 		recordFiles bool
-		tf          Transformer
+		tf          chunk.Transformer
 	}
 	type args struct {
 		ctx     context.Context
@@ -697,7 +698,7 @@ func TestConversations_ChannelUsers(t *testing.T) {
 	type fields struct {
 		subproc     processor.Filer
 		recordFiles bool
-		tf          Transformer
+		tf          chunk.Transformer
 	}
 	type args struct {
 		ctx       context.Context

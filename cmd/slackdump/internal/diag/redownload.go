@@ -139,7 +139,7 @@ func redlChannel(ctx context.Context, fp processor.Filer, cd *chunk.Directory, c
 		return 0, fmt.Errorf("error reading messages: %w", err)
 	}
 	defer f.Close()
-	msgs, err := f.AllMessages(ch.ID)
+	msgs, err := f.AllMessages(ctx, ch.ID)
 	if err != nil {
 		return 0, fmt.Errorf("error reading messages: %w", err)
 	}

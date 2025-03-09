@@ -12,6 +12,7 @@ import (
 
 	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/internal/fixtures"
+	"github.com/rusq/slackdump/v3/internal/source"
 )
 
 const (
@@ -28,15 +29,14 @@ func TestChunkToExport_Validate(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer srcDir.Close()
+	src := source.NewChunkDir(srcDir, true)
 	testTrgDir := t.TempDir()
 
 	type fields struct {
-		Src          *chunk.Directory
-		Trg          fsadapter.FS
-		UploadDir    string
-		IncludeFiles bool
-		SrcFileLoc   func(*slack.Channel, *slack.File) string
-		TrgFileLoc   func(*slack.Channel, *slack.File) string
+		Src       source.Sourcer
+		Trg       fsadapter.FS
+		opts      options
+		UploadDir string
 	}
 	tests := []struct {
 		name    string
@@ -45,36 +45,42 @@ func TestChunkToExport_Validate(t *testing.T) {
 	}{
 		{"empty", fields{}, true},
 		{"no source", fields{Trg: fsadapter.NewDirectory(testTrgDir)}, true},
-		{"no target", fields{Src: srcDir}, true},
+		{"no target", fields{Src: src}, true},
 		{
 			"valid, no files",
 			fields{
-				Src:          srcDir,
-				Trg:          fsadapter.NewDirectory(testTrgDir),
-				IncludeFiles: false,
+				Src: src,
+				Trg: fsadapter.NewDirectory(testTrgDir),
+				opts: options{
+					includeFiles: false,
+				},
 			},
 			false,
 		},
 		{
 			"valid, include files, but no location functions",
 			fields{
-				Src:          srcDir,
-				Trg:          fsadapter.NewDirectory(testTrgDir),
-				IncludeFiles: true,
+				Src: src,
+				Trg: fsadapter.NewDirectory(testTrgDir),
+				opts: options{
+					includeFiles: true,
+				},
 			},
 			true,
 		},
 		{
 			"valid, include files, with location functions",
 			fields{
-				Src:          srcDir,
-				Trg:          fsadapter.NewDirectory(testTrgDir),
-				IncludeFiles: true,
-				SrcFileLoc: func(*slack.Channel, *slack.File) string {
-					return ""
-				},
-				TrgFileLoc: func(*slack.Channel, *slack.File) string {
-					return ""
+				Src: src,
+				Trg: fsadapter.NewDirectory(testTrgDir),
+				opts: options{
+					includeFiles: true,
+					srcFileLoc: func(*slack.Channel, *slack.File) string {
+						return ""
+					},
+					trgFileLoc: func(*slack.Channel, *slack.File) string {
+						return ""
+					},
 				},
 			},
 			false,
@@ -83,11 +89,9 @@ func TestChunkToExport_Validate(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			c := &ChunkToExport{
-				src:          tt.fields.Src,
-				trg:          tt.fields.Trg,
-				includeFiles: tt.fields.IncludeFiles,
-				srcFileLoc:   tt.fields.SrcFileLoc,
-				trgFileLoc:   tt.fields.TrgFileLoc,
+				src:  tt.fields.Src,
+				trg:  tt.fields.Trg,
+				opts: tt.fields.opts,
 			}
 			if err := c.Validate(); (err != nil) != tt.wantErr {
 				t.Errorf("ChunkToExport.Validate() error = %v, wantErr %v", err, tt.wantErr)
@@ -115,11 +119,11 @@ func TestChunkToExport_Convert(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer fsa.Close()
-
-	c := NewChunkToExport(cd, fsa, WithIncludeFiles(true))
+	src := source.NewChunkDir(cd, true)
+	c := NewToExport(src, fsa, WithIncludeFiles(true))
 
 	ctx := context.Background()
-	c.lg = testLogger
+	c.opts.lg = testLogger
 	if err := c.Convert(ctx); err != nil {
 		t.Fatal(err)
 	}
@@ -134,8 +138,9 @@ func Test_copy2trg(t *testing.T) {
 			t.Fatal(err)
 		}
 		trgfs := fsadapter.NewDirectory(trgdir)
+		srcfs := os.DirFS(srcdir)
 
-		if err := copy2trg(trgfs, "test-copy.txt", filepath.Join(srcdir, "test.txt")); err != nil {
+		if err := copy2trg(trgfs, "test-copy.txt", srcfs, "test.txt"); err != nil {
 			t.Fatal(err)
 		}
 		// validate
@@ -151,9 +156,10 @@ func Test_copy2trg(t *testing.T) {
 		srcdir := t.TempDir()
 		trgdir := t.TempDir()
 
+		srcfs := os.DirFS(srcdir)
 		trgfs := fsadapter.NewDirectory(trgdir)
 		// source file does not exist.
-		if err := copy2trg(trgfs, "test-copy.txt", filepath.Join(srcdir, "test.txt")); err == nil {
+		if err := copy2trg(trgfs, "test-copy.txt", srcfs, "test.txt"); err == nil {
 			t.Fatal("expected error, but got nil")
 		}
 	})

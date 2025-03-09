@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"io/fs"
+	"iter"
 	"log/slog"
 	"os"
 	"path"
@@ -17,10 +18,10 @@ import (
 )
 
 type Dump struct {
-	c    []slack.Channel
-	fs   fs.FS
-	name string
-	Storage
+	c     []slack.Channel
+	fs    fs.FS
+	name  string
+	files Storage
 }
 
 func NewDump(ctx context.Context, fsys fs.FS, name string) (*Dump, error) {
@@ -29,9 +30,9 @@ func NewDump(ctx context.Context, fsys fs.FS, name string) (*Dump, error) {
 		st = fst
 	}
 	d := &Dump{
-		fs:      fsys,
-		name:    name,
-		Storage: st,
+		fs:    fsys,
+		name:  name,
+		files: st,
 	}
 	// initialise channels for quick lookup
 	c, err := d.Channels(ctx)
@@ -95,7 +96,7 @@ func isDumpJSONFile(name string) bool {
 	return err == nil && match
 }
 
-func (d Dump) Users() ([]slack.User, error) {
+func (d Dump) Users(context.Context) ([]slack.User, error) {
 	u, err := unmarshal[[]slack.User](d.fs, "users.json")
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -106,7 +107,7 @@ func (d Dump) Users() ([]slack.User, error) {
 	return u, nil
 }
 
-func (d Dump) AllMessages(channelID string) ([]slack.Message, error) {
+func (d Dump) AllMessages(_ context.Context, channelID string) (iter.Seq2[slack.Message, error], error) {
 	var cm []types.Message
 	c, err := unmarshalOne[types.Conversation](d.fs, d.channelFile(channelID))
 	if err != nil {
@@ -152,15 +153,18 @@ func (d Dump) threadHeadMessages(channelID string) ([]types.Message, error) {
 	return cm, nil
 }
 
-func convertMessages(cm []types.Message) []slack.Message {
-	mm := make([]slack.Message, len(cm))
-	for i := range cm {
-		mm[i] = cm[i].Message
+func convertMessages(cm []types.Message) iter.Seq2[slack.Message, error] {
+	iterFn := func(yield func(slack.Message, error) bool) {
+		for _, m := range cm {
+			if !yield(m.Message, nil) {
+				return
+			}
+		}
 	}
-	return mm
+	return iterFn
 }
 
-func (d Dump) AllThreadMessages(channelID, threadID string) ([]slack.Message, error) {
+func (d Dump) AllThreadMessages(_ context.Context, channelID, threadID string) (iter.Seq2[slack.Message, error], error) {
 	cm, err := d.findThreadInChannel(channelID, threadID)
 	if err != nil {
 		if !os.IsNotExist(err) {
@@ -220,6 +224,15 @@ func (d Dump) Latest(ctx context.Context) (map[structures.SlackLink]time.Time, e
 	return nil, errors.New("not supported yet")
 }
 
-func (d Dump) WorkspaceInfo() (*slack.AuthTestResponse, error) {
+func (d Dump) WorkspaceInfo(context.Context) (*slack.AuthTestResponse, error) {
 	return nil, ErrNotSupported
+}
+
+func (d Dump) Files() Storage {
+	return d.files
+}
+
+func (d Dump) Avatars() Storage {
+	// Dump does not support avatars.
+	return fstNotFound{}
 }

@@ -12,6 +12,7 @@ import (
 
 	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/internal/fixtures"
+	"github.com/rusq/slackdump/v3/internal/source"
 )
 
 func Test_transform(t *testing.T) {
@@ -53,8 +54,9 @@ func Test_transform(t *testing.T) {
 				t.Fatal(err)
 			}
 			defer cd.Close()
+			src := source.NewChunkDir(cd, true)
 			cvt := ExpConverter{
-				cd:  cd,
+				src: src,
 				fsa: tt.args.fsa,
 			}
 			if err := cvt.Convert(tt.args.ctx, chunk.FileID(tt.args.id)); (err != nil) != tt.wantErr {
@@ -71,7 +73,6 @@ func TestExpConverter_getUsers(t *testing.T) {
 		return &v
 	}
 	type fields struct {
-		cd      *chunk.Directory
 		fsa     fsadapter.FS
 		users   atomic.Value
 		msgFunc []msgUpdFunc
@@ -99,13 +100,117 @@ func TestExpConverter_getUsers(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			e := &ExpConverter{
-				cd:      tt.fields.cd,
 				fsa:     tt.fields.fsa,
 				users:   tt.fields.users,
 				msgFunc: tt.fields.msgFunc,
 			}
 			if got := e.getUsers(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("ExpConverter.getUsers() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+// func TestExpConverter_writeMessages(t *testing.T) {
+// 	type fields struct {
+// 		// src     source.Sourcer
+// 		// fsa     fsadapter.FS
+// 		users   atomic.Value
+// 		msgFunc []msgUpdFunc
+// 	}
+// 	type args struct {
+// 		ctx context.Context
+// 		ci  *slack.Channel
+// 	}
+// 	tests := []struct {
+// 		name      string
+// 		fields    fields
+// 		expectFn  func(ms *mock_source.MockSourcer, mst *mock_source.MockStorage)
+// 		args      args
+// 		wantFiles map[string]testutil.FileInfo
+// 		wantErr   bool
+// 	}{
+// 		{
+// 			name:   "threaded messages",
+// 			fields: fields{},
+// 			args: args{
+// 				ctx: context.Background(),
+// 				ci:  fixtures.Load[[]*slack.Channel](fixtures.TestChannels)[0],
+// 			},
+// 			expectFn: func(ms *mock_source.MockSourcer, mst *mock_source.MockStorage) {
+// 				chanmsg := testutil.Slice2Seq2(
+// 					fixtures.Load[[]slack.Message](fixtures.ConvertPublic1AllMessagesJSON),
+// 				)
+// 				threadmsg := testutil.Slice2Seq2(
+// 					fixtures.Load[[]slack.Message](fixtures.ConvertPublic1AllThreadMessagesJSON),
+// 				)
+// 				ms.EXPECT().Sorted(gomock.Any(), gomock.Any, false, gomock.Any()).
+// 					Return(nil)
+// 				ms.EXPECT().AllThreadMessages(gomock.Any(), gomock.Any(), gomock.Any()).
+// 					Return(threadmsg, nil)
+// 			},
+// 			wantFiles: map[string]testutil.FileInfo{
+// 				"random/2025-01-10.json": {Name: "2025-01-10.json", Size: 1892},
+// 			},
+// 			wantErr: false,
+// 		},
+// 	}
+// 	for _, tt := range tests {
+// 		t.Run(tt.name, func(t *testing.T) {
+// 			ctrl := gomock.NewController(t)
+// 			ms := mock_source.NewMockSourcer(ctrl)
+// 			mst := mock_source.NewMockStorage(ctrl)
+// 			if tt.expectFn != nil {
+// 				tt.expectFn(ms, mst)
+// 			}
+//
+// 			dir := t.TempDir()
+// 			fsa := fsadapter.NewDirectory(dir)
+//
+// 			e := &ExpConverter{
+// 				src:     ms,
+// 				fsa:     fsa,
+// 				users:   tt.fields.users,
+// 				msgFunc: tt.fields.msgFunc,
+// 			}
+// 			if err := e.writeMessages(tt.args.ctx, tt.args.ci); (err != nil) != tt.wantErr {
+// 				t.Errorf("ExpConverter.writeMessages() error = %v, wantErr %v", err, tt.wantErr)
+// 			}
+// 			gotfiles := testutil.CollectFiles(t, os.DirFS(dir))
+// 			assert.Equal(t, tt.wantFiles, gotfiles)
+// 		})
+// 	}
+// }
+
+func TestExpConverter_newAccumulator(t *testing.T) {
+	type fields struct {
+		src     source.Sourcer
+		fsa     fsadapter.FS
+		users   atomic.Value
+		msgFunc []msgUpdFunc
+	}
+	type args struct {
+		ctx     context.Context
+		channel *slack.Channel
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   *expmsgAccum
+	}{
+		// TODO: Add test cases.
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			e := &ExpConverter{
+				src:     tt.fields.src,
+				fsa:     tt.fields.fsa,
+				users:   tt.fields.users,
+				msgFunc: tt.fields.msgFunc,
+			}
+			if got := e.newAccumulator(tt.args.ctx, tt.args.channel); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("ExpConverter.newAccumulator() = %v, want %v", got, tt.want)
 			}
 		})
 	}

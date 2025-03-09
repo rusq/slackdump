@@ -15,7 +15,10 @@ const (
 
 // Storage is the interface for the file storage used by the source types.
 type Storage interface {
+	// FS should return the filesystem with file attachments.
 	FS() fs.FS
+	// File should return the path of the file within the filesystem returned
+	// by FS().
 	File(id string, name string) (string, error)
 }
 
@@ -239,6 +242,34 @@ func (r *STDump) File(id string, name string) (string, error) {
 		return "", fs.ErrNotExist
 	}
 	if _, err := fs.Stat(r.fs, pth); err != nil {
+		return "", err
+	}
+	return pth, nil
+}
+
+type AvatarStorage struct {
+	fs fs.FS
+}
+
+func NewAvatarStorage(fsys fs.FS) (*AvatarStorage, error) {
+	if _, err := fs.Stat(fsys, "__avatars"); err != nil {
+		return nil, err
+	}
+	subfs, err := fs.Sub(fsys, "__avatars")
+	if err != nil {
+		return nil, err
+	}
+	return &AvatarStorage{fs: subfs}, nil
+}
+
+func (r *AvatarStorage) FS() fs.FS {
+	return r.fs
+}
+
+func (r *AvatarStorage) File(id string, name string) (string, error) {
+	pth := path.Join(id, name)
+	_, err := fs.Stat(r.fs, pth)
+	if err != nil {
 		return "", err
 	}
 	return pth, nil

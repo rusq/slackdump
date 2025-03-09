@@ -15,17 +15,6 @@ import (
 
 //go:generate mockgen -source=conversations.go -destination=dirproc_mock_test.go -package=dirproc
 
-// Transformer is an interface that is called when the processor is finished
-// processing a channel or thread.
-type Transformer interface {
-	// Transform is the function that starts the transformation of the channel
-	// or thread with the given id.  It is called  when the reference count for
-	// the channel id becomes zero (meaning, that there are no more chunks to
-	// process).  It should return [transform.ErrClosed] if the transformer is
-	// closed.
-	Transform(ctx context.Context, id chunk.FileID) error
-}
-
 // Conversations is a processor that writes the channel and thread messages.
 // Zero value is unusable.  Use [NewConversation] to create a new instance.
 type Conversations struct {
@@ -42,7 +31,7 @@ type Conversations struct {
 	recordFiles bool
 
 	// tf is the channel transformer that is called for each channel.
-	tf Transformer
+	tf chunk.Transformer
 }
 
 // tracker is an interface for a recorder of data.
@@ -96,7 +85,7 @@ var (
 // be called for each file chunk, tf will be called for each completed channel
 // or thread, when the reference count becomes zero.
 // Reference count is increased with each call to Channel processing functions.
-func NewConversation(cd *chunk.Directory, filesSubproc processor.Filer, tf Transformer, opts ...ConvOption) (*Conversations, error) {
+func NewConversation(cd *chunk.Directory, filesSubproc processor.Filer, tf chunk.Transformer, opts ...ConvOption) (*Conversations, error) {
 	// validation
 	if filesSubproc == nil {
 		return nil, errNilSubproc

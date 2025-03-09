@@ -4,16 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 	"strings"
 	"text/tabwriter"
 	"time"
 
-	"github.com/rusq/slackdump/v3"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/archive"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/bootstrap"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
+	"github.com/rusq/slackdump/v3/internal/chunk/control"
 	"github.com/rusq/slackdump/v3/internal/source"
 	"github.com/rusq/slackdump/v3/internal/structures"
 	"github.com/rusq/slackdump/v3/stream"
@@ -41,66 +40,75 @@ var resumeFlags ResumeParams
 func init() {
 	CmdResume.Run = runResume
 	CmdResume.Flag.BoolVar(&resumeFlags.Refresh, "refresh", false, "refresh the list of channels")
-	CmdResume.Flag.BoolVar(&resumeFlags.IncludeThreads, "threads", false, "include threads")
+	CmdResume.Flag.BoolVar(&resumeFlags.IncludeThreads, "threads", false, "include threads (slow, and flaky business)")
 }
 
 func runResume(ctx context.Context, cmd *base.Command, args []string) error {
 	if len(args) != 1 {
 		return errors.New("expected exactly one argument")
 	}
-	archive := args[0]
+	loc := args[0]
 
-	flags, err := source.Type(archive)
+	flags, err := source.Type(loc)
 	if err != nil {
+		base.SetExitStatus(base.SInvalidParameters)
 		return fmt.Errorf("error determining source type: %w", err)
 	}
-
-	src, err := source.Load(ctx, archive)
-	if err != nil {
-		return fmt.Errorf("error loading source: %w", err)
+	if !flags.Has(source.FDatabase) {
+		base.SetExitStatus(base.SInvalidParameters)
+		return fmt.Errorf("source type %s does not support resume", flags)
 	}
-	defer src.Close()
-
+	latest, err := latest(ctx, loc)
+	if err != nil {
+		base.SetExitStatus(base.SApplicationError)
+		return fmt.Errorf("error loading latest timestamps: %w", err)
+	}
 	sess, err := bootstrap.SlackdumpSession(ctx)
 	if err != nil {
 		return fmt.Errorf("error creating slackdump session: %w", err)
 	}
 
-	if err := Resume(ctx, sess, src, flags, resumeFlags); err != nil {
-		return fmt.Errorf("error resuming archive: %w", err)
+	wconn, _, err := bootstrap.Database(loc, cmd.Name())
+	if err != nil {
+		return fmt.Errorf("error opening database: %w", err)
 	}
+	defer wconn.Close()
+
+	cf := control.Flags{
+		Refresh: resumeFlags.Refresh,
+	}
+	ctrl, err := archive.DBController(ctx, cmd, wconn, sess, loc, cf, stream.OptInclusive(false))
+	if err != nil {
+		return fmt.Errorf("error creating archive controller: %w", err)
+	}
+	defer ctrl.Close()
+
+	if err := ctrl.Run(ctx, latest); err != nil {
+		return fmt.Errorf("error running archive controller: %w", err)
+	}
+
 	return nil
 }
 
-func Resume(ctx context.Context, sess *slackdump.Session, src source.Sourcer, flags source.Flags, p ResumeParams) error {
-	lg := cfg.Log.With("source", src.Name(), "flags", src.Type())
-	lg.Info("resuming archive")
-	channels, err := src.Channels(ctx)
+func latest(ctx context.Context, srcpath string) (*structures.EntityList, error) {
+	src, err := source.Load(ctx, srcpath)
 	if err != nil {
-		return fmt.Errorf("error loading channels: %w", err)
+		return nil, fmt.Errorf("error loading source: %w", err)
 	}
-	lg.Info("channels loaded", "count", len(channels))
-
-	// start catching up on existing channels
-	if p.Refresh {
-		lg.Info("fetching latest channels")
-		// start fetching channels from the server
-	}
-
-	lg.Info("scanning messages")
+	defer src.Close()
 
 	latest, err := src.Latest(ctx)
 	if err != nil {
-		return fmt.Errorf("error loading latest timestamps: %w", err)
+		return nil, fmt.Errorf("error loading latest timestamps: %w", err)
 	}
 
-	// by this point we have all the channels and maybe threads along with their
-	// respective latest timestamps.
-	debugprint(strlatest(latest))
-	// remove all threads from the list if they are disabled
-	el := make([]structures.EntityItem, 0, len(latest))
+	if cfg.Verbose {
+		strlatest(latest)
+	}
+
+	ei := make([]structures.EntityItem, 0, len(latest))
 	for sl, ts := range latest {
-		if sl.IsThread() && !p.IncludeThreads {
+		if sl.IsThread() && !resumeFlags.IncludeThreads {
 			continue
 		}
 		item := structures.EntityItem{
@@ -109,31 +117,16 @@ func Resume(ctx context.Context, sess *slackdump.Session, src source.Sourcer, fl
 			Latest:  time.Time(cfg.Latest),
 			Include: true,
 		}
-		el = append(el, item)
+		ei = append(ei, item)
 		debugprint(fmt.Sprintf("%s: %d->%d", item.Id, ts.UTC().UnixMicro(), item.Oldest.UnixMicro()))
 	}
-	list := structures.NewEntityListFromItems(el...)
+	el := structures.NewEntityListFromItems(ei...)
 
-	cd, err := archive.NewDirectory(cfg.Output)
-	if err != nil {
-		return fmt.Errorf("error creating archive directory: %w", err)
-	}
-	defer cd.Close()
-
-	ctrl, err := archive.ArchiveController(ctx, cd, sess, stream.OptInclusive(false))
-	if err != nil {
-		return fmt.Errorf("error creating archive controller: %w", err)
-	}
-	defer ctrl.Close()
-	if err := ctrl.Run(ctx, list); err != nil {
-		return fmt.Errorf("error running archive controller: %w", err)
-	}
-
-	return nil
+	return el, nil
 }
 
 func debugprint(a ...any) {
-	if slog.Default().Enabled(context.Background(), slog.LevelDebug) {
+	if cfg.Verbose {
 		fmt.Println(a...)
 	}
 }

@@ -15,3 +15,4 @@ type Converter interface {
 	// Convert should convert the chunk to the Converters' output format.
 	Convert(ctx context.Context, id chunk.FileID) error
 }
+

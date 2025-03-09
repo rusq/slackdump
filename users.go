@@ -42,12 +42,10 @@ func (s *Session) GetUsers(ctx context.Context) (types.Users, error) {
 
 // fetchUsers fetches users from the API.
 func (s *Session) fetchUsers(ctx context.Context) (types.Users, error) {
-	var (
-		users []slack.User
-	)
+	var users []slack.User
 
 	l := s.limiter(network.Tier2)
-	if err := network.WithRetry(ctx, l, s.cfg.limits.Tier2.Retries, func() error {
+	if err := network.WithRetry(ctx, l, s.cfg.limits.Tier2.Retries, func(ctx context.Context) error {
 		var err error
 		users, err = s.client.GetUsersContext(ctx)
 		return err

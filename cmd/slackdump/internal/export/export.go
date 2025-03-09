@@ -24,7 +24,7 @@ var CmdExport = &base.Command{
 	UsageLine:   "slackdump export",
 	Short:       "exports the Slack Workspace or individual conversations",
 	FlagMask:    cfg.OmitUserCacheFlag | cfg.OmitRecordFilesFlag,
-	Long:        mdExport, // TODO: add long description
+	Long:        mdExport,
 	CustomFlags: false,
 	PrintFlags:  true,
 	RequireAuth: true,
@@ -56,7 +56,7 @@ func runExport(ctx context.Context, cmd *base.Command, args []string) error {
 		base.SetExitStatus(base.SInvalidParameters)
 		return errors.New("use -base to set the base output location")
 	}
-	if !cfg.DownloadFiles {
+	if !cfg.WithFiles {
 		options.ExportStorageType = fileproc.STnone
 	}
 	list, err := structures.NewEntityList(args)
@@ -82,7 +82,15 @@ func runExport(ctx context.Context, cmd *base.Command, args []string) error {
 		fsa.Close()
 	}()
 
-	if err := export(ctx, sess, fsa, list, options); err != nil {
+	// TODO: remove once the database is stable.
+	if cfg.UseChunkFiles {
+		lg.DebugContext(ctx, "using chunk files backend")
+		err = export(ctx, sess, fsa, list, options)
+	} else {
+		lg.DebugContext(ctx, "using database backend")
+		err = exportv31(ctx, sess, fsa, list, options)
+	}
+	if err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return fmt.Errorf("export failed: %w", err)
 	}

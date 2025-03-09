@@ -11,6 +11,8 @@ import (
 	"path/filepath"
 	"reflect"
 	"testing"
+
+	_ "modernc.org/sqlite"
 )
 
 var fixturesDir = filepath.Join("..", "fixtures", "assets")
@@ -29,6 +31,12 @@ func TestLoad(t *testing.T) {
 		{
 			"chunk",
 			args{context.Background(), filepath.Join(fixturesDir, "source_archive")},
+			&ChunkDir{},
+			false,
+		},
+		{
+			"chunk, no workspace file",
+			args{context.Background(), filepath.Join(fixturesDir, "source_archive_no_wsp")},
 			&ChunkDir{},
 			false,
 		},
@@ -55,6 +63,24 @@ func TestLoad(t *testing.T) {
 			args{context.Background(), filepath.Join(fixturesDir, "source_dump_dir")},
 			&Dump{},
 			false,
+		},
+		{
+			"database directory",
+			args{context.Background(), filepath.Join(fixturesDir, "source_database")},
+			&Database{},
+			false,
+		},
+		{
+			"database file",
+			args{context.Background(), filepath.Join(fixturesDir, "source_database.db")},
+			&Database{},
+			false,
+		},
+		{
+			"unknown",
+			args{context.Background(), filepath.Join(fixturesDir, "source_unknown")},
+			nil,
+			true,
 		},
 	}
 	for _, tt := range tests {

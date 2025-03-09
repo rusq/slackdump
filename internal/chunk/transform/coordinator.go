@@ -5,6 +5,8 @@ import (
 	"errors"
 	"log/slog"
 
+	"github.com/rusq/slack"
+
 	"github.com/rusq/slackdump/v3/internal/chunk"
 )
 
@@ -63,6 +65,11 @@ func (s *Coordinator) Wait() (err error) {
 		}
 	}
 	return err
+}
+
+func (s *Coordinator) StartWithUsers(context.Context, []slack.User) error {
+	// noop
+	return nil
 }
 
 func (s *Coordinator) Transform(ctx context.Context, id chunk.FileID) error {

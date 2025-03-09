@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"iter"
 	"log"
 	"log/slog"
 	"path/filepath"
@@ -25,6 +24,7 @@ import (
 
 var (
 	ErrNotFound       = errors.New("not found")
+	ErrNoData         = errors.New("no data")
 	ErrDataMisaligned = errors.New("internal error: index and file data misaligned")
 )
 
@@ -96,7 +96,7 @@ func fromReaderWithIndex(rs io.ReadSeeker, idx index) (*File, error) {
 
 // Close closes the underlying reader if it implements io.Closer.
 func (f *File) Close() error {
-	if c, ok := f.rs.(io.Closer); ok {
+	if c, ok := f.rs.(io.Closer); f.rs != nil && ok {
 		return c.Close()
 	}
 	return nil
@@ -126,7 +126,7 @@ func indexChunks(dec decoder) (index, error) {
 		idx[id] = append(idx[id], offset)
 	}
 
-	slog.Default().Debug("indexing chunks", "len(idx)", len(idx), "caller", osext.Caller(2), "took", time.Since(start).String(), "per_sec", float64(len(idx))/time.Since(start).Seconds())
+	slog.Debug("indexing chunks", "len(idx)", len(idx), "caller", osext.Caller(2), "took", time.Since(start).String(), "per_sec", float64(len(idx))/time.Since(start).Seconds())
 	return idx, nil
 }
 
@@ -226,7 +226,7 @@ func (f *File) State() (*state.State, error) {
 
 // AllMessages returns all the messages for the given channel posted to it (no
 // thread).  The messages are in the order as they appear in the file.
-func (f *File) AllMessages(channelID string) ([]slack.Message, error) {
+func (f *File) AllMessages(_ context.Context, channelID string) ([]slack.Message, error) {
 	m, err := f.allMessagesForID(GroupID(channelID))
 	if err != nil {
 		return nil, fmt.Errorf("failed getting messages for %s: %w", channelID, err)
@@ -295,22 +295,6 @@ func (f *File) AllChannelInfos() ([]slack.Channel, error) {
 	return chans, nil
 }
 
-// AllChannelInfoWithMembers returns all channels with Members populated.
-func (f *File) AllChannelInfoWithMembers() ([]slack.Channel, error) {
-	c, err := f.AllChannelInfos()
-	if err != nil {
-		return nil, err
-	}
-	for i := range c {
-		members, err := f.ChannelUsers(c[i].ID)
-		if err != nil {
-			return nil, err
-		}
-		c[i].Members = members
-	}
-	return c, nil
-}
-
 // int64s implements sort.Interface for []int64.
 type int64s []int64
 
@@ -333,6 +317,8 @@ func allForOffsets[T any](p *File, offsets []int64, fn func(c *Chunk) []T) ([]T,
 	return items, nil
 }
 
+var ErrNoChannelUsers = errors.New("no channel users")
+
 // ChannelInfo returns the information for the given channel.
 func (f *File) ChannelInfo(channelID string) (*slack.Channel, error) {
 	info, err := f.channelInfo(channelID)
@@ -342,7 +328,7 @@ func (f *File) ChannelInfo(channelID string) (*slack.Channel, error) {
 	if !info.IsArchived && info.NumMembers > 0 {
 		users, err := f.ChannelUsers(channelID)
 		if err != nil {
-			return nil, fmt.Errorf("failed getting channel users for %q: %w", channelID, err)
+			return info, fmt.Errorf("failed getting channel users for %q: %w", channelID, ErrNoChannelUsers)
 		}
 		info.Members = users
 	}
@@ -420,6 +406,7 @@ type offts map[int64]offsetInfo
 type offsetInfo struct {
 	ID         GroupID
 	Type       ChunkType
+	TS         int64 // timestamp of the chunk
 	Timestamps []int64
 }
 
@@ -461,6 +448,7 @@ func (f *File) offsetTimestamps(ctx context.Context) (offts, error) {
 			ret[offset] = offsetInfo{
 				ID:         chunk.ID(),
 				Type:       chunk.Type,
+				TS:         chunk.Timestamp,
 				Timestamps: ts,
 			}
 		}
@@ -478,9 +466,13 @@ type Addr struct {
 // the message with this timestamp within the message slice.  It converts the
 // string timestamp to an int64 timestamp using structures.TS2int, but the
 // original string timestamp returned in the TimeOffset struct.
-func timeOffsets(ots offts) map[int64]Addr {
+func timeOffsets(ots offts, chanID string) map[int64]Addr {
 	ret := make(map[int64]Addr, len(ots))
 	for offset, info := range ots {
+		channelID, ok := info.ID.ExtractChannelID()
+		if !ok || channelID != chanID {
+			continue
+		}
 		for i, ts := range info.Timestamps {
 			ret[ts] = Addr{
 				Offset: offset,
@@ -492,8 +484,11 @@ func timeOffsets(ots offts) map[int64]Addr {
 }
 
 // Sorted iterates over all the messages in the chunkfile in chronological
-// order.  If desc is true, the slice will be iterated in reverse order.
-func (f *File) Sorted(ctx context.Context, desc bool, fn func(ts time.Time, m *slack.Message) error) error {
+// order for the requested chanID.  If desc is true, the slice will be iterated
+// in reverse order.  It does not differentiate between the channel and thread
+// messages.  The function fn is called for each message in the slice.  If the
+// function returns an error, the iteration stops and the error is returned.
+func (f *File) Sorted(ctx context.Context, chanID string, desc bool, fn func(ts time.Time, m *slack.Message) error) error {
 	ctx, task := trace.NewTask(ctx, "file.Sorted")
 	defer task.End()
 
@@ -505,11 +500,14 @@ func (f *File) Sorted(ctx context.Context, desc bool, fn func(ts time.Time, m *s
 	}
 
 	rgnTos := trace.StartRegion(ctx, "timeOffsets")
-	tos := timeOffsets(ots)
+	tos := timeOffsets(ots, chanID)
 	rgnTos.End()
 	tsList := make([]int64, 0, len(tos))
 	for ts := range tos {
 		tsList = append(tsList, ts)
+	}
+	if len(tsList) == 0 {
+		return ErrNoData
 	}
 
 	trace.WithRegion(ctx, "sorted.sort", func() {
@@ -527,8 +525,8 @@ func (f *File) Sorted(ctx context.Context, desc bool, fn func(ts time.Time, m *s
 	for _, ts := range tsList {
 		tmOff := tos[ts]
 		// read the new chunk from the file only in case that the offset has
-		// changed.
-		if tmOff.Offset != prevOffset {
+		// changed or the chunk is nil (initial value).
+		if tmOff.Offset != prevOffset || chunk == nil {
 			var err error
 			chunk, err = f.chunkAt(tmOff.Offset)
 			if err != nil {
@@ -592,27 +590,6 @@ func (r Result[T]) Error() string {
 	return ""
 }
 
-func allForIDIter[T any](f *File, id GroupID, extractFn func(c *Chunk) T) (iter.Seq[Result[T]], error) {
-	offsets, ok := f.idx[id]
-	if !ok {
-		return nil, fmt.Errorf("chunk %q: %w", id, ErrNotFound)
-	}
-	return func(yield func(Result[T]) bool) {
-		for _, offset := range offsets {
-			chunk, err := f.chunkAt(offset)
-			if err != nil {
-				if !yield(Result[T]{Err: err}) {
-					return
-				}
-				continue
-			}
-			if !yield(Result[T]{Val: extractFn(chunk)}) {
-				return
-			}
-		}
-	}, nil
-}
-
 // Latest returns the latest timestamps for the channels and threads
 // in the file.
 func (f *File) Latest(ctx context.Context) (map[GroupID]time.Time, error) {
@@ -629,13 +606,15 @@ func (f *File) Latest(ctx context.Context) (map[GroupID]time.Time, error) {
 		if len(info.Timestamps) == 0 {
 			continue
 		}
+		sort.Sort(sort.Reverse(int64s(info.Timestamps)))
+		latest := fasttime.Int2Time(info.Timestamps[0])
 		curr, ok := ret[info.ID]
 		if !ok {
-			ret[info.ID] = fasttime.Int2Time(info.Timestamps[0])
+			ret[info.ID] = latest
 			continue
 		}
-		if fasttime.Int2Time(info.Timestamps[0]).After(curr) {
-			ret[info.ID] = fasttime.Int2Time(info.Timestamps[0])
+		if latest.After(curr) {
+			ret[info.ID] = latest
 		}
 	}
 	return ret, nil

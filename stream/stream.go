@@ -222,7 +222,7 @@ func (cs *Stream) Users(ctx context.Context, proc processor.Users, opt ...slack.
 	p := cs.client.GetUsersPaginated(opt...)
 	var apiErr error
 	for apiErr == nil {
-		if apiErr = network.WithRetry(ctx, cs.limits.users, cs.limits.tier.Tier2.Retries, func() error {
+		if apiErr = network.WithRetry(ctx, cs.limits.users, cs.limits.tier.Tier2.Retries, func(ctx context.Context) error {
 			var err error
 			p, err = p.Next(ctx)
 			return err
@@ -246,7 +246,7 @@ func (cs *Stream) ListChannels(ctx context.Context, proc processor.Channels, p *
 	for {
 		p.Cursor = next
 		var ch []slack.Channel
-		if err := network.WithRetry(ctx, cs.limits.channels, cs.limits.tier.Tier3.Retries, func() error {
+		if err := network.WithRetry(ctx, cs.limits.channels, cs.limits.tier.Tier3.Retries, func(ctx context.Context) error {
 			var err error
 			ch, next, err = cs.client.GetConversationsContext(ctx, p)
 			return err

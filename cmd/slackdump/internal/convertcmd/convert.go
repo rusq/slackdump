@@ -4,13 +4,17 @@ import (
 	"context"
 	_ "embed"
 	"errors"
+	"os"
 	"time"
 
 	"github.com/rusq/fsadapter"
 
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/bootstrap"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/internal/chunk"
+	"github.com/rusq/slackdump/v3/internal/chunk/dbproc"
+	"github.com/rusq/slackdump/v3/internal/chunk/dirproc"
 	"github.com/rusq/slackdump/v3/internal/chunk/transform/fileproc"
 	"github.com/rusq/slackdump/v3/internal/convert"
 	"github.com/rusq/slackdump/v3/internal/source"
@@ -20,34 +24,36 @@ import (
 var convertMd string
 
 var CmdConvert = &base.Command{
-	Run:       runConvert,
-	UsageLine: "slackdump convert [flags] <source>",
-	Short:     "convert slackdump chunks to various formats",
-	Long: `# Convert Command
-Convert slackdump archive format to various formats.
-
-Currently only "export" format is supported.
-`,
+	Run:         runConvert,
+	UsageLine:   "slackdump convert [flags] <source>",
+	Short:       "convert slackdump chunks to various formats",
+	Long:        convertMd,
 	CustomFlags: false,
 	FlagMask:    cfg.OmitAll & ^cfg.OmitDownloadFlag &^ cfg.OmitOutputFlag &^ cfg.OmitDownloadAvatarsFlag,
 	PrintFlags:  true,
 }
 
+var (
+	// ErrFormat is returned when the target format is not supported.
+	ErrFormat = errors.New("unsupported target format")
+	// ErrSource is returned when the source type is not supported for the chosen target type.
+	ErrSource = errors.New("unsupported source type")
+	// ErrStorage is returned when the storage type is not supported.
+	ErrStorage = errors.New("unsupported storage type")
+)
+
 type tparams struct {
 	storageType fileproc.StorageType
-	inputfmt    datafmt
 	outputfmt   datafmt
 }
 
 var params = tparams{
 	storageType: fileproc.STmattermost,
-	inputfmt:    Fchunk,
 	outputfmt:   Fexport,
 }
 
 func init() {
 	CmdConvert.Flag.Var(&params.storageType, "storage", "storage type")
-	CmdConvert.Flag.Var(&params.inputfmt, "input", "input format")
 	CmdConvert.Flag.Var(&params.outputfmt, "output", "output format")
 }
 
@@ -56,18 +62,18 @@ func runConvert(ctx context.Context, cmd *base.Command, args []string) error {
 		base.SetExitStatus(base.SInvalidParameters)
 		return errors.New("source and destination are required")
 	}
-	fn, exist := converter(params.inputfmt, params.outputfmt)
+	fn, exist := converter(params.outputfmt)
 	if !exist {
 		base.SetExitStatus(base.SInvalidParameters)
-		return errors.New("unsupported conversion type")
+		return ErrFormat
 	}
 
 	lg := cfg.Log
-	lg.InfoContext(ctx, "converting", "input_format", params.inputfmt, "source", args[0], "output_format", params.outputfmt, "output", cfg.Output)
+	lg.InfoContext(ctx, "converting", "source", args[0], "output_format", params.outputfmt, "output", cfg.Output)
 
 	cflg := convertflags{
-		withFiles:   cfg.DownloadFiles,
-		withAvatars: cfg.DownloadAvatars,
+		withFiles:   cfg.WithFiles,
+		withAvatars: cfg.WithAvatars,
 		stt:         params.storageType,
 	}
 	start := time.Now()
@@ -80,11 +86,8 @@ func runConvert(ctx context.Context, cmd *base.Command, args []string) error {
 	return nil
 }
 
-func converter(input datafmt, output datafmt) (convertFunc, bool) {
-	if _, ok := converters[input]; !ok {
-		return nil, false
-	}
-	if cvt, ok := converters[input][output]; ok {
+func converter(output datafmt) (convertFunc, bool) {
+	if cvt, ok := converters[output]; ok {
 		return cvt, true
 	}
 	return nil, false
@@ -92,11 +95,9 @@ func converter(input datafmt, output datafmt) (convertFunc, bool) {
 
 type convertFunc func(ctx context.Context, input, output string, cflg convertflags) error
 
-// ..................input.......output..............
-var converters = map[datafmt]map[datafmt]convertFunc{
-	Fchunk: {
-		Fexport: chunk2export,
-	},
+var converters = map[datafmt]convertFunc{
+	Fexport: toExport,
+	Fchunk:  toChunk,
 }
 
 type convertflags struct {
@@ -105,16 +106,17 @@ type convertflags struct {
 	stt         fileproc.StorageType
 }
 
-func chunk2export(ctx context.Context, src, trg string, cflg convertflags) error {
+func toExport(ctx context.Context, src, trg string, cflg convertflags) error {
+	// detect source type
 	st, err := source.Type(src)
 	if err != nil {
 		return err
 	}
-	cd, err := chunk.OpenDir(src)
-	if err != nil {
-		return err
+
+	if st == source.FUnknown {
+		return ErrSource
 	}
-	defer cd.Close()
+
 	fsa, err := fsadapter.New(trg)
 	if err != nil {
 		return err
@@ -123,7 +125,7 @@ func chunk2export(ctx context.Context, src, trg string, cflg convertflags) error
 
 	sttFn, ok := fileproc.StorageTypeFuncs[cflg.stt]
 	if !ok {
-		return errors.New("unknown storage type")
+		return ErrStorage
 	}
 
 	var (
@@ -131,8 +133,13 @@ func chunk2export(ctx context.Context, src, trg string, cflg convertflags) error
 		includeAvatars = cflg.withAvatars && (st&source.FAvatars != 0)
 	)
 
-	cvt := convert.NewChunkToExport(
-		cd,
+	s, err := source.Load(ctx, src)
+	if err != nil {
+		return err
+	}
+
+	cvt := convert.NewToExport(
+		s,
 		fsa,
 		convert.WithIncludeFiles(includeFiles),
 		convert.WithIncludeAvatars(includeAvatars),
@@ -144,5 +151,49 @@ func chunk2export(ctx context.Context, src, trg string, cflg convertflags) error
 		return err
 	}
 
+	return nil
+}
+
+func toChunk(ctx context.Context, src, trg string, cflg convertflags) error {
+	// detect source type
+	st, err := source.Type(src)
+	if err != nil {
+		return err
+	}
+	if !st.Has(source.FDatabase) {
+		return ErrSource
+	}
+	wconn, _, err := bootstrap.Database(src, "convert")
+	if err != nil {
+		return err
+	}
+	defer wconn.Close()
+
+	dir := cfg.StripZipExt(trg)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return err
+	}
+	remove := true
+	defer func() {
+		// remove on failed conversion
+		if remove {
+			_ = os.RemoveAll(dir)
+		}
+	}()
+
+	cd, err := chunk.OpenDir(dir)
+	if err != nil {
+		return err
+	}
+	erc := dirproc.NewERC(cd, cfg.Log)
+	defer erc.Close()
+
+	remove = false // init succeeded
+
+	// TODO: how to find the session id?
+	ch := dbproc.Chunker{SessionID: 1}
+	if err := ch.ToChunk(ctx, wconn, erc); err != nil {
+		return err
+	}
 	return nil
 }
