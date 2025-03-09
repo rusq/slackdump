@@ -59,10 +59,10 @@ func exportv31(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, l
 	defer tf.Close()
 
 	// starting the downloader
-	dlEnabled := cfg.DownloadFiles && params.ExportStorageType != fileproc.STnone
+	dlEnabled := cfg.WithFiles && params.ExportStorageType != fileproc.STnone
 	fdl := fileproc.NewDownloader(ctx, dlEnabled, sess.Client(), fsa, lg)
 	fp := fileproc.NewExport(params.ExportStorageType, fdl)
-	avdl := fileproc.NewDownloader(ctx, cfg.DownloadAvatars, sess.Client(), fsa, lg)
+	avdl := fileproc.NewDownloader(ctx, cfg.WithAvatars, sess.Client(), fsa, lg)
 	avp := fileproc.NewAvatarProc(avdl)
 
 	lg.InfoContext(ctx, "running export...")
@@ -142,10 +142,10 @@ func export(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, list
 	defer tf.Close()
 
 	// starting the downloader
-	dlEnabled := cfg.DownloadFiles && params.ExportStorageType != fileproc.STnone
+	dlEnabled := cfg.WithFiles && params.ExportStorageType != fileproc.STnone
 	fdl := fileproc.NewDownloader(ctx, dlEnabled, sess.Client(), fsa, lg)
 	fp := fileproc.NewExport(params.ExportStorageType, fdl)
-	avdl := fileproc.NewDownloader(ctx, cfg.DownloadAvatars, sess.Client(), fsa, lg)
+	avdl := fileproc.NewDownloader(ctx, cfg.WithAvatars, sess.Client(), fsa, lg)
 	avp := fileproc.NewAvatarProc(avdl)
 
 	lg.InfoContext(ctx, "running export...")

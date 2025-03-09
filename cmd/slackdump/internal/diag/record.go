@@ -93,8 +93,8 @@ func runRecord(ctx context.Context, _ *base.Command, args []string) error {
 	runParams := dbproc.SessionInfo{
 		FromTS:         (*time.Time)(&cfg.Oldest),
 		ToTS:           (*time.Time)(&cfg.Latest),
-		FilesEnabled:   cfg.DownloadFiles,
-		AvatarsEnabled: cfg.DownloadAvatars,
+		FilesEnabled:   cfg.WithFiles,
+		AvatarsEnabled: cfg.WithAvatars,
 		Mode:           "record",
 		Args:           strings.Join(os.Args, "|"),
 	}

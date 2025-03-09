@@ -158,7 +158,7 @@ func searchControllerv31(ctx context.Context, dir string, sess *slackdump.Sessio
 
 	dl := fileproc.NewDownloader(
 		ctx,
-		cfg.DownloadFiles,
+		cfg.WithFiles,
 		sess.Client(),
 		fsadapter.NewDirectory(cd.Name()),
 		lg,

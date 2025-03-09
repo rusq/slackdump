@@ -67,9 +67,9 @@ func globalConfig() Configuration {
 			Params: []Parameter{
 				{
 					Name:        "Download files",
-					Value:       Checkbox(cfg.DownloadFiles),
+					Value:       Checkbox(cfg.WithFiles),
 					Description: "Download files",
-					Updater:     updaters.NewBool(&cfg.DownloadFiles),
+					Updater:     updaters.NewBool(&cfg.WithFiles),
 				},
 				{
 					Name:        "Enterprise mode",

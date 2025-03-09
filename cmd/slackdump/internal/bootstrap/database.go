@@ -38,8 +38,8 @@ func SessionInfo(mode string) dbproc.SessionInfo {
 	si := dbproc.SessionInfo{
 		FromTS:         (*time.Time)(&cfg.Oldest),
 		ToTS:           (*time.Time)(&cfg.Latest),
-		FilesEnabled:   cfg.DownloadFiles,
-		AvatarsEnabled: cfg.DownloadAvatars,
+		FilesEnabled:   cfg.WithFiles,
+		AvatarsEnabled: cfg.WithAvatars,
 		Mode:           mode,
 		Args:           args,
 	}

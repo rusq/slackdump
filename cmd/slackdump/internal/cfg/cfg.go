@@ -45,8 +45,8 @@ var (
 	NoEncryption    bool   // disable encryption
 
 	MemberOnly      bool
-	DownloadFiles   bool
-	DownloadAvatars bool
+	WithFiles   bool
+	WithAvatars bool
 	RecordFiles     bool // record file chunks in chunk files.
 
 	// Oldest is the default timestamp of the oldest message to fetch, that is
@@ -140,13 +140,13 @@ func SetBaseFlags(fs *flag.FlagSet, mask FlagMask) {
 		fs.BoolVar(&NoEncryption, "no-encryption", osenv.Value("DISABLE_ENCRYPTION", false), "disable encryption for cache and credential files")
 	}
 	if mask&OmitDownloadFlag == 0 {
-		fs.BoolVar(&DownloadFiles, "files", true, "enables file attachments download (to disable, specify: -files=false)")
+		fs.BoolVar(&WithFiles, "files", true, "enables file attachments download (to disable, specify: -files=false)")
 		if mask&OmitRecordFilesFlag == 0 {
 			fs.BoolVar(&RecordFiles, "files-rec", false, "include file chunks in chunk files")
 		}
 	}
 	if mask&OmitDownloadAvatarsFlag == 0 {
-		fs.BoolVar(&DownloadAvatars, "avatars", false, "enables user avatar download (placed in __avatars directory)")
+		fs.BoolVar(&WithAvatars, "avatars", false, "enables user avatar download (placed in __avatars directory)")
 	}
 	if mask&OmitConfigFlag == 0 {
 		fs.StringVar(&ConfigFile, "api-config", "", "configuration `file` with Slack API limits overrides.\nYou can generate one with default values with 'slackdump config new`")

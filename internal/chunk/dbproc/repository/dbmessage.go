@@ -144,11 +144,11 @@ func NewMessageRepository() MessageRepository {
 }
 
 func (r messageRepository) Count(ctx context.Context, conn sqlx.QueryerContext, channelID string) (int64, error) {
-	return r.countTypeWhere(ctx, conn, queryParams{Where: "CHANNEL_ID = ?", Binds: []any{channelID}}, chunk.CMessages)
+	return r.countTypeWhere(ctx, conn, queryParams{Where: "T.CHANNEL_ID = ?", Binds: []any{channelID}}, chunk.CMessages)
 }
 
 func (r messageRepository) AllForID(ctx context.Context, conn sqlx.QueryerContext, channelID string) (iter.Seq2[DBMessage, error], error) {
-	return r.allOfTypeWhere(ctx, conn, queryParams{Where: "CHANNEL_ID = ?", Binds: []any{channelID}, UserKeyOrder: true}, chunk.CMessages)
+	return r.allOfTypeWhere(ctx, conn, queryParams{Where: "T.CHANNEL_ID = ?", Binds: []any{channelID}, UserKeyOrder: true}, chunk.CMessages)
 }
 
 // threadCond returns a condition for selecting messages that are part of a

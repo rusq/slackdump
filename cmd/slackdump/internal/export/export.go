@@ -56,7 +56,7 @@ func runExport(ctx context.Context, cmd *base.Command, args []string) error {
 		base.SetExitStatus(base.SInvalidParameters)
 		return errors.New("use -base to set the base output location")
 	}
-	if !cfg.DownloadFiles {
+	if !cfg.WithFiles {
 		options.ExportStorageType = fileproc.STnone
 	}
 	list, err := structures.NewEntityList(args)

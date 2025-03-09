@@ -56,7 +56,7 @@ type channelUserRepository struct {
 
 func (r channelUserRepository) GetByChannelID(ctx context.Context, db sqlx.QueryerContext, channelID string) (iter.Seq2[DBChannelUser, error], error) {
 	qp := queryParams{
-		Where:        "CHANNEL_ID = ?",
+		Where:        "T.CHANNEL_ID = ?",
 		Binds:        []any{channelID},
 		UserKeyOrder: true,
 	}

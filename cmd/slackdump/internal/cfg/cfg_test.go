@@ -80,7 +80,7 @@ func TestSetBaseFlags(t *testing.T) {
 		if RODUserAgent != "Mozilla/5.0" {
 			t.Errorf("Expected RODUserAgent to be 'Mozilla/5.0', got '%s'", RODUserAgent)
 		}
-		if DownloadFiles {
+		if WithFiles {
 			t.Error("Expected DownloadFiles to be false, got true")
 		}
 		if ConfigFile != "config.json" {

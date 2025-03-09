@@ -47,8 +47,8 @@ func RecordFiles() Parameter {
 func Avatars() Parameter {
 	return Parameter{
 		Name:        "Download Avatars",
-		Value:       Checkbox(cfg.DownloadAvatars),
+		Value:       Checkbox(cfg.WithAvatars),
 		Description: "Download avatars",
-		Updater:     updaters.NewBool(&cfg.DownloadAvatars),
+		Updater:     updaters.NewBool(&cfg.WithAvatars),
 	}
 }

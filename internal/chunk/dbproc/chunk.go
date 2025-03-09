@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 
 	"github.com/jmoiron/sqlx"
 
@@ -14,25 +15,32 @@ import (
 	"github.com/rusq/slackdump/v3/internal/structures"
 )
 
-var ErrInvalidSessionID = errors.New("invalid session ID")
+var (
+	ErrInvalidSessionID = errors.New("invalid session ID")
+	ErrIncomplete       = errors.New("incomplete session")
+)
 
-func ToChunk(ctx context.Context, conn sqlx.ExtContext, e chunk.Encoder, sessID int64) error {
-	if sessID < 1 {
+type Chunker struct {
+	SessionID int64
+}
+
+func (c *Chunker) ToChunk(ctx context.Context, conn sqlx.ExtContext, e chunk.Encoder) error {
+	if c.SessionID < 1 {
 		return ErrInvalidSessionID
 	}
 	sr := repository.NewSessionRepository()
-	sess, err := sr.Get(ctx, conn, sessID)
+	sess, err := sr.Get(ctx, conn, c.SessionID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return ErrInvalidSessionID
 		}
 		return err
 	}
-	if sess.Finished {
-		return errors.New("incomplete session")
+	if !sess.Finished {
+		return ErrIncomplete
 	}
 	cr := repository.NewChunkRepository()
-	it, err := cr.All(ctx, conn, sessID)
+	it, err := cr.All(ctx, conn, c.SessionID)
 	if err != nil {
 		return err
 	}
@@ -49,7 +57,7 @@ func ToChunk(ctx context.Context, conn sqlx.ExtContext, e chunk.Encoder, sessID 
 			return err
 		}
 		if err := e.Encode(ctx, *chunk); err != nil {
-			return err
+			return fmt.Errorf("error converting chunk %d[%s]: %w", dbchunk.ID, dbchunk.TypeID, err)
 		}
 	}
 	return nil
@@ -68,19 +76,20 @@ var assemblers = map[chunk.ChunkType]func(context.Context, sqlx.ExtContext, *rep
 	chunk.CSearchFiles:    asmSearchFiles,
 }
 
+func strOrEmpty(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
+}
+
 func asmMessages(ctx context.Context, conn sqlx.ExtContext, dbchunk *repository.DBChunk) (*chunk.Chunk, error) {
 	mr := repository.NewMessageRepository()
-	c := chunk.Chunk{
-		Type:      dbchunk.TypeID,
-		Timestamp: dbchunk.UnixTS,
-		Count:     dbchunk.NumRecords,
-		IsLast:    dbchunk.Final,
-		Messages:  make([]slack.Message, 0, dbchunk.NumRecords),
-	}
 	it, err := mr.AllForChunk(ctx, conn, dbchunk.ID)
 	if err != nil {
 		return nil, err
 	}
+	c := dbchunk.Chunk()
 	for m, err := range it {
 		if err != nil {
 			return nil, err
@@ -88,31 +97,22 @@ func asmMessages(ctx context.Context, conn sqlx.ExtContext, dbchunk *repository.
 		msg, err := m.Val()
 		if err != nil {
 			return nil, err
-		}
-		if c.ChannelID == "" {
-			c.ChannelID = m.ChannelID
 		}
 		if structures.IsThreadStart(&msg) {
 			c.NumThreads++
 		}
 		c.Messages = append(c.Messages, msg)
 	}
-	return &c, nil
+	return c, nil
 }
 
 func asmThreadMessages(ctx context.Context, conn sqlx.ExtContext, dbchunk *repository.DBChunk) (*chunk.Chunk, error) {
 	mr := repository.NewMessageRepository()
-	c := chunk.Chunk{
-		Type:      dbchunk.TypeID,
-		Timestamp: dbchunk.UnixTS,
-		Count:     dbchunk.NumRecords,
-		IsLast:    dbchunk.Final,
-		Messages:  make([]slack.Message, 0, dbchunk.NumRecords),
-	}
 	it, err := mr.AllForChunk(ctx, conn, dbchunk.ID)
 	if err != nil {
 		return nil, err
 	}
+	c := dbchunk.Chunk()
 	for m, err := range it {
 		if err != nil {
 			return nil, err
@@ -120,9 +120,6 @@ func asmThreadMessages(ctx context.Context, conn sqlx.ExtContext, dbchunk *repos
 		msg, err := m.Val()
 		if err != nil {
 			return nil, err
-		}
-		if c.ChannelID == "" {
-			c.ChannelID = m.ChannelID
 		}
 		if c.ThreadTS == "" {
 			if m.ThreadTS != nil {
@@ -135,10 +132,11 @@ func asmThreadMessages(ctx context.Context, conn sqlx.ExtContext, dbchunk *repos
 				return nil, err
 			}
 			c.Parent = pm
+			continue // skip the parent message, TODO: maybe it should be fixed for the archive format.
 		}
 		c.Messages = append(c.Messages, msg)
 	}
-	return &c, nil
+	return c, nil
 }
 
 // getMessage returns a single message from the repository.
@@ -157,17 +155,11 @@ func getMessage(ctx context.Context, conn sqlx.ExtContext, id int64) (*slack.Mes
 
 func asmFiles(ctx context.Context, conn sqlx.ExtContext, dbchunk *repository.DBChunk) (*chunk.Chunk, error) {
 	fr := repository.NewFileRepository()
-	c := chunk.Chunk{
-		Type:      dbchunk.TypeID,
-		Timestamp: dbchunk.UnixTS,
-		Count:     dbchunk.NumRecords,
-		IsLast:    dbchunk.Final,
-		Files:     make([]slack.File, 0, dbchunk.NumRecords),
-	}
 	it, err := fr.AllForChunk(ctx, conn, dbchunk.ID)
 	if err != nil {
 		return nil, err
 	}
+	c := dbchunk.Chunk()
 	for f, err := range it {
 		if err != nil {
 			return nil, err
@@ -175,9 +167,6 @@ func asmFiles(ctx context.Context, conn sqlx.ExtContext, dbchunk *repository.DBC
 		file, err := f.Val()
 		if err != nil {
 			return nil, err
-		}
-		if c.ChannelID == "" {
-			c.ChannelID = f.ChannelID
 		}
 		if c.Parent == nil && f.MessageID != nil {
 			pm, err := getMessage(ctx, conn, *f.MessageID)
@@ -188,17 +177,12 @@ func asmFiles(ctx context.Context, conn sqlx.ExtContext, dbchunk *repository.DBC
 		}
 		c.Files = append(c.Files, file)
 	}
-	return &c, nil
+	return c, nil
 }
 
 func asmUsers(ctx context.Context, conn sqlx.ExtContext, dbchunk *repository.DBChunk) (*chunk.Chunk, error) {
 	ur := repository.NewUserRepository()
-	c := chunk.Chunk{
-		Type:      dbchunk.TypeID,
-		Timestamp: dbchunk.UnixTS,
-		Count:     dbchunk.NumRecords,
-		Users:     make([]slack.User, 0, dbchunk.NumRecords),
-	}
+	c := dbchunk.Chunk()
 	it, err := ur.AllForChunk(ctx, conn, dbchunk.ID)
 	if err != nil {
 		return nil, err
@@ -213,21 +197,16 @@ func asmUsers(ctx context.Context, conn sqlx.ExtContext, dbchunk *repository.DBC
 		}
 		c.Users = append(c.Users, user)
 	}
-	return &c, nil
+	return c, nil
 }
 
 func asmChannels(ctx context.Context, conn sqlx.ExtContext, dbchunk *repository.DBChunk) (*chunk.Chunk, error) {
 	cr := repository.NewChannelRepository()
-	c := chunk.Chunk{
-		Type:      dbchunk.TypeID,
-		Timestamp: dbchunk.UnixTS,
-		Count:     dbchunk.NumRecords,
-		Channels:  make([]slack.Channel, 0, dbchunk.NumRecords),
-	}
 	it, err := cr.AllForChunk(ctx, conn, dbchunk.ID)
 	if err != nil {
 		return nil, err
 	}
+	c := dbchunk.Chunk()
 	for ch, err := range it {
 		if err != nil {
 			return nil, err
@@ -238,16 +217,12 @@ func asmChannels(ctx context.Context, conn sqlx.ExtContext, dbchunk *repository.
 		}
 		c.Channels = append(c.Channels, channel)
 	}
-	return &c, nil
+	return c, nil
 }
 
 func asmChannelInfo(ctx context.Context, conn sqlx.ExtContext, dbchunk *repository.DBChunk) (*chunk.Chunk, error) {
 	cr := repository.NewChannelRepository()
-	c := chunk.Chunk{
-		Type:      dbchunk.TypeID,
-		Timestamp: dbchunk.UnixTS,
-		Count:     dbchunk.NumRecords,
-	}
+	c := dbchunk.Chunk()
 	ch, err := cr.OneForChunk(ctx, conn, dbchunk.ID)
 	if err != nil {
 		return nil, err
@@ -258,16 +233,12 @@ func asmChannelInfo(ctx context.Context, conn sqlx.ExtContext, dbchunk *reposito
 	}
 	c.ChannelID = channel.ID
 	c.Channel = &channel
-	return &c, nil
+	return c, nil
 }
 
 func asmWorkspaceInfo(ctx context.Context, conn sqlx.ExtContext, dbchunk *repository.DBChunk) (*chunk.Chunk, error) {
 	wr := repository.NewWorkspaceRepository()
-	c := chunk.Chunk{
-		Type:      dbchunk.TypeID,
-		Timestamp: dbchunk.UnixTS,
-		Count:     dbchunk.NumRecords,
-	}
+	c := dbchunk.Chunk()
 	dw, err := wr.OneForChunk(ctx, conn, dbchunk.ID)
 	if err != nil {
 		return nil, err
@@ -277,41 +248,28 @@ func asmWorkspaceInfo(ctx context.Context, conn sqlx.ExtContext, dbchunk *reposi
 		return nil, err
 	}
 	c.WorkspaceInfo = &w
-	return &c, nil
+	return c, nil
 }
 
 func asmChannelUsers(ctx context.Context, conn sqlx.ExtContext, dbchunk *repository.DBChunk) (*chunk.Chunk, error) {
 	cur := repository.NewChannelUserRepository()
-	c := chunk.Chunk{
-		Type:         dbchunk.TypeID,
-		Timestamp:    dbchunk.UnixTS,
-		Count:        dbchunk.NumRecords,
-		ChannelUsers: make([]string, 0, dbchunk.NumRecords),
-	}
 	it, err := cur.AllForChunk(ctx, conn, dbchunk.ID)
 	if err != nil {
 		return nil, err
 	}
+	c := dbchunk.Chunk()
 	for cu, err := range it {
 		if err != nil {
 			return nil, err
 		}
-		if c.ChannelID == "" {
-			c.ChannelID = cu.ChannelID
-		}
 		c.ChannelUsers = append(c.ChannelUsers, cu.UserID)
 	}
-	return &c, nil
+	return c, nil
 }
 
 func asmSearchMessages(ctx context.Context, conn sqlx.ExtContext, dbchunk *repository.DBChunk) (*chunk.Chunk, error) {
 	sr := repository.NewSearchMessageRepository()
-	c := chunk.Chunk{
-		Type:           dbchunk.TypeID,
-		Timestamp:      dbchunk.UnixTS,
-		Count:          dbchunk.NumRecords,
-		SearchMessages: make([]slack.SearchMessage, 0, dbchunk.NumRecords),
-	}
+	c := dbchunk.Chunk()
 	if dbchunk.SearchQuery != nil {
 		c.SearchQuery = *dbchunk.SearchQuery
 	}
@@ -329,17 +287,12 @@ func asmSearchMessages(ctx context.Context, conn sqlx.ExtContext, dbchunk *repos
 		}
 		c.SearchMessages = append(c.SearchMessages, sm)
 	}
-	return &c, nil
+	return c, nil
 }
 
 func asmSearchFiles(ctx context.Context, conn sqlx.ExtContext, dbchunk *repository.DBChunk) (*chunk.Chunk, error) {
 	sr := repository.NewSearchFileRepository()
-	c := chunk.Chunk{
-		Type:        dbchunk.TypeID,
-		Timestamp:   dbchunk.UnixTS,
-		Count:       dbchunk.NumRecords,
-		SearchFiles: make([]slack.File, 0, dbchunk.NumRecords),
-	}
+	c := dbchunk.Chunk()
 	if dbchunk.SearchQuery != nil {
 		c.SearchQuery = *dbchunk.SearchQuery
 	}
@@ -357,5 +310,5 @@ func asmSearchFiles(ctx context.Context, conn sqlx.ExtContext, dbchunk *reposito
 		}
 		c.SearchFiles = append(c.SearchFiles, sf)
 	}
-	return &c, nil
+	return c, nil
 }

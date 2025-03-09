@@ -8,6 +8,8 @@ import (
 
 	"github.com/jmoiron/sqlx"
 
+	"github.com/rusq/slack"
+
 	"github.com/rusq/slackdump/v3/internal/chunk"
 )
 
@@ -20,8 +22,45 @@ type DBChunk struct {
 	CreatedAt   time.Time       `db:"CREATED_AT,omitempty"`
 	TypeID      chunk.ChunkType `db:"TYPE_ID,omitempty"`
 	NumRecords  int             `db:"NUM_REC"`
+	ChannelID   *string         `db:"CHANNEL_ID,omitempty"`
 	SearchQuery *string         `db:"SEARCH_QUERY,omitempty"`
 	Final       bool            `db:"FINAL"`
+}
+
+func orZero[T any](t *T) T {
+	var ret T
+	if t == nil {
+		return ret
+	}
+	return *t
+}
+
+func (c DBChunk) Chunk() *chunk.Chunk {
+	cc := chunk.Chunk{
+		Type:        c.TypeID,
+		Timestamp:   c.UnixTS,
+		ChannelID:   orZero(c.ChannelID),
+		Count:       c.NumRecords,
+		IsLast:      c.Final,
+		SearchQuery: orZero(c.SearchQuery),
+	}
+	switch c.TypeID {
+	case chunk.CMessages, chunk.CThreadMessages:
+		cc.Messages = make([]slack.Message, 0, c.NumRecords)
+	case chunk.CFiles:
+		cc.Files = make([]slack.File, 0, c.NumRecords)
+	case chunk.CUsers:
+		cc.Users = make([]slack.User, 0, c.NumRecords)
+	case chunk.CChannels, chunk.CChannelInfo:
+		cc.Channels = make([]slack.Channel, 0, c.NumRecords)
+	case chunk.CChannelUsers:
+		cc.ChannelUsers = make([]string, 0, c.NumRecords)
+	case chunk.CSearchMessages:
+		cc.SearchMessages = make([]slack.SearchMessage, 0, c.NumRecords)
+	case chunk.CSearchFiles:
+		cc.SearchFiles = make([]slack.File, 0, c.NumRecords)
+	}
+	return &cc
 }
 
 func (DBChunk) tablename() string {
@@ -42,6 +81,7 @@ func (DBChunk) columns() []string {
 		"UNIX_TS",
 		"TYPE_ID",
 		"NUM_REC",
+		"CHANNEL_ID",
 		"SEARCH_QUERY",
 		"FINAL",
 	}
@@ -53,6 +93,7 @@ func (d DBChunk) values() []any {
 		d.UnixTS,
 		d.TypeID,
 		d.NumRecords,
+		d.ChannelID,
 		d.SearchQuery,
 		d.Final,
 	}
@@ -137,7 +178,7 @@ func (r chunkRepository) All(ctx context.Context, conn sqlx.ExtContext, sessionI
 	// building
 	var buf strings.Builder
 	buf.WriteString("SELECT ")
-	buf.WriteString(colAlias("T", r.t.columns()...))
+	buf.WriteString(colAlias("T", append([]string{"ID"}, r.t.columns()...)...)) // ugly as
 	buf.WriteString(" FROM ")
 	buf.WriteString(r.t.tablename())
 	buf.WriteString(" AS T WHERE SESSION_ID = ?")

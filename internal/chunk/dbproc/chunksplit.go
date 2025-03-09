@@ -27,6 +27,7 @@ func (d *DBP) InsertChunk(ctx context.Context, c chunk.Chunk) (int64, error) {
 		UnixTS:      c.Timestamp,
 		TypeID:      c.Type,
 		NumRecords:  c.Count,
+		ChannelID:   orNil(c.ChannelID != "", c.ChannelID),
 		SearchQuery: orNil(c.SearchQuery != "", c.SearchQuery),
 		Final:       c.IsLast,
 	}

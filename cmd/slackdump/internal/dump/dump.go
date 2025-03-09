@@ -119,7 +119,7 @@ func RunDump(ctx context.Context, _ *base.Command, args []string) error {
 		list:          list,
 		tmpl:          tmpl,
 		updatePath:    opts.updateLinks,
-		downloadFiles: cfg.DownloadFiles,
+		downloadFiles: cfg.WithFiles,
 	}
 
 	// leave the compatibility mode to the user, if the new version is playing
@@ -228,7 +228,7 @@ func dumpv3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, p du
 	ctrl := control.NewDir(cd,
 		s,
 		control.WithLogger(lg),
-		control.WithFlags(control.Flags{RecordFiles: cfg.DownloadFiles}),
+		control.WithFlags(control.Flags{RecordFiles: cfg.WithFiles}),
 		control.WithCoordinator(coord),
 		control.WithFiler(subproc),
 	)
@@ -326,7 +326,7 @@ func dumpv31(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, p d
 		stream,
 		tmpdbp,
 		control.WithLogger(lg),
-		control.WithFlags(control.Flags{RecordFiles: cfg.DownloadFiles}),
+		control.WithFlags(control.Flags{RecordFiles: cfg.WithFiles}),
 		control.WithCoordinator(coord),
 		control.WithFiler(subproc),
 	)

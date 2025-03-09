@@ -165,7 +165,7 @@ func DBController(ctx context.Context, cmd *base.Command, conn *sqlx.DB, sess *s
 	// start attachment downloader
 	dl := fileproc.NewDownloader(
 		ctx,
-		cfg.DownloadFiles,
+		cfg.WithFiles,
 		sess.Client(),
 		fsadapter.NewDirectory(dirname),
 		lg,
@@ -173,7 +173,7 @@ func DBController(ctx context.Context, cmd *base.Command, conn *sqlx.DB, sess *s
 	// start avatar downloader
 	avdl := fileproc.NewDownloader(
 		ctx,
-		cfg.DownloadAvatars,
+		cfg.WithAvatars,
 		sess.Client(),
 		fsadapter.NewDirectory(dirname),
 		lg,
@@ -213,7 +213,7 @@ func ArchiveController(ctx context.Context, cd *chunk.Directory, sess *slackdump
 	// start attachment downloader
 	dl := fileproc.NewDownloader(
 		ctx,
-		cfg.DownloadFiles,
+		cfg.WithFiles,
 		sess.Client(),
 		fsadapter.NewDirectory(cd.Name()),
 		lg,
@@ -221,7 +221,7 @@ func ArchiveController(ctx context.Context, cd *chunk.Directory, sess *slackdump
 	// start avatar downloader
 	avdl := fileproc.NewDownloader(
 		ctx,
-		cfg.DownloadAvatars,
+		cfg.WithAvatars,
 		sess.Client(),
 		fsadapter.NewDirectory(cd.Name()),
 		lg,
