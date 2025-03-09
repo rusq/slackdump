@@ -147,12 +147,6 @@ func (d *DBP) IsComplete(ctx context.Context, channelID string) (bool, error) {
 	return n <= 0, nil
 }
 
-// Finalise is a no-op for the database processor.
-func (d *DBP) Finalise(ctx context.Context, channelID string) error {
-	// noop
-	return nil
-}
-
 // Source returns the connection that can be used safely as a source.
 func (d *DBP) Source() *Source {
 	return &Source{

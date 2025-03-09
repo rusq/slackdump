@@ -273,7 +273,9 @@ func (r genericRepository[T]) allOfTypeWhere(ctx context.Context, conn sqlx.Quer
 
 	slog.DebugContext(ctx, "allOfTypeWhere", "stmt", stmt, "binds", binds)
 
+	rgn := trace.StartRegion(ctx, "allOfTypeWhere.query")
 	rows, err := conn.QueryxContext(ctx, stmt, binds...)
+	rgn.End()
 	if err != nil {
 		return nil, fmt.Errorf("all: %w", err)
 	}

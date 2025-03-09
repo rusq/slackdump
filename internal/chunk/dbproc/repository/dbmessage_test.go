@@ -516,12 +516,12 @@ func Test_messageRepository_AllForThread(t *testing.T) {
 		threadID  string
 	}
 	tests := []struct {
-		name     string
-		fields   fields
-		args     args
-		preparFn utilityFn
-		want     []testResult[DBMessage]
-		wantErr  bool
+		name      string
+		fields    fields
+		args      args
+		prepareFn utilityFn
+		want      []testResult[DBMessage]
+		wantErr   bool
 	}{
 		{
 			name: "ok",
@@ -534,7 +534,7 @@ func Test_messageRepository_AllForThread(t *testing.T) {
 				channelID: "C123",
 				threadID:  "123.456",
 			},
-			preparFn: threadSetupFn,
+			prepareFn: threadSetupFn,
 			want: []testResult[DBMessage]{
 				{V: *dbtmAParent},
 				{V: *dbtmB},
@@ -546,8 +546,8 @@ func Test_messageRepository_AllForThread(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if tt.preparFn != nil {
-				tt.preparFn(t, tt.args.conn.(PrepareExtContext))
+			if tt.prepareFn != nil {
+				tt.prepareFn(t, tt.args.conn.(PrepareExtContext))
 			}
 			r := messageRepository{
 				genericRepository: tt.fields.genericRepository,

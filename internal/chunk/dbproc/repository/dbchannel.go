@@ -44,8 +44,8 @@ func (c DBChannel) columns() []string {
 	return []string{"ID", "CHUNK_ID", "NAME", "IDX", "DATA"}
 }
 
-func (c DBChannel) values() []interface{} {
-	return []interface{}{c.ID, c.ChunkID, c.Name, c.Index, c.Data}
+func (c DBChannel) values() []any {
+	return []any{c.ID, c.ChunkID, c.Name, c.Index, c.Data}
 }
 
 func (c DBChannel) Val() (slack.Channel, error) {

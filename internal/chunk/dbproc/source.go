@@ -2,6 +2,8 @@ package dbproc
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"iter"
 	"log/slog"
 	"time"
@@ -76,7 +78,43 @@ func (s *Source) Channels(ctx context.Context) ([]slack.Channel, error) {
 	if err != nil {
 		return nil, err
 	}
-	return collect(it, preallocSz)
+	var chns []slack.Channel
+	for c, err := range it {
+		if err != nil {
+			return nil, err
+		}
+		v, err := c.Val()
+		if err != nil {
+			return nil, err
+		}
+		users, err := s.channelUsers(ctx, v.ID, v.NumMembers)
+		if err != nil {
+			return nil, err
+		}
+		v.Members = users
+		chns = append(chns, v)
+	}
+
+	return chns, nil
+}
+
+func (s *Source) channelUsers(ctx context.Context, channelID string, prealloc int) ([]string, error) {
+	cur := repository.NewChannelUserRepository()
+	users, err := cur.GetByChannelID(ctx, s.conn, channelID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return []string{}, nil
+		}
+		return nil, err
+	}
+	us := make([]string, 0, prealloc)
+	for c, err := range users {
+		if err != nil {
+			return nil, err
+		}
+		us = append(us, c.ID)
+	}
+	return us, nil
 }
 
 func (s *Source) Users(ctx context.Context) ([]slack.User, error) {
@@ -170,7 +208,26 @@ func (s *Source) ChannelInfo(ctx context.Context, channelID string) (*slack.Chan
 		return nil, err
 	}
 	v, err := c.Val()
-	return &v, err
+	if err != nil {
+		return nil, err
+	}
+	cur := repository.NewChannelUserRepository()
+	users, err := cur.GetByChannelID(ctx, s.conn, channelID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return &v, nil
+		}
+		return nil, err
+	}
+	v.Members = make([]string, 0, v.NumMembers)
+	for c, err := range users {
+		if err != nil {
+			return nil, err
+		}
+		v.Members = append(v.Members, c.ID)
+	}
+
+	return &v, nil
 }
 
 func (s *Source) WorkspaceInfo(ctx context.Context) (*slack.AuthTestResponse, error) {
