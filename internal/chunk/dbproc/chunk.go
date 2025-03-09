@@ -63,6 +63,7 @@ func (c *Chunker) ToChunk(ctx context.Context, conn sqlx.ExtContext, e chunk.Enc
 	return nil
 }
 
+// assemblers is a map of chunk types to their respective assemblers.
 var assemblers = map[chunk.ChunkType]func(context.Context, sqlx.ExtContext, *repository.DBChunk) (*chunk.Chunk, error){
 	chunk.CMessages:       asmMessages,
 	chunk.CThreadMessages: asmThreadMessages,
@@ -74,13 +75,6 @@ var assemblers = map[chunk.ChunkType]func(context.Context, sqlx.ExtContext, *rep
 	chunk.CChannelUsers:   asmChannelUsers,
 	chunk.CSearchMessages: asmSearchMessages,
 	chunk.CSearchFiles:    asmSearchFiles,
-}
-
-func strOrEmpty(s *string) string {
-	if s == nil {
-		return ""
-	}
-	return *s
 }
 
 func asmMessages(ctx context.Context, conn sqlx.ExtContext, dbchunk *repository.DBChunk) (*chunk.Chunk, error) {
