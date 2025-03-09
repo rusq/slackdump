@@ -23,11 +23,12 @@ func (d *DBP) InsertChunk(ctx context.Context, c chunk.Chunk) (int64, error) {
 	defer txx.Rollback()
 
 	dc := repository.DBChunk{
-		SessionID:  d.sessionID,
-		UnixTS:     c.Timestamp,
-		TypeID:     c.Type,
-		NumRecords: c.Count,
-		Final:      c.IsLast,
+		SessionID:   d.sessionID,
+		UnixTS:      c.Timestamp,
+		TypeID:      c.Type,
+		NumRecords:  c.Count,
+		SearchQuery: orNil(c.SearchQuery != "", c.SearchQuery),
+		Final:       c.IsLast,
 	}
 	cr := repository.NewChunkRepository()
 	id, err := cr.Insert(ctx, txx, &dc)
@@ -45,6 +46,13 @@ func (d *DBP) InsertChunk(ctx context.Context, c chunk.Chunk) (int64, error) {
 	slog.DebugContext(ctx, "inserted chunk", "id", id, "len", n, "type", c.Type, "final", c.IsLast)
 
 	return id, nil
+}
+
+func orNil[T any](cond bool, v T) *T {
+	if cond {
+		return &v
+	}
+	return nil
 }
 
 // insertPayload calls relevant function to insert the chunk payload.

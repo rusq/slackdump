@@ -112,6 +112,8 @@ func (dbm DBMessage) Val() (slack.Message, error) {
 
 type MessageRepository interface {
 	Inserter[DBMessage]
+	Chunker[DBMessage]
+	Getter[DBMessage]
 	// Count returns the number of messages in a channel.
 	Count(ctx context.Context, conn sqlx.QueryerContext, channelID string) (int64, error)
 	// AllForID returns all messages in a channel.

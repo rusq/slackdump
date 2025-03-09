@@ -43,6 +43,11 @@ type Getter[T dbObject] interface {
 	GetType(ctx context.Context, conn sqlx.ExtContext, id any, ct ...chunk.ChunkType) (T, error)
 }
 
+type Chunker[T dbObject] interface {
+	OneForChunk(ctx context.Context, conn sqlx.QueryerContext, chunkID int64) (T, error)
+	AllForChunk(ctx context.Context, conn sqlx.QueryerContext, chunkID int64) (iter.Seq2[T, error], error)
+}
+
 // BulkRepository is a generic repository interface without the means to select
 // individual rows.
 type BulkRepository[T dbObject] interface {
@@ -50,6 +55,7 @@ type BulkRepository[T dbObject] interface {
 	Counter[T]
 	Dictionary[T]
 	Getter[T]
+	Chunker[T]
 }
 
 var _ BulkRepository[dbObject] = (*genericRepository[dbObject])(nil)
@@ -75,8 +81,6 @@ func (r genericRepository[T]) stmtInsert() string {
 	buf.WriteString(")")
 	return buf.String()
 }
-
-const CTypeAny = chunk.CAny
 
 func colAlias(alias string, col ...string) string {
 	var buf strings.Builder
@@ -294,6 +298,70 @@ func (r genericRepository[T]) allOfTypeWhere(ctx context.Context, conn sqlx.Quer
 		}
 		if err := rows.Err(); err != nil {
 			yield(r.t, fmt.Errorf("all: %w", err))
+			return
+		}
+	}
+	return it, nil
+}
+
+func (r genericRepository[T]) chunkQuery(chunkID int64) (string, []any) {
+	var buf strings.Builder
+	buf.WriteString("SELECT ")
+	buf.WriteString(colAlias("T", r.t.columns()...))
+	buf.WriteString(" FROM ")
+	buf.WriteString(r.t.tablename())
+	buf.WriteString(" AS T WHERE CHUNK_ID = ? ORDER BY ")
+	buf.WriteString(colAlias("T", r.t.userkey()...))
+	return buf.String(), []any{chunkID}
+}
+
+func (r genericRepository[T]) OneForChunk(ctx context.Context, conn sqlx.QueryerContext, chunkID int64) (T, error) {
+	stmt, binds := r.chunkQuery(chunkID)
+	stmt = stmt + " LIMIT 1"
+	if rb, ok := conn.(interface{ Rebind(string) string }); ok {
+		stmt = rb.Rebind(stmt)
+	}
+
+	slog.DebugContext(ctx, "OneForChunk", "stmt", stmt, "binds", chunkID)
+
+	var t T
+	if err := conn.QueryRowxContext(ctx, stmt, binds...).StructScan(&t); err != nil {
+		return t, fmt.Errorf("one for chunk: %w", err)
+	}
+	return t, nil
+}
+
+func (r genericRepository[T]) AllForChunk(ctx context.Context, conn sqlx.QueryerContext, chunkID int64) (iter.Seq2[T, error], error) {
+	ctx, task := trace.NewTask(ctx, "AllForChunk")
+	defer task.End()
+
+	stmt, binds := r.chunkQuery(chunkID)
+	if rb, ok := conn.(interface{ Rebind(string) string }); ok {
+		stmt = rb.Rebind(stmt)
+	}
+
+	slog.DebugContext(ctx, "AllForChunk", "stmt", stmt, "binds", chunkID)
+
+	rows, err := conn.QueryxContext(ctx, stmt, binds...)
+	if err != nil {
+		return nil, fmt.Errorf("all for chunk: %w", err)
+	}
+
+	it := func(yield func(T, error) bool) {
+		defer task.End()
+		defer rows.Close()
+		var t T
+		for rows.Next() {
+			if err := rows.StructScan(&t); err != nil {
+				yield(t, fmt.Errorf("all for chunk: %w", err))
+				return
+			}
+			if !yield(t, nil) {
+				return
+			}
+		}
+		if err := rows.Err(); err != nil {
+			yield(r.t, fmt.Errorf("all for chunk: %w", err))
 			return
 		}
 	}

@@ -79,6 +79,7 @@ func (w DBWorkspace) Val() (slack.AuthTestResponse, error) {
 
 type WorkspaceRepository interface {
 	Inserter[DBWorkspace]
+	Chunker[DBWorkspace]
 	GetWorkspace(ctx context.Context, conn sqlx.QueryerContext) (DBWorkspace, error)
 }
 

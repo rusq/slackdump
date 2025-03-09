@@ -112,7 +112,7 @@ func (s *Source) channelUsers(ctx context.Context, channelID string, prealloc in
 		if err != nil {
 			return nil, err
 		}
-		us = append(us, c.ID)
+		us = append(us, c.UserID)
 	}
 	return us, nil
 }
@@ -224,7 +224,7 @@ func (s *Source) ChannelInfo(ctx context.Context, channelID string) (*slack.Chan
 		if err != nil {
 			return nil, err
 		}
-		v.Members = append(v.Members, c.ID)
+		v.Members = append(v.Members, c.UserID)
 	}
 
 	return &v, nil

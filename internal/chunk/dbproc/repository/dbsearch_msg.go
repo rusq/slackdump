@@ -33,6 +33,10 @@ func NewDBSearchMessage(chunkID int64, idx int, sm *slack.SearchMessage) (*DBSea
 	}, nil
 }
 
+func (c DBSearchMessage) Val() (slack.SearchMessage, error) {
+	return unmarshalt[slack.SearchMessage](c.Data)
+}
+
 func (DBSearchMessage) tablename() string {
 	return "SEARCH_MESSAGE"
 }

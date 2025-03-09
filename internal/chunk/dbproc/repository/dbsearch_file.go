@@ -25,6 +25,10 @@ func NewDBSearchFile(chunkID int64, n int, sf *slack.File) (*DBSearchFile, error
 	}, nil
 }
 
+func (c DBSearchFile) Val() (slack.File, error) {
+	return unmarshalt[slack.File](c.Data)
+}
+
 func (DBSearchFile) tablename() string {
 	return "SEARCH_FILE"
 }

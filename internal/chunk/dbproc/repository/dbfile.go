@@ -70,6 +70,10 @@ func (f DBFile) values() []any {
 	return []any{f.ID, f.ChunkID, f.ChannelID, f.MessageID, f.ThreadID, f.Index, f.Mode, f.Filename, f.URL, f.Data}
 }
 
+func (f DBFile) Val() (slack.File, error) {
+	return unmarshalt[slack.File](f.Data)
+}
+
 type FileRepository interface {
 	BulkRepository[DBFile]
 }

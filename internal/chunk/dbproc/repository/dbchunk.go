@@ -2,6 +2,8 @@ package repository
 
 import (
 	"context"
+	"iter"
+	"strings"
 	"time"
 
 	"github.com/jmoiron/sqlx"
@@ -12,13 +14,14 @@ import (
 // DBChunk is the database representation of the Chunk.
 type DBChunk struct {
 	// ID is the unique identifier of the chunk within the session.
-	ID         int64           `db:"ID,omitempty"`
-	SessionID  int64           `db:"SESSION_ID,omitempty"`
-	UnixTS     int64           `db:"UNIX_TS,omitempty"`
-	CreatedAt  time.Time       `db:"CREATED_AT,omitempty"`
-	TypeID     chunk.ChunkType `db:"TYPE_ID,omitempty"`
-	NumRecords int             `db:"NUM_REC"`
-	Final      bool            `db:"FINAL"`
+	ID          int64           `db:"ID,omitempty"`
+	SessionID   int64           `db:"SESSION_ID,omitempty"`
+	UnixTS      int64           `db:"UNIX_TS,omitempty"`
+	CreatedAt   time.Time       `db:"CREATED_AT,omitempty"`
+	TypeID      chunk.ChunkType `db:"TYPE_ID,omitempty"`
+	NumRecords  int             `db:"NUM_REC"`
+	SearchQuery *string         `db:"SEARCH_QUERY,omitempty"`
+	Final       bool            `db:"FINAL"`
 }
 
 func (DBChunk) tablename() string {
@@ -39,6 +42,7 @@ func (DBChunk) columns() []string {
 		"UNIX_TS",
 		"TYPE_ID",
 		"NUM_REC",
+		"SEARCH_QUERY",
 		"FINAL",
 	}
 }
@@ -49,6 +53,7 @@ func (d DBChunk) values() []any {
 		d.UnixTS,
 		d.TypeID,
 		d.NumRecords,
+		d.SearchQuery,
 		d.Final,
 	}
 }
@@ -56,6 +61,8 @@ func (d DBChunk) values() []any {
 type ChunkRepository interface {
 	// Insert should insert dbchunk into the repository and return its ID.
 	Insert(ctx context.Context, conn sqlx.ExtContext, dbchunk *DBChunk) (int64, error)
+	Count(ctx context.Context, conn sqlx.ExtContext, sessionID int64, chunkTypeID ...chunk.ChunkType) (ChunkCount, error)
+	All(ctx context.Context, conn sqlx.ExtContext, sessionID int64, chunkTypeID ...chunk.ChunkType) (iter.Seq2[DBChunk, error], error)
 }
 
 type chunkRepository struct {
@@ -73,4 +80,101 @@ func (r chunkRepository) Insert(ctx context.Context, conn sqlx.ExtContext, dbchu
 		return 0, err
 	}
 	return res.LastInsertId()
+}
+
+type ChunkCount map[chunk.ChunkType]int64
+
+func (c ChunkCount) Sum() int64 {
+	var sum int64
+	for _, v := range c {
+		sum += v
+	}
+	return sum
+}
+
+// Count returns the number of chunks in the repository for a given session and optionally of given types.
+func (r chunkRepository) Count(ctx context.Context, conn sqlx.ExtContext, sessionID int64, chunkTypeID ...chunk.ChunkType) (ChunkCount, error) {
+	// building
+	var buf strings.Builder
+	buf.WriteString("SELECT TYPE_ID, COUNT(*) FROM ")
+	buf.WriteString(r.t.tablename())
+	buf.WriteString(" WHERE SESSION_ID = ?")
+	if len(chunkTypeID) > 0 {
+		buf.WriteString(" AND TYPE_ID IN (")
+		buf.WriteString(strings.Join(placeholders(chunkTypeID), ","))
+		buf.WriteString(")")
+	}
+	buf.WriteString(" GROUP BY TYPE_ID")
+	var b []any
+	b = append(b, sessionID)
+	for _, id := range chunkTypeID {
+		b = append(b, id)
+	}
+
+	// executing
+	rows, err := conn.QueryxContext(ctx, conn.Rebind(buf.String()), b...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	counts := make(ChunkCount)
+	var (
+		typ   chunk.ChunkType
+		count int64
+	)
+	for rows.Next() {
+		if err := rows.Scan(&typ, &count); err != nil {
+			return nil, err
+		}
+		counts[typ] = count
+	}
+
+	return counts, rows.Err()
+}
+
+func (r chunkRepository) All(ctx context.Context, conn sqlx.ExtContext, sessionID int64, chunkTypeID ...chunk.ChunkType) (iter.Seq2[DBChunk, error], error) {
+	// building
+	var buf strings.Builder
+	buf.WriteString("SELECT ")
+	buf.WriteString(colAlias("T", r.t.columns()...))
+	buf.WriteString(" FROM ")
+	buf.WriteString(r.t.tablename())
+	buf.WriteString(" AS T WHERE SESSION_ID = ?")
+	if len(chunkTypeID) > 0 {
+		buf.WriteString(" AND TYPE_ID IN (")
+		buf.WriteString(strings.Join(placeholders(chunkTypeID), ","))
+		buf.WriteString(")")
+	}
+	buf.WriteString(" ORDER BY UNIX_TS")
+	var b []any
+	b = append(b, sessionID)
+	for _, id := range chunkTypeID {
+		b = append(b, id)
+	}
+	// executing
+	rows, err := conn.QueryxContext(ctx, conn.Rebind(buf.String()), b...)
+	if err != nil {
+		return nil, err
+	}
+
+	iterfn := func(yield func(DBChunk, error) bool) {
+		defer rows.Close()
+		var c DBChunk
+		for rows.Next() {
+			if err := rows.StructScan(&c); err != nil {
+				if !yield(DBChunk{}, err) {
+					return
+				}
+				continue
+			}
+			if !yield(c, nil) {
+				return
+			}
+		}
+		if err := rows.Err(); err != nil {
+			yield(DBChunk{}, err)
+		}
+	}
+	return iterfn, nil
 }
