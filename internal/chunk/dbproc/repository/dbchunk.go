@@ -21,7 +21,7 @@ type DBChunk struct {
 	UnixTS      int64           `db:"UNIX_TS,omitempty"`
 	CreatedAt   time.Time       `db:"CREATED_AT,omitempty"`
 	TypeID      chunk.ChunkType `db:"TYPE_ID,omitempty"`
-	NumRecords  int             `db:"NUM_REC"`
+	NumRecords  int32           `db:"NUM_REC"`
 	ChannelID   *string         `db:"CHANNEL_ID,omitempty"`
 	SearchQuery *string         `db:"SEARCH_QUERY,omitempty"`
 	Final       bool            `db:"FINAL"`

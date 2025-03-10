@@ -42,16 +42,17 @@ type Chunk struct {
 	// ChannelID that this chunk relates to.
 	ChannelID string `json:"id,omitempty"`
 	// Count is the count of elements in the chunk, i.e. messages or files.
-	Count int `json:"n,omitempty"`
+	Count int32 `json:"n,omitempty"`
 
+	// NumThreads is the number of threads in the message chunk.
+	NumThreads int32 `json:"nt,omitempty"`
 	// ThreadTS is populated if the chunk contains thread related data.  It
 	// is Slack's thread_ts.
 	ThreadTS string `json:"r,omitempty"`
 	// IsLast is set to true if this is the last chunk for the channel or
 	// thread.
+
 	IsLast bool `json:"l,omitempty"`
-	// NumThreads is the number of threads in the message chunk.
-	NumThreads int `json:"nt,omitempty"`
 	// ThreadOnly is set to true if the chunk was generated as a result
 	// of thread only scraping.
 	ThreadOnly bool `json:"to,omitempty"`

@@ -14,6 +14,7 @@ const (
 	Fdump datafmt = iota
 	Fexport
 	Fchunk
+	Fdatabase
 )
 
 func (e *datafmt) Set(v string) error {

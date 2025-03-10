@@ -93,7 +93,7 @@ func TestDBChunk_Chunk(t *testing.T) {
 		UnixTS      int64
 		CreatedAt   time.Time
 		TypeID      chunk.ChunkType
-		NumRecords  int
+		NumRecords  int32
 		ChannelID   *string
 		SearchQuery *string
 		Final       bool
@@ -189,7 +189,7 @@ func TestDBChunk_tablename(t *testing.T) {
 		UnixTS      int64
 		CreatedAt   time.Time
 		TypeID      chunk.ChunkType
-		NumRecords  int
+		NumRecords  int32
 		ChannelID   *string
 		SearchQuery *string
 		Final       bool
@@ -232,7 +232,7 @@ func TestDBChunk_userkey(t *testing.T) {
 		UnixTS      int64
 		CreatedAt   time.Time
 		TypeID      chunk.ChunkType
-		NumRecords  int
+		NumRecords  int32
 		ChannelID   *string
 		SearchQuery *string
 		Final       bool
@@ -274,7 +274,7 @@ func TestDBChunk_columns(t *testing.T) {
 		UnixTS      int64
 		CreatedAt   time.Time
 		TypeID      chunk.ChunkType
-		NumRecords  int
+		NumRecords  int32
 		ChannelID   *string
 		SearchQuery *string
 		Final       bool
@@ -316,7 +316,7 @@ func TestDBChunk_values(t *testing.T) {
 		UnixTS      int64
 		CreatedAt   time.Time
 		TypeID      chunk.ChunkType
-		NumRecords  int
+		NumRecords  int32
 		ChannelID   *string
 		SearchQuery *string
 		Final       bool
@@ -339,7 +339,7 @@ func TestDBChunk_values(t *testing.T) {
 				SearchQuery: new(string),
 				Final:       true,
 			},
-			want: []any{int64(2), int64(3), chunk.CFiles, 6, ptr("C123456789"), ptr(""), true},
+			want: []any{int64(2), int64(3), chunk.CFiles, int32(6), ptr("C123456789"), ptr(""), true},
 		},
 	}
 	for _, tt := range tests {

@@ -80,7 +80,7 @@ func (e *ERC) writePayload(ctx context.Context, c chunk.Chunk) error {
 	}
 	switch c.Type {
 	case chunk.CMessages:
-		return e.cv.Messages(ctx, c.ChannelID, c.NumThreads, c.IsLast, c.Messages)
+		return e.cv.Messages(ctx, c.ChannelID, int(c.NumThreads), c.IsLast, c.Messages)
 	case chunk.CThreadMessages:
 		return e.cv.ThreadMessages(ctx, c.ChannelID, *c.Parent, c.ThreadOnly, c.IsLast, c.Messages)
 	case chunk.CFiles:

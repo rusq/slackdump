@@ -15,7 +15,7 @@ func TestChunk_ID(t *testing.T) {
 		Type      ChunkType
 		Timestamp int64
 		ThreadTS  string
-		Count     int
+		Count     int32
 		Channel   *slack.Channel
 		ChannelID string
 		Parent    *slack.Message
@@ -177,10 +177,10 @@ func TestChunk_messageTimestamps(t *testing.T) {
 		Type           ChunkType
 		Timestamp      int64
 		ChannelID      string
-		Count          int
+		Count          int32
 		ThreadTS       string
 		IsLast         bool
-		NumThreads     int
+		NumThreads     int32
 		Channel        *slack.Channel
 		ChannelUsers   []string
 		Parent         *slack.Message

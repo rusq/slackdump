@@ -173,6 +173,7 @@ func (f *File) ForEach(fn func(ev *Chunk) error) error {
 	// reading from the reader, and any unexpected Seek may cause issues.
 	f.rsMu.Lock()
 	defer f.rsMu.Unlock()
+	f.rs.Seek(0, io.SeekStart)
 	dec := json.NewDecoder(f.rs)
 	for {
 		var chunk *Chunk

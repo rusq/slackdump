@@ -12,7 +12,7 @@ import (
 	"github.com/rusq/slackdump/v3/internal/chunk"
 )
 
-func (d *DBP) InsertChunk(ctx context.Context, c chunk.Chunk) (int64, error) {
+func (d *DBP) InsertChunk(ctx context.Context, ch *chunk.Chunk) (int64, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
@@ -22,29 +22,42 @@ func (d *DBP) InsertChunk(ctx context.Context, c chunk.Chunk) (int64, error) {
 	}
 	defer txx.Rollback()
 
+	id, err := d.UnsafeInsertChunk(ctx, txx, ch)
+	if err != nil {
+		return 0, fmt.Errorf("insertchunk: unsafe: %w", err)
+	}
+
+	if err := txx.Commit(); err != nil {
+		return 0, fmt.Errorf("insertchunk: commit: %w", err)
+	}
+
+	return id, nil
+}
+
+// UnsafeInsertChunk does not lock the DBP and does not commit the transaction.
+// It should be used for bulk inserts and single-threaded. Unsafe for
+// concurrent use.
+func (d *DBP) UnsafeInsertChunk(ctx context.Context, txx repository.PrepareExtContext, ch *chunk.Chunk) (int64, error) {
 	dc := repository.DBChunk{
 		SessionID:   d.sessionID,
-		UnixTS:      c.Timestamp,
-		TypeID:      c.Type,
-		NumRecords:  c.Count,
-		ChannelID:   orNil(c.ChannelID != "", c.ChannelID),
-		SearchQuery: orNil(c.SearchQuery != "", c.SearchQuery),
-		Final:       c.IsLast,
+		UnixTS:      ch.Timestamp,
+		TypeID:      ch.Type,
+		NumRecords:  ch.Count,
+		ChannelID:   orNil(ch.ChannelID != "", ch.ChannelID),
+		SearchQuery: orNil(ch.SearchQuery != "", ch.SearchQuery),
+		Final:       ch.IsLast,
 	}
 	cr := repository.NewChunkRepository()
 	id, err := cr.Insert(ctx, txx, &dc)
 	if err != nil {
 		return 0, fmt.Errorf("insertchunk: insert: %w", err)
 	}
-	n, err := d.insertPayload(ctx, txx, id, c)
+	n, err := d.insertPayload(ctx, txx, id, ch)
 	if err != nil {
 		return 0, fmt.Errorf("insertchunk: payload: %w", err)
 	}
-	if err := txx.Commit(); err != nil {
-		return 0, fmt.Errorf("insertchunk: commit: %w", err)
-	}
 
-	slog.DebugContext(ctx, "inserted chunk", "id", id, "len", n, "type", c.Type, "final", c.IsLast)
+	slog.DebugContext(ctx, "inserted chunk", "id", id, "len", n, "type", ch.Type, "final", ch.IsLast)
 
 	return id, nil
 }
@@ -57,7 +70,7 @@ func orNil[T any](cond bool, v T) *T {
 }
 
 // insertPayload calls relevant function to insert the chunk payload.
-func (d *DBP) insertPayload(ctx context.Context, tx repository.PrepareExtContext, dbchunkID int64, c chunk.Chunk) (int, error) {
+func (d *DBP) insertPayload(ctx context.Context, tx repository.PrepareExtContext, dbchunkID int64, c *chunk.Chunk) (int, error) {
 	switch c.Type {
 	case chunk.CMessages:
 		return d.insertMessages(ctx, tx, dbchunkID, c.ChannelID, c.Messages)

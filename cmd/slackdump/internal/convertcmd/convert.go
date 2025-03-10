@@ -4,17 +4,12 @@ import (
 	"context"
 	_ "embed"
 	"errors"
-	"os"
 	"time"
 
 	"github.com/rusq/fsadapter"
 
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/bootstrap"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
-	"github.com/rusq/slackdump/v3/internal/chunk"
-	"github.com/rusq/slackdump/v3/internal/chunk/dbproc"
-	"github.com/rusq/slackdump/v3/internal/chunk/dirproc"
 	"github.com/rusq/slackdump/v3/internal/chunk/transform/fileproc"
 	"github.com/rusq/slackdump/v3/internal/convert"
 	"github.com/rusq/slackdump/v3/internal/source"
@@ -50,6 +45,20 @@ type tparams struct {
 var params = tparams{
 	storageType: fileproc.STmattermost,
 	outputfmt:   Fexport,
+}
+
+type convertFunc func(ctx context.Context, input, output string, cflg convertflags) error
+
+var converters = map[datafmt]convertFunc{
+	Fexport:   toExport,
+	Fchunk:    toChunk,
+	Fdatabase: toDatabase,
+}
+
+type convertflags struct {
+	withFiles   bool
+	withAvatars bool
+	stt         fileproc.StorageType
 }
 
 func init() {
@@ -91,19 +100,6 @@ func converter(output datafmt) (convertFunc, bool) {
 		return cvt, true
 	}
 	return nil, false
-}
-
-type convertFunc func(ctx context.Context, input, output string, cflg convertflags) error
-
-var converters = map[datafmt]convertFunc{
-	Fexport: toExport,
-	Fchunk:  toChunk,
-}
-
-type convertflags struct {
-	withFiles   bool
-	withAvatars bool
-	stt         fileproc.StorageType
 }
 
 func toExport(ctx context.Context, src, trg string, cflg convertflags) error {
@@ -151,49 +147,5 @@ func toExport(ctx context.Context, src, trg string, cflg convertflags) error {
 		return err
 	}
 
-	return nil
-}
-
-func toChunk(ctx context.Context, src, trg string, cflg convertflags) error {
-	// detect source type
-	st, err := source.Type(src)
-	if err != nil {
-		return err
-	}
-	if !st.Has(source.FDatabase) {
-		return ErrSource
-	}
-	wconn, _, err := bootstrap.Database(src, "convert")
-	if err != nil {
-		return err
-	}
-	defer wconn.Close()
-
-	dir := cfg.StripZipExt(trg)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return err
-	}
-	remove := true
-	defer func() {
-		// remove on failed conversion
-		if remove {
-			_ = os.RemoveAll(dir)
-		}
-	}()
-
-	cd, err := chunk.OpenDir(dir)
-	if err != nil {
-		return err
-	}
-	erc := dirproc.NewERC(cd, cfg.Log)
-	defer erc.Close()
-
-	remove = false // init succeeded
-
-	// TODO: how to find the session id?
-	ch := dbproc.Chunker{SessionID: 1}
-	if err := ch.ToChunk(ctx, wconn, erc); err != nil {
-		return err
-	}
 	return nil
 }
