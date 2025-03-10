@@ -56,7 +56,7 @@ func (c *Chunker) ToChunk(ctx context.Context, conn sqlx.ExtContext, e chunk.Enc
 		if err != nil {
 			return err
 		}
-		if err := e.Encode(ctx, *chunk); err != nil {
+		if err := e.Encode(ctx, chunk); err != nil {
 			return fmt.Errorf("error converting chunk %d[%s]: %w", dbchunk.ID, dbchunk.TypeID, err)
 		}
 	}

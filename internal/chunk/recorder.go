@@ -22,7 +22,7 @@ type Recorder struct {
 
 // Encoder is the interface that wraps the Encode method.
 type Encoder interface {
-	Encode(ctx context.Context, chunk Chunk) error
+	Encode(ctx context.Context, chunk *Chunk) error
 }
 
 // Option is a function that configures the Recorder.
@@ -40,7 +40,7 @@ type jsonEncoder struct {
 	enc *json.Encoder
 }
 
-func (j *jsonEncoder) Encode(ctx context.Context, chunk Chunk) error {
+func (j *jsonEncoder) Encode(ctx context.Context, chunk *Chunk) error {
 	return j.enc.Encode(chunk)
 }
 
@@ -85,7 +85,7 @@ func (rec *Recorder) Messages(ctx context.Context, channelID string, numThreads 
 		NumThreads: int32(numThreads),
 		Messages:   m,
 	}
-	if err := rec.enc.Encode(ctx, chunk); err != nil {
+	if err := rec.enc.Encode(ctx, &chunk); err != nil {
 		return err
 	}
 	for i := range m {
@@ -109,7 +109,7 @@ func (rec *Recorder) Files(ctx context.Context, channel *slack.Channel, parent s
 		Count:     int32(len(f)),
 		Files:     f,
 	}
-	if err := rec.enc.Encode(ctx, chunk); err != nil {
+	if err := rec.enc.Encode(ctx, &chunk); err != nil {
 		return err
 	}
 	for i := range f {
@@ -134,7 +134,7 @@ func (rec *Recorder) ThreadMessages(ctx context.Context, channelID string, paren
 		Count:      int32(len(tm)),
 		Messages:   tm,
 	}
-	if err := rec.enc.Encode(ctx, chunks); err != nil {
+	if err := rec.enc.Encode(ctx, &chunks); err != nil {
 		return err
 	}
 	for i := range tm {
@@ -157,7 +157,7 @@ func (rec *Recorder) ChannelInfo(ctx context.Context, channel *slack.Channel, th
 		ThreadTS:  threadTS,
 		Channel:   channel,
 	}
-	if err := rec.enc.Encode(ctx, chunk); err != nil {
+	if err := rec.enc.Encode(ctx, &chunk); err != nil {
 		return err
 	}
 	rec.state.AddChannel(channel.ID)
@@ -172,7 +172,7 @@ func (rec *Recorder) Users(ctx context.Context, users []slack.User) error {
 		Count:     int32(len(users)),
 		Users:     users,
 	}
-	if err := rec.enc.Encode(ctx, chunk); err != nil {
+	if err := rec.enc.Encode(ctx, &chunk); err != nil {
 		return err
 	}
 	return nil
@@ -188,7 +188,7 @@ func (rec *Recorder) Channels(ctx context.Context, channels []slack.Channel) err
 		Count:     int32(len(channels)),
 		Channels:  channels,
 	}
-	if err := rec.enc.Encode(ctx, chunk); err != nil {
+	if err := rec.enc.Encode(ctx, &chunk); err != nil {
 		return err
 	}
 	return nil
@@ -217,7 +217,7 @@ func (rec *Recorder) WorkspaceInfo(ctx context.Context, atr *slack.AuthTestRespo
 		Timestamp:     time.Now().UnixNano(),
 		WorkspaceInfo: atr,
 	}
-	if err := rec.enc.Encode(ctx, chunk); err != nil {
+	if err := rec.enc.Encode(ctx, &chunk); err != nil {
 		return err
 	}
 	return nil
@@ -234,7 +234,7 @@ func (rec *Recorder) ChannelUsers(ctx context.Context, channelID string, threadT
 		Timestamp:    time.Now().UnixNano(),
 		ChannelUsers: users,
 	}
-	if err := rec.enc.Encode(ctx, chunk); err != nil {
+	if err := rec.enc.Encode(ctx, &chunk); err != nil {
 		return err
 	}
 
@@ -252,7 +252,7 @@ func (rec *Recorder) SearchMessages(ctx context.Context, query string, sm []slac
 		SearchQuery:    query,
 		SearchMessages: sm,
 	}
-	if err := rec.enc.Encode(ctx, chunk); err != nil {
+	if err := rec.enc.Encode(ctx, &chunk); err != nil {
 		return err
 	}
 	return nil
@@ -269,7 +269,7 @@ func (rec *Recorder) SearchFiles(ctx context.Context, query string, sf []slack.F
 		SearchQuery: query,
 		SearchFiles: sf,
 	}
-	if err := rec.enc.Encode(ctx, chunk); err != nil {
+	if err := rec.enc.Encode(ctx, &chunk); err != nil {
 		return err
 	}
 	return nil

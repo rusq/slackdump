@@ -247,20 +247,6 @@ func (m *MockReferenceChecker) EXPECT() *MockReferenceCheckerMockRecorder {
 	return m.recorder
 }
 
-// Finalise mocks base method.
-func (m *MockReferenceChecker) Finalise(ctx context.Context, channelID string) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Finalise", ctx, channelID)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// Finalise indicates an expected call of Finalise.
-func (mr *MockReferenceCheckerMockRecorder) Finalise(ctx, channelID any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Finalise", reflect.TypeOf((*MockReferenceChecker)(nil).Finalise), ctx, channelID)
-}
-
 // IsComplete mocks base method.
 func (m *MockReferenceChecker) IsComplete(ctx context.Context, channelID string) (bool, error) {
 	m.ctrl.T.Helper()
@@ -315,7 +301,7 @@ func (mr *MockEncodeReferenceCloserMockRecorder) Close() *gomock.Call {
 }
 
 // Encode mocks base method.
-func (m *MockEncodeReferenceCloser) Encode(ctx context.Context, chunk chunk.Chunk) error {
+func (m *MockEncodeReferenceCloser) Encode(ctx context.Context, chunk *chunk.Chunk) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Encode", ctx, chunk)
 	ret0, _ := ret[0].(error)
@@ -326,20 +312,6 @@ func (m *MockEncodeReferenceCloser) Encode(ctx context.Context, chunk chunk.Chun
 func (mr *MockEncodeReferenceCloserMockRecorder) Encode(ctx, chunk any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Encode", reflect.TypeOf((*MockEncodeReferenceCloser)(nil).Encode), ctx, chunk)
-}
-
-// Finalise mocks base method.
-func (m *MockEncodeReferenceCloser) Finalise(ctx context.Context, channelID string) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Finalise", ctx, channelID)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// Finalise indicates an expected call of Finalise.
-func (mr *MockEncodeReferenceCloserMockRecorder) Finalise(ctx, channelID any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Finalise", reflect.TypeOf((*MockEncodeReferenceCloser)(nil).Finalise), ctx, channelID)
 }
 
 // IsComplete mocks base method.

@@ -18,44 +18,6 @@ import (
 	gomock "go.uber.org/mock/gomock"
 )
 
-// MockTransformer is a mock of Transformer interface.
-type MockTransformer struct {
-	ctrl     *gomock.Controller
-	recorder *MockTransformerMockRecorder
-	isgomock struct{}
-}
-
-// MockTransformerMockRecorder is the mock recorder for MockTransformer.
-type MockTransformerMockRecorder struct {
-	mock *MockTransformer
-}
-
-// NewMockTransformer creates a new mock instance.
-func NewMockTransformer(ctrl *gomock.Controller) *MockTransformer {
-	mock := &MockTransformer{ctrl: ctrl}
-	mock.recorder = &MockTransformerMockRecorder{mock}
-	return mock
-}
-
-// EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockTransformer) EXPECT() *MockTransformerMockRecorder {
-	return m.recorder
-}
-
-// Transform mocks base method.
-func (m *MockTransformer) Transform(ctx context.Context, id chunk.FileID) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Transform", ctx, id)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// Transform indicates an expected call of Transform.
-func (mr *MockTransformerMockRecorder) Transform(ctx, id any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Transform", reflect.TypeOf((*MockTransformer)(nil).Transform), ctx, id)
-}
-
 // Mocktracker is a mock of tracker interface.
 type Mocktracker struct {
 	ctrl     *gomock.Controller

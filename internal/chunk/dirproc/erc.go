@@ -38,7 +38,7 @@ func NewERC(cd *chunk.Directory, lg *slog.Logger) *ERC {
 	return &ERC{cd: cd, lg: lg}
 }
 
-func (e *ERC) Encode(ctx context.Context, chunk chunk.Chunk) error {
+func (e *ERC) Encode(ctx context.Context, chunk *chunk.Chunk) error {
 	if err := e.writePayload(ctx, chunk); err != nil {
 		return fmt.Errorf("encode: %w", err)
 	} else {
@@ -48,7 +48,7 @@ func (e *ERC) Encode(ctx context.Context, chunk chunk.Chunk) error {
 }
 
 // ensure ensure that the relevant processors are created.
-func (e *ERC) ensure(c chunk.Chunk) (err error) {
+func (e *ERC) ensure(c *chunk.Chunk) (err error) {
 	switch c.Type {
 	case chunk.CMessages, chunk.CThreadMessages, chunk.CFiles, chunk.CChannelInfo, chunk.CChannelUsers:
 		e.once.cv.Do(func() {
@@ -74,7 +74,7 @@ func (e *ERC) ensure(c chunk.Chunk) (err error) {
 	return nil
 }
 
-func (e *ERC) writePayload(ctx context.Context, c chunk.Chunk) error {
+func (e *ERC) writePayload(ctx context.Context, c *chunk.Chunk) error {
 	if err := e.ensure(c); err != nil {
 		return fmt.Errorf("writePayload: %w", err)
 	}
