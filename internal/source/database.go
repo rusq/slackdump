@@ -2,23 +2,20 @@ package source
 
 import (
 	"context"
-	"iter"
 	"os"
 	"path/filepath"
-	"time"
-
-	"github.com/rusq/slack"
 
 	"github.com/rusq/slackdump/v3/internal/chunk/dbproc"
-	"github.com/rusq/slackdump/v3/internal/structures"
 )
 
 type Database struct {
 	name    string
-	s       *dbproc.Source
 	files   Storage
 	avatars Storage
+	*dbproc.Source
 }
+
+var _ Sourcer = (*Database)(nil)
 
 // OpenDatabase attempts to open the database at given path. It supports both
 // types - when database file is given directly, and when the path is a
@@ -56,13 +53,13 @@ func OpenDatabase(ctx context.Context, path string) (*Database, error) {
 		return nil, err
 	}
 
-	return &Database{name: name, s: s, files: fst, avatars: ast}, nil
+	return &Database{name: name, Source: s, files: fst, avatars: ast}, nil
 }
 
 // DatabaseWithSource returns a new database source with the given database
 // processor source.
 func DatabaseWithSource(source *dbproc.Source) *Database {
-	return &Database{name: "dbproc", s: source, files: fstNotFound{}, avatars: fstNotFound{}}
+	return &Database{name: "dbproc", Source: source, files: fstNotFound{}, avatars: fstNotFound{}}
 }
 
 func (d *Database) SetFiles(fst Storage) *Database {
@@ -75,10 +72,6 @@ func (d *Database) SetAvatars(fst Storage) *Database {
 	return d
 }
 
-func (d *Database) Close() error {
-	return d.s.Close()
-}
-
 func (d *Database) Name() string {
 	return d.name
 }
@@ -87,42 +80,10 @@ func (d *Database) Type() string {
 	return "data base"
 }
 
-func (d *Database) Channels(ctx context.Context) ([]slack.Channel, error) {
-	return d.s.Channels(ctx)
-}
-
-func (d *Database) Users(ctx context.Context) ([]slack.User, error) {
-	return d.s.Users(ctx)
-}
-
-func (d *Database) AllMessages(ctx context.Context, channelID string) (iter.Seq2[slack.Message, error], error) {
-	return d.s.AllMessages(ctx, channelID)
-}
-
-func (d *Database) AllThreadMessages(ctx context.Context, channelID, threadID string) (iter.Seq2[slack.Message, error], error) {
-	return d.s.AllThreadMessages(ctx, channelID, threadID)
-}
-
-func (d *Database) ChannelInfo(ctx context.Context, channelID string) (*slack.Channel, error) {
-	return d.s.ChannelInfo(ctx, channelID)
-}
-
-func (d *Database) WorkspaceInfo(ctx context.Context) (*slack.AuthTestResponse, error) {
-	return d.s.WorkspaceInfo(ctx)
-}
-
-func (d *Database) Latest(ctx context.Context) (map[structures.SlackLink]time.Time, error) {
-	return d.s.Latest(ctx)
-}
-
 func (d *Database) Files() Storage {
 	return d.files
 }
 
 func (d *Database) Avatars() Storage {
 	return d.avatars
-}
-
-func (d *Database) Sorted(ctx context.Context, channelID string, desc bool, cb func(ts time.Time, msg *slack.Message) error) error {
-	return d.s.Sorted(ctx, channelID, desc, cb)
 }
