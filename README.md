@@ -47,7 +47,7 @@ Run `slackdump help` to see all available options:
 
 ## Installation and Quickstart
 
-On macOS, you can install Slackdump with Homebrew::
+On macOS, you can install Slackdump with Homebrew:
 
 ```shell
 brew install slackdump
