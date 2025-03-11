@@ -42,7 +42,7 @@ func (e *ERC) Encode(ctx context.Context, chunk *chunk.Chunk) error {
 	if err := e.writePayload(ctx, chunk); err != nil {
 		return fmt.Errorf("encode: %w", err)
 	} else {
-		slog.DebugContext(ctx, "inserted chunk", "type", chunk.Type)
+		slog.DebugContext(ctx, "written chunk", "type", chunk.Type)
 	}
 	return nil
 }
@@ -91,7 +91,7 @@ func (e *ERC) writePayload(ctx context.Context, c *chunk.Chunk) error {
 	case chunk.CWorkspaceInfo:
 		// workspace is written only once
 		if err := e.w.WorkspaceInfo(ctx, c.WorkspaceInfo); err != nil {
-			return fmt.Errorf("insertpayload: %w", err)
+			return fmt.Errorf("writePayload: %w", err)
 		}
 		return e.w.Close()
 	case chunk.CUsers:
@@ -107,7 +107,7 @@ func (e *ERC) writePayload(ctx context.Context, c *chunk.Chunk) error {
 	case chunk.CSearchFiles:
 		return e.s.SearchFiles(ctx, c.SearchQuery, c.SearchFiles)
 	default:
-		return fmt.Errorf("insertpayload: unknown chunk type %v", c.Type)
+		return fmt.Errorf("writePayload: unknown chunk type %v", c.Type)
 	}
 }
 

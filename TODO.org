@@ -19,7 +19,9 @@
 * TODO Database backend
 ** DONE Add database backend support to Dump converter, it relies on the files
 ** DONE Check if the thread export works as intended.
-** TODO Conversion to and from.
+** DONE Conversion to and from.
+   CLOSED: [2025-03-11 Tue 20:53]
+** TODO Files and avatars support during conversion.
 ** TODO Target interface and implementation for all formats.
 
 * TODO Source detection

@@ -560,3 +560,19 @@ func (d *Directory) Sorted(ctx context.Context, channelID string, desc bool, cb 
 	}
 	return f.Sorted(ctx, channelID, desc, cb)
 }
+
+// ToChunk writes all chunks from the directory to the encoder.
+func (d *Directory) ToChunk(ctx context.Context, enc Encoder, _ int64) error {
+	err := d.WalkSync(func(name string, f *File, err error) error {
+		if err != nil {
+			return err
+		}
+		if err := f.ForEach(func(ch *Chunk) error {
+			return enc.Encode(ctx, ch)
+		}); err != nil {
+			return err
+		}
+		return nil
+	})
+	return err
+}

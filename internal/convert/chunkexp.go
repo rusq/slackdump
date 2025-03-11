@@ -29,11 +29,10 @@ var (
 	ErrNoLocFunction = errors.New("missing location function")
 )
 
-// ChunkToExport is a converter between Chunk and Export formats.  Zero value
+// ToExport is a converter between Chunk and Export formats.  Zero value
 // is not usable.
-type ChunkToExport struct {
-	// src is the source directory with chunks
-	// src *chunk.Directory
+type ToExport struct {
+	// src is the source
 	src source.Sourcer
 	// trg is the target FS for the export
 	trg  fsadapter.FS
@@ -46,9 +45,13 @@ type ChunkToExport struct {
 	avtrresult  chan copyresult
 }
 
-// NewToExport returns the converter to export format.
-func NewToExport(src source.Sourcer, trg fsadapter.FS, opt ...Option) *ChunkToExport {
-	c := &ChunkToExport{
+// NewToExport returns the converter from any source to export format. src is the Source
+// to be converted (e.g. chunk or database), trgfs is the target FS adapter where files
+// and data will be written.  By default, the converter does not include files and
+// avatars.  The default storage format for both source and destination is Mattermost, use
+// functional options to configure this behaviour.
+func NewToExport(src source.Sourcer, trg fsadapter.FS, opt ...Option) *ToExport {
+	c := &ToExport{
 		src: src,
 		trg: trg,
 		opts: options{
@@ -71,7 +74,7 @@ func NewToExport(src source.Sourcer, trg fsadapter.FS, opt ...Option) *ChunkToEx
 }
 
 // Validate validates the input parameters.
-func (c *ChunkToExport) Validate() error {
+func (c *ToExport) Validate() error {
 	if c.src == nil || c.trg == nil {
 		return errors.New("convert: source and target must be set")
 	}
@@ -99,13 +102,7 @@ func sliceToChan[T any](s []T) <-chan T {
 
 // Convert converts the chunk directory contents to the export format. It
 // validates the input parameters.
-//
-// # Restrictions
-//
-// TODO: Currently, one chunk file per channel is supported.  If there are
-// multiple chunk files per channel, the behaviour is undefined, but I expect
-// it to overwrite the previous files.
-func (c *ChunkToExport) Convert(ctx context.Context) error {
+func (c *ToExport) Convert(ctx context.Context) error {
 	ctx, task := trace.NewTask(ctx, "convert.ChunkToExport")
 	defer task.End()
 
@@ -276,7 +273,7 @@ func (e *copyerror) Unwrap() error {
 // srcFileLoc function, joined with the chunk directory name.  target file
 // location — by calling trgFileLoc function, and is relative to the target
 // fsadapter root.
-func (c *ChunkToExport) fileCopy(ch *slack.Channel, msg *slack.Message) error {
+func (c *ToExport) fileCopy(ch *slack.Channel, msg *slack.Message) error {
 	if !c.opts.includeFiles {
 		return nil
 	}
@@ -357,7 +354,7 @@ func (cr copyresult) Unwrap() error {
 	return cr.err
 }
 
-func (c *ChunkToExport) copyworker(req <-chan copyrequest) {
+func (c *ToExport) copyworker(req <-chan copyrequest) {
 	defer close(c.fileresult)
 	c.opts.lg.Debug("copy worker started")
 	for r := range req {
@@ -369,7 +366,7 @@ func (c *ChunkToExport) copyworker(req <-chan copyrequest) {
 	c.opts.lg.Debug("copy worker done")
 }
 
-func (c *ChunkToExport) avatarWorker(users []slack.User) {
+func (c *ToExport) avatarWorker(users []slack.User) {
 	lg := c.opts.lg
 	lg.Debug("avatar worker started")
 	defer close(c.avtrresult)

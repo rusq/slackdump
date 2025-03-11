@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"iter"
 	"log/slog"
 	"time"
@@ -67,9 +68,15 @@ func Open(ctx context.Context, path string) (*Source, error) {
 // if the [Source] was created with [Connect].
 func (s *Source) Close() error {
 	if !s.canClose {
+		slog.Debug("not closing database connection")
 		return nil
 	}
-	return s.conn.Close()
+	slog.Debug("closing database connection")
+	if err := s.conn.Close(); err != nil {
+		slog.Warn("error closing database connection", "error", err)
+		return err
+	}
+	return nil
 }
 
 func (s *Source) Channels(ctx context.Context) ([]slack.Channel, error) {
@@ -272,4 +279,49 @@ func (s *Source) Latest(ctx context.Context) (map[structures.SlackLink]time.Time
 		m[sl] = fasttime.Int2Time(c.ID)
 	}
 	return m, nil
+}
+
+func (src *Source) ToChunk(ctx context.Context, e chunk.Encoder, sessID int64) error {
+	if sessID < 1 {
+		return ErrInvalidSessionID
+	}
+	sr := repository.NewSessionRepository()
+	sess, err := sr.Get(ctx, src.conn, sessID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrInvalidSessionID
+		}
+		return err
+	}
+	if !sess.Finished {
+		return ErrIncomplete
+	}
+
+	cr := repository.NewChunkRepository()
+	it, err := cr.All(ctx, src.conn, sessID)
+	if err != nil {
+		return err
+	}
+	for dbchunk, err := range it {
+		if err != nil {
+			return err
+		}
+		fn, ok := assemblers[dbchunk.TypeID]
+		if !ok {
+			return chunk.ErrUnsupChunkType
+		}
+		chunk, err := fn(ctx, src.conn, &dbchunk)
+		if err != nil {
+			return err
+		}
+		if err := e.Encode(ctx, chunk); err != nil {
+			return fmt.Errorf("error converting chunk %d[%s]: %w", dbchunk.ID, dbchunk.TypeID, err)
+		}
+	}
+	return nil
+}
+
+func (src *Source) Sessions(ctx context.Context) ([]repository.Session, error) {
+	sr := repository.NewSessionRepository()
+	return sr.All(ctx, src.conn)
 }

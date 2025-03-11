@@ -6,13 +6,9 @@ import (
 	"errors"
 	"time"
 
-	"github.com/rusq/fsadapter"
-
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/internal/chunk/transform/fileproc"
-	"github.com/rusq/slackdump/v3/internal/convert"
-	"github.com/rusq/slackdump/v3/internal/source"
 )
 
 //go:embed assets/convert.md
@@ -39,12 +35,7 @@ var (
 
 type tparams struct {
 	storageType fileproc.StorageType
-	outputfmt   datafmt
-}
-
-var params = tparams{
-	storageType: fileproc.STmattermost,
-	outputfmt:   Fexport,
+	sessionID   int64
 }
 
 type convertFunc func(ctx context.Context, input, output string, cflg convertflags) error
@@ -56,14 +47,25 @@ var converters = map[datafmt]convertFunc{
 }
 
 type convertflags struct {
-	withFiles   bool
-	withAvatars bool
-	stt         fileproc.StorageType
+	includeFiles   bool
+	includeAvatars bool
+	outStorageType fileproc.StorageType
+	sessionID      int64 // sessionID for database->chunk conversion
+	outputfmt      datafmt
+}
+
+var params = convertflags{
+	includeFiles:   cfg.WithFiles,
+	includeAvatars: cfg.WithAvatars,
+	outStorageType: fileproc.STmattermost,
+	sessionID:      1,
+	outputfmt:      Fexport,
 }
 
 func init() {
-	CmdConvert.Flag.Var(&params.storageType, "storage", "storage type")
-	CmdConvert.Flag.Var(&params.outputfmt, "output", "output format")
+	CmdConvert.Flag.Var(&params.outStorageType, "storage", "storage type")
+	CmdConvert.Flag.Var(&params.outputfmt, "fmt", "output format")
+	CmdConvert.Flag.Int64Var(&params.sessionID, "session", params.sessionID, "session `id` for database->chunk conversion")
 }
 
 func runConvert(ctx context.Context, cmd *base.Command, args []string) error {
@@ -71,81 +73,24 @@ func runConvert(ctx context.Context, cmd *base.Command, args []string) error {
 		base.SetExitStatus(base.SInvalidParameters)
 		return errors.New("source and destination are required")
 	}
-	fn, exist := converter(params.outputfmt)
+	if params.outputfmt == Fdatabase && params.sessionID <= 0 {
+		base.SetExitStatus(base.SInvalidParameters)
+		return errors.New("session id is required for database conversion")
+	}
+	fn, exist := converters[params.outputfmt]
 	if !exist {
 		base.SetExitStatus(base.SInvalidParameters)
 		return ErrFormat
 	}
-
 	lg := cfg.Log
-	lg.InfoContext(ctx, "converting", "source", args[0], "output_format", params.outputfmt, "output", cfg.Output)
+	lg.InfoContext(ctx, "converting", "source", args[0], "output_format", params.outputfmt)
 
-	cflg := convertflags{
-		withFiles:   cfg.WithFiles,
-		withAvatars: cfg.WithAvatars,
-		stt:         params.storageType,
-	}
 	start := time.Now()
-	if err := fn(ctx, args[0], cfg.Output, cflg); err != nil {
+	if err := fn(ctx, args[0], cfg.Output, params); err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return err
 	}
 
 	lg.InfoContext(ctx, "completed", "took", time.Since(start))
-	return nil
-}
-
-func converter(output datafmt) (convertFunc, bool) {
-	if cvt, ok := converters[output]; ok {
-		return cvt, true
-	}
-	return nil, false
-}
-
-func toExport(ctx context.Context, src, trg string, cflg convertflags) error {
-	// detect source type
-	st, err := source.Type(src)
-	if err != nil {
-		return err
-	}
-
-	if st == source.FUnknown {
-		return ErrSource
-	}
-
-	fsa, err := fsadapter.New(trg)
-	if err != nil {
-		return err
-	}
-	defer fsa.Close()
-
-	sttFn, ok := fileproc.StorageTypeFuncs[cflg.stt]
-	if !ok {
-		return ErrStorage
-	}
-
-	var (
-		includeFiles   = cflg.withFiles && (st&source.FMattermost != 0)
-		includeAvatars = cflg.withAvatars && (st&source.FAvatars != 0)
-	)
-
-	s, err := source.Load(ctx, src)
-	if err != nil {
-		return err
-	}
-
-	cvt := convert.NewToExport(
-		s,
-		fsa,
-		convert.WithIncludeFiles(includeFiles),
-		convert.WithIncludeAvatars(includeAvatars),
-		convert.WithSrcFileLoc(sttFn),
-		convert.WithTrgFileLoc(sttFn),
-		convert.WithLogger(cfg.Log),
-	)
-	if err := cvt.Convert(ctx); err != nil {
-		return err
-	}
-
 	return nil
 }

@@ -43,6 +43,8 @@ type SessionRepository interface {
 	// it should return the last session that is finished or not finished,
 	// depending on the value of finished.
 	Last(ctx context.Context, conn sqlx.ExtContext, finished *bool) (*Session, error)
+	// All should return all sessions in the database.
+	All(ctx context.Context, conn sqlx.ExtContext) ([]Session, error)
 }
 
 type sessionRepository struct{}
@@ -158,4 +160,24 @@ func (r sessionRepository) Last(ctx context.Context, conn sqlx.ExtContext, finis
 		return nil, err
 	}
 	return s, nil
+}
+
+func (sessionRepository) All(ctx context.Context, conn sqlx.ExtContext) ([]Session, error) {
+	stmt := "SELECT * FROM SESSION"
+	slog.Debug("all", "stmt", stmt)
+	rows, err := conn.QueryxContext(ctx, stmt)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var ret []Session
+	var sess Session
+	for rows.Next() {
+		if err := rows.StructScan(&sess); err != nil {
+			return nil, err
+		}
+		ret = append(ret, sess)
+	}
+	return ret, rows.Err()
 }

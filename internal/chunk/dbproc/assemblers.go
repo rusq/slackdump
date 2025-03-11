@@ -2,9 +2,7 @@ package dbproc
 
 import (
 	"context"
-	"database/sql"
 	"errors"
-	"fmt"
 
 	"github.com/jmoiron/sqlx"
 
@@ -16,52 +14,11 @@ import (
 )
 
 var (
+	// ErrInvalidSessionID is returned when the session ID is invalid.
 	ErrInvalidSessionID = errors.New("invalid session ID")
-	ErrIncomplete       = errors.New("incomplete session")
+	// ErrIncomplete is returned when the session is incomplete.
+	ErrIncomplete = errors.New("incomplete session")
 )
-
-type Chunker struct {
-	SessionID int64
-}
-
-func (c *Chunker) ToChunk(ctx context.Context, conn sqlx.ExtContext, e chunk.Encoder) error {
-	if c.SessionID < 1 {
-		return ErrInvalidSessionID
-	}
-	sr := repository.NewSessionRepository()
-	sess, err := sr.Get(ctx, conn, c.SessionID)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return ErrInvalidSessionID
-		}
-		return err
-	}
-	if !sess.Finished {
-		return ErrIncomplete
-	}
-	cr := repository.NewChunkRepository()
-	it, err := cr.All(ctx, conn, c.SessionID)
-	if err != nil {
-		return err
-	}
-	for dbchunk, err := range it {
-		if err != nil {
-			return err
-		}
-		fn, ok := assemblers[dbchunk.TypeID]
-		if !ok {
-			return chunk.ErrUnsupChunkType
-		}
-		chunk, err := fn(ctx, conn, &dbchunk)
-		if err != nil {
-			return err
-		}
-		if err := e.Encode(ctx, chunk); err != nil {
-			return fmt.Errorf("error converting chunk %d[%s]: %w", dbchunk.ID, dbchunk.TypeID, err)
-		}
-	}
-	return nil
-}
 
 // assemblers is a map of chunk types to their respective assemblers.
 var assemblers = map[chunk.ChunkType]func(context.Context, sqlx.ExtContext, *repository.DBChunk) (*chunk.Chunk, error){

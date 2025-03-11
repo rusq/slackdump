@@ -57,16 +57,18 @@ func OpenDatabase(ctx context.Context, path string) (*Database, error) {
 }
 
 // DatabaseWithSource returns a new database source with the given database
-// processor source.
+// processor source.  It will not have any files or avatars storage.
 func DatabaseWithSource(source *dbproc.Source) *Database {
 	return &Database{name: "dbproc", Source: source, files: fstNotFound{}, avatars: fstNotFound{}}
 }
 
+// SetFiles sets the files storage.
 func (d *Database) SetFiles(fst Storage) *Database {
 	d.files = fst
 	return d
 }
 
+// SetAvatars sets the avatars storage.
 func (d *Database) SetAvatars(fst Storage) *Database {
 	d.avatars = fst
 	return d
@@ -77,7 +79,7 @@ func (d *Database) Name() string {
 }
 
 func (d *Database) Type() string {
-	return "data base"
+	return "database"
 }
 
 func (d *Database) Files() Storage {
