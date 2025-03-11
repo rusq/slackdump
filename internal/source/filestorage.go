@@ -36,9 +36,9 @@ type STMattermost struct {
 	fs fs.FS
 }
 
-// NewMattermostStorage returns the resolver for the mattermost export format.
+// OpenMattermostStorage returns the resolver for the mattermost export format.
 // rootfs is the root filesystem of the export.
-func NewMattermostStorage(rootfs fs.FS) (*STMattermost, error) {
+func OpenMattermostStorage(rootfs fs.FS) (*STMattermost, error) {
 	// mattermost export format has files in the __uploads subdirectory.
 	if _, err := fs.Stat(rootfs, chunk.UploadsDir); err != nil {
 		return nil, err
@@ -80,7 +80,7 @@ type STStandard struct {
 	idx map[string]string
 }
 
-func NewStandardStorage(rootfs fs.FS, idx map[string]string) *STStandard {
+func OpenStandardStorage(rootfs fs.FS, idx map[string]string) *STStandard {
 	return &STStandard{fs: rootfs, idx: idx}
 }
 

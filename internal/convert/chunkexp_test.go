@@ -29,7 +29,7 @@ func TestChunkToExport_Validate(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer srcDir.Close()
-	src := source.NewChunkDir(srcDir, true)
+	src := source.OpenChunkDir(srcDir, true)
 	testTrgDir := t.TempDir()
 
 	type fields struct {
@@ -119,7 +119,7 @@ func TestChunkToExport_Convert(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer fsa.Close()
-	src := source.NewChunkDir(cd, true)
+	src := source.OpenChunkDir(cd, true)
 	c := NewToExport(src, fsa, WithIncludeFiles(true))
 
 	ctx := context.Background()

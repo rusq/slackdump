@@ -39,7 +39,7 @@ func OpenDatabase(ctx context.Context, path string) (*Database, error) {
 		// directory
 		dbfile = filepath.Join(path, "slackdump.sqlite")
 		rootFS := os.DirFS(path)
-		if st, err := NewMattermostStorage(rootFS); err == nil {
+		if st, err := OpenMattermostStorage(rootFS); err == nil {
 			fst = st
 		}
 		if st, err := NewAvatarStorage(os.DirFS(path)); err == nil {

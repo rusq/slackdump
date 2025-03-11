@@ -54,7 +54,7 @@ func Test_transform(t *testing.T) {
 				t.Fatal(err)
 			}
 			defer cd.Close()
-			src := source.NewChunkDir(cd, true)
+			src := source.OpenChunkDir(cd, true)
 			cvt := ExpConverter{
 				src: src,
 				fsa: tt.args.fsa,

@@ -136,7 +136,7 @@ func export(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, list
 	if !lg.Enabled(ctx, slog.LevelDebug) {
 		defer func() { _ = chunkdir.RemoveAll() }()
 	}
-	src := source.NewChunkDir(chunkdir, true)
+	src := source.OpenChunkDir(chunkdir, true)
 	conv := transform.NewExpConverter(src, fsa, transform.ExpWithMsgUpdateFunc(fileproc.ExportTokenUpdateFn(params.ExportToken)))
 	tf := transform.NewExportCoordinator(ctx, conv, transform.WithBufferSize(1000))
 	defer tf.Close()

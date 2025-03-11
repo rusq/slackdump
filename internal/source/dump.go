@@ -24,7 +24,7 @@ type Dump struct {
 	files Storage
 }
 
-func NewDump(ctx context.Context, fsys fs.FS, name string) (*Dump, error) {
+func OpenDump(ctx context.Context, fsys fs.FS, name string) (*Dump, error) {
 	var st Storage = fstNotFound{}
 	if fst, err := NewDumpStorage(fsys); err == nil {
 		st = fst

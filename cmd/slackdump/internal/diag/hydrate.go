@@ -154,7 +154,7 @@ func download(ctx context.Context, archive, target string, dry bool) error {
 	}
 	defer zr.Close()
 
-	src, err := source.NewExport(zr, archive)
+	src, err := source.OpenExport(zr, archive)
 	if err != nil {
 		return err
 	}

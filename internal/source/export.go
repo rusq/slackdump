@@ -29,7 +29,7 @@ type Export struct {
 	avatars   Storage
 }
 
-func NewExport(fsys fs.FS, name string) (*Export, error) {
+func OpenExport(fsys fs.FS, name string) (*Export, error) {
 	var idx structures.ExportIndex
 	if err := idx.Unmarshal(fsys); err != nil {
 		return nil, err
@@ -65,13 +65,13 @@ func NewExport(fsys fs.FS, name string) (*Export, error) {
 // appropriate Storage implementation.
 func loadStorage(fsys fs.FS) (Storage, error) {
 	if _, err := fs.Stat(fsys, chunk.UploadsDir); err == nil {
-		return NewMattermostStorage(fsys)
+		return OpenMattermostStorage(fsys)
 	}
 	idx, err := buildFileIndex(fsys, ".")
 	if err != nil || len(idx) == 0 {
 		return fstNotFound{}, nil
 	}
-	return NewStandardStorage(fsys, idx), nil
+	return OpenStandardStorage(fsys, idx), nil
 }
 
 func (e *Export) Channels(context.Context) ([]slack.Channel, error) {
@@ -159,9 +159,6 @@ func (e *Export) walkChannelMessages(channelID string) (iter.Seq2[slack.Message,
 	return iterFn, nil
 }
 
-
-func (e *Export) AllThreadMessages(_ context.Context, channelID, threadID string) (iter.Seq2[slack.Message, error], error) {
-	it, err := e.walkChannelMessages(channelID)
 	if err != nil {
 		return nil, err
 	}

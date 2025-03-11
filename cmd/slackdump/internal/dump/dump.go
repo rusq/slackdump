@@ -189,7 +189,7 @@ func dumpv3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, p du
 		return err
 	}
 	defer cd.Close()
-	src := source.NewChunkDir(cd, true)
+	src := source.OpenChunkDir(cd, true)
 
 	// files subprocessor
 	sdl := fileproc.NewDownloader(ctx, p.downloadFiles, sess.Client(), fsa, cfg.Log)

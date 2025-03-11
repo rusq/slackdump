@@ -142,27 +142,27 @@ func Load(ctx context.Context, src string) (SourceCloseResumer, error) {
 		if err != nil {
 			return nil, err
 		}
-		return NewChunkDir(dir, true), nil
+		return OpenChunkDir(dir, true), nil
 	case st.Has(FExport | FZip):
 		lg.DebugContext(ctx, "loading export zip")
 		f, err := zip.OpenReader(src)
 		if err != nil {
 			return nil, err
 		}
-		return NewExport(f, src)
+		return OpenExport(f, src)
 	case st.Has(FExport | FDirectory):
 		lg.DebugContext(ctx, "loading export directory")
-		return NewExport(os.DirFS(src), src)
+		return OpenExport(os.DirFS(src), src)
 	case st.Has(FDump | FZip):
 		lg.DebugContext(ctx, "loading dump zip")
 		f, err := zip.OpenReader(src)
 		if err != nil {
 			return nil, err
 		}
-		return NewDump(ctx, f, src)
+		return OpenDump(ctx, f, src)
 	case st.Has(FDump | FDirectory):
 		lg.DebugContext(ctx, "loading dump directory")
-		return NewDump(ctx, os.DirFS(src), src)
+		return OpenDump(ctx, os.DirFS(src), src)
 	case st.Has(FDatabase):
 		lg.DebugContext(ctx, "loading database")
 		return OpenDatabase(ctx, src)

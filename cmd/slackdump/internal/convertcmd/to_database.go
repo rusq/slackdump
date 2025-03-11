@@ -2,7 +2,10 @@ package convertcmd
 
 import (
 	"context"
+	"io/fs"
+	"log/slog"
 	"os"
+	"path/filepath"
 
 	"github.com/jmoiron/sqlx"
 
@@ -31,7 +34,36 @@ func toDatabase(ctx context.Context, src, trg string, cflg convertflags) error {
 		return err
 	}
 	defer cd.Close()
+	dsrc := source.OpenChunkDir(cd, true)
+	defer dsrc.Close()
 
+	if err := chunk2db(ctx, dsrc, trg, cflg); err != nil {
+		return err
+	}
+
+	if st.Has(source.FMattermost) && cflg.includeFiles {
+		slog.Info("Copying files...")
+		if err := copyfiles(filepath.Join(trg, chunk.UploadsDir), dsrc.Files().FS()); err != nil {
+			return err
+		}
+	}
+	if st.Has(source.FAvatars) && cflg.includeAvatars {
+		slog.Info("Copying avatars...")
+		if err := copyfiles(filepath.Join(trg, chunk.AvatarsDir), dsrc.Avatars().FS()); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func copyfiles(trgdir string, fs fs.FS) error {
+	if err := os.MkdirAll(trgdir, 0o755); err != nil {
+		return err
+	}
+	return os.CopyFS(trgdir, fs)
+}
+
+func chunk2db(ctx context.Context, src *source.ChunkDir, trg string, cflg convertflags) error {
 	trg = cfg.StripZipExt(trg)
 	if err := os.MkdirAll(trg, 0o755); err != nil {
 		return err
@@ -44,7 +76,7 @@ func toDatabase(ctx context.Context, src, trg string, cflg convertflags) error {
 		}
 	}()
 
-	// writer connection
+	// create a new database
 	wconn, si, err := bootstrap.Database(trg, "convert")
 	if err != nil {
 		return err
@@ -65,12 +97,13 @@ func toDatabase(ctx context.Context, src, trg string, cflg convertflags) error {
 
 	remove = false // init succeeded
 	enc := &encoder{dbp: dbp, tx: txx}
-	if err := cd.ToChunk(ctx, enc, cflg.sessionID); err != nil {
+	if err := src.ToChunk(ctx, enc, cflg.sessionID); err != nil {
 		return err
 	}
 	if err := txx.Commit(); err != nil {
 		return err
 	}
+
 	return nil
 }
 

@@ -27,13 +27,13 @@ type ChunkDir struct {
 	avatars Storage
 }
 
-// NewChunkDir creates a new ChurkDir source.  It expects the attachments to be
+// OpenChunkDir creates a new ChurkDir source.  It expects the attachments to be
 // in the mattermost storage format.  If the attachments are not in the
 // mattermost storage format, it will assume they were not downloaded.
-func NewChunkDir(d *chunk.Directory, fast bool) *ChunkDir {
+func OpenChunkDir(d *chunk.Directory, fast bool) *ChunkDir {
 	rootFS := os.DirFS(d.Name())
 	var stFile Storage = fstNotFound{}
-	if fst, err := NewMattermostStorage(rootFS); err == nil {
+	if fst, err := OpenMattermostStorage(rootFS); err == nil {
 		stFile = fst
 	}
 	var stAvatars Storage = fstNotFound{}
@@ -189,4 +189,8 @@ func (c *ChunkDir) Avatars() Storage {
 
 func (c *ChunkDir) Sorted(ctx context.Context, id string, desc bool, cb func(ts time.Time, msg *slack.Message) error) error {
 	return c.d.Sorted(ctx, id, desc, cb)
+}
+
+func (c *ChunkDir) ToChunk(ctx context.Context, enc chunk.Encoder, _ int64) error {
+	return c.d.ToChunk(ctx, enc, 0)
 }
