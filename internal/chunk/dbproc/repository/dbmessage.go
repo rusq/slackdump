@@ -179,7 +179,7 @@ func (r messageRepository) AllForThread(ctx context.Context, conn sqlx.QueryerCo
 }
 
 func (r messageRepository) Sorted(ctx context.Context, conn sqlx.QueryerContext, channelID string, order Order) (iter.Seq2[DBMessage, error], error) {
-	return r.allOfTypeWhere(ctx, conn, queryParams{Where: "CHANNEL_ID = ?", Binds: []any{channelID}, OrderBy: []string{"T.ID" + order.String()}}, chunk.CMessages, chunk.CThreadMessages)
+	return r.allOfTypeWhere(ctx, conn, queryParams{Where: "T.CHANNEL_ID = ?", Binds: []any{channelID}, OrderBy: []string{"T.ID" + order.String()}}, chunk.CMessages, chunk.CThreadMessages)
 }
 
 func (r messageRepository) CountUnfinished(ctx context.Context, conn sqlx.QueryerContext, sessionID int64, channelID string) (int64, error) {

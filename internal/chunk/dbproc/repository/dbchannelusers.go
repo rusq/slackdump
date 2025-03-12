@@ -56,9 +56,9 @@ type channelUserRepository struct {
 
 func (r channelUserRepository) GetByChannelID(ctx context.Context, db sqlx.QueryerContext, channelID string) (iter.Seq2[DBChannelUser, error], error) {
 	qp := queryParams{
-		Where:        "T.CHANNEL_ID = ?",
-		Binds:        []any{channelID},
-		UserKeyOrder: true,
+		Where:   "T.CHANNEL_ID = ?",
+		Binds:   []any{channelID},
+		OrderBy: slice("T.USER_ID"),
 	}
 	return r.allOfTypeWhere(ctx, db, qp, chunk.CChannelUsers)
 }
