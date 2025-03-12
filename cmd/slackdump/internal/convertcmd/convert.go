@@ -4,6 +4,8 @@ import (
 	"context"
 	_ "embed"
 	"errors"
+	"io/fs"
+	"os"
 	"time"
 
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
@@ -55,8 +57,6 @@ type convertflags struct {
 }
 
 var params = convertflags{
-	includeFiles:   cfg.WithFiles,
-	includeAvatars: cfg.WithAvatars,
 	outStorageType: fileproc.STmattermost,
 	sessionID:      1,
 	outputfmt:      Fexport,
@@ -64,7 +64,8 @@ var params = convertflags{
 
 func init() {
 	CmdConvert.Flag.Var(&params.outStorageType, "storage", "storage type")
-	CmdConvert.Flag.Var(&params.outputfmt, "fmt", "output format")
+	CmdConvert.Flag.Var(&params.outputfmt, "format", "output `format`")
+	CmdConvert.Flag.Var(&params.outputfmt, "f", "shorthand for -format")
 	CmdConvert.Flag.Int64Var(&params.sessionID, "session", params.sessionID, "session `id` for database->chunk conversion")
 }
 
@@ -85,6 +86,10 @@ func runConvert(ctx context.Context, cmd *base.Command, args []string) error {
 	lg := cfg.Log
 	lg.InfoContext(ctx, "converting", "source", args[0], "output_format", params.outputfmt)
 
+	// set from the global config
+	params.includeFiles = cfg.WithFiles
+	params.includeAvatars = cfg.WithAvatars
+
 	start := time.Now()
 	if err := fn(ctx, args[0], cfg.Output, params); err != nil {
 		base.SetExitStatus(base.SApplicationError)
@@ -93,4 +98,11 @@ func runConvert(ctx context.Context, cmd *base.Command, args []string) error {
 
 	lg.InfoContext(ctx, "completed", "took", time.Since(start))
 	return nil
+}
+
+func copyfiles(trgdir string, fs fs.FS) error {
+	if err := os.MkdirAll(trgdir, 0o755); err != nil {
+		return err
+	}
+	return os.CopyFS(trgdir, fs)
 }

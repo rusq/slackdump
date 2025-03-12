@@ -2,7 +2,6 @@ package convertcmd
 
 import (
 	"context"
-	"io/fs"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -37,6 +36,7 @@ func toDatabase(ctx context.Context, src, trg string, cflg convertflags) error {
 	dsrc := source.OpenChunkDir(cd, true)
 	defer dsrc.Close()
 
+	trg = cfg.StripZipExt(trg)
 	if err := chunk2db(ctx, dsrc, trg, cflg); err != nil {
 		return err
 	}
@@ -56,28 +56,24 @@ func toDatabase(ctx context.Context, src, trg string, cflg convertflags) error {
 	return nil
 }
 
-func copyfiles(trgdir string, fs fs.FS) error {
-	if err := os.MkdirAll(trgdir, 0o755); err != nil {
-		return err
-	}
-	return os.CopyFS(trgdir, fs)
-}
-
-func chunk2db(ctx context.Context, src *source.ChunkDir, trg string, cflg convertflags) error {
-	trg = cfg.StripZipExt(trg)
-	if err := os.MkdirAll(trg, 0o755); err != nil {
+// chunk2db converts the chunk source to the database format, it creates the
+// database in the directory dir.
+func chunk2db(ctx context.Context, src *source.ChunkDir, dir string, cflg convertflags) error {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}
 	remove := true
 	defer func() {
 		// remove on failed conversion
 		if remove {
-			_ = os.RemoveAll(trg)
+			_ = os.RemoveAll(dir)
 		}
 	}()
 
+	slog.Info("output", "database", filepath.Join(dir, "slackdump.sqlite"))
+
 	// create a new database
-	wconn, si, err := bootstrap.Database(trg, "convert")
+	wconn, si, err := bootstrap.Database(dir, "convert")
 	if err != nil {
 		return err
 	}
@@ -95,7 +91,6 @@ func chunk2db(ctx context.Context, src *source.ChunkDir, trg string, cflg conver
 	}
 	defer txx.Rollback()
 
-	remove = false // init succeeded
 	enc := &encoder{dbp: dbp, tx: txx}
 	if err := src.ToChunk(ctx, enc, cflg.sessionID); err != nil {
 		return err
@@ -104,9 +99,12 @@ func chunk2db(ctx context.Context, src *source.ChunkDir, trg string, cflg conver
 		return err
 	}
 
+	remove = false
 	return nil
 }
 
+// encoder implements the chunk.Encoder around the unsafe database insert.
+// It operates in a single transaction tx.
 type encoder struct {
 	dbp *dbproc.DBP
 	tx  *sqlx.Tx

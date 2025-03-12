@@ -159,6 +159,8 @@ func (e *Export) walkChannelMessages(channelID string) (iter.Seq2[slack.Message,
 	return iterFn, nil
 }
 
+func (e *Export) AllThreadMessages(_ context.Context, channelID, threadID string) (iter.Seq2[slack.Message, error], error) {
+	it, err := e.walkChannelMessages(channelID)
 	if err != nil {
 		return nil, err
 	}

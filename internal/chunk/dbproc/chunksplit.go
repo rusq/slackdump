@@ -12,6 +12,7 @@ import (
 	"github.com/rusq/slackdump/v3/internal/chunk"
 )
 
+// InsertChunk inserts a chunk into the database.
 func (d *DBP) InsertChunk(ctx context.Context, ch *chunk.Chunk) (int64, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -24,7 +25,7 @@ func (d *DBP) InsertChunk(ctx context.Context, ch *chunk.Chunk) (int64, error) {
 
 	id, err := d.UnsafeInsertChunk(ctx, txx, ch)
 	if err != nil {
-		return 0, fmt.Errorf("insertchunk: unsafe: %w", err)
+		return 0, fmt.Errorf("insertchunk: insert: %w", err)
 	}
 
 	if err := txx.Commit(); err != nil {
@@ -35,8 +36,7 @@ func (d *DBP) InsertChunk(ctx context.Context, ch *chunk.Chunk) (int64, error) {
 }
 
 // UnsafeInsertChunk does not lock the DBP and does not commit the transaction.
-// It should be used for bulk inserts and single-threaded. Unsafe for
-// concurrent use.
+// It should be used for bulk inserts.  Unsafe for concurrent use.
 func (d *DBP) UnsafeInsertChunk(ctx context.Context, txx repository.PrepareExtContext, ch *chunk.Chunk) (int64, error) {
 	dc := repository.DBChunk{
 		SessionID:   d.sessionID,
@@ -69,6 +69,16 @@ func orNil[T any](cond bool, v T) *T {
 	return nil
 }
 
+type ErrInvalidPayload struct {
+	Type      chunk.ChunkType
+	ChannelID string
+	Reason    string
+}
+
+func (e *ErrInvalidPayload) Error() string {
+	return fmt.Sprintf("invalid payload: %v, channel: %s, reason: %s", e.Type, e.ChannelID, e.Reason)
+}
+
 // insertPayload calls relevant function to insert the chunk payload.
 func (d *DBP) insertPayload(ctx context.Context, tx repository.PrepareExtContext, dbchunkID int64, c *chunk.Chunk) (int, error) {
 	switch c.Type {
@@ -76,6 +86,9 @@ func (d *DBP) insertPayload(ctx context.Context, tx repository.PrepareExtContext
 		return d.insertMessages(ctx, tx, dbchunkID, c.ChannelID, c.Messages)
 	case chunk.CThreadMessages:
 		// prepend the parent message to the messages slice
+		if c.Parent == nil {
+			return 0, &ErrInvalidPayload{Type: c.Type, ChannelID: c.ChannelID, Reason: "parent message is nil"}
+		}
 		c.Messages = append([]slack.Message{*c.Parent}, c.Messages...)
 		return d.insertMessages(ctx, tx, dbchunkID, c.ChannelID, c.Messages)
 	case chunk.CFiles:
@@ -87,6 +100,9 @@ func (d *DBP) insertPayload(ctx context.Context, tx repository.PrepareExtContext
 	case chunk.CChannels:
 		return d.insertChannels(ctx, tx, dbchunkID, c.Channels)
 	case chunk.CChannelInfo:
+		if c.Channel == nil {
+			return 0, &ErrInvalidPayload{Type: c.Type, ChannelID: c.ChannelID, Reason: "channel is nil"}
+		}
 		return d.insertChannels(ctx, tx, dbchunkID, []slack.Channel{*c.Channel})
 	case chunk.CChannelUsers:
 		return d.insertChannelUsers(ctx, tx, dbchunkID, c.ChannelID, c.ChannelUsers)

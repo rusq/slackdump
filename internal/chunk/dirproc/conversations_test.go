@@ -10,6 +10,7 @@ import (
 	"go.uber.org/mock/gomock"
 
 	"github.com/rusq/slackdump/v3/internal/chunk"
+	"github.com/rusq/slackdump/v3/internal/chunk/mock_chunk"
 	"github.com/rusq/slackdump/v3/internal/fixtures"
 	"github.com/rusq/slackdump/v3/mocks/mock_processor"
 	"github.com/rusq/slackdump/v3/processor"
@@ -473,7 +474,7 @@ func TestConversations_finalise(t *testing.T) {
 		name     string
 		fields   fields
 		args     args
-		expectFn func(mt *Mocktracker, mtf *MockTransformer)
+		expectFn func(mt *Mocktracker, mtf *mock_chunk.MockTransformer)
 		wantErr  bool
 	}{
 		{
@@ -486,7 +487,7 @@ func TestConversations_finalise(t *testing.T) {
 				ctx: textCtx,
 				id:  chunk.FileID("fileID"),
 			},
-			expectFn: func(mt *Mocktracker, mtf *MockTransformer) {
+			expectFn: func(mt *Mocktracker, mtf *mock_chunk.MockTransformer) {
 				mt.EXPECT().RefCount(chunk.FileID("fileID")).Return(0)
 				mt.EXPECT().Unregister(chunk.FileID("fileID")).Return(nil)
 				mtf.EXPECT().Transform(gomock.Any(), chunk.FileID("fileID")).Return(nil)
@@ -503,7 +504,7 @@ func TestConversations_finalise(t *testing.T) {
 				ctx: textCtx,
 				id:  chunk.FileID("fileID"),
 			},
-			expectFn: func(mt *Mocktracker, mtf *MockTransformer) {
+			expectFn: func(mt *Mocktracker, mtf *mock_chunk.MockTransformer) {
 				mt.EXPECT().RefCount(chunk.FileID("fileID")).Return(1)
 			},
 			wantErr: false,
@@ -518,7 +519,7 @@ func TestConversations_finalise(t *testing.T) {
 				ctx: textCtx,
 				id:  chunk.FileID("fileID"),
 			},
-			expectFn: func(mt *Mocktracker, mtf *MockTransformer) {
+			expectFn: func(mt *Mocktracker, mtf *mock_chunk.MockTransformer) {
 				mt.EXPECT().RefCount(chunk.FileID("fileID")).Return(0)
 				mt.EXPECT().Unregister(chunk.FileID("fileID")).Return(errors.New("unregister error"))
 			},
@@ -534,7 +535,7 @@ func TestConversations_finalise(t *testing.T) {
 				ctx: textCtx,
 				id:  chunk.FileID("fileID"),
 			},
-			expectFn: func(mt *Mocktracker, mtf *MockTransformer) {
+			expectFn: func(mt *Mocktracker, mtf *mock_chunk.MockTransformer) {
 				mt.EXPECT().RefCount(chunk.FileID("fileID")).Return(0)
 				mt.EXPECT().Unregister(chunk.FileID("fileID")).Return(nil)
 				mtf.EXPECT().Transform(gomock.Any(), chunk.FileID("fileID")).Return(errors.New("transform error"))
@@ -546,7 +547,7 @@ func TestConversations_finalise(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			mt := NewMocktracker(ctrl)
-			mtf := NewMockTransformer(ctrl)
+			mtf := mock_chunk.NewMockTransformer(ctrl)
 			tt.expectFn(mt, mtf)
 			cv := &Conversations{
 				t:           mt,
@@ -809,7 +810,7 @@ func TestNewConversation(t *testing.T) {
 	cd := &chunk.Directory{}
 	ctrl := gomock.NewController(t)
 	filesSubproc := mock_processor.NewMockFiler(ctrl)
-	tf := NewMockTransformer(ctrl)
+	tf := mock_chunk.NewMockTransformer(ctrl)
 
 	t.Run("ok", func(t *testing.T) {
 		// Test with valid arguments

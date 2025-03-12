@@ -7,6 +7,7 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"text/tabwriter"
 	"time"
 
@@ -28,7 +29,34 @@ func toChunk(ctx context.Context, src, trg string, cflg convertflags) error {
 		return ErrSource
 	}
 
-	dir := cfg.StripZipExt(trg)
+	srcdb, err := source.OpenDatabase(ctx, src)
+	if err != nil {
+		return err
+	}
+	defer srcdb.Close()
+
+	trg = cfg.StripZipExt(trg)
+
+	if err := db2chunk(ctx, srcdb, trg, cflg); err != nil {
+		return err
+	}
+	if st.Has(source.FMattermost) && cflg.includeFiles {
+		slog.Info("Copying files...")
+		if err := copyfiles(filepath.Join(trg, chunk.UploadsDir), srcdb.Files().FS()); err != nil {
+			return err
+		}
+	}
+	if st.Has(source.FAvatars) && cflg.includeAvatars {
+		slog.Info("Copying avatars...")
+		if err := copyfiles(filepath.Join(trg, chunk.AvatarsDir), srcdb.Avatars().FS()); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// db2chunk converts the database to the chunk format, writing to the directory dir.
+func db2chunk(ctx context.Context, src *source.Database, dir string, cflg convertflags) error {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}
@@ -41,6 +69,7 @@ func toChunk(ctx context.Context, src, trg string, cflg convertflags) error {
 	}()
 
 	slog.Info("output", "directory", dir)
+
 	cd, err := chunk.OpenDir(dir)
 	if err != nil {
 		return err
@@ -48,17 +77,9 @@ func toChunk(ctx context.Context, src, trg string, cflg convertflags) error {
 	erc := dirproc.NewERC(cd, cfg.Log)
 	defer erc.Close()
 
-	srcdb, err := source.OpenDatabase(ctx, src)
-	if err != nil {
-		return err
-	}
-	defer srcdb.Close()
-
-	remove = false // init succeeded
-
-	if err := srcdb.ToChunk(ctx, erc, cflg.sessionID); err != nil {
+	if err := src.ToChunk(ctx, erc, cflg.sessionID); err != nil {
 		if errors.Is(err, dbproc.ErrInvalidSessionID) {
-			sess, err := srcdb.Sessions(ctx)
+			sess, err := src.Sessions(ctx)
 			if err != nil {
 				return errors.New("no sessions found")
 			}
@@ -66,6 +87,7 @@ func toChunk(ctx context.Context, src, trg string, cflg convertflags) error {
 		}
 		return err
 	}
+	remove = false
 	return nil
 }
 

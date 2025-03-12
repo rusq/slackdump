@@ -46,15 +46,3 @@ func AvatarPath(u *slack.User) string {
 		filename,
 	)
 }
-
-func nvl(s string, ss ...string) string {
-	if s != "" {
-		return s
-	}
-	for _, v := range ss {
-		if v != "" {
-			return v
-		}
-	}
-	return ""
-}

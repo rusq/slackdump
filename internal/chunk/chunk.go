@@ -266,6 +266,8 @@ func (g GroupID) isSearch() bool {
 	return g[0] == catSearch
 }
 
+//go:generate mockgen -destination=mock_chunk/mock_chunk.go . Transformer
+
 // Transformer is an interface that is called when the processor is finished
 // processing a channel or thread.
 type Transformer interface {

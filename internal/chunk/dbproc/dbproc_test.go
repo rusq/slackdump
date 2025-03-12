@@ -7,8 +7,23 @@ import (
 
 	"github.com/jmoiron/sqlx"
 
+	"github.com/rusq/slackdump/v3/internal/chunk/dbproc/repository"
 	"github.com/rusq/slackdump/v3/internal/testutil"
 )
+
+// testDB returns a test database with the schema applied.
+func testDB(t *testing.T) *sqlx.DB {
+	t.Helper()
+	ctx := context.Background()
+	db := testutil.TestDB(t)
+	if err := initDB(ctx, db); err != nil {
+		t.Fatal(err)
+	}
+	if err := repository.Migrate(context.Background(), db.DB, true); err != nil {
+		t.Fatal(err)
+	}
+	return db
+}
 
 func Test_initDB(t *testing.T) {
 	type args struct {
