@@ -822,3 +822,82 @@ func Test_messageRepository_LatestThreads(t *testing.T) {
 		})
 	}
 }
+
+func Test_messageRepository_Sorted(t *testing.T) {
+	type fields struct {
+		genericRepository genericRepository[DBMessage]
+	}
+	type args struct {
+		ctx       context.Context
+		conn      sqlx.QueryerContext
+		channelID string
+		order     Order
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		prepFn  utilityFn
+		want    []testResult[DBMessage]
+		wantErr bool
+	}{
+		{
+			name: "returns messages in correct order",
+			fields: fields{
+				genericRepository: genericRepository[DBMessage]{DBMessage{}},
+			},
+			args: args{
+				ctx:       context.Background(),
+				conn:      testConn(t),
+				channelID: "C123",
+				order:     Desc,
+			},
+			prepFn: messagePrepFn,
+			want: []testResult[DBMessage]{
+				{V: *dbmCt2},
+				{V: *dbmCt1},
+				{V: *dbmCt0},
+				{V: *dbmB_},
+				{V: *dbmA},
+			},
+			wantErr: false,
+		},
+		{
+			name: "returns messages in ascending order",
+			fields: fields{
+				genericRepository: genericRepository[DBMessage]{DBMessage{}},
+			},
+			args: args{
+				ctx:       context.Background(),
+				conn:      testConn(t),
+				channelID: "C123",
+				order:     Asc,
+			},
+			prepFn: messagePrepFn,
+			want: []testResult[DBMessage]{
+				{V: *dbmA},
+				{V: *dbmB_},
+				{V: *dbmCt0},
+				{V: *dbmCt1},
+				{V: *dbmCt2},
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.prepFn != nil {
+				tt.prepFn(t, tt.args.conn.(PrepareExtContext))
+			}
+			r := messageRepository{
+				genericRepository: tt.fields.genericRepository,
+			}
+			got, err := r.Sorted(tt.args.ctx, tt.args.conn, tt.args.channelID, tt.args.order)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("messageRepository.Sorted() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			assertIterResult(t, tt.want, got)
+		})
+	}
+}
