@@ -40,7 +40,7 @@ func (c *FileCopier) Copy(ch *slack.Channel, msg *slack.Message) error {
 		return nil
 	}
 	if msg == nil {
-		return errors.New("convert: internal error: callback: nil message")
+		return errors.New("convert: internal error: copy: nil message")
 	} else if len(msg.Files) == 0 {
 		// no files to process
 		return nil

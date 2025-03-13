@@ -98,7 +98,12 @@ func (d *DumpConverter) Convert(ctx context.Context) error {
 }
 
 type fileHandler struct {
-	fc *FileCopier
+	fc copier
+}
+
+//go:generate mockgen -destination=mock_convert/mock_copier.go . copier
+type copier interface {
+	Copy(*slack.Channel, *slack.Message) error
 }
 
 // copyFiles is a pipeline function that extracts files from messages and
