@@ -36,7 +36,7 @@ func Test_stdConvert(t *testing.T) {
 			t.Fatal(err)
 		}
 		defer fsa.Close()
-		cvt := StdConverter{
+		cvt := DumpConverter{
 			src:  src,
 			fsa:  fsa,
 			tmpl: nametmpl.NewDefault(),

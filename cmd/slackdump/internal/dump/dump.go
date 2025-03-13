@@ -196,15 +196,15 @@ func dumpv3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, p du
 	subproc := fileproc.NewDump(sdl)
 	defer subproc.Close()
 
-	opts := []transform.StdOption{
-		transform.StdWithTemplate(p.tmpl),
-		transform.StdWithLogger(lg),
+	opts := []transform.DumpOption{
+		transform.DumpWithTemplate(p.tmpl),
+		transform.DumpWithLogger(lg),
 	}
 	if p.updatePath && p.downloadFiles {
-		opts = append(opts, transform.StdWithPipeline(subproc.PathUpdateFunc))
+		opts = append(opts, transform.DumpWithPipeline(subproc.PathUpdateFunc))
 	}
 
-	tf, err := transform.NewStdConverter(fsa, src, opts...)
+	tf, err := transform.NewDumpConverter(fsa, src, opts...)
 	if err != nil {
 		return fmt.Errorf("failed to create transform: %w", err)
 	}
@@ -293,15 +293,15 @@ func dumpv31(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, p d
 	subproc := fileproc.NewDump(sdl)
 	defer subproc.Close()
 
-	opts := []transform.StdOption{
-		transform.StdWithTemplate(p.tmpl),
-		transform.StdWithLogger(lg),
+	opts := []transform.DumpOption{
+		transform.DumpWithTemplate(p.tmpl),
+		transform.DumpWithLogger(lg),
 	}
 	if p.updatePath && p.downloadFiles {
-		opts = append(opts, transform.StdWithPipeline(subproc.PathUpdateFunc))
+		opts = append(opts, transform.DumpWithPipeline(subproc.PathUpdateFunc))
 	}
 
-	tf, err := transform.NewStdConverter(fsa, src, opts...)
+	tf, err := transform.NewDumpConverter(fsa, src, opts...)
 	if err != nil {
 		return fmt.Errorf("failed to create transform: %w", err)
 	}

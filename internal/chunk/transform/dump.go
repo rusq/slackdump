@@ -19,35 +19,35 @@ import (
 	"github.com/rusq/slackdump/v3/types"
 )
 
-type StdOption func(*StdConverter)
+type DumpOption func(*DumpConverter)
 
 type Templater interface {
 	Execute(c *types.Conversation) string
 }
 
-func StdWithTemplate(tmpl Templater) StdOption {
-	return func(s *StdConverter) {
+func DumpWithTemplate(tmpl Templater) DumpOption {
+	return func(s *DumpConverter) {
 		s.tmpl = tmpl
 	}
 }
 
-// StdWithPipeline adds a pipeline function to the transformer, that will
+// DumpWithPipeline adds a pipeline function to the transformer, that will
 // be called for each message slice, before it is written to the filesystem.
-func StdWithPipeline(f ...func(channelID string, threadTS string, mm []slack.Message) error) StdOption {
-	return func(s *StdConverter) {
+func DumpWithPipeline(f ...func(channelID string, threadTS string, mm []slack.Message) error) DumpOption {
+	return func(s *DumpConverter) {
 		s.pipeline = append(s.pipeline, f...)
 	}
 }
 
-func StdWithLogger(log *slog.Logger) StdOption {
-	return func(s *StdConverter) {
+func DumpWithLogger(log *slog.Logger) DumpOption {
+	return func(s *DumpConverter) {
 		s.lg = log
 	}
 }
 
-// NewStdConverter creates a new standard dump converter.
-func NewStdConverter(fsa fsadapter.FS, src source.Sourcer, opts ...StdOption) (*StdConverter, error) {
-	std := &StdConverter{
+// NewDumpConverter creates a new standard dump converter.
+func NewDumpConverter(fsa fsadapter.FS, src source.Sourcer, opts ...DumpOption) (*DumpConverter, error) {
+	std := &DumpConverter{
 		src:  src,
 		fsa:  fsa,
 		lg:   slog.Default(),
@@ -76,17 +76,17 @@ func (p pipeline) apply(channelID, threadTS string, mm []slack.Message) error {
 	return nil
 }
 
-// StdConverter is a converter of chunk files into the Slackdump format.
-type StdConverter struct {
-	src      source.Sourcer // working chunk directory
-	fsa      fsadapter.FS   // output file system
+// DumpConverter is a converter of chunk files into the Slackdump format.
+type DumpConverter struct {
+	src      source.Sourcer // source of the data
+	fsa      fsadapter.FS   // output file system adapter
 	tmpl     Templater      // file name template
 	lg       *slog.Logger   // logger
 	pipeline []pipelineFunc // pipeline filter functions
 }
 
 // Convert converts the chunk file to Slackdump json format.
-func (s *StdConverter) Convert(ctx context.Context, id chunk.FileID) error {
+func (s *DumpConverter) Convert(ctx context.Context, id chunk.FileID) error {
 	// threadTS is only populated on the thread only files.  It is safe to
 	// rely on it being non-empty to determine if we need a thread or a
 	// conversation.

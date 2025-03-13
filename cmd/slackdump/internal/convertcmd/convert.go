@@ -43,6 +43,7 @@ type tparams struct {
 type convertFunc func(ctx context.Context, input, output string, cflg convertflags) error
 
 var converters = map[datafmt]convertFunc{
+	Fdump:     toDump,
 	Fexport:   toExport,
 	Fchunk:    toChunk,
 	Fdatabase: toDatabase,

@@ -55,8 +55,6 @@ func (c *DirController) Run(ctx context.Context, list *structures.EntityList) er
 	ctx, task := trace.NewTask(ctx, "Controller.Run")
 	defer task.End()
 
-	// prefix "d" stands for directory processor
-
 	var dcp processor.Channels = &processor.NopChannels{}
 	if !list.HasIncludes() { // all channels are included
 		if p, err := dirproc.NewChannels(c.cd); err != nil {
