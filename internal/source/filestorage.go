@@ -1,11 +1,13 @@
 package source
 
 import (
+	"fmt"
 	"io/fs"
 	"path"
 	"path/filepath"
 	"strings"
 
+	"github.com/rusq/slack"
 	"github.com/rusq/slackdump/v3/internal/chunk"
 )
 
@@ -17,9 +19,37 @@ const (
 type Storage interface {
 	// FS should return the filesystem with file attachments.
 	FS() fs.FS
-	// File should return the path of the file within the filesystem returned
+	// File should return the path of the file WITHIN the filesystem returned
 	// by FS().
 	File(id string, name string) (string, error)
+	// FilePath should return the path to the file f relative to the root of
+	// the Source (i.e. __uploads/ID/Name.ext).
+	FilePath(ch *slack.Channel, f *slack.File) string
+}
+
+// MattermostFilepath returns the path to the file within the __uploads
+// directory.
+func MattermostFilepath(_ *slack.Channel, f *slack.File) string {
+	return filepath.Join(chunk.UploadsDir, f.ID, f.Name)
+}
+
+// MattermostFilepathWithDir returns the path to the file within the given
+// directory, but it follows the mattermost naming pattern.
+func MattermostFilepathWithDir(dir string) func(*slack.Channel, *slack.File) string {
+	return func(_ *slack.Channel, f *slack.File) string {
+		return path.Join(dir, f.ID, f.Name)
+	}
+}
+
+// StdFilepath returns the path to the file within the "attachments"
+// directory.
+func StdFilepath(ci *slack.Channel, f *slack.File) string {
+	return path.Join(ExportChanName(ci), "attachments", fmt.Sprintf("%s-%s", f.ID, f.Name))
+}
+
+// DumpFilepath returns the path to the file within the channel directory.
+func DumpFilepath(ci *slack.Channel, f *slack.File) string {
+	return path.Join(chunk.ToFileID(ci.ID, "", false).String(), f.ID+"-"+f.Name)
 }
 
 // STMattermost is the Storage for the mattermost export format.  Files
@@ -61,6 +91,10 @@ func (r *STMattermost) File(id string, name string) (string, error) {
 		return "", err
 	}
 	return pth, nil
+}
+
+func (r *STMattermost) FilePath(_ *slack.Channel, f *slack.File) string {
+	return MattermostFilepath(nil, f)
 }
 
 // STStandard is the Storage for the standard export format.  Files are
@@ -124,6 +158,10 @@ func (r *STStandard) FS() fs.FS {
 	return r.fs
 }
 
+func (r *STStandard) FilePath(ci *slack.Channel, f *slack.File) string {
+	return StdFilepath(ci, f)
+}
+
 func (r *STStandard) File(id string, _ string) (string, error) {
 	pth, ok := r.idx[id]
 	if !ok {
@@ -150,6 +188,10 @@ func (fstNotFound) FS() fs.FS {
 
 func (fstNotFound) File(id string, name string) (string, error) {
 	return "", fs.ErrNotExist
+}
+
+func (fstNotFound) FilePath(*slack.Channel, *slack.File) string {
+	return ""
 }
 
 // STDump is the Storage for the dump format.  Files are stored in the
@@ -232,6 +274,10 @@ func indexDump(fsys fs.FS) (map[string]string, error) {
 	return idx, nil
 }
 
+func (r *STDump) FilePath(ci *slack.Channel, f *slack.File) string {
+	return DumpFilepath(ci, f)
+}
+
 func (r *STDump) FS() fs.FS {
 	return r.fs
 }
@@ -273,4 +319,8 @@ func (r *AvatarStorage) File(id string, name string) (string, error) {
 		return "", err
 	}
 	return pth, nil
+}
+
+func (r *AvatarStorage) FilePath(_ *slack.Channel, f *slack.File) string {
+	return path.Join(f.ID, f.Name)
 }

@@ -1,18 +1,8 @@
 package fileproc
 
-import (
-	"path"
-
-	"github.com/rusq/slack"
-
-	"github.com/rusq/slackdump/v3/internal/chunk"
-)
+import "github.com/rusq/slackdump/v3/internal/source"
 
 // NewDump returns a new Dump File FileProcessor.
 func NewDump(dl Downloader) FileProcessor {
-	return NewWithPathFn(dl, DumpFilepath)
-}
-
-func DumpFilepath(ci *slack.Channel, f *slack.File) string {
-	return path.Join(chunk.ToFileID(ci.ID, "", false).String(), f.ID+"-"+f.Name)
+	return NewWithPathFn(dl, source.DumpFilepath)
 }

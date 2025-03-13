@@ -57,8 +57,8 @@ func NewToExport(src source.Sourcer, trg fsadapter.FS, opt ...Option) *ToExport 
 		opts: options{
 			includeFiles:   false,
 			includeAvatars: false,
-			srcFileLoc:     fileproc.MattermostFilepath,
-			trgFileLoc:     fileproc.MattermostFilepath,
+			srcFileLoc:     source.MattermostFilepath,
+			trgFileLoc:     source.MattermostFilepath,
 			avtrFileLoc:    fileproc.AvatarPath,
 			lg:             slog.Default(),
 		},
@@ -268,13 +268,31 @@ func (e *copyerror) Unwrap() error {
 	return e.Err
 }
 
-// fileCopy iterates through the files in the message and copies them to the
+type FileCopier struct {
+	src      source.Sourcer
+	trg      fsadapter.FS
+	srcLocFn func(*slack.Channel, *slack.File) string
+	trgLocFn func(*slack.Channel, *slack.File) string
+	enabled  bool
+}
+
+func NewFileCopier(src source.Sourcer, trg fsadapter.FS, srcLoc, trgLoc func(*slack.Channel, *slack.File) string, enabled bool) *FileCopier {
+	return &FileCopier{
+		src:      src,
+		trg:      trg,
+		srcLocFn: srcLoc,
+		trgLocFn: trgLoc,
+		enabled:  enabled,
+	}
+}
+
+// Copy iterates through the files in the message and copies them to the
 // target directory.  Source file location is determined by calling the
 // srcFileLoc function, joined with the chunk directory name.  target file
 // location — by calling trgFileLoc function, and is relative to the target
 // fsadapter root.
-func (c *ToExport) fileCopy(ch *slack.Channel, msg *slack.Message) error {
-	if !c.opts.includeFiles {
+func (c *FileCopier) Copy(ch *slack.Channel, msg *slack.Message) error {
+	if !c.enabled {
 		return nil
 	}
 	if msg == nil {
@@ -286,7 +304,7 @@ func (c *ToExport) fileCopy(ch *slack.Channel, msg *slack.Message) error {
 
 	var (
 		fsys = c.src.Files().FS()
-		lg   = c.opts.lg.With("channel", ch.ID, "ts", msg.Timestamp)
+		lg   = slog.With("channel", ch.ID, "ts", msg.Timestamp)
 	)
 	for _, f := range msg.Files {
 		if err := fileproc.IsValidWithReason(&f); err != nil {
@@ -299,7 +317,7 @@ func (c *ToExport) fileCopy(ch *slack.Channel, msg *slack.Message) error {
 			return &copyerror{f.ID, err}
 		}
 		// srcpath := c.opts.srcFileLoc(ch, &f)
-		trgpath := c.opts.trgFileLoc(ch, &f)
+		trgpath := c.trgLocFn(ch, &f)
 
 		sfi, err := fs.Stat(fsys, srcpath)
 		if err != nil {
@@ -356,11 +374,18 @@ func (cr copyresult) Unwrap() error {
 
 func (c *ToExport) copyworker(req <-chan copyrequest) {
 	defer close(c.fileresult)
+	fc := FileCopier{
+		src:      c.src,
+		trg:      c.trg,
+		srcLocFn: c.opts.srcFileLoc,
+		trgLocFn: c.opts.trgFileLoc,
+		enabled:  c.opts.includeFiles,
+	}
 	c.opts.lg.Debug("copy worker started")
 	for r := range req {
 		c.fileresult <- copyresult{
 			fr:  r,
-			err: c.fileCopy(r.channel, r.message),
+			err: fc.Copy(r.channel, r.message),
 		}
 	}
 	c.opts.lg.Debug("copy worker done")

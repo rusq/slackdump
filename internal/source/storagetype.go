@@ -1,4 +1,4 @@
-package fileproc
+package source
 
 import (
 	"fmt"
@@ -16,6 +16,8 @@ const (
 	STstandard
 	// STmattermost is the storage type for Mattermost.
 	STmattermost
+	// STdump is the storage type for the dump format.
+	STdump
 )
 
 // Set translates the string value into the ExportType, satisfies flag.Value
@@ -34,5 +36,6 @@ func (e *StorageType) Set(v string) error {
 var StorageTypeFuncs = map[StorageType]func(_ *slack.Channel, f *slack.File) string{
 	STmattermost: MattermostFilepath,
 	STstandard:   StdFilepath,
+	STdump:       DumpFilepath,
 	STnone:       func(_ *slack.Channel, f *slack.File) string { return "" },
 }

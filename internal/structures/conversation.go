@@ -37,3 +37,7 @@ func ChannelType(ch slack.Channel) int {
 		return CPublic
 	}
 }
+
+func ChannelFromID(id string) *slack.Channel {
+	return &slack.Channel{GroupConversation: slack.GroupConversation{Conversation: slack.Conversation{ID: id}}} // arrgh
+}

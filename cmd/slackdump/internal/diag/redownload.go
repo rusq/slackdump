@@ -170,7 +170,7 @@ func scanMsgs(ctx context.Context, fp processor.Filer, cd *chunk.Directory, f *c
 		// collect all missing files from the message.
 		var missing []slack.File
 		for _, ff := range m.Files {
-			name := filepath.Join(cd.Name(), fileproc.MattermostFilepath(ch, &ff))
+			name := filepath.Join(cd.Name(), source.MattermostFilepath(ch, &ff))
 			lg := lg.With("file", name)
 			lg.Debug("checking file")
 			if fi, err := os.Stat(name); err != nil {

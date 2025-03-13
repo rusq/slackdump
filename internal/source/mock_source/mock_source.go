@@ -257,3 +257,17 @@ func (mr *MockStorageMockRecorder) File(id, name any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "File", reflect.TypeOf((*MockStorage)(nil).File), id, name)
 }
+
+// FilePath mocks base method.
+func (m *MockStorage) FilePath(ch *slack.Channel, f *slack.File) string {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FilePath", ch, f)
+	ret0, _ := ret[0].(string)
+	return ret0
+}
+
+// FilePath indicates an expected call of FilePath.
+func (mr *MockStorageMockRecorder) FilePath(ch, f any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FilePath", reflect.TypeOf((*MockStorage)(nil).FilePath), ch, f)
+}

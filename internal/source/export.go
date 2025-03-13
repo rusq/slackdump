@@ -215,3 +215,11 @@ func (e *Export) Sorted(ctx context.Context, channelID string, desc bool, cb fun
 	// TODO
 	return errors.New("not supported yet")
 }
+
+// ExportChanName returns the channel name, or the channel ID if it is a DM.
+func ExportChanName(ch *slack.Channel) string {
+	if ch.IsIM {
+		return ch.ID
+	}
+	return ch.Name
+}

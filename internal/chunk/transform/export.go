@@ -168,14 +168,6 @@ func toExportMessage(m *slack.Message, thread []slack.Message, user *slack.User)
 	return &em
 }
 
-// ExportChanName returns the channel name, or the channel ID if it is a DM.
-func ExportChanName(ch *slack.Channel) string {
-	if ch.IsIM {
-		return ch.ID
-	}
-	return ch.Name
-}
-
 // WriteIndex generates and writes the export index files.  It must be called
 // once all transformations are done, because it might require to read channel
 // files.
@@ -208,7 +200,7 @@ func (e *ExpConverter) newAccumulator(ctx context.Context, channel *slack.Channe
 		ctx:     ctx,
 		channel: channel,
 		src:     e.src,
-		trgdir:  ExportChanName(channel),
+		trgdir:  source.ExportChanName(channel),
 		uidx:    types.Users(e.getUsers()).IndexByID(),
 		msgfunc: e.msgFunc,
 		flushFn: e.writeout,

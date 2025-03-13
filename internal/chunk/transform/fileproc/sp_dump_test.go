@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/rusq/slack"
+	"github.com/rusq/slackdump/v3/internal/source"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -59,7 +60,7 @@ func Test_dumpSubproc_PathUpdate(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			d := FileProcessor{
-				filepath: DumpFilepath,
+				filepath: source.DumpFilepath,
 			}
 			if err := d.PathUpdateFunc(tt.args.channelID, tt.args.threadTS, tt.args.mm); (err != nil) != tt.wantErr {
 				t.Errorf("dumpSubproc.PathUpdate() error = %v, wantErr %v", err, tt.wantErr)
