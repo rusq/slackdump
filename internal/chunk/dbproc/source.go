@@ -19,7 +19,7 @@ import (
 	"github.com/rusq/slackdump/v3/internal/structures"
 )
 
-const preallocSz = 100
+const preallocSz = 100 // preallocate slice size
 
 type Source struct {
 	conn *sqlx.DB
@@ -28,30 +28,10 @@ type Source struct {
 	canClose bool
 }
 
-// Connect uses existing connection to the database, it initialises the session
-// parameters, and returns an error if it goes not as planned.
-func Connect(conn *sqlx.DB) (*Source, error) {
-	if err := initDB(context.Background(), conn); err != nil {
-		return nil, err
-	}
-	return &Source{
-		conn:     conn,
-		canClose: false,
-	}, nil
-}
-
 // Open attempts to open the database at given path.
 func Open(ctx context.Context, path string) (*Source, error) {
 	// migrate to the latest
-	tmpconn, err := sqlx.Open(repository.Driver, "file:"+path)
-	if err != nil {
-		return nil, err
-	}
-	if err := repository.Migrate(ctx, tmpconn.DB, false); err != nil {
-		_ = tmpconn.Close()
-		return nil, err
-	}
-	if err := tmpconn.Close(); err != nil {
+	if err := migrate(ctx, path); err != nil {
 		return nil, err
 	}
 	conn, err := sqlx.Open(repository.Driver, "file:"+path+"?mode=ro")
@@ -64,16 +44,31 @@ func Open(ctx context.Context, path string) (*Source, error) {
 	return &Source{conn: conn, canClose: true}, nil
 }
 
+func migrate(ctx context.Context, path string) error {
+	conn, err := sql.Open(repository.Driver, "file:"+path)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	if err := repository.Migrate(ctx, conn, false); err != nil {
+		return err
+	}
+	if _, err := conn.ExecContext(ctx, "PRAGMA wal_checkpoint"); err != nil {
+		return err
+	}
+	return nil
+}
+
 // Close closes the database connection.  It is a noop
 // if the [Source] was created with [Connect].
 func (s *Source) Close() error {
 	if !s.canClose {
-		slog.Debug("not closing database connection")
+		slog.Debug("not closing database connection, it was passed to the source")
 		return nil
 	}
 	slog.Debug("closing database connection")
 	if err := s.conn.Close(); err != nil {
-		slog.Warn("error closing database connection", "error", err)
+		slog.Error("error closing database connection", "error", err)
 		return err
 	}
 	return nil

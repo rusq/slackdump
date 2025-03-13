@@ -2,9 +2,7 @@ package convertcmd
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
-	"fmt"
 
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/slack"
@@ -45,7 +43,6 @@ func toDump(ctx context.Context, srcpath, trgloc string, cflg convertflags) erro
 		fc: convert.NewFileCopier(src, fsa, src.Files().FilePath, source.DumpFilepath, filesEnabled),
 	}
 
-	dw := NewDumpWriter(fsa)
 	conv, err := transform.NewDumpConverter(
 		fsa,
 		src,
@@ -60,20 +57,20 @@ func toDump(ctx context.Context, srcpath, trgloc string, cflg convertflags) erro
 	if err != nil {
 		return err
 	}
-	if err := dw.Channels(channels); err != nil {
+	if err := conv.Channels(channels); err != nil {
 		return err
 	}
-
 	for _, c := range channels {
 		if err := conv.Convert(ctx, chunk.ToFileID(c.ID, "", false)); err != nil {
 			return err
 		}
 	}
+
 	users, err := src.Users(ctx)
 	if err != nil {
 		return err
 	}
-	if err := dw.Users(users); err != nil {
+	if err := conv.Users(users); err != nil {
 		return err
 	}
 
@@ -81,7 +78,7 @@ func toDump(ctx context.Context, srcpath, trgloc string, cflg convertflags) erro
 	if err != nil {
 		return err
 	}
-	if err := dw.WorkspaceInfo(wi); err != nil {
+	if err := conv.WorkspaceInfo(wi); err != nil {
 		return err
 	}
 
@@ -99,40 +96,6 @@ func (f *fileHandler) copyFiles(channelID string, _ string, mm []slack.Message) 
 		if err := f.fc.Copy(structures.ChannelFromID(channelID), &m); err != nil {
 			return err
 		}
-	}
-	return nil
-}
-
-type DumpWriter struct {
-	fsa fsadapter.FS
-}
-
-func NewDumpWriter(fsa fsadapter.FS) *DumpWriter {
-	return &DumpWriter{fsa: fsa}
-}
-
-func (dw *DumpWriter) Users(uu []slack.User) error {
-	return marshalFormatted(dw.fsa, "users.json", uu)
-}
-
-func (dw *DumpWriter) Channels(cc []slack.Channel) error {
-	return marshalFormatted(dw.fsa, "channels.json", cc)
-}
-
-func (dw *DumpWriter) WorkspaceInfo(wi *slack.AuthTestResponse) error {
-	return marshalFormatted(dw.fsa, "workspace.json", wi)
-}
-
-func marshalFormatted(fsa fsadapter.FS, filename string, a any) error {
-	f, err := fsa.Create(filename)
-	if err != nil {
-		return fmt.Errorf("create: %w", err)
-	}
-	defer f.Close()
-	enc := json.NewEncoder(f)
-	enc.SetIndent("", " ")
-	if err := enc.Encode(a); err != nil {
-		return fmt.Errorf("encode: %w", err)
 	}
 	return nil
 }

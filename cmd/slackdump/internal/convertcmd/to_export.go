@@ -44,6 +44,7 @@ func toExport(ctx context.Context, src, trg string, cflg convertflags) error {
 	if err != nil {
 		return err
 	}
+	defer s.Close()
 
 	cvt := convert.NewToExport(
 		s,

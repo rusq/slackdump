@@ -198,3 +198,33 @@ func stdThread(ctx context.Context, cf source.Sourcer, ci *slack.Channel, thread
 
 	return types.ConvertMsgs(mm), nil
 }
+
+// Users writes the users to the filesystem.
+func (dw *DumpConverter) Users(uu []slack.User) error {
+	return marshalFormatted(dw.fsa, "users.json", uu)
+}
+
+// Channels writes the channels to the filesystem.
+func (dw *DumpConverter) Channels(cc []slack.Channel) error {
+	return marshalFormatted(dw.fsa, "channels.json", cc)
+}
+
+// WorkspaceInfo writes the workspace info to the filesystem.
+func (dw *DumpConverter) WorkspaceInfo(wi *slack.AuthTestResponse) error {
+	return marshalFormatted(dw.fsa, "workspace.json", wi)
+}
+
+// marshalFormatted writes the data to the filesystem in a formatted way.
+func marshalFormatted(fsa fsadapter.FS, filename string, a any) error {
+	f, err := fsa.Create(filename)
+	if err != nil {
+		return fmt.Errorf("create: %w", err)
+	}
+	defer f.Close()
+	enc := json.NewEncoder(f)
+	enc.SetIndent("", " ")
+	if err := enc.Encode(a); err != nil {
+		return fmt.Errorf("encode: %w", err)
+	}
+	return nil
+}
