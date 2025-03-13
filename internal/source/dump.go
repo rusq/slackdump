@@ -9,6 +9,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"sort"
 	"time"
 
 	"github.com/rusq/slack"
@@ -225,7 +226,11 @@ func (d Dump) Latest(ctx context.Context) (map[structures.SlackLink]time.Time, e
 }
 
 func (d Dump) WorkspaceInfo(context.Context) (*slack.AuthTestResponse, error) {
-	return nil, ErrNotSupported
+	atr, err := unmarshalOne[slack.AuthTestResponse](d.fs, "workspace.json")
+	if err == nil {
+		return &atr, nil
+	}
+	return nil, fs.ErrNotExist
 }
 
 func (d Dump) Files() Storage {
@@ -235,4 +240,26 @@ func (d Dump) Files() Storage {
 func (d Dump) Avatars() Storage {
 	// Dump does not support avatars.
 	return fstNotFound{}
+}
+
+func (d *Dump) Sorted(ctx context.Context, channelID string, desc bool, cb func(ts time.Time, msg *slack.Message) error) error {
+	c, err := unmarshalOne[types.Conversation](d.fs, d.channelFile(channelID))
+	if err != nil {
+		return err
+	}
+	if desc {
+		sort.Slice(c.Messages, func(i, j int) bool {
+			return c.Messages[i].Timestamp > c.Messages[j].Timestamp
+		})
+	}
+	for _, m := range c.Messages {
+		ts, err := structures.ParseSlackTS(m.Timestamp)
+		if err != nil {
+			return err
+		}
+		if err := cb(ts, &m.Message); err != nil {
+			return err
+		}
+	}
+	return nil
 }

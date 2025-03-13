@@ -255,6 +255,8 @@ func unmarshalOne[T any](fsys fs.FS, name string) (T, error) {
 	return v, nil
 }
 
+// unmarshal reads the JSON file from the filesystem and unmarshals it into the
+// provided value.
 func unmarshal[T ~[]S, S any](fsys fs.FS, name string) (T, error) {
 	f, err := fsys.Open(name)
 	if err != nil {
@@ -266,9 +268,4 @@ func unmarshal[T ~[]S, S any](fsys fs.FS, name string) (T, error) {
 		return nil, err
 	}
 	return v, nil
-}
-
-func (d *Dump) Sorted(ctx context.Context, channelID string, desc bool, cb func(ts time.Time, msg *slack.Message) error) error {
-	// TODO: implement
-	return errors.New("not implemented")
 }
