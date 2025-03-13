@@ -1,6 +1,7 @@
 package source
 
 import (
+	"errors"
 	"fmt"
 	"io/fs"
 	"path"
@@ -8,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/rusq/slack"
+
 	"github.com/rusq/slackdump/v3/internal/chunk"
 )
 
@@ -239,7 +241,7 @@ func indexDump(fsys fs.FS) (map[string]string, error) {
 		if d.IsDir() || filepath.Ext(d.Name()) != ".json" {
 			return nil
 		}
-		isChan, err := filepath.Match("[CD]*.json", d.Name())
+		isChan, err := filepath.Match("[CDG]*.json", d.Name())
 		if err != nil {
 			return err
 		}
@@ -255,6 +257,10 @@ func indexDump(fsys fs.FS) (map[string]string, error) {
 	for _, ch := range chans {
 		if err := fs.WalkDir(fsys, ch, func(pth string, d fs.DirEntry, err error) error {
 			if err != nil {
+				if errors.Is(err, fs.ErrNotExist) {
+					// not all channels may contain files.
+					return nil
+				}
 				return err
 			}
 			if d.IsDir() {
@@ -282,7 +288,7 @@ func (r *STDump) FS() fs.FS {
 	return r.fs
 }
 
-func (r *STDump) File(id string, name string) (string, error) {
+func (r *STDump) File(id string, _ string) (string, error) {
 	pth, ok := r.idx[id]
 	if !ok {
 		return "", fs.ErrNotExist
