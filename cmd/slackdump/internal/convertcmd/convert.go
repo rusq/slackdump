@@ -10,7 +10,7 @@ import (
 
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
-	"github.com/rusq/slackdump/v3/internal/chunk/transform/fileproc"
+	"github.com/rusq/slackdump/v3/internal/source"
 )
 
 //go:embed assets/convert.md
@@ -36,7 +36,7 @@ var (
 )
 
 type tparams struct {
-	storageType fileproc.StorageType
+	storageType source.StorageType
 	sessionID   int64
 }
 
@@ -52,13 +52,13 @@ var converters = map[datafmt]convertFunc{
 type convertflags struct {
 	includeFiles   bool
 	includeAvatars bool
-	outStorageType fileproc.StorageType
+	outStorageType source.StorageType
 	sessionID      int64 // sessionID for database->chunk conversion
 	outputfmt      datafmt
 }
 
 var params = convertflags{
-	outStorageType: fileproc.STmattermost,
+	outStorageType: source.STmattermost,
 	sessionID:      1,
 	outputfmt:      Fexport,
 }

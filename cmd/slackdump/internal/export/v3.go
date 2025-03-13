@@ -59,7 +59,7 @@ func exportv31(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, l
 	defer tf.Close()
 
 	// starting the downloader
-	dlEnabled := cfg.WithFiles && params.ExportStorageType != fileproc.STnone
+	dlEnabled := cfg.WithFiles && params.ExportStorageType != source.STnone
 	fdl := fileproc.NewDownloader(ctx, dlEnabled, sess.Client(), fsa, lg)
 	fp := fileproc.NewExport(params.ExportStorageType, fdl)
 	avdl := fileproc.NewDownloader(ctx, cfg.WithAvatars, sess.Client(), fsa, lg)
@@ -142,7 +142,7 @@ func export(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, list
 	defer tf.Close()
 
 	// starting the downloader
-	dlEnabled := cfg.WithFiles && params.ExportStorageType != fileproc.STnone
+	dlEnabled := cfg.WithFiles && params.ExportStorageType != source.STnone
 	fdl := fileproc.NewDownloader(ctx, dlEnabled, sess.Client(), fsa, lg)
 	fp := fileproc.NewExport(params.ExportStorageType, fdl)
 	avdl := fileproc.NewDownloader(ctx, cfg.WithAvatars, sess.Client(), fsa, lg)

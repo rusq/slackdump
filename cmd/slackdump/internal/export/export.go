@@ -14,7 +14,7 @@ import (
 
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
-	"github.com/rusq/slackdump/v3/internal/chunk/transform/fileproc"
+	"github.com/rusq/slackdump/v3/internal/source"
 	"github.com/rusq/slackdump/v3/internal/structures"
 )
 
@@ -34,12 +34,12 @@ var CmdExport = &base.Command{
 var mdExport string
 
 type exportFlags struct {
-	ExportStorageType fileproc.StorageType
+	ExportStorageType source.StorageType
 	ExportToken       string
 }
 
 var options = exportFlags{
-	ExportStorageType: fileproc.STmattermost,
+	ExportStorageType: source.STmattermost,
 }
 
 func init() {
@@ -57,7 +57,7 @@ func runExport(ctx context.Context, cmd *base.Command, args []string) error {
 		return errors.New("use -base to set the base output location")
 	}
 	if !cfg.WithFiles {
-		options.ExportStorageType = fileproc.STnone
+		options.ExportStorageType = source.STnone
 	}
 	list, err := structures.NewEntityList(args)
 	if err != nil {

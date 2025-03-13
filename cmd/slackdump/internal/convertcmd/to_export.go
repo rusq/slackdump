@@ -6,7 +6,6 @@ import (
 	"github.com/rusq/fsadapter"
 
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
-	"github.com/rusq/slackdump/v3/internal/chunk/transform/fileproc"
 	"github.com/rusq/slackdump/v3/internal/convert"
 	"github.com/rusq/slackdump/v3/internal/source"
 )
@@ -20,6 +19,8 @@ func toExport(ctx context.Context, src, trg string, cflg convertflags) error {
 
 	if st == source.FUnknown {
 		return ErrSource
+	} else if st.Has(source.FExport) {
+		return ErrMeaningless
 	}
 
 	fsa, err := fsadapter.New(trg)
@@ -29,7 +30,7 @@ func toExport(ctx context.Context, src, trg string, cflg convertflags) error {
 	defer fsa.Close()
 
 	// output storage
-	sttFn, ok := fileproc.StorageTypeFuncs[cflg.outStorageType]
+	sttFn, ok := source.StorageTypeFuncs[cflg.outStorageType]
 	if !ok {
 		return ErrStorage
 	}

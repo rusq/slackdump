@@ -9,7 +9,7 @@ import (
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/cfgui"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/dumpui"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/updaters"
-	"github.com/rusq/slackdump/v3/internal/chunk/transform/fileproc"
+	"github.com/rusq/slackdump/v3/internal/source"
 	"github.com/rusq/slackdump/v3/internal/structures"
 )
 
@@ -42,12 +42,12 @@ func (fl *exportFlags) configuration() cfgui.Configuration {
 					Value:       fl.ExportStorageType.String(),
 					Description: "Export file storage type",
 					Inline:      false,
-					Updater: updaters.NewPicklist(&fl.ExportStorageType, huh.NewSelect[fileproc.StorageType]().
+					Updater: updaters.NewPicklist(&fl.ExportStorageType, huh.NewSelect[source.StorageType]().
 						Title("Choose File storage type").
 						Options(
-							huh.NewOption("Mattermost", fileproc.STmattermost),
-							huh.NewOption("Standard", fileproc.STstandard),
-							huh.NewOption("Disable", fileproc.STnone),
+							huh.NewOption("Mattermost", source.STmattermost),
+							huh.NewOption("Standard", source.STstandard),
+							huh.NewOption("Disable", source.STnone),
 						)),
 				},
 				cfgui.MemberOnly(),
