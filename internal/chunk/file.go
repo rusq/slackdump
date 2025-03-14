@@ -8,7 +8,6 @@ import (
 	"io"
 	"log"
 	"log/slog"
-	"path/filepath"
 	"runtime/trace"
 	"sort"
 	"strings"
@@ -17,7 +16,6 @@ import (
 
 	"github.com/rusq/slack"
 
-	"github.com/rusq/slackdump/v3/internal/chunk/state"
 	"github.com/rusq/slackdump/v3/internal/fasttime"
 	"github.com/rusq/slackdump/v3/internal/osext"
 )
@@ -188,41 +186,6 @@ func (f *File) ForEach(fn func(ev *Chunk) error) error {
 		}
 	}
 	return nil
-}
-
-// State generates and returns the state of the file.  It does not include
-// the path to the downloaded files.
-func (f *File) State() (*state.State, error) {
-	var name string
-	if file, ok := f.rs.(osext.Namer); ok {
-		name = filepath.Base(file.Name())
-	}
-	s := state.New(name)
-	if err := f.ForEach(func(ev *Chunk) error {
-		if ev == nil {
-			return nil
-		}
-		switch ev.Type {
-		case CFiles:
-			for _, f := range ev.Files {
-				// we are adding the files with the empty path as we
-				// have no way of knowing if the file was downloaded or not.
-				s.AddFile(ev.ChannelID, f.ID, "")
-			}
-		case CThreadMessages:
-			for _, m := range ev.Messages {
-				s.AddThread(ev.ChannelID, ev.Parent.ThreadTimestamp, m.Timestamp)
-			}
-		case CMessages:
-			for _, m := range ev.Messages {
-				s.AddMessage(ev.ChannelID, m.Timestamp)
-			}
-		}
-		return nil
-	}); err != nil {
-		return nil, err
-	}
-	return s, nil
 }
 
 // AllMessages returns all the messages for the given channel posted to it (no

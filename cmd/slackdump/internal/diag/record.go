@@ -2,7 +2,6 @@ package diag
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -24,7 +23,7 @@ import (
 var cmdRecord = &base.Command{
 	UsageLine:  "slackdump tools record",
 	Short:      "chunk record commands",
-	Commands:   []*base.Command{cmdRecordStream, cmdRecordState},
+	Commands:   []*base.Command{cmdRecordStream},
 	HideWizard: true,
 }
 
@@ -41,14 +40,6 @@ See also: slackdump tool obfuscate
 	FlagMask:    cfg.OmitOutputFlag | cfg.OmitDownloadFlag,
 	PrintFlags:  true,
 	RequireAuth: true,
-}
-
-var cmdRecordState = &base.Command{
-	UsageLine:   "slackdump tools record state [options] <record_file.jsonl>",
-	Short:       "print state of the record",
-	FlagMask:    cfg.OmitAll,
-	PrintFlags:  true,
-	RequireAuth: false,
 }
 
 func init() {
@@ -120,51 +111,6 @@ func runRecord(ctx context.Context, _ *base.Command, args []string) error {
 		}
 	}
 	if err := rec.Close(); err != nil {
-		base.SetExitStatus(base.SApplicationError)
-		return err
-	}
-	st, err := rec.State()
-	if err != nil {
-		base.SetExitStatus(base.SApplicationError)
-		return err
-	}
-	if err := st.Save(*output + ".state"); err != nil {
-		base.SetExitStatus(base.SApplicationError)
-		return err
-	}
-	return nil
-}
-
-func init() {
-	// break init cycle
-	cmdRecordState.Run = runRecordState
-}
-
-func runRecordState(ctx context.Context, _ *base.Command, args []string) error {
-	if len(args) == 0 {
-		base.SetExitStatus(base.SInvalidParameters)
-		return errors.New("missing record file argument")
-	}
-	f, err := os.Open(args[0])
-	if err != nil {
-		base.SetExitStatus(base.SApplicationError)
-		return err
-	}
-	defer f.Close()
-
-	cf, err := chunk.FromReader(f)
-	if err != nil {
-		base.SetExitStatus(base.SApplicationError)
-		return err
-	}
-	state, err := cf.State()
-	if err != nil {
-		base.SetExitStatus(base.SApplicationError)
-		return err
-	}
-	enc := json.NewEncoder(os.Stdout)
-	enc.SetIndent("", "  ")
-	if err := enc.Encode(state); err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return err
 	}

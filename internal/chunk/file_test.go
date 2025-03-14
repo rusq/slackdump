@@ -12,8 +12,6 @@ import (
 
 	"github.com/rusq/slack"
 	"github.com/stretchr/testify/assert"
-
-	"github.com/rusq/slackdump/v3/internal/chunk/state"
 )
 
 const (
@@ -282,51 +280,6 @@ func Test_indexRecords(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("indexRecords() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestFile_State(t *testing.T) {
-	type fields struct {
-		rs  io.ReadSeeker
-		idx index
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		want    *state.State
-		wantErr bool
-	}{
-		{
-			name: "single thread",
-			fields: fields{
-				rs: marshalChunks(testThreads...),
-			},
-			want: &state.State{
-				Version:  state.Version,
-				Channels: make(map[string]int64),
-				Threads: map[string]int64{
-					"C1234567890:1234567890.123456": 1234567890500000,
-					"C1234567890:1234567890.123458": 1234567890300000,
-				},
-				Files: make(map[string]string),
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			p := &File{
-				rs:  tt.fields.rs,
-				idx: tt.fields.idx,
-			}
-			got, err := p.State()
-			if (err != nil) != tt.wantErr {
-				t.Errorf("File.State() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !assert.Equal(t, tt.want, got) {
-				t.Errorf("File.State() = %v, want %v", got, tt.want)
 			}
 		})
 	}

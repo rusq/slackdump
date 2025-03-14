@@ -8,16 +8,12 @@ import (
 	"time"
 
 	"github.com/rusq/slack"
-
-	"github.com/rusq/slackdump/v3/internal/chunk/state"
-	"github.com/rusq/slackdump/v3/internal/osext"
 )
 
 // Recorder records all the data it receives into a writer.
 type Recorder struct {
-	mu    sync.Mutex
-	enc   Encoder // encoder to use for the chunks
-	state *state.State
+	mu  sync.Mutex
+	enc Encoder // encoder to use for the chunks
 }
 
 // Encoder is the interface that wraps the Encode method.
@@ -46,13 +42,8 @@ func (j *jsonEncoder) Encode(ctx context.Context, chunk *Chunk) error {
 
 // NewRecorder creates a new recorder to writer.
 func NewRecorder(w io.Writer, options ...Option) *Recorder {
-	filename := "unknown"
-	if f, ok := w.(osext.Namer); ok {
-		filename = f.Name()
-	}
 	rec := &Recorder{
-		enc:   &jsonEncoder{json.NewEncoder(w)},
-		state: state.New(filename),
+		enc: &jsonEncoder{json.NewEncoder(w)},
 	}
 	for _, opt := range options {
 		opt(rec)
@@ -63,8 +54,7 @@ func NewRecorder(w io.Writer, options ...Option) *Recorder {
 // NewCustomRecorder creates a new recorder with a custom encoder.
 func NewCustomRecorder(name string, enc Encoder, options ...Option) *Recorder {
 	rec := &Recorder{
-		enc:   enc,
-		state: state.New(name),
+		enc: enc,
 	}
 	for _, opt := range options {
 		opt(rec)
@@ -88,9 +78,6 @@ func (rec *Recorder) Messages(ctx context.Context, channelID string, numThreads 
 	if err := rec.enc.Encode(ctx, &chunk); err != nil {
 		return err
 	}
-	for i := range m {
-		rec.state.AddMessage(channelID, m[i].Timestamp)
-	}
 	return nil
 }
 
@@ -111,9 +98,6 @@ func (rec *Recorder) Files(ctx context.Context, channel *slack.Channel, parent s
 	}
 	if err := rec.enc.Encode(ctx, &chunk); err != nil {
 		return err
-	}
-	for i := range f {
-		rec.state.AddFile(channel.ID, f[i].ID, "")
 	}
 	return nil
 }
@@ -137,9 +121,6 @@ func (rec *Recorder) ThreadMessages(ctx context.Context, channelID string, paren
 	if err := rec.enc.Encode(ctx, &chunks); err != nil {
 		return err
 	}
-	for i := range tm {
-		rec.state.AddThread(channelID, parent.ThreadTimestamp, tm[i].Timestamp)
-	}
 	return nil
 }
 
@@ -160,7 +141,6 @@ func (rec *Recorder) ChannelInfo(ctx context.Context, channel *slack.Channel, th
 	if err := rec.enc.Encode(ctx, &chunk); err != nil {
 		return err
 	}
-	rec.state.AddChannel(channel.ID)
 	return nil
 }
 
@@ -192,14 +172,6 @@ func (rec *Recorder) Channels(ctx context.Context, channels []slack.Channel) err
 		return err
 	}
 	return nil
-}
-
-// State returns the current recorder state.
-func (rec *Recorder) State() (*state.State, error) {
-	rec.mu.Lock()
-	defer rec.mu.Unlock()
-
-	return rec.state, nil
 }
 
 // Close closes the recorder (it's a noop for now).
