@@ -174,7 +174,7 @@ func Test_conversationTransformer_mbeTransform(t *testing.T) {
 	testCtx := context.Background()
 	type fields struct {
 		ctx context.Context
-		// tf  dirproc.Transformer
+		// tf  directory.Transformer
 		// rc  ReferenceChecker
 	}
 	type args struct {
@@ -370,7 +370,7 @@ func Test_conversationTransformer_Messages(t *testing.T) {
 	testCtx := context.Background()
 	type fields struct {
 		ctx context.Context
-		// tf  dirproc.Transformer
+		// tf  directory.Transformer
 		// rc  ReferenceChecker
 	}
 	type args struct {

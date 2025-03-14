@@ -5,14 +5,14 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/rusq/slackdump/v3/internal/chunk/dbproc"
+	"github.com/rusq/slackdump/v3/internal/chunk/backend/dbase"
 )
 
 type Database struct {
 	name    string
 	files   Storage
 	avatars Storage
-	*dbproc.Source
+	*dbase.Source
 }
 
 var _ Sourcer = (*Database)(nil)
@@ -48,7 +48,7 @@ func OpenDatabase(ctx context.Context, path string) (*Database, error) {
 		name = path
 	}
 
-	s, err := dbproc.Open(ctx, dbfile)
+	s, err := dbase.Open(ctx, dbfile)
 	if err != nil {
 		return nil, err
 	}
@@ -58,8 +58,8 @@ func OpenDatabase(ctx context.Context, path string) (*Database, error) {
 
 // DatabaseWithSource returns a new database source with the given database
 // processor source.  It will not have any files or avatars storage.
-func DatabaseWithSource(source *dbproc.Source) *Database {
-	return &Database{name: "dbproc", Source: source, files: fstNotFound{}, avatars: fstNotFound{}}
+func DatabaseWithSource(source *dbase.Source) *Database {
+	return &Database{name: "dbase", Source: source, files: fstNotFound{}, avatars: fstNotFound{}}
 }
 
 // SetFiles sets the files storage.

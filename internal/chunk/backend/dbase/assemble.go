@@ -1,15 +1,16 @@
-package dbproc
+package dbase
 
 import (
 	"context"
 	"errors"
+
+	"github.com/rusq/slackdump/v3/internal/chunk/backend/dbase/repository"
 
 	"github.com/jmoiron/sqlx"
 
 	"github.com/rusq/slack"
 
 	"github.com/rusq/slackdump/v3/internal/chunk"
-	"github.com/rusq/slackdump/v3/internal/chunk/dbproc/repository"
 	"github.com/rusq/slackdump/v3/internal/structures"
 )
 

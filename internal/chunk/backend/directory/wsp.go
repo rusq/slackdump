@@ -1,4 +1,4 @@
-package dirproc
+package directory
 
 import "github.com/rusq/slackdump/v3/internal/chunk"
 

@@ -1,4 +1,4 @@
-package dirproc
+package directory
 
 import (
 	"fmt"

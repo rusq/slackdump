@@ -7,6 +7,10 @@ import (
 	"strings"
 	"sync"
 
+	fileproc2 "github.com/rusq/slackdump/v3/internal/convert/transform/fileproc"
+
+	"github.com/rusq/slackdump/v3/internal/chunk/backend/dbase"
+
 	"github.com/rusq/fsadapter"
 	"github.com/schollz/progressbar/v3"
 
@@ -15,8 +19,6 @@ import (
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/internal/chunk/control"
-	"github.com/rusq/slackdump/v3/internal/chunk/dbproc"
-	"github.com/rusq/slackdump/v3/internal/chunk/transform/fileproc"
 	"github.com/rusq/slackdump/v3/stream"
 )
 
@@ -156,7 +158,7 @@ func searchControllerv31(ctx context.Context, dir string, sess *slackdump.Sessio
 
 	lg := cfg.Log
 
-	dl := fileproc.NewDownloader(
+	dl := fileproc2.NewDownloader(
 		ctx,
 		cfg.WithFiles,
 		sess.Client(),
@@ -164,7 +166,7 @@ func searchControllerv31(ctx context.Context, dir string, sess *slackdump.Sessio
 		lg,
 	)
 
-	erc, err := dbproc.New(ctx, db, si)
+	erc, err := dbase.New(ctx, db, si)
 	if err != nil {
 		return nil, stop, err
 	}
@@ -190,7 +192,7 @@ func searchControllerv31(ctx context.Context, dir string, sess *slackdump.Sessio
 		sess.Stream(sopts...),
 		erc,
 		control.WithLogger(lg),
-		control.WithFiler(fileproc.New(dl)),
+		control.WithFiler(fileproc2.New(dl)),
 		control.WithFlags(control.Flags{RecordFiles: cfg.RecordFiles}),
 	)
 	if err != nil {

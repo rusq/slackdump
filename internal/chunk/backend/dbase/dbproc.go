@@ -1,4 +1,4 @@
-package dbproc
+package dbase
 
 import (
 	"context"
@@ -10,11 +10,10 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/rusq/slackdump/v3/internal/chunk/dbproc/repository"
-
 	"github.com/jmoiron/sqlx"
 
 	"github.com/rusq/slackdump/v3/internal/chunk"
+	"github.com/rusq/slackdump/v3/internal/chunk/backend/dbase/repository"
 )
 
 // DBP is the database processor.

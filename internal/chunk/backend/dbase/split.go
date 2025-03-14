@@ -1,11 +1,11 @@
-package dbproc
+package dbase
 
 import (
 	"context"
 	"fmt"
 	"log/slog"
 
-	"github.com/rusq/slackdump/v3/internal/chunk/dbproc/repository"
+	"github.com/rusq/slackdump/v3/internal/chunk/backend/dbase/repository"
 
 	"github.com/rusq/slack"
 

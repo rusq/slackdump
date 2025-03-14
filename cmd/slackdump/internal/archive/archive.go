@@ -10,6 +10,12 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/rusq/slackdump/v3/internal/chunk/backend/directory"
+	fileproc2 "github.com/rusq/slackdump/v3/internal/convert/transform/fileproc"
+
+	"github.com/rusq/slackdump/v3/internal/chunk/backend/dbase"
+	"github.com/rusq/slackdump/v3/internal/chunk/backend/dbase/repository"
+
 	"github.com/jmoiron/sqlx"
 	"github.com/rusq/fsadapter"
 
@@ -19,10 +25,6 @@ import (
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/internal/chunk/control"
-	"github.com/rusq/slackdump/v3/internal/chunk/dbproc"
-	"github.com/rusq/slackdump/v3/internal/chunk/dbproc/repository"
-	"github.com/rusq/slackdump/v3/internal/chunk/dirproc"
-	"github.com/rusq/slackdump/v3/internal/chunk/transform/fileproc"
 	"github.com/rusq/slackdump/v3/internal/structures"
 	"github.com/rusq/slackdump/v3/stream"
 )
@@ -152,7 +154,7 @@ func NewDirectory(name string) (*chunk.Directory, error) {
 // Obscene, just obscene amount of arguments.
 func DBController(ctx context.Context, cmd *base.Command, conn *sqlx.DB, sess *slackdump.Session, dirname string, flags control.Flags, opts ...stream.Option) (RunCloser, error) {
 	lg := cfg.Log
-	dbp, err := dbproc.New(ctx, conn, bootstrap.SessionInfo(cmd.Name()))
+	dbp, err := dbase.New(ctx, conn, bootstrap.SessionInfo(cmd.Name()))
 	if err != nil {
 		return nil, err
 	}
@@ -163,7 +165,7 @@ func DBController(ctx context.Context, cmd *base.Command, conn *sqlx.DB, sess *s
 	}
 	sopts = append(sopts, opts...)
 	// start attachment downloader
-	dl := fileproc.NewDownloader(
+	dl := fileproc2.NewDownloader(
 		ctx,
 		cfg.WithFiles,
 		sess.Client(),
@@ -171,7 +173,7 @@ func DBController(ctx context.Context, cmd *base.Command, conn *sqlx.DB, sess *s
 		lg,
 	)
 	// start avatar downloader
-	avdl := fileproc.NewDownloader(
+	avdl := fileproc2.NewDownloader(
 		ctx,
 		cfg.WithAvatars,
 		sess.Client(),
@@ -183,8 +185,8 @@ func DBController(ctx context.Context, cmd *base.Command, conn *sqlx.DB, sess *s
 		ctx,
 		sess.Stream(sopts...),
 		dbp,
-		control.WithFiler(fileproc.New(dl)),
-		control.WithAvatarProcessor(fileproc.NewAvatarProc(avdl)),
+		control.WithFiler(fileproc2.New(dl)),
+		control.WithAvatarProcessor(fileproc2.NewAvatarProc(avdl)),
 		control.WithFlags(flags),
 	)
 	if err != nil {
@@ -211,7 +213,7 @@ func ArchiveController(ctx context.Context, cd *chunk.Directory, sess *slackdump
 	sopts = append(sopts, opts...)
 
 	// start attachment downloader
-	dl := fileproc.NewDownloader(
+	dl := fileproc2.NewDownloader(
 		ctx,
 		cfg.WithFiles,
 		sess.Client(),
@@ -219,7 +221,7 @@ func ArchiveController(ctx context.Context, cd *chunk.Directory, sess *slackdump
 		lg,
 	)
 	// start avatar downloader
-	avdl := fileproc.NewDownloader(
+	avdl := fileproc2.NewDownloader(
 		ctx,
 		cfg.WithAvatars,
 		sess.Client(),
@@ -227,7 +229,7 @@ func ArchiveController(ctx context.Context, cd *chunk.Directory, sess *slackdump
 		lg,
 	)
 
-	erc := dirproc.NewERC(cd, lg)
+	erc := directory.NewERC(cd, lg)
 
 	ctrl, err := control.New(
 		ctx,
@@ -235,8 +237,8 @@ func ArchiveController(ctx context.Context, cd *chunk.Directory, sess *slackdump
 		erc,
 		control.WithLogger(lg),
 		control.WithFlags(control.Flags{MemberOnly: cfg.MemberOnly, RecordFiles: cfg.RecordFiles}),
-		control.WithFiler(fileproc.New(dl)),
-		control.WithAvatarProcessor(fileproc.NewAvatarProc(avdl)),
+		control.WithFiler(fileproc2.New(dl)),
+		control.WithAvatarProcessor(fileproc2.NewAvatarProc(avdl)),
 	)
 	if err != nil {
 		return nil, err

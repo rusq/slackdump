@@ -1,13 +1,14 @@
-package dbproc
+package dbase
 
 import (
 	"context"
 	"testing"
 
+	"github.com/rusq/slackdump/v3/internal/chunk/backend/dbase/repository"
+
 	"github.com/jmoiron/sqlx"
 
 	"github.com/rusq/slackdump/v3/internal/chunk"
-	"github.com/rusq/slackdump/v3/internal/chunk/dbproc/repository"
 )
 
 type utilityFunc func(t *testing.T, ec repository.PrepareExtContext)

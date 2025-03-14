@@ -6,10 +6,11 @@ import (
 	"io/fs"
 	"log/slog"
 
+	"github.com/rusq/slackdump/v3/internal/convert/transform/fileproc"
+
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/slack"
 
-	"github.com/rusq/slackdump/v3/internal/chunk/transform/fileproc"
 	"github.com/rusq/slackdump/v3/internal/source"
 )
 

@@ -6,12 +6,13 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/rusq/slackdump/v3/internal/chunk/backend/dbase"
+
 	"github.com/jmoiron/sqlx"
 
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/bootstrap"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/internal/chunk"
-	"github.com/rusq/slackdump/v3/internal/chunk/dbproc"
 	"github.com/rusq/slackdump/v3/internal/source"
 )
 
@@ -79,7 +80,7 @@ func chunk2db(ctx context.Context, src *source.ChunkDir, dir string, cflg conver
 	}
 	defer wconn.Close()
 
-	dbp, err := dbproc.New(ctx, wconn, si)
+	dbp, err := dbase.New(ctx, wconn, si)
 	if err != nil {
 		return err
 	}
@@ -106,7 +107,7 @@ func chunk2db(ctx context.Context, src *source.ChunkDir, dir string, cflg conver
 // encoder implements the chunk.Encoder around the unsafe database insert.
 // It operates in a single transaction tx.
 type encoder struct {
-	dbp *dbproc.DBP
+	dbp *dbase.DBP
 	tx  *sqlx.Tx
 }
 

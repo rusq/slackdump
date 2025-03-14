@@ -1,4 +1,4 @@
-package dirproc
+package directory
 
 import (
 	"context"
@@ -13,7 +13,7 @@ import (
 	"github.com/rusq/slackdump/v3/processor"
 )
 
-//go:generate mockgen -source=conversations.go -destination=dirproc_mock_test.go -package=dirproc
+//go:generate mockgen -source=conversations.go -destination=dirproc_mock_test.go -package=directory
 
 // Conversations is a processor that writes the channel and thread messages.
 // Zero value is unusable.  Use [NewConversation] to create a new instance.
@@ -119,7 +119,7 @@ func (cv *Conversations) Messages(ctx context.Context, channelID string, numThre
 	ctx, task := trace.NewTask(ctx, "Messages")
 	defer task.End()
 
-	lg := cv.lg.With("in", "dirproc.Messages", "channel_id", channelID, "num_threads", numThreads, "is_last", isLast, "len_messages", len(mm))
+	lg := cv.lg.With("in", "directory.Messages", "channel_id", channelID, "num_threads", numThreads, "is_last", isLast, "len_messages", len(mm))
 	lg.Debug("started")
 	cv.debugtrace(ctx, "%s: Messages: numThreads=%d, isLast=%t, len(mm)=%d", channelID, numThreads, isLast, len(mm))
 

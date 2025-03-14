@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/rusq/slackdump/v3/internal/chunk/dbproc"
-	"github.com/rusq/slackdump/v3/internal/chunk/dbproc/repository"
+	"github.com/rusq/slackdump/v3/internal/chunk/backend/dbase"
+	"github.com/rusq/slackdump/v3/internal/chunk/backend/dbase/repository"
 
 	"github.com/jmoiron/sqlx"
 
@@ -81,7 +81,7 @@ func runRecord(ctx context.Context, _ *base.Command, args []string) error {
 	}
 	defer db.Close()
 
-	runParams := dbproc.SessionInfo{
+	runParams := dbase.SessionInfo{
 		FromTS:         (*time.Time)(&cfg.Oldest),
 		ToTS:           (*time.Time)(&cfg.Latest),
 		FilesEnabled:   cfg.WithFiles,
@@ -90,7 +90,7 @@ func runRecord(ctx context.Context, _ *base.Command, args []string) error {
 		Args:           strings.Join(os.Args, "|"),
 	}
 
-	p, err := dbproc.New(ctx, db, runParams)
+	p, err := dbase.New(ctx, db, runParams)
 	if err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return err

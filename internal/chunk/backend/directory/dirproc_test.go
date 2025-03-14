@@ -1,7 +1,7 @@
-// Package dirproc is a processor that writes the data into gzipped files in a
+// Package directory is a processor that writes the data into gzipped files in a
 // directory.  Each conversation is output to a separate gzipped JSONL file.
 // If a thread is given, the filename will have the thread ID in it.
-package dirproc
+package directory
 
 import (
 	"sync/atomic"
@@ -56,7 +56,7 @@ func Test_dirproc_Close(t *testing.T) {
 				tt.prep(tt.fields)
 			}
 			if err := tt.fields.Close(); (err != nil) != tt.wantErr {
-				t.Errorf("dirproc.Close() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("directory.Close() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}

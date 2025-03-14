@@ -13,6 +13,11 @@ import (
 	"text/template"
 	"time"
 
+	transform2 "github.com/rusq/slackdump/v3/internal/convert/transform"
+	fileproc2 "github.com/rusq/slackdump/v3/internal/convert/transform/fileproc"
+
+	"github.com/rusq/slackdump/v3/internal/chunk/backend/dbase"
+
 	"github.com/rusq/fsadapter"
 
 	"github.com/rusq/slackdump/v3"
@@ -21,9 +26,6 @@ import (
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/internal/chunk/control"
-	"github.com/rusq/slackdump/v3/internal/chunk/dbproc"
-	"github.com/rusq/slackdump/v3/internal/chunk/transform"
-	"github.com/rusq/slackdump/v3/internal/chunk/transform/fileproc"
 	"github.com/rusq/slackdump/v3/internal/nametmpl"
 	"github.com/rusq/slackdump/v3/internal/source"
 	"github.com/rusq/slackdump/v3/internal/structures"
@@ -192,24 +194,24 @@ func dumpv3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, p du
 	src := source.OpenChunkDir(cd, true)
 
 	// files subprocessor
-	sdl := fileproc.NewDownloader(ctx, p.downloadFiles, sess.Client(), fsa, cfg.Log)
-	subproc := fileproc.NewDump(sdl)
+	sdl := fileproc2.NewDownloader(ctx, p.downloadFiles, sess.Client(), fsa, cfg.Log)
+	subproc := fileproc2.NewDump(sdl)
 	defer subproc.Close()
 
-	opts := []transform.DumpOption{
-		transform.DumpWithTemplate(p.tmpl),
-		transform.DumpWithLogger(lg),
+	opts := []transform2.DumpOption{
+		transform2.DumpWithTemplate(p.tmpl),
+		transform2.DumpWithLogger(lg),
 	}
 	if p.updatePath && p.downloadFiles {
-		opts = append(opts, transform.DumpWithPipeline(subproc.PathUpdateFunc))
+		opts = append(opts, transform2.DumpWithPipeline(subproc.PathUpdateFunc))
 	}
 
-	tf, err := transform.NewDumpConverter(fsa, src, opts...)
+	tf, err := transform2.NewDumpConverter(fsa, src, opts...)
 	if err != nil {
 		return fmt.Errorf("failed to create transform: %w", err)
 	}
 
-	coord := transform.NewCoordinator(ctx, tf)
+	coord := transform2.NewCoordinator(ctx, tf)
 
 	// TODO: use export controller
 	s := sess.Stream(
@@ -276,7 +278,7 @@ func dumpv31(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, p d
 		return err
 	}
 	defer wconn.Close()
-	tmpdbp, err := dbproc.New(ctx, wconn, si)
+	tmpdbp, err := dbase.New(ctx, wconn, si)
 	if err != nil {
 		return err
 	}
@@ -289,23 +291,23 @@ func dumpv31(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, p d
 	src := source.DatabaseWithSource(tmpdbp.Source())
 
 	// files subprocessor
-	sdl := fileproc.NewDownloader(ctx, p.downloadFiles, sess.Client(), fsa, cfg.Log)
-	subproc := fileproc.NewDump(sdl)
+	sdl := fileproc2.NewDownloader(ctx, p.downloadFiles, sess.Client(), fsa, cfg.Log)
+	subproc := fileproc2.NewDump(sdl)
 	defer subproc.Close()
 
-	opts := []transform.DumpOption{
-		transform.DumpWithTemplate(p.tmpl),
-		transform.DumpWithLogger(lg),
+	opts := []transform2.DumpOption{
+		transform2.DumpWithTemplate(p.tmpl),
+		transform2.DumpWithLogger(lg),
 	}
 	if p.updatePath && p.downloadFiles {
-		opts = append(opts, transform.DumpWithPipeline(subproc.PathUpdateFunc))
+		opts = append(opts, transform2.DumpWithPipeline(subproc.PathUpdateFunc))
 	}
 
-	tf, err := transform.NewDumpConverter(fsa, src, opts...)
+	tf, err := transform2.NewDumpConverter(fsa, src, opts...)
 	if err != nil {
 		return fmt.Errorf("failed to create transform: %w", err)
 	}
-	coord := transform.NewCoordinator(ctx, tf)
+	coord := transform2.NewCoordinator(ctx, tf)
 
 	stream := sess.Stream(
 		stream.OptOldest(time.Time(cfg.Oldest)),

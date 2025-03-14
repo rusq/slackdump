@@ -11,11 +11,13 @@ import (
 	"text/tabwriter"
 	"time"
 
+	"github.com/rusq/slackdump/v3/internal/chunk/backend/directory"
+
+	"github.com/rusq/slackdump/v3/internal/chunk/backend/dbase"
+	"github.com/rusq/slackdump/v3/internal/chunk/backend/dbase/repository"
+
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/internal/chunk"
-	"github.com/rusq/slackdump/v3/internal/chunk/dbproc"
-	"github.com/rusq/slackdump/v3/internal/chunk/dbproc/repository"
-	"github.com/rusq/slackdump/v3/internal/chunk/dirproc"
 	"github.com/rusq/slackdump/v3/internal/source"
 )
 
@@ -74,11 +76,11 @@ func db2chunk(ctx context.Context, src *source.Database, dir string, cflg conver
 	if err != nil {
 		return err
 	}
-	erc := dirproc.NewERC(cd, cfg.Log)
+	erc := directory.NewERC(cd, cfg.Log)
 	defer erc.Close()
 
 	if err := src.ToChunk(ctx, erc, cflg.sessionID); err != nil {
-		if errors.Is(err, dbproc.ErrInvalidSessionID) {
+		if errors.Is(err, dbase.ErrInvalidSessionID) {
 			sess, err := src.Sessions(ctx)
 			if err != nil {
 				return errors.New("no sessions found")

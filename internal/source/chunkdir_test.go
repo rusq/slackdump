@@ -5,10 +5,11 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/rusq/slackdump/v3/internal/chunk/backend/directory"
+
 	"github.com/rusq/slack"
 
 	"github.com/rusq/slackdump/v3/internal/chunk"
-	"github.com/rusq/slackdump/v3/internal/chunk/dirproc"
 	"github.com/rusq/slackdump/v3/internal/fixtures"
 )
 
@@ -65,7 +66,7 @@ func TestChunkDir_ChannelInfo(t *testing.T) {
 				channelID: testChannelInfo.ID,
 			},
 			prepFn: func(t *testing.T, ctx context.Context, d *chunk.Directory) {
-				p, err := dirproc.NewConversation(d, nopFiler{}, nopTransformer{})
+				p, err := directory.NewConversation(d, nopFiler{}, nopTransformer{})
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -86,7 +87,7 @@ func TestChunkDir_ChannelInfo(t *testing.T) {
 				channelID: testChannelInfo.ID,
 			},
 			prepFn: func(t *testing.T, ctx context.Context, d *chunk.Directory) {
-				p, err := dirproc.NewConversation(d, nopFiler{}, nopTransformer{})
+				p, err := directory.NewConversation(d, nopFiler{}, nopTransformer{})
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -107,7 +108,7 @@ func TestChunkDir_ChannelInfo(t *testing.T) {
 				channelID: testChannelInfo.ID,
 			},
 			prepFn: func(t *testing.T, ctx context.Context, d *chunk.Directory) {
-				p, err := dirproc.NewConversation(d, nopFiler{}, nopTransformer{})
+				p, err := directory.NewConversation(d, nopFiler{}, nopTransformer{})
 				if err != nil {
 					t.Fatal(err)
 				}

@@ -5,12 +5,13 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/rusq/slackdump/v3/internal/convert/transform"
+
 	"go.uber.org/mock/gomock"
 
 	"github.com/stretchr/testify/assert"
 
 	"github.com/rusq/slackdump/v3/internal/chunk/control/mock_control"
-	"github.com/rusq/slackdump/v3/internal/chunk/transform"
 	"github.com/rusq/slackdump/v3/internal/structures"
 	"github.com/rusq/slackdump/v3/mocks/mock_processor"
 	"github.com/rusq/slackdump/v3/processor"
