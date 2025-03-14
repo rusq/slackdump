@@ -21,6 +21,18 @@ var testChunk = &chunk.Chunk{
 	IsLast:      true,
 }
 
+func prepSession(t *testing.T, ec repository.PrepareExtContext) {
+	t.Helper()
+	sr := repository.NewSessionRepository()
+	if id, err := sr.Insert(context.Background(), ec, &repository.Session{
+		ID: 1,
+	}); err != nil {
+		t.Fatal(err)
+	} else if id != 1 {
+		t.Fatalf("Insert session: want 1, got %d", id)
+	}
+}
+
 func TestDBP_UnsafeInsertChunk(t *testing.T) {
 	type fields struct {
 		conn      *sqlx.DB
@@ -50,16 +62,7 @@ func TestDBP_UnsafeInsertChunk(t *testing.T) {
 				txx: testDB(t),
 				ch:  testChunk,
 			},
-			prepFn: func(t *testing.T, ec repository.PrepareExtContext) {
-				sr := repository.NewSessionRepository()
-				if id, err := sr.Insert(context.Background(), ec, &repository.Session{
-					ID: 1,
-				}); err != nil {
-					t.Fatal(err)
-				} else if id != 1 {
-					t.Fatalf("Insert session: want 1, got %d", id)
-				}
-			},
+			prepFn:  prepSession,
 			want:    1,
 			wantErr: false,
 		},

@@ -1,7 +1,6 @@
 package chunk
 
 import (
-	"compress/gzip"
 	"crypto/sha1"
 	"encoding/hex"
 	"errors"
@@ -10,6 +9,8 @@ import (
 	"log/slog"
 	"os"
 	"sync"
+
+	"github.com/rusq/slackdump/v3/internal/osext"
 )
 
 // filemgr manages temporary files and handles for compressed files.
@@ -98,23 +99,9 @@ func (dp *filemgr) Open(name string) (*wrappedfile, error) {
 		return nil, err
 	}
 	defer cf.Close()
-	gz, err := gzip.NewReader(cf)
+	// create temporary file
+	tf, err := osext.UnGZIPTo(cf, dp.tmpdir, "filemgr-*")
 	if err != nil {
-		return nil, err
-	}
-	defer gz.Close()
-	// create a temporary file
-	tf, err := os.CreateTemp(dp.tmpdir, "filemgr-*")
-	if err != nil {
-		return nil, err
-	}
-	if _, err = io.Copy(tf, gz); err != nil {
-		return nil, err
-	}
-	if err := tf.Sync(); err != nil {
-		return nil, err
-	}
-	if _, err := tf.Seek(0, io.SeekStart); err != nil {
 		return nil, err
 	}
 	dp.known[tmpname] = tf.Name()

@@ -1,4 +1,5 @@
-* TODO export compatibility
+* V3.1
+** TODO export compatibility (?)
   /canvases.json is the list of all channel canvases (just slack files, files
   are not included).
 
@@ -16,15 +17,28 @@
 
   archived channels are included in the export.
 
-* TODO Database backend
-** DONE Add database backend support to Dump converter, it relies on the files
-** DONE Check if the thread export works as intended.
-** DONE Conversion to and from.
+** TODO Database backend
+*** DONE Add database backend support to Dump converter, it relies on the files
+*** DONE Check if the thread export works as intended.
+*** DONE Conversion to and from.
    CLOSED: [2025-03-11 Tue 20:53]
-** TODO Files and avatars support during conversion.
-** TODO Target interface and implementation for all formats.
+*** DONE Files and avatars support during conversion.
+   CLOSED: [2025-03-14 Fri 21:33]
+*** TODO Tests for dbproc and related packages.
+** DONE Source detection
+   CLOSED: [2025-03-14 Fri 21:34]
+*** DONE detect standard file storage
+   CLOSED: [2025-03-14 Fri 21:34]
+   Removed the source storage flags in favour of Type method on Storage
+   interface.
+** DONE Universal search controller + tests
+  CLOSED: [2025-03-14 Fri 21:34]
+** DONE Export in db format missing "members".
+** TODO Converter from export and dump to database, where possible.
+   Boils down to reading the input and feeding through a Recorder with
+   a database backend.
+** TODO load emojis alongside the messages during archive.
 
-* TODO Source detection
-** TODO detect standard file storage
-* TODO Universal search controller + tests
-* DONE Export in db format missing "members".
+* V3.2
+** Starred items and bookmarks.
+** Connetion pooling

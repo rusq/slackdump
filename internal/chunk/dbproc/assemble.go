@@ -34,9 +34,19 @@ var assemblers = map[chunk.ChunkType]func(context.Context, sqlx.ExtContext, *rep
 	chunk.CSearchFiles:    asmSearchFiles,
 }
 
+var (
+	rpMsg      = repository.NewMessageRepository()
+	rpFile     = repository.NewFileRepository()
+	rpUser     = repository.NewUserRepository()
+	rpChan     = repository.NewChannelRepository()
+	rpWsp      = repository.NewWorkspaceRepository()
+	rpChanUser = repository.NewChannelUserRepository()
+	rpSrchMsg  = repository.NewSearchMessageRepository()
+	rpSrchFile = repository.NewSearchFileRepository()
+)
+
 func asmMessages(ctx context.Context, conn sqlx.ExtContext, dbchunk *repository.DBChunk) (*chunk.Chunk, error) {
-	mr := repository.NewMessageRepository()
-	it, err := mr.AllForChunk(ctx, conn, dbchunk.ID)
+	it, err := rpMsg.AllForChunk(ctx, conn, dbchunk.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -58,8 +68,7 @@ func asmMessages(ctx context.Context, conn sqlx.ExtContext, dbchunk *repository.
 }
 
 func asmThreadMessages(ctx context.Context, conn sqlx.ExtContext, dbchunk *repository.DBChunk) (*chunk.Chunk, error) {
-	mr := repository.NewMessageRepository()
-	it, err := mr.AllForChunk(ctx, conn, dbchunk.ID)
+	it, err := rpMsg.AllForChunk(ctx, conn, dbchunk.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -72,10 +81,8 @@ func asmThreadMessages(ctx context.Context, conn sqlx.ExtContext, dbchunk *repos
 		if err != nil {
 			return nil, err
 		}
-		if c.ThreadTS == "" {
-			if m.ThreadTS != nil {
-				c.ThreadTS = *m.ThreadTS
-			}
+		if c.ThreadTS == "" && m.ThreadTS != nil {
+			c.ThreadTS = *m.ThreadTS
 		}
 		if c.Parent == nil && m.ParentID != nil {
 			pm, err := getMessage(ctx, conn, *m.ParentID)
@@ -92,8 +99,7 @@ func asmThreadMessages(ctx context.Context, conn sqlx.ExtContext, dbchunk *repos
 
 // getMessage returns a single message from the repository.
 func getMessage(ctx context.Context, conn sqlx.ExtContext, id int64) (*slack.Message, error) {
-	mr := repository.NewMessageRepository()
-	pm, err := mr.Get(ctx, conn, id)
+	pm, err := rpMsg.Get(ctx, conn, id)
 	if err != nil {
 		return nil, err
 	}
@@ -105,8 +111,7 @@ func getMessage(ctx context.Context, conn sqlx.ExtContext, id int64) (*slack.Mes
 }
 
 func asmFiles(ctx context.Context, conn sqlx.ExtContext, dbchunk *repository.DBChunk) (*chunk.Chunk, error) {
-	fr := repository.NewFileRepository()
-	it, err := fr.AllForChunk(ctx, conn, dbchunk.ID)
+	it, err := rpFile.AllForChunk(ctx, conn, dbchunk.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -132,9 +137,8 @@ func asmFiles(ctx context.Context, conn sqlx.ExtContext, dbchunk *repository.DBC
 }
 
 func asmUsers(ctx context.Context, conn sqlx.ExtContext, dbchunk *repository.DBChunk) (*chunk.Chunk, error) {
-	ur := repository.NewUserRepository()
 	c := dbchunk.Chunk()
-	it, err := ur.AllForChunk(ctx, conn, dbchunk.ID)
+	it, err := rpUser.AllForChunk(ctx, conn, dbchunk.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -152,8 +156,7 @@ func asmUsers(ctx context.Context, conn sqlx.ExtContext, dbchunk *repository.DBC
 }
 
 func asmChannels(ctx context.Context, conn sqlx.ExtContext, dbchunk *repository.DBChunk) (*chunk.Chunk, error) {
-	cr := repository.NewChannelRepository()
-	it, err := cr.AllForChunk(ctx, conn, dbchunk.ID)
+	it, err := rpChan.AllForChunk(ctx, conn, dbchunk.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -172,9 +175,8 @@ func asmChannels(ctx context.Context, conn sqlx.ExtContext, dbchunk *repository.
 }
 
 func asmChannelInfo(ctx context.Context, conn sqlx.ExtContext, dbchunk *repository.DBChunk) (*chunk.Chunk, error) {
-	cr := repository.NewChannelRepository()
 	c := dbchunk.Chunk()
-	ch, err := cr.OneForChunk(ctx, conn, dbchunk.ID)
+	ch, err := rpChan.OneForChunk(ctx, conn, dbchunk.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -188,9 +190,8 @@ func asmChannelInfo(ctx context.Context, conn sqlx.ExtContext, dbchunk *reposito
 }
 
 func asmWorkspaceInfo(ctx context.Context, conn sqlx.ExtContext, dbchunk *repository.DBChunk) (*chunk.Chunk, error) {
-	wr := repository.NewWorkspaceRepository()
 	c := dbchunk.Chunk()
-	dw, err := wr.OneForChunk(ctx, conn, dbchunk.ID)
+	dw, err := rpWsp.OneForChunk(ctx, conn, dbchunk.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -203,8 +204,7 @@ func asmWorkspaceInfo(ctx context.Context, conn sqlx.ExtContext, dbchunk *reposi
 }
 
 func asmChannelUsers(ctx context.Context, conn sqlx.ExtContext, dbchunk *repository.DBChunk) (*chunk.Chunk, error) {
-	cur := repository.NewChannelUserRepository()
-	it, err := cur.AllForChunk(ctx, conn, dbchunk.ID)
+	it, err := rpChanUser.AllForChunk(ctx, conn, dbchunk.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -219,12 +219,11 @@ func asmChannelUsers(ctx context.Context, conn sqlx.ExtContext, dbchunk *reposit
 }
 
 func asmSearchMessages(ctx context.Context, conn sqlx.ExtContext, dbchunk *repository.DBChunk) (*chunk.Chunk, error) {
-	sr := repository.NewSearchMessageRepository()
 	c := dbchunk.Chunk()
 	if dbchunk.SearchQuery != nil {
 		c.SearchQuery = *dbchunk.SearchQuery
 	}
-	it, err := sr.AllForChunk(ctx, conn, dbchunk.ID)
+	it, err := rpSrchMsg.AllForChunk(ctx, conn, dbchunk.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -242,12 +241,11 @@ func asmSearchMessages(ctx context.Context, conn sqlx.ExtContext, dbchunk *repos
 }
 
 func asmSearchFiles(ctx context.Context, conn sqlx.ExtContext, dbchunk *repository.DBChunk) (*chunk.Chunk, error) {
-	sr := repository.NewSearchFileRepository()
 	c := dbchunk.Chunk()
 	if dbchunk.SearchQuery != nil {
 		c.SearchQuery = *dbchunk.SearchQuery
 	}
-	it, err := sr.AllForChunk(ctx, conn, dbchunk.ID)
+	it, err := rpSrchFile.AllForChunk(ctx, conn, dbchunk.ID)
 	if err != nil {
 		return nil, err
 	}

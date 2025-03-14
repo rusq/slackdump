@@ -25,6 +25,19 @@ func testDB(t *testing.T) *sqlx.DB {
 	return db
 }
 
+func testDBDSN(t *testing.T, dsn string) *sqlx.DB {
+	t.Helper()
+	ctx := context.Background()
+	db := testutil.TestDBDSN(t, dsn)
+	if err := initDB(ctx, db); err != nil {
+		t.Fatal(err)
+	}
+	if err := repository.Migrate(context.Background(), db.DB, true); err != nil {
+		t.Fatal(err)
+	}
+	return db
+}
+
 func Test_initDB(t *testing.T) {
 	type args struct {
 		ctx  context.Context
@@ -103,18 +116,52 @@ func TestDBP_Close(t *testing.T) {
 	tests := []struct {
 		name    string
 		fields  fields
+		prepFn  utilityFunc
+		checkFn func(t *testing.T, conn sqlx.QueryerContext)
 		wantErr bool
 	}{
-		// TODO: Add test cases.
+		{
+			name: "finalises existing session",
+			fields: fields{
+				conn:      testDB(t),
+				sessionID: 1,
+			},
+			prepFn: prepSession,
+			checkFn: func(t *testing.T, conn sqlx.QueryerContext) {
+				var count int
+				if err := conn.QueryRowxContext(context.Background(), "SELECT COUNT(*) FROM session WHERE id = 1 and finished = true").Scan(&count); err != nil {
+					t.Fatal(err)
+				}
+				if count != 1 {
+					t.Errorf("session not finalised")
+				}
+			},
+			wantErr: false,
+		},
+		{
+			name: "session not found",
+			fields: fields{
+				conn:      testDB(t),
+				sessionID: 2,
+			},
+			prepFn:  prepSession,
+			wantErr: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			if tt.prepFn != nil {
+				tt.prepFn(t, tt.fields.conn)
+			}
 			d := &DBP{
 				conn:      tt.fields.conn,
 				sessionID: tt.fields.sessionID,
 			}
 			if err := d.Close(); (err != nil) != tt.wantErr {
 				t.Errorf("DBP.Close() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if tt.checkFn != nil {
+				tt.checkFn(t, tt.fields.conn)
 			}
 		})
 	}

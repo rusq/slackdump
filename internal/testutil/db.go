@@ -21,6 +21,7 @@ func TestDBDSN(t *testing.T, dsn string) *sqlx.DB {
 	if err != nil {
 		t.Fatalf("TestDBDSN: %s: %s", dsn, err)
 	}
+	t.Cleanup(func() { db.Close() })
 	if err := db.Ping(); err != nil {
 		t.Fatalf("TestDBDSN: %s: %s", dsn, err)
 	}
