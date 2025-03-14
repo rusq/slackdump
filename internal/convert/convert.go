@@ -1,4 +1,4 @@
-// Package convert implements conversions between different Slackdump formats.
+// Package convert implements conversions to different Slackdump formats.
 package convert
 
 import (

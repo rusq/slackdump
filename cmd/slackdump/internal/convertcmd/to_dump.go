@@ -35,7 +35,7 @@ func toDump(ctx context.Context, srcpath, trgloc string, cflg convertflags) erro
 	}
 	defer fsa.Close()
 
-	filesEnabled := cflg.includeFiles && (st.Has(source.FMattermost))
+	filesEnabled := cflg.includeFiles && src.Files().Type() != source.STnone
 
 	conv := convert.NewToDump(src, fsa, convert.DumpWithIncludeFiles(filesEnabled), convert.DumpWithLogger(cfg.Log))
 

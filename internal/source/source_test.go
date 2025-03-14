@@ -1,16 +1,12 @@
-// Package source provides archive readers for different output formats.
-//
-// Currently, the following formats are supported:
-//   - archive
-//   - Slack Export
-//   - dump
 package source
 
 import (
 	"context"
+	"io/fs"
 	"path/filepath"
 	"reflect"
 	"testing"
+	"testing/fstest"
 
 	_ "modernc.org/sqlite"
 )
@@ -94,6 +90,141 @@ func TestLoad(t *testing.T) {
 			gotT := reflect.TypeOf(got)
 			if wantT != gotT {
 				t.Errorf("Load() = %v, want %v", gotT, wantT)
+			}
+		})
+	}
+}
+
+func TestFlags_String(t *testing.T) {
+	tests := []struct {
+		name string
+		f    Flags
+		want string
+	}{
+		{"unknown", 0, "........"},
+		{"FChunk", FChunk, ".....C.."},
+		{"FDatabase|FMattermost", FDatabase | FDirectory, "..D....d"},
+		{"all", FDatabase | FDump | FExport | FChunk | FZip | FDirectory, "..DUECzd"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.f.String(); got != tt.want {
+				t.Errorf("Flags.String() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_unmarshalOne(t *testing.T) {
+	type testStruct struct {
+		Name string `json:"name"`
+	}
+	testfs := fstest.MapFS{
+		"duke.json": {
+			Data: []byte(`{"name":"duke nukem"}`),
+		},
+		"invalid_data.json": {
+			Data: []byte(`{"name":42}`),
+		},
+	}
+
+	type args struct {
+		fsys fs.FS
+		name string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    testStruct
+		wantErr bool
+	}{
+		{
+			"duke",
+			args{testfs, "duke.json"},
+			testStruct{Name: "duke nukem"},
+			false,
+		},
+		{
+			"not found",
+			args{testfs, "notfound.json"},
+			testStruct{},
+			true,
+		},
+		{
+			"invalid data",
+			args{testfs, "invalid_data.json"},
+			testStruct{},
+			true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := unmarshalOne[testStruct](tt.args.fsys, tt.args.name)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("unmarshalOne() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("unmarshalOne() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_unmarshal(t *testing.T) {
+	type testStruct struct {
+		Name string `json:"name"`
+	}
+	testSlice := []testStruct{
+		{Name: "duke nukem"},
+		{Name: "quake ranger"},
+	}
+	testfs := fstest.MapFS{
+		"games.json": {
+			Data: []byte(`[{"name":"duke nukem"},{"name":"quake ranger"}]`),
+		},
+		"invalid_data.json": {
+			Data: []byte(`{"name":42}`),
+		},
+	}
+	type args struct {
+		fsys fs.FS
+		name string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    []testStruct
+		wantErr bool
+	}{
+		{
+			"games",
+			args{testfs, "games.json"},
+			testSlice,
+			false,
+		},
+		{
+			"not found",
+			args{testfs, "notfound.json"},
+			nil,
+			true,
+		},
+		{
+			"invalid data",
+			args{testfs, "invalid_data.json"},
+			nil,
+			true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := unmarshal[[]testStruct](tt.args.fsys, tt.args.name)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("unmarshal() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("unmarshal() = %v, want %v", got, tt.want)
 			}
 		})
 	}

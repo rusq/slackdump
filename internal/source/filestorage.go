@@ -21,6 +21,8 @@ const (
 type Storage interface {
 	// FS should return the filesystem with file attachments.
 	FS() fs.FS
+	// Type should return the storage type.
+	Type() StorageType
 	// File should return the path of the file WITHIN the filesystem returned
 	// by FS().
 	File(id string, name string) (string, error)
@@ -84,6 +86,10 @@ func OpenMattermostStorage(rootfs fs.FS) (*STMattermost, error) {
 
 func (r *STMattermost) FS() fs.FS {
 	return r.fs
+}
+
+func (r *STMattermost) Type() StorageType {
+	return STmattermost
 }
 
 func (r *STMattermost) File(id string, name string) (string, error) {
@@ -160,6 +166,10 @@ func (r *STStandard) FS() fs.FS {
 	return r.fs
 }
 
+func (r *STStandard) Type() StorageType {
+	return STstandard
+}
+
 func (r *STStandard) FilePath(ci *slack.Channel, f *slack.File) string {
 	return StdFilepath(ci, f)
 }
@@ -186,6 +196,10 @@ type fstNotFound struct{}
 
 func (fstNotFound) FS() fs.FS {
 	return fakefs{}
+}
+
+func (fstNotFound) Type() StorageType {
+	return STnone
 }
 
 func (fstNotFound) File(id string, name string) (string, error) {
@@ -288,6 +302,10 @@ func (r *STDump) FS() fs.FS {
 	return r.fs
 }
 
+func (r *STDump) Type() StorageType {
+	return STdump
+}
+
 func (r *STDump) File(id string, _ string) (string, error) {
 	pth, ok := r.idx[id]
 	if !ok {
@@ -316,6 +334,10 @@ func NewAvatarStorage(fsys fs.FS) (*AvatarStorage, error) {
 
 func (r *AvatarStorage) FS() fs.FS {
 	return r.fs
+}
+
+func (r *AvatarStorage) Type() StorageType {
+	return STAvatar
 }
 
 func (r *AvatarStorage) File(id string, name string) (string, error) {

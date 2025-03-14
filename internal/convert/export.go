@@ -129,7 +129,7 @@ func (c *ToExport) Convert(ctx context.Context) error {
 		// 2. workers
 		var filewg sync.WaitGroup
 
-		if c.opts.includeFiles {
+		if c.opts.includeFiles && c.src.Files().Type() != source.STnone {
 			tfopts = append(tfopts, transform.ExpWithMsgUpdateFunc(func(ch *slack.Channel, m *slack.Message) error {
 				// copy in a separate goroutine to avoid blocking the transform in
 				// case of a synchronous fsadapter (e.g. zip file adapter can write
@@ -149,7 +149,7 @@ func (c *ToExport) Convert(ctx context.Context) error {
 			close(c.fileresult)
 		}
 
-		if c.opts.includeAvatars {
+		if c.opts.includeAvatars && c.src.Avatars().Type() != source.STnone {
 			filewg.Add(1)
 			go func() {
 				c.avatarWorker(users)

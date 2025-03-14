@@ -35,16 +35,16 @@ func toExport(ctx context.Context, src, trg string, cflg convertflags) error {
 		return ErrStorage
 	}
 
-	var (
-		includeFiles   = cflg.includeFiles && st.Has(source.FMattermost)
-		includeAvatars = cflg.includeAvatars && st.Has(source.FAvatars)
-	)
-
 	s, err := source.Load(ctx, src)
 	if err != nil {
 		return err
 	}
 	defer s.Close()
+
+	var (
+		includeFiles   = cflg.includeFiles && s.Files().Type() != source.STnone
+		includeAvatars = cflg.includeAvatars && s.Avatars().Type() != source.STnone
+	)
 
 	cvt := convert.NewToExport(
 		s,

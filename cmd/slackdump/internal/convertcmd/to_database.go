@@ -41,13 +41,13 @@ func toDatabase(ctx context.Context, src, trg string, cflg convertflags) error {
 		return err
 	}
 
-	if st.Has(source.FMattermost) && cflg.includeFiles {
+	if cflg.includeFiles && dsrc.Files().Type() != source.STnone {
 		slog.Info("Copying files...")
 		if err := copyfiles(filepath.Join(trg, chunk.UploadsDir), dsrc.Files().FS()); err != nil {
 			return err
 		}
 	}
-	if st.Has(source.FAvatars) && cflg.includeAvatars {
+	if cflg.includeAvatars && dsrc.Avatars().Type() != source.STnone {
 		slog.Info("Copying avatars...")
 		if err := copyfiles(filepath.Join(trg, chunk.AvatarsDir), dsrc.Avatars().FS()); err != nil {
 			return err

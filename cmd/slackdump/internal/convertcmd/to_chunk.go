@@ -40,13 +40,13 @@ func toChunk(ctx context.Context, src, trg string, cflg convertflags) error {
 	if err := db2chunk(ctx, srcdb, trg, cflg); err != nil {
 		return err
 	}
-	if st.Has(source.FMattermost) && cflg.includeFiles {
+	if cflg.includeFiles && srcdb.Files().Type() != source.STnone {
 		slog.Info("Copying files...")
 		if err := copyfiles(filepath.Join(trg, chunk.UploadsDir), srcdb.Files().FS()); err != nil {
 			return err
 		}
 	}
-	if st.Has(source.FAvatars) && cflg.includeAvatars {
+	if cflg.includeAvatars && srcdb.Avatars().Type() != source.STnone {
 		slog.Info("Copying avatars...")
 		if err := copyfiles(filepath.Join(trg, chunk.AvatarsDir), srcdb.Avatars().FS()); err != nil {
 			return err

@@ -2,8 +2,12 @@
 //
 // Currently, the following formats are supported:
 //   - archive
-//   - Slack Export
+//   - database
 //   - dump
+//   - Slack Export
+//
+// One should use `Load` function to load the source from the file system.  It
+// will automatically detect the format and return the appropriate reader.
 package source
 
 import (
@@ -64,11 +68,6 @@ type Sourcer interface {
 	WorkspaceInfo(ctx context.Context) (*slack.AuthTestResponse, error)
 }
 
-type SourceCloser interface {
-	Sourcer
-	io.Closer
-}
-
 type Resumer interface {
 	// Latest should return the latest timestamps of all channels and threads.
 	Latest(ctx context.Context) (map[structures.SlackLink]time.Time, error)
@@ -77,16 +76,16 @@ type Resumer interface {
 // Resumer is the interface that should be implemented by sources that can be
 // resumed.
 type SourceCloseResumer interface {
-	SourceCloser
+	Sourcer
 	Resumer
+	io.Closer
 }
 
 var ErrNotSupported = errors.New("feature not supported")
 
-type Flags int16
+type Flags int8
 
 const (
-	FUnknown Flags = 0
 	// container
 	FDirectory Flags = 1 << iota
 	FZip
@@ -95,17 +94,17 @@ const (
 	FExport
 	FDump
 	FDatabase
-	// attachments
-	FAvatars
-	FMattermost
+
+	FUnknown Flags = 0
 )
 
 func (f Flags) String() string {
-	const flg = "________MADUXCZD"
+	const bits = 8 - 1
+	const flg = "__DUECzd"
 	var buf strings.Builder
-	for i := 16; i >= 0; i-- {
+	for i := bits; i >= 0; i-- {
 		if f&(1<<uint(i)) != 0 {
-			buf.WriteByte(flg[16-i])
+			buf.WriteByte(flg[bits-i])
 		} else {
 			buf.WriteByte('.')
 		}
@@ -204,16 +203,6 @@ func srcType(src string, fi fs.FileInfo) Flags {
 		}
 	} else {
 		return FUnknown
-	}
-
-	// determine content
-
-	// attachments
-	if _, err := fs.Stat(fsys, "__avatars"); err == nil {
-		flags |= FAvatars
-	}
-	if _, err := fs.Stat(fsys, chunk.UploadsDir); err == nil {
-		flags |= FMattermost
 	}
 
 	// main content

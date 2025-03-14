@@ -132,7 +132,7 @@ func collect[T any](it iter.Seq2[T, error], sz int) ([]T, error) {
 }
 
 const (
-	msgPrealloc  = 20000
+	msgPrealloc  = 10000
 	tmsgPrealloc = 5
 )
 

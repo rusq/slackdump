@@ -50,7 +50,7 @@ func (d *DumpConverter) Convert(ctx context.Context) error {
 	tfopts := []transform.DumpOption{
 		transform.DumpWithLogger(d.lg),
 	}
-	if d.withFiles {
+	if d.withFiles && d.src.Files().Type() != source.STnone {
 		fh := &fileHandler{
 			fc: NewFileCopier(d.src, d.fsa, d.src.Files().FilePath, source.DumpFilepath, d.withFiles),
 		}
