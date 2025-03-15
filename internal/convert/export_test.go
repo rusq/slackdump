@@ -75,9 +75,6 @@ func TestChunkToExport_Validate(t *testing.T) {
 				Trg: fsadapter.NewDirectory(testTrgDir),
 				opts: options{
 					includeFiles: true,
-					srcFileLoc: func(*slack.Channel, *slack.File) string {
-						return ""
-					},
 					trgFileLoc: func(*slack.Channel, *slack.File) string {
 						return ""
 					},

@@ -51,7 +51,6 @@ func toExport(ctx context.Context, src, trg string, cflg convertflags) error {
 		fsa,
 		convert.WithIncludeFiles(includeFiles),
 		convert.WithIncludeAvatars(includeAvatars),
-		convert.WithSrcFileLoc(sttFn),
 		convert.WithTrgFileLoc(sttFn),
 		convert.WithLogger(cfg.Log),
 	)

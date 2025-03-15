@@ -51,7 +51,7 @@ func (d *DumpConverter) Convert(ctx context.Context) error {
 	}
 	if d.withFiles && d.src.Files().Type() != source.STnone {
 		fh := &fileHandler{
-			fc: NewFileCopier(d.src, d.fsa, d.src.Files().FilePath, source.DumpFilepath, d.withFiles),
+			fc: NewFileCopier(d.src, d.fsa, source.DumpFilepath, d.withFiles),
 		}
 		tfopts = append(tfopts, transform.DumpWithPipeline(fh.copyFiles))
 	}

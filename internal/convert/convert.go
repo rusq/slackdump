@@ -33,8 +33,6 @@ type options struct {
 	includeFiles bool
 	// includeAvatars is a flag to include avatars in the export
 	includeAvatars bool
-	// srcFileLoc should return the file location within the source directory.
-	srcFileLoc func(*slack.Channel, *slack.File) string
 	// trgFileLoc should return the file location within the target directory
 	trgFileLoc func(*slack.Channel, *slack.File) string
 	// avtrFileLoc should return the avatar file location.
@@ -54,15 +52,6 @@ func WithIncludeFiles(b bool) Option {
 func WithIncludeAvatars(b bool) Option {
 	return func(c *options) {
 		c.includeAvatars = b
-	}
-}
-
-// WithSrcFileLoc sets the SrcFileLoc function.
-func WithSrcFileLoc(fn func(*slack.Channel, *slack.File) string) Option {
-	return func(c *options) {
-		if fn != nil {
-			c.srcFileLoc = fn
-		}
 	}
 }
 
@@ -87,9 +76,6 @@ func WithLogger(lg *slog.Logger) Option {
 func (o *options) Validate() error {
 	const format = "convert: internal error: %s: %w"
 	if o.includeFiles {
-		if o.srcFileLoc == nil {
-			return fmt.Errorf(format, "source", ErrNoLocFunction)
-		}
 		if o.trgFileLoc == nil {
 			return fmt.Errorf(format, "target", ErrNoLocFunction)
 		}

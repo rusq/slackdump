@@ -6,7 +6,10 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/rusq/fsadapter"
+
 	"github.com/rusq/slackdump/v3/internal/chunk/backend/dbase"
+	"github.com/rusq/slackdump/v3/internal/convert"
 
 	"github.com/jmoiron/sqlx"
 
@@ -24,11 +27,18 @@ func toDatabase(ctx context.Context, src, trg string, cflg convertflags) error {
 		return err
 	}
 
-	// currently only chunk format is supported for the source.
-	if !st.Has(source.FChunk) {
+	switch {
+	case st == source.FUnknown:
 		return ErrSource
+	case st.Has(source.FChunk):
+		return dbConvertFast(ctx, src, trg, cflg)
+	default:
+		return dbConvert(ctx, src, trg, cflg)
 	}
+}
 
+// dbConvertFast converts the chunk source to the database format.
+func dbConvertFast(ctx context.Context, src, trg string, cflg convertflags) error {
 	cd, err := chunk.OpenDir(src)
 	if err != nil {
 		return err
@@ -114,4 +124,68 @@ type encoder struct {
 func (e *encoder) Encode(ctx context.Context, ch *chunk.Chunk) error {
 	_, err := e.dbp.UnsafeInsertChunk(ctx, e.tx, ch)
 	return err
+}
+
+func dbConvert(ctx context.Context, src, dir string, cflg convertflags) error {
+	s, err := source.Load(ctx, src)
+	if err != nil {
+		return err
+	}
+	defer s.Close()
+
+	dir = cfg.StripZipExt(dir)
+
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return err
+	}
+	remove := true
+	defer func() {
+		// remove on failed conversion
+		if remove {
+			_ = os.RemoveAll(dir)
+		}
+	}()
+	fsa := fsadapter.NewDirectory(dir)
+	defer fsa.Close()
+
+	// create a new database
+	wconn, si, err := bootstrap.Database(dir, "convert")
+	if err != nil {
+		return err
+	}
+	defer wconn.Close()
+
+	dbp, err := dbase.New(ctx, wconn, si)
+	if err != nil {
+		return err
+	}
+	defer dbp.Close()
+
+	txx, err := wconn.BeginTxx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer txx.Rollback()
+
+	enc := &encoder{dbp: dbp, tx: txx}
+
+	conv := convert.NewSourceEncoder(
+		s,
+		fsa,
+		enc,
+		convert.WithLogger(cfg.Log),
+		convert.WithIncludeFiles(cflg.includeFiles),
+		convert.WithIncludeAvatars(cflg.includeAvatars),
+		convert.WithTrgFileLoc(source.MattermostFilepath),
+	)
+
+	if err := conv.Convert(ctx); err != nil {
+		return err
+	}
+	if err := txx.Commit(); err != nil {
+		return err
+	}
+
+	remove = false
+	return nil
 }

@@ -17,16 +17,14 @@ import (
 type FileCopier struct {
 	src      source.Sourcer
 	trg      fsadapter.FS
-	srcLocFn func(*slack.Channel, *slack.File) string
 	trgLocFn func(*slack.Channel, *slack.File) string
 	enabled  bool
 }
 
-func NewFileCopier(src source.Sourcer, trg fsadapter.FS, srcLoc, trgLoc func(*slack.Channel, *slack.File) string, enabled bool) *FileCopier {
+func NewFileCopier(src source.Sourcer, trg fsadapter.FS, trgLoc func(*slack.Channel, *slack.File) string, enabled bool) *FileCopier {
 	return &FileCopier{
 		src:      src,
 		trg:      trg,
-		srcLocFn: srcLoc,
 		trgLocFn: trgLoc,
 		enabled:  enabled,
 	}

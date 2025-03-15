@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"path"
 	"runtime/trace"
 	"sync"
 
@@ -56,7 +55,6 @@ func NewToExport(src source.Sourcer, trg fsadapter.FS, opt ...Option) *ToExport 
 		opts: options{
 			includeFiles:   false,
 			includeAvatars: false,
-			srcFileLoc:     source.MattermostFilepath,
 			trgFileLoc:     source.MattermostFilepath,
 			avtrFileLoc:    fileproc.AvatarPath,
 			lg:             slog.Default(),
@@ -290,7 +288,6 @@ func (c *ToExport) copyworker(req <-chan copyrequest) {
 	fc := FileCopier{
 		src:      c.src,
 		trg:      c.trg,
-		srcLocFn: c.opts.srcFileLoc,
 		trgLocFn: c.opts.trgFileLoc,
 		enabled:  c.opts.includeFiles,
 	}
@@ -315,7 +312,7 @@ func (c *ToExport) avatarWorker(users []slack.User) {
 		lg.Debug("processing avatar", "user", u.ID)
 		loc := c.opts.avtrFileLoc(&u)
 		fsys := c.src.Avatars().FS()
-		srcLoc, err := c.src.Avatars().File(u.ID, path.Base(u.Profile.ImageOriginal))
+		srcLoc, err := c.src.Avatars().File(source.AvatarParams(&u))
 		if err != nil {
 			err = fmt.Errorf("error getting avatar for user %s: %w", u.ID, err)
 		} else {

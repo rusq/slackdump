@@ -340,8 +340,14 @@ func (r *AvatarStorage) Type() StorageType {
 	return STAvatar
 }
 
-func (r *AvatarStorage) File(id string, name string) (string, error) {
-	pth := path.Join(id, name)
+// AvatarParams is a convenience function that returns the user ID and the base
+// name of the original avatar filename.
+func AvatarParams(u *slack.User) (userID string, filename string) {
+	return u.ID, path.Base(u.Profile.ImageOriginal)
+}
+
+func (r *AvatarStorage) File(userID string, imageOriginalBase string) (string, error) {
+	pth := path.Join(userID, imageOriginalBase)
 	_, err := fs.Stat(r.fs, pth)
 	if err != nil {
 		return "", err
@@ -349,6 +355,6 @@ func (r *AvatarStorage) File(id string, name string) (string, error) {
 	return pth, nil
 }
 
-func (r *AvatarStorage) FilePath(_ *slack.Channel, f *slack.File) string {
-	return path.Join(f.ID, f.Name)
+func (r *AvatarStorage) FilePath(_ *slack.Channel, _ *slack.File) string {
+	return ""
 }
