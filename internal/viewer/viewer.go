@@ -59,7 +59,11 @@ func New(ctx context.Context, addr string, r source.Sourcer) (*Viewer, error) {
 
 	uu, err := r.Users(ctx)
 	if err != nil {
-		return nil, err
+		if errors.Is(err, source.ErrNotFound) {
+			uu = []slack.User{}
+		} else {
+			return nil, err
+		}
 	}
 	um := st.NewUserIndex(uu)
 

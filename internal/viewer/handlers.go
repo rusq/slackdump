@@ -42,7 +42,7 @@ func (v *Viewer) view() mainView {
 	return mainView{
 		channels: v.ch,
 		Name:     filepath.Base(v.src.Name()),
-		Type:     v.src.Type(),
+		Type:     v.src.Type().String(),
 	}
 }
 

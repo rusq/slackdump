@@ -90,8 +90,8 @@ func (e *Export) Name() string {
 	return e.name
 }
 
-func (e *Export) Type() string {
-	return "export"
+func (e *Export) Type() Flags {
+	return FExport
 }
 
 // AllMessages returns all channel messages without thread messages.

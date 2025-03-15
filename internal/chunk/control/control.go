@@ -51,7 +51,7 @@ func (c *Controller) newConvTransformer(ctx context.Context) *conversationTransf
 // determine which entities to scrape. The [EntityList] can be created with the
 // [structures.NewEntityList] function.
 func (c *Controller) Run(ctx context.Context, list *structures.EntityList) error {
-	rec := chunk.NewCustomRecorder("generic", c.erc)
+	rec := chunk.NewCustomRecorder(c.erc)
 	defer rec.Close()
 
 	sp := superprocessor{
@@ -80,7 +80,7 @@ const (
 // the [SearchType] parameter. The search is done in parallel for messages and
 // files.
 func (c *Controller) Search(ctx context.Context, query string, stype SearchType) error {
-	rec := chunk.NewCustomRecorder("generic", c.erc)
+	rec := chunk.NewCustomRecorder(c.erc)
 	defer rec.Close()
 
 	p := &jointFileSearcher{

@@ -4,12 +4,10 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/rusq/slackdump/v3/internal/convert/transform"
-
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/slack"
 
-	"github.com/rusq/slackdump/v3/internal/chunk"
+	"github.com/rusq/slackdump/v3/internal/convert/transform"
 	"github.com/rusq/slackdump/v3/internal/source"
 	"github.com/rusq/slackdump/v3/internal/structures"
 )
@@ -65,37 +63,7 @@ func (d *DumpConverter) Convert(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-
-	channels, err := d.src.Channels(ctx)
-	if err != nil {
-		return err
-	}
-	if err := conv.Channels(channels); err != nil {
-		return err
-	}
-	for _, c := range channels {
-		if err := conv.Convert(ctx, chunk.ToFileID(c.ID, "", false)); err != nil {
-			return err
-		}
-	}
-
-	users, err := d.src.Users(ctx)
-	if err != nil {
-		return err
-	}
-	if err := conv.Users(users); err != nil {
-		return err
-	}
-
-	wi, err := d.src.WorkspaceInfo(ctx)
-	if err != nil {
-		return err
-	}
-	if err := conv.WorkspaceInfo(wi); err != nil {
-		return err
-	}
-
-	return nil
+	return convert(ctx, d.src, conv)
 }
 
 type fileHandler struct {

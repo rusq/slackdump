@@ -48,10 +48,13 @@ func (d Dump) Name() string {
 	return d.name
 }
 
-func (d Dump) Type() string {
-	return "dump"
+func (d Dump) Type() Flags {
+	return FDump
 }
 
+// Channels returns channels for the dump.  It first tries to read the channels
+// from the channels.json file.  If that fails, it will walk the filesystem
+// loading the channel files and extracting channel names and IDs from them.
 func (d Dump) Channels(context.Context) ([]slack.Channel, error) {
 	// if user was diligent enough to dump channels and save them in a file,
 	// we can use that.
@@ -97,11 +100,15 @@ func isDumpJSONFile(name string) bool {
 	return err == nil && match
 }
 
+// Users returns users for the dump.  It first tries to read the users from the
+// users.json file.  If that fails, there's no other way for it to get users,
+// so it will return an empty slice and a nil error.  Dumps may not have user
+// information.
 func (d Dump) Users(context.Context) ([]slack.User, error) {
 	u, err := unmarshal[[]slack.User](d.fs, "users.json")
 	if err != nil {
 		if os.IsNotExist(err) {
-			return []slack.User{}, nil // user db not available
+			return nil, ErrNotFound
 		}
 		return nil, err
 	}
@@ -230,7 +237,7 @@ func (d Dump) WorkspaceInfo(context.Context) (*slack.AuthTestResponse, error) {
 	if err == nil {
 		return &atr, nil
 	}
-	return nil, fs.ErrNotExist
+	return nil, ErrNotFound
 }
 
 func (d Dump) Files() Storage {

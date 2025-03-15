@@ -98,7 +98,7 @@ func runRecord(ctx context.Context, _ *base.Command, args []string) error {
 	defer p.Close()
 
 	// rec := chunk.NewRecorder(w)
-	rec := chunk.NewCustomRecorder("record", p)
+	rec := chunk.NewCustomRecorder(p)
 	for _, ch := range args {
 		lg := cfg.Log.With("channel_id", ch)
 		lg.InfoContext(ctx, "streaming")

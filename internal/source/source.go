@@ -32,14 +32,19 @@ import (
 )
 
 // Sourcer is an interface for retrieving data from different sources.
+// If any of the methods is not supported, it should return ErrNotSupported.
+// If any information is missing, i.e. no channels, it should return
+// ErrNotFound.
 //
 //go:generate mockgen -destination=mock_source/mock_source.go . Sourcer,Storage
 type Sourcer interface {
 	// Name should return the name of the retriever underlying media, i.e.
 	// directory or archive.
 	Name() string
-	// Type should return the type of the retriever, i.e. "chunk" or "export".
-	Type() string
+	// Type should return the flag that describes the type of the source.
+	// It may not have all the flags set, but it should have at least one
+	// identifying the source type.
+	Type() Flags
 	// Channels should return all channels.
 	Channels(ctx context.Context) ([]slack.Channel, error)
 	// Users should return all users.
@@ -64,7 +69,6 @@ type Sourcer interface {
 	// Avatars should return the avatar [Storage].
 	Avatars() Storage
 	// WorkspaceInfo should return the workspace information, if it is available.
-	// If the call is not supported, it should return ErrNotSupported.
 	WorkspaceInfo(ctx context.Context) (*slack.AuthTestResponse, error)
 }
 
@@ -81,7 +85,12 @@ type SourceCloseResumer interface {
 	io.Closer
 }
 
-var ErrNotSupported = errors.New("feature not supported")
+var (
+	// ErrNotSupported is returned if the method is not supported.
+	ErrNotSupported = errors.New("method not supported")
+	// ErrNotFound is returned if the data is missing or not found.
+	ErrNotFound = errors.New("no data found")
+)
 
 type Flags int8
 

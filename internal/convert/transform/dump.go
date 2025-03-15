@@ -200,17 +200,17 @@ func stdThread(ctx context.Context, cf source.Sourcer, ci *slack.Channel, thread
 }
 
 // Users writes the users to the filesystem.
-func (dw *DumpConverter) Users(uu []slack.User) error {
+func (dw *DumpConverter) Users(_ context.Context, uu []slack.User) error {
 	return marshalFormatted(dw.fsa, "users.json", uu)
 }
 
 // Channels writes the channels to the filesystem.
-func (dw *DumpConverter) Channels(cc []slack.Channel) error {
+func (dw *DumpConverter) Channels(_ context.Context, cc []slack.Channel) error {
 	return marshalFormatted(dw.fsa, "channels.json", cc)
 }
 
 // WorkspaceInfo writes the workspace info to the filesystem.
-func (dw *DumpConverter) WorkspaceInfo(wi *slack.AuthTestResponse) error {
+func (dw *DumpConverter) WorkspaceInfo(_ context.Context, wi *slack.AuthTestResponse) error {
 	return marshalFormatted(dw.fsa, "workspace.json", wi)
 }
 

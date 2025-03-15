@@ -52,7 +52,7 @@ func NewRecorder(w io.Writer, options ...Option) *Recorder {
 }
 
 // NewCustomRecorder creates a new recorder with a custom encoder.
-func NewCustomRecorder(name string, enc Encoder, options ...Option) *Recorder {
+func NewCustomRecorder(enc Encoder, options ...Option) *Recorder {
 	rec := &Recorder{
 		enc: enc,
 	}

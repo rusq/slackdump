@@ -78,8 +78,8 @@ func (d *Database) Name() string {
 	return d.name
 }
 
-func (d *Database) Type() string {
-	return "database"
+func (d *Database) Type() Flags {
+	return FDatabase
 }
 
 func (d *Database) Files() Storage {

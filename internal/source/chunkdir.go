@@ -143,8 +143,8 @@ func (c *ChunkDir) Name() string {
 	return c.d.Name()
 }
 
-func (c *ChunkDir) Type() string {
-	return "chunk"
+func (c *ChunkDir) Type() Flags {
+	return FChunk
 }
 
 func (c *ChunkDir) Users(context.Context) ([]slack.User, error) {
