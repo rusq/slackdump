@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"iter"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -13,7 +14,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/rusq/slackdump/v3/internal/chunk/transform/fileproc"
+	"github.com/rusq/slackdump/v3/internal/convert/transform/fileproc"
+
 	"github.com/rusq/slackdump/v3/internal/source"
 
 	"github.com/rusq/fsadapter"
@@ -153,7 +155,7 @@ func download(ctx context.Context, archive, target string, dry bool) error {
 	}
 	defer zr.Close()
 
-	src, err := source.NewExport(zr, archive)
+	src, err := source.OpenExport(zr, archive)
 	if err != nil {
 		return err
 	}
@@ -179,8 +181,8 @@ func download(ctx context.Context, archive, target string, dry bool) error {
 //go:generate mockgen -destination=hydrate_mock_test.go -package=diag -source hydrate.go sourcer
 type sourcer interface {
 	Channels(ctx context.Context) ([]slack.Channel, error)
-	AllMessages(channelID string) ([]slack.Message, error)
-	AllThreadMessages(channelID, threadTimestamp string) ([]slack.Message, error)
+	AllMessages(ctx context.Context, channelID string) (iter.Seq2[slack.Message, error], error)
+	AllThreadMessages(ctx context.Context, channelID, threadTimestamp string) (iter.Seq2[slack.Message, error], error)
 }
 
 func downloadFiles(ctx context.Context, d downloader.GetFiler, trg fsadapter.FS, src sourcer) error {
@@ -198,22 +200,28 @@ func downloadFiles(ctx context.Context, d downloader.GetFiler, trg fsadapter.FS,
 	}
 
 	for _, ch := range channels {
-		msgs, err := src.AllMessages(ch.ID)
+		itMsgs, err := src.AllMessages(ctx, ch.ID)
 		if err != nil {
 			return fmt.Errorf("error reading messages in channel %s: %w", ch.ID, err)
 		}
-		for _, m := range msgs {
+		for m, err := range itMsgs {
+			if err != nil {
+				return fmt.Errorf("error reading message in channel %s: %w", ch.ID, err)
+			}
 			if len(m.Files) > 0 {
 				if err := proc.Files(ctx, &ch, m, m.Files); err != nil {
 					return fmt.Errorf("error processing files in message %s: %w", m.Timestamp, err)
 				}
 			}
 			if structures.IsThreadStart(&m) {
-				tm, err := src.AllThreadMessages(ch.ID, m.ThreadTimestamp)
+				itTm, err := src.AllThreadMessages(ctx, ch.ID, m.ThreadTimestamp)
 				if err != nil {
 					return fmt.Errorf("error reading thread messages for message %s in channel %s: %w", m.Timestamp, ch.ID, err)
 				}
-				for _, tm := range tm {
+				for tm, err := range itTm {
+					if err != nil {
+						return fmt.Errorf("error reading thread message %s in channel %s: %w", tm.Timestamp, ch.ID, err)
+					}
 					if len(tm.Files) > 0 {
 						if err := proc.Files(ctx, &ch, tm, tm.Files); err != nil {
 							return fmt.Errorf("error processing files in thread message %s: %w", tm.Timestamp, err)

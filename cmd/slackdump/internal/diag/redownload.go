@@ -8,6 +8,8 @@ import (
 	"os"
 	"path/filepath"
 
+	fileproc2 "github.com/rusq/slackdump/v3/internal/convert/transform/fileproc"
+
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/slack"
 
@@ -15,7 +17,6 @@ import (
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/internal/chunk"
-	"github.com/rusq/slackdump/v3/internal/chunk/transform/fileproc"
 	"github.com/rusq/slackdump/v3/internal/source"
 	"github.com/rusq/slackdump/v3/internal/structures"
 	"github.com/rusq/slackdump/v3/processor"
@@ -109,7 +110,7 @@ func redownload(ctx context.Context, dir string) (int, error) {
 	if err != nil {
 		return 0, fmt.Errorf("error creating slackdump session: %w", err)
 	}
-	dl := fileproc.NewDownloader(
+	dl := fileproc2.NewDownloader(
 		ctx,
 		true,
 		sess.Client(),
@@ -118,7 +119,7 @@ func redownload(ctx context.Context, dir string) (int, error) {
 	)
 	defer dl.Stop()
 	// we are using the same file subprocessor as the mattermost export.
-	fproc := fileproc.New(dl)
+	fproc := fileproc2.New(dl)
 
 	total := 0
 	for _, ch := range channels {
@@ -139,7 +140,7 @@ func redlChannel(ctx context.Context, fp processor.Filer, cd *chunk.Directory, c
 		return 0, fmt.Errorf("error reading messages: %w", err)
 	}
 	defer f.Close()
-	msgs, err := f.AllMessages(ch.ID)
+	msgs, err := f.AllMessages(ctx, ch.ID)
 	if err != nil {
 		return 0, fmt.Errorf("error reading messages: %w", err)
 	}
@@ -170,7 +171,7 @@ func scanMsgs(ctx context.Context, fp processor.Filer, cd *chunk.Directory, f *c
 		// collect all missing files from the message.
 		var missing []slack.File
 		for _, ff := range m.Files {
-			name := filepath.Join(cd.Name(), fileproc.MattermostFilepath(ch, &ff))
+			name := filepath.Join(cd.Name(), source.MattermostFilepath(ch, &ff))
 			lg := lg.With("file", name)
 			lg.Debug("checking file")
 			if fi, err := os.Stat(name); err != nil {

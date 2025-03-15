@@ -4,10 +4,12 @@ import (
 	"context"
 	"errors"
 	"io/fs"
+	"iter"
 	"log/slog"
 	"os"
 	"path"
 	"path/filepath"
+	"sort"
 	"time"
 
 	"github.com/rusq/slack"
@@ -17,21 +19,21 @@ import (
 )
 
 type Dump struct {
-	c    []slack.Channel
-	fs   fs.FS
-	name string
-	Storage
+	c     []slack.Channel
+	fs    fs.FS
+	name  string
+	files Storage
 }
 
-func NewDump(ctx context.Context, fsys fs.FS, name string) (*Dump, error) {
+func OpenDump(ctx context.Context, fsys fs.FS, name string) (*Dump, error) {
 	var st Storage = fstNotFound{}
 	if fst, err := NewDumpStorage(fsys); err == nil {
 		st = fst
 	}
 	d := &Dump{
-		fs:      fsys,
-		name:    name,
-		Storage: st,
+		fs:    fsys,
+		name:  name,
+		files: st,
 	}
 	// initialise channels for quick lookup
 	c, err := d.Channels(ctx)
@@ -46,10 +48,13 @@ func (d Dump) Name() string {
 	return d.name
 }
 
-func (d Dump) Type() string {
-	return "dump"
+func (d Dump) Type() Flags {
+	return FDump
 }
 
+// Channels returns channels for the dump.  It first tries to read the channels
+// from the channels.json file.  If that fails, it will walk the filesystem
+// loading the channel files and extracting channel names and IDs from them.
 func (d Dump) Channels(context.Context) ([]slack.Channel, error) {
 	// if user was diligent enough to dump channels and save them in a file,
 	// we can use that.
@@ -95,18 +100,22 @@ func isDumpJSONFile(name string) bool {
 	return err == nil && match
 }
 
-func (d Dump) Users() ([]slack.User, error) {
+// Users returns users for the dump.  It first tries to read the users from the
+// users.json file.  If that fails, there's no other way for it to get users,
+// so it will return an empty slice and a nil error.  Dumps may not have user
+// information.
+func (d Dump) Users(context.Context) ([]slack.User, error) {
 	u, err := unmarshal[[]slack.User](d.fs, "users.json")
 	if err != nil {
 		if os.IsNotExist(err) {
-			return []slack.User{}, nil // user db not available
+			return nil, ErrNotFound
 		}
 		return nil, err
 	}
 	return u, nil
 }
 
-func (d Dump) AllMessages(channelID string) ([]slack.Message, error) {
+func (d Dump) AllMessages(_ context.Context, channelID string) (iter.Seq2[slack.Message, error], error) {
 	var cm []types.Message
 	c, err := unmarshalOne[types.Conversation](d.fs, d.channelFile(channelID))
 	if err != nil {
@@ -152,15 +161,18 @@ func (d Dump) threadHeadMessages(channelID string) ([]types.Message, error) {
 	return cm, nil
 }
 
-func convertMessages(cm []types.Message) []slack.Message {
-	mm := make([]slack.Message, len(cm))
-	for i := range cm {
-		mm[i] = cm[i].Message
+func convertMessages(cm []types.Message) iter.Seq2[slack.Message, error] {
+	iterFn := func(yield func(slack.Message, error) bool) {
+		for _, m := range cm {
+			if !yield(m.Message, nil) {
+				return
+			}
+		}
 	}
-	return mm
+	return iterFn
 }
 
-func (d Dump) AllThreadMessages(channelID, threadID string) ([]slack.Message, error) {
+func (d Dump) AllThreadMessages(_ context.Context, channelID, threadID string) (iter.Seq2[slack.Message, error], error) {
 	cm, err := d.findThreadInChannel(channelID, threadID)
 	if err != nil {
 		if !os.IsNotExist(err) {
@@ -220,6 +232,41 @@ func (d Dump) Latest(ctx context.Context) (map[structures.SlackLink]time.Time, e
 	return nil, errors.New("not supported yet")
 }
 
-func (d Dump) WorkspaceInfo() (*slack.AuthTestResponse, error) {
-	return nil, ErrNotSupported
+func (d Dump) WorkspaceInfo(context.Context) (*slack.AuthTestResponse, error) {
+	atr, err := unmarshalOne[slack.AuthTestResponse](d.fs, "workspace.json")
+	if err == nil {
+		return &atr, nil
+	}
+	return nil, ErrNotFound
+}
+
+func (d Dump) Files() Storage {
+	return d.files
+}
+
+func (d Dump) Avatars() Storage {
+	// Dump does not support avatars.
+	return fstNotFound{}
+}
+
+func (d *Dump) Sorted(ctx context.Context, channelID string, desc bool, cb func(ts time.Time, msg *slack.Message) error) error {
+	c, err := unmarshalOne[types.Conversation](d.fs, d.channelFile(channelID))
+	if err != nil {
+		return err
+	}
+	if desc {
+		sort.Slice(c.Messages, func(i, j int) bool {
+			return c.Messages[i].Timestamp > c.Messages[j].Timestamp
+		})
+	}
+	for _, m := range c.Messages {
+		ts, err := structures.ParseSlackTS(m.Timestamp)
+		if err != nil {
+			return err
+		}
+		if err := cb(ts, &m.Message); err != nil {
+			return err
+		}
+	}
+	return nil
 }

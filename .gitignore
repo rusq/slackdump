@@ -36,7 +36,6 @@ secrets.*
 cmd/slackdump/slackdump
 cmd/sdconv/sdconv
 /slackdump
-/TODO.*
 /*.txt
 *~
 *.swp
@@ -66,3 +65,9 @@ debug.test*
 !internal/viewer/templates/*.html
 !internal/viewer/renderer/templates/*.html
 !internal/fixtures/**/*.json
+*.sqlite*
+*.db
+# profiler files
+*.pprof
+*.prof
+*.pf

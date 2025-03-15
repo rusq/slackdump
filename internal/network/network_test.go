@@ -39,9 +39,9 @@ func calcExpRunDuration(attempts int) time.Duration {
 
 // errRateFnFn will return slack.RateLimitedError for numAttempts time and err
 // after.
-func errRateFnFn(numAttempts int, retryAfter time.Duration, err error) func() error {
+func errRateFnFn(numAttempts int, retryAfter time.Duration, err error) func(ctx context.Context) error {
 	i := 0
-	return func() error {
+	return func(ctx context.Context) error {
 		if i < numAttempts {
 			i++
 			return &slack.RateLimitedError{RetryAfter: retryAfter}
@@ -51,9 +51,9 @@ func errRateFnFn(numAttempts int, retryAfter time.Duration, err error) func() er
 }
 
 // errSeqFn will return err for forTimes time and thenErr after.
-func errSeqFn(err error, forTimes int, thenErr error) func() error {
+func errSeqFn(err error, forTimes int, thenErr error) func(ctx context.Context) error {
 	i := 0
-	return func() error {
+	return func(ctx context.Context) error {
 		if i < forTimes {
 			i++
 			return err
@@ -75,7 +75,7 @@ func TestWithRetry(t *testing.T) {
 		ctx         context.Context
 		l           *rate.Limiter
 		maxAttempts int
-		fn          func() error
+		fn          func(context.Context) error
 	}
 	tests := []struct {
 		name           string
@@ -89,7 +89,7 @@ func TestWithRetry(t *testing.T) {
 				context.Background(),
 				rate.NewLimiter(testRateLimit, 1),
 				3,
-				func() error {
+				func(ctx context.Context) error {
 					return nil
 				},
 			},
@@ -102,7 +102,7 @@ func TestWithRetry(t *testing.T) {
 				context.Background(),
 				rate.NewLimiter(testRateLimit, 1),
 				3,
-				func() error {
+				func(ctx context.Context) error {
 					return errors.New("it was at this moment he knew:  he fucked up")
 				},
 			},
@@ -229,7 +229,7 @@ func TestWithRetry(t *testing.T) {
 
 				start := time.Now()
 				// Call the client with a retry.
-				err := WithRetry(context.Background(), rate.NewLimiter(1, 1), testRetryCount, func() error {
+				err := WithRetry(context.Background(), rate.NewLimiter(1, 1), testRetryCount, func(ctx context.Context) error {
 					_, err := client.GetConversationHistory(&slack.GetConversationHistoryParameters{})
 					if err == nil {
 						return errors.New("expected error, got nil")
@@ -262,7 +262,7 @@ func TestWithRetry(t *testing.T) {
 
 			// Call the client with a retry.
 			start := time.Now()
-			err := WithRetry(context.Background(), rate.NewLimiter(1, 1), testRetryCount, func() error {
+			err := WithRetry(context.Background(), rate.NewLimiter(1, 1), testRetryCount, func(ctx context.Context) error {
 				_, err := client.GetConversationHistory(&slack.GetConversationHistoryParameters{})
 				if err == nil {
 					return errors.New("expected error, got nil")
@@ -286,7 +286,7 @@ func TestWithRetry(t *testing.T) {
 		var retries int
 
 		ctx := context.Background()
-		err := WithRetry(ctx, rate.NewLimiter(1, 1), 3, func() error {
+		err := WithRetry(ctx, rate.NewLimiter(1, 1), 3, func(ctx context.Context) error {
 			err := reterr[retries]
 			if err != nil {
 				retries++
@@ -299,7 +299,7 @@ func TestWithRetry(t *testing.T) {
 	t.Run("meaningful error message", func(t *testing.T) {
 		setWaitFunc(func(attempt int) time.Duration { return 50 * time.Millisecond })
 		t.Cleanup(func() { setWaitFunc(cubicWait) })
-		errFunc := func() error {
+		errFunc := func(ctx context.Context) error {
 			return slack.StatusCodeError{Code: 500, Status: "Internal Server Error"}
 		}
 		err := WithRetry(context.Background(), rate.NewLimiter(1, 1), 1, errFunc)

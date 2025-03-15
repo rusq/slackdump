@@ -181,7 +181,7 @@ func (cs *Stream) channel(ctx context.Context, req request, callback func(mm []s
 	cursor := ""
 	for {
 		var resp *slack.GetConversationHistoryResponse
-		if err := network.WithRetry(ctx, cs.limits.channels, cs.limits.tier.Tier3.Retries, func() error {
+		if err := network.WithRetry(ctx, cs.limits.channels, cs.limits.tier.Tier3.Retries, func(ctx context.Context) error {
 			var apiErr error
 			r := trace.StartRegion(ctx, "GetConversationHistoryContext")
 			defer r.End()
@@ -239,7 +239,7 @@ func (cs *Stream) thread(ctx context.Context, req request, callback func(mm []sl
 			msgs    []slack.Message
 			hasmore bool
 		)
-		if err := network.WithRetry(ctx, cs.limits.threads, cs.limits.tier.Tier3.Retries, func() error {
+		if err := network.WithRetry(ctx, cs.limits.threads, cs.limits.tier.Tier3.Retries, func(ctx context.Context) error {
 			var apiErr error
 			msgs, hasmore, cursor, apiErr = cs.client.GetConversationRepliesContext(ctx, &slack.GetConversationRepliesParameters{
 				ChannelID: req.sl.Channel,
@@ -288,12 +288,12 @@ func procChanMsg(ctx context.Context, proc processor.Conversations, threadC chan
 		// "expected" threads to processor, to ensure that processor will
 		// start processing the channel and will have the initial reference
 		// count, if it needs it.
-		if mm[i].Msg.ThreadTimestamp != "" && mm[i].Msg.SubType != structures.SubTypeThreadBroadcast && mm[i].LatestReply != structures.LatestReplyNoReplies {
-			lg.DebugContext(ctx, "- message", "i", i, "thread", mm[i].Timestamp, "thread_ts", mm[i].Msg.ThreadTimestamp)
+		if mm[i].ThreadTimestamp != "" && mm[i].SubType != structures.SubTypeThreadBroadcast && mm[i].LatestReply != structures.LatestReplyNoReplies {
+			lg.DebugContext(ctx, "- message", "i", i, "thread", mm[i].Timestamp, "thread_ts", mm[i].ThreadTimestamp)
 			trs = append(trs, request{
 				sl: &structures.SlackLink{
 					Channel:  channel.ID,
-					ThreadTS: mm[i].Msg.ThreadTimestamp,
+					ThreadTS: mm[i].ThreadTimestamp,
 				},
 			})
 		}
@@ -305,7 +305,7 @@ func procChanMsg(ctx context.Context, proc processor.Conversations, threadC chan
 		if len(mm) == 0 {
 			return 0, fmt.Errorf("channel %s: failed to process empty message chunk: %w", channel.ID, err)
 		}
-		return 0, fmt.Errorf("channel %s: failed to process message chunk starting with id=%s (size=%d): %w", channel.ID, mm[0].Msg.Timestamp, len(mm), err)
+		return 0, fmt.Errorf("channel %s: failed to process message chunk starting with id=%s (size=%d): %w", channel.ID, mm[0].Timestamp, len(mm), err)
 	}
 	for _, tr := range trs {
 		threadC <- tr
@@ -360,7 +360,7 @@ func (cs *Stream) procChannelInfo(ctx context.Context, proc processor.ChannelInf
 	// to avoid fetching the same channel info multiple times, we cache it.
 	var info *slack.Channel
 	if info = cs.chanCache.get(channelID); info == nil {
-		if err := network.WithRetry(ctx, cs.limits.channels, cs.limits.tier.Tier3.Retries, func() error {
+		if err := network.WithRetry(ctx, cs.limits.channels, cs.limits.tier.Tier3.Retries, func(ctx context.Context) error {
 			var err error
 			info, err = cs.client.GetConversationInfoContext(ctx, &slack.GetConversationInfoInput{
 				ChannelID:         channelID,
@@ -390,7 +390,7 @@ func (cs *Stream) procChannelUsers(ctx context.Context, proc processor.ChannelIn
 	for {
 		var u []string
 		var next string
-		if err := network.WithRetry(ctx, cs.limits.channels, cs.limits.tier.Tier4.Retries, func() error {
+		if err := network.WithRetry(ctx, cs.limits.channels, cs.limits.tier.Tier4.Retries, func(ctx context.Context) error {
 			var err error
 			u, next, err = cs.client.GetUsersInConversationContext(ctx, &slack.GetUsersInConversationParameters{
 				ChannelID: channelID,
@@ -419,7 +419,7 @@ func (cs *Stream) procChannelUsers(ctx context.Context, proc processor.ChannelIn
 // procChannelInfoWithUsers returns the slack channel with members populated from
 // another api.
 func (cs *Stream) procChannelInfoWithUsers(ctx context.Context, proc processor.ChannelInformer, channelID, threadTS string) (*slack.Channel, error) {
-	var eg errgroup.Group
+	eg, ctx := errgroup.WithContext(ctx)
 
 	chC := make(chan slack.Channel, 1)
 	eg.Go(func() error {

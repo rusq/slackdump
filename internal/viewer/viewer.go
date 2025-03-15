@@ -57,9 +57,13 @@ func New(ctx context.Context, addr string, r source.Sourcer) (*Viewer, error) {
 	}
 	cc := initChannels(all)
 
-	uu, err := r.Users()
+	uu, err := r.Users(ctx)
 	if err != nil {
-		return nil, err
+		if errors.Is(err, source.ErrNotFound) {
+			uu = []slack.User{}
+		} else {
+			return nil, err
+		}
 	}
 	um := st.NewUserIndex(uu)
 
@@ -78,7 +82,7 @@ func New(ctx context.Context, addr string, r source.Sourcer) (*Viewer, error) {
 			renderer.WithUsers(indexusers(uu)),
 			renderer.WithChannels(indexchannels(all)),
 		}
-		if wi, err := r.WorkspaceInfo(); err == nil {
+		if wi, err := r.WorkspaceInfo(ctx); err == nil {
 			opts = append(opts, renderer.WithReplaceURL(wi.URL, normalise(addr)))
 		}
 		v.r = renderer.NewSlack(

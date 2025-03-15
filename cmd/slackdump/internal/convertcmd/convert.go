@@ -4,15 +4,12 @@ import (
 	"context"
 	_ "embed"
 	"errors"
+	"io/fs"
+	"os"
 	"time"
-
-	"github.com/rusq/fsadapter"
 
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
-	"github.com/rusq/slackdump/v3/internal/chunk"
-	"github.com/rusq/slackdump/v3/internal/chunk/transform/fileproc"
-	"github.com/rusq/slackdump/v3/internal/convert"
 	"github.com/rusq/slackdump/v3/internal/source"
 )
 
@@ -20,35 +17,57 @@ import (
 var convertMd string
 
 var CmdConvert = &base.Command{
-	Run:       runConvert,
-	UsageLine: "slackdump convert [flags] <source>",
-	Short:     "convert slackdump chunks to various formats",
-	Long: `# Convert Command
-Convert slackdump archive format to various formats.
-
-Currently only "export" format is supported.
-`,
+	Run:         runConvert,
+	UsageLine:   "slackdump convert [flags] <source>",
+	Short:       "convert slackdump chunks to various formats",
+	Long:        convertMd,
 	CustomFlags: false,
 	FlagMask:    cfg.OmitAll & ^cfg.OmitDownloadFlag &^ cfg.OmitOutputFlag &^ cfg.OmitDownloadAvatarsFlag,
 	PrintFlags:  true,
 }
 
+var (
+	// ErrFormat is returned when the target format is not supported.
+	ErrFormat = errors.New("unsupported target format")
+	// ErrSource is returned when the source type is not supported for the chosen target type.
+	ErrSource = errors.New("unsupported source type")
+	// ErrStorage is returned when the storage type is not supported.
+	ErrStorage = errors.New("unsupported storage type")
+)
+
 type tparams struct {
-	storageType fileproc.StorageType
-	inputfmt    datafmt
-	outputfmt   datafmt
+	storageType source.StorageType
+	sessionID   int64
 }
 
-var params = tparams{
-	storageType: fileproc.STmattermost,
-	inputfmt:    Fchunk,
-	outputfmt:   Fexport,
+type convertFunc func(ctx context.Context, input, output string, cflg convertflags) error
+
+var converters = map[datafmt]convertFunc{
+	Fdump:     toDump,
+	Fexport:   toExport,
+	Fchunk:    toChunk,
+	Fdatabase: toDatabase,
+}
+
+type convertflags struct {
+	includeFiles   bool
+	includeAvatars bool
+	outStorageType source.StorageType
+	sessionID      int64 // sessionID for database->chunk conversion
+	outputfmt      datafmt
+}
+
+var params = convertflags{
+	outStorageType: source.STmattermost,
+	sessionID:      1,
+	outputfmt:      Fexport,
 }
 
 func init() {
-	CmdConvert.Flag.Var(&params.storageType, "storage", "storage type")
-	CmdConvert.Flag.Var(&params.inputfmt, "input", "input format")
-	CmdConvert.Flag.Var(&params.outputfmt, "output", "output format")
+	CmdConvert.Flag.Var(&params.outStorageType, "storage", "storage type")
+	CmdConvert.Flag.Var(&params.outputfmt, "format", "output `format`")
+	CmdConvert.Flag.Var(&params.outputfmt, "f", "shorthand for -format")
+	CmdConvert.Flag.Int64Var(&params.sessionID, "session", params.sessionID, "session `id` for database->chunk conversion")
 }
 
 func runConvert(ctx context.Context, cmd *base.Command, args []string) error {
@@ -56,22 +75,24 @@ func runConvert(ctx context.Context, cmd *base.Command, args []string) error {
 		base.SetExitStatus(base.SInvalidParameters)
 		return errors.New("source and destination are required")
 	}
-	fn, exist := converter(params.inputfmt, params.outputfmt)
+	if params.outputfmt == Fdatabase && params.sessionID <= 0 {
+		base.SetExitStatus(base.SInvalidParameters)
+		return errors.New("session id is required for database conversion")
+	}
+	fn, exist := converters[params.outputfmt]
 	if !exist {
 		base.SetExitStatus(base.SInvalidParameters)
-		return errors.New("unsupported conversion type")
+		return ErrFormat
 	}
-
 	lg := cfg.Log
-	lg.InfoContext(ctx, "converting", "input_format", params.inputfmt, "source", args[0], "output_format", params.outputfmt, "output", cfg.Output)
+	lg.InfoContext(ctx, "converting", "source", args[0], "output_format", params.outputfmt)
 
-	cflg := convertflags{
-		withFiles:   cfg.DownloadFiles,
-		withAvatars: cfg.DownloadAvatars,
-		stt:         params.storageType,
-	}
+	// set from the global config
+	params.includeFiles = cfg.WithFiles
+	params.includeAvatars = cfg.WithAvatars
+
 	start := time.Now()
-	if err := fn(ctx, args[0], cfg.Output, cflg); err != nil {
+	if err := fn(ctx, args[0], cfg.Output, params); err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return err
 	}
@@ -80,69 +101,9 @@ func runConvert(ctx context.Context, cmd *base.Command, args []string) error {
 	return nil
 }
 
-func converter(input datafmt, output datafmt) (convertFunc, bool) {
-	if _, ok := converters[input]; !ok {
-		return nil, false
-	}
-	if cvt, ok := converters[input][output]; ok {
-		return cvt, true
-	}
-	return nil, false
-}
-
-type convertFunc func(ctx context.Context, input, output string, cflg convertflags) error
-
-// ..................input.......output..............
-var converters = map[datafmt]map[datafmt]convertFunc{
-	Fchunk: {
-		Fexport: chunk2export,
-	},
-}
-
-type convertflags struct {
-	withFiles   bool
-	withAvatars bool
-	stt         fileproc.StorageType
-}
-
-func chunk2export(ctx context.Context, src, trg string, cflg convertflags) error {
-	st, err := source.Type(src)
-	if err != nil {
+func copyfiles(trgdir string, fs fs.FS) error {
+	if err := os.MkdirAll(trgdir, 0o755); err != nil {
 		return err
 	}
-	cd, err := chunk.OpenDir(src)
-	if err != nil {
-		return err
-	}
-	defer cd.Close()
-	fsa, err := fsadapter.New(trg)
-	if err != nil {
-		return err
-	}
-	defer fsa.Close()
-
-	sttFn, ok := fileproc.StorageTypeFuncs[cflg.stt]
-	if !ok {
-		return errors.New("unknown storage type")
-	}
-
-	var (
-		includeFiles   = cflg.withFiles && (st&source.FMattermost != 0)
-		includeAvatars = cflg.withAvatars && (st&source.FAvatars != 0)
-	)
-
-	cvt := convert.NewChunkToExport(
-		cd,
-		fsa,
-		convert.WithIncludeFiles(includeFiles),
-		convert.WithIncludeAvatars(includeAvatars),
-		convert.WithSrcFileLoc(sttFn),
-		convert.WithTrgFileLoc(sttFn),
-		convert.WithLogger(cfg.Log),
-	)
-	if err := cvt.Convert(ctx); err != nil {
-		return err
-	}
-
-	return nil
+	return os.CopyFS(trgdir, fs)
 }

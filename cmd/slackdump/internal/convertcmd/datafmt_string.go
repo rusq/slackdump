@@ -11,11 +11,12 @@ func _() {
 	_ = x[Fdump-0]
 	_ = x[Fexport-1]
 	_ = x[Fchunk-2]
+	_ = x[Fdatabase-3]
 }
 
-const _datafmt_name = "dumpexportchunk"
+const _datafmt_name = "dumpexportchunkdatabase"
 
-var _datafmt_index = [...]uint8{0, 4, 10, 15}
+var _datafmt_index = [...]uint8{0, 4, 10, 15, 23}
 
 func (i datafmt) String() string {
 	if i >= datafmt(len(_datafmt_index)-1) {

@@ -110,7 +110,7 @@ func generateThread(ctx context.Context, client *slack.Client, channelID string,
 	pb.Describe("posting messages")
 	defer func() { _ = pb.Finish() }()
 	for i := 0; i < numMsg; i++ {
-		if err := network.WithRetry(ctx, l, 3, func() error {
+		if err := network.WithRetry(ctx, l, 3, func(ctx context.Context) error {
 			_, _, err := client.PostMessageContext(ctx, channelID, slack.MsgOptionTS(ts), slack.MsgOptionText(fmt.Sprintf("message: %d", i), false))
 			return err
 		}); err != nil {
@@ -148,7 +148,7 @@ func delMessages(ctx context.Context, client *slack.Client, channelID string, ms
 
 	l := network.NewLimiter(network.Tier3, network.DefLimits.Tier3.Burst, int(network.DefLimits.Tier3.Boost))
 	for _, m := range msgs {
-		err := network.WithRetry(ctx, l, 3, func() error {
+		err := network.WithRetry(ctx, l, 3, func(ctx context.Context) error {
 			_, _, err := client.DeleteMessageContext(ctx, channelID, m.Timestamp)
 			return err
 		})

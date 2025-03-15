@@ -11,6 +11,10 @@ const tempMask = "osext-*"
 // UnGZIP decompresses a gzip file and returns a temporary file handler.
 // it must be removed after use.  It expects r to contain a gzip file data.
 func UnGZIP(r io.Reader) (*os.File, error) {
+	return UnGZIPTo(r, "", tempMask)
+}
+
+func UnGZIPTo(r io.Reader, dir, mask string) (*os.File, error) {
 	gr, err := gzip.NewReader(r)
 	if err != nil {
 		return nil, err

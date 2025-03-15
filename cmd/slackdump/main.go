@@ -14,7 +14,9 @@ import (
 
 	"github.com/charmbracelet/huh"
 	"github.com/joho/godotenv"
-	"github.com/rusq/tracer"
+
+	_ "modernc.org/sqlite"
+	// _ "github.com/mattn/go-sqlite3"
 
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/apiconfig"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/archive"
@@ -29,6 +31,7 @@ import (
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/help"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/list"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/man"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/resume"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/view"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/wizard"
@@ -43,7 +46,7 @@ func init() {
 		export.CmdExport,
 		dump.CmdDump,
 		archive.CmdSearch,
-		// resume.CmdResume,
+		resume.CmdResume,
 		convertcmd.CmdConvert,
 		list.CmdList,
 		emoji.CmdEmoji,
@@ -177,6 +180,13 @@ func invoke(cmd *base.Command, args []string) error {
 	// maybe start trace
 	traceStop := initTrace(cfg.TraceFile)
 	base.AtExit(traceStop)
+	cpuProfStop := initCPUProfile(cfg.CPUProfile)
+	base.AtExit(cpuProfStop)
+	if cfg.MEMProfile != "" {
+		base.AtExit(func() {
+			writeMemProfile(cfg.MEMProfile)
+		})
+	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
@@ -225,73 +235,6 @@ func parseFlags(cmd *base.Command, args []string) ([]string, error) {
 		return nil, err
 	}
 	return cmd.Flag.Args(), nil
-}
-
-// initTrace initialises the tracing.  If the filename is not empty, the file
-// will be opened, trace will write to that file.  Returns the stop function
-// that must be called in the deferred call.  If the error is returned the stop
-// function is nil.
-func initTrace(filename string) (stop func()) {
-	stop = func() {}
-	if filename == "" {
-		return
-	}
-
-	slog.Info("trace will be written to", "filename", filename)
-
-	trc := tracer.New(filename)
-	if err := trc.Start(); err != nil {
-		slog.Warn("failed to start the trace", "filename", filename, "error", err)
-		return
-	}
-
-	stop = func() {
-		if err := trc.End(); err != nil {
-			slog.Warn("failed to write the trace file", "filename", filename, "error", err)
-		}
-	}
-	return
-}
-
-// initLog initialises the logging and returns the context with the Logger. If the
-// filename is not empty, the file will be opened, and the logger output will
-// be switch to that file. Returns the initialised logger, stop function and
-// an error, if any. The stop function must be called in the deferred call, it
-// will close the log file, if it is open. If the error is returned the stop
-// function is nil.
-func initLog(filename string, jsonHandler bool, verbose bool) (*slog.Logger, error) {
-	if verbose {
-		slog.SetLogLoggerLevel(slog.LevelDebug)
-	}
-	opts := &slog.HandlerOptions{
-		Level: iftrue(verbose, slog.LevelDebug, slog.LevelInfo),
-	}
-	if jsonHandler {
-		slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stderr, opts)))
-	}
-	if filename != "" {
-		slog.Debug("log messages will be written to file", "filename", filename)
-		lf, err := os.OpenFile(filename, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o666)
-		if err != nil {
-			return slog.Default(), fmt.Errorf("failed to create the log file: %w", err)
-		}
-		log.SetOutput(lf) // redirect the standard log to the file just in case, panics will be logged there.
-
-		var h slog.Handler = slog.NewTextHandler(lf, opts)
-		if jsonHandler {
-			h = slog.NewJSONHandler(lf, opts)
-		}
-
-		sl := slog.New(h)
-		slog.SetDefault(sl)
-		base.AtExit(func() {
-			if err := lf.Close(); err != nil {
-				slog.Error("failed to close the log file", "error", err)
-			}
-		})
-	}
-
-	return slog.Default(), nil
 }
 
 func iftrue[T any](cond bool, t T, f T) T {

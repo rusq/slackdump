@@ -84,7 +84,7 @@ func (cl *Client) AdminEmojiList(ctx context.Context) iter.Seq2[EmojiResult, err
 				yield(res, err)
 				return
 			}
-			var r = emojiResponse{
+			r := emojiResponse{
 				EmojiResult: EmojiResult{
 					Emoji: make([]Emoji, 0, 100),
 				},
@@ -100,7 +100,7 @@ func (cl *Client) AdminEmojiList(ctx context.Context) iter.Seq2[EmojiResult, err
 			if r.Paging.isLastPage() {
 				return
 			}
-			req.Paging.nextPage()
+			req.nextPage()
 		}
 	}
 }
@@ -133,7 +133,7 @@ func (cl *Client) AdminEmojiListFull(ctx context.Context) (EmojiResult, error) {
 		if r.Paging.isLastPage() {
 			break
 		}
-		req.Paging.nextPage()
+		req.nextPage()
 		if err := l.Wait(ctx); err != nil {
 			return res, err
 		}
