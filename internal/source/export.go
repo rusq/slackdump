@@ -98,6 +98,9 @@ func (e *Export) Type() Flags {
 func (e *Export) AllMessages(_ context.Context, channelID string) (iter.Seq2[slack.Message, error], error) {
 	it, err := e.walkChannelMessages(channelID)
 	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil, ErrNotFound
+		}
 		return nil, err
 	}
 	return func(yield func(slack.Message, error) bool) {
@@ -162,6 +165,9 @@ func (e *Export) walkChannelMessages(channelID string) (iter.Seq2[slack.Message,
 func (e *Export) AllThreadMessages(_ context.Context, channelID, threadID string) (iter.Seq2[slack.Message, error], error) {
 	it, err := e.walkChannelMessages(channelID)
 	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil, ErrNotFound
+		}
 		return nil, err
 	}
 	iterFn := func(yield func(slack.Message, error) bool) {

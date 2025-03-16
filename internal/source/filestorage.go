@@ -24,7 +24,7 @@ type Storage interface {
 	// Type should return the storage type.
 	Type() StorageType
 	// File should return the path of the file WITHIN the filesystem returned
-	// by FS().
+	// by FS().  If file is not found, it should return fs.ErrNotExist.
 	File(id string, name string) (string, error)
 	// FilePath should return the path to the file f relative to the root of
 	// the Source (i.e. __uploads/ID/Name.ext).

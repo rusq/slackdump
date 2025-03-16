@@ -6,7 +6,6 @@ import (
 	"io/fs"
 	"iter"
 	"net/http"
-	"os"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -15,6 +14,7 @@ import (
 	"github.com/rusq/slack"
 
 	"github.com/rusq/slackdump/v3/internal/fasttime"
+	"github.com/rusq/slackdump/v3/internal/source"
 	"github.com/rusq/slackdump/v3/internal/structures"
 )
 
@@ -81,7 +81,7 @@ func (v *Viewer) channelHandler(w http.ResponseWriter, r *http.Request, id strin
 	lg := v.lg.With("in", "channelHandler", "channel", id)
 	it, err := v.src.AllMessages(r.Context(), id)
 	if err != nil {
-		if errors.Is(err, fs.ErrNotExist) {
+		if errors.Is(err, source.ErrNotFound) {
 			http.NotFound(w, r)
 			return
 		}
@@ -215,10 +215,10 @@ func (v *Viewer) fileHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	lg := v.lg.With("in", "fileHandler", "id", id, "filename", filename)
-	fs := v.src.Files().FS()
+	fsys := v.src.Files().FS()
 	path, err := v.src.Files().File(id, filename)
 	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
+		if errors.Is(err, fs.ErrNotExist) {
 			http.NotFound(w, r)
 			return
 		}
@@ -227,7 +227,7 @@ func (v *Viewer) fileHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	http.ServeFileFS(w, r, fs, path)
+	http.ServeFileFS(w, r, fsys, path)
 }
 
 func (v *Viewer) userHandler(w http.ResponseWriter, r *http.Request) {

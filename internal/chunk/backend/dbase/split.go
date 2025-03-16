@@ -82,14 +82,7 @@ func (e *ErrInvalidPayload) Error() string {
 // insertPayload calls relevant function to insert the chunk payload.
 func (d *DBP) insertPayload(ctx context.Context, tx repository.PrepareExtContext, dbchunkID int64, c *chunk.Chunk) (int, error) {
 	switch c.Type {
-	case chunk.CMessages:
-		return d.insertMessages(ctx, tx, dbchunkID, c.ChannelID, c.Messages)
-	case chunk.CThreadMessages:
-		// prepend the parent message to the messages slice
-		if c.Parent == nil {
-			return 0, &ErrInvalidPayload{Type: c.Type, ChannelID: c.ChannelID, Reason: "parent message is nil"}
-		}
-		c.Messages = append([]slack.Message{*c.Parent}, c.Messages...)
+	case chunk.CMessages, chunk.CThreadMessages:
 		return d.insertMessages(ctx, tx, dbchunkID, c.ChannelID, c.Messages)
 	case chunk.CFiles:
 		return d.insertFiles(ctx, tx, dbchunkID, c.ChannelID, c.ThreadTS, c.Parent.Timestamp, c.Files)

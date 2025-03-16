@@ -154,7 +154,7 @@ func (p *Player) Thread(channelID string, threadTS string) ([]slack.Message, err
 	if err != nil {
 		return nil, err
 	}
-	return append([]slack.Message{*chunk.Parent}, chunk.Messages...), nil
+	return chunk.Messages, nil
 }
 
 // Reset resets the state of the Player.

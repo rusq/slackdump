@@ -101,8 +101,8 @@ func TestFlags_String(t *testing.T) {
 		f    Flags
 		want string
 	}{
-		{"unknown", 0, "........"},
-		{"FChunk", FChunk, ".....C.."},
+		{"unknown", 0, "unknown"},
+		{"FChunk", FChunk, "chunk"},
 		{"FDatabase|FMattermost", FDatabase | FDirectory, "..D....d"},
 		{"all", FDatabase | FDump | FExport | FChunk | FZip | FDirectory, "..DUECzd"},
 	}

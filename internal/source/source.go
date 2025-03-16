@@ -31,10 +31,10 @@ import (
 	"github.com/rusq/slackdump/v3/internal/structures"
 )
 
-// Sourcer is an interface for retrieving data from different sources.
-// If any of the methods is not supported, it should return ErrNotSupported.
-// If any information is missing, i.e. no channels, it should return
-// ErrNotFound.
+// Sourcer is an interface for retrieving data from different sources. If any
+// of the methods is not supported, it should return ErrNotSupported. If any
+// information is missing, i.e. no channels, or no data for the channel, it
+// should return ErrNotFound.
 //
 //go:generate mockgen -destination=mock_source/mock_source.go . Sourcer,Storage
 type Sourcer interface {
@@ -49,11 +49,13 @@ type Sourcer interface {
 	Channels(ctx context.Context) ([]slack.Channel, error)
 	// Users should return all users.
 	Users(ctx context.Context) ([]slack.User, error)
-	// AllMessages should return all messages for the given channel id.
+	// AllMessages should return all messages for the given channel id.  If there's no messages
+	// for the channel, it should return ErrNotFound.
 	AllMessages(ctx context.Context, channelID string) (iter.Seq2[slack.Message, error], error)
 	// AllThreadMessages should return all messages for the given tuple
 	// (channelID, threadID). It should return the parent channel message
-	// (thread lead) as a first message.
+	// (thread lead) as a first message.  If there's no messages for the
+	// thread, it should return ErrNotFound.
 	AllThreadMessages(ctx context.Context, channelID, threadID string) (iter.Seq2[slack.Message, error], error)
 	// Sorted should iterate over all (both channel and thread) messages for
 	// the requested channel id.  If desc is true, it must return messages in
@@ -108,6 +110,23 @@ const (
 )
 
 func (f Flags) String() string {
+	if f == FUnknown {
+		return "unknown"
+	}
+	if f&0b11 == 0 {
+		// if last two bits are zero, then flags just define the source type, so
+		// we can return the type name.
+		switch f {
+		case FChunk:
+			return "chunk"
+		case FExport:
+			return "export"
+		case FDump:
+			return "dump"
+		case FDatabase:
+			return "database"
+		}
+	}
 	const bits = 8 - 1
 	const flg = "__DUECzd"
 	var buf strings.Builder

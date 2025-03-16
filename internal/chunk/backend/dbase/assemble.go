@@ -91,7 +91,6 @@ func asmThreadMessages(ctx context.Context, conn sqlx.ExtContext, dbchunk *repos
 				return nil, err
 			}
 			c.Parent = pm
-			continue // skip the parent message, TODO: maybe it should be fixed for the archive format.
 		}
 		c.Messages = append(c.Messages, msg)
 	}

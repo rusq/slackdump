@@ -1,11 +1,14 @@
 package convert
 
 import (
+	"context"
 	"errors"
 	"io"
 	"io/fs"
 	"log/slog"
+	"path/filepath"
 
+	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/internal/convert/transform/fileproc"
 
 	"github.com/rusq/fsadapter"
@@ -95,4 +98,62 @@ func copy2trg(trgfs fsadapter.FS, trgpath string, srcfs fs.FS, srcpath string) e
 
 	_, err = io.Copy(out, in)
 	return err
+}
+
+type avatarcopywrapper struct {
+	fsa  fsadapter.FS
+	avst source.Storage
+}
+
+func (a *avatarcopywrapper) Users(ctx context.Context, users []slack.User) error {
+	if a.avst.Type() == source.STnone {
+		return nil
+	}
+	for _, u := range users {
+		if err := a.copyAvatar(u); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (a *avatarcopywrapper) Close() error {
+	return nil
+}
+
+func (a *avatarcopywrapper) copyAvatar(u slack.User) error {
+	fsys := a.avst.FS()
+	srcloc, err := a.avst.File(source.AvatarParams(&u))
+	if err != nil {
+		return err
+	}
+	dstloc := filepath.Join(chunk.AvatarsDir, filepath.Join(source.AvatarParams(&u)))
+	src, err := fsys.Open(srcloc)
+	if err != nil {
+		return err
+	}
+	defer src.Close()
+
+	dst, err := a.fsa.Create(dstloc)
+	if err != nil {
+		return err
+	}
+	defer dst.Close()
+
+	if _, err := io.Copy(dst, src); err != nil {
+		return err
+	}
+	return nil
+}
+
+type filecopywrapper struct {
+	fc copier
+}
+
+func (f *filecopywrapper) Files(_ context.Context, ch *slack.Channel, parent slack.Message, _ []slack.File) error {
+	return f.fc.Copy(ch, &parent)
+}
+
+func (f *filecopywrapper) Close() error {
+	return nil
 }

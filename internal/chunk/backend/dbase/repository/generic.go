@@ -170,8 +170,13 @@ func (r genericRepository[T]) InsertAll(ctx context.Context, pconn PrepareExtCon
 		if err != nil {
 			return total, fmt.Errorf("insert all: iterator on %s: %w", t.tablename(), err)
 		}
-		if _, err := stmt.ExecContext(ctx, (*m).values()...); err != nil {
-			return total, fmt.Errorf("insert all %s: %w", t.tablename(), err)
+		binds := (*m).values()
+		if _, err := stmt.ExecContext(ctx, binds...); err != nil {
+			var id any = "<unknown>"
+			if len(binds) > 0 {
+				id = binds[0]
+			}
+			return total, fmt.Errorf("insert all %s (ID=%v): %w", t.tablename(), id, err)
 		}
 		total++
 	}

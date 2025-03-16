@@ -4,9 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"log/slog"
-	"path/filepath"
 	"slices"
 
 	"github.com/rusq/fsadapter"
@@ -42,71 +40,13 @@ func NewSourceEncoder(src source.Sourcer, fsa fsadapter.FS, enc chunk.Encoder, o
 	return e
 }
 
-type filecopywrapper struct {
-	fc copier
-}
-
-func (f *filecopywrapper) Files(_ context.Context, ch *slack.Channel, parent slack.Message, _ []slack.File) error {
-	return f.fc.Copy(ch, &parent)
-}
-
-func (f *filecopywrapper) Close() error {
-	return nil
-}
-
-type avatarcopywrapper struct {
-	fsa  fsadapter.FS
-	avst source.Storage
-}
-
-func (a *avatarcopywrapper) Users(ctx context.Context, users []slack.User) error {
-	if a.avst.Type() == source.STnone {
-		return nil
-	}
-	for _, u := range users {
-		if err := a.copyAvatar(u); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (a *avatarcopywrapper) Close() error {
-	return nil
-}
-
-func (a *avatarcopywrapper) copyAvatar(u slack.User) error {
-	fsys := a.avst.FS()
-	srcloc, err := a.avst.File(source.AvatarParams(&u))
-	if err != nil {
-		return err
-	}
-	dstloc := filepath.Join(chunk.AvatarsDir, filepath.Join(source.AvatarParams(&u)))
-	src, err := fsys.Open(srcloc)
-	if err != nil {
-		return err
-	}
-	defer src.Close()
-
-	dst, err := a.fsa.Create(dstloc)
-	if err != nil {
-		return err
-	}
-	defer dst.Close()
-
-	if _, err := io.Copy(dst, src); err != nil {
-		return err
-	}
-	return nil
-}
-
 func (s *SourceEncoder) Convert(ctx context.Context) error {
 	rec := chunk.NewCustomRecorder(s.enc)
 	if err := encodeWorkspaceInfo(ctx, rec, s.src); err != nil {
-		return err
+		return fmt.Errorf("workspace info: %w", err)
 	}
 	if err := encodeChannels(ctx, rec, s.src); err != nil {
-		return err
+		return fmt.Errorf("channels: %w", err)
 	}
 
 	var us processor.Users = rec
@@ -114,7 +54,7 @@ func (s *SourceEncoder) Convert(ctx context.Context) error {
 		// TODO: implement
 	}
 	if err := encodeUsers(ctx, us, s.src); err != nil {
-		return err
+		return fmt.Errorf("users: %w", err)
 	}
 
 	var cp processor.Conversations = rec
@@ -127,7 +67,7 @@ func (s *SourceEncoder) Convert(ctx context.Context) error {
 		return err
 	}
 	if err := encodeAllChannelMsg(ctx, cp, s.src, channels); err != nil {
-		return err
+		return fmt.Errorf("messages: %w", err)
 	}
 	return nil
 }
@@ -179,6 +119,10 @@ func encodeWorkspaceInfo(ctx context.Context, rec processor.WorkspaceInfo, src s
 func encodeAllChannelMsg(ctx context.Context, rec processor.Conversations, src source.Sourcer, channels []slack.Channel) error {
 	for _, c := range channels {
 		if err := encodeMessages(ctx, rec, src, &c); err != nil {
+			if errors.Is(err, source.ErrNotFound) {
+				slog.DebugContext(ctx, "encodeMessages", "channel", c.ID, "error", err)
+				continue
+			}
 			return err
 		}
 	}
@@ -188,6 +132,10 @@ func encodeAllChannelMsg(ctx context.Context, rec processor.Conversations, src s
 func encodeMessages(ctx context.Context, rec processor.Conversations, src source.Sourcer, ch *slack.Channel) error {
 	messages, err := src.AllMessages(ctx, ch.ID)
 	if err != nil {
+		return err
+	}
+
+	if err := rec.ChannelInfo(ctx, ch, ""); err != nil {
 		return err
 	}
 

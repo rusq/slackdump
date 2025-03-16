@@ -325,7 +325,7 @@ func procThreadMsg(ctx context.Context, proc processor.Conversations, channel *s
 	if err := procFiles(ctx, proc, channel, rest...); err != nil {
 		return err
 	}
-	if err := proc.ThreadMessages(ctx, channel.ID, parent, threadOnly, isLast, rest); err != nil {
+	if err := proc.ThreadMessages(ctx, channel.ID, parent, threadOnly, isLast, msgs); err != nil {
 		return fmt.Errorf("failed to process thread message id=%s, thread_ts=%s: %w", parent.Timestamp, threadTS, err)
 	}
 	return nil
