@@ -164,7 +164,7 @@ func Test_processThreadMessages(t *testing.T) {
 		mproc := mock_processor.NewMockConversations(ctrl)
 		dummyChannel := fixtures.DummyChannel("CTM1")
 		mproc.EXPECT().
-			ThreadMessages(gomock.Any(), "CTM1", testThread[0], false, true, testThread[1:]).
+			ThreadMessages(gomock.Any(), "CTM1", testThread[0], false, true, testThread).
 			Return(nil)
 
 		mproc.EXPECT().
