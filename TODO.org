@@ -37,10 +37,14 @@
 ** TODO Converter from export and dump to database, where possible.
    Boils down to reading the input and feeding through a Recorder with
    a database backend.
-** TODO load emojis alongside the messages during archive.
-
 ** DONE FIX double files in ZIP export
    CLOSED: [2025-03-16 Sun 10:49]
+** DONE Verify that consequent calls of conversation.replies don't have the first thread message as the item with 0-index.
+   CLOSED: [2025-03-16 Sun 22:01]
+   Yes it does: https://github.com/rusq/slackdump/issues/128#issuecomment-1234773510
+** TODO Only participating users #287.
 * V3.2
-** Starred items and bookmarks.
-** Connetion pooling
+** TODO Starred items and bookmarks.
+** TODO Connetion pooling
+** TODO load emojis alongside the messages during archive.
+

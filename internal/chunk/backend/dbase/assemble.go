@@ -86,6 +86,7 @@ func asmThreadMessages(ctx context.Context, conn sqlx.ExtContext, dbchunk *repos
 			c.ThreadTS = *m.ThreadTS
 		}
 		if c.Parent == nil && m.ParentID != nil {
+			// not using m[0], because it may not be the first chunk for the thread.
 			pm, err := getMessage(ctx, conn, *m.ParentID)
 			if err != nil {
 				return nil, err
