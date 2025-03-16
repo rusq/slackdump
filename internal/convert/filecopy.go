@@ -6,7 +6,7 @@ import (
 	"io"
 	"io/fs"
 	"log/slog"
-	"path/filepath"
+	"path"
 
 	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/internal/convert/transform/fileproc"
@@ -124,13 +124,16 @@ func (a *avatarcopywrapper) Close() error {
 	return nil
 }
 
+// copyAvatar copies the avatar for the user to the target directory.
+//
+// TODO: test on windows with the directory fsa
 func (a *avatarcopywrapper) copyAvatar(u slack.User) error {
 	fsys := a.avst.FS()
 	srcloc, err := a.avst.File(source.AvatarParams(&u))
 	if err != nil {
 		return err
 	}
-	dstloc := filepath.Join(chunk.AvatarsDir, filepath.Join(source.AvatarParams(&u)))
+	dstloc := path.Join(chunk.AvatarsDir, path.Join(source.AvatarParams(&u)))
 	src, err := fsys.Open(srcloc)
 	if err != nil {
 		return err

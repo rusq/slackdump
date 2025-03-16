@@ -7,11 +7,12 @@ import (
 )
 
 func TestPlayer_Thread(t *testing.T) {
+	rs, err := FromReader(marshalChunks(testThreads...))
+	if err != nil {
+		t.Fatal(err)
+	}
 	p := Player{
-		f: &File{
-			rs:  marshalChunks(testThreads...),
-			idx: testThreadsIndex,
-		},
+		f:       rs,
 		pointer: make(offsets),
 	}
 	m, err := p.Thread("C1234567890", "1234567890.123456")

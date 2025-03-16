@@ -162,10 +162,10 @@ func (mr *MockSourcerMockRecorder) Sorted(ctx, channelID, desc, cb any) *gomock.
 }
 
 // Type mocks base method.
-func (m *MockSourcer) Type() string {
+func (m *MockSourcer) Type() source.Flags {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Type")
-	ret0, _ := ret[0].(string)
+	ret0, _ := ret[0].(source.Flags)
 	return ret0
 }
 
@@ -270,4 +270,18 @@ func (m *MockStorage) FilePath(ch *slack.Channel, f *slack.File) string {
 func (mr *MockStorageMockRecorder) FilePath(ch, f any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FilePath", reflect.TypeOf((*MockStorage)(nil).FilePath), ch, f)
+}
+
+// Type mocks base method.
+func (m *MockStorage) Type() source.StorageType {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Type")
+	ret0, _ := ret[0].(source.StorageType)
+	return ret0
+}
+
+// Type indicates an expected call of Type.
+func (mr *MockStorageMockRecorder) Type() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Type", reflect.TypeOf((*MockStorage)(nil).Type))
 }

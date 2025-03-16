@@ -34,6 +34,12 @@ var testThreads = []Chunk{
 		Messages: []slack.Message{
 			{
 				Msg: slack.Msg{
+					Timestamp:       "1234567890.123456",
+					ThreadTimestamp: "1234567890.123456",
+				},
+			},
+			{
+				Msg: slack.Msg{
 					ThreadTimestamp: "1234567890.123456",
 					Timestamp:       "1234567890.123456",
 					Text:            "Hello, world!",
@@ -60,6 +66,12 @@ var testThreads = []Chunk{
 			},
 		},
 		Messages: []slack.Message{
+			{
+				Msg: slack.Msg{
+					Timestamp:       "1234567890.123458",
+					ThreadTimestamp: "1234567890.123458",
+				},
+			},
 			{
 				Msg: slack.Msg{
 					ThreadTimestamp: "1234567890.123458",
@@ -91,6 +103,11 @@ var testThreads = []Chunk{
 			{
 				Msg: slack.Msg{
 					ThreadTimestamp: "1234567890.123456",
+				},
+			},
+			{
+				Msg: slack.Msg{
+					ThreadTimestamp: "1234567890.123456",
 					Timestamp:       "1234567890.400000",
 					Text:            "Hello again world",
 				},
@@ -107,8 +124,8 @@ var testThreads = []Chunk{
 }
 
 var testThreadsIndex = index{
-	"tC1234567890:1234567890.123456": []int64{0, 1239},
-	"tC1234567890:1234567890.123458": []int64{619},
+	"tC1234567890:1234567890.123456": []int64{0, 1583},
+	"tC1234567890:1234567890.123458": []int64{791},
 }
 
 var archivedChannel = []Chunk{
