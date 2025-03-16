@@ -95,6 +95,6 @@ func runExport(ctx context.Context, cmd *base.Command, args []string) error {
 		return fmt.Errorf("export failed: %w", err)
 	}
 
-	lg.InfoContext(ctx, "export completed", "took", time.Since(start).String())
+	lg.InfoContext(ctx, "export completed", "output", cfg.Output, "took", time.Since(start).String())
 	return nil
 }

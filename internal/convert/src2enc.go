@@ -51,7 +51,11 @@ func (s *SourceEncoder) Convert(ctx context.Context) error {
 
 	var us processor.Users = rec
 	if s.opts.includeAvatars && s.src.Avatars().Type() != source.STnone {
-		// TODO: implement
+		acw := avatarcopywrapper{
+			fsa:  s.fsa,
+			avst: s.src.Avatars(),
+		}
+		us = processor.JoinUsers(rec, &acw)
 	}
 	if err := encodeUsers(ctx, us, s.src); err != nil {
 		return fmt.Errorf("users: %w", err)
@@ -117,10 +121,15 @@ func encodeWorkspaceInfo(ctx context.Context, rec processor.WorkspaceInfo, src s
 }
 
 func encodeAllChannelMsg(ctx context.Context, rec processor.Conversations, src source.Sourcer, channels []slack.Channel) error {
-	for _, c := range channels {
-		if err := encodeMessages(ctx, rec, src, &c); err != nil {
+	for _, ch := range channels {
+		// write channel information.
+		if err := rec.ChannelInfo(ctx, &ch, ""); err != nil {
+			return err
+		}
+
+		if err := encodeMessages(ctx, rec, src, &ch); err != nil {
 			if errors.Is(err, source.ErrNotFound) {
-				slog.DebugContext(ctx, "encodeMessages", "channel", c.ID, "error", err)
+				slog.DebugContext(ctx, "encodeMessages", "channel", ch.ID, "error", err)
 				continue
 			}
 			return err
@@ -132,10 +141,6 @@ func encodeAllChannelMsg(ctx context.Context, rec processor.Conversations, src s
 func encodeMessages(ctx context.Context, rec processor.Conversations, src source.Sourcer, ch *slack.Channel) error {
 	messages, err := src.AllMessages(ctx, ch.ID)
 	if err != nil {
-		return err
-	}
-
-	if err := rec.ChannelInfo(ctx, ch, ""); err != nil {
 		return err
 	}
 

@@ -111,6 +111,9 @@ func (a *avatarcopywrapper) Users(ctx context.Context, users []slack.User) error
 	}
 	for _, u := range users {
 		if err := a.copyAvatar(u); err != nil {
+			if errors.Is(err, fs.ErrNotExist) {
+				continue
+			}
 			return err
 		}
 	}
