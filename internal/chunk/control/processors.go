@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 
 	"github.com/rusq/slackdump/v3/internal/structures"
 
@@ -73,13 +74,16 @@ func (ct *conversationTransformer) ThreadMessages(ctx context.Context, channelID
 }
 
 func (ct *conversationTransformer) mbeTransform(ctx context.Context, channelID, threadID string, threadOnly bool) error {
-	finalised, err := ct.rc.IsComplete(ctx, channelID)
+	isComplete, err := ct.rc.IsComplete(ctx, channelID)
 	if err != nil {
 		return fmt.Errorf("error checking if complete: %w", err)
 	}
-	if !finalised {
+	lg := slog.With("channel", channelID, "thread", threadID, "is_complete", isComplete)
+	lg.Debug("finalisation")
+	if !isComplete {
 		return nil
 	}
+	lg.Debug("calling transform")
 	if err := ct.tf.Transform(ctx, chunk.ToFileID(channelID, threadID, threadOnly)); err != nil {
 		return fmt.Errorf("error transforming: %w", err)
 	}

@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log/slog"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -125,10 +124,8 @@ func (d *DBP) Close() error {
 
 // Encode inserts the chunk into the database.
 func (d *DBP) Encode(ctx context.Context, ch *chunk.Chunk) error {
-	if n, err := d.InsertChunk(ctx, ch); err != nil {
+	if _, err := d.InsertChunk(ctx, ch); err != nil {
 		return fmt.Errorf("encode: %w", err)
-	} else {
-		slog.DebugContext(ctx, "inserted chunk", "id", n, "type", ch.Type)
 	}
 	return nil
 }

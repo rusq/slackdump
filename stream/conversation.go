@@ -176,9 +176,7 @@ func (cs *Stream) channel(ctx context.Context, req request, callback func(mm []s
 	ctx, task := trace.NewTask(ctx, "channel")
 	defer task.End()
 
-	lg := slog.With("channel_id", req.sl.String())
-
-	cursor := ""
+	var cursor string
 	for {
 		var resp *slack.GetConversationHistoryResponse
 		if err := network.WithRetry(ctx, cs.limits.channels, cs.limits.tier.Tier3.Retries, func(ctx context.Context) error {
@@ -211,11 +209,12 @@ func (cs *Stream) channel(ctx context.Context, req request, callback func(mm []s
 		}
 
 		if !resp.HasMore {
-			lg.DebugContext(ctx, "server reported channel done")
+			slog.DebugContext(ctx, "server reported channel done", "channel_id", req.sl.String())
 			break
 		}
 		cursor = resp.ResponseMetaData.NextCursor
 	}
+
 	return nil
 }
 
@@ -230,8 +229,7 @@ func (cs *Stream) thread(ctx context.Context, req request, callback func(mm []sl
 		return fmt.Errorf("not a thread: %s", req.sl)
 	}
 
-	lg := slog.With("slack_link", req.sl)
-	lg.DebugContext(ctx, "- getting thread")
+	slog.DebugContext(ctx, "- getting thread", "slack_link", req.sl)
 
 	var cursor string
 	for {
@@ -251,7 +249,7 @@ func (cs *Stream) thread(ctx context.Context, req request, callback func(mm []sl
 				Inclusive: cs.inclusive,
 			})
 			if apiErr == nil && len(msgs) == 0 {
-				lg.DebugContext(ctx, "  - no messages returned by the API, requesting a retry")
+				slog.DebugContext(ctx, "  - no messages returned by the API, requesting a retry", "slack_link", req.sl)
 				// no messages returned by the API, but no error either, let's ask
 				// nicely to retry, maybe Slack is having a bad day.
 				return network.ErrRetryPlease
@@ -279,8 +277,6 @@ func (cs *Stream) thread(ctx context.Context, req request, callback func(mm []sl
 // sends the thread request on threadC.  It returns thread count in the mm and
 // error if any.
 func procChanMsg(ctx context.Context, proc processor.Conversations, threadC chan<- request, channel *slack.Channel, isLast bool, mm []slack.Message) (int, error) {
-	lg := slog.With("channel_id", channel.ID, "is_last", isLast, "msg_count", len(mm))
-
 	trs := make([]request, 0, len(mm))
 	for i := range mm {
 		// collecting threads to get their count.  But we don't start
@@ -289,7 +285,7 @@ func procChanMsg(ctx context.Context, proc processor.Conversations, threadC chan
 		// start processing the channel and will have the initial reference
 		// count, if it needs it.
 		if mm[i].ThreadTimestamp != "" && mm[i].SubType != structures.SubTypeThreadBroadcast && mm[i].LatestReply != structures.LatestReplyNoReplies {
-			lg.DebugContext(ctx, "- message", "i", i, "thread", mm[i].Timestamp, "thread_ts", mm[i].ThreadTimestamp)
+			slog.DebugContext(ctx, "- message", "i", i, "thread", mm[i].Timestamp, "thread_ts", mm[i].ThreadTimestamp, "channel_id", channel.ID, "is_last", isLast, "msg_count", len(mm))
 			trs = append(trs, request{
 				sl: &structures.SlackLink{
 					Channel:  channel.ID,

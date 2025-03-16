@@ -57,7 +57,7 @@ func (d *DBP) UnsafeInsertChunk(ctx context.Context, txx repository.PrepareExtCo
 		return 0, fmt.Errorf("insertchunk: payload: %w", err)
 	}
 
-	slog.DebugContext(ctx, "inserted chunk", "id", id, "len", n, "type", ch.Type, "final", ch.IsLast)
+	slog.DebugContext(ctx, "inserted chunk", "id", id, "len", n, "channel_id", ch.ChannelID, "type", ch.Type, "final", ch.IsLast)
 
 	return id, nil
 }

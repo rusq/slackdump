@@ -39,6 +39,8 @@
    a database backend.
 ** TODO load emojis alongside the messages during archive.
 
+** DONE FIX double files in ZIP export
+   CLOSED: [2025-03-16 Sun 10:49]
 * V3.2
 ** Starred items and bookmarks.
 ** Connetion pooling
