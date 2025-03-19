@@ -110,6 +110,10 @@ func (dbm DBMessage) Val() (slack.Message, error) {
 	return unmarshalt[slack.Message](dbm.Data)
 }
 
+// MessageRepository provides an interface for working with messages in the
+// database.
+//
+//go:generate mockgen -destination=mock_repository/mock_message.go . MessageRepository
 type MessageRepository interface {
 	Inserter[DBMessage]
 	Chunker[DBMessage]

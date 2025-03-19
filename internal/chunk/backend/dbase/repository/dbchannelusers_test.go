@@ -8,6 +8,7 @@ import (
 	"github.com/jmoiron/sqlx"
 
 	"github.com/rusq/slackdump/v3/internal/chunk"
+	"github.com/rusq/slackdump/v3/internal/testutil"
 )
 
 func TestNewDBChannelUser(t *testing.T) {
@@ -91,7 +92,7 @@ func Test_channelUserRepository_GetByChannelID(t *testing.T) {
 		fields    fields
 		args      args
 		prepareFn utilityFn
-		want      []testResult[DBChannelUser]
+		want      []testutil.TestResult[DBChannelUser]
 		wantErr   bool
 	}{
 		{
@@ -105,10 +106,10 @@ func Test_channelUserRepository_GetByChannelID(t *testing.T) {
 				channelID: "C111",
 			},
 			prepareFn: prepChannelUsers,
-			want: []testResult[DBChannelUser]{
-				{*testC1U1, nil},
-				{*testC1U2, nil},
-				{*testC1U3, nil},
+			want: []testutil.TestResult[DBChannelUser]{
+				{V: *testC1U1},
+				{V: *testC1U2},
+				{V: *testC1U3},
 			},
 		},
 		{
@@ -122,9 +123,9 @@ func Test_channelUserRepository_GetByChannelID(t *testing.T) {
 				channelID: "C222",
 			},
 			prepareFn: prepChannelUsers,
-			want: []testResult[DBChannelUser]{
-				{*testC2U1, nil},
-				{*testC2U4, nil},
+			want: []testutil.TestResult[DBChannelUser]{
+				{V: *testC2U1},
+				{V: *testC2U4},
 			},
 		},
 		{
@@ -152,9 +153,9 @@ func Test_channelUserRepository_GetByChannelID(t *testing.T) {
 				channelID: "C333",
 			},
 			prepareFn: prepChannelUsers,
-			want: []testResult[DBChannelUser]{
-				{*testC3_U1, nil},
-				{*testC3_U4, nil},
+			want: []testutil.TestResult[DBChannelUser]{
+				{V: *testC3_U1},
+				{V: *testC3_U4},
 			},
 			wantErr: false,
 		},
@@ -172,7 +173,7 @@ func Test_channelUserRepository_GetByChannelID(t *testing.T) {
 				t.Errorf("channelUserRepository.GetByChannelID() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			assertIterResult(t, tt.want, got)
+			testutil.AssertIterResult(t, tt.want, got)
 		})
 	}
 }

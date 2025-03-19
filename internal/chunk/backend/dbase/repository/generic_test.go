@@ -3,7 +3,6 @@ package repository
 import (
 	"context"
 	"fmt"
-	"iter"
 	"testing"
 
 	"github.com/jmoiron/sqlx"
@@ -13,6 +12,7 @@ import (
 
 	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/internal/fixtures"
+	"github.com/rusq/slackdump/v3/internal/testutil"
 )
 
 func must[T any](t T, err error) T {
@@ -38,7 +38,7 @@ func Test_genericRepository_allOfTypeWhere(t *testing.T) {
 		r       genericRepository[T]
 		args    args
 		prepFn  utilityFn
-		want    []testResult[T]
+		want    []testutil.TestResult[T]
 		wantErr assert.ErrorAssertionFunc
 	}
 	tests := []testCase[DBChannel]{
@@ -53,14 +53,14 @@ func Test_genericRepository_allOfTypeWhere(t *testing.T) {
 			prepFn: func(t *testing.T, conn PrepareExtContext) {
 				prepChunk(chunk.CChannelInfo, chunk.CChannelInfo)(t, conn)
 				cir := NewChannelRepository()
-				_, err := cir.InsertAll(context.Background(), conn, toIter([]testResult[*DBChannel]{
+				_, err := cir.InsertAll(context.Background(), conn, testutil.ToIter([]testutil.TestResult[*DBChannel]{
 					{V: &DBChannel{ID: "ABC", ChunkID: 1, Name: ptr("old name"), Data: data1}, Err: nil},
 					{V: &DBChannel{ID: "BCD", ChunkID: 1, Name: ptr("other name"), Data: data2}, Err: nil},
 					{V: &DBChannel{ID: "ABC", ChunkID: 2, Name: ptr("new name"), Data: data1}, Err: nil},
 				}))
 				require.NoError(t, err)
 			},
-			want: []testResult[DBChannel]{
+			want: []testutil.TestResult[DBChannel]{
 				{V: DBChannel{ID: "ABC", ChunkID: 2, Name: ptr("new name"), Data: data1}, Err: nil},
 				{V: DBChannel{ID: "BCD", ChunkID: 1, Name: ptr("other name"), Data: data2}, Err: nil},
 			},
@@ -77,14 +77,14 @@ func Test_genericRepository_allOfTypeWhere(t *testing.T) {
 			prepFn: func(t *testing.T, conn PrepareExtContext) {
 				prepChunk(chunk.CChannelInfo, chunk.CChannels)(t, conn)
 				cir := NewChannelRepository()
-				_, err := cir.InsertAll(context.Background(), conn, toIter([]testResult[*DBChannel]{
+				_, err := cir.InsertAll(context.Background(), conn, testutil.ToIter([]testutil.TestResult[*DBChannel]{
 					{V: &DBChannel{ID: "ABC", ChunkID: 1, Name: ptr("old name"), Data: data1}, Err: nil},
 					{V: &DBChannel{ID: "BCD", ChunkID: 1, Name: ptr("other name"), Data: data2}, Err: nil},
 					{V: &DBChannel{ID: "ABC", ChunkID: 2, Name: ptr("new name"), Data: data1}, Err: nil}, // second chunk has a different type.
 				}))
 				require.NoError(t, err)
 			},
-			want: []testResult[DBChannel]{
+			want: []testutil.TestResult[DBChannel]{
 				{V: DBChannel{ID: "ABC", ChunkID: 1, Name: ptr("old name"), Data: data1}, Err: nil},
 				{V: DBChannel{ID: "BCD", ChunkID: 1, Name: ptr("other name"), Data: data2}, Err: nil},
 			},
@@ -106,7 +106,7 @@ func Test_genericRepository_allOfTypeWhere(t *testing.T) {
 			prepFn: func(t *testing.T, conn PrepareExtContext) {
 				prepChunk(chunk.CChannelInfo, chunk.CChannelInfo, chunk.CChannelInfo)(t, conn)
 				cir := NewChannelRepository()
-				_, err := cir.InsertAll(context.Background(), conn, toIter([]testResult[*DBChannel]{
+				_, err := cir.InsertAll(context.Background(), conn, testutil.ToIter([]testutil.TestResult[*DBChannel]{
 					{V: &DBChannel{ID: "BCD", ChunkID: 1, Name: ptr("other name"), Data: data2}, Err: nil},
 					{V: &DBChannel{ID: "ABC", ChunkID: 1, Name: ptr("old name"), Data: data1}, Err: nil},
 					{V: &DBChannel{ID: "ABC", ChunkID: 2, Name: ptr("new name"), Data: data1}, Err: nil},
@@ -114,7 +114,7 @@ func Test_genericRepository_allOfTypeWhere(t *testing.T) {
 				}))
 				require.NoError(t, err)
 			},
-			want: []testResult[DBChannel]{
+			want: []testutil.TestResult[DBChannel]{
 				{V: DBChannel{ID: "ABC", ChunkID: 2, Name: ptr("new name"), Data: data1}, Err: nil},
 				{V: DBChannel{ID: "CDE", ChunkID: 2, Name: ptr("cde channel"), Data: data1}, Err: nil},
 			},
@@ -136,7 +136,7 @@ func Test_genericRepository_allOfTypeWhere(t *testing.T) {
 			prepFn: func(t *testing.T, conn PrepareExtContext) {
 				prepChunk(chunk.CChannelInfo, chunk.CChannelInfo, chunk.CChannelInfo)(t, conn)
 				cir := NewChannelRepository()
-				_, err := cir.InsertAll(context.Background(), conn, toIter([]testResult[*DBChannel]{
+				_, err := cir.InsertAll(context.Background(), conn, testutil.ToIter([]testutil.TestResult[*DBChannel]{
 					{V: &DBChannel{ID: "BCD", ChunkID: 1, Name: ptr("other name"), Data: data2}, Err: nil},
 					{V: &DBChannel{ID: "ABC", ChunkID: 1, Name: ptr("old name"), Data: data1}, Err: nil},
 					{V: &DBChannel{ID: "ABC", ChunkID: 2, Name: ptr("new name"), Data: data1}, Err: nil},
@@ -144,7 +144,7 @@ func Test_genericRepository_allOfTypeWhere(t *testing.T) {
 				}))
 				require.NoError(t, err)
 			},
-			want: []testResult[DBChannel]{
+			want: []testutil.TestResult[DBChannel]{
 				// user key is ID.
 				{V: DBChannel{ID: "ABC", ChunkID: 2, Name: ptr("new name"), Data: data1}, Err: nil},
 				{V: DBChannel{ID: "CDE", ChunkID: 2, Name: ptr("cde channel"), Data: data1}, Err: nil},
@@ -161,30 +161,8 @@ func Test_genericRepository_allOfTypeWhere(t *testing.T) {
 			if !tt.wantErr(t, err, fmt.Sprintf("allOfTypeWhere(%v, %v, %v, %v)", tt.args.ctx, tt.args.conn, tt.args.typeID, tt.args.qp)) {
 				return
 			}
-			assertIterResult(t, tt.want, got)
+			testutil.AssertIterResult(t, tt.want, got)
 		})
-	}
-}
-
-func assertIterResult[T any](t *testing.T, want []testResult[T], got iter.Seq2[T, error]) {
-	t.Helper()
-
-	defer func() {
-		if r := recover(); r != nil {
-			t.Errorf("panic, possibly different number of results: %v", r)
-		}
-	}()
-
-	var i int
-	for v, err := range got {
-		assert.Equalf(t, want[i].V, v, "value %d", i)
-		if (err != nil) != (want[i].Err != nil) {
-			t.Errorf("got error on %d %v, want %v", i, err, want[i].Err)
-		}
-		i++
-	}
-	if i != len(want) {
-		t.Errorf("got %d results, want %d", i, len(want))
 	}
 }
 

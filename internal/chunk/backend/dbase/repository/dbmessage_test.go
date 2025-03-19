@@ -14,6 +14,7 @@ import (
 	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/internal/fixtures"
 	"github.com/rusq/slackdump/v3/internal/structures"
+	"github.com/rusq/slackdump/v3/internal/testutil"
 )
 
 func minifyJSON[T any](t *testing.T, s string) []byte {
@@ -208,9 +209,9 @@ func Test_messageRepository_InsertAll(t *testing.T) {
 			args: args{
 				ctx:   context.Background(),
 				pconn: testConn(t),
-				mm: toIter([]testResult[*DBMessage]{
+				mm: testutil.ToIter([]testutil.TestResult[*DBMessage]{
 					{V: &DBMessage{ID: 1, ChunkID: 1, ChannelID: "C123", TS: "1.1", IsParent: false, Index: 0, NumFiles: 0, Text: "test", Data: []byte(`{"text":"test"}`)}},
-					toTestResult(NewDBMessage(1, 1, "C123", fixtures.Load[*slack.Message](fixtures.SimpleMessageJSON))),
+					testutil.ToTestResult(NewDBMessage(1, 1, "C123", fixtures.Load[*slack.Message](fixtures.SimpleMessageJSON))),
 				}),
 			},
 			prepFn:  prepChunk(chunk.CMessages),
@@ -357,7 +358,7 @@ func Test_messageRepository_AllForID(t *testing.T) {
 		fields  fields
 		args    args
 		prepFn  utilityFn
-		want    []testResult[DBMessage]
+		want    []testutil.TestResult[DBMessage]
 		wantErr bool
 	}{
 		{
@@ -371,7 +372,7 @@ func Test_messageRepository_AllForID(t *testing.T) {
 				channelID: "C123",
 			},
 			prepFn: messagePrepFn,
-			want: []testResult[DBMessage]{
+			want: []testutil.TestResult[DBMessage]{
 				{V: *dbmA},
 				{V: *dbmB_},
 				{V: *dbmC},
@@ -392,7 +393,7 @@ func Test_messageRepository_AllForID(t *testing.T) {
 				t.Errorf("messageRepository.AllForID() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			assertIterResult(t, tt.want, got)
+			testutil.AssertIterResult(t, tt.want, got)
 		})
 	}
 }
@@ -520,7 +521,7 @@ func Test_messageRepository_AllForThread(t *testing.T) {
 		fields    fields
 		args      args
 		prepareFn utilityFn
-		want      []testResult[DBMessage]
+		want      []testutil.TestResult[DBMessage]
 		wantErr   bool
 	}{
 		{
@@ -535,7 +536,7 @@ func Test_messageRepository_AllForThread(t *testing.T) {
 				threadID:  "123.456",
 			},
 			prepareFn: threadSetupFn,
-			want: []testResult[DBMessage]{
+			want: []testutil.TestResult[DBMessage]{
 				{V: *dbtmAParent},
 				{V: *dbtmB},
 				{V: *dbtmC_},
@@ -557,7 +558,7 @@ func Test_messageRepository_AllForThread(t *testing.T) {
 				t.Errorf("messageRepository.AllForThread() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			assertIterResult(t, tt.want, got)
+			testutil.AssertIterResult(t, tt.want, got)
 		})
 	}
 }
@@ -693,6 +694,27 @@ func Test_messageRepository_CountUnfinished(t *testing.T) {
 			want: 0,
 		},
 		// TODO: what happens if there's just a thread, and no parent?
+		{
+			name: "only parent messages, no threads",
+			fields: fields{
+				genericRepository: genericRepository[DBMessage]{DBMessage{}},
+			},
+			args: args{
+				ctx:       context.Background(),
+				conn:      testConn(t),
+				sessionID: 1,
+				channelID: "C123",
+			},
+			prepFn: func(t *testing.T, conn PrepareExtContext) {
+				prepChunk(chunk.CMessages, chunk.CMessages)(t, conn)
+				mr := NewMessageRepository()
+				// dbmC is a thread leader, but no replies are inserted.
+				if err := mr.Insert(context.Background(), conn, dbmA, dbmB, dbmC); err != nil {
+					t.Fatalf("insert: %v", err)
+				}
+			},
+			want: 1, // should indicate one outstanding thread.
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -727,7 +749,7 @@ func Test_messageRepository_LatestMessages(t *testing.T) {
 		fields  fields
 		args    args
 		prepFn  utilityFn
-		want    []testResult[LatestMessage]
+		want    []testutil.TestResult[LatestMessage]
 		wantErr bool
 	}{
 		{
@@ -740,7 +762,7 @@ func Test_messageRepository_LatestMessages(t *testing.T) {
 				conn: testConn(t),
 			},
 			prepFn: messagePrepFn,
-			want: []testResult[LatestMessage]{
+			want: []testutil.TestResult[LatestMessage]{
 				{V: LatestMessage{ChannelID: "C123", TS: "125.777", ID: 125777}},
 				{V: LatestMessage{ChannelID: "D124", TS: "125.777", ID: 125777}},
 			},
@@ -760,7 +782,7 @@ func Test_messageRepository_LatestMessages(t *testing.T) {
 				t.Errorf("messageRepository.LatestMessages() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			assertIterResult(t, tt.want, got)
+			testutil.AssertIterResult(t, tt.want, got)
 		})
 	}
 }
@@ -778,7 +800,7 @@ func Test_messageRepository_LatestThreads(t *testing.T) {
 		fields  fields
 		args    args
 		prepFn  utilityFn
-		want    []testResult[LatestThread]
+		want    []testutil.TestResult[LatestThread]
 		wantErr bool
 	}{
 		{
@@ -791,7 +813,7 @@ func Test_messageRepository_LatestThreads(t *testing.T) {
 				conn: testConn(t),
 			},
 			prepFn: threadSetupFn,
-			want: []testResult[LatestThread]{
+			want: []testutil.TestResult[LatestThread]{
 				{V: LatestThread{
 					LatestMessage: LatestMessage{
 						ChannelID: "C123",
@@ -818,7 +840,7 @@ func Test_messageRepository_LatestThreads(t *testing.T) {
 				t.Errorf("messageRepository.LatestThreads() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			assertIterResult(t, tt.want, got)
+			testutil.AssertIterResult(t, tt.want, got)
 		})
 	}
 }
@@ -838,7 +860,7 @@ func Test_messageRepository_Sorted(t *testing.T) {
 		fields  fields
 		args    args
 		prepFn  utilityFn
-		want    []testResult[DBMessage]
+		want    []testutil.TestResult[DBMessage]
 		wantErr bool
 	}{
 		{
@@ -853,7 +875,7 @@ func Test_messageRepository_Sorted(t *testing.T) {
 				order:     Desc,
 			},
 			prepFn: messagePrepFn,
-			want: []testResult[DBMessage]{
+			want: []testutil.TestResult[DBMessage]{
 				{V: *dbmCt2},
 				{V: *dbmCt1},
 				{V: *dbmCt0},
@@ -874,7 +896,7 @@ func Test_messageRepository_Sorted(t *testing.T) {
 				order:     Asc,
 			},
 			prepFn: messagePrepFn,
-			want: []testResult[DBMessage]{
+			want: []testutil.TestResult[DBMessage]{
 				{V: *dbmA},
 				{V: *dbmB_},
 				{V: *dbmCt0},
@@ -897,7 +919,7 @@ func Test_messageRepository_Sorted(t *testing.T) {
 				t.Errorf("messageRepository.Sorted() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			assertIterResult(t, tt.want, got)
+			testutil.AssertIterResult(t, tt.want, got)
 		})
 	}
 }

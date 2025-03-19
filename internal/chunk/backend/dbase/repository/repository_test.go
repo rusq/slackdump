@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"iter"
 	"log/slog"
 	"os"
 	"reflect"
@@ -103,36 +102,6 @@ func prepChunk(typeID ...chunk.ChunkType) utilityFn {
 // ptr returns a pointer to the value.
 func ptr[T any](v T) *T {
 	return &v
-}
-
-// testResult is a pair of value and error to use in the test iterators.
-type testResult[T any] struct {
-	V   T
-	Err error
-}
-
-func toTestResult[T dbObject](v T, err error) testResult[T] {
-	return testResult[T]{V: v, Err: err}
-}
-
-// toIter converts a slice of testResult to an iter.Seq2.
-func toIter[T any](v []testResult[T]) iter.Seq2[T, error] {
-	return func(yield func(T, error) bool) {
-		for _, r := range v {
-			if !yield(r.V, r.Err) {
-				break
-			}
-		}
-	}
-}
-
-func collect[T any](t *testing.T, it iter.Seq2[T, error]) []testResult[T] {
-	t.Helper()
-	var ret []testResult[T]
-	for v, err := range it {
-		ret = append(ret, testResult[T]{v, err})
-	}
-	return ret
 }
 
 func Test_placeholders(t *testing.T) {

@@ -34,7 +34,8 @@
 ** DONE Universal search controller + tests
   CLOSED: [2025-03-14 Fri 21:34]
 ** DONE Export in db format missing "members".
-** TODO Converter from export and dump to database, where possible.
+** DONE Converter from export and dump to database, where possible.
+   CLOSED: [2025-03-17 Mon 16:49]
    Boils down to reading the input and feeding through a Recorder with
    a database backend.
 ** DONE FIX double files in ZIP export

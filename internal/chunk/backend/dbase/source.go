@@ -46,7 +46,7 @@ func Open(ctx context.Context, path string) (*Source, error) {
 }
 
 func migrate(ctx context.Context, path string) error {
-	conn, err := sql.Open(repository.Driver, "file:"+path)
+	conn, err := sql.Open(repository.Driver, path)
 	if err != nil {
 		return err
 	}
@@ -75,6 +75,8 @@ func (s *Source) Close() error {
 	return nil
 }
 
+// Channels returns all channels.  If the channel info is not available,
+// it will attempt to get all channels.
 func (s *Source) Channels(ctx context.Context) ([]slack.Channel, error) {
 	cr := repository.NewChannelRepository()
 	it, err := cr.AllOfType(ctx, s.conn, chunk.CChannelInfo)
@@ -82,20 +84,27 @@ func (s *Source) Channels(ctx context.Context) ([]slack.Channel, error) {
 		return nil, err
 	}
 	var chns []slack.Channel
-	for c, err := range it {
+	chns, err = collect(it, preallocSz)
+	if err != nil {
+		return nil, err
+	}
+	if len(chns) == 0 {
+		// no channel info, try getting all channels
+		it, err := cr.AllOfType(ctx, s.conn, chunk.CChannels)
 		if err != nil {
 			return nil, err
 		}
-		v, err := c.Val()
+		chns, err = collect(it, preallocSz)
 		if err != nil {
 			return nil, err
 		}
-		users, err := s.channelUsers(ctx, v.ID, v.NumMembers)
+	}
+	for _, c := range chns {
+		users, err := s.channelUsers(ctx, c.ID, c.NumMembers)
 		if err != nil {
 			return nil, err
 		}
-		v.Members = users
-		chns = append(chns, v)
+		c.Members = users
 	}
 
 	return chns, nil
@@ -214,21 +223,11 @@ func (s *Source) ChannelInfo(ctx context.Context, channelID string) (*slack.Chan
 	if err != nil {
 		return nil, err
 	}
-	cur := repository.NewChannelUserRepository()
-	users, err := cur.GetByChannelID(ctx, s.conn, channelID)
+	users, err := s.channelUsers(ctx, v.ID, v.NumMembers)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return &v, nil
-		}
 		return nil, err
 	}
-	v.Members = make([]string, 0, v.NumMembers)
-	for c, err := range users {
-		if err != nil {
-			return nil, err
-		}
-		v.Members = append(v.Members, c.UserID)
-	}
+	v.Members = users
 
 	return &v, nil
 }

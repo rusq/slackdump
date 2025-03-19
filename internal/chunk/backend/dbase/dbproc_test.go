@@ -2,13 +2,19 @@ package dbase
 
 import (
 	"context"
+	"database/sql"
 	"reflect"
 	"testing"
-
-	"github.com/rusq/slackdump/v3/internal/chunk/backend/dbase/repository"
+	"time"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/rusq/slack"
+	"github.com/stretchr/testify/assert"
+	"go.uber.org/mock/gomock"
 
+	"github.com/rusq/slackdump/v3/internal/chunk"
+	"github.com/rusq/slackdump/v3/internal/chunk/backend/dbase/repository"
+	"github.com/rusq/slackdump/v3/internal/chunk/backend/dbase/repository/mock_repository"
 	"github.com/rusq/slackdump/v3/internal/testutil"
 )
 
@@ -91,6 +97,7 @@ func TestNew(t *testing.T) {
 			want: &DBP{
 				conn:      sharedDB,
 				sessionID: 1,
+				mr:        repository.NewMessageRepository(),
 			},
 			wantErr: false,
 		},
@@ -163,6 +170,279 @@ func TestDBP_Close(t *testing.T) {
 			}
 			if tt.checkFn != nil {
 				tt.checkFn(t, tt.fields.conn)
+			}
+		})
+	}
+	// special cases not covered by the above tests
+	t.Run("closed", func(t *testing.T) {
+		d := &DBP{
+			conn:      testDB(t),
+			sessionID: 1,
+		}
+		sr := repository.NewSessionRepository()
+		_, err := sr.Insert(context.Background(), d.conn, &repository.Session{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := d.Close(); err != nil {
+			t.Fatal(err)
+		}
+		if err := d.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
+	t.Run("no session", func(t *testing.T) {
+		d := &DBP{
+			conn:      testDB(t),
+			sessionID: 1,
+		}
+		if err := d.Close(); err == nil {
+			t.Fatal("expected error")
+		}
+	})
+	t.Run("no session table", func(t *testing.T) {
+		d := &DBP{
+			conn:      testutil.TestDB(t),
+			sessionID: 1,
+		}
+		if err := d.Close(); err == nil {
+			t.Fatal("expected error")
+		}
+	})
+}
+
+func TestDBP_String(t *testing.T) {
+	type fields struct {
+		conn      *sqlx.DB
+		sessionID int64
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   string
+	}{
+		{
+			"String",
+			fields{
+				sessionID: 42,
+			},
+			"<DBP:42>",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			d := &DBP{
+				conn:      tt.fields.conn,
+				sessionID: tt.fields.sessionID,
+			}
+			if got := d.String(); got != tt.want {
+				t.Errorf("DBP.String() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestDBP_IsComplete(t *testing.T) {
+	type fields struct {
+		conn      *sqlx.DB
+		sessionID int64
+	}
+	type args struct {
+		ctx       context.Context
+		channelID string
+	}
+	tests := []struct {
+		name     string
+		fields   fields
+		args     args
+		expectfn func(mmr *mock_repository.MockMessageRepository)
+		want     bool
+		wantErr  bool
+	}{
+		{
+			name: "is complete",
+			fields: fields{
+				conn:      testDB(t),
+				sessionID: 42,
+			},
+			args: args{
+				ctx:       context.Background(),
+				channelID: "C123456",
+			},
+			expectfn: func(mmr *mock_repository.MockMessageRepository) {
+				mmr.EXPECT().CountUnfinished(gomock.Any(), gomock.Any(), int64(42), "C123456").Return(int64(0), nil)
+			},
+			want:    true,
+			wantErr: false,
+		},
+		{
+			name: "is not complete",
+			fields: fields{
+				conn:      testDB(t),
+				sessionID: 42,
+			},
+			args: args{
+				ctx:       context.Background(),
+				channelID: "C123456",
+			},
+			expectfn: func(mmr *mock_repository.MockMessageRepository) {
+				mmr.EXPECT().CountUnfinished(gomock.Any(), gomock.Any(), int64(42), "C123456").Return(int64(1), nil)
+			},
+			want:    false,
+			wantErr: false,
+		},
+		{
+			name: "error",
+			fields: fields{
+				conn:      testDB(t),
+				sessionID: 42,
+			},
+			args: args{
+				ctx:       context.Background(),
+				channelID: "C123456",
+			},
+			expectfn: func(mmr *mock_repository.MockMessageRepository) {
+				mmr.EXPECT().CountUnfinished(gomock.Any(), gomock.Any(), int64(42), "C123456").Return(int64(0), assert.AnError)
+			},
+			want:    false,
+			wantErr: true,
+		},
+		{
+			name: "no rows",
+			fields: fields{
+				conn:      testDB(t),
+				sessionID: 42,
+			},
+			args: args{
+				ctx:       context.Background(),
+				channelID: "C123456",
+			},
+			expectfn: func(mmr *mock_repository.MockMessageRepository) {
+				mmr.EXPECT().CountUnfinished(gomock.Any(), gomock.Any(), int64(42), "C123456").Return(int64(0), sql.ErrNoRows)
+			},
+			want:    false,
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			mmr := mock_repository.NewMockMessageRepository(ctrl)
+			if tt.expectfn != nil {
+				tt.expectfn(mmr)
+			}
+			d := &DBP{
+				conn:      tt.fields.conn,
+				sessionID: tt.fields.sessionID,
+				mr:        mmr,
+			}
+			got, err := d.IsComplete(tt.args.ctx, tt.args.channelID)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("DBP.IsComplete() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("DBP.IsComplete() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestDBP_Source(t *testing.T) {
+	sharedDB := testutil.TestDB(t)
+	type fields struct {
+		conn      *sqlx.DB
+		sessionID int64
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   *Source
+	}{
+		{
+			name: "creates new source",
+			fields: fields{
+				conn:      sharedDB,
+				sessionID: 42,
+			},
+			want: &Source{
+				conn:     sharedDB,
+				canClose: false,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			d := &DBP{
+				conn:      tt.fields.conn,
+				sessionID: tt.fields.sessionID,
+			}
+			if got := d.Source(); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("DBP.Source() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestDBP_Encode(t *testing.T) {
+	type fields struct {
+		conn *sqlx.DB
+	}
+	type args struct {
+		ctx context.Context
+		ch  *chunk.Chunk
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "ok",
+			fields: fields{
+				conn: testDB(t),
+			},
+			args: args{
+				ctx: context.Background(),
+				ch: &chunk.Chunk{
+					Type:      chunk.CMessages,
+					Timestamp: time.Now().UnixNano(),
+					ChannelID: "C123",
+					Count:     1,
+					IsLast:    true,
+					Messages:  []slack.Message{{}},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "invalid chunk type",
+			fields: fields{
+				conn: testDB(t),
+			},
+			args: args{
+				ctx: context.Background(),
+				ch: &chunk.Chunk{
+					Type:      0xCC,
+					Timestamp: time.Now().UnixNano(),
+					ChannelID: "C123",
+					Count:     1,
+					IsLast:    true,
+					Messages:  []slack.Message{{}},
+				},
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			d, err := New(tt.args.ctx, tt.fields.conn, SessionInfo{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := d.Encode(tt.args.ctx, tt.args.ch); (err != nil) != tt.wantErr {
+				t.Errorf("DBP.Encode() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}

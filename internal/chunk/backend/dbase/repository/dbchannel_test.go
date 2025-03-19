@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/rusq/slackdump/v3/internal/chunk"
+	"github.com/rusq/slackdump/v3/internal/testutil"
 )
 
 var (
@@ -102,7 +103,7 @@ func Test_channelRepository_AllOfType(t *testing.T) {
 		fields  fields
 		args    args
 		prepFn  utilityFn
-		want    []testResult[DBChannel]
+		want    []testutil.TestResult[DBChannel]
 		wantErr bool
 	}{
 		{
@@ -116,7 +117,7 @@ func Test_channelRepository_AllOfType(t *testing.T) {
 				typeID: []chunk.ChunkType{chunk.CChannelInfo},
 			},
 			prepFn: prepChannels,
-			want: []testResult[DBChannel]{
+			want: []testutil.TestResult[DBChannel]{
 				{V: *dbchi400, Err: nil},
 				{V: *dbchi200, Err: nil},
 				{V: *dbchi100, Err: nil},
@@ -134,7 +135,7 @@ func Test_channelRepository_AllOfType(t *testing.T) {
 				typeID: []chunk.ChunkType{chunk.CChannels},
 			},
 			prepFn: prepChannels,
-			want: []testResult[DBChannel]{
+			want: []testutil.TestResult[DBChannel]{
 				{V: *dbch400, Err: nil},
 				{V: *dbch200, Err: nil},
 				{V: *dbch100, Err: nil},
@@ -155,7 +156,7 @@ func Test_channelRepository_AllOfType(t *testing.T) {
 				t.Errorf("channelRepository.AllOfType() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			assertIterResult(t, tt.want, got)
+			testutil.AssertIterResult(t, tt.want, got)
 		})
 	}
 }

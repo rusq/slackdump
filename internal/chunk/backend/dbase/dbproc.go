@@ -21,6 +21,8 @@ type DBP struct {
 	conn      *sqlx.DB
 	sessionID int64
 	closed    atomic.Bool
+
+	mr repository.MessageRepository
 }
 
 func (d *DBP) String() string {
@@ -92,7 +94,11 @@ func New(ctx context.Context, conn *sqlx.DB, p SessionInfo, opts ...Option) (*DB
 		return nil, fmt.Errorf("new: %w", err)
 	}
 
-	return &DBP{conn: conn, sessionID: id}, nil
+	return &DBP{
+		conn:      conn,
+		sessionID: id,
+		mr:        repository.NewMessageRepository(),
+	}, nil
 }
 
 // initDB runs the initialisation commands on the database.
@@ -114,7 +120,7 @@ func (d *DBP) Close() error {
 		return nil
 	}
 	sr := repository.NewSessionRepository()
-	if n, err := sr.Finalise(context.Background(), d.conn, d.sessionID); err != nil {
+	if n, err := sr.Finalise(context.Background(), d.conn, d.sessionID); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return fmt.Errorf("finish: %w", err)
 	} else if n == 0 {
 		return errors.New("finish: no session found")
@@ -135,9 +141,10 @@ func (d *DBP) Encode(ctx context.Context, ch *chunk.Chunk) error {
 func (d *DBP) IsComplete(ctx context.Context, channelID string) (bool, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	mr := repository.NewMessageRepository()
-	n, err := mr.CountUnfinished(ctx, d.conn, d.sessionID, channelID)
-	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+	n, err := d.mr.CountUnfinished(ctx, d.conn, d.sessionID, channelID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, nil
+	} else if err != nil {
 		return false, fmt.Errorf("countUnfinished: %w", err)
 	}
 	return n <= 0, nil

@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/rusq/slack"
+
 	"github.com/rusq/slackdump/v3/internal/chunk/backend/dbase"
 )
 
@@ -88,4 +90,15 @@ func (d *Database) Files() Storage {
 
 func (d *Database) Avatars() Storage {
 	return d.avatars
+}
+
+func (d *Database) Channels(ctx context.Context) ([]slack.Channel, error) {
+	chns, err := d.Source.Channels(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if len(chns) == 0 {
+		return nil, ErrNotFound
+	}
+	return chns, nil
 }
