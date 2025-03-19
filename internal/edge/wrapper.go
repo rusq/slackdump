@@ -85,3 +85,7 @@ func (w *Wrapper) SearchFilesContext(ctx context.Context, query string, params s
 func (w *Wrapper) GetFileInfoContext(ctx context.Context, fileID string, count int, page int) (*slack.File, []slack.Comment, *slack.Paging, error) {
 	return w.cl.GetFileInfoContext(ctx, fileID, count, page)
 }
+
+func (w *Wrapper) GetUserInfoContext(ctx context.Context, user string) (*slack.User, error) {
+	return w.cl.GetUserInfoContext(ctx, user)
+}

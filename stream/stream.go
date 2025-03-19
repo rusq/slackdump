@@ -34,19 +34,22 @@ const (
 //go:generate mockgen -destination mock_stream/mock_stream.go . Slacker
 type Slacker interface {
 	AuthTestContext(context.Context) (response *slack.AuthTestResponse, err error)
+
 	GetConversationHistoryContext(ctx context.Context, params *slack.GetConversationHistoryParameters) (*slack.GetConversationHistoryResponse, error)
 	GetConversationRepliesContext(ctx context.Context, params *slack.GetConversationRepliesParameters) (msgs []slack.Message, hasMore bool, nextCursor string, err error)
-	GetUsersPaginated(options ...slack.GetUsersOption) slack.UserPagination
-
-	GetStarredContext(ctx context.Context, params slack.StarsParameters) ([]slack.StarredItem, *slack.Paging, error)
-	ListBookmarks(channelID string) ([]slack.Bookmark, error)
-
 	GetConversationsContext(ctx context.Context, params *slack.GetConversationsParameters) (channels []slack.Channel, nextCursor string, err error)
 	GetConversationInfoContext(ctx context.Context, input *slack.GetConversationInfoInput) (*slack.Channel, error)
 	GetUsersInConversationContext(ctx context.Context, params *slack.GetUsersInConversationParameters) ([]string, string, error)
 
+	GetUsersPaginated(options ...slack.GetUsersOption) slack.UserPagination
+	GetUserInfoContext(ctx context.Context, user string) (*slack.User, error)
+
+	GetStarredContext(ctx context.Context, params slack.StarsParameters) ([]slack.StarredItem, *slack.Paging, error)
+	ListBookmarks(channelID string) ([]slack.Bookmark, error)
+
 	SearchMessagesContext(ctx context.Context, query string, params slack.SearchParameters) (*slack.SearchMessages, error)
 	SearchFilesContext(ctx context.Context, query string, params slack.SearchParameters) (*slack.SearchFiles, error)
+
 	GetFileInfoContext(ctx context.Context, fileID string, count int, page int) (*slack.File, []slack.Comment, *slack.Paging, error)
 }
 
@@ -268,6 +271,26 @@ func (cs *Stream) ListChannels(ctx context.Context, proc processor.Channels, p *
 		if next == "" {
 			break
 		}
+	}
+	return nil
+}
+
+// Users processes all users in the workspace, calling proc for each batch of
+// users returned by the API.
+func (cs *Stream) UsersBulk(ctx context.Context, proc processor.Users, ids ...string) error {
+	ctx, task := trace.NewTask(ctx, "UsersBulk")
+	defer task.End()
+
+	uu := make([]slack.User, 0, len(ids))
+	for _, id := range ids {
+		u, err := cs.client.GetUserInfoContext(ctx, id)
+		if err != nil {
+			return err
+		}
+		uu = append(uu, *u)
+	}
+	if err := proc.Users(ctx, uu); err != nil {
+		return err
 	}
 	return nil
 }
