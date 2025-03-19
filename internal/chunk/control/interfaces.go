@@ -22,6 +22,7 @@ type Streamer interface {
 	WorkspaceInfo(ctx context.Context, proc processor.WorkspaceInfo) error
 	SearchMessages(ctx context.Context, proc processor.MessageSearcher, query string) error
 	SearchFiles(ctx context.Context, proc processor.FileSearcher, query string) error
+	UsersBulk(ctx context.Context, proc processor.Users, ids ...string) error
 }
 
 type TransformStarter interface {

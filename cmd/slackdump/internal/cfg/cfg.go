@@ -44,10 +44,12 @@ var (
 	MachineIDOvr    string // Machine ID override
 	NoEncryption    bool   // disable encryption
 
-	MemberOnly      bool
+	MemberOnly       bool
+	OnlyChannelUsers bool
+
 	WithFiles   bool
 	WithAvatars bool
-	RecordFiles     bool // record file chunks in chunk files.
+	RecordFiles bool // record file chunks in chunk files.
 
 	// Oldest is the default timestamp of the oldest message to fetch, that is
 	// used by the dump and export commands.
@@ -94,7 +96,7 @@ const (
 	OmitUserCacheFlag
 	OmitTimeframeFlag
 	OmitChunkCacheFlag
-	OmitMemberOnlyFlag
+	OmitCustomUserFlags
 	OmitRecordFilesFlag
 	OmitDownloadAvatarsFlag
 	OmitChunkFileMode
@@ -108,7 +110,7 @@ const (
 		OmitUserCacheFlag |
 		OmitTimeframeFlag |
 		OmitChunkCacheFlag |
-		OmitMemberOnlyFlag |
+		OmitCustomUserFlags |
 		OmitRecordFilesFlag |
 		OmitDownloadAvatarsFlag |
 		OmitChunkFileMode
@@ -179,8 +181,9 @@ func SetBaseFlags(fs *flag.FlagSet, mask FlagMask) {
 		fs.Var(&Oldest, "time-from", "timestamp of the oldest message to fetch (UTC timezone)")
 		fs.Var(&Latest, "time-to", "timestamp of the newest message to fetch (UTC timezone)")
 	}
-	if mask&OmitMemberOnlyFlag == 0 {
+	if mask&OmitCustomUserFlags == 0 {
 		fs.BoolVar(&MemberOnly, "member-only", false, "export only channels, which the current user belongs to (if no channels are specified)")
+		fs.BoolVar(&OnlyChannelUsers, "channel-users", false, "export only users involved in the channel, and skip fetching of all users")
 	}
 	if mask&OmitChunkFileMode == 0 {
 		fs.BoolVar(&UseChunkFiles, "legacy", false, "use chunk files for data storage instead of sqlite database (incompatible with resuming)")

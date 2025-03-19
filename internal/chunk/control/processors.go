@@ -191,3 +191,56 @@ func (j *jointFileSearcher) Close() error {
 	}
 	return errs
 }
+
+type userIDCollector struct {
+	seen    map[string]struct{}
+	userIDC chan []string
+}
+
+var _ processor.Messenger = (*userIDCollector)(nil)
+
+func newUserIDCollector() *userIDCollector {
+	const prealloc = 100
+	userIDC := make(chan []string, prealloc)
+	return &userIDCollector{
+		seen:    make(map[string]struct{}, prealloc),
+		userIDC: userIDC,
+	}
+}
+
+func (uic *userIDCollector) Close() error {
+	close(uic.userIDC)
+	return nil
+}
+
+func (uic *userIDCollector) C() <-chan []string {
+	return uic.userIDC
+}
+
+func (uic *userIDCollector) Messages(ctx context.Context, channelID string, numThreads int, isLast bool, mm []slack.Message) error {
+	return uic.collect(ctx, mm)
+}
+
+func (uic *userIDCollector) ThreadMessages(ctx context.Context, channelID string, parent slack.Message, threadOnly bool, isLast bool, tm []slack.Message) error {
+	return uic.collect(ctx, tm)
+}
+
+func (uic *userIDCollector) collect(ctx context.Context, mm []slack.Message) error {
+	var uu []string
+	for _, m := range mm {
+		if _, ok := uic.seen[m.User]; ok {
+			continue
+		}
+		uic.seen[m.User] = struct{}{}
+		uu = append(uu, m.User)
+	}
+	if len(uu) > 0 {
+		select {
+		case <-ctx.Done():
+			return context.Cause(ctx)
+		case uic.userIDC <- uu:
+		}
+	}
+
+	return nil
+}

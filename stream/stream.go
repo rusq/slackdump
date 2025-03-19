@@ -131,6 +131,7 @@ type rateLimits struct {
 	channels    *rate.Limiter
 	threads     *rate.Limiter
 	users       *rate.Limiter
+	userinfo    *rate.Limiter
 	searchmsg   *rate.Limiter
 	searchfiles *rate.Limiter
 	tier        *network.Limits
@@ -141,6 +142,7 @@ func limits(l *network.Limits) rateLimits {
 		channels:    network.NewLimiter(network.Tier3, l.Tier3.Burst, int(l.Tier3.Boost)),
 		threads:     network.NewLimiter(network.Tier3, l.Tier3.Burst, int(l.Tier3.Boost)),
 		users:       network.NewLimiter(network.Tier2, l.Tier2.Burst, int(l.Tier2.Boost)),
+		userinfo:    network.NewLimiter(network.Tier4, l.Tier4.Burst, int(l.Tier4.Boost)),
 		searchmsg:   network.NewLimiter(network.Tier2, l.Tier2.Burst, int(l.Tier2.Boost)),
 		searchfiles: network.NewLimiter(network.Tier2, l.Tier2.Burst, int(l.Tier2.Boost)),
 		tier:        l,
@@ -283,8 +285,12 @@ func (cs *Stream) UsersBulk(ctx context.Context, proc processor.Users, ids ...st
 
 	uu := make([]slack.User, 0, len(ids))
 	for _, id := range ids {
-		u, err := cs.client.GetUserInfoContext(ctx, id)
-		if err != nil {
+		var u *slack.User
+		if err := network.WithRetry(ctx, cs.limits.userinfo, cs.limits.tier.Tier4.Retries, func(ctx context.Context) error {
+			var err error
+			u, err = cs.client.GetUserInfoContext(ctx, id)
+			return err
+		}); err != nil {
 			return err
 		}
 		uu = append(uu, *u)

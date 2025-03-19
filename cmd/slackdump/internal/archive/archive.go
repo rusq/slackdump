@@ -112,7 +112,7 @@ func runDBArchive(ctx context.Context, cmd *base.Command, args []string) error {
 	}
 	defer conn.Close()
 
-	flags := control.Flags{MemberOnly: cfg.MemberOnly, RecordFiles: cfg.RecordFiles}
+	flags := control.Flags{MemberOnly: cfg.MemberOnly, RecordFiles: cfg.RecordFiles, ChannelUsers: cfg.OnlyChannelUsers}
 
 	ctrl, err := DBController(ctx, cmd, conn, sess, dirname, flags)
 	if err != nil {
@@ -236,7 +236,7 @@ func ArchiveController(ctx context.Context, cd *chunk.Directory, sess *slackdump
 		sess.Stream(sopts...),
 		erc,
 		control.WithLogger(lg),
-		control.WithFlags(control.Flags{MemberOnly: cfg.MemberOnly, RecordFiles: cfg.RecordFiles}),
+		control.WithFlags(control.Flags{MemberOnly: cfg.MemberOnly, RecordFiles: cfg.RecordFiles, ChannelUsers: cfg.OnlyChannelUsers}),
 		control.WithFiler(fileproc2.New(dl)),
 		control.WithAvatarProcessor(fileproc2.NewAvatarProc(avdl)),
 	)

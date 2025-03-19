@@ -2,6 +2,7 @@ package control
 
 import (
 	"context"
+	"reflect"
 	"testing"
 
 	"github.com/rusq/slack"
@@ -867,6 +868,188 @@ func Test_jointFileSearcher_Close(t *testing.T) {
 			}
 			if err := j.Close(); (err != nil) != tt.wantErr {
 				t.Errorf("jointFileSearcher.Close() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func Test_userIDCollector_collect(t *testing.T) {
+	cancelled, cancel := context.WithCancel(context.Background())
+	cancel()
+	type fields struct {
+		seen    map[string]struct{}
+		userIDC chan []string
+	}
+	type args struct {
+		ctx context.Context
+		mm  []slack.Message
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+		wantIDs []string
+	}{
+		{
+			name: "no messages",
+			fields: fields{
+				seen:    make(map[string]struct{}),
+				userIDC: make(chan []string, 1),
+			},
+			args:    args{},
+			wantErr: false,
+			wantIDs: nil,
+		},
+		{
+			name: "test User IDs",
+			fields: fields{
+				seen:    make(map[string]struct{}),
+				userIDC: make(chan []string, 2),
+			},
+			args: args{
+				ctx: context.Background(),
+				mm: []slack.Message{
+					{Msg: slack.Msg{User: "U12345678"}},
+					{Msg: slack.Msg{User: "U87654321"}},
+				},
+			},
+			wantErr: false,
+			wantIDs: []string{"U12345678", "U87654321"},
+		},
+		{
+			name: "test User IDs, duplicates",
+			fields: fields{
+				seen:    make(map[string]struct{}),
+				userIDC: make(chan []string, 3),
+			},
+			args: args{
+				ctx: context.Background(),
+				mm: []slack.Message{
+					{Msg: slack.Msg{User: "U12345678"}},
+					{Msg: slack.Msg{User: "U87654321"}},
+					{Msg: slack.Msg{User: "U12345678"}},
+				},
+			},
+			wantErr: false,
+			wantIDs: []string{"U12345678", "U87654321"},
+		},
+		{
+			name: "cancelled context",
+			fields: fields{
+				seen:    make(map[string]struct{}),
+				userIDC: make(chan []string),
+			},
+			args: args{
+				ctx: cancelled,
+				mm: []slack.Message{
+					{Msg: slack.Msg{User: "U12345678"}},
+					{Msg: slack.Msg{User: "U87654321"}},
+				},
+			},
+			wantErr: true,
+			wantIDs: nil,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			uic := &userIDCollector{
+				seen:    tt.fields.seen,
+				userIDC: tt.fields.userIDC,
+			}
+
+			if err := uic.collect(tt.args.ctx, tt.args.mm); (err != nil) != tt.wantErr {
+				t.Errorf("userIDCollector.collect() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			close(uic.userIDC)
+			uu := <-uic.userIDC
+			assert.Equal(t, tt.wantIDs, uu)
+		})
+	}
+}
+
+func Test_userIDCollector_Close(t *testing.T) {
+	type fields struct {
+		seen    map[string]struct{}
+		userIDC chan []string
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		wantErr bool
+	}{
+		{
+			name: "no error",
+			fields: fields{
+				seen:    make(map[string]struct{}),
+				userIDC: make(chan []string, 1),
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			uic := &userIDCollector{
+				seen:    tt.fields.seen,
+				userIDC: tt.fields.userIDC,
+			}
+			if err := uic.Close(); (err != nil) != tt.wantErr {
+				t.Errorf("userIDCollector.Close() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func Test_newChanFilter(t *testing.T) {
+	type args struct {
+		links      chan<- structures.EntityItem
+		list       *structures.EntityList
+		memberOnly bool
+	}
+	tests := []struct {
+		name string
+		args args
+		want *chanFilter
+	}{
+		// TODO: Add test cases.
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := newChanFilter(tt.args.links, tt.args.list, tt.args.memberOnly); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("newChanFilter() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_userIDCollector_C(t *testing.T) {
+	testChan := make(chan []string)
+	type fields struct {
+		seen    map[string]struct{}
+		userIDC chan []string
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   <-chan []string
+	}{
+		{
+			name: "test channel",
+			fields: fields{
+				seen:    make(map[string]struct{}),
+				userIDC: testChan,
+			},
+			want: testChan,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			uic := &userIDCollector{
+				seen:    tt.fields.seen,
+				userIDC: tt.fields.userIDC,
+			}
+			if got := uic.C(); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("userIDCollector.C() = %v, want %v", got, tt.want)
 			}
 		})
 	}

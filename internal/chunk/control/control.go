@@ -54,17 +54,41 @@ func (c *Controller) Run(ctx context.Context, list *structures.EntityList) error
 	rec := chunk.NewCustomRecorder(c.erc)
 	defer rec.Close()
 
+	streamer, proc := c.mkSuperprocessor(ctx, rec)
+
+	return runWorkers(ctx, streamer, list, proc, c.flags)
+}
+
+func (c *Controller) mkSuperprocessor(ctx context.Context, rec *chunk.Recorder) (Streamer, superprocessor) {
+	streamer := c.s
+	// got to do some explanation here: the order of processors is important:
+	// files ==> recorder ==> transformer                     2     1            3
+	conv := processor.AppendMessenger(processor.PrependFiler(rec, c.filer), c.newConvTransformer(ctx))
+	if c.flags.ChannelUsers {
+		// userIDCollector collects the user IDs from messages and thread messages (excluding duplicates)
+		// and sends them to the userIDC channel.  The userCollectingStreamer replaces the Users method
+		// of the Streamer with a method that gets the information for user IDs received on the userIDC
+		// channel and calls the Users processor method.  Once the Close method is called on userIDCollector,
+		// the userID channel is closed, and the userCollectingStreamer stops processing the user IDs.
+		//
+		// Drawback is that the transformer won't start until all user IDs are collected from all channels.
+		ucoll := newUserIDCollector()
+		conv = processor.PrependMessenger(conv, ucoll)
+		streamer = &userCollectingStreamer{
+			Streamer: streamer,
+			userIDC:  ucoll.C(),
+		}
+	}
+
 	sp := superprocessor{
-		// got to do some explanation here: the order of processors is important:
-		// files ==> recorder ==> transformer                             2     1            3
-		Conversations: processor.AppendMessenger(processor.PrependFiler(rec, c.filer), c.newConvTransformer(ctx)),
+		Conversations: conv,
 		//                                       1                     2    3
 		Users:         processor.JoinUsers(c.newUserCollector(ctx), c.avp, rec),
 		Channels:      rec,
 		WorkspaceInfo: rec,
 	}
 
-	return runWorkers(ctx, c.s, list, sp, c.flags)
+	return streamer, sp
 }
 
 type SearchType int
