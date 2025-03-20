@@ -51,6 +51,7 @@ func (fl *exportFlags) configuration() cfgui.Configuration {
 						)),
 				},
 				cfgui.MemberOnly(),
+				cfgui.OnlyChannelUsers(),
 				cfgui.Avatars(),
 				{
 					Name:        "Export Token",

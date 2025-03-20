@@ -29,7 +29,7 @@ func MemberOnly() Parameter {
 	return Parameter{
 		Name:        "Member Only",
 		Value:       Checkbox(cfg.MemberOnly),
-		Description: "Export only channels, which current user belongs to",
+		Description: "Export only channels, which you belongs to.",
 		Updater:     updaters.NewBool(&cfg.MemberOnly),
 	}
 }
@@ -39,7 +39,7 @@ func RecordFiles() Parameter {
 	return Parameter{
 		Name:        "Record Files",
 		Value:       Checkbox(cfg.RecordFiles),
-		Description: "Record file chunks in chunk files",
+		Description: "Record file chunks in chunk files.",
 		Updater:     updaters.NewBool(&cfg.RecordFiles),
 	}
 }
@@ -48,7 +48,16 @@ func Avatars() Parameter {
 	return Parameter{
 		Name:        "Download Avatars",
 		Value:       Checkbox(cfg.WithAvatars),
-		Description: "Download avatars",
+		Description: "Download avatars.",
 		Updater:     updaters.NewBool(&cfg.WithAvatars),
+	}
+}
+
+func OnlyChannelUsers() Parameter {
+	return Parameter{
+		Name:        "Only Channel Users",
+		Value:       Checkbox(cfg.OnlyChannelUsers),
+		Description: "Only users participating in visible conversastions are exported.",
+		Updater:     updaters.NewBool(&cfg.OnlyChannelUsers),
 	}
 }
