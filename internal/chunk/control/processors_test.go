@@ -873,7 +873,7 @@ func Test_jointFileSearcher_Close(t *testing.T) {
 	}
 }
 
-func Test_userIDCollector_collect(t *testing.T) {
+func Test_msgUserIDsCollector_collect(t *testing.T) {
 	cancelled, cancel := context.WithCancel(context.Background())
 	cancel()
 	type fields struct {
@@ -953,13 +953,13 @@ func Test_userIDCollector_collect(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			uic := &userIDCollector{
+			uic := &msgUserIDsCollector{
 				seen:    tt.fields.seen,
 				userIDC: tt.fields.userIDC,
 			}
 
 			if err := uic.collect(tt.args.ctx, tt.args.mm); (err != nil) != tt.wantErr {
-				t.Errorf("userIDCollector.collect() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("msgUserIDsCollector.collect() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			close(uic.userIDC)
 			uu := <-uic.userIDC
@@ -968,7 +968,7 @@ func Test_userIDCollector_collect(t *testing.T) {
 	}
 }
 
-func Test_userIDCollector_Close(t *testing.T) {
+func Test_msgUserIDsCollector_Close(t *testing.T) {
 	type fields struct {
 		seen    map[string]struct{}
 		userIDC chan []string
@@ -989,12 +989,12 @@ func Test_userIDCollector_Close(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			uic := &userIDCollector{
+			uic := &msgUserIDsCollector{
 				seen:    tt.fields.seen,
 				userIDC: tt.fields.userIDC,
 			}
 			if err := uic.Close(); (err != nil) != tt.wantErr {
-				t.Errorf("userIDCollector.Close() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("msgUserIDsCollector.Close() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
@@ -1022,7 +1022,7 @@ func Test_newChanFilter(t *testing.T) {
 	}
 }
 
-func Test_userIDCollector_C(t *testing.T) {
+func Test_msgUserIDsCollector_C(t *testing.T) {
 	testChan := make(chan []string)
 	type fields struct {
 		seen    map[string]struct{}
@@ -1044,12 +1044,12 @@ func Test_userIDCollector_C(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			uic := &userIDCollector{
+			uic := &msgUserIDsCollector{
 				seen:    tt.fields.seen,
 				userIDC: tt.fields.userIDC,
 			}
 			if got := uic.C(); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("userIDCollector.C() = %v, want %v", got, tt.want)
+				t.Errorf("msgUserIDsCollector.C() = %v, want %v", got, tt.want)
 			}
 		})
 	}

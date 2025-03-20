@@ -72,7 +72,7 @@ func (c *Controller) mkSuperprocessor(ctx context.Context, rec *chunk.Recorder) 
 		// the userID channel is closed, and the userCollectingStreamer stops processing the user IDs.
 		//
 		// Drawback is that the transformer won't start until all user IDs are collected from all channels.
-		ucoll := newUserIDCollector()
+		ucoll := newMsgUserIDsCollector()
 		conv = processor.PrependMessenger(conv, ucoll)
 		streamer = &userCollectingStreamer{
 			Streamer: streamer,

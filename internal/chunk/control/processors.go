@@ -192,40 +192,40 @@ func (j *jointFileSearcher) Close() error {
 	return errs
 }
 
-type userIDCollector struct {
+type msgUserIDsCollector struct {
 	seen    map[string]struct{}
 	userIDC chan []string
 }
 
-var _ processor.Messenger = (*userIDCollector)(nil)
+var _ processor.Messenger = (*msgUserIDsCollector)(nil)
 
-func newUserIDCollector() *userIDCollector {
+func newMsgUserIDsCollector() *msgUserIDsCollector {
 	const prealloc = 100
 	userIDC := make(chan []string, prealloc)
-	return &userIDCollector{
+	return &msgUserIDsCollector{
 		seen:    make(map[string]struct{}, prealloc),
 		userIDC: userIDC,
 	}
 }
 
-func (uic *userIDCollector) Close() error {
+func (uic *msgUserIDsCollector) Close() error {
 	close(uic.userIDC)
 	return nil
 }
 
-func (uic *userIDCollector) C() <-chan []string {
+func (uic *msgUserIDsCollector) C() <-chan []string {
 	return uic.userIDC
 }
 
-func (uic *userIDCollector) Messages(ctx context.Context, channelID string, numThreads int, isLast bool, mm []slack.Message) error {
+func (uic *msgUserIDsCollector) Messages(ctx context.Context, channelID string, numThreads int, isLast bool, mm []slack.Message) error {
 	return uic.collect(ctx, mm)
 }
 
-func (uic *userIDCollector) ThreadMessages(ctx context.Context, channelID string, parent slack.Message, threadOnly bool, isLast bool, tm []slack.Message) error {
+func (uic *msgUserIDsCollector) ThreadMessages(ctx context.Context, channelID string, parent slack.Message, threadOnly bool, isLast bool, tm []slack.Message) error {
 	return uic.collect(ctx, tm)
 }
 
-func (uic *userIDCollector) collect(ctx context.Context, mm []slack.Message) error {
+func (uic *msgUserIDsCollector) collect(ctx context.Context, mm []slack.Message) error {
 	var uu []string
 	for _, m := range mm {
 		if _, ok := uic.seen[m.User]; ok {
