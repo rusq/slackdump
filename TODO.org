@@ -46,6 +46,5 @@
 ** TODO Only participating users #287.
 * V3.2
 ** TODO Starred items and bookmarks.
-** TODO Connetion pooling
+** TODO Connection pooling
 ** TODO load emojis alongside the messages during archive.
-
