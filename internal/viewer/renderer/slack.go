@@ -185,11 +185,12 @@ func NewErrMissingHandler(t any) error {
 
 // classes
 var (
-	div        = element("div", true)
-	figure     = element("figure", true)
-	blockquote = element("blockquote", true)
-	strong     = element("strong", true)
-	pre        = element("pre", true)
+	elBlockquote = element("blockquote", true)
+	elDiv        = element("div", true)
+	elFigure     = element("figure", true)
+	elH3         = element("h3", true)
+	elPre        = element("pre", true)
+	elStrong     = element("strong", true)
 )
 
 func element(el string, close bool) func(class string, s string) string {

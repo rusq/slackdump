@@ -15,6 +15,7 @@ import (
 
 	"github.com/rusq/fsadapter/mocks/mock_fsadapter"
 
+	"github.com/rusq/slackdump/v3/internal/testutil"
 	"github.com/rusq/slackdump/v3/mocks/mock_downloader"
 )
 
@@ -156,7 +157,7 @@ func Test_downloadFiles(t *testing.T) {
 			"single message w 2 files",
 			func(m *Mocksourcer, fs *mock_fsadapter.MockFSCloser, d *mock_downloader.MockGetFiler) {
 				m.EXPECT().Channels(gomock.Any()).Return(TestChannels, nil)
-				m.EXPECT().AllMessages("C01").Return([]slack.Message{TestMsgWFile1}, nil)
+				m.EXPECT().AllMessages(gomock.Any(), "C01").Return(testutil.Slice2Seq2([]slack.Message{TestMsgWFile1}), nil)
 
 				fs.EXPECT().Create(filepath.Join("__uploads", "1", "file1")).Return(&fakewritecloser{}, nil)
 				fs.EXPECT().Create(filepath.Join("__uploads", "2", "file2")).Return(&fakewritecloser{}, nil)
@@ -170,8 +171,8 @@ func Test_downloadFiles(t *testing.T) {
 			"all ok",
 			func(m *Mocksourcer, fs *mock_fsadapter.MockFSCloser, d *mock_downloader.MockGetFiler) {
 				m.EXPECT().Channels(gomock.Any()).Return(TestChannels, nil)
-				m.EXPECT().AllMessages("C01").Return(TestMessages, nil)
-				m.EXPECT().AllThreadMessages("C01", "2").Return(TestThreadMessages, nil)
+				m.EXPECT().AllMessages(gomock.Any(), "C01").Return(testutil.Slice2Seq2(TestMessages), nil)
+				m.EXPECT().AllThreadMessages(gomock.Any(), "C01", "2").Return(testutil.Slice2Seq2(TestThreadMessages), nil)
 
 				fs.EXPECT().Create(filepath.Join("__uploads", "1", "file1")).Return(&fakewritecloser{}, nil)
 				fs.EXPECT().Create(filepath.Join("__uploads", "2", "file2")).Return(&fakewritecloser{}, nil)

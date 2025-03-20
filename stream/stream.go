@@ -34,19 +34,22 @@ const (
 //go:generate mockgen -destination mock_stream/mock_stream.go . Slacker
 type Slacker interface {
 	AuthTestContext(context.Context) (response *slack.AuthTestResponse, err error)
+
 	GetConversationHistoryContext(ctx context.Context, params *slack.GetConversationHistoryParameters) (*slack.GetConversationHistoryResponse, error)
 	GetConversationRepliesContext(ctx context.Context, params *slack.GetConversationRepliesParameters) (msgs []slack.Message, hasMore bool, nextCursor string, err error)
-	GetUsersPaginated(options ...slack.GetUsersOption) slack.UserPagination
-
-	GetStarredContext(ctx context.Context, params slack.StarsParameters) ([]slack.StarredItem, *slack.Paging, error)
-	ListBookmarks(channelID string) ([]slack.Bookmark, error)
-
 	GetConversationsContext(ctx context.Context, params *slack.GetConversationsParameters) (channels []slack.Channel, nextCursor string, err error)
 	GetConversationInfoContext(ctx context.Context, input *slack.GetConversationInfoInput) (*slack.Channel, error)
 	GetUsersInConversationContext(ctx context.Context, params *slack.GetUsersInConversationParameters) ([]string, string, error)
 
+	GetUsersPaginated(options ...slack.GetUsersOption) slack.UserPagination
+	GetUserInfoContext(ctx context.Context, user string) (*slack.User, error)
+
+	GetStarredContext(ctx context.Context, params slack.StarsParameters) ([]slack.StarredItem, *slack.Paging, error)
+	ListBookmarks(channelID string) ([]slack.Bookmark, error)
+
 	SearchMessagesContext(ctx context.Context, query string, params slack.SearchParameters) (*slack.SearchMessages, error)
 	SearchFilesContext(ctx context.Context, query string, params slack.SearchParameters) (*slack.SearchFiles, error)
+
 	GetFileInfoContext(ctx context.Context, fileID string, count int, page int) (*slack.File, []slack.Comment, *slack.Paging, error)
 }
 
@@ -128,6 +131,7 @@ type rateLimits struct {
 	channels    *rate.Limiter
 	threads     *rate.Limiter
 	users       *rate.Limiter
+	userinfo    *rate.Limiter
 	searchmsg   *rate.Limiter
 	searchfiles *rate.Limiter
 	tier        *network.Limits
@@ -138,6 +142,7 @@ func limits(l *network.Limits) rateLimits {
 		channels:    network.NewLimiter(network.Tier3, l.Tier3.Burst, int(l.Tier3.Boost)),
 		threads:     network.NewLimiter(network.Tier3, l.Tier3.Burst, int(l.Tier3.Boost)),
 		users:       network.NewLimiter(network.Tier2, l.Tier2.Burst, int(l.Tier2.Boost)),
+		userinfo:    network.NewLimiter(network.Tier4, l.Tier4.Burst, int(l.Tier4.Boost)),
 		searchmsg:   network.NewLimiter(network.Tier2, l.Tier2.Burst, int(l.Tier2.Boost)),
 		searchfiles: network.NewLimiter(network.Tier2, l.Tier2.Burst, int(l.Tier2.Boost)),
 		tier:        l,
@@ -222,7 +227,7 @@ func (cs *Stream) Users(ctx context.Context, proc processor.Users, opt ...slack.
 	p := cs.client.GetUsersPaginated(opt...)
 	var apiErr error
 	for apiErr == nil {
-		if apiErr = network.WithRetry(ctx, cs.limits.users, cs.limits.tier.Tier2.Retries, func() error {
+		if apiErr = network.WithRetry(ctx, cs.limits.users, cs.limits.tier.Tier2.Retries, func(ctx context.Context) error {
 			var err error
 			p, err = p.Next(ctx)
 			return err
@@ -246,7 +251,7 @@ func (cs *Stream) ListChannels(ctx context.Context, proc processor.Channels, p *
 	for {
 		p.Cursor = next
 		var ch []slack.Channel
-		if err := network.WithRetry(ctx, cs.limits.channels, cs.limits.tier.Tier3.Retries, func() error {
+		if err := network.WithRetry(ctx, cs.limits.channels, cs.limits.tier.Tier3.Retries, func(ctx context.Context) error {
 			var err error
 			ch, next, err = cs.client.GetConversationsContext(ctx, p)
 			return err
@@ -268,6 +273,30 @@ func (cs *Stream) ListChannels(ctx context.Context, proc processor.Channels, p *
 		if next == "" {
 			break
 		}
+	}
+	return nil
+}
+
+// Users processes all users in the workspace, calling proc for each batch of
+// users returned by the API.
+func (cs *Stream) UsersBulk(ctx context.Context, proc processor.Users, ids ...string) error {
+	ctx, task := trace.NewTask(ctx, "UsersBulk")
+	defer task.End()
+
+	uu := make([]slack.User, 0, len(ids))
+	for _, id := range ids {
+		var u *slack.User
+		if err := network.WithRetry(ctx, cs.limits.userinfo, cs.limits.tier.Tier4.Retries, func(ctx context.Context) error {
+			var err error
+			u, err = cs.client.GetUserInfoContext(ctx, id)
+			return err
+		}); err != nil {
+			return err
+		}
+		uu = append(uu, *u)
+	}
+	if err := proc.Users(ctx, uu); err != nil {
+		return err
 	}
 	return nil
 }

@@ -164,7 +164,7 @@ func Test_processThreadMessages(t *testing.T) {
 		mproc := mock_processor.NewMockConversations(ctrl)
 		dummyChannel := fixtures.DummyChannel("CTM1")
 		mproc.EXPECT().
-			ThreadMessages(gomock.Any(), "CTM1", testThread[0], false, true, testThread[1:]).
+			ThreadMessages(gomock.Any(), "CTM1", testThread[0], false, true, testThread).
 			Return(nil)
 
 		mproc.EXPECT().
@@ -439,6 +439,73 @@ func TestStream_ListChannels(t *testing.T) {
 
 			if err := cs.ListChannels(tt.args.ctx, mc, tt.args.p); (err != nil) != tt.wantErr {
 				t.Errorf("Stream.ListChannels() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestStream_UsersBulk(t *testing.T) {
+	cancelled, cancel := context.WithCancel(context.Background())
+	cancel()
+	testLimits := rateLimits{
+		userinfo: network.NewLimiter(network.NoTier, 100, 100),
+		tier:     &network.DefLimits,
+	}
+	type fields struct {
+		oldest time.Time
+		latest time.Time
+		// client     Slacker
+		limits     rateLimits
+		chanCache  *chanCache
+		fastSearch bool
+		inclusive  bool
+		resultFn   []func(sr Result) error
+	}
+	type args struct {
+		ctx context.Context
+		// proc processor.Users
+		ids []string
+	}
+	tests := []struct {
+		name     string
+		fields   fields
+		args     args
+		expectFn func(ms *mock_stream.MockSlacker, mu *mock_processor.MockUsers)
+		wantErr  bool
+	}{
+		{
+			name:   "cancelled context",
+			fields: fields{limits: testLimits},
+			args: args{
+				ctx: cancelled,
+				ids: []string{"U12345678"},
+			},
+			expectFn: func(ms *mock_stream.MockSlacker, mu *mock_processor.MockUsers) {
+				mu.EXPECT().Users(gomock.Any(), gomock.Any()).Times(0)
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			ms := mock_stream.NewMockSlacker(ctrl)
+			mu := mock_processor.NewMockUsers(ctrl)
+			if tt.expectFn != nil {
+				tt.expectFn(ms, mu)
+			}
+			cs := &Stream{
+				oldest:     tt.fields.oldest,
+				latest:     tt.fields.latest,
+				client:     ms,
+				limits:     tt.fields.limits,
+				chanCache:  tt.fields.chanCache,
+				fastSearch: tt.fields.fastSearch,
+				inclusive:  tt.fields.inclusive,
+				resultFn:   tt.fields.resultFn,
+			}
+			if err := cs.UsersBulk(tt.args.ctx, mu, tt.args.ids...); (err != nil) != tt.wantErr {
+				t.Errorf("Stream.UsersBulk() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}

@@ -114,7 +114,7 @@ func (cl *Client) GetUsers(ctx context.Context, userID ...string) ([]UserInfo, e
 	if len(userID) == 0 {
 		return []UserInfo{}, nil
 	}
-	var updatedIds = make(map[string]int64, len(userID))
+	updatedIds := make(map[string]int64, len(userID))
 	for _, id := range userID {
 		updatedIds[id] = 0
 	}
@@ -189,7 +189,7 @@ func (cl *Client) UsersList(ctx context.Context, channelIDs ...string) ([]User, 
 	}
 	channelIDs, dmIDs := splitDMs(channelIDs)
 	var uu []User
-	var eg errgroup.Group
+	eg, ctx := errgroup.WithContext(ctx)
 	if len(channelIDs) > 0 {
 		eg.Go(func() error {
 			u, err := cl.publicUserList(ctx, channelIDs)
@@ -234,7 +234,7 @@ func (cl *Client) publicUserList(ctx context.Context, channelIDs []string) ([]Us
 		Marker:       "",
 		Count:        count,
 	}
-	var uu = make([]User, 0, count)
+	uu := make([]User, 0, count)
 	lim := tier3.limiter()
 	for {
 		var ur UsersListResponse

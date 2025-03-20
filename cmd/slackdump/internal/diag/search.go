@@ -9,15 +9,17 @@ import (
 	"os"
 	"time"
 
+	dirproc2 "github.com/rusq/slackdump/v3/internal/chunk/backend/directory"
+
 	"github.com/rusq/slack"
+	"golang.org/x/time/rate"
+
 	"github.com/rusq/slackdump/v3/auth"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/internal/chunk"
-	"github.com/rusq/slackdump/v3/internal/chunk/dirproc"
 	"github.com/rusq/slackdump/v3/internal/network"
 	"github.com/rusq/slackdump/v3/types"
-	"golang.org/x/time/rate"
 )
 
 var cmdSearch = &base.Command{
@@ -78,7 +80,7 @@ func runSearch(ctx context.Context, cmd *base.Command, args []string) error {
 
 	lim := rate.NewLimiter(rate.Every(3*time.Second), 5)
 	lg := cfg.Log
-	var p = slack.SearchParameters{
+	p := slack.SearchParameters{
 		Sort:          "timestamp",
 		SortDirection: "desc",
 		Count:         int(searchFlags.perPage),
@@ -91,7 +93,7 @@ func runSearch(ctx context.Context, cmd *base.Command, args []string) error {
 			sm  *slack.SearchMessages
 			err error
 		)
-		if err := network.WithRetry(ctx, lim, 3, func() error {
+		if err := network.WithRetry(ctx, lim, 3, func(ctx context.Context) error {
 			sm, err = cl.SearchMessagesContext(ctx, query, p)
 			return err
 		}); err != nil {
@@ -146,7 +148,7 @@ func runSearchConvert(ctx context.Context, _ *base.Command, args []string) error
 		return errors.New("output is empty")
 	}
 
-	if err := os.MkdirAll(cfg.Output, 0755); err != nil {
+	if err := os.MkdirAll(cfg.Output, 0o755); err != nil {
 		return err
 	}
 
@@ -156,13 +158,13 @@ func runSearchConvert(ctx context.Context, _ *base.Command, args []string) error
 	}
 	defer cd.Close()
 
-	dps, err := dirproc.NewSearch(cd, nil)
+	dps, err := dirproc2.NewSearch(cd, nil)
 	if err != nil {
 		return err
 	}
 	defer dps.Close()
 
-	var chans = make(map[string]struct{})
+	chans := make(map[string]struct{})
 	dec := json.NewDecoder(r)
 	for {
 		var sm []slack.SearchMessage
@@ -186,7 +188,7 @@ func runSearchConvert(ctx context.Context, _ *base.Command, args []string) error
 		}
 	}
 	if searchFlags.users != "" {
-		dpu, err := dirproc.NewUsers(cd)
+		dpu, err := dirproc2.NewUsers(cd)
 		if err != nil {
 			return err
 		}
@@ -198,7 +200,7 @@ func runSearchConvert(ctx context.Context, _ *base.Command, args []string) error
 	return nil
 }
 
-func convertChannels(ctx context.Context, dps *dirproc.Search, filename string, chans map[string]struct{}) error {
+func convertChannels(ctx context.Context, dps *dirproc2.Search, filename string, chans map[string]struct{}) error {
 	f, err := os.Open(filename)
 	if err != nil {
 		return err
@@ -219,7 +221,7 @@ func convertChannels(ctx context.Context, dps *dirproc.Search, filename string, 
 	return nil
 }
 
-func convertUsers(ctx context.Context, dpu *dirproc.Users, filename string) error {
+func convertUsers(ctx context.Context, dpu *dirproc2.Users, filename string) error {
 	f, err := os.Open(filename)
 	if err != nil {
 		return err

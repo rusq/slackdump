@@ -130,3 +130,14 @@ func BenchmarkTs2Int(b *testing.B) {
 		b.Errorf("Expected 1638494510037400, got %d", n)
 	}
 }
+
+func BenchmarkInt2Ts(b *testing.B) {
+	var s string
+
+	for b.Loop() {
+		s = Int2TS(1638494510037400)
+	}
+	if s != "1638494510.037400" {
+		b.Errorf("Expected 1638494510.037400, got %s", s)
+	}
+}

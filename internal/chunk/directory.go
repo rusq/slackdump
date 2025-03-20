@@ -25,7 +25,7 @@ import (
 
 // file extensions
 const (
-	chunkExt = ".json.gz"
+	ChunkExt = ".json.gz"
 	extIdx   = ".idx"
 )
 
@@ -37,7 +37,10 @@ const (
 	FSearch    FileID = "search"
 )
 
-const UploadsDir = "__uploads" // for serving files
+const (
+	UploadsDir = "__uploads" // for serving files
+	AvatarsDir = "__avatars"
+)
 
 // Directory is an abstraction over the directory with chunk files.  It
 // provides a way to write chunk files and read channels, users and messages
@@ -234,7 +237,7 @@ func (d *Directory) Walk(fn func(name string, f *File, err error) error) error {
 		if err != nil {
 			return err
 		}
-		if !strings.HasSuffix(path, chunkExt) || de.IsDir() {
+		if !strings.HasSuffix(path, ChunkExt) || de.IsDir() {
 			return nil
 		}
 		f, err := d.openRAW(path)
@@ -258,21 +261,6 @@ func (d *Directory) WalkSync(fn func(name string, f *File, err error) error) err
 // Name returns the full directory path.
 func (d *Directory) Name() string {
 	return d.dir
-}
-
-// loadChannelsJSON loads channels json file and returns a slice of
-// slack.Channel.  It expects it to be GZIP compressed.
-func (d *Directory) loadChannelsJSON(fullpath string) ([]slack.Channel, error) {
-	f, err := d.openRAW(fullpath)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-	cf, err := cachedFromReader(f, d.wantCache)
-	if err != nil {
-		return nil, err
-	}
-	return cf.AllChannels()
 }
 
 func (d *Directory) Stat(id FileID) (fs.FileInfo, error) {
@@ -347,7 +335,7 @@ func openfile(filename string) (*os.File, error) {
 
 // filename returns the full path of the chunk file with the given fileID.
 func (d *Directory) filename(id FileID) string {
-	return filepath.Join(d.dir, string(id)+chunkExt)
+	return filepath.Join(d.dir, string(id)+ChunkExt)
 }
 
 // Create creates the chunk file with the given name.  Extension is appended
@@ -446,13 +434,13 @@ func (d *Directory) File(id string, name string) (fs.File, error) {
 	return os.Open(filepath.Join(d.dir, UploadsDir, id, name))
 }
 
-func (d *Directory) AllMessages(channelID string) ([]slack.Message, error) {
+func (d *Directory) AllMessages(ctx context.Context, channelID string) ([]slack.Message, error) {
 	var mm structures.Messages
 	err := d.WalkSync(func(name string, f *File, err error) error {
 		if err != nil {
 			return err
 		}
-		m, err := f.AllMessages(channelID)
+		m, err := f.AllMessages(ctx, channelID)
 		if err != nil {
 			if errors.Is(err, ErrNotFound) {
 				return nil
@@ -469,7 +457,7 @@ func (d *Directory) AllMessages(channelID string) ([]slack.Message, error) {
 	return mm, nil
 }
 
-func (d *Directory) AllThreadMessages(channelID, threadID string) ([]slack.Message, error) {
+func (d *Directory) AllThreadMessages(_ context.Context, channelID, threadID string) ([]slack.Message, error) {
 	var mm structures.Messages
 	var parent *slack.Message
 	err := d.WalkSync(func(name string, f *File, err error) error {
@@ -504,7 +492,13 @@ func (d *Directory) AllThreadMessages(channelID, threadID string) ([]slack.Messa
 }
 
 func (d *Directory) FastAllThreadMessages(channelID, threadID string) ([]slack.Message, error) {
-	f, err := d.Open(ToFileID(channelID, "", false))
+	// try open the thread file
+	fileID := ToFileID(channelID, threadID, true)
+	_, err := d.Stat(fileID)
+	if err != nil {
+		fileID = ToFileID(channelID, threadID, false)
+	}
+	f, err := d.Open(fileID)
 	if err != nil {
 		return nil, err
 	}
@@ -521,14 +515,14 @@ func (d *Directory) FastAllThreadMessages(channelID, threadID string) ([]slack.M
 	return append([]slack.Message{*parent}, rest...), nil
 }
 
-func (d *Directory) FastAllMessages(channelID string) ([]slack.Message, error) {
+func (d *Directory) FastAllMessages(ctx context.Context, channelID string) ([]slack.Message, error) {
 	f, err := d.Open(FileID(channelID))
 	if err != nil {
 		return nil, err
 	}
 	defer f.Close()
 
-	return f.AllMessages(channelID)
+	return f.AllMessages(ctx, channelID)
 }
 
 // Latest returns the latest timestamps for the channels and threads
@@ -555,4 +549,30 @@ func (d *Directory) Latest(ctx context.Context) (map[GroupID]time.Time, error) {
 		return nil, err
 	}
 	return latest, nil
+}
+
+func (d *Directory) Sorted(ctx context.Context, channelID string, desc bool, cb func(ts time.Time, msg *slack.Message) error) error {
+	// TODO: this is oversimplification.  The messages for the channel in
+	// canonical chunk directory may be stored in multiple files.
+	f, err := d.Open(FileID(channelID))
+	if err != nil {
+		return err
+	}
+	return f.Sorted(ctx, channelID, desc, cb)
+}
+
+// ToChunk writes all chunks from the directory to the encoder.
+func (d *Directory) ToChunk(ctx context.Context, enc Encoder, _ int64) error {
+	err := d.WalkSync(func(name string, f *File, err error) error {
+		if err != nil {
+			return err
+		}
+		if err := f.ForEach(func(ch *Chunk) error {
+			return enc.Encode(ctx, ch)
+		}); err != nil {
+			return err
+		}
+		return nil
+	})
+	return err
 }

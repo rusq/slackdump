@@ -63,13 +63,12 @@ func (s *Session) getChannels(ctx context.Context, chanTypes []string, cb func(t
 			nextcur string
 		)
 		reqStart := time.Now()
-		if err := network.WithRetry(ctx, limiter, s.cfg.limits.Tier3.Retries, func() error {
+		if err := network.WithRetry(ctx, limiter, s.cfg.limits.Tier3.Retries, func(ctx context.Context) error {
 			var err error
 			trace.WithRegion(ctx, "GetConversationsContext", func() {
 				chans, nextcur, err = s.client.GetConversationsContext(ctx, params)
 			})
 			return err
-
 		}); err != nil {
 			return err
 		}
@@ -105,7 +104,7 @@ func (sd *Session) GetChannelMembers(ctx context.Context, channelID string) ([]s
 	for {
 		var uu []string
 		var next string
-		if err := network.WithRetry(ctx, sd.limiter(network.Tier4), sd.cfg.limits.Tier4.Retries, func() error {
+		if err := network.WithRetry(ctx, sd.limiter(network.Tier4), sd.cfg.limits.Tier4.Retries, func(ctx context.Context) error {
 			var err error
 			uu, next, err = sd.client.GetUsersInConversationContext(ctx, &slack.GetUsersInConversationParameters{
 				ChannelID: channelID,

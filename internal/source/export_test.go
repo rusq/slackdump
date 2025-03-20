@@ -75,6 +75,7 @@ func TestExport_AllMessages(t *testing.T) {
 		name      string
 	}
 	type args struct {
+		ctx       context.Context
 		channelID string
 	}
 	tests := []struct {
@@ -93,6 +94,7 @@ func TestExport_AllMessages(t *testing.T) {
 				},
 			},
 			args: args{
+				ctx:       context.Background(),
 				channelID: "CHY5HUESG",
 			},
 			want:    fixtures.Load[[]slack.Message](fixtures.TestChannelEveryoneMessagesNativeExport),
@@ -106,7 +108,7 @@ func TestExport_AllMessages(t *testing.T) {
 				chanNames: tt.fields.chanNames,
 				name:      tt.fields.name,
 			}
-			got, err := e.AllMessages(tt.args.channelID)
+			got, err := e.AllMessages(tt.args.ctx, tt.args.channelID)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ZIPExport.AllMessages() error = %v, wantErr %v", err, tt.wantErr)
 				return

@@ -182,7 +182,7 @@ func Test_procThreadMsg(t *testing.T) {
 				testMessages[0:1],
 			},
 			func(mp *mock_processor.MockConversations) {
-				mp.EXPECT().ThreadMessages(gomock.Any(), TestChannel.ID, testMessages[0], false, true, []slack.Message{}).Times(1)
+				mp.EXPECT().ThreadMessages(gomock.Any(), TestChannel.ID, testMessages[0], false, true, testMessages[0:1]).Times(1)
 			},
 			false,
 		},
@@ -198,7 +198,7 @@ func Test_procThreadMsg(t *testing.T) {
 			},
 			func(mp *mock_processor.MockConversations) {
 				stuffProcWithFiles(mp, TestChannel, testMessages)
-				mp.EXPECT().ThreadMessages(gomock.Any(), TestChannel.ID, testMessages[0], false, false, testMessages[1:]).Times(1)
+				mp.EXPECT().ThreadMessages(gomock.Any(), TestChannel.ID, testMessages[0], false, false, testMessages).Times(1)
 			},
 			false,
 		},
@@ -234,7 +234,7 @@ func Test_procThreadMsg(t *testing.T) {
 			},
 			func(mp *mock_processor.MockConversations) {
 				stuffProcWithFiles(mp, TestChannel, testMessages)
-				mp.EXPECT().ThreadMessages(gomock.Any(), TestChannel.ID, testMessages[0], false, false, testMessages[1:]).Return(assert.AnError).Times(1)
+				mp.EXPECT().ThreadMessages(gomock.Any(), TestChannel.ID, testMessages[0], false, false, testMessages).Return(assert.AnError).Times(1)
 			},
 			true,
 		},

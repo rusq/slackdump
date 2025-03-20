@@ -6,11 +6,17 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"log/slog"
 	"os"
 	"runtime/trace"
 	"strings"
 	"text/template"
 	"time"
+
+	transform2 "github.com/rusq/slackdump/v3/internal/convert/transform"
+	fileproc2 "github.com/rusq/slackdump/v3/internal/convert/transform/fileproc"
+
+	"github.com/rusq/slackdump/v3/internal/chunk/backend/dbase"
 
 	"github.com/rusq/fsadapter"
 
@@ -19,10 +25,9 @@ import (
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/internal/chunk"
-	"github.com/rusq/slackdump/v3/internal/chunk/dirproc"
-	"github.com/rusq/slackdump/v3/internal/chunk/transform"
-	"github.com/rusq/slackdump/v3/internal/chunk/transform/fileproc"
+	"github.com/rusq/slackdump/v3/internal/chunk/control"
 	"github.com/rusq/slackdump/v3/internal/nametmpl"
+	"github.com/rusq/slackdump/v3/internal/source"
 	"github.com/rusq/slackdump/v3/internal/structures"
 	"github.com/rusq/slackdump/v3/stream"
 )
@@ -37,7 +42,7 @@ var CmdDump = &base.Command{
 	Long:        dumpMd,
 	RequireAuth: true,
 	PrintFlags:  true,
-	FlagMask:    cfg.OmitMemberOnlyFlag | cfg.OmitRecordFilesFlag | cfg.OmitDownloadAvatarsFlag,
+	FlagMask:    cfg.OmitCustomUserFlags | cfg.OmitRecordFilesFlag | cfg.OmitDownloadAvatarsFlag,
 }
 
 func init() {
@@ -116,7 +121,7 @@ func RunDump(ctx context.Context, _ *base.Command, args []string) error {
 		list:          list,
 		tmpl:          tmpl,
 		updatePath:    opts.updateLinks,
-		downloadFiles: cfg.DownloadFiles,
+		downloadFiles: cfg.WithFiles,
 	}
 
 	// leave the compatibility mode to the user, if the new version is playing
@@ -155,7 +160,7 @@ func dump(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, p dump
 	defer task.End()
 
 	if fsa == nil {
-		return errors.New("no filesystem adapter")
+		return errors.New("internal error:  no filesystem adapter")
 	}
 	if p.list.IsEmpty() {
 		return ErrNothingToDo
@@ -164,6 +169,14 @@ func dump(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, p dump
 		return err
 	}
 
+	if cfg.UseChunkFiles {
+		return dumpv3(ctx, sess, fsa, p)
+	} else {
+		return dumpv31(ctx, sess, fsa, p)
+	}
+}
+
+func dumpv3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, p dumpparams) error {
 	dir, err := os.MkdirTemp("", "slackdump-*")
 	if err != nil {
 		return fmt.Errorf("failed to create temp directory: %w", err)
@@ -172,45 +185,36 @@ func dump(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, p dump
 	lg := cfg.Log
 	lg.Debug("using directory", "dir", dir)
 
-	// files subprocessor
-	sdl := fileproc.NewDownloader(ctx, p.downloadFiles, sess.Client(), fsa, cfg.Log)
-	subproc := fileproc.NewDump(sdl)
-	defer subproc.Close()
-
-	opts := []transform.StdOption{
-		transform.StdWithTemplate(p.tmpl),
-		transform.StdWithLogger(lg),
-	}
-	if p.updatePath && p.downloadFiles {
-		opts = append(opts, transform.StdWithPipeline(subproc.PathUpdateFunc))
-	}
-
 	// Initialise the standard transformer.
 	cd, err := chunk.OpenDir(dir)
 	if err != nil {
 		return err
 	}
 	defer cd.Close()
+	src := source.OpenChunkDir(cd, true)
 
-	tf, err := transform.NewStandard(fsa, cd, opts...)
+	// files subprocessor
+	sdl := fileproc2.NewDownloader(ctx, p.downloadFiles, sess.Client(), fsa, cfg.Log)
+	subproc := fileproc2.NewDump(sdl)
+	defer subproc.Close()
+
+	opts := []transform2.DumpOption{
+		transform2.DumpWithTemplate(p.tmpl),
+		transform2.DumpWithLogger(lg),
+	}
+	if p.updatePath && p.downloadFiles {
+		opts = append(opts, transform2.DumpWithPipeline(subproc.PathUpdateFunc))
+	}
+
+	tf, err := transform2.NewDumpConverter(fsa, src, opts...)
 	if err != nil {
 		return fmt.Errorf("failed to create transform: %w", err)
 	}
 
-	coord := transform.NewCoordinator(ctx, tf)
+	coord := transform2.NewCoordinator(ctx, tf)
 
-	// Create conversation processor.
-	proc, err := dirproc.NewConversation(cd, subproc, coord, dirproc.WithLogger(lg), dirproc.WithRecordFiles(false))
-	if err != nil {
-		return fmt.Errorf("failed to create conversation processor: %w", err)
-	}
-	defer func() {
-		if err := proc.Close(); err != nil {
-			lg.WarnContext(ctx, "failed to close conversation processor", "error", err)
-		}
-	}()
-
-	if err := sess.Stream(
+	// TODO: use export controller
+	s := sess.Stream(
 		stream.OptOldest(time.Time(cfg.Oldest)),
 		stream.OptLatest(time.Time(cfg.Latest)),
 		stream.OptResultFn(func(sr stream.Result) error {
@@ -222,14 +226,22 @@ func dump(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, p dump
 			}
 			return nil
 		}),
-	).Conversations(ctx, proc, p.list.C(ctx)); err != nil {
-		return fmt.Errorf("failed to dump conversations: %w", err)
+	)
+	ctrl := control.NewDir(cd,
+		s,
+		control.WithLogger(lg),
+		control.WithFlags(control.Flags{RecordFiles: cfg.WithFiles}),
+		control.WithCoordinator(coord),
+		control.WithFiler(subproc),
+	)
+	if err := ctrl.Run(ctx, p.list); err != nil {
+		return fmt.Errorf("failed to run controller: %w", err)
+	}
+	if err := coord.Wait(); err != nil {
+		return fmt.Errorf("failed to wait for coordinator: %w", err)
 	}
 
 	lg.DebugContext(ctx, "stream complete, waiting for all goroutines to finish")
-	if err := coord.Wait(); err != nil {
-		return err
-	}
 
 	return nil
 }
@@ -243,4 +255,93 @@ func helpDump(cmd *base.Command) string {
 		panic(err)
 	}
 	return buf.String()
+}
+
+func dumpv31(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, p dumpparams) error {
+	lg := cfg.Log
+
+	tmpdir, err := os.MkdirTemp("", "slackdump-*")
+	if err != nil {
+		return fmt.Errorf("failed to create temp directory: %w", err)
+	}
+	if !lg.Enabled(ctx, slog.LevelDebug) {
+		defer func() {
+			if err := os.RemoveAll(tmpdir); err != nil {
+				lg.ErrorContext(ctx, "unable to remove temporary directory", "dir", tmpdir, "error", err)
+			}
+		}()
+	}
+
+	// creating a temporary database to hold the data for the converter.
+	wconn, si, err := bootstrap.Database(tmpdir, "dump")
+	if err != nil {
+		return err
+	}
+	defer wconn.Close()
+	tmpdbp, err := dbase.New(ctx, wconn, si)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err := tmpdbp.Close(); err != nil {
+			lg.ErrorContext(ctx, "unable to close database processor", "error", err)
+		}
+	}()
+	lg.DebugContext(ctx, "using database in ", "dir", tmpdir)
+	src := source.DatabaseWithSource(tmpdbp.Source())
+
+	// files subprocessor
+	sdl := fileproc2.NewDownloader(ctx, p.downloadFiles, sess.Client(), fsa, cfg.Log)
+	subproc := fileproc2.NewDump(sdl)
+	defer subproc.Close()
+
+	opts := []transform2.DumpOption{
+		transform2.DumpWithTemplate(p.tmpl),
+		transform2.DumpWithLogger(lg),
+	}
+	if p.updatePath && p.downloadFiles {
+		opts = append(opts, transform2.DumpWithPipeline(subproc.PathUpdateFunc))
+	}
+
+	tf, err := transform2.NewDumpConverter(fsa, src, opts...)
+	if err != nil {
+		return fmt.Errorf("failed to create transform: %w", err)
+	}
+	coord := transform2.NewCoordinator(ctx, tf)
+
+	stream := sess.Stream(
+		stream.OptOldest(time.Time(cfg.Oldest)),
+		stream.OptLatest(time.Time(cfg.Latest)),
+		stream.OptResultFn(func(sr stream.Result) error {
+			if sr.Err != nil {
+				return sr.Err
+			}
+			if sr.IsLast {
+				lg.InfoContext(ctx, "dumped", "sr", sr.String())
+			}
+			return nil
+		}),
+	)
+
+	ctrl, err := control.New(
+		ctx,
+		stream,
+		tmpdbp,
+		control.WithLogger(lg),
+		control.WithFlags(control.Flags{RecordFiles: cfg.WithFiles}),
+		control.WithCoordinator(coord),
+		control.WithFiler(subproc),
+	)
+	if err != nil {
+		return fmt.Errorf("error creating db controller: %w", err)
+	}
+	defer ctrl.Close()
+
+	if err := ctrl.Run(ctx, p.list); err != nil {
+		return fmt.Errorf("error running db controller: %w", err)
+	}
+	if err := coord.Wait(); err != nil {
+		return fmt.Errorf("error waiting for coordinator: %w", err)
+	}
+	return nil
 }

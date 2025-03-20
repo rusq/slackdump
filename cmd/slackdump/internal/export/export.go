@@ -14,7 +14,7 @@ import (
 
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
-	"github.com/rusq/slackdump/v3/internal/chunk/transform/fileproc"
+	"github.com/rusq/slackdump/v3/internal/source"
 	"github.com/rusq/slackdump/v3/internal/structures"
 )
 
@@ -24,7 +24,7 @@ var CmdExport = &base.Command{
 	UsageLine:   "slackdump export",
 	Short:       "exports the Slack Workspace or individual conversations",
 	FlagMask:    cfg.OmitUserCacheFlag | cfg.OmitRecordFilesFlag,
-	Long:        mdExport, // TODO: add long description
+	Long:        mdExport,
 	CustomFlags: false,
 	PrintFlags:  true,
 	RequireAuth: true,
@@ -34,12 +34,12 @@ var CmdExport = &base.Command{
 var mdExport string
 
 type exportFlags struct {
-	ExportStorageType fileproc.StorageType
+	ExportStorageType source.StorageType
 	ExportToken       string
 }
 
 var options = exportFlags{
-	ExportStorageType: fileproc.STmattermost,
+	ExportStorageType: source.STmattermost,
 }
 
 func init() {
@@ -56,8 +56,8 @@ func runExport(ctx context.Context, cmd *base.Command, args []string) error {
 		base.SetExitStatus(base.SInvalidParameters)
 		return errors.New("use -base to set the base output location")
 	}
-	if !cfg.DownloadFiles {
-		options.ExportStorageType = fileproc.STnone
+	if !cfg.WithFiles {
+		options.ExportStorageType = source.STnone
 	}
 	list, err := structures.NewEntityList(args)
 	if err != nil {
@@ -82,11 +82,19 @@ func runExport(ctx context.Context, cmd *base.Command, args []string) error {
 		fsa.Close()
 	}()
 
-	if err := export(ctx, sess, fsa, list, options); err != nil {
+	// TODO: remove once the database is stable.
+	if cfg.UseChunkFiles {
+		lg.DebugContext(ctx, "using chunk files backend")
+		err = export(ctx, sess, fsa, list, options)
+	} else {
+		lg.DebugContext(ctx, "using database backend")
+		err = exportv31(ctx, sess, fsa, list, options)
+	}
+	if err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return fmt.Errorf("export failed: %w", err)
 	}
 
-	lg.InfoContext(ctx, "export completed", "took", time.Since(start).String())
+	lg.InfoContext(ctx, "export completed", "output", cfg.Output, "took", time.Since(start).String())
 	return nil
 }

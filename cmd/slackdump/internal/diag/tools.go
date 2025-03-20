@@ -27,7 +27,7 @@ Tools command contains different tools, running which may be requested if you op
 		cmdObfuscate,
 		// cmdRawOutput,
 		cmdUninstall,
-		// cmdRecord,
+		cmdRecord,
 		// cmdSearch,
 		cmdThread,
 		cmdHydrate,

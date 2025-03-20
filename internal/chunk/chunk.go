@@ -1,6 +1,7 @@
 package chunk
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -41,16 +42,20 @@ type Chunk struct {
 	// ChannelID that this chunk relates to.
 	ChannelID string `json:"id,omitempty"`
 	// Count is the count of elements in the chunk, i.e. messages or files.
-	Count int `json:"n,omitempty"`
+	Count int32 `json:"n,omitempty"`
 
+	// NumThreads is the number of threads in the message chunk.
+	NumThreads int32 `json:"nt,omitempty"`
 	// ThreadTS is populated if the chunk contains thread related data.  It
 	// is Slack's thread_ts.
 	ThreadTS string `json:"r,omitempty"`
 	// IsLast is set to true if this is the last chunk for the channel or
 	// thread.
+
 	IsLast bool `json:"l,omitempty"`
-	// NumThreads is the number of threads in the message chunk.
-	NumThreads int `json:"nt,omitempty"`
+	// ThreadOnly is set to true if the chunk was generated as a result
+	// of thread only scraping.
+	ThreadOnly bool `json:"to,omitempty"`
 
 	// Channel contains the channel information.  Within the chunk file, it
 	// may not be immediately followed by messages from the channel due to
@@ -184,6 +189,19 @@ func (id GroupID) IsThread() bool {
 	return strings.HasPrefix(string(id), threadPrefix)
 }
 
+// ExtractChannelID attempts to extract the channel ID from the GroupID if it
+// is a channel or a thread ID.  Otherwise, ok will be false.
+func (id GroupID) ExtractChannelID() (channelID string, ok bool) {
+	if id.IsThread() {
+		channelID, _, ok = id.AsThreadID()
+		return
+	}
+	if id.IsChannel() {
+		return id.AsChannelID()
+	}
+	return "", false
+}
+
 // asThreadID returns the channelID and threadTS from the GroupID.  If the
 // GroupID is not a thread ID, it returns false.
 func (id GroupID) AsThreadID() (channelID, threadTS string, ok bool) {
@@ -247,3 +265,21 @@ func (g GroupID) isList() bool {
 func (g GroupID) isSearch() bool {
 	return g[0] == catSearch
 }
+
+//go:generate mockgen -destination=mock_chunk/mock_chunk.go . Transformer
+
+// Transformer is an interface that is called when the processor is finished
+// processing a channel or thread.
+type Transformer interface {
+	// Transform is the function that starts the transformation of the channel
+	// or thread with the given id.  It is called  when the reference count for
+	// the channel id becomes zero (meaning, that there are no more chunks to
+	// process).  It should return [transform.ErrClosed] if the transformer is
+	// closed.
+	Transform(ctx context.Context, id FileID) error
+}
+
+// NopTransformer is a transformer that does nothing.
+type NopTransformer struct{}
+
+func (n *NopTransformer) Transform(ctx context.Context, id FileID) error { return nil }

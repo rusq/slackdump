@@ -132,35 +132,6 @@ func (cs *Stream) channelInfoWorker(ctx context.Context, proc processor.ChannelI
 	}
 }
 
-func (cs *Stream) channelUsersWorker(ctx context.Context, proc processor.ChannelInformer, srC chan<- Result, channelIdC <-chan string) {
-	ctx, task := trace.NewTask(ctx, "channelUsersWorker")
-	defer task.End()
-
-	seen := make(map[string]struct{}, 512)
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case id, more := <-channelIdC:
-			if !more {
-				return
-			}
-			if id == "" {
-				continue
-			}
-			if _, ok := seen[id]; ok {
-				continue
-			}
-
-			if _, err := cs.procChannelUsers(ctx, proc, id, ""); err != nil {
-				srC <- Result{Type: RTChannelUsers, ChannelID: id, Err: fmt.Errorf("channelUsersWorker: %s: %w", id, err)}
-			}
-			seen[id] = struct{}{}
-		}
-	}
-}
-
 func (cs *Stream) canvas(ctx context.Context, proc processor.Conversations, channel *slack.Channel, fileId string) error {
 	if fileId == "" {
 		return nil

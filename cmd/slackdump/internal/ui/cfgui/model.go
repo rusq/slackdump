@@ -10,6 +10,7 @@ import (
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
+
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/updaters"
 )
 
@@ -167,7 +168,7 @@ func (m *Model) View() string {
 	if m.finished {
 		return ""
 	}
-	var sty = m.style.Focused
+	sty := m.style.Focused
 	if !m.focused {
 		sty = m.style.Blurred
 	}
@@ -203,7 +204,7 @@ func (m *Model) view(sty StyleSet) string {
 			if selected {
 				namefmt = sty.SelectedName
 			}
-			fmt.Fprintf(&buf, alignParam+namefmt.Render(fmt.Sprintf("% *s", keyLen, param.Name))+"  ")
+			fmt.Fprint(&buf, alignParam+namefmt.Render(fmt.Sprintf("% *s", keyLen, param.Name))+"  ")
 			if selected && m.state == inline {
 				buf.WriteString(m.child.View() + "\n")
 			} else {

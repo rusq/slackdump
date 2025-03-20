@@ -21,6 +21,8 @@ const (
 
 var (
 	TraceFile   string
+	CPUProfile  string
+	MEMProfile  string
 	LogFile     string
 	JsonHandler bool
 	Verbose     bool
@@ -42,10 +44,12 @@ var (
 	MachineIDOvr    string // Machine ID override
 	NoEncryption    bool   // disable encryption
 
-	MemberOnly      bool
-	DownloadFiles   bool
-	DownloadAvatars bool
-	RecordFiles     bool // record file chunks in chunk files.
+	MemberOnly       bool
+	OnlyChannelUsers bool
+
+	WithFiles   bool
+	WithAvatars bool
+	RecordFiles bool // record file chunks in chunk files.
 
 	// Oldest is the default timestamp of the oldest message to fetch, that is
 	// used by the dump and export commands.
@@ -59,6 +63,7 @@ var (
 	UserCacheRetention time.Duration
 	NoUserCache        bool
 	NoChunkCache       bool
+	UseChunkFiles      bool // Use chunk files for storage, instead of sqlite database.
 
 	Log *slog.Logger = slog.Default()
 	// LoadSecrets is a flag that indicates whether to load secrets from the
@@ -91,9 +96,10 @@ const (
 	OmitUserCacheFlag
 	OmitTimeframeFlag
 	OmitChunkCacheFlag
-	OmitMemberOnlyFlag
+	OmitCustomUserFlags
 	OmitRecordFilesFlag
 	OmitDownloadAvatarsFlag
+	OmitChunkFileMode
 
 	OmitAll = OmitConfigFlag |
 		OmitDownloadFlag |
@@ -104,14 +110,17 @@ const (
 		OmitUserCacheFlag |
 		OmitTimeframeFlag |
 		OmitChunkCacheFlag |
-		OmitMemberOnlyFlag |
+		OmitCustomUserFlags |
 		OmitRecordFilesFlag |
-		OmitDownloadAvatarsFlag
+		OmitDownloadAvatarsFlag |
+		OmitChunkFileMode
 )
 
 // SetBaseFlags sets base flags
 func SetBaseFlags(fs *flag.FlagSet, mask FlagMask) {
 	fs.StringVar(&TraceFile, "trace", os.Getenv("TRACE_FILE"), "trace `filename`")
+	fs.StringVar(&CPUProfile, "cpuprofile", os.Getenv("CPU_PROFILE"), "write CPU profile to `file`")
+	fs.StringVar(&MEMProfile, "memprofile", os.Getenv("MEM_PROFILE"), "write memory profile to `file`")
 	fs.StringVar(&LogFile, "log", os.Getenv("LOG_FILE"), "log `file`, if not specified, messages are printed to STDERR")
 	fs.BoolVar(&JsonHandler, "log-json", osenv.Value("JSON_LOG", false), "log in JSON format")
 	fs.BoolVar(&Verbose, "v", osenv.Value("DEBUG", false), "verbose messages")
@@ -133,13 +142,13 @@ func SetBaseFlags(fs *flag.FlagSet, mask FlagMask) {
 		fs.BoolVar(&NoEncryption, "no-encryption", osenv.Value("DISABLE_ENCRYPTION", false), "disable encryption for cache and credential files")
 	}
 	if mask&OmitDownloadFlag == 0 {
-		fs.BoolVar(&DownloadFiles, "files", true, "enables file attachments download (to disable, specify: -files=false)")
+		fs.BoolVar(&WithFiles, "files", true, "enables file attachments download (to disable, specify: -files=false)")
 		if mask&OmitRecordFilesFlag == 0 {
 			fs.BoolVar(&RecordFiles, "files-rec", false, "include file chunks in chunk files")
 		}
 	}
 	if mask&OmitDownloadAvatarsFlag == 0 {
-		fs.BoolVar(&DownloadAvatars, "avatars", false, "enables user avatar download (placed in __avatars directory)")
+		fs.BoolVar(&WithAvatars, "avatars", false, "enables user avatar download (placed in __avatars directory)")
 	}
 	if mask&OmitConfigFlag == 0 {
 		fs.StringVar(&ConfigFile, "api-config", "", "configuration `file` with Slack API limits overrides.\nYou can generate one with default values with 'slackdump config new`")
@@ -172,7 +181,11 @@ func SetBaseFlags(fs *flag.FlagSet, mask FlagMask) {
 		fs.Var(&Oldest, "time-from", "timestamp of the oldest message to fetch (UTC timezone)")
 		fs.Var(&Latest, "time-to", "timestamp of the newest message to fetch (UTC timezone)")
 	}
-	if mask&OmitMemberOnlyFlag == 0 {
+	if mask&OmitCustomUserFlags == 0 {
 		fs.BoolVar(&MemberOnly, "member-only", false, "export only channels, which the current user belongs to (if no channels are specified)")
+		fs.BoolVar(&OnlyChannelUsers, "channel-users", false, "export only users involved in the channel, and skip fetching of all users")
+	}
+	if mask&OmitChunkFileMode == 0 {
+		fs.BoolVar(&UseChunkFiles, "legacy", false, "use chunk files for data storage instead of sqlite database (incompatible with resuming)")
 	}
 }

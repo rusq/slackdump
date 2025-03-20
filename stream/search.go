@@ -103,7 +103,7 @@ func (cs *Stream) searchmsg(ctx context.Context, query string, fn func(sm []slac
 			sm  *slack.SearchMessages
 			err error
 		)
-		if err := network.WithRetry(ctx, cs.limits.searchmsg, cs.limits.tier.Tier2.Retries, func() error {
+		if err := network.WithRetry(ctx, cs.limits.searchmsg, cs.limits.tier.Tier2.Retries, func(ctx context.Context) error {
 			sm, err = cs.client.SearchMessagesContext(ctx, query, p)
 			return err
 		}); err != nil {
@@ -141,7 +141,7 @@ func (cs *Stream) SearchFiles(ctx context.Context, proc processor.FileSearcher, 
 			sm  *slack.SearchFiles
 			err error
 		)
-		if err := network.WithRetry(ctx, cs.limits.searchmsg, cs.limits.tier.Tier2.Retries, func() error {
+		if err := network.WithRetry(ctx, cs.limits.searchmsg, cs.limits.tier.Tier2.Retries, func(ctx context.Context) error {
 			sm, err = cs.client.SearchFilesContext(ctx, query, p)
 			return err
 		}); err != nil {
@@ -164,7 +164,7 @@ func (cs *Stream) SearchFiles(ctx context.Context, proc processor.FileSearcher, 
 }
 
 func (s *Stream) Search(ctx context.Context, proc processor.Searcher, query string) error {
-	var eg errgroup.Group
+	eg, ctx := errgroup.WithContext(ctx)
 
 	eg.Go(func() error {
 		return s.SearchMessages(ctx, proc, query)

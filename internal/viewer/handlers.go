@@ -4,8 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"iter"
 	"net/http"
-	"os"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -14,6 +14,7 @@ import (
 	"github.com/rusq/slack"
 
 	"github.com/rusq/slackdump/v3/internal/fasttime"
+	"github.com/rusq/slackdump/v3/internal/source"
 	"github.com/rusq/slackdump/v3/internal/structures"
 )
 
@@ -30,8 +31,8 @@ type mainView struct {
 	Name           string
 	Type           string
 	Conversation   slack.Channel
-	Messages       []slack.Message
-	ThreadMessages []slack.Message
+	Messages       iter.Seq2[slack.Message, error]
+	ThreadMessages iter.Seq2[slack.Message, error]
 	ThreadID       string
 }
 
@@ -41,7 +42,7 @@ func (v *Viewer) view() mainView {
 	return mainView{
 		channels: v.ch,
 		Name:     filepath.Base(v.src.Name()),
-		Type:     v.src.Type(),
+		Type:     v.src.Type().String(),
 	}
 }
 
@@ -78,9 +79,9 @@ func maybeReverse(mm []slack.Message) error {
 func (v *Viewer) channelHandler(w http.ResponseWriter, r *http.Request, id string) {
 	ctx := r.Context()
 	lg := v.lg.With("in", "channelHandler", "channel", id)
-	mm, err := v.src.AllMessages(id)
+	it, err := v.src.AllMessages(r.Context(), id)
 	if err != nil {
-		if errors.Is(err, fs.ErrNotExist) {
+		if errors.Is(err, source.ErrNotFound) {
 			http.NotFound(w, r)
 			return
 		}
@@ -89,13 +90,7 @@ func (v *Viewer) channelHandler(w http.ResponseWriter, r *http.Request, id strin
 		return
 	}
 
-	if err := maybeReverse(mm); err != nil {
-		lg.ErrorContext(ctx, "maybeReverse", "error", err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	lg.DebugContext(ctx, "conversation", "id", id, "message_count", len(mm))
+	lg.DebugContext(ctx, "conversation", "id", id)
 
 	ci, err := v.src.ChannelInfo(r.Context(), id)
 	if err != nil {
@@ -106,7 +101,7 @@ func (v *Viewer) channelHandler(w http.ResponseWriter, r *http.Request, id strin
 
 	page := v.view()
 	page.Conversation = *ci
-	page.Messages = mm
+	page.Messages = it
 
 	template := "index.html" // for deep links
 	if isHXRequest(r) {
@@ -160,20 +155,21 @@ func (v *Viewer) threadHandler(w http.ResponseWriter, r *http.Request, id string
 		http.NotFound(w, r)
 		return
 	}
+
 	if strings.HasPrefix(ts, "p") {
 		ts = structures.ThreadIDtoTS(ts)
 	}
 
 	ctx := r.Context()
 	lg := v.lg.With("in", "threadHandler", "channel", id, "thread", ts)
-	mm, err := v.src.AllThreadMessages(id, ts)
+	itTm, err := v.src.AllThreadMessages(r.Context(), id, ts)
 	if err != nil {
 		lg.ErrorContext(ctx, "AllThreadMessages", "error", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	lg.DebugContext(ctx, "Messages", "mm_count", len(mm))
+	lg.DebugContext(ctx, "Messages")
 
 	ci, err := v.src.ChannelInfo(r.Context(), id)
 	if err != nil {
@@ -184,7 +180,7 @@ func (v *Viewer) threadHandler(w http.ResponseWriter, r *http.Request, id string
 
 	page := v.view()
 	page.Conversation = *ci
-	page.ThreadMessages = mm
+	page.ThreadMessages = itTm
 	page.ThreadID = ts
 
 	var template string
@@ -195,17 +191,12 @@ func (v *Viewer) threadHandler(w http.ResponseWriter, r *http.Request, id string
 
 		// if we're deep linking, channel view might not contain the messages,
 		// so we need to fetch them.
-		msg, err := v.src.AllMessages(id)
+		itMsg, err := v.src.AllMessages(r.Context(), id)
 		if err != nil {
 			lg.ErrorContext(ctx, "AllMessages", "error", err, "template", template)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
-		if err := maybeReverse(msg); err != nil {
-			lg.ErrorContext(ctx, "maybeReverse", "error", err)
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		page.Messages = msg
+		page.Messages = itMsg
 	}
 	if err := v.tmpl.ExecuteTemplate(w, template, page); err != nil {
 		lg.ErrorContext(ctx, "ExecuteTemplate", "error", err, "template", template)
@@ -224,10 +215,10 @@ func (v *Viewer) fileHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	lg := v.lg.With("in", "fileHandler", "id", id, "filename", filename)
-	fs := v.src.FS()
-	path, err := v.src.File(id, filename)
+	fsys := v.src.Files().FS()
+	path, err := v.src.Files().File(id, filename)
 	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
+		if errors.Is(err, fs.ErrNotExist) {
 			http.NotFound(w, r)
 			return
 		}
@@ -236,7 +227,7 @@ func (v *Viewer) fileHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	http.ServeFileFS(w, r, fs, path)
+	http.ServeFileFS(w, r, fsys, path)
 }
 
 func (v *Viewer) userHandler(w http.ResponseWriter, r *http.Request) {

@@ -39,6 +39,14 @@ func (idx UserIndex) DisplayName(id string) string {
 	})
 }
 
+func UserDisplayName(u *slack.User) string {
+	return NVL(u.Name, u.RealName, u.ID)
+}
+
+func Username(u *slack.User) string {
+	return NVL(u.Name, u.ID)
+}
+
 func NVL(s string, ss ...string) string {
 	if s != "" {
 		return s

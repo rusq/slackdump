@@ -1,8 +1,3 @@
-// Package control holds the implementation of the Slack Stream controller.
-// It runs the API scraping in several goroutines and manages the data flow
-// between them.  It records the output of the API scraper into a chunk
-// directory.  It also manages the transformation of the data, if the caller
-// is interested in it.
 package control
 
 import (
@@ -10,293 +5,144 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"runtime/trace"
-	"sync"
+	"time"
 
-	"github.com/rusq/slack"
-
-	"github.com/rusq/slackdump/v3"
 	"github.com/rusq/slackdump/v3/internal/chunk"
-	"github.com/rusq/slackdump/v3/internal/chunk/dirproc"
 	"github.com/rusq/slackdump/v3/internal/structures"
 	"github.com/rusq/slackdump/v3/processor"
 )
 
-// Controller is the main controller of the Slack Stream.  It runs the API
-// scraping in several goroutines and manages the data flow between them.
 type Controller struct {
-	// chunk directory to store the scraped data.
-	cd *chunk.Directory
-	// streamer is the API scraper.
-	s Streamer
-	// tf is the transformer of the chunk data. It may not be necessary, if
-	// caller is not interested in transforming the data.
-	tf ExportTransformer
-	// files subprocessor, if not configured with options, it's a noop, as
-	// it's not necessary for all use cases.
-	filer processor.Filer
-	// avp is avatar downloader (subprocessor), if not configured with options,
-	// it's a noop, as it's not necessary
-	avp processor.Avatars
-	// lg is the logger
-	lg *slog.Logger
-	// flags
-	flags Flags
+	erc EncodeReferenceCloser
+	s   Streamer
+	options
 }
 
-// Option is a functional option for the Controller.
-type Option func(*Controller)
-
-// WithFiler configures the controller with a file subprocessor.
-func WithFiler(f processor.Filer) Option {
-	return func(c *Controller) {
-		c.filer = f
-	}
-}
-
-// WithAvatarProcessor configures the controller with an avatar downloader.
-func WithAvatarProcessor(avp processor.Avatars) Option {
-	return func(c *Controller) {
-		c.avp = avp
-	}
-}
-
-// WithFlags configures the controller with flags.
-func WithFlags(f Flags) Option {
-	return func(c *Controller) {
-		c.flags = f
-	}
-}
-
-// WithTransformer configures the controller with a transformer.
-func WithTransformer(tf ExportTransformer) Option {
-	return func(c *Controller) {
-		if tf != nil {
-			c.tf = tf
-		}
-	}
-}
-
-// WithLogger configures the controller with a logger.
-func WithLogger(lg *slog.Logger) Option {
-	return func(c *Controller) {
-		if lg != nil {
-			c.lg = lg
-		}
-	}
-}
-
-// New creates a new [Controller]. Once the [Control.Close] is called it
-// closes all file processors.
-func New(cd *chunk.Directory, s Streamer, opts ...Option) *Controller {
-	c := &Controller{
-		cd: cd,
-		s:  s,
-		lg: slog.Default(),
-
-		tf: &noopTransformer{},
-
-		filer: &noopFiler{},
-		avp:   &noopAvatarProc{},
+// New creates a new generic [Controller], that accepts
+// [EncodeReferenceCloser]. Once the [Control.Close] is called it closes all
+// processors, including the [EncodeReferenceCloser].
+func New(ctx context.Context, s Streamer, erc EncodeReferenceCloser, opts ...Option) (*Controller, error) {
+	d := &Controller{
+		erc: erc,
+		s:   s,
+		options: options{
+			lg:    slog.Default(),
+			tf:    &noopTransformer{},
+			filer: &processor.NopFiler{},
+			avp:   &processor.NopAvatars{},
+		},
 	}
 	for _, opt := range opts {
-		opt(c)
+		opt(&d.options)
 	}
-	return c
+	return d, nil
 }
 
-// Flags are the controller flags.
-type Flags struct {
-	MemberOnly  bool
-	RecordFiles bool
+// newConvTransformer creates a new conversation transformer.
+func (c *Controller) newConvTransformer(ctx context.Context) *conversationTransformer {
+	return &conversationTransformer{
+		ctx: ctx,
+		tf:  c.tf,
+		rc:  c.erc,
+	}
 }
 
-// Error is a controller error.
-type Error struct {
-	// Subroutine is the name of the subroutine that failed.
-	Subroutine string
-	// Stage is the stage of the subroutine that failed.
-	Stage string
-	// Err is the error that caused the failure.
-	Err error
-}
-
-func (e Error) Error() string {
-	return fmt.Sprintf("error in subroutine %s on stage %s: %v", e.Subroutine, e.Stage, e.Err)
-}
-
-func (e Error) Unwrap() error {
-	return e.Err
-}
-
+// Run starts the scraping of the Slack API. The [EntityList] is used to
+// determine which entities to scrape. The [EntityList] can be created with the
+// [structures.NewEntityList] function.
 func (c *Controller) Run(ctx context.Context, list *structures.EntityList) error {
-	ctx, task := trace.NewTask(ctx, "Controller.Run")
-	defer task.End()
+	rec := chunk.NewCustomRecorder(c.erc)
+	defer rec.Close()
 
-	lg := c.lg.With("in", "controller.Run")
+	streamer, proc := c.mkSuperprocessor(ctx, rec)
 
-	var (
-		wg    sync.WaitGroup
-		errC  = make(chan error, 1)
-		linkC = make(chan structures.EntityItem)
-	)
-	{ // generator of channel IDs
-		var generator linkFeederFunc
-		if list.HasIncludes() {
-			// inclusive export, processes only included channels.
-			generator = genChFromList
-		} else {
-			// exclusive export (process only excludes, if any)
-			generator = genChFromAPI(c.s, c.cd, c.flags.MemberOnly)
+	return runWorkers(ctx, streamer, list, proc, c.flags)
+}
+
+func (c *Controller) mkSuperprocessor(ctx context.Context, rec *chunk.Recorder) (Streamer, superprocessor) {
+	streamer := c.s
+	// got to do some explanation here: the order of processors is important:
+	// files ==> recorder ==> transformer                     2     1            3
+	conv := processor.AppendMessenger(processor.PrependFiler(rec, c.filer), c.newConvTransformer(ctx))
+	if c.flags.ChannelUsers {
+		// userIDCollector collects the user IDs from messages and thread messages (excluding duplicates)
+		// and sends them to the userIDC channel.  The userCollectingStreamer replaces the Users method
+		// of the Streamer with a method that gets the information for user IDs received on the userIDC
+		// channel and calls the Users processor method.  Once the Close method is called on userIDCollector,
+		// the userID channel is closed, and the userCollectingStreamer stops processing the user IDs.
+		//
+		// Drawback is that the transformer won't start until all user IDs are collected from all channels.
+		ucoll := newMsgUserIDsCollector()
+		conv = processor.PrependMessenger(conv, ucoll)
+		streamer = &userCollectingStreamer{
+			Streamer: streamer,
+			userIDC:  ucoll.C(),
 		}
+	}
 
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			defer close(linkC)
-			defer lg.DebugContext(ctx, "channels done")
+	sp := superprocessor{
+		Conversations: conv,
+		//                                       1                     2    3
+		Users:         processor.JoinUsers(c.newUserCollector(ctx), c.avp, rec),
+		Channels:      rec,
+		WorkspaceInfo: rec,
+	}
 
-			if err := generator(ctx, linkC, list); err != nil {
-				errC <- Error{"channel generator", "generator", err}
-				return
-			}
-		}()
-	}
-	{ // workspace info
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			defer lg.DebugContext(ctx, "workspace info done")
-			if err := workspaceWorker(ctx, c.s, c.cd); err != nil {
-				errC <- Error{"workspace", "worker", err}
-				return
-			}
-		}()
-	}
-	{ // user goroutine
-		// once all users are fetched, it triggers the transformer to start.
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			if err := userWorker(ctx, c.s, c.avp, c.cd, c.tf); err != nil {
-				errC <- Error{"user", "worker", err}
-				return
-			}
-		}()
-	}
-	{ // conversations goroutine
-		conv, err := dirproc.NewConversation(c.cd, c.filer, c.tf, dirproc.WithRecordFiles(c.flags.RecordFiles))
-		if err != nil {
-			return fmt.Errorf("error initialising conversation processor: %w", err)
-		}
+	return streamer, sp
+}
 
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			defer func() {
-				if err := conv.Close(); err != nil {
-					errC <- Error{"conversations", "close", err}
-				}
-			}()
-			if err := conversationWorker(ctx, c.s, conv, linkC); err != nil {
-				errC <- Error{"conversations", "worker", err}
-				return
-			}
-		}()
-	}
-	// sentinel
-	go func() {
-		wg.Wait()
-		close(errC)
-	}()
+type SearchType int
 
-	// collect returned errors
-	var allErr error
-	for cErr := range errC {
-		allErr = errors.Join(allErr, cErr)
+const (
+	SMessages SearchType = 1 << iota
+	SFiles
+
+	srchUnknown SearchType = 0
+)
+
+// Search starts the search for the query string. The search type is defined by
+// the [SearchType] parameter. The search is done in parallel for messages and
+// files.
+func (c *Controller) Search(ctx context.Context, query string, stype SearchType) error {
+	rec := chunk.NewCustomRecorder(c.erc)
+	defer rec.Close()
+
+	p := &jointFileSearcher{
+		FileSearcher: rec,
+		filer:        processor.JoinFilers(rec, c.filer), // in case we have a downloader, we need to join it
 	}
-	if allErr != nil {
-		return allErr
+
+	s := supersearcher{
+		WorkspaceInfo:   rec,
+		MessageSearcher: rec,
+		FileSearcher:    p,
 	}
+
+	start := time.Now()
+	if err := runSearch(ctx, c.s, s, stype, query); err != nil {
+		return fmt.Errorf("error searching: %w", err)
+	}
+	c.lg.InfoContext(ctx, "search completed", "query", query, "took", time.Since(start).String())
 	return nil
 }
 
 // Close closes the controller and all its file processors.
 func (c *Controller) Close() error {
 	var errs error
-	if c.avp != nil {
-		if err := c.avp.Close(); err != nil {
-			errs = errors.Join(errs, fmt.Errorf("error closing avatar processor: %w", err))
-		}
-	}
 	if c.filer != nil {
 		if err := c.filer.Close(); err != nil {
 			errs = errors.Join(errs, fmt.Errorf("error closing file processor: %w", err))
 		}
 	}
+	if c.avp != nil {
+		if err := c.avp.Close(); err != nil {
+			errs = errors.Join(errs, fmt.Errorf("error closing avatar processor: %w", err))
+		}
+	}
+	// TODO: Decide if it is necessary to close the encoder here or leave it
+	// for the caller.  Maybe make it conditional?
+	if err := c.erc.Close(); err != nil {
+		errs = errors.Join(errs, fmt.Errorf("error closing database processor: %w", err))
+	}
 	return errs
-}
-
-type linkFeederFunc func(ctx context.Context, links chan<- structures.EntityItem, list *structures.EntityList) error
-
-// genChFromList feeds the channel IDs that it gets from the list to
-// the links channel.  It does not fetch the channel list from the api, so
-// it's blazing fast in comparison to apiChannelFeeder.  When needed, get the
-// channel information from the conversations chunk files (they contain the
-// chunk with channel information).
-func genChFromList(ctx context.Context, links chan<- structures.EntityItem, list *structures.EntityList) error {
-	for _, entry := range list.Index() {
-		if entry.Include {
-			select {
-			case <-ctx.Done():
-				return context.Cause(ctx)
-			case links <- *entry:
-			}
-		}
-	}
-	return nil
-}
-
-// genChFromAPI feeds the channel IDs that it gets from the API to the
-// links channel.  It also filters out channels that are excluded in the list.
-// It does not account for "included".  It ignores the thread links in the
-// list.  It writes the channels to the tmpdir.
-func genChFromAPI(s Streamer, cd *chunk.Directory, memberOnly bool) linkFeederFunc {
-	return func(ctx context.Context, links chan<- structures.EntityItem, list *structures.EntityList) error {
-		chIdx := list.Index()
-		chanproc, err := dirproc.NewChannels(cd, func(c []slack.Channel) error {
-		LOOP:
-			for _, ch := range c {
-				if memberOnly && (ch.ID[0] == 'C' && !ch.IsMember) { // include DMs etc
-					continue
-				}
-				for _, entry := range chIdx {
-					if entry.Id == ch.ID && !entry.Include {
-						continue LOOP
-					}
-				}
-				select {
-				case <-ctx.Done():
-					return context.Cause(ctx)
-				case links <- structures.EntityItem{
-					Id:      ch.ID,
-					Include: true,
-				}:
-				}
-			}
-			return nil
-		})
-		if err != nil {
-			return err
-		}
-
-		if err := s.ListChannels(ctx, chanproc, &slack.GetConversationsParameters{Types: slackdump.AllChanTypes}); err != nil {
-			return fmt.Errorf("error listing channels: %w", err)
-		}
-		if err := chanproc.Close(); err != nil {
-			return fmt.Errorf("error closing channel processor: %w", err)
-		}
-		slog.DebugContext(ctx, "channels done")
-		return nil
-	}
 }

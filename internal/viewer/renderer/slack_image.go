@@ -11,7 +11,7 @@ func (*Slack) mbtImage(ib slack.Block) (string, string, error) {
 	if !ok {
 		return "", "", NewErrIncorrectType(&slack.ImageBlock{}, ib)
 	}
-	return figure(
+	return elFigure(
 		blockTypeClass[slack.MBTImage],
 		fmt.Sprintf(
 			`<img src="%[1]s" alt="%[2]s"><figcaption class="slack-image-caption">%[2]s</figcaption>`,

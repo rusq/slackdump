@@ -41,7 +41,7 @@ func (cl *Client) FilesList(ctx context.Context, channel string, count int) ([]s
 			return nil, err
 		}
 		ff = append(ff, r.Files...)
-		if form.Page == int(r.Pagination.PageCount) || r.Pagination.PageCount == 0 {
+		if form.Page == int(r.PageCount) || r.PageCount == 0 {
 			break
 		}
 		form.Page++

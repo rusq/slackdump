@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/rusq/slack"
+
 	"github.com/rusq/slackdump/v3/internal/structures"
 )
 
@@ -20,23 +21,23 @@ func (m Message) Datetime() (time.Time, error) {
 
 // IsBotMessage returns true if the message is from a bot.
 func (m Message) IsBotMessage() bool {
-	return m.Msg.BotID != ""
+	return m.BotID != ""
 }
 
 func (m Message) IsThread() bool {
-	return m.Msg.ThreadTimestamp != ""
+	return m.ThreadTimestamp != ""
 }
 
 // IsThreadParent will return true if the message is the parent message of a
 // conversation (has more than 0 replies)
 func (m Message) IsThreadParent() bool {
-	return m.IsThread() && m.Msg.ReplyCount != 0
+	return m.IsThread() && m.ReplyCount != 0
 }
 
 // IsThreadChild will return true if the message is the child message of a
 // conversation.
 func (m Message) IsThreadChild() bool {
-	return m.IsThread() && m.Msg.ReplyCount == 0
+	return m.IsThread() && m.ReplyCount == 0
 }
 
 func SortMessages(msgs []Message) {

@@ -43,16 +43,18 @@ type WorkspaceInfo = slack.AuthTestResponse
 // Slacker is the interface with some functions of slack.Client.
 type Slacker interface {
 	AuthTestContext(context.Context) (response *slack.AuthTestResponse, err error)
+
 	GetConversationHistoryContext(ctx context.Context, params *slack.GetConversationHistoryParameters) (*slack.GetConversationHistoryResponse, error)
 	GetConversationRepliesContext(ctx context.Context, params *slack.GetConversationRepliesParameters) (msgs []slack.Message, hasMore bool, nextCursor string, err error)
-	GetUsersPaginated(options ...slack.GetUsersOption) slack.UserPagination
-
-	GetStarredContext(ctx context.Context, params slack.StarsParameters) ([]slack.StarredItem, *slack.Paging, error)
-	ListBookmarks(channelID string) ([]slack.Bookmark, error)
-
 	GetConversationsContext(ctx context.Context, params *slack.GetConversationsParameters) (channels []slack.Channel, nextCursor string, err error)
 	GetConversationInfoContext(ctx context.Context, input *slack.GetConversationInfoInput) (*slack.Channel, error)
 	GetUsersInConversationContext(ctx context.Context, params *slack.GetUsersInConversationParameters) ([]string, string, error)
+
+	GetUsersPaginated(options ...slack.GetUsersOption) slack.UserPagination
+	GetUserInfoContext(ctx context.Context, user string) (*slack.User, error)
+
+	GetStarredContext(ctx context.Context, params slack.StarsParameters) ([]slack.StarredItem, *slack.Paging, error)
+	ListBookmarks(channelID string) ([]slack.Bookmark, error)
 
 	SearchMessagesContext(ctx context.Context, query string, params slack.SearchParameters) (*slack.SearchMessages, error)
 	SearchFilesContext(ctx context.Context, query string, params slack.SearchParameters) (*slack.SearchFiles, error)

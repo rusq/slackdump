@@ -1,10 +1,14 @@
 package source
 
 import (
+	"errors"
+	"fmt"
 	"io/fs"
 	"path"
 	"path/filepath"
 	"strings"
+
+	"github.com/rusq/slack"
 
 	"github.com/rusq/slackdump/v3/internal/chunk"
 )
@@ -15,8 +19,41 @@ const (
 
 // Storage is the interface for the file storage used by the source types.
 type Storage interface {
+	// FS should return the filesystem with file attachments.
 	FS() fs.FS
+	// Type should return the storage type.
+	Type() StorageType
+	// File should return the path of the file WITHIN the filesystem returned
+	// by FS().  If file is not found, it should return fs.ErrNotExist.
 	File(id string, name string) (string, error)
+	// FilePath should return the path to the file f relative to the root of
+	// the Source (i.e. __uploads/ID/Name.ext).
+	FilePath(ch *slack.Channel, f *slack.File) string
+}
+
+// MattermostFilepath returns the path to the file within the __uploads
+// directory.
+func MattermostFilepath(_ *slack.Channel, f *slack.File) string {
+	return filepath.Join(chunk.UploadsDir, f.ID, f.Name)
+}
+
+// MattermostFilepathWithDir returns the path to the file within the given
+// directory, but it follows the mattermost naming pattern.
+func MattermostFilepathWithDir(dir string) func(*slack.Channel, *slack.File) string {
+	return func(_ *slack.Channel, f *slack.File) string {
+		return path.Join(dir, f.ID, f.Name)
+	}
+}
+
+// StdFilepath returns the path to the file within the "attachments"
+// directory.
+func StdFilepath(ci *slack.Channel, f *slack.File) string {
+	return path.Join(ExportChanName(ci), "attachments", fmt.Sprintf("%s-%s", f.ID, f.Name))
+}
+
+// DumpFilepath returns the path to the file within the channel directory.
+func DumpFilepath(ci *slack.Channel, f *slack.File) string {
+	return path.Join(chunk.ToFileID(ci.ID, "", false).String(), f.ID+"-"+f.Name)
 }
 
 // STMattermost is the Storage for the mattermost export format.  Files
@@ -33,9 +70,9 @@ type STMattermost struct {
 	fs fs.FS
 }
 
-// NewMattermostStorage returns the resolver for the mattermost export format.
+// OpenMattermostStorage returns the resolver for the mattermost export format.
 // rootfs is the root filesystem of the export.
-func NewMattermostStorage(rootfs fs.FS) (*STMattermost, error) {
+func OpenMattermostStorage(rootfs fs.FS) (*STMattermost, error) {
 	// mattermost export format has files in the __uploads subdirectory.
 	if _, err := fs.Stat(rootfs, chunk.UploadsDir); err != nil {
 		return nil, err
@@ -51,6 +88,10 @@ func (r *STMattermost) FS() fs.FS {
 	return r.fs
 }
 
+func (r *STMattermost) Type() StorageType {
+	return STmattermost
+}
+
 func (r *STMattermost) File(id string, name string) (string, error) {
 	pth := path.Join(id, name)
 	_, err := fs.Stat(r.fs, pth)
@@ -58,6 +99,10 @@ func (r *STMattermost) File(id string, name string) (string, error) {
 		return "", err
 	}
 	return pth, nil
+}
+
+func (r *STMattermost) FilePath(_ *slack.Channel, f *slack.File) string {
+	return MattermostFilepath(nil, f)
 }
 
 // STStandard is the Storage for the standard export format.  Files are
@@ -77,7 +122,7 @@ type STStandard struct {
 	idx map[string]string
 }
 
-func NewStandardStorage(rootfs fs.FS, idx map[string]string) *STStandard {
+func OpenStandardStorage(rootfs fs.FS, idx map[string]string) *STStandard {
 	return &STStandard{fs: rootfs, idx: idx}
 }
 
@@ -121,6 +166,14 @@ func (r *STStandard) FS() fs.FS {
 	return r.fs
 }
 
+func (r *STStandard) Type() StorageType {
+	return STstandard
+}
+
+func (r *STStandard) FilePath(ci *slack.Channel, f *slack.File) string {
+	return StdFilepath(ci, f)
+}
+
 func (r *STStandard) File(id string, _ string) (string, error) {
 	pth, ok := r.idx[id]
 	if !ok {
@@ -145,8 +198,16 @@ func (fstNotFound) FS() fs.FS {
 	return fakefs{}
 }
 
+func (fstNotFound) Type() StorageType {
+	return STnone
+}
+
 func (fstNotFound) File(id string, name string) (string, error) {
 	return "", fs.ErrNotExist
+}
+
+func (fstNotFound) FilePath(*slack.Channel, *slack.File) string {
+	return ""
 }
 
 // STDump is the Storage for the dump format.  Files are stored in the
@@ -194,7 +255,7 @@ func indexDump(fsys fs.FS) (map[string]string, error) {
 		if d.IsDir() || filepath.Ext(d.Name()) != ".json" {
 			return nil
 		}
-		isChan, err := filepath.Match("[CD]*.json", d.Name())
+		isChan, err := filepath.Match("[CDG]*.json", d.Name())
 		if err != nil {
 			return err
 		}
@@ -210,6 +271,10 @@ func indexDump(fsys fs.FS) (map[string]string, error) {
 	for _, ch := range chans {
 		if err := fs.WalkDir(fsys, ch, func(pth string, d fs.DirEntry, err error) error {
 			if err != nil {
+				if errors.Is(err, fs.ErrNotExist) {
+					// not all channels may contain files.
+					return nil
+				}
 				return err
 			}
 			if d.IsDir() {
@@ -229,11 +294,19 @@ func indexDump(fsys fs.FS) (map[string]string, error) {
 	return idx, nil
 }
 
+func (r *STDump) FilePath(ci *slack.Channel, f *slack.File) string {
+	return DumpFilepath(ci, f)
+}
+
 func (r *STDump) FS() fs.FS {
 	return r.fs
 }
 
-func (r *STDump) File(id string, name string) (string, error) {
+func (r *STDump) Type() StorageType {
+	return STdump
+}
+
+func (r *STDump) File(id string, _ string) (string, error) {
 	pth, ok := r.idx[id]
 	if !ok {
 		return "", fs.ErrNotExist
@@ -242,4 +315,46 @@ func (r *STDump) File(id string, name string) (string, error) {
 		return "", err
 	}
 	return pth, nil
+}
+
+type AvatarStorage struct {
+	fs fs.FS
+}
+
+func NewAvatarStorage(fsys fs.FS) (*AvatarStorage, error) {
+	if _, err := fs.Stat(fsys, "__avatars"); err != nil {
+		return nil, err
+	}
+	subfs, err := fs.Sub(fsys, "__avatars")
+	if err != nil {
+		return nil, err
+	}
+	return &AvatarStorage{fs: subfs}, nil
+}
+
+func (r *AvatarStorage) FS() fs.FS {
+	return r.fs
+}
+
+func (r *AvatarStorage) Type() StorageType {
+	return STAvatar
+}
+
+// AvatarParams is a convenience function that returns the user ID and the base
+// name of the original avatar filename.
+func AvatarParams(u *slack.User) (userID string, filename string) {
+	return u.ID, path.Base(u.Profile.ImageOriginal)
+}
+
+func (r *AvatarStorage) File(userID string, imageOriginalBase string) (string, error) {
+	pth := path.Join(userID, imageOriginalBase)
+	_, err := fs.Stat(r.fs, pth)
+	if err != nil {
+		return "", err
+	}
+	return pth, nil
+}
+
+func (r *AvatarStorage) FilePath(_ *slack.Channel, _ *slack.File) string {
+	return ""
 }

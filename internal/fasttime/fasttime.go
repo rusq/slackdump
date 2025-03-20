@@ -38,12 +38,14 @@ var ErrNotATimestamp = errors.New("not a slack timestamp")
 // Int2TS converts an int64 to a slack timestamp by inserting a dot in the
 // right place.
 func Int2TS(ts int64) string {
+	const cut = 6
 	s := strconv.FormatInt(ts, 10)
-	if len(s) < 7 {
+	l := len(s)
+	if l < cut+1 {
 		return ""
 	}
-	lo := s[len(s)-6:]
-	hi := s[:len(s)-6]
+	lo := s[l-cut:]
+	hi := s[:l-cut]
 	return hi + "." + lo
 }
 

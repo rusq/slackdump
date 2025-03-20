@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"iter"
 	"log/slog"
 	"path"
 	"time"
@@ -24,10 +25,11 @@ type Export struct {
 	chanNames map[string]string // maps the channel id to the channel name.
 	name      string            // name of the file
 	idx       structures.ExportIndex
-	Storage
+	files     Storage
+	avatars   Storage
 }
 
-func NewExport(fsys fs.FS, name string) (*Export, error) {
+func OpenExport(fsys fs.FS, name string) (*Export, error) {
 	var idx structures.ExportIndex
 	if err := idx.Unmarshal(fsys); err != nil {
 		return nil, err
@@ -39,6 +41,8 @@ func NewExport(fsys fs.FS, name string) (*Export, error) {
 		idx:       idx,
 		channels:  chans,
 		chanNames: make(map[string]string, len(chans)),
+		files:     fstNotFound{},
+		avatars:   fstNotFound{},
 	}
 	// initialise channels for quick lookup
 	for _, ch := range z.channels {
@@ -49,7 +53,10 @@ func NewExport(fsys fs.FS, name string) (*Export, error) {
 	if err != nil {
 		return nil, err
 	}
-	z.Storage = fst
+	z.files = fst
+	if fst, err := NewAvatarStorage(fsys); err == nil {
+		z.avatars = fst
+	}
 
 	return z, nil
 }
@@ -58,20 +65,20 @@ func NewExport(fsys fs.FS, name string) (*Export, error) {
 // appropriate Storage implementation.
 func loadStorage(fsys fs.FS) (Storage, error) {
 	if _, err := fs.Stat(fsys, chunk.UploadsDir); err == nil {
-		return NewMattermostStorage(fsys)
+		return OpenMattermostStorage(fsys)
 	}
 	idx, err := buildFileIndex(fsys, ".")
 	if err != nil || len(idx) == 0 {
 		return fstNotFound{}, nil
 	}
-	return NewStandardStorage(fsys, idx), nil
+	return OpenStandardStorage(fsys, idx), nil
 }
 
 func (e *Export) Channels(context.Context) ([]slack.Channel, error) {
 	return e.channels, nil
 }
 
-func (e *Export) Users() ([]slack.User, error) {
+func (e *Export) Users(context.Context) ([]slack.User, error) {
 	return e.idx.Users, nil
 }
 
@@ -83,74 +90,100 @@ func (e *Export) Name() string {
 	return e.name
 }
 
-func (e *Export) Type() string {
-	return "export"
+func (e *Export) Type() Flags {
+	return FExport
 }
 
 // AllMessages returns all channel messages without thread messages.
-func (e *Export) AllMessages(channelID string) ([]slack.Message, error) {
-	var mm []slack.Message
-	if err := e.walkChannelMessages(channelID, func(m *slack.Message) error {
-		if isThreadMessage(&m.Msg) && m.SubType != structures.SubTypeThreadBroadcast {
-			return nil
+func (e *Export) AllMessages(_ context.Context, channelID string) (iter.Seq2[slack.Message, error], error) {
+	it, err := e.walkChannelMessages(channelID)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil, ErrNotFound
 		}
-		mm = append(mm, *m)
-		return nil
-	}); err != nil {
-		return nil, fmt.Errorf("AllMessages: walk: %s", err)
+		return nil, err
 	}
-	return mm, nil
+	return func(yield func(slack.Message, error) bool) {
+		for m, err := range it {
+			if err != nil {
+				yield(slack.Message{}, err)
+				return
+			}
+
+			if m.ThreadTimestamp != "" && !structures.IsThreadStart(&m) {
+				// skip thread messages
+				continue
+			}
+			if !yield(m, nil) {
+				return
+			}
+		}
+	}, nil
 }
 
-func (e *Export) walkChannelMessages(channelID string, fn func(m *slack.Message) error) error {
+func (e *Export) walkChannelMessages(channelID string) (iter.Seq2[slack.Message, error], error) {
 	name, ok := e.chanNames[channelID]
 	if !ok {
-		return fmt.Errorf("%w: %s", fs.ErrNotExist, channelID)
+		return nil, fmt.Errorf("%w: %s", fs.ErrNotExist, channelID)
 	}
 	_, err := fs.Stat(e.fs, name)
 	if err != nil {
-		return fmt.Errorf("%w: %s", fs.ErrNotExist, name)
+		return nil, fmt.Errorf("%w: %s", fs.ErrNotExist, name)
 	}
-	return fs.WalkDir(e.fs, name, func(pth string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if d.IsDir() || path.Ext(pth) != ".json" {
-			return nil
-		}
-		// read the file
-		em, err := unmarshal[[]export.ExportMessage](e.fs, pth)
-		if err != nil {
-			return err
-		}
-		for i, m := range em {
-			if m.Msg == nil {
-				slog.Default().Debug("skipping an empty message", "pth", pth, "index", i)
-				continue
-			}
-			if err := fn(&slack.Message{Msg: *m.Msg}); err != nil {
+	iterFn := func(yield func(slack.Message, error) bool) {
+		err := fs.WalkDir(e.fs, name, func(pth string, d fs.DirEntry, err error) error {
+			if err != nil {
 				return err
 			}
+			if d.IsDir() || path.Ext(pth) != ".json" {
+				return nil
+			}
+			// read the file
+			em, err := unmarshal[[]export.ExportMessage](e.fs, pth)
+			if err != nil {
+				return err
+			}
+			for i, m := range em {
+				if m.Msg == nil {
+					slog.Default().Debug("skipping an empty message", "pth", pth, "index", i)
+					continue
+				}
+				sm := slack.Message{Msg: *m.Msg}
+				if !yield(sm, nil) {
+					return fs.SkipAll
+				}
+			}
+			return nil
+		})
+		if err != nil {
+			yield(slack.Message{}, err)
 		}
-		return nil
-	})
-}
-
-func isThreadMessage(m *slack.Msg) bool {
-	return m.ThreadTimestamp != "" && m.ThreadTimestamp != m.Timestamp
-}
-
-func (e *Export) AllThreadMessages(channelID, threadID string) ([]slack.Message, error) {
-	var tm []slack.Message
-	if err := e.walkChannelMessages(channelID, func(m *slack.Message) error {
-		if m.ThreadTimestamp == threadID {
-			tm = append(tm, *m)
-		}
-		return nil
-	}); err != nil {
-		return nil, fmt.Errorf("AllThreadMessages: walk: %s", err)
 	}
-	return tm, nil
+	return iterFn, nil
+}
+
+func (e *Export) AllThreadMessages(_ context.Context, channelID, threadID string) (iter.Seq2[slack.Message, error], error) {
+	it, err := e.walkChannelMessages(channelID)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil, ErrNotFound
+		}
+		return nil, err
+	}
+	iterFn := func(yield func(slack.Message, error) bool) {
+		for m, err := range it {
+			if err != nil {
+				yield(slack.Message{}, err)
+				return
+			}
+			if m.ThreadTimestamp == threadID {
+				if !yield(m, nil) {
+					return
+				}
+			}
+		}
+	}
+	return iterFn, nil
 }
 
 func (e *Export) ChannelInfo(ctx context.Context, channelID string) (*slack.Channel, error) {
@@ -170,8 +203,29 @@ func (e *Export) Latest(ctx context.Context) (map[structures.SlackLink]time.Time
 	return nil, errors.New("not supported yet")
 }
 
-func (e *Export) WorkspaceInfo() (*slack.AuthTestResponse, error) {
+func (e *Export) WorkspaceInfo(context.Context) (*slack.AuthTestResponse, error) {
 	// potentially the URL of the workspace is contained in file attachments, but until
 	// AllMessages is implemented with iterators, it's too expensive to get.
 	return nil, ErrNotSupported
+}
+
+func (e *Export) Files() Storage {
+	return e.files
+}
+
+func (e *Export) Avatars() Storage {
+	return e.avatars
+}
+
+func (e *Export) Sorted(ctx context.Context, channelID string, desc bool, cb func(ts time.Time, msg *slack.Message) error) error {
+	// TODO
+	return errors.New("not supported yet")
+}
+
+// ExportChanName returns the channel name, or the channel ID if it is a DM.
+func ExportChanName(ch *slack.Channel) string {
+	if ch.IsIM {
+		return ch.ID
+	}
+	return ch.Name
 }

@@ -38,5 +38,5 @@ func (*Slack) mbtAction(ib slack.Block) (string, string, error) {
 			fmt.Fprintf(&buf, "[ELEMENT: %T]", e)
 		}
 	}
-	return div("slack-actions", buf.String()), "", nil
+	return elDiv("slack-actions", buf.String()), "", nil
 }

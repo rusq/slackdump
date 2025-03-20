@@ -2,13 +2,17 @@ package control
 
 import (
 	"context"
+	"io"
 
+	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/internal/structures"
 
 	"github.com/rusq/slack"
-	"github.com/rusq/slackdump/v3/internal/chunk/dirproc"
+
 	"github.com/rusq/slackdump/v3/processor"
 )
+
+//go:generate mockgen -destination=mock_control/mock_interfaces.go . Streamer,TransformStarter,ExportTransformer,ReferenceChecker,EncodeReferenceCloser
 
 // Streamer is the interface for the API scraper.
 type Streamer interface {
@@ -18,6 +22,7 @@ type Streamer interface {
 	WorkspaceInfo(ctx context.Context, proc processor.WorkspaceInfo) error
 	SearchMessages(ctx context.Context, proc processor.MessageSearcher, query string) error
 	SearchFiles(ctx context.Context, proc processor.FileSearcher, query string) error
+	UsersBulk(ctx context.Context, proc processor.Users, ids ...string) error
 }
 
 type TransformStarter interface {
@@ -30,6 +35,22 @@ type TransformStarter interface {
 // after Users goroutine is done, which can happen any time after the Run has
 // started.
 type ExportTransformer interface {
-	dirproc.Transformer
+	chunk.Transformer
 	TransformStarter
+}
+
+// ReferenceChecker is an interface that contains functions to check if all
+// messages for the channel were processed.
+type ReferenceChecker interface {
+	// IsComplete should return true, if all messages and threads for the
+	// channel has been processed.
+	IsComplete(ctx context.Context, channelID string) (bool, error)
+}
+
+// EncodeReferenceCloser is an interface that combines the chunk.Encoder,
+// ReferenceChecker and io.Closer interfaces.
+type EncodeReferenceCloser interface {
+	chunk.Encoder
+	ReferenceChecker
+	io.Closer
 }

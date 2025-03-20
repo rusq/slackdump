@@ -88,7 +88,7 @@ func (e *ErrRetryFailed) Is(target error) bool {
 // WithRetry will run the callback function fn. If the function returns
 // slack.RateLimitedError, it will delay, and then call it again up to
 // maxAttempts times. It will return an error if it runs out of attempts.
-func WithRetry(ctx context.Context, lim *rate.Limiter, maxAttempts int, fn func() error) error {
+func WithRetry(ctx context.Context, lim *rate.Limiter, maxAttempts int, fn func(ctx context.Context) error) error {
 	var ok bool
 	if maxAttempts == 0 {
 		maxAttempts = defNumAttempts
@@ -106,7 +106,7 @@ func WithRetry(ctx context.Context, lim *rate.Limiter, maxAttempts int, fn func(
 			return err
 		}
 
-		cbErr := fn()
+		cbErr := fn(ctx)
 		if errors.Is(cbErr, ErrRetryPlease) {
 			// callback requested a retry
 			lg.DebugContext(ctx, "retry requested", "attempt", attempt+1)

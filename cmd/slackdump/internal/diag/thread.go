@@ -11,8 +11,10 @@ import (
 	"github.com/rusq/slack"
 	"github.com/schollz/progressbar/v3"
 
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/bootstrap"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/workspace"
 	"github.com/rusq/slackdump/v3/internal/network"
 	"github.com/rusq/slackdump/v3/internal/structures"
 )
@@ -35,14 +37,13 @@ testing, i.e. deletion of the threads, or generation of large threads.
 func init() {
 	cmdThread.Run = runThread
 	cmdThread.Flag.Usage = func() {
-		fmt.Fprint(os.Stdout, "usage: slackdump diag thread [flags]\n\nFlags:\n")
+		fmt.Fprint(os.Stdout, "usage: slackdump tools thread [flags]\n\nFlags:\n")
 		cmdThread.Flag.PrintDefaults()
 	}
 }
 
 var (
 	// TODO: test with client auth.
-	token        = cmdThread.Flag.String("app-token", os.Getenv("APP_TOKEN"), "Slack application or bot token")
 	channel      = cmdThread.Flag.String("channel", osenv.Value("CHANNEL", ""), "channel to operate on")
 	numThreadMsg = cmdThread.Flag.Int("num", 2, "number of messages to generate in the thread")
 	delThread    = cmdThread.Flag.String("del", "", "`URL` of the thread to delete")
@@ -59,13 +60,18 @@ func runThread(ctx context.Context, cmd *base.Command, args []string) error {
 		return errors.New("-channel flag is required")
 	}
 
+	ctx, err := workspace.CurrentOrNewProviderCtx(ctx)
+	if err != nil {
+		return err
+	}
+
 	if *delThread != "" {
-		if err := runDelete(*token, *delThread); err != nil {
+		if err := runDelete(ctx, *delThread); err != nil {
 			base.SetExitStatus(base.SApplicationError)
 			return err
 		}
 	} else {
-		if err := runGenerate(*token, *channel, *numThreadMsg); err != nil {
+		if err := runGenerate(ctx, *channel, *numThreadMsg); err != nil {
 			base.SetExitStatus(base.SApplicationError)
 			return err
 		}
@@ -73,18 +79,26 @@ func runThread(ctx context.Context, cmd *base.Command, args []string) error {
 	return nil
 }
 
-func runDelete(token, url string) error {
-	if err := deleteThread(context.Background(), slack.New(token), url); err != nil {
+func runDelete(ctx context.Context, url string) error {
+	sess, err := bootstrap.SlackdumpSession(ctx)
+	if err != nil {
+		return err
+	}
+	if err := deleteThread(context.Background(), sess.Client(), url); err != nil {
 		return err
 	}
 	return nil
 }
 
-func runGenerate(token string, channelID string, numMsg int) error {
+func runGenerate(ctx context.Context, channelID string, numMsg int) error {
+	sess, err := bootstrap.SlackdumpSession(ctx)
+	if err != nil {
+		return err
+	}
 	if channelID == "" {
 		return errors.New("channel ID is required")
 	}
-	if err := generateThread(context.Background(), slack.New(token), channelID, numMsg); err != nil {
+	if err := generateThread(context.Background(), sess.Client(), channelID, numMsg); err != nil {
 		return err
 	}
 	return nil
@@ -110,7 +124,7 @@ func generateThread(ctx context.Context, client *slack.Client, channelID string,
 	pb.Describe("posting messages")
 	defer func() { _ = pb.Finish() }()
 	for i := 0; i < numMsg; i++ {
-		if err := network.WithRetry(ctx, l, 3, func() error {
+		if err := network.WithRetry(ctx, l, 3, func(ctx context.Context) error {
 			_, _, err := client.PostMessageContext(ctx, channelID, slack.MsgOptionTS(ts), slack.MsgOptionText(fmt.Sprintf("message: %d", i), false))
 			return err
 		}); err != nil {
@@ -148,7 +162,7 @@ func delMessages(ctx context.Context, client *slack.Client, channelID string, ms
 
 	l := network.NewLimiter(network.Tier3, network.DefLimits.Tier3.Burst, int(network.DefLimits.Tier3.Boost))
 	for _, m := range msgs {
-		err := network.WithRetry(ctx, l, 3, func() error {
+		err := network.WithRetry(ctx, l, 3, func(ctx context.Context) error {
 			_, _, err := client.DeleteMessageContext(ctx, channelID, m.Timestamp)
 			return err
 		})

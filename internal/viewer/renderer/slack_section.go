@@ -23,7 +23,7 @@ func (*Slack) mbtSection(ib slack.Block) (string, string, error) {
 		return "", "", NewErrIncorrectType(&slack.SectionBlock{}, ib)
 	}
 	if b.Text != nil {
-		return pre("slack-section-text", b.Text.Text), "", nil
+		return elPre("slack-section-text", b.Text.Text), "", nil
 	}
 	if len(b.Fields) > 0 {
 		var buf strings.Builder
@@ -31,7 +31,7 @@ func (*Slack) mbtSection(ib slack.Block) (string, string, error) {
 		for i, f := range b.Fields {
 			text[i] = f.Text
 		}
-		buf.WriteString(pre("slack-section-text", strings.Join(text, "\n")))
+		buf.WriteString(elPre("slack-section-text", strings.Join(text, "\n")))
 		return buf.String(), "", nil
 	}
 	return "", "", nil

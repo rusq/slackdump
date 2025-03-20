@@ -19,7 +19,7 @@ func TestSetBaseFlags(t *testing.T) {
 		SetBaseFlags(fs, mask)
 
 		// Test flag parsing and assignment
-		fs.Parse([]string{
+		err := fs.Parse([]string{
 			"-trace", "trace.log",
 			"-log", "log.txt",
 			"-v",
@@ -42,6 +42,9 @@ func TestSetBaseFlags(t *testing.T) {
 			"-time-from", "2022-01-01T00:00:00",
 			"-time-to", "2022-01-31T23:59:59",
 		})
+		if err != nil {
+			t.Fatalf("Error parsing flags: %v", err)
+		}
 
 		// Test flag values
 		if TraceFile != "trace.log" {
@@ -77,7 +80,7 @@ func TestSetBaseFlags(t *testing.T) {
 		if RODUserAgent != "Mozilla/5.0" {
 			t.Errorf("Expected RODUserAgent to be 'Mozilla/5.0', got '%s'", RODUserAgent)
 		}
-		if DownloadFiles {
+		if WithFiles {
 			t.Error("Expected DownloadFiles to be false, got true")
 		}
 		if ConfigFile != "config.json" {

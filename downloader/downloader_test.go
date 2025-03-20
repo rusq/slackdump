@@ -144,7 +144,7 @@ func TestClient_startWorkers(t *testing.T) {
 		}
 		defer close(c.requests)
 		c.startWorkers(context.Background())
-		assert.Equal(t, 3, c.options.workers)
+		assert.Equal(t, 3, c.workers)
 	})
 	t.Run("no workers specified", func(t *testing.T) {
 		t.Parallel()
@@ -154,7 +154,7 @@ func TestClient_startWorkers(t *testing.T) {
 		}
 		defer close(c.requests)
 		c.startWorkers(context.Background())
-		assert.Equal(t, defNumWorkers, c.options.workers)
+		assert.Equal(t, defNumWorkers, c.workers)
 	})
 }
 
