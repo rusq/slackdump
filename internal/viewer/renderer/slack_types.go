@@ -11,6 +11,7 @@ var (
 		slack.MBTAction:   (*Slack).mbtAction,
 		slack.MBTDivider:  (*Slack).mbtDivider,
 		"call":            (*Slack).mbtCall,
+		slack.MBTHeader:   (*Slack).mbtHeader,
 	}
 
 	blockTypeClass = map[slack.MessageBlockType]string{
@@ -19,7 +20,9 @@ var (
 		slack.MBTContext:  "slack-context-block",
 		slack.MBTSection:  "slack-section-block",
 		slack.MBTAction:   "slack-action-block",
+		slack.MBTDivider:  "slack-divider-block",
 		"call":            "slack-call-block",
+		slack.MBTHeader:   "slack-header-block",
 	}
 )
 
