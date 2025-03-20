@@ -94,6 +94,14 @@ command, run the following:
 .It Cm list
 List channels or users in the desired format
 .Pq default output is text
+.It Cm resume
+Resume the archive process from the last known point.  This command is useful
+when the archive process was interrupted and/or you want to continue from the
+point where it was stopped.  It currently supports only the database format.
+If you need to resume other formats, such as Slack Export or Dump, you can
+use
+.Nm Cm convert
+command to convert the source to database format and back.
 .It Cm search Ar subcommand
 Search for messages, files, or both in the workspace and save the results in
 archive format.  The discovered files are saved to disk as well.
@@ -143,7 +151,7 @@ Specifies the browser to use for the authentication.  The default is Firefox.
 Specifies the directory where the authentication information and user/channel
 cache is stored.  If the flag is not specified, the cache is stored in the
 system cache directory.
-.It Fl channel-users=true|false
+.It Fl channel-users
 If enabled, collects user IDs from the messages and fetches only the users that
 are collected from the visible messages, instead of fetching the whole set of
 users from the users API.  This is useful when the workspace has a lot of
@@ -320,9 +328,8 @@ If you desire to use
 .Ev SLACK_TOKEN
 and
 .Ev SLACK_COOKIE
-environment variables, you need to specify
-.Fl env
-flag.
+environment variables, use
+.Nm Cm workspace Cm import.
 .Pp
 Read more on how to get the token and cookie from your logged-in browser 
 session by running
@@ -384,15 +391,11 @@ for more details.
 .It Ev SLACK_COOKIE
 Contains Slack cookie (for token+cookie-based authentication).  See
 .Sx Authentication
-for more details.  Only used when
-.Fl env
-flag is set.
+for more details.
 .It Ev SLACK_TOKEN
 Contains Slack token (for token-based authentication).  See
 .Sx Authentication
-for more details.  Only used when
-.Fl env
-flag is set.
+for more details.
 .It Ev SLACK_WORKSPACE
 Allows to specify Slack workspace name (overrides currently selected
 workspace).  See 
