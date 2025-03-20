@@ -2,12 +2,14 @@ package resume
 
 import (
 	"context"
+	_ "embed"
 	"errors"
 	"fmt"
 	"strings"
 	"text/tabwriter"
 	"time"
 
+	"github.com/rusq/slackdump/v3"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/archive"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/bootstrap"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
@@ -18,11 +20,16 @@ import (
 	"github.com/rusq/slackdump/v3/stream"
 )
 
+//go:embed assets/resume.md
+var mdResume string
+
 var CmdResume = &base.Command{
 	UsageLine:   "slackdump resume [flags] <archive or directory>",
-	Short:       "resume resumes archive process from the last checkpoint",
+	Short:       "resumes archive process from the last checkpoint",
 	PrintFlags:  true,
 	RequireAuth: true,
+	FlagMask:    cfg.OmitOutputFlag | cfg.OmitUserCacheFlag | cfg.OmitChunkFileMode | cfg.OmitRecordFilesFlag,
+	Wizard:      archiveWizard,
 }
 
 type ResumeParams struct {
@@ -49,23 +56,33 @@ func runResume(ctx context.Context, cmd *base.Command, args []string) error {
 	}
 	loc := args[0]
 
-	flags, err := source.Type(loc)
+	src, err := source.Load(ctx, loc)
 	if err != nil {
 		base.SetExitStatus(base.SInvalidParameters)
-		return fmt.Errorf("error determining source type: %w", err)
 	}
-	if !flags.Has(source.FDatabase) {
+
+	if !src.Type().Has(source.FDatabase) {
 		base.SetExitStatus(base.SInvalidParameters)
-		return fmt.Errorf("source type %s does not support resume", flags)
+		return fmt.Errorf("source type %q does not support resume, use slackdump convert to database format", src.Type())
 	}
-	latest, err := latest(ctx, loc)
+	latest, err := latest(ctx, src)
 	if err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return fmt.Errorf("error loading latest timestamps: %w", err)
 	}
 	sess, err := bootstrap.SlackdumpSession(ctx)
 	if err != nil {
+		base.SetExitStatus(base.SInitializationError)
 		return fmt.Errorf("error creating slackdump session: %w", err)
+	}
+	// ensure the repository is for the same workspace.
+	if err := ensureSameWorkspace(ctx, src, sess.Info()); err != nil {
+		return fmt.Errorf("error ensuring the same workspace: %w", err)
+	}
+	// closing off the sourcer, as we don't need it anymore.
+	if err := src.Close(); err != nil {
+		base.SetExitStatus(base.SApplicationError)
+		return fmt.Errorf("error closing source: %w", err)
 	}
 
 	wconn, _, err := bootstrap.Database(loc, cmd.Name())
@@ -75,7 +92,8 @@ func runResume(ctx context.Context, cmd *base.Command, args []string) error {
 	defer wconn.Close()
 
 	cf := control.Flags{
-		Refresh: resumeFlags.Refresh,
+		Refresh:      resumeFlags.Refresh,
+		ChannelUsers: cfg.OnlyChannelUsers,
 	}
 	ctrl, err := archive.DBController(ctx, cmd, wconn, sess, loc, cf, stream.OptInclusive(false))
 	if err != nil {
@@ -90,13 +108,7 @@ func runResume(ctx context.Context, cmd *base.Command, args []string) error {
 	return nil
 }
 
-func latest(ctx context.Context, srcpath string) (*structures.EntityList, error) {
-	src, err := source.Load(ctx, srcpath)
-	if err != nil {
-		return nil, fmt.Errorf("error loading source: %w", err)
-	}
-	defer src.Close()
-
+func latest(ctx context.Context, src source.Resumer) (*structures.EntityList, error) {
 	latest, err := src.Latest(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("error loading latest timestamps: %w", err)
@@ -140,4 +152,15 @@ func strlatest(l map[structures.SlackLink]time.Time) string {
 	}
 	tw.Flush()
 	return buf.String()
+}
+
+func ensureSameWorkspace(ctx context.Context, src source.Sourcer, info *slackdump.WorkspaceInfo) error {
+	wsp, err := src.WorkspaceInfo(ctx)
+	if err != nil {
+		return fmt.Errorf("error getting workspace info: %w", err)
+	}
+	if wsp.TeamID != info.TeamID {
+		return fmt.Errorf("database workspace %s does not match session workspace %s", wsp.TeamID, info.TeamID)
+	}
+	return nil
 }
