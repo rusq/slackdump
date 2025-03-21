@@ -5,8 +5,6 @@ import (
 	"log"
 	"log/slog"
 	"os"
-	"runtime"
-	"runtime/pprof"
 
 	"github.com/rusq/tracer"
 
