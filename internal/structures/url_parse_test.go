@@ -6,10 +6,12 @@ import (
 )
 
 const (
-	sampleChannelURL     = "https://ora600.slack.com/archives/CHM82GF99"
-	sampleThreadURL      = "https://ora600.slack.com/archives/CHM82GF99/p1577694990000400"
-	sampleThreadWDashURL = "https://ora-600.slack.com/archives/CHM82GF99/p1577694990000400"
-	sampleDMURL          = "https://ora600.slack.com/archives/DL98HT3QA"
+	sampleChannelURL      = "https://ora600.slack.com/archives/CHM82GF99"
+	sampleThreadURL       = "https://ora600.slack.com/archives/CHM82GF99/p1577694990000400"
+	sampleThreadWDashURL  = "https://ora-600.slack.com/archives/CHM82GF99/p1577694990000400"
+	sampleDMURL           = "https://ora600.slack.com/archives/DL98HT3QA"
+	sampleEpriseChanURL   = "https://oracle-grid.enterprise.slack.com/archives/CHANNEL"
+	sampleEpriseThreadURL = "https://oracle-grid.enterprise.slack.com/archives/CHANNEL/p1645551829244659"
 
 	sampleChannelID = "CHM82GF99"
 )
@@ -109,8 +111,14 @@ func TestParseURL(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:    "enterprise URL",
-			args:    args{"https://oracle-grid.enterprise.slack.com/archives/CHANNEL/p1645551829244659"},
+			name:    "enterprise channel URL",
+			args:    args{sampleEpriseChanURL},
+			want:    &SlackLink{Channel: "CHANNEL"},
+			wantErr: false,
+		},
+		{
+			name:    "enterprise thread URL",
+			args:    args{sampleEpriseThreadURL},
 			want:    &SlackLink{Channel: "CHANNEL", ThreadTS: "1645551829.244659"},
 			wantErr: false,
 		},
