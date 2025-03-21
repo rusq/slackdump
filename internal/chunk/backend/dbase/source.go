@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"iter"
 	"log/slog"
+	"runtime/trace"
 	"time"
 
 	"github.com/rusq/slackdump/v3/internal/chunk/backend/dbase/repository"
@@ -243,8 +244,12 @@ func (s *Source) WorkspaceInfo(ctx context.Context) (*slack.AuthTestResponse, er
 }
 
 func (s *Source) Latest(ctx context.Context) (map[structures.SlackLink]time.Time, error) {
+	ctx, task := trace.NewTask(ctx, "Latest")
+	defer task.End()
+
 	r := repository.NewMessageRepository()
 	m := make(map[structures.SlackLink]time.Time, preallocSz)
+	slog.DebugContext(ctx, "fetching latest messages")
 	itm, err := r.LatestMessages(ctx, s.conn)
 	if err != nil {
 		return nil, err
@@ -258,7 +263,7 @@ func (s *Source) Latest(ctx context.Context) (map[structures.SlackLink]time.Time
 		}
 		m[sl] = fasttime.Int2Time(c.ID)
 	}
-	slog.Info("latest threads")
+	slog.DebugContext(ctx, "fetching latest threads")
 	ittm, err := r.LatestThreads(ctx, s.conn)
 	if err != nil {
 		return nil, err

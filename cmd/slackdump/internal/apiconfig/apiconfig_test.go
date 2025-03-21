@@ -6,8 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/rusq/slackdump/v3/internal/network"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/rusq/slackdump/v3/internal/network"
 )
 
 const (
@@ -20,7 +21,7 @@ download_retries = 3
   retries = 20
 
 [tier_3]
-  boost = 120
+  boost = 60
   burst = 5
   retries = 3
 
@@ -69,7 +70,7 @@ var testLimits = network.Limits{
 		Retries: 20,
 	},
 	Tier3: network.TierLimit{
-		Boost:   120,
+		Boost:   60,
 		Burst:   5,
 		Retries: 3,
 	},
@@ -98,7 +99,7 @@ func Test_readConfig(t *testing.T) {
 		{
 			"sample config (ok)",
 			args{strings.NewReader(sampleLimitsYaml)},
-			network.DefLimits,
+			testLimits,
 			false,
 		},
 		{

@@ -81,7 +81,7 @@ type Resumer interface {
 
 // Resumer is the interface that should be implemented by sources that can be
 // resumed.
-type SourceCloseResumer interface {
+type SourceResumeCloser interface {
 	Sourcer
 	Resumer
 	io.Closer
@@ -153,7 +153,7 @@ var (
 )
 
 // Load loads the source from file src.
-func Load(ctx context.Context, src string) (SourceCloseResumer, error) {
+func Load(ctx context.Context, src string) (SourceResumeCloser, error) {
 	lg := slog.With("source", src)
 	st, err := Type(src)
 	if err != nil {
