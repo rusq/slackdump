@@ -180,13 +180,7 @@ func invoke(cmd *base.Command, args []string) error {
 	// maybe start trace
 	traceStop := initTrace(cfg.TraceFile)
 	base.AtExit(traceStop)
-	cpuProfStop := initCPUProfile(cfg.CPUProfile)
-	base.AtExit(cpuProfStop)
-	if cfg.MEMProfile != "" {
-		base.AtExit(func() {
-			writeMemProfile(cfg.MEMProfile)
-		})
-	}
+	initDebug()
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
