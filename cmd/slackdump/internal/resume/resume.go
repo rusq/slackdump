@@ -5,6 +5,7 @@ import (
 	_ "embed"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 	"text/tabwriter"
 	"time"
@@ -150,7 +151,9 @@ func strlatest(l map[structures.SlackLink]time.Time) string {
 	for gid, ts := range l {
 		fmt.Fprintf(tw, "%s\t%s\n", gid, ts.Format("2006-01-02 15:04:05 MST"))
 	}
-	tw.Flush()
+	if err := tw.Flush(); err != nil {
+		slog.Error("flushing went wrong", "error", err)
+	}
 	return buf.String()
 }
 

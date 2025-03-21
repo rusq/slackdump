@@ -103,8 +103,14 @@ func TestParseURL(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name:    "thread",
+			name:    "thread funky",
 			args:    args{"https://xxxxxx.slack.com/archives/CHANNEL/p1645551829244659"},
+			want:    &SlackLink{Channel: "CHANNEL", ThreadTS: "1645551829.244659"},
+			wantErr: false,
+		},
+		{
+			name:    "enterprise URL",
+			args:    args{"https://oracle-grid.enterprise.slack.com/archives/CHANNEL/p1645551829244659"},
 			want:    &SlackLink{Channel: "CHANNEL", ThreadTS: "1645551829.244659"},
 			wantErr: false,
 		},

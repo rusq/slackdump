@@ -3,13 +3,12 @@ package structures
 // In this file: slack URL parsing functions.
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/url"
 	"regexp"
 	"strings"
-
-	"errors"
 )
 
 const LinkSep = ":"
@@ -54,6 +53,7 @@ func (u SlackLink) String() string {
 	return strings.Join([]string{u.Channel, u.ThreadTS}, LinkSep)
 }
 
+// slackdump link regexp
 var linkRe = regexp.MustCompile(`^[A-Za-z]{1}[A-Za-z0-9]+(:[0-9]+\.[0-9]+)?$`)
 
 // ParseLink parses the slack link string.  It supports the following formats:
@@ -104,7 +104,7 @@ func ParseURL(slackURL string) (*SlackLink, error) {
 	var ui SlackLink
 	switch len(parts) {
 	case 3:
-		//thread
+		// thread
 		ts, err := ParseThreadID(parts[2])
 		if err != nil {
 			return nil, ErrUnsupportedURL
@@ -127,7 +127,7 @@ func ParseURL(slackURL string) (*SlackLink, error) {
 //
 // > Your workspace URL can only contain lowercase letters, numbers and dashes
 // > (and must start with a letter or number).
-var slackURLRe = regexp.MustCompile(`^https:\/\/[a-zA-Z0-9]{1}[-\w]+\.slack\.com\/archives\/[A-Z]{1}[A-Z0-9]+(\/p(\d+))?$`)
+var slackURLRe = regexp.MustCompile(`https:\/\/[-.\w]+.slack\.com\/archives\/[A-Z]{1}[A-Z0-9]+(\/p(\d+))?$`)
 
 // IsValidSlackURL returns true if the value looks like valid Slack URL, false
 // if not.
@@ -144,7 +144,7 @@ func IsURL(s string) bool {
 // with the channel ID.  If the channel is marked for exclusion in the list
 // it will retain this status.
 func ResolveURLs(idsOrURLs []string) ([]string, error) {
-	var ret = make([]string, len(idsOrURLs))
+	ret := make([]string, len(idsOrURLs))
 	for i, val := range idsOrURLs {
 		if val == "" {
 			continue
