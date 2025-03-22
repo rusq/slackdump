@@ -18,9 +18,10 @@ import (
 
 // userCollector collects users and sends the signal to start the transformer.
 type userCollector struct {
-	ctx   context.Context // bad boy, but short-lived, so it's ok
-	users []slack.User
-	ts    TransformStarter
+	ctx        context.Context // bad boy, but short-lived, so it's ok
+	users      []slack.User
+	ts         TransformStarter
+	allowEmpty bool
 }
 
 var _ processor.Users = (*userCollector)(nil)
@@ -30,11 +31,17 @@ func (u *userCollector) Users(ctx context.Context, users []slack.User) error {
 	return nil
 }
 
+var ErrNoUsers = errors.New("no users returned")
+
 // Close invokes the transformer's StartWithUsers method if it
 // collected any users.
 func (u *userCollector) Close() error {
 	if len(u.users) == 0 {
-		slog.Warn("user collector: no users collected, possibly not an error")
+		if u.allowEmpty {
+			slog.Warn("user collector: no users collected, possibly not an error")
+		} else {
+			return ErrNoUsers
+		}
 	}
 	if err := u.ts.StartWithUsers(u.ctx, u.users); err != nil {
 		if errors.Is(err, context.Canceled) {

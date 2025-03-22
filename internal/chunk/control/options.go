@@ -70,10 +70,11 @@ func WithLogger(lg *slog.Logger) Option {
 // helpers
 
 // newUserCollector creates a new user collector.
-func (o *options) newUserCollector(ctx context.Context) *userCollector {
+func (o *options) newUserCollector(ctx context.Context, allowNoUsers bool) *userCollector {
 	return &userCollector{
-		ctx:   ctx,
-		ts:    o.tf,
-		users: make([]slack.User, 0, 100),
+		ctx:        ctx,
+		ts:         o.tf,
+		users:      make([]slack.User, 0, 100),
+		allowEmpty: allowNoUsers,
 	}
 }

@@ -80,10 +80,13 @@ func (c *Controller) mkSuperprocessor(ctx context.Context, rec *chunk.Recorder) 
 		}
 	}
 
+	// if we're running in resume mode, it is possible that we will not collect any users due to no new messages, therefore
+	// we need to allow the user collector to close without collecting any users by setting allowEmpty to true (value of
+	// c.Flags.ChannelUsers)
 	sp := superprocessor{
 		Conversations: conv,
-		//                                       1                     2    3
-		Users:         processor.JoinUsers(c.newUserCollector(ctx), c.avp, rec),
+		//                                       1                                          2    3
+		Users:         processor.JoinUsers(c.newUserCollector(ctx, c.flags.ChannelUsers), c.avp, rec),
 		Channels:      rec,
 		WorkspaceInfo: rec,
 	}
