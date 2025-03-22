@@ -95,7 +95,7 @@ func New(ctx context.Context, addr string, r source.Sourcer) (*Viewer, error) {
 
 	mux := http.NewServeMux()
 
-	// Fetch our current directory in order to check for a static folder relative to this file
+	// Check for a static folder relative to this file
 	_, filename, _, _ := runtime.Caller(0)
 	currentDir := filepath.Dir(filename)
 	staticDir := filepath.Join(currentDir, "static")
