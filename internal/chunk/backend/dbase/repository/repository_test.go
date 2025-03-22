@@ -78,6 +78,23 @@ func checkCount(table string, want int) utilityFn {
 func prepChunk(typeID ...chunk.ChunkType) utilityFn {
 	return func(t *testing.T, conn PrepareExtContext) {
 		t.Helper()
+		tc := []testChunk{}
+		for _, tid := range typeID {
+			tc = append(tc, testChunk{typeID: tid, final: false})
+		}
+		prepChunkWithFinal(tc...)(t, conn)
+	}
+}
+
+type testChunk struct {
+	typeID    chunk.ChunkType
+	channelID string
+	final     bool
+}
+
+func prepChunkWithFinal(tc ...testChunk) utilityFn {
+	return func(t *testing.T, conn PrepareExtContext) {
+		t.Helper()
 		ctx := context.Background()
 		var (
 			sr = NewSessionRepository()
@@ -88,13 +105,20 @@ func prepChunk(typeID ...chunk.ChunkType) utilityFn {
 			t.Fatalf("session insert: %v", err)
 		}
 		t.Log("session id", id)
-		for i, tid := range typeID {
-			c := DBChunk{ID: int64(i + 1), SessionID: id, UnixTS: time.Now().UnixMilli(), TypeID: tid}
-			chunkID, err := cr.Insert(ctx, conn, &c)
+		for i, c := range tc {
+			ch := DBChunk{
+				ID:        int64(i + 1),
+				SessionID: id,
+				UnixTS:    time.Now().UnixMilli(),
+				TypeID:    c.typeID,
+				ChannelID: &c.channelID,
+				Final:     c.final,
+			}
+			chunkID, err := cr.Insert(ctx, conn, &ch)
 			if err != nil {
 				t.Fatalf("chunk insert: %v", err)
 			}
-			t.Logf("chunk id: %d type: %s", chunkID, c.TypeID)
+			t.Logf("chunk id: %d type: %s final: %v", chunkID, ch.TypeID, ch.Final)
 		}
 	}
 }
