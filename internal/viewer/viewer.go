@@ -8,6 +8,8 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"path/filepath"
+	"runtime"
 	"time"
 
 	"github.com/rusq/slackdump/v3/internal/source"
@@ -92,7 +94,13 @@ func New(ctx context.Context, addr string, r source.Sourcer) (*Viewer, error) {
 	}
 
 	mux := http.NewServeMux()
-	mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
+
+	// Check for a static folder relative to this file
+	_, filename, _, _ := runtime.Caller(0)
+	currentDir := filepath.Dir(filename)
+	staticDir := filepath.Join(currentDir, "static")
+
+	mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServer(http.Dir(staticDir))))
 	mux.HandleFunc("GET /", v.indexHandler)
 	// https: //ora600.slack.com/archives/CHY5HUESG
 	mux.HandleFunc("GET /archives/{id}", v.newFileHandler(v.channelHandler))
