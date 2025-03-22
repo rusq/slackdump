@@ -199,13 +199,12 @@ func (r genericRepository[T]) countTypeWhere(ctx context.Context, conn sqlx.Quer
 	defer task.End()
 	trace.Logf(ctx, "parameters", "countTypeWhere: %T, typeID=%d, where=%s, binds=%v", r.t, typeID, qp.Where, qp.Binds)
 
-	// TODO: no rebind, not critical, but if the database type changes, this will break
 	latest, b := r.stmtLatestWhere(qp, typeID...)
 	stmt := `SELECT COUNT(1) FROM (` + latest + `) as latest`
 	slog.DebugContext(ctx, "count", "stmt", stmt, "binds", b)
 
 	var n int64
-	if err := conn.QueryRowxContext(ctx, stmt, b...).Scan(&n); err != nil {
+	if err := conn.QueryRowxContext(ctx, rebind(conn, stmt), b...).Scan(&n); err != nil {
 		return 0, fmt.Errorf("count: %w", err)
 	}
 	return n, nil
@@ -283,7 +282,7 @@ func (r genericRepository[T]) allOfTypeWhere(ctx context.Context, conn sqlx.Quer
 	slog.DebugContext(ctx, "allOfTypeWhere", "stmt", stmt, "binds", binds)
 
 	rgn := trace.StartRegion(ctx, "allOfTypeWhere.query")
-	rows, err := conn.QueryxContext(ctx, stmt, binds...)
+	rows, err := conn.QueryxContext(ctx, rebind(conn, stmt), binds...)
 	rgn.End()
 	if err != nil {
 		return nil, fmt.Errorf("all: %w", err)
@@ -323,9 +322,7 @@ func (r genericRepository[T]) chunkQuery(chunkID int64) (string, []any) {
 func (r genericRepository[T]) OneForChunk(ctx context.Context, conn sqlx.QueryerContext, chunkID int64) (T, error) {
 	stmt, binds := r.chunkQuery(chunkID)
 	stmt = stmt + " LIMIT 1"
-	if rb, ok := conn.(interface{ Rebind(string) string }); ok {
-		stmt = rb.Rebind(stmt)
-	}
+	stmt = rebind(conn, stmt)
 
 	slog.DebugContext(ctx, "OneForChunk", "stmt", stmt, "binds", chunkID)
 
@@ -341,9 +338,7 @@ func (r genericRepository[T]) AllForChunk(ctx context.Context, conn sqlx.Queryer
 	defer task.End()
 
 	stmt, binds := r.chunkQuery(chunkID)
-	if rb, ok := conn.(interface{ Rebind(string) string }); ok {
-		stmt = rb.Rebind(stmt)
-	}
+	stmt = rebind(conn, stmt)
 
 	slog.DebugContext(ctx, "AllForChunk", "stmt", stmt, "binds", chunkID)
 

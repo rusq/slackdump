@@ -154,9 +154,9 @@ func (t *ExportCoordinator) worker(ctx context.Context) {
 
 	lg := t.lg.With("in", "ExportCoordinator.worker")
 
-	lg.Debug("worker waiting")
+	lg.Debug("worker waiting", "buffer_size", cap(t.ids))
 	<-t.start
-	lg.Debug("worker started")
+	lg.Debug("worker started", "queue_size", len(t.ids))
 	for id := range t.ids {
 		lg.Debug("transforming channel", "channel_id", id)
 		if err := t.cvt.Convert(ctx, chunk.FileID(id)); err != nil {

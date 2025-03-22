@@ -136,7 +136,7 @@ func (d *DBP) Encode(ctx context.Context, ch *chunk.Chunk) error {
 	return nil
 }
 
-// IsFinalised returns true if the channel messages have been processed (there
+// IsComplete returns true if the channel messages have been processed (there
 // are no unfinished threads).
 func (d *DBP) IsComplete(ctx context.Context, channelID string) (bool, error) {
 	d.mu.Lock()

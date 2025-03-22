@@ -10,7 +10,6 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/rusq/slack"
 
 	"github.com/rusq/slackdump/v3/internal/fasttime"
@@ -243,7 +242,6 @@ func (v *Viewer) userHandler(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	spew.Dump(u)
 
 	if err := v.tmpl.ExecuteTemplate(w, "hx_user", u); err != nil {
 		lg.ErrorContext(ctx, "ExecuteTemplate", "error", err)

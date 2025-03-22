@@ -285,13 +285,17 @@ func (cs *Stream) UsersBulk(ctx context.Context, proc processor.Users, ids ...st
 
 	uu := make([]slack.User, 0, len(ids))
 	for _, id := range ids {
+		if id == "" {
+			// some messages may have empty user IDs.
+			continue
+		}
 		var u *slack.User
 		if err := network.WithRetry(ctx, cs.limits.userinfo, cs.limits.tier.Tier4.Retries, func(ctx context.Context) error {
 			var err error
 			u, err = cs.client.GetUserInfoContext(ctx, id)
 			return err
 		}); err != nil {
-			return err
+			return fmt.Errorf("error fetching user with ID %s: %w", id, err)
 		}
 		uu = append(uu, *u)
 	}
