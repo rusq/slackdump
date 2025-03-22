@@ -1,22 +1,4 @@
 * V3.1
-** TODO export compatibility (?)
-  /canvases.json is the list of all channel canvases (just slack files, files
-  are not included).
-
-  /file_conversations.json contains list of all file conversations,
-  conversations are presented as special directories. FC:<FILE_ID>:File_name,
-  and contains date-files.
-
-  /users.json are formatted one json per line, comma at the end of each line,
-  and it's an array.
-
-  message JSON has empty fields omitted, while file JSON does not.
-
-  channel directories have a special "canvases_in_conversation.json" file that
-  contains canvases in the channel as an array of files.
-
-  archived channels are included in the export.
-
 ** TODO Database backend
 *** DONE Add database backend support to Dump converter, it relies on the files
 *** DONE Check if the thread export works as intended.
@@ -25,6 +7,9 @@
 *** DONE Files and avatars support during conversion.
    CLOSED: [2025-03-14 Fri 21:33]
 *** TODO Tests for dbproc and related packages.
+*** TODO Resume will choke on export->database converted workspaces due to
+    missing "workspace" information. Find another way to verify the
+    workspace name, possibly by team ID on the messages/users.
 ** DONE Source detection
    CLOSED: [2025-03-14 Fri 21:34]
 *** DONE detect standard file storage
@@ -43,8 +28,41 @@
 ** DONE Verify that consequent calls of conversation.replies don't have the first thread message as the item with 0-index.
    CLOSED: [2025-03-16 Sun 22:01]
    Yes it does: https://github.com/rusq/slackdump/issues/128#issuecomment-1234773510
-** TODO Only participating users #287.
+** DONE Only participating users #287.
+   CLOSED: [2025-03-21 Fri 22:05]
+** TODO Attachment filter, use the same terms as channel filter, -filter-files=[public,private,dm] (#233)
+** TODO Channel filter (private/public/DMs) -filter-channel=[public,private,dm] (controller already supports this)
+** Resume
+*** DONE user_not_found error when running with -channel-users
+    CLOSED: [2025-03-21 Fri 22:32]
+*** DONE when resuming with -channel-users, and there are no new messages, the resume crashes with "no users collected"
+    CLOSED: [2025-03-21 Fri 22:32]
 * V3.2
 ** TODO Starred items and bookmarks.
 ** TODO Connection pooling
 ** TODO load emojis alongside the messages during archive.
+** TODO Static viewer output #416
+** TODO Thumbnail download (#111)
+** TODO Custom fields for users (#62)
+* Future
+** TODO Aliasing users in the viewer, click on the username, assign a name, save.
+** TODO detect external users and fetch them individually
+   even if running without -channel-users.
+** TODO export compatibility (?)
+  /canvases.json is the list of all channel canvases (just slack files, files
+  are not included).
+
+  /file_conversations.json contains list of all file conversations,
+  conversations are presented as special directories. FC:<FILE_ID>:File_name,
+  and contains date-files.
+
+  /users.json are formatted one json per line, comma at the end of each line,
+  and it's an array.
+
+  message JSON has empty fields omitted, while file JSON does not.
+
+  channel directories have a special "canvases_in_conversation.json" file that
+  contains canvases in the channel as an array of files.
+
+  archived channels are included in the export.
+

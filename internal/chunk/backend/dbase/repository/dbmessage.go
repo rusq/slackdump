@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"iter"
+	"runtime/trace"
 	"strings"
 
 	"github.com/jmoiron/sqlx"
@@ -187,10 +188,11 @@ func (r messageRepository) Sorted(ctx context.Context, conn sqlx.QueryerContext,
 }
 
 func (r messageRepository) CountUnfinished(ctx context.Context, conn sqlx.QueryerContext, sessionID int64, channelID string) (int64, error) {
+	ctx, task := trace.NewTask(ctx, "CountUnfinished")
+	defer task.End()
 	const stmt = "SELECT REF_COUNT FROM V_UNFINISHED_THREADS WHERE SESSION_ID = ? AND CHANNEL_ID = ?"
 	var count int64
-	// TODO: rebind
-	if err := conn.QueryRowxContext(ctx, stmt, sessionID, channelID).Scan(&count); err != nil {
+	if err := conn.QueryRowxContext(ctx, rebind(conn, stmt), sessionID, channelID).Scan(&count); err != nil {
 		return 0, fmt.Errorf("countUnfinished query: %w", err)
 	}
 	return count, nil
