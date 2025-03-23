@@ -18,9 +18,10 @@ import (
 
 // userCollector collects users and sends the signal to start the transformer.
 type userCollector struct {
-	ctx   context.Context // bad boy, but short-lived, so it's ok
-	users []slack.User
-	ts    TransformStarter
+	ctx        context.Context // bad boy, but short-lived, so it's ok
+	users      []slack.User
+	ts         TransformStarter
+	allowEmpty bool
 }
 
 var _ processor.Users = (*userCollector)(nil)
@@ -30,13 +31,17 @@ func (u *userCollector) Users(ctx context.Context, users []slack.User) error {
 	return nil
 }
 
-var errNoUsers = errors.New("no users collected")
+var ErrNoUsers = errors.New("no users returned")
 
 // Close invokes the transformer's StartWithUsers method if it
 // collected any users.
 func (u *userCollector) Close() error {
 	if len(u.users) == 0 {
-		return errNoUsers
+		if u.allowEmpty {
+			slog.Warn("user collector: no users collected, possibly not an error")
+		} else {
+			return ErrNoUsers
+		}
 	}
 	if err := u.ts.StartWithUsers(u.ctx, u.users); err != nil {
 		if errors.Is(err, context.Canceled) {
@@ -78,7 +83,7 @@ func (ct *conversationTransformer) mbeTransform(ctx context.Context, channelID, 
 	if err != nil {
 		return fmt.Errorf("error checking if complete: %w", err)
 	}
-	lg := slog.With("channel", channelID, "thread", threadID, "is_complete", isComplete)
+	lg := slog.With("channel_id", channelID, "thread_id", threadID, "is_complete", isComplete)
 	lg.Debug("finalisation")
 	if !isComplete {
 		return nil
@@ -228,11 +233,17 @@ func (uic *msgUserIDsCollector) ThreadMessages(ctx context.Context, channelID st
 func (uic *msgUserIDsCollector) collect(ctx context.Context, mm []slack.Message) error {
 	var uu []string
 	for _, m := range mm {
-		if _, ok := uic.seen[m.User]; ok {
+		user := m.User
+		if user == "" {
+			// TODO: support bot IDs, i.e. m.SubType == "bot_message" and m.BotID holding ID.
+			// this would require adding GetBotInfo method to the Streamer and Slacker interfaces.
 			continue
 		}
-		uic.seen[m.User] = struct{}{}
-		uu = append(uu, m.User)
+		if _, ok := uic.seen[user]; ok {
+			continue
+		}
+		uic.seen[user] = struct{}{}
+		uu = append(uu, user)
 	}
 	if len(uu) > 0 {
 		select {

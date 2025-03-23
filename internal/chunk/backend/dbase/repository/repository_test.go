@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 	"log/slog"
 	"os"
 	"reflect"
@@ -10,7 +11,6 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
-	"github.com/rusq/slack"
 	"github.com/stretchr/testify/assert"
 	_ "modernc.org/sqlite"
 
@@ -78,6 +78,23 @@ func checkCount(table string, want int) utilityFn {
 func prepChunk(typeID ...chunk.ChunkType) utilityFn {
 	return func(t *testing.T, conn PrepareExtContext) {
 		t.Helper()
+		tc := []testChunk{}
+		for _, tid := range typeID {
+			tc = append(tc, testChunk{typeID: tid, final: false})
+		}
+		prepChunkWithFinal(tc...)(t, conn)
+	}
+}
+
+type testChunk struct {
+	typeID    chunk.ChunkType
+	channelID string
+	final     bool
+}
+
+func prepChunkWithFinal(tc ...testChunk) utilityFn {
+	return func(t *testing.T, conn PrepareExtContext) {
+		t.Helper()
 		ctx := context.Background()
 		var (
 			sr = NewSessionRepository()
@@ -88,13 +105,20 @@ func prepChunk(typeID ...chunk.ChunkType) utilityFn {
 			t.Fatalf("session insert: %v", err)
 		}
 		t.Log("session id", id)
-		for i, tid := range typeID {
-			c := DBChunk{ID: int64(i + 1), SessionID: id, UnixTS: time.Now().UnixMilli(), TypeID: tid}
-			chunkID, err := cr.Insert(ctx, conn, &c)
+		for i, c := range tc {
+			ch := DBChunk{
+				ID:        int64(i + 1),
+				SessionID: id,
+				UnixTS:    time.Now().UnixMilli(),
+				TypeID:    c.typeID,
+				ChannelID: &c.channelID,
+				Final:     c.final,
+			}
+			chunkID, err := cr.Insert(ctx, conn, &ch)
 			if err != nil {
 				t.Fatalf("chunk insert: %v", err)
 			}
-			t.Logf("chunk id: %d type: %s", chunkID, c.TypeID)
+			t.Logf("chunk id: %d type: %s final: %v", chunkID, ch.TypeID, ch.Final)
 		}
 	}
 }
@@ -207,61 +231,60 @@ func TestOrder_String(t *testing.T) {
 	}
 }
 
-var deflatedMsgA = []byte{0xaa, 0x86, 0x98, 0x64, 0xa5, 0xe4, 0xa8, 0xa4, 0xa3, 0x54, 0x52, 0xac, 0x64, 0xa5, 0x64, 0x68, 0x64, 0xac, 0x67, 0x62, 0x6a, 0xa6, 0xa4, 0x83, 0xe9, 0x5e, 0x2b, 0xb0, 0xd7, 0x75, 0x30, 0x42, 0x10, 0x26, 0xe, 0xf7, 0xba, 0x55, 0x35, 0x72, 0xd8, 0x59, 0x29, 0x29, 0xe9, 0xa0, 0x5, 0xad, 0x15, 0xd8, 0x11, 0x3a, 0xb0, 0x98, 0x82, 0x70, 0x1, 0x1, 0x0, 0x0, 0xff, 0xff}
+type fakeQueryerContext struct{}
 
-func Test_marshalflate(t *testing.T) {
-	type args struct {
-		a any
-	}
-	tests := []struct {
-		name    string
-		args    args
-		want    []byte
-		wantErr bool
-	}{
-		{
-			name: "marshals data",
-			args: args{a: msgA},
-			want: deflatedMsgA,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := marshalflate(tt.args.a)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("marshalflate() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("marshalflate() = %#v, want %v", got, tt.want)
-			}
-		})
-	}
+func (fakeQueryerContext) QueryContext(context.Context, string, ...any) (*sql.Rows, error) {
+	return nil, nil
 }
 
-func Test_unmarshalflate(t *testing.T) {
+func (fakeQueryerContext) QueryxContext(ctx context.Context, query string, args ...any) (*sqlx.Rows, error) {
+	return nil, nil
+}
+
+func (fakeQueryerContext) QueryRowxContext(ctx context.Context, query string, args ...any) *sqlx.Row {
+	return nil
+}
+
+type fakeQueryerContextWRebind struct {
+	fakeQueryerContext
+}
+
+func (fakeQueryerContextWRebind) Rebind(query string) string {
+	return "Rebound: " + query
+}
+
+func Test_rebind(t *testing.T) {
 	type args struct {
-		data []byte
-		v    any
+		conn sqlx.QueryerContext
+		stmt string
 	}
 	tests := []struct {
-		name    string
-		args    args
-		want    any
-		wantErr bool
+		name string
+		args args
+		want string
 	}{
 		{
-			name: "decompresses data",
-			args: args{data: deflatedMsgA, v: new(slack.Message)},
-			want: &msgA,
+			name: "rebinds",
+			args: args{
+				conn: fakeQueryerContext{},
+				stmt: "SELECT * FROM foo WHERE bar = ?",
+			},
+			want: "SELECT * FROM foo WHERE bar = ?", // no-op
+		},
+		{
+			name: "rebinds",
+			args: args{
+				conn: fakeQueryerContextWRebind{},
+				stmt: "SELECT * FROM foo WHERE bar = ?",
+			},
+			want: "Rebound: SELECT * FROM foo WHERE bar = ?",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := unmarshalflate(tt.args.data, tt.args.v); (err != nil) != tt.wantErr {
-				t.Errorf("unmarshalflate() error = %v, wantErr %v", err, tt.wantErr)
+			if got := rebind(tt.args.conn, tt.args.stmt); got != tt.want {
+				t.Errorf("rebind() = %v, want %v", got, tt.want)
 			}
-			assert.Equal(t, tt.args.v, tt.want)
 		})
 	}
 }

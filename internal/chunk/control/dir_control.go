@@ -12,7 +12,7 @@ import (
 	"log/slog"
 	"runtime/trace"
 
-	dirproc2 "github.com/rusq/slackdump/v3/internal/chunk/backend/directory"
+	dirproc "github.com/rusq/slackdump/v3/internal/chunk/backend/directory"
 
 	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/internal/structures"
@@ -58,26 +58,26 @@ func (c *DirController) Run(ctx context.Context, list *structures.EntityList) er
 
 	var dcp processor.Channels = &processor.NopChannels{}
 	if !list.HasIncludes() { // all channels are included
-		if p, err := dirproc2.NewChannels(c.cd); err != nil {
+		if p, err := dirproc.NewChannels(c.cd); err != nil {
 			return Error{"channel", "init", err}
 		} else {
 			dcp = p
 		}
 	}
-	dwsp, err := dirproc2.NewWorkspace(c.cd)
+	dwsp, err := dirproc.NewWorkspace(c.cd)
 	if err != nil {
 		return Error{"workspace", "init", err}
 	}
-	dconv, err := dirproc2.NewConversation(c.cd, c.filer, c.tf, dirproc2.WithRecordFiles(c.flags.RecordFiles))
+	dconv, err := dirproc.NewConversation(c.cd, c.filer, c.tf, dirproc.WithRecordFiles(c.flags.RecordFiles))
 	if err != nil {
 		return fmt.Errorf("error initialising conversation processor: %w", err)
 	}
-	dusr, err := dirproc2.NewUsers(c.cd)
+	dusr, err := dirproc.NewUsers(c.cd)
 	if err != nil {
 		return Error{"user", "init", err}
 	}
 	userproc := processor.JoinUsers(
-		c.newUserCollector(ctx),
+		c.newUserCollector(ctx, false), // chunk directory does not support channel users.
 		dusr,
 		c.avp,
 	)

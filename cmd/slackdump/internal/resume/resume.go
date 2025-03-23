@@ -29,7 +29,7 @@ var CmdResume = &base.Command{
 	Short:       "resumes archive process from the last checkpoint",
 	PrintFlags:  true,
 	RequireAuth: true,
-	FlagMask:    cfg.OmitOutputFlag | cfg.OmitUserCacheFlag | cfg.OmitChunkFileMode | cfg.OmitRecordFilesFlag,
+	FlagMask:    cfg.OmitOutputFlag | cfg.OmitUserCacheFlag | cfg.OmitChunkFileMode | cfg.OmitRecordFilesFlag | cfg.OmitChunkCacheFlag,
 	Wizard:      archiveWizard,
 }
 
@@ -53,6 +53,7 @@ func init() {
 
 func runResume(ctx context.Context, cmd *base.Command, args []string) error {
 	if len(args) != 1 {
+		base.SetExitStatus(base.SInvalidParameters)
 		return errors.New("expected exactly one argument")
 	}
 	loc := args[0]
@@ -60,6 +61,7 @@ func runResume(ctx context.Context, cmd *base.Command, args []string) error {
 	src, err := source.Load(ctx, loc)
 	if err != nil {
 		base.SetExitStatus(base.SInvalidParameters)
+		return err
 	}
 
 	if !src.Type().Has(source.FDatabase) {
@@ -77,6 +79,8 @@ func runResume(ctx context.Context, cmd *base.Command, args []string) error {
 		return fmt.Errorf("error creating slackdump session: %w", err)
 	}
 	// ensure the repository is for the same workspace.
+	// TODO: if resume is going to support other sources, like export or dump,
+	// they won't have the workspace information.
 	if err := ensureSameWorkspace(ctx, src, sess.Info()); err != nil {
 		return fmt.Errorf("error ensuring the same workspace: %w", err)
 	}
@@ -88,6 +92,7 @@ func runResume(ctx context.Context, cmd *base.Command, args []string) error {
 
 	wconn, _, err := bootstrap.Database(loc, cmd.Name())
 	if err != nil {
+		base.SetExitStatus(base.SInitializationError)
 		return fmt.Errorf("error opening database: %w", err)
 	}
 	defer wconn.Close()
@@ -98,11 +103,13 @@ func runResume(ctx context.Context, cmd *base.Command, args []string) error {
 	}
 	ctrl, err := archive.DBController(ctx, cmd, wconn, sess, loc, cf, stream.OptInclusive(false))
 	if err != nil {
+		base.SetExitStatus(base.SInitializationError)
 		return fmt.Errorf("error creating archive controller: %w", err)
 	}
 	defer ctrl.Close()
 
 	if err := ctrl.Run(ctx, latest); err != nil {
+		base.SetExitStatus(base.SApplicationError)
 		return fmt.Errorf("error running archive controller: %w", err)
 	}
 
