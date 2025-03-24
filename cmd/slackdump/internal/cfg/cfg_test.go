@@ -7,8 +7,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-
-	"github.com/rusq/slackdump/v3/auth/browser"
 )
 
 func TestSetBaseFlags(t *testing.T) {
@@ -23,14 +21,7 @@ func TestSetBaseFlags(t *testing.T) {
 			"-trace", "trace.log",
 			"-log", "log.txt",
 			"-v",
-			"-token", "slack_token",
-			"-cookie", "slack_cookie",
-			"-browser", "firefox",
-			"-browser-timeout", "5s",
-			"-autologin-timeout", "10s",
-			"-legacy-browser",
 			"-enterprise",
-			"-user-agent", "Mozilla/5.0",
 			"-files=false",
 			"-api-config", "config.json",
 			"-o", "output.zip",
@@ -56,29 +47,8 @@ func TestSetBaseFlags(t *testing.T) {
 		if !Verbose {
 			t.Error("Expected Verbose to be true, got false")
 		}
-		if SlackToken != "slack_token" {
-			t.Errorf("Expected SlackToken to be 'slack_token', got '%s'", SlackToken)
-		}
-		if SlackCookie != "slack_cookie" {
-			t.Errorf("Expected SlackCookie to be 'slack_cookie', got '%s'", SlackCookie)
-		}
-		if Browser != browser.Bfirefox {
-			t.Errorf("Expected Browser to be 'chrome', got '%s'", Browser)
-		}
-		if LoginTimeout != 5*time.Second {
-			t.Errorf("Expected LoginTimeout to be 5 seconds, got %s", LoginTimeout)
-		}
-		if HeadlessTimeout != 10*time.Second {
-			t.Errorf("Expected HeadlessTimeout to be 10 seconds, got %s", HeadlessTimeout)
-		}
-		if !LegacyBrowser {
-			t.Error("Expected LegacyBrowser to be true, got false")
-		}
 		if !ForceEnterprise {
 			t.Error("Expected ForceEnterprise to be true, got false")
-		}
-		if RODUserAgent != "Mozilla/5.0" {
-			t.Errorf("Expected RODUserAgent to be 'Mozilla/5.0', got '%s'", RODUserAgent)
 		}
 		if WithFiles {
 			t.Error("Expected DownloadFiles to be false, got true")

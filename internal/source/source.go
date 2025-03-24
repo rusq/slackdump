@@ -36,7 +36,7 @@ import (
 // information is missing, i.e. no channels, or no data for the channel, it
 // should return ErrNotFound.
 //
-//go:generate mockgen -destination=mock_source/mock_source.go . Sourcer,Storage
+//go:generate mockgen -destination=mock_source/mock_source.go . Sourcer,Resumer,Storage
 type Sourcer interface {
 	// Name should return the name of the retriever underlying media, i.e.
 	// directory or archive.

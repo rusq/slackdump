@@ -15,7 +15,7 @@ import (
 )
 
 func TestStream_canvas(t *testing.T) {
-	testChannel := fixtures.Load[[]*slack.Channel](fixtures.TestChannels)[0]
+	testChannel := fixtures.Load[[]*slack.Channel](fixtures.TestChannelsJSON)[0]
 	type args struct {
 		ctx context.Context
 		// proc    processor.Conversations

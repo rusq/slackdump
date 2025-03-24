@@ -36,7 +36,7 @@ func (n nopTransformer) Transform(ctx context.Context, id chunk.FileID) error { 
 
 type chunkPrepFn func(t *testing.T, ctx context.Context, d *chunk.Directory)
 
-var testChannelInfo = fixtures.Load[[]slack.Channel](fixtures.TestChannels)[0]
+var testChannelInfo = fixtures.Load[[]slack.Channel](fixtures.TestChannelsJSON)[0]
 
 func TestChunkDir_ChannelInfo(t *testing.T) {
 	type fields struct {

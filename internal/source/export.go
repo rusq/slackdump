@@ -218,8 +218,9 @@ func (e *Export) Avatars() Storage {
 }
 
 func (e *Export) Sorted(ctx context.Context, channelID string, desc bool, cb func(ts time.Time, msg *slack.Message) error) error {
-	// TODO
-	return errors.New("not supported yet")
+	// doesn't matter, this method is used only in export conversion, and as
+	// this is export it should never be called, just like your ex.
+	panic("this method should never be called")
 }
 
 // ExportChanName returns the channel name, or the channel ID if it is a DM.
