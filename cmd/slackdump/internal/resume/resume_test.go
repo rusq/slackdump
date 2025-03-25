@@ -359,7 +359,7 @@ func Test_latest(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "retuns latest status",
+			name: "returns latest status",
 			args: args{
 				ctx:            context.Background(),
 				includeThreads: false,
@@ -375,7 +375,7 @@ func Test_latest(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "retuns latest status with thread",
+			name: "returns latest status with thread",
 			args: args{
 				ctx:            context.Background(),
 				includeThreads: true,
@@ -393,7 +393,7 @@ func Test_latest(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "retuns latest status with thread, but includeThreads is false",
+			name: "returns latest status with thread, but includeThreads is false",
 			args: args{
 				ctx:            context.Background(),
 				includeThreads: false,
