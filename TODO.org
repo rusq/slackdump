@@ -7,9 +7,15 @@
 *** DONE Files and avatars support during conversion.
    CLOSED: [2025-03-14 Fri 21:33]
 *** TODO Tests for dbproc and related packages.
+**** DONE repository
+     CLOSED: [2025-03-23 Sun 21:40]
+**** DONE control
+     CLOSED: [2025-03-23 Sun 21:40]
+**** TODO dbproc
 *** TODO Resume will choke on export->database converted workspaces due to
     missing "workspace" information. Find another way to verify the
     workspace name, possibly by team ID on the messages/users.
+*** TODO Info command, prints out the database sessions, workspaces and message stats.
 ** DONE Source detection
    CLOSED: [2025-03-14 Fri 21:34]
 *** DONE detect standard file storage

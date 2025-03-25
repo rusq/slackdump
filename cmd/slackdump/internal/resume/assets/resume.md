@@ -14,15 +14,19 @@ If you want to resume a Slack Export, Chunk, or dump formats, follow these
 steps:
 
 1. Convert it to database format first:
-    ```bash
-    slackdump convert -format database <your-export .zip or directory>
-    ```
+    
+   ```plaintext
+   slackdump convert -format database <your-export .zip or directory>
+   ```
+
    This will create a new directory with Slackdump database, i.e.
    `slackdump_20241231_150405`.
 2. Resume the archive:
-    ```bash
-    slackdump resume slackdump_20241231_150405
-    ```
+
+   ```plaintext
+   slackdump resume slackdump_20241231_150405
+   ```
+
    This will continue the archive where you left off.
 3. When Slackdump finishes, the archive will be updated with the
    latest data.  Convert it back to the desired format:

@@ -369,7 +369,7 @@ func TestStream_ListChannels(t *testing.T) {
 			expectFn: func(ms *mock_stream.MockSlacker, mc *mock_processor.MockChannels) {
 				ms.EXPECT().
 					GetConversationsContext(gomock.Any(), gomock.Any()).
-					Return(fixtures.Load[[]slack.Channel](fixtures.TestChannels), "", nil)
+					Return(fixtures.Load[[]slack.Channel](fixtures.TestChannelsJSON), "", nil)
 				mc.EXPECT().
 					Channels(gomock.Any(), gomock.Any()).
 					Return(nil)
@@ -394,7 +394,7 @@ func TestStream_ListChannels(t *testing.T) {
 			expectFn: func(ms *mock_stream.MockSlacker, mc *mock_processor.MockChannels) {
 				ms.EXPECT().
 					GetConversationsContext(gomock.Any(), gomock.Any()).
-					Return(fixtures.Load[[]slack.Channel](fixtures.TestChannels), "next", nil)
+					Return(fixtures.Load[[]slack.Channel](fixtures.TestChannelsJSON), "next", nil)
 				ms.EXPECT().
 					GetConversationsContext(gomock.Any(), gomock.Any()).
 					Return([]slack.Channel{}, "", nil)
@@ -414,7 +414,7 @@ func TestStream_ListChannels(t *testing.T) {
 					Return([]slack.Channel{}, "", &slack.RateLimitedError{RetryAfter: 100 * time.Millisecond})
 				ms.EXPECT().
 					GetConversationsContext(gomock.Any(), gomock.Any()).
-					Return(fixtures.Load[[]slack.Channel](fixtures.TestChannels), "", nil).
+					Return(fixtures.Load[[]slack.Channel](fixtures.TestChannelsJSON), "", nil).
 					After(call)
 
 				mc.EXPECT().

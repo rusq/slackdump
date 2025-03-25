@@ -5,11 +5,12 @@ import (
 	"fmt"
 
 	"github.com/charmbracelet/huh"
+
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui"
 )
 
 func askRetry(ctx context.Context, name string, err error) (retry bool) {
-	var msg string = fmt.Sprintf("The following error occurred: %s", err)
+	msg := fmt.Sprintf("The following error occurred: %s", err)
 	if name != "" {
 		msg = fmt.Sprintf("Error creating workspace %q: %s", name, err)
 	}

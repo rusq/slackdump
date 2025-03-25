@@ -35,7 +35,7 @@ var CmdArchive = &base.Command{
 	UsageLine:   "slackdump archive [flags] [link1[ link 2[ link N]]]",
 	Short:       "archive the workspace or individual conversations on disk",
 	Long:        mdArchive,
-	FlagMask:    cfg.OmitUserCacheFlag | cfg.OmitCacheDir,
+	FlagMask:    cfg.OmitUserCacheFlag,
 	RequireAuth: true,
 	PrintFlags:  true,
 }

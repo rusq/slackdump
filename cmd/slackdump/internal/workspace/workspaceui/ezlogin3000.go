@@ -8,14 +8,15 @@ import (
 
 	"github.com/rusq/slackdump/v3/auth/browser"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/workspace/wspcfg"
 
 	"github.com/charmbracelet/huh"
 )
 
-func brwsLogin(opts *browserOptions) func(ctx context.Context, mgr manager) error {
+func brwsLogin() func(ctx context.Context, mgr manager) error {
 	return func(ctx context.Context, mgr manager) error {
 		var err error
-		if opts.UsePlaywright {
+		if wspcfg.LegacyBrowser {
 			err = playwrightLogin(ctx, mgr)
 		} else {
 			err = rodLogin(ctx, mgr)
@@ -31,7 +32,7 @@ func brwsLogin(opts *browserOptions) func(ctx context.Context, mgr manager) erro
 }
 
 func playwrightLogin(ctx context.Context, mgr manager) error {
-	var brws = browser.Bchromium
+	brws := browser.Bchromium
 	formBrowser := huh.NewForm(huh.NewGroup(
 		huh.NewSelect[browser.Browser]().
 			Options(
@@ -48,7 +49,7 @@ func playwrightLogin(ctx context.Context, mgr manager) error {
 		}
 		return err
 	}
-	prov, err := auth.NewPlaywrightAuth(ctx, auth.BrowserWithBrowser(brws))
+	prov, err := auth.NewPlaywrightAuth(ctx, auth.BrowserWithBrowser(brws), auth.BrowserWithTimeout(wspcfg.LoginTimeout))
 	if err != nil {
 		return err
 	}
@@ -61,7 +62,7 @@ func playwrightLogin(ctx context.Context, mgr manager) error {
 }
 
 func rodLogin(ctx context.Context, mgr manager) error {
-	prov, err := auth.NewRODAuth(ctx)
+	prov, err := auth.NewRODAuth(ctx, auth.BrowserWithTimeout(wspcfg.LoginTimeout), auth.RODWithRODHeadlessTimeout(wspcfg.HeadlessTimeout), auth.RODWithUserAgent(wspcfg.RODUserAgent))
 	if err != nil {
 		return err
 	}

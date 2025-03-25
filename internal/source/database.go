@@ -2,6 +2,8 @@ package source
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"os"
 	"path/filepath"
 
@@ -101,4 +103,15 @@ func (d *Database) Channels(ctx context.Context) ([]slack.Channel, error) {
 		return nil, ErrNotFound
 	}
 	return chns, nil
+}
+
+func (d *Database) WorkspaceInfo(ctx context.Context) (*slack.AuthTestResponse, error) {
+	info, err := d.Source.WorkspaceInfo(ctx)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+		return nil, err
+	}
+	return info, nil
 }

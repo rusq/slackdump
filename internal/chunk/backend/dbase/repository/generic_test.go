@@ -23,7 +23,7 @@ func must[T any](t T, err error) T {
 }
 
 func Test_genericRepository_allOfTypeWhere(t *testing.T) {
-	allTestChans := fixtures.Load[[]slack.Channel](fixtures.TestChannels)
+	allTestChans := fixtures.Load[[]slack.Channel](fixtures.TestChannelsJSON)
 	data1 := must(marshal(allTestChans[0]))
 	data2 := must(marshal(allTestChans[1]))
 

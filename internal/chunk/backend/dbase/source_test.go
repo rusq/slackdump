@@ -134,7 +134,7 @@ func TestSource_Channels(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				channels := fixtures.Load[[]slack.Channel](fixtures.TestChannels)
+				channels := fixtures.Load[[]slack.Channel](fixtures.TestChannelsJSON)
 				for _, ch := range channels {
 					if err := dbp.Encode(ctx, &chunk.Chunk{Type: chunk.CChannelInfo, Channel: &ch}); err != nil {
 						t.Error(err)
@@ -146,7 +146,7 @@ func TestSource_Channels(t *testing.T) {
 					}
 				}
 			},
-			want:    fixtures.Load[[]slack.Channel](fixtures.TestChannels),
+			want:    fixtures.Load[[]slack.Channel](fixtures.TestChannelsJSON),
 			wantErr: false,
 		},
 		{
@@ -165,12 +165,12 @@ func TestSource_Channels(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				channels := fixtures.Load[[]slack.Channel](fixtures.TestChannels)
+				channels := fixtures.Load[[]slack.Channel](fixtures.TestChannelsJSON)
 				if err := dbp.Encode(ctx, &chunk.Chunk{Type: chunk.CChannels, Channels: channels}); err != nil {
 					t.Error(err)
 				}
 			},
-			want:    fixtures.Load[[]slack.Channel](fixtures.TestChannels),
+			want:    fixtures.Load[[]slack.Channel](fixtures.TestChannelsJSON),
 			wantErr: false,
 		},
 	}

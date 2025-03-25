@@ -7,7 +7,7 @@ import (
 	"github.com/playwright-community/playwright-go"
 
 	"github.com/rusq/slackdump/v3/auth/browser/pwcompat"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/workspace/wspcfg"
 )
 
 type PwInfo struct {
@@ -22,7 +22,7 @@ type PwInfo struct {
 
 func (inf *PwInfo) collect(replaceFn PathReplFunc) {
 	opts := &playwright.RunOptions{
-		Browsers:            []string{cfg.Browser.String()},
+		Browsers:            []string{wspcfg.Browser.String()},
 		SkipInstallBrowsers: true,
 	}
 	pwdrv, err := pwcompat.NewAdapter(opts)
