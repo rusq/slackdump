@@ -9,7 +9,7 @@ require (
 	github.com/charmbracelet/bubbles v0.20.1-0.20250320170029-54f28b650198
 	github.com/charmbracelet/bubbletea v1.3.4
 	github.com/charmbracelet/huh v0.6.0
-	github.com/charmbracelet/huh/spinner v0.0.0-20250320172351-ff9123a4929b
+	github.com/charmbracelet/huh/spinner v0.0.0-20250324195341-f31a8c95fe4f
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/enescakir/emoji v1.0.0
 	github.com/fatih/color v1.18.0
@@ -42,7 +42,7 @@ require (
 	golang.org/x/term v0.30.0
 	golang.org/x/text v0.23.0
 	golang.org/x/time v0.11.0
-	modernc.org/sqlite v1.36.1
+	modernc.org/sqlite v1.36.2
 	src.elv.sh v0.21.0
 )
 
@@ -53,7 +53,7 @@ require (
 	github.com/charmbracelet/colorprofile v0.2.3-0.20250311203215-f60798e515dc // indirect
 	github.com/charmbracelet/x/ansi v0.8.0 // indirect
 	github.com/charmbracelet/x/cellbuf v0.0.13 // indirect
-	github.com/charmbracelet/x/exp/strings v0.0.0-20250317102001-c803e5cafd0b // indirect
+	github.com/charmbracelet/x/exp/strings v0.0.0-20250324105510-c72bdbf70572 // indirect
 	github.com/charmbracelet/x/term v0.2.1 // indirect
 	github.com/cloudflare/circl v1.6.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
