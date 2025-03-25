@@ -13,6 +13,7 @@ import (
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/bubbles/menu"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/cfgui"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/updaters"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/workspace/wspcfg"
 	"github.com/rusq/slackdump/v3/internal/cache"
 	"github.com/rusq/slackdump/v3/internal/osext"
 )
@@ -70,8 +71,6 @@ func ShowUI(ctx context.Context, opts ...UIOption) error {
 		o(&uiOpts)
 	}
 
-	var brwsOpts browserOptions
-
 	items := []menu.Item{
 		{
 			ID:   actLogin,
@@ -83,7 +82,7 @@ func ShowUI(ctx context.Context, opts ...UIOption) error {
 			Name:    "Browser Options...",
 			Help:    "Show browser options",
 			Preview: true,
-			Model:   cfgui.NewConfigUI(cfgui.DefaultStyle(), configuration(&brwsOpts)),
+			Model:   cfgui.NewConfigUI(cfgui.DefaultStyle(), configuration()),
 		},
 		{
 			Separator: true,
@@ -118,7 +117,7 @@ func ShowUI(ctx context.Context, opts ...UIOption) error {
 
 	// new workspace methods
 	methods := map[string]func(context.Context, manager) error{
-		actLogin:     brwsLogin(&brwsOpts),
+		actLogin:     brwsLogin(),
 		actToken:     prgTokenCookie,
 		actTokenFile: prgTokenCookieFile,
 		actSecrets:   fileWithSecrets,
@@ -164,11 +163,7 @@ func (m *wizModel) Init() tea.Cmd                           { return m.m.Init() 
 func (m *wizModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) { return m.m.Update(msg) }
 func (m *wizModel) View() string                            { return m.m.View() }
 
-type browserOptions struct {
-	UsePlaywright bool
-}
-
-func configuration(opts *browserOptions) func() cfgui.Configuration {
+func configuration() func() cfgui.Configuration {
 	return func() cfgui.Configuration {
 		return cfgui.Configuration{
 			{
@@ -177,8 +172,34 @@ func configuration(opts *browserOptions) func() cfgui.Configuration {
 					{
 						Name:        "Use Playwright",
 						Description: "Use Playwright to automate the browser instead of Rod.",
-						Value:       cfgui.Checkbox(opts.UsePlaywright),
-						Updater:     updaters.NewBool(&opts.UsePlaywright),
+						Value:       cfgui.Checkbox(wspcfg.LegacyBrowser),
+						Updater:     updaters.NewBool(&wspcfg.LegacyBrowser),
+					},
+					{
+						Name:        "Login Timeout",
+						Description: "Timeout in seconds for the whole browser login process.",
+						Inline:      true,
+						Value:       wspcfg.LoginTimeout.String(),
+						Updater:     updaters.NewDuration(&wspcfg.LoginTimeout, false),
+					},
+				},
+			},
+			{
+				Name: "ROD-specific options",
+				Params: []cfgui.Parameter{
+					{
+						Name:        "Automatic Login Timeout",
+						Description: "Timeout in seconds for the automatic login process.",
+						Inline:      true,
+						Value:       wspcfg.HeadlessTimeout.String(),
+						Updater:     updaters.NewDuration(&wspcfg.HeadlessTimeout, false),
+					},
+					{
+						Name:        "User Agent String (Rod only)",
+						Description: "User Agent String to report to the server.",
+						Inline:      true,
+						Value:       wspcfg.RODUserAgent,
+						Updater:     updaters.NewString(&wspcfg.RODUserAgent, "", false, nil),
 					},
 				},
 			},
