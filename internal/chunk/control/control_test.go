@@ -157,7 +157,7 @@ func TestController_Run(t *testing.T) {
 			},
 			expectFn: func(s *mock_control.MockStreamer, f *mock_processor.MockFiler, a *mock_processor.MockAvatars, tf *mock_control.MockExportTransformer, erc *mock_control.MockEncodeReferenceCloser) {
 				// called by the runner
-				s.EXPECT().ListChannels(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+				s.EXPECT().ListChannels(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
 				s.EXPECT().Users(gomock.Any(), gomock.Any()).Return(assert.AnError)
 				s.EXPECT().Conversations(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
 				s.EXPECT().WorkspaceInfo(gomock.Any(), gomock.Any()).Return(nil)
