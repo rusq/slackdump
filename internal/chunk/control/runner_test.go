@@ -166,8 +166,9 @@ func Test_apiGenerator_Generate(t *testing.T) {
 			}
 
 			errC := make(chan error, 1)
-			listC := g.Generate(tt.args.ctx, errC, tt.args.list)
+			listC, done := g.Generate(tt.args.ctx, errC, tt.args.list)
 			collected := collectItems(listC)
+			done()
 			got := collected()
 			close(errC)
 
@@ -344,8 +345,9 @@ func Test_combinedGenerator_Generate(t *testing.T) {
 				chTypes: tt.fields.chTypes,
 			}
 			errC := make(chan error, 1)
-			listC := g.Generate(tt.args.ctx, errC, tt.args.list)
+			listC, done := g.Generate(tt.args.ctx, errC, tt.args.list)
 			collected := collectItems(listC)
+			done()
 			got := collected()
 			close(errC)
 
@@ -476,6 +478,7 @@ func Test_runWorkers(t *testing.T) {
 	testList := structures.NewEntityListFromItems(
 		structures.EntityItem{Id: "C11111111", Include: true},
 	)
+	emptyList := structures.NewEntityListFromItems()
 	type args struct {
 		ctx context.Context
 		// s     Streamer
@@ -591,6 +594,32 @@ func Test_runWorkers(t *testing.T) {
 					Users(gomock.Any(), m.MockUsers, gomock.Any()).
 					Return(nil)
 				m.MockConversations.EXPECT().Close().Return(assert.AnError)
+			},
+			wantErr: true,
+		},
+		{
+			name: "cancelled context and list channels returns an error",
+			args: args{
+				ctx: func() context.Context {
+					ctx, cancel := context.WithCancel(context.Background())
+					cancel()
+					return ctx
+				}(),
+				list:  emptyList, // will force ListChannels to be called.
+				flags: Flags{},
+			},
+			expectFn: func(s *mock_control.MockStreamer, m *superMockProcessor) {
+				s.EXPECT().ListChannels(gomock.Any(), gomock.Any(), gomock.Any()).Return(context.Canceled)
+				s.EXPECT().
+					WorkspaceInfo(gomock.Any(), m.MockWorkspaceInfo).
+					Return(nil)
+				s.EXPECT().
+					Conversations(gomock.Any(), m.MockConversations, gomock.Any()).
+					Return(nil)
+				s.EXPECT().
+					Users(gomock.Any(), m.MockUsers, gomock.Any()).
+					Return(nil)
+				m.MockConversations.EXPECT().Close().Return(nil)
 			},
 			wantErr: true,
 		},

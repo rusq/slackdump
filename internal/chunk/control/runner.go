@@ -152,10 +152,12 @@ func runWorkers(ctx context.Context, s Streamer, list *structures.EntityList, p 
 				tryClose(errC, p.Conversations)
 			}()
 			gen := newGenerator(s, p, flags, list)
-			if err := conversationWorker(ctx, s, p.Conversations, gen.Generate(ctx, errC, list)); err != nil {
+			listC, wait := gen.Generate(ctx, errC, list)
+			if err := conversationWorker(ctx, s, p.Conversations, listC); err != nil {
 				errC <- Error{"conversations", StgWorker, err}
 				return
 			}
+			wait() // sync with the generator
 		}()
 	}
 	// sentinel
@@ -197,7 +199,7 @@ type generator interface {
 	// Generate should take the context, error channel, and the list of channels
 	// and return a channel of channel IDs.  It should close the channel when
 	// done.
-	Generate(ctx context.Context, errC chan<- error, list *structures.EntityList) <-chan structures.EntityItem
+	Generate(ctx context.Context, errC chan<- error, list *structures.EntityList) (listC <-chan structures.EntityItem, wait func())
 }
 
 // apiGenerator feeds the channel IDs that it gets from the API to the links
@@ -210,15 +212,17 @@ type apiGenerator struct {
 	chTypes    []string
 }
 
-func (g *apiGenerator) Generate(ctx context.Context, errC chan<- error, list *structures.EntityList) <-chan structures.EntityItem {
+func (g *apiGenerator) Generate(ctx context.Context, errC chan<- error, list *structures.EntityList) (<-chan structures.EntityItem, func()) {
 	if len(g.chTypes) == 0 {
 		g.chTypes = slackdump.AllChanTypes
 	}
 	linksC := make(chan structures.EntityItem)
 	emitErr := errEmitter(errC, "api channel generator", StgGenerator)
+	done := make(chan struct{})
 
 	go func() {
 		defer close(linksC)
+		defer close(done)
 
 		genproc := newChanFilter(linksC, list, g.memberOnly)
 		joined := processor.JoinChannels(genproc, g.p)
@@ -237,7 +241,7 @@ func (g *apiGenerator) Generate(ctx context.Context, errC chan<- error, list *st
 		}
 		slog.DebugContext(ctx, "channels done")
 	}()
-	return linksC
+	return linksC, func() { <-done }
 }
 
 // combinedGenerator combines the list and channels from the API.  It first sends
@@ -249,15 +253,17 @@ type combinedGenerator struct {
 	chTypes []string
 }
 
-func (g *combinedGenerator) Generate(ctx context.Context, errC chan<- error, list *structures.EntityList) <-chan structures.EntityItem {
+func (g *combinedGenerator) Generate(ctx context.Context, errC chan<- error, list *structures.EntityList) (<-chan structures.EntityItem, func()) {
 	if len(g.chTypes) == 0 {
 		g.chTypes = slackdump.AllChanTypes
 	}
 	links := make(chan structures.EntityItem)
 	emitErr := errEmitter(errC, "combined channel generator", StgGenerator)
+	done := make(chan struct{})
 
 	go func() {
 		defer close(links)
+		defer close(done)
 
 		// TODO: this can be made more efficient, if the processed is pre-cooked.
 		//       API fetching can happen separately and fan in the entries. Drawback
@@ -294,15 +300,15 @@ func (g *combinedGenerator) Generate(ctx context.Context, errC chan<- error, lis
 			return
 		}
 	}()
-	return links
+	return links, func() { <-done }
 }
 
 // listGen is a simplest generator that just emits the channels from the list
 // passed to it.
 type listGen struct{}
 
-func (g *listGen) Generate(ctx context.Context, _ chan<- error, list *structures.EntityList) <-chan structures.EntityItem {
-	return list.C(ctx)
+func (g *listGen) Generate(ctx context.Context, _ chan<- error, list *structures.EntityList) (<-chan structures.EntityItem, func()) {
+	return list.C(ctx), func() {}
 }
 
 // supersearcher is a combination of all processors necessary for searching.
