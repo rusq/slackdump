@@ -8,6 +8,7 @@ import (
 
 	"github.com/rusq/tracer"
 
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 )
 
@@ -19,7 +20,7 @@ import (
 // function is nil.
 func initLog(filename string, jsonHandler bool, verbose bool) (*slog.Logger, error) {
 	if verbose {
-		slog.SetLogLoggerLevel(slog.LevelDebug)
+		cfg.SetDebugLevel()
 	}
 	opts := &slog.HandlerOptions{
 		Level: iftrue(verbose, slog.LevelDebug, slog.LevelInfo),

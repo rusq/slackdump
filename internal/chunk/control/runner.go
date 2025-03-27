@@ -108,10 +108,7 @@ func runWorkers(ctx context.Context, s Streamer, list *structures.EntityList, p 
 	var (
 		wg   sync.WaitGroup
 		errC = make(chan error, 1)
-		gen  = newGenerator(s, p, flags, list)
 	)
-
-	linkC := gen.Generate(ctx, errC, list)
 
 	{ // workspace info
 		wg.Add(1)
@@ -154,7 +151,8 @@ func runWorkers(ctx context.Context, s Streamer, list *structures.EntityList, p 
 			defer func() {
 				tryClose(errC, p.Conversations)
 			}()
-			if err := conversationWorker(ctx, s, p.Conversations, linkC); err != nil {
+			gen := newGenerator(s, p, flags, list)
+			if err := conversationWorker(ctx, s, p.Conversations, gen.Generate(ctx, errC, list)); err != nil {
 				errC <- Error{"conversations", StgWorker, err}
 				return
 			}
@@ -216,13 +214,13 @@ func (g *apiGenerator) Generate(ctx context.Context, errC chan<- error, list *st
 	if len(g.chTypes) == 0 {
 		g.chTypes = slackdump.AllChanTypes
 	}
-	links := make(chan structures.EntityItem)
+	linksC := make(chan structures.EntityItem)
 	emitErr := errEmitter(errC, "api channel generator", StgGenerator)
 
 	go func() {
-		defer close(links)
+		defer close(linksC)
 
-		genproc := newChanFilter(links, list, g.memberOnly)
+		genproc := newChanFilter(linksC, list, g.memberOnly)
 		joined := processor.JoinChannels(genproc, g.p)
 		defer func() {
 			if err := joined.Close(); err != nil {
@@ -239,7 +237,7 @@ func (g *apiGenerator) Generate(ctx context.Context, errC chan<- error, list *st
 		}
 		slog.DebugContext(ctx, "channels done")
 	}()
-	return links
+	return linksC
 }
 
 // combinedGenerator combines the list and channels from the API.  It first sends
