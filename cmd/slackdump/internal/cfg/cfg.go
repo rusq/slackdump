@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"strconv"
 	"time"
 
+	"github.com/pterm/pterm"
 	"github.com/rusq/osenv/v2"
 
 	"github.com/rusq/slackdump/v3/internal/network"
@@ -61,6 +63,27 @@ var (
 
 	Version BuildInfo // version propagated by main package.
 )
+
+func init() {
+	enableLogColors(os.Getenv("NOCOLOR"))
+}
+
+func enableLogColors(strNocolor string) {
+	nocolor, err := strconv.ParseBool(strNocolor)
+	if err == nil && nocolor {
+		// skip enabling color
+		return
+	}
+	handler := pterm.NewSlogHandler(&pterm.DefaultLogger)
+	sl := slog.New(handler)
+	Log = sl
+	slog.SetDefault(sl)
+}
+
+func SetDebugLevel() {
+	slog.SetLogLoggerLevel(slog.LevelDebug)
+	pterm.DefaultLogger.Level = pterm.LogLevelDebug
+}
 
 type BuildInfo struct {
 	Version string `json:"version"`
