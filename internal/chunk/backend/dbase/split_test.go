@@ -262,41 +262,7 @@ func TestDBP_insertMessages(t *testing.T) {
 }
 
 func TestDBP_InsertChunk(t *testing.T) {
-	type fields struct {
-		conn      *sqlx.DB
-		sessionID int64
-		mr        repository.MessageRepository
-	}
-	type args struct {
-		ctx context.Context
-		ch  *chunk.Chunk
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		want    int64
-		wantErr bool
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			d := &DBP{
-				conn:      tt.fields.conn,
-				sessionID: tt.fields.sessionID,
-				mr:        tt.fields.mr,
-			}
-			got, err := d.InsertChunk(tt.args.ctx, tt.args.ch)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("DBP.InsertChunk() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if got != tt.want {
-				t.Errorf("DBP.InsertChunk() = %v, want %v", got, tt.want)
-			}
-		})
-	}
+	TestDBP_UnsafeInsertChunk(t)
 }
 
 func Test_orNil(t *testing.T) {
