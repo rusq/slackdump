@@ -128,7 +128,7 @@ func WithRetry(ctx context.Context, lim *rate.Limiter, maxAttempts int, fn func(
 			ne  *net.OpError // read tcp error: see #234
 		)
 		switch {
-		case errors.Is(cbErr, io.EOF):
+		case errors.Is(cbErr, io.EOF) || errors.Is(cbErr, io.ErrUnexpectedEOF):
 			// EOF is a transient error
 			delay := wait(attempt)
 			slog.WarnContext(ctx, "got EOF, sleeping", "error", cbErr, "delay", delay.String())
