@@ -5,7 +5,7 @@ on:
         types:
             - published
     push:
-        branches: [master,v3.0.x]
+        branches: [master, v3.0.x]
 
 
 # reference:
