@@ -303,6 +303,8 @@ func TestWithRetry(t *testing.T) {
 		reterr := []error{io.ErrUnexpectedEOF, io.ErrUnexpectedEOF, nil}
 		var retries int
 
+		// dummy line to trigger the build.
+
 		ctx := context.Background()
 		err := WithRetry(ctx, rate.NewLimiter(1, 1), 3, func() error {
 			err := reterr[retries]
