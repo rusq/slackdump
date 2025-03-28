@@ -296,6 +296,24 @@ func TestWithRetry(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, 2, retries)
 	})
+	t.Run("Unexpected EOF error", func(t *testing.T) {
+		setWaitFunc(func(attempt int) time.Duration { return 50 * time.Millisecond })
+		t.Cleanup(func() { setWaitFunc(cubicWait) })
+
+		reterr := []error{io.ErrUnexpectedEOF, io.ErrUnexpectedEOF, nil}
+		var retries int
+
+		ctx := context.Background()
+		err := WithRetry(ctx, rate.NewLimiter(1, 1), 3, func(ctx context.Context) error {
+			err := reterr[retries]
+			if err != nil {
+				retries++
+			}
+			return err
+		})
+		assert.NoError(t, err)
+		assert.Equal(t, 2, retries)
+	})
 	t.Run("meaningful error message", func(t *testing.T) {
 		setWaitFunc(func(attempt int) time.Duration { return 50 * time.Millisecond })
 		t.Cleanup(func() { setWaitFunc(cubicWait) })
