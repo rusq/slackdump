@@ -24,7 +24,7 @@ func NewSource(path string) (Source, error) {
 	if filepath.Ext(path) != ".json" {
 		return Source{}, source.ErrNotSupported
 	}
-	m, err := Load(path)
+	m, err := load(path)
 	if err != nil {
 		return Source{}, err
 	}
@@ -50,7 +50,7 @@ func (m Messages) Type() source.Flags {
 }
 
 func (m Messages) Channels(ctx context.Context) ([]slack.Channel, error) {
-	return m.AllChannels(), nil
+	return m.allChannels(), nil
 }
 
 func (m Messages) Users(ctx context.Context) ([]slack.User, error) {
