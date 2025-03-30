@@ -131,7 +131,7 @@ type stopFn []func() error
 func (s stopFn) Stop() error {
 	var err error
 	for i := len(s) - 1; i >= 0; i-- {
-		if e := s[i](); err != nil {
+		if e := s[i](); e != nil {
 			err = errors.Join(err, e)
 		}
 	}
