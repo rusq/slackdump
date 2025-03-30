@@ -141,7 +141,7 @@ func (*DBP) insertFiles(ctx context.Context, tx repository.PrepareExtContext, db
 
 func (p *DBP) insertWorkspaceInfo(ctx context.Context, tx repository.PrepareExtContext, dbchunkID int64, info *slack.AuthTestResponse) (int, error) {
 	if info == nil {
-		return 0, errors.New("insertworkspaceinfo: info is nil")
+		return 0, errors.New("insertWorkspaceInfo: info is nil")
 	}
 	wr := repository.NewWorkspaceRepository()
 	dbw, err := repository.NewDBWorkspace(dbchunkID, info)
