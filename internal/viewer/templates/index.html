@@ -64,10 +64,18 @@
 {{ end }}
 {{ end }}
 
+{{define "hx_chan_header"}}
+<div hx-target="this" hx-swap="outerHTML" class="channel-name">
+	<h2>{{ rendername .Conversation }}</h2>
+	<button id="add-alias" hx-get="/archives/{{.Conversation.ID}}/alias/" class="btn">Add Alias</button>
+</div>
+{{ end }}
+
+
 {{define "hx_conversation"}}
 {{ if .Conversation.ID }}
 {{ $id := .Conversation.ID }}
-<h2>{{ rendername .Conversation }}</h2>
+{{ template "hx_chan_header" . }}
 {{ range $el, $err := .Messages }}
 <article class="message">
     {{ if $err }} <p>Error: {{ $err }}</p> {{ else }}
@@ -179,4 +187,14 @@
         document.querySelector('.thread').style.display = 'none';
     });
 </script>
+{{ end }}
+
+
+{{ define "hx_alias" }}
+<form hx-put="/archives/{{.Conversation.ID}}/alias/" hx-target="this" hx-swap="outerHTML">
+    <label for="alias">Alias:</label>
+    <input type="text" id="alias" name="alias" value="">
+    <button type="submit">Save</button>
+    <button id="delete-alias" hx-delete="/archives/{{.Conversation.ID}}/alias/" hx-target="this" hx-swap="outerHTML">Delete</button>
+</form>
 {{ end }}

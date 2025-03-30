@@ -106,6 +106,9 @@ func New(ctx context.Context, addr string, r source.Sourcer) (*Viewer, error) {
 	mux.HandleFunc("GET /archives/{id}", v.newFileHandler(v.channelHandler))
 	// https: //ora600.slack.com/archives/DHMAB25DY/p1710063528879959
 	// https://ora600.slack.com/archives/CHY5HUESG/p1738580940349469?thread_ts=1737716342.919259&cid=CHY5HUESG
+	mux.HandleFunc("GET /archives/{id}/alias/", v.aliasHandler)
+	mux.HandleFunc("PUT /archives/{id}/alias/", v.aliasPutHandler)
+	mux.HandleFunc("DELETE /archives/{id}/alias/", v.aliasDeleteHandler)
 	mux.HandleFunc("GET /archives/{id}/{ts}", v.newFileHandler(v.postRedirectHandler))
 	mux.HandleFunc("GET /team/{user_id}", v.userHandler)
 	mux.Handle("GET /slackdump/file/{id}/{filename}", cacheMwareFunc(3*hour)(http.HandlerFunc(v.fileHandler)))
@@ -164,6 +167,22 @@ type channels struct {
 	Private []slack.Channel
 	MPIM    []slack.Channel
 	DM      []slack.Channel
+}
+
+func (c channels) find(id string) (slack.Channel, bool) {
+	for _, chset := range [][]slack.Channel{
+		c.Public,
+		c.Private,
+		c.MPIM,
+		c.DM,
+	} {
+		for _, ch := range chset {
+			if ch.ID == id {
+				return ch, true
+			}
+		}
+	}
+	return slack.Channel{}, false
 }
 
 func initChannels(c []slack.Channel) channels {

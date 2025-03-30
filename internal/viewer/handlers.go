@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/fs"
 	"iter"
+	"log/slog"
 	"net/http"
 	"path/filepath"
 	"slices"
@@ -29,19 +30,35 @@ type mainView struct {
 	channels
 	Name           string
 	Type           string
-	Conversation   slack.Channel
+	Conversation   slack.Channel // currently selected channel
+	Alias          string        // conversation alias
 	Messages       iter.Seq2[slack.Message, error]
 	ThreadMessages iter.Seq2[slack.Message, error]
 	ThreadID       string
+	CanAlias       bool // if true, alias can be set for the channel
+}
+
+type Aliaser interface {
+	// Alias returns the alias for the given channel ID.
+	Alias(id string) (string, bool)
+	// SetAlias sets the alias for the given channel ID.
+	SetAlias(id, alias string) error
+	// DeleteAlias deletes the alias for the given channel ID.
+	DeleteAlias(id string) error
+	// Aliases returns the list of aliases.
+	Aliases() (map[string]string, error)
 }
 
 // view returns a mainView struct with the channels and the name and type of
 // the source.
 func (v *Viewer) view() mainView {
+	_, supportsAlias := v.src.(Aliaser)
+
 	return mainView{
 		channels: v.ch,
 		Name:     filepath.Base(v.src.Name()),
 		Type:     v.src.Type().String(),
+		CanAlias: supportsAlias,
 	}
 }
 
@@ -247,4 +264,83 @@ func (v *Viewer) userHandler(w http.ResponseWriter, r *http.Request) {
 		lg.ErrorContext(ctx, "ExecuteTemplate", "error", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
+}
+
+func (v *Viewer) aliasHandler(w http.ResponseWriter, r *http.Request) {
+	chanID := r.PathValue("id")
+	if chanID == "" {
+		http.NotFound(w, r)
+		return
+	}
+	ctx := r.Context()
+	lg := v.lg.With("in", "aliasHandler", "channel_id", chanID)
+	ch, found := v.ch.find(chanID)
+	if !found {
+		http.NotFound(w, r)
+		return
+	}
+	slog.DebugContext(ctx, "aliasHandler", "channel", ch.Name, "id", ch.ID)
+	view := v.view()
+	view.Conversation = ch
+
+	if err := v.tmpl.ExecuteTemplate(w, "hx_alias", view); err != nil {
+		lg.ErrorContext(ctx, "ExecuteTemplate", "error", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+func (v *Viewer) canAlias() bool {
+	_, ok := v.src.(Aliaser)
+	return ok
+}
+
+func (v *Viewer) aliasPutHandler(w http.ResponseWriter, r *http.Request) {
+	if !v.canAlias() {
+		http.NotFound(w, r)
+		return
+	}
+
+	lg := v.lg.With("in", "aliasPutHandler")
+	lg.Debug("aliasPutHandler")
+
+	chanID := r.PathValue("id")
+	if chanID == "" {
+		http.NotFound(w, r)
+		return
+	}
+	lg = lg.With("channel_id", chanID)
+	ctx := r.Context()
+	ch, found := v.ch.find(chanID)
+	if !found {
+		http.NotFound(w, r)
+		return
+	}
+	slog.DebugContext(ctx, "aliasPutHandler", "channel", ch.Name, "id", ch.ID)
+
+	view := v.view()
+	view.Conversation = ch
+
+	if err := v.tmpl.ExecuteTemplate(w, "hx_chan_header", view); err != nil {
+		lg.ErrorContext(ctx, "ExecuteTemplate", "error", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+func (v *Viewer) aliasDeleteHandler(w http.ResponseWriter, r *http.Request) {
+	lg := v.lg.With("in", "aliasDeleteHandler")
+	lg.Debug("aliasDeleteHandler")
+	chanID := r.PathValue("id")
+	if chanID == "" {
+		http.NotFound(w, r)
+		return
+	}
+	lg = lg.With("channel_id", chanID)
+	ctx := r.Context()
+	ch, found := v.ch.find(chanID)
+	if !found {
+		lg.Debug("not found")
+		http.NotFound(w, r)
+		return
+	}
+	slog.DebugContext(ctx, "aliasDeleteHandler", "channel", ch.Name, "id", ch.ID)
 }
