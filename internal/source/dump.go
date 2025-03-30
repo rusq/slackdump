@@ -26,7 +26,7 @@ type Dump struct {
 }
 
 func OpenDump(ctx context.Context, fsys fs.FS, name string) (*Dump, error) {
-	var st Storage = fstNotFound{}
+	var st Storage = NoStorage{}
 	if fst, err := NewDumpStorage(fsys); err == nil {
 		st = fst
 	}
@@ -246,7 +246,7 @@ func (d Dump) Files() Storage {
 
 func (d Dump) Avatars() Storage {
 	// Dump does not support avatars.
-	return fstNotFound{}
+	return NoStorage{}
 }
 
 func (d *Dump) Sorted(ctx context.Context, channelID string, desc bool, cb func(ts time.Time, msg *slack.Message) error) error {

@@ -191,22 +191,22 @@ func (fakefs) Open(name string) (fs.File, error) {
 	return nil, &fs.PathError{Op: "open", Path: name, Err: fs.ErrNotExist}
 }
 
-// fstNotFound is the Storage that returns fs.ErrNotExist for all files.
-type fstNotFound struct{}
+// NoStorage is the Storage that returns fs.ErrNotExist for all files.
+type NoStorage struct{}
 
-func (fstNotFound) FS() fs.FS {
+func (NoStorage) FS() fs.FS {
 	return fakefs{}
 }
 
-func (fstNotFound) Type() StorageType {
+func (NoStorage) Type() StorageType {
 	return STnone
 }
 
-func (fstNotFound) File(id string, name string) (string, error) {
+func (NoStorage) File(id string, name string) (string, error) {
 	return "", fs.ErrNotExist
 }
 
-func (fstNotFound) FilePath(*slack.Channel, *slack.File) string {
+func (NoStorage) FilePath(*slack.Channel, *slack.File) string {
 	return ""
 }
 

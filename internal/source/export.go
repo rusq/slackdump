@@ -41,8 +41,8 @@ func OpenExport(fsys fs.FS, name string) (*Export, error) {
 		idx:       idx,
 		channels:  chans,
 		chanNames: make(map[string]string, len(chans)),
-		files:     fstNotFound{},
-		avatars:   fstNotFound{},
+		files:     NoStorage{},
+		avatars:   NoStorage{},
 	}
 	// initialise channels for quick lookup
 	for _, ch := range z.channels {
@@ -69,7 +69,7 @@ func loadStorage(fsys fs.FS) (Storage, error) {
 	}
 	idx, err := buildFileIndex(fsys, ".")
 	if err != nil || len(idx) == 0 {
-		return fstNotFound{}, nil
+		return NoStorage{}, nil
 	}
 	return OpenStandardStorage(fsys, idx), nil
 }
