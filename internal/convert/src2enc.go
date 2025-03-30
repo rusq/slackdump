@@ -154,11 +154,8 @@ func encodeMessages(ctx context.Context, rec processor.Conversations, src source
 		chunk = append(chunk, m)
 		if structures.IsThreadStart(&m) {
 			if err := encodeThreadMessages(ctx, rec, src, ch, &m, m.Timestamp); err != nil {
-				if errors.Is(err, source.ErrNotFound) {
-					slog.DebugContext(ctx, "found thread, but no data for it", "channel", ch.ID, "thread", m.Timestamp)
-				} else if errors.Is(err, source.ErrNotSupported) {
-					slog.DebugContext(ctx, "thread messages not supported", "channel", ch.ID, "thread", m.Timestamp)
-					return err
+				if errors.Is(err, source.ErrNotFound) || errors.Is(err, source.ErrNotSupported) {
+					slog.DebugContext(ctx, "found thread, but no data for it", "channel", ch.ID, "thread", m.Timestamp, "reason", err)
 				}
 			} else {
 				// only increase if the thread was found

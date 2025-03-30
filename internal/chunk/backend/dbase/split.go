@@ -2,6 +2,7 @@ package dbase
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 
@@ -109,6 +110,9 @@ func (d *DBP) insertPayload(ctx context.Context, tx repository.PrepareExtContext
 }
 
 func (*DBP) insertMessages(ctx context.Context, tx repository.PrepareExtContext, dbchunkID int64, channelID string, mm []slack.Message) (int, error) {
+	if len(mm) == 0 {
+		return 0, nil
+	}
 	mr := repository.NewMessageRepository()
 	iterfn := func(yield func(*repository.DBMessage, error) bool) {
 		for i, msg := range mm {
@@ -121,6 +125,9 @@ func (*DBP) insertMessages(ctx context.Context, tx repository.PrepareExtContext,
 }
 
 func (*DBP) insertFiles(ctx context.Context, tx repository.PrepareExtContext, dbchunkID int64, channelID, threadTS, parMsgTS string, ff []slack.File) (int, error) {
+	if len(ff) == 0 {
+		return 0, nil
+	}
 	fr := repository.NewFileRepository()
 	iterfn := func(yield func(*repository.DBFile, error) bool) {
 		for i, f := range ff {
@@ -133,6 +140,9 @@ func (*DBP) insertFiles(ctx context.Context, tx repository.PrepareExtContext, db
 }
 
 func (p *DBP) insertWorkspaceInfo(ctx context.Context, tx repository.PrepareExtContext, dbchunkID int64, info *slack.AuthTestResponse) (int, error) {
+	if info == nil {
+		return 0, errors.New("insertWorkspaceInfo: info is nil")
+	}
 	wr := repository.NewWorkspaceRepository()
 	dbw, err := repository.NewDBWorkspace(dbchunkID, info)
 	if err != nil {
@@ -145,6 +155,9 @@ func (p *DBP) insertWorkspaceInfo(ctx context.Context, tx repository.PrepareExtC
 }
 
 func (p *DBP) insertUsers(ctx context.Context, tx repository.PrepareExtContext, dbchunkID int64, users []slack.User) (int, error) {
+	if len(users) == 0 {
+		return 0, nil
+	}
 	ur := repository.NewUserRepository()
 	iterfn := func(yield func(*repository.DBUser, error) bool) {
 		for i, u := range users {
@@ -157,6 +170,9 @@ func (p *DBP) insertUsers(ctx context.Context, tx repository.PrepareExtContext, 
 }
 
 func (*DBP) insertChannels(ctx context.Context, tx repository.PrepareExtContext, dbchunkID int64, channels []slack.Channel) (int, error) {
+	if len(channels) == 0 {
+		return 0, nil
+	}
 	cr := repository.NewChannelRepository()
 	iterfn := func(yield func(*repository.DBChannel, error) bool) {
 		for i, c := range channels {
@@ -169,6 +185,12 @@ func (*DBP) insertChannels(ctx context.Context, tx repository.PrepareExtContext,
 }
 
 func (*DBP) insertChannelUsers(ctx context.Context, tx repository.PrepareExtContext, dbchunkID int64, channelID string, users []string) (int, error) {
+	if len(users) == 0 {
+		return 0, nil
+	}
+	if channelID == "" {
+		return 0, errors.New("insertchannelusers: channelID is empty")
+	}
 	cur := repository.NewChannelUserRepository()
 	iterfn := func(yield func(*repository.DBChannelUser, error) bool) {
 		for i, u := range users {
@@ -181,6 +203,9 @@ func (*DBP) insertChannelUsers(ctx context.Context, tx repository.PrepareExtCont
 }
 
 func (*DBP) insertSearchMessages(ctx context.Context, tx repository.PrepareExtContext, dbchunkID int64, _ string, mm []slack.SearchMessage) (int, error) {
+	if len(mm) == 0 {
+		return 0, nil
+	}
 	mr := repository.NewSearchMessageRepository()
 	iterfn := func(yield func(*repository.DBSearchMessage, error) bool) {
 		for i, sm := range mm {
@@ -193,6 +218,9 @@ func (*DBP) insertSearchMessages(ctx context.Context, tx repository.PrepareExtCo
 }
 
 func (*DBP) insertSearchFiles(ctx context.Context, tx repository.PrepareExtContext, dbchunkID int64, _ string, ff []slack.File) (int, error) {
+	if len(ff) == 0 {
+		return 0, nil
+	}
 	fr := repository.NewSearchFileRepository()
 	iterfn := func(yield func(*repository.DBSearchFile, error) bool) {
 		for i, sf := range ff {
