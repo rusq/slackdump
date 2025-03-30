@@ -34,6 +34,6 @@ Tools command contains different tools, running which may be requested if you op
 		cmdRedownload,
 		// cmdWizDebug,
 		cmdUnzip,
-		cmdV1,
+		cmdConvertV1,
 	},
 }

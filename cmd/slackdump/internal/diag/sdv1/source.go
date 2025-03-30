@@ -92,7 +92,8 @@ func (m Messages) ChannelInfo(ctx context.Context, channelID string) (*slack.Cha
 	case 'D':
 		ci.IsIM = true
 	case 'G':
-		ci.IsMpIM = true
+		ci.IsGroup = true
+		ci.Name = m.ChannelID
 	case 'C':
 		ci.IsChannel = true
 	}

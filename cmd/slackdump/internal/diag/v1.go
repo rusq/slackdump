@@ -21,8 +21,8 @@ import (
 	"github.com/rusq/slackdump/v3/internal/source"
 )
 
-var cmdV1 = &base.Command{
-	UsageLine: "slackdump v1 [flags] <path>",
+var cmdConvertV1 = &base.Command{
+	UsageLine: "slackdump convertv1 [flags] <path>",
 	Short:     "slackdump v1.0.x conversion utility",
 	Long: `# Conversion utility for slackdump v1.0.x files
 
