@@ -153,11 +153,11 @@ func runWorkers(ctx context.Context, s Streamer, list *structures.EntityList, p 
 			}()
 			gen := newGenerator(s, p, flags, list)
 			listC, wait := gen.Generate(ctx, errC, list)
+			defer wait() // sync with the generator
 			if err := conversationWorker(ctx, s, p.Conversations, listC); err != nil {
 				errC <- Error{"conversations", StgWorker, err}
 				return
 			}
-			wait() // sync with the generator
 		}()
 	}
 	// sentinel
