@@ -3,8 +3,6 @@ package dbase
 import (
 	"context"
 	"reflect"
-	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -514,6 +512,26 @@ func TestDBP_insertPayload(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "channel info, empty channel is an error",
+			fields: fields{
+				conn:      testDB(t),
+				sessionID: 1,
+				mr:        repository.NewMessageRepository(),
+			},
+			args: args{
+				ctx:       context.Background(),
+				tx:        testDB(t),
+				dbchunkID: 1,
+				c: &chunk.Chunk{
+					Type:      chunk.CChannelInfo,
+					Timestamp: 123456,
+					Channel:   nil,
+				},
+			},
+			want:    0,
+			wantErr: true,
+		},
+		{
 			name: "inserts channel users",
 			fields: fields{
 				conn:      testDB(t),
@@ -604,10 +622,8 @@ func TestDBP_insertPayload(t *testing.T) {
 
 func TestDBP_insertFiles(t *testing.T) {
 	type fields struct {
-		mu        sync.RWMutex
 		conn      *sqlx.DB
 		sessionID int64
-		closed    atomic.Bool
 		mr        repository.MessageRepository
 	}
 	type args struct {
@@ -623,18 +639,60 @@ func TestDBP_insertFiles(t *testing.T) {
 		name    string
 		fields  fields
 		args    args
+		prepFn  utilityFunc
 		want    int
 		wantErr bool
 	}{
-		// TODO: Add test cases.
+		{
+			name: "inserts files",
+			fields: fields{
+				conn:      testDB(t),
+				sessionID: 1,
+			},
+			args: args{
+				ctx:       context.Background(),
+				tx:        testDB(t),
+				dbchunkID: 1,
+				channelID: "C123",
+				threadTS:  "",
+				parMsgTS:  "123.456",
+				ff: []slack.File{
+					{ID: "F123", Name: "file.txt", Timestamp: 123456},
+					{ID: "F124", Name: "file2.txt", Timestamp: 123457},
+				},
+			},
+			prepFn:  prepChunk(chunk.CFiles),
+			want:    2,
+			wantErr: false,
+		},
+		{
+			name: "empty file slice, is not an error",
+			fields: fields{
+				conn:      testDB(t),
+				sessionID: 1,
+			},
+			args: args{
+				ctx:       context.Background(),
+				tx:        testDB(t),
+				dbchunkID: 1,
+				channelID: "C123",
+				threadTS:  "",
+				parMsgTS:  "123.456",
+				ff:        []slack.File{},
+			},
+			prepFn:  prepChunk(chunk.CFiles),
+			want:    0,
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			if tt.prepFn != nil {
+				tt.prepFn(t, tt.args.tx)
+			}
 			d := &DBP{
-				mu:        tt.fields.mu,
 				conn:      tt.fields.conn,
 				sessionID: tt.fields.sessionID,
-				closed:    tt.fields.closed,
 				mr:        tt.fields.mr,
 			}
 			got, err := d.insertFiles(tt.args.ctx, tt.args.tx, tt.args.dbchunkID, tt.args.channelID, tt.args.threadTS, tt.args.parMsgTS, tt.args.ff)
@@ -651,10 +709,8 @@ func TestDBP_insertFiles(t *testing.T) {
 
 func TestDBP_insertWorkspaceInfo(t *testing.T) {
 	type fields struct {
-		mu        sync.RWMutex
 		conn      *sqlx.DB
 		sessionID int64
-		closed    atomic.Bool
 		mr        repository.MessageRepository
 	}
 	type args struct {
@@ -667,18 +723,54 @@ func TestDBP_insertWorkspaceInfo(t *testing.T) {
 		name    string
 		fields  fields
 		args    args
+		prepFn  utilityFunc
 		want    int
 		wantErr bool
 	}{
-		// TODO: Add test cases.
+		{
+			name: "inserts workspace info",
+			fields: fields{
+				conn:      testDB(t),
+				sessionID: 1,
+			},
+			args: args{
+				ctx:       context.Background(),
+				tx:        testDB(t),
+				dbchunkID: 1,
+				info: &slack.AuthTestResponse{
+					Team: "team",
+					URL:  "url",
+				},
+			},
+			prepFn:  prepChunk(chunk.CWorkspaceInfo),
+			want:    1,
+			wantErr: false,
+		},
+		{
+			name: "empty workspace is an error",
+			fields: fields{
+				conn:      testDB(t),
+				sessionID: 1,
+			},
+			args: args{
+				ctx:       context.Background(),
+				tx:        testDB(t),
+				dbchunkID: 1,
+				info:      nil,
+			},
+			prepFn:  prepChunk(chunk.CWorkspaceInfo),
+			want:    0,
+			wantErr: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			if tt.prepFn != nil {
+				tt.prepFn(t, tt.args.tx)
+			}
 			p := &DBP{
-				mu:        tt.fields.mu,
 				conn:      tt.fields.conn,
 				sessionID: tt.fields.sessionID,
-				closed:    tt.fields.closed,
 				mr:        tt.fields.mr,
 			}
 			got, err := p.insertWorkspaceInfo(tt.args.ctx, tt.args.tx, tt.args.dbchunkID, tt.args.info)
@@ -695,10 +787,8 @@ func TestDBP_insertWorkspaceInfo(t *testing.T) {
 
 func TestDBP_insertUsers(t *testing.T) {
 	type fields struct {
-		mu        sync.RWMutex
 		conn      *sqlx.DB
 		sessionID int64
-		closed    atomic.Bool
 		mr        repository.MessageRepository
 	}
 	type args struct {
@@ -711,18 +801,51 @@ func TestDBP_insertUsers(t *testing.T) {
 		name    string
 		fields  fields
 		args    args
+		prepFn  utilityFunc
 		want    int
 		wantErr bool
 	}{
-		// TODO: Add test cases.
+		{
+			name: "inserts users",
+			fields: fields{
+				conn:      testDB(t),
+				sessionID: 1,
+			},
+			args: args{
+				ctx:       context.Background(),
+				tx:        testDB(t),
+				dbchunkID: 1,
+				users:     fixtures.Load[[]slack.User](string(fixtures.TestExpUsersJSON)),
+			},
+			prepFn:  prepChunk(chunk.CUsers),
+			want:    8,
+			wantErr: false,
+		},
+		{
+			name: "empty users",
+			fields: fields{
+				conn:      testDB(t),
+				sessionID: 1,
+			},
+			args: args{
+				ctx:       context.Background(),
+				tx:        testDB(t),
+				dbchunkID: 1,
+				users:     []slack.User{},
+			},
+			prepFn:  prepChunk(chunk.CUsers),
+			want:    0,
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			if tt.prepFn != nil {
+				tt.prepFn(t, tt.args.tx)
+			}
 			p := &DBP{
-				mu:        tt.fields.mu,
 				conn:      tt.fields.conn,
 				sessionID: tt.fields.sessionID,
-				closed:    tt.fields.closed,
 				mr:        tt.fields.mr,
 			}
 			got, err := p.insertUsers(tt.args.ctx, tt.args.tx, tt.args.dbchunkID, tt.args.users)
@@ -739,10 +862,8 @@ func TestDBP_insertUsers(t *testing.T) {
 
 func TestDBP_insertChannels(t *testing.T) {
 	type fields struct {
-		mu        sync.RWMutex
 		conn      *sqlx.DB
 		sessionID int64
-		closed    atomic.Bool
 		mr        repository.MessageRepository
 	}
 	type args struct {
@@ -755,18 +876,51 @@ func TestDBP_insertChannels(t *testing.T) {
 		name    string
 		fields  fields
 		args    args
+		prepFn  utilityFunc
 		want    int
 		wantErr bool
 	}{
-		// TODO: Add test cases.
+		{
+			name: "inserts channels",
+			fields: fields{
+				conn:      testDB(t),
+				sessionID: 1,
+			},
+			args: args{
+				ctx:       context.Background(),
+				tx:        testDB(t),
+				dbchunkID: 1,
+				channels:  fixtures.Load[[]slack.Channel](string(fixtures.TestExpChannelsJSON)),
+			},
+			prepFn:  prepChunk(chunk.CChannels),
+			want:    2,
+			wantErr: false,
+		},
+		{
+			name: "empty channels",
+			fields: fields{
+				conn:      testDB(t),
+				sessionID: 1,
+			},
+			args: args{
+				ctx:       context.Background(),
+				tx:        testDB(t),
+				dbchunkID: 1,
+				channels:  []slack.Channel{},
+			},
+			prepFn:  prepChunk(chunk.CChannels),
+			want:    0,
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
+		if tt.prepFn != nil {
+			tt.prepFn(t, tt.args.tx)
+		}
 		t.Run(tt.name, func(t *testing.T) {
 			d := &DBP{
-				mu:        tt.fields.mu,
 				conn:      tt.fields.conn,
 				sessionID: tt.fields.sessionID,
-				closed:    tt.fields.closed,
 				mr:        tt.fields.mr,
 			}
 			got, err := d.insertChannels(tt.args.ctx, tt.args.tx, tt.args.dbchunkID, tt.args.channels)
@@ -783,10 +937,8 @@ func TestDBP_insertChannels(t *testing.T) {
 
 func TestDBP_insertChannelUsers(t *testing.T) {
 	type fields struct {
-		mu        sync.RWMutex
 		conn      *sqlx.DB
 		sessionID int64
-		closed    atomic.Bool
 		mr        repository.MessageRepository
 	}
 	type args struct {
@@ -800,18 +952,70 @@ func TestDBP_insertChannelUsers(t *testing.T) {
 		name    string
 		fields  fields
 		args    args
+		prepFn  utilityFunc
 		want    int
 		wantErr bool
 	}{
-		// TODO: Add test cases.
+		{
+			name: "inserts channel users",
+			fields: fields{
+				conn:      testDB(t),
+				sessionID: 1,
+			},
+			args: args{
+				ctx:       context.Background(),
+				tx:        testDB(t),
+				dbchunkID: 1,
+				channelID: "C123",
+				users:     []string{"U123", "U124", "U125"},
+			},
+			prepFn:  prepChunk(chunk.CChannelUsers),
+			want:    3,
+			wantErr: false,
+		},
+		{
+			name: "empty channel users",
+			fields: fields{
+				conn:      testDB(t),
+				sessionID: 1,
+			},
+			args: args{
+				ctx:       context.Background(),
+				tx:        testDB(t),
+				dbchunkID: 1,
+				channelID: "C123",
+				users:     []string{},
+			},
+			prepFn:  prepChunk(chunk.CChannelUsers),
+			want:    0,
+			wantErr: false,
+		},
+		{
+			name: "no channel ID is an error",
+			fields: fields{
+				conn:      testDB(t),
+				sessionID: 1,
+			},
+			args: args{
+				ctx:       context.Background(),
+				tx:        testDB(t),
+				dbchunkID: 1,
+				channelID: "",
+				users:     []string{"U123", "U124", "U125"},
+			},
+			prepFn:  prepChunk(chunk.CChannelUsers),
+			want:    0,
+			wantErr: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			if tt.prepFn != nil {
+				tt.prepFn(t, tt.args.tx)
+			}
 			d := &DBP{
-				mu:        tt.fields.mu,
 				conn:      tt.fields.conn,
 				sessionID: tt.fields.sessionID,
-				closed:    tt.fields.closed,
 				mr:        tt.fields.mr,
 			}
 			got, err := d.insertChannelUsers(tt.args.ctx, tt.args.tx, tt.args.dbchunkID, tt.args.channelID, tt.args.users)
@@ -828,10 +1032,8 @@ func TestDBP_insertChannelUsers(t *testing.T) {
 
 func TestDBP_insertSearchMessages(t *testing.T) {
 	type fields struct {
-		mu        sync.RWMutex
 		conn      *sqlx.DB
 		sessionID int64
-		closed    atomic.Bool
 		mr        repository.MessageRepository
 	}
 	type args struct {
@@ -845,18 +1047,54 @@ func TestDBP_insertSearchMessages(t *testing.T) {
 		name    string
 		fields  fields
 		args    args
+		prepFn  utilityFunc
 		want    int
 		wantErr bool
 	}{
-		// TODO: Add test cases.
+		{
+			name: "inserts search messages",
+			fields: fields{
+				conn:      testDB(t),
+				sessionID: 1,
+			},
+			args: args{
+				ctx:       context.Background(),
+				tx:        testDB(t),
+				dbchunkID: 1,
+				mm: []slack.SearchMessage{
+					{Text: "hello", Username: "user", Timestamp: "123.456"},
+					{Text: "world", Username: "user", Timestamp: "123.457"},
+				},
+			},
+			prepFn:  prepChunk(chunk.CSearchMessages),
+			want:    2,
+			wantErr: false,
+		},
+		{
+			name: "no messages",
+			fields: fields{
+				conn:      testDB(t),
+				sessionID: 1,
+			},
+			args: args{
+				ctx:       context.Background(),
+				tx:        testDB(t),
+				dbchunkID: 1,
+				mm:        []slack.SearchMessage{},
+			},
+			prepFn:  prepChunk(chunk.CSearchMessages),
+			want:    0,
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			if tt.prepFn != nil {
+				tt.prepFn(t, tt.args.tx)
+			}
 			d := &DBP{
-				mu:        tt.fields.mu,
 				conn:      tt.fields.conn,
 				sessionID: tt.fields.sessionID,
-				closed:    tt.fields.closed,
 				mr:        tt.fields.mr,
 			}
 			got, err := d.insertSearchMessages(tt.args.ctx, tt.args.tx, tt.args.dbchunkID, tt.args.in3, tt.args.mm)
@@ -873,10 +1111,8 @@ func TestDBP_insertSearchMessages(t *testing.T) {
 
 func TestDBP_insertSearchFiles(t *testing.T) {
 	type fields struct {
-		mu        sync.RWMutex
 		conn      *sqlx.DB
 		sessionID int64
-		closed    atomic.Bool
 		mr        repository.MessageRepository
 	}
 	type args struct {
@@ -890,18 +1126,54 @@ func TestDBP_insertSearchFiles(t *testing.T) {
 		name    string
 		fields  fields
 		args    args
+		prepFn  utilityFunc
 		want    int
 		wantErr bool
 	}{
-		// TODO: Add test cases.
+		{
+			name: "inserts search files",
+			fields: fields{
+				conn:      testDB(t),
+				sessionID: 1,
+			},
+			args: args{
+				ctx:       context.Background(),
+				tx:        testDB(t),
+				dbchunkID: 1,
+				ff: []slack.File{
+					{ID: "F123", Name: "file.txt", Timestamp: 123456},
+					{ID: "F124", Name: "file2.txt", Timestamp: 123457},
+				},
+			},
+			prepFn:  prepChunk(chunk.CSearchFiles),
+			want:    2,
+			wantErr: false,
+		},
+		{
+			name: "empty file slice, is not an error",
+			fields: fields{
+				conn:      testDB(t),
+				sessionID: 1,
+			},
+			args: args{
+				ctx:       context.Background(),
+				tx:        testDB(t),
+				dbchunkID: 1,
+				ff:        []slack.File{},
+			},
+			prepFn:  prepChunk(chunk.CSearchFiles),
+			want:    0,
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			if tt.prepFn != nil {
+				tt.prepFn(t, tt.args.tx)
+			}
 			d := &DBP{
-				mu:        tt.fields.mu,
 				conn:      tt.fields.conn,
 				sessionID: tt.fields.sessionID,
-				closed:    tt.fields.closed,
 				mr:        tt.fields.mr,
 			}
 			got, err := d.insertSearchFiles(tt.args.ctx, tt.args.tx, tt.args.dbchunkID, tt.args.in3, tt.args.ff)
