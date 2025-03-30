@@ -126,7 +126,7 @@ func Test_fstNotFound_File(t *testing.T) {
 	}
 	tests := []struct {
 		name    string
-		f       fstNotFound
+		f       NoStorage
 		args    args
 		want    string
 		wantErr bool
@@ -135,7 +135,7 @@ func Test_fstNotFound_File(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			f := fstNotFound{}
+			f := NoStorage{}
 			got, err := f.File(tt.args.id, tt.args.name)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("fstNotFound.File() error = %v, wantErr %v", err, tt.wantErr)

@@ -2,13 +2,13 @@
 package sdv1
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"os"
 
 	"github.com/rusq/slack"
 
-	"github.com/rusq/slackdump/v3/internal/structures"
 	"github.com/rusq/slackdump/v3/types"
 )
 
@@ -69,37 +69,6 @@ func (m Messages) Conversation() types.Conversation {
 	}
 }
 
-func (m Messages) ChannelInfo() *slack.Channel {
-	var ci *slack.Channel
-	for _, ch := range m.SD.Channels {
-		if ch.ID == m.ChannelID {
-			ci = &ch
-			break
-		}
-	}
-	if ci == nil {
-		ci = structures.ChannelFromID(m.ChannelID) // craft a fake one
-	}
-	switch m.ChannelID[0] {
-	case 'D':
-		ci.IsIM = true
-	case 'G':
-		ci.IsMpIM = true
-	case 'C':
-		ci.IsChannel = true
-	}
-	users := make(map[string]struct{})
-	for _, m := range m.Messages {
-		if m.User != "" {
-			if _, ok := users[m.User]; !ok {
-				users[m.User] = struct{}{}
-				ci.Members = append(ci.Members, m.User)
-			}
-		}
-	}
-	return ci
-}
-
 func (m Messages) Msgs() []slack.Message {
 	mm := make([]slack.Message, len(m.Messages))
 	copy(mm, m.Messages)
@@ -107,4 +76,23 @@ func (m Messages) Msgs() []slack.Message {
 		mm[i].Blocks = slack.Blocks{} // delete blocks, they are damaged in v1.0.x dumps
 	}
 	return mm
+}
+
+func (m Messages) AllChannels() []slack.Channel {
+	channels := make([]slack.Channel, len(m.SD.Channels))
+	copy(channels, m.SD.Channels)
+	// it might so happen that the dump file has a channel that is not
+	// present in the channels list, i.e. if it's a DM or a group.
+	var found bool
+	for _, ch := range channels {
+		if ch.ID == m.ChannelID {
+			found = true
+			break
+		}
+	}
+	if !found {
+		ci, _ := m.ChannelInfo(context.Background(), m.ChannelID)
+		channels = append(channels, *ci)
+	}
+	return channels
 }

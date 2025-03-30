@@ -32,11 +32,11 @@ type ChunkDir struct {
 // mattermost storage format, it will assume they were not downloaded.
 func OpenChunkDir(d *chunk.Directory, fast bool) *ChunkDir {
 	rootFS := os.DirFS(d.Name())
-	var stFile Storage = fstNotFound{}
+	var stFile Storage = NoStorage{}
 	if fst, err := OpenMattermostStorage(rootFS); err == nil {
 		stFile = fst
 	}
-	var stAvatars Storage = fstNotFound{}
+	var stAvatars Storage = NoStorage{}
 	if ast, err := NewAvatarStorage(rootFS); err == nil {
 		stAvatars = ast
 	}

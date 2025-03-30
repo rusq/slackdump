@@ -27,8 +27,8 @@ var _ Sourcer = (*Database)(nil)
 // will also attempt to open the mattermost storage.
 func OpenDatabase(ctx context.Context, path string) (*Database, error) {
 	var (
-		fst    Storage = fstNotFound{}
-		ast    Storage = fstNotFound{}
+		fst    Storage = NoStorage{}
+		ast    Storage = NoStorage{}
 		dbfile string
 		name   string
 	)
@@ -63,7 +63,7 @@ func OpenDatabase(ctx context.Context, path string) (*Database, error) {
 // DatabaseWithSource returns a new database source with the given database
 // processor source.  It will not have any files or avatars storage.
 func DatabaseWithSource(source *dbase.Source) *Database {
-	return &Database{name: "dbase", Source: source, files: fstNotFound{}, avatars: fstNotFound{}}
+	return &Database{name: "dbase", Source: source, files: NoStorage{}, avatars: NoStorage{}}
 }
 
 // SetFiles sets the files storage.
