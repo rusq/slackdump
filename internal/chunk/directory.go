@@ -258,8 +258,11 @@ func (d *Directory) Walk(fn func(name string, f *File, err error) error) error {
 // called.
 func (d *Directory) WalkSync(fn func(name string, f *File, err error) error) error {
 	return d.Walk(func(name string, f *File, err error) error {
+		if err != nil {
+			return err
+		}
 		defer f.Close()
-		return fn(name, f, err)
+		return fn(name, f, nil)
 	})
 }
 
