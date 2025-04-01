@@ -38,7 +38,7 @@ func Test_encodeMessages(t *testing.T) {
 			expectFn: func(t *testing.T, mc *mock_processor.MockConversations, ms *mock_source.MockSourcer) {
 				it, msgs := msgGenerator(t, time.Now().UnixMicro(), 203, defaultChunkSize)
 				ms.EXPECT().AllMessages(gomock.Any(), "C123").Return(it, nil)
-				for i := 0; i < len(msgs)-1; i++ { // this should be called 203/100=2 times
+				for i := range len(msgs) - 1 { // this should be called 203/100=2 times
 					mc.EXPECT().Messages(gomock.Any(), "C123", 0, false, msgs[i]).Return(nil)
 				}
 				// last flush call, called with the 3 message chunk
@@ -144,7 +144,7 @@ func Test_encodeThreadMessages(t *testing.T) {
 			expectFn: func(t *testing.T, mc *mock_processor.MockConversations, ms *mock_source.MockSourcer) {
 				it, msgs := threadGenerator(t, "123.456", 203, defaultChunkSize)
 				ms.EXPECT().AllThreadMessages(gomock.Any(), "C123", "123.456").Return(it, nil)
-				for i := 0; i < len(msgs)-1; i++ { // this should be called 203/100=2 times
+				for i := range len(msgs) - 1 { // this should be called 203/100=2 times
 					mc.EXPECT().ThreadMessages(gomock.Any(), "C123", *parentMsg, false, false, msgs[i]).Return(nil)
 				}
 				// last flush call, called with the 3 message chunk
