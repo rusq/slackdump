@@ -51,7 +51,7 @@ func (c DBChunk) Chunk() *chunk.Chunk {
 		cc.Files = make([]slack.File, 0, c.NumRecords)
 	case chunk.CUsers:
 		cc.Users = make([]slack.User, 0, c.NumRecords)
-	case chunk.CChannels, chunk.CChannelInfo:
+	case chunk.CChannels:
 		cc.Channels = make([]slack.Channel, 0, c.NumRecords)
 	case chunk.CChannelUsers:
 		cc.ChannelUsers = make([]string, 0, c.NumRecords)

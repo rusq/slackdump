@@ -41,6 +41,7 @@ func (c DBChannelUser) values() []any {
 	return []any{c.ChannelID, c.UserID, c.ChunkID, c.Index}
 }
 
+//go:generate mockgen -destination=mock_repository/mock_chan_user.go . ChannelUserRepository
 type ChannelUserRepository interface {
 	BulkRepository[DBChannelUser]
 	GetByChannelID(ctx context.Context, db sqlx.QueryerContext, channelID string) (iter.Seq2[DBChannelUser, error], error)

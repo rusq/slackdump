@@ -52,6 +52,7 @@ func (c DBChannel) Val() (slack.Channel, error) {
 	return unmarshalt[slack.Channel](c.Data)
 }
 
+//go:generate mockgen -destination=mock_repository/mock_channel.go . ChannelRepository
 type ChannelRepository interface {
 	BulkRepository[DBChannel]
 }

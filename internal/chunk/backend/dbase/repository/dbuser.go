@@ -54,6 +54,7 @@ func (u DBUser) Val() (slack.User, error) {
 	return unmarshalt[slack.User](u.Data)
 }
 
+//go:generate mockgen -destination=mock_repository/mock_user.go . UserRepository
 type UserRepository interface {
 	BulkRepository[DBUser]
 }

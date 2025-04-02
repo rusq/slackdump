@@ -58,6 +58,9 @@ func (c *ChunkDir) AllMessages(ctx context.Context, channelID string) (iter.Seq2
 		mm, err = c.d.AllMessages(ctx, channelID)
 	}
 	if err != nil {
+		if errors.Is(err, chunk.ErrNoData) || errors.Is(err, chunk.ErrNotFound) {
+			return nil, ErrNotFound
+		}
 		return nil, err
 	}
 	return toIter(mm), nil
@@ -84,6 +87,9 @@ func (c *ChunkDir) AllThreadMessages(ctx context.Context, channelID, threadID st
 		mm, err = c.d.AllThreadMessages(ctx, channelID, threadID)
 	}
 	if err != nil {
+		if errors.Is(err, chunk.ErrNoData) || errors.Is(err, chunk.ErrNotFound) {
+			return nil, ErrNotFound
+		}
 		return nil, err
 	}
 	return toIter(mm), nil

@@ -64,7 +64,7 @@ func prepChunkWithFinal(tc ...testChunk) utilityFunc {
 			sr = repository.NewSessionRepository()
 			cr = repository.NewChunkRepository()
 		)
-		id, err := sr.Insert(ctx, conn, &repository.Session{ID: 1})
+		id, err := sr.Insert(ctx, conn, &repository.Session{ID: 1, Finished: true})
 		if err != nil {
 			t.Fatalf("session insert: %v", err)
 		}

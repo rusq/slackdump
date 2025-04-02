@@ -74,6 +74,7 @@ func (f DBFile) Val() (slack.File, error) {
 	return unmarshalt[slack.File](f.Data)
 }
 
+//go:generate mockgen -destination=mock_repository/mock_file.go . FileRepository
 type FileRepository interface {
 	BulkRepository[DBFile]
 }
