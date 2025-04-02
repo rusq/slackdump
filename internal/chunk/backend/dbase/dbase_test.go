@@ -32,6 +32,19 @@ func testDB(t *testing.T) *sqlx.DB {
 	return db
 }
 
+func testPersistentDB(t *testing.T) *sqlx.DB {
+	t.Helper()
+	ctx := context.Background()
+	db := testutil.TestPersistentDB(t)
+	if err := initDB(ctx, db); err != nil {
+		t.Fatal(err)
+	}
+	if err := repository.Migrate(context.Background(), db.DB, true); err != nil {
+		t.Fatal(err)
+	}
+	return db
+}
+
 func testDBDSN(t *testing.T, dsn string) *sqlx.DB {
 	t.Helper()
 	ctx := context.Background()
