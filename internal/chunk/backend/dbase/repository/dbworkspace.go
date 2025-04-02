@@ -77,6 +77,7 @@ func (w DBWorkspace) Val() (slack.AuthTestResponse, error) {
 	return unmarshalt[slack.AuthTestResponse](w.Data)
 }
 
+//go:generate mockgen -destination=mock_repository/mock_workspace.go . WorkspaceRepository
 type WorkspaceRepository interface {
 	Inserter[DBWorkspace]
 	Chunker[DBWorkspace]

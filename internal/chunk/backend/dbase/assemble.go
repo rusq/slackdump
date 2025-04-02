@@ -125,6 +125,7 @@ func asmFiles(ctx context.Context, conn sqlx.ExtContext, dbchunk *repository.DBC
 		if err != nil {
 			return nil, err
 		}
+		// fetch the parent message if it's specified.
 		if c.Parent == nil && f.MessageID != nil {
 			pm, err := getMessage(ctx, conn, *f.MessageID)
 			if err != nil {
