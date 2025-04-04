@@ -104,7 +104,7 @@ func runFormat(ctx context.Context, cmd *base.Command, args []string) error {
 	defer rsc.Close()
 
 	if err := convert(ctx, os.Stdout, converter, rsc); err != nil {
-		if errors.Is(err, ErrUnknown) {
+		if errors.Is(err, ErrUnknown) || errors.Is(err, ErrInvalidFormat) {
 			base.SetExitStatus(base.SInvalidParameters)
 		} else {
 			base.SetExitStatus(base.SApplicationError)
@@ -118,6 +118,8 @@ type idextractor interface {
 	UserIDs() []string
 }
 
+var ErrInvalidFormat = errors.New("not a dump JSON file")
+
 func convert(ctx context.Context, w io.Writer, cvt format.Formatter, rs io.ReadSeeker) error {
 	ctx, task := trace.NewTask(ctx, "convert")
 	defer task.End()
@@ -125,7 +127,7 @@ func convert(ctx context.Context, w io.Writer, cvt format.Formatter, rs io.ReadS
 
 	dump, err := detectAndRead(rs)
 	if err != nil {
-		return err
+		return ErrInvalidFormat
 	}
 	lg.InfoContext(ctx, "Successfully detected file type", "type", dump.filetype)
 
