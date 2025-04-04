@@ -34,6 +34,9 @@ func (idx UserIndex) Username(id string) string {
 // an external user and returns ID with "external" prefix. If it does find the
 // user and display name is unavailable, it returns the Real Name.
 func (idx UserIndex) DisplayName(id string) string {
+	if id == "" {
+		return "Unknown User"
+	}
 	return idx.userattr(id, func(user *slack.User) string {
 		return NVL(user.Profile.DisplayName, user.RealName, user.Name)
 	})

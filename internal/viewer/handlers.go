@@ -235,7 +235,6 @@ func (v *Viewer) userHandler(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	ctx := r.Context()
 	lg := v.lg.With("in", "userHandler", "user_id", uid)
 	u, found := v.um[uid]
 	if !found {
@@ -243,6 +242,7 @@ func (v *Viewer) userHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	ctx := r.Context()
 	if err := v.tmpl.ExecuteTemplate(w, "hx_user", u); err != nil {
 		lg.ErrorContext(ctx, "ExecuteTemplate", "error", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)

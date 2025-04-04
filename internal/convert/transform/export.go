@@ -103,7 +103,7 @@ func (e *ExpConverter) writeMessages(ctx context.Context, ci *slack.Channel) (er
 		err = errors.Join(err, e)
 	}()
 	if err := e.src.Sorted(ctx, ci.ID, false, acc.Append); err != nil {
-		if errors.Is(err, chunk.ErrNotFound) {
+		if errors.Is(err, source.ErrNotFound) {
 			lg.DebugContext(ctx, "no messages for the channel", "channel", ci.ID)
 			return nil
 		}

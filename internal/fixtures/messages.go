@@ -1,5 +1,7 @@
 package fixtures
 
+import _ "embed"
+
 const (
 	SimpleMessageJSON = `    {
         "client_msg_id": "c6cdfb3a-59d6-4198-9800-cc74bcdc0b7d",
@@ -666,3 +668,6 @@ const (
 	"blocks": null
   }`
 )
+
+//go:embed assets/messages/bot_message.json
+var BotMessageJSON string

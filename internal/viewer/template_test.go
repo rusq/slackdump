@@ -44,6 +44,17 @@ func TestViewer_username(t *testing.T) {
 			},
 			"WakaTime (app)",
 		},
+		{
+			"bot message with empty username",
+			fields{
+				um: st.UserIndex{},
+				lg: slog.Default(),
+			},
+			args{
+				m: fixtures.Load[slack.Message](fixtures.BotMessageJSON),
+			},
+			"Unknown user via BUEBX9AUR (bot)",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

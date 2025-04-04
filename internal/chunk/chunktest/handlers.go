@@ -10,6 +10,7 @@ import (
 	"strconv"
 
 	"github.com/rusq/slack"
+
 	"github.com/rusq/slackdump/v3/internal/chunk"
 )
 

@@ -194,7 +194,12 @@ func (c *ChunkDir) Avatars() Storage {
 }
 
 func (c *ChunkDir) Sorted(ctx context.Context, id string, desc bool, cb func(ts time.Time, msg *slack.Message) error) error {
-	return c.d.Sorted(ctx, id, desc, cb)
+	if err := c.d.Sorted(ctx, id, desc, cb); err != nil {
+		if errors.Is(err, chunk.ErrNoData) || errors.Is(err, chunk.ErrNotFound) {
+			return ErrNotFound
+		}
+	}
+	return nil
 }
 
 func (c *ChunkDir) ToChunk(ctx context.Context, enc chunk.Encoder, _ int64) error {
