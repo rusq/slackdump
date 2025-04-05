@@ -131,7 +131,7 @@ func RunDump(ctx context.Context, _ *base.Command, args []string) error {
 		base.SetExitStatus(base.SApplicationError)
 		return err
 	}
-	lg.InfoContext(ctx, "conversation dump finished", "count", p.list.IncludeCount(), "took", time.Since(start))
+	lg.InfoContext(ctx, "conversation dump finished", "output", cfg.Output, "count", p.list.IncludeCount(), "took", time.Since(start))
 	return nil
 }
 
