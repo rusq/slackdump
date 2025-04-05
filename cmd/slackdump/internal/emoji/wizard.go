@@ -3,6 +3,7 @@ package emoji
 import (
 	"context"
 
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/cfgui"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/dumpui"
@@ -37,9 +38,9 @@ func (o *options) configuration() cfgui.Configuration {
 			Params: []cfgui.Parameter{
 				{
 					Name:        "Do Not Download",
-					Value:       cfgui.Checkbox(o.NoDownload),
+					Value:       cfgui.Checkbox(cfg.WithFiles),
 					Description: "Do not download, any emojis, just get the index",
-					Updater:     updaters.NewBool(&o.NoDownload),
+					Updater:     updaters.NewBool(&cfg.WithFiles),
 				},
 				{
 					Name:        "Ignore Download Errors",

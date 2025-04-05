@@ -45,8 +45,8 @@ type EmojiDumper interface {
 }
 
 type Options struct {
-	FailFast   bool
-	NoDownload bool
+	FailFast  bool
+	WithFiles bool
 }
 
 // DlFS downloads all emojis from the workspace and saves them to the fsa.
@@ -67,12 +67,12 @@ func DlFS(ctx context.Context, sess EmojiDumper, fsa fsadapter.FS, opt *Options,
 		return fmt.Errorf("failed writing emoji index: %w", err)
 	}
 
-	if opt.NoDownload {
-		return nil
-	} else {
+	if opt.WithFiles {
 		if err := fetch(ctx, fsa, emojis, opt.FailFast, cb); err != nil {
 			return fmt.Errorf("failed downloading emojis: %w", err)
 		}
+	} else {
+		return nil
 	}
 	return nil
 }

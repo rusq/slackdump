@@ -56,11 +56,9 @@ func DlEdgeFS(ctx context.Context, sess EdgeEmojiLister, fsa fsadapter.FS, opt *
 	)
 
 	// Async download pipeline.
-	workerFn := worker
-	if opt.NoDownload {
-		// if opt.NoDownload is set, we don't download the emojis, just
-		// send them to the result channel.
-		workerFn = nofetchworker
+	workerFn := nofetchworker
+	if opt.WithFiles {
+		workerFn = worker
 	}
 
 	// 1. generator, send emojis into the emojiC channel.

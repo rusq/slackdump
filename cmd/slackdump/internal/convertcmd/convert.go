@@ -22,7 +22,7 @@ var CmdConvert = &base.Command{
 	Short:       "convert slackdump chunks to various formats",
 	Long:        convertMd,
 	CustomFlags: false,
-	FlagMask:    cfg.OmitAll & ^cfg.OmitDownloadFlag &^ cfg.OmitOutputFlag &^ cfg.OmitDownloadAvatarsFlag,
+	FlagMask:    cfg.OmitAll & ^cfg.OmitWithFilesFlag &^ cfg.OmitOutputFlag &^ cfg.OmitWithAvatarsFlag,
 	PrintFlags:  true,
 }
 

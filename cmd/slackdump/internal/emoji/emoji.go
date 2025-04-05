@@ -29,7 +29,7 @@ var CmdEmoji = &base.Command{
 	UsageLine:   "slackdump emoji [flags]",
 	Short:       "download workspace emoticons ಠ_ಠ",
 	Long:        emojiMD,
-	FlagMask:    cfg.OmitAll &^ cfg.OmitAuthFlags &^ cfg.OmitOutputFlag &^ cfg.OmitWorkspaceFlag,
+	FlagMask:    cfg.OmitAll &^ cfg.OmitAuthFlags &^ cfg.OmitOutputFlag &^ cfg.OmitWorkspaceFlag &^ cfg.OmitWithFilesFlag,
 	RequireAuth: true,
 	PrintFlags:  true,
 }
@@ -50,7 +50,6 @@ func init() {
 	CmdEmoji.Wizard = wizard
 	CmdEmoji.Flag.BoolVar(&cmdFlags.FailFast, "ignore-errors", true, "ignore download errors (skip failed emojis)")
 	CmdEmoji.Flag.BoolVar(&cmdFlags.full, "full", false, "fetch emojis using Edge API to get full emoji information, including usernames")
-	CmdEmoji.Flag.BoolVar(&cmdFlags.NoDownload, "no-download", false, "do not download emojis, just the index")
 }
 
 func run(ctx context.Context, cmd *base.Command, args []string) error {
@@ -65,6 +64,8 @@ func run(ctx context.Context, cmd *base.Command, args []string) error {
 		base.SetExitStatus(base.SApplicationError)
 		return err
 	}
+
+	cmdFlags.WithFiles = cfg.WithFiles
 
 	start := time.Now()
 	r, cl := statusReporter()
