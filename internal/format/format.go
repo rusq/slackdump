@@ -60,6 +60,8 @@ type Formatter interface {
 	Conversation(ctx context.Context, w io.Writer, u []slack.User, conv *types.Conversation) error
 	Channels(ctx context.Context, w io.Writer, u []slack.User, chans []slack.Channel) error
 	Users(ctx context.Context, w io.Writer, u []slack.User) error
+	// Extension returns the file extension for the formatter.
+	Extension() string
 }
 
 type options struct {

@@ -39,5 +39,10 @@ func toDump(ctx context.Context, srcpath, trgloc string, cflg convertflags) erro
 
 	conv := convert.NewToDump(src, fsa, convert.DumpWithIncludeFiles(filesEnabled), convert.DumpWithLogger(cfg.Log))
 
-	return conv.Convert(ctx)
+	if err := conv.Convert(ctx); err != nil {
+		return err
+	}
+
+	cfg.Log.InfoContext(ctx, "converted", "source", srcpath, "target", trgloc)
+	return nil
 }

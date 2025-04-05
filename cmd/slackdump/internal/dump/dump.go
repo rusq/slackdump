@@ -94,7 +94,7 @@ func RunDump(ctx context.Context, _ *base.Command, args []string) error {
 	if opts.nameTemplate == "" {
 		opts.nameTemplate = nametmpl.Default
 	}
-	tmpl, err := nametmpl.New(opts.nameTemplate + ".json")
+	tmpl, err := nametmpl.New(opts.nameTemplate)
 	if err != nil {
 		base.SetExitStatus(base.SUserError)
 		return fmt.Errorf("file template error: %w", err)
@@ -131,7 +131,7 @@ func RunDump(ctx context.Context, _ *base.Command, args []string) error {
 		base.SetExitStatus(base.SApplicationError)
 		return err
 	}
-	lg.InfoContext(ctx, "conversation dump finished", "count", p.list.IncludeCount(), "took", time.Since(start))
+	lg.InfoContext(ctx, "conversation dump finished", "output", cfg.Output, "count", p.list.IncludeCount(), "took", time.Since(start))
 	return nil
 }
 
