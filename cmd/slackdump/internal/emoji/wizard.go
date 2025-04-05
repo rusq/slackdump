@@ -36,10 +36,16 @@ func (o *options) configuration() cfgui.Configuration {
 			Name: "Download Options",
 			Params: []cfgui.Parameter{
 				{
+					Name:        "Do Not Download",
+					Value:       cfgui.Checkbox(o.NoDownload),
+					Description: "Do not download, any emojis, just get the index",
+					Updater:     updaters.NewBool(&o.NoDownload),
+				},
+				{
 					Name:        "Ignore Download Errors",
-					Value:       cfgui.Checkbox(o.ignoreErrors),
+					Value:       cfgui.Checkbox(o.FailFast),
 					Description: "Ignore download errors and continue",
-					Updater:     updaters.NewBool(&o.ignoreErrors),
+					Updater:     updaters.NewBool(&o.FailFast),
 				},
 			},
 		},

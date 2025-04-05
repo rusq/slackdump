@@ -38,9 +38,12 @@ type StatusFunc func(name string, total, count int)
 
 // DlEdgeFS downloads the emojis and saves them to the fsa. It spawns numWorker
 // goroutines for getting the files. It will call fetchFn for each emoji.
-func DlEdgeFS(ctx context.Context, sess EdgeEmojiLister, fsa fsadapter.FS, failFast bool, cb StatusFunc) error {
+func DlEdgeFS(ctx context.Context, sess EdgeEmojiLister, fsa fsadapter.FS, opt *Options, cb StatusFunc) error {
+	if opt == nil {
+		opt = &Options{}
+	}
 	lg := cfg.Log
-	lg.DebugContext(ctx, "startup params", "dir", emojiDir, "numWorkers", numWorkers, "failFast", failFast)
+	lg.DebugContext(ctx, "startup params", "dir", emojiDir, "numWorkers", numWorkers, "failFast", opt.FailFast)
 	if cb == nil {
 		cb = func(name string, total, count int) {}
 	}
@@ -53,6 +56,12 @@ func DlEdgeFS(ctx context.Context, sess EdgeEmojiLister, fsa fsadapter.FS, failF
 	)
 
 	// Async download pipeline.
+	workerFn := worker
+	if opt.NoDownload {
+		// if opt.NoDownload is set, we don't download the emojis, just
+		// send them to the result channel.
+		workerFn = nofetchworker
+	}
 
 	// 1. generator, send emojis into the emojiC channel.
 	go func() {
@@ -82,7 +91,7 @@ func DlEdgeFS(ctx context.Context, sess EdgeEmojiLister, fsa fsadapter.FS, failF
 	for i := 0; i < numWorkers; i++ {
 		wg.Add(1)
 		go func() {
-			worker(ctx, fsa, emojiC, resultC)
+			workerFn(ctx, fsa, emojiC, resultC)
 			wg.Done()
 		}()
 	}
@@ -116,7 +125,7 @@ LOOP:
 				if errors.Is(res.err, context.Canceled) {
 					return res.err
 				}
-				if failFast {
+				if opt.FailFast {
 					return fmt.Errorf("failed: %q: %w", res.emoji.Name, res.err)
 				}
 				lg.WarnContext(ctx, "failed", "error", res.err)
@@ -164,5 +173,11 @@ func worker(ctx context.Context, fsa fsadapter.FS, emojiC <-chan edge.Emoji, res
 			err := fetchFn(ctx, fsa, emojiDir, em.Name, em.URL)
 			resultC <- result{emoji: em, err: err}
 		}
+	}
+}
+
+func nofetchworker(ctx context.Context, _ fsadapter.FS, emojiC <-chan edge.Emoji, resultC chan<- result) {
+	for em := range emojiC {
+		resultC <- result{emoji: em}
 	}
 }

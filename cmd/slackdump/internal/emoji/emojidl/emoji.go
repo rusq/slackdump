@@ -44,8 +44,16 @@ type EmojiDumper interface {
 	DumpEmojis(ctx context.Context) (map[string]string, error)
 }
 
+type Options struct {
+	FailFast   bool
+	NoDownload bool
+}
+
 // DlFS downloads all emojis from the workspace and saves them to the fsa.
-func DlFS(ctx context.Context, sess EmojiDumper, fsa fsadapter.FS, failFast bool, cb StatusFunc) error {
+func DlFS(ctx context.Context, sess EmojiDumper, fsa fsadapter.FS, opt *Options, cb StatusFunc) error {
+	if opt == nil {
+		opt = &Options{}
+	}
 	emojis, err := sess.DumpEmojis(ctx)
 	if err != nil {
 		return fmt.Errorf("error during emoji dump: %w", err)
@@ -59,7 +67,14 @@ func DlFS(ctx context.Context, sess EmojiDumper, fsa fsadapter.FS, failFast bool
 		return fmt.Errorf("failed writing emoji index: %w", err)
 	}
 
-	return fetch(ctx, fsa, emojis, failFast, cb)
+	if opt.NoDownload {
+		return nil
+	} else {
+		if err := fetch(ctx, fsa, emojis, opt.FailFast, cb); err != nil {
+			return fmt.Errorf("failed downloading emojis: %w", err)
+		}
+	}
+	return nil
 }
 
 func ift[T any](cond bool, t, f T) T {
