@@ -14,7 +14,7 @@ import (
 const filenameTmplName = "nametmpl"
 
 // Default is the default file naming template.
-const Default = `{{.ID}}{{ if .ThreadTS}}-{{.ThreadTS}}{{end}}`
+const Default = `{{.ID}}{{ if .ThreadTS}}-{{.ThreadTS}}{{end}}.json`
 
 // let's define some markers
 const (
