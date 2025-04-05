@@ -29,24 +29,26 @@ var CmdEmoji = &base.Command{
 	UsageLine:   "slackdump emoji [flags]",
 	Short:       "download workspace emoticons ಠ_ಠ",
 	Long:        emojiMD,
-	FlagMask:    cfg.OmitAll &^ cfg.OmitAuthFlags &^ cfg.OmitOutputFlag,
+	FlagMask:    cfg.OmitAll &^ cfg.OmitAuthFlags &^ cfg.OmitOutputFlag &^ cfg.OmitWorkspaceFlag &^ cfg.OmitWithFilesFlag,
 	RequireAuth: true,
 	PrintFlags:  true,
 }
 
 type options struct {
-	ignoreErrors bool
-	full         bool
+	full bool
+	emojidl.Options
 }
 
 // emoji specific flags
 var cmdFlags = options{
-	ignoreErrors: false,
+	Options: emojidl.Options{
+		FailFast: false,
+	},
 }
 
 func init() {
 	CmdEmoji.Wizard = wizard
-	CmdEmoji.Flag.BoolVar(&cmdFlags.ignoreErrors, "ignore-errors", true, "ignore download errors (skip failed emojis)")
+	CmdEmoji.Flag.BoolVar(&cmdFlags.FailFast, "ignore-errors", true, "ignore download errors (skip failed emojis)")
 	CmdEmoji.Flag.BoolVar(&cmdFlags.full, "full", false, "fetch emojis using Edge API to get full emoji information, including usernames")
 }
 
@@ -62,6 +64,8 @@ func run(ctx context.Context, cmd *base.Command, args []string) error {
 		base.SetExitStatus(base.SApplicationError)
 		return err
 	}
+
+	cmdFlags.WithFiles = cfg.WithFiles
 
 	start := time.Now()
 	r, cl := statusReporter()
@@ -103,7 +107,7 @@ func runLegacy(ctx context.Context, fsa fsadapter.FS, cb emojidl.StatusFunc) err
 		return err
 	}
 
-	return emojidl.DlFS(ctx, sess, fsa, cmdFlags.ignoreErrors, cb)
+	return emojidl.DlFS(ctx, sess, fsa, &cmdFlags.Options, cb)
 }
 
 func runEdge(ctx context.Context, fsa fsadapter.FS, prov auth.Provider, cb emojidl.StatusFunc) error {
@@ -114,7 +118,7 @@ func runEdge(ctx context.Context, fsa fsadapter.FS, prov auth.Provider, cb emoji
 	}
 	defer sess.Close()
 
-	if err := emojidl.DlEdgeFS(ctx, sess, fsa, cmdFlags.ignoreErrors, cb); err != nil {
+	if err := emojidl.DlEdgeFS(ctx, sess, fsa, &cmdFlags.Options, cb); err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return fmt.Errorf("application error: %s", err)
 	}

@@ -38,7 +38,7 @@ var CmdSearch = &base.Command{
 //go:embed assets/search.md
 var searchMD string
 
-const flagMask = cfg.OmitUserCacheFlag | cfg.OmitCacheDir | cfg.OmitTimeframeFlag | cfg.OmitCustomUserFlags | cfg.OmitDownloadAvatarsFlag
+const flagMask = cfg.OmitUserCacheFlag | cfg.OmitCacheDir | cfg.OmitTimeframeFlag | cfg.OmitCustomUserFlags | cfg.OmitWithAvatarsFlag
 
 var cmdSearchMessages = &base.Command{
 	UsageLine:   "slackdump search messages [flags] <query terms>",

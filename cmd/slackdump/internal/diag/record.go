@@ -37,7 +37,7 @@ Records the data from a channel in a chunk record format.
 
 See also: slackdump tool obfuscate
 `,
-	FlagMask:    cfg.OmitOutputFlag | cfg.OmitDownloadFlag,
+	FlagMask:    cfg.OmitOutputFlag | cfg.OmitWithFilesFlag,
 	PrintFlags:  true,
 	RequireAuth: true,
 }

@@ -30,7 +30,7 @@ Slackdump v1.0.x are rare in the wild, but if you have one, you can use this
 command to convert it to current dump format to be able to use it with the
 viewer and other commands.`,
 	CustomFlags: false,
-	FlagMask:    cfg.OmitAll &^ cfg.OmitOutputFlag &^ cfg.OmitDownloadFlag,
+	FlagMask:    cfg.OmitAll &^ cfg.OmitOutputFlag &^ cfg.OmitWithFilesFlag,
 	PrintFlags:  true,
 	RequireAuth: false,
 	HideWizard:  true,

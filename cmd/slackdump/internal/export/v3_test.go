@@ -73,7 +73,8 @@ func Test_exportV3(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		output := filepath.Join(baseDir, "output.zip")
+		dir := t.TempDir()
+		output := filepath.Join(dir, "output.zip")
 		fsa, err := fsadapter.New(output)
 		if err != nil {
 			t.Fatal(err)

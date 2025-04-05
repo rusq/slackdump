@@ -100,7 +100,7 @@ type FlagMask uint16
 const (
 	DefaultFlags  FlagMask = 0
 	OmitAuthFlags FlagMask = 1 << iota
-	OmitDownloadFlag
+	OmitWithFilesFlag
 	OmitConfigFlag
 	OmitOutputFlag
 	OmitCacheDir
@@ -110,11 +110,11 @@ const (
 	OmitChunkCacheFlag
 	OmitCustomUserFlags
 	OmitRecordFilesFlag
-	OmitDownloadAvatarsFlag
+	OmitWithAvatarsFlag
 	OmitChunkFileMode
 
 	OmitAll = OmitConfigFlag |
-		OmitDownloadFlag |
+		OmitWithFilesFlag |
 		OmitOutputFlag |
 		OmitCacheDir |
 		OmitWorkspaceFlag |
@@ -124,7 +124,7 @@ const (
 		OmitChunkCacheFlag |
 		OmitCustomUserFlags |
 		OmitRecordFilesFlag |
-		OmitDownloadAvatarsFlag |
+		OmitWithAvatarsFlag |
 		OmitChunkFileMode
 )
 
@@ -145,13 +145,13 @@ func SetBaseFlags(fs *flag.FlagSet, mask FlagMask) {
 		fs.StringVar(&MachineIDOvr, "machine-id", osenv.Secret("MACHINE_ID_OVERRIDE", ""), "override the machine ID for encryption")
 		fs.BoolVar(&NoEncryption, "no-encryption", osenv.Value("DISABLE_ENCRYPTION", false), "disable encryption for cache and credential files")
 	}
-	if mask&OmitDownloadFlag == 0 {
+	if mask&OmitWithFilesFlag == 0 {
 		fs.BoolVar(&WithFiles, "files", true, "enables file attachments download (to disable, specify: -files=false)")
 		if mask&OmitRecordFilesFlag == 0 {
 			fs.BoolVar(&RecordFiles, "files-rec", false, "include file chunks in chunk files")
 		}
 	}
-	if mask&OmitDownloadAvatarsFlag == 0 {
+	if mask&OmitWithAvatarsFlag == 0 {
 		fs.BoolVar(&WithAvatars, "avatars", false, "enables user avatar download (placed in __avatars directory)")
 	}
 	if mask&OmitConfigFlag == 0 {
