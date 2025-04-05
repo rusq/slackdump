@@ -247,6 +247,16 @@ func (el *EntityList) Index() map[string]*EntityItem {
 	return el.index
 }
 
+func (el *EntityList) Get(id string) (*EntityItem, bool) {
+	if el == nil {
+		return nil, false
+	}
+	el.mu.RLock()
+	defer el.mu.RUnlock()
+	item, ok := el.index[id]
+	return item, ok
+}
+
 type EntityIndex map[string]bool
 
 // IsExcluded returns true if the entity is excluded (is in the list, and has

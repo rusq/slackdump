@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/rusq/slack"
+
 	"github.com/rusq/slackdump/v3/internal/structures"
 	"github.com/rusq/slackdump/v3/types"
 )
@@ -45,11 +46,17 @@ func NewText(opts ...Option) Formatter {
 	settings := options{
 		textOptions: textOptions{
 			msgSplitAfter: defaultMsgSplitAfter,
-		}}
+		},
+	}
 	for _, fn := range opts {
 		fn(&settings)
 	}
 	return &Text{opts: settings}
+}
+
+// Extension returns the file extension for the formatter.
+func (txt Text) Extension() string {
+	return ".txt"
 }
 
 func (txt *Text) Conversation(ctx context.Context, w io.Writer, u []slack.User, conv *types.Conversation) error {
@@ -160,5 +167,4 @@ func (txt *Text) Channels(ctx context.Context, w io.Writer, u []slack.User, cc [
 		fmt.Fprintf(writer, strFormat, ch.ID, archived, who)
 	}
 	return nil
-
 }

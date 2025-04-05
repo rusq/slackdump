@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/rusq/slack"
+
 	"github.com/rusq/slackdump/v3/types"
 )
 
@@ -35,6 +36,11 @@ func NewCSV(opts ...Option) Formatter {
 		fn(&settings)
 	}
 	return &CSV{settings}
+}
+
+// Extension returns the file extension for the formatter.
+func (c CSV) Extension() string {
+	return ".csv"
 }
 
 // timestamp, channel, username, text
@@ -117,7 +123,8 @@ func (c *CSV) Users(ctx context.Context, w io.Writer, users []slack.User) error 
 	csv := c.mkwriter(w)
 	defer csv.Flush()
 
-	if err := csv.Write([]string{"ID",
+	if err := csv.Write([]string{
+		"ID",
 		"Team ID",
 		"Name",
 		"Is Admin?",
