@@ -33,6 +33,7 @@ Tools command contains different tools, running which may be requested if you op
 		cmdHydrate,
 		cmdRedownload,
 		// cmdWizDebug,
+		cmdSaved,
 		cmdUnzip,
 		cmdConvertV1,
 	},
