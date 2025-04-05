@@ -55,6 +55,8 @@ func (s *SourceEncoder) Convert(ctx context.Context) error {
 			fsa:  s.fsa,
 			avst: s.src.Avatars(),
 		}
+		// add a wrapper to the user processor to extract and copy avatar
+		// images
 		us = processor.JoinUsers(rec, &acw)
 	}
 	if err := encodeUsers(ctx, us, s.src); err != nil {
