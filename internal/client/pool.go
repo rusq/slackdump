@@ -1,4 +1,4 @@
-package pool
+package client
 
 import (
 	"context"
@@ -8,69 +8,23 @@ import (
 	"github.com/rusq/slack"
 )
 
-// SlackClient is an interface that defines the methods that a Slack client
-type SlackClient interface {
-	AuthTestContext(ctx context.Context) (response *slack.AuthTestResponse, err error)
-	GetConversationHistoryContext(ctx context.Context, params *slack.GetConversationHistoryParameters) (*slack.GetConversationHistoryResponse, error)
-	GetConversationInfoContext(ctx context.Context, input *slack.GetConversationInfoInput) (*slack.Channel, error)
-	GetConversationRepliesContext(ctx context.Context, params *slack.GetConversationRepliesParameters) (msgs []slack.Message, hasMore bool, nextCursor string, err error)
-	GetConversationsContext(ctx context.Context, params *slack.GetConversationsParameters) (channels []slack.Channel, nextCursor string, err error)
-	GetEmojiContext(ctx context.Context) (map[string]string, error)
-	GetFileContext(ctx context.Context, downloadURL string, writer io.Writer) error
-	GetFileInfoContext(ctx context.Context, fileID string, count int, page int) (*slack.File, []slack.Comment, *slack.Paging, error)
-	GetStarredContext(ctx context.Context, params slack.StarsParameters) ([]slack.StarredItem, *slack.Paging, error)
-	GetUserInfoContext(ctx context.Context, user string) (*slack.User, error)
-	GetUsersContext(ctx context.Context, options ...slack.GetUsersOption) ([]slack.User, error)
-	GetUsersInConversationContext(ctx context.Context, params *slack.GetUsersInConversationParameters) ([]string, string, error)
-	GetUsersPaginated(options ...slack.GetUsersOption) slack.UserPagination
-	ListBookmarks(channelID string) ([]slack.Bookmark, error)
-	SearchFilesContext(ctx context.Context, query string, params slack.SearchParameters) (*slack.SearchFiles, error)
-	SearchMessagesContext(ctx context.Context, query string, params slack.SearchParameters) (*slack.SearchMessages, error)
-}
-
 type Pool struct {
-	pool []SlackClient
+	pool []Slack
 	mu   sync.Mutex
 	strategy
 }
 
-// strategy is an interface that defines the strategy for selecting the next
-// item.
-type strategy interface {
-	// next returns the next item in the pool.
-	next() int
-}
-
-// roundRobin implements the round robin strategy.
-type roundRobin struct {
-	// total is the total number of items in the pool.
-	total int
-	// i is the current item index.
-	i int
-}
-
-// newRoundRobin creates a new round robin strategy with the given total number
-// of items.
-func newRoundRobin(total int) *roundRobin {
-	return &roundRobin{total: total}
-}
-
-func (r *roundRobin) next() int {
-	r.i = (r.i + 1) % r.total
-	return r.i
-}
-
-// NewWrapper wraps the slack.Client with the edge client, so that the edge
+// NewPool wraps the slack.Client with the edge client, so that the edge
 // client can be used as a fallback.
-func (p *Pool) NewWrapper(scl ...SlackClient) *Pool {
+func NewPool(scl ...Slack) *Pool {
 	return &Pool{
 		pool:     scl,
 		strategy: newRoundRobin(len(scl)),
 	}
 }
 
-// next returns the next client in the pool, round robin style.
-func (p *Pool) next() SlackClient {
+// next returns the next client in the pool using the current strategy.
+func (p *Pool) next() Slack {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if len(p.pool) == 0 {

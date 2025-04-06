@@ -17,6 +17,7 @@ import (
 	"go.uber.org/mock/gomock"
 
 	"github.com/rusq/slackdump/v3/auth"
+	"github.com/rusq/slackdump/v3/internal/client/mock_client"
 	"github.com/rusq/slackdump/v3/internal/edge"
 	"github.com/rusq/slackdump/v3/internal/mocks/mock_auth"
 	"github.com/rusq/slackdump/v3/internal/network"
@@ -147,7 +148,7 @@ func TestSession_initWorkspaceInfo(t *testing.T) {
 	ctx := context.Background()
 	t.Run("ok", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		mc := NewmockClienter(ctrl)
+		mc := mock_client.NewMockSlackClienter(ctrl)
 		mc.EXPECT().AuthTestContext(gomock.Any()).Return(&slack.AuthTestResponse{
 			TeamID: "TEST",
 		}, nil)
@@ -160,7 +161,7 @@ func TestSession_initWorkspaceInfo(t *testing.T) {
 	})
 	t.Run("error", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		mc := NewmockClienter(ctrl)
+		mc := mock_client.NewMockSlackClienter(ctrl)
 		mc.EXPECT().AuthTestContext(gomock.Any()).Return(nil, assert.AnError)
 		s := Session{
 			client: nil, // it should use the provided client
@@ -184,7 +185,7 @@ func TestSession_initClient(t *testing.T) {
 		},
 	}
 
-	expectAuthTestFn := func(mc *mockClienter, enterpriseID string) {
+	expectAuthTestFn := func(mc *mock_client.MockSlackClienter, enterpriseID string) {
 		mc.EXPECT().AuthTestContext(gomock.Any()).Return(&slack.AuthTestResponse{
 			TeamID:       "TEST",
 			EnterpriseID: enterpriseID,
@@ -192,7 +193,7 @@ func TestSession_initClient(t *testing.T) {
 	}
 	t.Run("pre-initialised client", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		mc := NewmockClienter(ctrl)
+		mc := mock_client.NewMockSlackClienter(ctrl)
 		expectAuthTestFn(mc, "") // not an anterprise instance
 		s := Session{
 			client: mc,

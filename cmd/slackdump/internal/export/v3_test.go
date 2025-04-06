@@ -12,6 +12,7 @@ import (
 	"github.com/rusq/slackdump/v3"
 	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/internal/chunk/chunktest"
+	"github.com/rusq/slackdump/v3/internal/client"
 	"github.com/rusq/slackdump/v3/internal/fixtures"
 	"github.com/rusq/slackdump/v3/internal/network"
 	"github.com/rusq/slackdump/v3/internal/structures"
@@ -62,7 +63,7 @@ func Test_exportV3(t *testing.T) {
 		defer cd.Close()
 		srv := chunktest.NewDirServer(cd)
 		defer srv.Close()
-		cl := slack.New("", slack.OptionAPIURL(srv.URL()))
+		cl := client.Wrap(slack.New("", slack.OptionAPIURL(srv.URL())))
 
 		prov := &chunktest.TestAuth{
 			FakeToken:      "xoxp-1234567890-1234567890-1234567890-1234567890",

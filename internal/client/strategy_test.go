@@ -1,4 +1,4 @@
-package pool
+package client
 
 import (
 	"testing"
