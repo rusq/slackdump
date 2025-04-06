@@ -20,7 +20,6 @@ import (
 )
 
 //go:generate mockgen -destination internal/mocks/mock_os/mock_os.go os FileInfo
-//go:generate mockgen -source slackdump.go -destination clienter_mock_test.go -package slackdump -mock_names clienter=mockClienter,Reporter=mockReporter
 
 // Session stores basic session parameters.  Zero value is not usable, must be
 // initialised with New.
