@@ -1,4 +1,4 @@
-package diag
+package archive
 
 import (
 	"context"
@@ -11,11 +11,10 @@ import (
 )
 
 var cmdSaved = &base.Command{
-	UsageLine:   "slackdump tools testsaved [flags]",
-	Short:       "Test saved messages",
-	Long:        "Test saved messages",
+	UsageLine:   "slackdump saved [flags]",
+	Short:       "archive saved messages",
 	CustomFlags: false,
-	FlagMask:    0,
+	FlagMask:    0, // TODO
 	PrintFlags:  true,
 	RequireAuth: true,
 	Run:         runSavedList,
