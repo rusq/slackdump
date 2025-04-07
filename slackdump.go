@@ -167,7 +167,11 @@ func (s *Session) initClient(ctx context.Context, prov auth.Provider, forceEdge 
 
 // Client returns the underlying slack.Client.
 func (s *Session) Client() *slack.Client {
-	return s.client.Client()
+	cl, ok := s.client.Client()
+	if !ok {
+		panic("client is not a slack.Client")
+	}
+	return cl
 }
 
 // CurrentUserID returns the user ID of the authenticated user.

@@ -9,14 +9,14 @@ import (
 )
 
 type Pool struct {
-	pool []Slack
+	pool []SlackClienter
 	mu   sync.Mutex
 	strategy
 }
 
 // NewPool wraps the slack.Client with the edge client, so that the edge
 // client can be used as a fallback.
-func NewPool(scl ...Slack) *Pool {
+func NewPool(scl ...SlackClienter) *Pool {
 	return &Pool{
 		pool:     scl,
 		strategy: newRoundRobin(len(scl)),
@@ -24,7 +24,7 @@ func NewPool(scl ...Slack) *Pool {
 }
 
 // next returns the next client in the pool using the current strategy.
-func (p *Pool) next() Slack {
+func (p *Pool) next() SlackClienter {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if len(p.pool) == 0 {
@@ -33,8 +33,8 @@ func (p *Pool) next() Slack {
 	return p.pool[p.strategy.next()]
 }
 
-func (p *Pool) SlackClient() *slack.Client {
-	return p.next().(*slack.Client)
+func (p *Pool) Client() (*slack.Client, bool) {
+	return p.next().Client()
 }
 
 func (p *Pool) AuthTestContext(ctx context.Context) (response *slack.AuthTestResponse, err error) {

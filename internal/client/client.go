@@ -10,6 +10,8 @@ import (
 	"github.com/rusq/slackdump/v3/internal/edge"
 )
 
+//go:generate mockgen -destination mock_client/mock_client.go . SlackClienter,Slack,SlackEdge
+
 // Slack is an interface that defines the methods that a Slack client should provide.
 type Slack interface {
 	AuthTestContext(ctx context.Context) (response *slack.AuthTestResponse, err error)
@@ -30,11 +32,24 @@ type Slack interface {
 	SearchMessagesContext(ctx context.Context, query string, params slack.SearchParameters) (*slack.SearchMessages, error)
 }
 
-//go:generate mockgen -destination mock_client/mock_client.go . SlackClienter,Slack
+// SlackClienter is an extended interface that includes Client method that
+// returns the underlying [slack.Client] instance.
 type SlackClienter interface {
 	Slack
-	Client() *slack.Client
+	Client() (*slack.Client, bool)
 }
+
+// SlackEdge is an extended interface that includes Edge methods.
+type SlackEdge interface {
+	SlackClienter
+	Edge() (*edge.Client, bool)
+	// TODO: additional methods from edge client.
+}
+
+var (
+	_ Slack         = (*Client)(nil)
+	_ SlackClienter = (*Client)(nil)
+)
 
 type Client struct {
 	Slack
@@ -55,12 +70,18 @@ type options struct {
 
 type Option func(*options)
 
+// WithEnterprise sets the enterprise flag.  Setting the flag to true forces
+// the use of the edge client, even if the workspace is not an enterprise
+// workspace.
 func WithEnterprise(enterprise bool) Option {
 	return func(o *options) {
 		o.enterprise = enterprise
 	}
 }
 
+// New creates a new Client instance.  It checks if workspace provider is
+// valid, and checks if it's an enterprise workspace.  If it is, it creates an
+// edge client.
 func New(ctx context.Context, prov auth.Provider, opts ...Option) (*Client, error) {
 	cl, err := prov.HTTPClient()
 	if err != nil {
@@ -107,33 +128,13 @@ func (c *Client) AuthTestContext(ctx context.Context) (response *slack.AuthTestR
 	return c.wi, nil
 }
 
-func (c *Client) Client() *slack.Client {
+func (c *Client) Client() (*slack.Client, bool) {
 	switch t := c.Slack.(type) {
 	case *edgeClient:
-		return t.Slack.(*slack.Client)
+		return t.Slack.(*slack.Client), true
 	case *slack.Client:
-		return t
+		return t, true
 	default:
-		panic("unknown client type")
+		return nil, false
 	}
-}
-
-// edgeClient is a wrapper around the edge client that implements the
-// Slack interface.  It overrides the methods that don't work on
-// enterprise workspaces.
-type edgeClient struct {
-	Slack
-	edge *edge.Client
-}
-
-func (w *edgeClient) GetConversationsContext(ctx context.Context, params *slack.GetConversationsParameters) (channels []slack.Channel, nextCursor string, err error) {
-	return w.edge.GetConversationsContext(ctx, params)
-}
-
-func (w *edgeClient) GetConversationInfoContext(ctx context.Context, input *slack.GetConversationInfoInput) (*slack.Channel, error) {
-	return w.edge.GetConversationInfoContext(ctx, input)
-}
-
-func (w *edgeClient) GetUsersInConversationContext(ctx context.Context, params *slack.GetUsersInConversationParameters) ([]string, string, error) {
-	return w.edge.GetUsersInConversationContext(ctx, params)
 }
