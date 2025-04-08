@@ -13,6 +13,7 @@ import (
 
 	"github.com/rusq/slackdump/v3/internal/client"
 	"github.com/rusq/slackdump/v3/internal/network"
+	"github.com/rusq/slackdump/v3/internal/structures"
 	"github.com/rusq/slackdump/v3/processor"
 )
 
@@ -91,15 +92,23 @@ type Result struct {
 	Err error
 }
 
-func (s Result) String() string {
-	switch s.Type {
+func (r *Result) Error() string {
+	return fmt.Sprintf("%s channel %s: %v", r.Type, structures.SlackLink{Channel: r.ChannelID, ThreadTS: r.ThreadTS}, r.Err)
+}
+
+func (r *Result) Unwrap() error {
+	return r.Err
+}
+
+func (r Result) String() string {
+	switch r.Type {
 	case RTSearch:
 		return "<search>"
 	default:
-		if s.ThreadTS == "" {
-			return "<" + s.ChannelID + ">"
+		if r.ThreadTS == "" {
+			return "<" + r.ChannelID + ">"
 		}
-		return fmt.Sprintf("<%s[%s:%s]>", s.Type, s.ChannelID, s.ThreadTS)
+		return fmt.Sprintf("<%s[%s:%s]>", r.Type, r.ChannelID, r.ThreadTS)
 	}
 }
 
