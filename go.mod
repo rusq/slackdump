@@ -29,7 +29,7 @@ require (
 	github.com/rusq/fsadapter v1.1.0
 	github.com/rusq/osenv/v2 v2.0.1
 	github.com/rusq/rbubbles v0.0.2
-	github.com/rusq/slack v0.9.6-0.20250325121744-ce5571e08094
+	github.com/rusq/slack v0.9.6-0.20250408103104-dd80d1b6337f
 	github.com/rusq/slackauth v0.6.1
 	github.com/rusq/tagops v0.0.2
 	github.com/rusq/tracer v1.0.1
