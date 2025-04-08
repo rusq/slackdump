@@ -92,15 +92,15 @@ type Result struct {
 	Err error
 }
 
-func (r *Result) Error() string {
+func (r Result) Error() string {
 	return fmt.Sprintf("%s channel %s: %v", r.Type, structures.SlackLink{Channel: r.ChannelID, ThreadTS: r.ThreadTS}, r.Err)
 }
 
-func (r *Result) Unwrap() error {
+func (r Result) Unwrap() error {
 	return r.Err
 }
 
-func (r *Result) String() string {
+func (r Result) String() string {
 	switch r.Type {
 	case RTSearch:
 		return "<search>"
