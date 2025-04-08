@@ -7,9 +7,7 @@ import (
 	"log/slog"
 
 	"github.com/rusq/slackdump/v3/internal/convert/transform"
-
 	"github.com/rusq/slackdump/v3/internal/structures"
-
 	"github.com/rusq/slackdump/v3/processor"
 )
 
