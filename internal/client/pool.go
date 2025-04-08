@@ -8,6 +8,8 @@ import (
 	"github.com/rusq/slack"
 )
 
+// Pool is a pool of Slack clients that can be used to make API calls.
+// Zero value is not usable, must be initialised with [NewPool].
 type Pool struct {
 	pool []SlackClienter
 	mu   sync.Mutex
