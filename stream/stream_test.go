@@ -20,11 +20,11 @@ import (
 	"github.com/rusq/slackdump/v3/internal/cache"
 	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/internal/chunk/chunktest"
+	"github.com/rusq/slackdump/v3/internal/client/mock_client"
 	"github.com/rusq/slackdump/v3/internal/fixtures"
 	"github.com/rusq/slackdump/v3/internal/network"
 	"github.com/rusq/slackdump/v3/internal/structures"
 	"github.com/rusq/slackdump/v3/mocks/mock_processor"
-	"github.com/rusq/slackdump/v3/stream/mock_stream"
 )
 
 const testConversation = "CO720D65C25A"
@@ -359,14 +359,14 @@ func TestStream_ListChannels(t *testing.T) {
 		name     string
 		cs       *Stream
 		args     args
-		expectFn func(ms *mock_stream.MockSlacker, mc *mock_processor.MockChannels)
+		expectFn func(ms *mock_client.MockSlack, mc *mock_processor.MockChannels)
 		wantErr  bool
 	}{
 		{
 			name: "happy path",
 			cs:   &Stream{limits: testlimits},
 			args: args{ctx: context.Background(), p: &slack.GetConversationsParameters{}},
-			expectFn: func(ms *mock_stream.MockSlacker, mc *mock_processor.MockChannels) {
+			expectFn: func(ms *mock_client.MockSlack, mc *mock_processor.MockChannels) {
 				ms.EXPECT().
 					GetConversationsContext(gomock.Any(), gomock.Any()).
 					Return(fixtures.Load[[]slack.Channel](fixtures.TestChannelsJSON), "", nil)
@@ -380,7 +380,7 @@ func TestStream_ListChannels(t *testing.T) {
 			name: "No channels returned, processor not called",
 			cs:   &Stream{limits: testlimits},
 			args: args{ctx: context.Background(), p: &slack.GetConversationsParameters{}},
-			expectFn: func(ms *mock_stream.MockSlacker, mc *mock_processor.MockChannels) {
+			expectFn: func(ms *mock_client.MockSlack, mc *mock_processor.MockChannels) {
 				ms.EXPECT().
 					GetConversationsContext(gomock.Any(), gomock.Any()).
 					Return([]slack.Channel{}, "", nil)
@@ -391,7 +391,7 @@ func TestStream_ListChannels(t *testing.T) {
 			name: "next cursor causes another iteration",
 			cs:   &Stream{limits: testlimits},
 			args: args{ctx: context.Background(), p: &slack.GetConversationsParameters{}},
-			expectFn: func(ms *mock_stream.MockSlacker, mc *mock_processor.MockChannels) {
+			expectFn: func(ms *mock_client.MockSlack, mc *mock_processor.MockChannels) {
 				ms.EXPECT().
 					GetConversationsContext(gomock.Any(), gomock.Any()).
 					Return(fixtures.Load[[]slack.Channel](fixtures.TestChannelsJSON), "next", nil)
@@ -408,7 +408,7 @@ func TestStream_ListChannels(t *testing.T) {
 			name: "rate limiting error causes retry",
 			cs:   &Stream{limits: testlimits},
 			args: args{ctx: context.Background(), p: &slack.GetConversationsParameters{}},
-			expectFn: func(ms *mock_stream.MockSlacker, mc *mock_processor.MockChannels) {
+			expectFn: func(ms *mock_client.MockSlack, mc *mock_processor.MockChannels) {
 				call := ms.EXPECT().
 					GetConversationsContext(gomock.Any(), gomock.Any()).
 					Return([]slack.Channel{}, "", &slack.RateLimitedError{RetryAfter: 100 * time.Millisecond})
@@ -428,7 +428,7 @@ func TestStream_ListChannels(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			ctrl := gomock.NewController(t)
-			ms := mock_stream.NewMockSlacker(ctrl)
+			ms := mock_client.NewMockSlack(ctrl)
 			mc := mock_processor.NewMockChannels(ctrl)
 
 			cs := tt.cs
@@ -470,7 +470,7 @@ func TestStream_UsersBulk(t *testing.T) {
 		name     string
 		fields   fields
 		args     args
-		expectFn func(ms *mock_stream.MockSlacker, mu *mock_processor.MockUsers)
+		expectFn func(ms *mock_client.MockSlack, mu *mock_processor.MockUsers)
 		wantErr  bool
 	}{
 		{
@@ -480,7 +480,7 @@ func TestStream_UsersBulk(t *testing.T) {
 				ctx: cancelled,
 				ids: []string{"U12345678"},
 			},
-			expectFn: func(ms *mock_stream.MockSlacker, mu *mock_processor.MockUsers) {
+			expectFn: func(ms *mock_client.MockSlack, mu *mock_processor.MockUsers) {
 				mu.EXPECT().Users(gomock.Any(), gomock.Any()).Times(0)
 			},
 			wantErr: true,
@@ -489,7 +489,7 @@ func TestStream_UsersBulk(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			ms := mock_stream.NewMockSlacker(ctrl)
+			ms := mock_client.NewMockSlack(ctrl)
 			mu := mock_processor.NewMockUsers(ctrl)
 			if tt.expectFn != nil {
 				tt.expectFn(ms, mu)

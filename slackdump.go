@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
-	"log"
 	"log/slog"
 	"runtime/trace"
 	"time"
@@ -16,21 +14,20 @@ import (
 	"github.com/rusq/fsadapter"
 
 	"github.com/rusq/slackdump/v3/auth"
-	"github.com/rusq/slackdump/v3/internal/edge"
+	"github.com/rusq/slackdump/v3/internal/client"
 	"github.com/rusq/slackdump/v3/internal/network"
 	"github.com/rusq/slackdump/v3/stream"
 )
 
 //go:generate mockgen -destination internal/mocks/mock_os/mock_os.go os FileInfo
-//go:generate mockgen -source slackdump.go -destination clienter_mock_test.go -package slackdump -mock_names clienter=mockClienter,Reporter=mockReporter
 
 // Session stores basic session parameters.  Zero value is not usable, must be
 // initialised with New.
 type Session struct {
-	client clienter     // Slack client
-	uc     *usercache   // usercache contains the list of users.
-	fs     fsadapter.FS // filesystem adapter
-	log    *slog.Logger // logger
+	client client.SlackClienter // client is the Slack client to use for API calls.
+	uc     *usercache           // usercache contains the list of users.
+	fs     fsadapter.FS         // filesystem adapter
+	log    *slog.Logger         // logger
 
 	wspInfo *WorkspaceInfo // workspace info
 
@@ -39,37 +36,6 @@ type Session struct {
 
 // WorkspaceInfo is an type alias for [slack.AuthTestResponse].
 type WorkspaceInfo = slack.AuthTestResponse
-
-// Slacker is the interface with some functions of slack.Client.
-type Slacker interface {
-	AuthTestContext(context.Context) (response *slack.AuthTestResponse, err error)
-
-	GetConversationHistoryContext(ctx context.Context, params *slack.GetConversationHistoryParameters) (*slack.GetConversationHistoryResponse, error)
-	GetConversationRepliesContext(ctx context.Context, params *slack.GetConversationRepliesParameters) (msgs []slack.Message, hasMore bool, nextCursor string, err error)
-	GetConversationsContext(ctx context.Context, params *slack.GetConversationsParameters) (channels []slack.Channel, nextCursor string, err error)
-	GetConversationInfoContext(ctx context.Context, input *slack.GetConversationInfoInput) (*slack.Channel, error)
-	GetUsersInConversationContext(ctx context.Context, params *slack.GetUsersInConversationParameters) ([]string, string, error)
-
-	GetUsersPaginated(options ...slack.GetUsersOption) slack.UserPagination
-	GetUserInfoContext(ctx context.Context, user string) (*slack.User, error)
-
-	GetStarredContext(ctx context.Context, params slack.StarsParameters) ([]slack.StarredItem, *slack.Paging, error)
-	ListBookmarks(channelID string) ([]slack.Bookmark, error)
-
-	SearchMessagesContext(ctx context.Context, query string, params slack.SearchParameters) (*slack.SearchMessages, error)
-	SearchFilesContext(ctx context.Context, query string, params slack.SearchParameters) (*slack.SearchFiles, error)
-
-	GetFileInfoContext(ctx context.Context, fileID string, count int, page int) (*slack.File, []slack.Comment, *slack.Paging, error)
-}
-
-// clienter is the interface with some functions of slack.Client with the sole
-// purpose of mocking in tests (see client_mock.go)
-type clienter interface {
-	Slacker
-	GetFileContext(ctx context.Context, downloadURL string, writer io.Writer) error
-	GetUsersContext(ctx context.Context, options ...slack.GetUsersOption) ([]slack.User, error)
-	GetEmojiContext(ctx context.Context) (map[string]string, error)
-}
 
 // ErrNoUserCache is returned when the user cache is not initialised.
 var ErrNoUserCache = errors.New("user cache unavailable")
@@ -125,7 +91,7 @@ func WithUserCacheRetention(d time.Duration) Option {
 }
 
 // WithSlackClient sets the Slack client to use for the session.  If this
-func WithSlackClient(cl clienter) Option {
+func WithSlackClient(cl client.SlackClienter) Option {
 	return func(s *Session) {
 		s.client = cl
 	}
@@ -174,7 +140,7 @@ func NewNoValidate(ctx context.Context, prov auth.Provider, opts ...Option) (*Se
 
 // initWorkspaceInfo gets from the API and sets the workspace information for
 // the session.
-func (s *Session) initWorkspaceInfo(ctx context.Context, cl Slacker) error {
+func (s *Session) initWorkspaceInfo(ctx context.Context, cl client.Slack) error {
 	info, err := cl.AuthTestContext(ctx)
 	if err != nil {
 		return err
@@ -189,50 +155,23 @@ func (s *Session) initWorkspaceInfo(ctx context.Context, cl Slacker) error {
 // detects the enterprise instance or not.  If the client was set by the
 // WithClient option, it will not override it.
 func (s *Session) initClient(ctx context.Context, prov auth.Provider, forceEdge bool) error {
-	if s.client != nil {
-		// already initialised, probably through options.
-		return s.initWorkspaceInfo(ctx, s.client)
-	}
-
-	httpcl, err := prov.HTTPClient()
-	if err != nil {
-		return err
-	}
-
-	// initialising default client
-	cl := slack.New(prov.SlackToken(), slack.OptionHTTPClient(httpcl))
-	if err := s.initWorkspaceInfo(ctx, cl); err != nil {
-		return err
-	}
-
-	isEnterpriseWsp := s.wspInfo.EnterpriseID != ""
-	if forceEdge || isEnterpriseWsp {
-		// replace the client with the edge client
-		// TODO: this is hacky af.
-		ecl, err := edge.NewWithInfo(s.wspInfo, prov)
+	if s.client == nil {
+		cl, err := client.New(ctx, prov, client.WithEnterprise(forceEdge))
 		if err != nil {
 			return err
 		}
-		s.log.Debug("enterprise workspace detected or force enteprise is set, using edge client")
-		s.client = ecl.NewWrapper(cl)
-	} else {
-		s.log.Debug("using standard client")
 		s.client = cl
 	}
-	return nil
+	return s.initWorkspaceInfo(ctx, s.client)
 }
 
 // Client returns the underlying slack.Client.
 func (s *Session) Client() *slack.Client {
-	switch c := s.client.(type) {
-	case *slack.Client:
-		return c
-	case *edge.Wrapper:
-		return c.SlackClient()
-	default:
-		log.Panicf("internal error:  unknown client type %T", s.client)
+	cl, ok := s.client.Client()
+	if !ok {
+		panic("client is not a slack.Client")
 	}
-	return nil // never gets here
+	return cl
 }
 
 // CurrentUserID returns the user ID of the authenticated user.

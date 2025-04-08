@@ -11,6 +11,7 @@ import (
 	"github.com/rusq/slack"
 	"golang.org/x/time/rate"
 
+	"github.com/rusq/slackdump/v3/internal/client"
 	"github.com/rusq/slackdump/v3/internal/network"
 	"github.com/rusq/slackdump/v3/processor"
 )
@@ -29,35 +30,11 @@ const (
 	resultSz = 2
 )
 
-// Slacker is the interface with some functions of slack.Client.
-//
-//go:generate mockgen -destination mock_stream/mock_stream.go . Slacker
-type Slacker interface {
-	AuthTestContext(context.Context) (response *slack.AuthTestResponse, err error)
-
-	GetConversationHistoryContext(ctx context.Context, params *slack.GetConversationHistoryParameters) (*slack.GetConversationHistoryResponse, error)
-	GetConversationRepliesContext(ctx context.Context, params *slack.GetConversationRepliesParameters) (msgs []slack.Message, hasMore bool, nextCursor string, err error)
-	GetConversationsContext(ctx context.Context, params *slack.GetConversationsParameters) (channels []slack.Channel, nextCursor string, err error)
-	GetConversationInfoContext(ctx context.Context, input *slack.GetConversationInfoInput) (*slack.Channel, error)
-	GetUsersInConversationContext(ctx context.Context, params *slack.GetUsersInConversationParameters) ([]string, string, error)
-
-	GetUsersPaginated(options ...slack.GetUsersOption) slack.UserPagination
-	GetUserInfoContext(ctx context.Context, user string) (*slack.User, error)
-
-	GetStarredContext(ctx context.Context, params slack.StarsParameters) ([]slack.StarredItem, *slack.Paging, error)
-	ListBookmarks(channelID string) ([]slack.Bookmark, error)
-
-	SearchMessagesContext(ctx context.Context, query string, params slack.SearchParameters) (*slack.SearchMessages, error)
-	SearchFilesContext(ctx context.Context, query string, params slack.SearchParameters) (*slack.SearchFiles, error)
-
-	GetFileInfoContext(ctx context.Context, fileID string, count int, page int) (*slack.File, []slack.Comment, *slack.Paging, error)
-}
-
 // Stream is used to fetch conversations from Slack.  It is safe for concurrent
 // use.
 type Stream struct {
 	oldest, latest time.Time
-	client         Slacker
+	client         client.Slack
 	limits         rateLimits
 	chanCache      *chanCache
 	fastSearch     bool
@@ -185,9 +162,9 @@ func OptInclusive(b bool) Option {
 	}
 }
 
-// New creates a new Stream instance that allows to stream different
-// slack entities.
-func New(cl Slacker, l *network.Limits, opts ...Option) *Stream {
+// New creates a new Stream instance that allows to stream different slack
+// entities.
+func New(cl client.Slack, l *network.Limits, opts ...Option) *Stream {
 	cs := &Stream{
 		client:    cl,
 		limits:    limits(l),
