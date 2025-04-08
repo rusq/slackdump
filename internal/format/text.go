@@ -100,6 +100,20 @@ func (txt *Text) txtConversations(w io.Writer, m []types.Message, prefix string,
 }
 
 func (txt *Text) Users(ctx context.Context, w io.Writer, u []slack.User) error {
+	if txt.opts.bare {
+		return txt.usersBare(ctx, w, u)
+	}
+	return txt.usersFull(ctx, w, u)
+}
+
+func (txt *Text) usersBare(_ context.Context, w io.Writer, u []slack.User) error {
+	for i := range u {
+		fmt.Fprintf(w, "%s\n", u[i].ID)
+	}
+	return nil
+}
+
+func (txt *Text) usersFull(_ context.Context, w io.Writer, u []slack.User) error {
 	const strFormat = "%s\t%s\t%s\t%s\t%s\t%s\n"
 	writer := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
 	defer writer.Flush()
@@ -150,6 +164,20 @@ func (txt *Text) Users(ctx context.Context, w io.Writer, u []slack.User) error {
 }
 
 func (txt *Text) Channels(ctx context.Context, w io.Writer, u []slack.User, cc []slack.Channel) error {
+	if txt.opts.bare {
+		return txt.channelsBare(ctx, w, u, cc)
+	}
+	return txt.channelsFull(ctx, w, u, cc)
+}
+
+func (txt *Text) channelsBare(_ context.Context, w io.Writer, _ []slack.User, cc []slack.Channel) error {
+	for i := range cc {
+		fmt.Fprintf(w, "%s\n", cc[i].ID)
+	}
+	return nil
+}
+
+func (txt *Text) channelsFull(_ context.Context, w io.Writer, u []slack.User, cc []slack.Channel) error {
 	const strFormat = "%s\t%s\t%s\n"
 
 	ui := structures.NewUserIndex(u)

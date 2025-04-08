@@ -68,6 +68,7 @@ type options struct {
 	textOptions
 	csvOptions
 	jsonOptions
+	bare bool // bare output format
 }
 
 // Option is the converter option.
@@ -84,6 +85,14 @@ func (e *Type) Set(v string) error {
 		}
 	}
 	return fmt.Errorf("unknown converter: %s", v)
+}
+
+// WithBareFormat allows to set the bare output format for the formatter that
+// supports it.
+func WithBareFormat(b bool) Option {
+	return func(o *options) {
+		o.bare = b
+	}
 }
 
 // userReplacer returns a replacer that replaces all user IDs with their

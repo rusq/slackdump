@@ -74,6 +74,7 @@ func enableLogColors(strNocolor string) {
 		// skip enabling color
 		return
 	}
+	pterm.DefaultLogger.Writer = os.Stderr
 	handler := pterm.NewSlogHandler(&pterm.DefaultLogger)
 	sl := slog.New(handler)
 	Log = sl
