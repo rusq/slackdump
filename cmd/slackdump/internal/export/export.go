@@ -65,9 +65,9 @@ func runExport(ctx context.Context, cmd *base.Command, args []string) error {
 		return fmt.Errorf("error parsing the entity list: %w", err)
 	}
 
-	sess, err := bootstrap.SlackdumpSession(ctx)
+	client, err := bootstrap.Slack(ctx)
 	if err != nil {
-		base.SetExitStatus(base.SApplicationError)
+		base.SetExitStatus(base.SInitializationError)
 		return err
 	}
 
@@ -85,10 +85,10 @@ func runExport(ctx context.Context, cmd *base.Command, args []string) error {
 	// TODO: remove once the database is stable.
 	if cfg.UseChunkFiles {
 		lg.DebugContext(ctx, "using chunk files backend")
-		err = export(ctx, sess, fsa, list, options)
+		err = export(ctx, client, fsa, list, options)
 	} else {
 		lg.DebugContext(ctx, "using database backend")
-		err = exportv31(ctx, sess, fsa, list, options)
+		err = exportv31(ctx, client, fsa, list, options)
 	}
 	if err != nil {
 		base.SetExitStatus(base.SApplicationError)

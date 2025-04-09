@@ -203,5 +203,5 @@ func (s *Session) Info() *WorkspaceInfo {
 
 // Stream streams the channel, calling proc functions for each chunk.
 func (s *Session) Stream(opts ...stream.Option) *stream.Stream {
-	return stream.New(s.client, &s.cfg.limits, opts...)
+	return stream.New(s.client, s.cfg.limits, opts...)
 }
