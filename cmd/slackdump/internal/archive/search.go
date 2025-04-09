@@ -7,18 +7,16 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/rusq/slackdump/v3/internal/client"
-	fileproc2 "github.com/rusq/slackdump/v3/internal/convert/transform/fileproc"
-
-	"github.com/rusq/slackdump/v3/internal/chunk/backend/dbase"
-
 	"github.com/rusq/fsadapter"
 	"github.com/schollz/progressbar/v3"
 
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/bootstrap"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
+	"github.com/rusq/slackdump/v3/internal/chunk/backend/dbase"
 	"github.com/rusq/slackdump/v3/internal/chunk/control"
+	"github.com/rusq/slackdump/v3/internal/client"
+	"github.com/rusq/slackdump/v3/internal/convert/transform/fileproc"
 	"github.com/rusq/slackdump/v3/stream"
 )
 
@@ -158,7 +156,7 @@ func searchControllerv31(ctx context.Context, dir string, client client.Slack, t
 
 	lg := cfg.Log
 
-	dl := fileproc2.NewDownloader(
+	dl := fileproc.NewDownloader(
 		ctx,
 		cfg.WithFiles,
 		client,
@@ -192,7 +190,7 @@ func searchControllerv31(ctx context.Context, dir string, client client.Slack, t
 		stream.New(client, cfg.Limits, sopts...),
 		erc,
 		control.WithLogger(lg),
-		control.WithFiler(fileproc2.New(dl)),
+		control.WithFiler(fileproc.New(dl)),
 		control.WithFlags(control.Flags{RecordFiles: cfg.RecordFiles}),
 	)
 	if err != nil {
