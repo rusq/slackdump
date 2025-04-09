@@ -115,6 +115,37 @@ func New(ctx context.Context, prov auth.Provider, opts ...Option) (*Client, erro
 	return client, nil
 }
 
+// NewEdge returns a new Slack Edge client.
+func NewEdge(ctx context.Context, prov auth.Provider, opts ...Option) (SlackEdge, error) {
+	cl, err := prov.HTTPClient()
+	if err != nil {
+		return nil, err
+	}
+	scl := slack.New(prov.SlackToken(), slack.OptionHTTPClient(cl))
+	wi, err := scl.AuthTestContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	var opt options
+	for _, o := range opts {
+		o(&opt)
+	}
+	return newEdge(prov, scl, wi)
+}
+
+func newEdge(prov auth.Provider, scl *slack.Client, wi *slack.AuthTestResponse) (*edgeClient, error) {
+	ecl, err := edge.NewWithInfo(wi, prov)
+	if err != nil {
+		return nil, err
+	}
+	client := &edgeClient{
+		Slack: scl,
+		edge:  ecl,
+	}
+
+	return client, nil
+}
+
 // AuthTestContext returns the cached workspace information that was captured
 // on initialisation.
 func (c *Client) AuthTestContext(ctx context.Context) (response *slack.AuthTestResponse, err error) {

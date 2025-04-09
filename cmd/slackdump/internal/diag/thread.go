@@ -11,10 +11,11 @@ import (
 	"github.com/rusq/slack"
 	"github.com/schollz/progressbar/v3"
 
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/bootstrap"
+	"github.com/rusq/slackdump/v3/auth"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/workspace"
+	"github.com/rusq/slackdump/v3/internal/client"
 	"github.com/rusq/slackdump/v3/internal/network"
 	"github.com/rusq/slackdump/v3/internal/structures"
 )
@@ -64,14 +65,26 @@ func runThread(ctx context.Context, cmd *base.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+	prov, err := auth.FromContext(ctx)
+	if err != nil {
+		return err
+	}
+	client, err := client.New(ctx, prov)
+	if err != nil {
+		return err
+	}
+	scl, ok := client.Client()
+	if !ok {
+		return errors.New("failed to get slack client")
+	}
 
 	if *delThread != "" {
-		if err := runDelete(ctx, *delThread); err != nil {
+		if err := runDelete(ctx, scl, *delThread); err != nil {
 			base.SetExitStatus(base.SApplicationError)
 			return err
 		}
 	} else {
-		if err := runGenerate(ctx, *channel, *numThreadMsg); err != nil {
+		if err := runGenerate(ctx, scl, *channel, *numThreadMsg); err != nil {
 			base.SetExitStatus(base.SApplicationError)
 			return err
 		}
@@ -79,38 +92,30 @@ func runThread(ctx context.Context, cmd *base.Command, args []string) error {
 	return nil
 }
 
-func runDelete(ctx context.Context, url string) error {
-	sess, err := bootstrap.SlackdumpSession(ctx)
-	if err != nil {
-		return err
-	}
-	if err := deleteThread(context.Background(), sess.Client(), url); err != nil {
+func runDelete(ctx context.Context, cl *slack.Client, url string) error {
+	if err := deleteThread(ctx, cl, url); err != nil {
 		return err
 	}
 	return nil
 }
 
-func runGenerate(ctx context.Context, channelID string, numMsg int) error {
-	sess, err := bootstrap.SlackdumpSession(ctx)
-	if err != nil {
-		return err
-	}
+func runGenerate(ctx context.Context, cl *slack.Client, channelID string, numMsg int) error {
 	if channelID == "" {
 		return errors.New("channel ID is required")
 	}
-	if err := generateThread(context.Background(), sess.Client(), channelID, numMsg); err != nil {
+	if err := generateThread(ctx, cl, channelID, numMsg); err != nil {
 		return err
 	}
 	return nil
 }
 
-func generateThread(ctx context.Context, client *slack.Client, channelID string, numMsg int) error {
+func generateThread(ctx context.Context, cl *slack.Client, channelID string, numMsg int) error {
 	msg := []slack.Block{
 		slack.NewHeaderBlock(
 			slack.NewTextBlockObject("plain_text", fmt.Sprintf("Very long thread (%d messages)", numMsg), true, false),
 		),
 	}
-	_, ts, err := client.PostMessageContext(
+	_, ts, err := cl.PostMessageContext(
 		ctx,
 		channelID,
 		slack.MsgOptionBlocks(msg...),
@@ -125,7 +130,7 @@ func generateThread(ctx context.Context, client *slack.Client, channelID string,
 	defer func() { _ = pb.Finish() }()
 	for i := 0; i < numMsg; i++ {
 		if err := network.WithRetry(ctx, l, 3, func(ctx context.Context) error {
-			_, _, err := client.PostMessageContext(ctx, channelID, slack.MsgOptionTS(ts), slack.MsgOptionText(fmt.Sprintf("message: %d", i), false))
+			_, _, err := cl.PostMessageContext(ctx, channelID, slack.MsgOptionTS(ts), slack.MsgOptionText(fmt.Sprintf("message: %d", i), false))
 			return err
 		}); err != nil {
 			return fmt.Errorf("failed to post message to the thread: %w", err)
@@ -154,7 +159,7 @@ func deleteThread(ctx context.Context, client *slack.Client, url string) error {
 	return nil
 }
 
-func delMessages(ctx context.Context, client *slack.Client, channelID string, msgs []slack.Message) error {
+func delMessages(ctx context.Context, cl *slack.Client, channelID string, msgs []slack.Message) error {
 	pb := progressbar.Default(int64(len(msgs)))
 	pb.Describe("deleting messages")
 
@@ -163,7 +168,7 @@ func delMessages(ctx context.Context, client *slack.Client, channelID string, ms
 	l := network.NewLimiter(network.Tier3, network.DefLimits.Tier3.Burst, int(network.DefLimits.Tier3.Boost))
 	for _, m := range msgs {
 		err := network.WithRetry(ctx, l, 3, func(ctx context.Context) error {
-			_, _, err := client.DeleteMessageContext(ctx, channelID, m.Timestamp)
+			_, _, err := cl.DeleteMessageContext(ctx, channelID, m.Timestamp)
 			return err
 		})
 		if err != nil {
@@ -174,7 +179,7 @@ func delMessages(ctx context.Context, client *slack.Client, channelID string, ms
 	return nil
 }
 
-func getMessages(ctx context.Context, client *slack.Client, ui *structures.SlackLink) ([]slack.Message, error) {
+func getMessages(ctx context.Context, cl *slack.Client, ui *structures.SlackLink) ([]slack.Message, error) {
 	var msgs []slack.Message
 	cursor := ""
 	for {
@@ -183,7 +188,7 @@ func getMessages(ctx context.Context, client *slack.Client, ui *structures.Slack
 			hasmore bool
 			err     error
 		)
-		chunk, hasmore, cursor, err = client.GetConversationRepliesContext(
+		chunk, hasmore, cursor, err = cl.GetConversationRepliesContext(
 			ctx,
 			&slack.GetConversationRepliesParameters{
 				ChannelID: ui.Channel,

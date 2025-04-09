@@ -8,10 +8,10 @@ import (
 	"runtime/trace"
 	"time"
 
-	"github.com/rusq/slack"
 	"golang.org/x/time/rate"
 
 	"github.com/rusq/fsadapter"
+	"github.com/rusq/slack"
 
 	"github.com/rusq/slackdump/v3/auth"
 	"github.com/rusq/slackdump/v3/internal/client"
