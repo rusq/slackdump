@@ -7,10 +7,11 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/rusq/slackdump/v3/source"
+
 	"github.com/rusq/slack"
 
 	"github.com/rusq/slackdump/v3/internal/chunk"
-	"github.com/rusq/slackdump/v3/internal/source"
 )
 
 // Target is the interface for writing the target format.

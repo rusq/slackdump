@@ -18,7 +18,7 @@ import (
 	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/internal/chunk/backend/dbase"
 	"github.com/rusq/slackdump/v3/internal/convert"
-	"github.com/rusq/slackdump/v3/internal/source"
+	"github.com/rusq/slackdump/v3/source"
 )
 
 var cmdConvertV1 = &base.Command{

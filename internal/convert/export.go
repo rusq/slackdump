@@ -8,14 +8,13 @@ import (
 	"runtime/trace"
 	"sync"
 
-	"github.com/rusq/slackdump/v3/internal/convert/transform"
-	"github.com/rusq/slackdump/v3/internal/convert/transform/fileproc"
-
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/slack"
 
 	"github.com/rusq/slackdump/v3/internal/chunk"
-	"github.com/rusq/slackdump/v3/internal/source"
+	"github.com/rusq/slackdump/v3/internal/convert/transform"
+	"github.com/rusq/slackdump/v3/internal/convert/transform/fileproc"
+	"github.com/rusq/slackdump/v3/source"
 )
 
 const (

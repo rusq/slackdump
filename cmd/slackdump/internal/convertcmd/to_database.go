@@ -6,17 +6,15 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/rusq/fsadapter"
-
-	"github.com/rusq/slackdump/v3/internal/chunk/backend/dbase"
-	"github.com/rusq/slackdump/v3/internal/convert"
-
 	"github.com/jmoiron/sqlx"
+	"github.com/rusq/fsadapter"
 
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/bootstrap"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/internal/chunk"
-	"github.com/rusq/slackdump/v3/internal/source"
+	"github.com/rusq/slackdump/v3/internal/chunk/backend/dbase"
+	"github.com/rusq/slackdump/v3/internal/convert"
+	"github.com/rusq/slackdump/v3/source"
 )
 
 // toDatabase converts the source to the database format.

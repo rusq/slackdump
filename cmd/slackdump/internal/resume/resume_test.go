@@ -6,6 +6,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/rusq/slackdump/v3/source"
+	"github.com/rusq/slackdump/v3/source/mock_source"
+
 	"github.com/rusq/slack"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
@@ -13,8 +16,6 @@ import (
 	"github.com/rusq/slackdump/v3"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/internal/fixtures"
-	"github.com/rusq/slackdump/v3/internal/source"
-	"github.com/rusq/slackdump/v3/internal/source/mock_source"
 	"github.com/rusq/slackdump/v3/internal/structures"
 )
 

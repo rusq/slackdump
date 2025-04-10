@@ -11,7 +11,7 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-var fixturesDir = filepath.Join("..", "fixtures", "assets")
+var fixturesDir = filepath.Join("..", "internal", "fixtures", "assets")
 
 func TestLoad(t *testing.T) {
 	type args struct {

@@ -11,14 +11,12 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"github.com/rusq/slackdump/v3/internal/chunk/backend/directory"
-
-	"github.com/rusq/slackdump/v3/internal/chunk/backend/dbase"
-	"github.com/rusq/slackdump/v3/internal/chunk/backend/dbase/repository"
-
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/internal/chunk"
-	"github.com/rusq/slackdump/v3/internal/source"
+	"github.com/rusq/slackdump/v3/internal/chunk/backend/dbase"
+	"github.com/rusq/slackdump/v3/internal/chunk/backend/dbase/repository"
+	"github.com/rusq/slackdump/v3/internal/chunk/backend/directory"
+	"github.com/rusq/slackdump/v3/source"
 )
 
 func toChunk(ctx context.Context, src, trg string, cflg convertflags) error {
