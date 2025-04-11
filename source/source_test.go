@@ -83,7 +83,7 @@ func TestLoad(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := Load(tt.args.ctx, tt.args.src)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("Load() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("Load() error = %v, wantErr %v (file: %q)", err, tt.wantErr, tt.args.src)
 				return
 			}
 			wantT := reflect.TypeOf(tt.want)

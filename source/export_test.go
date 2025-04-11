@@ -5,14 +5,19 @@ import (
 	"context"
 	"io/fs"
 	"os"
+	"path"
 	"path/filepath"
 	"reflect"
 	"testing"
+	"testing/fstest"
+	"time"
 
 	"github.com/rusq/slack"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/internal/fixtures"
+	"github.com/rusq/slackdump/v3/internal/structures"
 )
 
 var testZipFile = filepath.Join("..", "..", "..", "tmp", "realexport.zip")
@@ -120,7 +125,7 @@ func TestExport_AllMessages(t *testing.T) {
 	}
 }
 
-func Test_buildFileIndex(t *testing.T) {
+func Test_buildStdFileIdx(t *testing.T) {
 	testpath := filepath.Join("..", "..", "..", "tmp", "stdexport")
 	fixtures.SkipIfNotExist(t, testpath)
 	fixtures.SkipInCI(t)
@@ -147,12 +152,207 @@ func Test_buildFileIndex(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := buildFileIndex(tt.args.fsys, tt.args.dir)
+			got, err := buildStdFileIdx(tt.args.fsys, tt.args.dir)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("buildFileIndex() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("buildStdFileIdx() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestExportChanName(t *testing.T) {
+	var pub, dm slack.Channel
+	pub.ID = "C123456"
+	pub.Name = "general"
+
+	dm.ID = "D123456"
+	dm.IsIM = true
+
+	type args struct {
+		ch *slack.Channel
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+		{
+			name: "test",
+			args: args{ch: &pub},
+			want: "general",
+		},
+		{
+			name: "dm",
+			args: args{ch: &dm},
+			want: "D123456",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := ExportChanName(tt.args.ch); got != tt.want {
+				t.Errorf("ExportChanName() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestExport_WorkspaceInfo(t *testing.T) {
+	type fields struct {
+		fs        fs.FS
+		channels  []slack.Channel
+		chanNames map[string]string
+		name      string
+		idx       structures.ExportIndex
+		files     Storage
+		avatars   Storage
+	}
+	type args struct {
+		in0 context.Context
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    *slack.AuthTestResponse
+		wantErr bool
+	}{
+		// TODO: Add test cases.
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			e := &Export{
+				fs:        tt.fields.fs,
+				channels:  tt.fields.channels,
+				chanNames: tt.fields.chanNames,
+				name:      tt.fields.name,
+				idx:       tt.fields.idx,
+				files:     tt.fields.files,
+				avatars:   tt.fields.avatars,
+			}
+			got, err := e.WorkspaceInfo(tt.args.in0)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Export.WorkspaceInfo() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Export.WorkspaceInfo() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestExport_Latest(t *testing.T) {
+	type fields struct {
+		fs        fs.FS
+		channels  []slack.Channel
+		chanNames map[string]string
+		name      string
+		idx       structures.ExportIndex
+		files     Storage
+		avatars   Storage
+	}
+	type args struct {
+		ctx context.Context
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    map[structures.SlackLink]time.Time
+		wantErr bool
+	}{
+		// TODO: Add test cases.
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			e := &Export{
+				fs:        tt.fields.fs,
+				channels:  tt.fields.channels,
+				chanNames: tt.fields.chanNames,
+				name:      tt.fields.name,
+				idx:       tt.fields.idx,
+				files:     tt.fields.files,
+				avatars:   tt.fields.avatars,
+			}
+			got, err := e.Latest(tt.args.ctx)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Export.Latest() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Export.Latest() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_loadStorage(t *testing.T) {
+	mattermostFS := fstest.MapFS{
+		path.Join(chunk.UploadsDir, "F123456", "somefile.txt"): {
+			Data: []byte("test"),
+		},
+	}
+	mmOverMapFS, err := OpenMattermostStorage(mattermostFS)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	stdFS := fstest.MapFS{
+		path.Join("random", "attachments", "F123456-somefile.txt"): {
+			Data: []byte("test"),
+		},
+	}
+	stdOverMapFS, err := OpenStandardStorage(stdFS)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	type args struct {
+		fsys fs.FS
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    Storage
+		wantErr bool
+	}{
+		{
+			name: "mattermost",
+			args: args{
+				fsys: mattermostFS,
+			},
+			want:    mmOverMapFS,
+			wantErr: false,
+		},
+		{
+			name: "standard",
+			args: args{
+				fsys: stdFS,
+			},
+			want:    stdOverMapFS,
+			wantErr: false,
+		},
+		{
+			name: "not found",
+			args: args{
+				fsys: fstest.MapFS{},
+			},
+			want:    NoStorage{},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := loadStorage(tt.args.fsys)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("loadStorage() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("loadStorage() = %v, want %v", got, tt.want)
+			}
 		})
 	}
 }
