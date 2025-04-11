@@ -282,7 +282,7 @@ func Test_download(t *testing.T) {
 			emptyFetchFn,
 			func(m *MockEmojiDumper) {
 				m.EXPECT().
-					DumpEmojis(gomock.Any()).
+					GetEmojiContext(gomock.Any()).
 					Return(map[string]string{
 						"test": "https://blahblah.png",
 					}, nil)
@@ -302,7 +302,7 @@ func Test_download(t *testing.T) {
 			emptyFetchFn,
 			func(m *MockEmojiDumper) {
 				m.EXPECT().
-					DumpEmojis(gomock.Any()).
+					GetEmojiContext(gomock.Any()).
 					Return(map[string]string{
 						"test": "https://blahblah.png",
 					}, nil)
@@ -322,7 +322,7 @@ func Test_download(t *testing.T) {
 			errorFetchFn,
 			func(m *MockEmojiDumper) {
 				m.EXPECT().
-					DumpEmojis(gomock.Any()).
+					GetEmojiContext(gomock.Any()).
 					Return(map[string]string{
 						"test": "https://blahblah.png",
 					}, nil)
@@ -342,7 +342,7 @@ func Test_download(t *testing.T) {
 			errorFetchFn,
 			func(m *MockEmojiDumper) {
 				m.EXPECT().
-					DumpEmojis(gomock.Any()).
+					GetEmojiContext(gomock.Any()).
 					Return(nil, errors.New("no emojis for you, it's 1991."))
 			},
 			true,

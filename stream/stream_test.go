@@ -59,7 +59,7 @@ func TestChannelStream(t *testing.T) {
 	rec := chunk.NewRecorder(f)
 	defer rec.Close()
 
-	cs := New(sd, &network.DefLimits)
+	cs := New(sd, network.DefLimits)
 	if err := cs.SyncConversations(context.Background(), rec, structures.EntityItem{Id: testConversation}); err != nil {
 		t.Fatal(err)
 	}
@@ -88,7 +88,7 @@ func TestRecorderStream(t *testing.T) {
 	defer rec.Close()
 
 	rgnStream := trace.StartRegion(ctx, "Stream")
-	cs := New(sd, &network.NoLimits)
+	cs := New(sd, network.NoLimits)
 	if err := cs.SyncConversations(ctx, rec, structures.EntityItem{Id: fixtures.ChunkFileChannelID}); err != nil {
 		t.Fatal(err)
 	}
@@ -334,7 +334,7 @@ func TestStream_Users(t *testing.T) {
 	defer srv.Close()
 	l := rateLimits{
 		users: network.NewLimiter(network.NoTier, 100, 100),
-		tier:  &network.DefLimits,
+		tier:  network.DefLimits,
 	}
 	s := Stream{
 		client: slack.New("test", slack.OptionAPIURL(srv.URL+"/")),
@@ -348,7 +348,7 @@ func TestStream_Users(t *testing.T) {
 func TestStream_ListChannels(t *testing.T) {
 	testlimits := rateLimits{
 		channels: network.NewLimiter(network.NoTier, 100, 100),
-		tier:     &network.DefLimits,
+		tier:     network.DefLimits,
 	}
 	type args struct {
 		ctx context.Context
@@ -449,7 +449,7 @@ func TestStream_UsersBulk(t *testing.T) {
 	cancel()
 	testLimits := rateLimits{
 		userinfo: network.NewLimiter(network.NoTier, 100, 100),
-		tier:     &network.DefLimits,
+		tier:     network.DefLimits,
 	}
 	type fields struct {
 		oldest time.Time

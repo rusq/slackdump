@@ -12,13 +12,12 @@ import (
 	"github.com/rusq/fsadapter"
 	"github.com/schollz/progressbar/v3"
 
-	"github.com/rusq/slackdump/v3"
 	"github.com/rusq/slackdump/v3/auth"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/bootstrap"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/emoji/emojidl"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
-	"github.com/rusq/slackdump/v3/internal/edge"
+	"github.com/rusq/slackdump/v3/internal/client"
 )
 
 //go:embed assets/emoji.md
@@ -101,24 +100,28 @@ func statusReporter() (emojidl.StatusFunc, io.Closer) {
 }
 
 func runLegacy(ctx context.Context, fsa fsadapter.FS, cb emojidl.StatusFunc) error {
-	sess, err := bootstrap.SlackdumpSession(ctx, slackdump.WithFilesystem(fsa))
+	client, err := bootstrap.Slack(ctx)
 	if err != nil {
-		base.SetExitStatus(base.SApplicationError)
+		base.SetExitStatus(base.SInitializationError)
 		return err
 	}
 
-	return emojidl.DlFS(ctx, sess, fsa, &cmdFlags.Options, cb)
+	return emojidl.DlFS(ctx, client, fsa, &cmdFlags.Options, cb)
 }
 
 func runEdge(ctx context.Context, fsa fsadapter.FS, prov auth.Provider, cb emojidl.StatusFunc) error {
-	sess, err := edge.New(ctx, prov)
+	clx, err := client.NewEdge(ctx, prov)
 	if err != nil {
-		base.SetExitStatus(base.SApplicationError)
+		base.SetExitStatus(base.SInitializationError)
 		return err
 	}
-	defer sess.Close()
+	ecl, ok := clx.Edge()
+	if !ok {
+		base.SetExitStatus(base.SApplicationError)
+		return fmt.Errorf("edge client not available")
+	}
 
-	if err := emojidl.DlEdgeFS(ctx, sess, fsa, &cmdFlags.Options, cb); err != nil {
+	if err := emojidl.DlEdgeFS(ctx, ecl, fsa, &cmdFlags.Options, cb); err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return fmt.Errorf("application error: %s", err)
 	}

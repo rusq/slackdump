@@ -3,20 +3,23 @@ package client
 import (
 	"context"
 	"io"
+	"log/slog"
 	"sync"
 
 	"github.com/rusq/slack"
 )
 
+// Pool is a pool of Slack clients that can be used to make API calls.
+// Zero value is not usable, must be initialised with [NewPool].
 type Pool struct {
-	pool []SlackClienter
+	pool []Slack
 	mu   sync.Mutex
 	strategy
 }
 
 // NewPool wraps the slack.Client with the edge client, so that the edge
 // client can be used as a fallback.
-func NewPool(scl ...SlackClienter) *Pool {
+func NewPool(scl ...Slack) *Pool {
 	return &Pool{
 		pool:     scl,
 		strategy: newRoundRobin(len(scl)),
@@ -24,17 +27,15 @@ func NewPool(scl ...SlackClienter) *Pool {
 }
 
 // next returns the next client in the pool using the current strategy.
-func (p *Pool) next() SlackClienter {
+func (p *Pool) next() Slack {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if len(p.pool) == 0 {
 		panic("no clients in pool")
 	}
-	return p.pool[p.strategy.next()]
-}
-
-func (p *Pool) Client() (*slack.Client, bool) {
-	return p.next().Client()
+	next := p.strategy.next()
+	slog.Debug("next client", "index", next)
+	return p.pool[next]
 }
 
 func (p *Pool) AuthTestContext(ctx context.Context) (response *slack.AuthTestResponse, err error) {

@@ -120,10 +120,10 @@ type rateLimits struct {
 	userinfo    *rate.Limiter
 	searchmsg   *rate.Limiter
 	searchfiles *rate.Limiter
-	tier        *network.Limits
+	tier        network.Limits
 }
 
-func limits(l *network.Limits) rateLimits {
+func limits(l network.Limits) rateLimits {
 	return rateLimits{
 		channels:    network.NewLimiter(network.Tier3, l.Tier3.Burst, int(l.Tier3.Boost)),
 		threads:     network.NewLimiter(network.Tier3, l.Tier3.Burst, int(l.Tier3.Boost)),
@@ -173,7 +173,7 @@ func OptInclusive(b bool) Option {
 
 // New creates a new Stream instance that allows to stream different slack
 // entities.
-func New(cl client.Slack, l *network.Limits, opts ...Option) *Stream {
+func New(cl client.Slack, l network.Limits, opts ...Option) *Stream {
 	cs := &Stream{
 		client:    cl,
 		limits:    limits(l),

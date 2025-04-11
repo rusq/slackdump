@@ -8,8 +8,6 @@ import (
 	"os"
 	"path/filepath"
 
-	fileproc2 "github.com/rusq/slackdump/v3/internal/convert/transform/fileproc"
-
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/slack"
 
@@ -17,9 +15,10 @@ import (
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/internal/chunk"
-	"github.com/rusq/slackdump/v3/internal/source"
+	"github.com/rusq/slackdump/v3/internal/convert/transform/fileproc"
 	"github.com/rusq/slackdump/v3/internal/structures"
 	"github.com/rusq/slackdump/v3/processor"
+	"github.com/rusq/slackdump/v3/source"
 )
 
 var cmdRedownload = &base.Command{
@@ -106,20 +105,20 @@ func redownload(ctx context.Context, dir string) (int, error) {
 	}
 	slog.Info("directory opened", "num_channels", len(channels))
 
-	sess, err := bootstrap.SlackdumpSession(ctx)
+	client, err := bootstrap.Slack(ctx)
 	if err != nil {
 		return 0, fmt.Errorf("error creating slackdump session: %w", err)
 	}
-	dl := fileproc2.NewDownloader(
+	dl := fileproc.NewDownloader(
 		ctx,
 		true,
-		sess.Client(),
+		client,
 		fsadapter.NewDirectory(cd.Name()),
 		cfg.Log,
 	)
 	defer dl.Stop()
 	// we are using the same file subprocessor as the mattermost export.
-	fproc := fileproc2.New(dl)
+	fproc := fileproc.New(dl)
 
 	total := 0
 	for _, ch := range channels {

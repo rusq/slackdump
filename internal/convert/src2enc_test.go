@@ -7,11 +7,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/rusq/slackdump/v3/source/mock_source"
+
 	"github.com/rusq/slack"
 	"go.uber.org/mock/gomock"
 
 	"github.com/rusq/slackdump/v3/internal/fasttime"
-	"github.com/rusq/slackdump/v3/internal/source/mock_source"
 	"github.com/rusq/slackdump/v3/internal/structures"
 	"github.com/rusq/slackdump/v3/mocks/mock_processor"
 )

@@ -10,13 +10,14 @@ import (
 	"text/tabwriter"
 	"time"
 
+	"github.com/rusq/slackdump/v3/source"
+
 	"github.com/rusq/slackdump/v3"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/archive"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/bootstrap"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/internal/chunk/control"
-	"github.com/rusq/slackdump/v3/internal/source"
 	"github.com/rusq/slackdump/v3/internal/structures"
 	"github.com/rusq/slackdump/v3/stream"
 )
@@ -77,14 +78,19 @@ func runResume(ctx context.Context, cmd *base.Command, args []string) error {
 		return fmt.Errorf("error loading latest timestamps: %w", err)
 	}
 
-	sess, err := bootstrap.SlackdumpSession(ctx)
+	client, err := bootstrap.Slack(ctx)
 	if err != nil {
 		base.SetExitStatus(base.SInitializationError)
 		return fmt.Errorf("error creating slackdump session: %w", err)
 	}
+	info, err := client.AuthTestContext(ctx)
+	if err != nil {
+		base.SetExitStatus(base.SInitializationError)
+		return fmt.Errorf("error getting workspace info: %w", err)
+	}
 
 	// ensure the repository is for the same workspace.
-	if err := ensureSameWorkspace(ctx, src, sess.Info()); err != nil {
+	if err := ensureSameWorkspace(ctx, src, info); err != nil {
 		base.SetExitStatus(base.SInitializationError)
 		return fmt.Errorf("error ensuring the same workspace: %w", err)
 	}
@@ -109,7 +115,7 @@ func runResume(ctx context.Context, cmd *base.Command, args []string) error {
 	}
 	// inclusive is false, because we don't want to include the latest message
 	// which is already in the database.
-	ctrl, err := archive.DBController(ctx, cmd, wconn, sess, dir, cf, stream.OptInclusive(false))
+	ctrl, err := archive.DBController(ctx, cmd, wconn, client, dir, cf, stream.OptInclusive(false))
 	if err != nil {
 		base.SetExitStatus(base.SInitializationError)
 		return fmt.Errorf("error creating archive controller: %w", err)

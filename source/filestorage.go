@@ -27,7 +27,7 @@ type Storage interface {
 	// by FS().  If file is not found, it should return fs.ErrNotExist.
 	File(id string, name string) (string, error)
 	// FilePath should return the path to the file f relative to the root of
-	// the Source (i.e. __uploads/ID/Name.ext).
+	// the Source (i.e., for Mattermost, __uploads/ID/Name.ext).
 	FilePath(ch *slack.Channel, f *slack.File) string
 }
 
@@ -38,7 +38,8 @@ func MattermostFilepath(_ *slack.Channel, f *slack.File) string {
 }
 
 // MattermostFilepathWithDir returns the path to the file within the given
-// directory, but it follows the mattermost naming pattern.
+// directory, but it follows the mattermost naming pattern.  In most cases
+// you don't need to use this function.
 func MattermostFilepathWithDir(dir string) func(*slack.Channel, *slack.File) string {
 	return func(_ *slack.Channel, f *slack.File) string {
 		return path.Join(dir, f.ID, f.Name)
@@ -122,13 +123,29 @@ type STStandard struct {
 	idx map[string]string
 }
 
-func OpenStandardStorage(rootfs fs.FS, idx map[string]string) *STStandard {
+// OpenStandardStorage returns the resolver for the export's standard storage
+// format.
+func OpenStandardStorage(rootfs fs.FS) (*STStandard, error) {
+	idx, err := buildStdFileIdx(rootfs, ".")
+	if err != nil {
+		return nil, err
+	}
+	if len(idx) == 0 {
+		return nil, fs.ErrNotExist
+	}
+	return newStandardStorage(rootfs, idx), nil
+}
+
+// newStandardStorage returns the resolver for the standard export storage
+// format, given the root filesystem and the index of files.  The index is
+// built by the [buildStdFileIdx] function.
+func newStandardStorage(rootfs fs.FS, idx map[string]string) *STStandard {
 	return &STStandard{fs: rootfs, idx: idx}
 }
 
-// buildFileIndex walks the fsys, finding all "attachments" subdirectories, and
+// buildStdFileIdx walks the fsys, finding all "attachments" subdirectories, and
 // indexes files in them.
-func buildFileIndex(fsys fs.FS, dir string) (map[string]string, error) {
+func buildStdFileIdx(fsys fs.FS, dir string) (map[string]string, error) {
 	idx := make(map[string]string) // maps the file id to the file name
 	if err := fs.WalkDir(fsys, dir, func(pth string, d fs.DirEntry, err error) error {
 		if err != nil {

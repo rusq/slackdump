@@ -10,10 +10,11 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/rusq/slackdump/v3/source"
+
 	"github.com/rusq/slack"
 
 	"github.com/rusq/slackdump/v3/internal/fasttime"
-	"github.com/rusq/slackdump/v3/internal/source"
 	"github.com/rusq/slackdump/v3/internal/structures"
 )
 

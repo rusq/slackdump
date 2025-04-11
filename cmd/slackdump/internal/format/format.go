@@ -11,20 +11,15 @@ import (
 	"strings"
 	"time"
 
+	"github.com/rusq/slackdump/v3/source"
+
 	"github.com/rusq/fsadapter"
 
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/internal/format"
-	"github.com/rusq/slackdump/v3/internal/source"
 	"github.com/rusq/slackdump/v3/internal/structures"
 )
-
-// TODO this is hacky in the following ways:
-// 1. User must extract the JSON file from the archive
-// 2. What about exports etc.?
-// 3. Getting users online is hacky, as it requires authentication to be present,
-//    but if the user doesn't need online users.  The login should happen locally.
 
 var CmdFormat = &base.Command{
 	Run:       runFormat,

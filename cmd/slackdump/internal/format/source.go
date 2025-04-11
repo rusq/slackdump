@@ -7,12 +7,13 @@ import (
 	"io"
 	"runtime/trace"
 
+	"github.com/rusq/slackdump/v3/source"
+
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/slack"
 
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/internal/format"
-	"github.com/rusq/slackdump/v3/internal/source"
 	"github.com/rusq/slackdump/v3/internal/structures"
 	"github.com/rusq/slackdump/v3/types"
 )
