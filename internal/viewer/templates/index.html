@@ -110,7 +110,8 @@
                 <footer class="thread-info">
                 <a href="#" hx-get="/archives/{{$id}}/{{ $el.ThreadTimestamp }}" hx-target="#thread">
                     {{ $el.ReplyCount }} replies
-                </a> <span class="last-reply grey">Latest reply: {{ time $el.LatestReply }}</span>
+                </a>
+                <span class="last-reply grey">Latest reply: {{ time $el.LatestReply }}</span>
                 </footer>
             </div>
             {{ end }}
