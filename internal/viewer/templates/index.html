@@ -11,9 +11,13 @@
 
 <body>
     <div class="container">
-        <section class="channel-list">
-            <h1>Slackdump</h1>
-            <small class="subtitle grey">{{.Type}}: {{.Name}}</small>
+        <section class="channel-sidebar">
+            <header>
+                <div class="sidebar-header-innner">
+                    <h1>Slackdump</h1>
+                    <small class="subtitle">{{.Type}}: {{.Name}}</small>
+                </div>
+            </header>
             <!-- Channel list goes here -->
             {{ template "channel_list" . }}
         </section>
@@ -41,51 +45,94 @@
 
 {{ define "channel_list" }}
 {{ if ( or .Public .Private) }}
-<h2>Channels</h2>
-<menu>
+<div class="channel-list">
+    <div class="channel-header">
+        <p>Channels</p>
+    </div>
     {{ range $i, $el := .Public }}
-    <li><a href="#" hx-get="/archives/{{$el.ID}}" hx-target="#conversation" hx-push-url="true">{{ rendername $el }}</a></li>
+    <a href="#" hx-get="/archives/{{$el.ID}}" hx-target="#conversation" hx-push-url="true">{{ rendername $el }}</a>
     {{ end }}
     {{ range $i, $el := .Private }}
-    <li><a href="#" hx-get="/archives/{{$el.ID}}" hx-target="#conversation" hx-push-url="true">{{ rendername $el }}</a></li>
+    <a href="#" hx-get="/archives/{{$el.ID}}" hx-target="#conversation" hx-push-url="true">{{ rendername $el }}</a>
     {{ end }}
-</menu>
+</div>
 {{ end }}
 {{ if (or .MPIM .DM) }}
-<h2>Direct</h2>
-<menu>
-    {{ range $i, $el := .MPIM }}
-    <li><a href="#" hx-get="/archives/{{$el.ID}}" hx-target="#conversation" hx-push-url="true">{{ rendername $el }}</a></li>
-    {{ end }}
-    {{ range $i, $el := .DM }}
-    <li><a href="#" hx-get="/archives/{{$el.ID}}" hx-target="#conversation" hx-push-url="true">{{ rendername $el }}</a></li>
-    {{ end }}
-</menu>
+<div class="dm-outer">
+    <div class="dm-inner">
+        <h2>Direct</h2>
+        <menu>
+            {{ range $i, $el := .MPIM }}
+            <li><a href="#" hx-get="/archives/{{$el.ID}}" hx-target="#conversation" hx-push-url="true">{{ rendername $el }}</a></li>
+            {{ end }}
+            {{ range $i, $el := .DM }}
+            <li><a href="#" hx-get="/archives/{{$el.ID}}" hx-target="#conversation" hx-push-url="true">{{ rendername $el }}</a></li>
+            {{ end }}
+        </menu>
+    </div>
+</div>
 {{ end }}
+<script>
+    document.querySelectorAll('.channel-sidebar a').forEach(function (link) {
+        link.addEventListener('click', function (e) {
+            e.preventDefault();
+            // Ensure that all other channels are unmarked as being visually active
+            document.querySelectorAll('.channel-sidebar a').forEach(el => {
+                el.classList.remove('active');
+            });
+
+            link.classList.add('active');
+        });
+    });
+</script>
 {{ end }}
 
 {{define "hx_conversation"}}
 {{ if .Conversation.ID }}
 {{ $id := .Conversation.ID }}
-<h2>{{ rendername .Conversation }}</h2>
+<header class="conversation-header">
+    <div class="conversation-inner">
+        <h3>{{ rendername .Conversation }}</h3>
+        <p>Channel topic would go here</p>
+    </div>
+</header>
+<div class="message-list">
 {{ range $el, $err := .Messages }}
-<article class="message">
-    {{ if $err }} <p>Error: {{ $err }}</p> {{ else }}
-	    {{ template "render_message" $el }}
-	    {{ if is_thread_start $el }}
-	    <footer class="thread-info">
-		<a href="#" hx-get="/archives/{{$id}}/{{ $el.ThreadTimestamp }}" hx-target="#thread">
-		    {{ $el.ReplyCount }} replies
-		</a> <span class="last-reply grey">Latest reply: {{ time $el.LatestReply }}</span>
-	    </footer>
-	    {{ end }}
-    {{ end }}
-</article>
+    <article class="message">
+        {{ if $err }} <p>Error: {{ $err }}</p> {{ else }}
+            <a class="avatar" href="#" hx-get="/team/{{ $el.User }}" hx-target="#thread">
+                <img class="avatar" src="/static/40x40.png" />
+            </a>
+            <div class="message-inner">
+                {{ template "render_message" $el }}
+                <!-- TODO: Pass dict through to render_message in order to template threading -->
+                {{ if is_thread_start $el }}
+                <footer class="thread-info">
+                <a href="#" hx-get="/archives/{{$id}}/{{ $el.ThreadTimestamp }}" hx-target="#thread">
+                    {{ $el.ReplyCount }} replies
+                </a> <span class="last-reply grey">Latest reply: {{ time $el.LatestReply }}</span>
+                </footer>
+            </div>
+            {{ end }}
+        {{ end }}
+    </article>
 {{end}}
+</div>
 {{ else }}
 <p>No Messages.</p>
 {{ end }}
 <script>
+    document.querySelectorAll('a.avatar').forEach(function (link) {
+        link.addEventListener('click', function (e) {
+            e.preventDefault();
+            // document.querySelector('.conversations').style.display = 'none';
+            // document.querySelector('.thread').style.display = 'block';
+            document.querySelector('.conversations').style.flex = '0 0 40%';
+            document.querySelector('.thread').style.display = 'block';
+            document.querySelector('.thread').style.flex = '1';
+            // Load thread messages into .thread div here
+        });
+    });
     document.querySelectorAll('.thread-info a').forEach(function (link) {
         link.addEventListener('click', function (e) {
             e.preventDefault();
@@ -117,14 +164,20 @@
 <h2>Thread: {{ .ThreadID }}</h2>
 <p><a id="close-thread" href="#">[X]</a></p>
 <p><a id="thread-link" href="/archives/{{.Conversation.ID}}/{{ .ThreadID }}#{{.ThreadID}}">Link to this thread</a></p>
-{{ range $el, $err := .ThreadMessages }}
-<article class="message">
-    {{ if $err }} <p>Error: {{ $err }}</p> {{ else }}
-	    {{ template "render_message" $el }}
-    {{ end }}
-    <hr>
-</article>
-{{end}}
+<div class="message-list">
+    {{ range $el, $err := .ThreadMessages }}
+    <article class="message">
+        {{ if $err }} <p>Error: {{ $err }}</p> {{ else }}
+        <a class="avatar" href="#" hx-get="/team/{{ $el.User }}" hx-target="#thread">
+            <img class="avatar" src="/static/40x40.png" />
+        </a>
+        <div class="message-inner">
+            {{ template "render_message" $el }}
+        </div>
+        {{ end }}
+    </article>
+    {{end}}
+</div>
 <script>
     document.getElementById('close-thread').addEventListener('click', function (e) {
         e.preventDefault();
@@ -135,19 +188,20 @@
 {{end}}
 
 {{ define "render_message" }}
-<header class="message-header" id="{{.Timestamp}}">
-    <span class="message-sender">
-        {{if is_app_msg . -}}
-        {{ username . }}
-        {{- else -}}
-        <a href="#" hx-get="/team/{{ .User }}" hx-target="#thread"> {{ username . }}</a>
-        {{- end }}
-    </span>
-    <span class="message-timestamp grey">{{ time .Timestamp }}</span>
-    <span class="message-link"><a href="#{{.Timestamp}}">#</a></span>
-</header>
 <div class="message-content">
-    <p>{{ render . }}</p>
+    <header id="{{.Timestamp}}">
+        <span class="message-sender">
+            {{if is_app_msg . -}}
+            {{ username . }}
+            {{- else -}}
+            <a href="#" hx-get="/team/{{ .User }}" hx-target="#thread"> {{ username . }}</a>
+            {{- end }}
+        </span>
+        <span class="message-timestamp grey"><a href="#{{.Timestamp}}">{{ time .Timestamp }}</a></span>
+    </header>
+    <div class="message-content">
+        <p>{{ render . }}</p>
+    </div>
 </div>
 {{ end }}
 

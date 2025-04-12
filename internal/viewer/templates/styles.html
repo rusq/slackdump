@@ -1,104 +1,229 @@
 {{ define "hx_css" }}
 <style>
-    body {
-        font-family: -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    :root {
+        /* Theme colors - easily customizable */
+        --primary-color: #4A154B;
+        /* Slack purple */
+        --secondary-color: #36C5F0;
+        /* Slack blue */
+        --accent-color: #ECB22E;
+        /* Slack yellow */
+        --success-color: #2EB67D;
+        /* Slack green */
+        --error-color: #E01E5A;
+        /* Slack red */
+
+        /* UI colors */
+        --bg-color: #FFFFFF;
+        --sidebar-bg: #3F0E40;
+        --text-color: #1D1C1D;
+        --text-secondary: #616061;
+        --border-color: #DDDDDD;
+        --hover-color: rgba(0, 0, 0, 0.05);
+        --active-color: rgba(0, 0, 0, 0.1);
+        --message-hover: #F8F8F8;
     }
 
+    /* Dark mode support */
     @media (prefers-color-scheme: dark) {
-        body {
-            /* Use dark background if system is in dark mode */
-            background-color: #202224;
-            color: #fff;
-        }
-
-        a {
-            color: #72b2ff;
-        }
-
-        a:hover {
-            color: #ff7b72;
-        }
-
-        a:visited {
-            color: #9669ff;
+        :root {
+            --bg-color: #1A1D21;
+            --sidebar-bg: #19171D;
+            --text-color: #D1D2D3;
+            --text-secondary: #ABABAD;
+            --border-color: #424242;
+            --hover-color: rgba(255, 255, 255, 0.05);
+            --active-color: rgba(255, 255, 255, 0.1);
+            --message-hover: #222529;
         }
     }
 
-    blockquote {
+    * {
+        box-sizing: border-box;
         margin: 0;
         padding: 0;
-        border-left: 2px solid gray;
-        margin-left: 1em;
+    }
+
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen, Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif;
+        color: var(--text-color);
+        background-color: var(--bg-color);
+        line-height: 1.15;
     }
 
     .container {
         display: flex;
-        height: 97vh;
+        height: 100vh;
+        overflow: hidden;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: antialiased;
+    }
+
+    .channel-sidebar {
+        width: 16rem;
+        padding-bottom: 1.5rem;
+        flex: none;
+        background-color: var(--sidebar-bg);
+        color: var(--text-color)
+    }
+
+    /* Sidebar channel heading */
+    .channel-sidebar header {
+        color: #fff;
+        padding-left: 1rem;
+        padding-right: 1rem;
+        margin-top: .75rem;
+        margin-bottom: 1.5rem;
+        justify-content: space-between;
+    }
+
+    .sidebar-header-inner {
+        flex: auto;
+    }
+
+    .sidebar-header-inner h1 {
+        font-size: 1.25rem;
+        margin-bottom: .25rem;
+        line-height: 1.25;
+        font-weight: 600;
+        color: #fff;
     }
 
     .subtitle {
-        display: block;
-        margin-bottom: 1em;
+        font-size: .65rem;
+        color: #fff;
+        opacity: 0.5;
     }
 
+    /* Sidebar conversation list */
     .channel-list {
-        flex: 0 0 20%;
-        overflow-y: auto;
-        border-right: 1px solid #ccc;
+        margin-bottom: 2rem;
     }
 
-    .message {
-        margin-left: 1em;
+    .channel-header {
+        color: #fff;
+        padding-left: 1rem;
+        padding-right: 1rem;
+        margin-bottom: .5rem;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .channel-header p {
+        opacity: .75;
+    }
+
+    .channel-list a {
+        color: #fff;
+        padding-left: 1rem;
+        padding-right: 1rem;
+        padding-top: .25rem;
+        padding-bottom: .25rem;
+        text-decoration: none;
+        display: block;
+    }
+
+    .channel-list a.active {
+        background-color: #38a89d;
+    }
+
+    /* Conversation view */
+    #conversation {
+        overflow: hidden;
+        flex: 1;
+        flex-direction: column;
+        display: flex;
+        background-color: var(--bg-color);
+    }
+
+    .conversation-header {
+        padding-left: 1.5rem;
+        padding-right: 1.5rem;
+        padding-top: .5rem;
+        padding-bottom: .5rem;
+        flex: none;
+        align-items: center;
+        display: flex;
+        border-width: 0 0 1px 0;
+        border-style: solid;
+        border-color: var(--border-color);
+    }
+
+    .conversation-inner {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .conversation-inner h3 {
+        color: var(--text-secondary);
+        margin-bottom: .25rem;
+        font-weight: 800;
+        margin: 0;
+    }
+
+    #conversation-inner p {
+        color: var(--border-color);
+        white-space: nowrap;
+        overflow: hidden;
+        font-size: .875rem;
+        text-overflow: ellipsis;
+    }
+
+    .message-list {
+        padding-left: 1.5rem;
+        padding-right: 1.5rem;
+        padding-top: 1rem;
+        padding-bottom: 1rem;
+        flex: 1;
+        overflow-y: auto;
+    }
+
+    article.message {
+        font-size: .875rem;
+        margin-bottom: 1rem;
+        align-items: flex-start;
+        display: flex;
+    }
+
+    article.message img.avatar {
+        width: 2.5rem;
+        margin-right: .75rem;
+        height: 2.5rem;
+        border-radius: .25rem;
+    }
+
+    article.message .message-inner {
+        flex-direction: column;
     }
 
     .message-content {
-        margin-left: 1em;
-    }
-
-    .thread-info {
-        margin-left: 1em;
-        margin-bottom: 1em;
-    }
-
-    .welcome {
-        text-align: center;
-    }
-
-    .conversations {
-        flex: {{ if .ThreadID }}0 0 40%{{ else }}1{{ end }};
-        overflow-y: auto;
-    }
-
-    .thread {
+        overflow: hidden;
         flex: 1;
-        overflow-y: auto;
-        display: {{ if .ThreadID }}block{{ else }}none{{ end }};
     }
 
-    .message-timestamp,
-    .message-link,
-    .last-reply,
-    .small {
-        font-size: 12px;
+    .message-content span.message-sender a {
+        font-weight: 700;
+        text-decoration: none;
+        color: var(--text-color);
     }
 
-    .slack-attachment .icon {
-        max-width: 16px;
-        max-height: 16px;
-    }
-    .slack-attachment .attachment-image {
-        max-height: 136px;
-        max-width: 136px;
-        border-radius: 5px;
+    .message-content span.message-timestamp {
+        font-size: .75rem;
     }
 
-    .slack-files img, .slack-files video {
-        max-width: 50%;
-        max-height: 320px;
+    .message-content span.message-timestamp a {
+        text-decoration: none;
+        color: var(--text-secondary);
     }
 
-    .grey {
-        color: #777;
+    .message-content p {
+        color: var(--text-color);
+        margin: 0;
+        line-height: 1.5;
+    }
+
+    .message-inner footer.thread-info {
+        margin-top: .5rem;
     }
 </style>
 {{ end }}
