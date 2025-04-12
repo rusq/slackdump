@@ -12,6 +12,7 @@ import (
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/workspace/workspaceui"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/workspace/wspcfg"
 	"github.com/rusq/slackdump/v3/internal/cache"
 )
 
@@ -33,6 +34,7 @@ var newParams = struct {
 
 func init() {
 	CmdWspNew.Flag.BoolVar(&newParams.confirm, "y", false, "answer yes to all questions")
+	wspcfg.SetWspFlags(&CmdWspNew.Flag)
 
 	CmdWspNew.Run = runWspNew
 }
@@ -41,10 +43,10 @@ func init() {
 func runWspNew(ctx context.Context, cmd *base.Command, args []string) error {
 	m, err := CacheMgr(
 		cache.WithAuthOpts(
-			auth.BrowserWithBrowser(cfg.Browser),
-			auth.BrowserWithTimeout(cfg.LoginTimeout),
-			auth.RODWithRODHeadlessTimeout(cfg.HeadlessTimeout),
-			auth.RODWithUserAgent(cfg.RODUserAgent),
+			auth.BrowserWithBrowser(wspcfg.Browser),
+			auth.BrowserWithTimeout(wspcfg.LoginTimeout),
+			auth.RODWithRODHeadlessTimeout(wspcfg.HeadlessTimeout),
+			auth.RODWithUserAgent(wspcfg.RODUserAgent),
 		))
 	if err != nil {
 		base.SetExitStatus(base.SCacheError)
@@ -80,9 +82,9 @@ func createWsp(ctx context.Context, m manager, wsp string, confirm bool) error {
 
 	lg.DebugContext(ctx, "requesting authentication...")
 	ad := cache.AuthData{
-		Token:         cfg.SlackToken,
-		Cookie:        cfg.SlackCookie,
-		UsePlaywright: cfg.LegacyBrowser,
+		Token:         wspcfg.SlackToken,
+		Cookie:        wspcfg.SlackCookie,
+		UsePlaywright: wspcfg.LegacyBrowser,
 	}
 	prov, err := m.Auth(ctx, wsp, ad)
 	if err != nil {

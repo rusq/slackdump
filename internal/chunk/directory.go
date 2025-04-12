@@ -237,7 +237,12 @@ func (d *Directory) Walk(fn func(name string, f *File, err error) error) error {
 		if err != nil {
 			return err
 		}
-		if !strings.HasSuffix(path, ChunkExt) || de.IsDir() {
+		var (
+			isSupported = strings.HasSuffix(path, ChunkExt)
+			isDir       = de.IsDir()
+			isHidden    = len(de.Name()) > 0 && de.Name()[0] == '.'
+		)
+		if !isSupported || isDir || isHidden {
 			return nil
 		}
 		f, err := d.openRAW(path)
@@ -253,8 +258,11 @@ func (d *Directory) Walk(fn func(name string, f *File, err error) error) error {
 // called.
 func (d *Directory) WalkSync(fn func(name string, f *File, err error) error) error {
 	return d.Walk(func(name string, f *File, err error) error {
+		if err != nil {
+			return err
+		}
 		defer f.Close()
-		return fn(name, f, err)
+		return fn(name, f, nil)
 	})
 }
 

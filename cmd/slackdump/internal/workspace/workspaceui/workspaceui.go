@@ -13,6 +13,7 @@ import (
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/bubbles/menu"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/cfgui"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/updaters"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/workspace/wspcfg"
 	"github.com/rusq/slackdump/v3/internal/cache"
 	"github.com/rusq/slackdump/v3/internal/osext"
 )
@@ -50,18 +51,14 @@ func ShowUI(ctx context.Context, opts ...UIOption) error {
 		return errors.New("running on dumb terminal, cannot create a new workspace")
 	}
 	const (
-		actLogin       = "ezlogin"
-		actToken       = "token"
-		actTokenFile   = "tokenfile"
-		actSecrets     = "secrets"
-		actBrowserOpts = "ezopts"
-		actExit        = "exit"
+		actLogin        = "ezlogin"
+		actToken        = "token"
+		actTokenFile    = "tokenfile"
+		actSecrets      = "secrets"
+		actBrowserOpts  = "ezopts"
+		actCacheOptions = "cacheopts"
+		actExit         = "exit"
 	)
-
-	mgr, err := cache.NewManager(cfg.CacheDir(), cache.WithMachineID(cfg.MachineIDOvr), cache.WithNoEncryption(cfg.NoEncryption)) // avoiding import cycle
-	if err != nil {
-		return err
-	}
 
 	uiOpts := options{
 		title: "New Workspace",
@@ -69,8 +66,6 @@ func ShowUI(ctx context.Context, opts ...UIOption) error {
 	for _, o := range opts {
 		o(&uiOpts)
 	}
-
-	var brwsOpts browserOptions
 
 	items := []menu.Item{
 		{
@@ -83,7 +78,7 @@ func ShowUI(ctx context.Context, opts ...UIOption) error {
 			Name:    "Browser Options...",
 			Help:    "Show browser options",
 			Preview: true,
-			Model:   cfgui.NewConfigUI(cfgui.DefaultStyle(), configuration(&brwsOpts)),
+			Model:   cfgui.NewConfigUI(cfgui.DefaultStyle(), configuration),
 		},
 		{
 			Separator: true,
@@ -110,6 +105,16 @@ func ShowUI(ctx context.Context, opts ...UIOption) error {
 			Separator: true,
 		},
 		{
+			ID:      actCacheOptions,
+			Name:    "Cache Options...",
+			Help:    "Show cache options",
+			Preview: true,
+			Model:   cfgui.NewConfigUI(cfgui.DefaultStyle(), cacheOptions),
+		},
+		{
+			Separator: true,
+		},
+		{
 			ID:   actExit,
 			Name: "Exit",
 			Help: "Exit to main menu",
@@ -118,7 +123,7 @@ func ShowUI(ctx context.Context, opts ...UIOption) error {
 
 	// new workspace methods
 	methods := map[string]func(context.Context, manager) error{
-		actLogin:     brwsLogin(&brwsOpts),
+		actLogin:     brwsLogin(),
 		actToken:     prgTokenCookie,
 		actTokenFile: prgTokenCookieFile,
 		actSecrets:   fileWithSecrets,
@@ -143,6 +148,10 @@ LOOP:
 		if !ok {
 			return errors.New("internal error:  unhandled login option")
 		}
+		mgr, err := cache.NewManager(cfg.CacheDir(), cache.WithMachineID(cfg.MachineIDOvr), cache.WithNoEncryption(cfg.NoEncryption)) // avoiding import cycle
+		if err != nil {
+			return err
+		}
 		if err := fn(ctx, mgr); err != nil {
 			if errors.Is(err, huh.ErrUserAborted) {
 				continue
@@ -164,24 +173,67 @@ func (m *wizModel) Init() tea.Cmd                           { return m.m.Init() 
 func (m *wizModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) { return m.m.Update(msg) }
 func (m *wizModel) View() string                            { return m.m.View() }
 
-type browserOptions struct {
-	UsePlaywright bool
-}
-
-func configuration(opts *browserOptions) func() cfgui.Configuration {
-	return func() cfgui.Configuration {
-		return cfgui.Configuration{
-			{
-				Name: "EZ-Login options",
-				Params: []cfgui.Parameter{
-					{
-						Name:        "Use Playwright",
-						Description: "Use Playwright to automate the browser instead of Rod.",
-						Value:       cfgui.Checkbox(opts.UsePlaywright),
-						Updater:     updaters.NewBool(&opts.UsePlaywright),
-					},
+func configuration() cfgui.Configuration {
+	return cfgui.Configuration{
+		{
+			Name: "EZ-Login options",
+			Params: []cfgui.Parameter{
+				{
+					Name:        "Use Playwright",
+					Description: "Use Playwright to automate the browser instead of Rod.",
+					Value:       cfgui.Checkbox(wspcfg.LegacyBrowser),
+					Updater:     updaters.NewBool(&wspcfg.LegacyBrowser),
+				},
+				{
+					Name:        "Login Timeout",
+					Description: "Timeout for the whole browser login process.",
+					Inline:      true,
+					Value:       wspcfg.LoginTimeout.String(),
+					Updater:     updaters.NewDuration(&wspcfg.LoginTimeout, false),
 				},
 			},
-		}
+		},
+		{
+			Name: "ROD-specific options",
+			Params: []cfgui.Parameter{
+				{
+					Name:        "Automatic Login Timeout",
+					Description: "Timeout for the automatic login process.",
+					Inline:      true,
+					Value:       wspcfg.HeadlessTimeout.String(),
+					Updater:     updaters.NewDuration(&wspcfg.HeadlessTimeout, false),
+				},
+				{
+					Name:        "User Agent String",
+					Description: "User Agent String to report to the server.",
+					Inline:      true,
+					Value:       wspcfg.RODUserAgent,
+					Updater:     updaters.NewString(&wspcfg.RODUserAgent, "", false, nil),
+				},
+			},
+		},
+	}
+}
+
+func cacheOptions() cfgui.Configuration {
+	return cfgui.Configuration{
+		{
+			Name: "Cache Manager Options",
+			Params: []cfgui.Parameter{
+				{
+					Name:        "Machine ID Override",
+					Description: "Override the machine ID used for encryption.",
+					Inline:      true,
+					Value:       cfg.MachineIDOvr,
+					Updater:     updaters.NewString(&cfg.MachineIDOvr, "", false, nil),
+				},
+				{
+					Name:        "No Encryption",
+					Description: "Disable encryption of cache files.",
+					Value:       cfgui.Checkbox(cfg.NoEncryption),
+					Updater:     updaters.NewBool(&cfg.NoEncryption),
+				},
+			},
+		},
 	}
 }

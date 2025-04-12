@@ -188,6 +188,17 @@
 {{end}}
 
 {{ define "render_message" }}
+<header class="message-header" id="{{.Timestamp}}">
+    <span class="message-sender">
+        {{ if ( or ( is_app_msg . ) ( not .User ) ) -}}
+        	{{ username . }}
+        {{- else -}}
+		<a href="#" hx-get="/team/{{ .User }}" hx-target="#thread">{{ username . }}</a>
+        {{- end }}
+    </span>
+    <span class="message-timestamp grey">{{ time .Timestamp }}</span>
+    <span class="message-link"><a href="#{{.Timestamp}}">#</a></span>
+</header>
 <div class="message-content">
     <header id="{{.Timestamp}}">
         <span class="message-sender">

@@ -6,10 +6,11 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/rusq/slackdump/v3/source"
+
 	"github.com/rusq/slack"
 
 	"github.com/rusq/slackdump/v3/internal/fixtures"
-	"github.com/rusq/slackdump/v3/internal/source"
 	st "github.com/rusq/slackdump/v3/internal/structures"
 	"github.com/rusq/slackdump/v3/internal/viewer/renderer"
 )
@@ -43,6 +44,17 @@ func TestViewer_username(t *testing.T) {
 				m: fixtures.Load[slack.Message](fixtures.AppMessageJSON),
 			},
 			"WakaTime (app)",
+		},
+		{
+			"bot message with empty username",
+			fields{
+				um: st.UserIndex{},
+				lg: slog.Default(),
+			},
+			args{
+				m: fixtures.Load[slack.Message](fixtures.BotMessageJSON),
+			},
+			"Unknown user via BUEBX9AUR (bot)",
 		},
 	}
 	for _, tt := range tests {

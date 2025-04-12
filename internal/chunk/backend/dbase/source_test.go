@@ -11,11 +11,13 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/rusq/slack"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/mock/gomock"
 
 	"github.com/rusq/slackdump/v3/internal/fixtures"
 
 	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/internal/chunk/backend/dbase/repository"
+	"github.com/rusq/slackdump/v3/internal/chunk/mock_chunk"
 	"github.com/rusq/slackdump/v3/internal/structures"
 	"github.com/rusq/slackdump/v3/internal/testutil"
 )
@@ -134,7 +136,7 @@ func TestSource_Channels(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				channels := fixtures.Load[[]slack.Channel](fixtures.TestChannels)
+				channels := fixtures.Load[[]slack.Channel](fixtures.TestChannelsJSON)
 				for _, ch := range channels {
 					if err := dbp.Encode(ctx, &chunk.Chunk{Type: chunk.CChannelInfo, Channel: &ch}); err != nil {
 						t.Error(err)
@@ -146,7 +148,7 @@ func TestSource_Channels(t *testing.T) {
 					}
 				}
 			},
-			want:    fixtures.Load[[]slack.Channel](fixtures.TestChannels),
+			want:    fixtures.Load[[]slack.Channel](fixtures.TestChannelsJSON),
 			wantErr: false,
 		},
 		{
@@ -165,12 +167,12 @@ func TestSource_Channels(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				channels := fixtures.Load[[]slack.Channel](fixtures.TestChannels)
+				channels := fixtures.Load[[]slack.Channel](fixtures.TestChannelsJSON)
 				if err := dbp.Encode(ctx, &chunk.Chunk{Type: chunk.CChannels, Channels: channels}); err != nil {
 					t.Error(err)
 				}
 			},
-			want:    fixtures.Load[[]slack.Channel](fixtures.TestChannels),
+			want:    fixtures.Load[[]slack.Channel](fixtures.TestChannelsJSON),
 			wantErr: false,
 		},
 	}
@@ -697,29 +699,119 @@ func TestSource_Latest(t *testing.T) {
 
 func TestSource_ToChunk(t *testing.T) {
 	type fields struct {
-		conn     *sqlx.DB
+		// conn     *sqlx.DB
 		canClose bool
 	}
 	type args struct {
-		ctx    context.Context
-		e      chunk.Encoder
+		ctx context.Context
+		// e      chunk.Encoder
 		sessID int64
 	}
 	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		wantErr bool
+		name     string
+		fields   fields
+		args     args
+		prepFn   utilityFunc
+		expectFn func(me *mock_chunk.MockEncoder)
+		wantErr  bool
 	}{
-		// TODO: Add test cases.
+		{
+			name: "encodes chunk",
+			fields: fields{
+				canClose: true,
+			},
+			args: args{
+				ctx:    context.Background(),
+				sessID: 1,
+			},
+			prepFn: func(t *testing.T, conn repository.PrepareExtContext) {
+				prepChunk(chunk.CMessages)(t, conn)
+				mr := repository.NewMessageRepository()
+				dbm1, _ := repository.NewDBMessage(1, 0, "C12345", testMsg1)
+				dbm2, _ := repository.NewDBMessage(1, 1, "C12345", testMsg2)
+				if err := mr.Insert(context.Background(), conn, dbm1, dbm2); err != nil {
+					t.Error(err)
+				}
+			},
+			expectFn: func(me *mock_chunk.MockEncoder) {
+				me.EXPECT().Encode(gomock.Any(), gomock.Any()).Return(nil).Times(1)
+			},
+		},
+		{
+			name:   "encode error",
+			fields: fields{},
+			args: args{
+				ctx:    context.Background(),
+				sessID: 1,
+			},
+			prepFn: func(t *testing.T, conn repository.PrepareExtContext) {
+				prepChunk(chunk.CMessages)(t, conn)
+				mr := repository.NewMessageRepository()
+				dbm1, _ := repository.NewDBMessage(1, 0, "C12345", testMsg1)
+				dbm2, _ := repository.NewDBMessage(1, 1, "C12345", testMsg2)
+				if err := mr.Insert(context.Background(), conn, dbm1, dbm2); err != nil {
+					t.Error(err)
+				}
+			},
+			expectFn: func(me *mock_chunk.MockEncoder) {
+				me.EXPECT().Encode(gomock.Any(), gomock.Any()).Return(assert.AnError).Times(1)
+			},
+			wantErr: true,
+		},
+		{
+			name:   "no such session",
+			fields: fields{},
+			args: args{
+				ctx:    context.Background(),
+				sessID: 2,
+			},
+			prepFn: func(t *testing.T, conn repository.PrepareExtContext) {
+				prepChunk(chunk.CMessages)(t, conn)
+				mr := repository.NewMessageRepository()
+				dbm1, _ := repository.NewDBMessage(1, 0, "C12345", testMsg1)
+				dbm2, _ := repository.NewDBMessage(1, 1, "C12345", testMsg2)
+				if err := mr.Insert(context.Background(), conn, dbm1, dbm2); err != nil {
+					t.Error(err)
+				}
+			},
+			wantErr: true,
+		},
+		{
+			name: "invalid session id",
+			fields: fields{
+				canClose: true,
+			},
+			args: args{
+				ctx:    context.Background(),
+				sessID: 0,
+			},
+			prepFn: func(t *testing.T, conn repository.PrepareExtContext) {
+				prepChunk(chunk.CMessages)(t, conn)
+				mr := repository.NewMessageRepository()
+				dbm1, _ := repository.NewDBMessage(1, 0, "C12345", testMsg1)
+				dbm2, _ := repository.NewDBMessage(1, 1, "C12345", testMsg2)
+				if err := mr.Insert(context.Background(), conn, dbm1, dbm2); err != nil {
+					t.Error(err)
+				}
+			},
+			wantErr: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			me := mock_chunk.NewMockEncoder(ctrl)
+			if tt.expectFn != nil {
+				tt.expectFn(me)
+			}
 			src := &Source{
-				conn:     tt.fields.conn,
+				conn:     testPersistentDB(t),
 				canClose: tt.fields.canClose,
 			}
-			if err := src.ToChunk(tt.args.ctx, tt.args.e, tt.args.sessID); (err != nil) != tt.wantErr {
+			if tt.prepFn != nil {
+				tt.prepFn(t, src.conn)
+			}
+			if err := src.ToChunk(tt.args.ctx, me, tt.args.sessID); (err != nil) != tt.wantErr {
 				t.Errorf("Source.ToChunk() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

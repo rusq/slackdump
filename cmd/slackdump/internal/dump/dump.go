@@ -13,22 +13,20 @@ import (
 	"text/template"
 	"time"
 
-	transform2 "github.com/rusq/slackdump/v3/internal/convert/transform"
-	fileproc2 "github.com/rusq/slackdump/v3/internal/convert/transform/fileproc"
-
-	"github.com/rusq/slackdump/v3/internal/chunk/backend/dbase"
-
 	"github.com/rusq/fsadapter"
 
-	"github.com/rusq/slackdump/v3"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/bootstrap"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/internal/chunk"
+	"github.com/rusq/slackdump/v3/internal/chunk/backend/dbase"
 	"github.com/rusq/slackdump/v3/internal/chunk/control"
+	"github.com/rusq/slackdump/v3/internal/client"
+	"github.com/rusq/slackdump/v3/internal/convert/transform"
+	"github.com/rusq/slackdump/v3/internal/convert/transform/fileproc"
 	"github.com/rusq/slackdump/v3/internal/nametmpl"
-	"github.com/rusq/slackdump/v3/internal/source"
 	"github.com/rusq/slackdump/v3/internal/structures"
+	"github.com/rusq/slackdump/v3/source"
 	"github.com/rusq/slackdump/v3/stream"
 )
 
@@ -42,7 +40,7 @@ var CmdDump = &base.Command{
 	Long:        dumpMd,
 	RequireAuth: true,
 	PrintFlags:  true,
-	FlagMask:    cfg.OmitCustomUserFlags | cfg.OmitRecordFilesFlag | cfg.OmitDownloadAvatarsFlag,
+	FlagMask:    cfg.OmitCustomUserFlags | cfg.OmitRecordFilesFlag | cfg.OmitWithAvatarsFlag,
 }
 
 func init() {
@@ -94,7 +92,7 @@ func RunDump(ctx context.Context, _ *base.Command, args []string) error {
 	if opts.nameTemplate == "" {
 		opts.nameTemplate = nametmpl.Default
 	}
-	tmpl, err := nametmpl.New(opts.nameTemplate + ".json")
+	tmpl, err := nametmpl.New(opts.nameTemplate)
 	if err != nil {
 		base.SetExitStatus(base.SUserError)
 		return fmt.Errorf("file template error: %w", err)
@@ -111,7 +109,7 @@ func RunDump(ctx context.Context, _ *base.Command, args []string) error {
 		}
 	}()
 
-	sess, err := bootstrap.SlackdumpSession(ctx, slackdump.WithFilesystem(fsa))
+	client, err := bootstrap.Slack(ctx)
 	if err != nil {
 		base.SetExitStatus(base.SInitializationError)
 		return err
@@ -127,11 +125,11 @@ func RunDump(ctx context.Context, _ *base.Command, args []string) error {
 	// leave the compatibility mode to the user, if the new version is playing
 	// tricks.
 	start := time.Now()
-	if err := dump(ctx, sess, fsa, p); err != nil {
+	if err := dump(ctx, client, fsa, p); err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return err
 	}
-	lg.InfoContext(ctx, "conversation dump finished", "count", p.list.IncludeCount(), "took", time.Since(start))
+	lg.InfoContext(ctx, "conversation dump finished", "output", cfg.Output, "count", p.list.IncludeCount(), "took", time.Since(start))
 	return nil
 }
 
@@ -153,7 +151,7 @@ func (p *dumpparams) validate() error {
 }
 
 // dump generates the files in slackdump format.
-func dump(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, p dumpparams) error {
+func dump(ctx context.Context, client client.Slack, fsa fsadapter.FS, p dumpparams) error {
 	// it uses Stream to generate a chunk file, then process it and generate
 	// dump JSON.
 	ctx, task := trace.NewTask(ctx, "dump")
@@ -170,13 +168,13 @@ func dump(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, p dump
 	}
 
 	if cfg.UseChunkFiles {
-		return dumpv3(ctx, sess, fsa, p)
+		return dumpv3(ctx, client, fsa, p)
 	} else {
-		return dumpv31(ctx, sess, fsa, p)
+		return dumpv31(ctx, client, fsa, p)
 	}
 }
 
-func dumpv3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, p dumpparams) error {
+func dumpv3(ctx context.Context, sess client.Slack, fsa fsadapter.FS, p dumpparams) error {
 	dir, err := os.MkdirTemp("", "slackdump-*")
 	if err != nil {
 		return fmt.Errorf("failed to create temp directory: %w", err)
@@ -194,27 +192,27 @@ func dumpv3(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, p du
 	src := source.OpenChunkDir(cd, true)
 
 	// files subprocessor
-	sdl := fileproc2.NewDownloader(ctx, p.downloadFiles, sess.Client(), fsa, cfg.Log)
-	subproc := fileproc2.NewDump(sdl)
+	sdl := fileproc.NewDownloader(ctx, p.downloadFiles, sess, fsa, cfg.Log)
+	subproc := fileproc.NewDump(sdl)
 	defer subproc.Close()
 
-	opts := []transform2.DumpOption{
-		transform2.DumpWithTemplate(p.tmpl),
-		transform2.DumpWithLogger(lg),
+	opts := []transform.DumpOption{
+		transform.DumpWithTemplate(p.tmpl),
+		transform.DumpWithLogger(lg),
 	}
 	if p.updatePath && p.downloadFiles {
-		opts = append(opts, transform2.DumpWithPipeline(subproc.PathUpdateFunc))
+		opts = append(opts, transform.DumpWithPipeline(subproc.PathUpdateFunc))
 	}
 
-	tf, err := transform2.NewDumpConverter(fsa, src, opts...)
+	tf, err := transform.NewDumpConverter(fsa, src, opts...)
 	if err != nil {
 		return fmt.Errorf("failed to create transform: %w", err)
 	}
 
-	coord := transform2.NewCoordinator(ctx, tf)
+	coord := transform.NewCoordinator(ctx, tf)
 
 	// TODO: use export controller
-	s := sess.Stream(
+	s := stream.New(sess, cfg.Limits,
 		stream.OptOldest(time.Time(cfg.Oldest)),
 		stream.OptLatest(time.Time(cfg.Latest)),
 		stream.OptResultFn(func(sr stream.Result) error {
@@ -257,7 +255,7 @@ func helpDump(cmd *base.Command) string {
 	return buf.String()
 }
 
-func dumpv31(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, p dumpparams) error {
+func dumpv31(ctx context.Context, client client.Slack, fsa fsadapter.FS, p dumpparams) error {
 	lg := cfg.Log
 
 	tmpdir, err := os.MkdirTemp("", "slackdump-*")
@@ -291,25 +289,25 @@ func dumpv31(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, p d
 	src := source.DatabaseWithSource(tmpdbp.Source())
 
 	// files subprocessor
-	sdl := fileproc2.NewDownloader(ctx, p.downloadFiles, sess.Client(), fsa, cfg.Log)
-	subproc := fileproc2.NewDump(sdl)
+	sdl := fileproc.NewDownloader(ctx, p.downloadFiles, client, fsa, cfg.Log)
+	subproc := fileproc.NewDump(sdl)
 	defer subproc.Close()
 
-	opts := []transform2.DumpOption{
-		transform2.DumpWithTemplate(p.tmpl),
-		transform2.DumpWithLogger(lg),
+	opts := []transform.DumpOption{
+		transform.DumpWithTemplate(p.tmpl),
+		transform.DumpWithLogger(lg),
 	}
 	if p.updatePath && p.downloadFiles {
-		opts = append(opts, transform2.DumpWithPipeline(subproc.PathUpdateFunc))
+		opts = append(opts, transform.DumpWithPipeline(subproc.PathUpdateFunc))
 	}
 
-	tf, err := transform2.NewDumpConverter(fsa, src, opts...)
+	tf, err := transform.NewDumpConverter(fsa, src, opts...)
 	if err != nil {
 		return fmt.Errorf("failed to create transform: %w", err)
 	}
-	coord := transform2.NewCoordinator(ctx, tf)
+	coord := transform.NewCoordinator(ctx, tf)
 
-	stream := sess.Stream(
+	stream := stream.New(client, cfg.Limits,
 		stream.OptOldest(time.Time(cfg.Oldest)),
 		stream.OptLatest(time.Time(cfg.Latest)),
 		stream.OptResultFn(func(sr stream.Result) error {

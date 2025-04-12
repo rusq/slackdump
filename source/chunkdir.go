@@ -32,11 +32,11 @@ type ChunkDir struct {
 // mattermost storage format, it will assume they were not downloaded.
 func OpenChunkDir(d *chunk.Directory, fast bool) *ChunkDir {
 	rootFS := os.DirFS(d.Name())
-	var stFile Storage = fstNotFound{}
+	var stFile Storage = NoStorage{}
 	if fst, err := OpenMattermostStorage(rootFS); err == nil {
 		stFile = fst
 	}
-	var stAvatars Storage = fstNotFound{}
+	var stAvatars Storage = NoStorage{}
 	if ast, err := NewAvatarStorage(rootFS); err == nil {
 		stAvatars = ast
 	}
@@ -58,6 +58,9 @@ func (c *ChunkDir) AllMessages(ctx context.Context, channelID string) (iter.Seq2
 		mm, err = c.d.AllMessages(ctx, channelID)
 	}
 	if err != nil {
+		if errors.Is(err, chunk.ErrNoData) || errors.Is(err, chunk.ErrNotFound) {
+			return nil, ErrNotFound
+		}
 		return nil, err
 	}
 	return toIter(mm), nil
@@ -84,6 +87,9 @@ func (c *ChunkDir) AllThreadMessages(ctx context.Context, channelID, threadID st
 		mm, err = c.d.AllThreadMessages(ctx, channelID, threadID)
 	}
 	if err != nil {
+		if errors.Is(err, chunk.ErrNoData) || errors.Is(err, chunk.ErrNotFound) {
+			return nil, ErrNotFound
+		}
 		return nil, err
 	}
 	return toIter(mm), nil
@@ -188,7 +194,12 @@ func (c *ChunkDir) Avatars() Storage {
 }
 
 func (c *ChunkDir) Sorted(ctx context.Context, id string, desc bool, cb func(ts time.Time, msg *slack.Message) error) error {
-	return c.d.Sorted(ctx, id, desc, cb)
+	if err := c.d.Sorted(ctx, id, desc, cb); err != nil {
+		if errors.Is(err, chunk.ErrNoData) || errors.Is(err, chunk.ErrNotFound) {
+			return ErrNotFound
+		}
+	}
+	return nil
 }
 
 func (c *ChunkDir) ToChunk(ctx context.Context, enc chunk.Encoder, _ int64) error {

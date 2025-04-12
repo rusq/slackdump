@@ -8,16 +8,16 @@ import (
 	"strings"
 	"time"
 
-	"github.com/rusq/slackdump/v3/internal/chunk/backend/dbase"
-	"github.com/rusq/slackdump/v3/internal/chunk/backend/dbase/repository"
-
 	"github.com/jmoiron/sqlx"
 
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/bootstrap"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/internal/chunk"
+	"github.com/rusq/slackdump/v3/internal/chunk/backend/dbase"
+	"github.com/rusq/slackdump/v3/internal/chunk/backend/dbase/repository"
 	"github.com/rusq/slackdump/v3/internal/structures"
+	"github.com/rusq/slackdump/v3/stream"
 )
 
 var cmdRecord = &base.Command{
@@ -37,7 +37,7 @@ Records the data from a channel in a chunk record format.
 
 See also: slackdump tool obfuscate
 `,
-	FlagMask:    cfg.OmitOutputFlag | cfg.OmitDownloadFlag,
+	FlagMask:    cfg.OmitOutputFlag | cfg.OmitWithFilesFlag,
 	PrintFlags:  true,
 	RequireAuth: true,
 }
@@ -55,7 +55,7 @@ func runRecord(ctx context.Context, _ *base.Command, args []string) error {
 		return errors.New("missing channel argument")
 	}
 
-	sess, err := bootstrap.SlackdumpSession(ctx)
+	client, err := bootstrap.Slack(ctx)
 	if err != nil {
 		base.SetExitStatus(base.SInitializationError)
 		return err
@@ -102,7 +102,7 @@ func runRecord(ctx context.Context, _ *base.Command, args []string) error {
 	for _, ch := range args {
 		lg := cfg.Log.With("channel_id", ch)
 		lg.InfoContext(ctx, "streaming")
-		if err := sess.Stream().SyncConversations(ctx, rec, structures.EntityItem{Id: ch}); err != nil {
+		if err := stream.New(client, cfg.Limits).SyncConversations(ctx, rec, structures.EntityItem{Id: ch}); err != nil {
 			if err2 := rec.Close(); err2 != nil {
 				base.SetExitStatus(base.SApplicationError)
 				return fmt.Errorf("error streaming channel %q: %w; error closing recorder: %v", ch, err, err2)

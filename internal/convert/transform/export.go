@@ -16,8 +16,8 @@ import (
 
 	"github.com/rusq/slackdump/v3/export"
 	"github.com/rusq/slackdump/v3/internal/chunk"
-	"github.com/rusq/slackdump/v3/internal/source"
 	"github.com/rusq/slackdump/v3/internal/structures"
+	"github.com/rusq/slackdump/v3/source"
 	"github.com/rusq/slackdump/v3/types"
 )
 
@@ -103,7 +103,7 @@ func (e *ExpConverter) writeMessages(ctx context.Context, ci *slack.Channel) (er
 		err = errors.Join(err, e)
 	}()
 	if err := e.src.Sorted(ctx, ci.ID, false, acc.Append); err != nil {
-		if errors.Is(err, chunk.ErrNoData) {
+		if errors.Is(err, source.ErrNotFound) {
 			lg.DebugContext(ctx, "no messages for the channel", "channel", ci.ID)
 			return nil
 		}
@@ -260,13 +260,11 @@ func (a *expmsgAccum) Append(ts time.Time, m *slack.Message) error {
 		// get the thread for the initial thread message only.
 		itTm, err := a.src.AllThreadMessages(a.ctx, a.channel.ID, m.ThreadTimestamp)
 		if err != nil {
-			if !errors.Is(err, chunk.ErrNotFound) {
-				return fmt.Errorf("error getting thread messages for %q: %w", a.channel.ID+":"+m.ThreadTimestamp, err)
-			} else {
-				// this shouldn't happen as we have the guard in the if
-				// condition, but if it does (i.e. API changed), log it.
+			if errors.Is(err, source.ErrNotFound) || errors.Is(err, source.ErrNotSupported) {
 				slog.Warn("not an error, possibly deleted thread not found in chunk file", "slack_link", a.channel.ID+":"+m.ThreadTimestamp, "in", "Append", "channel", a.channel.ID)
+				return nil
 			}
+			return err
 		}
 		thread = make([]slack.Message, 0, threadBufSz)
 		for tm, err := range itTm {

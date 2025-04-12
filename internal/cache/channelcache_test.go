@@ -11,7 +11,7 @@ import (
 )
 
 // testChannels is a test fixture for channels.
-var testChannels = fixtures.Load[types.Channels](fixtures.TestChannels)
+var testChannels = fixtures.Load[types.Channels](fixtures.TestChannelsJSON)
 
 // TestSaveChannels tests that the saveChannels function works.
 func TestSaveChannels(t *testing.T) {

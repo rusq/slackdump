@@ -7,27 +7,24 @@ import (
 	"os"
 	"time"
 
-	transform2 "github.com/rusq/slackdump/v3/internal/convert/transform"
-	fileproc2 "github.com/rusq/slackdump/v3/internal/convert/transform/fileproc"
-
-	"github.com/rusq/slackdump/v3/internal/chunk/backend/dbase"
-
 	"github.com/rusq/fsadapter"
 	"github.com/schollz/progressbar/v3"
-
-	"github.com/rusq/slackdump/v3"
 
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/bootstrap"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/internal/chunk"
+	"github.com/rusq/slackdump/v3/internal/chunk/backend/dbase"
 	"github.com/rusq/slackdump/v3/internal/chunk/control"
-	"github.com/rusq/slackdump/v3/internal/source"
+	"github.com/rusq/slackdump/v3/internal/client"
+	"github.com/rusq/slackdump/v3/internal/convert/transform"
+	"github.com/rusq/slackdump/v3/internal/convert/transform/fileproc"
 	"github.com/rusq/slackdump/v3/internal/structures"
+	"github.com/rusq/slackdump/v3/source"
 	"github.com/rusq/slackdump/v3/stream"
 )
 
 // export runs the export v3.1.
-func exportv31(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, list *structures.EntityList, params exportFlags) error {
+func exportv31(ctx context.Context, sess client.Slack, fsa fsadapter.FS, list *structures.EntityList, params exportFlags) error {
 	lg := cfg.Log
 
 	tmpdir, err := os.MkdirTemp("", "slackdump-*")
@@ -56,21 +53,21 @@ func exportv31(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, l
 		defer func() { _ = os.RemoveAll(tmpdir) }()
 	}
 
-	conv := transform2.NewExpConverter(src, fsa, transform2.ExpWithMsgUpdateFunc(fileproc2.ExportTokenUpdateFn(params.ExportToken)))
-	tf := transform2.NewExportCoordinator(ctx, conv, transform2.WithBufferSize(1000))
+	conv := transform.NewExpConverter(src, fsa, transform.ExpWithMsgUpdateFunc(fileproc.ExportTokenUpdateFn(params.ExportToken)))
+	tf := transform.NewExportCoordinator(ctx, conv, transform.WithBufferSize(1000))
 	defer tf.Close()
 
 	// starting the downloader
 	dlEnabled := cfg.WithFiles && params.ExportStorageType != source.STnone
-	fdl := fileproc2.NewDownloader(ctx, dlEnabled, sess.Client(), fsa, lg)
-	fp := fileproc2.NewExport(params.ExportStorageType, fdl)
-	avdl := fileproc2.NewDownloader(ctx, cfg.WithAvatars, sess.Client(), fsa, lg)
-	avp := fileproc2.NewAvatarProc(avdl)
+	fdl := fileproc.NewDownloader(ctx, dlEnabled, sess, fsa, lg)
+	fp := fileproc.NewExport(params.ExportStorageType, fdl)
+	avdl := fileproc.NewDownloader(ctx, cfg.WithAvatars, sess, fsa, lg)
+	avp := fileproc.NewAvatarProc(avdl)
 
 	lg.InfoContext(ctx, "running export...")
 	pb := bootstrap.ProgressBar(ctx, lg, progressbar.OptionShowCount()) // progress bar
 
-	s := sess.Stream(
+	s := stream.New(sess, cfg.Limits,
 		stream.OptOldest(time.Time(cfg.Oldest)),
 		stream.OptLatest(time.Time(cfg.Latest)),
 		stream.OptResultFn(func(sr stream.Result) error {
@@ -122,7 +119,9 @@ func exportv31(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, l
 }
 
 // export runs the export v3.
-func export(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, list *structures.EntityList, params exportFlags) error {
+//
+// Deprecated: use exportv31 instead.
+func export(ctx context.Context, sess client.Slack, fsa fsadapter.FS, list *structures.EntityList, params exportFlags) error {
 	lg := cfg.Log
 
 	tmpdir, err := os.MkdirTemp("", "slackdump-*")
@@ -140,21 +139,21 @@ func export(ctx context.Context, sess *slackdump.Session, fsa fsadapter.FS, list
 		defer func() { _ = chunkdir.RemoveAll() }()
 	}
 	src := source.OpenChunkDir(chunkdir, true)
-	conv := transform2.NewExpConverter(src, fsa, transform2.ExpWithMsgUpdateFunc(fileproc2.ExportTokenUpdateFn(params.ExportToken)))
-	tf := transform2.NewExportCoordinator(ctx, conv, transform2.WithBufferSize(1000))
+	conv := transform.NewExpConverter(src, fsa, transform.ExpWithMsgUpdateFunc(fileproc.ExportTokenUpdateFn(params.ExportToken)))
+	tf := transform.NewExportCoordinator(ctx, conv, transform.WithBufferSize(1000))
 	defer tf.Close()
 
 	// starting the downloader
 	dlEnabled := cfg.WithFiles && params.ExportStorageType != source.STnone
-	fdl := fileproc2.NewDownloader(ctx, dlEnabled, sess.Client(), fsa, lg)
-	fp := fileproc2.NewExport(params.ExportStorageType, fdl)
-	avdl := fileproc2.NewDownloader(ctx, cfg.WithAvatars, sess.Client(), fsa, lg)
-	avp := fileproc2.NewAvatarProc(avdl)
+	fdl := fileproc.NewDownloader(ctx, dlEnabled, sess, fsa, lg)
+	fp := fileproc.NewExport(params.ExportStorageType, fdl)
+	avdl := fileproc.NewDownloader(ctx, cfg.WithAvatars, sess, fsa, lg)
+	avp := fileproc.NewAvatarProc(avdl)
 
 	lg.InfoContext(ctx, "running export...")
 	pb := bootstrap.ProgressBar(ctx, lg, progressbar.OptionShowCount()) // progress bar
 
-	stream := sess.Stream(
+	stream := stream.New(sess, cfg.Limits,
 		stream.OptOldest(time.Time(cfg.Oldest)),
 		stream.OptLatest(time.Time(cfg.Latest)),
 		stream.OptResultFn(func(sr stream.Result) error {

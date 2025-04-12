@@ -4,31 +4,22 @@ package format
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
-	"log/slog"
 	"os"
 	"path/filepath"
-	"runtime/trace"
+	"strings"
+	"time"
 
-	"github.com/rusq/slack"
+	"github.com/rusq/slackdump/v3/source"
 
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/bootstrap"
+	"github.com/rusq/fsadapter"
 
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
-	"github.com/rusq/slackdump/v3/internal/cache"
 	"github.com/rusq/slackdump/v3/internal/format"
-	"github.com/rusq/slackdump/v3/types"
+	"github.com/rusq/slackdump/v3/internal/structures"
 )
-
-// TODO this is hacky in the following ways:
-// 1. User must extract the JSON file from the archive
-// 2. What about exports etc.?
-// 3. Getting users online is hacky, as it requires authentication to be present,
-//    but if the user doesn't need online users.  The login should happen locally.
 
 var CmdFormat = &base.Command{
 	Run:       runFormat,
@@ -42,32 +33,16 @@ a human readable format.  The command takes the format type and the file to
 convert as arguments.
 `, // TODO: add more info
 	CustomFlags: false,
-	FlagMask:    cfg.OmitAll &^ cfg.OmitWorkspaceFlag,
+	FlagMask:    cfg.OmitAll &^ cfg.OmitOutputFlag,
 	PrintFlags:  true,
 	RequireAuth: true,
 }
 
-//go:generate stringer -type dumptype -trimprefix=dt
-type dumptype uint8
-
-const (
-	dtUnknown dumptype = iota
-	dtConversation
-	dtChannels
-	dtUsers
-)
-
-var ErrUnknown = errors.New("unknown file type")
-
-var (
-	archive   string
-	online    bool
-	converter format.Formatter
-)
+// custom command flags
+var flgOnline bool
 
 func init() {
-	CmdFormat.Flag.StringVar(&archive, "archive", "", "access the file within the ZIP `archive.zip`")
-	CmdFormat.Flag.BoolVar(&online, "online", false, "get users from current workspace (workspace must be selected, or set with -w flag)")
+	CmdFormat.Flag.BoolVar(&flgOnline, "online", false, "get online users")
 }
 
 func runFormat(ctx context.Context, cmd *base.Command, args []string) error {
@@ -78,229 +53,77 @@ func runFormat(ctx context.Context, cmd *base.Command, args []string) error {
 
 	// determining the conversion type.
 	var convType format.Type
+	var formatter format.Formatter
 	if err := convType.Set(args[0]); err != nil {
 		base.SetExitStatus(base.SInvalidParameters)
 		return err
 	} else {
 		var ok bool
-		initConverter, ok := format.Converters[convType]
+		formatterInit, ok := format.Converters[convType]
 		if !ok {
 			base.SetExitStatus(base.SInvalidParameters)
 			return errors.New("unknown converter type")
 		}
-		converter = initConverter()
+		formatter = formatterInit()
 	}
 
-	var filename string
+	var input string
 	if len(args) > 1 {
-		filename = args[1]
+		input = args[1]
+	}
+	var el *structures.EntityList
+	if len(args) > 2 {
+		var err error
+		el, err = structures.NewEntityList(args[2:])
+		if err != nil {
+			base.SetExitStatus(base.SInvalidParameters)
+			return err
+		}
 	}
 
-	rsc, err := opendump(filename, archive)
+	fi, err := os.Stat(input)
 	if err != nil {
 		base.SetExitStatus(base.SUserError)
 		return err
 	}
-	defer rsc.Close()
 
-	if err := convert(ctx, os.Stdout, converter, rsc); err != nil {
-		if errors.Is(err, ErrUnknown) {
-			base.SetExitStatus(base.SInvalidParameters)
-		} else {
+	start := time.Now()
+	if fi.IsDir() || strings.ToLower(filepath.Ext(input)) == ".zip" {
+		src, err := source.Load(ctx, input)
+		if err != nil {
+			base.SetExitStatus(base.SUserError)
+			return err
+		}
+		defer src.Close()
+
+		fsa, err := fsadapter.New(cfg.Output)
+		if err != nil {
+			base.SetExitStatus(base.SUserError)
+			return err
+		}
+		defer fsa.Close()
+
+		if err := formatSrc(ctx, fsa, src, formatter, el); err != nil {
 			base.SetExitStatus(base.SApplicationError)
 		}
-		return err
+		cfg.Log.InfoContext(ctx, "formatted source", "format", convType.String(), "output", cfg.Output, "took", time.Since(start).String())
+	} else if strings.ToLower(filepath.Ext(input)) == ".json" {
+		f, err := os.Open(input)
+		if err != nil {
+			base.SetExitStatus(base.SUserError)
+		}
+		if err := formatJSONfile(ctx, os.Stdout, formatter, f); err != nil {
+			if errors.Is(err, ErrUnknown) || errors.Is(err, ErrInvalidFormat) {
+				base.SetExitStatus(base.SInvalidParameters)
+			} else {
+				base.SetExitStatus(base.SApplicationError)
+			}
+			return err
+		}
+		cfg.Log.InfoContext(ctx, "formatted file", "format", convType.String(), "took", time.Since(start).String())
+	} else {
+		base.SetExitStatus(base.SInvalidParameters)
+		return errors.New("unsupported input format")
 	}
 	return nil
-}
-
-type idextractor interface {
-	UserIDs() []string
-}
-
-func convert(ctx context.Context, w io.Writer, cvt format.Formatter, rs io.ReadSeeker) error {
-	ctx, task := trace.NewTask(ctx, "convert")
-	defer task.End()
-	lg := cfg.Log
-
-	dump, err := detectAndRead(rs)
-	if err != nil {
-		return err
-	}
-	lg.InfoContext(ctx, "Successfully detected file type", "type", dump.filetype)
-
-	if dump.filetype == dtUsers {
-		// special case.  Users do not need to have users fetched from slack etc,
-		// because, well, because they are users already.
-		return cvt.Users(ctx, w, dump.users)
-	}
-
-	uu, err := getUsers(ctx, dump, online)
-	if err != nil {
-		return err
-	}
-
-	switch dump.filetype {
-	case dtChannels:
-		return cvt.Channels(ctx, w, uu, dump.channels)
-	case dtConversation:
-		return cvt.Conversation(ctx, w, uu, dump.conversation)
-	case dtUnknown:
-		fallthrough
-	default:
-	}
-	return errors.New("internal error: undetected type")
-}
-
-// dump represents a slack data dump.  Only one variable will be initialised
-// depending on the dumptype.
-type dump struct {
-	filetype     dumptype
-	users        types.Users
-	channels     types.Channels
-	conversation *types.Conversation
-}
-
-// detectAndRead detects the filetype by consequently trying to unmarshal the
-// data.  It will return [dump] that will have [dumptype] and one of the
-// member variables populated.  If it fails to detect the type it will return
-// ErrUnknown and set the dump filetype to dtUnknown.
-func detectAndRead(rs io.ReadSeeker) (*dump, error) {
-	d := new(dump)
-
-	if conv, err := unmarshal[types.Conversation](rs); err != nil && !isJSONTypeErr(err) {
-		return nil, err
-	} else if conv.ID != "" {
-		d.filetype = dtConversation
-		d.conversation = &conv
-		return d, nil
-	}
-
-	if ch, err := unmarshal[[]slack.Channel](rs); err != nil && !isJSONTypeErr(err) {
-		return nil, err
-	} else if len(ch) > 0 && ch[0].Creator != "" {
-		d.filetype = dtChannels
-		d.channels = ch
-		return d, nil
-	}
-
-	if u, err := unmarshal[[]slack.User](rs); err != nil && !isJSONTypeErr(err) {
-		return nil, err
-	} else if len(u) > 0 && u[0].RealName != "" {
-		d.filetype = dtUsers
-		d.users = u
-		return d, nil
-	}
-
-	// no luck
-	d.filetype = dtUnknown
-	return d, ErrUnknown
-}
-
-func isJSONTypeErr(err error) bool {
-	var e *json.UnmarshalTypeError
-	return errors.As(err, &e)
-}
-
-func (d dump) userIDs() []string {
-	var xt idextractor
-	switch d.filetype {
-	case dtConversation:
-		xt = d.conversation
-	case dtUsers:
-		xt = d.users
-	case dtChannels:
-		xt = d.channels
-	}
-	return xt.UserIDs()
-}
-
-func unmarshal[OUT any](rs io.ReadSeeker) (OUT, error) {
-	var ret OUT
-	if _, err := rs.Seek(0, io.SeekStart); err != nil {
-		return ret, err
-	}
-	defer rs.Seek(0, io.SeekStart)
-
-	dec := json.NewDecoder(rs)
-	if err := dec.Decode(&ret); err != nil {
-		return ret, err
-	}
-
-	return ret, nil
-}
-
-func getUsers(ctx context.Context, dmp *dump, isOnline bool) ([]slack.User, error) {
-	if isOnline {
-		return getUsersOnline(ctx)
-	}
-	rgn := trace.StartRegion(ctx, "userIDs")
-	ids := dmp.userIDs()
-	rgn.End()
-	if len(ids) == 0 {
-		return nil, errors.New("unable to extract user IDs")
-	}
-	trace.Logf(ctx, "getUsers", "number of users in this dump: %d", len(ids))
-	uu, err := searchCache(ctx, cfg.CacheDir(), ids)
-	if err != nil {
-		return nil, err
-	}
-	return uu, nil
-}
-
-func getUsersOnline(ctx context.Context) ([]slack.User, error) {
-	sess, err := bootstrap.SlackdumpSession(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return sess.GetUsers(ctx)
-}
-
-var errNoMatch = errors.New("no matching users")
-
-// searchCache searches the cache directory for cached workspace users that have
-// the same ids, and returns the user slice from that cache.
-func searchCache(ctx context.Context, cacheDir string, ids []string) ([]slack.User, error) {
-	_, task := trace.NewTask(ctx, "searchCache")
-	defer task.End()
-	m, err := cache.NewManager(cacheDir, cache.WithMachineID(cfg.MachineIDOvr), cache.WithNoEncryption(cfg.NoEncryption))
-	if err != nil {
-		return nil, err
-	}
-	var users []slack.User
-	err = m.WalkUsers(func(path string, r io.Reader) error {
-		var err1 error
-		users, err1 = matchUsers(r, ids)
-		if err1 != nil {
-			if errors.Is(err1, errNoMatch) {
-				return nil
-			}
-			return err1
-		}
-		slog.InfoContext(ctx, "matching file", "path", path)
-		return filepath.SkipDir
-	})
-	if err != nil {
-		return nil, err
-	}
-	return users, nil
-}
-
-func matchUsers(r io.Reader, ids []string) ([]slack.User, error) {
-	const matchRatio = 0.5 // 50% of users must match.
-	uu, err := cache.ReadUsers(r)
-	if err != nil {
-		return nil, err
-	}
-	fileIDs := uu.IndexByID()
-	matchingCnt := 0 // matching users count
-	for _, id := range ids {
-		if fileIDs[id] != nil {
-			matchingCnt++
-		}
-	}
-	if float64(matchingCnt)/float64(len(ids)) < matchRatio {
-		return nil, errNoMatch
-	}
-	return uu, nil
 }

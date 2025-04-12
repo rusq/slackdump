@@ -6,6 +6,7 @@ import (
 	"io"
 
 	"github.com/rusq/slack"
+
 	"github.com/rusq/slackdump/v3/types"
 )
 
@@ -31,6 +32,11 @@ func NewJSON(opts ...Option) Formatter {
 		fn(&settings)
 	}
 	return &JSON{opts: settings.jsonOptions}
+}
+
+// Extension returns the file extension for the formatter.
+func (j JSON) Extension() string {
+	return ".json"
 }
 
 func JSONPrefix(prefix string) Option {

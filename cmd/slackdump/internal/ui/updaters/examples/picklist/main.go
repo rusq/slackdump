@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/rusq/slackdump/v3/source"
+
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/huh"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/updaters"
-	"github.com/rusq/slackdump/v3/internal/source"
 )
 
 func main() {

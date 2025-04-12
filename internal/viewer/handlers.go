@@ -10,11 +10,11 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/davecgh/go-spew/spew"
+	"github.com/rusq/slackdump/v3/source"
+
 	"github.com/rusq/slack"
 
 	"github.com/rusq/slackdump/v3/internal/fasttime"
-	"github.com/rusq/slackdump/v3/internal/source"
 	"github.com/rusq/slackdump/v3/internal/structures"
 )
 
@@ -236,15 +236,14 @@ func (v *Viewer) userHandler(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	ctx := r.Context()
 	lg := v.lg.With("in", "userHandler", "user_id", uid)
 	u, found := v.um[uid]
 	if !found {
 		http.NotFound(w, r)
 		return
 	}
-	spew.Dump(u)
 
+	ctx := r.Context()
 	if err := v.tmpl.ExecuteTemplate(w, "hx_user", u); err != nil {
 		lg.ErrorContext(ctx, "ExecuteTemplate", "error", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)

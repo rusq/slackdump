@@ -60,12 +60,15 @@ type Formatter interface {
 	Conversation(ctx context.Context, w io.Writer, u []slack.User, conv *types.Conversation) error
 	Channels(ctx context.Context, w io.Writer, u []slack.User, chans []slack.Channel) error
 	Users(ctx context.Context, w io.Writer, u []slack.User) error
+	// Extension returns the file extension for the formatter.
+	Extension() string
 }
 
 type options struct {
 	textOptions
 	csvOptions
 	jsonOptions
+	bare bool // bare output format
 }
 
 // Option is the converter option.
@@ -82,6 +85,14 @@ func (e *Type) Set(v string) error {
 		}
 	}
 	return fmt.Errorf("unknown converter: %s", v)
+}
+
+// WithBareFormat allows to set the bare output format for the formatter that
+// supports it.
+func WithBareFormat(b bool) Option {
+	return func(o *options) {
+		o.bare = b
+	}
 }
 
 // userReplacer returns a replacer that replaces all user IDs with their

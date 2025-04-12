@@ -41,8 +41,8 @@ func OpenExport(fsys fs.FS, name string) (*Export, error) {
 		idx:       idx,
 		channels:  chans,
 		chanNames: make(map[string]string, len(chans)),
-		files:     fstNotFound{},
-		avatars:   fstNotFound{},
+		files:     NoStorage{},
+		avatars:   NoStorage{},
 	}
 	// initialise channels for quick lookup
 	for _, ch := range z.channels {
@@ -67,11 +67,11 @@ func loadStorage(fsys fs.FS) (Storage, error) {
 	if _, err := fs.Stat(fsys, chunk.UploadsDir); err == nil {
 		return OpenMattermostStorage(fsys)
 	}
-	idx, err := buildFileIndex(fsys, ".")
-	if err != nil || len(idx) == 0 {
-		return fstNotFound{}, nil
+	st, err := OpenStandardStorage(fsys)
+	if err == nil {
+		return st, nil
 	}
-	return OpenStandardStorage(fsys, idx), nil
+	return NoStorage{}, nil
 }
 
 func (e *Export) Channels(context.Context) ([]slack.Channel, error) {
@@ -200,7 +200,8 @@ func (e *Export) ChannelInfo(ctx context.Context, channelID string) (*slack.Chan
 }
 
 func (e *Export) Latest(ctx context.Context) (map[structures.SlackLink]time.Time, error) {
-	return nil, errors.New("not supported yet")
+	// there will be no resume on export.
+	return nil, ErrNotSupported
 }
 
 func (e *Export) WorkspaceInfo(context.Context) (*slack.AuthTestResponse, error) {
@@ -218,8 +219,9 @@ func (e *Export) Avatars() Storage {
 }
 
 func (e *Export) Sorted(ctx context.Context, channelID string, desc bool, cb func(ts time.Time, msg *slack.Message) error) error {
-	// TODO
-	return errors.New("not supported yet")
+	// doesn't matter, this method is used only in export conversion, and as
+	// this is export it should never be called, just like your ex.
+	panic("this method should never be called")
 }
 
 // ExportChanName returns the channel name, or the channel ID if it is a DM.

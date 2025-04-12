@@ -1,0 +1,121 @@
+{
+  "type": "message",
+  "text": "Some question?",
+  "ts": "1677029631.029259",
+  "edited": {
+    "user": "BUEBX9AUR",
+    "ts": "1677054236.000000"
+  },
+  "subtype": "bot_message",
+  "bot_id": "BUEBX9AUR",
+  "replace_original": false,
+  "delete_original": false,
+  "metadata": {
+    "event_type": "",
+    "event_payload": null
+  },
+  "blocks": [
+    {
+      "type": "section",
+      "text": {
+        "type": "mrkdwn",
+        "text": "*Poll title*",
+        "emoji": null
+      },
+      "block_id": "poll-4a4cb7f3-4714-4099-b184-61c1bc14bc66-title-and-menu",
+      "accessory": {
+        "type": "overflow",
+        "action_id": "title-and-menu",
+        "options": [
+          {
+            "text": {
+              "type": "plain_text",
+              "text": ":information_source: Edit Poll",
+              "emoji": true
+            },
+            "value": "view_info"
+          },
+          {
+            "text": {
+              "type": "plain_text",
+              "text": ":lock: Close Poll",
+              "emoji": true
+            },
+            "value": "close_poll"
+          },
+          {
+            "text": {
+              "type": "plain_text",
+              "text": ":recycle: Recreate this Poll",
+              "emoji": true
+            },
+            "value": "create_poll_from_recent_poll"
+          },
+          {
+            "text": {
+              "type": "plain_text",
+              "text": ":x: Delete Poll",
+              "emoji": true
+            },
+            "value": "delete_poll"
+          },
+          {
+            "text": {
+              "type": "plain_text",
+              "text": ":arrow_heading_down: Promote Poll",
+              "emoji": true
+            },
+            "value": "promote_poll"
+          }
+        ]
+      }
+    },
+    {
+      "type": "section",
+      "text": {
+        "type": "mrkdwn",
+        "text": ":one: this is one    `8`\n\u003c@U12345678\u003e, \u003c@U12345679\u003e, \u003c@U12345680\u003e, \u003c@U12345681\u003e, \u003c@U12345682\u003e, \u003c@U12345683\u003e, \u003c@U12345684\u003e, \u003c@U12345685\u003e",
+        "emoji": null
+      },
+      "block_id": "poll-4a4cb7f3-4714-4099-b184-61c1bc14bc66-vote-42503654",
+      "accessory": {
+        "type": "button",
+        "text": {
+          "type": "plain_text",
+          "text": ":one:",
+          "emoji": true
+        },
+        "action_id": "vote-42503654"
+      }
+    },
+    {
+      "type": "section",
+      "text": {
+        "type": "mrkdwn",
+        "text": ":two: this is two    `3`\n\u003c@U12345687\u003e, \u003c@U12346720\u003e, \u003c@U12345686\u003e",
+        "emoji": null
+      },
+      "block_id": "poll-4a4cb7f3-4714-4099-b184-61c1bc14bc66-vote-42503655",
+      "accessory": {
+        "type": "button",
+        "text": {
+          "type": "plain_text",
+          "text": ":two:",
+          "emoji": true
+        },
+        "action_id": "vote-42503655"
+      }
+    },
+    {
+      "type": "context",
+      "block_id": "RcSh",
+      "elements": [
+        {
+          "type": "mrkdwn",
+          "text": "Created by \u003c@U12345678\u003e with /poll",
+          "emoji": null
+        }
+      ]
+    }
+  ]
+}

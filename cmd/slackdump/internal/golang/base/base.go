@@ -17,8 +17,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/charmbracelet/glamour"
 	"golang.org/x/term"
+	"src.elv.sh/pkg/md"
 
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 )
@@ -66,7 +66,7 @@ type Command struct {
 	// Note that subcommands are in general best avoided.
 	Commands []*Command
 
-	//HideWizard if set to true disables the display in wizard.
+	// HideWizard if set to true disables the display in wizard.
 	HideWizard bool
 }
 
@@ -82,8 +82,10 @@ under certain conditions.  Read LICENSE for more information.
 	// Commands initialised in main.
 }
 
-var exitStatus = SNoError
-var exitMu sync.Mutex
+var (
+	exitStatus = SNoError
+	exitMu     sync.Mutex
+)
 
 func ExitStatus() (sc StatusCode) {
 	exitMu.Lock()
@@ -171,24 +173,19 @@ func Executable() string {
 // escape sequences for the terminal output.  The width of output is calculated
 // based on the terminal width.
 func Render(s string) string {
-	_, _, err := term.GetSize(int(os.Stdout.Fd()))
+	w, _, err := term.GetSize(int(os.Stdout.Fd()))
+	if w > 120 {
+		w = 120
+	}
 	if err != nil {
 		// we're not running in the terminal, output the markdown source.
 		return s
 	}
-	return renderGlam(s)
+	return renderMd(s, w)
 }
 
-func renderGlam(s string) string {
-	r, err := glamour.NewTermRenderer(glamour.WithAutoStyle())
-	if err != nil {
-		return s
-	}
-	defer r.Close()
-
-	out, err := r.Render(s)
-	if err != nil {
-		return s
-	}
-	return out
+func renderMd(s string, w int) string {
+	return md.RenderString(s, &md.TTYCodec{
+		Width: w,
+	})
 }

@@ -13,6 +13,7 @@ import (
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/workspace/workspaceui"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/workspace/wspcfg"
 	"github.com/rusq/slackdump/v3/internal/cache"
 )
 
@@ -150,7 +151,7 @@ func authWsp(ctx context.Context, cacheDir string, wsp string, usePlaywright boo
 		return nil, err
 	}
 
-	prov, err := m.Auth(ctx, wsp, cache.AuthData{Token: cfg.SlackToken, Cookie: cfg.SlackCookie, UsePlaywright: usePlaywright})
+	prov, err := m.Auth(ctx, wsp, cache.AuthData{Token: wspcfg.SlackToken, Cookie: wspcfg.SlackCookie, UsePlaywright: usePlaywright})
 	if err != nil {
 		return nil, err
 	}
@@ -174,7 +175,7 @@ var (
 
 func CurrentOrNewProviderCtx(ctx context.Context) (context.Context, error) {
 	cachedir := cfg.CacheDir()
-	prov, err := authCurrent(ctx, cachedir, cfg.Workspace, cfg.LegacyBrowser)
+	prov, err := authCurrent(ctx, cachedir, cfg.Workspace, wspcfg.LegacyBrowser)
 	if err != nil {
 		if errors.Is(err, cache.ErrNoWorkspaces) {
 			// ask to create a new workspace
@@ -182,7 +183,7 @@ func CurrentOrNewProviderCtx(ctx context.Context) (context.Context, error) {
 				return ctx, fmt.Errorf("auth error: %w", err)
 			}
 			// one more time...
-			prov, err = authCurrent(ctx, cachedir, cfg.Workspace, cfg.LegacyBrowser)
+			prov, err = authCurrent(ctx, cachedir, cfg.Workspace, wspcfg.LegacyBrowser)
 			if err != nil {
 				return ctx, err
 			}

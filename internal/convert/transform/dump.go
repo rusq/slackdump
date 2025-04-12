@@ -9,12 +9,13 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/rusq/slackdump/v3/source"
+
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/slack"
 
 	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/internal/nametmpl"
-	"github.com/rusq/slackdump/v3/internal/source"
 	"github.com/rusq/slackdump/v3/internal/structures"
 	"github.com/rusq/slackdump/v3/types"
 )

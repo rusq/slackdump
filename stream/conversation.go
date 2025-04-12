@@ -125,11 +125,11 @@ func (cs *Stream) Conversations(ctx context.Context, proc processor.Conversation
 	for res := range resultsC {
 		if err := res.Err; err != nil {
 			trace.Logf(ctx, "error", "type: %s, chan_id: %s, thread_ts: %s, error: %s", res.Type, res.ChannelID, res.ThreadTS, err.Error())
-			return err
+			return &res // res implements Error
 		}
 		for _, fn := range cs.resultFn {
 			if err := fn(res); err != nil {
-				return err
+				return fmt.Errorf("result %s, callback error: %w", res, err)
 			}
 		}
 	}
@@ -161,14 +161,6 @@ type request struct {
 	threadOnly bool
 	Oldest     time.Time
 	Latest     time.Time
-}
-
-func (we *Result) Error() string {
-	return fmt.Sprintf("%s channel %s: %v", we.Type, structures.SlackLink{Channel: we.ChannelID, ThreadTS: we.ThreadTS}, we.Err)
-}
-
-func (we *Result) Unwrap() error {
-	return we.Err
 }
 
 // channel fetches the channel data as defined in req, calling callback function for each API response.

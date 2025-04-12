@@ -103,6 +103,7 @@ func Test_userCollector_Close(t *testing.T) {
 		ctx   context.Context
 		users []slack.User
 		// ts    TransformStarter
+		allowEmpty bool
 	}
 	tests := []struct {
 		name     string
@@ -117,6 +118,18 @@ func Test_userCollector_Close(t *testing.T) {
 				users: []slack.User{},
 			},
 			wantErr: true,
+		},
+		{
+			name: "no users with allowEmpty is not an error",
+			fields: fields{
+				ctx:        testCtx,
+				users:      []slack.User{},
+				allowEmpty: true,
+			},
+			expectFn: func(mts *mock_control.MockTransformStarter) {
+				mts.EXPECT().StartWithUsers(gomock.Any(), []slack.User{}).Return(nil)
+			},
+			wantErr: false,
 		},
 		{
 			name: "transformer error",
@@ -160,9 +173,10 @@ func Test_userCollector_Close(t *testing.T) {
 				tt.expectFn(mts)
 			}
 			u := &userCollector{
-				ctx:   tt.fields.ctx,
-				users: tt.fields.users,
-				ts:    mts,
+				ctx:        tt.fields.ctx,
+				users:      tt.fields.users,
+				ts:         mts,
+				allowEmpty: tt.fields.allowEmpty,
 			}
 			if err := u.Close(); (err != nil) != tt.wantErr {
 				t.Errorf("userCollector.Close() error = %v, wantErr %v", err, tt.wantErr)

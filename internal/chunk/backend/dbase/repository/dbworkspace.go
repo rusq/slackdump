@@ -2,7 +2,7 @@ package repository
 
 import (
 	"context"
-	"errors"
+	"database/sql"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/rusq/slack"
@@ -77,6 +77,7 @@ func (w DBWorkspace) Val() (slack.AuthTestResponse, error) {
 	return unmarshalt[slack.AuthTestResponse](w.Data)
 }
 
+//go:generate mockgen -destination=mock_repository/mock_workspace.go . WorkspaceRepository
 type WorkspaceRepository interface {
 	Inserter[DBWorkspace]
 	Chunker[DBWorkspace]
@@ -105,5 +106,5 @@ func (r workspaceRepository) GetWorkspace(ctx context.Context, conn sqlx.Queryer
 		// a single data base, we will need to return a slice of workspaces
 		return w, nil
 	}
-	return DBWorkspace{}, errors.New("no workspace found")
+	return DBWorkspace{}, sql.ErrNoRows
 }

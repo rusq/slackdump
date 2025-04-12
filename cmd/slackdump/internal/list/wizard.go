@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/charmbracelet/huh"
+
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/bootstrap"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/cfgui"
@@ -152,6 +153,12 @@ func (l *commonOpts) configuration() cfgui.Configuration {
 					Value:       cfgui.Checkbox(l.nosave),
 					Description: "Don't save the data to a file, just print it to the screen",
 					Updater:     updaters.NewBool(&l.nosave),
+				},
+				{
+					Name:        "Bare Format",
+					Value:       cfgui.Checkbox(l.bare),
+					Description: "Use bare format: just the user or channel ID, no headers",
+					Updater:     updaters.NewBool(&l.bare),
 				},
 			},
 		},

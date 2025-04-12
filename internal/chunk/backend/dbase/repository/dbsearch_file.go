@@ -45,6 +45,7 @@ func (c DBSearchFile) values() []any {
 	return []interface{}{c.ChunkID, c.FileID, c.Index, c.Data}
 }
 
+//go:generate mockgen -destination=mock_repository/mock_search_file.go . SearchFileRepository
 type SearchFileRepository interface {
 	BulkRepository[DBSearchFile]
 }

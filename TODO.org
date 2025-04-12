@@ -1,30 +1,24 @@
 * V3.1
-** TODO export compatibility (?)
-  /canvases.json is the list of all channel canvases (just slack files, files
-  are not included).
-
-  /file_conversations.json contains list of all file conversations,
-  conversations are presented as special directories. FC:<FILE_ID>:File_name,
-  and contains date-files.
-
-  /users.json are formatted one json per line, comma at the end of each line,
-  and it's an array.
-
-  message JSON has empty fields omitted, while file JSON does not.
-
-  channel directories have a special "canvases_in_conversation.json" file that
-  contains canvases in the channel as an array of files.
-
-  archived channels are included in the export.
-
-** TODO Database backend
+** DONE Database backend
+   CLOSED: [2025-04-08 Tue 21:54]
 *** DONE Add database backend support to Dump converter, it relies on the files
 *** DONE Check if the thread export works as intended.
 *** DONE Conversion to and from.
    CLOSED: [2025-03-11 Tue 20:53]
 *** DONE Files and avatars support during conversion.
    CLOSED: [2025-03-14 Fri 21:33]
-*** TODO Tests for dbproc and related packages.
+*** DONE Tests for dbproc and related packages.
+    CLOSED: [2025-04-08 Tue 21:54]
+**** DONE repository
+     CLOSED: [2025-03-23 Sun 21:40]
+**** DONE control
+     CLOSED: [2025-03-23 Sun 21:40]
+**** DONE dbproc
+     CLOSED: [2025-04-08 Tue 21:53]
+*** DONE Resume will choke on export->database converted workspaces due to
+    CLOSED: [2025-03-26 Wed 19:35]
+    missing "workspace" information. Find another way to verify the
+    workspace name, possibly by team ID on the messages/users.
 ** DONE Source detection
    CLOSED: [2025-03-14 Fri 21:34]
 *** DONE detect standard file storage
@@ -43,8 +37,65 @@
 ** DONE Verify that consequent calls of conversation.replies don't have the first thread message as the item with 0-index.
    CLOSED: [2025-03-16 Sun 22:01]
    Yes it does: https://github.com/rusq/slackdump/issues/128#issuecomment-1234773510
-** TODO Only participating users #287.
+** DONE Only participating users #287, #125.
+   CLOSED: [2025-03-21 Fri 22:05]
+   Also solves #108 - dumping users with guest role.
+** DONE Resume
+   CLOSED: [2025-04-08 Tue 21:54]
+*** DONE user_not_found error when running with -channel-users
+    CLOSED: [2025-03-21 Fri 22:32]
+*** DONE when resuming with -channel-users, and there are no new messages, the resume crashes with "no users collected"
+    CLOSED: [2025-03-21 Fri 22:32]
+** DONE Formatter for all type of source data
+   CLOSED: [2025-04-08 Tue 21:55]
+** DONE Optional emoji download (-files=false) for emoji command
+** DONE Log colorisation (and output to stderr) (#467)
+   CLOSED: [2025-04-08 Tue 22:03]
+** DONE Converter from early v1.0.x format (as a tool subcommand)
+   CLOSED: [2025-04-08 Tue 22:02]
+
+** Fixes
+*** DONE Some attachment IDs can be strings, not just integers (#491, #492)
+    CLOSED: [2025-04-08 Tue 21:58]
+*** DONE Some bot messages caused panic (#482)
+    CLOSED: [2025-04-08 Tue 21:59]
+*** DONE Lack of synchronisation between Generator goroutine and controller, causing panic on premature termination (#479)
+    CLOSED: [2025-04-08 Tue 21:59]
+*** DONE Properly handle UnexpectedEOF error (#468)
+    CLOSED: [2025-04-08 Tue 22:03]
+*** DONE Parsing of the enterprise URLs (#461)
+    CLOSED: [2025-04-08 Tue 22:06]
 * V3.2
-** TODO Starred items and bookmarks.
+** Filters
+*** TODO Channel filter (private/public/DMs) -filter-channel=[public,private,dm] (controller already supports this)
+*** TODO Attachment filter, use the same terms as channel filter, -filter-files=[public,private,dm] (#233)
+** TODO bookmarks support
+** TODO Saved items
 ** TODO Connection pooling
 ** TODO load emojis alongside the messages during archive.
+** TODO Static viewer output #416
+** TODO Thumbnail download (#111)
+** TODO Custom fields for users (#62)
+** TODO Info command, prints out the database sessions, workspaces and message stats.
+** TODO Aliasing users in the viewer, click on the username, assign a name, save (for archive source only).
+* Future
+** TODO detect external users and fetch them individually
+   even if running without -channel-users.
+** TODO export compatibility (?)
+  /canvases.json is the list of all channel canvases (just slack files, files
+  are not included).
+
+  /file_conversations.json contains list of all file conversations,
+  conversations are presented as special directories. FC:<FILE_ID>:File_name,
+  and contains date-files.
+
+  /users.json are formatted one json per line, comma at the end of each line,
+  and it's an array.
+
+  message JSON has empty fields omitted, while file JSON does not.
+
+  channel directories have a special "canvases_in_conversation.json" file that
+  contains canvases in the channel as an array of files.
+
+  archived channels are included in the export.
+

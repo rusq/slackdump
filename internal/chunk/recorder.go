@@ -17,6 +17,8 @@ type Recorder struct {
 }
 
 // Encoder is the interface that wraps the Encode method.
+//
+//go:generate mockgen -destination=mock_chunk/mock_encoder.go . Encoder
 type Encoder interface {
 	Encode(ctx context.Context, chunk *Chunk) error
 }
