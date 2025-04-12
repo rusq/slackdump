@@ -129,7 +129,8 @@
         background-color: var(--bg-color);
     }
 
-    .conversation-header {
+    .conversation-header,
+    .user-profile-header {
         padding-left: 1.5rem;
         padding-right: 1.5rem;
         padding-top: .5rem;
@@ -142,12 +143,14 @@
         border-color: var(--border-color);
     }
 
-    .conversation-inner {
+    .conversation-inner,
+    .user-profile-header-inner {
         display: flex;
         flex-direction: column;
     }
 
-    .conversation-inner h3 {
+    .conversation-inner h3,
+    .user-profile-header-inner h3 {
         color: var(--text-color);
         margin-bottom: .25rem;
         font-weight: 800;
@@ -162,7 +165,8 @@
         text-overflow: ellipsis;
     }
 
-    .message-list {
+    .message-list,
+    .user-profile {
         padding-left: 1.5rem;
         padding-right: 1.5rem;
         padding-top: 1rem;
@@ -278,6 +282,83 @@
 
     .file-link:hover {
         background-color: #f1f1f1;
+    }
+
+    /* User profile sidebar */
+    .profile-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+        border-bottom: 1px solid #f0f0f0;
+        padding-bottom: 12px;
+    }
+
+    .profile-header h2 {
+        font-size: 18px;
+        font-weight: 700;
+        color: #1d1c1d;
+        margin: 0;
+    }
+
+    .close-button {
+        color: #616061;
+        text-decoration: none;
+        font-size: 16px;
+        font-weight: bold;
+        width: 24px;
+        height: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 4px;
+    }
+
+    .close-button:hover {
+        background-color: #f8f8f8;
+        color: #1d1c1d;
+    }
+
+    .user-profile {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .profile-name {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--text-color);
+        padding-top: .5rem;
+    }
+
+    .profile-image {
+        border-radius: 4px;
+        object-fit: cover;
+        width: 18rem;
+    }
+
+    .profile-details {
+        list-style-type: none;
+        padding: 0;
+        margin: 0;
+        padding-top: .5rem;
+    }
+
+    .profile-details li {
+        font-size: 14px;
+        color: #616061;
+        margin-bottom: 8px;
+        display: flex;
+    }
+
+    .profile-details li span {
+        color: #1d1c1d;
+        margin-left: 4px;
+    }
+
+    .unknown-user {
+        color: #616061;
+        font-style: italic;
     }
 </style>
 {{ end }}

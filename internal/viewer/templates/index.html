@@ -26,10 +26,12 @@
             {{ if .Messages }}
             {{ template "hx_conversation" . }}
             {{ else }}
-            <article class="welcome">
-                <h1>Slackdump Browser</h1>
-                <p>Please select the conversation on the left to view messages.</p>
-            </article>
+            <header class="conversation-header">
+                <div class="conversation-inner">
+                    <h3>Slackdump Browser</h3>
+                    <p>Please select the conversation on the left to view messages.</p>
+                </div>
+            </header>
             {{ end }}
         </section>
         <section id="thread" class="thread">
@@ -220,24 +222,34 @@
 
 
 {{ define "hx_user" }}
-<h2>User: {{ displayname .ID }}</h2>
-<p><a id="close-user" href="#">[X]</a></p>
-<article class="user">
-    {{ if . }}
-    {{ displayname .ID }}<br>
-    <a href="mailto:{{ .Profile.Email}}" target="_blank">{{ .Profile.Email }}</a><br>
-    <a href="{{.Profile.Image512}}" target="_blank">
-        <img src="{{ .Profile.Image192}}" alt="{{ displayname .ID }}">
-    </a><br>
-    <ul>
-        {{ if .Profile.RealName }}<li>Real name: {{ .Profile.RealName }}</li>{{ end }}
-        {{ if .Profile.Skype }}<li>Skype: {{ .Profile.Skype }}</li>{{ end }}
-        {{ if .Profile.Team }}<li>Team: {{ .Profile.Team }}</li>{{ end }}
-    </ul>
-    {{ else }}
-    <p>Unknown</p>
-    {{ end }}
-</article>
+<div class="user-profile-container">
+    <header class="user-profile-header">
+        <div class="user-profile-header-inner">
+            <h3>Profile</h3>
+            <a id="close-user" href="#">[X]</a>
+        </div>
+    </header>
+    <article class="user-profile">
+        {{ if . }}
+            <div class="profile-image-container">
+                <a href="{{ .Profile.Image512 }}" target="_blank">
+                    <img src="{{ .Profile.Image512 }}" alt="{{ displayname .ID }}" class="profile-image">
+                </a>
+            </div>
+
+            <h1 class="profile-name">{{ displayname .ID }}</h1>
+
+            <ul class="profile-details">
+                {{ if .Profile.RealName }}<li>Real name: <span>{{ .Profile.RealName }}</span></li>{{ end }}
+                {{ if .Profile.Email }}<li>Email: <span>{{ .Profile.Email }}</span></li>{{ end }}
+                {{ if .Profile.Skype }}<li>Skype: <span>{{ .Profile.Skype }}</span></li>{{ end }}
+                {{ if .Profile.Team }}<li>Team: <span>{{ .Profile.Team }}</span></li>{{ end }}
+            </ul>
+        {{ else }}
+            <p class="unknown-user">Unknown</p>
+        {{ end }}
+    </article>
+</div>
 <script>
     document.getElementById('close-user').addEventListener('click', function (e) {
         e.preventDefault();
