@@ -60,18 +60,16 @@
 </div>
 {{ end }}
 {{ if (or .MPIM .DM) }}
-<div class="dm-outer">
-    <div class="dm-inner">
-        <h2>Direct</h2>
-        <menu>
-            {{ range $i, $el := .MPIM }}
-            <li><a href="#" hx-get="/archives/{{$el.ID}}" hx-target="#conversation" hx-push-url="true">{{ rendername $el }}</a></li>
-            {{ end }}
-            {{ range $i, $el := .DM }}
-            <li><a href="#" hx-get="/archives/{{$el.ID}}" hx-target="#conversation" hx-push-url="true">{{ rendername $el }}</a></li>
-            {{ end }}
-        </menu>
+<div class="channel-list">
+    <div class="channel-header">
+        <p>Direct</p>
     </div>
+	 {{ range $i, $el := .MPIM }}
+         <a href="#" hx-get="/archives/{{$el.ID}}" hx-target="#conversation" hx-push-url="true">{{ rendername $el }}</a>>
+         {{ end }}
+         {{ range $i, $el := .DM }}
+         <a href="#" hx-get="/archives/{{$el.ID}}" hx-target="#conversation" hx-push-url="true">{{ rendername $el }}</a>
+         {{ end }}
 </div>
 {{ end }}
 <script>
