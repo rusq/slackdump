@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -25,6 +26,7 @@ func initTemplates(v *Viewer) {
 			"is_user_msg":     isUserMsg,
 			"displayname":     v.um.DisplayName,
 			"username":        v.username, // username returns the username for the message
+			"userpic":         v.userpic,  // userpic returns the userpic for the user
 			"time":            localtime,
 			"rendertext":      func(s string) string { return v.r.RenderText(context.Background(), s) },            // render message text
 			"render":          func(m slack.Message) template.HTML { return v.r.Render(context.Background(), &m) }, // render message
@@ -73,6 +75,21 @@ func dump(a any) string {
 		return fmt.Sprintf("error: %v", err)
 	}
 	return buf.String()
+}
+
+const emptyAvatar = "/static/40x40.png"
+
+func (v *Viewer) userpic(userID string) string {
+	if userID == "" {
+		return emptyAvatar
+	}
+	user, ok := v.um[userID]
+	if ok && user.Profile.Image32 != "" {
+		return user.Profile.Image32
+	}
+	slog.Debug("userpic not found", "user", userID)
+
+	return emptyAvatar
 }
 
 func (v *Viewer) username(m slack.Message) (name string) {

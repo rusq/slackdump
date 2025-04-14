@@ -101,7 +101,7 @@
     <article class="message">
         {{ if $err }} <p>Error: {{ $err }}</p> {{ else }}
             <a class="avatar" href="#" hx-get="/team/{{ $el.User }}" hx-target="#thread">
-                <img class="avatar" src="/static/40x40.png" />
+		    <img class="avatar" src="{{ userpic $el.User }}" />
             </a>
             <div class="message-inner">
                 {{ template "render_message" $el }}
@@ -170,7 +170,7 @@
     <article class="message">
         {{ if $err }} <p>Error: {{ $err }}</p> {{ else }}
         <a class="avatar" href="#" hx-get="/team/{{ $el.User }}" hx-target="#thread">
-            <img class="avatar" src="/static/40x40.png" />
+		<img class="avatar" src="{{ userpic $el.User }}" />
         </a>
         <div class="message-inner">
             {{ template "render_message" $el }}
