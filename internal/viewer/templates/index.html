@@ -93,7 +93,7 @@
 <header class="conversation-header">
     <div class="conversation-inner">
         <h3>{{ rendername .Conversation }}</h3>
-        <p>Channel topic would go here</p>
+	<p>{{ .Conversation.Topic.Value }}</p>
     </div>
 </header>
 <div class="message-list">
