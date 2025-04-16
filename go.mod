@@ -24,6 +24,7 @@ require (
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c
 	github.com/playwright-community/playwright-go v0.5001.0
 	github.com/pressly/goose/v3 v3.24.1
+	github.com/pterm/pterm v0.12.80
 	github.com/rusq/chttp v1.0.2
 	github.com/rusq/encio v0.2.0
 	github.com/rusq/fsadapter v1.1.0
@@ -86,7 +87,6 @@ require (
 	github.com/muesli/termenv v0.16.0 // indirect
 	github.com/ncruces/go-strftime v0.1.9 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/pterm/pterm v0.12.80 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/rusq/secure v0.0.4 // indirect
@@ -101,7 +101,7 @@ require (
 	golang.org/x/crypto v0.36.0 // indirect
 	golang.org/x/exp v0.0.0-20250305212735-054e65f0b394 // indirect
 	golang.org/x/mod v0.24.0 // indirect
-	golang.org/x/net v0.37.0 // indirect
+	golang.org/x/net v0.38.0 // indirect
 	golang.org/x/sys v0.31.0 // indirect
 	golang.org/x/tools v0.31.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
