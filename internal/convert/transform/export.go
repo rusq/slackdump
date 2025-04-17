@@ -89,7 +89,7 @@ func (e *ExpConverter) Convert(ctx context.Context, id chunk.FileID) error {
 	}
 
 	if err := e.writeMessages(ctx, ci); err != nil {
-		return err
+		return fmt.Errorf("write messages: %s: %w", id, err)
 	}
 
 	return nil
