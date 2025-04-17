@@ -148,7 +148,7 @@ func collectAll[T any](ctx context.Context, d *Directory, numwrk int, fn func(na
 		defer close(errC)
 		errC <- d.Walk(func(name string, f *File, err error) error {
 			if err != nil {
-				return fmt.Errorf("error in %s: %w", name, err)
+				return fmt.Errorf("collectAll: error in %s: %w", name, err)
 			}
 			fileC <- collectedFile{name, f}
 			return nil
@@ -213,7 +213,7 @@ func (d *Directory) Channels(ctx context.Context) ([]slack.Channel, error) {
 			if errors.Is(err, ErrNotFound) {
 				return nil, nil
 			}
-			return nil, fmt.Errorf("channels: error processing %s: %w", name, err)
+			return nil, fmt.Errorf("channels: error processing file %s: %w", name, err)
 		}
 		return c, nil
 	})
