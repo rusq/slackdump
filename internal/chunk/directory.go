@@ -134,18 +134,23 @@ type resultt[T any] struct {
 	err error
 }
 
-func collectAll[T any](ctx context.Context, d *Directory, numwrk int, fn func(*File) ([]T, error)) ([]T, error) {
+type collectedFile struct {
+	name string
+	f    *File
+}
+
+func collectAll[T any](ctx context.Context, d *Directory, numwrk int, fn func(name string, f *File) ([]T, error)) ([]T, error) {
 	var all []T
-	fileC := make(chan *File)
+	fileC := make(chan collectedFile, numwrk)
 	errC := make(chan error, 1)
 	go func() {
 		defer close(fileC)
 		defer close(errC)
 		errC <- d.Walk(func(name string, f *File, err error) error {
 			if err != nil {
-				return err
+				return fmt.Errorf("collectAll: error in %s: %w", name, err)
 			}
-			fileC <- f
+			fileC <- collectedFile{name, f}
 			return nil
 		})
 	}()
@@ -185,11 +190,11 @@ LOOP:
 	return all, nil
 }
 
-func collectWorker[T any](fileC <-chan *File, resultsC chan<- resultt[T], fn func(*File) ([]T, error)) {
-	for f := range fileC {
-		v, err := fn(f)
+func collectWorker[T any](fileC <-chan collectedFile, resultsC chan<- resultt[T], fn func(string, *File) ([]T, error)) {
+	for req := range fileC {
+		v, err := fn(req.name, req.f)
 		resultsC <- resultt[T]{v, err}
-		f.Close()
+		req.f.Close()
 	}
 }
 
@@ -202,13 +207,13 @@ func (d *Directory) Channels(ctx context.Context) ([]slack.Channel, error) {
 		return val.([]slack.Channel), nil
 	}
 	slog.Debug("channels: cache miss")
-	ch, err := collectAll(ctx, d, d.numWorkers, func(f *File) ([]slack.Channel, error) {
+	ch, err := collectAll(ctx, d, d.numWorkers, func(name string, f *File) ([]slack.Channel, error) {
 		c, err := f.AllChannelInfos()
 		if err != nil {
 			if errors.Is(err, ErrNotFound) {
 				return nil, nil
 			}
-			return nil, err
+			return nil, fmt.Errorf("channels: error processing file %s: %w", name, err)
 		}
 		return c, nil
 	})

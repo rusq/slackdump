@@ -89,7 +89,7 @@ func (e *ExpConverter) Convert(ctx context.Context, id chunk.FileID) error {
 	}
 
 	if err := e.writeMessages(ctx, ci); err != nil {
-		return err
+		return fmt.Errorf("error writing messages for %q: %w", id, err)
 	}
 
 	return nil
@@ -107,7 +107,7 @@ func (e *ExpConverter) writeMessages(ctx context.Context, ci *slack.Channel) (er
 			lg.DebugContext(ctx, "no messages for the channel", "channel", ci.ID)
 			return nil
 		}
-		return fmt.Errorf("error reading messages: %w", err)
+		return fmt.Errorf("sorted: on channel %q: %w", ci.ID, err)
 	}
 
 	return nil
@@ -116,13 +116,13 @@ func (e *ExpConverter) writeMessages(ctx context.Context, ci *slack.Channel) (er
 func (e *ExpConverter) writeout(filename string, mm []export.ExportMessage) error {
 	wc, err := e.fsa.Create(filename)
 	if err != nil {
-		return fmt.Errorf("error creating file in adapter: %w", err)
+		return fmt.Errorf("error creating file in adapter: %s:  %w", filename, err)
 	}
 	defer wc.Close()
 	enc := json.NewEncoder(wc)
 	enc.SetIndent("", "  ")
 	if err := enc.Encode(mm); err != nil {
-		return fmt.Errorf("error encoding messages: %w", err)
+		return fmt.Errorf("error encoding messages into %s: %w", filename, err)
 	}
 	return nil
 }
