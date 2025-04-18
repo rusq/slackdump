@@ -4,6 +4,7 @@ import (
 	"compress/gzip"
 	"context"
 	"encoding/gob"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -139,6 +140,7 @@ type collectedFile struct {
 	f    *File
 }
 
+// collectAll collects all file from the directory and calls callback function fn for each file.
 func collectAll[T any](ctx context.Context, d *Directory, numwrk int, fn func(name string, f *File) ([]T, error)) ([]T, error) {
 	var all []T
 	fileC := make(chan collectedFile, numwrk)
@@ -148,6 +150,11 @@ func collectAll[T any](ctx context.Context, d *Directory, numwrk int, fn func(na
 		defer close(errC)
 		errC <- d.Walk(func(name string, f *File, err error) error {
 			if err != nil {
+				var jsonErr *json.SyntaxError
+				if errors.As(err, &jsonErr) {
+					slog.Warn("invalid JSON", "file", name, "error", err.Error())
+					return nil
+				}
 				return fmt.Errorf("collectAll: error in %s: %w", name, err)
 			}
 			fileC <- collectedFile{name, f}
@@ -255,6 +262,13 @@ func (d *Directory) Walk(fn func(name string, f *File, err error) error) error {
 			return fn(path, nil, err)
 		}
 		cf, err := cachedFromReader(f, d.wantCache)
+		if err != nil {
+			var jsonErr *json.SyntaxError
+			if errors.As(err, &jsonErr) {
+				slog.Warn("invalid JSON", "file", path, "error", err.Error())
+				return nil
+			}
+		}
 		return fn(path, cf, err)
 	})
 }

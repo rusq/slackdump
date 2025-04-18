@@ -242,14 +242,14 @@ func (f *File) AllChannelInfos() ([]slack.Channel, error) {
 	}
 	for i := range chans {
 		if chans[i].IsArchived || chans[i].NumMembers == 0 {
-			slog.Default().Debug("skipping empty or archived channel", "i", i, "id", chans[i].ID)
+			slog.Debug("skipping empty or archived channel", "i", i, "id", chans[i].ID)
 			continue
 		}
 		members, err := f.ChannelUsers(chans[i].ID)
 		if err != nil {
 			if errors.Is(err, ErrNotFound) {
 				// ignoring missing channel users
-				slog.Default().Warn("no users", "channel_id", chans[i].ID, "error", err)
+				slog.Warn("no users", "channel_id", chans[i].ID, "error", err)
 				continue
 			}
 			return nil, err
