@@ -150,11 +150,6 @@ func collectAll[T any](ctx context.Context, d *Directory, numwrk int, fn func(na
 		defer close(errC)
 		errC <- d.Walk(func(name string, f *File, err error) error {
 			if err != nil {
-				var jsonErr *json.SyntaxError
-				if errors.As(err, &jsonErr) {
-					slog.Warn("invalid JSON", "file", name, "error", err.Error())
-					return nil
-				}
 				return fmt.Errorf("collectAll: error in %s: %w", name, err)
 			}
 			fileC <- collectedFile{name, f}
