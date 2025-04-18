@@ -152,7 +152,7 @@ func collectAll[T any](ctx context.Context, d *Directory, numwrk int, fn func(na
 			if err != nil {
 				var jsonErr *json.SyntaxError
 				if errors.As(err, &jsonErr) {
-					slog.Warn("collectAll: json error", "file", name, "error", err.Error())
+					slog.Warn("invalid JSON", "file", name, "error", err.Error())
 					return nil
 				}
 				return fmt.Errorf("collectAll: error in %s: %w", name, err)
@@ -262,6 +262,13 @@ func (d *Directory) Walk(fn func(name string, f *File, err error) error) error {
 			return fn(path, nil, err)
 		}
 		cf, err := cachedFromReader(f, d.wantCache)
+		if err != nil {
+			var jsonErr *json.SyntaxError
+			if errors.As(err, &jsonErr) {
+				slog.Warn("invalid JSON", "file", path, "error", err.Error())
+				return nil
+			}
+		}
 		return fn(path, cf, err)
 	})
 }
