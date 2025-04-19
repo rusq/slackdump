@@ -152,6 +152,7 @@ func TestDirectory_Walk(t *testing.T) {
 				if f == nil {
 					return errors.New("file is nil")
 				}
+				t.Logf("name: %q, trimmed: %q", name, strings.TrimLeft(name, dir))
 				seen = append(seen, strings.TrimLeft(name, dir))
 				return nil
 			}); (err != nil) != tt.wantErr {
