@@ -152,7 +152,7 @@ func TestDirectory_Walk(t *testing.T) {
 				if f == nil {
 					return errors.New("file is nil")
 				}
-				seen = append(seen, strings.TrimPrefix(name, dir))
+				seen = append(seen, strings.TrimLeft(name, dir))
 				return nil
 			}); (err != nil) != tt.wantErr {
 				t.Fatalf("Walk() wantErr: %v, got error = %v", tt.wantErr, err)
