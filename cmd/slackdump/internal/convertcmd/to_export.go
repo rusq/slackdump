@@ -30,7 +30,7 @@ func toExport(ctx context.Context, src, trg string, cflg convertflags) error {
 	defer fsa.Close()
 
 	// output storage
-	sttFn, ok := source.StorageTypeFuncs[cflg.outStorageType]
+	sttFn, ok := cflg.outStorageType.Func()
 	if !ok {
 		return ErrStorage
 	}
