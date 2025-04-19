@@ -36,7 +36,7 @@ func CollectFiles(t *testing.T, fsys fs.FS) (ret map[string]FileInfo) {
 
 // PrepareTestDirectory prepares a temporary directory for testing and populates it with
 // files from fsys.  It returns the path to the directory.
-func PreareTestDirectory(t *testing.T, fsys fs.FS) string {
+func PrepareTestDirectory(t *testing.T, fsys fs.FS) string {
 	t.Helper()
 	dir := t.TempDir()
 	if err := os.CopyFS(dir, fsys); err != nil {

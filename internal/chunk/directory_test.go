@@ -138,7 +138,7 @@ func TestDirectory_Walk(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			dir := testutil.PreareTestDirectory(t, tt.fsys)
+			dir := testutil.PrepareTestDirectory(t, tt.fsys)
 			d, err := OpenDir(dir)
 			if err != nil {
 				t.Fatalf("OpenDir() error = %v", err)
@@ -152,7 +152,7 @@ func TestDirectory_Walk(t *testing.T) {
 				if f == nil {
 					return errors.New("file is nil")
 				}
-				seen = append(seen, strings.TrimLeft(name, dir))
+				seen = append(seen, strings.TrimPrefix(name, dir))
 				return nil
 			}); (err != nil) != tt.wantErr {
 				t.Fatalf("Walk() wantErr: %v, got error = %v", tt.wantErr, err)
