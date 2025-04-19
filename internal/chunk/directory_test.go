@@ -1,17 +1,17 @@
 package chunk
 
 import (
-	"bytes"
-	"compress/gzip"
-	"encoding/json"
+	"errors"
 	"io/fs"
-	"os"
+	"strings"
 	"testing"
 	"testing/fstest"
 
 	"github.com/rusq/slack"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/rusq/slackdump/v3/internal/fixtures"
+	"github.com/rusq/slackdump/v3/internal/testutil"
 )
 
 // assortment of channel info chunks
@@ -70,46 +70,8 @@ var (
 	}
 )
 
-func TestOpenDir(t *testing.T) {
-}
-
 func TestDirectory_Walk(t *testing.T) {
-	var (
-		// prepDir prepares a temporary directory for testing and populates it with
-		// files from fsys.  It returns the path to the directory.
-		prepDir = func(t *testing.T, fsys fs.FS) string {
-			t.Helper()
-			dir := t.TempDir()
-			if err := os.CopyFS(dir, fsys); err != nil {
-				t.Fatal(err)
-			}
-			return dir
-		}
-
-		compress = func(t *testing.T, data []byte) []byte {
-			t.Helper()
-			var buf bytes.Buffer
-			gz := gzip.NewWriter(&buf)
-			defer gz.Close()
-			if _, err := gz.Write(data); err != nil {
-				t.Fatal(err)
-			}
-			if err := gz.Close(); err != nil {
-				t.Fatal(err)
-			}
-			return buf.Bytes()
-		}
-
-		marshal = func(t *testing.T, v any) []byte {
-			t.Helper()
-			data, err := json.Marshal(v)
-			if err != nil {
-				t.Fatal(err)
-			}
-			return data
-		}
-	)
-
+	fixtures.SkipOnWindows(t) // TODO: fix this test on Windows
 	testChannels := fixtures.Load[[]slack.Channel](fixtures.TestChannelsJSON)
 	channelInfos := make([]Chunk, len(testChannels))
 	for _, ch := range testChannels {
@@ -123,43 +85,81 @@ func TestDirectory_Walk(t *testing.T) {
 		t.Fatal("fixture has no channels")
 	}
 
-	t.Run("doesn't fail on invalid json", func(t *testing.T) {
-		testdir := fstest.MapFS{
-			"C123VALID.json.gz": &fstest.MapFile{
-				Data: compress(t, marshal(t, channelInfos[0])),
+	tests := []struct {
+		name    string
+		fsys    fs.FS
+		want    []string
+		wantErr bool
+	}{
+		{
+			name: "invalid json in root",
+			fsys: fstest.MapFS{
+				"C123VALID.json.gz": &fstest.MapFile{
+					Data: testutil.GZCompress(t, testutil.MarshalJSON(t, channelInfos[0])),
+				},
+				"C123INVALID.json.gz": &fstest.MapFile{
+					Data: testutil.GZCompress(t, []byte("invalid json")),
+				},
+				"C123VALID2.json.gz": &fstest.MapFile{
+					Data: testutil.GZCompress(t, testutil.MarshalJSON(t, channelInfos[1])),
+				},
 			},
-			"C123INVALID.json.gz": &fstest.MapFile{
-				Data: compress(t, []byte("invalid json")),
+			want: []string{
+				"C123VALID.json.gz",
+				"C123VALID2.json.gz",
 			},
-			"C123VALID2.json.gz": &fstest.MapFile{
-				Data: compress(t, marshal(t, channelInfos[1])),
+		},
+		{
+			name: "should scan only top level dir",
+			fsys: fstest.MapFS{
+				"__uploads/CINVALID.json.gz": &fstest.MapFile{
+					Data: testutil.GZCompress(t, []byte("NaN")),
+				},
+				"__uploads/CVALID.json.gz": &fstest.MapFile{
+					Data: testutil.GZCompress(t, testutil.MarshalJSON(t, channelInfos[1])),
+				},
+				"__avatars/CVALID.json.gz": &fstest.MapFile{
+					Data: testutil.GZCompress(t, testutil.MarshalJSON(t, channelInfos[2])),
+				},
+				"somedir/CVALID.json.gz": &fstest.MapFile{
+					Data: testutil.GZCompress(t, testutil.MarshalJSON(t, channelInfos[3])),
+				},
+				"CVALID.json.gz": &fstest.MapFile{
+					Data: testutil.GZCompress(t, testutil.MarshalJSON(t, channelInfos[0])),
+				},
+				"CANOTHER.json.gz": &fstest.MapFile{
+					Data: testutil.GZCompress(t, testutil.MarshalJSON(t, channelInfos[1])),
+				},
 			},
-		}
-
-		dir := prepDir(t, testdir)
-		d, err := OpenDir(dir)
-		if err != nil {
-			t.Fatalf("OpenDir() error = %v", err)
-		}
-		defer d.Close()
-		var seen []string
-		if err := d.Walk(func(name string, f *File, err error) error {
+			want: []string{
+				"CVALID.json.gz",
+				"CANOTHER.json.gz",
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := testutil.PrepareTestDirectory(t, tt.fsys)
+			d, err := OpenDir(dir)
 			if err != nil {
-				t.Fatalf("Walk() error = %v", err)
+				t.Fatalf("OpenDir() error = %v", err)
 			}
-			if name == "C123INVALID.json.gz" {
-				t.Fatal("should not be called for invalid json")
+			defer d.Close()
+			var seen []string
+			if err := d.Walk(func(name string, f *File, err error) error {
+				if err != nil {
+					return err
+				}
+				if f == nil {
+					return errors.New("file is nil")
+				}
+				t.Logf("name: %q, trimmed: %q", name, strings.TrimLeft(name, dir))
+				seen = append(seen, strings.TrimLeft(name, dir))
+				return nil
+			}); (err != nil) != tt.wantErr {
+				t.Fatalf("Walk() wantErr: %v, got error = %v", tt.wantErr, err)
 			}
-			if f == nil {
-				t.Fatalf("Walk() file is nil")
-			}
-			seen = append(seen, name)
-			return nil
-		}); err != nil {
-			t.Fatalf("Walk() error = %v", err)
-		}
-		if len(seen) != 2 {
-			t.Fatalf("Walk() = %v, want 2", len(seen))
-		}
-	})
+			assert.ElementsMatch(t, tt.want, seen)
+		})
+	}
 }

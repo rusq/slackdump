@@ -2,6 +2,7 @@ package source
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -135,12 +136,20 @@ func (e *Export) walkChannelMessages(channelID string) (iter.Seq2[slack.Message,
 			if err != nil {
 				return err
 			}
-			if d.IsDir() || path.Ext(pth) != ".json" {
+			if d.IsDir() && pth != name {
+				return fs.SkipDir
+			}
+			if path.Ext(pth) != ".json" {
 				return nil
 			}
 			// read the file
 			em, err := unmarshal[[]export.ExportMessage](e.fs, pth)
 			if err != nil {
+				var jsonErr *json.SyntaxError
+				if errors.As(err, &jsonErr) {
+					slog.Default().Debug("skipping a broken file", "pth", pth, "err", err)
+					return nil
+				}
 				return err
 			}
 			for i, m := range em {

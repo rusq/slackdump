@@ -2,6 +2,7 @@ package source
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"io/fs"
 	"iter"
@@ -25,6 +26,14 @@ type Dump struct {
 	files Storage
 }
 
+// OpenDump opens the data in dump format (Slackdump v1.1.0+) from filesystem fsys, and the given
+// name.  It will scan for file attachments.
+//
+// If you need to open a dump from Slackdump pre-v1.1.0, convert it first, with the following command:
+//
+//	slackdump tools convertv1
+//
+// Note: slackdump pre-v1.1.0 dumps do not have threads.
 func OpenDump(ctx context.Context, fsys fs.FS, name string) (*Dump, error) {
 	var st Storage = NoStorage{}
 	if fst, err := NewDumpStorage(fsys); err == nil {
@@ -78,6 +87,11 @@ func (d Dump) Channels(context.Context) ([]slack.Channel, error) {
 
 		c, err := unmarshalOne[types.Conversation](d.fs, pth)
 		if err != nil {
+			var jsonErr *json.SyntaxError
+			if errors.As(err, &jsonErr) {
+				slog.Debug("skipping file with invalid JSON", "file", pth, "error", err)
+				return nil
+			}
 			return err
 		}
 		cc = append(cc, slack.Channel{

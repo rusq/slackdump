@@ -6,8 +6,16 @@
 //   - dump
 //   - Slack Export
 //
-// One should use `Load` function to load the source from the file system.  It
+// One should use [Load] function to load the source from the file system.  It
 // will automatically detect the format and return the appropriate reader.
+//
+// All sources implement the [Sourcer] interface, which provides methods to
+// retrieve data from the source.  The [Resumer] interface is implemented by
+// sources that can be resumed.  The [SourceResumeCloser] interface is
+// implemented by sources that can be resumed and closed.
+//
+// There are two distinct error types of interest, [ErrNotFound] and
+// [ErrNotSupported].  See their documentation for more information.
 package source
 
 import (
@@ -152,7 +160,10 @@ var (
 	_ Sourcer = &Database{}
 )
 
-// Load loads the source from file src.
+// Load loads the source from file src.  It will automatically detect the
+// format and return the appropriate reader.  It will detect any attachments
+// and avatars if they exist in the source.  It will return an error if the
+// source type is not supported or if the source is not found.
 func Load(ctx context.Context, src string) (SourceResumeCloser, error) {
 	lg := slog.With("source", src)
 	st, err := Type(src)

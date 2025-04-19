@@ -249,7 +249,11 @@ func (d *Directory) Walk(fn func(name string, f *File, err error) error) error {
 			isDir       = de.IsDir()
 			isHidden    = len(de.Name()) > 0 && de.Name()[0] == '.'
 		)
-		if !isSupported || isDir || isHidden {
+		if isDir && path != d.dir {
+			// skip nested directories
+			return fs.SkipDir
+		}
+		if !isSupported || isHidden {
 			return nil
 		}
 		f, err := d.openRAW(path)

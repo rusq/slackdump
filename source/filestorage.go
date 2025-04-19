@@ -358,7 +358,12 @@ func (r *AvatarStorage) Type() StorageType {
 }
 
 // AvatarParams is a convenience function that returns the user ID and the base
-// name of the original avatar filename.
+// name of the original avatar filename to be passed to AvatarStorage.File function.
+// For example:
+//
+//	var as *AvatarStorage
+//	var u *slack.User
+//	fmt.Println(as.File(AvatarParams(u)))
 func AvatarParams(u *slack.User) (userID string, filename string) {
 	return u.ID, path.Base(u.Profile.ImageOriginal)
 }
@@ -372,6 +377,7 @@ func (r *AvatarStorage) File(userID string, imageOriginalBase string) (string, e
 	return pth, nil
 }
 
+// FilePath is unused on AvatarStorage.
 func (r *AvatarStorage) FilePath(_ *slack.Channel, _ *slack.File) string {
 	return ""
 }
