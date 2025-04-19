@@ -356,3 +356,99 @@ func Test_loadStorage(t *testing.T) {
 		})
 	}
 }
+
+func TestExport_walkChannelMessages(t *testing.T) {
+	type fields struct {
+		fs        fs.FS
+		channels  []slack.Channel
+		chanNames map[string]string
+		name      string
+		idx       structures.ExportIndex
+		files     Storage
+		avatars   Storage
+	}
+	type args struct {
+		channelID string
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    []slack.Message
+		wantErr bool
+	}{
+		{
+			name: "invalid json file",
+			fields: fields{
+				chanNames: map[string]string{
+					"C123456": "general",
+				},
+				fs: fstest.MapFS{
+					"general/2023-01-01.json": {
+						Data: []byte("invalid json"),
+					},
+					"general/2023-01-02.json": {
+						Data: []byte(`[{"type":"message","text":"Hello, world!"}]`),
+					},
+				},
+			},
+			args: args{
+				channelID: "C123456",
+			},
+			want: []slack.Message{
+				{Msg: slack.Msg{Type: "message", Text: "Hello, world!"}},
+			},
+		},
+		{
+			name: "ignores nested directories",
+			fields: fields{
+				chanNames: map[string]string{
+					"C123456": "general",
+				},
+				fs: fstest.MapFS{
+					"general/2023-01-01.json": {
+						Data: []byte(`[{"type":"message","text":"Hello, world!"}]`),
+					},
+					"general/nested/2023-01-02.json": {
+						Data: []byte(`[{"type":"message","text":"Nested message"}]`),
+					},
+				},
+			},
+			args: args{
+				channelID: "C123456",
+			},
+			want: []slack.Message{
+				{Msg: slack.Msg{Type: "message", Text: "Hello, world!"}},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			e := &Export{
+				fs:        tt.fields.fs,
+				channels:  tt.fields.channels,
+				chanNames: tt.fields.chanNames,
+				name:      tt.fields.name,
+				idx:       tt.fields.idx,
+				files:     tt.fields.files,
+				avatars:   tt.fields.avatars,
+			}
+			it, err := e.walkChannelMessages(tt.args.channelID)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Export.walkChannelMessages() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			var got []slack.Message
+			for m, err := range it {
+				if (err != nil) != tt.wantErr {
+					t.Errorf("Export.walkChannelMessages() error = %v, wantErr %v", err, tt.wantErr)
+					return
+				}
+				got = append(got, m)
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Export.walkChannelMessages() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
