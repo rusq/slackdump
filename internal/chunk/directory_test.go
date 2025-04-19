@@ -1,12 +1,8 @@
 package chunk
 
 import (
-	"bytes"
-	"compress/gzip"
-	"encoding/json"
 	"errors"
 	"io/fs"
-	"os"
 	"strings"
 	"testing"
 	"testing/fstest"
@@ -15,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/rusq/slackdump/v3/internal/fixtures"
+	"github.com/rusq/slackdump/v3/internal/testutil"
 )
 
 // assortment of channel info chunks
@@ -73,46 +70,7 @@ var (
 	}
 )
 
-func TestOpenDir(t *testing.T) {
-}
-
 func TestDirectory_Walk(t *testing.T) {
-	var (
-		// prepDir prepares a temporary directory for testing and populates it with
-		// files from fsys.  It returns the path to the directory.
-		prepDir = func(t *testing.T, fsys fs.FS) string {
-			t.Helper()
-			dir := t.TempDir()
-			if err := os.CopyFS(dir, fsys); err != nil {
-				t.Fatal(err)
-			}
-			return dir
-		}
-
-		compress = func(t *testing.T, data []byte) []byte {
-			t.Helper()
-			var buf bytes.Buffer
-			gz := gzip.NewWriter(&buf)
-			defer gz.Close()
-			if _, err := gz.Write(data); err != nil {
-				t.Fatal(err)
-			}
-			if err := gz.Close(); err != nil {
-				t.Fatal(err)
-			}
-			return buf.Bytes()
-		}
-
-		marshal = func(t *testing.T, v any) []byte {
-			t.Helper()
-			data, err := json.Marshal(v)
-			if err != nil {
-				t.Fatal(err)
-			}
-			return data
-		}
-	)
-
 	testChannels := fixtures.Load[[]slack.Channel](fixtures.TestChannelsJSON)
 	channelInfos := make([]Chunk, len(testChannels))
 	for _, ch := range testChannels {
@@ -136,13 +94,13 @@ func TestDirectory_Walk(t *testing.T) {
 			name: "invalid json in root",
 			fsys: fstest.MapFS{
 				"C123VALID.json.gz": &fstest.MapFile{
-					Data: compress(t, marshal(t, channelInfos[0])),
+					Data: testutil.GZCompress(t, testutil.MarshalJSON(t, channelInfos[0])),
 				},
 				"C123INVALID.json.gz": &fstest.MapFile{
-					Data: compress(t, []byte("invalid json")),
+					Data: testutil.GZCompress(t, []byte("invalid json")),
 				},
 				"C123VALID2.json.gz": &fstest.MapFile{
-					Data: compress(t, marshal(t, channelInfos[1])),
+					Data: testutil.GZCompress(t, testutil.MarshalJSON(t, channelInfos[1])),
 				},
 			},
 			want: []string{
@@ -154,22 +112,22 @@ func TestDirectory_Walk(t *testing.T) {
 			name: "should scan only top level dir",
 			fsys: fstest.MapFS{
 				"__uploads/CINVALID.json.gz": &fstest.MapFile{
-					Data: compress(t, []byte("NaN")),
+					Data: testutil.GZCompress(t, []byte("NaN")),
 				},
 				"__uploads/CVALID.json.gz": &fstest.MapFile{
-					Data: compress(t, marshal(t, channelInfos[1])),
+					Data: testutil.GZCompress(t, testutil.MarshalJSON(t, channelInfos[1])),
 				},
 				"__avatars/CVALID.json.gz": &fstest.MapFile{
-					Data: compress(t, marshal(t, channelInfos[2])),
+					Data: testutil.GZCompress(t, testutil.MarshalJSON(t, channelInfos[2])),
 				},
 				"somedir/CVALID.json.gz": &fstest.MapFile{
-					Data: compress(t, marshal(t, channelInfos[3])),
+					Data: testutil.GZCompress(t, testutil.MarshalJSON(t, channelInfos[3])),
 				},
 				"CVALID.json.gz": &fstest.MapFile{
-					Data: compress(t, marshal(t, channelInfos[0])),
+					Data: testutil.GZCompress(t, testutil.MarshalJSON(t, channelInfos[0])),
 				},
 				"CANOTHER.json.gz": &fstest.MapFile{
-					Data: compress(t, marshal(t, channelInfos[1])),
+					Data: testutil.GZCompress(t, testutil.MarshalJSON(t, channelInfos[1])),
 				},
 			},
 			want: []string{
@@ -180,7 +138,7 @@ func TestDirectory_Walk(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			dir := prepDir(t, tt.fsys)
+			dir := testutil.PreareTestDirectory(t, tt.fsys)
 			d, err := OpenDir(dir)
 			if err != nil {
 				t.Fatalf("OpenDir() error = %v", err)
