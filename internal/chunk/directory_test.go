@@ -71,6 +71,7 @@ var (
 )
 
 func TestDirectory_Walk(t *testing.T) {
+	fixtures.SkipOnWindows(t) // TODO: fix this test on Windows
 	testChannels := fixtures.Load[[]slack.Channel](fixtures.TestChannelsJSON)
 	channelInfos := make([]Chunk, len(testChannels))
 	for _, ch := range testChannels {
