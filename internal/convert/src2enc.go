@@ -64,7 +64,10 @@ func (s *SourceEncoder) Convert(ctx context.Context) error {
 	var cp processor.Conversations = rec
 	if s.opts.includeFiles && s.src.Files().Type() != source.STnone {
 		fc := NewFileCopier(s.src, s.fsa, source.MattermostFilepath, s.opts.includeFiles)
-		cp = processor.PrependFiler(rec, &filecopywrapper{fc})
+		cp = processor.PrependFiler(rec, &filecopywrapper{
+			fc:           fc,
+			ignoreErrors: s.opts.ignoreCopyErrors,
+		})
 	}
 	channels, err := s.src.Channels(ctx)
 	if err != nil {

@@ -1,21 +1,3 @@
-// Package source provides archive readers for different output formats.
-//
-// Currently, the following formats are supported:
-//   - archive
-//   - database
-//   - dump
-//   - Slack Export
-//
-// One should use [Load] function to load the source from the file system.  It
-// will automatically detect the format and return the appropriate reader.
-//
-// All sources implement the [Sourcer] interface, which provides methods to
-// retrieve data from the source.  The [Resumer] interface is implemented by
-// sources that can be resumed.  The [SourceResumeCloser] interface is
-// implemented by sources that can be resumed and closed.
-//
-// There are two distinct error types of interest, [ErrNotFound] and
-// [ErrNotSupported].  See their documentation for more information.
 package source
 
 import (
@@ -106,14 +88,22 @@ type Flags int8
 
 const (
 	// container
+	// FDirectory indicates that the source is a directory.
 	FDirectory Flags = 1 << iota
+	// FZip indicates that the source is a ZIP archive.
 	FZip
 	// main content
+	// FChunk is set on directories with json.gz files.
 	FChunk
+	// FExport is set on Slack exoprt directories or ZIP files.
 	FExport
+	// FDump is set on a Slackdump Dump format directory or ZIP file.
 	FDump
+	// FDatabase indicates that the source is a SQLite database.
 	FDatabase
 
+	// FUnknown is returned if the source type is not supported or
+	// can not be determined.
 	FUnknown Flags = 0
 )
 

@@ -34,6 +34,8 @@ type options struct {
 	includeFiles bool
 	// includeAvatars is a flag to include avatars in the export
 	includeAvatars bool
+	// ignoreCopyErrors is a flag to ignore copy errors
+	ignoreCopyErrors bool
 	// trgFileLoc should return the file location within the target directory
 	trgFileLoc func(*slack.Channel, *slack.File) string
 	// avtrFileLoc should return the avatar file location.
@@ -53,6 +55,12 @@ func WithIncludeFiles(b bool) Option {
 func WithIncludeAvatars(b bool) Option {
 	return func(c *options) {
 		c.includeAvatars = b
+	}
+}
+
+func WithIgnoreCopyErrors(b bool) Option {
+	return func(c *options) {
+		c.ignoreCopyErrors = b
 	}
 }
 
