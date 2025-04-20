@@ -55,7 +55,7 @@ func (d *DumpConverter) Convert(ctx context.Context) error {
 		}
 		tfopts = append(tfopts, transform.DumpWithPipeline(fh.copyFiles))
 	}
-	conv, err := transform.NewDumpConverter(
+	conv, err := transform.NewDump(
 		d.fsa,
 		d.src,
 		tfopts...,

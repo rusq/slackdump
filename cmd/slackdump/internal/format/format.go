@@ -59,7 +59,7 @@ func runFormat(ctx context.Context, cmd *base.Command, args []string) error {
 		return err
 	} else {
 		var ok bool
-		formatterInit, ok := format.Converters[convType]
+		formatterInit, ok := convType.FormatFunc()
 		if !ok {
 			base.SetExitStatus(base.SInvalidParameters)
 			return errors.New("unknown converter type")

@@ -149,7 +149,7 @@ func saveData(ctx context.Context, data any, filename string, typ format.Type, u
 // users by ID.
 func fmtPrint(ctx context.Context, w io.Writer, a any, typ format.Type, u []slack.User, bare bool) error {
 	// get the converter
-	initFn, ok := format.Converters[typ]
+	initFn, ok := typ.FormatFunc()
 	if !ok {
 		return fmt.Errorf("unknown converter type: %s", typ)
 	}

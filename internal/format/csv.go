@@ -22,7 +22,7 @@ type csvOptions struct {
 }
 
 func init() {
-	Converters[CCSV] = NewCSV
+	converters[CCSV] = NewCSV
 }
 
 func NewCSV(opts ...Option) Formatter {

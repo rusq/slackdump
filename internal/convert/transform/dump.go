@@ -46,8 +46,8 @@ func DumpWithLogger(log *slog.Logger) DumpOption {
 	}
 }
 
-// NewDumpConverter creates a new standard dump converter.
-func NewDumpConverter(fsa fsadapter.FS, src source.Sourcer, opts ...DumpOption) (*DumpConverter, error) {
+// NewDump creates a new standard dump converter.
+func NewDump(fsa fsadapter.FS, src source.Sourcer, opts ...DumpOption) (*DumpConverter, error) {
 	std := &DumpConverter{
 		src:  src,
 		fsa:  fsa,

@@ -204,7 +204,7 @@ func dumpv3(ctx context.Context, sess client.Slack, fsa fsadapter.FS, p dumppara
 		opts = append(opts, transform.DumpWithPipeline(subproc.PathUpdateFunc))
 	}
 
-	tf, err := transform.NewDumpConverter(fsa, src, opts...)
+	tf, err := transform.NewDump(fsa, src, opts...)
 	if err != nil {
 		return fmt.Errorf("failed to create transform: %w", err)
 	}
@@ -301,7 +301,7 @@ func dumpv31(ctx context.Context, client client.Slack, fsa fsadapter.FS, p dumpp
 		opts = append(opts, transform.DumpWithPipeline(subproc.PathUpdateFunc))
 	}
 
-	tf, err := transform.NewDumpConverter(fsa, src, opts...)
+	tf, err := transform.NewDump(fsa, src, opts...)
 	if err != nil {
 		return fmt.Errorf("failed to create transform: %w", err)
 	}
