@@ -100,8 +100,9 @@ func copy2trg(trgfs fsadapter.FS, trgpath string, srcfs fs.FS, srcpath string) e
 }
 
 type avatarcopywrapper struct {
-	fsa  fsadapter.FS
-	avst source.Storage
+	fsa          fsadapter.FS
+	avst         source.Storage
+	ignoreErrors bool
 }
 
 func (a *avatarcopywrapper) Users(ctx context.Context, users []slack.User) error {
@@ -135,6 +136,10 @@ func (a *avatarcopywrapper) copyAvatar(u slack.User) error {
 	dstloc := path.Join(chunk.AvatarsDir, path.Join(source.AvatarParams(&u)))
 	src, err := fsys.Open(srcloc)
 	if err != nil {
+		if a.ignoreErrors {
+			slog.Warn("copying avatar", "user", u.ID, "error", err)
+			return nil
+		}
 		return err
 	}
 	defer src.Close()
@@ -152,11 +157,19 @@ func (a *avatarcopywrapper) copyAvatar(u slack.User) error {
 }
 
 type filecopywrapper struct {
-	fc copier
+	fc           copier
+	ignoreErrors bool
 }
 
-func (f *filecopywrapper) Files(_ context.Context, ch *slack.Channel, parent slack.Message, _ []slack.File) error {
-	return f.fc.Copy(ch, &parent)
+func (f *filecopywrapper) Files(ctx context.Context, ch *slack.Channel, parent slack.Message, _ []slack.File) error {
+	if err := f.fc.Copy(ch, &parent); err != nil {
+		if f.ignoreErrors {
+			slog.WarnContext(ctx, "copying file", "error", err)
+			return nil
+		}
+		return err
+	}
+	return nil
 }
 
 func (f *filecopywrapper) Close() error {

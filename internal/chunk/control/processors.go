@@ -119,6 +119,11 @@ var _ processor.Channels = (*chanFilter)(nil)
 // channel matches the filter, and is not excluded or duplicate, it sends the
 // channel ID (as an EntityItem) to the links channel.
 func (c *chanFilter) Channels(ctx context.Context, ch []slack.Channel) error {
+	select {
+	case <-ctx.Done():
+		return context.Cause(ctx)
+	default:
+	}
 LOOP:
 	for _, ch := range ch {
 		if c.memberOnly && (ch.ID[0] == 'C' && !ch.IsMember) {
