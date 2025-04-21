@@ -273,7 +273,7 @@ func TestDBP_IsComplete(t *testing.T) {
 		wantErr  bool
 	}{
 		{
-			name: "is complete",
+			name: "channel is complete",
 			fields: fields{
 				conn:      testDB(t),
 				sessionID: 42,
@@ -289,7 +289,7 @@ func TestDBP_IsComplete(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "is not complete",
+			name: "channel is not complete",
 			fields: fields{
 				conn:      testDB(t),
 				sessionID: 42,
