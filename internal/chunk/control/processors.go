@@ -79,17 +79,47 @@ func (ct *conversationTransformer) ThreadMessages(ctx context.Context, channelID
 }
 
 func (ct *conversationTransformer) mbeTransform(ctx context.Context, channelID, threadID string, threadOnly bool) error {
+	// there are two cases:
+	// 1. we are in a thread-only mode, so we need to check if this thread individual thread is complete.
+	if threadOnly {
+		return ct.mbeTransformThread(ctx, channelID, threadID)
+	}
+	// 2. we are in a channel mode, so we need to check if the channel is complete.
+	return ct.mbeTransformChannel(ctx, channelID)
+}
+
+func (ct *conversationTransformer) mbeTransformChannel(ctx context.Context, channelID string) error {
 	isComplete, err := ct.rc.IsComplete(ctx, channelID)
 	if err != nil {
 		return fmt.Errorf("error checking if complete: %w", err)
 	}
-	lg := slog.With("channel_id", channelID, "thread_id", threadID, "is_complete", isComplete)
-	lg.Debug("finalisation")
+	lg := slog.With("channel_id", channelID, "is_complete", isComplete)
+	lg.Debug("channel finalisation")
 	if !isComplete {
+		lg.Debug("not complete, skipping")
 		return nil
 	}
-	lg.Debug("calling transform")
-	if err := ct.tf.Transform(ctx, chunk.ToFileID(channelID, threadID, threadOnly)); err != nil {
+	lg.Debug("calling channel transform")
+	if err := ct.tf.Transform(ctx, chunk.ToFileID(channelID, "", false)); err != nil {
+		return fmt.Errorf("error transforming: %w", err)
+	}
+	return nil
+}
+
+func (ct *conversationTransformer) mbeTransformThread(ctx context.Context, channelID string, threadID string) error {
+	isComplete, err := ct.rc.IsCompleteThread(ctx, channelID, threadID)
+	if err != nil {
+		return fmt.Errorf("error checking if complete: %w", err)
+	}
+	lg := slog.With("channel_id", channelID, "thread_id", threadID, "is_complete", isComplete, "thread_only", true)
+	lg.Debug("thread finalisation")
+	if !isComplete {
+		lg.Debug("not complete, skipping")
+		return nil
+	}
+	lg.Debug("calling thread transform")
+	// TODO: TransformThread
+	if err := ct.tf.Transform(ctx, chunk.ToFileID(channelID, threadID, true)); err != nil {
 		return fmt.Errorf("error transforming: %w", err)
 	}
 	return nil

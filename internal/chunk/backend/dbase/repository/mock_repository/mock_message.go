@@ -134,6 +134,21 @@ func (mr *MockMessageRepositoryMockRecorder) CountUnfinished(ctx, conn, sessionI
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CountUnfinished", reflect.TypeOf((*MockMessageRepository)(nil).CountUnfinished), ctx, conn, sessionID, channelID)
 }
 
+// CountUnfinishedThreads mocks base method.
+func (m *MockMessageRepository) CountUnfinishedThreads(ctx context.Context, conn sqlx.QueryerContext, sessionID int64, channelID, threadID string) (int64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CountUnfinishedThreads", ctx, conn, sessionID, channelID, threadID)
+	ret0, _ := ret[0].(int64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CountUnfinishedThreads indicates an expected call of CountUnfinishedThreads.
+func (mr *MockMessageRepositoryMockRecorder) CountUnfinishedThreads(ctx, conn, sessionID, channelID, threadID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CountUnfinishedThreads", reflect.TypeOf((*MockMessageRepository)(nil).CountUnfinishedThreads), ctx, conn, sessionID, channelID, threadID)
+}
+
 // Get mocks base method.
 func (m *MockMessageRepository) Get(ctx context.Context, conn sqlx.ExtContext, id any) (repository.DBMessage, error) {
 	m.ctrl.T.Helper()

@@ -150,6 +150,18 @@ func (d *DBP) IsComplete(ctx context.Context, channelID string) (bool, error) {
 	return n <= 0, nil
 }
 
+func (d *DBP) IsCompleteThread(ctx context.Context, channelID, threadID string) (bool, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	n, err := d.mr.CountUnfinishedThreads(ctx, d.conn, d.sessionID, channelID, threadID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, nil
+	} else if err != nil {
+		return false, fmt.Errorf("countUnfinished: %w", err)
+	}
+	return n > 0, nil
+}
+
 // Source returns the connection that can be used safely as a source.
 func (d *DBP) Source() *Source {
 	return &Source{
