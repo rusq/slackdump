@@ -97,6 +97,7 @@ func TestDBChunk_Chunk(t *testing.T) {
 		ChannelID   *string
 		SearchQuery *string
 		Final       bool
+		ThreadOnly  *bool
 	}
 	tests := []struct {
 		name   string
@@ -144,6 +145,50 @@ func TestDBChunk_Chunk(t *testing.T) {
 			},
 		},
 		{
+			name: "thread messages, thread only",
+			fields: fields{
+				ID:         1,
+				SessionID:  1,
+				UnixTS:     1234567890,
+				TypeID:     chunk.CThreadMessages,
+				NumRecords: 100,
+				Final:      true,
+				ChannelID:  ptr("C1234567890"),
+				ThreadOnly: ptr(true),
+			},
+			want: &chunk.Chunk{
+				Type:       chunk.CThreadMessages,
+				Timestamp:  1234567890,
+				ChannelID:  "C1234567890",
+				Count:      100,
+				IsLast:     true,
+				ThreadOnly: true,
+				Messages:   make([]slack.Message, 0, 100),
+			},
+		},
+		{
+			name: "thread messages, not thread only",
+			fields: fields{
+				ID:         1,
+				SessionID:  1,
+				UnixTS:     1234567890,
+				TypeID:     chunk.CThreadMessages,
+				NumRecords: 100,
+				Final:      true,
+				ChannelID:  ptr("C1234567890"),
+				ThreadOnly: ptr(false),
+			},
+			want: &chunk.Chunk{
+				Type:       chunk.CThreadMessages,
+				Timestamp:  1234567890,
+				ChannelID:  "C1234567890",
+				Count:      100,
+				IsLast:     true,
+				ThreadOnly: false,
+				Messages:   make([]slack.Message, 0, 100),
+			},
+		},
+		{
 			name: "channel users",
 			fields: fields{
 				ID:         1,
@@ -174,6 +219,7 @@ func TestDBChunk_Chunk(t *testing.T) {
 				ChannelID:   tt.fields.ChannelID,
 				SearchQuery: tt.fields.SearchQuery,
 				Final:       tt.fields.Final,
+				ThreadOnly:  tt.fields.ThreadOnly,
 			}
 			if got := c.Chunk(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("DBChunk.Chunk() = %v, want %v", got, tt.want)

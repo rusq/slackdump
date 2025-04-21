@@ -25,6 +25,7 @@ type DBChunk struct {
 	ChannelID   *string         `db:"CHANNEL_ID,omitempty"`
 	SearchQuery *string         `db:"SEARCH_QUERY,omitempty"`
 	Final       bool            `db:"FINAL"`
+	ThreadOnly  *bool           `db:"THREAD_ONLY,omitempty"`
 }
 
 func orZero[T any](t *T) T {
@@ -43,6 +44,7 @@ func (c DBChunk) Chunk() *chunk.Chunk {
 		Count:       c.NumRecords,
 		IsLast:      c.Final,
 		SearchQuery: orZero(c.SearchQuery),
+		ThreadOnly:  orZero(c.ThreadOnly),
 	}
 	switch c.TypeID {
 	case chunk.CMessages, chunk.CThreadMessages:
@@ -84,6 +86,7 @@ func (DBChunk) columns() []string {
 		"CHANNEL_ID",
 		"SEARCH_QUERY",
 		"FINAL",
+		"THREAD_ONLY",
 	}
 }
 
@@ -96,6 +99,7 @@ func (d DBChunk) values() []any {
 		d.ChannelID,
 		d.SearchQuery,
 		d.Final,
+		d.ThreadOnly,
 	}
 }
 
