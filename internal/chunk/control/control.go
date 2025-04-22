@@ -65,13 +65,17 @@ func (c *Controller) mkSuperprocessor(ctx context.Context, rec *chunk.Recorder) 
 	// files ==> recorder ==> transformer                     2     1            3
 	conv := processor.AppendMessenger(processor.PrependFiler(rec, c.filer), c.newConvTransformer(ctx))
 	if c.flags.ChannelUsers {
-		// userIDCollector collects the user IDs from messages and thread messages (excluding duplicates)
-		// and sends them to the userIDC channel.  The userCollectingStreamer replaces the Users method
-		// of the Streamer with a method that gets the information for user IDs received on the userIDC
-		// channel and calls the Users processor method.  Once the Close method is called on userIDCollector,
-		// the userID channel is closed, and the userCollectingStreamer stops processing the user IDs.
+		// userIDCollector collects the user IDs from messages and thread
+		// messages (excluding duplicates) and sends them to the userIDC
+		// channel.  The userCollectingStreamer replaces the Users method of
+		// the Streamer with a method that gets the information for user IDs
+		// received on the userIDC channel and calls the Users processor
+		// method.  Once the Close method is called on userIDCollector, the
+		// userID channel is closed, and the userCollectingStreamer stops
+		// processing the user IDs.
 		//
-		// Drawback is that the transformer won't start until all user IDs are collected from all channels.
+		// Drawback is that the transformer won't start until all user IDs are
+		// collected from all channels.
 		ucoll := newMsgUserIDsCollector()
 		conv = processor.PrependMessenger(conv, ucoll)
 		streamer = &userCollectingStreamer{
@@ -80,9 +84,10 @@ func (c *Controller) mkSuperprocessor(ctx context.Context, rec *chunk.Recorder) 
 		}
 	}
 
-	// if we're running in resume mode, it is possible that we will not collect any users due to no new messages, therefore
-	// we need to allow the user collector to close without collecting any users by setting allowEmpty to true (value of
-	// c.Flags.ChannelUsers)
+	// if we're running in resume mode, it is possible that we will not collect
+	// any users due to no new messages, therefore we need to allow the user
+	// collector to close without collecting any users by setting allowEmpty to
+	// true (value of c.Flags.ChannelUsers)
 	sp := superprocessor{
 		Conversations: conv,
 		//                                       1                                          2    3

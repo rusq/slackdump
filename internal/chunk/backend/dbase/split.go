@@ -47,6 +47,7 @@ func (d *DBP) UnsafeInsertChunk(ctx context.Context, txx repository.PrepareExtCo
 		ChannelID:   orNil(ch.ChannelID != "", ch.ChannelID),
 		SearchQuery: orNil(ch.SearchQuery != "", ch.SearchQuery),
 		Final:       ch.IsLast,
+		ThreadOnly:  orNil(ch.Type == chunk.CThreadMessages, ch.ThreadOnly),
 	}
 	cr := repository.NewChunkRepository()
 	id, err := cr.Insert(ctx, txx, &dc)
@@ -58,11 +59,12 @@ func (d *DBP) UnsafeInsertChunk(ctx context.Context, txx repository.PrepareExtCo
 		return 0, fmt.Errorf("insertchunk: payload: %w", err)
 	}
 
-	slog.DebugContext(ctx, "inserted chunk", "id", id, "len", n, "channel_id", ch.ChannelID, "type", ch.Type, "final", ch.IsLast)
+	slog.DebugContext(ctx, "inserted chunk", "id", id, "len", n, "channel_id", ch.ChannelID, "type", ch.Type, "final", ch.IsLast, "thread_only", ch.ThreadOnly)
 
 	return id, nil
 }
 
+// orNil returns a pointer to the value if cond is true, otherwise nil.
 func orNil[T any](cond bool, v T) *T {
 	if cond {
 		return &v

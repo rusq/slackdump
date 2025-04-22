@@ -137,7 +137,7 @@ func (d *DBP) Encode(ctx context.Context, ch *chunk.Chunk) error {
 }
 
 // IsComplete returns true if the channel messages have been processed (there
-// are no unfinished threads).
+// are no unfinished threads, and all messages were received).
 func (d *DBP) IsComplete(ctx context.Context, channelID string) (bool, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -148,6 +148,24 @@ func (d *DBP) IsComplete(ctx context.Context, channelID string) (bool, error) {
 		return false, fmt.Errorf("countUnfinished: %w", err)
 	}
 	return n <= 0, nil
+}
+
+// IsCompleteThread checks that thread with channelID and threadID is complete for
+// thread-only archives.  It returns true if there are no unfinished parts of the
+// thread.  It returns false if the thread is not found.  It will return false
+// on non-thread-only archives.
+func (d *DBP) IsCompleteThread(ctx context.Context, channelID, threadID string) (bool, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	n, err := d.mr.CountThreadOnlyParts(ctx, d.conn, d.sessionID, channelID, threadID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, nil
+	} else if err != nil {
+		return false, fmt.Errorf("countUnfinished: %w", err)
+	}
+	// note that count thread only parts returns non-zero for completed threads,
+	// so the check is reversed.
+	return n > 0, nil
 }
 
 // Source returns the connection that can be used safely as a source.

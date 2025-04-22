@@ -96,6 +96,7 @@ func (s *DumpConverter) Convert(ctx context.Context, id chunk.FileID) error {
 	if err != nil {
 		return err
 	}
+	slog.Debug("DumpConverter.Convert", "channel", channelID, "thread", threadID)
 
 	var msgs []types.Message
 	if threadID == "" {
@@ -179,9 +180,9 @@ func stdConversation(ctx context.Context, cf source.Sourcer, ci *slack.Channel, 
 }
 
 // stdThread is the function that performs transformation of a single thread.
-func stdThread(ctx context.Context, cf source.Sourcer, ci *slack.Channel, threadTS string, pipeline pipeline) ([]types.Message, error) {
+func stdThread(ctx context.Context, src source.Sourcer, ci *slack.Channel, threadTS string, pipeline pipeline) ([]types.Message, error) {
 	// this is a thread.
-	it, err := cf.AllThreadMessages(ctx, ci.ID, threadTS)
+	it, err := src.AllThreadMessages(ctx, ci.ID, threadTS)
 	if err != nil {
 		return nil, err
 	}

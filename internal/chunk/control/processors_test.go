@@ -255,7 +255,7 @@ func Test_conversationTransformer_mbeTransform(t *testing.T) {
 			fields: fields{ctx: testCtx},
 			args:   args{ctx: testCtx, channelID: "C12345678", threadID: "1234.5678", threadOnly: true},
 			expectFn: func(mrc *mock_control.MockReferenceChecker, mes *mock_control.MockExportTransformer) {
-				mrc.EXPECT().IsComplete(gomock.Any(), "C12345678").Return(true, nil)
+				mrc.EXPECT().IsCompleteThread(gomock.Any(), "C12345678", "1234.5678").Return(true, nil)
 				mes.EXPECT().Transform(gomock.Any(), chunk.ToFileID("C12345678", "1234.5678", true)).Return(nil)
 			},
 			wantErr: false,
@@ -1064,6 +1064,71 @@ func Test_msgUserIDsCollector_C(t *testing.T) {
 			}
 			if got := uic.C(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("msgUserIDsCollector.C() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_conversationTransformer_mbeTransformChannel(t *testing.T) {
+	type fields struct {
+		ctx context.Context
+		tf  chunk.Transformer
+		rc  ReferenceChecker
+	}
+	type args struct {
+		ctx       context.Context
+		channelID string
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		// TODO: Add test cases.
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ct := &conversationTransformer{
+				ctx: tt.fields.ctx,
+				tf:  tt.fields.tf,
+				rc:  tt.fields.rc,
+			}
+			if err := ct.mbeTransformChannel(tt.args.ctx, tt.args.channelID); (err != nil) != tt.wantErr {
+				t.Errorf("conversationTransformer.mbeTransformChannel() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func Test_conversationTransformer_mbeTransformThread(t *testing.T) {
+	type fields struct {
+		ctx context.Context
+		tf  chunk.Transformer
+		rc  ReferenceChecker
+	}
+	type args struct {
+		ctx       context.Context
+		channelID string
+		threadID  string
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		// TODO: Add test cases.
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ct := &conversationTransformer{
+				ctx: tt.fields.ctx,
+				tf:  tt.fields.tf,
+				rc:  tt.fields.rc,
+			}
+			if err := ct.mbeTransformThread(tt.args.ctx, tt.args.channelID, tt.args.threadID); (err != nil) != tt.wantErr {
+				t.Errorf("conversationTransformer.mbeTransformThread() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}

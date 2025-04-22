@@ -2,6 +2,7 @@ package convertcmd
 
 import (
 	"context"
+	"log/slog"
 
 	"github.com/rusq/fsadapter"
 
@@ -58,5 +59,6 @@ func toExport(ctx context.Context, src, trg string, cflg convertflags) error {
 		return err
 	}
 
+	slog.Info("converted", "source", src, "target", trg)
 	return nil
 }

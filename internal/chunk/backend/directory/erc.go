@@ -115,6 +115,10 @@ func (e *ERC) IsComplete(ctx context.Context, channelID string) (bool, error) {
 	return e.cv.t.RefCount(chunk.ToFileID(channelID, "", false)) <= 0, nil
 }
 
+func (e *ERC) IsCompleteThread(ctx context.Context, channelID, threadID string) (bool, error) {
+	return e.cv.t.RefCount(chunk.ToFileID(channelID, threadID, true)) <= 0, nil
+}
+
 func (e *ERC) Close() error {
 	var errs error
 	if e.cv != nil {

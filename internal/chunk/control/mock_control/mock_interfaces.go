@@ -281,6 +281,21 @@ func (mr *MockReferenceCheckerMockRecorder) IsComplete(ctx, channelID any) *gomo
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsComplete", reflect.TypeOf((*MockReferenceChecker)(nil).IsComplete), ctx, channelID)
 }
 
+// IsCompleteThread mocks base method.
+func (m *MockReferenceChecker) IsCompleteThread(ctx context.Context, channelID, threadID string) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IsCompleteThread", ctx, channelID, threadID)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// IsCompleteThread indicates an expected call of IsCompleteThread.
+func (mr *MockReferenceCheckerMockRecorder) IsCompleteThread(ctx, channelID, threadID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsCompleteThread", reflect.TypeOf((*MockReferenceChecker)(nil).IsCompleteThread), ctx, channelID, threadID)
+}
+
 // MockEncodeReferenceCloser is a mock of EncodeReferenceCloser interface.
 type MockEncodeReferenceCloser struct {
 	ctrl     *gomock.Controller
@@ -346,4 +361,19 @@ func (m *MockEncodeReferenceCloser) IsComplete(ctx context.Context, channelID st
 func (mr *MockEncodeReferenceCloserMockRecorder) IsComplete(ctx, channelID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsComplete", reflect.TypeOf((*MockEncodeReferenceCloser)(nil).IsComplete), ctx, channelID)
+}
+
+// IsCompleteThread mocks base method.
+func (m *MockEncodeReferenceCloser) IsCompleteThread(ctx context.Context, channelID, threadID string) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IsCompleteThread", ctx, channelID, threadID)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// IsCompleteThread indicates an expected call of IsCompleteThread.
+func (mr *MockEncodeReferenceCloserMockRecorder) IsCompleteThread(ctx, channelID, threadID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsCompleteThread", reflect.TypeOf((*MockEncodeReferenceCloser)(nil).IsCompleteThread), ctx, channelID, threadID)
 }

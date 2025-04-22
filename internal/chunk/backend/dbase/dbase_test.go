@@ -273,7 +273,7 @@ func TestDBP_IsComplete(t *testing.T) {
 		wantErr  bool
 	}{
 		{
-			name: "is complete",
+			name: "channel is complete",
 			fields: fields{
 				conn:      testDB(t),
 				sessionID: 42,
@@ -289,7 +289,7 @@ func TestDBP_IsComplete(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "is not complete",
+			name: "channel is not complete",
 			fields: fields{
 				conn:      testDB(t),
 				sessionID: 42,
@@ -456,6 +456,101 @@ func TestDBP_Encode(t *testing.T) {
 			}
 			if err := d.Encode(tt.args.ctx, tt.args.ch); (err != nil) != tt.wantErr {
 				t.Errorf("DBP.Encode() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestDBP_IsCompleteThread(t *testing.T) {
+	type fields struct {
+		conn      *sqlx.DB
+		sessionID int64
+		// mr        repository.MessageRepository
+	}
+	type args struct {
+		ctx       context.Context
+		channelID string
+		threadID  string
+	}
+	tests := []struct {
+		name     string
+		fields   fields
+		args     args
+		expectFn func(mmr *mock_repository.MockMessageRepository)
+		want     bool
+		wantErr  bool
+	}{
+		{
+			name: "thread is complete",
+			fields: fields{
+				conn:      testDB(t),
+				sessionID: 42,
+			},
+			args: args{
+				ctx:       context.Background(),
+				channelID: "C123456",
+				threadID:  "123456.7890",
+			},
+			expectFn: func(mmr *mock_repository.MockMessageRepository) {
+				mmr.EXPECT().CountThreadOnlyParts(gomock.Any(), gomock.Any(), int64(42), "C123456", "123456.7890").Return(int64(1), nil)
+			},
+			want:    true,
+			wantErr: false,
+		},
+		{
+			name: "thread is not complete",
+			fields: fields{
+				conn:      testDB(t),
+				sessionID: 42,
+			},
+			args: args{
+				ctx:       context.Background(),
+				channelID: "C123456",
+				threadID:  "123456.7890",
+			},
+			expectFn: func(mmr *mock_repository.MockMessageRepository) {
+				mmr.EXPECT().CountThreadOnlyParts(gomock.Any(), gomock.Any(), int64(42), "C123456", "123456.7890").Return(int64(0), sql.ErrNoRows)
+			},
+			want:    false,
+			wantErr: false,
+		},
+		{
+			name: "error",
+			fields: fields{
+				conn:      testDB(t),
+				sessionID: 42,
+			},
+			args: args{
+				ctx:       context.Background(),
+				channelID: "C123456",
+				threadID:  "123456.7890",
+			},
+			expectFn: func(mmr *mock_repository.MockMessageRepository) {
+				mmr.EXPECT().CountThreadOnlyParts(gomock.Any(), gomock.Any(), int64(42), "C123456", "123456.7890").Return(int64(0), assert.AnError)
+			},
+			want:    false,
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			mmr := mock_repository.NewMockMessageRepository(ctrl)
+			if tt.expectFn != nil {
+				tt.expectFn(mmr)
+			}
+			d := &DBP{
+				conn:      tt.fields.conn,
+				sessionID: tt.fields.sessionID,
+				mr:        mmr,
+			}
+			got, err := d.IsCompleteThread(tt.args.ctx, tt.args.channelID, tt.args.threadID)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("DBP.IsCompleteThread() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("DBP.IsCompleteThread() = %v, want %v", got, tt.want)
 			}
 		})
 	}
