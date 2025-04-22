@@ -157,7 +157,7 @@ func (r messageRepository) Count(ctx context.Context, conn sqlx.QueryerContext, 
 }
 
 func (r messageRepository) AllForID(ctx context.Context, conn sqlx.QueryerContext, channelID string) (iter.Seq2[DBMessage, error], error) {
-	return r.allOfTypeWhere(ctx, conn, queryParams{Where: "T.CHANNEL_ID = ?", Binds: []any{channelID}, UserKeyOrder: true}, chunk.CMessages)
+	return r.allOfTypeWhere(ctx, conn, queryParams{Where: "T.CHANNEL_ID = ? AND ((CH.TYPE_ID=0 AND (CH.THREAD_ONLY=FALSE OR CH.THREAD_ONLY IS NULL)) OR (CH.TYPE_ID=1 AND CH.THREAD_ONLY=TRUE AND T.IS_PARENT=TRUE))", Binds: []any{channelID}, UserKeyOrder: true}, chunk.CMessages, chunk.CThreadMessages)
 }
 
 // threadCond returns a condition for selecting messages that are part of a
