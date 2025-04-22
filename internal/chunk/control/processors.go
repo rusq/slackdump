@@ -118,7 +118,7 @@ func (ct *conversationTransformer) mbeTransformThread(ctx context.Context, chann
 		return nil
 	}
 	lg.Debug("calling thread transform")
-	// TODO: TransformThread
+	// TODO: TransformThread #511
 	if err := ct.tf.Transform(ctx, chunk.ToFileID(channelID, threadID, true)); err != nil {
 		return fmt.Errorf("error transforming: %w", err)
 	}
