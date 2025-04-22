@@ -454,27 +454,30 @@ func Test_messageRepository_CountThread(t *testing.T) {
 }
 
 var (
-	tmAParent  = slack.Message{Msg: slack.Msg{Timestamp: "123.456", ThreadTimestamp: "123.456", Text: "A"}}
-	tmBChannel = slack.Message{Msg: slack.Msg{Timestamp: "124.000", ThreadTimestamp: "123.456", Text: "B", SubType: "thread_broadcast"}}
-	tmB        = slack.Message{Msg: slack.Msg{Timestamp: "124.000", ThreadTimestamp: "123.456", Text: "B", SubType: "thread_broadcast"}}
-	tmC        = slack.Message{Msg: slack.Msg{Timestamp: "125.000", ThreadTimestamp: "123.456", Text: "C"}}
-	tmD        = slack.Message{Msg: slack.Msg{Timestamp: "126.000", ThreadTimestamp: "123.456", Text: "D"}}
-	tmC_       = slack.Message{Msg: slack.Msg{Timestamp: "125.000", ThreadTimestamp: "123.456", Text: "C'"}}
+	testChannelID = "C123"
+	testThreadID  = "123.456"
+
+	tmAParent  = slack.Message{Msg: slack.Msg{Timestamp: testThreadID, ThreadTimestamp: testThreadID, Text: "A"}}
+	tmBChannel = slack.Message{Msg: slack.Msg{Timestamp: "124.000", ThreadTimestamp: testThreadID, Text: "B", SubType: "thread_broadcast"}}
+	tmB        = slack.Message{Msg: slack.Msg{Timestamp: "124.000", ThreadTimestamp: testThreadID, Text: "B", SubType: "thread_broadcast"}}
+	tmC        = slack.Message{Msg: slack.Msg{Timestamp: "125.000", ThreadTimestamp: testThreadID, Text: "C"}}
+	tmD        = slack.Message{Msg: slack.Msg{Timestamp: "126.000", ThreadTimestamp: testThreadID, Text: "D"}}
+	tmC_       = slack.Message{Msg: slack.Msg{Timestamp: "125.000", ThreadTimestamp: testThreadID, Text: "C'"}}
 	// special additional message to test the reference counter
 	tmXExtra = slack.Message{Msg: slack.Msg{Timestamp: "127.000", ThreadTimestamp: "127.000", Text: "X"}}
 	// thread lead that has replies deleted
 	tmYExtra = slack.Message{Msg: slack.Msg{Timestamp: "128.000", ThreadTimestamp: "128.000", LatestReply: structures.LatestReplyNoReplies, Text: "Y"}}
 
-	dbtmAParent  = must(NewDBMessage(1, 0, "C123", &tmAParent))
-	dbtmBChannel = must(NewDBMessage(1, 0, "C123", &tmBChannel))
-	dbtmAthread  = must(NewDBMessage(2, 0, "C123", &tmAParent)) // A message that comes with the thread chunk.
-	dbtmB        = must(NewDBMessage(2, 1, "C123", &tmB))
-	dbtmC        = must(NewDBMessage(2, 1, "C123", &tmC))
-	dbtmD        = must(NewDBMessage(2, 1, "C123", &tmD))
-	dbtmC_       = must(NewDBMessage(3, 1, "C123", &tmC_))
+	dbtmAParent  = must(NewDBMessage(1, 0, testChannelID, &tmAParent))
+	dbtmBChannel = must(NewDBMessage(1, 0, testChannelID, &tmBChannel))
+	dbtmAthread  = must(NewDBMessage(2, 0, testChannelID, &tmAParent)) // A message that comes with the thread chunk.
+	dbtmB        = must(NewDBMessage(2, 1, testChannelID, &tmB))
+	dbtmC        = must(NewDBMessage(2, 1, testChannelID, &tmC))
+	dbtmD        = must(NewDBMessage(2, 1, testChannelID, &tmD))
+	dbtmC_       = must(NewDBMessage(3, 1, testChannelID, &tmC_))
 	// these go into chunk 1
-	dbtmXExtra = must(NewDBMessage(1, 0, "C123", &tmXExtra))
-	dbtmYExtra = must(NewDBMessage(1, 0, "C123", &tmYExtra))
+	dbtmXExtra = must(NewDBMessage(1, 0, testChannelID, &tmXExtra))
+	dbtmYExtra = must(NewDBMessage(1, 0, testChannelID, &tmYExtra))
 )
 
 // mkThreadSetupFn creates a utility function that sets up the thread messages.
@@ -997,6 +1000,253 @@ func Test_messageRepository_Sorted(t *testing.T) {
 				return
 			}
 			testutil.AssertIterResult(t, tt.want, got)
+		})
+	}
+}
+
+func Test_messageRepository_CountThreadOnlyParts(t *testing.T) {
+	var (
+		finishedThreadFn = func(t *testing.T, conn PrepareExtContext) {
+			// for thread only entity list items there are no CMessage chunks, only CThreadMessages
+			// and these chunks have threadOnly = true
+			//
+			// Sample setup:
+			//
+			// Thread: 123.456
+			// 1. There are three chunks, 2 non-final and last one is final.
+			// 2. Each chunk will have 2 messages, one is a thread message and the other is a thread lead,
+			//    because API always returns the thread lead with the thread messages.
+			ctx := context.Background()
+			var sr sessionRepository
+			sess, err := sr.Insert(ctx, conn, &Session{ID: 1, Finished: true})
+			if err != nil {
+				t.Fatalf("insert session: %v", err)
+			}
+
+			var bTrue = true
+			// prepare and insert chunks
+			chunks := [...]DBChunk{
+				{ID: 1, TypeID: chunk.CThreadMessages, ChannelID: &testChannelID, SessionID: sess, Final: false, ThreadOnly: &bTrue},
+				{ID: 2, TypeID: chunk.CThreadMessages, ChannelID: &testChannelID, SessionID: sess, Final: false, ThreadOnly: &bTrue},
+				{ID: 3, TypeID: chunk.CThreadMessages, ChannelID: &testChannelID, SessionID: sess, Final: true, ThreadOnly: &bTrue},
+			}
+			var cr chunkRepository
+			for _, chunk := range chunks {
+				if _, err := cr.Insert(ctx, conn, &chunk); err != nil {
+					t.Fatalf("insert chunk: %v", err)
+				}
+			}
+			var (
+				parentMsg = slack.Message{Msg: slack.Msg{Timestamp: testThreadID, ThreadTimestamp: testThreadID, Text: "A"}}
+
+				tm1 = slack.Message{Msg: slack.Msg{Timestamp: "124.000", ThreadTimestamp: testThreadID, Text: "B"}}
+				tm2 = slack.Message{Msg: slack.Msg{Timestamp: "125.000", ThreadTimestamp: testThreadID, Text: "C"}}
+				tm3 = slack.Message{Msg: slack.Msg{Timestamp: "126.000", ThreadTimestamp: testThreadID, Text: "D"}}
+
+				chunkMessages = [len(chunks)][2]*DBMessage{
+					{
+						must(NewDBMessage(1, 0, testChannelID, &parentMsg)),
+						must(NewDBMessage(1, 1, testChannelID, &tm1)),
+					},
+					{
+						must(NewDBMessage(2, 0, testChannelID, &parentMsg)),
+						must(NewDBMessage(2, 1, testChannelID, &tm2)),
+					},
+					{
+						must(NewDBMessage(3, 0, testChannelID, &parentMsg)),
+						must(NewDBMessage(3, 1, testChannelID, &tm3)),
+					},
+				}
+			)
+
+			var mr messageRepository
+			for i := range chunks {
+				if err := mr.Insert(ctx, conn, chunkMessages[i][:]...); err != nil {
+					t.Fatalf("insert message: %v", err)
+				}
+			}
+		}
+
+		unfinishedThreadID = "123.789"
+		unfinishedThreadFn = func(t *testing.T, conn PrepareExtContext) {
+			// There are two different thread-only threads in this setup.
+			// - a finished thread 123.456
+			// - an unfinished thread. 123.789
+			// The setup is similar to the finishedThreadFn, but the last chunk is not final for the unfinished thread.
+			//
+			// Goal is to test if the other thread does not influence the count.
+
+			ctx := context.Background()
+			var sr sessionRepository
+			sess, err := sr.Insert(ctx, conn, &Session{ID: 1, Finished: true})
+			if err != nil {
+				t.Fatalf("insert session: %v", err)
+			}
+
+			var bTrue = true
+			// prepare and insert chunks
+			chunks := [...]DBChunk{
+				// finished thread chunks
+				{ID: 1, TypeID: chunk.CThreadMessages, ChannelID: &testChannelID, SessionID: sess, Final: false, ThreadOnly: &bTrue},
+				{ID: 2, TypeID: chunk.CThreadMessages, ChannelID: &testChannelID, SessionID: sess, Final: false, ThreadOnly: &bTrue},
+				{ID: 3, TypeID: chunk.CThreadMessages, ChannelID: &testChannelID, SessionID: sess, Final: true, ThreadOnly: &bTrue},
+				// unfinished thread chunks
+				{ID: 4, TypeID: chunk.CThreadMessages, ChannelID: &testChannelID, SessionID: sess, Final: false, ThreadOnly: &bTrue},
+				{ID: 5, TypeID: chunk.CThreadMessages, ChannelID: &testChannelID, SessionID: sess, Final: false, ThreadOnly: &bTrue},
+			}
+			var cr chunkRepository
+			for _, chunk := range chunks {
+				if _, err := cr.Insert(ctx, conn, &chunk); err != nil {
+					t.Fatalf("insert chunk: %v", err)
+				}
+			}
+			var (
+				parentMsg = slack.Message{Msg: slack.Msg{Timestamp: testThreadID, ThreadTimestamp: testThreadID, Text: "A"}}
+
+				// finished thread messages
+				tm1 = slack.Message{Msg: slack.Msg{Timestamp: "124.000", ThreadTimestamp: testThreadID, Text: "B"}}
+				tm2 = slack.Message{Msg: slack.Msg{Timestamp: "125.000", ThreadTimestamp: testThreadID, Text: "C"}}
+				tm3 = slack.Message{Msg: slack.Msg{Timestamp: "126.000", ThreadTimestamp: testThreadID, Text: "D"}}
+
+				// unfinished thread messages
+				parentMsg2 = slack.Message{Msg: slack.Msg{Timestamp: unfinishedThreadID, ThreadTimestamp: unfinishedThreadID, Text: "A"}}
+				tm4        = slack.Message{Msg: slack.Msg{Timestamp: "124.000", ThreadTimestamp: unfinishedThreadID, Text: "B"}}
+				tm5        = slack.Message{Msg: slack.Msg{Timestamp: "125.000", ThreadTimestamp: unfinishedThreadID, Text: "C"}}
+
+				chunkMessages = [len(chunks)][2]*DBMessage{
+					// finished thread
+					{
+						must(NewDBMessage(1, 0, testChannelID, &parentMsg)),
+						must(NewDBMessage(1, 1, testChannelID, &tm1)),
+					},
+					{
+						must(NewDBMessage(2, 0, testChannelID, &parentMsg)),
+						must(NewDBMessage(2, 1, testChannelID, &tm2)),
+					},
+					{
+						must(NewDBMessage(3, 0, testChannelID, &parentMsg)),
+						must(NewDBMessage(3, 1, testChannelID, &tm3)),
+					},
+					// unfinished thread
+					{
+						must(NewDBMessage(4, 0, testChannelID, &parentMsg2)),
+						must(NewDBMessage(4, 1, testChannelID, &tm4)),
+					},
+					{
+						must(NewDBMessage(5, 0, testChannelID, &parentMsg2)),
+						must(NewDBMessage(5, 1, testChannelID, &tm5)),
+					},
+				}
+			)
+
+			var mr messageRepository
+			for i := range chunks {
+				if err := mr.Insert(ctx, conn, chunkMessages[i][:]...); err != nil {
+					t.Fatalf("insert message: %v", err)
+				}
+			}
+		}
+	)
+
+	type fields struct {
+		genericRepository genericRepository[DBMessage]
+	}
+	type args struct {
+		ctx       context.Context
+		conn      sqlx.QueryerContext
+		sessionID int64
+		channelID string
+		threadID  string
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		prepFn  utilityFn
+		want    int64
+		wantErr bool
+	}{
+		{
+			name: "finished thread",
+			fields: fields{
+				genericRepository: genericRepository[DBMessage]{DBMessage{}},
+			},
+			args: args{
+				ctx:       context.Background(),
+				conn:      testConn(t),
+				sessionID: 1,
+				channelID: testChannelID,
+				threadID:  testThreadID,
+			},
+			prepFn:  finishedThreadFn,
+			want:    3,
+			wantErr: false,
+		},
+		{
+			name: "unfinished thread",
+			fields: fields{
+				genericRepository: genericRepository[DBMessage]{DBMessage{}},
+			},
+			args: args{
+				ctx:       context.Background(),
+				conn:      testConn(t),
+				sessionID: 1,
+				channelID: "C123",
+				threadID:  unfinishedThreadID,
+			},
+			prepFn:  unfinishedThreadFn,
+			want:    0,
+			wantErr: true,
+		},
+		{
+			name: "finished thread in unfinished thread setup",
+			fields: fields{
+				genericRepository: genericRepository[DBMessage]{DBMessage{}},
+			},
+			args: args{
+				ctx:       context.Background(),
+				conn:      testConn(t),
+				sessionID: 1,
+				channelID: "C123",
+				threadID:  testThreadID,
+			},
+			prepFn:  unfinishedThreadFn,
+			want:    3,
+			wantErr: false,
+		},
+		{
+			name: "no thread",
+			fields: fields{
+				genericRepository: genericRepository[DBMessage]{DBMessage{}},
+			},
+			args: args{
+				ctx:       context.Background(),
+				conn:      testConn(t),
+				sessionID: 1,
+				channelID: "C123",
+				threadID:  "nonexistent",
+			},
+			prepFn:  finishedThreadFn,
+			want:    0,
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.prepFn != nil {
+				tt.prepFn(t, tt.args.conn.(PrepareExtContext))
+			}
+			r := messageRepository{
+				genericRepository: tt.fields.genericRepository,
+			}
+			got, err := r.CountThreadOnlyParts(tt.args.ctx, tt.args.conn, tt.args.sessionID, tt.args.channelID, tt.args.threadID)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("messageRepository.CountThreadOnlyParts() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("messageRepository.CountThreadOnlyParts() = %v, want %v", got, tt.want)
+			}
 		})
 	}
 }

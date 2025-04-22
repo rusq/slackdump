@@ -132,9 +132,10 @@ type MessageRepository interface {
 	Sorted(ctx context.Context, conn sqlx.QueryerContext, channelID string, order Order) (iter.Seq2[DBMessage, error], error)
 	// CountUnfinished returns the number of unfinished threads in a channel.
 	CountUnfinished(ctx context.Context, conn sqlx.QueryerContext, sessionID int64, channelID string) (int64, error)
-	// CountUnfinishedThreads returns the number of unfinished threads in a
-	// thread.
-	CountUnfinishedThreads(ctx context.Context, conn sqlx.QueryerContext, sessionID int64, channelID, threadID string) (int64, error)
+	// CountThreadOnlyParts should return the number of parts in a complete
+	// thread-only thread. If an unfinished or non-existent thread is
+	// requested, it should return the sql.ErrNoRows error.
+	CountThreadOnlyParts(ctx context.Context, conn sqlx.QueryerContext, sessionID int64, channelID, threadID string) (int64, error)
 	// LatestMessages returns the latest message in each channel.
 	LatestMessages(ctx context.Context, conn sqlx.QueryerContext) (iter.Seq2[LatestMessage, error], error)
 	// LatestThreads returns the latest thread message in each channel.
@@ -201,7 +202,7 @@ func (r messageRepository) CountUnfinished(ctx context.Context, conn sqlx.Querye
 	return count, nil
 }
 
-func (r messageRepository) CountUnfinishedThreads(ctx context.Context, conn sqlx.QueryerContext, sessionID int64, channelID, threadID string) (int64, error) {
+func (r messageRepository) CountThreadOnlyParts(ctx context.Context, conn sqlx.QueryerContext, sessionID int64, channelID, threadID string) (int64, error) {
 	ctx, task := trace.NewTask(ctx, "CountUnfinishedThreads")
 	defer task.End()
 	const stmt = "SELECT PARTS FROM V_THREAD_ONLY_THREADS WHERE SESSION_ID = ? AND CHANNEL_ID = ? AND THREAD_TS = ?"

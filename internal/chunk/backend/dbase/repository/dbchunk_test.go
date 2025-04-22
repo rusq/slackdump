@@ -314,41 +314,19 @@ func TestDBChunk_userkey(t *testing.T) {
 }
 
 func TestDBChunk_columns(t *testing.T) {
-	type fields struct {
-		ID          int64
-		SessionID   int64
-		UnixTS      int64
-		CreatedAt   time.Time
-		TypeID      chunk.ChunkType
-		NumRecords  int32
-		ChannelID   *string
-		SearchQuery *string
-		Final       bool
-	}
 	tests := []struct {
-		name   string
-		fields fields
-		want   []string
+		name string
+		c    DBChunk
+		want []string
 	}{
 		{
 			name: "columns",
-			want: []string{"SESSION_ID", "UNIX_TS", "TYPE_ID", "NUM_REC", "CHANNEL_ID", "SEARCH_QUERY", "FINAL"},
+			want: []string{"SESSION_ID", "UNIX_TS", "TYPE_ID", "NUM_REC", "CHANNEL_ID", "SEARCH_QUERY", "FINAL", "THREAD_ONLY"},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			d := DBChunk{
-				ID:          tt.fields.ID,
-				SessionID:   tt.fields.SessionID,
-				UnixTS:      tt.fields.UnixTS,
-				CreatedAt:   tt.fields.CreatedAt,
-				TypeID:      tt.fields.TypeID,
-				NumRecords:  tt.fields.NumRecords,
-				ChannelID:   tt.fields.ChannelID,
-				SearchQuery: tt.fields.SearchQuery,
-				Final:       tt.fields.Final,
-			}
-			if got := d.columns(); !reflect.DeepEqual(got, tt.want) {
+			if got := tt.c.columns(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("DBChunk.columns() = %v, want %v", got, tt.want)
 			}
 		})
@@ -366,6 +344,7 @@ func TestDBChunk_values(t *testing.T) {
 		ChannelID   *string
 		SearchQuery *string
 		Final       bool
+		ThreadOnly  *bool
 	}
 	tests := []struct {
 		name   string
@@ -384,8 +363,9 @@ func TestDBChunk_values(t *testing.T) {
 				ChannelID:   ptr("C123456789"),
 				SearchQuery: new(string),
 				Final:       true,
+				ThreadOnly:  ptr(true),
 			},
-			want: []any{int64(2), int64(3), chunk.CFiles, int32(6), ptr("C123456789"), ptr(""), true},
+			want: []any{int64(2), int64(3), chunk.CFiles, int32(6), ptr("C123456789"), ptr(""), true, ptr(true)},
 		},
 	}
 	for _, tt := range tests {
@@ -400,6 +380,7 @@ func TestDBChunk_values(t *testing.T) {
 				ChannelID:   tt.fields.ChannelID,
 				SearchQuery: tt.fields.SearchQuery,
 				Final:       tt.fields.Final,
+				ThreadOnly:  tt.fields.ThreadOnly,
 			}
 			assert.Equal(t, tt.want, d.values())
 		})
