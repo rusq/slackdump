@@ -13,7 +13,6 @@ import (
 	context "context"
 	reflect "reflect"
 
-	chunk "github.com/rusq/slackdump/v3/internal/chunk"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -42,15 +41,15 @@ func (m *MockTransformer) EXPECT() *MockTransformerMockRecorder {
 }
 
 // Transform mocks base method.
-func (m *MockTransformer) Transform(ctx context.Context, id chunk.FileID) error {
+func (m *MockTransformer) Transform(ctx context.Context, channelID, threadID string, threadOnly bool) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Transform", ctx, id)
+	ret := m.ctrl.Call(m, "Transform", ctx, channelID, threadID, threadOnly)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Transform indicates an expected call of Transform.
-func (mr *MockTransformerMockRecorder) Transform(ctx, id any) *gomock.Call {
+func (mr *MockTransformerMockRecorder) Transform(ctx, channelID, threadID, threadOnly any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Transform", reflect.TypeOf((*MockTransformer)(nil).Transform), ctx, id)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Transform", reflect.TypeOf((*MockTransformer)(nil).Transform), ctx, channelID, threadID, threadOnly)
 }

@@ -59,7 +59,7 @@ func Test_transform(t *testing.T) {
 				src: src,
 				fsa: tt.args.fsa,
 			}
-			if err := cvt.Convert(tt.args.ctx, chunk.FileID(tt.args.id)); (err != nil) != tt.wantErr {
+			if err := cvt.Convert(tt.args.ctx, tt.args.id, ""); (err != nil) != tt.wantErr {
 				t.Errorf("transform() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

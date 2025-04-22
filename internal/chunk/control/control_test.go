@@ -222,7 +222,7 @@ func TestNew(t *testing.T) {
 				s:   &mock_control.MockStreamer{},
 				options: options{
 					lg:    slog.Default(),
-					tf:    &noopTransformer{},
+					tf:    &noopExpTransformer{},
 					filer: &noopFiler{},
 					avp:   &noopAvatarProc{},
 				},
@@ -245,7 +245,7 @@ func TestNew(t *testing.T) {
 				s:   &mock_control.MockStreamer{},
 				options: options{
 					lg:    slog.Default(),
-					tf:    &noopTransformer{},
+					tf:    &noopExpTransformer{},
 					filer: &mock_processor.MockFiler{},
 					avp:   &mock_processor.MockAvatars{},
 				},

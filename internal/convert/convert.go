@@ -12,14 +12,14 @@ import (
 
 	"github.com/rusq/slack"
 
-	"github.com/rusq/slackdump/v3/internal/chunk"
+	"github.com/rusq/slackdump/v3/internal/convert/transform"
 )
 
 // Target is the interface for writing the target format.
 type Target interface {
 	// Convert should convert the data for the single channel and save it to
 	// the target format.
-	Convert(ctx context.Context, id chunk.FileID) error
+	transform.Converter
 	// Users should convert and write users.
 	Users(ctx context.Context, uu []slack.User) error
 	// Channels should converts and write channels.
@@ -111,7 +111,7 @@ func convert(ctx context.Context, src source.Sourcer, trg Target) error {
 	for _, c := range channels {
 		// TODO: having FileID is an atavism, should be a channelID at least.
 		//       check usages, if it's possible to change.
-		if err := trg.Convert(ctx, chunk.ToFileID(c.ID, "", false)); err != nil {
+		if err := trg.Convert(ctx, c.ID, ""); err != nil {
 			return err
 		}
 	}

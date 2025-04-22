@@ -229,17 +229,17 @@ func (mr *MockExportTransformerMockRecorder) StartWithUsers(ctx, users any) *gom
 }
 
 // Transform mocks base method.
-func (m *MockExportTransformer) Transform(ctx context.Context, id chunk.FileID) error {
+func (m *MockExportTransformer) Transform(ctx context.Context, channelID, threadID string, threadOnly bool) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Transform", ctx, id)
+	ret := m.ctrl.Call(m, "Transform", ctx, channelID, threadID, threadOnly)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Transform indicates an expected call of Transform.
-func (mr *MockExportTransformerMockRecorder) Transform(ctx, id any) *gomock.Call {
+func (mr *MockExportTransformerMockRecorder) Transform(ctx, channelID, threadID, threadOnly any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Transform", reflect.TypeOf((*MockExportTransformer)(nil).Transform), ctx, id)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Transform", reflect.TypeOf((*MockExportTransformer)(nil).Transform), ctx, channelID, threadID, threadOnly)
 }
 
 // MockReferenceChecker is a mock of ReferenceChecker interface.

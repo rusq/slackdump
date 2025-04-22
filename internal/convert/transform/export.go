@@ -15,7 +15,6 @@ import (
 	"github.com/rusq/slack"
 
 	"github.com/rusq/slackdump/v3/export"
-	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/internal/structures"
 	"github.com/rusq/slackdump/v3/source"
 	"github.com/rusq/slackdump/v3/types"
@@ -71,25 +70,24 @@ func (e *ExpConverter) getUsers() []slack.User {
 // for the channel with ID into a slack export format.  It expects the chunk
 // file to be in the <srcdir>/<id>.json.gz file, and the attachments to be in
 // the <srcdir>/<id> directory.
-func (e *ExpConverter) Convert(ctx context.Context, id chunk.FileID) error {
+func (e *ExpConverter) Convert(ctx context.Context, channelID, _ string) error {
 	ctx, task := trace.NewTask(ctx, "transform")
 	defer task.End()
 
-	lg := slog.With("file_id", id)
+	lg := slog.With("channel_id", channelID)
 	{
 		userCnt := len(e.getUsers())
 		trace.Logf(ctx, "input", "len(users)=%d", userCnt)
-		lg.DebugContext(ctx, "transforming channel", "id", id, "user_count", userCnt)
+		lg.DebugContext(ctx, "transforming channel", "channelID", channelID, "user_count", userCnt)
 	}
 
-	channelID, _ := id.Split()
 	ci, err := e.src.ChannelInfo(ctx, channelID)
 	if err != nil {
-		return fmt.Errorf("error reading channel info for %q: %w", id, err)
+		return fmt.Errorf("error reading channel info for %q: %w", channelID, err)
 	}
 
 	if err := e.writeMessages(ctx, ci); err != nil {
-		return fmt.Errorf("error writing messages for %q: %w", id, err)
+		return fmt.Errorf("error writing messages for %q: %w", channelID, err)
 	}
 
 	return nil

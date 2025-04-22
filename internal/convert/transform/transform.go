@@ -3,8 +3,6 @@ package transform
 import (
 	"context"
 	"errors"
-
-	"github.com/rusq/slackdump/v3/internal/chunk"
 )
 
 var ErrClosed = errors.New("transformer is closed")
@@ -13,6 +11,5 @@ var ErrClosed = errors.New("transformer is closed")
 // chunks to some output format.
 type Converter interface {
 	// Convert should convert the chunk to the Converters' output format.
-	Convert(ctx context.Context, id chunk.FileID) error
+	Convert(ctx context.Context, channelID string, threadID string) error
 }
-

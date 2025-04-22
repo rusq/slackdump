@@ -14,7 +14,6 @@ import (
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/slack"
 
-	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/internal/nametmpl"
 	"github.com/rusq/slackdump/v3/internal/structures"
 	"github.com/rusq/slackdump/v3/types"
@@ -87,11 +86,7 @@ type DumpConverter struct {
 }
 
 // Convert converts the chunk file to Slackdump json format.
-func (s *DumpConverter) Convert(ctx context.Context, id chunk.FileID) error {
-	// threadTS is only populated on the thread only files.  It is safe to
-	// rely on it being non-empty to determine if we need a thread or a
-	// conversation.
-	channelID, threadID := id.Split()
+func (s *DumpConverter) Convert(ctx context.Context, channelID, threadID string) error {
 	ci, err := s.src.ChannelInfo(ctx, channelID)
 	if err != nil {
 		return err
@@ -99,6 +94,9 @@ func (s *DumpConverter) Convert(ctx context.Context, id chunk.FileID) error {
 	slog.Debug("DumpConverter.Convert", "channel", channelID, "thread", threadID)
 
 	var msgs []types.Message
+	// threadTS is only populated on the thread only files.  It is safe to
+	// rely on it being non-empty to determine if we need a thread or a
+	// conversation.
 	if threadID == "" {
 		msgs, err = stdConversation(ctx, s.src, ci, s.pipeline)
 	} else {
@@ -116,7 +114,8 @@ func (s *DumpConverter) Convert(ctx context.Context, id chunk.FileID) error {
 
 	f, err := s.fsa.Create(s.tmpl.Execute(conv))
 	if err != nil {
-		return fmt.Errorf("fsadapter: unable to create file %s: %w", id+".json", err)
+		name := s.tmpl.Execute(conv)
+		return fmt.Errorf("fsadapter: unable to create file %s: %w", name, err)
 	}
 	defer f.Close()
 	return json.NewEncoder(f).Encode(conv)
