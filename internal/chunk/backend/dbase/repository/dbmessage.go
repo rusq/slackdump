@@ -226,7 +226,7 @@ func (r messageRepository) CountThreadOnlyParts(ctx context.Context, conn sqlx.Q
 	const stmt = "SELECT PARTS FROM V_THREAD_ONLY_THREADS WHERE SESSION_ID = ? AND CHANNEL_ID = ? AND THREAD_TS = ?"
 	var count int64
 	if err := conn.QueryRowxContext(ctx, rebind(conn, stmt), sessionID, channelID, threadID).Scan(&count); err != nil {
-		return 0, fmt.Errorf("CountUnfinishedThreads query: %w", err)
+		return 0, fmt.Errorf("CountThreadOnlyParts query: %w", err)
 	}
 	return count, nil
 }
