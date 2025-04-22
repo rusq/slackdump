@@ -100,7 +100,7 @@ func (ct *conversationTransformer) mbeTransformChannel(ctx context.Context, chan
 		return nil
 	}
 	lg.Debug("calling channel transform")
-	if err := ct.tf.Transform(ctx, channelID, "", false); err != nil {
+	if err := ct.tf.Transform(ctx, channelID, ""); err != nil {
 		return fmt.Errorf("error transforming: %w", err)
 	}
 	return nil
@@ -119,7 +119,7 @@ func (ct *conversationTransformer) mbeTransformThread(ctx context.Context, chann
 	}
 	lg.Debug("calling thread transform")
 	// TODO: TransformThread #511
-	if err := ct.tf.Transform(ctx, channelID, threadID, true); err != nil {
+	if err := ct.tf.Transform(ctx, channelID, threadID); err != nil {
 		return fmt.Errorf("error transforming: %w", err)
 	}
 	return nil

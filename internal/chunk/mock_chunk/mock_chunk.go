@@ -41,15 +41,15 @@ func (m *MockTransformer) EXPECT() *MockTransformerMockRecorder {
 }
 
 // Transform mocks base method.
-func (m *MockTransformer) Transform(ctx context.Context, channelID, threadID string, threadOnly bool) error {
+func (m *MockTransformer) Transform(ctx context.Context, channelID, threadID string) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Transform", ctx, channelID, threadID, threadOnly)
+	ret := m.ctrl.Call(m, "Transform", ctx, channelID, threadID)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Transform indicates an expected call of Transform.
-func (mr *MockTransformerMockRecorder) Transform(ctx, channelID, threadID, threadOnly any) *gomock.Call {
+func (mr *MockTransformerMockRecorder) Transform(ctx, channelID, threadID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Transform", reflect.TypeOf((*MockTransformer)(nil).Transform), ctx, channelID, threadID, threadOnly)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Transform", reflect.TypeOf((*MockTransformer)(nil).Transform), ctx, channelID, threadID)
 }

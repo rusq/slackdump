@@ -13,3 +13,9 @@ type Converter interface {
 	// Convert should convert the chunk to the Converters' output format.
 	Convert(ctx context.Context, channelID string, threadID string) error
 }
+
+// request is a transform request used by implementations of the
+// Transformer interface.
+type request struct {
+	channelID, threadTS string
+}

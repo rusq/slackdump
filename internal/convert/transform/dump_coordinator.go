@@ -61,12 +61,8 @@ func (s *Coordinator) StartWithUsers(context.Context, []slack.User) error {
 	return nil
 }
 
-type request struct {
-	channelID, threadTS string
-	threadOnly          bool
-}
 
-func (s *Coordinator) Transform(ctx context.Context, channelID, threadTS string, threadOnly bool) error {
+func (s *Coordinator) Transform(ctx context.Context, channelID, threadTS string) error {
 	select {
 	case err := <-s.errC:
 		return err
@@ -75,7 +71,7 @@ func (s *Coordinator) Transform(ctx context.Context, channelID, threadTS string,
 	select {
 	case <-ctx.Done():
 		return context.Cause(ctx)
-	case s.requests <- request{channelID: channelID, threadTS: threadTS, threadOnly: threadOnly}:
+	case s.requests <- request{channelID: channelID, threadTS: threadTS}:
 		// keep going
 	}
 	return nil

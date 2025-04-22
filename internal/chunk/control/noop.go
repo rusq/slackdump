@@ -19,6 +19,6 @@ type (
 
 type noopExpTransformer struct{}
 
-func (*noopExpTransformer) StartWithUsers(ctx context.Context, users []slack.User) error { return nil }
-func (*noopExpTransformer) Transform(context.Context, string, string, bool) error        { return nil }
-func (*noopExpTransformer) Wait() error                                                  { return nil }
+func (*noopExpTransformer) StartWithUsers(context.Context, []slack.User) error { return nil }
+func (*noopExpTransformer) Transform(context.Context, string, string) error    { return nil }
+func (*noopExpTransformer) Wait() error                                        { return nil }

@@ -133,7 +133,7 @@ func (t *ExportCoordinator) Start(ctx context.Context) error {
 // even if the processor is not started, in which case the channel ID will
 // be queued for processing once the processor is started.  If the export
 // worker is closed, it will return ErrClosed.
-func (t *ExportCoordinator) Transform(ctx context.Context, channelID, threadTS string, threadOnly bool) error {
+func (t *ExportCoordinator) Transform(ctx context.Context, channelID, threadTS string) error {
 	select {
 	case err := <-t.err:
 		return err
@@ -142,8 +142,8 @@ func (t *ExportCoordinator) Transform(ctx context.Context, channelID, threadTS s
 	if t.closed.Load() {
 		return ErrClosed
 	}
-	t.lg.Debug("transform: placing request in the queue", "channel_id", channelID, "thread_ts", threadTS, "thread_only", threadOnly)
-	t.requestC <- request{channelID, threadTS, threadOnly}
+	t.lg.Debug("transform: placing request in the queue", "channel_id", channelID, "thread_ts", threadTS)
+	t.requestC <- request{channelID, threadTS}
 	return nil
 }
 
