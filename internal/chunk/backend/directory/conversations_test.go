@@ -490,7 +490,7 @@ func TestConversations_finalise(t *testing.T) {
 			expectFn: func(mt *Mocktracker, mtf *mock_chunk.MockTransformer) {
 				mt.EXPECT().RefCount(chunk.FileID("fileID")).Return(0)
 				mt.EXPECT().Unregister(chunk.FileID("fileID")).Return(nil)
-				mtf.EXPECT().Transform(gomock.Any(), chunk.FileID("fileID")).Return(nil)
+				mtf.EXPECT().Transform(gomock.Any(), "fileID", "").Return(nil)
 			},
 			wantErr: false,
 		},
@@ -538,7 +538,7 @@ func TestConversations_finalise(t *testing.T) {
 			expectFn: func(mt *Mocktracker, mtf *mock_chunk.MockTransformer) {
 				mt.EXPECT().RefCount(chunk.FileID("fileID")).Return(0)
 				mt.EXPECT().Unregister(chunk.FileID("fileID")).Return(nil)
-				mtf.EXPECT().Transform(gomock.Any(), chunk.FileID("fileID")).Return(errors.New("transform error"))
+				mtf.EXPECT().Transform(gomock.Any(), "fileID", "").Return(errors.New("transform error"))
 			},
 			wantErr: true,
 		},

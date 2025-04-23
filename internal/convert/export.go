@@ -11,7 +11,6 @@ import (
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/slack"
 
-	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/internal/convert/transform"
 	"github.com/rusq/slackdump/v3/internal/convert/transform/fileproc"
 	"github.com/rusq/slackdump/v3/source"
@@ -167,7 +166,7 @@ func (c *ToExport) Convert(ctx context.Context) error {
 				for ch := range chC {
 					lg := lg.With("channel", ch.ID)
 					lg.Debug("processing channel")
-					if err := conv.Convert(ctx, chunk.ToFileID(ch.ID, "", false)); err != nil {
+					if err := conv.Convert(ctx, ch.ID, ""); err != nil {
 						errC <- fmt.Errorf("converter: failed to process %q: %w", ch.ID, err)
 						return
 					}

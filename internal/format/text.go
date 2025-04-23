@@ -39,7 +39,7 @@ func TextNewMessageThreshold(d time.Duration) Option {
 }
 
 func init() {
-	Converters[CText] = NewText
+	converters[CText] = NewText
 }
 
 func NewText(opts ...Option) Formatter {

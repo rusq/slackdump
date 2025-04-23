@@ -2,6 +2,7 @@ package apiconfig
 
 import (
 	"context"
+	_ "embed"
 	"errors"
 	"fmt"
 	"os"
@@ -14,20 +15,13 @@ import (
 	"github.com/rusq/slackdump/v3/internal/network"
 )
 
+//go:embed assets/config_new.md
+var configNewMD string
+
 var CmdConfigNew = &base.Command{
-	UsageLine: "slackdump config new",
-	Short:     "creates a new API config with the default values",
-	Long: `
-# "New" Command
-
-Creates a new API configuration file containing default values. You will need
-to specify the filename, for example:
-
-    slackdump config new myconfig.toml
-
-If the extension is omitted, ".toml" is automatically appended to the name of
-the file.
-`,
+	UsageLine:  "slackdump config new",
+	Short:      "creates a new API config with the default values",
+	Long:       configNewMD,
 	FlagMask:   cfg.OmitAll,
 	PrintFlags: true,
 }

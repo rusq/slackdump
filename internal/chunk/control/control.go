@@ -27,7 +27,7 @@ func New(ctx context.Context, s Streamer, erc EncodeReferenceCloser, opts ...Opt
 		s:   s,
 		options: options{
 			lg:    slog.Default(),
-			tf:    &noopTransformer{},
+			tf:    &noopExpTransformer{},
 			filer: &processor.NopFiler{},
 			avp:   &processor.NopAvatars{},
 		},

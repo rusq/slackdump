@@ -8,7 +8,6 @@ import (
 
 	"github.com/rusq/slack"
 
-	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/processor"
 )
 
@@ -18,8 +17,8 @@ type (
 	noopChannelProcessor = processor.NopChannels
 )
 
-type noopTransformer struct{}
+type noopExpTransformer struct{}
 
-func (n *noopTransformer) StartWithUsers(ctx context.Context, users []slack.User) error { return nil }
-func (n *noopTransformer) Transform(ctx context.Context, id chunk.FileID) error         { return nil }
-func (n *noopTransformer) Wait() error                                                  { return nil }
+func (*noopExpTransformer) StartWithUsers(context.Context, []slack.User) error { return nil }
+func (*noopExpTransformer) Transform(context.Context, string, string) error    { return nil }
+func (*noopExpTransformer) Wait() error                                        { return nil }

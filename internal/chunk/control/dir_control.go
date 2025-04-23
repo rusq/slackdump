@@ -41,7 +41,7 @@ func NewDir(cd *chunk.Directory, s Streamer, opts ...Option) *DirController {
 		s:  s,
 		options: options{
 			lg:    slog.Default(),
-			tf:    &noopTransformer{},
+			tf:    &noopExpTransformer{},
 			filer: &noopFiler{},
 			avp:   &noopAvatarProc{},
 		},

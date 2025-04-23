@@ -44,7 +44,8 @@ func Test_stdConvert(t *testing.T) {
 		}
 
 		for i, name := range testNames {
-			if err := cvt.Convert(ctx, name); err != nil {
+			id, thread := chunk.FileID(name).Split()
+			if err := cvt.Convert(ctx, id, thread); err != nil {
 				t.Fatalf("failed on i=%d, name=%s: %s", i, name, err)
 			}
 		}

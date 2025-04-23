@@ -187,7 +187,8 @@ func (cv *Conversations) finalise(ctx context.Context, id chunk.FileID) error {
 		return err
 	}
 	if cv.tf != nil {
-		return cv.tf.Transform(ctx, id)
+		channelID, threadTS := id.Split()
+		return cv.tf.Transform(ctx, channelID, threadTS)
 	}
 	return nil
 }
