@@ -483,7 +483,6 @@ func Test_runWorkers(t *testing.T) {
 		ctx context.Context
 		// s     Streamer
 		list  *structures.EntityList
-		p     superprocessor
 		flags Flags
 	}
 	tests := []struct {

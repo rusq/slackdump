@@ -283,10 +283,7 @@ func Test_conversationTransformer_mbeTransform(t *testing.T) {
 
 func Test_conversationTransformer_ThreadMessages(t *testing.T) {
 	type fields struct {
-		ctx      context.Context
-		tf       chunk.Transformer
-		expectFn func(*mock_control.MockReferenceChecker, *mock_control.MockExportTransformer)
-		rc       ReferenceChecker
+		ctx context.Context
 	}
 	type args struct {
 		ctx        context.Context
