@@ -129,7 +129,6 @@ func (ct *conversationTransformer) mbeTransformThread(ctx context.Context, chann
 // settings.  It also maintains an index of the channels that are in the list.
 type chanFilter struct {
 	links      chan<- structures.EntityItem
-	list       *structures.EntityList
 	memberOnly bool
 	idx        map[string]*structures.EntityItem
 }

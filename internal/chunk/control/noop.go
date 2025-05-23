@@ -12,9 +12,8 @@ import (
 )
 
 type (
-	noopFiler            = processor.NopFiler
-	noopAvatarProc       = processor.NopAvatars
-	noopChannelProcessor = processor.NopChannels
+	noopFiler      = processor.NopFiler
+	noopAvatarProc = processor.NopAvatars
 )
 
 type noopExpTransformer struct{}
