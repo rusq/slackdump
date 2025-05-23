@@ -20,6 +20,8 @@ builds:
     ignore:
       - goos: openbsd
         goarch: 386
+      - goos: freebsd
+        goarch: 386
 
 archives:
   - id: default
