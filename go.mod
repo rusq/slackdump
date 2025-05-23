@@ -2,6 +2,8 @@ module github.com/rusq/slackdump/v3
 
 go 1.24.0
 
+retract v3.1.2 // broken build
+
 require (
 	github.com/BurntSushi/toml v1.5.0
 	github.com/MercuryEngineering/CookieMonster v0.0.0-20180304172713-1584578b3403
