@@ -11,6 +11,7 @@ import (
 	"os/signal"
 	"runtime/trace"
 	"strings"
+	_ "time/tzdata" // load the timezone data
 
 	"github.com/charmbracelet/huh"
 	"github.com/joho/godotenv"
