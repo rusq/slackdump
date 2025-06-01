@@ -12,6 +12,7 @@ import (
 	"github.com/charmbracelet/huh/spinner"
 	"github.com/rusq/chttp"
 	"github.com/rusq/slack"
+	"github.com/rusq/slackauth"
 )
 
 const SlackURL = "https://slack.com"
@@ -127,7 +128,7 @@ func (s simpleProvider) Test(ctx context.Context) (*slack.AuthTestResponse, erro
 }
 
 func (s simpleProvider) HTTPClient() (*http.Client, error) {
-	return chttp.New(SlackURL, s.Cookies())
+	return chttp.New(SlackURL, s.Cookies(), chttp.WithUserAgent(slackauth.DefaultUserAgent))
 }
 
 func pleaseWait(ctx context.Context, msg string) func() {
