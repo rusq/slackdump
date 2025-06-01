@@ -52,6 +52,7 @@ func ShowUI(ctx context.Context, opts ...UIOption) error {
 	}
 	const (
 		actLogin        = "ezlogin"
+		actCookie       = "cookie"
 		actToken        = "token"
 		actTokenFile    = "tokenfile"
 		actSecrets      = "secrets"
@@ -82,6 +83,11 @@ func ShowUI(ctx context.Context, opts ...UIOption) error {
 		},
 		{
 			Separator: true,
+		},
+		{
+			ID:   actCookie,
+			Name: "Cookie and Workspace Name",
+			Help: "Enter d= cookie and workspace name, token fetched automatically",
 		},
 		{
 			ID:   actToken,
@@ -124,6 +130,7 @@ func ShowUI(ctx context.Context, opts ...UIOption) error {
 	// new workspace methods
 	methods := map[string]func(context.Context, manager) error{
 		actLogin:     brwsLogin(),
+		actCookie:    prgCookieOnly,
 		actToken:     prgTokenCookie,
 		actTokenFile: prgTokenCookieFile,
 		actSecrets:   fileWithSecrets,
