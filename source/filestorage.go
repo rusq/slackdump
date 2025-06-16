@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/rusq/slack"
@@ -31,10 +32,33 @@ type Storage interface {
 	FilePath(ch *slack.Channel, f *slack.File) string
 }
 
+// SanitizeFilename ensures the filename is safe for all OSes, especially Windows.
+func SanitizeFilename(name string) string {
+	re := regexp.MustCompile(`[<>:"/\\|?*]`)
+	safe := re.ReplaceAllString(name, "_")
+	safe = strings.TrimRight(safe, " .")
+	reserved := map[string]struct{}{
+		"CON": {}, "PRN": {}, "AUX": {}, "NUL": {},
+		"COM1": {}, "COM2": {}, "COM3": {}, "COM4": {}, "COM5": {}, "COM6": {}, "COM7": {}, "COM8": {}, "COM9": {},
+		"LPT1": {}, "LPT2": {}, "LPT3": {}, "LPT4": {}, "LPT5": {}, "LPT6": {}, "LPT7": {}, "LPT8": {}, "LPT9": {},
+	}
+	base := safe
+	if dot := strings.Index(base, "."); dot != -1 {
+		base = base[:dot]
+	}
+	if _, found := reserved[strings.ToUpper(base)]; found {
+		safe = "_" + safe
+	}
+	if safe == "" {
+		safe = "unnamed_file"
+	}
+	return safe
+}
+
 // MattermostFilepath returns the path to the file within the __uploads
 // directory.
 func MattermostFilepath(_ *slack.Channel, f *slack.File) string {
-	return filepath.Join(chunk.UploadsDir, f.ID, f.Name)
+	return filepath.Join(chunk.UploadsDir, f.ID, SanitizeFilename(f.Name))
 }
 
 // MattermostFilepathWithDir returns the path to the file within the given
@@ -42,19 +66,19 @@ func MattermostFilepath(_ *slack.Channel, f *slack.File) string {
 // you don't need to use this function.
 func MattermostFilepathWithDir(dir string) func(*slack.Channel, *slack.File) string {
 	return func(_ *slack.Channel, f *slack.File) string {
-		return path.Join(dir, f.ID, f.Name)
+		return path.Join(dir, f.ID, SanitizeFilename(f.Name))
 	}
 }
 
 // StdFilepath returns the path to the file within the "attachments"
 // directory.
 func StdFilepath(ci *slack.Channel, f *slack.File) string {
-	return path.Join(ExportChanName(ci), "attachments", fmt.Sprintf("%s-%s", f.ID, f.Name))
+	return path.Join(ExportChanName(ci), "attachments", fmt.Sprintf("%s-%s", f.ID, SanitizeFilename(f.Name)))
 }
 
 // DumpFilepath returns the path to the file within the channel directory.
 func DumpFilepath(ci *slack.Channel, f *slack.File) string {
-	return path.Join(chunk.ToFileID(ci.ID, "", false).String(), f.ID+"-"+f.Name)
+	return path.Join(chunk.ToFileID(ci.ID, "", false).String(), f.ID+"-"+SanitizeFilename(f.Name))
 }
 
 // STMattermost is the Storage for the mattermost export format.  Files
@@ -94,12 +118,18 @@ func (r *STMattermost) Type() StorageType {
 }
 
 func (r *STMattermost) File(id string, name string) (string, error) {
-	pth := path.Join(id, name)
-	_, err := fs.Stat(r.fs, pth)
-	if err != nil {
-		return "", err
+	// Try sanitized name first
+	sanitized := SanitizeFilename(name)
+	pth := path.Join(id, sanitized)
+	if _, err := fs.Stat(r.fs, pth); err == nil {
+		return pth, nil
 	}
-	return pth, nil
+	// Optionally, try original name for backward compatibility
+	pthOrig := path.Join(id, name)
+	if _, err := fs.Stat(r.fs, pthOrig); err == nil {
+		return pthOrig, nil
+	}
+	return "", fs.ErrNotExist
 }
 
 func (r *STMattermost) FilePath(_ *slack.Channel, f *slack.File) string {
@@ -191,15 +221,17 @@ func (r *STStandard) FilePath(ci *slack.Channel, f *slack.File) string {
 	return StdFilepath(ci, f)
 }
 
-func (r *STStandard) File(id string, _ string) (string, error) {
-	pth, ok := r.idx[id]
-	if !ok {
-		return "", fs.ErrNotExist
+func (r *STStandard) File(id string, name string) (string, error) {
+	// Try sanitized name first
+	for _, pth := range []string{
+		id + "-" + SanitizeFilename(name),
+		id + "-" + name, // fallback for legacy
+	} {
+		if _, err := fs.Stat(r.fs, pth); err == nil {
+			return pth, nil
+		}
 	}
-	if _, err := fs.Stat(r.fs, pth); err != nil {
-		return "", err
-	}
-	return pth, nil
+	return "", fs.ErrNotExist
 }
 
 type fakefs struct{}
@@ -323,15 +355,19 @@ func (r *STDump) Type() StorageType {
 	return STdump
 }
 
-func (r *STDump) File(id string, _ string) (string, error) {
-	pth, ok := r.idx[id]
-	if !ok {
-		return "", fs.ErrNotExist
+func (r *STDump) File(id string, name string) (string, error) {
+	// Try sanitized name first
+	for _, pth := range []string{
+		r.idx[id],
+	} {
+		if pth == "" {
+			continue
+		}
+		if _, err := fs.Stat(r.fs, pth); err == nil {
+			return pth, nil
+		}
 	}
-	if _, err := fs.Stat(r.fs, pth); err != nil {
-		return "", err
-	}
-	return pth, nil
+	return "", fs.ErrNotExist
 }
 
 type AvatarStorage struct {
