@@ -32,10 +32,14 @@ type Storage interface {
 	FilePath(ch *slack.Channel, f *slack.File) string
 }
 
-// SanitizeFilename ensures the filename is safe for all OSes, especially Windows.
+// unsafeRe is a regular expression that matches unsafe characters in
+// filenames.
+var unsafeRe = regexp.MustCompile(`[<>:"/\\|?*]`)
+
+// SanitizeFilename ensures the filename is safe for all OSes, especially
+// Windows.
 func SanitizeFilename(name string) string {
-	re := regexp.MustCompile(`[<>:"/\\|?*]`)
-	safe := re.ReplaceAllString(name, "_")
+	safe := unsafeRe.ReplaceAllString(name, "_")
 	safe = strings.TrimRight(safe, " .")
 	reserved := map[string]struct{}{
 		"CON": {}, "PRN": {}, "AUX": {}, "NUL": {},
