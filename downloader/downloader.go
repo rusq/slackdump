@@ -18,6 +18,7 @@ import (
 	"golang.org/x/time/rate"
 
 	"github.com/rusq/slackdump/v3/internal/network"
+	"github.com/rusq/slackdump/v3/source"
 )
 
 const (
@@ -224,7 +225,7 @@ func (c *Client) worker(ctx context.Context, reqC <-chan Request) {
 	// and not wait to send on the request channel that no worker is servicing
 	// due to exiting by context cancellation.
 	for req := range reqC {
-		lg := c.lg.With("filename", path.Base(req.URL), "destination", req.Fullpath)
+		lg := c.lg.With("url_filename", path.Base(req.URL), "destination", req.Fullpath)
 		lg.DebugContext(ctx, "saving file")
 		n, err := c.download(ctx, req.Fullpath, req.URL)
 		if err != nil {
@@ -343,5 +344,5 @@ func (c *Client) AsyncDownloader(ctx context.Context, queueC <-chan Request) (<-
 }
 
 func stdFilenameFn(f *slack.File) string {
-	return fmt.Sprintf("%s-%s", f.ID, f.Name)
+	return fmt.Sprintf("%s-%s", f.ID, source.SanitizeFilename(f.Name))
 }
