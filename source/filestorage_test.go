@@ -205,6 +205,7 @@ func TestSanitizeFilename(t *testing.T) {
 		{"trailing space", "foo.txt ", "foo.txt"},
 		{"trailing period", "foo.txt.", "foo.txt"},
 		{"trailing space and period", "foo.txt .", "foo.txt"},
+		{"multiple trailing space", "foo.txt    ", "foo.txt"},
 		// Reserved names
 		{"reserved CON", "CON", "_CON"},
 		{"reserved PRN", "PRN.txt", "_PRN.txt"},

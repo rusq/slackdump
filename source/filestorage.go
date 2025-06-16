@@ -32,25 +32,27 @@ type Storage interface {
 	FilePath(ch *slack.Channel, f *slack.File) string
 }
 
-// unsafeRe is a regular expression that matches unsafe characters in
+// unsafeFilenameRe is a regular expression that matches unsafe characters in
 // filenames.
-var unsafeRe = regexp.MustCompile(`[<>:"/\\|?*]`)
-
-// SanitizeFilename ensures the filename is safe for all OSes, especially
-// Windows.
-func SanitizeFilename(name string) string {
-	safe := unsafeRe.ReplaceAllString(name, "_")
-	safe = strings.TrimRight(safe, " .")
-	reserved := map[string]struct{}{
+var (
+	unsafeFilenameRe = regexp.MustCompile(`[<>:"/\\|?*]`)
+	reservedNames    = map[string]struct{}{
 		"CON": {}, "PRN": {}, "AUX": {}, "NUL": {},
 		"COM1": {}, "COM2": {}, "COM3": {}, "COM4": {}, "COM5": {}, "COM6": {}, "COM7": {}, "COM8": {}, "COM9": {},
 		"LPT1": {}, "LPT2": {}, "LPT3": {}, "LPT4": {}, "LPT5": {}, "LPT6": {}, "LPT7": {}, "LPT8": {}, "LPT9": {},
 	}
+)
+
+// SanitizeFilename ensures the filename is safe for all OSes, especially
+// Windows.
+func SanitizeFilename(name string) string {
+	safe := unsafeFilenameRe.ReplaceAllString(name, "_")
+	safe = strings.TrimRight(safe, " .")
 	base := safe
 	if dot := strings.Index(base, "."); dot != -1 {
 		base = base[:dot]
 	}
-	if _, found := reserved[strings.ToUpper(base)]; found {
+	if _, found := reservedNames[strings.ToUpper(base)]; found {
 		safe = "_" + safe
 	}
 	if safe == "" {
