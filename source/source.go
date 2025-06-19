@@ -95,7 +95,7 @@ const (
 	// main content
 	// FChunk is set on directories with json.gz files.
 	FChunk
-	// FExport is set on Slack exoprt directories or ZIP files.
+	// FExport is set on Slack export directories or ZIP files.
 	FExport
 	// FDump is set on a Slackdump Dump format directory or ZIP file.
 	FDump

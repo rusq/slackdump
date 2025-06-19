@@ -202,7 +202,7 @@ func (a authenticator) initProvider(ctx context.Context, filename string, worksp
 	}
 
 	// init the authentication provider
-	trace.Log(ctx, "info", "getting credentals from file or browser")
+	trace.Log(ctx, "info", "getting credentials from file or browser")
 	provider, err := creds.AuthProvider(ctx, strings.ToLower(workspace), opts...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialise the auth provider: %w", err)

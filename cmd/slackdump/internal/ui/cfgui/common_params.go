@@ -57,7 +57,7 @@ func OnlyChannelUsers() Parameter {
 	return Parameter{
 		Name:        "Only Channel Users",
 		Value:       Checkbox(cfg.OnlyChannelUsers),
-		Description: "Only users participating in visible conversastions are exported.",
+		Description: "Only users participating in visible conversations are exported.",
 		Updater:     updaters.NewBool(&cfg.OnlyChannelUsers),
 	}
 }
