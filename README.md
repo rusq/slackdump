@@ -9,7 +9,7 @@ files and emojis.  Generate Slack Export without admin privileges.
 
 - [Installation And Quickstart](#installation-and-quickstart)
 - [Join the discussion in Telegram](https://t.me/slackdump).
-- [Buy me a cup of tea](https://ko-fi.com/rusq_), or use **Github Sponsors**
+- [Buy me a cup of tea](https://ko-fi.com/rusq_), or use **GitHub Sponsors**
   button on the top of the page.
 - [![Go reference](https://pkg.go.dev/badge/github.com/rusq/slackdump/v3.svg)][godoc]
 - How to's:

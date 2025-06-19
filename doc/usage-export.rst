@@ -151,7 +151,7 @@ Discord
 
 The preferred way is to use Slackord2_ - a great tool with a nice GUI that is
 compatible with Slackdump generated export files.  If you have any
-compatibility issues, please open a Github issue_.
+compatibility issues, please open a GitHub issue_.
 
 Viewing export
 ~~~~~~~~~~~~~~

@@ -52,7 +52,7 @@ func WithIncludeFiles(b bool) Option {
 	}
 }
 
-// WithIncludeAvatars sets the IncludeAvataars option.
+// WithIncludeAvatars sets the IncludeAvatars option.
 func WithIncludeAvatars(b bool) Option {
 	return func(c *options) {
 		c.includeAvatars = b

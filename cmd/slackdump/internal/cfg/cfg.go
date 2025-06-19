@@ -138,7 +138,7 @@ func SetBaseFlags(fs *flag.FlagSet, mask FlagMask) {
 	fs.BoolVar(&Verbose, "v", osenv.Value("DEBUG", false), "verbose messages")
 
 	if mask&OmitAuthFlags == 0 {
-		fs.BoolVar(&ForceEnterprise, "enterprise", false, "enable Enteprise module, you need to specify this option if you're using Slack Enterprise Grid")
+		fs.BoolVar(&ForceEnterprise, "enterprise", false, "enable Enterprise module, you need to specify this option if you're using Slack Enterprise Grid")
 		fs.BoolVar(&LoadSecrets, "load-env", false, "load secrets from the environment, .env, .env.txt or secrets.txt file")
 	}
 	if mask&OmitAuthFlags == 0 || mask&OmitCacheDir == 0 {
