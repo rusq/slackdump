@@ -28,7 +28,7 @@ var sampleChunk = &chunk.Chunk{
 func prepSession(t *testing.T, ec repository.PrepareExtContext) {
 	t.Helper()
 	sr := repository.NewSessionRepository()
-	if id, err := sr.Insert(context.Background(), ec, &repository.Session{
+	if id, err := sr.Insert(t.Context(), ec, &repository.Session{
 		ID: 1,
 	}); err != nil {
 		t.Fatal(err)
@@ -59,7 +59,7 @@ type testChunk struct {
 func prepChunkWithFinal(tc ...testChunk) utilityFunc {
 	return func(t *testing.T, conn repository.PrepareExtContext) {
 		t.Helper()
-		ctx := context.Background()
+		ctx := t.Context()
 		var (
 			sr = repository.NewSessionRepository()
 			cr = repository.NewChunkRepository()
@@ -112,7 +112,7 @@ func TestDBP_UnsafeInsertChunk(t *testing.T) {
 				sessionID: 1,
 			},
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 				txx: testDB(t),
 				ch:  sampleChunk,
 			},
@@ -127,7 +127,7 @@ func TestDBP_UnsafeInsertChunk(t *testing.T) {
 				sessionID: 1,
 			},
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 				txx: testDB(t),
 				ch:  sampleChunk,
 			},
@@ -185,7 +185,7 @@ func TestDBP_insertMessages(t *testing.T) {
 				mr:        repository.NewMessageRepository(),
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				tx:        testDB(t),
 				dbchunkID: 1,
 				channelID: "C123",
@@ -206,7 +206,7 @@ func TestDBP_insertMessages(t *testing.T) {
 				mr:        repository.NewMessageRepository(),
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				tx:        testDB(t),
 				dbchunkID: 1,
 				channelID: "C123",
@@ -224,7 +224,7 @@ func TestDBP_insertMessages(t *testing.T) {
 				mr:        repository.NewMessageRepository(),
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				tx:        testDB(t),
 				dbchunkID: 1,
 				channelID: "C123",
@@ -358,7 +358,7 @@ func TestDBP_insertPayload(t *testing.T) {
 				mr:        repository.NewMessageRepository(),
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				tx:        testDB(t),
 				dbchunkID: 1,
 				c: &chunk.Chunk{
@@ -381,7 +381,7 @@ func TestDBP_insertPayload(t *testing.T) {
 				mr:        repository.NewMessageRepository(),
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				tx:        testDB(t),
 				dbchunkID: 1,
 				c: &chunk.Chunk{
@@ -405,7 +405,7 @@ func TestDBP_insertPayload(t *testing.T) {
 				mr:        repository.NewMessageRepository(),
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				tx:        testDB(t),
 				dbchunkID: 1,
 				c: &chunk.Chunk{
@@ -429,7 +429,7 @@ func TestDBP_insertPayload(t *testing.T) {
 				mr:        repository.NewMessageRepository(),
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				tx:        testDB(t),
 				dbchunkID: 1,
 				c: &chunk.Chunk{
@@ -457,7 +457,7 @@ func TestDBP_insertPayload(t *testing.T) {
 				mr:        repository.NewMessageRepository(),
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				tx:        testDB(t),
 				dbchunkID: 1,
 				c: &chunk.Chunk{
@@ -478,7 +478,7 @@ func TestDBP_insertPayload(t *testing.T) {
 				mr:        repository.NewMessageRepository(),
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				tx:        testDB(t),
 				dbchunkID: 1,
 				c: &chunk.Chunk{
@@ -499,7 +499,7 @@ func TestDBP_insertPayload(t *testing.T) {
 				mr:        repository.NewMessageRepository(),
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				tx:        testDB(t),
 				dbchunkID: 1,
 				c: &chunk.Chunk{
@@ -519,7 +519,7 @@ func TestDBP_insertPayload(t *testing.T) {
 				mr:        repository.NewMessageRepository(),
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				tx:        testDB(t),
 				dbchunkID: 1,
 				c: &chunk.Chunk{
@@ -539,7 +539,7 @@ func TestDBP_insertPayload(t *testing.T) {
 				mr:        repository.NewMessageRepository(),
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				tx:        testDB(t),
 				dbchunkID: 1,
 				c: &chunk.Chunk{
@@ -561,7 +561,7 @@ func TestDBP_insertPayload(t *testing.T) {
 				mr:        repository.NewMessageRepository(),
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				tx:        testDB(t),
 				dbchunkID: 1,
 				c: &chunk.Chunk{
@@ -585,7 +585,7 @@ func TestDBP_insertPayload(t *testing.T) {
 				mr:        repository.NewMessageRepository(),
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				tx:        testDB(t),
 				dbchunkID: 1,
 				c: &chunk.Chunk{
@@ -650,7 +650,7 @@ func TestDBP_insertFiles(t *testing.T) {
 				sessionID: 1,
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				tx:        testDB(t),
 				dbchunkID: 1,
 				channelID: "C123",
@@ -672,7 +672,7 @@ func TestDBP_insertFiles(t *testing.T) {
 				sessionID: 1,
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				tx:        testDB(t),
 				dbchunkID: 1,
 				channelID: "C123",
@@ -734,7 +734,7 @@ func TestDBP_insertWorkspaceInfo(t *testing.T) {
 				sessionID: 1,
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				tx:        testDB(t),
 				dbchunkID: 1,
 				info: &slack.AuthTestResponse{
@@ -753,7 +753,7 @@ func TestDBP_insertWorkspaceInfo(t *testing.T) {
 				sessionID: 1,
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				tx:        testDB(t),
 				dbchunkID: 1,
 				info:      nil,
@@ -812,7 +812,7 @@ func TestDBP_insertUsers(t *testing.T) {
 				sessionID: 1,
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				tx:        testDB(t),
 				dbchunkID: 1,
 				users:     fixtures.Load[[]slack.User](string(fixtures.TestExpUsersJSON)),
@@ -828,7 +828,7 @@ func TestDBP_insertUsers(t *testing.T) {
 				sessionID: 1,
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				tx:        testDB(t),
 				dbchunkID: 1,
 				users:     []slack.User{},
@@ -887,7 +887,7 @@ func TestDBP_insertChannels(t *testing.T) {
 				sessionID: 1,
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				tx:        testDB(t),
 				dbchunkID: 1,
 				channels:  fixtures.Load[[]slack.Channel](string(fixtures.TestExpChannelsJSON)),
@@ -903,7 +903,7 @@ func TestDBP_insertChannels(t *testing.T) {
 				sessionID: 1,
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				tx:        testDB(t),
 				dbchunkID: 1,
 				channels:  []slack.Channel{},
@@ -963,7 +963,7 @@ func TestDBP_insertChannelUsers(t *testing.T) {
 				sessionID: 1,
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				tx:        testDB(t),
 				dbchunkID: 1,
 				channelID: "C123",
@@ -980,7 +980,7 @@ func TestDBP_insertChannelUsers(t *testing.T) {
 				sessionID: 1,
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				tx:        testDB(t),
 				dbchunkID: 1,
 				channelID: "C123",
@@ -997,7 +997,7 @@ func TestDBP_insertChannelUsers(t *testing.T) {
 				sessionID: 1,
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				tx:        testDB(t),
 				dbchunkID: 1,
 				channelID: "",
@@ -1058,7 +1058,7 @@ func TestDBP_insertSearchMessages(t *testing.T) {
 				sessionID: 1,
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				tx:        testDB(t),
 				dbchunkID: 1,
 				mm: []slack.SearchMessage{
@@ -1077,7 +1077,7 @@ func TestDBP_insertSearchMessages(t *testing.T) {
 				sessionID: 1,
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				tx:        testDB(t),
 				dbchunkID: 1,
 				mm:        []slack.SearchMessage{},
@@ -1137,7 +1137,7 @@ func TestDBP_insertSearchFiles(t *testing.T) {
 				sessionID: 1,
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				tx:        testDB(t),
 				dbchunkID: 1,
 				ff: []slack.File{
@@ -1156,7 +1156,7 @@ func TestDBP_insertSearchFiles(t *testing.T) {
 				sessionID: 1,
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				tx:        testDB(t),
 				dbchunkID: 1,
 				ff:        []slack.File{},

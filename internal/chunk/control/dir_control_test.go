@@ -55,7 +55,7 @@ func TestDirController_Run(t *testing.T) {
 				},
 			},
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 				list: structures.NewEntityListFromItems(structures.EntityItem{
 					Id:      testPubChanMember.ID,
 					Include: true,
@@ -83,7 +83,7 @@ func TestDirController_Run(t *testing.T) {
 				},
 			},
 			args: args{
-				ctx:  context.Background(),
+				ctx:  t.Context(),
 				list: structures.NewEntityListFromItems(),
 			},
 			expectFn: func(s *mock_control.MockStreamer) {

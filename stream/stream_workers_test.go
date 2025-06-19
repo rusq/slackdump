@@ -33,7 +33,7 @@ func TestStream_canvas(t *testing.T) {
 			name:   "file ID is empty",
 			fields: &Stream{},
 			args: args{
-				ctx:     context.Background(),
+				ctx:     t.Context(),
 				channel: &slack.Channel{},
 				fileId:  "",
 			},
@@ -43,7 +43,7 @@ func TestStream_canvas(t *testing.T) {
 			name:   "getfileinfocontext returns an error",
 			fields: &Stream{},
 			args: args{
-				ctx:    context.Background(),
+				ctx:    t.Context(),
 				fileId: "F123456",
 			},
 			expectFn: func(ms *mock_client.MockSlack, mc *mock_processor.MockConversations) {
@@ -55,7 +55,7 @@ func TestStream_canvas(t *testing.T) {
 			name:   "file not found",
 			fields: &Stream{},
 			args: args{
-				ctx:    context.Background(),
+				ctx:    t.Context(),
 				fileId: "F123456",
 			},
 			expectFn: func(ms *mock_client.MockSlack, mc *mock_processor.MockConversations) {
@@ -67,7 +67,7 @@ func TestStream_canvas(t *testing.T) {
 			name:   "success",
 			fields: &Stream{},
 			args: args{
-				ctx:     context.Background(),
+				ctx:     t.Context(),
 				channel: testChannel,
 				fileId:  "F123456",
 			},
@@ -85,7 +85,7 @@ func TestStream_canvas(t *testing.T) {
 			name:   "processor returns an error",
 			fields: &Stream{},
 			args: args{
-				ctx:     context.Background(),
+				ctx:     t.Context(),
 				channel: testChannel,
 				fileId:  "F123456",
 			},

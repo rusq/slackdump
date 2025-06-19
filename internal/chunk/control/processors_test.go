@@ -32,7 +32,7 @@ var (
 )
 
 func Test_userCollector_Users(t *testing.T) {
-	testCtx := context.Background()
+	testCtx := t.Context()
 	type fields struct {
 		ctx   context.Context
 		users []slack.User
@@ -56,7 +56,7 @@ func Test_userCollector_Users(t *testing.T) {
 				users: []slack.User{},
 			},
 			args: args{
-				ctx:   context.Background(),
+				ctx:   t.Context(),
 				users: []slack.User{},
 			},
 			wantErr: false,
@@ -72,7 +72,7 @@ func Test_userCollector_Users(t *testing.T) {
 				users: []slack.User{},
 			},
 			args: args{
-				ctx:   context.Background(),
+				ctx:   t.Context(),
 				users: []slack.User{testUser1, testUser2},
 			},
 			wantErr: false,
@@ -98,7 +98,7 @@ func Test_userCollector_Users(t *testing.T) {
 }
 
 func Test_userCollector_Close(t *testing.T) {
-	testCtx := context.Background()
+	testCtx := t.Context()
 	type fields struct {
 		ctx   context.Context
 		users []slack.User
@@ -186,7 +186,7 @@ func Test_userCollector_Close(t *testing.T) {
 }
 
 func Test_conversationTransformer_mbeTransform(t *testing.T) {
-	testCtx := context.Background()
+	testCtx := t.Context()
 	type fields struct {
 		ctx context.Context
 		// tf  directory.Transformer
@@ -303,10 +303,10 @@ func Test_conversationTransformer_ThreadMessages(t *testing.T) {
 		{
 			name: "not last",
 			fields: fields{
-				ctx: context.Background(),
+				ctx: t.Context(),
 			},
 			args: args{
-				ctx:        context.Background(),
+				ctx:        t.Context(),
 				channelID:  "C12345678",
 				parent:     slack.Message{},
 				threadOnly: false,
@@ -318,10 +318,10 @@ func Test_conversationTransformer_ThreadMessages(t *testing.T) {
 		{
 			name: "last, no error",
 			fields: fields{
-				ctx: context.Background(),
+				ctx: t.Context(),
 			},
 			args: args{
-				ctx:        context.Background(),
+				ctx:        t.Context(),
 				channelID:  "C12345678",
 				parent:     slack.Message{},
 				threadOnly: false,
@@ -334,10 +334,10 @@ func Test_conversationTransformer_ThreadMessages(t *testing.T) {
 		{
 			name: "last, error",
 			fields: fields{
-				ctx: context.Background(),
+				ctx: t.Context(),
 			},
 			args: args{
-				ctx:        context.Background(),
+				ctx:        t.Context(),
 				channelID:  "C12345678",
 				parent:     slack.Message{},
 				threadOnly: false,
@@ -379,7 +379,7 @@ func ctMbeTransformSuccess(mrc *mock_control.MockReferenceChecker, mes *mock_con
 }
 
 func Test_conversationTransformer_Messages(t *testing.T) {
-	testCtx := context.Background()
+	testCtx := t.Context()
 	type fields struct {
 		ctx context.Context
 		// tf  directory.Transformer
@@ -507,7 +507,7 @@ var (
 )
 
 func Test_chanFilter_Channels(t *testing.T) {
-	cancelledCtx, cancel := context.WithCancel(context.Background())
+	cancelledCtx, cancel := context.WithCancel(t.Context())
 	cancel()
 	type fields struct {
 		// links      chan<- structures.EntityItem
@@ -532,7 +532,7 @@ func Test_chanFilter_Channels(t *testing.T) {
 				idx:        make(map[string]*structures.EntityItem),
 			},
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 				ch: []slack.Channel{
 					testPubChanMember,
 					testPubChanNonMember,
@@ -554,7 +554,7 @@ func Test_chanFilter_Channels(t *testing.T) {
 				idx:        make(map[string]*structures.EntityItem),
 			},
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 				ch: []slack.Channel{
 					testPubChanMember,
 					testPubChanNonMember,
@@ -577,7 +577,7 @@ func Test_chanFilter_Channels(t *testing.T) {
 				idx:        must(structures.NewEntityList([]string{"^C11111111", "^G44444444"})).Index(),
 			},
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 				ch: []slack.Channel{
 					testPubChanMember,
 					testPubChanNonMember,
@@ -630,7 +630,7 @@ func Test_chanFilter_Channels(t *testing.T) {
 }
 
 func Test_combinedChannels_Channels(t *testing.T) {
-	cancelledCtx, cancel := context.WithCancel(context.Background())
+	cancelledCtx, cancel := context.WithCancel(t.Context())
 	cancel()
 	type fields struct {
 		// output    chan<- structures.EntityItem
@@ -653,7 +653,7 @@ func Test_combinedChannels_Channels(t *testing.T) {
 				processed: make(map[string]struct{}),
 			},
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 				ch: []slack.Channel{
 					testPubChanMember,
 					testPubChanNonMember,
@@ -678,7 +678,7 @@ func Test_combinedChannels_Channels(t *testing.T) {
 				},
 			},
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 				ch: []slack.Channel{
 					testPubChanMember,
 					testPubChanNonMember,
@@ -885,7 +885,7 @@ func Test_jointFileSearcher_Close(t *testing.T) {
 }
 
 func Test_msgUserIDsCollector_collect(t *testing.T) {
-	cancelled, cancel := context.WithCancel(context.Background())
+	cancelled, cancel := context.WithCancel(t.Context())
 	cancel()
 	type fields struct {
 		seen    map[string]struct{}
@@ -919,7 +919,7 @@ func Test_msgUserIDsCollector_collect(t *testing.T) {
 				userIDC: make(chan []string, 2),
 			},
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 				mm: []slack.Message{
 					{Msg: slack.Msg{User: "U12345678"}},
 					{Msg: slack.Msg{User: "U87654321"}},
@@ -935,7 +935,7 @@ func Test_msgUserIDsCollector_collect(t *testing.T) {
 				userIDC: make(chan []string, 3),
 			},
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 				mm: []slack.Message{
 					{Msg: slack.Msg{User: "U12345678"}},
 					{Msg: slack.Msg{User: "U87654321"}},

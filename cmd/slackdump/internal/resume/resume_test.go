@@ -34,7 +34,7 @@ func Test_ensureSameWorkspace(t *testing.T) {
 		{
 			name: "match",
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 				info: &slackdump.WorkspaceInfo{
 					TeamID: "T123",
 				},
@@ -49,7 +49,7 @@ func Test_ensureSameWorkspace(t *testing.T) {
 		{
 			name: "mismatch",
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 				info: &slackdump.WorkspaceInfo{
 					TeamID: "T123",
 				},
@@ -64,7 +64,7 @@ func Test_ensureSameWorkspace(t *testing.T) {
 		{
 			name: "error",
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 				info: &slackdump.WorkspaceInfo{
 					TeamID: "T123",
 				},
@@ -77,7 +77,7 @@ func Test_ensureSameWorkspace(t *testing.T) {
 		{
 			name: "no workspace info, no users, no channels",
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 				info: &slackdump.WorkspaceInfo{
 					TeamID: "T123",
 				},
@@ -92,7 +92,7 @@ func Test_ensureSameWorkspace(t *testing.T) {
 		{
 			name: "no workspace info, no users, fixture channels, workspace mismatch",
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 				info: &slackdump.WorkspaceInfo{
 					TeamID: "T123",
 				},
@@ -108,7 +108,7 @@ func Test_ensureSameWorkspace(t *testing.T) {
 		{
 			name: "no workspace info, no users, fixture channels, workspace match",
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 				info: &slackdump.WorkspaceInfo{
 					TeamID: "THY5HTZ8U",
 				},
@@ -124,7 +124,7 @@ func Test_ensureSameWorkspace(t *testing.T) {
 		{
 			name: "no workspace info, fixture users",
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 				info: &slackdump.WorkspaceInfo{
 					TeamID: "TFCSDNRL5",
 				},
@@ -139,7 +139,7 @@ func Test_ensureSameWorkspace(t *testing.T) {
 		{
 			name: "no workspace info, fixture users, workspace mismatch",
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 				info: &slackdump.WorkspaceInfo{
 					TeamID: "T123",
 				},
@@ -181,7 +181,7 @@ func Test_channelTeam(t *testing.T) {
 		{
 			name: "no channels",
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 			},
 			expectFn: func(ms *mock_source.MockSourcer) {
 				ms.EXPECT().Channels(gomock.Any()).Return([]slack.Channel{}, nil)
@@ -192,7 +192,7 @@ func Test_channelTeam(t *testing.T) {
 		{
 			name: "fixture channels",
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 			},
 			expectFn: func(ms *mock_source.MockSourcer) {
 				channels := fixtures.Load[[]slack.Channel](fixtures.TestChannelsWithTeamJSON)
@@ -204,7 +204,7 @@ func Test_channelTeam(t *testing.T) {
 		{
 			name: "API error",
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 			},
 			expectFn: func(ms *mock_source.MockSourcer) {
 				ms.EXPECT().Channels(gomock.Any()).Return(nil, assert.AnError)
@@ -215,7 +215,7 @@ func Test_channelTeam(t *testing.T) {
 		{
 			name: "fixture channels, no team ID",
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 			},
 			expectFn: func(ms *mock_source.MockSourcer) {
 				channels := fixtures.Load[[]slack.Channel](fixtures.TestChannelsJSON)
@@ -259,7 +259,7 @@ func Test_usersTeam(t *testing.T) {
 		{
 			name: "no users",
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 			},
 			expectFn: func(ms *mock_source.MockSourcer) {
 				ms.EXPECT().Users(gomock.Any()).Return([]slack.User{}, nil)
@@ -269,7 +269,7 @@ func Test_usersTeam(t *testing.T) {
 		{
 			name: "fixture users",
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 			},
 			expectFn: func(ms *mock_source.MockSourcer) {
 				users := fixtures.Load[[]slack.User](string(fixtures.TestExpUsersJSON))
@@ -281,7 +281,7 @@ func Test_usersTeam(t *testing.T) {
 		{
 			name: "API error",
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 			},
 			expectFn: func(ms *mock_source.MockSourcer) {
 				ms.EXPECT().Users(gomock.Any()).Return(nil, assert.AnError)
@@ -291,7 +291,7 @@ func Test_usersTeam(t *testing.T) {
 		{
 			name: "unable to reliably determine the team ID",
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 			},
 			expectFn: func(ms *mock_source.MockSourcer) {
 				users := []slack.User{
@@ -338,7 +338,7 @@ func Test_latest(t *testing.T) {
 		{
 			name: "resumer error",
 			args: args{
-				ctx:            context.Background(),
+				ctx:            t.Context(),
 				includeThreads: false,
 			},
 			expectFn: func(mr *mock_source.MockResumer) {
@@ -350,7 +350,7 @@ func Test_latest(t *testing.T) {
 		{
 			name: "no entities",
 			args: args{
-				ctx:            context.Background(),
+				ctx:            t.Context(),
 				includeThreads: false,
 			},
 			expectFn: func(mr *mock_source.MockResumer) {
@@ -362,7 +362,7 @@ func Test_latest(t *testing.T) {
 		{
 			name: "returns latest status",
 			args: args{
-				ctx:            context.Background(),
+				ctx:            t.Context(),
 				includeThreads: false,
 			},
 			expectFn: func(mr *mock_source.MockResumer) {
@@ -378,7 +378,7 @@ func Test_latest(t *testing.T) {
 		{
 			name: "returns latest status with thread",
 			args: args{
-				ctx:            context.Background(),
+				ctx:            t.Context(),
 				includeThreads: true,
 			},
 			expectFn: func(mr *mock_source.MockResumer) {
@@ -396,7 +396,7 @@ func Test_latest(t *testing.T) {
 		{
 			name: "returns latest status with thread, but includeThreads is false",
 			args: args{
-				ctx:            context.Background(),
+				ctx:            t.Context(),
 				includeThreads: false,
 			},
 			expectFn: func(mr *mock_source.MockResumer) {

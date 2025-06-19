@@ -86,7 +86,7 @@ func TestWithRetry(t *testing.T) {
 		{
 			"no errors",
 			args{
-				context.Background(),
+				t.Context(),
 				rate.NewLimiter(testRateLimit, 1),
 				3,
 				func(ctx context.Context) error {
@@ -99,7 +99,7 @@ func TestWithRetry(t *testing.T) {
 		{
 			"generic error",
 			args{
-				context.Background(),
+				t.Context(),
 				rate.NewLimiter(testRateLimit, 1),
 				3,
 				func(ctx context.Context) error {
@@ -112,7 +112,7 @@ func TestWithRetry(t *testing.T) {
 		{
 			"3 retries, no error",
 			args{
-				context.Background(),
+				t.Context(),
 				rate.NewLimiter(testRateLimit, 1),
 				3,
 				errRateFnFn(2, 1*time.Millisecond, nil),
@@ -123,7 +123,7 @@ func TestWithRetry(t *testing.T) {
 		{
 			"3 retries, error on the second attempt",
 			args{
-				context.Background(),
+				t.Context(),
 				rate.NewLimiter(testRateLimit, 1),
 				3,
 				errRateFnFn(2, 1*time.Millisecond, errors.New("boo boo")),
@@ -134,7 +134,7 @@ func TestWithRetry(t *testing.T) {
 		{
 			"rate limiter test 4 limited attempts, 100 ms each",
 			args{
-				context.Background(),
+				t.Context(),
 				rate.NewLimiter(10.0, 1),
 				5,
 				errRateFnFn(4, 1*time.Millisecond, nil),
@@ -145,7 +145,7 @@ func TestWithRetry(t *testing.T) {
 		{
 			"should honour the value in the rate limit error",
 			args{
-				context.Background(),
+				t.Context(),
 				rate.NewLimiter(1000, 1),
 				5,
 				errRateFnFn(4, 100*time.Millisecond, nil),
@@ -156,7 +156,7 @@ func TestWithRetry(t *testing.T) {
 		{
 			"running out of retries",
 			args{
-				context.Background(),
+				t.Context(),
 				rate.NewLimiter(10.0, 1),
 				5,
 				errRateFnFn(100, 1*time.Millisecond, nil),
@@ -167,7 +167,7 @@ func TestWithRetry(t *testing.T) {
 		{
 			"network error (#234)",
 			args{
-				context.Background(),
+				t.Context(),
 				rate.NewLimiter(10.0, 1),
 				3,
 				errSeqFn(&net.OpError{Op: "read", Err: errors.New("network error")}, 2, nil),
@@ -178,7 +178,7 @@ func TestWithRetry(t *testing.T) {
 		{
 			"callback requests a retry",
 			args{
-				context.Background(),
+				t.Context(),
 				rate.NewLimiter(10.0, 1),
 				3,
 				errSeqFn(ErrRetryPlease, 2, nil),
@@ -229,7 +229,7 @@ func TestWithRetry(t *testing.T) {
 
 				start := time.Now()
 				// Call the client with a retry.
-				err := WithRetry(context.Background(), rate.NewLimiter(1, 1), testRetryCount, func(ctx context.Context) error {
+				err := WithRetry(t.Context(), rate.NewLimiter(1, 1), testRetryCount, func(ctx context.Context) error {
 					_, err := client.GetConversationHistory(&slack.GetConversationHistoryParameters{})
 					if err == nil {
 						return errors.New("expected error, got nil")
@@ -262,7 +262,7 @@ func TestWithRetry(t *testing.T) {
 
 			// Call the client with a retry.
 			start := time.Now()
-			err := WithRetry(context.Background(), rate.NewLimiter(1, 1), testRetryCount, func(ctx context.Context) error {
+			err := WithRetry(t.Context(), rate.NewLimiter(1, 1), testRetryCount, func(ctx context.Context) error {
 				_, err := client.GetConversationHistory(&slack.GetConversationHistoryParameters{})
 				if err == nil {
 					return errors.New("expected error, got nil")
@@ -285,7 +285,7 @@ func TestWithRetry(t *testing.T) {
 		reterr := []error{io.EOF, io.EOF, nil}
 		var retries int
 
-		ctx := context.Background()
+		ctx := t.Context()
 		err := WithRetry(ctx, rate.NewLimiter(1, 1), 3, func(ctx context.Context) error {
 			err := reterr[retries]
 			if err != nil {
@@ -303,7 +303,7 @@ func TestWithRetry(t *testing.T) {
 		reterr := []error{io.ErrUnexpectedEOF, io.ErrUnexpectedEOF, nil}
 		var retries int
 
-		ctx := context.Background()
+		ctx := t.Context()
 		err := WithRetry(ctx, rate.NewLimiter(1, 1), 3, func(ctx context.Context) error {
 			err := reterr[retries]
 			if err != nil {
@@ -320,7 +320,7 @@ func TestWithRetry(t *testing.T) {
 		errFunc := func(ctx context.Context) error {
 			return slack.StatusCodeError{Code: 500, Status: "Internal Server Error"}
 		}
-		err := WithRetry(context.Background(), rate.NewLimiter(1, 1), 1, errFunc)
+		err := WithRetry(t.Context(), rate.NewLimiter(1, 1), 1, errFunc)
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}

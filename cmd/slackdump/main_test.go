@@ -69,7 +69,7 @@ func Test_loadSecrets(t *testing.T) {
 			},
 			func(t *testing.T, dir string) {
 				t.Helper()
-				os.Setenv("DOT_ENV", "env")
+				t.Setenv("DOT_ENV", "env")
 				require.NoError(t, os.WriteFile(filepath.Join(dir, ".env"), []byte("DOT_ENV=set\n"), 0o666))
 			},
 			map[string]string{

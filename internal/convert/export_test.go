@@ -1,7 +1,6 @@
 package convert
 
 import (
-	"context"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -119,7 +118,7 @@ func TestChunkToExport_Convert(t *testing.T) {
 	src := source.OpenChunkDir(cd, true)
 	c := NewToExport(src, fsa, WithIncludeFiles(true))
 
-	ctx := context.Background()
+	ctx := t.Context()
 	c.opts.lg = testLogger
 	if err := c.Convert(ctx); err != nil {
 		t.Fatal(err)

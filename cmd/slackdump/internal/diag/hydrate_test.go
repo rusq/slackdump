@@ -49,7 +49,7 @@ func Test_httpget_GetFileContext(t *testing.T) {
 			name: "invalid URL",
 			h:    httpget{},
 			args: args{
-				ctx:         context.Background(),
+				ctx:         t.Context(),
 				downloadURL: "invalidURL",
 			},
 			wantW:   "",
@@ -59,7 +59,7 @@ func Test_httpget_GetFileContext(t *testing.T) {
 			name: "missing token in the URL",
 			h:    httpget{},
 			args: args{
-				ctx:         context.Background(),
+				ctx:         t.Context(),
 				downloadURL: srv.URL,
 			},
 			wantW:   "",
@@ -69,7 +69,7 @@ func Test_httpget_GetFileContext(t *testing.T) {
 			name: "all ok",
 			h:    httpget{},
 			args: args{
-				ctx:         context.Background(),
+				ctx:         t.Context(),
 				downloadURL: srv.URL + "?t=token",
 			},
 			wantW:   "Hello, client\n",
@@ -79,7 +79,7 @@ func Test_httpget_GetFileContext(t *testing.T) {
 			name: "error",
 			h:    httpget{},
 			args: args{
-				ctx:         context.Background(),
+				ctx:         t.Context(),
 				downloadURL: errsrv.URL + "?t=token",
 			},
 			wantW:   "",
@@ -196,7 +196,7 @@ func Test_downloadFiles(t *testing.T) {
 			if tt.expectFn != nil {
 				tt.expectFn(ms, fs, d)
 			}
-			if err := downloadFiles(context.Background(), d, fs, ms); (err != nil) != tt.wantErr {
+			if err := downloadFiles(t.Context(), d, fs, ms); (err != nil) != tt.wantErr {
 				t.Errorf("downloadFiles() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

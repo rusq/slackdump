@@ -73,7 +73,7 @@ func prepChannelUsers(t *testing.T, db PrepareExtContext) {
 	prepChunk(chunk.CChannelUsers, chunk.CChannelUsers, chunk.CChannelUsers, chunk.CChannelUsers)(t, db)
 
 	cur := NewChannelUserRepository()
-	if err := cur.Insert(context.Background(), db, testC1U1, testC1U2, testC1U3, testC2U4, testC2U1, testC3U5, testC3_U1, testC3_U4); err != nil {
+	if err := cur.Insert(t.Context(), db, testC1U1, testC1U2, testC1U3, testC2U4, testC2U1, testC3U5, testC3_U1, testC3_U4); err != nil {
 		t.Fatalf("prepChannelUsers: %v", err)
 	}
 }
@@ -101,7 +101,7 @@ func Test_channelUserRepository_GetByChannelID(t *testing.T) {
 				genericRepository: newGenericRepository(DBChannelUser{}),
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				db:        testConn(t),
 				channelID: "C111",
 			},
@@ -118,7 +118,7 @@ func Test_channelUserRepository_GetByChannelID(t *testing.T) {
 				genericRepository: newGenericRepository(DBChannelUser{}),
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				db:        testConn(t),
 				channelID: "C222",
 			},
@@ -134,7 +134,7 @@ func Test_channelUserRepository_GetByChannelID(t *testing.T) {
 				genericRepository: newGenericRepository(DBChannelUser{}),
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				db:        testConn(t),
 				channelID: "C---",
 			},
@@ -148,7 +148,7 @@ func Test_channelUserRepository_GetByChannelID(t *testing.T) {
 				genericRepository: newGenericRepository(DBChannelUser{}),
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				db:        testConn(t),
 				channelID: "C333",
 			},

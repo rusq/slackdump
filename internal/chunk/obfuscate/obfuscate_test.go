@@ -2,7 +2,6 @@ package obfuscate
 
 import (
 	"bytes"
-	"context"
 	"crypto/sha1"
 	"encoding/json"
 	"errors"
@@ -62,7 +61,7 @@ func Test_randomString(t *testing.T) {
 func Test_Do(t *testing.T) {
 	var buf bytes.Buffer
 	src := fixtures.ChunkFileJSONL()
-	if err := Do(context.Background(), &buf, src); err != nil {
+	if err := Do(t.Context(), &buf, src); err != nil {
 		t.Fatal(err)
 	}
 

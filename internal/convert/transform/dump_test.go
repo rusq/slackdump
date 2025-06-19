@@ -1,7 +1,6 @@
 package transform
 
 import (
-	"context"
 	"path/filepath"
 	"testing"
 
@@ -24,7 +23,7 @@ func Test_stdConvert(t *testing.T) {
 		testDir := filepath.Join("..", "..", "..", "tmp", "3")
 		fixtures.SkipIfNotExist(t, testDir)
 
-		ctx := context.Background()
+		ctx := t.Context()
 
 		src, err := source.Load(ctx, testDir)
 		if err != nil {

@@ -2,7 +2,6 @@ package format
 
 import (
 	"bytes"
-	"context"
 	"testing"
 
 	"github.com/rusq/slack"
@@ -87,7 +86,7 @@ func TestText_Conversation(t *testing.T) {
 			buf := &bytes.Buffer{}
 			txt := NewText()
 
-			if err := txt.Conversation(context.Background(), buf, nil, &types.Conversation{Messages: tt.args.m}); (err != nil) != tt.wantErr {
+			if err := txt.Conversation(t.Context(), buf, nil, &types.Conversation{Messages: tt.args.m}); (err != nil) != tt.wantErr {
 				t.Errorf("Session.generateText() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}

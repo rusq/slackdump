@@ -192,33 +192,33 @@ func TestCurrentOrNewProviderCtx(t *testing.T) {
 	}{
 		{
 			"authCurrent fails",
-			args{context.Background()},
+			args{t.Context()},
 			&recorder{
 				authCurrentRetErr: assert.AnError,
 			},
-			context.Background(),
+			t.Context(),
 			true,
 			1,
 			0,
 		},
 		{
 			"authCurrent doesn't find workspace",
-			args{context.Background()},
+			args{t.Context()},
 			&recorder{
 				authCurrentRetErr: cache.ErrNoWorkspaces,
 			},
-			context.Background(),
+			t.Context(),
 			true,
 			2, // attempts to call authCurrent twice
 			1, // after showing the UI
 		},
 		{
 			"authCurrent succeeds",
-			args{context.Background()},
+			args{t.Context()},
 			&recorder{
 				authCurrentRetProv: auth.ValueAuth{},
 			},
-			auth.WithContext(context.Background(), auth.ValueAuth{}),
+			auth.WithContext(t.Context(), auth.ValueAuth{}),
 			false,
 			1,
 			0,

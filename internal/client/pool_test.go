@@ -92,12 +92,12 @@ func TestPool_AuthTestContext(t *testing.T) {
 				strategy: newRoundRobin(2),
 			},
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 			},
 			numClients: 2,
 			expectFn: func(clients []*mock_client.MockSlack) {
-				clients[0].EXPECT().AuthTestContext(context.Background()).Times(0)
-				clients[1].EXPECT().AuthTestContext(context.Background()).Return(&slack.AuthTestResponse{URL: "abc"}, nil)
+				clients[0].EXPECT().AuthTestContext(t.Context()).Times(0)
+				clients[1].EXPECT().AuthTestContext(t.Context()).Return(&slack.AuthTestResponse{URL: "abc"}, nil)
 			},
 			wantResponse: &slack.AuthTestResponse{URL: "abc"},
 			wantErr:      false,
@@ -108,12 +108,12 @@ func TestPool_AuthTestContext(t *testing.T) {
 				strategy: &roundRobin{total: 2, i: 1},
 			},
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 			},
 			numClients: 2,
 			expectFn: func(clients []*mock_client.MockSlack) {
-				clients[0].EXPECT().AuthTestContext(context.Background()).Return(&slack.AuthTestResponse{URL: "abc"}, nil)
-				clients[1].EXPECT().AuthTestContext(context.Background()).Times(0)
+				clients[0].EXPECT().AuthTestContext(t.Context()).Return(&slack.AuthTestResponse{URL: "abc"}, nil)
+				clients[1].EXPECT().AuthTestContext(t.Context()).Times(0)
 			},
 			wantResponse: &slack.AuthTestResponse{URL: "abc"},
 			wantErr:      false,
@@ -124,11 +124,11 @@ func TestPool_AuthTestContext(t *testing.T) {
 				strategy: newRoundRobin(1),
 			},
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 			},
 			numClients: 1,
 			expectFn: func(clients []*mock_client.MockSlack) {
-				clients[0].EXPECT().AuthTestContext(context.Background()).Return(&slack.AuthTestResponse{URL: "abc"}, nil)
+				clients[0].EXPECT().AuthTestContext(t.Context()).Return(&slack.AuthTestResponse{URL: "abc"}, nil)
 			},
 			wantResponse: &slack.AuthTestResponse{URL: "abc"},
 			wantErr:      false,
@@ -139,11 +139,11 @@ func TestPool_AuthTestContext(t *testing.T) {
 				strategy: newRoundRobin(1),
 			},
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 			},
 			numClients: 1,
 			expectFn: func(clients []*mock_client.MockSlack) {
-				clients[0].EXPECT().AuthTestContext(context.Background()).Return(nil, errors.New("error"))
+				clients[0].EXPECT().AuthTestContext(t.Context()).Return(nil, errors.New("error"))
 			},
 			wantResponse: nil,
 			wantErr:      true,

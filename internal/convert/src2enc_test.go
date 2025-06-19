@@ -33,7 +33,7 @@ func Test_encodeMessages(t *testing.T) {
 		{
 			name: "ok",
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 				ch:  structures.ChannelFromID("C123"),
 			},
 			expectFn: func(t *testing.T, mc *mock_processor.MockConversations, ms *mock_source.MockSourcer) {
@@ -137,7 +137,7 @@ func Test_encodeThreadMessages(t *testing.T) {
 		{
 			name: "ok",
 			args: args{
-				ctx:      context.Background(),
+				ctx:      t.Context(),
 				ch:       structures.ChannelFromID("C123"),
 				par:      parentMsg,
 				threadTS: "123.456",

@@ -27,7 +27,7 @@ func Test_sessionRepository_Insert(t *testing.T) {
 		{
 			name: "inserts new empty session",
 			args: args{
-				ctx:  context.Background(),
+				ctx:  t.Context(),
 				conn: testConn(t),
 				s:    &Session{},
 			},
@@ -37,7 +37,7 @@ func Test_sessionRepository_Insert(t *testing.T) {
 		{
 			name: "fails if parent does not exist",
 			args: args{
-				ctx:  context.Background(),
+				ctx:  t.Context(),
 				conn: testConn(t),
 				s: &Session{
 					ParentID: ptr[int64](1),
@@ -49,7 +49,7 @@ func Test_sessionRepository_Insert(t *testing.T) {
 		{
 			name: "inserts new session with parent",
 			args: args{
-				ctx:  context.Background(),
+				ctx:  t.Context(),
 				conn: testConn(t),
 				s: &Session{
 					ParentID: ptr[int64](1),
@@ -58,7 +58,7 @@ func Test_sessionRepository_Insert(t *testing.T) {
 				},
 			},
 			prepFn: func(t *testing.T, conn PrepareExtContext) {
-				if _, err := conn.ExecContext(context.Background(), "INSERT INTO session (id,mode,args) VALUES (1,'test','args')"); err != nil {
+				if _, err := conn.ExecContext(t.Context(), "INSERT INTO session (id,mode,args) VALUES (1,'test','args')"); err != nil {
 					t.Fatalf("err = %v; want nil", err)
 				}
 			},
@@ -68,7 +68,7 @@ func Test_sessionRepository_Insert(t *testing.T) {
 		{
 			name: "all fields",
 			args: args{
-				ctx:  context.Background(),
+				ctx:  t.Context(),
 				conn: testConn(t),
 				s: &Session{
 					ID:             10,
@@ -125,20 +125,20 @@ func Test_sessionRepository_Finish(t *testing.T) {
 		{
 			name: "finishes existing session",
 			args: args{
-				ctx:  context.Background(),
+				ctx:  t.Context(),
 				conn: testConn(t),
 				id:   1,
 			},
 			prepFn: func(t *testing.T, conn PrepareExtContext) {
 				r := sessionRepository{}
-				if _, err := r.Insert(context.Background(), conn, &Session{}); err != nil {
+				if _, err := r.Insert(t.Context(), conn, &Session{}); err != nil {
 					t.Fatalf("err = %v; want nil", err)
 				}
 			},
 			want: 1,
 			checkFn: func(t *testing.T, conn PrepareExtContext) {
 				var finished bool
-				if err := conn.QueryRowxContext(context.Background(), "SELECT finished FROM session WHERE id = 1").Scan(&finished); err != nil {
+				if err := conn.QueryRowxContext(t.Context(), "SELECT finished FROM session WHERE id = 1").Scan(&finished); err != nil {
 					t.Fatalf("err = %v; want nil", err)
 				}
 				if !finished {
@@ -149,7 +149,7 @@ func Test_sessionRepository_Finish(t *testing.T) {
 		{
 			name: "fails if session does not exist",
 			args: args{
-				ctx:  context.Background(),
+				ctx:  t.Context(),
 				conn: testConn(t),
 				id:   1,
 			},
@@ -207,11 +207,11 @@ func Test_sessionRepository_Get(t *testing.T) {
 					Mode:           "test",
 					Args:           "arg1 arg2 arg3",
 				}
-				if _, err := r.Insert(context.Background(), conn, testSession); err != nil {
+				if _, err := r.Insert(t.Context(), conn, testSession); err != nil {
 					t.Fatalf("err = %v; want nil", err)
 				}
 			},
-			args: args{ctx: context.Background(), conn: testConn(t), id: 1},
+			args: args{ctx: t.Context(), conn: testConn(t), id: 1},
 			want: &Session{
 				ID:             1,
 				CreatedAt:      time.Date(2009, time.September, 16, 5, 6, 7, 0, time.UTC),
@@ -261,7 +261,7 @@ func Test_sessionRepository_Update(t *testing.T) {
 		{
 			name: "updates existing session",
 			args: args{
-				ctx:  context.Background(),
+				ctx:  t.Context(),
 				conn: testConn(t),
 				s: &Session{
 					ID:   1,
@@ -270,14 +270,14 @@ func Test_sessionRepository_Update(t *testing.T) {
 			},
 			prepFn: func(t *testing.T, conn PrepareExtContext) {
 				r := sessionRepository{}
-				if _, err := r.Insert(context.Background(), conn, &Session{Mode: "archive"}); err != nil {
+				if _, err := r.Insert(t.Context(), conn, &Session{Mode: "archive"}); err != nil {
 					t.Fatalf("err = %v; want nil", err)
 				}
 			},
 			want: 1,
 			checkFn: func(t *testing.T, conn PrepareExtContext) {
 				var mode string
-				if err := conn.QueryRowxContext(context.Background(), "SELECT mode FROM session WHERE id = 1").Scan(&mode); err != nil {
+				if err := conn.QueryRowxContext(t.Context(), "SELECT mode FROM session WHERE id = 1").Scan(&mode); err != nil {
 					t.Fatalf("err = %v; want nil", err)
 				}
 				if mode != "resume" {
@@ -333,10 +333,10 @@ func Test_sessionRepository_Last(t *testing.T) {
 	)
 	twoSess := func(t *testing.T, conn PrepareExtContext) {
 		r := sessionRepository{}
-		if _, err := r.Insert(context.Background(), conn, testSess1); err != nil {
+		if _, err := r.Insert(t.Context(), conn, testSess1); err != nil {
 			t.Fatalf("err = %v; want nil", err)
 		}
-		if _, err := r.Insert(context.Background(), conn, testSess2); err != nil {
+		if _, err := r.Insert(t.Context(), conn, testSess2); err != nil {
 			t.Fatalf("err = %v; want nil", err)
 		}
 	}
@@ -356,7 +356,7 @@ func Test_sessionRepository_Last(t *testing.T) {
 		{
 			name:    "gets last session",
 			r:       sessionRepository{},
-			args:    args{ctx: context.Background(), conn: testConn(t), finished: nil},
+			args:    args{ctx: t.Context(), conn: testConn(t), finished: nil},
 			prepFn:  twoSess,
 			want:    testSess2,
 			wantErr: false,
@@ -364,14 +364,14 @@ func Test_sessionRepository_Last(t *testing.T) {
 		{
 			name:   "gets last finished session",
 			r:      sessionRepository{},
-			args:   args{ctx: context.Background(), conn: testConn(t), finished: ptr(true)},
+			args:   args{ctx: t.Context(), conn: testConn(t), finished: ptr(true)},
 			prepFn: twoSess,
 			want:   testSess1,
 		},
 		{
 			name:   "gets last unfinished session",
 			r:      sessionRepository{},
-			args:   args{ctx: context.Background(), conn: testConn(t), finished: ptr(false)},
+			args:   args{ctx: t.Context(), conn: testConn(t), finished: ptr(false)},
 			prepFn: twoSess,
 			want:   testSess2,
 		},

@@ -39,7 +39,7 @@ func Test_getTokenByCookie(t *testing.T) {
 		{
 			name: "finds the token and cookies",
 			args: args{
-				ctx:           context.Background(),
+				ctx:           t.Context(),
 				workspaceName: "test",
 				dCookie:       "dcookie",
 			},

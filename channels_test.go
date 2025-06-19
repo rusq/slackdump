@@ -39,7 +39,7 @@ func TestSession_getChannels(t *testing.T) {
 			"ok",
 			fields{config: defConfig},
 			args{
-				context.Background(),
+				t.Context(),
 				AllChanTypes,
 			},
 			func(mc *mock_client.MockSlackClienter) {
@@ -63,7 +63,7 @@ func TestSession_getChannels(t *testing.T) {
 			"function made a boo boo",
 			fields{config: defConfig},
 			args{
-				context.Background(),
+				t.Context(),
 				AllChanTypes,
 			},
 			func(mc *mock_client.MockSlackClienter) {
@@ -166,7 +166,7 @@ func TestSession_GetChannelMembers(t *testing.T) {
 			"ok, single call",
 			fields{cfg: defConfig},
 			args{
-				context.Background(),
+				t.Context(),
 				"chanID",
 			},
 			func(mc *mock_client.MockSlackClienter) {
@@ -181,7 +181,7 @@ func TestSession_GetChannelMembers(t *testing.T) {
 			"ok, two calls",
 			fields{cfg: defConfig},
 			args{
-				context.Background(),
+				t.Context(),
 				"chanID",
 			},
 			func(mc *mock_client.MockSlackClienter) {
@@ -200,7 +200,7 @@ func TestSession_GetChannelMembers(t *testing.T) {
 			"error",
 			fields{cfg: defConfig},
 			args{
-				context.Background(),
+				t.Context(),
 				"chanID",
 			},
 			func(mc *mock_client.MockSlackClienter) {

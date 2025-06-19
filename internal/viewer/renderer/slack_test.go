@@ -82,7 +82,7 @@ func TestSlack_Render(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			sm := &Slack{}
-			gotV := sm.Render(context.Background(), tt.args.m)
+			gotV := sm.Render(t.Context(), tt.args.m)
 			assert.Equal(t, tt.wantV, gotV)
 		})
 	}

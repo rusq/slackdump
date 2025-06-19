@@ -43,7 +43,7 @@ func TestChannelStream(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	prov, err := m.Auth(context.Background(), wsp, nil)
+	prov, err := m.Auth(t.Context(), wsp, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -60,13 +60,13 @@ func TestChannelStream(t *testing.T) {
 	defer rec.Close()
 
 	cs := New(sd, network.DefLimits)
-	if err := cs.SyncConversations(context.Background(), rec, structures.EntityItem{Id: testConversation}); err != nil {
+	if err := cs.SyncConversations(t.Context(), rec, structures.EntityItem{Id: testConversation}); err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestRecorderStream(t *testing.T) {
-	ctx, task := trace.NewTask(context.Background(), "TestRecorderStream")
+	ctx, task := trace.NewTask(t.Context(), "TestRecorderStream")
 	defer task.End()
 
 	start := time.Now()
@@ -174,7 +174,7 @@ func Test_processThreadMessages(t *testing.T) {
 			Files(gomock.Any(), dummyChannel, testThread[2], testThread[2].Files).
 			Return(nil)
 
-		if err := procThreadMsg(context.Background(), mproc, dummyChannel, testThread[0].ThreadTimestamp, false, true, testThread); err != nil {
+		if err := procThreadMsg(t.Context(), mproc, dummyChannel, testThread[0].ThreadTimestamp, false, true, testThread); err != nil {
 			t.Fatal(err)
 		}
 	})
@@ -323,7 +323,7 @@ func Test_processLink(t *testing.T) {
 }
 
 func TestStream_Users(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		t.Helper()
 		_, err := w.Write([]byte(`{"ok":false,"error":"not_authed"}`))
@@ -365,7 +365,7 @@ func TestStream_ListChannels(t *testing.T) {
 		{
 			name: "happy path",
 			cs:   &Stream{limits: testlimits},
-			args: args{ctx: context.Background(), p: &slack.GetConversationsParameters{}},
+			args: args{ctx: t.Context(), p: &slack.GetConversationsParameters{}},
 			expectFn: func(ms *mock_client.MockSlack, mc *mock_processor.MockChannels) {
 				ms.EXPECT().
 					GetConversationsContext(gomock.Any(), gomock.Any()).
@@ -379,7 +379,7 @@ func TestStream_ListChannels(t *testing.T) {
 		{
 			name: "No channels returned, processor not called",
 			cs:   &Stream{limits: testlimits},
-			args: args{ctx: context.Background(), p: &slack.GetConversationsParameters{}},
+			args: args{ctx: t.Context(), p: &slack.GetConversationsParameters{}},
 			expectFn: func(ms *mock_client.MockSlack, mc *mock_processor.MockChannels) {
 				ms.EXPECT().
 					GetConversationsContext(gomock.Any(), gomock.Any()).
@@ -390,7 +390,7 @@ func TestStream_ListChannels(t *testing.T) {
 		{
 			name: "next cursor causes another iteration",
 			cs:   &Stream{limits: testlimits},
-			args: args{ctx: context.Background(), p: &slack.GetConversationsParameters{}},
+			args: args{ctx: t.Context(), p: &slack.GetConversationsParameters{}},
 			expectFn: func(ms *mock_client.MockSlack, mc *mock_processor.MockChannels) {
 				ms.EXPECT().
 					GetConversationsContext(gomock.Any(), gomock.Any()).
@@ -407,7 +407,7 @@ func TestStream_ListChannels(t *testing.T) {
 		{
 			name: "rate limiting error causes retry",
 			cs:   &Stream{limits: testlimits},
-			args: args{ctx: context.Background(), p: &slack.GetConversationsParameters{}},
+			args: args{ctx: t.Context(), p: &slack.GetConversationsParameters{}},
 			expectFn: func(ms *mock_client.MockSlack, mc *mock_processor.MockChannels) {
 				call := ms.EXPECT().
 					GetConversationsContext(gomock.Any(), gomock.Any()).
@@ -445,7 +445,7 @@ func TestStream_ListChannels(t *testing.T) {
 }
 
 func TestStream_UsersBulk(t *testing.T) {
-	cancelled, cancel := context.WithCancel(context.Background())
+	cancelled, cancel := context.WithCancel(t.Context())
 	cancel()
 	testLimits := rateLimits{
 		userinfo: network.NewLimiter(network.NoTier, 100, 100),

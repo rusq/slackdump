@@ -46,14 +46,14 @@ func Test_genericRepository_allOfTypeWhere(t *testing.T) {
 			name: "returns most recent versions",
 			r:    genericRepository[DBChannel]{t: DBChannel{}},
 			args: args{
-				ctx:    context.Background(),
+				ctx:    t.Context(),
 				conn:   testConn(t),
 				typeID: []chunk.ChunkType{chunk.CChannelInfo},
 			},
 			prepFn: func(t *testing.T, conn PrepareExtContext) {
 				prepChunk(chunk.CChannelInfo, chunk.CChannelInfo)(t, conn)
 				cir := NewChannelRepository()
-				_, err := cir.InsertAll(context.Background(), conn, testutil.ToIter([]testutil.TestResult[*DBChannel]{
+				_, err := cir.InsertAll(t.Context(), conn, testutil.ToIter([]testutil.TestResult[*DBChannel]{
 					{V: &DBChannel{ID: "ABC", ChunkID: 1, Name: ptr("old name"), Data: data1}, Err: nil},
 					{V: &DBChannel{ID: "BCD", ChunkID: 1, Name: ptr("other name"), Data: data2}, Err: nil},
 					{V: &DBChannel{ID: "ABC", ChunkID: 2, Name: ptr("new name"), Data: data1}, Err: nil},
@@ -70,14 +70,14 @@ func Test_genericRepository_allOfTypeWhere(t *testing.T) {
 			name: "different chunk types are isolated",
 			r:    genericRepository[DBChannel]{t: DBChannel{}},
 			args: args{
-				ctx:    context.Background(),
+				ctx:    t.Context(),
 				conn:   testConn(t),
 				typeID: []chunk.ChunkType{chunk.CChannelInfo},
 			},
 			prepFn: func(t *testing.T, conn PrepareExtContext) {
 				prepChunk(chunk.CChannelInfo, chunk.CChannels)(t, conn)
 				cir := NewChannelRepository()
-				_, err := cir.InsertAll(context.Background(), conn, testutil.ToIter([]testutil.TestResult[*DBChannel]{
+				_, err := cir.InsertAll(t.Context(), conn, testutil.ToIter([]testutil.TestResult[*DBChannel]{
 					{V: &DBChannel{ID: "ABC", ChunkID: 1, Name: ptr("old name"), Data: data1}, Err: nil},
 					{V: &DBChannel{ID: "BCD", ChunkID: 1, Name: ptr("other name"), Data: data2}, Err: nil},
 					{V: &DBChannel{ID: "ABC", ChunkID: 2, Name: ptr("new name"), Data: data1}, Err: nil}, // second chunk has a different type.
@@ -94,7 +94,7 @@ func Test_genericRepository_allOfTypeWhere(t *testing.T) {
 			name: "Additional conditions in the query parameters",
 			r:    genericRepository[DBChannel]{DBChannel{}},
 			args: args{
-				ctx:  context.Background(),
+				ctx:  t.Context(),
 				conn: testConn(t),
 				qp: queryParams{
 					Where:   "T.ID IN (?, ?)",
@@ -106,7 +106,7 @@ func Test_genericRepository_allOfTypeWhere(t *testing.T) {
 			prepFn: func(t *testing.T, conn PrepareExtContext) {
 				prepChunk(chunk.CChannelInfo, chunk.CChannelInfo, chunk.CChannelInfo)(t, conn)
 				cir := NewChannelRepository()
-				_, err := cir.InsertAll(context.Background(), conn, testutil.ToIter([]testutil.TestResult[*DBChannel]{
+				_, err := cir.InsertAll(t.Context(), conn, testutil.ToIter([]testutil.TestResult[*DBChannel]{
 					{V: &DBChannel{ID: "BCD", ChunkID: 1, Name: ptr("other name"), Data: data2}, Err: nil},
 					{V: &DBChannel{ID: "ABC", ChunkID: 1, Name: ptr("old name"), Data: data1}, Err: nil},
 					{V: &DBChannel{ID: "ABC", ChunkID: 2, Name: ptr("new name"), Data: data1}, Err: nil},
@@ -124,7 +124,7 @@ func Test_genericRepository_allOfTypeWhere(t *testing.T) {
 			name: "Same, but user key ordering (ID)",
 			r:    genericRepository[DBChannel]{DBChannel{}},
 			args: args{
-				ctx:  context.Background(),
+				ctx:  t.Context(),
 				conn: testConn(t),
 				qp: queryParams{
 					Where:        "T.ID IN (?, ?)",
@@ -136,7 +136,7 @@ func Test_genericRepository_allOfTypeWhere(t *testing.T) {
 			prepFn: func(t *testing.T, conn PrepareExtContext) {
 				prepChunk(chunk.CChannelInfo, chunk.CChannelInfo, chunk.CChannelInfo)(t, conn)
 				cir := NewChannelRepository()
-				_, err := cir.InsertAll(context.Background(), conn, testutil.ToIter([]testutil.TestResult[*DBChannel]{
+				_, err := cir.InsertAll(t.Context(), conn, testutil.ToIter([]testutil.TestResult[*DBChannel]{
 					{V: &DBChannel{ID: "BCD", ChunkID: 1, Name: ptr("other name"), Data: data2}, Err: nil},
 					{V: &DBChannel{ID: "ABC", ChunkID: 1, Name: ptr("old name"), Data: data1}, Err: nil},
 					{V: &DBChannel{ID: "ABC", ChunkID: 2, Name: ptr("new name"), Data: data1}, Err: nil},

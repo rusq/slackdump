@@ -53,14 +53,14 @@ func Test_workspaceRepository_GetWorkspace(t *testing.T) {
 				genericRepository: genericRepository[DBWorkspace]{DBWorkspace{}},
 			},
 			args: args{
-				ctx:  context.Background(),
+				ctx:  t.Context(),
 				conn: testConn(t),
 			},
 			prepFn: func(t *testing.T, conn PrepareExtContext) {
 				t.Helper()
 				prepChunk(chunk.CWorkspaceInfo, chunk.CWorkspaceInfo)(t, conn)
 				wr := NewWorkspaceRepository()
-				if err := wr.Insert(context.Background(), conn, dbwsp1, dbwsp2); err != nil {
+				if err := wr.Insert(t.Context(), conn, dbwsp1, dbwsp2); err != nil {
 					t.Fatal(err)
 				}
 			},

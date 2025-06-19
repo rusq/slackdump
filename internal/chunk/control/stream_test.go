@@ -13,7 +13,7 @@ import (
 )
 
 func Test_userCollectingStreamer_Users(t *testing.T) {
-	cancelled, cancel := context.WithCancel(context.Background())
+	cancelled, cancel := context.WithCancel(t.Context())
 	cancel()
 
 	type fields struct {
@@ -43,7 +43,7 @@ func Test_userCollectingStreamer_Users(t *testing.T) {
 		{
 			name: "test User IDs",
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 			},
 			prepFn: func(f *fields) {
 				userIDC := make(chan []string, 1)
@@ -59,7 +59,7 @@ func Test_userCollectingStreamer_Users(t *testing.T) {
 		{
 			name: "method returns an error",
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 			},
 			prepFn: func(f *fields) {
 				userIDC := make(chan []string, 1)
