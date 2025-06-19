@@ -1,7 +1,6 @@
 package export
 
 import (
-	"context"
 	"path/filepath"
 	"testing"
 
@@ -62,7 +61,7 @@ func Test_exportV3(t *testing.T) {
 		defer srv.Close()
 		cl := client.Wrap(slack.New("", slack.OptionAPIURL(srv.URL())))
 
-		ctx := context.Background()
+		ctx := t.Context()
 		dir := t.TempDir()
 		output := filepath.Join(dir, "output.zip")
 		fsa, err := fsadapter.New(output)

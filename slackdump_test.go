@@ -65,10 +65,10 @@ func Test_newLimiter(t *testing.T) {
 
 			got := network.NewLimiter(tt.args.t, tt.args.burst, tt.args.boost)
 
-			assert.NoError(t, got.Wait(context.Background())) // prime
+			assert.NoError(t, got.Wait(t.Context())) // prime
 
 			start := time.Now()
-			err := got.Wait(context.Background())
+			err := got.Wait(t.Context())
 			stop := time.Now()
 
 			assert.NoError(t, err)
@@ -140,7 +140,7 @@ func openTempFS() fsadapter.FSCloser {
 }
 
 func TestSession_initWorkspaceInfo(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	t.Run("ok", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		mc := mock_client.NewMockSlackClienter(ctrl)

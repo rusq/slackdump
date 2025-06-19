@@ -61,7 +61,6 @@ func (s *Coordinator) StartWithUsers(context.Context, []slack.User) error {
 	return nil
 }
 
-
 func (s *Coordinator) Transform(ctx context.Context, channelID, threadTS string) error {
 	select {
 	case err := <-s.errC:

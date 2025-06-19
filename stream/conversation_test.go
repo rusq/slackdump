@@ -39,7 +39,7 @@ func Test_procChanMsg(t *testing.T) {
 		{
 			"empty messages slice",
 			args{
-				context.Background(),
+				t.Context(),
 				make(chan request),
 				TestChannel,
 				true,
@@ -54,7 +54,7 @@ func Test_procChanMsg(t *testing.T) {
 		{
 			"empty message slice, processor error",
 			args{
-				context.Background(),
+				t.Context(),
 				make(chan request),
 				TestChannel,
 				true,
@@ -69,7 +69,7 @@ func Test_procChanMsg(t *testing.T) {
 		{
 			"non-empty messages slice",
 			args{
-				context.Background(),
+				t.Context(),
 				make(chan request),
 				TestChannel,
 				true,
@@ -85,7 +85,7 @@ func Test_procChanMsg(t *testing.T) {
 		{
 			"non-empty messages slice,files processor error",
 			args{
-				context.Background(),
+				t.Context(),
 				make(chan request),
 				TestChannel,
 				true,
@@ -100,7 +100,7 @@ func Test_procChanMsg(t *testing.T) {
 		{
 			"non-empty messages slice, messages processor error",
 			args{
-				context.Background(),
+				t.Context(),
 				make(chan request),
 				TestChannel,
 				true,
@@ -161,7 +161,7 @@ func Test_procThreadMsg(t *testing.T) {
 		{
 			"empty messages slice",
 			args{
-				context.Background(),
+				t.Context(),
 				TestChannel,
 				"123456.789",
 				false,
@@ -174,7 +174,7 @@ func Test_procThreadMsg(t *testing.T) {
 		{
 			"one message",
 			args{
-				context.Background(),
+				t.Context(),
 				TestChannel,
 				"123456.789",
 				false,
@@ -189,7 +189,7 @@ func Test_procThreadMsg(t *testing.T) {
 		{
 			"all test messages",
 			args{
-				context.Background(),
+				t.Context(),
 				TestChannel,
 				"123456.789",
 				false,
@@ -205,7 +205,7 @@ func Test_procThreadMsg(t *testing.T) {
 		{
 			"all test messages, files processor error",
 			args{
-				context.Background(),
+				t.Context(),
 				TestChannel,
 				"123456.789",
 				false,
@@ -225,7 +225,7 @@ func Test_procThreadMsg(t *testing.T) {
 		{
 			"all test messages, thread messages processor error",
 			args{
-				context.Background(),
+				t.Context(),
 				TestChannel,
 				"123456.789",
 				false,
@@ -270,7 +270,7 @@ func Test_procFiles(t *testing.T) {
 		{
 			"empty messages slice",
 			args{
-				context.Background(),
+				t.Context(),
 				TestChannel,
 				[]slack.Message{},
 			},
@@ -280,7 +280,7 @@ func Test_procFiles(t *testing.T) {
 		{
 			"all ok",
 			args{
-				context.Background(),
+				t.Context(),
 				TestChannel,
 				testMessages,
 			},
@@ -292,7 +292,7 @@ func Test_procFiles(t *testing.T) {
 		{
 			"files processor error",
 			args{
-				context.Background(),
+				t.Context(),
 				TestChannel,
 				testMessages,
 			},

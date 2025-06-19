@@ -38,7 +38,7 @@ func Test_transform(t *testing.T) {
 		{
 			name: "test",
 			args: args{
-				ctx:    context.Background(),
+				ctx:    t.Context(),
 				fsa:    fsadapter.NewDirectory(fsaDir),
 				srcdir: srcdir,
 				// id:     "D01MN4X7UGP",

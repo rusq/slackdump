@@ -132,7 +132,7 @@ func TestChunkDir_ChannelInfo(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if tt.prepFn != nil {
-				tt.prepFn(t, context.Background(), tt.fields.d)
+				tt.prepFn(t, t.Context(), tt.fields.d)
 			}
 			c := &ChunkDir{
 				d:       tt.fields.d,

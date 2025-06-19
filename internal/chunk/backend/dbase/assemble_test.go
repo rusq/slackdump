@@ -66,7 +66,7 @@ func Test_asmMessages(t *testing.T) {
 		{
 			name: "ok",
 			args: args{
-				ctx:     context.Background(),
+				ctx:     t.Context(),
 				conn:    nil, // not used
 				dbchunk: testMsgChunk,
 			},
@@ -105,7 +105,7 @@ func Test_asmMessages(t *testing.T) {
 		{
 			name: "error",
 			args: args{
-				ctx:     context.Background(),
+				ctx:     t.Context(),
 				conn:    nil, // not used
 				dbchunk: testMsgChunk,
 			},
@@ -118,7 +118,7 @@ func Test_asmMessages(t *testing.T) {
 		{
 			name: "iterator error",
 			args: args{
-				ctx:     context.Background(),
+				ctx:     t.Context(),
 				conn:    nil, // not used
 				dbchunk: testMsgChunk,
 			},
@@ -186,7 +186,7 @@ func Test_getMessage(t *testing.T) {
 		{
 			name: "ok",
 			args: args{
-				ctx:  context.Background(),
+				ctx:  t.Context(),
 				conn: nil, // not used
 				id:   1234567890,
 			},
@@ -205,7 +205,7 @@ func Test_getMessage(t *testing.T) {
 		{
 			name: "error",
 			args: args{
-				ctx:  context.Background(),
+				ctx:  t.Context(),
 				conn: nil, // not used
 				id:   1234567890,
 			},
@@ -256,7 +256,7 @@ func Test_asmThreadMessages(t *testing.T) {
 		{
 			name: "ok",
 			args: args{
-				ctx:     context.Background(),
+				ctx:     t.Context(),
 				conn:    nil, // not used
 				dbchunk: testMsgChunk,
 			},
@@ -295,7 +295,7 @@ func Test_asmThreadMessages(t *testing.T) {
 		{
 			name: "error",
 			args: args{
-				ctx:     context.Background(),
+				ctx:     t.Context(),
 				conn:    nil, // not used
 				dbchunk: testMsgChunk,
 			},
@@ -308,7 +308,7 @@ func Test_asmThreadMessages(t *testing.T) {
 		{
 			name: "iterator error",
 			args: args{
-				ctx:     context.Background(),
+				ctx:     t.Context(),
 				conn:    nil, // not used
 				dbchunk: testMsgChunk,
 			},
@@ -375,7 +375,7 @@ func Test_asmFiles(t *testing.T) {
 		{
 			name: "ok",
 			args: args{
-				ctx:  context.Background(),
+				ctx:  t.Context(),
 				conn: nil, // not used
 				dbchunk: &repository.DBChunk{
 					ID:         1,
@@ -450,7 +450,7 @@ func Test_asmUsers(t *testing.T) {
 		{
 			name: "ok",
 			args: args{
-				ctx:  context.Background(),
+				ctx:  t.Context(),
 				conn: nil, // not used
 				dbchunk: &repository.DBChunk{
 					ID:         1,
@@ -521,7 +521,7 @@ func Test_asmChannels(t *testing.T) {
 		{
 			name: "ok",
 			args: args{
-				ctx:  context.Background(),
+				ctx:  t.Context(),
 				conn: nil, // not used
 				dbchunk: &repository.DBChunk{
 					ID:         1,
@@ -594,7 +594,7 @@ func Test_asmChannelInfo(t *testing.T) {
 		{
 			name: "ok",
 			args: args{
-				ctx:  context.Background(),
+				ctx:  t.Context(),
 				conn: nil, // not used
 				dbchunk: &repository.DBChunk{
 					ID:        1,
@@ -666,7 +666,7 @@ func Test_asmWorkspaceInfo(t *testing.T) {
 		{
 			name: "ok",
 			args: args{
-				ctx:  context.Background(),
+				ctx:  t.Context(),
 				conn: nil, // not used
 				dbchunk: &repository.DBChunk{
 					ID:     1,
@@ -728,7 +728,7 @@ func Test_asmChannelUsers(t *testing.T) {
 		{
 			name: "ok",
 			args: args{
-				ctx:  context.Background(),
+				ctx:  t.Context(),
 				conn: nil, // not used
 				dbchunk: &repository.DBChunk{
 					ID:         1,
@@ -827,7 +827,7 @@ func Test_asmSearchMessages(t *testing.T) {
 		{
 			name: "ok",
 			args: args{
-				ctx:  context.Background(),
+				ctx:  t.Context(),
 				conn: nil, // not used
 				dbchunk: &repository.DBChunk{
 					ID:          1,
@@ -914,7 +914,7 @@ func Test_asmSearchFiles(t *testing.T) {
 		{
 			name: "ok",
 			args: args{
-				ctx:  context.Background(),
+				ctx:  t.Context(),
 				conn: nil, // not used
 				dbchunk: &repository.DBChunk{
 					ID:          1,

@@ -82,7 +82,7 @@ func TestSession_DumpMessages(t *testing.T) {
 		{
 			"all ok",
 			fields{config: defConfig},
-			args{context.Background(), "CHANNEL"},
+			args{t.Context(), "CHANNEL"},
 			func(c *mock_client.MockSlackClienter) {
 				c.EXPECT().GetConversationHistoryContext(
 					gomock.Any(),
@@ -116,7 +116,7 @@ func TestSession_DumpMessages(t *testing.T) {
 		{
 			"channelID is empty",
 			fields{config: defConfig},
-			args{context.Background(), ""},
+			args{t.Context(), ""},
 			func(c *mock_client.MockSlackClienter) {},
 			nil,
 			true,
@@ -124,7 +124,7 @@ func TestSession_DumpMessages(t *testing.T) {
 		{
 			"iteration test",
 			fields{config: defConfig},
-			args{context.Background(), "CHANNEL"},
+			args{t.Context(), "CHANNEL"},
 			func(c *mock_client.MockSlackClienter) {
 				first := c.EXPECT().
 					GetConversationHistoryContext(
@@ -182,7 +182,7 @@ func TestSession_DumpMessages(t *testing.T) {
 		{
 			"resp not ok",
 			fields{config: defConfig},
-			args{context.Background(), "CHANNEL"},
+			args{t.Context(), "CHANNEL"},
 			func(c *mock_client.MockSlackClienter) {
 				c.EXPECT().GetConversationHistoryContext(
 					gomock.Any(),
@@ -199,7 +199,7 @@ func TestSession_DumpMessages(t *testing.T) {
 		{
 			"sudden bleep bloop error",
 			fields{config: defConfig},
-			args{context.Background(), "CHANNEL"},
+			args{t.Context(), "CHANNEL"},
 			func(c *mock_client.MockSlackClienter) {
 				c.EXPECT().GetConversationHistoryContext(
 					gomock.Any(),
@@ -254,7 +254,7 @@ func TestSession_DumpAll(t *testing.T) {
 		{
 			name:   "conversation url",
 			fields: fields{config: defConfig},
-			args:   args{context.Background(), "https://ora600.slack.com/archives/CHM82GF99"},
+			args:   args{t.Context(), "https://ora600.slack.com/archives/CHM82GF99"},
 			expectFn: func(sc *mock_client.MockSlackClienter) {
 				sc.EXPECT().GetConversationHistoryContext(gomock.Any(), gomock.Any()).Return(
 					&slack.GetConversationHistoryResponse{
@@ -271,7 +271,7 @@ func TestSession_DumpAll(t *testing.T) {
 		{
 			name:   "thread url",
 			fields: fields{config: defConfig},
-			args:   args{context.Background(), "https://ora600.slack.com/archives/CHM82GF99/p1577694990000400"},
+			args:   args{t.Context(), "https://ora600.slack.com/archives/CHM82GF99/p1577694990000400"},
 			expectFn: func(sc *mock_client.MockSlackClienter) {
 				sc.EXPECT().GetConversationRepliesContext(gomock.Any(), gomock.Any()).Return(
 					[]slack.Message{testMsg1.Message},
@@ -287,7 +287,7 @@ func TestSession_DumpAll(t *testing.T) {
 		{
 			name:    "invalid url",
 			fields:  fields{config: defConfig},
-			args:    args{context.Background(), "https://example.com"},
+			args:    args{t.Context(), "https://example.com"},
 			wantErr: true,
 		},
 	}
@@ -381,7 +381,7 @@ func TestSession_getChannelName(t *testing.T) {
 			name:   "ok",
 			fields: fields{},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				l:         network.NewLimiter(network.NoTier, 1, 0),
 				channelID: "TESTCHAN",
 			},
@@ -397,7 +397,7 @@ func TestSession_getChannelName(t *testing.T) {
 			name:   "error",
 			fields: fields{},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				l:         network.NewLimiter(network.NoTier, 1, 0),
 				channelID: "TESTCHAN",
 			},

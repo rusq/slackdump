@@ -167,7 +167,7 @@ func Test_messageRepository_Insert(t *testing.T) {
 			name: "ok",
 			m:    messageRepository{},
 			args: args{
-				ctx:  context.Background(),
+				ctx:  t.Context(),
 				conn: testConn(t),
 				m:    simpleDBMessage,
 			},
@@ -208,7 +208,7 @@ func Test_messageRepository_InsertAll(t *testing.T) {
 		{
 			name: "ok",
 			args: args{
-				ctx:   context.Background(),
+				ctx:   t.Context(),
 				pconn: testConn(t),
 				mm: testutil.ToIter([]testutil.TestResult[*DBMessage]{
 					{V: &DBMessage{ID: 1, ChunkID: 1, ChannelID: "C123", TS: "1.1", IsParent: false, Index: 0, NumFiles: 0, Text: "test", Data: []byte(`{"text":"test"}`)}},
@@ -288,7 +288,7 @@ func messagePrepFn(t *testing.T, conn PrepareExtContext) {
 	prepChunk(chunk.CMessages, chunk.CMessages, chunk.CMessages, chunk.CMessages, chunk.CThreadMessages)(t, conn)
 	mr := NewMessageRepository()
 	messages := []*DBMessage{dbmA, dbmB, dbmB_, dbmC, dbmCt0, dbmCt1, dbmCt2, dbmX, dbmY, dbmZ}
-	if err := mr.Insert(context.Background(), conn, messages...); err != nil {
+	if err := mr.Insert(t.Context(), conn, messages...); err != nil {
 		t.Fatalf("insert: %v", err)
 	}
 }
@@ -316,7 +316,7 @@ func Test_messageRepository_Count(t *testing.T) {
 				genericRepository: genericRepository[DBMessage]{DBMessage{}},
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				conn:      testConn(t),
 				channelID: "C123",
 			},
@@ -330,7 +330,7 @@ func Test_messageRepository_Count(t *testing.T) {
 				genericRepository: genericRepository[DBMessage]{DBMessage{}},
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				conn:      testConn(t),
 				channelID: testChannelID,
 			},
@@ -382,7 +382,7 @@ func Test_messageRepository_AllForID(t *testing.T) {
 				genericRepository: genericRepository[DBMessage]{DBMessage{}},
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				conn:      testConn(t),
 				channelID: "C123",
 			},
@@ -400,7 +400,7 @@ func Test_messageRepository_AllForID(t *testing.T) {
 				genericRepository: genericRepository[DBMessage]{DBMessage{}},
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				conn:      testConn(t),
 				channelID: testChannelID,
 			},
@@ -455,7 +455,7 @@ func Test_messageRepository_CountThread(t *testing.T) {
 				genericRepository: genericRepository[DBMessage]{DBMessage{}},
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				conn:      testConn(t),
 				channelID: "C123",
 				threadID:  "123.456",
@@ -538,7 +538,7 @@ func mkThreadSetupFn(channelID string, chunkFinals [3]bool) utilityFn {
 		)(t, conn)
 
 		mr := NewMessageRepository()
-		if err := mr.Insert(context.Background(), conn,
+		if err := mr.Insert(t.Context(), conn,
 			dbtmAParent,
 			dbtmBChannel,
 			dbtmB,
@@ -575,7 +575,7 @@ func Test_messageRepository_AllForThread(t *testing.T) {
 				genericRepository: genericRepository[DBMessage]{DBMessage{}},
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				conn:      testConn(t),
 				channelID: "C123",
 				threadID:  "123.456",
@@ -688,7 +688,7 @@ func Test_messageRepository_CountUnfinished(t *testing.T) {
 				genericRepository: genericRepository[DBMessage]{DBMessage{}},
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				conn:      testConn(t),
 				sessionID: 1,
 				channelID: "C123",
@@ -702,7 +702,7 @@ func Test_messageRepository_CountUnfinished(t *testing.T) {
 				genericRepository: genericRepository[DBMessage]{DBMessage{}},
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				conn:      testConn(t),
 				sessionID: 1,
 				channelID: "C123",
@@ -711,7 +711,7 @@ func Test_messageRepository_CountUnfinished(t *testing.T) {
 				mkThreadSetupFn("C123", [3]bool{true, false, true})(t, conn)
 				// add a new message to the thread
 				mr := NewMessageRepository()
-				if err := mr.Insert(context.Background(), conn, dbtmXExtra); err != nil {
+				if err := mr.Insert(t.Context(), conn, dbtmXExtra); err != nil {
 					t.Fatalf("insert: %v", err)
 				}
 			},
@@ -723,7 +723,7 @@ func Test_messageRepository_CountUnfinished(t *testing.T) {
 				genericRepository: genericRepository[DBMessage]{DBMessage{}},
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				conn:      testConn(t),
 				sessionID: 1,
 				channelID: "C123",
@@ -732,7 +732,7 @@ func Test_messageRepository_CountUnfinished(t *testing.T) {
 				mkThreadSetupFn("C123", [3]bool{true, false, true})(t, conn)
 				// add a new message to the thread
 				mr := NewMessageRepository()
-				if err := mr.Insert(context.Background(), conn, dbtmYExtra); err != nil {
+				if err := mr.Insert(t.Context(), conn, dbtmYExtra); err != nil {
 					t.Fatalf("insert: %v", err)
 				}
 			},
@@ -745,7 +745,7 @@ func Test_messageRepository_CountUnfinished(t *testing.T) {
 				genericRepository: genericRepository[DBMessage]{DBMessage{}},
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				conn:      testConn(t),
 				sessionID: 1,
 				channelID: "C123",
@@ -758,7 +758,7 @@ func Test_messageRepository_CountUnfinished(t *testing.T) {
 				prepChunkWithFinal(testChunks...)(t, conn)
 				mr := NewMessageRepository()
 				// dbmC is a thread leader, but no replies are inserted.
-				if err := mr.Insert(context.Background(), conn, dbmA, dbmB, dbmC); err != nil {
+				if err := mr.Insert(t.Context(), conn, dbmA, dbmB, dbmC); err != nil {
 					t.Fatalf("insert: %v", err)
 				}
 			},
@@ -770,7 +770,7 @@ func Test_messageRepository_CountUnfinished(t *testing.T) {
 				genericRepository: genericRepository[DBMessage]{DBMessage{}},
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				conn:      testConn(t),
 				sessionID: 1,
 				channelID: "C123",
@@ -783,7 +783,7 @@ func Test_messageRepository_CountUnfinished(t *testing.T) {
 				}
 				prepChunkWithFinal(testChunks...)(t, conn)
 				mr := NewMessageRepository()
-				if err := mr.Insert(context.Background(), conn,
+				if err := mr.Insert(t.Context(), conn,
 					dbtmAParent,
 					dbtmBChannel,
 					dbtmB,
@@ -803,7 +803,7 @@ func Test_messageRepository_CountUnfinished(t *testing.T) {
 				genericRepository: genericRepository[DBMessage]{DBMessage{}},
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				conn:      testConn(t),
 				sessionID: 1,
 				channelID: "C123",
@@ -815,7 +815,7 @@ func Test_messageRepository_CountUnfinished(t *testing.T) {
 					testChunk{typeID: chunk.CThreadMessages, channelID: "C123", final: true},
 				)(t, conn)
 				mr := NewMessageRepository()
-				if err := mr.Insert(context.Background(), conn,
+				if err := mr.Insert(t.Context(), conn,
 					dbtmAParent,
 					dbtmBChannel,
 					dbtmB,
@@ -870,7 +870,7 @@ func Test_messageRepository_LatestMessages(t *testing.T) {
 				genericRepository: genericRepository[DBMessage]{DBMessage{}},
 			},
 			args: args{
-				ctx:  context.Background(),
+				ctx:  t.Context(),
 				conn: testConn(t),
 			},
 			prepFn: messagePrepFn,
@@ -921,7 +921,7 @@ func Test_messageRepository_LatestThreads(t *testing.T) {
 				genericRepository: genericRepository[DBMessage]{DBMessage{}},
 			},
 			args: args{
-				ctx:  context.Background(),
+				ctx:  t.Context(),
 				conn: testConn(t),
 			},
 			prepFn: mkThreadSetupFn("C123", [3]bool{true, false, true}),
@@ -981,7 +981,7 @@ func Test_messageRepository_Sorted(t *testing.T) {
 				genericRepository: genericRepository[DBMessage]{DBMessage{}},
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				conn:      testConn(t),
 				channelID: "C123",
 				order:     Desc,
@@ -1002,7 +1002,7 @@ func Test_messageRepository_Sorted(t *testing.T) {
 				genericRepository: genericRepository[DBMessage]{DBMessage{}},
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				conn:      testConn(t),
 				channelID: "C123",
 				order:     Asc,
@@ -1048,7 +1048,7 @@ var (
 		// 1. There are three chunks, 2 non-final and last one is final.
 		// 2. Each chunk will have 2 messages, one is a thread message and the other is a thread lead,
 		//    because API always returns the thread lead with the thread messages.
-		ctx := context.Background()
+		ctx := t.Context()
 		var sr sessionRepository
 		sess, err := sr.Insert(ctx, conn, &Session{ID: 1, Finished: true})
 		if err != nil {
@@ -1108,7 +1108,7 @@ var (
 		//
 		// Goal is to test if the other thread does not influence the count.
 
-		ctx := context.Background()
+		ctx := t.Context()
 		var sr sessionRepository
 		sess, err := sr.Insert(ctx, conn, &Session{ID: 1, Finished: true})
 		if err != nil {
@@ -1190,7 +1190,7 @@ var (
 		// 1. There are three chunks, 2 non-final and last one is final.
 		// 2. Each chunk will have 2 messages, one is a thread message and the other is a thread lead,
 		//    because API always returns the thread lead with the thread messages.
-		ctx := context.Background()
+		ctx := t.Context()
 		var sr sessionRepository
 		sess, err := sr.Insert(ctx, conn, &Session{ID: 1, Finished: true})
 		if err != nil {
@@ -1270,7 +1270,7 @@ func Test_messageRepository_CountThreadOnlyParts(t *testing.T) {
 				genericRepository: genericRepository[DBMessage]{DBMessage{}},
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				conn:      testConn(t),
 				sessionID: 1,
 				channelID: testChannelID,
@@ -1286,7 +1286,7 @@ func Test_messageRepository_CountThreadOnlyParts(t *testing.T) {
 				genericRepository: genericRepository[DBMessage]{DBMessage{}},
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				conn:      testConn(t),
 				sessionID: 1,
 				channelID: "C123",
@@ -1302,7 +1302,7 @@ func Test_messageRepository_CountThreadOnlyParts(t *testing.T) {
 				genericRepository: genericRepository[DBMessage]{DBMessage{}},
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				conn:      testConn(t),
 				sessionID: 1,
 				channelID: "C123",
@@ -1318,7 +1318,7 @@ func Test_messageRepository_CountThreadOnlyParts(t *testing.T) {
 				genericRepository: genericRepository[DBMessage]{DBMessage{}},
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				conn:      testConn(t),
 				sessionID: 1,
 				channelID: "C123",
@@ -1334,7 +1334,7 @@ func Test_messageRepository_CountThreadOnlyParts(t *testing.T) {
 				genericRepository: genericRepository[DBMessage]{DBMessage{}},
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				conn:      testConn(t),
 				sessionID: 1,
 				channelID: "C123",

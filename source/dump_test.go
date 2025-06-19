@@ -36,7 +36,7 @@ func TestDump_Channels(t *testing.T) {
 				fs: fixtures.FSTestDumpDir,
 			},
 			args: args{
-				in0: context.Background(),
+				in0: t.Context(),
 			},
 			want: []slack.Channel{
 				{
@@ -56,7 +56,7 @@ func TestDump_Channels(t *testing.T) {
 				fs: fixtures.FSTestDumpZIP(t),
 			},
 			args: args{
-				in0: context.Background(),
+				in0: t.Context(),
 			},
 			want: []slack.Channel{
 				{
@@ -86,7 +86,7 @@ func TestDump_Channels(t *testing.T) {
 				},
 			},
 			args: args{
-				in0: context.Background(),
+				in0: t.Context(),
 			},
 			want: []slack.Channel{
 				{

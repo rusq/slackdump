@@ -1,7 +1,6 @@
 package bootstrap
 
 import (
-	"context"
 	"strings"
 	"testing"
 
@@ -15,7 +14,7 @@ import (
 
 func TestSlackdumpSession(t *testing.T) {
 	t.Run("no auth in context", func(t *testing.T) {
-		_, err := SlackdumpSession(context.Background())
+		_, err := SlackdumpSession(t.Context())
 		if err == nil {
 			t.Error("expected error")
 		}
@@ -32,7 +31,7 @@ func TestSlackdumpSession(t *testing.T) {
 		defer srv.Close()
 		s := client.Wrap(slack.New("", slack.OptionAPIURL(srv.URL+"/")))
 
-		ctx := auth.WithContext(context.Background(), prov)
+		ctx := auth.WithContext(t.Context(), prov)
 		if _, err := SlackdumpSession(ctx, slackdump.WithSlackClient(s)); err != nil {
 			t.Error(err)
 		}

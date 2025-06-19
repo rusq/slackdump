@@ -171,7 +171,7 @@ func TestManager_CreateAndSelect(t *testing.T) {
 		{
 			name: "provider test fails",
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 			},
 			expectFn: func(mp *mock_auth.MockProvider) {
 				mp.EXPECT().Test(gomock.Any()).Return(nil, assert.AnError)
@@ -182,7 +182,7 @@ func TestManager_CreateAndSelect(t *testing.T) {
 		{
 			name: "url empty fails",
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 			},
 			expectFn: func(mp *mock_auth.MockProvider) {
 				mp.EXPECT().Test(gomock.Any()).Return(&slack.AuthTestResponse{URL: ""}, nil)
@@ -193,7 +193,7 @@ func TestManager_CreateAndSelect(t *testing.T) {
 		{
 			name: "url sanitize fails",
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 			},
 			expectFn: func(mp *mock_auth.MockProvider) {
 				mp.EXPECT().Test(gomock.Any()).Return(&slack.AuthTestResponse{URL: "ftp://lol.example.com"}, nil)
@@ -204,7 +204,7 @@ func TestManager_CreateAndSelect(t *testing.T) {
 		{
 			name: "success",
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 			},
 			expectFn: func(mp *mock_auth.MockProvider) {
 				mp.EXPECT().Test(gomock.Any()).Return(fixtures.LoadPtr[slack.AuthTestResponse](string(fixtures.TestAuthTestInfo)), nil)
@@ -218,7 +218,7 @@ func TestManager_CreateAndSelect(t *testing.T) {
 		{
 			name: "save provider fails",
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 			},
 			expectFn: func(mp *mock_auth.MockProvider) {
 				mp.EXPECT().Test(gomock.Any()).Return(fixtures.LoadPtr[slack.AuthTestResponse](string(fixtures.TestAuthTestInfo)), nil)

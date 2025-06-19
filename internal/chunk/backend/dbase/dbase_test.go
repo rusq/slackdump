@@ -21,12 +21,12 @@ import (
 // testDB returns a test database with the schema applied.
 func testDB(t *testing.T) *sqlx.DB {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 	db := testutil.TestDB(t)
 	if err := initDB(ctx, db); err != nil {
 		t.Fatal(err)
 	}
-	if err := repository.Migrate(context.Background(), db.DB, true); err != nil {
+	if err := repository.Migrate(t.Context(), db.DB, true); err != nil {
 		t.Fatal(err)
 	}
 	return db
@@ -34,12 +34,12 @@ func testDB(t *testing.T) *sqlx.DB {
 
 func testPersistentDB(t *testing.T) *sqlx.DB {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 	db := testutil.TestPersistentDB(t)
 	if err := initDB(ctx, db); err != nil {
 		t.Fatal(err)
 	}
-	if err := repository.Migrate(context.Background(), db.DB, true); err != nil {
+	if err := repository.Migrate(t.Context(), db.DB, true); err != nil {
 		t.Fatal(err)
 	}
 	return db
@@ -47,12 +47,12 @@ func testPersistentDB(t *testing.T) *sqlx.DB {
 
 func testDBDSN(t *testing.T, dsn string) *sqlx.DB {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 	db := testutil.TestDBDSN(t, dsn)
 	if err := initDB(ctx, db); err != nil {
 		t.Fatal(err)
 	}
-	if err := repository.Migrate(context.Background(), db.DB, true); err != nil {
+	if err := repository.Migrate(t.Context(), db.DB, true); err != nil {
 		t.Fatal(err)
 	}
 	return db
@@ -71,7 +71,7 @@ func Test_initDB(t *testing.T) {
 		{
 			"ok",
 			args{
-				ctx:  context.Background(),
+				ctx:  t.Context(),
 				conn: testutil.TestDB(t),
 			},
 			false,
@@ -103,7 +103,7 @@ func TestNew(t *testing.T) {
 		{
 			name: "initialises the database and returns the processor",
 			args: args{
-				ctx:  context.Background(),
+				ctx:  t.Context(),
 				conn: sharedDB,
 				p:    SessionInfo{},
 			},
@@ -150,7 +150,7 @@ func TestDBP_Close(t *testing.T) {
 			prepFn: prepSession,
 			checkFn: func(t *testing.T, conn sqlx.QueryerContext) {
 				var count int
-				if err := conn.QueryRowxContext(context.Background(), "SELECT COUNT(*) FROM session WHERE id = 1 and finished = true").Scan(&count); err != nil {
+				if err := conn.QueryRowxContext(t.Context(), "SELECT COUNT(*) FROM session WHERE id = 1 and finished = true").Scan(&count); err != nil {
 					t.Fatal(err)
 				}
 				if count != 1 {
@@ -193,7 +193,7 @@ func TestDBP_Close(t *testing.T) {
 			sessionID: 1,
 		}
 		sr := repository.NewSessionRepository()
-		_, err := sr.Insert(context.Background(), d.conn, &repository.Session{})
+		_, err := sr.Insert(t.Context(), d.conn, &repository.Session{})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -279,7 +279,7 @@ func TestDBP_IsComplete(t *testing.T) {
 				sessionID: 42,
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				channelID: "C123456",
 			},
 			expectfn: func(mmr *mock_repository.MockMessageRepository) {
@@ -295,7 +295,7 @@ func TestDBP_IsComplete(t *testing.T) {
 				sessionID: 42,
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				channelID: "C123456",
 			},
 			expectfn: func(mmr *mock_repository.MockMessageRepository) {
@@ -311,7 +311,7 @@ func TestDBP_IsComplete(t *testing.T) {
 				sessionID: 42,
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				channelID: "C123456",
 			},
 			expectfn: func(mmr *mock_repository.MockMessageRepository) {
@@ -327,7 +327,7 @@ func TestDBP_IsComplete(t *testing.T) {
 				sessionID: 42,
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				channelID: "C123456",
 			},
 			expectfn: func(mmr *mock_repository.MockMessageRepository) {
@@ -417,7 +417,7 @@ func TestDBP_Encode(t *testing.T) {
 				conn: testDB(t),
 			},
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 				ch: &chunk.Chunk{
 					Type:      chunk.CMessages,
 					Timestamp: time.Now().UnixNano(),
@@ -435,7 +435,7 @@ func TestDBP_Encode(t *testing.T) {
 				conn: testDB(t),
 			},
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 				ch: &chunk.Chunk{
 					Type:      0xCC,
 					Timestamp: time.Now().UnixNano(),
@@ -487,7 +487,7 @@ func TestDBP_IsCompleteThread(t *testing.T) {
 				sessionID: 42,
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				channelID: "C123456",
 				threadID:  "123456.7890",
 			},
@@ -504,7 +504,7 @@ func TestDBP_IsCompleteThread(t *testing.T) {
 				sessionID: 42,
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				channelID: "C123456",
 				threadID:  "123456.7890",
 			},
@@ -521,7 +521,7 @@ func TestDBP_IsCompleteThread(t *testing.T) {
 				sessionID: 42,
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				channelID: "C123456",
 				threadID:  "123456.7890",
 			},

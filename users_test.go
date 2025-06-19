@@ -65,7 +65,7 @@ func TestSession_fetchUsers(t *testing.T) {
 		{
 			"ok",
 			fields{config: defConfig},
-			args{context.Background()},
+			args{t.Context()},
 			func(mc *mock_client.MockSlackClienter) {
 				mc.EXPECT().GetUsersContext(gomock.Any()).Return([]slack.User(testUsers), nil)
 			},
@@ -75,7 +75,7 @@ func TestSession_fetchUsers(t *testing.T) {
 		{
 			"api error",
 			fields{config: defConfig},
-			args{context.Background()},
+			args{t.Context()},
 			func(mc *mock_client.MockSlackClienter) {
 				mc.EXPECT().GetUsersContext(gomock.Any()).Return(nil, errors.New("i don't think so"))
 			},
@@ -85,7 +85,7 @@ func TestSession_fetchUsers(t *testing.T) {
 		{
 			"zero users",
 			fields{config: defConfig},
-			args{context.Background()},
+			args{t.Context()},
 			func(mc *mock_client.MockSlackClienter) {
 				mc.EXPECT().GetUsersContext(gomock.Any()).Return([]slack.User{}, nil)
 			},
@@ -140,7 +140,7 @@ func TestSession_GetUsers(t *testing.T) {
 				}},
 				usercache: usercache{},
 			},
-			args{context.Background()},
+			args{t.Context()},
 			func(mc *mock_client.MockSlackClienter) {
 				mc.EXPECT().GetUsersContext(gomock.Any()).Return([]slack.User(testUsers), nil)
 			},
@@ -159,7 +159,7 @@ func TestSession_GetUsers(t *testing.T) {
 					cachedAt: time.Now(),
 				},
 			},
-			args{context.Background()},
+			args{t.Context()},
 			func(mc *mock_client.MockSlackClienter) {
 				// we don't expect any API calls
 			},

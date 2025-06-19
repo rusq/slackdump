@@ -32,7 +32,7 @@ func Test_chunkRepository_Insert(t *testing.T) {
 		{
 			name: "success",
 			args: args{
-				ctx:  context.Background(),
+				ctx:  t.Context(),
 				conn: testConn(t),
 				chunk: &DBChunk{
 					SessionID:  1,
@@ -44,7 +44,7 @@ func Test_chunkRepository_Insert(t *testing.T) {
 			},
 			prepFn: func(t *testing.T, db PrepareExtContext) {
 				var r sessionRepository
-				id, err := r.Insert(context.Background(), db, &Session{})
+				id, err := r.Insert(t.Context(), db, &Session{})
 				require.NoError(t, err)
 				assert.Equal(t, int64(1), id)
 			},
@@ -54,7 +54,7 @@ func Test_chunkRepository_Insert(t *testing.T) {
 		{
 			name: "missing session",
 			args: args{
-				ctx:  context.Background(),
+				ctx:  t.Context(),
 				conn: testConn(t),
 				chunk: &DBChunk{
 					SessionID:  1,
@@ -450,7 +450,7 @@ func Test_chunkRepository_Count(t *testing.T) {
 		{
 			name: "correctly counts",
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				conn:      testConn(t),
 				sessionID: 1,
 			},

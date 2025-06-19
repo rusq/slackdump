@@ -24,7 +24,7 @@ func TestSession_DumpEmojis(t *testing.T) {
 	}{
 		{
 			"ok",
-			args{context.Background()},
+			args{t.Context()},
 			func(m *mock_client.MockSlackClienter) {
 				m.EXPECT().
 					GetEmojiContext(gomock.Any()).
@@ -35,7 +35,7 @@ func TestSession_DumpEmojis(t *testing.T) {
 		},
 		{
 			"error is propagated",
-			args{context.Background()},
+			args{t.Context()},
 			func(m *mock_client.MockSlackClienter) {
 				m.EXPECT().
 					GetEmojiContext(gomock.Any()).

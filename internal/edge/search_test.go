@@ -1,7 +1,6 @@
 package edge
 
 import (
-	"context"
 	_ "embed"
 	"net/http"
 	"testing"
@@ -23,7 +22,7 @@ func TestClient_SearchChannels(t *testing.T) {
 			edgeAPI:      srv.URL + "/",
 			webclientAPI: srv.URL + "/",
 		}
-		r, err := cl.SearchChannels(context.Background(), "test")
+		r, err := cl.SearchChannels(t.Context(), "test")
 		require.NoError(t, err)
 		assert.Len(t, r, 6)
 	})
@@ -36,7 +35,7 @@ func TestClient_SearchChannels(t *testing.T) {
 			edgeAPI:      srv.URL + "/",
 			webclientAPI: srv.URL + "/",
 		}
-		_, err := cl.SearchChannels(context.Background(), "test")
+		_, err := cl.SearchChannels(t.Context(), "test")
 		require.Error(t, err)
 	})
 }

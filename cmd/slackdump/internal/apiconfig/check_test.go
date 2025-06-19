@@ -1,7 +1,6 @@
 package apiconfig
 
 import (
-	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -50,7 +49,7 @@ func Test_runConfigCheck(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			if err := runConfigCheck(context.Background(), CmdConfigCheck, tt.args.args); (err != nil) != tt.wantErr {
+			if err := runConfigCheck(t.Context(), CmdConfigCheck, tt.args.args); (err != nil) != tt.wantErr {
 				t.Errorf("runConfigCheck() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

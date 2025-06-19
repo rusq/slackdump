@@ -34,7 +34,7 @@ func Test_getCachedUsers(t *testing.T) {
 		/* oh happy days */
 		{
 			"users loaded from cache",
-			args{context.Background(), false, "TEAM1"},
+			args{t.Context(), false, "TEAM1"},
 			func(c *MockuserCacher, g *MockuserGetter) {
 				c.EXPECT().LoadUsers("TEAM1", gomock.Any()).Return(testUsers, nil)
 			},
@@ -43,7 +43,7 @@ func Test_getCachedUsers(t *testing.T) {
 		},
 		{
 			"getting users from API ok (recoverable cache error)",
-			args{context.Background(), false, "TEAM1"},
+			args{t.Context(), false, "TEAM1"},
 			func(c *MockuserCacher, g *MockuserGetter) {
 				c.EXPECT().LoadUsers("TEAM1", gomock.Any()).Return(nil, &fs.PathError{})
 				g.EXPECT().GetUsers(gomock.Any()).Return(testUsers, nil)
@@ -54,7 +54,7 @@ func Test_getCachedUsers(t *testing.T) {
 		},
 		{
 			"saving cache fails, but we continue",
-			args{context.Background(), false, "TEAM1"},
+			args{t.Context(), false, "TEAM1"},
 			func(c *MockuserCacher, g *MockuserGetter) {
 				c.EXPECT().LoadUsers("TEAM1", gomock.Any()).Return(nil, &fs.PathError{})
 				g.EXPECT().GetUsers(gomock.Any()).Return(testUsers, nil)
@@ -66,7 +66,7 @@ func Test_getCachedUsers(t *testing.T) {
 		/* unhappy days */
 		{
 			"unrecoverable error",
-			args{context.Background(), false, "TEAM1"},
+			args{t.Context(), false, "TEAM1"},
 			func(c *MockuserCacher, g *MockuserGetter) {
 				c.EXPECT().LoadUsers("TEAM1", gomock.Any()).Return(nil, errors.New("frobnication error"))
 			},
@@ -75,7 +75,7 @@ func Test_getCachedUsers(t *testing.T) {
 		},
 		{
 			"getting users from API fails",
-			args{context.Background(), false, "TEAM1"},
+			args{t.Context(), false, "TEAM1"},
 			func(c *MockuserCacher, g *MockuserGetter) {
 				c.EXPECT().LoadUsers("TEAM1", gomock.Any()).Return(nil, &fs.PathError{})
 				g.EXPECT().GetUsers(gomock.Any()).Return(nil, errors.New("blip"))

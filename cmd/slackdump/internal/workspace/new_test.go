@@ -30,7 +30,7 @@ func Test_createWsp(t *testing.T) {
 		{
 			name: "success", // I
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				wsp:       "test",
 				confirmed: false,
 			},
@@ -44,7 +44,7 @@ func Test_createWsp(t *testing.T) {
 		{
 			name: "exist, ask- no", // VIII, II
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				wsp:       "test",
 				confirmed: false,
 			},
@@ -60,7 +60,7 @@ func Test_createWsp(t *testing.T) {
 		{
 			name: "exist, skip interactive confirmation, but delete fails",
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				wsp:       "test",
 				confirmed: true,
 			},
@@ -73,7 +73,7 @@ func Test_createWsp(t *testing.T) {
 		{
 			name: "exist, ask- yes, delete fails", // VIII, III
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				wsp:       "test",
 				confirmed: false, // so will ask
 			},
@@ -90,7 +90,7 @@ func Test_createWsp(t *testing.T) {
 		{
 			name: "auth fails", // IV, V
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				wsp:       "test",
 				confirmed: false,
 			},
@@ -103,7 +103,7 @@ func Test_createWsp(t *testing.T) {
 		{
 			name: "auth cancelled", // IV, IX
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				wsp:       "test",
 				confirmed: false,
 			},
@@ -116,7 +116,7 @@ func Test_createWsp(t *testing.T) {
 		{
 			name: "select fails", // I -> VII
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				wsp:       "test",
 				confirmed: false,
 			},

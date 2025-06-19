@@ -123,7 +123,7 @@ func TestController_Run(t *testing.T) {
 		{
 			name: "no errors",
 			args: args{
-				ctx:  context.Background(),
+				ctx:  t.Context(),
 				list: &structures.EntityList{},
 			},
 			expectFn: func(s *mock_control.MockStreamer, f *mock_processor.MockFiler, a *mock_processor.MockAvatars, tf *mock_control.MockExportTransformer, erc *mock_control.MockEncodeReferenceCloser) {
@@ -152,7 +152,7 @@ func TestController_Run(t *testing.T) {
 		{
 			name: "Users returns error",
 			args: args{
-				ctx:  context.Background(),
+				ctx:  t.Context(),
 				list: &structures.EntityList{},
 			},
 			expectFn: func(s *mock_control.MockStreamer, f *mock_processor.MockFiler, a *mock_processor.MockAvatars, tf *mock_control.MockExportTransformer, erc *mock_control.MockEncodeReferenceCloser) {
@@ -213,7 +213,7 @@ func TestNew(t *testing.T) {
 		{
 			name: "creates new controller",
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 				s:   &mock_control.MockStreamer{},
 				erc: &mock_control.MockEncodeReferenceCloser{},
 			},
@@ -232,7 +232,7 @@ func TestNew(t *testing.T) {
 		{
 			name: "options get processed",
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 				s:   &mock_control.MockStreamer{},
 				erc: &mock_control.MockEncodeReferenceCloser{},
 				opts: []Option{
@@ -319,7 +319,7 @@ func TestController_Search(t *testing.T) {
 		{
 			name: "no errors",
 			args: args{
-				ctx:   context.Background(),
+				ctx:   t.Context(),
 				query: "test",
 				stype: SMessages | SFiles,
 			},
@@ -333,7 +333,7 @@ func TestController_Search(t *testing.T) {
 		{
 			name: "error searching messages",
 			args: args{
-				ctx:   context.Background(),
+				ctx:   t.Context(),
 				query: "test",
 				stype: SMessages | SFiles,
 			},
@@ -347,7 +347,7 @@ func TestController_Search(t *testing.T) {
 		{
 			name: "error searching files",
 			args: args{
-				ctx:   context.Background(),
+				ctx:   t.Context(),
 				query: "test",
 				stype: SMessages | SFiles,
 			},
@@ -361,7 +361,7 @@ func TestController_Search(t *testing.T) {
 		{
 			name: "error getting workspace info",
 			args: args{
-				ctx:   context.Background(),
+				ctx:   t.Context(),
 				query: "test",
 				stype: SMessages | SFiles,
 			},
