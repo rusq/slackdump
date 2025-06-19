@@ -3,10 +3,12 @@
 package format
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"io"
-	"sort"
+	"maps"
+	"slices"
 	"strings"
 
 	"github.com/rusq/slack"
@@ -45,14 +47,9 @@ func (tt Types) String() string {
 }
 
 func All() Types {
-	keys := make([]Type, 0, len(converters))
-	for t := range converters {
-		keys = append(keys, t)
-	}
-	sort.Slice(keys, func(i, j int) bool {
-		return string(keys[i].String()) < string(keys[j].String())
+	return slices.SortedFunc(maps.Keys(converters), func(a, b Type) int {
+		return cmp.Compare(a.String(), b.String())
 	})
-	return keys
 }
 
 // Formatter is a converter interface that each formatter must implement.
