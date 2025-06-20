@@ -15,7 +15,7 @@ require (
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/enescakir/emoji v1.0.0
 	github.com/fatih/color v1.18.0
-	github.com/go-chi/chi/v5 v5.2.1
+	github.com/go-chi/chi/v5 v5.2.2
 	github.com/go-playground/locales v0.14.1
 	github.com/go-playground/universal-translator v0.18.1
 	github.com/go-playground/validator/v10 v10.26.0
