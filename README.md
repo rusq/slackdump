@@ -226,16 +226,18 @@ fly, removing the temporary archive files afterwards.
 ## Thank you
 Big thanks to all contributors, who submitted a pull request, reported a bug,
 suggested a feature, helped to reproduce, or spent time chatting with me on
-the Telegram or Slack to help to understand the issue and tested the proposed
-solution.
+the Telegram or Slack to help to understand the problem or feature and tested
+the proposed solution.
 
 Also, I'd like to thank current sponsors:
 
 - [<img class="avatar avatar-user" src="https://avatars.githubusercontent.com/u/9138285?s=60&amp;v=4" width="30" height="30" alt="@malsatin">](https://github.com/malsatin) @malsatin
+- [<img class="avatar avatar-user" src="https://avatars.githubusercontent.com/u/836183?s=60&amp;v=4" width="30" height="30" alt="@angellk">](https://github.com/angellk) @angellk
 
 And everyone who made a donation to support the project in the past and keep
 supporting the project:
 
+- Davanum S.
 - Vivek R.
 - Fabian I.
 - Ori P.
