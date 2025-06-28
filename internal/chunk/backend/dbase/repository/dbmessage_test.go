@@ -495,6 +495,8 @@ var (
 	tmC        = slack.Message{Msg: slack.Msg{Timestamp: "125.000", ThreadTimestamp: testThreadID, Text: "C"}}
 	tmD        = slack.Message{Msg: slack.Msg{Timestamp: "126.000", ThreadTimestamp: testThreadID, Text: "D"}}
 	tmC_       = slack.Message{Msg: slack.Msg{Timestamp: "125.000", ThreadTimestamp: testThreadID, Text: "C'"}}
+
+	mNoThread = slack.Message{Msg: slack.Msg{Timestamp: "130.000", Text: "No thread"}}
 	// special additional message to test the reference counter
 	tmXExtra = slack.Message{Msg: slack.Msg{Timestamp: "127.000", ThreadTimestamp: "127.000", Text: "X"}}
 	// thread lead that has replies deleted
@@ -510,6 +512,8 @@ var (
 	// these go into chunk 1
 	dbtmXExtra = must(NewDBMessage(1, 0, testChannelID, &tmXExtra))
 	dbtmYExtra = must(NewDBMessage(1, 0, testChannelID, &tmYExtra))
+
+	dbmNoThread = must(NewDBMessage(1, 0, testChannelID, &mNoThread))
 )
 
 // mkThreadSetupFn creates a utility function that sets up the thread messages.
@@ -826,6 +830,56 @@ func Test_messageRepository_CountUnfinished(t *testing.T) {
 					t.Fatalf("insert: %v", err)
 				}
 			},
+		},
+		{
+			name: "channel with no threads #533, unfinished",
+			fields: fields{
+				genericRepository: genericRepository[DBMessage]{DBMessage{}},
+			},
+			args: args{
+				ctx:       t.Context(),
+				conn:      testConn(t),
+				sessionID: 1,
+				channelID: "C123",
+			},
+			prepFn: func(t *testing.T, conn PrepareExtContext) {
+				prepChunkWithFinal(
+					testChunk{typeID: chunk.CMessages, channelID: "C123", final: false},
+				)(t, conn)
+				mr := NewMessageRepository()
+				if err := mr.Insert(t.Context(), conn,
+					dbmNoThread,
+				); err != nil {
+					t.Fatalf("insert: %v", err)
+				}
+			},
+			want:    0,
+			wantErr: true, // no rows in the result set.  Set will be empty until there's a "final" message chunk for the channel.
+		},
+		{
+			name: "channel with no threads #533, finished",
+			fields: fields{
+				genericRepository: genericRepository[DBMessage]{DBMessage{}},
+			},
+			args: args{
+				ctx:       t.Context(),
+				conn:      testConn(t),
+				sessionID: 1,
+				channelID: "C123",
+			},
+			prepFn: func(t *testing.T, conn PrepareExtContext) {
+				prepChunkWithFinal(
+					testChunk{typeID: chunk.CMessages, channelID: "C123", final: true},
+				)(t, conn)
+				mr := NewMessageRepository()
+				if err := mr.Insert(t.Context(), conn,
+					dbmNoThread,
+				); err != nil {
+					t.Fatalf("insert: %v", err)
+				}
+			},
+			want:    0,
+			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
