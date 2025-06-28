@@ -854,7 +854,7 @@ func Test_messageRepository_CountUnfinished(t *testing.T) {
 				}
 			},
 			want:    0,
-			wantErr: true, // no rows in the result set
+			wantErr: true, // no rows in the result set.  Set will be empty until there's a "final" message chunk for the channel.
 		},
 		{
 			name: "channel with no threads #533, finished",
@@ -879,7 +879,7 @@ func Test_messageRepository_CountUnfinished(t *testing.T) {
 				}
 			},
 			want:    0,
-			wantErr: false, // no rows in the result set
+			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
