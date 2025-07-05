@@ -91,6 +91,23 @@ On other Operating Systems, please follow these steps:
 [man-v2migrate]: https://github.com/rusq/slackdump/blob/master/cmd/slackdump/internal/man/assets/v2migr.md
 [man-changelog]: https://github.com/rusq/slackdump/blob/master/cmd/slackdump/internal/man/assets/changelog.md
 
+## Running Slackdump from a Repo Checkout
+
+If you've cloned the repository and want to run slackdump directly without downloading a release, you can do one of the following:
+
+1. **Build and run** (creates an executable):
+   ```shell
+   go build -o slackdump ./cmd/slackdump
+   ./slackdump wiz
+   ```
+
+2. **Run directly**:
+   ```shell
+   go run ./cmd/slackdump wiz
+   ```
+
+Note: You need Go installed on your system (see `go.mod` for the version)
+
 
 ## Slackord2: Migrating to Discord
 
