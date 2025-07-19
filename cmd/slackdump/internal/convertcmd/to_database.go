@@ -79,7 +79,7 @@ func chunk2db(ctx context.Context, src *source.ChunkDir, dir string, cflg conver
 		}
 	}()
 
-	slog.Info("output", "database", filepath.Join(dir, "slackdump.sqlite"))
+	slog.Info("output", "database", filepath.Join(dir, source.DefaultDBFile))
 
 	// create a new database
 	wconn, si, err := bootstrap.Database(dir, "convert")

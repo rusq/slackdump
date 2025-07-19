@@ -10,6 +10,7 @@ import (
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/workspace"
 )
@@ -49,6 +50,8 @@ func init() {
 }
 
 func runWizard(ctx context.Context, cmd *base.Command, args []string) error {
+	cfg.YesMan = true // to avoid interfering with the UI
+
 	baseCommands := base.Slackdump.Commands
 	if len(baseCommands) == 0 {
 		panic("internal error:  no commands")

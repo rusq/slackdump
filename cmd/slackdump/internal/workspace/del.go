@@ -33,8 +33,7 @@ func init() {
 }
 
 var (
-	delAll     = CmdWspDel.Flag.Bool("a", false, "delete all workspaces")
-	delConfirm = CmdWspDel.Flag.Bool("y", false, "answer 'yes' to all questions")
+	delAll = CmdWspDel.Flag.Bool("a", false, "delete all workspaces")
 )
 
 func runWspDel(ctx context.Context, cmd *base.Command, args []string) error {
@@ -44,7 +43,7 @@ func runWspDel(ctx context.Context, cmd *base.Command, args []string) error {
 		return err
 	}
 	if *delAll {
-		return delAllWsp(m, *delConfirm)
+		return delAllWsp(m, cfg.YesMan)
 	} else {
 		return delOneWsp(m, args)
 	}
@@ -59,7 +58,7 @@ func delAllWsp(m manager, confirm bool) error {
 
 	if !confirm && !yesno("This will delete ALL workspaces") {
 		base.SetExitStatus(base.SCancelled)
-		return ErrOpCancelled
+		return base.ErrOpCancelled
 	}
 	for _, name := range workspaces {
 		if err := m.Delete(name); err != nil {
@@ -83,9 +82,9 @@ func delOneWsp(m manager, args []string) error {
 		return ErrNotExists
 	}
 
-	if !*delConfirm && !yesno(fmt.Sprintf("workspace %q is about to be deleted", wsp)) {
+	if !cfg.YesMan && !yesno(fmt.Sprintf("workspace %q is about to be deleted", wsp)) {
 		base.SetExitStatus(base.SNoError)
-		return ErrOpCancelled
+		return base.ErrOpCancelled
 	}
 
 	if err := m.Delete(wsp); err != nil {

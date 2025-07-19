@@ -96,6 +96,10 @@ func runSearch(ctx context.Context, cmd *base.Command, args []string, typ contro
 		return ErrNoQuery
 	}
 
+	if err := bootstrap.AskOverwrite(cfg.Output); err != nil {
+		return err
+	}
+
 	cfg.Log.Info("running command", "cmd", cmd.Name())
 
 	client, err := bootstrap.Slack(ctx)

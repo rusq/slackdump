@@ -10,6 +10,7 @@ import (
 	"github.com/rusq/slack"
 
 	"github.com/rusq/slackdump/v3"
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/bootstrap"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/workspace"
@@ -107,6 +108,9 @@ func list[T any](ctx context.Context, sess *slackdump.Session, l lister[T], file
 	if !commonFlags.nosave {
 		if filename == "" {
 			filename = makeFilename(l.Type(), sess.Info().TeamID, extForType(commonFlags.listType))
+		}
+		if err := bootstrap.AskOverwrite(filename); err != nil {
+			return err
 		}
 		if err := saveData(ctx, l.Data(), filename, commonFlags.listType, l.Users(), commonFlags.bare); err != nil {
 			return err

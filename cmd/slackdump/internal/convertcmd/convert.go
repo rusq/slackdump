@@ -10,6 +10,7 @@ import (
 
 	"github.com/rusq/slackdump/v3/source"
 
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/bootstrap"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 )
@@ -87,6 +88,10 @@ func runConvert(ctx context.Context, cmd *base.Command, args []string) error {
 	}
 	lg := cfg.Log
 	lg.InfoContext(ctx, "converting", "source", args[0], "output_format", params.outputfmt)
+
+	if err := bootstrap.AskOverwrite(cfg.Output); err != nil {
+		return err
+	}
 
 	// set from the global config
 	params.includeFiles = cfg.WithFiles

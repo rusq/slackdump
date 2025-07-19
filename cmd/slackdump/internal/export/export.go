@@ -65,6 +65,9 @@ func runExport(ctx context.Context, cmd *base.Command, args []string) error {
 		base.SetExitStatus(base.SUserError)
 		return fmt.Errorf("error parsing the entity list: %w", err)
 	}
+	if err := bootstrap.AskOverwrite(cfg.Output); err != nil {
+		return err
+	}
 
 	client, err := bootstrap.Slack(ctx)
 	if err != nil {

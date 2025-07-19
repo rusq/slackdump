@@ -238,6 +238,9 @@ Allows to override the currently selected workspace for the session.
 See also the
 .Cm workspace Ar select
 command.
+.It Fl y
+Answers "yes" to all questions asked by the program.  This is useful for
+scripts and automation.
 .El
 .\"
 .Sh USAGE
@@ -406,6 +409,10 @@ workspace).  See
 command for more details.
 .It Ev TRACE_FILE
 Contains path to a file where trace output will be written.
+.It Ev YES_MAN
+.BOOL
+answers "yes" to all questions asked by the program.  This is useful for
+scripts.
 .El
 .\" For sections 1, 6, 7, and 8 only.
 .Sh FILES
