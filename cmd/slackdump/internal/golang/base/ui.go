@@ -21,8 +21,8 @@ func YesNoWR(w io.Writer, r io.Reader, message string) bool {
 		var resp string
 		_, err := fmt.Fscanln(r, &resp)
 		if err != nil {
-			// hack
-			if err.Error() == "unexpected newline" {
+			// there's no proper way to check for unexpected newline error.
+			if strings.EqualFold(err.Error(), "unexpected newline") {
 				return false
 			}
 			fmt.Fprintln(w, pleaseAnswerYN)

@@ -25,12 +25,6 @@ Validates the configuration file for errors and invalid values.
 Example:
     slackdump config check myconfig.toml
 `,
-	Run: func(ctx context.Context, cmd *base.Command, args []string) error {
-		panic("TODO")
-	},
-	Wizard: func(ctx context.Context, cmd *base.Command, args []string) error {
-		panic("TODO")
-	},
 	FlagMask:   cfg.OmitAll,
 	PrintFlags: true,
 }

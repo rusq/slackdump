@@ -85,7 +85,7 @@ func TestAskOverwrite(t *testing.T) {
 			setup: func(t *testing.T) string {
 				sayYes(t)
 				dir := t.TempDir()
-				if err := os.Mkdir(filepath.Join(dir, "dir_exist"), 0755); err != nil {
+				if err := os.Mkdir(filepath.Join(dir, "dir_exists"), 0755); err != nil {
 					t.Fatal(err)
 				}
 				return dir
