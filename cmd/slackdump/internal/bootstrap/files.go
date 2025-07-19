@@ -6,9 +6,18 @@ import (
 
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
+	"github.com/rusq/slackdump/v3/internal/osext"
 )
 
 var yesno = base.YesNo
+
+func init() {
+	if !osext.IsInteractive() {
+		yesno = func(_ string) bool {
+			return true // assume yes in non-interactive mode, otherwise gets stuck
+		}
+	}
+}
 
 // AskOverwrite checks if the given path and:
 //   - if [cfg.YesMan] flag is set to true - returns nil;

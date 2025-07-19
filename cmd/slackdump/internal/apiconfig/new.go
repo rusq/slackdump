@@ -5,7 +5,6 @@ import (
 	_ "embed"
 	"errors"
 	"fmt"
-	"os"
 	"path/filepath"
 	"runtime/trace"
 
@@ -79,16 +78,6 @@ RESTART:
 
 	_, err = printConfigOK(filename)
 	return err
-}
-
-// shouldOverwrite returns true if the file can be overwritten.  If override
-// is true and the file exists and not a directory, it will return true.
-func shouldOverwrite(filename string, override bool) bool {
-	fi, err := os.Stat(filename)
-	if fi != nil && fi.IsDir() {
-		return false
-	}
-	return err != nil || override
 }
 
 // maybeFixExt checks if the extension is one of .toml or .tml, and if not
