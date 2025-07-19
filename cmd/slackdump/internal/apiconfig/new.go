@@ -23,7 +23,7 @@ var CmdConfigNew = &base.Command{
 	UsageLine:  "slackdump config new",
 	Short:      "creates a new API config with the default values",
 	Long:       configNewMD,
-	FlagMask:   cfg.OmitAll,
+	FlagMask:   cfg.OmitAll &^ cfg.OmitYesManFlag,
 	PrintFlags: true,
 }
 

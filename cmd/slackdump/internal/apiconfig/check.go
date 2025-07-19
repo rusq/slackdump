@@ -10,6 +10,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/bubbles/filemgr"
@@ -20,14 +21,18 @@ var CmdConfigCheck = &base.Command{
 	Short:     "validate the existing config for errors",
 	Long: `
 # Check Command
-
 Validates the configuration file for errors and invalid values.
-
 Example:
-
     slackdump config check myconfig.toml
-
 `,
+	Run: func(ctx context.Context, cmd *base.Command, args []string) error {
+		panic("TODO")
+	},
+	Wizard: func(ctx context.Context, cmd *base.Command, args []string) error {
+		panic("TODO")
+	},
+	FlagMask:   cfg.OmitAll,
+	PrintFlags: true,
 }
 
 func init() {
