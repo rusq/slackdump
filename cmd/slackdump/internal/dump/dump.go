@@ -97,6 +97,9 @@ func RunDump(ctx context.Context, _ *base.Command, args []string) error {
 		base.SetExitStatus(base.SUserError)
 		return fmt.Errorf("file template error: %w", err)
 	}
+	if err := bootstrap.AskOverwrite(cfg.Output); err != nil {
+		return err
+	}
 
 	fsa, err := fsadapter.New(cfg.Output)
 	if err != nil {

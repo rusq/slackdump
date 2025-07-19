@@ -15,6 +15,7 @@ import (
 
 	"github.com/rusq/fsadapter"
 
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/bootstrap"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/internal/format"
@@ -95,6 +96,10 @@ func runFormat(ctx context.Context, cmd *base.Command, args []string) error {
 			return err
 		}
 		defer src.Close()
+
+		if err := bootstrap.AskOverwrite(cfg.Output); err != nil {
+			return err
+		}
 
 		fsa, err := fsadapter.New(cfg.Output)
 		if err != nil {

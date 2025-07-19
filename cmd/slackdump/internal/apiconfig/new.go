@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"runtime/trace"
 
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/bootstrap"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui"
@@ -26,8 +27,6 @@ var CmdConfigNew = &base.Command{
 	PrintFlags: true,
 }
 
-var fNewOverride = CmdConfigNew.Flag.Bool("y", false, "confirm the overwrite of the existing config")
-
 func init() {
 	CmdConfigNew.Run = runConfigNew
 	CmdConfigNew.Wizard = wizConfigNew
@@ -44,9 +43,8 @@ func runConfigNew(ctx context.Context, cmd *base.Command, args []string) error {
 
 	filename := maybeFixExt(args[0])
 
-	if !shouldOverwrite(filename, *fNewOverride) {
-		base.SetExitStatus(base.SUserError)
-		return fmt.Errorf("file or directory exists: %q, use -y flag to overwrite (will not overwrite directory)", filename)
+	if err := bootstrap.AskOverwrite(filename); err != nil {
+		return err
 	}
 
 	if err := Save(filename, network.DefLimits); err != nil {

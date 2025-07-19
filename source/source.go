@@ -253,7 +253,7 @@ func srcType(src string, fi fs.FileInfo) Flags {
 	if _, err := fs.Stat(fsys, "channels.json"); err == nil {
 		return flags | FExport
 	}
-	if _, err := fs.Stat(fsys, "slackdump.sqlite"); err == nil {
+	if _, err := fs.Stat(fsys, DefaultDBFile); err == nil {
 		// directory with the database
 		return flags | FDatabase
 	}

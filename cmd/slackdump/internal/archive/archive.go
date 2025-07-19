@@ -24,6 +24,7 @@ import (
 	"github.com/rusq/slackdump/v3/internal/client"
 	"github.com/rusq/slackdump/v3/internal/convert/transform/fileproc"
 	"github.com/rusq/slackdump/v3/internal/structures"
+	"github.com/rusq/slackdump/v3/source"
 	"github.com/rusq/slackdump/v3/stream"
 )
 
@@ -66,6 +67,11 @@ func runChunkArchive(ctx context.Context, _ *base.Command, args []string) error 
 		base.SetExitStatus(base.SInitializationError)
 		return err
 	}
+
+	if err := bootstrap.AskOverwrite(cfg.Output); err != nil {
+		return err
+	}
+
 	cd, err := NewDirectory(cfg.Output)
 	if err != nil {
 		base.SetExitStatus(base.SUserError)
@@ -104,7 +110,12 @@ func runDBArchive(ctx context.Context, cmd *base.Command, args []string) error {
 		return err
 	}
 
-	conn, err := sqlx.Open(repository.Driver, filepath.Join(dirname, "slackdump.sqlite"))
+	dbfile := filepath.Join(dirname, source.DefaultDBFile)
+	if err := bootstrap.AskOverwrite(dbfile); err != nil {
+		return err
+	}
+
+	conn, err := sqlx.Open(repository.Driver, dbfile)
 	if err != nil {
 		return err
 	}

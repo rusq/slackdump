@@ -12,6 +12,8 @@ import (
 	"github.com/rusq/slackdump/v3/internal/chunk/backend/dbase"
 )
 
+const DefaultDBFile = "slackdump.sqlite"
+
 // Database represents a database source.  It implements the [Sourcer]
 // interface and provides access to the database data.  It also provides
 // access to the files and avatars storage, if available.  The database source
@@ -47,7 +49,7 @@ func OpenDatabase(ctx context.Context, path string) (*Database, error) {
 		name = filepath.Dir(path)
 	} else {
 		// directory
-		dbfile = filepath.Join(path, "slackdump.sqlite")
+		dbfile = filepath.Join(path, DefaultDBFile)
 		rootFS := os.DirFS(path)
 		if st, err := OpenMattermostStorage(rootFS); err == nil {
 			fst = st

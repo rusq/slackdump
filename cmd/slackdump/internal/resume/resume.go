@@ -31,7 +31,7 @@ var CmdResume = &base.Command{
 	Long:        mdResume,
 	PrintFlags:  true,
 	RequireAuth: true,
-	FlagMask:    cfg.OmitOutputFlag | cfg.OmitUserCacheFlag | cfg.OmitChunkFileMode | cfg.OmitRecordFilesFlag | cfg.OmitChunkCacheFlag,
+	FlagMask:    cfg.OmitOutputFlag | cfg.OmitUserCacheFlag | cfg.OmitChunkFileMode | cfg.OmitRecordFilesFlag | cfg.OmitChunkCacheFlag | cfg.OmitYesManFlag,
 	Wizard:      archiveWizard,
 }
 

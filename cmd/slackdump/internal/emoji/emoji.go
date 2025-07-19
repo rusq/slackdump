@@ -52,6 +52,9 @@ func init() {
 }
 
 func run(ctx context.Context, cmd *base.Command, args []string) error {
+	if err := bootstrap.AskOverwrite(cfg.Output); err != nil {
+		return err
+	}
 	fsa, err := fsadapter.New(cfg.Output)
 	if err != nil {
 		return err
