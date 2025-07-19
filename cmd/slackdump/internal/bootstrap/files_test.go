@@ -57,7 +57,7 @@ func TestAskOverwrite(t *testing.T) {
 			setup: func(t *testing.T) string {
 				sayNo(t)
 				dir := t.TempDir()
-				if err := os.WriteFile(filepath.Join(dir, "i_exist.txt"), []byte("i think therefor i exist"), 0644); err != nil {
+				if err := os.WriteFile(filepath.Join(dir, "i_exist.txt"), []byte("i think therefore i exist"), 0644); err != nil {
 					t.Fatal(err)
 				}
 				return dir
@@ -71,7 +71,7 @@ func TestAskOverwrite(t *testing.T) {
 			setup: func(t *testing.T) string {
 				sayYes(t)
 				dir := t.TempDir()
-				if err := os.WriteFile(filepath.Join(dir, "i_exist.txt"), []byte("i think therefor i exist"), 0644); err != nil {
+				if err := os.WriteFile(filepath.Join(dir, "i_exist.txt"), []byte("i think therefore i exist"), 0644); err != nil {
 					t.Fatal(err)
 				}
 				return dir
