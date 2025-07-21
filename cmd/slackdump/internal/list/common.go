@@ -19,7 +19,7 @@ import (
 	"github.com/rusq/slackdump/v3/types"
 )
 
-const flagMask = cfg.OmitAll &^ cfg.OmitAuthFlags &^ cfg.OmitCacheDir &^ cfg.OmitWorkspaceFlag
+const flagMask = cfg.OmitAll &^ cfg.OmitAuthFlags &^ cfg.OmitCacheDir &^ cfg.OmitWorkspaceFlag &^ cfg.OmitYesManFlag
 
 // CmdList is the list command.  The logic is in the subcommands.
 var CmdList = &base.Command{
