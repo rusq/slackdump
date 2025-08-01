@@ -42,7 +42,7 @@ For example:
 You need to specify the workspace URL or "workspace_name", not the enterprise instance name.
 
 To find out <workspace_name>, you can do the following:
-1. Log in to the enteprise workspace using Slack Client or Slack Web UI;
+1. Log in to the enterprise workspace using Slack Client or Slack Web UI;
 2. Click on the top menu (the one in the upper left corner, looks like
    "**YourCompany  v**";
 3. Choose Tools->Customise workspace;
