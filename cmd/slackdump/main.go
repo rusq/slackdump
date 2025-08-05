@@ -197,6 +197,14 @@ func invoke(cmd *base.Command, args []string) error {
 		lg.With("command", cmd.Name())
 		cfg.Log = lg
 	}
+	slog.DebugContext(ctx, "checking for updates")
+	latest, exists, err := CheckUpdates(ctx)
+	if err != nil && !errors.Is(err, ErrNoUpdates) {
+		slog.Warn("error checking for updates", "error", err)
+	}
+	if exists && latest.IsStable {
+		slog.Info("Newer version availble", "version", latest.Version, "released on", latest.ReleasedAt)
+	}
 
 	if cmd.RequireAuth {
 		trace.Logf(ctx, "invoke", "command %s requires auth", cmd.Name())
