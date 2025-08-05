@@ -6,6 +6,8 @@ import (
 	"runtime/trace"
 
 	"github.com/rusq/slack"
+
+	"github.com/rusq/slackdump/v3/internal/fasttime"
 )
 
 // conversations.* API
@@ -112,4 +114,88 @@ func (cl *Client) ConversationsView(ctx context.Context, channelID string) (Conv
 		return ConversationsViewResponse{}, err
 	}
 	return r.ConversationsViewResponse, nil
+}
+
+type conversationHistoryForm struct {
+	BaseRequest
+	Channel                      string         `json:"channel,omitempty"`
+	Limit                        int            `json:"limit,omitempty"`
+	IgnoreReplies                bool           `json:"ignore_replies,omitempty"`
+	IncludePinCount              bool           `json:"include_pin_count,omitempty"`
+	Inclusive                    bool           `json:"inclusive,omitempty"`
+	NoUserProfile                bool           `json:"no_user_profile,omitempty"`
+	IncludeStories               bool           `json:"include_stories,omitempty"`
+	IncludeFreeTeamExtraMessages bool           `json:"include_free_team_extra_messages,omitempty"`
+	IncludeDateJoined            bool           `json:"include_date_joined,omitempty"`
+	Oldest                       string         `json:"oldest,omitempty"` //TODO
+	Latest                       string         `json:"latest,omitempty"`
+	Cursor                       string         `json:"cursor,omitempty"`
+	CachedLatestUpdates          map[string]any `json:"cached_latest_updates,omitempty"`
+	WebClientFields
+}
+
+type ConversationsHistoryResponse struct {
+	baseResponse
+	LatestUpdates       map[fasttime.Time]fasttime.Time `json:"latest_updates"`
+	UnchangedMessages   []fasttime.Time                 `json:"unchanged_messages"`
+	Latest              fasttime.Time                   `json:"latest"`
+	Messages            []slack.Message                 `json:"messages"`
+	HasMore             bool                            `json:"has_more"`
+	PinCount            int                             `json:"pin_count"`
+	ChannelActionsTS    any                             `json:"channel_actions_ts,omitempty"` // TODO: type?
+	ChannelActionsCount int                             `json:"channel_actions_count,omitempty"`
+}
+
+type ConversationHistoryParams struct {
+	ChannelID     string
+	Oldest        string
+	Latest        string
+	Cursor        string
+	Limit         int
+	IgnoreReplies bool
+	Inclusive     bool
+}
+
+// ConversationsHistory retrieves the history of a conversation.
+func (cl *Client) ConversationsHistory(ctx context.Context, params ConversationHistoryParams) (*ConversationsHistoryResponse, error) {
+	ctx, task := trace.NewTask(ctx, "ConversationsHistory")
+	defer task.End()
+
+	if params.Limit == 0 {
+		params.Limit = 28
+	}
+	form := conversationHistoryForm{
+		BaseRequest: BaseRequest{
+			Token: cl.token,
+		},
+		Channel:                      params.ChannelID,
+		Limit:                        params.Limit,
+		IgnoreReplies:                params.IgnoreReplies,
+		IncludePinCount:              true,
+		Inclusive:                    params.Inclusive,
+		NoUserProfile:                true,
+		IncludeStories:               true,
+		IncludeFreeTeamExtraMessages: true,
+		IncludeDateJoined:            true,
+		Oldest:                       params.Oldest,
+		Latest:                       params.Latest,
+		CachedLatestUpdates:          map[string]any{},
+		WebClientFields: WebClientFields{
+			XReason:  "message-pane/requestHistory",
+			XMode:    "online",
+			XSonic:   true,
+			XAppName: "client",
+		},
+	}
+
+	resp, err := cl.PostForm(ctx, "conversations.history", values(form, true))
+	if err != nil {
+		return nil, err
+	}
+
+	var r ConversationsHistoryResponse
+	if err := cl.ParseResponse(&r, resp); err != nil {
+		return nil, err
+	}
+	return &r, nil
 }

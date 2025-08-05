@@ -31,7 +31,38 @@ func (w *Wrapper) AuthTestContext(ctx context.Context) (response *slack.AuthTest
 }
 
 func (w *Wrapper) GetConversationHistoryContext(ctx context.Context, params *slack.GetConversationHistoryParameters) (*slack.GetConversationHistoryResponse, error) {
-	return w.cl.GetConversationHistoryContext(ctx, params)
+	p1 := ConversationHistoryParams{
+		ChannelID:     params.ChannelID,
+		Oldest:        params.Oldest,
+		Latest:        params.Latest,
+		Cursor:        params.Cursor,
+		Limit:         params.Limit,
+		IgnoreReplies: true, // Ignore replies by default
+		Inclusive:     params.Inclusive,
+	}
+	chr, err := w.edge.ConversationsHistory(ctx, p1)
+	if err != nil {
+		return nil, err
+	}
+	return &slack.GetConversationHistoryResponse{
+		SlackResponse: slack.SlackResponse{
+			Ok:    chr.Ok,
+			Error: chr.Error,
+			ResponseMetadata: slack.ResponseMetadata{
+				Cursor:   chr.ResponseMetadata.NextCursor,
+				Messages: chr.ResponseMetadata.Messages,
+			},
+		},
+		HasMore:  chr.HasMore,
+		PinCount: chr.PinCount,
+		Latest:   chr.Latest.SlackString(),
+		ResponseMetaData: struct {
+			NextCursor string "json:\"next_cursor\""
+		}{
+			NextCursor: chr.ResponseMetadata.NextCursor,
+		},
+		Messages: chr.Messages,
+	}, nil
 }
 
 func (w *Wrapper) GetConversationRepliesContext(ctx context.Context, params *slack.GetConversationRepliesParameters) (msgs []slack.Message, hasMore bool, nextCursor string, err error) {
