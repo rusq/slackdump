@@ -3,6 +3,7 @@ package edge
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"runtime/trace"
 
 	"github.com/rusq/slack"
@@ -11,6 +12,8 @@ import (
 )
 
 // conversations.* API
+
+const safeLimit = 28
 
 // conversationsGenericInfoForm is the request to conversations.genericInfo
 type conversationsGenericInfoForm struct {
@@ -146,7 +149,7 @@ type ConversationsHistoryResponse struct {
 	ChannelActionsCount int                             `json:"channel_actions_count,omitempty"`
 }
 
-type ConversationHistoryParams struct {
+type ConversationsHistoryParams struct {
 	ChannelID     string
 	Oldest        string
 	Latest        string
@@ -157,12 +160,12 @@ type ConversationHistoryParams struct {
 }
 
 // ConversationsHistory retrieves the history of a conversation.
-func (cl *Client) ConversationsHistory(ctx context.Context, params ConversationHistoryParams) (*ConversationsHistoryResponse, error) {
+func (cl *Client) ConversationsHistory(ctx context.Context, params ConversationsHistoryParams) (*ConversationsHistoryResponse, error) {
 	ctx, task := trace.NewTask(ctx, "ConversationsHistory")
 	defer task.End()
 
 	if params.Limit == 0 {
-		params.Limit = 28
+		params.Limit = safeLimit
 	}
 	form := conversationHistoryForm{
 		BaseRequest: BaseRequest{
@@ -180,12 +183,7 @@ func (cl *Client) ConversationsHistory(ctx context.Context, params ConversationH
 		Oldest:                       params.Oldest,
 		Latest:                       params.Latest,
 		CachedLatestUpdates:          map[string]any{},
-		WebClientFields: WebClientFields{
-			XReason:  "message-pane/requestHistory",
-			XMode:    "online",
-			XSonic:   true,
-			XAppName: "client",
-		},
+		WebClientFields:              webclientReason("message-pane/requestHistory"),
 	}
 
 	resp, err := cl.PostForm(ctx, "conversations.history", values(form, true))
@@ -196,6 +194,66 @@ func (cl *Client) ConversationsHistory(ctx context.Context, params ConversationH
 	var r ConversationsHistoryResponse
 	if err := cl.ParseResponse(&r, resp); err != nil {
 		return nil, err
+	}
+	return &r, nil
+}
+
+type conversationsRepliesForm struct {
+	BaseRequest
+	Channel             string            `json:"channel,omitempty"`
+	TS                  string            `json:"ts,omitempty"`
+	Inclusive           bool              `json:"inclusive,omitempty"`
+	Limit               int               `json:"limit,omitempty"`
+	Oldest              string            `json:"oldest,omitempty"`
+	Latest              string            `json:"latest,omitempty"`
+	CachedLatestUpdates map[string]string `json:"cached_latest_updates,omitempty"`
+	WebClientFields
+}
+
+type ConversationsRepliesParams struct {
+	Channel   string
+	TS        string
+	Limit     int
+	Oldest    string
+	Latest    string
+	Inclusive bool
+}
+
+type ConversationsRepliesResponse struct {
+	baseResponse
+	LatestUpdates     map[fasttime.Time]fasttime.Time `json:"latest_updates,omitempty"`
+	UnchangedMessages []fasttime.Time                 `json:"unchanged_messages,omitempty"`
+	Messages          []slack.Message                 `json:"messages,omitempty"`
+	HasMore           bool                            `json:"has_more,omitempty"`
+}
+
+func (cl *Client) ConversationsReplies(ctx context.Context, params ConversationsRepliesParams) (*ConversationsRepliesResponse, error) {
+	ctx, task := trace.NewTask(ctx, "ConversationsReplies")
+	defer task.End()
+
+	if params.Limit == 0 {
+		params.Limit = safeLimit
+	}
+	form := conversationsRepliesForm{
+		BaseRequest: BaseRequest{
+			Token: cl.token,
+		},
+		Channel:             params.Channel,
+		TS:                  params.TS,
+		Inclusive:           params.Inclusive,
+		Limit:               params.Limit,
+		Oldest:              params.Oldest,
+		Latest:              params.Latest,
+		CachedLatestUpdates: map[string]string{},
+		WebClientFields:     webclientReason("history-api/fetchReplies"),
+	}
+	resp, err := cl.PostForm(ctx, "conversations.replies", values(form, true))
+	if err != nil {
+		return nil, fmt.Errorf("conversations.replies: %w", err)
+	}
+	var r ConversationsRepliesResponse
+	if err := cl.ParseResponse(&r, resp); err != nil {
+		return nil, fmt.Errorf("conversations.replies: %w", err)
 	}
 	return &r, nil
 }
