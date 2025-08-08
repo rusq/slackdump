@@ -39,6 +39,18 @@ type Client struct {
 	// teamID is the team ID
 	teamID string
 	tape   io.WriteCloser
+
+	vals urlValues
+}
+
+type urlValues struct {
+	ID                     string `json:"id,omitempty"`
+	VersionTS              string `json:"version_ts,omitempty"`
+	FrontendBuildType      string `json:"frontend_build_type,omitempty"`
+	ClientMinConfigVersion string `json:"client_min_config_version,omitempty"`
+	DesktopIA              string `json:"desktop_ia,omitempty"`
+	Gantry                 bool   `json:"gantry,omitempty"`
+	NumRetries             int    `json:"num_retries,omitempty"`
 }
 
 type Option func(*Client)
