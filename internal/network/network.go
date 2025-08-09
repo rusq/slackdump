@@ -139,7 +139,7 @@ func WithRetry(ctx context.Context, lim *rate.Limiter, maxAttempts int, fn func(
 			slog.Debug("resuming after EOF")
 			continue
 		case errors.As(cbErr, &rle):
-			slog.InfoContext(ctx, "got rate limited, sleeping", "retry_after_sec", rle.RetryAfter, "error", cbErr)
+			slog.InfoContext(ctx, "got rate limited, sleeping", "retry_after", rle.RetryAfter.String(), "error", cbErr)
 			tracelogf(ctx, "info", "got rate limited, sleeping %s (%s)", rle.RetryAfter, cbErr)
 			if err := sleepCtx(ctx, rle.RetryAfter); err != nil {
 				return err
