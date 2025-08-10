@@ -54,16 +54,30 @@ func (c *Controller) Run(ctx context.Context, list *structures.EntityList) error
 	rec := chunk.NewCustomRecorder(c.erc)
 	defer rec.Close()
 
-	streamer, proc := c.mkSuperprocessor(ctx, rec)
+	// got to do some explanation here: the order of processors is important:
+	// files ==> recorder ==> transformer                     2     1            3
+	conv := processor.AppendMessenger(processor.PrependFiler(rec, c.filer), c.newConvTransformer(ctx))
+	streamer, proc := c.mkSuperprocessor(ctx, rec, conv)
 
 	return runWorkers(ctx, streamer, list, proc, c.flags)
 }
 
-func (c *Controller) mkSuperprocessor(ctx context.Context, rec *chunk.Recorder) (Streamer, superprocessor) {
+// RunNoTransform is similar to [Run] but does not apply any transformation to
+// the data. Call this if you don't need to track channel completion etc.
+func (c *Controller) RunNoTransform(ctx context.Context, list *structures.EntityList) error {
+	rec := chunk.NewCustomRecorder(c.erc)
+	defer rec.Close()
+
+	conv := processor.PrependFiler(rec, c.filer)
+	streamer, proc := c.mkSuperprocessor(ctx, rec, conv)
+
+	// if we don't need to transform the data, we can just run the workers
+	// without the transformer
+	return runWorkers(ctx, streamer, list, proc, c.flags)
+}
+
+func (c *Controller) mkSuperprocessor(ctx context.Context, rec *chunk.Recorder, conv processor.Conversations) (Streamer, superprocessor) {
 	streamer := c.s
-	// got to do some explanation here: the order of processors is important:
-	// files ==> recorder ==> transformer                     2     1            3
-	conv := processor.AppendMessenger(processor.PrependFiler(rec, c.filer), c.newConvTransformer(ctx))
 	if c.flags.ChannelUsers {
 		// userIDCollector collects the user IDs from messages and thread
 		// messages (excluding duplicates) and sends them to the userIDC

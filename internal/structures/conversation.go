@@ -4,7 +4,7 @@ import "github.com/rusq/slack"
 
 // IsThreadStart check if the message is a lead message of a thread.
 func IsThreadStart(m *slack.Message) bool {
-	return m.Timestamp == m.ThreadTimestamp && m.ThreadTimestamp != ""
+	return m.ThreadTimestamp != "" && m.Timestamp == m.ThreadTimestamp
 }
 
 // IsEmptyThread checks if the message is a thread with no replies.
