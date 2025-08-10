@@ -9,16 +9,16 @@ require (
 	github.com/MercuryEngineering/CookieMonster v0.0.0-20180304172713-1584578b3403
 	github.com/ProtonMail/go-crypto v1.3.0
 	github.com/charmbracelet/bubbles v0.21.0
-	github.com/charmbracelet/bubbletea v1.3.5
+	github.com/charmbracelet/bubbletea v1.3.6
 	github.com/charmbracelet/huh v0.7.0
-	github.com/charmbracelet/huh/spinner v0.0.0-20250519092748-d6f1597485e0
+	github.com/charmbracelet/huh/spinner v0.0.0-20250714122654-40d2b68703eb
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/enescakir/emoji v1.0.0
 	github.com/fatih/color v1.18.0
 	github.com/go-chi/chi/v5 v5.2.2
 	github.com/go-playground/locales v0.14.1
 	github.com/go-playground/universal-translator v0.18.1
-	github.com/go-playground/validator/v10 v10.26.0
+	github.com/go-playground/validator/v10 v10.27.0
 	github.com/go-rod/rod v0.116.2
 	github.com/google/uuid v1.6.0
 	github.com/jmoiron/sqlx v1.4.0
@@ -26,7 +26,7 @@ require (
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c
 	github.com/playwright-community/playwright-go v0.5200.0
 	github.com/pressly/goose/v3 v3.24.3
-	github.com/pterm/pterm v0.12.80
+	github.com/pterm/pterm v0.12.81
 	github.com/rusq/chttp v1.1.0
 	github.com/rusq/encio v0.2.0
 	github.com/rusq/fsadapter v1.1.0
@@ -38,15 +38,15 @@ require (
 	github.com/rusq/tracer v1.0.1
 	github.com/schollz/progressbar/v3 v3.18.0
 	github.com/stretchr/testify v1.10.0
-	github.com/yuin/goldmark v1.7.12
+	github.com/yuin/goldmark v1.7.13
 	github.com/yuin/goldmark-emoji v1.0.6
 	go.uber.org/mock v0.5.2
-	golang.org/x/mod v0.26.0
-	golang.org/x/sync v0.15.0
-	golang.org/x/term v0.32.0
-	golang.org/x/text v0.26.0
-	golang.org/x/time v0.11.0
-	modernc.org/sqlite v1.37.1
+	golang.org/x/mod v0.27.0
+	golang.org/x/sync v0.16.0
+	golang.org/x/term v0.34.0
+	golang.org/x/text v0.28.0
+	golang.org/x/time v0.12.0
+	modernc.org/sqlite v1.38.2
 	src.elv.sh v0.21.0
 )
 
@@ -58,9 +58,9 @@ require (
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
 	github.com/catppuccin/go v0.3.0 // indirect
 	github.com/charmbracelet/colorprofile v0.3.1 // indirect
-	github.com/charmbracelet/x/ansi v0.9.2 // indirect
+	github.com/charmbracelet/x/ansi v0.10.1 // indirect
 	github.com/charmbracelet/x/cellbuf v0.0.13 // indirect
-	github.com/charmbracelet/x/exp/strings v0.0.0-20250520193441-8304e91a28cb // indirect
+	github.com/charmbracelet/x/exp/strings v0.0.0-20250806222409-83e3a29d542f // indirect
 	github.com/charmbracelet/x/term v0.2.1 // indirect
 	github.com/cloudflare/circl v1.6.1 // indirect
 	github.com/containerd/console v1.0.5 // indirect
@@ -97,17 +97,17 @@ require (
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
 	github.com/ysmood/fetchup v0.3.0 // indirect
 	github.com/ysmood/goob v0.4.0 // indirect
-	github.com/ysmood/got v0.40.0 // indirect
+	github.com/ysmood/got v0.41.0 // indirect
 	github.com/ysmood/gson v0.7.3 // indirect
 	github.com/ysmood/leakless v0.9.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	golang.org/x/crypto v0.39.0 // indirect
-	golang.org/x/exp v0.0.0-20250506013437-ce4c2cf36ca6 // indirect
-	golang.org/x/net v0.41.0 // indirect
-	golang.org/x/sys v0.33.0 // indirect
-	golang.org/x/tools v0.34.0 // indirect
+	golang.org/x/crypto v0.41.0 // indirect
+	golang.org/x/exp v0.0.0-20250808145144-a408d31f581a // indirect
+	golang.org/x/net v0.43.0 // indirect
+	golang.org/x/sys v0.35.0 // indirect
+	golang.org/x/tools v0.36.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	modernc.org/libc v1.65.8 // indirect
+	modernc.org/libc v1.66.6 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
 )

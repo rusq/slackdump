@@ -84,7 +84,7 @@ func runChunkArchive(ctx context.Context, _ *base.Command, args []string) error 
 		return err
 	}
 	defer ctrl.Close()
-	if err := ctrl.Run(ctx, list); err != nil {
+	if err := ctrl.RunNoTransform(ctx, list); err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return err
 	}
@@ -133,7 +133,7 @@ func runDBArchive(ctx context.Context, cmd *base.Command, args []string) error {
 		}
 	}()
 
-	if err := ctrl.Run(ctx, list); err != nil {
+	if err := ctrl.RunNoTransform(ctx, list); err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return err
 	}
@@ -161,7 +161,7 @@ func NewDirectory(name string) (*chunk.Directory, error) {
 // parameters.
 //
 // Obscene, just obscene amount of arguments.
-func DBController(ctx context.Context, cmd *base.Command, conn *sqlx.DB, client client.Slack, dirname string, flags control.Flags, opts ...stream.Option) (RunCloser, error) {
+func DBController(ctx context.Context, cmd *base.Command, conn *sqlx.DB, client client.Slack, dirname string, flags control.Flags, opts ...stream.Option) (Controller, error) {
 	lg := cfg.Log
 	dbp, err := dbase.New(ctx, conn, bootstrap.SessionInfo(cmd.Name()))
 	if err != nil {
@@ -204,8 +204,13 @@ func DBController(ctx context.Context, cmd *base.Command, conn *sqlx.DB, client 
 	return ctrl, nil
 }
 
-type RunCloser interface {
+type Controller interface {
+	// Run should run the main controller loop.
 	Run(context.Context, *structures.EntityList) error
+	// RunNoTransform should run the main controller loop without
+	// enabling transformation logic.
+	RunNoTransform(context.Context, *structures.EntityList) error
+
 	io.Closer
 }
 

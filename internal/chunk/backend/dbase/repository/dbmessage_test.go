@@ -489,7 +489,7 @@ var (
 	testChannelID = "C123"
 	testThreadID  = "123.456"
 
-	tmAParent  = slack.Message{Msg: slack.Msg{Timestamp: testThreadID, ThreadTimestamp: testThreadID, Text: "A"}}
+	tmAParent  = slack.Message{Msg: slack.Msg{Timestamp: testThreadID, ThreadTimestamp: testThreadID, Text: "A", LatestReply: "126.000"}}
 	tmBChannel = slack.Message{Msg: slack.Msg{Timestamp: "124.000", ThreadTimestamp: testThreadID, Text: "B", SubType: "thread_broadcast"}}
 	tmB        = slack.Message{Msg: slack.Msg{Timestamp: "124.000", ThreadTimestamp: testThreadID, Text: "B", SubType: "thread_broadcast"}}
 	tmC        = slack.Message{Msg: slack.Msg{Timestamp: "125.000", ThreadTimestamp: testThreadID, Text: "C"}}
@@ -697,7 +697,7 @@ func Test_messageRepository_CountUnfinished(t *testing.T) {
 				sessionID: 1,
 				channelID: "C123",
 			},
-			prepFn: mkThreadSetupFn("C123", [3]bool{true, false, true}),
+			prepFn: mkThreadSetupFn("C123", [...]bool{true, false, true}),
 			want:   0,
 		},
 		{
@@ -712,7 +712,7 @@ func Test_messageRepository_CountUnfinished(t *testing.T) {
 				channelID: "C123",
 			},
 			prepFn: func(t *testing.T, conn PrepareExtContext) {
-				mkThreadSetupFn("C123", [3]bool{true, false, true})(t, conn)
+				mkThreadSetupFn("C123", [...]bool{true, false, true})(t, conn)
 				// add a new message to the thread
 				mr := NewMessageRepository()
 				if err := mr.Insert(t.Context(), conn, dbtmXExtra); err != nil {
