@@ -13,7 +13,7 @@ var CmdDiag = &base.Command{
 	Long: `
 # Diagnostic tools
 
-Tools command contains different tools, running which may be requested if you open an issue on Github.
+Tools command contains different tools, running which may be requested if you open an issue on GitHub.
 `,
 	CustomFlags: false,
 	FlagMask:    0,

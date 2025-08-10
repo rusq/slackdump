@@ -1,6 +1,6 @@
 # v3.1.0
 
-- Filenames in Slack Exoprt are dated in the America/Los_Angeles timezone to
+- Filenames in Slack Export are dated in the America/Los_Angeles timezone to
   align with the Slack export format;
 - 5x faster conversion to Slack export, when using database backend, compared to
   the chunk file backend.
@@ -12,7 +12,7 @@
 
 Gist:
 - 2.6x dump speed improvement on channels with threads;
-- Support for enteprise workspaces;
+- Support for enterprise workspaces;
 - json logging on demand;
 - new structured CLI;
 - improved TUI for the wizardry with bells and whistles;

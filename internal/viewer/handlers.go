@@ -10,10 +10,11 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/rusq/slackdump/v3/source"
+
 	"github.com/rusq/slack"
 
 	"github.com/rusq/slackdump/v3/internal/fasttime"
-	"github.com/rusq/slackdump/v3/internal/source"
 	"github.com/rusq/slackdump/v3/internal/structures"
 )
 
@@ -29,10 +30,10 @@ type mainView struct {
 	channels
 	Name           string
 	Type           string
-	Conversation   slack.Channel
 	Messages       iter.Seq2[slack.Message, error]
 	ThreadMessages iter.Seq2[slack.Message, error]
 	ThreadID       string
+	Conversation   slack.Channel
 }
 
 // view returns a mainView struct with the channels and the name and type of

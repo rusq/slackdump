@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -57,6 +58,19 @@ func NewValueCookiesAuth(token string, cookies []*http.Cookie) (ValueAuth, error
 		Token:  token,
 		Cookie: cookies,
 	}}, nil
+}
+
+// NewCookieOnlyAuth uses workspace name and dCookie to get the token value and returns
+// a ValueAuth.
+func NewCookieOnlyAuth(ctx context.Context, workspace, dCookie string) (ValueAuth, error) {
+	if dCookie == "" {
+		return ValueAuth{}, ErrNoCookies
+	}
+	token, cookies, err := getTokenByCookie(ctx, workspace, dCookie)
+	if err != nil {
+		return ValueAuth{}, err
+	}
+	return NewValueCookiesAuth(token, cookies)
 }
 
 var timeFunc = time.Now

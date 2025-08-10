@@ -1,19 +1,16 @@
 package export
 
 import (
-	"context"
-	"net/http"
 	"path/filepath"
 	"testing"
 
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/slack"
 
-	"github.com/rusq/slackdump/v3"
 	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/internal/chunk/chunktest"
+	"github.com/rusq/slackdump/v3/internal/client"
 	"github.com/rusq/slackdump/v3/internal/fixtures"
-	"github.com/rusq/slackdump/v3/internal/network"
 	"github.com/rusq/slackdump/v3/internal/structures"
 )
 
@@ -62,17 +59,9 @@ func Test_exportV3(t *testing.T) {
 		defer cd.Close()
 		srv := chunktest.NewDirServer(cd)
 		defer srv.Close()
-		cl := slack.New("", slack.OptionAPIURL(srv.URL()))
+		cl := client.Wrap(slack.New("", slack.OptionAPIURL(srv.URL())))
 
-		prov := &chunktest.TestAuth{
-			FakeToken:      "xoxp-1234567890-1234567890-1234567890-1234567890",
-			WantHTTPClient: http.DefaultClient,
-		}
-		ctx := context.Background()
-		sess, err := slackdump.New(ctx, prov, slackdump.WithSlackClient(cl), slackdump.WithLimits(network.NoLimits))
-		if err != nil {
-			t.Fatal(err)
-		}
+		ctx := t.Context()
 		dir := t.TempDir()
 		output := filepath.Join(dir, "output.zip")
 		fsa, err := fsadapter.New(output)
@@ -82,7 +71,7 @@ func Test_exportV3(t *testing.T) {
 		defer fsa.Close()
 
 		list := &structures.EntityList{}
-		if err := export(ctx, sess, fsa, list, exportFlags{}); err != nil {
+		if err := export(ctx, cl, fsa, list, exportFlags{}); err != nil {
 			t.Fatal(err)
 		}
 	})

@@ -276,10 +276,12 @@ type Transformer interface {
 	// the channel id becomes zero (meaning, that there are no more chunks to
 	// process).  It should return [transform.ErrClosed] if the transformer is
 	// closed.
-	Transform(ctx context.Context, id FileID) error
+	Transform(ctx context.Context, channelID, threadID string) error
 }
 
 // NopTransformer is a transformer that does nothing.
 type NopTransformer struct{}
 
-func (n *NopTransformer) Transform(ctx context.Context, id FileID) error { return nil }
+func (*NopTransformer) Transform(context.Context, string, string) error {
+	return nil
+}

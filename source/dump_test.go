@@ -4,6 +4,7 @@ import (
 	"context"
 	"io/fs"
 	"testing"
+	"testing/fstest"
 
 	"github.com/rusq/slack"
 	"github.com/stretchr/testify/assert"
@@ -35,7 +36,7 @@ func TestDump_Channels(t *testing.T) {
 				fs: fixtures.FSTestDumpDir,
 			},
 			args: args{
-				in0: context.Background(),
+				in0: t.Context(),
 			},
 			want: []slack.Channel{
 				{
@@ -55,7 +56,7 @@ func TestDump_Channels(t *testing.T) {
 				fs: fixtures.FSTestDumpZIP(t),
 			},
 			args: args{
-				in0: context.Background(),
+				in0: t.Context(),
 			},
 			want: []slack.Channel{
 				{
@@ -64,6 +65,44 @@ func TestDump_Channels(t *testing.T) {
 							ID: "CHY5HUESG",
 						},
 						Name: "everyone",
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "skips invalid json",
+			fields: fields{
+				fs: fstest.MapFS{
+					"C12345678.json": &fstest.MapFile{ // invalid JSON
+						Data: []byte("{invalid}"),
+					},
+					"G12345678.json": &fstest.MapFile{ // valid JSON
+						Data: []byte(`{"channel_id":"G12345678","name":"test-group"}`), // note: dump format
+					},
+					"C12345679.json": &fstest.MapFile{
+						Data: []byte(`{"channel_id":"C12345679","name":"public"}`),
+					},
+				},
+			},
+			args: args{
+				in0: t.Context(),
+			},
+			want: []slack.Channel{
+				{
+					GroupConversation: slack.GroupConversation{
+						Conversation: slack.Conversation{
+							ID: "G12345678",
+						},
+						Name: "test-group",
+					},
+				},
+				{
+					GroupConversation: slack.GroupConversation{
+						Conversation: slack.Conversation{
+							ID: "C12345679",
+						},
+						Name: "public",
 					},
 				},
 			},
@@ -82,7 +121,7 @@ func TestDump_Channels(t *testing.T) {
 				t.Errorf("Dump.Channels() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			assert.Equal(t, tt.want, got)
+			assert.ElementsMatch(t, tt.want, got)
 		})
 	}
 }

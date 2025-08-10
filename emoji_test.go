@@ -7,6 +7,8 @@ import (
 	"testing"
 
 	"go.uber.org/mock/gomock"
+
+	"github.com/rusq/slackdump/v3/internal/client/mock_client"
 )
 
 func TestSession_DumpEmojis(t *testing.T) {
@@ -16,14 +18,14 @@ func TestSession_DumpEmojis(t *testing.T) {
 	tests := []struct {
 		name     string
 		args     args
-		expectfn func(m *mockClienter)
+		expectfn func(m *mock_client.MockSlackClienter)
 		want     map[string]string
 		wantErr  bool
 	}{
 		{
 			"ok",
-			args{context.Background()},
-			func(m *mockClienter) {
+			args{t.Context()},
+			func(m *mock_client.MockSlackClienter) {
 				m.EXPECT().
 					GetEmojiContext(gomock.Any()).
 					Return(map[string]string{"foo": "bar"}, nil)
@@ -33,8 +35,8 @@ func TestSession_DumpEmojis(t *testing.T) {
 		},
 		{
 			"error is propagated",
-			args{context.Background()},
-			func(m *mockClienter) {
+			args{t.Context()},
+			func(m *mock_client.MockSlackClienter) {
 				m.EXPECT().
 					GetEmojiContext(gomock.Any()).
 					Return(nil, errors.New("not today sir"))
@@ -45,7 +47,7 @@ func TestSession_DumpEmojis(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mcl := NewmockClienter(gomock.NewController(t))
+			mcl := mock_client.NewMockSlackClienter(gomock.NewController(t))
 			tt.expectfn(mcl)
 			s := &Session{
 				client: mcl,

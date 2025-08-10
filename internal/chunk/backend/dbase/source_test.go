@@ -37,7 +37,7 @@ func TestOpen(t *testing.T) {
 		{
 			name: "opens and migrates the database",
 			args: args{
-				ctx:  context.Background(),
+				ctx:  t.Context(),
 				path: filepath.Join(dir, t.Name()+".db"),
 			},
 			checkFn: checkGooseTable,
@@ -127,11 +127,11 @@ func TestSource_Channels(t *testing.T) {
 				canClose: true,
 			},
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 			},
 			prepFn: func(t *testing.T, conn repository.PrepareExtContext) {
 				t.Helper()
-				ctx := context.Background()
+				ctx := t.Context()
 				dbp, err := New(ctx, conn.(*sqlx.DB), SessionInfo{})
 				if err != nil {
 					t.Fatal(err)
@@ -158,11 +158,11 @@ func TestSource_Channels(t *testing.T) {
 				canClose: true,
 			},
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 			},
 			prepFn: func(t *testing.T, conn repository.PrepareExtContext) {
 				t.Helper()
-				ctx := context.Background()
+				ctx := t.Context()
 				dbp, err := New(ctx, conn.(*sqlx.DB), SessionInfo{})
 				if err != nil {
 					t.Fatal(err)
@@ -202,7 +202,7 @@ func TestSource_Channels(t *testing.T) {
 func checkGooseTable(t *testing.T, conn repository.PrepareExtContext) {
 	t.Helper()
 	var n int
-	if err := conn.QueryRowxContext(context.Background(), "SELECT COUNT(*) FROM goose_db_version").Scan(&n); err != nil {
+	if err := conn.QueryRowxContext(t.Context(), "SELECT COUNT(*) FROM goose_db_version").Scan(&n); err != nil {
 		t.Error(err)
 	}
 	if n == 0 {
@@ -225,7 +225,7 @@ func Test_migrate(t *testing.T) {
 		{
 			name: "migrates the database",
 			args: args{
-				ctx:  context.Background(),
+				ctx:  t.Context(),
 				path: filepath.Join(dir, t.Name()+".db"),
 			},
 			wantErr: false,
@@ -247,7 +247,7 @@ func Test_migrate(t *testing.T) {
 func prepTestChunk(c ...*chunk.Chunk) utilityFunc {
 	return func(t *testing.T, conn repository.PrepareExtContext) {
 		t.Helper()
-		ctx := context.Background()
+		ctx := t.Context()
 		dbp, err := New(ctx, conn.(*sqlx.DB), SessionInfo{})
 		if err != nil {
 			t.Fatal(err)
@@ -289,7 +289,7 @@ func TestSource_channelUsers(t *testing.T) {
 				canClose: true,
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				channelID: "C01",
 				prealloc:  10,
 			},
@@ -303,7 +303,7 @@ func TestSource_channelUsers(t *testing.T) {
 				canClose: true,
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				channelID: "C02",
 				prealloc:  10,
 			},
@@ -355,7 +355,7 @@ func TestSource_Users(t *testing.T) {
 				canClose: true,
 			},
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 			},
 			prepFn: prepTestChunk(&chunk.Chunk{Type: chunk.CUsers, Users: fixtures.Load[[]slack.User](fixtures.UsersJSON)}),
 			want:   fixtures.Load[[]slack.User](fixtures.UsersJSON),
@@ -409,7 +409,7 @@ func TestSource_AllMessages(t *testing.T) {
 				canClose: true,
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				channelID: "C01",
 			},
 			prepFn: prepTestChunk(&chunk.Chunk{Type: chunk.CMessages, ChannelID: "C01", Messages: fixtures.Load[[]slack.Message](fixtures.TestChannelEveryoneMessagesNativeExport)}),
@@ -468,7 +468,7 @@ func TestSource_AllThreadMessages(t *testing.T) {
 				canClose: true,
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				channelID: "C01",
 				threadID:  threadMsg[0].ThreadTimestamp,
 			},
@@ -572,7 +572,7 @@ func TestSource_ChannelInfo(t *testing.T) {
 				canClose: true,
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				channelID: testChannel.ID,
 			},
 			prepFn: prepTestChunk(
@@ -635,7 +635,7 @@ func TestSource_WorkspaceInfo(t *testing.T) {
 				canClose: true,
 			},
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 			},
 			prepFn: prepTestChunk(&chunk.Chunk{Type: chunk.CWorkspaceInfo, WorkspaceInfo: testAuthTest}),
 			want:   testAuthTest,
@@ -721,7 +721,7 @@ func TestSource_ToChunk(t *testing.T) {
 				canClose: true,
 			},
 			args: args{
-				ctx:    context.Background(),
+				ctx:    t.Context(),
 				sessID: 1,
 			},
 			prepFn: func(t *testing.T, conn repository.PrepareExtContext) {
@@ -729,7 +729,7 @@ func TestSource_ToChunk(t *testing.T) {
 				mr := repository.NewMessageRepository()
 				dbm1, _ := repository.NewDBMessage(1, 0, "C12345", testMsg1)
 				dbm2, _ := repository.NewDBMessage(1, 1, "C12345", testMsg2)
-				if err := mr.Insert(context.Background(), conn, dbm1, dbm2); err != nil {
+				if err := mr.Insert(t.Context(), conn, dbm1, dbm2); err != nil {
 					t.Error(err)
 				}
 			},
@@ -741,7 +741,7 @@ func TestSource_ToChunk(t *testing.T) {
 			name:   "encode error",
 			fields: fields{},
 			args: args{
-				ctx:    context.Background(),
+				ctx:    t.Context(),
 				sessID: 1,
 			},
 			prepFn: func(t *testing.T, conn repository.PrepareExtContext) {
@@ -749,7 +749,7 @@ func TestSource_ToChunk(t *testing.T) {
 				mr := repository.NewMessageRepository()
 				dbm1, _ := repository.NewDBMessage(1, 0, "C12345", testMsg1)
 				dbm2, _ := repository.NewDBMessage(1, 1, "C12345", testMsg2)
-				if err := mr.Insert(context.Background(), conn, dbm1, dbm2); err != nil {
+				if err := mr.Insert(t.Context(), conn, dbm1, dbm2); err != nil {
 					t.Error(err)
 				}
 			},
@@ -762,7 +762,7 @@ func TestSource_ToChunk(t *testing.T) {
 			name:   "no such session",
 			fields: fields{},
 			args: args{
-				ctx:    context.Background(),
+				ctx:    t.Context(),
 				sessID: 2,
 			},
 			prepFn: func(t *testing.T, conn repository.PrepareExtContext) {
@@ -770,7 +770,7 @@ func TestSource_ToChunk(t *testing.T) {
 				mr := repository.NewMessageRepository()
 				dbm1, _ := repository.NewDBMessage(1, 0, "C12345", testMsg1)
 				dbm2, _ := repository.NewDBMessage(1, 1, "C12345", testMsg2)
-				if err := mr.Insert(context.Background(), conn, dbm1, dbm2); err != nil {
+				if err := mr.Insert(t.Context(), conn, dbm1, dbm2); err != nil {
 					t.Error(err)
 				}
 			},
@@ -782,7 +782,7 @@ func TestSource_ToChunk(t *testing.T) {
 				canClose: true,
 			},
 			args: args{
-				ctx:    context.Background(),
+				ctx:    t.Context(),
 				sessID: 0,
 			},
 			prepFn: func(t *testing.T, conn repository.PrepareExtContext) {
@@ -790,7 +790,7 @@ func TestSource_ToChunk(t *testing.T) {
 				mr := repository.NewMessageRepository()
 				dbm1, _ := repository.NewDBMessage(1, 0, "C12345", testMsg1)
 				dbm2, _ := repository.NewDBMessage(1, 1, "C12345", testMsg2)
-				if err := mr.Insert(context.Background(), conn, dbm1, dbm2); err != nil {
+				if err := mr.Insert(t.Context(), conn, dbm1, dbm2); err != nil {
 					t.Error(err)
 				}
 			},
@@ -848,12 +848,12 @@ func TestSource_Sessions(t *testing.T) {
 				canClose: true,
 			},
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 			},
 			prepFn: func(t *testing.T, ec repository.PrepareExtContext) {
 				sr := repository.NewSessionRepository()
 				for _, s := range sessions {
-					if _, err := sr.Insert(context.Background(), ec, &s); err != nil {
+					if _, err := sr.Insert(t.Context(), ec, &s); err != nil {
 						t.Error(err)
 					}
 				}

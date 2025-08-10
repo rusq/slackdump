@@ -12,6 +12,12 @@ import (
 	"github.com/rusq/slackdump/v3/internal/chunk/backend/dbase"
 )
 
+const DefaultDBFile = "slackdump.sqlite"
+
+// Database represents a database source.  It implements the [Sourcer]
+// interface and provides access to the database data.  It also provides
+// access to the files and avatars storage, if available.  The database source
+// is created by calling [OpenDatabase] function.
 type Database struct {
 	name    string
 	files   Storage
@@ -24,7 +30,9 @@ var _ Sourcer = (*Database)(nil)
 // OpenDatabase attempts to open the database at given path. It supports both
 // types - when database file is given directly, and when the path is a
 // directory containing the "slackdump.sqlite" file.  In the latter case, it
-// will also attempt to open the mattermost storage.
+// will also attempt to open the mattermost storage, and if no storage is found,
+// it will return a special [NoStorage] type, which returns [fs.ErrNotExist] for
+// all file operations.
 func OpenDatabase(ctx context.Context, path string) (*Database, error) {
 	var (
 		fst    Storage = NoStorage{}
@@ -41,7 +49,7 @@ func OpenDatabase(ctx context.Context, path string) (*Database, error) {
 		name = filepath.Dir(path)
 	} else {
 		// directory
-		dbfile = filepath.Join(path, "slackdump.sqlite")
+		dbfile = filepath.Join(path, DefaultDBFile)
 		rootFS := os.DirFS(path)
 		if st, err := OpenMattermostStorage(rootFS); err == nil {
 			fst = st
@@ -61,21 +69,11 @@ func OpenDatabase(ctx context.Context, path string) (*Database, error) {
 }
 
 // DatabaseWithSource returns a new database source with the given database
-// processor source.  It will not have any files or avatars storage.
+// processor source.  It will not have any files or avatars storage.  In most
+// cases you should use [OpenDatabase] instead, unless you know what you are
+// doing.
 func DatabaseWithSource(source *dbase.Source) *Database {
 	return &Database{name: "dbase", Source: source, files: NoStorage{}, avatars: NoStorage{}}
-}
-
-// SetFiles sets the files storage.
-func (d *Database) SetFiles(fst Storage) *Database {
-	d.files = fst
-	return d
-}
-
-// SetAvatars sets the avatars storage.
-func (d *Database) SetAvatars(fst Storage) *Database {
-	d.avatars = fst
-	return d
 }
 
 func (d *Database) Name() string {
@@ -97,6 +95,9 @@ func (d *Database) Avatars() Storage {
 func (d *Database) Channels(ctx context.Context) ([]slack.Channel, error) {
 	chns, err := d.Source.Channels(ctx)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
 		return nil, err
 	}
 	if len(chns) == 0 {

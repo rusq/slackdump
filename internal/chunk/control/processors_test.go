@@ -32,7 +32,7 @@ var (
 )
 
 func Test_userCollector_Users(t *testing.T) {
-	testCtx := context.Background()
+	testCtx := t.Context()
 	type fields struct {
 		ctx   context.Context
 		users []slack.User
@@ -56,7 +56,7 @@ func Test_userCollector_Users(t *testing.T) {
 				users: []slack.User{},
 			},
 			args: args{
-				ctx:   context.Background(),
+				ctx:   t.Context(),
 				users: []slack.User{},
 			},
 			wantErr: false,
@@ -72,7 +72,7 @@ func Test_userCollector_Users(t *testing.T) {
 				users: []slack.User{},
 			},
 			args: args{
-				ctx:   context.Background(),
+				ctx:   t.Context(),
 				users: []slack.User{testUser1, testUser2},
 			},
 			wantErr: false,
@@ -98,7 +98,7 @@ func Test_userCollector_Users(t *testing.T) {
 }
 
 func Test_userCollector_Close(t *testing.T) {
-	testCtx := context.Background()
+	testCtx := t.Context()
 	type fields struct {
 		ctx   context.Context
 		users []slack.User
@@ -186,7 +186,7 @@ func Test_userCollector_Close(t *testing.T) {
 }
 
 func Test_conversationTransformer_mbeTransform(t *testing.T) {
-	testCtx := context.Background()
+	testCtx := t.Context()
 	type fields struct {
 		ctx context.Context
 		// tf  directory.Transformer
@@ -218,7 +218,7 @@ func Test_conversationTransformer_mbeTransform(t *testing.T) {
 			},
 			expectFn: func(mrc *mock_control.MockReferenceChecker, mes *mock_control.MockExportTransformer) {
 				mrc.EXPECT().IsComplete(gomock.Any(), "C12345678").Return(true, nil)
-				mes.EXPECT().Transform(gomock.Any(), chunk.FileID("C12345678")).Return(nil)
+				mes.EXPECT().Transform(gomock.Any(), "C12345678", "").Return(nil)
 			},
 			wantErr: false,
 		},
@@ -246,7 +246,7 @@ func Test_conversationTransformer_mbeTransform(t *testing.T) {
 			args:   args{ctx: testCtx, channelID: "C12345678"},
 			expectFn: func(mrc *mock_control.MockReferenceChecker, mes *mock_control.MockExportTransformer) {
 				mrc.EXPECT().IsComplete(gomock.Any(), "C12345678").Return(true, nil)
-				mes.EXPECT().Transform(gomock.Any(), chunk.FileID("C12345678")).Return(assert.AnError)
+				mes.EXPECT().Transform(gomock.Any(), "C12345678", "").Return(assert.AnError)
 			},
 			wantErr: true,
 		},
@@ -255,8 +255,8 @@ func Test_conversationTransformer_mbeTransform(t *testing.T) {
 			fields: fields{ctx: testCtx},
 			args:   args{ctx: testCtx, channelID: "C12345678", threadID: "1234.5678", threadOnly: true},
 			expectFn: func(mrc *mock_control.MockReferenceChecker, mes *mock_control.MockExportTransformer) {
-				mrc.EXPECT().IsComplete(gomock.Any(), "C12345678").Return(true, nil)
-				mes.EXPECT().Transform(gomock.Any(), chunk.ToFileID("C12345678", "1234.5678", true)).Return(nil)
+				mrc.EXPECT().IsCompleteThread(gomock.Any(), "C12345678", "1234.5678").Return(true, nil)
+				mes.EXPECT().Transform(gomock.Any(), "C12345678", "1234.5678").Return(nil)
 			},
 			wantErr: false,
 		},
@@ -283,10 +283,7 @@ func Test_conversationTransformer_mbeTransform(t *testing.T) {
 
 func Test_conversationTransformer_ThreadMessages(t *testing.T) {
 	type fields struct {
-		ctx      context.Context
-		tf       chunk.Transformer
-		expectFn func(*mock_control.MockReferenceChecker, *mock_control.MockExportTransformer)
-		rc       ReferenceChecker
+		ctx context.Context
 	}
 	type args struct {
 		ctx        context.Context
@@ -306,10 +303,10 @@ func Test_conversationTransformer_ThreadMessages(t *testing.T) {
 		{
 			name: "not last",
 			fields: fields{
-				ctx: context.Background(),
+				ctx: t.Context(),
 			},
 			args: args{
-				ctx:        context.Background(),
+				ctx:        t.Context(),
 				channelID:  "C12345678",
 				parent:     slack.Message{},
 				threadOnly: false,
@@ -321,10 +318,10 @@ func Test_conversationTransformer_ThreadMessages(t *testing.T) {
 		{
 			name: "last, no error",
 			fields: fields{
-				ctx: context.Background(),
+				ctx: t.Context(),
 			},
 			args: args{
-				ctx:        context.Background(),
+				ctx:        t.Context(),
 				channelID:  "C12345678",
 				parent:     slack.Message{},
 				threadOnly: false,
@@ -337,10 +334,10 @@ func Test_conversationTransformer_ThreadMessages(t *testing.T) {
 		{
 			name: "last, error",
 			fields: fields{
-				ctx: context.Background(),
+				ctx: t.Context(),
 			},
 			args: args{
-				ctx:        context.Background(),
+				ctx:        t.Context(),
 				channelID:  "C12345678",
 				parent:     slack.Message{},
 				threadOnly: false,
@@ -373,16 +370,16 @@ func Test_conversationTransformer_ThreadMessages(t *testing.T) {
 
 func ctMbeTransformError(mrc *mock_control.MockReferenceChecker, mes *mock_control.MockExportTransformer) {
 	mrc.EXPECT().IsComplete(gomock.Any(), gomock.Any()).Return(true, nil)
-	mes.EXPECT().Transform(gomock.Any(), gomock.Any()).Return(assert.AnError)
+	mes.EXPECT().Transform(gomock.Any(), gomock.Any(), gomock.Any()).Return(assert.AnError)
 }
 
 func ctMbeTransformSuccess(mrc *mock_control.MockReferenceChecker, mes *mock_control.MockExportTransformer) {
 	mrc.EXPECT().IsComplete(gomock.Any(), gomock.Any()).Return(true, nil)
-	mes.EXPECT().Transform(gomock.Any(), gomock.Any()).Return(nil)
+	mes.EXPECT().Transform(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
 }
 
 func Test_conversationTransformer_Messages(t *testing.T) {
-	testCtx := context.Background()
+	testCtx := t.Context()
 	type fields struct {
 		ctx context.Context
 		// tf  directory.Transformer
@@ -510,7 +507,7 @@ var (
 )
 
 func Test_chanFilter_Channels(t *testing.T) {
-	cancelledCtx, cancel := context.WithCancel(context.Background())
+	cancelledCtx, cancel := context.WithCancel(t.Context())
 	cancel()
 	type fields struct {
 		// links      chan<- structures.EntityItem
@@ -535,7 +532,7 @@ func Test_chanFilter_Channels(t *testing.T) {
 				idx:        make(map[string]*structures.EntityItem),
 			},
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 				ch: []slack.Channel{
 					testPubChanMember,
 					testPubChanNonMember,
@@ -557,7 +554,7 @@ func Test_chanFilter_Channels(t *testing.T) {
 				idx:        make(map[string]*structures.EntityItem),
 			},
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 				ch: []slack.Channel{
 					testPubChanMember,
 					testPubChanNonMember,
@@ -580,7 +577,7 @@ func Test_chanFilter_Channels(t *testing.T) {
 				idx:        must(structures.NewEntityList([]string{"^C11111111", "^G44444444"})).Index(),
 			},
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 				ch: []slack.Channel{
 					testPubChanMember,
 					testPubChanNonMember,
@@ -633,7 +630,7 @@ func Test_chanFilter_Channels(t *testing.T) {
 }
 
 func Test_combinedChannels_Channels(t *testing.T) {
-	cancelledCtx, cancel := context.WithCancel(context.Background())
+	cancelledCtx, cancel := context.WithCancel(t.Context())
 	cancel()
 	type fields struct {
 		// output    chan<- structures.EntityItem
@@ -656,7 +653,7 @@ func Test_combinedChannels_Channels(t *testing.T) {
 				processed: make(map[string]struct{}),
 			},
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 				ch: []slack.Channel{
 					testPubChanMember,
 					testPubChanNonMember,
@@ -681,7 +678,7 @@ func Test_combinedChannels_Channels(t *testing.T) {
 				},
 			},
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 				ch: []slack.Channel{
 					testPubChanMember,
 					testPubChanNonMember,
@@ -888,7 +885,7 @@ func Test_jointFileSearcher_Close(t *testing.T) {
 }
 
 func Test_msgUserIDsCollector_collect(t *testing.T) {
-	cancelled, cancel := context.WithCancel(context.Background())
+	cancelled, cancel := context.WithCancel(t.Context())
 	cancel()
 	type fields struct {
 		seen    map[string]struct{}
@@ -922,7 +919,7 @@ func Test_msgUserIDsCollector_collect(t *testing.T) {
 				userIDC: make(chan []string, 2),
 			},
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 				mm: []slack.Message{
 					{Msg: slack.Msg{User: "U12345678"}},
 					{Msg: slack.Msg{User: "U87654321"}},
@@ -938,7 +935,7 @@ func Test_msgUserIDsCollector_collect(t *testing.T) {
 				userIDC: make(chan []string, 3),
 			},
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 				mm: []slack.Message{
 					{Msg: slack.Msg{User: "U12345678"}},
 					{Msg: slack.Msg{User: "U87654321"}},
@@ -1064,6 +1061,71 @@ func Test_msgUserIDsCollector_C(t *testing.T) {
 			}
 			if got := uic.C(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("msgUserIDsCollector.C() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_conversationTransformer_mbeTransformChannel(t *testing.T) {
+	type fields struct {
+		ctx context.Context
+		tf  chunk.Transformer
+		rc  ReferenceChecker
+	}
+	type args struct {
+		ctx       context.Context
+		channelID string
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		// TODO: Add test cases.
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ct := &conversationTransformer{
+				ctx: tt.fields.ctx,
+				tf:  tt.fields.tf,
+				rc:  tt.fields.rc,
+			}
+			if err := ct.mbeTransformChannel(tt.args.ctx, tt.args.channelID); (err != nil) != tt.wantErr {
+				t.Errorf("conversationTransformer.mbeTransformChannel() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func Test_conversationTransformer_mbeTransformThread(t *testing.T) {
+	type fields struct {
+		ctx context.Context
+		tf  chunk.Transformer
+		rc  ReferenceChecker
+	}
+	type args struct {
+		ctx       context.Context
+		channelID string
+		threadID  string
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		// TODO: Add test cases.
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ct := &conversationTransformer{
+				ctx: tt.fields.ctx,
+				tf:  tt.fields.tf,
+				rc:  tt.fields.rc,
+			}
+			if err := ct.mbeTransformThread(tt.args.ctx, tt.args.channelID, tt.args.threadID); (err != nil) != tt.wantErr {
+				t.Errorf("conversationTransformer.mbeTransformThread() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}

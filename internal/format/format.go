@@ -3,10 +3,12 @@
 package format
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"io"
-	"sort"
+	"maps"
+	"slices"
 	"strings"
 
 	"github.com/rusq/slack"
@@ -45,20 +47,18 @@ func (tt Types) String() string {
 }
 
 func All() Types {
-	keys := make([]Type, 0, len(Converters))
-	for t := range Converters {
-		keys = append(keys, t)
-	}
-	sort.Slice(keys, func(i, j int) bool {
-		return string(keys[i].String()) < string(keys[j].String())
+	return slices.SortedFunc(maps.Keys(converters), func(a, b Type) int {
+		return cmp.Compare(a.String(), b.String())
 	})
-	return keys
 }
 
 // Formatter is a converter interface that each formatter must implement.
 type Formatter interface {
+	// Conversation writes the conversation to the writer.
 	Conversation(ctx context.Context, w io.Writer, u []slack.User, conv *types.Conversation) error
+	// Channels writes the channel list to the writer.
 	Channels(ctx context.Context, w io.Writer, u []slack.User, chans []slack.Channel) error
+	// Users writes the user list to the writer.
 	Users(ctx context.Context, w io.Writer, u []slack.User) error
 	// Extension returns the file extension for the formatter.
 	Extension() string
@@ -68,12 +68,13 @@ type options struct {
 	textOptions
 	csvOptions
 	jsonOptions
+	bare bool // bare output format
 }
 
 // Option is the converter option.
 type Option func(*options)
 
-var Converters = make(map[Type]func(opts ...Option) Formatter)
+var converters = make(map[Type]func(opts ...Option) Formatter)
 
 func (e *Type) Set(v string) error {
 	v = strings.ToLower(v)
@@ -84,6 +85,19 @@ func (e *Type) Set(v string) error {
 		}
 	}
 	return fmt.Errorf("unknown converter: %s", v)
+}
+
+func (e *Type) FormatFunc() (func(opts ...Option) Formatter, bool) {
+	fn, ok := converters[*e]
+	return fn, ok
+}
+
+// WithBareFormat allows to set the bare output format for the formatter that
+// supports it.
+func WithBareFormat(b bool) Option {
+	return func(o *options) {
+		o.bare = b
+	}
 }
 
 // userReplacer returns a replacer that replaces all user IDs with their

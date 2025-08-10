@@ -32,7 +32,7 @@ func Test_chunkRepository_Insert(t *testing.T) {
 		{
 			name: "success",
 			args: args{
-				ctx:  context.Background(),
+				ctx:  t.Context(),
 				conn: testConn(t),
 				chunk: &DBChunk{
 					SessionID:  1,
@@ -44,7 +44,7 @@ func Test_chunkRepository_Insert(t *testing.T) {
 			},
 			prepFn: func(t *testing.T, db PrepareExtContext) {
 				var r sessionRepository
-				id, err := r.Insert(context.Background(), db, &Session{})
+				id, err := r.Insert(t.Context(), db, &Session{})
 				require.NoError(t, err)
 				assert.Equal(t, int64(1), id)
 			},
@@ -54,7 +54,7 @@ func Test_chunkRepository_Insert(t *testing.T) {
 		{
 			name: "missing session",
 			args: args{
-				ctx:  context.Background(),
+				ctx:  t.Context(),
 				conn: testConn(t),
 				chunk: &DBChunk{
 					SessionID:  1,
@@ -97,6 +97,7 @@ func TestDBChunk_Chunk(t *testing.T) {
 		ChannelID   *string
 		SearchQuery *string
 		Final       bool
+		ThreadOnly  *bool
 	}
 	tests := []struct {
 		name   string
@@ -144,6 +145,50 @@ func TestDBChunk_Chunk(t *testing.T) {
 			},
 		},
 		{
+			name: "thread messages, thread only",
+			fields: fields{
+				ID:         1,
+				SessionID:  1,
+				UnixTS:     1234567890,
+				TypeID:     chunk.CThreadMessages,
+				NumRecords: 100,
+				Final:      true,
+				ChannelID:  ptr("C1234567890"),
+				ThreadOnly: ptr(true),
+			},
+			want: &chunk.Chunk{
+				Type:       chunk.CThreadMessages,
+				Timestamp:  1234567890,
+				ChannelID:  "C1234567890",
+				Count:      100,
+				IsLast:     true,
+				ThreadOnly: true,
+				Messages:   make([]slack.Message, 0, 100),
+			},
+		},
+		{
+			name: "thread messages, not thread only",
+			fields: fields{
+				ID:         1,
+				SessionID:  1,
+				UnixTS:     1234567890,
+				TypeID:     chunk.CThreadMessages,
+				NumRecords: 100,
+				Final:      true,
+				ChannelID:  ptr("C1234567890"),
+				ThreadOnly: ptr(false),
+			},
+			want: &chunk.Chunk{
+				Type:       chunk.CThreadMessages,
+				Timestamp:  1234567890,
+				ChannelID:  "C1234567890",
+				Count:      100,
+				IsLast:     true,
+				ThreadOnly: false,
+				Messages:   make([]slack.Message, 0, 100),
+			},
+		},
+		{
 			name: "channel users",
 			fields: fields{
 				ID:         1,
@@ -174,6 +219,7 @@ func TestDBChunk_Chunk(t *testing.T) {
 				ChannelID:   tt.fields.ChannelID,
 				SearchQuery: tt.fields.SearchQuery,
 				Final:       tt.fields.Final,
+				ThreadOnly:  tt.fields.ThreadOnly,
 			}
 			if got := c.Chunk(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("DBChunk.Chunk() = %v, want %v", got, tt.want)
@@ -268,41 +314,19 @@ func TestDBChunk_userkey(t *testing.T) {
 }
 
 func TestDBChunk_columns(t *testing.T) {
-	type fields struct {
-		ID          int64
-		SessionID   int64
-		UnixTS      int64
-		CreatedAt   time.Time
-		TypeID      chunk.ChunkType
-		NumRecords  int32
-		ChannelID   *string
-		SearchQuery *string
-		Final       bool
-	}
 	tests := []struct {
-		name   string
-		fields fields
-		want   []string
+		name string
+		c    DBChunk
+		want []string
 	}{
 		{
 			name: "columns",
-			want: []string{"SESSION_ID", "UNIX_TS", "TYPE_ID", "NUM_REC", "CHANNEL_ID", "SEARCH_QUERY", "FINAL"},
+			want: []string{"SESSION_ID", "UNIX_TS", "TYPE_ID", "NUM_REC", "CHANNEL_ID", "SEARCH_QUERY", "FINAL", "THREAD_ONLY"},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			d := DBChunk{
-				ID:          tt.fields.ID,
-				SessionID:   tt.fields.SessionID,
-				UnixTS:      tt.fields.UnixTS,
-				CreatedAt:   tt.fields.CreatedAt,
-				TypeID:      tt.fields.TypeID,
-				NumRecords:  tt.fields.NumRecords,
-				ChannelID:   tt.fields.ChannelID,
-				SearchQuery: tt.fields.SearchQuery,
-				Final:       tt.fields.Final,
-			}
-			if got := d.columns(); !reflect.DeepEqual(got, tt.want) {
+			if got := tt.c.columns(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("DBChunk.columns() = %v, want %v", got, tt.want)
 			}
 		})
@@ -320,6 +344,7 @@ func TestDBChunk_values(t *testing.T) {
 		ChannelID   *string
 		SearchQuery *string
 		Final       bool
+		ThreadOnly  *bool
 	}
 	tests := []struct {
 		name   string
@@ -338,8 +363,9 @@ func TestDBChunk_values(t *testing.T) {
 				ChannelID:   ptr("C123456789"),
 				SearchQuery: new(string),
 				Final:       true,
+				ThreadOnly:  ptr(true),
 			},
-			want: []any{int64(2), int64(3), chunk.CFiles, int32(6), ptr("C123456789"), ptr(""), true},
+			want: []any{int64(2), int64(3), chunk.CFiles, int32(6), ptr("C123456789"), ptr(""), true, ptr(true)},
 		},
 	}
 	for _, tt := range tests {
@@ -354,6 +380,7 @@ func TestDBChunk_values(t *testing.T) {
 				ChannelID:   tt.fields.ChannelID,
 				SearchQuery: tt.fields.SearchQuery,
 				Final:       tt.fields.Final,
+				ThreadOnly:  tt.fields.ThreadOnly,
 			}
 			assert.Equal(t, tt.want, d.values())
 		})
@@ -423,7 +450,7 @@ func Test_chunkRepository_Count(t *testing.T) {
 		{
 			name: "correctly counts",
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				conn:      testConn(t),
 				sessionID: 1,
 			},

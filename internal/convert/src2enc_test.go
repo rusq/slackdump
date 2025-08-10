@@ -7,11 +7,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/rusq/slackdump/v3/source/mock_source"
+
 	"github.com/rusq/slack"
 	"go.uber.org/mock/gomock"
 
 	"github.com/rusq/slackdump/v3/internal/fasttime"
-	"github.com/rusq/slackdump/v3/internal/source/mock_source"
 	"github.com/rusq/slackdump/v3/internal/structures"
 	"github.com/rusq/slackdump/v3/mocks/mock_processor"
 )
@@ -32,7 +33,7 @@ func Test_encodeMessages(t *testing.T) {
 		{
 			name: "ok",
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 				ch:  structures.ChannelFromID("C123"),
 			},
 			expectFn: func(t *testing.T, mc *mock_processor.MockConversations, ms *mock_source.MockSourcer) {
@@ -136,7 +137,7 @@ func Test_encodeThreadMessages(t *testing.T) {
 		{
 			name: "ok",
 			args: args{
-				ctx:      context.Background(),
+				ctx:      t.Context(),
 				ch:       structures.ChannelFromID("C123"),
 				par:      parentMsg,
 				threadTS: "123.456",

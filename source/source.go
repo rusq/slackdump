@@ -1,13 +1,3 @@
-// Package source provides archive readers for different output formats.
-//
-// Currently, the following formats are supported:
-//   - archive
-//   - database
-//   - dump
-//   - Slack Export
-//
-// One should use `Load` function to load the source from the file system.  It
-// will automatically detect the format and return the appropriate reader.
 package source
 
 import (
@@ -98,14 +88,22 @@ type Flags int8
 
 const (
 	// container
+	// FDirectory indicates that the source is a directory.
 	FDirectory Flags = 1 << iota
+	// FZip indicates that the source is a ZIP archive.
 	FZip
 	// main content
+	// FChunk is set on directories with json.gz files.
 	FChunk
+	// FExport is set on Slack export directories or ZIP files.
 	FExport
+	// FDump is set on a Slackdump Dump format directory or ZIP file.
 	FDump
+	// FDatabase indicates that the source is a SQLite database.
 	FDatabase
 
+	// FUnknown is returned if the source type is not supported or
+	// can not be determined.
 	FUnknown Flags = 0
 )
 
@@ -152,7 +150,10 @@ var (
 	_ Sourcer = &Database{}
 )
 
-// Load loads the source from file src.
+// Load loads the source from file src.  It will automatically detect the
+// format and return the appropriate reader.  It will detect any attachments
+// and avatars if they exist in the source.  It will return an error if the
+// source type is not supported or if the source is not found.
 func Load(ctx context.Context, src string) (SourceResumeCloser, error) {
 	lg := slog.With("source", src)
 	st, err := Type(src)
@@ -252,7 +253,7 @@ func srcType(src string, fi fs.FileInfo) Flags {
 	if _, err := fs.Stat(fsys, "channels.json"); err == nil {
 		return flags | FExport
 	}
-	if _, err := fs.Stat(fsys, "slackdump.sqlite"); err == nil {
+	if _, err := fs.Stat(fsys, DefaultDBFile); err == nil {
 		// directory with the database
 		return flags | FDatabase
 	}

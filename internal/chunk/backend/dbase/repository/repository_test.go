@@ -50,7 +50,7 @@ func testConnDSN(t *testing.T, dsn string) *sqlx.DB {
 	if _, err := db.Exec("PRAGMA foreign_keys = ON"); err != nil {
 		t.Fatalf("PRAGMA foreign_keys = ON err = %v; want nil", err)
 	}
-	if err := Migrate(context.Background(), db.DB, true); err != nil {
+	if err := Migrate(t.Context(), db.DB, true); err != nil {
 		t.Fatalf("Migrate() err = %v; want nil", err)
 	}
 	return db
@@ -65,7 +65,7 @@ func checkCount(table string, want int) utilityFn {
 	return func(t *testing.T, conn PrepareExtContext) {
 		t.Helper()
 		var count int
-		if err := conn.QueryRowxContext(context.Background(), "SELECT COUNT(*) FROM "+table).Scan(&count); err != nil {
+		if err := conn.QueryRowxContext(t.Context(), "SELECT COUNT(*) FROM "+table).Scan(&count); err != nil {
 			t.Fatalf(" err = %v; want nil", err)
 		}
 		if count != want {
@@ -95,7 +95,7 @@ type testChunk struct {
 func prepChunkWithFinal(tc ...testChunk) utilityFn {
 	return func(t *testing.T, conn PrepareExtContext) {
 		t.Helper()
-		ctx := context.Background()
+		ctx := t.Context()
 		var (
 			sr = NewSessionRepository()
 			cr = NewChunkRepository()

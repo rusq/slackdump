@@ -2,37 +2,29 @@ package apiconfig
 
 import (
 	"context"
+	_ "embed"
 	"errors"
 	"fmt"
-	"os"
 	"path/filepath"
 	"runtime/trace"
 
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/bootstrap"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui"
 	"github.com/rusq/slackdump/v3/internal/network"
 )
 
+//go:embed assets/config_new.md
+var configNewMD string
+
 var CmdConfigNew = &base.Command{
-	UsageLine: "slackdump config new",
-	Short:     "creates a new API config with the default values",
-	Long: `
-# "New" Command
-
-Creates a new API configuration file containing default values. You will need
-to specify the filename, for example:
-
-    slackdump config new myconfig.toml
-
-If the extension is omitted, ".toml" is automatically appended to the name of
-the file.
-`,
-	FlagMask:   cfg.OmitAll,
+	UsageLine:  "slackdump config new",
+	Short:      "creates a new API config with the default values",
+	Long:       configNewMD,
+	FlagMask:   cfg.OmitAll &^ cfg.OmitYesManFlag,
 	PrintFlags: true,
 }
-
-var fNewOverride = CmdConfigNew.Flag.Bool("y", false, "confirm the overwrite of the existing config")
 
 func init() {
 	CmdConfigNew.Run = runConfigNew
@@ -50,9 +42,8 @@ func runConfigNew(ctx context.Context, cmd *base.Command, args []string) error {
 
 	filename := maybeFixExt(args[0])
 
-	if !shouldOverwrite(filename, *fNewOverride) {
-		base.SetExitStatus(base.SUserError)
-		return fmt.Errorf("file or directory exists: %q, use -y flag to overwrite (will not overwrite directory)", filename)
+	if err := bootstrap.AskOverwrite(filename); err != nil {
+		return err
 	}
 
 	if err := Save(filename, network.DefLimits); err != nil {
@@ -87,16 +78,6 @@ RESTART:
 
 	_, err = printConfigOK(filename)
 	return err
-}
-
-// shouldOverwrite returns true if the file can be overwritten.  If override
-// is true and the file exists and not a directory, it will return true.
-func shouldOverwrite(filename string, override bool) bool {
-	fi, err := os.Stat(filename)
-	if fi != nil && fi.IsDir() {
-		return false
-	}
-	return err != nil || override
 }
 
 // maybeFixExt checks if the extension is one of .toml or .tml, and if not

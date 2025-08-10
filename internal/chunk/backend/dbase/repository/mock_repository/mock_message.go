@@ -119,6 +119,21 @@ func (mr *MockMessageRepositoryMockRecorder) CountThread(ctx, conn, channelID, t
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CountThread", reflect.TypeOf((*MockMessageRepository)(nil).CountThread), ctx, conn, channelID, threadID)
 }
 
+// CountThreadOnlyParts mocks base method.
+func (m *MockMessageRepository) CountThreadOnlyParts(ctx context.Context, conn sqlx.QueryerContext, sessionID int64, channelID, threadID string) (int64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CountThreadOnlyParts", ctx, conn, sessionID, channelID, threadID)
+	ret0, _ := ret[0].(int64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CountThreadOnlyParts indicates an expected call of CountThreadOnlyParts.
+func (mr *MockMessageRepositoryMockRecorder) CountThreadOnlyParts(ctx, conn, sessionID, channelID, threadID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CountThreadOnlyParts", reflect.TypeOf((*MockMessageRepository)(nil).CountThreadOnlyParts), ctx, conn, sessionID, channelID, threadID)
+}
+
 // CountUnfinished mocks base method.
 func (m *MockMessageRepository) CountUnfinished(ctx context.Context, conn sqlx.QueryerContext, sessionID int64, channelID string) (int64, error) {
 	m.ctrl.T.Helper()

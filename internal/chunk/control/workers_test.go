@@ -32,7 +32,7 @@ func Test_userWorker(t *testing.T) {
 		{
 			name: "no errors",
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 				up:  &mock_processor.MockUsers{},
 			},
 			expectFn: func(s *mock_control.MockStreamer) {
@@ -43,7 +43,7 @@ func Test_userWorker(t *testing.T) {
 		{
 			name: "error listing users",
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 			},
 			expectFn: func(s *mock_control.MockStreamer) {
 				s.EXPECT().Users(gomock.Any(), gomock.Any()).Return(errors.New("error listing users"))
@@ -79,7 +79,7 @@ func Test_conversationWorker(t *testing.T) {
 		{
 			name: "no errors",
 			args: args{
-				ctx:   context.Background(),
+				ctx:   t.Context(),
 				proc:  &mock_processor.MockConversations{},
 				links: make(<-chan structures.EntityItem),
 			},
@@ -91,7 +91,7 @@ func Test_conversationWorker(t *testing.T) {
 		{
 			name: "error",
 			args: args{
-				ctx:   context.Background(),
+				ctx:   t.Context(),
 				proc:  &mock_processor.MockConversations{},
 				links: make(<-chan structures.EntityItem),
 			},
@@ -103,7 +103,7 @@ func Test_conversationWorker(t *testing.T) {
 		{
 			name: "closed error",
 			args: args{
-				ctx:   context.Background(),
+				ctx:   t.Context(),
 				proc:  &mock_processor.MockConversations{},
 				links: make(<-chan structures.EntityItem),
 			},
@@ -140,7 +140,7 @@ func Test_workspaceWorker(t *testing.T) {
 		{
 			name: "no errors",
 			args: args{
-				ctx:    context.Background(),
+				ctx:    t.Context(),
 				wsproc: &mock_processor.MockWorkspaceInfo{},
 			},
 			expectFn: func(s *mock_control.MockStreamer) {
@@ -150,7 +150,7 @@ func Test_workspaceWorker(t *testing.T) {
 		{
 			name: "error",
 			args: args{
-				ctx:    context.Background(),
+				ctx:    t.Context(),
 				wsproc: &mock_processor.MockWorkspaceInfo{},
 			},
 			expectFn: func(s *mock_control.MockStreamer) {
@@ -187,7 +187,7 @@ func Test_searchMsgWorker(t *testing.T) {
 		{
 			name: "no errors",
 			args: args{
-				ctx:   context.Background(),
+				ctx:   t.Context(),
 				ms:    &mock_processor.MockMessageSearcher{},
 				query: "query",
 			},
@@ -198,7 +198,7 @@ func Test_searchMsgWorker(t *testing.T) {
 		{
 			name: "error",
 			args: args{
-				ctx:   context.Background(),
+				ctx:   t.Context(),
 				ms:    &mock_processor.MockMessageSearcher{},
 				query: "query",
 			},
@@ -236,7 +236,7 @@ func Test_searchFileWorker(t *testing.T) {
 		{
 			name: "no errors",
 			args: args{
-				ctx:   context.Background(),
+				ctx:   t.Context(),
 				sf:    &mock_processor.MockFileSearcher{},
 				query: "query",
 			},
@@ -247,7 +247,7 @@ func Test_searchFileWorker(t *testing.T) {
 		{
 			name: "error",
 			args: args{
-				ctx:   context.Background(),
+				ctx:   t.Context(),
 				sf:    &mock_processor.MockFileSearcher{},
 				query: "query",
 			},

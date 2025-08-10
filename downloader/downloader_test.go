@@ -1,7 +1,6 @@
 package downloader
 
 import (
-	"context"
 	"log/slog"
 	"testing"
 	"time"
@@ -143,7 +142,7 @@ func TestClient_startWorkers(t *testing.T) {
 			options:  options{lg: slog.Default(), workers: 3},
 		}
 		defer close(c.requests)
-		c.startWorkers(context.Background())
+		c.startWorkers(t.Context())
 		assert.Equal(t, 3, c.workers)
 	})
 	t.Run("no workers specified", func(t *testing.T) {
@@ -153,7 +152,7 @@ func TestClient_startWorkers(t *testing.T) {
 			options:  options{lg: slog.Default()},
 		}
 		defer close(c.requests)
-		c.startWorkers(context.Background())
+		c.startWorkers(t.Context())
 		assert.Equal(t, defNumWorkers, c.workers)
 	})
 }
@@ -164,12 +163,12 @@ func TestStart(t *testing.T) {
 		c := &Client{}
 		c.lg = slog.Default()
 		c.started.Store(true)
-		assert.Error(t, c.Start(context.Background()), "expected error")
+		assert.Error(t, c.Start(t.Context()), "expected error")
 	})
 	t.Run("not started", func(t *testing.T) {
 		c := &Client{}
 		c.lg = slog.Default()
-		assert.NoError(t, c.Start(context.Background()), "expected no error")
+		assert.NoError(t, c.Start(t.Context()), "expected no error")
 		assert.True(t, c.started.Load(), "expected started to be true")
 	})
 }

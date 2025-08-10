@@ -8,8 +8,8 @@ import (
 	"github.com/rusq/slack"
 
 	"github.com/rusq/slackdump/v3/internal/convert/transform"
-	"github.com/rusq/slackdump/v3/internal/source"
 	"github.com/rusq/slackdump/v3/internal/structures"
+	"github.com/rusq/slackdump/v3/source"
 )
 
 type DumpConverter struct {
@@ -55,7 +55,7 @@ func (d *DumpConverter) Convert(ctx context.Context) error {
 		}
 		tfopts = append(tfopts, transform.DumpWithPipeline(fh.copyFiles))
 	}
-	conv, err := transform.NewDumpConverter(
+	conv, err := transform.NewDump(
 		d.fsa,
 		d.src,
 		tfopts...,

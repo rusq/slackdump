@@ -65,7 +65,6 @@ const (
 
 var ErrUnknown = errors.New("unknown file type")
 
-
 type idextractor interface {
 	UserIDs() []string
 }

@@ -1,25 +1,26 @@
 package bootstrap
 
 import (
-	"context"
 	"strings"
 	"testing"
 
 	"github.com/rusq/slack"
+
 	"github.com/rusq/slackdump/v3"
 	"github.com/rusq/slackdump/v3/auth"
+	"github.com/rusq/slackdump/v3/internal/client"
 	"github.com/rusq/slackdump/v3/internal/fixtures"
 )
 
 func TestSlackdumpSession(t *testing.T) {
 	t.Run("no auth in context", func(t *testing.T) {
-		_, err := SlackdumpSession(context.Background())
+		_, err := SlackdumpSession(t.Context())
 		if err == nil {
 			t.Error("expected error")
 		}
 	})
 	t.Run("auth in context", func(t *testing.T) {
-		var authJSON = `{"token":"` + strings.Replace(fixtures.TestClientToken, `xoxc`, `xoxb`, -1) + `"}`
+		authJSON := `{"token":"` + strings.ReplaceAll(fixtures.TestClientToken, `xoxc`, `xoxb`) + `"}`
 		prov, err := auth.Load(strings.NewReader(authJSON))
 		if err != nil {
 			t.Fatal(err)
@@ -28,9 +29,9 @@ func TestSlackdumpSession(t *testing.T) {
 		// start fake Slack server
 		srv := fixtures.TestAuthServer(t)
 		defer srv.Close()
-		s := slack.New("", slack.OptionAPIURL(srv.URL+"/"))
+		s := client.Wrap(slack.New("", slack.OptionAPIURL(srv.URL+"/")))
 
-		ctx := auth.WithContext(context.Background(), prov)
+		ctx := auth.WithContext(t.Context(), prov)
 		if _, err := SlackdumpSession(ctx, slackdump.WithSlackClient(s)); err != nil {
 			t.Error(err)
 		}

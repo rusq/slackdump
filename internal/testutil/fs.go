@@ -2,6 +2,7 @@ package testutil
 
 import (
 	"io/fs"
+	"os"
 	"testing"
 )
 
@@ -31,4 +32,15 @@ func CollectFiles(t *testing.T, fsys fs.FS) (ret map[string]FileInfo) {
 		t.Fatal(err)
 	}
 	return
+}
+
+// PrepareTestDirectory prepares a temporary directory for testing and populates it with
+// files from fsys.  It returns the path to the directory.
+func PrepareTestDirectory(t *testing.T, fsys fs.FS) string {
+	t.Helper()
+	dir := t.TempDir()
+	if err := os.CopyFS(dir, fsys); err != nil {
+		t.Fatal(err)
+	}
+	return dir
 }

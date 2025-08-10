@@ -9,7 +9,7 @@ files and emojis.  Generate Slack Export without admin privileges.
 
 - [Installation And Quickstart](#installation-and-quickstart)
 - [Join the discussion in Telegram](https://t.me/slackdump).
-- [Buy me a cup of tea](https://ko-fi.com/rusq_), or use **Github Sponsors**
+- [Buy me a cup of tea](https://ko-fi.com/rusq_), or use **GitHub Sponsors**
   button on the top of the page.
 - [![Go reference](https://pkg.go.dev/badge/github.com/rusq/slackdump/v3.svg)][godoc]
 - How to's:
@@ -90,6 +90,23 @@ On other Operating Systems, please follow these steps:
 [man-quickstart]: https://github.com/rusq/slackdump/blob/master/cmd/slackdump/internal/man/assets/quickstart.md
 [man-v2migrate]: https://github.com/rusq/slackdump/blob/master/cmd/slackdump/internal/man/assets/v2migr.md
 [man-changelog]: https://github.com/rusq/slackdump/blob/master/cmd/slackdump/internal/man/assets/changelog.md
+
+## Running Slackdump from a Repo Checkout
+
+If you've cloned the repository and want to run slackdump directly without downloading a release, you can do one of the following:
+
+1. **Build and run** (creates an executable):
+   ```shell
+   go build -o slackdump ./cmd/slackdump
+   ./slackdump wiz
+   ```
+
+2. **Run directly**:
+   ```shell
+   go run ./cmd/slackdump wiz
+   ```
+
+Note: You need Go installed on your system (see `go.mod` for the version)
 
 
 ## Slackord2: Migrating to Discord
@@ -226,16 +243,18 @@ fly, removing the temporary archive files afterwards.
 ## Thank you
 Big thanks to all contributors, who submitted a pull request, reported a bug,
 suggested a feature, helped to reproduce, or spent time chatting with me on
-the Telegram or Slack to help to understand the issue and tested the proposed
-solution.
+the Telegram or Slack to help to understand the problem or feature and tested
+the proposed solution.
 
 Also, I'd like to thank current sponsors:
 
 - [<img class="avatar avatar-user" src="https://avatars.githubusercontent.com/u/9138285?s=60&amp;v=4" width="30" height="30" alt="@malsatin">](https://github.com/malsatin) @malsatin
+- [<img class="avatar avatar-user" src="https://avatars.githubusercontent.com/u/836183?s=60&amp;v=4" width="30" height="30" alt="@angellk">](https://github.com/angellk) @angellk
 
 And everyone who made a donation to support the project in the past and keep
 supporting the project:
 
+- Davanum S.
 - Vivek R.
 - Fabian I.
 - Ori P.

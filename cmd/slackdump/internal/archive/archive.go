@@ -13,7 +13,6 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/rusq/fsadapter"
 
-	"github.com/rusq/slackdump/v3"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/bootstrap"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
@@ -22,8 +21,10 @@ import (
 	"github.com/rusq/slackdump/v3/internal/chunk/backend/dbase/repository"
 	"github.com/rusq/slackdump/v3/internal/chunk/backend/directory"
 	"github.com/rusq/slackdump/v3/internal/chunk/control"
+	"github.com/rusq/slackdump/v3/internal/client"
 	"github.com/rusq/slackdump/v3/internal/convert/transform/fileproc"
 	"github.com/rusq/slackdump/v3/internal/structures"
+	"github.com/rusq/slackdump/v3/source"
 	"github.com/rusq/slackdump/v3/stream"
 )
 
@@ -61,11 +62,16 @@ func runChunkArchive(ctx context.Context, _ *base.Command, args []string) error 
 		base.SetExitStatus(base.SUserError)
 		return err
 	}
-	sess, err := bootstrap.SlackdumpSession(ctx)
+	client, err := bootstrap.Slack(ctx)
 	if err != nil {
 		base.SetExitStatus(base.SInitializationError)
 		return err
 	}
+
+	if err := bootstrap.AskOverwrite(cfg.Output); err != nil {
+		return err
+	}
+
 	cd, err := NewDirectory(cfg.Output)
 	if err != nil {
 		base.SetExitStatus(base.SUserError)
@@ -73,12 +79,12 @@ func runChunkArchive(ctx context.Context, _ *base.Command, args []string) error 
 	}
 	defer cd.Close()
 
-	ctrl, err := ArchiveController(ctx, cd, sess)
+	ctrl, err := ArchiveController(ctx, cd, client)
 	if err != nil {
 		return err
 	}
 	defer ctrl.Close()
-	if err := ctrl.Run(ctx, list); err != nil {
+	if err := ctrl.RunNoTransform(ctx, list); err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return err
 	}
@@ -93,7 +99,7 @@ func runDBArchive(ctx context.Context, cmd *base.Command, args []string) error {
 		base.SetExitStatus(base.SUserError)
 		return err
 	}
-	sess, err := bootstrap.SlackdumpSession(ctx)
+	client, err := bootstrap.Slack(ctx)
 	if err != nil {
 		base.SetExitStatus(base.SInitializationError)
 		return err
@@ -104,7 +110,12 @@ func runDBArchive(ctx context.Context, cmd *base.Command, args []string) error {
 		return err
 	}
 
-	conn, err := sqlx.Open(repository.Driver, filepath.Join(dirname, "slackdump.sqlite"))
+	dbfile := filepath.Join(dirname, source.DefaultDBFile)
+	if err := bootstrap.AskOverwrite(dbfile); err != nil {
+		return err
+	}
+
+	conn, err := sqlx.Open(repository.Driver, dbfile)
 	if err != nil {
 		return err
 	}
@@ -112,7 +123,7 @@ func runDBArchive(ctx context.Context, cmd *base.Command, args []string) error {
 
 	flags := control.Flags{MemberOnly: cfg.MemberOnly, RecordFiles: cfg.RecordFiles, ChannelUsers: cfg.OnlyChannelUsers}
 
-	ctrl, err := DBController(ctx, cmd, conn, sess, dirname, flags)
+	ctrl, err := DBController(ctx, cmd, conn, client, dirname, flags)
 	if err != nil {
 		return err
 	}
@@ -122,7 +133,7 @@ func runDBArchive(ctx context.Context, cmd *base.Command, args []string) error {
 		}
 	}()
 
-	if err := ctrl.Run(ctx, list); err != nil {
+	if err := ctrl.RunNoTransform(ctx, list); err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return err
 	}
@@ -150,7 +161,7 @@ func NewDirectory(name string) (*chunk.Directory, error) {
 // parameters.
 //
 // Obscene, just obscene amount of arguments.
-func DBController(ctx context.Context, cmd *base.Command, conn *sqlx.DB, sess *slackdump.Session, dirname string, flags control.Flags, opts ...stream.Option) (RunCloser, error) {
+func DBController(ctx context.Context, cmd *base.Command, conn *sqlx.DB, client client.Slack, dirname string, flags control.Flags, opts ...stream.Option) (Controller, error) {
 	lg := cfg.Log
 	dbp, err := dbase.New(ctx, conn, bootstrap.SessionInfo(cmd.Name()))
 	if err != nil {
@@ -166,7 +177,7 @@ func DBController(ctx context.Context, cmd *base.Command, conn *sqlx.DB, sess *s
 	dl := fileproc.NewDownloader(
 		ctx,
 		cfg.WithFiles,
-		sess.Client(),
+		client,
 		fsadapter.NewDirectory(dirname),
 		lg,
 	)
@@ -174,14 +185,14 @@ func DBController(ctx context.Context, cmd *base.Command, conn *sqlx.DB, sess *s
 	avdl := fileproc.NewDownloader(
 		ctx,
 		cfg.WithAvatars,
-		sess.Client(),
+		client,
 		fsadapter.NewDirectory(dirname),
 		lg,
 	)
 
 	ctrl, err := control.New(
 		ctx,
-		sess.Stream(sopts...),
+		stream.New(client, cfg.Limits, sopts...),
 		dbp,
 		control.WithFiler(fileproc.New(dl)),
 		control.WithAvatarProcessor(fileproc.NewAvatarProc(avdl)),
@@ -193,14 +204,19 @@ func DBController(ctx context.Context, cmd *base.Command, conn *sqlx.DB, sess *s
 	return ctrl, nil
 }
 
-type RunCloser interface {
+type Controller interface {
+	// Run should run the main controller loop.
 	Run(context.Context, *structures.EntityList) error
+	// RunNoTransform should run the main controller loop without
+	// enabling transformation logic.
+	RunNoTransform(context.Context, *structures.EntityList) error
+
 	io.Closer
 }
 
 // ArchiveController returns the default archive controller initialised based
 // on global configuration parameters.
-func ArchiveController(ctx context.Context, cd *chunk.Directory, sess *slackdump.Session, opts ...stream.Option) (*control.Controller, error) {
+func ArchiveController(ctx context.Context, cd *chunk.Directory, client client.Slack, opts ...stream.Option) (*control.Controller, error) {
 	lg := cfg.Log
 
 	sopts := []stream.Option{
@@ -214,7 +230,7 @@ func ArchiveController(ctx context.Context, cd *chunk.Directory, sess *slackdump
 	dl := fileproc.NewDownloader(
 		ctx,
 		cfg.WithFiles,
-		sess.Client(),
+		client,
 		fsadapter.NewDirectory(cd.Name()),
 		lg,
 	)
@@ -222,7 +238,7 @@ func ArchiveController(ctx context.Context, cd *chunk.Directory, sess *slackdump
 	avdl := fileproc.NewDownloader(
 		ctx,
 		cfg.WithAvatars,
-		sess.Client(),
+		client,
 		fsadapter.NewDirectory(cd.Name()),
 		lg,
 	)
@@ -231,7 +247,7 @@ func ArchiveController(ctx context.Context, cd *chunk.Directory, sess *slackdump
 
 	ctrl, err := control.New(
 		ctx,
-		sess.Stream(sopts...),
+		stream.New(client, cfg.Limits, sopts...),
 		erc,
 		control.WithLogger(lg),
 		control.WithFlags(control.Flags{MemberOnly: cfg.MemberOnly, RecordFiles: cfg.RecordFiles, ChannelUsers: cfg.OnlyChannelUsers}),
@@ -242,14 +258,6 @@ func ArchiveController(ctx context.Context, cd *chunk.Directory, sess *slackdump
 		return nil, err
 	}
 
-	// ctrl := control.NewDir(
-	// 	cd,
-	// 	sess.Stream(sopts...),
-	// 	control.WithLogger(lg),
-	// 	control.WithFlags(control.Flags{MemberOnly: cfg.MemberOnly, RecordFiles: cfg.RecordFiles}),
-	// 	control.WithFiler(fileproc.New(dl)),
-	// 	control.WithAvatarProcessor(fileproc.NewAvatarProc(avdl)),
-	// )
 	return ctrl, nil
 }
 

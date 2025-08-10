@@ -2,6 +2,7 @@ package source
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -67,11 +68,11 @@ func loadStorage(fsys fs.FS) (Storage, error) {
 	if _, err := fs.Stat(fsys, chunk.UploadsDir); err == nil {
 		return OpenMattermostStorage(fsys)
 	}
-	idx, err := buildFileIndex(fsys, ".")
-	if err != nil || len(idx) == 0 {
-		return NoStorage{}, nil
+	st, err := OpenStandardStorage(fsys)
+	if err == nil {
+		return st, nil
 	}
-	return OpenStandardStorage(fsys, idx), nil
+	return NoStorage{}, nil
 }
 
 func (e *Export) Channels(context.Context) ([]slack.Channel, error) {
@@ -135,12 +136,20 @@ func (e *Export) walkChannelMessages(channelID string) (iter.Seq2[slack.Message,
 			if err != nil {
 				return err
 			}
-			if d.IsDir() || path.Ext(pth) != ".json" {
+			if d.IsDir() && pth != name {
+				return fs.SkipDir
+			}
+			if path.Ext(pth) != ".json" {
 				return nil
 			}
 			// read the file
 			em, err := unmarshal[[]export.ExportMessage](e.fs, pth)
 			if err != nil {
+				var jsonErr *json.SyntaxError
+				if errors.As(err, &jsonErr) {
+					slog.Default().Debug("skipping a broken file", "pth", pth, "err", err)
+					return nil
+				}
 				return err
 			}
 			for i, m := range em {
@@ -200,7 +209,8 @@ func (e *Export) ChannelInfo(ctx context.Context, channelID string) (*slack.Chan
 }
 
 func (e *Export) Latest(ctx context.Context) (map[structures.SlackLink]time.Time, error) {
-	return nil, errors.New("not supported yet")
+	// there will be no resume on export.
+	return nil, ErrNotSupported
 }
 
 func (e *Export) WorkspaceInfo(context.Context) (*slack.AuthTestResponse, error) {

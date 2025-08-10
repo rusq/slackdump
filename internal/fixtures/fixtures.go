@@ -47,7 +47,7 @@ func FilledBuffer(sz int) *bytes.Buffer {
 // FilledFile returns a file that filled with sz bytes of 0x00.
 func FilledFile(t *testing.T, sz int) *os.File {
 	t.Helper()
-	f, err := os.CreateTemp("", "sdunit*")
+	f, err := os.CreateTemp(t.TempDir(), "sdunit*")
 	if err != nil {
 		panic(err)
 	}

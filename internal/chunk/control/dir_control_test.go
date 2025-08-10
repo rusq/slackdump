@@ -49,13 +49,13 @@ func TestDirController_Run(t *testing.T) {
 			fields: fields{
 				options: options{
 					lg:    slog.Default(),
-					tf:    &noopTransformer{},
+					tf:    &noopExpTransformer{},
 					filer: &noopFiler{},
 					avp:   &noopAvatarProc{},
 				},
 			},
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 				list: structures.NewEntityListFromItems(structures.EntityItem{
 					Id:      testPubChanMember.ID,
 					Include: true,
@@ -77,13 +77,13 @@ func TestDirController_Run(t *testing.T) {
 			fields: fields{
 				options: options{
 					lg:    slog.Default(),
-					tf:    &noopTransformer{},
+					tf:    &noopExpTransformer{},
 					filer: &noopFiler{},
 					avp:   &noopAvatarProc{},
 				},
 			},
 			args: args{
-				ctx:  context.Background(),
+				ctx:  t.Context(),
 				list: structures.NewEntityListFromItems(),
 			},
 			expectFn: func(s *mock_control.MockStreamer) {
@@ -154,7 +154,7 @@ func TestNewDir(t *testing.T) {
 				s:  &mock_control.MockStreamer{},
 				options: options{
 					lg:    slog.Default(),
-					tf:    &noopTransformer{},
+					tf:    &noopExpTransformer{},
 					filer: &noopFiler{},
 					avp:   &noopAvatarProc{},
 				},
@@ -175,7 +175,7 @@ func TestNewDir(t *testing.T) {
 				s:  &mock_control.MockStreamer{},
 				options: options{
 					lg:    slog.Default(),
-					tf:    &noopTransformer{},
+					tf:    &noopExpTransformer{},
 					filer: &mock_processor.MockFiler{},
 					avp:   &mock_processor.MockAvatars{},
 				},
@@ -253,7 +253,7 @@ func TestDirController_Close(t *testing.T) {
 				s:  tt.fields.s,
 				options: options{
 					lg:    slog.Default(),
-					tf:    &noopTransformer{},
+					tf:    &noopExpTransformer{},
 					filer: f,
 					avp:   a,
 				},

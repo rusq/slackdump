@@ -2,12 +2,13 @@ package convertcmd
 
 import (
 	"context"
+	"log/slog"
 
 	"github.com/rusq/fsadapter"
 
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/internal/convert"
-	"github.com/rusq/slackdump/v3/internal/source"
+	"github.com/rusq/slackdump/v3/source"
 )
 
 func toExport(ctx context.Context, src, trg string, cflg convertflags) error {
@@ -30,7 +31,7 @@ func toExport(ctx context.Context, src, trg string, cflg convertflags) error {
 	defer fsa.Close()
 
 	// output storage
-	sttFn, ok := source.StorageTypeFuncs[cflg.outStorageType]
+	sttFn, ok := cflg.outStorageType.Func()
 	if !ok {
 		return ErrStorage
 	}
@@ -58,5 +59,6 @@ func toExport(ctx context.Context, src, trg string, cflg convertflags) error {
 		return err
 	}
 
+	slog.Info("converted", "source", src, "target", trg)
 	return nil
 }

@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/rusq/slack"
@@ -27,33 +28,63 @@ type Storage interface {
 	// by FS().  If file is not found, it should return fs.ErrNotExist.
 	File(id string, name string) (string, error)
 	// FilePath should return the path to the file f relative to the root of
-	// the Source (i.e. __uploads/ID/Name.ext).
+	// the Source (i.e., for Mattermost, __uploads/ID/Name.ext).
 	FilePath(ch *slack.Channel, f *slack.File) string
+}
+
+// unsafeFilenameRe is a regular expression that matches unsafe characters in
+// filenames.
+var (
+	unsafeFilenameRe = regexp.MustCompile(`[<>:"/\\|?*]`)
+	reservedNames    = map[string]struct{}{
+		"CON": {}, "PRN": {}, "AUX": {}, "NUL": {},
+		"COM1": {}, "COM2": {}, "COM3": {}, "COM4": {}, "COM5": {}, "COM6": {}, "COM7": {}, "COM8": {}, "COM9": {},
+		"LPT1": {}, "LPT2": {}, "LPT3": {}, "LPT4": {}, "LPT5": {}, "LPT6": {}, "LPT7": {}, "LPT8": {}, "LPT9": {},
+	}
+)
+
+// SanitizeFilename ensures the filename is safe for all OSes, especially
+// Windows.
+func SanitizeFilename(name string) string {
+	safe := unsafeFilenameRe.ReplaceAllString(name, "_")
+	safe = strings.TrimRight(safe, " .")
+	base := safe
+	if dot := strings.Index(base, "."); dot != -1 {
+		base = base[:dot]
+	}
+	if _, found := reservedNames[strings.ToUpper(base)]; found {
+		safe = "_" + safe
+	}
+	if safe == "" {
+		safe = "unnamed_file"
+	}
+	return safe
 }
 
 // MattermostFilepath returns the path to the file within the __uploads
 // directory.
 func MattermostFilepath(_ *slack.Channel, f *slack.File) string {
-	return filepath.Join(chunk.UploadsDir, f.ID, f.Name)
+	return filepath.Join(chunk.UploadsDir, f.ID, SanitizeFilename(f.Name))
 }
 
 // MattermostFilepathWithDir returns the path to the file within the given
-// directory, but it follows the mattermost naming pattern.
+// directory, but it follows the mattermost naming pattern.  In most cases
+// you don't need to use this function.
 func MattermostFilepathWithDir(dir string) func(*slack.Channel, *slack.File) string {
 	return func(_ *slack.Channel, f *slack.File) string {
-		return path.Join(dir, f.ID, f.Name)
+		return path.Join(dir, f.ID, SanitizeFilename(f.Name))
 	}
 }
 
 // StdFilepath returns the path to the file within the "attachments"
 // directory.
 func StdFilepath(ci *slack.Channel, f *slack.File) string {
-	return path.Join(ExportChanName(ci), "attachments", fmt.Sprintf("%s-%s", f.ID, f.Name))
+	return path.Join(ExportChanName(ci), "attachments", fmt.Sprintf("%s-%s", f.ID, SanitizeFilename(f.Name)))
 }
 
 // DumpFilepath returns the path to the file within the channel directory.
 func DumpFilepath(ci *slack.Channel, f *slack.File) string {
-	return path.Join(chunk.ToFileID(ci.ID, "", false).String(), f.ID+"-"+f.Name)
+	return path.Join(chunk.ToFileID(ci.ID, "", false).String(), f.ID+"-"+SanitizeFilename(f.Name))
 }
 
 // STMattermost is the Storage for the mattermost export format.  Files
@@ -93,12 +124,18 @@ func (r *STMattermost) Type() StorageType {
 }
 
 func (r *STMattermost) File(id string, name string) (string, error) {
-	pth := path.Join(id, name)
-	_, err := fs.Stat(r.fs, pth)
-	if err != nil {
-		return "", err
+	// Try sanitized name first
+	sanitized := SanitizeFilename(name)
+	pth := path.Join(id, sanitized)
+	if _, err := fs.Stat(r.fs, pth); err == nil {
+		return pth, nil
 	}
-	return pth, nil
+	// Optionally, try original name for backward compatibility
+	pthOrig := path.Join(id, name)
+	if _, err := fs.Stat(r.fs, pthOrig); err == nil {
+		return pthOrig, nil
+	}
+	return "", fs.ErrNotExist
 }
 
 func (r *STMattermost) FilePath(_ *slack.Channel, f *slack.File) string {
@@ -122,13 +159,29 @@ type STStandard struct {
 	idx map[string]string
 }
 
-func OpenStandardStorage(rootfs fs.FS, idx map[string]string) *STStandard {
+// OpenStandardStorage returns the resolver for the export's standard storage
+// format.
+func OpenStandardStorage(rootfs fs.FS) (*STStandard, error) {
+	idx, err := buildStdFileIdx(rootfs, ".")
+	if err != nil {
+		return nil, err
+	}
+	if len(idx) == 0 {
+		return nil, fs.ErrNotExist
+	}
+	return newStandardStorage(rootfs, idx), nil
+}
+
+// newStandardStorage returns the resolver for the standard export storage
+// format, given the root filesystem and the index of files.  The index is
+// built by the [buildStdFileIdx] function.
+func newStandardStorage(rootfs fs.FS, idx map[string]string) *STStandard {
 	return &STStandard{fs: rootfs, idx: idx}
 }
 
-// buildFileIndex walks the fsys, finding all "attachments" subdirectories, and
+// buildStdFileIdx walks the fsys, finding all "attachments" subdirectories, and
 // indexes files in them.
-func buildFileIndex(fsys fs.FS, dir string) (map[string]string, error) {
+func buildStdFileIdx(fsys fs.FS, dir string) (map[string]string, error) {
 	idx := make(map[string]string) // maps the file id to the file name
 	if err := fs.WalkDir(fsys, dir, func(pth string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -174,15 +227,17 @@ func (r *STStandard) FilePath(ci *slack.Channel, f *slack.File) string {
 	return StdFilepath(ci, f)
 }
 
-func (r *STStandard) File(id string, _ string) (string, error) {
-	pth, ok := r.idx[id]
-	if !ok {
-		return "", fs.ErrNotExist
+func (r *STStandard) File(id string, name string) (string, error) {
+	// Try sanitized name first
+	for _, pth := range []string{
+		id + "-" + SanitizeFilename(name),
+		id + "-" + name, // fallback for legacy
+	} {
+		if _, err := fs.Stat(r.fs, pth); err == nil {
+			return pth, nil
+		}
 	}
-	if _, err := fs.Stat(r.fs, pth); err != nil {
-		return "", err
-	}
-	return pth, nil
+	return "", fs.ErrNotExist
 }
 
 type fakefs struct{}
@@ -306,15 +361,19 @@ func (r *STDump) Type() StorageType {
 	return STdump
 }
 
-func (r *STDump) File(id string, _ string) (string, error) {
-	pth, ok := r.idx[id]
-	if !ok {
-		return "", fs.ErrNotExist
+func (r *STDump) File(id string, name string) (string, error) {
+	// Try sanitized name first
+	for _, pth := range []string{
+		r.idx[id],
+	} {
+		if pth == "" {
+			continue
+		}
+		if _, err := fs.Stat(r.fs, pth); err == nil {
+			return pth, nil
+		}
 	}
-	if _, err := fs.Stat(r.fs, pth); err != nil {
-		return "", err
-	}
-	return pth, nil
+	return "", fs.ErrNotExist
 }
 
 type AvatarStorage struct {
@@ -341,7 +400,12 @@ func (r *AvatarStorage) Type() StorageType {
 }
 
 // AvatarParams is a convenience function that returns the user ID and the base
-// name of the original avatar filename.
+// name of the original avatar filename to be passed to AvatarStorage.File function.
+// For example:
+//
+//	var as *AvatarStorage
+//	var u *slack.User
+//	fmt.Println(as.File(AvatarParams(u)))
 func AvatarParams(u *slack.User) (userID string, filename string) {
 	return u.ID, path.Base(u.Profile.ImageOriginal)
 }
@@ -355,6 +419,7 @@ func (r *AvatarStorage) File(userID string, imageOriginalBase string) (string, e
 	return pth, nil
 }
 
+// FilePath is unused on AvatarStorage.
 func (r *AvatarStorage) FilePath(_ *slack.Channel, _ *slack.File) string {
 	return ""
 }

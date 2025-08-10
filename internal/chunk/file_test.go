@@ -2,7 +2,6 @@ package chunk
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -445,7 +444,7 @@ func TestFile_offsetTimestamps(t *testing.T) {
 				rs:  tt.fields.rs,
 				idx: mkindex(tt.fields.rs),
 			}
-			got, err := p.offsetTimestamps(context.Background())
+			got, err := p.offsetTimestamps(t.Context())
 			if (err != nil) != tt.wantErr {
 				t.Errorf("File.offsetTimestamps() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -593,7 +592,7 @@ func TestFile_Sorted(t *testing.T) {
 				return nil
 			}
 
-			if err := p.Sorted(context.Background(), tt.args.channelID, false, recorder); (err != nil) != tt.wantErr {
+			if err := p.Sorted(t.Context(), tt.args.channelID, false, recorder); (err != nil) != tt.wantErr {
 				t.Errorf("File.Sorted() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			assert.Equal(t, tt.wantFnCalls.String(), rec.String())

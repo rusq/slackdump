@@ -17,7 +17,7 @@ import (
 )
 
 func TestConversations_Messages(t *testing.T) {
-	textCtx := context.Background()
+	textCtx := t.Context()
 	type fields struct {
 		subproc     processor.Filer
 		recordFiles bool
@@ -213,7 +213,7 @@ func TestConversations_Messages(t *testing.T) {
 }
 
 func TestConversations_ThreadMessages(t *testing.T) {
-	textCtx := context.Background()
+	textCtx := t.Context()
 	type fields struct {
 		subproc     processor.Filer
 		recordFiles bool
@@ -366,7 +366,7 @@ func TestConversations_ThreadMessages(t *testing.T) {
 }
 
 func TestConversations_ChannelInfo(t *testing.T) {
-	textCtx := context.Background()
+	textCtx := t.Context()
 	type fields struct {
 		subproc     processor.Filer
 		recordFiles bool
@@ -461,7 +461,7 @@ func TestConversations_ChannelInfo(t *testing.T) {
 }
 
 func TestConversations_finalise(t *testing.T) {
-	textCtx := context.Background()
+	textCtx := t.Context()
 	type fields struct {
 		subproc     processor.Filer
 		recordFiles bool
@@ -490,7 +490,7 @@ func TestConversations_finalise(t *testing.T) {
 			expectFn: func(mt *Mocktracker, mtf *mock_chunk.MockTransformer) {
 				mt.EXPECT().RefCount(chunk.FileID("fileID")).Return(0)
 				mt.EXPECT().Unregister(chunk.FileID("fileID")).Return(nil)
-				mtf.EXPECT().Transform(gomock.Any(), chunk.FileID("fileID")).Return(nil)
+				mtf.EXPECT().Transform(gomock.Any(), "fileID", "").Return(nil)
 			},
 			wantErr: false,
 		},
@@ -538,7 +538,7 @@ func TestConversations_finalise(t *testing.T) {
 			expectFn: func(mt *Mocktracker, mtf *mock_chunk.MockTransformer) {
 				mt.EXPECT().RefCount(chunk.FileID("fileID")).Return(0)
 				mt.EXPECT().Unregister(chunk.FileID("fileID")).Return(nil)
-				mtf.EXPECT().Transform(gomock.Any(), chunk.FileID("fileID")).Return(errors.New("transform error"))
+				mtf.EXPECT().Transform(gomock.Any(), "fileID", "").Return(errors.New("transform error"))
 			},
 			wantErr: true,
 		},
@@ -564,7 +564,7 @@ func TestConversations_finalise(t *testing.T) {
 }
 
 func TestConversations_Files(t *testing.T) {
-	testCtx := context.Background()
+	testCtx := t.Context()
 	type fields struct {
 		recordFiles bool
 		tf          chunk.Transformer
@@ -695,7 +695,7 @@ func TestConversations_Files(t *testing.T) {
 }
 
 func TestConversations_ChannelUsers(t *testing.T) {
-	textCtx := context.Background()
+	textCtx := t.Context()
 	type fields struct {
 		subproc     processor.Filer
 		recordFiles bool

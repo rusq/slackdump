@@ -41,7 +41,7 @@ var fetchFn = fetchEmoji
 
 //go:generate mockgen -source emoji.go -destination emoji_mock_test.go -package emojidl
 type EmojiDumper interface {
-	DumpEmojis(ctx context.Context) (map[string]string, error)
+	GetEmojiContext(ctx context.Context) (map[string]string, error)
 }
 
 type Options struct {
@@ -54,7 +54,7 @@ func DlFS(ctx context.Context, sess EmojiDumper, fsa fsadapter.FS, opt *Options,
 	if opt == nil {
 		opt = &Options{}
 	}
-	emojis, err := sess.DumpEmojis(ctx)
+	emojis, err := sess.GetEmojiContext(ctx)
 	if err != nil {
 		return fmt.Errorf("error during emoji dump: %w", err)
 	}

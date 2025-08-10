@@ -12,7 +12,7 @@ import (
 
 	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/internal/fixtures"
-	"github.com/rusq/slackdump/v3/internal/source"
+	"github.com/rusq/slackdump/v3/source"
 )
 
 func Test_transform(t *testing.T) {
@@ -38,7 +38,7 @@ func Test_transform(t *testing.T) {
 		{
 			name: "test",
 			args: args{
-				ctx:    context.Background(),
+				ctx:    t.Context(),
 				fsa:    fsadapter.NewDirectory(fsaDir),
 				srcdir: srcdir,
 				// id:     "D01MN4X7UGP",
@@ -59,7 +59,7 @@ func Test_transform(t *testing.T) {
 				src: src,
 				fsa: tt.args.fsa,
 			}
-			if err := cvt.Convert(tt.args.ctx, chunk.FileID(tt.args.id)); (err != nil) != tt.wantErr {
+			if err := cvt.Convert(tt.args.ctx, tt.args.id, ""); (err != nil) != tt.wantErr {
 				t.Errorf("transform() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

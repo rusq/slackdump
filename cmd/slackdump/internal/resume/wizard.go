@@ -11,7 +11,7 @@ import (
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/cfgui"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/dumpui"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/updaters"
-	"github.com/rusq/slackdump/v3/internal/source"
+	"github.com/rusq/slackdump/v3/source"
 )
 
 func archiveWizard(ctx context.Context, cmd *base.Command, args []string) error {

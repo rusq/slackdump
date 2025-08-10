@@ -11,7 +11,7 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-var fixturesDir = filepath.Join("..", "fixtures", "assets")
+var fixturesDir = filepath.Join("..", "internal", "fixtures", "assets")
 
 func TestLoad(t *testing.T) {
 	type args struct {
@@ -26,55 +26,55 @@ func TestLoad(t *testing.T) {
 	}{
 		{
 			"chunk",
-			args{context.Background(), filepath.Join(fixturesDir, "source_archive")},
+			args{t.Context(), filepath.Join(fixturesDir, "source_archive")},
 			&ChunkDir{},
 			false,
 		},
 		{
 			"chunk, no workspace file",
-			args{context.Background(), filepath.Join(fixturesDir, "source_archive_no_wsp")},
+			args{t.Context(), filepath.Join(fixturesDir, "source_archive_no_wsp")},
 			&ChunkDir{},
 			false,
 		},
 		{
 			"export",
-			args{context.Background(), filepath.Join(fixturesDir, "source_export.zip")},
+			args{t.Context(), filepath.Join(fixturesDir, "source_export.zip")},
 			&Export{},
 			false,
 		},
 		{
 			"export dir",
-			args{context.Background(), filepath.Join(fixturesDir, "source_export_dir")},
+			args{t.Context(), filepath.Join(fixturesDir, "source_export_dir")},
 			&Export{},
 			false,
 		},
 		{
 			"dump.zip",
-			args{context.Background(), filepath.Join(fixturesDir, "source_dump.zip")},
+			args{t.Context(), filepath.Join(fixturesDir, "source_dump.zip")},
 			&Dump{},
 			false,
 		},
 		{
 			"dump dir",
-			args{context.Background(), filepath.Join(fixturesDir, "source_dump_dir")},
+			args{t.Context(), filepath.Join(fixturesDir, "source_dump_dir")},
 			&Dump{},
 			false,
 		},
 		{
 			"database directory",
-			args{context.Background(), filepath.Join(fixturesDir, "source_database")},
+			args{t.Context(), filepath.Join(fixturesDir, "source_database")},
 			&Database{},
 			false,
 		},
 		{
 			"database file",
-			args{context.Background(), filepath.Join(fixturesDir, "source_database.db")},
+			args{t.Context(), filepath.Join(fixturesDir, "source_database.db")},
 			&Database{},
 			false,
 		},
 		{
 			"unknown",
-			args{context.Background(), filepath.Join(fixturesDir, "source_unknown")},
+			args{t.Context(), filepath.Join(fixturesDir, "source_unknown")},
 			nil,
 			true,
 		},
@@ -83,7 +83,7 @@ func TestLoad(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := Load(tt.args.ctx, tt.args.src)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("Load() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("Load() error = %v, wantErr %v (file: %q)", err, tt.wantErr, tt.args.src)
 				return
 			}
 			wantT := reflect.TypeOf(tt.want)

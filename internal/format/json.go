@@ -21,7 +21,7 @@ type JSON struct {
 }
 
 func init() {
-	Converters[CJSON] = NewJSON
+	converters[CJSON] = NewJSON
 }
 
 func NewJSON(opts ...Option) Formatter {

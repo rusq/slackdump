@@ -8,13 +8,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/rusq/slackdump/v3/source"
+
 	"github.com/rusq/fsadapter"
 
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/bootstrap"
 
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
-	"github.com/rusq/slackdump/v3/internal/source"
 	"github.com/rusq/slackdump/v3/internal/structures"
 )
 
@@ -64,10 +65,13 @@ func runExport(ctx context.Context, cmd *base.Command, args []string) error {
 		base.SetExitStatus(base.SUserError)
 		return fmt.Errorf("error parsing the entity list: %w", err)
 	}
+	if err := bootstrap.AskOverwrite(cfg.Output); err != nil {
+		return err
+	}
 
-	sess, err := bootstrap.SlackdumpSession(ctx)
+	client, err := bootstrap.Slack(ctx)
 	if err != nil {
-		base.SetExitStatus(base.SApplicationError)
+		base.SetExitStatus(base.SInitializationError)
 		return err
 	}
 
@@ -85,10 +89,10 @@ func runExport(ctx context.Context, cmd *base.Command, args []string) error {
 	// TODO: remove once the database is stable.
 	if cfg.UseChunkFiles {
 		lg.DebugContext(ctx, "using chunk files backend")
-		err = export(ctx, sess, fsa, list, options)
+		err = export(ctx, client, fsa, list, options)
 	} else {
 		lg.DebugContext(ctx, "using database backend")
-		err = exportv31(ctx, sess, fsa, list, options)
+		err = exportv31(ctx, client, fsa, list, options)
 	}
 	if err != nil {
 		base.SetExitStatus(base.SApplicationError)

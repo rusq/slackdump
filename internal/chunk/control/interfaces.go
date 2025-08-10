@@ -45,6 +45,10 @@ type ReferenceChecker interface {
 	// IsComplete should return true, if all messages and threads for the
 	// channel has been processed.
 	IsComplete(ctx context.Context, channelID string) (bool, error)
+	// IsCompleteThread should return true, if all messages in the thread
+	// for thread-only list entry have been processed.  The behaviour of
+	// this function is undefined for non-thread-only list entries.
+	IsCompleteThread(ctx context.Context, channelID string, threadID string) (bool, error)
 }
 
 // EncodeReferenceCloser is an interface that combines the chunk.Encoder,

@@ -28,12 +28,7 @@ var CmdWspNew = &base.Command{
 	Wizard:     workspaceui.WorkspaceNew,
 }
 
-var newParams = struct {
-	confirm bool
-}{}
-
 func init() {
-	CmdWspNew.Flag.BoolVar(&newParams.confirm, "y", false, "answer yes to all questions")
 	wspcfg.SetWspFlags(&CmdWspNew.Flag)
 
 	CmdWspNew.Run = runWspNew
@@ -55,7 +50,7 @@ func runWspNew(ctx context.Context, cmd *base.Command, args []string) error {
 
 	wsp := argsWorkspace(args, cfg.Workspace)
 
-	if err := createWsp(ctx, m, wsp, newParams.confirm); err != nil {
+	if err := createWsp(ctx, m, wsp, cfg.YesMan); err != nil {
 		return err
 	}
 	return nil
@@ -72,7 +67,7 @@ func createWsp(ctx context.Context, m manager, wsp string, confirm bool) error {
 	if m.Exists(realname(wsp)) {
 		if !confirm && !canOverwrite(wsp) {
 			base.SetExitStatus(base.SCancelled)
-			return ErrOpCancelled
+			return base.ErrOpCancelled
 		}
 		if err := m.Delete(realname(wsp)); err != nil {
 			base.SetExitStatus(base.SApplicationError)
@@ -91,7 +86,7 @@ func createWsp(ctx context.Context, m manager, wsp string, confirm bool) error {
 		if errors.Is(err, auth.ErrCancelled) {
 			base.SetExitStatus(base.SCancelled)
 			lg.WarnContext(ctx, auth.ErrCancelled.Error())
-			return ErrOpCancelled
+			return base.ErrOpCancelled
 		}
 		base.SetExitStatus(base.SAuthError)
 		return err
@@ -101,7 +96,7 @@ func createWsp(ctx context.Context, m manager, wsp string, confirm bool) error {
 	// select it
 	if err := m.Select(realname(wsp)); err != nil {
 		base.SetExitStatus(base.SApplicationError)
-		return fmt.Errorf("failed to select the default workpace: %s", err)
+		return fmt.Errorf("failed to select the default workspace: %s", err)
 	}
 	fmt.Fprintf(os.Stdout, "Success:  added workspace %q\n", realname(wsp))
 	lg.DebugContext(ctx, "workspace type", "workspace", realname(wsp), "type", fmt.Sprintf("%T", prov))

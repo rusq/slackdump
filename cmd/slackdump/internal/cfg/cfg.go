@@ -61,6 +61,8 @@ var (
 	// environment variables.
 	LoadSecrets bool
 
+	YesMan bool // if true, all questions are answered with "yes"
+
 	Version BuildInfo // version propagated by main package.
 )
 
@@ -74,6 +76,7 @@ func enableLogColors(strNocolor string) {
 		// skip enabling color
 		return
 	}
+	pterm.DefaultLogger.Writer = os.Stderr
 	handler := pterm.NewSlogHandler(&pterm.DefaultLogger)
 	sl := slog.New(handler)
 	Log = sl
@@ -112,6 +115,7 @@ const (
 	OmitRecordFilesFlag
 	OmitWithAvatarsFlag
 	OmitChunkFileMode
+	OmitYesManFlag
 
 	OmitAll = OmitConfigFlag |
 		OmitWithFilesFlag |
@@ -125,7 +129,8 @@ const (
 		OmitCustomUserFlags |
 		OmitRecordFilesFlag |
 		OmitWithAvatarsFlag |
-		OmitChunkFileMode
+		OmitChunkFileMode |
+		OmitYesManFlag
 )
 
 // SetBaseFlags sets base flags
@@ -137,7 +142,7 @@ func SetBaseFlags(fs *flag.FlagSet, mask FlagMask) {
 	fs.BoolVar(&Verbose, "v", osenv.Value("DEBUG", false), "verbose messages")
 
 	if mask&OmitAuthFlags == 0 {
-		fs.BoolVar(&ForceEnterprise, "enterprise", false, "enable Enteprise module, you need to specify this option if you're using Slack Enterprise Grid")
+		fs.BoolVar(&ForceEnterprise, "enterprise", false, "enable Enterprise module, you need to specify this option if you're using Slack Enterprise Grid")
 		fs.BoolVar(&LoadSecrets, "load-env", false, "load secrets from the environment, .env, .env.txt or secrets.txt file")
 	}
 	if mask&OmitAuthFlags == 0 || mask&OmitCacheDir == 0 {
@@ -191,5 +196,8 @@ func SetBaseFlags(fs *flag.FlagSet, mask FlagMask) {
 	}
 	if mask&OmitChunkFileMode == 0 {
 		fs.BoolVar(&UseChunkFiles, "legacy", false, "use chunk files for data storage instead of sqlite database (incompatible with resuming)")
+	}
+	if mask&OmitYesManFlag == 0 {
+		fs.BoolVar(&YesMan, "y", osenv.Value("YES_MAN", false), "answer yes to all questions")
 	}
 }

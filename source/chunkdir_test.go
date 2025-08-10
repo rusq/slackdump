@@ -30,10 +30,6 @@ func (n nopFiler) Files(ctx context.Context, channel *slack.Channel, parent slac
 }
 func (n nopFiler) Close() error { return nil }
 
-type nopTransformer struct{}
-
-func (n nopTransformer) Transform(ctx context.Context, id chunk.FileID) error { return nil }
-
 type chunkPrepFn func(t *testing.T, ctx context.Context, d *chunk.Directory)
 
 var testChannelInfo = fixtures.Load[[]slack.Channel](fixtures.TestChannelsJSON)[0]
@@ -66,7 +62,7 @@ func TestChunkDir_ChannelInfo(t *testing.T) {
 				channelID: testChannelInfo.ID,
 			},
 			prepFn: func(t *testing.T, ctx context.Context, d *chunk.Directory) {
-				p, err := directory.NewConversation(d, nopFiler{}, nopTransformer{})
+				p, err := directory.NewConversation(d, nopFiler{}, &chunk.NopTransformer{})
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -87,7 +83,7 @@ func TestChunkDir_ChannelInfo(t *testing.T) {
 				channelID: testChannelInfo.ID,
 			},
 			prepFn: func(t *testing.T, ctx context.Context, d *chunk.Directory) {
-				p, err := directory.NewConversation(d, nopFiler{}, nopTransformer{})
+				p, err := directory.NewConversation(d, nopFiler{}, &chunk.NopTransformer{})
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -108,7 +104,7 @@ func TestChunkDir_ChannelInfo(t *testing.T) {
 				channelID: testChannelInfo.ID,
 			},
 			prepFn: func(t *testing.T, ctx context.Context, d *chunk.Directory) {
-				p, err := directory.NewConversation(d, nopFiler{}, nopTransformer{})
+				p, err := directory.NewConversation(d, nopFiler{}, &chunk.NopTransformer{})
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -136,7 +132,7 @@ func TestChunkDir_ChannelInfo(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if tt.prepFn != nil {
-				tt.prepFn(t, context.Background(), tt.fields.d)
+				tt.prepFn(t, t.Context(), tt.fields.d)
 			}
 			c := &ChunkDir{
 				d:       tt.fields.d,

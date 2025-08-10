@@ -18,7 +18,7 @@ import (
 	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/internal/chunk/backend/dbase"
 	"github.com/rusq/slackdump/v3/internal/convert"
-	"github.com/rusq/slackdump/v3/internal/source"
+	"github.com/rusq/slackdump/v3/source"
 )
 
 var cmdConvertV1 = &base.Command{
@@ -37,8 +37,19 @@ viewer and other commands.`,
 	Run:         runV1,
 }
 
+var v1Flags = struct {
+	ignoreCopyErrors bool
+}{
+	ignoreCopyErrors: true,
+}
+
+func init() {
+	cmdConvertV1.Flag.BoolVar(&v1Flags.ignoreCopyErrors, "i", v1Flags.ignoreCopyErrors, "ignore copy errors")
+}
+
 func runV1(ctx context.Context, cmd *base.Command, args []string) error {
 	if len(args) != 1 {
+		base.SetExitStatus(base.SInvalidParameters)
 		return fmt.Errorf("must provide a single path to v1.0.x dump")
 	}
 	path := args[0]
@@ -46,10 +57,12 @@ func runV1(ctx context.Context, cmd *base.Command, args []string) error {
 	output := cfg.StripZipExt(cfg.Output)
 
 	if err := os.MkdirAll(output, 0o755); err != nil {
+		base.SetExitStatus(base.SApplicationError)
 		return fmt.Errorf("failed to create output directory: %w", err)
 	}
 	wconn, si, err := bootstrap.Database(output, "v1")
 	if err != nil {
+		base.SetExitStatus(base.SApplicationError)
 		return fmt.Errorf("failed to open database: %w", err)
 	}
 	defer wconn.Close()
@@ -71,11 +84,12 @@ func runV1(ctx context.Context, cmd *base.Command, args []string) error {
 			return fmt.Errorf("failed to create new session: %w", err)
 		}
 		defer erc.Close()
-		if err := convertFile(ctx, erc, filepath.Join(path, p), output); err != nil {
+		if err := convertFile(ctx, erc, filepath.Join(path, p), output, v1Flags.ignoreCopyErrors); err != nil {
 			return fmt.Errorf("failed to convert file %q: %w", p, err)
 		}
 		return nil
 	}); err != nil {
+		base.SetExitStatus(base.SApplicationError)
 		return err
 	}
 
@@ -83,13 +97,13 @@ func runV1(ctx context.Context, cmd *base.Command, args []string) error {
 	return nil
 }
 
-func convertFile(ctx context.Context, erc chunk.Encoder, path string, outputDir string) error {
+func convertFile(ctx context.Context, erc chunk.Encoder, path string, outputDir string, ignoreCopyErr bool) error {
 	src, err := sdv1.NewSource(path)
 	if err != nil {
 		return fmt.Errorf("failed to create source: %w", err)
 	}
 	fsa := fsadapter.NewDirectory(outputDir)
-	conv := convert.NewSourceEncoder(src, fsa, erc, convert.WithIncludeFiles(cfg.WithFiles), convert.WithLogger(cfg.Log), convert.WithIncludeAvatars(false), convert.WithTrgFileLoc(source.MattermostFilepath))
+	conv := convert.NewSourceEncoder(src, fsa, erc, convert.WithIncludeFiles(cfg.WithFiles), convert.WithLogger(cfg.Log), convert.WithIncludeAvatars(false), convert.WithTrgFileLoc(source.MattermostFilepath), convert.WithIgnoreCopyErrors(ignoreCopyErr))
 	if err := conv.Convert(ctx); err != nil {
 		return fmt.Errorf("failed to convert source: %w", err)
 	}

@@ -38,7 +38,7 @@ var (
 )
 
 func prepChannels(t *testing.T, conn PrepareExtContext) {
-	ctx := context.Background()
+	ctx := t.Context()
 	prepChunk(chunk.CChannels, chunk.CChannelInfo, chunk.CChannelInfo, chunk.CChannelInfo, chunk.CChannelInfo)(t, conn)
 	cr := NewChannelRepository()
 	err := cr.Insert(ctx, conn, dbch100, dbch200, dbch300, dbch400)
@@ -112,7 +112,7 @@ func Test_channelRepository_AllOfType(t *testing.T) {
 				genericRepository: genericRepository[DBChannel]{t: DBChannel{}},
 			},
 			args: args{
-				ctx:    context.Background(),
+				ctx:    t.Context(),
 				conn:   testConn(t),
 				typeID: []chunk.ChunkType{chunk.CChannelInfo},
 			},
@@ -130,7 +130,7 @@ func Test_channelRepository_AllOfType(t *testing.T) {
 				genericRepository: genericRepository[DBChannel]{t: DBChannel{}},
 			},
 			args: args{
-				ctx:    context.Background(),
+				ctx:    t.Context(),
 				conn:   testConn(t),
 				typeID: []chunk.ChunkType{chunk.CChannels},
 			},
@@ -184,7 +184,7 @@ func Test_channelRepository_Get(t *testing.T) {
 				genericRepository: genericRepository[DBChannel]{t: DBChannel{}},
 			},
 			args: args{
-				ctx:  context.Background(),
+				ctx:  t.Context(),
 				conn: testConn(t),
 				id:   "C100",
 			},
@@ -232,7 +232,7 @@ func Test_channelRepository_Count(t *testing.T) {
 				genericRepository: genericRepository[DBChannel]{t: DBChannel{}},
 			},
 			args: args{
-				ctx:  context.Background(),
+				ctx:  t.Context(),
 				conn: testConn(t),
 			},
 			prepFn: prepChannels,

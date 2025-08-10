@@ -3,7 +3,6 @@
 package edge
 
 import (
-	"context"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -42,7 +41,7 @@ func TestNew(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cl, err := New(context.Background(), prov)
+	cl, err := New(t.Context(), prov)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -51,7 +50,7 @@ func TestNew(t *testing.T) {
 		Filter:   "everyone AND NOT bots AND NOT apps",
 		Count:    20,
 	}
-	resp, err := cl.PostJSON(context.Background(), "/users/list", &req)
+	resp, err := cl.PostJSON(t.Context(), "/users/list", &req)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -71,11 +70,11 @@ func TestGetUsers(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cl, err := New(context.Background(), au)
+	cl, err := New(t.Context(), au)
 	if err != nil {
 		t.Fatal(err)
 	}
-	ui, err := cl.GetUsers(context.Background(), "U0LKLSNER", "U03K9GLS2", "U03KMNRQS")
+	ui, err := cl.GetUsers(t.Context(), "U0LKLSNER", "U03K9GLS2", "U03KMNRQS")
 	if err != nil {
 		t.Fatal(err)
 	}
