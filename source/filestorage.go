@@ -228,16 +228,14 @@ func (r *STStandard) FilePath(ci *slack.Channel, f *slack.File) string {
 }
 
 func (r *STStandard) File(id string, name string) (string, error) {
-	// Try sanitized name first
-	for _, pth := range []string{
-		id + "-" + SanitizeFilename(name),
-		id + "-" + name, // fallback for legacy
-	} {
-		if _, err := fs.Stat(r.fs, pth); err == nil {
-			return pth, nil
-		}
+	pth, ok := r.idx[id]
+	if !ok {
+		return "", fs.ErrNotExist
 	}
-	return "", fs.ErrNotExist
+	if _, err := fs.Stat(r.fs, pth); err != nil {
+		return "", err
+	}
+	return pth, nil
 }
 
 type fakefs struct{}
