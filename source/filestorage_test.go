@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"testing/fstest"
 
 	"github.com/rusq/slackdump/v3/internal/chunk"
 )
@@ -99,7 +100,55 @@ func Test_fstStandard_File(t *testing.T) {
 		want    string
 		wantErr bool
 	}{
-		// TODO: Add test cases.
+		{
+			name: "file is present in index, and in filesystem",
+			fields: fields{
+				fs: fstest.MapFS{
+					"C123/attachments/F123-test.txt": {
+						Data: []byte("test file"),
+						Mode: 644,
+					}},
+				idx: map[string]string{
+					"F123": "C123/attachments/F123-test.txt",
+				},
+			},
+			args: args{
+				id:  "F123",
+				in1: "",
+			},
+			want:    "C123/attachments/F123-test.txt",
+			wantErr: false,
+		},
+		{
+			name: "file is present in index, but not on the filesystem",
+			fields: fields{
+				fs: fstest.MapFS{},
+				idx: map[string]string{
+					"F123": "C123/attachments/F123-test.txt",
+				},
+			},
+			args: args{
+				id:  "F123",
+				in1: "",
+			},
+			wantErr: true,
+		},
+		{
+			name: "file is not in index",
+			fields: fields{
+				fs: fstest.MapFS{
+					"C123/attachments/F123-test.txt": {
+						Data: []byte("test file"),
+						Mode: 644,
+					}},
+				idx: map[string]string{},
+			},
+			args: args{
+				id:  "F123",
+				in1: "",
+			},
+			wantErr: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
