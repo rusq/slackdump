@@ -16,7 +16,7 @@ import (
 	"github.com/rusq/slackdump/v3/source"
 )
 
-// Source encoder allows to convert any source to a chunked format.
+// SourceEncoder allows to convert any source to a chunked format.
 type SourceEncoder struct {
 	src  source.Sourcer
 	enc  chunk.Encoder

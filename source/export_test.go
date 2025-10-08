@@ -433,7 +433,7 @@ func TestExport_walkChannelMessages(t *testing.T) {
 				files:     tt.fields.files,
 				avatars:   tt.fields.avatars,
 			}
-			it, err := e.walkChannelMessages(tt.args.channelID)
+			it, err := e.walkChannelMessages(t.Context(), tt.args.channelID)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Export.walkChannelMessages() error = %v, wantErr %v", err, tt.wantErr)
 				return

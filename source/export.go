@@ -104,18 +104,22 @@ func (e *Export) buildThreadCache(ctx context.Context, channelID string) error {
 	if err != nil {
 		return err
 	}
+	lg := slog.With("channel_id", channelID, "channel_name", name)
 	if _, err := fs.Stat(e.fs, name); err != nil {
 		return fmt.Errorf("%w: %s", fs.ErrNotExist, name)
 	}
+	lg.Debug("building thread cache")
+	var n int
 	if err := walkDir(e.fs, name, func(file string) error {
 		if err := yieldFileContents(ctx, e.fs, file, func(m slack.Message, err error) bool {
 			if err != nil {
 				return false
 			}
-			if (structures.IsThreadStart(&m) && m.LatestReply != structures.LatestReplyNoReplies) || structures.IsThreadMessage(&m.Msg) {
+			if (structures.IsThreadStart(&m) && !structures.IsEmptyThread(&m)) || structures.IsThreadMessage(&m.Msg) {
 				if err := e.cache.Update(ctx, name, m.ThreadTimestamp, file); err != nil {
 					slog.ErrorContext(ctx, "error updating cache", "error", err)
 				}
+				n++
 			}
 			return true
 		}); err != nil {
@@ -125,6 +129,7 @@ func (e *Export) buildThreadCache(ctx context.Context, channelID string) error {
 	}); err != nil {
 		return err
 	}
+	slog.DebugContext(ctx, "caching completed", "thread_count", n)
 	return nil
 }
 
