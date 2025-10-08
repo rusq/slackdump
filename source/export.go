@@ -31,7 +31,7 @@ type Export struct {
 	cache     *threadCache
 }
 
-const cacheSz = 1 << 16
+const cacheSz = 1 << 20
 
 func OpenExport(fsys fs.FS, name string) (*Export, error) {
 	var idx structures.ExportIndex
