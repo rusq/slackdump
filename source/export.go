@@ -31,7 +31,7 @@ type Export struct {
 	cache     *threadCache
 }
 
-const cacheSz = 50
+const cacheSz = 1 << 20
 
 func OpenExport(fsys fs.FS, name string) (*Export, error) {
 	var idx structures.ExportIndex
@@ -112,7 +112,7 @@ func (e *Export) buildThreadCache(ctx context.Context, channelID string) error {
 			if err != nil {
 				return false
 			}
-			if structures.IsThreadStart(&m) || structures.IsThreadMessage(&m.Msg) {
+			if (structures.IsThreadStart(&m) && m.LatestReply != structures.LatestReplyNoReplies) || structures.IsThreadMessage(&m.Msg) {
 				if err := e.cache.Update(ctx, name, m.ThreadTimestamp, file); err != nil {
 					slog.ErrorContext(ctx, "error updating cache", "error", err)
 				}
@@ -192,18 +192,16 @@ func yieldFileContents(ctx context.Context, fsys fs.FS, file string, yield func(
 // fullScanIter is the message iterator that always scans all messages and
 // populates the cache with discovered threads.
 type fullScanIter struct {
-	ctx   context.Context
-	name  string
-	fs    fs.FS
-	cache *threadCache
+	ctx  context.Context
+	name string
+	fs   fs.FS
 }
 
-func newFullScanIter(ctx context.Context, fs fs.FS, chanName string, cache *threadCache) *fullScanIter {
+func newFullScanIter(ctx context.Context, fs fs.FS, chanName string) *fullScanIter {
 	return &fullScanIter{
-		ctx:   ctx,
-		name:  chanName,
-		fs:    fs,
-		cache: cache,
+		ctx:  ctx,
+		name: chanName,
+		fs:   fs,
 	}
 }
 
@@ -229,14 +227,7 @@ func (w *fullScanIter) Iter(yield func(slack.Message, error) bool) {
 	ctx, task := trace.NewTask(w.ctx, "full_scan_iter")
 	defer task.End()
 	err := walkDir(w.fs, w.name, func(file string) error {
-		if err := yieldFileContents(ctx, w.fs, file, func(m slack.Message, err error) bool {
-			if structures.IsThreadStart(&m) || structures.IsThreadMessage(&m.Msg) {
-				if err := w.cache.Update(ctx, w.name, m.ThreadTimestamp, file); err != nil {
-					slog.ErrorContext(ctx, "error updating cache", "error", err)
-				}
-			}
-			return yield(m, err)
-		}); err != nil {
+		if err := yieldFileContents(ctx, w.fs, file, yield); err != nil {
 			return err
 		}
 		return nil
@@ -284,7 +275,7 @@ func (e *Export) walkChannelMessages(ctx context.Context, channelID string) (ite
 	if _, err := fs.Stat(e.fs, name); err != nil {
 		return nil, fmt.Errorf("%w: %s", fs.ErrNotExist, name)
 	}
-	fsi := newFullScanIter(ctx, e.fs, name, e.cache)
+	fsi := newFullScanIter(ctx, e.fs, name)
 	return fsi.Iter, nil
 }
 
