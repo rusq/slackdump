@@ -2,6 +2,7 @@ package source
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -152,6 +153,146 @@ func Test_threadCache_Update(t *testing.T) {
 				t.Errorf("threadCache.Update() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			tt.checkCacheFn(t, tc)
+		})
+	}
+}
+
+func Test_mapCache_Get(t *testing.T) {
+	tests := []struct {
+		name  string
+		cache *mapCache[string, int]
+		k     string
+		want  int
+		want2 bool
+	}{
+		{
+			name: "gets an existing value",
+			cache: &mapCache[string, int]{
+				m: map[string]int{"test": 42},
+			},
+			k:     "test",
+			want:  42,
+			want2: true,
+		},
+		{
+			name: "value does not exist",
+			cache: &mapCache[string, int]{
+				m: map[string]int{"test": 42},
+			},
+			k:     "other",
+			want:  0,
+			want2: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var mc = tt.cache
+			got, got2 := mc.Get(tt.k)
+			assert.Equal(t, tt.want, got)
+			assert.Equal(t, tt.want2, got2)
+		})
+	}
+}
+
+func Test_mapCache_Set(t *testing.T) {
+	tests := []struct {
+		name  string
+		cache *mapCache[string, int]
+		k     string
+		v     int
+		want  int
+		want2 bool
+	}{
+		{
+			name: "sets the value",
+			cache: &mapCache[string, int]{
+				m: map[string]int{},
+			},
+			k:     "test",
+			v:     42,
+			want:  0,
+			want2: false,
+		},
+		{
+			name: "replaces the value",
+			cache: &mapCache[string, int]{
+				m: map[string]int{"test": 42},
+			},
+			k:     "test",
+			v:     24,
+			want:  42,
+			want2: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var mc = tt.cache
+			got, got2 := mc.Set(tt.k, tt.v)
+			assert.Equal(t, tt.want, got)
+			assert.Equal(t, tt.want2, got2)
+		})
+	}
+}
+
+func Test_mapCache_GetOrLoad(t *testing.T) {
+	tests := []struct {
+		name   string // description of this test case
+		cache  *mapCache[string, int]
+		k      string
+		loader func(ctx context.Context, k string) (int, error)
+		want   int
+		want2  error
+		want3  bool
+	}{
+		{
+			name: "already in the map",
+			cache: &mapCache[string, int]{
+				m: map[string]int{"test": 42},
+			},
+			k: "test",
+			loader: func(ctx context.Context, k string) (int, error) {
+				panic("should not be called")
+			},
+			want:  42,
+			want2: nil,
+			want3: true,
+		},
+		{
+			name: "not in the map, load called",
+			cache: &mapCache[string, int]{
+				m: map[string]int{},
+			},
+			k: "get_me",
+			loader: func(ctx context.Context, k string) (int, error) {
+				return 100, nil
+			},
+			want:  100,
+			want2: nil,
+			want3: false,
+		},
+		{
+			name: "load fails",
+			cache: &mapCache[string, int]{
+				m: map[string]int{},
+			},
+			k: "fails",
+			loader: func(ctx context.Context, k string) (int, error) {
+				return 0, errors.New("error")
+			},
+			want:  0,
+			want2: errors.New("error"),
+			want3: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// TODO: construct the receiver type.
+			var mc = tt.cache
+			got, got2, got3 := mc.GetOrLoad(t.Context(), tt.k, tt.loader)
+			// TODO: update the condition below to compare got with tt.want.
+			assert.Equal(t, tt.want, got)
+			assert.Equal(t, tt.want2, got2)
+			assert.Equal(t, tt.want3, got3)
 		})
 	}
 }

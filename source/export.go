@@ -99,6 +99,8 @@ func (e *Export) Type() Flags {
 	return FExport
 }
 
+// buildThreadCache walks all messages in the channel with channelID and indexes
+// all threads for faster lookup.
 func (e *Export) buildThreadCache(ctx context.Context, channelID string) error {
 	name, err := e.nameByID(channelID)
 	if err != nil {
@@ -167,10 +169,11 @@ func (e *Export) AllMessages(ctx context.Context, channelID string) (iter.Seq2[s
 }
 
 // yieldFileContents is meant to work with export json files and will call
-// yield function for every message in the file. It is meant to work with
-// fs.WalkDir function, when the yield function returns false (stop iteration),
-// it returns `fs.SkipAll` error.  If calling this function not from the Walk
-// function, this error indicates that file iteration should stop.
+// yield function for every message in the file. It expects to be called by
+// fs.WalkDir function, therefore when the yield function returns false (stop
+// iteration), it returns `fs.SkipAll` error.  If calling this function not
+// from the Walk function, this error indicates that file iteration should
+// stop.
 func yieldFileContents(ctx context.Context, fsys fs.FS, file string, yield func(slack.Message, error) bool) error {
 	em, err := unmarshal[[]export.ExportMessage](fsys, file)
 	if err != nil {
@@ -210,22 +213,6 @@ func newFullScanIter(ctx context.Context, fs fs.FS, chanName string) *fullScanIt
 	}
 }
 
-func walkDir(fsys fs.FS, name string, cb func(file string) error) error {
-	err := fs.WalkDir(fsys, name, func(file string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if d.IsDir() && file != name {
-			return fs.SkipDir
-		}
-		if path.Ext(file) != ".json" {
-			return nil
-		}
-		return cb(file)
-	})
-	return err
-}
-
 // Iter iterates through all messages for the given channel name. It
 // updates the cache with discovered threads.
 func (w *fullScanIter) Iter(yield func(slack.Message, error) bool) {
@@ -240,6 +227,24 @@ func (w *fullScanIter) Iter(yield func(slack.Message, error) bool) {
 	if err != nil {
 		yield(slack.Message{}, err)
 	}
+}
+
+// walkDir walks through the directory with given name on the filesystem fsys,
+// calling the callback function cb for every JSON file it encounters.
+func walkDir(fsys fs.FS, dirName string, cb func(file string) error) error {
+	err := fs.WalkDir(fsys, dirName, func(file string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() && file != dirName {
+			return fs.SkipDir
+		}
+		if path.Ext(file) != ".json" {
+			return nil
+		}
+		return cb(file)
+	})
+	return err
 }
 
 // fileListIter is meant to reduce the scope of iteration to the given file

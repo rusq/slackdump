@@ -10,7 +10,6 @@ import (
 	"reflect"
 	"testing"
 	"testing/fstest"
-	"time"
 
 	"github.com/rusq/slack"
 	"github.com/stretchr/testify/assert"
@@ -238,51 +237,6 @@ func TestExport_WorkspaceInfo(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("Export.WorkspaceInfo() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestExport_Latest(t *testing.T) {
-	type fields struct {
-		fs        fs.FS
-		channels  []slack.Channel
-		chanNames map[string]string
-		name      string
-		idx       structures.ExportIndex
-		files     Storage
-		avatars   Storage
-	}
-	type args struct {
-		ctx context.Context
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		want    map[structures.SlackLink]time.Time
-		wantErr bool
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			e := &Export{
-				fs:        tt.fields.fs,
-				channels:  tt.fields.channels,
-				chanNames: tt.fields.chanNames,
-				name:      tt.fields.name,
-				idx:       tt.fields.idx,
-				files:     tt.fields.files,
-				avatars:   tt.fields.avatars,
-			}
-			got, err := e.Latest(tt.args.ctx)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("Export.Latest() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("Export.Latest() = %v, want %v", got, tt.want)
 			}
 		})
 	}
