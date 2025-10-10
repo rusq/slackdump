@@ -322,7 +322,7 @@ func TestExport_walkChannelMessages(t *testing.T) {
 		avatars   Storage
 	}
 	type args struct {
-		channelID string
+		name string
 	}
 	tests := []struct {
 		name    string
@@ -347,7 +347,7 @@ func TestExport_walkChannelMessages(t *testing.T) {
 				},
 			},
 			args: args{
-				channelID: "C123456",
+				name: "general",
 			},
 			want: []slack.Message{
 				{Msg: slack.Msg{Type: "message", Text: "Hello, world!"}},
@@ -369,7 +369,7 @@ func TestExport_walkChannelMessages(t *testing.T) {
 				},
 			},
 			args: args{
-				channelID: "C123456",
+				name: "general",
 			},
 			want: []slack.Message{
 				{Msg: slack.Msg{Type: "message", Text: "Hello, world!"}},
@@ -387,7 +387,7 @@ func TestExport_walkChannelMessages(t *testing.T) {
 				files:     tt.fields.files,
 				avatars:   tt.fields.avatars,
 			}
-			it, err := e.walkChannelMessages(t.Context(), tt.args.channelID)
+			it, err := e.walkChannelMessages(t.Context(), tt.args.name)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Export.walkChannelMessages() error = %v, wantErr %v", err, tt.wantErr)
 				return
