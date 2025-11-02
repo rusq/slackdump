@@ -140,10 +140,7 @@ func (e *Export) AllMessages(ctx context.Context, channelID string) (iter.Seq2[s
 	if err := e.buildThreadCache(ctx, name); err != nil {
 		return nil, err
 	}
-	it, err := e.walkChannelMessages(ctx, name)
-	if err != nil {
-		return nil, err
-	}
+	it := e.walkChannelMessages(ctx, name)
 	return func(yield func(slack.Message, error) bool) {
 		for m, err := range it {
 			if err != nil {
@@ -281,9 +278,8 @@ func (e *Export) nameByID(channelID string) (string, error) {
 	return name, nil
 }
 
-func (e *Export) walkChannelMessages(ctx context.Context, name string) (iter.Seq2[slack.Message, error], error) {
-	fsi := newFullScanIter(ctx, e.fs, name)
-	return fsi.Iter, nil
+func (e *Export) walkChannelMessages(ctx context.Context, name string) iter.Seq2[slack.Message, error] {
+	return newFullScanIter(ctx, e.fs, name).Iter
 }
 
 var errNotInCache = errors.New("channel not in cache")
@@ -319,10 +315,7 @@ func (e *Export) AllThreadMessages(ctx context.Context, channelID, threadID stri
 			return nil, err
 		}
 		lg.WarnContext(ctx, "cache not available, initiating full scan", "err", err)
-		it, err = e.walkChannelMessages(ctx, name)
-		if err != nil {
-			return nil, err
-		}
+		it = e.walkChannelMessages(ctx, name)
 	}
 	iterFn := func(yield func(slack.Message, error) bool) {
 		for m, err := range it {

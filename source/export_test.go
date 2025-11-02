@@ -387,11 +387,7 @@ func TestExport_walkChannelMessages(t *testing.T) {
 				files:     tt.fields.files,
 				avatars:   tt.fields.avatars,
 			}
-			it, err := e.walkChannelMessages(t.Context(), tt.args.name)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("Export.walkChannelMessages() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
+			it := e.walkChannelMessages(t.Context(), tt.args.name)
 			var got []slack.Message
 			for m, err := range it {
 				if (err != nil) != tt.wantErr {
@@ -402,6 +398,90 @@ func TestExport_walkChannelMessages(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("Export.walkChannelMessages() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestExport_nameByID(t *testing.T) {
+	type fields struct {
+		fs        fs.FS
+		channels  []slack.Channel
+		chanNames map[string]string
+		name      string
+		idx       structures.ExportIndex
+		files     Storage
+		avatars   Storage
+		cache     *threadCache
+	}
+	type args struct {
+		channelID string
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    string
+		wantErr bool
+	}{
+		{
+			name: "resolves existing channel",
+			fields: fields{
+				fs: fstest.MapFS{
+					"slackdump/": &fstest.MapFile{Mode: 0755},
+				},
+				chanNames: map[string]string{
+					"C12345": "slackdump",
+				},
+			},
+			args:    args{"C12345"},
+			want:    "slackdump",
+			wantErr: false,
+		},
+		{
+			name: "channel not in index",
+			fields: fields{
+				fs: fstest.MapFS{
+					"slackdump/": &fstest.MapFile{Mode: 0755},
+				},
+				chanNames: map[string]string{},
+			},
+			args:    args{"C12345"},
+			want:    "",
+			wantErr: true,
+		},
+		{
+			name: "channel not on the filesystem",
+			fields: fields{
+				fs: fstest.MapFS{},
+				chanNames: map[string]string{
+					"C12345": "slackdump",
+				},
+			},
+			args:    args{"C12345"},
+			want:    "",
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			e := &Export{
+				fs:        tt.fields.fs,
+				channels:  tt.fields.channels,
+				chanNames: tt.fields.chanNames,
+				name:      tt.fields.name,
+				idx:       tt.fields.idx,
+				files:     tt.fields.files,
+				avatars:   tt.fields.avatars,
+				cache:     tt.fields.cache,
+			}
+			got, err := e.nameByID(tt.args.channelID)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Export.nameByID() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("Export.nameByID() = %v, want %v", got, tt.want)
 			}
 		})
 	}
