@@ -145,8 +145,9 @@ func isHXRequest(r *http.Request) bool {
 	return r.Header.Get("HX-Request") == "true"
 }
 
-func isInvalid(path string) bool {
-	return strings.Contains(path, "..") || strings.Contains(path, "~") || strings.Contains(path, "/") || strings.Contains(path, "\\")
+// isInvalid returns true if the provided path component is not web-safe.
+func isInvalid(pcomp string) bool {
+	return strings.Contains(pcomp, "..") || strings.HasPrefix(pcomp, "~") || strings.Contains(pcomp, "/") || strings.Contains(pcomp, "\\")
 }
 
 func (v *Viewer) threadHandler(w http.ResponseWriter, r *http.Request, id string) {
