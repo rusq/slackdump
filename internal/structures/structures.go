@@ -21,7 +21,7 @@ const (
 // tokenRe is a loose regular expression to match Slack API tokens.
 // a - app, b - bot, c - client, e - export, p - legacy
 var (
-	tokenRE    = regexp.MustCompile(`\bxox[abcep]-[0-9]+-[0-9]+-[0-9]+-[0-9a-fA-F]{64}\b`)
+	tokenRE    = regexp.MustCompile(`\bxox[abcep]-[0-9]+-[0-9]+-[0-9]+-[0-9a-fA-F]{32,64}\b`)
 	appTokenRE = regexp.MustCompile(`\bx(?:app|oxa)-(?:\d-)?(?:[a-zA-Z0-9]{1,20}-)+[a-fA-F0-9]{1,64}\b`)
 	botTokenRE = regexp.MustCompile(`\bxoxb-(?:[a-zA-Z0-9]{1,20}-){2}[a-zA-Z0-9]{1,40}\b`)
 )
