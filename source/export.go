@@ -9,13 +9,13 @@ import (
 	"iter"
 	"log/slog"
 	"path"
+	"runtime/trace"
 	"time"
-
-	"github.com/rusq/slackdump/v3/internal/chunk"
 
 	"github.com/rusq/slack"
 
 	"github.com/rusq/slackdump/v3/export"
+	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/internal/structures"
 )
 
@@ -28,8 +28,13 @@ type Export struct {
 	idx       structures.ExportIndex
 	files     Storage
 	avatars   Storage
+	cache     *threadCache
 }
 
+const cacheSz = 1 << 20
+
+// OpenExport opens a Slack export with the given name from the filesystem
+// fsys.
 func OpenExport(fsys fs.FS, name string) (*Export, error) {
 	var idx structures.ExportIndex
 	if err := idx.Unmarshal(fsys); err != nil {
@@ -44,6 +49,7 @@ func OpenExport(fsys fs.FS, name string) (*Export, error) {
 		chanNames: make(map[string]string, len(chans)),
 		files:     NoStorage{},
 		avatars:   NoStorage{},
+		cache:     newThreadCache(cacheSz),
 	}
 	// initialise channels for quick lookup
 	for _, ch := range z.channels {
@@ -95,15 +101,46 @@ func (e *Export) Type() Flags {
 	return FExport
 }
 
-// AllMessages returns all channel messages without thread messages.
-func (e *Export) AllMessages(_ context.Context, channelID string) (iter.Seq2[slack.Message, error], error) {
-	it, err := e.walkChannelMessages(channelID)
-	if err != nil {
-		if errors.Is(err, fs.ErrNotExist) {
-			return nil, ErrNotFound
+// buildThreadCache walks all messages in the channel with the given name and
+// indexes all threads for faster lookup.
+func (e *Export) buildThreadCache(ctx context.Context, name string) error {
+	lg := slog.With("channel_name", name)
+	lg.Debug("building thread cache")
+	var n int
+	if err := walkDir(e.fs, name, func(file string) error {
+		if err := yieldFileContents(ctx, e.fs, file, func(m slack.Message, err error) bool {
+			if err != nil {
+				return false
+			}
+			if (structures.IsThreadStart(&m) && !structures.IsEmptyThread(&m)) || structures.IsThreadMessage(&m.Msg) {
+				if err := e.cache.Update(ctx, name, m.ThreadTimestamp, file); err != nil {
+					slog.ErrorContext(ctx, "error updating cache", "error", err)
+				}
+				n++
+			}
+			return true
+		}); err != nil {
+			return err
 		}
+		return nil
+	}); err != nil {
+		return err
+	}
+	slog.DebugContext(ctx, "caching completed", "thread_count", n)
+	return nil
+}
+
+// AllMessages returns all channel messages without thread messages.
+func (e *Export) AllMessages(ctx context.Context, channelID string) (iter.Seq2[slack.Message, error], error) {
+	name, err := e.nameByID(channelID)
+	if err != nil {
 		return nil, err
 	}
+
+	if err := e.buildThreadCache(ctx, name); err != nil {
+		return nil, err
+	}
+	it := e.walkChannelMessages(ctx, name)
 	return func(yield func(slack.Message, error) bool) {
 		for m, err := range it {
 			if err != nil {
@@ -122,62 +159,163 @@ func (e *Export) AllMessages(_ context.Context, channelID string) (iter.Seq2[sla
 	}, nil
 }
 
-func (e *Export) walkChannelMessages(channelID string) (iter.Seq2[slack.Message, error], error) {
-	name, ok := e.chanNames[channelID]
-	if !ok {
-		return nil, fmt.Errorf("%w: %s", fs.ErrNotExist, channelID)
-	}
-	_, err := fs.Stat(e.fs, name)
+// yieldFileContents is meant to work with export json files and will call
+// yield function for every message in the file. It expects to be called by
+// fs.WalkDir function, therefore when the yield function returns false (stop
+// iteration), it returns `fs.SkipAll` error.  If calling this function not
+// from the Walk function, this error indicates that file iteration should
+// stop.
+func yieldFileContents(ctx context.Context, fsys fs.FS, file string, yield func(slack.Message, error) bool) error {
+	em, err := unmarshal[[]export.ExportMessage](fsys, file)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %s", fs.ErrNotExist, name)
-	}
-	iterFn := func(yield func(slack.Message, error) bool) {
-		err := fs.WalkDir(e.fs, name, func(pth string, d fs.DirEntry, err error) error {
-			if err != nil {
-				return err
-			}
-			if d.IsDir() && pth != name {
-				return fs.SkipDir
-			}
-			if path.Ext(pth) != ".json" {
-				return nil
-			}
-			// read the file
-			em, err := unmarshal[[]export.ExportMessage](e.fs, pth)
-			if err != nil {
-				var jsonErr *json.SyntaxError
-				if errors.As(err, &jsonErr) {
-					slog.Default().Debug("skipping a broken file", "pth", pth, "err", err)
-					return nil
-				}
-				return err
-			}
-			for i, m := range em {
-				if m.Msg == nil {
-					slog.Default().Debug("skipping an empty message", "pth", pth, "index", i)
-					continue
-				}
-				sm := slack.Message{Msg: *m.Msg}
-				if !yield(sm, nil) {
-					return fs.SkipAll
-				}
-			}
+		var jsonErr *json.SyntaxError
+		if errors.As(err, &jsonErr) {
+			slog.WarnContext(ctx, "skipping broken file", "pth", file, "err", err)
 			return nil
-		})
-		if err != nil {
-			yield(slack.Message{}, err)
+		}
+		return err
+	}
+	for i, m := range em {
+		if m.Msg == nil {
+			slog.DebugContext(ctx, "skipping an empty message", "pth", file, "index", i)
+			continue
+		}
+		sm := slack.Message{Msg: *m.Msg}
+		if !yield(sm, nil) {
+			return fs.SkipAll
 		}
 	}
-	return iterFn, nil
+	return nil
 }
 
-func (e *Export) AllThreadMessages(_ context.Context, channelID, threadID string) (iter.Seq2[slack.Message, error], error) {
-	it, err := e.walkChannelMessages(channelID)
-	if err != nil {
-		if errors.Is(err, fs.ErrNotExist) {
-			return nil, ErrNotFound
+// fullScanIter is the message iterator that always scans all messages and
+// populates the cache with discovered threads.
+type fullScanIter struct {
+	ctx  context.Context
+	name string
+	fs   fs.FS
+}
+
+func newFullScanIter(ctx context.Context, fs fs.FS, chanName string) *fullScanIter {
+	return &fullScanIter{
+		ctx:  ctx,
+		name: chanName,
+		fs:   fs,
+	}
+}
+
+// Iter iterates through all messages for the given channel name. It
+// updates the cache with discovered threads.
+func (w *fullScanIter) Iter(yield func(slack.Message, error) bool) {
+	ctx, task := trace.NewTask(w.ctx, "full_scan_iter")
+	defer task.End()
+	err := walkDir(w.fs, w.name, func(file string) error {
+		if err := yieldFileContents(ctx, w.fs, file, yield); err != nil {
+			return err
 		}
+		return nil
+	})
+	if err != nil {
+		yield(slack.Message{}, err)
+		return
+	}
+}
+
+// walkDir walks through the directory with given name on the filesystem fsys,
+// calling the callback function cb for every JSON file it encounters.
+func walkDir(fsys fs.FS, dirName string, cb func(file string) error) error {
+	err := fs.WalkDir(fsys, dirName, func(file string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() && file != dirName {
+			return fs.SkipDir
+		}
+		if path.Ext(file) != ".json" {
+			return nil
+		}
+		return cb(file)
+	})
+	return err
+}
+
+// fileListIter is meant to reduce the scope of iteration to the given file
+// list.
+type fileListIter struct {
+	ctx   context.Context
+	fs    fs.FS
+	files []string
+}
+
+func (w *fileListIter) Iter(yield func(slack.Message, error) bool) {
+	ctx, task := trace.NewTask(w.ctx, "file_list_iter")
+	defer task.End()
+	for _, file := range w.files {
+		if err := yieldFileContents(ctx, w.fs, file, yield); err != nil {
+			if errors.Is(err, fs.SkipAll) {
+				// bail out if instructed
+				return
+			}
+			yield(slack.Message{}, err)
+			return
+		}
+	}
+}
+
+// nameByID returns a channel name (directory name) by the channelID.
+// It ensures that the directory exists. It will return ErrNotFound
+// if it doesn't find the channel or it's directory.
+func (e *Export) nameByID(channelID string) (string, error) {
+	name, ok := e.chanNames[channelID]
+	if !ok {
+		return "", fmt.Errorf("%w: %s", ErrNotFound, channelID)
+	}
+	if fi, err := fs.Stat(e.fs, name); err != nil {
+		return "", fmt.Errorf("%w: %s", ErrNotFound, name)
+	} else if !fi.IsDir() {
+		return "", fmt.Errorf("%s is not a directory", name)
+	}
+	return name, nil
+}
+
+func (e *Export) walkChannelMessages(ctx context.Context, name string) iter.Seq2[slack.Message, error] {
+	return newFullScanIter(ctx, e.fs, name).Iter
+}
+
+var errNotInCache = errors.New("channel not in cache")
+
+func (e *Export) walkCachedThreads(ctx context.Context, channelName, threadID string) (iter.Seq2[slack.Message, error], error) {
+	if !e.cache.Exists(channelName) {
+		return nil, fmt.Errorf("channel: %w", errNotInCache)
+	}
+	// get all files for the thread.
+	files, ok := e.cache.Get(channelName, threadID)
+	if !ok {
+		return nil, fmt.Errorf("thread: %w", errNotInCache)
+	}
+	fli := fileListIter{ctx, e.fs, files}
+	return fli.Iter, nil
+}
+
+// AllThreadMessages returns all thread messages for the channelID:threadID. If the thread
+// is contained in the cache, it will iterate only through the files that contain the thread
+// messages, otherwise it will iterate through all messages in the channel and extract the thread
+// messages. Call [buildThreadCache] for the channelID, before calling this
+// method to speed up search.
+func (e *Export) AllThreadMessages(ctx context.Context, channelID, threadID string) (iter.Seq2[slack.Message, error], error) {
+	// try cached first
+	name, err := e.nameByID(channelID)
+	if err != nil {
 		return nil, err
+	}
+	lg := slog.With("channel_name", name, "channel_id", channelID, "thread_ts", threadID)
+	it, err := e.walkCachedThreads(ctx, name, threadID)
+	if err != nil {
+		if !errors.Is(err, errNotInCache) {
+			return nil, err
+		}
+		lg.WarnContext(ctx, "cache not available, initiating full scan", "err", err)
+		it = e.walkChannelMessages(ctx, name)
 	}
 	iterFn := func(yield func(slack.Message, error) bool) {
 		for m, err := range it {
