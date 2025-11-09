@@ -44,6 +44,11 @@ func TestValidateToken(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name:    "i562, oauth token with 32 chars in the last section",
+			args:    args{token: fixtures.TestOauthToken},
+			wantErr: false,
+		},
+		{
 			name:    "invalid prefix",
 			args:    args{token: "xoxz-123456789012-123456789012-123456789012-12345678901234567890123456789012"},
 			wantErr: true,
@@ -55,7 +60,7 @@ func TestValidateToken(t *testing.T) {
 		},
 		{
 			name:    "long token",
-			args:    args{token: "xoxc-123456789012-123456789012-123456789012-123456789012345678901234567890123"},
+			args:    args{token: "xoxc-123456789012-123456789012-123456789012-123456789012345678901234567890123123456789012345678901234567890123"},
 			wantErr: true,
 		},
 		{

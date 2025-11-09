@@ -17,6 +17,7 @@ const (
 	TestClientToken   = "xoxc-888888888888-888888888888-8888888888888-fffffffffffffffa915fe069d70a8ad81743b0ec4ee9c81540af43f5e143264b"
 	TestExportToken   = "xoxe-888888888888-888888888888-8888888888888-fffffffffffffffa915fe069d70a8ad81743b0ec4ee9c81540af43f5e143264b"
 	TestPersonalToken = "xoxp-777777777777-888888888888-8888888888888-fffffffffffffffa915fe069d70a8ad81743b0ec4ee9c81540af43f5e143264b"
+	TestOauthToken    = "xoxp-777777777777-888888888888-8888888888888-fffffffffffffffa915fe069d70a8ad8"
 )
 
 // InCI indicates whether the tests are running in CI.
