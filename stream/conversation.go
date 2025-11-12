@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log/slog"
 	"runtime/trace"
-	"strings"
 	"sync"
 	"time"
 
@@ -363,8 +362,7 @@ func (cs *Stream) procChannelInfo(ctx context.Context, proc processor.ChannelInf
 				IncludeNumMembers: true,
 			})
 			if err != nil {
-				var se slack.SlackErrorResponse
-				if errors.As(err, &se) && strings.EqualFold(se.Err, errChanNotFound.Error()) {
+				if structures.IsSlackResponseError(err, errChanNotFound.Error()) {
 					return errChanNotFound
 				}
 				return fmt.Errorf("error getting channel information: %w", err)
@@ -399,8 +397,7 @@ func (cs *Stream) procChannelUsers(ctx context.Context, proc processor.ChannelIn
 			})
 			return err
 		}); err != nil {
-			var se slack.SlackErrorResponse
-			if errors.As(err, &se) && strings.EqualFold(se.Err, errChanNotFound.Error()) {
+			if structures.IsSlackResponseError(err, errChanNotFound.Error()) {
 				return nil, errChanNotFound
 			}
 			return nil, fmt.Errorf("error getting conversation users: %w", err)

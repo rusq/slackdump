@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/rusq/slack"
+	"github.com/rusq/slackdump/v3/internal/structures"
 )
 
 // Error is the error returned by New, the underlying Err contains
@@ -15,7 +15,7 @@ type Error struct {
 }
 
 func (ae *Error) Error() string {
-	var msg string = ae.Msg
+	var msg = ae.Msg
 	if msg == "" {
 		msg = ae.Err.Error()
 	}
@@ -35,9 +35,5 @@ func IsInvalidAuthErr(err error) bool {
 	if !errors.As(err, &e) {
 		return false
 	}
-	var ser slack.SlackErrorResponse
-	if !errors.As(e.Err, &ser) {
-		return false
-	}
-	return ser.Err == "invalid_auth"
+	return structures.IsSlackResponseError(e.Err, "invalid_auth")
 }
