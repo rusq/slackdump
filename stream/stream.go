@@ -40,6 +40,7 @@ type Stream struct {
 	chanCache      *chanCache
 	fastSearch     bool
 	inclusive      bool
+	failChnlNotFnd bool // if true, will fail if channel not found
 	resultFn       []func(sr Result) error
 }
 
@@ -171,6 +172,15 @@ func OptInclusive(b bool) Option {
 	}
 }
 
+// OptFailOnChanNotFound enables or disables detection and special treatment of
+// channel_not_found Slack errors.  If disabled, non-existing channels are
+// skipped.
+func OptFailOnChanNotFound(b bool) Option {
+	return func(cs *Stream) {
+		cs.failChnlNotFnd = b
+	}
+}
+
 // New creates a new Stream instance that allows to stream different slack
 // entities.
 func New(cl client.Slack, l network.Limits, opts ...Option) *Stream {
@@ -228,7 +238,7 @@ func (cs *Stream) Users(ctx context.Context, proc processor.Users, opt ...slack.
 	return p.Failure(errors.Unwrap(apiErr))
 }
 
-// TODO: test this.
+// ListChannels calls processor for each batch of channels received from the API.
 func (cs *Stream) ListChannels(ctx context.Context, proc processor.Channels, p *slack.GetConversationsParameters) error {
 	ctx, task := trace.NewTask(ctx, "Channels")
 	defer task.End()
@@ -263,8 +273,8 @@ func (cs *Stream) ListChannels(ctx context.Context, proc processor.Channels, p *
 	return nil
 }
 
-// Users processes all users in the workspace, calling proc for each batch of
-// users returned by the API.
+// UsersBulk processes all users in the workspace, calling proc for each batch
+// of users returned by the API.
 func (cs *Stream) UsersBulk(ctx context.Context, proc processor.Users, ids ...string) error {
 	ctx, task := trace.NewTask(ctx, "UsersBulk")
 	defer task.End()

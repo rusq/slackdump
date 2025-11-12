@@ -2,9 +2,11 @@ package stream
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"runtime/trace"
+	"strings"
 	"sync"
 	"time"
 
@@ -124,6 +126,11 @@ func (cs *Stream) Conversations(ctx context.Context, proc processor.Conversation
 	// result processing.
 	for res := range resultsC {
 		if err := res.Err; err != nil {
+			trace.Logf(ctx, "error", "type: %s, chan_id: %s, thread_ts: %s, error: %s", res.Type, res.ChannelID, res.ThreadTS, err.Error())
+			if errors.Is(err, errChanNotFound) && !cs.failChnlNotFnd {
+				slog.WarnContext(ctx, "channel not found, skipping", "channel_id", res.ChannelID)
+				continue
+			}
 			trace.Logf(ctx, "error", "type: %s, chan_id: %s, thread_ts: %s, error: %s", res.Type, res.ChannelID, res.ThreadTS, err.Error())
 			return &res // res implements Error
 		}
@@ -356,6 +363,10 @@ func (cs *Stream) procChannelInfo(ctx context.Context, proc processor.ChannelInf
 				IncludeNumMembers: true,
 			})
 			if err != nil {
+				var se slack.SlackErrorResponse
+				if errors.As(err, &se) && strings.EqualFold(se.Err, errChanNotFound.Error()) {
+					return errChanNotFound
+				}
 				return fmt.Errorf("error getting channel information: %w", err)
 			}
 			return nil
@@ -370,6 +381,8 @@ func (cs *Stream) procChannelInfo(ctx context.Context, proc processor.ChannelInf
 
 	return info, nil
 }
+
+var errChanNotFound = errors.New("channel_not_found")
 
 func (cs *Stream) procChannelUsers(ctx context.Context, proc processor.ChannelInformer, channelID, threadTS string) ([]string, error) {
 	var users []string
@@ -386,6 +399,10 @@ func (cs *Stream) procChannelUsers(ctx context.Context, proc processor.ChannelIn
 			})
 			return err
 		}); err != nil {
+			var se slack.SlackErrorResponse
+			if errors.As(err, &se) && strings.EqualFold(se.Err, errChanNotFound.Error()) {
+				return nil, errChanNotFound
+			}
 			return nil, fmt.Errorf("error getting conversation users: %w", err)
 		}
 		if len(u) == 0 && next == "" {
