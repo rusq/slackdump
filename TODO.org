@@ -99,3 +99,6 @@
 
   archived channels are included in the export.
 
+
+* Bugs
+  i553: need to propagate the stream failOnChanNotFound flag to CLI. (?)

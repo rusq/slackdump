@@ -120,7 +120,8 @@ func WithRetry(ctx context.Context, lim *rate.Limiter, maxAttempts int, fn func(
 		lastErr = cbErr
 
 		if !strings.EqualFold(cbErr.Error(), "pagination complete") && !errors.Is(cbErr, context.Canceled) {
-			lg.ErrorContext(ctx, "WithRetry", "error", cbErr, "attempt", attempt+1)
+			// let the upstream report the error, if necessary.
+			lg.DebugContext(ctx, "WithRetry", "error", cbErr, "attempt", attempt+1)
 		}
 		var (
 			rle *slack.RateLimitedError
