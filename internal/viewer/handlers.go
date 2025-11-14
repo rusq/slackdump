@@ -212,8 +212,6 @@ func (v *Viewer) fileHandler(w http.ResponseWriter, r *http.Request) {
 		ctx      = r.Context()
 	)
 
-	// Setting content type to application/octet-stream to support any files without extensions (e.g. Canvas files)
-	w.Header().Set("Content-Type", "application/octet-stream")
 	if id == "" || filename == "" || isInvalid(filename) || isInvalid(id) {
 		http.NotFound(w, r)
 		return
@@ -231,6 +229,8 @@ func (v *Viewer) fileHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Setting content type to application/octet-stream to support any files without extensions (e.g. Canvas files)
+	w.Header().Set("Content-Type", "application/octet-stream")
 	http.ServeFileFS(w, r, fsys, path)
 }
 
