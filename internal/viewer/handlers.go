@@ -211,7 +211,6 @@ func (v *Viewer) fileHandler(w http.ResponseWriter, r *http.Request) {
 		filename = r.PathValue("filename")
 		ctx      = r.Context()
 	)
-
 	if id == "" || filename == "" || isInvalid(filename) || isInvalid(id) {
 		http.NotFound(w, r)
 		return
