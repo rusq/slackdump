@@ -52,6 +52,7 @@ func Test_exportV3(t *testing.T) {
 	// 	}
 	// })
 	t.Run("guest user", func(t *testing.T) {
+		fixtures.SkipIfNotExist(t, guestDir)
 		cd, err := chunk.OpenDir(guestDir)
 		if err != nil {
 			t.Fatal(err)
