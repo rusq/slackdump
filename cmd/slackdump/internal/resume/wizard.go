@@ -44,6 +44,7 @@ func configuration() cfgui.Configuration {
 				cpArchivePicker(),
 				cpRefresh(),
 				cpIncludeThreads(),
+				cpOnlyNewUsers(),
 			},
 		},
 		{
@@ -67,10 +68,19 @@ func cpRefresh() cfgui.Parameter {
 
 func cpIncludeThreads() cfgui.Parameter {
 	return cfgui.Parameter{
-		Name:        "Include threads",
+		Name:        "Refresh threads",
 		Value:       cfgui.Checkbox(resumeFlags.IncludeThreads),
 		Description: "Scan existing threads (SLOW).",
 		Updater:     updaters.NewBool(&resumeFlags.IncludeThreads),
+	}
+}
+
+func cpOnlyNewUsers() cfgui.Parameter {
+	return cfgui.Parameter{
+		Name:        "Only New Or Changed Users",
+		Value:       cfgui.Checkbox(resumeFlags.RecordOnlyNewUsers),
+		Description: "Record only new or updated users (avoids user duplication).",
+		Updater:     updaters.NewBool(&resumeFlags.RecordOnlyNewUsers),
 	}
 }
 
