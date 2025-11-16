@@ -1,6 +1,7 @@
 package dbase
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -163,7 +164,21 @@ func (p *DBP) insertUsers(ctx context.Context, tx repository.PrepareExtContext, 
 	ur := repository.NewUserRepository()
 	iterfn := func(yield func(*repository.DBUser, error) bool) {
 		for i, u := range users {
-			if !yield(repository.NewDBUser(dbchunkID, i, &u)) {
+			newUser, err := repository.NewDBUser(dbchunkID, i, &u)
+			if err != nil {
+				if !yield(newUser, err) {
+					return
+				}
+				continue
+			}
+			existing, err := ur.Get(ctx, tx, u.ID)
+			if err == nil {
+				if bytes.EqualFold(existing.Data, newUser.Data) {
+					slog.DebugContext(ctx, "user exists, skipping", "id", existing.ID)
+					continue
+				}
+			}
+			if !yield(newUser, nil) {
 				return
 			}
 		}
