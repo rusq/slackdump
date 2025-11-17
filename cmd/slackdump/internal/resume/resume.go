@@ -121,7 +121,7 @@ func runResume(ctx context.Context, cmd *base.Command, args []string) error {
 	}
 	// inclusive is false, because we don't want to include the latest message
 	// which is already in the database.
-	ctrl, err := archive.DBController(ctx, cmd, wconn, client, dir, cf, []stream.Option{stream.OptInclusive(false)}, dbase.WithOnlyNewOrChangedUsers(resumeFlags.RecordOnlyNewUsers))
+	ctrl, err := archive.DBController(ctx, cmd.Name(), wconn, client, dir, cf, []stream.Option{stream.OptInclusive(false)}, dbase.WithOnlyNewOrChangedUsers(resumeFlags.RecordOnlyNewUsers))
 	if err != nil {
 		base.SetExitStatus(base.SInitializationError)
 		return fmt.Errorf("error creating archive controller: %w", err)

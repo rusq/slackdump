@@ -123,7 +123,7 @@ func runDBArchive(ctx context.Context, cmd *base.Command, args []string) error {
 
 	flags := control.Flags{MemberOnly: cfg.MemberOnly, RecordFiles: cfg.RecordFiles, ChannelUsers: cfg.OnlyChannelUsers}
 
-	ctrl, err := DBController(ctx, cmd, conn, client, dirname, flags, []stream.Option{})
+	ctrl, err := DBController(ctx, cmd.Name(), conn, client, dirname, flags, []stream.Option{})
 	if err != nil {
 		return err
 	}
@@ -161,9 +161,9 @@ func NewDirectory(name string) (*chunk.Directory, error) {
 // parameters.
 //
 // Obscene, just obscene amount of arguments.
-func DBController(ctx context.Context, cmd *base.Command, conn *sqlx.DB, client client.Slack, dirname string, flags control.Flags, streamOpts []stream.Option, opts ...dbase.Option) (Controller, error) {
+func DBController(ctx context.Context, cmdName string, conn *sqlx.DB, client client.Slack, dirname string, flags control.Flags, streamOpts []stream.Option, opts ...dbase.Option) (Controller, error) {
 	lg := cfg.Log
-	dbp, err := dbase.New(ctx, conn, bootstrap.SessionInfo(cmd.Name()), opts...)
+	dbp, err := dbase.New(ctx, conn, bootstrap.SessionInfo(cmdName), opts...)
 	if err != nil {
 		return nil, err
 	}
