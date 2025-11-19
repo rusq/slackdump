@@ -2,16 +2,20 @@ package dbase
 
 import (
 	"context"
+	"database/sql"
 	"reflect"
 	"testing"
 	"time"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/rusq/slack"
+	"go.uber.org/mock/gomock"
 
 	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/internal/chunk/backend/dbase/repository"
+	"github.com/rusq/slackdump/v3/internal/chunk/backend/dbase/repository/mock_repository"
 	"github.com/rusq/slackdump/v3/internal/fixtures"
+	"github.com/rusq/slackdump/v3/internal/testutil"
 )
 
 type utilityFunc func(t *testing.T, ec repository.PrepareExtContext)
@@ -1184,6 +1188,139 @@ func TestDBP_insertSearchFiles(t *testing.T) {
 			if got != tt.want {
 				t.Errorf("DBP.insertSearchFiles() = %v, want %v", got, tt.want)
 			}
+		})
+	}
+}
+
+func Test_newUserIter(t *testing.T) {
+	// fixtures
+	var (
+		userNotInDB            = slack.User{ID: "User Not In DB"}
+		userAlreadyInDB        = slack.User{ID: "User Already In DB", Name: "original"}
+		userAlreadyInDBUpdated = slack.User{ID: "User Already In DB", Name: "updated"}
+	)
+	// harness
+	var mustUser = func(idx int, u *slack.User) repository.DBUser {
+		du, err := repository.NewDBUser(1, idx, u)
+		if err != nil {
+			panic(err)
+		}
+		return *du
+	}
+	type args struct {
+		// ur        repository.UserRepository
+		tx        repository.PrepareExtContext
+		dbchunkID int64
+		users     []slack.User
+	}
+	tests := []struct {
+		name   string
+		args   args
+		expect func(mur *mock_repository.MockUserRepository)
+		want   []testutil.TestResult[*repository.DBUser]
+	}{
+		{
+			name: "returns all users, no users in the repository",
+			args: args{
+				tx:        testDB(t),
+				dbchunkID: 1,
+				users:     fixtures.TestUsers,
+			},
+			expect: func(mur *mock_repository.MockUserRepository) {
+				for _, u := range fixtures.TestUsers {
+					mur.EXPECT().Get(gomock.Any(), gomock.Any(), u.ID).Return(repository.DBUser{}, sql.ErrNoRows)
+				}
+			},
+			want: func() []testutil.TestResult[*repository.DBUser] {
+				var ret []testutil.TestResult[*repository.DBUser]
+				for i, u := range fixtures.TestUsers {
+					ret = append(ret, testutil.TestResult[*repository.DBUser]{
+						V:   testutil.Ptr(mustUser(i, &u)),
+						Err: nil,
+					})
+				}
+				return ret
+			}(),
+		},
+		{
+			name: "one user in the repository (no changes), one new",
+			args: args{
+				tx:        testDB(t),
+				dbchunkID: 1,
+				users: []slack.User{
+					userAlreadyInDB,
+					userNotInDB,
+				},
+			},
+			expect: func(mur *mock_repository.MockUserRepository) {
+				mur.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, _ repository.PrepareExtContext, id string) (repository.DBUser, error) {
+					switch id {
+					case userNotInDB.ID:
+						return repository.DBUser{}, sql.ErrNoRows
+					case userAlreadyInDB.ID:
+						return mustUser(1, &userAlreadyInDB), nil
+					}
+					panic("should never get here")
+				}).Times(2)
+			},
+			want: []testutil.TestResult[*repository.DBUser]{
+				{V: testutil.Ptr(mustUser(1, &userNotInDB))},
+			},
+		},
+		{
+			name: "one user in the repository (changed), one new",
+			args: args{
+				tx:        testDB(t),
+				dbchunkID: 1,
+				users: []slack.User{
+					userAlreadyInDBUpdated,
+					userNotInDB,
+				},
+			},
+			expect: func(mur *mock_repository.MockUserRepository) {
+				mur.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, _ repository.PrepareExtContext, id string) (repository.DBUser, error) {
+					switch id {
+					case userNotInDB.ID:
+						return repository.DBUser{}, sql.ErrNoRows
+					case userAlreadyInDB.ID:
+						return mustUser(1, &userAlreadyInDB), nil
+					}
+					panic("should never get here")
+				}).Times(2)
+			},
+			want: []testutil.TestResult[*repository.DBUser]{
+				{V: testutil.Ptr(mustUser(0, &userAlreadyInDBUpdated))},
+				{V: testutil.Ptr(mustUser(1, &userNotInDB))},
+			},
+		},
+		{
+			name: "one user and already in DB",
+			args: args{
+				tx:        testDB(t),
+				dbchunkID: 1,
+				users: []slack.User{
+					userAlreadyInDB,
+				},
+			},
+			expect: func(mur *mock_repository.MockUserRepository) {
+				mur.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, _ repository.PrepareExtContext, id string) (repository.DBUser, error) {
+					switch id {
+					case userAlreadyInDB.ID:
+						return mustUser(1, &userAlreadyInDB), nil
+					}
+					panic("should never get here")
+				}).Times(1)
+			},
+			want: []testutil.TestResult[*repository.DBUser]{},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			mur := mock_repository.NewMockUserRepository(ctrl)
+			tt.expect(mur)
+			uit := newUserIter(t.Context(), mur, tt.args.tx, tt.args.dbchunkID, tt.args.users)
+			testutil.AssertIterResult(t, tt.want, uit)
 		})
 	}
 }
