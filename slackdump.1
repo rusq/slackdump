@@ -207,6 +207,9 @@ If the path ends with
 .Dq .zip ,
 the data will be stored in the zip file, otherwise
 it will be stored in the directory.
+.It Fl only-new-users=true|false
+(resume command only) If set to true, inserts only new or updated users into
+the database on subsequent runs. Enabled by default.
 .It Fl time-from Ar YYYY-MM-DDTHH:MI:SS | YYYY-MM-DD
 Allows to specify the start time.  The time is specified in the format
 .Dq YYYY-MM-DDTHH:MI:SS, or YYYY-MM-DD if only the date is needed.

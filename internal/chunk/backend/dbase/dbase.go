@@ -22,7 +22,8 @@ type DBP struct {
 	sessionID int64
 	closed    atomic.Bool
 
-	mr repository.MessageRepository
+	mr   repository.MessageRepository
+	opts options
 }
 
 func (d *DBP) String() string {
@@ -49,7 +50,8 @@ var dbInitCommands = []string{
 }
 
 type options struct {
-	verbose bool
+	onlyNewOrChangedUsers bool
+	verbose               bool
 }
 
 func (o *options) apply(opts ...Option) {
@@ -63,6 +65,12 @@ type Option func(*options)
 func WithVerbose(v bool) Option {
 	return func(o *options) {
 		o.verbose = v
+	}
+}
+
+func WithOnlyNewOrChangedUsers(v bool) Option {
+	return func(o *options) {
+		o.onlyNewOrChangedUsers = v
 	}
 }
 
@@ -98,6 +106,7 @@ func New(ctx context.Context, conn *sqlx.DB, p SessionInfo, opts ...Option) (*DB
 		conn:      conn,
 		sessionID: id,
 		mr:        repository.NewMessageRepository(),
+		opts:      options,
 	}, nil
 }
 

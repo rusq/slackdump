@@ -17,6 +17,7 @@ import (
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/bootstrap"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
+	"github.com/rusq/slackdump/v3/internal/chunk/backend/dbase"
 	"github.com/rusq/slackdump/v3/internal/chunk/control"
 	"github.com/rusq/slackdump/v3/internal/structures"
 	"github.com/rusq/slackdump/v3/stream"
@@ -43,6 +44,10 @@ type ResumeParams struct {
 	// IncludeThreads includes scanning of the threads in the archive
 	// and checking if there are any new messages in them.
 	IncludeThreads bool
+	// RecordOnlyNewUsers if set to false (default), records only updated or
+	// new users. If set to true, records all users from the workspace again,
+	// not just changed.
+	RecordOnlyNewUsers bool
 }
 
 var resumeFlags ResumeParams
@@ -51,6 +56,7 @@ func init() {
 	CmdResume.Run = runResume
 	CmdResume.Flag.BoolVar(&resumeFlags.Refresh, "refresh", false, "refresh the list of channels")
 	CmdResume.Flag.BoolVar(&resumeFlags.IncludeThreads, "threads", false, "include threads (slow, and flaky business)")
+	CmdResume.Flag.BoolVar(&resumeFlags.RecordOnlyNewUsers, "only-new-users", true, "record only new or updated users")
 }
 
 func runResume(ctx context.Context, cmd *base.Command, args []string) error {
@@ -115,7 +121,7 @@ func runResume(ctx context.Context, cmd *base.Command, args []string) error {
 	}
 	// inclusive is false, because we don't want to include the latest message
 	// which is already in the database.
-	ctrl, err := archive.DBController(ctx, cmd, wconn, client, dir, cf, stream.OptInclusive(false))
+	ctrl, err := archive.DBController(ctx, cmd.Name(), wconn, client, dir, cf, []stream.Option{stream.OptInclusive(false)}, dbase.WithOnlyNewOrChangedUsers(resumeFlags.RecordOnlyNewUsers))
 	if err != nil {
 		base.SetExitStatus(base.SInitializationError)
 		return fmt.Errorf("error creating archive controller: %w", err)
