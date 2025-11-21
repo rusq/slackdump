@@ -42,8 +42,8 @@ require (
 	github.com/yuin/goldmark-emoji v1.0.6
 	go.uber.org/mock v0.5.2
 	golang.org/x/sync v0.18.0
-	golang.org/x/term v0.35.0
-	golang.org/x/text v0.30.0
+	golang.org/x/term v0.37.0
+	golang.org/x/text v0.31.0
 	golang.org/x/time v0.12.0
 	modernc.org/sqlite v1.38.2
 	src.elv.sh v0.21.0
@@ -103,12 +103,12 @@ require (
 	github.com/ysmood/gson v0.7.3 // indirect
 	github.com/ysmood/leakless v0.9.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	golang.org/x/crypto v0.42.0 // indirect
+	golang.org/x/crypto v0.45.0 // indirect
 	golang.org/x/exp v0.0.0-20250808145144-a408d31f581a // indirect
-	golang.org/x/mod v0.28.0 // indirect
-	golang.org/x/net v0.44.0 // indirect
+	golang.org/x/mod v0.29.0 // indirect
+	golang.org/x/net v0.47.0 // indirect
 	golang.org/x/sys v0.38.0 // indirect
-	golang.org/x/tools v0.37.0 // indirect
+	golang.org/x/tools v0.38.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	modernc.org/libc v1.66.6 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
