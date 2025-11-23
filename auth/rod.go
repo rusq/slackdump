@@ -73,6 +73,8 @@ type browserAuthUIExt interface {
 	// return it.  Callback function is called to indicate that the code is
 	// requested.
 	ConfirmationCode(email string) (code int, err error)
+	// RequestQR should request the URL-encoded png image and return it.
+	RequestQR(ctx context.Context, w io.Writer) (encImage string, err error)
 }
 
 // NewRODAuth constructs new RodAuth provider.
@@ -123,22 +125,22 @@ func NewRODAuth(ctx context.Context, opts ...Option) (RodAuth, error) {
 	lg := slog.Default()
 	t := time.Now()
 	var sp simpleProvider
+
 	switch resp.Type {
 	case auth_ui.LInteractive, auth_ui.LUserBrowser:
 		lg.InfoContext(ctx, "ℹ️ Initialising browser, once the browser appears, login as usual")
-		var err error
 		sp.Token, sp.Cookie, err = cl.Manual(ctx)
-		if err != nil {
-			return r, err
-		}
 	case auth_ui.LHeadless:
 		sp, err = headlessFlow(ctx, cl, resp.Workspace, r.opts.ui)
-		if err != nil {
-			return r, err
-		}
+	case auth_ui.LMobileSignin:
+		sp, err = qrFlow(ctx, cl, r.opts.ui)
 	case auth_ui.LCancel:
 		return r, ErrCancelled
 	}
+	if err != nil {
+		return r, err
+	}
+
 	lg.InfoContext(ctx, "✅ authenticated", "time_taken", time.Since(t).String())
 
 	return RodAuth{
@@ -166,4 +168,19 @@ func headlessFlow(ctx context.Context, cl *slackauth.Client, workspace string, u
 		return sp, loginErr
 	}
 	return
+}
+
+func qrFlow(ctx context.Context, cl *slackauth.Client, ui browserAuthUIExt) (sp simpleProvider, err error) {
+	imageData, err := ui.RequestQR(ctx, os.Stdout)
+	if err != nil {
+		return sp, err
+	}
+	tok, cook, err := cl.QRAuth(ctx, imageData)
+	if err != nil {
+		return sp, err
+	}
+	return simpleProvider{
+		Token:  tok,
+		Cookie: cook,
+	}, nil
 }

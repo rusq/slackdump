@@ -7,6 +7,7 @@ import (
 	"io"
 	"regexp"
 	"strconv"
+	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/huh"
@@ -65,7 +66,7 @@ func (m methodMenuItem) String() string {
 	return fmt.Sprintf("%-20s - %s", m.MenuItem, m.ShortDesc)
 }
 
-var methods = []methodMenuItem{
+var gMethods = []methodMenuItem{
 	{
 		"Interactive",
 		"Works with most authentication schemes, except Google.",
@@ -73,13 +74,18 @@ var methods = []methodMenuItem{
 	},
 	{
 		"Automatic",
-		"Only suitable for email/password auth",
+		"Only suitable for email/password auth.",
 		LHeadless,
 	},
 	{
 		"User Browser",
-		"Loads your user profile, works with Google Auth",
+		"Loads your user profile, works with Google Auth.",
 		LUserBrowser,
+	},
+	{
+		"QR Code",
+		"Login using Sign in on Mobile QR code, works with Google Auth.",
+		LMobileSignin,
 	},
 }
 
@@ -95,15 +101,15 @@ func init() {
 	keymap.Quit = key.NewBinding(key.WithKeys("esc", "ctrl+c"), key.WithHelp("esc", "Quit"))
 }
 
-func (*Huh) RequestLoginType(ctx context.Context, w io.Writer, workspace string) (LoginOpts, error) {
+func (*Huh) RequestLoginType(ctx context.Context, _ io.Writer, workspace string) (LoginOpts, error) {
 	ret := LoginOpts{
 		Workspace:   workspace,
 		Type:        LInteractive,
 		BrowserPath: "",
 	}
 
-	opts := make([]huh.Option[LoginType], 0, len(methods))
-	for _, m := range methods {
+	opts := make([]huh.Option[LoginType], 0, len(gMethods))
+	for _, m := range gMethods {
 		opts = append(opts, huh.NewOption(m.String(), m.Type))
 	}
 	opts = append(opts,
@@ -139,6 +145,8 @@ func (*Huh) RequestLoginType(ctx context.Context, w io.Writer, workspace string)
 				return "You will be prompted to enter your email and password, login is automated."
 			case LUserBrowser:
 				return "System browser will open on a Slack Login page."
+			case LMobileSignin:
+				return "Sign in using 'Sign in on Mobile' QR code."
 			case LCancel:
 				return "Cancel the login process."
 			default:
@@ -225,4 +233,36 @@ func valSixDigits(s string) error {
 		return errors.New("confirmation code must be a sequence of six digits")
 	}
 	return nil
+}
+
+const (
+	maxEncImgSz = 7000
+	imgPrefix   = "data:image/png;base64,"
+)
+
+func (*Huh) RequestQR(ctx context.Context, _ io.Writer) (string, error) {
+	const description = `In logged in Slack Client or Web:
+  1. click the username in the upper left corner;
+  2. choose 'Sign in on mobile';
+  3. right-click the QR code image;
+  4. choose Copy Image.`
+	var imageData string
+	q := huh.NewForm(huh.NewGroup(
+		huh.NewText().
+			CharLimit(maxEncImgSz).
+			Value(&imageData).
+			Validate(func(s string) error {
+				if !strings.HasPrefix(s, imgPrefix) {
+					return errors.New("image data must start with " + imgPrefix)
+				}
+				return nil
+			}).
+			Placeholder(imgPrefix + "...").
+			Title("Paste QR code image data into this field").
+			Description(""),
+	))
+	if err := q.Run(); err != nil {
+		return "", err
+	}
+	return imageData, nil
 }
