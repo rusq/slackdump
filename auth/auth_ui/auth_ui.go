@@ -11,6 +11,8 @@ const (
 	LHeadless
 	// LUserBrowser is the google auth option
 	LUserBrowser
+	// LMobileSignin allows to sign in using QR Code
+	LMobileSignin
 	// LCancel should be returned if the user cancels the login intent.
 	LCancel
 )
