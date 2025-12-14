@@ -69,8 +69,8 @@ type Resumer interface {
 	Latest(ctx context.Context) (map[structures.SlackLink]time.Time, error)
 }
 
-// Resumer is the interface that should be implemented by sources that can be
-// resumed.
+// SourceResumeCloser is the interface that should be implemented by sources
+// that can be resumed.
 type SourceResumeCloser interface {
 	Sourcer
 	Resumer

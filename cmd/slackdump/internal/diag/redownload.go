@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"iter"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -14,7 +15,6 @@ import (
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/bootstrap"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
-	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/internal/convert/transform/fileproc"
 	"github.com/rusq/slackdump/v3/internal/structures"
 	"github.com/rusq/slackdump/v3/processor"
@@ -25,16 +25,20 @@ var cmdRedownload = &base.Command{
 	UsageLine: "tools redownload [flags] <archive_dir>",
 	Short:     "attempts to redownload missing files from the archive",
 	Long: `# File redownload tool
-Redownload tool scans the directory with Slackdump Archive, validating the files.
-If a file is missing or has zero length, it will be redownloaded from the Slack API.
-The tool will not overwrite existing files, so it is safe to run multiple times.
+Redownload tool scans the slackdump export, archive or dump directory,
+validating the files.
 
-Please note:
+If a file is missing or has zero length, it will be redownloaded from the Slack
+API. The tool will not overwrite existing files, so it is safe to run it
+multiple times.
+
+** Please note: **
 
 1. It requires you to have a valid authentication in the selected workspace.
 2. Ensure that you have selected the correct workspace using "slackdump workspace select".
-3. It only works with Slackdump Archive directories, Slack exports and dumps
-are not supported.`,
+3. It only support directories.  ZIP files can not be updated. Unpack ZIP file
+   to a directory before using this tool.
+`,
 	FlagMask:    cfg.OmitAll &^ cfg.OmitAuthFlags,
 	Run:         runRedownload,
 	PrintFlags:  true,
@@ -74,29 +78,22 @@ func validate(dir string) error {
 		base.SetExitStatus(base.SUserError)
 		return fmt.Errorf("error determining source type: %w", err)
 	}
-	if flags&source.FChunk == 0 {
+	if flags&source.FZip != 0 {
 		base.SetExitStatus(base.SUserError)
-		return errors.New("expected a Slackdump Archive directory")
+		return errors.New("unable to work with ZIP files, unpack it first")
 	}
 
-	if fi, err := os.Stat(filepath.Join(dir, string(chunk.FWorkspace)+".json.gz")); err != nil {
-		base.SetExitStatus(base.SUserError)
-		return fmt.Errorf("error accessing the workspace file: %w", err)
-	} else if fi.IsDir() {
-		base.SetExitStatus(base.SUserError)
-		return errors.New("this does not look like an archive directory")
-	}
 	return nil
 }
 
 func redownload(ctx context.Context, dir string) (int, error) {
-	cd, err := chunk.OpenDir(dir)
+	src, err := source.Load(ctx, dir)
 	if err != nil {
 		return 0, fmt.Errorf("error opening directory: %w", err)
 	}
-	defer cd.Close()
+	defer src.Close()
 
-	channels, err := cd.Channels(ctx)
+	channels, err := src.Channels(ctx)
 	if err != nil {
 		return 0, fmt.Errorf("error reading channels: %w", err)
 	}
@@ -113,16 +110,21 @@ func redownload(ctx context.Context, dir string) (int, error) {
 		ctx,
 		true,
 		client,
-		fsadapter.NewDirectory(cd.Name()),
+		fsadapter.NewDirectory(src.Name()),
 		cfg.Log,
 	)
 	defer dl.Stop()
-	// we are using the same file subprocessor as the mattermost export.
-	fproc := fileproc.New(dl)
+
+	// determine the file processor for the source.
+	fproc, err := fileProcessorForSource(src, dl)
+	if err != nil {
+		return 0, err
+	}
+	defer fproc.Close()
 
 	total := 0
 	for _, ch := range channels {
-		if n, err := redlChannel(ctx, fproc, cd, &ch); err != nil {
+		if n, err := redownloadChannel(ctx, fproc, src, &ch); err != nil {
 			return total, err
 		} else {
 			total += n
@@ -132,35 +134,97 @@ func redownload(ctx context.Context, dir string) (int, error) {
 	return total, nil
 }
 
-func redlChannel(ctx context.Context, fp processor.Filer, cd *chunk.Directory, ch *slack.Channel) (int, error) {
+// fileProcessorForSource returns the appropriate file processor for the given
+// source.
+func fileProcessorForSource(src source.Sourcer, dl fileproc.Downloader) (processor.Filer, error) {
+	var fproc processor.Filer
+	srcFlags := src.Type()
+	switch {
+	case srcFlags&source.FDatabase != 0 || srcFlags&source.FChunk != 0:
+		fproc = fileproc.New(dl)
+	case srcFlags&source.FExport != 0:
+		typ := src.Files().Type()
+		if typ == source.STnone {
+			typ = source.STmattermost // default to mattermost
+		}
+		fproc = fileproc.NewExport(typ, dl)
+	case srcFlags&source.FDump != 0:
+		fproc = fileproc.NewDump(dl)
+	default:
+		return nil, fmt.Errorf("unable to determine file storage format for the source with flags %s", srcFlags)
+	}
+	return fproc, nil
+}
+
+func redownloadChannel(ctx context.Context, fp processor.Filer, src source.Sourcer, ch *slack.Channel) (int, error) {
 	slog.Info("processing channel", "channel", ch.ID)
-	f, err := cd.Open(chunk.FileID(ch.ID))
+	it, err := src.AllMessages(ctx, ch.ID)
 	if err != nil {
+		if errors.Is(err, source.ErrNotFound) {
+			// no data in the channel
+			return 0, nil
+		}
 		return 0, fmt.Errorf("error reading messages: %w", err)
 	}
-	defer f.Close()
-	msgs, err := f.AllMessages(ctx, ch.ID)
+	// collect messages from the iterator
+	msgs, err := collect(it)
 	if err != nil {
-		return 0, fmt.Errorf("error reading messages: %w", err)
+		return 0, fmt.Errorf("error fetching messages: %w", err)
 	}
+
 	if len(msgs) == 0 {
 		return 0, nil
 	}
 	slog.Info("scanning messages", "num_messages", len(msgs))
-	return scanMsgs(ctx, fp, cd, f, ch, msgs)
+	return scanMsgs(ctx, fp, src, ch, msgs, false)
 }
 
-func scanMsgs(ctx context.Context, fp processor.Filer, cd *chunk.Directory, f *chunk.File, ch *slack.Channel, msgs []slack.Message) (int, error) {
+// collect collects all Ks from iterator it, returning any encountered error.
+func collect[K any](it iter.Seq2[K, error]) ([]K, error) {
+	kk := make([]K, 0)
+	for k, err := range it {
+		if err != nil {
+			return kk, fmt.Errorf("error fetching messages: %w", err)
+		}
+		kk = append(kk, k)
+	}
+	return kk, nil
+}
+
+func pathFuncForSource(src source.Sourcer) func(ch *slack.Channel, f *slack.File) string {
+	if src.Files().Type() != source.STnone {
+		// easy
+		return src.Files().FilePath
+	}
+	typ := src.Type()
+	switch {
+	case typ&source.FDump != 0:
+		return source.DumpFilepath
+	default:
+		// in all other cases we default to mattermost file path.
+		return source.MattermostFilepath
+	}
+	// unreachable
+}
+
+func scanMsgs(ctx context.Context, fp processor.Filer, src source.Sourcer, ch *slack.Channel, msgs []slack.Message, isThread bool) (int, error) {
 	lg := slog.With("channel", ch.ID)
+	// workaround for completely missing storage
+	pathFn := pathFuncForSource(src)
 	total := 0
 	for _, m := range msgs {
-		if structures.IsThreadStart(&m) {
-			tm, err := f.AllThreadMessages(ch.ID, m.ThreadTimestamp)
+		if structures.IsThreadStart(&m) && !isThread {
+			it, err := src.AllThreadMessages(ctx, ch.ID, m.ThreadTimestamp)
 			if err != nil {
 				return 0, fmt.Errorf("error reading thread messages: %w", err)
 			}
+			tm, err := collect(it)
+			if err != nil {
+				return 0, fmt.Errorf("error collecting thread messages: %w", err)
+			}
+
 			lg.Info("scanning thread messages", "num_messages", len(tm), "thread", m.ThreadTimestamp)
-			if n, err := scanMsgs(ctx, fp, cd, f, ch, tm); err != nil {
+			if n, err := scanMsgs(ctx, fp, src, ch, tm, true); err != nil {
 				return total, err
 			} else {
 				total += n
@@ -170,7 +234,7 @@ func scanMsgs(ctx context.Context, fp processor.Filer, cd *chunk.Directory, f *c
 		// collect all missing files from the message.
 		var missing []slack.File
 		for _, ff := range m.Files {
-			name := filepath.Join(cd.Name(), source.MattermostFilepath(ch, &ff))
+			name := filepath.Join(src.Name(), pathFn(ch, &ff))
 			lg := lg.With("file", name)
 			lg.Debug("checking file")
 			if fi, err := os.Stat(name); err != nil {
