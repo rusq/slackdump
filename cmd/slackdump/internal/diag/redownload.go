@@ -78,7 +78,7 @@ func validate(dir string) error {
 		base.SetExitStatus(base.SUserError)
 		return fmt.Errorf("error determining source type: %w", err)
 	}
-	if flags&source.FZip == 1 {
+	if flags&source.FZip != 0 {
 		base.SetExitStatus(base.SUserError)
 		return errors.New("unable to work with ZIP files, unpack it first")
 	}
@@ -140,11 +140,15 @@ func fileProcessorForSource(src source.Sourcer, dl fileproc.Downloader) (process
 	var fproc processor.Filer
 	srcFlags := src.Type()
 	switch {
-	case srcFlags&source.FDatabase == 1 || srcFlags&source.FChunk == 1:
+	case srcFlags&source.FDatabase != 0 || srcFlags&source.FChunk != 0:
 		fproc = fileproc.New(dl)
-	case srcFlags&source.FExport == 1:
-		fproc = fileproc.NewExport(src.Files().Type(), dl)
-	case srcFlags&source.FDump == 1:
+	case srcFlags&source.FExport != 0:
+		typ := src.Files().Type()
+		if typ == source.STnone {
+			typ = source.STmattermost // default to mattermost
+		}
+		fproc = fileproc.NewExport(typ, dl)
+	case srcFlags&source.FDump != 0:
 		fproc = fileproc.NewDump(dl)
 	default:
 		return nil, fmt.Errorf("unable to determine file storage format for the source with flags %s", srcFlags)
@@ -156,6 +160,10 @@ func redownloadChannel(ctx context.Context, fp processor.Filer, src source.Sourc
 	slog.Info("processing channel", "channel", ch.ID)
 	it, err := src.AllMessages(ctx, ch.ID)
 	if err != nil {
+		if errors.Is(err, source.ErrNotFound) {
+			// no data in the channel
+			return 0, nil
+		}
 		return 0, fmt.Errorf("error reading messages: %w", err)
 	}
 	// collect messages from the iterator
@@ -168,12 +176,12 @@ func redownloadChannel(ctx context.Context, fp processor.Filer, src source.Sourc
 		return 0, nil
 	}
 	slog.Info("scanning messages", "num_messages", len(msgs))
-	return scanMsgs(ctx, fp, src, ch, msgs)
+	return scanMsgs(ctx, fp, src, ch, msgs, false)
 }
 
 // collect collects all Ks from iterator it, returning any encountered error.
 func collect[K any](it iter.Seq2[K, error]) ([]K, error) {
-	kk := make([]K, 0, 1000)
+	kk := make([]K, 0)
 	for k, err := range it {
 		if err != nil {
 			return kk, fmt.Errorf("error fetching messages: %w", err)
@@ -183,11 +191,29 @@ func collect[K any](it iter.Seq2[K, error]) ([]K, error) {
 	return kk, nil
 }
 
-func scanMsgs(ctx context.Context, fp processor.Filer, src source.Sourcer, ch *slack.Channel, msgs []slack.Message) (int, error) {
+func pathFuncForSource(src source.Sourcer) func(ch *slack.Channel, f *slack.File) string {
+	if src.Files().Type() != source.STnone {
+		// easy
+		return src.Files().FilePath
+	}
+	typ := src.Type()
+	switch {
+	case typ&source.FDump != 0:
+		return source.DumpFilepath
+	default:
+		// in all other cases we default to mattermost file path.
+		return source.MattermostFilepath
+	}
+	// unreachable
+}
+
+func scanMsgs(ctx context.Context, fp processor.Filer, src source.Sourcer, ch *slack.Channel, msgs []slack.Message, isThread bool) (int, error) {
 	lg := slog.With("channel", ch.ID)
+	// workaround for completely missing storage
+	pathFn := pathFuncForSource(src)
 	total := 0
 	for _, m := range msgs {
-		if structures.IsThreadStart(&m) {
+		if structures.IsThreadStart(&m) && !isThread {
 			it, err := src.AllThreadMessages(ctx, ch.ID, m.ThreadTimestamp)
 			if err != nil {
 				return 0, fmt.Errorf("error reading thread messages: %w", err)
@@ -198,7 +224,7 @@ func scanMsgs(ctx context.Context, fp processor.Filer, src source.Sourcer, ch *s
 			}
 
 			lg.Info("scanning thread messages", "num_messages", len(tm), "thread", m.ThreadTimestamp)
-			if n, err := scanMsgs(ctx, fp, src, ch, tm); err != nil {
+			if n, err := scanMsgs(ctx, fp, src, ch, tm, true); err != nil {
 				return total, err
 			} else {
 				total += n
@@ -208,7 +234,7 @@ func scanMsgs(ctx context.Context, fp processor.Filer, src source.Sourcer, ch *s
 		// collect all missing files from the message.
 		var missing []slack.File
 		for _, ff := range m.Files {
-			name := filepath.Join(src.Name(), src.Files().FilePath(ch, &ff))
+			name := filepath.Join(src.Name(), pathFn(ch, &ff))
 			lg := lg.With("file", name)
 			lg.Debug("checking file")
 			if fi, err := os.Stat(name); err != nil {
