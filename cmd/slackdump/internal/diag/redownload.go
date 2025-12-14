@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"iter"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -14,7 +15,6 @@ import (
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/bootstrap"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
-	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/internal/convert/transform/fileproc"
 	"github.com/rusq/slackdump/v3/internal/structures"
 	"github.com/rusq/slackdump/v3/processor"
@@ -25,16 +25,20 @@ var cmdRedownload = &base.Command{
 	UsageLine: "tools redownload [flags] <archive_dir>",
 	Short:     "attempts to redownload missing files from the archive",
 	Long: `# File redownload tool
-Redownload tool scans the directory with Slackdump Archive, validating the files.
-If a file is missing or has zero length, it will be redownloaded from the Slack API.
-The tool will not overwrite existing files, so it is safe to run multiple times.
+Redownload tool scans the slackdump export, archive or dump directory,
+validating the files.
 
-Please note:
+If a file is missing or has zero length, it will be redownloaded from the Slack
+API. The tool will not overwrite existing files, so it is safe to run it
+multiple times.
+
+** Please note: **
 
 1. It requires you to have a valid authentication in the selected workspace.
 2. Ensure that you have selected the correct workspace using "slackdump workspace select".
-3. It only works with Slackdump Archive directories, Slack exports and dumps
-are not supported.`,
+3. It only support directories.  ZIP files can not be updated. Unpack ZIP file
+   to a directory before using this tool.
+`,
 	FlagMask:    cfg.OmitAll &^ cfg.OmitAuthFlags,
 	Run:         runRedownload,
 	PrintFlags:  true,
@@ -74,29 +78,22 @@ func validate(dir string) error {
 		base.SetExitStatus(base.SUserError)
 		return fmt.Errorf("error determining source type: %w", err)
 	}
-	if flags&source.FChunk == 0 {
+	if flags&source.FZip == 1 {
 		base.SetExitStatus(base.SUserError)
-		return errors.New("expected a Slackdump Archive directory")
+		return errors.New("unable to work with ZIP files, unpack it first")
 	}
 
-	if fi, err := os.Stat(filepath.Join(dir, string(chunk.FWorkspace)+".json.gz")); err != nil {
-		base.SetExitStatus(base.SUserError)
-		return fmt.Errorf("error accessing the workspace file: %w", err)
-	} else if fi.IsDir() {
-		base.SetExitStatus(base.SUserError)
-		return errors.New("this does not look like an archive directory")
-	}
 	return nil
 }
 
 func redownload(ctx context.Context, dir string) (int, error) {
-	cd, err := chunk.OpenDir(dir)
+	src, err := source.Load(ctx, dir)
 	if err != nil {
 		return 0, fmt.Errorf("error opening directory: %w", err)
 	}
-	defer cd.Close()
+	defer src.Close()
 
-	channels, err := cd.Channels(ctx)
+	channels, err := src.Channels(ctx)
 	if err != nil {
 		return 0, fmt.Errorf("error reading channels: %w", err)
 	}
@@ -113,16 +110,28 @@ func redownload(ctx context.Context, dir string) (int, error) {
 		ctx,
 		true,
 		client,
-		fsadapter.NewDirectory(cd.Name()),
+		fsadapter.NewDirectory(src.Name()),
 		cfg.Log,
 	)
 	defer dl.Stop()
-	// we are using the same file subprocessor as the mattermost export.
-	fproc := fileproc.New(dl)
+
+	// determine the file processor for the source.
+	var fproc processor.Filer
+	srcFlags := src.Type()
+	switch {
+	case srcFlags&source.FDatabase == 1 || srcFlags&source.FChunk == 1:
+		fproc = fileproc.New(dl)
+	case srcFlags&source.FExport == 1:
+		fproc = fileproc.NewExport(src.Files().Type(), dl)
+	case srcFlags&source.FDump == 1:
+		fproc = fileproc.NewDump(dl)
+	default:
+		return 0, fmt.Errorf("unable to determine file storage format for the source with flags %s", srcFlags)
+	}
 
 	total := 0
 	for _, ch := range channels {
-		if n, err := redlChannel(ctx, fproc, cd, &ch); err != nil {
+		if n, err := redownloadChannel(ctx, fproc, src, &ch); err != nil {
 			return total, err
 		} else {
 			total += n
@@ -132,35 +141,52 @@ func redownload(ctx context.Context, dir string) (int, error) {
 	return total, nil
 }
 
-func redlChannel(ctx context.Context, fp processor.Filer, cd *chunk.Directory, ch *slack.Channel) (int, error) {
+func redownloadChannel(ctx context.Context, fp processor.Filer, cd source.Sourcer, ch *slack.Channel) (int, error) {
 	slog.Info("processing channel", "channel", ch.ID)
-	f, err := cd.Open(chunk.FileID(ch.ID))
+	it, err := cd.AllMessages(ctx, ch.ID)
 	if err != nil {
 		return 0, fmt.Errorf("error reading messages: %w", err)
 	}
-	defer f.Close()
-	msgs, err := f.AllMessages(ctx, ch.ID)
+	// collect messages from the iterator
+	msgs, err := collect(it)
 	if err != nil {
-		return 0, fmt.Errorf("error reading messages: %w", err)
+		return 0, fmt.Errorf("error fetching messages: %w", err)
 	}
+
 	if len(msgs) == 0 {
 		return 0, nil
 	}
 	slog.Info("scanning messages", "num_messages", len(msgs))
-	return scanMsgs(ctx, fp, cd, f, ch, msgs)
+	return scanMsgs(ctx, fp, cd, ch, msgs)
 }
 
-func scanMsgs(ctx context.Context, fp processor.Filer, cd *chunk.Directory, f *chunk.File, ch *slack.Channel, msgs []slack.Message) (int, error) {
+func collect[K any](it iter.Seq2[K, error]) ([]K, error) {
+	kk := make([]K, 0, 1000)
+	for k, err := range it {
+		if err != nil {
+			return kk, fmt.Errorf("error fetching messages: %w", err)
+		}
+		kk = append(kk, k)
+	}
+	return kk, nil
+}
+
+func scanMsgs(ctx context.Context, fp processor.Filer, cd source.Sourcer, ch *slack.Channel, msgs []slack.Message) (int, error) {
 	lg := slog.With("channel", ch.ID)
 	total := 0
 	for _, m := range msgs {
 		if structures.IsThreadStart(&m) {
-			tm, err := f.AllThreadMessages(ch.ID, m.ThreadTimestamp)
+			it, err := cd.AllThreadMessages(ctx, ch.ID, m.ThreadTimestamp)
 			if err != nil {
 				return 0, fmt.Errorf("error reading thread messages: %w", err)
 			}
+			tm, err := collect(it)
+			if err != nil {
+				return 0, fmt.Errorf("error collecting thread messages: %w", err)
+			}
+
 			lg.Info("scanning thread messages", "num_messages", len(tm), "thread", m.ThreadTimestamp)
-			if n, err := scanMsgs(ctx, fp, cd, f, ch, tm); err != nil {
+			if n, err := scanMsgs(ctx, fp, cd, ch, tm); err != nil {
 				return total, err
 			} else {
 				total += n
