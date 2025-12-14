@@ -116,18 +116,11 @@ func redownload(ctx context.Context, dir string) (int, error) {
 	defer dl.Stop()
 
 	// determine the file processor for the source.
-	var fproc processor.Filer
-	srcFlags := src.Type()
-	switch {
-	case srcFlags&source.FDatabase == 1 || srcFlags&source.FChunk == 1:
-		fproc = fileproc.New(dl)
-	case srcFlags&source.FExport == 1:
-		fproc = fileproc.NewExport(src.Files().Type(), dl)
-	case srcFlags&source.FDump == 1:
-		fproc = fileproc.NewDump(dl)
-	default:
-		return 0, fmt.Errorf("unable to determine file storage format for the source with flags %s", srcFlags)
+	fproc, err := fileProcessorForSource(src, dl)
+	if err != nil {
+		return 0, err
 	}
+	defer fproc.Close()
 
 	total := 0
 	for _, ch := range channels {
@@ -141,9 +134,27 @@ func redownload(ctx context.Context, dir string) (int, error) {
 	return total, nil
 }
 
-func redownloadChannel(ctx context.Context, fp processor.Filer, cd source.Sourcer, ch *slack.Channel) (int, error) {
+// fileProcessorForSource returns the appropriate file processor for the given
+// source.
+func fileProcessorForSource(src source.Sourcer, dl fileproc.Downloader) (processor.Filer, error) {
+	var fproc processor.Filer
+	srcFlags := src.Type()
+	switch {
+	case srcFlags&source.FDatabase == 1 || srcFlags&source.FChunk == 1:
+		fproc = fileproc.New(dl)
+	case srcFlags&source.FExport == 1:
+		fproc = fileproc.NewExport(src.Files().Type(), dl)
+	case srcFlags&source.FDump == 1:
+		fproc = fileproc.NewDump(dl)
+	default:
+		return nil, fmt.Errorf("unable to determine file storage format for the source with flags %s", srcFlags)
+	}
+	return fproc, nil
+}
+
+func redownloadChannel(ctx context.Context, fp processor.Filer, src source.Sourcer, ch *slack.Channel) (int, error) {
 	slog.Info("processing channel", "channel", ch.ID)
-	it, err := cd.AllMessages(ctx, ch.ID)
+	it, err := src.AllMessages(ctx, ch.ID)
 	if err != nil {
 		return 0, fmt.Errorf("error reading messages: %w", err)
 	}
@@ -157,9 +168,10 @@ func redownloadChannel(ctx context.Context, fp processor.Filer, cd source.Source
 		return 0, nil
 	}
 	slog.Info("scanning messages", "num_messages", len(msgs))
-	return scanMsgs(ctx, fp, cd, ch, msgs)
+	return scanMsgs(ctx, fp, src, ch, msgs)
 }
 
+// collect collects all Ks from iterator it, returning any encountered error.
 func collect[K any](it iter.Seq2[K, error]) ([]K, error) {
 	kk := make([]K, 0, 1000)
 	for k, err := range it {
@@ -171,12 +183,12 @@ func collect[K any](it iter.Seq2[K, error]) ([]K, error) {
 	return kk, nil
 }
 
-func scanMsgs(ctx context.Context, fp processor.Filer, cd source.Sourcer, ch *slack.Channel, msgs []slack.Message) (int, error) {
+func scanMsgs(ctx context.Context, fp processor.Filer, src source.Sourcer, ch *slack.Channel, msgs []slack.Message) (int, error) {
 	lg := slog.With("channel", ch.ID)
 	total := 0
 	for _, m := range msgs {
 		if structures.IsThreadStart(&m) {
-			it, err := cd.AllThreadMessages(ctx, ch.ID, m.ThreadTimestamp)
+			it, err := src.AllThreadMessages(ctx, ch.ID, m.ThreadTimestamp)
 			if err != nil {
 				return 0, fmt.Errorf("error reading thread messages: %w", err)
 			}
@@ -186,7 +198,7 @@ func scanMsgs(ctx context.Context, fp processor.Filer, cd source.Sourcer, ch *sl
 			}
 
 			lg.Info("scanning thread messages", "num_messages", len(tm), "thread", m.ThreadTimestamp)
-			if n, err := scanMsgs(ctx, fp, cd, ch, tm); err != nil {
+			if n, err := scanMsgs(ctx, fp, src, ch, tm); err != nil {
 				return total, err
 			} else {
 				total += n
@@ -196,7 +208,7 @@ func scanMsgs(ctx context.Context, fp processor.Filer, cd source.Sourcer, ch *sl
 		// collect all missing files from the message.
 		var missing []slack.File
 		for _, ff := range m.Files {
-			name := filepath.Join(cd.Name(), source.MattermostFilepath(ch, &ff))
+			name := filepath.Join(src.Name(), src.Files().FilePath(ch, &ff))
 			lg := lg.With("file", name)
 			lg.Debug("checking file")
 			if fi, err := os.Stat(name); err != nil {
