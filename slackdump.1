@@ -197,10 +197,6 @@ Disables caching of chunks for the
 .Cm convert
 command.  This may be useful on small archives.  For big archives caching is
 beneficial, as it allows to reduce the processing time.
-.It Fl no-user-cache
-Disables caching of users for the subcommands of the
-.Cm list
-command.
 .It Fl o Ar path
 Specifies the output directory or zip file where all data will be stored.
 If the path ends with
@@ -210,6 +206,10 @@ it will be stored in the directory.
 .It Fl only-new-users=true|false
 (resume command only) If set to true, inserts only new or updated users into
 the database on subsequent runs. Enabled by default.
+.It Fl resolve
+Enables caching of users for the subcommands of the
+.Cm list
+command.
 .It Fl time-from Ar YYYY-MM-DDTHH:MI:SS | YYYY-MM-DD
 Allows to specify the start time.  The time is specified in the format
 .Dq YYYY-MM-DDTHH:MI:SS, or YYYY-MM-DD if only the date is needed.
