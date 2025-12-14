@@ -34,10 +34,12 @@ conversations, archived chats and public channels, run::
 
   slackdump list channels
 
-If the user list in your Slack Workspace is too large, you can skip the
-caching of users by specifying the ``-no-user-cache`` flag::
+If you need to resolve usernames, use the ``-resolve`` flag.  If enabled,
+Slackdump will fetch all users from the workspace and match their IDs to
+usernames.  NOTE, that it might take some time if the number of users in
+your workspace is large::
 
-  slackdump list channels -no-user-cache
+  slackdump list channels -resolve
 
 The output may look like this::
 
