@@ -10,7 +10,7 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"github.com/rusq/slackdump/v3/source"
+	"github.com/sosodev/duration"
 
 	"github.com/rusq/slackdump/v3"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/archive"
@@ -20,6 +20,7 @@ import (
 	"github.com/rusq/slackdump/v3/internal/chunk/backend/dbase"
 	"github.com/rusq/slackdump/v3/internal/chunk/control"
 	"github.com/rusq/slackdump/v3/internal/structures"
+	"github.com/rusq/slackdump/v3/source"
 	"github.com/rusq/slackdump/v3/stream"
 )
 
@@ -48,15 +49,23 @@ type ResumeParams struct {
 	// new users. If set to true, records all users from the workspace again,
 	// not just changed.
 	RecordOnlyNewUsers bool
+	// Lookback specifies the lookback parameter. The "oldest" timestamp for
+	// API requests will be set to Now()-Lookback.  This is required to capture
+	// new threads on historical messages, otherwise, new threads on old messages
+	// will not be fetched.
+	Lookback extDuration
 }
 
-var resumeFlags ResumeParams
+var resumeFlags = ResumeParams{
+	Lookback: extDuration(7 * 24 * time.Hour),
+}
 
 func init() {
 	CmdResume.Run = runResume
 	CmdResume.Flag.BoolVar(&resumeFlags.Refresh, "refresh", false, "refresh the list of channels")
 	CmdResume.Flag.BoolVar(&resumeFlags.IncludeThreads, "threads", false, "include threads (slow, and flaky business)")
 	CmdResume.Flag.BoolVar(&resumeFlags.RecordOnlyNewUsers, "only-new-users", true, "record only new or updated users")
+	CmdResume.Flag.Var(&resumeFlags.Lookback, "lookback", "lookback window `duration`")
 }
 
 func runResume(ctx context.Context, cmd *base.Command, args []string) error {
@@ -78,7 +87,7 @@ func runResume(ctx context.Context, cmd *base.Command, args []string) error {
 		return fmt.Errorf("source type %q does not support resume, use slackdump convert to database format", src.Type())
 	}
 
-	latest, err := latest(ctx, src, resumeFlags.IncludeThreads)
+	latest, err := latest(ctx, src, resumeFlags.IncludeThreads, time.Duration(resumeFlags.Lookback))
 	if err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return fmt.Errorf("error loading latest timestamps: %w", err)
@@ -136,7 +145,14 @@ func runResume(ctx context.Context, cmd *base.Command, args []string) error {
 	return nil
 }
 
-func latest(ctx context.Context, src source.Resumer, includeThreads bool) (*structures.EntityList, error) {
+// oldestAdjustment is one second adjustment for Oldest timestamp to allow for
+// fetching thread messages (see #584)
+const oldestAdjustment = -1 * time.Hour
+
+func latest(ctx context.Context, src source.Resumer, includeThreads bool, lookBack time.Duration) (*structures.EntityList, error) {
+	if lookBack > 0 {
+		lookBack = -lookBack
+	}
 	latest, err := src.Latest(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("error loading latest timestamps: %w", err)
@@ -156,7 +172,7 @@ func latest(ctx context.Context, src source.Resumer, includeThreads bool) (*stru
 		}
 		item := structures.EntityItem{
 			Id:      sl.String(),
-			Oldest:  ts,
+			Oldest:  ts.Add(lookBack),
 			Latest:  time.Time(cfg.Latest),
 			Include: true,
 		}
@@ -278,4 +294,28 @@ func channelsTeam(ctx context.Context, src source.Sourcer) (string, error) {
 		}
 	}
 	return "", source.ErrNotFound
+}
+
+type extDuration time.Duration
+
+func (d *extDuration) Set(s string) error {
+	// match ISO 8601 duration format
+	s = strings.ToUpper(s)
+	if !strings.HasPrefix(s, "P") {
+		s = "P" + s
+	}
+	dur, err := duration.Parse(s)
+	if err != nil {
+		return err
+	}
+	*d = extDuration(dur.ToTimeDuration())
+	return nil
+}
+
+func (d *extDuration) String() string {
+	return strings.ToLower(duration.FromTimeDuration(time.Duration(*d)).String())
+}
+
+func (d *extDuration) IsBoolFlag() bool {
+	return false
 }

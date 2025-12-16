@@ -6,9 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rusq/slackdump/v3/source"
-	"github.com/rusq/slackdump/v3/source/mock_source"
-
 	"github.com/rusq/slack"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
@@ -17,6 +14,9 @@ import (
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/internal/fixtures"
 	"github.com/rusq/slackdump/v3/internal/structures"
+	"github.com/rusq/slackdump/v3/internal/testutil"
+	"github.com/rusq/slackdump/v3/source"
+	"github.com/rusq/slackdump/v3/source/mock_source"
 )
 
 func Test_ensureSameWorkspace(t *testing.T) {
@@ -327,6 +327,7 @@ func Test_latest(t *testing.T) {
 		ctx context.Context
 		// src source.Resumer
 		includeThreads bool
+		lookBack       time.Duration
 	}
 	tests := []struct {
 		name     string
@@ -340,6 +341,7 @@ func Test_latest(t *testing.T) {
 			args: args{
 				ctx:            t.Context(),
 				includeThreads: false,
+				lookBack:       0,
 			},
 			expectFn: func(mr *mock_source.MockResumer) {
 				mr.EXPECT().Latest(gomock.Any()).Return(nil, assert.AnError)
@@ -352,6 +354,7 @@ func Test_latest(t *testing.T) {
 			args: args{
 				ctx:            t.Context(),
 				includeThreads: false,
+				lookBack:       0,
 			},
 			expectFn: func(mr *mock_source.MockResumer) {
 				mr.EXPECT().Latest(gomock.Any()).Return(map[structures.SlackLink]time.Time{}, nil)
@@ -364,6 +367,7 @@ func Test_latest(t *testing.T) {
 			args: args{
 				ctx:            t.Context(),
 				includeThreads: false,
+				lookBack:       0,
 			},
 			expectFn: func(mr *mock_source.MockResumer) {
 				mr.EXPECT().Latest(gomock.Any()).Return(map[structures.SlackLink]time.Time{
@@ -380,6 +384,7 @@ func Test_latest(t *testing.T) {
 			args: args{
 				ctx:            t.Context(),
 				includeThreads: true,
+				lookBack:       0,
 			},
 			expectFn: func(mr *mock_source.MockResumer) {
 				mr.EXPECT().Latest(gomock.Any()).Return(map[structures.SlackLink]time.Time{
@@ -398,6 +403,7 @@ func Test_latest(t *testing.T) {
 			args: args{
 				ctx:            t.Context(),
 				includeThreads: false,
+				lookBack:       0,
 			},
 			expectFn: func(mr *mock_source.MockResumer) {
 				mr.EXPECT().Latest(gomock.Any()).Return(map[structures.SlackLink]time.Time{
@@ -418,12 +424,73 @@ func Test_latest(t *testing.T) {
 			if tt.expectFn != nil {
 				tt.expectFn(mr)
 			}
-			got, err := latest(tt.args.ctx, mr, tt.args.includeThreads)
+			got, err := latest(tt.args.ctx, mr, tt.args.includeThreads, tt.args.lookBack)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("latest() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func Test_extDuration_Set(t *testing.T) {
+	type args struct {
+		s string
+	}
+	tests := []struct {
+		name    string
+		d       *extDuration
+		args    args
+		wantErr bool
+		want    time.Duration
+	}{
+		{
+			name: "1 week, no P prefix",
+			d:    testutil.Ptr(extDuration(0)),
+			args: args{
+				s: "1w5dt2h3m4s",
+			},
+			wantErr: false,
+			want:    7*24*time.Hour + 5*24*time.Hour + 2*time.Hour + 3*time.Minute + 4*time.Second,
+		},
+		{
+			name: "1 week (ISO 8601 format)",
+			d:    testutil.Ptr(extDuration(0)),
+			args: args{
+				s: "P1W",
+			},
+			wantErr: false,
+			want:    7 * 24 * time.Hour,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := tt.d.Set(tt.args.s); (err != nil) != tt.wantErr {
+				t.Errorf("extDuration.Set() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			assert.Equal(t, tt.want, time.Duration(*tt.d))
+		})
+	}
+}
+
+func Test_extDuration_String(t *testing.T) {
+	tests := []struct {
+		name string
+		d    *extDuration
+		want string
+	}{
+		{
+			"formats a duration",
+			testutil.Ptr(extDuration(7*24*time.Hour + 5*24*time.Hour + 2*time.Hour + 3*time.Minute + 4*time.Second)),
+			"p1w5dt2h3m4s",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.d.String(); got != tt.want {
+				t.Errorf("extDuration.String() = %v, want %v", got, tt.want)
+			}
 		})
 	}
 }
