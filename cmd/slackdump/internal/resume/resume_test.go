@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/rusq/slack"
+	"github.com/sosodev/duration"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 
@@ -14,7 +15,6 @@ import (
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/internal/fixtures"
 	"github.com/rusq/slackdump/v3/internal/structures"
-	"github.com/rusq/slackdump/v3/internal/testutil"
 	"github.com/rusq/slackdump/v3/source"
 	"github.com/rusq/slackdump/v3/source/mock_source"
 )
@@ -443,25 +443,25 @@ func Test_extDuration_Set(t *testing.T) {
 		d       *extDuration
 		args    args
 		wantErr bool
-		want    time.Duration
+		want    string
 	}{
 		{
 			name: "1 week, no P prefix",
-			d:    testutil.Ptr(extDuration(0)),
+			d:    new(extDuration),
 			args: args{
 				s: "1w5dt2h3m4s",
 			},
 			wantErr: false,
-			want:    7*24*time.Hour + 5*24*time.Hour + 2*time.Hour + 3*time.Minute + 4*time.Second,
+			want:    "p1w5dt2h3m4s",
 		},
 		{
 			name: "1 week (ISO 8601 format)",
-			d:    testutil.Ptr(extDuration(0)),
+			d:    new(extDuration),
 			args: args{
 				s: "P1W",
 			},
 			wantErr: false,
-			want:    7 * 24 * time.Hour,
+			want:    "p1w",
 		},
 	}
 	for _, tt := range tests {
@@ -469,7 +469,7 @@ func Test_extDuration_Set(t *testing.T) {
 			if err := tt.d.Set(tt.args.s); (err != nil) != tt.wantErr {
 				t.Errorf("extDuration.Set() error = %v, wantErr %v", err, tt.wantErr)
 			}
-			assert.Equal(t, tt.want, time.Duration(*tt.d))
+			assert.Equal(t, tt.want, tt.d.String())
 		})
 	}
 }
@@ -482,7 +482,7 @@ func Test_extDuration_String(t *testing.T) {
 	}{
 		{
 			"formats a duration",
-			testutil.Ptr(extDuration(7*24*time.Hour + 5*24*time.Hour + 2*time.Hour + 3*time.Minute + 4*time.Second)),
+			(*extDuration)(duration.FromTimeDuration(7*24*time.Hour + 5*24*time.Hour + 2*time.Hour + 3*time.Minute + 4*time.Second)),
 			"p1w5dt2h3m4s",
 		},
 	}
