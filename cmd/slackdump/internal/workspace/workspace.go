@@ -51,11 +51,12 @@ automatically detected to be:
 	PrintFlags:  false,
 	RequireAuth: false,
 	Commands: []*base.Command{
-		CmdWspNew,
-		CmdImport,
-		CmdWspList,
-		CmdWspSelect,
-		CmdWspDel,
+		cmdWspNew,
+		cmdWspImport,
+		cmdWspList,
+		cmdWspSelect,
+		cmdWspDel,
+		cmdWspWiz,
 	},
 }
 

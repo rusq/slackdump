@@ -23,7 +23,7 @@ import (
 //go:embed assets/list.md
 var listMd string
 
-var CmdWspList = &base.Command{
+var cmdWspList = &base.Command{
 	UsageLine:  baseCommand + " list [flags]",
 	Short:      "list saved authentication information",
 	Long:       listMd,
@@ -32,12 +32,12 @@ var CmdWspList = &base.Command{
 }
 
 var (
-	bare = CmdWspList.Flag.Bool("b", false, "bare output format (just names)")
-	all  = CmdWspList.Flag.Bool("a", false, "all information, including user")
+	bare = cmdWspList.Flag.Bool("b", false, "bare output format (just names)")
+	all  = cmdWspList.Flag.Bool("a", false, "all information, including user")
 )
 
 func init() {
-	CmdWspList.Run = runList
+	cmdWspList.Run = runList
 }
 
 func runList(ctx context.Context, cmd *base.Command, args []string) error {
