@@ -37,6 +37,7 @@ require (
 	github.com/rusq/tagops v0.1.1
 	github.com/rusq/tracer v1.0.1
 	github.com/schollz/progressbar/v3 v3.18.0
+	github.com/sosodev/duration v1.3.1
 	github.com/stretchr/testify v1.10.0
 	github.com/yuin/goldmark v1.7.13
 	github.com/yuin/goldmark-emoji v1.0.6

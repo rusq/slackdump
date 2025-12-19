@@ -190,7 +190,7 @@ func invoke(cmd *base.Command, args []string) error {
 	defer task.End()
 
 	// initialise default logging.
-	if lg, err := initLog(cfg.LogFile, cfg.JsonHandler, cfg.Verbose); err != nil {
+	if lg, err := initLog(cfg.LogFile, cfg.UseJSONHandler, cfg.Verbose); err != nil {
 		base.SetExitStatus(base.SInitializationError)
 		return err
 	} else {

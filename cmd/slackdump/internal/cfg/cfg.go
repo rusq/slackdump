@@ -20,10 +20,10 @@ const (
 )
 
 var (
-	TraceFile   string
-	LogFile     string
-	JsonHandler bool
-	Verbose     bool
+	TraceFile      string
+	LogFile        string
+	UseJSONHandler bool
+	Verbose        bool
 
 	Output     string
 	ConfigFile string
@@ -138,7 +138,7 @@ func SetBaseFlags(fs *flag.FlagSet, mask FlagMask) {
 	setDevFlags(fs, mask) // no op if not in dev mode.
 	fs.StringVar(&TraceFile, "trace", os.Getenv("TRACE_FILE"), "trace `filename`")
 	fs.StringVar(&LogFile, "log", os.Getenv("LOG_FILE"), "log `file`, if not specified, messages are printed to STDERR")
-	fs.BoolVar(&JsonHandler, "log-json", osenv.Value("JSON_LOG", false), "log in JSON format")
+	fs.BoolVar(&UseJSONHandler, "log-json", osenv.Value("JSON_LOG", false), "log in JSON format")
 	fs.BoolVar(&Verbose, "v", osenv.Value("DEBUG", false), "verbose messages")
 
 	if mask&OmitAuthFlags == 0 {
@@ -187,8 +187,8 @@ func SetBaseFlags(fs *flag.FlagSet, mask FlagMask) {
 		fs.BoolVar(&NoChunkCache, "no-chunk-cache", false, "disable chunk cache (uses temporary directory)")
 	}
 	if mask&OmitTimeframeFlag == 0 {
-		fs.Var(&Oldest, "time-from", "timestamp of the oldest message to fetch (UTC timezone)")
-		fs.Var(&Latest, "time-to", "timestamp of the newest message to fetch (UTC timezone)")
+		fs.Var(&Oldest, "time-from", "timestamp of the oldest message to fetch (UTC timezone, `YYYY-MM-DDTHH:MM:SS`)")
+		fs.Var(&Latest, "time-to", "timestamp of the newest message to fetch (UTC timezone, `YYYY-MM-DDTHH:MM:SS`)")
 	}
 	if mask&OmitCustomUserFlags == 0 {
 		fs.BoolVar(&MemberOnly, "member-only", false, "export only channels, which the current user belongs to (if no channels are specified)")
