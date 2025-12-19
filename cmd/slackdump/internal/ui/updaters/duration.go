@@ -1,9 +1,11 @@
 package updaters
 
 import (
+	"strings"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/sosodev/duration"
 )
 
 // DurationModel is a model for updating a time.Duration value.  It is a wrapper
@@ -54,4 +56,56 @@ func (m DurationModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m DurationModel) View() string {
 	return m.m.View()
+}
+
+type ISODurationModel struct {
+	Value *duration.Duration
+	sv    string
+
+	m StringModel
+}
+
+func NewISODuration(value *duration.Duration, showPrompt bool) ISODurationModel {
+	dm := ISODurationModel{
+		Value: value,
+		sv:    value.String(),
+	}
+	dm.m = NewString(&dm.sv, "p1wt1h20m55s", showPrompt, ValidateISODuration)
+	return dm
+}
+
+func (m ISODurationModel) Init() tea.Cmd {
+	return m.m.Init()
+}
+
+func (m ISODurationModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmds []tea.Cmd
+
+	{
+		mod, cmd := m.m.Update(msg)
+		if mod, ok := mod.(StringModel); ok {
+			m.m = mod
+		}
+		cmds = append(cmds, cmd)
+	}
+	if m.m.finishing {
+		// update the value
+		d, _ := duration.Parse(strings.ToUpper(*m.m.Value))
+		*m.Value = *d
+	}
+
+	return m, tea.Batch(cmds...)
+}
+
+func (m ISODurationModel) View() string {
+	return m.m.View()
+}
+
+func ValidateISODuration(s string) error {
+	s = strings.ToUpper(s)
+	if !strings.HasPrefix(s, "P") {
+		s = "P" + s
+	}
+	_, err := duration.Parse(s)
+	return err
 }

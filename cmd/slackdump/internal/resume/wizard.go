@@ -5,7 +5,8 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
-	"time"
+
+	"github.com/sosodev/duration"
 
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/bubbles/filemgr"
@@ -112,8 +113,9 @@ func cpArchivePicker() cfgui.Parameter {
 func cpLookback() cfgui.Parameter {
 	return cfgui.Parameter{
 		Name:        "Lookback",
-		Value:       cfgui.Checkbox(resumeFlags.Refresh),
+		Value:       resumeFlags.Lookback.String(),
+		Inline:      true,
 		Description: "Duration to check for changed messages before the last message in the archive.",
-		Updater:     updaters.NewDuration((*time.Duration)(&resumeFlags.Lookback), true),
+		Updater:     updaters.NewISODuration((*duration.Duration)(resumeFlags.Lookback), false),
 	}
 }

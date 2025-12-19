@@ -53,11 +53,11 @@ type ResumeParams struct {
 	// API requests will be set to Now()-Lookback.  This is required to capture
 	// new threads on historical messages, otherwise, new threads on old messages
 	// will not be fetched.
-	Lookback extDuration
+	Lookback *extDuration
 }
 
 var resumeFlags = ResumeParams{
-	Lookback: extDuration(7 * 24 * time.Hour),
+	Lookback: (*extDuration)(duration.FromTimeDuration(7 * 24 * time.Hour)),
 }
 
 func init() {
@@ -65,7 +65,7 @@ func init() {
 	CmdResume.Flag.BoolVar(&resumeFlags.Refresh, "refresh", false, "refresh the list of channels")
 	CmdResume.Flag.BoolVar(&resumeFlags.IncludeThreads, "threads", false, "include threads (slow, and flaky business)")
 	CmdResume.Flag.BoolVar(&resumeFlags.RecordOnlyNewUsers, "only-new-users", true, "record only new or updated users")
-	CmdResume.Flag.Var(&resumeFlags.Lookback, "lookback", "lookback window `duration`")
+	CmdResume.Flag.Var(resumeFlags.Lookback, "lookback", "lookback window `duration`")
 }
 
 func runResume(ctx context.Context, cmd *base.Command, args []string) error {
@@ -87,7 +87,7 @@ func runResume(ctx context.Context, cmd *base.Command, args []string) error {
 		return fmt.Errorf("source type %q does not support resume, use slackdump convert to database format", src.Type())
 	}
 
-	latest, err := latest(ctx, src, resumeFlags.IncludeThreads, time.Duration(resumeFlags.Lookback))
+	latest, err := latest(ctx, src, resumeFlags.IncludeThreads, time.Duration((*duration.Duration)(resumeFlags.Lookback).ToTimeDuration()))
 	if err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return fmt.Errorf("error loading latest timestamps: %w", err)
@@ -296,7 +296,7 @@ func channelsTeam(ctx context.Context, src source.Sourcer) (string, error) {
 	return "", source.ErrNotFound
 }
 
-type extDuration time.Duration
+type extDuration duration.Duration
 
 func (d *extDuration) Set(s string) error {
 	// match ISO 8601 duration format
@@ -308,12 +308,12 @@ func (d *extDuration) Set(s string) error {
 	if err != nil {
 		return err
 	}
-	*d = extDuration(dur.ToTimeDuration())
+	*d = extDuration(*dur)
 	return nil
 }
 
 func (d *extDuration) String() string {
-	return strings.ToLower(duration.FromTimeDuration(time.Duration(*d)).String())
+	return strings.ToLower((*duration.Duration)(d).String())
 }
 
 func (d *extDuration) IsBoolFlag() bool {
