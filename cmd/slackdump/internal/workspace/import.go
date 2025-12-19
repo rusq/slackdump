@@ -13,7 +13,7 @@ import (
 //go:embed assets/import.md
 var importMd string
 
-var CmdImport = &base.Command{
+var cmdWspImport = &base.Command{
 	UsageLine:   baseCommand + " import [flags] filename",
 	Short:       "import credentials from .env or secrets.txt file",
 	Long:        importMd,

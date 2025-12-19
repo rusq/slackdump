@@ -40,22 +40,21 @@ an environment file.
 
 To learn more about different login options, run:
 
-	slackdump help workspace
+    slackdump workspace help <sub-command>
 
 Workspaces are stored on this device in the system Cache directory, which is
 automatically detected to be:
+
     ` + cfg.CacheDir() + `
 `,
-	CustomFlags: false,
-	FlagMask:    flagmask,
-	PrintFlags:  false,
-	RequireAuth: false,
+	FlagMask: flagmask,
 	Commands: []*base.Command{
-		CmdWspNew,
-		CmdImport,
-		CmdWspList,
-		CmdWspSelect,
-		CmdWspDel,
+		cmdWspNew,
+		cmdWspImport,
+		cmdWspList,
+		cmdWspSelect,
+		cmdWspDel,
+		cmdWspWiz,
 	},
 }
 

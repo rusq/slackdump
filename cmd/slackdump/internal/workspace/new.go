@@ -19,7 +19,7 @@ import (
 //go:embed assets/new.md
 var newMD string
 
-var CmdWspNew = &base.Command{
+var cmdWspNew = &base.Command{
 	UsageLine:  baseCommand + " new [flags] <name>",
 	Short:      "authenticate in a Slack Workspace",
 	Long:       newMD,
@@ -29,9 +29,9 @@ var CmdWspNew = &base.Command{
 }
 
 func init() {
-	wspcfg.SetWspFlags(&CmdWspNew.Flag)
+	wspcfg.SetWspFlags(&cmdWspNew.Flag)
 
-	CmdWspNew.Run = runWspNew
+	cmdWspNew.Run = runWspNew
 }
 
 // runWspNew authenticates in the new workspace.

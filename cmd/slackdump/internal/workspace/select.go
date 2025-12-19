@@ -9,7 +9,7 @@ import (
 	"github.com/rusq/slackdump/v3/internal/cache"
 )
 
-var CmdWspSelect = &base.Command{
+var cmdWspSelect = &base.Command{
 	UsageLine: baseCommand + " select [flags]",
 	Short:     "choose a previously saved workspace",
 	Long: `
@@ -32,7 +32,7 @@ To get the full list of authenticated workspaces, run:
 }
 
 func init() {
-	CmdWspSelect.Run = runSelect
+	cmdWspSelect.Run = runSelect
 }
 
 func runSelect(ctx context.Context, cmd *base.Command, args []string) error {

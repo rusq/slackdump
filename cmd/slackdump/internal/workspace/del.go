@@ -19,7 +19,7 @@ var (
 //go:embed assets/del.md
 var delMD string
 
-var CmdWspDel = &base.Command{
+var cmdWspDel = &base.Command{
 	UsageLine:   baseCommand + " del [flags]",
 	Short:       "deletes the saved workspace credentials",
 	Long:        delMD,
@@ -29,11 +29,11 @@ var CmdWspDel = &base.Command{
 }
 
 func init() {
-	CmdWspDel.Run = runWspDel
+	cmdWspDel.Run = runWspDel
 }
 
 var (
-	delAll = CmdWspDel.Flag.Bool("a", false, "delete all workspaces")
+	delAll = cmdWspDel.Flag.Bool("a", false, "delete all workspaces")
 )
 
 func runWspDel(ctx context.Context, cmd *base.Command, args []string) error {
