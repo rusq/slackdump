@@ -255,10 +255,9 @@ func loadSecrets(files []string) {
 type choice string
 
 const (
-	choiceUnknown choice = ""
-	choiceHelp    choice = "Print help and exit"
-	choiceWizard  choice = "Run wizard"
-	choiceExit    choice = "Exit"
+	choiceHelp   choice = "Print help and exit"
+	choiceWizard choice = "Run wizard"
+	choiceExit   choice = "Exit"
 )
 
 func whatDo() (choice, error) {

@@ -250,7 +250,7 @@ func ArchiveController(ctx context.Context, cd *chunk.Directory, client client.S
 		stream.New(client, cfg.Limits, sopts...),
 		erc,
 		control.WithLogger(lg),
-		control.WithFlags(control.Flags{MemberOnly: cfg.MemberOnly, RecordFiles: cfg.RecordFiles, ChannelUsers: cfg.OnlyChannelUsers}),
+		control.WithFlags(control.Flags{MemberOnly: cfg.MemberOnly, RecordFiles: cfg.RecordFiles, ChannelUsers: cfg.OnlyChannelUsers, ChannelTypes: cfg.ChannelTypes}),
 		control.WithFiler(fileproc.New(dl)),
 		control.WithAvatarProcessor(fileproc.NewAvatarProc(avdl)),
 	)

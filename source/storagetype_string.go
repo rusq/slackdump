@@ -20,8 +20,9 @@ const _StorageType_name = "nonestandardmattermostdumpAvatar"
 var _StorageType_index = [...]uint8{0, 4, 12, 22, 26, 32}
 
 func (i StorageType) String() string {
-	if i >= StorageType(len(_StorageType_index)-1) {
+	idx := int(i) - 0
+	if i < 0 || idx >= len(_StorageType_index)-1 {
 		return "StorageType(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
-	return _StorageType_name[_StorageType_index[i]:_StorageType_index[i+1]]
+	return _StorageType_name[_StorageType_index[idx]:_StorageType_index[idx+1]]
 }

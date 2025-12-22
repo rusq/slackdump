@@ -20,7 +20,7 @@ var CmdListChannels = &base.Command{
 	Run:        runListChannels,
 	UsageLine:  "slackdump list channels [flags] [filename]",
 	PrintFlags: true,
-	FlagMask:   flagMask,
+	FlagMask:   flagMask &^ cfg.OmitChannelTypesFlag,
 	Short:      "list workspace channels",
 	Long: fmt.Sprintf(`
 # List Channels Command
@@ -133,7 +133,7 @@ func (l *channels) Retrieve(ctx context.Context, sess *slackdump.Session, m *cac
 			return nil
 		}
 	}
-	cc, err := sess.GetChannels(ctx)
+	cc, err := sess.GetChannels(ctx, cfg.ChannelTypes...)
 	if err != nil {
 		return fmt.Errorf("error getting channels: %w", err)
 	}
@@ -143,4 +143,8 @@ func (l *channels) Retrieve(ctx context.Context, sess *slackdump.Session, m *cac
 		lg.WarnContext(ctx, "failed to cache channels (ignored)", "error", err)
 	}
 	return nil
+}
+
+func (l *channels) Len() int {
+	return len(l.channels)
 }

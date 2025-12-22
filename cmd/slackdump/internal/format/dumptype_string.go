@@ -19,8 +19,9 @@ const _dumptype_name = "UnknownConversationChannelsUsers"
 var _dumptype_index = [...]uint8{0, 7, 19, 27, 32}
 
 func (i dumptype) String() string {
-	if i >= dumptype(len(_dumptype_index)-1) {
+	idx := int(i) - 0
+	if i < 0 || idx >= len(_dumptype_index)-1 {
 		return "dumptype(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
-	return _dumptype_name[_dumptype_index[i]:_dumptype_index[i+1]]
+	return _dumptype_name[_dumptype_index[idx]:_dumptype_index[idx+1]]
 }

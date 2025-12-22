@@ -335,17 +335,17 @@ func (mr *MockEncodeReferenceCloserMockRecorder) Close() *gomock.Call {
 }
 
 // Encode mocks base method.
-func (m *MockEncodeReferenceCloser) Encode(ctx context.Context, chunk *chunk.Chunk) error {
+func (m *MockEncodeReferenceCloser) Encode(ctx context.Context, arg1 *chunk.Chunk) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Encode", ctx, chunk)
+	ret := m.ctrl.Call(m, "Encode", ctx, arg1)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Encode indicates an expected call of Encode.
-func (mr *MockEncodeReferenceCloserMockRecorder) Encode(ctx, chunk any) *gomock.Call {
+func (mr *MockEncodeReferenceCloserMockRecorder) Encode(ctx, arg1 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Encode", reflect.TypeOf((*MockEncodeReferenceCloser)(nil).Encode), ctx, chunk)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Encode", reflect.TypeOf((*MockEncodeReferenceCloser)(nil).Encode), ctx, arg1)
 }
 
 // IsComplete mocks base method.
