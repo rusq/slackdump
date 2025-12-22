@@ -27,14 +27,13 @@ type Flags struct {
 	// Refresh is to fetch additional channels from the API in addition to
 	// those provided in the list.  It's useful when the list is
 	// incomplete or outdated.
-	Refresh bool // TODO: refresh channels for Resume.
+	Refresh bool
 	// ChannelUsers is the flag to fetch only users involved in the channel,
 	// and skip fetching of all users.
-	// TODO: wire.
-	ChannelUsers bool // TODO:
+	ChannelUsers bool
 	// ChannelTypes is the list of channel types to fetch.  If empty, all
 	// channel types are fetched.
-	ChannelTypes []string // TODO: wire up.
+	ChannelTypes []string
 }
 
 // Error is a controller error.
