@@ -102,13 +102,12 @@ func list[T any](ctx context.Context, sess *slackdump.Session, l lister[T], file
 		return err
 	}
 
-	data := l.Data()
-
 	if l.Len() == 0 {
 		slog.WarnContext(ctx, "no data retrieved", "type", l.Type())
 		return nil
 	}
 
+	data := l.Data()
 	if !commonFlags.quiet {
 		if err := fmtPrint(ctx, os.Stdout, data, commonFlags.listType, l.Users(), commonFlags.bare); err != nil {
 			return err
