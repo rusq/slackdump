@@ -216,6 +216,8 @@ func (g *apiGenerator) Generate(ctx context.Context, errC chan<- error, list *st
 	if len(g.chTypes) == 0 {
 		g.chTypes = slackdump.AllChanTypes
 	}
+	lg := slog.With("types", g.chTypes)
+	lg.DebugContext(ctx, "API channel generator starting")
 	linksC := make(chan structures.EntityItem)
 	emitErr := errEmitter(errC, "api channel generator", StgGenerator)
 	done := make(chan struct{})

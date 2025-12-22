@@ -121,7 +121,7 @@ func runDBArchive(ctx context.Context, cmd *base.Command, args []string) error {
 	}
 	defer conn.Close()
 
-	flags := control.Flags{MemberOnly: cfg.MemberOnly, RecordFiles: cfg.RecordFiles, ChannelUsers: cfg.OnlyChannelUsers}
+	flags := control.Flags{MemberOnly: cfg.MemberOnly, RecordFiles: cfg.RecordFiles, ChannelUsers: cfg.OnlyChannelUsers, ChannelTypes: cfg.ChannelTypes}
 
 	ctrl, err := DBController(ctx, cmd.Name(), conn, client, dirname, flags, []stream.Option{})
 	if err != nil {
@@ -245,12 +245,19 @@ func ArchiveController(ctx context.Context, cd *chunk.Directory, client client.S
 
 	erc := directory.NewERC(cd, lg)
 
+	flags := control.Flags{
+		MemberOnly:   cfg.MemberOnly,
+		RecordFiles:  cfg.RecordFiles,
+		ChannelUsers: cfg.OnlyChannelUsers,
+		ChannelTypes: cfg.ChannelTypes,
+	}
+
 	ctrl, err := control.New(
 		ctx,
 		stream.New(client, cfg.Limits, sopts...),
 		erc,
 		control.WithLogger(lg),
-		control.WithFlags(control.Flags{MemberOnly: cfg.MemberOnly, RecordFiles: cfg.RecordFiles, ChannelUsers: cfg.OnlyChannelUsers, ChannelTypes: cfg.ChannelTypes}),
+		control.WithFlags(flags),
 		control.WithFiler(fileproc.New(dl)),
 		control.WithAvatarProcessor(fileproc.NewAvatarProc(avdl)),
 	)

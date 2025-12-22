@@ -127,6 +127,7 @@ func runResume(ctx context.Context, cmd *base.Command, args []string) error {
 	cf := control.Flags{
 		Refresh:      resumeFlags.Refresh,
 		ChannelUsers: cfg.OnlyChannelUsers,
+		ChannelTypes: cfg.ChannelTypes,
 	}
 	// inclusive is false, because we don't want to include the latest message
 	// which is already in the database.
