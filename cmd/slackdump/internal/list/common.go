@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 
 	"github.com/rusq/slack"
@@ -61,6 +62,8 @@ type lister[T any] interface {
 	// Users should return the users for the data, or nil, which indicates
 	// that there are no associated users or that the users are not resolved.
 	Users() []slack.User
+	// Len should return the data length.
+	Len() int
 }
 
 // common flags
@@ -99,8 +102,14 @@ func list[T any](ctx context.Context, sess *slackdump.Session, l lister[T], file
 		return err
 	}
 
+	if l.Len() == 0 {
+		slog.WarnContext(ctx, "no data retrieved", "type", l.Type())
+		return nil
+	}
+
+	data := l.Data()
 	if !commonFlags.quiet {
-		if err := fmtPrint(ctx, os.Stdout, l.Data(), commonFlags.listType, l.Users(), commonFlags.bare); err != nil {
+		if err := fmtPrint(ctx, os.Stdout, data, commonFlags.listType, l.Users(), commonFlags.bare); err != nil {
 			return err
 		}
 	}
@@ -112,7 +121,7 @@ func list[T any](ctx context.Context, sess *slackdump.Session, l lister[T], file
 		if err := bootstrap.AskOverwrite(filename); err != nil {
 			return err
 		}
-		if err := saveData(ctx, l.Data(), filename, commonFlags.listType, l.Users(), commonFlags.bare); err != nil {
+		if err := saveData(ctx, data, filename, commonFlags.listType, l.Users(), commonFlags.bare); err != nil {
 			return err
 		}
 	}

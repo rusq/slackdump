@@ -1,3 +1,4 @@
+// Package types contains types and utility functions specific to Slackdump.
 package types
 
 // toslice creates a slice of IN type containing the keys from m.

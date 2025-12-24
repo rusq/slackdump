@@ -94,6 +94,7 @@ func (o *channelOptions) configuration() cfgui.Configuration {
 					Description: "Resolve user IDs to names. Slow on large Slack workspaces.",
 					Updater:     updaters.NewBool(&o.resolveUsers),
 				},
+				cfgui.ChannelTypes(),
 			},
 		},
 		cfgui.ParamGroup{

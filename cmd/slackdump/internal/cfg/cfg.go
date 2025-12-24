@@ -12,6 +12,7 @@ import (
 	"github.com/pterm/pterm"
 	"github.com/rusq/osenv/v2"
 
+	"github.com/rusq/slackdump/v3"
 	"github.com/rusq/slackdump/v3/internal/network"
 )
 
@@ -37,6 +38,8 @@ var (
 
 	MemberOnly       bool
 	OnlyChannelUsers bool
+	// ChannelTypes lists channel types to fetch.
+	ChannelTypes = slackChanTypes(slackdump.AllChanTypes)
 
 	WithFiles   bool
 	WithAvatars bool
@@ -98,7 +101,7 @@ func (b BuildInfo) String() string {
 	return fmt.Sprintf("Slackdump %s (commit: %s) built on: %s", b.Version, b.Commit, b.Date)
 }
 
-type FlagMask uint16
+type FlagMask uint32
 
 const (
 	DefaultFlags  FlagMask = 0
@@ -116,6 +119,7 @@ const (
 	OmitWithAvatarsFlag
 	OmitChunkFileMode
 	OmitYesManFlag
+	OmitChannelTypesFlag
 
 	OmitAll = OmitConfigFlag |
 		OmitWithFilesFlag |
@@ -130,7 +134,8 @@ const (
 		OmitRecordFilesFlag |
 		OmitWithAvatarsFlag |
 		OmitChunkFileMode |
-		OmitYesManFlag
+		OmitYesManFlag |
+		OmitChannelTypesFlag
 )
 
 // SetBaseFlags sets base flags
@@ -199,5 +204,8 @@ func SetBaseFlags(fs *flag.FlagSet, mask FlagMask) {
 	}
 	if mask&OmitYesManFlag == 0 {
 		fs.BoolVar(&YesMan, "y", osenv.Value("YES_MAN", false), "answer yes to all questions")
+	}
+	if mask&OmitChannelTypesFlag == 0 {
+		fs.Var(&ChannelTypes, "chan-types", "filter channel types")
 	}
 }
