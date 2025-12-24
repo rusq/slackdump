@@ -12,7 +12,7 @@ For more information on how to contribute, see the
 ### Slackdump Export URL rewriter (for Discord Migration)
 
 - Author: [@dannyadair](https://github.com/dannyadair)
-- Path: [rewrite_slackdump__urls](rewrite_slackdump__urls)
+- Path: [rewrite_slackdump_urls](rewrite_slackdump_urls)
 - Source: [link](https://github.com/rusq/slackdump/issues/399#issuecomment-3393201727)
 - Description: A script to rewrite file URLs in the Slackdump export.
 

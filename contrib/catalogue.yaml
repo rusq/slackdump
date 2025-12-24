@@ -1,5 +1,5 @@
 - title: Slackdump Export URL rewriter (for Discord Migration)
-  path: rewrite_slackdump__urls
+  path: rewrite_slackdump_urls
   author: dannyadair
   description: | 
     A script to rewrite file URLs in the Slackdump export.
