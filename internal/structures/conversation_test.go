@@ -86,7 +86,7 @@ func TestChannelType(t *testing.T) {
 	tests := []struct {
 		name string
 		args args
-		want int
+		want string
 	}{
 		{
 			name: "IM",
