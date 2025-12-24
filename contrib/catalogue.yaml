@@ -1,3 +1,26 @@
+- title: Slackdump Export URL rewriter (for Discord Migration)
+  path: rewrite_slackdump__urls
+  author: dannyadair
+  description: | 
+    A script to rewrite file URLs in the Slackdump export.
+    
+    > Just drop it in the export folder and run it.  It will rewrite the JSON files
+    > to use a new host/port - I'm just setting it to localhost and run a simple web
+    > server on the computer running Slackord2 to serve them up.
+  source: https://github.com/rusq/slackdump/issues/399#issuecomment-3393201727
+  dependencies:
+    - python3
+- title: Incremental Workspace Backups
+  path: incremental_backup/dump.sh
+  author: levigroker
+  description: |
+    Dumps messages and attachments for selected 1-1 direct messages, and selected named
+    channels and group PMs, from the authenticated Slack workspace. Subsequent runs will
+    fetch only the new content since the previous run.
+  source: https://gist.github.com/levigroker/fa7b231373e68269843aeeee5cc845a3
+  dependencies:
+    - bash
+    - jq
 - title: "Example: Find matches and print dates and text"
   path: messages_json_parsing/jq/find_matches_print_dates_and_text.sh
   author: fitzyjoe
@@ -18,14 +41,3 @@
   description: Prints user ID and a message
   dependencies:
     - python3
-- title: Incremental Workspace Backups
-  path: incremental_backup/dump.sh
-  author: levigroker
-  description: |
-    Dumps messages and attachments for selected 1-1 direct messages, and selected named
-    channels and group PMs, from the authenticated Slack workspace. Subsequent runs will
-    fetch only the new content since the previous run.
-  source: https://gist.github.com/levigroker/fa7b231373e68269843aeeee5cc845a3
-  dependencies:
-    - bash
-    - jq
