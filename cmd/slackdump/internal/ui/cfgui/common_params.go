@@ -1,6 +1,9 @@
 package cfgui
 
 import (
+	"github.com/charmbracelet/huh"
+
+	"github.com/rusq/slackdump/v3"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/updaters"
 	"github.com/rusq/slackdump/v3/internal/structures"
@@ -59,5 +62,39 @@ func OnlyChannelUsers() Parameter {
 		Value:       Checkbox(cfg.OnlyChannelUsers),
 		Description: "Only users participating in visible conversations are exported.",
 		Updater:     updaters.NewBool(&cfg.OnlyChannelUsers),
+	}
+}
+
+func ChannelTypes() Parameter {
+	var items = map[string]struct {
+		code        string
+		description string
+		selected    bool
+	}{
+		structures.CIM:      {code: structures.CIM, description: "Direct Messages"},
+		structures.CMPIM:    {code: structures.CMPIM, description: "Group Messages"},
+		structures.CPublic:  {code: structures.CPublic, description: "Public Messages"},
+		structures.CPrivate: {code: structures.CPrivate, description: "Private Messages"},
+	}
+
+	for _, code := range cfg.ChannelTypes {
+		v := items[code]
+		v.selected = true
+		items[code] = v
+	}
+
+	var options = make([]huh.Option[string], 0, len(slackdump.AllChanTypes))
+	for _, code := range slackdump.AllChanTypes {
+		item := items[code]
+		options = append(options, huh.NewOption(item.description, item.code).Selected(item.selected))
+	}
+
+	return Parameter{
+		Name:        "Channel Types",
+		Value:       cfg.ChannelTypes.String(),
+		Description: "Channel types to fetch",
+		Updater: updaters.NewMultiSelect((*[]string)(&cfg.ChannelTypes), huh.NewMultiSelect[string]().
+			Title("Choose Channel Types").
+			Options(options...)),
 	}
 }

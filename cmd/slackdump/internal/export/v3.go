@@ -119,7 +119,8 @@ func exportv31(ctx context.Context, sess client.Slack, fsa fsadapter.FS, list *s
 	return nil
 }
 
-// export runs the export v3 that uses chunk files as a backend storage before conversion.
+// export runs the export v3 that uses chunk files as a backend storage before
+// conversion.
 //
 // Deprecated: use exportv31 instead.
 func export(ctx context.Context, sess client.Slack, fsa fsadapter.FS, list *structures.EntityList, params exportFlags) error {

@@ -19,14 +19,13 @@ func IsThreadMessage(m *slack.Msg) bool {
 }
 
 const (
-	CUnknown = iota
-	CIM      // IM
-	CMPIM    // Group IM
-	CPrivate // Private Channel
-	CPublic  // Public Channel
+	CMPIM    = "mpim"            // Group IM
+	CIM      = "im"              // IM
+	CPublic  = "public_channel"  // Public Channel
+	CPrivate = "private_channel" // Private Channel
 )
 
-func ChannelType(ch slack.Channel) int {
+func ChannelType(ch slack.Channel) string {
 	switch {
 	case ch.IsIM:
 		return CIM

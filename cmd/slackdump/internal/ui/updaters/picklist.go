@@ -5,10 +5,11 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/huh"
 	"github.com/charmbracelet/lipgloss"
+
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui"
 )
 
-type Model[T comparable] struct {
+type PicklistModel[T comparable] struct {
 	s         huh.Field
 	help      help.Model
 	finishing bool
@@ -18,8 +19,8 @@ type Model[T comparable] struct {
 	ptr     *T
 }
 
-func NewPicklist[T comparable](v *T, s *huh.Select[T]) *Model[T] {
-	m := &Model[T]{
+func NewPicklist[T comparable](v *T, s *huh.Select[T]) *PicklistModel[T] {
+	m := &PicklistModel[T]{
 		s: s.Value(v).
 			Description("Select an option").
 			WithTheme(ui.HuhTheme()).
@@ -32,11 +33,11 @@ func NewPicklist[T comparable](v *T, s *huh.Select[T]) *Model[T] {
 	return m
 }
 
-func (m *Model[T]) Init() tea.Cmd {
+func (m *PicklistModel[T]) Init() tea.Cmd {
 	return tea.Batch(m.s.Init(), m.s.Focus())
 }
 
-func (m *Model[T]) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m *PicklistModel[T]) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
@@ -62,7 +63,7 @@ func (m *Model[T]) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
-func (m *Model[T]) View() string {
+func (m *PicklistModel[T]) View() string {
 	if m.finishing {
 		return ""
 	}

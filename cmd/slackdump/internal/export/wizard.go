@@ -60,6 +60,7 @@ func (fl *exportFlags) configuration() cfgui.Configuration {
 					Inline:      true,
 					Updater:     updaters.NewString(&fl.ExportToken, "", false, structures.ValidateToken),
 				},
+				cfgui.ChannelTypes(),
 			},
 		},
 	}
