@@ -60,8 +60,15 @@ func runRedownload(ctx context.Context, _ *base.Command, args []string) error {
 
 	var stats redownload.FileStats
 	if redlFlags.dryRun {
+		slog.WarnContext(ctx, "dry run/estimate mode, files will not be downloaded")
+		defer func() {
+			if err == nil {
+				slog.WarnContext(ctx, "estimation only, actual numbers may differ")
+			}
+		}()
 		stats, err = rd.Stats(ctx)
 	} else {
+		slog.InfoContext(ctx, "starting redownload")
 		stats, err = rd.Download(ctx)
 	}
 	if err != nil {
