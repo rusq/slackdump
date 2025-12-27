@@ -45,6 +45,17 @@ multiple times.
 	RequireAuth: true,
 }
 
+type flagsRedownload struct {
+	dryRun bool
+}
+
+var flagsRedl flagsRedownload
+
+func init() {
+	cmdRedownload.Flag.BoolVar(&flagsRedl.dryRun, "dry", flagsRedl.dryRun, "estimate amd print the size and count of files to be downloaded, do not download anything")
+	cmdRedownload.Flag.BoolVar(&flagsRedl.dryRun, "estimate", flagsRedl.dryRun, "alias for -dry")
+}
+
 func runRedownload(ctx context.Context, _ *base.Command, args []string) error {
 	if len(args) != 1 {
 		base.SetExitStatus(base.SInvalidParameters)
