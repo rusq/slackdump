@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"runtime/trace"
 
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/slack"
@@ -32,13 +33,16 @@ type Redownloader struct {
 	dir string
 }
 
+// New initialises the new Redownloader for the given directory.  Source type
+// is detected automatically. It validates if the source is of the supported
+// type and returns any errors.
 func New(ctx context.Context, dir string) (*Redownloader, error) {
-	if err := validate(dir); err != nil {
-		return nil, fmt.Errorf("validation error: %w", err)
-	}
-	flags, err := source.Type(dir)
+	st, err := source.Type(dir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to determine type: %w", err)
+	}
+	if err := validate(st); err != nil {
+		return nil, fmt.Errorf("validation error: %w", err)
 	}
 	src, err := source.Load(ctx, dir)
 	if err != nil {
@@ -46,24 +50,20 @@ func New(ctx context.Context, dir string) (*Redownloader, error) {
 	}
 	return &Redownloader{
 		src:   src,
-		flags: flags,
+		flags: st,
 		dir:   dir,
 	}, nil
 }
 
+// Stop stops the Redownloader.
 func (r *Redownloader) Stop() error {
 	return r.src.Close()
 }
 
 // validate ensures that the directory is a Slackdump Archive directory.
 // It sets the exit status according to the error type.
-func validate(dir string) error {
-	flags, err := source.Type(dir)
-	if err != nil {
-		base.SetExitStatus(base.SUserError)
-		return fmt.Errorf("error determining source type: %w", err)
-	}
-	if flags&source.FZip != 0 {
+func validate(st source.Flags) error {
+	if st&source.FZip != 0 {
 		base.SetExitStatus(base.SUserError)
 		return errors.New("unable to work with ZIP files, unpack it first")
 	}
@@ -108,19 +108,17 @@ func (r *Redownloader) fileProc(dl fileproc.Downloader) (processor.Filer, error)
 	return fproc, nil
 }
 
-// FileStats contains the file statistics.
-type FileStats struct {
-	NumFiles uint
-	NumBytes uint64
-}
+var ErrNoChannels = errors.New("no channels found")
 
+// channels returns the channels in the underlying source. It returns
+// ErrNoChannels if there are zero channels.
 func (r *Redownloader) channels(ctx context.Context) ([]slack.Channel, error) {
 	channels, err := r.src.Channels(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("error reading channels: %w", err)
 	}
 	if len(channels) == 0 {
-		return nil, errors.New("no channels found")
+		return nil, ErrNoChannels
 	}
 	return channels, nil
 }
@@ -134,14 +132,11 @@ func (r *Redownloader) Stats(ctx context.Context) (FileStats, error) {
 	}
 
 	for _, ch := range channels {
-		items, err := r.scanChannel(ctx, &ch)
+		chstat, err := r.processChannel(ctx, &ch, nil)
 		if err != nil {
 			return ret, err
 		}
-		for _, item := range items {
-			ret.NumFiles++
-			ret.NumBytes += uint64(item.f.Size)
-		}
+		ret.add(chstat)
 	}
 
 	return ret, nil
@@ -175,17 +170,35 @@ func (r *Redownloader) Download(ctx context.Context) (FileStats, error) {
 	defer fproc.Close()
 
 	for _, ch := range channels {
-		items, err := r.scanChannel(ctx, &ch)
+		chstats, err := r.processChannel(ctx, &ch, func(item *dlItem) error {
+			if err := fproc.Files(ctx, item.ch, *item.msg, []slack.File{*item.f}); err != nil {
+				return err
+			}
+			return nil
+		})
 		if err != nil {
 			return ret, err
 		}
-		for _, item := range items {
-			if err := fproc.Files(ctx, item.ch, *item.msg, []slack.File{*item.f}); err != nil {
+		ret.add(chstats)
+	}
+	return ret, nil
+}
+
+func (r *Redownloader) processChannel(ctx context.Context, ch *slack.Channel, cb func(item *dlItem) error) (FileStats, error) {
+	var ret FileStats
+
+	items, err := r.scanChannel(ctx, ch)
+	if err != nil {
+		return ret, err
+	}
+	for _, item := range items {
+		if cb != nil {
+			if err := cb(&item); err != nil {
 				return ret, err
 			}
-			ret.NumFiles++
-			ret.NumBytes += uint64(item.f.Size)
 		}
+		ret.NumFiles++
+		ret.NumBytes += uint64(item.f.Size)
 	}
 	return ret, nil
 }
@@ -231,7 +244,14 @@ func collect[K any](it iter.Seq2[K, error]) ([]K, error) {
 	return kk, nil
 }
 
+// scanMsgs scans messages msgs, calling itself recursively for every thread, collecting all files that
+// are not present on the file system.
 func (r *Redownloader) scanMsgs(ctx context.Context, ch *slack.Channel, msgs []slack.Message, isThread bool) ([]dlItem, error) {
+	ctx, task := trace.NewTask(ctx, "scanMsgs")
+	defer task.End()
+
+	trace.Logf(ctx, "scanMsgs", "channel_id=%s, isThread=%v", ch.ID, isThread)
+
 	lg := slog.With("channel", ch.ID)
 	// workaround for completely missing storage
 	pathFn := r.pathFunc()
