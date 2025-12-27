@@ -219,34 +219,14 @@ func (r *Redownloader) scanChannel(ctx context.Context, ch *slack.Channel) ([]dl
 		}
 		return nil, fmt.Errorf("error reading messages: %w", err)
 	}
-	// collect messages from the iterator
-	msgs, err := collect(it)
-	if err != nil {
-		return nil, fmt.Errorf("error fetching messages: %w", err)
-	}
 
-	if len(msgs) == 0 {
-		return nil, nil
-	}
-	slog.Info("scanning messages", "num_messages", len(msgs))
-	return r.scanMsgs(ctx, ch, msgs, false)
-}
-
-// collect collects all Ks from iterator it, returning any encountered error.
-func collect[K any](it iter.Seq2[K, error]) ([]K, error) {
-	kk := make([]K, 0)
-	for k, err := range it {
-		if err != nil {
-			return kk, fmt.Errorf("error fetching messages: %w", err)
-		}
-		kk = append(kk, k)
-	}
-	return kk, nil
+	slog.InfoContext(ctx, "scanning messages")
+	return r.scanMsgs(ctx, ch, it, false)
 }
 
 // scanMsgs scans messages msgs, calling itself recursively for every thread, collecting all files that
 // are not present on the file system.
-func (r *Redownloader) scanMsgs(ctx context.Context, ch *slack.Channel, msgs []slack.Message, isThread bool) ([]dlItem, error) {
+func (r *Redownloader) scanMsgs(ctx context.Context, ch *slack.Channel, msgIt iter.Seq2[slack.Message, error], isThread bool) ([]dlItem, error) {
 	ctx, task := trace.NewTask(ctx, "scanMsgs")
 	defer task.End()
 
@@ -256,19 +236,18 @@ func (r *Redownloader) scanMsgs(ctx context.Context, ch *slack.Channel, msgs []s
 	// workaround for completely missing storage
 	pathFn := r.pathFunc()
 	var toDl []dlItem
-	for _, m := range msgs {
+	for m, err := range msgIt {
+		if err != nil {
+			return nil, err
+		}
 		if structures.IsThreadStart(&m) && !isThread {
 			it, err := r.src.AllThreadMessages(ctx, ch.ID, m.ThreadTimestamp)
 			if err != nil {
 				return nil, fmt.Errorf("error reading thread messages: %w", err)
 			}
-			tm, err := collect(it)
-			if err != nil {
-				return nil, fmt.Errorf("error collecting thread messages: %w", err)
-			}
 
-			lg.Info("scanning thread messages", "num_messages", len(tm), "thread", m.ThreadTimestamp)
-			if res, err := r.scanMsgs(ctx, ch, tm, true); err != nil {
+			lg.InfoContext(ctx, "scanning thread messages", "thread", m.ThreadTimestamp)
+			if res, err := r.scanMsgs(ctx, ch, it, true); err != nil {
 				return toDl, err
 			} else {
 				toDl = append(toDl, res...)

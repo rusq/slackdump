@@ -2,6 +2,7 @@ package bootstrap
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/rusq/slackdump/v3"
 	"github.com/rusq/slackdump/v3/auth"
@@ -38,12 +39,12 @@ func SlackdumpSession(ctx context.Context, opts ...slackdump.Option) (*slackdump
 func Slack(ctx context.Context, opts ...client.Option) (client.Slack, error) {
 	prov, err := auth.FromContext(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("authentication error: %w", err)
 	}
 	opts = append(opts, client.WithEnterprise(cfg.ForceEnterprise))
 	client, err := client.New(ctx, prov, opts...)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error creating new client: %w", err)
 	}
 	return client, nil
 }
