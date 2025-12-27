@@ -30,12 +30,9 @@ type Redownloader struct {
 
 	// dir is the path to the source.
 	dir string
-
-	// druRun if set to true, we don't download anything, just count.
-	dryRun bool
 }
 
-func New(ctx context.Context, dir string, dry bool) (*Redownloader, error) {
+func New(ctx context.Context, dir string) (*Redownloader, error) {
 	if err := validate(dir); err != nil {
 		return nil, fmt.Errorf("validation error: %w", err)
 	}
@@ -48,10 +45,9 @@ func New(ctx context.Context, dir string, dry bool) (*Redownloader, error) {
 		return nil, fmt.Errorf("error opening source data: %w", err)
 	}
 	return &Redownloader{
-		src:    src,
-		flags:  flags,
-		dir:    dir,
-		dryRun: dry,
+		src:   src,
+		flags: flags,
+		dir:   dir,
 	}, nil
 }
 
