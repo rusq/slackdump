@@ -1,3 +1,5 @@
+// Package diag should be named tools, and contains different useful tools and
+// utilities.
 package diag
 
 import (
