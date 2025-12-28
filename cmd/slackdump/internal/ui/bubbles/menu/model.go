@@ -12,6 +12,7 @@ import (
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/cfgui"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/updaters"
+	"github.com/rusq/slackdump/v3/internal/primitive"
 )
 
 type Model struct {
@@ -216,7 +217,7 @@ func (m *Model) view() string {
 			disabled = itm.Validate != nil && itm.Validate() != nil
 		)
 		if disabled {
-			p(sty.ItemDisabled.Render(iftrue(current, pointer, padding) + itm.Name))
+			p(sty.ItemDisabled.Render(primitive.IfTrue(current, pointer, padding) + itm.Name))
 			continue
 		}
 		if current {
@@ -227,13 +228,6 @@ func (m *Model) view() string {
 	}
 	p("\n" + m.footer())
 	return sty.Border.Render(b.String())
-}
-
-func iftrue(t bool, a, b string) string {
-	if t {
-		return a
-	}
-	return b
 }
 
 func (m *Model) footer() string {

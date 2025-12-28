@@ -232,13 +232,6 @@ func parseFlags(cmd *base.Command, args []string) ([]string, error) {
 	return cmd.Flag.Args(), nil
 }
 
-func iftrue[T any](cond bool, t T, f T) T {
-	if cond {
-		return t
-	}
-	return f
-}
-
 // secrets defines the names of the supported secret files that we load our
 // secrets from.  Inexperienced Windows users might have bad experience trying
 // to create .env file with the notepad as it will battle for having the
@@ -255,10 +248,9 @@ func loadSecrets(files []string) {
 type choice string
 
 const (
-	choiceUnknown choice = ""
-	choiceHelp    choice = "Print help and exit"
-	choiceWizard  choice = "Run wizard"
-	choiceExit    choice = "Exit"
+	choiceHelp   choice = "Print help and exit"
+	choiceWizard choice = "Run wizard"
+	choiceExit   choice = "Exit"
 )
 
 func whatDo() (choice, error) {

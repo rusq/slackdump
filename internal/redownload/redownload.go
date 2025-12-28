@@ -14,10 +14,8 @@ import (
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/slack"
 
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/bootstrap"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/internal/convert/transform/fileproc"
+	"github.com/rusq/slackdump/v3/internal/primitive"
 	"github.com/rusq/slackdump/v3/internal/structures"
 	"github.com/rusq/slackdump/v3/processor"
 	"github.com/rusq/slackdump/v3/source"
@@ -28,15 +26,26 @@ type Redownloader struct {
 	src source.SourceResumeCloser
 	// flags are the flags of the source
 	flags source.Flags
+	lg    *slog.Logger
 
 	// dir is the path to the source.
 	dir string
 }
 
+type Option func(*Redownloader)
+
+func WithLogger(lg *slog.Logger) Option {
+	return func(r *Redownloader) {
+		if lg != nil {
+			r.lg = lg
+		}
+	}
+}
+
 // New initialises the new Redownloader for the given directory.  Source type
 // is detected automatically. It validates if the source is of the supported
 // type and returns any errors.
-func New(ctx context.Context, dir string) (*Redownloader, error) {
+func New(ctx context.Context, dir string, opts ...Option) (*Redownloader, error) {
 	st, err := source.Type(dir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to determine type: %w", err)
@@ -48,11 +57,16 @@ func New(ctx context.Context, dir string) (*Redownloader, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error opening source data: %w", err)
 	}
-	return &Redownloader{
+	r := &Redownloader{
 		src:   src,
 		flags: st,
 		dir:   dir,
-	}, nil
+		lg:    slog.Default(),
+	}
+	for _, opt := range opts {
+		opt(r)
+	}
+	return r, nil
 }
 
 // Stop stops the Redownloader.
@@ -64,7 +78,6 @@ func (r *Redownloader) Stop() error {
 // It sets the exit status according to the error type.
 func validate(st source.Flags) error {
 	if st&source.FZip != 0 {
-		base.SetExitStatus(base.SUserError)
 		return errors.New("unable to work with ZIP files, unpack it first")
 	}
 
@@ -77,6 +90,8 @@ func (r *Redownloader) pathFunc() func(ch *slack.Channel, f *slack.File) string 
 		// easy
 		return r.src.Files().FilePath
 	}
+
+	// no existing file storage directory.
 	switch {
 	case r.flags&source.FDump != 0:
 		return source.DumpFilepath
@@ -95,11 +110,9 @@ func (r *Redownloader) fileProc(dl fileproc.Downloader) (processor.Filer, error)
 	case fl&source.FDatabase != 0 || fl&source.FChunk != 0:
 		fproc = fileproc.New(dl)
 	case fl&source.FExport != 0:
-		typ := r.src.Files().Type()
-		if typ == source.STnone {
-			typ = source.STmattermost // default to mattermost
-		}
-		fproc = fileproc.NewExport(typ, dl)
+		storageType := r.src.Files().Type()
+		storageType = primitive.IfTrue(storageType == source.STnone, source.STmattermost, storageType)
+		fproc = fileproc.NewExport(storageType, dl)
 	case fl&source.FDump != 0:
 		fproc = fileproc.NewDump(dl)
 	default:
@@ -142,23 +155,19 @@ func (r *Redownloader) Stats(ctx context.Context) (FileStats, error) {
 	return ret, nil
 }
 
-func (r *Redownloader) Download(ctx context.Context) (FileStats, error) {
+func (r *Redownloader) Download(ctx context.Context, cl fileproc.FileGetter) (FileStats, error) {
 	var ret FileStats
 	channels, err := r.channels(ctx)
 	if err != nil {
 		return ret, err
 	}
 
-	client, err := bootstrap.Slack(ctx)
-	if err != nil {
-		return ret, fmt.Errorf("error creating slackdump session: %w", err)
-	}
 	dl := fileproc.NewDownloader(
 		ctx,
 		true,
-		client,
+		cl,
 		fsadapter.NewDirectory(r.src.Name()),
-		cfg.Log,
+		r.lg,
 	)
 	defer dl.Stop()
 
@@ -203,6 +212,7 @@ func (r *Redownloader) processChannel(ctx context.Context, ch *slack.Channel, cb
 	return ret, nil
 }
 
+// dlItem holds the item to be downloaded.
 type dlItem struct {
 	msg *slack.Message
 	f   *slack.File
@@ -210,7 +220,7 @@ type dlItem struct {
 }
 
 func (r *Redownloader) scanChannel(ctx context.Context, ch *slack.Channel) ([]dlItem, error) {
-	slog.Info("scanning channel", "channel", ch.ID)
+	r.lg.Info("scanning channel", "channel", ch.ID)
 	it, err := r.src.AllMessages(ctx, ch.ID)
 	if err != nil {
 		if errors.Is(err, source.ErrNotFound) {
@@ -220,7 +230,7 @@ func (r *Redownloader) scanChannel(ctx context.Context, ch *slack.Channel) ([]dl
 		return nil, fmt.Errorf("error reading messages: %w", err)
 	}
 
-	slog.InfoContext(ctx, "scanning messages")
+	r.lg.InfoContext(ctx, "scanning messages")
 	return r.scanMsgs(ctx, ch, it, false)
 }
 
@@ -232,7 +242,7 @@ func (r *Redownloader) scanMsgs(ctx context.Context, ch *slack.Channel, msgIt it
 
 	trace.Logf(ctx, "scanMsgs", "channel_id=%s, isThread=%v", ch.ID, isThread)
 
-	lg := slog.With("channel", ch.ID)
+	lg := r.lg.With("channel", ch.ID)
 	// workaround for completely missing storage
 	pathFn := r.pathFunc()
 	var toDl []dlItem
