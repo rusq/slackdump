@@ -18,6 +18,7 @@ import (
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/internal/convert/transform/fileproc"
+	"github.com/rusq/slackdump/v3/internal/primitive"
 	"github.com/rusq/slackdump/v3/internal/structures"
 	"github.com/rusq/slackdump/v3/processor"
 	"github.com/rusq/slackdump/v3/source"
@@ -77,6 +78,8 @@ func (r *Redownloader) pathFunc() func(ch *slack.Channel, f *slack.File) string 
 		// easy
 		return r.src.Files().FilePath
 	}
+
+	// no existing file storage directory.
 	switch {
 	case r.flags&source.FDump != 0:
 		return source.DumpFilepath
@@ -95,11 +98,9 @@ func (r *Redownloader) fileProc(dl fileproc.Downloader) (processor.Filer, error)
 	case fl&source.FDatabase != 0 || fl&source.FChunk != 0:
 		fproc = fileproc.New(dl)
 	case fl&source.FExport != 0:
-		typ := r.src.Files().Type()
-		if typ == source.STnone {
-			typ = source.STmattermost // default to mattermost
-		}
-		fproc = fileproc.NewExport(typ, dl)
+		storageType := r.src.Files().Type()
+		storageType = primitive.IfTrue(storageType == source.STnone, source.STmattermost, storageType)
+		fproc = fileproc.NewExport(storageType, dl)
 	case fl&source.FDump != 0:
 		fproc = fileproc.NewDump(dl)
 	default:
@@ -203,6 +204,7 @@ func (r *Redownloader) processChannel(ctx context.Context, ch *slack.Channel, cb
 	return ret, nil
 }
 
+// dlItem holds the item to be downloaded.
 type dlItem struct {
 	msg *slack.Message
 	f   *slack.File

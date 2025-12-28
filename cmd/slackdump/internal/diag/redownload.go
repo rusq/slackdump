@@ -78,7 +78,7 @@ func runRedownload(ctx context.Context, _ *base.Command, args []string) error {
 	if stats.NumFiles == 0 {
 		slog.InfoContext(ctx, "no missing files found")
 	} else {
-		slog.InfoContext(ctx, "redownload missing files statistics", "num_files", stats.NumFiles, "num_bytes", stats.NumBytes)
+		slog.InfoContext(ctx, "estimated file download stats", stats.Attr())
 	}
 
 	return nil
