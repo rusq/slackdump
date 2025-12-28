@@ -1,12 +1,11 @@
 package redownload
 
 import (
-	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"io/fs"
-	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,8 +13,6 @@ import (
 	"time"
 
 	"github.com/rusq/slack"
-	"github.com/rusq/slackdump/v3/auth"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/internal/structures"
 	"github.com/rusq/slackdump/v3/source"
 	"github.com/rusq/slackdump/v3/source/mock_source"
@@ -510,9 +507,6 @@ func Test_validate(t *testing.T) {
 		if err == nil || !strings.Contains(err.Error(), "unpack it first") {
 			t.Fatalf("validate(FZip) error = %v, want zip error", err)
 		}
-		if base.ExitStatus() < base.SUserError {
-			t.Fatalf("exit status = %v, want at least %v", base.ExitStatus(), base.SUserError)
-		}
 	})
 
 	t.Run("non-zip sources allowed", func(t *testing.T) {
@@ -522,47 +516,23 @@ func Test_validate(t *testing.T) {
 	})
 }
 
-type stubProvider struct {
-	rt http.RoundTripper
-}
+type fileGetterFunc func(ctx context.Context, downloadURL string, writer io.Writer) error
 
-func (p stubProvider) SlackToken() string      { return "xoxb-1-1-1-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" }
-func (p stubProvider) Cookies() []*http.Cookie { return nil }
-func (p stubProvider) Validate() error         { return nil }
-func (p stubProvider) Test(ctx context.Context) (*slack.AuthTestResponse, error) {
-	return &slack.AuthTestResponse{User: "u"}, nil
+func (f fileGetterFunc) GetFileContext(ctx context.Context, downloadURL string, writer io.Writer) error {
+	return f(ctx, downloadURL, writer)
 }
-func (p stubProvider) HTTPClient() (*http.Client, error) {
-	return &http.Client{Transport: p.rt}, nil
-}
-
-type rtFunc func(*http.Request) (*http.Response, error)
-
-func (f rtFunc) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
 
 func TestDownload(t *testing.T) {
 	tmp := t.TempDir()
 	ch := slack.Channel{GroupConversation: slack.GroupConversation{Conversation: slack.Conversation{ID: "C1"}}}
 	file := slack.File{ID: "F1", Name: "file.txt", URLPrivateDownload: "https://files.slack.test/file1", Size: 5}
 
-	rt := rtFunc(func(r *http.Request) (*http.Response, error) {
-		switch {
-		case strings.Contains(r.URL.String(), "auth.test"):
-			body := `{"ok":true,"url":"https://workspace.slack.test","team":"T","user":"U","team_id":"T1","user_id":"U1"}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case strings.Contains(r.URL.String(), "file1"):
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewBufferString("hello")),
-				Header:     http.Header{"Content-Length": []string{"5"}},
-			}, nil
-		default:
-			return &http.Response{StatusCode: http.StatusNotFound, Body: io.NopCloser(strings.NewReader("not found"))}, nil
+	fg := fileGetterFunc(func(ctx context.Context, downloadURL string, w io.Writer) error {
+		if downloadURL != file.URLPrivateDownload {
+			return fmt.Errorf("unexpected url %q", downloadURL)
 		}
+		_, err := io.WriteString(w, "hello")
+		return err
 	})
 
 	r := &Redownloader{
@@ -579,8 +549,7 @@ func TestDownload(t *testing.T) {
 		},
 	}
 
-	ctx := auth.WithContext(context.Background(), stubProvider{rt: rt})
-	stats, err := r.Download(ctx)
+	stats, err := r.Download(context.Background(), fg)
 	if err != nil {
 		t.Fatalf("Download() error = %v", err)
 	}

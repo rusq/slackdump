@@ -14,9 +14,6 @@ import (
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/slack"
 
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/bootstrap"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v3/internal/convert/transform/fileproc"
 	"github.com/rusq/slackdump/v3/internal/primitive"
 	"github.com/rusq/slackdump/v3/internal/structures"
@@ -65,7 +62,6 @@ func (r *Redownloader) Stop() error {
 // It sets the exit status according to the error type.
 func validate(st source.Flags) error {
 	if st&source.FZip != 0 {
-		base.SetExitStatus(base.SUserError)
 		return errors.New("unable to work with ZIP files, unpack it first")
 	}
 
@@ -143,23 +139,19 @@ func (r *Redownloader) Stats(ctx context.Context) (FileStats, error) {
 	return ret, nil
 }
 
-func (r *Redownloader) Download(ctx context.Context) (FileStats, error) {
+func (r *Redownloader) Download(ctx context.Context, cl fileproc.FileGetter) (FileStats, error) {
 	var ret FileStats
 	channels, err := r.channels(ctx)
 	if err != nil {
 		return ret, err
 	}
 
-	client, err := bootstrap.Slack(ctx)
-	if err != nil {
-		return ret, fmt.Errorf("error creating slackdump session: %w", err)
-	}
 	dl := fileproc.NewDownloader(
 		ctx,
 		true,
-		client,
+		cl,
 		fsadapter.NewDirectory(r.src.Name()),
-		cfg.Log,
+		slog.Default(),
 	)
 	defer dl.Stop()
 

@@ -3,8 +3,10 @@ package diag
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 
+	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/bootstrap"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/diag/redownload"
 	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
@@ -69,7 +71,11 @@ func runRedownload(ctx context.Context, _ *base.Command, args []string) error {
 		stats, err = rd.Stats(ctx)
 	} else {
 		slog.InfoContext(ctx, "starting redownload")
-		stats, err = rd.Download(ctx)
+		client, err := bootstrap.Slack(ctx)
+		if err != nil {
+			return fmt.Errorf("error creating slackdump session: %w", err)
+		}
+		stats, err = rd.Download(ctx, client)
 	}
 	if err != nil {
 		return err
