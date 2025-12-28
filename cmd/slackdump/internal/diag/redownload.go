@@ -54,7 +54,7 @@ func runRedownload(ctx context.Context, _ *base.Command, args []string) error {
 	}
 	dir := args[0]
 
-	rd, err := redownload.New(ctx, dir)
+	rd, err := redownload.New(ctx, dir, redownload.WithLogger(cfg.Log))
 	if err != nil {
 		return err
 	}

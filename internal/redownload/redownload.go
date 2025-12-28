@@ -26,15 +26,26 @@ type Redownloader struct {
 	src source.SourceResumeCloser
 	// flags are the flags of the source
 	flags source.Flags
+	lg    *slog.Logger
 
 	// dir is the path to the source.
 	dir string
 }
 
+type Option func(*Redownloader)
+
+func WithLogger(lg *slog.Logger) Option {
+	return func(r *Redownloader) {
+		if lg != nil {
+			r.lg = lg
+		}
+	}
+}
+
 // New initialises the new Redownloader for the given directory.  Source type
 // is detected automatically. It validates if the source is of the supported
 // type and returns any errors.
-func New(ctx context.Context, dir string) (*Redownloader, error) {
+func New(ctx context.Context, dir string, opts ...Option) (*Redownloader, error) {
 	st, err := source.Type(dir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to determine type: %w", err)
@@ -46,11 +57,16 @@ func New(ctx context.Context, dir string) (*Redownloader, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error opening source data: %w", err)
 	}
-	return &Redownloader{
+	r := &Redownloader{
 		src:   src,
 		flags: st,
 		dir:   dir,
-	}, nil
+		lg:    slog.Default(),
+	}
+	for _, opt := range opts {
+		opt(r)
+	}
+	return r, nil
 }
 
 // Stop stops the Redownloader.
@@ -151,7 +167,7 @@ func (r *Redownloader) Download(ctx context.Context, cl fileproc.FileGetter) (Fi
 		true,
 		cl,
 		fsadapter.NewDirectory(r.src.Name()),
-		slog.Default(),
+		r.lg,
 	)
 	defer dl.Stop()
 
@@ -204,7 +220,7 @@ type dlItem struct {
 }
 
 func (r *Redownloader) scanChannel(ctx context.Context, ch *slack.Channel) ([]dlItem, error) {
-	slog.Info("scanning channel", "channel", ch.ID)
+	r.lg.Info("scanning channel", "channel", ch.ID)
 	it, err := r.src.AllMessages(ctx, ch.ID)
 	if err != nil {
 		if errors.Is(err, source.ErrNotFound) {
@@ -214,7 +230,7 @@ func (r *Redownloader) scanChannel(ctx context.Context, ch *slack.Channel) ([]dl
 		return nil, fmt.Errorf("error reading messages: %w", err)
 	}
 
-	slog.InfoContext(ctx, "scanning messages")
+	r.lg.InfoContext(ctx, "scanning messages")
 	return r.scanMsgs(ctx, ch, it, false)
 }
 
@@ -226,7 +242,7 @@ func (r *Redownloader) scanMsgs(ctx context.Context, ch *slack.Channel, msgIt it
 
 	trace.Logf(ctx, "scanMsgs", "channel_id=%s, isThread=%v", ch.ID, isThread)
 
-	lg := slog.With("channel", ch.ID)
+	lg := r.lg.With("channel", ch.ID)
 	// workaround for completely missing storage
 	pathFn := r.pathFunc()
 	var toDl []dlItem

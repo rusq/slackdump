@@ -6,18 +6,20 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
+	"iter"
+
 	"github.com/rusq/slack"
 	"github.com/rusq/slackdump/v3/internal/structures"
 	"github.com/rusq/slackdump/v3/source"
 	"github.com/rusq/slackdump/v3/source/mock_source"
 	"go.uber.org/mock/gomock"
-	"iter"
 )
 
 type stubStorage struct {
@@ -292,6 +294,7 @@ func Test_scanChannel(t *testing.T) {
 				allMessagesErr: source.ErrNotFound,
 				storage:        stubStorage{typ: source.STnone},
 			},
+			lg: slog.Default(),
 		}
 		items, err := r.scanChannel(context.Background(), &ch)
 		if err != nil {
@@ -308,6 +311,7 @@ func Test_scanChannel(t *testing.T) {
 				allMessagesErr: errors.New("boom"),
 				storage:        stubStorage{typ: source.STnone},
 			},
+			lg: slog.Default(),
 		}
 		_, err := r.scanChannel(context.Background(), &ch)
 		if err == nil || err.Error() != "error reading messages: boom" {
@@ -336,6 +340,7 @@ func Test_scanChannel(t *testing.T) {
 					return seqFromMessages([]slack.Message{msg}), nil
 				},
 			},
+			lg: slog.Default(),
 		}
 
 		items, err := r.scanChannel(context.Background(), &ch)
@@ -365,6 +370,7 @@ func Test_scanMsgs_filePresence(t *testing.T) {
 			name:    tmp,
 			storage: storage,
 		},
+		lg: slog.Default(),
 	}
 
 	// Create a present file to ensure it is skipped.
@@ -425,6 +431,7 @@ func Test_scanMsgs_threads(t *testing.T) {
 				return seqFromMessages([]slack.Message{{Msg: slack.Msg{Timestamp: "1.1", Files: []slack.File{threadFile}}}}), nil
 			},
 		},
+		lg: slog.Default(),
 	}
 
 	items, err := r.scanMsgs(context.Background(), &ch, seqFromMessages([]slack.Message{threadMsg}), false)
@@ -454,6 +461,7 @@ func Test_processChannel(t *testing.T) {
 					return seqFromMessages([]slack.Message{{Msg: slack.Msg{Files: []slack.File{file}}}}), nil
 				},
 			},
+			lg: slog.Default(),
 		}
 
 		var called int
@@ -486,6 +494,7 @@ func Test_processChannel(t *testing.T) {
 					return seqFromMessages([]slack.Message{{Msg: slack.Msg{Files: []slack.File{file}}}}), nil
 				},
 			},
+			lg: slog.Default(),
 		}
 
 		stats, err := r.processChannel(context.Background(), &ch, func(item *dlItem) error {
@@ -547,6 +556,7 @@ func TestDownload(t *testing.T) {
 				return seqFromMessages([]slack.Message{{Msg: slack.Msg{Files: []slack.File{file}}}}), nil
 			},
 		},
+		lg: slog.Default(),
 	}
 
 	stats, err := r.Download(context.Background(), fg)
