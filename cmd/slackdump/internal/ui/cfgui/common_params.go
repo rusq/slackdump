@@ -98,3 +98,12 @@ func ChannelTypes() Parameter {
 			Options(options...)),
 	}
 }
+
+func IncludeCustomLabels() Parameter {
+	return Parameter{
+		Name:        "Include Custom Field Labels",
+		Value:       Checkbox(cfg.IncludeCustomLabels),
+		Description: "Request custom user profile fields labels (may result in request throttling).",
+		Updater:     updaters.NewBool(&cfg.IncludeCustomLabels),
+	}
+}

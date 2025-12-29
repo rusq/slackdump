@@ -54,6 +54,7 @@ func configuration() cfgui.Configuration {
 			Name: "Optional parameters",
 			Params: []cfgui.Parameter{
 				cfgui.OnlyChannelUsers(),
+				cfgui.IncludeCustomLabels(),
 				cfgui.Avatars(),
 			},
 		},

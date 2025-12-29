@@ -35,6 +35,7 @@ func configuration() cfgui.Configuration {
 				cfgui.ChannelIDs(&entryList, false),
 				cfgui.MemberOnly(),
 				cfgui.OnlyChannelUsers(),
+				cfgui.IncludeCustomLabels(),
 				cfgui.RecordFiles(),
 				cfgui.Avatars(),
 				cfgui.ChannelTypes(),
