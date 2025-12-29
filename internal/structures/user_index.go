@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/rusq/slack"
+	"github.com/rusq/slackdump/v3/internal/primitive"
 )
 
 // UserIndex is a mapping of user ID to the *slack.User.
@@ -118,12 +119,5 @@ func (idx UserIndex) ChannelName(ch slack.Channel) (who string) {
 	default:
 		who = "#" + NVL(ch.NameNormalized, ch.Name)
 	}
-	return who + iftrue(ch.IsArchived, " (archived)", "")
-}
-
-func iftrue[T any](b bool, t, f T) T {
-	if b {
-		return t
-	}
-	return f
+	return who + primitive.IfTrue(ch.IsArchived, " (archived)", "")
 }
