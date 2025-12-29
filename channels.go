@@ -41,7 +41,7 @@ func (s *Session) StreamChannels(ctx context.Context, chanTypes []string, cb fun
 	})
 }
 
-// getChannels list all conversations for a user.  `chanTypes` specifies
+// getChannels list all channels for a user.  `chanTypes` specifies
 // the type of messages to fetch.  See github.com/rusq/slack docs for possible
 // values
 func (s *Session) getChannels(ctx context.Context, chanTypes []string, cb func(types.Channels) error) error {
@@ -50,7 +50,7 @@ func (s *Session) getChannels(ctx context.Context, chanTypes []string, cb func(t
 
 	limiter := s.limiter(network.Tier2)
 
-	if chanTypes == nil {
+	if len(chanTypes) == 0 {
 		chanTypes = AllChanTypes
 	}
 

@@ -23,14 +23,14 @@ If a file is missing or has zero length, it will be redownloaded from the Slack
 API. The tool will not overwrite existing files, so it is safe to run it
 multiple times.
 
-** Please note: **
+**Please note:**
 
 1. It requires you to have a valid authentication in the selected workspace.
 2. Ensure that you have selected the correct workspace using "slackdump workspace select".
 3. It only support directories.  ZIP files can not be updated. Unpack ZIP file
    to a directory before using this tool.
 `,
-	FlagMask:    cfg.OmitAll &^ cfg.OmitAuthFlags,
+	FlagMask:    cfg.OmitAll &^ (cfg.OmitAuthFlags | cfg.OmitWorkspaceFlag),
 	Run:         runRedownload,
 	PrintFlags:  true,
 	RequireAuth: true,

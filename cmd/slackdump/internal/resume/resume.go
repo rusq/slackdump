@@ -127,7 +127,9 @@ func runResume(ctx context.Context, cmd *base.Command, args []string) error {
 	cf := control.Flags{
 		Refresh:       resumeFlags.Refresh,
 		ChannelUsers:  cfg.OnlyChannelUsers,
+		ChannelTypes:  cfg.ChannelTypes,
 		IncludeLabels: cfg.IncludeCustomLabels,
+		MemberOnly:    cfg.MemberOnly,
 	}
 	// inclusive is false, because we don't want to include the latest message
 	// which is already in the database.
@@ -145,10 +147,6 @@ func runResume(ctx context.Context, cmd *base.Command, args []string) error {
 
 	return nil
 }
-
-// oldestAdjustment is one second adjustment for Oldest timestamp to allow for
-// fetching thread messages (see #584)
-const oldestAdjustment = -1 * time.Hour
 
 func latest(ctx context.Context, src source.Resumer, includeThreads bool, lookBack time.Duration) (*structures.EntityList, error) {
 	if lookBack > 0 {

@@ -81,6 +81,10 @@ func (u *users) Retrieve(ctx context.Context, sess *slackdump.Session, m *cache.
 	return nil
 }
 
+func (u *users) Len() int {
+	return len(u.data)
+}
+
 //go:generate mockgen -source=users.go -destination=mocks_test.go -package=list userGetter,userCacher
 type userGetter interface {
 	GetUsers(ctx context.Context) (types.Users, error)

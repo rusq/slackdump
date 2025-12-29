@@ -9,6 +9,8 @@ import (
 
 	"github.com/rusq/slack"
 	"go.uber.org/mock/gomock"
+
+	"github.com/rusq/slackdump/v3/types"
 )
 
 func Test_getCachedUsers(t *testing.T) {
@@ -99,6 +101,39 @@ func Test_getCachedUsers(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("getCachedUsers() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_users_Len(t *testing.T) {
+	type fields struct {
+		data   types.Users
+		common commonOpts
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   int
+	}{
+		{
+			name: "zero",
+			want: 0,
+		},
+		{
+			name:   "three",
+			fields: fields{data: make(types.Users, 3)},
+			want:   3,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			u := &users{
+				data:   tt.fields.data,
+				common: tt.fields.common,
+			}
+			if got := u.Len(); got != tt.want {
+				t.Errorf("users.Len() = %v, want %v", got, tt.want)
 			}
 		})
 	}

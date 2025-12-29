@@ -82,6 +82,7 @@ func exportv31(ctx context.Context, sess client.Slack, fsa fsadapter.FS, list *s
 		MemberOnly:    cfg.MemberOnly,
 		RecordFiles:   false, // archive format is transitory, don't need extra info.
 		ChannelUsers:  cfg.OnlyChannelUsers,
+		ChannelTypes:  cfg.ChannelTypes,
 		IncludeLabels: cfg.IncludeCustomLabels,
 	}
 	ctr, err := control.New(
@@ -119,7 +120,8 @@ func exportv31(ctx context.Context, sess client.Slack, fsa fsadapter.FS, list *s
 	return nil
 }
 
-// export runs the export v3.
+// export runs the export v3 that uses chunk files as a backend storage before
+// conversion.
 //
 // Deprecated: use exportv31 instead.
 func export(ctx context.Context, sess client.Slack, fsa fsadapter.FS, list *structures.EntityList, params exportFlags) error {
@@ -170,6 +172,7 @@ func export(ctx context.Context, sess client.Slack, fsa fsadapter.FS, list *stru
 		RecordFiles:   false, // archive format is transitory, don't need extra info.
 		ChannelUsers:  cfg.OnlyChannelUsers,
 		IncludeLabels: cfg.IncludeCustomLabels,
+		ChannelTypes:  cfg.ChannelTypes,
 	}
 	ctr := control.NewDir(
 		chunkdir,

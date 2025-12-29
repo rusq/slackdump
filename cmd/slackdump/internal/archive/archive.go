@@ -126,6 +126,7 @@ func runDBArchive(ctx context.Context, cmd *base.Command, args []string) error {
 		RecordFiles:   cfg.RecordFiles,
 		ChannelUsers:  cfg.OnlyChannelUsers,
 		IncludeLabels: cfg.IncludeCustomLabels,
+		ChannelTypes:  cfg.ChannelTypes,
 	}
 
 	ctrl, err := DBController(ctx, cmd.Name(), conn, client, dirname, flags, []stream.Option{})
@@ -255,6 +256,7 @@ func ArchiveController(ctx context.Context, cd *chunk.Directory, client client.S
 		RecordFiles:   cfg.RecordFiles,
 		ChannelUsers:  cfg.OnlyChannelUsers,
 		IncludeLabels: cfg.IncludeCustomLabels,
+		ChannelTypes:  cfg.ChannelTypes,
 	}
 
 	ctrl, err := control.New(

@@ -13,6 +13,8 @@ import (
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/slack"
 
+	st "github.com/rusq/slackdump/v3/internal/structures"
+
 	"github.com/rusq/slackdump/v3/auth"
 	"github.com/rusq/slackdump/v3/internal/client"
 	"github.com/rusq/slackdump/v3/internal/network"
@@ -40,10 +42,10 @@ type WorkspaceInfo = slack.AuthTestResponse
 // ErrNoUserCache is returned when the user cache is not initialised.
 var ErrNoUserCache = errors.New("user cache unavailable")
 
-// AllChanTypes enumerates all API-supported channel [types] as of 03/2023.
+// AllChanTypes enumerates all API-supported channel [types] as of 12/2025.
 //
 // [types]: https://api.slack.com/methods/conversations.list#arg_types
-var AllChanTypes = []string{"mpim", "im", "public_channel", "private_channel"}
+var AllChanTypes = []string{st.CMPIM, st.CIM, st.CPublic, st.CPrivate}
 
 // Option is the signature of the option-setting function.
 type Option func(*Session)
