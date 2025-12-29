@@ -101,3 +101,7 @@ func (p *Pool) GetFileInfoContext(ctx context.Context, fileID string, count int,
 func (p *Pool) GetUserInfoContext(ctx context.Context, user string) (*slack.User, error) {
 	return p.next().GetUserInfoContext(ctx, user)
 }
+
+func (w *Pool) GetUserProfileContext(ctx context.Context, params *slack.GetUserProfileParameters) (*slack.UserProfile, error) {
+	return w.next().GetUserProfileContext(ctx, params)
+}

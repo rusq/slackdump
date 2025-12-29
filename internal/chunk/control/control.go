@@ -93,8 +93,9 @@ func (c *Controller) mkSuperprocessor(ctx context.Context, rec *chunk.Recorder, 
 		ucoll := newMsgUserIDsCollector()
 		conv = processor.PrependMessenger(conv, ucoll)
 		streamer = &userCollectingStreamer{
-			Streamer: streamer,
-			userIDC:  ucoll.C(),
+			Streamer:      streamer,
+			userIDC:       ucoll.C(),
+			includeLabels: c.flags.IncludeLabels,
 		}
 	}
 

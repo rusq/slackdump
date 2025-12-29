@@ -125,8 +125,9 @@ func runResume(ctx context.Context, cmd *base.Command, args []string) error {
 	defer wconn.Close()
 
 	cf := control.Flags{
-		Refresh:      resumeFlags.Refresh,
-		ChannelUsers: cfg.OnlyChannelUsers,
+		Refresh:       resumeFlags.Refresh,
+		ChannelUsers:  cfg.OnlyChannelUsers,
+		IncludeLabels: cfg.IncludeCustomLabels,
 	}
 	// inclusive is false, because we don't want to include the latest message
 	// which is already in the database.

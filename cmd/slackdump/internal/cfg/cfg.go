@@ -35,8 +35,9 @@ var (
 	MachineIDOvr    string // Machine ID override
 	NoEncryption    bool   // disable encryption
 
-	MemberOnly       bool
-	OnlyChannelUsers bool
+	MemberOnly          bool
+	OnlyChannelUsers    bool
+	IncludeCustomLabels bool // Requests labels for user custom fields, use with caution due to request throttling.
 
 	WithFiles   bool
 	WithAvatars bool
@@ -193,6 +194,7 @@ func SetBaseFlags(fs *flag.FlagSet, mask FlagMask) {
 	if mask&OmitCustomUserFlags == 0 {
 		fs.BoolVar(&MemberOnly, "member-only", false, "export only channels, which the current user belongs to (if no channels are specified)")
 		fs.BoolVar(&OnlyChannelUsers, "channel-users", false, "export only users involved in the channel, and skip fetching of all users")
+		fs.BoolVar(&IncludeCustomLabels, "custom-labels", false, "request user's custom fields labels, may result in requests being throttled hard")
 	}
 	if mask&OmitChunkFileMode == 0 {
 		fs.BoolVar(&UseChunkFiles, "legacy", false, "use chunk files for data storage instead of sqlite database (incompatible with resuming)")

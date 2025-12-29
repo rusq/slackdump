@@ -300,3 +300,53 @@ func (cs *Stream) UsersBulk(ctx context.Context, proc processor.Users, ids ...st
 	}
 	return nil
 }
+
+// UsersBulkWithCustom returns the information for the users with ids and
+// fetches custom profile fields.  If includeLabels is true, it will fetch the
+// custom profile field names.
+func (cs *Stream) UsersBulkWithCustom(ctx context.Context, proc processor.Users, includeLabels bool, ids ...string) error {
+	ctx, task := trace.NewTask(ctx, "UsersBulkWithCustom")
+	defer task.End()
+
+	uu := make([]slack.User, 0, len(ids))
+	for _, id := range ids {
+		if id == "" {
+			// some messages may have empty user IDs.
+			continue
+		}
+
+		var profileC = make(chan *slack.UserProfile, 1)
+		go func() {
+			defer close(profileC)
+			var profile *slack.UserProfile
+			// we ignore any errors, if we don't get extended information, we still have the basic from the GetUser call.
+			network.WithRetry(ctx, cs.limits.userinfo, cs.limits.tier.Tier4.Retries, func(ctx context.Context) error {
+				var err error
+				profile, err = cs.client.GetUserProfileContext(ctx, &slack.GetUserProfileParameters{
+					UserID:        id,
+					IncludeLabels: includeLabels,
+				})
+				return err
+			})
+			profileC <- profile
+		}()
+
+		var u *slack.User
+		if err := network.WithRetry(ctx, cs.limits.userinfo, cs.limits.tier.Tier4.Retries, func(ctx context.Context) error {
+			var err error
+			u, err = cs.client.GetUserInfoContext(ctx, id)
+			return err
+		}); err != nil {
+			return fmt.Errorf("error fetching user with ID %s: %w", id, err)
+		}
+		if profile := <-profileC; profile != nil {
+			u.Profile = *profile
+		}
+
+		uu = append(uu, *u)
+	}
+	if err := proc.Users(ctx, uu); err != nil {
+		return err
+	}
+	return nil
+}

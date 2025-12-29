@@ -32,6 +32,9 @@ type Flags struct {
 	// and skip fetching of all users.
 	// TODO: wire.
 	ChannelUsers bool // TODO:
+	// IncludeLabels requests API to include the labels for the custom fields.
+	// works only with ChannelUsers. Server may throttle requests hard.
+	IncludeLabels bool
 	// ChannelTypes is the list of channel types to fetch.  If empty, all
 	// channel types are fetched.
 	ChannelTypes []string // TODO: wire up.

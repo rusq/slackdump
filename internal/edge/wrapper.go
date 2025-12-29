@@ -89,3 +89,7 @@ func (w *Wrapper) GetFileInfoContext(ctx context.Context, fileID string, count i
 func (w *Wrapper) GetUserInfoContext(ctx context.Context, user string) (*slack.User, error) {
 	return w.cl.GetUserInfoContext(ctx, user)
 }
+
+func (w *Wrapper) GetUserProfileContext(ctx context.Context, params *slack.GetUserProfileParameters) (*slack.UserProfile, error) {
+	return w.cl.GetUserProfileContext(ctx, params)
+}

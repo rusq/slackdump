@@ -42,15 +42,15 @@ func (m *MockEncoder) EXPECT() *MockEncoderMockRecorder {
 }
 
 // Encode mocks base method.
-func (m *MockEncoder) Encode(ctx context.Context, chunk *chunk.Chunk) error {
+func (m *MockEncoder) Encode(ctx context.Context, arg1 *chunk.Chunk) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Encode", ctx, chunk)
+	ret := m.ctrl.Call(m, "Encode", ctx, arg1)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Encode indicates an expected call of Encode.
-func (mr *MockEncoderMockRecorder) Encode(ctx, chunk any) *gomock.Call {
+func (mr *MockEncoderMockRecorder) Encode(ctx, arg1 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Encode", reflect.TypeOf((*MockEncoder)(nil).Encode), ctx, chunk)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Encode", reflect.TypeOf((*MockEncoder)(nil).Encode), ctx, arg1)
 }
