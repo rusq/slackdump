@@ -549,8 +549,6 @@ func TestStream_UsersBulkWithCustom(t *testing.T) {
 		expectFn func(ms *mock_client.MockSlack, mu *mock_processor.MockUsers)
 		wantErr  bool
 	}{
-		// TODO: Add test cases.
-		// 1. cancelled context
 		{
 			name:   "cancelled context",
 			fields: fields{limits: testLimits},
@@ -563,7 +561,6 @@ func TestStream_UsersBulkWithCustom(t *testing.T) {
 			},
 			wantErr: true,
 		},
-		// 2. user fetch ok + profile fetch ok - profile updated
 		{
 			name:   "user fetch ok, profile fetch ok - profile updated",
 			fields: fields{limits: testLimits},
@@ -576,6 +573,28 @@ func TestStream_UsersBulkWithCustom(t *testing.T) {
 				ms.EXPECT().GetUserProfileContext(gomock.Any(), &slack.GetUserProfileParameters{
 					UserID:        "U12345678",
 					IncludeLabels: false,
+				}).Return(&userProfile, nil)
+
+				wantUser := basicUser
+				wantUser.Profile = userProfile // updated profile
+
+				mu.EXPECT().Users(gomock.Any(), []slack.User{wantUser}).Return(nil)
+			},
+			wantErr: false,
+		},
+		{
+			name:   "propagates includeLabels",
+			fields: fields{limits: testLimits},
+			args: args{
+				ctx:           context.Background(),
+				ids:           []string{"U12345678"},
+				includeLabels: true,
+			},
+			expectFn: func(ms *mock_client.MockSlack, mu *mock_processor.MockUsers) {
+				ms.EXPECT().GetUserInfoContext(gomock.Any(), "U12345678").Return(&basicUser, nil)
+				ms.EXPECT().GetUserProfileContext(gomock.Any(), &slack.GetUserProfileParameters{
+					UserID:        "U12345678",
+					IncludeLabels: true,
 				}).Return(&userProfile, nil)
 
 				wantUser := basicUser
