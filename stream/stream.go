@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"runtime/trace"
 	"sync"
 	"time"
@@ -320,7 +321,7 @@ func (cs *Stream) UsersBulkWithCustom(ctx context.Context, proc processor.Users,
 			defer close(profileC)
 			var profile *slack.UserProfile
 			// we ignore any errors, if we don't get extended information, we still have the basic from the GetUser call.
-			network.WithRetry(ctx, cs.limits.userinfo, cs.limits.tier.Tier4.Retries, func(ctx context.Context) error {
+			err := network.WithRetry(ctx, cs.limits.userinfo, cs.limits.tier.Tier4.Retries, func(ctx context.Context) error {
 				var err error
 				profile, err = cs.client.GetUserProfileContext(ctx, &slack.GetUserProfileParameters{
 					UserID:        id,
@@ -328,6 +329,9 @@ func (cs *Stream) UsersBulkWithCustom(ctx context.Context, proc processor.Users,
 				})
 				return err
 			})
+			if err != nil {
+				slog.DebugContext(ctx, "profile fetch error", "error", err)
+			}
 			profileC <- profile
 		}()
 
@@ -337,6 +341,7 @@ func (cs *Stream) UsersBulkWithCustom(ctx context.Context, proc processor.Users,
 			u, err = cs.client.GetUserInfoContext(ctx, id)
 			return err
 		}); err != nil {
+			<-profileC // discard
 			return fmt.Errorf("error fetching user with ID %s: %w", id, err)
 		}
 		if profile := <-profileC; profile != nil {
