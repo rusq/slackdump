@@ -34,6 +34,9 @@ type Flags struct {
 	// ChannelTypes is the list of channel types to fetch.  If empty, all
 	// channel types are fetched.
 	ChannelTypes []string
+	// IncludeLabels requests API to include the labels for the custom fields.
+	// works only with ChannelUsers. Server may throttle requests hard.
+	IncludeLabels bool
 }
 
 // Error is a controller error.

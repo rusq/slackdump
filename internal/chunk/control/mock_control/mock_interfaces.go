@@ -138,6 +138,25 @@ func (mr *MockStreamerMockRecorder) UsersBulk(ctx, proc any, ids ...any) *gomock
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UsersBulk", reflect.TypeOf((*MockStreamer)(nil).UsersBulk), varargs...)
 }
 
+// UsersBulkWithCustom mocks base method.
+func (m *MockStreamer) UsersBulkWithCustom(ctx context.Context, proc processor.Users, includeLabels bool, ids ...string) error {
+	m.ctrl.T.Helper()
+	varargs := []any{ctx, proc, includeLabels}
+	for _, a := range ids {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "UsersBulkWithCustom", varargs...)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UsersBulkWithCustom indicates an expected call of UsersBulkWithCustom.
+func (mr *MockStreamerMockRecorder) UsersBulkWithCustom(ctx, proc, includeLabels any, ids ...any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]any{ctx, proc, includeLabels}, ids...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UsersBulkWithCustom", reflect.TypeOf((*MockStreamer)(nil).UsersBulkWithCustom), varargs...)
+}
+
 // WorkspaceInfo mocks base method.
 func (m *MockStreamer) WorkspaceInfo(ctx context.Context, proc processor.WorkspaceInfo) error {
 	m.ctrl.T.Helper()

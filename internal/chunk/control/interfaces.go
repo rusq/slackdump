@@ -23,6 +23,7 @@ type Streamer interface {
 	SearchMessages(ctx context.Context, proc processor.MessageSearcher, query string) error
 	SearchFiles(ctx context.Context, proc processor.FileSearcher, query string) error
 	UsersBulk(ctx context.Context, proc processor.Users, ids ...string) error
+	UsersBulkWithCustom(ctx context.Context, proc processor.Users, includeLabels bool, ids ...string) error
 }
 
 type TransformStarter interface {

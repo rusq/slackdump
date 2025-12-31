@@ -79,10 +79,11 @@ func exportv31(ctx context.Context, sess client.Slack, fsa fsadapter.FS, list *s
 	)
 
 	flags := control.Flags{
-		MemberOnly:   cfg.MemberOnly,
-		RecordFiles:  false, // archive format is transitory, don't need extra info.
-		ChannelUsers: cfg.OnlyChannelUsers,
-		ChannelTypes: cfg.ChannelTypes,
+		MemberOnly:    cfg.MemberOnly,
+		RecordFiles:   false, // archive format is transitory, don't need extra info.
+		ChannelUsers:  cfg.OnlyChannelUsers,
+		ChannelTypes:  cfg.ChannelTypes,
+		IncludeLabels: cfg.IncludeCustomLabels,
 	}
 	ctr, err := control.New(
 		ctx,
@@ -167,10 +168,11 @@ func export(ctx context.Context, sess client.Slack, fsa fsadapter.FS, list *stru
 	)
 
 	flags := control.Flags{
-		MemberOnly:   cfg.MemberOnly,
-		RecordFiles:  false, // archive format is transitory, don't need extra info.
-		ChannelUsers: cfg.OnlyChannelUsers,
-		ChannelTypes: cfg.ChannelTypes,
+		MemberOnly:    cfg.MemberOnly,
+		RecordFiles:   false, // archive format is transitory, don't need extra info.
+		ChannelUsers:  cfg.OnlyChannelUsers,
+		IncludeLabels: cfg.IncludeCustomLabels,
+		ChannelTypes:  cfg.ChannelTypes,
 	}
 	ctr := control.NewDir(
 		chunkdir,

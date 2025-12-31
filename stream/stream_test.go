@@ -2,6 +2,7 @@ package stream
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -20,11 +21,13 @@ import (
 	"github.com/rusq/slackdump/v3/internal/cache"
 	"github.com/rusq/slackdump/v3/internal/chunk"
 	"github.com/rusq/slackdump/v3/internal/chunk/chunktest"
+	"github.com/rusq/slackdump/v3/internal/client"
 	"github.com/rusq/slackdump/v3/internal/client/mock_client"
 	"github.com/rusq/slackdump/v3/internal/fixtures"
 	"github.com/rusq/slackdump/v3/internal/network"
 	"github.com/rusq/slackdump/v3/internal/structures"
 	"github.com/rusq/slackdump/v3/mocks/mock_processor"
+	"github.com/rusq/slackdump/v3/processor"
 )
 
 const testConversation = "CO720D65C25A"
@@ -506,6 +509,161 @@ func TestStream_UsersBulk(t *testing.T) {
 			}
 			if err := cs.UsersBulk(tt.args.ctx, mu, tt.args.ids...); (err != nil) != tt.wantErr {
 				t.Errorf("Stream.UsersBulk() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestStream_UsersBulkWithCustom(t *testing.T) {
+	cancelled, cancel := context.WithCancel(t.Context())
+	cancel()
+	testLimits := rateLimits{
+		userinfo: network.NewLimiter(network.NoTier, 100, 100),
+		tier:     network.DefLimits,
+	}
+	var (
+		basicUser   = slack.User{ID: "U12345678", Profile: slack.UserProfile{FirstName: "Basic data"}}
+		userProfile = slack.UserProfile{FirstName: "Full Data"}
+	)
+	type fields struct {
+		oldest         time.Time
+		latest         time.Time
+		client         client.Slack
+		limits         rateLimits
+		chanCache      *chanCache
+		fastSearch     bool
+		inclusive      bool
+		failChnlNotFnd bool
+		resultFn       []func(sr Result) error
+	}
+	type args struct {
+		ctx           context.Context
+		proc          processor.Users
+		includeLabels bool
+		ids           []string
+	}
+	tests := []struct {
+		name     string
+		fields   fields
+		args     args
+		expectFn func(ms *mock_client.MockSlack, mu *mock_processor.MockUsers)
+		wantErr  bool
+	}{
+		{
+			name:   "cancelled context",
+			fields: fields{limits: testLimits},
+			args: args{
+				ctx: cancelled,
+				ids: []string{"U12345678"},
+			},
+			expectFn: func(ms *mock_client.MockSlack, mu *mock_processor.MockUsers) {
+				mu.EXPECT().Users(gomock.Any(), gomock.Any()).Times(0)
+			},
+			wantErr: true,
+		},
+		{
+			name:   "user fetch ok, profile fetch ok - profile updated",
+			fields: fields{limits: testLimits},
+			args: args{
+				ctx: context.Background(),
+				ids: []string{"U12345678"},
+			},
+			expectFn: func(ms *mock_client.MockSlack, mu *mock_processor.MockUsers) {
+				ms.EXPECT().GetUserInfoContext(gomock.Any(), "U12345678").Return(&basicUser, nil)
+				ms.EXPECT().GetUserProfileContext(gomock.Any(), &slack.GetUserProfileParameters{
+					UserID:        "U12345678",
+					IncludeLabels: false,
+				}).Return(&userProfile, nil)
+
+				wantUser := basicUser
+				wantUser.Profile = userProfile // updated profile
+
+				mu.EXPECT().Users(gomock.Any(), []slack.User{wantUser}).Return(nil)
+			},
+			wantErr: false,
+		},
+		{
+			name:   "propagates includeLabels",
+			fields: fields{limits: testLimits},
+			args: args{
+				ctx:           context.Background(),
+				ids:           []string{"U12345678"},
+				includeLabels: true,
+			},
+			expectFn: func(ms *mock_client.MockSlack, mu *mock_processor.MockUsers) {
+				ms.EXPECT().GetUserInfoContext(gomock.Any(), "U12345678").Return(&basicUser, nil)
+				ms.EXPECT().GetUserProfileContext(gomock.Any(), &slack.GetUserProfileParameters{
+					UserID:        "U12345678",
+					IncludeLabels: true,
+				}).Return(&userProfile, nil)
+
+				wantUser := basicUser
+				wantUser.Profile = userProfile // updated profile
+
+				mu.EXPECT().Users(gomock.Any(), []slack.User{wantUser}).Return(nil)
+			},
+			wantErr: false,
+		},
+		{
+			name:   "user fetch ok, profile fetch not ok - retains basic profile",
+			fields: fields{limits: testLimits},
+			args: args{
+				ctx: context.Background(),
+				ids: []string{"U12345678"},
+			},
+			expectFn: func(ms *mock_client.MockSlack, mu *mock_processor.MockUsers) {
+				ms.EXPECT().GetUserInfoContext(gomock.Any(), "U12345678").Return(&basicUser, nil)
+				ms.EXPECT().GetUserProfileContext(gomock.Any(), &slack.GetUserProfileParameters{
+					UserID:        "U12345678",
+					IncludeLabels: false,
+				}).Return(nil, errors.New("profile fetch error, no profile update expected"))
+
+				wantUser := basicUser
+
+				mu.EXPECT().Users(gomock.Any(), []slack.User{wantUser}).Return(nil)
+			},
+			wantErr: false,
+		},
+		{
+			name:   "user fetch not ok - error",
+			fields: fields{limits: testLimits},
+			args: args{
+				ctx: context.Background(),
+				ids: []string{"U12345678"},
+			},
+			expectFn: func(ms *mock_client.MockSlack, mu *mock_processor.MockUsers) {
+				ms.EXPECT().GetUserInfoContext(gomock.Any(), "U12345678").Return(nil, errors.New("not your day"))
+				ms.EXPECT().GetUserProfileContext(gomock.Any(), &slack.GetUserProfileParameters{
+					UserID:        "U12345678",
+					IncludeLabels: false,
+				}).Return(&userProfile, nil)
+
+				mu.EXPECT().Users(gomock.Any(), gomock.Any()).Times(0)
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			ms := mock_client.NewMockSlack(ctrl)
+			mu := mock_processor.NewMockUsers(ctrl)
+			if tt.expectFn != nil {
+				tt.expectFn(ms, mu)
+			}
+			cs := &Stream{
+				oldest:         tt.fields.oldest,
+				latest:         tt.fields.latest,
+				client:         ms,
+				limits:         tt.fields.limits,
+				chanCache:      tt.fields.chanCache,
+				fastSearch:     tt.fields.fastSearch,
+				inclusive:      tt.fields.inclusive,
+				failChnlNotFnd: tt.fields.failChnlNotFnd,
+				resultFn:       tt.fields.resultFn,
+			}
+			if err := cs.UsersBulkWithCustom(tt.args.ctx, mu, tt.args.includeLabels, tt.args.ids...); (err != nil) != tt.wantErr {
+				t.Errorf("Stream.UsersBulkWithCustom() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}

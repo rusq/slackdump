@@ -30,6 +30,7 @@ type Slack interface {
 	ListBookmarks(channelID string) ([]slack.Bookmark, error)
 	SearchFilesContext(ctx context.Context, query string, params slack.SearchParameters) (*slack.SearchFiles, error)
 	SearchMessagesContext(ctx context.Context, query string, params slack.SearchParameters) (*slack.SearchMessages, error)
+	GetUserProfileContext(ctx context.Context, params *slack.GetUserProfileParameters) (*slack.UserProfile, error)
 }
 
 // SlackClienter is an extended interface that includes Client method that

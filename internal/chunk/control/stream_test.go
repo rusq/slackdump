@@ -18,7 +18,8 @@ func Test_userCollectingStreamer_Users(t *testing.T) {
 
 	type fields struct {
 		// Streamer Streamer
-		userIDC <-chan []string
+		userIDC       <-chan []string
+		includeLabels bool
 	}
 	type args struct {
 		ctx context.Context
@@ -52,7 +53,26 @@ func Test_userCollectingStreamer_Users(t *testing.T) {
 				userIDC <- []string{"U12345678", "U87654321"}
 			},
 			expectFn: func(ms *mock_control.MockStreamer, mup *mock_processor.MockUsers) {
-				ms.EXPECT().UsersBulk(gomock.Any(), mup, "U12345678", "U87654321").Return(nil)
+				ms.EXPECT().UsersBulkWithCustom(gomock.Any(), mup, false, "U12345678", "U87654321").Return(nil)
+			},
+			wantErr: false,
+		},
+		{
+			name: "propagates include labels",
+			fields: fields{
+				includeLabels: true,
+			},
+			args: args{
+				ctx: t.Context(),
+			},
+			prepFn: func(f *fields) {
+				userIDC := make(chan []string, 1)
+				defer close(userIDC)
+				f.userIDC = userIDC
+				userIDC <- []string{"U12345678", "U87654321"}
+			},
+			expectFn: func(ms *mock_control.MockStreamer, mup *mock_processor.MockUsers) {
+				ms.EXPECT().UsersBulkWithCustom(gomock.Any(), mup, true, "U12345678", "U87654321").Return(nil)
 			},
 			wantErr: false,
 		},
@@ -68,7 +88,7 @@ func Test_userCollectingStreamer_Users(t *testing.T) {
 				userIDC <- []string{"U12345678", "U87654321"}
 			},
 			expectFn: func(ms *mock_control.MockStreamer, mup *mock_processor.MockUsers) {
-				ms.EXPECT().UsersBulk(gomock.Any(), mup, "U12345678", "U87654321").Return(assert.AnError)
+				ms.EXPECT().UsersBulkWithCustom(gomock.Any(), mup, false, "U12345678", "U87654321").Return(assert.AnError)
 			},
 			wantErr: true,
 		},
@@ -85,8 +105,9 @@ func Test_userCollectingStreamer_Users(t *testing.T) {
 				tt.prepFn(&tt.fields)
 			}
 			u := &userCollectingStreamer{
-				Streamer: ms,
-				userIDC:  tt.fields.userIDC,
+				Streamer:      ms,
+				userIDC:       tt.fields.userIDC,
+				includeLabels: tt.fields.includeLabels,
 			}
 			if err := u.Users(tt.args.ctx, mup, tt.args.opt...); (err != nil) != tt.wantErr {
 				t.Errorf("userCollectingStreamer.Users() error = %v, wantErr %v", err, tt.wantErr)

@@ -15,7 +15,8 @@ import (
 // the userIDC channel and calls the Users processor method.
 type userCollectingStreamer struct {
 	Streamer
-	userIDC <-chan []string
+	userIDC       <-chan []string
+	includeLabels bool
 }
 
 // Users is the override for the Streamer.Users method.
@@ -28,7 +29,7 @@ func (u *userCollectingStreamer) Users(ctx context.Context, proc processor.Users
 			if !ok {
 				return nil
 			}
-			if err := u.UsersBulk(ctx, proc, ids...); err != nil {
+			if err := u.UsersBulkWithCustom(ctx, proc, u.includeLabels, ids...); err != nil {
 				return err
 			}
 		}
