@@ -50,7 +50,7 @@ func (s *Session) fetchUsers(ctx context.Context) (types.Users, error) {
 		users, err = s.client.GetUsersContext(ctx)
 		return err
 	}); err != nil {
-		trace.Logf(ctx, "error", "GetUsers error=%s", err)
+		trace.Logf(ctx, "error", "fetchUsers error=%s", err)
 		return nil, err
 	}
 	if len(users) == 0 {
