@@ -128,6 +128,11 @@ func getThread(ctx context.Context, src source.Sourcer, chanID string, ts string
 		}
 		mm = append(mm, types.Message{Message: threadMsg})
 	}
+	// Skip the parent message (first element) - return only replies.
+	// If there are no messages or only the parent, return empty slice.
+	if len(mm) <= 1 {
+		return nil, nil
+	}
 	return mm[1:], nil
 }
 
