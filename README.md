@@ -21,6 +21,17 @@ files and emojis.  Generate Slack Export without admin privileges.
 [godoc]: https://pkg.go.dev/github.com/rusq/slackdump/v3/
 [mmost]: doc/usage-export.rst
 
+
+> [!WARNING]
+> # Enterprise Workspaces Security Alerts
+>
+> Depending on your Slack plan and security settings, using Slackdump may
+> trigger Slack security alerts and/or notify workspace administrators of
+> unusual or automated access/scraping attempts.
+> 
+> You are responsible for ensuring your use complies with your organisation’s
+> policies and Slack’s terms of service.
+
 ## Description
 
 Typical use scenarios:
