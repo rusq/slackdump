@@ -173,81 +173,13 @@ func dump(ctx context.Context, client client.Slack, fsa fsadapter.FS, p dumppara
 		return err
 	}
 
-	if cfg.UseChunkFiles {
-		return dumpv3(ctx, client, fsa, p)
-	} else {
-		return dumpv31(ctx, client, fsa, p)
-	}
-}
-
-func dumpv3(ctx context.Context, sess client.Slack, fsa fsadapter.FS, p dumpparams) error {
-	dir, err := os.MkdirTemp("", "slackdump-*")
-	if err != nil {
-		return fmt.Errorf("failed to create temp directory: %w", err)
-	}
-
-	lg := cfg.Log
-	lg.Debug("using directory", "dir", dir)
-
-	// Initialise the standard transformer.
-	cd, err := chunk.OpenDir(dir)
+	backend, err := newDumpBackend(ctx)
 	if err != nil {
 		return err
 	}
-	defer cd.Close()
-	src := source.OpenChunkDir(cd, true)
+	defer backend.cleanup()
 
-	// files subprocessor
-	sdl := fileproc.NewDownloader(ctx, p.downloadFiles, sess, fsa, cfg.Log)
-	subproc := fileproc.NewDump(sdl)
-	defer subproc.Close()
-
-	opts := []transform.DumpOption{
-		transform.DumpWithTemplate(p.tmpl),
-		transform.DumpWithLogger(lg),
-	}
-	if p.updatePath && p.downloadFiles {
-		opts = append(opts, transform.DumpWithPipeline(subproc.PathUpdateFunc))
-	}
-
-	tf, err := transform.NewDump(fsa, src, opts...)
-	if err != nil {
-		return fmt.Errorf("failed to create transform: %w", err)
-	}
-
-	coord := transform.NewCoordinator(ctx, tf)
-
-	// TODO: use export controller
-	s := stream.New(sess, cfg.Limits,
-		stream.OptOldest(time.Time(cfg.Oldest)),
-		stream.OptLatest(time.Time(cfg.Latest)),
-		stream.OptResultFn(func(sr stream.Result) error {
-			if sr.Err != nil {
-				return sr.Err
-			}
-			if sr.IsLast {
-				lg.InfoContext(ctx, "dumped", "sr", sr.String())
-			}
-			return nil
-		}),
-	)
-	ctrl := control.NewDir(cd,
-		s,
-		control.WithLogger(lg),
-		control.WithFlags(control.Flags{RecordFiles: cfg.WithFiles}),
-		control.WithCoordinator(coord),
-		control.WithFiler(subproc),
-	)
-	if err := ctrl.Run(ctx, p.list); err != nil {
-		return fmt.Errorf("failed to run controller: %w", err)
-	}
-	if err := coord.Wait(); err != nil {
-		return fmt.Errorf("failed to wait for coordinator: %w", err)
-	}
-
-	lg.DebugContext(ctx, "stream complete, waiting for all goroutines to finish")
-
-	return nil
+	return runDump(ctx, backend, client, fsa, p)
 }
 
 var helpTmpl = template.Must(template.New("dumphelp").Parse(dumpMd))
@@ -261,41 +193,29 @@ func helpDump(cmd *base.Command) string {
 	return buf.String()
 }
 
-func dumpv31(ctx context.Context, client client.Slack, fsa fsadapter.FS, p dumpparams) error {
+type dumpController interface {
+	Run(context.Context, *structures.EntityList) error
+	Close() error
+}
+
+type dumpBackend struct {
+	src     source.Sourcer
+	build   func(context.Context, *stream.Stream, fileproc.FileProcessor, *transform.Coordinator) (dumpController, error)
+	cleanup func()
+}
+
+func newDumpBackend(ctx context.Context) (dumpBackend, error) {
+	if cfg.UseChunkFiles {
+		return newChunkBackend(ctx)
+	}
+	return newDatabaseBackend(ctx)
+}
+
+// runDump contains the common logic that was duplicated in dumpv3/dumpv31.
+func runDump(ctx context.Context, backend dumpBackend, client client.Slack, fsa fsadapter.FS, p dumpparams) error {
 	lg := cfg.Log
 
-	tmpdir, err := os.MkdirTemp("", "slackdump-*")
-	if err != nil {
-		return fmt.Errorf("failed to create temp directory: %w", err)
-	}
-	if !lg.Enabled(ctx, slog.LevelDebug) {
-		defer func() {
-			if err := os.RemoveAll(tmpdir); err != nil {
-				lg.ErrorContext(ctx, "unable to remove temporary directory", "dir", tmpdir, "error", err)
-			}
-		}()
-	}
-
-	// creating a temporary database to hold the data for the converter.
-	wconn, si, err := bootstrap.Database(tmpdir, "dump")
-	if err != nil {
-		return err
-	}
-	defer wconn.Close()
-	tmpdbp, err := dbase.New(ctx, wconn, si)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		if err := tmpdbp.Close(); err != nil {
-			lg.ErrorContext(ctx, "unable to close database processor", "error", err)
-		}
-	}()
-	lg.DebugContext(ctx, "using database in ", "dir", tmpdir)
-	src := source.DatabaseWithSource(tmpdbp.Source())
-
-	// files subprocessor
-	sdl := fileproc.NewDownloader(ctx, p.downloadFiles, client, fsa, cfg.Log)
+	sdl := fileproc.NewDownloader(ctx, p.downloadFiles, client, fsa, lg)
 	subproc := fileproc.NewDump(sdl)
 	defer subproc.Close()
 
@@ -307,13 +227,13 @@ func dumpv31(ctx context.Context, client client.Slack, fsa fsadapter.FS, p dumpp
 		opts = append(opts, transform.DumpWithPipeline(subproc.PathUpdateFunc))
 	}
 
-	tf, err := transform.NewDump(fsa, src, opts...)
+	tf, err := transform.NewDump(fsa, backend.src, opts...)
 	if err != nil {
 		return fmt.Errorf("failed to create transform: %w", err)
 	}
 	coord := transform.NewCoordinator(ctx, tf)
 
-	stream := stream.New(client, cfg.Limits,
+	str := stream.New(client, cfg.Limits,
 		stream.OptOldest(time.Time(cfg.Oldest)),
 		stream.OptLatest(time.Time(cfg.Latest)),
 		stream.OptResultFn(func(sr stream.Result) error {
@@ -327,25 +247,103 @@ func dumpv31(ctx context.Context, client client.Slack, fsa fsadapter.FS, p dumpp
 		}),
 	)
 
-	ctrl, err := control.New(
-		ctx,
-		stream,
-		tmpdbp,
-		control.WithLogger(lg),
-		control.WithFlags(control.Flags{RecordFiles: cfg.WithFiles}),
-		control.WithCoordinator(coord),
-		control.WithFiler(subproc),
-	)
+	ctrl, err := backend.build(ctx, str, subproc, coord)
 	if err != nil {
-		return fmt.Errorf("error creating db controller: %w", err)
+		return fmt.Errorf("error creating controller: %w", err)
 	}
 	defer ctrl.Close()
 
 	if err := ctrl.Run(ctx, p.list); err != nil {
-		return fmt.Errorf("error running db controller: %w", err)
+		return fmt.Errorf("failed to run controller: %w", err)
 	}
 	if err := coord.Wait(); err != nil {
-		return fmt.Errorf("error waiting for coordinator: %w", err)
+		return fmt.Errorf("failed to wait for coordinator: %w", err)
 	}
 	return nil
+}
+
+func newChunkBackend(ctx context.Context) (dumpBackend, error) {
+	lg := cfg.Log
+	dir, err := os.MkdirTemp("", "slackdump-*")
+	if err != nil {
+		return dumpBackend{}, fmt.Errorf("failed to create temp directory: %w", err)
+	}
+	lg.Debug("using directory", "dir", dir)
+
+	cd, err := chunk.OpenDir(dir)
+	if err != nil {
+		return dumpBackend{}, err
+	}
+
+	return dumpBackend{
+		src: source.OpenChunkDir(cd, true),
+		build: func(_ context.Context, s *stream.Stream, subproc fileproc.FileProcessor, coord *transform.Coordinator) (dumpController, error) {
+			ctrl := control.NewDir(
+				cd,
+				s,
+				control.WithLogger(lg),
+				control.WithFlags(control.Flags{RecordFiles: cfg.WithFiles}),
+				control.WithCoordinator(coord),
+				control.WithFiler(subproc),
+			)
+			return ctrl, nil
+		},
+		cleanup: func() {
+			if err := cd.Close(); err != nil {
+				lg.ErrorContext(ctx, "unable to close chunk directory", "error", err)
+			}
+		},
+	}, nil
+}
+
+func newDatabaseBackend(ctx context.Context) (dumpBackend, error) {
+	lg := cfg.Log
+
+	tmpdir, err := os.MkdirTemp("", "slackdump-*")
+	if err != nil {
+		return dumpBackend{}, fmt.Errorf("failed to create temp directory: %w", err)
+	}
+
+	wconn, si, err := bootstrap.Database(tmpdir, "dump")
+	if err != nil {
+		_ = os.RemoveAll(tmpdir)
+		return dumpBackend{}, err
+	}
+	tmpdbp, err := dbase.New(ctx, wconn, si)
+	if err != nil {
+		_ = wconn.Close()
+		_ = os.RemoveAll(tmpdir)
+		return dumpBackend{}, err
+	}
+	lg.DebugContext(ctx, "using database in ", "dir", tmpdir)
+
+	removeTmp := !lg.Enabled(ctx, slog.LevelDebug)
+
+	return dumpBackend{
+		src: source.DatabaseWithSource(tmpdbp.Source()),
+		build: func(ctx context.Context, s *stream.Stream, subproc fileproc.FileProcessor, coord *transform.Coordinator) (dumpController, error) {
+			return control.New(
+				ctx,
+				s,
+				tmpdbp,
+				control.WithLogger(lg),
+				control.WithFlags(control.Flags{RecordFiles: cfg.WithFiles}),
+				control.WithCoordinator(coord),
+				control.WithFiler(subproc),
+			)
+		},
+		cleanup: func() {
+			if err := tmpdbp.Close(); err != nil {
+				lg.ErrorContext(ctx, "unable to close database processor", "error", err)
+			}
+			if err := wconn.Close(); err != nil {
+				lg.ErrorContext(ctx, "unable to close database connection", "error", err)
+			}
+			if removeTmp {
+				if err := os.RemoveAll(tmpdir); err != nil {
+					lg.ErrorContext(ctx, "unable to remove temporary directory", "dir", tmpdir, "error", err)
+				}
+			}
+		},
+	}, nil
 }
