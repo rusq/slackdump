@@ -4,6 +4,8 @@ go 1.24.2
 
 retract v3.1.2 // broken build
 
+retract v3.1.12 // broken build on OpenBSD-amd64
+
 require (
 	github.com/BurntSushi/toml v1.6.0
 	github.com/MercuryEngineering/CookieMonster v0.0.0-20180304172713-1584578b3403
