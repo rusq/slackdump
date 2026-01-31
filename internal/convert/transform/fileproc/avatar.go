@@ -26,7 +26,7 @@ func (a AvatarProc) Users(ctx context.Context, users []slack.User) error {
 			// skip empty
 			continue
 		}
-		if err := a.dl.Download(a.filepath(&u), u.Profile.ImageOriginal); err != nil {
+		if err := a.dl.Download(a.filepath(&u), a.removeDoubleDots(u.Profile.ImageOriginal)); err != nil {
 			return err
 		}
 	}
@@ -45,4 +45,23 @@ func AvatarPath(u *slack.User) string {
 		u.ID,
 		filename,
 	)
+}
+
+func (AvatarProc) removeDoubleDots(uri string) string {
+	urilen := len(uri)
+	if urilen == 0 {
+		return uri // not our problem
+	}
+	// take care of double full stop before extension.
+	ext := path.Ext(uri)
+	extlen := len(ext)
+	if extlen == 0 || urilen == extlen {
+		return uri // what's going on here?
+	}
+	// check if there's full stop right before the extension
+	if idxLast := urilen - extlen - 1; uri[idxLast] == '.' {
+		// strip the full stop
+		return uri[0:idxLast] + ext
+	}
+	return uri
 }
