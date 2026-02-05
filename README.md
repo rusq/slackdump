@@ -257,6 +257,8 @@ suggested a feature, helped to reproduce, or spent time chatting with me on
 the Telegram or Slack to help to understand the problem or feature and tested
 the proposed solution.
 
+See CONTRIBUTORS.md for the full list of contributors.
+
 Also, I'd like to thank current sponsors:
 
 - [<img class="avatar avatar-user" src="https://avatars.githubusercontent.com/u/9138285?s=60&amp;v=4" width="30" height="30" alt="@malsatin">](https://github.com/malsatin) @malsatin

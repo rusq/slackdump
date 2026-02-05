@@ -136,7 +136,7 @@ type JointMessengers struct {
 	pp []Messenger
 }
 
-// JoinMessengers joins multiple Messenger processors into one.
+// JoinMessenger joins multiple Messenger processors into one.
 func JoinMessenger(procs ...Messenger) Messenger {
 	return &JointMessengers{pp: procs}
 }
