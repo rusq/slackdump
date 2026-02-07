@@ -8,4 +8,4 @@
 - Listing commands now report empty results early and expose list sizes; added tests for list length helpers.
 - Internal stream/control updates for custom user profile fetching, plus expanded mocks and tests.
 - Safer enum String() methods guard against negative values across generated stringers.
-
+- License switch from GPLv3 to AGPLv3.
