@@ -24,7 +24,7 @@ import (
 	"github.com/rusq/slack"
 	"go.uber.org/mock/gomock"
 
-	"github.com/rusq/slackdump/v3/types"
+	"github.com/rusq/slackdump/v4/types"
 )
 
 func Test_getCachedUsers(t *testing.T) {

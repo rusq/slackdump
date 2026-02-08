@@ -20,8 +20,8 @@ import (
 
 	"github.com/charmbracelet/huh"
 
-	"github.com/rusq/slackdump/v3/auth"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui"
+	"github.com/rusq/slackdump/v4/auth"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/ui"
 )
 
 func fileWithSecrets(ctx context.Context, mgr manager) error {

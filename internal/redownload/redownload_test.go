@@ -30,9 +30,9 @@ import (
 	"iter"
 
 	"github.com/rusq/slack"
-	"github.com/rusq/slackdump/v3/internal/structures"
-	"github.com/rusq/slackdump/v3/source"
-	"github.com/rusq/slackdump/v3/source/mock_source"
+	"github.com/rusq/slackdump/v4/internal/structures"
+	"github.com/rusq/slackdump/v4/source"
+	"github.com/rusq/slackdump/v4/source/mock_source"
 	"go.uber.org/mock/gomock"
 )
 

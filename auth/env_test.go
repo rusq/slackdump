@@ -19,7 +19,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/rusq/slackdump/v3/internal/fixtures"
+	"github.com/rusq/slackdump/v4/internal/fixtures"
 )
 
 func mkEnvFileData(m map[string]string) []byte {

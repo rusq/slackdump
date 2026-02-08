@@ -29,8 +29,8 @@ import (
 
 	"github.com/rusq/fsadapter/mocks/mock_fsadapter"
 
-	"github.com/rusq/slackdump/v3/internal/testutil"
-	"github.com/rusq/slackdump/v3/mocks/mock_downloader"
+	"github.com/rusq/slackdump/v4/internal/testutil"
+	"github.com/rusq/slackdump/v4/mocks/mock_downloader"
 )
 
 func init() {

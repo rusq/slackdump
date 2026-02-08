@@ -14,7 +14,7 @@ import (
 	reflect "reflect"
 
 	slack "github.com/rusq/slack"
-	chunk "github.com/rusq/slackdump/v3/internal/chunk"
+	chunk "github.com/rusq/slackdump/v4/internal/chunk"
 	gomock "go.uber.org/mock/gomock"
 )
 

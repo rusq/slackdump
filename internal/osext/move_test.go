@@ -19,7 +19,7 @@ import (
 	"testing"
 
 	"github.com/rusq/fsadapter"
-	fx "github.com/rusq/slackdump/v3/internal/fixtures"
+	fx "github.com/rusq/slackdump/v4/internal/fixtures"
 )
 
 func TestMoveFile(t *testing.T) {

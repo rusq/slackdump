@@ -19,9 +19,9 @@ import (
 	"context"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/bubbles/menu"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/cfgui"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/golang/base"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/ui/bubbles/menu"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/ui/cfgui"
 )
 
 // Wizard is a universal wizard for running dump-family commands.

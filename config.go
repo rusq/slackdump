@@ -19,7 +19,7 @@ package slackdump
 import (
 	"time"
 
-	"github.com/rusq/slackdump/v3/internal/network"
+	"github.com/rusq/slackdump/v4/internal/network"
 )
 
 // Config is the option set for the Session.

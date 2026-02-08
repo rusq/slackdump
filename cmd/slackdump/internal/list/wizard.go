@@ -19,12 +19,12 @@ import (
 
 	"github.com/charmbracelet/huh"
 
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/bootstrap"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/cfgui"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/dumpui"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/updaters"
-	"github.com/rusq/slackdump/v3/internal/format"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/bootstrap"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/golang/base"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/ui/cfgui"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/ui/dumpui"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/ui/updaters"
+	"github.com/rusq/slackdump/v4/internal/format"
 )
 
 var filename string

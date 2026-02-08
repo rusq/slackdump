@@ -21,8 +21,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/rusq/slackdump/v3/internal/fixtures"
-	"github.com/rusq/slackdump/v3/types"
+	"github.com/rusq/slackdump/v4/internal/fixtures"
+	"github.com/rusq/slackdump/v4/types"
 )
 
 func init() {

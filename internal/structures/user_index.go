@@ -18,7 +18,7 @@ import (
 	"strings"
 
 	"github.com/rusq/slack"
-	"github.com/rusq/slackdump/v3/internal/primitive"
+	"github.com/rusq/slackdump/v4/internal/primitive"
 )
 
 // UserIndex is a mapping of user ID to the *slack.User.

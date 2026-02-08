@@ -22,7 +22,7 @@ import (
 	"github.com/rusq/slack"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/rusq/slackdump/v3/internal/chunk"
+	"github.com/rusq/slackdump/v4/internal/chunk"
 )
 
 var wsp1 = &slack.AuthTestResponse{

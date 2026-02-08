@@ -24,7 +24,7 @@ import (
 
 	"github.com/playwright-community/playwright-go"
 
-	"github.com/rusq/slackdump/v3/internal/structures"
+	"github.com/rusq/slackdump/v4/internal/structures"
 )
 
 // Workaround for unexported driver dir in playwright.

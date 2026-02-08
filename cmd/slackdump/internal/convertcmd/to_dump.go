@@ -20,9 +20,9 @@ import (
 
 	"github.com/rusq/fsadapter"
 
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
-	"github.com/rusq/slackdump/v3/internal/convert"
-	"github.com/rusq/slackdump/v3/source"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/cfg"
+	"github.com/rusq/slackdump/v4/internal/convert"
+	"github.com/rusq/slackdump/v4/source"
 )
 
 var ErrMeaningless = errors.New("meaningless conversion")

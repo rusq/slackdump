@@ -35,7 +35,7 @@ import (
 
 	"github.com/rusq/slack"
 	"github.com/rusq/slackauth"
-	"github.com/rusq/slackdump/v3/auth"
+	"github.com/rusq/slackdump/v4/auth"
 	"github.com/rusq/tagops"
 )
 

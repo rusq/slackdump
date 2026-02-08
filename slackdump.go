@@ -27,12 +27,12 @@ import (
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/slack"
 
-	st "github.com/rusq/slackdump/v3/internal/structures"
+	st "github.com/rusq/slackdump/v4/internal/structures"
 
-	"github.com/rusq/slackdump/v3/auth"
-	"github.com/rusq/slackdump/v3/internal/client"
-	"github.com/rusq/slackdump/v3/internal/network"
-	"github.com/rusq/slackdump/v3/stream"
+	"github.com/rusq/slackdump/v4/auth"
+	"github.com/rusq/slackdump/v4/internal/client"
+	"github.com/rusq/slackdump/v4/internal/network"
+	"github.com/rusq/slackdump/v4/stream"
 )
 
 //go:generate mockgen -destination internal/mocks/mock_os/mock_os.go os FileInfo

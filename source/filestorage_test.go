@@ -21,7 +21,7 @@ import (
 	"testing"
 	"testing/fstest"
 
-	"github.com/rusq/slackdump/v3/internal/chunk"
+	"github.com/rusq/slackdump/v4/internal/chunk"
 )
 
 func Test_fstMattermost_File(t *testing.T) {

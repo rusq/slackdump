@@ -22,7 +22,7 @@ import (
 
 	"github.com/rusq/slack"
 
-	"github.com/rusq/slackdump/v3/processor"
+	"github.com/rusq/slackdump/v4/processor"
 )
 
 type (

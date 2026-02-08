@@ -20,7 +20,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rusq/slackdump/v3/internal/fixtures"
+	"github.com/rusq/slackdump/v4/internal/fixtures"
 )
 
 func TestValidateToken(t *testing.T) {

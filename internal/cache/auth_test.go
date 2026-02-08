@@ -25,10 +25,10 @@ import (
 	"testing"
 
 	"github.com/rusq/slack"
-	"github.com/rusq/slackdump/v3/auth"
-	"github.com/rusq/slackdump/v3/internal/fixtures"
-	"github.com/rusq/slackdump/v3/internal/mocks/mock_cache"
-	"github.com/rusq/slackdump/v3/internal/mocks/mock_io"
+	"github.com/rusq/slackdump/v4/auth"
+	"github.com/rusq/slackdump/v4/internal/fixtures"
+	"github.com/rusq/slackdump/v4/internal/mocks/mock_cache"
+	"github.com/rusq/slackdump/v4/internal/mocks/mock_io"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 )

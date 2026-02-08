@@ -24,8 +24,8 @@ import (
 	"github.com/rusq/slack"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/rusq/slackdump/v3/internal/fixtures"
-	"github.com/rusq/slackdump/v3/internal/testutil"
+	"github.com/rusq/slackdump/v4/internal/fixtures"
+	"github.com/rusq/slackdump/v4/internal/testutil"
 )
 
 // assortment of channel info chunks

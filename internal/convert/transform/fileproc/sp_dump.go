@@ -15,7 +15,7 @@
 package fileproc
 
 import (
-	"github.com/rusq/slackdump/v3/source"
+	"github.com/rusq/slackdump/v4/source"
 )
 
 // NewDump returns a new Dump File FileProcessor.

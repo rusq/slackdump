@@ -22,9 +22,9 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/bubbles/btime"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/bubbles/datepicker"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/ui"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/ui/bubbles/btime"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/ui/bubbles/datepicker"
 )
 
 type DateModel struct {

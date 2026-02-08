@@ -24,7 +24,7 @@ import (
 	"os"
 	"sync"
 
-	"github.com/rusq/slackdump/v3/internal/osext"
+	"github.com/rusq/slackdump/v4/internal/osext"
 )
 
 // filemgr manages temporary files and handles for compressed files.

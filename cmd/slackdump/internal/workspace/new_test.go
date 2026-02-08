@@ -20,8 +20,8 @@ import (
 	"log/slog"
 	"testing"
 
-	"github.com/rusq/slackdump/v3/auth"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
+	"github.com/rusq/slackdump/v4/auth"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/cfg"
 	"go.uber.org/mock/gomock"
 )
 

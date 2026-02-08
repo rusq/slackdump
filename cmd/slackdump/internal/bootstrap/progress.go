@@ -23,7 +23,7 @@ import (
 
 	"github.com/schollz/progressbar/v3"
 
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/cfg"
 )
 
 func ProgressBar(ctx context.Context, lg *slog.Logger, opts ...progressbar.Option) *progressbar.ProgressBar {

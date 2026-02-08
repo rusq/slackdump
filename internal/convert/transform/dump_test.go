@@ -18,13 +18,13 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/rusq/slackdump/v3/source"
+	"github.com/rusq/slackdump/v4/source"
 
 	"github.com/rusq/fsadapter"
 
-	"github.com/rusq/slackdump/v3/internal/chunk"
-	"github.com/rusq/slackdump/v3/internal/fixtures"
-	"github.com/rusq/slackdump/v3/internal/nametmpl"
+	"github.com/rusq/slackdump/v4/internal/chunk"
+	"github.com/rusq/slackdump/v4/internal/fixtures"
+	"github.com/rusq/slackdump/v4/internal/nametmpl"
 )
 
 func Test_stdConvert(t *testing.T) {

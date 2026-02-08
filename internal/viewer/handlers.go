@@ -22,11 +22,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/rusq/slackdump/v3/source"
+	"github.com/rusq/slackdump/v4/source"
 
 	"github.com/rusq/slack"
 
-	"github.com/rusq/slackdump/v3/internal/structures"
+	"github.com/rusq/slackdump/v4/internal/structures"
 )
 
 func (v *Viewer) indexHandler(w http.ResponseWriter, r *http.Request) {

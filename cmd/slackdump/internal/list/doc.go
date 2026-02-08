@@ -17,7 +17,7 @@ package list
 import (
 	"fmt"
 
-	"github.com/rusq/slackdump/v3/internal/format"
+	"github.com/rusq/slackdump/v4/internal/format"
 )
 
 var (

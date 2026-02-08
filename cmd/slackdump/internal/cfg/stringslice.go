@@ -20,7 +20,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/rusq/slackdump/v3"
+	"github.com/rusq/slackdump/v4"
 )
 
 const stringSliceSep = ","

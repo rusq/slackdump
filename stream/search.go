@@ -23,8 +23,8 @@ import (
 	"github.com/rusq/slack"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/rusq/slackdump/v3/internal/network"
-	"github.com/rusq/slackdump/v3/processor"
+	"github.com/rusq/slackdump/v4/internal/network"
+	"github.com/rusq/slackdump/v4/processor"
 )
 
 // SearchMessages executes the search query and calls the processor for each

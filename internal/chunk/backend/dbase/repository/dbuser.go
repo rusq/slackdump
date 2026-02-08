@@ -17,7 +17,7 @@ package repository
 import (
 	"github.com/rusq/slack"
 
-	"github.com/rusq/slackdump/v3/internal/structures"
+	"github.com/rusq/slackdump/v4/internal/structures"
 )
 
 type DBUser struct {

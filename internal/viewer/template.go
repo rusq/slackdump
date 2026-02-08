@@ -24,7 +24,7 @@ import (
 
 	"github.com/rusq/slack"
 
-	st "github.com/rusq/slackdump/v3/internal/structures"
+	st "github.com/rusq/slackdump/v4/internal/structures"
 )
 
 //go:embed templates

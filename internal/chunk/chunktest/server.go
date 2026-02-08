@@ -21,7 +21,7 @@ import (
 	"net/http/httptest"
 	"os"
 
-	"github.com/rusq/slackdump/v3/internal/chunk"
+	"github.com/rusq/slackdump/v4/internal/chunk"
 )
 
 var lg = log.New(os.Stderr, "chunktest: ", log.LstdFlags)

@@ -22,7 +22,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/rusq/slackdump/v3/internal/fixtures"
+	"github.com/rusq/slackdump/v4/internal/fixtures"
 	"github.com/stretchr/testify/assert"
 )
 

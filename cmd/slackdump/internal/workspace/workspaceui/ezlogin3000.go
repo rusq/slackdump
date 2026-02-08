@@ -18,11 +18,11 @@ import (
 	"context"
 	"errors"
 
-	"github.com/rusq/slackdump/v3/auth"
+	"github.com/rusq/slackdump/v4/auth"
 
-	"github.com/rusq/slackdump/v3/auth/browser"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/workspace/wspcfg"
+	"github.com/rusq/slackdump/v4/auth/browser"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/ui"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/workspace/wspcfg"
 
 	"github.com/charmbracelet/huh"
 )

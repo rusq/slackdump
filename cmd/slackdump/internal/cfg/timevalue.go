@@ -18,7 +18,7 @@ import (
 	"flag"
 	"time"
 
-	"github.com/rusq/slackdump/v3/internal/structures"
+	"github.com/rusq/slackdump/v4/internal/structures"
 )
 
 // TimeValue satisfies flag.Value, used for command line parsing.

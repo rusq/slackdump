@@ -19,7 +19,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/rusq/slackdump/v3/types"
+	"github.com/rusq/slackdump/v4/types"
 )
 
 type usercache struct {

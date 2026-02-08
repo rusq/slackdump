@@ -23,8 +23,8 @@ import (
 
 	"github.com/rusq/slack"
 
-	"github.com/rusq/slackdump/v3/internal/chunk"
-	"github.com/rusq/slackdump/v3/processor"
+	"github.com/rusq/slackdump/v4/internal/chunk"
+	"github.com/rusq/slackdump/v4/processor"
 )
 
 //go:generate mockgen -source=conversations.go -destination=dirproc_mock_test.go -package=directory

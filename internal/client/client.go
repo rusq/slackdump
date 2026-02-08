@@ -20,8 +20,8 @@ import (
 
 	"github.com/rusq/slack"
 
-	"github.com/rusq/slackdump/v3/auth"
-	"github.com/rusq/slackdump/v3/internal/edge"
+	"github.com/rusq/slackdump/v4/auth"
+	"github.com/rusq/slackdump/v4/internal/edge"
 )
 
 //go:generate mockgen -destination mock_client/mock_client.go . SlackClienter,Slack,SlackEdge

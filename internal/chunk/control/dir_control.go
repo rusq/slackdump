@@ -26,11 +26,11 @@ import (
 	"log/slog"
 	"runtime/trace"
 
-	dirproc "github.com/rusq/slackdump/v3/internal/chunk/backend/directory"
+	dirproc "github.com/rusq/slackdump/v4/internal/chunk/backend/directory"
 
-	"github.com/rusq/slackdump/v3/internal/chunk"
-	"github.com/rusq/slackdump/v3/internal/structures"
-	"github.com/rusq/slackdump/v3/processor"
+	"github.com/rusq/slackdump/v4/internal/chunk"
+	"github.com/rusq/slackdump/v4/internal/structures"
+	"github.com/rusq/slackdump/v4/processor"
 )
 
 // DirController is the main controller of the Slack Stream.  It runs the API

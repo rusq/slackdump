@@ -21,7 +21,7 @@ import (
 	"time"
 
 	"github.com/rusq/slack"
-	"github.com/rusq/slackdump/v3/internal/fasttime"
+	"github.com/rusq/slackdump/v4/internal/fasttime"
 )
 
 // client.userBoot API.  It was too large to chuck into the client.* file.

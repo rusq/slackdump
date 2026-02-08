@@ -28,8 +28,8 @@ import (
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/slack"
 
-	"github.com/rusq/slackdump/v3/downloader"
-	"github.com/rusq/slackdump/v3/internal/structures/files"
+	"github.com/rusq/slackdump/v4/downloader"
+	"github.com/rusq/slackdump/v4/internal/structures/files"
 )
 
 // Downloader is the interface that wraps the Download method.

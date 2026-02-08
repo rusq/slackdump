@@ -20,13 +20,13 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/rusq/slackdump/v3/source"
+	"github.com/rusq/slackdump/v4/source"
 
 	"github.com/rusq/slack"
 
-	"github.com/rusq/slackdump/v3/internal/fixtures"
-	st "github.com/rusq/slackdump/v3/internal/structures"
-	"github.com/rusq/slackdump/v3/internal/viewer/renderer"
+	"github.com/rusq/slackdump/v4/internal/fixtures"
+	st "github.com/rusq/slackdump/v4/internal/structures"
+	"github.com/rusq/slackdump/v4/internal/viewer/renderer"
 )
 
 func TestViewer_username(t *testing.T) {

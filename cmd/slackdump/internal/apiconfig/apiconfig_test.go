@@ -22,7 +22,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/rusq/slackdump/v3/internal/network"
+	"github.com/rusq/slackdump/v4/internal/network"
 )
 
 const (

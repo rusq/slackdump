@@ -20,7 +20,7 @@ import (
 	"github.com/charmbracelet/huh"
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/ui"
 )
 
 type multiselectModel struct {

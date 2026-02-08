@@ -17,7 +17,7 @@ package source
 import (
 	"testing"
 
-	"github.com/rusq/slackdump/v3/internal/chunk/backend/dbase"
+	"github.com/rusq/slackdump/v4/internal/chunk/backend/dbase"
 )
 
 func TestDatabase_Name(t *testing.T) {

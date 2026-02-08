@@ -17,7 +17,7 @@ package list
 import (
 	"testing"
 
-	"github.com/rusq/slackdump/v3/types"
+	"github.com/rusq/slackdump/v4/types"
 )
 
 func Test_channels_Len(t *testing.T) {

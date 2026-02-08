@@ -26,9 +26,9 @@ import (
 	"github.com/rusq/slack"
 	"golang.org/x/time/rate"
 
-	"github.com/rusq/slackdump/v3/downloader"
-	"github.com/rusq/slackdump/v3/internal/structures/files"
-	"github.com/rusq/slackdump/v3/types"
+	"github.com/rusq/slackdump/v4/downloader"
+	"github.com/rusq/slackdump/v4/internal/structures/files"
+	"github.com/rusq/slackdump/v4/types"
 )
 
 const (

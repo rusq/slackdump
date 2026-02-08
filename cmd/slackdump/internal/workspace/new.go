@@ -22,12 +22,12 @@ import (
 	"os"
 	"strings"
 
-	"github.com/rusq/slackdump/v3/auth"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/workspace/workspaceui"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/workspace/wspcfg"
-	"github.com/rusq/slackdump/v3/internal/cache"
+	"github.com/rusq/slackdump/v4/auth"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/cfg"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/golang/base"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/workspace/workspaceui"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/workspace/wspcfg"
+	"github.com/rusq/slackdump/v4/internal/cache"
 )
 
 //go:embed assets/new.md

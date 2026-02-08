@@ -28,7 +28,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	_ "modernc.org/sqlite"
 
-	"github.com/rusq/slackdump/v3/internal/chunk"
+	"github.com/rusq/slackdump/v4/internal/chunk"
 )
 
 func init() {

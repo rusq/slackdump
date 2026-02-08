@@ -18,7 +18,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/rusq/slackdump/v3/internal/structures"
+	"github.com/rusq/slackdump/v4/internal/structures"
 )
 
 func TestToFileID(t *testing.T) {

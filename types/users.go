@@ -17,7 +17,7 @@ package types
 import (
 	"github.com/rusq/slack"
 
-	"github.com/rusq/slackdump/v3/internal/structures"
+	"github.com/rusq/slackdump/v4/internal/structures"
 )
 
 // Users is a slice of users.

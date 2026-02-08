@@ -18,8 +18,8 @@ import (
 	"context"
 
 	"github.com/rusq/slack"
-	"github.com/rusq/slackdump/v3/internal/chunk"
-	"github.com/rusq/slackdump/v3/processor"
+	"github.com/rusq/slackdump/v4/internal/chunk"
+	"github.com/rusq/slackdump/v4/processor"
 )
 
 // Search is the search results directory processor.  The results are written

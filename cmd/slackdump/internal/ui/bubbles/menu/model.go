@@ -23,10 +23,10 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/cfgui"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/updaters"
-	"github.com/rusq/slackdump/v3/internal/primitive"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/ui"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/ui/cfgui"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/ui/updaters"
+	"github.com/rusq/slackdump/v4/internal/primitive"
 )
 
 type Model struct {

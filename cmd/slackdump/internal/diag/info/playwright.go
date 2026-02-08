@@ -20,8 +20,8 @@ import (
 
 	"github.com/playwright-community/playwright-go"
 
-	"github.com/rusq/slackdump/v3/auth/browser/pwcompat"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/workspace/wspcfg"
+	"github.com/rusq/slackdump/v4/auth/browser/pwcompat"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/workspace/wspcfg"
 )
 
 type PwInfo struct {

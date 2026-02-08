@@ -19,7 +19,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	fx "github.com/rusq/slackdump/v3/internal/fixtures"
+	fx "github.com/rusq/slackdump/v4/internal/fixtures"
 )
 
 func TestIsSame(t *testing.T) {

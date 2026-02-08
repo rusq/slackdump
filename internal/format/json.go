@@ -21,7 +21,7 @@ import (
 
 	"github.com/rusq/slack"
 
-	"github.com/rusq/slackdump/v3/types"
+	"github.com/rusq/slackdump/v4/types"
 )
 
 type jsonOptions struct {

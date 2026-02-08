@@ -18,12 +18,12 @@ import (
 	"context"
 	"io"
 
-	"github.com/rusq/slackdump/v3/internal/chunk"
-	"github.com/rusq/slackdump/v3/internal/structures"
+	"github.com/rusq/slackdump/v4/internal/chunk"
+	"github.com/rusq/slackdump/v4/internal/structures"
 
 	"github.com/rusq/slack"
 
-	"github.com/rusq/slackdump/v3/processor"
+	"github.com/rusq/slackdump/v4/processor"
 )
 
 //go:generate mockgen -destination=mock_control/mock_interfaces.go . Streamer,TransformStarter,ExportTransformer,ReferenceChecker,EncodeReferenceCloser

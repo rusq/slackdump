@@ -26,7 +26,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/rusq/slackdump/v3/internal/chunk"
+	"github.com/rusq/slackdump/v4/internal/chunk"
 )
 
 // DoDir obfuscates all files in the directory src, placing obfuscated

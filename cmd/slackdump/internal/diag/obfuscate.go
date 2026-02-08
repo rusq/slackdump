@@ -22,8 +22,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
-	"github.com/rusq/slackdump/v3/internal/chunk/obfuscate"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/golang/base"
+	"github.com/rusq/slackdump/v4/internal/chunk/obfuscate"
 )
 
 // cmdObfuscate is the command to obfuscate sensitive data in a slackdump

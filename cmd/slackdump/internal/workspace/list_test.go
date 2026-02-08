@@ -22,7 +22,7 @@ import (
 	"io"
 	"testing"
 
-	"github.com/rusq/slackdump/v3/internal/cache"
+	"github.com/rusq/slackdump/v4/internal/cache"
 	gomock "go.uber.org/mock/gomock"
 )
 

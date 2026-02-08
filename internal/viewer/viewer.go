@@ -29,9 +29,9 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/rusq/slack"
 
-	st "github.com/rusq/slackdump/v3/internal/structures"
-	"github.com/rusq/slackdump/v3/internal/viewer/renderer"
-	"github.com/rusq/slackdump/v3/source"
+	st "github.com/rusq/slackdump/v4/internal/structures"
+	"github.com/rusq/slackdump/v4/internal/viewer/renderer"
+	"github.com/rusq/slackdump/v4/source"
 )
 
 var debug = os.Getenv("DEBUG") != ""

@@ -18,7 +18,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/rusq/slackdump/v3/auth/browser"
+	"github.com/rusq/slackdump/v4/auth/browser"
 )
 
 type options struct {

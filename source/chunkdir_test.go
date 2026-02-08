@@ -19,12 +19,12 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/rusq/slackdump/v3/internal/chunk/backend/directory"
+	"github.com/rusq/slackdump/v4/internal/chunk/backend/directory"
 
 	"github.com/rusq/slack"
 
-	"github.com/rusq/slackdump/v3/internal/chunk"
-	"github.com/rusq/slackdump/v3/internal/fixtures"
+	"github.com/rusq/slackdump/v4/internal/chunk"
+	"github.com/rusq/slackdump/v4/internal/fixtures"
 )
 
 func testDir(t *testing.T) *chunk.Directory {

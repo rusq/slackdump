@@ -17,7 +17,7 @@ package structures
 import (
 	"testing"
 
-	"github.com/rusq/slackdump/v3/internal/fixtures"
+	"github.com/rusq/slackdump/v4/internal/fixtures"
 )
 
 func TestUserIndex_IsDeleted(t *testing.T) {

@@ -15,8 +15,8 @@
 package fileproc
 
 import (
-	"github.com/rusq/slackdump/v3/processor"
-	"github.com/rusq/slackdump/v3/source"
+	"github.com/rusq/slackdump/v4/processor"
+	"github.com/rusq/slackdump/v4/source"
 )
 
 // NewExport initialises an export file subprocessor based on the given export

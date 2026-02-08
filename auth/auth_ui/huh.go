@@ -27,7 +27,7 @@ import (
 	"github.com/charmbracelet/huh"
 	"github.com/rusq/slackauth"
 
-	"github.com/rusq/slackdump/v3/internal/structures"
+	"github.com/rusq/slackdump/v4/internal/structures"
 )
 
 // Huh is the Auth UI that uses the huh library to provide a terminal UI.

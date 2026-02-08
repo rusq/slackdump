@@ -21,8 +21,8 @@ import (
 
 	"github.com/rusq/osenv/v2"
 
-	"github.com/rusq/slackdump/v3/auth"
-	"github.com/rusq/slackdump/v3/auth/browser"
+	"github.com/rusq/slackdump/v4/auth"
+	"github.com/rusq/slackdump/v4/auth/browser"
 )
 
 var (

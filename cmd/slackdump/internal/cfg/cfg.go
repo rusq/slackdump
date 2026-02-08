@@ -26,8 +26,8 @@ import (
 	"github.com/pterm/pterm"
 	"github.com/rusq/osenv/v2"
 
-	"github.com/rusq/slackdump/v3"
-	"github.com/rusq/slackdump/v3/internal/network"
+	"github.com/rusq/slackdump/v4"
+	"github.com/rusq/slackdump/v4/internal/network"
 )
 
 const (

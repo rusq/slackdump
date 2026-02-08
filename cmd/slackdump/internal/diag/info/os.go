@@ -18,7 +18,7 @@ import (
 	"os"
 	"runtime"
 
-	"github.com/rusq/slackdump/v3/internal/osext"
+	"github.com/rusq/slackdump/v4/internal/osext"
 )
 
 type OSInfo struct {

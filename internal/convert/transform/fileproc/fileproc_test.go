@@ -22,7 +22,7 @@ import (
 	"testing"
 
 	"github.com/rusq/slack"
-	"github.com/rusq/slackdump/v3/internal/fixtures"
+	"github.com/rusq/slackdump/v4/internal/fixtures"
 )
 
 func TestIsValid(t *testing.T) {

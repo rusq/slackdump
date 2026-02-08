@@ -21,7 +21,7 @@ import (
 
 	"github.com/rusq/slack"
 
-	"github.com/rusq/slackdump/v3/internal/fasttime"
+	"github.com/rusq/slackdump/v4/internal/fasttime"
 )
 
 // ChunkType is the type of chunk that was recorded..

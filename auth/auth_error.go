@@ -18,7 +18,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/rusq/slackdump/v3/internal/structures"
+	"github.com/rusq/slackdump/v4/internal/structures"
 )
 
 // Error is the error returned by New, the underlying Err contains

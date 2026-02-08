@@ -17,7 +17,7 @@ package fileproc
 import (
 	"testing"
 
-	"github.com/rusq/slackdump/v3/source"
+	"github.com/rusq/slackdump/v4/source"
 
 	"github.com/rusq/slack"
 	"github.com/stretchr/testify/assert"

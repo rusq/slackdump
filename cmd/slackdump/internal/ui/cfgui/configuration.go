@@ -23,10 +23,10 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/apiconfig"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/bubbles/filemgr"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/updaters"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/apiconfig"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/cfg"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/ui/bubbles/filemgr"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/ui/updaters"
 )
 
 type Configuration []ParamGroup

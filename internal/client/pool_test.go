@@ -23,7 +23,7 @@ import (
 	"github.com/rusq/slack"
 	"go.uber.org/mock/gomock"
 
-	"github.com/rusq/slackdump/v3/internal/client/mock_client"
+	"github.com/rusq/slackdump/v4/internal/client/mock_client"
 )
 
 func TestPool_next(t *testing.T) {

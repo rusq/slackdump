@@ -23,7 +23,7 @@ import (
 
 	"github.com/rusq/slack"
 
-	"github.com/rusq/slackdump/v3/internal/chunk/backend/dbase"
+	"github.com/rusq/slackdump/v4/internal/chunk/backend/dbase"
 )
 
 const DefaultDBFile = "slackdump.sqlite"

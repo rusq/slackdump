@@ -18,7 +18,7 @@ import (
 	"errors"
 	"regexp"
 
-	"github.com/rusq/slackdump/v3/internal/structures"
+	"github.com/rusq/slackdump/v4/internal/structures"
 )
 
 var (

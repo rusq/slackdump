@@ -18,8 +18,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui"
-	"github.com/rusq/slackdump/v3/internal/structures"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/ui"
+	"github.com/rusq/slackdump/v4/internal/structures"
 )
 
 // ConversationList asks the user for the list of conversations to dump or

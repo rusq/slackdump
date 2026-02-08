@@ -17,7 +17,7 @@ package man
 import (
 	_ "embed"
 
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/golang/base"
 )
 
 //go:embed assets/chunk.md

@@ -20,8 +20,8 @@ import (
 	"testing"
 
 	"github.com/rusq/slack"
-	"github.com/rusq/slackdump/v3/downloader"
-	"github.com/rusq/slackdump/v3/types"
+	"github.com/rusq/slackdump/v4/downloader"
+	"github.com/rusq/slackdump/v4/types"
 	"github.com/stretchr/testify/assert"
 )
 

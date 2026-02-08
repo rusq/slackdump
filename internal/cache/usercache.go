@@ -20,7 +20,7 @@ import (
 
 	"github.com/rusq/slack"
 
-	"github.com/rusq/slackdump/v3/types"
+	"github.com/rusq/slackdump/v4/types"
 )
 
 func ReadUsers(r io.Reader) (types.Users, error) {

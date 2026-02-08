@@ -20,7 +20,7 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/bubbles/btime"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/ui/bubbles/btime"
 )
 
 const logname = "time.log"

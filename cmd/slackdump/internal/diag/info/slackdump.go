@@ -17,7 +17,7 @@ package info
 import (
 	"runtime"
 
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/cfg"
 )
 
 type SlackdumpInfo struct {
