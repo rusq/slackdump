@@ -273,7 +273,7 @@ func (*Huh) RequestQR(ctx context.Context, _ io.Writer) (string, error) {
 			}).
 			Placeholder(imgPrefix + "...").
 			Title("Paste QR code image data into this field").
-			Description(""),
+			Description(description),
 	))
 	if err := q.Run(); err != nil {
 		return "", err

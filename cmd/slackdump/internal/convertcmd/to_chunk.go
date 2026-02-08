@@ -114,7 +114,7 @@ func printSessions(w io.Writer, sessions []repository.Session) {
 	fmt.Fprintln(tw, "  ID  \tDate\tComplete\tMode")
 	fmt.Fprintln(tw, "------\t----\t--------\t----")
 	for _, s := range sessions {
-		fmt.Fprintf(tw, "%6d\t%s\t%v\t%s\n", s.ID, s.CreatedAt.In(tz).Format(time.DateTime), s.Finished, s.Mode)
+		fmt.Fprintf(tw, "%6d\t%s\t%v\t%s\n", s.ID, s.CreatedAt.In(tz).Format(layout), s.Finished, s.Mode)
 	}
 	fmt.Fprintln(tw)
 }

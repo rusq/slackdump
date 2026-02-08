@@ -12,6 +12,7 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package sdv1
 
 import (
@@ -30,8 +31,7 @@ import (
 
 type Source struct {
 	Messages
-	path string
-	fst  source.Storage
+	fst source.Storage
 }
 
 func NewSource(path string) (Source, error) {
@@ -128,7 +128,7 @@ func (s Source) Files() source.Storage {
 	return s.fst
 }
 
-func (s Messages) Avatars() source.Storage {
+func (m Messages) Avatars() source.Storage {
 	return source.NoStorage{}
 }
 

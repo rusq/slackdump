@@ -168,6 +168,10 @@ func (c *Client) Start(ctx context.Context) error {
 		return ErrAlreadyStarted
 	}
 	c.lg.Debug("starting downloader")
+
+	// recreate channel to ensure clean state
+	c.done = make(chan struct{}, 1)
+
 	c.startWorkers(ctx)
 	c.started.Store(true)
 	return nil

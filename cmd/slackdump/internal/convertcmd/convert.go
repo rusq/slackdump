@@ -51,11 +51,6 @@ var (
 	ErrStorage = errors.New("unsupported storage type")
 )
 
-type tparams struct {
-	storageType source.StorageType
-	sessionID   int64
-}
-
 type convertFunc func(ctx context.Context, input, output string, cflg convertflags) error
 
 var converters = map[datafmt]convertFunc{
