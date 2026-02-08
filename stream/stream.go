@@ -346,7 +346,11 @@ func (cs *Stream) UsersBulkWithCustom(ctx context.Context, proc processor.Users,
 			if err != nil {
 				slog.DebugContext(ctx, "profile fetch error", "error", err)
 			}
-			profileC <- profile
+			select {
+			case profileC <- profile:
+			case <-ctx.Done():
+				return
+			}
 		}()
 
 		var u *slack.User

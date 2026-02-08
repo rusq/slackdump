@@ -63,6 +63,11 @@ func (cs *Stream) SearchMessages(ctx context.Context, proc processor.MessageSear
 					}
 				}
 				for _, fn := range cs.resultFn {
+					select {
+					case <-ctx.Done():
+						return context.Cause(ctx)
+					default:
+					}
 					if err := fn(Result{Type: RTSearch, Count: len(sm)}); err != nil {
 						return err
 					}

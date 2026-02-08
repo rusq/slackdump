@@ -181,13 +181,18 @@ func (s *Session) initClient(ctx context.Context, prov auth.Provider, forceEdge 
 	return s.initWorkspaceInfo(ctx, s.client)
 }
 
-// Client returns the underlying slack.Client.
-func (s *Session) Client() *slack.Client {
+// ErrNotAClient is returned by Client() when the underlying client is not a
+// slack.Client.
+var ErrNotAClient = errors.New("programming error: underlying client is not a slack.Client")
+
+// Client returns the underlying slack.Client. If the underlying client is not
+// a slack.Client, ErrNotAClient is returned.
+func (s *Session) Client() (*slack.Client, error) {
 	cl, ok := s.client.Client()
 	if !ok {
-		panic("client is not a slack.Client")
+		return nil, ErrNotAClient
 	}
-	return cl
+	return cl, nil
 }
 
 // CurrentUserID returns the user ID of the authenticated user.

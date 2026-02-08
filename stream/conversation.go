@@ -52,7 +52,11 @@ func (cs *Stream) ConversationsCB(ctx context.Context, proc processor.Conversati
 	go func() {
 		defer close(itemC)
 		for _, l := range items {
-			itemC <- l
+			select {
+			case itemC <- l:
+			case <-ctx.Done():
+				return
+			}
 		}
 		lg.DebugContext(ctx, "stream: sent link count", "len", len(items))
 	}()

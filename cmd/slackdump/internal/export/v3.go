@@ -38,7 +38,7 @@ import (
 	"github.com/rusq/slackdump/v3/stream"
 )
 
-// export runs the export with the database backend.
+// exportWithDB runs the export with the database backend.
 func exportWithDB(ctx context.Context, sess client.Slack, fsa fsadapter.FS, list *structures.EntityList, params exportFlags) error {
 	lg := cfg.Log
 
@@ -138,7 +138,7 @@ func exportWithDB(ctx context.Context, sess client.Slack, fsa fsadapter.FS, list
 // exportWithDir runs the export with the chunk file directory backend.  It
 // exists as a fallback in case database backend has issues.
 //
-// Deprecated: use exportv31 instead.
+// Deprecated: use exportWithDB instead.
 func exportWithDir(ctx context.Context, sess client.Slack, fsa fsadapter.FS, list *structures.EntityList, params exportFlags) error {
 	lg := cfg.Log
 

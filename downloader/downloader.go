@@ -12,6 +12,7 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package downloader
 
 import (
@@ -118,7 +119,7 @@ func Workers(n int) Option {
 	}
 }
 
-// Logger allows to use an external log library, that satisfies the
+// WithLogger allows to use an external log library, that satisfies the
 // *slog.Logger.
 func WithLogger(l *slog.Logger) Option {
 	return func(c *options) {
@@ -132,7 +133,7 @@ func WithLogger(l *slog.Logger) Option {
 // New initialises new file downloader.
 func New(sc GetFiler, fs fsadapter.FS, opts ...Option) *Client {
 	if sc == nil {
-		// better safe than sorry
+		// deliberate panic, better safe than sorry.
 		panic("programming error:  client is nil")
 	}
 	c := &Client{
@@ -266,8 +267,12 @@ func (c *Client) download(ctx context.Context, fullpath string, url string) (int
 		return 0, err
 	}
 	defer func() {
-		tf.Close()
-		os.Remove(tf.Name())
+		if err := tf.Close(); err != nil {
+			c.lg.WarnContext(ctx, "closing temporary file", "error", err)
+		}
+		if err := os.Remove(tf.Name()); err != nil {
+			c.lg.WarnContext(ctx, "removing temporary file ", "error", err)
+		}
 	}()
 
 	if err := network.WithRetry(ctx, c.limiter, c.retries, func(ctx context.Context) error {
@@ -276,7 +281,9 @@ func (c *Client) download(ctx context.Context, fullpath string, url string) (int
 
 		if err := c.sc.GetFileContext(ctx, url, tf); err != nil {
 			if _, err := tf.Seek(0, io.SeekStart); err != nil {
-				c.lg.ErrorContext(ctx, "seek", "error", err)
+				// we don't return seek error, because we are more interested
+				// in the original error occurred, therefore we just log it.
+				c.lg.WarnContext(ctx, "seek", "error", err)
 			}
 			return fmt.Errorf("download to %q failed, [src=%s]: %w", fullpath, url, err)
 		}
