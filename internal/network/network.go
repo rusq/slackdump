@@ -57,13 +57,6 @@ func setWaitFunc(fn func(int) time.Duration) {
 	waitFn = fn
 }
 
-func setNetWaitFunc(fn func(int) time.Duration) {
-	mu.Lock()
-	defer mu.Unlock()
-
-	netWaitFn = fn
-}
-
 func wait(n int) time.Duration {
 	mu.RLock()
 	defer mu.RUnlock()

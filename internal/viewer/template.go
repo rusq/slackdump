@@ -12,16 +12,14 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package viewer
 
 import (
 	"context"
 	"embed"
-	"encoding/json"
-	"fmt"
 	"html/template"
 	"log/slog"
-	"strings"
 	"time"
 
 	"github.com/rusq/slack"
@@ -78,17 +76,6 @@ func msgsender(m slack.Message) sender {
 		return sUser
 	}
 	return sUnknown
-}
-
-func dump(a any) string {
-	var buf strings.Builder
-	enc := json.NewEncoder(&buf)
-	enc.SetIndent("", "  ")
-	enc.SetEscapeHTML(false)
-	if err := enc.Encode(a); err != nil {
-		return fmt.Sprintf("error: %v", err)
-	}
-	return buf.String()
 }
 
 const emptyAvatar = "/static/48x48.gif"

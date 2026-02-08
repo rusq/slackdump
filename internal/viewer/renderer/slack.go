@@ -12,6 +12,7 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package renderer
 
 import (
@@ -199,12 +200,12 @@ func NewErrMissingHandler(t any) error {
 
 // classes
 var (
-	elBlockquote = element("blockquote", true)
-	elDiv        = element("div", true)
-	elFigure     = element("figure", true)
-	elH3         = element("h3", true)
-	elPre        = element("pre", true)
-	elStrong     = element("strong", true)
+	// elBlockquote = element("blockquote", true)
+	elDiv    = element("div", true)
+	elFigure = element("figure", true)
+	elH3     = element("h3", true)
+	elPre    = element("pre", true)
+	elStrong = element("strong", true)
 )
 
 func element(el string, close bool) func(class string, s string) string {
