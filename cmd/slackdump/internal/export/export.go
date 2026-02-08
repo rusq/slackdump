@@ -12,6 +12,8 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+// Package export implements export subcommand.
 package export
 
 import (
@@ -103,10 +105,10 @@ func runExport(ctx context.Context, cmd *base.Command, args []string) error {
 	// TODO: remove once the database is stable.
 	if cfg.UseChunkFiles {
 		lg.DebugContext(ctx, "using chunk files backend")
-		err = export(ctx, client, fsa, list, options)
+		err = exportWithDir(ctx, client, fsa, list, options)
 	} else {
 		lg.DebugContext(ctx, "using database backend")
-		err = exportv31(ctx, client, fsa, list, options)
+		err = exportWithDB(ctx, client, fsa, list, options)
 	}
 	if err != nil {
 		base.SetExitStatus(base.SApplicationError)

@@ -86,7 +86,7 @@ func Test_exportV3(t *testing.T) {
 		defer fsa.Close()
 
 		list := &structures.EntityList{}
-		if err := export(ctx, cl, fsa, list, exportFlags{}); err != nil {
+		if err := exportWithDir(ctx, cl, fsa, list, exportFlags{}); err != nil {
 			t.Fatal(err)
 		}
 	})
