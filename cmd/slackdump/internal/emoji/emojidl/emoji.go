@@ -12,6 +12,7 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 // Package emojidl provides functions to dump the all slack emojis for a workspace.
 // It skips the "alias" emojis, so only original an emoji with an original name
 // is present. If you need to find the alias - lookup the index.json. The

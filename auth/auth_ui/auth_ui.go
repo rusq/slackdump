@@ -12,6 +12,7 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package auth_ui
 
 // LoginType is the login type, that is used to choose the authentication flow,

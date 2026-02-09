@@ -12,6 +12,7 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 // Package edge provides a limited implementation of Slack edge api necessary
 // to get the data from a slack workspace.
 package edge

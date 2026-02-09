@@ -12,6 +12,7 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 // Package browser provides the playwright browser authentication provider.
 //
 // Deprecated: Use the [auth.RodAuth] provider instead.

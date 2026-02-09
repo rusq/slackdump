@@ -12,6 +12,7 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 // Package format formats Slackdump conversations, channels and users as
 // human-readable text or CSV.
 package format

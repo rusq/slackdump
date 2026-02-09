@@ -12,6 +12,7 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 // Package info contains the Info command.  It collects some vital information
 // about the environment, that could be useful for debugging some issues.
 //
