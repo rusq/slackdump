@@ -1,3 +1,18 @@
+// Copyright (c) 2021-2026 Rustam Gilyazov and Contributors.
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package list
 
 import (
@@ -5,18 +20,19 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 
 	"github.com/rusq/slack"
 
-	"github.com/rusq/slackdump/v3"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/bootstrap"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/workspace"
-	"github.com/rusq/slackdump/v3/internal/cache"
-	"github.com/rusq/slackdump/v3/internal/format"
-	"github.com/rusq/slackdump/v3/types"
+	"github.com/rusq/slackdump/v4"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/bootstrap"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/cfg"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/golang/base"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/workspace"
+	"github.com/rusq/slackdump/v4/internal/cache"
+	"github.com/rusq/slackdump/v4/internal/format"
+	"github.com/rusq/slackdump/v4/types"
 )
 
 const flagMask = cfg.OmitAll &^ cfg.OmitAuthFlags &^ cfg.OmitCacheDir &^ cfg.OmitWorkspaceFlag &^ cfg.OmitYesManFlag
@@ -61,6 +77,8 @@ type lister[T any] interface {
 	// Users should return the users for the data, or nil, which indicates
 	// that there are no associated users or that the users are not resolved.
 	Users() []slack.User
+	// Len should return the data length.
+	Len() int
 }
 
 // common flags
@@ -99,8 +117,14 @@ func list[T any](ctx context.Context, sess *slackdump.Session, l lister[T], file
 		return err
 	}
 
+	if l.Len() == 0 {
+		slog.WarnContext(ctx, "no data retrieved", "type", l.Type())
+		return nil
+	}
+
+	data := l.Data()
 	if !commonFlags.quiet {
-		if err := fmtPrint(ctx, os.Stdout, l.Data(), commonFlags.listType, l.Users(), commonFlags.bare); err != nil {
+		if err := fmtPrint(ctx, os.Stdout, data, commonFlags.listType, l.Users(), commonFlags.bare); err != nil {
 			return err
 		}
 	}
@@ -112,7 +136,7 @@ func list[T any](ctx context.Context, sess *slackdump.Session, l lister[T], file
 		if err := bootstrap.AskOverwrite(filename); err != nil {
 			return err
 		}
-		if err := saveData(ctx, l.Data(), filename, commonFlags.listType, l.Users(), commonFlags.bare); err != nil {
+		if err := saveData(ctx, data, filename, commonFlags.listType, l.Users(), commonFlags.bare); err != nil {
 			return err
 		}
 	}

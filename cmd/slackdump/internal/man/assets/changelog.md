@@ -1,6 +1,19 @@
-# v3.1.0
+# What's New?
 
-- Filenames in Slack Export are dated in the America/Los_Angeles timezone to
+## v4.0.0
+
+- New channel type filtering via `--chan-types` and wizard multi-select, wired through list/archive/export/resume flows.
+- Optional custom profile field labels with `--custom-labels`, including UI support; uses a new user profile fetch path.
+- Channel type constants now align with Slack string values; channel retrieval defaults to all types when none specified.
+- Listing commands now report empty results early and expose list sizes; added tests for list length helpers.
+- Internal stream/control updates for custom user profile fetching, plus expanded mocks and tests.
+- Safer enum String() methods guard against negative values across generated stringers.
+- License switch from GPLv3 to AGPLv3.
+- Better handling of cancellation in various packages.
+
+## v3.1.0
+
+- Filenames in Slack Export are dated in the America/Los\_Angeles timezone to
   align with the Slack export format;
 - 5x faster conversion to Slack export, when using database backend, compared to
   the chunk file backend.
@@ -8,7 +21,7 @@
 - archive and search formats is changed to database;
 - universal converter to export for any other format.
 
-# v3.0.0
+## v3.0.0
 
 Gist:
 - 2.6x dump speed improvement on channels with threads;
@@ -23,13 +36,13 @@ Gist:
 - pgp encryption for traces (under tools);
 - search results archival;
 
-## New Archive format
+### New Archive format
 
 Consider using the new `archive` command to save your workspace data.  You can read about
 it in the `slackdump help archive` command and the format it produces in the
 `slackdump help chunk` command.
 
-## Viewer
+### Viewer
 
 Slackdump V3 introduces a viewer for exported data.  To view the exported data, run:
 ```
@@ -39,13 +52,13 @@ slackdump view <export file or directory>
 NOTE: search results are not supported by the viewer yet.
 
 
-## Breaking changes
+### Breaking changes
 
 - `-download` flag renamed to `-files` and is set to "true" by default;
 - `-r` flag that allowed to generate text files was replaced by
   `slackdump format` command.
 
-## New features
+### New features
 
 - Completely rewritten CLI, based on `go` command source code (see
   [Licenses][1]);
@@ -62,10 +75,10 @@ NOTE: search results are not supported by the viewer yet.
 - Slackdump `convert` mode allows to convert chunk files into other formats,
   such as Slack export format, or Slackdump format.
 
-## Changes
+### Changes
 
 - Default output location (**BASE_LOC** environment variable), if not set by the
-  user, defaults to the ZIP file "slackdump_YYYYMMDD_HHmmSS.zip", where
+  user, defaults to the ZIP file "slackdump\_YYYYMMDD\_HHmmSS.zip", where
   `YYYYMMDD` is the current date (for example `20221103`) and `HHmmSS` is the
   current time with seconds (for example `185803`);
 - To reset all authentication data (similar to old `-auth-reset`), run
@@ -78,11 +91,9 @@ NOTE: search results are not supported by the viewer yet.
   `-user-cache-retention` flags.
 
 
-# Library changes
+## Library changes in v3.0+
 
-## Deprecation of Dump* functions
-
-## Slackdump Core
+### Slackdump Core
 
 - `Options` reorganised, API limits are extracted into a Limits variable. Tier
   limits are extracted to TierLimits, and are accessible via `Limits.Tier2` and
@@ -92,6 +103,9 @@ NOTE: search results are not supported by the viewer yet.
 - Introduced `Close()` interface method on `fsadapter.FS`.  `fsadapter.Close` is
   removed.
 
-## Licenses
+### Licenses
+
+- `./cmd/internal/golang` is BSD licensed.
+- Slackdump is AGPL-3 licensed.
 
 [1]: #licenses

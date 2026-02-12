@@ -67,7 +67,7 @@
     CLOSED: [2025-04-08 Tue 22:06]
 * V3.2
 ** Filters
-*** TODO Channel filter (private/public/DMs) -filter-channel=[public,private,dm] (controller already supports this)
+*** DONE Channel filter (private/public/DMs) -filter-channel=[public,private,dm] (controller already supports this)
 *** TODO Attachment filter, use the same terms as channel filter, -filter-files=[public,private,dm] (#233)
 ** TODO bookmarks support
 ** TODO Saved items
@@ -101,4 +101,3 @@
 
 
 * Bugs
-  i553: need to propagate the stream failOnChanNotFound flag to CLI. (?)

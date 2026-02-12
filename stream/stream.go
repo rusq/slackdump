@@ -1,9 +1,25 @@
+// Copyright (c) 2021-2026 Rustam Gilyazov and Contributors.
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package stream
 
 import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"runtime/trace"
 	"sync"
 	"time"
@@ -11,10 +27,10 @@ import (
 	"github.com/rusq/slack"
 	"golang.org/x/time/rate"
 
-	"github.com/rusq/slackdump/v3/internal/client"
-	"github.com/rusq/slackdump/v3/internal/network"
-	"github.com/rusq/slackdump/v3/internal/structures"
-	"github.com/rusq/slackdump/v3/processor"
+	"github.com/rusq/slackdump/v4/internal/client"
+	"github.com/rusq/slackdump/v4/internal/network"
+	"github.com/rusq/slackdump/v4/internal/structures"
+	"github.com/rusq/slackdump/v4/processor"
 )
 
 const (
@@ -293,6 +309,64 @@ func (cs *Stream) UsersBulk(ctx context.Context, proc processor.Users, ids ...st
 		}); err != nil {
 			return fmt.Errorf("error fetching user with ID %s: %w", id, err)
 		}
+		uu = append(uu, *u)
+	}
+	if err := proc.Users(ctx, uu); err != nil {
+		return err
+	}
+	return nil
+}
+
+// UsersBulkWithCustom returns the information for the users with ids and
+// fetches custom profile fields.  If includeLabels is true, it will fetch the
+// custom profile field names.
+func (cs *Stream) UsersBulkWithCustom(ctx context.Context, proc processor.Users, includeLabels bool, ids ...string) error {
+	ctx, task := trace.NewTask(ctx, "UsersBulkWithCustom")
+	defer task.End()
+
+	uu := make([]slack.User, 0, len(ids))
+	for _, id := range ids {
+		if id == "" {
+			// some messages may have empty user IDs.
+			continue
+		}
+
+		var profileC = make(chan *slack.UserProfile, 1)
+		go func() {
+			defer close(profileC)
+			var profile *slack.UserProfile
+			// we ignore any errors, if we don't get extended information, we still have the basic from the GetUser call.
+			err := network.WithRetry(ctx, cs.limits.userinfo, cs.limits.tier.Tier4.Retries, func(ctx context.Context) error {
+				var err error
+				profile, err = cs.client.GetUserProfileContext(ctx, &slack.GetUserProfileParameters{
+					UserID:        id,
+					IncludeLabels: includeLabels,
+				})
+				return err
+			})
+			if err != nil {
+				slog.DebugContext(ctx, "profile fetch error", "error", err)
+			}
+			select {
+			case profileC <- profile:
+			case <-ctx.Done():
+				return
+			}
+		}()
+
+		var u *slack.User
+		if err := network.WithRetry(ctx, cs.limits.userinfo, cs.limits.tier.Tier4.Retries, func(ctx context.Context) error {
+			var err error
+			u, err = cs.client.GetUserInfoContext(ctx, id)
+			return err
+		}); err != nil {
+			<-profileC // discard
+			return fmt.Errorf("error fetching user with ID %s: %w", id, err)
+		}
+		if profile := <-profileC; profile != nil {
+			u.Profile = *profile
+		}
+
 		uu = append(uu, *u)
 	}
 	if err := proc.Users(ctx, uu); err != nil {

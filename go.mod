@@ -1,10 +1,6 @@
-module github.com/rusq/slackdump/v3
+module github.com/rusq/slackdump/v4
 
 go 1.24.2
-
-retract v3.1.2 // broken build
-
-retract v3.1.12 // broken build on OpenBSD-amd64
 
 require (
 	github.com/BurntSushi/toml v1.6.0

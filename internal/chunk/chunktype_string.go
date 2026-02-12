@@ -27,8 +27,9 @@ const _ChunkType_name = "MessagesThreadMessagesFilesUsersChannelsChannelInfoWork
 var _ChunkType_index = [...]uint8{0, 8, 22, 27, 32, 40, 51, 64, 76, 88, 97, 111, 122}
 
 func (i ChunkType) String() string {
-	if i >= ChunkType(len(_ChunkType_index)-1) {
+	idx := int(i) - 0
+	if i < 0 || idx >= len(_ChunkType_index)-1 {
 		return "ChunkType(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
-	return _ChunkType_name[_ChunkType_index[i]:_ChunkType_index[i+1]]
+	return _ChunkType_name[_ChunkType_index[idx]:_ChunkType_index[idx+1]]
 }

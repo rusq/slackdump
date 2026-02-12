@@ -1,15 +1,30 @@
+// Copyright (c) 2021-2026 Rustam Gilyazov and Contributors.
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package control
 
 import (
 	"context"
 	"io"
 
-	"github.com/rusq/slackdump/v3/internal/chunk"
-	"github.com/rusq/slackdump/v3/internal/structures"
+	"github.com/rusq/slackdump/v4/internal/chunk"
+	"github.com/rusq/slackdump/v4/internal/structures"
 
 	"github.com/rusq/slack"
 
-	"github.com/rusq/slackdump/v3/processor"
+	"github.com/rusq/slackdump/v4/processor"
 )
 
 //go:generate mockgen -destination=mock_control/mock_interfaces.go . Streamer,TransformStarter,ExportTransformer,ReferenceChecker,EncodeReferenceCloser
@@ -23,6 +38,7 @@ type Streamer interface {
 	SearchMessages(ctx context.Context, proc processor.MessageSearcher, query string) error
 	SearchFiles(ctx context.Context, proc processor.FileSearcher, query string) error
 	UsersBulk(ctx context.Context, proc processor.Users, ids ...string) error
+	UsersBulkWithCustom(ctx context.Context, proc processor.Users, includeLabels bool, ids ...string) error
 }
 
 type TransformStarter interface {

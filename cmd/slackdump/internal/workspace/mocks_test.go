@@ -14,8 +14,8 @@ import (
 	os "os"
 	reflect "reflect"
 
-	auth "github.com/rusq/slackdump/v3/auth"
-	cache "github.com/rusq/slackdump/v3/internal/cache"
+	auth "github.com/rusq/slackdump/v4/auth"
+	cache "github.com/rusq/slackdump/v4/internal/cache"
 	gomock "go.uber.org/mock/gomock"
 )
 

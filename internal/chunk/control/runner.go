@@ -1,3 +1,18 @@
+// Copyright (c) 2021-2026 Rustam Gilyazov and Contributors.
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package control
 
 import (
@@ -12,9 +27,9 @@ import (
 	"github.com/rusq/slack"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/rusq/slackdump/v3"
-	"github.com/rusq/slackdump/v3/internal/structures"
-	"github.com/rusq/slackdump/v3/processor"
+	"github.com/rusq/slackdump/v4"
+	"github.com/rusq/slackdump/v4/internal/structures"
+	"github.com/rusq/slackdump/v4/processor"
 )
 
 // Flags are the controller flags.
@@ -27,14 +42,16 @@ type Flags struct {
 	// Refresh is to fetch additional channels from the API in addition to
 	// those provided in the list.  It's useful when the list is
 	// incomplete or outdated.
-	Refresh bool // TODO: refresh channels for Resume.
+	Refresh bool
 	// ChannelUsers is the flag to fetch only users involved in the channel,
 	// and skip fetching of all users.
-	// TODO: wire.
-	ChannelUsers bool // TODO:
+	ChannelUsers bool
 	// ChannelTypes is the list of channel types to fetch.  If empty, all
 	// channel types are fetched.
-	ChannelTypes []string // TODO: wire up.
+	ChannelTypes []string
+	// IncludeLabels requests API to include the labels for the custom fields.
+	// works only with ChannelUsers. Server may throttle requests hard.
+	IncludeLabels bool
 }
 
 // Error is a controller error.
@@ -216,6 +233,8 @@ func (g *apiGenerator) Generate(ctx context.Context, errC chan<- error, list *st
 	if len(g.chTypes) == 0 {
 		g.chTypes = slackdump.AllChanTypes
 	}
+	lg := slog.With("types", g.chTypes)
+	lg.DebugContext(ctx, "API channel generator starting")
 	linksC := make(chan structures.EntityItem)
 	emitErr := errEmitter(errC, "api channel generator", StgGenerator)
 	done := make(chan struct{})

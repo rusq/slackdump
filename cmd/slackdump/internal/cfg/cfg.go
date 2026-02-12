@@ -1,3 +1,18 @@
+// Copyright (c) 2021-2026 Rustam Gilyazov and Contributors.
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 // Package cfg contains common configuration variables.
 package cfg
 
@@ -12,7 +27,8 @@ import (
 	"github.com/pterm/pterm"
 	"github.com/rusq/osenv/v2"
 
-	"github.com/rusq/slackdump/v3/internal/network"
+	"github.com/rusq/slackdump/v4"
+	"github.com/rusq/slackdump/v4/internal/network"
 )
 
 const (
@@ -35,8 +51,11 @@ var (
 	MachineIDOvr    string // Machine ID override
 	NoEncryption    bool   // disable encryption
 
-	MemberOnly       bool
-	OnlyChannelUsers bool
+	MemberOnly          bool
+	OnlyChannelUsers    bool
+	IncludeCustomLabels bool // Requests labels for user custom fields, use with caution due to request throttling.
+	// ChannelTypes lists channel types to fetch.
+	ChannelTypes = slackChanTypes(slackdump.AllChanTypes)
 
 	WithFiles   bool
 	WithAvatars bool
@@ -98,7 +117,7 @@ func (b BuildInfo) String() string {
 	return fmt.Sprintf("Slackdump %s (commit: %s) built on: %s", b.Version, b.Commit, b.Date)
 }
 
-type FlagMask uint16
+type FlagMask uint32
 
 const (
 	DefaultFlags  FlagMask = 0
@@ -116,6 +135,7 @@ const (
 	OmitWithAvatarsFlag
 	OmitChunkFileMode
 	OmitYesManFlag
+	OmitChannelTypesFlag
 
 	OmitAll = OmitConfigFlag |
 		OmitWithFilesFlag |
@@ -130,7 +150,8 @@ const (
 		OmitRecordFilesFlag |
 		OmitWithAvatarsFlag |
 		OmitChunkFileMode |
-		OmitYesManFlag
+		OmitYesManFlag |
+		OmitChannelTypesFlag
 )
 
 // SetBaseFlags sets base flags
@@ -193,11 +214,15 @@ func SetBaseFlags(fs *flag.FlagSet, mask FlagMask) {
 	if mask&OmitCustomUserFlags == 0 {
 		fs.BoolVar(&MemberOnly, "member-only", false, "export only channels, which the current user belongs to (if no channels are specified)")
 		fs.BoolVar(&OnlyChannelUsers, "channel-users", false, "export only users involved in the channel, and skip fetching of all users")
+		fs.BoolVar(&IncludeCustomLabels, "custom-labels", false, "request user's custom fields labels, may result in requests being throttled hard")
 	}
 	if mask&OmitChunkFileMode == 0 {
 		fs.BoolVar(&UseChunkFiles, "legacy", false, "use chunk files for data storage instead of sqlite database (incompatible with resuming)")
 	}
 	if mask&OmitYesManFlag == 0 {
 		fs.BoolVar(&YesMan, "y", osenv.Value("YES_MAN", false), "answer yes to all questions")
+	}
+	if mask&OmitChannelTypesFlag == 0 {
+		fs.Var(&ChannelTypes, "chan-types", "filter channel types")
 	}
 }

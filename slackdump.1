@@ -151,6 +151,10 @@ Specifies the browser to use for the authentication.  The default is Firefox.
 Specifies the directory where the authentication information and user/channel
 cache is stored.  If the flag is not specified, the cache is stored in the
 system cache directory.
+.It Fl chan-types Ar types
+Allows to specify channel types filter.  Default is all channel types.  Values
+should be comma-separated, no spaces.  Possible values:
+mpim,im,public_channel,private_channel
 .It Fl channel-users
 If enabled, collects user IDs from the messages and fetches only the users that
 are collected from the visible messages, instead of fetching the whole set of
@@ -457,13 +461,14 @@ DEBUG=1
 .Sh HISTORY
 Slackdump was created as a tool to dump private messages from Slack in 2018, and
 was released as an GPL-3 Open Source application to public in October 2021.
+
+Since v4 the License changed to AGPL-3.
 .Sh AUTHORS
 The
 .Nm
 was written by
 .An Lk https://github.com/rusq "@rusq"
-with the help of a number of contributors listed on 
-.Lk https://github.com/rusq/slackdump "Slackdump Homepage"
+with the help of a number of contributors listed in CONTRIBUTORS.md.
 .\" .Sh CAVEATS
 .\" .Sh BUGS
 .\" .Sh SECURITY CONSIDERATIONS

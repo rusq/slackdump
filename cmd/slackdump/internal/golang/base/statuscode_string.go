@@ -26,8 +26,9 @@ const _StatusCode_name = "No ErrorGeneric ErrorHelp RequestedInvalid ParametersA
 var _StatusCode_index = [...]uint8{0, 8, 21, 35, 53, 73, 93, 110, 125, 136, 146, 155}
 
 func (i StatusCode) String() string {
-	if i >= StatusCode(len(_StatusCode_index)-1) {
+	idx := int(i) - 0
+	if i < 0 || idx >= len(_StatusCode_index)-1 {
 		return "StatusCode(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
-	return _StatusCode_name[_StatusCode_index[i]:_StatusCode_index[i+1]]
+	return _StatusCode_name[_StatusCode_index[idx]:_StatusCode_index[idx+1]]
 }

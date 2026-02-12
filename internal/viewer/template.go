@@ -1,18 +1,30 @@
+// Copyright (c) 2021-2026 Rustam Gilyazov and Contributors.
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package viewer
 
 import (
 	"context"
 	"embed"
-	"encoding/json"
-	"fmt"
 	"html/template"
 	"log/slog"
-	"strings"
 	"time"
 
 	"github.com/rusq/slack"
 
-	st "github.com/rusq/slackdump/v3/internal/structures"
+	st "github.com/rusq/slackdump/v4/internal/structures"
 )
 
 //go:embed templates
@@ -64,17 +76,6 @@ func msgsender(m slack.Message) sender {
 		return sUser
 	}
 	return sUnknown
-}
-
-func dump(a any) string {
-	var buf strings.Builder
-	enc := json.NewEncoder(&buf)
-	enc.SetIndent("", "  ")
-	enc.SetEscapeHTML(false)
-	if err := enc.Encode(a); err != nil {
-		return fmt.Sprintf("error: %v", err)
-	}
-	return buf.String()
 }
 
 const emptyAvatar = "/static/48x48.gif"

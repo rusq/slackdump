@@ -72,9 +72,12 @@ Contributed the Silent logger implementation for quieter operation modes.
 ### [@snova-jamesv](https://github.com/snova-jamesv)
 Clarified the login step in quickstart.md to reduce user confusion during initial setup.
 
+### [@ChrisEdwards](https://github.com/ChrisEdwards) - Chris Edwards
+Fix the panic in text conversion, when the thread has no replies in the time range.
+
 ---
 
-**Total Contributors**: 24 (including dependabot)
+**Total Contributors**: 25 (including dependabot)
 
 This list is sorted by number of contributions. Every contribution, no matter how small, helps make Slackdump better for everyone!
 

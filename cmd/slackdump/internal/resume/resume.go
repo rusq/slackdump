@@ -1,3 +1,18 @@
+// Copyright (c) 2021-2026 Rustam Gilyazov and Contributors.
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package resume
 
 import (
@@ -12,16 +27,16 @@ import (
 
 	"github.com/sosodev/duration"
 
-	"github.com/rusq/slackdump/v3"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/archive"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/bootstrap"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
-	"github.com/rusq/slackdump/v3/internal/chunk/backend/dbase"
-	"github.com/rusq/slackdump/v3/internal/chunk/control"
-	"github.com/rusq/slackdump/v3/internal/structures"
-	"github.com/rusq/slackdump/v3/source"
-	"github.com/rusq/slackdump/v3/stream"
+	"github.com/rusq/slackdump/v4"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/archive"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/bootstrap"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/cfg"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/golang/base"
+	"github.com/rusq/slackdump/v4/internal/chunk/backend/dbase"
+	"github.com/rusq/slackdump/v4/internal/chunk/control"
+	"github.com/rusq/slackdump/v4/internal/structures"
+	"github.com/rusq/slackdump/v4/source"
+	"github.com/rusq/slackdump/v4/stream"
 )
 
 //go:embed assets/resume.md
@@ -125,8 +140,11 @@ func runResume(ctx context.Context, cmd *base.Command, args []string) error {
 	defer wconn.Close()
 
 	cf := control.Flags{
-		Refresh:      resumeFlags.Refresh,
-		ChannelUsers: cfg.OnlyChannelUsers,
+		Refresh:       resumeFlags.Refresh,
+		ChannelUsers:  cfg.OnlyChannelUsers,
+		ChannelTypes:  cfg.ChannelTypes,
+		IncludeLabels: cfg.IncludeCustomLabels,
+		MemberOnly:    cfg.MemberOnly,
 	}
 	// inclusive is false, because we don't want to include the latest message
 	// which is already in the database.
@@ -144,10 +162,6 @@ func runResume(ctx context.Context, cmd *base.Command, args []string) error {
 
 	return nil
 }
-
-// oldestAdjustment is one second adjustment for Oldest timestamp to allow for
-// fetching thread messages (see #584)
-const oldestAdjustment = -1 * time.Hour
 
 func latest(ctx context.Context, src source.Resumer, includeThreads bool, lookBack time.Duration) (*structures.EntityList, error) {
 	if lookBack > 0 {
