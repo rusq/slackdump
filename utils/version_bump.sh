@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/zsh
 
 OLD="github.com/rusq/slackdump/v3"
 NEW="github.com/rusq/slackdump/v4"
