@@ -27,10 +27,11 @@ import (
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/fsadapter/mocks/mock_fsadapter"
 	"github.com/rusq/slack"
-	"github.com/rusq/slackdump/v4/internal/fixtures"
-	"github.com/rusq/slackdump/v4/internal/mocks/mock_io"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
+
+	"github.com/rusq/slackdump/v4/internal/fixtures"
+	"github.com/rusq/slackdump/v4/internal/mocks/mock_io"
 )
 
 func TestMostFrequentMember(t *testing.T) {
@@ -402,7 +403,7 @@ func TestExportIndex_Marshal(t *testing.T) {
 				{"groups.json", 3},
 				{"mpims.json", 2172},
 				{"dms.json", 955},
-				{"users.json", 16061},
+				{"users.json", 16589},
 			},
 			false,
 		},
