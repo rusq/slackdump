@@ -12,6 +12,7 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package osext
 
 import (
@@ -23,7 +24,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	fx "github.com/rusq/slackdump/v3/internal/fixtures"
+	fx "github.com/rusq/slackdump/v4/internal/fixtures"
 )
 
 func TestUnGZIP(t *testing.T) {

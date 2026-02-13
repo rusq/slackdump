@@ -12,6 +12,7 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package stream
 
 import (
@@ -23,8 +24,8 @@ import (
 	"github.com/rusq/slack"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/rusq/slackdump/v3/internal/network"
-	"github.com/rusq/slackdump/v3/processor"
+	"github.com/rusq/slackdump/v4/internal/network"
+	"github.com/rusq/slackdump/v4/processor"
 )
 
 // SearchMessages executes the search query and calls the processor for each
@@ -63,6 +64,11 @@ func (cs *Stream) SearchMessages(ctx context.Context, proc processor.MessageSear
 					}
 				}
 				for _, fn := range cs.resultFn {
+					select {
+					case <-ctx.Done():
+						return context.Cause(ctx)
+					default:
+					}
 					if err := fn(Result{Type: RTSearch, Count: len(sm)}); err != nil {
 						return err
 					}

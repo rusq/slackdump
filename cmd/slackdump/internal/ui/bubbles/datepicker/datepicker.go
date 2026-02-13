@@ -12,6 +12,7 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 // Package datepicker provides a bubble tea component for viewing and selecting
 // a date from a monthly view.
 package datepicker

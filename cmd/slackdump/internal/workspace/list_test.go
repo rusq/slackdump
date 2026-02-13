@@ -12,6 +12,7 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package workspace
 
 import (
@@ -22,7 +23,7 @@ import (
 	"io"
 	"testing"
 
-	"github.com/rusq/slackdump/v3/internal/cache"
+	"github.com/rusq/slackdump/v4/internal/cache"
 	gomock "go.uber.org/mock/gomock"
 )
 

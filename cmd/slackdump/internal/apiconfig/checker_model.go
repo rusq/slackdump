@@ -12,6 +12,7 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package apiconfig
 
 import (
@@ -20,7 +21,7 @@ import (
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/bubbles/filemgr"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/ui/bubbles/filemgr"
 )
 
 type checkerModel struct {

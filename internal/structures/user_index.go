@@ -12,13 +12,14 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package structures
 
 import (
 	"strings"
 
 	"github.com/rusq/slack"
-	"github.com/rusq/slackdump/v3/internal/primitive"
+	"github.com/rusq/slackdump/v4/internal/primitive"
 )
 
 // UserIndex is a mapping of user ID to the *slack.User.

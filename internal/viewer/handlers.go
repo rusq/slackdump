@@ -12,24 +12,22 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package viewer
 
 import (
 	"errors"
-	"fmt"
 	"io/fs"
 	"iter"
 	"net/http"
 	"path/filepath"
-	"slices"
 	"strings"
 
-	"github.com/rusq/slackdump/v3/source"
+	"github.com/rusq/slackdump/v4/source"
 
 	"github.com/rusq/slack"
 
-	"github.com/rusq/slackdump/v3/internal/fasttime"
-	"github.com/rusq/slackdump/v3/internal/structures"
+	"github.com/rusq/slackdump/v4/internal/structures"
 )
 
 func (v *Viewer) indexHandler(w http.ResponseWriter, r *http.Request) {
@@ -69,25 +67,6 @@ func (v *Viewer) newFileHandler(fn func(w http.ResponseWriter, r *http.Request, 
 		}
 		fn(w, r, id)
 	}
-}
-
-func maybeReverse(mm []slack.Message) error {
-	if len(mm) == 0 {
-		return nil
-	}
-
-	first, err := fasttime.TS2int(mm[0].Timestamp)
-	if err != nil {
-		return fmt.Errorf("TS2int at 0: %w", err)
-	}
-	last, err := fasttime.TS2int(mm[len(mm)-1].Timestamp)
-	if err != nil {
-		return fmt.Errorf("TS2int at -1: %w", err)
-	}
-	if first > last {
-		slices.Reverse(mm)
-	}
-	return nil
 }
 
 func (v *Viewer) channelHandler(w http.ResponseWriter, r *http.Request, id string) {

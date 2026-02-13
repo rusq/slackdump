@@ -12,6 +12,7 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package slackdump
 
 // In this file: slackdump config.
@@ -19,7 +20,7 @@ package slackdump
 import (
 	"time"
 
-	"github.com/rusq/slackdump/v3/internal/network"
+	"github.com/rusq/slackdump/v4/internal/network"
 )
 
 // Config is the option set for the Session.

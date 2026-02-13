@@ -12,6 +12,7 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package export
 
 import (
@@ -21,8 +22,8 @@ import (
 
 	"github.com/rusq/slack"
 
-	"github.com/rusq/slackdump/v3/internal/fasttime"
-	"github.com/rusq/slackdump/v3/internal/structures"
+	"github.com/rusq/slackdump/v4/internal/fasttime"
+	"github.com/rusq/slackdump/v4/internal/structures"
 )
 
 // ExportMessage is the slack.Message with additional fields usually found in

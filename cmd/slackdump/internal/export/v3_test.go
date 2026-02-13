@@ -12,6 +12,7 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package export
 
 import (
@@ -21,11 +22,11 @@ import (
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/slack"
 
-	"github.com/rusq/slackdump/v3/internal/chunk"
-	"github.com/rusq/slackdump/v3/internal/chunk/chunktest"
-	"github.com/rusq/slackdump/v3/internal/client"
-	"github.com/rusq/slackdump/v3/internal/fixtures"
-	"github.com/rusq/slackdump/v3/internal/structures"
+	"github.com/rusq/slackdump/v4/internal/chunk"
+	"github.com/rusq/slackdump/v4/internal/chunk/chunktest"
+	"github.com/rusq/slackdump/v4/internal/client"
+	"github.com/rusq/slackdump/v4/internal/fixtures"
+	"github.com/rusq/slackdump/v4/internal/structures"
 )
 
 var (
@@ -86,7 +87,7 @@ func Test_exportV3(t *testing.T) {
 		defer fsa.Close()
 
 		list := &structures.EntityList{}
-		if err := export(ctx, cl, fsa, list, exportFlags{}); err != nil {
+		if err := exportWithDir(ctx, cl, fsa, list, exportFlags{}); err != nil {
 			t.Fatal(err)
 		}
 	})

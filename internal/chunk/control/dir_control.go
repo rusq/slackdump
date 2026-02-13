@@ -12,6 +12,7 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 // Package control holds the implementation of the Slack Stream controller.
 // It runs the API scraping in several goroutines and manages the data flow
 // between them.  It records the output of the API scraper into a chunk
@@ -26,11 +27,11 @@ import (
 	"log/slog"
 	"runtime/trace"
 
-	dirproc "github.com/rusq/slackdump/v3/internal/chunk/backend/directory"
+	dirproc "github.com/rusq/slackdump/v4/internal/chunk/backend/directory"
 
-	"github.com/rusq/slackdump/v3/internal/chunk"
-	"github.com/rusq/slackdump/v3/internal/structures"
-	"github.com/rusq/slackdump/v3/processor"
+	"github.com/rusq/slackdump/v4/internal/chunk"
+	"github.com/rusq/slackdump/v4/internal/structures"
+	"github.com/rusq/slackdump/v4/processor"
 )
 
 // DirController is the main controller of the Slack Stream.  It runs the API

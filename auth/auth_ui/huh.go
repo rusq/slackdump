@@ -12,6 +12,7 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package auth_ui
 
 import (
@@ -27,7 +28,7 @@ import (
 	"github.com/charmbracelet/huh"
 	"github.com/rusq/slackauth"
 
-	"github.com/rusq/slackdump/v3/internal/structures"
+	"github.com/rusq/slackdump/v4/internal/structures"
 )
 
 // Huh is the Auth UI that uses the huh library to provide a terminal UI.
@@ -273,7 +274,7 @@ func (*Huh) RequestQR(ctx context.Context, _ io.Writer) (string, error) {
 			}).
 			Placeholder(imgPrefix + "...").
 			Title("Paste QR code image data into this field").
-			Description(""),
+			Description(description),
 	))
 	if err := q.Run(); err != nil {
 		return "", err

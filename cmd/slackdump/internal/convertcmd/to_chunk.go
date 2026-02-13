@@ -12,6 +12,7 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package convertcmd
 
 import (
@@ -25,12 +26,12 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
-	"github.com/rusq/slackdump/v3/internal/chunk"
-	"github.com/rusq/slackdump/v3/internal/chunk/backend/dbase"
-	"github.com/rusq/slackdump/v3/internal/chunk/backend/dbase/repository"
-	"github.com/rusq/slackdump/v3/internal/chunk/backend/directory"
-	"github.com/rusq/slackdump/v3/source"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/cfg"
+	"github.com/rusq/slackdump/v4/internal/chunk"
+	"github.com/rusq/slackdump/v4/internal/chunk/backend/dbase"
+	"github.com/rusq/slackdump/v4/internal/chunk/backend/dbase/repository"
+	"github.com/rusq/slackdump/v4/internal/chunk/backend/directory"
+	"github.com/rusq/slackdump/v4/source"
 )
 
 func toChunk(ctx context.Context, src, trg string, cflg convertflags) error {
@@ -114,7 +115,7 @@ func printSessions(w io.Writer, sessions []repository.Session) {
 	fmt.Fprintln(tw, "  ID  \tDate\tComplete\tMode")
 	fmt.Fprintln(tw, "------\t----\t--------\t----")
 	for _, s := range sessions {
-		fmt.Fprintf(tw, "%6d\t%s\t%v\t%s\n", s.ID, s.CreatedAt.In(tz).Format(time.DateTime), s.Finished, s.Mode)
+		fmt.Fprintf(tw, "%6d\t%s\t%v\t%s\n", s.ID, s.CreatedAt.In(tz).Format(layout), s.Finished, s.Mode)
 	}
 	fmt.Fprintln(tw)
 }

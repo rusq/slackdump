@@ -12,6 +12,7 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package sdv1
 
 import (
@@ -24,14 +25,13 @@ import (
 
 	"github.com/rusq/slack"
 
-	"github.com/rusq/slackdump/v3/internal/structures"
-	"github.com/rusq/slackdump/v3/source"
+	"github.com/rusq/slackdump/v4/internal/structures"
+	"github.com/rusq/slackdump/v4/source"
 )
 
 type Source struct {
 	Messages
-	path string
-	fst  source.Storage
+	fst source.Storage
 }
 
 func NewSource(path string) (Source, error) {
@@ -128,7 +128,7 @@ func (s Source) Files() source.Storage {
 	return s.fst
 }
 
-func (s Messages) Avatars() source.Storage {
+func (m Messages) Avatars() source.Storage {
 	return source.NoStorage{}
 }
 

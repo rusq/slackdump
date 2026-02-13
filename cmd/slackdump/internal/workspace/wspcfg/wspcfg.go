@@ -12,6 +12,7 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 // Package wspcfg contains workspace configuration variables.
 package wspcfg
 
@@ -21,8 +22,8 @@ import (
 
 	"github.com/rusq/osenv/v2"
 
-	"github.com/rusq/slackdump/v3/auth"
-	"github.com/rusq/slackdump/v3/auth/browser"
+	"github.com/rusq/slackdump/v4/auth"
+	"github.com/rusq/slackdump/v4/auth/browser"
 )
 
 var (

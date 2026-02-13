@@ -12,6 +12,7 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package diag
 
 import (
@@ -20,9 +21,9 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/huh"
 
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/bubbles/menu"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/cfgui"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/golang/base"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/ui/bubbles/menu"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/ui/cfgui"
 )
 
 var cmdWizDebug = &base.Command{

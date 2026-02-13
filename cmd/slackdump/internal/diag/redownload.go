@@ -12,6 +12,7 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package diag
 
 import (
@@ -20,10 +21,10 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/bootstrap"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
-	"github.com/rusq/slackdump/v3/internal/redownload"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/bootstrap"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/cfg"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/golang/base"
+	"github.com/rusq/slackdump/v4/internal/redownload"
 )
 
 var cmdRedownload = &base.Command{
@@ -77,12 +78,11 @@ func runRedownload(ctx context.Context, _ *base.Command, args []string) error {
 	var stats redownload.FileStats
 	if redlFlags.dryRun {
 		slog.WarnContext(ctx, "dry run/estimate mode, files will not be downloaded")
-		defer func() {
-			if err == nil {
-				slog.WarnContext(ctx, "estimation only, actual numbers may differ")
-			}
-		}()
 		stats, err = rd.Stats(ctx)
+		if err != nil {
+			return err
+		}
+		slog.WarnContext(ctx, "estimation only, actual numbers may differ")
 	} else {
 		slog.InfoContext(ctx, "starting redownload")
 		client, err := bootstrap.Slack(ctx)
@@ -90,9 +90,9 @@ func runRedownload(ctx context.Context, _ *base.Command, args []string) error {
 			return fmt.Errorf("error creating slackdump session: %w", err)
 		}
 		stats, err = rd.Download(ctx, client)
-	}
-	if err != nil {
-		return err
+		if err != nil {
+			return err
+		}
 	}
 
 	if stats.NumFiles == 0 {

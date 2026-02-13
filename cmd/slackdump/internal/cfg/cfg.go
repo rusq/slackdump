@@ -12,6 +12,7 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 // Package cfg contains common configuration variables.
 package cfg
 
@@ -26,8 +27,8 @@ import (
 	"github.com/pterm/pterm"
 	"github.com/rusq/osenv/v2"
 
-	"github.com/rusq/slackdump/v3"
-	"github.com/rusq/slackdump/v3/internal/network"
+	"github.com/rusq/slackdump/v4"
+	"github.com/rusq/slackdump/v4/internal/network"
 )
 
 const (

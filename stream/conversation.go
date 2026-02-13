@@ -12,6 +12,7 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package stream
 
 import (
@@ -26,9 +27,9 @@ import (
 	"github.com/rusq/slack"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/rusq/slackdump/v3/internal/network"
-	"github.com/rusq/slackdump/v3/internal/structures"
-	"github.com/rusq/slackdump/v3/processor"
+	"github.com/rusq/slackdump/v4/internal/network"
+	"github.com/rusq/slackdump/v4/internal/structures"
+	"github.com/rusq/slackdump/v4/processor"
 )
 
 // SyncConversations fetches the conversations from the link which can be a
@@ -52,7 +53,11 @@ func (cs *Stream) ConversationsCB(ctx context.Context, proc processor.Conversati
 	go func() {
 		defer close(itemC)
 		for _, l := range items {
-			itemC <- l
+			select {
+			case itemC <- l:
+			case <-ctx.Done():
+				return
+			}
 		}
 		lg.DebugContext(ctx, "stream: sent link count", "len", len(items))
 	}()

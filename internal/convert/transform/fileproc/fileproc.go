@@ -12,6 +12,7 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 // Package fileproc is the file processor that can be used in conjunction with
 // the transformer.  It downloads files to the local filesystem using the
 // provided downloader.  Probably it's a good idea to use the
@@ -28,8 +29,8 @@ import (
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/slack"
 
-	"github.com/rusq/slackdump/v3/downloader"
-	"github.com/rusq/slackdump/v3/internal/structures/files"
+	"github.com/rusq/slackdump/v4/downloader"
+	"github.com/rusq/slackdump/v4/internal/structures/files"
 )
 
 // Downloader is the interface that wraps the Download method.

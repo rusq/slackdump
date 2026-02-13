@@ -12,6 +12,7 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package diag
 
 import (
@@ -23,17 +24,16 @@ import (
 	"os"
 	"time"
 
-	dirproc2 "github.com/rusq/slackdump/v3/internal/chunk/backend/directory"
-
 	"github.com/rusq/slack"
 	"golang.org/x/time/rate"
 
-	"github.com/rusq/slackdump/v3/auth"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
-	"github.com/rusq/slackdump/v3/internal/chunk"
-	"github.com/rusq/slackdump/v3/internal/network"
-	"github.com/rusq/slackdump/v3/types"
+	"github.com/rusq/slackdump/v4/auth"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/cfg"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/golang/base"
+	"github.com/rusq/slackdump/v4/internal/chunk"
+	dirproc "github.com/rusq/slackdump/v4/internal/chunk/backend/directory"
+	"github.com/rusq/slackdump/v4/internal/network"
+	"github.com/rusq/slackdump/v4/types"
 )
 
 var cmdSearch = &base.Command{
@@ -172,7 +172,7 @@ func runSearchConvert(ctx context.Context, _ *base.Command, args []string) error
 	}
 	defer cd.Close()
 
-	dps, err := dirproc2.NewSearch(cd, nil)
+	dps, err := dirproc.NewSearch(cd, nil)
 	if err != nil {
 		return err
 	}
@@ -202,7 +202,7 @@ func runSearchConvert(ctx context.Context, _ *base.Command, args []string) error
 		}
 	}
 	if searchFlags.users != "" {
-		dpu, err := dirproc2.NewUsers(cd)
+		dpu, err := dirproc.NewUsers(cd)
 		if err != nil {
 			return err
 		}
@@ -214,7 +214,7 @@ func runSearchConvert(ctx context.Context, _ *base.Command, args []string) error
 	return nil
 }
 
-func convertChannels(ctx context.Context, dps *dirproc2.Search, filename string, chans map[string]struct{}) error {
+func convertChannels(ctx context.Context, dps *dirproc.Search, filename string, chans map[string]struct{}) error {
 	f, err := os.Open(filename)
 	if err != nil {
 		return err
@@ -235,7 +235,7 @@ func convertChannels(ctx context.Context, dps *dirproc2.Search, filename string,
 	return nil
 }
 
-func convertUsers(ctx context.Context, dpu *dirproc2.Users, filename string) error {
+func convertUsers(ctx context.Context, dpu *dirproc.Users, filename string) error {
 	f, err := os.Open(filename)
 	if err != nil {
 		return err

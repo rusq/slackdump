@@ -12,6 +12,7 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 // Package obfuscate obfuscates a slackdump chunk recording.  It provides
 // deterministic obfuscation of IDs, so that the users within the obfuscated
 // file will have a consistent IDs. But the same file obfuscated multiple
@@ -36,7 +37,7 @@ import (
 
 	"github.com/rusq/slack"
 
-	"github.com/rusq/slackdump/v3/internal/chunk"
+	"github.com/rusq/slackdump/v4/internal/chunk"
 )
 
 type doOpts struct {

@@ -12,6 +12,7 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 // Package fileproc is the file processor that can be used in conjunction with
 // the transformer.  It downloads files to the local filesystem using the
 // provided downloader.  Probably it's a good idea to use the
@@ -22,7 +23,7 @@ import (
 	"testing"
 
 	"github.com/rusq/slack"
-	"github.com/rusq/slackdump/v3/internal/fixtures"
+	"github.com/rusq/slackdump/v4/internal/fixtures"
 )
 
 func TestIsValid(t *testing.T) {

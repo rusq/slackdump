@@ -12,6 +12,7 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 // Package pwcompat provides a compatibility layer, so when the playwright-go
 // team decides to break compatibility again, there's a place to write a
 // workaround.
@@ -24,7 +25,7 @@ import (
 
 	"github.com/playwright-community/playwright-go"
 
-	"github.com/rusq/slackdump/v3/internal/structures"
+	"github.com/rusq/slackdump/v4/internal/structures"
 )
 
 // Workaround for unexported driver dir in playwright.

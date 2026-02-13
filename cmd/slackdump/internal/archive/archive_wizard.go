@@ -12,15 +12,16 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package archive
 
 import (
 	"context"
 
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/cfgui"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui/dumpui"
-	"github.com/rusq/slackdump/v3/internal/structures"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/golang/base"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/ui/cfgui"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/ui/dumpui"
+	"github.com/rusq/slackdump/v4/internal/structures"
 )
 
 func archiveWizard(ctx context.Context, cmd *base.Command, args []string) error {

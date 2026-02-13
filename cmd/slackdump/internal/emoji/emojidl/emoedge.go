@@ -12,6 +12,7 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 // Package emojidl provides functions to dump the all slack emojis for a
 // workspace. It skips the "alias" emojis, so only original emoji with an
 // original name is present. If you need to find the alias - look it up in the
@@ -39,8 +40,8 @@ import (
 
 	"github.com/rusq/fsadapter"
 
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
-	"github.com/rusq/slackdump/v3/internal/edge"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/cfg"
+	"github.com/rusq/slackdump/v4/internal/edge"
 )
 
 //go:generate mockgen -source emoji.go -destination emoji_mock_test.go -package emojidl

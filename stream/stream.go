@@ -12,6 +12,7 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package stream
 
 import (
@@ -26,10 +27,10 @@ import (
 	"github.com/rusq/slack"
 	"golang.org/x/time/rate"
 
-	"github.com/rusq/slackdump/v3/internal/client"
-	"github.com/rusq/slackdump/v3/internal/network"
-	"github.com/rusq/slackdump/v3/internal/structures"
-	"github.com/rusq/slackdump/v3/processor"
+	"github.com/rusq/slackdump/v4/internal/client"
+	"github.com/rusq/slackdump/v4/internal/network"
+	"github.com/rusq/slackdump/v4/internal/structures"
+	"github.com/rusq/slackdump/v4/processor"
 )
 
 const (
@@ -346,7 +347,11 @@ func (cs *Stream) UsersBulkWithCustom(ctx context.Context, proc processor.Users,
 			if err != nil {
 				slog.DebugContext(ctx, "profile fetch error", "error", err)
 			}
-			profileC <- profile
+			select {
+			case profileC <- profile:
+			case <-ctx.Done():
+				return
+			}
 		}()
 
 		var u *slack.User

@@ -12,6 +12,7 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 // Package directory is a processor that writes the data into gzipped files in a
 // directory.  Each conversation is output to a separate gzipped JSONL file.
 // If a thread is given, the filename will have the thread ID in it.
@@ -21,7 +22,7 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/rusq/slackdump/v3/internal/chunk"
+	"github.com/rusq/slackdump/v4/internal/chunk"
 )
 
 type mockWriteCloser struct {

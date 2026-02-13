@@ -12,6 +12,7 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package bootstrap
 
 import (
@@ -19,7 +20,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/cfg"
 )
 
 func sayBool(b bool) func(t *testing.T) string {

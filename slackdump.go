@@ -12,6 +12,7 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package slackdump
 
 import (
@@ -27,12 +28,12 @@ import (
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/slack"
 
-	st "github.com/rusq/slackdump/v3/internal/structures"
+	st "github.com/rusq/slackdump/v4/internal/structures"
 
-	"github.com/rusq/slackdump/v3/auth"
-	"github.com/rusq/slackdump/v3/internal/client"
-	"github.com/rusq/slackdump/v3/internal/network"
-	"github.com/rusq/slackdump/v3/stream"
+	"github.com/rusq/slackdump/v4/auth"
+	"github.com/rusq/slackdump/v4/internal/client"
+	"github.com/rusq/slackdump/v4/internal/network"
+	"github.com/rusq/slackdump/v4/stream"
 )
 
 //go:generate mockgen -destination internal/mocks/mock_os/mock_os.go os FileInfo
@@ -181,13 +182,18 @@ func (s *Session) initClient(ctx context.Context, prov auth.Provider, forceEdge 
 	return s.initWorkspaceInfo(ctx, s.client)
 }
 
-// Client returns the underlying slack.Client.
-func (s *Session) Client() *slack.Client {
+// ErrNotAClient is returned by Client() when the underlying client is not a
+// slack.Client.
+var ErrNotAClient = errors.New("programming error: underlying client is not a slack.Client")
+
+// Client returns the underlying slack.Client. If the underlying client is not
+// a slack.Client, ErrNotAClient is returned.
+func (s *Session) Client() (*slack.Client, error) {
 	cl, ok := s.client.Client()
 	if !ok {
-		panic("client is not a slack.Client")
+		return nil, ErrNotAClient
 	}
-	return cl
+	return cl, nil
 }
 
 // CurrentUserID returns the user ID of the authenticated user.

@@ -20,7 +20,7 @@ import (
 	"golang.org/x/term"
 	"src.elv.sh/pkg/md"
 
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/cfg"
 )
 
 var CmdName string

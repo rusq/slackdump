@@ -12,6 +12,7 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package obfuscate
 
 import (
@@ -26,7 +27,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/rusq/slackdump/v3/internal/chunk"
+	"github.com/rusq/slackdump/v4/internal/chunk"
 )
 
 // DoDir obfuscates all files in the directory src, placing obfuscated

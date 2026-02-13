@@ -12,6 +12,7 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package convertcmd
 
 import (
@@ -22,11 +23,11 @@ import (
 	"os"
 	"time"
 
-	"github.com/rusq/slackdump/v3/source"
+	"github.com/rusq/slackdump/v4/source"
 
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/bootstrap"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/bootstrap"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/cfg"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/golang/base"
 )
 
 //go:embed assets/convert.md
@@ -50,11 +51,6 @@ var (
 	// ErrStorage is returned when the storage type is not supported.
 	ErrStorage = errors.New("unsupported storage type")
 )
-
-type tparams struct {
-	storageType source.StorageType
-	sessionID   int64
-}
 
 type convertFunc func(ctx context.Context, input, output string, cflg convertflags) error
 

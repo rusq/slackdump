@@ -12,6 +12,7 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package auth
 
 import (
@@ -24,9 +25,9 @@ import (
 
 	"github.com/rusq/slackauth"
 
-	"github.com/rusq/slackdump/v3/auth/auth_ui"
-	"github.com/rusq/slackdump/v3/internal/osext"
-	"github.com/rusq/slackdump/v3/internal/structures"
+	"github.com/rusq/slackdump/v4/auth/auth_ui"
+	"github.com/rusq/slackdump/v4/internal/osext"
+	"github.com/rusq/slackdump/v4/internal/structures"
 )
 
 // RODHeadlessTimeout is the default timeout for the headless login flow.

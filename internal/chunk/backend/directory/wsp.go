@@ -12,9 +12,10 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package directory
 
-import "github.com/rusq/slackdump/v3/internal/chunk"
+import "github.com/rusq/slackdump/v4/internal/chunk"
 
 // Workspace is a processor that writes the workspace information into the
 // workspace file.

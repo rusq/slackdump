@@ -12,11 +12,12 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package fileproc
 
 import (
-	"github.com/rusq/slackdump/v3/processor"
-	"github.com/rusq/slackdump/v3/source"
+	"github.com/rusq/slackdump/v4/processor"
+	"github.com/rusq/slackdump/v4/source"
 )
 
 // NewExport initialises an export file subprocessor based on the given export

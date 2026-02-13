@@ -12,6 +12,7 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package convert
 
 import (
@@ -20,7 +21,7 @@ import (
 	"github.com/rusq/slack"
 	"go.uber.org/mock/gomock"
 
-	"github.com/rusq/slackdump/v3/internal/convert/mock_convert"
+	"github.com/rusq/slackdump/v4/internal/convert/mock_convert"
 )
 
 func Test_fileHandler_copyFiles(t *testing.T) {

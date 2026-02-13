@@ -12,6 +12,7 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package convert
 
 import (
@@ -20,14 +21,14 @@ import (
 	"testing"
 	"testing/fstest"
 
-	"github.com/rusq/slackdump/v3/source/mock_source"
+	"github.com/rusq/slackdump/v4/source/mock_source"
 
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/fsadapter/mocks/mock_fsadapter"
 	"github.com/rusq/slack"
 	"go.uber.org/mock/gomock"
 
-	"github.com/rusq/slackdump/v3/internal/chunk"
+	"github.com/rusq/slackdump/v4/internal/chunk"
 )
 
 func Test_copy2trg(t *testing.T) {

@@ -12,6 +12,7 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package network
 
 import (
@@ -55,13 +56,6 @@ func setWaitFunc(fn func(int) time.Duration) {
 	mu.Lock()
 	defer mu.Unlock()
 	waitFn = fn
-}
-
-func setNetWaitFunc(fn func(int) time.Duration) {
-	mu.Lock()
-	defer mu.Unlock()
-
-	netWaitFn = fn
 }
 
 func wait(n int) time.Duration {

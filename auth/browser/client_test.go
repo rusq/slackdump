@@ -12,6 +12,7 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package browser
 
 import (
@@ -26,8 +27,8 @@ import (
 
 	"github.com/playwright-community/playwright-go"
 
-	"github.com/rusq/slackdump/v3/auth/browser/pwcompat"
-	"github.com/rusq/slackdump/v3/internal/fixtures"
+	"github.com/rusq/slackdump/v4/auth/browser/pwcompat"
+	"github.com/rusq/slackdump/v4/internal/fixtures"
 )
 
 func Test_float2time(t *testing.T) {

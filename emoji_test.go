@@ -12,6 +12,7 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package slackdump
 
 import (
@@ -22,7 +23,7 @@ import (
 
 	"go.uber.org/mock/gomock"
 
-	"github.com/rusq/slackdump/v3/internal/client/mock_client"
+	"github.com/rusq/slackdump/v4/internal/client/mock_client"
 )
 
 func TestSession_DumpEmojis(t *testing.T) {

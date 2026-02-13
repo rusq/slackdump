@@ -29,9 +29,9 @@ skipped=0
 
 # Find all Go files excluding the golang directory
 while IFS= read -r file; do
-    # Check if file already has AGPL header
-    if head -n 5 "$file" 2>/dev/null | grep -q "GNU Affero General Public License"; then
-        echo "SKIP (already has header): $file"
+    # Check if file already has AGPL header or automatically generated.
+    if head -n 5 "$file" 2>/dev/null | grep -q "\(GNU Affero General Public License\|DO NOT EDIT.\)"; then
+        echo "SKIP (already has header or generated): $file"
         ((skipped++))
         continue
     fi

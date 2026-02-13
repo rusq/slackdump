@@ -12,6 +12,7 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package auth
 
 import (
@@ -22,7 +23,7 @@ import (
 	"strings"
 
 	"github.com/joho/godotenv"
-	"github.com/rusq/slackdump/v3/internal/structures"
+	"github.com/rusq/slackdump/v4/internal/structures"
 )
 
 func parseDotEnv(fsys fs.FS, filename string) (string, string, error) {
