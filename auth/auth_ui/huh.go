@@ -26,10 +26,20 @@ import (
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/huh"
+	"github.com/rusq/osenv/v2"
 	"github.com/rusq/slackauth"
 
 	"github.com/rusq/slackdump/v4/internal/structures"
 )
+
+const (
+	defQRCodeSz = 9000      // default limit for encoded image size, seen values 6174, 8462
+	maxQRCodeSz = 1<<16 - 1 // maximum allowed QR code image size.
+	imgPrefix   = "data:image/png;base64,"
+)
+
+// limQRCodeSz is the size of the input field for QR Code image.
+var limQRCodeSz = osenv.Value("QR_CODE_SIZE", defQRCodeSz)
 
 // Huh is the Auth UI that uses the huh library to provide a terminal UI.
 type Huh struct{}
@@ -250,21 +260,17 @@ func valSixDigits(s string) error {
 	return nil
 }
 
-const (
-	maxEncImgSz = 7000
-	imgPrefix   = "data:image/png;base64,"
-)
-
 func (*Huh) RequestQR(ctx context.Context, _ io.Writer) (string, error) {
 	const description = `In logged in Slack Client or Web:
   1. click the username in the upper left corner;
   2. choose 'Sign in on mobile';
   3. right-click the QR code image;
   4. choose Copy Image.`
+
 	var imageData string
 	q := huh.NewForm(huh.NewGroup(
 		huh.NewText().
-			CharLimit(maxEncImgSz).
+			CharLimit(qrCharLimit()).
 			Value(&imageData).
 			Validate(func(s string) error {
 				if !strings.HasPrefix(s, imgPrefix) {
@@ -280,4 +286,13 @@ func (*Huh) RequestQR(ctx context.Context, _ io.Writer) (string, error) {
 		return "", err
 	}
 	return imageData, nil
+}
+
+// qrCharLimit returns the effective character limit for the QR code input
+// field.
+func qrCharLimit() int {
+	if defQRCodeSz <= limQRCodeSz && limQRCodeSz <= maxQRCodeSz {
+		return limQRCodeSz
+	}
+	return defQRCodeSz
 }

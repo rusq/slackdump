@@ -394,6 +394,13 @@ for more details.
 .It Ev NOCOLOR
 .BOOL
 disables colorful log messages.
+.It Ev QR_CODE_SIZE
+Sets the maximum length, in characters, of the pasted QR Code image data
+(the
+.Ql data:image/png;base64,...
+string) used for "Sign in on Mobile".  The default limit is 9000 characters;
+values outside the supported range (up to a maximum of 65535 characters) are
+ignored and the default is used.
 .It Ev SLACK_COOKIE
 Contains Slack cookie (for token+cookie-based authentication).  See
 .Sx Authentication

@@ -15,7 +15,9 @@
 
 package auth_ui
 
-import "testing"
+import (
+	"testing"
+)
 
 func Test_valSixDigits(t *testing.T) {
 	type args struct {
@@ -56,6 +58,30 @@ func Test_valSixDigits(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if err := valSixDigits(tt.args.s); (err != nil) != tt.wantErr {
 				t.Errorf("valSixDigits() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func Test_qrCharLimit(t *testing.T) {
+	tests := []struct {
+		name    string
+		limQRsz int
+		want    int
+	}{
+		{"zero", 0, defQRCodeSz},
+		{"default", defQRCodeSz, defQRCodeSz},
+		{"between allowed values", (maxQRCodeSz - defQRCodeSz) / 2, (maxQRCodeSz - defQRCodeSz) / 2},
+		{"over maximum", maxQRCodeSz + 1, defQRCodeSz},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var old = limQRCodeSz
+			limQRCodeSz = tt.limQRsz
+			t.Cleanup(func() { limQRCodeSz = old })
+
+			if got := qrCharLimit(); got != tt.want {
+				t.Errorf("qrCharLimit() = %v, want %v", got, tt.want)
 			}
 		})
 	}
