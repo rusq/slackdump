@@ -33,12 +33,13 @@ import (
 )
 
 const (
-	defMaxImgSz = 9000 // maximum size of encoded image, seen values 6174, 8462
+	defQrCodeSz = 9000 // maximum size of encoded image, seen values 6174, 8462
+	maxQrCodeSz = 1<<16 - 1
 	imgPrefix   = "data:image/png;base64,"
 )
 
-// maxImgSz is the maximum QR Code image size.
-var maxImgSz = osenv.Value("QR_CODE_SIZE", defMaxImgSz)
+// limQrCodeSz is the size of the input field for QR Code image.
+var limQrCodeSz = osenv.Value("QR_CODE_SIZE", defQrCodeSz)
 
 // Huh is the Auth UI that uses the huh library to provide a terminal UI.
 type Huh struct{}
@@ -266,15 +267,15 @@ func (*Huh) RequestQR(ctx context.Context, _ io.Writer) (string, error) {
   3. right-click the QR code image;
   4. choose Copy Image.`
 
-	// check maxImgSz value for sanity
-	if maxImgSz < defMaxImgSz || 1<<16 < maxImgSz {
-		maxImgSz = defMaxImgSz
+	// check limQrCodeSz value for sanity
+	if limQrCodeSz < defQrCodeSz || maxQrCodeSz < limQrCodeSz {
+		limQrCodeSz = defQrCodeSz
 	}
 
 	var imageData string
 	q := huh.NewForm(huh.NewGroup(
 		huh.NewText().
-			CharLimit(maxImgSz).
+			CharLimit(limQrCodeSz).
 			Value(&imageData).
 			Validate(func(s string) error {
 				if !strings.HasPrefix(s, imgPrefix) {
