@@ -33,8 +33,8 @@ import (
 )
 
 const (
-	defQRCodeSz = 9000 // default limit for encoded image size, seen values 6174, 8462
-	maxQRCodeSz = 1<<16 - 1
+	defQRCodeSz = 9000      // default limit for encoded image size, seen values 6174, 8462
+	maxQRCodeSz = 1<<16 - 1 // maximum allowed QR code image size.
 	imgPrefix   = "data:image/png;base64,"
 )
 
@@ -267,15 +267,10 @@ func (*Huh) RequestQR(ctx context.Context, _ io.Writer) (string, error) {
   3. right-click the QR code image;
   4. choose Copy Image.`
 
-	// check limQrCodeSz value for sanity
-	if limQrCodeSz < defQrCodeSz || maxQrCodeSz < limQrCodeSz {
-		limQrCodeSz = defQrCodeSz
-	}
-
 	var imageData string
 	q := huh.NewForm(huh.NewGroup(
 		huh.NewText().
-			CharLimit(limQrCodeSz).
+			CharLimit(qrCharLimit()).
 			Value(&imageData).
 			Validate(func(s string) error {
 				if !strings.HasPrefix(s, imgPrefix) {
@@ -291,4 +286,13 @@ func (*Huh) RequestQR(ctx context.Context, _ io.Writer) (string, error) {
 		return "", err
 	}
 	return imageData, nil
+}
+
+// qrCharLimit returns the effective character limit for the QR code input
+// field.
+func qrCharLimit() int {
+	if defQRCodeSz <= limQRCodeSz && limQRCodeSz <= maxQRCodeSz {
+		return limQRCodeSz
+	}
+	return defQRCodeSz
 }
