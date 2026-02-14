@@ -31,6 +31,11 @@ import (
 	"github.com/rusq/slackdump/v4/internal/structures"
 )
 
+const (
+	maxEncImgSz = 9000 // maximum size of encoded image, seen values 6174, 8462
+	imgPrefix   = "data:image/png;base64,"
+)
+
 // Huh is the Auth UI that uses the huh library to provide a terminal UI.
 type Huh struct{}
 
@@ -249,11 +254,6 @@ func valSixDigits(s string) error {
 	}
 	return nil
 }
-
-const (
-	maxEncImgSz = 7000
-	imgPrefix   = "data:image/png;base64,"
-)
 
 func (*Huh) RequestQR(ctx context.Context, _ io.Writer) (string, error) {
 	const description = `In logged in Slack Client or Web:
