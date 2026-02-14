@@ -26,15 +26,19 @@ import (
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/huh"
+	"github.com/rusq/osenv/v2"
 	"github.com/rusq/slackauth"
 
 	"github.com/rusq/slackdump/v4/internal/structures"
 )
 
 const (
-	maxEncImgSz = 9000 // maximum size of encoded image, seen values 6174, 8462
+	defMaxImgSz = 9000 // maximum size of encoded image, seen values 6174, 8462
 	imgPrefix   = "data:image/png;base64,"
 )
+
+// maxImgSz is the maximum QR Code image size.
+var maxImgSz = osenv.Value("QR_CODE_SIZE", defMaxImgSz)
 
 // Huh is the Auth UI that uses the huh library to provide a terminal UI.
 type Huh struct{}
@@ -261,10 +265,16 @@ func (*Huh) RequestQR(ctx context.Context, _ io.Writer) (string, error) {
   2. choose 'Sign in on mobile';
   3. right-click the QR code image;
   4. choose Copy Image.`
+
+	// check maxImgSz value for sanity
+	if maxImgSz < defMaxImgSz || 1<<16 < maxImgSz {
+		maxImgSz = defMaxImgSz
+	}
+
 	var imageData string
 	q := huh.NewForm(huh.NewGroup(
 		huh.NewText().
-			CharLimit(maxEncImgSz).
+			CharLimit(maxImgSz).
 			Value(&imageData).
 			Validate(func(s string) error {
 				if !strings.HasPrefix(s, imgPrefix) {
