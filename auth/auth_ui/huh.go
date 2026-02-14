@@ -33,13 +33,13 @@ import (
 )
 
 const (
-	defQrCodeSz = 9000 // maximum size of encoded image, seen values 6174, 8462
-	maxQrCodeSz = 1<<16 - 1
+	defQRCodeSz = 9000 // default limit for encoded image size, seen values 6174, 8462
+	maxQRCodeSz = 1<<16 - 1
 	imgPrefix   = "data:image/png;base64,"
 )
 
-// limQrCodeSz is the size of the input field for QR Code image.
-var limQrCodeSz = osenv.Value("QR_CODE_SIZE", defQrCodeSz)
+// limQRCodeSz is the size of the input field for QR Code image.
+var limQRCodeSz = osenv.Value("QR_CODE_SIZE", defQRCodeSz)
 
 // Huh is the Auth UI that uses the huh library to provide a terminal UI.
 type Huh struct{}
