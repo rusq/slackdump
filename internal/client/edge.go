@@ -84,6 +84,10 @@ func (w *edgeClient) GetConversationsContext(ctx context.Context, params *slack.
 	return w.edge.GetConversationsContext(ctx, params)
 }
 
+func (w *edgeClient) GetConversationsContextEx(ctx context.Context, params *slack.GetConversationsParameters, onlyMy bool) (channels []slack.Channel, nextCursor string, err error) {
+	return w.edge.GetConversationsContextEx(ctx, params, onlyMy)
+}
+
 func (w *edgeClient) GetConversationInfoContext(ctx context.Context, input *slack.GetConversationInfoInput) (*slack.Channel, error) {
 	return w.edge.GetConversationInfoContext(ctx, input)
 }

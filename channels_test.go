@@ -29,8 +29,10 @@ import (
 
 	"github.com/rusq/slackdump/v4/internal/client"
 	"github.com/rusq/slackdump/v4/internal/client/mock_client"
+	"github.com/rusq/slackdump/v4/internal/edge"
 	"github.com/rusq/slackdump/v4/internal/network"
 	"github.com/rusq/slackdump/v4/internal/structures"
+	"github.com/rusq/slackdump/v4/stream"
 	"github.com/rusq/slackdump/v4/types"
 )
 
@@ -108,7 +110,7 @@ func TestSession_getChannels(t *testing.T) {
 			}
 
 			var got types.Channels
-			err := sd.getChannels(tt.args.ctx, tt.args.chanTypes, func(c types.Channels) error {
+			err := sd.getChannels(tt.args.ctx, GetChannelsParameters{ChannelTypes: tt.args.chanTypes}, func(_ context.Context, c types.Channels) error {
 				got = append(got, c...)
 				return nil
 			})
@@ -152,6 +154,53 @@ func TestSession_GetChannels(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("Session.GetChannels() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_shouldFallbackToListChannels(t *testing.T) {
+	tests := []struct {
+		name string
+		err  error
+		want bool
+	}{
+		{
+			name: "op not supported",
+			err:  stream.ErrOpNotSupported,
+			want: true,
+		},
+		{
+			name: "api no_channels_supplied",
+			err:  &edge.APIError{Err: "no_channels_supplied"},
+			want: true,
+		},
+		{
+			name: "api internal_error",
+			err:  &edge.APIError{Err: "internal_error"},
+			want: true,
+		},
+		{
+			name: "wrapped callback no_channels_supplied",
+			err:  errors.New("API error: callback error: no_channels_supplied"),
+			want: true,
+		},
+		{
+			name: "wrapped callback internal_error",
+			err:  errors.New("API error: callback error: internal_error"),
+			want: true,
+		},
+		{
+			name: "other error",
+			err:  errors.New("network timeout"),
+			want: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := shouldFallbackToListChannels(tt.err); got != tt.want {
+				t.Fatalf("shouldFallbackToListChannels() = %v, want %v", got, tt.want)
 			}
 		})
 	}

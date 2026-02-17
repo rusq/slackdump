@@ -223,7 +223,7 @@ func (s *Session) Info() *WorkspaceInfo {
 	return s.wspInfo
 }
 
-// Stream streams the channel, calling proc functions for each chunk.
+// Stream returns the new data streamer with the current session parameters.
 func (s *Session) Stream(opts ...stream.Option) *stream.Stream {
 	return stream.New(s.client, s.cfg.limits, opts...)
 }

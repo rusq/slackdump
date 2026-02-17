@@ -72,6 +72,20 @@ func (mr *MockStreamerMockRecorder) ListChannels(ctx, proc, p any) *gomock.Call 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListChannels", reflect.TypeOf((*MockStreamer)(nil).ListChannels), ctx, proc, p)
 }
 
+// ListChannelsEx mocks base method.
+func (m *MockStreamer) ListChannelsEx(ctx context.Context, proc processor.Channels, p *slack.GetConversationsParameters, onlyMyChannels bool) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListChannelsEx", ctx, proc, p, onlyMyChannels)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// ListChannelsEx indicates an expected call of ListChannelsEx.
+func (mr *MockStreamerMockRecorder) ListChannelsEx(ctx, proc, p, onlyMyChannels any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListChannelsEx", reflect.TypeOf((*MockStreamer)(nil).ListChannelsEx), ctx, proc, p, onlyMyChannels)
+}
+
 // SearchFiles mocks base method.
 func (m *MockStreamer) SearchFiles(ctx context.Context, proc processor.FileSearcher, query string) error {
 	m.ctrl.T.Helper()

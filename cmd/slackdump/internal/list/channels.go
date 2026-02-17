@@ -148,9 +148,17 @@ func (l *channels) Retrieve(ctx context.Context, sess *slackdump.Session, m *cac
 			return nil
 		}
 	}
-	cc, err := sess.GetChannels(ctx, cfg.ChannelTypes...)
-	if err != nil {
-		return fmt.Errorf("error getting channels: %w", err)
+	p := slackdump.GetChannelsParameters{
+		ChannelTypes:   cfg.ChannelTypes,
+		OnlyMyChannels: cfg.MemberOnly,
+	}
+
+	var cc []slack.Channel
+	for chans, err := range sess.StreamChannelsEx(ctx, p) {
+		if err != nil {
+			return fmt.Errorf("error getting channels: %w", err)
+		}
+		cc = append(cc, chans...)
 	}
 	l.channels = cc
 	l.users = <-usersc

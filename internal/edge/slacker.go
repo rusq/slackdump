@@ -18,9 +18,14 @@ package edge
 import (
 	"context"
 	"errors"
+	"fmt"
+	"runtime/trace"
+	"slices"
 	"sync"
 
 	"github.com/rusq/slack"
+
+	"github.com/rusq/slackdump/v4/internal/structures"
 )
 
 var ErrParameterMissing = errors.New("required parameter missing")
@@ -28,49 +33,181 @@ var ErrParameterMissing = errors.New("required parameter missing")
 // High level functions that wrap low level calls to webclient API to return
 // the data in the format close to the Slack API.
 
-func (cl *Client) GetConversationsContext(ctx context.Context, _ *slack.GetConversationsParameters) (channels []slack.Channel, _ string, err error) {
-	type result struct {
-		Channels []slack.Channel
-		Err      error
-	}
+func (cl *Client) GetConversationsContext(ctx context.Context, p *slack.GetConversationsParameters) (channels []slack.Channel, _ string, err error) {
+	return cl.getConversationsContext(ctx, p, false)
+}
 
-	var resultC = make(chan result, 2)
-	var pipeline = []func(){
-		func() {
+func (cl *Client) GetConversationsContextEx(ctx context.Context, p *slack.GetConversationsParameters, onlyMy bool) (channels []slack.Channel, _ string, err error) {
+	return cl.getConversationsContext(ctx, p, onlyMy)
+}
+
+// group type parameter mapping
+var channelTypeMap = map[string]string{
+	structures.CPrivate: string(SCTPrivate),
+	structures.CPublic:  string(SCTPrivateExclude),
+}
+
+type searchResult struct {
+	Channels []slack.Channel
+	Err      error
+}
+
+func (cl *Client) buildPipeline(resultC chan<- searchResult, chanTypes []string, onlyMy bool) []func(context.Context) {
+
+	var (
+		userbootFunc = func(ctx context.Context) {
 			// getting client.userBoot information
 			ub, err := cl.ClientUserBoot(ctx)
 			if err != nil {
-				resultC <- result{Err: err}
+				resultC <- searchResult{Err: err}
 				return
 			}
 			var ch = make([]slack.Channel, 0, len(ub.Channels))
 			for _, c := range ub.Channels {
 				ch = append(ch, c.SlackChannel())
 			}
-			resultC <- result{Channels: ch, Err: err}
-		},
-		func() {
+			resultC <- searchResult{Channels: ch}
+		}
+		imsFunc = func(ctx context.Context) {
 			// collecting the IMs.
 			ims, err := cl.IMList(ctx)
+			if err != nil {
+				resultC <- searchResult{Err: fmt.Errorf("ims: %w", err)}
+				return
+			}
 			var ch = make([]slack.Channel, 0, len(ims))
 			for _, c := range ims {
 				ch = append(ch, c.SlackChannel())
 			}
-			resultC <- result{Channels: ch, Err: err}
-		},
-		func() {
-			// collecting the channels.
-			ch, err := cl.SearchChannels(ctx, "")
-			resultC <- result{Channels: ch, Err: err}
-		},
+			resultC <- searchResult{Channels: ch}
+		}
+		mpimsFunc = func(ctx context.Context) {
+			// collecting the MPIMs.
+			mpims, err := cl.MPIMList(ctx)
+			if err != nil {
+				resultC <- searchResult{Err: fmt.Errorf("mpim: %w", err)}
+				return
+			}
+			var ch = make([]slack.Channel, 0, len(mpims))
+			for _, c := range mpims {
+				ch = append(ch, c.SlackChannel())
+			}
+			resultC <- searchResult{Channels: ch}
+		}
+		convsFunc = func(st SearchChannelType, onlyMy bool) func(ctx context.Context) {
+			return func(ctx context.Context) {
+				// collecting the channels.
+				ch, err := cl.SearchChannels(ctx, "", SearchChannelsParameters{
+					OnlyMyChannels: onlyMy,
+					ChannelTypes:   st,
+				})
+				if err != nil {
+					resultC <- searchResult{Err: fmt.Errorf("conversations (%s) (onlymy=%t): %w", st, onlyMy, err)}
+					return
+				}
+				resultC <- searchResult{Channels: ch}
+			}
+		}
+	)
+
+	stepFns := map[uint8]func(context.Context){
+		runBoot:     userbootFunc,
+		runIMs:      imsFunc,
+		runMPIMs:    mpimsFunc,
+		runChannels: convsFunc(SCTPrivateExclude, onlyMy),
+		runPrivate:  convsFunc(SCTPrivate, onlyMy),
+		runAllConvs: convsFunc(SCTAll, onlyMy),
 	}
+
+	steps := plannedSteps(chanTypes)
+
+	pipeline := make([]func(context.Context), 0, len(steps))
+	for _, step := range steps {
+		if fn, ok := stepFns[step]; ok {
+			pipeline = append(pipeline, fn)
+		}
+	}
+
+	return pipeline
+}
+
+const (
+	runBoot = 1 << iota
+	runIMs
+	runMPIMs
+	runChannels
+	runPrivate
+	runAllConvs
+)
+
+const maxPipelineSize = 5
+
+func plannedSteps(chanTypes []string) []uint8 {
+	flags := pipelineFlags(chanTypes)
+
+	ordered := []uint8{
+		runBoot,
+		runIMs,
+		runMPIMs,
+		runChannels,
+		runPrivate,
+		runAllConvs,
+	}
+	steps := make([]uint8, 0, len(ordered))
+	for _, step := range ordered {
+		if flags&step == step {
+			steps = append(steps, step)
+		}
+	}
+	return steps
+}
+
+func pipelineFlags(chanTypes []string) uint8 {
+	// treat nothing as "all"
+	if len(chanTypes) == 0 {
+		return runBoot | runIMs | runMPIMs | runAllConvs
+	}
+	// we'll be operating on a copy, as sort and compact will modify original slice
+	stt := make([]string, len(chanTypes))
+	copy(stt, chanTypes)
+
+	slices.Sort(stt)
+	stt = slices.Compact(stt)
+
+	has := func(t string) bool { return slices.Contains(stt, t) }
+
+	var flags uint8 = runBoot
+	if has(structures.CIM) {
+		flags |= runIMs
+	}
+	if has(structures.CMPIM) {
+		flags |= runMPIMs
+	}
+	if has(structures.CPrivate) && has(structures.CPublic) {
+		flags |= runAllConvs
+	} else if has(structures.CPublic) {
+		flags |= runChannels
+	} else if has(structures.CPrivate) {
+		flags |= runPrivate
+	}
+	return flags
+}
+
+func (cl *Client) getConversationsContext(ctx context.Context, p *slack.GetConversationsParameters, onlyMy bool) (channels []slack.Channel, _ string, err error) {
+	ctx, task := trace.NewTask(ctx, "getConversationsContext")
+	defer task.End()
+
+	trace.Logf(ctx, "info", "onlyMy: %t", onlyMy)
+
+	var resultC = make(chan searchResult, maxPipelineSize)
+	pipeline := cl.buildPipeline(resultC, p.Types, onlyMy) //TODO
 
 	var wg sync.WaitGroup
 	wg.Add(len(pipeline))
 	for _, f := range pipeline {
-		go func(f func()) {
+		go func(f func(context.Context)) {
 			defer wg.Done()
-			f()
+			f(ctx)
 		}(f)
 	}
 	go func() {
@@ -92,6 +229,8 @@ func (cl *Client) GetConversationsContext(ctx context.Context, _ *slack.GetConve
 		}
 	}
 
+	// postprocessing
+
 	// ClientCounts hopefully returns MPIM IDs that we haven't seen in the
 	// user boot response.
 	cr, err := cl.ClientCounts(ctx)
@@ -108,12 +247,14 @@ func (cl *Client) GetConversationsContext(ctx context.Context, _ *slack.GetConve
 		}
 	}
 
-	// getting the info on any MPIMs that we haven't seen yet.
-	mpims, err := cl.ConversationsGenericInfo(ctx, fetchIDs...)
-	if err != nil {
-		return nil, "", err
+	if len(fetchIDs) > 0 {
+		// getting the info on any MPIMs that we haven't seen yet.
+		mpims, err := cl.ConversationsGenericInfo(ctx, fetchIDs...)
+		if err != nil {
+			return nil, "", err
+		}
+		channels = append(channels, mpims...)
 	}
-	channels = append(channels, mpims...)
 	return channels, "", nil
 }
 

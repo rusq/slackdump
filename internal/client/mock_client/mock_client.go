@@ -752,6 +752,22 @@ func (mr *MockSlackEdgeMockRecorder) GetConversationsContext(ctx, params any) *g
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetConversationsContext", reflect.TypeOf((*MockSlackEdge)(nil).GetConversationsContext), ctx, params)
 }
 
+// GetConversationsContextEx mocks base method.
+func (m *MockSlackEdge) GetConversationsContextEx(ctx context.Context, params *slack.GetConversationsParameters, onlyMy bool) ([]slack.Channel, string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetConversationsContextEx", ctx, params, onlyMy)
+	ret0, _ := ret[0].([]slack.Channel)
+	ret1, _ := ret[1].(string)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// GetConversationsContextEx indicates an expected call of GetConversationsContextEx.
+func (mr *MockSlackEdgeMockRecorder) GetConversationsContextEx(ctx, params, onlyMy any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetConversationsContextEx", reflect.TypeOf((*MockSlackEdge)(nil).GetConversationsContextEx), ctx, params, onlyMy)
+}
+
 // GetEmojiContext mocks base method.
 func (m *MockSlackEdge) GetEmojiContext(ctx context.Context) (map[string]string, error) {
 	m.ctrl.T.Helper()

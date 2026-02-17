@@ -35,6 +35,7 @@ import (
 	"github.com/rusq/slackdump/v4/internal/structures"
 	"github.com/rusq/slackdump/v4/mocks/mock_processor"
 	"github.com/rusq/slackdump/v4/processor"
+	"github.com/rusq/slackdump/v4/stream"
 )
 
 var testUsers = []slack.User{
@@ -102,6 +103,7 @@ func TestDirController_Run(t *testing.T) {
 				list: structures.NewEntityListFromItems(),
 			},
 			expectFn: func(s *mock_control.MockStreamer) {
+				s.EXPECT().ListChannelsEx(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(stream.ErrOpNotSupported)
 				s.EXPECT().ListChannels(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil) // all channels are included, so it should get them.
 				s.EXPECT().Conversations(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
 				s.EXPECT().WorkspaceInfo(gomock.Any(), gomock.Any()).Return(nil)

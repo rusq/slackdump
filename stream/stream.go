@@ -254,18 +254,48 @@ func (cs *Stream) Users(ctx context.Context, proc processor.Users, opt ...slack.
 	return p.Failure(errors.Unwrap(apiErr))
 }
 
-// ListChannels calls processor for each batch of channels received from the API.
-func (cs *Stream) ListChannels(ctx context.Context, proc processor.Channels, p *slack.GetConversationsParameters) error {
-	ctx, task := trace.NewTask(ctx, "Channels")
+var (
+	ErrOpNotSupported = errors.New("client doesn't support this operation")
+)
+
+// ListChannelsEx is an extended version of ListChannels that uses extended
+// calls in an attempt to make the operation faster. If the underlying client
+// does not support extended methods, it will return [ErrOpNotSupported] error.
+func (cs *Stream) ListChannelsEx(ctx context.Context, proc processor.Channels, p *slack.GetConversationsParameters, onlyMy bool) error {
+	ctx, task := trace.NewTask(ctx, "ListChannelsEx")
 	defer task.End()
 
+	// filthy magic. We need to get to the extended GetConversationsContextEx method to be able to provide
+	// onlyMy parameter, TODO: maybe there's a better way.
+	scl, ok := cs.client.(*client.Client)
+	if !ok {
+		return ErrOpNotSupported
+	}
+	ecl, ok := scl.Edge()
+	if !ok {
+		return ErrOpNotSupported
+	}
+
+	return cs.listChannels(ctx, proc, p, func(ctx context.Context, p *slack.GetConversationsParameters) ([]slack.Channel, string, error) {
+		return ecl.GetConversationsContextEx(ctx, p, onlyMy)
+	})
+}
+
+// ListChannels calls processor for each batch of channels received from the API.
+func (cs *Stream) ListChannels(ctx context.Context, proc processor.Channels, p *slack.GetConversationsParameters) error {
+	ctx, task := trace.NewTask(ctx, "ListChannels")
+	defer task.End()
+	return cs.listChannels(ctx, proc, p, cs.client.GetConversationsContext)
+}
+
+func (cs *Stream) listChannels(ctx context.Context, proc processor.Channels, p *slack.GetConversationsParameters, fn func(context.Context, *slack.GetConversationsParameters) ([]slack.Channel, string, error)) error {
 	var next string
 	for {
 		p.Cursor = next
 		var ch []slack.Channel
 		if err := network.WithRetry(ctx, cs.limits.channels, cs.limits.tier.Tier3.Retries, func(ctx context.Context) error {
 			var err error
-			ch, next, err = cs.client.GetConversationsContext(ctx, p)
+			ch, next, err = fn(ctx, p)
 			return err
 		}); err != nil {
 			return fmt.Errorf("API error: %w", err)

@@ -30,6 +30,7 @@ import (
 	"github.com/rusq/slackdump/v4"
 	"github.com/rusq/slackdump/v4/internal/structures"
 	"github.com/rusq/slackdump/v4/processor"
+	"github.com/rusq/slackdump/v4/stream"
 )
 
 // Flags are the controller flags.
@@ -254,9 +255,18 @@ func (g *apiGenerator) Generate(ctx context.Context, errC chan<- error, list *st
 		//
 		// ListChannels -> joined.Channels -(-> (filters) -)-> output to entity item channel
 		//
-		if err := g.s.ListChannels(ctx, joined, &slack.GetConversationsParameters{Types: g.chTypes}); err != nil {
-			emitErr(fmt.Errorf("error listing channels: %w", err))
-			return
+		p := &slack.GetConversationsParameters{Types: g.chTypes}
+		if err := g.s.ListChannelsEx(ctx, joined, p, g.memberOnly); err != nil {
+			if !errors.Is(err, stream.ErrOpNotSupported) {
+				emitErr(fmt.Errorf("error listing channels: %w", err))
+				return
+			}
+			// we failed to call the extended method, let's try the standard
+			slog.DebugContext(ctx, "generate: fall through to standard channel lister")
+			if err := g.s.ListChannels(ctx, joined, &slack.GetConversationsParameters{Types: g.chTypes}); err != nil {
+				emitErr(fmt.Errorf("error listing channels: %w", err))
+				return
+			}
 		}
 		slog.DebugContext(ctx, "channels done")
 	}()

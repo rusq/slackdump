@@ -29,6 +29,7 @@ import (
 	"github.com/rusq/slackdump/v4/internal/structures"
 	"github.com/rusq/slackdump/v4/mocks/mock_processor"
 	"github.com/rusq/slackdump/v4/processor"
+	"github.com/rusq/slackdump/v4/stream"
 )
 
 func TestController_Close(t *testing.T) {
@@ -144,6 +145,7 @@ func TestController_Run(t *testing.T) {
 			expectFn: func(s *mock_control.MockStreamer, f *mock_processor.MockFiler, a *mock_processor.MockAvatars, tf *mock_control.MockExportTransformer, erc *mock_control.MockEncodeReferenceCloser) {
 				testUsers := []slack.User{testUser1, testUser2}
 				// called by the runner
+				s.EXPECT().ListChannelsEx(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(stream.ErrOpNotSupported)
 				s.EXPECT().ListChannels(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
 				s.EXPECT().Users(gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, proc processor.Users, opt ...slack.GetUsersOption) error {
 					proc.Users(ctx, testUsers)
@@ -172,6 +174,7 @@ func TestController_Run(t *testing.T) {
 			},
 			expectFn: func(s *mock_control.MockStreamer, f *mock_processor.MockFiler, a *mock_processor.MockAvatars, tf *mock_control.MockExportTransformer, erc *mock_control.MockEncodeReferenceCloser) {
 				// called by the runner
+				s.EXPECT().ListChannelsEx(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(stream.ErrOpNotSupported)
 				s.EXPECT().ListChannels(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
 				s.EXPECT().Users(gomock.Any(), gomock.Any()).Return(assert.AnError)
 				s.EXPECT().Conversations(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
@@ -238,6 +241,7 @@ func TestController_RunNoTransform(t *testing.T) {
 			expectFn: func(s *mock_control.MockStreamer, f *mock_processor.MockFiler, a *mock_processor.MockAvatars, tf *mock_control.MockExportTransformer, erc *mock_control.MockEncodeReferenceCloser) {
 				testUsers := []slack.User{testUser1, testUser2}
 				// called by the runner
+				s.EXPECT().ListChannelsEx(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(stream.ErrOpNotSupported)
 				s.EXPECT().ListChannels(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
 				s.EXPECT().Users(gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, proc processor.Users, opt ...slack.GetUsersOption) error {
 					proc.Users(ctx, testUsers)
@@ -269,6 +273,7 @@ func TestController_RunNoTransform(t *testing.T) {
 			},
 			expectFn: func(s *mock_control.MockStreamer, f *mock_processor.MockFiler, a *mock_processor.MockAvatars, tf *mock_control.MockExportTransformer, erc *mock_control.MockEncodeReferenceCloser) {
 				// called by the runner
+				s.EXPECT().ListChannelsEx(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(stream.ErrOpNotSupported)
 				s.EXPECT().ListChannels(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
 				s.EXPECT().Users(gomock.Any(), gomock.Any()).Return(assert.AnError)
 				s.EXPECT().Conversations(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)

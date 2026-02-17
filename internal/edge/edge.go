@@ -36,8 +36,9 @@ import (
 
 	"github.com/rusq/slack"
 	"github.com/rusq/slackauth"
-	"github.com/rusq/slackdump/v4/auth"
 	"github.com/rusq/tagops"
+
+	"github.com/rusq/slackdump/v4/auth"
 )
 
 type Client struct {
@@ -54,6 +55,12 @@ type Client struct {
 	teamID string
 	tape   io.WriteCloser
 }
+
+const (
+	// integer boolean values used in forms
+	iFalse = iota
+	iTrue
+)
 
 type Option func(*Client)
 

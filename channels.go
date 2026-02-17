@@ -19,22 +19,49 @@ package slackdump
 
 import (
 	"context"
+	"errors"
+	"iter"
+	"log/slog"
 	"runtime/trace"
-	"time"
 
 	"github.com/rusq/slack"
 
 	"github.com/rusq/slackdump/v4/internal/network"
+	"github.com/rusq/slackdump/v4/stream"
 	"github.com/rusq/slackdump/v4/types"
 )
 
+// GetChannelsParameters holds the parameters for [GetChannelsEx] and
+// [StreamChannelsEx] functions.
+type GetChannelsParameters struct {
+	// ChannelTypes allows to specify the channel types to fetch.  If the slice
+	// is empty, all channel types will be fetched.
+	ChannelTypes []string
+	// OnlyMyChannels restricts the channels only to the channels that the user
+	// is a member of.
+	OnlyMyChannels bool
+}
+
 // GetChannels list all conversations for a user.  `chanTypes` specifies the
-// type of messages to fetch.  See github.com/rusq/slack docs for possible
+// type of channels to fetch.  See github.com/rusq/slack docs for possible
 // values.  If large number of channels is to be returned, consider using
-// StreamChannels.
+// [StreamChannelsEx].  It is a wrapper for [GetChannelsEx].
+//
+// Deprecated; Use [GetChannelsEx].  This function Will be removed in v5.
 func (s *Session) GetChannels(ctx context.Context, chanTypes ...string) (types.Channels, error) {
+	p := GetChannelsParameters{
+		ChannelTypes:   chanTypes,
+		OnlyMyChannels: false,
+	}
+	return s.GetChannelsEx(ctx, p)
+}
+
+// GetChannelsEx list all conversations for a user. GetChannelParameters should
+// contain the fetch criteria. If large number of channels is to be returned,
+// consider using [StreamChannelsEx].
+func (s *Session) GetChannelsEx(ctx context.Context, p GetChannelsParameters) (types.Channels, error) {
 	var allChannels types.Channels
-	if err := s.getChannels(ctx, chanTypes, func(cc types.Channels) error {
+	if err := s.getChannels(ctx, p, func(ctx context.Context, cc types.Channels) error {
 		allChannels = append(allChannels, cc...)
 		return nil
 	}); err != nil {
@@ -44,75 +71,98 @@ func (s *Session) GetChannels(ctx context.Context, chanTypes ...string) (types.C
 }
 
 // StreamChannels requests the channels from the API and calls the callback
-// function cb for each.
+// function cb for each.  It is a wrapper for [StreamChannelsEx].
+//
+// Deprecated: Use [StreamChannelsEx]. This function Will be removed in v5.
 func (s *Session) StreamChannels(ctx context.Context, chanTypes []string, cb func(ch slack.Channel) error) error {
-	return s.getChannels(ctx, chanTypes, func(chans types.Channels) error {
+	p := GetChannelsParameters{
+		ChannelTypes:   chanTypes,
+		OnlyMyChannels: false,
+	}
+	for chans, err := range s.StreamChannelsEx(ctx, p) {
+		if err != nil {
+			return err
+		}
 		for _, ch := range chans {
 			if err := cb(ch); err != nil {
 				return err
 			}
 		}
-		return nil
-	})
+	}
+	return nil
 }
+
+// StreamChannelsEx requests the channels from the API and returns an iterator
+// of channel chunks.
+func (s *Session) StreamChannelsEx(ctx context.Context, p GetChannelsParameters) iter.Seq2[[]slack.Channel, error] {
+	return func(yield func(ch []slack.Channel, err error) bool) {
+		err := s.getChannels(ctx, p, func(ctx context.Context, chans types.Channels) error {
+			if !yield(chans, nil) {
+				return ErrStop
+			}
+			return nil
+		})
+		if err != nil {
+			if errors.Is(err, ErrStop) {
+				return
+			}
+			_ = yield(nil, err)
+		}
+	}
+}
+
+type chanProcFunc func(ctx context.Context, ch types.Channels) error
+
+func (f chanProcFunc) Channels(ctx context.Context, ch []slack.Channel) error {
+	return f(ctx, ch)
+}
+
+// ErrStop instructs early stop to streaming function, when returned from a
+// callback function.
+var ErrStop = errors.New("stop")
 
 // getChannels list all channels for a user.  `chanTypes` specifies
 // the type of messages to fetch.  See github.com/rusq/slack docs for possible
-// values
-func (s *Session) getChannels(ctx context.Context, chanTypes []string, cb func(types.Channels) error) error {
+// values.  If the cb function returns [ErrStop], the iteration will stop.
+func (s *Session) getChannels(ctx context.Context, gcp GetChannelsParameters, cb chanProcFunc) error {
 	ctx, task := trace.NewTask(ctx, "getChannels")
 	defer task.End()
 
-	limiter := s.limiter(network.Tier2)
-
-	if len(chanTypes) == 0 {
-		chanTypes = AllChanTypes
+	if len(gcp.ChannelTypes) == 0 {
+		gcp.ChannelTypes = AllChanTypes
 	}
 
-	params := &slack.GetConversationsParameters{Types: chanTypes, Limit: s.cfg.limits.Request.Channels}
-	fetchStart := time.Now()
-	var total int
-	for i := 1; ; i++ {
-		var (
-			chans   []slack.Channel
-			nextcur string
-		)
-		reqStart := time.Now()
-		if err := network.WithRetry(ctx, limiter, s.cfg.limits.Tier3.Retries, func(ctx context.Context) error {
-			var err error
-			trace.WithRegion(ctx, "GetConversationsContext", func() {
-				chans, nextcur, err = s.client.GetConversationsContext(ctx, params)
-			})
-			return err
-		}); err != nil {
-			return err
+	st := s.Stream()
+	params := &slack.GetConversationsParameters{Types: gcp.ChannelTypes, Limit: s.cfg.limits.Request.Channels}
+	if err := st.ListChannelsEx(ctx, cb, params, gcp.OnlyMyChannels); err != nil {
+		if errors.Is(err, ErrStop) {
+			// early stop indicated
+			return nil
 		}
 
-		if err := cb(chans); err != nil {
+		if !shouldFallbackToListChannels(err) {
 			return err
 		}
-		total += len(chans)
-
-		s.log.InfoContext(ctx, "channels", "request", i, "fetched", len(chans), "total", total,
-			"speed", float64(len(chans))/time.Since(reqStart).Seconds(),
-			"avg", float64(total)/time.Since(fetchStart).Seconds(),
-		)
-
-		if nextcur == "" {
-			s.log.InfoContext(ctx, "channels fetch complete", "total", total)
-			break
-		}
-
-		params.Cursor = nextcur
-
-		if err := limiter.Wait(ctx); err != nil {
+		slog.DebugContext(ctx, "falling back to simple List Channels", "err", err)
+		if err := st.ListChannels(ctx, cb, params); err != nil {
+			if errors.Is(err, ErrStop) {
+				// early stop indicated
+				return nil
+			}
 			return err
 		}
 	}
 	return nil
 }
 
-// GetChannelMembers returns a list of all members in a channel.
+func shouldFallbackToListChannels(err error) bool {
+	if errors.Is(err, stream.ErrOpNotSupported) {
+		return true
+	}
+	return false
+}
+
+// GetChannelMembers returns a list of all lmembers in a channel.
 func (sd *Session) GetChannelMembers(ctx context.Context, channelID string) ([]string, error) {
 	var ids []string
 	var cursor string

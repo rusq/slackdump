@@ -59,6 +59,7 @@ type SlackClienter interface {
 type SlackEdge interface {
 	SlackClienter
 	Edge() (*edge.Client, bool)
+	GetConversationsContextEx(ctx context.Context, params *slack.GetConversationsParameters, onlyMy bool) (channels []slack.Channel, nextCursor string, err error)
 	// TODO: additional methods from edge client.
 }
 
@@ -144,6 +145,7 @@ func (c *Client) AuthTestContext(ctx context.Context) (response *slack.AuthTestR
 	return c.wi, nil
 }
 
+// Client returns an underlying [slack.Client]
 func (c *Client) Client() (*slack.Client, bool) {
 	switch t := c.Slack.(type) {
 	case *edgeClient:
@@ -153,4 +155,12 @@ func (c *Client) Client() (*slack.Client, bool) {
 	default:
 		return nil, false
 	}
+}
+
+func (c *Client) Edge() (*edge.Client, bool) {
+	ecl, ok := c.Slack.(*edgeClient)
+	if !ok {
+		return nil, false
+	}
+	return ecl.edge, true
 }
