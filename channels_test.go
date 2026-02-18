@@ -173,22 +173,22 @@ func Test_shouldFallbackToListChannels(t *testing.T) {
 		{
 			name: "api no_channels_supplied",
 			err:  &edge.APIError{Err: "no_channels_supplied"},
-			want: true,
+			want: false, // Not a fallback condition anymore
 		},
 		{
 			name: "api internal_error",
 			err:  &edge.APIError{Err: "internal_error"},
-			want: true,
+			want: false, // Not a fallback condition anymore
 		},
 		{
 			name: "wrapped callback no_channels_supplied",
 			err:  errors.New("API error: callback error: no_channels_supplied"),
-			want: true,
+			want: false, // Not a fallback condition anymore
 		},
 		{
 			name: "wrapped callback internal_error",
 			err:  errors.New("API error: callback error: internal_error"),
-			want: true,
+			want: false, // Not a fallback condition anymore
 		},
 		{
 			name: "other error",
