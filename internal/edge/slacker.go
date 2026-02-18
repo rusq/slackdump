@@ -176,7 +176,7 @@ func pipelineFlags(chanTypes []string) uint8 {
 
 	has := func(t string) bool { return slices.Contains(stt, t) }
 
-	var flags uint8 = runBoot
+	var flags uint8 = 0
 	if has(structures.CIM) {
 		flags |= runIMs
 	}
@@ -184,7 +184,7 @@ func pipelineFlags(chanTypes []string) uint8 {
 		flags |= runMPIMs
 	}
 	if has(structures.CPrivate) && has(structures.CPublic) {
-		flags |= runAllConvs
+		flags |= runAllConvs + runBoot
 	} else if has(structures.CPublic) {
 		flags |= runChannels
 	} else if has(structures.CPrivate) {
