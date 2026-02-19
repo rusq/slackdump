@@ -200,7 +200,7 @@ func (cl *Client) getConversationsContext(ctx context.Context, p *slack.GetConve
 	trace.Logf(ctx, "info", "onlyMy: %t", onlyMy)
 
 	var resultC = make(chan searchResult, maxPipelineSize)
-	pipeline := cl.buildPipeline(resultC, p.Types, onlyMy) //TODO
+	pipeline := cl.buildPipeline(resultC, p.Types, onlyMy)
 
 	var wg sync.WaitGroup
 	wg.Add(len(pipeline))

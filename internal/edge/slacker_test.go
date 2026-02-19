@@ -51,22 +51,22 @@ func Test_pipelineFlags(t *testing.T) {
 		{
 			name:      "im only",
 			chanTypes: []string{structures.CIM},
-			want:      runBoot | runIMs,
+			want:      runIMs,
 		},
 		{
 			name:      "mpim only",
 			chanTypes: []string{structures.CMPIM},
-			want:      runBoot | runMPIMs,
+			want:      runMPIMs,
 		},
 		{
 			name:      "public only",
 			chanTypes: []string{structures.CPublic},
-			want:      runBoot | runChannels,
+			want:      runChannels,
 		},
 		{
 			name:      "private only",
 			chanTypes: []string{structures.CPrivate},
-			want:      runBoot | runPrivate,
+			want:      runPrivate,
 		},
 		{
 			name:      "public and private collapse to all conversations",
@@ -81,12 +81,11 @@ func Test_pipelineFlags(t *testing.T) {
 		{
 			name:      "duplicates and order do not matter",
 			chanTypes: []string{structures.CPublic, structures.CIM, structures.CPublic, structures.CIM},
-			want:      runBoot | runIMs | runChannels,
+			want:      runIMs | runChannels,
 		},
 		{
-			name:      "unknown types are ignored except boot remains",
+			name:      "unknown types are ignored",
 			chanTypes: []string{"unknown", "other"},
-			want:      runBoot,
 		},
 	}
 	for _, tt := range tests {
@@ -130,22 +129,22 @@ func Test_plannedSteps(t *testing.T) {
 		{
 			name:      "public only with im",
 			chanTypes: []string{structures.CPublic, structures.CIM},
-			want:      []uint8{runBoot, runIMs, runChannels},
+			want:      []uint8{runIMs, runChannels},
 		},
 		{
 			name:      "private only with mpim",
 			chanTypes: []string{structures.CPrivate, structures.CMPIM},
-			want:      []uint8{runBoot, runMPIMs, runPrivate},
+			want:      []uint8{runMPIMs, runPrivate},
 		},
 		{
-			name:      "unknown types still run boot only",
+			name:      "unknown types returns nothing",
 			chanTypes: []string{"unknown"},
-			want:      []uint8{runBoot},
+			want:      []uint8{},
 		},
 		{
 			name:      "order and duplicates do not affect planned step order",
 			chanTypes: []string{structures.CIM, structures.CPrivate, structures.CIM},
-			want:      []uint8{runBoot, runIMs, runPrivate},
+			want:      []uint8{runIMs, runPrivate},
 		},
 	}
 	for _, tt := range tests {
