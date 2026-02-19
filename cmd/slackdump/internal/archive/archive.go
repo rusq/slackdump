@@ -192,6 +192,7 @@ func DBController(ctx context.Context, cmdName string, conn *sqlx.DB, client cli
 		stream.OptLatest(time.Time(cfg.Latest)),
 		stream.OptOldest(time.Time(cfg.Oldest)),
 		stream.OptResultFn(resultLogger(lg)),
+		stream.OptFailOnNonCritError(cfg.FailOnNonCritical),
 	}
 	sopts = append(sopts, streamOpts...)
 	// start attachment downloader
@@ -244,6 +245,7 @@ func ArchiveController(ctx context.Context, cd *chunk.Directory, client client.S
 		stream.OptLatest(time.Time(cfg.Latest)),
 		stream.OptOldest(time.Time(cfg.Oldest)),
 		stream.OptResultFn(resultLogger(lg)),
+		stream.OptFailOnNonCritError(cfg.FailOnNonCritical),
 	}
 	sopts = append(sopts, opts...)
 
