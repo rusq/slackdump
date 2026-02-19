@@ -33,6 +33,7 @@ import (
 	"github.com/rusq/slack"
 
 	"github.com/rusq/slackdump/v4/internal/chunk"
+	"github.com/rusq/slackdump/v4/internal/primitive"
 	"github.com/rusq/slackdump/v4/internal/structures"
 )
 
@@ -140,17 +141,7 @@ func (f Flags) String() string {
 			return "database"
 		}
 	}
-	const bits = 8 - 1
-	const flg = "__DUECzd"
-	var buf strings.Builder
-	for i := bits; i >= 0; i-- {
-		if f&(1<<uint(i)) != 0 {
-			buf.WriteByte(flg[bits-i])
-		} else {
-			buf.WriteByte('.')
-		}
-	}
-	return buf.String()
+	return primitive.FlagRender(uint8(f), [8]byte([]byte("__DUECzd")))
 }
 
 func (f Flags) Has(ff Flags) bool {

@@ -19,12 +19,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"runtime/trace"
 	"slices"
 	"sync"
 
 	"github.com/rusq/slack"
 
+	"github.com/rusq/slackdump/v4/internal/primitive"
 	"github.com/rusq/slackdump/v4/internal/structures"
 )
 
@@ -53,7 +55,6 @@ type searchResult struct {
 }
 
 func (cl *Client) buildPipeline(resultC chan<- searchResult, chanTypes []string, onlyMy bool) []func(context.Context) {
-
 	var (
 		userbootFunc = func(ctx context.Context) {
 			// getting client.userBoot information
@@ -110,7 +111,7 @@ func (cl *Client) buildPipeline(resultC chan<- searchResult, chanTypes []string,
 		}
 	)
 
-	stepFns := map[uint8]func(context.Context){
+	stepFns := map[stepFlags]func(context.Context){
 		runBoot:     userbootFunc,
 		runIMs:      imsFunc,
 		runMPIMs:    mpimsFunc,
@@ -131,8 +132,10 @@ func (cl *Client) buildPipeline(resultC chan<- searchResult, chanTypes []string,
 	return pipeline
 }
 
+type stepFlags uint8
+
 const (
-	runBoot = 1 << iota
+	runBoot stepFlags = 1 << iota
 	runIMs
 	runMPIMs
 	runChannels
@@ -140,12 +143,18 @@ const (
 	runAllConvs
 )
 
+func (f stepFlags) String() string {
+	const repr = "__*pPMIB"
+	return primitive.FlagRender(uint8(f), [8]byte([]byte(repr)))
+}
+
 const maxPipelineSize = 5
 
-func plannedSteps(chanTypes []string) []uint8 {
+func plannedSteps(chanTypes []string) []stepFlags {
 	flags := pipelineFlags(chanTypes)
+	slog.Debug("planned steps", "types", chanTypes, "flags", flags)
 
-	ordered := []uint8{
+	ordered := []stepFlags{
 		runBoot,
 		runIMs,
 		runMPIMs,
@@ -153,7 +162,7 @@ func plannedSteps(chanTypes []string) []uint8 {
 		runPrivate,
 		runAllConvs,
 	}
-	steps := make([]uint8, 0, len(ordered))
+	steps := make([]stepFlags, 0, len(ordered))
 	for _, step := range ordered {
 		if flags&step == step {
 			steps = append(steps, step)
@@ -162,7 +171,7 @@ func plannedSteps(chanTypes []string) []uint8 {
 	return steps
 }
 
-func pipelineFlags(chanTypes []string) uint8 {
+func pipelineFlags(chanTypes []string) stepFlags {
 	// treat nothing as "all"
 	if len(chanTypes) == 0 {
 		return runBoot | runIMs | runMPIMs | runAllConvs
@@ -176,7 +185,7 @@ func pipelineFlags(chanTypes []string) uint8 {
 
 	has := func(t string) bool { return slices.Contains(stt, t) }
 
-	var flags uint8 = 0
+	var flags stepFlags = 0
 	if has(structures.CIM) {
 		flags |= runIMs
 	}

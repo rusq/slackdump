@@ -36,7 +36,7 @@ func Test_pipelineFlags(t *testing.T) {
 	tests := []struct {
 		name      string
 		chanTypes []string
-		want      uint8
+		want      stepFlags
 	}{
 		{
 			name:      "nil types means all default groups",
@@ -114,37 +114,37 @@ func Test_plannedSteps(t *testing.T) {
 	tests := []struct {
 		name      string
 		chanTypes []string
-		want      []uint8
+		want      []stepFlags
 	}{
 		{
 			name:      "nil types use default all",
 			chanTypes: nil,
-			want:      []uint8{runBoot, runIMs, runMPIMs, runAllConvs},
+			want:      []stepFlags{runBoot, runIMs, runMPIMs, runAllConvs},
 		},
 		{
 			name:      "public and private collapse to all convs",
 			chanTypes: []string{structures.CPrivate, structures.CPublic},
-			want:      []uint8{runBoot, runAllConvs},
+			want:      []stepFlags{runBoot, runAllConvs},
 		},
 		{
 			name:      "public only with im",
 			chanTypes: []string{structures.CPublic, structures.CIM},
-			want:      []uint8{runIMs, runChannels},
+			want:      []stepFlags{runIMs, runChannels},
 		},
 		{
 			name:      "private only with mpim",
 			chanTypes: []string{structures.CPrivate, structures.CMPIM},
-			want:      []uint8{runMPIMs, runPrivate},
+			want:      []stepFlags{runMPIMs, runPrivate},
 		},
 		{
 			name:      "unknown types returns nothing",
 			chanTypes: []string{"unknown"},
-			want:      []uint8{},
+			want:      []stepFlags{},
 		},
 		{
 			name:      "order and duplicates do not affect planned step order",
 			chanTypes: []string{structures.CIM, structures.CPrivate, structures.CIM},
-			want:      []uint8{runIMs, runPrivate},
+			want:      []stepFlags{runIMs, runPrivate},
 		},
 	}
 	for _, tt := range tests {
