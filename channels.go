@@ -155,14 +155,9 @@ func (s *Session) getChannels(ctx context.Context, gcp GetChannelsParameters, cb
 	return nil
 }
 
-func shouldFallbackToListChannels(err error) bool {
-	if errors.Is(err, stream.ErrOpNotSupported) {
-		return true
-	}
-	return false
-}
+func shouldFallbackToListChannels(err error) bool { return errors.Is(err, stream.ErrOpNotSupported) }
 
-// GetChannelMembers returns a list of all lmembers in a channel.
+// GetChannelMembers returns a list of all members in a channel.
 func (sd *Session) GetChannelMembers(ctx context.Context, channelID string) ([]string, error) {
 	var ids []string
 	var cursor string
