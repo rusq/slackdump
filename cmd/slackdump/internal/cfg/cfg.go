@@ -56,6 +56,10 @@ var (
 	IncludeCustomLabels bool // Requests labels for user custom fields, use with caution due to request throttling.
 	// ChannelTypes lists channel types to fetch.
 	ChannelTypes = slackChanTypes(slackdump.AllChanTypes)
+	// FailOnNonCritical enables hard fail on non-critical errors, such as
+	// "channel not found", or "user not in channel". By default it is
+	// disabled.
+	FailOnNonCritical bool
 
 	WithFiles   bool
 	WithAvatars bool
@@ -224,5 +228,6 @@ func SetBaseFlags(fs *flag.FlagSet, mask FlagMask) {
 	}
 	if mask&OmitChannelTypesFlag == 0 {
 		fs.Var(&ChannelTypes, "chan-types", "filter channel types")
+		fs.BoolVar(&FailOnNonCritical, "fail-hard", false, "fail hard on non-critical channel fetch errors")
 	}
 }

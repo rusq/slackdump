@@ -199,6 +199,7 @@ func searchControllerv31(ctx context.Context, dir string, client client.Slack, t
 			pb.Add(sr.Count)
 			return nil
 		}),
+		stream.OptFailOnNonCritError(cfg.FailOnNonCritical),
 	}
 	if fastSearch {
 		sopts = append(sopts, stream.OptFastSearch())

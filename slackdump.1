@@ -161,6 +161,9 @@ are collected from the visible messages, instead of fetching the whole set of
 users from the users API.  This is useful when the workspace has a lot of
 users.  This method also allows fetching information for external users.
 .It Fl cookie Ar cookie | cookie_file
+.It Fl fail-hard=true|false
+If set to true, will fail hard on the following errors: "user not in channel",
+and "channel not found".  False by default.
 .It Fl files=true|false
 Enables or disables attachment files downloading.  The default is enabled.  To
 disable downloading, use
