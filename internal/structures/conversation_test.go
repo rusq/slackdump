@@ -94,6 +94,14 @@ func TestIsEmptyThread(t *testing.T) {
 	}
 }
 
+var (
+	fakeIM             = slack.Channel{GroupConversation: slack.GroupConversation{Conversation: slack.Conversation{IsIM: true}}}
+	fakeMPIM           = slack.Channel{GroupConversation: slack.GroupConversation{Conversation: slack.Conversation{IsMpIM: true}}}
+	fakePrivateChan    = slack.Channel{GroupConversation: slack.GroupConversation{Conversation: slack.Conversation{IsPrivate: true}}}
+	fakePublicChan     = slack.Channel{GroupConversation: slack.GroupConversation{Conversation: slack.Conversation{IsIM: false, IsMpIM: false, IsPrivate: false}}}
+	fakePublicChanMemb = slack.Channel{GroupConversation: slack.GroupConversation{Conversation: slack.Conversation{IsIM: false, IsMpIM: false, IsPrivate: false}}, IsMember: true}
+)
+
 func TestChannelType(t *testing.T) {
 	type args struct {
 		ch slack.Channel
@@ -106,28 +114,28 @@ func TestChannelType(t *testing.T) {
 		{
 			name: "IM",
 			args: args{
-				ch: slack.Channel{GroupConversation: slack.GroupConversation{Conversation: slack.Conversation{IsIM: true}}},
+				ch: fakeIM,
 			},
 			want: CIM,
 		},
 		{
 			name: "Group IM",
 			args: args{
-				ch: slack.Channel{GroupConversation: slack.GroupConversation{Conversation: slack.Conversation{IsMpIM: true}}},
+				ch: fakeMPIM,
 			},
 			want: CMPIM,
 		},
 		{
 			name: "Private",
 			args: args{
-				ch: slack.Channel{GroupConversation: slack.GroupConversation{Conversation: slack.Conversation{IsPrivate: true}}},
+				ch: fakePrivateChan,
 			},
 			want: CPrivate,
 		},
 		{
 			name: "Public",
 			args: args{
-				ch: slack.Channel{GroupConversation: slack.GroupConversation{Conversation: slack.Conversation{IsIM: false, IsMpIM: false, IsPrivate: false}}},
+				ch: fakePublicChan,
 			},
 			want: CPublic,
 		},
@@ -136,6 +144,50 @@ func TestChannelType(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := ChannelType(tt.args.ch); got != tt.want {
 				t.Errorf("ChannelType() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestIsMember(t *testing.T) {
+	type args struct {
+		ch *slack.Channel
+	}
+	tests := []struct {
+		name string
+		args args
+		want bool
+	}{
+		{
+			name: "Public/member",
+			args: args{&fakePublicChanMemb},
+			want: true,
+		},
+		{
+			name: "Public/non-member",
+			args: args{&fakePublicChan},
+			want: false,
+		},
+		{
+			name: "Private",
+			args: args{&fakePrivateChan},
+			want: true,
+		},
+		{
+			name: "MPIM",
+			args: args{&fakeMPIM},
+			want: true,
+		},
+		{
+			name: "IM",
+			args: args{&fakeIM},
+			want: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := IsMember(tt.args.ch); got != tt.want {
+				t.Errorf("IsMember() = %v, want %v", got, tt.want)
 			}
 		})
 	}
