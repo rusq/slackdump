@@ -92,7 +92,6 @@ func (cs *Stream) Conversations(ctx context.Context, proc processor.Conversation
 
 	// channel worker
 	wg.Go(func() {
-		defer wg.Done()
 		cs.channelWorker(ctx, proc, resultsC, threadsC, chansC)
 		// we close threads here, instead of the main loop, because we want to
 		// close it after all the threads are sent by channels.
@@ -101,14 +100,12 @@ func (cs *Stream) Conversations(ctx context.Context, proc processor.Conversation
 	})
 	// thread worker
 	wg.Go(func() {
-		defer wg.Done()
 		cs.threadWorker(ctx, proc, resultsC, threadsC)
 		trace.Log(ctx, "async", "thread worker done")
 	})
 	// main loop
 	wg.Go(func() {
 		defer trace.Log(ctx, "async", "main loop done")
-		defer wg.Done()
 		defer close(chansC)
 		for {
 			select {
