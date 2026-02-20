@@ -170,7 +170,7 @@ func (c *chanFilter) Channels(ctx context.Context, ch []slack.Channel) error {
 	}
 LOOP:
 	for _, ch := range ch {
-		if c.memberOnly && (ch.ID[0] == 'C' && !ch.IsMember) {
+		if c.memberOnly && !structures.IsMember(&ch) {
 			// skip public non-member channels
 			continue
 		}

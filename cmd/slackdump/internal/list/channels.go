@@ -28,6 +28,7 @@ import (
 	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v4/internal/cache"
+	"github.com/rusq/slackdump/v4/internal/structures"
 	"github.com/rusq/slackdump/v4/types"
 )
 
@@ -35,7 +36,7 @@ var CmdListChannels = &base.Command{
 	Run:        runListChannels,
 	UsageLine:  "slackdump list channels [flags] [filename]",
 	PrintFlags: true,
-	FlagMask:   flagMask &^ cfg.OmitChannelTypesFlag,
+	FlagMask:   flagMask &^ cfg.OmitChannelTypesFlag &^ cfg.OmitMemberOnlyFlag,
 	Short:      "list workspace channels",
 	Long: fmt.Sprintf(`
 # List Channels Command
@@ -148,9 +149,25 @@ func (l *channels) Retrieve(ctx context.Context, sess *slackdump.Session, m *cac
 			return nil
 		}
 	}
-	cc, err := sess.GetChannels(ctx, cfg.ChannelTypes...)
-	if err != nil {
-		return fmt.Errorf("error getting channels: %w", err)
+	p := slackdump.GetChannelsParameters{
+		ChannelTypes:   cfg.ChannelTypes,
+		OnlyMyChannels: cfg.MemberOnly,
+	}
+
+	var cc []slack.Channel
+	for chans, err := range sess.StreamChannelsEx(ctx, p) {
+		if err != nil {
+			return fmt.Errorf("error getting channels: %w", err)
+		}
+		if cfg.MemberOnly {
+			for _, ch := range chans {
+				if structures.IsMember(&ch) {
+					cc = append(cc, ch)
+				}
+			}
+		} else {
+			cc = append(cc, chans...)
+		}
 	}
 	l.channels = cc
 	l.users = <-usersc

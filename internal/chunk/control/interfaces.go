@@ -33,6 +33,7 @@ import (
 type Streamer interface {
 	Conversations(ctx context.Context, proc processor.Conversations, links <-chan structures.EntityItem) error
 	ListChannels(ctx context.Context, proc processor.Channels, p *slack.GetConversationsParameters) error
+	ListChannelsEx(ctx context.Context, proc processor.Channels, p *slack.GetConversationsParameters, onlyMyChannels bool) error
 	Users(ctx context.Context, proc processor.Users, opt ...slack.GetUsersOption) error
 	WorkspaceInfo(ctx context.Context, proc processor.WorkspaceInfo) error
 	SearchMessages(ctx context.Context, proc processor.MessageSearcher, query string) error

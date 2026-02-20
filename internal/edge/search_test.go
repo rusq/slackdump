@@ -37,7 +37,7 @@ func TestClient_SearchChannels(t *testing.T) {
 			edgeAPI:      srv.URL + "/",
 			webclientAPI: srv.URL + "/",
 		}
-		r, err := cl.SearchChannels(t.Context(), "test")
+		r, err := cl.SearchChannels(t.Context(), "test", SearchChannelsParameters{})
 		require.NoError(t, err)
 		assert.Len(t, r, 6)
 	})
@@ -50,7 +50,7 @@ func TestClient_SearchChannels(t *testing.T) {
 			edgeAPI:      srv.URL + "/",
 			webclientAPI: srv.URL + "/",
 		}
-		_, err := cl.SearchChannels(t.Context(), "test")
+		_, err := cl.SearchChannels(t.Context(), "test", SearchChannelsParameters{})
 		require.Error(t, err)
 	})
 }

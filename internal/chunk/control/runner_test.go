@@ -31,6 +31,7 @@ import (
 	"github.com/rusq/slackdump/v4/internal/structures"
 	"github.com/rusq/slackdump/v4/mocks/mock_processor"
 	"github.com/rusq/slackdump/v4/processor"
+	"github.com/rusq/slackdump/v4/stream"
 )
 
 func Test_apiGenerator_Generate(t *testing.T) {
@@ -65,6 +66,9 @@ func Test_apiGenerator_Generate(t *testing.T) {
 			},
 			expectFn: func(s *mock_control.MockStreamer, p *mock_processor.MockChannels) {
 				s.EXPECT().
+					ListChannelsEx(gomock.Any(), gomock.Any(), &slack.GetConversationsParameters{Types: []string{"public_channel"}}, gomock.Any()).
+					Return(stream.ErrOpNotSupported)
+				s.EXPECT().
 					ListChannels(gomock.Any(), gomock.Any(), &slack.GetConversationsParameters{Types: []string{"public_channel"}}).
 					DoAndReturn(
 						func(ctx context.Context, proc processor.Channels, p *slack.GetConversationsParameters) error {
@@ -91,6 +95,9 @@ func Test_apiGenerator_Generate(t *testing.T) {
 			},
 			expectFn: func(s *mock_control.MockStreamer, p *mock_processor.MockChannels) {
 				s.EXPECT().
+					ListChannelsEx(gomock.Any(), gomock.Any(), &slack.GetConversationsParameters{Types: []string{"public_channel"}}, gomock.Any()).
+					Return(stream.ErrOpNotSupported)
+				s.EXPECT().
 					ListChannels(gomock.Any(), gomock.Any(), &slack.GetConversationsParameters{Types: []string{"public_channel"}}).
 					DoAndReturn(
 						func(ctx context.Context, proc processor.Channels, p *slack.GetConversationsParameters) error {
@@ -116,6 +123,9 @@ func Test_apiGenerator_Generate(t *testing.T) {
 				list: structures.NewEntityListFromItems(),
 			},
 			expectFn: func(s *mock_control.MockStreamer, p *mock_processor.MockChannels) {
+				s.EXPECT().
+					ListChannelsEx(gomock.Any(), gomock.Any(), &slack.GetConversationsParameters{Types: slackdump.AllChanTypes}, gomock.Any()).
+					Return(stream.ErrOpNotSupported)
 				s.EXPECT().ListChannels(gomock.Any(), gomock.Any(), &slack.GetConversationsParameters{Types: slackdump.AllChanTypes}).Return(nil)
 			},
 			want:    []structures.EntityItem{},
@@ -132,6 +142,9 @@ func Test_apiGenerator_Generate(t *testing.T) {
 				list: structures.NewEntityListFromItems(),
 			},
 			expectFn: func(s *mock_control.MockStreamer, p *mock_processor.MockChannels) {
+				s.EXPECT().
+					ListChannelsEx(gomock.Any(), gomock.Any(), &slack.GetConversationsParameters{Types: []string{"public_channel"}}, gomock.Any()).
+					Return(stream.ErrOpNotSupported)
 				s.EXPECT().
 					ListChannels(gomock.Any(), gomock.Any(), &slack.GetConversationsParameters{Types: []string{"public_channel"}}).
 					DoAndReturn(
@@ -157,6 +170,9 @@ func Test_apiGenerator_Generate(t *testing.T) {
 				list: structures.NewEntityListFromItems(),
 			},
 			expectFn: func(s *mock_control.MockStreamer, p *mock_processor.MockChannels) {
+				s.EXPECT().
+					ListChannelsEx(gomock.Any(), gomock.Any(), &slack.GetConversationsParameters{Types: []string{"public_channel"}}, gomock.Any()).
+					Return(stream.ErrOpNotSupported)
 				s.EXPECT().
 					ListChannels(gomock.Any(), gomock.Any(), &slack.GetConversationsParameters{Types: []string{"public_channel"}}).
 					Return(assert.AnError)
@@ -623,6 +639,7 @@ func Test_runWorkers(t *testing.T) {
 				flags: Flags{},
 			},
 			expectFn: func(s *mock_control.MockStreamer, m *superMockProcessor) {
+				s.EXPECT().ListChannelsEx(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(stream.ErrOpNotSupported)
 				s.EXPECT().ListChannels(gomock.Any(), gomock.Any(), gomock.Any()).Return(context.Canceled)
 				s.EXPECT().
 					WorkspaceInfo(gomock.Any(), m.MockWorkspaceInfo).

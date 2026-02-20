@@ -18,6 +18,7 @@ package edge
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"runtime/trace"
 
 	"github.com/rusq/slack"
@@ -60,10 +61,13 @@ func (cl *Client) ConversationsGenericInfo(ctx context.Context, channelID ...str
 	}
 	resp, err := cl.PostForm(ctx, "conversations.genericInfo", values(form, true))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("conversations.genericInfo: %w", err)
 	}
 	var r conversationsGenericInfoResponse
 	if err := cl.ParseResponse(&r, resp); err != nil {
+		return nil, fmt.Errorf("conversations.genericInfo: %w", err)
+	}
+	if err := r.validate("conversations.genericInfo"); err != nil {
 		return nil, err
 	}
 	return r.Channels, nil
@@ -124,6 +128,9 @@ func (cl *Client) ConversationsView(ctx context.Context, channelID string) (Conv
 		ConversationsViewResponse
 	}{}
 	if err := cl.ParseResponse(&r, resp); err != nil {
+		return ConversationsViewResponse{}, err
+	}
+	if err := r.validate("conversations.view"); err != nil {
 		return ConversationsViewResponse{}, err
 	}
 	return r.ConversationsViewResponse, nil

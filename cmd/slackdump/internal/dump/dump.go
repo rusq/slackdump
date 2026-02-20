@@ -56,6 +56,7 @@ var CmdDump = &base.Command{
 	RequireAuth: true,
 	PrintFlags:  true,
 	FlagMask: (cfg.OmitCustomUserFlags |
+		cfg.OmitMemberOnlyFlag |
 		cfg.OmitRecordFilesFlag |
 		cfg.OmitWithAvatarsFlag |
 		cfg.OmitChannelTypesFlag), // we don't need channel types, as dump requires explicit channel ids

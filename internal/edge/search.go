@@ -63,23 +63,24 @@ type searchForm struct {
 	MaxFilterSuggestions int               `json:"max_filter_suggestions"`
 	Sort                 searchSortType    `json:"sort"`
 	SortDir              searchSortDir     `json:"sort_dir"`
-	ChannelType          searchChannelType `json:"channel_type"`
+	ChannelType          SearchChannelType `json:"channel_type"`
 	ExcludeMyChannels    int               `json:"exclude_my_channels"`
 	SearchOnlyMyChannels bool              `json:"search_only_my_channels"`
 	RecommendSource      string            `json:"recommend_source"`
 	WebClientFields
 }
 
-type searchChannelType string
+// SearchChannelType is the type of the channel to search for SearchChannels
+// call.
+type SearchChannelType string
 
 const (
-	sctPublic          searchChannelType = "public"
-	sctPrivate         searchChannelType = "private"
-	scpArchived        searchChannelType = "archived"
-	scpExternalShared  searchChannelType = "external_shared"
-	scpExcludeArchived searchChannelType = "exclude_archived"
-	scpPrivateExclude  searchChannelType = "private_exclude"
-	scpAll             searchChannelType = ""
+	SCTPrivate         SearchChannelType = "private"
+	SCTArchived        SearchChannelType = "archived"
+	SCTExternalShared  SearchChannelType = "external_shared"
+	SCTExcludeArchived SearchChannelType = "exclude_archived"
+	SCTPrivateExclude  SearchChannelType = "private_exclude"
+	SCTAll             SearchChannelType = ""
 )
 
 type searchSortDir string
@@ -97,10 +98,25 @@ const (
 	sstName        searchSortType = "name"
 )
 
-func (cl *Client) SearchChannels(ctx context.Context, query string) ([]slack.Channel, error) {
+type SearchChannelsParameters struct {
+	// OnlyMyChannels instructs the search to return only channels that the
+	// current user is a participant of.
+	OnlyMyChannels bool
+	// ChannelTypes restricts the channel results to a certain type.
+	ChannelTypes SearchChannelType
+}
+
+// attr returns log attributes.
+func (p *SearchChannelsParameters) attr() slog.Attr {
+	return slog.GroupAttrs("search_channels_parameters", slog.String("channel_types", string(p.ChannelTypes)), slog.Bool("only_my_channels", p.OnlyMyChannels))
+}
+
+const defNumChannels = 5 // initial channel slice size, allocates space for #random, #everyone, @user + a couple of custom
+
+func (cl *Client) SearchChannels(ctx context.Context, query string, p SearchChannelsParameters) ([]slack.Channel, error) {
 	ctx, task := trace.NewTask(ctx, "SearchChannels")
 	defer task.End()
-	lg := slog.With("in", "SearchChannels", "query", query)
+	lg := slog.With("in", "SearchChannels", "query", query, p.attr())
 
 	trace.Logf(ctx, "params", "query=%q", query)
 
@@ -120,22 +136,22 @@ func (cl *Client) SearchChannels(ctx context.Context, query string) ([]slack.Cha
 		ClientReqID:          clientReq.String(),
 		BrowseID:             browseID.String(),
 		Extracts:             0,
-		Highlight:            0,
+		Highlight:            iFalse,
 		Cursor:               "*",
 		ExtraMsg:             0,
-		NoUserProfile:        1,
+		NoUserProfile:        iTrue,
 		Count:                perPage,
 		FileTitleOnly:        false,
 		QueryRewriteDisabled: false,
-		IncludeFilesShares:   1,
+		IncludeFilesShares:   iTrue,
 		Browse:               "standard",
 		SearchContext:        "desktop_channel_browser",
 		MaxFilterSuggestions: 10,
 		Sort:                 sstName,
 		SortDir:              ssdAsc,
-		ChannelType:          scpAll,
-		ExcludeMyChannels:    0,
-		SearchOnlyMyChannels: false,
+		ChannelType:          p.ChannelTypes,
+		ExcludeMyChannels:    iFalse,
+		SearchOnlyMyChannels: p.OnlyMyChannels,
 		RecommendSource:      "channel-browser",
 		WebClientFields: WebClientFields{
 			XReason:  "browser-query",
@@ -147,7 +163,7 @@ func (cl *Client) SearchChannels(ctx context.Context, query string) ([]slack.Cha
 
 	const ep = "search.modules.channels"
 	lim := tier2boost.limiter()
-	var cc []slack.Channel
+	var cc = make([]slack.Channel, 0, defNumChannels)
 	for {
 		resp, err := cl.PostForm(ctx, ep, values(form, true))
 		if err != nil {

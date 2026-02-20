@@ -503,7 +503,8 @@ var (
 	testPrivChanNonMember = slack.Channel{
 		GroupConversation: slack.GroupConversation{
 			Conversation: slack.Conversation{
-				ID: "D33333333",
+				ID:   "D33333333",
+				IsIM: true,
 			},
 			Name: "private",
 		},
@@ -513,7 +514,8 @@ var (
 	testGroupChanNonMember = slack.Channel{
 		GroupConversation: slack.GroupConversation{
 			Conversation: slack.Conversation{
-				ID: "G44444444",
+				ID:        "G44444444",
+				IsPrivate: true,
 			},
 			Name: "group",
 		},

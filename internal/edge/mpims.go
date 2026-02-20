@@ -20,31 +20,29 @@ import (
 	"runtime/trace"
 )
 
-// im.* API
+// mpim.* API
 
-type imListForm struct {
+type mpimListForm struct {
 	BaseRequest
-	GetLatest    bool   `json:"get_latest"`
-	GetReadState bool   `json:"get_read_state"`
-	Cursor       string `json:"cursor,omitempty"`
+	GetLatest bool   `json:"get_latest"`
+	Cursor    string `json:"cursor,omitempty"`
 	WebClientFields
 }
 
-type imListResponse struct {
+type mpimListResponse struct {
 	baseResponse
-	IMs []IM `json:"ims,omitempty"`
+	MPIMs []UserBootChannel `json:"groups,omitempty"`
 }
 
-func (cl *Client) IMList(ctx context.Context) ([]IM, error) {
-	ctx, task := trace.NewTask(ctx, "IMList")
+func (cl *Client) MPIMList(ctx context.Context) ([]UserBootChannel, error) {
+	ctx, task := trace.NewTask(ctx, "MPIMList")
 	defer task.End()
 
-	form := imListForm{
-		BaseRequest:  BaseRequest{Token: cl.token},
-		GetLatest:    true,
-		GetReadState: true,
+	form := mpimListForm{
+		BaseRequest: BaseRequest{Token: cl.token},
+		GetLatest:   true,
 		WebClientFields: WebClientFields{
-			XReason:  "guided-search-people-empty-state",
+			XReason:  "external-connections-browser-conversation-counts",
 			XMode:    "online",
 			XSonic:   true,
 			XAppName: "client",
@@ -52,20 +50,20 @@ func (cl *Client) IMList(ctx context.Context) ([]IM, error) {
 		Cursor: "",
 	}
 	lim := tier2boost.limiter()
-	var IMs []IM
+	var MPIMs []UserBootChannel
 	for {
-		resp, err := cl.PostForm(ctx, "im.list", values(form, true))
+		resp, err := cl.PostForm(ctx, "mpim.list", values(form, true))
 		if err != nil {
 			return nil, err
 		}
-		r := imListResponse{}
+		r := mpimListResponse{}
 		if err := cl.ParseResponse(&r, resp); err != nil {
 			return nil, err
 		}
-		if err := r.validate("im.list"); err != nil {
+		if err := r.validate("mpim.list"); err != nil {
 			return nil, err
 		}
-		IMs = append(IMs, r.IMs...)
+		MPIMs = append(MPIMs, r.MPIMs...)
 		if r.ResponseMetadata.NextCursor == "" {
 			break
 		}
@@ -74,5 +72,5 @@ func (cl *Client) IMList(ctx context.Context) ([]IM, error) {
 			return nil, err
 		}
 	}
-	return IMs, nil
+	return MPIMs, nil
 }

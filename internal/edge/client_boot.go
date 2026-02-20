@@ -57,6 +57,9 @@ func (cl *Client) ClientUserBoot(ctx context.Context) (*ClientUserBootResponse, 
 	if err := cl.ParseResponse(&ub, resp); err != nil {
 		return nil, err
 	}
+	if err := ub.validate("client.userBoot"); err != nil {
+		return nil, err
+	}
 	return &ub, nil
 }
 
