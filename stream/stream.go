@@ -188,10 +188,10 @@ func OptInclusive(b bool) Option {
 	}
 }
 
-// OptFailOnChanNotFound enables or disables detection and special treatment of
-// channel_not_found Slack errors.  If disabled, non-existing channels are
-// skipped.
-func OptFailOnChanNotFound(b bool) Option {
+// OptFailOnNonCritError enables or disables detection and special treatment of
+// channel_not_found Slack errors.  If disabled, non-existing channels and channels
+// that user is not part of
+func OptFailOnNonCritError(b bool) Option {
 	return func(cs *Stream) {
 		cs.failChnlNotFnd = b
 	}

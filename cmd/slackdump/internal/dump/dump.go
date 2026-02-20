@@ -236,6 +236,7 @@ func dumpv3(ctx context.Context, sess client.Slack, fsa fsadapter.FS, p dumppara
 	s := stream.New(sess, cfg.Limits,
 		stream.OptOldest(time.Time(cfg.Oldest)),
 		stream.OptLatest(time.Time(cfg.Latest)),
+		stream.OptFailOnNonCritError(cfg.FailOnNonCritical),
 		stream.OptResultFn(func(sr stream.Result) error {
 			if sr.Err != nil {
 				return sr.Err
@@ -331,6 +332,7 @@ func dumpv31(ctx context.Context, client client.Slack, fsa fsadapter.FS, p dumpp
 	stream := stream.New(client, cfg.Limits,
 		stream.OptOldest(time.Time(cfg.Oldest)),
 		stream.OptLatest(time.Time(cfg.Latest)),
+		stream.OptFailOnNonCritError(cfg.FailOnNonCritical),
 		stream.OptResultFn(func(sr stream.Result) error {
 			if sr.Err != nil {
 				return sr.Err

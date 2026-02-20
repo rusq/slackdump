@@ -85,6 +85,7 @@ func exportWithDB(ctx context.Context, sess client.Slack, fsa fsadapter.FS, list
 	s := stream.New(sess, cfg.Limits,
 		stream.OptOldest(time.Time(cfg.Oldest)),
 		stream.OptLatest(time.Time(cfg.Latest)),
+		stream.OptFailOnNonCritError(cfg.FailOnNonCritical),
 		stream.OptResultFn(func(sr stream.Result) error {
 			lg.DebugContext(ctx, "conversations", "sr", sr.String())
 			pb.Describe(sr.String())
@@ -174,6 +175,7 @@ func exportWithDir(ctx context.Context, sess client.Slack, fsa fsadapter.FS, lis
 	stream := stream.New(sess, cfg.Limits,
 		stream.OptOldest(time.Time(cfg.Oldest)),
 		stream.OptLatest(time.Time(cfg.Latest)),
+		stream.OptFailOnNonCritError(cfg.FailOnNonCritical),
 		stream.OptResultFn(func(sr stream.Result) error {
 			lg.DebugContext(ctx, "conversations", "sr", sr.String())
 			pb.Describe(sr.String())
