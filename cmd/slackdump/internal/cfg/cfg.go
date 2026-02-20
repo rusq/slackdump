@@ -140,6 +140,7 @@ const (
 	OmitChunkFileMode
 	OmitYesManFlag
 	OmitChannelTypesFlag
+	OmitMemberOnlyFlag
 
 	OmitAll = OmitConfigFlag |
 		OmitWithFilesFlag |
@@ -155,6 +156,7 @@ const (
 		OmitWithAvatarsFlag |
 		OmitChunkFileMode |
 		OmitYesManFlag |
+		OmitMemberOnlyFlag |
 		OmitChannelTypesFlag
 )
 
@@ -215,8 +217,10 @@ func SetBaseFlags(fs *flag.FlagSet, mask FlagMask) {
 		fs.Var(&Oldest, "time-from", "timestamp of the oldest message to fetch (UTC timezone, `YYYY-MM-DDTHH:MM:SS`)")
 		fs.Var(&Latest, "time-to", "timestamp of the newest message to fetch (UTC timezone, `YYYY-MM-DDTHH:MM:SS`)")
 	}
-	if mask&OmitCustomUserFlags == 0 {
+	if mask&OmitMemberOnlyFlag == 0 {
 		fs.BoolVar(&MemberOnly, "member-only", false, "export only channels, which the current user belongs to (if no channels are specified)")
+	}
+	if mask&OmitCustomUserFlags == 0 {
 		fs.BoolVar(&OnlyChannelUsers, "channel-users", false, "export only users involved in the channel, and skip fetching of all users")
 		fs.BoolVar(&IncludeCustomLabels, "custom-labels", false, "request user's custom fields labels, may result in requests being throttled hard")
 	}

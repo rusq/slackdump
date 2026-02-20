@@ -56,3 +56,12 @@ func ChannelType(ch slack.Channel) string {
 func ChannelFromID(id string) *slack.Channel {
 	return &slack.Channel{GroupConversation: slack.GroupConversation{Conversation: slack.Conversation{ID: id}}} // arrgh
 }
+
+// IsMember returns true if the user is a member of a given Slack Channel.
+func IsMember(ch *slack.Channel) bool {
+	if ChannelType(*ch) != CPublic {
+		// user is assumed to be a member of any non-public channels.
+		return true
+	}
+	return ch.IsMember
+}

@@ -28,6 +28,7 @@ import (
 	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v4/internal/cache"
+	"github.com/rusq/slackdump/v4/internal/structures"
 	"github.com/rusq/slackdump/v4/types"
 )
 
@@ -35,7 +36,7 @@ var CmdListChannels = &base.Command{
 	Run:        runListChannels,
 	UsageLine:  "slackdump list channels [flags] [filename]",
 	PrintFlags: true,
-	FlagMask:   flagMask &^ cfg.OmitChannelTypesFlag,
+	FlagMask:   flagMask &^ cfg.OmitChannelTypesFlag &^ cfg.OmitMemberOnlyFlag,
 	Short:      "list workspace channels",
 	Long: fmt.Sprintf(`
 # List Channels Command
@@ -158,7 +159,15 @@ func (l *channels) Retrieve(ctx context.Context, sess *slackdump.Session, m *cac
 		if err != nil {
 			return fmt.Errorf("error getting channels: %w", err)
 		}
-		cc = append(cc, chans...)
+		if cfg.MemberOnly {
+			for _, ch := range chans {
+				if structures.IsMember(&ch) {
+					cc = append(cc, ch)
+				}
+			}
+		} else {
+			cc = append(cc, chans...)
+		}
 	}
 	l.channels = cc
 	l.users = <-usersc
