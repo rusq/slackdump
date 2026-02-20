@@ -17,6 +17,7 @@ package stream
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/rusq/slack"
@@ -331,6 +332,48 @@ func Test_procFiles(t *testing.T) {
 			}
 			if err := procFiles(tt.args.ctx, mp, tt.args.channel, tt.args.msgs...); (err != nil) != tt.wantErr {
 				t.Errorf("procFiles() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func Test_isNonCriticalErr(t *testing.T) {
+	type args struct {
+		e error
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr error
+		wantOK  bool
+	}{
+		{
+			name:    "unknown error",
+			args:    args{errors.New("foo")},
+			wantErr: nil,
+			wantOK:  false,
+		},
+		{
+			name:    "channel not found",
+			args:    args{slack.SlackErrorResponse{Err: errChanNotFound.Error()}},
+			wantErr: errChanNotFound,
+			wantOK:  true,
+		},
+		{
+			name:    "not in channel",
+			args:    args{slack.SlackErrorResponse{Err: errNotInChannel.Error()}},
+			wantErr: errNotInChannel,
+			wantOK:  true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err, ok := isNonCriticalErr(tt.args.e)
+			if !errors.Is(err, tt.wantErr) {
+				t.Fatalf("isNonCriticalErr() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if ok != tt.wantOK {
+				t.Fatalf("isNonCriticalErr() ok = %t, wantOK = %t", ok, tt.wantOK)
 			}
 		})
 	}
