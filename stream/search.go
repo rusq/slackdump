@@ -107,7 +107,7 @@ func (cs *Stream) SearchMessages(ctx context.Context, proc processor.MessageSear
 }
 
 func (cs *Stream) searchmsg(ctx context.Context, query string, fn func(sm []slack.SearchMessage) error) error {
-	ctx, task := trace.NewTask(ctx, "searchMessages")
+	ctx, task := trace.NewTask(ctx, "searchmsg")
 	defer task.End()
 
 	lg := slog.With("query", query)
@@ -183,14 +183,14 @@ func (cs *Stream) SearchFiles(ctx context.Context, proc processor.FileSearcher, 
 	return nil
 }
 
-func (s *Stream) Search(ctx context.Context, proc processor.Searcher, query string) error {
+func (cs *Stream) Search(ctx context.Context, proc processor.Searcher, query string) error {
 	eg, ctx := errgroup.WithContext(ctx)
 
 	eg.Go(func() error {
-		return s.SearchMessages(ctx, proc, query)
+		return cs.SearchMessages(ctx, proc, query)
 	})
 	eg.Go(func() error {
-		return s.SearchFiles(ctx, proc, query)
+		return cs.SearchFiles(ctx, proc, query)
 	})
 
 	return eg.Wait()

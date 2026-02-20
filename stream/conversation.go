@@ -89,50 +89,43 @@ func (cs *Stream) Conversations(ctx context.Context, proc processor.Conversation
 	resultsC := make(chan Result, resultSz)
 
 	var wg sync.WaitGroup
-	{
-		// channel worker
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			cs.channelWorker(ctx, proc, resultsC, threadsC, chansC)
-			// we close threads here, instead of the main loop, because we want to
-			// close it after all the threads are sent by channels.
-			close(threadsC)
-			trace.Log(ctx, "async", "channel worker done")
-		}()
-	}
-	{
-		// thread worker
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			cs.threadWorker(ctx, proc, resultsC, threadsC)
-			trace.Log(ctx, "async", "thread worker done")
-		}()
-	}
-	{
-		// main loop
-		wg.Add(1)
-		go func() {
-			defer trace.Log(ctx, "async", "main loop done")
-			defer wg.Done()
-			defer close(chansC)
-			for {
-				select {
-				case <-ctx.Done():
-					resultsC <- Result{Type: RTMain, Err: context.Cause(ctx)}
+
+	// channel worker
+	wg.Go(func() {
+		defer wg.Done()
+		cs.channelWorker(ctx, proc, resultsC, threadsC, chansC)
+		// we close threads here, instead of the main loop, because we want to
+		// close it after all the threads are sent by channels.
+		close(threadsC)
+		trace.Log(ctx, "async", "channel worker done")
+	})
+	// thread worker
+	wg.Go(func() {
+		defer wg.Done()
+		cs.threadWorker(ctx, proc, resultsC, threadsC)
+		trace.Log(ctx, "async", "thread worker done")
+	})
+	// main loop
+	wg.Go(func() {
+		defer trace.Log(ctx, "async", "main loop done")
+		defer wg.Done()
+		defer close(chansC)
+		for {
+			select {
+			case <-ctx.Done():
+				resultsC <- Result{Type: RTMain, Err: context.Cause(ctx)}
+				return
+			case item, more := <-items:
+				if !more {
 					return
-				case item, more := <-items:
-					if !more {
-						return
-					}
-					if err := processLink(chansC, threadsC, item); err != nil {
-						resultsC <- Result{Type: RTMain, Err: fmt.Errorf("item error: %q: %w", item.String(), err)}
-					}
+				}
+				if err := processLink(chansC, threadsC, item); err != nil {
+					resultsC <- Result{Type: RTMain, Err: fmt.Errorf("item error: %q: %w", item.String(), err)}
 				}
 			}
-		}()
-	}
+		}
+	})
+
 	go func() {
 		// sentinel waits for all the workers to finish, then closes the error
 		// channel.
