@@ -19,6 +19,7 @@ package mcp
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -118,13 +119,14 @@ func (s *Server) ServeStdio(ctx context.Context) error {
 
 // ServeHTTP runs the MCP server as a Streamable HTTP server on addr until
 // ctx is cancelled.  addr should be a host:port string such as "127.0.0.1:8483".
+// The MCP endpoint is available at /mcp on that address.
 func (s *Server) ServeHTTP(ctx context.Context, addr string) error {
-	httpSrv := &http.Server{Addr: addr}
-	streamSrv := mcpsrv.NewStreamableHTTPServer(s.mcp,
-		mcpsrv.WithStreamableHTTPServer(httpSrv),
-	)
+	// Do NOT pass WithStreamableHTTPServer — when a pre-built *http.Server is
+	// provided, Start() skips creating the ServeMux that registers /mcp, so
+	// every request returns 404.  Let Start() build its own mux instead.
+	streamSrv := mcpsrv.NewStreamableHTTPServer(s.mcp)
 
-	s.logger.InfoContext(ctx, "mcp server listening on http", "addr", addr)
+	s.logger.InfoContext(ctx, "mcp server listening on http", "addr", addr, "endpoint", addr+"/mcp")
 
 	errCh := make(chan error, 1)
 	go func() {
@@ -178,9 +180,16 @@ func resultErr(err error) *mcplib.CallToolResult {
 	}
 }
 
-// resultJSON is a helper that serialises v to JSON and returns a CallToolResult.
+// resultJSON serialises v to JSON and returns a CallToolResult with the JSON
+// as plain text content.  We intentionally do not populate StructuredContent
+// because the MCP spec requires it to be a JSON object (record), which is
+// violated when v is a slice — causing clients to reject the response.
 func resultJSON(v any) (*mcplib.CallToolResult, error) {
-	return mcplib.NewToolResultJSON(v)
+	b, err := json.Marshal(v)
+	if err != nil {
+		return nil, fmt.Errorf("unable to marshal JSON: %w", err)
+	}
+	return mcplib.NewToolResultText(string(b)), nil
 }
 
 // stringArg extracts a named string argument from a tool call request.
