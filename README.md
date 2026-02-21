@@ -12,6 +12,7 @@ files and emojis.  Generate Slack Export without admin privileges.
 - [Buy me a cup of tea](https://ko-fi.com/rusq_), or use **GitHub Sponsors**
   button on the top of the page.
 - [![Go reference](https://pkg.go.dev/badge/github.com/rusq/slackdump/v3.svg)][godoc]
+- [Using with AI Agents (MCP Server)][#slackdump-mcp-server]
 - How to's:
 
   - [Mattermost migration][mmost] steps
@@ -38,21 +39,27 @@ Typical use scenarios:
 
 * archive your private conversations from Slack when the administrator
   does not allow you to install applications OR you don't want to use
-  potentially privacy-violating third-party tools,
-* archive channels from Slack when you're on a free "no archive" subscription,
-  so you don't lose valuable knowledge in those channels,
-* create a Slack Export archive without admin access, or
-* save your favourite emojis.
+  potentially privacy-violating third-party tools;
+* archive channels from Slack when you're on a free "no archive" subscription;
+  so you don't lose valuable knowledge in those channels;
+* create a Slack Export archive without admin access;
+* create incremental Slack archives, which is particularly useful for free
+  workspaces with 90-day limits;
+* save your favourite emojis; AND
+* analyse you Slack data with AI Agent using [Slackdump MCP Server][#slackdump-mcp-server].
 
 There are several modes of operation
 
 1. List users/channels
 1. Dumping messages and threads
 1. Creating a Slack Export in Mattermost or Standard modes.
-1. Creating an Archive
+1. Creating an Archive (Sqlite database or stored as json+gz)
 1. Emoji download mode.
-1. Viewing export, dump or archive files or directories (displays images).
+1. Viewing Slack export, dump or archive files or directories (displays images).
 1. Search mode (messages and files).
+1. Resuming previous archive (adding new messages to an existing archive).
+1. Local MCP Server to use with Opencode, Claude, or any other AI tool
+   supporting mcp over STDIO or HTTP.
 
 Run `slackdump help` to see all available options:
 
@@ -160,6 +167,19 @@ export results:
 [Slackdump2Html]: https://github.com/kununu/slackdump2html
 [slack-export-viewer]: https://github.com/hfaran/slack-export-viewer
 
+# Slackdump MCP server
+
+Slackdump offers a read-only MCP server that has the following features:
+- analyse the data in the archive (any type)
+- provide help with command line flags
+
+To learn how to use it and set up, see
+```
+slackdump help mcp
+```
+or refer to [Slackdump MCP command help page][mcp-doc]
+
+[mcp-doc]:  https://github.com/rusq/slackdump/blob/master/cmd/slackdump/internal/mcp/assets/mcp.md
 
 ## Using as a library
 
