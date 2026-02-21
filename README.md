@@ -12,7 +12,7 @@ files and emojis.  Generate Slack Export without admin privileges.
 - [Buy me a cup of tea](https://ko-fi.com/rusq_), or use **GitHub Sponsors**
   button on the top of the page.
 - [![Go reference](https://pkg.go.dev/badge/github.com/rusq/slackdump/v3.svg)][godoc]
-- [Using with AI Agents (MCP Server)][#slackdump-mcp-server]
+- [Using with AI Agents (MCP Server)](#slackdump-mcp-server)
 - How to's:
 
   - [Mattermost migration][mmost] steps
@@ -46,7 +46,7 @@ Typical use scenarios:
 * create incremental Slack archives, which is particularly useful for free
   workspaces with 90-day limits;
 * save your favourite emojis; AND
-* analyse you Slack data with AI Agent using [Slackdump MCP Server][#slackdump-mcp-server].
+* analyse you Slack data with AI Agent using [Slackdump MCP Server](#slackdump-mcp-server).
 
 There are several modes of operation
 
