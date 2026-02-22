@@ -21,10 +21,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 )
 
@@ -141,6 +143,7 @@ func detectLinux(ctx context.Context, exePath string) PackageSystem {
 }
 
 // IsBrewOutdated checks if Homebrew has an outdated version compared to GitHub.
+// Returns true if brewVersion < latestVersion (brew is outdated).
 func IsBrewOutdated(ctx context.Context, latestVersion string) (bool, string, error) {
 	cmd := exec.CommandContext(ctx, "brew", "info", "--json=v2", "slackdump")
 	output, err := cmd.Output()
@@ -159,7 +162,15 @@ func IsBrewOutdated(ctx context.Context, latestVersion string) (bool, string, er
 	latestVersion = strings.TrimPrefix(latestVersion, "v")
 	brewVersion = strings.TrimPrefix(brewVersion, "v")
 
-	return brewVersion != latestVersion, brewVersion, nil
+	// Use semantic version comparison
+	cmp, err := compareVersions(brewVersion, latestVersion)
+	if err != nil {
+		slog.WarnContext(ctx, "Failed to compare versions, falling back to string comparison", "err", err)
+		return brewVersion != latestVersion, brewVersion, nil
+	}
+
+	// Return true if brewVersion < latestVersion (brew is outdated)
+	return cmp < 0, brewVersion, nil
 }
 
 // parseBrewVersion extracts the version from brew info JSON output.
@@ -182,4 +193,53 @@ func parseBrewVersion(jsonOutput string) string {
 	}
 
 	return result.Formulae[0].Versions.Stable
+}
+
+// compareVersions compares two semantic version strings.
+// Returns:
+//
+//	-1 if v1 < v2
+//	 0 if v1 == v2
+//	+1 if v1 > v2
+//
+// Handles versions like "2.9.0" vs "2.10.0" correctly.
+func compareVersions(v1, v2 string) (int, error) {
+	// Split versions into components
+	parts1 := strings.Split(v1, ".")
+	parts2 := strings.Split(v2, ".")
+
+	// Compare each component numerically
+	maxLen := len(parts1)
+	if len(parts2) > maxLen {
+		maxLen = len(parts2)
+	}
+
+	for i := 0; i < maxLen; i++ {
+		// Get component or default to 0
+		var num1, num2 int
+		var err error
+
+		if i < len(parts1) {
+			num1, err = strconv.Atoi(parts1[i])
+			if err != nil {
+				return 0, fmt.Errorf("invalid version component in %s: %v", v1, err)
+			}
+		}
+
+		if i < len(parts2) {
+			num2, err = strconv.Atoi(parts2[i])
+			if err != nil {
+				return 0, fmt.Errorf("invalid version component in %s: %v", v2, err)
+			}
+		}
+
+		if num1 < num2 {
+			return -1, nil
+		}
+		if num1 > num2 {
+			return 1, nil
+		}
+	}
+
+	return 0, nil
 }
