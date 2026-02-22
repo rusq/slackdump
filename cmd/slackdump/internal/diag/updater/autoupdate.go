@@ -201,7 +201,7 @@ func (u Updater) updateBinary(ctx context.Context, latest Release, p *platform.P
 func findAsset(rel *github.Release, osName, arch string) (*github.Asset, error) {
 	// Map Go OS/arch names to asset naming conventions
 	osMap := map[string]string{
-		"darwin":  "Darwin",
+		"darwin":  "macOS",
 		"linux":   "Linux",
 		"windows": "Windows",
 	}
