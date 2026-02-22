@@ -46,11 +46,8 @@ type Release struct {
 }
 
 func (r Release) Equal(other Release) (bool, error) {
-	if strings.EqualFold(r.Version, other.Version) {
-		if r.PublishedAt.Equal(other.PublishedAt) {
-			return true, nil
-		}
-		return false, fmt.Errorf("versions match but published dates differ: %s vs %s", r.PublishedAt, other.PublishedAt)
+	if strings.EqualFold(r.Version, other.Version) && r.PublishedAt.Equal(other.PublishedAt) {
+		return true, nil
 	}
 	return false, nil
 }

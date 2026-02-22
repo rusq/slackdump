@@ -143,6 +143,36 @@ func TestBuildInfo_IsReleased(t *testing.T) {
 			version:  "dev",
 			expected: false,
 		},
+		{
+			name:     "v-prefixed development marker",
+			version:  "vdev",
+			expected: false,
+		},
+		{
+			name:     "v-prefixed alpha marker",
+			version:  "valpha",
+			expected: false,
+		},
+		{
+			name:     "v-prefixed test marker",
+			version:  "vtest",
+			expected: false,
+		},
+		{
+			name:     "just v prefix without version",
+			version:  "v",
+			expected: false,
+		},
+		{
+			name:     "capital V unknown version",
+			version:  "Vunknown",
+			expected: false,
+		},
+		{
+			name:     "capital V valid version",
+			version:  "V2.3.4",
+			expected: true,
+		},
 	}
 
 	for _, tt := range tests {

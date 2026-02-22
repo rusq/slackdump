@@ -74,19 +74,27 @@ func TestParseBrewVersion(t *testing.T) {
 		{
 			name: "valid version",
 			input: `{
-				"version": "2.3.4",
-				"other": "data"
+				"formulae": [{
+					"versions": {
+						"stable": "2.3.4"
+					}
+				}]
 			}`,
 			expect: "2.3.4",
 		},
 		{
-			name:   "no version",
-			input:  `{"other": "data"}`,
+			name:   "no formulae",
+			input:  `{"formulae": []}`,
 			expect: "",
 		},
 		{
 			name:   "empty",
 			input:  "",
+			expect: "",
+		},
+		{
+			name:   "invalid json",
+			input:  `{invalid}`,
 			expect: "",
 		},
 	}

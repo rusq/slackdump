@@ -59,7 +59,7 @@ The update mechanism is platform-aware and uses the appropriate method:
   'brew update && brew upgrade slackdump'. It also checks if Homebrew has
   the latest version and warns if the formula is behind the GitHub release.
 
-- **Arch Linux**: Uses 'apk update && apk upgrade slackdump'
+- **Alpine Linux**: Uses 'apk update && apk upgrade slackdump'
 
 - **Debian/Ubuntu**: Uses 'apt update && apt install --only-upgrade slackdump'
 

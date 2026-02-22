@@ -18,6 +18,7 @@ package platform
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -41,7 +42,7 @@ type PackageSystem int
 const (
 	Unknown PackageSystem = iota
 	Homebrew
-	APK    // Arch Linux
+	APK    // Alpine Linux
 	APT    // Debian/Ubuntu
 	Binary // Direct binary installation (Windows, Linux fallback)
 )
@@ -163,17 +164,22 @@ func IsBrewOutdated(ctx context.Context, latestVersion string) (bool, string, er
 
 // parseBrewVersion extracts the version from brew info JSON output.
 func parseBrewVersion(jsonOutput string) string {
-	// Look for "version": "x.x.x" pattern
-	// This is a simplified parser - in production use encoding/json
-	lines := strings.Split(jsonOutput, "\n")
-	for _, line := range lines {
-		if strings.Contains(line, `"version"`) {
-			// Extract version between quotes after "version":
-			parts := strings.Split(line, `"`)
-			if len(parts) >= 4 {
-				return parts[3]
-			}
-		}
+	// Parse the JSON properly
+	var result struct {
+		Formulae []struct {
+			Versions struct {
+				Stable string `json:"stable"`
+			} `json:"versions"`
+		} `json:"formulae"`
 	}
-	return ""
+
+	if err := json.Unmarshal([]byte(jsonOutput), &result); err != nil {
+		return ""
+	}
+
+	if len(result.Formulae) == 0 {
+		return ""
+	}
+
+	return result.Formulae[0].Versions.Stable
 }

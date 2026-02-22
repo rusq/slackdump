@@ -25,6 +25,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -274,12 +275,8 @@ func replaceBinary(ctx context.Context, zipPath, exePath, osName string) error {
 	}
 
 	for _, f := range r.File {
-		if strings.HasSuffix(f.Name, binaryName) && !strings.Contains(f.Name, "/") {
-			binaryFile = f
-			break
-		}
-		// Also check in subdirectories
-		if strings.HasSuffix(f.Name, "/"+binaryName) {
+		// Check if the base name matches the binary name
+		if filepath.Base(f.Name) == binaryName {
 			binaryFile = f
 			break
 		}
@@ -325,12 +322,16 @@ func replaceBinary(ctx context.Context, zipPath, exePath, osName string) error {
 	// Move the new binary to the executable path
 	if err := os.Rename(tmpBinaryPath, exePath); err != nil {
 		// Try to restore the backup
-		os.Rename(backupPath, exePath)
+		if restoreErr := os.Rename(backupPath, exePath); restoreErr != nil {
+			return fmt.Errorf("failed to replace binary: %w (failed to restore backup: %v)", err, restoreErr)
+		}
 		return fmt.Errorf("failed to replace binary: %w", err)
 	}
 
-	// Remove the backup
-	os.Remove(backupPath)
+	// Remove the backup; log a warning if cleanup fails.
+	if err := os.Remove(backupPath); err != nil {
+		slog.WarnContext(ctx, "Failed to remove backup binary", "path", backupPath, "err", err)
+	}
 
 	slog.InfoContext(ctx, "Binary replaced successfully", "path", exePath)
 	return nil

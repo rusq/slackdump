@@ -1,8 +1,4 @@
-// This file was generated from JSON Schema using quicktype, do not modify it directly.
-// To parse and unparse this JSON data, add this code to your project and do:
-//
-//    untitled1, err := UnmarshalUntitled1(bytes)
-//    bytes, err = untitled1.Marshal()
+// In this file: types for GitHub releases API responses used by the updater diagnostics.
 
 package github
 

@@ -58,7 +58,7 @@ func TestRelease_Equal(t *testing.T) {
 			wantErr:   false,
 		},
 		{
-			name: "same version but different published dates - error",
+			name: "same version but different published dates",
 			r: Release{
 				Version:     "v3.0.0",
 				PublishedAt: baseTime,
@@ -68,7 +68,7 @@ func TestRelease_Equal(t *testing.T) {
 				PublishedAt: differentTime,
 			},
 			wantEqual: false,
-			wantErr:   true,
+			wantErr:   false,
 		},
 		{
 			name: "different versions",

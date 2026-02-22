@@ -123,7 +123,28 @@ func (b BuildInfo) String() string {
 }
 
 func (b BuildInfo) IsReleased() bool {
-	return (strings.HasPrefix(b.Version, "v") || strings.HasPrefix(b.Version, "V")) && b.Version != "unknown"
+	// Check if version starts with 'v' or 'V' and is not "unknown"
+	if b.Version == "unknown" {
+		return false
+	}
+	if !strings.HasPrefix(b.Version, "v") && !strings.HasPrefix(b.Version, "V") {
+		return false
+	}
+	// Validate semantic versioning format: v[0-9]+.[0-9]+.[0-9]+ (with optional suffix)
+	// This ensures we don't accept versions like "vdev", "valpha", "vtest", etc.
+	versionWithoutPrefix := strings.TrimPrefix(strings.TrimPrefix(b.Version, "v"), "V")
+
+	// Check if it starts with a digit (basic validation for semantic versioning)
+	if len(versionWithoutPrefix) == 0 {
+		return false
+	}
+
+	// Check if first character is a digit
+	if versionWithoutPrefix[0] < '0' || versionWithoutPrefix[0] > '9' {
+		return false
+	}
+
+	return true
 }
 
 type FlagMask uint32
