@@ -224,7 +224,8 @@ func findAsset(rel *github.Release, osName, arch string) (*github.Asset, error) 
 	}
 
 	// Look for the asset that matches our platform
-	// Asset names typically follow pattern: slackdump_<version>_<OS>_<arch>.zip
+	// Asset names typically follow pattern: slackdump_<version>_<OS>_<arch>.tar.gz
+	// (or .zip on Windows)
 	for _, asset := range rel.Assets {
 		name := asset.Name
 		// Check if the asset name contains the OS and architecture
