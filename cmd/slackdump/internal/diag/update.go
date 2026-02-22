@@ -13,17 +13,61 @@ import (
 
 // In this file: Auto-update command
 
+var (
+	auto bool
+)
+
 var cmdUpdate = &base.Command{
-	Run:         runUpdate,
-	UsageLine:   "slackdump tools update [flags]",
-	Short:       "Update slackdump to latest version",
-	Long:        "",
+	Run:       runUpdate,
+	UsageLine: "slackdump tools update [flags]",
+	Short:     "Update slackdump to latest version",
+	Long: `
+# Update slackdump
+
+Check for updates and optionally update slackdump to the latest version.
+
+## Usage
+
+Without flags, this command checks if a new version is available:
+
+    slackdump tools update
+
+To automatically update to the latest version, use the -auto flag:
+
+    slackdump tools update -auto
+
+## Supported Update Methods
+
+The update mechanism is platform-aware and uses the appropriate method:
+
+- **macOS with Homebrew**: If slackdump is installed via brew, it uses 
+  'brew update && brew upgrade slackdump'. It also checks if Homebrew has
+  the latest version and warns if the formula is behind the GitHub release.
+
+- **Arch Linux**: Uses 'apk update && apk upgrade slackdump'
+
+- **Debian/Ubuntu**: Uses 'apt update && apt install --only-upgrade slackdump'
+
+- **Windows / Generic Binary**: Downloads the latest binary from GitHub releases
+  and replaces the current executable. A backup of the current binary is created
+  before replacement.
+
+## Notes
+
+- The update command requires internet connectivity
+- For package manager updates (brew, apk, apt), you may need sudo privileges
+- Homebrew formulae may lag behind GitHub releases by a few hours/days
+`,
 	Flag:        flag.FlagSet{},
 	CustomFlags: false,
 	FlagMask:    cfg.OmitAll,
 	PrintFlags:  true,
 	RequireAuth: false,
 	HideWizard:  false,
+}
+
+func init() {
+	cmdUpdate.Flag.BoolVar(&auto, "auto", false, "automatically update to the latest version")
 }
 
 func runUpdate(ctx context.Context, cmd *base.Command, args []string) error {
@@ -44,14 +88,25 @@ func runUpdate(ctx context.Context, cmd *base.Command, args []string) error {
 		return err
 	}
 	slog.DebugContext(ctx, "Latest version available", "version", latest.Version, "published_at", latest.PublishedAt)
-	if eq, err := curr.Equal(latest); err != nil {
+
+	eq, err := curr.Equal(latest)
+	if err != nil {
 		return err
-	} else {
-		if eq {
-			slog.InfoContext(ctx, "You are running the latest version")
-		} else {
-			slog.WarnContext(ctx, "A new version is available", "version", latest.Version)
+	}
+
+	if eq {
+		slog.InfoContext(ctx, "You are running the latest version")
+		return nil
+	}
+
+	slog.WarnContext(ctx, "A new version is available", "version", latest.Version)
+
+	if auto {
+		slog.InfoContext(ctx, "Auto-update enabled, attempting to update...")
+		if err := u.AutoUpdate(ctx, latest); err != nil {
+			return err
 		}
+		slog.InfoContext(ctx, "Update completed successfully", "version", latest.Version)
 	}
 
 	return nil
