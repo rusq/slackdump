@@ -476,7 +476,36 @@ func TestReplaceBinary(t *testing.T) {
 				return
 			}
 
-			// If no error, verify the binary was replaced
+			// Windows-specific verification: Check for batch script and new binary
+			if tt.osName == "windows" {
+				// On Windows, the binary should NOT be replaced immediately
+				// Instead, verify that:
+				// 1. The batch script was created
+				// 2. The new binary exists in temp location (it's referenced by the script)
+				scriptPath := filepath.Join(filepath.Dir(exePath), "slackdump-update.bat")
+				if _, err := os.Stat(scriptPath); os.IsNotExist(err) {
+					t.Errorf("Update script was not created at %s", scriptPath)
+					return
+				}
+
+				// Read and verify the script contains the expected paths
+				scriptContent, err := os.ReadFile(scriptPath)
+				if err != nil {
+					t.Errorf("Failed to read update script: %v", err)
+					return
+				}
+
+				// Verify script references the executable path
+				if !strings.Contains(string(scriptContent), exePath) {
+					t.Errorf("Update script does not reference executable path %s", exePath)
+				}
+
+				// Clean up the script
+				_ = os.Remove(scriptPath)
+				return
+			}
+
+			// Unix-like systems: Verify the binary was replaced immediately
 			newContent, err := os.ReadFile(exePath)
 			if err != nil {
 				t.Errorf("Failed to read replaced binary: %v", err)
@@ -505,7 +534,7 @@ func TestReplaceBinary(t *testing.T) {
 				}
 			}
 
-			// Verify backup was removed
+			// Verify backup was removed (Unix-like systems only)
 			backupPath := exePath + ".bak"
 			if _, err := os.Stat(backupPath); !os.IsNotExist(err) {
 				t.Errorf("Backup file still exists at %s", backupPath)
@@ -681,4 +710,67 @@ func TestReplaceBinaryErrorCases(t *testing.T) {
 			t.Error("Expected error for nonexistent tar.gz file")
 		}
 	})
+}
+
+// TestReplaceOnWindows tests the Windows-specific update mechanism that creates
+// a batch script to replace the binary after the process exits.
+func TestReplaceOnWindows(t *testing.T) {
+	ctx := context.Background()
+	tmpDir := t.TempDir()
+
+	// Create a fake new binary
+	newBinaryPath := filepath.Join(tmpDir, "slackdump-new.exe")
+	if err := os.WriteFile(newBinaryPath, []byte("new binary content"), 0644); err != nil {
+		t.Fatalf("Failed to create new binary: %v", err)
+	}
+
+	// Create a fake current executable path
+	exePath := filepath.Join(tmpDir, "slackdump.exe")
+
+	// Call replaceOnWindows
+	err := replaceOnWindows(ctx, newBinaryPath, exePath)
+	if err != nil {
+		t.Fatalf("replaceOnWindows() failed: %v", err)
+	}
+
+	// Verify the batch script was created
+	scriptPath := filepath.Join(tmpDir, "slackdump-update.bat")
+	if _, err := os.Stat(scriptPath); os.IsNotExist(err) {
+		t.Fatalf("Update script was not created at %s", scriptPath)
+	}
+
+	// Read the script content
+	scriptContent, err := os.ReadFile(scriptPath)
+	if err != nil {
+		t.Fatalf("Failed to read script: %v", err)
+	}
+
+	script := string(scriptContent)
+
+	// Verify the script contains the expected paths
+	if !strings.Contains(script, exePath) {
+		t.Errorf("Script does not contain executable path %s", exePath)
+	}
+	if !strings.Contains(script, newBinaryPath) {
+		t.Errorf("Script does not contain new binary path %s", newBinaryPath)
+	}
+
+	// Verify the script contains expected commands
+	expectedCommands := []string{
+		"@echo off",
+		"timeout /t 2",
+		"move /y",
+		".bak",
+		"del",
+	}
+	for _, cmd := range expectedCommands {
+		if !strings.Contains(script, cmd) {
+			t.Errorf("Script does not contain expected command: %s", cmd)
+		}
+	}
+
+	// Verify the new binary still exists (should not be deleted)
+	if _, err := os.Stat(newBinaryPath); os.IsNotExist(err) {
+		t.Errorf("New binary was deleted prematurely")
+	}
 }

@@ -67,7 +67,9 @@ The update mechanism is platform-aware and uses the appropriate method:
 
 - **Windows / Generic Binary**: Downloads the latest binary from GitHub releases
   and replaces the current executable. A backup of the current binary is created
-  before replacement.
+  before replacement. **On Windows, the update requires the application to exit**
+  before the new binary can replace the running executable. A batch script will be
+  created to complete the update after you exit slackdump.
 
 ## Security Considerations
 

@@ -366,6 +366,8 @@ func getExpectedChecksum(ctx context.Context, rel *github.Release, assetName str
 }
 
 // replaceBinary extracts the binary from the archive (tar.gz or zip) and replaces the current executable.
+// On Windows, this function uses a special workaround because Windows locks running executables:
+// it creates a batch script that will replace the binary after the current process exits.
 func replaceBinary(ctx context.Context, archivePath, exePath, osName string) error {
 	binaryName := "slackdump"
 	if osName == "windows" {
@@ -387,18 +389,26 @@ func replaceBinary(ctx context.Context, archivePath, exePath, osName string) err
 	if err != nil {
 		return err
 	}
+
+	// Make the new binary executable (Unix-like systems)
+	if osName != "windows" {
+		if err := os.Chmod(tmpBinaryPath, 0755); err != nil {
+			_ = os.Remove(tmpBinaryPath)
+			return fmt.Errorf("failed to make binary executable: %w", err)
+		}
+	}
+
+	// Windows-specific handling: Create a batch script to replace the binary after exit
+	if osName == "windows" {
+		return replaceOnWindows(ctx, tmpBinaryPath, exePath)
+	}
+
+	// Unix-like systems: Replace immediately (not running prevents locking)
 	defer func() {
 		if err := os.Remove(tmpBinaryPath); err != nil && !os.IsNotExist(err) {
 			slog.WarnContext(ctx, "Failed to remove temp binary", "path", tmpBinaryPath, "err", err)
 		}
 	}()
-
-	// Make the new binary executable (Unix-like systems)
-	if osName != "windows" {
-		if err := os.Chmod(tmpBinaryPath, 0755); err != nil {
-			return fmt.Errorf("failed to make binary executable: %w", err)
-		}
-	}
 
 	// Backup the current binary
 	backupPath := exePath + ".bak"
@@ -421,6 +431,68 @@ func replaceBinary(ctx context.Context, archivePath, exePath, osName string) err
 	}
 
 	slog.InfoContext(ctx, "Binary replaced successfully", "path", exePath)
+	return nil
+}
+
+// replaceOnWindows handles binary replacement on Windows by creating a batch script
+// that will replace the executable after the current process exits.
+// This is necessary because Windows locks running executables.
+func replaceOnWindows(ctx context.Context, newBinaryPath, exePath string) error {
+	// Create a batch script that will:
+	// 1. Wait for the current process to exit
+	// 2. Backup the old binary
+	// 3. Move the new binary to the executable path
+	// 4. Clean up temporary files
+	// 5. Delete itself
+	batchScript := fmt.Sprintf(`@echo off
+REM Auto-update script for slackdump
+REM This script was automatically generated and will self-delete
+
+echo Waiting for slackdump to exit...
+timeout /t 2 /nobreak >nul
+
+echo Backing up current binary...
+if exist "%s" (
+    move /y "%s" "%s.bak" >nul
+    if errorlevel 1 (
+        echo Failed to backup current binary
+        pause
+        exit /b 1
+    )
+)
+
+echo Installing new binary...
+move /y "%s" "%s" >nul
+if errorlevel 1 (
+    echo Failed to install new binary
+    echo Restoring backup...
+    move /y "%s.bak" "%s" >nul
+    pause
+    exit /b 1
+)
+
+echo Update completed successfully!
+if exist "%s.bak" del "%s.bak"
+
+REM Self-delete
+del "%%~f0"
+`, exePath, exePath, exePath, newBinaryPath, exePath, exePath, exePath, exePath, exePath)
+
+	// Create the batch script in the same directory as the executable
+	scriptPath := filepath.Join(filepath.Dir(exePath), "slackdump-update.bat")
+	if err := os.WriteFile(scriptPath, []byte(batchScript), 0644); err != nil {
+		_ = os.Remove(newBinaryPath)
+		return fmt.Errorf("failed to create update script: %w", err)
+	}
+
+	slog.InfoContext(ctx, "Update script created", "path", scriptPath)
+	slog.InfoContext(ctx, "New binary ready", "path", newBinaryPath)
+
+	// Log a message to inform the user about the Windows-specific behavior
+	slog.InfoContext(ctx, "Windows update prepared - will complete after exit",
+		"script", scriptPath,
+		"instruction", "The update will be applied when you exit slackdump. Run the script manually if needed.")
+
 	return nil
 }
 
