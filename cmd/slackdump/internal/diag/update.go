@@ -20,7 +20,7 @@ var (
 var cmdUpdate = &base.Command{
 	Run:       runUpdate,
 	UsageLine: "slackdump tools update [flags]",
-	Short:     "Update slackdump to latest version",
+	Short:     "Update slackdump to latest version (EXPERIMENTAL)",
 	Long: `
 # Update slackdump
 
