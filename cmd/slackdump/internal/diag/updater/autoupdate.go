@@ -17,7 +17,10 @@ package updater
 
 import (
 	"archive/zip"
+	"bufio"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -37,6 +40,8 @@ var (
 	ErrUpdateFailed        = errors.New("update failed")
 	ErrDownloadFailed      = errors.New("download failed")
 	ErrPlatformNotDetected = errors.New("platform not detected")
+	ErrChecksumMismatch    = errors.New("checksum mismatch")
+	ErrChecksumNotFound    = errors.New("checksum not found")
 )
 
 // AutoUpdate attempts to update slackdump to the latest version.
@@ -163,7 +168,7 @@ func (u Updater) updateBinary(ctx context.Context, latest Release, p *platform.P
 	slog.InfoContext(ctx, "Downloading asset", "name", asset.Name, "size", asset.Size, "url", asset.BrowserDownloadURL)
 
 	// Download the asset
-	downloadPath, err := downloadAsset(ctx, asset)
+	downloadPath, err := downloadAsset(ctx, rel, asset)
 	if err != nil {
 		return err
 	}
@@ -219,8 +224,8 @@ func findAsset(rel *github.Release, osName, arch string) (*github.Asset, error) 
 	return nil, fmt.Errorf("no asset found for platform: %s/%s", osName, arch)
 }
 
-// downloadAsset downloads an asset from GitHub.
-func downloadAsset(ctx context.Context, asset *github.Asset) (string, error) {
+// downloadAsset downloads an asset from GitHub and verifies its SHA256 checksum.
+func downloadAsset(ctx context.Context, rel *github.Release, asset *github.Asset) (string, error) {
 	// Create a temporary file
 	tmpFile, err := os.CreateTemp("", "slackdump-update-*.zip")
 	if err != nil {
@@ -253,12 +258,83 @@ func downloadAsset(ctx context.Context, asset *github.Asset) (string, error) {
 		return "", fmt.Errorf("%w: status code %d", ErrDownloadFailed, resp.StatusCode)
 	}
 
-	// Write to temp file
-	if _, err := io.Copy(tmpFile, resp.Body); err != nil {
+	// Calculate SHA256 hash while writing to temp file
+	hash := sha256.New()
+	multiWriter := io.MultiWriter(tmpFile, hash)
+
+	if _, err := io.Copy(multiWriter, resp.Body); err != nil {
 		return "", fmt.Errorf("failed to write download: %w", err)
 	}
 
+	// Verify checksum if available
+	calculatedHash := hex.EncodeToString(hash.Sum(nil))
+	expectedHash, err := getExpectedChecksum(ctx, rel, asset.Name)
+	if err != nil {
+		// Log warning but don't fail if checksums file is not available
+		slog.WarnContext(ctx, "Could not verify checksum", "err", err, "file", asset.Name)
+	} else {
+		slog.InfoContext(ctx, "Verifying checksum", "file", asset.Name, "expected", expectedHash, "calculated", calculatedHash)
+		if calculatedHash != expectedHash {
+			return "", fmt.Errorf("%w: expected %s, got %s", ErrChecksumMismatch, expectedHash, calculatedHash)
+		}
+		slog.InfoContext(ctx, "Checksum verification passed", "file", asset.Name)
+	}
+
 	return tmpFile.Name(), nil
+}
+
+// getExpectedChecksum downloads and parses the checksums.txt file to find the expected hash for the given asset.
+func getExpectedChecksum(ctx context.Context, rel *github.Release, assetName string) (string, error) {
+	// Find the checksums.txt asset
+	var checksumAsset *github.Asset
+	for _, asset := range rel.Assets {
+		if asset.Name == "checksums.txt" {
+			checksumAsset = &asset
+			break
+		}
+	}
+
+	if checksumAsset == nil {
+		return "", fmt.Errorf("%w: checksums.txt not found in release", ErrChecksumNotFound)
+	}
+
+	// Download checksums.txt
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, checksumAsset.BrowserDownloadURL, nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to create request for checksums: %w", err)
+	}
+
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("failed to download checksums: %w", err)
+	}
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			slog.WarnContext(ctx, "Failed to close checksums response body", "err", err)
+		}
+	}()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("failed to download checksums: status code %d", resp.StatusCode)
+	}
+
+	// Parse checksums.txt to find the hash for our asset
+	scanner := bufio.NewScanner(resp.Body)
+	for scanner.Scan() {
+		line := scanner.Text()
+		// Format: <hash> <filename>
+		parts := strings.Fields(line)
+		if len(parts) >= 2 && parts[1] == assetName {
+			return parts[0], nil
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return "", fmt.Errorf("error reading checksums: %w", err)
+	}
+
+	return "", fmt.Errorf("%w: no checksum found for %s", ErrChecksumNotFound, assetName)
 }
 
 // replaceBinary extracts the binary from the zip and replaces the current executable.
