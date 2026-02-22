@@ -85,6 +85,23 @@ When using -auto with package managers:
 - For package manager updates (brew, pacman, apt), you may need sudo privileges
 - Homebrew formulae may lag behind GitHub releases by a few hours/days
 - The -auto flag is EXPERIMENTAL and should be used with caution
+
+## GitHub API Rate Limits
+
+The update check uses the GitHub API, which has rate limits:
+- **Anonymous requests**: 60 requests/hour per IP address
+- **Authenticated requests**: 5,000 requests/hour per user
+
+To use authenticated requests and increase the rate limit, set the GITHUB_TOKEN
+environment variable with a GitHub Personal Access Token (PAT):
+
+    export GITHUB_TOKEN="ghp_your_token_here"
+    slackdump tools update
+
+The token does not require any specific permissions/scopes for checking public
+releases. You can create a token at: https://github.com/settings/tokens
+
+Rate limit information is logged at debug level. Use SLACKDUMP_DEBUG=1 to see it.
 `,
 	Flag:        flag.FlagSet{},
 	CustomFlags: false,

@@ -53,11 +53,7 @@ func (r Release) Equal(other Release) bool {
 
 func NewUpdater() Updater {
 	return Updater{
-		cl: &github.Client{
-			Owner:      "rusq",
-			Repo:       "slackdump",
-			Prerelease: false,
-		},
+		cl: github.NewClient("rusq", "slackdump", false),
 	}
 }
 
