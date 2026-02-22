@@ -22,6 +22,7 @@ import (
 	"log/slog"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/pterm/pterm"
@@ -119,6 +120,10 @@ type BuildInfo struct {
 
 func (b BuildInfo) String() string {
 	return fmt.Sprintf("Slackdump %s (commit: %s) built on: %s", b.Version, b.Commit, b.Date)
+}
+
+func (b BuildInfo) IsReleased() bool {
+	return (strings.HasPrefix(b.Version, "v") || strings.HasPrefix(b.Version, "V")) && b.Version != "unknown"
 }
 
 type FlagMask uint32
