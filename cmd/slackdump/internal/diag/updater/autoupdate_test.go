@@ -36,8 +36,8 @@ import (
 func TestFindAsset(t *testing.T) {
 	release := &github.Release{
 		Assets: []github.Asset{
-			{Name: "slackdump_v2.3.4_Darwin_x86_64.zip", BrowserDownloadURL: "https://example.com/darwin-amd64.zip"},
-			{Name: "slackdump_v2.3.4_Darwin_arm64.zip", BrowserDownloadURL: "https://example.com/darwin-arm64.zip"},
+			{Name: "slackdump_v2.3.4_macOS_x86_64.zip", BrowserDownloadURL: "https://example.com/darwin-amd64.zip"},
+			{Name: "slackdump_v2.3.4_macOS_arm64.zip", BrowserDownloadURL: "https://example.com/darwin-arm64.zip"},
 			{Name: "slackdump_v2.3.4_Linux_x86_64.zip", BrowserDownloadURL: "https://example.com/linux-amd64.zip"},
 			{Name: "slackdump_v2.3.4_Linux_arm64.zip", BrowserDownloadURL: "https://example.com/linux-arm64.zip"},
 			{Name: "slackdump_v2.3.4_Windows_x86_64.zip", BrowserDownloadURL: "https://example.com/windows-amd64.zip"},
