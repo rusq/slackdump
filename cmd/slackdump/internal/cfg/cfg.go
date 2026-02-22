@@ -22,6 +22,7 @@ import (
 	"log/slog"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/pterm/pterm"
@@ -119,6 +120,31 @@ type BuildInfo struct {
 
 func (b BuildInfo) String() string {
 	return fmt.Sprintf("Slackdump %s (commit: %s) built on: %s", b.Version, b.Commit, b.Date)
+}
+
+func (b BuildInfo) IsReleased() bool {
+	// Check if version starts with 'v' or 'V' and is not "unknown"
+	if b.Version == "unknown" {
+		return false
+	}
+	if !strings.HasPrefix(b.Version, "v") && !strings.HasPrefix(b.Version, "V") {
+		return false
+	}
+	// Validate semantic versioning format: v[0-9]+.[0-9]+.[0-9]+ (with optional suffix)
+	// This ensures we don't accept versions like "vdev", "valpha", "vtest", etc.
+	versionWithoutPrefix := strings.TrimPrefix(strings.TrimPrefix(b.Version, "v"), "V")
+
+	// Check if it starts with a digit (basic validation for semantic versioning)
+	if len(versionWithoutPrefix) == 0 {
+		return false
+	}
+
+	// Check if first character is a digit
+	if versionWithoutPrefix[0] < '0' || versionWithoutPrefix[0] > '9' {
+		return false
+	}
+
+	return true
 }
 
 type FlagMask uint32

@@ -106,3 +106,83 @@ func TestSetBaseFlags(t *testing.T) {
 		assert.Equal(t, LocalCacheDir, CacheDir())
 	})
 }
+
+func TestBuildInfo_IsReleased(t *testing.T) {
+	tests := []struct {
+		name     string
+		version  string
+		expected bool
+	}{
+		{
+			name:     "valid release version",
+			version:  "v3.2.1",
+			expected: true,
+		},
+		{
+			name:     "another valid release version",
+			version:  "v1.0.0",
+			expected: true,
+		},
+		{
+			name:     "empty version",
+			version:  "",
+			expected: false,
+		},
+		{
+			name:     "unknown version",
+			version:  "unknown",
+			expected: false,
+		},
+		{
+			name:     "version without v. prefix",
+			version:  "3.2.1",
+			expected: false,
+		},
+		{
+			name:     "development version",
+			version:  "dev",
+			expected: false,
+		},
+		{
+			name:     "v-prefixed development marker",
+			version:  "vdev",
+			expected: false,
+		},
+		{
+			name:     "v-prefixed alpha marker",
+			version:  "valpha",
+			expected: false,
+		},
+		{
+			name:     "v-prefixed test marker",
+			version:  "vtest",
+			expected: false,
+		},
+		{
+			name:     "just v prefix without version",
+			version:  "v",
+			expected: false,
+		},
+		{
+			name:     "capital V unknown version",
+			version:  "Vunknown",
+			expected: false,
+		},
+		{
+			name:     "capital V valid version",
+			version:  "V2.3.4",
+			expected: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bi := BuildInfo{
+				Version: tt.version,
+				Commit:  "abc123",
+				Date:    "2024-01-01",
+			}
+			assert.Equal(t, tt.expected, bi.IsReleased())
+		})
+	}
+}
