@@ -16,7 +16,9 @@
 package updater
 
 import (
+	"archive/tar"
 	"archive/zip"
+	"compress/gzip"
 	"context"
 	"io"
 	"log/slog"
@@ -335,51 +337,78 @@ func TestReplaceBinary(t *testing.T) {
 	tests := []struct {
 		name           string
 		osName         string
-		zipContents    map[string]string // filename -> content
+		archiveType    string            // "zip" or "tar.gz"
+		archiveContent map[string]string // filename -> content
 		wantErr        bool
 		errContains    string
-		expectBinaryIn string // expected binary name in zip
+		expectBinaryIn string // expected binary name in archive
 	}{
 		{
-			name:   "successful replacement - linux",
-			osName: "linux",
-			zipContents: map[string]string{
+			name:        "successful replacement - linux tar.gz",
+			osName:      "linux",
+			archiveType: "tar.gz",
+			archiveContent: map[string]string{
 				"slackdump": "fake binary content",
 			},
 			wantErr:        false,
 			expectBinaryIn: "slackdump",
 		},
 		{
-			name:   "successful replacement - darwin",
-			osName: "darwin",
-			zipContents: map[string]string{
+			name:        "successful replacement - darwin tar.gz",
+			osName:      "darwin",
+			archiveType: "tar.gz",
+			archiveContent: map[string]string{
 				"slackdump": "fake binary content for mac",
 			},
 			wantErr:        false,
 			expectBinaryIn: "slackdump",
 		},
 		{
-			name:   "successful replacement - windows",
-			osName: "windows",
-			zipContents: map[string]string{
+			name:        "successful replacement - windows zip",
+			osName:      "windows",
+			archiveType: "zip",
+			archiveContent: map[string]string{
 				"slackdump.exe": "fake binary content for windows",
 			},
 			wantErr:        false,
 			expectBinaryIn: "slackdump.exe",
 		},
 		{
-			name:   "binary in subdirectory - should find by basename",
-			osName: "linux",
-			zipContents: map[string]string{
+			name:        "binary in subdirectory - tar.gz",
+			osName:      "linux",
+			archiveType: "tar.gz",
+			archiveContent: map[string]string{
 				"dist/slackdump": "fake binary in subdirectory",
 			},
 			wantErr:        false,
 			expectBinaryIn: "dist/slackdump",
 		},
 		{
-			name:   "binary not found in zip",
-			osName: "linux",
-			zipContents: map[string]string{
+			name:        "binary in subdirectory - zip",
+			osName:      "windows",
+			archiveType: "zip",
+			archiveContent: map[string]string{
+				"dist/slackdump.exe": "fake windows binary in subdirectory",
+			},
+			wantErr:        false,
+			expectBinaryIn: "dist/slackdump.exe",
+		},
+		{
+			name:        "binary not found in tar.gz",
+			osName:      "linux",
+			archiveType: "tar.gz",
+			archiveContent: map[string]string{
+				"README.md": "some readme",
+				"other.txt": "other file",
+			},
+			wantErr:     true,
+			errContains: "binary not found in tar.gz archive",
+		},
+		{
+			name:        "binary not found in zip",
+			osName:      "windows",
+			archiveType: "zip",
+			archiveContent: map[string]string{
 				"README.md": "some readme",
 				"other.txt": "other file",
 			},
@@ -387,11 +416,20 @@ func TestReplaceBinary(t *testing.T) {
 			errContains: "binary not found in zip archive",
 		},
 		{
-			name:        "empty zip",
-			osName:      "linux",
-			zipContents: map[string]string{},
-			wantErr:     true,
-			errContains: "binary not found in zip archive",
+			name:           "empty tar.gz",
+			osName:         "linux",
+			archiveType:    "tar.gz",
+			archiveContent: map[string]string{},
+			wantErr:        true,
+			errContains:    "binary not found in tar.gz archive",
+		},
+		{
+			name:           "empty zip",
+			osName:         "windows",
+			archiveType:    "zip",
+			archiveContent: map[string]string{},
+			wantErr:        true,
+			errContains:    "binary not found in zip archive",
 		},
 	}
 
@@ -402,10 +440,18 @@ func TestReplaceBinary(t *testing.T) {
 			// Create a temporary directory for test files
 			tmpDir := t.TempDir()
 
-			// Create a test zip file
-			zipPath := filepath.Join(tmpDir, "test.zip")
-			if err := createTestZip(zipPath, tt.zipContents); err != nil {
-				t.Fatalf("Failed to create test zip: %v", err)
+			// Create a test archive file
+			var archivePath string
+			var err error
+			if tt.archiveType == "tar.gz" {
+				archivePath = filepath.Join(tmpDir, "test.tar.gz")
+				err = createTestTarGz(archivePath, tt.archiveContent)
+			} else {
+				archivePath = filepath.Join(tmpDir, "test.zip")
+				err = createTestZip(archivePath, tt.archiveContent)
+			}
+			if err != nil {
+				t.Fatalf("Failed to create test archive: %v", err)
 			}
 
 			// Create a fake existing executable
@@ -415,7 +461,7 @@ func TestReplaceBinary(t *testing.T) {
 			}
 
 			// Run replaceBinary
-			err := replaceBinary(ctx, zipPath, exePath, tt.osName)
+			err = replaceBinary(ctx, archivePath, exePath, tt.osName)
 
 			// Check error expectations
 			if (err != nil) != tt.wantErr {
@@ -437,7 +483,7 @@ func TestReplaceBinary(t *testing.T) {
 				return
 			}
 
-			expectedContent := tt.zipContents[tt.expectBinaryIn]
+			expectedContent := tt.archiveContent[tt.expectBinaryIn]
 			if string(newContent) != expectedContent {
 				t.Errorf("Binary content mismatch: got %q, want %q", string(newContent), expectedContent)
 			}
@@ -500,6 +546,51 @@ func createTestZip(zipPath string, contents map[string]string) error {
 	return nil
 }
 
+// createTestTarGz creates a tar.gz file with the given contents for testing.
+func createTestTarGz(tarGzPath string, contents map[string]string) error {
+	f, err := os.Create(tarGzPath)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if cerr := f.Close(); cerr != nil {
+			slog.Warn("failed to close file", "path", tarGzPath, "error", cerr)
+		}
+	}()
+
+	// Create gzip writer
+	gzw := gzip.NewWriter(f)
+	defer func() {
+		if cerr := gzw.Close(); cerr != nil {
+			slog.Warn("failed to close gzip writer", "path", tarGzPath, "error", cerr)
+		}
+	}()
+
+	// Create tar writer
+	tw := tar.NewWriter(gzw)
+	defer func() {
+		if cerr := tw.Close(); cerr != nil {
+			slog.Warn("failed to close tar writer", "path", tarGzPath, "error", cerr)
+		}
+	}()
+
+	for name, content := range contents {
+		hdr := &tar.Header{
+			Name: name,
+			Mode: 0755,
+			Size: int64(len(content)),
+		}
+		if err := tw.WriteHeader(hdr); err != nil {
+			return err
+		}
+		if _, err := tw.Write([]byte(content)); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func TestReplaceBinaryErrorCases(t *testing.T) {
 	ctx := context.Background()
 	tmpDir := t.TempDir()
@@ -516,12 +607,54 @@ func TestReplaceBinaryErrorCases(t *testing.T) {
 			t.Fatalf("Failed to create exe: %v", err)
 		}
 
-		err := replaceBinary(ctx, invalidZip, exePath, "linux")
+		err := replaceBinary(ctx, invalidZip, exePath, "windows")
 		if err == nil {
 			t.Error("Expected error for invalid zip file")
 		}
 		if !strings.Contains(err.Error(), "failed to open zip") {
 			t.Errorf("Expected 'failed to open zip' error, got: %v", err)
+		}
+	})
+
+	t.Run("invalid tar.gz file", func(t *testing.T) {
+		// Create an invalid tar.gz file
+		invalidTarGz := filepath.Join(tmpDir, "invalid.tar.gz")
+		if err := os.WriteFile(invalidTarGz, []byte("not a tar.gz file"), 0644); err != nil {
+			t.Fatalf("Failed to create invalid tar.gz: %v", err)
+		}
+
+		exePath := filepath.Join(tmpDir, "fake-exe-tgz")
+		if err := os.WriteFile(exePath, []byte("old"), 0755); err != nil {
+			t.Fatalf("Failed to create exe: %v", err)
+		}
+
+		err := replaceBinary(ctx, invalidTarGz, exePath, "linux")
+		if err == nil {
+			t.Error("Expected error for invalid tar.gz file")
+		}
+		if !strings.Contains(err.Error(), "failed to create gzip reader") {
+			t.Errorf("Expected 'failed to create gzip reader' error, got: %v", err)
+		}
+	})
+
+	t.Run("unsupported archive format", func(t *testing.T) {
+		// Create a file with unsupported extension
+		unsupportedFile := filepath.Join(tmpDir, "archive.rar")
+		if err := os.WriteFile(unsupportedFile, []byte("some content"), 0644); err != nil {
+			t.Fatalf("Failed to create unsupported file: %v", err)
+		}
+
+		exePath := filepath.Join(tmpDir, "fake-exe-rar")
+		if err := os.WriteFile(exePath, []byte("old"), 0755); err != nil {
+			t.Fatalf("Failed to create exe: %v", err)
+		}
+
+		err := replaceBinary(ctx, unsupportedFile, exePath, "linux")
+		if err == nil {
+			t.Error("Expected error for unsupported archive format")
+		}
+		if !strings.Contains(err.Error(), "unsupported archive format") {
+			t.Errorf("Expected 'unsupported archive format' error, got: %v", err)
 		}
 	})
 
@@ -531,9 +664,21 @@ func TestReplaceBinaryErrorCases(t *testing.T) {
 			t.Fatalf("Failed to create exe: %v", err)
 		}
 
-		err := replaceBinary(ctx, "/nonexistent/file.zip", exePath, "linux")
+		err := replaceBinary(ctx, "/nonexistent/file.zip", exePath, "windows")
 		if err == nil {
 			t.Error("Expected error for nonexistent zip file")
+		}
+	})
+
+	t.Run("nonexistent tar.gz file", func(t *testing.T) {
+		exePath := filepath.Join(tmpDir, "fake-exe3")
+		if err := os.WriteFile(exePath, []byte("old"), 0755); err != nil {
+			t.Fatalf("Failed to create exe: %v", err)
+		}
+
+		err := replaceBinary(ctx, "/nonexistent/file.tar.gz", exePath, "linux")
+		if err == nil {
+			t.Error("Expected error for nonexistent tar.gz file")
 		}
 	})
 }

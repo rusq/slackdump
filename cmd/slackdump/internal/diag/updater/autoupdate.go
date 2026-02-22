@@ -16,8 +16,10 @@
 package updater
 
 import (
+	"archive/tar"
 	"archive/zip"
 	"bufio"
+	"compress/gzip"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -236,8 +238,14 @@ func findAsset(rel *github.Release, osName, arch string) (*github.Asset, error) 
 
 // downloadAsset downloads an asset from GitHub and verifies its SHA256 checksum.
 func downloadAsset(ctx context.Context, rel *github.Release, asset *github.Asset) (string, error) {
-	// Create a temporary file
-	tmpFile, err := os.CreateTemp("", "slackdump-update-*.zip")
+	// Determine file extension from asset name
+	ext := filepath.Ext(asset.Name)
+	if ext == ".gz" && strings.HasSuffix(asset.Name, ".tar.gz") {
+		ext = ".tar.gz"
+	}
+
+	// Create a temporary file with appropriate extension
+	tmpFile, err := os.CreateTemp("", "slackdump-update-*"+ext)
 	if err != nil {
 		return "", fmt.Errorf("failed to create temp file: %w", err)
 	}
@@ -357,69 +365,33 @@ func getExpectedChecksum(ctx context.Context, rel *github.Release, assetName str
 	return "", fmt.Errorf("%w: no checksum found for %s", ErrChecksumNotFound, assetName)
 }
 
-// replaceBinary extracts the binary from the zip and replaces the current executable.
-func replaceBinary(ctx context.Context, zipPath, exePath, osName string) error {
-	// Open the zip file
-	r, err := zip.OpenReader(zipPath)
-	if err != nil {
-		return fmt.Errorf("failed to open zip: %w", err)
-	}
-	defer func() {
-		if err := r.Close(); err != nil {
-			slog.WarnContext(ctx, "Failed to close zip file", "path", zipPath, "err", err)
-		}
-	}()
-
-	// Find the slackdump binary in the zip
-	var binaryFile *zip.File
+// replaceBinary extracts the binary from the archive (tar.gz or zip) and replaces the current executable.
+func replaceBinary(ctx context.Context, archivePath, exePath, osName string) error {
 	binaryName := "slackdump"
 	if osName == "windows" {
 		binaryName = "slackdump.exe"
 	}
 
-	for _, f := range r.File {
-		// Check if the base name matches the binary name
-		if filepath.Base(f.Name) == binaryName {
-			binaryFile = f
-			break
-		}
+	// Determine archive format from file extension
+	var tmpBinaryPath string
+	var err error
+
+	if strings.HasSuffix(archivePath, ".tar.gz") {
+		tmpBinaryPath, err = extractFromTarGz(ctx, archivePath, binaryName)
+	} else if strings.HasSuffix(archivePath, ".zip") {
+		tmpBinaryPath, err = extractFromZip(ctx, archivePath, binaryName)
+	} else {
+		return fmt.Errorf("unsupported archive format: %s (expected .tar.gz or .zip)", archivePath)
 	}
 
-	if binaryFile == nil {
-		return fmt.Errorf("binary not found in zip archive")
-	}
-
-	// Extract the binary to a temporary location
-	tmpBinary, err := os.CreateTemp("", "slackdump-new-*")
 	if err != nil {
-		return fmt.Errorf("failed to create temp binary: %w", err)
+		return err
 	}
-	tmpBinaryPath := tmpBinary.Name()
 	defer func() {
 		if err := os.Remove(tmpBinaryPath); err != nil && !os.IsNotExist(err) {
 			slog.WarnContext(ctx, "Failed to remove temp binary", "path", tmpBinaryPath, "err", err)
 		}
 	}()
-
-	rc, err := binaryFile.Open()
-	if err != nil {
-		return fmt.Errorf("failed to open binary from zip: %w", err)
-	}
-	defer func() {
-		if err := rc.Close(); err != nil {
-			slog.WarnContext(ctx, "Failed to close binary file from zip", "err", err)
-		}
-	}()
-
-	if _, err := io.Copy(tmpBinary, rc); err != nil {
-		if closeErr := tmpBinary.Close(); closeErr != nil {
-			slog.WarnContext(ctx, "Failed to close temp binary after copy error", "err", closeErr)
-		}
-		return fmt.Errorf("failed to extract binary: %w", err)
-	}
-	if err := tmpBinary.Close(); err != nil {
-		return fmt.Errorf("failed to close temp binary: %w", err)
-	}
 
 	// Make the new binary executable (Unix-like systems)
 	if osName != "windows" {
@@ -450,4 +422,122 @@ func replaceBinary(ctx context.Context, zipPath, exePath, osName string) error {
 
 	slog.InfoContext(ctx, "Binary replaced successfully", "path", exePath)
 	return nil
+}
+
+// extractFromTarGz extracts a binary from a tar.gz archive and returns the path to the extracted file.
+func extractFromTarGz(ctx context.Context, archivePath, binaryName string) (string, error) {
+	// Open the tar.gz file
+	f, err := os.Open(archivePath)
+	if err != nil {
+		return "", fmt.Errorf("failed to open archive: %w", err)
+	}
+	defer func() {
+		if err := f.Close(); err != nil {
+			slog.WarnContext(ctx, "Failed to close archive file", "path", archivePath, "err", err)
+		}
+	}()
+
+	// Create gzip reader
+	gzr, err := gzip.NewReader(f)
+	if err != nil {
+		return "", fmt.Errorf("failed to create gzip reader: %w", err)
+	}
+	defer func() {
+		if err := gzr.Close(); err != nil {
+			slog.WarnContext(ctx, "Failed to close gzip reader", "err", err)
+		}
+	}()
+
+	// Create tar reader
+	tr := tar.NewReader(gzr)
+
+	// Find the binary in the tar archive
+	for {
+		header, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return "", fmt.Errorf("failed to read tar entry: %w", err)
+		}
+
+		// Check if this is the binary we're looking for
+		if filepath.Base(header.Name) == binaryName && header.Typeflag == tar.TypeReg {
+			// Extract to temporary file
+			tmpFile, err := os.CreateTemp("", "slackdump-new-*")
+			if err != nil {
+				return "", fmt.Errorf("failed to create temp file: %w", err)
+			}
+			tmpPath := tmpFile.Name()
+
+			if _, err := io.Copy(tmpFile, tr); err != nil {
+				_ = tmpFile.Close()
+				_ = os.Remove(tmpPath)
+				return "", fmt.Errorf("failed to extract binary: %w", err)
+			}
+
+			if err := tmpFile.Close(); err != nil {
+				_ = os.Remove(tmpPath)
+				return "", fmt.Errorf("failed to close temp file: %w", err)
+			}
+
+			return tmpPath, nil
+		}
+	}
+
+	return "", fmt.Errorf("binary not found in tar.gz archive: %s", binaryName)
+}
+
+// extractFromZip extracts a binary from a zip archive and returns the path to the extracted file.
+func extractFromZip(ctx context.Context, archivePath, binaryName string) (string, error) {
+	// Open the zip file
+	r, err := zip.OpenReader(archivePath)
+	if err != nil {
+		return "", fmt.Errorf("failed to open zip: %w", err)
+	}
+	defer func() {
+		if err := r.Close(); err != nil {
+			slog.WarnContext(ctx, "Failed to close zip file", "path", archivePath, "err", err)
+		}
+	}()
+
+	// Find the slackdump binary in the zip
+	for _, f := range r.File {
+		// Check if the base name matches the binary name
+		if filepath.Base(f.Name) == binaryName {
+			// Extract to temporary file
+			tmpFile, err := os.CreateTemp("", "slackdump-new-*")
+			if err != nil {
+				return "", fmt.Errorf("failed to create temp file: %w", err)
+			}
+			tmpPath := tmpFile.Name()
+
+			rc, err := f.Open()
+			if err != nil {
+				_ = tmpFile.Close()
+				_ = os.Remove(tmpPath)
+				return "", fmt.Errorf("failed to open file in zip: %w", err)
+			}
+
+			_, copyErr := io.Copy(tmpFile, rc)
+			closeErr1 := rc.Close()
+			closeErr2 := tmpFile.Close()
+
+			if copyErr != nil {
+				_ = os.Remove(tmpPath)
+				return "", fmt.Errorf("failed to extract binary: %w", copyErr)
+			}
+			if closeErr1 != nil {
+				slog.WarnContext(ctx, "Failed to close zip entry", "err", closeErr1)
+			}
+			if closeErr2 != nil {
+				_ = os.Remove(tmpPath)
+				return "", fmt.Errorf("failed to close temp file: %w", closeErr2)
+			}
+
+			return tmpPath, nil
+		}
+	}
+
+	return "", fmt.Errorf("binary not found in zip archive: %s", binaryName)
 }
