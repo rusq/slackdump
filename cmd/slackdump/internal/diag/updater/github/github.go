@@ -64,7 +64,11 @@ func (cl Client) Latest(ctx context.Context) (*Release, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			slog.WarnContext(ctx, "Failed to close response body", "err", err)
+		}
+	}()
 
 	r, err := cl.parseRelease(resp)
 	if err != nil {
@@ -96,7 +100,11 @@ func (cl Client) ByTag(ctx context.Context, tag string) (*Release, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			slog.WarnContext(ctx, "Failed to close response body", "err", err)
+		}
+	}()
 
 	r, err := cl.parseRelease(resp)
 	if err != nil {

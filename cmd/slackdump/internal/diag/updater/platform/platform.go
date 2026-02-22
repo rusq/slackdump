@@ -42,7 +42,7 @@ type PackageSystem int
 const (
 	Unknown PackageSystem = iota
 	Homebrew
-	APK    // Alpine Linux
+	Pacman // Arch Linux
 	APT    // Debian/Ubuntu
 	Binary // Direct binary installation (Windows, Linux fallback)
 )
@@ -51,8 +51,8 @@ func (p PackageSystem) String() string {
 	switch p {
 	case Homebrew:
 		return "homebrew"
-	case APK:
-		return "apk"
+	case Pacman:
+		return "pacman"
 	case APT:
 		return "apt"
 	case Binary:
@@ -118,12 +118,12 @@ func detectMacOS(ctx context.Context, exePath string) PackageSystem {
 
 // detectLinux detects the package manager on Linux.
 func detectLinux(ctx context.Context, exePath string) PackageSystem {
-	// Check for APK (Arch Linux)
-	if _, err := exec.LookPath("apk"); err == nil {
-		// Check if slackdump is installed via apk
-		cmd := exec.CommandContext(ctx, "apk", "info", "slackdump")
+	// Check for Pacman (Arch Linux)
+	if _, err := exec.LookPath("pacman"); err == nil {
+		// Check if slackdump is installed via pacman
+		cmd := exec.CommandContext(ctx, "pacman", "-Q", "slackdump")
 		if err := cmd.Run(); err == nil {
-			return APK
+			return Pacman
 		}
 	}
 

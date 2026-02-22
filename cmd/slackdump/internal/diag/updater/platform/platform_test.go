@@ -52,7 +52,7 @@ func TestPackageSystem_String(t *testing.T) {
 	}{
 		{"Unknown", Unknown, "unknown"},
 		{"Homebrew", Homebrew, "homebrew"},
-		{"APK", APK, "apk"},
+		{"Pacman", Pacman, "pacman"},
 		{"APT", APT, "apt"},
 		{"Binary", Binary, "binary"},
 	}

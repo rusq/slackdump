@@ -52,8 +52,8 @@ func (u Updater) AutoUpdate(ctx context.Context, latest Release) error {
 	switch p.PackageSystem {
 	case platform.Homebrew:
 		return u.updateHomebrew(ctx, latest)
-	case platform.APK:
-		return u.updateAPK(ctx, latest)
+	case platform.Pacman:
+		return u.updatePacman(ctx, latest)
 	case platform.APT:
 		return u.updateAPT(ctx, latest)
 	case platform.Binary:
@@ -103,26 +103,17 @@ func (u Updater) updateHomebrew(ctx context.Context, latest Release) error {
 	return nil
 }
 
-// updateAPK updates slackdump using APK (Alpine/Arch Linux package manager).
-func (u Updater) updateAPK(ctx context.Context, latest Release) error {
-	slog.InfoContext(ctx, "Updating via APK...")
+// updatePacman updates slackdump using Pacman (Arch Linux package manager).
+func (u Updater) updatePacman(ctx context.Context, latest Release) error {
+	slog.InfoContext(ctx, "Updating via Pacman...")
 
-	// Update package index
-	slog.InfoContext(ctx, "Updating APK index...")
-	cmd := exec.CommandContext(ctx, "sudo", "apk", "update")
+	// Update package database and upgrade slackdump in one command
+	slog.InfoContext(ctx, "Syncing package database and upgrading slackdump...")
+	cmd := exec.CommandContext(ctx, "sudo", "pacman", "-Sy", "--noconfirm", "slackdump")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("failed to update apk index: %w", err)
-	}
-
-	// Upgrade slackdump
-	slog.InfoContext(ctx, "Upgrading slackdump...")
-	cmd = exec.CommandContext(ctx, "sudo", "apk", "upgrade", "slackdump")
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("%w: apk upgrade failed: %v", ErrUpdateFailed, err)
+		return fmt.Errorf("%w: pacman upgrade failed: %v", ErrUpdateFailed, err)
 	}
 
 	return nil
@@ -176,7 +167,11 @@ func (u Updater) updateBinary(ctx context.Context, latest Release, p *platform.P
 	if err != nil {
 		return err
 	}
-	defer os.Remove(downloadPath)
+	defer func() {
+		if err := os.Remove(downloadPath); err != nil {
+			slog.WarnContext(ctx, "Failed to remove download file", "path", downloadPath, "err", err)
+		}
+	}()
 
 	// Extract and replace the binary
 	if err := replaceBinary(ctx, downloadPath, p.ExePath, p.OS); err != nil {
@@ -231,7 +226,11 @@ func downloadAsset(ctx context.Context, asset *github.Asset) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to create temp file: %w", err)
 	}
-	defer tmpFile.Close()
+	defer func() {
+		if err := tmpFile.Close(); err != nil {
+			slog.WarnContext(ctx, "Failed to close temp file", "path", tmpFile.Name(), "err", err)
+		}
+	}()
 
 	// Download the asset
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, asset.BrowserDownloadURL, nil)
@@ -244,7 +243,11 @@ func downloadAsset(ctx context.Context, asset *github.Asset) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("%w: %v", ErrDownloadFailed, err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			slog.WarnContext(ctx, "Failed to close response body", "err", err)
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("%w: status code %d", ErrDownloadFailed, resp.StatusCode)
@@ -265,7 +268,11 @@ func replaceBinary(ctx context.Context, zipPath, exePath, osName string) error {
 	if err != nil {
 		return fmt.Errorf("failed to open zip: %w", err)
 	}
-	defer r.Close()
+	defer func() {
+		if err := r.Close(); err != nil {
+			slog.WarnContext(ctx, "Failed to close zip file", "path", zipPath, "err", err)
+		}
+	}()
 
 	// Find the slackdump binary in the zip
 	var binaryFile *zip.File
@@ -292,19 +299,31 @@ func replaceBinary(ctx context.Context, zipPath, exePath, osName string) error {
 		return fmt.Errorf("failed to create temp binary: %w", err)
 	}
 	tmpBinaryPath := tmpBinary.Name()
-	defer os.Remove(tmpBinaryPath)
+	defer func() {
+		if err := os.Remove(tmpBinaryPath); err != nil && !os.IsNotExist(err) {
+			slog.WarnContext(ctx, "Failed to remove temp binary", "path", tmpBinaryPath, "err", err)
+		}
+	}()
 
 	rc, err := binaryFile.Open()
 	if err != nil {
 		return fmt.Errorf("failed to open binary from zip: %w", err)
 	}
-	defer rc.Close()
+	defer func() {
+		if err := rc.Close(); err != nil {
+			slog.WarnContext(ctx, "Failed to close binary file from zip", "err", err)
+		}
+	}()
 
 	if _, err := io.Copy(tmpBinary, rc); err != nil {
-		tmpBinary.Close()
+		if closeErr := tmpBinary.Close(); closeErr != nil {
+			slog.WarnContext(ctx, "Failed to close temp binary after copy error", "err", closeErr)
+		}
 		return fmt.Errorf("failed to extract binary: %w", err)
 	}
-	tmpBinary.Close()
+	if err := tmpBinary.Close(); err != nil {
+		return fmt.Errorf("failed to close temp binary: %w", err)
+	}
 
 	// Make the new binary executable (Unix-like systems)
 	if osName != "windows" {

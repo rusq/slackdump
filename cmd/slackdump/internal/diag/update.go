@@ -59,7 +59,7 @@ The update mechanism is platform-aware and uses the appropriate method:
   'brew update && brew upgrade slackdump'. It also checks if Homebrew has
   the latest version and warns if the formula is behind the GitHub release.
 
-- **Alpine Linux**: Uses 'apk update && apk upgrade slackdump'
+- **Arch Linux**: Uses 'pacman -Sy slackdump'
 
 - **Debian/Ubuntu**: Uses 'apt update && apt install --only-upgrade slackdump'
 
@@ -70,7 +70,7 @@ The update mechanism is platform-aware and uses the appropriate method:
 ## Notes
 
 - The update command requires internet connectivity
-- For package manager updates (brew, apk, apt), you may need sudo privileges
+- For package manager updates (brew, pacman, apt), you may need sudo privileges
 - Homebrew formulae may lag behind GitHub releases by a few hours/days
 `,
 	Flag:        flag.FlagSet{},
