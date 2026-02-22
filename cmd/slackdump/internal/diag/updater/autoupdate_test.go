@@ -16,9 +16,14 @@
 package updater
 
 import (
+	"archive/zip"
 	"context"
+	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -282,4 +287,206 @@ func TestDownloadAssetWithChecksum(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestReplaceBinary(t *testing.T) {
+	tests := []struct {
+		name           string
+		osName         string
+		zipContents    map[string]string // filename -> content
+		wantErr        bool
+		errContains    string
+		expectBinaryIn string // expected binary name in zip
+	}{
+		{
+			name:   "successful replacement - linux",
+			osName: "linux",
+			zipContents: map[string]string{
+				"slackdump": "fake binary content",
+			},
+			wantErr:        false,
+			expectBinaryIn: "slackdump",
+		},
+		{
+			name:   "successful replacement - darwin",
+			osName: "darwin",
+			zipContents: map[string]string{
+				"slackdump": "fake binary content for mac",
+			},
+			wantErr:        false,
+			expectBinaryIn: "slackdump",
+		},
+		{
+			name:   "successful replacement - windows",
+			osName: "windows",
+			zipContents: map[string]string{
+				"slackdump.exe": "fake binary content for windows",
+			},
+			wantErr:        false,
+			expectBinaryIn: "slackdump.exe",
+		},
+		{
+			name:   "binary in subdirectory - should find by basename",
+			osName: "linux",
+			zipContents: map[string]string{
+				"dist/slackdump": "fake binary in subdirectory",
+			},
+			wantErr:        false,
+			expectBinaryIn: "dist/slackdump",
+		},
+		{
+			name:   "binary not found in zip",
+			osName: "linux",
+			zipContents: map[string]string{
+				"README.md": "some readme",
+				"other.txt": "other file",
+			},
+			wantErr:     true,
+			errContains: "binary not found in zip archive",
+		},
+		{
+			name:        "empty zip",
+			osName:      "linux",
+			zipContents: map[string]string{},
+			wantErr:     true,
+			errContains: "binary not found in zip archive",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := context.Background()
+
+			// Create a temporary directory for test files
+			tmpDir := t.TempDir()
+
+			// Create a test zip file
+			zipPath := filepath.Join(tmpDir, "test.zip")
+			if err := createTestZip(zipPath, tt.zipContents); err != nil {
+				t.Fatalf("Failed to create test zip: %v", err)
+			}
+
+			// Create a fake existing executable
+			exePath := filepath.Join(tmpDir, "slackdump-current")
+			if err := os.WriteFile(exePath, []byte("old binary content"), 0755); err != nil {
+				t.Fatalf("Failed to create test executable: %v", err)
+			}
+
+			// Run replaceBinary
+			err := replaceBinary(ctx, zipPath, exePath, tt.osName)
+
+			// Check error expectations
+			if (err != nil) != tt.wantErr {
+				t.Errorf("replaceBinary() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			if tt.wantErr {
+				if tt.errContains != "" && !strings.Contains(err.Error(), tt.errContains) {
+					t.Errorf("replaceBinary() error = %v, should contain %q", err, tt.errContains)
+				}
+				return
+			}
+
+			// If no error, verify the binary was replaced
+			newContent, err := os.ReadFile(exePath)
+			if err != nil {
+				t.Errorf("Failed to read replaced binary: %v", err)
+				return
+			}
+
+			expectedContent := tt.zipContents[tt.expectBinaryIn]
+			if string(newContent) != expectedContent {
+				t.Errorf("Binary content mismatch: got %q, want %q", string(newContent), expectedContent)
+			}
+
+			// Verify the binary is executable on Unix-like systems
+			if tt.osName != "windows" {
+				info, err := os.Stat(exePath)
+				if err != nil {
+					t.Errorf("Failed to stat replaced binary: %v", err)
+					return
+				}
+				if info.Mode().Perm()&0111 == 0 {
+					t.Errorf("Binary is not executable: mode = %v", info.Mode())
+				}
+			}
+
+			// Verify backup was removed
+			backupPath := exePath + ".bak"
+			if _, err := os.Stat(backupPath); !os.IsNotExist(err) {
+				t.Errorf("Backup file still exists at %s", backupPath)
+			}
+		})
+	}
+}
+
+// createTestZip creates a zip file with the given contents for testing.
+func createTestZip(zipPath string, contents map[string]string) error {
+	f, err := os.Create(zipPath)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if cerr := f.Close(); cerr != nil {
+			slog.Warn("failed to close file", "path", zipPath, "error", cerr)
+		}
+	}()
+
+	zw := zip.NewWriter(f)
+	defer func() {
+		if cerr := zw.Close(); cerr != nil {
+			slog.Warn("failed to close zip writer", "path", zipPath, "error", cerr)
+		}
+	}()
+
+	for name, content := range contents {
+		w, err := zw.Create(name)
+		if err != nil {
+			return err
+		}
+		if _, err := io.WriteString(w, content); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func TestReplaceBinaryErrorCases(t *testing.T) {
+	ctx := context.Background()
+	tmpDir := t.TempDir()
+
+	t.Run("invalid zip file", func(t *testing.T) {
+		// Create an invalid zip file
+		invalidZip := filepath.Join(tmpDir, "invalid.zip")
+		if err := os.WriteFile(invalidZip, []byte("not a zip file"), 0644); err != nil {
+			t.Fatalf("Failed to create invalid zip: %v", err)
+		}
+
+		exePath := filepath.Join(tmpDir, "fake-exe")
+		if err := os.WriteFile(exePath, []byte("old"), 0755); err != nil {
+			t.Fatalf("Failed to create exe: %v", err)
+		}
+
+		err := replaceBinary(ctx, invalidZip, exePath, "linux")
+		if err == nil {
+			t.Error("Expected error for invalid zip file")
+		}
+		if !strings.Contains(err.Error(), "failed to open zip") {
+			t.Errorf("Expected 'failed to open zip' error, got: %v", err)
+		}
+	})
+
+	t.Run("nonexistent zip file", func(t *testing.T) {
+		exePath := filepath.Join(tmpDir, "fake-exe2")
+		if err := os.WriteFile(exePath, []byte("old"), 0755); err != nil {
+			t.Fatalf("Failed to create exe: %v", err)
+		}
+
+		err := replaceBinary(ctx, "/nonexistent/file.zip", exePath, "linux")
+		if err == nil {
+			t.Error("Expected error for nonexistent zip file")
+		}
+	})
 }
