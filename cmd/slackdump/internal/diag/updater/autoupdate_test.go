@@ -24,6 +24,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -154,6 +155,47 @@ func TestGetExpectedChecksum(t *testing.T) {
 			wantErr:        true,
 			includeAsset:   true,
 			checksumStatus: http.StatusNotFound,
+		},
+		{
+			name: "filename with spaces",
+			checksumData: `7b64d5722e18e5802335e87b06617702b957f6862549f5054a768023e74dd43b  my file with spaces.tar.gz
+298254e5604e5ce218ea026d25d52a4358f2542ed04d52671d4e806931ee2f49  another-file.tar.gz`,
+			assetName:      "my file with spaces.tar.gz",
+			wantHash:       "7b64d5722e18e5802335e87b06617702b957f6862549f5054a768023e74dd43b",
+			wantErr:        false,
+			includeAsset:   true,
+			checksumStatus: http.StatusOK,
+		},
+		{
+			name:           "single space separator",
+			checksumData:   `7b64d5722e18e5802335e87b06617702b957f6862549f5054a768023e74dd43b slackdump_Linux.tar.gz`,
+			assetName:      "slackdump_Linux.tar.gz",
+			wantHash:       "7b64d5722e18e5802335e87b06617702b957f6862549f5054a768023e74dd43b",
+			wantErr:        false,
+			includeAsset:   true,
+			checksumStatus: http.StatusOK,
+		},
+		{
+			name:           "multiple spaces separator",
+			checksumData:   `7b64d5722e18e5802335e87b06617702b957f6862549f5054a768023e74dd43b     slackdump_Linux.tar.gz`,
+			assetName:      "slackdump_Linux.tar.gz",
+			wantHash:       "7b64d5722e18e5802335e87b06617702b957f6862549f5054a768023e74dd43b",
+			wantErr:        false,
+			includeAsset:   true,
+			checksumStatus: http.StatusOK,
+		},
+		{
+			name: "empty lines and whitespace",
+			checksumData: `
+7b64d5722e18e5802335e87b06617702b957f6862549f5054a768023e74dd43b  slackdump_Linux.tar.gz
+
+298254e5604e5ce218ea026d25d52a4358f2542ed04d52671d4e806931ee2f49  slackdump_Windows.zip
+`,
+			assetName:      "slackdump_Windows.zip",
+			wantHash:       "298254e5604e5ce218ea026d25d52a4358f2542ed04d52671d4e806931ee2f49",
+			wantErr:        false,
+			includeAsset:   true,
+			checksumStatus: http.StatusOK,
 		},
 	}
 
@@ -401,7 +443,12 @@ func TestReplaceBinary(t *testing.T) {
 			}
 
 			// Verify the binary is executable on Unix-like systems
-			if tt.osName != "windows" {
+			// Note: We check both runtime.GOOS and tt.osName because:
+			// 1. runtime.GOOS tells us the actual OS running the test
+			// 2. tt.osName is the simulated OS for the test case
+			// Windows doesn't support Unix permission bits, so we skip this check
+			// when running on Windows, regardless of which OS we're simulating.
+			if runtime.GOOS != "windows" && tt.osName != "windows" {
 				info, err := os.Stat(exePath)
 				if err != nil {
 					t.Errorf("Failed to stat replaced binary: %v", err)

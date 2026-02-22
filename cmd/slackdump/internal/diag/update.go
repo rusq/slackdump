@@ -59,19 +59,30 @@ The update mechanism is platform-aware and uses the appropriate method:
   'brew update && brew upgrade slackdump'. It also checks if Homebrew has
   the latest version and warns if the formula is behind the GitHub release.
 
-- **Arch Linux**: Uses 'pacman -Sy slackdump'
+- **Arch Linux**: Uses 'sudo pacman -Sy --noconfirm slackdump'. 
+  Note: The --noconfirm flag auto-approves the installation without prompting.
 
-- **Debian/Ubuntu**: Uses 'apt update && apt install --only-upgrade slackdump'
+- **Debian/Ubuntu**: Uses 'sudo apt update && sudo apt install --only-upgrade slackdump'.
+  APT will still prompt for confirmation interactively.
 
 - **Windows / Generic Binary**: Downloads the latest binary from GitHub releases
   and replaces the current executable. A backup of the current binary is created
   before replacement.
+
+## Security Considerations
+
+When using -auto with package managers:
+- Pacman (Arch Linux) uses --noconfirm which skips confirmation prompts
+- APT (Debian/Ubuntu) may prompt for confirmation via sudo
+- Commands requiring sudo will display the exact command before execution
+- Only the specific slackdump package is updated, not a full system upgrade
 
 ## Notes
 
 - The update command requires internet connectivity
 - For package manager updates (brew, pacman, apt), you may need sudo privileges
 - Homebrew formulae may lag behind GitHub releases by a few hours/days
+- The -auto flag is EXPERIMENTAL and should be used with caution
 `,
 	Flag:        flag.FlagSet{},
 	CustomFlags: false,
@@ -104,12 +115,7 @@ func runUpdate(ctx context.Context, cmd *base.Command, args []string) error {
 	}
 	slog.DebugContext(ctx, "Latest version available", "version", latest.Version, "published_at", latest.PublishedAt)
 
-	eq, err := curr.Equal(latest)
-	if err != nil {
-		return err
-	}
-
-	if eq {
+	if curr.Equal(latest) {
 		slog.InfoContext(ctx, "You are running the latest version")
 		return nil
 	}

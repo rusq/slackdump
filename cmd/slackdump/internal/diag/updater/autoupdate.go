@@ -111,8 +111,13 @@ func (u Updater) updateHomebrew(ctx context.Context, latest Release) error {
 // updatePacman updates slackdump using Pacman (Arch Linux package manager).
 func (u Updater) updatePacman(ctx context.Context, latest Release) error {
 	slog.InfoContext(ctx, "Updating via Pacman...")
+	slog.WarnContext(ctx, "This will run a privileged command with sudo")
+	slog.InfoContext(ctx, "Command to execute", "cmd", "sudo pacman -Sy --noconfirm slackdump")
+	slog.InfoContext(ctx, "Note: --noconfirm flag will auto-approve the installation without prompting")
 
 	// Update package database and upgrade slackdump in one command
+	// Note: We use --noconfirm because the user explicitly requested automatic update via -auto flag
+	// The command only targets the specific 'slackdump' package, not a full system upgrade
 	slog.InfoContext(ctx, "Syncing package database and upgrading slackdump...")
 	cmd := exec.CommandContext(ctx, "sudo", "pacman", "-Sy", "--noconfirm", "slackdump")
 	cmd.Stdout = os.Stdout
@@ -127,8 +132,10 @@ func (u Updater) updatePacman(ctx context.Context, latest Release) error {
 // updateAPT updates slackdump using APT (Debian/Ubuntu package manager).
 func (u Updater) updateAPT(ctx context.Context, latest Release) error {
 	slog.InfoContext(ctx, "Updating via APT...")
+	slog.WarnContext(ctx, "This will run privileged commands with sudo")
 
 	// Update package index
+	slog.InfoContext(ctx, "Command to execute", "cmd", "sudo apt update")
 	slog.InfoContext(ctx, "Updating APT index...")
 	cmd := exec.CommandContext(ctx, "sudo", "apt", "update")
 	cmd.Stdout = os.Stdout
@@ -138,6 +145,9 @@ func (u Updater) updateAPT(ctx context.Context, latest Release) error {
 	}
 
 	// Upgrade slackdump
+	// Note: --only-upgrade ensures we only update slackdump if it's already installed
+	// APT will still prompt for confirmation unless run non-interactively
+	slog.InfoContext(ctx, "Command to execute", "cmd", "sudo apt install --only-upgrade slackdump")
 	slog.InfoContext(ctx, "Upgrading slackdump...")
 	cmd = exec.CommandContext(ctx, "sudo", "apt", "install", "--only-upgrade", "slackdump")
 	cmd.Stdout = os.Stdout
@@ -322,11 +332,21 @@ func getExpectedChecksum(ctx context.Context, rel *github.Release, assetName str
 	// Parse checksums.txt to find the hash for our asset
 	scanner := bufio.NewScanner(resp.Body)
 	for scanner.Scan() {
-		line := scanner.Text()
-		// Format: <hash> <filename>
-		parts := strings.Fields(line)
-		if len(parts) >= 2 && parts[1] == assetName {
-			return parts[0], nil
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" {
+			continue
+		}
+		// Format: <hash>  <filename>
+		// Standard checksum format uses 2 spaces, but we handle 1+ spaces
+		// Split on first occurrence of whitespace to handle filenames with spaces
+		hash, filename, found := strings.Cut(line, " ")
+		if !found {
+			continue
+		}
+		// Trim any additional leading whitespace from filename
+		filename = strings.TrimLeft(filename, " ")
+		if filename == assetName {
+			return hash, nil
 		}
 	}
 

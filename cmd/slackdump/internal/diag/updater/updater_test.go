@@ -29,7 +29,6 @@ func TestRelease_Equal(t *testing.T) {
 		r         Release
 		other     Release
 		wantEqual bool
-		wantErr   bool
 	}{
 		{
 			name: "identical releases",
@@ -42,7 +41,6 @@ func TestRelease_Equal(t *testing.T) {
 				PublishedAt: baseTime,
 			},
 			wantEqual: true,
-			wantErr:   false,
 		},
 		{
 			name: "same version case insensitive",
@@ -55,7 +53,6 @@ func TestRelease_Equal(t *testing.T) {
 				PublishedAt: baseTime,
 			},
 			wantEqual: true,
-			wantErr:   false,
 		},
 		{
 			name: "same version but different published dates",
@@ -68,7 +65,6 @@ func TestRelease_Equal(t *testing.T) {
 				PublishedAt: differentTime,
 			},
 			wantEqual: false,
-			wantErr:   false,
 		},
 		{
 			name: "different versions",
@@ -81,7 +77,6 @@ func TestRelease_Equal(t *testing.T) {
 				PublishedAt: baseTime,
 			},
 			wantEqual: false,
-			wantErr:   false,
 		},
 		{
 			name: "different versions and dates",
@@ -94,7 +89,6 @@ func TestRelease_Equal(t *testing.T) {
 				PublishedAt: differentTime,
 			},
 			wantEqual: false,
-			wantErr:   false,
 		},
 		{
 			name: "empty versions",
@@ -107,17 +101,12 @@ func TestRelease_Equal(t *testing.T) {
 				PublishedAt: baseTime,
 			},
 			wantEqual: true,
-			wantErr:   false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotEqual, err := tt.r.Equal(tt.other)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("Release.Equal() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
+			gotEqual := tt.r.Equal(tt.other)
 			if gotEqual != tt.wantEqual {
 				t.Errorf("Release.Equal() = %v, want %v", gotEqual, tt.wantEqual)
 			}

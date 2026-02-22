@@ -45,11 +45,10 @@ type Release struct {
 	PublishedAt time.Time
 }
 
-func (r Release) Equal(other Release) (bool, error) {
-	if strings.EqualFold(r.Version, other.Version) && r.PublishedAt.Equal(other.PublishedAt) {
-		return true, nil
-	}
-	return false, nil
+// Equal returns true if the two releases have the same version and publish date.
+// Version comparison is case-insensitive.
+func (r Release) Equal(other Release) bool {
+	return strings.EqualFold(r.Version, other.Version) && r.PublishedAt.Equal(other.PublishedAt)
 }
 
 func NewUpdater() Updater {
