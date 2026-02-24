@@ -13,6 +13,8 @@ files and emojis.  Generate Slack Export without admin privileges.
   button on the top of the page.
 - [![Go reference](https://pkg.go.dev/badge/github.com/rusq/slackdump/v3.svg)][godoc]
 - [Using with AI Agents (MCP Server)](#slackdump-mcp-server)
+- [Slack MCP Server (no permissions required)](https://github.com/korotovsky/slack-mcp-server)
+- [Github CLI Slackdump extension](https://github.com/wham/gh-slackdump)
 - How to's:
 
   - [Mattermost migration][mmost] steps
