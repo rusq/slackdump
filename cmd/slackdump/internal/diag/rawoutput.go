@@ -27,7 +27,9 @@ import (
 	"net/url"
 	"os"
 
-	"github.com/rusq/chttp"
+	utls "github.com/refraction-networking/utls"
+
+	"github.com/rusq/chttp/v2"
 
 	"github.com/rusq/slackdump/v4/auth"
 	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/cfg"
@@ -99,7 +101,7 @@ func run(ctx context.Context, p rawOutputParams) error {
 	if err != nil {
 		return err
 	}
-	cl, err := chttp.NewWithTransport(domain, prov.Cookies(), chttp.NewTransport(nil))
+	cl, err := chttp.New(domain, prov.Cookies(), chttp.WithUTLS(&utls.Config{}))
 	if err != nil {
 		return err
 	}

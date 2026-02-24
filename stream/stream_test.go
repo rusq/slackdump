@@ -27,10 +27,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rusq/chttp"
+	"github.com/rusq/chttp/v2"
 	"github.com/rusq/slack"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
+
+	utls "github.com/refraction-networking/utls"
 
 	"github.com/rusq/slackdump/v4/auth"
 	"github.com/rusq/slackdump/v4/internal/cache"
@@ -66,7 +68,7 @@ func TestChannelStream(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	sd := slack.New(prov.SlackToken(), slack.OptionHTTPClient(chttp.Must(chttp.New(auth.SlackURL, prov.Cookies()))))
+	sd := slack.New(prov.SlackToken(), slack.OptionHTTPClient(chttp.Must(chttp.New(auth.SlackURL, prov.Cookies(), chttp.WithUTLS(&utls.Config{})))))
 
 	f, err := os.Create("record.jsonl")
 	if err != nil {
