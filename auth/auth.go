@@ -25,7 +25,9 @@ import (
 	"runtime/trace"
 
 	"github.com/charmbracelet/huh/spinner"
-	"github.com/rusq/chttp"
+	utls "github.com/refraction-networking/utls"
+
+	"github.com/rusq/chttp/v2"
 	"github.com/rusq/slack"
 	"github.com/rusq/slackauth"
 )
@@ -143,7 +145,12 @@ func (s simpleProvider) Test(ctx context.Context) (*slack.AuthTestResponse, erro
 }
 
 func (s simpleProvider) HTTPClient() (*http.Client, error) {
-	return chttp.New(SlackURL, s.Cookies(), chttp.WithUserAgent(slackauth.DefaultUserAgent))
+	return chttp.New(
+		SlackURL,
+		s.Cookies(),
+		chttp.WithUserAgent(slackauth.DefaultUserAgent),
+		chttp.WithUTLS(&utls.Config{}),
+	)
 }
 
 func pleaseWait(ctx context.Context, msg string) func() {
