@@ -27,7 +27,7 @@ require (
 	github.com/playwright-community/playwright-go v0.5200.1
 	github.com/pressly/goose/v3 v3.26.0
 	github.com/pterm/pterm v0.12.82
-	github.com/refraction-networking/utls v1.3.2
+	github.com/refraction-networking/utls v1.8.2
 	github.com/rusq/chttp/v2 v2.0.0
 	github.com/rusq/encio v0.2.0
 	github.com/rusq/fsadapter v1.1.0
@@ -76,7 +76,6 @@ require (
 	github.com/denisbrodbeck/machineid v1.0.1 // indirect
 	github.com/erikgeiser/coninput v0.0.0-20211004153227-1c3628e74d0f // indirect
 	github.com/gabriel-vasile/mimetype v1.4.13 // indirect
-	github.com/gaukas/godicttls v0.0.3 // indirect
 	github.com/go-jose/go-jose/v3 v3.0.4 // indirect
 	github.com/go-stack/stack v1.8.1 // indirect
 	github.com/gookit/color v1.6.0 // indirect
