@@ -19,9 +19,8 @@ slackdump archive https://myworkspace.slack.com/archives/C01234ABCDE
 slackdump archive @channels.txt
 ```
 
-By default the database is written to `slackdump_YYYYMMDD_HHMMSS.zip`
-(a directory-based archive). The underlying SQLite file is
-`slackdump.sqlite` inside that directory.
+By default the database is written to
+`slackdump_YYYYMMDD_HHMMSS/slackdump.sqlite`.
 
 To choose a different output location:
 
@@ -132,7 +131,7 @@ location. User avatars are not downloaded by default; enable with `-avatars`.
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `-o location` | auto-named `.zip` | Output directory or ZIP path |
+| `-o location` | auto-named  | Output directory |
 | `-files` | `true` | Download file attachments |
 | `-avatars` | `false` | Download user avatars |
 | `-member-only` | `false` | Only channels the current user belongs to |
@@ -178,8 +177,8 @@ ZIP or the legacy chunk format:
 # Convert to standard Slack export ZIP (compatible with slack-export-viewer)
 slackdump convert -f export ./slackdump_20240101_000000
 
-# Convert to Mattermost format
-slackdump convert -f mattermost ./slackdump_20240101_000000/slackdump.sqlite
+# Convert to dump format
+slackdump convert -f dump ./slackdump_20240101_000000/slackdump.sqlite
 ```
 
 See `slackdump help convert` for all format options.

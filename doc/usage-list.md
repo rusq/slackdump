@@ -23,6 +23,13 @@ slackdump list channels
 Prints all conversations visible to your account, including public channels,
 private channels, group messages, and direct messages.
 
+Faster channel listing:
+```shell
+slackdump list channels -enterprise
+```
+
+It uses undocumented APIs to get the data.
+
 ### Resolve Usernames
 
 Add `-resolve` to replace user IDs with display names in the channel list
@@ -87,6 +94,7 @@ DLY4XXXXX    -     @bob
 | Flag | Default | Description |
 |------|---------|-------------|
 | `-chan-types value` | `mpim,im,public_channel,private_channel` | Filter channel types |
+| `-enterprise` | `false` | Forces slackdump to use undocumented API calls |
 | `-member-only` | — | Only return channels the current user belongs to |
 | `-resolve` | — | Resolve user IDs to display names |
 | `-no-save` | — | Do not save results to a file |

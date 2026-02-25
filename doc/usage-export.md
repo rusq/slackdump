@@ -87,6 +87,8 @@ slackdump export C123456,2024-01-01T00:00:00,2024-12-31T23:59:59
 
 ## Viewing the Export
 
+You can use the built-in viewer:
+
 ```shell
 slackdump view my_export.zip
 ```
@@ -154,6 +156,9 @@ resumed, and can be converted to Export or Dump format afterwards:
 ```shell
 slackdump convert -f export ./slackdump.sqlite
 ```
+
+In fact, Slackdump uses a temporary archive file and then converts it to
+export, when you run `slackdump export`.
 
 ## Key Flags
 
