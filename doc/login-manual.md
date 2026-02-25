@@ -2,31 +2,23 @@
 
 [Back to User Guide](README.md)
 
-This page covers how to obtain a Slack token and cookie manually, without the
-EZ-Login 3000 browser automation.  This is useful when automated login does not
-work (e.g. your workspace enforces strict SSO or MFA policies).
+This page covers how to obtain a Slack token and cookie manually, without any
+browser automation.  Use this only when all automatic login methods fail (e.g.
+in a headless/CI environment, or when your workspace blocks every browser-based
+flow).
+
+For browser-based automatic login methods — including Interactive, User Browser,
+Headless, and QR Code (Sign in on Mobile) — see
+[Automatic Login](login-automatic.md).
 
 ## When to Use Manual Authentication
 
-The recommended method is EZ-Login 3000 (`slackdump workspace new`), which
-opens a browser and handles authentication automatically.  Use manual
-authentication only as a fallback.
+The recommended method is `slackdump workspace new`, which handles
+authentication automatically via a browser.  If that fails, try the **QR Code**
+method described in [Automatic Login](login-automatic.md).  Only fall back to
+the steps on this page when neither option works.
 
-## Method 1: Sign In on Mobile (Recommended Fallback)
-
-This is the easiest manual method and does not require browser developer tools.
-
-1. Open the Slack mobile app on your phone and sign in to the workspace.
-2. Tap your workspace name at the top, then go to **Settings**.
-3. Scroll down and tap **Sign in on desktop**.
-4. Slack will display a link or QR code.  Copy the link (it looks like
-   `https://app.slack.com/auth?...`).
-5. Open that link in a **desktop browser** — it will sign you into the Slack
-   web client.
-6. Now follow the [Token](#token) and [Cookie](#cookie) steps below to extract
-   the credentials from that browser session.
-
-## Method 2: Browser Developer Tools
+## Browser Developer Tools
 
 ### Step 1 — Open Slack in your browser and log in
 

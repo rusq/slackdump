@@ -4,6 +4,8 @@
 
 - [Installation](#installation)
 - [Logging In](#logging-in)
+  - [Automatic (browser-based) login](login-automatic.md)
+  - [Manual login (token/cookie)](login-manual.md)
 - [Usage](#usage)
   - [Archiving a workspace](usage-archive.md)
   - [Listing users/channels](usage-list.md)
@@ -31,10 +33,12 @@ For compiling from sources, see [Compiling from Sources](compiling.md).
 
 ## Logging In
 
-See the [quickstart](https://github.com/rusq/slackdump/blob/master/cmd/slackdump/internal/man/assets/quickstart.md)
-guide for how to log in using the recommended EZ-Login 3000 browser-based method.
+See [Automatic Login](login-automatic.md) for the recommended browser-based
+login methods (Interactive, User Browser, Headless, and QR Code / Sign in on
+Mobile).
 
-For manual token/cookie authentication, see [Manual Authentication](login-manual.md).
+For manual token/cookie authentication (headless/CI environments), see
+[Manual Authentication](login-manual.md).
 
 To import a saved token/cookie file:
 
