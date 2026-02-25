@@ -26,6 +26,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"sync"
 
 	mcplib "github.com/mark3labs/mcp-go/mcp"
 	mcpsrv "github.com/mark3labs/mcp-go/server"
@@ -50,29 +51,76 @@ const (
 	TransportHTTP Transport = "http"
 )
 
+// SourceLoader is a function that opens a source by path and returns a
+// SourceResumeCloser.  It is used by the load_source tool to open new sources
+// at runtime.  [source.Load] is the standard implementation.
+type SourceLoader func(ctx context.Context, path string) (source.SourceResumeCloser, error)
+
 // Server wraps an MCP server and its underlying data source.
 type Server struct {
 	mcp    *mcpsrv.MCPServer
-	src    source.Sourcer
 	logger *slog.Logger
+
+	// mu protects src.  All tool handlers must hold mu.RLock while reading src
+	// and load_source must hold mu.Lock while replacing it.
+	mu     sync.RWMutex
+	src    source.SourceResumeCloser // nil until a source is loaded
+	loader SourceLoader              // used by load_source to open new sources
 }
 
-// New creates a new MCP server backed by the given Sourcer.  The server is
-// populated with all available tools but does not start listening until one of
-// the Serve* methods is called.
-func New(src source.Sourcer, lg *slog.Logger) *Server {
-	if lg == nil {
-		lg = slog.Default()
+// Option is a functional option for [New].
+type Option func(*Server)
+
+// WithSource pre-loads a source so that the server is immediately ready to
+// answer tool calls.  If this option is not provided the server starts without
+// a source and the agent must call the load_source tool before any data tool
+// will work.
+func WithSource(src source.SourceResumeCloser) Option {
+	return func(s *Server) {
+		s.src = src
 	}
+}
+
+// WithLogger sets the logger used by the server.  A nil value is silently
+// ignored (the default logger is used in that case).
+func WithLogger(lg *slog.Logger) Option {
+	return func(s *Server) {
+		if lg != nil {
+			s.logger = lg
+		}
+	}
+}
+
+// WithSourceLoader overrides the function used by the load_source tool to open
+// archive files.  The default is [source.Load].  This option is primarily
+// useful for testing.
+func WithSourceLoader(fn SourceLoader) Option {
+	return func(s *Server) {
+		if fn != nil {
+			s.loader = fn
+		}
+	}
+}
+
+// New creates a new MCP server.  The server is populated with all available
+// tools but does not start listening until one of the Serve* methods is called.
+//
+// Use [WithSource] to pre-load an archive, [WithLogger] to set a custom
+// logger, and [WithSourceLoader] to override the source-open function used by
+// the load_source tool.
+func New(opts ...Option) *Server {
 	s := &Server{
-		src:    src,
-		logger: lg,
+		logger: slog.Default(),
+		loader: source.Load,
+	}
+	for _, o := range opts {
+		o(s)
 	}
 
 	mcpServer := mcpsrv.NewMCPServer(
 		serverName,
 		serverVersion,
-		mcpsrv.WithInstructions(instructions(src)),
+		mcpsrv.WithInstructions(instructions(s.src)),
 	)
 
 	// Register all tools.
@@ -85,8 +133,23 @@ func New(src source.Sourcer, lg *slog.Logger) *Server {
 }
 
 // instructions returns the server instructions that describe the data source
-// to the connecting agent.
+// to the connecting agent.  When src is nil (no source loaded yet) a generic
+// prompt is returned that asks the agent to call load_source first.
 func instructions(src source.Sourcer) string {
+	if src == nil {
+		return `You are connected to a Slackdump MCP server.
+
+No archive has been loaded yet. Use the load_source tool to open a Slackdump
+archive before calling any other data tools.
+
+Once a source is loaded the following tools become available:
+- list_channels  – list all channels in the archive
+- list_users     – list all users/members
+- get_messages   – read messages from a channel (paginated)
+- get_thread     – read thread replies
+- get_workspace_info – get workspace information
+`
+	}
 	return fmt.Sprintf(`You are connected to a Slackdump MCP server.
 
 The archive "%s" (type: %s) contains exported Slack workspace data.
@@ -101,6 +164,30 @@ Available tools allow you to:
 
 All data is read-only. Timestamps in messages use Slack's format (Unix epoch as decimal string, e.g. "1609459200.000001").
 `, src.Name(), src.Type())
+}
+
+// source returns the current source under a read-lock.  Returns nil when no
+// source has been loaded.
+func (s *Server) source() source.SourceResumeCloser {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.src
+}
+
+// loadSource closes the current source (if any) and replaces it with next.
+// It holds the write-lock for the duration of the swap.
+func (s *Server) loadSource(next source.SourceResumeCloser) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.src != nil {
+		if err := s.src.Close(); err != nil {
+			// Log but do not abort — we still want to switch sources.
+			s.logger.Warn("mcp: error closing previous source", "err", err)
+		}
+	}
+	s.src = next
+	return nil
 }
 
 // ServeStdio runs the MCP server over stdin/stdout until ctx is cancelled.
@@ -151,6 +238,7 @@ func (s *Server) ServeHTTP(ctx context.Context, addr string) error {
 // tools returns all MCP tools that this server exposes.
 func (s *Server) tools() []mcpsrv.ServerTool {
 	return []mcpsrv.ServerTool{
+		s.toolLoadSource(),
 		s.toolListChannels(),
 		s.toolGetChannel(),
 		s.toolListUsers(),

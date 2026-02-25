@@ -17,6 +17,7 @@ package mcp
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	mcplib "github.com/mark3labs/mcp-go/mcp"
@@ -29,14 +30,17 @@ import (
 	"github.com/rusq/slackdump/v4/source/mock_source"
 )
 
-// newTestServer creates a *Server backed by a MockSourcer with minimum
-// Name/Type expectations set.
-func newTestServer(t *testing.T, ctrl *gomock.Controller) (*Server, *mock_source.MockSourcer) {
+// newTestServer creates a *Server backed by a MockSourceResumeCloser with
+// minimum Name/Type expectations set, pre-loaded via direct field injection.
+// It returns the mock typed as *mock_source.MockSourcer for convenience in
+// tool handler tests (MockSourceResumeCloser embeds all Sourcer methods).
+func newTestServer(t *testing.T, ctrl *gomock.Controller) (*Server, *mock_source.MockSourceResumeCloser) {
 	t.Helper()
-	m := mock_source.NewMockSourcer(ctrl)
+	m := mock_source.NewMockSourceResumeCloser(ctrl)
 	m.EXPECT().Name().Return("test-archive").AnyTimes()
 	m.EXPECT().Type().Return(source.FDatabase).AnyTimes()
-	srv := New(m, nil)
+	srv := New(WithLogger(nil))
+	srv.src = m
 	require.NotNil(t, srv)
 	return srv, m
 }
@@ -46,6 +50,25 @@ func toolReq(args map[string]any) mcplib.CallToolRequest {
 	req := mcplib.CallToolRequest{}
 	req.Params.Arguments = args
 	return req
+}
+
+// ─── New / options ────────────────────────────────────────────────────────────
+
+func TestNew_noOptions(t *testing.T) {
+	srv := New()
+	require.NotNil(t, srv)
+	assert.NotNil(t, srv.mcp)
+	assert.Nil(t, srv.src) // no source by default
+	assert.NotNil(t, srv.logger)
+	assert.NotNil(t, srv.loader)
+}
+
+func TestNew_withLogger_nil(t *testing.T) {
+	// A nil logger must not panic and must fall back to slog.Default().
+	assert.NotPanics(t, func() {
+		srv := New(WithLogger(nil))
+		assert.NotNil(t, srv.logger)
+	})
 }
 
 func TestNew_notNil(t *testing.T) {
@@ -58,13 +81,9 @@ func TestNew_notNil(t *testing.T) {
 }
 
 func TestNew_nilLogger(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	m := mock_source.NewMockSourcer(ctrl)
-	m.EXPECT().Name().Return("x").AnyTimes()
-	m.EXPECT().Type().Return(source.FDatabase).AnyTimes()
-	// Must not panic when logger is nil.
+	// Must not panic when logger option is nil.
 	assert.NotPanics(t, func() {
-		srv := New(m, nil)
+		srv := New(WithLogger(nil))
 		assert.NotNil(t, srv.logger)
 	})
 }
@@ -84,7 +103,7 @@ func TestAddTool(t *testing.T) {
 	})
 }
 
-func TestInstructions(t *testing.T) {
+func TestInstructions_withSource(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	m := mock_source.NewMockSourcer(ctrl)
 	m.EXPECT().Name().Return("my-archive.db").AnyTimes()
@@ -94,6 +113,51 @@ func TestInstructions(t *testing.T) {
 	assert.Contains(t, got, "my-archive.db")
 	assert.Contains(t, got, "database")
 }
+
+func TestInstructions_nilSource(t *testing.T) {
+	got := instructions(nil)
+	assert.Contains(t, got, "load_source")
+	assert.NotContains(t, got, "nil")
+}
+
+// ─── source helper methods ────────────────────────────────────────────────────
+
+func TestLoadSource_closesOld(t *testing.T) {
+	ctrl := gomock.NewController(t)
+
+	// Old source: must be closed.
+	old := mock_source.NewMockSourceResumeCloser(ctrl)
+	old.EXPECT().Close().Return(nil).Times(1)
+
+	// New source.
+	next := mock_source.NewMockSourceResumeCloser(ctrl)
+
+	srv := New()
+	srv.src = old
+
+	err := srv.loadSource(next)
+	require.NoError(t, err)
+	assert.Equal(t, next, srv.src)
+}
+
+func TestLoadSource_closeError_stillSwaps(t *testing.T) {
+	ctrl := gomock.NewController(t)
+
+	old := mock_source.NewMockSourceResumeCloser(ctrl)
+	old.EXPECT().Close().Return(errors.New("close failed")).Times(1)
+
+	next := mock_source.NewMockSourceResumeCloser(ctrl)
+
+	srv := New()
+	srv.src = old
+
+	// Even when Close() errors, loadSource must swap the source.
+	err := srv.loadSource(next)
+	require.NoError(t, err)
+	assert.Equal(t, next, srv.src)
+}
+
+// ─── result helpers ───────────────────────────────────────────────────────────
 
 func TestResultText(t *testing.T) {
 	r := resultText("hello")
@@ -130,6 +194,8 @@ func TestResultJSON(t *testing.T) {
 	assert.Contains(t, txt.Text, "C1")
 	assert.Contains(t, txt.Text, "general")
 }
+
+// ─── argument helpers ─────────────────────────────────────────────────────────
 
 func TestStringArg(t *testing.T) {
 	tests := []struct {

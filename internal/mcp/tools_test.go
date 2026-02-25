@@ -16,6 +16,7 @@
 package mcp
 
 import (
+	"context"
 	"errors"
 	"iter"
 	"testing"
@@ -68,13 +69,13 @@ func firstText(t *testing.T, r *mcplib.CallToolResult) string {
 func TestHandleListChannels(t *testing.T) {
 	tests := []struct {
 		name        string
-		setup       func(m *mock_source.MockSourcer)
+		setup       func(m *mock_source.MockSourceResumeCloser)
 		wantIsError bool
 		wantText    string // substring expected in first text content
 	}{
 		{
 			name: "returns channel list as JSON",
-			setup: func(m *mock_source.MockSourcer) {
+			setup: func(m *mock_source.MockSourceResumeCloser) {
 				m.EXPECT().Channels(gomock.Any()).Return([]slack.Channel{
 					{GroupConversation: slack.GroupConversation{Conversation: slack.Conversation{ID: "C1"}, Name: "general"}, IsChannel: true},
 					{GroupConversation: slack.GroupConversation{Conversation: slack.Conversation{ID: "C2"}, Name: "random"}, IsChannel: true},
@@ -84,21 +85,21 @@ func TestHandleListChannels(t *testing.T) {
 		},
 		{
 			name: "empty list returns empty JSON array",
-			setup: func(m *mock_source.MockSourcer) {
+			setup: func(m *mock_source.MockSourceResumeCloser) {
 				m.EXPECT().Channels(gomock.Any()).Return([]slack.Channel{}, nil)
 			},
 			wantText: "[]",
 		},
 		{
 			name: "ErrNotSupported returns informational text",
-			setup: func(m *mock_source.MockSourcer) {
+			setup: func(m *mock_source.MockSourceResumeCloser) {
 				m.EXPECT().Channels(gomock.Any()).Return(nil, source.ErrNotSupported)
 			},
 			wantText: "not support",
 		},
 		{
 			name: "generic error returns error result",
-			setup: func(m *mock_source.MockSourcer) {
+			setup: func(m *mock_source.MockSourceResumeCloser) {
 				m.EXPECT().Channels(gomock.Any()).Return(nil, errors.New("disk failure"))
 			},
 			wantIsError: true,
@@ -128,21 +129,21 @@ func TestHandleGetChannel(t *testing.T) {
 	tests := []struct {
 		name        string
 		args        map[string]any
-		setup       func(m *mock_source.MockSourcer)
+		setup       func(m *mock_source.MockSourceResumeCloser)
 		wantIsError bool
 		wantText    string
 	}{
 		{
 			name:        "missing channel_id returns error result",
 			args:        nil,
-			setup:       func(m *mock_source.MockSourcer) {},
+			setup:       func(m *mock_source.MockSourceResumeCloser) {},
 			wantIsError: true,
 			wantText:    "channel_id",
 		},
 		{
 			name: "returns channel JSON",
 			args: map[string]any{"channel_id": "C1"},
-			setup: func(m *mock_source.MockSourcer) {
+			setup: func(m *mock_source.MockSourceResumeCloser) {
 				m.EXPECT().ChannelInfo(gomock.Any(), "C1").Return(
 					&slack.Channel{GroupConversation: slack.GroupConversation{Conversation: slack.Conversation{ID: "C1"}, Name: "general"}},
 					nil,
@@ -153,7 +154,7 @@ func TestHandleGetChannel(t *testing.T) {
 		{
 			name: "ErrNotFound returns informational text",
 			args: map[string]any{"channel_id": "C999"},
-			setup: func(m *mock_source.MockSourcer) {
+			setup: func(m *mock_source.MockSourceResumeCloser) {
 				m.EXPECT().ChannelInfo(gomock.Any(), "C999").Return(nil, source.ErrNotFound)
 			},
 			wantText: "C999",
@@ -161,7 +162,7 @@ func TestHandleGetChannel(t *testing.T) {
 		{
 			name: "ErrNotSupported returns informational text",
 			args: map[string]any{"channel_id": "C1"},
-			setup: func(m *mock_source.MockSourcer) {
+			setup: func(m *mock_source.MockSourceResumeCloser) {
 				m.EXPECT().ChannelInfo(gomock.Any(), "C1").Return(nil, source.ErrNotSupported)
 			},
 			wantText: "not support",
@@ -169,7 +170,7 @@ func TestHandleGetChannel(t *testing.T) {
 		{
 			name: "generic error returns error result",
 			args: map[string]any{"channel_id": "C1"},
-			setup: func(m *mock_source.MockSourcer) {
+			setup: func(m *mock_source.MockSourceResumeCloser) {
 				m.EXPECT().ChannelInfo(gomock.Any(), "C1").Return(nil, errors.New("io error"))
 			},
 			wantIsError: true,
@@ -198,13 +199,13 @@ func TestHandleGetChannel(t *testing.T) {
 func TestHandleListUsers(t *testing.T) {
 	tests := []struct {
 		name        string
-		setup       func(m *mock_source.MockSourcer)
+		setup       func(m *mock_source.MockSourceResumeCloser)
 		wantIsError bool
 		wantText    string
 	}{
 		{
 			name: "returns user list as JSON",
-			setup: func(m *mock_source.MockSourcer) {
+			setup: func(m *mock_source.MockSourceResumeCloser) {
 				m.EXPECT().Users(gomock.Any()).Return([]slack.User{
 					{ID: "U1", Name: "alice", RealName: "Alice A"},
 				}, nil)
@@ -213,14 +214,14 @@ func TestHandleListUsers(t *testing.T) {
 		},
 		{
 			name: "ErrNotSupported returns informational text",
-			setup: func(m *mock_source.MockSourcer) {
+			setup: func(m *mock_source.MockSourceResumeCloser) {
 				m.EXPECT().Users(gomock.Any()).Return(nil, source.ErrNotSupported)
 			},
 			wantText: "not support",
 		},
 		{
 			name: "generic error returns error result",
-			setup: func(m *mock_source.MockSourcer) {
+			setup: func(m *mock_source.MockSourceResumeCloser) {
 				m.EXPECT().Users(gomock.Any()).Return(nil, errors.New("read err"))
 			},
 			wantIsError: true,
@@ -250,21 +251,21 @@ func TestHandleGetMessages(t *testing.T) {
 	tests := []struct {
 		name        string
 		args        map[string]any
-		setup       func(m *mock_source.MockSourcer)
+		setup       func(m *mock_source.MockSourceResumeCloser)
 		wantIsError bool
 		wantText    string
 	}{
 		{
 			name:        "missing channel_id returns error result",
 			args:        nil,
-			setup:       func(m *mock_source.MockSourcer) {},
+			setup:       func(m *mock_source.MockSourceResumeCloser) {},
 			wantIsError: true,
 			wantText:    "channel_id",
 		},
 		{
 			name: "returns messages as JSON",
 			args: map[string]any{"channel_id": "C1"},
-			setup: func(m *mock_source.MockSourcer) {
+			setup: func(m *mock_source.MockSourceResumeCloser) {
 				m.EXPECT().AllMessages(gomock.Any(), "C1").Return(seqOf(
 					slack.Message{Msg: slack.Msg{Timestamp: "1000.000001", Text: "hello", User: "U1"}},
 					slack.Message{Msg: slack.Msg{Timestamp: "1001.000001", Text: "world", User: "U2"}},
@@ -275,7 +276,7 @@ func TestHandleGetMessages(t *testing.T) {
 		{
 			name: "limit is respected",
 			args: map[string]any{"channel_id": "C1", "limit": float64(1)},
-			setup: func(m *mock_source.MockSourcer) {
+			setup: func(m *mock_source.MockSourceResumeCloser) {
 				m.EXPECT().AllMessages(gomock.Any(), "C1").Return(seqOf(
 					slack.Message{Msg: slack.Msg{Timestamp: "1000.000001", Text: "first", User: "U1"}},
 					slack.Message{Msg: slack.Msg{Timestamp: "1001.000001", Text: "second", User: "U2"}},
@@ -286,7 +287,7 @@ func TestHandleGetMessages(t *testing.T) {
 		{
 			name: "after_ts filter skips old messages",
 			args: map[string]any{"channel_id": "C1", "after_ts": "1000.000001"},
-			setup: func(m *mock_source.MockSourcer) {
+			setup: func(m *mock_source.MockSourceResumeCloser) {
 				m.EXPECT().AllMessages(gomock.Any(), "C1").Return(seqOf(
 					slack.Message{Msg: slack.Msg{Timestamp: "1000.000001", Text: "old"}},
 					slack.Message{Msg: slack.Msg{Timestamp: "1001.000001", Text: "new"}},
@@ -297,7 +298,7 @@ func TestHandleGetMessages(t *testing.T) {
 		{
 			name: "ErrNotFound returns informational text",
 			args: map[string]any{"channel_id": "C999"},
-			setup: func(m *mock_source.MockSourcer) {
+			setup: func(m *mock_source.MockSourceResumeCloser) {
 				m.EXPECT().AllMessages(gomock.Any(), "C999").Return(nil, source.ErrNotFound)
 			},
 			wantText: "C999",
@@ -305,7 +306,7 @@ func TestHandleGetMessages(t *testing.T) {
 		{
 			name: "ErrNotSupported returns informational text",
 			args: map[string]any{"channel_id": "C1"},
-			setup: func(m *mock_source.MockSourcer) {
+			setup: func(m *mock_source.MockSourceResumeCloser) {
 				m.EXPECT().AllMessages(gomock.Any(), "C1").Return(nil, source.ErrNotSupported)
 			},
 			wantText: "not support",
@@ -313,7 +314,7 @@ func TestHandleGetMessages(t *testing.T) {
 		{
 			name: "iterator error returns error result",
 			args: map[string]any{"channel_id": "C1"},
-			setup: func(m *mock_source.MockSourcer) {
+			setup: func(m *mock_source.MockSourceResumeCloser) {
 				m.EXPECT().AllMessages(gomock.Any(), "C1").Return(seqErr(errors.New("iter fail")), nil)
 			},
 			wantIsError: true,
@@ -343,28 +344,28 @@ func TestHandleGetThread(t *testing.T) {
 	tests := []struct {
 		name        string
 		args        map[string]any
-		setup       func(m *mock_source.MockSourcer)
+		setup       func(m *mock_source.MockSourceResumeCloser)
 		wantIsError bool
 		wantText    string
 	}{
 		{
 			name:        "missing channel_id returns error result",
 			args:        nil,
-			setup:       func(m *mock_source.MockSourcer) {},
+			setup:       func(m *mock_source.MockSourceResumeCloser) {},
 			wantIsError: true,
 			wantText:    "channel_id",
 		},
 		{
 			name:        "missing thread_ts returns error result",
 			args:        map[string]any{"channel_id": "C1"},
-			setup:       func(m *mock_source.MockSourcer) {},
+			setup:       func(m *mock_source.MockSourceResumeCloser) {},
 			wantIsError: true,
 			wantText:    "thread_ts",
 		},
 		{
 			name: "returns thread messages as JSON",
 			args: map[string]any{"channel_id": "C1", "thread_ts": "1000.000001"},
-			setup: func(m *mock_source.MockSourcer) {
+			setup: func(m *mock_source.MockSourceResumeCloser) {
 				m.EXPECT().AllThreadMessages(gomock.Any(), "C1", "1000.000001").Return(seqOf(
 					slack.Message{Msg: slack.Msg{Timestamp: "1000.000001", Text: "parent", User: "U1"}},
 					slack.Message{Msg: slack.Msg{Timestamp: "1000.000002", Text: "reply", User: "U2"}},
@@ -375,7 +376,7 @@ func TestHandleGetThread(t *testing.T) {
 		{
 			name: "ErrNotFound returns informational text",
 			args: map[string]any{"channel_id": "C1", "thread_ts": "9999.000001"},
-			setup: func(m *mock_source.MockSourcer) {
+			setup: func(m *mock_source.MockSourceResumeCloser) {
 				m.EXPECT().AllThreadMessages(gomock.Any(), "C1", "9999.000001").Return(nil, source.ErrNotFound)
 			},
 			wantText: "9999.000001",
@@ -383,7 +384,7 @@ func TestHandleGetThread(t *testing.T) {
 		{
 			name: "ErrNotSupported returns informational text",
 			args: map[string]any{"channel_id": "C1", "thread_ts": "1000.000001"},
-			setup: func(m *mock_source.MockSourcer) {
+			setup: func(m *mock_source.MockSourceResumeCloser) {
 				m.EXPECT().AllThreadMessages(gomock.Any(), "C1", "1000.000001").Return(nil, source.ErrNotSupported)
 			},
 			wantText: "not support",
@@ -391,7 +392,7 @@ func TestHandleGetThread(t *testing.T) {
 		{
 			name: "iterator error returns error result",
 			args: map[string]any{"channel_id": "C1", "thread_ts": "1000.000001"},
-			setup: func(m *mock_source.MockSourcer) {
+			setup: func(m *mock_source.MockSourceResumeCloser) {
 				m.EXPECT().AllThreadMessages(gomock.Any(), "C1", "1000.000001").Return(seqErr(errors.New("read fail")), nil)
 			},
 			wantIsError: true,
@@ -420,13 +421,13 @@ func TestHandleGetThread(t *testing.T) {
 func TestHandleGetWorkspaceInfo(t *testing.T) {
 	tests := []struct {
 		name        string
-		setup       func(m *mock_source.MockSourcer)
+		setup       func(m *mock_source.MockSourceResumeCloser)
 		wantIsError bool
 		wantText    string
 	}{
 		{
 			name: "returns workspace info as JSON",
-			setup: func(m *mock_source.MockSourcer) {
+			setup: func(m *mock_source.MockSourceResumeCloser) {
 				m.EXPECT().WorkspaceInfo(gomock.Any()).Return(
 					&slack.AuthTestResponse{Team: "Acme Inc", URL: "https://acme.slack.com"},
 					nil,
@@ -436,21 +437,21 @@ func TestHandleGetWorkspaceInfo(t *testing.T) {
 		},
 		{
 			name: "ErrNotFound returns informational text",
-			setup: func(m *mock_source.MockSourcer) {
+			setup: func(m *mock_source.MockSourceResumeCloser) {
 				m.EXPECT().WorkspaceInfo(gomock.Any()).Return(nil, source.ErrNotFound)
 			},
 			wantText: "not available",
 		},
 		{
 			name: "ErrNotSupported returns informational text",
-			setup: func(m *mock_source.MockSourcer) {
+			setup: func(m *mock_source.MockSourceResumeCloser) {
 				m.EXPECT().WorkspaceInfo(gomock.Any()).Return(nil, source.ErrNotSupported)
 			},
 			wantText: "not available",
 		},
 		{
 			name: "generic error returns error result",
-			setup: func(m *mock_source.MockSourcer) {
+			setup: func(m *mock_source.MockSourceResumeCloser) {
 				m.EXPECT().WorkspaceInfo(gomock.Any()).Return(nil, errors.New("db error"))
 			},
 			wantIsError: true,
@@ -470,6 +471,132 @@ func TestHandleGetWorkspaceInfo(t *testing.T) {
 			if tt.wantText != "" {
 				assert.Contains(t, firstText(t, result), tt.wantText)
 			}
+		})
+	}
+}
+
+// ─── handleLoadSource ─────────────────────────────────────────────────────────
+
+func TestHandleLoadSource(t *testing.T) {
+	tests := []struct {
+		name        string
+		args        map[string]any
+		setupLoader func(ctrl *gomock.Controller) (SourceLoader, *mock_source.MockSourceResumeCloser)
+		setupOld    func(ctrl *gomock.Controller) *mock_source.MockSourceResumeCloser
+		wantIsError bool
+		wantText    string
+	}{
+		{
+			name:        "missing path returns error result",
+			args:        nil,
+			setupLoader: func(ctrl *gomock.Controller) (SourceLoader, *mock_source.MockSourceResumeCloser) { return nil, nil },
+			wantIsError: true,
+			wantText:    "path",
+		},
+		{
+			name: "loader error returns error result",
+			args: map[string]any{"path": "/bad/path"},
+			setupLoader: func(ctrl *gomock.Controller) (SourceLoader, *mock_source.MockSourceResumeCloser) {
+				return func(_ context.Context, _ string) (source.SourceResumeCloser, error) {
+					return nil, errors.New("no such file")
+				}, nil
+			},
+			wantIsError: true,
+			wantText:    "no such file",
+		},
+		{
+			name: "success opens new source and returns info",
+			args: map[string]any{"path": "/some/archive.db"},
+			setupLoader: func(ctrl *gomock.Controller) (SourceLoader, *mock_source.MockSourceResumeCloser) {
+				next := mock_source.NewMockSourceResumeCloser(ctrl)
+				next.EXPECT().Name().Return("archive.db").AnyTimes()
+				next.EXPECT().Type().Return(source.FDatabase).AnyTimes()
+				loader := func(_ context.Context, _ string) (source.SourceResumeCloser, error) {
+					return next, nil
+				}
+				return loader, next
+			},
+			wantText: "archive.db",
+		},
+		{
+			name: "success closes previous source before opening new one",
+			args: map[string]any{"path": "/new/archive.db"},
+			setupOld: func(ctrl *gomock.Controller) *mock_source.MockSourceResumeCloser {
+				old := mock_source.NewMockSourceResumeCloser(ctrl)
+				old.EXPECT().Close().Return(nil).Times(1)
+				return old
+			},
+			setupLoader: func(ctrl *gomock.Controller) (SourceLoader, *mock_source.MockSourceResumeCloser) {
+				next := mock_source.NewMockSourceResumeCloser(ctrl)
+				next.EXPECT().Name().Return("new-archive.db").AnyTimes()
+				next.EXPECT().Type().Return(source.FDatabase).AnyTimes()
+				loader := func(_ context.Context, _ string) (source.SourceResumeCloser, error) {
+					return next, nil
+				}
+				return loader, next
+			},
+			wantText: "new-archive.db",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+
+			srv := New(WithLogger(nil))
+
+			// Optionally pre-install an old source.
+			if tt.setupOld != nil {
+				srv.src = tt.setupOld(ctrl)
+			}
+
+			// Optionally install a custom loader.
+			if tt.setupLoader != nil {
+				loader, _ := tt.setupLoader(ctrl)
+				if loader != nil {
+					srv.loader = loader
+				}
+			}
+
+			result, err := srv.handleLoadSource(t.Context(), toolReq(tt.args))
+			require.NoError(t, err)
+			require.NotNil(t, result)
+			assert.Equal(t, tt.wantIsError, isErrorResult(result))
+			if tt.wantText != "" {
+				assert.Contains(t, firstText(t, result), tt.wantText)
+			}
+		})
+	}
+}
+
+// ─── nil source guard ─────────────────────────────────────────────────────────
+
+func TestHandlers_nilSource(t *testing.T) {
+	// Every data tool handler must return an error result (not panic) when no
+	// source has been loaded yet.
+	srv := New(WithLogger(nil)) // no WithSource → srv.src is nil
+
+	req := mcplib.CallToolRequest{}
+	ctx := t.Context()
+
+	handlers := []struct {
+		name string
+		fn   func(context.Context, mcplib.CallToolRequest) (*mcplib.CallToolResult, error)
+	}{
+		{"list_channels", srv.handleListChannels},
+		{"get_channel", srv.handleGetChannel},
+		{"list_users", srv.handleListUsers},
+		{"get_messages", srv.handleGetMessages},
+		{"get_thread", srv.handleGetThread},
+		{"get_workspace_info", srv.handleGetWorkspaceInfo},
+	}
+
+	for _, h := range handlers {
+		t.Run(h.name, func(t *testing.T) {
+			result, err := h.fn(ctx, req)
+			require.NoError(t, err)
+			require.NotNil(t, result)
+			assert.True(t, isErrorResult(result), "expected IsError=true for nil source")
+			assert.Contains(t, firstText(t, result), "load_source")
 		})
 	}
 }
