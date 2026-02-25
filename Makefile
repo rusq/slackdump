@@ -9,7 +9,7 @@ ifeq ($(BUILD_DATE),)
 	BUILD_DATE=$(shell TZ=UTC date -u '+%Y-%m-%d %H:%M:%SZ')
 endif
 
-PKG=github.com/rusq/slackdump/v3
+PKG=github.com/rusq/slackdump/v4
 
 LDFLAGS="-s -w -X 'main.commit=$(COMMIT)' -X 'main.version=$(BUILD)' -X 'main.date=$(BUILD_DATE)'"
 OSES=linux darwin windows

@@ -28,6 +28,56 @@ import (
 	"github.com/rusq/slackdump/v4/source"
 )
 
+// errNoSource is returned by tool handlers when no source has been loaded yet.
+var errNoSource = errors.New("no archive is loaded; call load_source first")
+
+// ─── load_source ──────────────────────────────────────────────────────────────
+
+func (s *Server) toolLoadSource() mcpsrv.ServerTool {
+	tool := mcplib.NewTool("load_source",
+		mcplib.WithDescription(`Open a Slackdump archive as the active data source.
+
+Calling this tool closes the currently open archive (if any) and opens the
+archive at the given path.  Only one source may be open at any time.  After
+a successful call all data tools (list_channels, list_users, get_messages,
+get_thread, get_workspace_info) operate on the newly opened archive.
+
+Accepted archive formats: SQLite database (.db/.sqlite), Slackdump chunk
+directory, Slackdump dump directory or ZIP, Slack export directory or ZIP.`),
+		mcplib.WithString("path",
+			mcplib.Description("Filesystem path to the Slackdump archive file or directory to open."),
+			mcplib.Required(),
+		),
+	)
+	return mcpsrv.ServerTool{Tool: tool, Handler: s.handleLoadSource}
+}
+
+func (s *Server) handleLoadSource(ctx context.Context, req mcplib.CallToolRequest) (*mcplib.CallToolResult, error) {
+	path, ok := stringArg(req, "path")
+	if !ok || path == "" {
+		return resultErr(errors.New("load_source: path is required")), nil
+	}
+
+	s.logger.InfoContext(ctx, "mcp: load_source: opening archive", "path", path)
+
+	next, err := s.loader(ctx, path)
+	if err != nil {
+		return resultErr(fmt.Errorf("load_source: open %q: %w", path, err)), nil
+	}
+
+	if err := s.loadSource(next); err != nil {
+		// loadSource itself never returns an error currently, but be defensive.
+		_ = next.Close()
+		return resultErr(fmt.Errorf("load_source: %w", err)), nil
+	}
+
+	s.logger.InfoContext(ctx, "mcp: load_source: archive opened", "path", path, "type", next.Type())
+	return resultText(fmt.Sprintf(
+		"Archive %q (type: %s) loaded successfully. You can now use the data tools.",
+		next.Name(), next.Type(),
+	)), nil
+}
+
 // ─── list_channels ────────────────────────────────────────────────────────────
 
 func (s *Server) toolListChannels() mcpsrv.ServerTool {
@@ -53,7 +103,12 @@ type channelSummary struct {
 }
 
 func (s *Server) handleListChannels(ctx context.Context, req mcplib.CallToolRequest) (*mcplib.CallToolResult, error) {
-	channels, err := s.src.Channels(ctx)
+	src := s.source()
+	if src == nil {
+		return resultErr(errNoSource), nil
+	}
+
+	channels, err := src.Channels(ctx)
 	if err != nil {
 		if errors.Is(err, source.ErrNotSupported) {
 			return resultText("This archive type does not support listing channels."), nil
@@ -107,12 +162,17 @@ func (s *Server) toolGetChannel() mcpsrv.ServerTool {
 }
 
 func (s *Server) handleGetChannel(ctx context.Context, req mcplib.CallToolRequest) (*mcplib.CallToolResult, error) {
+	src := s.source()
+	if src == nil {
+		return resultErr(errNoSource), nil
+	}
+
 	channelID, ok := stringArg(req, "channel_id")
 	if !ok || channelID == "" {
 		return resultErr(errors.New("get_channel: channel_id is required")), nil
 	}
 
-	ch, err := s.src.ChannelInfo(ctx, channelID)
+	ch, err := src.ChannelInfo(ctx, channelID)
 	if err != nil {
 		if errors.Is(err, source.ErrNotFound) {
 			return resultText(fmt.Sprintf("Channel %q not found in archive.", channelID)), nil
@@ -153,7 +213,12 @@ type userSummary struct {
 }
 
 func (s *Server) handleListUsers(ctx context.Context, req mcplib.CallToolRequest) (*mcplib.CallToolResult, error) {
-	users, err := s.src.Users(ctx)
+	src := s.source()
+	if src == nil {
+		return resultErr(errNoSource), nil
+	}
+
+	users, err := src.Users(ctx)
 	if err != nil {
 		if errors.Is(err, source.ErrNotSupported) {
 			return resultText("This archive type does not support listing users."), nil
@@ -217,6 +282,11 @@ type messageSummary struct {
 }
 
 func (s *Server) handleGetMessages(ctx context.Context, req mcplib.CallToolRequest) (*mcplib.CallToolResult, error) {
+	src := s.source()
+	if src == nil {
+		return resultErr(errNoSource), nil
+	}
+
 	channelID, ok := stringArg(req, "channel_id")
 	if !ok || channelID == "" {
 		return resultErr(errors.New("get_messages: channel_id is required")), nil
@@ -232,7 +302,7 @@ func (s *Server) handleGetMessages(ctx context.Context, req mcplib.CallToolReque
 
 	afterTS, _ := stringArg(req, "after_ts")
 
-	iter, err := s.src.AllMessages(ctx, channelID)
+	iter, err := src.AllMessages(ctx, channelID)
 	if err != nil {
 		if errors.Is(err, source.ErrNotFound) {
 			return resultText(fmt.Sprintf("No messages found for channel %q.", channelID)), nil
@@ -295,6 +365,11 @@ func (s *Server) toolGetThread() mcpsrv.ServerTool {
 }
 
 func (s *Server) handleGetThread(ctx context.Context, req mcplib.CallToolRequest) (*mcplib.CallToolResult, error) {
+	src := s.source()
+	if src == nil {
+		return resultErr(errNoSource), nil
+	}
+
 	channelID, ok := stringArg(req, "channel_id")
 	if !ok || channelID == "" {
 		return resultErr(errors.New("get_thread: channel_id is required")), nil
@@ -304,7 +379,7 @@ func (s *Server) handleGetThread(ctx context.Context, req mcplib.CallToolRequest
 		return resultErr(errors.New("get_thread: thread_ts is required")), nil
 	}
 
-	iter, err := s.src.AllThreadMessages(ctx, channelID, threadTS)
+	iter, err := src.AllThreadMessages(ctx, channelID, threadTS)
 	if err != nil {
 		if errors.Is(err, source.ErrNotFound) {
 			return resultText(fmt.Sprintf("Thread %q in channel %q not found.", threadTS, channelID)), nil
@@ -348,7 +423,12 @@ func (s *Server) toolGetWorkspaceInfo() mcpsrv.ServerTool {
 }
 
 func (s *Server) handleGetWorkspaceInfo(ctx context.Context, req mcplib.CallToolRequest) (*mcplib.CallToolResult, error) {
-	info, err := s.src.WorkspaceInfo(ctx)
+	src := s.source()
+	if src == nil {
+		return resultErr(errNoSource), nil
+	}
+
+	info, err := src.WorkspaceInfo(ctx)
 	if err != nil {
 		if errors.Is(err, source.ErrNotFound) || errors.Is(err, source.ErrNotSupported) {
 			return resultText("Workspace information is not available in this archive."), nil

@@ -37,7 +37,7 @@ var mdMCP string
 
 // CmdMCP is the "slackdump mcp" command.
 var CmdMCP = &base.Command{
-	UsageLine:   "slackdump mcp [flags] <archive>",
+	UsageLine:   "slackdump mcp [flags] [<archive>]",
 	Short:       "Start a local MCP server for an archive",
 	Long:        mdMCP,
 	FlagMask:    cfg.OmitAll,
@@ -57,24 +57,28 @@ func init() {
 }
 
 func runMCP(ctx context.Context, cmd *base.Command, args []string) error {
-	if len(args) < 1 {
-		base.SetExitStatus(base.SInvalidParameters)
-		return fmt.Errorf("mcp: an archive path is required")
-	}
-
-	archivePath := args[0]
-
 	lg := cfg.Log
-	lg.InfoContext(ctx, "mcp: opening archive", "path", archivePath)
 
-	src, err := source.Load(ctx, archivePath)
-	if err != nil {
-		base.SetExitStatus(base.SUserError)
-		return fmt.Errorf("mcp: open archive: %w", err)
+	var mcpOpts []internalmcp.Option
+	mcpOpts = append(mcpOpts, internalmcp.WithLogger(lg))
+
+	if len(args) >= 1 {
+		archivePath := args[0]
+		lg.InfoContext(ctx, "mcp: opening archive", "path", archivePath)
+
+		src, err := source.Load(ctx, archivePath)
+		if err != nil {
+			base.SetExitStatus(base.SUserError)
+			return fmt.Errorf("mcp: open archive: %w", err)
+		}
+		defer src.Close()
+
+		mcpOpts = append(mcpOpts, internalmcp.WithSource(src))
+	} else {
+		lg.InfoContext(ctx, "mcp: no archive specified; agent must call load_source before using data tools")
 	}
-	defer src.Close()
 
-	srv := internalmcp.New(src, lg)
+	srv := internalmcp.New(mcpOpts...)
 
 	// Add the command_help tool at the CLI layer because it needs access to
 	// cmd/slackdump/internal packages which are forbidden from internal/mcp.
