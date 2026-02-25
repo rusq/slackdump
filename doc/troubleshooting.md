@@ -97,6 +97,8 @@ described in [Manual Authentication](login-manual.md), or use the
 "Sign In on Mobile" approach to extract the token from the Slack mobile app
 (also documented there). See [issue #168].
 
+You could also try using Brave Browser.
+
 ---
 
 ### Login hangs after completing 2FA or SSO (DUO, TOTP, etc.)
@@ -166,6 +168,8 @@ correct, or channel listing fails with `enterprise_is_restricted`.
   restrictions. There is no client-side workaround.
 - **Token expired or revoked.** Slack session tokens expire when you log out or
   a new device signs in.
+- **Slackdump fails to detect enterprise workspace.** You can force enterprise
+  API implementation by running with `-enterprise` flag.
 
 **Fix:** Try the "Sign In on Mobile" method from [Manual Authentication](login-manual.md)
 to obtain a fresh `xoxc-`/`d=` pair. If `enterprise_is_restricted` persists,
@@ -190,7 +194,7 @@ See [issue #562].
 
 ### Export produces no output files
 
-**Symptoms:** Running `slackdump export` with `--time-from` / `--time-to`
+**Symptoms:** Running `slackdump export` with `-time-from` / `-time-to`
 completes without errors but produces no ZIP file or an empty one.
 
 **Causes:**
@@ -210,8 +214,8 @@ the human-readable table output from `slackdump list channels`. See [issue #428]
 **Symptoms:** Third-party tools like `slack-export-viewer` or the official Slack
 import tool fail to open a ZIP produced by `slackdump export`.
 
-**Fix:** Use `--type standard` (the default) for `slack-export-viewer`
-compatibility. The Mattermost export type (`--type mattermost`) is not
+**Fix:** Use `-type standard` (the default) for `slack-export-viewer`
+compatibility. The Mattermost export type (`-type mattermost`) is not
 compatible with `slack-export-viewer`. If the viewer still crashes, try
 exporting a single channel first to isolate the issue.
 
@@ -443,7 +447,7 @@ replies. A channel with 50 000 threads requires 50 000 sequential API calls at
 **Tips to reduce time:**
 
 - Use `-limiter-burst=5` to allow short bursts within Slack's rate limits.
-- Archive only recent messages using `--time-from`:
+- Archive only recent messages using `-time-from`:
   ```bash
   slackdump archive -time-from 2024-01-01 C01234ABCDE
   ```
