@@ -1,5 +1,42 @@
 # What's New?
 
+## v4.1.0
+
+### New Features
+
+- **MCP Server** (`slackdump mcp`): a read-only Model Context Protocol server
+  for querying Slackdump archives with AI agents (Claude, GitHub Copilot,
+  OpenCode, etc.).  Supports both **stdio** and **HTTP** transports.  Available
+  tools: `load_source`, `list_channels`, `get_channel`, `list_users`,
+  `get_messages`, `get_thread`, `get_workspace_info`, and `command_help`.
+
+- **Auto-updater** (`slackdump tools update`): checks for a newer release on
+  GitHub and optionally installs it.  Pass `-auto` to update without prompts.
+  Marked experimental; supports brew, apt, pacman, and direct binary replacement.
+
+- **`-fail-hard` flag**: opt in to hard-failing on non-critical per-channel
+  errors (e.g. `not_in_channel`, `channel_not_found`) across `archive`,
+  `export`, and `dump`.  By default these errors are skipped and logged.
+
+- **`-member-only` in `list channels`**: the `-member-only` flag is now
+  respected by `slackdump list channels` in addition to `archive`.
+
+- **QR code input size override**: the maximum size of the QR code image paste
+  field can be tuned via the `QR_CODE_SIZE` environment variable for workspaces
+  that produce unusually large QR images.
+
+### Bug Fixes
+
+- Enterprise channel filtering: fixed incorrect channel filtering that could
+  silently drop channels in Enterprise Grid workspaces.
+
+- `not_in_channel` no longer aborts a full-workspace archive; the channel is
+  skipped and the run continues (see also `-fail-hard` above).
+
+- `IsMember` logic now falls back to the `C`-prefix heuristic for channels
+  where the membership field is absent, fixing missing channels in
+  `--member-only` runs.
+
 ## v4.0.0
 
 - New channel type filtering via `--chan-types` and wizard multi-select, wired through list/archive/export/resume flows.

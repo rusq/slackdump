@@ -28,7 +28,7 @@ require (
 	github.com/pressly/goose/v3 v3.27.0
 	github.com/pterm/pterm v0.12.82
 	github.com/refraction-networking/utls v1.8.2
-	github.com/rusq/chttp/v2 v2.0.0
+	github.com/rusq/chttp/v2 v2.0.1
 	github.com/rusq/encio v0.2.0
 	github.com/rusq/fsadapter v1.1.0
 	github.com/rusq/osenv/v2 v2.0.1

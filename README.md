@@ -35,6 +35,8 @@ files and emojis.  Generate Slack Export without admin privileges.
 > 
 > You are responsible for ensuring your use complies with your organisation’s
 > policies and Slack’s terms of service.
+>
+> **See [Enterprise Workspace Tips](doc/enterprise.md).**
 
 ## Description
 
