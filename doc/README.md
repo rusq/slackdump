@@ -12,6 +12,7 @@
   - [Dumping messages and threads](usage-channels.md)
   - [Creating a Slack Export](usage-export.md)
   - [Downloading all Emojis](usage-emoji.md)
+- [Enterprise Workspace Tips](enterprise.md)
 - [Compiling from Sources](compiling.md)
 - [Troubleshooting](troubleshooting.md)
 
