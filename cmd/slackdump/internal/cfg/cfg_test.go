@@ -136,7 +136,7 @@ func TestBuildInfo_IsReleased(t *testing.T) {
 		{
 			name:     "version without v. prefix",
 			version:  "3.2.1",
-			expected: false,
+			expected: true,
 		},
 		{
 			name:     "development version",

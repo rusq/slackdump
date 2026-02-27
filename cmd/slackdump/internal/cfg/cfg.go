@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -122,12 +123,11 @@ func (b BuildInfo) String() string {
 	return fmt.Sprintf("Slackdump %s (commit: %s) built on: %s", b.Version, b.Commit, b.Date)
 }
 
+var versionRe = regexp.MustCompile(`^(?P<major>0|[1-9]\d*)\.(?P<minor>0|[1-9]\d*)\.(?P<patch>0|[1-9]\d*)(?:-(?P<prerelease>(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+(?P<buildmetadata>[0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$`)
+
 func (b BuildInfo) IsReleased() bool {
 	// Check if version starts with 'v' or 'V' and is not "unknown"
 	if b.Version == "unknown" {
-		return false
-	}
-	if !strings.HasPrefix(b.Version, "v") && !strings.HasPrefix(b.Version, "V") {
 		return false
 	}
 	// Validate semantic versioning format: v[0-9]+.[0-9]+.[0-9]+ (with optional suffix)
@@ -139,12 +139,7 @@ func (b BuildInfo) IsReleased() bool {
 		return false
 	}
 
-	// Check if first character is a digit
-	if versionWithoutPrefix[0] < '0' || versionWithoutPrefix[0] > '9' {
-		return false
-	}
-
-	return true
+	return versionRe.MatchString(versionWithoutPrefix)
 }
 
 type FlagMask uint32
