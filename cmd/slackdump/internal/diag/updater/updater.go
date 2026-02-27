@@ -77,7 +77,14 @@ func (u Updater) Current(ctx context.Context) (Release, error) {
 		return r, ErrUnreleased
 	}
 
-	rel, err := u.cl.ByTag(ctx, cfg.Version.Version)
+	normalised, err := cfg.Version.Normalised()
+	if err != nil {
+		if errors.Is(err, cfg.ErrVerUnknown) || errors.Is(err, cfg.ErrDateUnknown) {
+			return r, ErrUnreleased
+		}
+	}
+
+	rel, err := u.cl.ByTag(ctx, normalised.Version)
 	if err != nil {
 		return r, err
 	}

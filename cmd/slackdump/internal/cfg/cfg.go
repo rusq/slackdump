@@ -17,6 +17,7 @@
 package cfg
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"log/slog"
@@ -117,6 +118,46 @@ type BuildInfo struct {
 	Version string `json:"version"`
 	Commit  string `json:"commit"`
 	Date    string `json:"date"`
+}
+
+var (
+	// ErrVerUnknown indicates that this is either a development build or
+	// version is not set.
+	ErrVerUnknown = errors.New("version unknown")
+	// ErrDateUknown indicates that the date is either not set or unknown.
+	ErrDateUnknown = errors.New("unknown date")
+)
+
+// Normalised returns the normalised BuildInfo:
+// - version has v prefix
+// - Build is in 2006-01-02 15:04:05Z format.
+// - commit is unchanged, so may be "Homebrew"
+// It will return ErrVerUknown if version is unknown (i.e. unreleased).
+func (b BuildInfo) Normalised() (BuildInfo, error) {
+	const defaultLayoutIdx = 0
+	var knownDateLayouts = []string{
+		"2006-01-02 15:04:05Z", // make (default)
+		"2006-01-02T15:04:05Z", // homebrew
+	}
+	var nrm BuildInfo
+	if !b.IsReleased() {
+		return nrm, ErrVerUnknown
+	}
+	nrm.Commit = b.Commit
+	if !strings.HasPrefix(strings.ToUpper(b.Version), "V") {
+		nrm.Version = "v" + b.Version
+	}
+	if b.Date == "" || b.Date == "unknown" {
+		return nrm, ErrDateUnknown
+	}
+	// try parsing Homebrew string
+	for _, layout := range knownDateLayouts {
+		if dt, err := time.Parse(layout, b.Date); err == nil {
+			nrm.Date = dt.Format(knownDateLayouts[defaultLayoutIdx])
+			return nrm, nil
+		}
+	}
+	return nrm, ErrDateUnknown
 }
 
 func (b BuildInfo) String() string {
