@@ -73,14 +73,15 @@ var ErrUnreleased = errors.New("current version is not released")
 func (u Updater) Current(ctx context.Context) (Release, error) {
 	var r Release
 
-	if !cfg.Version.IsReleased() {
-		return r, ErrUnreleased
-	}
-
 	normalised, err := cfg.Version.Normalised()
 	if err != nil {
-		if errors.Is(err, cfg.ErrVerUnknown) || errors.Is(err, cfg.ErrDateUnknown) {
+		switch {
+		case errors.Is(err, cfg.ErrVerUnknown):
 			return r, ErrUnreleased
+		case errors.Is(err, cfg.ErrDateUnknown):
+			// version is known; proceed with ByTag even without a reliable date
+		default:
+			return r, err
 		}
 	}
 

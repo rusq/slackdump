@@ -17,11 +17,13 @@
 package cfg
 
 import (
+	"errors"
 	"flag"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestSetBaseFlags(t *testing.T) {
@@ -183,6 +185,98 @@ func TestBuildInfo_IsReleased(t *testing.T) {
 				Date:    "2024-01-01",
 			}
 			assert.Equal(t, tt.expected, bi.IsReleased())
+		})
+	}
+}
+
+func TestBuildInfo_Normalised(t *testing.T) {
+	const (
+		commit     = "deadbeef"
+		makeDate   = "2026-02-25 10:00:00Z"
+		brewDate   = "2026-02-25T10:00:00Z"
+		normalDate = "2026-02-25 10:00:00Z" // canonical output (make layout)
+	)
+
+	tests := []struct {
+		name        string
+		input       BuildInfo
+		wantVersion string
+		wantDate    string
+		wantCommit  string
+		wantErr     error
+	}{
+		{
+			name:        "lowercase v prefix with make date",
+			input:       BuildInfo{Version: "v3.2.1", Commit: commit, Date: makeDate},
+			wantVersion: "v3.2.1",
+			wantDate:    normalDate,
+			wantCommit:  commit,
+		},
+		{
+			name:        "no v prefix (homebrew style) with make date",
+			input:       BuildInfo{Version: "3.2.1", Commit: "Homebrew", Date: makeDate},
+			wantVersion: "v3.2.1",
+			wantDate:    normalDate,
+			wantCommit:  "Homebrew",
+		},
+		{
+			name:        "homebrew T-format date is normalised",
+			input:       BuildInfo{Version: "4.0.0", Commit: "Homebrew", Date: brewDate},
+			wantVersion: "v4.0.0",
+			wantDate:    normalDate,
+			wantCommit:  "Homebrew",
+		},
+		{
+			name:        "capital V prefix is lowercased",
+			input:       BuildInfo{Version: "V2.3.4", Commit: commit, Date: makeDate},
+			wantVersion: "v2.3.4",
+			wantDate:    normalDate,
+			wantCommit:  commit,
+		},
+		{
+			name:    "unreleased dev version returns ErrVerUnknown",
+			input:   BuildInfo{Version: "dev", Commit: commit, Date: makeDate},
+			wantErr: ErrVerUnknown,
+		},
+		{
+			name:    "unknown version string returns ErrVerUnknown",
+			input:   BuildInfo{Version: "unknown", Commit: commit, Date: makeDate},
+			wantErr: ErrVerUnknown,
+		},
+		{
+			name:    "empty version returns ErrVerUnknown",
+			input:   BuildInfo{Version: "", Commit: commit, Date: makeDate},
+			wantErr: ErrVerUnknown,
+		},
+		{
+			name:    "empty date returns ErrDateUnknown",
+			input:   BuildInfo{Version: "v1.0.0", Commit: commit, Date: ""},
+			wantErr: ErrDateUnknown,
+		},
+		{
+			name:    "unknown date string returns ErrDateUnknown",
+			input:   BuildInfo{Version: "v1.0.0", Commit: commit, Date: "unknown"},
+			wantErr: ErrDateUnknown,
+		},
+		{
+			name:    "unrecognised date format returns ErrDateUnknown",
+			input:   BuildInfo{Version: "v1.0.0", Commit: commit, Date: "25/02/2026"},
+			wantErr: ErrDateUnknown,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := tt.input.Normalised()
+			if tt.wantErr != nil {
+				require.Error(t, err)
+				assert.True(t, errors.Is(err, tt.wantErr), "expected error %v, got %v", tt.wantErr, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantVersion, got.Version)
+			assert.Equal(t, tt.wantDate, got.Date)
+			assert.Equal(t, tt.wantCommit, got.Commit)
 		})
 	}
 }

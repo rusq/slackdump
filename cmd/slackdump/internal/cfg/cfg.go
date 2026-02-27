@@ -146,6 +146,9 @@ func (b BuildInfo) Normalised() (BuildInfo, error) {
 	nrm.Commit = b.Commit
 	if !strings.HasPrefix(strings.ToUpper(b.Version), "V") {
 		nrm.Version = "v" + b.Version
+	} else {
+		// normalise capital V to lowercase v
+		nrm.Version = "v" + b.Version[1:]
 	}
 	if b.Date == "" || b.Date == "unknown" {
 		return nrm, ErrDateUnknown
