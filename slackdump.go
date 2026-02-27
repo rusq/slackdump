@@ -41,10 +41,10 @@ import (
 // Session stores basic session parameters.  Zero value is not usable, must be
 // initialised with New.
 type Session struct {
-	client client.SlackClienter // client is the Slack client to use for API calls.
-	uc     *usercache           // usercache contains the list of users.
-	fs     fsadapter.FS         // filesystem adapter
-	log    *slog.Logger         // logger
+	client client.Slack // client is the Slack client to use for API calls.
+	uc     *usercache   // usercache contains the list of users.
+	fs     fsadapter.FS // filesystem adapter
+	log    *slog.Logger // logger
 
 	wspInfo *WorkspaceInfo // workspace info
 
@@ -108,7 +108,7 @@ func WithUserCacheRetention(d time.Duration) Option {
 }
 
 // WithSlackClient sets the Slack client to use for the session.  If this
-func WithSlackClient(cl client.SlackClienter) Option {
+func WithSlackClient(cl client.Slack) Option {
 	return func(s *Session) {
 		s.client = cl
 	}
@@ -186,14 +186,14 @@ func (s *Session) initClient(ctx context.Context, prov auth.Provider, forceEdge 
 // slack.Client.
 var ErrNotAClient = errors.New("programming error: underlying client is not a slack.Client")
 
-// Client returns the underlying slack.Client. If the underlying client is not
-// a slack.Client, ErrNotAClient is returned.
+// Client returns the underlying slack.Client. If the underlying client does
+// not wrap a *slack.Client, ErrNotAClient is returned.
 func (s *Session) Client() (*slack.Client, error) {
-	cl, ok := s.client.Client()
+	cl, ok := s.client.(*client.Client)
 	if !ok {
 		return nil, ErrNotAClient
 	}
-	return cl, nil
+	return cl.Client, nil
 }
 
 // CurrentUserID returns the user ID of the authenticated user.

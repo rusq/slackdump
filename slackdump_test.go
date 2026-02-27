@@ -158,7 +158,7 @@ func TestSession_initWorkspaceInfo(t *testing.T) {
 	ctx := t.Context()
 	t.Run("ok", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		mc := mock_client.NewMockSlackClienter(ctrl)
+		mc := mock_client.NewMockSlack(ctrl)
 		mc.EXPECT().AuthTestContext(gomock.Any()).Return(&slack.AuthTestResponse{
 			TeamID: "TEST",
 		}, nil)
@@ -171,7 +171,7 @@ func TestSession_initWorkspaceInfo(t *testing.T) {
 	})
 	t.Run("error", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		mc := mock_client.NewMockSlackClienter(ctrl)
+		mc := mock_client.NewMockSlack(ctrl)
 		mc.EXPECT().AuthTestContext(gomock.Any()).Return(nil, assert.AnError)
 		s := Session{
 			client: nil, // it should use the provided client

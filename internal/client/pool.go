@@ -26,11 +26,17 @@ import (
 
 // Pool is a pool of Slack clients that can be used to make API calls.
 // Zero value is not usable, must be initialised with [NewPool].
+//
+// IMPORTANT: Every method on the [Slack] interface must be delegated here.
+// When new methods are added to [Slack], add the corresponding delegation
+// below.  A compile-time assertion below catches interface drift.
 type Pool struct {
 	pool []Slack
 	mu   sync.Mutex
 	strategy
 }
+
+var _ Slack = (*Pool)(nil) // compile-time: Pool must implement Slack
 
 // NewPool wraps the slack.Client with the edge client, so that the edge
 // client can be used as a fallback.

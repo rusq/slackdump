@@ -259,6 +259,12 @@ var (
 	ErrOpNotSupported = errors.New("client doesn't support this operation")
 )
 
+// channelsExer is a narrow interface satisfied by *client.Client when an edge
+// (enterprise) connection is available.
+type channelsExer interface {
+	GetConversationsContextEx(ctx context.Context, params *slack.GetConversationsParameters, onlyMy bool) (channels []slack.Channel, nextCursor string, err error)
+}
+
 // ListChannelsEx is an extended version of ListChannels that uses extended
 // calls in an attempt to make the operation faster. If the underlying client
 // does not support extended methods, it will return [ErrOpNotSupported] error.
@@ -266,19 +272,17 @@ func (cs *Stream) ListChannelsEx(ctx context.Context, proc processor.Channels, p
 	ctx, task := trace.NewTask(ctx, "ListChannelsEx")
 	defer task.End()
 
-	// filthy magic. We need to get to the extended GetConversationsContextEx method to be able to provide
-	// onlyMy parameter, TODO: maybe there's a better way.
-	scl, ok := cs.client.(*client.Client)
-	if !ok {
-		return ErrOpNotSupported
-	}
-	ecl, ok := scl.Edge()
+	ex, ok := cs.client.(channelsExer)
 	if !ok {
 		return ErrOpNotSupported
 	}
 
 	return cs.listChannels(ctx, proc, p, func(ctx context.Context, p *slack.GetConversationsParameters) ([]slack.Channel, string, error) {
-		return ecl.GetConversationsContextEx(ctx, p, onlyMy)
+		ch, cursor, err := ex.GetConversationsContextEx(ctx, p, onlyMy)
+		if errors.Is(err, client.ErrOpNotSupported) {
+			return nil, "", ErrOpNotSupported
+		}
+		return ch, cursor, err
 	})
 }
 

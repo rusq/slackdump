@@ -102,7 +102,7 @@ func TestPool_AuthTestContext(t *testing.T) {
 		wantErr      bool
 	}{
 		{
-			name: "expect call on the second client (round robin)",
+			name: "expect call on the first client (round robin, two clients)",
 			fields: fields{
 				strategy: newRoundRobin(2),
 			},
@@ -111,8 +111,8 @@ func TestPool_AuthTestContext(t *testing.T) {
 			},
 			numClients: 2,
 			expectFn: func(clients []*mock_client.MockSlack) {
-				clients[0].EXPECT().AuthTestContext(t.Context()).Times(0)
-				clients[1].EXPECT().AuthTestContext(t.Context()).Return(&slack.AuthTestResponse{URL: "abc"}, nil)
+				clients[0].EXPECT().AuthTestContext(t.Context()).Return(&slack.AuthTestResponse{URL: "abc"}, nil)
+				clients[1].EXPECT().AuthTestContext(t.Context()).Times(0)
 			},
 			wantResponse: &slack.AuthTestResponse{URL: "abc"},
 			wantErr:      false,
