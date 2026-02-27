@@ -31,9 +31,9 @@ type roundRobin struct {
 }
 
 // newRoundRobin creates a new round-robin strategy with the given total number
-// of items.
+// of items.  The first call to next() returns index 0.
 func newRoundRobin(total int) *roundRobin {
-	return &roundRobin{total: total}
+	return &roundRobin{total: total, i: total - 1}
 }
 
 func (r *roundRobin) next() int {

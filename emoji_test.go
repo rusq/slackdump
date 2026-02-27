@@ -33,14 +33,14 @@ func TestSession_DumpEmojis(t *testing.T) {
 	tests := []struct {
 		name     string
 		args     args
-		expectfn func(m *mock_client.MockSlackClienter)
+		expectfn func(m *mock_client.MockSlack)
 		want     map[string]string
 		wantErr  bool
 	}{
 		{
 			"ok",
 			args{t.Context()},
-			func(m *mock_client.MockSlackClienter) {
+			func(m *mock_client.MockSlack) {
 				m.EXPECT().
 					GetEmojiContext(gomock.Any()).
 					Return(map[string]string{"foo": "bar"}, nil)
@@ -51,7 +51,7 @@ func TestSession_DumpEmojis(t *testing.T) {
 		{
 			"error is propagated",
 			args{t.Context()},
-			func(m *mock_client.MockSlackClienter) {
+			func(m *mock_client.MockSlack) {
 				m.EXPECT().
 					GetEmojiContext(gomock.Any()).
 					Return(nil, errors.New("not today sir"))
@@ -62,7 +62,7 @@ func TestSession_DumpEmojis(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mcl := mock_client.NewMockSlackClienter(gomock.NewController(t))
+			mcl := mock_client.NewMockSlack(gomock.NewController(t))
 			tt.expectfn(mcl)
 			s := &Session{
 				client: mcl,

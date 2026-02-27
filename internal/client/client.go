@@ -17,6 +17,7 @@ package client
 
 import (
 	"context"
+	"errors"
 	"io"
 
 	"github.com/rusq/slack"
@@ -25,7 +26,7 @@ import (
 	"github.com/rusq/slackdump/v4/internal/edge"
 )
 
-//go:generate mockgen -destination mock_client/mock_client.go . SlackClienter,Slack,SlackEdge
+//go:generate mockgen -destination mock_client/mock_client.go . Slack
 
 // Slack is an interface that defines the methods that a Slack client should provide.
 type Slack interface {
@@ -48,36 +49,27 @@ type Slack interface {
 	GetUserProfileContext(ctx context.Context, params *slack.GetUserProfileParameters) (*slack.UserProfile, error)
 }
 
-// SlackClienter is an extended interface that includes Client method that
-// returns the underlying [slack.Client] instance.
-type SlackClienter interface {
-	Slack
-	Client() (*slack.Client, bool)
-}
+// ErrOpNotSupported is returned by edge-only methods when the Client was not
+// initialised with an edge (enterprise) connection.
+var ErrOpNotSupported = errors.New("client doesn't support this operation")
 
-// SlackEdge is an extended interface that includes Edge methods.
-type SlackEdge interface {
-	SlackClienter
-	Edge() (*edge.Client, bool)
-	GetConversationsContextEx(ctx context.Context, params *slack.GetConversationsParameters, onlyMy bool) (channels []slack.Channel, nextCursor string, err error)
-	// TODO: additional methods from edge client.
-}
+var _ Slack = (*Client)(nil)
 
-var (
-	_ Slack         = (*Client)(nil)
-	_ SlackClienter = (*Client)(nil)
-)
-
+// Client wraps *slack.Client and, optionally, *edge.Client.  The edge client
+// is only present for enterprise workspaces.  All Slack interface methods are
+// promoted from the embedded *slack.Client; edge-aware methods override them
+// when c.edge is set.
 type Client struct {
-	Slack
-	wi *slack.AuthTestResponse
+	*slack.Client              // always set; promotes all Slack API methods
+	edge          *edge.Client // nil for non-enterprise workspaces
+	wi            *slack.AuthTestResponse
 }
 
-// Wrap wraps a Slack client and returns a Client that implements the
-// SlackClienter interface. This is useful for testing purposes.
+// Wrap wraps a *slack.Client and returns a *Client that implements the Slack
+// interface. Intended for testing.
 func Wrap(cl *slack.Client) *Client {
 	return &Client{
-		Slack: cl,
+		Client: cl,
 	}
 }
 
@@ -96,27 +88,37 @@ func WithEnterprise(enterprise bool) Option {
 	}
 }
 
-// New creates a new Client instance.  It checks if workspace provider is
-// valid, and checks if it's an enterprise workspace.  If it is, it creates an
-// edge client.
-func New(ctx context.Context, prov auth.Provider, opts ...Option) (*Client, error) {
+// newSlackClient is a shared helper that dials Slack and runs an auth-test.
+func newSlackClient(ctx context.Context, prov auth.Provider) (*slack.Client, *slack.AuthTestResponse, error) {
 	cl, err := prov.HTTPClient()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	scl := slack.New(prov.SlackToken(), slack.OptionHTTPClient(cl))
 	wi, err := scl.AuthTestContext(ctx)
 	if err != nil {
+		return nil, nil, err
+	}
+	return scl, wi, nil
+}
+
+// New creates a new Client instance.  It checks if workspace provider is
+// valid, and checks if it's an enterprise workspace.  If it is, it creates an
+// edge client.
+func New(ctx context.Context, prov auth.Provider, opts ...Option) (*Client, error) {
+	scl, wi, err := newSlackClient(ctx, prov)
+	if err != nil {
 		return nil, err
 	}
+
 	var opt options
 	for _, o := range opts {
 		o(&opt)
 	}
 
-	client := &Client{
-		Slack: scl,
-		wi:    wi,
+	c := &Client{
+		Client: scl,
+		wi:     wi,
 	}
 
 	if opt.enterprise || wi.EnterpriseID != "" {
@@ -124,19 +126,16 @@ func New(ctx context.Context, prov auth.Provider, opts ...Option) (*Client, erro
 		if err != nil {
 			return nil, err
 		}
-		client.Slack = &edgeClient{
-			Slack: scl,
-			edge:  ecl,
-		}
+		c.edge = ecl
 	}
-	return client, nil
+	return c, nil
 }
 
 // AuthTestContext returns the cached workspace information that was captured
-// on initialisation.
-func (c *Client) AuthTestContext(ctx context.Context) (response *slack.AuthTestResponse, err error) {
+// on initialisation.  If the cache is empty it calls the API.
+func (c *Client) AuthTestContext(ctx context.Context) (*slack.AuthTestResponse, error) {
 	if c.wi == nil {
-		wi, err := c.Slack.AuthTestContext(ctx)
+		wi, err := c.Client.AuthTestContext(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -145,22 +144,49 @@ func (c *Client) AuthTestContext(ctx context.Context) (response *slack.AuthTestR
 	return c.wi, nil
 }
 
-// Client returns an underlying [slack.Client]
-func (c *Client) Client() (*slack.Client, bool) {
-	switch t := c.Slack.(type) {
-	case *edgeClient:
-		return t.Slack.(*slack.Client), true
-	case *slack.Client:
-		return t, true
-	default:
-		return nil, false
-	}
+// Edge returns the underlying *edge.Client, or nil when the workspace is not
+// an enterprise workspace.
+func (c *Client) Edge() *edge.Client {
+	return c.edge
 }
 
-func (c *Client) Edge() (*edge.Client, bool) {
-	ecl, ok := c.Slack.(*edgeClient)
-	if !ok {
-		return nil, false
+// ---------------------------------------------------------------------------
+// Edge-aware method overrides
+// ---------------------------------------------------------------------------
+
+// GetConversationsContext overrides the standard method with the edge client
+// for enterprise workspaces.
+func (c *Client) GetConversationsContext(ctx context.Context, params *slack.GetConversationsParameters) ([]slack.Channel, string, error) {
+	if c.edge != nil {
+		return c.edge.GetConversationsContext(ctx, params)
 	}
-	return ecl.edge, true
+	return c.Client.GetConversationsContext(ctx, params)
+}
+
+// GetConversationsContextEx is the extended variant that supports the onlyMy
+// parameter available in enterprise workspaces.  Returns [ErrOpNotSupported]
+// when there is no edge client.
+func (c *Client) GetConversationsContextEx(ctx context.Context, params *slack.GetConversationsParameters, onlyMy bool) ([]slack.Channel, string, error) {
+	if c.edge == nil {
+		return nil, "", ErrOpNotSupported
+	}
+	return c.edge.GetConversationsContextEx(ctx, params, onlyMy)
+}
+
+// GetConversationInfoContext overrides the standard method with the edge client
+// for enterprise workspaces.
+func (c *Client) GetConversationInfoContext(ctx context.Context, input *slack.GetConversationInfoInput) (*slack.Channel, error) {
+	if c.edge != nil {
+		return c.edge.GetConversationInfoContext(ctx, input)
+	}
+	return c.Client.GetConversationInfoContext(ctx, input)
+}
+
+// GetUsersInConversationContext overrides the standard method with the edge
+// client for enterprise workspaces.
+func (c *Client) GetUsersInConversationContext(ctx context.Context, params *slack.GetUsersInConversationParameters) ([]string, string, error) {
+	if c.edge != nil {
+		return c.edge.GetUsersInConversationContext(ctx, params)
+	}
+	return c.Client.GetUsersInConversationContext(ctx, params)
 }

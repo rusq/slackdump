@@ -90,7 +90,7 @@ func TestSession_DumpMessages(t *testing.T) {
 		name     string
 		fields   fields
 		args     args
-		expectFn func(mc *mock_client.MockSlackClienter)
+		expectFn func(mc *mock_client.MockSlack)
 		want     *types.Conversation
 		wantErr  bool
 	}{
@@ -98,7 +98,7 @@ func TestSession_DumpMessages(t *testing.T) {
 			"all ok",
 			fields{config: defConfig},
 			args{t.Context(), "CHANNEL"},
-			func(c *mock_client.MockSlackClienter) {
+			func(c *mock_client.MockSlack) {
 				c.EXPECT().GetConversationHistoryContext(
 					gomock.Any(),
 					&slack.GetConversationHistoryParameters{
@@ -132,7 +132,7 @@ func TestSession_DumpMessages(t *testing.T) {
 			"channelID is empty",
 			fields{config: defConfig},
 			args{t.Context(), ""},
-			func(c *mock_client.MockSlackClienter) {},
+			func(c *mock_client.MockSlack) {},
 			nil,
 			true,
 		},
@@ -140,7 +140,7 @@ func TestSession_DumpMessages(t *testing.T) {
 			"iteration test",
 			fields{config: defConfig},
 			args{t.Context(), "CHANNEL"},
-			func(c *mock_client.MockSlackClienter) {
+			func(c *mock_client.MockSlack) {
 				first := c.EXPECT().
 					GetConversationHistoryContext(
 						gomock.Any(),
@@ -198,7 +198,7 @@ func TestSession_DumpMessages(t *testing.T) {
 			"resp not ok",
 			fields{config: defConfig},
 			args{t.Context(), "CHANNEL"},
-			func(c *mock_client.MockSlackClienter) {
+			func(c *mock_client.MockSlack) {
 				c.EXPECT().GetConversationHistoryContext(
 					gomock.Any(),
 					gomock.Any(),
@@ -215,7 +215,7 @@ func TestSession_DumpMessages(t *testing.T) {
 			"sudden bleep bloop error",
 			fields{config: defConfig},
 			args{t.Context(), "CHANNEL"},
-			func(c *mock_client.MockSlackClienter) {
+			func(c *mock_client.MockSlack) {
 				c.EXPECT().GetConversationHistoryContext(
 					gomock.Any(),
 					gomock.Any(),
@@ -230,7 +230,7 @@ func TestSession_DumpMessages(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			mc := mock_client.NewMockSlackClienter(ctrl)
+			mc := mock_client.NewMockSlack(ctrl)
 
 			tt.expectFn(mc)
 
@@ -262,7 +262,7 @@ func TestSession_DumpAll(t *testing.T) {
 		name     string
 		fields   fields
 		args     args
-		expectFn func(sc *mock_client.MockSlackClienter)
+		expectFn func(sc *mock_client.MockSlack)
 		want     *types.Conversation
 		wantErr  bool
 	}{
@@ -270,7 +270,7 @@ func TestSession_DumpAll(t *testing.T) {
 			name:   "conversation url",
 			fields: fields{config: defConfig},
 			args:   args{t.Context(), "https://ora600.slack.com/archives/CHM82GF99"},
-			expectFn: func(sc *mock_client.MockSlackClienter) {
+			expectFn: func(sc *mock_client.MockSlack) {
 				sc.EXPECT().GetConversationHistoryContext(gomock.Any(), gomock.Any()).Return(
 					&slack.GetConversationHistoryResponse{
 						Messages:      []slack.Message{testMsg1.Message},
@@ -287,7 +287,7 @@ func TestSession_DumpAll(t *testing.T) {
 			name:   "thread url",
 			fields: fields{config: defConfig},
 			args:   args{t.Context(), "https://ora600.slack.com/archives/CHM82GF99/p1577694990000400"},
-			expectFn: func(sc *mock_client.MockSlackClienter) {
+			expectFn: func(sc *mock_client.MockSlack) {
 				sc.EXPECT().GetConversationRepliesContext(gomock.Any(), gomock.Any()).Return(
 					[]slack.Message{testMsg1.Message},
 					false,
@@ -309,7 +309,7 @@ func TestSession_DumpAll(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			mc := mock_client.NewMockSlackClienter(ctrl)
+			mc := mock_client.NewMockSlack(ctrl)
 
 			if tt.expectFn != nil {
 				tt.expectFn(mc)
@@ -333,7 +333,7 @@ func TestSession_DumpAll(t *testing.T) {
 	}
 }
 
-func mockConvInfo(mc *mock_client.MockSlackClienter, channelID, wantName string) {
+func mockConvInfo(mc *mock_client.MockSlack, channelID, wantName string) {
 	mc.EXPECT().
 		GetConversationInfoContext(gomock.Any(), &slack.GetConversationInfoInput{ChannelID: channelID}).
 		Return(&slack.Channel{GroupConversation: slack.GroupConversation{Name: wantName, Conversation: slack.Conversation{NameNormalized: wantName + "_normalized"}}}, nil)
@@ -388,7 +388,7 @@ func TestSession_getChannelName(t *testing.T) {
 		name     string
 		fields   fields
 		args     args
-		expectFn func(mc *mock_client.MockSlackClienter)
+		expectFn func(mc *mock_client.MockSlack)
 		want     string
 		wantErr  bool
 	}{
@@ -400,7 +400,7 @@ func TestSession_getChannelName(t *testing.T) {
 				l:         network.NewLimiter(network.NoTier, 1, 0),
 				channelID: "TESTCHAN",
 			},
-			expectFn: func(sc *mock_client.MockSlackClienter) {
+			expectFn: func(sc *mock_client.MockSlack) {
 				sc.EXPECT().
 					GetConversationInfoContext(gomock.Any(), &slack.GetConversationInfoInput{ChannelID: "TESTCHAN"}).
 					Return(&slack.Channel{GroupConversation: slack.GroupConversation{Name: "unittest", Conversation: slack.Conversation{NameNormalized: "unittest_normalized"}}}, nil)
@@ -416,7 +416,7 @@ func TestSession_getChannelName(t *testing.T) {
 				l:         network.NewLimiter(network.NoTier, 1, 0),
 				channelID: "TESTCHAN",
 			},
-			expectFn: func(sc *mock_client.MockSlackClienter) {
+			expectFn: func(sc *mock_client.MockSlack) {
 				sc.EXPECT().
 					GetConversationInfoContext(gomock.Any(), &slack.GetConversationInfoInput{ChannelID: "TESTCHAN"}).
 					Return(nil, errors.New("rekt"))
@@ -428,7 +428,7 @@ func TestSession_getChannelName(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			mc := mock_client.NewMockSlackClienter(ctrl)
+			mc := mock_client.NewMockSlack(ctrl)
 
 			tt.expectFn(mc)
 			sd := &Session{

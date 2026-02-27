@@ -88,10 +88,7 @@ func runThread(ctx context.Context, cmd *base.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	scl, ok := client.Client()
-	if !ok {
-		return errors.New("failed to get slack client")
-	}
+	scl := client.Client
 
 	if *delThread != "" {
 		if err := runDelete(ctx, scl, *delThread); err != nil {

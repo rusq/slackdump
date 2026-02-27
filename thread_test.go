@@ -49,7 +49,7 @@ func TestSession_DumpThreadWithFiles(t *testing.T) {
 		name     string
 		fields   fields
 		args     args
-		expectFn func(*mock_client.MockSlackClienter)
+		expectFn func(*mock_client.MockSlack)
 		want     *types.Conversation
 		wantErr  bool
 	}{
@@ -60,7 +60,7 @@ func TestSession_DumpThreadWithFiles(t *testing.T) {
 			"ok",
 			fields{config: defConfig},
 			args{t.Context(), "CHANNEL", "THREAD", time.Time{}, time.Time{}},
-			func(mc *mock_client.MockSlackClienter) {
+			func(mc *mock_client.MockSlack) {
 				mc.EXPECT().
 					GetConversationRepliesContext(
 						gomock.Any(),
@@ -88,7 +88,7 @@ func TestSession_DumpThreadWithFiles(t *testing.T) {
 				time.Date(2020, 12, 31, 23, 59, 59, 0, time.UTC),
 				time.Date(2021, 12, 31, 23, 59, 59, 0, time.UTC),
 			},
-			func(mc *mock_client.MockSlackClienter) {
+			func(mc *mock_client.MockSlack) {
 				mc.EXPECT().
 					GetConversationRepliesContext(
 						gomock.Any(),
@@ -117,7 +117,7 @@ func TestSession_DumpThreadWithFiles(t *testing.T) {
 			"iterating over",
 			fields{config: defConfig},
 			args{t.Context(), "CHANNEL", "THREAD", time.Time{}, time.Time{}},
-			func(mc *mock_client.MockSlackClienter) {
+			func(mc *mock_client.MockSlack) {
 				mc.EXPECT().
 					GetConversationRepliesContext(
 						gomock.Any(),
@@ -151,7 +151,7 @@ func TestSession_DumpThreadWithFiles(t *testing.T) {
 			"sudden bleep bloop error",
 			fields{config: defConfig},
 			args{t.Context(), "CHANNEL", "THREADTS", time.Time{}, time.Time{}},
-			func(c *mock_client.MockSlackClienter) {
+			func(c *mock_client.MockSlack) {
 				c.EXPECT().
 					GetConversationRepliesContext(
 						gomock.Any(),
@@ -172,7 +172,7 @@ func TestSession_DumpThreadWithFiles(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			mc := mock_client.NewMockSlackClienter(ctrl)
+			mc := mock_client.NewMockSlack(ctrl)
 
 			if tt.expectFn != nil {
 				tt.expectFn(mc)
@@ -298,7 +298,7 @@ func TestSession_dumpThread(t *testing.T) {
 		name     string
 		fields   fields
 		args     args
-		expectFn func(*mock_client.MockSlackClienter)
+		expectFn func(*mock_client.MockSlack)
 		want     []types.Message
 		wantErr  bool
 	}{
@@ -306,7 +306,7 @@ func TestSession_dumpThread(t *testing.T) {
 			"ok",
 			fields{},
 			args{t.Context(), network.NewLimiter(network.NoTier, 1, 0), "CHANNEL", "THREAD", time.Time{}, time.Time{}},
-			func(mc *mock_client.MockSlackClienter) {
+			func(mc *mock_client.MockSlack) {
 				mc.EXPECT().
 					GetConversationRepliesContext(
 						gomock.Any(),
@@ -327,7 +327,7 @@ func TestSession_dumpThread(t *testing.T) {
 			"iterating over",
 			fields{config: defConfig},
 			args{t.Context(), network.NewLimiter(network.NoTier, 1, 0), "CHANNEL", "THREAD", time.Time{}, time.Time{}},
-			func(mc *mock_client.MockSlackClienter) {
+			func(mc *mock_client.MockSlack) {
 				mc.EXPECT().
 					GetConversationRepliesContext(
 						gomock.Any(),
@@ -371,7 +371,7 @@ func TestSession_dumpThread(t *testing.T) {
 			"sudden bleep bloop error",
 			fields{config: defConfig},
 			args{t.Context(), network.NewLimiter(network.NoTier, 1, 0), "CHANNEL", "THREADTS", time.Time{}, time.Time{}},
-			func(c *mock_client.MockSlackClienter) {
+			func(c *mock_client.MockSlack) {
 				c.EXPECT().
 					GetConversationRepliesContext(
 						gomock.Any(),
@@ -392,7 +392,7 @@ func TestSession_dumpThread(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			mc := mock_client.NewMockSlackClienter(ctrl)
+			mc := mock_client.NewMockSlack(ctrl)
 
 			tt.expectFn(mc)
 
