@@ -17,10 +17,12 @@
 package cfg
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"log/slog"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -118,16 +120,58 @@ type BuildInfo struct {
 	Date    string `json:"date"`
 }
 
+var (
+	// ErrVerUnknown indicates that this is either a development build or
+	// version is not set.
+	ErrVerUnknown = errors.New("version unknown")
+	// ErrDateUknown indicates that the date is either not set or unknown.
+	ErrDateUnknown = errors.New("unknown date")
+)
+
+// Normalised returns the normalised BuildInfo:
+// - version has v prefix
+// - Build is in 2006-01-02 15:04:05Z format.
+// - commit is unchanged, so may be "Homebrew"
+// It will return ErrVerUknown if version is unknown (i.e. unreleased).
+func (b BuildInfo) Normalised() (BuildInfo, error) {
+	const defaultLayoutIdx = 0
+	var knownDateLayouts = []string{
+		"2006-01-02 15:04:05Z", // make (default)
+		"2006-01-02T15:04:05Z", // homebrew
+	}
+	var nrm BuildInfo
+	if !b.IsReleased() {
+		return nrm, ErrVerUnknown
+	}
+	nrm.Commit = b.Commit
+	if !strings.HasPrefix(strings.ToUpper(b.Version), "V") {
+		nrm.Version = "v" + b.Version
+	} else {
+		// normalise capital V to lowercase v
+		nrm.Version = "v" + b.Version[1:]
+	}
+	if b.Date == "" || b.Date == "unknown" {
+		return nrm, ErrDateUnknown
+	}
+	// try parsing Homebrew string
+	for _, layout := range knownDateLayouts {
+		if dt, err := time.Parse(layout, b.Date); err == nil {
+			nrm.Date = dt.Format(knownDateLayouts[defaultLayoutIdx])
+			return nrm, nil
+		}
+	}
+	return nrm, ErrDateUnknown
+}
+
 func (b BuildInfo) String() string {
 	return fmt.Sprintf("Slackdump %s (commit: %s) built on: %s", b.Version, b.Commit, b.Date)
 }
 
+var versionRe = regexp.MustCompile(`^(?P<major>0|[1-9]\d*)\.(?P<minor>0|[1-9]\d*)\.(?P<patch>0|[1-9]\d*)(?:-(?P<prerelease>(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+(?P<buildmetadata>[0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$`)
+
 func (b BuildInfo) IsReleased() bool {
 	// Check if version starts with 'v' or 'V' and is not "unknown"
 	if b.Version == "unknown" {
-		return false
-	}
-	if !strings.HasPrefix(b.Version, "v") && !strings.HasPrefix(b.Version, "V") {
 		return false
 	}
 	// Validate semantic versioning format: v[0-9]+.[0-9]+.[0-9]+ (with optional suffix)
@@ -139,12 +183,7 @@ func (b BuildInfo) IsReleased() bool {
 		return false
 	}
 
-	// Check if first character is a digit
-	if versionWithoutPrefix[0] < '0' || versionWithoutPrefix[0] > '9' {
-		return false
-	}
-
-	return true
+	return versionRe.MatchString(versionWithoutPrefix)
 }
 
 type FlagMask uint32

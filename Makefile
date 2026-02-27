@@ -12,6 +12,7 @@ endif
 PKG=github.com/rusq/slackdump/v4
 
 LDFLAGS="-s -w -X 'main.commit=$(COMMIT)' -X 'main.version=$(BUILD)' -X 'main.date=$(BUILD_DATE)'"
+LDFLAGS_DEBUG="-X 'main.commit=$(COMMIT)' -X 'main.version=$(BUILD)' -X 'main.date=$(BUILD_DATE)'"
 OSES=linux darwin windows
 DISTFILES=README.md LICENSE
 ZIPFILES=$(foreach s,$(OSES),$(OUTPUT)-$s.zip)
@@ -47,6 +48,10 @@ $(OUTPUT).exe: $(OUTPUT)
 
 $(OUTPUT):
 	GOARCH=$(GOARCH) GOOS=$(GOOS) go build -ldflags=$(LDFLAGS) -o $(EXECUTABLE) $(CMD)
+
+debug:
+	GOARCH=$(GOARCH) GOOS=$(GOOS) go build -ldflags=$(LDFLAGS_DEBUG) -o $(EXECUTABLE) $(CMD)
+.PHONY: debug
 
 x86_%:
 	GOARCH=amd64 go build -ldflags=$(LDFLAGS) -o $@ $(CMD)
