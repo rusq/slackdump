@@ -1,0 +1,10 @@
+//vim: ts=2 sw=2
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "Slackdump": {
+	"type": "local",
+	"command": [ "slackdump", "mcp" ]
+    }
+  }
+}
