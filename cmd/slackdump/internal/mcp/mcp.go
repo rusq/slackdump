@@ -17,23 +17,28 @@
 package mcp
 
 import (
-	"bytes"
 	"context"
-	_ "embed"
+	"embed"
+	"errors"
 	"fmt"
+	"io/fs"
+	"os"
+	"path"
+	"slices"
 	"strings"
-
-	mcplib "github.com/mark3labs/mcp-go/mcp"
-	mcpsrv "github.com/mark3labs/mcp-go/server"
 
 	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/golang/base"
 	internalmcp "github.com/rusq/slackdump/v4/internal/mcp"
+	"github.com/rusq/slackdump/v4/internal/osext"
 	"github.com/rusq/slackdump/v4/source"
 )
 
 //go:embed assets/mcp.md
 var mdMCP string
+
+//go:embed all:assets/layouts/*
+var projectsFS embed.FS
 
 // CmdMCP is the "slackdump mcp" command.
 var CmdMCP = &base.Command{
@@ -47,16 +52,37 @@ var CmdMCP = &base.Command{
 }
 
 var (
-	listenAddr string
-	transport  string
+	listenAddr       string
+	transport        string
+	newProjectLayout string
 )
+
+const (
+	layoutOpencode = "opencode"
+)
+
+var projectLayouts = []string{
+	layoutOpencode,
+}
 
 func init() {
 	CmdMCP.Flag.StringVar(&transport, "transport", "stdio", "MCP transport: \"stdio\" or \"http\"")
 	CmdMCP.Flag.StringVar(&listenAddr, "listen", "127.0.0.1:8483", "address to listen on when -transport=http")
+	CmdMCP.Flag.StringVar(&newProjectLayout, "new", "", fmt.Sprintf("creates new project layout for AI. Type may be one of: %v", projectLayouts))
 }
 
 func runMCP(ctx context.Context, cmd *base.Command, args []string) error {
+	if newProjectLayout != "" {
+		if len(args) == 0 {
+			base.SetExitStatus(base.SInvalidParameters)
+			return errors.New("target directory must be provided (will be created)")
+		}
+		return runMCPNewProject(ctx, newProjectLayout, args[0])
+	}
+	return runMCPServer(ctx, cmd, args)
+}
+
+func runMCPServer(ctx context.Context, cmd *base.Command, args []string) error {
 	lg := cfg.Log
 
 	var mcpOpts []internalmcp.Option
@@ -96,94 +122,40 @@ func runMCP(ctx context.Context, cmd *base.Command, args []string) error {
 	}
 }
 
-// ─── command_help tool ────────────────────────────────────────────────────────
-
-// toolCommandHelp returns an MCP tool that provides CLI flag help for any
-// slackdump subcommand.  It lives at the CLI layer so it can access
-// cmd/slackdump/internal packages.
-func toolCommandHelp() mcpsrv.ServerTool {
-	tool := mcplib.NewTool("command_help",
-		mcplib.WithDescription(`Return command-line flag help for a slackdump subcommand.
-
-Providing no command name (or an empty string) returns the top-level help
-listing all available commands. This is useful when you need to construct a
-slackdump command invocation and want to know what flags are available.`),
-		mcplib.WithString("command",
-			mcplib.Description(`Subcommand name, e.g. "archive", "export", "dump", "view". Leave empty for top-level help. Nested subcommands can be space-separated, e.g. "workspace new".`),
-		),
-		mcplib.WithReadOnlyHintAnnotation(true),
-		mcplib.WithIdempotentHintAnnotation(true),
-	)
-	return mcpsrv.ServerTool{Tool: tool, Handler: handleCommandHelp}
+func runMCPNewProject(ctx context.Context, layout string, tgtDir string) error {
+	// ensure we know the project type before accessing the FS
+	if !slices.Contains(projectLayouts, layout) {
+		base.SetExitStatus(base.SInvalidParameters)
+		return fmt.Errorf("unknown project layout %q. Use one of %v", layout, projectLayouts)
+	}
+	subfs, err := fs.Sub(projectsFS, path.Join("assets", "layouts", layout))
+	if err != nil {
+		base.SetExitStatus(base.SApplicationError)
+		return fmt.Errorf("fs chdir: %w", err)
+	}
+	if err := initNewProject(tgtDir, subfs); err != nil {
+		return err
+	}
+	lg := cfg.Log
+	lg.InfoContext(ctx, "SUCCESS: new project created", "in", tgtDir, "layout", layout)
+	return nil
 }
 
-func handleCommandHelp(_ context.Context, req mcplib.CallToolRequest) (*mcplib.CallToolResult, error) {
-	args := req.GetArguments()
-	cmdName := ""
-	if args != nil {
-		if v, ok := args["command"]; ok {
-			cmdName, _ = v.(string)
+func initNewProject(tgtDir string, fsys fs.FS) error {
+	if err := osext.DirExists(tgtDir); err != nil {
+		if errors.Is(err, osext.ErrNotADir) {
+			base.SetExitStatus(base.SUserError)
+			return fmt.Errorf("%s: %w", tgtDir, err)
+		}
+		// try creating the dir
+		if err := os.MkdirAll(tgtDir, 0o777); err != nil {
+			base.SetExitStatus(base.SApplicationError)
+			return fmt.Errorf("unable to initialise new project in %q: %w", tgtDir, err)
 		}
 	}
-
-	var buf bytes.Buffer
-
-	if cmdName == "" {
-		fmt.Fprintln(&buf, "Slackdump — available commands:")
-		for _, c := range base.Slackdump.Commands {
-			if c.Short == "" {
-				continue
-			}
-			fmt.Fprintf(&buf, "  %-20s %s\n", c.Name(), c.Short)
-		}
-		return mcplib.NewToolResultText(buf.String()), nil
+	if err := os.CopyFS(tgtDir, fsys); err != nil {
+		base.SetExitStatus(base.SApplicationError)
+		return fmt.Errorf("copy project files: %w", err)
 	}
-
-	// Walk the command tree using the supplied name parts.
-	parts := strings.Fields(cmdName)
-	cur := base.Slackdump
-	for _, part := range parts {
-		found := false
-		for _, sub := range cur.Commands {
-			if sub.Name() == part {
-				cur = sub
-				found = true
-				break
-			}
-		}
-		if !found {
-			return mcplib.NewToolResultText(fmt.Sprintf(
-				"Unknown command %q. Run command_help with an empty command name to list all commands.",
-				cmdName,
-			)), nil
-		}
-	}
-
-	fmt.Fprintf(&buf, "Command: slackdump %s\n", cur.LongName())
-	if cur.Short != "" {
-		fmt.Fprintf(&buf, "Summary: %s\n", cur.Short)
-	}
-	if cur.Long != "" {
-		fmt.Fprintf(&buf, "\nDescription:\n%s\n", cur.Long)
-	}
-
-	if cur.PrintFlags || cur.FlagMask != cfg.OmitAll {
-		fmt.Fprintln(&buf, "\nFlags:")
-		if !cur.CustomFlags {
-			cfg.SetBaseFlags(&cur.Flag, cur.FlagMask)
-		}
-		cur.Flag.SetOutput(&buf)
-		cur.Flag.PrintDefaults()
-	}
-
-	if len(cur.Commands) > 0 {
-		fmt.Fprintln(&buf, "\nSubcommands:")
-		for _, sub := range cur.Commands {
-			if sub.Short != "" {
-				fmt.Fprintf(&buf, "  %-20s %s\n", sub.Name(), sub.Short)
-			}
-		}
-	}
-
-	return mcplib.NewToolResultText(buf.String()), nil
+	return nil
 }

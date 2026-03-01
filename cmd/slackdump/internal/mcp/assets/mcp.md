@@ -8,11 +8,12 @@ The server is read-only: it never modifies the underlying archive.
 
 ## Usage
 
+### Running MCP
 ```
-slackdump mcp [flags] [<archive>]
+slackdump mcp [flags] [archive]
 ```
 
-`<archive>` is a path to any Slackdump archive: a SQLite database (`.db` or
+`archive` is a path to any Slackdump archive: a SQLite database (`.db` or
 `.sqlite`), a chunk directory, a Slack Export ZIP / directory, or a Dump ZIP /
 directory.  The format is auto-detected.
 
@@ -20,6 +21,45 @@ The archive path is optional.  If omitted, the server starts without a loaded
 source and the agent must call the `load_source` tool before any data tool will
 work.  This is useful when the agent itself decides which archive to open, or
 when you want to switch archives at runtime without restarting the server.
+
+### Creating a new project
+
+Scaffold a ready-to-use AI project directory pre-configured for a specific AI
+tool.  The directory is created if it does not exist.
+
+```
+slackdump mcp -new <layout> <directory>
+```
+
+`<layout>` is the project layout to create.  Currently supported:
+
+- **`opencode`** — creates `opencode.jsonc` wiring up the MCP server, plus
+  three OpenCode skills (`slackdump`, `slackdump-source`, `slackdump-sqlite3`)
+  inside `.opencode/skills/`.
+
+**Example — set up an OpenCode project:**
+
+```
+slackdump mcp -new opencode ~/my-slack-project
+```
+
+After running this command:
+
+1. `~/my-slack-project/opencode.jsonc` configures the Slackdump MCP server as
+   a local stdio process — OpenCode will start and stop it automatically.
+2. `~/my-slack-project/.opencode/skills/` contains three skills that teach
+   OpenCode how to work with Slackdump archives, fall back to direct SQLite
+   access, and understand the different source formats.
+
+Open the project directory in OpenCode to start working:
+
+```
+opencode ~/my-slack-project
+```
+
+The agent will have the Slackdump MCP tools available immediately and will
+use the bundled skills for guidance.  Call `load_source` (or pass an archive
+path when starting `slackdump mcp`) to point the server at an archive.
 
 ## Transport
 
@@ -33,52 +73,49 @@ it with `-listen HOST:PORT`.
 
 ## Available MCP Tools
 
-| Tool | Description |
-|------|-------------|
-| `load_source` | Open (or switch to) a Slackdump archive at runtime |
-| `list_channels` | List all channels in the archive |
-| `get_channel` | Get detailed info for a channel by ID |
-| `list_users` | List all users/members |
-| `get_messages` | Read messages from a channel (paginated) |
-| `get_thread` | Read all replies in a thread |
-| `get_workspace_info` | Workspace / team metadata |
-| `command_help` | Get CLI flag help for any slackdump subcommand |
+- **`load_source`** — Open (or switch to) a Slackdump archive at runtime.
+- **`list_channels`** — List all channels in the archive.
+- **`get_channel`** — Get detailed info for a channel by ID.
+- **`list_users`** — List all users/members.
+- **`get_messages`** — Read messages from a channel (paginated).
+- **`get_thread`** — Read all replies in a thread.
+- **`get_workspace_info`** — Workspace / team metadata.
+- **`command_help`** — Get CLI flag help for any slackdump subcommand.
 
 ### Tool parameters
 
 #### `load_source`
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `path` | string | yes | Filesystem path to the archive file or directory |
+
+- **`path`** _(string, required)_ — Filesystem path to the archive file or
+  directory.
 
 Closes the currently open archive (if any) and opens the one at `path`.  Only
 one source may be open at a time.
 
 #### `get_channel`
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `channel_id` | string | yes | Slack channel ID (e.g. `C01234ABCD`) |
+
+- **`channel_id`** _(string, required)_ — Slack channel ID (e.g. `C01234ABCD`).
 
 #### `get_messages`
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `channel_id` | string | yes | Slack channel ID |
-| `limit` | number | no | Max messages to return (1–1000, default 100) |
-| `after_ts` | string | no | Return only messages after this Slack timestamp (for pagination) |
+
+- **`channel_id`** _(string, required)_ — Slack channel ID.
+- **`limit`** _(number, optional)_ — Max messages to return (1–1000, default 100).
+- **`after_ts`** _(string, optional)_ — Return only messages after this Slack
+  timestamp (for pagination).
 
 Thread reply counts are included but thread bodies are not; use `get_thread`
 for those.  Messages are returned in ascending timestamp order.
 
 #### `get_thread`
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `channel_id` | string | yes | Slack channel ID containing the thread |
-| `thread_ts` | string | yes | Timestamp of the parent message (Slack ts format, e.g. `1609459200.000001`) |
+
+- **`channel_id`** _(string, required)_ — Slack channel ID containing the thread.
+- **`thread_ts`** _(string, required)_ — Timestamp of the parent message (Slack
+  ts format, e.g. `1609459200.000001`).
 
 #### `command_help`
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `command` | string | no | Subcommand name (e.g. `archive`, `workspace new`). Empty returns top-level help. |
+
+- **`command`** _(string, optional)_ — Subcommand name (e.g. `archive`,
+  `workspace new`). Empty returns top-level help.
 
 ## Integration approaches
 
@@ -271,7 +308,8 @@ config and restart OpenCode.
 
 ## Flags
 
-| Flag | Default | Description |
-|------|---------|-------------|
-| `-transport` | `stdio` | MCP transport: `stdio` or `http` |
-| `-listen` | `127.0.0.1:8483` | Listen address when `-transport=http` |
+- **`-transport`** _(default: `stdio`)_ — MCP transport: `stdio` or `http`.
+- **`-listen`** _(default: `127.0.0.1:8483`)_ — Listen address when
+  `-transport=http`.
+- **`-new`** — Create a new AI project layout instead of starting the server.
+  Currently supported: `opencode`.

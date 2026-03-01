@@ -3,8 +3,8 @@
   "$schema": "https://opencode.ai/config.json",
   "mcp": {
     "Slackdump": {
-	"type": "local",
-	"command": [ "slackdump", "mcp" ]
+      "type": "local",
+      "command": [ "slackdump", "mcp" ]
     }
   }
 }
