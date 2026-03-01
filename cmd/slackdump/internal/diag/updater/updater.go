@@ -51,12 +51,14 @@ func (r Release) Equal(other Release) bool {
 	return strings.EqualFold(r.Version, other.Version) && r.PublishedAt.Equal(other.PublishedAt)
 }
 
+// NewUpdater returns the new Updater.
 func NewUpdater() Updater {
 	return Updater{
 		cl: github.NewClient("rusq", "slackdump", false),
 	}
 }
 
+// Latest retrieves the Github Release for the latest version.
 func (u Updater) Latest(ctx context.Context) (Release, error) {
 	var r Release
 	latest, err := u.cl.Latest(ctx)
@@ -70,6 +72,7 @@ func (u Updater) Latest(ctx context.Context) (Release, error) {
 
 var ErrUnreleased = errors.New("current version is not released")
 
+// Current retrieves the Github Release for the current version.
 func (u Updater) Current(ctx context.Context) (Release, error) {
 	var r Release
 

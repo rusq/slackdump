@@ -192,6 +192,19 @@ Available MCP tools:
 
 The server supports both **stdio** (agent-managed) and **HTTP** transports.
 
+### Quick project setup
+
+Scaffold a ready-to-use project directory pre-configured for your AI tool:
+
+```shell
+slackdump mcp -new opencode   ~/my-slack-project   # OpenCode
+slackdump mcp -new claude-code ~/my-slack-project  # Claude Code
+slackdump mcp -new copilot    ~/my-slack-project   # VS Code / GitHub Copilot
+```
+
+Each command creates the MCP config file and installs bundled Slackdump skill /
+instruction files so the agent knows how to work with your archive out of the box.
+
 To learn how to set it up with Claude Desktop, VS Code/GitHub Copilot, or
 OpenCode, see:
 ```
