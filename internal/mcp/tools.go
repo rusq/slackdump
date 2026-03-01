@@ -281,6 +281,12 @@ type messageSummary struct {
 	Subtype    string `json:"subtype,omitempty"`
 }
 
+const (
+	defLimit = 100
+	minLimit = 1
+	maxLimit = 1000
+)
+
 func (s *Server) handleGetMessages(ctx context.Context, req mcplib.CallToolRequest) (*mcplib.CallToolResult, error) {
 	src := s.source()
 	if src == nil {
@@ -292,13 +298,8 @@ func (s *Server) handleGetMessages(ctx context.Context, req mcplib.CallToolReque
 		return resultErr(errors.New("get_messages: channel_id is required")), nil
 	}
 
-	limit := intArg(req, "limit", 100)
-	if limit < 1 {
-		limit = 1
-	}
-	if limit > 1000 {
-		limit = 1000
-	}
+	limit := intArg(req, "limit", defLimit)
+	limit = max(min(limit, maxLimit), minLimit) // ensure within bounds
 
 	afterTS, _ := stringArg(req, "after_ts")
 
