@@ -30,9 +30,6 @@ DML/DDL statements. Only `SELECT` and data-dictionary queries are permitted.
 -- Show schema for a table
 .schema MESSAGE
 
--- Enable column headers and aligned output
-.headers on
-.mode column
 ```
 
 ### Key tables
@@ -120,27 +117,57 @@ multiple chunks and multiple sessions. There are two distinct reasons:
 Always scope your query to the correct chunk type first, then pick the latest
 session:
 
+#### Latest Channel messages
 - Use `CHUNK.TYPE_ID = 0` when querying **channel history** messages.
-- Use `CHUNK.TYPE_ID = 1` when querying **thread** messages.
 
 ```sql
 -- Latest version of each channel-history message in a channel (TYPE_ID=0)
-SELECT m.*
-FROM MESSAGE m
-JOIN CHUNK c ON c.ID = m.CHUNK_ID
-WHERE m.CHANNEL_ID = '<channel_id>'
-  AND c.TYPE_ID = 0   -- 0 = MESSAGES (channel history); use 1 for THREAD_MESSAGES
-  AND c.SESSION_ID = (
-      SELECT MAX(c2.SESSION_ID)
-      FROM MESSAGE m2
-      JOIN CHUNK c2 ON c2.ID = m2.CHUNK_ID
-      WHERE m2.TS = m.TS
-        AND m2.CHANNEL_ID = m.CHANNEL_ID
-        AND c2.TYPE_ID = 0  -- match the same chunk type
-  );
+WITH LATEST AS (
+    SELECT T.ID, MAX(CHUNK_ID) AS CHUNK_ID 
+    FROM MESSAGE AS T 
+    JOIN CHUNK AS CH ON CH.ID = T.CHUNK_ID
+    WHERE 1=1 
+    AND CH.TYPE_ID IN (0,1) 
+    AND (
+      T.CHANNEL_ID = [CHANNEL_ID]
+      AND (
+            ( CH.TYPE_ID=0 AND (CH.THREAD_ONLY=FALSE OR CH.THREAD_ONLY IS NULL)) 
+         OR (CH.TYPE_ID=1 AND CH.THREAD_ONLY=TRUE AND T.IS_PARENT=TRUE)
+         )
+    )
+    GROUP BY T.ID
+)
+SELECT T.ID,T.CHUNK_ID,T.CHANNEL_ID,T.TS,T.PARENT_ID,T.THREAD_TS,T.IS_PARENT,T.IDX,T.NUM_FILES,T.TXT,T.DATA,T.LATEST_REPLY
+FROM LATEST L
+JOIN MESSAGE AS T ON 1 = 1 AND T.ID = L.ID
+ AND T.CHUNK_ID = L.CHUNK_ID JOIN CHUNK CH ON T.CHUNK_ID = CH.ID WHERE 1=1
+ORDER BY T.ID;
 ```
 
+#### Latest thread messages
+- Use `CHUNK.TYPE_ID = 1` when querying **thread** messages.
+```sql
+-- Latest version of each thread message in a thread (TYPE_ID=1)
+WITH LATEST AS (
+    SELECT T.ID, MAX(CHUNK_ID) AS CHUNK_ID
+      FROM MESSAGE AS T
+      JOIN CHUNK AS CH ON CH.ID = T.CHUNK_ID
+    WHERE 1=1
+      AND CH.TYPE_ID IN (0,1)
+      AND (
+            T.CHANNEL_ID = [CHANNEL_ID]
+        AND T.PARENT_ID = [PARENT_MESSAGE_ID]
+        AND ( JSON_EXTRACT(T.DATA, '$.subtype') IS NULL OR (JSON_EXTRACT(T.DATA, '$.subtype') = 'thread_broadcast' AND CH.TYPE_ID = 1 )   )
+      )
+    GROUP BY T.ID
+)
+SELECT T.ID,T.CHUNK_ID,T.CHANNEL_ID,T.TS,T.PARENT_ID,T.THREAD_TS,T.IS_PARENT,T.IDX,T.NUM_FILES,T.TXT,T.DATA,T.LATEST_REPLY
+  FROM LATEST L
+  JOIN MESSAGE AS T ON 1 = 1 AND T.ID = L.ID
+   AND T.CHUNK_ID = L.CHUNK_ID JOIN CHUNK CH ON T.CHUNK_ID = CH.ID WHERE 1=1
+ORDER BY T.ID
+```
 ### Ignore V_* views
 
-Views prefixed with `V_` are internal to slackdump and track unprocessed
+Other views prefixed with `V_` are internal to slackdump and track unprocessed
 threads during execution. Do not rely on them for analysis.
