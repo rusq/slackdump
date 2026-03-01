@@ -37,6 +37,14 @@ slackdump mcp -new <layout> <directory>
   three OpenCode skills (`slackdump`, `slackdump-source`, `slackdump-sqlite3`)
   inside `.opencode/skills/`.
 
+- **`claude-code`** — creates `.mcp.json` (project-scoped MCP config for
+  Claude Code), plus skill content in `CLAUDE.md` (main guidance) and
+  `.claude/slackdump-source.md` / `.claude/slackdump-sqlite3.md`.
+
+- **`copilot`** — creates `.vscode/mcp.json` wiring up the MCP server for VS
+  Code / GitHub Copilot, plus `.github/copilot-instructions.md` (always-on
+  guidance) and two file-scoped instruction files in `.github/instructions/`.
+
 **Example — set up an OpenCode project:**
 
 ```
@@ -60,6 +68,48 @@ opencode ~/my-slack-project
 The agent will have the Slackdump MCP tools available immediately and will
 use the bundled skills for guidance.  Call `load_source` (or pass an archive
 path when starting `slackdump mcp`) to point the server at an archive.
+
+**Example — set up a Claude Code project:**
+
+```
+slackdump mcp -new claude-code ~/my-slack-project
+```
+
+After running this command:
+
+1. `~/my-slack-project/.mcp.json` registers the Slackdump MCP server for
+   Claude Code (project-scoped).
+2. `~/my-slack-project/CLAUDE.md` contains the main Slackdump guidance that
+   Claude Code loads automatically.
+3. `~/my-slack-project/.claude/` contains supplementary reference files for
+   source types and direct SQLite access.
+
+Open the project directory in Claude Code:
+
+```
+claude ~/my-slack-project
+```
+
+**Example — set up a GitHub Copilot (VS Code) project:**
+
+```
+slackdump mcp -new copilot ~/my-slack-project
+```
+
+After running this command:
+
+1. `~/my-slack-project/.vscode/mcp.json` wires up the Slackdump MCP server
+   for VS Code / GitHub Copilot Agent mode.
+2. `~/my-slack-project/.github/copilot-instructions.md` provides always-on
+   Slackdump guidance to Copilot.
+3. `~/my-slack-project/.github/instructions/` contains additional
+   file-scoped instruction files for source types and SQLite access.
+
+Open the project directory in VS Code:
+
+```
+code ~/my-slack-project
+```
 
 ## Transport
 
@@ -312,4 +362,4 @@ config and restart OpenCode.
 - **`-listen`** _(default: `127.0.0.1:8483`)_ — Listen address when
   `-transport=http`.
 - **`-new`** — Create a new AI project layout instead of starting the server.
-  Currently supported: `opencode`.
+  Supported layouts: `opencode`, `claude-code`, `copilot`.

@@ -1,7 +1,6 @@
 ---
 name: slackdump
 description: Collect the Slack conversation data from Slackdump Archive format.
-compatibility: opencode
 metadata:
   audience: general
   workflow: archive
@@ -186,5 +185,4 @@ In this case, message 12345.678 appears twice, first time in the first session,
 second time in the second session (which, most likely, a `slackdump resume`
 session).  You should pick the latest version of the message (`SESSION.ID =
 2, CHUNK.ID=104`).
-
 

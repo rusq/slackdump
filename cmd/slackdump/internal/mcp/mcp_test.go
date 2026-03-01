@@ -17,7 +17,6 @@ package mcp
 
 import (
 	"context"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"testing"
@@ -27,66 +26,99 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// testFS is a minimal in-memory FS used across tests to avoid depending on
-// the real embedded assets.
-var testFS = fstest.MapFS{
-	"opencode.jsonc":                  {Data: []byte(`{"mcp":{}}`)},
-	".opencode/skills/skill/SKILL.md": {Data: []byte("# skill\n")},
+// testLayoutFS is a minimal layout FS: one config file and a layout.json
+// manifest that references two skills.
+var testLayoutFS = fstest.MapFS{
+	"layout.json": {Data: []byte(`{
+		"files":  [{"src":"config.json","dst":"config.json"}],
+		"skills": [
+			{"skill":"skill-a","dst":"dest/skill-a.md"},
+			{"skill":"skill-b","dst":"dest/skill-b.md"}
+		]
+	}`)},
+	"config.json": {Data: []byte(`{"mcp":{}}`)},
+}
+
+// testSkillsFS is a minimal shared-skills FS.
+var testSkillsFS = fstest.MapFS{
+	"skill-a/SKILL.md": {Data: []byte("# skill-a\n")},
+	"skill-b/SKILL.md": {Data: []byte("# skill-b\n")},
+}
+
+// ─── readManifest ─────────────────────────────────────────────────────────────
+
+func Test_readManifest_ParsesOk(t *testing.T) {
+	m, err := readManifest(testLayoutFS)
+	require.NoError(t, err)
+
+	require.Len(t, m.Files, 1)
+	assert.Equal(t, "config.json", m.Files[0].Src)
+	assert.Equal(t, "config.json", m.Files[0].Dst)
+
+	require.Len(t, m.Skills, 2)
+	assert.Equal(t, "skill-a", m.Skills[0].Skill)
+	assert.Equal(t, "dest/skill-a.md", m.Skills[0].Dst)
+}
+
+func Test_readManifest_MissingFile(t *testing.T) {
+	_, err := readManifest(fstest.MapFS{})
+	require.Error(t, err)
 }
 
 // ─── initNewProject ───────────────────────────────────────────────────────────
 
 func Test_initNewProject_CreatesTargetDir(t *testing.T) {
 	tgt := filepath.Join(t.TempDir(), "new-project")
-	// tgt must not exist yet
 	require.NoDirExists(t, tgt)
 
-	err := initNewProject(tgt, testFS)
+	err := initNewProject(tgt, testLayoutFS, testSkillsFS)
 	require.NoError(t, err)
 
 	assert.DirExists(t, tgt)
 }
 
-func Test_initNewProject_CopiesFiles(t *testing.T) {
+func Test_initNewProject_CopiesLayoutFiles(t *testing.T) {
 	tgt := t.TempDir()
 
-	err := initNewProject(tgt, testFS)
+	err := initNewProject(tgt, testLayoutFS, testSkillsFS)
 	require.NoError(t, err)
 
-	// Every entry in the source FS must exist in the target directory.
-	err = fs.WalkDir(testFS, ".", func(path string, d fs.DirEntry, err error) error {
-		if err != nil || path == "." {
-			return err
-		}
-		tgtPath := filepath.Join(tgt, filepath.FromSlash(path))
-		if d.IsDir() {
-			assert.DirExists(t, tgtPath, "directory %q should be copied", path)
-		} else {
-			assert.FileExists(t, tgtPath, "file %q should be copied", path)
-			want, _ := fs.ReadFile(testFS, path)
-			got, _ := os.ReadFile(tgtPath)
-			assert.Equal(t, want, got, "content of %q should match", path)
-		}
-		return nil
-	})
+	// layout-specific file
+	assertFileContent(t, filepath.Join(tgt, "config.json"), `{"mcp":{}}`)
+}
+
+func Test_initNewProject_CopiesSkills(t *testing.T) {
+	tgt := t.TempDir()
+
+	err := initNewProject(tgt, testLayoutFS, testSkillsFS)
 	require.NoError(t, err)
+
+	assertFileContent(t, filepath.Join(tgt, "dest", "skill-a.md"), "# skill-a\n")
+	assertFileContent(t, filepath.Join(tgt, "dest", "skill-b.md"), "# skill-b\n")
 }
 
 func Test_initNewProject_ExistingDirIsOk(t *testing.T) {
-	tgt := t.TempDir() // already exists
+	tgt := t.TempDir()
 
-	err := initNewProject(tgt, testFS)
+	err := initNewProject(tgt, testLayoutFS, testSkillsFS)
 	require.NoError(t, err, "should succeed when target directory already exists")
 }
 
 func Test_initNewProject_FailsWhenTargetIsFile(t *testing.T) {
-	// Create a regular file where the target dir should be.
 	tmp := t.TempDir()
 	tgt := filepath.Join(tmp, "notadir")
 	require.NoError(t, os.WriteFile(tgt, []byte("data"), 0o644))
 
-	err := initNewProject(tgt, testFS)
+	err := initNewProject(tgt, testLayoutFS, testSkillsFS)
 	require.Error(t, err, "should fail when target is a regular file")
+}
+
+func Test_initNewProject_MissingSkill(t *testing.T) {
+	layoutFS := fstest.MapFS{
+		"layout.json": {Data: []byte(`{"skills":[{"skill":"missing","dst":"out.md"}]}`)},
+	}
+	err := initNewProject(t.TempDir(), layoutFS, fstest.MapFS{})
+	require.Error(t, err)
 }
 
 // ─── runMCPNewProject ─────────────────────────────────────────────────────────
@@ -97,10 +129,39 @@ func Test_runMCPNewProject_UnknownLayout(t *testing.T) {
 	assert.Contains(t, err.Error(), "unknown project layout")
 }
 
-func Test_runMCPNewProject_KnownLayout(t *testing.T) {
+func Test_runMCPNewProject_Opencode(t *testing.T) {
 	tgt := filepath.Join(t.TempDir(), "proj")
-	// Use the real embedded assets for the known layout.
 	err := runMCPNewProject(context.Background(), layoutOpencode, tgt)
 	require.NoError(t, err)
 	assert.DirExists(t, tgt)
+	assert.FileExists(t, filepath.Join(tgt, "opencode.jsonc"))
+	assert.FileExists(t, filepath.Join(tgt, ".opencode", "skills", "slackdump", "SKILL.md"))
+}
+
+func Test_runMCPNewProject_ClaudeCode(t *testing.T) {
+	tgt := filepath.Join(t.TempDir(), "proj")
+	err := runMCPNewProject(context.Background(), layoutClaudeCode, tgt)
+	require.NoError(t, err)
+	assert.DirExists(t, tgt)
+	assert.FileExists(t, filepath.Join(tgt, ".mcp.json"))
+	assert.FileExists(t, filepath.Join(tgt, "CLAUDE.md"))
+}
+
+func Test_runMCPNewProject_Copilot(t *testing.T) {
+	tgt := filepath.Join(t.TempDir(), "proj")
+	err := runMCPNewProject(context.Background(), layoutCopilot, tgt)
+	require.NoError(t, err)
+	assert.DirExists(t, tgt)
+	assert.FileExists(t, filepath.Join(tgt, ".vscode", "mcp.json"))
+	assert.FileExists(t, filepath.Join(tgt, ".github", "copilot-instructions.md"))
+}
+
+// ─── helpers ──────────────────────────────────────────────────────────────────
+
+func assertFileContent(t *testing.T, path string, want string) {
+	t.Helper()
+	require.FileExists(t, path)
+	got, err := os.ReadFile(path)
+	require.NoError(t, err)
+	assert.Equal(t, want, string(got))
 }

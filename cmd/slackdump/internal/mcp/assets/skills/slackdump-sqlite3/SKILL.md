@@ -1,7 +1,6 @@
 ---
 name: slackdump-sqlite3
 description: Guidance for querying a Slackdump SQLite3 database directly via the sqlite3 CLI.
-compatibility: opencode
 metadata:
   audience: general
   workflow: database

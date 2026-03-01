@@ -1,7 +1,6 @@
 ---
 name: slackdump-source
 description: Explains the different Slackdump sources structure.
-compatibility: opencode
 metadata:
   audience: general
   workflow: source
