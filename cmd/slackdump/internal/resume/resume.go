@@ -178,7 +178,7 @@ func latest(ctx context.Context, src source.Resumer, includeThreads bool, lookBa
 	if err != nil {
 		return nil, fmt.Errorf("error loading latest timestamps: %w", err)
 	}
-	if len(latest) == 0 && other.IsEmpty() {
+	if len(latest) == 0 && (other == nil || other.IsEmpty()) {
 		return &structures.EntityList{}, nil
 	}
 
