@@ -300,7 +300,7 @@ func (g *combinedGenerator) Generate(ctx context.Context, errC chan<- error, lis
 
 		proc := &combinedChannels{
 			output:    links,
-			processed: make(map[string]struct{}),
+			processed: make(map[string]struct{}), // TODO: stuff "processed" with channels that need to be excluded from the "list")
 		}
 		// joined processor will take care of duplicates and will send only
 		// the channels that are not in the processed list.
