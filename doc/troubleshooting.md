@@ -10,7 +10,6 @@ from the project's GitHub issue tracker.
   - [Slack rejects the embedded browser ("browser not supported")](#slack-rejects-the-embedded-browser-browser-not-supported)
   - [Google / SSO login blocked in the embedded browser](#google--sso-login-blocked-in-the-embedded-browser)
   - [Login hangs after completing 2FA or SSO (DUO, TOTP, etc.)](#login-hangs-after-completing-2fa-or-sso-duo-totp-etc)
-  - [Credentials fail in GitHub Actions or other CI environments](#credentials-fail-in-github-actions-or-other-ci-environments)
   - [`invalid_auth` on enterprise or paid workspaces](#invalid_auth-on-enterprise-or-paid-workspaces)
   - [Token format not recognised](#token-format-not-recognised)
 - [Export / Archive](#export--archive)
@@ -22,7 +21,6 @@ from the project's GitHub issue tracker.
   - [Some channels are missing from the archive](#some-channels-are-missing-from-the-archive)
 - [File Downloads](#file-downloads)
   - [Filenames with illegal characters fail on Windows](#filenames-with-illegal-characters-fail-on-windows)
-  - [Deleted-file attachments cause download errors](#deleted-file-attachments-cause-download-errors)
   - [Avatar download fails with 403 Forbidden](#avatar-download-fails-with-403-forbidden)
 - [Rate Limiting](#rate-limiting)
   - [Rate limit errors when listing many channels](#rate-limit-errors-when-listing-many-channels)
@@ -126,34 +124,6 @@ See [issue #344].
 
 ---
 
-### Credentials fail in GitHub Actions or other CI environments
-
-**Symptoms:** A credential file (`.slackdump` / workspace binary) that works
-locally fails in GitHub Actions with `invalid character` errors or garbled
-output.
-
-**Cause:** Some CI wrappers (e.g. `faketty`) inject ANSI escape sequences into
-stdin/stdout. These sequences corrupt the binary credential file when it is
-written or read back.
-
-**Fix:** Use a plain-text token file instead of the binary credential store.
-Create a file with just your token:
-
-```
-xoxp-...your-token...
-```
-
-Then pass it explicitly:
-
-```bash
-slackdump workspace import token.txt
-```
-
-Store the token as a GitHub Actions Secret and write it to a temp file in
-your workflow before calling Slackdump. See [issue #404].
-
----
-
 ### `invalid_auth` on enterprise or paid workspaces
 
 **Symptoms:** Slackdump returns `invalid_auth` even though your token looks
@@ -214,10 +184,17 @@ the human-readable table output from `slackdump list channels`. See [issue #428]
 **Symptoms:** Third-party tools like `slack-export-viewer` or the official Slack
 import tool fail to open a ZIP produced by `slackdump export`.
 
-**Fix:** Use `-type standard` (the default) for `slack-export-viewer`
-compatibility. The Mattermost export type (`-type mattermost`) is not
-compatible with `slack-export-viewer`. If the viewer still crashes, try
-exporting a single channel first to isolate the issue.
+**Fix:** Export with `-type standard` for `slack-export-viewer` compatibility.
+Note that the default export type is `mattermost`; you must set this flag
+explicitly:
+
+```bash
+slackdump export -type standard ...
+```
+
+The Mattermost export type (`-type mattermost`) is not compatible with
+`slack-export-viewer`. If the viewer still crashes, try exporting a single
+channel first to isolate the issue.
 
 Some JSON fields in Slackdump's output differ subtly from official Slack
 exports — open an issue with the error message if you encounter a specific
@@ -291,8 +268,10 @@ resulting archive is missing channels you can see in Slack.
 - **Visibility:** Slackdump can only see channels the authenticated user is a
   member of, plus public channels it can discover via the API.
 - **Rate limiting during channel enumeration.** On very large workspaces,
-  channel listing may be cut short by rate limits. Add `-limiter-boost=0` to
-  reduce API pressure, or list channels explicitly with an `@file`.
+  channel listing may be cut short by rate limits. Use a custom API config to
+  reduce pressure (generate one with `slackdump config new`, lower the rate
+  values, then pass it with `-api-config`), or list channels explicitly with
+  an `@file`.
 
 See [issue #544].
 
@@ -314,24 +293,6 @@ error, open an issue with the filename. See [issue #521].
 
 ---
 
-### Deleted-file attachments cause download errors
-
-**Symptoms:** Export fails with an error about an empty or invalid URL for an
-attachment, and the resulting JSON contains malformed attachment data.
-
-**Cause:** When a file is deleted in Slack, it becomes a "tombstone" — the
-message still references it, but the download URL is empty.
-
-**Fix:** Add the `-ignore-errors` flag to skip over undownloadable attachments:
-
-```bash
-slackdump export -ignore-errors ...
-```
-
-See [issue #270].
-
----
-
 ### Avatar download fails with 403 Forbidden
 
 **Symptoms:** User avatar images fail to download with `403 Forbidden`, often
@@ -349,35 +310,29 @@ to the latest Slackdump. See [issue #603].
 **Symptoms:** You see `slack rate limit exceeded, retry after Xs` errors, or
 Slackdump silently produces 0 results for a large workspace.
 
-**Fix:** Reduce API pressure by disabling the rate-limit booster:
+**Fix:** Reduce API pressure by using a custom API limits config. Generate a
+config file with the defaults, lower the rate and burst values to taste, then
+pass it to the command:
 
 ```bash
-slackdump list channels -limiter-boost=0
+slackdump config new -o api.toml
+# edit api.toml, then:
+slackdump archive -api-config api.toml ...
 ```
 
-For archiving, the same flag applies:
-
-```bash
-slackdump archive -limiter-boost=0
-```
-
-See [issues #1, #12, #28].
+Alternatively, list the channels you care about explicitly using an `@file`
+to avoid enumerating the full workspace. See [issues #1, #12, #28].
 
 ---
 
 ### `emoji` ignores custom rate-limit flags
 
-**Symptoms:** `slackdump emoji` ignores `-api-config` or `-limiter-boost` and
-hammers the API.
+**Symptoms:** `slackdump emoji` hammers the API regardless of rate-limit
+settings.
 
-**Status:** This was a known issue where the `emoji` subcommand did not
-propagate API configuration flags. Check whether your version has a fix; if
-not, set a lower concurrency explicitly:
-
-```bash
-slackdump emoji -workers=1
-```
-
+**Status:** The `emoji` subcommand does not currently expose rate-limit
+configuration flags. Check whether your version has a fix and update if so.
+If the problem persists on the latest release, open an issue.
 See [issue #487].
 
 ---
@@ -393,13 +348,14 @@ See [issue #487].
 archived in Slack.
 
 **Fix:** Stop the process, identify the stale channel (you may need to compare
-the channel list in the archive against your current workspace), remove or skip
-it, then restart:
+the channel list in the archive against your current workspace), then restart
+excluding it using the `^` prefix:
 
 ```bash
-slackdump resume --exclude C012BADCHAN ...
+slackdump resume ^C012BADCHAN
 ```
 
+For more details on the channel exclusion syntax, run `slackdump help syntax`.
 See [issue #553].
 
 ---
@@ -446,7 +402,6 @@ replies. A channel with 50 000 threads requires 50 000 sequential API calls at
 
 **Tips to reduce time:**
 
-- Use `-limiter-burst=5` to allow short bursts within Slack's rate limits.
 - Archive only recent messages using `-time-from`:
   ```bash
   slackdump archive -time-from 2024-01-01 C01234ABCDE
@@ -525,40 +480,12 @@ viewer. See [issue #473].
 
 ## Headless / Docker / CI
 
-Running Slackdump in a headless or CI environment requires a pre-exported token
-because the browser-based login flow cannot work without a display.
-
-**Recommended approach:**
-
-1. Run the interactive login once on your workstation:
-   ```bash
-   slackdump workspace new
-   ```
-2. Export the credentials to a portable file:
-   ```bash
-   slackdump workspace export myworkspace.toml
-   ```
-3. Transfer the file to your CI environment and import it at the start of each
-   job:
-   ```bash
-   slackdump workspace import myworkspace.toml
-   ```
-4. Store the file as an encrypted CI secret (GitHub Actions secret,
-   GitLab CI variable, etc.) and write it to disk in your pipeline before
-   calling Slackdump.
-
-For Docker, mount the workspace file as a volume:
+For instructions on transferring credentials to a headless or CI environment,
+run:
 
 ```bash
-docker run --rm \
-  -v "$PWD/myworkspace.toml:/workspace.toml" \
-  slackdump/slackdump workspace import /workspace.toml && \
-  slackdump archive ...
+slackdump help transfer
 ```
-
-> **Note:** Do not use wrapper tools like `faketty` with Slackdump — they
-> corrupt binary credential files by injecting ANSI escape sequences.
-> See [issue #404].
 
 ---
 
@@ -573,14 +500,12 @@ docker run --rm \
 [issue #168]: https://github.com/rusq/slackdump/issues/168
 [issue #220]: https://github.com/rusq/slackdump/issues/220
 [issue #222]: https://github.com/rusq/slackdump/issues/222
-[issue #270]: https://github.com/rusq/slackdump/issues/270
 [issue #273]: https://github.com/rusq/slackdump/issues/273
 [issue #289]: https://github.com/rusq/slackdump/issues/289
 [issue #290]: https://github.com/rusq/slackdump/issues/290
 [issue #293]: https://github.com/rusq/slackdump/issues/293
 [issue #328]: https://github.com/rusq/slackdump/issues/328
 [issue #344]: https://github.com/rusq/slackdump/issues/344
-[issue #404]: https://github.com/rusq/slackdump/issues/404
 [issue #428]: https://github.com/rusq/slackdump/issues/428
 [issue #435]: https://github.com/rusq/slackdump/issues/435
 [issue #455]: https://github.com/rusq/slackdump/issues/455
