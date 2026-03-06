@@ -82,7 +82,7 @@ func runView(ctx context.Context, cmd *base.Command, args []string) error {
 	go func() {
 		<-ctx.Done()
 		v.Close()
-		lg.InfoContext(ctx, "cleanup complete")
+		lg.DebugContext(ctx, "cleanup complete")
 	}()
 
 	lg.InfoContext(ctx, "listening on", "addr", listenAddr)
