@@ -343,6 +343,7 @@ func Test_latest(t *testing.T) {
 		// src source.Resumer
 		includeThreads bool
 		lookBack       time.Duration
+		other          *structures.EntityList
 	}
 	tests := []struct {
 		name     string
@@ -439,7 +440,7 @@ func Test_latest(t *testing.T) {
 			if tt.expectFn != nil {
 				tt.expectFn(mr)
 			}
-			got, err := latest(tt.args.ctx, mr, tt.args.includeThreads, tt.args.lookBack)
+			got, err := latest(tt.args.ctx, mr, tt.args.includeThreads, tt.args.lookBack, tt.args.other)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("latest() error = %v, wantErr %v", err, tt.wantErr)
 				return

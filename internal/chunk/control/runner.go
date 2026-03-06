@@ -274,8 +274,8 @@ func (g *apiGenerator) Generate(ctx context.Context, errC chan<- error, list *st
 }
 
 // combinedGenerator combines the list and channels from the API.  It first sends
-// the channels from the list, then fetches the rest from the API.  It does not
-// account for "included".  It ignores the thread links in the list.
+// the channels from the list (honouring exclusions), then fetches the rest from
+// the API.  It ignores the thread links in the list.
 type combinedGenerator struct {
 	s       Streamer
 	p       processor.Channels
@@ -290,6 +290,15 @@ func (g *combinedGenerator) Generate(ctx context.Context, errC chan<- error, lis
 	emitErr := errEmitter(errC, "combined channel generator", StgGenerator)
 	done := make(chan struct{})
 
+	// Pre-seed the processed map with excluded IDs so that
+	// combinedChannels.Channels naturally skips them during API listing.
+	processed := make(map[string]struct{}, list.ExcludeCount())
+	for _, item := range list.Index() {
+		if !item.Include {
+			processed[item.Id] = struct{}{}
+		}
+	}
+
 	go func() {
 		defer close(links)
 		defer close(done)
@@ -300,8 +309,9 @@ func (g *combinedGenerator) Generate(ctx context.Context, errC chan<- error, lis
 
 		proc := &combinedChannels{
 			output:    links,
-			processed: make(map[string]struct{}),
+			processed: processed,
 		}
+
 		// joined processor will take care of duplicates and will send only
 		// the channels that are not in the processed list.
 		joined := processor.JoinChannels(proc, g.p)
@@ -313,6 +323,12 @@ func (g *combinedGenerator) Generate(ctx context.Context, errC chan<- error, lis
 
 		// process the list first
 		for entry := range list.C(ctx) {
+			if _, ok := proc.processed[entry.Id]; ok {
+				// list.C only emits Include==true items, so this can only fire
+				// if an excluded ID somehow also appears as an include — treat it
+				// as a safety net rather than a normal path.
+				continue
+			}
 			select {
 			case <-ctx.Done():
 				emitErr(context.Cause(ctx))

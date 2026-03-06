@@ -43,7 +43,7 @@ import (
 var mdResume string
 
 var CmdResume = &base.Command{
-	UsageLine:   "slackdump resume [flags] <archive or directory>",
+	UsageLine:   "slackdump resume [flags] <archive or directory> [link1 [link2 ...]]",
 	Short:       "resumes archive process from the last checkpoint",
 	Long:        mdResume,
 	PrintFlags:  true,
@@ -84,11 +84,18 @@ func init() {
 }
 
 func runResume(ctx context.Context, cmd *base.Command, args []string) error {
-	if len(args) != 1 {
+	if len(args) < 1 {
 		base.SetExitStatus(base.SInvalidParameters)
-		return errors.New("expected exactly one argument")
+		return errors.New("expected at least one argument")
 	}
 	dir := args[0]
+
+	// parse the entity list, if it's present.
+	list, err := structures.NewEntityList(args[1:])
+	if err != nil {
+		base.SetExitStatus(base.SUserError)
+		return err
+	}
 
 	src, err := source.Load(ctx, dir)
 	if err != nil {
@@ -99,10 +106,10 @@ func runResume(ctx context.Context, cmd *base.Command, args []string) error {
 
 	if !src.Type().Has(source.FDatabase) {
 		base.SetExitStatus(base.SInvalidParameters)
-		return fmt.Errorf("source type %q does not support resume, use slackdump convert to database format", src.Type())
+		return fmt.Errorf("source type %q does not support resume, use 'slackdump convert -f database' to convert it", src.Type())
 	}
 
-	latest, err := latest(ctx, src, resumeFlags.IncludeThreads, time.Duration((*duration.Duration)(resumeFlags.Lookback).ToTimeDuration()))
+	latest, err := latest(ctx, src, resumeFlags.IncludeThreads, time.Duration((*duration.Duration)(resumeFlags.Lookback).ToTimeDuration()), list)
 	if err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return fmt.Errorf("error loading latest timestamps: %w", err)
@@ -163,7 +170,7 @@ func runResume(ctx context.Context, cmd *base.Command, args []string) error {
 	return nil
 }
 
-func latest(ctx context.Context, src source.Resumer, includeThreads bool, lookBack time.Duration) (*structures.EntityList, error) {
+func latest(ctx context.Context, src source.Resumer, includeThreads bool, lookBack time.Duration, other *structures.EntityList) (*structures.EntityList, error) {
 	if lookBack > 0 {
 		lookBack = -lookBack
 	}
@@ -171,7 +178,7 @@ func latest(ctx context.Context, src source.Resumer, includeThreads bool, lookBa
 	if err != nil {
 		return nil, fmt.Errorf("error loading latest timestamps: %w", err)
 	}
-	if len(latest) == 0 {
+	if len(latest) == 0 && (other == nil || other.IsEmpty()) {
 		return &structures.EntityList{}, nil
 	}
 
@@ -194,6 +201,7 @@ func latest(ctx context.Context, src source.Resumer, includeThreads bool, lookBa
 		debugprint(fmt.Sprintf("%s: %d->%d", item.Id, ts.UTC().UnixMicro(), item.Oldest.UnixMicro()))
 	}
 	el := structures.NewEntityListFromItems(ei...)
+	el.Overlay(other)
 
 	return el, nil
 }
