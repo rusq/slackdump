@@ -9,6 +9,9 @@ transformation to the raw Slack API output.
 For archiving an entire workspace, see [usage-export.md](usage-export.md) or
 run `slackdump help archive`.
 
+> [!WARNING]
+> For Enterprise Workspaces, read the [Enterprise tips][enterprise.md] first!
+
 ## Quick Start
 
 ```shell
