@@ -345,6 +345,35 @@ func Test_combinedGenerator_Generate(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "excludes excluded channels from both list and API",
+			fields: fields{
+				chTypes: []string{"public_channel"},
+			},
+			args: args{
+				ctx: t.Context(),
+				list: structures.NewEntityListFromItems(
+					structures.EntityItem{Id: "C11111111", Include: true},
+					structures.EntityItem{Id: "C22222222", Include: false}, // excluded
+				),
+			},
+			expectFn: func(s *mock_control.MockStreamer, p *mock_processor.MockChannels) {
+				s.EXPECT().
+					ListChannels(gomock.Any(), gomock.Any(), &slack.GetConversationsParameters{Types: []string{"public_channel"}}).
+					DoAndReturn(
+						func(ctx context.Context, proc processor.Channels, p *slack.GetConversationsParameters) error {
+							// API returns both channels; the excluded one must be dropped.
+							proc.Channels(t.Context(), []slack.Channel{testPubChanMember, testPubChanNonMember})
+							return nil
+						})
+				p.EXPECT().Channels(gomock.Any(), []slack.Channel{testPubChanMember, testPubChanNonMember}).Return(nil)
+			},
+			want: []structures.EntityItem{
+				{Id: "C11111111", Include: true},
+				// C22222222 is excluded and must not appear in output.
+			},
+			wantErr: false,
+		},
+		{
 			name: "handles error",
 			fields: fields{
 				chTypes: []string{"public_channel"},
