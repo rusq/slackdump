@@ -8,6 +8,9 @@ Slack's own export format.
 For incremental/resumable archiving, prefer `slackdump archive`.  See the
 [Archive vs Export vs Dump](#archive-vs-export-vs-dump) section below.
 
+> [!WARNING]
+> For Enterprise Workspaces, read the [Enterprise tips][enterprise.md] first!
+
 ## Quick Start
 
 ```shell

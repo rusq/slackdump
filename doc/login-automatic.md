@@ -31,9 +31,9 @@ headlessly.
 ### User Browser
 
 Instead of launching a bundled browser, Slackdump opens **your own installed
-browser** (Chrome, Firefox, etc.) on the Slack login page.  Your existing
-browser profile is used, which means Google Authentication and other flows that
-block embedded browsers will work.
+browser** (Chromium family only, such as Chrome, Brave, Edge etc., NOT Firefox)
+on the Slack login page.  Your existing browser profile is used, which means
+Google Authentication and other flows that block embedded browsers will work.
 
 When prompted, select the browser you want to use from the list of detected
 browsers.
@@ -52,8 +52,7 @@ support SSO, Google, or passwordless (OTP-only) workspaces.
 
 Use this method when other browser-based methods are blocked (e.g. Google Auth
 blocks the embedded browser, or your workspace enforces strict SSO policies).
-It uses the Slack "Sign in on mobile" QR code flow, which still relies on Rod
-internally to exchange the QR image for a session token.
+It uses the Slack "Sign in on mobile" QR code flow.
 
 **Steps:**
 
@@ -66,8 +65,8 @@ internally to exchange the QR image for a session token.
    "Paste QR code image data into this field".
 5. Paste the copied image data into that field and press **Enter**.
 
-Slackdump exchanges the base64-encoded image with Slack's API and captures the
-resulting session token and cookie automatically.
+Slackdump opens the browser, follows the URL and captures session token and
+cookie automatically.
 
 ## Troubleshooting
 

@@ -102,4 +102,26 @@ If the console snippet above does not work, extract the token via the Network ta
    click it, and open the **Headers** (or **Payload**) tab.
 5. The `token` field value (starting with `xoxc-`) is your token.
 
+
+## Slackdump Wizard
+
+Slackdump wizard provides the following methods:
+```
+┃   Login in Browser          - all automated login methods
+┃   Browser Options...        - options for automated login methods
+┃   ────────────────
+┃ > Cookie and Workspace Name - enter xoxd cookie with a Workspace Name
+┃   Token/Cookie              - token login (xoxc will require cookie)
+┃   Token/Cookie from file    - loads the cookies.txt file
+┃   ────────────────
+┃   From file with secrets    - import .env or secrets.txt
+┃   ────────────────
+┃   Cache Options...          - allows to turn off encryption or provide
+┃   ────────────────            machine ID override.
+┃   Exit
+```
+
+The Token/Cookie method also allows to specify App/Bot tokens.
+
+
 [Back to User Guide](README.md)

@@ -5,6 +5,9 @@ workspace. It saves everything to a local SQLite database that can be queried
 directly with SQL, viewed in the built-in browser viewer, or converted to other
 formats later.
 
+> [!WARNING]
+> For Enterprise Workspaces, read the [Enterprise tips][enterprise.md] first!
+
 ## Basic Usage
 
 ```bash
@@ -39,7 +42,7 @@ slackdump archive -o /backups/myworkspace
 | Compatible with `slack-export-viewer` | Via `convert` | Yes | No |
 | Suitable as source for conversion | Yes (master format) | — | — |
 
-Use `archive` for ongoing backups. Convert to another format when you need
+Tip: Use `archive` for ongoing backups. Convert to another format when you need
 compatibility with a specific tool.
 
 ## Incremental Backups / Resume
@@ -52,8 +55,8 @@ slackdump resume /backups/myworkspace
 ```
 
 Resume reads the existing database to determine where each channel left off and
-only fetches messages newer than the last recorded timestamp. This is far faster
-than re-archiving from scratch.
+only fetches messages newer than the last recorded timestamp. This is far
+faster than re-archiving from scratch.
 
 See the [Troubleshooting](troubleshooting.md#resume--incremental-backups) page
 if resume hangs or is unexpectedly slow.
@@ -136,6 +139,7 @@ location. User avatars are not downloaded by default; enable with `-avatars`.
 | `-avatars` | `false` | Download user avatars |
 | `-member-only` | `false` | Only channels the current user belongs to |
 | `-chan-types` | all types | Comma-separated list of channel types to include |
+| `-channel-users | false | Fetch only users seen in the conversations |
 | `-time-from` | (oldest) | Start of date range (UTC) |
 | `-time-to` | now | End of date range (UTC) |
 | `-enterprise` | `false` | Enable Enterprise Grid mode |
