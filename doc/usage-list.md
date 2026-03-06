@@ -5,6 +5,13 @@
 The `list` command retrieves and displays users or channels visible to your
 account.
 
+
+> [!WARNING]
+> For Enterprise Workspaces, read the [Enterprise tips][enterprise.md] first!
+> 
+> It is not recommended to use these methods on Enteprise Workspaces with
+> thousands of channels and/or users to avoid hitting the scraping protection.
+
 ## List Users
 
 ```shell
