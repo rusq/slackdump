@@ -43,7 +43,7 @@ import (
 var mdResume string
 
 var CmdResume = &base.Command{
-	UsageLine:   "slackdump resume [flags] <archive or directory> [link1[ link 2[ link N]]]",
+	UsageLine:   "slackdump resume [flags] <archive or directory> [link1 [link2 ...]]",
 	Short:       "resumes archive process from the last checkpoint",
 	Long:        mdResume,
 	PrintFlags:  true,
@@ -86,7 +86,7 @@ func init() {
 func runResume(ctx context.Context, cmd *base.Command, args []string) error {
 	if len(args) < 1 {
 		base.SetExitStatus(base.SInvalidParameters)
-		return errors.New("expected exactly one argument")
+		return errors.New("expected at least one argument")
 	}
 	dir := args[0]
 

@@ -117,6 +117,9 @@ func (el *EntityList) Overlay(other *EntityList) {
 	if other == nil {
 		return
 	}
+	if el == other {
+		return
+	}
 	el.mu.Lock()
 	defer el.mu.Unlock()
 	other.mu.RLock()
