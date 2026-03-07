@@ -66,7 +66,7 @@ type mainView struct {
 	CanvasAvailable bool // true when the canvas file exists in storage
 }
 
-type Aliaser interface {
+type aliaser interface {
 	// Alias returns the alias for the given channel ID.
 	Alias(id string) (string, bool, error)
 	// SetAlias sets the alias for the given channel ID.
@@ -97,8 +97,8 @@ const (
 	aliasSet
 )
 
-func (v *Viewer) aliaser() (Aliaser, bool) {
-	a, ok := v.src.(Aliaser)
+func (v *Viewer) aliaser() (aliaser, bool) {
+	a, ok := v.src.(aliaser)
 	return a, ok
 }
 
