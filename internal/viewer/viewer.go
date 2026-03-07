@@ -118,6 +118,8 @@ func New(ctx context.Context, addr string, r source.Sourcer) (*Viewer, error) {
 	mux.HandleFunc("GET /", v.indexHandler)
 	// https: //ora600.slack.com/archives/CHY5HUESG
 	mux.HandleFunc("GET /archives/{id}", v.newFileHandler(v.channelHandler))
+	mux.HandleFunc("GET /archives/{id}/canvas", v.newFileHandler(v.canvasHandler))
+	mux.HandleFunc("GET /archives/{id}/canvas/content", v.newFileHandler(v.canvasContentHandler))
 	// https: //ora600.slack.com/archives/DHMAB25DY/p1710063528879959
 	// https://ora600.slack.com/archives/CHY5HUESG/p1738580940349469?thread_ts=1737716342.919259&cid=CHY5HUESG
 	mux.HandleFunc("GET /archives/{id}/{ts}", v.newFileHandler(v.postRedirectHandler))

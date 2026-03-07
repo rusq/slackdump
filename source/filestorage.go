@@ -153,6 +153,19 @@ func (r *STMattermost) File(id string, name string) (string, error) {
 	return "", fs.ErrNotExist
 }
 
+// FileByID returns the path of any file with the given ID, regardless of name.
+// It globs for the first file under the ID subdirectory.
+func (r *STMattermost) FileByID(id string) (string, error) {
+	matches, err := fs.Glob(r.fs, path.Join(id, "*"))
+	if err != nil {
+		return "", err
+	}
+	if len(matches) == 0 {
+		return "", fs.ErrNotExist
+	}
+	return matches[0], nil
+}
+
 func (r *STMattermost) FilePath(_ *slack.Channel, f *slack.File) string {
 	return MattermostFilepath(nil, f)
 }
@@ -253,6 +266,11 @@ func (r *STStandard) File(id string, name string) (string, error) {
 	return pth, nil
 }
 
+// FileByID returns the path of the file with the given ID.
+func (r *STStandard) FileByID(id string) (string, error) {
+	return r.File(id, "")
+}
+
 type fakefs struct{}
 
 func (fakefs) Open(name string) (fs.File, error) {
@@ -271,6 +289,10 @@ func (NoStorage) Type() StorageType {
 }
 
 func (NoStorage) File(id string, name string) (string, error) {
+	return "", fs.ErrNotExist
+}
+
+func (NoStorage) FileByID(id string) (string, error) {
 	return "", fs.ErrNotExist
 }
 
@@ -389,6 +411,11 @@ func (r *STDump) File(id string, name string) (string, error) {
 	return "", fs.ErrNotExist
 }
 
+// FileByID returns the path of the file with the given ID.
+func (r *STDump) FileByID(id string) (string, error) {
+	return r.File(id, "")
+}
+
 type AvatarStorage struct {
 	fs fs.FS
 }
@@ -430,6 +457,11 @@ func (r *AvatarStorage) File(userID string, imageOriginalBase string) (string, e
 		return "", err
 	}
 	return pth, nil
+}
+
+// FileByID is not meaningful for AvatarStorage; it always returns fs.ErrNotExist.
+func (r *AvatarStorage) FileByID(id string) (string, error) {
+	return "", fs.ErrNotExist
 }
 
 // FilePath is unused on AvatarStorage.

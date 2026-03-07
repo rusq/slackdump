@@ -17,6 +17,7 @@ package viewer
 
 import (
 	"errors"
+	"io"
 	"io/fs"
 	"iter"
 	"net/http"
@@ -38,14 +39,26 @@ func (v *Viewer) indexHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// messageView is the data passed to the render_message template.
+// It wraps a slack.Message with the channel ID needed to render threading
+// context (reply-to anchor links).  Set ChannelID to an empty string to
+// suppress the reply banner (used in the thread panel, where the parent
+// message is on a different page).
+type messageView struct {
+	Msg       slack.Message
+	ChannelID string
+}
+
 type mainView struct {
 	channels
-	Name           string
-	Type           string
-	Messages       iter.Seq2[slack.Message, error]
-	ThreadMessages iter.Seq2[slack.Message, error]
-	ThreadID       string
-	Conversation   slack.Channel
+	Name            string
+	Type            string
+	Messages        iter.Seq2[slack.Message, error]
+	ThreadMessages  iter.Seq2[slack.Message, error]
+	ThreadID        string
+	Conversation    slack.Channel
+	CanvasActive    bool // true when the canvas tab is the active tab
+	CanvasAvailable bool // true when the canvas file exists in storage
 }
 
 // view returns a mainView struct with the channels and the name and type of
@@ -93,7 +106,7 @@ func (v *Viewer) channelHandler(w http.ResponseWriter, r *http.Request, id strin
 	}
 
 	page := v.view()
-	page.Conversation = *ci
+	v.setConversation(&page, ci)
 	page.Messages = it
 
 	template := "index.html" // for deep links
@@ -173,7 +186,7 @@ func (v *Viewer) threadHandler(w http.ResponseWriter, r *http.Request, id string
 	}
 
 	page := v.view()
-	page.Conversation = *ci
+	v.setConversation(&page, ci)
 	page.ThreadMessages = itTm
 	page.ThreadID = ts
 
@@ -243,5 +256,103 @@ func (v *Viewer) userHandler(w http.ResponseWriter, r *http.Request) {
 	if err := v.tmpl.ExecuteTemplate(w, "hx_user", u); err != nil {
 		lg.ErrorContext(ctx, "ExecuteTemplate", "error", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+// canvasAvailable returns true if the canvas file for the channel exists in
+// the given storage.
+func canvasAvailable(storage source.Storage, ci *slack.Channel) bool {
+	if ci.Properties == nil || ci.Properties.Canvas.FileId == "" {
+		return false
+	}
+	_, err := fileByID(storage, ci.Properties.Canvas.FileId)
+	return err == nil
+}
+
+// setConversation sets the Conversation and canvas-related fields on the page
+// view.  It should be called whenever a channel is loaded, so that the canvas
+// tab state is always consistent regardless of which tab is active.
+func (v *Viewer) setConversation(page *mainView, ci *slack.Channel) {
+	page.Conversation = *ci
+	page.CanvasAvailable = canvasAvailable(v.src.Files(), ci)
+}
+
+// canvasHandler renders the canvas tab view for the given channel.
+func (v *Viewer) canvasHandler(w http.ResponseWriter, r *http.Request, id string) {
+	ctx := r.Context()
+	lg := v.lg.With("in", "canvasHandler", "channel", id)
+
+	ci, err := v.src.ChannelInfo(ctx, id)
+	if err != nil {
+		lg.ErrorContext(ctx, "ChannelInfo", "error", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	page := v.view()
+	v.setConversation(&page, ci)
+	page.CanvasActive = true
+
+	tmplName := "hx_canvas"
+	if !isHXRequest(r) {
+		tmplName = "index.html"
+		// fetch messages so the full page renders correctly on deep link
+		itMsg, err := v.src.AllMessages(ctx, id)
+		if err != nil {
+			lg.ErrorContext(ctx, "AllMessages", "error", err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		page.Messages = itMsg
+	}
+	if err := v.tmpl.ExecuteTemplate(w, tmplName, page); err != nil {
+		lg.ErrorContext(ctx, "ExecuteTemplate", "error", err, "template", tmplName)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+// canvasContentHandler streams the raw canvas HTML content for the given
+// channel directly, without requiring the caller to know the filename.
+func (v *Viewer) canvasContentHandler(w http.ResponseWriter, r *http.Request, id string) {
+	ctx := r.Context()
+	lg := v.lg.With("in", "canvasContentHandler", "channel", id)
+
+	ci, err := v.src.ChannelInfo(ctx, id)
+	if err != nil {
+		lg.ErrorContext(ctx, "ChannelInfo", "error", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if ci.Properties == nil || ci.Properties.Canvas.FileId == "" {
+		http.NotFound(w, r)
+		return
+	}
+
+	fileID := ci.Properties.Canvas.FileId
+	storage := v.src.Files()
+	pth, err := fileByID(storage, fileID)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			lg.DebugContext(ctx, "canvas file not found", "fileID", fileID, "error", err)
+			http.NotFound(w, r)
+			return
+		}
+		lg.ErrorContext(ctx, "FileByID", "error", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	f, err := storage.FS().Open(pth)
+	if err != nil {
+		lg.ErrorContext(ctx, "Open", "error", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer f.Close()
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if _, err := io.Copy(w, f); err != nil {
+		lg.ErrorContext(ctx, "Copy", "error", err)
 	}
 }

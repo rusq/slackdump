@@ -43,6 +43,8 @@ func initTemplates(v *Viewer) {
 			"rendertext":      func(s string) string { return v.r.RenderText(context.Background(), s) },            // render message text
 			"render":          func(m slack.Message) template.HTML { return v.r.Render(context.Background(), &m) }, // render message
 			"is_thread_start": func(m slack.Message) bool { return st.IsThreadStart(&m) },
+			"canvas_present":  func(ch slack.Channel) bool { return ch.Properties != nil && ch.Properties.Canvas.FileId != "" },
+			"msgview":         func(channelID string, m slack.Message) messageView { return messageView{Msg: m, ChannelID: channelID} },
 		},
 	).ParseFS(fsys, "templates/*.html"))
 	v.tmpl = tmpl

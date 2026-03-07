@@ -6,14 +6,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Slackdump Viewer</title>
     {{ template "hx_css" . }}
-    <script src="https://unpkg.com/htmx.org@2.0.4" integrity="sha384-HGfztofotfshcF7+8n44JQL2oJmowVChPTg48S+jvZoztPfvwD79OC/LTtG6dMp+" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.8/dist/htmx.min.js" integrity="sha384-/TgkGk7p307TH7EXJDuUlgG3Ce1UVolAOFopFekQkkXihi5u/6OCvVKyz1W+idaz" crossorigin="anonymous"></script>
 </head>
 
 <body>
     <div class="container">
         <section class="channel-sidebar">
             <header>
-                <div class="sidebar-header-innner">
+                <div class="sidebar-header-inner">
                     <h1>Slackdump</h1>
                     <small class="subtitle">{{.Type}}: {{.Name}}</small>
                 </div>
@@ -65,7 +65,7 @@
         <p>Direct</p>
     </div>
 	 {{ range $i, $el := .MPIM }}
-         <a href="#" hx-get="/archives/{{$el.ID}}" hx-target="#conversation" hx-push-url="true">{{ rendername $el }}</a>>
+         <a href="#" hx-get="/archives/{{$el.ID}}" hx-target="#conversation" hx-push-url="true">{{ rendername $el }}</a>
          {{ end }}
          {{ range $i, $el := .DM }}
          <a href="#" hx-get="/archives/{{$el.ID}}" hx-target="#conversation" hx-push-url="true">{{ rendername $el }}</a>
@@ -89,36 +89,7 @@
 
 {{define "hx_conversation"}}
 {{ if .Conversation.ID }}
-{{ $id := .Conversation.ID }}
-<header class="conversation-header">
-    <div class="conversation-inner">
-        <h3>{{ rendername .Conversation }}</h3>
-	<p>{{ .Conversation.Topic.Value }}</p>
-    </div>
-</header>
-<div class="message-list">
-{{ range $el, $err := .Messages }}
-    <article class="message">
-        {{ if $err }} <p>Error: {{ $err }}</p> {{ else }}
-            <a class="avatar" href="#" hx-get="/team/{{ $el.User }}" hx-target="#thread">
-		    <img class="avatar" src="{{ userpic $el.User }}" />
-            </a>
-            <div class="message-inner">
-                {{ template "render_message" $el }}
-                <!-- TODO: Pass dict through to render_message in order to template threading -->
-                {{ if is_thread_start $el }}
-                <footer class="thread-info">
-                <a href="#" hx-get="/archives/{{$id}}/{{ $el.ThreadTimestamp }}" hx-target="#thread">
-                    {{ $el.ReplyCount }} replies
-                </a>
-                <span class="last-reply grey">Latest reply: {{ time $el.LatestReply }}</span>
-                </footer>
-            </div>
-            {{ end }}
-        {{ end }}
-    </article>
-{{end}}
-</div>
+{{ template "hx_conversation_body" . }}
 {{ else }}
 <p>No Messages.</p>
 {{ end }}
@@ -160,6 +131,111 @@
 {{ end }}
 
 
+{{ define "hx_conversation_body" }}
+{{ template "conversation_header" . }}
+{{ template "message_list" . }}
+{{ end }}
+
+
+{{ define "conversation_header" }}
+<header class="conversation-header">
+    <div class="conversation-inner">
+        <h3>{{ rendername .Conversation }}</h3>
+        <p>{{ .Conversation.Topic.Value }}</p>
+        {{ if canvas_present .Conversation }}
+        {{ template "tab_list" . }}
+        {{ end }}
+    </div>
+</header>
+{{ end }}
+
+{{ define "tab_list" }}
+<div class="tab-list" role="tablist" aria-label="Channel views">
+    <button hx-get="/archives/{{ .Conversation.ID }}"
+        hx-target="#conversation" hx-swap="innerHTML"
+        class="tab{{ if not .CanvasActive }} selected{{ end }}"
+        role="tab"
+        tabindex="{{ if not .CanvasActive }}0{{ else }}-1{{ end }}"
+        aria-selected="{{ if not .CanvasActive }}true{{ else }}false{{ end }}"
+        aria-controls="tab-panel-conversation"
+        id="tab-btn-conversation">Conversation</button>
+    <button hx-get="/archives/{{ .Conversation.ID }}/canvas"
+        hx-target="#conversation" hx-swap="innerHTML"
+        class="tab{{ if .CanvasActive }} selected{{ end }}{{ if not .CanvasAvailable }} disabled{{ end }}"
+        role="tab"
+        tabindex="{{ if .CanvasActive }}0{{ else }}-1{{ end }}"
+        aria-selected="{{ if .CanvasActive }}true{{ else }}false{{ end }}"
+        aria-controls="tab-panel-canvas"
+        id="tab-btn-canvas"
+        {{ if not .CanvasAvailable }}disabled{{ end }}>Canvas</button>
+</div>
+<script>
+(function () {
+    var list = document.currentScript.previousElementSibling;
+    list.addEventListener('keydown', function (e) {
+        var tabs = Array.from(list.querySelectorAll('[role="tab"]:not([disabled])'));
+        var idx  = tabs.indexOf(document.activeElement);
+        if (idx === -1) return;
+        if (e.key === 'ArrowRight') {
+            e.preventDefault();
+            tabs[(idx + 1) % tabs.length].focus();
+        } else if (e.key === 'ArrowLeft') {
+            e.preventDefault();
+            tabs[(idx - 1 + tabs.length) % tabs.length].focus();
+        } else if (e.key === 'Home') {
+            e.preventDefault();
+            tabs[0].focus();
+        } else if (e.key === 'End') {
+            e.preventDefault();
+            tabs[tabs.length - 1].focus();
+        }
+    });
+}());
+</script>
+{{ end }}
+
+{{ define "hx_canvas" }}
+{{ template "conversation_header" . }}
+<div class="canvas-container" id="tab-panel-canvas" role="tabpanel" aria-labelledby="tab-btn-canvas" tabindex="0">
+    {{ if .CanvasAvailable }}
+    <iframe class="canvas-frame"
+        src="/archives/{{ .Conversation.ID }}/canvas/content"
+        sandbox="allow-same-origin">
+    </iframe>
+    {{ else }}
+    <div class="canvas-unavailable">
+        <p>Canvas is not available (files were not downloaded).</p>
+    </div>
+    {{ end }}
+</div>
+{{ end }}
+
+{{ define "message_list" }}
+{{ $id := .Conversation.ID }}
+<div class="message-list" id="tab-panel-conversation" role="tabpanel" aria-labelledby="tab-btn-conversation" tabindex="0">
+{{ range $el, $err := .Messages }}
+    <article class="message">
+        {{ if $err }} <p>Error: {{ $err }}</p> {{ else }}
+            <a class="avatar" href="#" hx-get="/team/{{ $el.User }}" hx-target="#thread">
+		    <img class="avatar" src="{{ userpic $el.User }}" />
+            </a>
+            <div class="message-inner">
+                {{ template "render_message" (msgview $id $el) }}
+                {{ if is_thread_start $el }}
+                <footer class="thread-info">
+                <a href="#" hx-get="/archives/{{$id}}/{{ $el.ThreadTimestamp }}" hx-target="#thread">
+                    {{ $el.ReplyCount }} replies
+                </a>
+                <span class="last-reply grey">Latest reply: {{ time $el.LatestReply }}</span>
+                </footer>
+            </div>
+            {{ end }}
+        {{ end }}
+    </article>
+{{end}}
+</div>
+{{end}}
+
 
 {{define "hx_thread"}}
 <h2>Thread: {{ .ThreadID }}</h2>
@@ -173,7 +249,7 @@
 		<img class="avatar" src="{{ userpic $el.User }}" />
         </a>
         <div class="message-inner">
-            {{ template "render_message" $el }}
+            {{ template "render_message" (msgview "" $el) }}
         </div>
         {{ end }}
     </article>
@@ -189,31 +265,24 @@
 {{end}}
 
 {{ define "render_message" }}
-<header class="message-header" id="{{.Timestamp}}">
+<header class="message-header" id="{{.Msg.Timestamp}}">
     <span class="message-sender">
-        {{ if ( or ( is_app_msg . ) ( not .User ) ) -}}
-        	{{ username . }}
+        {{ if ( or ( is_app_msg .Msg ) ( not .Msg.User ) ) -}}
+        	{{ username .Msg }}
         {{- else -}}
-		<a href="#" hx-get="/team/{{ .User }}" hx-target="#thread">{{ username . }}</a>
+		<a href="#" hx-get="/team/{{ .Msg.User }}" hx-target="#thread">{{ username .Msg }}</a>
         {{- end }}
     </span>
-    <span class="message-timestamp grey">{{ time .Timestamp }}</span>
-    <span class="message-link"><a href="#{{.Timestamp}}">#</a></span>
+    <span class="message-timestamp grey">{{ time .Msg.Timestamp }}</span>
+    <span class="message-link"><a href="#{{.Msg.Timestamp}}">#</a></span>
 </header>
+{{- if and .ChannelID .Msg.ThreadTimestamp (ne .Msg.ThreadTimestamp .Msg.Timestamp) }}
+<div class="reply-context">
+    ↩ <a href="/archives/{{ .ChannelID }}#{{ .Msg.ThreadTimestamp }}">replying to {{ time .Msg.ThreadTimestamp }}</a>
+</div>
+{{- end }}
 <div class="message-content">
-    <header id="{{.Timestamp}}">
-        <span class="message-sender">
-            {{if is_app_msg . -}}
-            {{ username . }}
-            {{- else -}}
-            <a href="#" hx-get="/team/{{ .User }}" hx-target="#thread"> {{ username . }}</a>
-            {{- end }}
-        </span>
-        <span class="message-timestamp grey"><a href="#{{.Timestamp}}">{{ time .Timestamp }}</a></span>
-    </header>
-    <div class="message-content">
-        <p>{{ render . }}</p>
-    </div>
+    <p>{{ render .Msg }}</p>
 </div>
 {{ end }}
 
