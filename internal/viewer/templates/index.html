@@ -93,9 +93,11 @@
 
 {{define "hx_chan_header"}}
 <div id="channel-heading" hx-target="this" hx-swap="outerHTML" class="channel-name">
-	<h2>{{ channelname .Conversation }}</h2>
+    <h2>{{ channelname .Conversation }}</h2>
     {{ if .CanAlias }}
-	<button id="add-alias" hx-get="/archives/{{.Conversation.ID}}/alias/" class="btn">Add Alias</button>
+    <button type="button" class="alias-edit-btn" hx-get="/archives/{{.Conversation.ID}}/alias/" aria-label="Edit alias">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+    </button>
     {{ end }}
 </div>
 {{ end }}
@@ -346,12 +348,13 @@
 
 
 {{ define "hx_alias" }}
-<form id="channel-heading" hx-put="/archives/{{.Conversation.ID}}/alias/" hx-target="this" hx-swap="outerHTML" class="channel-name">
+<form id="channel-heading" hx-put="/archives/{{.Conversation.ID}}/alias/" hx-target="this" hx-swap="outerHTML" class="channel-name alias-form"
+      hx-on::before-swap="if(event.detail.xhr.status===400){event.detail.shouldSwap=true;event.detail.isError=false}">
     <label for="alias">Alias:</label>
-    <input type="text" id="alias" name="alias" value="{{ .Alias }}" maxlength="30" autofocus>
+    <input type="text" id="alias" name="alias" value="{{ .Alias }}" maxlength="30" autofocus{{ if .AliasError }} class="input-error"{{ end }}>
     <button type="submit">Save</button>
     <button type="button" id="delete-alias" hx-delete="/archives/{{.Conversation.ID}}/alias/" hx-target="#channel-heading" hx-swap="outerHTML">Delete</button>
-    {{ if .AliasError }}<p class="error">{{ .AliasError }}</p>{{ end }}
+    {{ if .AliasError }}<span class="field-error">{{ .AliasError }}</span>{{ end }}
 </form>
 {{ end }}
 
