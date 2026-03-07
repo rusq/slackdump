@@ -65,7 +65,7 @@
         <p>Direct</p>
     </div>
 	 {{ range $i, $el := .MPIM }}
-         <a href="#" hx-get="/archives/{{$el.ID}}" hx-target="#conversation" hx-push-url="true">{{ rendername $el }}</a>>
+         <a href="#" hx-get="/archives/{{$el.ID}}" hx-target="#conversation" hx-push-url="true">{{ rendername $el }}</a>
          {{ end }}
          {{ range $i, $el := .DM }}
          <a href="#" hx-get="/archives/{{$el.ID}}" hx-target="#conversation" hx-push-url="true">{{ rendername $el }}</a>

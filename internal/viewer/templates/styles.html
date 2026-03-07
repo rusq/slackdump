@@ -16,6 +16,7 @@
         --hover-color: rgba(0, 0, 0, 0.05);
         --active-color: rgba(0, 0, 0, 0.1);
         --message-hover: #F8F8F8;
+        --link-color: #1264A3;
     }
 
     @media (prefers-color-scheme: dark) {
@@ -28,6 +29,7 @@
             --hover-color: rgba(255, 255, 255, 0.05);
             --active-color: rgba(255, 255, 255, 0.1);
             --message-hover: #222529;
+            --link-color: #5BA4CF;
         }
     }
 
@@ -191,7 +193,18 @@
     }
 
     article.message .message-inner {
+        display: flex;
         flex-direction: column;
+        flex: 1;
+        min-width: 0;
+    }
+
+    .message-header {
+        display: flex;
+        align-items: baseline;
+        gap: .4rem;
+        flex-wrap: wrap;
+        margin-bottom: .1rem;
     }
 
     .message-content {
@@ -236,23 +249,28 @@
     }
 
     .reply-context a {
-        color: var(--text-secondary);
+        color: var(--link-color);
+        text-decoration: none;
+    }
+
+    .reply-context a:hover {
+        text-decoration: underline;
     }
 
     /* File attachments */
     .slack-files p {
-        color: #616061;
+        color: var(--text-secondary);
         font-size: 14px;
         margin-bottom: 8px;
     }
 
     .file-hidden {
-        background-color: #f8f8f8;
-        border: 1px solid #e0e0e0;
+        background-color: var(--message-hover);
+        border: 1px solid var(--border-color);
         border-radius: 4px;
         padding: 12px;
         margin-bottom: 8px;
-        color: #616061;
+        color: var(--text-secondary);
     }
 
     .file-image, .file-video, .file-audio {
@@ -261,7 +279,7 @@
         max-height: 300px;
         border-radius: 8px;
         margin-bottom: 8px;
-        border: 1px solid #e0e0e0;
+        border: 1px solid var(--border-color);
         overflow: hidden;
         box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
     }
@@ -276,12 +294,12 @@
     .file-link {
         display: inline-flex;
         align-items: center;
-        background-color: #f8f8f8;
-        border: 1px solid #e0e0e0;
+        background-color: var(--message-hover);
+        border: 1px solid var(--border-color);
         border-radius: 4px;
         padding: 12px 16px;
         margin-bottom: 8px;
-        color: #1264a3;
+        color: var(--link-color);
         text-decoration: none;
         font-weight: 500;
     }
@@ -297,7 +315,7 @@
     }
 
     .file-link:hover {
-        background-color: #f1f1f1;
+        background-color: var(--hover-color);
     }
 
     /* User profile sidebar */
@@ -306,19 +324,19 @@
         justify-content: space-between;
         align-items: center;
         margin-bottom: 16px;
-        border-bottom: 1px solid #f0f0f0;
+        border-bottom: 1px solid var(--border-color);
         padding-bottom: 12px;
     }
 
     .profile-header h2 {
         font-size: 18px;
         font-weight: 700;
-        color: #1d1c1d;
+        color: var(--text-color);
         margin: 0;
     }
 
     .close-button {
-        color: #616061;
+        color: var(--text-secondary);
         text-decoration: none;
         font-size: 16px;
         font-weight: bold;
@@ -331,8 +349,8 @@
     }
 
     .close-button:hover {
-        background-color: #f8f8f8;
-        color: #1d1c1d;
+        background-color: var(--hover-color);
+        color: var(--text-color);
     }
 
     .user-profile {
@@ -362,13 +380,13 @@
 
     .profile-details li {
         font-size: 14px;
-        color: #616061;
+        color: var(--text-secondary);
         margin-bottom: 8px;
         display: flex;
     }
 
     .profile-details li span {
-        color: #1d1c1d;
+        color: var(--text-color);
         margin-left: 4px;
     }
 
@@ -377,7 +395,7 @@
     }
 
     .unknown-user {
-        color: #616061;
+        color: var(--text-secondary);
         font-style: italic;
     }
 
