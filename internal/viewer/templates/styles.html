@@ -54,6 +54,22 @@
         -moz-osx-font-smoothing: antialiased;
     }
 
+    .connection-status {
+        padding: 0.75rem 1rem;
+        background-color: var(--error-color);
+        color: var(--bg-color);
+        font-weight: 600;
+        text-align: center;
+    }
+
+    .connection-status[hidden] {
+        display: none;
+    }
+
+    .connection-status:not([hidden]) + .container {
+        height: calc(100vh - 2.5rem);
+    }
+
     .channel-sidebar {
         width: 16rem;
         padding-bottom: 1.5rem;

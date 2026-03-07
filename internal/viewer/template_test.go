@@ -16,9 +16,11 @@
 package viewer
 
 import (
+	"bytes"
 	"html/template"
 	"log/slog"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/rusq/slackdump/v4/source"
@@ -88,4 +90,32 @@ func TestViewer_username(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestTemplates(t *testing.T) {
+	t.Run("index includes connection status handling", func(t *testing.T) {
+		v := &Viewer{
+			um: st.UserIndex{},
+			lg: slog.Default(),
+		}
+		initTemplates(v)
+
+		var out bytes.Buffer
+		if err := v.tmpl.ExecuteTemplate(&out, "index.html", mainView{}); err != nil {
+			t.Fatalf("ExecuteTemplate(index.html): %v", err)
+		}
+
+		html := out.String()
+		checks := []string{
+			`id="connection-status"`,
+			`htmx:sendError`,
+			`htmx:timeout`,
+			`htmx:afterRequest`,
+		}
+		for _, want := range checks {
+			if !strings.Contains(html, want) {
+				t.Fatalf("rendered index.html missing %q", want)
+			}
+		}
+	})
 }
