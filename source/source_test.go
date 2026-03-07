@@ -78,13 +78,13 @@ func TestLoad(t *testing.T) {
 		{
 			"database directory",
 			args{t.Context(), filepath.Join(fixturesDir, "source_database")},
-			&Database{},
+			&RWDatabase{},
 			false,
 		},
 		{
 			"database file",
 			args{t.Context(), filepath.Join(fixturesDir, "source_database.db")},
-			&Database{},
+			&RWDatabase{},
 			false,
 		},
 		{

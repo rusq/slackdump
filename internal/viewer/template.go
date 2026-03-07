@@ -20,6 +20,7 @@ import (
 	"embed"
 	"html/template"
 	"log/slog"
+	"strings"
 	"time"
 
 	"github.com/rusq/slack"
@@ -33,7 +34,7 @@ var fsys embed.FS
 func initTemplates(v *Viewer) {
 	tmpl := template.Must(template.New("").Funcs(
 		template.FuncMap{
-			"rendername":      v.um.ChannelName,
+			"channelname":     v.channelDisplayName,
 			"is_app_msg":      isAppMsg,
 			"is_user_msg":     isUserMsg,
 			"displayname":     v.um.DisplayName,
@@ -48,6 +49,25 @@ func initTemplates(v *Viewer) {
 		},
 	).ParseFS(fsys, "templates/*.html"))
 	v.tmpl = tmpl
+}
+
+func (v *Viewer) channelDisplayName(ch slack.Channel) template.HTML {
+	name := v.um.ChannelName(ch)
+	alias, ok, err := v.alias(ch.ID)
+	if err != nil || !ok || alias == "" {
+		return template.HTML(template.HTMLEscapeString(name))
+	}
+	archived := ""
+	if ch.IsArchived {
+		archived = " (archived)"
+	}
+	var buf strings.Builder
+	buf.WriteString(template.HTMLEscapeString(st.ChannelPrefix(ch)))
+	buf.WriteString("<em>")
+	buf.WriteString(template.HTMLEscapeString(alias))
+	buf.WriteString("</em>")
+	buf.WriteString(template.HTMLEscapeString(archived))
+	return template.HTML(buf.String())
 }
 
 func localtime(ts string) string {

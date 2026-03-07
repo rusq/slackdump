@@ -17,6 +17,8 @@ package dbase
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"path/filepath"
 	"reflect"
 	"sort"
@@ -674,6 +676,74 @@ func TestSource_WorkspaceInfo(t *testing.T) {
 				t.Errorf("Source.WorkspaceInfo() = %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestSource_AliasLifecycle(t *testing.T) {
+	conn := testDB(t)
+	s := &RWSource{
+		Source: &Source{
+			conn:     conn,
+			canClose: true,
+		},
+	}
+
+	alias, ok, err := s.Alias("C123")
+	if err != nil {
+		t.Fatalf("Source.Alias() initial error = %v, want nil", err)
+	}
+	if ok {
+		t.Fatalf("Source.Alias() initial ok = %v, want false", ok)
+	}
+	if alias != "" {
+		t.Fatalf("Source.Alias() initial alias = %q, want empty", alias)
+	}
+
+	if err := s.SetAlias("C123", "alpha"); err != nil {
+		t.Fatalf("Source.SetAlias() error = %v, want nil", err)
+	}
+
+	alias, ok, err = s.Alias("C123")
+	if err != nil {
+		t.Fatalf("Source.Alias() after set error = %v, want nil", err)
+	}
+	if !ok {
+		t.Fatalf("Source.Alias() after set ok = %v, want true", ok)
+	}
+	if alias != "alpha" {
+		t.Fatalf("Source.Alias() after set alias = %q, want %q", alias, "alpha")
+	}
+
+	if err := s.SetAlias("C123", "beta"); err != nil {
+		t.Fatalf("Source.SetAlias() update error = %v, want nil", err)
+	}
+
+	aliases, err := s.Aliases()
+	if err != nil {
+		t.Fatalf("Source.Aliases() error = %v, want nil", err)
+	}
+	if got := aliases["C123"]; got != "beta" {
+		t.Fatalf("Source.Aliases()[C123] = %q, want %q", got, "beta")
+	}
+
+	if err := s.DeleteAlias("C123"); err != nil {
+		t.Fatalf("Source.DeleteAlias() error = %v, want nil", err)
+	}
+
+	alias, ok, err = s.Alias("C123")
+	if err != nil {
+		t.Fatalf("Source.Alias() after delete error = %v, want nil", err)
+	}
+	if ok {
+		t.Fatalf("Source.Alias() after delete ok = %v, want false", ok)
+	}
+	if alias != "" {
+		t.Fatalf("Source.Alias() after delete alias = %q, want empty", alias)
+	}
+
+	repo := repository.NewAliasRepository()
+	if _, err := repo.Get(t.Context(), conn, "C123"); !errors.Is(err, sql.ErrNoRows) {
+		t.Fatalf("alias row still present, err = %v; want sql.ErrNoRows", err)
 	}
 }
 

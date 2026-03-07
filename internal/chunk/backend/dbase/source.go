@@ -45,7 +45,7 @@ type Source struct {
 	canClose bool
 }
 
-// Open attempts to open the database at given path.
+// Open attempts to open the database at given path for reading.
 func Open(ctx context.Context, path string) (*Source, error) {
 	// migrate to the latest
 	if err := migrate(ctx, path); err != nil {
@@ -59,6 +59,39 @@ func Open(ctx context.Context, path string) (*Source, error) {
 		return nil, err
 	}
 	return &Source{conn: conn, canClose: true}, nil
+}
+
+// OpenRW attempts to open the database at given path for reading and writing.
+// Use [Open] when only read access is needed.
+func OpenRW(ctx context.Context, path string) (*RWSource, error) {
+	if err := migrate(ctx, path); err != nil {
+		return nil, err
+	}
+	conn, err := sqlx.Open(repository.Driver, "file:"+path+"?mode=rw")
+	if err != nil {
+		return nil, err
+	}
+	if err := conn.PingContext(ctx); err != nil {
+		return nil, err
+	}
+	return &RWSource{Source: &Source{conn: conn, canClose: true}}, nil
+}
+
+// RWSource wraps [Source] with alias write operations.  It satisfies the
+// viewer Aliaser interface together with the read methods promoted from
+// the embedded [Source].
+type RWSource struct {
+	*Source
+}
+
+func (s *RWSource) SetAlias(id, alias string) error {
+	ar := repository.NewAliasRepository()
+	return ar.Set(context.Background(), s.conn, id, alias)
+}
+
+func (s *RWSource) DeleteAlias(id string) error {
+	ar := repository.NewAliasRepository()
+	return ar.Delete(context.Background(), s.conn, id)
 }
 
 func migrate(ctx context.Context, path string) error {
@@ -256,6 +289,31 @@ func (s *Source) WorkspaceInfo(ctx context.Context) (*slack.AuthTestResponse, er
 	}
 	w, err := dbw.Val()
 	return &w, err
+}
+
+func (s *Source) Alias(id string) (string, bool, error) {
+	ar := repository.NewAliasRepository()
+	a, err := ar.Get(context.Background(), s.conn, id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", false, nil
+	}
+	if err != nil {
+		return "", false, err
+	}
+	return a.Alias, true, nil
+}
+
+func (s *Source) Aliases() (map[string]string, error) {
+	ar := repository.NewAliasRepository()
+	aa, err := ar.All(context.Background(), s.conn)
+	if err != nil {
+		return nil, err
+	}
+	mm := make(map[string]string, len(aa))
+	for _, a := range aa {
+		mm[a.ChannelID] = a.Alias
+	}
+	return mm, nil
 }
 
 func (s *Source) Latest(ctx context.Context) (map[structures.SlackLink]time.Time, error) {

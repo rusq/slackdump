@@ -46,6 +46,22 @@
         line-height: 1.15;
     }
 
+    .connection-status {
+        padding: 0.75rem 1rem;
+        background-color: var(--error-color);
+        color: var(--bg-color);
+        font-weight: 600;
+        text-align: center;
+    }
+
+    .connection-status[hidden] {
+        display: none;
+    }
+
+    .connection-status:not([hidden]) + .container {
+        height: calc(100vh - 2.5rem);
+    }
+
     .container {
         display: flex;
         height: 100vh;
@@ -445,6 +461,61 @@
         opacity: 0.4;
         cursor: not-allowed;
         pointer-events: none;
+    }
+
+    /* Alias form and input error states */
+    .alias-form {
+        flex-wrap: wrap;
+        align-items: center;
+    }
+
+    input.input-error {
+        border-color: var(--error-color);
+        outline: 2px solid var(--error-color);
+        outline-offset: -1px;
+    }
+
+    .field-error {
+        width: 100%;
+        color: var(--error-color);
+        font-size: .8rem;
+        margin-top: .2rem;
+    }
+
+    /* Channel name row with inline alias pencil */
+    .channel-name {
+        display: flex;
+        align-items: center;
+        gap: .35rem;
+    }
+
+    .alias-edit-btn {
+        background: none;
+        border: none;
+        cursor: pointer;
+        color: var(--text-secondary);
+        padding: .2rem;
+        border-radius: .25rem;
+        display: flex;
+        align-items: center;
+        opacity: 0;
+        transition: opacity 0.15s, background-color 0.15s;
+        flex-shrink: 0;
+    }
+
+    .channel-name:hover .alias-edit-btn,
+    .alias-edit-btn:focus-visible {
+        opacity: 1;
+    }
+
+    .alias-edit-btn:hover {
+        background-color: var(--hover-color);
+        color: var(--text-color);
+    }
+
+    .alias-edit-btn:focus-visible {
+        outline: 2px solid var(--secondary-color);
+        outline-offset: -2px;
     }
 
     /* Canvas view */

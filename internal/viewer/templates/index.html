@@ -10,6 +10,9 @@
 </head>
 
 <body>
+    <div id="connection-status" class="connection-status" role="alert" aria-live="assertive" hidden>
+        Cannot reach the viewer server. Check that it is running and try again.
+    </div>
     <div class="container">
         <section class="channel-sidebar">
             <header>
@@ -41,6 +44,45 @@
             {{ end }}
         </section>
     </div>
+    <script>
+        (function () {
+            var banner = document.getElementById('connection-status');
+            if (!banner) {
+                return;
+            }
+
+            var defaultMessage = 'Cannot reach the viewer server. Check that it is running and try again.';
+
+            function showConnectionError(message) {
+                banner.textContent = message || defaultMessage;
+                banner.hidden = false;
+            }
+
+            function clearConnectionError() {
+                banner.hidden = true;
+            }
+
+            document.body.addEventListener('htmx:sendError', function () {
+                showConnectionError(defaultMessage);
+            });
+
+            document.body.addEventListener('htmx:timeout', function () {
+                showConnectionError('Request timed out. The viewer server may be unavailable.');
+            });
+
+            document.body.addEventListener('htmx:afterRequest', function (event) {
+                if (event.detail && event.detail.successful) {
+                    clearConnectionError();
+                }
+            });
+
+            window.addEventListener('offline', function () {
+                showConnectionError('Your browser is offline. Check your network connection.');
+            });
+
+            window.addEventListener('online', clearConnectionError);
+        }());
+    </script>
 </body>
 
 </html>
@@ -52,10 +94,10 @@
         <p>Channels</p>
     </div>
     {{ range $i, $el := .Public }}
-    <a href="#" hx-get="/archives/{{$el.ID}}" hx-target="#conversation" hx-push-url="true">{{ rendername $el }}</a>
+    {{ template "channel_link" $el }}
     {{ end }}
     {{ range $i, $el := .Private }}
-    <a href="#" hx-get="/archives/{{$el.ID}}" hx-target="#conversation" hx-push-url="true">{{ rendername $el }}</a>
+    {{ template "channel_link" $el }}
     {{ end }}
 </div>
 {{ end }}
@@ -65,27 +107,69 @@
         <p>Direct</p>
     </div>
 	 {{ range $i, $el := .MPIM }}
-         <a href="#" hx-get="/archives/{{$el.ID}}" hx-target="#conversation" hx-push-url="true">{{ rendername $el }}</a>
+         {{ template "channel_link" $el }}
          {{ end }}
          {{ range $i, $el := .DM }}
-         <a href="#" hx-get="/archives/{{$el.ID}}" hx-target="#conversation" hx-push-url="true">{{ rendername $el }}</a>
+         {{ template "channel_link" $el }}
          {{ end }}
 </div>
 {{ end }}
 <script>
-    document.querySelectorAll('.channel-sidebar a').forEach(function (link) {
-        link.addEventListener('click', function (e) {
-            e.preventDefault();
-            // Ensure that all other channels are unmarked as being visually active
-            document.querySelectorAll('.channel-sidebar a').forEach(el => {
+    (function () {
+        var sidebar = document.querySelector('.channel-sidebar');
+        if (!sidebar) return;
+
+        function setActive(link) {
+            sidebar.querySelectorAll('.channel-list a').forEach(function (el) {
                 el.classList.remove('active');
             });
+            if (link) link.classList.add('active');
+        }
 
-            link.classList.add('active');
+        function syncActiveFromURL() {
+            var path = window.location.pathname;
+            var match = null;
+            sidebar.querySelectorAll('.channel-list a').forEach(function (link) {
+                var target = link.getAttribute('hx-get');
+                if (target && (path === target || path.startsWith(target + '/'))) {
+                    match = link;
+                }
+            });
+            setActive(match);
+        }
+
+        // Event delegation: survives OOB swaps that replace individual <a> nodes.
+        sidebar.addEventListener('click', function (e) {
+            var link = e.target.closest('.channel-list a');
+            if (!link) return;
+            setActive(link);
         });
-    });
+
+        // After any HTMX request settles (including OOB swaps for alias changes),
+        // re-sync the active highlight with the current URL.
+        document.body.addEventListener('htmx:afterSettle', syncActiveFromURL);
+
+        // Highlight the correct channel on initial page load and hard refresh.
+        syncActiveFromURL();
+    }());
 </script>
 {{ end }}
+
+{{ define "channel_link" }}
+<a id="channel-link-{{.ID}}" href="#" hx-get="/archives/{{.ID}}" hx-target="#conversation" hx-push-url="true">{{ channelname . }}</a>
+{{ end }}
+
+{{define "hx_chan_header"}}
+<div id="channel-heading" hx-target="this" hx-swap="outerHTML" class="channel-name">
+    <h2>{{ channelname .Conversation }}</h2>
+    {{ if .CanAlias }}
+    <button type="button" class="alias-edit-btn" hx-get="/archives/{{.Conversation.ID}}/alias/" aria-label="Edit alias">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+    </button>
+    {{ end }}
+</div>
+{{ end }}
+
 
 {{define "hx_conversation"}}
 {{ if .Conversation.ID }}
@@ -140,7 +224,7 @@
 {{ define "conversation_header" }}
 <header class="conversation-header">
     <div class="conversation-inner">
-        <h3>{{ rendername .Conversation }}</h3>
+        {{ template "hx_chan_header" . }}
         <p>{{ .Conversation.Topic.Value }}</p>
         {{ if canvas_present .Conversation }}
         {{ template "tab_list" . }}
@@ -288,6 +372,10 @@
 
 
 
+{{ define "channel_link_oob" }}
+<a id="channel-link-{{.Conversation.ID}}" href="#" hx-get="/archives/{{.Conversation.ID}}" hx-target="#conversation" hx-push-url="true" hx-swap-oob="outerHTML">{{ channelname .Conversation }}</a>
+{{ end }}
+
 {{ define "hx_user" }}
 <div class="user-profile-container">
     <header class="user-profile-header">
@@ -324,4 +412,21 @@
         document.querySelector('.thread').style.display = 'none';
     });
 </script>
+{{ end }}
+
+
+{{ define "hx_alias" }}
+<form id="channel-heading" hx-put="/archives/{{.Conversation.ID}}/alias/" hx-target="this" hx-swap="outerHTML" class="channel-name alias-form"
+      hx-on::before-swap="if(event.detail.xhr.status===400){event.detail.shouldSwap=true;event.detail.isError=false}">
+    <label for="alias">Alias:</label>
+    <input type="text" id="alias" name="alias" value="{{ .Alias }}" maxlength="30" autofocus{{ if .AliasError }} class="input-error"{{ end }}>
+    <button type="submit">Save</button>
+    <button type="button" id="delete-alias" hx-delete="/archives/{{.Conversation.ID}}/alias/" hx-target="#channel-heading" hx-swap="outerHTML">Delete</button>
+    {{ if .AliasError }}<span class="field-error">{{ .AliasError }}</span>{{ end }}
+</form>
+{{ end }}
+
+{{ define "hx_alias_response" }}
+{{ template "hx_chan_header" . }}
+{{ template "channel_link_oob" . }}
 {{ end }}
