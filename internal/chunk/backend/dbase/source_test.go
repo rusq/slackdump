@@ -681,9 +681,11 @@ func TestSource_WorkspaceInfo(t *testing.T) {
 
 func TestSource_AliasLifecycle(t *testing.T) {
 	conn := testDB(t)
-	s := &Source{
-		conn:     conn,
-		canClose: true,
+	s := &RWSource{
+		Source: &Source{
+			conn:     conn,
+			canClose: true,
+		},
 	}
 
 	alias, ok, err := s.Alias("C123")

@@ -40,12 +40,16 @@ const (
 	CPrivate = "private_channel" // Private Channel
 )
 
-// ChannelPrefix returns the display prefix string for the given channel type.
-// It is consistent with the prefix used by [UserIndex.ChannelName].
+// ChannelPrefix returns the display prefix string for the given channel type,
+// matching the prefix character used by [UserIndex.ChannelName].  MPIM channels
+// have no prefix character (their canonical display is derived from the purpose
+// text, not a fixed symbol), so an empty string is returned for that type.
 func ChannelPrefix(ch slack.Channel) string {
 	switch ChannelType(ch) {
-	case CIM, CMPIM:
+	case CIM:
 		return "@"
+	case CMPIM:
+		return "" // MPIM canonical display has no prefix character (uses purpose text)
 	case CPrivate:
 		return "🔒 "
 	default:

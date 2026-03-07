@@ -16,6 +16,10 @@
 package source
 
 import (
+	"context"
+	"errors"
+	"io"
+	"path/filepath"
 	"testing"
 
 	"github.com/rusq/slackdump/v4/internal/chunk/backend/dbase"
@@ -87,5 +91,51 @@ func TestDatabase_Type(t *testing.T) {
 				t.Errorf("Database.Type() = %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+// aliasWriter is a subset of viewer.Aliaser covering only the write methods.
+// Defined here to avoid an import cycle with the viewer package.
+type aliasWriter interface {
+	SetAlias(id, alias string) error
+	DeleteAlias(id string) error
+}
+
+func TestOpenDatabaseRW_writable(t *testing.T) {
+	dbpath := filepath.Join(fixturesDir, "source_database.db")
+	got, err := OpenDatabaseRW(t.Context(), dbpath)
+	if err != nil {
+		t.Fatalf("OpenDatabaseRW() error = %v", err)
+	}
+	defer got.(io.Closer).Close()
+
+	if _, ok := got.(*RWDatabase); !ok {
+		t.Errorf("OpenDatabaseRW() = %T, want *RWDatabase", got)
+	}
+	if _, ok := got.(aliasWriter); !ok {
+		t.Error("OpenDatabaseRW() result does not implement aliasWriter (Aliaser)")
+	}
+}
+
+func TestOpenDatabaseRW_fallback(t *testing.T) {
+	// Replace the rw-open function so it fails, exercising the ro fallback.
+	orig := openRWFn
+	t.Cleanup(func() { openRWFn = orig })
+	openRWFn = func(_ context.Context, _ string) (*dbase.RWSource, error) {
+		return nil, errors.New("simulated rw open failure")
+	}
+
+	dbpath := filepath.Join(fixturesDir, "source_database.db")
+	got, err := OpenDatabaseRW(t.Context(), dbpath)
+	if err != nil {
+		t.Fatalf("OpenDatabaseRW() fallback error = %v", err)
+	}
+	defer got.(io.Closer).Close()
+
+	if _, ok := got.(*Database); !ok {
+		t.Errorf("OpenDatabaseRW() fallback = %T, want *Database", got)
+	}
+	if _, ok := got.(aliasWriter); ok {
+		t.Error("OpenDatabaseRW() fallback result unexpectedly implements aliasWriter (Aliaser)")
 	}
 }

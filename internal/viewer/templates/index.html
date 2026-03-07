@@ -148,6 +148,9 @@
         // After any HTMX request settles (including OOB swaps for alias changes),
         // re-sync the active highlight with the current URL.
         document.body.addEventListener('htmx:afterSettle', syncActiveFromURL);
+
+        // Highlight the correct channel on initial page load and hard refresh.
+        syncActiveFromURL();
     }());
 </script>
 {{ end }}
