@@ -370,5 +370,72 @@
         color: #616061;
         font-style: italic;
     }
+
+    /* Tab list */
+    .tab-list {
+        display: flex;
+        gap: .25rem;
+        margin-top: .5rem;
+    }
+
+    button.tab {
+        background: none;
+        border: 1px solid transparent;
+        border-bottom: none;
+        padding: .3rem .9rem;
+        cursor: pointer;
+        color: var(--text-secondary);
+        font-size: .875rem;
+        border-radius: 4px 4px 0 0;
+        font-family: inherit;
+        /* reserve space for the accent bar so layout doesn't shift on select */
+        box-shadow: inset 0 -3px 0 transparent;
+        transition: color 0.1s, box-shadow 0.1s;
+    }
+
+    button.tab:hover:not([disabled]) {
+        color: var(--text-color);
+        background-color: var(--hover-color);
+    }
+
+    button.tab:focus-visible {
+        outline: 2px solid var(--secondary-color);
+        outline-offset: -2px;
+    }
+
+    button.tab.selected {
+        border-color: var(--border-color);
+        color: var(--text-color);
+        font-weight: 700;
+        background-color: var(--bg-color);
+        /* prominent accent underline on the active tab */
+        box-shadow: inset 0 -3px 0 var(--primary-color);
+    }
+
+    button.tab.disabled,
+    button.tab[disabled] {
+        opacity: 0.4;
+        cursor: not-allowed;
+        pointer-events: none;
+    }
+
+    /* Canvas view */
+    .canvas-container {
+        flex: 1;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .canvas-frame {
+        width: 100%;
+        flex: 1;
+        border: none;
+    }
+
+    .canvas-unavailable {
+        padding: 1.5rem;
+        color: var(--text-secondary);
+    }
 </style>
 {{ end }}

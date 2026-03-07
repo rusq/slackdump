@@ -141,14 +141,78 @@
 <header class="conversation-header">
     <div class="conversation-inner">
         <h3>{{ rendername .Conversation }}</h3>
-	<p>{{ .Conversation.Topic.Value }}</p>
+        <p>{{ .Conversation.Topic.Value }}</p>
+        {{ if canvas_present .Conversation }}
+        {{ template "tab_list" . }}
+        {{ end }}
     </div>
 </header>
 {{ end }}
 
+{{ define "tab_list" }}
+<div class="tab-list" role="tablist" aria-label="Channel views">
+    <button hx-get="/archives/{{ .Conversation.ID }}"
+        hx-target="#conversation" hx-swap="innerHTML"
+        class="tab{{ if not .CanvasActive }} selected{{ end }}"
+        role="tab"
+        tabindex="{{ if not .CanvasActive }}0{{ else }}-1{{ end }}"
+        aria-selected="{{ if not .CanvasActive }}true{{ else }}false{{ end }}"
+        aria-controls="tab-panel-conversation"
+        id="tab-btn-conversation">Conversation</button>
+    <button hx-get="/archives/{{ .Conversation.ID }}/canvas"
+        hx-target="#conversation" hx-swap="innerHTML"
+        class="tab{{ if .CanvasActive }} selected{{ end }}{{ if not .CanvasAvailable }} disabled{{ end }}"
+        role="tab"
+        tabindex="{{ if .CanvasActive }}0{{ else }}-1{{ end }}"
+        aria-selected="{{ if .CanvasActive }}true{{ else }}false{{ end }}"
+        aria-controls="tab-panel-canvas"
+        id="tab-btn-canvas"
+        {{ if not .CanvasAvailable }}disabled{{ end }}>Canvas</button>
+</div>
+<script>
+(function () {
+    var list = document.currentScript.previousElementSibling;
+    list.addEventListener('keydown', function (e) {
+        var tabs = Array.from(list.querySelectorAll('[role="tab"]:not([disabled])'));
+        var idx  = tabs.indexOf(document.activeElement);
+        if (idx === -1) return;
+        if (e.key === 'ArrowRight') {
+            e.preventDefault();
+            tabs[(idx + 1) % tabs.length].focus();
+        } else if (e.key === 'ArrowLeft') {
+            e.preventDefault();
+            tabs[(idx - 1 + tabs.length) % tabs.length].focus();
+        } else if (e.key === 'Home') {
+            e.preventDefault();
+            tabs[0].focus();
+        } else if (e.key === 'End') {
+            e.preventDefault();
+            tabs[tabs.length - 1].focus();
+        }
+    });
+}());
+</script>
+{{ end }}
+
+{{ define "hx_canvas" }}
+{{ template "conversation_header" . }}
+<div class="canvas-container" id="tab-panel-canvas" role="tabpanel" aria-labelledby="tab-btn-canvas" tabindex="0">
+    {{ if .CanvasAvailable }}
+    <iframe class="canvas-frame"
+        src="/archives/{{ .Conversation.ID }}/canvas/content"
+        sandbox="allow-same-origin">
+    </iframe>
+    {{ else }}
+    <div class="canvas-unavailable">
+        <p>Canvas is not available (files were not downloaded).</p>
+    </div>
+    {{ end }}
+</div>
+{{ end }}
+
 {{ define "message_list" }}
 {{ $id := .Conversation.ID }}
-<div class="message-list">
+<div class="message-list" id="tab-panel-conversation" role="tabpanel" aria-labelledby="tab-btn-conversation" tabindex="0">
 {{ range $el, $err := .Messages }}
     <article class="message">
         {{ if $err }} <p>Error: {{ $err }}</p> {{ else }}

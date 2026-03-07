@@ -14,6 +14,7 @@
 /
 ├── cmd/slackdump/          # Main CLI application entry point
 │   └── internal/
+│       ├── apiconfig/      # config subcommand (API configuration management)
 │       ├── bootstrap/      # Session/client initialisation shared by commands
 │       ├── cfg/            # Global CLI flags and config struct
 │       ├── archive/        # archive subcommand
