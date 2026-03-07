@@ -10,6 +10,9 @@
 </head>
 
 <body>
+    <div id="connection-status" class="connection-status" role="alert" aria-live="assertive" hidden>
+        Cannot reach the viewer server. Check that it is running and try again.
+    </div>
     <div class="container">
         <section class="channel-sidebar">
             <header>
@@ -41,6 +44,45 @@
             {{ end }}
         </section>
     </div>
+    <script>
+        (function () {
+            var banner = document.getElementById('connection-status');
+            if (!banner) {
+                return;
+            }
+
+            var defaultMessage = 'Cannot reach the viewer server. Check that it is running and try again.';
+
+            function showConnectionError(message) {
+                banner.textContent = message || defaultMessage;
+                banner.hidden = false;
+            }
+
+            function clearConnectionError() {
+                banner.hidden = true;
+            }
+
+            document.body.addEventListener('htmx:sendError', function () {
+                showConnectionError(defaultMessage);
+            });
+
+            document.body.addEventListener('htmx:timeout', function () {
+                showConnectionError('Request timed out. The viewer server may be unavailable.');
+            });
+
+            document.body.addEventListener('htmx:afterRequest', function (event) {
+                if (event.detail && event.detail.successful) {
+                    clearConnectionError();
+                }
+            });
+
+            window.addEventListener('offline', function () {
+                showConnectionError('Your browser is offline. Check your network connection.');
+            });
+
+            window.addEventListener('online', clearConnectionError);
+        }());
+    </script>
 </body>
 
 </html>
@@ -73,17 +115,40 @@
 </div>
 {{ end }}
 <script>
-    document.querySelectorAll('.channel-sidebar a').forEach(function (link) {
-        link.addEventListener('click', function (e) {
-            e.preventDefault();
-            // Ensure that all other channels are unmarked as being visually active
-            document.querySelectorAll('.channel-sidebar a').forEach(el => {
+    (function () {
+        var sidebar = document.querySelector('.channel-sidebar');
+        if (!sidebar) return;
+
+        function setActive(link) {
+            sidebar.querySelectorAll('.channel-list a').forEach(function (el) {
                 el.classList.remove('active');
             });
+            if (link) link.classList.add('active');
+        }
 
-            link.classList.add('active');
+        function syncActiveFromURL() {
+            var path = window.location.pathname;
+            var match = null;
+            sidebar.querySelectorAll('.channel-list a').forEach(function (link) {
+                var target = link.getAttribute('hx-get');
+                if (target && (path === target || path.startsWith(target + '/'))) {
+                    match = link;
+                }
+            });
+            setActive(match);
+        }
+
+        // Event delegation: survives OOB swaps that replace individual <a> nodes.
+        sidebar.addEventListener('click', function (e) {
+            var link = e.target.closest('.channel-list a');
+            if (!link) return;
+            setActive(link);
         });
-    });
+
+        // After any HTMX request settles (including OOB swaps for alias changes),
+        // re-sync the active highlight with the current URL.
+        document.body.addEventListener('htmx:afterSettle', syncActiveFromURL);
+    }());
 </script>
 {{ end }}
 

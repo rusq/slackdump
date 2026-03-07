@@ -131,8 +131,8 @@ func TestChannelDisplayName(t *testing.T) {
 		IsChannel: true,
 	}
 	got := string(v.channelDisplayName(ch))
-	if got != "<em>alpha</em>" {
-		t.Fatalf("channelDisplayName() = %q, want %q", got, "<em>alpha</em>")
+	if got != "#<em>alpha</em>" {
+		t.Fatalf("channelDisplayName() = %q, want %q", got, "#<em>alpha</em>")
 	}
 }
 

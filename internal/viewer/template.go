@@ -57,10 +57,16 @@ func (v *Viewer) channelDisplayName(ch slack.Channel) template.HTML {
 	if err != nil || !ok || alias == "" {
 		return template.HTML(template.HTMLEscapeString(name))
 	}
+	archived := ""
+	if ch.IsArchived {
+		archived = " (archived)"
+	}
 	var buf strings.Builder
+	buf.WriteString(template.HTMLEscapeString(st.ChannelPrefix(ch)))
 	buf.WriteString("<em>")
 	buf.WriteString(template.HTMLEscapeString(alias))
 	buf.WriteString("</em>")
+	buf.WriteString(template.HTMLEscapeString(archived))
 	return template.HTML(buf.String())
 }
 

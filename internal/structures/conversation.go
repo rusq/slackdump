@@ -40,6 +40,19 @@ const (
 	CPrivate = "private_channel" // Private Channel
 )
 
+// ChannelPrefix returns the display prefix string for the given channel type.
+// It is consistent with the prefix used by [UserIndex.ChannelName].
+func ChannelPrefix(ch slack.Channel) string {
+	switch ChannelType(ch) {
+	case CIM, CMPIM:
+		return "@"
+	case CPrivate:
+		return "🔒 "
+	default:
+		return "#"
+	}
+}
+
 func ChannelType(ch slack.Channel) string {
 	switch {
 	case ch.IsIM:
