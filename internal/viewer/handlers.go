@@ -24,6 +24,7 @@ import (
 	"net/http"
 	"path/filepath"
 	"strings"
+	"unicode"
 
 	"github.com/rusq/slackdump/v4/source"
 
@@ -59,14 +60,15 @@ type mainView struct {
 	ThreadID        string
 	Conversation    slack.Channel
 	Alias           string // conversation alias
-	CanAlias        bool   // if true, alias can be set for the channel
+	AliasError      string
+	CanAlias        bool // if true, alias can be set for the channel
 	CanvasActive    bool // true when the canvas tab is the active tab
 	CanvasAvailable bool // true when the canvas file exists in storage
 }
 
 type Aliaser interface {
 	// Alias returns the alias for the given channel ID.
-	Alias(id string) (string, bool)
+	Alias(id string) (string, bool, error)
 	// SetAlias sets the alias for the given channel ID.
 	SetAlias(id, alias string) error
 	// DeleteAlias deletes the alias for the given channel ID.
@@ -78,7 +80,7 @@ type Aliaser interface {
 // view returns a mainView struct with the channels and the name and type of
 // the source.
 func (v *Viewer) view() mainView {
-	_, supportsAlias := v.src.(Aliaser)
+	_, supportsAlias := v.aliaser()
 
 	return mainView{
 		channels: v.ch,
@@ -86,6 +88,43 @@ func (v *Viewer) view() mainView {
 		Type:     v.src.Type().String(),
 		CanAlias: supportsAlias,
 	}
+}
+
+type aliasAction int
+
+const (
+	aliasDelete aliasAction = iota
+	aliasSet
+)
+
+func (v *Viewer) aliaser() (Aliaser, bool) {
+	a, ok := v.src.(Aliaser)
+	return a, ok
+}
+
+func (v *Viewer) alias(id string) (string, bool, error) {
+	a, ok := v.aliaser()
+	if !ok {
+		return "", false, nil
+	}
+	return a.Alias(id)
+}
+
+func validateAlias(raw string) (string, aliasAction, error) {
+	alias := strings.TrimSpace(raw)
+	if alias == "" {
+		return "", aliasDelete, nil
+	}
+	if len([]rune(alias)) > 30 {
+		return "", aliasSet, errors.New("alias must be 30 characters or fewer")
+	}
+	for _, r := range alias {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) || r == '_' || r == '-' {
+			continue
+		}
+		return "", aliasSet, errors.New("alias may only contain letters, digits, underscores, and dashes")
+	}
+	return alias, aliasSet, nil
 }
 
 func (v *Viewer) newFileHandler(fn func(w http.ResponseWriter, r *http.Request, id string)) http.HandlerFunc {
@@ -123,7 +162,11 @@ func (v *Viewer) channelHandler(w http.ResponseWriter, r *http.Request, id strin
 	}
 
 	page := v.view()
-	v.setConversation(&page, ci)
+	if err := v.setConversation(&page, ci); err != nil {
+		lg.ErrorContext(ctx, "setConversation", "error", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 	page.Messages = it
 
 	template := "index.html" // for deep links
@@ -203,7 +246,11 @@ func (v *Viewer) threadHandler(w http.ResponseWriter, r *http.Request, id string
 	}
 
 	page := v.view()
-	v.setConversation(&page, ci)
+	if err := v.setConversation(&page, ci); err != nil {
+		lg.ErrorContext(ctx, "setConversation", "error", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 	page.ThreadMessages = itTm
 	page.ThreadID = ts
 
@@ -277,6 +324,10 @@ func (v *Viewer) userHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (v *Viewer) aliasHandler(w http.ResponseWriter, r *http.Request) {
+	if !v.canAlias() {
+		http.NotFound(w, r)
+		return
+	}
 	chanID := r.PathValue("id")
 	if chanID == "" {
 		http.NotFound(w, r)
@@ -292,6 +343,13 @@ func (v *Viewer) aliasHandler(w http.ResponseWriter, r *http.Request) {
 	slog.DebugContext(ctx, "aliasHandler", "channel", ch.Name, "id", ch.ID)
 	view := v.view()
 	view.Conversation = ch
+	if alias, ok, err := v.alias(chanID); err != nil {
+		lg.ErrorContext(ctx, "Alias", "error", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	} else if ok {
+		view.Alias = alias
+	}
 
 	if err := v.tmpl.ExecuteTemplate(w, "hx_alias", view); err != nil {
 		lg.ErrorContext(ctx, "ExecuteTemplate", "error", err)
@@ -312,9 +370,15 @@ func canvasAvailable(storage source.Storage, ci *slack.Channel) bool {
 // setConversation sets the Conversation and canvas-related fields on the page
 // view.  It should be called whenever a channel is loaded, so that the canvas
 // tab state is always consistent regardless of which tab is active.
-func (v *Viewer) setConversation(page *mainView, ci *slack.Channel) {
+func (v *Viewer) setConversation(page *mainView, ci *slack.Channel) error {
 	page.Conversation = *ci
 	page.CanvasAvailable = canvasAvailable(v.src.Files(), ci)
+	if alias, ok, err := v.alias(ci.ID); err != nil {
+		return err
+	} else if ok {
+		page.Alias = alias
+	}
+	return nil
 }
 
 // canvasHandler renders the canvas tab view for the given channel.
@@ -330,7 +394,11 @@ func (v *Viewer) canvasHandler(w http.ResponseWriter, r *http.Request, id string
 	}
 
 	page := v.view()
-	v.setConversation(&page, ci)
+	if err := v.setConversation(&page, ci); err != nil {
+		lg.ErrorContext(ctx, "setConversation", "error", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 	page.CanvasActive = true
 
 	tmplName := "hx_canvas"
@@ -352,7 +420,7 @@ func (v *Viewer) canvasHandler(w http.ResponseWriter, r *http.Request, id string
 }
 
 func (v *Viewer) canAlias() bool {
-	_, ok := v.src.(Aliaser)
+	_, ok := v.aliaser()
 	return ok
 }
 
@@ -381,14 +449,45 @@ func (v *Viewer) aliasPutHandler(w http.ResponseWriter, r *http.Request) {
 
 	view := v.view()
 	view.Conversation = ch
-
-	if err := v.tmpl.ExecuteTemplate(w, "hx_chan_header", view); err != nil {
+	alias, action, err := validateAlias(r.FormValue("alias"))
+	if err != nil {
+		view.Alias = strings.TrimSpace(r.FormValue("alias"))
+		view.AliasError = err.Error()
+		w.WriteHeader(http.StatusBadRequest)
+		if execErr := v.tmpl.ExecuteTemplate(w, "hx_alias", view); execErr != nil {
+			lg.ErrorContext(ctx, "ExecuteTemplate", "error", execErr)
+			http.Error(w, execErr.Error(), http.StatusInternalServerError)
+		}
+		return
+	}
+	aliaser, _ := v.aliaser()
+	switch action {
+	case aliasDelete:
+		err = aliaser.DeleteAlias(chanID)
+	default:
+		err = aliaser.SetAlias(chanID, alias)
+	}
+	if err != nil {
+		lg.ErrorContext(ctx, "persist alias", "error", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if err := v.setConversation(&view, &ch); err != nil {
+		lg.ErrorContext(ctx, "setConversation", "error", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if err := v.tmpl.ExecuteTemplate(w, "hx_alias_response", view); err != nil {
 		lg.ErrorContext(ctx, "ExecuteTemplate", "error", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
 
 func (v *Viewer) aliasDeleteHandler(w http.ResponseWriter, r *http.Request) {
+	if !v.canAlias() {
+		http.NotFound(w, r)
+		return
+	}
 	lg := v.lg.With("in", "aliasDeleteHandler")
 	lg.Debug("aliasDeleteHandler")
 	chanID := r.PathValue("id")
@@ -405,9 +504,19 @@ func (v *Viewer) aliasDeleteHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	slog.DebugContext(ctx, "aliasDeleteHandler", "channel", ch.Name, "id", ch.ID)
-	if err := v.tmpl.ExecuteTemplate(w, "hx_chan_header", mainView{
-		Conversation: ch,
-	}); err != nil {
+	aliaser, _ := v.aliaser()
+	if err := aliaser.DeleteAlias(chanID); err != nil {
+		lg.ErrorContext(ctx, "DeleteAlias", "error", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	view := v.view()
+	if err := v.setConversation(&view, &ch); err != nil {
+		lg.ErrorContext(ctx, "setConversation", "error", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if err := v.tmpl.ExecuteTemplate(w, "hx_alias_response", view); err != nil {
 		lg.ErrorContext(ctx, "ExecuteTemplate", "error", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}

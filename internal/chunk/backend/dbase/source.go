@@ -51,7 +51,7 @@ func Open(ctx context.Context, path string) (*Source, error) {
 	if err := migrate(ctx, path); err != nil {
 		return nil, err
 	}
-	conn, err := sqlx.Open(repository.Driver, "file:"+path+"?mode=ro")
+	conn, err := sqlx.Open(repository.Driver, "file:"+path+"?mode=rw")
 	if err != nil {
 		return nil, err
 	}
@@ -256,6 +256,41 @@ func (s *Source) WorkspaceInfo(ctx context.Context) (*slack.AuthTestResponse, er
 	}
 	w, err := dbw.Val()
 	return &w, err
+}
+
+func (s *Source) Alias(id string) (string, bool, error) {
+	ar := repository.NewAliasRepository()
+	a, err := ar.Get(context.Background(), s.conn, id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", false, nil
+	}
+	if err != nil {
+		return "", false, err
+	}
+	return a.Alias, true, nil
+}
+
+func (s *Source) SetAlias(id, alias string) error {
+	ar := repository.NewAliasRepository()
+	return ar.Set(context.Background(), s.conn, id, alias)
+}
+
+func (s *Source) DeleteAlias(id string) error {
+	ar := repository.NewAliasRepository()
+	return ar.Delete(context.Background(), s.conn, id)
+}
+
+func (s *Source) Aliases() (map[string]string, error) {
+	ar := repository.NewAliasRepository()
+	aa, err := ar.All(context.Background(), s.conn)
+	if err != nil {
+		return nil, err
+	}
+	mm := make(map[string]string, len(aa))
+	for _, a := range aa {
+		mm[a.ChannelID] = a.Alias
+	}
+	return mm, nil
 }
 
 func (s *Source) Latest(ctx context.Context) (map[structures.SlackLink]time.Time, error) {

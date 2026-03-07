@@ -52,10 +52,10 @@
         <p>Channels</p>
     </div>
     {{ range $i, $el := .Public }}
-    <a href="#" hx-get="/archives/{{$el.ID}}" hx-target="#conversation" hx-push-url="true">{{ rendername $el }}</a>
+    {{ template "channel_link" $el }}
     {{ end }}
     {{ range $i, $el := .Private }}
-    <a href="#" hx-get="/archives/{{$el.ID}}" hx-target="#conversation" hx-push-url="true">{{ rendername $el }}</a>
+    {{ template "channel_link" $el }}
     {{ end }}
 </div>
 {{ end }}
@@ -65,10 +65,10 @@
         <p>Direct</p>
     </div>
 	 {{ range $i, $el := .MPIM }}
-         <a href="#" hx-get="/archives/{{$el.ID}}" hx-target="#conversation" hx-push-url="true">{{ rendername $el }}</a>
+         {{ template "channel_link" $el }}
          {{ end }}
          {{ range $i, $el := .DM }}
-         <a href="#" hx-get="/archives/{{$el.ID}}" hx-target="#conversation" hx-push-url="true">{{ rendername $el }}</a>
+         {{ template "channel_link" $el }}
          {{ end }}
 </div>
 {{ end }}
@@ -87,10 +87,16 @@
 </script>
 {{ end }}
 
+{{ define "channel_link" }}
+<a id="channel-link-{{.ID}}" href="#" hx-get="/archives/{{.ID}}" hx-target="#conversation" hx-push-url="true">{{ channelname . }}</a>
+{{ end }}
+
 {{define "hx_chan_header"}}
-<div hx-target="this" hx-swap="outerHTML" class="channel-name">
-	<h2>{{ rendername .Conversation }}</h2>
+<div id="channel-heading" hx-target="this" hx-swap="outerHTML" class="channel-name">
+	<h2>{{ channelname .Conversation }}</h2>
+    {{ if .CanAlias }}
 	<button id="add-alias" hx-get="/archives/{{.Conversation.ID}}/alias/" class="btn">Add Alias</button>
+    {{ end }}
 </div>
 {{ end }}
 
@@ -148,7 +154,7 @@
 {{ define "conversation_header" }}
 <header class="conversation-header">
     <div class="conversation-inner">
-        <h3>{{ rendername .Conversation }}</h3>
+        {{ template "hx_chan_header" . }}
         <p>{{ .Conversation.Topic.Value }}</p>
         {{ if canvas_present .Conversation }}
         {{ template "tab_list" . }}
@@ -296,6 +302,10 @@
 
 
 
+{{ define "channel_link_oob" }}
+<a id="channel-link-{{.Conversation.ID}}" href="#" hx-get="/archives/{{.Conversation.ID}}" hx-target="#conversation" hx-push-url="true" hx-swap-oob="outerHTML">{{ channelname .Conversation }}</a>
+{{ end }}
+
 {{ define "hx_user" }}
 <div class="user-profile-container">
     <header class="user-profile-header">
@@ -336,10 +346,16 @@
 
 
 {{ define "hx_alias" }}
-<form hx-put="/archives/{{.Conversation.ID}}/alias/" hx-target="this" hx-swap="outerHTML">
+<form id="channel-heading" hx-put="/archives/{{.Conversation.ID}}/alias/" hx-target="this" hx-swap="outerHTML" class="channel-name">
     <label for="alias">Alias:</label>
-    <input type="text" id="alias" name="alias" value="">
+    <input type="text" id="alias" name="alias" value="{{ .Alias }}" maxlength="30" autofocus>
     <button type="submit">Save</button>
-    <button id="delete-alias" hx-delete="/archives/{{.Conversation.ID}}/alias/" hx-target="this" hx-swap="outerHTML">Delete</button>
+    <button type="button" id="delete-alias" hx-delete="/archives/{{.Conversation.ID}}/alias/" hx-target="#channel-heading" hx-swap="outerHTML">Delete</button>
+    {{ if .AliasError }}<p class="error">{{ .AliasError }}</p>{{ end }}
 </form>
+{{ end }}
+
+{{ define "hx_alias_response" }}
+{{ template "hx_chan_header" . }}
+{{ template "channel_link_oob" . }}
 {{ end }}
