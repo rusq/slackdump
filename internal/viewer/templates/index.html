@@ -220,8 +220,7 @@
 		    <img class="avatar" src="{{ userpic $el.User }}" />
             </a>
             <div class="message-inner">
-                {{ template "render_message" $el }}
-		{{/* TODO: Pass dict through to render_message in order to template threading */}}
+                {{ template "render_message" (msgview $id $el) }}
                 {{ if is_thread_start $el }}
                 <footer class="thread-info">
                 <a href="#" hx-get="/archives/{{$id}}/{{ $el.ThreadTimestamp }}" hx-target="#thread">
@@ -250,7 +249,7 @@
 		<img class="avatar" src="{{ userpic $el.User }}" />
         </a>
         <div class="message-inner">
-            {{ template "render_message" $el }}
+            {{ template "render_message" (msgview "" $el) }}
         </div>
         {{ end }}
     </article>
@@ -266,19 +265,24 @@
 {{end}}
 
 {{ define "render_message" }}
-<header class="message-header" id="{{.Timestamp}}">
+<header class="message-header" id="{{.Msg.Timestamp}}">
     <span class="message-sender">
-        {{ if ( or ( is_app_msg . ) ( not .User ) ) -}}
-        	{{ username . }}
+        {{ if ( or ( is_app_msg .Msg ) ( not .Msg.User ) ) -}}
+        	{{ username .Msg }}
         {{- else -}}
-		<a href="#" hx-get="/team/{{ .User }}" hx-target="#thread">{{ username . }}</a>
+		<a href="#" hx-get="/team/{{ .Msg.User }}" hx-target="#thread">{{ username .Msg }}</a>
         {{- end }}
     </span>
-    <span class="message-timestamp grey">{{ time .Timestamp }}</span>
-    <span class="message-link"><a href="#{{.Timestamp}}">#</a></span>
+    <span class="message-timestamp grey">{{ time .Msg.Timestamp }}</span>
+    <span class="message-link"><a href="#{{.Msg.Timestamp}}">#</a></span>
 </header>
+{{- if and .ChannelID .Msg.ThreadTimestamp (ne .Msg.ThreadTimestamp .Msg.Timestamp) }}
+<div class="reply-context">
+    ↩ <a href="/archives/{{ .ChannelID }}#{{ .Msg.ThreadTimestamp }}">replying to {{ time .Msg.ThreadTimestamp }}</a>
+</div>
+{{- end }}
 <div class="message-content">
-    <p>{{ render . }}</p>
+    <p>{{ render .Msg }}</p>
 </div>
 {{ end }}
 

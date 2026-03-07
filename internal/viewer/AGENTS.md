@@ -106,6 +106,26 @@ those variables. Hardcoded colour values break dark mode.
 
 ---
 
+## Template data contracts
+
+### `render_message`
+
+Receives a `messageView` (defined in `handlers.go`), **not** a bare `slack.Message`.  
+Use the `msgview` template func to construct one at the call site:
+
+```
+{{ template "render_message" (msgview $channelID $msg) }}
+```
+
+| Field | Type | Purpose |
+|---|---|---|
+| `.Msg` | `slack.Message` | The message to render |
+| `.ChannelID` | `string` | Channel ID for reply-to anchor link; pass `""` to suppress the reply banner |
+
+Pass `""` as `$channelID` in the thread panel (`hx_thread`), where the parent message lives on a different page and the anchor link would be broken.
+
+---
+
 ## Template ARIA contracts
 
 The tablist/tabpanel pair must satisfy:

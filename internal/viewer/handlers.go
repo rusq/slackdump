@@ -39,6 +39,16 @@ func (v *Viewer) indexHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// messageView is the data passed to the render_message template.
+// It wraps a slack.Message with the channel ID needed to render threading
+// context (reply-to anchor links).  Set ChannelID to an empty string to
+// suppress the reply banner (used in the thread panel, where the parent
+// message is on a different page).
+type messageView struct {
+	Msg       slack.Message
+	ChannelID string
+}
+
 type mainView struct {
 	channels
 	Name            string
