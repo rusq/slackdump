@@ -1,3 +1,18 @@
+// Copyright (c) 2021-2026 Rustam Gilyazov and Contributors.
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package convert
 
 import (
@@ -10,13 +25,13 @@ import (
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/slack"
 
-	"github.com/rusq/slackdump/v3/internal/chunk"
-	"github.com/rusq/slackdump/v3/internal/source"
-	"github.com/rusq/slackdump/v3/internal/structures"
-	"github.com/rusq/slackdump/v3/processor"
+	"github.com/rusq/slackdump/v4/internal/chunk"
+	"github.com/rusq/slackdump/v4/internal/structures"
+	"github.com/rusq/slackdump/v4/processor"
+	"github.com/rusq/slackdump/v4/source"
 )
 
-// Source encoder allows to convert any source to a chunked format.
+// SourceEncoder allows to convert any source to a chunked format.
 type SourceEncoder struct {
 	src  source.Sourcer
 	enc  chunk.Encoder
@@ -55,6 +70,8 @@ func (s *SourceEncoder) Convert(ctx context.Context) error {
 			fsa:  s.fsa,
 			avst: s.src.Avatars(),
 		}
+		// add a wrapper to the user processor to extract and copy avatar
+		// images
 		us = processor.JoinUsers(rec, &acw)
 	}
 	if err := encodeUsers(ctx, us, s.src); err != nil {
@@ -64,7 +81,10 @@ func (s *SourceEncoder) Convert(ctx context.Context) error {
 	var cp processor.Conversations = rec
 	if s.opts.includeFiles && s.src.Files().Type() != source.STnone {
 		fc := NewFileCopier(s.src, s.fsa, source.MattermostFilepath, s.opts.includeFiles)
-		cp = processor.PrependFiler(rec, &filecopywrapper{fc})
+		cp = processor.PrependFiler(rec, &filecopywrapper{
+			fc:           fc,
+			ignoreErrors: s.opts.ignoreCopyErrors,
+		})
 	}
 	channels, err := s.src.Channels(ctx)
 	if err != nil {

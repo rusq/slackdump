@@ -1,3 +1,18 @@
+// Copyright (c) 2021-2026 Rustam Gilyazov and Contributors.
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package archive
 
 import (
@@ -7,19 +22,17 @@ import (
 	"strings"
 	"sync"
 
-	fileproc2 "github.com/rusq/slackdump/v3/internal/convert/transform/fileproc"
-
-	"github.com/rusq/slackdump/v3/internal/chunk/backend/dbase"
-
 	"github.com/rusq/fsadapter"
 	"github.com/schollz/progressbar/v3"
 
-	"github.com/rusq/slackdump/v3"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/bootstrap"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
-	"github.com/rusq/slackdump/v3/internal/chunk/control"
-	"github.com/rusq/slackdump/v3/stream"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/bootstrap"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/cfg"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/golang/base"
+	"github.com/rusq/slackdump/v4/internal/chunk/backend/dbase"
+	"github.com/rusq/slackdump/v4/internal/chunk/control"
+	"github.com/rusq/slackdump/v4/internal/client"
+	"github.com/rusq/slackdump/v4/internal/convert/transform/fileproc"
+	"github.com/rusq/slackdump/v4/stream"
 )
 
 var CmdSearch = &base.Command{
@@ -98,15 +111,19 @@ func runSearch(ctx context.Context, cmd *base.Command, args []string, typ contro
 		return ErrNoQuery
 	}
 
+	if err := bootstrap.AskOverwrite(cfg.Output); err != nil {
+		return err
+	}
+
 	cfg.Log.Info("running command", "cmd", cmd.Name())
 
-	sess, err := bootstrap.SlackdumpSession(ctx)
+	client, err := bootstrap.Slack(ctx)
 	if err != nil {
 		base.SetExitStatus(base.SInitializationError)
 		return err
 	}
 
-	ctrl, stop, err := searchControllerv31(ctx, cfg.Output, sess, args)
+	ctrl, stop, err := searchControllerv31(ctx, cfg.Output, client, args)
 	if err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return err
@@ -138,7 +155,7 @@ func (s stopFn) Stop() error {
 	return err
 }
 
-func searchControllerv31(ctx context.Context, dir string, sess *slackdump.Session, terms []string) (*control.Controller, stopFn, error) {
+func searchControllerv31(ctx context.Context, dir string, client client.Slack, terms []string) (*control.Controller, stopFn, error) {
 	var stop stopFn
 	if len(terms) == 0 {
 		base.SetExitStatus(base.SInvalidParameters)
@@ -158,10 +175,10 @@ func searchControllerv31(ctx context.Context, dir string, sess *slackdump.Sessio
 
 	lg := cfg.Log
 
-	dl := fileproc2.NewDownloader(
+	dl := fileproc.NewDownloader(
 		ctx,
 		cfg.WithFiles,
-		sess.Client(),
+		client,
 		fsadapter.NewDirectory(cd.Name()),
 		lg,
 	)
@@ -182,6 +199,7 @@ func searchControllerv31(ctx context.Context, dir string, sess *slackdump.Sessio
 			pb.Add(sr.Count)
 			return nil
 		}),
+		stream.OptFailOnNonCritError(cfg.FailOnNonCritical),
 	}
 	if fastSearch {
 		sopts = append(sopts, stream.OptFastSearch())
@@ -189,10 +207,10 @@ func searchControllerv31(ctx context.Context, dir string, sess *slackdump.Sessio
 
 	ctrl, err := control.New(
 		ctx,
-		sess.Stream(sopts...),
+		stream.New(client, cfg.Limits, sopts...),
 		erc,
 		control.WithLogger(lg),
-		control.WithFiler(fileproc2.New(dl)),
+		control.WithFiler(fileproc.New(dl)),
 		control.WithFlags(control.Flags{RecordFiles: cfg.RecordFiles}),
 	)
 	if err != nil {

@@ -1,3 +1,18 @@
+// Copyright (c) 2021-2026 Rustam Gilyazov and Contributors.
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package list
 
 import (
@@ -5,20 +20,22 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 
 	"github.com/rusq/slack"
 
-	"github.com/rusq/slackdump/v3"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/workspace"
-	"github.com/rusq/slackdump/v3/internal/cache"
-	"github.com/rusq/slackdump/v3/internal/format"
-	"github.com/rusq/slackdump/v3/types"
+	"github.com/rusq/slackdump/v4"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/bootstrap"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/cfg"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/golang/base"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/workspace"
+	"github.com/rusq/slackdump/v4/internal/cache"
+	"github.com/rusq/slackdump/v4/internal/format"
+	"github.com/rusq/slackdump/v4/types"
 )
 
-const flagMask = cfg.OmitAll &^ cfg.OmitAuthFlags &^ cfg.OmitCacheDir &^ cfg.OmitWorkspaceFlag
+const flagMask = cfg.OmitAll &^ cfg.OmitAuthFlags &^ cfg.OmitCacheDir &^ cfg.OmitWorkspaceFlag &^ cfg.OmitYesManFlag
 
 // CmdList is the list command.  The logic is in the subcommands.
 var CmdList = &base.Command{
@@ -60,6 +77,8 @@ type lister[T any] interface {
 	// Users should return the users for the data, or nil, which indicates
 	// that there are no associated users or that the users are not resolved.
 	Users() []slack.User
+	// Len should return the data length.
+	Len() int
 }
 
 // common flags
@@ -67,6 +86,7 @@ type commonOpts struct {
 	listType format.Type
 	quiet    bool // quiet mode:  don't print anything on the screen, just save the file
 	nosave   bool // nosave mode:  don't save the data to a file, just print it to the screen
+	bare     bool
 }
 
 var commonFlags = commonOpts{
@@ -84,6 +104,7 @@ func addCommonFlags(fs *flag.FlagSet) {
 	fs.Var(&commonFlags.listType, "format", fmt.Sprintf("listing format, should be one of: %v", format.All()))
 	fs.BoolVar(&commonFlags.quiet, "q", false, "quiet mode:  don't print anything on the screen, just save the file")
 	fs.BoolVar(&commonFlags.nosave, "no-json", false, "don't save the data to a file, just print it to the screen")
+	fs.BoolVar(&commonFlags.bare, "b", false, "use bare format: just the user or channel ID, no headers")
 }
 
 func list[T any](ctx context.Context, sess *slackdump.Session, l lister[T], filename string) error {
@@ -96,8 +117,14 @@ func list[T any](ctx context.Context, sess *slackdump.Session, l lister[T], file
 		return err
 	}
 
+	if l.Len() == 0 {
+		slog.WarnContext(ctx, "no data retrieved", "type", l.Type())
+		return nil
+	}
+
+	data := l.Data()
 	if !commonFlags.quiet {
-		if err := fmtPrint(ctx, os.Stdout, l.Data(), commonFlags.listType, l.Users()); err != nil {
+		if err := fmtPrint(ctx, os.Stdout, data, commonFlags.listType, l.Users(), commonFlags.bare); err != nil {
 			return err
 		}
 	}
@@ -106,7 +133,10 @@ func list[T any](ctx context.Context, sess *slackdump.Session, l lister[T], file
 		if filename == "" {
 			filename = makeFilename(l.Type(), sess.Info().TeamID, extForType(commonFlags.listType))
 		}
-		if err := saveData(ctx, l.Data(), filename, commonFlags.listType, l.Users()); err != nil {
+		if err := bootstrap.AskOverwrite(filename); err != nil {
+			return err
+		}
+		if err := saveData(ctx, data, filename, commonFlags.listType, l.Users(), commonFlags.bare); err != nil {
 			return err
 		}
 	}
@@ -127,14 +157,14 @@ func extForType(typ format.Type) string {
 }
 
 // saveData saves the given data to the given filename.
-func saveData(ctx context.Context, data any, filename string, typ format.Type, users []slack.User) error {
+func saveData(ctx context.Context, data any, filename string, typ format.Type, users []slack.User, bare bool) error {
 	// save to a filesystem.
 	f, err := os.Create(filename)
 	if err != nil {
 		return fmt.Errorf("failed to create file: %w", err)
 	}
 	defer f.Close()
-	if err := fmtPrint(ctx, f, data, typ, users); err != nil {
+	if err := fmtPrint(ctx, f, data, typ, users, bare); err != nil {
 		return err
 	}
 	cfg.Log.InfoContext(ctx, "Data saved", "filename", filename)
@@ -145,13 +175,13 @@ func saveData(ctx context.Context, data any, filename string, typ format.Type, u
 // fmtPrint prints the given data to the given writer, using the given format.
 // It should be supplied with prepopulated users, as it may need to look up
 // users by ID.
-func fmtPrint(ctx context.Context, w io.Writer, a any, typ format.Type, u []slack.User) error {
+func fmtPrint(ctx context.Context, w io.Writer, a any, typ format.Type, u []slack.User, bare bool) error {
 	// get the converter
-	initFn, ok := format.Converters[typ]
+	initFn, ok := typ.FormatFunc()
 	if !ok {
 		return fmt.Errorf("unknown converter type: %s", typ)
 	}
-	cvt := initFn()
+	cvt := initFn(format.WithBareFormat(bare))
 
 	// currently there's no list function for conversations, because it
 	// requires additional options, and I don't want to clutter the flags -

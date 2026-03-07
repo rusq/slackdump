@@ -14,7 +14,7 @@ hydrate it with files by running `slackdump tools hydrate <export_file>`.
 The export file is understood by Slack Import feature with the following
 caveat:
 - files will not be imported, unless the `export` token is specified.
-  Github user @codeallthethingz has created a script that allows you to
+  GitHub user @codeallthethingz has created a script that allows you to
   import attachments from the export file.  You can find it
   [here](https://github.com/rusq/slackdump/issues/371)
 

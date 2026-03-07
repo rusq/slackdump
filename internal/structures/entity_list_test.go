@@ -1,3 +1,18 @@
+// Copyright (c) 2021-2026 Rustam Gilyazov and Contributors.
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package structures
 
 import (
@@ -7,7 +22,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rusq/slackdump/v3/internal/fixtures"
+	"github.com/rusq/slackdump/v4/internal/fixtures"
 )
 
 func TestHasExcludePrefix(t *testing.T) {
@@ -869,6 +884,178 @@ func TestNewEntityListFromItems(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := NewEntityListFromItems(tt.args.items...); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewEntityListFromItems() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestEntityList_Overlay(t *testing.T) {
+	tests := []struct {
+		name  string
+		el    *EntityList
+		other *EntityList
+		want  *EntityList
+	}{
+		{
+			name:  "nil other - el unchanged",
+			el:    NewEntityListFromItems(EntityItem{Id: "A1", Include: true}),
+			other: nil,
+			want: &EntityList{
+				index:       map[string]*EntityItem{"A1": {Id: "A1", Include: true}},
+				hasIncludes: true,
+				hasExcludes: false,
+			},
+		},
+		{
+			name:  "other empty - el unchanged",
+			el:    NewEntityListFromItems(EntityItem{Id: "A1", Include: true}, EntityItem{Id: "A2", Include: false}),
+			other: NewEntityListFromItems(),
+			want: &EntityList{
+				index: map[string]*EntityItem{
+					"A1": {Id: "A1", Include: true},
+					"A2": {Id: "A2", Include: false},
+				},
+				hasIncludes: true,
+				hasExcludes: true,
+			},
+		},
+		{
+			name:  "el empty - gets other items",
+			el:    NewEntityListFromItems(),
+			other: NewEntityListFromItems(EntityItem{Id: "B1", Include: true}, EntityItem{Id: "B2", Include: false}),
+			want: &EntityList{
+				index: map[string]*EntityItem{
+					"B1": {Id: "B1", Include: true},
+					"B2": {Id: "B2", Include: false},
+				},
+				hasIncludes: true,
+				hasExcludes: true,
+			},
+		},
+		{
+			name:  "no overlap - all items merged",
+			el:    NewEntityListFromItems(EntityItem{Id: "A1", Include: true}),
+			other: NewEntityListFromItems(EntityItem{Id: "B1", Include: true}),
+			want: &EntityList{
+				index: map[string]*EntityItem{
+					"A1": {Id: "A1", Include: true},
+					"B1": {Id: "B1", Include: true},
+				},
+				hasIncludes: true,
+				hasExcludes: false,
+			},
+		},
+		{
+			name:  "other overrides include with exclude",
+			el:    NewEntityListFromItems(EntityItem{Id: "A1", Include: true}),
+			other: NewEntityListFromItems(EntityItem{Id: "A1", Include: false}),
+			want: &EntityList{
+				index: map[string]*EntityItem{
+					"A1": {Id: "A1", Include: false},
+				},
+				hasIncludes: false,
+				hasExcludes: true,
+			},
+		},
+		{
+			name:  "other overrides exclude with include",
+			el:    NewEntityListFromItems(EntityItem{Id: "A1", Include: false}),
+			other: NewEntityListFromItems(EntityItem{Id: "A1", Include: true}),
+			want: &EntityList{
+				index: map[string]*EntityItem{
+					"A1": {Id: "A1", Include: true},
+				},
+				hasIncludes: true,
+				hasExcludes: false,
+			},
+		},
+		{
+			name:  "other adds excludes to include-only el - hasExcludes becomes true",
+			el:    NewEntityListFromItems(EntityItem{Id: "A1", Include: true}, EntityItem{Id: "A2", Include: true}),
+			other: NewEntityListFromItems(EntityItem{Id: "B1", Include: false}),
+			want: &EntityList{
+				index: map[string]*EntityItem{
+					"A1": {Id: "A1", Include: true},
+					"A2": {Id: "A2", Include: true},
+					"B1": {Id: "B1", Include: false},
+				},
+				hasIncludes: true,
+				hasExcludes: true,
+			},
+		},
+		{
+			name:  "other adds includes to exclude-only el - hasIncludes becomes true",
+			el:    NewEntityListFromItems(EntityItem{Id: "A1", Include: false}),
+			other: NewEntityListFromItems(EntityItem{Id: "B1", Include: true}),
+			want: &EntityList{
+				index: map[string]*EntityItem{
+					"A1": {Id: "A1", Include: false},
+					"B1": {Id: "B1", Include: true},
+				},
+				hasIncludes: true,
+				hasExcludes: true,
+			},
+		},
+		{
+			name: "other overrides all excludes with includes - hasExcludes reset to false",
+			el:   NewEntityListFromItems(EntityItem{Id: "A1", Include: false}, EntityItem{Id: "A2", Include: false}),
+			other: NewEntityListFromItems(
+				EntityItem{Id: "A1", Include: true},
+				EntityItem{Id: "A2", Include: true},
+			),
+			want: &EntityList{
+				index: map[string]*EntityItem{
+					"A1": {Id: "A1", Include: true},
+					"A2": {Id: "A2", Include: true},
+				},
+				hasIncludes: true,
+				hasExcludes: false,
+			},
+		},
+		{
+			name: "other overrides all includes with excludes - hasIncludes reset to false",
+			el:   NewEntityListFromItems(EntityItem{Id: "A1", Include: true}, EntityItem{Id: "A2", Include: true}),
+			other: NewEntityListFromItems(
+				EntityItem{Id: "A1", Include: false},
+				EntityItem{Id: "A2", Include: false},
+			),
+			want: &EntityList{
+				index: map[string]*EntityItem{
+					"A1": {Id: "A1", Include: false},
+					"A2": {Id: "A2", Include: false},
+				},
+				hasIncludes: false,
+				hasExcludes: true,
+			},
+		},
+		{
+			name: "partial overlap with type change",
+			el: NewEntityListFromItems(
+				EntityItem{Id: "A1", Include: true},
+				EntityItem{Id: "A2", Include: true},
+				EntityItem{Id: "A3", Include: false},
+			),
+			other: NewEntityListFromItems(
+				EntityItem{Id: "A2", Include: false},
+				EntityItem{Id: "B1", Include: true},
+			),
+			want: &EntityList{
+				index: map[string]*EntityItem{
+					"A1": {Id: "A1", Include: true},
+					"A2": {Id: "A2", Include: false},
+					"A3": {Id: "A3", Include: false},
+					"B1": {Id: "B1", Include: true},
+				},
+				hasIncludes: true,
+				hasExcludes: true,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.el.Overlay(tt.other)
+			if !reflect.DeepEqual(tt.el, tt.want) {
+				t.Errorf("Overlay() =\n  %+v\nwant\n  %+v", tt.el, tt.want)
 			}
 		})
 	}

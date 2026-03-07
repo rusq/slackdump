@@ -1,3 +1,18 @@
+// Copyright (c) 2021-2026 Rustam Gilyazov and Contributors.
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package control
 
 import (
@@ -7,9 +22,9 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/rusq/slackdump/v3/internal/chunk"
-	"github.com/rusq/slackdump/v3/internal/structures"
-	"github.com/rusq/slackdump/v3/processor"
+	"github.com/rusq/slackdump/v4/internal/chunk"
+	"github.com/rusq/slackdump/v4/internal/structures"
+	"github.com/rusq/slackdump/v4/processor"
 )
 
 type Controller struct {
@@ -27,7 +42,7 @@ func New(ctx context.Context, s Streamer, erc EncodeReferenceCloser, opts ...Opt
 		s:   s,
 		options: options{
 			lg:    slog.Default(),
-			tf:    &noopTransformer{},
+			tf:    &noopExpTransformer{},
 			filer: &processor.NopFiler{},
 			avp:   &processor.NopAvatars{},
 		},
@@ -54,35 +69,55 @@ func (c *Controller) Run(ctx context.Context, list *structures.EntityList) error
 	rec := chunk.NewCustomRecorder(c.erc)
 	defer rec.Close()
 
-	streamer, proc := c.mkSuperprocessor(ctx, rec)
+	// got to do some explanation here: the order of processors is important:
+	// files ==> recorder ==> transformer                     2     1            3
+	conv := processor.AppendMessenger(processor.PrependFiler(rec, c.filer), c.newConvTransformer(ctx))
+	streamer, proc := c.mkSuperprocessor(ctx, rec, conv)
 
 	return runWorkers(ctx, streamer, list, proc, c.flags)
 }
 
-func (c *Controller) mkSuperprocessor(ctx context.Context, rec *chunk.Recorder) (Streamer, superprocessor) {
+// RunNoTransform is similar to [Run] but does not apply any transformation to
+// the data. Call this if you don't need to track channel completion etc.
+func (c *Controller) RunNoTransform(ctx context.Context, list *structures.EntityList) error {
+	rec := chunk.NewCustomRecorder(c.erc)
+	defer rec.Close()
+
+	conv := processor.PrependFiler(rec, c.filer)
+	streamer, proc := c.mkSuperprocessor(ctx, rec, conv)
+
+	// if we don't need to transform the data, we can just run the workers
+	// without the transformer
+	return runWorkers(ctx, streamer, list, proc, c.flags)
+}
+
+func (c *Controller) mkSuperprocessor(ctx context.Context, rec *chunk.Recorder, conv processor.Conversations) (Streamer, superprocessor) {
 	streamer := c.s
-	// got to do some explanation here: the order of processors is important:
-	// files ==> recorder ==> transformer                     2     1            3
-	conv := processor.AppendMessenger(processor.PrependFiler(rec, c.filer), c.newConvTransformer(ctx))
 	if c.flags.ChannelUsers {
-		// userIDCollector collects the user IDs from messages and thread messages (excluding duplicates)
-		// and sends them to the userIDC channel.  The userCollectingStreamer replaces the Users method
-		// of the Streamer with a method that gets the information for user IDs received on the userIDC
-		// channel and calls the Users processor method.  Once the Close method is called on userIDCollector,
-		// the userID channel is closed, and the userCollectingStreamer stops processing the user IDs.
+		// userIDCollector collects the user IDs from messages and thread
+		// messages (excluding duplicates) and sends them to the userIDC
+		// channel.  The userCollectingStreamer replaces the Users method of
+		// the Streamer with a method that gets the information for user IDs
+		// received on the userIDC channel and calls the Users processor
+		// method.  Once the Close method is called on userIDCollector, the
+		// userID channel is closed, and the userCollectingStreamer stops
+		// processing the user IDs.
 		//
-		// Drawback is that the transformer won't start until all user IDs are collected from all channels.
+		// Drawback is that the transformer won't start until all user IDs are
+		// collected from all channels.
 		ucoll := newMsgUserIDsCollector()
 		conv = processor.PrependMessenger(conv, ucoll)
 		streamer = &userCollectingStreamer{
-			Streamer: streamer,
-			userIDC:  ucoll.C(),
+			Streamer:      streamer,
+			userIDC:       ucoll.C(),
+			includeLabels: c.flags.IncludeLabels,
 		}
 	}
 
-	// if we're running in resume mode, it is possible that we will not collect any users due to no new messages, therefore
-	// we need to allow the user collector to close without collecting any users by setting allowEmpty to true (value of
-	// c.Flags.ChannelUsers)
+	// if we're running in resume mode, it is possible that we will not collect
+	// any users due to no new messages, therefore we need to allow the user
+	// collector to close without collecting any users by setting allowEmpty to
+	// true (value of c.Flags.ChannelUsers)
 	sp := superprocessor{
 		Conversations: conv,
 		//                                       1                                          2    3

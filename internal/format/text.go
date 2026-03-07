@@ -1,3 +1,18 @@
+// Copyright (c) 2021-2026 Rustam Gilyazov and Contributors.
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package format
 
 import (
@@ -13,8 +28,8 @@ import (
 
 	"github.com/rusq/slack"
 
-	"github.com/rusq/slackdump/v3/internal/structures"
-	"github.com/rusq/slackdump/v3/types"
+	"github.com/rusq/slackdump/v4/internal/structures"
+	"github.com/rusq/slackdump/v4/types"
 )
 
 var _ Formatter = &Text{}
@@ -39,7 +54,7 @@ func TextNewMessageThreshold(d time.Duration) Option {
 }
 
 func init() {
-	Converters[CText] = NewText
+	converters[CText] = NewText
 }
 
 func NewText(opts ...Option) Formatter {
@@ -100,6 +115,20 @@ func (txt *Text) txtConversations(w io.Writer, m []types.Message, prefix string,
 }
 
 func (txt *Text) Users(ctx context.Context, w io.Writer, u []slack.User) error {
+	if txt.opts.bare {
+		return txt.usersBare(ctx, w, u)
+	}
+	return txt.usersFull(ctx, w, u)
+}
+
+func (txt *Text) usersBare(_ context.Context, w io.Writer, u []slack.User) error {
+	for i := range u {
+		fmt.Fprintf(w, "%s\n", u[i].ID)
+	}
+	return nil
+}
+
+func (txt *Text) usersFull(_ context.Context, w io.Writer, u []slack.User) error {
 	const strFormat = "%s\t%s\t%s\t%s\t%s\t%s\n"
 	writer := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
 	defer writer.Flush()
@@ -150,6 +179,20 @@ func (txt *Text) Users(ctx context.Context, w io.Writer, u []slack.User) error {
 }
 
 func (txt *Text) Channels(ctx context.Context, w io.Writer, u []slack.User, cc []slack.Channel) error {
+	if txt.opts.bare {
+		return txt.channelsBare(ctx, w, u, cc)
+	}
+	return txt.channelsFull(ctx, w, u, cc)
+}
+
+func (txt *Text) channelsBare(_ context.Context, w io.Writer, _ []slack.User, cc []slack.Channel) error {
+	for i := range cc {
+		fmt.Fprintf(w, "%s\n", cc[i].ID)
+	}
+	return nil
+}
+
+func (txt *Text) channelsFull(_ context.Context, w io.Writer, u []slack.User, cc []slack.Channel) error {
 	const strFormat = "%s\t%s\t%s\n"
 
 	ui := structures.NewUserIndex(u)

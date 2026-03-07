@@ -1,3 +1,18 @@
+// Copyright (c) 2021-2026 Rustam Gilyazov and Contributors.
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package convert
 
 import (
@@ -8,13 +23,12 @@ import (
 	"log/slog"
 	"path"
 
-	"github.com/rusq/slackdump/v3/internal/chunk"
-	"github.com/rusq/slackdump/v3/internal/convert/transform/fileproc"
-
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/slack"
 
-	"github.com/rusq/slackdump/v3/internal/source"
+	"github.com/rusq/slackdump/v4/internal/chunk"
+	"github.com/rusq/slackdump/v4/internal/convert/transform/fileproc"
+	"github.com/rusq/slackdump/v4/source"
 )
 
 type FileCopier struct {
@@ -101,8 +115,9 @@ func copy2trg(trgfs fsadapter.FS, trgpath string, srcfs fs.FS, srcpath string) e
 }
 
 type avatarcopywrapper struct {
-	fsa  fsadapter.FS
-	avst source.Storage
+	fsa          fsadapter.FS
+	avst         source.Storage
+	ignoreErrors bool
 }
 
 func (a *avatarcopywrapper) Users(ctx context.Context, users []slack.User) error {
@@ -136,6 +151,10 @@ func (a *avatarcopywrapper) copyAvatar(u slack.User) error {
 	dstloc := path.Join(chunk.AvatarsDir, path.Join(source.AvatarParams(&u)))
 	src, err := fsys.Open(srcloc)
 	if err != nil {
+		if a.ignoreErrors {
+			slog.Warn("copying avatar", "user", u.ID, "error", err)
+			return nil
+		}
 		return err
 	}
 	defer src.Close()
@@ -153,11 +172,19 @@ func (a *avatarcopywrapper) copyAvatar(u slack.User) error {
 }
 
 type filecopywrapper struct {
-	fc copier
+	fc           copier
+	ignoreErrors bool
 }
 
-func (f *filecopywrapper) Files(_ context.Context, ch *slack.Channel, parent slack.Message, _ []slack.File) error {
-	return f.fc.Copy(ch, &parent)
+func (f *filecopywrapper) Files(ctx context.Context, ch *slack.Channel, parent slack.Message, _ []slack.File) error {
+	if err := f.fc.Copy(ch, &parent); err != nil {
+		if f.ignoreErrors {
+			slog.WarnContext(ctx, "copying file", "error", err)
+			return nil
+		}
+		return err
+	}
+	return nil
 }
 
 func (f *filecopywrapper) Close() error {

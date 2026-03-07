@@ -1,3 +1,18 @@
+// Copyright (c) 2021-2026 Rustam Gilyazov and Contributors.
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package main
 
 import (
@@ -11,6 +26,7 @@ import (
 	"os/signal"
 	"runtime/trace"
 	"strings"
+	_ "time/tzdata" // load the timezone data
 
 	"github.com/charmbracelet/huh"
 	"github.com/joho/godotenv"
@@ -18,25 +34,26 @@ import (
 	_ "modernc.org/sqlite"
 	// _ "github.com/mattn/go-sqlite3"
 
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/apiconfig"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/archive"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/convertcmd"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/diag"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/dump"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/emoji"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/export"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/format"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/help"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/list"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/man"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/resume"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/ui"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/view"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/wizard"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/workspace"
-	"github.com/rusq/slackdump/v3/internal/osext"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/apiconfig"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/archive"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/cfg"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/convertcmd"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/diag"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/dump"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/emoji"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/export"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/format"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/golang/base"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/golang/help"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/list"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/man"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/mcp"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/resume"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/ui"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/view"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/wizard"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/workspace"
+	"github.com/rusq/slackdump/v4/internal/osext"
 )
 
 func init() {
@@ -54,6 +71,7 @@ func init() {
 		apiconfig.CmdConfig,
 		format.CmdFormat,
 		view.CmdView,
+		mcp.CmdMCP,
 		wizard.CmdWizard,
 		CmdVersion,
 
@@ -189,7 +207,7 @@ func invoke(cmd *base.Command, args []string) error {
 	defer task.End()
 
 	// initialise default logging.
-	if lg, err := initLog(cfg.LogFile, cfg.JsonHandler, cfg.Verbose); err != nil {
+	if lg, err := initLog(cfg.LogFile, cfg.UseJSONHandler, cfg.Verbose); err != nil {
 		base.SetExitStatus(base.SInitializationError)
 		return err
 	} else {
@@ -231,13 +249,6 @@ func parseFlags(cmd *base.Command, args []string) ([]string, error) {
 	return cmd.Flag.Args(), nil
 }
 
-func iftrue[T any](cond bool, t T, f T) T {
-	if cond {
-		return t
-	}
-	return f
-}
-
 // secrets defines the names of the supported secret files that we load our
 // secrets from.  Inexperienced Windows users might have bad experience trying
 // to create .env file with the notepad as it will battle for having the
@@ -254,10 +265,9 @@ func loadSecrets(files []string) {
 type choice string
 
 const (
-	choiceUnknown choice = ""
-	choiceHelp    choice = "Print help and exit"
-	choiceWizard  choice = "Run wizard"
-	choiceExit    choice = "Exit"
+	choiceHelp   choice = "Print help and exit"
+	choiceWizard choice = "Run wizard"
+	choiceExit   choice = "Exit"
 )
 
 func whatDo() (choice, error) {

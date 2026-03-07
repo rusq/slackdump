@@ -1,3 +1,18 @@
+// Copyright (c) 2021-2026 Rustam Gilyazov and Contributors.
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package dbase
 
 import (
@@ -10,12 +25,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 
-	"github.com/rusq/slackdump/v3/internal/chunk"
-	"github.com/rusq/slackdump/v3/internal/chunk/backend/dbase/repository"
-	"github.com/rusq/slackdump/v3/internal/chunk/backend/dbase/repository/mock_repository"
-	"github.com/rusq/slackdump/v3/internal/fixtures"
-	"github.com/rusq/slackdump/v3/internal/structures"
-	"github.com/rusq/slackdump/v3/internal/testutil"
+	"github.com/rusq/slackdump/v4/internal/chunk"
+	"github.com/rusq/slackdump/v4/internal/chunk/backend/dbase/repository"
+	"github.com/rusq/slackdump/v4/internal/chunk/backend/dbase/repository/mock_repository"
+	"github.com/rusq/slackdump/v4/internal/fixtures"
+	"github.com/rusq/slackdump/v4/internal/structures"
+	"github.com/rusq/slackdump/v4/internal/testutil"
 )
 
 var (
@@ -66,7 +81,7 @@ func Test_asmMessages(t *testing.T) {
 		{
 			name: "ok",
 			args: args{
-				ctx:     context.Background(),
+				ctx:     t.Context(),
 				conn:    nil, // not used
 				dbchunk: testMsgChunk,
 			},
@@ -105,7 +120,7 @@ func Test_asmMessages(t *testing.T) {
 		{
 			name: "error",
 			args: args{
-				ctx:     context.Background(),
+				ctx:     t.Context(),
 				conn:    nil, // not used
 				dbchunk: testMsgChunk,
 			},
@@ -118,7 +133,7 @@ func Test_asmMessages(t *testing.T) {
 		{
 			name: "iterator error",
 			args: args{
-				ctx:     context.Background(),
+				ctx:     t.Context(),
 				conn:    nil, // not used
 				dbchunk: testMsgChunk,
 			},
@@ -186,7 +201,7 @@ func Test_getMessage(t *testing.T) {
 		{
 			name: "ok",
 			args: args{
-				ctx:  context.Background(),
+				ctx:  t.Context(),
 				conn: nil, // not used
 				id:   1234567890,
 			},
@@ -205,7 +220,7 @@ func Test_getMessage(t *testing.T) {
 		{
 			name: "error",
 			args: args{
-				ctx:  context.Background(),
+				ctx:  t.Context(),
 				conn: nil, // not used
 				id:   1234567890,
 			},
@@ -256,7 +271,7 @@ func Test_asmThreadMessages(t *testing.T) {
 		{
 			name: "ok",
 			args: args{
-				ctx:     context.Background(),
+				ctx:     t.Context(),
 				conn:    nil, // not used
 				dbchunk: testMsgChunk,
 			},
@@ -295,7 +310,7 @@ func Test_asmThreadMessages(t *testing.T) {
 		{
 			name: "error",
 			args: args{
-				ctx:     context.Background(),
+				ctx:     t.Context(),
 				conn:    nil, // not used
 				dbchunk: testMsgChunk,
 			},
@@ -308,7 +323,7 @@ func Test_asmThreadMessages(t *testing.T) {
 		{
 			name: "iterator error",
 			args: args{
-				ctx:     context.Background(),
+				ctx:     t.Context(),
 				conn:    nil, // not used
 				dbchunk: testMsgChunk,
 			},
@@ -375,7 +390,7 @@ func Test_asmFiles(t *testing.T) {
 		{
 			name: "ok",
 			args: args{
-				ctx:  context.Background(),
+				ctx:  t.Context(),
 				conn: nil, // not used
 				dbchunk: &repository.DBChunk{
 					ID:         1,
@@ -450,7 +465,7 @@ func Test_asmUsers(t *testing.T) {
 		{
 			name: "ok",
 			args: args{
-				ctx:  context.Background(),
+				ctx:  t.Context(),
 				conn: nil, // not used
 				dbchunk: &repository.DBChunk{
 					ID:         1,
@@ -521,7 +536,7 @@ func Test_asmChannels(t *testing.T) {
 		{
 			name: "ok",
 			args: args{
-				ctx:  context.Background(),
+				ctx:  t.Context(),
 				conn: nil, // not used
 				dbchunk: &repository.DBChunk{
 					ID:         1,
@@ -594,7 +609,7 @@ func Test_asmChannelInfo(t *testing.T) {
 		{
 			name: "ok",
 			args: args{
-				ctx:  context.Background(),
+				ctx:  t.Context(),
 				conn: nil, // not used
 				dbchunk: &repository.DBChunk{
 					ID:        1,
@@ -666,7 +681,7 @@ func Test_asmWorkspaceInfo(t *testing.T) {
 		{
 			name: "ok",
 			args: args{
-				ctx:  context.Background(),
+				ctx:  t.Context(),
 				conn: nil, // not used
 				dbchunk: &repository.DBChunk{
 					ID:     1,
@@ -728,7 +743,7 @@ func Test_asmChannelUsers(t *testing.T) {
 		{
 			name: "ok",
 			args: args{
-				ctx:  context.Background(),
+				ctx:  t.Context(),
 				conn: nil, // not used
 				dbchunk: &repository.DBChunk{
 					ID:         1,
@@ -827,7 +842,7 @@ func Test_asmSearchMessages(t *testing.T) {
 		{
 			name: "ok",
 			args: args{
-				ctx:  context.Background(),
+				ctx:  t.Context(),
 				conn: nil, // not used
 				dbchunk: &repository.DBChunk{
 					ID:          1,
@@ -914,7 +929,7 @@ func Test_asmSearchFiles(t *testing.T) {
 		{
 			name: "ok",
 			args: args{
-				ctx:  context.Background(),
+				ctx:  t.Context(),
 				conn: nil, // not used
 				dbchunk: &repository.DBChunk{
 					ID:          1,

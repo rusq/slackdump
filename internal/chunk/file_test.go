@@ -1,8 +1,22 @@
+// Copyright (c) 2021-2026 Rustam Gilyazov and Contributors.
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package chunk
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -445,7 +459,7 @@ func TestFile_offsetTimestamps(t *testing.T) {
 				rs:  tt.fields.rs,
 				idx: mkindex(tt.fields.rs),
 			}
-			got, err := p.offsetTimestamps(context.Background())
+			got, err := p.offsetTimestamps(t.Context())
 			if (err != nil) != tt.wantErr {
 				t.Errorf("File.offsetTimestamps() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -593,7 +607,7 @@ func TestFile_Sorted(t *testing.T) {
 				return nil
 			}
 
-			if err := p.Sorted(context.Background(), tt.args.channelID, false, recorder); (err != nil) != tt.wantErr {
+			if err := p.Sorted(t.Context(), tt.args.channelID, false, recorder); (err != nil) != tt.wantErr {
 				t.Errorf("File.Sorted() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			assert.Equal(t, tt.wantFnCalls.String(), rec.String())

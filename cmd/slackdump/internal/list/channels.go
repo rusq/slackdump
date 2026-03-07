@@ -1,3 +1,18 @@
+// Copyright (c) 2021-2026 Rustam Gilyazov and Contributors.
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package list
 
 import (
@@ -8,19 +23,20 @@ import (
 
 	"github.com/rusq/slack"
 
-	"github.com/rusq/slackdump/v3"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/bootstrap"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
-	"github.com/rusq/slackdump/v3/internal/cache"
-	"github.com/rusq/slackdump/v3/types"
+	"github.com/rusq/slackdump/v4"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/bootstrap"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/cfg"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/golang/base"
+	"github.com/rusq/slackdump/v4/internal/cache"
+	"github.com/rusq/slackdump/v4/internal/structures"
+	"github.com/rusq/slackdump/v4/types"
 )
 
 var CmdListChannels = &base.Command{
 	Run:        runListChannels,
 	UsageLine:  "slackdump list channels [flags] [filename]",
 	PrintFlags: true,
-	FlagMask:   flagMask,
+	FlagMask:   flagMask &^ cfg.OmitChannelTypesFlag &^ cfg.OmitMemberOnlyFlag,
 	Short:      "list workspace channels",
 	Long: fmt.Sprintf(`
 # List Channels Command
@@ -133,9 +149,25 @@ func (l *channels) Retrieve(ctx context.Context, sess *slackdump.Session, m *cac
 			return nil
 		}
 	}
-	cc, err := sess.GetChannels(ctx)
-	if err != nil {
-		return fmt.Errorf("error getting channels: %w", err)
+	p := slackdump.GetChannelsParameters{
+		ChannelTypes:   cfg.ChannelTypes,
+		OnlyMyChannels: cfg.MemberOnly,
+	}
+
+	var cc []slack.Channel
+	for chans, err := range sess.StreamChannelsEx(ctx, p) {
+		if err != nil {
+			return fmt.Errorf("error getting channels: %w", err)
+		}
+		if cfg.MemberOnly {
+			for _, ch := range chans {
+				if structures.IsMember(&ch) {
+					cc = append(cc, ch)
+				}
+			}
+		} else {
+			cc = append(cc, chans...)
+		}
 	}
 	l.channels = cc
 	l.users = <-usersc
@@ -143,4 +175,8 @@ func (l *channels) Retrieve(ctx context.Context, sess *slackdump.Session, m *cac
 		lg.WarnContext(ctx, "failed to cache channels (ignored)", "error", err)
 	}
 	return nil
+}
+
+func (l *channels) Len() int {
+	return len(l.channels)
 }

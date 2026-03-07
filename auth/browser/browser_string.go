@@ -17,8 +17,9 @@ const _Browser_name = "firefoxchromium"
 var _Browser_index = [...]uint8{0, 7, 15}
 
 func (i Browser) String() string {
-	if i < 0 || i >= Browser(len(_Browser_index)-1) {
+	idx := int(i) - 0
+	if i < 0 || idx >= len(_Browser_index)-1 {
 		return "Browser(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
-	return _Browser_name[_Browser_index[i]:_Browser_index[i+1]]
+	return _Browser_name[_Browser_index[idx]:_Browser_index[idx+1]]
 }

@@ -1,0 +1,1 @@
+cmd/slackdump/internal/man/assets/changelog.md

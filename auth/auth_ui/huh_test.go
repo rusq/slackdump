@@ -1,6 +1,23 @@
+// Copyright (c) 2021-2026 Rustam Gilyazov and Contributors.
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package auth_ui
 
-import "testing"
+import (
+	"testing"
+)
 
 func Test_valSixDigits(t *testing.T) {
 	type args struct {
@@ -41,6 +58,30 @@ func Test_valSixDigits(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if err := valSixDigits(tt.args.s); (err != nil) != tt.wantErr {
 				t.Errorf("valSixDigits() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func Test_qrCharLimit(t *testing.T) {
+	tests := []struct {
+		name    string
+		limQRsz int
+		want    int
+	}{
+		{"zero", 0, defQRCodeSz},
+		{"default", defQRCodeSz, defQRCodeSz},
+		{"between allowed values", (maxQRCodeSz - defQRCodeSz) / 2, (maxQRCodeSz - defQRCodeSz) / 2},
+		{"over maximum", maxQRCodeSz + 1, defQRCodeSz},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var old = limQRCodeSz
+			limQRCodeSz = tt.limQRsz
+			t.Cleanup(func() { limQRCodeSz = old })
+
+			if got := qrCharLimit(); got != tt.want {
+				t.Errorf("qrCharLimit() = %v, want %v", got, tt.want)
 			}
 		})
 	}

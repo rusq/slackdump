@@ -1,9 +1,25 @@
+// Copyright (c) 2021-2026 Rustam Gilyazov and Contributors.
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package structures
 
 import (
 	"strings"
 
 	"github.com/rusq/slack"
+	"github.com/rusq/slackdump/v4/internal/primitive"
 )
 
 // UserIndex is a mapping of user ID to the *slack.User.
@@ -118,12 +134,5 @@ func (idx UserIndex) ChannelName(ch slack.Channel) (who string) {
 	default:
 		who = "#" + NVL(ch.NameNormalized, ch.Name)
 	}
-	return who + iftrue(ch.IsArchived, " (archived)", "")
-}
-
-func iftrue[T any](b bool, t, f T) T {
-	if b {
-		return t
-	}
-	return f
+	return who + primitive.IfTrue(ch.IsArchived, " (archived)", "")
 }

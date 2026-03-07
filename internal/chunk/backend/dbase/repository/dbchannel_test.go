@@ -1,3 +1,18 @@
+// Copyright (c) 2021-2026 Rustam Gilyazov and Contributors.
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package repository
 
 import (
@@ -10,8 +25,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/rusq/slackdump/v3/internal/chunk"
-	"github.com/rusq/slackdump/v3/internal/testutil"
+	"github.com/rusq/slackdump/v4/internal/chunk"
+	"github.com/rusq/slackdump/v4/internal/testutil"
 )
 
 var (
@@ -38,7 +53,7 @@ var (
 )
 
 func prepChannels(t *testing.T, conn PrepareExtContext) {
-	ctx := context.Background()
+	ctx := t.Context()
 	prepChunk(chunk.CChannels, chunk.CChannelInfo, chunk.CChannelInfo, chunk.CChannelInfo, chunk.CChannelInfo)(t, conn)
 	cr := NewChannelRepository()
 	err := cr.Insert(ctx, conn, dbch100, dbch200, dbch300, dbch400)
@@ -112,7 +127,7 @@ func Test_channelRepository_AllOfType(t *testing.T) {
 				genericRepository: genericRepository[DBChannel]{t: DBChannel{}},
 			},
 			args: args{
-				ctx:    context.Background(),
+				ctx:    t.Context(),
 				conn:   testConn(t),
 				typeID: []chunk.ChunkType{chunk.CChannelInfo},
 			},
@@ -130,7 +145,7 @@ func Test_channelRepository_AllOfType(t *testing.T) {
 				genericRepository: genericRepository[DBChannel]{t: DBChannel{}},
 			},
 			args: args{
-				ctx:    context.Background(),
+				ctx:    t.Context(),
 				conn:   testConn(t),
 				typeID: []chunk.ChunkType{chunk.CChannels},
 			},
@@ -184,7 +199,7 @@ func Test_channelRepository_Get(t *testing.T) {
 				genericRepository: genericRepository[DBChannel]{t: DBChannel{}},
 			},
 			args: args{
-				ctx:  context.Background(),
+				ctx:  t.Context(),
 				conn: testConn(t),
 				id:   "C100",
 			},
@@ -232,7 +247,7 @@ func Test_channelRepository_Count(t *testing.T) {
 				genericRepository: genericRepository[DBChannel]{t: DBChannel{}},
 			},
 			args: args{
-				ctx:  context.Background(),
+				ctx:  t.Context(),
 				conn: testConn(t),
 			},
 			prepFn: prepChannels,

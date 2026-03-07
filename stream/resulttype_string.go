@@ -21,8 +21,9 @@ const _ResultType_name = "MainChannelThreadChannelInfoChannelUsersSearch"
 var _ResultType_index = [...]uint8{0, 4, 11, 17, 28, 40, 46}
 
 func (i ResultType) String() string {
-	if i < 0 || i >= ResultType(len(_ResultType_index)-1) {
+	idx := int(i) - 0
+	if i < 0 || idx >= len(_ResultType_index)-1 {
 		return "ResultType(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
-	return _ResultType_name[_ResultType_index[i]:_ResultType_index[i+1]]
+	return _ResultType_name[_ResultType_index[idx]:_ResultType_index[idx+1]]
 }

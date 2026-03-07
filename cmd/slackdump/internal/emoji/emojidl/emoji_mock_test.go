@@ -40,17 +40,17 @@ func (m *MockEmojiDumper) EXPECT() *MockEmojiDumperMockRecorder {
 	return m.recorder
 }
 
-// DumpEmojis mocks base method.
-func (m *MockEmojiDumper) DumpEmojis(ctx context.Context) (map[string]string, error) {
+// GetEmojiContext mocks base method.
+func (m *MockEmojiDumper) GetEmojiContext(ctx context.Context) (map[string]string, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DumpEmojis", ctx)
+	ret := m.ctrl.Call(m, "GetEmojiContext", ctx)
 	ret0, _ := ret[0].(map[string]string)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// DumpEmojis indicates an expected call of DumpEmojis.
-func (mr *MockEmojiDumperMockRecorder) DumpEmojis(ctx any) *gomock.Call {
+// GetEmojiContext indicates an expected call of GetEmojiContext.
+func (mr *MockEmojiDumperMockRecorder) GetEmojiContext(ctx any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DumpEmojis", reflect.TypeOf((*MockEmojiDumper)(nil).DumpEmojis), ctx)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEmojiContext", reflect.TypeOf((*MockEmojiDumper)(nil).GetEmojiContext), ctx)
 }

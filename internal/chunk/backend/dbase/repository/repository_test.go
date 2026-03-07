@@ -1,3 +1,18 @@
+// Copyright (c) 2021-2026 Rustam Gilyazov and Contributors.
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package repository
 
 import (
@@ -14,7 +29,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	_ "modernc.org/sqlite"
 
-	"github.com/rusq/slackdump/v3/internal/chunk"
+	"github.com/rusq/slackdump/v4/internal/chunk"
 )
 
 func init() {
@@ -50,7 +65,7 @@ func testConnDSN(t *testing.T, dsn string) *sqlx.DB {
 	if _, err := db.Exec("PRAGMA foreign_keys = ON"); err != nil {
 		t.Fatalf("PRAGMA foreign_keys = ON err = %v; want nil", err)
 	}
-	if err := Migrate(context.Background(), db.DB, true); err != nil {
+	if err := Migrate(t.Context(), db.DB, true); err != nil {
 		t.Fatalf("Migrate() err = %v; want nil", err)
 	}
 	return db
@@ -65,7 +80,7 @@ func checkCount(table string, want int) utilityFn {
 	return func(t *testing.T, conn PrepareExtContext) {
 		t.Helper()
 		var count int
-		if err := conn.QueryRowxContext(context.Background(), "SELECT COUNT(*) FROM "+table).Scan(&count); err != nil {
+		if err := conn.QueryRowxContext(t.Context(), "SELECT COUNT(*) FROM "+table).Scan(&count); err != nil {
 			t.Fatalf(" err = %v; want nil", err)
 		}
 		if count != want {
@@ -95,7 +110,7 @@ type testChunk struct {
 func prepChunkWithFinal(tc ...testChunk) utilityFn {
 	return func(t *testing.T, conn PrepareExtContext) {
 		t.Helper()
-		ctx := context.Background()
+		ctx := t.Context()
 		var (
 			sr = NewSessionRepository()
 			cr = NewChunkRepository()

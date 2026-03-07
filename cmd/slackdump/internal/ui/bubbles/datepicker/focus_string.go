@@ -19,8 +19,9 @@ const _Focus_name = "FocusNoneFocusHeaderMonthFocusHeaderYearFocusCalendar"
 var _Focus_index = [...]uint8{0, 9, 25, 40, 53}
 
 func (i Focus) String() string {
-	if i < 0 || i >= Focus(len(_Focus_index)-1) {
+	idx := int(i) - 0
+	if i < 0 || idx >= len(_Focus_index)-1 {
 		return "Focus(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
-	return _Focus_name[_Focus_index[i]:_Focus_index[i+1]]
+	return _Focus_name[_Focus_index[idx]:_Focus_index[idx+1]]
 }

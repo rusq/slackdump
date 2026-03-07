@@ -1,17 +1,36 @@
+// Copyright (c) 2021-2026 Rustam Gilyazov and Contributors.
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package dbase
 
 import (
 	"context"
+	"database/sql"
 	"reflect"
 	"testing"
 	"time"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/rusq/slack"
+	"go.uber.org/mock/gomock"
 
-	"github.com/rusq/slackdump/v3/internal/chunk"
-	"github.com/rusq/slackdump/v3/internal/chunk/backend/dbase/repository"
-	"github.com/rusq/slackdump/v3/internal/fixtures"
+	"github.com/rusq/slackdump/v4/internal/chunk"
+	"github.com/rusq/slackdump/v4/internal/chunk/backend/dbase/repository"
+	"github.com/rusq/slackdump/v4/internal/chunk/backend/dbase/repository/mock_repository"
+	"github.com/rusq/slackdump/v4/internal/fixtures"
+	"github.com/rusq/slackdump/v4/internal/testutil"
 )
 
 type utilityFunc func(t *testing.T, ec repository.PrepareExtContext)
@@ -28,7 +47,7 @@ var sampleChunk = &chunk.Chunk{
 func prepSession(t *testing.T, ec repository.PrepareExtContext) {
 	t.Helper()
 	sr := repository.NewSessionRepository()
-	if id, err := sr.Insert(context.Background(), ec, &repository.Session{
+	if id, err := sr.Insert(t.Context(), ec, &repository.Session{
 		ID: 1,
 	}); err != nil {
 		t.Fatal(err)
@@ -59,7 +78,7 @@ type testChunk struct {
 func prepChunkWithFinal(tc ...testChunk) utilityFunc {
 	return func(t *testing.T, conn repository.PrepareExtContext) {
 		t.Helper()
-		ctx := context.Background()
+		ctx := t.Context()
 		var (
 			sr = repository.NewSessionRepository()
 			cr = repository.NewChunkRepository()
@@ -112,7 +131,7 @@ func TestDBP_UnsafeInsertChunk(t *testing.T) {
 				sessionID: 1,
 			},
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 				txx: testDB(t),
 				ch:  sampleChunk,
 			},
@@ -127,7 +146,7 @@ func TestDBP_UnsafeInsertChunk(t *testing.T) {
 				sessionID: 1,
 			},
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 				txx: testDB(t),
 				ch:  sampleChunk,
 			},
@@ -185,7 +204,7 @@ func TestDBP_insertMessages(t *testing.T) {
 				mr:        repository.NewMessageRepository(),
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				tx:        testDB(t),
 				dbchunkID: 1,
 				channelID: "C123",
@@ -206,7 +225,7 @@ func TestDBP_insertMessages(t *testing.T) {
 				mr:        repository.NewMessageRepository(),
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				tx:        testDB(t),
 				dbchunkID: 1,
 				channelID: "C123",
@@ -224,7 +243,7 @@ func TestDBP_insertMessages(t *testing.T) {
 				mr:        repository.NewMessageRepository(),
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				tx:        testDB(t),
 				dbchunkID: 1,
 				channelID: "C123",
@@ -358,7 +377,7 @@ func TestDBP_insertPayload(t *testing.T) {
 				mr:        repository.NewMessageRepository(),
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				tx:        testDB(t),
 				dbchunkID: 1,
 				c: &chunk.Chunk{
@@ -381,7 +400,7 @@ func TestDBP_insertPayload(t *testing.T) {
 				mr:        repository.NewMessageRepository(),
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				tx:        testDB(t),
 				dbchunkID: 1,
 				c: &chunk.Chunk{
@@ -405,7 +424,7 @@ func TestDBP_insertPayload(t *testing.T) {
 				mr:        repository.NewMessageRepository(),
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				tx:        testDB(t),
 				dbchunkID: 1,
 				c: &chunk.Chunk{
@@ -429,7 +448,7 @@ func TestDBP_insertPayload(t *testing.T) {
 				mr:        repository.NewMessageRepository(),
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				tx:        testDB(t),
 				dbchunkID: 1,
 				c: &chunk.Chunk{
@@ -457,7 +476,7 @@ func TestDBP_insertPayload(t *testing.T) {
 				mr:        repository.NewMessageRepository(),
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				tx:        testDB(t),
 				dbchunkID: 1,
 				c: &chunk.Chunk{
@@ -478,7 +497,7 @@ func TestDBP_insertPayload(t *testing.T) {
 				mr:        repository.NewMessageRepository(),
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				tx:        testDB(t),
 				dbchunkID: 1,
 				c: &chunk.Chunk{
@@ -499,7 +518,7 @@ func TestDBP_insertPayload(t *testing.T) {
 				mr:        repository.NewMessageRepository(),
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				tx:        testDB(t),
 				dbchunkID: 1,
 				c: &chunk.Chunk{
@@ -519,7 +538,7 @@ func TestDBP_insertPayload(t *testing.T) {
 				mr:        repository.NewMessageRepository(),
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				tx:        testDB(t),
 				dbchunkID: 1,
 				c: &chunk.Chunk{
@@ -539,7 +558,7 @@ func TestDBP_insertPayload(t *testing.T) {
 				mr:        repository.NewMessageRepository(),
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				tx:        testDB(t),
 				dbchunkID: 1,
 				c: &chunk.Chunk{
@@ -561,7 +580,7 @@ func TestDBP_insertPayload(t *testing.T) {
 				mr:        repository.NewMessageRepository(),
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				tx:        testDB(t),
 				dbchunkID: 1,
 				c: &chunk.Chunk{
@@ -585,7 +604,7 @@ func TestDBP_insertPayload(t *testing.T) {
 				mr:        repository.NewMessageRepository(),
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				tx:        testDB(t),
 				dbchunkID: 1,
 				c: &chunk.Chunk{
@@ -650,7 +669,7 @@ func TestDBP_insertFiles(t *testing.T) {
 				sessionID: 1,
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				tx:        testDB(t),
 				dbchunkID: 1,
 				channelID: "C123",
@@ -672,7 +691,7 @@ func TestDBP_insertFiles(t *testing.T) {
 				sessionID: 1,
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				tx:        testDB(t),
 				dbchunkID: 1,
 				channelID: "C123",
@@ -734,7 +753,7 @@ func TestDBP_insertWorkspaceInfo(t *testing.T) {
 				sessionID: 1,
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				tx:        testDB(t),
 				dbchunkID: 1,
 				info: &slack.AuthTestResponse{
@@ -753,7 +772,7 @@ func TestDBP_insertWorkspaceInfo(t *testing.T) {
 				sessionID: 1,
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				tx:        testDB(t),
 				dbchunkID: 1,
 				info:      nil,
@@ -812,7 +831,7 @@ func TestDBP_insertUsers(t *testing.T) {
 				sessionID: 1,
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				tx:        testDB(t),
 				dbchunkID: 1,
 				users:     fixtures.Load[[]slack.User](string(fixtures.TestExpUsersJSON)),
@@ -828,7 +847,7 @@ func TestDBP_insertUsers(t *testing.T) {
 				sessionID: 1,
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				tx:        testDB(t),
 				dbchunkID: 1,
 				users:     []slack.User{},
@@ -887,7 +906,7 @@ func TestDBP_insertChannels(t *testing.T) {
 				sessionID: 1,
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				tx:        testDB(t),
 				dbchunkID: 1,
 				channels:  fixtures.Load[[]slack.Channel](string(fixtures.TestExpChannelsJSON)),
@@ -903,7 +922,7 @@ func TestDBP_insertChannels(t *testing.T) {
 				sessionID: 1,
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				tx:        testDB(t),
 				dbchunkID: 1,
 				channels:  []slack.Channel{},
@@ -963,7 +982,7 @@ func TestDBP_insertChannelUsers(t *testing.T) {
 				sessionID: 1,
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				tx:        testDB(t),
 				dbchunkID: 1,
 				channelID: "C123",
@@ -980,7 +999,7 @@ func TestDBP_insertChannelUsers(t *testing.T) {
 				sessionID: 1,
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				tx:        testDB(t),
 				dbchunkID: 1,
 				channelID: "C123",
@@ -997,7 +1016,7 @@ func TestDBP_insertChannelUsers(t *testing.T) {
 				sessionID: 1,
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				tx:        testDB(t),
 				dbchunkID: 1,
 				channelID: "",
@@ -1058,7 +1077,7 @@ func TestDBP_insertSearchMessages(t *testing.T) {
 				sessionID: 1,
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				tx:        testDB(t),
 				dbchunkID: 1,
 				mm: []slack.SearchMessage{
@@ -1077,7 +1096,7 @@ func TestDBP_insertSearchMessages(t *testing.T) {
 				sessionID: 1,
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				tx:        testDB(t),
 				dbchunkID: 1,
 				mm:        []slack.SearchMessage{},
@@ -1137,7 +1156,7 @@ func TestDBP_insertSearchFiles(t *testing.T) {
 				sessionID: 1,
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				tx:        testDB(t),
 				dbchunkID: 1,
 				ff: []slack.File{
@@ -1156,7 +1175,7 @@ func TestDBP_insertSearchFiles(t *testing.T) {
 				sessionID: 1,
 			},
 			args: args{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				tx:        testDB(t),
 				dbchunkID: 1,
 				ff:        []slack.File{},
@@ -1184,6 +1203,139 @@ func TestDBP_insertSearchFiles(t *testing.T) {
 			if got != tt.want {
 				t.Errorf("DBP.insertSearchFiles() = %v, want %v", got, tt.want)
 			}
+		})
+	}
+}
+
+func Test_newUserIter(t *testing.T) {
+	// fixtures
+	var (
+		userNotInDB            = slack.User{ID: "User Not In DB"}
+		userAlreadyInDB        = slack.User{ID: "User Already In DB", Name: "original"}
+		userAlreadyInDBUpdated = slack.User{ID: "User Already In DB", Name: "updated"}
+	)
+	// harness
+	var mustUser = func(idx int, u *slack.User) repository.DBUser {
+		du, err := repository.NewDBUser(1, idx, u)
+		if err != nil {
+			panic(err)
+		}
+		return *du
+	}
+	type args struct {
+		// ur        repository.UserRepository
+		tx        repository.PrepareExtContext
+		dbchunkID int64
+		users     []slack.User
+	}
+	tests := []struct {
+		name   string
+		args   args
+		expect func(mur *mock_repository.MockUserRepository)
+		want   []testutil.TestResult[*repository.DBUser]
+	}{
+		{
+			name: "returns all users, no users in the repository",
+			args: args{
+				tx:        testDB(t),
+				dbchunkID: 1,
+				users:     fixtures.TestUsers,
+			},
+			expect: func(mur *mock_repository.MockUserRepository) {
+				for _, u := range fixtures.TestUsers {
+					mur.EXPECT().Get(gomock.Any(), gomock.Any(), u.ID).Return(repository.DBUser{}, sql.ErrNoRows)
+				}
+			},
+			want: func() []testutil.TestResult[*repository.DBUser] {
+				var ret []testutil.TestResult[*repository.DBUser]
+				for i, u := range fixtures.TestUsers {
+					ret = append(ret, testutil.TestResult[*repository.DBUser]{
+						V:   testutil.Ptr(mustUser(i, &u)),
+						Err: nil,
+					})
+				}
+				return ret
+			}(),
+		},
+		{
+			name: "one user in the repository (no changes), one new",
+			args: args{
+				tx:        testDB(t),
+				dbchunkID: 1,
+				users: []slack.User{
+					userAlreadyInDB,
+					userNotInDB,
+				},
+			},
+			expect: func(mur *mock_repository.MockUserRepository) {
+				mur.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, _ repository.PrepareExtContext, id string) (repository.DBUser, error) {
+					switch id {
+					case userNotInDB.ID:
+						return repository.DBUser{}, sql.ErrNoRows
+					case userAlreadyInDB.ID:
+						return mustUser(1, &userAlreadyInDB), nil
+					}
+					panic("should never get here")
+				}).Times(2)
+			},
+			want: []testutil.TestResult[*repository.DBUser]{
+				{V: testutil.Ptr(mustUser(1, &userNotInDB))},
+			},
+		},
+		{
+			name: "one user in the repository (changed), one new",
+			args: args{
+				tx:        testDB(t),
+				dbchunkID: 1,
+				users: []slack.User{
+					userAlreadyInDBUpdated,
+					userNotInDB,
+				},
+			},
+			expect: func(mur *mock_repository.MockUserRepository) {
+				mur.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, _ repository.PrepareExtContext, id string) (repository.DBUser, error) {
+					switch id {
+					case userNotInDB.ID:
+						return repository.DBUser{}, sql.ErrNoRows
+					case userAlreadyInDB.ID:
+						return mustUser(1, &userAlreadyInDB), nil
+					}
+					panic("should never get here")
+				}).Times(2)
+			},
+			want: []testutil.TestResult[*repository.DBUser]{
+				{V: testutil.Ptr(mustUser(0, &userAlreadyInDBUpdated))},
+				{V: testutil.Ptr(mustUser(1, &userNotInDB))},
+			},
+		},
+		{
+			name: "one user and already in DB",
+			args: args{
+				tx:        testDB(t),
+				dbchunkID: 1,
+				users: []slack.User{
+					userAlreadyInDB,
+				},
+			},
+			expect: func(mur *mock_repository.MockUserRepository) {
+				mur.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, _ repository.PrepareExtContext, id string) (repository.DBUser, error) {
+					switch id {
+					case userAlreadyInDB.ID:
+						return mustUser(1, &userAlreadyInDB), nil
+					}
+					panic("should never get here")
+				}).Times(1)
+			},
+			want: []testutil.TestResult[*repository.DBUser]{},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			mur := mock_repository.NewMockUserRepository(ctrl)
+			tt.expect(mur)
+			uit := newUserIter(t.Context(), mur, tt.args.tx, tt.args.dbchunkID, tt.args.users)
+			testutil.AssertIterResult(t, tt.want, uit)
 		})
 	}
 }

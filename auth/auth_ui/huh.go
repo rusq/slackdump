@@ -1,3 +1,18 @@
+// Copyright (c) 2021-2026 Rustam Gilyazov and Contributors.
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package auth_ui
 
 import (
@@ -7,13 +22,24 @@ import (
 	"io"
 	"regexp"
 	"strconv"
+	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/huh"
+	"github.com/rusq/osenv/v2"
 	"github.com/rusq/slackauth"
 
-	"github.com/rusq/slackdump/v3/internal/structures"
+	"github.com/rusq/slackdump/v4/internal/structures"
 )
+
+const (
+	defQRCodeSz = 9000      // default limit for encoded image size, seen values 6174, 8462
+	maxQRCodeSz = 1<<16 - 1 // maximum allowed QR code image size.
+	imgPrefix   = "data:image/png;base64,"
+)
+
+// limQRCodeSz is the size of the input field for QR Code image.
+var limQRCodeSz = osenv.Value("QR_CODE_SIZE", defQRCodeSz)
 
 // Huh is the Auth UI that uses the huh library to provide a terminal UI.
 type Huh struct{}
@@ -65,7 +91,7 @@ func (m methodMenuItem) String() string {
 	return fmt.Sprintf("%-20s - %s", m.MenuItem, m.ShortDesc)
 }
 
-var methods = []methodMenuItem{
+var gMethods = []methodMenuItem{
 	{
 		"Interactive",
 		"Works with most authentication schemes, except Google.",
@@ -73,13 +99,18 @@ var methods = []methodMenuItem{
 	},
 	{
 		"Automatic",
-		"Only suitable for email/password auth",
+		"Only suitable for email/password auth.",
 		LHeadless,
 	},
 	{
 		"User Browser",
-		"Loads your user profile, works with Google Auth",
+		"Loads your user profile, works with Google Auth.",
 		LUserBrowser,
+	},
+	{
+		"QR Code",
+		"Login using Sign in on Mobile QR code, works with Google Auth.",
+		LMobileSignin,
 	},
 }
 
@@ -95,15 +126,15 @@ func init() {
 	keymap.Quit = key.NewBinding(key.WithKeys("esc", "ctrl+c"), key.WithHelp("esc", "Quit"))
 }
 
-func (*Huh) RequestLoginType(ctx context.Context, w io.Writer, workspace string) (LoginOpts, error) {
+func (*Huh) RequestLoginType(ctx context.Context, _ io.Writer, workspace string) (LoginOpts, error) {
 	ret := LoginOpts{
 		Workspace:   workspace,
 		Type:        LInteractive,
 		BrowserPath: "",
 	}
 
-	opts := make([]huh.Option[LoginType], 0, len(methods))
-	for _, m := range methods {
+	opts := make([]huh.Option[LoginType], 0, len(gMethods))
+	for _, m := range gMethods {
 		opts = append(opts, huh.NewOption(m.String(), m.Type))
 	}
 	opts = append(opts,
@@ -139,6 +170,8 @@ func (*Huh) RequestLoginType(ctx context.Context, w io.Writer, workspace string)
 				return "You will be prompted to enter your email and password, login is automated."
 			case LUserBrowser:
 				return "System browser will open on a Slack Login page."
+			case LMobileSignin:
+				return "Sign in using 'Sign in on Mobile' QR code."
 			case LCancel:
 				return "Cancel the login process."
 			default:
@@ -225,4 +258,41 @@ func valSixDigits(s string) error {
 		return errors.New("confirmation code must be a sequence of six digits")
 	}
 	return nil
+}
+
+func (*Huh) RequestQR(ctx context.Context, _ io.Writer) (string, error) {
+	const description = `In logged in Slack Client or Web:
+  1. click the username in the upper left corner;
+  2. choose 'Sign in on mobile';
+  3. right-click the QR code image;
+  4. choose Copy Image.`
+
+	var imageData string
+	q := huh.NewForm(huh.NewGroup(
+		huh.NewText().
+			CharLimit(qrCharLimit()).
+			Value(&imageData).
+			Validate(func(s string) error {
+				if !strings.HasPrefix(s, imgPrefix) {
+					return errors.New("image data must start with " + imgPrefix)
+				}
+				return nil
+			}).
+			Placeholder(imgPrefix + "...").
+			Title("Paste QR code image data into this field").
+			Description(description),
+	))
+	if err := q.Run(); err != nil {
+		return "", err
+	}
+	return imageData, nil
+}
+
+// qrCharLimit returns the effective character limit for the QR code input
+// field.
+func qrCharLimit() int {
+	if defQRCodeSz <= limQRCodeSz && limQRCodeSz <= maxQRCodeSz {
+		return limQRCodeSz
+	}
+	return defQRCodeSz
 }

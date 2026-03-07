@@ -1,3 +1,18 @@
+// Copyright (c) 2021-2026 Rustam Gilyazov and Contributors.
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package resume
 
 import (
@@ -10,27 +25,30 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"github.com/rusq/slackdump/v3"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/archive"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/bootstrap"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
-	"github.com/rusq/slackdump/v3/internal/chunk/control"
-	"github.com/rusq/slackdump/v3/internal/source"
-	"github.com/rusq/slackdump/v3/internal/structures"
-	"github.com/rusq/slackdump/v3/stream"
+	"github.com/sosodev/duration"
+
+	"github.com/rusq/slackdump/v4"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/archive"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/bootstrap"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/cfg"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/golang/base"
+	"github.com/rusq/slackdump/v4/internal/chunk/backend/dbase"
+	"github.com/rusq/slackdump/v4/internal/chunk/control"
+	"github.com/rusq/slackdump/v4/internal/structures"
+	"github.com/rusq/slackdump/v4/source"
+	"github.com/rusq/slackdump/v4/stream"
 )
 
 //go:embed assets/resume.md
 var mdResume string
 
 var CmdResume = &base.Command{
-	UsageLine:   "slackdump resume [flags] <archive or directory>",
+	UsageLine:   "slackdump resume [flags] <archive or directory> [link1 [link2 ...]]",
 	Short:       "resumes archive process from the last checkpoint",
 	Long:        mdResume,
 	PrintFlags:  true,
 	RequireAuth: true,
-	FlagMask:    cfg.OmitOutputFlag | cfg.OmitUserCacheFlag | cfg.OmitChunkFileMode | cfg.OmitRecordFilesFlag | cfg.OmitChunkCacheFlag,
+	FlagMask:    cfg.OmitOutputFlag | cfg.OmitUserCacheFlag | cfg.OmitChunkFileMode | cfg.OmitRecordFilesFlag | cfg.OmitChunkCacheFlag | cfg.OmitYesManFlag,
 	Wizard:      archiveWizard,
 }
 
@@ -42,22 +60,42 @@ type ResumeParams struct {
 	// IncludeThreads includes scanning of the threads in the archive
 	// and checking if there are any new messages in them.
 	IncludeThreads bool
+	// RecordOnlyNewUsers if set to false (default), records only updated or
+	// new users. If set to true, records all users from the workspace again,
+	// not just changed.
+	RecordOnlyNewUsers bool
+	// Lookback specifies the lookback parameter. The "oldest" timestamp for
+	// API requests will be set to Now()-Lookback.  This is required to capture
+	// new threads on historical messages, otherwise, new threads on old messages
+	// will not be fetched.
+	Lookback *extDuration
 }
 
-var resumeFlags ResumeParams
+var resumeFlags = ResumeParams{
+	Lookback: (*extDuration)(duration.FromTimeDuration(7 * 24 * time.Hour)),
+}
 
 func init() {
 	CmdResume.Run = runResume
 	CmdResume.Flag.BoolVar(&resumeFlags.Refresh, "refresh", false, "refresh the list of channels")
 	CmdResume.Flag.BoolVar(&resumeFlags.IncludeThreads, "threads", false, "include threads (slow, and flaky business)")
+	CmdResume.Flag.BoolVar(&resumeFlags.RecordOnlyNewUsers, "only-new-users", true, "record only new or updated users")
+	CmdResume.Flag.Var(resumeFlags.Lookback, "lookback", "lookback window `duration`")
 }
 
 func runResume(ctx context.Context, cmd *base.Command, args []string) error {
-	if len(args) != 1 {
+	if len(args) < 1 {
 		base.SetExitStatus(base.SInvalidParameters)
-		return errors.New("expected exactly one argument")
+		return errors.New("expected at least one argument")
 	}
 	dir := args[0]
+
+	// parse the entity list, if it's present.
+	list, err := structures.NewEntityList(args[1:])
+	if err != nil {
+		base.SetExitStatus(base.SUserError)
+		return err
+	}
 
 	src, err := source.Load(ctx, dir)
 	if err != nil {
@@ -68,23 +106,28 @@ func runResume(ctx context.Context, cmd *base.Command, args []string) error {
 
 	if !src.Type().Has(source.FDatabase) {
 		base.SetExitStatus(base.SInvalidParameters)
-		return fmt.Errorf("source type %q does not support resume, use slackdump convert to database format", src.Type())
+		return fmt.Errorf("source type %q does not support resume, use 'slackdump convert -f database' to convert it", src.Type())
 	}
 
-	latest, err := latest(ctx, src, resumeFlags.IncludeThreads)
+	latest, err := latest(ctx, src, resumeFlags.IncludeThreads, time.Duration((*duration.Duration)(resumeFlags.Lookback).ToTimeDuration()), list)
 	if err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return fmt.Errorf("error loading latest timestamps: %w", err)
 	}
 
-	sess, err := bootstrap.SlackdumpSession(ctx)
+	client, err := bootstrap.Slack(ctx)
 	if err != nil {
 		base.SetExitStatus(base.SInitializationError)
 		return fmt.Errorf("error creating slackdump session: %w", err)
 	}
+	info, err := client.AuthTestContext(ctx)
+	if err != nil {
+		base.SetExitStatus(base.SInitializationError)
+		return fmt.Errorf("error getting workspace info: %w", err)
+	}
 
 	// ensure the repository is for the same workspace.
-	if err := ensureSameWorkspace(ctx, src, sess.Info()); err != nil {
+	if err := ensureSameWorkspace(ctx, src, info); err != nil {
 		base.SetExitStatus(base.SInitializationError)
 		return fmt.Errorf("error ensuring the same workspace: %w", err)
 	}
@@ -104,12 +147,15 @@ func runResume(ctx context.Context, cmd *base.Command, args []string) error {
 	defer wconn.Close()
 
 	cf := control.Flags{
-		Refresh:      resumeFlags.Refresh,
-		ChannelUsers: cfg.OnlyChannelUsers,
+		Refresh:       resumeFlags.Refresh,
+		ChannelUsers:  cfg.OnlyChannelUsers,
+		ChannelTypes:  cfg.ChannelTypes,
+		IncludeLabels: cfg.IncludeCustomLabels,
+		MemberOnly:    cfg.MemberOnly,
 	}
 	// inclusive is false, because we don't want to include the latest message
 	// which is already in the database.
-	ctrl, err := archive.DBController(ctx, cmd, wconn, sess, dir, cf, stream.OptInclusive(false))
+	ctrl, err := archive.DBController(ctx, cmd.Name(), wconn, client, dir, cf, []stream.Option{stream.OptInclusive(false)}, dbase.WithOnlyNewOrChangedUsers(resumeFlags.RecordOnlyNewUsers))
 	if err != nil {
 		base.SetExitStatus(base.SInitializationError)
 		return fmt.Errorf("error creating archive controller: %w", err)
@@ -124,12 +170,15 @@ func runResume(ctx context.Context, cmd *base.Command, args []string) error {
 	return nil
 }
 
-func latest(ctx context.Context, src source.Resumer, includeThreads bool) (*structures.EntityList, error) {
+func latest(ctx context.Context, src source.Resumer, includeThreads bool, lookBack time.Duration, other *structures.EntityList) (*structures.EntityList, error) {
+	if lookBack > 0 {
+		lookBack = -lookBack
+	}
 	latest, err := src.Latest(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("error loading latest timestamps: %w", err)
 	}
-	if len(latest) == 0 {
+	if len(latest) == 0 && (other == nil || other.IsEmpty()) {
 		return &structures.EntityList{}, nil
 	}
 
@@ -144,7 +193,7 @@ func latest(ctx context.Context, src source.Resumer, includeThreads bool) (*stru
 		}
 		item := structures.EntityItem{
 			Id:      sl.String(),
-			Oldest:  ts,
+			Oldest:  ts.Add(lookBack),
 			Latest:  time.Time(cfg.Latest),
 			Include: true,
 		}
@@ -152,6 +201,7 @@ func latest(ctx context.Context, src source.Resumer, includeThreads bool) (*stru
 		debugprint(fmt.Sprintf("%s: %d->%d", item.Id, ts.UTC().UnixMicro(), item.Oldest.UnixMicro()))
 	}
 	el := structures.NewEntityListFromItems(ei...)
+	el.Overlay(other)
 
 	return el, nil
 }
@@ -266,4 +316,28 @@ func channelsTeam(ctx context.Context, src source.Sourcer) (string, error) {
 		}
 	}
 	return "", source.ErrNotFound
+}
+
+type extDuration duration.Duration
+
+func (d *extDuration) Set(s string) error {
+	// match ISO 8601 duration format
+	s = strings.ToUpper(s)
+	if !strings.HasPrefix(s, "P") {
+		s = "P" + s
+	}
+	dur, err := duration.Parse(s)
+	if err != nil {
+		return err
+	}
+	*d = extDuration(*dur)
+	return nil
+}
+
+func (d *extDuration) String() string {
+	return strings.ToLower((*duration.Duration)(d).String())
+}
+
+func (d *extDuration) IsBoolFlag() bool {
+	return false
 }

@@ -1,3 +1,18 @@
+// Copyright (c) 2021-2026 Rustam Gilyazov and Contributors.
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package repository
 
 import (
@@ -10,9 +25,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/rusq/slackdump/v3/internal/chunk"
-	"github.com/rusq/slackdump/v3/internal/fixtures"
-	"github.com/rusq/slackdump/v3/internal/testutil"
+	"github.com/rusq/slackdump/v4/internal/chunk"
+	"github.com/rusq/slackdump/v4/internal/fixtures"
+	"github.com/rusq/slackdump/v4/internal/testutil"
 )
 
 func must[T any](t T, err error) T {
@@ -46,14 +61,14 @@ func Test_genericRepository_allOfTypeWhere(t *testing.T) {
 			name: "returns most recent versions",
 			r:    genericRepository[DBChannel]{t: DBChannel{}},
 			args: args{
-				ctx:    context.Background(),
+				ctx:    t.Context(),
 				conn:   testConn(t),
 				typeID: []chunk.ChunkType{chunk.CChannelInfo},
 			},
 			prepFn: func(t *testing.T, conn PrepareExtContext) {
 				prepChunk(chunk.CChannelInfo, chunk.CChannelInfo)(t, conn)
 				cir := NewChannelRepository()
-				_, err := cir.InsertAll(context.Background(), conn, testutil.ToIter([]testutil.TestResult[*DBChannel]{
+				_, err := cir.InsertAll(t.Context(), conn, testutil.ToIter([]testutil.TestResult[*DBChannel]{
 					{V: &DBChannel{ID: "ABC", ChunkID: 1, Name: ptr("old name"), Data: data1}, Err: nil},
 					{V: &DBChannel{ID: "BCD", ChunkID: 1, Name: ptr("other name"), Data: data2}, Err: nil},
 					{V: &DBChannel{ID: "ABC", ChunkID: 2, Name: ptr("new name"), Data: data1}, Err: nil},
@@ -70,14 +85,14 @@ func Test_genericRepository_allOfTypeWhere(t *testing.T) {
 			name: "different chunk types are isolated",
 			r:    genericRepository[DBChannel]{t: DBChannel{}},
 			args: args{
-				ctx:    context.Background(),
+				ctx:    t.Context(),
 				conn:   testConn(t),
 				typeID: []chunk.ChunkType{chunk.CChannelInfo},
 			},
 			prepFn: func(t *testing.T, conn PrepareExtContext) {
 				prepChunk(chunk.CChannelInfo, chunk.CChannels)(t, conn)
 				cir := NewChannelRepository()
-				_, err := cir.InsertAll(context.Background(), conn, testutil.ToIter([]testutil.TestResult[*DBChannel]{
+				_, err := cir.InsertAll(t.Context(), conn, testutil.ToIter([]testutil.TestResult[*DBChannel]{
 					{V: &DBChannel{ID: "ABC", ChunkID: 1, Name: ptr("old name"), Data: data1}, Err: nil},
 					{V: &DBChannel{ID: "BCD", ChunkID: 1, Name: ptr("other name"), Data: data2}, Err: nil},
 					{V: &DBChannel{ID: "ABC", ChunkID: 2, Name: ptr("new name"), Data: data1}, Err: nil}, // second chunk has a different type.
@@ -94,7 +109,7 @@ func Test_genericRepository_allOfTypeWhere(t *testing.T) {
 			name: "Additional conditions in the query parameters",
 			r:    genericRepository[DBChannel]{DBChannel{}},
 			args: args{
-				ctx:  context.Background(),
+				ctx:  t.Context(),
 				conn: testConn(t),
 				qp: queryParams{
 					Where:   "T.ID IN (?, ?)",
@@ -106,7 +121,7 @@ func Test_genericRepository_allOfTypeWhere(t *testing.T) {
 			prepFn: func(t *testing.T, conn PrepareExtContext) {
 				prepChunk(chunk.CChannelInfo, chunk.CChannelInfo, chunk.CChannelInfo)(t, conn)
 				cir := NewChannelRepository()
-				_, err := cir.InsertAll(context.Background(), conn, testutil.ToIter([]testutil.TestResult[*DBChannel]{
+				_, err := cir.InsertAll(t.Context(), conn, testutil.ToIter([]testutil.TestResult[*DBChannel]{
 					{V: &DBChannel{ID: "BCD", ChunkID: 1, Name: ptr("other name"), Data: data2}, Err: nil},
 					{V: &DBChannel{ID: "ABC", ChunkID: 1, Name: ptr("old name"), Data: data1}, Err: nil},
 					{V: &DBChannel{ID: "ABC", ChunkID: 2, Name: ptr("new name"), Data: data1}, Err: nil},
@@ -124,7 +139,7 @@ func Test_genericRepository_allOfTypeWhere(t *testing.T) {
 			name: "Same, but user key ordering (ID)",
 			r:    genericRepository[DBChannel]{DBChannel{}},
 			args: args{
-				ctx:  context.Background(),
+				ctx:  t.Context(),
 				conn: testConn(t),
 				qp: queryParams{
 					Where:        "T.ID IN (?, ?)",
@@ -136,7 +151,7 @@ func Test_genericRepository_allOfTypeWhere(t *testing.T) {
 			prepFn: func(t *testing.T, conn PrepareExtContext) {
 				prepChunk(chunk.CChannelInfo, chunk.CChannelInfo, chunk.CChannelInfo)(t, conn)
 				cir := NewChannelRepository()
-				_, err := cir.InsertAll(context.Background(), conn, testutil.ToIter([]testutil.TestResult[*DBChannel]{
+				_, err := cir.InsertAll(t.Context(), conn, testutil.ToIter([]testutil.TestResult[*DBChannel]{
 					{V: &DBChannel{ID: "BCD", ChunkID: 1, Name: ptr("other name"), Data: data2}, Err: nil},
 					{V: &DBChannel{ID: "ABC", ChunkID: 1, Name: ptr("old name"), Data: data1}, Err: nil},
 					{V: &DBChannel{ID: "ABC", ChunkID: 2, Name: ptr("new name"), Data: data1}, Err: nil},

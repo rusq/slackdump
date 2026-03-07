@@ -1,3 +1,18 @@
+// Copyright (c) 2021-2026 Rustam Gilyazov and Contributors.
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package repository
 
 import (
@@ -10,9 +25,9 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/rusq/slack"
 
-	"github.com/rusq/slackdump/v3/internal/chunk"
-	"github.com/rusq/slackdump/v3/internal/fasttime"
-	"github.com/rusq/slackdump/v3/internal/structures"
+	"github.com/rusq/slackdump/v4/internal/chunk"
+	"github.com/rusq/slackdump/v4/internal/fasttime"
+	"github.com/rusq/slackdump/v4/internal/structures"
 )
 
 type DBMessage struct {
@@ -127,11 +142,15 @@ type MessageRepository interface {
 	CountThread(ctx context.Context, conn sqlx.QueryerContext, channelID, threadID string) (int64, error)
 	// AllForThread returns all messages in a thread, including parent message.
 	AllForThread(ctx context.Context, conn sqlx.QueryerContext, channelID, threadID string) (iter.Seq2[DBMessage, error], error)
-	// All returns all thread and channel messages in ascending or descending
+	// Sorted returns all thread and channel messages in ascending or descending
 	// time order.
 	Sorted(ctx context.Context, conn sqlx.QueryerContext, channelID string, order Order) (iter.Seq2[DBMessage, error], error)
 	// CountUnfinished returns the number of unfinished threads in a channel.
 	CountUnfinished(ctx context.Context, conn sqlx.QueryerContext, sessionID int64, channelID string) (int64, error)
+	// CountThreadOnlyParts should return the number of parts in a complete
+	// thread-only thread. If an unfinished or non-existent thread is
+	// requested, it should return the sql.ErrNoRows error.
+	CountThreadOnlyParts(ctx context.Context, conn sqlx.QueryerContext, sessionID int64, channelID, threadID string) (int64, error)
 	// LatestMessages returns the latest message in each channel.
 	LatestMessages(ctx context.Context, conn sqlx.QueryerContext) (iter.Seq2[LatestMessage, error], error)
 	// LatestThreads returns the latest thread message in each channel.
@@ -148,12 +167,30 @@ func NewMessageRepository() MessageRepository {
 	return messageRepository{newGenericRepository(DBMessage{})}
 }
 
+const threadOnlyCondition = " AND ((CH.TYPE_ID=0 AND (CH.THREAD_ONLY=FALSE OR CH.THREAD_ONLY IS NULL)) OR (CH.TYPE_ID=1 AND CH.THREAD_ONLY=TRUE AND T.IS_PARENT=TRUE))"
+
 func (r messageRepository) Count(ctx context.Context, conn sqlx.QueryerContext, channelID string) (int64, error) {
-	return r.countTypeWhere(ctx, conn, queryParams{Where: "T.CHANNEL_ID = ?", Binds: []any{channelID}}, chunk.CMessages)
+	return r.countTypeWhere(
+		ctx,
+		conn,
+		queryParams{
+			Where: "T.CHANNEL_ID = ?" + threadOnlyCondition,
+			Binds: []any{channelID}},
+		chunk.CMessages, chunk.CThreadMessages,
+	)
 }
 
 func (r messageRepository) AllForID(ctx context.Context, conn sqlx.QueryerContext, channelID string) (iter.Seq2[DBMessage, error], error) {
-	return r.allOfTypeWhere(ctx, conn, queryParams{Where: "T.CHANNEL_ID = ?", Binds: []any{channelID}, UserKeyOrder: true}, chunk.CMessages)
+	return r.allOfTypeWhere(
+		ctx,
+		conn,
+		queryParams{
+			Where:        "T.CHANNEL_ID = ?" + threadOnlyCondition,
+			Binds:        []any{channelID},
+			UserKeyOrder: true,
+		},
+		chunk.CMessages, chunk.CThreadMessages,
+	)
 }
 
 // threadCond returns a condition for selecting messages that are part of a
@@ -190,10 +227,21 @@ func (r messageRepository) Sorted(ctx context.Context, conn sqlx.QueryerContext,
 func (r messageRepository) CountUnfinished(ctx context.Context, conn sqlx.QueryerContext, sessionID int64, channelID string) (int64, error) {
 	ctx, task := trace.NewTask(ctx, "CountUnfinished")
 	defer task.End()
-	const stmt = "SELECT REF_COUNT FROM V_UNFINISHED_THREADS WHERE SESSION_ID = ? AND CHANNEL_ID = ?"
+	const stmt = "SELECT REF_COUNT FROM V_UNFINISHED_CHANNELS WHERE SESSION_ID = ? AND CHANNEL_ID = ?"
 	var count int64
 	if err := conn.QueryRowxContext(ctx, rebind(conn, stmt), sessionID, channelID).Scan(&count); err != nil {
 		return 0, fmt.Errorf("countUnfinished query: %w", err)
+	}
+	return count, nil
+}
+
+func (r messageRepository) CountThreadOnlyParts(ctx context.Context, conn sqlx.QueryerContext, sessionID int64, channelID, threadID string) (int64, error) {
+	ctx, task := trace.NewTask(ctx, "CountUnfinishedThreads")
+	defer task.End()
+	const stmt = "SELECT PARTS FROM V_THREAD_ONLY_THREADS WHERE SESSION_ID = ? AND CHANNEL_ID = ? AND THREAD_TS = ?"
+	var count int64
+	if err := conn.QueryRowxContext(ctx, rebind(conn, stmt), sessionID, channelID, threadID).Scan(&count); err != nil {
+		return 0, fmt.Errorf("CountThreadOnlyParts query: %w", err)
 	}
 	return count, nil
 }

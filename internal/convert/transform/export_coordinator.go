@@ -1,3 +1,18 @@
+// Copyright (c) 2021-2026 Rustam Gilyazov and Contributors.
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package transform
 
 import (
@@ -8,8 +23,6 @@ import (
 	"sync/atomic"
 
 	"github.com/rusq/slack"
-
-	"github.com/rusq/slackdump/v3/internal/chunk"
 )
 
 type UserConverter interface {
@@ -44,9 +57,9 @@ type ExportCoordinator struct {
 	lg     *slog.Logger
 	closed atomic.Bool
 
-	start chan struct{}
-	err   chan error        // error channel used to propagate errors to the main thread.
-	ids   chan chunk.FileID // channel used to pass channel IDs to the worker.
+	start    chan struct{}
+	err      chan error   // error channel used to propagate errors to the main thread.
+	requestC chan request // channel used to pass channel IDs to the worker.
 }
 
 // bufferSz is the default size of the channel IDs buffer.  This is the number
@@ -65,7 +78,7 @@ func WithBufferSize(n int) ExpOption {
 		if n < 1 {
 			n = bufferSz
 		}
-		t.ids = make(chan chunk.FileID, n)
+		t.requestC = make(chan request, n)
 	}
 }
 
@@ -79,11 +92,11 @@ func WithUsers(users []slack.User) ExpOption {
 // NewExportCoordinator creates a new ExportCoordinator instance.
 func NewExportCoordinator(ctx context.Context, cvt UserConverter, tfopt ...ExpOption) *ExportCoordinator {
 	t := &ExportCoordinator{
-		cvt:   cvt,
-		lg:    slog.Default(),
-		start: make(chan struct{}),
-		ids:   make(chan chunk.FileID, bufferSz),
-		err:   make(chan error, 1),
+		cvt:      cvt,
+		lg:       slog.Default(),
+		start:    make(chan struct{}),
+		requestC: make(chan request, bufferSz),
+		err:      make(chan error, 1),
 	}
 	for _, opt := range tfopt {
 		opt(t)
@@ -135,7 +148,7 @@ func (t *ExportCoordinator) Start(ctx context.Context) error {
 // even if the processor is not started, in which case the channel ID will
 // be queued for processing once the processor is started.  If the export
 // worker is closed, it will return ErrClosed.
-func (t *ExportCoordinator) Transform(ctx context.Context, id chunk.FileID) error {
+func (t *ExportCoordinator) Transform(ctx context.Context, channelID, threadTS string) error {
 	select {
 	case err := <-t.err:
 		return err
@@ -144,8 +157,8 @@ func (t *ExportCoordinator) Transform(ctx context.Context, id chunk.FileID) erro
 	if t.closed.Load() {
 		return ErrClosed
 	}
-	t.lg.Debug("transform: placing channel (file) in the queue", "id", id)
-	t.ids <- id
+	t.lg.Debug("transform: placing request in the queue", "channel_id", channelID, "thread_ts", threadTS)
+	t.requestC <- request{channelID, threadTS}
 	return nil
 }
 
@@ -154,13 +167,13 @@ func (t *ExportCoordinator) worker(ctx context.Context) {
 
 	lg := t.lg.With("in", "ExportCoordinator.worker")
 
-	lg.Debug("worker waiting", "buffer_size", cap(t.ids))
+	lg.Debug("worker waiting", "buffer_size", cap(t.requestC))
 	<-t.start
-	lg.Debug("worker started", "queue_size", len(t.ids))
-	for id := range t.ids {
-		lg.Debug("transforming channel", "channel_id", id)
-		if err := t.cvt.Convert(ctx, chunk.FileID(id)); err != nil {
-			lg.Debug("transforming channel failure", "channel_id", id, "error", err)
+	lg.Debug("worker started", "queue_size", len(t.requestC))
+	for req := range t.requestC {
+		lg.Debug("transforming channel", "channel_id", req)
+		if err := t.cvt.Convert(ctx, req.channelID, req.threadTS); err != nil {
+			lg.Debug("transforming channel failure", "channel_id", req, "error", err)
 			t.err <- err
 			continue
 		}
@@ -176,7 +189,7 @@ func (t *ExportCoordinator) Close() (err error) {
 		return nil
 	}
 	t.lg.Debug("transform: closing transform")
-	close(t.ids)
+	close(t.requestC)
 	close(t.start)
 	t.lg.Debug("transform: waiting for workers to finish")
 

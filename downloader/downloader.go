@@ -1,3 +1,18 @@
+// Copyright (c) 2021-2026 Rustam Gilyazov and Contributors.
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package downloader
 
 import (
@@ -17,7 +32,8 @@ import (
 	"github.com/rusq/slack"
 	"golang.org/x/time/rate"
 
-	"github.com/rusq/slackdump/v3/internal/network"
+	"github.com/rusq/slackdump/v4/internal/network"
+	"github.com/rusq/slackdump/v4/source"
 )
 
 const (
@@ -103,7 +119,7 @@ func Workers(n int) Option {
 	}
 }
 
-// Logger allows to use an external log library, that satisfies the
+// WithLogger allows to use an external log library, that satisfies the
 // *slog.Logger.
 func WithLogger(l *slog.Logger) Option {
 	return func(c *options) {
@@ -117,7 +133,7 @@ func WithLogger(l *slog.Logger) Option {
 // New initialises new file downloader.
 func New(sc GetFiler, fs fsadapter.FS, opts ...Option) *Client {
 	if sc == nil {
-		// better safe than sorry
+		// deliberate panic, better safe than sorry.
 		panic("programming error:  client is nil")
 	}
 	c := &Client{
@@ -152,6 +168,10 @@ func (c *Client) Start(ctx context.Context) error {
 		return ErrAlreadyStarted
 	}
 	c.lg.Debug("starting downloader")
+
+	// recreate channel to ensure clean state
+	c.done = make(chan struct{}, 1)
+
 	c.startWorkers(ctx)
 	c.started.Store(true)
 	return nil
@@ -224,7 +244,7 @@ func (c *Client) worker(ctx context.Context, reqC <-chan Request) {
 	// and not wait to send on the request channel that no worker is servicing
 	// due to exiting by context cancellation.
 	for req := range reqC {
-		lg := c.lg.With("filename", path.Base(req.URL), "destination", req.Fullpath)
+		lg := c.lg.With("url_filename", path.Base(req.URL), "destination", req.Fullpath)
 		lg.DebugContext(ctx, "saving file")
 		n, err := c.download(ctx, req.Fullpath, req.URL)
 		if err != nil {
@@ -251,8 +271,12 @@ func (c *Client) download(ctx context.Context, fullpath string, url string) (int
 		return 0, err
 	}
 	defer func() {
-		tf.Close()
-		os.Remove(tf.Name())
+		if err := tf.Close(); err != nil {
+			c.lg.WarnContext(ctx, "closing temporary file", "error", err)
+		}
+		if err := os.Remove(tf.Name()); err != nil {
+			c.lg.WarnContext(ctx, "removing temporary file ", "error", err)
+		}
 	}()
 
 	if err := network.WithRetry(ctx, c.limiter, c.retries, func(ctx context.Context) error {
@@ -261,7 +285,9 @@ func (c *Client) download(ctx context.Context, fullpath string, url string) (int
 
 		if err := c.sc.GetFileContext(ctx, url, tf); err != nil {
 			if _, err := tf.Seek(0, io.SeekStart); err != nil {
-				c.lg.ErrorContext(ctx, "seek", "error", err)
+				// we don't return seek error, because we are more interested
+				// in the original error occurred, therefore we just log it.
+				c.lg.WarnContext(ctx, "seek", "error", err)
 			}
 			return fmt.Errorf("download to %q failed, [src=%s]: %w", fullpath, url, err)
 		}
@@ -343,5 +369,5 @@ func (c *Client) AsyncDownloader(ctx context.Context, queueC <-chan Request) (<-
 }
 
 func stdFilenameFn(f *slack.File) string {
-	return fmt.Sprintf("%s-%s", f.ID, f.Name)
+	return fmt.Sprintf("%s-%s", f.ID, source.SanitizeFilename(f.Name))
 }

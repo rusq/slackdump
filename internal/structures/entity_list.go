@@ -1,3 +1,18 @@
+// Copyright (c) 2021-2026 Rustam Gilyazov and Contributors.
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package structures
 
 import (
@@ -6,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"strings"
 	"sync"
@@ -93,6 +109,37 @@ func HasExcludePrefix(s string) bool {
 
 func hasFilePrefix(s string) bool {
 	return strings.HasPrefix(s, filePrefix)
+}
+
+// Overlay overlays the other EntityList on the el, overriding entities.  Thus,
+// other EntityList will have a priority over el.
+func (el *EntityList) Overlay(other *EntityList) {
+	if other == nil {
+		return
+	}
+	if el == other {
+		return
+	}
+	el.mu.Lock()
+	defer el.mu.Unlock()
+	other.mu.RLock()
+	defer other.mu.RUnlock()
+
+	if len(other.index) == 0 {
+		return
+	}
+
+	maps.Copy(el.index, other.index)
+
+	el.hasExcludes = false
+	el.hasIncludes = false
+	for _, item := range el.index {
+		if !item.Include {
+			el.hasExcludes = true
+		} else {
+			el.hasIncludes = true
+		}
+	}
 }
 
 // NewEntityList creates an EntityList from a slice of IDs or URLs (entities).

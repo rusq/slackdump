@@ -1,4 +1,21 @@
-// Package convert implements conversions to different Slackdump formats.
+// Copyright (c) 2021-2026 Rustam Gilyazov and Contributors.
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+// Package convert implements conversions to different Slackdump formats.  It
+// is a layer on top of the transformer.
+
 package convert
 
 import (
@@ -7,17 +24,18 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/rusq/slackdump/v4/source"
+
 	"github.com/rusq/slack"
 
-	"github.com/rusq/slackdump/v3/internal/chunk"
-	"github.com/rusq/slackdump/v3/internal/source"
+	"github.com/rusq/slackdump/v4/internal/convert/transform"
 )
 
 // Target is the interface for writing the target format.
 type Target interface {
 	// Convert should convert the data for the single channel and save it to
 	// the target format.
-	Convert(ctx context.Context, id chunk.FileID) error
+	transform.Converter
 	// Users should convert and write users.
 	Users(ctx context.Context, uu []slack.User) error
 	// Channels should converts and write channels.
@@ -33,6 +51,8 @@ type options struct {
 	includeFiles bool
 	// includeAvatars is a flag to include avatars in the export
 	includeAvatars bool
+	// ignoreCopyErrors is a flag to ignore copy errors
+	ignoreCopyErrors bool
 	// trgFileLoc should return the file location within the target directory
 	trgFileLoc func(*slack.Channel, *slack.File) string
 	// avtrFileLoc should return the avatar file location.
@@ -48,10 +68,16 @@ func WithIncludeFiles(b bool) Option {
 	}
 }
 
-// WithIncludeAvatars sets the IncludeAvataars option.
+// WithIncludeAvatars sets the IncludeAvatars option.
 func WithIncludeAvatars(b bool) Option {
 	return func(c *options) {
 		c.includeAvatars = b
+	}
+}
+
+func WithIgnoreCopyErrors(b bool) Option {
+	return func(c *options) {
+		c.ignoreCopyErrors = b
 	}
 }
 
@@ -101,7 +127,7 @@ func convert(ctx context.Context, src source.Sourcer, trg Target) error {
 	for _, c := range channels {
 		// TODO: having FileID is an atavism, should be a channelID at least.
 		//       check usages, if it's possible to change.
-		if err := trg.Convert(ctx, chunk.ToFileID(c.ID, "", false)); err != nil {
+		if err := trg.Convert(ctx, c.ID, ""); err != nil {
 			return err
 		}
 	}

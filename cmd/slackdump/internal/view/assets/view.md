@@ -16,7 +16,7 @@ slackdump view <directory_or_file>
 ```
 
 If you experience problems viewing, run the viewer with DEBUG mode
-enabled, and report the violating message to the Github Issues page.
+enabled, and report the violating message to the GitHub Issues page.
 
 ```bash
 DEBUG=1 slackdump view <directory_or_file>

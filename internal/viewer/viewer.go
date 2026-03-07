@@ -1,3 +1,18 @@
+// Copyright (c) 2021-2026 Rustam Gilyazov and Contributors.
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 // Package viewer implements the logic to view the slackdump files.
 package viewer
 
@@ -12,13 +27,12 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/rusq/slackdump/v3/internal/source"
-
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/rusq/slack"
 
-	st "github.com/rusq/slackdump/v3/internal/structures"
-	"github.com/rusq/slackdump/v3/internal/viewer/renderer"
+	st "github.com/rusq/slackdump/v4/internal/structures"
+	"github.com/rusq/slackdump/v4/internal/viewer/renderer"
+	"github.com/rusq/slackdump/v4/source"
 )
 
 var debug = os.Getenv("DEBUG") != ""
@@ -104,6 +118,8 @@ func New(ctx context.Context, addr string, r source.Sourcer) (*Viewer, error) {
 	mux.HandleFunc("GET /", v.indexHandler)
 	// https: //ora600.slack.com/archives/CHY5HUESG
 	mux.HandleFunc("GET /archives/{id}", v.newFileHandler(v.channelHandler))
+	mux.HandleFunc("GET /archives/{id}/canvas", v.newFileHandler(v.canvasHandler))
+	mux.HandleFunc("GET /archives/{id}/canvas/content", v.newFileHandler(v.canvasContentHandler))
 	// https: //ora600.slack.com/archives/DHMAB25DY/p1710063528879959
 	// https://ora600.slack.com/archives/CHY5HUESG/p1738580940349469?thread_ts=1737716342.919259&cid=CHY5HUESG
 	mux.HandleFunc("GET /archives/{id}/alias/", v.aliasHandler)

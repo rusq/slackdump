@@ -151,19 +151,19 @@ Specifies the browser to use for the authentication.  The default is Firefox.
 Specifies the directory where the authentication information and user/channel
 cache is stored.  If the flag is not specified, the cache is stored in the
 system cache directory.
+.It Fl chan-types Ar types
+Allows to specify channel types filter.  Default is all channel types.  Values
+should be comma-separated, no spaces.  Possible values:
+mpim,im,public_channel,private_channel
 .It Fl channel-users
 If enabled, collects user IDs from the messages and fetches only the users that
 are collected from the visible messages, instead of fetching the whole set of
 users from the users API.  This is useful when the workspace has a lot of
 users.  This method also allows fetching information for external users.
 .It Fl cookie Ar cookie | cookie_file
-.It Fl env
-Enables loading of the environment variables from environment and
-.Sy .env,
-.Sy .env.txt,
-and
-.Sy secrets.txt
-files.
+.It Fl fail-hard=true|false
+If set to true, will fail hard on the following errors: "user not in channel",
+and "channel not found".  False by default.
 .It Fl files=true|false
 Enables or disables attachment files downloading.  The default is enabled.  To
 disable downloading, use
@@ -197,16 +197,19 @@ Disables caching of chunks for the
 .Cm convert
 command.  This may be useful on small archives.  For big archives caching is
 beneficial, as it allows to reduce the processing time.
-.It Fl no-user-cache
-Disables caching of users for the subcommands of the
-.Cm list
-command.
 .It Fl o Ar path
 Specifies the output directory or zip file where all data will be stored.
 If the path ends with
 .Dq .zip ,
 the data will be stored in the zip file, otherwise
 it will be stored in the directory.
+.It Fl only-new-users=true|false
+(resume command only) If set to true, inserts only new or updated users into
+the database on subsequent runs. Enabled by default.
+.It Fl resolve
+Enables caching of users for the subcommands of the
+.Cm list
+command.
 .It Fl time-from Ar YYYY-MM-DDTHH:MI:SS | YYYY-MM-DD
 Allows to specify the start time.  The time is specified in the format
 .Dq YYYY-MM-DDTHH:MI:SS, or YYYY-MM-DD if only the date is needed.
@@ -238,6 +241,9 @@ Allows to override the currently selected workspace for the session.
 See also the
 .Cm workspace Ar select
 command.
+.It Fl y
+Answers "yes" to all questions asked by the program.  This is useful for
+scripts and automation.
 .El
 .\"
 .Sh USAGE
@@ -391,6 +397,13 @@ for more details.
 .It Ev NOCOLOR
 .BOOL
 disables colorful log messages.
+.It Ev QR_CODE_SIZE
+Sets the maximum length, in characters, of the pasted QR Code image data
+(the
+.Ql data:image/png;base64,...
+string) used for "Sign in on Mobile".  The default limit is 9000 characters;
+values outside the supported range (up to a maximum of 65535 characters) are
+ignored and the default is used.
 .It Ev SLACK_COOKIE
 Contains Slack cookie (for token+cookie-based authentication).  See
 .Sx Authentication
@@ -406,6 +419,10 @@ workspace).  See
 command for more details.
 .It Ev TRACE_FILE
 Contains path to a file where trace output will be written.
+.It Ev YES_MAN
+.BOOL
+answers "yes" to all questions asked by the program.  This is useful for
+scripts.
 .El
 .\" For sections 1, 6, 7, and 8 only.
 .Sh FILES
@@ -454,13 +471,14 @@ DEBUG=1
 .Sh HISTORY
 Slackdump was created as a tool to dump private messages from Slack in 2018, and
 was released as an GPL-3 Open Source application to public in October 2021.
+
+Since v4 the License changed to AGPL-3.
 .Sh AUTHORS
 The
 .Nm
 was written by
 .An Lk https://github.com/rusq "@rusq"
-with the help of a number of contributors listed on 
-.Lk https://github.com/rusq/slackdump "Slackdump Homepage"
+with the help of a number of contributors listed in CONTRIBUTORS.md.
 .\" .Sh CAVEATS
 .\" .Sh BUGS
 .\" .Sh SECURITY CONSIDERATIONS

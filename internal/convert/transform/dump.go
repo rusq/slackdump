@@ -1,3 +1,18 @@
+// Copyright (c) 2021-2026 Rustam Gilyazov and Contributors.
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package transform
 
 import (
@@ -9,14 +24,14 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/rusq/slackdump/v4/source"
+
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/slack"
 
-	"github.com/rusq/slackdump/v3/internal/chunk"
-	"github.com/rusq/slackdump/v3/internal/nametmpl"
-	"github.com/rusq/slackdump/v3/internal/source"
-	"github.com/rusq/slackdump/v3/internal/structures"
-	"github.com/rusq/slackdump/v3/types"
+	"github.com/rusq/slackdump/v4/internal/nametmpl"
+	"github.com/rusq/slackdump/v4/internal/structures"
+	"github.com/rusq/slackdump/v4/types"
 )
 
 type DumpOption func(*DumpConverter)
@@ -45,8 +60,8 @@ func DumpWithLogger(log *slog.Logger) DumpOption {
 	}
 }
 
-// NewDumpConverter creates a new standard dump converter.
-func NewDumpConverter(fsa fsadapter.FS, src source.Sourcer, opts ...DumpOption) (*DumpConverter, error) {
+// NewDump creates a new standard dump converter.
+func NewDump(fsa fsadapter.FS, src source.Sourcer, opts ...DumpOption) (*DumpConverter, error) {
 	std := &DumpConverter{
 		src:  src,
 		fsa:  fsa,
@@ -86,17 +101,17 @@ type DumpConverter struct {
 }
 
 // Convert converts the chunk file to Slackdump json format.
-func (s *DumpConverter) Convert(ctx context.Context, id chunk.FileID) error {
-	// threadTS is only populated on the thread only files.  It is safe to
-	// rely on it being non-empty to determine if we need a thread or a
-	// conversation.
-	channelID, threadID := id.Split()
+func (s *DumpConverter) Convert(ctx context.Context, channelID, threadID string) error {
 	ci, err := s.src.ChannelInfo(ctx, channelID)
 	if err != nil {
 		return err
 	}
+	slog.Debug("DumpConverter.Convert", "channel", channelID, "thread", threadID)
 
 	var msgs []types.Message
+	// threadTS is only populated on the thread only files.  It is safe to
+	// rely on it being non-empty to determine if we need a thread or a
+	// conversation.
 	if threadID == "" {
 		msgs, err = stdConversation(ctx, s.src, ci, s.pipeline)
 	} else {
@@ -114,7 +129,8 @@ func (s *DumpConverter) Convert(ctx context.Context, id chunk.FileID) error {
 
 	f, err := s.fsa.Create(s.tmpl.Execute(conv))
 	if err != nil {
-		return fmt.Errorf("fsadapter: unable to create file %s: %w", id+".json", err)
+		name := s.tmpl.Execute(conv)
+		return fmt.Errorf("fsadapter: unable to create file %s: %w", name, err)
 	}
 	defer f.Close()
 	return json.NewEncoder(f).Encode(conv)
@@ -178,9 +194,9 @@ func stdConversation(ctx context.Context, cf source.Sourcer, ci *slack.Channel, 
 }
 
 // stdThread is the function that performs transformation of a single thread.
-func stdThread(ctx context.Context, cf source.Sourcer, ci *slack.Channel, threadTS string, pipeline pipeline) ([]types.Message, error) {
+func stdThread(ctx context.Context, src source.Sourcer, ci *slack.Channel, threadTS string, pipeline pipeline) ([]types.Message, error) {
 	// this is a thread.
-	it, err := cf.AllThreadMessages(ctx, ci.ID, threadTS)
+	it, err := src.AllThreadMessages(ctx, ci.ID, threadTS)
 	if err != nil {
 		return nil, err
 	}

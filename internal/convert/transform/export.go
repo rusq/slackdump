@@ -1,3 +1,18 @@
+// Copyright (c) 2021-2026 Rustam Gilyazov and Contributors.
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package transform
 
 import (
@@ -14,11 +29,10 @@ import (
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/slack"
 
-	"github.com/rusq/slackdump/v3/export"
-	"github.com/rusq/slackdump/v3/internal/chunk"
-	"github.com/rusq/slackdump/v3/internal/source"
-	"github.com/rusq/slackdump/v3/internal/structures"
-	"github.com/rusq/slackdump/v3/types"
+	"github.com/rusq/slackdump/v4/export"
+	"github.com/rusq/slackdump/v4/internal/structures"
+	"github.com/rusq/slackdump/v4/source"
+	"github.com/rusq/slackdump/v4/types"
 )
 
 type ExpCvtOption func(*ExpConverter)
@@ -71,25 +85,24 @@ func (e *ExpConverter) getUsers() []slack.User {
 // for the channel with ID into a slack export format.  It expects the chunk
 // file to be in the <srcdir>/<id>.json.gz file, and the attachments to be in
 // the <srcdir>/<id> directory.
-func (e *ExpConverter) Convert(ctx context.Context, id chunk.FileID) error {
+func (e *ExpConverter) Convert(ctx context.Context, channelID, _ string) error {
 	ctx, task := trace.NewTask(ctx, "transform")
 	defer task.End()
 
-	lg := slog.With("file_id", id)
+	lg := slog.With("channel_id", channelID)
 	{
 		userCnt := len(e.getUsers())
 		trace.Logf(ctx, "input", "len(users)=%d", userCnt)
-		lg.DebugContext(ctx, "transforming channel", "id", id, "user_count", userCnt)
+		lg.DebugContext(ctx, "transforming channel", "channelID", channelID, "user_count", userCnt)
 	}
 
-	channelID, _ := id.Split()
 	ci, err := e.src.ChannelInfo(ctx, channelID)
 	if err != nil {
-		return fmt.Errorf("error reading channel info for %q: %w", id, err)
+		return fmt.Errorf("error reading channel info for %q: %w", channelID, err)
 	}
 
 	if err := e.writeMessages(ctx, ci); err != nil {
-		return err
+		return fmt.Errorf("error writing messages for %q: %w", channelID, err)
 	}
 
 	return nil
@@ -107,7 +120,7 @@ func (e *ExpConverter) writeMessages(ctx context.Context, ci *slack.Channel) (er
 			lg.DebugContext(ctx, "no messages for the channel", "channel", ci.ID)
 			return nil
 		}
-		return fmt.Errorf("error reading messages: %w", err)
+		return fmt.Errorf("sorted: on channel %q: %w", ci.ID, err)
 	}
 
 	return nil
@@ -116,13 +129,13 @@ func (e *ExpConverter) writeMessages(ctx context.Context, ci *slack.Channel) (er
 func (e *ExpConverter) writeout(filename string, mm []export.ExportMessage) error {
 	wc, err := e.fsa.Create(filename)
 	if err != nil {
-		return fmt.Errorf("error creating file in adapter: %w", err)
+		return fmt.Errorf("error creating file in adapter: %s:  %w", filename, err)
 	}
 	defer wc.Close()
 	enc := json.NewEncoder(wc)
 	enc.SetIndent("", "  ")
 	if err := enc.Encode(mm); err != nil {
-		return fmt.Errorf("error encoding messages: %w", err)
+		return fmt.Errorf("error encoding messages into %s: %w", filename, err)
 	}
 	return nil
 }

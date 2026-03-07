@@ -1,3 +1,18 @@
+// Copyright (c) 2021-2026 Rustam Gilyazov and Contributors.
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package slackdump
 
 import (
@@ -12,9 +27,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 
-	"github.com/rusq/slackdump/v3/internal/network"
-	"github.com/rusq/slackdump/v3/internal/structures"
-	"github.com/rusq/slackdump/v3/types"
+	"github.com/rusq/slackdump/v4/internal/client"
+	"github.com/rusq/slackdump/v4/internal/client/mock_client"
+	"github.com/rusq/slackdump/v4/internal/edge"
+	"github.com/rusq/slackdump/v4/internal/network"
+	"github.com/rusq/slackdump/v4/internal/structures"
+	"github.com/rusq/slackdump/v4/stream"
+	"github.com/rusq/slackdump/v4/types"
 )
 
 func TestSession_getChannels(t *testing.T) {
@@ -29,7 +48,7 @@ func TestSession_getChannels(t *testing.T) {
 		name     string
 		fields   fields
 		args     args
-		expectFn func(mc *mockClienter)
+		expectFn func(mc *mock_client.MockSlack)
 		want     types.Channels
 		wantErr  bool
 	}{
@@ -37,17 +56,18 @@ func TestSession_getChannels(t *testing.T) {
 			"ok",
 			fields{config: defConfig},
 			args{
-				context.Background(),
+				t.Context(),
 				AllChanTypes,
 			},
-			func(mc *mockClienter) {
+			func(mc *mock_client.MockSlack) {
 				mc.EXPECT().GetConversationsContext(gomock.Any(), &slack.GetConversationsParameters{
 					Limit: network.DefLimits.Request.Channels,
 					Types: AllChanTypes,
 				}).Return(types.Channels{
 					slack.Channel{GroupConversation: slack.GroupConversation{
 						Name: "lol",
-					}}},
+					}},
+				},
 					"",
 					nil)
 			},
@@ -60,10 +80,10 @@ func TestSession_getChannels(t *testing.T) {
 			"function made a boo boo",
 			fields{config: defConfig},
 			args{
-				context.Background(),
+				t.Context(),
 				AllChanTypes,
 			},
-			func(mc *mockClienter) {
+			func(mc *mock_client.MockSlack) {
 				mc.EXPECT().GetConversationsContext(gomock.Any(), &slack.GetConversationsParameters{
 					Limit: network.DefLimits.Request.Channels,
 					Types: AllChanTypes,
@@ -78,7 +98,7 @@ func TestSession_getChannels(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mc := NewmockClienter(gomock.NewController(t))
+			mc := mock_client.NewMockSlack(gomock.NewController(t))
 			sd := &Session{
 				client: mc,
 				cfg:    tt.fields.config,
@@ -90,7 +110,7 @@ func TestSession_getChannels(t *testing.T) {
 			}
 
 			var got types.Channels
-			err := sd.getChannels(tt.args.ctx, tt.args.chanTypes, func(c types.Channels) error {
+			err := sd.getChannels(tt.args.ctx, GetChannelsParameters{ChannelTypes: tt.args.chanTypes}, func(_ context.Context, c types.Channels) error {
 				got = append(got, c...)
 				return nil
 			})
@@ -105,7 +125,7 @@ func TestSession_getChannels(t *testing.T) {
 
 func TestSession_GetChannels(t *testing.T) {
 	type fields struct {
-		client clienter
+		client client.Slack
 		config config
 	}
 	type args struct {
@@ -139,6 +159,53 @@ func TestSession_GetChannels(t *testing.T) {
 	}
 }
 
+func Test_shouldFallbackToListChannels(t *testing.T) {
+	tests := []struct {
+		name string
+		err  error
+		want bool
+	}{
+		{
+			name: "op not supported",
+			err:  stream.ErrOpNotSupported,
+			want: true,
+		},
+		{
+			name: "api no_channels_supplied",
+			err:  &edge.APIError{Err: "no_channels_supplied"},
+			want: false, // Not a fallback condition anymore
+		},
+		{
+			name: "api internal_error",
+			err:  &edge.APIError{Err: "internal_error"},
+			want: false, // Not a fallback condition anymore
+		},
+		{
+			name: "wrapped callback no_channels_supplied",
+			err:  errors.New("API error: callback error: no_channels_supplied"),
+			want: false, // Not a fallback condition anymore
+		},
+		{
+			name: "wrapped callback internal_error",
+			err:  errors.New("API error: callback error: internal_error"),
+			want: false, // Not a fallback condition anymore
+		},
+		{
+			name: "other error",
+			err:  errors.New("network timeout"),
+			want: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := shouldFallbackToListChannels(tt.err); got != tt.want {
+				t.Fatalf("shouldFallbackToListChannels() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestSession_GetChannelMembers(t *testing.T) {
 	type fields struct {
 		wspInfo   *slack.AuthTestResponse
@@ -155,7 +222,7 @@ func TestSession_GetChannelMembers(t *testing.T) {
 		name    string
 		fields  fields
 		args    args
-		expect  func(mc *mockClienter)
+		expect  func(mc *mock_client.MockSlack)
 		want    []string
 		wantErr bool
 	}{
@@ -163,10 +230,10 @@ func TestSession_GetChannelMembers(t *testing.T) {
 			"ok, single call",
 			fields{cfg: defConfig},
 			args{
-				context.Background(),
+				t.Context(),
 				"chanID",
 			},
-			func(mc *mockClienter) {
+			func(mc *mock_client.MockSlack) {
 				mc.EXPECT().GetUsersInConversationContext(gomock.Any(), &slack.GetUsersInConversationParameters{
 					ChannelID: "chanID",
 				}).Return([]string{"user1", "user2"}, "", nil)
@@ -178,10 +245,10 @@ func TestSession_GetChannelMembers(t *testing.T) {
 			"ok, two calls",
 			fields{cfg: defConfig},
 			args{
-				context.Background(),
+				t.Context(),
 				"chanID",
 			},
-			func(mc *mockClienter) {
+			func(mc *mock_client.MockSlack) {
 				first := mc.EXPECT().GetUsersInConversationContext(gomock.Any(), &slack.GetUsersInConversationParameters{
 					ChannelID: "chanID",
 				}).Return([]string{"user1", "user2"}, "cursor", nil).Times(1)
@@ -197,10 +264,10 @@ func TestSession_GetChannelMembers(t *testing.T) {
 			"error",
 			fields{cfg: defConfig},
 			args{
-				context.Background(),
+				t.Context(),
 				"chanID",
 			},
-			func(mc *mockClienter) {
+			func(mc *mock_client.MockSlack) {
 				mc.EXPECT().GetUsersInConversationContext(gomock.Any(), &slack.GetUsersInConversationParameters{
 					ChannelID: "chanID",
 				}).Return([]string{}, "", errors.New("error fornicating corrugations"))
@@ -211,7 +278,7 @@ func TestSession_GetChannelMembers(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mc := NewmockClienter(gomock.NewController(t))
+			mc := mock_client.NewMockSlack(gomock.NewController(t))
 			tt.expect(mc)
 			sd := &Session{
 				client:  mc,

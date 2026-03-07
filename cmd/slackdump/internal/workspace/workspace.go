@@ -1,3 +1,18 @@
+// Copyright (c) 2021-2026 Rustam Gilyazov and Contributors.
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package workspace
 
 import (
@@ -9,12 +24,12 @@ import (
 	"runtime/trace"
 	"strings"
 
-	"github.com/rusq/slackdump/v3/auth"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/workspace/workspaceui"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/workspace/wspcfg"
-	"github.com/rusq/slackdump/v3/internal/cache"
+	"github.com/rusq/slackdump/v4/auth"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/cfg"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/golang/base"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/workspace/workspaceui"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/workspace/wspcfg"
+	"github.com/rusq/slackdump/v4/internal/cache"
 )
 
 const baseCommand = "slackdump workspace"
@@ -40,22 +55,21 @@ an environment file.
 
 To learn more about different login options, run:
 
-	slackdump help workspace
+    slackdump workspace help <sub-command>
 
 Workspaces are stored on this device in the system Cache directory, which is
 automatically detected to be:
+
     ` + cfg.CacheDir() + `
 `,
-	CustomFlags: false,
-	FlagMask:    flagmask,
-	PrintFlags:  false,
-	RequireAuth: false,
+	FlagMask: flagmask,
 	Commands: []*base.Command{
-		CmdWspNew,
-		CmdImport,
-		CmdWspList,
-		CmdWspSelect,
-		CmdWspDel,
+		cmdWspNew,
+		cmdWspImport,
+		cmdWspList,
+		cmdWspSelect,
+		cmdWspDel,
+		cmdWspWiz,
 	},
 }
 

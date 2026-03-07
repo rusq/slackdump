@@ -1,3 +1,18 @@
+// Copyright (c) 2021-2026 Rustam Gilyazov and Contributors.
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 // Package control holds the implementation of the Slack Stream controller.
 // It runs the API scraping in several goroutines and manages the data flow
 // between them.  It records the output of the API scraper into a chunk
@@ -15,11 +30,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 
-	"github.com/rusq/slackdump/v3/internal/chunk"
-	"github.com/rusq/slackdump/v3/internal/chunk/control/mock_control"
-	"github.com/rusq/slackdump/v3/internal/structures"
-	"github.com/rusq/slackdump/v3/mocks/mock_processor"
-	"github.com/rusq/slackdump/v3/processor"
+	"github.com/rusq/slackdump/v4/internal/chunk"
+	"github.com/rusq/slackdump/v4/internal/chunk/control/mock_control"
+	"github.com/rusq/slackdump/v4/internal/structures"
+	"github.com/rusq/slackdump/v4/mocks/mock_processor"
+	"github.com/rusq/slackdump/v4/processor"
+	"github.com/rusq/slackdump/v4/stream"
 )
 
 var testUsers = []slack.User{
@@ -49,13 +65,13 @@ func TestDirController_Run(t *testing.T) {
 			fields: fields{
 				options: options{
 					lg:    slog.Default(),
-					tf:    &noopTransformer{},
+					tf:    &noopExpTransformer{},
 					filer: &noopFiler{},
 					avp:   &noopAvatarProc{},
 				},
 			},
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 				list: structures.NewEntityListFromItems(structures.EntityItem{
 					Id:      testPubChanMember.ID,
 					Include: true,
@@ -77,16 +93,17 @@ func TestDirController_Run(t *testing.T) {
 			fields: fields{
 				options: options{
 					lg:    slog.Default(),
-					tf:    &noopTransformer{},
+					tf:    &noopExpTransformer{},
 					filer: &noopFiler{},
 					avp:   &noopAvatarProc{},
 				},
 			},
 			args: args{
-				ctx:  context.Background(),
+				ctx:  t.Context(),
 				list: structures.NewEntityListFromItems(),
 			},
 			expectFn: func(s *mock_control.MockStreamer) {
+				s.EXPECT().ListChannelsEx(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(stream.ErrOpNotSupported)
 				s.EXPECT().ListChannels(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil) // all channels are included, so it should get them.
 				s.EXPECT().Conversations(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
 				s.EXPECT().WorkspaceInfo(gomock.Any(), gomock.Any()).Return(nil)
@@ -154,7 +171,7 @@ func TestNewDir(t *testing.T) {
 				s:  &mock_control.MockStreamer{},
 				options: options{
 					lg:    slog.Default(),
-					tf:    &noopTransformer{},
+					tf:    &noopExpTransformer{},
 					filer: &noopFiler{},
 					avp:   &noopAvatarProc{},
 				},
@@ -175,7 +192,7 @@ func TestNewDir(t *testing.T) {
 				s:  &mock_control.MockStreamer{},
 				options: options{
 					lg:    slog.Default(),
-					tf:    &noopTransformer{},
+					tf:    &noopExpTransformer{},
 					filer: &mock_processor.MockFiler{},
 					avp:   &mock_processor.MockAvatars{},
 				},
@@ -253,7 +270,7 @@ func TestDirController_Close(t *testing.T) {
 				s:  tt.fields.s,
 				options: options{
 					lg:    slog.Default(),
-					tf:    &noopTransformer{},
+					tf:    &noopExpTransformer{},
 					filer: f,
 					avp:   a,
 				},

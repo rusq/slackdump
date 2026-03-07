@@ -1,3 +1,18 @@
+// Copyright (c) 2021-2026 Rustam Gilyazov and Contributors.
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package control
 
 import (
@@ -11,11 +26,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 
-	"github.com/rusq/slackdump/v3"
-	"github.com/rusq/slackdump/v3/internal/chunk/control/mock_control"
-	"github.com/rusq/slackdump/v3/internal/structures"
-	"github.com/rusq/slackdump/v3/mocks/mock_processor"
-	"github.com/rusq/slackdump/v3/processor"
+	"github.com/rusq/slackdump/v4"
+	"github.com/rusq/slackdump/v4/internal/chunk/control/mock_control"
+	"github.com/rusq/slackdump/v4/internal/structures"
+	"github.com/rusq/slackdump/v4/mocks/mock_processor"
+	"github.com/rusq/slackdump/v4/processor"
+	"github.com/rusq/slackdump/v4/stream"
 )
 
 func Test_apiGenerator_Generate(t *testing.T) {
@@ -45,15 +61,18 @@ func Test_apiGenerator_Generate(t *testing.T) {
 				chTypes:    []string{"public_channel"},
 			},
 			args: args{
-				ctx:  context.Background(),
+				ctx:  t.Context(),
 				list: structures.NewEntityListFromItems(),
 			},
 			expectFn: func(s *mock_control.MockStreamer, p *mock_processor.MockChannels) {
 				s.EXPECT().
+					ListChannelsEx(gomock.Any(), gomock.Any(), &slack.GetConversationsParameters{Types: []string{"public_channel"}}, gomock.Any()).
+					Return(stream.ErrOpNotSupported)
+				s.EXPECT().
 					ListChannels(gomock.Any(), gomock.Any(), &slack.GetConversationsParameters{Types: []string{"public_channel"}}).
 					DoAndReturn(
 						func(ctx context.Context, proc processor.Channels, p *slack.GetConversationsParameters) error {
-							proc.Channels(context.Background(), []slack.Channel{testPubChanMember, testPubChanNonMember})
+							proc.Channels(t.Context(), []slack.Channel{testPubChanMember, testPubChanNonMember})
 							return nil
 						})
 				p.EXPECT().Channels(gomock.Any(), []slack.Channel{testPubChanMember, testPubChanNonMember}).Return(nil)
@@ -71,15 +90,18 @@ func Test_apiGenerator_Generate(t *testing.T) {
 				chTypes:    []string{"public_channel"},
 			},
 			args: args{
-				ctx:  context.Background(),
+				ctx:  t.Context(),
 				list: structures.NewEntityListFromItems(structures.EntityItem{Id: "C22222222", Include: false}),
 			},
 			expectFn: func(s *mock_control.MockStreamer, p *mock_processor.MockChannels) {
 				s.EXPECT().
+					ListChannelsEx(gomock.Any(), gomock.Any(), &slack.GetConversationsParameters{Types: []string{"public_channel"}}, gomock.Any()).
+					Return(stream.ErrOpNotSupported)
+				s.EXPECT().
 					ListChannels(gomock.Any(), gomock.Any(), &slack.GetConversationsParameters{Types: []string{"public_channel"}}).
 					DoAndReturn(
 						func(ctx context.Context, proc processor.Channels, p *slack.GetConversationsParameters) error {
-							proc.Channels(context.Background(), []slack.Channel{testPubChanMember, testPubChanNonMember})
+							proc.Channels(t.Context(), []slack.Channel{testPubChanMember, testPubChanNonMember})
 							return nil
 						})
 				p.EXPECT().Channels(gomock.Any(), []slack.Channel{testPubChanMember, testPubChanNonMember}).Return(nil)
@@ -97,10 +119,13 @@ func Test_apiGenerator_Generate(t *testing.T) {
 				chTypes:    nil,
 			},
 			args: args{
-				ctx:  context.Background(),
+				ctx:  t.Context(),
 				list: structures.NewEntityListFromItems(),
 			},
 			expectFn: func(s *mock_control.MockStreamer, p *mock_processor.MockChannels) {
+				s.EXPECT().
+					ListChannelsEx(gomock.Any(), gomock.Any(), &slack.GetConversationsParameters{Types: slackdump.AllChanTypes}, gomock.Any()).
+					Return(stream.ErrOpNotSupported)
 				s.EXPECT().ListChannels(gomock.Any(), gomock.Any(), &slack.GetConversationsParameters{Types: slackdump.AllChanTypes}).Return(nil)
 			},
 			want:    []structures.EntityItem{},
@@ -113,15 +138,18 @@ func Test_apiGenerator_Generate(t *testing.T) {
 				chTypes:    []string{"public_channel"},
 			},
 			args: args{
-				ctx:  context.Background(),
+				ctx:  t.Context(),
 				list: structures.NewEntityListFromItems(),
 			},
 			expectFn: func(s *mock_control.MockStreamer, p *mock_processor.MockChannels) {
 				s.EXPECT().
+					ListChannelsEx(gomock.Any(), gomock.Any(), &slack.GetConversationsParameters{Types: []string{"public_channel"}}, gomock.Any()).
+					Return(stream.ErrOpNotSupported)
+				s.EXPECT().
 					ListChannels(gomock.Any(), gomock.Any(), &slack.GetConversationsParameters{Types: []string{"public_channel"}}).
 					DoAndReturn(
 						func(ctx context.Context, proc processor.Channels, p *slack.GetConversationsParameters) error {
-							proc.Channels(context.Background(), []slack.Channel{testPubChanMember, testPubChanNonMember})
+							proc.Channels(t.Context(), []slack.Channel{testPubChanMember, testPubChanNonMember})
 							return nil
 						})
 				p.EXPECT().Channels(gomock.Any(), []slack.Channel{testPubChanMember, testPubChanNonMember}).Return(nil)
@@ -138,10 +166,13 @@ func Test_apiGenerator_Generate(t *testing.T) {
 				chTypes:    []string{"public_channel"},
 			},
 			args: args{
-				ctx:  context.Background(),
+				ctx:  t.Context(),
 				list: structures.NewEntityListFromItems(),
 			},
 			expectFn: func(s *mock_control.MockStreamer, p *mock_processor.MockChannels) {
+				s.EXPECT().
+					ListChannelsEx(gomock.Any(), gomock.Any(), &slack.GetConversationsParameters{Types: []string{"public_channel"}}, gomock.Any()).
+					Return(stream.ErrOpNotSupported)
 				s.EXPECT().
 					ListChannels(gomock.Any(), gomock.Any(), &slack.GetConversationsParameters{Types: []string{"public_channel"}}).
 					Return(assert.AnError)
@@ -207,7 +238,7 @@ func Test_combinedGenerator_Generate(t *testing.T) {
 				chTypes: []string{"public_channel"},
 			},
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 				list: structures.NewEntityListFromItems(
 					structures.EntityItem{
 						Id:      "C11111111",
@@ -238,7 +269,7 @@ func Test_combinedGenerator_Generate(t *testing.T) {
 				chTypes: nil,
 			},
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 				list: structures.NewEntityListFromItems(
 					structures.EntityItem{Id: "C11111111", Include: true, Oldest: date1, Latest: date2},
 				),
@@ -248,7 +279,7 @@ func Test_combinedGenerator_Generate(t *testing.T) {
 					ListChannels(gomock.Any(), gomock.Any(), &slack.GetConversationsParameters{Types: slackdump.AllChanTypes}).
 					DoAndReturn(
 						func(ctx context.Context, proc processor.Channels, p *slack.GetConversationsParameters) error {
-							proc.Channels(context.Background(), []slack.Channel{testPubChanMember, testPubChanNonMember, testGroupChanNonMember, testPrivChanNonMember})
+							proc.Channels(t.Context(), []slack.Channel{testPubChanMember, testPubChanNonMember, testGroupChanNonMember, testPrivChanNonMember})
 							return nil
 						})
 				p.EXPECT().Channels(gomock.Any(), []slack.Channel{testPubChanMember, testPubChanNonMember, testGroupChanNonMember, testPrivChanNonMember}).Return(nil)
@@ -267,7 +298,7 @@ func Test_combinedGenerator_Generate(t *testing.T) {
 				chTypes: []string{"public_channel"},
 			},
 			args: args{
-				ctx:  context.Background(),
+				ctx:  t.Context(),
 				list: structures.NewEntityListFromItems(),
 			},
 			expectFn: func(s *mock_control.MockStreamer, p *mock_processor.MockChannels) {
@@ -275,7 +306,7 @@ func Test_combinedGenerator_Generate(t *testing.T) {
 					ListChannels(gomock.Any(), gomock.Any(), &slack.GetConversationsParameters{Types: []string{"public_channel"}}).
 					DoAndReturn(
 						func(ctx context.Context, proc processor.Channels, p *slack.GetConversationsParameters) error {
-							proc.Channels(context.Background(), []slack.Channel{testPubChanMember, testPubChanNonMember})
+							proc.Channels(t.Context(), []slack.Channel{testPubChanMember, testPubChanNonMember})
 							return nil
 						})
 				p.EXPECT().Channels(gomock.Any(), []slack.Channel{testPubChanMember, testPubChanNonMember}).Return(nil)
@@ -292,7 +323,7 @@ func Test_combinedGenerator_Generate(t *testing.T) {
 				chTypes: []string{"public_channel"},
 			},
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 				list: structures.NewEntityListFromItems(
 					structures.EntityItem{Id: "C11111111", Include: true, Oldest: date1, Latest: date2},
 				),
@@ -302,7 +333,7 @@ func Test_combinedGenerator_Generate(t *testing.T) {
 					ListChannels(gomock.Any(), gomock.Any(), &slack.GetConversationsParameters{Types: []string{"public_channel"}}).
 					DoAndReturn(
 						func(ctx context.Context, proc processor.Channels, p *slack.GetConversationsParameters) error {
-							proc.Channels(context.Background(), []slack.Channel{testPubChanMember, testPubChanNonMember})
+							proc.Channels(t.Context(), []slack.Channel{testPubChanMember, testPubChanNonMember})
 							return nil
 						})
 				p.EXPECT().Channels(gomock.Any(), []slack.Channel{testPubChanMember, testPubChanNonMember}).Return(nil)
@@ -314,12 +345,41 @@ func Test_combinedGenerator_Generate(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "excludes excluded channels from both list and API",
+			fields: fields{
+				chTypes: []string{"public_channel"},
+			},
+			args: args{
+				ctx: t.Context(),
+				list: structures.NewEntityListFromItems(
+					structures.EntityItem{Id: "C11111111", Include: true},
+					structures.EntityItem{Id: "C22222222", Include: false}, // excluded
+				),
+			},
+			expectFn: func(s *mock_control.MockStreamer, p *mock_processor.MockChannels) {
+				s.EXPECT().
+					ListChannels(gomock.Any(), gomock.Any(), &slack.GetConversationsParameters{Types: []string{"public_channel"}}).
+					DoAndReturn(
+						func(ctx context.Context, proc processor.Channels, p *slack.GetConversationsParameters) error {
+							// API returns both channels; the excluded one must be dropped.
+							proc.Channels(t.Context(), []slack.Channel{testPubChanMember, testPubChanNonMember})
+							return nil
+						})
+				p.EXPECT().Channels(gomock.Any(), []slack.Channel{testPubChanMember, testPubChanNonMember}).Return(nil)
+			},
+			want: []structures.EntityItem{
+				{Id: "C11111111", Include: true},
+				// C22222222 is excluded and must not appear in output.
+			},
+			wantErr: false,
+		},
+		{
 			name: "handles error",
 			fields: fields{
 				chTypes: []string{"public_channel"},
 			},
 			args: args{
-				ctx:  context.Background(),
+				ctx:  t.Context(),
 				list: structures.NewEntityListFromItems(),
 			},
 			expectFn: func(s *mock_control.MockStreamer, p *mock_processor.MockChannels) {
@@ -483,7 +543,6 @@ func Test_runWorkers(t *testing.T) {
 		ctx context.Context
 		// s     Streamer
 		list  *structures.EntityList
-		p     superprocessor
 		flags Flags
 	}
 	tests := []struct {
@@ -495,7 +554,7 @@ func Test_runWorkers(t *testing.T) {
 		{
 			name: "one channel",
 			args: args{
-				ctx:   context.Background(),
+				ctx:   t.Context(),
 				list:  testList,
 				flags: Flags{},
 			},
@@ -516,7 +575,7 @@ func Test_runWorkers(t *testing.T) {
 		{
 			name: "conversations error",
 			args: args{
-				ctx:   context.Background(),
+				ctx:   t.Context(),
 				list:  testList,
 				flags: Flags{},
 			},
@@ -537,7 +596,7 @@ func Test_runWorkers(t *testing.T) {
 		{
 			name: "workspace info error",
 			args: args{
-				ctx:   context.Background(),
+				ctx:   t.Context(),
 				list:  testList,
 				flags: Flags{},
 			},
@@ -558,7 +617,7 @@ func Test_runWorkers(t *testing.T) {
 		{
 			name: "users error",
 			args: args{
-				ctx:   context.Background(),
+				ctx:   t.Context(),
 				list:  testList,
 				flags: Flags{},
 			},
@@ -579,7 +638,7 @@ func Test_runWorkers(t *testing.T) {
 		{
 			name: "close error",
 			args: args{
-				ctx:   context.Background(),
+				ctx:   t.Context(),
 				list:  testList,
 				flags: Flags{},
 			},
@@ -601,7 +660,7 @@ func Test_runWorkers(t *testing.T) {
 			name: "cancelled context and list channels returns an error",
 			args: args{
 				ctx: func() context.Context {
-					ctx, cancel := context.WithCancel(context.Background())
+					ctx, cancel := context.WithCancel(t.Context())
 					cancel()
 					return ctx
 				}(),
@@ -609,6 +668,7 @@ func Test_runWorkers(t *testing.T) {
 				flags: Flags{},
 			},
 			expectFn: func(s *mock_control.MockStreamer, m *superMockProcessor) {
+				s.EXPECT().ListChannelsEx(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(stream.ErrOpNotSupported)
 				s.EXPECT().ListChannels(gomock.Any(), gomock.Any(), gomock.Any()).Return(context.Canceled)
 				s.EXPECT().
 					WorkspaceInfo(gomock.Any(), m.MockWorkspaceInfo).
@@ -672,7 +732,7 @@ func Test_runSearch(t *testing.T) {
 		{
 			name: "unknown search type",
 			args: args{
-				ctx:   context.Background(),
+				ctx:   t.Context(),
 				stype: srchUnknown,
 				query: "test",
 			},
@@ -684,7 +744,7 @@ func Test_runSearch(t *testing.T) {
 		{
 			name: "some other number",
 			args: args{
-				ctx:   context.Background(),
+				ctx:   t.Context(),
 				stype: 404,
 				query: "test",
 			},
@@ -696,7 +756,7 @@ func Test_runSearch(t *testing.T) {
 		{
 			name: "search messages",
 			args: args{
-				ctx:   context.Background(),
+				ctx:   t.Context(),
 				stype: SMessages,
 				query: "test",
 			},
@@ -712,7 +772,7 @@ func Test_runSearch(t *testing.T) {
 		{
 			name: "search files",
 			args: args{
-				ctx:   context.Background(),
+				ctx:   t.Context(),
 				stype: SFiles,
 				query: "test",
 			},
@@ -728,7 +788,7 @@ func Test_runSearch(t *testing.T) {
 		{
 			name: "search all",
 			args: args{
-				ctx:   context.Background(),
+				ctx:   t.Context(),
 				stype: SMessages | SFiles,
 				query: "test",
 			},
@@ -746,7 +806,7 @@ func Test_runSearch(t *testing.T) {
 		{
 			name: "search all, error",
 			args: args{
-				ctx:   context.Background(),
+				ctx:   t.Context(),
 				stype: SMessages | SFiles,
 				query: "test",
 			},

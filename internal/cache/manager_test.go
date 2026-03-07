@@ -1,3 +1,18 @@
+// Copyright (c) 2021-2026 Rustam Gilyazov and Contributors.
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package cache
 
 import (
@@ -11,9 +26,9 @@ import (
 	"testing"
 
 	"github.com/rusq/slack"
-	"github.com/rusq/slackdump/v3/auth"
-	"github.com/rusq/slackdump/v3/internal/fixtures"
-	"github.com/rusq/slackdump/v3/internal/mocks/mock_auth"
+	"github.com/rusq/slackdump/v4/auth"
+	"github.com/rusq/slackdump/v4/internal/fixtures"
+	"github.com/rusq/slackdump/v4/internal/mocks/mock_auth"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 )
@@ -171,7 +186,7 @@ func TestManager_CreateAndSelect(t *testing.T) {
 		{
 			name: "provider test fails",
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 			},
 			expectFn: func(mp *mock_auth.MockProvider) {
 				mp.EXPECT().Test(gomock.Any()).Return(nil, assert.AnError)
@@ -182,7 +197,7 @@ func TestManager_CreateAndSelect(t *testing.T) {
 		{
 			name: "url empty fails",
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 			},
 			expectFn: func(mp *mock_auth.MockProvider) {
 				mp.EXPECT().Test(gomock.Any()).Return(&slack.AuthTestResponse{URL: ""}, nil)
@@ -193,7 +208,7 @@ func TestManager_CreateAndSelect(t *testing.T) {
 		{
 			name: "url sanitize fails",
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 			},
 			expectFn: func(mp *mock_auth.MockProvider) {
 				mp.EXPECT().Test(gomock.Any()).Return(&slack.AuthTestResponse{URL: "ftp://lol.example.com"}, nil)
@@ -204,7 +219,7 @@ func TestManager_CreateAndSelect(t *testing.T) {
 		{
 			name: "success",
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 			},
 			expectFn: func(mp *mock_auth.MockProvider) {
 				mp.EXPECT().Test(gomock.Any()).Return(fixtures.LoadPtr[slack.AuthTestResponse](string(fixtures.TestAuthTestInfo)), nil)
@@ -218,7 +233,7 @@ func TestManager_CreateAndSelect(t *testing.T) {
 		{
 			name: "save provider fails",
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 			},
 			expectFn: func(mp *mock_auth.MockProvider) {
 				mp.EXPECT().Test(gomock.Any()).Return(fixtures.LoadPtr[slack.AuthTestResponse](string(fixtures.TestAuthTestInfo)), nil)

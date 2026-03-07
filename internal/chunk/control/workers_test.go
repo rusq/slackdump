@@ -1,3 +1,18 @@
+// Copyright (c) 2021-2026 Rustam Gilyazov and Contributors.
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package control
 
 import (
@@ -5,16 +20,16 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/rusq/slackdump/v3/internal/convert/transform"
+	"github.com/rusq/slackdump/v4/internal/convert/transform"
 
 	"go.uber.org/mock/gomock"
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/rusq/slackdump/v3/internal/chunk/control/mock_control"
-	"github.com/rusq/slackdump/v3/internal/structures"
-	"github.com/rusq/slackdump/v3/mocks/mock_processor"
-	"github.com/rusq/slackdump/v3/processor"
+	"github.com/rusq/slackdump/v4/internal/chunk/control/mock_control"
+	"github.com/rusq/slackdump/v4/internal/structures"
+	"github.com/rusq/slackdump/v4/mocks/mock_processor"
+	"github.com/rusq/slackdump/v4/processor"
 )
 
 func Test_userWorker(t *testing.T) {
@@ -32,7 +47,7 @@ func Test_userWorker(t *testing.T) {
 		{
 			name: "no errors",
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 				up:  &mock_processor.MockUsers{},
 			},
 			expectFn: func(s *mock_control.MockStreamer) {
@@ -43,7 +58,7 @@ func Test_userWorker(t *testing.T) {
 		{
 			name: "error listing users",
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 			},
 			expectFn: func(s *mock_control.MockStreamer) {
 				s.EXPECT().Users(gomock.Any(), gomock.Any()).Return(errors.New("error listing users"))
@@ -79,7 +94,7 @@ func Test_conversationWorker(t *testing.T) {
 		{
 			name: "no errors",
 			args: args{
-				ctx:   context.Background(),
+				ctx:   t.Context(),
 				proc:  &mock_processor.MockConversations{},
 				links: make(<-chan structures.EntityItem),
 			},
@@ -91,7 +106,7 @@ func Test_conversationWorker(t *testing.T) {
 		{
 			name: "error",
 			args: args{
-				ctx:   context.Background(),
+				ctx:   t.Context(),
 				proc:  &mock_processor.MockConversations{},
 				links: make(<-chan structures.EntityItem),
 			},
@@ -103,7 +118,7 @@ func Test_conversationWorker(t *testing.T) {
 		{
 			name: "closed error",
 			args: args{
-				ctx:   context.Background(),
+				ctx:   t.Context(),
 				proc:  &mock_processor.MockConversations{},
 				links: make(<-chan structures.EntityItem),
 			},
@@ -140,7 +155,7 @@ func Test_workspaceWorker(t *testing.T) {
 		{
 			name: "no errors",
 			args: args{
-				ctx:    context.Background(),
+				ctx:    t.Context(),
 				wsproc: &mock_processor.MockWorkspaceInfo{},
 			},
 			expectFn: func(s *mock_control.MockStreamer) {
@@ -150,7 +165,7 @@ func Test_workspaceWorker(t *testing.T) {
 		{
 			name: "error",
 			args: args{
-				ctx:    context.Background(),
+				ctx:    t.Context(),
 				wsproc: &mock_processor.MockWorkspaceInfo{},
 			},
 			expectFn: func(s *mock_control.MockStreamer) {
@@ -187,7 +202,7 @@ func Test_searchMsgWorker(t *testing.T) {
 		{
 			name: "no errors",
 			args: args{
-				ctx:   context.Background(),
+				ctx:   t.Context(),
 				ms:    &mock_processor.MockMessageSearcher{},
 				query: "query",
 			},
@@ -198,7 +213,7 @@ func Test_searchMsgWorker(t *testing.T) {
 		{
 			name: "error",
 			args: args{
-				ctx:   context.Background(),
+				ctx:   t.Context(),
 				ms:    &mock_processor.MockMessageSearcher{},
 				query: "query",
 			},
@@ -236,7 +251,7 @@ func Test_searchFileWorker(t *testing.T) {
 		{
 			name: "no errors",
 			args: args{
-				ctx:   context.Background(),
+				ctx:   t.Context(),
 				sf:    &mock_processor.MockFileSearcher{},
 				query: "query",
 			},
@@ -247,7 +262,7 @@ func Test_searchFileWorker(t *testing.T) {
 		{
 			name: "error",
 			args: args{
-				ctx:   context.Background(),
+				ctx:   t.Context(),
 				sf:    &mock_processor.MockFileSearcher{},
 				query: "query",
 			},

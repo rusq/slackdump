@@ -1,3 +1,18 @@
+// Copyright (c) 2021-2026 Rustam Gilyazov and Contributors.
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package fixtures
 
 import (
@@ -17,6 +32,7 @@ const (
 	TestClientToken   = "xoxc-888888888888-888888888888-8888888888888-fffffffffffffffa915fe069d70a8ad81743b0ec4ee9c81540af43f5e143264b"
 	TestExportToken   = "xoxe-888888888888-888888888888-8888888888888-fffffffffffffffa915fe069d70a8ad81743b0ec4ee9c81540af43f5e143264b"
 	TestPersonalToken = "xoxp-777777777777-888888888888-8888888888888-fffffffffffffffa915fe069d70a8ad81743b0ec4ee9c81540af43f5e143264b"
+	TestOauthToken    = "xoxp-777777777777-888888888888-8888888888888-fffffffffffffffa915fe069d70a8ad8"
 )
 
 // InCI indicates whether the tests are running in CI.
@@ -47,7 +63,7 @@ func FilledBuffer(sz int) *bytes.Buffer {
 // FilledFile returns a file that filled with sz bytes of 0x00.
 func FilledFile(t *testing.T, sz int) *os.File {
 	t.Helper()
-	f, err := os.CreateTemp("", "sdunit*")
+	f, err := os.CreateTemp(t.TempDir(), "sdunit*")
 	if err != nil {
 		panic(err)
 	}

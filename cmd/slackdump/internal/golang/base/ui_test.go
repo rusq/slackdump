@@ -39,6 +39,15 @@ func TestYesNoWR(t *testing.T) {
 			wantW: "message? (y/N) ",
 		},
 		{
+			name: "empty",
+			args: args{
+				r:       strings.NewReader("\n"),
+				message: "message",
+			},
+			want:  false,
+			wantW: "message? (y/N) ",
+		},
+		{
 			name: "any other key",
 			args: args{
 				r:       strings.NewReader("x\nn\n"),

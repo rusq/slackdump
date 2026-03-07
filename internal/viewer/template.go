@@ -1,17 +1,30 @@
+// Copyright (c) 2021-2026 Rustam Gilyazov and Contributors.
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package viewer
 
 import (
 	"context"
 	"embed"
-	"encoding/json"
-	"fmt"
 	"html/template"
-	"strings"
+	"log/slog"
 	"time"
 
 	"github.com/rusq/slack"
 
-	st "github.com/rusq/slackdump/v3/internal/structures"
+	st "github.com/rusq/slackdump/v4/internal/structures"
 )
 
 //go:embed templates
@@ -25,10 +38,13 @@ func initTemplates(v *Viewer) {
 			"is_user_msg":     isUserMsg,
 			"displayname":     v.um.DisplayName,
 			"username":        v.username, // username returns the username for the message
+			"userpic":         v.userpic,  // userpic returns the userpic for the user
 			"time":            localtime,
 			"rendertext":      func(s string) string { return v.r.RenderText(context.Background(), s) },            // render message text
 			"render":          func(m slack.Message) template.HTML { return v.r.Render(context.Background(), &m) }, // render message
 			"is_thread_start": func(m slack.Message) bool { return st.IsThreadStart(&m) },
+			"canvas_present":  func(ch slack.Channel) bool { return ch.Properties != nil && ch.Properties.Canvas.FileId != "" },
+			"msgview":         func(channelID string, m slack.Message) messageView { return messageView{Msg: m, ChannelID: channelID} },
 		},
 	).ParseFS(fsys, "templates/*.html"))
 	v.tmpl = tmpl
@@ -64,15 +80,19 @@ func msgsender(m slack.Message) sender {
 	return sUnknown
 }
 
-func dump(a any) string {
-	var buf strings.Builder
-	enc := json.NewEncoder(&buf)
-	enc.SetIndent("", "  ")
-	enc.SetEscapeHTML(false)
-	if err := enc.Encode(a); err != nil {
-		return fmt.Sprintf("error: %v", err)
+const emptyAvatar = "/static/48x48.gif"
+
+func (v *Viewer) userpic(userID string) string {
+	if userID == "" {
+		return emptyAvatar
 	}
-	return buf.String()
+	user, ok := v.um[userID]
+	if ok && user.Profile.Image48 != "" {
+		return user.Profile.Image48
+	}
+	slog.Debug("userpic not found", "user", userID)
+
+	return emptyAvatar
 }
 
 func (v *Viewer) username(m slack.Message) (name string) {

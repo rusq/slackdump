@@ -1,3 +1,18 @@
+// Copyright (c) 2021-2026 Rustam Gilyazov and Contributors.
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package auth
 
 import (
@@ -10,8 +25,11 @@ import (
 	"runtime/trace"
 
 	"github.com/charmbracelet/huh/spinner"
-	"github.com/rusq/chttp"
+	utls "github.com/refraction-networking/utls"
+
+	"github.com/rusq/chttp/v2"
 	"github.com/rusq/slack"
+	"github.com/rusq/slackauth"
 )
 
 const SlackURL = "https://slack.com"
@@ -21,7 +39,7 @@ var tokenRE = regexp.MustCompile(`xoxc-[0-9]+-[0-9]+-[0-9]+-[0-9a-z]{64}`)
 
 // Provider is the Slack Authentication provider.
 //
-//go:generate mockgen -destination ../internal/mocks/mock_auth/mock_auth.go github.com/rusq/slackdump/v3/auth Provider
+//go:generate mockgen -destination ../internal/mocks/mock_auth/mock_auth.go github.com/rusq/slackdump/v4/auth Provider
 type Provider interface {
 	// SlackToken should return the Slack Token value.
 	SlackToken() string
@@ -127,7 +145,12 @@ func (s simpleProvider) Test(ctx context.Context) (*slack.AuthTestResponse, erro
 }
 
 func (s simpleProvider) HTTPClient() (*http.Client, error) {
-	return chttp.New(SlackURL, s.Cookies())
+	return chttp.New(
+		SlackURL,
+		s.Cookies(),
+		chttp.WithUserAgent(slackauth.DefaultUserAgent),
+		chttp.WithUTLS(&utls.Config{}),
+	)
 }
 
 func pleaseWait(ctx context.Context, msg string) func() {

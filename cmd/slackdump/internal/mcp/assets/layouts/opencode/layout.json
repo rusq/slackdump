@@ -1,0 +1,10 @@
+{
+  "files": [
+    {"src": "opencode.jsonc", "dst": "opencode.jsonc"}
+  ],
+  "skills": [
+    {"skill": "slackdump",        "dst": ".opencode/skills/slackdump/SKILL.md"},
+    {"skill": "slackdump-source", "dst": ".opencode/skills/slackdump-source/SKILL.md"},
+    {"skill": "slackdump-sqlite3","dst": ".opencode/skills/slackdump-sqlite3/SKILL.md"}
+  ]
+}

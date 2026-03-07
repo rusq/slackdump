@@ -1,13 +1,29 @@
+// Copyright (c) 2021-2026 Rustam Gilyazov and Contributors.
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package convertcmd
 
 import (
 	"context"
+	"log/slog"
 
 	"github.com/rusq/fsadapter"
 
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
-	"github.com/rusq/slackdump/v3/internal/convert"
-	"github.com/rusq/slackdump/v3/internal/source"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/cfg"
+	"github.com/rusq/slackdump/v4/internal/convert"
+	"github.com/rusq/slackdump/v4/source"
 )
 
 func toExport(ctx context.Context, src, trg string, cflg convertflags) error {
@@ -30,7 +46,7 @@ func toExport(ctx context.Context, src, trg string, cflg convertflags) error {
 	defer fsa.Close()
 
 	// output storage
-	sttFn, ok := source.StorageTypeFuncs[cflg.outStorageType]
+	sttFn, ok := cflg.outStorageType.Func()
 	if !ok {
 		return ErrStorage
 	}
@@ -58,5 +74,6 @@ func toExport(ctx context.Context, src, trg string, cflg convertflags) error {
 		return err
 	}
 
+	slog.Info("converted", "source", src, "target", trg)
 	return nil
 }

@@ -1,3 +1,18 @@
+// Copyright (c) 2021-2026 Rustam Gilyazov and Contributors.
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package directory
 
 import (
@@ -9,15 +24,15 @@ import (
 	"github.com/rusq/slack"
 	"go.uber.org/mock/gomock"
 
-	"github.com/rusq/slackdump/v3/internal/chunk"
-	"github.com/rusq/slackdump/v3/internal/chunk/mock_chunk"
-	"github.com/rusq/slackdump/v3/internal/fixtures"
-	"github.com/rusq/slackdump/v3/mocks/mock_processor"
-	"github.com/rusq/slackdump/v3/processor"
+	"github.com/rusq/slackdump/v4/internal/chunk"
+	"github.com/rusq/slackdump/v4/internal/chunk/mock_chunk"
+	"github.com/rusq/slackdump/v4/internal/fixtures"
+	"github.com/rusq/slackdump/v4/mocks/mock_processor"
+	"github.com/rusq/slackdump/v4/processor"
 )
 
 func TestConversations_Messages(t *testing.T) {
-	textCtx := context.Background()
+	textCtx := t.Context()
 	type fields struct {
 		subproc     processor.Filer
 		recordFiles bool
@@ -213,7 +228,7 @@ func TestConversations_Messages(t *testing.T) {
 }
 
 func TestConversations_ThreadMessages(t *testing.T) {
-	textCtx := context.Background()
+	textCtx := t.Context()
 	type fields struct {
 		subproc     processor.Filer
 		recordFiles bool
@@ -366,7 +381,7 @@ func TestConversations_ThreadMessages(t *testing.T) {
 }
 
 func TestConversations_ChannelInfo(t *testing.T) {
-	textCtx := context.Background()
+	textCtx := t.Context()
 	type fields struct {
 		subproc     processor.Filer
 		recordFiles bool
@@ -461,7 +476,7 @@ func TestConversations_ChannelInfo(t *testing.T) {
 }
 
 func TestConversations_finalise(t *testing.T) {
-	textCtx := context.Background()
+	textCtx := t.Context()
 	type fields struct {
 		subproc     processor.Filer
 		recordFiles bool
@@ -490,7 +505,7 @@ func TestConversations_finalise(t *testing.T) {
 			expectFn: func(mt *Mocktracker, mtf *mock_chunk.MockTransformer) {
 				mt.EXPECT().RefCount(chunk.FileID("fileID")).Return(0)
 				mt.EXPECT().Unregister(chunk.FileID("fileID")).Return(nil)
-				mtf.EXPECT().Transform(gomock.Any(), chunk.FileID("fileID")).Return(nil)
+				mtf.EXPECT().Transform(gomock.Any(), "fileID", "").Return(nil)
 			},
 			wantErr: false,
 		},
@@ -538,7 +553,7 @@ func TestConversations_finalise(t *testing.T) {
 			expectFn: func(mt *Mocktracker, mtf *mock_chunk.MockTransformer) {
 				mt.EXPECT().RefCount(chunk.FileID("fileID")).Return(0)
 				mt.EXPECT().Unregister(chunk.FileID("fileID")).Return(nil)
-				mtf.EXPECT().Transform(gomock.Any(), chunk.FileID("fileID")).Return(errors.New("transform error"))
+				mtf.EXPECT().Transform(gomock.Any(), "fileID", "").Return(errors.New("transform error"))
 			},
 			wantErr: true,
 		},
@@ -564,7 +579,7 @@ func TestConversations_finalise(t *testing.T) {
 }
 
 func TestConversations_Files(t *testing.T) {
-	testCtx := context.Background()
+	testCtx := t.Context()
 	type fields struct {
 		recordFiles bool
 		tf          chunk.Transformer
@@ -695,7 +710,7 @@ func TestConversations_Files(t *testing.T) {
 }
 
 func TestConversations_ChannelUsers(t *testing.T) {
-	textCtx := context.Background()
+	textCtx := t.Context()
 	type fields struct {
 		subproc     processor.Filer
 		recordFiles bool

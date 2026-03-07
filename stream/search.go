@@ -1,3 +1,18 @@
+// Copyright (c) 2021-2026 Rustam Gilyazov and Contributors.
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package stream
 
 import (
@@ -9,8 +24,8 @@ import (
 	"github.com/rusq/slack"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/rusq/slackdump/v3/internal/network"
-	"github.com/rusq/slackdump/v3/processor"
+	"github.com/rusq/slackdump/v4/internal/network"
+	"github.com/rusq/slackdump/v4/processor"
 )
 
 // SearchMessages executes the search query and calls the processor for each
@@ -49,6 +64,11 @@ func (cs *Stream) SearchMessages(ctx context.Context, proc processor.MessageSear
 					}
 				}
 				for _, fn := range cs.resultFn {
+					select {
+					case <-ctx.Done():
+						return context.Cause(ctx)
+					default:
+					}
 					if err := fn(Result{Type: RTSearch, Count: len(sm)}); err != nil {
 						return err
 					}
@@ -87,7 +107,7 @@ func (cs *Stream) SearchMessages(ctx context.Context, proc processor.MessageSear
 }
 
 func (cs *Stream) searchmsg(ctx context.Context, query string, fn func(sm []slack.SearchMessage) error) error {
-	ctx, task := trace.NewTask(ctx, "searchMessages")
+	ctx, task := trace.NewTask(ctx, "searchmsg")
 	defer task.End()
 
 	lg := slog.With("query", query)
@@ -163,14 +183,14 @@ func (cs *Stream) SearchFiles(ctx context.Context, proc processor.FileSearcher, 
 	return nil
 }
 
-func (s *Stream) Search(ctx context.Context, proc processor.Searcher, query string) error {
+func (cs *Stream) Search(ctx context.Context, proc processor.Searcher, query string) error {
 	eg, ctx := errgroup.WithContext(ctx)
 
 	eg.Go(func() error {
-		return s.SearchMessages(ctx, proc, query)
+		return cs.SearchMessages(ctx, proc, query)
 	})
 	eg.Go(func() error {
-		return s.SearchFiles(ctx, proc, query)
+		return cs.SearchFiles(ctx, proc, query)
 	})
 
 	return eg.Wait()

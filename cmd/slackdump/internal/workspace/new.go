@@ -1,3 +1,18 @@
+// Copyright (c) 2021-2026 Rustam Gilyazov and Contributors.
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package workspace
 
 import (
@@ -8,18 +23,18 @@ import (
 	"os"
 	"strings"
 
-	"github.com/rusq/slackdump/v3/auth"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/golang/base"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/workspace/workspaceui"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/workspace/wspcfg"
-	"github.com/rusq/slackdump/v3/internal/cache"
+	"github.com/rusq/slackdump/v4/auth"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/cfg"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/golang/base"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/workspace/workspaceui"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/workspace/wspcfg"
+	"github.com/rusq/slackdump/v4/internal/cache"
 )
 
 //go:embed assets/new.md
 var newMD string
 
-var CmdWspNew = &base.Command{
+var cmdWspNew = &base.Command{
 	UsageLine:  baseCommand + " new [flags] <name>",
 	Short:      "authenticate in a Slack Workspace",
 	Long:       newMD,
@@ -28,15 +43,10 @@ var CmdWspNew = &base.Command{
 	Wizard:     workspaceui.WorkspaceNew,
 }
 
-var newParams = struct {
-	confirm bool
-}{}
-
 func init() {
-	CmdWspNew.Flag.BoolVar(&newParams.confirm, "y", false, "answer yes to all questions")
-	wspcfg.SetWspFlags(&CmdWspNew.Flag)
+	wspcfg.SetWspFlags(&cmdWspNew.Flag)
 
-	CmdWspNew.Run = runWspNew
+	cmdWspNew.Run = runWspNew
 }
 
 // runWspNew authenticates in the new workspace.
@@ -55,7 +65,7 @@ func runWspNew(ctx context.Context, cmd *base.Command, args []string) error {
 
 	wsp := argsWorkspace(args, cfg.Workspace)
 
-	if err := createWsp(ctx, m, wsp, newParams.confirm); err != nil {
+	if err := createWsp(ctx, m, wsp, cfg.YesMan); err != nil {
 		return err
 	}
 	return nil
@@ -72,7 +82,7 @@ func createWsp(ctx context.Context, m manager, wsp string, confirm bool) error {
 	if m.Exists(realname(wsp)) {
 		if !confirm && !canOverwrite(wsp) {
 			base.SetExitStatus(base.SCancelled)
-			return ErrOpCancelled
+			return base.ErrOpCancelled
 		}
 		if err := m.Delete(realname(wsp)); err != nil {
 			base.SetExitStatus(base.SApplicationError)
@@ -91,7 +101,7 @@ func createWsp(ctx context.Context, m manager, wsp string, confirm bool) error {
 		if errors.Is(err, auth.ErrCancelled) {
 			base.SetExitStatus(base.SCancelled)
 			lg.WarnContext(ctx, auth.ErrCancelled.Error())
-			return ErrOpCancelled
+			return base.ErrOpCancelled
 		}
 		base.SetExitStatus(base.SAuthError)
 		return err
@@ -101,7 +111,7 @@ func createWsp(ctx context.Context, m manager, wsp string, confirm bool) error {
 	// select it
 	if err := m.Select(realname(wsp)); err != nil {
 		base.SetExitStatus(base.SApplicationError)
-		return fmt.Errorf("failed to select the default workpace: %s", err)
+		return fmt.Errorf("failed to select the default workspace: %s", err)
 	}
 	fmt.Fprintf(os.Stdout, "Success:  added workspace %q\n", realname(wsp))
 	lg.DebugContext(ctx, "workspace type", "workspace", realname(wsp), "type", fmt.Sprintf("%T", prov))

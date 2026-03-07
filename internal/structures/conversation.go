@@ -1,10 +1,26 @@
+// Copyright (c) 2021-2026 Rustam Gilyazov and Contributors.
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package structures
 
 import "github.com/rusq/slack"
 
-// IsThreadStart check if the message is a lead message of a thread.
+// IsThreadStart check if the message is a lead message of a thread and the
+// thread is a non-empty thread.
 func IsThreadStart(m *slack.Message) bool {
-	return m.Timestamp == m.ThreadTimestamp && m.ThreadTimestamp != ""
+	return m.ThreadTimestamp != "" && m.Timestamp == m.ThreadTimestamp && !IsEmptyThread(m)
 }
 
 // IsEmptyThread checks if the message is a thread with no replies.
@@ -18,14 +34,13 @@ func IsThreadMessage(m *slack.Msg) bool {
 }
 
 const (
-	CUnknown = iota
-	CIM      // IM
-	CMPIM    // Group IM
-	CPrivate // Private Channel
-	CPublic  // Public Channel
+	CMPIM    = "mpim"            // Group IM
+	CIM      = "im"              // IM
+	CPublic  = "public_channel"  // Public Channel
+	CPrivate = "private_channel" // Private Channel
 )
 
-func ChannelType(ch slack.Channel) int {
+func ChannelType(ch slack.Channel) string {
 	switch {
 	case ch.IsIM:
 		return CIM
@@ -40,4 +55,13 @@ func ChannelType(ch slack.Channel) int {
 
 func ChannelFromID(id string) *slack.Channel {
 	return &slack.Channel{GroupConversation: slack.GroupConversation{Conversation: slack.Conversation{ID: id}}} // arrgh
+}
+
+// IsMember returns true if the user is a member of a given Slack Channel.
+func IsMember(ch *slack.Channel) bool {
+	if ChannelType(*ch) != CPublic || (ch.ID != "" && ch.ID[0] != 'C') {
+		// user is assumed to be a member of any non-public channels.
+		return true
+	}
+	return ch.IsMember
 }

@@ -1,3 +1,18 @@
+// Copyright (c) 2021-2026 Rustam Gilyazov and Contributors.
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package cache
 
 import (
@@ -11,10 +26,10 @@ import (
 	"testing"
 
 	"github.com/rusq/slack"
-	"github.com/rusq/slackdump/v3/auth"
-	"github.com/rusq/slackdump/v3/internal/fixtures"
-	"github.com/rusq/slackdump/v3/internal/mocks/mock_cache"
-	"github.com/rusq/slackdump/v3/internal/mocks/mock_io"
+	"github.com/rusq/slackdump/v4/auth"
+	"github.com/rusq/slackdump/v4/internal/fixtures"
+	"github.com/rusq/slackdump/v4/internal/mocks/mock_cache"
+	"github.com/rusq/slackdump/v4/internal/mocks/mock_io"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 )
@@ -67,12 +82,12 @@ func TestAuthData_Type(t *testing.T) {
 		wantErr bool
 	}
 	tests := []test{
-		{"value", fields{Token: "t", Cookie: "c"}, args{context.Background()}, ATValue, false},
-		{"cookie file", fields{Token: "t", Cookie: testFile}, args{context.Background()}, ATCookieFile, false},
+		{"value", fields{Token: "t", Cookie: "c"}, args{t.Context()}, ATValue, false},
+		{"cookie file", fields{Token: "t", Cookie: testFile}, args{t.Context()}, ATCookieFile, false},
 	}
 	if !isWSL {
-		tests = append(tests, test{"rod", fields{Token: "", Cookie: ""}, args{context.Background()}, ATRod, false})
-		tests = append(tests, test{"playwright", fields{Token: "", Cookie: "", UsePlaywright: true}, args{context.Background()}, ATPlaywright, false})
+		tests = append(tests, test{"rod", fields{Token: "", Cookie: ""}, args{t.Context()}, ATRod, false})
+		tests = append(tests, test{"playwright", fields{Token: "", Cookie: "", UsePlaywright: true}, args{t.Context()}, ATPlaywright, false})
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -144,7 +159,7 @@ func TestInitProvider(t *testing.T) {
 	}{
 		{
 			"empty creds, no errors",
-			args{context.Background(), testDir, "wsp"},
+			args{t.Context(), testDir, "wsp"},
 			func(m *mock_cache.MockCredentials) {
 				m.EXPECT().IsEmpty().Return(false)
 				m.EXPECT().
@@ -157,7 +172,7 @@ func TestInitProvider(t *testing.T) {
 		},
 		{
 			"creds empty, tryLoad succeeds",
-			args{context.Background(), testDir, "wsp"},
+			args{t.Context(), testDir, "wsp"},
 			func(m *mock_cache.MockCredentials) {
 				m.EXPECT().IsEmpty().Return(true)
 			},
@@ -167,7 +182,7 @@ func TestInitProvider(t *testing.T) {
 		},
 		{
 			"creds empty, tryLoad fails",
-			args{context.Background(), testDir, "wsp"},
+			args{t.Context(), testDir, "wsp"},
 			func(m *mock_cache.MockCredentials) {
 				m.EXPECT().IsEmpty().Return(true)
 				m.EXPECT().AuthProvider(gomock.Any(), "wsp").Return(returnedProv, nil)
@@ -178,7 +193,7 @@ func TestInitProvider(t *testing.T) {
 		},
 		{
 			"creds non-empty, provider failed",
-			args{context.Background(), testDir, "wsp"},
+			args{t.Context(), testDir, "wsp"},
 			func(m *mock_cache.MockCredentials) {
 				m.EXPECT().IsEmpty().Return(false)
 				m.EXPECT().AuthProvider(gomock.Any(), "wsp").Return(nil, errors.New("authProvider failed"))
@@ -189,7 +204,7 @@ func TestInitProvider(t *testing.T) {
 		},
 		{
 			"creds non-empty, provider succeeds, save succeeds",
-			args{context.Background(), testDir, "wsp"},
+			args{t.Context(), testDir, "wsp"},
 			func(m *mock_cache.MockCredentials) {
 				m.EXPECT().IsEmpty().Return(false)
 				m.EXPECT().AuthProvider(gomock.Any(), "wsp").Return(returnedProv, nil)
@@ -200,7 +215,7 @@ func TestInitProvider(t *testing.T) {
 		},
 		{
 			"creds non-empty, provider succeeds, save fails",
-			args{context.Background(), t.TempDir() + "$", "wsp"},
+			args{t.Context(), t.TempDir() + "$", "wsp"},
 			func(m *mock_cache.MockCredentials) {
 				m.EXPECT().IsEmpty().Return(false)
 				m.EXPECT().AuthProvider(gomock.Any(), "wsp").Return(returnedProv, nil)
@@ -273,21 +288,21 @@ func Test_tryLoad(t *testing.T) {
 	}{
 		{
 			"all ok",
-			args{context.Background(), credsFile},
+			args{t.Context(), credsFile},
 			nil,
 			testProvider,
 			false,
 		},
 		{
 			"load fails",
-			args{context.Background(), filepath.Join(testDir, "fake")},
+			args{t.Context(), filepath.Join(testDir, "fake")},
 			nil,
 			nil,
 			true,
 		},
 		{
 			"auth test fails",
-			args{context.Background(), credsFile},
+			args{t.Context(), credsFile},
 			errors.New("auth test fail"),
 			nil,
 			true,

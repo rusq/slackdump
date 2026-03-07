@@ -1,3 +1,18 @@
+// Copyright (c) 2021-2026 Rustam Gilyazov and Contributors.
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package processor
 
 import (
@@ -10,7 +25,7 @@ import (
 
 // Conversations is the interface for conversation fetching with files.
 //
-//go:generate mockgen -destination ../mocks/mock_processor/mock_processor.go github.com/rusq/slackdump/v3/processor Conversations,Users,Channels,ChannelInformer,Filer,WorkspaceInfo,MessageSearcher,FileSearcher,Searcher,Avatars
+//go:generate mockgen -destination ../mocks/mock_processor/mock_processor.go github.com/rusq/slackdump/v4/processor Conversations,Users,Channels,ChannelInformer,Filer,WorkspaceInfo,MessageSearcher,FileSearcher,Searcher,Avatars
 type Conversations interface {
 	Messenger
 	Filer
@@ -136,7 +151,7 @@ type JointMessengers struct {
 	pp []Messenger
 }
 
-// JoinMessengers joins multiple Messenger processors into one.
+// JoinMessenger joins multiple Messenger processors into one.
 func JoinMessenger(procs ...Messenger) Messenger {
 	return &JointMessengers{pp: procs}
 }
@@ -217,7 +232,7 @@ func AppendFiler(c Conversations, ff ...Filer) Conversations {
 	return &JointConversations{c: c, aff: ff}
 }
 
-// Files executes the prepended Files procssors and then forwards the call to
+// Files executes the prepended Files processors and then forwards the call to
 // the Conversations processor.
 func (w *JointConversations) Files(ctx context.Context, channel *slack.Channel, parent slack.Message, ff []slack.File) error {
 	var errs error
@@ -238,7 +253,7 @@ func (w *JointConversations) Files(ctx context.Context, channel *slack.Channel, 
 	return errs
 }
 
-// ChannelInfo executes the prepended ChannelInfo procssors and then forwards
+// ChannelInfo executes the prepended ChannelInfo processors and then forwards
 // the call to the Conversations processor.
 func (w *JointConversations) ChannelInfo(ctx context.Context, ci *slack.Channel, threadID string) error {
 	var errs error
@@ -258,7 +273,7 @@ func (w *JointConversations) ChannelInfo(ctx context.Context, ci *slack.Channel,
 	return errs
 }
 
-// ChannelUsers executes the prepended ChannelUsers procssors and then forwards
+// ChannelUsers executes the prepended ChannelUsers processors and then forwards
 // the call to the Conversations processor.
 func (w *JointConversations) ChannelUsers(ctx context.Context, channelID string, threadTS string, users []string) error {
 	var errs error
@@ -278,7 +293,7 @@ func (w *JointConversations) ChannelUsers(ctx context.Context, channelID string,
 	return errs
 }
 
-// Messages executes the prepended Messages procssors and then forwards the
+// Messages executes the prepended Messages processors and then forwards the
 // call to the Conversations processor.
 func (w *JointConversations) Messages(ctx context.Context, channelID string, numThreads int, isLast bool, messages []slack.Message) error {
 	var errs error
@@ -298,7 +313,7 @@ func (w *JointConversations) Messages(ctx context.Context, channelID string, num
 	return errs
 }
 
-// ThreadMessages executes the prepended ThreadMessages procssors and then
+// ThreadMessages executes the prepended ThreadMessages processors and then
 // forwards the call to the Conversations processor.
 func (w *JointConversations) ThreadMessages(ctx context.Context, channelID string, parent slack.Message, threadOnly, isLast bool, replies []slack.Message) error {
 	var errs error

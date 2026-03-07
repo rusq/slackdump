@@ -1,9 +1,23 @@
+// Copyright (c) 2021-2026 Rustam Gilyazov and Contributors.
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 // Package edge provides a limited implementation of Slack edge api necessary
 // to get the data from a slack workspace.
 package edge
 
 import (
-	"context"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -13,8 +27,8 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/rusq/slackdump/v3/auth"
-	"github.com/rusq/slackdump/v3/internal/fixtures"
+	"github.com/rusq/slackdump/v4/auth"
+	"github.com/rusq/slackdump/v4/internal/fixtures"
 )
 
 var _ = godotenv.Load()
@@ -42,7 +56,7 @@ func TestNew(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cl, err := New(context.Background(), prov)
+	cl, err := New(t.Context(), prov)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -51,7 +65,7 @@ func TestNew(t *testing.T) {
 		Filter:   "everyone AND NOT bots AND NOT apps",
 		Count:    20,
 	}
-	resp, err := cl.PostJSON(context.Background(), "/users/list", &req)
+	resp, err := cl.PostJSON(t.Context(), "/users/list", &req)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -71,11 +85,11 @@ func TestGetUsers(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cl, err := New(context.Background(), au)
+	cl, err := New(t.Context(), au)
 	if err != nil {
 		t.Fatal(err)
 	}
-	ui, err := cl.GetUsers(context.Background(), "U0LKLSNER", "U03K9GLS2", "U03KMNRQS")
+	ui, err := cl.GetUsers(t.Context(), "U0LKLSNER", "U03K9GLS2", "U03KMNRQS")
 	if err != nil {
 		t.Fatal(err)
 	}

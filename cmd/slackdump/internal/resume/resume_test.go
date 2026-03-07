@@ -1,3 +1,18 @@
+// Copyright (c) 2021-2026 Rustam Gilyazov and Contributors.
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package resume
 
 import (
@@ -7,15 +22,16 @@ import (
 	"time"
 
 	"github.com/rusq/slack"
+	"github.com/sosodev/duration"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 
-	"github.com/rusq/slackdump/v3"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/cfg"
-	"github.com/rusq/slackdump/v3/internal/fixtures"
-	"github.com/rusq/slackdump/v3/internal/source"
-	"github.com/rusq/slackdump/v3/internal/source/mock_source"
-	"github.com/rusq/slackdump/v3/internal/structures"
+	"github.com/rusq/slackdump/v4"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/cfg"
+	"github.com/rusq/slackdump/v4/internal/fixtures"
+	"github.com/rusq/slackdump/v4/internal/structures"
+	"github.com/rusq/slackdump/v4/source"
+	"github.com/rusq/slackdump/v4/source/mock_source"
 )
 
 func Test_ensureSameWorkspace(t *testing.T) {
@@ -33,7 +49,7 @@ func Test_ensureSameWorkspace(t *testing.T) {
 		{
 			name: "match",
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 				info: &slackdump.WorkspaceInfo{
 					TeamID: "T123",
 				},
@@ -48,7 +64,7 @@ func Test_ensureSameWorkspace(t *testing.T) {
 		{
 			name: "mismatch",
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 				info: &slackdump.WorkspaceInfo{
 					TeamID: "T123",
 				},
@@ -63,7 +79,7 @@ func Test_ensureSameWorkspace(t *testing.T) {
 		{
 			name: "error",
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 				info: &slackdump.WorkspaceInfo{
 					TeamID: "T123",
 				},
@@ -76,7 +92,7 @@ func Test_ensureSameWorkspace(t *testing.T) {
 		{
 			name: "no workspace info, no users, no channels",
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 				info: &slackdump.WorkspaceInfo{
 					TeamID: "T123",
 				},
@@ -91,7 +107,7 @@ func Test_ensureSameWorkspace(t *testing.T) {
 		{
 			name: "no workspace info, no users, fixture channels, workspace mismatch",
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 				info: &slackdump.WorkspaceInfo{
 					TeamID: "T123",
 				},
@@ -107,7 +123,7 @@ func Test_ensureSameWorkspace(t *testing.T) {
 		{
 			name: "no workspace info, no users, fixture channels, workspace match",
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 				info: &slackdump.WorkspaceInfo{
 					TeamID: "THY5HTZ8U",
 				},
@@ -123,7 +139,7 @@ func Test_ensureSameWorkspace(t *testing.T) {
 		{
 			name: "no workspace info, fixture users",
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 				info: &slackdump.WorkspaceInfo{
 					TeamID: "TFCSDNRL5",
 				},
@@ -138,7 +154,7 @@ func Test_ensureSameWorkspace(t *testing.T) {
 		{
 			name: "no workspace info, fixture users, workspace mismatch",
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 				info: &slackdump.WorkspaceInfo{
 					TeamID: "T123",
 				},
@@ -180,7 +196,7 @@ func Test_channelTeam(t *testing.T) {
 		{
 			name: "no channels",
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 			},
 			expectFn: func(ms *mock_source.MockSourcer) {
 				ms.EXPECT().Channels(gomock.Any()).Return([]slack.Channel{}, nil)
@@ -191,7 +207,7 @@ func Test_channelTeam(t *testing.T) {
 		{
 			name: "fixture channels",
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 			},
 			expectFn: func(ms *mock_source.MockSourcer) {
 				channels := fixtures.Load[[]slack.Channel](fixtures.TestChannelsWithTeamJSON)
@@ -203,7 +219,7 @@ func Test_channelTeam(t *testing.T) {
 		{
 			name: "API error",
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 			},
 			expectFn: func(ms *mock_source.MockSourcer) {
 				ms.EXPECT().Channels(gomock.Any()).Return(nil, assert.AnError)
@@ -214,7 +230,7 @@ func Test_channelTeam(t *testing.T) {
 		{
 			name: "fixture channels, no team ID",
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 			},
 			expectFn: func(ms *mock_source.MockSourcer) {
 				channels := fixtures.Load[[]slack.Channel](fixtures.TestChannelsJSON)
@@ -258,7 +274,7 @@ func Test_usersTeam(t *testing.T) {
 		{
 			name: "no users",
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 			},
 			expectFn: func(ms *mock_source.MockSourcer) {
 				ms.EXPECT().Users(gomock.Any()).Return([]slack.User{}, nil)
@@ -268,7 +284,7 @@ func Test_usersTeam(t *testing.T) {
 		{
 			name: "fixture users",
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 			},
 			expectFn: func(ms *mock_source.MockSourcer) {
 				users := fixtures.Load[[]slack.User](string(fixtures.TestExpUsersJSON))
@@ -280,7 +296,7 @@ func Test_usersTeam(t *testing.T) {
 		{
 			name: "API error",
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 			},
 			expectFn: func(ms *mock_source.MockSourcer) {
 				ms.EXPECT().Users(gomock.Any()).Return(nil, assert.AnError)
@@ -290,7 +306,7 @@ func Test_usersTeam(t *testing.T) {
 		{
 			name: "unable to reliably determine the team ID",
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 			},
 			expectFn: func(ms *mock_source.MockSourcer) {
 				users := []slack.User{
@@ -326,6 +342,8 @@ func Test_latest(t *testing.T) {
 		ctx context.Context
 		// src source.Resumer
 		includeThreads bool
+		lookBack       time.Duration
+		other          *structures.EntityList
 	}
 	tests := []struct {
 		name     string
@@ -337,8 +355,9 @@ func Test_latest(t *testing.T) {
 		{
 			name: "resumer error",
 			args: args{
-				ctx:            context.Background(),
+				ctx:            t.Context(),
 				includeThreads: false,
+				lookBack:       0,
 			},
 			expectFn: func(mr *mock_source.MockResumer) {
 				mr.EXPECT().Latest(gomock.Any()).Return(nil, assert.AnError)
@@ -349,8 +368,9 @@ func Test_latest(t *testing.T) {
 		{
 			name: "no entities",
 			args: args{
-				ctx:            context.Background(),
+				ctx:            t.Context(),
 				includeThreads: false,
+				lookBack:       0,
 			},
 			expectFn: func(mr *mock_source.MockResumer) {
 				mr.EXPECT().Latest(gomock.Any()).Return(map[structures.SlackLink]time.Time{}, nil)
@@ -361,8 +381,9 @@ func Test_latest(t *testing.T) {
 		{
 			name: "returns latest status",
 			args: args{
-				ctx:            context.Background(),
+				ctx:            t.Context(),
 				includeThreads: false,
+				lookBack:       0,
 			},
 			expectFn: func(mr *mock_source.MockResumer) {
 				mr.EXPECT().Latest(gomock.Any()).Return(map[structures.SlackLink]time.Time{
@@ -377,8 +398,9 @@ func Test_latest(t *testing.T) {
 		{
 			name: "returns latest status with thread",
 			args: args{
-				ctx:            context.Background(),
+				ctx:            t.Context(),
 				includeThreads: true,
+				lookBack:       0,
 			},
 			expectFn: func(mr *mock_source.MockResumer) {
 				mr.EXPECT().Latest(gomock.Any()).Return(map[structures.SlackLink]time.Time{
@@ -395,8 +417,9 @@ func Test_latest(t *testing.T) {
 		{
 			name: "returns latest status with thread, but includeThreads is false",
 			args: args{
-				ctx:            context.Background(),
+				ctx:            t.Context(),
 				includeThreads: false,
+				lookBack:       0,
 			},
 			expectFn: func(mr *mock_source.MockResumer) {
 				mr.EXPECT().Latest(gomock.Any()).Return(map[structures.SlackLink]time.Time{
@@ -417,12 +440,73 @@ func Test_latest(t *testing.T) {
 			if tt.expectFn != nil {
 				tt.expectFn(mr)
 			}
-			got, err := latest(tt.args.ctx, mr, tt.args.includeThreads)
+			got, err := latest(tt.args.ctx, mr, tt.args.includeThreads, tt.args.lookBack, tt.args.other)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("latest() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func Test_extDuration_Set(t *testing.T) {
+	type args struct {
+		s string
+	}
+	tests := []struct {
+		name    string
+		d       *extDuration
+		args    args
+		wantErr bool
+		want    string
+	}{
+		{
+			name: "1 week, no P prefix",
+			d:    new(extDuration),
+			args: args{
+				s: "1w5dt2h3m4s",
+			},
+			wantErr: false,
+			want:    "p1w5dt2h3m4s",
+		},
+		{
+			name: "1 week (ISO 8601 format)",
+			d:    new(extDuration),
+			args: args{
+				s: "P1W",
+			},
+			wantErr: false,
+			want:    "p1w",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := tt.d.Set(tt.args.s); (err != nil) != tt.wantErr {
+				t.Errorf("extDuration.Set() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			assert.Equal(t, tt.want, tt.d.String())
+		})
+	}
+}
+
+func Test_extDuration_String(t *testing.T) {
+	tests := []struct {
+		name string
+		d    *extDuration
+		want string
+	}{
+		{
+			"formats a duration",
+			(*extDuration)(duration.FromTimeDuration(7*24*time.Hour + 5*24*time.Hour + 2*time.Hour + 3*time.Minute + 4*time.Second)),
+			"p1w5dt2h3m4s",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.d.String(); got != tt.want {
+				t.Errorf("extDuration.String() = %v, want %v", got, tt.want)
+			}
 		})
 	}
 }

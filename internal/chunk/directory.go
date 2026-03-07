@@ -1,9 +1,25 @@
+// Copyright (c) 2021-2026 Rustam Gilyazov and Contributors.
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package chunk
 
 import (
 	"compress/gzip"
 	"context"
 	"encoding/gob"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -19,8 +35,8 @@ import (
 
 	"github.com/rusq/slack"
 
-	"github.com/rusq/slackdump/v3/internal/osext"
-	"github.com/rusq/slackdump/v3/internal/structures"
+	"github.com/rusq/slackdump/v4/internal/osext"
+	"github.com/rusq/slackdump/v4/internal/structures"
 )
 
 // file extensions
@@ -134,18 +150,24 @@ type resultt[T any] struct {
 	err error
 }
 
-func collectAll[T any](ctx context.Context, d *Directory, numwrk int, fn func(*File) ([]T, error)) ([]T, error) {
+type collectedFile struct {
+	name string
+	f    *File
+}
+
+// collectAll collects all file from the directory and calls callback function fn for each file.
+func collectAll[T any](ctx context.Context, d *Directory, numwrk int, fn func(name string, f *File) ([]T, error)) ([]T, error) {
 	var all []T
-	fileC := make(chan *File)
+	fileC := make(chan collectedFile, numwrk)
 	errC := make(chan error, 1)
 	go func() {
 		defer close(fileC)
 		defer close(errC)
 		errC <- d.Walk(func(name string, f *File, err error) error {
 			if err != nil {
-				return err
+				return fmt.Errorf("collectAll: error in %s: %w", name, err)
 			}
-			fileC <- f
+			fileC <- collectedFile{name, f}
 			return nil
 		})
 	}()
@@ -185,11 +207,11 @@ LOOP:
 	return all, nil
 }
 
-func collectWorker[T any](fileC <-chan *File, resultsC chan<- resultt[T], fn func(*File) ([]T, error)) {
-	for f := range fileC {
-		v, err := fn(f)
+func collectWorker[T any](fileC <-chan collectedFile, resultsC chan<- resultt[T], fn func(string, *File) ([]T, error)) {
+	for req := range fileC {
+		v, err := fn(req.name, req.f)
 		resultsC <- resultt[T]{v, err}
-		f.Close()
+		req.f.Close()
 	}
 }
 
@@ -202,13 +224,13 @@ func (d *Directory) Channels(ctx context.Context) ([]slack.Channel, error) {
 		return val.([]slack.Channel), nil
 	}
 	slog.Debug("channels: cache miss")
-	ch, err := collectAll(ctx, d, d.numWorkers, func(f *File) ([]slack.Channel, error) {
+	ch, err := collectAll(ctx, d, d.numWorkers, func(name string, f *File) ([]slack.Channel, error) {
 		c, err := f.AllChannelInfos()
 		if err != nil {
 			if errors.Is(err, ErrNotFound) {
 				return nil, nil
 			}
-			return nil, err
+			return nil, fmt.Errorf("channels: error processing file %s: %w", name, err)
 		}
 		return c, nil
 	})
@@ -242,7 +264,11 @@ func (d *Directory) Walk(fn func(name string, f *File, err error) error) error {
 			isDir       = de.IsDir()
 			isHidden    = len(de.Name()) > 0 && de.Name()[0] == '.'
 		)
-		if !isSupported || isDir || isHidden {
+		if isDir && path != d.dir {
+			// skip nested directories
+			return fs.SkipDir
+		}
+		if !isSupported || isHidden {
 			return nil
 		}
 		f, err := d.openRAW(path)
@@ -250,6 +276,13 @@ func (d *Directory) Walk(fn func(name string, f *File, err error) error) error {
 			return fn(path, nil, err)
 		}
 		cf, err := cachedFromReader(f, d.wantCache)
+		if err != nil {
+			var jsonErr *json.SyntaxError
+			if errors.As(err, &jsonErr) {
+				slog.Warn("invalid JSON", "file", path, "error", err.Error())
+				return nil
+			}
+		}
 		return fn(path, cf, err)
 	})
 }

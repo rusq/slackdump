@@ -1,0 +1,10 @@
+{
+  "files": [
+    {"src": ".mcp.json", "dst": ".mcp.json"}
+  ],
+  "skills": [
+    {"skill": "slackdump",        "dst": "CLAUDE.md"},
+    {"skill": "slackdump-source", "dst": ".claude/slackdump-source.md"},
+    {"skill": "slackdump-sqlite3","dst": ".claude/slackdump-sqlite3.md"}
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "files": [
+    {"src": ".vscode/mcp.json", "dst": ".vscode/mcp.json"}
+  ],
+  "skills": [
+    {"skill": "slackdump",        "dst": ".github/copilot-instructions.md"},
+    {"skill": "slackdump-source", "dst": ".github/instructions/slackdump-source.instructions.md"},
+    {"skill": "slackdump-sqlite3","dst": ".github/instructions/slackdump-sqlite3.instructions.md"}
+  ]
+}

@@ -1,3 +1,18 @@
+// Copyright (c) 2021-2026 Rustam Gilyazov and Contributors.
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package repository
 
 import (
@@ -10,7 +25,7 @@ import (
 
 	"github.com/rusq/slack"
 
-	"github.com/rusq/slackdump/v3/internal/chunk"
+	"github.com/rusq/slackdump/v4/internal/chunk"
 )
 
 // DBChunk is the database representation of the Chunk.
@@ -25,6 +40,7 @@ type DBChunk struct {
 	ChannelID   *string         `db:"CHANNEL_ID,omitempty"`
 	SearchQuery *string         `db:"SEARCH_QUERY,omitempty"`
 	Final       bool            `db:"FINAL"`
+	ThreadOnly  *bool           `db:"THREAD_ONLY,omitempty"`
 }
 
 func orZero[T any](t *T) T {
@@ -43,6 +59,7 @@ func (c DBChunk) Chunk() *chunk.Chunk {
 		Count:       c.NumRecords,
 		IsLast:      c.Final,
 		SearchQuery: orZero(c.SearchQuery),
+		ThreadOnly:  orZero(c.ThreadOnly),
 	}
 	switch c.TypeID {
 	case chunk.CMessages, chunk.CThreadMessages:
@@ -84,6 +101,7 @@ func (DBChunk) columns() []string {
 		"CHANNEL_ID",
 		"SEARCH_QUERY",
 		"FINAL",
+		"THREAD_ONLY",
 	}
 }
 
@@ -96,6 +114,7 @@ func (d DBChunk) values() []any {
 		d.ChannelID,
 		d.SearchQuery,
 		d.Final,
+		d.ThreadOnly,
 	}
 }
 

@@ -5,15 +5,15 @@ Slack workspace based on specified query terms. This command supports searching
 for messages, files, or both, and outputs the results in a directory.
 
 ### Subcommands
-- **`slackdump search messages`**: Searches and records messages matching the
-  given query.
-- **`slackdump search files`**: Searches and records files matching the given
+- **`slackdump search messages <query>`**: Searches and records messages
+  matching the given query.
+- **`slackdump search files <query>`**: Searches and records files matching the given
   query.
-- **`slackdump search all`**: Searches and records both messages and files
+- **`slackdump search all <query>`**: Searches and records both messages and files
   matching the query.
 
 ### Flags
-- **`--no-channel-users`**: Skips retrieving user data for channels, making the
+- **`-no-channel-users`**: Skips retrieving user data for channels, making the
   process approximately 2.5x faster.
 
 ### Requirements
@@ -41,16 +41,14 @@ slackdump search all "project updates"
 ```
 
 ### Faster Searches
-To speed up searches, add the `--no-channel-users` flag:
+To speed up searches, add the `-no-channel-users` flag:
 
 ```bash
 slackdump search messages -no-channel-users "status update"
 ```
 
 
-## Output Directory
-The search command outputs results to the specified directory. The directory
-contains:
-
-- **`search.jsonl.gz`**: A list of messages matching the query.
-- directory with saved files (if files are included in the search).
+## Output
+The search command outputs results to the database in the output directory.
+See `slackdump help archive` for details on the database structure and
+contents.

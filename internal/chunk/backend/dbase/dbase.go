@@ -1,3 +1,18 @@
+// Copyright (c) 2021-2026 Rustam Gilyazov and Contributors.
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package dbase
 
 import (
@@ -11,8 +26,8 @@ import (
 
 	"github.com/jmoiron/sqlx"
 
-	"github.com/rusq/slackdump/v3/internal/chunk"
-	"github.com/rusq/slackdump/v3/internal/chunk/backend/dbase/repository"
+	"github.com/rusq/slackdump/v4/internal/chunk"
+	"github.com/rusq/slackdump/v4/internal/chunk/backend/dbase/repository"
 )
 
 // DBP is the database processor.
@@ -22,7 +37,8 @@ type DBP struct {
 	sessionID int64
 	closed    atomic.Bool
 
-	mr repository.MessageRepository
+	mr   repository.MessageRepository
+	opts options
 }
 
 func (d *DBP) String() string {
@@ -49,7 +65,8 @@ var dbInitCommands = []string{
 }
 
 type options struct {
-	verbose bool
+	onlyNewOrChangedUsers bool
+	verbose               bool
 }
 
 func (o *options) apply(opts ...Option) {
@@ -63,6 +80,12 @@ type Option func(*options)
 func WithVerbose(v bool) Option {
 	return func(o *options) {
 		o.verbose = v
+	}
+}
+
+func WithOnlyNewOrChangedUsers(v bool) Option {
+	return func(o *options) {
+		o.onlyNewOrChangedUsers = v
 	}
 }
 
@@ -98,6 +121,7 @@ func New(ctx context.Context, conn *sqlx.DB, p SessionInfo, opts ...Option) (*DB
 		conn:      conn,
 		sessionID: id,
 		mr:        repository.NewMessageRepository(),
+		opts:      options,
 	}, nil
 }
 
@@ -137,7 +161,7 @@ func (d *DBP) Encode(ctx context.Context, ch *chunk.Chunk) error {
 }
 
 // IsComplete returns true if the channel messages have been processed (there
-// are no unfinished threads).
+// are no unfinished threads, and all messages were received).
 func (d *DBP) IsComplete(ctx context.Context, channelID string) (bool, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -148,6 +172,24 @@ func (d *DBP) IsComplete(ctx context.Context, channelID string) (bool, error) {
 		return false, fmt.Errorf("countUnfinished: %w", err)
 	}
 	return n <= 0, nil
+}
+
+// IsCompleteThread checks that thread with channelID and threadID is complete for
+// thread-only archives.  It returns true if there are no unfinished parts of the
+// thread.  It returns false if the thread is not found.  It will return false
+// on non-thread-only archives.
+func (d *DBP) IsCompleteThread(ctx context.Context, channelID, threadID string) (bool, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	n, err := d.mr.CountThreadOnlyParts(ctx, d.conn, d.sessionID, channelID, threadID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, nil
+	} else if err != nil {
+		return false, fmt.Errorf("countUnfinished: %w", err)
+	}
+	// note that count thread only parts returns non-zero for completed threads,
+	// so the check is reversed.
+	return n > 0, nil
 }
 
 // Source returns the connection that can be used safely as a source.

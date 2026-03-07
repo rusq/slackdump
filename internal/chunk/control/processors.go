@@ -1,3 +1,18 @@
+// Copyright (c) 2021-2026 Rustam Gilyazov and Contributors.
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package control
 
 import (
@@ -6,12 +21,12 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/rusq/slackdump/v3/internal/structures"
+	"github.com/rusq/slackdump/v4/internal/structures"
 
 	"github.com/rusq/slack"
 
-	"github.com/rusq/slackdump/v3/internal/chunk"
-	"github.com/rusq/slackdump/v3/processor"
+	"github.com/rusq/slackdump/v4/internal/chunk"
+	"github.com/rusq/slackdump/v4/processor"
 )
 
 // Special processors for the controller.
@@ -79,17 +94,47 @@ func (ct *conversationTransformer) ThreadMessages(ctx context.Context, channelID
 }
 
 func (ct *conversationTransformer) mbeTransform(ctx context.Context, channelID, threadID string, threadOnly bool) error {
+	// there are two cases:
+	// 1. we are in a thread-only mode, so we need to check if this thread individual thread is complete.
+	if threadOnly {
+		return ct.mbeTransformThread(ctx, channelID, threadID)
+	}
+	// 2. we are in a channel mode, so we need to check if the channel is complete.
+	return ct.mbeTransformChannel(ctx, channelID)
+}
+
+func (ct *conversationTransformer) mbeTransformChannel(ctx context.Context, channelID string) error {
 	isComplete, err := ct.rc.IsComplete(ctx, channelID)
 	if err != nil {
 		return fmt.Errorf("error checking if complete: %w", err)
 	}
-	lg := slog.With("channel_id", channelID, "thread_id", threadID, "is_complete", isComplete)
-	lg.Debug("finalisation")
+	lg := slog.With("channel_id", channelID, "is_complete", isComplete)
+	lg.Debug("channel finalisation")
 	if !isComplete {
+		lg.Debug("not complete, skipping")
 		return nil
 	}
-	lg.Debug("calling transform")
-	if err := ct.tf.Transform(ctx, chunk.ToFileID(channelID, threadID, threadOnly)); err != nil {
+	lg.Debug("calling channel transform")
+	if err := ct.tf.Transform(ctx, channelID, ""); err != nil {
+		return fmt.Errorf("error transforming: %w", err)
+	}
+	return nil
+}
+
+func (ct *conversationTransformer) mbeTransformThread(ctx context.Context, channelID string, threadID string) error {
+	isComplete, err := ct.rc.IsCompleteThread(ctx, channelID, threadID)
+	if err != nil {
+		return fmt.Errorf("error checking if complete: %w", err)
+	}
+	lg := slog.With("channel_id", channelID, "thread_id", threadID, "is_complete", isComplete, "thread_only", true)
+	lg.Debug("thread finalisation")
+	if !isComplete {
+		lg.Debug("not complete, skipping")
+		return nil
+	}
+	lg.Debug("calling thread transform")
+	// TODO: TransformThread #511
+	if err := ct.tf.Transform(ctx, channelID, threadID); err != nil {
 		return fmt.Errorf("error transforming: %w", err)
 	}
 	return nil
@@ -99,7 +144,6 @@ func (ct *conversationTransformer) mbeTransform(ctx context.Context, channelID, 
 // settings.  It also maintains an index of the channels that are in the list.
 type chanFilter struct {
 	links      chan<- structures.EntityItem
-	list       *structures.EntityList
 	memberOnly bool
 	idx        map[string]*structures.EntityItem
 }
@@ -119,9 +163,14 @@ var _ processor.Channels = (*chanFilter)(nil)
 // channel matches the filter, and is not excluded or duplicate, it sends the
 // channel ID (as an EntityItem) to the links channel.
 func (c *chanFilter) Channels(ctx context.Context, ch []slack.Channel) error {
+	select {
+	case <-ctx.Done():
+		return context.Cause(ctx)
+	default:
+	}
 LOOP:
 	for _, ch := range ch {
-		if c.memberOnly && (ch.ID[0] == 'C' && !ch.IsMember) {
+		if c.memberOnly && !structures.IsMember(&ch) {
 			// skip public non-member channels
 			continue
 		}

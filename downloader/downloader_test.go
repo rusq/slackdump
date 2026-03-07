@@ -1,14 +1,28 @@
+// Copyright (c) 2021-2026 Rustam Gilyazov and Contributors.
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package downloader
 
 import (
-	"context"
 	"log/slog"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/rusq/slackdump/v3/internal/fixtures"
+	"github.com/rusq/slackdump/v4/internal/fixtures"
 )
 
 func init() {
@@ -143,7 +157,7 @@ func TestClient_startWorkers(t *testing.T) {
 			options:  options{lg: slog.Default(), workers: 3},
 		}
 		defer close(c.requests)
-		c.startWorkers(context.Background())
+		c.startWorkers(t.Context())
 		assert.Equal(t, 3, c.workers)
 	})
 	t.Run("no workers specified", func(t *testing.T) {
@@ -153,7 +167,7 @@ func TestClient_startWorkers(t *testing.T) {
 			options:  options{lg: slog.Default()},
 		}
 		defer close(c.requests)
-		c.startWorkers(context.Background())
+		c.startWorkers(t.Context())
 		assert.Equal(t, defNumWorkers, c.workers)
 	})
 }
@@ -164,12 +178,12 @@ func TestStart(t *testing.T) {
 		c := &Client{}
 		c.lg = slog.Default()
 		c.started.Store(true)
-		assert.Error(t, c.Start(context.Background()), "expected error")
+		assert.Error(t, c.Start(t.Context()), "expected error")
 	})
 	t.Run("not started", func(t *testing.T) {
 		c := &Client{}
 		c.lg = slog.Default()
-		assert.NoError(t, c.Start(context.Background()), "expected no error")
+		assert.NoError(t, c.Start(t.Context()), "expected no error")
 		assert.True(t, c.started.Load(), "expected started to be true")
 	})
 }

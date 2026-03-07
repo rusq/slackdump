@@ -1,3 +1,18 @@
+// Copyright (c) 2021-2026 Rustam Gilyazov and Contributors.
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package diag
 
 import (
@@ -15,8 +30,8 @@ import (
 
 	"github.com/rusq/fsadapter/mocks/mock_fsadapter"
 
-	"github.com/rusq/slackdump/v3/internal/testutil"
-	"github.com/rusq/slackdump/v3/mocks/mock_downloader"
+	"github.com/rusq/slackdump/v4/internal/testutil"
+	"github.com/rusq/slackdump/v4/mocks/mock_downloader"
 )
 
 func init() {
@@ -49,7 +64,7 @@ func Test_httpget_GetFileContext(t *testing.T) {
 			name: "invalid URL",
 			h:    httpget{},
 			args: args{
-				ctx:         context.Background(),
+				ctx:         t.Context(),
 				downloadURL: "invalidURL",
 			},
 			wantW:   "",
@@ -59,7 +74,7 @@ func Test_httpget_GetFileContext(t *testing.T) {
 			name: "missing token in the URL",
 			h:    httpget{},
 			args: args{
-				ctx:         context.Background(),
+				ctx:         t.Context(),
 				downloadURL: srv.URL,
 			},
 			wantW:   "",
@@ -69,7 +84,7 @@ func Test_httpget_GetFileContext(t *testing.T) {
 			name: "all ok",
 			h:    httpget{},
 			args: args{
-				ctx:         context.Background(),
+				ctx:         t.Context(),
 				downloadURL: srv.URL + "?t=token",
 			},
 			wantW:   "Hello, client\n",
@@ -79,7 +94,7 @@ func Test_httpget_GetFileContext(t *testing.T) {
 			name: "error",
 			h:    httpget{},
 			args: args{
-				ctx:         context.Background(),
+				ctx:         t.Context(),
 				downloadURL: errsrv.URL + "?t=token",
 			},
 			wantW:   "",
@@ -196,7 +211,7 @@ func Test_downloadFiles(t *testing.T) {
 			if tt.expectFn != nil {
 				tt.expectFn(ms, fs, d)
 			}
-			if err := downloadFiles(context.Background(), d, fs, ms); (err != nil) != tt.wantErr {
+			if err := downloadFiles(t.Context(), d, fs, ms); (err != nil) != tt.wantErr {
 				t.Errorf("downloadFiles() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

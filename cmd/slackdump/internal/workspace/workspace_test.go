@@ -1,3 +1,18 @@
+// Copyright (c) 2021-2026 Rustam Gilyazov and Contributors.
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package workspace
 
 import (
@@ -9,10 +24,10 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/rusq/slackdump/v3/auth"
-	"github.com/rusq/slackdump/v3/cmd/slackdump/internal/workspace/workspaceui"
-	"github.com/rusq/slackdump/v3/internal/cache"
-	fx "github.com/rusq/slackdump/v3/internal/fixtures"
+	"github.com/rusq/slackdump/v4/auth"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/workspace/workspaceui"
+	"github.com/rusq/slackdump/v4/internal/cache"
+	fx "github.com/rusq/slackdump/v4/internal/fixtures"
 )
 
 func Test_argsWorkspace(t *testing.T) {
@@ -192,33 +207,33 @@ func TestCurrentOrNewProviderCtx(t *testing.T) {
 	}{
 		{
 			"authCurrent fails",
-			args{context.Background()},
+			args{t.Context()},
 			&recorder{
 				authCurrentRetErr: assert.AnError,
 			},
-			context.Background(),
+			t.Context(),
 			true,
 			1,
 			0,
 		},
 		{
 			"authCurrent doesn't find workspace",
-			args{context.Background()},
+			args{t.Context()},
 			&recorder{
 				authCurrentRetErr: cache.ErrNoWorkspaces,
 			},
-			context.Background(),
+			t.Context(),
 			true,
 			2, // attempts to call authCurrent twice
 			1, // after showing the UI
 		},
 		{
 			"authCurrent succeeds",
-			args{context.Background()},
+			args{t.Context()},
 			&recorder{
 				authCurrentRetProv: auth.ValueAuth{},
 			},
-			auth.WithContext(context.Background(), auth.ValueAuth{}),
+			auth.WithContext(t.Context(), auth.ValueAuth{}),
 			false,
 			1,
 			0,

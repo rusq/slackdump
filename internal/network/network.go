@@ -1,3 +1,18 @@
+// Copyright (c) 2021-2026 Rustam Gilyazov and Contributors.
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package network
 
 import (
@@ -41,13 +56,6 @@ func setWaitFunc(fn func(int) time.Duration) {
 	mu.Lock()
 	defer mu.Unlock()
 	waitFn = fn
-}
-
-func setNetWaitFunc(fn func(int) time.Duration) {
-	mu.Lock()
-	defer mu.Unlock()
-
-	netWaitFn = fn
 }
 
 func wait(n int) time.Duration {
@@ -120,7 +128,8 @@ func WithRetry(ctx context.Context, lim *rate.Limiter, maxAttempts int, fn func(
 		lastErr = cbErr
 
 		if !strings.EqualFold(cbErr.Error(), "pagination complete") && !errors.Is(cbErr, context.Canceled) {
-			lg.ErrorContext(ctx, "WithRetry", "error", cbErr, "attempt", attempt+1)
+			// let the upstream report the error, if necessary.
+			lg.DebugContext(ctx, "WithRetry", "error", cbErr, "attempt", attempt+1)
 		}
 		var (
 			rle *slack.RateLimitedError
@@ -139,7 +148,7 @@ func WithRetry(ctx context.Context, lim *rate.Limiter, maxAttempts int, fn func(
 			slog.Debug("resuming after EOF")
 			continue
 		case errors.As(cbErr, &rle):
-			slog.InfoContext(ctx, "got rate limited, sleeping", "retry_after_sec", rle.RetryAfter, "error", cbErr)
+			slog.InfoContext(ctx, "got rate limited, sleeping", "retry_after", rle.RetryAfter.String(), "error", cbErr)
 			tracelogf(ctx, "info", "got rate limited, sleeping %s (%s)", rle.RetryAfter, cbErr)
 			if err := sleepCtx(ctx, rle.RetryAfter); err != nil {
 				return err

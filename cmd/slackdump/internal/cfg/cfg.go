@@ -1,18 +1,37 @@
+// Copyright (c) 2021-2026 Rustam Gilyazov and Contributors.
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 // Package cfg contains common configuration variables.
 package cfg
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"log/slog"
 	"os"
+	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/pterm/pterm"
 	"github.com/rusq/osenv/v2"
 
-	"github.com/rusq/slackdump/v3/internal/network"
+	"github.com/rusq/slackdump/v4"
+	"github.com/rusq/slackdump/v4/internal/network"
 )
 
 const (
@@ -20,10 +39,10 @@ const (
 )
 
 var (
-	TraceFile   string
-	LogFile     string
-	JsonHandler bool
-	Verbose     bool
+	TraceFile      string
+	LogFile        string
+	UseJSONHandler bool
+	Verbose        bool
 
 	Output     string
 	ConfigFile string
@@ -35,8 +54,15 @@ var (
 	MachineIDOvr    string // Machine ID override
 	NoEncryption    bool   // disable encryption
 
-	MemberOnly       bool
-	OnlyChannelUsers bool
+	MemberOnly          bool
+	OnlyChannelUsers    bool
+	IncludeCustomLabels bool // Requests labels for user custom fields, use with caution due to request throttling.
+	// ChannelTypes lists channel types to fetch.
+	ChannelTypes = slackChanTypes(slackdump.AllChanTypes)
+	// FailOnNonCritical enables hard fail on non-critical errors, such as
+	// "channel not found", or "user not in channel". By default it is
+	// disabled.
+	FailOnNonCritical bool
 
 	WithFiles   bool
 	WithAvatars bool
@@ -61,6 +87,8 @@ var (
 	// environment variables.
 	LoadSecrets bool
 
+	YesMan bool // if true, all questions are answered with "yes"
+
 	Version BuildInfo // version propagated by main package.
 )
 
@@ -74,6 +102,7 @@ func enableLogColors(strNocolor string) {
 		// skip enabling color
 		return
 	}
+	pterm.DefaultLogger.Writer = os.Stderr
 	handler := pterm.NewSlogHandler(&pterm.DefaultLogger)
 	sl := slog.New(handler)
 	Log = sl
@@ -91,11 +120,73 @@ type BuildInfo struct {
 	Date    string `json:"date"`
 }
 
+var (
+	// ErrVerUnknown indicates that this is either a development build or
+	// version is not set.
+	ErrVerUnknown = errors.New("version unknown")
+	// ErrDateUknown indicates that the date is either not set or unknown.
+	ErrDateUnknown = errors.New("unknown date")
+)
+
+// Normalised returns the normalised BuildInfo:
+// - version has v prefix
+// - Build is in 2006-01-02 15:04:05Z format.
+// - commit is unchanged, so may be "Homebrew"
+// It will return ErrVerUknown if version is unknown (i.e. unreleased).
+func (b BuildInfo) Normalised() (BuildInfo, error) {
+	const defaultLayoutIdx = 0
+	var knownDateLayouts = []string{
+		"2006-01-02 15:04:05Z", // make (default)
+		"2006-01-02T15:04:05Z", // homebrew
+	}
+	var nrm BuildInfo
+	if !b.IsReleased() {
+		return nrm, ErrVerUnknown
+	}
+	nrm.Commit = b.Commit
+	if !strings.HasPrefix(strings.ToUpper(b.Version), "V") {
+		nrm.Version = "v" + b.Version
+	} else {
+		// normalise capital V to lowercase v
+		nrm.Version = "v" + b.Version[1:]
+	}
+	if b.Date == "" || b.Date == "unknown" {
+		return nrm, ErrDateUnknown
+	}
+	// try parsing Homebrew string
+	for _, layout := range knownDateLayouts {
+		if dt, err := time.Parse(layout, b.Date); err == nil {
+			nrm.Date = dt.Format(knownDateLayouts[defaultLayoutIdx])
+			return nrm, nil
+		}
+	}
+	return nrm, ErrDateUnknown
+}
+
 func (b BuildInfo) String() string {
 	return fmt.Sprintf("Slackdump %s (commit: %s) built on: %s", b.Version, b.Commit, b.Date)
 }
 
-type FlagMask uint16
+var versionRe = regexp.MustCompile(`^(?P<major>0|[1-9]\d*)\.(?P<minor>0|[1-9]\d*)\.(?P<patch>0|[1-9]\d*)(?:-(?P<prerelease>(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+(?P<buildmetadata>[0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$`)
+
+func (b BuildInfo) IsReleased() bool {
+	// Check if version starts with 'v' or 'V' and is not "unknown"
+	if b.Version == "unknown" {
+		return false
+	}
+	// Validate semantic versioning format: v[0-9]+.[0-9]+.[0-9]+ (with optional suffix)
+	// This ensures we don't accept versions like "vdev", "valpha", "vtest", etc.
+	versionWithoutPrefix := strings.TrimPrefix(strings.TrimPrefix(b.Version, "v"), "V")
+
+	// Check if it starts with a digit (basic validation for semantic versioning)
+	if len(versionWithoutPrefix) == 0 {
+		return false
+	}
+
+	return versionRe.MatchString(versionWithoutPrefix)
+}
+
+type FlagMask uint32
 
 const (
 	DefaultFlags  FlagMask = 0
@@ -112,6 +203,9 @@ const (
 	OmitRecordFilesFlag
 	OmitWithAvatarsFlag
 	OmitChunkFileMode
+	OmitYesManFlag
+	OmitChannelTypesFlag
+	OmitMemberOnlyFlag
 
 	OmitAll = OmitConfigFlag |
 		OmitWithFilesFlag |
@@ -125,7 +219,10 @@ const (
 		OmitCustomUserFlags |
 		OmitRecordFilesFlag |
 		OmitWithAvatarsFlag |
-		OmitChunkFileMode
+		OmitChunkFileMode |
+		OmitYesManFlag |
+		OmitMemberOnlyFlag |
+		OmitChannelTypesFlag
 )
 
 // SetBaseFlags sets base flags
@@ -133,11 +230,11 @@ func SetBaseFlags(fs *flag.FlagSet, mask FlagMask) {
 	setDevFlags(fs, mask) // no op if not in dev mode.
 	fs.StringVar(&TraceFile, "trace", os.Getenv("TRACE_FILE"), "trace `filename`")
 	fs.StringVar(&LogFile, "log", os.Getenv("LOG_FILE"), "log `file`, if not specified, messages are printed to STDERR")
-	fs.BoolVar(&JsonHandler, "log-json", osenv.Value("JSON_LOG", false), "log in JSON format")
+	fs.BoolVar(&UseJSONHandler, "log-json", osenv.Value("JSON_LOG", false), "log in JSON format")
 	fs.BoolVar(&Verbose, "v", osenv.Value("DEBUG", false), "verbose messages")
 
 	if mask&OmitAuthFlags == 0 {
-		fs.BoolVar(&ForceEnterprise, "enterprise", false, "enable Enteprise module, you need to specify this option if you're using Slack Enterprise Grid")
+		fs.BoolVar(&ForceEnterprise, "enterprise", false, "enable Enterprise module, you need to specify this option if you're using Slack Enterprise Grid")
 		fs.BoolVar(&LoadSecrets, "load-env", false, "load secrets from the environment, .env, .env.txt or secrets.txt file")
 	}
 	if mask&OmitAuthFlags == 0 || mask&OmitCacheDir == 0 {
@@ -182,14 +279,24 @@ func SetBaseFlags(fs *flag.FlagSet, mask FlagMask) {
 		fs.BoolVar(&NoChunkCache, "no-chunk-cache", false, "disable chunk cache (uses temporary directory)")
 	}
 	if mask&OmitTimeframeFlag == 0 {
-		fs.Var(&Oldest, "time-from", "timestamp of the oldest message to fetch (UTC timezone)")
-		fs.Var(&Latest, "time-to", "timestamp of the newest message to fetch (UTC timezone)")
+		fs.Var(&Oldest, "time-from", "timestamp of the oldest message to fetch (UTC timezone, `YYYY-MM-DDTHH:MM:SS`)")
+		fs.Var(&Latest, "time-to", "timestamp of the newest message to fetch (UTC timezone, `YYYY-MM-DDTHH:MM:SS`)")
+	}
+	if mask&OmitMemberOnlyFlag == 0 {
+		fs.BoolVar(&MemberOnly, "member-only", false, "export only channels, which the current user belongs to (if no channels are specified)")
 	}
 	if mask&OmitCustomUserFlags == 0 {
-		fs.BoolVar(&MemberOnly, "member-only", false, "export only channels, which the current user belongs to (if no channels are specified)")
 		fs.BoolVar(&OnlyChannelUsers, "channel-users", false, "export only users involved in the channel, and skip fetching of all users")
+		fs.BoolVar(&IncludeCustomLabels, "custom-labels", false, "request user's custom fields labels, may result in requests being throttled hard")
 	}
 	if mask&OmitChunkFileMode == 0 {
 		fs.BoolVar(&UseChunkFiles, "legacy", false, "use chunk files for data storage instead of sqlite database (incompatible with resuming)")
+	}
+	if mask&OmitYesManFlag == 0 {
+		fs.BoolVar(&YesMan, "y", osenv.Value("YES_MAN", false), "answer yes to all questions")
+	}
+	if mask&OmitChannelTypesFlag == 0 {
+		fs.Var(&ChannelTypes, "chan-types", "filter channel types")
+		fs.BoolVar(&FailOnNonCritical, "fail-hard", false, "fail hard on non-critical channel fetch errors")
 	}
 }
