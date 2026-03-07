@@ -51,18 +51,6 @@ type mainView struct {
 	CanvasAvailable bool // true when the canvas file exists in storage
 }
 
-type fileByIDStorage interface {
-	FileByID(id string) (string, error)
-}
-
-func fileByID(storage source.Storage, id string) (string, error) {
-	fb, ok := storage.(fileByIDStorage)
-	if !ok {
-		return "", fs.ErrNotExist
-	}
-	return fb.FileByID(id)
-}
-
 // view returns a mainView struct with the channels and the name and type of
 // the source.
 func (v *Viewer) view() mainView {
@@ -336,6 +324,7 @@ func (v *Viewer) canvasContentHandler(w http.ResponseWriter, r *http.Request, id
 	pth, err := fileByID(storage, fileID)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
+			lg.DebugContext(ctx, "canvas file not found", "fileID", fileID, "error", err)
 			http.NotFound(w, r)
 			return
 		}
