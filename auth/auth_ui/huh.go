@@ -265,7 +265,7 @@ func (*Huh) RequestQR(ctx context.Context, _ io.Writer) (string, error) {
   1. click the username in the upper left corner;
   2. choose 'Sign in on mobile';
   3. right-click the QR code image;
-  4. choose Copy Image.`
+  4. choose Copy Image URL.`
 
 	var imageData string
 	q := huh.NewForm(huh.NewGroup(
