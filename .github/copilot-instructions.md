@@ -150,6 +150,11 @@ go generate ./...
 - Use for implementation details, utilities, and CLI-specific code
 - Keep internal packages focused and single-purpose
 
+### Compatibility for shared interfaces
+- For widely used/public interfaces (especially in `source/`), avoid adding methods unless a breaking change is intentional.
+- If internal code needs extra behaviour from an existing interface, prefer an **unexported optional extension interface** in the consumer package and a runtime type assertion — the same pattern the stdlib uses for `http.Flusher`, `http.Hijacker`, etc.
+- Degrade gracefully when the extension is absent: return `fs.ErrNotExist` (or equivalent), keep UI features disabled, and emit a `DEBUG`-level log entry explaining why.
+
 ## Logging
 - Uses **log/slog** (Go standard library)
 - Default logger: `slog.Default()`
@@ -443,5 +448,5 @@ page should list every flag registered on `cmd.Flag`.
 
 ---
 
-**Last Updated**: 2026-02-25
+**Last Updated**: 2026-03-07
 **For**: Slackdump v4.x

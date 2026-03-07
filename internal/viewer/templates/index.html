@@ -13,7 +13,7 @@
     <div class="container">
         <section class="channel-sidebar">
             <header>
-                <div class="sidebar-header-innner">
+                <div class="sidebar-header-inner">
                     <h1>Slackdump</h1>
                     <small class="subtitle">{{.Type}}: {{.Name}}</small>
                 </div>
@@ -278,19 +278,7 @@
     <span class="message-link"><a href="#{{.Timestamp}}">#</a></span>
 </header>
 <div class="message-content">
-    <header id="{{.Timestamp}}">
-        <span class="message-sender">
-            {{if is_app_msg . -}}
-            {{ username . }}
-            {{- else -}}
-            <a href="#" hx-get="/team/{{ .User }}" hx-target="#thread"> {{ username . }}</a>
-            {{- end }}
-        </span>
-        <span class="message-timestamp grey"><a href="#{{.Timestamp}}">{{ time .Timestamp }}</a></span>
-    </header>
-    <div class="message-content">
-        <p>{{ render . }}</p>
-    </div>
+    <p>{{ render . }}</p>
 </div>
 {{ end }}
 
