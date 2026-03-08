@@ -75,9 +75,12 @@ Clarified the login step in quickstart.md to reduce user confusion during initia
 ### [@ChrisEdwards](https://github.com/ChrisEdwards) - Chris Edwards
 Fix the panic in text conversion, when the thread has no replies in the time range.
 
+### [@juzhiyuan](https://github.com/juzhiyuan) - Zhi Yuan Ju (琚致远)
+Fix incorrect instructions for the Sign On on Mobile.
+
 ---
 
-**Total Contributors**: 25 (including dependabot)
+**Total Contributors**: 25
 
 This list is sorted by number of contributions. Every contribution, no matter how small, helps make Slackdump better for everyone!
 
