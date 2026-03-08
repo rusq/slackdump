@@ -34,7 +34,7 @@ import (
 	"github.com/rusq/slackdump/v4/internal/mocks/mock_io"
 )
 
-func TestMostFrequentMember(t *testing.T) {
+func Test_mostFrequentMember(t *testing.T) {
 	type args struct {
 		dms []DM
 	}
@@ -53,6 +53,11 @@ func TestMostFrequentMember(t *testing.T) {
 			args{[]DM{{Members: []string{"me", "you"}}, {Members: []string{"me", "someone_else"}}, {Members: []string{"me"}}}},
 			"me",
 		},
+		{
+			"self-chat",
+			args{[]DM{{Members: []string{"me", "me"}}}},
+			"me",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -63,10 +68,11 @@ func TestMostFrequentMember(t *testing.T) {
 	}
 }
 
-func TestExcept(t *testing.T) {
+func Test_except(t *testing.T) {
 	type args struct {
 		me      string
 		members []string
+		n       int
 	}
 	tests := []struct {
 		name string
@@ -75,23 +81,38 @@ func TestExcept(t *testing.T) {
 	}{
 		{
 			"finds not me",
-			args{"me", []string{"you", "me"}},
+			args{"me", []string{"you", "me"}, -1},
 			"you",
 		},
 		{
 			"finds not me in several members",
-			args{"me", []string{"you", "me", "someone_else"}},
+			args{"me", []string{"you", "me", "someone_else"}, -1},
 			"you",
 		},
 		{
 			"returns empty string if no not me",
-			args{"me", []string{"me"}},
+			args{"me", []string{"me"}, -1},
 			"",
+		},
+		{
+			"leaves one me alone",
+			args{"me", []string{"me", "me"}, 1},
+			"me",
+		},
+		{
+			"scans all, returns empty value",
+			args{"me", []string{"me", "me"}, -1},
+			"",
+		},
+		{
+			"still me",
+			args{"me", []string{"me", "me", "me"}, 2},
+			"me",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := except(tt.args.me, tt.args.members); got != tt.want {
+			if got := except(tt.args.me, tt.args.members, tt.args.n); got != tt.want {
 				t.Errorf("ExportIndex.notMe() = %v, want %v", got, tt.want)
 			}
 		})

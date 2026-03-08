@@ -180,7 +180,7 @@ func dmsToChannels(DMs []DM) []slack.Channel {
 					ID:      dm.ID,
 					Created: slack.JSONTime(dm.Created),
 					IsIM:    true,
-					User:    except(me, dm.Members),
+					User:    except(me, dm.Members, 1),
 				},
 				Members: dm.Members,
 			},
@@ -211,11 +211,15 @@ func unmarshalFileFS(fsys fs.FS, filename string, data any) error {
 	return dec.Decode(data)
 }
 
-// except returns the first element of the slice that is not s, or zero value
-// if not found.
-func except[S ~[]T, T comparable](s T, ss S) T {
+// except returns the first element of the slice that is not s, or element at
+// index n if still not found at that point. if not found, returns zero value
+// of T. Use n=-1 to scan all slice.
+func except[S ~[]T, T comparable](s T, ss S, n int) T {
 	var zero T
-	for _, t := range ss {
+	for i, t := range ss {
+		if n != -1 && i >= n {
+			return t
+		}
 		if t != s {
 			return t
 		}
@@ -223,10 +227,10 @@ func except[S ~[]T, T comparable](s T, ss S) T {
 	return zero
 }
 
-// mostFrequentMember attempts to identify the current user in the index.  It uses the DMs of
-// the index. If DMs are empty, or it's unable to identify the user, it
-// returns an empty string.  The user, who appears in "Members" slices the
-// most, is considered the current user.
+// mostFrequentMember attempts to identify the current user in the index.  It
+// uses the DMs of the index. If DMs are empty, or it's unable to identify the
+// user, it returns an empty string.  The user, who appears in "Members" slices
+// the most, is considered the current user.
 func mostFrequentMember(dms []DM) string {
 	counts := make(map[string]int)
 	for _, dm := range dms {
