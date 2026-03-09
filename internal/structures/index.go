@@ -211,9 +211,10 @@ func unmarshalFileFS(fsys fs.FS, filename string, data any) error {
 	return dec.Decode(data)
 }
 
-// except returns the first element of the slice that is not s, or element at
-// index n if still not found at that point. if not found, returns zero value
-// of T. Use n=-1 to scan all slice.
+// except returns the first element of ss that is not equal to s. If no such
+// element is found before index n (0-based), it instead returns the element
+// at index n. If n is -1, the entire slice is scanned, and if no element
+// different from s is found, the zero value of T is returned.
 func except[S ~[]T, T comparable](s T, ss S, n int) T {
 	var zero T
 	for i, t := range ss {

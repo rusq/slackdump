@@ -113,7 +113,7 @@ func Test_except(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := except(tt.args.me, tt.args.members, tt.args.n); got != tt.want {
-				t.Errorf("ExportIndex.notMe() = %v, want %v", got, tt.want)
+				t.Errorf("except() = %v, want %v", got, tt.want)
 			}
 		})
 	}
