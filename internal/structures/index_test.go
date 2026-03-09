@@ -553,6 +553,31 @@ func Test_dmsToChannels(t *testing.T) {
 				},
 			},
 		},
+		{
+			"keeps user for self-chat dm",
+			args{
+				[]DM{
+					{
+						ID:      "DSELF",
+						Created: 1700000000,
+						Members: []string{"UME", "UME"},
+					},
+				},
+			},
+			[]slack.Channel{
+				{
+					GroupConversation: slack.GroupConversation{
+						Conversation: slack.Conversation{
+							ID:      "DSELF",
+							Created: slack.JSONTime(1700000000),
+							IsIM:    true,
+							User:    "UME",
+						},
+						Members: []string{"UME", "UME"},
+					},
+				},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
