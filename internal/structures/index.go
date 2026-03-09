@@ -212,13 +212,15 @@ func unmarshalFileFS(fsys fs.FS, filename string, data any) error {
 }
 
 // except returns the first element of ss that is not equal to s. If no such
-// element is found before index n (0-based), it instead returns the element
-// at index n. If n is -1, the entire slice is scanned, and if no element
-// different from s is found, the zero value of T is returned.
-func except[S ~[]T, T comparable](s T, ss S, n int) T {
+// element is found before index stopAfterIdx (0-based), it instead returns the
+// element at index stopAfterIdx. If stopAfterIdx is -1, the entire slice is
+// scanned, and if no element different from s is found, the zero value of T is
+// returned.
+func except[S ~[]T, T comparable](s T, ss S, stopAfterIdx int) T {
+	const scanAll = -1
 	var zero T
 	for i, t := range ss {
-		if n != -1 && i >= n {
+		if stopAfterIdx != scanAll && i >= stopAfterIdx {
 			return t
 		}
 		if t != s {

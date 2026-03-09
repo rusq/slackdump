@@ -70,9 +70,9 @@ func Test_mostFrequentMember(t *testing.T) {
 
 func Test_except(t *testing.T) {
 	type args struct {
-		me      string
-		members []string
-		n       int
+		me           string
+		members      []string
+		stopAfterIdx int
 	}
 	tests := []struct {
 		name string
@@ -112,7 +112,7 @@ func Test_except(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := except(tt.args.me, tt.args.members, tt.args.n); got != tt.want {
+			if got := except(tt.args.me, tt.args.members, tt.args.stopAfterIdx); got != tt.want {
 				t.Errorf("except() = %v, want %v", got, tt.want)
 			}
 		})
