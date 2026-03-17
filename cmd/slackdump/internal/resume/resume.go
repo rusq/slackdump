@@ -162,7 +162,7 @@ func runResume(ctx context.Context, cmd *base.Command, args []string) error {
 	}
 	defer ctrl.Close()
 
-	if err := ctrl.Run(ctx, latest); err != nil {
+	if err := ctrl.RunNoTransform(ctx, latest); err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return fmt.Errorf("error running archive controller: %w", err)
 	}
