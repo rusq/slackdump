@@ -212,11 +212,17 @@ func DBController(ctx context.Context, cmdName string, conn *sqlx.DB, client cli
 		lg,
 	)
 
+	// Wrap file processor with deduplication for resume operations
+	filer := fileproc.New(dl)
+	if cmdName == "resume" {
+		filer = fileproc.NewDeduplicatingFileProcessor(filer, conn, lg)
+	}
+
 	ctrl, err := control.New(
 		ctx,
 		stream.New(client, cfg.Limits, sopts...),
 		dbp,
-		control.WithFiler(fileproc.New(dl)),
+		control.WithFiler(filer),
 		control.WithAvatarProcessor(fileproc.NewAvatarProc(avdl)),
 		control.WithFlags(flags),
 	)

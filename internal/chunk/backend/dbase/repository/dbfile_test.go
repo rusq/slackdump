@@ -67,6 +67,7 @@ func TestNewDBFile(t *testing.T) {
 				Filename:  ptr("SOKO.COM"),
 				URL:       ptr("https://archive.org/details/msdos_sokoban_1984_spectrum_holobyte"),
 				Data:      must(marshal(file1)),
+				Size:      ptr(int64(0)), // file1.Size is 0
 			},
 			false,
 		},
