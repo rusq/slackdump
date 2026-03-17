@@ -2,6 +2,10 @@ FROM golang:alpine AS stage
 
 WORKDIR /build
 
+# Copy go.mod/go.sum first for dependency caching
+COPY go.mod go.sum ./
+RUN go mod download
+
 COPY . .
 
 ENV CGO_ENABLED=0

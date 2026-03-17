@@ -182,7 +182,8 @@ func TestSession_GetUsers(t *testing.T) {
 			false,
 		},
 	}
-	for _, tt := range tests {
+	for i := range tests {
+		tt := &tests[i]
 		t.Run(tt.name, func(t *testing.T) {
 			mc := mock_client.NewMockSlack(gomock.NewController(t))
 
