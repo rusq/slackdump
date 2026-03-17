@@ -89,13 +89,20 @@ func (cs *Stream) threadWorker(ctx context.Context, proc processor.Conversations
 
 			channel := new(slack.Channel)
 			if req.threadOnly {
+				// Thread-only requests come from direct thread links (e.g., resume).
+				// We only need channel info (ID, name, etc.) for file paths and
+				// identification. Channel users are already recorded from the
+				// original channel archive, and thread messages contain their own
+				// user IDs. Skipping procChannelUsers saves an API call per thread.
 				var err error
-				if channel, err = cs.procChannelInfoWithUsers(ctx, proc, req.sl.Channel, req.sl.ThreadTS); err != nil {
+				if channel, err = cs.procChannelInfo(ctx, proc, req.sl.Channel, req.sl.ThreadTS); err != nil {
 					results <- Result{Type: RTThread, ChannelID: req.sl.Channel, ThreadTS: req.sl.ThreadTS, Err: err}
 					continue
 				}
 			} else {
 				// hackety hack
+				// Threads discovered from channel messages. The channel info was
+				// already fetched by channelWorker, so we just need the ID.
 				channel.ID = req.sl.Channel
 			}
 			if err := cs.thread(ctx, req, func(msgs []slack.Message, isLast bool) error {
