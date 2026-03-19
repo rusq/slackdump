@@ -408,6 +408,11 @@ func isNonCriticalErr(e error) (error, bool) {
 }
 
 func (cs *Stream) procChannelUsers(ctx context.Context, proc processor.ChannelInformer, channelID, threadTS string) ([]string, error) {
+	// Check if users are already cached for this channel.
+	if users := cs.userCache.get(channelID); users != nil {
+		return users, nil
+	}
+
 	var users []string
 
 	var cursor string
@@ -430,14 +435,19 @@ func (cs *Stream) procChannelUsers(ctx context.Context, proc processor.ChannelIn
 		if len(u) == 0 && next == "" {
 			break
 		}
-		if err := proc.ChannelUsers(ctx, channelID, threadTS, u); err != nil {
-			return nil, err
-		}
 		users = append(users, u...)
 		if next == "" {
 			break
 		}
 		cursor = next
+	}
+
+	// Cache the users for this channel.
+	cs.userCache.set(channelID, users)
+
+	// Notify the processor.
+	if err := proc.ChannelUsers(ctx, channelID, threadTS, users); err != nil {
+		return nil, err
 	}
 
 	return users, nil
