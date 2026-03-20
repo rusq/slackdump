@@ -89,6 +89,11 @@ func (s *RWSource) SetAlias(id, alias string) error {
 	return ar.Set(context.Background(), s.conn, id, alias)
 }
 
+// Conn returns the underlying database connection for testing purposes.
+func (s *Source) Conn() *sqlx.DB {
+	return s.conn
+}
+
 func (s *RWSource) DeleteAlias(id string) error {
 	ar := repository.NewAliasRepository()
 	return ar.Delete(context.Background(), s.conn, id)

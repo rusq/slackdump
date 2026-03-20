@@ -12,6 +12,7 @@
   - [Dumping messages and threads](usage-channels.md)
   - [Creating a Slack Export](usage-export.md)
   - [Downloading all Emojis](usage-emoji.md)
+  - [Database Vacuum](usage-vacuum.md)
 - [Enterprise Workspace Tips](enterprise.md)
 - [Compiling from Sources](compiling.md)
 - [Troubleshooting](troubleshooting.md)
@@ -64,6 +65,7 @@ There are several modes of operation:
 | `slackdump view` | View a dump, export or archive in the browser |
 | `slackdump search` | Dump Slack search results |
 | `slackdump mcp` | Start a local MCP server for AI agent access |
+| `slackdump tools vacuum` | Clean up duplicate entries and unreferenced chunks in database |
 
 Run `slackdump help` to see all available commands, or `slackdump help <command>`
 for detailed help on a specific command.
