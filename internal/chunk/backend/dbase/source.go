@@ -22,6 +22,8 @@ import (
 	"fmt"
 	"iter"
 	"log/slog"
+	"os"
+	"path/filepath"
 	"runtime/trace"
 	"time"
 
@@ -38,6 +40,10 @@ import (
 
 const preallocSz = 100 // preallocate slice size
 
+// DefaultDBFile is the default database filename used when a directory
+// is passed instead of a file path.
+const DefaultDBFile = "slackdump.sqlite"
+
 type Source struct {
 	conn *sqlx.DB
 	// canClose set to false when the connection is passed to the source
@@ -45,8 +51,40 @@ type Source struct {
 	canClose bool
 }
 
+// ErrIsDirectory is returned when a directory path is passed instead of
+// a database file.
+var ErrIsDirectory = fmt.Errorf("path is a directory")
+
+// validateDBPath checks if path is a directory and returns a helpful error
+// with a suggestion if the expected database file exists inside.
+func validateDBPath(path string) error {
+	// Check if path is a symlink and warn about it.
+	li, err := os.Lstat(path)
+	if err != nil && !os.IsNotExist(err) {
+		slog.Warn("failed to stat path, continuing", "path", path, "error", err)
+	} else if err == nil && li.Mode()&os.ModeSymlink != 0 {
+		slog.Warn("database path is a symlink, following it to the target", "path", path)
+	}
+	fi, err := os.Stat(path)
+	if err != nil {
+		// Non-existent paths are allowed (for creating new databases).
+		return nil
+	}
+	if fi.IsDir() {
+		dbFile := filepath.Join(path, DefaultDBFile)
+		if _, err := os.Stat(dbFile); err == nil {
+			return fmt.Errorf("%w: %s (did you mean %q?)", ErrIsDirectory, path, dbFile)
+		}
+		return fmt.Errorf("%w: %s (no %s found inside)", ErrIsDirectory, path, DefaultDBFile)
+	}
+	return nil
+}
+
 // Open attempts to open the database at given path for reading.
 func Open(ctx context.Context, path string) (*Source, error) {
+	if err := validateDBPath(path); err != nil {
+		return nil, err
+	}
 	// migrate to the latest
 	if err := migrate(ctx, path); err != nil {
 		return nil, err
@@ -64,6 +102,9 @@ func Open(ctx context.Context, path string) (*Source, error) {
 // OpenRW attempts to open the database at given path for reading and writing.
 // Use [Open] when only read access is needed.
 func OpenRW(ctx context.Context, path string) (*RWSource, error) {
+	if err := validateDBPath(path); err != nil {
+		return nil, err
+	}
 	if err := migrate(ctx, path); err != nil {
 		return nil, err
 	}
