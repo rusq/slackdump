@@ -147,6 +147,8 @@ func Test_validateDBPath(t *testing.T) {
 	t.Cleanup(func() {
 		require.NoError(t, os.Chmod(lockedDir, 0755))
 	})
+	_, permissionProbeErr := os.Stat(permissionDeniedPath)
+	permissionDeniedSupported := errors.Is(permissionProbeErr, os.ErrPermission)
 
 	tests := []struct {
 		name       string
@@ -201,6 +203,9 @@ func Test_validateDBPath(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			if tt.wantErrIs == os.ErrPermission && !permissionDeniedSupported {
+				t.Skipf("skipping permission-denied case: os.Stat(%q) returned %v", permissionDeniedPath, permissionProbeErr)
+			}
 			err := validateDBPath(tt.path)
 			if tt.wantErr {
 				require.Error(t, err)
