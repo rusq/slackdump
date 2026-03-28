@@ -91,6 +91,61 @@ func TestMigrate(t *testing.T) {
 		}
 	})
 
+	t.Run("empty threads view returns chunk session id", func(t *testing.T) {
+		ctx := context.Background()
+		db, err := sql.Open(Driver, ":memory:")
+		if err != nil {
+			t.Fatalf("sql.Open() err = %v; want nil", err)
+		}
+		defer db.Close()
+
+		if err := Migrate(ctx, db, true); err != nil {
+			t.Fatalf("Migrate() err = %v; want nil", err)
+		}
+
+		if _, err := db.ExecContext(ctx, `INSERT INTO SESSION (ID, MODE) VALUES (1, 'archive')`); err != nil {
+			t.Fatalf("insert session: %v", err)
+		}
+		if _, err := db.ExecContext(ctx, `INSERT INTO CHUNK (ID, UNIX_TS, SESSION_ID, TYPE_ID, NUM_REC) VALUES (1, 0, 1, 0, 1)`); err != nil {
+			t.Fatalf("insert chunk: %v", err)
+		}
+		if _, err := db.ExecContext(ctx, `
+			INSERT INTO MESSAGE (ID, CHUNK_ID, CHANNEL_ID, TS, PARENT_ID, THREAD_TS, LATEST_REPLY, IS_PARENT, IDX, DATA)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`, int64(1700000000000001), 1, "C123", "1700000000.000001", int64(1700000000000001), "1700000000.000001", "0000000000.000000", true, 0, []byte(`{"type":"message","ts":"1700000000.000001","thread_ts":"1700000000.000001"}`)); err != nil {
+			t.Fatalf("insert message: %v", err)
+		}
+
+		var got struct {
+			SessionID int64  `db:"SESSION_ID"`
+			ChunkID   int64  `db:"CHUNK_ID"`
+			ChannelID string `db:"CHANNEL_ID"`
+			ThreadTS  string `db:"THREAD_TS"`
+		}
+		require.NoError(t, sqlx.NewDb(db, Driver).GetContext(ctx, &got, `SELECT SESSION_ID, CHUNK_ID, CHANNEL_ID, THREAD_TS FROM V_EMPTY_THREADS`))
+		require.EqualValues(t, 1, got.SessionID)
+		require.EqualValues(t, 1, got.ChunkID)
+		require.Equal(t, "C123", got.ChannelID)
+		require.Equal(t, "1700000000.000001", got.ThreadTS)
+	})
+
+	t.Run("down after latest migration succeeds with empty threads view", func(t *testing.T) {
+		ctx := context.Background()
+		db, err := sql.Open(Driver, ":memory:")
+		if err != nil {
+			t.Fatalf("sql.Open() err = %v; want nil", err)
+		}
+		defer db.Close()
+
+		if err := Migrate(ctx, db, true); err != nil {
+			t.Fatalf("Migrate() err = %v; want nil", err)
+		}
+
+		if err := goose.DownContext(ctx, db, "migrations"); err != nil {
+			t.Fatalf("goose.DownContext() err = %v; want nil", err)
+		}
+	})
+
 	t.Run("down removes size column", func(t *testing.T) {
 		ctx := context.Background()
 		db, err := sql.Open(Driver, ":memory:")
@@ -101,6 +156,10 @@ func TestMigrate(t *testing.T) {
 
 		if err := Migrate(ctx, db, true); err != nil {
 			t.Fatalf("Migrate() err = %v; want nil", err)
+		}
+
+		if err := goose.DownContext(ctx, db, "migrations"); err != nil {
+			t.Fatalf("first goose.DownContext() err = %v; want nil", err)
 		}
 
 		if err := goose.DownContext(ctx, db, "migrations"); err != nil {
