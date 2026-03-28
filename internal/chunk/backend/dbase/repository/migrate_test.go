@@ -20,7 +20,9 @@ import (
 	"database/sql"
 	"testing"
 
+	"github.com/jmoiron/sqlx"
 	"github.com/pressly/goose/v3"
+	"github.com/stretchr/testify/require"
 )
 
 func TestMigrate(t *testing.T) {
@@ -72,6 +74,20 @@ func TestMigrate(t *testing.T) {
 		}
 		if got != 12345 {
 			t.Fatalf("SIZE = %d; want 12345", got)
+		}
+
+		fr := NewFileRepository()
+		qx := sqlx.NewDb(db, Driver)
+		existing, err := fr.GetByIDAndSize(ctx, qx, "F123", 12345)
+		require.NoError(t, err)
+		if existing == nil {
+			t.Fatal("GetByIDAndSize() = nil; want migrated file")
+		}
+
+		missing, err := fr.GetByIDAndSize(ctx, qx, "F123", 12346)
+		require.NoError(t, err)
+		if missing != nil {
+			t.Fatalf("GetByIDAndSize() = %#v; want nil for different size", missing)
 		}
 	})
 

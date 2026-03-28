@@ -16,8 +16,11 @@
 package repository
 
 import (
+	"context"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 
 	"github.com/rusq/slack"
 	"github.com/stretchr/testify/assert"
@@ -82,4 +85,45 @@ func TestNewDBFile(t *testing.T) {
 			assert.Equal(t, tt.want, got)
 		})
 	}
+}
+
+func TestFileRepository_GetByIDAndSize(t *testing.T) {
+	ctx := context.Background()
+	conn := testConn(t)
+
+	if _, err := conn.ExecContext(ctx, `INSERT INTO SESSION (ID, MODE) VALUES (1, 'archive')`); err != nil {
+		t.Fatalf("insert session: %v", err)
+	}
+	if _, err := conn.ExecContext(ctx, `INSERT INTO CHUNK (ID, UNIX_TS, SESSION_ID, TYPE_ID, NUM_REC) VALUES (1, 0, 1, 2, 2)`); err != nil {
+		t.Fatalf("insert chunk: %v", err)
+	}
+	if _, err := conn.ExecContext(ctx, `
+		INSERT INTO FILE (ID, CHUNK_ID, CHANNEL_ID, IDX, MODE, FILENAME, URL, DATA, SIZE)
+		VALUES
+			('F123', 1, 'C123', 0, 'hosted', 'same.txt', 'https://example.invalid/same.txt', ?, 12345),
+			('F456', 1, 'C123', 1, 'hosted', 'other.txt', 'https://example.invalid/other.txt', ?, 999)
+	`, []byte(`{"id":"F123","size":12345}`), []byte(`{"id":"F456","size":999}`)); err != nil {
+		t.Fatalf("insert files: %v", err)
+	}
+
+	r := NewFileRepository()
+
+	t.Run("same id and size is duplicate", func(t *testing.T) {
+		got, err := r.GetByIDAndSize(ctx, conn, "F123", 12345)
+		require.NoError(t, err)
+		require.NotNil(t, got)
+		assert.Equal(t, "F123", got.ID)
+	})
+
+	t.Run("same id different size is not duplicate", func(t *testing.T) {
+		got, err := r.GetByIDAndSize(ctx, conn, "F123", 54321)
+		require.NoError(t, err)
+		assert.Nil(t, got)
+	})
+
+	t.Run("missing file is not duplicate", func(t *testing.T) {
+		got, err := r.GetByIDAndSize(ctx, conn, "F999", 12345)
+		require.NoError(t, err)
+		assert.Nil(t, got)
+	})
 }
