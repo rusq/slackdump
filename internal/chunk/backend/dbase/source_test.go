@@ -19,8 +19,10 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"sort"
 	"testing"
 	"time"
@@ -28,6 +30,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/rusq/slack"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 
 	"github.com/rusq/slackdump/v4/internal/fixtures"
@@ -49,6 +52,7 @@ func TestOpen(t *testing.T) {
 		name    string
 		args    args
 		checkFn utilityFunc
+		fn      any
 		wantErr bool
 	}{
 		{
@@ -60,17 +64,152 @@ func TestOpen(t *testing.T) {
 			checkFn: checkGooseTable,
 			wantErr: false,
 		},
+		{
+			name: "rejects directory",
+			args: args{
+				ctx:  context.Background(),
+				path: t.TempDir(),
+			},
+			wantErr: true,
+		},
+		{
+			name: "rejects directory with OpenRW",
+			args: args{
+				ctx:  context.Background(),
+				path: t.TempDir(),
+			},
+			wantErr: true,
+			fn:      OpenRW,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := Open(tt.args.ctx, tt.args.path)
+			var got *Source
+			var err error
+			if tt.fn != nil {
+				switch fn := tt.fn.(type) {
+				case func(context.Context, string) (*Source, error):
+					got, err = fn(tt.args.ctx, tt.args.path)
+				case func(context.Context, string) (*RWSource, error):
+					rw, err2 := fn(tt.args.ctx, tt.args.path)
+					if err2 == nil {
+						rw.Close()
+					}
+					err = err2
+				default:
+					t.Fatalf("unsupported fn type %T", tt.fn)
+				}
+			} else {
+				got, err = Open(tt.args.ctx, tt.args.path)
+			}
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Open() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			defer got.Close()
+			if got != nil {
+				defer got.Close()
+			}
 			if tt.checkFn != nil {
 				tt.checkFn(t, testutil.TestDBDSN(t, tt.args.path))
+			}
+		})
+	}
+}
+
+func Test_validateDBPath(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("permission-denied stat behavior differs on windows")
+	}
+
+	dir := t.TempDir()
+
+	regularFile := filepath.Join(dir, "regular.db")
+	require.NoError(t, os.WriteFile(regularFile, nil, 0644))
+
+	dbDir := t.TempDir()
+	dbFile := filepath.Join(dbDir, "slackdump.sqlite")
+	require.NoError(t, os.WriteFile(dbFile, nil, 0644))
+
+	emptyDir := t.TempDir()
+
+	// Create a symlink to a regular file
+	symlinkFile := filepath.Join(dir, "symlink.db")
+	require.NoError(t, os.Symlink(regularFile, symlinkFile))
+
+	// Create a symlink to a directory
+	symlinkDir := filepath.Join(dir, "symlink_dir")
+	require.NoError(t, os.Symlink(dbDir, symlinkDir))
+
+	lockedDir := filepath.Join(dir, "locked")
+	require.NoError(t, os.Mkdir(lockedDir, 0755))
+	permissionDeniedPath := filepath.Join(lockedDir, "db.sqlite")
+	require.NoError(t, os.Chmod(lockedDir, 0000))
+	t.Cleanup(func() {
+		require.NoError(t, os.Chmod(lockedDir, 0755))
+	})
+
+	tests := []struct {
+		name       string
+		path       string
+		wantErr    bool
+		wantErrIs  error
+		errContain string
+	}{
+		{
+			name:    "non-existent path is allowed",
+			path:    filepath.Join(dir, "nonexistent.db"),
+			wantErr: false,
+		},
+		{
+			name:       "directory without slackdump.sqlite",
+			path:       emptyDir,
+			wantErr:    true,
+			wantErrIs:  ErrIsDirectory,
+			errContain: "no slackdump.sqlite found inside",
+		},
+		{
+			name:       "directory with slackdump.sqlite suggests correct path",
+			path:       dbDir,
+			wantErr:    true,
+			wantErrIs:  ErrIsDirectory,
+			errContain: "did you mean",
+		},
+		{
+			name:    "regular file is allowed",
+			path:    regularFile,
+			wantErr: false,
+		},
+		{
+			name:    "symlink to file is allowed (logs warning)",
+			path:    symlinkFile,
+			wantErr: false,
+		},
+		{
+			name:       "symlink to directory follows target and rejects",
+			path:       symlinkDir,
+			wantErr:    true,
+			wantErrIs:  ErrIsDirectory,
+			errContain: "did you mean",
+		},
+		{
+			name:       "permission denied while stating path is returned",
+			path:       permissionDeniedPath,
+			wantErr:    true,
+			wantErrIs:  os.ErrPermission,
+			errContain: "stat:",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateDBPath(tt.path)
+			if tt.wantErr {
+				require.Error(t, err)
+				require.ErrorIs(t, err, tt.wantErrIs)
+				if tt.errContain != "" {
+					require.Contains(t, err.Error(), tt.errContain)
+				}
+			} else {
+				require.NoError(t, err)
 			}
 		})
 	}

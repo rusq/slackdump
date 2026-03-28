@@ -27,7 +27,8 @@ import (
 	"github.com/rusq/slackdump/v4/internal/chunk/backend/dbase"
 )
 
-const DefaultDBFile = "slackdump.sqlite"
+// DefaultDBFile is the default name for the sqlite database.
+const DefaultDBFile = dbase.DefaultDBFile
 
 // Database represents a database source.  It implements the [Sourcer]
 // interface and provides access to the database data.  It also provides
