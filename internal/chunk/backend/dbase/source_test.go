@@ -22,6 +22,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"sort"
 	"testing"
 	"time"
@@ -116,6 +117,10 @@ func TestOpen(t *testing.T) {
 }
 
 func Test_validateDBPath(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("permission-denied stat behavior differs on windows")
+	}
+
 	dir := t.TempDir()
 
 	regularFile := filepath.Join(dir, "regular.db")
@@ -134,6 +139,14 @@ func Test_validateDBPath(t *testing.T) {
 	// Create a symlink to a directory
 	symlinkDir := filepath.Join(dir, "symlink_dir")
 	require.NoError(t, os.Symlink(dbDir, symlinkDir))
+
+	lockedDir := filepath.Join(dir, "locked")
+	require.NoError(t, os.Mkdir(lockedDir, 0755))
+	permissionDeniedPath := filepath.Join(lockedDir, "db.sqlite")
+	require.NoError(t, os.Chmod(lockedDir, 0000))
+	t.Cleanup(func() {
+		require.NoError(t, os.Chmod(lockedDir, 0755))
+	})
 
 	tests := []struct {
 		name       string
@@ -177,6 +190,13 @@ func Test_validateDBPath(t *testing.T) {
 			wantErr:    true,
 			wantErrIs:  ErrIsDirectory,
 			errContain: "did you mean",
+		},
+		{
+			name:       "permission denied while stating path is returned",
+			path:       permissionDeniedPath,
+			wantErr:    true,
+			wantErrIs:  os.ErrPermission,
+			errContain: "stat:",
 		},
 	}
 	for _, tt := range tests {

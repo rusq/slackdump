@@ -67,8 +67,11 @@ func validateDBPath(path string) error {
 	}
 	fi, err := os.Stat(path)
 	if err != nil {
-		// Non-existent paths are allowed (for creating new databases).
-		return nil
+		if os.IsNotExist(err) {
+			// Non-existent paths are allowed (for creating new databases).
+			return nil
+		}
+		return fmt.Errorf("stat: %w", err)
 	}
 	if fi.IsDir() {
 		dbFile := filepath.Join(path, DefaultDBFile)
