@@ -212,3 +212,18 @@ func (mr *MockFileRepositoryMockRecorder) OneForChunk(ctx, conn, chunkID any) *g
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "OneForChunk", reflect.TypeOf((*MockFileRepository)(nil).OneForChunk), ctx, conn, chunkID)
 }
+
+// GetByIDAndSize mocks base method.
+func (m *MockFileRepository) GetByIDAndSize(ctx context.Context, conn sqlx.QueryerContext, fileID string, size int64) (*repository.DBFile, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetByIDAndSize", ctx, conn, fileID, size)
+	ret0, _ := ret[0].(*repository.DBFile)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetByIDAndSize indicates an expected call of GetByIDAndSize.
+func (mr *MockFileRepositoryMockRecorder) GetByIDAndSize(ctx, conn, fileID, size any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByIDAndSize", reflect.TypeOf((*MockFileRepository)(nil).GetByIDAndSize), ctx, conn, fileID, size)
+}
