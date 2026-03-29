@@ -50,8 +50,6 @@ func toChunk(ctx context.Context, src, trg string, cflg convertflags) error {
 	}
 	defer srcdb.Close()
 
-	trg = cfg.StripZipExt(trg)
-
 	if err := db2chunk(ctx, srcdb, trg, cflg); err != nil {
 		return err
 	}

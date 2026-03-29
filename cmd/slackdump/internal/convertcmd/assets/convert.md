@@ -12,6 +12,7 @@ Where format is one of the following:
 - `database` **SQLite database**: SQLite database format used by Slackdump, output is a directory.
 - `dump` **Dump**: JSON files where each channel is a large JSON object. Output is a directory or a zip file.
 - `export`: **Slack Export**: The native Slack export format. Output is a directory or a zip file.
+- `html`: **Static HTML site**: A browsable archive rendered to HTML files. Output is a directory only.
 
 By default Slackdump converts to Slack Export format and writes to a ZIP file
 output.
