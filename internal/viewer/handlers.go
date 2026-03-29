@@ -46,11 +46,11 @@ func (v *Viewer) RenderIndex(ctx context.Context, w io.Writer) error {
 
 // RenderChannel renders the full conversation page for channelID to w.
 func (v *Viewer) RenderChannel(ctx context.Context, channelID string, w io.Writer) error {
-	it, err := v.src.AllMessages(ctx, channelID)
+	ci, err := v.src.ChannelInfo(ctx, channelID)
 	if err != nil {
 		return err
 	}
-	ci, err := v.src.ChannelInfo(ctx, channelID)
+	it, err := v.allMessagesOrEmpty(ctx, channelID)
 	if err != nil {
 		return err
 	}
@@ -114,7 +114,7 @@ func (v *Viewer) RenderCanvas(ctx context.Context, channelID string, w io.Writer
 	page.CanvasActive = true
 
 	// fetch messages so the full page renders correctly on deep link.
-	itMsg, err := v.src.AllMessages(ctx, channelID)
+	itMsg, err := v.allMessagesOrEmpty(ctx, channelID)
 	if err != nil {
 		return err
 	}
@@ -644,6 +644,18 @@ func isHXRequest(r *http.Request) bool {
 // isInvalid returns true if the provided path component is not web-safe.
 func isInvalid(pcomp string) bool {
 	return strings.Contains(pcomp, "..") || strings.HasPrefix(pcomp, "~") || strings.Contains(pcomp, "/") || strings.Contains(pcomp, "\\")
+}
+
+func emptyMessages() iter.Seq2[slack.Message, error] {
+	return func(func(slack.Message, error) bool) {}
+}
+
+func (v *Viewer) allMessagesOrEmpty(ctx context.Context, channelID string) (iter.Seq2[slack.Message, error], error) {
+	it, err := v.src.AllMessages(ctx, channelID)
+	if errors.Is(err, source.ErrNotFound) {
+		return emptyMessages(), nil
+	}
+	return it, err
 }
 
 // canvasAvailable returns true if the canvas file for the channel exists in

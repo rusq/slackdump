@@ -1,0 +1,212 @@
+// Copyright (c) 2021-2026 Rustam Gilyazov and Contributors.
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+package convert
+
+import (
+	"bytes"
+	"context"
+	"errors"
+	"fmt"
+	"io"
+	"io/fs"
+	"log/slog"
+	"path"
+	"strings"
+
+	"github.com/rusq/fsadapter"
+
+	"github.com/rusq/slackdump/v4/internal/structures"
+	"github.com/rusq/slackdump/v4/internal/viewer"
+	"github.com/rusq/slackdump/v4/internal/viewer/renderer"
+	"github.com/rusq/slackdump/v4/source"
+)
+
+type HTMLConverter struct {
+	src source.Sourcer
+	trg fsadapter.FS
+	lg  *slog.Logger
+}
+
+func NewToHTML(src source.Sourcer, trg fsadapter.FS, opts ...Option) *HTMLConverter {
+	c := &HTMLConverter{
+		src: src,
+		trg: trg,
+		lg:  slog.Default(),
+	}
+	cfg := options{lg: c.lg}
+	for _, opt := range opts {
+		opt(&cfg)
+	}
+	if cfg.lg != nil {
+		c.lg = cfg.lg
+	}
+	return c
+}
+
+func (c *HTMLConverter) Validate() error {
+	if c.src == nil || c.trg == nil {
+		return errors.New("convert: source and target must be set")
+	}
+	return nil
+}
+
+func (c *HTMLConverter) Convert(ctx context.Context) error {
+	if err := c.Validate(); err != nil {
+		return err
+	}
+
+	v, err := viewer.New(ctx, "", c.src, viewer.WithMode(renderer.ModeStatic))
+	if err != nil {
+		return err
+	}
+
+	if err := c.renderPage(ctx, v.RenderIndex, "index.html"); err != nil {
+		return fmt.Errorf("index: %w", err)
+	}
+
+	channels, err := c.src.Channels(ctx)
+	if err != nil {
+		return err
+	}
+	for _, ch := range channels {
+		if err := c.renderPage(ctx, func(ctx context.Context, w io.Writer) error {
+			return v.RenderChannel(ctx, ch.ID, w)
+		}, channelPagePath(ch.ID)); err != nil {
+			return fmt.Errorf("channel %s: %w", ch.ID, err)
+		}
+
+		threadRoots, err := c.threadRoots(ctx, ch.ID)
+		if err != nil {
+			return fmt.Errorf("channel %s threads: %w", ch.ID, err)
+		}
+		for _, threadTS := range threadRoots {
+			if err := c.renderPage(ctx, func(ctx context.Context, w io.Writer) error {
+				return v.RenderThread(ctx, ch.ID, threadTS, w)
+			}, threadPagePath(ch.ID, threadTS)); err != nil {
+				return fmt.Errorf("channel %s thread %s: %w", ch.ID, threadTS, err)
+			}
+		}
+
+		if ch.Properties != nil && ch.Properties.Canvas.FileId != "" {
+			if err := c.renderPage(ctx, func(ctx context.Context, w io.Writer) error {
+				return v.RenderCanvas(ctx, ch.ID, w)
+			}, canvasPagePath(ch.ID)); err != nil {
+				return fmt.Errorf("channel %s canvas: %w", ch.ID, err)
+			}
+			if err := c.renderRaw(ctx, func(ctx context.Context, w io.Writer) error {
+				return v.RenderCanvasContent(ctx, ch.ID, w)
+			}, canvasContentPath(ch.ID)); err != nil && !errors.Is(err, source.ErrNotFound) && !errors.Is(err, fs.ErrNotExist) {
+				return fmt.Errorf("channel %s canvas content: %w", ch.ID, err)
+			}
+		}
+	}
+
+	users, err := c.src.Users(ctx)
+	if err != nil {
+		if !errors.Is(err, source.ErrNotFound) {
+			return err
+		}
+		return nil
+	}
+	for _, u := range users {
+		if err := c.renderPage(ctx, func(ctx context.Context, w io.Writer) error {
+			return v.RenderUser(ctx, u.ID, w)
+		}, userPagePath(u.ID)); err != nil {
+			return fmt.Errorf("user %s: %w", u.ID, err)
+		}
+	}
+
+	return nil
+}
+
+func (c *HTMLConverter) renderPage(ctx context.Context, render func(context.Context, io.Writer) error, outputPath string) error {
+	var buf bytes.Buffer
+	if err := render(ctx, &buf); err != nil {
+		return err
+	}
+	body := relativizeRootLinks(buf.Bytes(), outputPath)
+	return c.trg.WriteFile(outputPath, body, 0o644)
+}
+
+func (c *HTMLConverter) renderRaw(ctx context.Context, render func(context.Context, io.Writer) error, outputPath string) error {
+	var buf bytes.Buffer
+	if err := render(ctx, &buf); err != nil {
+		return err
+	}
+	return c.trg.WriteFile(outputPath, buf.Bytes(), 0o644)
+}
+
+func (c *HTMLConverter) threadRoots(ctx context.Context, channelID string) ([]string, error) {
+	it, err := c.src.AllMessages(ctx, channelID)
+	if err != nil {
+		if errors.Is(err, source.ErrNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	var roots []string
+	for msg, err := range it {
+		if err != nil {
+			return nil, err
+		}
+		if structures.IsThreadStart(&msg) {
+			roots = append(roots, msg.ThreadTimestamp)
+		}
+	}
+	return roots, nil
+}
+
+func relativizeRootLinks(body []byte, outputPath string) []byte {
+	prefix := relativePrefix(outputPath)
+	if prefix == "" {
+		prefix = ""
+	}
+	replacer := strings.NewReplacer(
+		`="/`, `="`+prefix,
+		`='/`, `='`+prefix,
+		`url(/`, `url(`+prefix,
+	)
+	return []byte(replacer.Replace(string(body)))
+}
+
+func relativePrefix(outputPath string) string {
+	dir := path.Dir(path.Clean(outputPath))
+	if dir == "." || dir == "" {
+		return ""
+	}
+	return strings.Repeat("../", strings.Count(dir, "/")+1)
+}
+
+func channelPagePath(channelID string) string {
+	return path.Join("archives", channelID, "index.html")
+}
+
+func threadPagePath(channelID, threadTS string) string {
+	return path.Join("archives", channelID, "threads", threadTS+".html")
+}
+
+func canvasPagePath(channelID string) string {
+	return path.Join("archives", channelID, "canvas", "index.html")
+}
+
+func canvasContentPath(channelID string) string {
+	return path.Join("archives", channelID, "canvas", "content.html")
+}
+
+func userPagePath(userID string) string {
+	return path.Join("team", userID, "index.html")
+}
