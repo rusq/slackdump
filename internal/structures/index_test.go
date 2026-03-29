@@ -58,6 +58,16 @@ func Test_mostFrequentMember(t *testing.T) {
 			args{[]DM{{Members: []string{"me", "me"}}}},
 			"me",
 		},
+		{
+			"single dm picks last member on tie",
+			args{[]DM{{Members: []string{"other", "me"}}}},
+			"me",
+		},
+		{
+			"single dm with reversed order",
+			args{[]DM{{Members: []string{"me", "other"}}}},
+			"other",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -607,6 +617,24 @@ func Test_convertToDM(t *testing.T) {
 						IsIM:    true,
 					},
 					Members: []string{"UNEERHWJJ", "UGTRHT2SH"},
+				},
+			}},
+			DM{
+				ID:      "DNC8S27U5",
+				Created: 1568448961,
+				Members: []string{"UNEERHWJJ", "UGTRHT2SH"},
+			},
+		},
+		{
+			"normalizes current user to last position",
+			args{"UGTRHT2SH", slack.Channel{
+				GroupConversation: slack.GroupConversation{
+					Conversation: slack.Conversation{
+						ID:      "DNC8S27U5",
+						Created: slack.JSONTime(1568448961),
+						IsIM:    true,
+					},
+					Members: []string{"UGTRHT2SH", "UNEERHWJJ"},
 				},
 			}},
 			DM{
