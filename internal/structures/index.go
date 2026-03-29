@@ -234,6 +234,10 @@ func except[S ~[]T, T comparable](s T, ss S, stopAfterIdx int) T {
 // uses the DMs of the index. If DMs are empty, or it's unable to identify the
 // user, it returns an empty string.  The user, who appears in "Members" slices
 // the most, is considered the current user.
+//
+// When there is a tie (e.g. a single DM where both members appear once),
+// the last member of the first DM is chosen as "me", because slackdump
+// exports DM members as [other_user, current_user].
 func mostFrequentMember(dms []DM) string {
 	counts := make(map[string]int)
 	for _, dm := range dms {
@@ -245,11 +249,26 @@ func mostFrequentMember(dms []DM) string {
 		max int
 		id  string
 	)
+	// Collect all candidates that share the highest frequency.
 	for k, v := range counts {
 		if v > max {
 			max = v
 			id = k
 		}
+	}
+	// Check for a tie: if multiple members share the max count, the map
+	// iteration order is non-deterministic.  Fall back to the first member
+	// of the first DM so the result is stable.
+	tied := 0
+	for _, v := range counts {
+		if v == max {
+			tied++
+		}
+	}
+	if tied > 1 && len(dms) > 0 && len(dms[0].Members) > 0 {
+		// When exported by slackdump, the DM members are typically ordered as
+		// [other_user, current_user], so pick the last member as "me".
+		return dms[0].Members[len(dms[0].Members)-1]
 	}
 	return id
 }

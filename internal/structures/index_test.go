@@ -58,6 +58,16 @@ func Test_mostFrequentMember(t *testing.T) {
 			args{[]DM{{Members: []string{"me", "me"}}}},
 			"me",
 		},
+		{
+			"single dm picks last member on tie",
+			args{[]DM{{Members: []string{"other", "me"}}}},
+			"me",
+		},
+		{
+			"single dm with reversed order",
+			args{[]DM{{Members: []string{"me", "other"}}}},
+			"other",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
