@@ -271,6 +271,91 @@ func TestSlack_rtseColor(t *testing.T) {
 	}
 }
 
+func TestSlack_rtseChannel(t *testing.T) {
+	cc := map[string]slack.Channel{
+		"C123": {GroupConversation: slack.GroupConversation{Conversation: slack.Conversation{ID: "C123"}, Name: "general"}},
+	}
+	tests := []struct {
+		name   string
+		s      *Slack
+		ie     slack.RichTextSectionElement
+		want   string
+		wantFn func(string) bool
+	}{
+		{
+			name: "no routes - plain div",
+			s:    &Slack{cc: cc},
+			ie:   slack.NewRichTextSectionChannelElement("C123", nil),
+			want: `<div class="slack-rich-text-section-channel"><#general></div>`,
+		},
+		{
+			name: "live routes - linked",
+			s:    &Slack{cc: cc, routes: NewRoutes(ModeLive)},
+			ie:   slack.NewRichTextSectionChannelElement("C123", nil),
+			want: `<div class="slack-rich-text-section-channel"><a href="/archives/C123"><#general></a></div>`,
+		},
+		{
+			name: "static routes - linked to index.html",
+			s:    &Slack{cc: cc, routes: NewRoutes(ModeStatic)},
+			ie:   slack.NewRichTextSectionChannelElement("C123", nil),
+			want: `<div class="slack-rich-text-section-channel"><a href="/archives/C123/index.html"><#general></a></div>`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, _, err := tt.s.rtseChannel(tt.ie)
+			if err != nil {
+				t.Fatalf("rtseChannel() error = %v", err)
+			}
+			if got != tt.want {
+				t.Errorf("rtseChannel() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestSlack_rtseUser(t *testing.T) {
+	uu := map[string]slack.User{
+		"U123": {ID: "U123", Name: "alice"},
+	}
+	tests := []struct {
+		name string
+		s    *Slack
+		ie   slack.RichTextSectionElement
+		want string
+	}{
+		{
+			name: "no routes - plain mention",
+			s:    &Slack{uu: uu},
+			ie:   slack.NewRichTextSectionUserElement("U123", nil),
+			want: `<@alice>`,
+		},
+		{
+			name: "live routes - linked",
+			s:    &Slack{uu: uu, routes: NewRoutes(ModeLive)},
+			ie:   slack.NewRichTextSectionUserElement("U123", nil),
+			want: `<a href="/team/U123"><@alice></a>`,
+		},
+		{
+			name: "static routes - linked to index.html",
+			s:    &Slack{uu: uu, routes: NewRoutes(ModeStatic)},
+			ie:   slack.NewRichTextSectionUserElement("U123", nil),
+			want: `<a href="/team/U123/index.html"><@alice></a>`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, _, err := tt.s.rtseUser(tt.ie)
+			if err != nil {
+				t.Fatalf("rtseUser() error = %v", err)
+			}
+			if got != tt.want {
+				t.Errorf("rtseUser() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestMbtRichText(t *testing.T) {
 	const colorful = `{
   "type": "rich_text",

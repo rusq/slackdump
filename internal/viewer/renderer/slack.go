@@ -84,6 +84,12 @@ func NewSlack(tmpl *template.Template, opts ...SlackOption) *Slack {
 		"fileurl": func(id, filename string) string {
 			return s.routes.File(id, filename)
 		},
+		"rewriteurl": func(src string) string {
+			if s.routes == nil {
+				return src
+			}
+			return s.routes.RewriteSlackURL(src)
+		},
 	}).ParseFS(templates, "templates/*.html"))
 	for _, opt := range opts {
 		opt(s)

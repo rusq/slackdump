@@ -210,8 +210,11 @@ func (s *Slack) rtseUser(ie slack.RichTextSectionElement) (string, string, error
 		name = e.UserID
 	}
 
-	// TODO: link user.
-	return applyStyle(fmt.Sprintf("<@%s>", name), e.Style), "", nil
+	text := applyStyle(fmt.Sprintf("<@%s>", name), e.Style)
+	if s.routes != nil {
+		text = fmt.Sprintf(`<a href="%s">%s</a>`, s.routes.User(e.UserID), text)
+	}
+	return text, "", nil
 }
 
 func (s *Slack) rtseEmoji(ie slack.RichTextSectionElement) (string, string, error) {
@@ -237,7 +240,11 @@ func (s *Slack) rtseChannel(ie slack.RichTextSectionElement) (string, string, er
 		name = e.ChannelID
 	}
 
-	return elDiv(rtseTypeClass[slack.RTSEChannel], applyStyle(fmt.Sprintf("<#%s>", name), e.Style)), "", nil
+	text := applyStyle(fmt.Sprintf("<#%s>", name), e.Style)
+	if s.routes != nil {
+		text = fmt.Sprintf(`<a href="%s">%s</a>`, s.routes.Channel(e.ChannelID), text)
+	}
+	return elDiv(rtseTypeClass[slack.RTSEChannel], text), "", nil
 }
 
 func (s *Slack) rtseBroadcast(ie slack.RichTextSectionElement) (string, string, error) {

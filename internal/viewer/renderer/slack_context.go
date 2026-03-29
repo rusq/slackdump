@@ -49,7 +49,7 @@ var contextElementHandlers = map[slack.MixedElementType]func(*Slack, slack.Mixed
 	slack.MixedElementText:  (*Slack).metText,
 }
 
-func (*Slack) metImage(ie slack.MixedElement) (string, string, error) {
+func (s *Slack) metImage(ie slack.MixedElement) (string, string, error) {
 	e, ok := ie.(*slack.ImageBlockElement)
 	if !ok {
 		return "", "", NewErrIncorrectType(&slack.ImageBlockElement{}, ie)
@@ -57,6 +57,9 @@ func (*Slack) metImage(ie slack.MixedElement) (string, string, error) {
 	uri := ""
 	if e.ImageURL != nil {
 		uri = *e.ImageURL
+	}
+	if s.routes != nil {
+		uri = s.routes.RewriteSlackURL(uri)
 	}
 	return fmt.Sprintf(`<img src="%s" alt="%s">`, uri, e.AltText), "", nil
 }

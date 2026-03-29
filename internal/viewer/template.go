@@ -26,6 +26,7 @@ import (
 	"github.com/rusq/slack"
 
 	st "github.com/rusq/slackdump/v4/internal/structures"
+	"github.com/rusq/slackdump/v4/source"
 )
 
 //go:embed templates
@@ -133,11 +134,26 @@ func (v *Viewer) userpic(userID string) string {
 		return v.rts.StaticAsset(emptyAvatar)
 	}
 	user, ok := v.um[userID]
+	if !v.rts.Interactive() {
+		// Static mode: use local avatar when it was actually downloaded.
+		if ok && user.Profile.ImageOriginal != "" {
+			uid, filename := source.AvatarParams(user)
+			if _, err := v.src.Avatars().File(uid, filename); err == nil {
+				return v.rts.Avatar(userID, filename)
+			}
+		}
+		// Local avatar unavailable; fall through to CDN URL so the browser
+		// can still fetch it, or use the empty-avatar placeholder.
+		if ok && user.Profile.Image48 != "" {
+			return user.Profile.Image48
+		}
+		return v.rts.StaticAsset(emptyAvatar)
+	}
+	// Live mode: use Slack CDN URL directly.
 	if ok && user.Profile.Image48 != "" {
 		return user.Profile.Image48
 	}
 	slog.Debug("userpic not found", "user", userID)
-
 	return v.rts.StaticAsset(emptyAvatar)
 }
 

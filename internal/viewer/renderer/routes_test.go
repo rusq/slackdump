@@ -49,6 +49,21 @@ func TestRoutes_RewriteSlackURL(t *testing.T) {
 	}
 }
 
+func TestRoutes_Avatar(t *testing.T) {
+	t.Run("live mode", func(t *testing.T) {
+		r := NewRoutes(ModeLive)
+		if got := r.Avatar("U123", "abc.jpg"); got != "/avatars/U123/abc.jpg" {
+			t.Fatalf("Avatar() = %q, want %q", got, "/avatars/U123/abc.jpg")
+		}
+	})
+	t.Run("static mode", func(t *testing.T) {
+		r := NewRoutes(ModeStatic)
+		if got := r.Avatar("U123", "abc.png"); got != "/avatars/U123/abc.png" {
+			t.Fatalf("Avatar() = %q, want %q", got, "/avatars/U123/abc.png")
+		}
+	})
+}
+
 func TestRoutes_StaticPaths(t *testing.T) {
 	routes := NewRoutes(ModeStatic)
 

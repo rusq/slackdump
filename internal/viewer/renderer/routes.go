@@ -125,6 +125,10 @@ func (r *Routes) StaticAsset(name string) string {
 	return routePath("static", name)
 }
 
+func (r *Routes) Avatar(userID, filename string) string {
+	return routePath("avatars", userID, filename)
+}
+
 func (r *Routes) RewriteSlackURL(src string) string {
 	if r == nil || r.workspaceHost == "" {
 		return src
