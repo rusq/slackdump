@@ -25,8 +25,10 @@ import (
 	"log/slog"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/rusq/fsadapter"
+	"github.com/rusq/slack"
 
 	"github.com/rusq/slackdump/v4/internal/structures"
 	"github.com/rusq/slackdump/v4/internal/viewer"
@@ -112,6 +114,10 @@ func (c *HTMLConverter) Convert(ctx context.Context) error {
 				return fmt.Errorf("channel %s canvas content: %w", ch.ID, err)
 			}
 		}
+
+		if err := c.copyChannelFiles(ctx, ch); err != nil {
+			return fmt.Errorf("channel %s files: %w", ch.ID, err)
+		}
 	}
 
 	users, err := c.src.Users(ctx)
@@ -119,7 +125,7 @@ func (c *HTMLConverter) Convert(ctx context.Context) error {
 		if !errors.Is(err, source.ErrNotFound) {
 			return err
 		}
-		return nil
+		users = nil
 	}
 	for _, u := range users {
 		if err := c.renderPage(ctx, func(ctx context.Context, w io.Writer) error {
@@ -128,8 +134,77 @@ func (c *HTMLConverter) Convert(ctx context.Context) error {
 			return fmt.Errorf("user %s: %w", u.ID, err)
 		}
 	}
+	if err := c.copyAvatars(users); err != nil {
+		return fmt.Errorf("avatars: %w", err)
+	}
+	if err := c.copyStaticAssets(); err != nil {
+		return fmt.Errorf("static assets: %w", err)
+	}
 
 	return nil
+}
+
+func (c *HTMLConverter) copyChannelFiles(ctx context.Context, ch slack.Channel) error {
+	if c.src.Files().Type() == source.STnone {
+		return nil
+	}
+	fc := NewFileCopier(c.src, c.trg, htmlFilePath, true)
+	err := c.src.Sorted(ctx, ch.ID, false, func(_ time.Time, msg *slack.Message) error {
+		err := fc.Copy(&ch, msg)
+		if err == nil {
+			return nil
+		}
+		if errors.Is(err, fs.ErrNotExist) || errors.Is(err, source.ErrNotFound) {
+			c.lg.WarnContext(ctx, "skipping missing file asset", "channel", ch.ID, "ts", msg.Timestamp, "error", err)
+			return nil
+		}
+		return err
+	})
+	if errors.Is(err, source.ErrNotFound) {
+		return nil
+	}
+	return err
+}
+
+func (c *HTMLConverter) copyAvatars(users []slack.User) error {
+	if c.src.Avatars().Type() == source.STnone {
+		return nil
+	}
+	for _, u := range users {
+		if u.Profile.ImageOriginal == "" {
+			continue
+		}
+		userID, filename := source.AvatarParams(&u)
+		srcPath, err := c.src.Avatars().File(userID, filename)
+		if err != nil {
+			if errors.Is(err, fs.ErrNotExist) || errors.Is(err, source.ErrNotFound) {
+				c.lg.Warn("skipping missing avatar asset", "user", u.ID, "error", err)
+				continue
+			}
+			return err
+		}
+		if err := copy2trg(c.trg, htmlAvatarPath(userID, filename), c.src.Avatars().FS(), srcPath); err != nil {
+			if errors.Is(err, fs.ErrNotExist) || errors.Is(err, source.ErrNotFound) {
+				c.lg.Warn("skipping missing avatar asset", "user", u.ID, "error", err)
+				continue
+			}
+			return err
+		}
+	}
+	return nil
+}
+
+func (c *HTMLConverter) copyStaticAssets() error {
+	staticFS := viewer.StaticFS()
+	return fs.WalkDir(staticFS, ".", func(name string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			return nil
+		}
+		return copy2trg(c.trg, htmlStaticAssetPath(name), staticFS, name)
+	})
 }
 
 func (c *HTMLConverter) renderPage(ctx context.Context, render func(context.Context, io.Writer) error, outputPath string) error {
@@ -209,4 +284,16 @@ func canvasContentPath(channelID string) string {
 
 func userPagePath(userID string) string {
 	return path.Join("team", userID, "index.html")
+}
+
+func htmlFilePath(_ *slack.Channel, f *slack.File) string {
+	return path.Join("files", f.ID, f.Name)
+}
+
+func htmlAvatarPath(userID, filename string) string {
+	return path.Join("avatars", userID, filename)
+}
+
+func htmlStaticAssetPath(name string) string {
+	return path.Join("static", name)
 }

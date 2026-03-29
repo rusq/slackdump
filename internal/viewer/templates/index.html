@@ -394,9 +394,10 @@
     </header>
     <article class="user-profile">
         {{ if .User }}
+            {{ $pic := userpic .User.ID }}
             <div class="profile-image-container">
-                <a href="{{ .User.Profile.Image512 }}" target="_blank">
-                    <img src="{{ .User.Profile.Image512 }}" alt="{{ displayname .User.ID }}" class="profile-image">
+                <a href="{{ $pic }}" target="_blank">
+                    <img src="{{ $pic }}" alt="{{ displayname .User.ID }}" class="profile-image">
                 </a>
             </div>
 
