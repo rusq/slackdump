@@ -86,6 +86,7 @@ func TestHTMLConverter_Convert(t *testing.T) {
 			"files/F1/hello.txt",
 			"avatars/U1/ada.png",
 			"static/48x48.gif",
+			"static/htmx.min.js",
 			"team/U1/index.html",
 		} {
 			if _, err := fs.Stat(osDirFS(outDir), name); err != nil {
@@ -115,6 +116,11 @@ func TestHTMLConverter_Convert(t *testing.T) {
 		threadBody := readFile(t, outDir, "archives/C1/threads/1710000000.000001.html")
 		if !strings.Contains(threadBody, `href="../../../team/U1/index.html"`) {
 			t.Fatalf("thread page should rewrite user links relatively: %q", threadBody)
+		}
+
+		canvasPage := readFile(t, outDir, "archives/C1/canvas/index.html")
+		if !strings.Contains(canvasPage, `src="../../../archives/C1/canvas/content.html"`) {
+			t.Fatalf("canvas page should link to local canvas content relatively: %q", canvasPage)
 		}
 
 		canvasBody := readFile(t, outDir, "archives/C1/canvas/content.html")

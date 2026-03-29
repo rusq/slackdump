@@ -65,6 +65,23 @@ func TestRunConvert_HTML(t *testing.T) {
 			t.Fatalf("expected stripped output directory to be written: %v", err)
 		}
 	})
+
+	t.Run("uses normalized default html output name", func(t *testing.T) {
+		src := writeDumpFixture(t)
+		output := filepath.Join(t.TempDir(), "slackdump_default.zip")
+		setConvertTestGlobals(t, output, Fhtml)
+
+		if err := runConvert(t.Context(), CmdConvert, []string{src}); err != nil {
+			t.Fatalf("runConvert() error = %v", err)
+		}
+
+		if _, err := os.Stat(filepath.Join(filepath.Dir(output), "slackdump_default", "index.html")); err != nil {
+			t.Fatalf("expected normalized default output directory to be written: %v", err)
+		}
+		if _, err := os.Stat(output); !os.IsNotExist(err) {
+			t.Fatalf("expected html conversion not to write zip output, got err=%v", err)
+		}
+	})
 }
 
 func TestNormalizeOutput(t *testing.T) {

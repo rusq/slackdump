@@ -28,7 +28,9 @@
         </section>
         <section id="conversation" class="conversations">
             <!-- Conversations go here -->
-            {{ if .Messages }}
+            {{ if .CanvasActive }}
+            {{ template "hx_canvas" . }}
+            {{ else if .Messages }}
             {{ template "hx_conversation" . }}
             {{ else }}
             <header class="conversation-header">
