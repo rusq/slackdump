@@ -21,6 +21,7 @@ import (
 func TestHTMLConverter_Convert(t *testing.T) {
 	t.Run("copies pages and local assets", func(t *testing.T) {
 		src := &htmlSourceStub{
+			panicOnSorted: true,
 			channels: []slack.Channel{
 				{
 					GroupConversation: slack.GroupConversation{
@@ -107,6 +108,9 @@ func TestHTMLConverter_Convert(t *testing.T) {
 		if !strings.Contains(channelBody, `href="../../files/F1/hello.txt"`) {
 			t.Fatalf("channel page should rewrite file links relatively: %q", channelBody)
 		}
+		if !strings.Contains(channelBody, `href="../../archives/C1/threads/1710000000.000001.html"`) {
+			t.Fatalf("channel page should rewrite thread links relatively: %q", channelBody)
+		}
 
 		indexBody := readFile(t, outDir, "index.html")
 		if !strings.Contains(indexBody, `href="archives/C1/index.html"`) {
@@ -136,6 +140,7 @@ func TestHTMLConverter_Convert(t *testing.T) {
 
 	t.Run("missing assets do not fail", func(t *testing.T) {
 		src := &htmlSourceStub{
+			panicOnSorted: true,
 			channels: []slack.Channel{{
 				GroupConversation: slack.GroupConversation{
 					Name:         "general",
@@ -187,12 +192,13 @@ func TestRelativePrefix(t *testing.T) {
 }
 
 type htmlSourceStub struct {
-	channels []slack.Channel
-	users    []slack.User
-	messages map[string][]slack.Message
-	threads  map[string]map[string][]slack.Message
-	files    source.Storage
-	avatars  source.Storage
+	channels      []slack.Channel
+	users         []slack.User
+	messages      map[string][]slack.Message
+	threads       map[string]map[string][]slack.Message
+	files         source.Storage
+	avatars       source.Storage
+	panicOnSorted bool
 }
 
 func (*htmlSourceStub) Name() string       { return "test-archive" }
@@ -220,6 +226,9 @@ func (s *htmlSourceStub) AllThreadMessages(_ context.Context, channelID, threadI
 	return messageSeq(mm), nil
 }
 func (s *htmlSourceStub) Sorted(_ context.Context, channelID string, _ bool, cb func(time.Time, *slack.Message) error) error {
+	if s.panicOnSorted {
+		panic("Sorted should not be called")
+	}
 	if mm, ok := s.messages[channelID]; ok {
 		for i := range mm {
 			if err := cb(time.Time{}, &mm[i]); err != nil {

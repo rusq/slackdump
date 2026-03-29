@@ -22,10 +22,10 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"iter"
 	"log/slog"
 	"path"
 	"strings"
-	"time"
 
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/slack"
@@ -115,7 +115,7 @@ func (c *HTMLConverter) Convert(ctx context.Context) error {
 			}
 		}
 
-		if err := c.copyChannelFiles(ctx, ch); err != nil {
+		if err := c.copyChannelFiles(ctx, ch, threadRoots); err != nil {
 			return fmt.Errorf("channel %s files: %w", ch.ID, err)
 		}
 	}
@@ -144,26 +144,58 @@ func (c *HTMLConverter) Convert(ctx context.Context) error {
 	return nil
 }
 
-func (c *HTMLConverter) copyChannelFiles(ctx context.Context, ch slack.Channel) error {
+func (c *HTMLConverter) copyChannelFiles(ctx context.Context, ch slack.Channel, threadRoots []string) error {
 	if c.src.Files().Type() == source.STnone {
 		return nil
 	}
 	fc := NewFileCopier(c.src, c.trg, htmlFilePath, true)
-	err := c.src.Sorted(ctx, ch.ID, false, func(_ time.Time, msg *slack.Message) error {
-		err := fc.Copy(&ch, msg)
+	if err := c.copyFileSeq(ctx, fc, &ch, ch.ID, mustAllMessages(ctx, c.src, ch.ID)); err != nil {
+		return err
+	}
+	for _, threadTS := range threadRoots {
+		it, err := c.src.AllThreadMessages(ctx, ch.ID, threadTS)
+		if err != nil {
+			if errors.Is(err, source.ErrNotFound) {
+				continue
+			}
+			return err
+		}
+		if err := c.copyFileSeq(ctx, fc, &ch, ch.ID, it); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func mustAllMessages(ctx context.Context, src source.Sourcer, channelID string) iter.Seq2[slack.Message, error] {
+	it, err := src.AllMessages(ctx, channelID)
+	if err != nil {
+		return func(yield func(slack.Message, error) bool) {
+			yield(slack.Message{}, err)
+		}
+	}
+	return it
+}
+
+func (c *HTMLConverter) copyFileSeq(ctx context.Context, fc *FileCopier, ch *slack.Channel, channelID string, it iter.Seq2[slack.Message, error]) error {
+	for msg, err := range it {
+		if err != nil {
+			if errors.Is(err, source.ErrNotFound) {
+				return nil
+			}
+			return err
+		}
+		err = fc.Copy(ch, &msg)
 		if err == nil {
-			return nil
+			continue
 		}
 		if errors.Is(err, fs.ErrNotExist) || errors.Is(err, source.ErrNotFound) {
-			c.lg.WarnContext(ctx, "skipping missing file asset", "channel", ch.ID, "ts", msg.Timestamp, "error", err)
-			return nil
+			c.lg.WarnContext(ctx, "skipping missing file asset", "channel", channelID, "ts", msg.Timestamp, "error", err)
+			continue
 		}
 		return err
-	})
-	if errors.Is(err, source.ErrNotFound) {
-		return nil
 	}
-	return err
+	return nil
 }
 
 func (c *HTMLConverter) copyAvatars(users []slack.User) error {
