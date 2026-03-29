@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"html/template"
+	"io"
 	"log/slog"
 	"net/http"
 	"os"
@@ -42,6 +43,20 @@ func init() {
 		slog.SetLogLoggerLevel(slog.LevelDebug)
 	}
 }
+
+// PageRenderer renders Viewer pages to any io.Writer.
+// Both the live HTTP viewer and the static HTML exporter implement it.
+type PageRenderer interface {
+	RenderIndex(ctx context.Context, w io.Writer) error
+	RenderChannel(ctx context.Context, channelID string, w io.Writer) error
+	RenderThread(ctx context.Context, channelID, threadTS string, w io.Writer) error
+	RenderUser(ctx context.Context, userID string, w io.Writer) error
+	RenderCanvas(ctx context.Context, channelID string, w io.Writer) error
+	RenderCanvasContent(ctx context.Context, channelID string, w io.Writer) error
+}
+
+// compile-time check that *Viewer implements PageRenderer.
+var _ PageRenderer = (*Viewer)(nil)
 
 // Viewer is the slackdump viewer.
 type Viewer struct {
