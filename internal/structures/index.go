@@ -284,7 +284,17 @@ func convertToDM(me string, ch slack.Channel) DM {
 	case 1:
 		d.Members = []string{ch.User, me}
 	default:
-		d.Members = ch.Members
+		d.Members = normalizeDMMembers(me, ch.Members)
 	}
 	return d
+}
+
+func normalizeDMMembers(me string, members []string) []string {
+	if len(members) != 2 {
+		return members
+	}
+	if members[0] == me && members[1] != me {
+		return []string{members[1], members[0]}
+	}
+	return members
 }

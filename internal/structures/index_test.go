@@ -626,6 +626,24 @@ func Test_convertToDM(t *testing.T) {
 			},
 		},
 		{
+			"normalizes current user to last position",
+			args{"UGTRHT2SH", slack.Channel{
+				GroupConversation: slack.GroupConversation{
+					Conversation: slack.Conversation{
+						ID:      "DNC8S27U5",
+						Created: slack.JSONTime(1568448961),
+						IsIM:    true,
+					},
+					Members: []string{"UGTRHT2SH", "UNEERHWJJ"},
+				},
+			}},
+			DM{
+				ID:      "DNC8S27U5",
+				Created: 1568448961,
+				Members: []string{"UNEERHWJJ", "UGTRHT2SH"},
+			},
+		},
+		{
 			"restores zero members",
 			args{"UGTRHT2SH", slack.Channel{
 				GroupConversation: slack.GroupConversation{
