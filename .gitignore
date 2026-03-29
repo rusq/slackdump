@@ -71,3 +71,6 @@ debug.test*
 *.pprof
 *.prof
 *.pf
+
+# Dolt database files (added by bd init)
+.dolt/
