@@ -47,18 +47,21 @@ func (v *Viewer) indexHandler(w http.ResponseWriter, r *http.Request) {
 // suppress the reply banner (used in the thread panel, where the parent
 // message is on a different page).
 type messageView struct {
-	Msg       slack.Message
-	ChannelID string
+	Msg         slack.Message
+	ChannelID   string
+	Interactive bool
 }
 
 type mainView struct {
 	channels
 	Name            string
 	Type            string
+	Interactive     bool
 	Messages        iter.Seq2[slack.Message, error]
 	ThreadMessages  iter.Seq2[slack.Message, error]
 	ThreadID        string
 	Conversation    slack.Channel
+	User            *slack.User
 	Alias           string // conversation alias
 	AliasError      string
 	CanAlias        bool // if true, alias can be set for the channel
@@ -83,10 +86,11 @@ func (v *Viewer) view() mainView {
 	_, supportsAlias := v.aliaser()
 
 	return mainView{
-		channels: v.ch,
-		Name:     filepath.Base(v.src.Name()),
-		Type:     v.src.Type().String(),
-		CanAlias: supportsAlias,
+		channels:    v.ch,
+		Name:        filepath.Base(v.src.Name()),
+		Type:        v.src.Type().String(),
+		Interactive: v.rts.Interactive(),
+		CanAlias:    supportsAlias,
 	}
 }
 
@@ -193,13 +197,13 @@ func (v *Viewer) postRedirectHandler(w http.ResponseWriter, r *http.Request, id 
 			// in this case the initial p value refers to a message within the thread
 			// https://ora600.slack.com/archives/CHY5HUESG/p1738580940349469?thread_ts=1737716342.919259&cid=CHY5HUESG
 			lg.Debug("redirecting to thread message", "ts", vts)
-			http.Redirect(w, r, "/archives/"+id+"/"+vts+"#"+structures.ThreadIDtoTS(ts), http.StatusSeeOther)
+			http.Redirect(w, r, v.rts.ThreadMessage(id, vts, structures.ThreadIDtoTS(ts)), http.StatusSeeOther)
 		} else {
 			// p refers to a message within the channel.
 			// https: //ora600.slack.com/archives/DHMAB25DY/p1710063528879959
 			lg.Debug("redirecting to channel message", "ts", ts)
 			ts = structures.ThreadIDtoTS(ts)
-			http.Redirect(w, r, "/archives/"+id+"#"+ts, http.StatusSeeOther)
+			http.Redirect(w, r, v.rts.ChannelMessage(id, ts), http.StatusSeeOther)
 		}
 		return
 	}
@@ -317,7 +321,17 @@ func (v *Viewer) userHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ctx := r.Context()
-	if err := v.tmpl.ExecuteTemplate(w, "hx_user", u); err != nil {
+	if isHXRequest(r) && v.rts.Interactive() {
+		if err := v.tmpl.ExecuteTemplate(w, "hx_user", userView{User: u, Interactive: true}); err != nil {
+			lg.ErrorContext(ctx, "ExecuteTemplate", "error", err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+		return
+	}
+
+	page := v.view()
+	page.User = u
+	if err := v.tmpl.ExecuteTemplate(w, "index.html", page); err != nil {
 		lg.ErrorContext(ctx, "ExecuteTemplate", "error", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}

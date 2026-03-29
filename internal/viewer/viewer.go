@@ -50,11 +50,25 @@ type Viewer struct {
 	um   st.UserIndex
 	src  source.Sourcer
 	tmpl *template.Template
+	mode renderer.Mode
+	rts  *renderer.Routes
 
 	// handles
 	srv *http.Server
 	lg  *slog.Logger
 	r   renderer.Renderer
+}
+
+type Option func(*viewerOptions)
+
+type viewerOptions struct {
+	mode renderer.Mode
+}
+
+func WithMode(mode renderer.Mode) Option {
+	return func(o *viewerOptions) {
+		o.mode = mode
+	}
 }
 
 const (
@@ -66,7 +80,12 @@ const (
 // address should be in the form of ":8080". The viewer will use the given
 // [Sourcer] to retrieve the data, see "source" package for available options.
 // It will initialise the logger from the context.
-func New(ctx context.Context, addr string, r source.Sourcer) (*Viewer, error) {
+func New(ctx context.Context, addr string, r source.Sourcer, opts ...Option) (*Viewer, error) {
+	options := viewerOptions{mode: renderer.ModeLive}
+	for _, opt := range opts {
+		opt(&options)
+	}
+
 	all, err := r.Channels(ctx)
 	if err != nil {
 		return nil, err
@@ -84,28 +103,35 @@ func New(ctx context.Context, addr string, r source.Sourcer) (*Viewer, error) {
 	um := st.NewUserIndex(uu)
 
 	v := &Viewer{
-		src: r,
-		ch:  cc,
-		um:  um,
-		lg:  slog.Default(),
+		src:  r,
+		ch:   cc,
+		um:   um,
+		lg:   slog.Default(),
+		mode: options.mode,
 	}
+	rtOpts := []renderer.RouteOption{}
+	if addr != "" {
+		rtOpts = append(rtOpts, renderer.WithLiveHost(normalise(addr)))
+	}
+	if wi, err := r.WorkspaceInfo(ctx); err == nil {
+		rtOpts = append(rtOpts, renderer.WithWorkspaceURL(wi.URL))
+	}
+	v.rts = renderer.NewRoutes(options.mode, rtOpts...)
 	// postinit
-	initTemplates(v)
 	if debug {
 		v.r = &renderer.Debug{}
 	} else {
 		opts := []renderer.SlackOption{
 			renderer.WithUsers(indexusers(uu)),
 			renderer.WithChannels(indexchannels(all)),
-		}
-		if wi, err := r.WorkspaceInfo(ctx); err == nil {
-			opts = append(opts, renderer.WithReplaceURL(wi.URL, normalise(addr)))
+			renderer.WithRoutes(v.rts),
 		}
 		v.r = renderer.NewSlack(
-			v.tmpl,
+			template.New("viewer-renderer"),
 			opts...,
 		)
 	}
+	initTemplates(v)
 
 	mux := http.NewServeMux()
 
