@@ -138,6 +138,45 @@ func TestHTMLConverter_Convert(t *testing.T) {
 		}
 	})
 
+	t.Run("sanitizes static attachment names", func(t *testing.T) {
+		src := &htmlSourceStub{
+			panicOnSorted: true,
+			channels: []slack.Channel{{
+				GroupConversation: slack.GroupConversation{
+					Name:         "general",
+					Conversation: slack.Conversation{ID: "C1"},
+				},
+				IsChannel: true,
+			}},
+			messages: map[string][]slack.Message{
+				"C1": {
+					{Msg: slack.Msg{Timestamp: "1710000000.000001", Text: "file", Files: []slack.File{{ID: "Funsafe", Name: "a/b:c.txt"}}}},
+				},
+			},
+			files: htmlStorage{
+				fsys: fstest.MapFS{
+					"Funsafe/a_b_c.txt": {Data: []byte("unsafe")},
+				},
+				byID: map[string]string{"Funsafe": "Funsafe/a_b_c.txt"},
+			},
+			avatars: htmlStorage{fsys: fstest.MapFS{}},
+		}
+
+		outDir := t.TempDir()
+		conv := NewToHTML(src, fsadapter.NewDirectory(outDir))
+		if err := conv.Convert(t.Context()); err != nil {
+			t.Fatalf("Convert() error = %v", err)
+		}
+
+		if _, err := fs.Stat(osDirFS(outDir), "files/Funsafe/a_b_c.txt"); err != nil {
+			t.Fatalf("sanitized file asset missing: %v", err)
+		}
+		channelBody := readFile(t, outDir, "archives/C1/index.html")
+		if !strings.Contains(channelBody, `href="../../files/Funsafe/a_b_c.txt"`) {
+			t.Fatalf("channel page should link to sanitized file path: %q", channelBody)
+		}
+	})
+
 	t.Run("missing assets do not fail", func(t *testing.T) {
 		src := &htmlSourceStub{
 			panicOnSorted: true,

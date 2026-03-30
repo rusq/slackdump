@@ -116,6 +116,14 @@ func TestSlack_Render_UsesRouteHelperForFiles(t *testing.T) {
 	}
 }
 
+func TestSlack_Render_SanitizesStaticFileRoutes(t *testing.T) {
+	sm := NewSlack(template.Must(template.New("base").Parse("")), WithRoutes(NewRoutes(ModeStatic)))
+	got := string(sm.Render(t.Context(), &slack.Message{Msg: slack.Msg{Files: []slack.File{{ID: "F123", Name: "a/b:c.txt"}}}}))
+	if !strings.Contains(got, `/files/F123/a_b_c.txt`) {
+		t.Fatalf("Render() should sanitize static file route, got %q", got)
+	}
+}
+
 func ungzip(t *testing.T, b []byte) string {
 	t.Helper()
 	gr, err := gzip.NewReader(bytes.NewReader(b))

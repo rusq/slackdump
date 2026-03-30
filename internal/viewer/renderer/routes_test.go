@@ -82,4 +82,7 @@ func TestRoutes_StaticPaths(t *testing.T) {
 	if got := routes.File("F123", "hello world.txt"); got != "/files/F123/hello%20world.txt" {
 		t.Fatalf("File() = %q", got)
 	}
+	if got := routes.File("F123", "a/b:c.txt"); got != "/files/F123/a_b_c.txt" {
+		t.Fatalf("File() sanitized = %q", got)
+	}
 }

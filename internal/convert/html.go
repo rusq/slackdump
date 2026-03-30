@@ -319,7 +319,7 @@ func userPagePath(userID string) string {
 }
 
 func htmlFilePath(_ *slack.Channel, f *slack.File) string {
-	return path.Join("files", f.ID, f.Name)
+	return path.Join("files", f.ID, source.SanitizeFilename(f.Name))
 }
 
 func htmlAvatarPath(userID, filename string) string {

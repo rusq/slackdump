@@ -23,6 +23,7 @@ import (
 	"strings"
 
 	"github.com/rusq/slackdump/v4/internal/structures"
+	"github.com/rusq/slackdump/v4/source"
 )
 
 // Mode defines how routes are rendered.
@@ -116,7 +117,7 @@ func (r *Routes) CanvasContent(id string) string {
 
 func (r *Routes) File(id, filename string) string {
 	if r != nil && r.mode == ModeStatic {
-		return routePath("files", id, filename)
+		return routePath("files", id, source.SanitizeFilename(filename))
 	}
 	return routePath("slackdump", "file", id, filename)
 }
