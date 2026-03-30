@@ -2,14 +2,14 @@
     <article>
         {{ if .Text }}
         <header>
-            <p class="author"><img class="icon" src="{{.AuthorIcon}}">{{ .AuthorName }} <span
+            <p class="author"><img class="icon" src="{{rewriteurl .AuthorIcon}}">{{ .AuthorName }} <span
                     class="author-subname sm grey">{{
                     .AuthorSubname}}</span></p>
         </header>
         <p>{{ .Text }}</p>
         <footer>
             <p class="footer grey small">
-                <img class="icon" src="{{.FooterIcon}}" alt="{{.ServiceName}}">{{ .Footer }}
+                <img class="icon" src="{{rewriteurl .FooterIcon}}" alt="{{.ServiceName}}">{{ .Footer }}
                 {{- if .Ts }} | <time>{{ epoch .Ts }}</time>{{ end -}}
             </p>
         </footer>
@@ -23,5 +23,5 @@
 </blockquote>
 
 {{ define "attachment-image" }}
-<a href="{{.ImageURL}}" target="blank"><img class="attachment-image" src="{{.ImageURL}}" alt="{{.Fallback}}"></a>
+<a href="{{rewriteurl .ImageURL}}" target="blank"><img class="attachment-image" src="{{rewriteurl .ImageURL}}" alt="{{.Fallback}}"></a>
 {{ end }}

@@ -12,11 +12,12 @@ func _() {
 	_ = x[Fexport-1]
 	_ = x[Fchunk-2]
 	_ = x[Fdatabase-3]
+	_ = x[Fhtml-4]
 }
 
-const _datafmt_name = "dumpexportchunkdatabase"
+const _datafmt_name = "dumpexportchunkdatabasehtml"
 
-var _datafmt_index = [...]uint8{0, 4, 10, 15, 23}
+var _datafmt_index = [...]uint8{0, 4, 10, 15, 23, 27}
 
 func (i datafmt) String() string {
 	idx := int(i) - 0

@@ -26,6 +26,7 @@ import (
 	"github.com/rusq/slack"
 
 	st "github.com/rusq/slackdump/v4/internal/structures"
+	"github.com/rusq/slackdump/v4/source"
 )
 
 //go:embed templates
@@ -34,7 +35,21 @@ var fsys embed.FS
 func initTemplates(v *Viewer) {
 	tmpl := template.Must(template.New("").Funcs(
 		template.FuncMap{
-			"channelname":     v.channelDisplayName,
+			"channelname":      v.channelDisplayName,
+			"channelurl":       v.rts.Channel,
+			"channelmsgurl":    v.rts.ChannelMessage,
+			"threadurl":        v.rts.Thread,
+			"threadmsgurl":     v.rts.ThreadMessage,
+			"userurl":          v.rts.User,
+			"canvasurl":        v.rts.Canvas,
+			"canvascontenturl": v.rts.CanvasContent,
+			"staticasset":      v.rts.StaticAsset,
+			"chlink": func(ch slack.Channel, interactive bool) channelLinkView {
+				return channelLinkView{Channel: ch, Interactive: interactive}
+			},
+			"userview": func(user *slack.User, interactive bool) userView {
+				return userView{User: user, Interactive: interactive}
+			},
 			"is_app_msg":      isAppMsg,
 			"is_user_msg":     isUserMsg,
 			"displayname":     v.um.DisplayName,
@@ -45,10 +60,22 @@ func initTemplates(v *Viewer) {
 			"render":          func(m slack.Message) template.HTML { return v.r.Render(context.Background(), &m) }, // render message
 			"is_thread_start": func(m slack.Message) bool { return st.IsThreadStart(&m) },
 			"canvas_present":  func(ch slack.Channel) bool { return ch.Properties != nil && ch.Properties.Canvas.FileId != "" },
-			"msgview":         func(channelID string, m slack.Message) messageView { return messageView{Msg: m, ChannelID: channelID} },
+			"msgview": func(channelID string, m slack.Message) messageView {
+				return messageView{Msg: m, ChannelID: channelID, Interactive: v.rts.Interactive()}
+			},
 		},
 	).ParseFS(fsys, "templates/*.html"))
 	v.tmpl = tmpl
+}
+
+type channelLinkView struct {
+	Channel     slack.Channel
+	Interactive bool
+}
+
+type userView struct {
+	User        *slack.User
+	Interactive bool
 }
 
 func (v *Viewer) channelDisplayName(ch slack.Channel) template.HTML {
@@ -100,19 +127,34 @@ func msgsender(m slack.Message) sender {
 	return sUnknown
 }
 
-const emptyAvatar = "/static/48x48.gif"
+const emptyAvatar = "48x48.gif"
 
 func (v *Viewer) userpic(userID string) string {
 	if userID == "" {
-		return emptyAvatar
+		return v.rts.StaticAsset(emptyAvatar)
 	}
 	user, ok := v.um[userID]
+	if !v.rts.Interactive() {
+		// Static mode: use local avatar when it was actually downloaded.
+		if ok && user.Profile.ImageOriginal != "" {
+			uid, filename := source.AvatarParams(user)
+			if _, err := v.src.Avatars().File(uid, filename); err == nil {
+				return v.rts.Avatar(userID, filename)
+			}
+		}
+		// Local avatar unavailable; fall through to CDN URL so the browser
+		// can still fetch it, or use the empty-avatar placeholder.
+		if ok && user.Profile.Image48 != "" {
+			return user.Profile.Image48
+		}
+		return v.rts.StaticAsset(emptyAvatar)
+	}
+	// Live mode: use Slack CDN URL directly.
 	if ok && user.Profile.Image48 != "" {
 		return user.Profile.Image48
 	}
 	slog.Debug("userpic not found", "user", userID)
-
-	return emptyAvatar
+	return v.rts.StaticAsset(emptyAvatar)
 }
 
 func (v *Viewer) username(m slack.Message) (name string) {

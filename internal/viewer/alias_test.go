@@ -17,44 +17,199 @@ package viewer
 
 import (
 	"context"
+	"io/fs"
 	"iter"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"path"
 	"strings"
 	"testing"
+	"testing/fstest"
 	"time"
 
 	"github.com/rusq/slack"
 
 	st "github.com/rusq/slackdump/v4/internal/structures"
+	"github.com/rusq/slackdump/v4/internal/viewer/renderer"
 	"github.com/rusq/slackdump/v4/source"
 )
 
 type aliasSourceStub struct {
 	aliases map[string]string
+	name    string
+	flags   source.Flags
+	chs     []slack.Channel
+	users   []slack.User
+	msgs    map[string][]slack.Message
+	threads map[string]map[string][]slack.Message
+	files   source.Storage
+	avatars source.Storage
+	wi      *slack.AuthTestResponse
 }
 
-func (*aliasSourceStub) Name() string                                      { return "test" }
-func (*aliasSourceStub) Type() source.Flags                                { return source.FDatabase }
-func (*aliasSourceStub) Channels(context.Context) ([]slack.Channel, error) { return nil, nil }
-func (*aliasSourceStub) Users(context.Context) ([]slack.User, error)       { return nil, nil }
-func (*aliasSourceStub) AllMessages(context.Context, string) (iter.Seq2[slack.Message, error], error) {
-	return nil, nil
+func (s *aliasSourceStub) Name() string {
+	if s.name != "" {
+		return s.name
+	}
+	return "test"
 }
-func (*aliasSourceStub) AllThreadMessages(context.Context, string, string) (iter.Seq2[slack.Message, error], error) {
-	return nil, nil
+func (s *aliasSourceStub) Type() source.Flags {
+	if s.flags != 0 {
+		return s.flags
+	}
+	return source.FDatabase
 }
-func (*aliasSourceStub) Sorted(context.Context, string, bool, func(time.Time, *slack.Message) error) error {
+func (s *aliasSourceStub) Channels(context.Context) ([]slack.Channel, error) { return s.chs, nil }
+func (s *aliasSourceStub) Users(context.Context) ([]slack.User, error)       { return s.users, nil }
+func (s *aliasSourceStub) AllMessages(_ context.Context, channelID string) (iter.Seq2[slack.Message, error], error) {
+	if s.msgs == nil {
+		return nil, nil
+	}
+	return messageSeq(s.msgs[channelID]), nil
+}
+func (s *aliasSourceStub) AllThreadMessages(_ context.Context, channelID, threadID string) (iter.Seq2[slack.Message, error], error) {
+	if s.threads == nil {
+		return nil, nil
+	}
+	mm, ok := s.threads[channelID][threadID]
+	if !ok {
+		return nil, source.ErrNotFound
+	}
+	return messageSeq(mm), nil
+}
+func (s *aliasSourceStub) Sorted(_ context.Context, channelID string, _ bool, cb func(time.Time, *slack.Message) error) error {
+	for i := range s.msgs[channelID] {
+		if err := cb(time.Time{}, &s.msgs[channelID][i]); err != nil {
+			return err
+		}
+	}
+	for _, mm := range s.threads[channelID] {
+		for i := range mm {
+			if err := cb(time.Time{}, &mm[i]); err != nil {
+				return err
+			}
+		}
+	}
 	return nil
 }
-func (*aliasSourceStub) ChannelInfo(context.Context, string) (*slack.Channel, error) {
+func (s *aliasSourceStub) ChannelInfo(_ context.Context, channelID string) (*slack.Channel, error) {
+	for _, ch := range s.chs {
+		if ch.ID == channelID {
+			copy := ch
+			return &copy, nil
+		}
+	}
 	return &slack.Channel{}, nil
 }
-func (*aliasSourceStub) Files() source.Storage   { return source.NoStorage{} }
-func (*aliasSourceStub) Avatars() source.Storage { return source.NoStorage{} }
-func (*aliasSourceStub) WorkspaceInfo(context.Context) (*slack.AuthTestResponse, error) {
-	return nil, nil
+func (s *aliasSourceStub) Files() source.Storage {
+	if s.files != nil {
+		return s.files
+	}
+	return source.NoStorage{}
+}
+func (s *aliasSourceStub) Avatars() source.Storage {
+	if s.avatars != nil {
+		return s.avatars
+	}
+	return source.NoStorage{}
+}
+func (s *aliasSourceStub) WorkspaceInfo(context.Context) (*slack.AuthTestResponse, error) {
+	return s.wi, nil
+}
+
+func messageSeq(mm []slack.Message) iter.Seq2[slack.Message, error] {
+	return func(yield func(slack.Message, error) bool) {
+		for _, msg := range mm {
+			if !yield(msg, nil) {
+				return
+			}
+		}
+	}
+}
+
+type storageStub struct {
+	fsys       fs.FS
+	byName     map[string]string
+	byID       map[string]string
+	allowByID  bool
+	storageTyp source.StorageType
+}
+
+func (s storageStub) FS() fs.FS {
+	if s.fsys != nil {
+		return s.fsys
+	}
+	return fstest.MapFS{}
+}
+
+func (s storageStub) Type() source.StorageType {
+	if s.storageTyp != 0 {
+		return s.storageTyp
+	}
+	return source.STmattermost
+}
+
+func (s storageStub) File(id, name string) (string, error) {
+	if p, ok := s.byName[id+"/"+name]; ok {
+		return p, nil
+	}
+	return "", fs.ErrNotExist
+}
+
+func (s storageStub) FileByID(id string) (string, error) {
+	if !s.allowByID {
+		return "", fs.ErrNotExist
+	}
+	if p, ok := s.byID[id]; ok {
+		return p, nil
+	}
+	return "", fs.ErrNotExist
+}
+
+func (s storageStub) FilePath(_ *slack.Channel, f *slack.File) string {
+	return path.Join(f.ID, f.Name)
+}
+
+func newViewerRouteSource() *aliasSourceStub {
+	channel := slack.Channel{
+		GroupConversation: slack.GroupConversation{
+			Name:         "general",
+			Conversation: slack.Conversation{ID: "C1"},
+			Topic:        slack.Topic{Value: "General discussion"},
+		},
+		Properties: &slack.Properties{Canvas: slack.Canvas{FileId: "FCANVAS"}},
+		IsChannel:  true,
+	}
+	return &aliasSourceStub{
+		chs: []slack.Channel{channel},
+		users: []slack.User{{
+			ID:      "U1",
+			Profile: slack.UserProfile{RealName: "Ada Lovelace", Image512: "https://example.com/avatar.png"},
+		}},
+		msgs: map[string][]slack.Message{
+			"C1": {
+				{Msg: slack.Msg{Timestamp: "1710000000.000001", ThreadTimestamp: "1710000000.000001", LatestReply: "1710000001.000001", ReplyCount: 1, User: "U1", Text: "thread root", Files: []slack.File{{ID: "F1", Name: "hello.txt"}}}},
+			},
+		},
+		threads: map[string]map[string][]slack.Message{
+			"C1": {
+				"1710000000.000001": {
+					{Msg: slack.Msg{Timestamp: "1710000000.000001", ThreadTimestamp: "1710000000.000001", LatestReply: "1710000001.000001", ReplyCount: 1, User: "U1", Text: "thread root"}},
+					{Msg: slack.Msg{Timestamp: "1710000001.000001", ThreadTimestamp: "1710000000.000001", User: "U1", Text: "reply body"}},
+				},
+			},
+		},
+		files: storageStub{
+			fsys: fstest.MapFS{
+				"F1/hello.txt":        {Data: []byte("hello")},
+				"FCANVAS/canvas.html": {Data: []byte("<html><body>canvas body</body></html>")},
+			},
+			byName:    map[string]string{"F1/hello.txt": "F1/hello.txt"},
+			byID:      map[string]string{"FCANVAS": "FCANVAS/canvas.html"},
+			allowByID: true,
+		},
+	}
 }
 
 func (s *aliasSourceStub) Alias(id string) (string, bool, error) {
@@ -205,5 +360,61 @@ func TestAliasPutHandlerInvalid(t *testing.T) {
 	}
 	if !strings.Contains(rr.Body.String(), "letters, digits, underscores, and dashes") {
 		t.Fatalf("aliasPutHandler() response = %q, want validation error", rr.Body.String())
+	}
+}
+
+func TestAliasPutHandler_Lifecycle(t *testing.T) {
+	src := &aliasSourceStub{}
+	v := &Viewer{
+		ch: channels{Public: []slack.Channel{{
+			GroupConversation: slack.GroupConversation{
+				Name: "general",
+				Conversation: slack.Conversation{
+					ID: "C1",
+				},
+			},
+			IsChannel: true,
+		}}},
+		um:  st.UserIndex{},
+		src: src,
+		lg:  slog.Default(),
+		rts: renderer.NewRoutes(renderer.ModeLive),
+	}
+	initTemplates(v)
+
+	for _, tc := range []struct {
+		name       string
+		alias      string
+		wantAlias  string
+		wantBody   string
+		bodyAbsent string
+	}{
+		{name: "set", alias: "alpha", wantAlias: "alpha", wantBody: "<em>alpha</em>"},
+		{name: "update", alias: "beta", wantAlias: "beta", wantBody: "<em>beta</em>", bodyAbsent: "<em>alpha</em>"},
+		{name: "delete", alias: "   ", wantAlias: "", wantBody: "#general", bodyAbsent: "<em>beta</em>"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPut, "/archives/C1/alias/", strings.NewReader("alias="+tc.alias))
+			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+			req.SetPathValue("id", "C1")
+			rr := httptest.NewRecorder()
+
+			v.aliasPutHandler(rr, req)
+
+			if rr.Code != http.StatusOK {
+				t.Fatalf("aliasPutHandler() status = %d, want %d", rr.Code, http.StatusOK)
+			}
+			gotAlias, _, _ := src.Alias("C1")
+			if gotAlias != tc.wantAlias {
+				t.Fatalf("Alias() = %q, want %q", gotAlias, tc.wantAlias)
+			}
+			body := rr.Body.String()
+			if !strings.Contains(body, tc.wantBody) {
+				t.Fatalf("aliasPutHandler() body = %q, want substring %q", body, tc.wantBody)
+			}
+			if tc.bodyAbsent != "" && strings.Contains(body, tc.bodyAbsent) {
+				t.Fatalf("aliasPutHandler() body = %q, should not contain %q", body, tc.bodyAbsent)
+			}
+		})
 	}
 }

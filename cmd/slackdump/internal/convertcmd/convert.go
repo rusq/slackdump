@@ -59,6 +59,7 @@ var converters = map[datafmt]convertFunc{
 	Fexport:   toExport,
 	Fchunk:    toChunk,
 	Fdatabase: toDatabase,
+	Fhtml:     toHTML,
 }
 
 type convertflags struct {
@@ -98,8 +99,9 @@ func runConvert(ctx context.Context, cmd *base.Command, args []string) error {
 	}
 	lg := cfg.Log
 	lg.InfoContext(ctx, "converting", "source", args[0], "output_format", params.outputfmt)
+	output := normalizeOutput(params.outputfmt, cfg.Output)
 
-	if err := bootstrap.AskOverwrite(cfg.Output); err != nil {
+	if err := bootstrap.AskOverwrite(output); err != nil {
 		return err
 	}
 
@@ -108,13 +110,22 @@ func runConvert(ctx context.Context, cmd *base.Command, args []string) error {
 	params.includeAvatars = cfg.WithAvatars
 
 	start := time.Now()
-	if err := fn(ctx, args[0], cfg.Output, params); err != nil {
+	if err := fn(ctx, args[0], output, params); err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return err
 	}
 
 	lg.InfoContext(ctx, "completed", "took", time.Since(start))
 	return nil
+}
+
+func normalizeOutput(format datafmt, output string) string {
+	switch format {
+	case Fchunk, Fdatabase, Fhtml:
+		return cfg.StripZipExt(output)
+	default:
+		return output
+	}
 }
 
 func copyfiles(trgdir string, fs fs.FS) error {

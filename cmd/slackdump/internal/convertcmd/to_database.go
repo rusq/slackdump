@@ -60,7 +60,6 @@ func dbConvertFast(ctx context.Context, src, trg string, cflg convertflags) erro
 	dsrc := source.OpenChunkDir(cd, true)
 	defer dsrc.Close()
 
-	trg = cfg.StripZipExt(trg)
 	if err := chunk2db(ctx, dsrc, trg, cflg); err != nil {
 		return err
 	}
@@ -145,8 +144,6 @@ func dbConvert(ctx context.Context, src, dir string, cflg convertflags) error {
 		return err
 	}
 	defer s.Close()
-
-	dir = cfg.StripZipExt(dir)
 
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err

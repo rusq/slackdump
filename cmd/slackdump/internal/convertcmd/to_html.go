@@ -16,30 +16,35 @@
 package convertcmd
 
 import (
-	"fmt"
-	"strings"
+	"context"
+
+	"github.com/rusq/fsadapter"
+
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/cfg"
+	"github.com/rusq/slackdump/v4/internal/convert"
+	"github.com/rusq/slackdump/v4/source"
 )
 
-// datafmt is an enumeration of supported data formats.
-//
-//go:generate stringer -type=datafmt -trimprefix=F
-type datafmt uint8
-
-const (
-	Fdump datafmt = iota
-	Fexport
-	Fchunk
-	Fdatabase
-	Fhtml
-)
-
-func (e *datafmt) Set(v string) error {
-	v = strings.ToLower(v)
-	for i := 0; i < len(_datafmt_index)-1; i++ {
-		if strings.ToLower(_datafmt_name[_datafmt_index[i]:_datafmt_index[i+1]]) == v {
-			*e = datafmt(i)
-			return nil
-		}
+func toHTML(ctx context.Context, srcpath, trgdir string, _ convertflags) error {
+	st, err := source.Type(srcpath)
+	if err != nil {
+		return err
 	}
-	return fmt.Errorf("unknown format: %s", v)
+	if st == source.FUnknown {
+		return ErrSource
+	}
+
+	src, err := source.Load(ctx, srcpath)
+	if err != nil {
+		return err
+	}
+	defer src.Close()
+
+	conv := convert.NewToHTML(src, fsadapter.NewDirectory(trgdir), convert.WithLogger(cfg.Log))
+	if err := conv.Convert(ctx); err != nil {
+		return err
+	}
+
+	cfg.Log.InfoContext(ctx, "converted", "source", srcpath, "target", trgdir)
+	return nil
 }

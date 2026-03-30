@@ -23,7 +23,6 @@ import (
 	"html/template"
 	"log"
 	"log/slog"
-	"net/url"
 	"os"
 	"strings"
 
@@ -36,11 +35,10 @@ import (
 const debug = true
 
 type Slack struct {
-	tmpl    *template.Template
-	uu      map[string]slack.User    // map of user id to user
-	cc      map[string]slack.Channel // map of channel id to channel
-	wspHost string                   // workspace URL to replace links to local
-	host    string                   // host to replace links to local
+	tmpl   *template.Template
+	uu     map[string]slack.User    // map of user id to user
+	cc     map[string]slack.Channel // map of channel id to channel
+	routes *Routes
 }
 
 type SlackOption func(*Slack)
@@ -59,16 +57,19 @@ func WithChannels(cc map[string]slack.Channel) SlackOption {
 
 func WithReplaceURL(wspURL, localHost string) SlackOption {
 	return func(sm *Slack) {
-		if localHost == "" {
-			return
+		if sm.routes == nil {
+			sm.routes = NewRoutes(ModeLive)
 		}
-		u, err := url.Parse(wspURL)
-		if err != nil {
-			slog.Warn("error parsing workspace URL", "error", err)
-			return
+		WithWorkspaceURL(wspURL)(sm.routes)
+		WithLiveHost(localHost)(sm.routes)
+	}
+}
+
+func WithRoutes(routes *Routes) SlackOption {
+	return func(sm *Slack) {
+		if routes != nil {
+			sm.routes = routes
 		}
-		sm.wspHost = u.Hostname()
-		sm.host = localHost
 	}
 }
 
@@ -77,8 +78,19 @@ var templates embed.FS
 
 func NewSlack(tmpl *template.Template, opts ...SlackOption) *Slack {
 	s := &Slack{
-		tmpl: template.Must(tmpl.New("blocks").Funcs(functions.FuncMap).ParseFS(templates, "templates/*.html")),
+		routes: NewRoutes(ModeLive),
 	}
+	s.tmpl = template.Must(tmpl.New("blocks").Funcs(functions.FuncMap).Funcs(template.FuncMap{
+		"fileurl": func(id, filename string) string {
+			return s.routes.File(id, filename)
+		},
+		"rewriteurl": func(src string) string {
+			if s.routes == nil {
+				return src
+			}
+			return s.routes.RewriteSlackURL(src)
+		},
+	}).ParseFS(templates, "templates/*.html"))
 	for _, opt := range opts {
 		opt(s)
 	}
