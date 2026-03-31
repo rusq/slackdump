@@ -74,3 +74,4 @@ debug.test*
 
 # Dolt database files (added by bd init)
 .dolt/
+.mcp.json
