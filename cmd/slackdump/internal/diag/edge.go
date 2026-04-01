@@ -18,6 +18,7 @@ package diag
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"os"
 
@@ -43,11 +44,15 @@ Not particularly useful for end users, but can be used to test the Edge API.
 }
 
 var edgeParams = struct {
-	channel string
+	channel         string
+	canvasFileID    string
+	canvasChannelID string
 }{}
 
 func init() {
 	cmdEdge.Flag.StringVar(&edgeParams.channel, "channel", "CHY5HUESG", "channel to get users from")
+	cmdEdge.Flag.StringVar(&edgeParams.canvasFileID, "canvas-file", "", "canvas file ID (triggers canvas thread test)")
+	cmdEdge.Flag.StringVar(&edgeParams.canvasChannelID, "canvas-channel", "", "canvas channel ID (required with -canvas-file)")
 }
 
 func runEdge(ctx context.Context, cmd *base.Command, args []string) error {
@@ -59,13 +64,45 @@ func runEdge(ctx context.Context, cmd *base.Command, args []string) error {
 		return err
 	}
 
-	cl, err := edge.New(ctx, prov)
+	info, err := prov.Test(ctx)
+	if err != nil {
+		base.SetExitStatus(base.SAuthError)
+		return err
+	}
+
+	cl, err := edge.NewWithInfo(info, prov)
 	if err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return err
 	}
 	defer cl.Close()
-	lg.Info("connected")
+	lg.Info("connected", "user", info.UserID)
+
+	if edgeParams.canvasFileID != "" {
+		if edgeParams.canvasChannelID == "" {
+			return fmt.Errorf("-canvas-channel is required when -canvas-file is set")
+		}
+		lg.Info("*** CanvasThreadRoots test ***",
+			"file", edgeParams.canvasFileID,
+			"channel", edgeParams.canvasChannelID)
+
+		lookup, err := cl.QuipLookupThreadIDs(ctx, edgeParams.canvasFileID)
+		if err != nil {
+			return fmt.Errorf("QuipLookupThreadIDs: %w", err)
+		}
+		oypID, ok := lookup[edgeParams.canvasFileID]
+		if !ok {
+			return fmt.Errorf("no OYP ID for file %s", edgeParams.canvasFileID)
+		}
+		lg.Info("resolved OYP ID", "oyp", oypID)
+
+		msgs, err := cl.CanvasThreadRoots(ctx, oypID, edgeParams.canvasChannelID, info.UserID)
+		if err != nil {
+			return fmt.Errorf("CanvasThreadRoots: %w", err)
+		}
+		lg.Info("got canvas thread roots", "count", len(msgs))
+		return save("canvas_threads.json", msgs)
+	}
 
 	// lg.Info("*** Search for Channels test ***")
 	// channels, err := cl.SearchChannels(ctx, "")
