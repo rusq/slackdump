@@ -19,9 +19,11 @@ import (
 	_ "embed"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -193,24 +195,81 @@ func Test_decodeControllerInitOptions_mismatch(t *testing.T) {
 }
 
 // buildEditor1Response constructs a minimal load-data/editor/1 protobuf response.
+// The actual API response wraps the document state in body.f2.f2, so we mirror
+// that structure here: content lives inside two nested field-2 bytes fields.
+// Each f124 entry uses:
+//
+//	f1: root message timestamp in microseconds
+//	f2[]: optional block IDs attached to that thread root
 func buildEditor1Response(section2OYP string, timestamps []string) []byte {
 	var f3 []byte
 	for _, ts := range timestamps {
+		secs, micros, ok := strings.Cut(ts, ".")
+		if !ok {
+			panic("invalid Slack timestamp in test fixture: " + ts)
+		}
+		secVal, err := strconv.ParseUint(secs, 10, 64)
+		if err != nil {
+			panic(err)
+		}
+		microVal, err := strconv.ParseUint(micros, 10, 64)
+		if err != nil {
+			panic(err)
+		}
 		var entry []byte
-		entry = protowire.AppendTag(entry, 1, protowire.BytesType)
-		entry = protowire.AppendString(entry, ts)
+		entry = protowire.AppendTag(entry, 1, protowire.VarintType)
+		entry = protowire.AppendVarint(entry, secVal*1_000_000+microVal)
 		f3 = protowire.AppendTag(f3, 124, protowire.BytesType)
 		f3 = protowire.AppendBytes(f3, entry)
+	}
+	var f7 []byte
+	for i, ts := range timestamps {
+		blockID := fmt.Sprintf("temp:C:OYPblock%d", i)
+		threadID := fmt.Sprintf("temp:C:OYPthread%d", i)
+		secs, micros, _ := strings.Cut(ts, ".")
+		secVal, _ := strconv.ParseUint(secs, 10, 64)
+		microVal, _ := strconv.ParseUint(micros, 10, 64)
+		sectionCreated := secVal*1_000_000 + microVal
+		sectionEdited := sectionCreated + 1234
+
+		var entry []byte
+		entry = protowire.AppendTag(entry, 1, protowire.BytesType)
+		entry = protowire.AppendString(entry, blockID)
+		entry = protowire.AppendTag(entry, 6, protowire.BytesType)
+		entry = protowire.AppendString(entry, "OYP9AAsR28Y")
+		entry = protowire.AppendTag(entry, 7, protowire.BytesType)
+		entry = protowire.AppendString(entry, "OYP9BAL4BMO")
+		entry = protowire.AppendTag(entry, 12, protowire.BytesType)
+		entry = protowire.AppendString(entry, `<annotation id="`+threadID+`">text</annotation>`)
+		entry = protowire.AppendTag(entry, 26, protowire.VarintType)
+		entry = protowire.AppendVarint(entry, sectionCreated)
+		entry = protowire.AppendTag(entry, 27, protowire.VarintType)
+		entry = protowire.AppendVarint(entry, sectionEdited)
+		entry = protowire.AppendTag(entry, 33, protowire.BytesType)
+		entry = protowire.AppendString(entry, fmt.Sprintf("record-%d", i))
+		f7 = protowire.AppendTag(f7, 7, protowire.BytesType)
+		f7 = protowire.AppendBytes(f7, entry)
 	}
 	var f6 []byte
 	f6 = protowire.AppendTag(f6, 63, protowire.BytesType)
 	f6 = protowire.AppendString(f6, section2OYP)
 
+	// inner f2 (body.f2.f2) — the document state
+	var inner []byte
+	inner = protowire.AppendTag(inner, 3, protowire.BytesType)
+	inner = protowire.AppendBytes(inner, f3)
+	inner = protowire.AppendTag(inner, 6, protowire.BytesType)
+	inner = protowire.AppendBytes(inner, f6)
+	inner = append(inner, f7...)
+
+	// outer f2 (body.f2)
+	var outerF2 []byte
+	outerF2 = protowire.AppendTag(outerF2, 2, protowire.BytesType)
+	outerF2 = protowire.AppendBytes(outerF2, inner)
+
 	var b []byte
-	b = protowire.AppendTag(b, 3, protowire.BytesType)
-	b = protowire.AppendBytes(b, f3)
-	b = protowire.AppendTag(b, 6, protowire.BytesType)
-	b = protowire.AppendBytes(b, f6)
+	b = protowire.AppendTag(b, 2, protowire.BytesType)
+	b = protowire.AppendBytes(b, outerF2)
 	return b
 }
 
@@ -247,7 +306,11 @@ func TestClient_stepEditor1(t *testing.T) {
 	got, err := cl.stepEditor1(t.Context(), "OYP9AAsR28Y", "testSession", "UTEST123")
 	require.NoError(t, err)
 	assert.Equal(t, "OYP9iAsR28Y", got.Section2OYP)
-	assert.Equal(t, []string{"1773451284.332529", "1773451370.010299"}, got.ThreadTimestamps)
+	assert.Equal(t, []string{"1773451284.332529", "1773451370.010299"}, got.CandidateTimestamps)
+	require.Len(t, got.ThreadRecords, 2)
+	assert.Equal(t, "temp:C:OYPblock0", got.ThreadRecords[0].BlockID)
+	assert.Equal(t, "temp:C:OYPthread0", got.ThreadRecords[0].ThreadID)
+	assert.Equal(t, "1773451284.332529", got.ThreadRecords[0].SectionCreatedTS)
 }
 
 func TestClient_stepEditor1_missingSection2(t *testing.T) {
@@ -327,8 +390,9 @@ func TestClient_stepControllerInit(t *testing.T) {
 	cl := Client{cl: http.DefaultClient, webclientAPI: srv.URL + "/api/", token: "xoxc-test"}
 	got, err := cl.stepControllerInit(t.Context())
 	require.NoError(t, err)
-	assert.Equal(t, "Cca9cA1qpvy", got.SessionID)
 	assert.Equal(t, "UTEST123", got.UserID)
+	// SessionID is no longer extracted from controller-init; it is generated client-side.
+	assert.Empty(t, got.SessionID)
 	assert.Contains(t, seenContentType, "multipart/form-data")
 	assert.Contains(t, seenBody, `name="token"`)
 	assert.Contains(t, seenBody, "xoxc-test")
@@ -348,6 +412,87 @@ func TestClient_stepMessagesList(t *testing.T) {
 	assert.Equal(t, "temp:C:OYPefc4c7420fb142be9ed33e878", got[0].DocumentComment.ThreadID)
 }
 
+func TestClient_stepMessagesList_objectShape(t *testing.T) {
+	payload := []byte(`{
+		"ok": true,
+		"messages": {
+			"C06R4HA3ZS8": {
+				"1773451370.010299": {
+					"ts": "1773451370.010299",
+					"thread_ts": "1773451370.010299",
+					"text": "Another comment",
+					"reply_count": 1,
+					"document_comment": {
+						"thread_id": "temp:C:OYP1f946863c7b145229104df82f",
+						"authors": ["UHSD97ZA5"]
+					}
+				},
+				"1773451284.332529": {
+					"ts": "1773451284.332529",
+					"thread_ts": "1773451284.332529",
+					"text": "Check list",
+					"reply_count": 2,
+					"document_comment": {
+						"thread_id": "temp:C:OYPefc4c7420fb142be9ed33e878",
+						"authors": ["UHSD97ZA5"]
+					}
+				}
+			}
+		}
+	}`)
+	srv := testServer(http.StatusOK, payload)
+	defer srv.Close()
+
+	cl := Client{cl: http.DefaultClient, webclientAPI: srv.URL + "/"}
+	got, err := cl.stepMessagesList(t.Context(), "C06R4HA3ZS8", []string{"1773451284.332529", "1773451370.010299"})
+	require.NoError(t, err)
+	require.Len(t, got, 2)
+	assert.Equal(t, "1773451284.332529", got[0].TS)
+	assert.Equal(t, "1773451370.010299", got[1].TS)
+}
+
+func TestClient_stepMessagesList_messagesDataShape(t *testing.T) {
+	payload := []byte(`{
+		"ok": true,
+		"messages": {},
+		"messages_data": {
+			"C06R4HA3ZS8": {
+				"messages": [
+					{
+						"ts": "1773451370.010299",
+						"thread_ts": "1773451370.010299",
+						"text": "Another comment",
+						"reply_count": 1,
+						"document_comment": {
+							"thread_id": "temp:C:OYP1f946863c7b145229104df82f",
+							"authors": ["UHSD97ZA5"]
+						}
+					},
+					{
+						"ts": "1773451284.332529",
+						"thread_ts": "1773451284.332529",
+						"text": "Check list",
+						"reply_count": 2,
+						"document_comment": {
+							"thread_id": "temp:C:OYPefc4c7420fb142be9ed33e878",
+							"authors": ["UHSD97ZA5"]
+						}
+					}
+				]
+			}
+		}
+	}`)
+	srv := testServer(http.StatusOK, payload)
+	defer srv.Close()
+
+	cl := Client{cl: http.DefaultClient, webclientAPI: srv.URL + "/"}
+	got, err := cl.stepMessagesList(t.Context(), "C06R4HA3ZS8", []string{"1773451284.332529", "1773451370.010299"})
+	require.NoError(t, err)
+	require.Len(t, got, 2)
+	assert.Equal(t, "1773451284.332529", got[0].TS)
+	assert.Equal(t, "1773451370.010299", got[1].TS)
+}
+
 func TestClient_stepMessagesList_apiError(t *testing.T) {
 	srv := testServer(http.StatusOK, []byte(`{"ok": false, "error": "channel_not_found"}`))
 	defer srv.Close()
@@ -358,74 +503,54 @@ func TestClient_stepMessagesList_apiError(t *testing.T) {
 }
 
 func TestClient_CanvasThreadRoots(t *testing.T) {
-	controllerPayload, err := json.Marshal(canvasControllerInitResponse{
-		InitOptions: base64.StdEncoding.EncodeToString(encodeControllerInitOptions("Cca9cA1qpvy", "THY5HTZ8U")),
-		UserID:      "UTEST123",
-	})
-	require.NoError(t, err)
-	e1payload := buildEditor1Response("OYP9iAsR28Y", []string{"1773451284.332529"})
-	e2payload := buildEditor2Response([]string{"temp:C:OYPefc4c7420fb142be9ed33e878"})
-
 	var seenPaths []string
-	var editor1Body string
-	var editor2Body string
-	// Routing server: editor/1 and editor/2 return protobuf; messages.list returns JSON.
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		seenPaths = append(seenPaths, r.URL.Path)
-		body, _ := io.ReadAll(r.Body)
-		switch {
-		case r.URL.Path == "/canvas/collab/controller-init":
-			w.WriteHeader(http.StatusOK)
-			w.Write(controllerPayload)
-		case r.URL.Path == "/canvas/-/load-data/editor/1":
-			editor1Body = string(body)
-			w.WriteHeader(http.StatusOK)
-			w.Write(e1payload)
-		case r.URL.Path == "/canvas/-/load-data/editor/2":
-			editor2Body = string(body)
-			w.WriteHeader(http.StatusOK)
-			w.Write(e2payload)
-		default:
-			w.WriteHeader(http.StatusOK)
-			w.Write(messagesListJSON)
-		}
+		require.NoError(t, r.ParseForm())
+		require.Equal(t, "/conversations.history", r.URL.Path)
+		require.Equal(t, "C06R4HA3ZS8", r.FormValue("channel"))
+		require.Equal(t, "1000", r.FormValue("limit"))
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{
+			"ok": true,
+			"messages": [
+				{
+					"ts": "1773451284.332529",
+					"subtype": "document_comment_root",
+					"text": "Check list",
+					"reply_count": 2,
+					"document_comment": {"thread_id": "temp:C:OYPefc4c7420fb142be9ed33e878"}
+				},
+				{
+					"ts": "1773451400.057089",
+					"thread_ts": "1773451400.057089",
+					"subtype": "document_comment_root",
+					"text": "heading",
+					"reply_count": 1,
+					"document_comment": {"thread_id": "temp:C:OYPe240dbecfbc449eaa962b60d8"}
+				},
+				{
+					"ts": "1773451405.000000",
+					"subtype": "message",
+					"text": "ignore me"
+				}
+			]
+		}`))
 	}))
 	defer srv.Close()
 
-	cl := Client{cl: http.DefaultClient, webclientAPI: srv.URL + "/api/"}
-	got, err := cl.CanvasThreadRoots(t.Context(), "OYP9AAsR28Y", "C06R4HA3ZS8", "UTEST123")
+	cl := Client{cl: http.DefaultClient, webclientAPI: srv.URL + "/"}
+	got, err := cl.CanvasThreadRoots(t.Context(), "F06R4HA3ZS8")
 	require.NoError(t, err)
 	require.Len(t, got, 2)
 	assert.Equal(t, "1773451284.332529", got[0].TS)
-	assert.Equal(t, []string{
-		"/canvas/collab/controller-init",
-		"/canvas/-/load-data/editor/1",
-		"/canvas/-/load-data/editor/2",
-		"/api/messages.list",
-	}, seenPaths)
-	assert.Contains(t, editor1Body, "_window_session_id=Cca9cA1qpvy")
-	assert.Contains(t, editor2Body, "_window_session_id=Cca9cA1qpvy")
+	assert.Equal(t, "1773451284.332529", got[0].ThreadTS)
+	assert.Equal(t, "1773451400.057089", got[1].ThreadTS)
+	assert.Equal(t, []string{"/conversations.history"}, seenPaths)
 }
 
-func TestClient_CanvasThreadRoots_userIDMismatch(t *testing.T) {
-	controllerPayload, err := json.Marshal(canvasControllerInitResponse{
-		InitOptions: base64.StdEncoding.EncodeToString(encodeControllerInitOptions("Cca9cA1qpvy", "THY5HTZ8U")),
-		UserID:      "UOTHER",
-	})
-	require.NoError(t, err)
-
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/canvas/collab/controller-init" {
-			w.WriteHeader(http.StatusOK)
-			w.Write(controllerPayload)
-			return
-		}
-		t.Fatalf("unexpected request path: %s", r.URL.Path)
-	}))
-	defer srv.Close()
-
-	cl := Client{cl: http.DefaultClient, webclientAPI: srv.URL + "/api/"}
-	_, err = cl.CanvasThreadRoots(t.Context(), "OYP9AAsR28Y", "C06R4HA3ZS8", "UTEST123")
-	require.ErrorIs(t, err, errCanvasUserIDMismatch)
-	assert.True(t, strings.Contains(err.Error(), "UOTHER"))
+func TestCanvasChannelFromFileID(t *testing.T) {
+	assert.Equal(t, "C06R4HA3ZS8", canvasChannelFromFileID("F06R4HA3ZS8"))
+	assert.Equal(t, "", canvasChannelFromFileID(""))
+	assert.Equal(t, "", canvasChannelFromFileID("C06R4HA3ZS8"))
 }

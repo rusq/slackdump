@@ -18,18 +18,22 @@ package edge
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"mime/multipart"
 	"net/http"
 	"net/url"
+	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"google.golang.org/protobuf/encoding/protowire"
 )
@@ -250,6 +254,40 @@ func pbGetString(b []byte, path ...protowire.Number) string {
 	return string(pbGet(b, path...))
 }
 
+func pbGetVarint(b []byte, path ...protowire.Number) (uint64, bool) {
+	if len(path) == 0 {
+		return 0, false
+	}
+	cur := b
+	for _, want := range path[:len(path)-1] {
+		cur = pbGet(cur, want)
+		if cur == nil {
+			return 0, false
+		}
+	}
+	want := path[len(path)-1]
+	rem := cur
+	for len(rem) > 0 {
+		num, typ, n := protowire.ConsumeTag(rem)
+		if n < 0 {
+			return 0, false
+		}
+		rem = rem[n:]
+		if num == want && typ == protowire.VarintType {
+			val, m := protowire.ConsumeVarint(rem)
+			if m < 0 {
+				return 0, false
+			}
+			return val, true
+		}
+		rem = pbSkip(rem, typ)
+		if rem == nil {
+			return 0, false
+		}
+	}
+	return 0, false
+}
+
 // pbFindString walks a protobuf message and returns the first bytes field that
 // satisfies match. Bytes fields are recursively searched because some canvas
 // responses wrap values in nested sub-messages.
@@ -280,6 +318,10 @@ func pbFindString(b []byte, match func(string) bool) string {
 		}
 	}
 	return ""
+}
+
+func slackTSFromMicroseconds(us uint64) string {
+	return fmt.Sprintf("%d.%06d", us/1_000_000, us%1_000_000)
 }
 
 func looksLikeSlackTS(s string) bool {
@@ -380,21 +422,53 @@ func (cl *Client) stepControllerInit(ctx context.Context) (controllerInitResult,
 	if err := json.NewDecoder(cl.recorder(resp.Body)).Decode(&r); err != nil {
 		return controllerInitResult{}, fmt.Errorf("canvas controller-init: %w", err)
 	}
-	sessionID, err := decodeControllerInitOptions(r.InitOptions)
-	if err != nil {
-		return controllerInitResult{}, err
-	}
-	return controllerInitResult{
-		SessionID: sessionID,
-		UserID:    r.UserID,
-	}, nil
+	// The window session ID is generated client-side; controller-init only
+	// provides server-side initialisation state.
+	return controllerInitResult{UserID: r.UserID}, nil
 }
 
-// editor1Result holds the parsed fields from a load-data/editor/1 protobuf response.
-type editor1Result struct {
-	Section2OYP      string
-	ThreadTimestamps []string
+// randSessionID generates a random window session ID (11-char base64url string).
+func randSessionID() (string, error) {
+	b := make([]byte, 8)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	return base64.RawURLEncoding.EncodeToString(b), nil
 }
+
+// editor1Result holds the parsed fields from a load-data/editor/1 protobuf
+// response. It exposes the proven thread-related joins from editor/1, but not
+// the final Slack root-message timestamp mapping required by messages.list.
+type editor1Result struct {
+	Section2OYP         string
+	CandidateTimestamps []string
+	ThreadRecords       []canvasEditor1ThreadRecord
+}
+
+type canvasEditor1Entry struct {
+	TimestampUS uint64
+	Timestamp   string
+	BlockIDs    []string
+}
+
+type canvasEditor1ThreadRecord struct {
+	BlockID          string
+	ThreadID         string
+	SectionCreatedUS uint64
+	SectionCreatedTS string
+	SectionEditedUS  uint64
+	SectionEditedTS  string
+	LatestReplyUS    uint64
+	LatestReplyTS    string
+	OrphanKey        string
+	DocumentID       string
+	ParentID         string
+	RecordID         string
+	RecordKind       string
+	IsOrphan         bool
+}
+
+var annotationIDRe = regexp.MustCompile(`annotation id="([^"]+)"`)
 
 // CanvasDocumentComment holds the document_comment subfields of a canvas message.
 type CanvasDocumentComment struct {
@@ -411,9 +485,92 @@ type CanvasMessage struct {
 	DocumentComment CanvasDocumentComment `json:"document_comment"`
 }
 
-// stepEditor1 POSTs to canvas/-/load-data/editor/1 and parses the protobuf response.
-// It returns the section-2 OYP ID and the thread-root timestamps embedded in f3.f124[].
-func (cl *Client) stepEditor1(ctx context.Context, oypID, sessionID, userID string) (editor1Result, error) {
+type canvasHistoryMessage struct {
+	TS              string                `json:"ts"`
+	ThreadTS        string                `json:"thread_ts"`
+	SubType         string                `json:"subtype"`
+	Text            string                `json:"text"`
+	ReplyCount      int                   `json:"reply_count"`
+	DocumentComment CanvasDocumentComment `json:"document_comment"`
+}
+
+type canvasHistoryResponse struct {
+	baseResponse
+	Messages []canvasHistoryMessage `json:"messages"`
+	HasMore  bool                   `json:"has_more,omitempty"`
+}
+
+func decodeEditor1Entry(entry []byte) canvasEditor1Entry {
+	var out canvasEditor1Entry
+	if us, ok := pbGetVarint(entry, 1); ok {
+		out.TimestampUS = us
+		out.Timestamp = slackTSFromMicroseconds(us)
+	}
+	for _, raw := range pbGetAll(entry, 2) {
+		if id := pbGetString(raw, 1); id != "" {
+			out.BlockIDs = append(out.BlockIDs, id)
+		}
+	}
+	return out
+}
+
+func decodeEditor1F7Record(entry []byte) canvasEditor1ThreadRecord {
+	var out canvasEditor1ThreadRecord
+	out.BlockID = pbGetString(entry, 1)
+	out.DocumentID = pbGetString(entry, 6)
+	out.ParentID = pbGetString(entry, 7)
+	out.OrphanKey = pbGetString(entry, 21)
+	out.RecordID = pbGetString(entry, 33)
+	out.IsOrphan = out.OrphanKey == "zzzzzz-orphaned-m"
+	if us, ok := pbGetVarint(entry, 26); ok {
+		out.SectionCreatedUS = us
+		out.SectionCreatedTS = slackTSFromMicroseconds(us)
+	}
+	if us, ok := pbGetVarint(entry, 27); ok {
+		out.SectionEditedUS = us
+		out.SectionEditedTS = slackTSFromMicroseconds(us)
+	}
+	if s := pbGetString(entry, 12); s != "" {
+		if m := annotationIDRe.FindStringSubmatch(s); len(m) == 2 {
+			out.ThreadID = m[1]
+			out.RecordKind = "annotated_block"
+		}
+	}
+	if out.ThreadID == "" && out.IsOrphan {
+		out.ThreadID = out.BlockID
+		out.RecordKind = "orphan_thread"
+	}
+	return out
+}
+
+func mergeEditor1ReplyMetadata(records []canvasEditor1ThreadRecord, replyMeta [][]byte) []canvasEditor1ThreadRecord {
+	if len(records) == 0 || len(replyMeta) == 0 {
+		return records
+	}
+	byThreadID := make(map[string]*canvasEditor1ThreadRecord, len(records))
+	for i := range records {
+		if records[i].ThreadID != "" {
+			byThreadID[records[i].ThreadID] = &records[i]
+		}
+	}
+	for _, entry := range replyMeta {
+		threadID := pbGetString(entry, 1)
+		if threadID == "" {
+			continue
+		}
+		rec := byThreadID[threadID]
+		if rec == nil {
+			continue
+		}
+		if v, ok := pbGetVarint(entry, 4); ok {
+			rec.LatestReplyUS = v
+			rec.LatestReplyTS = slackTSFromMicroseconds(v)
+		}
+	}
+	return records
+}
+
+func (cl *Client) fetchEditor1Body(ctx context.Context, oypID, sessionID, userID string) ([]byte, error) {
 	ts := strconv.FormatInt(time.Now().UnixMilli(), 10)
 	endpoint := cl.canvasBaseURL() + "canvas/-/load-data/editor/1?_x_version_ts=" + ts
 
@@ -426,40 +583,78 @@ func (cl *Client) stepEditor1(ctx context.Context, oypID, sessionID, userID stri
 
 	resp, err := cl.PostFormRaw(ctx, endpoint, form)
 	if err != nil {
-		return editor1Result{}, err
+		return nil, err
 	}
 	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return editor1Result{}, fmt.Errorf("editor/1: reading body: %w", err)
+		return nil, fmt.Errorf("editor/1: reading body: %w", err)
+	}
+	return body, nil
+}
+
+// stepEditor1 POSTs to canvas/-/load-data/editor/1 and parses the protobuf response.
+// It returns the section-2 OYP ID plus thread-related editor/1 records.
+// CandidateTimestamps still reflect legacy f124-derived values and are kept only
+// for diagnostics while the real root-message ts mapping remains unresolved.
+func (cl *Client) stepEditor1(ctx context.Context, oypID, sessionID, userID string) (editor1Result, error) {
+	body, err := cl.fetchEditor1Body(ctx, oypID, sessionID, userID)
+	if err != nil {
+		return editor1Result{}, err
 	}
 
-	section2 := string(pbGet(body, 6, 63))
+	section2 := string(pbGet(body, 2, 2, 6, 63))
 	if section2 == "" {
 		return editor1Result{}, errCanvasMissingSection2OYP
 	}
 
-	f124entries := pbGetAll(body, 3, 124)
-	if len(f124entries) > 0 {
-		// Log first entry to help identify the timestamp subfield during live runs.
-		log.Printf("canvas editor/1: first f124 entry (hex): %x", f124entries[0])
+	f124entries := pbGetAll(body, 2, 2, 3, 124)
+	slog.Debug("canvas editor/1: f124 entries", "count", len(f124entries))
+	for i, entry := range f124entries {
+		slog.Debug("canvas editor/1: f124 entry", "i", i, "hex", fmt.Sprintf("%x", entry))
 	}
-	timestamps := make([]string, 0, len(f124entries))
-	for _, entry := range f124entries {
-		// The exact timestamp subfield inside f124 is still being reverse
-		// engineered; match the first Slack timestamp-shaped string rather than
-		// the first arbitrary bytes field.
-		if s := pbFindString(entry, looksLikeSlackTS); s != "" {
-			timestamps = append(timestamps, s)
+	candidateTimestamps := make([]string, 0, len(f124entries))
+	for i, entry := range f124entries {
+		// f124 currently appears to track section-created timestamps keyed by
+		// commented block IDs rather than the final Slack root-message ts.
+		decoded := decodeEditor1Entry(entry)
+		slog.Debug("canvas editor/1: decoded f124 entry",
+			"i", i,
+			"ts_us", decoded.TimestampUS,
+			"ts", decoded.Timestamp,
+			"block_ids", decoded.BlockIDs)
+		if decoded.Timestamp != "" {
+			candidateTimestamps = append(candidateTimestamps, decoded.Timestamp)
 		}
 	}
-	if len(timestamps) == 0 {
+	if len(candidateTimestamps) == 0 {
 		return editor1Result{}, errCanvasMissingThreadTS
 	}
 
+	f7entries := pbGetAll(body, 2, 2, 7)
+	records := make([]canvasEditor1ThreadRecord, 0, len(f7entries))
+	for i, entry := range f7entries {
+		rec := decodeEditor1F7Record(entry)
+		if rec.BlockID == "" && rec.ThreadID == "" {
+			continue
+		}
+		slog.Debug("canvas editor/1: decoded f7 entry",
+			"i", i,
+			"block_id", rec.BlockID,
+			"thread_id", rec.ThreadID,
+			"section_created_ts", rec.SectionCreatedTS,
+			"section_edited_ts", rec.SectionEditedTS,
+			"record_kind", rec.RecordKind,
+			"is_orphan", rec.IsOrphan,
+			"record_id", rec.RecordID)
+		records = append(records, rec)
+	}
+	records = mergeEditor1ReplyMetadata(records, pbGetAll(body, 2, 2, 6, 16, 1))
+
 	return editor1Result{
-		Section2OYP:      section2,
-		ThreadTimestamps: timestamps,
+		Section2OYP:         section2,
+		CandidateTimestamps: candidateTimestamps,
+		ThreadRecords:       records,
 	}, nil
 }
 
@@ -495,6 +690,7 @@ func (cl *Client) stepEditor2(ctx context.Context, sessionID, section2OYP string
 			blockIDs = append(blockIDs, string(id))
 		}
 	}
+	slog.Debug("canvas editor/2: reply block IDs", "count", len(blockIDs), "block_ids", blockIDs)
 	return blockIDs, nil
 }
 
@@ -504,9 +700,327 @@ type messagesListEntry struct {
 	Timestamps []string `json:"timestamps"`
 }
 
+type canvasMessages []CanvasMessage
+
+func (m *canvasMessages) UnmarshalJSON(data []byte) error {
+	data = bytes.TrimSpace(data)
+	if len(data) == 0 || bytes.Equal(data, []byte("null")) {
+		*m = nil
+		return nil
+	}
+	switch data[0] {
+	case '[':
+		var msgs []CanvasMessage
+		if err := json.Unmarshal(data, &msgs); err != nil {
+			return err
+		}
+		*m = msgs
+		return nil
+	case '{':
+		var raw map[string]json.RawMessage
+		if err := json.Unmarshal(data, &raw); err != nil {
+			return err
+		}
+		var msgs []CanvasMessage
+		for _, v := range raw {
+			msgs = append(msgs, collectCanvasMessages(v)...)
+		}
+		*m = msgs
+		return nil
+	default:
+		return fmt.Errorf("unsupported messages JSON shape: %q", data[:1])
+	}
+}
+
+func collectCanvasMessages(data json.RawMessage) []CanvasMessage {
+	data = bytes.TrimSpace(data)
+	if len(data) == 0 || bytes.Equal(data, []byte("null")) {
+		return nil
+	}
+	switch data[0] {
+	case '[':
+		var raw []json.RawMessage
+		if err := json.Unmarshal(data, &raw); err != nil {
+			return nil
+		}
+		var out []CanvasMessage
+		for _, item := range raw {
+			out = append(out, collectCanvasMessages(item)...)
+		}
+		return out
+	case '{':
+		var probe map[string]json.RawMessage
+		if err := json.Unmarshal(data, &probe); err != nil {
+			return nil
+		}
+		if _, ok := probe["document_comment"]; ok {
+			var msg CanvasMessage
+			if err := json.Unmarshal(data, &msg); err == nil && msg.TS != "" {
+				return []CanvasMessage{msg}
+			}
+		}
+		var out []CanvasMessage
+		for _, v := range probe {
+			out = append(out, collectCanvasMessages(v)...)
+		}
+		return out
+	default:
+		return nil
+	}
+}
+
 type messagesListResponse struct {
 	baseResponse
-	Messages []CanvasMessage `json:"messages"`
+	Messages canvasMessages `json:"messages"`
+}
+
+type canvasMessagesListRawResponse struct {
+	baseResponse
+	Messages     json.RawMessage `json:"messages"`
+	MessagesData json.RawMessage `json:"messages_data"`
+}
+
+type CanvasMessagesListProbeResult struct {
+	Name         string          `json:"name"`
+	MessageIDs   string          `json:"message_ids"`
+	MessageCount int             `json:"message_count"`
+	Keys         []string        `json:"keys,omitempty"`
+	Messages     []CanvasMessage `json:"messages,omitempty"`
+	Error        string          `json:"error,omitempty"`
+}
+
+type CanvasMessagesListDebug struct {
+	Section2OYP         string                          `json:"section2_oyp"`
+	CandidateTimestamps []string                        `json:"candidate_timestamps"`
+	ReplyBlockIDs       []string                        `json:"reply_block_ids"`
+	Editor1Matches      []CanvasEditor1Match            `json:"editor1_matches,omitempty"`
+	Editor1Subtrees     []CanvasEditor1Subtree          `json:"editor1_subtrees,omitempty"`
+	Probes              []CanvasMessagesListProbeResult `json:"probes"`
+}
+
+type CanvasEditor1Match struct {
+	Path       string `json:"path"`
+	ParentPath string `json:"parent_path,omitempty"`
+	Value      string `json:"value"`
+}
+
+type CanvasEditor1Field struct {
+	Field     int    `json:"field"`
+	WireType  string `json:"wire_type"`
+	String    string `json:"string,omitempty"`
+	Varint    uint64 `json:"varint,omitempty"`
+	SlackTS   string `json:"slack_ts,omitempty"`
+	BytesHex  string `json:"bytes_hex,omitempty"`
+	ChildHint string `json:"child_hint,omitempty"`
+}
+
+type CanvasEditor1Subtree struct {
+	Path   string               `json:"path"`
+	Fields []CanvasEditor1Field `json:"fields"`
+}
+
+func rawJSONKeys(data []byte) []string {
+	data = bytes.TrimSpace(data)
+	if len(data) == 0 || data[0] != '{' {
+		return nil
+	}
+	var obj map[string]json.RawMessage
+	if err := json.Unmarshal(data, &obj); err != nil {
+		return nil
+	}
+	keys := make([]string, 0, len(obj))
+	for k := range obj {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
+}
+
+func extractCanvasMessages(raw canvasMessagesListRawResponse, canvasChannelID string) (canvasMessages, error) {
+	if data := bytes.TrimSpace(raw.MessagesData); len(data) > 0 && !bytes.Equal(data, []byte("null")) {
+		var md map[string]struct {
+			Messages canvasMessages `json:"messages"`
+		}
+		if err := json.Unmarshal(data, &md); err != nil {
+			return nil, err
+		}
+		if channelData, ok := md[canvasChannelID]; ok {
+			return channelData.Messages, nil
+		}
+	}
+	var msgs canvasMessages
+	if err := json.Unmarshal(raw.Messages, &msgs); err != nil {
+		return nil, err
+	}
+	return msgs, nil
+}
+
+func pbCollectStringMatches(b []byte, targets map[string]struct{}) []CanvasEditor1Match {
+	var out []CanvasEditor1Match
+	var walk func([]byte, string, string, []byte)
+	walk = func(msg []byte, path string, parentPath string, parentMsg []byte) {
+		rem := msg
+		for len(rem) > 0 {
+			num, typ, n := protowire.ConsumeTag(rem)
+			if n < 0 {
+				return
+			}
+			rem = rem[n:]
+			fieldPath := fmt.Sprintf("%s.f%d", path, num)
+			switch typ {
+			case protowire.BytesType:
+				val, m := protowire.ConsumeBytes(rem)
+				if m < 0 {
+					return
+				}
+				rem = rem[m:]
+				if s := string(val); s != "" {
+					if _, ok := targets[s]; ok {
+						out = append(out, CanvasEditor1Match{
+							Path:       fieldPath,
+							ParentPath: parentPath,
+							Value:      s,
+						})
+					}
+				}
+				walk(val, fieldPath, path, msg)
+			default:
+				rem = pbSkip(rem, typ)
+				if rem == nil {
+					return
+				}
+			}
+		}
+	}
+	walk(b, "root", "", nil)
+	return out
+}
+
+func protobufWireTypeName(typ protowire.Type) string {
+	switch typ {
+	case protowire.VarintType:
+		return "varint"
+	case protowire.Fixed64Type:
+		return "fixed64"
+	case protowire.BytesType:
+		return "bytes"
+	case protowire.Fixed32Type:
+		return "fixed32"
+	default:
+		return fmt.Sprintf("type_%d", typ)
+	}
+}
+
+func pbDescribeImmediateFields(msg []byte) []CanvasEditor1Field {
+	var out []CanvasEditor1Field
+	rem := msg
+	for len(rem) > 0 {
+		num, typ, n := protowire.ConsumeTag(rem)
+		if n < 0 {
+			break
+		}
+		rem = rem[n:]
+		f := CanvasEditor1Field{Field: int(num), WireType: protobufWireTypeName(typ)}
+		switch typ {
+		case protowire.VarintType:
+			v, m := protowire.ConsumeVarint(rem)
+			if m < 0 {
+				return out
+			}
+			f.Varint = v
+			if v > 1_000_000 {
+				f.SlackTS = slackTSFromMicroseconds(v)
+			}
+			rem = rem[m:]
+		case protowire.BytesType:
+			v, m := protowire.ConsumeBytes(rem)
+			if m < 0 {
+				return out
+			}
+			s := string(v)
+			if utf8.Valid(v) && s != "" {
+				f.String = s
+			} else {
+				hex := fmt.Sprintf("%x", v)
+				if len(hex) > 64 {
+					hex = hex[:64]
+				}
+				f.BytesHex = hex
+			}
+			if len(v) > 0 && pbGet(v, 1) != nil {
+				f.ChildHint = "nested_message"
+			}
+			rem = rem[m:]
+		default:
+			next := pbSkip(rem, typ)
+			if next == nil {
+				return out
+			}
+			rem = next
+		}
+		out = append(out, f)
+	}
+	return out
+}
+
+func pbGetParentMessageForMatch(b []byte, target CanvasEditor1Match) []byte {
+	var found []byte
+	var walk func([]byte, string, string, []byte)
+	walk = func(msg []byte, path string, parentPath string, parentMsg []byte) {
+		if found != nil {
+			return
+		}
+		rem := msg
+		for len(rem) > 0 {
+			num, typ, n := protowire.ConsumeTag(rem)
+			if n < 0 {
+				return
+			}
+			rem = rem[n:]
+			fieldPath := fmt.Sprintf("%s.f%d", path, num)
+			switch typ {
+			case protowire.BytesType:
+				val, m := protowire.ConsumeBytes(rem)
+				if m < 0 {
+					return
+				}
+				rem = rem[m:]
+				if fieldPath == target.Path && parentPath == target.ParentPath && string(val) == target.Value {
+					found = parentMsg
+					return
+				}
+				walk(val, fieldPath, path, msg)
+			default:
+				rem = pbSkip(rem, typ)
+				if rem == nil {
+					return
+				}
+			}
+		}
+	}
+	walk(b, "root", "", nil)
+	return found
+}
+
+func (cl *Client) stepMessagesListRaw(ctx context.Context, messageIDs string) (canvasMessagesListRawResponse, error) {
+	form := url.Values{}
+	form.Set("message_ids", messageIDs)
+	form.Set("org_wide_aware", "true")
+	form.Set("cached_latest_updates", "{}")
+	form.Set("_x_reason", "messages-ufm")
+
+	resp, err := cl.PostForm(ctx, "messages.list", form)
+	if err != nil {
+		return canvasMessagesListRawResponse{}, err
+	}
+	var r canvasMessagesListRawResponse
+	if err := cl.ParseResponse(&r, resp); err != nil {
+		return canvasMessagesListRawResponse{}, fmt.Errorf("messages.list: %w", err)
+	}
+	if err := r.validate("messages.list"); err != nil {
+		return canvasMessagesListRawResponse{}, err
+	}
+	return r, nil
 }
 
 // stepMessagesList POSTs to messages.list and returns the thread root messages
@@ -519,52 +1033,257 @@ func (cl *Client) stepMessagesList(ctx context.Context, canvasChannelID string, 
 	if err != nil {
 		return nil, err
 	}
-
-	form := url.Values{}
-	form.Set("message_ids", string(msgIDs))
-	form.Set("org_wide_aware", "true")
-	form.Set("cached_latest_updates", "{}")
-	form.Set("_x_reason", "messages-ufm")
-
-	resp, err := cl.PostForm(ctx, "messages.list", form)
+	slog.Debug("canvas messages.list: request", "channel", canvasChannelID, "timestamps", timestamps, "message_ids", string(msgIDs))
+	raw, err := cl.stepMessagesListRaw(ctx, string(msgIDs))
 	if err != nil {
 		return nil, err
 	}
 	var r messagesListResponse
-	if err := cl.ParseResponse(&r, resp); err != nil {
+	r.baseResponse = raw.baseResponse
+	msgs, err := extractCanvasMessages(raw, canvasChannelID)
+	if err != nil {
 		return nil, fmt.Errorf("messages.list: %w", err)
 	}
-	if err := r.validate("messages.list"); err != nil {
-		return nil, err
+	r.Messages = msgs
+	order := make(map[string]int, len(timestamps))
+	for i, ts := range timestamps {
+		order[ts] = i
 	}
+	sort.SliceStable(r.Messages, func(i, j int) bool {
+		ii, okI := order[r.Messages[i].TS]
+		jj, okJ := order[r.Messages[j].TS]
+		switch {
+		case okI && okJ:
+			return ii < jj
+		case okI:
+			return true
+		case okJ:
+			return false
+		default:
+			return r.Messages[i].TS < r.Messages[j].TS
+		}
+	})
+	for i, msg := range r.Messages {
+		slog.Debug("canvas messages.list: message",
+			"i", i,
+			"ts", msg.TS,
+			"thread_ts", msg.ThreadTS,
+			"thread_id", msg.DocumentComment.ThreadID,
+			"reply_count", msg.ReplyCount,
+			"text", msg.Text)
+	}
+	slog.Debug("canvas messages.list: result", "count", len(r.Messages))
 	return r.Messages, nil
 }
 
-// CanvasThreadRoots returns the thread root messages for a canvas document.
-// oypID is the section-1 OYP ID from QuipLookupThreadIDs.
-// canvasChannelID is the canvas's dedicated channel (e.g. C06R4HA3ZS8).
-// userID is the authenticated user's ID.
-func (cl *Client) CanvasThreadRoots(ctx context.Context, oypID, canvasChannelID, userID string) ([]CanvasMessage, error) {
-	init, err := cl.stepControllerInit(ctx)
-	if err != nil {
-		return nil, err
+// DebugCanvasMessagesListProbesForCanvas runs the canvas discovery steps and
+// tries several candidate messages.list payload shapes to help reverse
+// engineer the block-ID to Slack-message mapping.
+func (cl *Client) DebugCanvasMessagesListProbesForCanvas(ctx context.Context, oypID, canvasChannelID, userID string) (CanvasMessagesListDebug, error) {
+	if _, err := cl.stepControllerInit(ctx); err != nil {
+		return CanvasMessagesListDebug{}, err
 	}
-	if init.UserID != "" && userID != "" && init.UserID != userID {
-		return nil, fmt.Errorf("%w: %q != %q", errCanvasUserIDMismatch, init.UserID, userID)
+	sessionID, err := randSessionID()
+	if err != nil {
+		return CanvasMessagesListDebug{}, fmt.Errorf("canvas: generating session ID: %w", err)
+	}
+	e1, err := cl.stepEditor1(ctx, oypID, sessionID, userID)
+	if err != nil {
+		return CanvasMessagesListDebug{}, fmt.Errorf("canvas editor/1: %w", err)
+	}
+	editor1Body, err := cl.fetchEditor1Body(ctx, oypID, sessionID, userID)
+	if err != nil {
+		return CanvasMessagesListDebug{}, fmt.Errorf("canvas editor/1 raw: %w", err)
+	}
+	blockIDs, err := cl.stepEditor2(ctx, sessionID, e1.Section2OYP)
+	if err != nil {
+		return CanvasMessagesListDebug{}, fmt.Errorf("canvas editor/2: %w", err)
 	}
 
-	e1, err := cl.stepEditor1(ctx, oypID, init.SessionID, userID)
-	if err != nil {
-		return nil, fmt.Errorf("canvas editor/1: %w", err)
+	type probe struct {
+		name string
+		body any
+	}
+	var probes []probe
+	probes = append(probes, probe{
+		name: "timestamps_array",
+		body: []messagesListEntry{{
+			Channel:    canvasChannelID,
+			Timestamps: e1.CandidateTimestamps,
+		}},
+	})
+	probes = append(probes, probe{
+		name: "single_object_timestamps",
+		body: messagesListEntry{
+			Channel:    canvasChannelID,
+			Timestamps: e1.CandidateTimestamps,
+		},
+	})
+	probes = append(probes,
+		probe{name: "thread_ids_array", body: []map[string]any{{"channel": canvasChannelID, "thread_ids": blockIDs}}},
+		probe{name: "message_ids_array", body: []map[string]any{{"channel": canvasChannelID, "message_ids": blockIDs}}},
+		probe{name: "ids_array", body: []map[string]any{{"channel": canvasChannelID, "ids": blockIDs}}},
+		probe{name: "messages_thread_id_array", body: []map[string]any{{"channel": canvasChannelID, "messages": mapsOf("thread_id", blockIDs)}}},
+		probe{name: "messages_block_id_array", body: []map[string]any{{"channel": canvasChannelID, "messages": mapsOf("block_id", blockIDs)}}},
+	)
+
+	out := CanvasMessagesListDebug{
+		Section2OYP:         e1.Section2OYP,
+		CandidateTimestamps: e1.CandidateTimestamps,
+		ReplyBlockIDs:       blockIDs,
+		Editor1Matches:      pbCollectStringMatches(editor1Body, toSet(blockIDs)),
+		Probes:              make([]CanvasMessagesListProbeResult, 0, len(probes)),
+	}
+	seenSubtrees := make(map[string]struct{})
+	for _, match := range out.Editor1Matches {
+		parent := match.ParentPath
+		if parent == "" {
+			continue
+		}
+		key := parent + "\x00" + match.Value
+		if _, ok := seenSubtrees[key]; ok {
+			continue
+		}
+		seenSubtrees[key] = struct{}{}
+		parentMsg := pbGetParentMessageForMatch(editor1Body, match)
+		if parentMsg == nil {
+			continue
+		}
+		out.Editor1Subtrees = append(out.Editor1Subtrees, CanvasEditor1Subtree{
+			Path:   parent,
+			Fields: pbDescribeImmediateFields(parentMsg),
+		})
+	}
+	for _, p := range probes {
+		msgIDs, err := json.Marshal(p.body)
+		if err != nil {
+			out.Probes = append(out.Probes, CanvasMessagesListProbeResult{Name: p.name, Error: err.Error()})
+			continue
+		}
+		res := CanvasMessagesListProbeResult{Name: p.name, MessageIDs: string(msgIDs)}
+		raw, err := cl.stepMessagesListRaw(ctx, string(msgIDs))
+		if err != nil {
+			res.Error = err.Error()
+			out.Probes = append(out.Probes, res)
+			continue
+		}
+		if len(bytes.TrimSpace(raw.MessagesData)) > 0 {
+			res.Keys = rawJSONKeys(raw.MessagesData)
+		} else {
+			res.Keys = rawJSONKeys(raw.Messages)
+		}
+		msgs, err := extractCanvasMessages(raw, canvasChannelID)
+		if err != nil {
+			res.Error = err.Error()
+			out.Probes = append(out.Probes, res)
+			continue
+		}
+		res.Messages = msgs
+		res.MessageCount = len(res.Messages)
+		out.Probes = append(out.Probes, res)
+	}
+	return out, nil
+}
+
+func mapsOf(key string, values []string) []map[string]string {
+	out := make([]map[string]string, 0, len(values))
+	for _, v := range values {
+		out = append(out, map[string]string{key: v})
+	}
+	return out
+}
+
+func toSet(values []string) map[string]struct{} {
+	out := make(map[string]struct{}, len(values))
+	for _, v := range values {
+		out[v] = struct{}{}
+	}
+	return out
+}
+
+func parentPath(path string) string {
+	i := strings.LastIndex(path, ".")
+	if i == -1 {
+		return "root"
+	}
+	return path[:i]
+}
+
+// canvasChannelFromFileID derives the dedicated canvas channel ID from a file ID.
+// Valid canvas channels reuse the file suffix with a leading C instead of F.
+func canvasChannelFromFileID(fileID string) string {
+	if len(fileID) < 2 || fileID[0] != 'F' {
+		return ""
+	}
+	return "C" + fileID[1:]
+}
+
+func (cl *Client) conversationsHistoryForCanvas(ctx context.Context, channelID string) ([]canvasHistoryMessage, error) {
+	const ep = "conversations.history"
+	type form struct {
+		BaseRequest
+		Channel string `json:"channel"`
+		Limit   int    `json:"limit"`
+		Cursor  string `json:"cursor,omitempty"`
+		WebClientFields
 	}
 
-	if _, err := cl.stepEditor2(ctx, init.SessionID, e1.Section2OYP); err != nil {
-		return nil, fmt.Errorf("canvas editor/2: %w", err)
+	req := form{
+		BaseRequest:     BaseRequest{Token: cl.token},
+		Channel:         channelID,
+		Limit:           1000,
+		WebClientFields: webclientReason("messages-ufm"),
 	}
 
-	msgs, err := cl.stepMessagesList(ctx, canvasChannelID, e1.ThreadTimestamps)
-	if err != nil {
-		return nil, fmt.Errorf("canvas messages.list: %w", err)
+	var out []canvasHistoryMessage
+	for {
+		resp, err := cl.PostFormRaw(ctx, cl.webapiURL(ep), values(req, true))
+		if err != nil {
+			return nil, err
+		}
+		var r canvasHistoryResponse
+		if err := cl.ParseResponse(&r, resp); err != nil {
+			return nil, fmt.Errorf("%s: %w", ep, err)
+		}
+		if err := r.validate(ep); err != nil {
+			return nil, err
+		}
+		out = append(out, r.Messages...)
+		if r.ResponseMetadata.NextCursor == "" {
+			break
+		}
+		req.Cursor = r.ResponseMetadata.NextCursor
 	}
-	return msgs, nil
+	return out, nil
+}
+
+// CanvasThreadRoots returns the root messages for all comment threads on a
+// canvas file. fileID is the Slack file ID, for example F06R4HA3ZS8.
+func (cl *Client) CanvasThreadRoots(ctx context.Context, fileID string) ([]CanvasMessage, error) {
+	canvasChannelID := canvasChannelFromFileID(fileID)
+	if canvasChannelID == "" {
+		return nil, fmt.Errorf("canvas: invalid file ID %q", fileID)
+	}
+	msgs, err := cl.conversationsHistoryForCanvas(ctx, canvasChannelID)
+	if err != nil {
+		return nil, fmt.Errorf("canvas conversations.history: %w", err)
+	}
+	roots := make([]CanvasMessage, 0, len(msgs))
+	for _, msg := range msgs {
+		if msg.SubType != "document_comment_root" {
+			continue
+		}
+		threadTS := msg.ThreadTS
+		if threadTS == "" {
+			threadTS = msg.TS
+		}
+		roots = append(roots, CanvasMessage{
+			TS:              msg.TS,
+			ThreadTS:        threadTS,
+			Text:            msg.Text,
+			ReplyCount:      msg.ReplyCount,
+			DocumentComment: msg.DocumentComment,
+		})
+	}
+	return roots, nil
 }
