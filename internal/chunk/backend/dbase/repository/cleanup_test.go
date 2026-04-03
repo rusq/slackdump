@@ -11,7 +11,7 @@ import (
 	"github.com/rusq/slackdump/v4/internal/chunk"
 )
 
-func TestCleanupRepository_Counts(t *testing.T) {
+func TestCleanupRepository_CountUnfinishedSessions(t *testing.T) {
 	db := testConn(t)
 	ctx := context.Background()
 	repo := NewCleanupRepository()
@@ -25,13 +25,9 @@ func TestCleanupRepository_Counts(t *testing.T) {
 	sessionCount, err := repo.CountUnfinishedSessions(ctx, db)
 	require.NoError(t, err)
 	assert.Equal(t, int64(1), sessionCount)
-
-	chunkCount, err := repo.CountUnfinishedChunks(ctx, db)
-	require.NoError(t, err)
-	assert.Equal(t, int64(2), chunkCount)
 }
 
-func TestCleanupRepository_CleanupUnfinishedSessions(t *testing.T) {
+func TestCleanupRepository_CountUnfinishedChunks(t *testing.T) {
 	db := testConn(t)
 	ctx := context.Background()
 	repo := NewCleanupRepository()
@@ -39,53 +35,71 @@ func TestCleanupRepository_CleanupUnfinishedSessions(t *testing.T) {
 	insertSessionForTest(t, db, 1, false, nil)
 	insertSessionForTest(t, db, 2, true, nil)
 	insertChunkForTest(t, db, 11, 1, chunk.CMessages)
-	insertChunkForTest(t, db, 12, 1, chunk.CThreadMessages)
-	insertChunkForTest(t, db, 21, 2, chunk.CMessages)
-	insertMessageWithChunkForTest(t, db, 100, 11, []byte(`{"text":"remove"}`))
-	insertMessageWithChunkForTest(t, db, 101, 12, []byte(`{"text":"remove thread"}`))
-	insertMessageWithChunkForTest(t, db, 200, 21, []byte(`{"text":"keep"}`))
-
-	result, err := repo.CleanupUnfinishedSessions(ctx, db)
-	require.NoError(t, err)
-	assert.Equal(t, CleanupResult{SessionsRemoved: 1, ChunksRemoved: 2}, result)
-
-	verifySessionCountForTest(t, db, 1)
-	verifyChunkCountForTest(t, db, 1)
-	verifyMessageCountForTest(t, db, 1)
-}
-
-func TestCleanupRepository_CleanupMultipleSessions(t *testing.T) {
-	db := testConn(t)
-	ctx := context.Background()
-	repo := NewCleanupRepository()
-
-	insertSessionForTest(t, db, 1, false, nil)
-	insertSessionForTest(t, db, 2, false, ptr(int64(1)))
-	insertChunkForTest(t, db, 11, 1, chunk.CMessages)
+	insertChunkForTest(t, db, 12, 1, chunk.CUsers)
 	insertChunkForTest(t, db, 21, 2, chunk.CMessages)
 
-	result, err := repo.CleanupUnfinishedSessions(ctx, db)
+	chunkCount, err := repo.CountUnfinishedChunks(ctx, db)
 	require.NoError(t, err)
-	assert.Equal(t, CleanupResult{SessionsRemoved: 2, ChunksRemoved: 2}, result)
-
-	verifySessionCountForTest(t, db, 0)
-	verifyChunkCountForTest(t, db, 0)
+	assert.Equal(t, int64(2), chunkCount)
 }
 
-func TestCleanupRepository_NoUnfinishedSessions(t *testing.T) {
-	db := testConn(t)
-	ctx := context.Background()
-	repo := NewCleanupRepository()
+func TestCleanupRepository_CleanupUnfinishedSessions(t *testing.T) {
+	t.Run("removes unfinished session data", func(t *testing.T) {
+		db := testConn(t)
+		ctx := context.Background()
+		repo := NewCleanupRepository()
 
-	insertSessionForTest(t, db, 1, true, nil)
-	insertChunkForTest(t, db, 11, 1, chunk.CMessages)
+		insertSessionForTest(t, db, 1, false, nil)
+		insertSessionForTest(t, db, 2, true, nil)
+		insertChunkForTest(t, db, 11, 1, chunk.CMessages)
+		insertChunkForTest(t, db, 12, 1, chunk.CThreadMessages)
+		insertChunkForTest(t, db, 21, 2, chunk.CMessages)
+		insertMessageWithChunkForTest(t, db, 100, 11, []byte(`{"text":"remove"}`))
+		insertMessageWithChunkForTest(t, db, 101, 12, []byte(`{"text":"remove thread"}`))
+		insertMessageWithChunkForTest(t, db, 200, 21, []byte(`{"text":"keep"}`))
 
-	result, err := repo.CleanupUnfinishedSessions(ctx, db)
-	require.NoError(t, err)
-	assert.Equal(t, CleanupResult{}, result)
+		result, err := repo.CleanupUnfinishedSessions(ctx, db)
+		require.NoError(t, err)
+		assert.Equal(t, CleanupResult{SessionsRemoved: 1, ChunksRemoved: 2}, result)
 
-	verifySessionCountForTest(t, db, 1)
-	verifyChunkCountForTest(t, db, 1)
+		verifySessionCountForTest(t, db, 1)
+		verifyChunkCountForTest(t, db, 1)
+		verifyMessageCountForTest(t, db, 1)
+	})
+
+	t.Run("removes multiple unfinished sessions", func(t *testing.T) {
+		db := testConn(t)
+		ctx := context.Background()
+		repo := NewCleanupRepository()
+
+		insertSessionForTest(t, db, 1, false, nil)
+		insertSessionForTest(t, db, 2, false, ptr(int64(1)))
+		insertChunkForTest(t, db, 11, 1, chunk.CMessages)
+		insertChunkForTest(t, db, 21, 2, chunk.CMessages)
+
+		result, err := repo.CleanupUnfinishedSessions(ctx, db)
+		require.NoError(t, err)
+		assert.Equal(t, CleanupResult{SessionsRemoved: 2, ChunksRemoved: 2}, result)
+
+		verifySessionCountForTest(t, db, 0)
+		verifyChunkCountForTest(t, db, 0)
+	})
+
+	t.Run("returns zero when all sessions are finished", func(t *testing.T) {
+		db := testConn(t)
+		ctx := context.Background()
+		repo := NewCleanupRepository()
+
+		insertSessionForTest(t, db, 1, true, nil)
+		insertChunkForTest(t, db, 11, 1, chunk.CMessages)
+
+		result, err := repo.CleanupUnfinishedSessions(ctx, db)
+		require.NoError(t, err)
+		assert.Equal(t, CleanupResult{}, result)
+
+		verifySessionCountForTest(t, db, 1)
+		verifyChunkCountForTest(t, db, 1)
+	})
 }
 
 func insertSessionForTest(t *testing.T, db *sqlx.DB, id int64, finished bool, parentID *int64) {

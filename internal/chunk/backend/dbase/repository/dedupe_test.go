@@ -12,68 +12,42 @@ import (
 )
 
 func TestMessageDedupeRepository_CountDuplicateMessages(t *testing.T) {
-	db := testConn(t)
-	ctx := context.Background()
-	repo := NewMessageDedupeRepository()
+	t.Run("counts exact duplicates", func(t *testing.T) {
+		db := testConn(t)
+		ctx := context.Background()
+		repo := NewMessageDedupeRepository()
 
-	insertSessionForTest(t, db, 1, true, nil)
-	insertSessionForTest(t, db, 2, true, ptr(int64(1)))
-	insertChunkForTest(t, db, 11, 1, chunk.CMessages)
-	insertChunkForTest(t, db, 21, 2, chunk.CMessages)
-	insertMessageWithChunkForTest(t, db, 100, 11, []byte(`{"text":"same"}`))
-	insertMessageWithChunkForTest(t, db, 100, 21, []byte(`{"text":"same"}`))
+		insertSessionForTest(t, db, 1, true, nil)
+		insertSessionForTest(t, db, 2, true, ptr(int64(1)))
+		insertChunkForTest(t, db, 11, 1, chunk.CMessages)
+		insertChunkForTest(t, db, 21, 2, chunk.CMessages)
+		insertMessageWithChunkForTest(t, db, 100, 11, []byte(`{"text":"same"}`))
+		insertMessageWithChunkForTest(t, db, 100, 21, []byte(`{"text":"same"}`))
 
-	count, err := repo.CountDuplicateMessages(ctx, db)
-	require.NoError(t, err)
-	assert.Equal(t, int64(1), count)
+		count, err := repo.CountDuplicateMessages(ctx, db)
+		require.NoError(t, err)
+		assert.Equal(t, int64(1), count)
+	})
+
+	t.Run("ignores edited messages", func(t *testing.T) {
+		db := testConn(t)
+		ctx := context.Background()
+		repo := NewMessageDedupeRepository()
+
+		insertSessionForTest(t, db, 1, true, nil)
+		insertSessionForTest(t, db, 2, true, ptr(int64(1)))
+		insertChunkForTest(t, db, 11, 1, chunk.CMessages)
+		insertChunkForTest(t, db, 21, 2, chunk.CMessages)
+		insertMessageWithChunkForTest(t, db, 100, 11, []byte(`{"text":"old"}`))
+		insertMessageWithChunkForTest(t, db, 100, 21, []byte(`{"text":"edited"}`))
+
+		count, err := repo.CountDuplicateMessages(ctx, db)
+		require.NoError(t, err)
+		assert.Equal(t, int64(0), count)
+	})
 }
 
-func TestMessageDedupeRepository_DeduplicateMessagesKeepsLatest(t *testing.T) {
-	db := testConn(t)
-	ctx := context.Background()
-	repo := NewMessageDedupeRepository()
-
-	insertSessionForTest(t, db, 1, true, nil)
-	insertSessionForTest(t, db, 2, true, ptr(int64(1)))
-	insertChunkForTest(t, db, 11, 1, chunk.CMessages)
-	insertChunkForTest(t, db, 21, 2, chunk.CMessages)
-	insertMessageWithChunkForTest(t, db, 100, 11, []byte(`{"text":"same"}`))
-	insertMessageWithChunkForTest(t, db, 100, 21, []byte(`{"text":"same"}`))
-
-	result, err := repo.DeduplicateMessages(ctx, db)
-	require.NoError(t, err)
-	assert.Equal(t, MessageDedupeResult{MessagesRemoved: 1, ChunksRemoved: 1}, result)
-
-	verifyChunkCountForTest(t, db, 1)
-	verifyMessageCountForTest(t, db, 1)
-	verifyMessageChunkForTest(t, db, 100, 21)
-}
-
-func TestMessageDedupeRepository_PreservesEditedMessages(t *testing.T) {
-	db := testConn(t)
-	ctx := context.Background()
-	repo := NewMessageDedupeRepository()
-
-	insertSessionForTest(t, db, 1, true, nil)
-	insertSessionForTest(t, db, 2, true, ptr(int64(1)))
-	insertChunkForTest(t, db, 11, 1, chunk.CMessages)
-	insertChunkForTest(t, db, 21, 2, chunk.CMessages)
-	insertMessageWithChunkForTest(t, db, 100, 11, []byte(`{"text":"old"}`))
-	insertMessageWithChunkForTest(t, db, 100, 21, []byte(`{"text":"edited"}`))
-
-	count, err := repo.CountDuplicateMessages(ctx, db)
-	require.NoError(t, err)
-	assert.Equal(t, int64(0), count)
-
-	result, err := repo.DeduplicateMessages(ctx, db)
-	require.NoError(t, err)
-	assert.Equal(t, MessageDedupeResult{}, result)
-
-	verifyChunkCountForTest(t, db, 2)
-	verifyMessageCountForTest(t, db, 2)
-}
-
-func TestMessageDedupeRepository_PrunesOnlyDuplicateOnlyChunks(t *testing.T) {
+func TestMessageDedupeRepository_CountPrunableMessageChunks(t *testing.T) {
 	db := testConn(t)
 	ctx := context.Background()
 	repo := NewMessageDedupeRepository()
@@ -90,36 +64,94 @@ func TestMessageDedupeRepository_PrunesOnlyDuplicateOnlyChunks(t *testing.T) {
 	chunkCount, err := repo.CountPrunableMessageChunks(ctx, db)
 	require.NoError(t, err)
 	assert.Equal(t, int64(1), chunkCount)
-
-	result, err := repo.DeduplicateMessages(ctx, db)
-	require.NoError(t, err)
-	assert.Equal(t, MessageDedupeResult{MessagesRemoved: 1, ChunksRemoved: 1}, result)
-
-	verifyChunkCountForTest(t, db, 2)
-	verifyMessageCountForTest(t, db, 2)
 }
 
-func TestMessageDedupeRepository_DeduplicatesAcrossMultipleSessions(t *testing.T) {
-	db := testConn(t)
-	ctx := context.Background()
-	repo := NewMessageDedupeRepository()
+func TestMessageDedupeRepository_DeduplicateMessages(t *testing.T) {
+	t.Run("keeps latest message", func(t *testing.T) {
+		db := testConn(t)
+		ctx := context.Background()
+		repo := NewMessageDedupeRepository()
 
-	insertSessionForTest(t, db, 1, true, nil)
-	insertSessionForTest(t, db, 2, true, ptr(int64(1)))
-	insertSessionForTest(t, db, 3, true, ptr(int64(2)))
-	insertChunkForTest(t, db, 11, 1, chunk.CMessages)
-	insertChunkForTest(t, db, 21, 2, chunk.CMessages)
-	insertChunkForTest(t, db, 31, 3, chunk.CMessages)
-	insertMessageWithChunkForTest(t, db, 100, 11, []byte(`{"text":"same"}`))
-	insertMessageWithChunkForTest(t, db, 100, 21, []byte(`{"text":"same"}`))
-	insertMessageWithChunkForTest(t, db, 100, 31, []byte(`{"text":"same"}`))
+		insertSessionForTest(t, db, 1, true, nil)
+		insertSessionForTest(t, db, 2, true, ptr(int64(1)))
+		insertChunkForTest(t, db, 11, 1, chunk.CMessages)
+		insertChunkForTest(t, db, 21, 2, chunk.CMessages)
+		insertMessageWithChunkForTest(t, db, 100, 11, []byte(`{"text":"same"}`))
+		insertMessageWithChunkForTest(t, db, 100, 21, []byte(`{"text":"same"}`))
 
-	result, err := repo.DeduplicateMessages(ctx, db)
-	require.NoError(t, err)
-	assert.Equal(t, MessageDedupeResult{MessagesRemoved: 2, ChunksRemoved: 2}, result)
+		result, err := repo.DeduplicateMessages(ctx, db)
+		require.NoError(t, err)
+		assert.Equal(t, MessageDedupeResult{MessagesRemoved: 1, ChunksRemoved: 1}, result)
 
-	verifyChunkCountForTest(t, db, 1)
-	verifyMessageChunkForTest(t, db, 100, 31)
+		verifyChunkCountForTest(t, db, 1)
+		verifyMessageCountForTest(t, db, 1)
+		verifyMessageChunkForTest(t, db, 100, 21)
+	})
+
+	t.Run("preserves edited messages", func(t *testing.T) {
+		db := testConn(t)
+		ctx := context.Background()
+		repo := NewMessageDedupeRepository()
+
+		insertSessionForTest(t, db, 1, true, nil)
+		insertSessionForTest(t, db, 2, true, ptr(int64(1)))
+		insertChunkForTest(t, db, 11, 1, chunk.CMessages)
+		insertChunkForTest(t, db, 21, 2, chunk.CMessages)
+		insertMessageWithChunkForTest(t, db, 100, 11, []byte(`{"text":"old"}`))
+		insertMessageWithChunkForTest(t, db, 100, 21, []byte(`{"text":"edited"}`))
+
+		result, err := repo.DeduplicateMessages(ctx, db)
+		require.NoError(t, err)
+		assert.Equal(t, MessageDedupeResult{}, result)
+
+		verifyChunkCountForTest(t, db, 2)
+		verifyMessageCountForTest(t, db, 2)
+	})
+
+	t.Run("prunes duplicate-only chunks", func(t *testing.T) {
+		db := testConn(t)
+		ctx := context.Background()
+		repo := NewMessageDedupeRepository()
+
+		insertSessionForTest(t, db, 1, true, nil)
+		insertSessionForTest(t, db, 2, true, ptr(int64(1)))
+		insertChunkForTest(t, db, 11, 1, chunk.CMessages)
+		insertChunkForTest(t, db, 12, 1, chunk.CMessages)
+		insertChunkForTest(t, db, 21, 2, chunk.CMessages)
+		insertMessageWithChunkForTest(t, db, 100, 11, []byte(`{"text":"same"}`))
+		insertMessageWithChunkForTest(t, db, 101, 12, []byte(`{"text":"keep"}`))
+		insertMessageWithChunkForTest(t, db, 100, 21, []byte(`{"text":"same"}`))
+
+		result, err := repo.DeduplicateMessages(ctx, db)
+		require.NoError(t, err)
+		assert.Equal(t, MessageDedupeResult{MessagesRemoved: 1, ChunksRemoved: 1}, result)
+
+		verifyChunkCountForTest(t, db, 2)
+		verifyMessageCountForTest(t, db, 2)
+	})
+
+	t.Run("deduplicates across multiple sessions", func(t *testing.T) {
+		db := testConn(t)
+		ctx := context.Background()
+		repo := NewMessageDedupeRepository()
+
+		insertSessionForTest(t, db, 1, true, nil)
+		insertSessionForTest(t, db, 2, true, ptr(int64(1)))
+		insertSessionForTest(t, db, 3, true, ptr(int64(2)))
+		insertChunkForTest(t, db, 11, 1, chunk.CMessages)
+		insertChunkForTest(t, db, 21, 2, chunk.CMessages)
+		insertChunkForTest(t, db, 31, 3, chunk.CMessages)
+		insertMessageWithChunkForTest(t, db, 100, 11, []byte(`{"text":"same"}`))
+		insertMessageWithChunkForTest(t, db, 100, 21, []byte(`{"text":"same"}`))
+		insertMessageWithChunkForTest(t, db, 100, 31, []byte(`{"text":"same"}`))
+
+		result, err := repo.DeduplicateMessages(ctx, db)
+		require.NoError(t, err)
+		assert.Equal(t, MessageDedupeResult{MessagesRemoved: 2, ChunksRemoved: 2}, result)
+
+		verifyChunkCountForTest(t, db, 1)
+		verifyMessageChunkForTest(t, db, 100, 31)
+	})
 }
 
 func verifyMessageChunkForTest(t *testing.T, db *sqlx.DB, msgID, expectedChunkID int64) {
