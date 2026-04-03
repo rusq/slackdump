@@ -37,7 +37,9 @@ Tools command contains different tools, running which may be requested if you op
 	PrintFlags:  false,
 	RequireAuth: false,
 	Commands: []*base.Command{
+		cmdCleanup,
 		cmdConvertV1,
+		cmdDedupe,
 		cmdEdge,
 		cmdEncrypt,
 		cmdEzTest,
@@ -52,7 +54,6 @@ Tools command contains different tools, running which may be requested if you op
 		cmdUninstall,
 		cmdUnzip,
 		cmdUpdate,
-		cmdVacuum,
 		// cmdWizDebug,
 	},
 }
