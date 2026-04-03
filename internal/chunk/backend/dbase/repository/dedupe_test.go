@@ -130,6 +130,27 @@ func TestMessageDedupeRepository_DeduplicateMessages(t *testing.T) {
 		verifyMessageCountForTest(t, db, 2)
 	})
 
+	t.Run("deduplicates thread messages", func(t *testing.T) {
+		db := testConn(t)
+		ctx := context.Background()
+		repo := NewMessageDedupeRepository()
+
+		insertSessionForTest(t, db, 1, true, nil)
+		insertSessionForTest(t, db, 2, true, ptr(int64(1)))
+		insertChunkForTest(t, db, 11, 1, chunk.CThreadMessages)
+		insertChunkForTest(t, db, 21, 2, chunk.CThreadMessages)
+		insertMessageWithChunkForTest(t, db, 100, 11, []byte(`{"text":"thread"}`))
+		insertMessageWithChunkForTest(t, db, 100, 21, []byte(`{"text":"thread"}`))
+
+		result, err := repo.DeduplicateMessages(ctx, db)
+		require.NoError(t, err)
+		assert.Equal(t, MessageDedupeResult{MessagesRemoved: 1, ChunksRemoved: 1}, result)
+
+		verifyChunkCountForTest(t, db, 1)
+		verifyMessageCountForTest(t, db, 1)
+		verifyMessageChunkForTest(t, db, 100, 21)
+	})
+
 	t.Run("deduplicates across multiple sessions", func(t *testing.T) {
 		db := testConn(t)
 		ctx := context.Background()

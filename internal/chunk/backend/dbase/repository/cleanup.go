@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 
 	"github.com/jmoiron/sqlx"
@@ -122,7 +121,7 @@ func deleteUnfinishedSession(ctx context.Context, tx *sqlx.Tx, sessionID int64) 
 		return 0, fmt.Errorf("rows affected for session %d: %w", sessionID, err)
 	}
 	if affected == 0 {
-		return 0, sql.ErrNoRows
+		return 0, fmt.Errorf("session %d: not deleted (may have been finalized concurrently)", sessionID)
 	}
 	return affected, nil
 }

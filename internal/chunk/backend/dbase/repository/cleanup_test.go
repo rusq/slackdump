@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 	"testing"
 
 	"github.com/jmoiron/sqlx"
@@ -100,6 +101,19 @@ func TestCleanupRepository_CleanupUnfinishedSessions(t *testing.T) {
 		verifySessionCountForTest(t, db, 1)
 		verifyChunkCountForTest(t, db, 1)
 	})
+}
+
+func Test_deleteUnfinishedSession_notFound(t *testing.T) {
+	db := testConn(t)
+	ctx := context.Background()
+
+	tx, err := db.BeginTxx(ctx, nil)
+	require.NoError(t, err)
+	defer tx.Rollback()
+
+	_, err = deleteUnfinishedSession(ctx, tx, 999) // non-existent session ID
+	assert.Error(t, err)
+	assert.NotErrorIs(t, err, sql.ErrNoRows)
 }
 
 func insertSessionForTest(t *testing.T, db *sqlx.DB, id int64, finished bool, parentID *int64) {

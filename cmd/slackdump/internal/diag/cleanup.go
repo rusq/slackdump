@@ -73,11 +73,10 @@ func runCleanup(ctx context.Context, cmd *base.Command, args []string) error {
 	}
 
 	result, err := repo.CleanupUnfinishedSessions(ctx, conn)
+	fmt.Printf("\nRemoved sessions: %d\n", result.SessionsRemoved)
+	fmt.Printf("Removed chunks: %d\n", result.ChunksRemoved)
 	if err != nil {
 		return fmt.Errorf("cleanup unfinished sessions: %w", err)
 	}
-
-	fmt.Printf("\nRemoved sessions: %d\n", result.SessionsRemoved)
-	fmt.Printf("Removed chunks: %d\n", result.ChunksRemoved)
 	return nil
 }
