@@ -3,7 +3,7 @@
     <p>{{len .}} files:</p>
     {{ range $i, $f := . }}
     {{ if $f.ID }}
-    {{ $path := ( printf "/slackdump/file/%s/%s" $f.ID $f.Name ) }}
+    {{ $path := fileurl $f.ID $f.Name }}
     {{ if (eq $f.Mode "hidden_by_limit") }}
         <div class="file-hidden">
             <p>File {{$f.ID}} hidden by limit</p>

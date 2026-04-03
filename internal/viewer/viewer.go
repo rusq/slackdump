@@ -20,11 +20,10 @@ import (
 	"context"
 	"errors"
 	"html/template"
+	"io"
 	"log/slog"
 	"net/http"
 	"os"
-	"path/filepath"
-	"runtime"
 	"time"
 
 	"github.com/go-chi/chi/v5/middleware"
@@ -43,6 +42,20 @@ func init() {
 	}
 }
 
+// PageRenderer renders Viewer pages to any io.Writer.
+// Both the live HTTP viewer and the static HTML exporter implement it.
+type PageRenderer interface {
+	RenderIndex(ctx context.Context, w io.Writer) error
+	RenderChannel(ctx context.Context, channelID string, w io.Writer) error
+	RenderThread(ctx context.Context, channelID, threadTS string, w io.Writer) error
+	RenderUser(ctx context.Context, userID string, w io.Writer) error
+	RenderCanvas(ctx context.Context, channelID string, w io.Writer) error
+	RenderCanvasContent(ctx context.Context, channelID string, w io.Writer) error
+}
+
+// compile-time check that *Viewer implements PageRenderer.
+var _ PageRenderer = (*Viewer)(nil)
+
 // Viewer is the slackdump viewer.
 type Viewer struct {
 	// data
@@ -50,11 +63,25 @@ type Viewer struct {
 	um   st.UserIndex
 	src  source.Sourcer
 	tmpl *template.Template
+	mode renderer.Mode
+	rts  *renderer.Routes
 
 	// handles
 	srv *http.Server
 	lg  *slog.Logger
 	r   renderer.Renderer
+}
+
+type Option func(*viewerOptions)
+
+type viewerOptions struct {
+	mode renderer.Mode
+}
+
+func WithMode(mode renderer.Mode) Option {
+	return func(o *viewerOptions) {
+		o.mode = mode
+	}
 }
 
 const (
@@ -66,7 +93,12 @@ const (
 // address should be in the form of ":8080". The viewer will use the given
 // [Sourcer] to retrieve the data, see "source" package for available options.
 // It will initialise the logger from the context.
-func New(ctx context.Context, addr string, r source.Sourcer) (*Viewer, error) {
+func New(ctx context.Context, addr string, r source.Sourcer, opts ...Option) (*Viewer, error) {
+	options := viewerOptions{mode: renderer.ModeLive}
+	for _, opt := range opts {
+		opt(&options)
+	}
+
 	all, err := r.Channels(ctx)
 	if err != nil {
 		return nil, err
@@ -84,37 +116,39 @@ func New(ctx context.Context, addr string, r source.Sourcer) (*Viewer, error) {
 	um := st.NewUserIndex(uu)
 
 	v := &Viewer{
-		src: r,
-		ch:  cc,
-		um:  um,
-		lg:  slog.Default(),
+		src:  r,
+		ch:   cc,
+		um:   um,
+		lg:   slog.Default(),
+		mode: options.mode,
 	}
+	rtOpts := []renderer.RouteOption{}
+	if addr != "" {
+		rtOpts = append(rtOpts, renderer.WithLiveHost(normalise(addr)))
+	}
+	if wi, err := r.WorkspaceInfo(ctx); err == nil {
+		rtOpts = append(rtOpts, renderer.WithWorkspaceURL(wi.URL))
+	}
+	v.rts = renderer.NewRoutes(options.mode, rtOpts...)
 	// postinit
-	initTemplates(v)
 	if debug {
 		v.r = &renderer.Debug{}
 	} else {
 		opts := []renderer.SlackOption{
 			renderer.WithUsers(indexusers(uu)),
 			renderer.WithChannels(indexchannels(all)),
-		}
-		if wi, err := r.WorkspaceInfo(ctx); err == nil {
-			opts = append(opts, renderer.WithReplaceURL(wi.URL, normalise(addr)))
+			renderer.WithRoutes(v.rts),
 		}
 		v.r = renderer.NewSlack(
-			v.tmpl,
+			template.New("viewer-renderer"),
 			opts...,
 		)
 	}
+	initTemplates(v)
 
 	mux := http.NewServeMux()
 
-	// Check for a static folder relative to this file
-	_, filename, _, _ := runtime.Caller(0)
-	currentDir := filepath.Dir(filename)
-	staticDir := filepath.Join(currentDir, "static")
-
-	mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServer(http.Dir(staticDir))))
+	mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServer(http.FS(StaticFS()))))
 	mux.HandleFunc("GET /", v.indexHandler)
 	// https: //ora600.slack.com/archives/CHY5HUESG
 	mux.HandleFunc("GET /archives/{id}", v.newFileHandler(v.channelHandler))

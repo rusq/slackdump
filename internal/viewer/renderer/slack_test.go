@@ -30,7 +30,12 @@ import (
 	"github.com/rusq/slackdump/v4/internal/viewer/renderer/functions"
 )
 
-var tmpl = template.Must(template.New("blocks").Funcs(functions.FuncMap).ParseFS(templates, "templates/*.html"))
+var tmpl = template.Must(template.New("blocks").Funcs(functions.FuncMap).Funcs(template.FuncMap{
+	"fileurl": func(id, filename string) string {
+		return NewRoutes(ModeLive).File(id, filename)
+	},
+	"rewriteurl": func(src string) string { return src },
+}).ParseFS(templates, "templates/*.html"))
 
 func TestSlack_Render(t *testing.T) {
 	nestedLists := loadmsg(t, fxtrMsgNestedLists)
@@ -100,6 +105,22 @@ func TestSlack_Render(t *testing.T) {
 			gotV := sm.Render(t.Context(), tt.args.m)
 			assert.Equal(t, tt.wantV, gotV)
 		})
+	}
+}
+
+func TestSlack_Render_UsesRouteHelperForFiles(t *testing.T) {
+	sm := NewSlack(template.Must(template.New("base").Parse("")), WithRoutes(NewRoutes(ModeStatic)))
+	got := string(sm.Render(t.Context(), &slack.Message{Msg: slack.Msg{Files: []slack.File{{ID: "F123", Name: "hello world.txt"}}}}))
+	if !strings.Contains(got, `/files/F123/hello%20world.txt`) {
+		t.Fatalf("Render() should use static file route, got %q", got)
+	}
+}
+
+func TestSlack_Render_SanitizesStaticFileRoutes(t *testing.T) {
+	sm := NewSlack(template.Must(template.New("base").Parse("")), WithRoutes(NewRoutes(ModeStatic)))
+	got := string(sm.Render(t.Context(), &slack.Message{Msg: slack.Msg{Files: []slack.File{{ID: "F123", Name: "a/b:c.txt"}}}}))
+	if !strings.Contains(got, `/files/F123/a_b_c.txt`) {
+		t.Fatalf("Render() should sanitize static file route, got %q", got)
 	}
 }
 

@@ -1,6 +1,6 @@
 [codespell]
 # Ref: https://github.com/codespell-project/codespell#using-a-config-file
-skip = .git,go.sum,.codespellrc,.goreleaser.yaml
+skip = .git,go.sum,.codespellrc,.goreleaser.yaml,htmx.min.js
 check-hidden = true
 # ignore-regex = 
 # ignore some variable names

@@ -18,6 +18,7 @@ package diag
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"os"
 
@@ -43,11 +44,13 @@ Not particularly useful for end users, but can be used to test the Edge API.
 }
 
 var edgeParams = struct {
-	channel string
+	channel      string
+	canvasFileID string
 }{}
 
 func init() {
 	cmdEdge.Flag.StringVar(&edgeParams.channel, "channel", "CHY5HUESG", "channel to get users from")
+	cmdEdge.Flag.StringVar(&edgeParams.canvasFileID, "canvas-file", "", "canvas file ID (triggers canvas thread test)")
 }
 
 func runEdge(ctx context.Context, cmd *base.Command, args []string) error {
@@ -59,13 +62,29 @@ func runEdge(ctx context.Context, cmd *base.Command, args []string) error {
 		return err
 	}
 
-	cl, err := edge.New(ctx, prov)
+	info, err := prov.Test(ctx)
+	if err != nil {
+		base.SetExitStatus(base.SAuthError)
+		return err
+	}
+
+	cl, err := edge.NewWithInfo(info, prov)
 	if err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return err
 	}
 	defer cl.Close()
-	lg.Info("connected")
+	lg.Info("connected", "user", info.UserID)
+
+	if edgeParams.canvasFileID != "" {
+		lg.Info("*** CanvasThreadRoots test ***", "file", edgeParams.canvasFileID)
+		msgs, err := cl.CanvasThreadRoots(ctx, edgeParams.canvasFileID)
+		if err != nil {
+			return fmt.Errorf("CanvasThreadRoots: %w", err)
+		}
+		lg.Info("got canvas thread roots", "count", len(msgs))
+		return save("canvas_threads.json", msgs)
+	}
 
 	// lg.Info("*** Search for Channels test ***")
 	// channels, err := cl.SearchChannels(ctx, "")

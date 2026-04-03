@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"html"
 	"log/slog"
-	"net/url"
 	"strings"
 
 	emj "github.com/enescakir/emoji"
@@ -110,27 +109,11 @@ func (s *Slack) rtseLink(ie slack.RichTextSectionElement) (string, string, error
 	} else {
 		e.Text = html.EscapeString(e.Text)
 	}
-	if s.wspHost != "" {
-		// update link to local
-		e.URL = replaceHost(e.URL, s.wspHost, s.host)
+	if s.routes != nil {
+		e.URL = s.routes.RewriteSlackURL(e.URL)
 	}
 
 	return fmt.Sprintf("<a href=\"%s\">%s</a>", e.URL, e.Text), "", nil
-}
-
-// replaceHost searches for the wsp host in the src url and replaces it with the localHost.
-func replaceHost(src, wspHost, localHost string) string {
-	u, err := url.Parse(src)
-	if err != nil {
-		slog.Warn("error parsing url", "url", src, "error", err)
-		return src
-	}
-	if u.Hostname() != wspHost {
-		return src
-	}
-	u.Host = localHost
-	u.Scheme = "http"
-	return u.String()
 }
 
 func (s *Slack) rteList(ie slack.RichTextElement) (string, string, error) {
@@ -227,8 +210,11 @@ func (s *Slack) rtseUser(ie slack.RichTextSectionElement) (string, string, error
 		name = e.UserID
 	}
 
-	// TODO: link user.
-	return applyStyle(fmt.Sprintf("<@%s>", name), e.Style), "", nil
+	text := applyStyle(fmt.Sprintf("<@%s>", name), e.Style)
+	if s.routes != nil {
+		text = fmt.Sprintf(`<a href="%s">%s</a>`, s.routes.User(e.UserID), text)
+	}
+	return text, "", nil
 }
 
 func (s *Slack) rtseEmoji(ie slack.RichTextSectionElement) (string, string, error) {
@@ -254,7 +240,11 @@ func (s *Slack) rtseChannel(ie slack.RichTextSectionElement) (string, string, er
 		name = e.ChannelID
 	}
 
-	return elDiv(rtseTypeClass[slack.RTSEChannel], applyStyle(fmt.Sprintf("<#%s>", name), e.Style)), "", nil
+	text := applyStyle(fmt.Sprintf("<#%s>", name), e.Style)
+	if s.routes != nil {
+		text = fmt.Sprintf(`<a href="%s">%s</a>`, s.routes.Channel(e.ChannelID), text)
+	}
+	return elDiv(rtseTypeClass[slack.RTSEChannel], text), "", nil
 }
 
 func (s *Slack) rtseBroadcast(ie slack.RichTextSectionElement) (string, string, error) {

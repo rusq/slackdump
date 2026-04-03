@@ -38,7 +38,7 @@ Tools command contains different tools, running which may be requested if you op
 	RequireAuth: false,
 	Commands: []*base.Command{
 		cmdConvertV1,
-		// cmdEdge,
+		cmdEdge,
 		cmdEncrypt,
 		cmdEzTest,
 		cmdHydrate,
