@@ -16,6 +16,7 @@
 package viewer
 
 import (
+	"context"
 	"errors"
 	"io/fs"
 	"log/slog"
@@ -51,6 +52,31 @@ func Test_isInvalid(t *testing.T) {
 				t.Errorf("isInvalid() = %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestStaticHandler_ServesHTMXAsset(t *testing.T) {
+	src := newViewerRouteSource()
+	src.wi = &slack.AuthTestResponse{}
+
+	v, err := New(context.Background(), "", src)
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/static/htmx.min.js", nil)
+	rr := httptest.NewRecorder()
+
+	v.srv.Handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("static handler status = %d, want %d", rr.Code, http.StatusOK)
+	}
+	if rr.Body.Len() == 0 {
+		t.Fatal("static handler returned empty body")
+	}
+	if !strings.Contains(rr.Body.String(), "var htmx=") {
+		t.Fatalf("static handler should serve htmx.min.js, got: %q", rr.Body.String())
 	}
 }
 
