@@ -14,11 +14,14 @@ latest copy, and prunes chunks that become empty as a result.
 
 ```bash
 # Preview what would be removed
-slackdump tools dedupe /path/to/database.db
+slackdump tools dedupe /path/to/archive
 
 # Actually perform dedupe
-slackdump tools dedupe -execute /path/to/database.db
+slackdump tools dedupe -execute /path/to/archive
 ```
+
+Pass the archive directory that contains `slackdump.sqlite`. You do not need to
+point the command at the database file itself.
 
 ## Flags
 
@@ -29,7 +32,7 @@ slackdump tools dedupe -execute /path/to/database.db
 ## Example
 
 ```bash
-$ slackdump tools dedupe slackdump.sqlite
+$ slackdump tools dedupe ./slackdump_20241231_150405
 Duplicate messages: 42
 Duplicate users: 548
 Duplicate channels: 3
@@ -39,7 +42,7 @@ Chunks to prune: 14
 
 Run with -execute to perform dedupe.
 
-$ slackdump tools dedupe -execute slackdump.sqlite
+$ slackdump tools dedupe -execute ./slackdump_20241231_150405
 Duplicate messages: 42
 Duplicate users: 548
 Duplicate channels: 3

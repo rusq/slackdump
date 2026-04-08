@@ -14,11 +14,14 @@ then removes the unfinished session rows themselves.
 
 ```bash
 # Preview what would be removed
-slackdump tools cleanup /path/to/database.db
+slackdump tools cleanup /path/to/archive
 
 # Actually perform the cleanup
-slackdump tools cleanup -execute /path/to/database.db
+slackdump tools cleanup -execute /path/to/archive
 ```
+
+Pass the archive directory that contains `slackdump.sqlite`. You do not need to
+point the command at the database file itself.
 
 ## Flags
 
@@ -29,13 +32,13 @@ slackdump tools cleanup -execute /path/to/database.db
 ## Example
 
 ```bash
-$ slackdump tools cleanup slackdump.sqlite
+$ slackdump tools cleanup ./slackdump_20241231_150405
 Unfinished sessions: 2
 Chunks in unfinished sessions: 19
 
 Run with -execute to perform cleanup.
 
-$ slackdump tools cleanup -execute slackdump.sqlite
+$ slackdump tools cleanup -execute ./slackdump_20241231_150405
 Unfinished sessions: 2
 Chunks in unfinished sessions: 19
 

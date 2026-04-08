@@ -11,14 +11,15 @@ import (
 )
 
 var cmdCleanup = &base.Command{
-	UsageLine:  "slackdump tools cleanup [flags] <database_path>",
+	UsageLine:  "slackdump tools cleanup [flags] <archive_directory>",
 	Short:      "remove data from unfinished sessions",
 	FlagMask:   cfg.OmitAll,
 	PrintFlags: true,
 	Long: `
 Cleanup removes residual database rows that belong to sessions where
 SESSION.FINISHED is false. By default it only reports what would be removed.
-Use -execute to perform the cleanup.
+Pass the archive directory, not the slackdump.sqlite file. Use -execute to
+perform the cleanup.
 `,
 }
 

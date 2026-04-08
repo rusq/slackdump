@@ -15,7 +15,7 @@ import (
 )
 
 var cmdDedupe = &base.Command{
-	UsageLine:  "slackdump tools dedupe [flags] <database_path>",
+	UsageLine:  "slackdump tools dedupe [flags] <archive_directory>",
 	Short:      "deduplicate overlap entities from resume runs",
 	FlagMask:   cfg.OmitAll,
 	PrintFlags: true,
@@ -23,7 +23,8 @@ var cmdDedupe = &base.Command{
 Dedupe removes identical duplicate messages, users, channels, channel users,
 and files created by resume look-back overlap. The latest copy of each
 identical payload is kept. By default it only reports what would be removed.
-Use -execute to perform deduplication.
+Pass the archive directory, not the slackdump.sqlite file. Use -execute to
+perform deduplication.
 `,
 }
 
@@ -42,9 +43,10 @@ func ensureDb(ctx context.Context, dir string, runMode string) (*sqlx.DB, error)
 		base.SetExitStatus(base.SInvalidParameters)
 		return nil, err
 	}
+	defer src.Close()
 	if !src.Type().Has(source.FDatabase) {
 		base.SetExitStatus(base.SInvalidParameters)
-		return nil, fmt.Errorf("source type %q does not support resume, use 'slackdump convert -f database' to convert it", src.Type())
+		return nil, fmt.Errorf("source type %q does not contain a database archive, use 'slackdump convert -f database' to convert it", src.Type())
 	}
 
 	conn, _, err := bootstrap.Database(dir, runMode)
