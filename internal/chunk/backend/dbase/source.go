@@ -118,6 +118,10 @@ func OpenRW(ctx context.Context, path string) (*RWSource, error) {
 	if err := conn.PingContext(ctx); err != nil {
 		return nil, err
 	}
+	if _, err := conn.ExecContext(ctx, "PRAGMA foreign_keys = ON"); err != nil {
+		conn.Close()
+		return nil, fmt.Errorf("enable foreign keys: %w", err)
+	}
 	return &RWSource{Source: &Source{conn: conn, canClose: true}}, nil
 }
 
