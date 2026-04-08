@@ -114,6 +114,10 @@ func runResume(ctx context.Context, cmd *base.Command, args []string) error {
 		base.SetExitStatus(base.SApplicationError)
 		return fmt.Errorf("error loading latest timestamps: %w", err)
 	}
+	if latest.IsEmpty() {
+		base.SetExitStatus(base.SInvalidParameters)
+		return fmt.Errorf("the archive does not contain any data: %s", dir)
+	}
 
 	client, err := bootstrap.Slack(ctx)
 	if err != nil {
