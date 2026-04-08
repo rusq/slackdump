@@ -7,7 +7,6 @@ import (
 
 	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/golang/base"
-	"github.com/rusq/slackdump/v4/internal/chunk/backend/dbase"
 	"github.com/rusq/slackdump/v4/internal/chunk/backend/dbase/repository"
 )
 
@@ -42,14 +41,13 @@ func runCleanup(ctx context.Context, cmd *base.Command, args []string) error {
 	}
 
 	dbPath := cmd.Flag.Arg(0)
-	src, err := dbase.OpenRW(ctx, dbPath)
+	conn, err := ensureDb(ctx, dbPath, cmd.Name())
 	if err != nil {
-		return fmt.Errorf("opening database %q: %w", dbPath, err)
+		return err
 	}
-	defer src.Close()
+	defer conn.Close()
 
 	repo := repository.NewCleanupRepository()
-	conn := src.Conn()
 
 	sessionCount, err := repo.CountUnfinishedSessions(ctx, conn)
 	if err != nil {

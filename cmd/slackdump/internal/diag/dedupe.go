@@ -4,12 +4,14 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"os"
 
+	"github.com/jmoiron/sqlx"
+
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/bootstrap"
 	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/golang/base"
-	"github.com/rusq/slackdump/v4/internal/chunk/backend/dbase"
 	"github.com/rusq/slackdump/v4/internal/chunk/backend/dbase/repository"
+	"github.com/rusq/slackdump/v4/source"
 )
 
 var cmdDedupe = &base.Command{
@@ -34,6 +36,26 @@ func init() {
 	cmdDedupe.Flag.BoolVar(&dedupeFlags.execute, "execute", false, "actually remove duplicate entities")
 }
 
+func ensureDb(ctx context.Context, dir string, runMode string) (*sqlx.DB, error) {
+	src, err := source.Load(ctx, dir)
+	if err != nil {
+		base.SetExitStatus(base.SInvalidParameters)
+		return nil, err
+	}
+	if !src.Type().Has(source.FDatabase) {
+		base.SetExitStatus(base.SInvalidParameters)
+		return nil, fmt.Errorf("source type %q does not support resume, use 'slackdump convert -f database' to convert it", src.Type())
+	}
+
+	conn, _, err := bootstrap.Database(dir, runMode)
+	if err != nil {
+		base.SetExitStatus(base.SInitializationError)
+		return nil, fmt.Errorf("error opening database: %w", err)
+	}
+	return conn, nil
+
+}
+
 func runDedupe(ctx context.Context, cmd *base.Command, args []string) error {
 	if err := cmd.Flag.Parse(args); err != nil {
 		return err
@@ -43,19 +65,14 @@ func runDedupe(ctx context.Context, cmd *base.Command, args []string) error {
 		return nil
 	}
 
-	dbPath := cmd.Flag.Arg(0)
-	if err := requireExistingDatabase(dbPath); err != nil {
-		base.SetExitStatus(base.SInvalidParameters)
+	dir := cmd.Flag.Arg(0)
+	conn, err := ensureDb(ctx, dir, cmd.Name())
+	if err != nil {
 		return err
 	}
-	src, err := dbase.OpenRW(ctx, dbPath)
-	if err != nil {
-		return fmt.Errorf("opening database %q: %w", dbPath, err)
-	}
-	defer src.Close()
+	defer conn.Close()
 
 	repo := repository.NewDedupeRepository()
-	conn := src.Conn()
 
 	counts, err := repo.Preview(ctx, conn)
 	if err != nil {
@@ -63,7 +80,7 @@ func runDedupe(ctx context.Context, cmd *base.Command, args []string) error {
 	}
 
 	slog.DebugContext(ctx, "dedupe preview",
-		"database", dbPath,
+		"database", dir,
 		"duplicate_messages", counts.Messages,
 		"duplicate_users", counts.Users,
 		"duplicate_channels", counts.Channels,
@@ -97,15 +114,5 @@ func runDedupe(ctx context.Context, cmd *base.Command, args []string) error {
 	fmt.Printf("Removed channel users: %d\n", result.ChannelUsersRemoved)
 	fmt.Printf("Removed files: %d\n", result.FilesRemoved)
 	fmt.Printf("Removed chunks: %d\n", result.ChunksRemoved)
-	return nil
-}
-
-func requireExistingDatabase(path string) error {
-	if _, err := os.Stat(path); err != nil {
-		if os.IsNotExist(err) {
-			return fmt.Errorf("database %q does not exist", path)
-		}
-		return fmt.Errorf("stat database %q: %w", path, err)
-	}
 	return nil
 }
