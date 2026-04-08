@@ -1,14 +1,14 @@
-# Message Dedupe
+# Database Dedupe
 
-The `dedupe` tool removes identical duplicate messages created by resume
-look-back overlap.
+The `dedupe` tool removes identical duplicate messages, users, channels,
+channel users, and files created by resume look-back overlap.
 
 ## Why use dedupe?
 
 `slackdump resume` intentionally looks back in time so it can pick up new
-replies on older messages. That overlap can record the same message payload in
-more than one session. `dedupe` removes the older identical copies, keeps the
-latest copy, and prunes message chunks that become empty as a result.
+replies on older messages. That overlap can record the same payload in more
+than one session. `dedupe` removes the older identical copies, keeps the
+latest copy, and prunes chunks that become empty as a result.
 
 ## Usage
 
@@ -24,21 +24,33 @@ slackdump tools dedupe -execute /path/to/database.db
 
 | Flag | Description |
 |------|-------------|
-| `-execute` | Required flag to actually remove duplicate messages |
+| `-execute` | Required flag to actually remove duplicate entities |
 
 ## Example
 
 ```bash
 $ slackdump tools dedupe slackdump.sqlite
 Duplicate messages: 42
-Message chunks to prune: 7
+Duplicate users: 548
+Duplicate channels: 3
+Duplicate channel users: 17
+Duplicate files: 1
+Chunks to prune: 14
 
 Run with -execute to perform dedupe.
 
 $ slackdump tools dedupe -execute slackdump.sqlite
 Duplicate messages: 42
-Message chunks to prune: 7
+Duplicate users: 548
+Duplicate channels: 3
+Duplicate channel users: 17
+Duplicate files: 1
+Chunks to prune: 14
 
 Removed messages: 42
-Removed chunks: 7
+Removed users: 548
+Removed channels: 3
+Removed channel users: 17
+Removed files: 1
+Removed chunks: 14
 ```

@@ -13,7 +13,7 @@
   - [Creating a Slack Export](usage-export.md)
   - [Downloading all Emojis](usage-emoji.md)
   - [Database Cleanup](usage-cleanup.md)
-  - [Message Dedupe](usage-dedupe.md)
+  - [Database Dedupe](usage-dedupe.md)
 - [Enterprise Workspace Tips](enterprise.md)
 - [Compiling from Sources](compiling.md)
 - [Troubleshooting](troubleshooting.md)
@@ -67,7 +67,7 @@ There are several modes of operation:
 | `slackdump search` | Dump Slack search results |
 | `slackdump mcp` | Start a local MCP server for AI agent access |
 | `slackdump tools cleanup` | Remove residual data from unfinished database sessions |
-| `slackdump tools dedupe` | Remove duplicate messages created by resume overlap |
+| `slackdump tools dedupe` | Remove duplicate messages, users, channels, channel users, and files created by resume overlap |
 
 Run `slackdump help` to see all available commands, or `slackdump help <command>`
 for detailed help on a specific command.
