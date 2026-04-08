@@ -42,8 +42,8 @@ func TestDedupeRepository_Preview(t *testing.T) {
 
 		insertChunkForTest(t, db, 15, 1, chunk.CFiles)
 		insertChunkForTest(t, db, 25, 2, chunk.CFiles)
-		insertFileWithChunkForTest(t, db, "F100", 15, []byte(`{"name":"same"}`))
-		insertFileWithChunkForTest(t, db, "F100", 25, []byte(`{"name":"same"}`))
+		insertFileWithChunkForTest(t, db, "F100", 15, "C001", nil, nil, []byte(`{"name":"same"}`))
+		insertFileWithChunkForTest(t, db, "F100", 25, "C001", nil, nil, []byte(`{"name":"same"}`))
 
 		counts, err := repo.Preview(ctx, db)
 		require.NoError(t, err)
@@ -87,8 +87,8 @@ func TestDedupeRepository_Preview(t *testing.T) {
 
 		insertChunkForTest(t, db, 15, 1, chunk.CFiles)
 		insertChunkForTest(t, db, 25, 2, chunk.CFiles)
-		insertFileWithChunkForTest(t, db, "F100", 15, []byte(`{"name":"old"}`))
-		insertFileWithChunkForTest(t, db, "F100", 25, []byte(`{"name":"new"}`))
+		insertFileWithChunkForTest(t, db, "F100", 15, "C001", nil, nil, []byte(`{"name":"old"}`))
+		insertFileWithChunkForTest(t, db, "F100", 25, "C001", nil, nil, []byte(`{"name":"new"}`))
 
 		counts, err := repo.Preview(ctx, db)
 		require.NoError(t, err)
@@ -96,6 +96,24 @@ func TestDedupeRepository_Preview(t *testing.T) {
 			ChannelUsers: 1,
 			Chunks:       1,
 		}, counts)
+	})
+
+	t.Run("does not count reshared files in different attachment contexts as duplicates", func(t *testing.T) {
+		db := testConn(t)
+		ctx := context.Background()
+		repo := NewDedupeRepository()
+
+		insertSessionForTest(t, db, 1, true, nil)
+		insertSessionForTest(t, db, 2, true, ptr(int64(1)))
+
+		insertChunkForTest(t, db, 15, 1, chunk.CFiles)
+		insertChunkForTest(t, db, 25, 2, chunk.CFiles)
+		insertFileWithChunkForTest(t, db, "F100", 15, "C001", ptr(int64(100)), nil, []byte(`{"name":"same"}`))
+		insertFileWithChunkForTest(t, db, "F100", 25, "C002", ptr(int64(200)), nil, []byte(`{"name":"same"}`))
+
+		counts, err := repo.Preview(ctx, db)
+		require.NoError(t, err)
+		assert.Equal(t, DedupeCounts{}, counts)
 	})
 }
 
@@ -130,8 +148,8 @@ func TestDedupeRepository_Deduplicate(t *testing.T) {
 
 		insertChunkForTest(t, db, 15, 1, chunk.CFiles)
 		insertChunkForTest(t, db, 25, 2, chunk.CFiles)
-		insertFileWithChunkForTest(t, db, "F100", 15, []byte(`{"name":"same"}`))
-		insertFileWithChunkForTest(t, db, "F100", 25, []byte(`{"name":"same"}`))
+		insertFileWithChunkForTest(t, db, "F100", 15, "C001", nil, nil, []byte(`{"name":"same"}`))
+		insertFileWithChunkForTest(t, db, "F100", 25, "C001", nil, nil, []byte(`{"name":"same"}`))
 
 		result, err := repo.Deduplicate(ctx, db)
 		require.NoError(t, err)
@@ -187,8 +205,8 @@ func TestDedupeRepository_Deduplicate(t *testing.T) {
 
 		insertChunkForTest(t, db, 15, 1, chunk.CFiles)
 		insertChunkForTest(t, db, 25, 2, chunk.CFiles)
-		insertFileWithChunkForTest(t, db, "F100", 15, []byte(`{"name":"old"}`))
-		insertFileWithChunkForTest(t, db, "F100", 25, []byte(`{"name":"new"}`))
+		insertFileWithChunkForTest(t, db, "F100", 15, "C001", nil, nil, []byte(`{"name":"old"}`))
+		insertFileWithChunkForTest(t, db, "F100", 25, "C001", nil, nil, []byte(`{"name":"new"}`))
 
 		result, err := repo.Deduplicate(ctx, db)
 		require.NoError(t, err)
@@ -203,6 +221,52 @@ func TestDedupeRepository_Deduplicate(t *testing.T) {
 		verifyChannelCountForTest(t, db, 2)
 		verifyChannelUserCountForTest(t, db, 1)
 		verifyFileCountForTest(t, db, 2)
+	})
+
+	t.Run("preserves reshared files across different attachment contexts", func(t *testing.T) {
+		db := testConn(t)
+		ctx := context.Background()
+		repo := NewDedupeRepository()
+
+		insertSessionForTest(t, db, 1, true, nil)
+		insertSessionForTest(t, db, 2, true, ptr(int64(1)))
+
+		insertChunkForTest(t, db, 15, 1, chunk.CFiles)
+		insertChunkForTest(t, db, 25, 2, chunk.CFiles)
+		insertFileWithChunkForTest(t, db, "F100", 15, "C001", ptr(int64(100)), nil, []byte(`{"name":"same"}`))
+		insertFileWithChunkForTest(t, db, "F100", 25, "C002", ptr(int64(200)), nil, []byte(`{"name":"same"}`))
+
+		result, err := repo.Deduplicate(ctx, db)
+		require.NoError(t, err)
+		assert.Equal(t, DedupeResult{}, result)
+
+		verifyChunkCountForTest(t, db, 2)
+		verifyFileCountForTest(t, db, 2)
+	})
+
+	t.Run("deduplicates files with matching nullable attachment context", func(t *testing.T) {
+		db := testConn(t)
+		ctx := context.Background()
+		repo := NewDedupeRepository()
+
+		insertSessionForTest(t, db, 1, true, nil)
+		insertSessionForTest(t, db, 2, true, ptr(int64(1)))
+
+		insertChunkForTest(t, db, 15, 1, chunk.CFiles)
+		insertChunkForTest(t, db, 25, 2, chunk.CFiles)
+		insertFileWithChunkForTest(t, db, "F100", 15, "C001", nil, nil, []byte(`{"name":"same"}`))
+		insertFileWithChunkForTest(t, db, "F100", 25, "C001", nil, nil, []byte(`{"name":"same"}`))
+
+		result, err := repo.Deduplicate(ctx, db)
+		require.NoError(t, err)
+		assert.Equal(t, DedupeResult{
+			FilesRemoved:  1,
+			ChunksRemoved: 1,
+		}, result)
+
+		verifyChunkCountForTest(t, db, 1)
+		verifyFileCountForTest(t, db, 1)
+		verifyFileChunkForTest(t, db, "F100", 25)
 	})
 
 	t.Run("keeps chunks that still contain non-duplicate rows", func(t *testing.T) {
@@ -322,12 +386,12 @@ func insertChannelUserWithChunkForTest(t *testing.T, db *sqlx.DB, channelID, use
 	require.NoError(t, err)
 }
 
-func insertFileWithChunkForTest(t *testing.T, db *sqlx.DB, fileID string, chunkID int64, data []byte) {
+func insertFileWithChunkForTest(t *testing.T, db *sqlx.DB, fileID string, chunkID int64, channelID string, messageID, threadID *int64, data []byte) {
 	t.Helper()
 	_, err := db.ExecContext(context.Background(), `
-		INSERT INTO FILE (ID, CHUNK_ID, CHANNEL_ID, IDX, MODE, FILENAME, URL, DATA, SIZE)
-		VALUES (?, ?, 'C001', 0, 'hosted', 'file.txt', 'https://example.com/file', ?, 1)`,
-		fileID, chunkID, data)
+		INSERT INTO FILE (ID, CHUNK_ID, CHANNEL_ID, MESSAGE_ID, THREAD_ID, IDX, MODE, FILENAME, URL, DATA, SIZE)
+		VALUES (?, ?, ?, ?, ?, 0, 'hosted', 'file.txt', 'https://example.com/file', ?, 1)`,
+		fileID, chunkID, channelID, messageID, threadID, data)
 	require.NoError(t, err)
 }
 

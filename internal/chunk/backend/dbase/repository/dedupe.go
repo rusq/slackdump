@@ -82,7 +82,7 @@ var dedupeEntities = []dedupeEntity{
 	{
 		name:       "files",
 		table:      "FILE",
-		keyColumns: []string{"ID"},
+		keyColumns: []string{"ID", "CHANNEL_ID", "MESSAGE_ID", "THREAD_ID"},
 		chunkTypes: []chunk.ChunkType{chunk.CFiles},
 		mode:       dedupeByData,
 	},
@@ -261,11 +261,9 @@ func buildPrunableChunksSelect(entity dedupeEntity) string {
 	buf.WriteString(entity.table)
 	buf.WriteString(" T ON T.CHUNK_ID = C.ID\n")
 	buf.WriteString("LEFT JOIN duplicates D ON D.CHUNK_ID = T.CHUNK_ID")
-	for _, col := range entity.keyColumns {
-		buf.WriteString(" AND D.")
-		buf.WriteString(col)
-		buf.WriteString(" = T.")
-		buf.WriteString(col)
+	if len(entity.keyColumns) > 0 {
+		buf.WriteString(" AND ")
+		buf.WriteString(joinOnColumns("D", "T", entity.keyColumns))
 	}
 	buf.WriteString("\nWHERE C.TYPE_ID IN (")
 	buf.WriteString(strings.Join(placeholders(entity.chunkTypes), ","))
@@ -278,11 +276,9 @@ func buildDeleteDuplicatesStmt(entity dedupeEntity) string {
 	buf.WriteString("DELETE FROM ")
 	buf.WriteString(entity.table)
 	buf.WriteString(" AS T\nWHERE EXISTS (\nSELECT 1 FROM duplicates D WHERE D.CHUNK_ID = T.CHUNK_ID")
-	for _, col := range entity.keyColumns {
-		buf.WriteString(" AND D.")
-		buf.WriteString(col)
-		buf.WriteString(" = T.")
-		buf.WriteString(col)
+	if len(entity.keyColumns) > 0 {
+		buf.WriteString(" AND ")
+		buf.WriteString(joinOnColumns("D", "T", entity.keyColumns))
 	}
 	buf.WriteString("\n)")
 	return buf.String()
@@ -326,7 +322,7 @@ func withDuplicateRows(entity dedupeEntity, final string) string {
 func joinOnColumns(left, right string, cols []string) string {
 	parts := make([]string, 0, len(cols))
 	for _, col := range cols {
-		parts = append(parts, left+"."+col+" = "+right+"."+col)
+		parts = append(parts, "("+left+"."+col+" = "+right+"."+col+" OR ("+left+"."+col+" IS NULL AND "+right+"."+col+" IS NULL))")
 	}
 	return strings.Join(parts, " AND ")
 }
