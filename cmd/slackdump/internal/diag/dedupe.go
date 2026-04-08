@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"os"
 
 	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/golang/base"
@@ -43,6 +44,10 @@ func runDedupe(ctx context.Context, cmd *base.Command, args []string) error {
 	}
 
 	dbPath := cmd.Flag.Arg(0)
+	if err := requireExistingDatabase(dbPath); err != nil {
+		base.SetExitStatus(base.SInvalidParameters)
+		return err
+	}
 	src, err := dbase.OpenRW(ctx, dbPath)
 	if err != nil {
 		return fmt.Errorf("opening database %q: %w", dbPath, err)
@@ -92,5 +97,15 @@ func runDedupe(ctx context.Context, cmd *base.Command, args []string) error {
 	fmt.Printf("Removed channel users: %d\n", result.ChannelUsersRemoved)
 	fmt.Printf("Removed files: %d\n", result.FilesRemoved)
 	fmt.Printf("Removed chunks: %d\n", result.ChunksRemoved)
+	return nil
+}
+
+func requireExistingDatabase(path string) error {
+	if _, err := os.Stat(path); err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("database %q does not exist", path)
+		}
+		return fmt.Errorf("stat database %q: %w", path, err)
+	}
 	return nil
 }
