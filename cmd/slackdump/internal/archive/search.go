@@ -167,7 +167,7 @@ func searchControllerv31(ctx context.Context, dir string, client client.Slack, t
 		return nil, stop, err
 	}
 	stop = append(stop, cd.Close)
-	db, si, err := bootstrap.Database(cd.Name(), "search")
+	db, si, err := bootstrap.DatabaseWithSession(cd.Name(), "search")
 	if err != nil {
 		return nil, stop, err
 	}

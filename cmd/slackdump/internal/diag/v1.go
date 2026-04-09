@@ -75,7 +75,7 @@ func runV1(ctx context.Context, cmd *base.Command, args []string) error {
 		base.SetExitStatus(base.SApplicationError)
 		return fmt.Errorf("failed to create output directory: %w", err)
 	}
-	wconn, si, err := bootstrap.Database(output, "v1")
+	wconn, si, err := bootstrap.DatabaseWithSession(output, "v1")
 	if err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return fmt.Errorf("failed to open database: %w", err)

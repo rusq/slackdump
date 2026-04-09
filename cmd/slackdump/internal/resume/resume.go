@@ -143,7 +143,7 @@ func runResume(ctx context.Context, cmd *base.Command, args []string) error {
 	}
 
 	// connecting to the database in read-write mode.
-	wconn, _, err := bootstrap.Database(dir, cmd.Name())
+	wconn, err := bootstrap.Database(dir)
 	if err != nil {
 		base.SetExitStatus(base.SInitializationError)
 		return fmt.Errorf("error opening database: %w", err)

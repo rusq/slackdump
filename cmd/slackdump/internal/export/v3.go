@@ -48,7 +48,7 @@ func exportWithDB(ctx context.Context, sess client.Slack, fsa fsadapter.FS, list
 	}
 
 	lg.InfoContext(ctx, "temporary directory in use", "tmpdir", tmpdir)
-	wconn, si, err := bootstrap.Database(tmpdir, "export")
+	wconn, si, err := bootstrap.DatabaseWithSession(tmpdir, "export")
 	if err != nil {
 		return err
 	}
