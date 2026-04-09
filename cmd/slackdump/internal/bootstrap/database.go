@@ -31,18 +31,23 @@ import (
 
 const defFilename = "slackdump.sqlite"
 
-// Database returns the database connection open for writing, and a session
-// info based on the mode and the command line arguments.
-func Database(dir string, mode string) (*sqlx.DB, dbase.SessionInfo, error) {
+func Database(dir string) (*sqlx.DB, error) {
 	dbfile := filepath.Join(dir, defFilename)
 	db, err := sqlx.Open(repository.Driver, dbfile)
 	if err != nil {
-		return nil, dbase.SessionInfo{}, err
+		return nil, err
 	}
 	if err := db.Ping(); err != nil {
-		return nil, dbase.SessionInfo{}, err
+		return nil, err
 	}
-	return db, SessionInfo(mode), nil
+	return db, nil
+}
+
+// DatabaseWithSession returns the database connection open for writing, and a session
+// info based on the mode and the command line arguments.
+func DatabaseWithSession(dir string, mode string) (*sqlx.DB, dbase.SessionInfo, error) {
+	db, err := Database(dir)
+	return db, SessionInfo(mode), err
 }
 
 func SessionInfo(mode string) dbase.SessionInfo {

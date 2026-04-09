@@ -42,7 +42,7 @@ func runCleanup(ctx context.Context, cmd *base.Command, args []string) error {
 	}
 
 	dbPath := cmd.Flag.Arg(0)
-	conn, err := ensureDb(ctx, dbPath, cmd.Name())
+	conn, err := ensureDb(ctx, dbPath)
 	if err != nil {
 		return err
 	}

@@ -37,7 +37,7 @@ func init() {
 	cmdDedupe.Flag.BoolVar(&dedupeFlags.execute, "execute", false, "actually remove duplicate entities")
 }
 
-func ensureDb(ctx context.Context, dir string, runMode string) (*sqlx.DB, error) {
+func ensureDb(ctx context.Context, dir string) (*sqlx.DB, error) {
 	src, err := source.Load(ctx, dir)
 	if err != nil {
 		base.SetExitStatus(base.SInvalidParameters)
@@ -49,7 +49,7 @@ func ensureDb(ctx context.Context, dir string, runMode string) (*sqlx.DB, error)
 		return nil, fmt.Errorf("source type %q does not contain a database archive, use 'slackdump convert -f database' to convert it", src.Type())
 	}
 
-	conn, _, err := bootstrap.Database(dir, runMode)
+	conn, err := bootstrap.Database(dir)
 	if err != nil {
 		base.SetExitStatus(base.SInitializationError)
 		return nil, fmt.Errorf("error opening database: %w", err)
@@ -68,7 +68,7 @@ func runDedupe(ctx context.Context, cmd *base.Command, args []string) error {
 	}
 
 	dir := cmd.Flag.Arg(0)
-	conn, err := ensureDb(ctx, dir, cmd.Name())
+	conn, err := ensureDb(ctx, dir)
 	if err != nil {
 		return err
 	}

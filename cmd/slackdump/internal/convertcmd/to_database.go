@@ -96,7 +96,7 @@ func chunk2db(ctx context.Context, src *source.ChunkDir, dir string, cflg conver
 	slog.Info("output", "database", filepath.Join(dir, source.DefaultDBFile))
 
 	// create a new database
-	wconn, si, err := bootstrap.Database(dir, "convert")
+	wconn, si, err := bootstrap.DatabaseWithSession(dir, "convert")
 	if err != nil {
 		return err
 	}
@@ -159,7 +159,7 @@ func dbConvert(ctx context.Context, src, dir string, cflg convertflags) error {
 	defer fsa.Close()
 
 	// create a new database
-	wconn, si, err := bootstrap.Database(dir, "convert")
+	wconn, si, err := bootstrap.DatabaseWithSession(dir, "convert")
 	if err != nil {
 		return err
 	}

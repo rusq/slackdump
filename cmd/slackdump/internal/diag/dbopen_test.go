@@ -17,7 +17,7 @@ func TestEnsureDb(t *testing.T) {
 	t.Run("opens archive directory", func(t *testing.T) {
 		archiveDir := newArchiveDir(t)
 
-		conn, err := ensureDb(ctx, archiveDir, "dedupe")
+		conn, err := ensureDb(ctx, archiveDir)
 		require.NoError(t, err)
 		t.Cleanup(func() {
 			require.NoError(t, conn.Close())
@@ -28,7 +28,7 @@ func TestEnsureDb(t *testing.T) {
 		archiveDir := newArchiveDir(t)
 		dbFile := filepath.Join(archiveDir, "slackdump.sqlite")
 
-		conn, err := ensureDb(ctx, dbFile, "dedupe")
+		conn, err := ensureDb(ctx, dbFile)
 		require.Nil(t, conn)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "error opening database")

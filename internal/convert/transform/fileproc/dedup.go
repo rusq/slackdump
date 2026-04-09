@@ -32,6 +32,7 @@ type DeduplicatingFileProcessor struct {
 	inner processor.Filer
 	db    *sqlx.DB
 	lg    *slog.Logger
+	r     repository.FileRepository
 }
 
 // NewDeduplicatingFileProcessor creates a new file processor that skips
@@ -44,6 +45,7 @@ func NewDeduplicatingFileProcessor(inner processor.Filer, db *sqlx.DB, lg *slog.
 		inner: inner,
 		db:    db,
 		lg:    lg,
+		r:     repository.NewFileRepository(),
 	}
 }
 
@@ -59,7 +61,6 @@ func NewDeduplicatingFileProcessor(inner processor.Filer, db *sqlx.DB, lg *slog.
 // this could be optimized to batch the lookup (WHERE ID IN (...) AND SIZE IN (...)),
 // but most messages have 0-2 files so the benefit is limited.
 func (d *DeduplicatingFileProcessor) Files(ctx context.Context, channel *slack.Channel, parent slack.Message, ff []slack.File) error {
-	fr := repository.NewFileRepository()
 
 	for i := range ff {
 		f := &ff[i]
@@ -68,7 +69,7 @@ func (d *DeduplicatingFileProcessor) Files(ctx context.Context, channel *slack.C
 		}
 
 		// Check if file already exists with same ID and size
-		existing, err := fr.GetByIDAndSize(ctx, d.db, f.ID, int64(f.Size))
+		existing, err := d.r.GetByIDAndSize(ctx, d.db, f.ID, int64(f.Size))
 		if err != nil {
 			d.lg.WarnContext(ctx, "error checking file existence", "error", err, "file_id", f.ID)
 			// Continue with download on error

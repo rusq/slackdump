@@ -294,7 +294,7 @@ func dumpv31(ctx context.Context, client client.Slack, fsa fsadapter.FS, p dumpp
 	}
 
 	// creating a temporary database to hold the data for the converter.
-	wconn, si, err := bootstrap.Database(tmpdir, "dump")
+	wconn, si, err := bootstrap.DatabaseWithSession(tmpdir, "dump")
 	if err != nil {
 		return err
 	}
