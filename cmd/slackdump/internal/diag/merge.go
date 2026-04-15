@@ -48,6 +48,10 @@ Allows to merge different Slackdump sources into an existing database archive.
 
 Make a backup of <database archive> before running this tool.
 
+Merge does not perform deduplication.  If the input archives may overlap,
+it is recommended to run ` + "`slackdump tools dedupe`" + ` on the merged
+archive afterwards.
+
 Limitations:
 - Target database must exist;
 - All sources must be from the same workspace.
