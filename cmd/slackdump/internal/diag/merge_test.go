@@ -319,9 +319,6 @@ func TestMergeSource(t *testing.T) {
 
 		conn, err := ensureDb(ctx, targetDB)
 		require.NoError(t, err)
-		t.Cleanup(func() {
-			require.NoError(t, conn.Close())
-		})
 
 		sourceDir := newArchiveDir(t)
 		writeMergeArchive(t, sourceDir, mergeSourceChunks(), mergeSourceFiles())
@@ -334,6 +331,7 @@ func TestMergeSource(t *testing.T) {
 
 		err = mergeSource(ctx, target, conn, src, true, false)
 		require.NoError(t, err)
+		require.NoError(t, conn.Close())
 
 		assertMessageAndThreadCopied(t, targetDir)
 		assertFileContents(t, filepath.Join(targetDir, testTopFilePath()), "top attachment")
@@ -348,9 +346,6 @@ func TestMergeSource(t *testing.T) {
 
 		conn, err := ensureDb(ctx, targetDir)
 		require.NoError(t, err)
-		t.Cleanup(func() {
-			require.NoError(t, conn.Close())
-		})
 
 		sourceDir := newArchiveDir(t)
 		writeMergeArchive(t, sourceDir, mergeSourceChunks(), mergeSourceFiles())
@@ -363,6 +358,7 @@ func TestMergeSource(t *testing.T) {
 
 		err = mergeSource(ctx, target, conn, src, false, false)
 		require.NoError(t, err)
+		require.NoError(t, conn.Close())
 
 		assertMessageAndThreadCopied(t, targetDir)
 		_, err = os.Stat(filepath.Join(targetDir, testTopFilePath()))
@@ -469,9 +465,6 @@ func writeMergeArchive(t *testing.T, archiveDir string, chunks []*chunk.Chunk, f
 
 	conn, err := bootstrap.Database(archiveDir)
 	require.NoError(t, err)
-	t.Cleanup(func() {
-		require.NoError(t, conn.Close())
-	})
 
 	dbp, err := dbase.New(t.Context(), conn, bootstrap.SessionInfo("test"))
 	require.NoError(t, err)
@@ -479,6 +472,7 @@ func writeMergeArchive(t *testing.T, archiveDir string, chunks []*chunk.Chunk, f
 		require.NoError(t, dbp.Encode(t.Context(), ch))
 	}
 	require.NoError(t, dbp.Close())
+	require.NoError(t, conn.Close())
 
 	for rel, content := range files {
 		full := filepath.Join(archiveDir, rel)
