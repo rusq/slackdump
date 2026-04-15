@@ -24,14 +24,15 @@ func TestEnsureDb(t *testing.T) {
 		})
 	})
 
-	t.Run("rejects direct sqlite path", func(t *testing.T) {
+	t.Run("opens direct sqlite path", func(t *testing.T) {
 		archiveDir := newArchiveDir(t)
 		dbFile := filepath.Join(archiveDir, "slackdump.sqlite")
 
 		conn, err := ensureDb(ctx, dbFile)
-		require.Nil(t, conn)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "error opening database")
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			require.NoError(t, conn.Close())
+		})
 	})
 }
 
