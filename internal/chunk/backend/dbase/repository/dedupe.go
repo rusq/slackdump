@@ -229,28 +229,44 @@ func deleteChunksByID(ctx context.Context, tx *sqlx.Tx, ids []int64, chunkTypes 
 		return 0, nil
 	}
 
-	var buf strings.Builder
-	buf.WriteString("DELETE FROM CHUNK WHERE ID IN (")
-	buf.WriteString(strings.Join(placeholders(ids), ","))
-	buf.WriteString(") AND TYPE_ID IN (")
-	buf.WriteString(strings.Join(placeholders(chunkTypes), ","))
-	buf.WriteString(")")
+	// batchSize limits the number of chunk IDs per DELETE statement to stay
+	// within SQLite's SQLITE_MAX_VARIABLE_NUMBER limit.
+	const batchSize = 10000
+	typeArgs := chunkTypeArgs(chunkTypes)
+	typePlaceholders := strings.Join(placeholders(chunkTypes), ",")
 
-	args := make([]any, 0, len(ids)+len(chunkTypes))
-	for _, id := range ids {
-		args = append(args, id)
-	}
-	args = append(args, chunkTypeArgs(chunkTypes)...)
+	var totalAffected int64
+	for start := 0; start < len(ids); start += batchSize {
+		end := start + batchSize
+		if end > len(ids) {
+			end = len(ids)
+		}
+		batch := ids[start:end]
 
-	result, err := tx.ExecContext(ctx, tx.Rebind(buf.String()), args...)
-	if err != nil {
-		return 0, err
+		var buf strings.Builder
+		buf.WriteString("DELETE FROM CHUNK WHERE ID IN (")
+		buf.WriteString(strings.Join(placeholders(batch), ","))
+		buf.WriteString(") AND TYPE_ID IN (")
+		buf.WriteString(typePlaceholders)
+		buf.WriteString(")")
+
+		args := make([]any, 0, len(batch)+len(typeArgs))
+		for _, id := range batch {
+			args = append(args, id)
+		}
+		args = append(args, typeArgs...)
+
+		result, err := tx.ExecContext(ctx, tx.Rebind(buf.String()), args...)
+		if err != nil {
+			return totalAffected, err
+		}
+		affected, err := result.RowsAffected()
+		if err != nil {
+			return totalAffected, fmt.Errorf("prunable chunk rows affected: %w", err)
+		}
+		totalAffected += affected
 	}
-	affected, err := result.RowsAffected()
-	if err != nil {
-		return 0, fmt.Errorf("prunable chunk rows affected: %w", err)
-	}
-	return affected, nil
+	return totalAffected, nil
 }
 
 func buildPrunableChunksSelect(entity dedupeEntity) string {
