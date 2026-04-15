@@ -31,8 +31,15 @@ import (
 
 const defFilename = "slackdump.sqlite"
 
-func Database(dir string) (*sqlx.DB, error) {
-	dbfile := filepath.Join(dir, defFilename)
+func resolveDatabasePath(path string) string {
+	if fi, err := os.Stat(path); err == nil && !fi.IsDir() {
+		return path
+	}
+	return filepath.Join(path, defFilename)
+}
+
+func Database(path string) (*sqlx.DB, error) {
+	dbfile := resolveDatabasePath(path)
 	db, err := sqlx.Open(repository.Driver, dbfile)
 	if err != nil {
 		return nil, err

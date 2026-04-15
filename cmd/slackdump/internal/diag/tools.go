@@ -45,6 +45,7 @@ Tools command contains different tools, running which may be requested if you op
 		cmdEzTest,
 		cmdHydrate,
 		cmdInfo,
+		cmdMerge,
 		// cmdRawOutput,
 		cmdObfuscate,
 		cmdRecord,
