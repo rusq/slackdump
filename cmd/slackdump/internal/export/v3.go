@@ -59,7 +59,7 @@ func exportWithDB(ctx context.Context, sess client.Slack, fsa fsadapter.FS, list
 		return err
 	}
 	defer func() {
-		if err := tmpdbp.Close(); err != nil {
+		if err := tmpdbp.Abort(); err != nil {
 			lg.ErrorContext(ctx, "unable to close database processor", "error", err)
 		}
 	}()
@@ -117,6 +117,10 @@ func exportWithDB(ctx context.Context, sess client.Slack, fsa fsadapter.FS, list
 	defer ctr.Close()
 
 	if err := ctr.Run(ctx, list); err != nil {
+		_ = pb.Finish()
+		return err
+	}
+	if err := ctr.Finish(); err != nil {
 		_ = pb.Finish()
 		return err
 	}

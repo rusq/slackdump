@@ -144,7 +144,7 @@ func TestNew(t *testing.T) {
 	}
 }
 
-func TestDBP_Close(t *testing.T) {
+func TestDBP_Finish(t *testing.T) {
 	type fields struct {
 		conn      *sqlx.DB
 		sessionID int64
@@ -193,8 +193,8 @@ func TestDBP_Close(t *testing.T) {
 				conn:      tt.fields.conn,
 				sessionID: tt.fields.sessionID,
 			}
-			if err := d.Close(); (err != nil) != tt.wantErr {
-				t.Errorf("DBP.Close() error = %v, wantErr %v", err, tt.wantErr)
+			if err := d.Finish(); (err != nil) != tt.wantErr {
+				t.Errorf("DBP.Finish() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if tt.checkFn != nil {
 				tt.checkFn(t, tt.fields.conn)
@@ -202,7 +202,7 @@ func TestDBP_Close(t *testing.T) {
 		})
 	}
 	// special cases not covered by the above tests
-	t.Run("closed", func(t *testing.T) {
+	t.Run("finished", func(t *testing.T) {
 		d := &DBP{
 			conn:      testDB(t),
 			sessionID: 1,
@@ -212,10 +212,10 @@ func TestDBP_Close(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if err := d.Close(); err != nil {
+		if err := d.Finish(); err != nil {
 			t.Fatal(err)
 		}
-		if err := d.Close(); err != nil {
+		if err := d.Finish(); err != nil {
 			t.Fatal(err)
 		}
 	})
@@ -224,7 +224,7 @@ func TestDBP_Close(t *testing.T) {
 			conn:      testDB(t),
 			sessionID: 1,
 		}
-		if err := d.Close(); err == nil {
+		if err := d.Finish(); err == nil {
 			t.Fatal("expected error")
 		}
 	})
@@ -233,8 +233,44 @@ func TestDBP_Close(t *testing.T) {
 			conn:      testutil.TestDB(t),
 			sessionID: 1,
 		}
-		if err := d.Close(); err == nil {
+		if err := d.Finish(); err == nil {
 			t.Fatal("expected error")
+		}
+	})
+}
+
+func TestDBP_Close(t *testing.T) {
+	t.Run("aborts without finalising session", func(t *testing.T) {
+		conn := testDB(t)
+		prepSession(t, conn)
+
+		d := &DBP{
+			conn:      conn,
+			sessionID: 1,
+		}
+		if err := d.Close(); err != nil {
+			t.Fatal(err)
+		}
+
+		var count int
+		if err := conn.QueryRowxContext(t.Context(), "SELECT COUNT(*) FROM session WHERE id = 1 and finished = false").Scan(&count); err != nil {
+			t.Fatal(err)
+		}
+		if count != 1 {
+			t.Errorf("session unexpectedly finalised")
+		}
+	})
+
+	t.Run("close is idempotent", func(t *testing.T) {
+		d := &DBP{
+			conn:      testDB(t),
+			sessionID: 1,
+		}
+		if err := d.Close(); err != nil {
+			t.Fatal(err)
+		}
+		if err := d.Close(); err != nil {
+			t.Fatal(err)
 		}
 	})
 }

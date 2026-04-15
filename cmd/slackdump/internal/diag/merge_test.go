@@ -478,7 +478,7 @@ func writeMergeArchive(t *testing.T, archiveDir string, chunks []*chunk.Chunk, f
 	for _, ch := range chunks {
 		require.NoError(t, dbp.Encode(t.Context(), ch))
 	}
-	require.NoError(t, dbp.Close())
+	require.NoError(t, dbp.Finish())
 
 	for rel, content := range files {
 		full := filepath.Join(archiveDir, rel)

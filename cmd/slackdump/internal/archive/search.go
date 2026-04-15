@@ -140,6 +140,10 @@ func runSearch(ctx context.Context, cmd *base.Command, args []string, typ contro
 		base.SetExitStatus(base.SApplicationError)
 		return err
 	}
+	if err := ctrl.Finish(); err != nil {
+		base.SetExitStatus(base.SApplicationError)
+		return err
+	}
 	return nil
 }
 
