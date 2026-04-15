@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strconv"
 	"testing"
 
 	"github.com/rusq/slack"
@@ -73,7 +74,7 @@ func TestVerifyWorkspaces(t *testing.T) {
 		missing := filepath.Join(t.TempDir(), "missing-source.sqlite")
 		err := verifyWorkspaces(t.Context(), targetDir, []string{missing})
 		require.Error(t, err)
-		require.Contains(t, err.Error(), `opening source "`+missing+`"`)
+		require.Contains(t, err.Error(), "opening source "+strconv.Quote(missing))
 	})
 }
 
@@ -305,7 +306,7 @@ func TestOpen(t *testing.T) {
 		missing := filepath.Join(t.TempDir(), "missing-source.sqlite")
 		_, _, err := open(t.Context(), targetDir, []string{missing})
 		require.Error(t, err)
-		require.Contains(t, err.Error(), `opening "`+missing+`"`)
+		require.Contains(t, err.Error(), "opening "+strconv.Quote(missing))
 	})
 }
 
