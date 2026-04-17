@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/rusq/slackdump/v4/internal/structures"
 	"github.com/rusq/slackdump/v4/source"
 
 	"github.com/rusq/slack"
@@ -57,6 +58,8 @@ type options struct {
 	trgFileLoc func(*slack.Channel, *slack.File) string
 	// avtrFileLoc should return the avatar file location.
 	avtrFileLoc func(*slack.User) string
+	// dmMode controls how single-member IMs are serialized into dms.json.
+	dmMode structures.DMMode
 	// lg is the logger
 	lg *slog.Logger
 }
@@ -95,6 +98,15 @@ func WithLogger(lg *slog.Logger) Option {
 	return func(c *options) {
 		if lg != nil {
 			c.lg = lg
+		}
+	}
+}
+
+// WithDMMode sets the DM serialization mode for export conversion.
+func WithDMMode(mode structures.DMMode) Option {
+	return func(c *options) {
+		if mode != "" {
+			c.dmMode = mode
 		}
 	}
 }

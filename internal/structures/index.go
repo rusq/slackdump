@@ -48,6 +48,35 @@ type DM struct {
 	Members []string `json:"members"`
 }
 
+// DMMode controls how 1-member IMs are serialized into dms.json.
+type DMMode string
+
+const (
+	// DMSingle serializes IMs for single-user exports, preserving the historic
+	// slackdump round-trip convention of [other_user, current_user].
+	DMSingle DMMode = "single"
+	// DMMulti preserves the observed IM membership for merged multi-user
+	// archives where a single archive-wide "me" is not meaningful.
+	DMMulti DMMode = "multi"
+)
+
+func (m *DMMode) Set(v string) error {
+	switch DMMode(strings.ToLower(v)) {
+	case DMSingle, DMMulti:
+		*m = DMMode(strings.ToLower(v))
+		return nil
+	default:
+		return fmt.Errorf("unknown dm mode: %s", v)
+	}
+}
+
+func (m DMMode) String() string {
+	if m == "" {
+		return string(DMSingle)
+	}
+	return string(m)
+}
+
 var (
 	ErrNoChannel = errors.New("empty channel data base")
 	ErrNoUsers   = errors.New("empty users data base")
@@ -57,7 +86,7 @@ var (
 // MakeExportIndex creates a channels and users index for export archive, splitting
 // channels in group/mpims/dms/public channels.  currentUserID should contain
 // the current user ID.
-func MakeExportIndex(channels []slack.Channel, users []slack.User, currentUserID string) (*ExportIndex, error) {
+func MakeExportIndex(channels []slack.Channel, users []slack.User, currentUserID string, dmMode DMMode) (*ExportIndex, error) {
 	if len(channels) == 0 {
 		return nil, ErrNoChannel
 	}
@@ -79,7 +108,7 @@ func MakeExportIndex(channels []slack.Channel, users []slack.User, currentUserID
 	for _, ch := range channels {
 		switch {
 		case ch.IsIM:
-			idx.DMs = append(idx.DMs, convertToDM(currentUserID, ch))
+			idx.DMs = append(idx.DMs, convertToDM(currentUserID, ch, dmMode))
 		case ch.IsMpIM:
 			if ch.NumMembers == 0 {
 				ch.NumMembers = len(ch.Members)
@@ -235,9 +264,9 @@ func except[S ~[]T, T comparable](s T, ss S, stopAfterIdx int) T {
 // user, it returns an empty string.  The user, who appears in "Members" slices
 // the most, is considered the current user.
 //
-// When there is a tie (e.g. a single DM where both members appear once),
-// the last member of the first DM is chosen as "me", because slackdump
-// exports DM members as [other_user, current_user].
+// When there is a tie, the last member of the first DM is chosen as "me" to
+// keep restores from single-user exports stable.  Multi-user exports are
+// best-effort with this heuristic, because dms.json has no archive-wide owner.
 func mostFrequentMember(dms []DM) string {
 	counts := make(map[string]int)
 	for _, dm := range dms {
@@ -266,26 +295,34 @@ func mostFrequentMember(dms []DM) string {
 		}
 	}
 	if tied > 1 && len(dms) > 0 && len(dms[0].Members) > 0 {
-		// When exported by slackdump, the DM members are typically ordered as
+		// Single-user exports typically order members as
 		// [other_user, current_user], so pick the last member as "me".
 		return dms[0].Members[len(dms[0].Members)-1]
 	}
 	return id
 }
 
-func convertToDM(me string, ch slack.Channel) DM {
+func convertToDM(me string, ch slack.Channel, mode DMMode) DM {
+	if mode == "" {
+		mode = DMSingle
+	}
 	d := DM{
 		ID:      ch.ID,
 		Created: int64(ch.Created),
 	}
 	switch len(ch.Members) {
 	case 0:
-		d.Members = []string{ch.User, me}
+		if mode == DMMulti {
+			d.Members = []string{ch.User, ch.User}
+		} else {
+			d.Members = []string{ch.User, me}
+		}
 	case 1:
-		// Use the actual member from the channel, not `me`. Using `me` here
-		// would incorrectly assign the current user as a participant in every
-		// single-member DM, even when they are not involved.
-		d.Members = []string{ch.User, ch.Members[0]}
+		if mode == DMMulti {
+			d.Members = []string{ch.User, ch.Members[0]}
+		} else {
+			d.Members = []string{ch.User, me}
+		}
 	default:
 		d.Members = normalizeDMMembers(me, ch.Members)
 	}
