@@ -99,7 +99,9 @@ func runExport(ctx context.Context, cmd *base.Command, args []string) error {
 	lg := cfg.Log
 	defer func() {
 		lg.DebugContext(ctx, "closing the fsadapter")
-		fsa.Close()
+		if err := fsa.Close(); err != nil {
+			lg.WarnContext(ctx, "error closing fsadapter", "err", err)
+		}
 	}()
 
 	// TODO: remove once the database is stable.

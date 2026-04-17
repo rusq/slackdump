@@ -110,7 +110,7 @@ func runRecord(ctx context.Context, _ *base.Command, args []string) error {
 		base.SetExitStatus(base.SApplicationError)
 		return err
 	}
-	defer p.Close()
+	defer p.Abort()
 
 	// rec := chunk.NewRecorder(w)
 	rec := chunk.NewCustomRecorder(p)
@@ -126,6 +126,10 @@ func runRecord(ctx context.Context, _ *base.Command, args []string) error {
 		}
 	}
 	if err := rec.Close(); err != nil {
+		base.SetExitStatus(base.SApplicationError)
+		return err
+	}
+	if err := p.Finish(); err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return err
 	}

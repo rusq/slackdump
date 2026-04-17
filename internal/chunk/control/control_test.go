@@ -119,6 +119,80 @@ func TestController_Close(t *testing.T) {
 	}
 }
 
+func TestController_Finish(t *testing.T) {
+	tests := []struct {
+		name     string
+		expectFn func(*mock_processor.MockFiler, *mock_processor.MockAvatars, *mock_control.MockEncodeReferenceCloser)
+		finishN  int
+		wantErr  bool
+	}{
+		{
+			name: "finalises encoder after closing resources",
+			expectFn: func(f *mock_processor.MockFiler, a *mock_processor.MockAvatars, erc *mock_control.MockEncodeReferenceCloser) {
+				gomock.InOrder(
+					f.EXPECT().Close().Return(nil),
+					a.EXPECT().Close().Return(nil),
+					erc.EXPECT().Finish().Return(nil),
+				)
+			},
+			finishN: 1,
+			wantErr: false,
+		},
+		{
+			name: "aggregates resource and finish errors",
+			expectFn: func(f *mock_processor.MockFiler, a *mock_processor.MockAvatars, erc *mock_control.MockEncodeReferenceCloser) {
+				gomock.InOrder(
+					f.EXPECT().Close().Return(assert.AnError),
+					a.EXPECT().Close().Return(nil),
+					erc.EXPECT().Finish().Return(assert.AnError),
+				)
+			},
+			finishN: 1,
+			wantErr: true,
+		},
+		{
+			name: "finish is idempotent",
+			expectFn: func(f *mock_processor.MockFiler, a *mock_processor.MockAvatars, erc *mock_control.MockEncodeReferenceCloser) {
+				gomock.InOrder(
+					f.EXPECT().Close().Return(nil),
+					a.EXPECT().Close().Return(nil),
+					erc.EXPECT().Finish().Return(nil),
+				)
+			},
+			finishN: 2,
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var (
+				ctrl = gomock.NewController(t)
+				f    = mock_processor.NewMockFiler(ctrl)
+				a    = mock_processor.NewMockAvatars(ctrl)
+				erc  = mock_control.NewMockEncodeReferenceCloser(ctrl)
+			)
+			if tt.expectFn != nil {
+				tt.expectFn(f, a, erc)
+			}
+			c := &Controller{
+				erc: erc,
+				s:   &mock_control.MockStreamer{},
+				options: options{
+					filer: f,
+					avp:   a,
+				},
+			}
+
+			for i := range tt.finishN {
+				if err := c.Finish(); (err != nil) != tt.wantErr {
+					t.Errorf("call %d: Controller.Finish() error = %v, wantErr %v", i+1, err, tt.wantErr)
+				}
+			}
+		})
+	}
+}
+
 func TestController_Run(t *testing.T) {
 	type args struct {
 		ctx  context.Context
@@ -322,7 +396,7 @@ func TestNew(t *testing.T) {
 	type args struct {
 		ctx  context.Context
 		s    Streamer
-		erc  EncodeReferenceCloser
+		erc  EncodeReferenceFinisher
 		opts []Option
 	}
 	tests := []struct {
@@ -390,7 +464,7 @@ func TestNew(t *testing.T) {
 
 func TestController_newConvTransformer(t *testing.T) {
 	type fields struct {
-		erc     EncodeReferenceCloser
+		erc     EncodeReferenceFinisher
 		s       Streamer
 		options options
 	}

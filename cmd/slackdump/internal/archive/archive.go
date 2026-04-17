@@ -158,6 +158,10 @@ func runDBArchive(ctx context.Context, cmd *base.Command, args []string) error {
 		base.SetExitStatus(base.SApplicationError)
 		return err
 	}
+	if err := ctrl.Finish(); err != nil {
+		base.SetExitStatus(base.SApplicationError)
+		return err
+	}
 	cfg.Log.Info("Recorded workspace data", "directory", dirname, "took", time.Since(start))
 
 	return nil
@@ -238,6 +242,8 @@ type Controller interface {
 	// RunNoTransform should run the main controller loop without
 	// enabling transformation logic.
 	RunNoTransform(context.Context, *structures.EntityList) error
+	// Finish finalises the underlying encoder on successful completion.
+	Finish() error
 
 	io.Closer
 }

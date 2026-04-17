@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"sync/atomic"
 	"time"
 
 	"github.com/rusq/slackdump/v4/internal/chunk"
@@ -28,15 +29,16 @@ import (
 )
 
 type Controller struct {
-	erc EncodeReferenceCloser
-	s   Streamer
+	erc    EncodeReferenceFinisher
+	s      Streamer
+	closed atomic.Bool
 	options
 }
 
 // New creates a new generic [Controller], that accepts
-// [EncodeReferenceCloser]. Once the [Control.Close] is called it closes all
-// processors, including the [EncodeReferenceCloser].
-func New(ctx context.Context, s Streamer, erc EncodeReferenceCloser, opts ...Option) (*Controller, error) {
+// [EncodeReferenceFinisher]. Once the [Control.Close] is called it closes all
+// processors, including the encoder.
+func New(ctx context.Context, s Streamer, erc EncodeReferenceFinisher, opts ...Option) (*Controller, error) {
 	d := &Controller{
 		erc: erc,
 		s:   s,
@@ -164,8 +166,7 @@ func (c *Controller) Search(ctx context.Context, query string, stype SearchType)
 	return nil
 }
 
-// Close closes the controller and all its file processors.
-func (c *Controller) Close() error {
+func (c *Controller) closeResources() error {
 	var errs error
 	if c.filer != nil {
 		if err := c.filer.Close(); err != nil {
@@ -179,8 +180,31 @@ func (c *Controller) Close() error {
 	}
 	// TODO: Decide if it is necessary to close the encoder here or leave it
 	// for the caller.  Maybe make it conditional?
+	return errs
+}
+
+// Close closes the controller and all its file processors, aborting the
+// underlying encoder if it supports explicit finalisation semantics.
+func (c *Controller) Close() error {
+	if swapped := c.closed.CompareAndSwap(false, true); !swapped {
+		return nil
+	}
+	errs := c.closeResources()
 	if err := c.erc.Close(); err != nil {
-		errs = errors.Join(errs, fmt.Errorf("error closing database processor: %w", err))
+		errs = errors.Join(errs, fmt.Errorf("error aborting encoder: %w", err))
+	}
+	return errs
+}
+
+// Finish closes the controller and finalises the underlying encoder after a
+// successful run.
+func (c *Controller) Finish() error {
+	if swapped := c.closed.CompareAndSwap(false, true); !swapped {
+		return nil
+	}
+	errs := c.closeResources()
+	if err := c.erc.Finish(); err != nil {
+		errs = errors.Join(errs, fmt.Errorf("error finalising encoder: %w", err))
 	}
 	return errs
 }

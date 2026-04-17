@@ -288,7 +288,7 @@ func mergeSource(ctx context.Context, target mergeTarget, conn *sqlx.DB, src sou
 	if err != nil {
 		return fmt.Errorf("creating session: %w", err)
 	}
-	defer dbp.Close()
+	defer dbp.Abort()
 
 	// Workspace info
 	if wsi, err := src.WorkspaceInfo(ctx); err == nil {
@@ -442,6 +442,9 @@ func mergeSource(ctx context.Context, target mergeTarget, conn *sqlx.DB, src sou
 		copyAvatars(ctx, src.Avatars(), users, trgFSA)
 	}
 
+	if err := dbp.Finish(); err != nil {
+		return fmt.Errorf("finalising merge session: %w", err)
+	}
 	return nil
 }
 

@@ -133,6 +133,12 @@ func (e *ERC) IsCompleteThread(ctx context.Context, channelID, threadID string) 
 	return e.cv.t.RefCount(chunk.ToFileID(channelID, threadID, true)) <= 0, nil
 }
 
+// Finish finalises the ERC. For the directory backend there is no session
+// state to mark complete, so it delegates to Close.
+func (e *ERC) Finish() error {
+	return e.Close()
+}
+
 func (e *ERC) Close() error {
 	var errs error
 	if e.cv != nil {

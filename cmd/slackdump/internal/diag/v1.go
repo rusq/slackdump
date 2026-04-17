@@ -98,9 +98,12 @@ func runV1(ctx context.Context, cmd *base.Command, args []string) error {
 		if err != nil {
 			return fmt.Errorf("failed to create new session: %w", err)
 		}
-		defer erc.Close()
+		defer erc.Abort()
 		if err := convertFile(ctx, erc, filepath.Join(path, p), output, v1Flags.ignoreCopyErrors); err != nil {
 			return fmt.Errorf("failed to convert file %q: %w", p, err)
+		}
+		if err := erc.Finish(); err != nil {
+			return fmt.Errorf("failed to finalize session for file %q: %w", p, err)
 		}
 		return nil
 	}); err != nil {

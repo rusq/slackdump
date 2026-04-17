@@ -135,9 +135,8 @@ func initDB(ctx context.Context, conn *sqlx.DB) error {
 	return nil
 }
 
-// Close finalises the session, marking it as finished. It is advised to check
-// the error value.
-func (d *DBP) Close() error {
+// Finish finalises the session, marking it as finished.
+func (d *DBP) Finish() error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	if swapped := d.closed.CompareAndSwap(false, true); !swapped {
@@ -150,6 +149,22 @@ func (d *DBP) Close() error {
 		return errors.New("finish: no session found")
 	}
 	return nil
+}
+
+// Abort closes the writer without finalising the session. No additional
+// cleanup is required here because DBP does not own the database connection.
+func (d *DBP) Abort() error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if swapped := d.closed.CompareAndSwap(false, true); !swapped {
+		return nil
+	}
+	return nil
+}
+
+// Close aborts the writer without finalising the session.
+func (d *DBP) Close() error {
+	return d.Abort()
 }
 
 // Encode inserts the chunk into the database.

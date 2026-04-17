@@ -170,6 +170,10 @@ func runResume(ctx context.Context, cmd *base.Command, args []string) error {
 		base.SetExitStatus(base.SApplicationError)
 		return fmt.Errorf("error running archive controller: %w", err)
 	}
+	if err := ctrl.Finish(); err != nil {
+		base.SetExitStatus(base.SApplicationError)
+		return fmt.Errorf("error finalizing archive controller: %w", err)
+	}
 
 	return nil
 }

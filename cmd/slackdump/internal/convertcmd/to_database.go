@@ -106,7 +106,7 @@ func chunk2db(ctx context.Context, src *source.ChunkDir, dir string, cflg conver
 	if err != nil {
 		return err
 	}
-	defer dbp.Close()
+	defer dbp.Abort()
 
 	txx, err := wconn.BeginTxx(ctx, nil)
 	if err != nil {
@@ -119,6 +119,9 @@ func chunk2db(ctx context.Context, src *source.ChunkDir, dir string, cflg conver
 		return err
 	}
 	if err := txx.Commit(); err != nil {
+		return err
+	}
+	if err := dbp.Finish(); err != nil {
 		return err
 	}
 
@@ -169,7 +172,7 @@ func dbConvert(ctx context.Context, src, dir string, cflg convertflags) error {
 	if err != nil {
 		return err
 	}
-	defer dbp.Close()
+	defer dbp.Abort()
 
 	txx, err := wconn.BeginTxx(ctx, nil)
 	if err != nil {
@@ -193,6 +196,9 @@ func dbConvert(ctx context.Context, src, dir string, cflg convertflags) error {
 		return err
 	}
 	if err := txx.Commit(); err != nil {
+		return err
+	}
+	if err := dbp.Finish(); err != nil {
 		return err
 	}
 
