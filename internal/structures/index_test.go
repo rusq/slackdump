@@ -681,6 +681,28 @@ func Test_convertToDM(t *testing.T) {
 			},
 		},
 		{
+			// Regression test: with the old code, case 1 used `me` as the
+			// second member, which incorrectly made every 1-member DM appear
+			// as a conversation with the current user.
+			"1-member DM where member is not current user",
+			args{"UGTRHT2SH", slack.Channel{
+				GroupConversation: slack.GroupConversation{
+					Conversation: slack.Conversation{
+						ID:      "DNC8S27U5",
+						User:    "UOTHER123",
+						Created: slack.JSONTime(1568448961),
+						IsIM:    true,
+					},
+					Members: []string{"UOTHER123"},
+				},
+			}},
+			DM{
+				ID:      "DNC8S27U5",
+				Created: 1568448961,
+				Members: []string{"UOTHER123", "UOTHER123"},
+			},
+		},
+		{
 			"slackbot",
 			args{"UGTRHT2SH", slack.Channel{
 				GroupConversation: slack.GroupConversation{
