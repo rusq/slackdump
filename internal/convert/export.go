@@ -28,6 +28,7 @@ import (
 
 	"github.com/rusq/slackdump/v4/internal/convert/transform"
 	"github.com/rusq/slackdump/v4/internal/convert/transform/fileproc"
+	"github.com/rusq/slackdump/v4/internal/structures"
 	"github.com/rusq/slackdump/v4/source"
 )
 
@@ -68,6 +69,7 @@ func NewToExport(src source.Sourcer, trg fsadapter.FS, opt ...Option) *ToExport 
 		opts: options{
 			includeFiles:   false,
 			includeAvatars: false,
+			dmMode:         structures.DMSingle,
 			trgFileLoc:     source.MattermostFilepath,
 			avtrFileLoc:    fileproc.AvatarPath,
 			lg:             slog.Default(),
@@ -130,6 +132,7 @@ func (c *ToExport) Convert(ctx context.Context) error {
 
 	tfopts := []transform.ExpCvtOption{
 		transform.ExpWithUsers(users),
+		transform.ExpWithDMMode(c.opts.dmMode),
 	}
 	// 1. generator
 	chC := sliceToChan(channels)
