@@ -681,9 +681,8 @@ func Test_convertToDM(t *testing.T) {
 			},
 		},
 		{
-			// Regression test: with the old code, case 1 used `me` as the
-			// second member, which incorrectly made every 1-member DM appear
-			// as a conversation with the current user.
+			// Slack exports 1-member IMs as [other_user, current_user] so
+			// Restore can still infer the current user correctly.
 			"1-member DM where member is not current user",
 			args{"UGTRHT2SH", slack.Channel{
 				GroupConversation: slack.GroupConversation{
@@ -699,7 +698,7 @@ func Test_convertToDM(t *testing.T) {
 			DM{
 				ID:      "DNC8S27U5",
 				Created: 1568448961,
-				Members: []string{"UOTHER123", "UOTHER123"},
+				Members: []string{"UOTHER123", "UGTRHT2SH"},
 			},
 		},
 		{

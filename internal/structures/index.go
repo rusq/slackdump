@@ -282,10 +282,7 @@ func convertToDM(me string, ch slack.Channel) DM {
 	case 0:
 		d.Members = []string{ch.User, me}
 	case 1:
-		// Use the actual member from the channel, not `me`. Using `me` here
-		// would incorrectly assign the current user as a participant in every
-		// single-member DM, even when they are not involved.
-		d.Members = []string{ch.User, ch.Members[0]}
+		d.Members = []string{ch.User, me}
 	default:
 		d.Members = normalizeDMMembers(me, ch.Members)
 	}
