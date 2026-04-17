@@ -44,10 +44,8 @@ func newArchiveDir(t *testing.T) string {
 
 	conn, err := sql.Open(repository.Driver, dbFile)
 	require.NoError(t, err)
-	t.Cleanup(func() {
-		require.NoError(t, conn.Close())
-	})
 	require.NoError(t, repository.Migrate(context.Background(), conn, false))
+	require.NoError(t, conn.Close())
 
 	return dir
 }

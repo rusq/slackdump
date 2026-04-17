@@ -196,12 +196,14 @@ func (s *Source) Channels(ctx context.Context) ([]slack.Channel, error) {
 			return nil, err
 		}
 	}
-	for _, c := range chns {
-		users, err := s.channelUsers(ctx, c.ID, c.NumMembers)
+	// Use index-based iteration: range-value loop copies the struct,
+	// so assigning Members to the copy would be silently discarded.
+	for i := range chns {
+		users, err := s.channelUsers(ctx, chns[i].ID, chns[i].NumMembers)
 		if err != nil {
 			return nil, err
 		}
-		c.Members = users
+		chns[i].Members = users
 	}
 
 	return chns, nil

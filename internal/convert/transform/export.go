@@ -51,17 +51,25 @@ func ExpWithUsers(users []slack.User) ExpCvtOption {
 	}
 }
 
+func ExpWithDMMode(mode structures.DMMode) ExpCvtOption {
+	return func(t *ExpConverter) {
+		t.dmMode = mode
+	}
+}
+
 type ExpConverter struct {
 	src     source.Sourcer
 	fsa     fsadapter.FS
 	users   atomic.Value
+	dmMode  structures.DMMode
 	msgFunc []msgUpdFunc
 }
 
 func NewExpConverter(src source.Sourcer, fsa fsadapter.FS, opt ...ExpCvtOption) *ExpConverter {
 	e := &ExpConverter{
-		src: src,
-		fsa: fsa,
+		src:    src,
+		fsa:    fsa,
+		dmMode: structures.DMSingle,
 	}
 	for _, o := range opt {
 		o(e)
@@ -193,7 +201,7 @@ func (e *ExpConverter) WriteIndex(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("error indexing channels: %w", err)
 	}
-	eidx, err := structures.MakeExportIndex(chans, e.getUsers(), wsp.UserID)
+	eidx, err := structures.MakeExportIndex(chans, e.getUsers(), wsp.UserID, e.dmMode)
 	if err != nil {
 		return fmt.Errorf("error creating export index: %w", err)
 	}

@@ -28,6 +28,7 @@ import (
 	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/bootstrap"
 	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/golang/base"
+	"github.com/rusq/slackdump/v4/internal/structures"
 )
 
 //go:embed assets/convert.md
@@ -66,12 +67,14 @@ type convertflags struct {
 	includeFiles   bool
 	includeAvatars bool
 	outStorageType source.StorageType
+	dmMode         structures.DMMode
 	sessionID      int64 // sessionID for database->chunk conversion
 	outputfmt      datafmt
 }
 
 var params = convertflags{
 	outStorageType: source.STmattermost,
+	dmMode:         structures.DMSingle,
 	sessionID:      1,
 	outputfmt:      Fexport,
 }
@@ -80,6 +83,7 @@ func init() {
 	CmdConvert.Flag.Var(&params.outStorageType, "storage", "storage type")
 	CmdConvert.Flag.Var(&params.outputfmt, "format", "output `format`")
 	CmdConvert.Flag.Var(&params.outputfmt, "f", "shorthand for -format")
+	CmdConvert.Flag.Var(&params.dmMode, "dm-mode", "DM export mode: single or multi")
 	CmdConvert.Flag.Int64Var(&params.sessionID, "session", params.sessionID, "session `id` for database->chunk conversion")
 }
 

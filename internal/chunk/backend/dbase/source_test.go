@@ -355,6 +355,12 @@ func TestSource_Channels(t *testing.T) {
 			sort.Slice(tt.want, func(i, j int) bool {
 				return tt.want[i].Name < tt.want[j].Name
 			})
+			// Channels() always populates Members (nil → []string{})
+			for i := range tt.want {
+				if tt.want[i].Members == nil {
+					tt.want[i].Members = []string{}
+				}
+			}
 			assert.Equal(t, tt.want, got)
 		})
 	}

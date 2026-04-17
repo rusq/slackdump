@@ -469,6 +469,7 @@ func TestMakeExportIndex(t *testing.T) {
 		channels      []slack.Channel
 		users         []slack.User
 		currentUserID string
+		dmMode        DMMode
 	}
 	tests := []struct {
 		name    string
@@ -482,6 +483,7 @@ func TestMakeExportIndex(t *testing.T) {
 				fixtures.Load[[]slack.Channel](string(fixtures.TestExpReferenceChannelsJSON)),
 				fixtures.Load[[]slack.User](string(fixtures.TestExpUsersJSON)),
 				"UGTRHT2SH",
+				DMSingle,
 			},
 			&ExportIndex{
 				Channels: fixtures.Load[[]slack.Channel](string(fixtures.TestExpChannelsJSON)),
@@ -492,10 +494,43 @@ func TestMakeExportIndex(t *testing.T) {
 			},
 			false,
 		},
+		{
+			"makes index in multi-user mode",
+			args{
+				[]slack.Channel{
+					{
+						GroupConversation: slack.GroupConversation{
+							Conversation: slack.Conversation{
+								ID:      "D01",
+								User:    "UOTHER123",
+								Created: slack.JSONTime(1568448961),
+								IsIM:    true,
+							},
+							Members: []string{"UOTHER123"},
+						},
+					},
+				},
+				[]slack.User{{ID: "UGTRHT2SH"}},
+				"UGTRHT2SH",
+				DMMulti,
+			},
+			&ExportIndex{
+				Channels: []slack.Channel{},
+				Groups:   []slack.Channel{},
+				MPIMs:    []slack.Channel{},
+				DMs: []DM{{
+					ID:      "D01",
+					Created: 1568448961,
+					Members: []string{"UOTHER123", "UOTHER123"},
+				}},
+				Users: []slack.User{{ID: "UGTRHT2SH"}},
+			},
+			false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := MakeExportIndex(tt.args.channels, tt.args.users, tt.args.currentUserID)
+			got, err := MakeExportIndex(tt.args.channels, tt.args.users, tt.args.currentUserID, tt.args.dmMode)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("MakeExportIndex() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -599,8 +634,9 @@ func Test_dmsToChannels(t *testing.T) {
 
 func Test_convertToDM(t *testing.T) {
 	type args struct {
-		me string
-		ch slack.Channel
+		me   string
+		ch   slack.Channel
+		mode DMMode
 	}
 	tests := []struct {
 		name string
@@ -618,7 +654,7 @@ func Test_convertToDM(t *testing.T) {
 					},
 					Members: []string{"UNEERHWJJ", "UGTRHT2SH"},
 				},
-			}},
+			}, DMSingle},
 			DM{
 				ID:      "DNC8S27U5",
 				Created: 1568448961,
@@ -636,7 +672,7 @@ func Test_convertToDM(t *testing.T) {
 					},
 					Members: []string{"UGTRHT2SH", "UNEERHWJJ"},
 				},
-			}},
+			}, DMSingle},
 			DM{
 				ID:      "DNC8S27U5",
 				Created: 1568448961,
@@ -654,11 +690,29 @@ func Test_convertToDM(t *testing.T) {
 						IsIM:    true,
 					},
 				},
-			}},
+			}, DMSingle},
 			DM{
 				ID:      "DNC8S27U5",
 				Created: 1568448961,
 				Members: []string{"UNEERHWJJ", "UGTRHT2SH"},
+			},
+		},
+		{
+			"multi mode zero members uses ch.User for both",
+			args{"UGTRHT2SH", slack.Channel{
+				GroupConversation: slack.GroupConversation{
+					Conversation: slack.Conversation{
+						ID:      "DNC8S27U5",
+						User:    "UNEERHWJJ",
+						Created: slack.JSONTime(1568448961),
+						IsIM:    true,
+					},
+				},
+			}, DMMulti},
+			DM{
+				ID:      "DNC8S27U5",
+				Created: 1568448961,
+				Members: []string{"UNEERHWJJ", "UNEERHWJJ"},
 			},
 		},
 		{
@@ -673,11 +727,49 @@ func Test_convertToDM(t *testing.T) {
 					},
 					Members: []string{"UGTRHT2SH"},
 				},
-			}},
+			}, DMSingle},
 			DM{
 				ID:      "DNC8S27U5",
 				Created: 1568448961,
 				Members: []string{"UGTRHT2SH", "UGTRHT2SH"},
+			},
+		},
+		{
+			"single mode synthesizes current user for 1-member dm",
+			args{"UGTRHT2SH", slack.Channel{
+				GroupConversation: slack.GroupConversation{
+					Conversation: slack.Conversation{
+						ID:      "DNC8S27U5",
+						User:    "UOTHER123",
+						Created: slack.JSONTime(1568448961),
+						IsIM:    true,
+					},
+					Members: []string{"UOTHER123"},
+				},
+			}, DMSingle},
+			DM{
+				ID:      "DNC8S27U5",
+				Created: 1568448961,
+				Members: []string{"UOTHER123", "UGTRHT2SH"},
+			},
+		},
+		{
+			"multi mode preserves observed member for 1-member dm",
+			args{"UGTRHT2SH", slack.Channel{
+				GroupConversation: slack.GroupConversation{
+					Conversation: slack.Conversation{
+						ID:      "DNC8S27U5",
+						User:    "UOTHER123",
+						Created: slack.JSONTime(1568448961),
+						IsIM:    true,
+					},
+					Members: []string{"UOTHER123"},
+				},
+			}, DMMulti},
+			DM{
+				ID:      "DNC8S27U5",
+				Created: 1568448961,
+				Members: []string{"UOTHER123", "UOTHER123"},
 			},
 		},
 		{
@@ -691,7 +783,7 @@ func Test_convertToDM(t *testing.T) {
 						IsIM:    true,
 					},
 				},
-			}},
+			}, DMSingle},
 			DM{
 				ID:      "DNC8S27U5",
 				Created: 1568448961,
@@ -701,7 +793,7 @@ func Test_convertToDM(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := convertToDM(tt.args.me, tt.args.ch); !reflect.DeepEqual(got, tt.want) {
+			if got := convertToDM(tt.args.me, tt.args.ch, tt.args.mode); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("convertToDM() = %v, want %v", got, tt.want)
 			}
 		})
