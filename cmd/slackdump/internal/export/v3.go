@@ -81,6 +81,7 @@ func exportWithDB(ctx context.Context, sess client.Slack, fsa fsadapter.FS, list
 
 	lg.InfoContext(ctx, "running export...")
 	pb := bootstrap.ProgressBar(ctx, lg, progressbar.OptionShowCount()) // progress bar
+	defer func() { _ = pb.Finish() }()
 
 	s := stream.New(sess, cfg.Limits,
 		stream.OptOldest(time.Time(cfg.Oldest)),
@@ -117,23 +118,20 @@ func exportWithDB(ctx context.Context, sess client.Slack, fsa fsadapter.FS, list
 	defer ctr.Close()
 
 	if err := ctr.Run(ctx, list); err != nil {
-		_ = pb.Finish()
 		return err
 	}
-	if err := ctr.Finish(); err != nil {
-		_ = pb.Finish()
-		return err
-	}
-	_ = pb.Finish()
 	// at this point no goroutines are running, we are safe to assume that
 	// everything we need is in the chunk directory.
-	if err := conv.WriteIndex(ctx); err != nil {
-		return err
-	}
-	lg.Debug("index written")
 	if err := tf.Close(); err != nil {
 		return err
 	}
+	if err := conv.WriteIndex(ctx); err != nil {
+		return err
+	}
+	if err := ctr.Finish(); err != nil {
+		return err
+	}
+	lg.Debug("index written")
 	pb.Describe("OK")
 	lg.InfoContext(ctx, "conversations export finished")
 	lg.DebugContext(ctx, "chunk files retained", "dir", tmpdir)

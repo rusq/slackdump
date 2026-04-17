@@ -27,7 +27,7 @@ import (
 	"github.com/rusq/slackdump/v4/processor"
 )
 
-//go:generate mockgen -destination=mock_control/mock_interfaces.go . Streamer,TransformStarter,ExportTransformer,ReferenceChecker,EncodeReferenceCloser
+//go:generate mockgen -destination=mock_control/mock_interfaces.go . Streamer,TransformStarter,ExportTransformer,ReferenceChecker,EncodeReferenceCloser,EncodeReferenceFinisher
 
 // Streamer is the interface for the API scraper.
 type Streamer interface {
@@ -74,4 +74,11 @@ type EncodeReferenceCloser interface {
 	chunk.Encoder
 	ReferenceChecker
 	io.Closer
+}
+
+// EncodeReferenceFinisher is an encoder that can be explicitly finalised on
+// successful completion.
+type EncodeReferenceFinisher interface {
+	EncodeReferenceCloser
+	Finish() error
 }

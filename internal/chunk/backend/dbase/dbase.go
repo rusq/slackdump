@@ -151,7 +151,8 @@ func (d *DBP) Finish() error {
 	return nil
 }
 
-// Abort closes the writer without finalising the session.
+// Abort closes the writer without finalising the session. No additional
+// cleanup is required here because DBP does not own the database connection.
 func (d *DBP) Abort() error {
 	d.mu.Lock()
 	defer d.mu.Unlock()

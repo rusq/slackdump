@@ -362,11 +362,11 @@ func dumpv31(ctx context.Context, client client.Slack, fsa fsadapter.FS, p dumpp
 	if err := ctrl.Run(ctx, p.list); err != nil {
 		return fmt.Errorf("error running db controller: %w", err)
 	}
-	if err := ctrl.Finish(); err != nil {
-		return fmt.Errorf("error finalizing db controller: %w", err)
-	}
 	if err := coord.Wait(); err != nil {
 		return fmt.Errorf("error waiting for coordinator: %w", err)
+	}
+	if err := ctrl.Finish(); err != nil {
+		return fmt.Errorf("error finalizing db controller: %w", err)
 	}
 	return nil
 }
