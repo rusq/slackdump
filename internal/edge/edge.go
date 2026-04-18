@@ -34,6 +34,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/rusq/chttp/v2"
 	"github.com/rusq/slack"
 	"github.com/rusq/slackauth"
 	"github.com/rusq/tagops"
@@ -86,14 +87,18 @@ func NewWithClient(workspaceName string, teamID string, token string, cl *http.C
 	if err != nil {
 		return nil, err
 	}
-	return &Client{
+	c := &Client{
 		cl:           cl,
 		token:        token,
 		teamID:       teamID,
 		webclientAPI: fmt.Sprintf("https://%s.slack.com/api/", workspaceName),
 		edgeAPI:      fmt.Sprintf("https://edgeapi.slack.com/cache/%s/", teamID),
 		tape:         tape,
-	}, nil
+	}
+	for _, o := range opt {
+		o(c)
+	}
+	return c, nil
 }
 
 func NewWithToken(ctx context.Context, token string, cookies []*http.Cookie) (*Client, error) {
@@ -152,10 +157,14 @@ func (cl *Client) Raw() *http.Client {
 }
 
 func (cl *Client) Close() error {
+	var err error
 	if cl.tape != nil {
-		return cl.tape.Close()
+		err = errors.Join(err, cl.tape.Close())
 	}
-	return nil
+	if cl.cl != nil {
+		err = errors.Join(err, chttp.Close(cl.cl))
+	}
+	return err
 }
 
 type BaseRequest struct {

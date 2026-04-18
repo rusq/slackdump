@@ -17,6 +17,9 @@ package client
 
 import (
 	"context"
+	"errors"
+
+	"github.com/rusq/chttp/v2"
 
 	"github.com/rusq/slackdump/v4/auth"
 	"github.com/rusq/slackdump/v4/internal/edge"
@@ -25,17 +28,18 @@ import (
 // NewEdge returns a new *Client that is guaranteed to have an edge (enterprise)
 // connection.  Use c.Edge() to obtain the underlying *edge.Client.
 func NewEdge(ctx context.Context, prov auth.Provider, opts ...Option) (*Client, error) {
-	scl, wi, err := newSlackClient(ctx, prov)
+	hcl, scl, wi, err := newSlackClient(ctx, prov)
 	if err != nil {
 		return nil, err
 	}
 	ecl, err := edge.NewWithInfo(wi, prov)
 	if err != nil {
-		return nil, err
+		return nil, errors.Join(err, chttp.Close(hcl))
 	}
 	return &Client{
 		Client: scl,
 		edge:   ecl,
 		wi:     wi,
+		hcl:    hcl,
 	}, nil
 }

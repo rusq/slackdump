@@ -19,7 +19,9 @@ import (
 	"context"
 	"errors"
 	"io"
+	"net/http"
 
+	"github.com/rusq/chttp/v2"
 	"github.com/rusq/slack"
 
 	"github.com/rusq/slackdump/v4/auth"
@@ -63,6 +65,7 @@ type Client struct {
 	*slack.Client              // always set; promotes all Slack API methods
 	edge          *edge.Client // nil for non-enterprise workspaces
 	wi            *slack.AuthTestResponse
+	hcl           *http.Client
 }
 
 // Wrap wraps a *slack.Client and returns a *Client that implements the Slack
@@ -89,24 +92,24 @@ func WithEnterprise(enterprise bool) Option {
 }
 
 // newSlackClient is a shared helper that dials Slack and runs an auth-test.
-func newSlackClient(ctx context.Context, prov auth.Provider) (*slack.Client, *slack.AuthTestResponse, error) {
+func newSlackClient(ctx context.Context, prov auth.Provider) (*http.Client, *slack.Client, *slack.AuthTestResponse, error) {
 	cl, err := prov.HTTPClient()
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	scl := slack.New(prov.SlackToken(), slack.OptionHTTPClient(cl))
 	wi, err := scl.AuthTestContext(ctx)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, errors.Join(err, chttp.Close(cl))
 	}
-	return scl, wi, nil
+	return cl, scl, wi, nil
 }
 
 // New creates a new Client instance.  It checks if workspace provider is
 // valid, and checks if it's an enterprise workspace.  If it is, it creates an
 // edge client.
 func New(ctx context.Context, prov auth.Provider, opts ...Option) (*Client, error) {
-	scl, wi, err := newSlackClient(ctx, prov)
+	hcl, scl, wi, err := newSlackClient(ctx, prov)
 	if err != nil {
 		return nil, err
 	}
@@ -119,12 +122,13 @@ func New(ctx context.Context, prov auth.Provider, opts ...Option) (*Client, erro
 	c := &Client{
 		Client: scl,
 		wi:     wi,
+		hcl:    hcl,
 	}
 
 	if opt.enterprise || wi.EnterpriseID != "" {
 		ecl, err := edge.NewWithInfo(wi, prov)
 		if err != nil {
-			return nil, err
+			return nil, errors.Join(err, chttp.Close(hcl))
 		}
 		c.edge = ecl
 	}
@@ -148,6 +152,18 @@ func (c *Client) AuthTestContext(ctx context.Context) (*slack.AuthTestResponse, 
 // an enterprise workspace.
 func (c *Client) Edge() *edge.Client {
 	return c.edge
+}
+
+// Close releases any HTTP transports owned by the client.
+func (c *Client) Close() error {
+	var err error
+	if c.hcl != nil {
+		err = errors.Join(err, chttp.Close(c.hcl))
+	}
+	if c.edge != nil {
+		err = errors.Join(err, c.edge.Close())
+	}
+	return err
 }
 
 // ---------------------------------------------------------------------------

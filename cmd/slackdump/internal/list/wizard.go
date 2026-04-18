@@ -36,6 +36,7 @@ func wizUsers(ctx context.Context, _ *base.Command, _ []string) error {
 		base.SetExitStatus(base.SInitializationError)
 		return err
 	}
+	defer sess.Close()
 
 	filename = ""
 	w := dumpui.Wizard{
@@ -63,6 +64,7 @@ func wizChannels(ctx context.Context, _ *base.Command, _ []string) error {
 		base.SetExitStatus(base.SInitializationError)
 		return err
 	}
+	defer sess.Close()
 
 	filename = makeFilename("channels", sess.Info().TeamID, extForType(commonFlags.listType))
 	w := dumpui.Wizard{

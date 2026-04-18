@@ -105,6 +105,7 @@ func run(ctx context.Context, p rawOutputParams) error {
 	if err != nil {
 		return err
 	}
+	defer chttp.Close(cl)
 	if err := saveOutput(ctx, cl, p.output, prov.SlackToken(), sl); err != nil {
 		return err
 	}

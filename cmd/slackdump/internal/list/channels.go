@@ -91,6 +91,7 @@ func runListChannels(ctx context.Context, cmd *base.Command, args []string) erro
 		base.SetExitStatus(base.SInitializationError)
 		return err
 	}
+	defer sess.Close()
 
 	l := &channels{
 		opts:   chanFlags,

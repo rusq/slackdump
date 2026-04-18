@@ -88,6 +88,7 @@ func runThread(ctx context.Context, cmd *base.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+	defer client.Close()
 	scl := client.Client
 
 	if *delThread != "" {

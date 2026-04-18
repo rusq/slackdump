@@ -19,6 +19,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"runtime/trace"
 	"time"
@@ -194,6 +195,17 @@ func (s *Session) Client() (*slack.Client, error) {
 		return nil, ErrNotAClient
 	}
 	return cl.Client, nil
+}
+
+// Close releases resources owned by the session client when it is closable.
+func (s *Session) Close() error {
+	if s == nil || s.client == nil {
+		return nil
+	}
+	if cl, ok := s.client.(io.Closer); ok {
+		return cl.Close()
+	}
+	return nil
 }
 
 // CurrentUserID returns the user ID of the authenticated user.
