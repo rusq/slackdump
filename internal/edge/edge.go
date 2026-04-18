@@ -83,20 +83,22 @@ func NewWithClient(workspaceName string, teamID string, token string, cl *http.C
 	if token == "" {
 		return nil, ErrNoToken
 	}
-	tape, err := os.Create("tape.txt")
-	if err != nil {
-		return nil, err
-	}
 	c := &Client{
 		cl:           cl,
 		token:        token,
 		teamID:       teamID,
 		webclientAPI: fmt.Sprintf("https://%s.slack.com/api/", workspaceName),
 		edgeAPI:      fmt.Sprintf("https://edgeapi.slack.com/cache/%s/", teamID),
-		tape:         tape,
 	}
 	for _, o := range opt {
 		o(c)
+	}
+	if c.tape == nil {
+		tape, err := os.Create("tape.txt")
+		if err != nil {
+			return nil, err
+		}
+		c.tape = tape
 	}
 	return c, nil
 }

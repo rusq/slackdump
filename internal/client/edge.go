@@ -32,6 +32,8 @@ func NewEdge(ctx context.Context, prov auth.Provider, opts ...Option) (*Client, 
 	if err != nil {
 		return nil, err
 	}
+	// Edge and Slack clients intentionally use separate HTTP clients. The edge
+	// client dials provider.HTTPClient independently and owns its own transport.
 	ecl, err := edge.NewWithInfo(wi, prov)
 	if err != nil {
 		return nil, errors.Join(err, chttp.Close(hcl))

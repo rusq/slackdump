@@ -69,7 +69,8 @@ type Client struct {
 }
 
 // Wrap wraps a *slack.Client and returns a *Client that implements the Slack
-// interface. Intended for testing.
+// interface. Intended for testing. The wrapper does not take ownership of the
+// caller's HTTP client, so Close is a no-op for wrapped clients.
 func Wrap(cl *slack.Client) *Client {
 	return &Client{
 		Client: cl,

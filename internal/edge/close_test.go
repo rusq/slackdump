@@ -3,6 +3,8 @@ package edge
 import (
 	"errors"
 	"net/http"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -65,4 +67,30 @@ func TestClientClose_joinsErrors(t *testing.T) {
 	require.Error(t, err)
 	assert.ErrorIs(t, err, tapeErr)
 	assert.ErrorIs(t, err, transportErr)
+}
+
+func TestNewWithClient_withTapeDoesNotCreateDefaultTape(t *testing.T) {
+	tmp := t.TempDir()
+	wd, err := os.Getwd()
+	require.NoError(t, err)
+	require.NoError(t, os.Chdir(tmp))
+	t.Cleanup(func() {
+		require.NoError(t, os.Chdir(wd))
+	})
+
+	tape := &closeTape{}
+	cl, err := NewWithClient(
+		"workspace",
+		"T123",
+		"xoxc-test",
+		&http.Client{Transport: &closeTransport{}},
+		WithTape(tape),
+	)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		require.NoError(t, cl.Close())
+	})
+
+	_, err = os.Stat(filepath.Join(tmp, "tape.txt"))
+	assert.ErrorIs(t, err, os.ErrNotExist)
 }
