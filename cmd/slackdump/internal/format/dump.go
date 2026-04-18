@@ -187,6 +187,7 @@ func getUsersOnline(ctx context.Context) ([]slack.User, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer sess.Close()
 	return sess.GetUsers(ctx)
 }
 

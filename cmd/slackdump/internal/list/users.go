@@ -61,6 +61,7 @@ func runListUsers(ctx context.Context, cmd *base.Command, args []string) error {
 		base.SetExitStatus(base.SInitializationError)
 		return err
 	}
+	defer sess.Close()
 
 	l := &users{
 		common: commonFlags,

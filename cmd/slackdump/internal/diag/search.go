@@ -24,6 +24,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/rusq/chttp/v2"
 	"github.com/rusq/slack"
 	"golang.org/x/time/rate"
 
@@ -88,6 +89,7 @@ func runSearch(ctx context.Context, cmd *base.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+	defer chttp.Close(hcl)
 	cl := slack.New(prov.SlackToken(), slack.OptionHTTPClient(hcl))
 
 	query := args[0]

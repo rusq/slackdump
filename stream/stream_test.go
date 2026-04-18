@@ -68,7 +68,9 @@ func TestChannelStream(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	sd := slack.New(prov.SlackToken(), slack.OptionHTTPClient(chttp.Must(chttp.New(auth.SlackURL, prov.Cookies(), chttp.WithUTLS(&utls.Config{})))))
+	cl := chttp.Must(chttp.New(auth.SlackURL, prov.Cookies(), chttp.WithUTLS(&utls.Config{})))
+	defer chttp.Close(cl)
+	sd := slack.New(prov.SlackToken(), slack.OptionHTTPClient(cl))
 
 	f, err := os.Create("record.jsonl")
 	if err != nil {

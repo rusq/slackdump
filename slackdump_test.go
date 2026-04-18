@@ -26,12 +26,25 @@ import (
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/slack"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 
 	"github.com/rusq/slackdump/v4/auth"
+	"github.com/rusq/slackdump/v4/internal/client"
 	"github.com/rusq/slackdump/v4/internal/client/mock_client"
 	"github.com/rusq/slackdump/v4/internal/network"
 )
+
+type closableClient struct {
+	client.Slack
+	closed bool
+	err    error
+}
+
+func (c *closableClient) Close() error {
+	c.closed = true
+	return c.err
+}
 
 func Test_newLimiter(t *testing.T) {
 	t.Parallel()
@@ -178,5 +191,25 @@ func TestSession_initWorkspaceInfo(t *testing.T) {
 		}
 		err := s.initWorkspaceInfo(ctx, mc)
 		assert.Error(t, err, "expected error")
+	})
+}
+
+func TestSessionClose(t *testing.T) {
+	t.Run("delegates to closable client", func(t *testing.T) {
+		cc := &closableClient{}
+		s := &Session{client: cc}
+
+		err := s.Close()
+
+		require.NoError(t, err)
+		assert.True(t, cc.closed)
+	})
+
+	t.Run("no-op for non-closable client", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		mc := mock_client.NewMockSlack(ctrl)
+		s := &Session{client: mc}
+
+		assert.NoError(t, s.Close())
 	})
 }

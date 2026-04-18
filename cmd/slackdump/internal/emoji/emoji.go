@@ -133,6 +133,7 @@ func runEdge(ctx context.Context, fsa fsadapter.FS, prov auth.Provider, cb emoji
 		base.SetExitStatus(base.SInitializationError)
 		return err
 	}
+	defer clx.Close()
 	ecl := clx.Edge()
 	if ecl == nil {
 		base.SetExitStatus(base.SApplicationError)
