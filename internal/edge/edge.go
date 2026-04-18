@@ -29,7 +29,6 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
-	"os"
 	"runtime/trace"
 	"strings"
 	"time"
@@ -89,16 +88,10 @@ func NewWithClient(workspaceName string, teamID string, token string, cl *http.C
 		teamID:       teamID,
 		webclientAPI: fmt.Sprintf("https://%s.slack.com/api/", workspaceName),
 		edgeAPI:      fmt.Sprintf("https://edgeapi.slack.com/cache/%s/", teamID),
+		tape:         nopTape{},
 	}
 	for _, o := range opt {
 		o(c)
-	}
-	if c.tape == nil {
-		tape, err := os.Create("tape.txt")
-		if err != nil {
-			return nil, err
-		}
-		c.tape = tape
 	}
 	return c, nil
 }
