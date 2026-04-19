@@ -475,7 +475,7 @@ func TestModel_shorten(t *testing.T) {
 			args: args{
 				dirpath: "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Some Funky\\Path That\\Nobody In Sane\\Mind Can\\Remember\\Or Type\\Without Making\\Over 9000\\Typos",
 			},
-			want: "…C\\S\\P\\N\\M\\R\\O\\W\\O\\Typos",
+			want: "C:\\P\\M\\2\\C\\S\\P\\N\\M\\R\\O\\W\\O\\Typos",
 		},
 		{
 			name:    "longer than width",
@@ -483,7 +483,7 @@ func TestModel_shorten(t *testing.T) {
 			args: args{
 				dirpath: "C:\\P\\M\\2\\C\\S\\P\\N\\M\\R\\O\\W\\O\\T\\S\\F\\K\\L\\M\\N\\O\\P\\Q\\R\\",
 			},
-			want: "…O\\T\\S\\F\\K\\L\\M\\N\\O\\P\\Q\\R",
+			want: "C:\\P\\M\\2\\C\\S\\P\\N\\M\\R\\O\\W\\O\\T\\S\\F\\K\\L\\M\\N\\O\\P\\Q\\R",
 		},
 	}
 	for _, tt := range tests {
