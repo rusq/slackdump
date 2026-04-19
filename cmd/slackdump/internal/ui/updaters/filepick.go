@@ -61,6 +61,13 @@ func (m FilepickModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
 	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		msg.Width -= m.borderStyle.GetHorizontalFrameSize()
+		if msg.Width < 1 {
+			msg.Width = 1
+		}
+		m.fp, cmd = m.fp.Update(msg)
+		return m, cmd
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "esc", "ctrl+c", "q":
