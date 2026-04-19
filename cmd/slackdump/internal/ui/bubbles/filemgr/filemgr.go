@@ -38,6 +38,7 @@ type Model struct {
 	BaseDir    string
 	Directory  string
 	Height     int
+	Width      int
 	ShowHelp   bool
 	ShowCurDir bool
 	Style      Style
@@ -84,6 +85,7 @@ func New(fsys fs.FS, base string, dir string, height int, globs ...string) Model
 		Directory:  dir,
 		BaseDir:    base,
 		Height:     height,
+		Width:      DefaultWidth,
 		focus:      false,
 		ShowCurDir: true,
 		// Sensible defaults
@@ -211,6 +213,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		if m.Height == 0 {
 			m.Height = msg.Height
 		}
+		m.Width = clampWidth(msg.Width)
 	case tea.KeyMsg:
 		if !m.focus {
 			break
@@ -304,17 +307,37 @@ func humanizeSize(size int64) string {
 	}
 }
 
-const Width = 40
+const (
+	DefaultWidth = 78
+	MinWidth     = 40
+)
 
-func printFile(fi fs.FileInfo) string {
+func clampWidth(w int) int {
+	if w <= 0 {
+		return DefaultWidth
+	}
+	if w < MinWidth {
+		return MinWidth
+	}
+	return w
+}
+
+func (m Model) width() int {
+	return clampWidth(m.Width)
+}
+
+func (m Model) printFile(fi fs.FileInfo) string {
 	// filename.extension  <DIR>  02-01-2006 15:04
 	const (
 		dttmLayout = "02-01-2006 15:04"
 		dirMarker  = "<DIR>"
 		filesizeSz = 6
 		dttmSz     = len(dttmLayout)
-		filenameSz = Width - filesizeSz - dttmSz - 3
 	)
+	filenameSz := m.width() - filesizeSz - dttmSz - 3
+	if filenameSz < 1 {
+		filenameSz = 1
+	}
 
 	sz := dirMarker
 	if !fi.IsDir() {
@@ -330,7 +353,7 @@ func (m Model) printDebug(w io.Writer) {
 	fmt.Fprintf(w, "last: %q\n", m.last)
 	fmt.Fprintf(w, "dir: %q\n", m.Directory)
 	fmt.Fprintf(w, "selected: %q\n", m.Selected)
-	for i := range Width {
+	for i := range m.width() {
 		if n := i % 10; n == 0 {
 			w.Write([]byte{'|'})
 		} else {
@@ -361,7 +384,7 @@ func (m Model) View() string {
 	if len(m.files) == 0 {
 		buf.WriteString(m.Style.Normal.Render("No files found, press [Backspace]") + "\n")
 		for i := 0; i < m.height()-1; i++ {
-			fmt.Fprintln(&buf, m.Style.Normal.Render(strings.Repeat(" ", Width-1))) // padding
+			fmt.Fprintln(&buf, m.Style.Normal.Render(strings.Repeat(" ", m.width()-1))) // padding
 		}
 	} else {
 		for i, file := range m.files {
@@ -379,11 +402,11 @@ func (m Model) View() string {
 					style = m.Style.Shaded
 				}
 			}
-			fmt.Fprintln(&buf, style.Render(printFile(file)))
+			fmt.Fprintln(&buf, style.Render(m.printFile(file)))
 		}
 		numDisplayed := m.st.Displayed(len(m.files))
 		for i := 0; i < m.height()-numDisplayed; i++ {
-			fmt.Fprintln(&buf, m.Style.Normal.Render(strings.Repeat(" ", Width-1)))
+			fmt.Fprintln(&buf, m.Style.Normal.Render(strings.Repeat(" ", m.width()-1)))
 		}
 	}
 	if m.ShowHelp {
@@ -448,7 +471,8 @@ func (s specialDir) Sys() interface{} {
 // shorten returns a shortened version of a path.
 func (m Model) shorten(dirpath string) string {
 	dirpath = filepath.Clean(dirpath)
-	if len(dirpath) < Width-1 {
+	width := m.width()
+	if len(dirpath) < width-1 {
 		return dirpath
 	}
 	dirpath = filepath.Clean(dirpath)
@@ -477,8 +501,8 @@ func (m Model) shorten(dirpath string) string {
 	if dirpath[0] == '/' {
 		res = "/" + res
 	}
-	if len(res) > Width-1 {
-		res = "…" + res[len(res)-Width+3:]
+	if len(res) > width-1 {
+		res = "…" + res[len(res)-width+3:]
 	}
 	return res
 }

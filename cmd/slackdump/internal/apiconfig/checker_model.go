@@ -54,7 +54,7 @@ func (m checkerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.view.SetContent(msg.text)
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
-		m.view.Width = msg.Width - filemgr.Width
+		m.view.Width = msg.Width - m.files.Width
 	case tea.KeyMsg:
 		keymsg = true
 		switch msg.String() {
