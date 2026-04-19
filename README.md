@@ -66,6 +66,8 @@ There are several modes of operation
 1. Resuming previous archive (adding new messages to an existing archive).
 1. Local MCP Server to use with Opencode, Claude, or any other AI tool
    supporting mcp over STDIO or HTTP.
+1. Database tools: merge multiple archives, remove duplicates, and clean up
+   unfinished sessions (`slackdump tools merge/dedupe/cleanup`).
 
 Run `slackdump help` to see all available options.
 

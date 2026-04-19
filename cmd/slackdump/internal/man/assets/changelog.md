@@ -1,5 +1,41 @@
 # What's New?
 
+## v4.3.0
+
+### New Features
+
+- **`slackdump tools merge`**: merge one or more Slackdump sources (archives,
+  exports, or databases) from the same workspace into an existing database
+  archive.  Pass `-check` to verify compatibility without modifying the target,
+  `-files=false` to skip file attachments, or `-avatars=false` to skip user
+  avatars.  Merge does not deduplicate — run `slackdump tools dedupe` on the
+  result if sources overlap.
+
+- **`slackdump tools cleanup`**: remove residual rows that belong to unfinished
+  database sessions.  Run without flags to preview, add `-execute` to commit the
+  removal.
+
+- **`slackdump tools dedupe`**: remove identical duplicate messages, users,
+  channels, channel users, and files introduced by resume look-back overlap.
+  Run without flags to preview, add `-execute` to commit.
+
+- **`-dm-mode` flag for `slackdump convert`**: controls how 1:1 DM channels are
+  serialised into `dms.json` during export conversion.  `single` (default)
+  preserves the historic single-user layout; `multi` uses the observed IM
+  membership list, which is the correct choice when converting a merged
+  multi-user archive.
+
+### Bug Fixes
+
+- Fixed a regression in user ordering during export conversion.
+- Fixed range copy bug, DM member assignment, and SQLite variable limit
+  in migration logic (contributed by Fizmatik).
+- Improved FILE-type attachment deduplication matching.
+- `slackdump resume` now returns a clear error when the target database does
+  not exist instead of silently creating an empty one.
+- `slackdump resume` now returns a clear error when the target archive contains
+  no sessions.
+
 ## v4.1.0
 
 ### New Features
