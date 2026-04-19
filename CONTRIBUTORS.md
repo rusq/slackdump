@@ -31,6 +31,9 @@ Enhanced documentation by adding RST formatting fixes and documenting how to ope
 ### [@kolsys](https://github.com/kolsys)
 Implemented per-channel time range filtering by adding support for dump-from and dump-to parameters for individual channels.
 
+### [@volker-fr](https://github.com/volker-fr) - Volker
+Contributed numerous features and improvements: vacuum tool for database cleanup, file deduplication support, SQLite error handling improvements, channel user caching to reduce redundant API calls, thread optimization by skipping unnecessary user fetches, and dev experience improvements with Makefile documentation and additional tests.
+
 ## Individual Contributors
 
 ### [@ChrisEdwards](https://github.com/ChrisEdwards) - Chris Edwards
@@ -78,9 +81,15 @@ Fix the panic in text conversion, when the thread has no replies in the time ran
 ### [@juzhiyuan](https://github.com/juzhiyuan) - Zhi Yuan Ju (琚致远)
 Fix incorrect instructions for the Sign On on Mobile.
 
+### [@shehrozsheikh](https://github.com/shehrozsheikh) - Shehroz Ahmed
+Fixed the viewer showing the wrong user name for DMs with a single conversation.
+
+### [@Fizmatik](https://github.com/Fizmatik) - Yuriy Tolpygo
+Fixed multiple bugs: range copy bug, DM member assignment, and SQLite variable limit exceeded error.
+
 ---
 
-**Total Contributors**: 25
+**Total Contributors**: 28
 
 This list is sorted by number of contributions. Every contribution, no matter how small, helps make Slackdump better for everyone!
 
