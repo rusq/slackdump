@@ -39,7 +39,7 @@ the ` + "`-w`" + ` flag.
 
 To get the full list of authenticated workspaces, run:
 
-	` + base.Executable() + ` auth list
+	slackdump workspace list
 `,
 	FlagMask:   flagmask,
 	PrintFlags: true,
