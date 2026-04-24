@@ -31,6 +31,9 @@ type Conversations interface {
 	Filer
 	ChannelInformer
 
+	// CountThread returns the number of messages in a thread from the database.
+	CountThread(ctx context.Context, channelID, threadTS string) (int64, error)
+
 	io.Closer
 }
 
@@ -331,6 +334,11 @@ func (w *JointConversations) ThreadMessages(ctx context.Context, channelID strin
 		}
 	}
 	return errs
+}
+
+// CountThread executes the CountThread on the Conversations processor.
+func (w *JointConversations) CountThread(ctx context.Context, channelID, threadTS string) (int64, error) {
+	return w.c.CountThread(ctx, channelID, threadTS)
 }
 
 // Close closes all the io.Closer instances in the slice.

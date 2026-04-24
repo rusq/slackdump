@@ -69,6 +69,9 @@ func (c *Controller) newConvTransformer(ctx context.Context) *conversationTransf
 // [structures.NewEntityList] function.
 func (c *Controller) Run(ctx context.Context, list *structures.EntityList) error {
 	rec := chunk.NewCustomRecorder(c.erc)
+	if ct, ok := c.erc.(chunk.CountThreader); ok {
+		rec = chunk.NewCustomRecorder(c.erc, chunk.WithCountThreader(ct))
+	}
 	defer rec.Close()
 
 	// got to do some explanation here: the order of processors is important:
@@ -83,6 +86,9 @@ func (c *Controller) Run(ctx context.Context, list *structures.EntityList) error
 // the data. Call this if you don't need to track channel completion etc.
 func (c *Controller) RunNoTransform(ctx context.Context, list *structures.EntityList) error {
 	rec := chunk.NewCustomRecorder(c.erc)
+	if ct, ok := c.erc.(chunk.CountThreader); ok {
+		rec = chunk.NewCustomRecorder(c.erc, chunk.WithCountThreader(ct))
+	}
 	defer rec.Close()
 
 	conv := processor.PrependFiler(rec, c.filer)

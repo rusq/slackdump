@@ -83,6 +83,21 @@ func (mr *MockConversationsMockRecorder) Close() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockConversations)(nil).Close))
 }
 
+// CountThread mocks base method.
+func (m *MockConversations) CountThread(ctx context.Context, channelID, threadTS string) (int64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CountThread", ctx, channelID, threadTS)
+	ret0, _ := ret[0].(int64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CountThread indicates an expected call of CountThread.
+func (mr *MockConversationsMockRecorder) CountThread(ctx, channelID, threadTS any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CountThread", reflect.TypeOf((*MockConversations)(nil).CountThread), ctx, channelID, threadTS)
+}
+
 // Files mocks base method.
 func (m *MockConversations) Files(ctx context.Context, channel *slack.Channel, parent slack.Message, ff []slack.File) error {
 	m.ctrl.T.Helper()

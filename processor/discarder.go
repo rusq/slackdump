@@ -67,6 +67,10 @@ func (d *Printer) ChannelUsers(_ context.Context, ch string, threadID string, u 
 	return nil
 }
 
+func (d *Printer) CountThread(_ context.Context, channelID, threadTS string) (int64, error) {
+	return 0, nil
+}
+
 func (d *Printer) Close() error {
 	slog.Info("Discarder closing")
 	return nil

@@ -25,10 +25,16 @@ import (
 	"github.com/rusq/slack"
 )
 
+// CountThreader is the interface for counting thread messages.
+type CountThreader interface {
+	CountThread(ctx context.Context, channelID, threadTS string) (int64, error)
+}
+
 // Recorder records all the data it receives into a writer.
 type Recorder struct {
-	mu  sync.Mutex
-	enc Encoder // encoder to use for the chunks
+	mu    sync.Mutex
+	enc   Encoder       // encoder to use for the chunks
+	count CountThreader // optional delegate for CountThread
 }
 
 // Encoder is the interface that wraps the Encode method.
@@ -262,4 +268,19 @@ func (rec *Recorder) SearchFiles(ctx context.Context, query string, sf []slack.F
 		return err
 	}
 	return nil
+}
+
+// WithCountThreader sets the delegate for CountThread operations.
+func WithCountThreader(ct CountThreader) Option {
+	return func(r *Recorder) {
+		r.count = ct
+	}
+}
+
+// CountThread returns the count from the delegate if set, otherwise 0.
+func (rec *Recorder) CountThread(ctx context.Context, channelID, threadTS string) (int64, error) {
+	if rec.count != nil {
+		return rec.count.CountThread(ctx, channelID, threadTS)
+	}
+	return 0, nil
 }

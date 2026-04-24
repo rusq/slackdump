@@ -69,6 +69,14 @@ type ResumeParams struct {
 	// new threads on historical messages, otherwise, new threads on old messages
 	// will not be fetched.
 	Lookback *extDuration
+	// SkipCompleteThreads skips fetching threads where the DB already has
+	// all replies (DB count matches API reply_count).
+	// Benefit: Significantly faster resume - skips API calls for threads that
+	// appear complete, reducing both time and API rate limit usage.
+	// Risk: Does not detect edited/deleted messages - only compares counts.
+	// If a message was modified or removed on Slack, this flag will still skip
+	// the thread. Use only when you're certain threads are append-only.
+	SkipCompleteThreads bool
 }
 
 var resumeFlags = ResumeParams{
@@ -81,6 +89,7 @@ func init() {
 	CmdResume.Flag.BoolVar(&resumeFlags.IncludeThreads, "threads", false, "include threads (slow, and flaky business)")
 	CmdResume.Flag.BoolVar(&resumeFlags.RecordOnlyNewUsers, "only-new-users", true, "record only new or updated users")
 	CmdResume.Flag.Var(resumeFlags.Lookback, "lookback", "lookback window `duration`")
+	CmdResume.Flag.BoolVar(&resumeFlags.SkipCompleteThreads, "skip-complete-threads", false, "skip threads where DB already has all replies (faster, but won't detect edits/deletes)")
 }
 
 func runResume(ctx context.Context, cmd *base.Command, args []string) error {
@@ -159,7 +168,11 @@ func runResume(ctx context.Context, cmd *base.Command, args []string) error {
 	}
 	// inclusive is false, because we don't want to include the latest message
 	// which is already in the database.
-	ctrl, err := archive.DBController(ctx, cmd.Name(), wconn, client, dir, cf, []stream.Option{stream.OptInclusive(false)}, dbase.WithOnlyNewOrChangedUsers(resumeFlags.RecordOnlyNewUsers))
+	streamOpts := []stream.Option{stream.OptInclusive(false)}
+	if resumeFlags.SkipCompleteThreads {
+		streamOpts = append(streamOpts, stream.OptSkipCompleteThreads(true))
+	}
+	ctrl, err := archive.DBController(ctx, cmd.Name(), wconn, client, dir, cf, streamOpts, dbase.WithOnlyNewOrChangedUsers(resumeFlags.RecordOnlyNewUsers))
 	if err != nil {
 		base.SetExitStatus(base.SInitializationError)
 		return fmt.Errorf("error creating archive controller: %w", err)

@@ -50,15 +50,16 @@ const (
 // Stream is used to fetch conversations from Slack.  It is safe for concurrent
 // use.
 type Stream struct {
-	oldest, latest time.Time
-	client         client.Slack
-	limits         rateLimits
-	chanCache      *chanCache
-	userCache      *userCache
-	fastSearch     bool
-	inclusive      bool
-	failChnlNotFnd bool // if true, will fail if channel not found
-	resultFn       []func(sr Result) error
+	oldest, latest      time.Time
+	client              client.Slack
+	limits              rateLimits
+	chanCache           *chanCache
+	userCache           *userCache
+	fastSearch          bool
+	inclusive           bool
+	failChnlNotFnd      bool // if true, will fail if channel not found
+	resultFn            []func(sr Result) error
+	skipCompleteThreads bool // if true, skip threads where DB count matches API reply_count
 }
 
 // ResultType helps to identify the type of the result, so that the callback
@@ -175,6 +176,15 @@ func OptInclusive(b bool) Option {
 func OptFailOnNonCritError(b bool) Option {
 	return func(cs *Stream) {
 		cs.failChnlNotFnd = b
+	}
+}
+
+// OptSkipCompleteThreads enables skipping threads where the database already
+// has all replies (DB count matches API reply_count).  This speeds up resume
+// operations but won't detect edited/deleted messages.
+func OptSkipCompleteThreads(b bool) Option {
+	return func(cs *Stream) {
+		cs.skipCompleteThreads = b
 	}
 }
 

@@ -207,6 +207,17 @@ func (d *DBP) IsCompleteThread(ctx context.Context, channelID, threadID string) 
 	return n > 0, nil
 }
 
+// CountThread returns the number of messages in a thread from the database.
+func (d *DBP) CountThread(ctx context.Context, channelID, threadID string) (int64, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	count, err := d.mr.CountThread(ctx, d.conn, channelID, threadID)
+	if err != nil {
+		return 0, fmt.Errorf("countThread: %w", err)
+	}
+	return count, nil
+}
+
 // Source returns the connection that can be used safely as a source.
 func (d *DBP) Source() *Source {
 	return &Source{

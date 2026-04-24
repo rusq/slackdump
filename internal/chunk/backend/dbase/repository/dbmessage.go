@@ -209,7 +209,27 @@ func (r messageRepository) CountThread(ctx context.Context, conn sqlx.QueryerCon
 	if err != nil {
 		return 0, fmt.Errorf("countThread fasttime: %w", err)
 	}
-	return r.countTypeWhere(ctx, conn, queryParams{Where: r.threadCond(), Binds: []any{channelID, parentID}}, chunk.CMessages, chunk.CThreadMessages)
+	// Count UNIQUE messages in the thread across all chunks/sessions.
+	// Includes the parent message.
+	// Uses DISTINCT on TS because resume may create duplicate entries for the same message.
+	// This is needed for resume to correctly detect complete threads.
+	const stmt = `
+		SELECT COUNT(DISTINCT M.TS)
+		FROM MESSAGE M
+		JOIN CHUNK C ON M.CHUNK_ID = C.ID
+		WHERE C.TYPE_ID IN (?, ?)
+		  AND M.CHANNEL_ID = ?
+		  AND M.PARENT_ID = ?
+		  AND (
+			JSON_EXTRACT(M.DATA, '$.subtype') IS NULL
+			OR (JSON_EXTRACT(M.DATA, '$.subtype') = 'thread_broadcast' AND C.TYPE_ID = 1)
+		  )
+	`
+	var n int64
+	if err := conn.QueryRowxContext(ctx, rebind(conn, stmt), chunk.CMessages, chunk.CThreadMessages, channelID, parentID).Scan(&n); err != nil {
+		return 0, fmt.Errorf("countThread: %w", err)
+	}
+	return n, nil
 }
 
 func (r messageRepository) AllForThread(ctx context.Context, conn sqlx.QueryerContext, channelID, threadID string) (iter.Seq2[DBMessage, error], error) {

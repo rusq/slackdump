@@ -240,6 +240,11 @@ func (cv *Conversations) Close() error {
 	return cv.t.CloseAll()
 }
 
+// CountThread returns an error - directory backend does not support counting.
+func (cv *Conversations) CountThread(ctx context.Context, channelID, threadTS string) (int64, error) {
+	return 0, errors.New("CountThread not supported by directory backend - use database backend")
+}
+
 func (cv *Conversations) debugtrace(ctx context.Context, fmt string, args ...any) {
 	trace.Logf(ctx, "debug", fmt, args...)
 }
