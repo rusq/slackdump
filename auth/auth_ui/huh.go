@@ -33,7 +33,7 @@ import (
 )
 
 const (
-	defQRCodeSz = 9000      // default limit for encoded image size, seen values 6174, 8462
+	defQRCodeSz = 16536     // default limit for encoded image size, seen values 6174, 8462
 	maxQRCodeSz = 1<<16 - 1 // maximum allowed QR code image size.
 	imgPrefix   = "data:image/png;base64,"
 )
