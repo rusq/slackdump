@@ -59,6 +59,7 @@ type Stream struct {
 	inclusive      bool
 	failChnlNotFnd bool // if true, will fail if channel not found
 	resultFn       []func(sr Result) error
+	skipThread     func(ctx context.Context, channelID, threadTS string, replyCount int) bool
 }
 
 // ResultType helps to identify the type of the result, so that the callback
@@ -175,6 +176,16 @@ func OptInclusive(b bool) Option {
 func OptFailOnNonCritError(b bool) Option {
 	return func(cs *Stream) {
 		cs.failChnlNotFnd = b
+	}
+}
+
+// OptSkipThreadFunc sets a predicate that is called for each thread head message
+// during channel processing.  If it returns true, the thread is skipped (no API
+// call is made).  Returns false on any error (safe default: re-fetch the thread).
+// Intended for resume operations to skip threads already complete in the database.
+func OptSkipThreadFunc(fn func(ctx context.Context, channelID, threadTS string, replyCount int) bool) Option {
+	return func(cs *Stream) {
+		cs.skipThread = fn
 	}
 }
 

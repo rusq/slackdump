@@ -137,7 +137,7 @@ func Test_procChanMsg(t *testing.T) {
 			if tt.expectFn != nil {
 				tt.expectFn(mp)
 			}
-			got, err := procChanMsg(tt.args.ctx, mp, tt.args.threadC, tt.args.channel, tt.args.isLast, tt.args.mm)
+			got, err := (&Stream{}).procChanMsg(tt.args.ctx, mp, tt.args.threadC, tt.args.channel, tt.args.isLast, tt.args.mm)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("procChanMsg() error = %v, wantErr %v", err, tt.wantErr)
 				return

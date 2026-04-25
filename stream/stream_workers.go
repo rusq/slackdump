@@ -55,7 +55,7 @@ func (cs *Stream) channelWorker(ctx context.Context, proc processor.Conversation
 			}
 
 			if err := cs.channel(ctx, req, func(mm []slack.Message, isLast bool) error {
-				n, err := procChanMsg(ctx, proc, threadC, channel, isLast, mm)
+				n, err := cs.procChanMsg(ctx, proc, threadC, channel, isLast, mm)
 				if err != nil {
 					return err
 				}

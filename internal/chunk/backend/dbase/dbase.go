@@ -207,6 +207,21 @@ func (d *DBP) IsCompleteThread(ctx context.Context, channelID, threadID string) 
 	return n > 0, nil
 }
 
+// NewThreadSkipper returns a predicate suitable for stream.OptSkipThreadFunc.
+// It returns true (skip) when the DB already holds replyCount+1 messages for
+// the thread (parent message included), meaning the thread appears complete.
+// Returns false on any error so that the thread is re-fetched safely.
+func NewThreadSkipper(conn *sqlx.DB) func(ctx context.Context, channelID, threadTS string, replyCount int) bool {
+	mr := repository.NewMessageRepository()
+	return func(ctx context.Context, channelID, threadTS string, replyCount int) bool {
+		n, err := mr.CountThread(ctx, conn, channelID, threadTS)
+		if err != nil {
+			return false
+		}
+		return int(n) == replyCount+1
+	}
+}
+
 // Source returns the connection that can be used safely as a source.
 func (d *DBP) Source() *Source {
 	return &Source{
