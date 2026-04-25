@@ -211,6 +211,14 @@ func (d *DBP) IsCompleteThread(ctx context.Context, channelID, threadID string) 
 // It returns true (skip) when the DB already holds replyCount+1 messages for
 // the thread (parent message included), meaning the thread appears complete.
 // Returns false on any error so that the thread is re-fetched safely.
+//
+// CountThread is used (not CountThreadOnlyParts) intentionally: for resume we
+// want to count messages across all sessions, so a thread fully stored in any
+// prior session will be skipped correctly.
+//
+// Note: replyCount comes from the Slack API reply_count field on the parent
+// message, which may lag behind true thread state (edits/deletes not reflected).
+// This is the accepted tradeoff documented in the -skip-complete-threads flag.
 func NewThreadSkipper(conn *sqlx.DB) func(ctx context.Context, channelID, threadTS string, replyCount int) bool {
 	mr := repository.NewMessageRepository()
 	return func(ctx context.Context, channelID, threadTS string, replyCount int) bool {
@@ -218,7 +226,7 @@ func NewThreadSkipper(conn *sqlx.DB) func(ctx context.Context, channelID, thread
 		if err != nil {
 			return false
 		}
-		return int(n) == replyCount+1
+		return n == int64(replyCount)+1
 	}
 }
 

@@ -45,89 +45,121 @@ func Test_procChanMsg(t *testing.T) {
 		isLast  bool
 		mm      []slack.Message
 	}
+	threadedMsg := []slack.Message{
+		{Msg: slack.Msg{
+			Timestamp:       "1577694990.000400",
+			ThreadTimestamp: "1577694990.000400",
+			LatestReply:     "1638784627.000300",
+			ReplyCount:      3,
+		}},
+	}
 	tests := []struct {
 		name     string
 		args     args
+		skipFn   func(ctx context.Context, channelID, threadTS string, replyCount int) bool
 		expectFn func(mp *mock_processor.MockConversations)
 		want     int
 		wantErr  bool
 	}{
 		{
-			"empty messages slice",
-			args{
-				t.Context(),
-				make(chan request),
-				TestChannel,
-				true,
-				[]slack.Message{},
+			name: "empty messages slice",
+			args: args{
+				ctx:     t.Context(),
+				threadC: make(chan request),
+				channel: TestChannel,
+				isLast:  true,
+				mm:      []slack.Message{},
 			},
-			func(mp *mock_processor.MockConversations) {
+			expectFn: func(mp *mock_processor.MockConversations) {
 				mp.EXPECT().Messages(gomock.Any(), TestChannel.ID, 0, true, []slack.Message{}).Times(1)
 			},
-			0,
-			false,
 		},
 		{
-			"empty message slice, processor error",
-			args{
-				t.Context(),
-				make(chan request),
-				TestChannel,
-				true,
-				[]slack.Message{},
+			name: "empty message slice, processor error",
+			args: args{
+				ctx:     t.Context(),
+				threadC: make(chan request),
+				channel: TestChannel,
+				isLast:  true,
+				mm:      []slack.Message{},
 			},
-			func(mp *mock_processor.MockConversations) {
+			expectFn: func(mp *mock_processor.MockConversations) {
 				mp.EXPECT().Messages(gomock.Any(), TestChannel.ID, 0, true, []slack.Message{}).Return(assert.AnError).Times(1)
 			},
-			0,
-			true,
+			wantErr: true,
 		},
 		{
-			"non-empty messages slice",
-			args{
-				t.Context(),
-				make(chan request),
-				TestChannel,
-				true,
-				fixtures.Load[[]slack.Message](fixtures.TestChannelEveryoneMessagesNativeExport),
+			name: "non-empty messages slice",
+			args: args{
+				ctx:     t.Context(),
+				threadC: make(chan request),
+				channel: TestChannel,
+				isLast:  true,
+				mm:      fixtures.Load[[]slack.Message](fixtures.TestChannelEveryoneMessagesNativeExport),
 			},
-			func(mp *mock_processor.MockConversations) {
+			expectFn: func(mp *mock_processor.MockConversations) {
 				mp.EXPECT().Messages(gomock.Any(), TestChannel.ID, 0, true, fixtures.Load[[]slack.Message](fixtures.TestChannelEveryoneMessagesNativeExport)).Times(1)
 				mp.EXPECT().Files(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
 			},
-			0,
-			false,
 		},
 		{
-			"non-empty messages slice,files processor error",
-			args{
-				t.Context(),
-				make(chan request),
-				TestChannel,
-				true,
-				fixtures.Load[[]slack.Message](fixtures.TestChannelEveryoneMessagesNativeExport),
+			name: "non-empty messages slice,files processor error",
+			args: args{
+				ctx:     t.Context(),
+				threadC: make(chan request),
+				channel: TestChannel,
+				isLast:  true,
+				mm:      fixtures.Load[[]slack.Message](fixtures.TestChannelEveryoneMessagesNativeExport),
 			},
-			func(mp *mock_processor.MockConversations) {
+			expectFn: func(mp *mock_processor.MockConversations) {
 				mp.EXPECT().Files(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(assert.AnError)
 			},
-			0,
-			true,
+			wantErr: true,
 		},
 		{
-			"non-empty messages slice, messages processor error",
-			args{
-				t.Context(),
-				make(chan request),
-				TestChannel,
-				true,
-				fixtures.Load[[]slack.Message](fixtures.TestChannelEveryoneMessagesNativeExport),
+			name: "non-empty messages slice, messages processor error",
+			args: args{
+				ctx:     t.Context(),
+				threadC: make(chan request),
+				channel: TestChannel,
+				isLast:  true,
+				mm:      fixtures.Load[[]slack.Message](fixtures.TestChannelEveryoneMessagesNativeExport),
 			},
-			func(mp *mock_processor.MockConversations) {
+			expectFn: func(mp *mock_processor.MockConversations) {
 				mp.EXPECT().Messages(gomock.Any(), TestChannel.ID, 0, true, fixtures.Load[[]slack.Message](fixtures.TestChannelEveryoneMessagesNativeExport)).Return(assert.AnError).Times(1)
 				mp.EXPECT().Files(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
 			},
-			0,
-			true,
+			wantErr: true,
+		},
+		{
+			name: "skip complete thread",
+			args: args{
+				ctx:     t.Context(),
+				threadC: make(chan request),
+				channel: TestChannel,
+				isLast:  true,
+				mm:      threadedMsg,
+			},
+			skipFn: func(_ context.Context, _, _ string, _ int) bool { return true },
+			expectFn: func(mp *mock_processor.MockConversations) {
+				mp.EXPECT().Messages(gomock.Any(), TestChannel.ID, 0, true, threadedMsg).Times(1)
+			},
+			want: 0,
+		},
+		{
+			name: "do not skip incomplete thread",
+			args: args{
+				ctx:     t.Context(),
+				threadC: make(chan request, 1),
+				channel: TestChannel,
+				isLast:  true,
+				mm:      threadedMsg,
+			},
+			skipFn: func(_ context.Context, _, _ string, _ int) bool { return false },
+			expectFn: func(mp *mock_processor.MockConversations) {
+				mp.EXPECT().Messages(gomock.Any(), TestChannel.ID, 1, true, threadedMsg).Times(1)
+			},
+			want: 1,
 		},
 	}
 	for _, tt := range tests {
@@ -137,7 +169,7 @@ func Test_procChanMsg(t *testing.T) {
 			if tt.expectFn != nil {
 				tt.expectFn(mp)
 			}
-			got, err := (&Stream{}).procChanMsg(tt.args.ctx, mp, tt.args.threadC, tt.args.channel, tt.args.isLast, tt.args.mm)
+			got, err := (&Stream{skipThread: tt.skipFn}).procChanMsg(tt.args.ctx, mp, tt.args.threadC, tt.args.channel, tt.args.isLast, tt.args.mm)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("procChanMsg() error = %v, wantErr %v", err, tt.wantErr)
 				return
