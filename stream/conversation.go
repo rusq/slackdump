@@ -283,7 +283,7 @@ func (cs *Stream) thread(ctx context.Context, req request, callback func(mm []sl
 // procChanMsg processes the message slice mm, for each threaded message, it
 // sends the thread request on threadC.  It returns thread count in the mm and
 // error if any.
-func procChanMsg(ctx context.Context, proc processor.Conversations, threadC chan<- request, channel *slack.Channel, isLast bool, mm []slack.Message) (int, error) {
+func (cs *Stream) procChanMsg(ctx context.Context, proc processor.Conversations, threadC chan<- request, channel *slack.Channel, isLast bool, mm []slack.Message) (int, error) {
 	trs := make([]request, 0, len(mm))
 	for i := range mm {
 		// collecting threads to get their count.  But we don't start
@@ -292,6 +292,10 @@ func procChanMsg(ctx context.Context, proc processor.Conversations, threadC chan
 		// start processing the channel and will have the initial reference
 		// count, if it needs it.
 		if mm[i].ThreadTimestamp != "" && mm[i].SubType != structures.SubTypeThreadBroadcast && mm[i].LatestReply != structures.LatestReplyNoReplies {
+			if cs.skipThread != nil && cs.skipThread(ctx, channel.ID, mm[i].ThreadTimestamp, mm[i].ReplyCount) {
+				slog.DebugContext(ctx, "skipping complete thread", "channel_id", channel.ID, "thread_ts", mm[i].ThreadTimestamp, "reply_count", mm[i].ReplyCount)
+				continue
+			}
 			slog.DebugContext(ctx, "- message", "i", i, "thread", mm[i].Timestamp, "thread_ts", mm[i].ThreadTimestamp, "channel_id", channel.ID, "is_last", isLast, "msg_count", len(mm))
 			trs = append(trs, request{
 				sl: &structures.SlackLink{
