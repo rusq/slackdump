@@ -339,11 +339,11 @@ func Test_usersTeam(t *testing.T) {
 
 func Test_latest(t *testing.T) {
 	type args struct {
-		ctx context.Context
-		// src source.Resumer
-		includeThreads bool
-		lookBack       time.Duration
-		other          *structures.EntityList
+		ctx                context.Context
+		includeThreads     bool
+		skipCompleteThreads bool
+		lookBack           time.Duration
+		other              *structures.EntityList
 	}
 	tests := []struct {
 		name     string
@@ -355,9 +355,10 @@ func Test_latest(t *testing.T) {
 		{
 			name: "resumer error",
 			args: args{
-				ctx:            t.Context(),
-				includeThreads: false,
-				lookBack:       0,
+				ctx:                  t.Context(),
+				includeThreads:       false,
+				skipCompleteThreads: false,
+				lookBack:             0,
 			},
 			expectFn: func(mr *mock_source.MockResumer) {
 				mr.EXPECT().Latest(gomock.Any()).Return(nil, assert.AnError)
@@ -368,9 +369,10 @@ func Test_latest(t *testing.T) {
 		{
 			name: "no entities",
 			args: args{
-				ctx:            t.Context(),
-				includeThreads: false,
-				lookBack:       0,
+				ctx:                  t.Context(),
+				includeThreads:       false,
+				skipCompleteThreads: false,
+				lookBack:             0,
 			},
 			expectFn: func(mr *mock_source.MockResumer) {
 				mr.EXPECT().Latest(gomock.Any()).Return(map[structures.SlackLink]time.Time{}, nil)
@@ -381,9 +383,10 @@ func Test_latest(t *testing.T) {
 		{
 			name: "returns latest status",
 			args: args{
-				ctx:            t.Context(),
-				includeThreads: false,
-				lookBack:       0,
+				ctx:                  t.Context(),
+				includeThreads:       false,
+				skipCompleteThreads: false,
+				lookBack:             0,
 			},
 			expectFn: func(mr *mock_source.MockResumer) {
 				mr.EXPECT().Latest(gomock.Any()).Return(map[structures.SlackLink]time.Time{
@@ -398,9 +401,10 @@ func Test_latest(t *testing.T) {
 		{
 			name: "returns latest status with thread",
 			args: args{
-				ctx:            t.Context(),
-				includeThreads: true,
-				lookBack:       0,
+				ctx:                  t.Context(),
+				includeThreads:       true,
+				skipCompleteThreads: false,
+				lookBack:             0,
 			},
 			expectFn: func(mr *mock_source.MockResumer) {
 				mr.EXPECT().Latest(gomock.Any()).Return(map[structures.SlackLink]time.Time{
@@ -417,9 +421,29 @@ func Test_latest(t *testing.T) {
 		{
 			name: "returns latest status with thread, but includeThreads is false",
 			args: args{
-				ctx:            t.Context(),
-				includeThreads: false,
-				lookBack:       0,
+				ctx:                  t.Context(),
+				includeThreads:       false,
+				skipCompleteThreads: false,
+				lookBack:             0,
+			},
+			expectFn: func(mr *mock_source.MockResumer) {
+				mr.EXPECT().Latest(gomock.Any()).Return(map[structures.SlackLink]time.Time{
+					{Channel: "C123"}:                      time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC),
+					{Channel: "C456", ThreadTS: "123.456"}: time.Date(2021, 1, 2, 0, 0, 0, 0, time.UTC),
+				}, nil)
+			},
+			want: structures.NewEntityListFromItems(
+				structures.EntityItem{Id: "C123", Oldest: time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC), Latest: time.Time(cfg.Latest), Include: true},
+			),
+			wantErr: false,
+		},
+		{
+			name: "returns latest status with thread and skipCompleteThreads true",
+			args: args{
+				ctx:                  t.Context(),
+				includeThreads:       true,
+				skipCompleteThreads: true,
+				lookBack:             0,
 			},
 			expectFn: func(mr *mock_source.MockResumer) {
 				mr.EXPECT().Latest(gomock.Any()).Return(map[structures.SlackLink]time.Time{
@@ -440,7 +464,7 @@ func Test_latest(t *testing.T) {
 			if tt.expectFn != nil {
 				tt.expectFn(mr)
 			}
-			got, err := latest(tt.args.ctx, mr, tt.args.includeThreads, tt.args.lookBack, tt.args.other)
+			got, err := latest(tt.args.ctx, mr, tt.args.includeThreads, tt.args.skipCompleteThreads, tt.args.lookBack, tt.args.other)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("latest() error = %v, wantErr %v", err, tt.wantErr)
 				return
