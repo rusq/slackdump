@@ -41,3 +41,16 @@
   description: Prints user ID and a message
   dependencies:
     - python3
+- title: Replit + Google Drive backup uploader
+  path: replit_drive_backup
+  author: icgma
+  description: |
+    Resumable uploader that mirrors a slackdump `archive/` directory into
+    Google Drive, designed to run inside a Replit workspace.  Walks the
+    local archive, recreates the same folder tree on Drive, and uploads
+    every file with chunked resumable upload (handles 10+ GB archives,
+    survives restarts, re-initiates expired sessions, and ends with a
+    byte-exact reconciliation report).
+  dependencies:
+    - nodejs
+    - "@replit/connectors-sdk"
