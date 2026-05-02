@@ -126,7 +126,7 @@ func New(ctx context.Context, prov auth.Provider, opts ...Option) (*Client, erro
 		hcl:    hcl,
 	}
 
-	if opt.enterprise || wi.EnterpriseID != "" {
+	if (opt.enterprise || wi.EnterpriseID != "") && auth.IsClientToken(prov.SlackToken()) {
 		ecl, err := edge.NewWithInfo(wi, prov)
 		if err != nil {
 			return nil, errors.Join(err, chttp.Close(hcl))

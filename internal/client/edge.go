@@ -18,6 +18,7 @@ package client
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/rusq/chttp/v2"
 
@@ -28,6 +29,9 @@ import (
 // NewEdge returns a new *Client that is guaranteed to have an edge (enterprise)
 // connection.  Use c.Edge() to obtain the underlying *edge.Client.
 func NewEdge(ctx context.Context, prov auth.Provider, opts ...Option) (*Client, error) {
+	if !auth.IsClientToken(prov.SlackToken()) {
+		return nil, fmt.Errorf("edge client requires a client token (xoxc-)")
+	}
 	hcl, scl, wi, err := newSlackClient(ctx, prov)
 	if err != nil {
 		return nil, err
