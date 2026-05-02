@@ -16,73 +16,90 @@
 package auth
 
 import (
-	"strings"
-	"time"
+        "strings"
+        "time"
 
-	"github.com/rusq/slackdump/v4/auth/browser"
+        "github.com/rusq/slackdump/v4/auth/browser"
 )
 
 type options struct {
-	playwrightOptions
-	rodOpts
-	workspace string
+        playwrightOptions
+        rodOpts
+        workspace string
 }
 
 type Option func(*options)
 
 func BrowserWithAuthFlow(flow BrowserAuthUI) Option {
-	return func(o *options) {
-		if flow == nil {
-			return
-		}
-		o.playwrightOptions.flow = flow
-	}
+        return func(o *options) {
+                if flow == nil {
+                        return
+                }
+                o.playwrightOptions.flow = flow
+        }
 }
 
 func BrowserWithWorkspace(name string) Option {
-	return func(o *options) {
-		o.workspace = strings.ToLower(name)
-	}
+        return func(o *options) {
+                o.workspace = strings.ToLower(name)
+        }
 }
 
 func BrowserWithBrowser(b browser.Browser) Option {
-	return func(o *options) {
-		o.playwrightOptions.browser = b
-	}
+        return func(o *options) {
+                o.playwrightOptions.browser = b
+        }
 }
 
 func BrowserWithTimeout(d time.Duration) Option {
-	return func(o *options) {
-		if d < 0 {
-			return
-		}
-		o.playwrightOptions.loginTimeout = d
-	}
+        return func(o *options) {
+                if d < 0 {
+                        return
+                }
+                o.playwrightOptions.loginTimeout = d
+        }
 }
 
 func BrowserWithVerbose(b bool) Option {
-	return func(o *options) {
-		o.playwrightOptions.verbose = b
-	}
+        return func(o *options) {
+                o.playwrightOptions.verbose = b
+        }
 }
 
 // RODWithRODHeadlessTimeout sets the timeout for the headless browser
 // interaction.  It is a net time of headless browser interaction, without the
 // browser starting time.
 func RODWithRODHeadlessTimeout(d time.Duration) Option {
-	return func(o *options) {
-		if d <= 0 {
-			return
-		}
-		o.rodOpts.autoTimeout = d
-	}
+        return func(o *options) {
+                if d <= 0 {
+                        return
+                }
+                o.rodOpts.autoTimeout = d
+        }
 }
 
 // RODWithUserAgent sets the user agent string for the headless browser.
 func RODWithUserAgent(ua string) Option {
-	return func(o *options) {
-		if ua != "" {
-			o.rodOpts.userAgent = ua
-		}
-	}
+        return func(o *options) {
+                if ua != "" {
+                        o.rodOpts.userAgent = ua
+                }
+        }
+}
+
+// RODWithInteractiveBrowserAuto controls whether the [auth_ui.LInteractive]
+// "Login in Browser" flow opportunistically uses a locally installed
+// system browser (Chrome/Edge/Brave/Chromium) instead of the bundled
+// Chromium that go-rod's launcher downloads.
+//
+// When true (the default), if a system browser is discovered via
+// [slackauth.ListBrowsers] it is used in place of the bundled browser.
+// This is the recommended setting because the launcher's bundled
+// Chromium is currently pinned to revision ~v128, which Slack now
+// rejects on its login page (issue #675).  When false, the bundled
+// browser is always used, preserving the historical behaviour.
+func RODWithInteractiveBrowserAuto(b bool) Option {
+        return func(o *options) {
+                o.rodOpts.interactiveBrowserAuto = b
+        }
 }
