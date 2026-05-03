@@ -20,6 +20,9 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/rusq/slackdump/v4/internal/chunk/backend/dbase"
+	"github.com/rusq/slackdump/v4/internal/convert/transform/fileproc"
 )
 
 func TestNewDirectory(t *testing.T) {
@@ -35,4 +38,47 @@ func TestNewDirectory(t *testing.T) {
 		defer cd.Close()
 		assert.Equal(t, tmpdir, cd.Name())
 	})
+}
+
+func TestDBControllerOptions(t *testing.T) {
+	var opts dbControllerOptions
+
+	WithDatabaseOptions(dbase.WithVerbose(true))(&opts)
+	WithDatabaseOptions(dbase.WithOnlyNewOrChangedUsers(true))(&opts)
+	WithFileDeduplication()(&opts)
+	WithFileDeduplication()(&opts)
+
+	assert.Len(t, opts.dbaseOptions, 2)
+	assert.True(t, opts.fileDeduplicate)
+}
+
+func TestDBControllerFileDeduplicationOption(t *testing.T) {
+	tests := []struct {
+		name string
+		opts dbControllerOptions
+		want func(t *testing.T, got any)
+	}{
+		{
+			name: "default file processor",
+			want: func(t *testing.T, got any) {
+				_, ok := got.(fileproc.FileProcessor)
+				assert.True(t, ok)
+			},
+		},
+		{
+			name: "deduplicating file processor",
+			opts: dbControllerOptions{fileDeduplicate: true},
+			want: func(t *testing.T, got any) {
+				_, ok := got.(*fileproc.DeduplicatingFileProcessor)
+				assert.True(t, ok)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := dbControllerFiler(fileproc.NoopDownloader{}, nil, nil, tt.opts)
+			tt.want(t, got)
+		})
+	}
 }

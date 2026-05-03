@@ -39,6 +39,7 @@ import (
 	"github.com/rusq/slackdump/v4/internal/client"
 	"github.com/rusq/slackdump/v4/internal/convert/transform/fileproc"
 	"github.com/rusq/slackdump/v4/internal/structures"
+	"github.com/rusq/slackdump/v4/processor"
 	"github.com/rusq/slackdump/v4/source"
 	"github.com/rusq/slackdump/v4/stream"
 )
@@ -212,12 +213,12 @@ func WithFileDeduplication() DBControllerOption {
 // Obscene, just obscene amount of arguments.
 func DBController(ctx context.Context, sessionName string, conn *sqlx.DB, client client.Slack, dirname string, flags control.Flags, streamOpts []stream.Option, opts ...DBControllerOption) (Controller, error) {
 	lg := cfg.Log
-	var copt dbControllerOptions
+	var options dbControllerOptions
 	for _, opt := range opts {
-		opt(&copt)
+		opt(&options)
 	}
 
-	dbp, err := dbase.New(ctx, conn, bootstrap.SessionInfo(sessionName), copt.dbaseOptions...)
+	dbp, err := dbase.New(ctx, conn, bootstrap.SessionInfo(sessionName), options.dbaseOptions...)
 	if err != nil {
 		return nil, err
 	}
@@ -245,10 +246,7 @@ func DBController(ctx context.Context, sessionName string, conn *sqlx.DB, client
 		lg,
 	)
 
-	filer := fileproc.New(dl)
-	if copt.fileDeduplicate {
-		filer = fileproc.NewDeduplicatingFileProcessor(filer, conn, lg)
-	}
+	filer := dbControllerFiler(dl, conn, lg, options)
 
 	ctrl, err := control.New(
 		ctx,
@@ -262,6 +260,14 @@ func DBController(ctx context.Context, sessionName string, conn *sqlx.DB, client
 		return nil, err
 	}
 	return ctrl, nil
+}
+
+func dbControllerFiler(dl fileproc.Downloader, conn *sqlx.DB, lg *slog.Logger, options dbControllerOptions) processor.Filer {
+	filer := fileproc.New(dl)
+	if options.fileDeduplicate {
+		return fileproc.NewDeduplicatingFileProcessor(filer, conn, lg)
+	}
+	return filer
 }
 
 type Controller interface {
