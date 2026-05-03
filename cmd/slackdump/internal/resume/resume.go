@@ -174,7 +174,17 @@ func runResume(ctx context.Context, cmd *base.Command, args []string) error {
 	if resumeFlags.SkipCompleteThreads {
 		streamOpts = append(streamOpts, stream.OptSkipThreadFunc(dbase.NewThreadSkipper(wconn)))
 	}
-	ctrl, err := archive.DBController(ctx, cmd.Name(), wconn, client, dir, cf, streamOpts, dbase.WithOnlyNewOrChangedUsers(resumeFlags.RecordOnlyNewUsers))
+	ctrl, err := archive.DBController(
+		ctx,
+		cmd.Name(),
+		wconn,
+		client,
+		dir,
+		cf,
+		streamOpts,
+		archive.WithFileDeduplication(),
+		archive.WithDatabaseOptions(dbase.WithOnlyNewOrChangedUsers(resumeFlags.RecordOnlyNewUsers)),
+	)
 	if err != nil {
 		base.SetExitStatus(base.SInitializationError)
 		return fmt.Errorf("error creating archive controller: %w", err)

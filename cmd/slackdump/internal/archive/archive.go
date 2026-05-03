@@ -182,13 +182,42 @@ func NewDirectory(name string) (*chunk.Directory, error) {
 	return cd, nil
 }
 
+type dbControllerOptions struct {
+	dbaseOptions    []dbase.Option
+	fileDeduplicate bool
+}
+
+// DBControllerOption configures the database controller.
+type DBControllerOption func(*dbControllerOptions)
+
+// WithDatabaseOptions passes options to the database backend.
+func WithDatabaseOptions(opts ...dbase.Option) DBControllerOption {
+	return func(o *dbControllerOptions) {
+		o.dbaseOptions = append(o.dbaseOptions, opts...)
+	}
+}
+
+// WithFileDeduplication skips downloading files already present in the
+// database.
+func WithFileDeduplication() DBControllerOption {
+	return func(o *dbControllerOptions) {
+		o.fileDeduplicate = true
+	}
+}
+
 // DBController returns a new database controller initialised with the given
-// parameters.
+// parameters. sessionName is recorded in the database session only and must not
+// be used to select controller behaviour.
 //
 // Obscene, just obscene amount of arguments.
-func DBController(ctx context.Context, cmdName string, conn *sqlx.DB, client client.Slack, dirname string, flags control.Flags, streamOpts []stream.Option, opts ...dbase.Option) (Controller, error) {
+func DBController(ctx context.Context, sessionName string, conn *sqlx.DB, client client.Slack, dirname string, flags control.Flags, streamOpts []stream.Option, opts ...DBControllerOption) (Controller, error) {
 	lg := cfg.Log
-	dbp, err := dbase.New(ctx, conn, bootstrap.SessionInfo(cmdName), opts...)
+	var copt dbControllerOptions
+	for _, opt := range opts {
+		opt(&copt)
+	}
+
+	dbp, err := dbase.New(ctx, conn, bootstrap.SessionInfo(sessionName), copt.dbaseOptions...)
 	if err != nil {
 		return nil, err
 	}
@@ -216,9 +245,8 @@ func DBController(ctx context.Context, cmdName string, conn *sqlx.DB, client cli
 		lg,
 	)
 
-	// Wrap file processor with deduplication for resume operations
 	filer := fileproc.New(dl)
-	if cmdName == "resume" {
+	if copt.fileDeduplicate {
 		filer = fileproc.NewDeduplicatingFileProcessor(filer, conn, lg)
 	}
 
