@@ -16,34 +16,34 @@
 package dbase
 
 import (
-        "context"
-        "database/sql"
-        "errors"
-        "fmt"
-        "log/slog"
-        "sync"
-        "sync/atomic"
-        "time"
+	"context"
+	"database/sql"
+	"errors"
+	"fmt"
+	"log/slog"
+	"sync"
+	"sync/atomic"
+	"time"
 
-        "github.com/jmoiron/sqlx"
+	"github.com/jmoiron/sqlx"
 
-        "github.com/rusq/slackdump/v4/internal/chunk"
-        "github.com/rusq/slackdump/v4/internal/chunk/backend/dbase/repository"
+	"github.com/rusq/slackdump/v4/internal/chunk"
+	"github.com/rusq/slackdump/v4/internal/chunk/backend/dbase/repository"
 )
 
 // DBP is the database processor.
 type DBP struct {
-        mu        sync.RWMutex
-        conn      *sqlx.DB
-        sessionID int64
-        closed    atomic.Bool
+	mu        sync.RWMutex
+	conn      *sqlx.DB
+	sessionID int64
+	closed    atomic.Bool
 
-        mr   repository.MessageRepository
-        opts options
+	mr   repository.MessageRepository
+	opts options
 }
 
 func (d *DBP) String() string {
-        return fmt.Sprintf("<DBP:%d>", d.sessionID)
+	return fmt.Sprintf("<DBP:%d>", d.sessionID)
 }
 
 var _ chunk.Encoder = (*DBP)(nil)
@@ -51,44 +51,44 @@ var _ chunk.Encoder = (*DBP)(nil)
 // SessionInfo is the information about the session to be logged in the
 // database.
 type SessionInfo struct {
-        FromTS         *time.Time
-        ToTS           *time.Time
-        FilesEnabled   bool
-        AvatarsEnabled bool
-        Mode           string
-        Args           string
+	FromTS         *time.Time
+	ToTS           *time.Time
+	FilesEnabled   bool
+	AvatarsEnabled bool
+	Mode           string
+	Args           string
 }
 
 var dbInitCommands = []string{
-        "PRAGMA journal_mode=WAL",   // enable WAL mode
-        "PRAGMA synchronous=NORMAL", // enable synchronous mode
-        "PRAGMA foreign_keys=ON",    // enable foreign keys
+	"PRAGMA journal_mode=WAL",   // enable WAL mode
+	"PRAGMA synchronous=NORMAL", // enable synchronous mode
+	"PRAGMA foreign_keys=ON",    // enable foreign keys
 }
 
 type options struct {
-        onlyNewOrChangedUsers bool
-        verbose               bool
-        dedupeOnFinish        bool
+	onlyNewOrChangedUsers bool
+	verbose               bool
+	dedupeOnFinish        bool
 }
 
 func (o *options) apply(opts ...Option) {
-        for _, opt := range opts {
-                opt(o)
-        }
+	for _, opt := range opts {
+		opt(o)
+	}
 }
 
 type Option func(*options)
 
 func WithVerbose(v bool) Option {
-        return func(o *options) {
-                o.verbose = v
-        }
+	return func(o *options) {
+		o.verbose = v
+	}
 }
 
 func WithOnlyNewOrChangedUsers(v bool) Option {
-        return func(o *options) {
-                o.onlyNewOrChangedUsers = v
-        }
+	return func(o *options) {
+		o.onlyNewOrChangedUsers = v
+	}
 }
 
 // WithDedupeOnFinish controls whether [DBP.Finish] runs the in-database
@@ -104,55 +104,55 @@ func WithOnlyNewOrChangedUsers(v bool) Option {
 // Dedupe is only attempted when Finish completes the session successfully;
 // aborted sessions are left untouched so they can be inspected.
 func WithDedupeOnFinish(v bool) Option {
-        return func(o *options) {
-                o.dedupeOnFinish = v
-        }
+	return func(o *options) {
+		o.dedupeOnFinish = v
+	}
 }
 
 // New return the new database processor.
 func New(ctx context.Context, conn *sqlx.DB, p SessionInfo, opts ...Option) (*DBP, error) {
-        var options options
-        options.apply(opts...)
+	var options options
+	options.apply(opts...)
 
-        if err := initDB(ctx, conn); err != nil {
-                return nil, fmt.Errorf("new: %w", err)
-        }
+	if err := initDB(ctx, conn); err != nil {
+		return nil, fmt.Errorf("new: %w", err)
+	}
 
-        if err := repository.Migrate(ctx, conn.DB, options.verbose); err != nil {
-                return nil, fmt.Errorf("new: %w", err)
-        }
+	if err := repository.Migrate(ctx, conn.DB, options.verbose); err != nil {
+		return nil, fmt.Errorf("new: %w", err)
+	}
 
-        sr := repository.NewSessionRepository()
-        id, err := sr.Insert(ctx, conn, &repository.Session{
-                CreatedAt:      time.Time{},
-                ParentID:       new(int64),
-                FromTS:         p.FromTS,
-                ToTS:           p.ToTS,
-                FilesEnabled:   p.FilesEnabled,
-                AvatarsEnabled: p.AvatarsEnabled,
-                Mode:           p.Mode,
-                Args:           p.Args,
-        })
-        if err != nil {
-                return nil, fmt.Errorf("new: %w", err)
-        }
+	sr := repository.NewSessionRepository()
+	id, err := sr.Insert(ctx, conn, &repository.Session{
+		CreatedAt:      time.Time{},
+		ParentID:       new(int64),
+		FromTS:         p.FromTS,
+		ToTS:           p.ToTS,
+		FilesEnabled:   p.FilesEnabled,
+		AvatarsEnabled: p.AvatarsEnabled,
+		Mode:           p.Mode,
+		Args:           p.Args,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("new: %w", err)
+	}
 
-        return &DBP{
-                conn:      conn,
-                sessionID: id,
-                mr:        repository.NewMessageRepository(),
-                opts:      options,
-        }, nil
+	return &DBP{
+		conn:      conn,
+		sessionID: id,
+		mr:        repository.NewMessageRepository(),
+		opts:      options,
+	}, nil
 }
 
 // initDB runs the initialisation commands on the database.
 func initDB(ctx context.Context, conn *sqlx.DB) error {
-        for _, q := range dbInitCommands {
-                if _, err := conn.ExecContext(ctx, q); err != nil {
-                        return fmt.Errorf("initDB: %w", err)
-                }
-        }
-        return nil
+	for _, q := range dbInitCommands {
+		if _, err := conn.ExecContext(ctx, q); err != nil {
+			return fmt.Errorf("initDB: %w", err)
+		}
+	}
+	return nil
 }
 
 // Finish finalises the session, marking it as finished.  If the processor was
@@ -163,95 +163,95 @@ func initDB(ctx context.Context, conn *sqlx.DB) error {
 // (reads use MAX(CHUNK_ID)), so the caller should not have its successful
 // run reported as failed.
 func (d *DBP) Finish() error {
-        d.mu.Lock()
-        defer d.mu.Unlock()
-        if swapped := d.closed.CompareAndSwap(false, true); !swapped {
-                return nil
-        }
-        ctx := context.Background()
-        sr := repository.NewSessionRepository()
-        if n, err := sr.Finalise(ctx, d.conn, d.sessionID); err != nil && !errors.Is(err, sql.ErrNoRows) {
-                return fmt.Errorf("finish: %w", err)
-        } else if n == 0 {
-                return errors.New("finish: no session found")
-        }
-        if d.opts.dedupeOnFinish {
-                d.runDedupe(ctx)
-        }
-        return nil
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if swapped := d.closed.CompareAndSwap(false, true); !swapped {
+		return nil
+	}
+	ctx := context.Background()
+	sr := repository.NewSessionRepository()
+	if n, err := sr.Finalise(ctx, d.conn, d.sessionID); err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return fmt.Errorf("finish: %w", err)
+	} else if n == 0 {
+		return errors.New("finish: no session found")
+	}
+	if d.opts.dedupeOnFinish {
+		d.runDedupe(ctx)
+	}
+	return nil
 }
 
 // runDedupe executes the deduplication pass and logs the outcome.  Errors are
 // intentionally not propagated: dedupe is an opportunistic cleanup and a
 // failure here must not invalidate an otherwise successful session.
 func (d *DBP) runDedupe(ctx context.Context) {
-        repo := repository.NewDedupeRepository()
-        start := time.Now()
-        res, err := repo.Deduplicate(ctx, d.conn)
-        if err != nil {
-                slog.WarnContext(ctx, "dedupe on finish failed; session is finalised, run `slackdump tools dedupe -execute` manually to reclaim space",
-                        "session_id", d.sessionID,
-                        "took", time.Since(start),
-                        "error", err,
-                )
-                return
-        }
-        if res.MessagesRemoved == 0 && res.UsersRemoved == 0 && res.ChannelsRemoved == 0 &&
-                res.ChannelUsersRemoved == 0 && res.FilesRemoved == 0 && res.ChunksRemoved == 0 {
-                slog.DebugContext(ctx, "dedupe on finish: nothing to remove",
-                        "session_id", d.sessionID,
-                        "took", time.Since(start),
-                )
-                return
-        }
-        slog.InfoContext(ctx, "dedupe on finish removed duplicate entities",
-                "session_id", d.sessionID,
-                "messages", res.MessagesRemoved,
-                "users", res.UsersRemoved,
-                "channels", res.ChannelsRemoved,
-                "channel_users", res.ChannelUsersRemoved,
-                "files", res.FilesRemoved,
-                "chunks", res.ChunksRemoved,
-                "took", time.Since(start),
-        )
+	repo := repository.NewDedupeRepository()
+	start := time.Now()
+	res, err := repo.Deduplicate(ctx, d.conn)
+	if err != nil {
+		slog.WarnContext(ctx, "dedupe on finish failed; session is finalised, run `slackdump tools dedupe -execute` manually to reclaim space",
+			"session_id", d.sessionID,
+			"took", time.Since(start),
+			"error", err,
+		)
+		return
+	}
+	if res.MessagesRemoved == 0 && res.UsersRemoved == 0 && res.ChannelsRemoved == 0 &&
+		res.ChannelUsersRemoved == 0 && res.FilesRemoved == 0 && res.ChunksRemoved == 0 {
+		slog.DebugContext(ctx, "dedupe on finish: nothing to remove",
+			"session_id", d.sessionID,
+			"took", time.Since(start),
+		)
+		return
+	}
+	slog.InfoContext(ctx, "dedupe on finish removed duplicate entities",
+		"session_id", d.sessionID,
+		"messages", res.MessagesRemoved,
+		"users", res.UsersRemoved,
+		"channels", res.ChannelsRemoved,
+		"channel_users", res.ChannelUsersRemoved,
+		"files", res.FilesRemoved,
+		"chunks", res.ChunksRemoved,
+		"took", time.Since(start),
+	)
 }
 
 // Abort closes the writer without finalising the session. No additional
 // cleanup is required here because DBP does not own the database connection.
 func (d *DBP) Abort() error {
-        d.mu.Lock()
-        defer d.mu.Unlock()
-        if swapped := d.closed.CompareAndSwap(false, true); !swapped {
-                return nil
-        }
-        return nil
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if swapped := d.closed.CompareAndSwap(false, true); !swapped {
+		return nil
+	}
+	return nil
 }
 
 // Close aborts the writer without finalising the session.
 func (d *DBP) Close() error {
-        return d.Abort()
+	return d.Abort()
 }
 
 // Encode inserts the chunk into the database.
 func (d *DBP) Encode(ctx context.Context, ch *chunk.Chunk) error {
-        if _, err := d.InsertChunk(ctx, ch); err != nil {
-                return fmt.Errorf("encode: %w", err)
-        }
-        return nil
+	if _, err := d.InsertChunk(ctx, ch); err != nil {
+		return fmt.Errorf("encode: %w", err)
+	}
+	return nil
 }
 
 // IsComplete returns true if the channel messages have been processed (there
 // are no unfinished threads, and all messages were received).
 func (d *DBP) IsComplete(ctx context.Context, channelID string) (bool, error) {
-        d.mu.Lock()
-        defer d.mu.Unlock()
-        n, err := d.mr.CountUnfinished(ctx, d.conn, d.sessionID, channelID)
-        if errors.Is(err, sql.ErrNoRows) {
-                return false, nil
-        } else if err != nil {
-                return false, fmt.Errorf("countUnfinished: %w", err)
-        }
-        return n <= 0, nil
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	n, err := d.mr.CountUnfinished(ctx, d.conn, d.sessionID, channelID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, nil
+	} else if err != nil {
+		return false, fmt.Errorf("countUnfinished: %w", err)
+	}
+	return n <= 0, nil
 }
 
 // IsCompleteThread checks that thread with channelID and threadID is complete for
@@ -259,17 +259,17 @@ func (d *DBP) IsComplete(ctx context.Context, channelID string) (bool, error) {
 // thread.  It returns false if the thread is not found.  It will return false
 // on non-thread-only archives.
 func (d *DBP) IsCompleteThread(ctx context.Context, channelID, threadID string) (bool, error) {
-        d.mu.Lock()
-        defer d.mu.Unlock()
-        n, err := d.mr.CountThreadOnlyParts(ctx, d.conn, d.sessionID, channelID, threadID)
-        if errors.Is(err, sql.ErrNoRows) {
-                return false, nil
-        } else if err != nil {
-                return false, fmt.Errorf("countUnfinished: %w", err)
-        }
-        // note that count thread only parts returns non-zero for completed threads,
-        // so the check is reversed.
-        return n > 0, nil
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	n, err := d.mr.CountThreadOnlyParts(ctx, d.conn, d.sessionID, channelID, threadID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, nil
+	} else if err != nil {
+		return false, fmt.Errorf("countUnfinished: %w", err)
+	}
+	// note that count thread only parts returns non-zero for completed threads,
+	// so the check is reversed.
+	return n > 0, nil
 }
 
 // NewThreadSkipper returns a predicate suitable for stream.OptSkipThreadFunc.
@@ -285,20 +285,20 @@ func (d *DBP) IsCompleteThread(ctx context.Context, channelID, threadID string) 
 // message, which may lag behind true thread state (edits/deletes not reflected).
 // This is the accepted tradeoff documented in the -skip-complete-threads flag.
 func NewThreadSkipper(conn *sqlx.DB) func(ctx context.Context, channelID, threadTS string, replyCount int) bool {
-        mr := repository.NewMessageRepository()
-        return func(ctx context.Context, channelID, threadTS string, replyCount int) bool {
-                n, err := mr.CountThread(ctx, conn, channelID, threadTS)
-                if err != nil {
-                        return false
-                }
-                return n == int64(replyCount)+1
-        }
+	mr := repository.NewMessageRepository()
+	return func(ctx context.Context, channelID, threadTS string, replyCount int) bool {
+		n, err := mr.CountThread(ctx, conn, channelID, threadTS)
+		if err != nil {
+			return false
+		}
+		return n == int64(replyCount)+1
+	}
 }
 
 // Source returns the connection that can be used safely as a source.
 func (d *DBP) Source() *Source {
-        return &Source{
-                conn:     d.conn,
-                canClose: false,
-        }
+	return &Source{
+		conn:     d.conn,
+		canClose: false,
+	}
 }
