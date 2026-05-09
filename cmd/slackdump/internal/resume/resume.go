@@ -183,7 +183,10 @@ func runResume(ctx context.Context, cmd *base.Command, args []string) error {
 		cf,
 		streamOpts,
 		archive.WithFileDeduplication(),
-		archive.WithDatabaseOptions(dbase.WithOnlyNewOrChangedUsers(resumeFlags.RecordOnlyNewUsers)),
+		archive.WithDatabaseOptions(
+			dbase.WithDedupeOnFinish(true),
+			dbase.WithOnlyNewOrChangedUsers(resumeFlags.RecordOnlyNewUsers),
+		),
 	)
 	if err != nil {
 		base.SetExitStatus(base.SInitializationError)
