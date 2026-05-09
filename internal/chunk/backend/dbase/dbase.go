@@ -20,7 +20,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log/slog"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -68,7 +67,6 @@ var dbInitCommands = []string{
 type options struct {
 	onlyNewOrChangedUsers bool
 	verbose               bool
-	dedupeOnFinish        bool
 }
 
 func (o *options) apply(opts ...Option) {
@@ -88,24 +86,6 @@ func WithVerbose(v bool) Option {
 func WithOnlyNewOrChangedUsers(v bool) Option {
 	return func(o *options) {
 		o.onlyNewOrChangedUsers = v
-	}
-}
-
-// WithDedupeOnFinish controls whether [DBP.Finish] runs the in-database
-// deduplication pass after the session is finalised.  When enabled, identical
-// duplicate messages, users, channels, channel users and files left over from
-// resume look-back overlap are removed in a single transaction.
-//
-// This is intended for resume runs, where every successful pass would
-// otherwise grow the database with copies of unchanged entities (see
-// rusq/slackdump#633).  It is a no-op for sessions that did not produce any
-// duplicates, so enabling it for archive runs is safe but wasteful.
-//
-// Dedupe is only attempted when Finish completes the session successfully;
-// aborted sessions are left untouched so they can be inspected.
-func WithDedupeOnFinish(v bool) Option {
-	return func(o *options) {
-		o.dedupeOnFinish = v
 	}
 }
 
@@ -155,13 +135,7 @@ func initDB(ctx context.Context, conn *sqlx.DB) error {
 	return nil
 }
 
-// Finish finalises the session, marking it as finished.  If the processor was
-// created with [WithDedupeOnFinish], it then runs an in-database deduplication
-// pass to drop identical duplicate entities accumulated by resume look-back
-// overlap (see rusq/slackdump#633).  Dedupe failures are logged but not
-// returned: the session is already finalised and the duplicates are harmless
-// (reads use MAX(CHUNK_ID)), so the caller should not have its successful
-// run reported as failed.
+// Finish finalises the session, marking it as finished.
 func (d *DBP) Finish() error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -175,45 +149,7 @@ func (d *DBP) Finish() error {
 	} else if n == 0 {
 		return errors.New("finish: no session found")
 	}
-	if d.opts.dedupeOnFinish {
-		d.runDedupe(ctx)
-	}
 	return nil
-}
-
-// runDedupe executes the deduplication pass and logs the outcome.  Errors are
-// intentionally not propagated: dedupe is an opportunistic cleanup and a
-// failure here must not invalidate an otherwise successful session.
-func (d *DBP) runDedupe(ctx context.Context) {
-	repo := repository.NewDedupeRepository()
-	start := time.Now()
-	res, err := repo.Deduplicate(ctx, d.conn)
-	if err != nil {
-		slog.WarnContext(ctx, "dedupe on finish failed; session is finalised, run `slackdump tools dedupe -execute` manually to reclaim space",
-			"session_id", d.sessionID,
-			"took", time.Since(start),
-			"error", err,
-		)
-		return
-	}
-	if res.MessagesRemoved == 0 && res.UsersRemoved == 0 && res.ChannelsRemoved == 0 &&
-		res.ChannelUsersRemoved == 0 && res.FilesRemoved == 0 && res.ChunksRemoved == 0 {
-		slog.DebugContext(ctx, "dedupe on finish: nothing to remove",
-			"session_id", d.sessionID,
-			"took", time.Since(start),
-		)
-		return
-	}
-	slog.InfoContext(ctx, "dedupe on finish removed duplicate entities",
-		"session_id", d.sessionID,
-		"messages", res.MessagesRemoved,
-		"users", res.UsersRemoved,
-		"channels", res.ChannelsRemoved,
-		"channel_users", res.ChannelUsersRemoved,
-		"files", res.FilesRemoved,
-		"chunks", res.ChunksRemoved,
-		"took", time.Since(start),
-	)
 }
 
 // Abort closes the writer without finalising the session. No additional
