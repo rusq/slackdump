@@ -28,19 +28,20 @@ import (
         "github.com/jmoiron/sqlx"
         "github.com/rusq/fsadapter"
 
-        "github.com/rusq/slackdump/v4/cmd/slackdump/internal/bootstrap"
-        "github.com/rusq/slackdump/v4/cmd/slackdump/internal/cfg"
-        "github.com/rusq/slackdump/v4/cmd/slackdump/internal/golang/base"
-        "github.com/rusq/slackdump/v4/internal/chunk"
-        "github.com/rusq/slackdump/v4/internal/chunk/backend/dbase"
-        "github.com/rusq/slackdump/v4/internal/chunk/backend/dbase/repository"
-        "github.com/rusq/slackdump/v4/internal/chunk/backend/directory"
-        "github.com/rusq/slackdump/v4/internal/chunk/control"
-        "github.com/rusq/slackdump/v4/internal/client"
-        "github.com/rusq/slackdump/v4/internal/convert/transform/fileproc"
-        "github.com/rusq/slackdump/v4/internal/structures"
-        "github.com/rusq/slackdump/v4/source"
-        "github.com/rusq/slackdump/v4/stream"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/bootstrap"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/cfg"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/golang/base"
+	"github.com/rusq/slackdump/v4/internal/chunk"
+	"github.com/rusq/slackdump/v4/internal/chunk/backend/dbase"
+	"github.com/rusq/slackdump/v4/internal/chunk/backend/dbase/repository"
+	"github.com/rusq/slackdump/v4/internal/chunk/backend/directory"
+	"github.com/rusq/slackdump/v4/internal/chunk/control"
+	"github.com/rusq/slackdump/v4/internal/client"
+	"github.com/rusq/slackdump/v4/internal/convert/transform/fileproc"
+	"github.com/rusq/slackdump/v4/internal/structures"
+	"github.com/rusq/slackdump/v4/processor"
+	"github.com/rusq/slackdump/v4/source"
+	"github.com/rusq/slackdump/v4/stream"
 )
 
 //go:embed assets/archive.md
@@ -182,52 +183,70 @@ func NewDirectory(name string) (*chunk.Directory, error) {
         return cd, nil
 }
 
+type dbControllerOptions struct {
+	dbaseOptions    []dbase.Option
+	fileDeduplicate bool
+}
+
+// DBControllerOption configures the database controller.
+type DBControllerOption func(*dbControllerOptions)
+
+// WithDatabaseOptions passes options to the database backend.
+func WithDatabaseOptions(opts ...dbase.Option) DBControllerOption {
+	return func(o *dbControllerOptions) {
+		o.dbaseOptions = append(o.dbaseOptions, opts...)
+	}
+}
+
+// WithFileDeduplication skips downloading files already present in the
+// database.
+func WithFileDeduplication() DBControllerOption {
+	return func(o *dbControllerOptions) {
+		o.fileDeduplicate = true
+	}
+}
+
 // DBController returns a new database controller initialised with the given
-// parameters.
+// parameters. sessionName is recorded in the database session only and must not
+// be used to select controller behaviour.
 //
 // Obscene, just obscene amount of arguments.
-func DBController(ctx context.Context, cmdName string, conn *sqlx.DB, client client.Slack, dirname string, flags control.Flags, streamOpts []stream.Option, opts ...dbase.Option) (Controller, error) {
-        lg := cfg.Log
-        // For resume runs, automatically dedupe on Finish to keep the database
-        // from accumulating identical duplicate entities created by look-back
-        // overlap (rusq/slackdump#633).  Caller-supplied opts win, so a user can
-        // still pass dbase.WithDedupeOnFinish(false) to opt out.
-        if cmdName == "resume" {
-                opts = append([]dbase.Option{dbase.WithDedupeOnFinish(true)}, opts...)
-        }
-        dbp, err := dbase.New(ctx, conn, bootstrap.SessionInfo(cmdName), opts...)
-        if err != nil {
-                return nil, err
-        }
-        sopts := []stream.Option{
-                stream.OptLatest(time.Time(cfg.Latest)),
-                stream.OptOldest(time.Time(cfg.Oldest)),
-                stream.OptResultFn(resultLogger(lg)),
-                stream.OptFailOnNonCritError(cfg.FailOnNonCritical),
-        }
-        sopts = append(sopts, streamOpts...)
-        // start attachment downloader
-        dl := fileproc.NewDownloader(
-                ctx,
-                cfg.WithFiles,
-                client,
-                fsadapter.NewDirectory(dirname),
-                lg,
-        )
-        // start avatar downloader
-        avdl := fileproc.NewDownloader(
-                ctx,
-                cfg.WithAvatars,
-                client,
-                fsadapter.NewDirectory(dirname),
-                lg,
-        )
+func DBController(ctx context.Context, sessionName string, conn *sqlx.DB, client client.Slack, dirname string, flags control.Flags, streamOpts []stream.Option, opts ...DBControllerOption) (Controller, error) {
+	lg := cfg.Log
+	var options dbControllerOptions
+	for _, opt := range opts {
+		opt(&options)
+	}
 
-        // Wrap file processor with deduplication for resume operations
-        filer := fileproc.New(dl)
-        if cmdName == "resume" {
-                filer = fileproc.NewDeduplicatingFileProcessor(filer, conn, lg)
-        }
+	dbp, err := dbase.New(ctx, conn, bootstrap.SessionInfo(sessionName), options.dbaseOptions...)
+	if err != nil {
+		return nil, err
+	}
+	sopts := []stream.Option{
+		stream.OptLatest(time.Time(cfg.Latest)),
+		stream.OptOldest(time.Time(cfg.Oldest)),
+		stream.OptResultFn(resultLogger(lg)),
+		stream.OptFailOnNonCritError(cfg.FailOnNonCritical),
+	}
+	sopts = append(sopts, streamOpts...)
+	// start attachment downloader
+	dl := fileproc.NewDownloader(
+		ctx,
+		cfg.WithFiles,
+		client,
+		fsadapter.NewDirectory(dirname),
+		lg,
+	)
+	// start avatar downloader
+	avdl := fileproc.NewDownloader(
+		ctx,
+		cfg.WithAvatars,
+		client,
+		fsadapter.NewDirectory(dirname),
+		lg,
+	)
+
+	filer := dbControllerFiler(dl, conn, lg, options)
 
         ctrl, err := control.New(
                 ctx,
@@ -241,6 +260,14 @@ func DBController(ctx context.Context, cmdName string, conn *sqlx.DB, client cli
                 return nil, err
         }
         return ctrl, nil
+}
+
+func dbControllerFiler(dl fileproc.Downloader, conn *sqlx.DB, lg *slog.Logger, options dbControllerOptions) processor.Filer {
+	filer := fileproc.New(dl)
+	if options.fileDeduplicate {
+		return fileproc.NewDeduplicatingFileProcessor(filer, conn, lg)
+	}
+	return filer
 }
 
 type Controller interface {

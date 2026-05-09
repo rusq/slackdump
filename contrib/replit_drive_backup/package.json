@@ -1,0 +1,17 @@
+{
+  "name": "slackdump-replit-drive-backup",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Resumable uploader for a slackdump archive into Google Drive, designed for Replit workspaces.",
+  "license": "AGPL-3.0-or-later",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node drive-upload-folder.mjs"
+  },
+  "dependencies": {
+    "@replit/connectors-sdk": "^1.0.0"
+  }
+}
