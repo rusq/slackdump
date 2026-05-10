@@ -34,6 +34,19 @@ steps:
    slackdump convert -format <your-format> slackdump_20241231_150405
    ```
 
+### Deduplicating resume overlap.
+
+Resume uses a lookback window to avoid missing edits, replies, and other
+late-arriving changes. This can re-fetch unchanged entities that are already in
+the archive. Use `-dedupe` to remove identical duplicate messages, users,
+channels, channel users, files, and now-empty chunks after a successful resume:
+
+```plaintext
+slackdump resume -dedupe slackdump_20241231_150405
+```
+
+Deduplication runs only after resume finishes successfully. To preview or run
+the same cleanup manually later, use `slackdump tools dedupe`.
+
 __NOTE__: Resume is in beta and may not work as expected. Please report any
 issues on GitHub.
-
