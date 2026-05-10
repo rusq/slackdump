@@ -77,7 +77,10 @@ func playwrightLogin(ctx context.Context, mgr manager) error {
 }
 
 func rodLogin(ctx context.Context, mgr manager) error {
-	prov, err := auth.NewRODAuth(ctx, auth.BrowserWithTimeout(wspcfg.LoginTimeout), auth.RODWithRODHeadlessTimeout(wspcfg.HeadlessTimeout), auth.RODWithUserAgent(wspcfg.RODUserAgent))
+	authOpts := append([]auth.Option{
+		auth.BrowserWithTimeout(wspcfg.LoginTimeout),
+	}, wspcfg.RodAuthOptions()...)
+	prov, err := auth.NewRODAuth(ctx, authOpts...)
 	if err != nil {
 		return err
 	}

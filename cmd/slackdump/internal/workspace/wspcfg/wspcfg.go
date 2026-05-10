@@ -32,9 +32,17 @@ var (
 	LoginTimeout    time.Duration = browser.DefLoginTimeout // overall login time.
 	HeadlessTimeout time.Duration = auth.RODHeadlessTimeout // net interaction time.
 	RODUserAgent    string                                  // when empty, slackauth uses the default user agent.
+	BundledBrowser  bool                                    // when true, forces the launcher-managed bundled Chromium for interactive login.
 	// playwright stuff
 	Browser       browser.Browser
 	LegacyBrowser bool
+)
+
+var (
+	rodWithHeadlessTimeout = auth.RODWithRODHeadlessTimeout
+	rodWithUserAgent       = auth.RODWithUserAgent
+	rodWithBundledBrowser  = auth.RODWithBundledBrowser
+	rodWithInteractiveAuto = auth.RODWithInteractiveBrowserAuto
 )
 
 func SetWspFlags(fs *flag.FlagSet) {
@@ -45,4 +53,16 @@ func SetWspFlags(fs *flag.FlagSet) {
 	fs.DurationVar(&HeadlessTimeout, "autologin-timeout", HeadlessTimeout, "headless autologin `timeout`, without the browser starting time, just the interaction time")
 	fs.BoolVar(&LegacyBrowser, "legacy-browser", false, "use legacy browser automation (playwright) for EZ-Login 3000")
 	fs.StringVar(&RODUserAgent, "user-agent", "", "override the user agent string for EZ-Login 3000")
+	fs.BoolVar(&BundledBrowser, "bundled-browser", false, "force the launcher-managed bundled Chromium for interactive login (disables system browser auto-detection)")
+}
+
+// RodAuthOptions returns auth options shared by all ROD-based workspace login
+// entry points, keeping CLI and TUI behaviour aligned.
+func RodAuthOptions() []auth.Option {
+	return []auth.Option{
+		rodWithHeadlessTimeout(HeadlessTimeout),
+		rodWithUserAgent(RODUserAgent),
+		rodWithBundledBrowser(BundledBrowser),
+		rodWithInteractiveAuto(!BundledBrowser),
+	}
 }

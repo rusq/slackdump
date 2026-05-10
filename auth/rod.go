@@ -57,6 +57,11 @@ type rodOpts struct {
 	userAgent      string
 	usermode       bool
 	bundledBrowser bool
+	// interactiveBrowserAuto, when true, lets the [LInteractive] login
+	// flow opportunistically use a locally installed system browser
+	// (Chrome/Edge/Brave/Chromium) instead of the launcher-managed
+	// bundled Chromium.  See [findInteractiveBrowser] and issue #675.
+	interactiveBrowserAuto bool
 }
 
 func (ro rodOpts) slackauthOpts() []slackauth.Option {
@@ -100,11 +105,12 @@ func NewRODAuth(ctx context.Context, opts ...Option) (RodAuth, error) {
 	r := RodAuth{
 		opts: options{
 			rodOpts: rodOpts{
-				ui:             &auth_ui.Huh{},
-				autoTimeout:    RODHeadlessTimeout,
-				userAgent:      "", // slackauth default user agent.
-				usermode:       false,
-				bundledBrowser: false,
+				ui:                     &auth_ui.Huh{},
+				autoTimeout:            RODHeadlessTimeout,
+				userAgent:              "", // slackauth default user agent.
+				usermode:               false,
+				bundledBrowser:         false,
+				interactiveBrowserAuto: true,
 			},
 		},
 	}
@@ -126,6 +132,19 @@ func NewRODAuth(ctx context.Context, opts ...Option) (RodAuth, error) {
 		// it doesn't need to know that this browser is just a puppet in the
 		// masterful hands.
 		sopts = append(sopts, slackauth.WithForceUser(), slackauth.WithLocalBrowser(resp.BrowserPath))
+	} else if resp.Type == auth_ui.LInteractive && !r.opts.bundledBrowser && r.opts.interactiveBrowserAuto {
+		// Workaround for #675: the launcher-managed bundled Chromium is
+		// currently pinned to revision ~v128, which Slack now rejects on
+		// the login page.  Users almost always have a newer system
+		// browser already installed; prefer it transparently for the
+		// "Login in Browser" flow.  Falls back to the bundled browser
+		// if no system browser is detected, preserving prior behaviour.
+		if path := findInteractiveBrowser(slackauth.ListBrowsers); path != "" {
+			slog.Default().InfoContext(ctx,
+				"using system browser for interactive login (workaround for slackdump#675)",
+				"path", path)
+			sopts = append(sopts, slackauth.WithLocalBrowser(path))
+		}
 	}
 
 	cl, err := slackauth.New(
@@ -183,6 +202,28 @@ func headlessFlow(ctx context.Context, cl *slackauth.Client, workspace string, u
 		return sp, loginErr
 	}
 	return
+}
+
+// findInteractiveBrowser returns the path to a locally installed system
+// browser (Chrome/Edge/Brave/Chromium) suitable for use in place of the
+// launcher-managed bundled Chromium during the interactive login flow.
+//
+// It exists to work around https://github.com/rusq/slackdump/issues/675:
+// go-rod's launcher pins a Chromium revision (~v128) that Slack now
+// rejects on the login page, while users almost always have a newer
+// browser already installed on their machines.
+//
+// The lister is injected to keep the function unit-testable; in
+// production it is [slackauth.ListBrowsers].  Returns the path to the
+// first detected browser, or "" if none was detected (in which case the
+// caller should fall back to the bundled browser, preserving prior
+// behaviour).
+func findInteractiveBrowser(lister func() ([]slackauth.LocalBrowser, error)) string {
+	browsers, err := lister()
+	if err != nil || len(browsers) == 0 {
+		return ""
+	}
+	return browsers[0].Path
 }
 
 func qrFlow(ctx context.Context, cl *slackauth.Client, ui browserAuthUIExt) (sp simpleProvider, err error) {
