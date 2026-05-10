@@ -25,12 +25,14 @@ import (
 	"text/tabwriter"
 	"time"
 
+	"github.com/jmoiron/sqlx"
 	"github.com/sosodev/duration"
 
 	"github.com/rusq/slackdump/v4"
 	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/archive"
 	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/bootstrap"
 	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/cfg"
+	dedupecmd "github.com/rusq/slackdump/v4/cmd/slackdump/internal/diag/dedupe"
 	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v4/internal/chunk/backend/dbase"
 	"github.com/rusq/slackdump/v4/internal/chunk/control"
@@ -76,6 +78,8 @@ type ResumeParams struct {
 	// not be checked for updates, as only channel messages within the lookback
 	// window are scanned to discover threads.
 	SkipCompleteThreads bool
+	// Dedupe runs duplicate entity cleanup after a successful resume.
+	Dedupe bool
 }
 
 var resumeFlags = ResumeParams{
@@ -89,6 +93,21 @@ func init() {
 	CmdResume.Flag.BoolVar(&resumeFlags.RecordOnlyNewUsers, "only-new-users", true, "record only new or updated users")
 	CmdResume.Flag.Var(resumeFlags.Lookback, "lookback", "lookback window `duration`")
 	CmdResume.Flag.BoolVar(&resumeFlags.SkipCompleteThreads, "skip-complete-threads", false, "skip threads where DB already has all replies (faster, but won't detect edits/deletes or new replies to messages older than lookback window)")
+	CmdResume.Flag.BoolVar(&resumeFlags.Dedupe, "dedupe", false, "run dedupe cleanup after successful resume finish")
+}
+
+var runDedupe = func(ctx context.Context, conn *sqlx.DB, opts dedupecmd.Options) (dedupecmd.Result, error) {
+	return dedupecmd.Run(ctx, conn, opts)
+}
+
+var (
+	errRunArchiveController    = errors.New("error running archive controller")
+	errFinishArchiveController = errors.New("error finalizing archive controller")
+)
+
+type archiveRunner interface {
+	RunNoTransform(ctx context.Context, latest *structures.EntityList) error
+	Finish() error
 }
 
 func runResume(ctx context.Context, cmd *base.Command, args []string) error {
@@ -183,7 +202,9 @@ func runResume(ctx context.Context, cmd *base.Command, args []string) error {
 		cf,
 		streamOpts,
 		archive.WithFileDeduplication(),
-		archive.WithDatabaseOptions(dbase.WithOnlyNewOrChangedUsers(resumeFlags.RecordOnlyNewUsers)),
+		archive.WithDatabaseOptions(
+			dbase.WithOnlyNewOrChangedUsers(resumeFlags.RecordOnlyNewUsers),
+		),
 	)
 	if err != nil {
 		base.SetExitStatus(base.SInitializationError)
@@ -191,16 +212,41 @@ func runResume(ctx context.Context, cmd *base.Command, args []string) error {
 	}
 	defer ctrl.Close()
 
-	if err := ctrl.RunNoTransform(ctx, latest); err != nil {
-		base.SetExitStatus(base.SApplicationError)
-		return fmt.Errorf("error running archive controller: %w", err)
-	}
-	if err := ctrl.Finish(); err != nil {
-		base.SetExitStatus(base.SApplicationError)
-		return fmt.Errorf("error finalizing archive controller: %w", err)
+	if err := runArchiveAndCleanup(ctx, ctrl, latest, wconn, dir, resumeFlags.Dedupe); err != nil {
+		if errors.Is(err, errRunArchiveController) {
+			base.SetExitStatus(base.SApplicationError)
+		}
+		if errors.Is(err, errFinishArchiveController) {
+			base.SetExitStatus(base.SApplicationError)
+		}
+		return err
 	}
 
 	return nil
+}
+
+func runArchiveAndCleanup(ctx context.Context, runner archiveRunner, latest *structures.EntityList, conn *sqlx.DB, dir string, dedupeEnabled bool) error {
+	if err := runner.RunNoTransform(ctx, latest); err != nil {
+		return fmt.Errorf("%w: %w", errRunArchiveController, err)
+	}
+	if err := runner.Finish(); err != nil {
+		return fmt.Errorf("%w: %w", errFinishArchiveController, err)
+	}
+	if err := runDedupeAfterFinish(ctx, conn, dir, dedupeEnabled); err != nil {
+		slog.WarnContext(ctx, "post-finish dedupe failed; resume run is complete", "database", dir, "error", err)
+	}
+	return nil
+}
+
+func runDedupeAfterFinish(ctx context.Context, conn *sqlx.DB, dir string, enabled bool) error {
+	if !enabled {
+		return nil
+	}
+	_, err := runDedupe(ctx, conn, dedupecmd.Options{
+		Execute:  true,
+		Database: dir,
+	})
+	return err
 }
 
 func latest(ctx context.Context, src source.Resumer, includeThreads bool, skipCompleteThreads bool, lookBack time.Duration, other *structures.EntityList) (*structures.EntityList, error) {

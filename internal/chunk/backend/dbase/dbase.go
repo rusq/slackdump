@@ -142,8 +142,9 @@ func (d *DBP) Finish() error {
 	if swapped := d.closed.CompareAndSwap(false, true); !swapped {
 		return nil
 	}
+	ctx := context.Background()
 	sr := repository.NewSessionRepository()
-	if n, err := sr.Finalise(context.Background(), d.conn, d.sessionID); err != nil && !errors.Is(err, sql.ErrNoRows) {
+	if n, err := sr.Finalise(ctx, d.conn, d.sessionID); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return fmt.Errorf("finish: %w", err)
 	} else if n == 0 {
 		return errors.New("finish: no session found")

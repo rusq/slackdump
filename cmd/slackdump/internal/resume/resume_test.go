@@ -18,15 +18,19 @@ package resume
 import (
 	"context"
 	_ "embed"
+	"errors"
 	"testing"
 	"time"
 
+	"github.com/jmoiron/sqlx"
 	"github.com/rusq/slack"
 	"github.com/sosodev/duration"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 
 	"github.com/rusq/slackdump/v4"
+	dedupecmd "github.com/rusq/slackdump/v4/cmd/slackdump/internal/diag/dedupe"
 	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v4/internal/fixtures"
 	"github.com/rusq/slackdump/v4/internal/structures"
@@ -339,11 +343,11 @@ func Test_usersTeam(t *testing.T) {
 
 func Test_latest(t *testing.T) {
 	type args struct {
-		ctx                context.Context
-		includeThreads     bool
+		ctx                 context.Context
+		includeThreads      bool
 		skipCompleteThreads bool
-		lookBack           time.Duration
-		other              *structures.EntityList
+		lookBack            time.Duration
+		other               *structures.EntityList
 	}
 	tests := []struct {
 		name     string
@@ -355,10 +359,10 @@ func Test_latest(t *testing.T) {
 		{
 			name: "resumer error",
 			args: args{
-				ctx:                  t.Context(),
-				includeThreads:       false,
+				ctx:                 t.Context(),
+				includeThreads:      false,
 				skipCompleteThreads: false,
-				lookBack:             0,
+				lookBack:            0,
 			},
 			expectFn: func(mr *mock_source.MockResumer) {
 				mr.EXPECT().Latest(gomock.Any()).Return(nil, assert.AnError)
@@ -369,10 +373,10 @@ func Test_latest(t *testing.T) {
 		{
 			name: "no entities",
 			args: args{
-				ctx:                  t.Context(),
-				includeThreads:       false,
+				ctx:                 t.Context(),
+				includeThreads:      false,
 				skipCompleteThreads: false,
-				lookBack:             0,
+				lookBack:            0,
 			},
 			expectFn: func(mr *mock_source.MockResumer) {
 				mr.EXPECT().Latest(gomock.Any()).Return(map[structures.SlackLink]time.Time{}, nil)
@@ -383,10 +387,10 @@ func Test_latest(t *testing.T) {
 		{
 			name: "returns latest status",
 			args: args{
-				ctx:                  t.Context(),
-				includeThreads:       false,
+				ctx:                 t.Context(),
+				includeThreads:      false,
 				skipCompleteThreads: false,
-				lookBack:             0,
+				lookBack:            0,
 			},
 			expectFn: func(mr *mock_source.MockResumer) {
 				mr.EXPECT().Latest(gomock.Any()).Return(map[structures.SlackLink]time.Time{
@@ -401,10 +405,10 @@ func Test_latest(t *testing.T) {
 		{
 			name: "returns latest status with thread",
 			args: args{
-				ctx:                  t.Context(),
-				includeThreads:       true,
+				ctx:                 t.Context(),
+				includeThreads:      true,
 				skipCompleteThreads: false,
-				lookBack:             0,
+				lookBack:            0,
 			},
 			expectFn: func(mr *mock_source.MockResumer) {
 				mr.EXPECT().Latest(gomock.Any()).Return(map[structures.SlackLink]time.Time{
@@ -421,10 +425,10 @@ func Test_latest(t *testing.T) {
 		{
 			name: "returns latest status with thread, but includeThreads is false",
 			args: args{
-				ctx:                  t.Context(),
-				includeThreads:       false,
+				ctx:                 t.Context(),
+				includeThreads:      false,
 				skipCompleteThreads: false,
-				lookBack:             0,
+				lookBack:            0,
 			},
 			expectFn: func(mr *mock_source.MockResumer) {
 				mr.EXPECT().Latest(gomock.Any()).Return(map[structures.SlackLink]time.Time{
@@ -459,10 +463,10 @@ func Test_latest(t *testing.T) {
 		{
 			name: "returns latest status with thread and skipCompleteThreads true",
 			args: args{
-				ctx:                  t.Context(),
-				includeThreads:       true,
+				ctx:                 t.Context(),
+				includeThreads:      true,
 				skipCompleteThreads: true,
-				lookBack:             0,
+				lookBack:            0,
 			},
 			expectFn: func(mr *mock_source.MockResumer) {
 				mr.EXPECT().Latest(gomock.Any()).Return(map[structures.SlackLink]time.Time{
@@ -552,4 +556,84 @@ func Test_extDuration_String(t *testing.T) {
 			}
 		})
 	}
+}
+
+func Test_runDedupeAfterFinish(t *testing.T) {
+	oldRunDedupe := runDedupe
+	t.Cleanup(func() { runDedupe = oldRunDedupe })
+
+	t.Run("disabled: no dedupe call", func(t *testing.T) {
+		called := false
+		runDedupe = func(context.Context, *sqlx.DB, dedupecmd.Options) (dedupecmd.Result, error) {
+			called = true
+			return dedupecmd.Result{}, nil
+		}
+		err := runDedupeAfterFinish(t.Context(), nil, "db", false)
+		assert.NoError(t, err)
+		assert.False(t, called)
+	})
+
+	t.Run("enabled: executes dedupe", func(t *testing.T) {
+		called := false
+		runDedupe = func(_ context.Context, _ *sqlx.DB, opts dedupecmd.Options) (dedupecmd.Result, error) {
+			called = true
+			assert.True(t, opts.Execute)
+			assert.Equal(t, "db", opts.Database)
+			assert.Nil(t, opts.Report)
+			return dedupecmd.Result{}, nil
+		}
+		err := runDedupeAfterFinish(t.Context(), nil, "db", true)
+		assert.NoError(t, err)
+		assert.True(t, called)
+	})
+
+	t.Run("enabled: returns dedupe error for caller to swallow/log", func(t *testing.T) {
+		runDedupe = func(context.Context, *sqlx.DB, dedupecmd.Options) (dedupecmd.Result, error) {
+			return dedupecmd.Result{}, errors.New("boom")
+		}
+		err := runDedupeAfterFinish(t.Context(), nil, "db", true)
+		assert.Error(t, err)
+	})
+}
+
+type stubArchiveRunner struct {
+	runErr    error
+	finishErr error
+}
+
+func (s stubArchiveRunner) RunNoTransform(context.Context, *structures.EntityList) error {
+	return s.runErr
+}
+
+func (s stubArchiveRunner) Finish() error {
+	return s.finishErr
+}
+
+func Test_runArchiveAndCleanup(t *testing.T) {
+	oldRunDedupe := runDedupe
+	t.Cleanup(func() { runDedupe = oldRunDedupe })
+
+	t.Run("dedupe is skipped when run fails", func(t *testing.T) {
+		called := false
+		runDedupe = func(context.Context, *sqlx.DB, dedupecmd.Options) (dedupecmd.Result, error) {
+			called = true
+			return dedupecmd.Result{}, nil
+		}
+		err := runArchiveAndCleanup(t.Context(), stubArchiveRunner{runErr: errors.New("run failed")}, &structures.EntityList{}, nil, "db", true)
+		require.Error(t, err)
+		assert.ErrorIs(t, err, errRunArchiveController)
+		assert.False(t, called)
+	})
+
+	t.Run("dedupe is skipped when finish fails", func(t *testing.T) {
+		called := false
+		runDedupe = func(context.Context, *sqlx.DB, dedupecmd.Options) (dedupecmd.Result, error) {
+			called = true
+			return dedupecmd.Result{}, nil
+		}
+		err := runArchiveAndCleanup(t.Context(), stubArchiveRunner{finishErr: errors.New("finish failed")}, &structures.EntityList{}, nil, "db", true)
+		require.Error(t, err)
+		assert.ErrorIs(t, err, errFinishArchiveController)
+		assert.False(t, called)
+	})
 }

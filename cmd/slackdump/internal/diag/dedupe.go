@@ -3,14 +3,14 @@ package diag
 import (
 	"context"
 	"fmt"
-	"log/slog"
+	"os"
 
 	"github.com/jmoiron/sqlx"
 
 	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/bootstrap"
 	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/cfg"
+	dedupecmd "github.com/rusq/slackdump/v4/cmd/slackdump/internal/diag/dedupe"
 	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/golang/base"
-	"github.com/rusq/slackdump/v4/internal/chunk/backend/dbase/repository"
 	"github.com/rusq/slackdump/v4/source"
 )
 
@@ -74,47 +74,10 @@ func runDedupe(ctx context.Context, cmd *base.Command, args []string) error {
 	}
 	defer conn.Close()
 
-	repo := repository.NewDedupeRepository()
-
-	counts, err := repo.Preview(ctx, conn)
-	if err != nil {
-		return fmt.Errorf("preview dedupe: %w", err)
-	}
-
-	slog.DebugContext(ctx, "dedupe preview",
-		"database", dir,
-		"duplicate_messages", counts.Messages,
-		"duplicate_users", counts.Users,
-		"duplicate_channels", counts.Channels,
-		"duplicate_channel_users", counts.ChannelUsers,
-		"duplicate_files", counts.Files,
-		"prunable_chunks", counts.Chunks,
-	)
-
-	fmt.Printf("Duplicate messages: %d\n", counts.Messages)
-	fmt.Printf("Duplicate users: %d\n", counts.Users)
-	fmt.Printf("Duplicate channels: %d\n", counts.Channels)
-	fmt.Printf("Duplicate channel users: %d\n", counts.ChannelUsers)
-	fmt.Printf("Duplicate files: %d\n", counts.Files)
-	fmt.Printf("Chunks to prune: %d\n", counts.Chunks)
-
-	if !dedupeFlags.execute {
-		if counts.Messages > 0 || counts.Users > 0 || counts.Channels > 0 || counts.ChannelUsers > 0 || counts.Files > 0 || counts.Chunks > 0 {
-			fmt.Println("\nRun with -execute to perform dedupe.")
-		}
-		return nil
-	}
-
-	result, err := repo.Deduplicate(ctx, conn)
-	if err != nil {
-		return fmt.Errorf("deduplicate entities: %w", err)
-	}
-
-	fmt.Printf("\nRemoved messages: %d\n", result.MessagesRemoved)
-	fmt.Printf("Removed users: %d\n", result.UsersRemoved)
-	fmt.Printf("Removed channels: %d\n", result.ChannelsRemoved)
-	fmt.Printf("Removed channel users: %d\n", result.ChannelUsersRemoved)
-	fmt.Printf("Removed files: %d\n", result.FilesRemoved)
-	fmt.Printf("Removed chunks: %d\n", result.ChunksRemoved)
-	return nil
+	_, err = dedupecmd.Run(ctx, conn, dedupecmd.Options{
+		Execute:  dedupeFlags.execute,
+		Report:   os.Stdout,
+		Database: dir,
+	})
+	return err
 }
