@@ -232,6 +232,12 @@ func configuration() cfgui.Configuration {
 					Value:       wspcfg.RODUserAgent,
 					Updater:     updaters.NewString(&wspcfg.RODUserAgent, "", false, nil),
 				},
+				{
+					Name:        "Force Bundled Browser",
+					Description: "Use the launcher-managed bundled Chromium instead of a system browser for interactive login.",
+					Value:       cfgui.Checkbox(wspcfg.BundledBrowser),
+					Updater:     updaters.NewBool(&wspcfg.BundledBrowser),
+				},
 			},
 		},
 	}

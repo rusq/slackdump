@@ -13,6 +13,20 @@ workspace by default. You can either continue using it as your default
 workspace or create a new one. Later, you can switch between workspaces using
 the `workspace select` command.
 
+## Browser selection
+
+By default, `workspace new` will detect a locally installed browser (Chrome,
+Edge, Brave, or Chromium) and use it for the interactive "Login in Browser"
+flow.  This is the recommended behaviour because the launcher-managed bundled
+Chromium is pinned to an older revision that Slack now rejects.
+
+If a system browser causes problems (or none is installed), use
+`-bundled-browser` to fall back to the launcher-managed bundled Chromium:
+
+```shell
+slackdump workspace new -bundled-browser <workspace name or url>
+```
+
 ## Usage
 ### Free and Standard Workspaces
 

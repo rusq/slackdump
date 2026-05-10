@@ -22,6 +22,25 @@ import (
 	"github.com/rusq/slackauth"
 )
 
+func TestRODWithBundledBrowser(t *testing.T) {
+	tests := []struct {
+		name string
+		b    bool
+	}{
+		{name: "sets true", b: true},
+		{name: "sets false", b: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var o options
+			RODWithBundledBrowser(tt.b)(&o)
+			if o.rodOpts.bundledBrowser != tt.b {
+				t.Errorf("RODWithBundledBrowser(%v): bundledBrowser = %v, want %v", tt.b, o.rodOpts.bundledBrowser, tt.b)
+			}
+		})
+	}
+}
+
 func TestFindInteractiveBrowser(t *testing.T) {
 	tests := []struct {
 		name   string

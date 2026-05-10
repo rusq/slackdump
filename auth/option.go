@@ -87,6 +87,17 @@ func RODWithUserAgent(ua string) Option {
 	}
 }
 
+// RODWithBundledBrowser forces the launcher-managed bundled Chromium to be
+// used for all browser-based login flows, overriding system browser
+// auto-detection.  Callers that set this to true should also call
+// [RODWithInteractiveBrowserAuto](false) to suppress the system-browser
+// detection added in issue #675.
+func RODWithBundledBrowser(b bool) Option {
+	return func(o *options) {
+		o.rodOpts.bundledBrowser = b
+	}
+}
+
 // RODWithInteractiveBrowserAuto controls whether the [auth_ui.LInteractive]
 // "Login in Browser" flow opportunistically uses a locally installed
 // system browser (Chrome/Edge/Brave/Chromium) instead of the bundled
