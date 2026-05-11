@@ -6,7 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Slackdump Viewer</title>
     {{ template "hx_css" . }}
-    {{ if .Interactive }}<script src="{{ staticasset "htmx.min.js" }}"></script>{{ end }}
+    {{ if .Interactive }}<script src="{{ staticasset "htmx.min.js" }}"></script>
+    <script src="{{ staticasset "viewer.js" }}" defer></script>{{ end }}
 </head>
 
 <body>
@@ -15,7 +16,7 @@
         Cannot reach the viewer server. Check that it is running and try again.
     </div>
     {{ end }}
-    <div class="container">
+    <div class="container{{ if or .User .ThreadMessages }} thread-open{{ end }}">
         <section class="channel-sidebar">
             <header>
                 <div class="sidebar-header-inner">
@@ -50,47 +51,6 @@
             {{ end }}
         </section>
     </div>
-    {{ if .Interactive }}
-    <script>
-        (function () {
-            var banner = document.getElementById('connection-status');
-            if (!banner) {
-                return;
-            }
-
-            var defaultMessage = 'Cannot reach the viewer server. Check that it is running and try again.';
-
-            function showConnectionError(message) {
-                banner.textContent = message || defaultMessage;
-                banner.hidden = false;
-            }
-
-            function clearConnectionError() {
-                banner.hidden = true;
-            }
-
-            document.body.addEventListener('htmx:sendError', function () {
-                showConnectionError(defaultMessage);
-            });
-
-            document.body.addEventListener('htmx:timeout', function () {
-                showConnectionError('Request timed out. The viewer server may be unavailable.');
-            });
-
-            document.body.addEventListener('htmx:afterRequest', function (event) {
-                if (event.detail && event.detail.successful) {
-                    clearConnectionError();
-                }
-            });
-
-            window.addEventListener('offline', function () {
-                showConnectionError('Your browser is offline. Check your network connection.');
-            });
-
-            window.addEventListener('online', clearConnectionError);
-        }());
-    </script>
-    {{ end }}
 </body>
 
 </html>
@@ -122,47 +82,6 @@
          {{ end }}
 </div>
 {{ end }}
-{{ if .Interactive }}
-<script>
-    (function () {
-        var sidebar = document.querySelector('.channel-sidebar');
-        if (!sidebar) return;
-
-        function setActive(link) {
-            sidebar.querySelectorAll('.channel-list a').forEach(function (el) {
-                el.classList.remove('active');
-            });
-            if (link) link.classList.add('active');
-        }
-
-        function syncActiveFromURL() {
-            var path = window.location.pathname;
-            var match = null;
-            sidebar.querySelectorAll('.channel-list a').forEach(function (link) {
-                var target = link.getAttribute('hx-get');
-                if (target && (path === target || path.startsWith(target + '/'))) {
-                    match = link;
-                }
-            });
-            setActive(match);
-        }
-
-        // Event delegation: survives OOB swaps that replace individual <a> nodes.
-        sidebar.addEventListener('click', function (e) {
-            var link = e.target.closest('.channel-list a');
-            if (!link) return;
-            setActive(link);
-        });
-
-        // After any HTMX request settles (including OOB swaps for alias changes),
-        // re-sync the active highlight with the current URL.
-        document.body.addEventListener('htmx:afterSettle', syncActiveFromURL);
-
-        // Highlight the correct channel on initial page load and hard refresh.
-        syncActiveFromURL();
-    }());
-</script>
-{{ end }}
 {{ end }}
 
 {{ define "channel_link" }}
@@ -170,7 +89,7 @@
 {{ end }}
 
 {{define "hx_chan_header"}}
-<div id="channel-heading" hx-target="this" hx-swap="outerHTML" class="channel-name">
+<div id="channel-heading"{{ if .Interactive }} hx-target="this" hx-swap="outerHTML"{{ end }} class="channel-name">
     <h2>{{ channelname .Conversation }}</h2>
     {{ if and .CanAlias .Interactive }}
     <button type="button" class="alias-edit-btn" hx-get="{{ channelurl .Conversation.ID }}/alias/" aria-label="Edit alias">
@@ -187,41 +106,6 @@
 {{ else }}
 <p>No Messages.</p>
 {{ end }}
-{{ if .Interactive }}<script>
-    document.querySelectorAll('a.avatar').forEach(function (link) {
-        link.addEventListener('click', function (e) {
-            e.preventDefault();
-            // document.querySelector('.conversations').style.display = 'none';
-            // document.querySelector('.thread').style.display = 'block';
-            document.querySelector('.conversations').style.flex = '0 0 40%';
-            document.querySelector('.thread').style.display = 'block';
-            document.querySelector('.thread').style.flex = '1';
-            // Load thread messages into .thread div here
-        });
-    });
-    document.querySelectorAll('.thread-info a').forEach(function (link) {
-        link.addEventListener('click', function (e) {
-            e.preventDefault();
-            // document.querySelector('.conversations').style.display = 'none';
-            // document.querySelector('.thread').style.display = 'block';
-            document.querySelector('.conversations').style.flex = '0 0 40%';
-            document.querySelector('.thread').style.display = 'block';
-            document.querySelector('.thread').style.flex = '1';
-            // Load thread messages into .thread div here
-        });
-    });
-    document.querySelectorAll('.message-sender a').forEach(function (link) {
-        link.addEventListener('click', function (e) {
-            e.preventDefault();
-            // document.querySelector('.conversations').style.display = 'none';
-            // document.querySelector('.thread').style.display = 'block';
-            document.querySelector('.conversations').style.flex = '0 0 40%';
-            document.querySelector('.thread').style.display = 'block';
-            document.querySelector('.thread').style.flex = '1';
-            // Load thread messages into .thread div here
-        });
-    });
-</script>{{ end }}
 {{ end }}
 
 
@@ -263,29 +147,6 @@
         id="tab-btn-canvas"
         {{ if not .CanvasAvailable }}disabled{{ end }}>Canvas</button>
 </div>
-{{ if .Interactive }}<script>
-(function () {
-    var list = document.currentScript.previousElementSibling;
-    list.addEventListener('keydown', function (e) {
-        var tabs = Array.from(list.querySelectorAll('[role="tab"]:not([disabled])'));
-        var idx  = tabs.indexOf(document.activeElement);
-        if (idx === -1) return;
-        if (e.key === 'ArrowRight') {
-            e.preventDefault();
-            tabs[(idx + 1) % tabs.length].focus();
-        } else if (e.key === 'ArrowLeft') {
-            e.preventDefault();
-            tabs[(idx - 1 + tabs.length) % tabs.length].focus();
-        } else if (e.key === 'Home') {
-            e.preventDefault();
-            tabs[0].focus();
-        } else if (e.key === 'End') {
-            e.preventDefault();
-            tabs[tabs.length - 1].focus();
-        }
-    });
-}());
-</script>{{ end }}
 {{ end }}
 
 {{ define "hx_canvas" }}
@@ -333,7 +194,7 @@
 
 {{define "hx_thread"}}
 <h2>Thread: {{ .ThreadID }}</h2>
-{{ if .Interactive }}<p><a id="close-thread" href="#">[X]</a></p>{{ end }}
+{{ if .Interactive }}<button type="button" id="close-thread" class="close-button" data-close-panel aria-label="Close thread panel">&times;</button>{{ end }}
 <p><a id="thread-link" href="{{ threadmsgurl .Conversation.ID .ThreadID .ThreadID }}">Link to this thread</a></p>
 <div class="message-list">
     {{ range $el, $err := .ThreadMessages }}
@@ -349,13 +210,6 @@
     </article>
     {{end}}
 </div>
-{{ if .Interactive }}<script>
-    document.getElementById('close-thread').addEventListener('click', function (e) {
-        e.preventDefault();
-        document.querySelector('.conversations').style.flex = '1';
-        document.querySelector('.thread').style.display = 'none';
-    });
-</script>{{ end }}
 {{end}}
 
 {{ define "render_message" }}
@@ -391,7 +245,7 @@
     <header class="user-profile-header">
         <div class="user-profile-header-inner">
             <h3>Profile</h3>
-            {{ if $.Interactive }}<a id="close-user" href="#">[X]</a>{{ end }}
+            {{ if $.Interactive }}<button type="button" id="close-user" class="close-button" data-close-panel aria-label="Close profile panel">&times;</button>{{ end }}
         </div>
     </header>
     <article class="user-profile">
@@ -416,19 +270,11 @@
         {{ end }}
     </article>
 </div>
-{{ if $.Interactive }}<script>
-    document.getElementById('close-user').addEventListener('click', function (e) {
-        e.preventDefault();
-        document.querySelector('.conversations').style.flex = '1';
-        document.querySelector('.thread').style.display = 'none';
-    });
-</script>{{ end }}
 {{ end }}
 
 
 {{ define "hx_alias" }}
-<form id="channel-heading" hx-put="{{ channelurl .Conversation.ID }}/alias/" hx-target="this" hx-swap="outerHTML" class="channel-name alias-form"
-      hx-on::before-swap="if(event.detail.xhr.status===400){event.detail.shouldSwap=true;event.detail.isError=false}">
+<form id="channel-heading" hx-put="{{ channelurl .Conversation.ID }}/alias/" hx-target="this" hx-swap="outerHTML" class="channel-name alias-form">
     <label for="alias">Alias:</label>
     <input type="text" id="alias" name="alias" value="{{ .Alias }}" maxlength="30" autofocus{{ if .AliasError }} class="input-error"{{ end }}>
     <button type="submit">Save</button>

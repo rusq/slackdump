@@ -88,6 +88,7 @@ func TestHTMLConverter_Convert(t *testing.T) {
 			"avatars/U1/ada.png",
 			"static/48x48.gif",
 			"static/htmx.min.js",
+			"static/viewer.js",
 			"team/U1/index.html",
 		} {
 			if _, err := fs.Stat(osDirFS(outDir), name); err != nil {
@@ -99,8 +100,8 @@ func TestHTMLConverter_Convert(t *testing.T) {
 		if !strings.Contains(channelBody, "<!DOCTYPE html>") {
 			t.Fatalf("channel page should be full HTML: %q", channelBody)
 		}
-		if strings.Contains(channelBody, `hx-get`) {
-			t.Fatalf("channel page should not include HTMX attributes: %q", channelBody)
+		if strings.Contains(channelBody, ` hx-`) || strings.Contains(channelBody, `<script`) || strings.Contains(channelBody, `viewer.js`) {
+			t.Fatalf("channel page should not include live HTMX attributes or scripts: %q", channelBody)
 		}
 		if !strings.Contains(channelBody, `href="../../team/U1/index.html"`) {
 			t.Fatalf("channel page should rewrite user links relatively: %q", channelBody)

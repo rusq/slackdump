@@ -49,6 +49,12 @@ func TestRenderIndex(t *testing.T) {
 	if !strings.Contains(buf.String(), "<!DOCTYPE html>") {
 		t.Fatalf("RenderIndex() should produce a full HTML page")
 	}
+	if !strings.Contains(buf.String(), `src="/static/htmx.min.js"`) {
+		t.Fatalf("RenderIndex() live page should include HTMX asset")
+	}
+	if !strings.Contains(buf.String(), `src="/static/viewer.js"`) {
+		t.Fatalf("RenderIndex() live page should include viewer controller asset")
+	}
 }
 
 func TestRenderChannel(t *testing.T) {
@@ -102,9 +108,18 @@ func TestRenderCanvas(t *testing.T) {
 	}
 }
 
-// TestRenderChannel_StaticMode verifies that static-mode output contains no hx-* attributes.
+// TestRenderChannel_StaticMode verifies that static-mode output contains no live-only JS or hx-* attributes.
 func TestRenderChannel_StaticMode(t *testing.T) {
-	v := newTestViewer(renderer.ModeStatic)
+	src := newViewerRouteSource()
+	v := &Viewer{
+		src: src,
+		ch:  initChannels(src.chs),
+		um:  st.NewUserIndex(src.users),
+		lg:  slog.Default(),
+		r:   &renderer.Debug{},
+		rts: renderer.NewRoutes(renderer.ModeStatic),
+	}
+	initTemplates(v)
 	var buf bytes.Buffer
 	if err := v.RenderChannel(context.Background(), "C1", &buf); err != nil {
 		t.Fatalf("RenderChannel() static error = %v", err)
@@ -113,7 +128,37 @@ func TestRenderChannel_StaticMode(t *testing.T) {
 	if !strings.Contains(body, "<!DOCTYPE html>") {
 		t.Fatalf("RenderChannel() static should produce a full HTML page")
 	}
-	if strings.Contains(body, `hx-get`) || strings.Contains(body, `hx-boost`) || strings.Contains(body, `hx-push-url`) {
+	if strings.Contains(body, ` hx-`) {
 		t.Fatalf("RenderChannel() static mode should not contain HTMX attributes, got: %q", body)
+	}
+	if strings.Contains(body, `<script`) || strings.Contains(body, `viewer.js`) || strings.Contains(body, `htmx.min.js`) {
+		t.Fatalf("RenderChannel() static mode should not contain live scripts, got: %q", body)
+	}
+	if !strings.Contains(body, `aria-controls="tab-panel-conversation"`) || !strings.Contains(body, `role="tabpanel"`) {
+		t.Fatalf("RenderChannel() static mode should preserve tab ARIA, got: %q", body)
+	}
+}
+
+func TestRenderCanvas_StaticModePreservesSandbox(t *testing.T) {
+	src := newViewerRouteSource()
+	v := &Viewer{
+		src: src,
+		ch:  initChannels(src.chs),
+		um:  st.NewUserIndex(src.users),
+		lg:  slog.Default(),
+		r:   &renderer.Debug{},
+		rts: renderer.NewRoutes(renderer.ModeStatic),
+	}
+	initTemplates(v)
+	var buf bytes.Buffer
+	if err := v.RenderCanvas(context.Background(), "C1", &buf); err != nil {
+		t.Fatalf("RenderCanvas() static error = %v", err)
+	}
+	body := buf.String()
+	if !strings.Contains(body, `sandbox="allow-same-origin"`) {
+		t.Fatalf("RenderCanvas() static mode should preserve iframe sandbox, got: %q", body)
+	}
+	if strings.Contains(body, ` hx-`) || strings.Contains(body, `<script`) {
+		t.Fatalf("RenderCanvas() static mode should not contain live attributes or scripts, got: %q", body)
 	}
 }
