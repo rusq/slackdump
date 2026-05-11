@@ -249,6 +249,13 @@ func cacheOptions() cfgui.Configuration {
 			Name: "Cache Manager Options",
 			Params: []cfgui.Parameter{
 				{
+					Name:        "Cache Directory",
+					Description: "Directory where workspace cache files are stored.",
+					Inline:      true,
+					Value:       cfg.LocalCacheDir,
+					Updater:     updaters.NewString(&cfg.LocalCacheDir, cfg.CacheDir(), false, osext.DirExists),
+				},
+				{
 					Name:        "Machine ID Override",
 					Description: "Override the machine ID used for encryption.",
 					Inline:      true,
