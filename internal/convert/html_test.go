@@ -88,6 +88,7 @@ func TestHTMLConverter_Convert(t *testing.T) {
 			"avatars/U1/ada.png",
 			"static/48x48.gif",
 			"static/htmx.min.js",
+			"static/viewer.js",
 			"team/U1/index.html",
 		} {
 			if _, err := fs.Stat(osDirFS(outDir), name); err != nil {
@@ -99,11 +100,14 @@ func TestHTMLConverter_Convert(t *testing.T) {
 		if !strings.Contains(channelBody, "<!DOCTYPE html>") {
 			t.Fatalf("channel page should be full HTML: %q", channelBody)
 		}
-		if strings.Contains(channelBody, `hx-get`) {
-			t.Fatalf("channel page should not include HTMX attributes: %q", channelBody)
+		if strings.Contains(channelBody, ` hx-`) || strings.Contains(channelBody, `<script`) || strings.Contains(channelBody, `viewer.js`) {
+			t.Fatalf("channel page should not include live HTMX attributes or scripts: %q", channelBody)
 		}
-		if !strings.Contains(channelBody, `href="../../team/U1/index.html"`) {
-			t.Fatalf("channel page should rewrite user links relatively: %q", channelBody)
+		if !strings.Contains(channelBody, `href="#user-profile-U1-1710000000.000001"`) {
+			t.Fatalf("channel page should keep user profile links on the current page: %q", channelBody)
+		}
+		if !strings.Contains(channelBody, `class="user-profile-container static-user-profile-panel" id="user-profile-U1-1710000000.000001"`) {
+			t.Fatalf("channel page should embed static user profile panels: %q", channelBody)
 		}
 		if !strings.Contains(channelBody, `href="../../files/F1/hello.txt"`) {
 			t.Fatalf("channel page should rewrite file links relatively: %q", channelBody)
@@ -118,8 +122,14 @@ func TestHTMLConverter_Convert(t *testing.T) {
 		}
 
 		threadBody := readFile(t, outDir, "archives/C1/threads/1710000000.000001.html")
-		if !strings.Contains(threadBody, `href="../../../team/U1/index.html"`) {
-			t.Fatalf("thread page should rewrite user links relatively: %q", threadBody)
+		if !strings.Contains(threadBody, `href="#user-profile-U1-1710000000.000001"`) {
+			t.Fatalf("thread page should keep user profile links on the current page: %q", threadBody)
+		}
+		if !strings.Contains(threadBody, `<a id="close-thread" class="close-button" href="../../../archives/C1/index.html" aria-label="Close thread panel">`) {
+			t.Fatalf("thread page should include relative close link to channel page: %q", threadBody)
+		}
+		if strings.Contains(threadBody, `<button type="button" id="close-thread"`) || strings.Contains(threadBody, `data-close-panel`) {
+			t.Fatalf("thread page should not include live close button behavior: %q", threadBody)
 		}
 
 		canvasPage := readFile(t, outDir, "archives/C1/canvas/index.html")

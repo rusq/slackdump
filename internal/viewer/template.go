@@ -41,6 +41,7 @@ func initTemplates(v *Viewer) {
 			"threadurl":        v.rts.Thread,
 			"threadmsgurl":     v.rts.ThreadMessage,
 			"userurl":          v.rts.User,
+			"profileurl":       v.profileURL,
 			"canvasurl":        v.rts.Canvas,
 			"canvascontenturl": v.rts.CanvasContent,
 			"staticasset":      v.rts.StaticAsset,
@@ -50,6 +51,7 @@ func initTemplates(v *Viewer) {
 			"userview": func(user *slack.User, interactive bool) userView {
 				return userView{User: user, Interactive: interactive}
 			},
+			"staticuserview":  v.staticUserView,
 			"is_app_msg":      isAppMsg,
 			"is_user_msg":     isUserMsg,
 			"displayname":     v.um.DisplayName,
@@ -76,6 +78,8 @@ type channelLinkView struct {
 type userView struct {
 	User        *slack.User
 	Interactive bool
+	TargetID    string
+	CloseHref   string
 }
 
 func (v *Viewer) channelDisplayName(ch slack.Channel) template.HTML {
@@ -178,6 +182,47 @@ func (v *Viewer) username(m slack.Message) (name string) {
 	default:
 		panic("unhandled sender type")
 	}
+}
+
+func (v *Viewer) profileURL(m slack.Message) string {
+	if v.rts.Interactive() {
+		return v.rts.User(m.User)
+	}
+	return "#" + profileTargetID(m)
+}
+
+func (v *Viewer) staticUserView(m slack.Message) userView {
+	return userView{
+		User:      v.um[m.User],
+		TargetID:  profileTargetID(m),
+		CloseHref: "#" + safeAnchorID(m.Timestamp),
+	}
+}
+
+func profileTargetID(m slack.Message) string {
+	return "user-profile-" + safeAnchorID(m.User+"-"+m.Timestamp)
+}
+
+func safeAnchorID(s string) string {
+	var b strings.Builder
+	for _, r := range s {
+		switch {
+		case r >= 'a' && r <= 'z':
+			b.WriteRune(r)
+		case r >= 'A' && r <= 'Z':
+			b.WriteRune(r)
+		case r >= '0' && r <= '9':
+			b.WriteRune(r)
+		case r == '-', r == '_', r == '.':
+			b.WriteRune(r)
+		default:
+			b.WriteByte('_')
+		}
+	}
+	if b.Len() == 0 {
+		return "unknown"
+	}
+	return b.String()
 }
 
 func isAppMsg(m slack.Message) bool {

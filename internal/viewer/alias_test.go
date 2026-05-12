@@ -306,6 +306,7 @@ func TestAliasPutHandler(t *testing.T) {
 		um:  st.UserIndex{},
 		src: src,
 		lg:  slog.Default(),
+		rts: renderer.NewRoutes(renderer.ModeLive),
 	}
 	initTemplates(v)
 
@@ -324,6 +325,17 @@ func TestAliasPutHandler(t *testing.T) {
 	}
 	if !strings.Contains(rr.Body.String(), "<em>alpha</em>") {
 		t.Fatalf("aliasPutHandler() response = %q, want italic alias", rr.Body.String())
+	}
+	for _, want := range []string{
+		`id="channel-link-C1"`,
+		`hx-get="/archives/C1"`,
+		`hx-target="#conversation"`,
+		`hx-push-url="true"`,
+		`hx-swap-oob="outerHTML"`,
+	} {
+		if !strings.Contains(rr.Body.String(), want) {
+			t.Fatalf("aliasPutHandler() response = %q, want live OOB channel link attribute %q", rr.Body.String(), want)
+		}
 	}
 }
 

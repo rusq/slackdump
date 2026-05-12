@@ -55,7 +55,7 @@ func Test_isInvalid(t *testing.T) {
 	}
 }
 
-func TestStaticHandler_ServesHTMXAsset(t *testing.T) {
+func TestStaticHandler_ServesEmbeddedAssets(t *testing.T) {
 	src := newViewerRouteSource()
 	src.wi = &slack.AuthTestResponse{}
 
@@ -64,19 +64,29 @@ func TestStaticHandler_ServesHTMXAsset(t *testing.T) {
 		t.Fatalf("New() error = %v", err)
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/static/htmx.min.js", nil)
-	rr := httptest.NewRecorder()
+	for _, tc := range []struct {
+		path string
+		want string
+	}{
+		{path: "/static/htmx.min.js", want: "var htmx="},
+		{path: "/static/viewer.js", want: "function syncActiveChannel"},
+	} {
+		t.Run(tc.path, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, tc.path, nil)
+			rr := httptest.NewRecorder()
 
-	v.srv.Handler.ServeHTTP(rr, req)
+			v.srv.Handler.ServeHTTP(rr, req)
 
-	if rr.Code != http.StatusOK {
-		t.Fatalf("static handler status = %d, want %d", rr.Code, http.StatusOK)
-	}
-	if rr.Body.Len() == 0 {
-		t.Fatal("static handler returned empty body")
-	}
-	if !strings.Contains(rr.Body.String(), "var htmx=") {
-		t.Fatalf("static handler should serve htmx.min.js, got: %q", rr.Body.String())
+			if rr.Code != http.StatusOK {
+				t.Fatalf("static handler status = %d, want %d", rr.Code, http.StatusOK)
+			}
+			if rr.Body.Len() == 0 {
+				t.Fatal("static handler returned empty body")
+			}
+			if !strings.Contains(rr.Body.String(), tc.want) {
+				t.Fatalf("static handler should serve %s, got: %q", tc.path, rr.Body.String())
+			}
+		})
 	}
 }
 
@@ -138,8 +148,13 @@ func TestUserHandler_RendersHTMXUserPanel(t *testing.T) {
 	if !strings.Contains(body, "Ada Lovelace") {
 		t.Fatalf("userHandler() HTMX response should include user details: %q", body)
 	}
-	if !strings.Contains(body, `id="close-user"`) {
-		t.Fatalf("userHandler() HTMX response should include close button: %q", body)
+	if !strings.Contains(body, `<button type="button" id="close-user"`) || !strings.Contains(body, `aria-label="Close profile panel"`) {
+		t.Fatalf("userHandler() HTMX response should include accessible close button: %q", body)
+	}
+	profileTitle := strings.Index(body, `<h3>Profile</h3>`)
+	closeUser := strings.Index(body, `<button type="button" id="close-user"`)
+	if profileTitle < 0 || closeUser < profileTitle {
+		t.Fatalf("userHandler() HTMX response should render close button after profile title: %q", body)
 	}
 	if strings.Contains(body, "Unknown") {
 		t.Fatalf("userHandler() HTMX response should not render unknown user: %q", body)
@@ -222,6 +237,9 @@ func TestThreadHandler_RendersFullPageWithoutHTMX(t *testing.T) {
 	if !strings.Contains(body, "Link to this thread") {
 		t.Fatalf("threadHandler() should include thread panel: %q", body)
 	}
+	if !strings.Contains(body, `id="channel-link-C1"`) || !strings.Contains(body, `id="tab-panel-conversation"`) {
+		t.Fatalf("threadHandler() full page should include sidebar and conversation content: %q", body)
+	}
 	if !strings.Contains(body, "thread root") || !strings.Contains(body, "reply body") {
 		t.Fatalf("threadHandler() should render thread messages: %q", body)
 	}
@@ -246,8 +264,14 @@ func TestThreadHandler_RendersHTMXPartial(t *testing.T) {
 	if !strings.Contains(body, "Link to this thread") {
 		t.Fatalf("threadHandler() HTMX response should include thread body: %q", body)
 	}
-	if !strings.Contains(body, `id="close-thread"`) {
-		t.Fatalf("threadHandler() HTMX response should include close affordance: %q", body)
+	if !strings.Contains(body, `<button type="button" id="close-thread"`) || !strings.Contains(body, `aria-label="Close thread panel"`) {
+		t.Fatalf("threadHandler() HTMX response should include accessible close button: %q", body)
+	}
+	header := strings.Index(body, `<header class="thread-header">`)
+	closeButton := strings.Index(body, `<button type="button" id="close-thread"`)
+	title := strings.Index(body, `<h2>Thread: 1710000000.000001</h2>`)
+	if header < 0 || title < header || closeButton < title {
+		t.Fatalf("threadHandler() HTMX response should render close button after thread title: %q", body)
 	}
 }
 
@@ -267,6 +291,9 @@ func TestCanvasHandler_RendersFullPageWithoutHTMX(t *testing.T) {
 	}
 	if !strings.Contains(body, `src="/archives/C1/canvas/content"`) {
 		t.Fatalf("canvasHandler() should include canvas iframe: %q", body)
+	}
+	if !strings.Contains(body, `id="channel-link-C1"`) || !strings.Contains(body, `id="tab-panel-canvas"`) {
+		t.Fatalf("canvasHandler() full page should include sidebar and canvas content: %q", body)
 	}
 }
 
