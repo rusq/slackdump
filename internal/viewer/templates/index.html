@@ -171,9 +171,13 @@
 {{ range $el, $err := .Messages }}
     <article class="message">
         {{ if $err }} <p>Error: {{ $err }}</p> {{ else }}
-	        <a class="avatar" href="{{ userurl $el.User }}"{{ if $.Interactive }} hx-get="{{ userurl $el.User }}" hx-target="#thread"{{ end }}>
+            {{ if is_user_msg $el }}
+	        <a class="avatar" href="{{ profileurl $el }}"{{ if $.Interactive }} hx-get="{{ userurl $el.User }}" hx-target="#thread"{{ end }}>
 		    <img class="avatar" src="{{ userpic $el.User }}" />
             </a>
+            {{ else }}
+            <span class="avatar"><img class="avatar" src="{{ userpic $el.User }}" /></span>
+            {{ end }}
             <div class="message-inner">
                 {{ template "render_message" (msgview $id $el) }}
                 {{ if is_thread_start $el }}
@@ -183,10 +187,13 @@
                 </a>
                 <span class="last-reply grey">Latest reply: {{ time $el.LatestReply }}</span>
                 </footer>
-            </div>
             {{ end }}
+            </div>
         {{ end }}
     </article>
+    {{ if and (not $.Interactive) (is_user_msg $el) }}
+    {{ template "static_user_profile" (staticuserview $el) }}
+    {{ end }}
 {{end}}
 </div>
 {{end}}
@@ -200,14 +207,21 @@
     {{ range $el, $err := .ThreadMessages }}
     <article class="message">
         {{ if $err }} <p>Error: {{ $err }}</p> {{ else }}
-	    <a class="avatar" href="{{ userurl $el.User }}"{{ if $.Interactive }} hx-get="{{ userurl $el.User }}" hx-target="#thread"{{ end }}>
+        {{ if is_user_msg $el }}
+	    <a class="avatar" href="{{ profileurl $el }}"{{ if $.Interactive }} hx-get="{{ userurl $el.User }}" hx-target="#thread"{{ end }}>
 		<img class="avatar" src="{{ userpic $el.User }}" />
         </a>
+        {{ else }}
+        <span class="avatar"><img class="avatar" src="{{ userpic $el.User }}" /></span>
+        {{ end }}
         <div class="message-inner">
             {{ template "render_message" (msgview "" $el) }}
         </div>
         {{ end }}
     </article>
+    {{ if and (not $.Interactive) (is_user_msg $el) }}
+    {{ template "static_user_profile" (staticuserview $el) }}
+    {{ end }}
     {{end}}
 </div>
 {{end}}
@@ -218,7 +232,7 @@
         {{ if ( or ( is_app_msg .Msg ) ( not .Msg.User ) ) -}}
         	{{ username .Msg }}
         {{- else -}}
-		<a href="{{ userurl .Msg.User }}"{{ if $.Interactive }} hx-get="{{ userurl .Msg.User }}" hx-target="#thread"{{ end }}>{{ username .Msg }}</a>
+		<a href="{{ profileurl .Msg }}"{{ if $.Interactive }} hx-get="{{ userurl .Msg.User }}" hx-target="#thread"{{ end }}>{{ username .Msg }}</a>
         {{- end }}
     </span>
     <span class="message-timestamp grey">{{ time .Msg.Timestamp }}</span>
@@ -241,11 +255,11 @@
 {{ end }}
 
 {{ define "hx_user" }}
-<div class="user-profile-container">
+<div class="user-profile-container{{ if .TargetID }} static-user-profile-panel{{ end }}"{{ if .TargetID }} id="{{ .TargetID }}"{{ end }}>
     <header class="user-profile-header">
         <div class="user-profile-header-inner">
             <h3>Profile</h3>
-            {{ if $.Interactive }}<button type="button" id="close-user" class="close-button" data-close-panel aria-label="Close profile panel">&times;</button>{{ end }}
+            {{ if $.Interactive }}<button type="button" id="close-user" class="close-button" data-close-panel aria-label="Close profile panel">&times;</button>{{ else if .CloseHref }}<a href="{{ .CloseHref }}" class="close-button" aria-label="Close profile panel">&times;</a>{{ end }}
         </div>
     </header>
     <article class="user-profile">
@@ -270,6 +284,10 @@
         {{ end }}
     </article>
 </div>
+{{ end }}
+
+{{ define "static_user_profile" }}
+{{ template "hx_user" . }}
 {{ end }}
 
 

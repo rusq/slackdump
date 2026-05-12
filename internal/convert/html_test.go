@@ -103,8 +103,11 @@ func TestHTMLConverter_Convert(t *testing.T) {
 		if strings.Contains(channelBody, ` hx-`) || strings.Contains(channelBody, `<script`) || strings.Contains(channelBody, `viewer.js`) {
 			t.Fatalf("channel page should not include live HTMX attributes or scripts: %q", channelBody)
 		}
-		if !strings.Contains(channelBody, `href="../../team/U1/index.html"`) {
-			t.Fatalf("channel page should rewrite user links relatively: %q", channelBody)
+		if !strings.Contains(channelBody, `href="#user-profile-U1-1710000000.000001"`) {
+			t.Fatalf("channel page should keep user profile links on the current page: %q", channelBody)
+		}
+		if !strings.Contains(channelBody, `class="user-profile-container static-user-profile-panel" id="user-profile-U1-1710000000.000001"`) {
+			t.Fatalf("channel page should embed static user profile panels: %q", channelBody)
 		}
 		if !strings.Contains(channelBody, `href="../../files/F1/hello.txt"`) {
 			t.Fatalf("channel page should rewrite file links relatively: %q", channelBody)
@@ -119,8 +122,8 @@ func TestHTMLConverter_Convert(t *testing.T) {
 		}
 
 		threadBody := readFile(t, outDir, "archives/C1/threads/1710000000.000001.html")
-		if !strings.Contains(threadBody, `href="../../../team/U1/index.html"`) {
-			t.Fatalf("thread page should rewrite user links relatively: %q", threadBody)
+		if !strings.Contains(threadBody, `href="#user-profile-U1-1710000000.000001"`) {
+			t.Fatalf("thread page should keep user profile links on the current page: %q", threadBody)
 		}
 
 		canvasPage := readFile(t, outDir, "archives/C1/canvas/index.html")
