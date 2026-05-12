@@ -151,6 +151,11 @@ func TestUserHandler_RendersHTMXUserPanel(t *testing.T) {
 	if !strings.Contains(body, `<button type="button" id="close-user"`) || !strings.Contains(body, `aria-label="Close profile panel"`) {
 		t.Fatalf("userHandler() HTMX response should include accessible close button: %q", body)
 	}
+	profileTitle := strings.Index(body, `<h3>Profile</h3>`)
+	closeUser := strings.Index(body, `<button type="button" id="close-user"`)
+	if profileTitle < 0 || closeUser < profileTitle {
+		t.Fatalf("userHandler() HTMX response should render close button after profile title: %q", body)
+	}
 	if strings.Contains(body, "Unknown") {
 		t.Fatalf("userHandler() HTMX response should not render unknown user: %q", body)
 	}
@@ -261,6 +266,12 @@ func TestThreadHandler_RendersHTMXPartial(t *testing.T) {
 	}
 	if !strings.Contains(body, `<button type="button" id="close-thread"`) || !strings.Contains(body, `aria-label="Close thread panel"`) {
 		t.Fatalf("threadHandler() HTMX response should include accessible close button: %q", body)
+	}
+	header := strings.Index(body, `<header class="thread-header">`)
+	closeButton := strings.Index(body, `<button type="button" id="close-thread"`)
+	title := strings.Index(body, `<h2>Thread: 1710000000.000001</h2>`)
+	if header < 0 || title < header || closeButton < title {
+		t.Fatalf("threadHandler() HTMX response should render close button after thread title: %q", body)
 	}
 }
 

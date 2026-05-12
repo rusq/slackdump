@@ -200,9 +200,11 @@
 
 
 {{define "hx_thread"}}
-<h2>Thread: {{ .ThreadID }}</h2>
-{{ if .Interactive }}<button type="button" id="close-thread" class="close-button" data-close-panel aria-label="Close thread panel">&times;</button>{{ end }}
-<p><a id="thread-link" href="{{ threadmsgurl .Conversation.ID .ThreadID .ThreadID }}">Link to this thread</a></p>
+<header class="thread-header">
+    <h2>Thread: {{ .ThreadID }}</h2>
+    {{ if .Interactive }}<button type="button" id="close-thread" class="close-button" data-close-panel aria-label="Close thread panel">&times;</button>{{ else }}<a id="close-thread" class="close-button" href="{{ channelurl .Conversation.ID }}" aria-label="Close thread panel">&times;</a>{{ end }}
+</header>
+<p class="thread-link-row"><a id="thread-link" href="{{ threadmsgurl .Conversation.ID .ThreadID .ThreadID }}">Link to this thread</a></p>
 <div class="message-list">
     {{ range $el, $err := .ThreadMessages }}
     <article class="message">

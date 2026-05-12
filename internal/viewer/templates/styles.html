@@ -163,7 +163,8 @@
     }
 
     .conversation-header,
-    .user-profile-header {
+    .user-profile-header,
+    .thread-header {
         padding-left: 1.5rem;
         padding-right: 1.5rem;
         padding-top: .5rem;
@@ -174,6 +175,26 @@
         border-width: 0 0 1px 0;
         border-style: solid;
         border-color: var(--border-color);
+    }
+
+    .thread-header {
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+
+    .thread-header h2 {
+        color: var(--text-color);
+        font-size: 1.125rem;
+        font-weight: 700;
+        line-height: 1.5rem;
+        margin: 0;
+    }
+
+    .thread-link-row {
+        padding: .75rem 1.5rem 0;
+        flex: none;
+        font-size: .875rem;
     }
 
     .conversation-inner,
@@ -385,6 +406,8 @@
         align-items: center;
         justify-content: center;
         border-radius: 4px;
+        text-decoration: none;
+        flex: none;
     }
 
     .close-button:hover {
@@ -439,7 +462,8 @@
     }
 
     .container.thread-open .thread {
-        display: block;
+        display: flex;
+        flex-direction: column;
     }
 
     .static-user-profile-panel {
@@ -636,6 +660,8 @@
 
         .conversation-header,
         .user-profile-header,
+        .thread-header,
+        .thread-link-row,
         .message-list,
         .user-profile {
             padding-left: 1rem;

@@ -125,6 +125,12 @@ func TestHTMLConverter_Convert(t *testing.T) {
 		if !strings.Contains(threadBody, `href="#user-profile-U1-1710000000.000001"`) {
 			t.Fatalf("thread page should keep user profile links on the current page: %q", threadBody)
 		}
+		if !strings.Contains(threadBody, `<a id="close-thread" class="close-button" href="../../../archives/C1/index.html" aria-label="Close thread panel">`) {
+			t.Fatalf("thread page should include relative close link to channel page: %q", threadBody)
+		}
+		if strings.Contains(threadBody, `<button type="button" id="close-thread"`) || strings.Contains(threadBody, `data-close-panel`) {
+			t.Fatalf("thread page should not include live close button behavior: %q", threadBody)
+		}
 
 		canvasPage := readFile(t, outDir, "archives/C1/canvas/index.html")
 		if !strings.Contains(canvasPage, `src="../../../archives/C1/canvas/content.html"`) {

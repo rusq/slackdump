@@ -81,6 +81,31 @@ func TestRenderThread(t *testing.T) {
 	}
 }
 
+func TestRenderThread_StaticModeCloseLink(t *testing.T) {
+	src := newViewerRouteSource()
+	v := &Viewer{
+		src: src,
+		ch:  initChannels(src.chs),
+		um:  st.NewUserIndex(src.users),
+		lg:  slog.Default(),
+		r:   &renderer.Debug{},
+		rts: renderer.NewRoutes(renderer.ModeStatic),
+	}
+	initTemplates(v)
+
+	var buf bytes.Buffer
+	if err := v.RenderThread(context.Background(), "C1", "1710000000.000001", &buf); err != nil {
+		t.Fatalf("RenderThread() static error = %v", err)
+	}
+	body := buf.String()
+	if !strings.Contains(body, `<a id="close-thread" class="close-button" href="/archives/C1/index.html" aria-label="Close thread panel">`) {
+		t.Fatalf("RenderThread() static mode should include channel close link: %q", body)
+	}
+	if strings.Contains(body, `<button type="button" id="close-thread"`) || strings.Contains(body, `data-close-panel`) {
+		t.Fatalf("RenderThread() static mode should not include JS-only close button: %q", body)
+	}
+}
+
 func TestRenderUser(t *testing.T) {
 	v := newTestViewer(renderer.ModeLive)
 	var buf bytes.Buffer
