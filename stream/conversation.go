@@ -267,12 +267,14 @@ func (cs *Stream) thread(ctx context.Context, req request, callback func(mm []sl
 				return network.ErrRetryPlease
 			}
 			if ke, ok := isNonCriticalErr(apiErr); ok {
-				// non-critical, escalate to the caller, not our problem.
+				// Non-critical API errors should not be retried.
 				return ke
 			}
 			return apiErr
 		}); err != nil {
 			if errors.Is(err, errThreadNotFound) {
+				// isNonCriticalErr mapped the API error to this sentinel;
+				// deliver a parent-only final chunk.
 				lg.Warn("skipping non-existing thread")
 				return callback(parentOnlyThreadMessages(req), true)
 			}
@@ -297,6 +299,9 @@ func parentOnlyThreadMessages(req request) []slack.Message {
 	if req.parent != nil {
 		return []slack.Message{*req.parent}
 	}
+	// Direct thread links have no channel message parent in hand. Keep the
+	// synthetic parent minimal so downstream processors can close the thread
+	// chunk without inventing user, subtype, or text fields.
 	return []slack.Message{
 		{
 			Msg: slack.Msg{

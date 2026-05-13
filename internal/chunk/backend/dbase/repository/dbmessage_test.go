@@ -783,7 +783,7 @@ func Test_messageRepository_CountUnfinished(t *testing.T) {
 			},
 			want: 0,
 		},
-		// TODO: what happens if there's just a thread, and no parent?
+		// TODO: audit thread-only chunks that have replies but no channel parent.
 		{
 			name: "only parent messages, no threads",
 			fields: fields{
