@@ -16,6 +16,7 @@
 package ui
 
 import (
+	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/huh"
 )
@@ -72,4 +73,10 @@ func KeySelectBinding(help string) key.Binding {
 
 func KeyQuitBinding() key.Binding {
 	return key.NewBinding(key.WithKeys("q", "esc", "ctrl+c"), key.WithHelp(KeyQuitAll, "quit"))
+}
+
+func NewHelp() help.Model {
+	h := help.New()
+	h.Styles = DefaultTheme().Help
+	return h
 }

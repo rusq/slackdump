@@ -26,6 +26,7 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/ui"
 	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/ui/updaters"
 )
 
@@ -68,7 +69,7 @@ func NewConfigUI(sty *Style, cfgFn func() Configuration) *Model {
 		last:   end,
 		keymap: DefaultKeymap(),
 		style:  sty,
-		help:   help.New(),
+		help:   ui.NewHelp(),
 	}
 }
 

@@ -63,7 +63,7 @@ func New(title string, items []Item, preview bool) *Model {
 		items:     items,
 		Style:     DefaultStyle(),
 		Keymap:    DefaultKeymap(),
-		help:      help.New(),
+		help:      ui.NewHelp(),
 		focused:   true,
 		preview:   preview,
 		finishing: false,

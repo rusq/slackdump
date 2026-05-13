@@ -61,7 +61,7 @@ func NewDTTM(ptrTime *time.Time) DateModel {
 		blurstyle:   ui.DefaultTheme().Blurred.Border,
 		keymap:      defaultDateKeymap(),
 		timeEnabled: true,
-		help:        help.New(),
+		help:        ui.NewHelp(),
 	}
 }
 
