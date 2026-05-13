@@ -757,6 +757,32 @@ func Test_messageRepository_CountUnfinished(t *testing.T) {
 			},
 			want: 0,
 		},
+		{
+			name: "parent-only final thread chunk completes discovered thread",
+			fields: fields{
+				genericRepository: genericRepository[DBMessage]{DBMessage{}},
+			},
+			args: args{
+				ctx:       t.Context(),
+				conn:      testConn(t),
+				sessionID: 1,
+				channelID: "C123",
+			},
+			prepFn: func(t *testing.T, conn PrepareExtContext) {
+				prepChunkWithFinal(
+					testChunk{typeID: chunk.CMessages, channelID: "C123", final: true},
+					testChunk{typeID: chunk.CThreadMessages, channelID: "C123", final: true},
+				)(t, conn)
+				mr := NewMessageRepository()
+				if err := mr.Insert(t.Context(), conn,
+					dbtmAParent,
+					dbtmAthread,
+				); err != nil {
+					t.Fatalf("insert: %v", err)
+				}
+			},
+			want: 0,
+		},
 		// TODO: what happens if there's just a thread, and no parent?
 		{
 			name: "only parent messages, no threads",
