@@ -174,6 +174,7 @@ type request struct {
 	// threadOnly indicates that this is the thread directly requested by the
 	// user, and not a thread that was found in the channel.
 	threadOnly bool
+	parent     *slack.Message
 	Oldest     time.Time
 	Latest     time.Time
 }
@@ -228,6 +229,8 @@ func (cs *Stream) channel(ctx context.Context, req request, callback func(mm []s
 // thread fetches the whole thread identified by SlackLink, calling callback
 // function fn for each slice received. the callback function will be called if
 // there's no messages in the thread, and should handle as it sees fit.
+// It will treat thread_not_found as non critical error, call the callback with
+// a parent-only final message slice, and will not raise an error.
 func (cs *Stream) thread(ctx context.Context, req request, callback func(mm []slack.Message, isLast bool) error) error {
 	ctx, task := trace.NewTask(ctx, "thread")
 	defer task.End()
@@ -236,7 +239,9 @@ func (cs *Stream) thread(ctx context.Context, req request, callback func(mm []sl
 		return fmt.Errorf("not a thread: %s", req.sl)
 	}
 
-	slog.DebugContext(ctx, "- getting thread", "slack_link", req.sl)
+	lg := slog.With("slack_link", req.sl)
+
+	lg.DebugContext(ctx, "- getting thread")
 
 	var cursor string
 	for {
@@ -256,13 +261,23 @@ func (cs *Stream) thread(ctx context.Context, req request, callback func(mm []sl
 				Inclusive: cs.inclusive,
 			})
 			if apiErr == nil && len(msgs) == 0 {
-				slog.DebugContext(ctx, "  - no messages returned by the API, requesting a retry", "slack_link", req.sl)
+				lg.DebugContext(ctx, "  - no messages returned by the API, requesting a retry")
 				// no messages returned by the API, but no error either, let's ask
 				// nicely to retry, maybe Slack is having a bad day.
 				return network.ErrRetryPlease
 			}
+			if ke, ok := isNonCriticalErr(apiErr); ok {
+				// Non-critical API errors should not be retried.
+				return ke
+			}
 			return apiErr
 		}); err != nil {
+			if errors.Is(err, errThreadNotFound) {
+				// isNonCriticalErr mapped the API error to this sentinel;
+				// deliver a parent-only final chunk.
+				lg.Warn("skipping non-existing thread")
+				return callback(parentOnlyThreadMessages(req), true)
+			}
 			return err
 		}
 
@@ -278,6 +293,24 @@ func (cs *Stream) thread(ctx context.Context, req request, callback func(mm []sl
 		}
 	}
 	return nil
+}
+
+func parentOnlyThreadMessages(req request) []slack.Message {
+	if req.parent != nil {
+		return []slack.Message{*req.parent}
+	}
+	// Direct thread links have no channel message parent in hand. Keep the
+	// synthetic parent minimal so downstream processors can close the thread
+	// chunk without inventing user, subtype, or text fields.
+	return []slack.Message{
+		{
+			Msg: slack.Msg{
+				Channel:         req.sl.Channel,
+				Timestamp:       req.sl.ThreadTS,
+				ThreadTimestamp: req.sl.ThreadTS,
+			},
+		},
+	}
 }
 
 // procChanMsg processes the message slice mm, for each threaded message, it
@@ -297,11 +330,13 @@ func (cs *Stream) procChanMsg(ctx context.Context, proc processor.Conversations,
 				continue
 			}
 			slog.DebugContext(ctx, "- message", "i", i, "thread", mm[i].Timestamp, "thread_ts", mm[i].ThreadTimestamp, "channel_id", channel.ID, "is_last", isLast, "msg_count", len(mm))
+			parent := mm[i]
 			trs = append(trs, request{
 				sl: &structures.SlackLink{
 					Channel:  channel.ID,
 					ThreadTS: mm[i].ThreadTimestamp,
 				},
+				parent: &parent,
 			})
 		}
 		if err := procFiles(ctx, proc, channel, mm[i]); err != nil {
@@ -395,13 +430,15 @@ func (cs *Stream) procChannelInfo(ctx context.Context, proc processor.ChannelInf
 
 // non-critical errors
 var (
-	errChanNotFound = errors.New("channel_not_found")
-	errNotInChannel = errors.New("not_in_channel")
+	errChanNotFound   = errors.New("channel_not_found")
+	errThreadNotFound = errors.New("thread_not_found")
+	errNotInChannel   = errors.New("not_in_channel")
 )
 
 func isNonCriticalErr(e error) (error, bool) {
 	for _, known := range []error{
 		errChanNotFound,
+		errThreadNotFound,
 		errNotInChannel,
 	} {
 		if structures.IsSlackResponseError(e, known.Error()) {

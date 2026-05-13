@@ -1,8 +1,14 @@
-# Copilot Instructions for Slackdump
+# Slackdump Agent Guide
+
+This file captures project-wide conventions for agents working in this
+repository.
 
 ## Project Overview
 
-**Slackdump** is a Go-based tool for archiving Slack workspaces without admin privileges. It can dump messages, export Slack-compatible archives, build SQLite-backed archives, resume previous runs, search archives, run a local MCP server, and render archives in a built-in browser viewer or as static HTML.
+**Slackdump** is a Go-based tool for archiving Slack workspaces without admin
+privileges. It can dump messages, export Slack-compatible archives, build
+SQLite-backed archives, resume previous runs, search archives, run a local MCP
+server, and render archives in a built-in browser viewer or as static HTML.
 
 - Repository: `https://github.com/rusq/slackdump`
 - Module path: `github.com/rusq/slackdump/v4`
@@ -82,12 +88,15 @@ Important command groups:
 
 Notable newer functionality that should be reflected in code suggestions:
 
-- `slackdump convert` supports `chunk`, `database`, `dump`, `export`, and `html`.
-- `slackdump convert` supports `-dm-mode` for single-user vs multi-user DM export conversion.
+- `slackdump convert` supports `chunk`, `database`, `dump`, `export`, and
+  `html`.
+- `slackdump convert` supports `-dm-mode` for single-user vs multi-user DM
+  export conversion.
 - `slackdump tools cleanup` removes unfinished database-session residue.
 - `slackdump tools dedupe` removes duplicate rows created by resume overlap.
 - `slackdump tools merge` merges multiple archive databases.
-- `slackdump mcp -new <layout>` scaffolds AI-tool project layouts for `opencode`, `claude-code`, and `copilot`.
+- `slackdump mcp -new <layout>` scaffolds AI-tool project layouts for
+  `opencode`, `claude-code`, and `copilot`.
 - Viewer and static HTML rendering support richer routing and canvas rendering.
 
 ## Build and Test
@@ -136,14 +145,21 @@ make lint
 
 - Prefer wrapped errors with context: `fmt.Errorf("open archive: %w", err)`.
 - Sentinel errors use the `Err...` convention.
-- For optional capabilities on shared interfaces, prefer small extension interfaces plus runtime type assertions instead of widening a widely used interface.
-- When optional behavior is absent, degrade gracefully with `source.ErrNotFound`, `fs.ErrNotExist`, or `source.ErrNotSupported` as appropriate.
+- For optional capabilities on shared interfaces, prefer small extension
+  interfaces plus runtime type assertions instead of widening a widely used
+  interface.
+- When optional behavior is absent, degrade gracefully with
+  `source.ErrNotFound`, `fs.ErrNotExist`, or `source.ErrNotSupported` as
+  appropriate.
 
 ### Interfaces and Compatibility
 
-- `source.Sourcer` is a core cross-format abstraction used by viewer, conversion, and MCP layers.
-- Avoid adding methods to `source.Sourcer` unless a breaking change is intentional.
-- If a consumer needs extra behavior, define an unexported extension interface in the consumer package and type-assert.
+- `source.Sourcer` is a core cross-format abstraction used by viewer,
+  conversion, and MCP layers.
+- Avoid adding methods to `source.Sourcer` unless a breaking change is
+  intentional.
+- If a consumer needs extra behavior, define an unexported extension interface
+  in the consumer package and type-assert.
 
 ### Logging
 
@@ -159,33 +175,55 @@ make lint
 - Table-driven tests are common.
 - Generated mocks use `go:generate mockgen`.
 
+### Go Test Naming
+
+Keep unit tests mapped 1:1 to the function or method they test.
+
+- For a package function `procChanMsg`, use `Test_procChanMsg`.
+- For a method with a receiver, include the receiver type before the method:
+  `(*Stream).thread` is tested by `TestStream_thread`.
+- Put behavior variants inside that single test function as `t.Run(...)`
+  subtests.
+- Do not add separate top-level tests for one scenario of the same function.
+  Add a new table row or subtest under the existing 1:1 test instead.
+
 ## Architecture Notes
 
 ### Source and Conversion
 
-- `source.Load` auto-detects chunk directories, dump directories/zips, Slack export directories/zips, and SQLite databases.
-- `internal/convert` contains conversion logic; CLI flag handling belongs in `cmd/slackdump/internal/convertcmd`.
-- Static HTML export is implemented through the viewer renderer, not via a separate rendering stack.
+- `source.Load` auto-detects chunk directories, dump directories/zips, Slack
+  export directories/zips, and SQLite databases.
+- `internal/convert` contains conversion logic; CLI flag handling belongs in
+  `cmd/slackdump/internal/convertcmd`.
+- Static HTML export is implemented through the viewer renderer, not via a
+  separate rendering stack.
 
 ### Database-Backed Archives
 
-- SQLite archives are a primary format and support resume, cleanup, dedupe, merge, and search workflows.
-- Repository migrations live under `internal/chunk/backend/dbase/repository/migrations/`.
-- Database tools often operate on an archive directory containing `slackdump.sqlite`, not directly on the DB file path.
+- SQLite archives are a primary format and support resume, cleanup, dedupe,
+  merge, and search workflows.
+- Repository migrations live under
+  `internal/chunk/backend/dbase/repository/migrations/`.
+- Database tools often operate on an archive directory containing
+  `slackdump.sqlite`, not directly on the DB file path.
 
 ### Viewer and Rendering
 
 - The built-in viewer lives in `internal/viewer`.
 - It supports archive, export, and dump sources.
 - Static HTML conversion reuses viewer rendering in `renderer.ModeStatic`.
-- Recent viewer work includes aliases, improved routes, file handling, and canvas rendering.
+- Recent viewer work includes aliases, improved routes, file handling, and
+  canvas rendering.
 
 ### MCP
 
 - CLI setup for MCP is in `cmd/slackdump/internal/mcp`.
 - Server/tool implementations are in `internal/mcp`.
-- The MCP server can start with or without an archive; if no archive is provided, clients should call `load_source`.
-- Supported MCP tools include `load_source`, `list_channels`, `get_channel`, `list_users`, `get_messages`, `get_thread`, `get_workspace_info`, and CLI-level `command_help`.
+- The MCP server can start with or without an archive; if no archive is
+  provided, clients should call `load_source`.
+- Supported MCP tools include `load_source`, `list_channels`, `get_channel`,
+  `list_users`, `get_messages`, `get_thread`, `get_workspace_info`, and
+  CLI-level `command_help`.
 
 ## Dependencies
 
@@ -204,8 +242,15 @@ Key libraries in active use:
 
 ## Guidance for Suggestions
 
-- Keep CLI parsing and business logic separated; put command wiring in `cmd/slackdump/internal/...`, reusable logic in root or `internal/...` packages.
-- Preserve support for multiple source types when changing viewer, search, convert, or MCP code.
-- Be careful with resume-related changes; overlap is intentional and downstream dedupe tools handle cleanup.
-- Prefer extending existing helpers in `bootstrap`, `source`, `internal/convert`, `internal/viewer`, and `internal/network` instead of adding parallel implementations.
-- When changing user-visible commands or flags, update embedded help/docs under `cmd/slackdump/internal/**/assets/` and `doc/` as needed.
+- Keep CLI parsing and business logic separated; put command wiring in
+  `cmd/slackdump/internal/...`, reusable logic in root or `internal/...`
+  packages.
+- Preserve support for multiple source types when changing viewer, search,
+  convert, or MCP code.
+- Be careful with resume-related changes; overlap is intentional and downstream
+  dedupe tools handle cleanup.
+- Prefer extending existing helpers in `bootstrap`, `source`,
+  `internal/convert`, `internal/viewer`, and `internal/network` instead of
+  adding parallel implementations.
+- When changing user-visible commands or flags, update embedded help/docs under
+  `cmd/slackdump/internal/**/assets/` and `doc/` as needed.
