@@ -76,12 +76,12 @@ type dateKeymap struct {
 
 func defaultDateKeymap() dateKeymap {
 	return dateKeymap{
-		NextField: key.NewBinding(key.WithKeys("tab"), key.WithHelp("↹", "next")),
-		PrevField: key.NewBinding(key.WithKeys("shift+tab"), key.WithHelp("⇧ + ↹", "prev")),
-		Arrows:    key.NewBinding(key.WithKeys("esc", "ctrl+c", "q"), key.WithHelp("←↑↓→", "move")),
-		Select:    key.NewBinding(key.WithKeys("enter"), key.WithHelp("↵", "select")),
-		Cancel:    key.NewBinding(key.WithKeys("esc", "ctrl+c", "q"), key.WithHelp("Esc", "cancel")),
-		Clear:     key.NewBinding(key.WithKeys("backspace"), key.WithHelp("backspace", "clear")),
+		NextField: key.NewBinding(key.WithKeys("tab"), key.WithHelp(ui.KeyTab, "next")),
+		PrevField: key.NewBinding(key.WithKeys("shift+tab"), key.WithHelp(ui.KeyShiftTab, "prev")),
+		Arrows:    key.NewBinding(key.WithKeys("esc", "ctrl+c", "q"), key.WithHelp(ui.KeyArrows, "move")),
+		Select:    key.NewBinding(key.WithKeys("enter"), key.WithHelp(ui.KeyEnter, "select")),
+		Cancel:    key.NewBinding(key.WithKeys("esc", "ctrl+c", "q"), key.WithHelp(ui.KeyQuitAll, "cancel")),
+		Clear:     key.NewBinding(key.WithKeys("backspace"), key.WithHelp(ui.KeyBack, "clear")),
 	}
 }
 

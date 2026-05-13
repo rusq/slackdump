@@ -35,7 +35,7 @@ type multiselectModel struct {
 
 func NewMultiSelect(v *[]string, m *huh.MultiSelect[string]) *multiselectModel {
 	msm := multiselectModel{
-		m:       m.Value(v).WithKeyMap(huh.NewDefaultKeyMap()).WithTheme(ui.HuhTheme()),
+		m:       m.Value(v).WithKeyMap(ui.DefaultHuhKeymap).WithTheme(ui.HuhTheme()),
 		help:    help.New(),
 		ptr:     v,
 		initial: make([]string, len(*v)),

@@ -29,6 +29,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 
 	"github.com/rusq/rbubbles/display"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/ui"
 )
 
 type Model struct {
@@ -382,7 +383,7 @@ func (m Model) View() string {
 		)
 	}
 	if len(m.files) == 0 {
-		buf.WriteString(m.Style.Normal.Render("No files found, press [Backspace]") + "\n")
+		buf.WriteString(m.Style.Normal.Render("No files found, press ["+ui.KeyBack+"]") + "\n")
 		for i := 0; i < m.height()-1; i++ {
 			fmt.Fprintln(&buf, m.Style.Normal.Render(strings.Repeat(" ", m.width()-1))) // padding
 		}
@@ -410,7 +411,13 @@ func (m Model) View() string {
 		}
 	}
 	if m.ShowHelp {
-		buf.WriteString("\n ↑↓ move•[⏎] select•[⇤] back•[q] quit")
+		buf.WriteString(fmt.Sprintf("\n %s move•%s select•%s back•%s quit•%s refresh",
+			ui.KeyUpDown,
+			ui.KeyEnter,
+			ui.KeyBack,
+			ui.KeyQuitAll,
+			ui.KeyCtrlR,
+		))
 	}
 	return buf.String()
 }

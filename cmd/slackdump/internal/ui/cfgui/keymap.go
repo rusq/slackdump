@@ -15,7 +15,11 @@
 
 package cfgui
 
-import "github.com/charmbracelet/bubbles/key"
+import (
+	"github.com/charmbracelet/bubbles/key"
+
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/ui"
+)
 
 type Keymap struct {
 	Up      key.Binding
@@ -29,13 +33,13 @@ type Keymap struct {
 
 func DefaultKeymap() *Keymap {
 	return &Keymap{
-		Up:      key.NewBinding(key.WithKeys("up", "k"), key.WithHelp("↑", "up")),
-		Down:    key.NewBinding(key.WithKeys("down", "j"), key.WithHelp("↓", "down")),
-		Home:    key.NewBinding(key.WithKeys("home"), key.WithHelp("home/end", "top/bottom")),
-		End:     key.NewBinding(key.WithKeys("end")),
-		Refresh: key.NewBinding(key.WithKeys("f5", "ctrl+r"), key.WithHelp("f5", "refresh")),
-		Select:  key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "submit")),
-		Quit:    key.NewBinding(key.WithKeys("q", "esc", "ctrl+c"), key.WithHelp("q", "quit")),
+		Up:      ui.KeyUpBinding(),
+		Down:    ui.KeyDownBinding(),
+		Home:    ui.KeyHomeBinding(),
+		End:     ui.KeyEndBinding(),
+		Refresh: ui.KeyRefreshBinding(),
+		Select:  ui.KeySelectBinding("submit"),
+		Quit:    ui.KeyQuitBinding(),
 	}
 }
 
