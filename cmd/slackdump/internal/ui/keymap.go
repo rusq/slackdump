@@ -45,6 +45,12 @@ var DefaultHuhKeymap = huh.NewDefaultKeyMap()
 func init() {
 	// redefinition of some of the default keys.
 	DefaultHuhKeymap.Quit = key.NewBinding(key.WithKeys("ctrl+c", "esc"), key.WithHelp("esc/ctrl+c", "quit"))
+	DefaultHuhKeymap.Select.Up = key.NewBinding(key.WithKeys("up", "k", "ctrl+k", "ctrl+p"), key.WithHelp(KeyUp, "up"))
+	DefaultHuhKeymap.Select.Down = key.NewBinding(key.WithKeys("down", "j", "ctrl+j", "ctrl+n"), key.WithHelp(KeyDown, "down"))
+	DefaultHuhKeymap.MultiSelect.Up = key.NewBinding(key.WithKeys("up", "k", "ctrl+p"), key.WithHelp(KeyUp, "up"))
+	DefaultHuhKeymap.MultiSelect.Down = key.NewBinding(key.WithKeys("down", "j", "ctrl+n"), key.WithHelp(KeyDown, "down"))
+	DefaultHuhKeymap.FilePicker.Up = key.NewBinding(key.WithKeys("up", "k", "ctrl+k", "ctrl+p"), key.WithHelp(KeyUp, "up"), key.WithDisabled())
+	DefaultHuhKeymap.FilePicker.Down = key.NewBinding(key.WithKeys("down", "j", "ctrl+j", "ctrl+n"), key.WithHelp(KeyDown, "down"), key.WithDisabled())
 }
 
 func KeyUpBinding() key.Binding {
