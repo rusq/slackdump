@@ -141,6 +141,11 @@ CASE:
 				break CASE
 			}
 			if params := m.cfgFn()[i].Params[j]; params.Updater != nil {
+				if isBoolUpdater(params.Updater) {
+					toggleBool(params.Updater)
+					cmds = append(cmds, refreshCfgCmd)
+					break CASE
+				}
 				if params.Inline {
 					m.state = inline
 				} else {
@@ -153,8 +158,9 @@ CASE:
 			m.finished = true
 			cmds = append(cmds, updaters.CmdClose(ModelID))
 		case reNumber.MatchString(msg.String()):
-			if 0 < m.cursor || m.cursor < m.last {
-				m.cursor = int(msg.String()[0] - '1')
+			target := int(msg.String()[0] - '1')
+			if target <= m.last {
+				m.cursor = target
 			}
 		}
 	}
@@ -163,6 +169,21 @@ CASE:
 }
 
 var reNumber = regexp.MustCompile(`^[1-9]$`)
+
+func isBoolUpdater(updater tea.Model) bool {
+	switch updater.(type) {
+	case updaters.BoolModel, *updaters.BoolModel:
+		return true
+	default:
+		return false
+	}
+}
+
+func toggleBool(updater tea.Model) {
+	if init := updater.Init(); init != nil {
+		updater.Update(init())
+	}
+}
 
 func (m *Model) SetFocus(b bool) {
 	m.focused = b
@@ -211,20 +232,22 @@ func (m *Model) view(sty StyleSet) string {
 				buf.WriteString(" ")
 			}
 
-			valfmt := sty.ValueDisabled
+			valueStyle := sty.ValueDisabled
 			if param.Updater != nil {
-				valfmt = sty.ValueEnabled
+				valueStyle = sty.ValueEnabled
 			}
 
-			namefmt := sty.Name
+			nameStyle := sty.Name
 			if selected {
-				namefmt = sty.SelectedName
+				nameStyle = sty.SelectedName
 			}
-			fmt.Fprint(&buf, alignParam+namefmt.Render(fmt.Sprintf("% *s", keyLen, param.Name))+"  ")
+			name := fmt.Sprintf("%-*s", keyLen, param.Name)
+			value := fmt.Sprintf("%-*s", valLen, nvl(param.Value))
+			fmt.Fprint(&buf, alignParam+nameStyle.Render(name)+"  ")
 			if selected && m.state == inline {
 				buf.WriteString(m.child.View() + "\n")
 			} else {
-				fmt.Fprint(&buf, valfmt.Render(fmt.Sprintf("%-*s", valLen, nvl(param.Value)))+"\n")
+				fmt.Fprint(&buf, valueStyle.Render(value)+"\n")
 			}
 			line++
 		}
