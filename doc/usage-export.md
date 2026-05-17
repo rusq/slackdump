@@ -142,8 +142,9 @@ for full details.
 
 ## Migrating to Discord
 
-Use [Slackord2](https://github.com/thomasloupe/Slackord2) — a GUI tool
-compatible with Slackdump export files.
+There are multiple Discord importers that are compatible with Slackdump export files:
+- [`slack-to-discord`](https://github.com/pR0Ps/slack-to-discord) (CLI tool)
+- [Slackord](https://github.com/thomasloupe/Slackord) (GUI tool)
 
 ## Archive vs Export vs Dump
 
