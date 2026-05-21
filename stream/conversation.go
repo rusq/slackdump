@@ -244,6 +244,7 @@ func (cs *Stream) thread(ctx context.Context, req request, callback func(mm []sl
 	lg.DebugContext(ctx, "- getting thread")
 
 	var cursor string
+	firstPage := true
 	for {
 		var (
 			msgs    []slack.Message
@@ -280,6 +281,15 @@ func (cs *Stream) thread(ctx context.Context, req request, callback func(mm []sl
 			}
 			return err
 		}
+
+		if firstPage && req.threadOnly && cs.skipThread != nil {
+			replyCount := msgs[0].ReplyCount
+			if cs.skipThread(ctx, req.sl.Channel, req.sl.ThreadTS, replyCount) {
+				lg.DebugContext(ctx, "skipping complete thread", "channel_id", req.sl.Channel, "thread_ts", req.sl.ThreadTS, "reply_count", replyCount)
+				return nil
+			}
+		}
+		firstPage = false
 
 		r := trace.StartRegion(ctx, "thread_callback")
 		err := callback(msgs, !hasmore)

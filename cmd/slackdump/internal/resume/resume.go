@@ -74,9 +74,6 @@ type ResumeParams struct {
 	// SkipCompleteThreads skips threads where the database already holds all
 	// replies (DB count == API reply_count + 1).  Faster, but won't detect
 	// edited or deleted messages.  Use only when threads are append-only.
-	// Note: threads with parent messages older than the lookback window will
-	// not be checked for updates, as only channel messages within the lookback
-	// window are scanned to discover threads.
 	SkipCompleteThreads bool
 	// Dedupe runs duplicate entity cleanup after a successful resume.
 	Dedupe bool
@@ -92,7 +89,7 @@ func init() {
 	CmdResume.Flag.BoolVar(&resumeFlags.IncludeThreads, "threads", false, "include threads (slow, and flaky business)")
 	CmdResume.Flag.BoolVar(&resumeFlags.RecordOnlyNewUsers, "only-new-users", true, "record only new or updated users")
 	CmdResume.Flag.Var(resumeFlags.Lookback, "lookback", "lookback window `duration`")
-	CmdResume.Flag.BoolVar(&resumeFlags.SkipCompleteThreads, "skip-complete-threads", false, "skip threads where DB already has all replies (faster, but won't detect edits/deletes or new replies to messages older than lookback window)")
+	CmdResume.Flag.BoolVar(&resumeFlags.SkipCompleteThreads, "skip-complete-threads", false, "skip threads where DB already has all replies (faster, but won't detect edits/deletes)")
 	CmdResume.Flag.BoolVar(&resumeFlags.Dedupe, "dedupe", false, "run dedupe cleanup after successful resume finish")
 }
 
@@ -136,9 +133,6 @@ func runResume(ctx context.Context, cmd *base.Command, args []string) error {
 		return fmt.Errorf("source type %q does not support resume, use 'slackdump convert -f database' to convert it", src.Type())
 	}
 
-	if resumeFlags.IncludeThreads && resumeFlags.SkipCompleteThreads {
-		slog.WarnContext(ctx, "threads whose parent message is older than the lookback window will not be checked for new replies")
-	}
 	latest, err := latest(ctx, src, resumeFlags.IncludeThreads, resumeFlags.SkipCompleteThreads, time.Duration((*duration.Duration)(resumeFlags.Lookback).ToTimeDuration()), list)
 	if err != nil {
 		base.SetExitStatus(base.SApplicationError)
@@ -267,7 +261,7 @@ func latest(ctx context.Context, src source.Resumer, includeThreads bool, skipCo
 
 	ei := make([]structures.EntityItem, 0, len(latest))
 	for sl, ts := range latest {
-		if sl.IsThread() && (!includeThreads || skipCompleteThreads) {
+		if sl.IsThread() && !includeThreads {
 			continue
 		}
 		item := structures.EntityItem{
