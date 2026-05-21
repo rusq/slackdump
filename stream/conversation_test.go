@@ -40,7 +40,7 @@ func Test_procChanMsg(t *testing.T) {
 	type args struct {
 		ctx context.Context
 		// proc    processor.Conversations // supplied by test
-		threadC chan<- request
+		threadC chan request
 		channel *slack.Channel
 		isLast  bool
 		mm      []slack.Message
@@ -58,6 +58,7 @@ func Test_procChanMsg(t *testing.T) {
 		args     args
 		skipFn   func(ctx context.Context, channelID, threadTS string, replyCount int) bool
 		expectFn func(mp *mock_processor.MockConversations)
+		checkFn  func(t *testing.T, threadC <-chan request, mm []slack.Message)
 		want     int
 		wantErr  bool
 	}{
@@ -161,6 +162,38 @@ func Test_procChanMsg(t *testing.T) {
 			},
 			want: 1,
 		},
+		{
+			name: "thread request carries parent message",
+			args: args{
+				ctx:     t.Context(),
+				threadC: make(chan request, 1),
+				channel: TestChannel,
+				isLast:  true,
+				mm: []slack.Message{{Msg: slack.Msg{
+					Channel:         TestChannel.ID,
+					Timestamp:       "1577694990.000400",
+					ThreadTimestamp: "1577694990.000400",
+					LatestReply:     "1638784627.000300",
+					ReplyCount:      3,
+					Text:            "thread parent",
+				}}},
+			},
+			expectFn: func(mp *mock_processor.MockConversations) {
+				mp.EXPECT().Messages(gomock.Any(), TestChannel.ID, 1, true, gomock.Any()).Times(1)
+			},
+			checkFn: func(t *testing.T, threadC <-chan request, mm []slack.Message) {
+				t.Helper()
+				parent := mm[0]
+				mm[0].Text = "mutated after enqueue"
+				req := <-threadC
+				assert.Equal(t, TestChannel.ID, req.sl.Channel)
+				assert.Equal(t, parent.ThreadTimestamp, req.sl.ThreadTS)
+				if assert.NotNil(t, req.parent) {
+					assert.Equal(t, parent, *req.parent)
+				}
+			},
+			want: 1,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -177,6 +210,9 @@ func Test_procChanMsg(t *testing.T) {
 			if got != tt.want {
 				t.Errorf("procChanMsg() = %v, want %v", got, tt.want)
 			}
+			if tt.checkFn != nil {
+				tt.checkFn(t, tt.args.threadC, tt.args.mm)
+			}
 		})
 	}
 }
@@ -191,6 +227,41 @@ func stuffProcWithFiles(mp *mock_processor.MockConversations, ch *slack.Channel,
 
 func Test_procThreadMsg(t *testing.T) {
 	testMessages := fixtures.Load[[]slack.Message](fixtures.TestChannelEveryoneMessagesNativeExport)
+	fileMessages := []slack.Message{
+		{
+			Msg: slack.Msg{
+				Channel:         "CTM1",
+				Timestamp:       "1610000000.000000",
+				ThreadTimestamp: "1610000000.000000",
+				Files: []slack.File{
+					{ID: "FILE_1", Name: "file1"},
+					{ID: "FILE_2", Name: "file2"},
+				},
+			},
+		},
+		{
+			Msg: slack.Msg{
+				Channel:         "CTM1",
+				Timestamp:       "1610000000.000001",
+				ThreadTimestamp: "1610000000.000000",
+				Files: []slack.File{
+					{ID: "FILE_3", Name: "file1"},
+					{ID: "FILE_4", Name: "file2"},
+				},
+			},
+		},
+		{
+			Msg: slack.Msg{
+				Channel:         "CTM1",
+				Timestamp:       "1610000000.000002",
+				ThreadTimestamp: "1610000000.000000",
+				Files: []slack.File{
+					{ID: "FILE_5", Name: "file5"},
+					{ID: "FILE_6", Name: "file6"},
+				},
+			},
+		},
+	}
 	type args struct {
 		ctx context.Context
 		// proc       processor.Conversations // supplied by test
@@ -285,6 +356,30 @@ func Test_procThreadMsg(t *testing.T) {
 				mp.EXPECT().ThreadMessages(gomock.Any(), TestChannel.ID, testMessages[0], false, false, testMessages).Return(assert.AnError).Times(1)
 			},
 			true,
+		},
+		{
+			"all files from messages are collected",
+			args{
+				t.Context(),
+				fixtures.DummyChannel("CTM1"),
+				fileMessages[0].ThreadTimestamp,
+				false,
+				true,
+				fileMessages,
+			},
+			func(mp *mock_processor.MockConversations) {
+				channel := fixtures.DummyChannel("CTM1")
+				mp.EXPECT().
+					ThreadMessages(gomock.Any(), "CTM1", fileMessages[0], false, true, fileMessages).
+					Return(nil)
+				mp.EXPECT().
+					Files(gomock.Any(), channel, fileMessages[1], fileMessages[1].Files).
+					Return(nil)
+				mp.EXPECT().
+					Files(gomock.Any(), channel, fileMessages[2], fileMessages[2].Files).
+					Return(nil)
+			},
+			false,
 		},
 	}
 	for _, tt := range tests {

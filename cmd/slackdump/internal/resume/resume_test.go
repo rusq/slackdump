@@ -30,8 +30,8 @@ import (
 	"go.uber.org/mock/gomock"
 
 	"github.com/rusq/slackdump/v4"
-	dedupecmd "github.com/rusq/slackdump/v4/cmd/slackdump/internal/diag/dedupe"
 	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/cfg"
+	dedupecmd "github.com/rusq/slackdump/v4/cmd/slackdump/internal/diag/dedupe"
 	"github.com/rusq/slackdump/v4/internal/fixtures"
 	"github.com/rusq/slackdump/v4/internal/structures"
 	"github.com/rusq/slackdump/v4/source"
@@ -476,6 +476,7 @@ func Test_latest(t *testing.T) {
 			},
 			want: structures.NewEntityListFromItems(
 				structures.EntityItem{Id: "C123", Oldest: time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC), Latest: time.Time(cfg.Latest), Include: true},
+				structures.EntityItem{Id: "C456:123.456", Oldest: time.Date(2021, 1, 2, 0, 0, 0, 0, time.UTC), Latest: time.Time(cfg.Latest), Include: true},
 			),
 			wantErr: false,
 		},

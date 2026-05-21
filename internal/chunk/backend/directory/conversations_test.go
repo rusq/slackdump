@@ -339,6 +339,32 @@ func TestConversations_ThreadMessages(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "ok, last parent-only message completes thread",
+			fields: fields{
+				subproc:     nil,
+				recordFiles: false,
+				tf:          nil,
+			},
+			args: args{
+				ctx:        textCtx,
+				channelID:  "channelID",
+				parent:     slack.Message{Msg: slack.Msg{Timestamp: "123", ThreadTimestamp: "123"}},
+				threadOnly: false,
+				isLast:     true,
+				tm:         []slack.Message{{Msg: slack.Msg{Timestamp: "123", ThreadTimestamp: "123"}}},
+			},
+			expectFn: func(mt *Mocktracker, mh *Mockdatahandler) {
+				id := chunk.ToFileID("channelID", "123", false)
+				tm := []slack.Message{{Msg: slack.Msg{Timestamp: "123", ThreadTimestamp: "123"}}}
+				mt.EXPECT().Recorder(id).Return(mh, nil)
+				mh.EXPECT().ThreadMessages(gomock.Any(), "channelID", tm[0], false, true, tm).Return(nil)
+				mh.EXPECT().Dec().Return(0)
+				mt.EXPECT().RefCount(id).Return(0)
+				mt.EXPECT().Unregister(id).Return(nil)
+			},
+			wantErr: false,
+		},
+		{
 			name: "recorder error",
 			fields: fields{
 				subproc:     nil,
