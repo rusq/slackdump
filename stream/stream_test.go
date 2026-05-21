@@ -203,6 +203,85 @@ func TestStream_thread(t *testing.T) {
 			assert.Equal(t, 1, calls)
 		})
 	}
+
+	t.Run("skips complete direct thread after first page", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		ms := mock_client.NewMockSlack(ctrl)
+		cs := New(ms, network.NoLimits, OptSkipThreadFunc(func(ctx context.Context, channelID, threadTS string, replyCount int) bool {
+			assert.Equal(t, "CTM1", channelID)
+			assert.Equal(t, "1610000000.000000", threadTS)
+			assert.Equal(t, 2, replyCount)
+			return true
+		}))
+		msgs := []slack.Message{
+			{Msg: slack.Msg{
+				Channel:         "CTM1",
+				Timestamp:       "1610000000.000000",
+				ThreadTimestamp: "1610000000.000000",
+				ReplyCount:      2,
+			}},
+		}
+		ms.EXPECT().
+			GetConversationRepliesContext(gomock.Any(), gomock.Any()).
+			Return(msgs, true, "next-cursor", nil).
+			Times(1)
+
+		var calls int
+		err := cs.thread(t.Context(), request{
+			sl:         &structures.SlackLink{Channel: "CTM1", ThreadTS: "1610000000.000000"},
+			threadOnly: true,
+		}, func(mm []slack.Message, isLast bool) error {
+			calls++
+			return nil
+		})
+		if err != nil {
+			t.Fatalf("thread() error = %v", err)
+		}
+		assert.Equal(t, 0, calls)
+	})
+
+	t.Run("processes incomplete direct thread after first page", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		ms := mock_client.NewMockSlack(ctrl)
+		cs := New(ms, network.NoLimits, OptSkipThreadFunc(func(ctx context.Context, channelID, threadTS string, replyCount int) bool {
+			assert.Equal(t, "CTM1", channelID)
+			assert.Equal(t, "1610000000.000000", threadTS)
+			assert.Equal(t, 3, replyCount)
+			return false
+		}))
+		msgs := []slack.Message{
+			{Msg: slack.Msg{
+				Channel:         "CTM1",
+				Timestamp:       "1610000000.000000",
+				ThreadTimestamp: "1610000000.000000",
+				ReplyCount:      3,
+			}},
+			{Msg: slack.Msg{
+				Channel:         "CTM1",
+				Timestamp:       "1610000001.000000",
+				ThreadTimestamp: "1610000000.000000",
+			}},
+		}
+		ms.EXPECT().
+			GetConversationRepliesContext(gomock.Any(), gomock.Any()).
+			Return(msgs, false, "", nil).
+			Times(1)
+
+		var calls int
+		err := cs.thread(t.Context(), request{
+			sl:         &structures.SlackLink{Channel: "CTM1", ThreadTS: "1610000000.000000"},
+			threadOnly: true,
+		}, func(mm []slack.Message, isLast bool) error {
+			calls++
+			assert.True(t, isLast)
+			assert.Equal(t, msgs, mm)
+			return nil
+		})
+		if err != nil {
+			t.Fatalf("thread() error = %v", err)
+		}
+		assert.Equal(t, 1, calls)
+	})
 }
 
 func Test_processLink(t *testing.T) {

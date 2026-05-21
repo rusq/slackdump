@@ -180,9 +180,10 @@ func OptFailOnNonCritError(b bool) Option {
 }
 
 // OptSkipThreadFunc sets a predicate that is called for each thread head message
-// during channel processing.  If it returns true, the thread is skipped (no API
-// call is made).  Returns false on any error (safe default: re-fetch the thread).
-// Intended for resume operations to skip threads already complete in the database.
+// during channel processing and after the first replies page for direct thread
+// requests.  If it returns true, the thread is skipped.  Returns false on any
+// error (safe default: re-fetch the thread).  Intended for resume operations to
+// skip threads already complete in the database.
 func OptSkipThreadFunc(fn func(ctx context.Context, channelID, threadTS string, replyCount int) bool) Option {
 	return func(cs *Stream) {
 		cs.skipThread = fn
