@@ -249,6 +249,10 @@ Key libraries in active use:
   convert, or MCP code.
 - Be careful with resume-related changes; overlap is intentional and downstream
   dedupe tools handle cleanup.
+- When changing resume thread handling, keep direct thread resume items whenever
+  `-threads` is enabled, even with `-skip-complete-threads`; apply the
+  complete-thread predicate inside the direct thread fetch path after the first
+  successful `conversations.replies` page.
 - Prefer extending existing helpers in `bootstrap`, `source`,
   `internal/convert`, `internal/viewer`, and `internal/network` instead of
   adding parallel implementations.
@@ -268,3 +272,10 @@ Key libraries in active use:
 - For built-in archive viewer work under `internal/viewer`, read
   `internal/viewer/AGENTS.md` before changing handlers, templates, routing, or
   viewer storage interfaces.
+
+### Stream Pagination
+
+- In direct thread pagination, use an explicit `firstPage` marker for
+  first-response behavior; do not infer it from `cursor == ""` after
+  `GetConversationRepliesContext`, because the call updates `cursor` with
+  Slack's next cursor.
