@@ -75,12 +75,25 @@ type ResumeParams struct {
 	// replies (DB count == API reply_count + 1).  Faster, but won't detect
 	// edited or deleted messages.  Use only when threads are append-only.
 	SkipCompleteThreads bool
+	// SkipStaleThreads, if set to a non-zero duration, drops thread entities
+	// whose latest known reply is older than the duration before they are
+	// dispatched.  This is a pre-API filter that avoids fetching the first
+	// page of replies for dormant threads.  Default (zero/unset) = disabled.
+	SkipStaleThreads *extDuration
+	// SkipStaleChannels, if set to a non-zero duration, drops channel
+	// entities whose latest known message is older than the duration before
+	// they are dispatched.  Pair with a periodic full-sweep run so dormant
+	// channels are still revisited for resurrection coverage.  Default
+	// (zero/unset) = disabled.
+	SkipStaleChannels *extDuration
 	// Dedupe runs duplicate entity cleanup after a successful resume.
 	Dedupe bool
 }
 
 var resumeFlags = ResumeParams{
-	Lookback: (*extDuration)(duration.FromTimeDuration(7 * 24 * time.Hour)),
+	Lookback:          (*extDuration)(duration.FromTimeDuration(7 * 24 * time.Hour)),
+	SkipStaleThreads:  new(extDuration),
+	SkipStaleChannels: new(extDuration),
 }
 
 func init() {
@@ -90,6 +103,8 @@ func init() {
 	CmdResume.Flag.BoolVar(&resumeFlags.RecordOnlyNewUsers, "only-new-users", true, "record only new or updated users")
 	CmdResume.Flag.Var(resumeFlags.Lookback, "lookback", "lookback window `duration`")
 	CmdResume.Flag.BoolVar(&resumeFlags.SkipCompleteThreads, "skip-complete-threads", false, "skip threads where DB already has all replies (faster, but won't detect edits/deletes)")
+	CmdResume.Flag.Var(resumeFlags.SkipStaleThreads, "skip-stale-threads", "skip thread entities whose latest reply is older than this `duration` (default: disabled)")
+	CmdResume.Flag.Var(resumeFlags.SkipStaleChannels, "skip-stale-channels", "skip channel entities whose latest message is older than this `duration` (default: disabled; pair with a periodic full-sweep run)")
 	CmdResume.Flag.BoolVar(&resumeFlags.Dedupe, "dedupe", false, "run dedupe cleanup after successful resume finish")
 }
 
@@ -133,7 +148,9 @@ func runResume(ctx context.Context, cmd *base.Command, args []string) error {
 		return fmt.Errorf("source type %q does not support resume, use 'slackdump convert -f database' to convert it", src.Type())
 	}
 
-	latest, err := latest(ctx, src, resumeFlags.IncludeThreads, resumeFlags.SkipCompleteThreads, time.Duration((*duration.Duration)(resumeFlags.Lookback).ToTimeDuration()), list)
+	threadCutoff := computeCutoff(resumeFlags.SkipStaleThreads)
+	channelCutoff := computeCutoff(resumeFlags.SkipStaleChannels)
+	latest, err := latest(ctx, src, resumeFlags.IncludeThreads, resumeFlags.SkipCompleteThreads, time.Duration((*duration.Duration)(resumeFlags.Lookback).ToTimeDuration()), threadCutoff, channelCutoff, list)
 	if err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return fmt.Errorf("error loading latest timestamps: %w", err)
@@ -243,7 +260,7 @@ func runDedupeAfterFinish(ctx context.Context, conn *sqlx.DB, dir string, enable
 	return err
 }
 
-func latest(ctx context.Context, src source.Resumer, includeThreads bool, skipCompleteThreads bool, lookBack time.Duration, other *structures.EntityList) (*structures.EntityList, error) {
+func latest(ctx context.Context, src source.Resumer, includeThreads bool, skipCompleteThreads bool, lookBack time.Duration, threadCutoff, channelCutoff *time.Time, other *structures.EntityList) (*structures.EntityList, error) {
 	if lookBack > 0 {
 		lookBack = -lookBack
 	}
@@ -262,6 +279,12 @@ func latest(ctx context.Context, src source.Resumer, includeThreads bool, skipCo
 	ei := make([]structures.EntityItem, 0, len(latest))
 	for sl, ts := range latest {
 		if sl.IsThread() && !includeThreads {
+			continue
+		}
+		if sl.IsThread() && threadCutoff != nil && ts.Before(*threadCutoff) {
+			continue
+		}
+		if !sl.IsThread() && channelCutoff != nil && ts.Before(*channelCutoff) {
 			continue
 		}
 		item := structures.EntityItem{
@@ -389,6 +412,22 @@ func channelsTeam(ctx context.Context, src source.Sourcer) (string, error) {
 		}
 	}
 	return "", source.ErrNotFound
+}
+
+// computeCutoff returns the absolute time before which entities are
+// considered stale.  Returns nil when d is nil or represents a zero/
+// negative duration, in which case callers should treat the filter as
+// disabled.
+func computeCutoff(d *extDuration) *time.Time {
+	if d == nil {
+		return nil
+	}
+	dur := time.Duration((*duration.Duration)(d).ToTimeDuration())
+	if dur <= 0 {
+		return nil
+	}
+	t := time.Now().Add(-dur)
+	return &t
 }
 
 type extDuration duration.Duration

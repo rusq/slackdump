@@ -347,8 +347,13 @@ func Test_latest(t *testing.T) {
 		includeThreads      bool
 		skipCompleteThreads bool
 		lookBack            time.Duration
+		threadCutoff        *time.Time
+		channelCutoff       *time.Time
 		other               *structures.EntityList
 	}
+	staleCutoff := time.Date(2022, 1, 1, 0, 0, 0, 0, time.UTC)
+	dormantTS := time.Date(2021, 6, 1, 0, 0, 0, 0, time.UTC)
+	freshTS := time.Date(2023, 6, 1, 0, 0, 0, 0, time.UTC)
 	tests := []struct {
 		name     string
 		args     args
@@ -480,6 +485,92 @@ func Test_latest(t *testing.T) {
 			),
 			wantErr: false,
 		},
+		{
+			name: "skip-stale-threads drops dormant thread, keeps fresh thread and channels",
+			args: args{
+				ctx:            t.Context(),
+				includeThreads: true,
+				lookBack:       0,
+				threadCutoff:   &staleCutoff,
+			},
+			expectFn: func(mr *mock_source.MockResumer) {
+				mr.EXPECT().Latest(gomock.Any()).Return(map[structures.SlackLink]time.Time{
+					{Channel: "C-fresh-ch"}:                          freshTS,
+					{Channel: "C-dormant-ch"}:                        dormantTS,
+					{Channel: "C-fresh-th", ThreadTS: "111.111"}:     freshTS,
+					{Channel: "C-dormant-th", ThreadTS: "222.222"}:   dormantTS,
+				}, nil)
+			},
+			want: structures.NewEntityListFromItems(
+				structures.EntityItem{Id: "C-fresh-ch", Oldest: freshTS, Latest: time.Time(cfg.Latest), Include: true},
+				structures.EntityItem{Id: "C-dormant-ch", Oldest: dormantTS, Latest: time.Time(cfg.Latest), Include: true},
+				structures.EntityItem{Id: "C-fresh-th:111.111", Oldest: freshTS, Latest: time.Time(cfg.Latest), Include: true},
+			),
+			wantErr: false,
+		},
+		{
+			name: "skip-stale-channels drops dormant channel, keeps fresh channel; threads excluded by default",
+			args: args{
+				ctx:            t.Context(),
+				includeThreads: false,
+				lookBack:       0,
+				channelCutoff:  &staleCutoff,
+			},
+			expectFn: func(mr *mock_source.MockResumer) {
+				mr.EXPECT().Latest(gomock.Any()).Return(map[structures.SlackLink]time.Time{
+					{Channel: "C-fresh-ch"}:                        freshTS,
+					{Channel: "C-dormant-ch"}:                      dormantTS,
+					{Channel: "C-fresh-th", ThreadTS: "111.111"}:   freshTS,
+				}, nil)
+			},
+			want: structures.NewEntityListFromItems(
+				structures.EntityItem{Id: "C-fresh-ch", Oldest: freshTS, Latest: time.Time(cfg.Latest), Include: true},
+			),
+			wantErr: false,
+		},
+		{
+			name: "both cutoffs drop dormant entities of both types, keep fresh",
+			args: args{
+				ctx:            t.Context(),
+				includeThreads: true,
+				lookBack:       0,
+				threadCutoff:   &staleCutoff,
+				channelCutoff:  &staleCutoff,
+			},
+			expectFn: func(mr *mock_source.MockResumer) {
+				mr.EXPECT().Latest(gomock.Any()).Return(map[structures.SlackLink]time.Time{
+					{Channel: "C-fresh-ch"}:                          freshTS,
+					{Channel: "C-dormant-ch"}:                        dormantTS,
+					{Channel: "C-fresh-th", ThreadTS: "111.111"}:     freshTS,
+					{Channel: "C-dormant-th", ThreadTS: "222.222"}:   dormantTS,
+				}, nil)
+			},
+			want: structures.NewEntityListFromItems(
+				structures.EntityItem{Id: "C-fresh-ch", Oldest: freshTS, Latest: time.Time(cfg.Latest), Include: true},
+				structures.EntityItem{Id: "C-fresh-th:111.111", Oldest: freshTS, Latest: time.Time(cfg.Latest), Include: true},
+			),
+			wantErr: false,
+		},
+		{
+			name: "skip-stale-threads cutoff does not affect channel entities",
+			args: args{
+				ctx:            t.Context(),
+				includeThreads: false,
+				lookBack:       0,
+				threadCutoff:   &staleCutoff,
+			},
+			expectFn: func(mr *mock_source.MockResumer) {
+				mr.EXPECT().Latest(gomock.Any()).Return(map[structures.SlackLink]time.Time{
+					{Channel: "C-fresh-ch"}:   freshTS,
+					{Channel: "C-dormant-ch"}: dormantTS,
+				}, nil)
+			},
+			want: structures.NewEntityListFromItems(
+				structures.EntityItem{Id: "C-fresh-ch", Oldest: freshTS, Latest: time.Time(cfg.Latest), Include: true},
+				structures.EntityItem{Id: "C-dormant-ch", Oldest: dormantTS, Latest: time.Time(cfg.Latest), Include: true},
+			),
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -488,7 +579,7 @@ func Test_latest(t *testing.T) {
 			if tt.expectFn != nil {
 				tt.expectFn(mr)
 			}
-			got, err := latest(tt.args.ctx, mr, tt.args.includeThreads, tt.args.skipCompleteThreads, tt.args.lookBack, tt.args.other)
+			got, err := latest(tt.args.ctx, mr, tt.args.includeThreads, tt.args.skipCompleteThreads, tt.args.lookBack, tt.args.threadCutoff, tt.args.channelCutoff, tt.args.other)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("latest() error = %v, wantErr %v", err, tt.wantErr)
 				return
