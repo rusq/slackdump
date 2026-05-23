@@ -78,6 +78,8 @@ will not be picked up until that channel is included again — pair with a
 periodic full sweep. Skipping stale **threads** is conservative: dormant
 thread parents are very unlikely to receive new replies, and a full sweep
 will still catch them.
+If stale filters skip every resume candidate, resume exits successfully as a
+no-op before setting up a Slack API session.
 
 __NOTE__: Resume is in beta and may not work as expected. Please report any
 issues on GitHub.

@@ -150,14 +150,18 @@ func runResume(ctx context.Context, cmd *base.Command, args []string) error {
 
 	threadCutoff := computeCutoff(resumeFlags.SkipStaleThreads)
 	channelCutoff := computeCutoff(resumeFlags.SkipStaleChannels)
-	latest, err := latest(ctx, src, resumeFlags.IncludeThreads, resumeFlags.SkipCompleteThreads, time.Duration((*duration.Duration)(resumeFlags.Lookback).ToTimeDuration()), threadCutoff, channelCutoff, list)
+	latestResult, err := latest(ctx, src, resumeFlags.IncludeThreads, resumeFlags.SkipCompleteThreads, time.Duration((*duration.Duration)(resumeFlags.Lookback).ToTimeDuration()), threadCutoff, channelCutoff, list)
 	if err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return fmt.Errorf("error loading latest timestamps: %w", err)
 	}
-	if latest.IsEmpty() {
+	switch decideResume(latestResult) {
+	case resumeDecisionInvalidArchive:
 		base.SetExitStatus(base.SInvalidParameters)
 		return fmt.Errorf("the archive does not contain any data: %s", dir)
+	case resumeDecisionNoop:
+		cfg.Log.InfoContext(ctx, "all resume entities were skipped by stale filters", "database", dir, "skipped", latestResult.skippedStale)
+		return nil
 	}
 
 	client, err := bootstrap.Slack(ctx)
@@ -223,7 +227,7 @@ func runResume(ctx context.Context, cmd *base.Command, args []string) error {
 	}
 	defer ctrl.Close()
 
-	if err := runArchiveAndCleanup(ctx, ctrl, latest, wconn, dir, resumeFlags.Dedupe); err != nil {
+	if err := runArchiveAndCleanup(ctx, ctrl, latestResult.list, wconn, dir, resumeFlags.Dedupe); err != nil {
 		if errors.Is(err, errRunArchiveController) {
 			base.SetExitStatus(base.SApplicationError)
 		}
@@ -234,6 +238,27 @@ func runResume(ctx context.Context, cmd *base.Command, args []string) error {
 	}
 
 	return nil
+}
+
+type resumeDecision int
+
+const (
+	resumeDecisionContinue resumeDecision = iota
+	resumeDecisionInvalidArchive
+	resumeDecisionNoop
+)
+
+func decideResume(r latestResult) resumeDecision {
+	if r.list != nil && !r.list.IsEmpty() {
+		return resumeDecisionContinue
+	}
+	if !r.hasSourceData {
+		return resumeDecisionInvalidArchive
+	}
+	if r.skippedStale > 0 {
+		return resumeDecisionNoop
+	}
+	return resumeDecisionInvalidArchive
 }
 
 func runArchiveAndCleanup(ctx context.Context, runner archiveRunner, latest *structures.EntityList, conn *sqlx.DB, dir string, dedupeEnabled bool) error {
@@ -260,16 +285,26 @@ func runDedupeAfterFinish(ctx context.Context, conn *sqlx.DB, dir string, enable
 	return err
 }
 
-func latest(ctx context.Context, src source.Resumer, includeThreads bool, skipCompleteThreads bool, lookBack time.Duration, threadCutoff, channelCutoff *time.Time, other *structures.EntityList) (*structures.EntityList, error) {
+type latestResult struct {
+	list          *structures.EntityList
+	hasSourceData bool
+	skippedStale  int
+}
+
+func latest(ctx context.Context, src source.Resumer, includeThreads bool, skipCompleteThreads bool, lookBack time.Duration, threadCutoff, channelCutoff *time.Time, other *structures.EntityList) (latestResult, error) {
 	if lookBack > 0 {
 		lookBack = -lookBack
 	}
 	latest, err := src.Latest(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("error loading latest timestamps: %w", err)
+		return latestResult{}, fmt.Errorf("error loading latest timestamps: %w", err)
+	}
+	result := latestResult{
+		list:          &structures.EntityList{},
+		hasSourceData: len(latest) > 0,
 	}
 	if len(latest) == 0 && (other == nil || other.IsEmpty()) {
-		return &structures.EntityList{}, nil
+		return result, nil
 	}
 
 	if cfg.Verbose {
@@ -282,9 +317,11 @@ func latest(ctx context.Context, src source.Resumer, includeThreads bool, skipCo
 			continue
 		}
 		if sl.IsThread() && threadCutoff != nil && ts.Before(*threadCutoff) {
+			result.skippedStale++
 			continue
 		}
 		if !sl.IsThread() && channelCutoff != nil && ts.Before(*channelCutoff) {
+			result.skippedStale++
 			continue
 		}
 		item := structures.EntityItem{
@@ -298,8 +335,9 @@ func latest(ctx context.Context, src source.Resumer, includeThreads bool, skipCo
 	}
 	el := structures.NewEntityListFromItems(ei...)
 	el.Overlay(other)
+	result.list = el
 
-	return el, nil
+	return result, nil
 }
 
 func debugprint(a ...any) {
