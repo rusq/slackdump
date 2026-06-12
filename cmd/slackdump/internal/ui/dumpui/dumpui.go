@@ -18,11 +18,11 @@ package dumpui
 
 import (
 	"context"
-	"fmt"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/golang/base"
 	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/ui/bubbles/menu"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/ui/bubbles/pager"
 	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/ui/cfgui"
 )
 
@@ -145,7 +145,10 @@ LOOP:
 				return err
 			}
 		case actHelp:
-			fmt.Println(base.Render(w.helpText()))
+			p := pager.New(w.Title, base.Render(w.helpText()))
+			if _, err := tea.NewProgram(p, tea.WithContext(ctx), tea.WithAltScreen()).Run(); err != nil {
+				return err
+			}
 		case actExit:
 			break LOOP
 		}
