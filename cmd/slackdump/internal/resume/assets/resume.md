@@ -48,6 +48,22 @@ slackdump resume -dedupe slackdump_20241231_150405
 Deduplication runs only after resume finishes successfully. To preview or run
 the same cleanup manually later, use `slackdump tools dedupe`.
 
+### Skipping complete threads.
+
+When `-threads` is enabled, resume normally re-fetches every known thread in
+the lookback window. Use `-skip-complete-threads` to skip a thread when the
+database already contains the parent message plus the number of replies
+reported by Slack:
+
+```plaintext
+slackdump resume -threads -skip-complete-threads <archive>
+```
+
+This is faster for append-only archives, but it will not detect edits or
+deletions inside a thread that already appears complete. Direct thread resume
+items are still kept; the complete-thread check runs after the first successful
+`conversations.replies` page so Slack's current `reply_count` is available.
+
 ### Skipping stale entities.
 
 Long-lived archives accumulate channels and threads that have not received any

@@ -25,6 +25,10 @@ and files created by resume look-back overlap. The latest copy of each
 identical payload is kept. By default it only reports what would be removed.
 Pass the archive directory, not the slackdump.sqlite file. Use -execute to
 perform deduplication.
+
+The same cleanup can be run automatically after a successful resume with:
+
+	slackdump resume -dedupe <archive_directory>
 `,
 }
 

@@ -1,5 +1,57 @@
 # What's New?
 
+## v4.4.0
+
+### New Features
+
+- **Faster, more selective resume**: `slackdump resume` now supports
+  `-skip-complete-threads`, `-skip-stale-threads <duration>`, and
+  `-skip-stale-channels <duration>` to avoid re-fetching thread or channel
+  entities that are already complete or have gone dormant.  Stale filters run
+  before any Slack API calls and exit successfully as a no-op when everything is
+  filtered out.
+
+- **Post-resume dedupe**: `slackdump resume -dedupe` runs duplicate cleanup
+  automatically after a successful resume, using the same cleanup logic as
+  `slackdump tools dedupe`.
+
+- **Improved interactive login compatibility**: browser-based workspace login
+  now prefers an installed system browser for the interactive "Login in
+  Browser" flow, working around Slack rejecting the bundled Chromium revision.
+  Use `slackdump workspace new -bundled-browser` to force the previous bundled
+  browser behaviour.
+
+- **Viewer static and interactive polish**: the archive viewer now has shared
+  viewer-side JavaScript for side-panel state, active-channel highlighting,
+  connection-status handling, and tab keyboard navigation.  Static HTML output
+  also supports user profile panels via anchors, and viewer layout has improved
+  responsive behaviour.
+
+- **Wizard help pager**: command wizards now expose a Help menu item backed by
+  a scrollable pager, with centralised key bindings and consistent help styling
+  across TUI components.
+
+- **Replit + Google Drive backup recipe**: `contrib/replit_drive_backup`
+  contains a resumable uploader that mirrors a Slackdump archive directory to
+  Google Drive from a Replit workspace.
+
+### Bug Fixes
+
+- `thread_not_found` is now treated as a non-critical thread fetch result, so
+  stale or deleted threads no longer fail a run.
+- `slackdump resume -threads -skip-complete-threads` now keeps direct thread
+  resume items and applies the complete-thread check after the first successful
+  `conversations.replies` page.
+- Resume now distinguishes an invalid empty archive from a valid no-op caused
+  by stale filters, and filtering to no results no longer reports an error.
+- File download deduplication during resume is now an explicit database
+  controller option instead of depending on the command name.
+- Edge client setup is restricted to `xoxc-` client tokens, avoiding failures
+  with token types that cannot use Slack Edge APIs.
+- Fixed several TUI regressions: shared Huh keymap state, config checker pane
+  sizing, boolean toggles, number-key navigation, date picker polish, and
+  scrollable wizard help sizing.
+
 ## v4.3.0
 
 ### New Features
