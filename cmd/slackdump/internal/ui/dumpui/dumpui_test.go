@@ -16,6 +16,7 @@
 package dumpui
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/golang/base"
@@ -70,18 +71,6 @@ func TestWizard_items(t *testing.T) {
 		}
 		return ids
 	}
-	equal := func(a, b []string) bool {
-		if len(a) != len(b) {
-			return false
-		}
-		for i := range a {
-			if a[i] != b[i] {
-				return false
-			}
-		}
-		return true
-	}
-
 	t.Run("full wizard has all items including help", func(t *testing.T) {
 		w := &Wizard{
 			Name:        "Dump",
@@ -89,7 +78,7 @@ func TestWizard_items(t *testing.T) {
 			LocalConfig: func() cfgui.Configuration { return cfgui.Configuration{} },
 		}
 		want := []string{actLocalConfig, actRun, actHelp, "---", actGlobalConfig, "---", actExit}
-		if got := itemIDs(w); !equal(got, want) {
+		if got := itemIDs(w); !slices.Equal(got, want) {
 			t.Errorf("items() IDs = %v, want %v", got, want)
 		}
 	})
@@ -97,7 +86,7 @@ func TestWizard_items(t *testing.T) {
 	t.Run("no local config and no help", func(t *testing.T) {
 		w := &Wizard{Name: "Dump", Cmd: &base.Command{}}
 		want := []string{actRun, "---", actGlobalConfig, "---", actExit}
-		if got := itemIDs(w); !equal(got, want) {
+		if got := itemIDs(w); !slices.Equal(got, want) {
 			t.Errorf("items() IDs = %v, want %v", got, want)
 		}
 	})
