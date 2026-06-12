@@ -73,8 +73,8 @@ func KeyRefreshBinding() key.Binding {
 	return key.NewBinding(key.WithKeys("f5", "ctrl+r"), key.WithHelp(KeyRefresh, "refresh"))
 }
 
-func KeySelectBinding(help string) key.Binding {
-	return key.NewBinding(key.WithKeys("enter"), key.WithHelp(KeyEnter, help))
+func KeySelectBinding(desc string) key.Binding {
+	return key.NewBinding(key.WithKeys("enter"), key.WithHelp(KeyEnter, desc))
 }
 
 func KeyQuitBinding() key.Binding {
