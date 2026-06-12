@@ -16,21 +16,25 @@
 package ui
 
 import (
-	"github.com/charmbracelet/huh"
+	"slices"
+	"testing"
 )
 
-func Confirm(msg string, _ bool, opt ...Option) (bool, error) {
-	var b bool
-	if err := FieldConfirm(&b, msg, false, opt...).Run(); err != nil {
-		return false, err
+func TestDefaultHuhKeymap(t *testing.T) {
+	a, b := DefaultHuhKeymap(), DefaultHuhKeymap()
+	if a == b {
+		t.Fatal("DefaultHuhKeymap() returned the same instance twice; huh forms mutate keymap state, so callers must not share one")
 	}
-	return b, nil
-}
-
-func FieldConfirm(b *bool, msg string, _ bool, opt ...Option) *huh.Form {
-	var opts = defaultOpts().apply(opt...)
-	f := huh.NewForm(huh.NewGroup(
-		huh.NewConfirm().Title(msg).Description(opts.help).Value(b),
-	)).WithTheme(HuhTheme()).WithKeyMap(DefaultHuhKeymap())
-	return f
+	// the repository overrides must be applied to every instance.
+	if got := a.Quit.Help().Key; got != "esc/ctrl+c" {
+		t.Errorf("Quit help key = %q, want %q", got, "esc/ctrl+c")
+	}
+	if got := a.Select.Up.Help().Key; got != KeyUp {
+		t.Errorf("Select.Up help key = %q, want %q", got, KeyUp)
+	}
+	for _, k := range []string{"up", "k", "ctrl+k", "ctrl+p"} {
+		if !slices.Contains(a.Select.Up.Keys(), k) {
+			t.Errorf("Select.Up missing key %q", k)
+		}
+	}
 }

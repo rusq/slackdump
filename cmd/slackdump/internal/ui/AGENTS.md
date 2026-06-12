@@ -20,7 +20,7 @@ Reusable notes for Bubble Tea TUI work in this repository.
 
 ## Shared Keymap and Help Baseline
 
-- Use `ui.DefaultHuhKeymap` for Huh forms/fields instead of calling `huh.NewDefaultKeyMap()` locally. It carries the repository help-label overrides.
+- Use `ui.DefaultHuhKeymap()` for Huh forms/fields instead of calling `huh.NewDefaultKeyMap()` locally. It carries the repository help-label overrides and returns a fresh instance per call (huh forms mutate keymap state, so instances must not be shared between live forms).
 - When adding Huh select-like fields, verify both behavior and displayed help labels. The shared Huh keymap should advertise `↑/k` and `↓/j` for Select, MultiSelect, and FilePicker navigation.
 - Use `ui.NewHelp()` for Bubble help models instead of raw `help.New()` so custom controls inherit `ui.DefaultTheme().Help`.
 - Prefer the shared key-label constants and binding helpers from `cmd/slackdump/internal/ui/keymap.go` for custom Bubble controls. Keep accepted shortcut keys unchanged unless the task explicitly asks for behavior changes.

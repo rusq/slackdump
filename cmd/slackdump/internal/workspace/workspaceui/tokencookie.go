@@ -52,7 +52,7 @@ func prgTokenCookie(ctx context.Context, mgr manager) error {
 				Description("Once confirmed this will check the credentials for validity, detect the workspace \nand create a new workspace with the provided token and cookie").
 				Value(&confirmed).
 				Validate(makeValidator(ctx, &token, &cookie, auth.NewValueAuth)),
-		)).WithTheme(ui.HuhTheme()).WithKeyMap(ui.DefaultHuhKeymap)
+		)).WithTheme(ui.HuhTheme()).WithKeyMap(ui.DefaultHuhKeymap())
 		if err := f.RunWithContext(ctx); err != nil {
 			return err
 		}
@@ -125,7 +125,7 @@ func prgTokenCookieFile(ctx context.Context, mgr manager) error {
 				Description("Once confirmed this will create a new workspace with the provided token and cookie").
 				Value(&confirmed).
 				Validate(makeValidator(ctx, &token, &cookiefile, auth.NewCookieFileAuth)),
-		)).WithTheme(ui.HuhTheme()).WithKeyMap(ui.DefaultHuhKeymap)
+		)).WithTheme(ui.HuhTheme()).WithKeyMap(ui.DefaultHuhKeymap())
 		if err := f.Run(); err != nil {
 			return err
 		}
@@ -176,7 +176,7 @@ func prgCookieOnly(ctx context.Context, mgr manager) error {
 				Description("Once confirmed this will check the credentials for validity, fetch the token\nand create a new workspace").
 				Value(&confirmed).
 				Validate(makeValidator(ctx, &wspname, &cookie, newCookieProvFn)),
-		)).WithTheme(ui.HuhTheme()).WithKeyMap(ui.DefaultHuhKeymap)
+		)).WithTheme(ui.HuhTheme()).WithKeyMap(ui.DefaultHuhKeymap())
 		if err := f.RunWithContext(ctx); err != nil {
 			return err
 		}

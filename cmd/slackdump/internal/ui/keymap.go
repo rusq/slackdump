@@ -40,17 +40,20 @@ const (
 	KeyDelete   = "delete"
 )
 
-var DefaultHuhKeymap = huh.NewDefaultKeyMap()
-
-func init() {
-	// redefinition of some of the default keys.
-	DefaultHuhKeymap.Quit = key.NewBinding(key.WithKeys("ctrl+c", "esc"), key.WithHelp("esc/ctrl+c", "quit"))
-	DefaultHuhKeymap.Select.Up = key.NewBinding(key.WithKeys("up", "k", "ctrl+k", "ctrl+p"), key.WithHelp(KeyUp, "up"))
-	DefaultHuhKeymap.Select.Down = key.NewBinding(key.WithKeys("down", "j", "ctrl+j", "ctrl+n"), key.WithHelp(KeyDown, "down"))
-	DefaultHuhKeymap.MultiSelect.Up = key.NewBinding(key.WithKeys("up", "k", "ctrl+p"), key.WithHelp(KeyUp, "up"))
-	DefaultHuhKeymap.MultiSelect.Down = key.NewBinding(key.WithKeys("down", "j", "ctrl+n"), key.WithHelp(KeyDown, "down"))
-	DefaultHuhKeymap.FilePicker.Up = key.NewBinding(key.WithKeys("up", "k", "ctrl+k", "ctrl+p"), key.WithHelp(KeyUp, "up"), key.WithDisabled())
-	DefaultHuhKeymap.FilePicker.Down = key.NewBinding(key.WithKeys("down", "j", "ctrl+j", "ctrl+n"), key.WithHelp(KeyDown, "down"), key.WithDisabled())
+// DefaultHuhKeymap returns a fresh huh keymap with the repository
+// help-label overrides applied.  It returns a new instance on every call:
+// huh forms mutate binding enabled-state during navigation, so live forms
+// must not share a keymap.
+func DefaultHuhKeymap() *huh.KeyMap {
+	km := huh.NewDefaultKeyMap()
+	km.Quit = key.NewBinding(key.WithKeys("ctrl+c", "esc"), key.WithHelp("esc/ctrl+c", "quit"))
+	km.Select.Up = key.NewBinding(key.WithKeys("up", "k", "ctrl+k", "ctrl+p"), key.WithHelp(KeyUp, "up"))
+	km.Select.Down = key.NewBinding(key.WithKeys("down", "j", "ctrl+j", "ctrl+n"), key.WithHelp(KeyDown, "down"))
+	km.MultiSelect.Up = key.NewBinding(key.WithKeys("up", "k", "ctrl+p"), key.WithHelp(KeyUp, "up"))
+	km.MultiSelect.Down = key.NewBinding(key.WithKeys("down", "j", "ctrl+n"), key.WithHelp(KeyDown, "down"))
+	km.FilePicker.Up = key.NewBinding(key.WithKeys("up", "k", "ctrl+k", "ctrl+p"), key.WithHelp(KeyUp, "up"), key.WithDisabled())
+	km.FilePicker.Down = key.NewBinding(key.WithKeys("down", "j", "ctrl+j", "ctrl+n"), key.WithHelp(KeyDown, "down"), key.WithDisabled())
+	return km
 }
 
 func KeyUpBinding() key.Binding {
