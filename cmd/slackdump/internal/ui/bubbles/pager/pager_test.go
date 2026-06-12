@@ -17,9 +17,12 @@ package pager
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 
+	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -87,6 +90,31 @@ func TestModel_Update_quit(t *testing.T) {
 				t.Errorf("cmd() = %v, want tea.QuitMsg", msg)
 			}
 		})
+	}
+}
+
+// The pager's Up, Down and Page bindings are help-display only; scrolling is
+// done by the viewport's own default keymap. This test fails if a bubbles
+// upgrade changes the viewport defaults away from the keys the help line
+// advertises.
+func TestDefaultKeymap_advertisedKeysHandledByViewport(t *testing.T) {
+	vp := viewport.New(80, 24)
+	checks := []struct {
+		name string
+		keys []string
+		b    key.Binding
+	}{
+		{"up", []string{"up", "k"}, vp.KeyMap.Up},
+		{"down", []string{"down", "j"}, vp.KeyMap.Down},
+		{"page up", []string{"pgup"}, vp.KeyMap.PageUp},
+		{"page down", []string{"pgdown"}, vp.KeyMap.PageDown},
+	}
+	for _, c := range checks {
+		for _, k := range c.keys {
+			if !slices.Contains(c.b.Keys(), k) {
+				t.Errorf("viewport default %s binding %v does not handle %q, which the pager help advertises", c.name, c.b.Keys(), k)
+			}
+		}
 	}
 }
 

@@ -36,6 +36,10 @@ type Keymap struct {
 	Quit   key.Binding
 }
 
+// DefaultKeymap returns the pager key bindings.  Up, Down and Page are for
+// help display only: scrolling for those keys is handled by the embedded
+// viewport's own default keymap, so they must stay in sync with it (guarded
+// by TestDefaultKeymap_advertisedKeysHandledByViewport).
 func DefaultKeymap() *Keymap {
 	return &Keymap{
 		Up:     ui.KeyUpBinding(),
