@@ -54,7 +54,16 @@ func (m checkerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.view.SetContent(msg.text)
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
-		m.view.Width = msg.Width - m.files.Width
+		// The file manager expands to the width it receives, so it must be
+		// given only its fixed pane width, not the full terminal width,
+		// otherwise it pushes the viewport off-screen.
+		fmsg := msg
+		fmsg.Width = filemgr.MinWidth
+		var cmd tea.Cmd
+		m.files, cmd = m.files.Update(fmsg)
+		m.view.Width = max(msg.Width-m.files.Width, 0)
+		m.view.Height = m.files.Height // panes share one fixed height
+		return m, cmd
 	case tea.KeyMsg:
 		keymsg = true
 		switch msg.String() {

@@ -281,7 +281,7 @@ func whatDo() (choice, error) {
 			huh.NewOption(string(choiceHelp), choiceHelp),
 			huh.NewOption(string(choiceWizard), choiceWizard),
 			huh.NewOption(string(choiceExit), choiceExit),
-		).Value(&ans))).WithTheme(ui.HuhTheme()).WithKeyMap(ui.DefaultHuhKeymap).Run()
+		).Value(&ans))).WithTheme(ui.HuhTheme()).WithKeyMap(ui.DefaultHuhKeymap()).Run()
 
 	return ans, err
 }

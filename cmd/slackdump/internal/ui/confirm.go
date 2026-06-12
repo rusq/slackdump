@@ -31,6 +31,6 @@ func FieldConfirm(b *bool, msg string, _ bool, opt ...Option) *huh.Form {
 	var opts = defaultOpts().apply(opt...)
 	f := huh.NewForm(huh.NewGroup(
 		huh.NewConfirm().Title(msg).Description(opts.help).Value(b),
-	)).WithTheme(HuhTheme()).WithKeyMap(DefaultHuhKeymap)
+	)).WithTheme(HuhTheme()).WithKeyMap(DefaultHuhKeymap())
 	return f
 }

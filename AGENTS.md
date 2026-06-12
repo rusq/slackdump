@@ -249,8 +249,33 @@ Key libraries in active use:
   convert, or MCP code.
 - Be careful with resume-related changes; overlap is intentional and downstream
   dedupe tools handle cleanup.
+- When changing resume thread handling, keep direct thread resume items whenever
+  `-threads` is enabled, even with `-skip-complete-threads`; apply the
+  complete-thread predicate inside the direct thread fetch path after the first
+  successful `conversations.replies` page.
 - Prefer extending existing helpers in `bootstrap`, `source`,
   `internal/convert`, `internal/viewer`, and `internal/network` instead of
   adding parallel implementations.
 - When changing user-visible commands or flags, update embedded help/docs under
   `cmd/slackdump/internal/**/assets/` and `doc/` as needed.
+
+## Focused Notes
+
+- For Bubble Tea, Huh, wizard, config UI, keymap, help text, or other terminal
+  UI work under `cmd/slackdump/internal/ui`, read
+  `cmd/slackdump/internal/ui/AGENTS.md` before editing. It captures shared TUI keymap and
+  help-style conventions, focus-state expectations, and tests that catch common
+  UI regressions.
+- For SQLite archive database work under `internal/chunk/backend/dbase`, read
+  `internal/chunk/backend/dbase/AGENTS.md` before changing schemas, migrations,
+  queries, or source assembly behavior.
+- For built-in archive viewer work under `internal/viewer`, read
+  `internal/viewer/AGENTS.md` before changing handlers, templates, routing, or
+  viewer storage interfaces.
+
+### Stream Pagination
+
+- In direct thread pagination, use an explicit `firstPage` marker for
+  first-response behavior; do not infer it from `cursor == ""` after
+  `GetConversationRepliesContext`, because the call updates `cursor` with
+  Slack's next cursor.

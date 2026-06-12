@@ -24,6 +24,8 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/ui"
 )
 
 // KeyMap is the key bindings for different actions within the datepicker.
@@ -258,7 +260,7 @@ func (m *Model) View() string {
 	buf.WriteString(drawCursor(m.cursor, 2, '↓', 3))
 	if m.ShowHelp {
 		buf.WriteString("\n\n" + m.Styles.Help.Render(
-			"↓/↑ change, tab jump, backspace zero, delete clear, enter to finish",
+			ui.KeyUpDown+" change, "+ui.KeyTab+" jump, "+ui.KeyBack+" zero, "+ui.KeyDelete+" clear, "+ui.KeyEnter+" to finish",
 		))
 	}
 

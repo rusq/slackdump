@@ -15,7 +15,11 @@
 
 package menu
 
-import "github.com/charmbracelet/bubbles/key"
+import (
+	"github.com/charmbracelet/bubbles/key"
+
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/ui"
+)
 
 type Keymap struct {
 	Up     key.Binding
@@ -26,10 +30,10 @@ type Keymap struct {
 
 func DefaultKeymap() *Keymap {
 	return &Keymap{
-		Up:     key.NewBinding(key.WithKeys("up", "k"), key.WithHelp("↑", "up")),
-		Down:   key.NewBinding(key.WithKeys("down", "j"), key.WithHelp("↓", "down")),
-		Select: key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "submit")),
-		Quit:   key.NewBinding(key.WithKeys("q", "ctrl+c", "esc"), key.WithHelp("q", "quit")),
+		Up:     ui.KeyUpBinding(),
+		Down:   ui.KeyDownBinding(),
+		Select: ui.KeySelectBinding("submit"),
+		Quit:   ui.KeyQuitBinding(),
 	}
 }
 

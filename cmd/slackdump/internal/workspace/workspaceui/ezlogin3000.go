@@ -57,7 +57,7 @@ func playwrightLogin(ctx context.Context, mgr manager) error {
 			Title("Playwright login").
 			Description("Choose the browser to use for authentication").
 			Value(&brws),
-	)).WithTheme(ui.HuhTheme()).WithKeyMap(ui.DefaultHuhKeymap)
+	)).WithTheme(ui.HuhTheme()).WithKeyMap(ui.DefaultHuhKeymap())
 	if err := formBrowser.RunWithContext(ctx); err != nil {
 		if errors.Is(err, huh.ErrUserAborted) {
 			return nil

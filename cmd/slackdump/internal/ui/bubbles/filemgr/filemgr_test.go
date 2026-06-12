@@ -250,7 +250,7 @@ func TestModel_View(t *testing.T) {
 				},
 				files: []fs.FileInfo{},
 			},
-			want: "No files found, press [Backspace]\n                                                                             \n",
+			want: "No files found, press [backspace]\n                                                                             \n",
 		},
 		{
 			name: "no files with help",
@@ -267,7 +267,7 @@ func TestModel_View(t *testing.T) {
 				files:    []fs.FileInfo{},
 				ShowHelp: true,
 			},
-			want: "No files found, press [Backspace]\n\n ↑↓ move•[⏎] select•[⇤] back•[q] quit",
+			want: "No files found, press [backspace]\n\n ↑/↓ move•enter select•backspace back•q/esc/ctrl+c quit•ctrl+r refresh",
 		},
 		{
 			name: "window height less than number of files",

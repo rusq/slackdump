@@ -13,36 +13,28 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-package cfgui
+package ui
 
 import (
-	"github.com/charmbracelet/bubbles/key"
-
-	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/ui"
+	"slices"
+	"testing"
 )
 
-type Keymap struct {
-	Up      key.Binding
-	Down    key.Binding
-	Home    key.Binding
-	End     key.Binding
-	Refresh key.Binding
-	Select  key.Binding
-	Quit    key.Binding
-}
-
-func DefaultKeymap() *Keymap {
-	return &Keymap{
-		Up:      ui.KeyUpBinding(),
-		Down:    ui.KeyDownBinding(),
-		Home:    ui.KeyHomeBinding(),
-		End:     ui.KeyEndBinding(),
-		Refresh: ui.KeyRefreshBinding(),
-		Select:  ui.KeySelectBinding("submit"),
-		Quit:    ui.KeyQuitBinding(),
+func TestDefaultHuhKeymap(t *testing.T) {
+	a, b := DefaultHuhKeymap(), DefaultHuhKeymap()
+	if a == b {
+		t.Fatal("DefaultHuhKeymap() returned the same instance twice; huh forms mutate keymap state, so callers must not share one")
 	}
-}
-
-func (k *Keymap) Bindings() []key.Binding {
-	return []key.Binding{k.Up, k.Down, k.Home, k.Refresh, k.Select, k.Quit}
+	// the repository overrides must be applied to every instance.
+	if got := a.Quit.Help().Key; got != "esc/ctrl+c" {
+		t.Errorf("Quit help key = %q, want %q", got, "esc/ctrl+c")
+	}
+	if got := a.Select.Up.Help().Key; got != KeyUp {
+		t.Errorf("Select.Up help key = %q, want %q", got, KeyUp)
+	}
+	for _, k := range []string{"up", "k", "ctrl+k", "ctrl+p"} {
+		if !slices.Contains(a.Select.Up.Keys(), k) {
+			t.Errorf("Select.Up missing key %q", k)
+		}
+	}
 }
