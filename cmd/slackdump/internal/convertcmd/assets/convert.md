@@ -14,6 +14,11 @@ Where format is one of the following:
 - `export`: **Slack Export**: The native Slack export format. Output is a directory or a zip file.
 - `html`: **Static HTML site**: A browsable archive rendered to HTML files. Output is a directory only.
 
+The `html` format uses the built-in viewer renderer.  The generated static site
+contains channel pages, thread pages, file links, canvas content where
+available, and user profile panels that work without a running Slackdump
+server.
+
 By default Slackdump converts to Slack Export format and writes to a ZIP file
 output.
 

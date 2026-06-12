@@ -9,6 +9,10 @@ specified directory or file.
 Viewer supports displaying downloaded images, videos as well as remote
 content.
 
+The viewer uses a side panel for threads and user profiles, keeps the active
+channel highlighted while navigating, and reports connection problems if the
+local viewer server becomes unreachable.
+
 ## Usage
 
 ```bash

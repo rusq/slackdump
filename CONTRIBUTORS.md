@@ -34,6 +34,9 @@ Implemented per-channel time range filtering by adding support for dump-from and
 ### [@volker-fr](https://github.com/volker-fr) - Volker
 Contributed numerous features and improvements: vacuum tool for database cleanup, file deduplication support, SQLite error handling improvements, channel user caching to reduce redundant API calls, thread optimization by skipping unnecessary user fetches, and dev experience improvements with Makefile documentation and additional tests.
 
+### [@icgma](https://github.com/icgma)
+Improved resume and backup workflows by adding resume-time entity deduplication, updating interactive login to prefer a system browser when Slack rejects bundled Chromium, and contributing the Replit + Google Drive backup recipe.
+
 ## Individual Contributors
 
 ### [@ChrisEdwards](https://github.com/ChrisEdwards) - Chris Edwards
@@ -87,9 +90,18 @@ Fixed the viewer showing the wrong user name for DMs with a single conversation.
 ### [@Fizmatik](https://github.com/Fizmatik) - Yuriy Tolpygo
 Fixed multiple bugs: range copy bug, DM member assignment, and SQLite variable limit exceeded error.
 
+### [@lzaldivarkt](https://github.com/lzaldivarkt) - Luis Zaldivar
+Fixed Edge client initialisation so it only uses Slack Edge APIs with `xoxc-` client tokens.
+
+### [@pR0Ps](https://github.com/pR0Ps) - Carey Metcalfe
+Added `slack-to-discord` to the Discord migration documentation.
+
+### [@chawlz7](https://github.com/chawlz7) - Charles Spellman
+Added stale thread and channel filtering flags for faster resume runs on long-lived archives.
+
 ---
 
-**Total Contributors**: 28
+**Total Contributors**: 32
 
 This list is sorted by number of contributions. Every contribution, no matter how small, helps make Slackdump better for everyone!
 
