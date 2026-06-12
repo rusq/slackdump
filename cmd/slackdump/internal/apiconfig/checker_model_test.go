@@ -30,7 +30,7 @@ func Test_checkerModel_windowResize(t *testing.T) {
 	f.Width = filemgr.MinWidth
 	m := checkerModel{
 		files: f,
-		view:  viewport.New(80-f.Width, f.Height),
+		view:  viewport.New(80-f.Width, 0), // deliberately out of sync with f.Height
 	}
 
 	const termWidth = 120
@@ -42,5 +42,8 @@ func Test_checkerModel_windowResize(t *testing.T) {
 	}
 	if want := termWidth - filemgr.MinWidth; got.view.Width != want {
 		t.Errorf("view.Width = %d, want %d (viewport must take the remaining width)", got.view.Width, want)
+	}
+	if got.view.Height != got.files.Height {
+		t.Errorf("view.Height = %d, want %d (viewport must match the file pane height)", got.view.Height, got.files.Height)
 	}
 }

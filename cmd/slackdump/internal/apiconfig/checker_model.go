@@ -62,6 +62,7 @@ func (m checkerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		var cmd tea.Cmd
 		m.files, cmd = m.files.Update(fmsg)
 		m.view.Width = max(msg.Width-m.files.Width, 0)
+		m.view.Height = m.files.Height // panes share one fixed height
 		return m, cmd
 	case tea.KeyMsg:
 		keymsg = true
