@@ -37,7 +37,6 @@ func archiveWizard(ctx context.Context, cmd *base.Command, args []string) error 
 		Name:        "Resume",
 		Cmd:         cmd,
 		LocalConfig: configuration,
-		// Help:        "Resume the archive process from the last checkpoint.",
 		ValidateParamsFn: func() error {
 			if dbfile == "" {
 				return errors.New("no archive file selected")

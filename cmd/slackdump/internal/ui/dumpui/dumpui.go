@@ -18,6 +18,7 @@ package dumpui
 
 import (
 	"context"
+	"fmt"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/golang/base"
@@ -39,7 +40,8 @@ type Wizard struct {
 	ValidateParamsFn func() error
 	// Cmd is the command to run.
 	Cmd *base.Command
-	// Help is the markdown help text.
+	// Help is the markdown help text.  If empty, the long help of Cmd is
+	// used.
 	Help string
 }
 
@@ -47,6 +49,7 @@ const (
 	actRun          = "run"
 	actGlobalConfig = "config"
 	actLocalConfig  = "localconfig"
+	actHelp         = "help"
 	actExit         = "exit"
 )
 
@@ -57,59 +60,70 @@ var description = map[string]string{
 	actExit:         "Exit to main menu",
 }
 
-func (w *Wizard) Run(ctx context.Context) error {
-	var menu = func() *menu.Model {
-		var items []menu.Item
-		if w.LocalConfig != nil {
-			items = append(items, menu.Item{
-				ID:      actLocalConfig,
-				Name:    w.Name + " Options...",
-				Help:    description[actLocalConfig],
-				Preview: true,
-				Model:   cfgui.NewConfigUI(cfgui.DefaultStyle(), w.LocalConfig),
-			})
-		}
+// helpText returns the help text for the wizard:  the Help field, if set,
+// otherwise the long help of the command.
+func (w *Wizard) helpText() string {
+	if w.Help != "" {
+		return w.Help
+	}
+	if w.Cmd != nil {
+		return w.Cmd.Long
+	}
+	return ""
+}
 
-		items = append(
-			items,
-			menu.Item{
-				ID:   actRun,
-				Name: "Run " + w.Name,
-				Help: description[actRun],
-				Validate: func() error {
-					if w.ValidateParamsFn != nil {
-						return w.ValidateParamsFn()
-					}
-					return nil
-				},
-			},
-		)
-		if w.Help != "" {
-			items = append(items, menu.Item{
-				ID:   "help",
-				Name: "Help",
-				Help: "Read help for " + w.Name,
-			})
-		}
-
-		items = append(items,
-			menu.Item{Separator: true},
-			menu.Item{
-				ID:    actGlobalConfig,
-				Name:  "Global Configuration...",
-				Help:  description[actGlobalConfig],
-				Model: cfgui.NewConfigUI(cfgui.DefaultStyle(), cfgui.GlobalConfig), // TODO: filthy cast
-			},
-			menu.Item{Separator: true},
-			menu.Item{ID: actExit, Name: "Exit", Help: description[actExit]},
-		)
-
-		return menu.New(w.Title, items, true)
+func (w *Wizard) items() []menu.Item {
+	var items []menu.Item
+	if w.LocalConfig != nil {
+		items = append(items, menu.Item{
+			ID:      actLocalConfig,
+			Name:    w.Name + " Options...",
+			Help:    description[actLocalConfig],
+			Preview: true,
+			Model:   cfgui.NewConfigUI(cfgui.DefaultStyle(), w.LocalConfig),
+		})
 	}
 
+	items = append(
+		items,
+		menu.Item{
+			ID:   actRun,
+			Name: "Run " + w.Name,
+			Help: description[actRun],
+			Validate: func() error {
+				if w.ValidateParamsFn != nil {
+					return w.ValidateParamsFn()
+				}
+				return nil
+			},
+		},
+	)
+	if w.helpText() != "" {
+		items = append(items, menu.Item{
+			ID:   actHelp,
+			Name: "Help",
+			Help: "Read help for " + w.Name,
+		})
+	}
+
+	items = append(items,
+		menu.Item{Separator: true},
+		menu.Item{
+			ID:    actGlobalConfig,
+			Name:  "Global Configuration...",
+			Help:  description[actGlobalConfig],
+			Model: cfgui.NewConfigUI(cfgui.DefaultStyle(), cfgui.GlobalConfig), // TODO: filthy cast
+		},
+		menu.Item{Separator: true},
+		menu.Item{ID: actExit, Name: "Exit", Help: description[actExit]},
+	)
+	return items
+}
+
+func (w *Wizard) Run(ctx context.Context) error {
 LOOP:
 	for {
-		m := menu()
+		m := menu.New(w.Title, w.items(), true)
 		if _, err := tea.NewProgram(m, tea.WithContext(ctx)).Run(); err != nil {
 			return err
 		}
@@ -130,6 +144,8 @@ LOOP:
 			if err := w.Cmd.Run(ctx, w.Cmd, args); err != nil {
 				return err
 			}
+		case actHelp:
+			fmt.Println(base.Render(w.helpText()))
 		case actExit:
 			break LOOP
 		}
