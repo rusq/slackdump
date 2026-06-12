@@ -86,6 +86,7 @@ func wizConfigCheck(ctx context.Context, cmd *base.Command, args []string) error
 		Shaded:    ui.DefaultTheme().Focused.DisabledFile,
 		CurDir:    ui.DefaultTheme().Focused.Description,
 	}
+	f.Width = filemgr.MinWidth // fixed left pane, the viewport takes the rest
 	vp := viewport.New(80-f.Width, f.Height)
 	vp.Style = lipgloss.NewStyle().Margin(0, 2)
 	vp.SetContent("Select a config file to check and press [Enter].")
