@@ -97,6 +97,9 @@ file therefore uses Google Drive's resumable upload protocol:
 
 ## Caveats
 
+- The manifest is trusted local state.  Do not reuse an
+  `archive-upload-manifest.json` from an untrusted source; it can contain
+  resumable upload session URLs that the script will contact while resuming.
 - Drive Shared Drives have a 400,000-file limit per drive.  Very
   large slackdump archives can approach this; consider tarring the
   whole `archive/` directory and uploading that single file if you
