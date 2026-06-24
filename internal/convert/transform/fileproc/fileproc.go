@@ -108,6 +108,8 @@ func ExportTokenUpdateFn(token string) func(_ *slack.Channel, msg *slack.Message
 	}
 }
 
+// skippedModes lists all file modes that are always skipped and not treated as
+// an error.
 var skippedModes = map[string]struct{}{
 	"hidden_by_limit": {},
 	"external":        {},
