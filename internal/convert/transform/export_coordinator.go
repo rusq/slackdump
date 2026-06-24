@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"sync"
 	"sync/atomic"
 
 	"github.com/rusq/slack"
@@ -57,9 +58,12 @@ type ExportCoordinator struct {
 	lg     *slog.Logger
 	closed atomic.Bool
 
-	start    chan struct{}
-	err      chan error   // error channel used to propagate errors to the main thread.
-	requestC chan request // channel used to pass channel IDs to the worker.
+	startOnce sync.Once
+	started   chan struct{}
+	done      chan struct{}
+	mu        sync.Mutex
+	err       error
+	requestC  chan request // channel used to pass channel IDs to the worker.
 }
 
 // bufferSz is the default size of the channel IDs buffer.  This is the number
@@ -94,9 +98,9 @@ func NewExportCoordinator(ctx context.Context, cvt UserConverter, tfopt ...ExpOp
 	t := &ExportCoordinator{
 		cvt:      cvt,
 		lg:       slog.Default(),
-		start:    make(chan struct{}),
+		started:  make(chan struct{}),
+		done:     make(chan struct{}),
 		requestC: make(chan request, bufferSz),
-		err:      make(chan error, 1),
 	}
 	for _, opt := range tfopt {
 		opt(t)
@@ -130,13 +134,17 @@ func (t *ExportCoordinator) Start(ctx context.Context) error {
 	if t.closed.Load() {
 		return errors.New("transform is closed")
 	}
+	if err := t.getErr(); err != nil {
+		return fmt.Errorf("transform: pending error: %w", err)
+	}
 	select {
 	case <-ctx.Done():
 		return context.Cause(ctx)
-	case err := <-t.err:
-		return fmt.Errorf("transform: pending error: %w", err)
 	default:
-		t.start <- struct{}{}
+	}
+	t.startOnce.Do(func() { close(t.started) })
+	if t.closed.Load() {
+		return errors.New("transform is closed")
 	}
 
 	return nil
@@ -149,10 +157,8 @@ func (t *ExportCoordinator) Start(ctx context.Context) error {
 // be queued for processing once the processor is started.  If the export
 // worker is closed, it will return ErrClosed.
 func (t *ExportCoordinator) Transform(ctx context.Context, channelID, threadTS string) error {
-	select {
-	case err := <-t.err:
+	if err := t.getErr(); err != nil {
 		return err
-	default:
 	}
 	if t.closed.Load() {
 		return ErrClosed
@@ -163,21 +169,38 @@ func (t *ExportCoordinator) Transform(ctx context.Context, channelID, threadTS s
 }
 
 func (t *ExportCoordinator) worker(ctx context.Context) {
-	defer close(t.err)
+	defer close(t.done)
 
 	lg := t.lg.With("in", "ExportCoordinator.worker")
 
 	lg.Debug("worker waiting", "buffer_size", cap(t.requestC))
-	<-t.start
+	<-t.started
 	lg.Debug("worker started", "queue_size", len(t.requestC))
 	for req := range t.requestC {
 		lg.Debug("transforming channel", "channel_id", req)
 		if err := t.cvt.Convert(ctx, req.channelID, req.threadTS); err != nil {
 			lg.Debug("transforming channel failure", "channel_id", req, "error", err)
-			t.err <- err
+			t.setErr(err)
 			continue
 		}
 	}
+}
+
+func (t *ExportCoordinator) setErr(err error) {
+	if err == nil {
+		return
+	}
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if t.err == nil {
+		t.err = err
+	}
+}
+
+func (t *ExportCoordinator) getErr() error {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return t.err
 }
 
 // Close closes the coordinator.  It must be called once it is guaranteed that
@@ -190,8 +213,9 @@ func (t *ExportCoordinator) Close() (err error) {
 	}
 	t.lg.Debug("transform: closing transform")
 	close(t.requestC)
-	close(t.start)
+	t.startOnce.Do(func() { close(t.started) })
 	t.lg.Debug("transform: waiting for workers to finish")
+	<-t.done
 
-	return <-t.err
+	return t.getErr()
 }

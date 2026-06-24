@@ -57,6 +57,9 @@ func DlEdgeFS(ctx context.Context, sess EdgeEmojiLister, fsa fsadapter.FS, opt *
 	if opt == nil {
 		opt = &Options{}
 	}
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
 	lg := cfg.Log
 	lg.DebugContext(ctx, "startup params", "dir", emojiDir, "numWorkers", numWorkers, "failFast", opt.FailFast)
 	if cb == nil {
@@ -65,8 +68,8 @@ func DlEdgeFS(ctx context.Context, sess EdgeEmojiLister, fsa fsadapter.FS, opt *
 
 	var (
 		emojiC  = make(chan edge.Emoji)
-		totalC  = make(chan int)
-		genErrC = make(chan error)
+		totalC  = make(chan int, 1)
+		genErrC = make(chan error, 1)
 		resultC = make(chan result)
 	)
 
@@ -81,14 +84,23 @@ func DlEdgeFS(ctx context.Context, sess EdgeEmojiLister, fsa fsadapter.FS, opt *
 		var once sync.Once
 		defer close(totalC)
 		defer close(emojiC)
+		defer close(genErrC)
 
 		for chunk, err := range sess.AdminEmojiList(ctx) {
 			if err != nil {
-				genErrC <- err
+				select {
+				case genErrC <- err:
+				default:
+				}
 				return
 			}
 			lg.DebugContext(ctx, "got emojis", "count", len(chunk.Emoji), "disabled", len(chunk.DisabledEmoji), "total", chunk.Total)
-			once.Do(func() { totalC <- chunk.Total }) // send total count once.
+			once.Do(func() {
+				select {
+				case totalC <- chunk.Total:
+				case <-ctx.Done():
+				}
+			}) // send total count once.
 			for _, emoji := range chunk.Emoji {
 				select {
 				case <-ctx.Done():
@@ -113,25 +125,37 @@ func DlEdgeFS(ctx context.Context, sess EdgeEmojiLister, fsa fsadapter.FS, opt *
 		wg.Wait()
 		close(resultC)
 	}()
+	defer func(resultC <-chan result) {
+		cancel()
+		for range resultC {
+		}
+	}(resultC)
 
 	// 4. Result processor, receives download results and logs any errors that
 	//    may have occurred.
 	var (
 		count = 0
-		total = <-totalC // if there's a generator error, this will receive 0.
+		total = 0
 	)
+	if n, ok := <-totalC; ok {
+		total = n
+	}
 	emojis := make(map[string]edge.Emoji, total)
-LOOP:
-	for {
+	for resultC != nil || genErrC != nil {
 		select {
-		case genErr := <-genErrC:
+		case genErr, more := <-genErrC:
+			if !more {
+				genErrC = nil
+				continue
+			}
 			// generator error.
 			if genErr != nil {
 				return fmt.Errorf("failed to get emoji list: %w", genErr)
 			}
 		case res, more := <-resultC:
 			if !more {
-				break LOOP
+				resultC = nil
+				continue
 			}
 			lg := lg.With("name", res.emoji.Name)
 			if res.err != nil {
@@ -180,17 +204,40 @@ func worker(ctx context.Context, fsa fsadapter.FS, emojiC <-chan edge.Emoji, res
 				return
 			}
 			if em.IsAlias != 0 {
-				resultC <- result{emoji: em, skipped: true}
+				if !sendResult(ctx, resultC, result{emoji: em, skipped: true}) {
+					return
+				}
 				break
 			}
 			err := fetchFn(ctx, fsa, emojiDir, em.Name, em.URL)
-			resultC <- result{emoji: em, err: err}
+			if !sendResult(ctx, resultC, result{emoji: em, err: err}) {
+				return
+			}
 		}
 	}
 }
 
 func nofetchworker(ctx context.Context, _ fsadapter.FS, emojiC <-chan edge.Emoji, resultC chan<- result) {
-	for em := range emojiC {
-		resultC <- result{emoji: em}
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case em, more := <-emojiC:
+			if !more {
+				return
+			}
+			if !sendResult(ctx, resultC, result{emoji: em}) {
+				return
+			}
+		}
+	}
+}
+
+func sendResult(ctx context.Context, resultC chan<- result, res result) bool {
+	select {
+	case <-ctx.Done():
+		return false
+	case resultC <- res:
+		return true
 	}
 }
