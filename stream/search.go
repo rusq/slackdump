@@ -44,9 +44,7 @@ func (cs *Stream) SearchMessages(ctx context.Context, proc processor.MessageSear
 		wg sync.WaitGroup
 	)
 	{
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			defer close(channelInfoC)
 			// defer close(channelUsersC)
 
@@ -78,14 +76,12 @@ func (cs *Stream) SearchMessages(ctx context.Context, proc processor.MessageSear
 			}); err != nil {
 				srC <- Result{Type: RTMain, Err: err}
 			}
-		}()
+		})
 	}
 	{
-		wg.Add(1)
-		go func() {
+		wg.Go(func() {
 			cs.channelInfoWorker(ctx, proc, srC, channelInfoC)
-			wg.Done()
-		}()
+		})
 	}
 	// {
 	// 	wg.Add(1)

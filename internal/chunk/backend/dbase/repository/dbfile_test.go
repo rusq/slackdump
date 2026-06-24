@@ -67,10 +67,10 @@ func TestNewDBFile(t *testing.T) {
 				ThreadID:  ptr[int64](1631820000000000),
 				Index:     42,
 				Mode:      "hosted",
-				Filename:  ptr("SOKO.COM"),
-				URL:       ptr("https://archive.org/details/msdos_sokoban_1984_spectrum_holobyte"),
+				Filename:  new("SOKO.COM"),
+				URL:       new("https://archive.org/details/msdos_sokoban_1984_spectrum_holobyte"),
 				Data:      must(marshal(file1)),
-				Size:      ptr(int64(0)), // file1.Size is 0
+				Size:      new(int64(0)), // file1.Size is 0
 			},
 			false,
 		},

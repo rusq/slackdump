@@ -68,7 +68,7 @@ func TestExportCoordinator_Start(t *testing.T) {
 	})
 
 	t.Run("concurrent close does not panic", func(t *testing.T) {
-		for i := 0; i < 100; i++ {
+		for range 100 {
 			cvt := &exportCoordinatorTestConverter{}
 			ec := NewExportCoordinator(t.Context(), cvt, WithUsers(testUsers()))
 
@@ -101,7 +101,7 @@ func TestExportCoordinator_Start(t *testing.T) {
 		ec := NewExportCoordinator(t.Context(), cvt, WithUsers(testUsers()))
 		defer ec.Close()
 
-		for i := 0; i < 3; i++ {
+		for range 3 {
 			done := make(chan error, 1)
 			go func() {
 				done <- ec.Start(t.Context())

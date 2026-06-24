@@ -23,7 +23,7 @@ func RandString(sz int) string {
 		chrstSz = len(charset)
 	)
 	var ret = make([]byte, sz)
-	for i := 0; i < sz; i++ {
+	for i := range sz {
 		ret[i] = charset[rand.Int()%chrstSz]
 	}
 	return string(ret)

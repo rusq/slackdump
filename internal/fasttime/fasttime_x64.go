@@ -29,10 +29,10 @@ func TS2int(ts string) (int64, error) {
 	if ts == "" {
 		return 0, nil
 	}
-	i := strings.IndexByte(ts, '.')
-	if i == -1 {
+	before, after, ok := strings.Cut(ts, ".")
+	if !ok {
 		return 0, fmt.Errorf("%w: %q", ErrNotATimestamp, ts)
 	}
-	val, err := strconv.Atoi(ts[:i] + ts[i+1:])
+	val, err := strconv.Atoi(before + after)
 	return int64(val), err
 }

@@ -74,7 +74,7 @@ func TestCleanupRepository_CleanupUnfinishedSessions(t *testing.T) {
 		repo := NewCleanupRepository()
 
 		insertSessionForTest(t, db, 1, false, nil)
-		insertSessionForTest(t, db, 2, false, ptr(int64(1)))
+		insertSessionForTest(t, db, 2, false, new(int64(1)))
 		insertChunkForTest(t, db, 11, 1, chunk.CMessages)
 		insertChunkForTest(t, db, 21, 2, chunk.CMessages)
 

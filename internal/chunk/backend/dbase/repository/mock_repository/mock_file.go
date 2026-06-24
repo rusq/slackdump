@@ -144,6 +144,21 @@ func (mr *MockFileRepositoryMockRecorder) Get(ctx, conn, id any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockFileRepository)(nil).Get), ctx, conn, id)
 }
 
+// GetByIDAndSize mocks base method.
+func (m *MockFileRepository) GetByIDAndSize(ctx context.Context, conn sqlx.QueryerContext, fileID string, size int64) (*repository.DBFile, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetByIDAndSize", ctx, conn, fileID, size)
+	ret0, _ := ret[0].(*repository.DBFile)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetByIDAndSize indicates an expected call of GetByIDAndSize.
+func (mr *MockFileRepositoryMockRecorder) GetByIDAndSize(ctx, conn, fileID, size any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByIDAndSize", reflect.TypeOf((*MockFileRepository)(nil).GetByIDAndSize), ctx, conn, fileID, size)
+}
+
 // GetType mocks base method.
 func (m *MockFileRepository) GetType(ctx context.Context, conn sqlx.ExtContext, id any, ct ...chunk.ChunkType) (repository.DBFile, error) {
 	m.ctrl.T.Helper()
@@ -211,19 +226,4 @@ func (m *MockFileRepository) OneForChunk(ctx context.Context, conn sqlx.QueryerC
 func (mr *MockFileRepositoryMockRecorder) OneForChunk(ctx, conn, chunkID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "OneForChunk", reflect.TypeOf((*MockFileRepository)(nil).OneForChunk), ctx, conn, chunkID)
-}
-
-// GetByIDAndSize mocks base method.
-func (m *MockFileRepository) GetByIDAndSize(ctx context.Context, conn sqlx.QueryerContext, fileID string, size int64) (*repository.DBFile, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetByIDAndSize", ctx, conn, fileID, size)
-	ret0, _ := ret[0].(*repository.DBFile)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetByIDAndSize indicates an expected call of GetByIDAndSize.
-func (mr *MockFileRepositoryMockRecorder) GetByIDAndSize(ctx, conn, fileID, size any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByIDAndSize", reflect.TypeOf((*MockFileRepository)(nil).GetByIDAndSize), ctx, conn, fileID, size)
 }

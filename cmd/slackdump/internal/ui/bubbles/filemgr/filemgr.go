@@ -335,10 +335,7 @@ func (m Model) printFile(fi fs.FileInfo) string {
 		filesizeSz = 6
 		dttmSz     = len(dttmLayout)
 	)
-	filenameSz := m.width() - filesizeSz - dttmSz - 3
-	if filenameSz < 1 {
-		filenameSz = 1
-	}
+	filenameSz := max(m.width()-filesizeSz-dttmSz-3, 1)
 
 	sz := dirMarker
 	if !fi.IsDir() {
@@ -471,7 +468,7 @@ func (s specialDir) IsDir() bool {
 	return true
 }
 
-func (s specialDir) Sys() interface{} {
+func (s specialDir) Sys() any {
 	return s
 }
 

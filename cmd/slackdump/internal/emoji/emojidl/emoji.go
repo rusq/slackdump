@@ -143,12 +143,10 @@ func fetch(ctx context.Context, fsa fsadapter.FS, emojis map[string]string, fail
 
 	// 2. Download workers, download the emojis.
 	var wg sync.WaitGroup
-	for i := 0; i < numWorkers; i++ {
-		wg.Add(1)
-		go func() {
+	for range numWorkers {
+		wg.Go(func() {
 			worker(ctx, fsa, emojiC, resultC)
-			wg.Done()
-		}()
+		})
 	}
 	// 3. Sentinel, closes the result channel once all workers are finished.
 	go func() {

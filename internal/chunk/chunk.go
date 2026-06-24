@@ -28,7 +28,7 @@ import (
 // ChunkType is the type of chunk that was recorded..
 type ChunkType uint8
 
-//go:generate stringer -type=ChunkType -trimprefix=C
+//go:generate go tool stringer -type=ChunkType -trimprefix=C
 const (
 	CMessages ChunkType = iota
 	CThreadMessages

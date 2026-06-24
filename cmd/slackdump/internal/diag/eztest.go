@@ -125,13 +125,13 @@ func tryPlaywrightAuth(ctx context.Context, wsp string, populateCreds bool) ezRe
 	var ret = ezResult{Engine: "playwright"}
 
 	if err := playwright.Install(&playwright.RunOptions{Browsers: []string{"firefox"}}); err != nil {
-		ret.Err = ptr(fmt.Sprintf("playwright installation error: %s", err))
+		ret.Err = new(fmt.Sprintf("playwright installation error: %s", err))
 		return ret
 	}
 
 	prov, err := auth.NewPlaywrightAuth(ctx, auth.BrowserWithWorkspace(wsp))
 	if err != nil {
-		ret.Err = ptr(err.Error())
+		ret.Err = new(err.Error())
 		return ret
 	}
 
@@ -144,7 +144,7 @@ func tryPlaywrightAuth(ctx context.Context, wsp string, populateCreds bool) ezRe
 		}
 		resp, err := prov.Test(ctx)
 		if err != nil {
-			ret.Err = ptr(err.Error())
+			ret.Err = new(err.Error())
 			return ret
 		}
 		ret.Response = resp
@@ -152,13 +152,14 @@ func tryPlaywrightAuth(ctx context.Context, wsp string, populateCreds bool) ezRe
 	return ret
 }
 
-func ptr[T any](t T) *T { return &t }
+//go:fix inline
+func ptr[T any](t T) *T { return new(t) }
 
 func tryRodAuth(ctx context.Context, wsp string, populateCreds bool) ezResult {
 	ret := ezResult{Engine: "rod"}
 	prov, err := auth.NewRODAuth(ctx, auth.BrowserWithWorkspace(wsp))
 	if err != nil {
-		ret.Err = ptr(err.Error())
+		ret.Err = new(err.Error())
 		return ret
 	}
 
@@ -171,7 +172,7 @@ func tryRodAuth(ctx context.Context, wsp string, populateCreds bool) ezResult {
 		}
 		resp, err := prov.Test(ctx)
 		if err != nil {
-			ret.Err = ptr(err.Error())
+			ret.Err = new(err.Error())
 			return ret
 		}
 		ret.Response = resp

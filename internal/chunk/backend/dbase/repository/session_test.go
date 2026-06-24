@@ -88,8 +88,8 @@ func Test_sessionRepository_Insert(t *testing.T) {
 				s: &Session{
 					ID:             10,
 					CreatedAt:      time.Date(2009, time.September, 16, 5, 6, 7, 0, time.UTC),
-					FromTS:         ptr(time.Date(2010, time.September, 16, 5, 6, 7, 0, time.UTC)),
-					ToTS:           ptr(time.Date(2010, time.September, 16, 5, 6, 7, 0, time.UTC)),
+					FromTS:         new(time.Date(2010, time.September, 16, 5, 6, 7, 0, time.UTC)),
+					ToTS:           new(time.Date(2010, time.September, 16, 5, 6, 7, 0, time.UTC)),
 					Finished:       true,
 					FilesEnabled:   true,
 					AvatarsEnabled: true,
@@ -214,8 +214,8 @@ func Test_sessionRepository_Get(t *testing.T) {
 				testSession := &Session{
 					CreatedAt:      time.Date(2009, time.September, 16, 5, 6, 7, 0, time.UTC),
 					UpdatedAt:      time.Date(2009, time.September, 16, 5, 6, 7, 0, time.UTC),
-					FromTS:         ptr(time.Date(2010, time.September, 16, 5, 6, 7, 0, time.UTC)),
-					ToTS:           ptr(time.Date(2010, time.September, 16, 5, 6, 7, 0, time.UTC)),
+					FromTS:         new(time.Date(2010, time.September, 16, 5, 6, 7, 0, time.UTC)),
+					ToTS:           new(time.Date(2010, time.September, 16, 5, 6, 7, 0, time.UTC)),
 					Finished:       true,
 					FilesEnabled:   true,
 					AvatarsEnabled: true,
@@ -231,8 +231,8 @@ func Test_sessionRepository_Get(t *testing.T) {
 				ID:             1,
 				CreatedAt:      time.Date(2009, time.September, 16, 5, 6, 7, 0, time.UTC),
 				UpdatedAt:      time.Date(2009, time.September, 16, 5, 6, 7, 0, time.UTC),
-				FromTS:         ptr(time.Date(2010, time.September, 16, 5, 6, 7, 0, time.UTC)),
-				ToTS:           ptr(time.Date(2010, time.September, 16, 5, 6, 7, 0, time.UTC)),
+				FromTS:         new(time.Date(2010, time.September, 16, 5, 6, 7, 0, time.UTC)),
+				ToTS:           new(time.Date(2010, time.September, 16, 5, 6, 7, 0, time.UTC)),
 				Finished:       true,
 				FilesEnabled:   true,
 				AvatarsEnabled: true,
@@ -336,7 +336,7 @@ func Test_sessionRepository_Last(t *testing.T) {
 		}
 		testSess2 = &Session{
 			ID:             2,
-			ParentID:       ptr(int64(1)),
+			ParentID:       new(int64(1)),
 			CreatedAt:      time.Date(2009, time.September, 17, 5, 6, 7, 0, time.UTC),
 			UpdatedAt:      time.Date(2009, time.September, 18, 5, 6, 7, 0, time.UTC),
 			Finished:       false,
@@ -379,14 +379,14 @@ func Test_sessionRepository_Last(t *testing.T) {
 		{
 			name:   "gets last finished session",
 			r:      sessionRepository{},
-			args:   args{ctx: t.Context(), conn: testConn(t), finished: ptr(true)},
+			args:   args{ctx: t.Context(), conn: testConn(t), finished: new(true)},
 			prepFn: twoSess,
 			want:   testSess1,
 		},
 		{
 			name:   "gets last unfinished session",
 			r:      sessionRepository{},
-			args:   args{ctx: t.Context(), conn: testConn(t), finished: ptr(false)},
+			args:   args{ctx: t.Context(), conn: testConn(t), finished: new(false)},
 			prepFn: twoSess,
 			want:   testSess2,
 		},

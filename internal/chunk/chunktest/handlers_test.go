@@ -55,7 +55,7 @@ func Test_handleUsersList(t *testing.T) {
 			Error string `json:"error"`
 		}
 
-		for i := 0; i < 3; i++ {
+		for range 3 {
 			resp, _, err := tRequest[slackresp](srv.URL + "/api/auth.test")
 			if err != nil {
 				t.Fatal(err)

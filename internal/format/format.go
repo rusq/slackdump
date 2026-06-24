@@ -34,7 +34,7 @@ import (
 
 // Type is the converter type.
 //
-//go:generate stringer -type Type -trimprefix C format.go
+//go:generate go tool stringer -type Type -trimprefix C format.go
 type Type int
 
 const (
@@ -93,7 +93,7 @@ var converters = make(map[Type]func(opts ...Option) Formatter)
 
 func (e *Type) Set(v string) error {
 	v = strings.ToLower(v)
-	for i := 0; i < len(_Type_index)-1; i++ {
+	for i := range len(_Type_index) - 1 {
 		if strings.ToLower(_Type_name[_Type_index[i]:_Type_index[i+1]]) == v {
 			*e = Type(i)
 			return nil

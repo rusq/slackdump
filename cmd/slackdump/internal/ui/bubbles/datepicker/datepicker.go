@@ -43,7 +43,7 @@ const (
 	FocusCalendar
 )
 
-//go:generate stringer -type=Focus
+//go:generate go tool stringer -type=Focus
 
 // KeyMap is the key bindings for different actions within the datepicker.
 type KeyMap struct {

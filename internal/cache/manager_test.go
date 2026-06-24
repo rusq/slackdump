@@ -89,7 +89,7 @@ func TestManager_listFiles(t *testing.T) {
 			func(dir string) []string {
 				return testFiles(dir)
 			},
-			func(t assert.TestingT, err error, i ...interface{}) bool {
+			func(t assert.TestingT, err error, i ...any) bool {
 				return err == nil
 			},
 		},
@@ -97,7 +97,7 @@ func TestManager_listFiles(t *testing.T) {
 			"empty",
 			func(t *testing.T, dir string) {},
 			nil,
-			func(t assert.TestingT, err error, i ...interface{}) bool {
+			func(t assert.TestingT, err error, i ...any) bool {
 				return errors.Is(err, ErrNoWorkspaces)
 			},
 		},

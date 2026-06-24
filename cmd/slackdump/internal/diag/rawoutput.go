@@ -167,7 +167,7 @@ type apiResponse struct {
 	HasMore  bool `json:"has_more,omitempty"`
 	Metadata struct {
 		NextCursor string `json:"next_cursor,omitempty"`
-	} `json:"response_metadata,omitempty"`
+	} `json:"response_metadata"`
 }
 
 func rawDump(w io.Writer, cl *http.Client, ep string, v url.Values) error {

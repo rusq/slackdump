@@ -50,7 +50,7 @@ func randString(n int) string {
 // GenerateTestConversation generates a test conversation with a random name.
 func GenerateTestConversation(name string, startDate time.Time, endDate time.Time, numMessages int) types.Conversation {
 	var messages = make([]types.Message, numMessages)
-	for i := 0; i < numMessages; i++ {
+	for i := range numMessages {
 		messages[i] = GenerateTestMessage(startDate, endDate)
 	}
 

@@ -25,7 +25,7 @@ import (
 // StorageType is the type of storage used for the files within the source.
 type StorageType uint8
 
-//go:generate stringer -type=StorageType -trimprefix=ST
+//go:generate go tool stringer -type=StorageType -trimprefix=ST
 const (
 	// STnone is the storage type for no storage.
 	STnone StorageType = iota
@@ -46,7 +46,7 @@ const (
 // function, if any new storage methods are added.
 func (e *StorageType) Set(v string) error {
 	v = strings.ToLower(v)
-	for i := 0; i < len(_StorageType_index)-1; i++ {
+	for i := range len(_StorageType_index) - 1 {
 		if strings.ToLower(_StorageType_name[_StorageType_index[i]:_StorageType_index[i+1]]) == v {
 			*e = StorageType(i)
 			return nil

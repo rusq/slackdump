@@ -139,8 +139,10 @@ func prepChunkWithFinal(tc ...testChunk) utilityFn {
 }
 
 // ptr returns a pointer to the value.
+//
+//go:fix inline
 func ptr[T any](v T) *T {
-	return &v
+	return new(v)
 }
 
 func Test_placeholders(t *testing.T) {
@@ -195,7 +197,7 @@ func Test_orNull(t *testing.T) {
 		{
 			name: "not null",
 			args: args[int]{b: true, t: 42},
-			want: ptr(42),
+			want: new(42),
 		},
 	}
 	for _, tt := range tests {

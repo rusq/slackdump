@@ -29,13 +29,13 @@ type Limits struct {
 	// going to retry
 	DownloadRetries int `json:"download_retries,omitempty" yaml:"download_retries,omitempty" toml:"download_retries,omitempty"`
 	// Tier-2 limits
-	Tier2 TierLimit `json:"tier_2,omitempty" yaml:"tier_2,omitempty" toml:"tier_2,omitempty"`
+	Tier2 TierLimit `json:"tier_2" yaml:"tier_2,omitempty" toml:"tier_2,omitempty"`
 	// Tier-3 limits
-	Tier3 TierLimit `json:"tier_3,omitempty" yaml:"tier_3,omitempty" toml:"tier_3,omitempty"`
+	Tier3 TierLimit `json:"tier_3" yaml:"tier_3,omitempty" toml:"tier_3,omitempty"`
 	// Tier-4 limits
-	Tier4 TierLimit `json:"tier_4,omitempty" yaml:"tier_4,omitempty" toml:"tier_4,omitempty"`
+	Tier4 TierLimit `json:"tier_4" yaml:"tier_4,omitempty" toml:"tier_4,omitempty"`
 	// Request Limits
-	Request RequestLimit `json:"per_request,omitempty" yaml:"per_request,omitempty" toml:"per_request,omitempty"`
+	Request RequestLimit `json:"per_request" yaml:"per_request,omitempty" toml:"per_request,omitempty"`
 }
 
 // TierLimit represents a Slack API Tier limits.

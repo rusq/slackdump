@@ -84,7 +84,7 @@ func TestNewDBChannel(t *testing.T) {
 			want: &DBChannel{
 				ID:      "C100",
 				ChunkID: 1,
-				Name:    ptr("channel C 100"),
+				Name:    new("channel C 100"),
 				Index:   50,
 				Data:    must(marshal(ch100)),
 			},

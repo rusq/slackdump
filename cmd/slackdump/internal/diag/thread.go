@@ -141,7 +141,7 @@ func generateThread(ctx context.Context, cl *slack.Client, channelID string, num
 	pb := progressbar.Default(int64(numMsg))
 	pb.Describe("posting messages")
 	defer func() { _ = pb.Finish() }()
-	for i := 0; i < numMsg; i++ {
+	for i := range numMsg {
 		if err := network.WithRetry(ctx, l, 3, func(ctx context.Context) error {
 			_, _, err := cl.PostMessageContext(ctx, channelID, slack.MsgOptionTS(ts), slack.MsgOptionText(fmt.Sprintf("message: %d", i), false))
 			return err

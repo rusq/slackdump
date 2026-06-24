@@ -94,8 +94,8 @@ type clientDMsResponse struct {
 type ClientDM struct {
 	ID string `json:"id"`
 	// Message slack.Message `json:"message,omitempty"`
-	Channel IM            `json:"channel,omitempty"`
-	Latest  fasttime.Time `json:"latest,omitempty"` // i.e. "1710632873.037269"
+	Channel IM            `json:"channel"`
+	Latest  fasttime.Time `json:"latest"` // i.e. "1710632873.037269"
 }
 
 type IM struct {

@@ -129,9 +129,7 @@ func runWorkers(ctx context.Context, s Streamer, list *structures.EntityList, p 
 	)
 
 	{ // workspace info
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			defer lg.DebugContext(ctx, "workspace info done")
 
 			defer func() {
@@ -141,13 +139,11 @@ func runWorkers(ctx context.Context, s Streamer, list *structures.EntityList, p 
 				errC <- Error{"workspace", StgWorker, err}
 				return
 			}
-		}()
+		})
 	}
 	{ // user goroutine
 		// once all users are fetched, it triggers the transformer to start.
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			defer lg.DebugContext(ctx, "users done")
 
 			defer func() {
@@ -158,12 +154,10 @@ func runWorkers(ctx context.Context, s Streamer, list *structures.EntityList, p 
 				errC <- Error{"user", StgWorker, err}
 				return
 			}
-		}()
+		})
 	}
 	{ // conversations goroutine
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			defer lg.DebugContext(ctx, "conversations done")
 
 			defer func() {
@@ -176,7 +170,7 @@ func runWorkers(ctx context.Context, s Streamer, list *structures.EntityList, p 
 				errC <- Error{"conversations", StgWorker, err}
 				return
 			}
-		}()
+		})
 	}
 	// sentinel
 	go func() {
