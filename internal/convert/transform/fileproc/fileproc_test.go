@@ -89,3 +89,101 @@ func TestIsValid(t *testing.T) {
 		})
 	}
 }
+
+func TestSkipReason(t *testing.T) {
+	tests := []struct {
+		name       string
+		file       *slack.File
+		wantReason string
+		wantSkip   bool
+	}{
+		{
+			name:       "tombstone",
+			file:       &slack.File{Mode: "tombstone", Name: "foo"},
+			wantReason: "tombstone",
+			wantSkip:   true,
+		},
+		{
+			name:       "hidden by limit",
+			file:       &slack.File{Mode: "hidden_by_limit", Name: "foo"},
+			wantReason: "hidden_by_limit",
+			wantSkip:   true,
+		},
+		{
+			name:       "external",
+			file:       &slack.File{Mode: "external", Name: "foo", IsExternal: true},
+			wantReason: "external",
+			wantSkip:   true,
+		},
+		{
+			name:     "downloadable file",
+			file:     fixtures.LoadPtr[slack.File](fixtures.FileJPEG),
+			wantSkip: false,
+		},
+		{
+			name:     "nil file",
+			file:     nil,
+			wantSkip: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotReason, gotSkip := SkipReason(tt.file)
+			if gotReason != tt.wantReason || gotSkip != tt.wantSkip {
+				t.Fatalf("SkipReason() = (%q, %v), want (%q, %v)", gotReason, gotSkip, tt.wantReason, tt.wantSkip)
+			}
+			if got := ShouldSkip(tt.file); got != tt.wantSkip {
+				t.Fatalf("ShouldSkip() = %v, want %v", got, tt.wantSkip)
+			}
+		})
+	}
+}
+
+func TestIsValidWithReason(t *testing.T) {
+	tests := []struct {
+		name    string
+		file    *slack.File
+		wantErr bool
+	}{
+		{
+			name:    "tombstone is skipped not invalid",
+			file:    &slack.File{Mode: "tombstone", Name: "foo"},
+			wantErr: false,
+		},
+		{
+			name:    "hidden by limit is skipped not invalid",
+			file:    &slack.File{Mode: "hidden_by_limit", Name: "foo"},
+			wantErr: false,
+		},
+		{
+			name:    "external is skipped not invalid",
+			file:    &slack.File{Mode: "external", Name: "foo", IsExternal: true},
+			wantErr: false,
+		},
+		{
+			name:    "nil file is invalid",
+			file:    nil,
+			wantErr: true,
+		},
+		{
+			name:    "downloadable file with empty name is invalid",
+			file:    &slack.File{ID: "F123", Name: "", IsExternal: false},
+			wantErr: true,
+		},
+		{
+			name:    "valid downloadable file",
+			file:    fixtures.LoadPtr[slack.File](fixtures.FileJPEG),
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := IsValidWithReason(tt.file)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("IsValidWithReason() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}

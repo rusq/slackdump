@@ -67,9 +67,12 @@ func (c *FileCopier) Copy(ch *slack.Channel, msg *slack.Message) error {
 		lg   = slog.With("channel", ch.ID, "ts", msg.Timestamp)
 	)
 	for _, f := range msg.Files {
-		if err := fileproc.IsValidWithReason(&f); err != nil {
-			lg.Info("skipping file", "file", f.ID, "error", err)
+		if reason, ok := fileproc.SkipReason(&f); ok {
+			lg.Info("skipping file", "file", f.ID, "reason", reason)
 			continue
+		}
+		if err := fileproc.IsValidWithReason(&f); err != nil {
+			return &copyerror{f.ID, err}
 		}
 
 		srcpath, err := c.src.Files().File(f.ID, f.Name)
