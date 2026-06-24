@@ -142,7 +142,10 @@ func (c *ToExport) Convert(ctx context.Context) error {
 	errC := make(chan error, c.workers)
 	{
 		// 2. workers
-		var filewg sync.WaitGroup
+		var (
+			filewg   sync.WaitGroup
+			resultwg sync.WaitGroup
+		)
 
 		if c.opts.includeFiles && c.src.Files().Type() != source.STnone {
 			tfopts = append(tfopts, transform.ExpWithMsgUpdateFunc(func(ch *slack.Channel, m *slack.Message) error {
@@ -200,31 +203,36 @@ func (c *ToExport) Convert(ctx context.Context) error {
 				errC <- err
 			}
 		}()
-		// 2.3. workers sentinels
+		// 2.3. file result processor
+		fileresults := merge(c.fileresult, c.avtrresult)
+		resultwg.Add(1)
+		go func() {
+			defer resultwg.Done()
+			for res := range fileresults {
+				if res.err != nil {
+					if res.fr.message != nil {
+						lg.Error("file converter: error processing message", "ts", res.fr.message.Timestamp, "err", res.err)
+					} else {
+						lg.Error("file converter", "err", res.err)
+					}
+					errC <- res.err
+				}
+			}
+		}()
+
+		// 2.4. workers sentinel
 		go func() {
 			msgwg.Wait()
 			lg.Debug("messages wait group done, closing file requests")
 			close(c.filerequest)
 			filewg.Wait()
+			resultwg.Wait()
 			lg.Debug("file workers done, finalising")
 			close(errC)
 		}()
 	}
-	// 3. result processor
-	fileresults := merge(c.fileresult, c.avtrresult)
-	go func() {
-		for res := range fileresults {
-			if res.err != nil {
-				if res.fr.message != nil {
-					lg.Error("file converter: error processing message", "ts", res.fr.message.Timestamp, "err", res.err)
-				} else {
-					lg.Error("file converter", "err", res.err)
-				}
-				errC <- res.err
-			}
-		}
-	}()
 
+	// 3. result processor
 	var failed bool
 LOOP:
 	for {
