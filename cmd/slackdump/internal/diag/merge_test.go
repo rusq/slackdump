@@ -339,6 +339,31 @@ func TestMergeSource(t *testing.T) {
 		assertFileContents(t, filepath.Join(targetDir, testReplyFilePath()), "thread attachment")
 	})
 
+	t.Run("skipped file modes do not fail merge", func(t *testing.T) {
+		ctx := context.Background()
+		targetDir := newArchiveDir(t)
+		target, err := resolveMergeTarget(targetDir)
+		require.NoError(t, err)
+
+		conn, err := ensureDb(ctx, targetDir)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			require.NoError(t, conn.Close())
+		})
+
+		sourceDir := newArchiveDir(t)
+		writeMergeArchive(t, sourceDir, mergeSkippedFileChunks(), nil)
+
+		src, err := source.Load(ctx, sourceDir)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			require.NoError(t, src.Close())
+		})
+
+		err = mergeSource(ctx, target, conn, src, true, false)
+		require.NoError(t, err)
+	})
+
 	t.Run("does not copy files when files disabled", func(t *testing.T) {
 		ctx := context.Background()
 		targetDir := newArchiveDir(t)
@@ -393,6 +418,33 @@ func TestMergeSource(t *testing.T) {
 		require.NoError(t, err)
 
 		assertFileContents(t, filepath.Join(targetDir, testAvatarPath()), "avatar bytes")
+	})
+
+	t.Run("real file copy failures stay warning only during merge", func(t *testing.T) {
+		ctx := context.Background()
+		targetDir := newArchiveDir(t)
+		target, err := resolveMergeTarget(targetDir)
+		require.NoError(t, err)
+
+		conn, err := ensureDb(ctx, targetDir)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			require.NoError(t, conn.Close())
+		})
+
+		sourceDir := newArchiveDir(t)
+		writeMergeArchive(t, sourceDir, mergeSourceChunks(), nil)
+
+		src, err := source.Load(ctx, sourceDir)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			require.NoError(t, src.Close())
+		})
+
+		err = mergeSource(ctx, target, conn, src, true, false)
+		require.NoError(t, err)
+		_, err = os.Stat(filepath.Join(targetDir, testTopFilePath()))
+		require.ErrorIs(t, err, os.ErrNotExist)
 	})
 }
 
@@ -566,6 +618,26 @@ func mergeAvatarChunks() []*chunk.Chunk {
 		testWorkspaceChunk(testTeamID),
 		testUsersChunk(testAvatarUser()),
 		testChannelsChunk(testChannel(testChannelID, "general", testTeamID)),
+	}
+}
+
+func mergeSkippedFileChunks() []*chunk.Chunk {
+	root := testRootMessage()
+	skipped := slack.Message{
+		Msg: slack.Msg{
+			Timestamp: "1710000002.000001",
+			Text:      "skipped file",
+			Files: []slack.File{{
+				ID:   "F-skip",
+				Name: "gone.txt",
+				Mode: "tombstone",
+			}},
+		},
+	}
+	return []*chunk.Chunk{
+		testWorkspaceChunk(testTeamID),
+		testChannelsChunk(testChannel(testChannelID, "general", testTeamID)),
+		testMessagesChunk(testChannelID, root, skipped),
 	}
 }
 

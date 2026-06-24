@@ -108,7 +108,9 @@ func ExportTokenUpdateFn(token string) func(_ *slack.Channel, msg *slack.Message
 	}
 }
 
-var invalidModes = map[string]struct{}{
+// skippedModes lists all file modes that are always skipped and not treated as
+// an error.
+var skippedModes = map[string]struct{}{
 	"hidden_by_limit": {},
 	"external":        {},
 	"tombstone":       {},
@@ -116,15 +118,33 @@ var invalidModes = map[string]struct{}{
 
 // IsValid returns true if the file can be downloaded and is valid.
 func IsValid(f *slack.File) bool {
-	return IsValidWithReason(f) == nil
+	return !ShouldSkip(f) && IsValidWithReason(f) == nil
+}
+
+// ShouldSkip returns true for file modes that are expected in message payloads
+// but do not represent downloadable files.
+func ShouldSkip(f *slack.File) bool {
+	_, ok := SkipReason(f)
+	return ok
+}
+
+// SkipReason returns the reason why the file should be skipped.
+func SkipReason(f *slack.File) (string, bool) {
+	if f == nil {
+		return "", false
+	}
+	if _, ok := skippedModes[f.Mode]; ok {
+		return f.Mode, true
+	}
+	return "", false
 }
 
 func IsValidWithReason(f *slack.File) error {
 	if f == nil {
 		return errors.New("file is nil")
 	}
-	if _, ok := invalidModes[f.Mode]; ok {
-		return fmt.Errorf("invalid file mode %q", f.Mode)
+	if ShouldSkip(f) {
+		return nil
 	}
 	if !f.IsExternal && f.Name == "" {
 		return fmt.Errorf("invalid file: external=%v, name=%q", f.IsExternal, f.Name)

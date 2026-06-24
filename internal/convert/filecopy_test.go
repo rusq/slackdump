@@ -16,8 +16,11 @@
 package convert
 
 import (
+	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"testing/fstest"
 
@@ -29,6 +32,7 @@ import (
 	"go.uber.org/mock/gomock"
 
 	"github.com/rusq/slackdump/v4/internal/chunk"
+	"github.com/rusq/slackdump/v4/source"
 )
 
 func Test_copy2trg(t *testing.T) {
@@ -121,4 +125,102 @@ func Test_avatarcopywrapper_copyAvatar(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestFileCopier_Copy(t *testing.T) {
+	channel := &slack.Channel{
+		GroupConversation: slack.GroupConversation{
+			Conversation: slack.Conversation{ID: "C123"},
+		},
+	}
+
+	t.Run("returns nil for skipped files", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		src := mock_source.NewMockSourcer(ctrl)
+		st := mock_source.NewMockStorage(ctrl)
+
+		src.EXPECT().Files().Return(st).Times(1)
+		st.EXPECT().FS().Return(fstest.MapFS{}).Times(1)
+
+		c := NewFileCopier(src, fsadapter.NewDirectory(t.TempDir()), source.MattermostFilepath, true)
+		msg := &slack.Message{Msg: slack.Msg{
+			Timestamp: "123.456",
+			Files: []slack.File{
+				{ID: "F1", Mode: "tombstone", Name: "gone.txt"},
+				{ID: "F2", Mode: "hidden_by_limit", Name: "hidden.txt"},
+				{ID: "F3", Mode: "external", Name: "external.txt", IsExternal: true},
+			},
+		}}
+
+		if err := c.Copy(channel, msg); err != nil {
+			t.Fatalf("Copy() error = %v, want nil", err)
+		}
+	})
+
+	t.Run("returns error when source path cannot be resolved", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		src := mock_source.NewMockSourcer(ctrl)
+		st := mock_source.NewMockStorage(ctrl)
+
+		src.EXPECT().Files().Return(st).Times(2)
+		st.EXPECT().FS().Return(fstest.MapFS{}).Times(1)
+		st.EXPECT().File("F1", "missing.txt").Return("", fs.ErrNotExist).Times(1)
+
+		c := NewFileCopier(src, fsadapter.NewDirectory(t.TempDir()), source.MattermostFilepath, true)
+		msg := &slack.Message{Msg: slack.Msg{
+			Timestamp: "123.456",
+			Files:     []slack.File{{ID: "F1", Name: "missing.txt"}},
+		}}
+
+		err := c.Copy(channel, msg)
+		if err == nil || !errors.Is(err, fs.ErrNotExist) {
+			t.Fatalf("Copy() error = %v, want fs.ErrNotExist", err)
+		}
+	})
+
+	t.Run("returns error when resolved source file cannot be statted", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		src := mock_source.NewMockSourcer(ctrl)
+		st := mock_source.NewMockStorage(ctrl)
+
+		src.EXPECT().Files().Return(st).Times(2)
+		st.EXPECT().FS().Return(fstest.MapFS{}).Times(1)
+		st.EXPECT().File("F1", "missing.txt").Return("uploads/F1/missing.txt", nil).Times(1)
+
+		c := NewFileCopier(src, fsadapter.NewDirectory(t.TempDir()), source.MattermostFilepath, true)
+		msg := &slack.Message{Msg: slack.Msg{
+			Timestamp: "123.456",
+			Files:     []slack.File{{ID: "F1", Name: "missing.txt"}},
+		}}
+
+		err := c.Copy(channel, msg)
+		if err == nil || !errors.Is(err, fs.ErrNotExist) {
+			t.Fatalf("Copy() error = %v, want fs.ErrNotExist", err)
+		}
+	})
+
+	t.Run("returns error when target create fails", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		src := mock_source.NewMockSourcer(ctrl)
+		st := mock_source.NewMockStorage(ctrl)
+		trg := mock_fsadapter.NewMockFSCloser(ctrl)
+
+		src.EXPECT().Files().Return(st).Times(2)
+		st.EXPECT().FS().Return(fstest.MapFS{
+			"uploads/F1/ok.txt": {Data: []byte("content")},
+		}).Times(1)
+		st.EXPECT().File("F1", "ok.txt").Return("uploads/F1/ok.txt", nil).Times(1)
+		trg.EXPECT().Create(source.MattermostFilepath(channel, &slack.File{ID: "F1", Name: "ok.txt"})).Return(nil, errors.New("create failed")).Times(1)
+
+		c := NewFileCopier(src, trg, source.MattermostFilepath, true)
+		msg := &slack.Message{Msg: slack.Msg{
+			Timestamp: "123.456",
+			Files:     []slack.File{{ID: "F1", Name: "ok.txt"}},
+		}}
+
+		err := c.Copy(channel, msg)
+		if err == nil || !strings.Contains(err.Error(), "create failed") {
+			t.Fatalf("Copy() error = %v, want create failed", err)
+		}
+	})
 }
