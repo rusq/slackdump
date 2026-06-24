@@ -84,7 +84,7 @@ func DlEdgeFS(ctx context.Context, sess EdgeEmojiLister, fsa fsadapter.FS, opt *
 		var once sync.Once
 		defer close(totalC)
 		defer close(emojiC)
-		defer close(genErrC)
+		defer close(genErrC) // generator error channel
 
 		for chunk, err := range sess.AdminEmojiList(ctx) {
 			if err != nil {
@@ -113,12 +113,10 @@ func DlEdgeFS(ctx context.Context, sess EdgeEmojiLister, fsa fsadapter.FS, opt *
 
 	// 2. Download workers, download the emojis.
 	var wg sync.WaitGroup
-	for i := 0; i < numWorkers; i++ {
-		wg.Add(1)
-		go func() {
+	for range numWorkers {
+		wg.Go(func() {
 			workerFn(ctx, fsa, emojiC, resultC)
-			wg.Done()
-		}()
+		})
 	}
 	// 3. Sentinel, closes the result channel once all workers are finished.
 	go func() {
