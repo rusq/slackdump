@@ -65,7 +65,7 @@ type Stream struct {
 // ResultType helps to identify the type of the result, so that the callback
 // function can handle it appropriately.
 //
-//go:generate stringer -type=ResultType -trimprefix=RT
+//go:generate go tool stringer -type=ResultType -trimprefix=RT
 type ResultType int8
 
 const (

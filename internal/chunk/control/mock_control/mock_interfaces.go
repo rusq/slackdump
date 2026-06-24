@@ -381,20 +381,6 @@ func (mr *MockEncodeReferenceCloserMockRecorder) Encode(ctx, arg1 any) *gomock.C
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Encode", reflect.TypeOf((*MockEncodeReferenceCloser)(nil).Encode), ctx, arg1)
 }
 
-// Finish mocks base method.
-func (m *MockEncodeReferenceCloser) Finish() error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Finish")
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// Finish indicates an expected call of Finish.
-func (mr *MockEncodeReferenceCloserMockRecorder) Finish() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Finish", reflect.TypeOf((*MockEncodeReferenceCloser)(nil).Finish))
-}
-
 // IsComplete mocks base method.
 func (m *MockEncodeReferenceCloser) IsComplete(ctx context.Context, channelID string) (bool, error) {
 	m.ctrl.T.Helper()
@@ -423,4 +409,100 @@ func (m *MockEncodeReferenceCloser) IsCompleteThread(ctx context.Context, channe
 func (mr *MockEncodeReferenceCloserMockRecorder) IsCompleteThread(ctx, channelID, threadID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsCompleteThread", reflect.TypeOf((*MockEncodeReferenceCloser)(nil).IsCompleteThread), ctx, channelID, threadID)
+}
+
+// MockEncodeReferenceFinisher is a mock of EncodeReferenceFinisher interface.
+type MockEncodeReferenceFinisher struct {
+	ctrl     *gomock.Controller
+	recorder *MockEncodeReferenceFinisherMockRecorder
+	isgomock struct{}
+}
+
+// MockEncodeReferenceFinisherMockRecorder is the mock recorder for MockEncodeReferenceFinisher.
+type MockEncodeReferenceFinisherMockRecorder struct {
+	mock *MockEncodeReferenceFinisher
+}
+
+// NewMockEncodeReferenceFinisher creates a new mock instance.
+func NewMockEncodeReferenceFinisher(ctrl *gomock.Controller) *MockEncodeReferenceFinisher {
+	mock := &MockEncodeReferenceFinisher{ctrl: ctrl}
+	mock.recorder = &MockEncodeReferenceFinisherMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockEncodeReferenceFinisher) EXPECT() *MockEncodeReferenceFinisherMockRecorder {
+	return m.recorder
+}
+
+// Close mocks base method.
+func (m *MockEncodeReferenceFinisher) Close() error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Close")
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Close indicates an expected call of Close.
+func (mr *MockEncodeReferenceFinisherMockRecorder) Close() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockEncodeReferenceFinisher)(nil).Close))
+}
+
+// Encode mocks base method.
+func (m *MockEncodeReferenceFinisher) Encode(ctx context.Context, arg1 *chunk.Chunk) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Encode", ctx, arg1)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Encode indicates an expected call of Encode.
+func (mr *MockEncodeReferenceFinisherMockRecorder) Encode(ctx, arg1 any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Encode", reflect.TypeOf((*MockEncodeReferenceFinisher)(nil).Encode), ctx, arg1)
+}
+
+// Finish mocks base method.
+func (m *MockEncodeReferenceFinisher) Finish() error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Finish")
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Finish indicates an expected call of Finish.
+func (mr *MockEncodeReferenceFinisherMockRecorder) Finish() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Finish", reflect.TypeOf((*MockEncodeReferenceFinisher)(nil).Finish))
+}
+
+// IsComplete mocks base method.
+func (m *MockEncodeReferenceFinisher) IsComplete(ctx context.Context, channelID string) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IsComplete", ctx, channelID)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// IsComplete indicates an expected call of IsComplete.
+func (mr *MockEncodeReferenceFinisherMockRecorder) IsComplete(ctx, channelID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsComplete", reflect.TypeOf((*MockEncodeReferenceFinisher)(nil).IsComplete), ctx, channelID)
+}
+
+// IsCompleteThread mocks base method.
+func (m *MockEncodeReferenceFinisher) IsCompleteThread(ctx context.Context, channelID, threadID string) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IsCompleteThread", ctx, channelID, threadID)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// IsCompleteThread indicates an expected call of IsCompleteThread.
+func (mr *MockEncodeReferenceFinisherMockRecorder) IsCompleteThread(ctx, channelID, threadID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsCompleteThread", reflect.TypeOf((*MockEncodeReferenceFinisher)(nil).IsCompleteThread), ctx, channelID, threadID)
 }

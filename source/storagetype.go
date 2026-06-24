@@ -25,7 +25,7 @@ import (
 // StorageType is the type of storage used for the files within the source.
 type StorageType uint8
 
-//go:generate stringer -type=StorageType -trimprefix=ST
+//go:generate go tool stringer -type=StorageType -trimprefix=ST
 const (
 	// STnone is the storage type for no storage.
 	STnone StorageType = iota

@@ -34,7 +34,7 @@ import (
 
 // Type is the converter type.
 //
-//go:generate stringer -type Type -trimprefix C format.go
+//go:generate go tool stringer -type Type -trimprefix C format.go
 type Type int
 
 const (

@@ -29,7 +29,7 @@ import (
 // DefLoginTimeout is the default Slack login timeout
 const DefLoginTimeout = 5 * time.Minute
 
-//go:generate stringer -type Browser -trimprefix=B browser.go
+//go:generate go tool stringer -type Browser -trimprefix=B browser.go
 type Browser int
 
 const (

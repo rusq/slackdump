@@ -68,7 +68,7 @@ func formatJSONfile(ctx context.Context, w io.Writer, cvt format.Formatter, rs i
 	return errors.New("internal error: undetected type")
 }
 
-//go:generate stringer -type dumptype -trimprefix=dt
+//go:generate go tool stringer -type dumptype -trimprefix=dt
 type dumptype uint8
 
 const (
