@@ -35,7 +35,7 @@ const (
 
 func (e *datafmt) Set(v string) error {
 	v = strings.ToLower(v)
-	for i := 0; i < len(_datafmt_index)-1; i++ {
+	for i := range len(_datafmt_index) - 1 {
 		if strings.ToLower(_datafmt_name[_datafmt_index[i]:_datafmt_index[i+1]]) == v {
 			*e = datafmt(i)
 			return nil

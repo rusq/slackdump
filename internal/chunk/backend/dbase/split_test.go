@@ -1250,7 +1250,7 @@ func Test_newUserIter(t *testing.T) {
 				var ret []testutil.TestResult[*repository.DBUser]
 				for i, u := range fixtures.TestUsers {
 					ret = append(ret, testutil.TestResult[*repository.DBUser]{
-						V:   testutil.Ptr(mustUser(i, &u)),
+						V:   new(mustUser(i, &u)),
 						Err: nil,
 					})
 				}
@@ -1279,7 +1279,7 @@ func Test_newUserIter(t *testing.T) {
 				}).Times(2)
 			},
 			want: []testutil.TestResult[*repository.DBUser]{
-				{V: testutil.Ptr(mustUser(1, &userNotInDB))},
+				{V: new(mustUser(1, &userNotInDB))},
 			},
 		},
 		{
@@ -1304,8 +1304,8 @@ func Test_newUserIter(t *testing.T) {
 				}).Times(2)
 			},
 			want: []testutil.TestResult[*repository.DBUser]{
-				{V: testutil.Ptr(mustUser(0, &userAlreadyInDBUpdated))},
-				{V: testutil.Ptr(mustUser(1, &userNotInDB))},
+				{V: new(mustUser(0, &userAlreadyInDBUpdated))},
+				{V: new(mustUser(1, &userNotInDB))},
 			},
 		},
 		{

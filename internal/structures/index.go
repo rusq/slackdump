@@ -129,7 +129,7 @@ func (idx *ExportIndex) Marshal(fs fsadapter.FS) error {
 	if fs == nil {
 		return errors.New("marshal: no fs")
 	}
-	st := reflect.TypeOf(*idx)
+	st := reflect.TypeFor[ExportIndex]()
 	val := reflect.ValueOf(*idx)
 	for i := 0; i < st.NumField(); i++ {
 		field := st.Field(i)
@@ -166,7 +166,7 @@ const (
 func (idx *ExportIndex) Unmarshal(fsys fs.FS) error {
 	var newIdx ExportIndex
 
-	st := reflect.TypeOf(*idx)
+	st := reflect.TypeFor[ExportIndex]()
 	val := reflect.ValueOf(&newIdx).Elem()
 	for i := 0; i < st.NumField(); i++ {
 		field := st.Field(i)

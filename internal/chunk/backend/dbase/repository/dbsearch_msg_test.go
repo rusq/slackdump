@@ -58,9 +58,9 @@ func TestNewDBSearchMessage(t *testing.T) {
 				ID:          0, // autoincrement, handled by the database.
 				ChunkID:     42,
 				ChannelID:   "C123",
-				ChannelName: ptr("chur"),
+				ChannelName: new("chur"),
 				TS:          "1725318212.603879",
-				Text:        ptr("Hello, world!"),
+				Text:        new("Hello, world!"),
 				IDX:         50,
 				Data:        must(marshal(srchMsg1)),
 			},

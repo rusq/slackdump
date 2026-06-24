@@ -121,7 +121,7 @@ func TestNewDBWorkspace(t *testing.T) {
 				ID:           0,
 				ChunkID:      42,
 				Team:         wsp1.Team,
-				User:         ptr(wsp1.User),
+				User:         new(wsp1.User),
 				TeamID:       "T123456",
 				UserID:       "U123456",
 				EnterpriseID: nil,

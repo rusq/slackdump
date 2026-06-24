@@ -22,7 +22,8 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-func ptr[T any](v T) *T { return &v }
+//go:fix inline
+func ptr[T any](v T) *T { return new(v) }
 
 func Test_boolUpdateModel_Update(t *testing.T) {
 	type fields struct {
@@ -41,23 +42,23 @@ func Test_boolUpdateModel_Update(t *testing.T) {
 		{
 			name: "set value message",
 			fields: fields{
-				v: ptr(false),
+				v: new(false),
 			},
 			args: args{
 				msg: cmdSetValue("", true)(),
 			},
-			want:  BoolModel{Value: ptr(true)},
+			want:  BoolModel{Value: new(true)},
 			want1: OnClose,
 		},
 		{
 			name: "unknown message",
 			fields: fields{
-				v: ptr(false),
+				v: new(false),
 			},
 			args: args{
 				msg: tea.Key{},
 			},
-			want:  BoolModel{Value: ptr(false)},
+			want:  BoolModel{Value: new(false)},
 			want1: nil,
 		},
 	}
@@ -91,7 +92,7 @@ func Test_boolUpdateModel_Init(t *testing.T) {
 		{
 			name: "init should invert the stored value",
 			fields: fields{
-				v: ptr(false),
+				v: new(false),
 			},
 			want: cmdSetValue("", true),
 		},

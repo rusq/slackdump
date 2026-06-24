@@ -96,14 +96,14 @@ func TestLimits_Validate(t *testing.T) {
 	}{
 		{"validate default options",
 			fields(DefLimits),
-			func(t assert.TestingT, err error, i ...interface{}) bool {
+			func(t assert.TestingT, err error, i ...any) bool {
 				return err == nil
 			},
 		},
 		{
 			"empty options is an error",
 			fields{},
-			func(t assert.TestingT, err error, i ...interface{}) bool {
+			func(t assert.TestingT, err error, i ...any) bool {
 				if err == nil {
 					t.Errorf("expected error, but got %v", err)
 					return false
@@ -123,7 +123,7 @@ func TestLimits_Validate(t *testing.T) {
 					Channels:      50,
 				},
 			},
-			func(t assert.TestingT, err error, i ...interface{}) bool {
+			func(t assert.TestingT, err error, i ...any) bool {
 				if err == nil {
 					t.Errorf("expected error, but got %v", err)
 				}

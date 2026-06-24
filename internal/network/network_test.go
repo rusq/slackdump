@@ -46,7 +46,7 @@ func calcRunDuration(rateLimit float64, attempts int) time.Duration {
 
 func calcExpRunDuration(attempts int) time.Duration {
 	var sec time.Duration
-	for i := 0; i < attempts; i++ {
+	for i := range attempts {
 		sec += expWait(i)
 	}
 	return sec

@@ -128,7 +128,7 @@ func TestDBChunk_Chunk(t *testing.T) {
 				TypeID:     chunk.CMessages,
 				NumRecords: 100,
 				Final:      true,
-				ChannelID:  ptr("C1234567890"),
+				ChannelID:  new("C1234567890"),
 			},
 			want: &chunk.Chunk{
 				Type:      chunk.CMessages,
@@ -148,7 +148,7 @@ func TestDBChunk_Chunk(t *testing.T) {
 				TypeID:      chunk.CSearchMessages,
 				NumRecords:  42,
 				Final:       true,
-				SearchQuery: ptr("search query"),
+				SearchQuery: new("search query"),
 			},
 			want: &chunk.Chunk{
 				Type:           chunk.CSearchMessages,
@@ -168,8 +168,8 @@ func TestDBChunk_Chunk(t *testing.T) {
 				TypeID:     chunk.CThreadMessages,
 				NumRecords: 100,
 				Final:      true,
-				ChannelID:  ptr("C1234567890"),
-				ThreadOnly: ptr(true),
+				ChannelID:  new("C1234567890"),
+				ThreadOnly: new(true),
 			},
 			want: &chunk.Chunk{
 				Type:       chunk.CThreadMessages,
@@ -190,8 +190,8 @@ func TestDBChunk_Chunk(t *testing.T) {
 				TypeID:     chunk.CThreadMessages,
 				NumRecords: 100,
 				Final:      true,
-				ChannelID:  ptr("C1234567890"),
-				ThreadOnly: ptr(false),
+				ChannelID:  new("C1234567890"),
+				ThreadOnly: new(false),
 			},
 			want: &chunk.Chunk{
 				Type:       chunk.CThreadMessages,
@@ -375,12 +375,12 @@ func TestDBChunk_values(t *testing.T) {
 				CreatedAt:   time.Date(2021, 1, 2, 3, 4, 5, 6, time.UTC),
 				TypeID:      chunk.CFiles,
 				NumRecords:  6,
-				ChannelID:   ptr("C123456789"),
+				ChannelID:   new("C123456789"),
 				SearchQuery: new(string),
 				Final:       true,
-				ThreadOnly:  ptr(true),
+				ThreadOnly:  new(true),
 			},
-			want: []any{int64(2), int64(3), chunk.CFiles, int32(6), ptr("C123456789"), ptr(""), true, ptr(true)},
+			want: []any{int64(2), int64(3), chunk.CFiles, int32(6), new("C123456789"), new(""), true, new(true)},
 		},
 	}
 	for _, tt := range tests {

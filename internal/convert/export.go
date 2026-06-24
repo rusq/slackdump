@@ -158,21 +158,17 @@ func (c *ToExport) Convert(ctx context.Context) error {
 				}
 				return nil
 			}))
-			filewg.Add(1)
-			go func() {
+			filewg.Go(func() {
 				c.copyworker(c.filerequest)
-				filewg.Done()
-			}()
+			})
 		} else {
 			close(c.fileresult)
 		}
 
 		if c.opts.includeAvatars && c.src.Avatars().Type() != source.STnone {
-			filewg.Add(1)
-			go func() {
+			filewg.Go(func() {
 				c.avatarWorker(users)
-				filewg.Done()
-			}()
+			})
 		} else {
 			close(c.avtrresult)
 		}
@@ -181,9 +177,7 @@ func (c *ToExport) Convert(ctx context.Context) error {
 		var msgwg sync.WaitGroup
 		conv := transform.NewExpConverter(c.src, c.trg, tfopts...)
 		for range c.workers {
-			msgwg.Add(1)
-			go func() {
-				defer msgwg.Done()
+			msgwg.Go(func() {
 				for ch := range chC {
 					lg := lg.With("channel", ch.ID)
 					lg.Debug("processing channel")
@@ -192,22 +186,18 @@ func (c *ToExport) Convert(ctx context.Context) error {
 						return
 					}
 				}
-			}()
+			})
 		}
 		// 2.2 index writer
-		msgwg.Add(1)
-		go func() {
-			defer msgwg.Done()
+		msgwg.Go(func() {
 			lg.DebugContext(ctx, "writing index", "name", c.src.Name())
 			if err := conv.WriteIndex(ctx); err != nil {
 				errC <- err
 			}
-		}()
+		})
 		// 2.3. file result processor
 		fileresults := merge(c.fileresult, c.avtrresult)
-		resultwg.Add(1)
-		go func() {
-			defer resultwg.Done()
+		resultwg.Go(func() {
 			for res := range fileresults {
 				if res.err != nil {
 					if res.fr.message != nil {
@@ -218,7 +208,7 @@ func (c *ToExport) Convert(ctx context.Context) error {
 					errC <- res.err
 				}
 			}
-		}()
+		})
 
 		// 2.4. workers sentinel
 		go func() {

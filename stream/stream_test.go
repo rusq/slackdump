@@ -127,7 +127,7 @@ func TestReplay(t *testing.T) {
 	sd := slack.New("test", slack.OptionAPIURL(srv.URL()))
 
 	reachedEnd := false
-	for i := 0; i < 100_000; i++ {
+	for i := range 100_000 {
 		resp, err := sd.GetConversationHistory(&slack.GetConversationHistoryParameters{ChannelID: fixtures.ChunkFileChannelID})
 		if err != nil {
 			t.Fatalf("error on iteration %d: %s", i, err)

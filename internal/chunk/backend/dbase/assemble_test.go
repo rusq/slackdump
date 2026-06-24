@@ -39,7 +39,7 @@ var (
 		UnixTS:     1234567890,
 		TypeID:     chunk.CMessages,
 		NumRecords: 2,
-		ChannelID:  testutil.Ptr("C123456"),
+		ChannelID:  new("C123456"),
 		Final:      true,
 	}
 
@@ -396,7 +396,7 @@ func Test_asmFiles(t *testing.T) {
 					ID:         1,
 					TypeID:     chunk.CFiles,
 					NumRecords: 1,
-					ChannelID:  testutil.Ptr("C123456"),
+					ChannelID:  new("C123456"),
 					UnixTS:     1234567890,
 				},
 			},
@@ -615,7 +615,7 @@ func Test_asmChannelInfo(t *testing.T) {
 					ID:        1,
 					TypeID:    chunk.CChannelInfo,
 					UnixTS:    1234567890,
-					ChannelID: testutil.Ptr("C123456"),
+					ChannelID: new("C123456"),
 				},
 			},
 			expectFn: func(m *mock_repository.MockChannelRepository) {
@@ -849,7 +849,7 @@ func Test_asmSearchMessages(t *testing.T) {
 					TypeID:      chunk.CSearchMessages,
 					UnixTS:      1234567890,
 					NumRecords:  int32(len(sms)),
-					SearchQuery: testutil.Ptr("test"),
+					SearchQuery: new("test"),
 				},
 			},
 			expectFn: func(m *mock_repository.MockSearchMessageRepository) {
@@ -858,14 +858,14 @@ func Test_asmSearchMessages(t *testing.T) {
 						ID:        1234567890,
 						ChannelID: "C123456",
 						TS:        "1234567890",
-						Text:      testutil.Ptr("Hello"),
+						Text:      new("Hello"),
 						Data:      testutil.MarshalJSON(t, sms[0]),
 					},
 					{
 						ID:        1234567891,
 						ChannelID: "C123456",
 						TS:        "1234567891",
-						Text:      testutil.Ptr("World"),
+						Text:      new("World"),
 						Data:      testutil.MarshalJSON(t, sms[1]),
 					},
 				})
@@ -936,7 +936,7 @@ func Test_asmSearchFiles(t *testing.T) {
 					TypeID:      chunk.CSearchFiles,
 					UnixTS:      1234567890,
 					NumRecords:  int32(len(sfs)),
-					SearchQuery: testutil.Ptr("test"),
+					SearchQuery: new("test"),
 				},
 			},
 			expectFn: func(m *mock_repository.MockSearchFileRepository) {

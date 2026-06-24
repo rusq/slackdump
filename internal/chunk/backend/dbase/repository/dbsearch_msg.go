@@ -65,7 +65,7 @@ func (DBSearchMessage) columns() []string {
 }
 
 func (c DBSearchMessage) values() []any {
-	return []interface{}{c.ChunkID, c.ChannelID, c.ChannelName, c.TS, c.Text, c.IDX, c.Data}
+	return []any{c.ChunkID, c.ChannelID, c.ChannelName, c.TS, c.Text, c.IDX, c.Data}
 }
 
 //go:generate mockgen -destination=mock_repository/mock_search_msg.go . SearchMessageRepository

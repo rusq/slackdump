@@ -18,7 +18,7 @@ func TestDedupeRepository_Preview(t *testing.T) {
 		repo := NewDedupeRepository()
 
 		insertSessionForTest(t, db, 1, true, nil)
-		insertSessionForTest(t, db, 2, true, ptr(int64(1)))
+		insertSessionForTest(t, db, 2, true, new(int64(1)))
 
 		insertChunkForTest(t, db, 11, 1, chunk.CMessages)
 		insertChunkForTest(t, db, 21, 2, chunk.CMessages)
@@ -63,7 +63,7 @@ func TestDedupeRepository_Preview(t *testing.T) {
 		repo := NewDedupeRepository()
 
 		insertSessionForTest(t, db, 1, true, nil)
-		insertSessionForTest(t, db, 2, true, ptr(int64(1)))
+		insertSessionForTest(t, db, 2, true, new(int64(1)))
 
 		insertChunkForTest(t, db, 11, 1, chunk.CMessages)
 		insertChunkForTest(t, db, 21, 2, chunk.CMessages)
@@ -104,12 +104,12 @@ func TestDedupeRepository_Preview(t *testing.T) {
 		repo := NewDedupeRepository()
 
 		insertSessionForTest(t, db, 1, true, nil)
-		insertSessionForTest(t, db, 2, true, ptr(int64(1)))
+		insertSessionForTest(t, db, 2, true, new(int64(1)))
 
 		insertChunkForTest(t, db, 15, 1, chunk.CFiles)
 		insertChunkForTest(t, db, 25, 2, chunk.CFiles)
-		insertFileWithChunkForTest(t, db, "F100", 15, "C001", ptr(int64(100)), nil, []byte(`{"name":"same"}`))
-		insertFileWithChunkForTest(t, db, "F100", 25, "C002", ptr(int64(200)), nil, []byte(`{"name":"same"}`))
+		insertFileWithChunkForTest(t, db, "F100", 15, "C001", new(int64(100)), nil, []byte(`{"name":"same"}`))
+		insertFileWithChunkForTest(t, db, "F100", 25, "C002", new(int64(200)), nil, []byte(`{"name":"same"}`))
 
 		counts, err := repo.Preview(ctx, db)
 		require.NoError(t, err)
@@ -124,7 +124,7 @@ func TestDedupeRepository_Deduplicate(t *testing.T) {
 		repo := NewDedupeRepository()
 
 		insertSessionForTest(t, db, 1, true, nil)
-		insertSessionForTest(t, db, 2, true, ptr(int64(1)))
+		insertSessionForTest(t, db, 2, true, new(int64(1)))
 
 		insertChunkForTest(t, db, 11, 1, chunk.CMessages)
 		insertChunkForTest(t, db, 21, 2, chunk.CMessages)
@@ -181,7 +181,7 @@ func TestDedupeRepository_Deduplicate(t *testing.T) {
 		repo := NewDedupeRepository()
 
 		insertSessionForTest(t, db, 1, true, nil)
-		insertSessionForTest(t, db, 2, true, ptr(int64(1)))
+		insertSessionForTest(t, db, 2, true, new(int64(1)))
 
 		insertChunkForTest(t, db, 11, 1, chunk.CMessages)
 		insertChunkForTest(t, db, 21, 2, chunk.CMessages)
@@ -229,12 +229,12 @@ func TestDedupeRepository_Deduplicate(t *testing.T) {
 		repo := NewDedupeRepository()
 
 		insertSessionForTest(t, db, 1, true, nil)
-		insertSessionForTest(t, db, 2, true, ptr(int64(1)))
+		insertSessionForTest(t, db, 2, true, new(int64(1)))
 
 		insertChunkForTest(t, db, 15, 1, chunk.CFiles)
 		insertChunkForTest(t, db, 25, 2, chunk.CFiles)
-		insertFileWithChunkForTest(t, db, "F100", 15, "C001", ptr(int64(100)), nil, []byte(`{"name":"same"}`))
-		insertFileWithChunkForTest(t, db, "F100", 25, "C002", ptr(int64(200)), nil, []byte(`{"name":"same"}`))
+		insertFileWithChunkForTest(t, db, "F100", 15, "C001", new(int64(100)), nil, []byte(`{"name":"same"}`))
+		insertFileWithChunkForTest(t, db, "F100", 25, "C002", new(int64(200)), nil, []byte(`{"name":"same"}`))
 
 		result, err := repo.Deduplicate(ctx, db)
 		require.NoError(t, err)
@@ -250,7 +250,7 @@ func TestDedupeRepository_Deduplicate(t *testing.T) {
 		repo := NewDedupeRepository()
 
 		insertSessionForTest(t, db, 1, true, nil)
-		insertSessionForTest(t, db, 2, true, ptr(int64(1)))
+		insertSessionForTest(t, db, 2, true, new(int64(1)))
 
 		insertChunkForTest(t, db, 15, 1, chunk.CFiles)
 		insertChunkForTest(t, db, 25, 2, chunk.CFiles)
@@ -275,7 +275,7 @@ func TestDedupeRepository_Deduplicate(t *testing.T) {
 		repo := NewDedupeRepository()
 
 		insertSessionForTest(t, db, 1, true, nil)
-		insertSessionForTest(t, db, 2, true, ptr(int64(1)))
+		insertSessionForTest(t, db, 2, true, new(int64(1)))
 
 		insertChunkForTest(t, db, 11, 1, chunk.CMessages)
 		insertChunkForTest(t, db, 12, 1, chunk.CMessages)
@@ -319,8 +319,8 @@ func TestDedupeRepository_Deduplicate(t *testing.T) {
 		repo := NewDedupeRepository()
 
 		insertSessionForTest(t, db, 1, true, nil)
-		insertSessionForTest(t, db, 2, true, ptr(int64(1)))
-		insertSessionForTest(t, db, 3, true, ptr(int64(2)))
+		insertSessionForTest(t, db, 2, true, new(int64(1)))
+		insertSessionForTest(t, db, 3, true, new(int64(2)))
 
 		insertChunkForTest(t, db, 11, 1, chunk.CMessages)
 		insertChunkForTest(t, db, 21, 2, chunk.CMessages)

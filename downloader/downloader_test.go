@@ -95,7 +95,7 @@ func BenchmarkFltSeen(b *testing.B) {
 
 func makeFileReqQ(numReq int) []Request {
 	reqQ := make([]Request, numReq)
-	for i := 0; i < numReq; i++ {
+	for i := range numReq {
 		reqQ[i] = Request{Fullpath: fixtures.RandString(8), URL: fixtures.RandString(16)}
 	}
 	return reqQ

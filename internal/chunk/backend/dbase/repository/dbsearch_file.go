@@ -57,7 +57,7 @@ func (DBSearchFile) columns() []string {
 }
 
 func (c DBSearchFile) values() []any {
-	return []interface{}{c.ChunkID, c.FileID, c.Index, c.Data}
+	return []any{c.ChunkID, c.FileID, c.Index, c.Data}
 }
 
 //go:generate mockgen -destination=mock_repository/mock_search_file.go . SearchFileRepository

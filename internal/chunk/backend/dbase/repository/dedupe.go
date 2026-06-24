@@ -237,10 +237,7 @@ func deleteChunksByID(ctx context.Context, tx *sqlx.Tx, ids []int64, chunkTypes 
 
 	var totalAffected int64
 	for start := 0; start < len(ids); start += batchSize {
-		end := start + batchSize
-		if end > len(ids) {
-			end = len(ids)
-		}
+		end := min(start+batchSize, len(ids))
 		batch := ids[start:end]
 
 		var buf strings.Builder

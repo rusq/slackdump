@@ -12,7 +12,7 @@ server, and render archives in a built-in browser viewer or as static HTML.
 
 - Repository: `https://github.com/rusq/slackdump`
 - Module path: `github.com/rusq/slackdump/v4`
-- Language: Go `1.25.0`
+- Language: Go `1.26.0`
 - Main CLI entry point: `./cmd/slackdump`
 
 ## Project Structure

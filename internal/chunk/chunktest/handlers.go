@@ -233,7 +233,7 @@ func handleConversationsList(p *chunk.Player) http.HandlerFunc {
 
 type userResponseFull struct {
 	Users   []slack.User `json:"users,omitempty"`
-	User    slack.User   `json:"user,omitempty"`
+	User    slack.User   `json:"user"`
 	Members []slack.User `json:"members"`
 	slack.SlackResponse
 	slack.UserPresence

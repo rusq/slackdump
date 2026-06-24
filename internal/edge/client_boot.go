@@ -140,8 +140,8 @@ type UserBootChannel struct {
 	Properties              *Properties       `json:"properties,omitempty"`
 	PreviousNames           []json.RawMessage `json:"previous_names"`
 	IsMember                bool              `json:"is_member,omitempty"`
-	LastRead                fasttime.Time     `json:"last_read,omitempty"`
-	Latest                  fasttime.Time     `json:"latest,omitempty"`
+	LastRead                fasttime.Time     `json:"last_read"`
+	Latest                  fasttime.Time     `json:"latest"`
 	IsOpen                  bool              `json:"is_open,omitempty"`
 	Members                 []string          `json:"members"`
 }

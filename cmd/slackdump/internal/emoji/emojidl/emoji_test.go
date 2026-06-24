@@ -210,11 +210,9 @@ func Test_worker(t *testing.T) {
 			resultC := make(chan result)
 
 			var wg sync.WaitGroup
-			wg.Add(1)
-			go func() {
+			wg.Go(func() {
 				worker(tt.args.ctx, fsa, tt.args.emojiC, resultC)
-				wg.Done()
-			}()
+			})
 			go func() {
 				wg.Wait()
 				close(resultC)
@@ -253,7 +251,7 @@ func Test_fetch(t *testing.T) {
 
 func generateEmojis(n int) (ret map[string]string) {
 	ret = make(map[string]string, n)
-	for i := 0; i < n; i++ {
+	for range n {
 		ret[randString(10)] = "https://emoji.slack.com/" + randString(20)
 	}
 	return

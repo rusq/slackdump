@@ -65,14 +65,14 @@ func OptVerbose(b bool) Option {
 
 func (e *Browser) Set(v string) error {
 	v = strings.ToLower(v)
-	for i := 0; i < len(_Browser_index)-1; i++ {
+	for i := range len(_Browser_index) - 1 {
 		if strings.ToLower(_Browser_name[_Browser_index[i]:_Browser_index[i+1]]) == v {
 			*e = Browser(i)
 			return nil
 		}
 	}
 	var allowed []string
-	for i := 0; i < len(_Browser_index)-1; i++ {
+	for i := range len(_Browser_index) - 1 {
 		allowed = append(allowed, _Browser_name[_Browser_index[i]:_Browser_index[i+1]])
 	}
 	return fmt.Errorf("unknown browser: %s, allowed: %v", v, allowed)

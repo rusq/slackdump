@@ -169,7 +169,7 @@ type BaseRequest struct {
 type baseResponse struct {
 	Ok               bool             `json:"ok"`
 	Error            string           `json:"error,omitempty"`
-	ResponseMetadata ResponseMetadata `json:"response_metadata,omitempty"`
+	ResponseMetadata ResponseMetadata `json:"response_metadata"`
 }
 
 func (r baseResponse) validate(ep string) error {
