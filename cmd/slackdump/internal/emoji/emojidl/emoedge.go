@@ -69,7 +69,7 @@ func DlEdgeFS(ctx context.Context, sess EdgeEmojiLister, fsa fsadapter.FS, opt *
 	var (
 		emojiC  = make(chan edge.Emoji)
 		totalC  = make(chan int, 1)
-		genErrC = make(chan error, 1)
+		genErrC = make(chan error, 1) // generator errors chan
 		resultC = make(chan result)
 	)
 
@@ -84,7 +84,7 @@ func DlEdgeFS(ctx context.Context, sess EdgeEmojiLister, fsa fsadapter.FS, opt *
 		var once sync.Once
 		defer close(totalC)
 		defer close(emojiC)
-		defer close(genErrC) // generator error channel
+		defer close(genErrC)
 
 		for chunk, err := range sess.AdminEmojiList(ctx) {
 			if err != nil {
