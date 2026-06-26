@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/jmoiron/sqlx"
@@ -10,6 +11,34 @@ import (
 
 	"github.com/rusq/slackdump/v4/internal/chunk"
 )
+
+func TestMessageDedupeMode_Set(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		want    MessageDedupeMode
+		wantErr bool
+	}{
+		{name: "exact", input: "exact", want: MessageDedupeExact},
+		{name: "message key", input: "message-key", want: MessageDedupeKey},
+		{name: "case insensitive", input: "MESSAGE-KEY", want: MessageDedupeKey},
+		{name: "unknown", input: "loose", wantErr: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var got MessageDedupeMode
+			err := got.Set(tt.input)
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, got)
+			assert.Equal(t, string(tt.want), fmt.Sprint(got))
+		})
+	}
+}
 
 func TestDedupeRepository_Preview(t *testing.T) {
 	t.Run("counts duplicates across supported entities", func(t *testing.T) {
@@ -96,6 +125,24 @@ func TestDedupeRepository_Preview(t *testing.T) {
 			ChannelUsers: 1,
 			Chunks:       1,
 		}, counts)
+	})
+
+	t.Run("message key mode counts messages with volatile block ids", func(t *testing.T) {
+		db := testConn(t)
+		ctx := context.Background()
+		repo := NewDedupeRepository(WithMessageDedupeMode(MessageDedupeKey))
+
+		insertSessionForTest(t, db, 1, true, nil)
+		insertSessionForTest(t, db, 2, true, new(int64(1)))
+
+		insertChunkForTest(t, db, 11, 1, chunk.CMessages)
+		insertChunkForTest(t, db, 21, 2, chunk.CMessages)
+		insertMessageWithChunkForTest(t, db, 100, 11, []byte(`{"text":"same","blocks":[{"type":"rich_text","block_id":"dRF"}]}`))
+		insertMessageWithChunkForTest(t, db, 100, 21, []byte(`{"text":"same","blocks":[{"type":"rich_text","block_id":"0Xuo9"}]}`))
+
+		counts, err := repo.Preview(ctx, db)
+		require.NoError(t, err)
+		assert.Equal(t, DedupeCounts{Messages: 1, Chunks: 1}, counts)
 	})
 
 	t.Run("does not count reshared files in different attachment contexts as duplicates", func(t *testing.T) {
@@ -221,6 +268,71 @@ func TestDedupeRepository_Deduplicate(t *testing.T) {
 		verifyChannelCountForTest(t, db, 2)
 		verifyChannelUserCountForTest(t, db, 1)
 		verifyFileCountForTest(t, db, 2)
+	})
+
+	t.Run("exact mode preserves volatile block id payloads", func(t *testing.T) {
+		db := testConn(t)
+		ctx := context.Background()
+		repo := NewDedupeRepository()
+
+		insertSessionForTest(t, db, 1, true, nil)
+		insertSessionForTest(t, db, 2, true, new(int64(1)))
+
+		insertChunkForTest(t, db, 11, 1, chunk.CMessages)
+		insertChunkForTest(t, db, 21, 2, chunk.CMessages)
+		insertMessageWithChunkForTest(t, db, 100, 11, []byte(`{"text":"same","blocks":[{"type":"rich_text","block_id":"dRF"}]}`))
+		insertMessageWithChunkForTest(t, db, 100, 21, []byte(`{"text":"same","blocks":[{"type":"rich_text","block_id":"0Xuo9"}]}`))
+
+		result, err := repo.Deduplicate(ctx, db)
+		require.NoError(t, err)
+		assert.Equal(t, DedupeResult{}, result)
+		verifyMessageCountForTest(t, db, 2)
+		verifyChunkCountForTest(t, db, 2)
+	})
+
+	t.Run("message key mode deduplicates volatile block id payloads", func(t *testing.T) {
+		db := testConn(t)
+		ctx := context.Background()
+		repo := NewDedupeRepository(WithMessageDedupeMode(MessageDedupeKey))
+
+		insertSessionForTest(t, db, 1, true, nil)
+		insertSessionForTest(t, db, 2, true, new(int64(1)))
+
+		insertChunkForTest(t, db, 11, 1, chunk.CMessages)
+		insertChunkForTest(t, db, 21, 2, chunk.CMessages)
+		insertMessageWithChunkForTest(t, db, 100, 11, []byte(`{"text":"same","blocks":[{"type":"rich_text","block_id":"dRF"}]}`))
+		insertMessageWithChunkForTest(t, db, 100, 21, []byte(`{"text":"same","blocks":[{"type":"rich_text","block_id":"0Xuo9"}]}`))
+
+		result, err := repo.Deduplicate(ctx, db)
+		require.NoError(t, err)
+		assert.Equal(t, DedupeResult{
+			MessagesRemoved: 1,
+			ChunksRemoved:   1,
+		}, result)
+		verifyMessageCountForTest(t, db, 1)
+		verifyChunkCountForTest(t, db, 1)
+		verifyMessageChunkForTest(t, db, 100, 21)
+	})
+
+	t.Run("message key mode preserves same timestamp in different channels", func(t *testing.T) {
+		db := testConn(t)
+		ctx := context.Background()
+		repo := NewDedupeRepository(WithMessageDedupeMode(MessageDedupeKey))
+
+		insertSessionForTest(t, db, 1, true, nil)
+		insertSessionForTest(t, db, 2, true, new(int64(1)))
+
+		insertChunkForTest(t, db, 11, 1, chunk.CMessages)
+		insertChunkForTest(t, db, 21, 2, chunk.CMessages)
+		insertMessageInChannelWithChunkForTest(t, db, 100, 11, "C001", []byte(`{"text":"same"}`))
+		insertMessageInChannelWithChunkForTest(t, db, 100, 21, "C002", []byte(`{"text":"same"}`))
+
+		result, err := repo.Deduplicate(ctx, db)
+		require.NoError(t, err)
+		assert.Equal(t, DedupeResult{}, result)
+		verifyMessageCountForTest(t, db, 2)
+		verifyMessageChunkInChannelForTest(t, db, 100, "C001", 11)
+		verifyMessageChunkInChannelForTest(t, db, 100, "C002", 21)
 	})
 
 	t.Run("preserves reshared files across different attachment contexts", func(t *testing.T) {
@@ -399,6 +511,14 @@ func verifyMessageChunkForTest(t *testing.T, db *sqlx.DB, msgID, expectedChunkID
 	t.Helper()
 	var chunkID int64
 	err := db.QueryRowxContext(context.Background(), "SELECT CHUNK_ID FROM MESSAGE WHERE ID = ?", msgID).Scan(&chunkID)
+	require.NoError(t, err)
+	assert.Equal(t, expectedChunkID, chunkID)
+}
+
+func verifyMessageChunkInChannelForTest(t *testing.T, db *sqlx.DB, msgID int64, channelID string, expectedChunkID int64) {
+	t.Helper()
+	var chunkID int64
+	err := db.QueryRowxContext(context.Background(), "SELECT CHUNK_ID FROM MESSAGE WHERE ID = ? AND CHANNEL_ID = ?", msgID, channelID).Scan(&chunkID)
 	require.NoError(t, err)
 	assert.Equal(t, expectedChunkID, chunkID)
 }

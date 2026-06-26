@@ -136,10 +136,15 @@ func insertChunkForTest(t *testing.T, db *sqlx.DB, chunkID, sessionID int64, typ
 
 func insertMessageWithChunkForTest(t *testing.T, db *sqlx.DB, msgID, chunkID int64, data []byte) {
 	t.Helper()
+	insertMessageInChannelWithChunkForTest(t, db, msgID, chunkID, "C001", data)
+}
+
+func insertMessageInChannelWithChunkForTest(t *testing.T, db *sqlx.DB, msgID, chunkID int64, channelID string, data []byte) {
+	t.Helper()
 	_, err := db.ExecContext(context.Background(), `
 		INSERT INTO MESSAGE (ID, CHUNK_ID, CHANNEL_ID, TS, IDX, DATA)
-		VALUES (?, ?, 'C001', '1000000000.000001', 0, ?)`,
-		msgID, chunkID, data)
+		VALUES (?, ?, ?, '1000000000.000001', 0, ?)`,
+		msgID, chunkID, channelID, data)
 	require.NoError(t, err)
 }
 

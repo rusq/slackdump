@@ -15,6 +15,7 @@ type Options struct {
 	Execute  bool
 	Report   io.Writer
 	Database string
+	Mode     repository.MessageDedupeMode
 }
 
 type Result struct {
@@ -22,10 +23,12 @@ type Result struct {
 	Removed repository.DedupeResult
 }
 
-var newRepo = repository.NewDedupeRepository
+var newRepo = func(mode repository.MessageDedupeMode) repository.DedupeRepository {
+	return repository.NewDedupeRepository(repository.WithMessageDedupeMode(mode))
+}
 
 func Run(ctx context.Context, db *sqlx.DB, opts Options) (Result, error) {
-	repo := newRepo()
+	repo := newRepo(opts.Mode)
 
 	counts, err := repo.Preview(ctx, db)
 	if err != nil {
@@ -34,6 +37,7 @@ func Run(ctx context.Context, db *sqlx.DB, opts Options) (Result, error) {
 
 	slog.DebugContext(ctx, "dedupe preview",
 		"database", opts.Database,
+		"mode", opts.Mode.String(),
 		"duplicate_messages", counts.Messages,
 		"duplicate_users", counts.Users,
 		"duplicate_channels", counts.Channels,
@@ -68,6 +72,7 @@ func Run(ctx context.Context, db *sqlx.DB, opts Options) (Result, error) {
 
 	slog.InfoContext(ctx, "dedupe execute",
 		"database", opts.Database,
+		"mode", opts.Mode.String(),
 		"removed_messages", removed.MessagesRemoved,
 		"removed_users", removed.UsersRemoved,
 		"removed_channels", removed.ChannelsRemoved,

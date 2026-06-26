@@ -32,7 +32,7 @@ func TestRun(t *testing.T) {
 
 	t.Run("preview only with report", func(t *testing.T) {
 		var called bool
-		newRepo = func() repository.DedupeRepository {
+		newRepo = func(repository.MessageDedupeMode) repository.DedupeRepository {
 			return stubRepo{
 				previewFn: func(context.Context, *sqlx.DB) (repository.DedupeCounts, error) {
 					return repository.DedupeCounts{Messages: 2, Chunks: 1}, nil
@@ -53,7 +53,7 @@ func TestRun(t *testing.T) {
 	})
 
 	t.Run("execute with report", func(t *testing.T) {
-		newRepo = func() repository.DedupeRepository {
+		newRepo = func(repository.MessageDedupeMode) repository.DedupeRepository {
 			return stubRepo{
 				previewFn: func(context.Context, *sqlx.DB) (repository.DedupeCounts, error) {
 					return repository.DedupeCounts{Messages: 1}, nil
@@ -71,7 +71,7 @@ func TestRun(t *testing.T) {
 	})
 
 	t.Run("log only mode does not write report", func(t *testing.T) {
-		newRepo = func() repository.DedupeRepository {
+		newRepo = func(repository.MessageDedupeMode) repository.DedupeRepository {
 			return stubRepo{
 				previewFn: func(context.Context, *sqlx.DB) (repository.DedupeCounts, error) {
 					return repository.DedupeCounts{}, nil
@@ -87,7 +87,7 @@ func TestRun(t *testing.T) {
 	})
 
 	t.Run("execute returns dedupe error", func(t *testing.T) {
-		newRepo = func() repository.DedupeRepository {
+		newRepo = func(repository.MessageDedupeMode) repository.DedupeRepository {
 			return stubRepo{
 				previewFn: func(context.Context, *sqlx.DB) (repository.DedupeCounts, error) {
 					return repository.DedupeCounts{}, nil
@@ -100,5 +100,23 @@ func TestRun(t *testing.T) {
 		_, err := Run(t.Context(), nil, Options{Execute: true, Database: "db"})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "deduplicate entities")
+	})
+
+	t.Run("passes mode to repository", func(t *testing.T) {
+		var got repository.MessageDedupeMode
+		newRepo = func(mode repository.MessageDedupeMode) repository.DedupeRepository {
+			got = mode
+			return stubRepo{
+				previewFn: func(context.Context, *sqlx.DB) (repository.DedupeCounts, error) {
+					return repository.DedupeCounts{}, nil
+				},
+				dedupeFn: func(context.Context, *sqlx.DB) (repository.DedupeResult, error) {
+					return repository.DedupeResult{}, nil
+				},
+			}
+		}
+		_, err := Run(t.Context(), nil, Options{Mode: repository.MessageDedupeKey})
+		require.NoError(t, err)
+		assert.Equal(t, repository.MessageDedupeKey, got)
 	})
 }
