@@ -157,11 +157,15 @@ The built-in viewer supports all types of dumps:
 1. Slackdump Archive format;
 1. Standard and Mattermost Slack Export;
 1. Dump mode files
-  
-The built-in viewer is experimental, any contributions to make it better looking are welcome.
 
-Alternatively, you can use one of the following tools to preview the
-export results:
+  
+You can also convert your output file to a browsable static HTML archive:
+
+```bash
+slackdump convert -f html -o my_html_archive <zip or directory>
+```
+
+or use one of the following tools to preview the export results:
 
 - [SlackLogViewer] - a fast and powerful Slack Export viewer written in C++, works on Export files (images won't be displayed, unless you used an export token flag).
 - [Slackdump2Html] - a great Python application that converts Slack Dump to a
