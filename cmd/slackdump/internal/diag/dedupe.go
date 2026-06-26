@@ -11,6 +11,7 @@ import (
 	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/cfg"
 	dedupecmd "github.com/rusq/slackdump/v4/cmd/slackdump/internal/diag/dedupe"
 	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/golang/base"
+	"github.com/rusq/slackdump/v4/internal/chunk/backend/dbase/repository"
 	"github.com/rusq/slackdump/v4/source"
 )
 
@@ -22,9 +23,10 @@ var cmdDedupe = &base.Command{
 	Long: `
 Dedupe removes identical duplicate messages, users, channels, channel users,
 and files created by resume look-back overlap. The latest copy of each
-identical payload is kept. By default it only reports what would be removed.
-Pass the archive directory, not the slackdump.sqlite file. Use -execute to
-perform deduplication.
+identical payload is kept. Use -mode message-key to collapse message rows by
+channel and timestamp even when Slack-regenerated fields differ. By default it
+only reports what would be removed. Pass the archive directory, not the
+slackdump.sqlite file. Use -execute to perform deduplication.
 
 The same cleanup can be run automatically after a successful resume with:
 
@@ -34,11 +36,14 @@ The same cleanup can be run automatically after a successful resume with:
 
 var dedupeFlags struct {
 	execute bool
+	mode    repository.MessageDedupeMode
 }
 
 func init() {
 	cmdDedupe.Run = runDedupe
+	dedupeFlags.mode = repository.MessageDedupeExact
 	cmdDedupe.Flag.BoolVar(&dedupeFlags.execute, "execute", false, "actually remove duplicate entities")
+	cmdDedupe.Flag.Var(&dedupeFlags.mode, "mode", "message dedupe mode: exact or message-key")
 }
 
 func ensureDb(ctx context.Context, dir string) (*sqlx.DB, error) {
@@ -82,6 +87,7 @@ func runDedupe(ctx context.Context, cmd *base.Command, args []string) error {
 		Execute:  dedupeFlags.execute,
 		Report:   os.Stdout,
 		Database: dir,
+		Mode:     dedupeFlags.mode,
 	})
 	return err
 }

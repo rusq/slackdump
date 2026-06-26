@@ -55,7 +55,7 @@ func Test_sessionRepository_Insert(t *testing.T) {
 				ctx:  t.Context(),
 				conn: testConn(t),
 				s: &Session{
-					ParentID: ptr[int64](1),
+					ParentID: new(int64(1)),
 				},
 			},
 			wantErr: true,
@@ -67,7 +67,7 @@ func Test_sessionRepository_Insert(t *testing.T) {
 				ctx:  t.Context(),
 				conn: testConn(t),
 				s: &Session{
-					ParentID: ptr[int64](1),
+					ParentID: new(int64(1)),
 					Mode:     "test",
 					Args:     "args",
 				},

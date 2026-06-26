@@ -28,12 +28,47 @@ type DedupeResult struct {
 	ChunksRemoved       int64
 }
 
+type MessageDedupeMode string
+
+const (
+	MessageDedupeExact MessageDedupeMode = "exact"
+	MessageDedupeKey   MessageDedupeMode = "message-key"
+)
+
+func (m *MessageDedupeMode) Set(v string) error {
+	mode := MessageDedupeMode(strings.ToLower(v))
+	switch mode {
+	case MessageDedupeExact, MessageDedupeKey:
+		*m = mode
+		return nil
+	default:
+		return fmt.Errorf("unknown message dedupe mode: %s", v)
+	}
+}
+
+func (m MessageDedupeMode) String() string {
+	if m == "" {
+		return string(MessageDedupeExact)
+	}
+	return string(m)
+}
+
 type DedupeRepository interface {
 	Preview(ctx context.Context, db *sqlx.DB) (DedupeCounts, error)
 	Deduplicate(ctx context.Context, db *sqlx.DB) (DedupeResult, error)
 }
 
-type dedupeRepository struct{}
+type DedupeOption func(*dedupeRepository)
+
+func WithMessageDedupeMode(mode MessageDedupeMode) DedupeOption {
+	return func(r *dedupeRepository) {
+		r.messageMode = mode
+	}
+}
+
+type dedupeRepository struct {
+	messageMode MessageDedupeMode
+}
 
 type dedupeMode int
 
@@ -54,7 +89,7 @@ var dedupeEntities = []dedupeEntity{
 	{
 		name:       "messages",
 		table:      "MESSAGE",
-		keyColumns: []string{"ID"},
+		keyColumns: []string{"CHANNEL_ID", "ID"},
 		chunkTypes: []chunk.ChunkType{chunk.CMessages, chunk.CThreadMessages},
 		mode:       dedupeByData,
 	},
@@ -88,13 +123,28 @@ var dedupeEntities = []dedupeEntity{
 	},
 }
 
-func NewDedupeRepository() DedupeRepository {
-	return dedupeRepository{}
+func NewDedupeRepository(opts ...DedupeOption) DedupeRepository {
+	r := dedupeRepository{messageMode: MessageDedupeExact}
+	for _, opt := range opts {
+		opt(&r)
+	}
+	return r
+}
+
+func (r dedupeRepository) entities() []dedupeEntity {
+	entities := make([]dedupeEntity, len(dedupeEntities))
+	copy(entities, dedupeEntities)
+	for i := range entities {
+		if entities[i].name == "messages" && r.messageMode == MessageDedupeKey {
+			entities[i].mode = dedupeByKey
+		}
+	}
+	return entities
 }
 
 func (r dedupeRepository) Preview(ctx context.Context, db *sqlx.DB) (DedupeCounts, error) {
 	var counts DedupeCounts
-	for _, entity := range dedupeEntities {
+	for _, entity := range r.entities() {
 		n, err := r.countDuplicates(ctx, db, entity)
 		if err != nil {
 			return DedupeCounts{}, fmt.Errorf("count duplicate %s: %w", entity.name, err)
@@ -118,7 +168,7 @@ func (r dedupeRepository) Deduplicate(ctx context.Context, db *sqlx.DB) (DedupeR
 	defer tx.Rollback()
 
 	var result DedupeResult
-	for _, entity := range dedupeEntities {
+	for _, entity := range r.entities() {
 		chunkIDs, err := r.prunableChunkIDs(ctx, tx, entity)
 		if err != nil {
 			return DedupeResult{}, fmt.Errorf("query prunable %s chunks: %w", entity.name, err)
