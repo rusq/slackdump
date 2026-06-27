@@ -288,7 +288,11 @@ func mergeSource(ctx context.Context, target mergeTarget, conn *sqlx.DB, src sou
 	if err != nil {
 		return fmt.Errorf("creating session: %w", err)
 	}
-	defer dbp.Abort()
+	defer func() {
+		if err := dbp.Abort(); err != nil {
+			slog.WarnContext(ctx, "aborting merge session", "error", err)
+		}
+	}()
 
 	// Workspace info
 	if wsi, err := src.WorkspaceInfo(ctx); err == nil {
