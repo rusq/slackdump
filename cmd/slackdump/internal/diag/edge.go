@@ -179,9 +179,11 @@ func save(filename string, r any) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
 	enc := json.NewEncoder(f)
 	enc.SetIndent("", "  ")
-	enc.Encode(r)
-	return err
+	if err := enc.Encode(r); err != nil {
+		_ = f.Close()
+		return err
+	}
+	return f.Close()
 }

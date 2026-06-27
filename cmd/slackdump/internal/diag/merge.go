@@ -467,15 +467,21 @@ func copyAvatars(ctx context.Context, avst source.Storage, users []slack.User, t
 		}
 		dstFile, err := trgFSA.Create(dstLoc)
 		if err != nil {
-			srcFile.Close()
+			if err := srcFile.Close(); err != nil {
+				slog.WarnContext(ctx, "closing avatar source", "user", u.ID, "error", err)
+			}
 			slog.WarnContext(ctx, "creating avatar destination", "user", u.ID, "error", err)
 			continue
 		}
 		if _, err := io.Copy(dstFile, srcFile); err != nil {
 			slog.WarnContext(ctx, "copying avatar", "user", u.ID, "error", err)
 		}
-		srcFile.Close()
-		dstFile.Close()
+		if err := srcFile.Close(); err != nil {
+			slog.WarnContext(ctx, "closing avatar source", "user", u.ID, "error", err)
+		}
+		if err := dstFile.Close(); err != nil {
+			slog.WarnContext(ctx, "closing avatar destination", "user", u.ID, "error", err)
+		}
 	}
 }
 

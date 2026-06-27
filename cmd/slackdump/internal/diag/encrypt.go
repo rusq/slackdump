@@ -153,30 +153,45 @@ func runEncrypt(ctx context.Context, cmd *base.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	defer in.Close()
-	defer out.Close()
+	defer func() { _ = in.Close() }()
 
 	var w io.Writer = out
+	var aw io.WriteCloser
 	if arm || gArm {
 		// arm if requested
-		aw, err := armor.Encode(out, "PGP MESSAGE", nil)
+		aw, err = armor.Encode(out, "PGP MESSAGE", nil)
 		if err != nil {
+			_ = out.Close()
 			base.SetExitStatus(base.SApplicationError)
 			return err
 		}
-		defer aw.Close()
 		w = aw
 	}
 
 	cw, err := openpgp.Encrypt(w, []*openpgp.Entity{recipient}, nil, &openpgp.FileHints{IsBinary: true}, nil)
 	if err != nil {
+		if aw != nil {
+			_ = aw.Close()
+		}
+		_ = out.Close()
 		base.SetExitStatus(base.SApplicationError)
 		return err
 	}
-	defer cw.Close()
-	if _, err := io.Copy(cw, in); err != nil {
+	_, copyErr := io.Copy(cw, in)
+	if err := cw.Close(); err != nil && copyErr == nil {
+		copyErr = err
+	}
+	if aw != nil {
+		if err := aw.Close(); err != nil && copyErr == nil {
+			copyErr = err
+		}
+	}
+	if err := out.Close(); err != nil && copyErr == nil {
+		copyErr = err
+	}
+	if copyErr != nil {
 		base.SetExitStatus(base.SApplicationError)
-		return err
+		return copyErr
 	}
 	return nil
 }
@@ -212,7 +227,7 @@ func parseArgs(args []string) (in io.ReadCloser, out io.WriteCloser, arm bool, e
 		} else {
 			out, err = os.Create(args[1])
 			if err != nil {
-				in.Close()
+				_ = in.Close()
 				base.SetExitStatus(base.SApplicationError)
 				return nil, nil, false, err
 			}
