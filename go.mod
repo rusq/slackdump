@@ -36,7 +36,6 @@ require (
 	github.com/rusq/slack v0.9.6-0.20260212185757-ac5df963acf3
 	github.com/rusq/slackauth v0.7.1
 	github.com/rusq/tagops v0.1.1
-	github.com/rusq/tracer v1.0.1
 	github.com/schollz/progressbar/v3 v3.19.0
 	github.com/sosodev/duration v1.4.0
 	github.com/stretchr/testify v1.11.1
