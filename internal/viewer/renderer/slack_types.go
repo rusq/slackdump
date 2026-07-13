@@ -44,13 +44,6 @@ var (
 // rte - rich text element
 var (
 	rteTypeHandlers = map[slack.RichTextElementType]func(*Slack, slack.RichTextElement) (string, string, error){}
-
-	rteTypeClass = map[slack.RichTextElementType]string{
-		slack.RTESection:      "slack-rich-text-section",
-		slack.RTEList:         "slack-rich-text-list",
-		slack.RTEQuote:        "slack-rich-text-quote",
-		slack.RTEPreformatted: "slack-rich-text-preformatted",
-	}
 )
 
 func init() {

@@ -288,7 +288,11 @@ func mergeSource(ctx context.Context, target mergeTarget, conn *sqlx.DB, src sou
 	if err != nil {
 		return fmt.Errorf("creating session: %w", err)
 	}
-	defer dbp.Abort()
+	defer func() {
+		if err := dbp.Abort(); err != nil {
+			slog.WarnContext(ctx, "aborting merge session", "error", err)
+		}
+	}()
 
 	// Workspace info
 	if wsi, err := src.WorkspaceInfo(ctx); err == nil {
@@ -467,15 +471,21 @@ func copyAvatars(ctx context.Context, avst source.Storage, users []slack.User, t
 		}
 		dstFile, err := trgFSA.Create(dstLoc)
 		if err != nil {
-			srcFile.Close()
+			if err := srcFile.Close(); err != nil {
+				slog.WarnContext(ctx, "closing avatar source", "user", u.ID, "error", err)
+			}
 			slog.WarnContext(ctx, "creating avatar destination", "user", u.ID, "error", err)
 			continue
 		}
 		if _, err := io.Copy(dstFile, srcFile); err != nil {
 			slog.WarnContext(ctx, "copying avatar", "user", u.ID, "error", err)
 		}
-		srcFile.Close()
-		dstFile.Close()
+		if err := srcFile.Close(); err != nil {
+			slog.WarnContext(ctx, "closing avatar source", "user", u.ID, "error", err)
+		}
+		if err := dstFile.Close(); err != nil {
+			slog.WarnContext(ctx, "closing avatar destination", "user", u.ID, "error", err)
+		}
 	}
 }
 

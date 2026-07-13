@@ -43,12 +43,6 @@ func (cl *Client) GetConversationsContextEx(ctx context.Context, p *slack.GetCon
 	return cl.getConversationsContext(ctx, p, onlyMy)
 }
 
-// group type parameter mapping
-var channelTypeMap = map[string]string{
-	structures.CPrivate: string(SCTPrivate),
-	structures.CPublic:  string(SCTPrivateExclude),
-}
-
 type searchResult struct {
 	Channels []slack.Channel
 	Err      error

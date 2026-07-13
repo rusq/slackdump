@@ -55,6 +55,5 @@ Tools command contains different tools, running which may be requested if you op
 		cmdUninstall,
 		cmdUnzip,
 		cmdUpdate,
-		// cmdWizDebug,
 	},
 }

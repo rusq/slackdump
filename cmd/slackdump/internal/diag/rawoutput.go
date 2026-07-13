@@ -119,16 +119,19 @@ func saveOutput(ctx context.Context, cl *http.Client, filename string, token str
 	if err != nil {
 		return err
 	}
-	defer w.Close()
 
 	log.SetOutput(w)
 	log.SetPrefix(fmt.Sprintf("*** SLACKDUMP RAW [%s]: ", sl))
 
 	if sl.IsThread() {
-		return saveThread(ctx, cl, w, token, sl)
+		err = saveThread(ctx, cl, w, token, sl)
 	} else {
-		return saveConversation(ctx, cl, w, token, sl)
+		err = saveConversation(ctx, cl, w, token, sl)
 	}
+	if closeErr := w.Close(); closeErr != nil && err == nil {
+		err = closeErr
+	}
+	return err
 }
 
 func maybeCreate(filename string) (io.WriteCloser, error) {
@@ -197,7 +200,9 @@ func sendReq(w io.Writer, cl *http.Client, ep string, v url.Values) (bool, error
 	defer resp.Body.Close()
 
 	log.Print("request headers")
-	resp.Header.Write(w)
+	if err := resp.Header.Write(w); err != nil {
+		return false, fmt.Errorf("writing response headers: %w", err)
+	}
 
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
