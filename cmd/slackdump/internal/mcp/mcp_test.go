@@ -123,37 +123,67 @@ func Test_initNewProject_MissingSkill(t *testing.T) {
 
 // ─── runMCPNewProject ─────────────────────────────────────────────────────────
 
-func Test_runMCPNewProject_UnknownLayout(t *testing.T) {
-	err := runMCPNewProject(context.Background(), "nonexistent-layout", t.TempDir())
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "unknown project layout")
-}
+func Test_runMCPNewProject(t *testing.T) {
+	tests := []struct {
+		name   string
+		layout string
+		files  []string
+	}{
+		{
+			name:   "opencode",
+			layout: layoutOpencode,
+			files: []string{
+				"opencode.jsonc",
+				filepath.Join(".opencode", "skills", "slackdump", "SKILL.md"),
+			},
+		},
+		{
+			name:   "claude code",
+			layout: layoutClaudeCode,
+			files: []string{
+				".mcp.json",
+				"CLAUDE.md",
+			},
+		},
+		{
+			name:   "copilot",
+			layout: layoutCopilot,
+			files: []string{
+				".mcp.json",
+				filepath.Join(".github", "copilot-instructions.md"),
+			},
+		},
+		{
+			name:   "codex",
+			layout: layoutCodex,
+			files: []string{
+				filepath.Join(".codex", "config.toml"),
+				filepath.Join(".agents", "skills", "slackdump", "SKILL.md"),
+				filepath.Join(".agents", "skills", "slackdump-source", "SKILL.md"),
+				filepath.Join(".agents", "skills", "slackdump-sqlite3", "SKILL.md"),
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tgt := filepath.Join(t.TempDir(), "proj")
+			err := runMCPNewProject(context.Background(), tt.layout, tgt)
+			require.NoError(t, err)
+			assert.DirExists(t, tgt)
+			for _, name := range tt.files {
+				assert.FileExists(t, filepath.Join(tgt, name))
+			}
+			if tt.layout == layoutCodex {
+				assertFileContent(t, filepath.Join(tgt, ".codex", "config.toml"), "[mcp_servers.slackdump]\ncommand = \"slackdump\"\nargs = [\"mcp\"]\n")
+			}
+		})
+	}
 
-func Test_runMCPNewProject_Opencode(t *testing.T) {
-	tgt := filepath.Join(t.TempDir(), "proj")
-	err := runMCPNewProject(context.Background(), layoutOpencode, tgt)
-	require.NoError(t, err)
-	assert.DirExists(t, tgt)
-	assert.FileExists(t, filepath.Join(tgt, "opencode.jsonc"))
-	assert.FileExists(t, filepath.Join(tgt, ".opencode", "skills", "slackdump", "SKILL.md"))
-}
-
-func Test_runMCPNewProject_ClaudeCode(t *testing.T) {
-	tgt := filepath.Join(t.TempDir(), "proj")
-	err := runMCPNewProject(context.Background(), layoutClaudeCode, tgt)
-	require.NoError(t, err)
-	assert.DirExists(t, tgt)
-	assert.FileExists(t, filepath.Join(tgt, ".mcp.json"))
-	assert.FileExists(t, filepath.Join(tgt, "CLAUDE.md"))
-}
-
-func Test_runMCPNewProject_Copilot(t *testing.T) {
-	tgt := filepath.Join(t.TempDir(), "proj")
-	err := runMCPNewProject(context.Background(), layoutCopilot, tgt)
-	require.NoError(t, err)
-	assert.DirExists(t, tgt)
-	assert.FileExists(t, filepath.Join(tgt, ".vscode", "mcp.json"))
-	assert.FileExists(t, filepath.Join(tgt, ".github", "copilot-instructions.md"))
+	t.Run("unknown layout", func(t *testing.T) {
+		err := runMCPNewProject(context.Background(), "nonexistent-layout", t.TempDir())
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "unknown project layout")
+	})
 }
 
 // ─── helpers ──────────────────────────────────────────────────────────────────

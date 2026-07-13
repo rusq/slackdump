@@ -28,6 +28,8 @@ __debug_bin
 *.yml
 *.yaml
 *.toml
+!cmd/slackdump/internal/mcp/assets/layouts/**/*.json
+!cmd/slackdump/internal/mcp/assets/layouts/**/*.toml
 json/*
 examples/*
 experiments/*

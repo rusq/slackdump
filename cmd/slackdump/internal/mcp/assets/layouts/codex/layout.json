@@ -1,0 +1,10 @@
+{
+  "files": [
+    {"src": ".codex/config.toml", "dst": ".codex/config.toml"}
+  ],
+  "skills": [
+    {"skill": "slackdump",        "dst": ".agents/skills/slackdump/SKILL.md"},
+    {"skill": "slackdump-source", "dst": ".agents/skills/slackdump-source/SKILL.md"},
+    {"skill": "slackdump-sqlite3","dst": ".agents/skills/slackdump-sqlite3/SKILL.md"}
+  ]
+}

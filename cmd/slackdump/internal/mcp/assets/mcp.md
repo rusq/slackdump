@@ -1,8 +1,8 @@
 # slackdump mcp
 
 Start a local **Model Context Protocol (MCP)** server that exposes Slackdump
-archive data to AI agents (such as GitHub Copilot, Claude Desktop, or any MCP
-client).
+archive data to AI agents (such as Codex, GitHub Copilot, Claude Desktop, or
+any MCP client).
 
 The server is read-only: it never modifies the underlying archive.
 
@@ -41,9 +41,13 @@ slackdump mcp -new <layout> <directory>
   Claude Code), plus skill content in `CLAUDE.md` (main guidance) and
   `.claude/slackdump-source.md` / `.claude/slackdump-sqlite3.md`.
 
-- **`copilot`** — creates `.vscode/mcp.json` wiring up the MCP server for VS
-  Code / GitHub Copilot, plus `.github/copilot-instructions.md` (always-on
+- **`copilot`** — creates `.mcp.json` wiring up the MCP server for VS Code /
+  GitHub Copilot, plus `.github/copilot-instructions.md` (always-on
   guidance) and two file-scoped instruction files in `.github/instructions/`.
+
+- **`codex`** — creates `.codex/config.toml` with a project-scoped Slackdump
+  MCP server, plus the `slackdump`, `slackdump-source`, and
+  `slackdump-sqlite3` skills inside `.agents/skills/`.
 
 **Example — set up an OpenCode project:**
 
@@ -98,8 +102,8 @@ slackdump mcp -new copilot ~/my-slack-project
 
 After running this command:
 
-1. `~/my-slack-project/.vscode/mcp.json` wires up the Slackdump MCP server
-   for VS Code / GitHub Copilot Agent mode.
+1. `~/my-slack-project/.mcp.json` wires up the Slackdump MCP server for VS
+   Code / GitHub Copilot Agent mode.
 2. `~/my-slack-project/.github/copilot-instructions.md` provides always-on
    Slackdump guidance to Copilot.
 3. `~/my-slack-project/.github/instructions/` contains additional
@@ -109,6 +113,28 @@ Open the project directory in VS Code:
 
 ```
 code ~/my-slack-project
+```
+
+**Example — set up a Codex project:**
+
+```
+slackdump mcp -new codex ~/my-slack-project
+```
+
+After running this command:
+
+1. `~/my-slack-project/.codex/config.toml` registers the Slackdump MCP server
+   as a project-scoped stdio server.
+2. `~/my-slack-project/.agents/skills/` contains three skills that teach Codex
+   how to work with Slackdump archives, source formats, and direct SQLite
+   access.
+
+Open the project directory in Codex and trust it when prompted so Codex loads
+the project-scoped MCP configuration:
+
+```
+cd ~/my-slack-project
+codex
 ```
 
 ## Transport
@@ -271,11 +297,11 @@ Omit the archive argument to let the agent call `load_source` to open one:
 
 ## Integrating with VS Code (GitHub Copilot)
 
-Add to your workspace `.vscode/mcp.json`:
+Add to your workspace `.mcp.json`:
 
 ```json
 {
-  "servers": {
+  "mcpServers": {
     "slackdump": {
       "type": "stdio",
       "command": "slackdump",
@@ -289,7 +315,7 @@ Omit the archive argument to let the agent call `load_source` to open one:
 
 ```json
 {
-  "servers": {
+  "mcpServers": {
     "slackdump": {
       "type": "stdio",
       "command": "slackdump",
@@ -362,4 +388,4 @@ config and restart OpenCode.
 - **`-listen`** _(default: `127.0.0.1:8483`)_ — Listen address when
   `-transport=http`.
 - **`-new`** — Create a new AI project layout instead of starting the server.
-  Supported layouts: `opencode`, `claude-code`, `copilot`.
+  Supported layouts: `opencode`, `claude-code`, `copilot`, `codex`.

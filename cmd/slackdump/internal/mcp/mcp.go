@@ -64,12 +64,14 @@ const (
 	layoutOpencode   = "opencode"
 	layoutClaudeCode = "claude-code"
 	layoutCopilot    = "copilot"
+	layoutCodex      = "codex"
 )
 
 var projectLayouts = []string{
 	layoutOpencode,
 	layoutClaudeCode,
 	layoutCopilot,
+	layoutCodex,
 }
 
 func init() {
