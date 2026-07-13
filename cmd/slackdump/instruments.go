@@ -20,8 +20,7 @@ import (
 	"log"
 	"log/slog"
 	"os"
-
-	"github.com/rusq/tracer"
+	"runtime/trace"
 
 	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/golang/base"
@@ -71,25 +70,33 @@ func initLog(filename string, jsonHandler bool, verbose bool) (*slog.Logger, err
 
 // initTrace initialises the tracing.  If the filename is not empty, the file
 // will be opened, trace will write to that file.  Returns the stop function
-// that must be called in the deferred call.  If the error is returned the stop
-// function is nil.
+// that must be called in the deferred call.  If there were errors during
+// initialisation stop function is noop.
 func initTrace(filename string) (stop func()) {
 	stop = func() {}
 	if filename == "" {
 		return
 	}
 
-	slog.Info("trace will be written to", "filename", filename)
+	lg := slog.With("filename", filename)
 
-	trc := tracer.New(filename)
-	if err := trc.Start(); err != nil {
-		slog.Warn("failed to start the trace", "filename", filename, "error", err)
+	lg.Info("trace will be written to", "filename", filename)
+
+	f, err := os.Create(filename)
+	if err != nil {
+		lg.Warn("failed to create the trace file, tracing is disabled", "err", err)
+		return
+	}
+	if err := trace.Start(f); err != nil {
+		f.Close()
+		lg.Warn("failed to start trace, tracing is disabled", "err", err)
 		return
 	}
 
 	stop = func() {
-		if err := trc.End(); err != nil {
-			slog.Warn("failed to write the trace file", "filename", filename, "error", err)
+		trace.Stop()
+		if err := f.Close(); err != nil {
+			lg.Warn("failed to close trace file", "filename", filename, "error", err)
 		}
 	}
 	return
