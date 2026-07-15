@@ -1,0 +1,3 @@
+# Keep embedded MCP assets byte-identical across platforms (go:embed embeds
+# files as checked out, and Windows autocrlf would otherwise convert to CRLF).
+cmd/slackdump/internal/mcp/assets/** text eol=lf

@@ -1,6 +1,6 @@
 {
   "files": [
-    {"src": ".vscode/mcp.json", "dst": ".vscode/mcp.json"}
+    {"src": ".mcp.json", "dst": ".mcp.json"}
   ],
   "skills": [
     {"skill": "slackdump",        "dst": ".github/copilot-instructions.md"},

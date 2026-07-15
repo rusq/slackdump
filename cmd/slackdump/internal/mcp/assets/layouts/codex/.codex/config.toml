@@ -1,0 +1,3 @@
+[mcp_servers.slackdump]
+command = "slackdump"
+args = ["mcp"]

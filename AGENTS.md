@@ -96,7 +96,7 @@ Notable newer functionality that should be reflected in code suggestions:
 - `slackdump tools dedupe` removes duplicate rows created by resume overlap.
 - `slackdump tools merge` merges multiple archive databases.
 - `slackdump mcp -new <layout>` scaffolds AI-tool project layouts for
-  `opencode`, `claude-code`, and `copilot`.
+  `opencode`, `claude-code`, `copilot`, and `codex`.
 - Viewer and static HTML rendering support richer routing and canvas rendering.
 
 ## Build and Test

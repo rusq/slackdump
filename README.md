@@ -206,13 +206,14 @@ Scaffold a ready-to-use project directory pre-configured for your AI tool:
 slackdump mcp -new opencode   ~/my-slack-project   # OpenCode
 slackdump mcp -new claude-code ~/my-slack-project  # Claude Code
 slackdump mcp -new copilot    ~/my-slack-project   # VS Code / GitHub Copilot
+slackdump mcp -new codex      ~/my-slack-project   # Codex
 ```
 
 Each command creates the MCP config file and installs bundled Slackdump skill /
 instruction files so the agent knows how to work with your archive out of the box.
 
-To learn how to set it up with Claude Desktop, VS Code/GitHub Copilot, or
-OpenCode, see:
+To learn how to set it up with Codex, Claude Desktop, VS Code/GitHub Copilot,
+or OpenCode, see:
 ```
 slackdump help mcp
 ```
