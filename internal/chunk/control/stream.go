@@ -17,6 +17,8 @@ package control
 
 import (
 	"context"
+	"errors"
+	"log/slog"
 
 	"github.com/rusq/slack"
 
@@ -44,7 +46,19 @@ func (u *userCollectingStreamer) Users(ctx context.Context, proc processor.Users
 			if !ok {
 				return nil
 			}
-			if err := u.UsersBulkWithCustom(ctx, proc, u.includeLabels, ids...); err != nil {
+			if err := u.UsersBulkWithCustomErr(ctx, proc, u.includeLabels, ids, func(err error) bool {
+				var slackErr slack.SlackErrorResponse
+				if errors.As(err, &slackErr) && slackErr.Err == "user_not_found" {
+					var lookupErr interface{ UserID() string }
+					if errors.As(err, &lookupErr) {
+						slog.WarnContext(ctx, "skipping unresolved message author", "user_id", lookupErr.UserID())
+					} else {
+						slog.WarnContext(ctx, "skipping unresolved message author", "error", err)
+					}
+					return false
+				}
+				return true
+			}); err != nil {
 				return err
 			}
 		}

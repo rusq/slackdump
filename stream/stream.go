@@ -349,7 +349,15 @@ func (cs *Stream) UsersBulk(ctx context.Context, proc processor.Users, ids ...st
 // fetches custom profile fields.  If includeLabels is true, it will fetch the
 // custom profile field names.
 func (cs *Stream) UsersBulkWithCustom(ctx context.Context, proc processor.Users, includeLabels bool, ids ...string) error {
-	ctx, task := trace.NewTask(ctx, "UsersBulkWithCustom")
+	return cs.UsersBulkWithCustomErr(ctx, proc, includeLabels, ids, nil)
+}
+
+// UsersBulkWithCustomErr returns the information for the users with ids and
+// fetches custom profile fields.  failErr controls handling of user lookup
+// errors: returning true stops processing and returns the error; returning
+// false skips that user.  A nil failErr fails on every error.
+func (cs *Stream) UsersBulkWithCustomErr(ctx context.Context, proc processor.Users, includeLabels bool, ids []string, failErr func(error) bool) error {
+	ctx, task := trace.NewTask(ctx, "UsersBulkWithCustomErr")
 	defer task.End()
 
 	uu := make([]slack.User, 0, len(ids))
@@ -389,7 +397,11 @@ func (cs *Stream) UsersBulkWithCustom(ctx context.Context, proc processor.Users,
 			return err
 		}); err != nil {
 			<-profileC // discard
-			return fmt.Errorf("error fetching user with ID %s: %w", id, err)
+			wrappedErr := userLookupError{id: id, err: err}
+			if failErr == nil || failErr(wrappedErr) {
+				return wrappedErr
+			}
+			continue
 		}
 		if profile := <-profileC; profile != nil {
 			u.Profile = *profile
@@ -402,3 +414,14 @@ func (cs *Stream) UsersBulkWithCustom(ctx context.Context, proc processor.Users,
 	}
 	return nil
 }
+
+type userLookupError struct {
+	id  string
+	err error
+}
+
+func (e userLookupError) Error() string {
+	return fmt.Sprintf("error fetching user with ID %s: %v", e.id, e.err)
+}
+func (e userLookupError) Unwrap() error  { return e.err }
+func (e userLookupError) UserID() string { return e.id }
