@@ -60,6 +60,24 @@ func TestIsSlackResponseError(t *testing.T) {
 			},
 			false,
 		},
+		{
+			"nil error",
+			args{
+				nil,
+				"test error",
+			},
+			false,
+		},
+		{
+			"should be case sensitive match",
+			args{
+				slack.SlackErrorResponse{
+					Err: "Test Error",
+				},
+				"test error",
+			},
+			false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

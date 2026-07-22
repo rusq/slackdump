@@ -807,8 +807,7 @@ func TestStream_UsersBulkWithCustomErr(t *testing.T) {
 
 		cs := &Stream{client: ms, limits: testLimits}
 		err := cs.UsersBulkWithCustomErr(t.Context(), mu, false, []string{"U1", "U00", "U2"}, func(err error) bool {
-			var slackErr slack.SlackErrorResponse
-			return !errors.As(err, &slackErr) || slackErr.Err != "user_not_found"
+			return !structures.IsSlackResponseError(err, "user_not_found")
 		})
 		assert.NoError(t, err)
 	})

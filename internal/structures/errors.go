@@ -17,7 +17,6 @@ package structures
 
 import (
 	"errors"
-	"strings"
 
 	"github.com/rusq/slack"
 )
@@ -28,5 +27,5 @@ import (
 // otherwise, returns false.
 func IsSlackResponseError(e error, s string) bool {
 	var se slack.SlackErrorResponse
-	return errors.As(e, &se) && strings.EqualFold(se.Err, s)
+	return errors.As(e, &se) && se.Err == s
 }

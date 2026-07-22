@@ -107,7 +107,7 @@ func Test_userCollectingStreamer_Users(t *testing.T) {
 			expectFn: func(ms *mock_control.MockStreamer, mup *mock_processor.MockUsers) {
 				ms.EXPECT().UsersBulkWithCustomErr(gomock.Any(), mup, false, []string{"U12345678", "U00", "U87654321"}, gomock.Any()).
 					DoAndReturn(func(_ context.Context, _ processor.Users, _ bool, _ []string, failErr func(error) bool) error {
-						assert.False(t, failErr(fmt.Errorf("fetch user: %w", slack.SlackErrorResponse{Err: "user_not_found"})))
+						assert.False(t, failErr(fmt.Errorf("fetch user: %w", slack.SlackErrorResponse{Err: userNotFound})))
 						return nil
 					})
 			},

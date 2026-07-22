@@ -22,6 +22,7 @@ import (
 
 	"github.com/rusq/slack"
 
+	"github.com/rusq/slackdump/v4/internal/structures"
 	"github.com/rusq/slackdump/v4/processor"
 )
 
@@ -36,6 +37,8 @@ type userCollectingStreamer struct {
 	includeLabels bool
 }
 
+const userNotFound = "user_not_found"
+
 // Users is the override for the Streamer.Users method.
 func (u *userCollectingStreamer) Users(ctx context.Context, proc processor.Users, opt ...slack.GetUsersOption) error {
 	for {
@@ -47,8 +50,7 @@ func (u *userCollectingStreamer) Users(ctx context.Context, proc processor.Users
 				return nil
 			}
 			if err := u.UsersBulkWithCustomErr(ctx, proc, u.includeLabels, ids, func(err error) bool {
-				var slackErr slack.SlackErrorResponse
-				if errors.As(err, &slackErr) && slackErr.Err == "user_not_found" {
+				if structures.IsSlackResponseError(err, userNotFound) {
 					var lookupErr interface{ UserID() string }
 					if errors.As(err, &lookupErr) {
 						slog.WarnContext(ctx, "skipping unresolved message author", "user_id", lookupErr.UserID())
