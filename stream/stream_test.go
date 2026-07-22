@@ -769,3 +769,46 @@ func TestStream_UsersBulkWithCustom(t *testing.T) {
 		})
 	}
 }
+
+func TestStream_UsersBulkWithCustomErr(t *testing.T) {
+	testLimits := rateLimits{
+		userinfo: network.NewLimiter(network.NoTier, 100, 100),
+		tier:     network.DefLimits,
+	}
+
+	t.Run("nil handler fails on user lookup error", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		ms := mock_client.NewMockSlack(ctrl)
+		mu := mock_processor.NewMockUsers(ctrl)
+		lookupErr := errors.New("not your day")
+
+		ms.EXPECT().GetUserInfoContext(gomock.Any(), "U1").Return(nil, lookupErr)
+		ms.EXPECT().GetUserProfileContext(gomock.Any(), gomock.Any()).Return(nil, nil)
+		mu.EXPECT().Users(gomock.Any(), gomock.Any()).Times(0)
+
+		cs := &Stream{client: ms, limits: testLimits}
+		err := cs.UsersBulkWithCustomErr(t.Context(), mu, false, []string{"U1"}, nil)
+		assert.ErrorIs(t, err, lookupErr)
+	})
+
+	t.Run("handler skips error and preserves batch", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		ms := mock_client.NewMockSlack(ctrl)
+		mu := mock_processor.NewMockUsers(ctrl)
+		u1 := slack.User{ID: "U1"}
+		u2 := slack.User{ID: "U2"}
+		notFound := slack.SlackErrorResponse{Err: "user_not_found"}
+
+		ms.EXPECT().GetUserInfoContext(gomock.Any(), "U1").Return(&u1, nil)
+		ms.EXPECT().GetUserInfoContext(gomock.Any(), "U00").Return(nil, notFound)
+		ms.EXPECT().GetUserInfoContext(gomock.Any(), "U2").Return(&u2, nil)
+		ms.EXPECT().GetUserProfileContext(gomock.Any(), gomock.Any()).Return(nil, nil).Times(3)
+		mu.EXPECT().Users(gomock.Any(), []slack.User{u1, u2}).Return(nil)
+
+		cs := &Stream{client: ms, limits: testLimits}
+		err := cs.UsersBulkWithCustomErr(t.Context(), mu, false, []string{"U1", "U00", "U2"}, func(err error) bool {
+			return !structures.IsSlackResponseError(err, "user_not_found")
+		})
+		assert.NoError(t, err)
+	})
+}

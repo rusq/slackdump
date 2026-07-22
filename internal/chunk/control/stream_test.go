@@ -17,6 +17,7 @@ package control
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/rusq/slack"
@@ -25,6 +26,7 @@ import (
 
 	"github.com/rusq/slackdump/v4/internal/chunk/control/mock_control"
 	"github.com/rusq/slackdump/v4/mocks/mock_processor"
+	"github.com/rusq/slackdump/v4/processor"
 )
 
 func Test_userCollectingStreamer_Users(t *testing.T) {
@@ -68,7 +70,7 @@ func Test_userCollectingStreamer_Users(t *testing.T) {
 				userIDC <- []string{"U12345678", "U87654321"}
 			},
 			expectFn: func(ms *mock_control.MockStreamer, mup *mock_processor.MockUsers) {
-				ms.EXPECT().UsersBulkWithCustom(gomock.Any(), mup, false, "U12345678", "U87654321").Return(nil)
+				ms.EXPECT().UsersBulkWithCustomErr(gomock.Any(), mup, false, []string{"U12345678", "U87654321"}, gomock.Any()).Return(nil)
 			},
 			wantErr: false,
 		},
@@ -87,7 +89,27 @@ func Test_userCollectingStreamer_Users(t *testing.T) {
 				userIDC <- []string{"U12345678", "U87654321"}
 			},
 			expectFn: func(ms *mock_control.MockStreamer, mup *mock_processor.MockUsers) {
-				ms.EXPECT().UsersBulkWithCustom(gomock.Any(), mup, true, "U12345678", "U87654321").Return(nil)
+				ms.EXPECT().UsersBulkWithCustomErr(gomock.Any(), mup, true, []string{"U12345678", "U87654321"}, gomock.Any()).Return(nil)
+			},
+			wantErr: false,
+		},
+		{
+			name: "skips unresolved user and continues",
+			args: args{
+				ctx: t.Context(),
+			},
+			prepFn: func(f *fields) {
+				userIDC := make(chan []string, 1)
+				defer close(userIDC)
+				f.userIDC = userIDC
+				userIDC <- []string{"U12345678", "U00", "U87654321"}
+			},
+			expectFn: func(ms *mock_control.MockStreamer, mup *mock_processor.MockUsers) {
+				ms.EXPECT().UsersBulkWithCustomErr(gomock.Any(), mup, false, []string{"U12345678", "U00", "U87654321"}, gomock.Any()).
+					DoAndReturn(func(_ context.Context, _ processor.Users, _ bool, _ []string, failErr func(error) bool) error {
+						assert.False(t, failErr(fmt.Errorf("fetch user: %w", slack.SlackErrorResponse{Err: userNotFound})))
+						return nil
+					})
 			},
 			wantErr: false,
 		},
@@ -103,7 +125,65 @@ func Test_userCollectingStreamer_Users(t *testing.T) {
 				userIDC <- []string{"U12345678", "U87654321"}
 			},
 			expectFn: func(ms *mock_control.MockStreamer, mup *mock_processor.MockUsers) {
-				ms.EXPECT().UsersBulkWithCustom(gomock.Any(), mup, false, "U12345678", "U87654321").Return(assert.AnError)
+				ms.EXPECT().UsersBulkWithCustomErr(gomock.Any(), mup, false, []string{"U12345678", "U87654321"}, gomock.Any()).Return(assert.AnError)
+			},
+			wantErr: true,
+		},
+		{
+			name: "other Slack API error is fatal",
+			args: args{
+				ctx: t.Context(),
+			},
+			prepFn: func(f *fields) {
+				userIDC := make(chan []string, 1)
+				defer close(userIDC)
+				f.userIDC = userIDC
+				userIDC <- []string{"U12345678"}
+			},
+			expectFn: func(ms *mock_control.MockStreamer, mup *mock_processor.MockUsers) {
+				apiErr := slack.SlackErrorResponse{Err: "invalid_auth"}
+				ms.EXPECT().UsersBulkWithCustomErr(gomock.Any(), mup, false, []string{"U12345678"}, gomock.Any()).
+					DoAndReturn(func(_ context.Context, _ processor.Users, _ bool, _ []string, failErr func(error) bool) error {
+						assert.True(t, failErr(apiErr))
+						return apiErr
+					})
+			},
+			wantErr: true,
+		},
+		{
+			name: "non-exact user not found code is fatal",
+			args: args{
+				ctx: t.Context(),
+			},
+			prepFn: func(f *fields) {
+				userIDC := make(chan []string, 1)
+				defer close(userIDC)
+				f.userIDC = userIDC
+				userIDC <- []string{"U12345678"}
+			},
+			expectFn: func(ms *mock_control.MockStreamer, mup *mock_processor.MockUsers) {
+				apiErr := slack.SlackErrorResponse{Err: "USER_NOT_FOUND"}
+				ms.EXPECT().UsersBulkWithCustomErr(gomock.Any(), mup, false, []string{"U12345678"}, gomock.Any()).
+					DoAndReturn(func(_ context.Context, _ processor.Users, _ bool, _ []string, failErr func(error) bool) error {
+						assert.True(t, failErr(apiErr))
+						return apiErr
+					})
+			},
+			wantErr: true,
+		},
+		{
+			name: "cancellation from lookup is fatal",
+			args: args{
+				ctx: t.Context(),
+			},
+			prepFn: func(f *fields) {
+				userIDC := make(chan []string, 1)
+				defer close(userIDC)
+				f.userIDC = userIDC
+				userIDC <- []string{"U12345678"}
+			},
+			expectFn: func(ms *mock_control.MockStreamer, mup *mock_processor.MockUsers) {
+				ms.EXPECT().UsersBulkWithCustomErr(gomock.Any(), mup, false, []string{"U12345678"}, gomock.Any()).Return(context.Canceled)
 			},
 			wantErr: true,
 		},

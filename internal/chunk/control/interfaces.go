@@ -40,6 +40,7 @@ type Streamer interface {
 	SearchFiles(ctx context.Context, proc processor.FileSearcher, query string) error
 	UsersBulk(ctx context.Context, proc processor.Users, ids ...string) error
 	UsersBulkWithCustom(ctx context.Context, proc processor.Users, includeLabels bool, ids ...string) error
+	UsersBulkWithCustomErr(ctx context.Context, proc processor.Users, includeLabels bool, ids []string, failErr func(error) bool) error
 }
 
 type TransformStarter interface {
