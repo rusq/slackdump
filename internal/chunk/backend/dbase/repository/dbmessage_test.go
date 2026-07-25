@@ -507,9 +507,9 @@ func Test_messageRepository_CountCanvasThread(t *testing.T) {
 		const hiddenChannelID = "CCANVAS"
 		const threadTS = "123.456"
 		prepChunkWithFinal(
-			testChunk{typeID: canvasMessagesChunkType, channelID: hiddenChannelID, final: true},
-			testChunk{typeID: canvasThreadMessagesChunkType, channelID: hiddenChannelID, final: true},
-			testChunk{typeID: canvasThreadMessagesChunkType, channelID: hiddenChannelID, final: true},
+			testChunk{typeID: chunk.CCanvasMessages, channelID: hiddenChannelID, final: true},
+			testChunk{typeID: chunk.CCanvasThreadMessages, channelID: hiddenChannelID, final: true},
+			testChunk{typeID: chunk.CCanvasThreadMessages, channelID: hiddenChannelID, final: true},
 			testChunk{typeID: chunk.CThreadMessages, channelID: hiddenChannelID, final: true},
 		)(t, conn)
 
@@ -545,6 +545,75 @@ func Test_messageRepository_CountCanvasThread(t *testing.T) {
 		assert.Zero(t, got)
 		assert.Error(t, err)
 	})
+}
+
+func Test_messageRepository_AllCanvasMessages(t *testing.T) {
+	conn := testConn(t)
+	const hiddenChannelID = "CCANVAS"
+	prepChunkWithFinal(
+		testChunk{typeID: chunk.CCanvasMessages, channelID: hiddenChannelID, final: false},
+		testChunk{typeID: chunk.CCanvasMessages, channelID: hiddenChannelID, final: true},
+		testChunk{typeID: chunk.CMessages, channelID: hiddenChannelID, final: true},
+	)(t, conn)
+
+	oldRoot := slack.Message{Msg: slack.Msg{Timestamp: "123.456", ThreadTimestamp: "123.456", Text: "old"}}
+	newRoot := oldRoot
+	newRoot.Text = "new"
+	ordinary := slack.Message{Msg: slack.Msg{Timestamp: "124.000", Text: "ordinary"}}
+	mr := NewMessageRepository()
+	require.NoError(t, mr.Insert(t.Context(), conn,
+		must(NewDBMessage(1, 0, hiddenChannelID, &oldRoot)),
+		must(NewDBMessage(2, 0, hiddenChannelID, &newRoot)),
+		must(NewDBMessage(3, 0, hiddenChannelID, &ordinary)),
+	))
+
+	it, err := mr.AllCanvasMessages(t.Context(), conn, hiddenChannelID)
+	require.NoError(t, err)
+	got, err := collectSeq(it)
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+	value, err := got[0].Val()
+	require.NoError(t, err)
+	assert.Equal(t, "new", value.Text)
+}
+
+func Test_messageRepository_AllForCanvasThread(t *testing.T) {
+	conn := testConn(t)
+	const hiddenChannelID = "CCANVAS"
+	const threadTS = "123.456"
+	prepChunkWithFinal(
+		testChunk{typeID: chunk.CCanvasMessages, channelID: hiddenChannelID, final: true},
+		testChunk{typeID: chunk.CCanvasThreadMessages, channelID: hiddenChannelID, final: true},
+		testChunk{typeID: chunk.CThreadMessages, channelID: hiddenChannelID, final: true},
+	)(t, conn)
+
+	root := slack.Message{Msg: slack.Msg{Timestamp: threadTS, ThreadTimestamp: threadTS}}
+	reply := slack.Message{Msg: slack.Msg{Timestamp: "124.000", ThreadTimestamp: threadTS, SubType: "thread_broadcast"}}
+	ordinary := slack.Message{Msg: slack.Msg{Timestamp: "125.000", ThreadTimestamp: threadTS}}
+	mr := NewMessageRepository()
+	require.NoError(t, mr.Insert(t.Context(), conn,
+		must(NewDBMessage(1, 0, hiddenChannelID, &root)),
+		must(NewDBMessage(2, 0, hiddenChannelID, &root)),
+		must(NewDBMessage(2, 1, hiddenChannelID, &reply)),
+		must(NewDBMessage(3, 0, hiddenChannelID, &ordinary)),
+	))
+
+	it, err := mr.AllForCanvasThread(t.Context(), conn, hiddenChannelID, threadTS)
+	require.NoError(t, err)
+	got, err := collectSeq(it)
+	require.NoError(t, err)
+	assert.Len(t, got, 2)
+}
+
+func collectSeq[T any](it iter.Seq2[T, error]) ([]T, error) {
+	var out []T
+	for v, err := range it {
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, v)
+	}
+	return out, nil
 }
 
 var (

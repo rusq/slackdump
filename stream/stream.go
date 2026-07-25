@@ -50,16 +50,17 @@ const (
 // Stream is used to fetch conversations from Slack.  It is safe for concurrent
 // use.
 type Stream struct {
-	oldest, latest time.Time
-	client         client.Slack
-	limits         rateLimits
-	chanCache      *chanCache
-	userCache      *userCache
-	fastSearch     bool
-	inclusive      bool
-	failChnlNotFnd bool // if true, will fail if channel not found
-	resultFn       []func(sr Result) error
-	skipThread     func(ctx context.Context, channelID, threadTS string, replyCount int) bool
+	oldest, latest   time.Time
+	client           client.Slack
+	limits           rateLimits
+	chanCache        *chanCache
+	userCache        *userCache
+	fastSearch       bool
+	inclusive        bool
+	failChnlNotFnd   bool // if true, will fail if channel not found
+	resultFn         []func(sr Result) error
+	skipThread       func(ctx context.Context, channelID, threadTS string, replyCount int) bool
+	skipCanvasThread func(ctx context.Context, channelID, threadTS string, replyCount int) bool
 }
 
 // ResultType helps to identify the type of the result, so that the callback
@@ -187,6 +188,15 @@ func OptFailOnNonCritError(b bool) Option {
 func OptSkipThreadFunc(fn func(ctx context.Context, channelID, threadTS string, replyCount int) bool) Option {
 	return func(cs *Stream) {
 		cs.skipThread = fn
+	}
+}
+
+// OptSkipCanvasThreadFunc sets a predicate that is called for each canvas
+// discussion root before its replies are queued. If it returns true, the
+// discussion replies are skipped.
+func OptSkipCanvasThreadFunc(fn func(ctx context.Context, channelID, threadTS string, replyCount int) bool) Option {
+	return func(cs *Stream) {
+		cs.skipCanvasThread = fn
 	}
 }
 

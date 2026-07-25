@@ -17,17 +17,47 @@ package source
 
 import (
 	"context"
+	"encoding/json"
 	"io/fs"
 	"testing"
 	"testing/fstest"
 
 	"github.com/rusq/slack"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/rusq/slackdump/v4/internal/fixtures"
 	"github.com/rusq/slackdump/v4/internal/testutil"
 	"github.com/rusq/slackdump/v4/types"
 )
+
+func canvasDumpFS(t *testing.T) fstest.MapFS {
+	t.Helper()
+	root := slack.Message{Msg: slack.Msg{
+		Timestamp:       "1700000000.000001",
+		ThreadTimestamp: "1700000000.000001",
+		ReplyCount:      1,
+		Text:            "root",
+	}}
+	reply := slack.Message{Msg: slack.Msg{
+		Timestamp:       "1700000001.000001",
+		ThreadTimestamp: root.Timestamp,
+		Text:            "reply",
+	}}
+	data, err := json.Marshal(types.Conversation{
+		ID:   "CCANVAS",
+		Name: "CCANVAS",
+		Messages: []types.Message{{
+			Message:       root,
+			ThreadReplies: types.ConvertMsgs([]slack.Message{root, reply}),
+		}},
+	})
+	require.NoError(t, err)
+	return fstest.MapFS{
+		"channels.json":         &fstest.MapFile{Data: []byte("[]")},
+		"__canvas/CCANVAS.json": &fstest.MapFile{Data: data},
+	}
+}
 
 func TestDump_Channels(t *testing.T) {
 	type fields struct {
@@ -234,4 +264,41 @@ func Test_convertMessages(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestDump_CanvasMessages(t *testing.T) {
+	d, err := OpenDump(t.Context(), canvasDumpFS(t), "canvas")
+	require.NoError(t, err)
+
+	it, err := d.CanvasMessages(t.Context(), "CCANVAS")
+	require.NoError(t, err)
+	var got []slack.Message
+	for m, err := range it {
+		require.NoError(t, err)
+		got = append(got, m)
+	}
+	require.Len(t, got, 1)
+	assert.Equal(t, "root", got[0].Text)
+
+	it, err = d.CanvasMessages(t.Context(), "CMISSING")
+	require.NoError(t, err)
+	for range it {
+		t.Fatal("legacy dump should return an empty canvas iterator")
+	}
+}
+
+func TestDump_CanvasThreadMessages(t *testing.T) {
+	d, err := OpenDump(t.Context(), canvasDumpFS(t), "canvas")
+	require.NoError(t, err)
+
+	it, err := d.CanvasThreadMessages(t.Context(), "CCANVAS", "1700000000.000001")
+	require.NoError(t, err)
+	var got []slack.Message
+	for m, err := range it {
+		require.NoError(t, err)
+		got = append(got, m)
+	}
+	require.Len(t, got, 2)
+	assert.Equal(t, "root", got[0].Text)
+	assert.Equal(t, "reply", got[1].Text)
 }

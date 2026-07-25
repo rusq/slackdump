@@ -215,6 +215,38 @@ func (d Dump) AllThreadMessages(_ context.Context, channelID, threadID string) (
 	return convertMessages(cm), nil
 }
 
+func (d Dump) CanvasMessages(ctx context.Context, hiddenChannelID string) (iter.Seq2[slack.Message, error], error) {
+	c, err := d.canvas(hiddenChannelID)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return toIter(nil), nil
+		}
+		return nil, err
+	}
+	return convertMessages(c.Messages), nil
+}
+
+func (d Dump) CanvasThreadMessages(ctx context.Context, hiddenChannelID, threadTS string) (iter.Seq2[slack.Message, error], error) {
+	c, err := d.canvas(hiddenChannelID)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return toIter(nil), nil
+		}
+		return nil, err
+	}
+	for _, m := range c.Messages {
+		if m.Timestamp == threadTS || m.ThreadTimestamp == threadTS {
+			return convertMessages(m.ThreadReplies), nil
+		}
+	}
+	return toIter(nil), nil
+}
+
+func (d Dump) canvas(hiddenChannelID string) (*types.Conversation, error) {
+	c, err := unmarshalOne[types.Conversation](d.fs, path.Join("__canvas", hiddenChannelID+".json"))
+	return &c, err
+}
+
 func (d Dump) channelFile(channelID string) string {
 	return channelID + ".json"
 }

@@ -110,6 +110,22 @@ func (c *ChunkDir) AllThreadMessages(ctx context.Context, channelID, threadID st
 	return toIter(mm), nil
 }
 
+func (c *ChunkDir) CanvasMessages(ctx context.Context, hiddenChannelID string) (iter.Seq2[slack.Message, error], error) {
+	mm, err := c.d.CanvasMessages(ctx, hiddenChannelID)
+	if err != nil {
+		return nil, err
+	}
+	return toIter(mm), nil
+}
+
+func (c *ChunkDir) CanvasThreadMessages(ctx context.Context, hiddenChannelID, threadTS string) (iter.Seq2[slack.Message, error], error) {
+	mm, err := c.d.CanvasThreadMessages(ctx, hiddenChannelID, threadTS)
+	if err != nil {
+		return nil, err
+	}
+	return toIter(mm), nil
+}
+
 // ChannelInfo accepts the fileID (so it can treat channel or thread exports equally).  If
 // in doubt, use channelID as the fileID.
 func (c *ChunkDir) ChannelInfo(_ context.Context, channelID string) (*slack.Channel, error) {

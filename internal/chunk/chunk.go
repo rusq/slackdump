@@ -43,6 +43,8 @@ const (
 	CBookmarks
 	CSearchMessages
 	CSearchFiles
+	CCanvasMessages
+	CCanvasThreadMessages
 )
 
 var ErrUnsupChunkType = errors.New("unsupported chunk type")
@@ -129,11 +131,13 @@ const (
 )
 
 const (
-	threadPrefix    = "t"
-	filePrefix      = "f"
-	chanInfoPrefix  = "ic"
-	bookmarkPrefix  = "lb"
-	chanUsersPrefix = "lcu"
+	threadPrefix       = "t"
+	filePrefix         = "f"
+	chanInfoPrefix     = "ic"
+	bookmarkPrefix     = "lb"
+	chanUsersPrefix    = "lcu"
+	canvasPrefix       = "cm"
+	canvasThreadPrefix = "ct"
 )
 
 // Chunk ID categories
@@ -151,6 +155,10 @@ func (c *Chunk) ID() GroupID {
 		return GroupID(c.ChannelID)
 	case CThreadMessages:
 		return threadID(c.ChannelID, c.Parent.ThreadTimestamp)
+	case CCanvasMessages:
+		return id(canvasPrefix, c.ChannelID)
+	case CCanvasThreadMessages:
+		return id(canvasThreadPrefix, c.ChannelID, c.ThreadTS)
 	case CFiles:
 		return id(filePrefix, c.ChannelID, c.Parent.Timestamp)
 	case CChannelInfo:
@@ -201,6 +209,14 @@ func threadID(channelID, threadTS string) GroupID {
 	return id(threadPrefix, channelID, threadTS)
 }
 
+func canvasID(channelID string) GroupID {
+	return id(canvasPrefix, channelID)
+}
+
+func canvasDiscussionID(channelID, threadTS string) GroupID {
+	return id(canvasThreadPrefix, channelID, threadTS)
+}
+
 func (id GroupID) IsThread() bool {
 	return strings.HasPrefix(string(id), threadPrefix)
 }
@@ -247,7 +263,7 @@ func (c *Chunk) String() string {
 // and other types of chunks, it returns ErrUnsupChunkType.
 func (c *Chunk) Timestamps() ([]int64, error) {
 	switch c.Type {
-	case CMessages, CThreadMessages:
+	case CMessages, CThreadMessages, CCanvasMessages, CCanvasThreadMessages:
 		return c.messageTimestamps()
 	default:
 		return nil, ErrUnsupChunkType

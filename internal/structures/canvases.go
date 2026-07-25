@@ -20,7 +20,10 @@ import "github.com/rusq/slack"
 // CanvasFileID returns the fileID and true if the channel has a canvas
 // associated with it.
 func CanvasFileID(channel *slack.Channel) (fileID string, ok bool) {
-	if channel.Properties != nil && !channel.Properties.Canvas.IsEmpty {
+	if channel != nil &&
+		channel.Properties != nil &&
+		!channel.Properties.Canvas.IsEmpty &&
+		channel.Properties.Canvas.FileId != "" {
 		return channel.Properties.Canvas.FileId, true
 	}
 	return "", false

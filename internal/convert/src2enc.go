@@ -19,6 +19,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"iter"
 	"log/slog"
 	"slices"
 
@@ -92,6 +93,11 @@ func (s *SourceEncoder) Convert(ctx context.Context) error {
 	}
 	if err := encodeAllChannelMsg(ctx, cp, s.src, channels); err != nil {
 		return fmt.Errorf("messages: %w", err)
+	}
+	if cm, ok := processor.AsCanvasMessenger(cp); ok {
+		if err := encodeAllCanvasMessages(ctx, cp, cm, s.src, channels); err != nil {
+			return fmt.Errorf("canvas messages: %w", err)
+		}
 	}
 	return nil
 }
@@ -233,4 +239,110 @@ func encodeThreadMessages(ctx context.Context, rec processor.Conversations, src 
 	}
 
 	return nil
+}
+
+type canvasSource interface {
+	CanvasMessages(ctx context.Context, hiddenChannelID string) (iter.Seq2[slack.Message, error], error)
+	CanvasThreadMessages(ctx context.Context, hiddenChannelID, threadTS string) (iter.Seq2[slack.Message, error], error)
+}
+
+func encodeAllCanvasMessages(ctx context.Context, rec processor.Conversations, cm processor.CanvasMessenger, src source.Sourcer, channels []slack.Channel) error {
+	cs, ok := src.(canvasSource)
+	if !ok {
+		return nil
+	}
+	for i := range channels {
+		fileID, ok := structures.CanvasFileID(&channels[i])
+		if !ok {
+			continue
+		}
+		hiddenChannelID, ok := structures.CanvasChannelID(fileID)
+		if !ok {
+			continue
+		}
+		if err := encodeCanvasMessages(ctx, rec, cm, cs, &channels[i], hiddenChannelID); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func encodeCanvasMessages(ctx context.Context, rec processor.Conversations, cm processor.CanvasMessenger, src canvasSource, owner *slack.Channel, hiddenChannelID string) error {
+	it, err := src.CanvasMessages(ctx, hiddenChannelID)
+	if err != nil {
+		return err
+	}
+	roots := make([]slack.Message, 0, defaultChunkSize)
+	numThreads := 0
+	flush := func(isLast bool) error {
+		if err := cm.CanvasMessages(ctx, hiddenChannelID, numThreads, isLast, roots); err != nil {
+			return err
+		}
+		roots = make([]slack.Message, 0, defaultChunkSize)
+		numThreads = 0
+		return nil
+	}
+	for root, err := range it {
+		if err != nil {
+			return fmt.Errorf("iterator for canvas %s: %w", hiddenChannelID, err)
+		}
+		if root.ThreadTimestamp == "" {
+			root.ThreadTimestamp = root.Timestamp
+		}
+		roots = append(roots, root)
+		if root.ReplyCount > 0 {
+			found, err := encodeCanvasThreadMessages(ctx, rec, cm, src, owner, hiddenChannelID, &root)
+			if err != nil {
+				return err
+			}
+			if found {
+				numThreads++
+			}
+		}
+		if len(roots) == defaultChunkSize {
+			if err := flush(false); err != nil {
+				return err
+			}
+		}
+		if len(root.Files) > 0 {
+			if err := rec.Files(ctx, owner, root, root.Files); err != nil {
+				return err
+			}
+		}
+	}
+	return flush(true)
+}
+
+func encodeCanvasThreadMessages(ctx context.Context, rec processor.Conversations, cm processor.CanvasMessenger, src canvasSource, owner *slack.Channel, hiddenChannelID string, parent *slack.Message) (bool, error) {
+	it, err := src.CanvasThreadMessages(ctx, hiddenChannelID, parent.ThreadTimestamp)
+	if err != nil {
+		return false, err
+	}
+	messages := make([]slack.Message, 0, defaultChunkSize)
+	found := false
+	for m, err := range it {
+		if err != nil {
+			return false, fmt.Errorf("iterator for canvas %s:%s: %w", hiddenChannelID, parent.ThreadTimestamp, err)
+		}
+		found = true
+		messages = append(messages, m)
+		if len(messages) == defaultChunkSize {
+			if err := cm.CanvasThreadMessages(ctx, hiddenChannelID, *parent, false, messages); err != nil {
+				return false, err
+			}
+			messages = make([]slack.Message, 0, defaultChunkSize)
+		}
+		if len(m.Files) > 0 {
+			if err := rec.Files(ctx, owner, m, m.Files); err != nil {
+				return false, err
+			}
+		}
+	}
+	if !found {
+		return false, nil
+	}
+	if err := cm.CanvasThreadMessages(ctx, hiddenChannelID, *parent, true, messages); err != nil {
+		return false, err
+	}
+	return true, nil
 }

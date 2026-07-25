@@ -621,7 +621,7 @@ func TestNewCanvasThreadSkipper(t *testing.T) {
 		ID:        1,
 		SessionID: sessionID,
 		UnixTS:    time.Now().UnixMilli(),
-		TypeID:    chunk.ChunkType(12),
+		TypeID:    chunk.CCanvasMessages,
 		ChannelID: new(hiddenChannelID),
 		Final:     true,
 	})
@@ -630,7 +630,7 @@ func TestNewCanvasThreadSkipper(t *testing.T) {
 		ID:        2,
 		SessionID: sessionID,
 		UnixTS:    time.Now().UnixMilli(),
-		TypeID:    chunk.ChunkType(13),
+		TypeID:    chunk.CCanvasThreadMessages,
 		ChannelID: new(hiddenChannelID),
 		Final:     true,
 	})

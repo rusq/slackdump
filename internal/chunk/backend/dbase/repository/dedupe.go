@@ -11,21 +11,23 @@ import (
 )
 
 type DedupeCounts struct {
-	Messages     int64
-	Users        int64
-	Channels     int64
-	ChannelUsers int64
-	Files        int64
-	Chunks       int64
+	Messages       int64
+	CanvasMessages int64
+	Users          int64
+	Channels       int64
+	ChannelUsers   int64
+	Files          int64
+	Chunks         int64
 }
 
 type DedupeResult struct {
-	MessagesRemoved     int64
-	UsersRemoved        int64
-	ChannelsRemoved     int64
-	ChannelUsersRemoved int64
-	FilesRemoved        int64
-	ChunksRemoved       int64
+	MessagesRemoved       int64
+	CanvasMessagesRemoved int64
+	UsersRemoved          int64
+	ChannelsRemoved       int64
+	ChannelUsersRemoved   int64
+	FilesRemoved          int64
+	ChunksRemoved         int64
 }
 
 type MessageDedupeMode string
@@ -94,6 +96,13 @@ var dedupeEntities = []dedupeEntity{
 		mode:       dedupeByData,
 	},
 	{
+		name:       "canvas messages",
+		table:      "MESSAGE",
+		keyColumns: []string{"CHANNEL_ID", "ID"},
+		chunkTypes: []chunk.ChunkType{chunk.CCanvasMessages, chunk.CCanvasThreadMessages},
+		mode:       dedupeByData,
+	},
+	{
 		name:       "users",
 		table:      "S_USER",
 		keyColumns: []string{"ID"},
@@ -135,7 +144,7 @@ func (r dedupeRepository) entities() []dedupeEntity {
 	entities := make([]dedupeEntity, len(dedupeEntities))
 	copy(entities, dedupeEntities)
 	for i := range entities {
-		if entities[i].name == "messages" && r.messageMode == MessageDedupeKey {
+		if (entities[i].name == "messages" || entities[i].name == "canvas messages") && r.messageMode == MessageDedupeKey {
 			entities[i].mode = dedupeByKey
 		}
 	}
@@ -197,6 +206,8 @@ func assignCount(counts *DedupeCounts, entityName string, n int64) {
 	switch entityName {
 	case "messages":
 		counts.Messages = n
+	case "canvas messages":
+		counts.CanvasMessages = n
 	case "users":
 		counts.Users = n
 	case "channels":
@@ -212,6 +223,8 @@ func assignRemoved(result *DedupeResult, entityName string, n int64) {
 	switch entityName {
 	case "messages":
 		result.MessagesRemoved = n
+	case "canvas messages":
+		result.CanvasMessagesRemoved = n
 	case "users":
 		result.UsersRemoved = n
 	case "channels":

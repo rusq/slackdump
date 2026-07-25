@@ -145,6 +145,26 @@ func TestDedupeRepository_Preview(t *testing.T) {
 		assert.Equal(t, DedupeCounts{Messages: 1, Chunks: 1}, counts)
 	})
 
+	t.Run("keeps ordinary and canvas message domains separate", func(t *testing.T) {
+		db := testConn(t)
+		ctx := context.Background()
+		repo := NewDedupeRepository()
+
+		insertSessionForTest(t, db, 1, true, nil)
+		insertSessionForTest(t, db, 2, true, new(int64(1)))
+		insertChunkForTest(t, db, 11, 1, chunk.CMessages)
+		insertChunkForTest(t, db, 12, 1, chunk.CCanvasMessages)
+		insertChunkForTest(t, db, 22, 2, chunk.CCanvasThreadMessages)
+		insertMessageWithChunkForTest(t, db, 100, 11, []byte(`{"text":"same"}`))
+		insertMessageWithChunkForTest(t, db, 100, 12, []byte(`{"text":"same"}`))
+		insertMessageWithChunkForTest(t, db, 100, 22, []byte(`{"text":"same"}`))
+
+		counts, err := repo.Preview(ctx, db)
+		require.NoError(t, err)
+		assert.Equal(t, int64(0), counts.Messages)
+		assert.Equal(t, int64(2), counts.CanvasMessages)
+	})
+
 	t.Run("does not count reshared files in different attachment contexts as duplicates", func(t *testing.T) {
 		db := testConn(t)
 		ctx := context.Background()

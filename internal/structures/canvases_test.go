@@ -22,7 +22,7 @@ import (
 	"github.com/rusq/slackdump/v4/internal/structures"
 )
 
-func TestHasCanvas(t *testing.T) {
+func TestCanvasFileID(t *testing.T) {
 	tests := []struct {
 		name string // description of this test case
 		// Named input parameters for target function.
@@ -51,10 +51,21 @@ func TestHasCanvas(t *testing.T) {
 			want:       false,
 		},
 		{
+			name: "non-empty marker without a file ID",
+			channel: &slack.Channel{
+				Properties: &slack.Properties{
+					Canvas: slack.Canvas{IsEmpty: false},
+				},
+			},
+		},
+		{
 			name:       "channel with nil properties",
 			channel:    &slack.Channel{Properties: nil},
 			wantFileID: "",
 			want:       false,
+		},
+		{
+			name: "nil channel",
 		},
 	}
 	for _, tt := range tests {

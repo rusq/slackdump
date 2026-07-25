@@ -532,6 +532,66 @@ func (d *Directory) AllThreadMessages(_ context.Context, channelID, threadID str
 	return append([]slack.Message{*parent}, mm...), nil
 }
 
+// CanvasMessages returns the latest archived row for each canvas discussion root.
+func (d *Directory) CanvasMessages(_ context.Context, hiddenChannelID string) ([]slack.Message, error) {
+	latest := make(map[string]slack.Message)
+	err := d.WalkSync(func(_ string, f *File, err error) error {
+		if err != nil {
+			return err
+		}
+		mm, err := f.CanvasMessages(hiddenChannelID)
+		if err != nil {
+			if errors.Is(err, ErrNotFound) {
+				return nil
+			}
+			return err
+		}
+		for _, m := range mm {
+			latest[m.Timestamp] = m
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	mm := make(structures.Messages, 0, len(latest))
+	for _, m := range latest {
+		mm = append(mm, m)
+	}
+	sort.Sort(mm)
+	return mm, nil
+}
+
+// CanvasThreadMessages returns the latest archived root and replies for a canvas discussion.
+func (d *Directory) CanvasThreadMessages(_ context.Context, hiddenChannelID, threadTS string) ([]slack.Message, error) {
+	latest := make(map[string]slack.Message)
+	err := d.WalkSync(func(_ string, f *File, err error) error {
+		if err != nil {
+			return err
+		}
+		mm, err := f.CanvasThreadMessages(hiddenChannelID, threadTS)
+		if err != nil {
+			if errors.Is(err, ErrNotFound) {
+				return nil
+			}
+			return err
+		}
+		for _, m := range mm {
+			latest[m.Timestamp] = m
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	mm := make(structures.Messages, 0, len(latest))
+	for _, m := range latest {
+		mm = append(mm, m)
+	}
+	sort.Sort(mm)
+	return mm, nil
+}
+
 func (d *Directory) FastAllThreadMessages(channelID, threadID string) ([]slack.Message, error) {
 	// try open the thread file
 	fileID := ToFileID(channelID, threadID, true)

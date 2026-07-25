@@ -113,9 +113,9 @@ type obfuscator struct {
 func (o obfuscator) Chunk(c *chunk.Chunk) {
 	c.ChannelID = o.ChannelID(c.ChannelID)
 	switch c.Type {
-	case chunk.CMessages:
+	case chunk.CMessages, chunk.CCanvasMessages:
 		o.Messages(c.Messages...)
-	case chunk.CThreadMessages:
+	case chunk.CThreadMessages, chunk.CCanvasThreadMessages:
 		o.OneMessage(c.Parent)
 		o.Messages(c.Messages...)
 	case chunk.CFiles:
