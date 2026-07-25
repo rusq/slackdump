@@ -18,6 +18,9 @@ package edge
 import (
 	"context"
 	"fmt"
+	"runtime/trace"
+
+	"github.com/rusq/slackdump/v4/internal/structures"
 )
 
 // CanvasDocumentComment holds the document_comment subfields of a canvas message.
@@ -53,10 +56,8 @@ type canvasHistoryResponse struct {
 // canvasChannelFromFileID derives the dedicated canvas channel ID from a file ID.
 // Valid canvas channels reuse the file suffix with a leading C instead of F.
 func canvasChannelFromFileID(fileID string) string {
-	if len(fileID) < 2 || fileID[0] != 'F' {
-		return ""
-	}
-	return "C" + fileID[1:]
+	cid, _ := structures.CanvasChannelID(fileID)
+	return cid
 }
 
 func (cl *Client) conversationsHistoryForCanvas(ctx context.Context, channelID string) ([]canvasHistoryMessage, error) {
@@ -101,6 +102,9 @@ func (cl *Client) conversationsHistoryForCanvas(ctx context.Context, channelID s
 // CanvasThreadRoots returns the root messages for all comment threads on a
 // canvas file. fileID is the Slack file ID, for example F06R4HA3ZS8.
 func (cl *Client) CanvasThreadRoots(ctx context.Context, fileID string) ([]CanvasMessage, error) {
+	ctx, task := trace.NewTask(ctx, "CanvasThreadRoots")
+	defer task.End()
+
 	canvasChannelID := canvasChannelFromFileID(fileID)
 	if canvasChannelID == "" {
 		return nil, fmt.Errorf("canvas: invalid file ID %q", fileID)

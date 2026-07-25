@@ -24,6 +24,7 @@ import (
 
 	"github.com/rusq/slack"
 
+	"github.com/rusq/slackdump/v4/internal/structures"
 	"github.com/rusq/slackdump/v4/processor"
 )
 
@@ -46,9 +47,10 @@ func (cs *Stream) channelWorker(ctx context.Context, proc processor.Conversation
 				continue
 			}
 
-			// get the channel canvas
-			if channel.Properties != nil && !channel.Properties.Canvas.IsEmpty {
-				if err := cs.canvas(ctx, proc, channel, channel.Properties.Canvas.FileId); err != nil {
+			// Check for the channel canvas.
+			if fileID, ok := structures.CanvasFileID(channel); ok {
+				// get the channel canvas
+				if err := cs.canvas(ctx, proc, channel, fileID); err != nil {
 					// ignore canvas errors
 					slog.Warn("canvas error", "err", err)
 				}
