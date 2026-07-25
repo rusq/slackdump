@@ -25,7 +25,7 @@ import (
 
 // Conversations is the interface for conversation fetching with files.
 //
-//go:generate mockgen -destination ../mocks/mock_processor/mock_processor.go github.com/rusq/slackdump/v4/processor Conversations,Users,Channels,ChannelInformer,Filer,WorkspaceInfo,MessageSearcher,FileSearcher,Searcher,Avatars
+//go:generate mockgen -destination ../mocks/mock_processor/mock_processor.go github.com/rusq/slackdump/v4/processor Conversations,CanvasMessenger,Users,Channels,ChannelInformer,Filer,WorkspaceInfo,MessageSearcher,FileSearcher,Searcher,Avatars
 type Conversations interface {
 	Messenger
 	Filer
@@ -49,6 +49,32 @@ type Messenger interface {
 	// ThreadMessages method is called for each of the thread messages that are
 	// retrieved. The parent message is passed in as well.
 	ThreadMessages(ctx context.Context, channelID string, parent slack.Message, threadOnly, isLast bool, replies []slack.Message) error
+}
+
+// CanvasMessenger is the optional processor capability for channel-canvas
+// discussion messages. channelID is the hidden channel associated with the
+// canvas file.
+type CanvasMessenger interface {
+	CanvasMessages(ctx context.Context, channelID string, numThreads int, isLast bool, messages []slack.Message) error
+	CanvasThreadMessages(ctx context.Context, channelID string, parent slack.Message, isLast bool, replies []slack.Message) error
+}
+
+type canvasMessengerProvider interface {
+	canvasMessenger() (CanvasMessenger, bool)
+}
+
+// AsCanvasMessenger returns the optional canvas-message capability exposed by
+// c. It preserves capability detection through conversation wrappers.
+func AsCanvasMessenger(c Conversations) (CanvasMessenger, bool) {
+	return asCanvasMessenger(c)
+}
+
+func asCanvasMessenger(v any) (CanvasMessenger, bool) {
+	if p, ok := v.(canvasMessengerProvider); ok {
+		return p.canvasMessenger()
+	}
+	cm, ok := v.(CanvasMessenger)
+	return cm, ok
 }
 
 type Filer interface {
@@ -202,6 +228,43 @@ type JointConversations struct {
 	aff []Filer
 }
 
+func (w *JointConversations) canvasMessenger() (CanvasMessenger, bool) {
+	for _, p := range w.bci {
+		if _, ok := asCanvasMessenger(p); ok {
+			return w, true
+		}
+	}
+	for _, m := range w.bmm {
+		if _, ok := asCanvasMessenger(m); ok {
+			return w, true
+		}
+	}
+	for _, p := range w.bff {
+		if _, ok := asCanvasMessenger(p); ok {
+			return w, true
+		}
+	}
+	if _, ok := asCanvasMessenger(w.c); ok {
+		return w, true
+	}
+	for _, p := range w.aci {
+		if _, ok := asCanvasMessenger(p); ok {
+			return w, true
+		}
+	}
+	for _, m := range w.amm {
+		if _, ok := asCanvasMessenger(m); ok {
+			return w, true
+		}
+	}
+	for _, p := range w.aff {
+		if _, ok := asCanvasMessenger(p); ok {
+			return w, true
+		}
+	}
+	return nil, false
+}
+
 // PrependChannelInformer prepends the ChannelInformer to the Conversations.
 func PrependChannelInformer(c Conversations, ci ...ChannelInformer) Conversations {
 	return &JointConversations{c: c, bci: ci}
@@ -328,6 +391,88 @@ func (w *JointConversations) ThreadMessages(ctx context.Context, channelID strin
 	for _, m := range w.amm {
 		if err := m.ThreadMessages(ctx, channelID, parent, threadOnly, isLast, replies); err != nil {
 			errs = errors.Join(errs, err)
+		}
+	}
+	return errs
+}
+
+// CanvasMessages executes the canvas-capable prepended message processors,
+// forwards the call to the core processor when supported, and then executes
+// the canvas-capable appended processors.
+func (w *JointConversations) CanvasMessages(ctx context.Context, channelID string, numThreads int, isLast bool, messages []slack.Message) error {
+	var errs error
+	for _, p := range w.bci {
+		if cm, ok := asCanvasMessenger(p); ok {
+			errs = errors.Join(errs, cm.CanvasMessages(ctx, channelID, numThreads, isLast, messages))
+		}
+	}
+	for _, m := range w.bmm {
+		if cm, ok := asCanvasMessenger(m); ok {
+			errs = errors.Join(errs, cm.CanvasMessages(ctx, channelID, numThreads, isLast, messages))
+		}
+	}
+	for _, p := range w.bff {
+		if cm, ok := asCanvasMessenger(p); ok {
+			errs = errors.Join(errs, cm.CanvasMessages(ctx, channelID, numThreads, isLast, messages))
+		}
+	}
+	if cm, ok := asCanvasMessenger(w.c); ok {
+		errs = errors.Join(errs, cm.CanvasMessages(ctx, channelID, numThreads, isLast, messages))
+	}
+	for _, p := range w.aci {
+		if cm, ok := asCanvasMessenger(p); ok {
+			errs = errors.Join(errs, cm.CanvasMessages(ctx, channelID, numThreads, isLast, messages))
+		}
+	}
+	for _, m := range w.amm {
+		if cm, ok := asCanvasMessenger(m); ok {
+			errs = errors.Join(errs, cm.CanvasMessages(ctx, channelID, numThreads, isLast, messages))
+		}
+	}
+	for _, p := range w.aff {
+		if cm, ok := asCanvasMessenger(p); ok {
+			errs = errors.Join(errs, cm.CanvasMessages(ctx, channelID, numThreads, isLast, messages))
+		}
+	}
+	return errs
+}
+
+// CanvasThreadMessages executes the canvas-capable prepended message
+// processors, forwards the call to the core processor when supported, and
+// then executes the canvas-capable appended processors.
+func (w *JointConversations) CanvasThreadMessages(ctx context.Context, channelID string, parent slack.Message, isLast bool, replies []slack.Message) error {
+	var errs error
+	for _, p := range w.bci {
+		if cm, ok := asCanvasMessenger(p); ok {
+			errs = errors.Join(errs, cm.CanvasThreadMessages(ctx, channelID, parent, isLast, replies))
+		}
+	}
+	for _, m := range w.bmm {
+		if cm, ok := asCanvasMessenger(m); ok {
+			errs = errors.Join(errs, cm.CanvasThreadMessages(ctx, channelID, parent, isLast, replies))
+		}
+	}
+	for _, p := range w.bff {
+		if cm, ok := asCanvasMessenger(p); ok {
+			errs = errors.Join(errs, cm.CanvasThreadMessages(ctx, channelID, parent, isLast, replies))
+		}
+	}
+	if cm, ok := asCanvasMessenger(w.c); ok {
+		errs = errors.Join(errs, cm.CanvasThreadMessages(ctx, channelID, parent, isLast, replies))
+	}
+	for _, p := range w.aci {
+		if cm, ok := asCanvasMessenger(p); ok {
+			errs = errors.Join(errs, cm.CanvasThreadMessages(ctx, channelID, parent, isLast, replies))
+		}
+	}
+	for _, m := range w.amm {
+		if cm, ok := asCanvasMessenger(m); ok {
+			errs = errors.Join(errs, cm.CanvasThreadMessages(ctx, channelID, parent, isLast, replies))
+		}
+	}
+	for _, p := range w.aff {
+		if cm, ok := asCanvasMessenger(p); ok {
+			errs = errors.Join(errs, cm.CanvasThreadMessages(ctx, channelID, parent, isLast, replies))
 		}
 	}
 	return errs

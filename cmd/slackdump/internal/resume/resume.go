@@ -206,7 +206,11 @@ func runResume(ctx context.Context, cmd *base.Command, args []string) error {
 	// which is already in the database.
 	streamOpts := []stream.Option{stream.OptInclusive(false)}
 	if resumeFlags.SkipCompleteThreads {
-		streamOpts = append(streamOpts, stream.OptSkipThreadFunc(dbase.NewThreadSkipper(wconn)))
+		streamOpts = append(
+			streamOpts,
+			stream.OptSkipThreadFunc(dbase.NewThreadSkipper(wconn)),
+			stream.OptSkipCanvasThreadFunc(dbase.NewCanvasThreadSkipper(wconn)),
+		)
 	}
 	ctrl, err := archive.DBController(
 		ctx,

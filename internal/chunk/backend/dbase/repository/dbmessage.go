@@ -140,6 +140,9 @@ type MessageRepository interface {
 	AllForID(ctx context.Context, conn sqlx.QueryerContext, channelID string) (iter.Seq2[DBMessage, error], error)
 	// CountThread returns the number of messages in a thread.
 	CountThread(ctx context.Context, conn sqlx.QueryerContext, channelID, threadID string) (int64, error)
+	// CountCanvasThread returns the number of latest canvas root and reply
+	// messages in a hidden canvas channel.
+	CountCanvasThread(ctx context.Context, conn sqlx.QueryerContext, channelID, threadID string) (int64, error)
 	// AllForThread returns all messages in a thread, including parent message.
 	AllForThread(ctx context.Context, conn sqlx.QueryerContext, channelID, threadID string) (iter.Seq2[DBMessage, error], error)
 	// Sorted returns all thread and channel messages in ascending or descending
@@ -210,6 +213,28 @@ func (r messageRepository) CountThread(ctx context.Context, conn sqlx.QueryerCon
 		return 0, fmt.Errorf("countThread fasttime: %w", err)
 	}
 	return r.countTypeWhere(ctx, conn, queryParams{Where: r.threadCond(), Binds: []any{channelID, parentID}}, chunk.CMessages, chunk.CThreadMessages)
+}
+
+const (
+	canvasMessagesChunkType       chunk.ChunkType = 12
+	canvasThreadMessagesChunkType chunk.ChunkType = 13
+)
+
+func (r messageRepository) CountCanvasThread(ctx context.Context, conn sqlx.QueryerContext, channelID, threadID string) (int64, error) {
+	parentID, err := fasttime.TS2int(threadID)
+	if err != nil {
+		return 0, fmt.Errorf("countCanvasThread fasttime: %w", err)
+	}
+	return r.countTypeWhere(
+		ctx,
+		conn,
+		queryParams{
+			Where: "T.CHANNEL_ID = ? AND T.PARENT_ID = ?",
+			Binds: []any{channelID, parentID},
+		},
+		canvasMessagesChunkType,
+		canvasThreadMessagesChunkType,
+	)
 }
 
 func (r messageRepository) AllForThread(ctx context.Context, conn sqlx.QueryerContext, channelID, threadID string) (iter.Seq2[DBMessage, error], error) {

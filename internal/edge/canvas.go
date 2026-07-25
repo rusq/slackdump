@@ -115,7 +115,7 @@ func (cl *Client) CanvasThreadRoots(ctx context.Context, fileID string) ([]Canva
 	}
 	roots := make([]CanvasMessage, 0, len(msgs))
 	for _, msg := range msgs {
-		if msg.SubType != "document_comment_root" {
+		if msg.SubType != structures.SubTypeDocumentCommentRoot {
 			continue
 		}
 		threadTS := msg.ThreadTS

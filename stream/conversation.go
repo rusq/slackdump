@@ -170,13 +170,52 @@ func processLink(channels chan<- request, threads chan<- request, link structure
 }
 
 type request struct {
-	sl *structures.SlackLink
+	sl   *structures.SlackLink
+	kind requestKind
 	// threadOnly indicates that this is the thread directly requested by the
 	// user, and not a thread that was found in the channel.
 	threadOnly bool
 	parent     *slack.Message
+	canvas     *canvasRequest
 	Oldest     time.Time
 	Latest     time.Time
+}
+
+type requestKind uint8
+
+const (
+	requestOrdinary requestKind = iota
+	requestCanvas
+)
+
+type canvasRequest struct {
+	owner  *slack.Channel
+	fileID string
+}
+
+type apiError struct {
+	op  string
+	err error
+}
+
+func (e *apiError) Error() string {
+	return fmt.Sprintf("%s: %v", e.op, e.err)
+}
+
+func (e *apiError) Unwrap() error {
+	return e.err
+}
+
+func newAPIError(op string, err error) error {
+	if err == nil {
+		return nil
+	}
+	return &apiError{op: op, err: err}
+}
+
+func isAPIError(err error) bool {
+	var ae *apiError
+	return errors.As(err, &ae)
 }
 
 // channel fetches the channel data as defined in req, calling callback function for each API response.
@@ -201,11 +240,18 @@ func (cs *Stream) channel(ctx context.Context, req request, callback func(mm []s
 			})
 			return apiErr
 		}); err != nil {
+			if req.kind == requestCanvas {
+				return newAPIError("conversations.history", err)
+			}
 			return err
 		}
 		if !resp.Ok {
 			trace.Logf(ctx, "error", "not ok, api error=%s", resp.Error)
-			return fmt.Errorf("response not ok, slack error: %s", resp.Error)
+			err := fmt.Errorf("response not ok, slack error: %s", resp.Error)
+			if req.kind == requestCanvas {
+				return newAPIError("conversations.history", err)
+			}
+			return err
 		}
 
 		r := trace.StartRegion(ctx, "channel_callback")
@@ -274,10 +320,16 @@ func (cs *Stream) thread(ctx context.Context, req request, callback func(mm []sl
 			return apiErr
 		}); err != nil {
 			if errors.Is(err, errThreadNotFound) {
+				if req.kind == requestCanvas {
+					return newAPIError("conversations.replies", err)
+				}
 				// isNonCriticalErr mapped the API error to this sentinel;
 				// deliver a parent-only final chunk.
 				lg.Warn("skipping non-existing thread")
 				return callback(parentOnlyThreadMessages(req), true)
+			}
+			if req.kind == requestCanvas {
+				return newAPIError("conversations.replies", err)
 			}
 			return err
 		}

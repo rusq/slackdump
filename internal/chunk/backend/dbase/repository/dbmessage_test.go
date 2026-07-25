@@ -25,6 +25,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/rusq/slack"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/rusq/slackdump/v4/internal/chunk"
 	"github.com/rusq/slackdump/v4/internal/fixtures"
@@ -498,6 +499,52 @@ func Test_messageRepository_CountThread(t *testing.T) {
 			}
 		})
 	}
+}
+
+func Test_messageRepository_CountCanvasThread(t *testing.T) {
+	t.Run("counts latest canvas root and replies only", func(t *testing.T) {
+		conn := testConn(t)
+		const hiddenChannelID = "CCANVAS"
+		const threadTS = "123.456"
+		prepChunkWithFinal(
+			testChunk{typeID: canvasMessagesChunkType, channelID: hiddenChannelID, final: true},
+			testChunk{typeID: canvasThreadMessagesChunkType, channelID: hiddenChannelID, final: true},
+			testChunk{typeID: canvasThreadMessagesChunkType, channelID: hiddenChannelID, final: true},
+			testChunk{typeID: chunk.CThreadMessages, channelID: hiddenChannelID, final: true},
+		)(t, conn)
+
+		root := slack.Message{Msg: slack.Msg{
+			Timestamp:       threadTS,
+			ThreadTimestamp: threadTS,
+			ReplyCount:      1,
+		}}
+		reply := slack.Message{Msg: slack.Msg{
+			Timestamp:       "124.000",
+			ThreadTimestamp: threadTS,
+			Text:            "old",
+		}}
+		updatedReply := reply
+		updatedReply.Text = "updated"
+
+		mr := NewMessageRepository()
+		require.NoError(t, mr.Insert(t.Context(), conn,
+			must(NewDBMessage(1, 0, hiddenChannelID, &root)),
+			must(NewDBMessage(2, 0, hiddenChannelID, &root)),
+			must(NewDBMessage(2, 1, hiddenChannelID, &reply)),
+			must(NewDBMessage(3, 0, hiddenChannelID, &updatedReply)),
+			must(NewDBMessage(4, 0, hiddenChannelID, &reply)),
+		))
+
+		got, err := mr.CountCanvasThread(t.Context(), conn, hiddenChannelID, threadTS)
+		require.NoError(t, err)
+		assert.Equal(t, int64(2), got)
+	})
+
+	t.Run("invalid thread timestamp", func(t *testing.T) {
+		got, err := NewMessageRepository().CountCanvasThread(t.Context(), testConn(t), "CCANVAS", "invalid")
+		assert.Zero(t, got)
+		assert.Error(t, err)
+	})
 }
 
 var (

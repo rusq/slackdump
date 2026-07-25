@@ -17,6 +17,7 @@ package chunk
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -44,7 +45,7 @@ const (
 	CSearchFiles
 )
 
-var ErrUnsupChunkType = fmt.Errorf("unsupported chunk type")
+var ErrUnsupChunkType = errors.New("unsupported chunk type")
 
 // Chunk is a representation of a single chunk of data retrieved from the API.
 // A single API call always produces a single Chunk.

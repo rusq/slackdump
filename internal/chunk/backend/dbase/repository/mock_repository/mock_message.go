@@ -104,6 +104,21 @@ func (mr *MockMessageRepositoryMockRecorder) Count(ctx, conn, channelID any) *go
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Count", reflect.TypeOf((*MockMessageRepository)(nil).Count), ctx, conn, channelID)
 }
 
+// CountCanvasThread mocks base method.
+func (m *MockMessageRepository) CountCanvasThread(ctx context.Context, conn sqlx.QueryerContext, channelID, threadID string) (int64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CountCanvasThread", ctx, conn, channelID, threadID)
+	ret0, _ := ret[0].(int64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CountCanvasThread indicates an expected call of CountCanvasThread.
+func (mr *MockMessageRepositoryMockRecorder) CountCanvasThread(ctx, conn, channelID, threadID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CountCanvasThread", reflect.TypeOf((*MockMessageRepository)(nil).CountCanvasThread), ctx, conn, channelID, threadID)
+}
+
 // CountThread mocks base method.
 func (m *MockMessageRepository) CountThread(ctx context.Context, conn sqlx.QueryerContext, channelID, threadID string) (int64, error) {
 	m.ctrl.T.Helper()
