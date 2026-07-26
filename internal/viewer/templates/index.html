@@ -133,16 +133,27 @@
 
 {{ define "tab_list" }}
 <div class="tab-list" role="tablist" aria-label="Channel views">
-    <button {{ if .Interactive }}hx-get="{{ channelurl .Conversation.ID }}"
-        hx-target="#conversation" hx-swap="innerHTML"{{ end }}
+    {{ if .Interactive }}
+    <button hx-get="{{ channelurl .Conversation.ID }}"
+        hx-target="#conversation" hx-swap="innerHTML"
         class="tab{{ if not .CanvasActive }} selected{{ end }}"
         role="tab"
         tabindex="{{ if not .CanvasActive }}0{{ else }}-1{{ end }}"
         aria-selected="{{ if not .CanvasActive }}true{{ else }}false{{ end }}"
         aria-controls="tab-panel-conversation"
         id="tab-btn-conversation">Conversation</button>
-    <button {{ if .Interactive }}hx-get="{{ canvasurl .Conversation.ID }}"
-        hx-target="#conversation" hx-swap="innerHTML"{{ end }}
+    {{ else }}
+    <a href="{{ channelurl .Conversation.ID }}"
+        class="tab{{ if not .CanvasActive }} selected{{ end }}"
+        role="tab"
+        tabindex="0"
+        aria-selected="{{ if not .CanvasActive }}true{{ else }}false{{ end }}"
+        aria-controls="tab-panel-conversation"
+        id="tab-btn-conversation">Conversation</a>
+    {{ end }}
+    {{ if .Interactive }}
+    <button hx-get="{{ canvasurl .Conversation.ID }}"
+        hx-target="#conversation" hx-swap="innerHTML"
         class="tab{{ if .CanvasActive }} selected{{ end }}{{ if not .CanvasAvailable }} disabled{{ end }}"
         role="tab"
         tabindex="{{ if .CanvasActive }}0{{ else }}-1{{ end }}"
@@ -150,6 +161,23 @@
         aria-controls="tab-panel-canvas"
         id="tab-btn-canvas"
         {{ if not .CanvasAvailable }}disabled{{ end }}>Canvas</button>
+    {{ else if .CanvasAvailable }}
+    <a href="{{ canvasurl .Conversation.ID }}"
+        class="tab{{ if .CanvasActive }} selected{{ end }}"
+        role="tab"
+        tabindex="0"
+        aria-selected="{{ if .CanvasActive }}true{{ else }}false{{ end }}"
+        aria-controls="tab-panel-canvas"
+        id="tab-btn-canvas">Canvas</a>
+    {{ else }}
+    <span class="tab disabled"
+        role="tab"
+        tabindex="-1"
+        aria-selected="false"
+        aria-disabled="true"
+        aria-controls="tab-panel-canvas"
+        id="tab-btn-canvas">Canvas</span>
+    {{ end }}
 </div>
 {{ end }}
 

@@ -126,6 +126,10 @@ func TestHTMLConverter_Convert(t *testing.T) {
 		if !strings.Contains(channelBody, `href="../../archives/C1/threads/1710000000.000001.html"`) {
 			t.Fatalf("channel page should rewrite thread links relatively: %q", channelBody)
 		}
+		if !strings.Contains(channelBody, `href="../../archives/C1/canvas/index.html"`) ||
+			!strings.Contains(channelBody, `id="tab-btn-canvas">Canvas</a>`) {
+			t.Fatalf("channel page should link the static canvas tab: %q", channelBody)
+		}
 
 		indexBody := readFile(t, outDir, "index.html")
 		if !strings.Contains(indexBody, `href="archives/C1/index.html"`) {
@@ -146,6 +150,10 @@ func TestHTMLConverter_Convert(t *testing.T) {
 		canvasPage := readFile(t, outDir, "archives/C1/canvas/index.html")
 		if !strings.Contains(canvasPage, `src="../../../archives/C1/canvas/content.html"`) {
 			t.Fatalf("canvas page should link to local canvas content relatively: %q", canvasPage)
+		}
+		if !strings.Contains(canvasPage, `href="../../../archives/C1/index.html"`) ||
+			!strings.Contains(canvasPage, `id="tab-btn-conversation">Conversation</a>`) {
+			t.Fatalf("canvas page should link back to the static conversation: %q", canvasPage)
 		}
 
 		canvasBody := readFile(t, outDir, "archives/C1/canvas/content.html")
