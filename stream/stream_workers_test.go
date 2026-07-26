@@ -26,6 +26,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 
+	"github.com/rusq/slackdump/v4/internal/client"
 	"github.com/rusq/slackdump/v4/internal/client/mock_client"
 	"github.com/rusq/slackdump/v4/internal/fixtures"
 	"github.com/rusq/slackdump/v4/internal/network"
@@ -37,6 +38,23 @@ import (
 type canvasConversations struct {
 	processor.Conversations
 	processor.CanvasMessenger
+}
+
+type canvasSlack struct {
+	client.Slack
+	supported bool
+	roots     []slack.Message
+	err       error
+	calls     int
+}
+
+func (c *canvasSlack) CanvasSupported() bool {
+	return c.supported
+}
+
+func (c *canvasSlack) CanvasThreadRoots(context.Context, string) ([]slack.Message, error) {
+	c.calls++
+	return c.roots, c.err
 }
 
 func TestStream_channelWorker(t *testing.T) {
@@ -59,12 +77,6 @@ func TestStream_channelWorker(t *testing.T) {
 		Return(nil, "", nil)
 	mc.EXPECT().ChannelInfo(gomock.Any(), owner, "").Return(nil)
 	mc.EXPECT().ChannelUsers(gomock.Any(), "COWNER", "", []string(nil)).Return(nil)
-	ms.EXPECT().
-		GetFileInfoContext(gomock.Any(), "FCANVAS", 0, 1).
-		Return(&slack.File{ID: "FCANVAS"}, nil, nil, nil)
-	mc.EXPECT().
-		Files(gomock.Any(), owner, slack.Message{}, []slack.File{{ID: "FCANVAS"}}).
-		Return(nil)
 	ms.EXPECT().
 		GetConversationHistoryContext(gomock.Any(), gomock.Any()).
 		DoAndReturn(func(_ context.Context, params *slack.GetConversationHistoryParameters) (*slack.GetConversationHistoryResponse, error) {
@@ -236,33 +248,13 @@ func TestStream_canvasDiscussions(t *testing.T) {
 		ReplyCount: 2,
 		Files:      []slack.File{{ID: "FATTACH"}},
 	}}
-	ignored := slack.Message{Msg: slack.Msg{SubType: "message", Timestamp: "151.000001"}}
-	call := 0
-	ms.EXPECT().
-		GetConversationHistoryContext(gomock.Any(), gomock.Any()).
-		DoAndReturn(func(_ context.Context, params *slack.GetConversationHistoryParameters) (*slack.GetConversationHistoryResponse, error) {
-			assert.Equal(t, "CCANVAS", params.ChannelID)
-			assert.Equal(t, structures.FormatSlackTS(oldest), params.Oldest)
-			assert.Equal(t, structures.FormatSlackTS(latest), params.Latest)
-			assert.True(t, params.Inclusive)
-			call++
-			if call == 1 {
-				assert.Empty(t, params.Cursor)
-				resp := &slack.GetConversationHistoryResponse{
-					SlackResponse: slack.SlackResponse{Ok: true},
-					Messages:      []slack.Message{root, ignored},
-					HasMore:       true,
-				}
-				resp.ResponseMetaData.NextCursor = "next"
-				return resp, nil
-			}
-			assert.Equal(t, "next", params.Cursor)
-			return &slack.GetConversationHistoryResponse{
-				SlackResponse: slack.SlackResponse{Ok: true},
-				Messages:      []slack.Message{ignored},
-			}, nil
-		}).
-		Times(2)
+	before := slack.Message{Msg: slack.Msg{SubType: structures.SubTypeDocumentCommentRoot, Timestamp: "99.999999"}}
+	after := slack.Message{Msg: slack.Msg{SubType: structures.SubTypeDocumentCommentRoot, Timestamp: "200.000001"}}
+	canvasClient := &canvasSlack{
+		Slack:     ms,
+		supported: true,
+		roots:     []slack.Message{before, root, after},
+	}
 	mc.EXPECT().
 		Files(gomock.Any(), owner, gomock.Any(), []slack.File{{ID: "FATTACH"}}).
 		DoAndReturn(func(_ context.Context, _ *slack.Channel, parent slack.Message, _ []slack.File) error {
@@ -270,23 +262,21 @@ func TestStream_canvasDiscussions(t *testing.T) {
 			return nil
 		})
 	cm.EXPECT().
-		CanvasMessages(gomock.Any(), "CCANVAS", 1, false, gomock.Any()).
+		CanvasMessages(gomock.Any(), "CCANVAS", 1, true, gomock.Any()).
 		DoAndReturn(func(_ context.Context, _ string, _ int, _ bool, messages []slack.Message) error {
 			require.Len(t, messages, 1)
 			assert.Equal(t, messages[0].Timestamp, messages[0].ThreadTimestamp)
 			return nil
 		})
-	cm.EXPECT().
-		CanvasMessages(gomock.Any(), "CCANVAS", 0, true, []slack.Message{}).
-		Return(nil)
 
-	cs := New(ms, network.NoLimits)
+	cs := New(canvasClient, network.NoLimits)
 	threadC := make(chan request, 1)
 	err := cs.canvasDiscussions(t.Context(), mc, cm, threadC, request{
 		Oldest: oldest,
 		Latest: latest,
 	}, owner, "FCANVAS")
 	require.NoError(t, err)
+	assert.Equal(t, 1, canvasClient.calls)
 	require.Len(t, threadC, 1)
 	req := <-threadC
 	assert.Equal(t, requestCanvas, req.kind)
@@ -296,6 +286,32 @@ func TestStream_canvasDiscussions(t *testing.T) {
 	assert.Equal(t, latest, req.Latest)
 	assert.Same(t, owner, req.canvas.owner)
 	assert.Equal(t, "FCANVAS", req.canvas.fileID)
+
+	unsupported := New(&canvasSlack{Slack: ms}, network.NoLimits)
+	err = unsupported.canvasDiscussions(t.Context(), mc, cm, threadC, request{}, owner, "FCANVAS")
+	require.ErrorIs(t, err, client.ErrOpNotSupported)
+}
+
+func TestStream_filterCanvasRoots(t *testing.T) {
+	messages := []slack.Message{
+		{Msg: slack.Msg{Timestamp: "100.000000"}},
+		{Msg: slack.Msg{Timestamp: "150.000000"}},
+		{Msg: slack.Msg{Timestamp: "200.000000"}},
+	}
+	req := request{Oldest: time.Unix(100, 0), Latest: time.Unix(200, 0)}
+
+	inclusive := &Stream{inclusive: true}
+	got, err := inclusive.filterCanvasRoots(messages, req)
+	require.NoError(t, err)
+	assert.Equal(t, messages, got)
+
+	exclusive := &Stream{}
+	got, err = exclusive.filterCanvasRoots(messages, req)
+	require.NoError(t, err)
+	assert.Equal(t, messages[1:2], got)
+
+	_, err = inclusive.filterCanvasRoots([]slack.Message{{Msg: slack.Msg{Timestamp: "invalid"}}}, req)
+	require.Error(t, err)
 }
 
 func TestStream_procCanvasMsg(t *testing.T) {

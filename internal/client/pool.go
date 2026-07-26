@@ -122,3 +122,34 @@ func (p *Pool) GetUserInfoContext(ctx context.Context, user string) (*slack.User
 func (w *Pool) GetUserProfileContext(ctx context.Context, params *slack.GetUserProfileParameters) (*slack.UserProfile, error) {
 	return w.next().GetUserProfileContext(ctx, params)
 }
+
+// CanvasSupported reports whether the pool contains an xoxc-backed,
+// canvas-capable client.
+func (p *Pool) CanvasSupported() bool {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	for _, cl := range p.pool {
+		if cc, ok := cl.(interface {
+			CanvasSupported() bool
+			CanvasThreadRoots(context.Context, string) ([]slack.Message, error)
+		}); ok && cc.CanvasSupported() {
+			return true
+		}
+	}
+	return false
+}
+
+// CanvasThreadRoots delegates to the next canvas-capable client in the pool.
+func (p *Pool) CanvasThreadRoots(ctx context.Context, fileID string) ([]slack.Message, error) {
+	for range len(p.pool) {
+		cl := p.next()
+		cc, ok := cl.(interface {
+			CanvasSupported() bool
+			CanvasThreadRoots(context.Context, string) ([]slack.Message, error)
+		})
+		if ok && cc.CanvasSupported() {
+			return cc.CanvasThreadRoots(ctx, fileID)
+		}
+	}
+	return nil, ErrOpNotSupported
+}

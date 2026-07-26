@@ -17,6 +17,7 @@ package edge
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -24,9 +25,12 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/rusq/slack"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/encoding/protowire"
+
+	"github.com/rusq/slackdump/v4/internal/structures"
 )
 
 func TestCanvasChannelFromFileID(t *testing.T) {
@@ -228,6 +232,25 @@ func Test_canvasRootMessage(t *testing.T) {
 		assert.Equal(t, threadID, got.DocumentComment.ThreadID)
 	})
 
+	t.Run("keeps diagnostic JSON schema unchanged", func(t *testing.T) {
+		got, err := canvasRootMessage(metadata, rootTS, []canvasAPIMessage{{
+			TS:      rootTS,
+			SubType: structures.SubTypeDocumentCommentRoot,
+			Message: slack.Message{Msg: slack.Msg{
+				Timestamp: rootTS,
+				User:      "U123",
+				Files:     []slack.File{{ID: "F123"}},
+			}},
+		}})
+		require.NoError(t, err)
+		data, err := json.Marshal(got)
+		require.NoError(t, err)
+		assert.NotContains(t, string(data), "U123")
+		assert.NotContains(t, string(data), "F123")
+		assert.Equal(t, "U123", got.Message.User)
+		assert.Equal(t, "F123", got.Message.Files[0].ID)
+	})
+
 	t.Run("rejects mismatched thread", func(t *testing.T) {
 		_, err := canvasRootMessage(metadata, rootTS, []canvasAPIMessage{{
 			TS:      rootTS,
@@ -307,7 +330,7 @@ func TestClient_CanvasThreadRoots(t *testing.T) {
 					))
 				case repliedRootTS:
 					_, _ = io.WriteString(w, fmt.Sprintf(
-						`{"ok":true,"messages":[{"ts":%q,"subtype":"document_comment_root","text":"Check list","reply_count":2,"document_comment":{"thread_id":%q,"authors":["UHSD97ZA5"]}}]}`,
+						`{"ok":true,"messages":[{"ts":%q,"subtype":"document_comment_root","user":"UHSD97ZA5","text":"Check list","reply_count":2,"files":[{"id":"FATTACH"}],"blocks":[{"type":"section","block_id":"B1"}],"document_comment":{"thread_id":%q,"authors":["UHSD97ZA5"]}}]}`,
 						repliedRootTS,
 						repliedThread,
 					))
@@ -340,6 +363,13 @@ func TestClient_CanvasThreadRoots(t *testing.T) {
 		assert.Equal(t, repliedRootTS, got[0].ThreadTS)
 		assert.Equal(t, "Check list", got[0].Text)
 		assert.Equal(t, repliedThread, got[0].DocumentComment.ThreadID)
+		assert.Equal(t, "UHSD97ZA5", got[0].Message.User)
+		assert.Equal(t, structures.SubTypeDocumentCommentRoot, got[0].Message.SubType)
+		assert.Equal(t, repliedRootTS, got[0].Message.Timestamp)
+		assert.Equal(t, repliedRootTS, got[0].Message.ThreadTimestamp)
+		require.Len(t, got[0].Message.Files, 1)
+		assert.Equal(t, "FATTACH", got[0].Message.Files[0].ID)
+		require.Len(t, got[0].Message.Blocks.BlockSet, 1)
 		assert.Equal(t, zeroRootTS, got[1].TS)
 		assert.Equal(t, zeroRootTS, got[1].ThreadTS)
 	})

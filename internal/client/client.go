@@ -50,19 +50,19 @@ type Slack interface {
 	GetUserProfileContext(ctx context.Context, params *slack.GetUserProfileParameters) (*slack.UserProfile, error)
 }
 
-// ErrOpNotSupported is returned by edge-only methods when the Client was not
-// initialised with an edge (enterprise) connection.
+// ErrOpNotSupported is returned when a client lacks an optional Edge or
+// canvas capability.
 var ErrOpNotSupported = errors.New("client doesn't support this operation")
 
 var _ Slack = (*Client)(nil)
 
-// Client wraps *slack.Client and, optionally, *edge.Client.  The edge client
-// is only present for enterprise workspaces.  All Slack interface methods are
-// promoted from the embedded *slack.Client; edge-aware methods override them
-// when c.edge is set.
+// Client wraps *slack.Client and, for xoxc sessions, a canvas-capable web
+// client. Enterprise workspaces also use that web client for conversation
+// overrides exposed through Edge.
 type Client struct {
 	*slack.Client              // always set; promotes all Slack API methods
 	edge          *edge.Client // nil for non-enterprise workspaces
+	canvas        *edge.Client // nil unless initialised with an xoxc token
 	wi            *slack.AuthTestResponse
 	hcl           *http.Client
 }
@@ -105,9 +105,9 @@ func newSlackClient(ctx context.Context, prov auth.Provider) (*http.Client, *sla
 	return cl, scl, wi, nil
 }
 
-// New creates a new Client instance.  It checks if workspace provider is
-// valid, and checks if it's an enterprise workspace.  If it is, it creates an
-// edge client.
+// New creates a Client and runs auth.test. Client-token sessions receive a
+// canvas-capable web client; Enterprise sessions additionally use it for
+// conversation API overrides.
 func New(ctx context.Context, prov auth.Provider, opts ...Option) (*Client, error) {
 	hcl, scl, wi, err := newSlackClient(ctx, prov)
 	if err != nil {
@@ -125,12 +125,15 @@ func New(ctx context.Context, prov auth.Provider, opts ...Option) (*Client, erro
 		hcl:    hcl,
 	}
 
-	if (opt.enterprise || wi.EnterpriseID != "") && auth.IsClientToken(prov.SlackToken()) {
+	if auth.IsClientToken(prov.SlackToken()) {
 		ecl, err := edge.NewWithInfo(wi, prov)
 		if err != nil {
 			return nil, errors.Join(err, chttp.Close(hcl))
 		}
-		c.edge = ecl
+		c.canvas = ecl
+		if opt.enterprise || wi.EnterpriseID != "" {
+			c.edge = ecl
+		}
 	}
 	return c, nil
 }
@@ -163,7 +166,34 @@ func (c *Client) Close() error {
 	if c.edge != nil {
 		err = errors.Join(err, c.edge.Close())
 	}
+	if c.canvas != nil && c.canvas != c.edge {
+		err = errors.Join(err, c.canvas.Close())
+	}
 	return err
+}
+
+// CanvasSupported reports whether this client was initialised with the xoxc
+// client token required by Slack's canvas endpoints.
+func (c *Client) CanvasSupported() bool {
+	return c.canvas != nil
+}
+
+// CanvasThreadRoots returns complete Slack root messages for canvas comment
+// threads. Canvas APIs are deliberately unavailable to bot, app, and other
+// non-xoxc sessions.
+func (c *Client) CanvasThreadRoots(ctx context.Context, fileID string) ([]slack.Message, error) {
+	if c.canvas == nil {
+		return nil, ErrOpNotSupported
+	}
+	roots, err := c.canvas.CanvasThreadRoots(ctx, fileID)
+	if err != nil {
+		return nil, err
+	}
+	messages := make([]slack.Message, len(roots))
+	for i := range roots {
+		messages[i] = roots[i].Message
+	}
+	return messages, nil
 }
 
 // ---------------------------------------------------------------------------

@@ -24,9 +24,16 @@ import (
 
 	"github.com/rusq/slack"
 
+	"github.com/rusq/slackdump/v4/internal/client"
+	"github.com/rusq/slackdump/v4/internal/network"
 	"github.com/rusq/slackdump/v4/internal/structures"
 	"github.com/rusq/slackdump/v4/processor"
 )
+
+type canvasRootClient interface {
+	CanvasSupported() bool
+	CanvasThreadRoots(context.Context, string) ([]slack.Message, error)
+}
 
 func (cs *Stream) channelWorker(ctx context.Context, proc processor.Conversations, results chan<- Result, threadC chan<- request, reqs <-chan request) {
 	ctx, task := trace.NewTask(ctx, "channelWorker")
@@ -49,21 +56,26 @@ func (cs *Stream) channelWorker(ctx context.Context, proc processor.Conversation
 
 			// Check for the channel canvas.
 			if fileID, ok := structures.CanvasFileID(channel); ok {
-				if err := cs.canvasFile(ctx, proc, channel, fileID); err != nil {
-					if canvasErrorIsFatal(err) {
-						results <- Result{Type: RTChannel, ChannelID: req.sl.Channel, Err: err}
-						continue
-					}
-					logCanvasAPIError(ctx, "canvas file unavailable", channel.ID, fileID, "", "", err)
-				}
-				if cm, ok := processor.AsCanvasMessenger(proc); ok {
-					if err := cs.canvasDiscussions(ctx, proc, cm, threadC, req, channel, fileID); err != nil {
+				canvasClient, supported := cs.client.(canvasRootClient)
+				if !supported || !canvasClient.CanvasSupported() {
+					slog.DebugContext(ctx, "skipping canvas for non-client-token session", "owner_channel_id", channel.ID, "canvas_file_id", fileID)
+				} else {
+					if err := cs.canvasFile(ctx, proc, channel, fileID); err != nil {
 						if canvasErrorIsFatal(err) {
 							results <- Result{Type: RTChannel, ChannelID: req.sl.Channel, Err: err}
 							continue
 						}
-						hiddenID, _ := structures.CanvasChannelID(fileID)
-						logCanvasAPIError(ctx, "canvas discussions unavailable", channel.ID, fileID, hiddenID, "", err)
+						logCanvasAPIError(ctx, "canvas file unavailable", channel.ID, fileID, "", "", err)
+					}
+					if cm, ok := processor.AsCanvasMessenger(proc); ok {
+						if err := cs.canvasDiscussions(ctx, proc, cm, threadC, req, channel, fileID); err != nil {
+							if canvasErrorIsFatal(err) {
+								results <- Result{Type: RTChannel, ChannelID: req.sl.Channel, Err: err}
+								continue
+							}
+							hiddenID, _ := structures.CanvasChannelID(fileID)
+							logCanvasAPIError(ctx, "canvas discussions unavailable", channel.ID, fileID, hiddenID, "", err)
+						}
 					}
 				}
 			}
@@ -205,9 +217,13 @@ func (cs *Stream) canvasFile(ctx context.Context, proc processor.Conversations, 
 func (cs *Stream) canvasDiscussions(ctx context.Context, proc processor.Conversations, cm processor.CanvasMessenger, threadC chan<- request, ownerReq request, owner *slack.Channel, fileID string) error {
 	hiddenID, ok := structures.CanvasChannelID(fileID)
 	if !ok {
-		return newAPIError("conversations.history", fmt.Errorf("invalid canvas file ID %q", fileID))
+		return newAPIError("canvas.threadRoots", fmt.Errorf("invalid canvas file ID %q", fileID))
 	}
-	historyReq := request{
+	canvasClient, ok := cs.client.(canvasRootClient)
+	if !ok || !canvasClient.CanvasSupported() {
+		return newAPIError("canvas.threadRoots", client.ErrOpNotSupported)
+	}
+	canvasReq := request{
 		sl: &structures.SlackLink{
 			Channel: hiddenID,
 		},
@@ -216,9 +232,40 @@ func (cs *Stream) canvasDiscussions(ctx context.Context, proc processor.Conversa
 		Oldest: ownerReq.Oldest,
 		Latest: ownerReq.Latest,
 	}
-	return cs.channel(ctx, historyReq, func(messages []slack.Message, isLast bool) error {
-		return cs.procCanvasMsg(ctx, proc, cm, threadC, historyReq, isLast, messages)
-	})
+	var roots []slack.Message
+	if err := network.WithRetry(ctx, cs.limits.channels, cs.limits.tier.Tier3.Retries, func(ctx context.Context) error {
+		var err error
+		roots, err = canvasClient.CanvasThreadRoots(ctx, fileID)
+		return err
+	}); err != nil {
+		return newAPIError("canvas.threadRoots", err)
+	}
+	roots, err := cs.filterCanvasRoots(roots, ownerReq)
+	if err != nil {
+		return newAPIError("canvas.threadRoots", err)
+	}
+	return cs.procCanvasMsg(ctx, proc, cm, threadC, canvasReq, true, roots)
+}
+
+func (cs *Stream) filterCanvasRoots(messages []slack.Message, req request) ([]slack.Message, error) {
+	oldest := structures.NVLTime(req.Oldest, cs.oldest)
+	latest := structures.NVLTime(req.Latest, cs.latest)
+	if oldest.IsZero() && latest.IsZero() {
+		return messages, nil
+	}
+	filtered := make([]slack.Message, 0, len(messages))
+	for _, message := range messages {
+		ts, err := structures.ParseSlackTS(message.Timestamp)
+		if err != nil {
+			return nil, fmt.Errorf("invalid canvas root timestamp %q: %w", message.Timestamp, err)
+		}
+		beforeOldest := !oldest.IsZero() && (ts.Before(oldest) || (!cs.inclusive && ts.Equal(oldest)))
+		afterLatest := !latest.IsZero() && (ts.After(latest) || (!cs.inclusive && ts.Equal(latest)))
+		if !beforeOldest && !afterLatest {
+			filtered = append(filtered, message)
+		}
+	}
+	return filtered, nil
 }
 
 func (cs *Stream) procCanvasMsg(ctx context.Context, proc processor.Conversations, cm processor.CanvasMessenger, threadC chan<- request, req request, isLast bool, messages []slack.Message) error {

@@ -33,6 +33,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/rusq/slack"
+
 	"github.com/rusq/slackdump/v4/internal/structures"
 	"google.golang.org/protobuf/encoding/protowire"
 )
@@ -56,6 +58,10 @@ type CanvasMessage struct {
 	Text            string                `json:"text"`
 	ReplyCount      int                   `json:"reply_count"`
 	DocumentComment CanvasDocumentComment `json:"document_comment"`
+	// Message retains the complete Slack root for archival callers. It is
+	// intentionally excluded from JSON so tools edge keeps its existing
+	// diagnostic output schema.
+	Message slack.Message `json:"-"`
 }
 
 type canvasThreadMetadata struct {
@@ -71,6 +77,22 @@ type canvasAPIMessage struct {
 	Text            string                `json:"text"`
 	ReplyCount      int                   `json:"reply_count"`
 	DocumentComment CanvasDocumentComment `json:"document_comment"`
+	Message         slack.Message         `json:"-"`
+}
+
+func (m *canvasAPIMessage) UnmarshalJSON(data []byte) error {
+	type wireMessage canvasAPIMessage
+	var wire wireMessage
+	if err := json.Unmarshal(data, &wire); err != nil {
+		return err
+	}
+	var message slack.Message
+	if err := json.Unmarshal(data, &message); err != nil {
+		return err
+	}
+	*m = canvasAPIMessage(wire)
+	m.Message = message
+	return nil
 }
 
 type canvasRepliesResponse struct {
@@ -448,12 +470,14 @@ func canvasRootMessage(metadata canvasThreadMetadata, rootTS string, messages []
 		if threadTS == "" {
 			threadTS = message.TS
 		}
+		message.Message.ThreadTimestamp = threadTS
 		return CanvasMessage{
 			TS:              message.TS,
 			ThreadTS:        threadTS,
 			Text:            message.Text,
 			ReplyCount:      message.ReplyCount,
 			DocumentComment: message.DocumentComment,
+			Message:         message.Message,
 		}, nil
 	}
 	return CanvasMessage{}, fmt.Errorf("canvas thread %q: root %s not found", metadata.ThreadID, rootTS)
