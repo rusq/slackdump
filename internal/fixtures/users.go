@@ -55,7 +55,7 @@ const UsersJSON = `[
 		"title": "",
 		"status_expiration": 0,
 		"team": "THY5HTZ8U",
-		"fields": []
+		"fields": {}
 	  },
 	  "is_bot": false,
 	  "is_admin": false,
@@ -110,7 +110,7 @@ const UsersJSON = `[
 		"title": "",
 		"status_expiration": 0,
 		"team": "THY5HTZ8U",
-		"fields": []
+		"fields": {}
 	  },
 	  "is_bot": false,
 	  "is_admin": true,
@@ -165,7 +165,7 @@ const UsersJSON = `[
 		"title": "",
 		"status_expiration": 0,
 		"team": "THY5HTZ8U",
-		"fields": []
+		"fields": {}
 	  },
 	  "is_bot": false,
 	  "is_admin": false,
@@ -221,7 +221,7 @@ const UsersJSON = `[
 		"api_app_id": "A2RPP3NFR",
 		"status_expiration": 0,
 		"team": "THY5HTZ8U",
-		"fields": []
+		"fields": {}
 	  },
 	  "is_bot": true,
 	  "is_admin": false,
@@ -278,7 +278,7 @@ const UsersJSON = `[
 		"api_app_id": "A015RNC4LF4",
 		"status_expiration": 0,
 		"team": "THY5HTZ8U",
-		"fields": []
+		"fields": {}
 	  },
 	  "is_bot": true,
 	  "is_admin": false,
@@ -335,7 +335,7 @@ const UsersJSON = `[
 		"api_app_id": "A035A9SCZDE",
 		"status_expiration": 0,
 		"team": "THY5HTZ8U",
-		"fields": []
+		"fields": {}
 	  },
 	  "is_bot": true,
 	  "is_admin": false,

@@ -525,7 +525,7 @@ func TestSource_Users(t *testing.T) {
 				ctx: t.Context(),
 			},
 			prepFn: prepTestChunk(&chunk.Chunk{Type: chunk.CUsers, Users: fixtures.Load[[]slack.User](fixtures.UsersJSON)}),
-			want:   fixtures.Load[[]slack.User](fixtures.UsersJSON),
+			want:   testutil.RoundTripJSON(t, fixtures.Load[[]slack.User](fixtures.UsersJSON)),
 		},
 	}
 	for _, tt := range tests {
@@ -545,9 +545,7 @@ func TestSource_Users(t *testing.T) {
 			sort.Slice(tt.want, func(i, j int) bool { // users are sorted by ID.
 				return tt.want[i].ID < tt.want[j].ID
 			})
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("Source.Users() = %v, want %v", got, tt.want)
-			}
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }
