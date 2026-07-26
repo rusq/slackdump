@@ -166,22 +166,6 @@ func (mr *MockSlackMockRecorder) GetFileInfoContext(ctx, fileID, count, page any
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetFileInfoContext", reflect.TypeOf((*MockSlack)(nil).GetFileInfoContext), ctx, fileID, count, page)
 }
 
-// GetStarredContext mocks base method.
-func (m *MockSlack) GetStarredContext(ctx context.Context, params slack.StarsParameters) ([]slack.StarredItem, string, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetStarredContext", ctx, params)
-	ret0, _ := ret[0].([]slack.StarredItem)
-	ret1, _ := ret[1].(string)
-	ret2, _ := ret[2].(error)
-	return ret0, ret1, ret2
-}
-
-// GetStarredContext indicates an expected call of GetStarredContext.
-func (mr *MockSlackMockRecorder) GetStarredContext(ctx, params any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetStarredContext", reflect.TypeOf((*MockSlack)(nil).GetStarredContext), ctx, params)
-}
-
 // GetUserInfoContext mocks base method.
 func (m *MockSlack) GetUserInfoContext(ctx context.Context, user string) (*slack.User, error) {
 	m.ctrl.T.Helper()

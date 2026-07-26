@@ -57,10 +57,6 @@ func (w *Wrapper) GetUsersPaginated(options ...slack.GetUsersOption) slack.UserP
 	return w.cl.GetUsersPaginated(options...)
 }
 
-func (w *Wrapper) GetStarredContext(ctx context.Context, params slack.StarsParameters) ([]slack.StarredItem, string, error) {
-	return w.cl.GetStarredContext(ctx, params)
-}
-
 func (w *Wrapper) ListBookmarks(channelID string) ([]slack.Bookmark, error) {
 	return w.cl.ListBookmarks(channelID)
 }
