@@ -40,7 +40,6 @@ type Slack interface {
 	GetEmojiContext(ctx context.Context) (map[string]string, error)
 	GetFileContext(ctx context.Context, downloadURL string, writer io.Writer) error
 	GetFileInfoContext(ctx context.Context, fileID string, count int, page int) (*slack.File, []slack.Comment, *slack.Paging, error)
-	GetStarredContext(ctx context.Context, params slack.StarsParameters) ([]slack.StarredItem, *slack.Paging, error)
 	GetUserInfoContext(ctx context.Context, user string) (*slack.User, error)
 	GetUsersContext(ctx context.Context, options ...slack.GetUsersOption) ([]slack.User, error)
 	GetUsersInConversationContext(ctx context.Context, params *slack.GetUsersInConversationParameters) ([]string, string, error)

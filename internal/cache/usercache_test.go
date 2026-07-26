@@ -27,6 +27,7 @@ import (
 
 	"github.com/rusq/slackdump/v4/internal/fixtures"
 	"github.com/rusq/slackdump/v4/internal/mocks/mock_os"
+	"github.com/rusq/slackdump/v4/internal/testutil"
 	"github.com/rusq/slackdump/v4/types"
 )
 
@@ -49,7 +50,7 @@ func TestSaveUserCache(t *testing.T) {
 	defer reopenedF.Close()
 	uu, err := read[slack.User](reopenedF)
 	assert.NoError(t, err)
-	assert.Equal(t, testUsers, types.Users(uu))
+	assert.Equal(t, testutil.RoundTripJSON(t, testUsers), types.Users(uu))
 }
 
 func TestLoadUserCache(t *testing.T) {
@@ -67,7 +68,7 @@ func TestLoadUserCache(t *testing.T) {
 		{
 			"loads the cache ok",
 			args{gimmeTempFileWithUsers(t, dir), 5 * time.Hour},
-			testUsers,
+			testutil.RoundTripJSON(t, testUsers),
 			false,
 		},
 		{

@@ -55,6 +55,21 @@ func (mr *MockRequestMockRecorder) AllHeaders() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AllHeaders", reflect.TypeOf((*MockRequest)(nil).AllHeaders))
 }
 
+// ExistingResponse mocks base method.
+func (m *MockRequest) ExistingResponse() (playwright.Response, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ExistingResponse")
+	ret0, _ := ret[0].(playwright.Response)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ExistingResponse indicates an expected call of ExistingResponse.
+func (mr *MockRequestMockRecorder) ExistingResponse() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ExistingResponse", reflect.TypeOf((*MockRequest)(nil).ExistingResponse))
+}
+
 // Failure mocks base method.
 func (m *MockRequest) Failure() error {
 	m.ctrl.T.Helper()
