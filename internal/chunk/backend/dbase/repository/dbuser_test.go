@@ -41,7 +41,7 @@ var user1 = &slack.User{
 		DisplayNameNormalized: "",
 		Team:                  "T777",
 	},
-	Has2FA:        true,
+	Has2FA:        new(true),
 	TwoFactorType: new(string),
 	Updated:       1725318212,
 	Enterprise:    slack.EnterpriseUser{},

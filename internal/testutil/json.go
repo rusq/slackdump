@@ -29,3 +29,18 @@ func MarshalJSON(t *testing.T, v any) []byte {
 	}
 	return b
 }
+
+// RoundTripJSON marshals and unmarshals v, returning the decoded value.
+func RoundTripJSON[T any](t testing.TB, v T) T {
+	t.Helper()
+	b, err := json.Marshal(v)
+	if err != nil {
+		t.Fatalf("marshal JSON: %v", err)
+	}
+
+	var got T
+	if err := json.Unmarshal(b, &got); err != nil {
+		t.Fatalf("unmarshal JSON: %v", err)
+	}
+	return got
+}

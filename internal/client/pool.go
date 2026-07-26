@@ -75,7 +75,7 @@ func (p *Pool) GetUsersPaginated(options ...slack.GetUsersOption) slack.UserPagi
 	return p.next().GetUsersPaginated(options...)
 }
 
-func (p *Pool) GetStarredContext(ctx context.Context, params slack.StarsParameters) ([]slack.StarredItem, *slack.Paging, error) {
+func (p *Pool) GetStarredContext(ctx context.Context, params slack.StarsParameters) ([]slack.StarredItem, string, error) {
 	return p.next().GetStarredContext(ctx, params)
 }
 

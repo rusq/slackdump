@@ -167,11 +167,11 @@ func (mr *MockSlackMockRecorder) GetFileInfoContext(ctx, fileID, count, page any
 }
 
 // GetStarredContext mocks base method.
-func (m *MockSlack) GetStarredContext(ctx context.Context, params slack.StarsParameters) ([]slack.StarredItem, *slack.Paging, error) {
+func (m *MockSlack) GetStarredContext(ctx context.Context, params slack.StarsParameters) ([]slack.StarredItem, string, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetStarredContext", ctx, params)
 	ret0, _ := ret[0].([]slack.StarredItem)
-	ret1, _ := ret[1].(*slack.Paging)
+	ret1, _ := ret[1].(string)
 	ret2, _ := ret[2].(error)
 	return ret0, ret1, ret2
 }

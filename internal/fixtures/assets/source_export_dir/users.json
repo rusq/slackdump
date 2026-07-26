@@ -24,7 +24,7 @@
       "image_192": "AGunStiV3zyBvhnUKh0 PI5YmGb3gBlfpad6aybnndsr1Afmd2SYbr55SqxQXyXT7UilbASScpaVkmFpW",
       "image_512": "2CmwhKHbqi1 rwd5wvayRMZ81aX7WX4l9XIoj0LSNfDbyUy6T5M",
       "team": "TOAC06ADF3",
-      "fields": []
+      "fields": {}
     },
     "is_bot": false,
     "is_admin": false,
@@ -76,7 +76,7 @@
       "image_192": "a7NXi1ilMZNg1XTSibiTiKkRIU8RIAmutfwOilta wHm6BkD6GgsohnLHT5stERpAQ7YjDxuoPp9V5rjce7Ixy0KU ZOcmVsfIKTHnvyj46shC3MhEGNRXkUzGR4O3kwNWLnSckFUKSkXo33zdlgnBplL",
       "image_512": "kxVC38DIkGNA7UX6xHxpAgCq4MO3R QwLtkDUbBGrx Cz7MFTeiXAVrq8suYtTBUty2Xw8FJ5OVRfWirvdDOap8n4J3z706WAuojE7sgU34BvV31C8 SFPzVKnq1USRLYVSo2 akjMzinOMtas9YVdkmq",
       "team": "TOAC06ADF3",
-      "fields": []
+      "fields": {}
     },
     "is_bot": false,
     "is_admin": true,
@@ -127,7 +127,7 @@
       "image_192": "7vh7ARvBdZIYLaHAQDWsySn8QzO8KG5vn4cjqDytOUy9kjGORO1qe9EHZXp3XUz4QUUqIl5wsnk9EsX07ZqIwruHS5hs6o9LGqX1p8Y4EZlDeMQAJk3OtZrXoPAvHCf9NCOpqbrhxOea5sQa9oaMC5bvT",
       "image_512": "merLBFZu4VauUVTagHWId7jo2MLfJFHATNiJI7MQiwUwQTvVpoe OUN2Aclf3OrhLVX2Ym9HP7IYSW981O 5j4Dqv0PzAW3DB1JqzQNjFmaMcycWqbADOFQwYbVuuhe3g56XmmHAEc0prf5PNSmKbpZxi",
       "team": "TOAC06ADF3",
-      "fields": []
+      "fields": {}
     },
     "is_bot": false,
     "is_admin": false,
@@ -180,7 +180,7 @@
       "bot_id": "BN5RW4MPT",
       "api_app_id": "A2RPP3NFR",
       "team": "TOAC06ADF3",
-      "fields": []
+      "fields": {}
     },
     "is_bot": true,
     "is_admin": false,
@@ -233,7 +233,7 @@
       "bot_id": "B015K0TQTN2",
       "api_app_id": "A015RNC4LF4",
       "team": "TOAC06ADF3",
-      "fields": []
+      "fields": {}
     },
     "is_bot": true,
     "is_admin": false,
@@ -286,7 +286,7 @@
       "bot_id": "B035AAUBQ3S",
       "api_app_id": "A035A9SCZDE",
       "team": "TOAC06ADF3",
-      "fields": []
+      "fields": {}
     },
     "is_bot": true,
     "is_admin": false,
@@ -340,7 +340,7 @@
       "bot_id": "B03MW5QQ9HB",
       "api_app_id": "AFV5ECLBZ",
       "team": "TOAC06ADF3",
-      "fields": []
+      "fields": {}
     },
     "is_bot": true,
     "is_admin": false,
@@ -391,7 +391,7 @@
       "image_192": "a6iQ 8pXvGSQwPPJUMIUhfOjb6pvx96sakpFIwlX9uajPkRlie3CSS4L7ZmjXNqhGqVHNZeM84tZKfltnxTVuFcBkqkuSucrqT hlOcSVCldsRDimTWXGGLEysteMkrW42bVUM2vFd8XKskqzV7gvs2Sq",
       "image_512": "tvSYU3TjDaAAx2Jq56twDwxjP8VvGxByjhDxJa 7shq6MhtpT3Ut48t3QbuuSXoCYavChsKUlezzF6wiRqiN9KP pMNbWmLYeVfCyOSfpBX9V6jZ3HGgYLBDz2g57FJjHhbknlhWX4Bu44itZAyOTFR97",
       "team": "TOAC06ADF3",
-      "fields": []
+      "fields": {}
     },
     "is_bot": false,
     "is_admin": false,
@@ -445,7 +445,7 @@
       "bot_id": "B087T8QE2QP",
       "api_app_id": "A6NL8MJ6Q",
       "team": "TOAC06ADF3",
-      "fields": []
+      "fields": {}
     },
     "is_bot": true,
     "is_admin": false,
@@ -499,7 +499,7 @@
       "bot_id": "B089LPE68BB",
       "api_app_id": "A04E6JX41",
       "team": "TOAC06ADF3",
-      "fields": []
+      "fields": {}
     },
     "is_bot": true,
     "is_admin": false,
