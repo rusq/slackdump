@@ -49,3 +49,14 @@ func (o obfuscator) TeamID(g string) string        { return o.ID(teamPrefix, g) 
 func (o *obfuscator) BotID(b string) string        { return o.ID(botPrefix, b) }
 func (o *obfuscator) AppID(a string) string        { return o.ID(appPrefix, a) }
 func (o *obfuscator) EnterpriseID(e string) string { return o.ID(entPrefix, e) }
+
+// CanvasChannelID obfuscates a hidden canvas channel while preserving Slack's
+// relationship between canvas file IDs and hidden channel IDs.
+func (o obfuscator) CanvasChannelID(channelID string) string {
+	if len(channelID) < 2 || channelID[0] != 'C' {
+		return o.ChannelID(channelID)
+	}
+	fileID := "F" + channelID[1:]
+	obfuscatedFileID := o.FileID(fileID)
+	return "C" + obfuscatedFileID[1:]
+}

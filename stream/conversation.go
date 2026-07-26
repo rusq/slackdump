@@ -191,6 +191,7 @@ const (
 type canvasRequest struct {
 	owner  *slack.Channel
 	fileID string
+	done   chan error
 }
 
 type apiError struct {

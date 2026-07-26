@@ -108,19 +108,27 @@ func (cs *Stream) threadWorker(ctx context.Context, proc processor.Conversations
 			if !more {
 				return // channel closed
 			}
+			if req.kind == requestCanvas {
+				if req.canvas == nil || req.canvas.done == nil {
+					result := Result{Type: RTThread, Err: errors.New("canvas thread request is missing completion metadata")}
+					if req.sl != nil {
+						result.ChannelID = req.sl.Channel
+						result.ThreadTS = req.sl.ThreadTS
+					}
+					results <- result
+					continue
+				}
+				err := cs.processCanvasThread(ctx, proc, req)
+				req.canvas.done <- err
+				continue
+			}
 			if !req.sl.IsThread() {
 				results <- Result{Type: RTThread, Err: fmt.Errorf("invalid thread link: %s", req.sl)}
 				continue
 			}
 
 			channel := new(slack.Channel)
-			if req.kind == requestCanvas {
-				if req.canvas == nil || req.canvas.owner == nil {
-					results <- Result{Type: RTThread, ChannelID: req.sl.Channel, ThreadTS: req.sl.ThreadTS, Err: errors.New("canvas thread request is missing owner metadata")}
-					continue
-				}
-				channel = req.canvas.owner
-			} else if req.threadOnly {
+			if req.threadOnly {
 				// Thread-only requests come from direct thread links (e.g., resume).
 				// We only need channel info (ID, name, etc.) for file paths and
 				// identification. Channel users are already recorded from the
@@ -138,28 +146,53 @@ func (cs *Stream) threadWorker(ctx context.Context, proc processor.Conversations
 				channel.ID = req.sl.Channel
 			}
 			if err := cs.thread(ctx, req, func(msgs []slack.Message, isLast bool) error {
-				if req.kind == requestCanvas {
-					cm, ok := processor.AsCanvasMessenger(proc)
-					if !ok {
-						return errors.New("canvas processor capability is no longer available")
-					}
-					return procCanvasThreadMsg(ctx, proc, cm, channel, req.sl.Channel, isLast, msgs)
-				}
 				if err := procThreadMsg(ctx, proc, channel, req.sl.ThreadTS, req.threadOnly, isLast, msgs); err != nil {
 					return err
 				}
 				results <- Result{Type: RTThread, ChannelID: req.sl.Channel, ThreadTS: req.sl.ThreadTS, IsLast: isLast}
 				return nil
 			}); err != nil {
-				if req.kind == requestCanvas && !canvasErrorIsFatal(err) {
-					logCanvasAPIError(ctx, "canvas discussion unavailable", channel.ID, req.canvas.fileID, req.sl.Channel, req.sl.ThreadTS, err)
-					continue
-				}
 				results <- Result{Type: RTThread, ChannelID: req.sl.Channel, ThreadTS: req.sl.ThreadTS, Err: err}
 				continue
 			}
 		}
 	}
+}
+
+func (cs *Stream) processCanvasThread(ctx context.Context, proc processor.Conversations, req request) error {
+	if req.canvas == nil || req.canvas.owner == nil || req.canvas.done == nil {
+		return errors.New("canvas thread request is missing owner metadata")
+	}
+	if req.sl == nil || !req.sl.IsThread() {
+		return fmt.Errorf("invalid canvas thread link: %v", req.sl)
+	}
+	cm, ok := processor.AsCanvasMessenger(proc)
+	if !ok {
+		return errors.New("canvas processor capability is no longer available")
+	}
+	err := cs.thread(ctx, req, func(msgs []slack.Message, isLast bool) error {
+		return procCanvasThreadMsg(ctx, proc, cm, req.canvas.owner, req.sl.Channel, isLast, msgs)
+	})
+	if err == nil {
+		return nil
+	}
+	if canvasErrorIsFatal(err) {
+		return err
+	}
+
+	logCanvasAPIError(ctx, "canvas discussion unavailable", req.canvas.owner.ID, req.canvas.fileID, req.sl.Channel, req.sl.ThreadTS, err)
+	if err := procCanvasThreadMsg(
+		ctx,
+		proc,
+		cm,
+		req.canvas.owner,
+		req.sl.Channel,
+		true,
+		parentOnlyThreadMessages(req),
+	); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (cs *Stream) channelInfoWorker(ctx context.Context, proc processor.ChannelInformer, srC chan<- Result, channelIdC <-chan string) {
@@ -244,7 +277,20 @@ func (cs *Stream) canvasDiscussions(ctx context.Context, proc processor.Conversa
 	if err != nil {
 		return newAPIError("canvas.threadRoots", err)
 	}
-	return cs.procCanvasMsg(ctx, proc, cm, threadC, canvasReq, true, roots)
+	numThreads, err := cs.procCanvasMsg(ctx, proc, cm, threadC, canvasReq, true, roots)
+	if err != nil {
+		return err
+	}
+	var errs error
+	for range numThreads {
+		select {
+		case err := <-canvasReq.canvas.done:
+			errs = errors.Join(errs, err)
+		case <-ctx.Done():
+			return context.Cause(ctx)
+		}
+	}
+	return errs
 }
 
 func (cs *Stream) filterCanvasRoots(messages []slack.Message, req request) ([]slack.Message, error) {
@@ -259,7 +305,9 @@ func (cs *Stream) filterCanvasRoots(messages []slack.Message, req request) ([]sl
 		if err != nil {
 			return nil, fmt.Errorf("invalid canvas root timestamp %q: %w", message.Timestamp, err)
 		}
-		beforeOldest := !oldest.IsZero() && (ts.Before(oldest) || (!cs.inclusive && ts.Equal(oldest)))
+		beforeOldest := !cs.includeOlderCanvasRoots &&
+			!oldest.IsZero() &&
+			(ts.Before(oldest) || (!cs.inclusive && ts.Equal(oldest)))
 		afterLatest := !latest.IsZero() && (ts.After(latest) || (!cs.inclusive && ts.Equal(latest)))
 		if !beforeOldest && !afterLatest {
 			filtered = append(filtered, message)
@@ -268,7 +316,7 @@ func (cs *Stream) filterCanvasRoots(messages []slack.Message, req request) ([]sl
 	return filtered, nil
 }
 
-func (cs *Stream) procCanvasMsg(ctx context.Context, proc processor.Conversations, cm processor.CanvasMessenger, threadC chan<- request, req request, isLast bool, messages []slack.Message) error {
+func (cs *Stream) procCanvasMsg(ctx context.Context, proc processor.Conversations, cm processor.CanvasMessenger, threadC chan<- request, req request, isLast bool, messages []slack.Message) (int, error) {
 	roots := make([]slack.Message, 0, len(messages))
 	threads := make([]request, 0, len(messages))
 	for i := range messages {
@@ -302,15 +350,16 @@ func (cs *Stream) procCanvasMsg(ctx context.Context, proc processor.Conversation
 	}
 
 	if err := procFiles(ctx, proc, req.canvas.owner, roots...); err != nil {
-		return fmt.Errorf("process canvas root files: %w", err)
+		return 0, fmt.Errorf("process canvas root files: %w", err)
 	}
 	if err := cm.CanvasMessages(ctx, req.sl.Channel, len(threads), isLast, roots); err != nil {
-		return fmt.Errorf("process canvas messages: %w", err)
+		return 0, fmt.Errorf("process canvas messages: %w", err)
 	}
+	req.canvas.done = make(chan error, len(threads))
 	for _, threadReq := range threads {
 		threadC <- threadReq
 	}
-	return nil
+	return len(threads), nil
 }
 
 func procCanvasThreadMsg(ctx context.Context, proc processor.Conversations, cm processor.CanvasMessenger, owner *slack.Channel, hiddenChannelID string, isLast bool, messages []slack.Message) error {

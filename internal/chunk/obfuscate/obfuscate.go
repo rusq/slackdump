@@ -111,7 +111,12 @@ type obfuscator struct {
 }
 
 func (o obfuscator) Chunk(c *chunk.Chunk) {
-	c.ChannelID = o.ChannelID(c.ChannelID)
+	switch c.Type {
+	case chunk.CCanvasMessages, chunk.CCanvasThreadMessages:
+		c.ChannelID = o.CanvasChannelID(c.ChannelID)
+	default:
+		c.ChannelID = o.ChannelID(c.ChannelID)
+	}
 	switch c.Type {
 	case chunk.CMessages, chunk.CCanvasMessages:
 		o.Messages(c.Messages...)
@@ -316,6 +321,9 @@ func (o obfuscator) Channel(c *slack.Channel) {
 
 	for i := range c.Members {
 		c.Members[i] = o.UserID(c.Members[i])
+	}
+	if c.Properties != nil && c.Properties.Canvas.FileId != "" {
+		c.Properties.Canvas.FileId = o.FileID(c.Properties.Canvas.FileId)
 	}
 }
 
