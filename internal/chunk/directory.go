@@ -569,6 +569,16 @@ func (d *Directory) CanvasThreadMessages(_ context.Context, hiddenChannelID, thr
 		if err != nil {
 			return err
 		}
+		roots, err := f.CanvasMessages(hiddenChannelID)
+		if err != nil && !errors.Is(err, ErrNotFound) {
+			return err
+		}
+		for _, root := range roots {
+			if root.Timestamp == threadTS {
+				latest[root.Timestamp] = root
+				break
+			}
+		}
 		mm, err := f.CanvasThreadMessages(hiddenChannelID, threadTS)
 		if err != nil {
 			if errors.Is(err, ErrNotFound) {

@@ -57,6 +57,7 @@ func TestHTMLConverter_Convert(t *testing.T) {
 			},
 			canvasRoots: []slack.Message{
 				{Msg: slack.Msg{Timestamp: "1720000000.000001", ThreadTimestamp: "1720000000.000001", ReplyCount: 1, User: "U1", Text: "canvas root"}},
+				{Msg: slack.Msg{Timestamp: "1720000002.000001", ThreadTimestamp: "1720000002.000001", User: "U1", Text: "canvas root without replies", Files: []slack.File{{ID: "FcanvasRoot", Name: "root.txt"}}}},
 			},
 			canvasThreads: map[string][]slack.Message{
 				"1720000000.000001": {
@@ -66,10 +67,15 @@ func TestHTMLConverter_Convert(t *testing.T) {
 			},
 			files: htmlStorage{
 				fsys: fstest.MapFS{
-					"F1/hello.txt":        {Data: []byte("hello")},
-					"Fcanvas/canvas.html": {Data: []byte("<html><body>canvas</body></html>")},
+					"F1/hello.txt":         {Data: []byte("hello")},
+					"Fcanvas/canvas.html":  {Data: []byte("<html><body>canvas</body></html>")},
+					"FcanvasRoot/root.txt": {Data: []byte("canvas root attachment")},
 				},
-				byID: map[string]string{"F1": "F1/hello.txt", "Fcanvas": "Fcanvas/canvas.html"},
+				byID: map[string]string{
+					"F1":          "F1/hello.txt",
+					"Fcanvas":     "Fcanvas/canvas.html",
+					"FcanvasRoot": "FcanvasRoot/root.txt",
+				},
 			},
 			avatars: htmlStorage{
 				fsys: fstest.MapFS{
@@ -94,8 +100,10 @@ func TestHTMLConverter_Convert(t *testing.T) {
 			"archives/C1/canvas/content.html",
 			"archives/C1/canvas/comments/index.html",
 			"archives/C1/canvas/comments/1720000000.000001/index.html",
+			"archives/C1/canvas/comments/1720000002.000001/index.html",
 			"archives/CEMPTY/index.html",
 			"files/F1/hello.txt",
+			"files/FcanvasRoot/root.txt",
 			"avatars/U1/ada.png",
 			"static/48x48.gif",
 			"static/htmx.min.js",

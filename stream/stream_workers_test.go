@@ -78,6 +78,12 @@ func TestStream_channelWorker(t *testing.T) {
 	mc.EXPECT().ChannelInfo(gomock.Any(), owner, "").Return(nil)
 	mc.EXPECT().ChannelUsers(gomock.Any(), "COWNER", "", []string(nil)).Return(nil)
 	ms.EXPECT().
+		GetFileInfoContext(gomock.Any(), "FCANVAS", 0, 1).
+		Return(&slack.File{ID: "FCANVAS"}, nil, nil, nil)
+	mc.EXPECT().
+		Files(gomock.Any(), owner, slack.Message{}, []slack.File{{ID: "FCANVAS"}}).
+		Return(nil)
+	ms.EXPECT().
 		GetConversationHistoryContext(gomock.Any(), gomock.Any()).
 		DoAndReturn(func(_ context.Context, params *slack.GetConversationHistoryParameters) (*slack.GetConversationHistoryResponse, error) {
 			assert.Equal(t, "COWNER", params.ChannelID, "legacy processors must not trigger hidden canvas history")

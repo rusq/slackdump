@@ -56,17 +56,18 @@ func (cs *Stream) channelWorker(ctx context.Context, proc processor.Conversation
 
 			// Check for the channel canvas.
 			if fileID, ok := structures.CanvasFileID(channel); ok {
+				if err := cs.canvasFile(ctx, proc, channel, fileID); err != nil {
+					if canvasErrorIsFatal(err) {
+						results <- Result{Type: RTChannel, ChannelID: req.sl.Channel, Err: err}
+						continue
+					}
+					logCanvasAPIError(ctx, "canvas file unavailable", channel.ID, fileID, "", "", err)
+				}
+
 				canvasClient, supported := cs.client.(canvasRootClient)
 				if !supported || !canvasClient.CanvasSupported() {
-					slog.DebugContext(ctx, "skipping canvas for non-client-token session", "owner_channel_id", channel.ID, "canvas_file_id", fileID)
+					slog.DebugContext(ctx, "skipping canvas discussions for non-client-token session", "owner_channel_id", channel.ID, "canvas_file_id", fileID)
 				} else {
-					if err := cs.canvasFile(ctx, proc, channel, fileID); err != nil {
-						if canvasErrorIsFatal(err) {
-							results <- Result{Type: RTChannel, ChannelID: req.sl.Channel, Err: err}
-							continue
-						}
-						logCanvasAPIError(ctx, "canvas file unavailable", channel.ID, fileID, "", "", err)
-					}
 					if cm, ok := processor.AsCanvasMessenger(proc); ok {
 						if err := cs.canvasDiscussions(ctx, proc, cm, threadC, req, channel, fileID); err != nil {
 							if canvasErrorIsFatal(err) {

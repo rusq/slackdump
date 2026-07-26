@@ -202,6 +202,9 @@ func (c *HTMLConverter) copyCanvasFiles(ctx context.Context, ch *slack.Channel, 
 	}
 	fc := NewFileCopier(c.src, c.trg, htmlFilePath, true)
 	for _, root := range roots {
+		if err := c.copyMessageFiles(ctx, fc, ch, ch.ID, &root); err != nil {
+			return err
+		}
 		threadTS := root.ThreadTimestamp
 		if threadTS == "" {
 			threadTS = root.Timestamp
@@ -210,8 +213,19 @@ func (c *HTMLConverter) copyCanvasFiles(ctx context.Context, ch *slack.Channel, 
 		if err != nil {
 			return err
 		}
-		if err := c.copyFileSeq(ctx, fc, ch, ch.ID, it); err != nil {
-			return err
+		for msg, err := range it {
+			if err != nil {
+				if errors.Is(err, source.ErrNotFound) {
+					break
+				}
+				return err
+			}
+			if msg.Timestamp == root.Timestamp {
+				continue
+			}
+			if err := c.copyMessageFiles(ctx, fc, ch, ch.ID, &msg); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -258,17 +272,23 @@ func (c *HTMLConverter) copyFileSeq(ctx context.Context, fc *FileCopier, ch *sla
 			}
 			return err
 		}
-		err = fc.Copy(ch, &msg)
-		if err == nil {
-			continue
+		if err := c.copyMessageFiles(ctx, fc, ch, channelID, &msg); err != nil {
+			return err
 		}
-		if errors.Is(err, fs.ErrNotExist) || errors.Is(err, source.ErrNotFound) {
-			c.lg.WarnContext(ctx, "skipping missing file asset", "channel", channelID, "ts", msg.Timestamp, "error", err)
-			continue
-		}
-		return err
 	}
 	return nil
+}
+
+func (c *HTMLConverter) copyMessageFiles(ctx context.Context, fc *FileCopier, ch *slack.Channel, channelID string, msg *slack.Message) error {
+	err := fc.Copy(ch, msg)
+	if err == nil {
+		return nil
+	}
+	if errors.Is(err, fs.ErrNotExist) || errors.Is(err, source.ErrNotFound) {
+		c.lg.WarnContext(ctx, "skipping missing file asset", "channel", channelID, "ts", msg.Timestamp, "error", err)
+		return nil
+	}
+	return err
 }
 
 func (c *HTMLConverter) copyAvatars(users []slack.User) error {

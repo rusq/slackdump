@@ -192,11 +192,16 @@ func TestDirectory_CanvasMessages(t *testing.T) {
 		ThreadTimestamp: root.Timestamp,
 		Text:            "reply",
 	}}
+	rootWithoutReplies := slack.Message{Msg: slack.Msg{
+		Timestamp:       "1700000002.000001",
+		ThreadTimestamp: "1700000002.000001",
+		Text:            "root without replies",
+	}}
 	data := append(
 		testutil.MarshalJSON(t, Chunk{
 			Type:      CCanvasMessages,
 			ChannelID: "CCANVAS",
-			Messages:  []slack.Message{root},
+			Messages:  []slack.Message{root, rootWithoutReplies},
 		}),
 		testutil.MarshalJSON(t, Chunk{
 			Type:      CCanvasThreadMessages,
@@ -215,13 +220,18 @@ func TestDirectory_CanvasMessages(t *testing.T) {
 
 	roots, err := d.CanvasMessages(t.Context(), "CCANVAS")
 	require.NoError(t, err)
-	require.Len(t, roots, 1)
+	require.Len(t, roots, 2)
 	assert.Equal(t, "root", roots[0].Text)
 
 	thread, err := d.CanvasThreadMessages(t.Context(), "CCANVAS", root.Timestamp)
 	require.NoError(t, err)
 	require.Len(t, thread, 2)
 	assert.Equal(t, "reply", thread[1].Text)
+
+	thread, err = d.CanvasThreadMessages(t.Context(), "CCANVAS", rootWithoutReplies.Timestamp)
+	require.NoError(t, err)
+	require.Len(t, thread, 1)
+	assert.Equal(t, "root without replies", thread[0].Text)
 
 	messages, err := d.AllMessages(t.Context(), "CCANVAS")
 	require.NoError(t, err)
