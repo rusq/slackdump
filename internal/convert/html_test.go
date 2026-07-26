@@ -55,6 +55,15 @@ func TestHTMLConverter_Convert(t *testing.T) {
 					},
 				},
 			},
+			canvasRoots: []slack.Message{
+				{Msg: slack.Msg{Timestamp: "1720000000.000001", ThreadTimestamp: "1720000000.000001", ReplyCount: 1, User: "U1", Text: "canvas root"}},
+			},
+			canvasThreads: map[string][]slack.Message{
+				"1720000000.000001": {
+					{Msg: slack.Msg{Timestamp: "1720000000.000001", ThreadTimestamp: "1720000000.000001", ReplyCount: 1, User: "U1", Text: "canvas root"}},
+					{Msg: slack.Msg{Timestamp: "1720000001.000001", ThreadTimestamp: "1720000000.000001", User: "U1", Text: "canvas reply"}},
+				},
+			},
 			files: htmlStorage{
 				fsys: fstest.MapFS{
 					"F1/hello.txt":        {Data: []byte("hello")},
@@ -83,6 +92,8 @@ func TestHTMLConverter_Convert(t *testing.T) {
 			"archives/C1/threads/1710000000.000001.html",
 			"archives/C1/canvas/index.html",
 			"archives/C1/canvas/content.html",
+			"archives/C1/canvas/comments/index.html",
+			"archives/C1/canvas/comments/1720000000.000001/index.html",
 			"archives/CEMPTY/index.html",
 			"files/F1/hello.txt",
 			"avatars/U1/ada.png",
@@ -140,6 +151,27 @@ func TestHTMLConverter_Convert(t *testing.T) {
 		canvasBody := readFile(t, outDir, "archives/C1/canvas/content.html")
 		if !strings.Contains(canvasBody, "canvas") {
 			t.Fatalf("canvas content should be written, got %q", canvasBody)
+		}
+
+		canvasCommentsBody := readFile(t, outDir, "archives/C1/canvas/comments/index.html")
+		if !strings.Contains(canvasCommentsBody, "canvas root") ||
+			!strings.Contains(canvasCommentsBody, `href="../../../../archives/C1/canvas/comments/1720000000.000001/index.html"`) {
+			t.Fatalf("canvas comments page should render roots and relative detail links: %q", canvasCommentsBody)
+		}
+		if strings.Contains(canvasCommentsBody, ` hx-`) || strings.Contains(canvasCommentsBody, `<script`) {
+			t.Fatalf("canvas comments page should not contain live attributes or scripts: %q", canvasCommentsBody)
+		}
+
+		canvasCommentBody := readFile(t, outDir, "archives/C1/canvas/comments/1720000000.000001/index.html")
+		if !strings.Contains(canvasCommentBody, "canvas root") || !strings.Contains(canvasCommentBody, "canvas reply") {
+			t.Fatalf("canvas comment page should render the discussion: %q", canvasCommentBody)
+		}
+		if !strings.Contains(canvasCommentBody, `href="../../../../../archives/C1/canvas/comments/index.html"`) {
+			t.Fatalf("canvas comment page should contain a relative back link: %q", canvasCommentBody)
+		}
+		if !strings.Contains(canvasCommentBody, `sandbox="allow-same-origin"`) ||
+			strings.Contains(canvasCommentBody, ` hx-`) || strings.Contains(canvasCommentBody, `<script`) {
+			t.Fatalf("canvas comment page should preserve sandbox and omit live behavior: %q", canvasCommentBody)
 		}
 
 		userBody := readFile(t, outDir, "team/U1/index.html")
@@ -245,6 +277,8 @@ type htmlSourceStub struct {
 	users         []slack.User
 	messages      map[string][]slack.Message
 	threads       map[string]map[string][]slack.Message
+	canvasRoots   []slack.Message
+	canvasThreads map[string][]slack.Message
 	files         source.Storage
 	avatars       source.Storage
 	panicOnSorted bool
@@ -273,6 +307,12 @@ func (s *htmlSourceStub) AllThreadMessages(_ context.Context, channelID, threadI
 		return nil, source.ErrNotFound
 	}
 	return messageSeq(mm), nil
+}
+func (s *htmlSourceStub) CanvasMessages(context.Context, string) (iter.Seq2[slack.Message, error], error) {
+	return messageSeq(s.canvasRoots), nil
+}
+func (s *htmlSourceStub) CanvasThreadMessages(_ context.Context, _ string, threadTS string) (iter.Seq2[slack.Message, error], error) {
+	return messageSeq(s.canvasThreads[threadTS]), nil
 }
 func (s *htmlSourceStub) Sorted(_ context.Context, channelID string, _ bool, cb func(time.Time, *slack.Message) error) error {
 	if s.panicOnSorted {

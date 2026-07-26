@@ -113,6 +113,30 @@ func (c *HTMLConverter) Convert(ctx context.Context) error {
 			}, canvasContentPath(ch.ID)); err != nil && !errors.Is(err, source.ErrNotFound) && !errors.Is(err, fs.ErrNotExist) {
 				return fmt.Errorf("channel %s canvas content: %w", ch.ID, err)
 			}
+
+			canvasRoots, hiddenChannelID, err := c.canvasCommentRoots(ctx, &ch)
+			if err != nil {
+				return fmt.Errorf("channel %s canvas comments: %w", ch.ID, err)
+			}
+			if err := c.renderPage(ctx, func(ctx context.Context, w io.Writer) error {
+				return v.RenderCanvasComments(ctx, ch.ID, w)
+			}, canvasCommentsPagePath(ch.ID)); err != nil {
+				return fmt.Errorf("channel %s canvas comments index: %w", ch.ID, err)
+			}
+			for _, root := range canvasRoots {
+				threadTS := root.ThreadTimestamp
+				if threadTS == "" {
+					threadTS = root.Timestamp
+				}
+				if err := c.renderPage(ctx, func(ctx context.Context, w io.Writer) error {
+					return v.RenderCanvasComment(ctx, ch.ID, threadTS, w)
+				}, canvasCommentPagePath(ch.ID, threadTS)); err != nil {
+					return fmt.Errorf("channel %s canvas comment %s: %w", ch.ID, threadTS, err)
+				}
+			}
+			if err := c.copyCanvasFiles(ctx, &ch, hiddenChannelID, canvasRoots); err != nil {
+				return fmt.Errorf("channel %s canvas comment files: %w", ch.ID, err)
+			}
 		}
 
 		if err := c.copyChannelFiles(ctx, ch, threadRoots); err != nil {
@@ -141,6 +165,55 @@ func (c *HTMLConverter) Convert(ctx context.Context) error {
 		return fmt.Errorf("static assets: %w", err)
 	}
 
+	return nil
+}
+
+func (c *HTMLConverter) canvasCommentRoots(ctx context.Context, ch *slack.Channel) ([]slack.Message, string, error) {
+	src, ok := c.src.(canvasSource)
+	if !ok {
+		return nil, "", nil
+	}
+	fileID, ok := structures.CanvasFileID(ch)
+	if !ok {
+		return nil, "", nil
+	}
+	hiddenChannelID, ok := structures.CanvasChannelID(fileID)
+	if !ok {
+		return nil, "", fmt.Errorf("invalid canvas file ID %q", fileID)
+	}
+	it, err := src.CanvasMessages(ctx, hiddenChannelID)
+	if err != nil {
+		return nil, "", err
+	}
+	var roots []slack.Message
+	for msg, err := range it {
+		if err != nil {
+			return nil, "", err
+		}
+		roots = append(roots, msg)
+	}
+	return roots, hiddenChannelID, nil
+}
+
+func (c *HTMLConverter) copyCanvasFiles(ctx context.Context, ch *slack.Channel, hiddenChannelID string, roots []slack.Message) error {
+	src, ok := c.src.(canvasSource)
+	if !ok || hiddenChannelID == "" || c.src.Files().Type() == source.STnone {
+		return nil
+	}
+	fc := NewFileCopier(c.src, c.trg, htmlFilePath, true)
+	for _, root := range roots {
+		threadTS := root.ThreadTimestamp
+		if threadTS == "" {
+			threadTS = root.Timestamp
+		}
+		it, err := src.CanvasThreadMessages(ctx, hiddenChannelID, threadTS)
+		if err != nil {
+			return err
+		}
+		if err := c.copyFileSeq(ctx, fc, ch, ch.ID, it); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -312,6 +385,14 @@ func canvasPagePath(channelID string) string {
 
 func canvasContentPath(channelID string) string {
 	return path.Join("archives", channelID, "canvas", "content.html")
+}
+
+func canvasCommentsPagePath(channelID string) string {
+	return path.Join("archives", channelID, "canvas", "comments", "index.html")
+}
+
+func canvasCommentPagePath(channelID, threadTS string) string {
+	return path.Join("archives", channelID, "canvas", "comments", threadTS, "index.html")
 }
 
 func userPagePath(userID string) string {

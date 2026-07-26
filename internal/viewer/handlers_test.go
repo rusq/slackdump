@@ -19,6 +19,7 @@ import (
 	"context"
 	"errors"
 	"io/fs"
+	"iter"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -32,6 +33,32 @@ import (
 	"github.com/rusq/slackdump/v4/internal/viewer/renderer"
 	"github.com/rusq/slackdump/v4/source"
 )
+
+type canvasCommentsSourceStub struct {
+	*aliasSourceStub
+	roots   []slack.Message
+	threads map[string][]slack.Message
+}
+
+func (s *canvasCommentsSourceStub) CanvasMessages(context.Context, string) (iter.Seq2[slack.Message, error], error) {
+	return messageSeq(s.roots), nil
+}
+
+func (s *canvasCommentsSourceStub) CanvasThreadMessages(_ context.Context, _ string, threadTS string) (iter.Seq2[slack.Message, error], error) {
+	return messageSeq(s.threads[threadTS]), nil
+}
+
+func newCanvasCommentsTestViewer(t *testing.T, roots []slack.Message, threads map[string][]slack.Message) *Viewer {
+	t.Helper()
+	base := newViewerRouteSource()
+	base.wi = &slack.AuthTestResponse{}
+	src := &canvasCommentsSourceStub{aliasSourceStub: base, roots: roots, threads: threads}
+	v, err := New(t.Context(), "", src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return v
+}
 
 func Test_isInvalid(t *testing.T) {
 	type args struct {
@@ -318,6 +345,170 @@ func TestCanvasHandler_RendersHTMXPartial(t *testing.T) {
 	if !strings.Contains(body, `sandbox="allow-same-origin"`) {
 		t.Fatalf("canvasHandler() HTMX response should preserve iframe sandbox: %q", body)
 	}
+}
+
+func TestCanvasCommentsHandler(t *testing.T) {
+	root := slack.Message{Msg: slack.Msg{
+		Timestamp:       "1720000000.000001",
+		ThreadTimestamp: "1720000000.000001",
+		ReplyCount:      1,
+		User:            "U1",
+		Text:            "context from the canvas",
+	}}
+
+	t.Run("HTMX list partial", func(t *testing.T) {
+		v := newCanvasCommentsTestViewer(t, []slack.Message{root}, nil)
+		req := httptest.NewRequest(http.MethodGet, "/archives/C1/canvas/comments", nil)
+		req.Header.Set("HX-Request", "true")
+		rr := httptest.NewRecorder()
+
+		v.srv.Handler.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusOK {
+			t.Fatalf("status = %d, want %d", rr.Code, http.StatusOK)
+		}
+		body := rr.Body.String()
+		if strings.Contains(body, "<!DOCTYPE html>") {
+			t.Fatalf("HTMX response should be a partial: %q", body)
+		}
+		for _, want := range []string{
+			`id="canvas-comments-heading"`,
+			"context from the canvas",
+			"1 replies",
+			`hx-target="#thread"`,
+			`aria-label="Close canvas comments panel"`,
+		} {
+			if !strings.Contains(body, want) {
+				t.Fatalf("HTMX response missing %q: %q", want, body)
+			}
+		}
+	})
+
+	t.Run("direct list keeps canvas and sidebar", func(t *testing.T) {
+		v := newCanvasCommentsTestViewer(t, []slack.Message{root}, nil)
+		req := httptest.NewRequest(http.MethodGet, "/archives/C1/canvas/comments", nil)
+		rr := httptest.NewRecorder()
+
+		v.srv.Handler.ServeHTTP(rr, req)
+
+		body := rr.Body.String()
+		for _, want := range []string{
+			"<!DOCTYPE html>",
+			`class="container thread-open"`,
+			`id="channel-link-C1"`,
+			`id="tab-panel-canvas"`,
+			`id="tab-btn-canvas"`,
+			`aria-selected="true"`,
+			`sandbox="allow-same-origin"`,
+			"context from the canvas",
+		} {
+			if !strings.Contains(body, want) {
+				t.Fatalf("direct response missing %q: %q", want, body)
+			}
+		}
+	})
+
+	t.Run("empty archive state", func(t *testing.T) {
+		v := newCanvasCommentsTestViewer(t, nil, nil)
+		req := httptest.NewRequest(http.MethodGet, "/archives/C1/canvas/comments", nil)
+		rr := httptest.NewRecorder()
+
+		v.srv.Handler.ServeHTTP(rr, req)
+
+		if !strings.Contains(rr.Body.String(), "No canvas comments were archived.") {
+			t.Fatalf("response should show empty state: %q", rr.Body.String())
+		}
+	})
+
+	t.Run("unsupported source state", func(t *testing.T) {
+		src := newViewerRouteSource()
+		src.wi = &slack.AuthTestResponse{}
+		v, err := New(t.Context(), "", src)
+		if err != nil {
+			t.Fatal(err)
+		}
+		req := httptest.NewRequest(http.MethodGet, "/archives/C1/canvas/comments", nil)
+		rr := httptest.NewRecorder()
+
+		v.srv.Handler.ServeHTTP(rr, req)
+
+		body := rr.Body.String()
+		if !strings.Contains(body, "Canvas comments are unavailable for this archive format.") ||
+			!strings.Contains(body, `disabled`) {
+			t.Fatalf("response should show unavailable state and disabled control: %q", body)
+		}
+	})
+}
+
+func TestCanvasCommentHandler(t *testing.T) {
+	const threadTS = "1720000000.000001"
+	root := slack.Message{Msg: slack.Msg{
+		Timestamp:       threadTS,
+		ThreadTimestamp: threadTS,
+		ReplyCount:      1,
+		User:            "U1",
+		Text:            "canvas discussion root",
+	}}
+	reply := slack.Message{Msg: slack.Msg{
+		Timestamp:       "1720000001.000001",
+		ThreadTimestamp: threadTS,
+		User:            "U1",
+		Text:            "canvas discussion reply",
+	}}
+	threads := map[string][]slack.Message{threadTS: {root, reply}}
+
+	t.Run("HTMX detail partial", func(t *testing.T) {
+		v := newCanvasCommentsTestViewer(t, []slack.Message{root}, threads)
+		req := httptest.NewRequest(http.MethodGet, "/archives/C1/canvas/comments/"+threadTS, nil)
+		req.Header.Set("HX-Request", "true")
+		rr := httptest.NewRecorder()
+
+		v.srv.Handler.ServeHTTP(rr, req)
+
+		body := rr.Body.String()
+		if strings.Contains(body, "<!DOCTYPE html>") ||
+			!strings.Contains(body, "canvas discussion root") ||
+			!strings.Contains(body, "canvas discussion reply") ||
+			!strings.Contains(body, "Back to comments") {
+			t.Fatalf("unexpected HTMX detail response: %q", body)
+		}
+	})
+
+	t.Run("direct detail is deep-link safe", func(t *testing.T) {
+		v := newCanvasCommentsTestViewer(t, []slack.Message{root}, threads)
+		req := httptest.NewRequest(http.MethodGet, "/archives/C1/canvas/comments/"+threadTS, nil)
+		rr := httptest.NewRecorder()
+
+		v.srv.Handler.ServeHTTP(rr, req)
+
+		body := rr.Body.String()
+		for _, want := range []string{
+			"<!DOCTYPE html>",
+			`class="container thread-open"`,
+			`id="tab-panel-canvas"`,
+			`sandbox="allow-same-origin"`,
+			"canvas discussion root",
+			"canvas discussion reply",
+			`href="/archives/C1/canvas/comments"`,
+			`href="/archives/C1/canvas"`,
+		} {
+			if !strings.Contains(body, want) {
+				t.Fatalf("direct detail missing %q: %q", want, body)
+			}
+		}
+	})
+
+	t.Run("rejects invalid timestamp", func(t *testing.T) {
+		v := newCanvasCommentsTestViewer(t, []slack.Message{root}, threads)
+		req := httptest.NewRequest(http.MethodGet, "/archives/C1/canvas/comments/~bad", nil)
+		rr := httptest.NewRecorder()
+
+		v.srv.Handler.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusNotFound {
+			t.Fatalf("status = %d, want %d", rr.Code, http.StatusNotFound)
+		}
+	})
 }
 
 func TestCanvasContentHandler_ServesCanvasHTML(t *testing.T) {

@@ -609,6 +609,52 @@
         border: none;
     }
 
+    .canvas-toolbar {
+        display: flex;
+        justify-content: flex-end;
+        padding: .5rem 1rem;
+        border-bottom: 1px solid var(--border-color);
+        background-color: var(--bg-color);
+    }
+
+    .canvas-comments-control {
+        appearance: none;
+        border: 1px solid var(--border-color);
+        border-radius: .25rem;
+        padding: .4rem .75rem;
+        color: var(--link-color);
+        background-color: var(--bg-color);
+        font: inherit;
+        font-size: .875rem;
+        text-decoration: none;
+        cursor: pointer;
+    }
+
+    .canvas-comments-control:hover:not([disabled]) {
+        background-color: var(--hover-color);
+    }
+
+    .canvas-comments-control:focus-visible {
+        outline: 2px solid var(--secondary-color);
+        outline-offset: 2px;
+    }
+
+    .canvas-comments-control.disabled,
+    .canvas-comments-control[disabled] {
+        color: var(--text-secondary);
+        cursor: not-allowed;
+        opacity: .65;
+    }
+
+    .canvas-comments-state {
+        padding: 1rem 0;
+        color: var(--text-secondary);
+    }
+
+    .canvas-comment-root footer {
+        margin-top: .5rem;
+    }
+
     .canvas-unavailable {
         padding: 1.5rem;
         color: var(--text-secondary);

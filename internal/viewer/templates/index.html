@@ -16,7 +16,7 @@
         Cannot reach the viewer server. Check that it is running and try again.
     </div>
     {{ end }}
-    <div class="container{{ if or .User .ThreadMessages }} thread-open{{ end }}">
+    <div class="container{{ if or .User .ThreadMessages .CanvasCommentsOpen }} thread-open{{ end }}">
         <section class="channel-sidebar">
             <header>
                 <div class="sidebar-header-inner">
@@ -48,6 +48,10 @@
             {{ template "hx_user" (userview .User .Interactive) }}
             {{ else if .ThreadMessages }}
             {{ template "hx_thread" . }}
+            {{ else if .CanvasCommentID }}
+            {{ template "hx_canvas_comment" . }}
+            {{ else if .CanvasCommentsOpen }}
+            {{ template "hx_canvas_comments" . }}
             {{ end }}
         </section>
     </div>
@@ -152,6 +156,16 @@
 {{ define "hx_canvas" }}
 {{ template "conversation_header" . }}
 <div class="canvas-container" id="tab-panel-canvas" role="tabpanel" aria-labelledby="tab-btn-canvas" tabindex="0">
+    <div class="canvas-toolbar">
+        {{ if .CanvasCommentsSupported }}
+        <a class="canvas-comments-control" href="{{ canvascommentsurl .Conversation.ID }}"
+            {{ if .Interactive }}hx-get="{{ canvascommentsurl .Conversation.ID }}" hx-target="#thread" hx-push-url="true"{{ end }}
+            aria-label="Open {{ len .CanvasComments }} archived canvas comments">Comments ({{ len .CanvasComments }})</a>
+        {{ else }}
+        <button type="button" class="canvas-comments-control disabled" disabled
+            aria-label="Canvas comments are unavailable for this archive">Comments unavailable</button>
+        {{ end }}
+    </div>
     {{ if .CanvasAvailable }}
     <iframe class="canvas-frame"
         src="{{ canvascontenturl .Conversation.ID }}"
@@ -161,6 +175,87 @@
     <div class="canvas-unavailable">
         <p>Canvas is not available (files were not downloaded).</p>
     </div>
+    {{ end }}
+</div>
+{{ end }}
+
+{{ define "hx_canvas_comments" }}
+<header class="thread-header">
+    <h2 id="canvas-comments-heading">Canvas comments ({{ len .CanvasComments }})</h2>
+    <a id="close-canvas-comments" class="close-button" href="{{ canvasurl .Conversation.ID }}"{{ if .Interactive }} data-close-panel data-close-url="{{ canvasurl .Conversation.ID }}"{{ end }} aria-label="Close canvas comments panel">&times;</a>
+</header>
+<div class="message-list canvas-comments-list" aria-labelledby="canvas-comments-heading">
+    {{ if not .CanvasCommentsSupported }}
+    <div class="canvas-comments-state">
+        <p>Canvas comments are unavailable for this archive format.</p>
+    </div>
+    {{ else if not .CanvasComments }}
+    <div class="canvas-comments-state">
+        <p>No canvas comments were archived.</p>
+    </div>
+    {{ else }}
+    {{ range $el := .CanvasComments }}
+    <article class="message canvas-comment-root">
+        {{ if is_user_msg $el }}
+        <a class="avatar" href="{{ profileurl $el }}"{{ if $.Interactive }} hx-get="{{ userurl $el.User }}" hx-target="#thread"{{ end }}>
+            <img class="avatar" src="{{ userpic $el.User }}" alt="">
+        </a>
+        {{ else }}
+        <span class="avatar"><img class="avatar" src="{{ userpic $el.User }}" alt=""></span>
+        {{ end }}
+        <div class="message-inner">
+            {{ template "render_message" (msgview "" $el) }}
+            <footer class="thread-info">
+                <a href="{{ canvascommenturl $.Conversation.ID (canvasthreadts $el) }}"
+                    {{ if $.Interactive }}hx-get="{{ canvascommenturl $.Conversation.ID (canvasthreadts $el) }}" hx-target="#thread" hx-push-url="true"{{ end }}>
+                    View discussion · {{ $el.ReplyCount }} replies
+                </a>
+            </footer>
+        </div>
+    </article>
+    {{ if and (not $.Interactive) (is_user_msg $el) }}
+    {{ template "static_user_profile" (staticuserview $el) }}
+    {{ end }}
+    {{ end }}
+    {{ end }}
+</div>
+{{ end }}
+
+{{ define "hx_canvas_comment" }}
+<header class="thread-header">
+    <h2 id="canvas-comment-heading">Canvas discussion</h2>
+    <a id="close-canvas-comment" class="close-button" href="{{ canvasurl .Conversation.ID }}"{{ if .Interactive }} data-close-panel data-close-url="{{ canvasurl .Conversation.ID }}"{{ end }} aria-label="Close canvas comments panel">&times;</a>
+</header>
+<p class="thread-link-row">
+    <a href="{{ canvascommentsurl .Conversation.ID }}"{{ if .Interactive }} hx-get="{{ canvascommentsurl .Conversation.ID }}" hx-target="#thread" hx-push-url="true"{{ end }}>Back to comments</a>
+</p>
+<div class="message-list canvas-comment-thread" aria-labelledby="canvas-comment-heading">
+    {{ if not .CanvasCommentsSupported }}
+    <div class="canvas-comments-state">
+        <p>Canvas comments are unavailable for this archive format.</p>
+    </div>
+    {{ else if not .CanvasCommentMessages }}
+    <div class="canvas-comments-state">
+        <p>This canvas discussion was not found in the archive.</p>
+    </div>
+    {{ else }}
+    {{ range $el := .CanvasCommentMessages }}
+    <article class="message">
+        {{ if is_user_msg $el }}
+        <a class="avatar" href="{{ profileurl $el }}"{{ if $.Interactive }} hx-get="{{ userurl $el.User }}" hx-target="#thread"{{ end }}>
+            <img class="avatar" src="{{ userpic $el.User }}" alt="">
+        </a>
+        {{ else }}
+        <span class="avatar"><img class="avatar" src="{{ userpic $el.User }}" alt=""></span>
+        {{ end }}
+        <div class="message-inner">
+            {{ template "render_message" (msgview "" $el) }}
+        </div>
+    </article>
+    {{ if and (not $.Interactive) (is_user_msg $el) }}
+    {{ template "static_user_profile" (staticuserview $el) }}
+    {{ end }}
+    {{ end }}
     {{ end }}
 </div>
 {{ end }}
