@@ -35,8 +35,9 @@ import (
 
 	"github.com/rusq/slack"
 
-	"github.com/rusq/slackdump/v4/internal/structures"
 	"google.golang.org/protobuf/encoding/protowire"
+
+	"github.com/rusq/slackdump/v4/internal/structures"
 )
 
 var (
@@ -135,13 +136,6 @@ func (cl *Client) quipLookupThreadIDs(ctx context.Context, fileIDs ...string) (m
 		return nil, err
 	}
 	return r.Lookup, nil
-}
-
-// canvasChannelFromFileID derives the dedicated canvas channel ID from a file
-// ID. Canvas channels reuse the file suffix with a leading C instead of F.
-func canvasChannelFromFileID(fileID string) string {
-	channelID, _ := structures.CanvasChannelID(fileID)
-	return channelID
 }
 
 // canvasBaseURL returns the workspace base URL derived from webclientAPI.
@@ -489,8 +483,8 @@ func (cl *Client) CanvasThreadRoots(ctx context.Context, fileID string) ([]Canva
 	ctx, task := trace.NewTask(ctx, "CanvasThreadRoots")
 	defer task.End()
 
-	channelID := canvasChannelFromFileID(fileID)
-	if channelID == "" {
+	channelID, ok := structures.CanvasChannelID(fileID)
+	if channelID == "" || !ok {
 		return nil, fmt.Errorf("canvas: invalid file ID %q", fileID)
 	}
 

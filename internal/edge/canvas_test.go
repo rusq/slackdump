@@ -41,6 +41,11 @@ func TestCanvasChannelFromFileID(t *testing.T) {
 	assert.Equal(t, "", canvasChannelFromFileID("F"))
 }
 
+func canvasChannelFromFileID(fileID string) string {
+	c, _ := structures.CanvasChannelID(fileID)
+	return c
+}
+
 func Test_encodeEditor1Request(t *testing.T) {
 	const oypID = "OYP9AAsR28Y"
 	body := encodeEditor1Request(oypID)
