@@ -123,16 +123,18 @@ func (w *Pool) GetUserProfileContext(ctx context.Context, params *slack.GetUserP
 	return w.next().GetUserProfileContext(ctx, params)
 }
 
+type CanvasRootClient interface {
+	CanvasSupported() bool
+	CanvasThreadRoots(context.Context, string) ([]slack.Message, error)
+}
+
 // CanvasSupported reports whether the pool contains an xoxc-backed,
 // canvas-capable client.
 func (p *Pool) CanvasSupported() bool {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	for _, cl := range p.pool {
-		if cc, ok := cl.(interface {
-			CanvasSupported() bool
-			CanvasThreadRoots(context.Context, string) ([]slack.Message, error)
-		}); ok && cc.CanvasSupported() {
+		if cc, ok := cl.(CanvasRootClient); ok && cc.CanvasSupported() {
 			return true
 		}
 	}
@@ -143,10 +145,7 @@ func (p *Pool) CanvasSupported() bool {
 func (p *Pool) CanvasThreadRoots(ctx context.Context, fileID string) ([]slack.Message, error) {
 	for range len(p.pool) {
 		cl := p.next()
-		cc, ok := cl.(interface {
-			CanvasSupported() bool
-			CanvasThreadRoots(context.Context, string) ([]slack.Message, error)
-		})
+		cc, ok := cl.(CanvasRootClient)
 		if ok && cc.CanvasSupported() {
 			return cc.CanvasThreadRoots(ctx, fileID)
 		}

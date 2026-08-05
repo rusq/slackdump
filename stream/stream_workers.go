@@ -30,11 +30,6 @@ import (
 	"github.com/rusq/slackdump/v4/processor"
 )
 
-type canvasRootClient interface {
-	CanvasSupported() bool
-	CanvasThreadRoots(context.Context, string) ([]slack.Message, error)
-}
-
 func (cs *Stream) channelWorker(ctx context.Context, proc processor.Conversations, results chan<- Result, threadC chan<- request, reqs <-chan request) {
 	ctx, task := trace.NewTask(ctx, "channelWorker")
 	defer task.End()
@@ -64,7 +59,7 @@ func (cs *Stream) channelWorker(ctx context.Context, proc processor.Conversation
 					logCanvasAPIError(ctx, "canvas file unavailable", channel.ID, fileID, "", "", err)
 				}
 
-				canvasClient, supported := cs.client.(canvasRootClient)
+				canvasClient, supported := cs.client.(client.CanvasRootClient)
 				if !supported || !canvasClient.CanvasSupported() {
 					slog.DebugContext(ctx, "skipping canvas discussions for non-client-token session", "owner_channel_id", channel.ID, "canvas_file_id", fileID)
 				} else {
@@ -253,7 +248,7 @@ func (cs *Stream) canvasDiscussions(ctx context.Context, proc processor.Conversa
 	if !ok {
 		return newAPIError("canvas.threadRoots", fmt.Errorf("invalid canvas file ID %q", fileID))
 	}
-	canvasClient, ok := cs.client.(canvasRootClient)
+	canvasClient, ok := cs.client.(client.CanvasRootClient)
 	if !ok || !canvasClient.CanvasSupported() {
 		return newAPIError("canvas.threadRoots", client.ErrOpNotSupported)
 	}
