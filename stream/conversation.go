@@ -93,9 +93,8 @@ func (cs *Stream) Conversations(ctx context.Context, proc processor.Conversation
 		canvasC        = make(chan canvasThreadRequest, threadChanSz)
 		canvasResultsC = make(chan canvasThreadResult, threadChanSz)
 
-	resultsC = make(chan Result, resultSz)
+		resultsC = make(chan Result, resultSz)
 	)
-
 
 	var wg sync.WaitGroup
 

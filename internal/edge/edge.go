@@ -282,14 +282,11 @@ func (cl *Client) ParseResponse(req any, r *http.Response) error {
 // if it receives another rate limit error, it returns slack.RateLimitedError
 // to let the caller handle it.
 func do(ctx context.Context, cl *http.Client, req *http.Request) (*http.Response, error) {
-	ctx, task := trace.NewTask(ctx, "edge.do")
-	defer task.End()
-
 	lg := slog.Default()
 	req.Header.Set("Accept-Language", "en-NZ,en-AU;q=0.9,en;q=0.8")
 	req.Header.Set("User-Agent", slackauth.DefaultUserAgent)
 
-	rgn := trace.StartRegion(ctx, "http.Do")
+	rgn := trace.StartRegion(ctx, "edge.do")
 	resp, err := cl.Do(req)
 	rgn.End()
 	if err != nil {

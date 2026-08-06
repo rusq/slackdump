@@ -251,6 +251,8 @@ func (cs *Stream) canvasFile(ctx context.Context, proc processor.Conversations, 
 }
 
 func (cs *Stream) canvasDiscussions(ctx context.Context, proc processor.Conversations, cm processor.CanvasMessenger, threadC chan<- canvasThreadRequest, completed <-chan canvasThreadResult, results chan<- Result, ownerReq channelRequest, owner *slack.Channel, fileID string) error {
+	ctx, task := trace.NewTask(ctx, "canvasDiscussions")
+	defer task.End()
 	hiddenID, ok := structures.CanvasChannelID(fileID)
 	if !ok {
 		return newAPIError("canvas.threadRoots", fmt.Errorf("invalid canvas file ID %q", fileID))
