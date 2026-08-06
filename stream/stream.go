@@ -77,9 +77,11 @@ const (
 	RTChannelInfo
 	RTChannelUsers
 	RTSearch
+	RTCanvasThread // Result for a completed canvas discussion
 )
 
-// Result is sent to the callback function for each channel or thread.
+// Result is sent to the callback for ordinary channel/thread pages and for
+// whole canvas-discussion completions. RTCanvasThread always has IsLast set.
 type Result struct {
 	Type        ResultType
 	ChannelID   string
