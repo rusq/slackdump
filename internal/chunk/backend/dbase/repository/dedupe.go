@@ -10,8 +10,7 @@ import (
 	"github.com/rusq/slackdump/v4/internal/chunk"
 )
 
-
-type DedupeCounts struct {
+type DedupeStats struct {
 	Messages       int64
 	CanvasMessages int64
 	Users          int64
@@ -19,16 +18,6 @@ type DedupeCounts struct {
 	ChannelUsers   int64
 	Files          int64
 	Chunks         int64
-}
-
-type DedupeResult struct {
-	MessagesRemoved       int64
-	CanvasMessagesRemoved int64
-	UsersRemoved          int64
-	ChannelsRemoved       int64
-	ChannelUsersRemoved   int64
-	FilesRemoved          int64
-	ChunksRemoved         int64
 }
 
 type MessageDedupeMode string
@@ -57,8 +46,8 @@ func (m MessageDedupeMode) String() string {
 }
 
 type DedupeRepository interface {
-	Preview(ctx context.Context, db *sqlx.DB) (DedupeCounts, error)
-	Deduplicate(ctx context.Context, db *sqlx.DB) (DedupeResult, error)
+	Preview(ctx context.Context, db *sqlx.DB) (DedupeStats, error)
+	Deduplicate(ctx context.Context, db *sqlx.DB) (DedupeStats, error)
 }
 
 type DedupeOption func(*dedupeRepository)
@@ -164,89 +153,71 @@ func (r dedupeRepository) entities() []dedupeEntity {
 	return entities
 }
 
-func (r dedupeRepository) Preview(ctx context.Context, db *sqlx.DB) (DedupeCounts, error) {
-	var counts DedupeCounts
+func (r dedupeRepository) Preview(ctx context.Context, db *sqlx.DB) (DedupeStats, error) {
+	var counts DedupeStats
 	for _, entity := range r.entities() {
 		n, err := r.countDuplicates(ctx, db, entity)
 		if err != nil {
-			return DedupeCounts{}, fmt.Errorf("count duplicate %s: %w", entity.etype, err)
+			return DedupeStats{}, fmt.Errorf("count duplicate %s: %w", entity.etype, err)
 		}
-		assignCount(&counts, entity.etype, n)
+		counts.assign(entity.etype, n)
 
 		chunks, err := r.prunableChunkIDs(ctx, db, entity)
 		if err != nil {
-			return DedupeCounts{}, fmt.Errorf("count prunable %s chunks: %w", entity.etype, err)
+			return DedupeStats{}, fmt.Errorf("count prunable %s chunks: %w", entity.etype, err)
 		}
 		counts.Chunks += int64(len(chunks))
 	}
 	return counts, nil
 }
 
-func (r dedupeRepository) Deduplicate(ctx context.Context, db *sqlx.DB) (DedupeResult, error) {
+func (r dedupeRepository) Deduplicate(ctx context.Context, db *sqlx.DB) (DedupeStats, error) {
 	tx, err := db.BeginTxx(ctx, nil)
 	if err != nil {
-		return DedupeResult{}, fmt.Errorf("begin transaction: %w", err)
+		return DedupeStats{}, fmt.Errorf("begin transaction: %w", err)
 	}
 	defer tx.Rollback()
 
-	var result DedupeResult
+	var result DedupeStats
 	for _, entity := range r.entities() {
 		chunkIDs, err := r.prunableChunkIDs(ctx, tx, entity)
 		if err != nil {
-			return DedupeResult{}, fmt.Errorf("query prunable %s chunks: %w", entity.etype, err)
+			return DedupeStats{}, fmt.Errorf("query prunable %s chunks: %w", entity.etype, err)
 		}
 
 		rowsRemoved, err := deleteDuplicates(ctx, tx, entity)
 		if err != nil {
-			return DedupeResult{}, fmt.Errorf("delete duplicate %s: %w", entity.etype, err)
+			return DedupeStats{}, fmt.Errorf("delete duplicate %s: %w", entity.etype, err)
 		}
-		assignRemoved(&result, entity.etype, rowsRemoved)
+		result.assign(entity.etype, rowsRemoved)
 
 		chunksRemoved, err := deleteChunksByID(ctx, tx, chunkIDs, entity.chunkTypes)
 		if err != nil {
-			return DedupeResult{}, fmt.Errorf("delete prunable %s chunks: %w", entity.etype, err)
+			return DedupeStats{}, fmt.Errorf("delete prunable %s chunks: %w", entity.etype, err)
 		}
-		result.ChunksRemoved += chunksRemoved
+		result.Chunks += chunksRemoved
 	}
 
 	if err := tx.Commit(); err != nil {
-		return DedupeResult{}, fmt.Errorf("commit: %w", err)
+		return DedupeStats{}, fmt.Errorf("commit: %w", err)
 	}
 	return result, nil
 }
 
-// TODO: combine this slop (see +18,+33,p)
-func assignCount(counts *DedupeCounts, entType entityType, n int64) {
+func (s *DedupeStats) assign(entType entityType, n int64) {
 	switch entType {
 	case entMessages:
-		counts.Messages = n
+		s.Messages = n
 	case entCanvasMessages:
-		counts.CanvasMessages = n
+		s.CanvasMessages = n
 	case entUsers:
-		counts.Users = n
+		s.Users = n
 	case entChannels:
-		counts.Channels = n
+		s.Channels = n
 	case entChannelUsers:
-		counts.ChannelUsers = n
+		s.ChannelUsers = n
 	case entFiles:
-		counts.Files = n
-	}
-}
-
-func assignRemoved(result *DedupeResult, entType entityType, n int64) {
-	switch entType {
-	case entMessages:
-		result.MessagesRemoved = n
-	case entCanvasMessages:
-		result.CanvasMessagesRemoved = n
-	case entUsers:
-		result.UsersRemoved = n
-	case entChannels:
-		result.ChannelsRemoved = n
-	case entChannelUsers:
-		result.ChannelUsersRemoved = n
-	case entFiles:
-		result.FilesRemoved = n
+		s.Files = n
 	}
 }
 

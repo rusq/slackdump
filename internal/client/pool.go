@@ -123,11 +123,6 @@ func (w *Pool) GetUserProfileContext(ctx context.Context, params *slack.GetUserP
 	return w.next().GetUserProfileContext(ctx, params)
 }
 
-type CanvasRootClient interface {
-	CanvasSupported() bool
-	CanvasThreadRoots(context.Context, string) ([]slack.Message, error)
-}
-
 // CanvasSupported reports whether the pool contains an xoxc-backed,
 // canvas-capable client.
 func (p *Pool) CanvasSupported() bool {

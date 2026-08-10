@@ -50,6 +50,15 @@ type Slack interface {
 	GetUserProfileContext(ctx context.Context, params *slack.GetUserProfileParameters) (*slack.UserProfile, error)
 }
 
+// CanvasRootClient is an interface that Clients that support Canvas Thread
+// Root extraction implement.
+type CanvasRootClient interface {
+	// CanvasSupported should return true if the client supports extracting
+	// canvas threads.
+	CanvasSupported() bool
+	CanvasThreadRoots(context.Context, string) ([]slack.Message, error)
+}
+
 // ErrOpNotSupported is returned when a client lacks an optional Edge or
 // canvas capability.
 var ErrOpNotSupported = errors.New("client doesn't support this operation")

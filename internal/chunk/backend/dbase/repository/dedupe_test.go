@@ -76,7 +76,7 @@ func TestDedupeRepository_Preview(t *testing.T) {
 
 		counts, err := repo.Preview(ctx, db)
 		require.NoError(t, err)
-		assert.Equal(t, DedupeCounts{
+		assert.Equal(t, DedupeStats{
 			Messages:     1,
 			Users:        1,
 			Channels:     1,
@@ -121,7 +121,7 @@ func TestDedupeRepository_Preview(t *testing.T) {
 
 		counts, err := repo.Preview(ctx, db)
 		require.NoError(t, err)
-		assert.Equal(t, DedupeCounts{
+		assert.Equal(t, DedupeStats{
 			ChannelUsers: 1,
 			Chunks:       1,
 		}, counts)
@@ -142,7 +142,7 @@ func TestDedupeRepository_Preview(t *testing.T) {
 
 		counts, err := repo.Preview(ctx, db)
 		require.NoError(t, err)
-		assert.Equal(t, DedupeCounts{Messages: 1, Chunks: 1}, counts)
+		assert.Equal(t, DedupeStats{Messages: 1, Chunks: 1}, counts)
 	})
 
 	t.Run("keeps ordinary and canvas message domains separate", func(t *testing.T) {
@@ -180,7 +180,7 @@ func TestDedupeRepository_Preview(t *testing.T) {
 
 		counts, err := repo.Preview(ctx, db)
 		require.NoError(t, err)
-		assert.Equal(t, DedupeCounts{}, counts)
+		assert.Equal(t, DedupeStats{}, counts)
 	})
 }
 
@@ -220,13 +220,13 @@ func TestDedupeRepository_Deduplicate(t *testing.T) {
 
 		result, err := repo.Deduplicate(ctx, db)
 		require.NoError(t, err)
-		assert.Equal(t, DedupeResult{
-			MessagesRemoved:     1,
-			UsersRemoved:        1,
-			ChannelsRemoved:     1,
-			ChannelUsersRemoved: 1,
-			FilesRemoved:        1,
-			ChunksRemoved:       5,
+		assert.Equal(t, DedupeStats{
+			Messages:     1,
+			Users:        1,
+			Channels:     1,
+			ChannelUsers: 1,
+			Files:        1,
+			Chunks:       5,
 		}, result)
 
 		verifyChunkCountForTest(t, db, 5)
@@ -277,9 +277,9 @@ func TestDedupeRepository_Deduplicate(t *testing.T) {
 
 		result, err := repo.Deduplicate(ctx, db)
 		require.NoError(t, err)
-		assert.Equal(t, DedupeResult{
-			ChannelUsersRemoved: 1,
-			ChunksRemoved:       1,
+		assert.Equal(t, DedupeStats{
+			ChannelUsers: 1,
+			Chunks:       1,
 		}, result)
 
 		verifyChunkCountForTest(t, db, 9)
@@ -305,7 +305,7 @@ func TestDedupeRepository_Deduplicate(t *testing.T) {
 
 		result, err := repo.Deduplicate(ctx, db)
 		require.NoError(t, err)
-		assert.Equal(t, DedupeResult{}, result)
+		assert.Equal(t, DedupeStats{}, result)
 		verifyMessageCountForTest(t, db, 2)
 		verifyChunkCountForTest(t, db, 2)
 	})
@@ -325,9 +325,9 @@ func TestDedupeRepository_Deduplicate(t *testing.T) {
 
 		result, err := repo.Deduplicate(ctx, db)
 		require.NoError(t, err)
-		assert.Equal(t, DedupeResult{
-			MessagesRemoved: 1,
-			ChunksRemoved:   1,
+		assert.Equal(t, DedupeStats{
+			Messages: 1,
+			Chunks:   1,
 		}, result)
 		verifyMessageCountForTest(t, db, 1)
 		verifyChunkCountForTest(t, db, 1)
@@ -349,7 +349,7 @@ func TestDedupeRepository_Deduplicate(t *testing.T) {
 
 		result, err := repo.Deduplicate(ctx, db)
 		require.NoError(t, err)
-		assert.Equal(t, DedupeResult{}, result)
+		assert.Equal(t, DedupeStats{}, result)
 		verifyMessageCountForTest(t, db, 2)
 		verifyMessageChunkInChannelForTest(t, db, 100, "C001", 11)
 		verifyMessageChunkInChannelForTest(t, db, 100, "C002", 21)
@@ -370,7 +370,7 @@ func TestDedupeRepository_Deduplicate(t *testing.T) {
 
 		result, err := repo.Deduplicate(ctx, db)
 		require.NoError(t, err)
-		assert.Equal(t, DedupeResult{}, result)
+		assert.Equal(t, DedupeStats{}, result)
 
 		verifyChunkCountForTest(t, db, 2)
 		verifyFileCountForTest(t, db, 2)
@@ -391,9 +391,9 @@ func TestDedupeRepository_Deduplicate(t *testing.T) {
 
 		result, err := repo.Deduplicate(ctx, db)
 		require.NoError(t, err)
-		assert.Equal(t, DedupeResult{
-			FilesRemoved:  1,
-			ChunksRemoved: 1,
+		assert.Equal(t, DedupeStats{
+			Files:  1,
+			Chunks: 1,
 		}, result)
 
 		verifyChunkCountForTest(t, db, 1)
@@ -432,11 +432,11 @@ func TestDedupeRepository_Deduplicate(t *testing.T) {
 
 		result, err := repo.Deduplicate(ctx, db)
 		require.NoError(t, err)
-		assert.Equal(t, DedupeResult{
-			MessagesRemoved:     1,
-			UsersRemoved:        1,
-			ChannelUsersRemoved: 1,
-			ChunksRemoved:       3,
+		assert.Equal(t, DedupeStats{
+			Messages:     1,
+			Users:        1,
+			ChannelUsers: 1,
+			Chunks:       3,
 		}, result)
 
 		verifyChunkCountForTest(t, db, 6)
@@ -477,11 +477,11 @@ func TestDedupeRepository_Deduplicate(t *testing.T) {
 
 		result, err := repo.Deduplicate(ctx, db)
 		require.NoError(t, err)
-		assert.Equal(t, DedupeResult{
-			MessagesRemoved:     2,
-			UsersRemoved:        2,
-			ChannelUsersRemoved: 2,
-			ChunksRemoved:       6,
+		assert.Equal(t, DedupeStats{
+			Messages:     2,
+			Users:        2,
+			ChannelUsers: 2,
+			Chunks:       6,
 		}, result)
 
 		verifyChunkCountForTest(t, db, 3)
