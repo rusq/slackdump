@@ -18,6 +18,7 @@ package stream
 import (
 	"context"
 	"errors"
+	"reflect"
 	"testing"
 	"time"
 
@@ -703,6 +704,55 @@ func Test_isNonCriticalErr(t *testing.T) {
 			}
 			if ok != tt.wantOK {
 				t.Fatalf("isNonCriticalErr() ok = %t, wantOK = %t", ok, tt.wantOK)
+			}
+		})
+	}
+}
+
+func Test_uniqueStrings(t *testing.T) {
+	tests := []struct {
+		name string // description of this test case
+		// Named input parameters for target function.
+		input []string
+		want  []string
+	}{
+		{
+			name:  "empty slice",
+			input: []string{},
+			want:  []string{},
+		},
+		{
+			name:  "single element",
+			input: []string{"a"},
+			want:  []string{"a"},
+		},
+		{
+			name:  "multiple unique elements",
+			input: []string{"b", "a", "c"},
+			want:  []string{"a", "b", "c"},
+		},
+		{
+			name:  "multiple duplicate elements",
+			input: []string{"b", "a", "c", "a", "b"},
+			want:  []string{"a", "b", "c"},
+		},
+		{
+			name:  "all duplicates",
+			input: []string{"a", "a", "a"},
+			want:  []string{"a"},
+		},
+		{
+			name:  "mixed case",
+			input: []string{"A", "a", "B", "b"},
+			want:  []string{"A", "B", "a", "b"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := uniqueStrings(tt.input)
+			// TODO: update the condition below to compare got with tt.want.
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("uniqueStrings() = %v, want %v", got, tt.want)
 			}
 		})
 	}

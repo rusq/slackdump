@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"log/slog"
 	"runtime/trace"
+	"slices"
 	"sync"
 	"time"
 
@@ -574,6 +575,8 @@ func (cs *Stream) procChannelUsers(ctx context.Context, proc processor.ChannelIn
 		cursor = next
 	}
 
+	users = uniqueStrings(users)
+
 	// Cache the users for this channel.
 	cs.userCache.set(channelID, users)
 
@@ -583,6 +586,14 @@ func (cs *Stream) procChannelUsers(ctx context.Context, proc processor.ChannelIn
 	}
 
 	return users, nil
+}
+
+// uniqueStrings returns a new slice with unique strings from the input slice.
+// it may modify the input slice, so it should not be used after calling this
+// function.
+func uniqueStrings(input []string) []string {
+	slices.Sort(input)
+	return slices.Compact(input)
 }
 
 // procChannelInfoWithUsers returns the slack channel with members populated from
