@@ -18,7 +18,6 @@ package stream
 import (
 	"context"
 	"errors"
-	"reflect"
 	"testing"
 	"time"
 
@@ -709,6 +708,41 @@ func Test_isNonCriticalErr(t *testing.T) {
 	}
 }
 
+func TestStream_procChannelUsers(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	cl := mock_client.NewMockSlack(ctrl)
+	proc := mock_processor.NewMockConversations(ctrl)
+	cs := New(cl, network.NoLimits)
+
+	gomock.InOrder(
+		cl.EXPECT().
+			GetUsersInConversationContext(gomock.Any(), gomock.Any()).
+			DoAndReturn(func(_ context.Context, params *slack.GetUsersInConversationParameters) ([]string, string, error) {
+				assert.Empty(t, params.Cursor)
+				return []string{"U2", "U1"}, "next", nil
+			}),
+		cl.EXPECT().
+			GetUsersInConversationContext(gomock.Any(), gomock.Any()).
+			DoAndReturn(func(_ context.Context, params *slack.GetUsersInConversationParameters) ([]string, string, error) {
+				assert.Equal(t, "next", params.Cursor)
+				return []string{"U3", "U2"}, "", nil
+			}),
+	)
+	proc.EXPECT().
+		ChannelUsers(gomock.Any(), "C1", "", []string{"U1", "U2", "U3"}).
+		Return(nil)
+
+	got, err := cs.procChannelUsers(t.Context(), proc, "C1", "")
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"U1", "U2", "U3"}, got)
+
+	// A second request should use the deduplicated cached value without calling
+	// either the Slack API or the processor again.
+	got, err = cs.procChannelUsers(t.Context(), proc, "C1", "")
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"U1", "U2", "U3"}, got)
+}
+
 func Test_uniqueStrings(t *testing.T) {
 	tests := []struct {
 		name string // description of this test case
@@ -750,10 +784,7 @@ func Test_uniqueStrings(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := uniqueStrings(tt.input)
-			// TODO: update the condition below to compare got with tt.want.
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("uniqueStrings() = %v, want %v", got, tt.want)
-			}
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }

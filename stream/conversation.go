@@ -575,6 +575,7 @@ func (cs *Stream) procChannelUsers(ctx context.Context, proc processor.ChannelIn
 		cursor = next
 	}
 
+	// ensure there are no duplicate entries.
 	users = uniqueStrings(users)
 
 	// Cache the users for this channel.
