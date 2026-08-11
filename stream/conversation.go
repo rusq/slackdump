@@ -32,6 +32,20 @@ import (
 	"github.com/rusq/slackdump/v4/processor"
 )
 
+const (
+	// message channel buffer size.  Messages are much faster than threads, so
+	// we can have a smaller buffer.
+	msgChanSz = 16
+	// thread channel buffer size.  Threads are much slower than channels,
+	// because each message might have a thread, and that means, that we'll
+	// have to send a thread request for each message.  So, we need a larger
+	// buffer for it not to block the channel messages scraping.  Value is chosed
+	threadChanSz = 4000
+	// result channel buffer size.  We are running 2 goroutines, 1 for channel
+	// messages, and 1 for threads.
+	resultSz = 2
+)
+
 // SyncConversations fetches the conversations from the link which can be a
 // channelID, channel URL, thread URL or a link in Slackdump format.
 func (cs *Stream) SyncConversations(ctx context.Context, proc processor.Conversations, items ...structures.EntityItem) error {
@@ -159,7 +173,7 @@ func (cs *Stream) startConversationPipeline(ctx context.Context, proc processor.
 	)
 	// Both the input loop (direct thread links) and channel worker (discovered
 	// threads) send to threadsC. Close it only after they both stop sending.
-	threadSenders.Add(2)
+	threadSenders.Add(resultSz)
 
 	workers.Go(func() {
 		defer threadSenders.Done()
