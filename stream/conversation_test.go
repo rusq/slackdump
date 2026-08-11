@@ -19,12 +19,16 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/rusq/slack"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 
+	"github.com/rusq/slackdump/v4/internal/client/mock_client"
 	"github.com/rusq/slackdump/v4/internal/fixtures"
+	"github.com/rusq/slackdump/v4/internal/network"
+	"github.com/rusq/slackdump/v4/internal/structures"
 	"github.com/rusq/slackdump/v4/mocks/mock_processor"
 )
 
@@ -34,6 +38,191 @@ var TestChannel = &slack.Channel{
 			ID: "C12345678",
 		},
 	},
+}
+
+func Test_produceItems(t *testing.T) {
+	ctx, cancel := context.WithCancel(t.Context())
+	output := make(chan structures.EntityItem)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		produceItems(ctx, output, []structures.EntityItem{{Id: "C1"}})
+	}()
+
+	cancel()
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("produceItems remained blocked after cancellation")
+	}
+}
+
+func Test_runConversationItems(t *testing.T) {
+	consumerErr := errors.New("consumer failed")
+	cancelObserved := make(chan struct{})
+	releaseProducer := make(chan struct{})
+	producerDone := make(chan struct{})
+	producer := func(ctx context.Context, output chan<- structures.EntityItem, _ []structures.EntityItem) {
+		defer close(output)
+		defer close(producerDone)
+		output <- structures.EntityItem{Id: "C1"}
+		<-ctx.Done()
+		close(cancelObserved)
+		<-releaseProducer
+	}
+	consumer := func(_ context.Context, input <-chan structures.EntityItem) error {
+		<-input
+		return consumerErr
+	}
+
+	result := make(chan error, 1)
+	go func() {
+		result <- runConversationItems(t.Context(), nil, producer, consumer)
+	}()
+
+	select {
+	case <-cancelObserved:
+	case <-time.After(time.Second):
+		t.Fatal("producer did not observe consumer cancellation")
+	}
+	select {
+	case err := <-result:
+		t.Fatalf("runConversationItems returned before its producer exited: %v", err)
+	default:
+	}
+	close(releaseProducer)
+	select {
+	case err := <-result:
+		assert.ErrorIs(t, err, consumerErr)
+	case <-time.After(time.Second):
+		t.Fatal("runConversationItems did not return after its producer exited")
+	}
+	select {
+	case <-producerDone:
+	default:
+		t.Fatal("producer was not joined before runConversationItems returned")
+	}
+}
+
+func TestStream_ConversationsCB(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	cs := New(mock_client.NewMockSlack(ctrl), network.NoLimits)
+	proc := mock_processor.NewMockConversations(ctrl)
+	items := make([]structures.EntityItem, 100)
+	items[0] = structures.EntityItem{Id: "not-a-valid-slack-link"}
+	for i := 1; i < len(items); i++ {
+		items[i] = structures.EntityItem{Id: "C12345678"}
+	}
+
+	done := make(chan error, 1)
+	go func() {
+		done <- cs.ConversationsCB(t.Context(), proc, items, func(Result) error { return nil })
+	}()
+	select {
+	case err := <-done:
+		assert.Error(t, err)
+	case <-time.After(time.Second):
+		t.Fatal("ConversationsCB did not return after a fatal item")
+	}
+}
+
+func TestStream_Conversations(t *testing.T) {
+	threadItem := structures.EntityItem{Id: "CTM1:1610000000.000000"}
+	threadChannel := &slack.Channel{GroupConversation: slack.GroupConversation{Conversation: slack.Conversation{ID: "CTM1"}}}
+	threadMessages := []slack.Message{{Msg: slack.Msg{
+		Channel:         "CTM1",
+		Timestamp:       "1610000000.000000",
+		ThreadTimestamp: "1610000000.000000",
+	}}}
+
+	t.Run("fatal thread result cancels queued work", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		cl := mock_client.NewMockSlack(ctrl)
+		proc := mock_processor.NewMockConversations(ctrl)
+		cs := New(cl, network.NoLimits)
+		cs.chanCache.set("CTM1", threadChannel)
+		cl.EXPECT().GetConversationRepliesContext(gomock.Any(), gomock.Any()).Return(threadMessages, false, "", nil).AnyTimes()
+		proc.EXPECT().ChannelInfo(gomock.Any(), gomock.Any(), "1610000000.000000").Return(nil).AnyTimes()
+		proc.EXPECT().ThreadMessages(gomock.Any(), "CTM1", gomock.Any(), true, true, threadMessages).Return(assert.AnError).AnyTimes()
+
+		items := make(chan structures.EntityItem, threadChanSz+1)
+		for range threadChanSz + 1 {
+			items <- threadItem
+		}
+		close(items)
+
+		done := make(chan error, 1)
+		go func() { done <- cs.Conversations(t.Context(), proc, items) }()
+		select {
+		case err := <-done:
+			assert.ErrorIs(t, err, assert.AnError)
+		case <-time.After(time.Second):
+			t.Fatal("Conversations did not join cancelled workers")
+		}
+	})
+
+	t.Run("callback failure cancels and joins producers", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		cl := mock_client.NewMockSlack(ctrl)
+		proc := mock_processor.NewMockConversations(ctrl)
+		callbackErr := errors.New("callback failed")
+		cs := New(cl, network.NoLimits, OptResultFn(func(Result) error { return callbackErr }))
+		cs.chanCache.set("CTM1", threadChannel)
+		cl.EXPECT().GetConversationRepliesContext(gomock.Any(), gomock.Any()).Return(threadMessages, false, "", nil).AnyTimes()
+		proc.EXPECT().ChannelInfo(gomock.Any(), gomock.Any(), "1610000000.000000").Return(nil).AnyTimes()
+		proc.EXPECT().ThreadMessages(gomock.Any(), "CTM1", gomock.Any(), true, true, threadMessages).Return(nil).AnyTimes()
+
+		items := make(chan structures.EntityItem, threadChanSz+1)
+		for range threadChanSz + 1 {
+			items <- threadItem
+		}
+		close(items)
+
+		done := make(chan error, 1)
+		go func() { done <- cs.Conversations(t.Context(), proc, items) }()
+		select {
+		case err := <-done:
+			assert.ErrorIs(t, err, callbackErr)
+		case <-time.After(time.Second):
+			t.Fatal("Conversations did not join producers after callback failure")
+		}
+	})
+
+	t.Run("external cancellation returns cause", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		cs := New(mock_client.NewMockSlack(ctrl), network.NoLimits)
+		proc := mock_processor.NewMockConversations(ctrl)
+		ctx, cancel := context.WithCancelCause(t.Context())
+		cause := errors.New("caller stopped")
+		cancel(cause)
+
+		err := cs.Conversations(ctx, proc, make(chan structures.EntityItem))
+		assert.ErrorIs(t, err, cause)
+	})
+
+	t.Run("nonfatal channel error continues processing", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		cl := mock_client.NewMockSlack(ctrl)
+		proc := mock_processor.NewMockConversations(ctrl)
+		cs := New(cl, network.NoLimits)
+		cl.EXPECT().GetConversationInfoContext(gomock.Any(), gomock.Any()).DoAndReturn(
+			func(_ context.Context, in *slack.GetConversationInfoInput) (*slack.Channel, error) {
+				if in.ChannelID == "CMISSING" {
+					return nil, slack.SlackErrorResponse{Err: errChanNotFound.Error()}
+				}
+				return threadChannel, nil
+			}).AnyTimes()
+		cl.EXPECT().GetConversationRepliesContext(gomock.Any(), gomock.Any()).Return(threadMessages, false, "", nil)
+		proc.EXPECT().ChannelInfo(gomock.Any(), threadChannel, "1610000000.000000").Return(nil)
+		proc.EXPECT().ThreadMessages(gomock.Any(), "CTM1", gomock.Any(), true, true, threadMessages).Return(nil)
+
+		items := make(chan structures.EntityItem, 2)
+		items <- structures.EntityItem{Id: "CMISSING:1610000000.000000"}
+		items <- threadItem
+		close(items)
+
+		assert.NoError(t, cs.Conversations(t.Context(), proc, items))
+	})
 }
 
 func Test_procChanMsg(t *testing.T) {
@@ -215,6 +404,19 @@ func Test_procChanMsg(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("cancellation unblocks thread output", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		mp := mock_processor.NewMockConversations(ctrl)
+		mp.EXPECT().Messages(gomock.Any(), TestChannel.ID, 1, true, threadedMsg).Return(nil)
+		ctx, cancel := context.WithCancelCause(t.Context())
+		cause := errors.New("stop thread routing")
+		cancel(cause)
+
+		got, err := (&Stream{}).procChanMsg(ctx, mp, make(chan request), TestChannel, true, threadedMsg)
+		assert.Equal(t, 1, got)
+		assert.ErrorIs(t, err, cause)
+	})
 }
 
 func stuffProcWithFiles(mp *mock_processor.MockConversations, ch *slack.Channel, mm []slack.Message) {

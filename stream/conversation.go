@@ -48,24 +48,43 @@ func (cs *Stream) ConversationsCB(ctx context.Context, proc processor.Conversati
 
 	lg := slog.With("links", items)
 	cs.resultFn = append(cs.resultFn, cb)
+	return runConversationItems(ctx, items, produceItems, func(ctx context.Context, itemC <-chan structures.EntityItem) error {
+		err := cs.Conversations(ctx, proc, itemC)
+		lg.DebugContext(ctx, "stream: item consumer stopped", "len", len(items))
+		return err
+	})
+}
 
+func runConversationItems(
+	ctx context.Context,
+	items []structures.EntityItem,
+	produce func(context.Context, chan<- structures.EntityItem, []structures.EntityItem),
+	consume func(context.Context, <-chan structures.EntityItem) error,
+) error {
+	ctx, cancel := context.WithCancel(ctx)
 	itemC := make(chan structures.EntityItem, 1)
+	producerDone := make(chan struct{})
 	go func() {
-		defer close(itemC)
-		for _, l := range items {
-			select {
-			case itemC <- l:
-			case <-ctx.Done():
-				return
-			}
-		}
-		lg.DebugContext(ctx, "stream: sent link count", "len", len(items))
+		defer close(producerDone)
+		produce(ctx, itemC, items)
+	}()
+	defer func() {
+		cancel()
+		<-producerDone
 	}()
 
-	if err := cs.Conversations(ctx, proc, itemC); err != nil {
-		return err
+	return consume(ctx, itemC)
+}
+
+func produceItems(ctx context.Context, output chan<- structures.EntityItem, items []structures.EntityItem) {
+	defer close(output)
+	for _, item := range items {
+		select {
+		case output <- item:
+		case <-ctx.Done():
+			return
+		}
 	}
-	return nil
 }
 
 // Conversations fetches the conversations from the links channel.  The link
@@ -81,6 +100,8 @@ func (cs *Stream) ConversationsCB(ctx context.Context, proc processor.Conversati
 func (cs *Stream) Conversations(ctx context.Context, proc processor.Conversations, items <-chan structures.EntityItem) error {
 	ctx, task := trace.NewTask(ctx, "AsyncConversations")
 	defer task.End()
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 
 	// create channels
 	chansC := make(chan request, msgChanSz)
@@ -88,14 +109,16 @@ func (cs *Stream) Conversations(ctx context.Context, proc processor.Conversation
 
 	resultsC := make(chan Result, resultSz)
 
-	var wg sync.WaitGroup
+	var (
+		wg              sync.WaitGroup
+		threadProducers sync.WaitGroup
+	)
+	threadProducers.Add(2)
 
 	// channel worker
 	wg.Go(func() {
+		defer threadProducers.Done()
 		cs.channelWorker(ctx, proc, resultsC, threadsC, chansC)
-		// we close threads here, instead of the main loop, because we want to
-		// close it after all the threads are sent by channels.
-		close(threadsC)
 		trace.Log(ctx, "async", "channel worker done")
 	})
 	// thread worker
@@ -105,22 +128,29 @@ func (cs *Stream) Conversations(ctx context.Context, proc processor.Conversation
 	})
 	// main loop
 	wg.Go(func() {
+		defer threadProducers.Done()
 		defer trace.Log(ctx, "async", "main loop done")
 		defer close(chansC)
 		for {
 			select {
 			case <-ctx.Done():
-				resultsC <- Result{Type: RTMain, Err: context.Cause(ctx)}
 				return
 			case item, more := <-items:
 				if !more {
 					return
 				}
-				if err := processLink(chansC, threadsC, item); err != nil {
-					resultsC <- Result{Type: RTMain, Err: fmt.Errorf("item error: %q: %w", item.String(), err)}
+				if err := processLink(ctx, chansC, threadsC, item); err != nil {
+					if !sendResult(ctx, resultsC, Result{Type: RTMain, Err: fmt.Errorf("item error: %q: %w", item.String(), err)}) {
+						return
+					}
+					return
 				}
 			}
 		}
+	})
+	wg.Go(func() {
+		threadProducers.Wait()
+		close(threadsC)
 	})
 
 	go func() {
@@ -131,8 +161,13 @@ func (cs *Stream) Conversations(ctx context.Context, proc processor.Conversation
 		trace.Log(ctx, "async", "sentinel done")
 	}()
 
-	// result processing.
+	// Retain the first fatal error, cancel all producers immediately, and keep
+	// draining results until every producer and worker has stopped.
+	var fatalErr error
 	for res := range resultsC {
+		if fatalErr != nil {
+			continue
+		}
 		if err := res.Err; err != nil {
 			trace.Logf(ctx, "error", "type: %s, chan_id: %s, thread_ts: %s, error: %s", res.Type, res.ChannelID, res.ThreadTS, err.Error())
 			if (errors.Is(err, errChanNotFound) || errors.Is(err, errNotInChannel)) && !cs.failChnlNotFnd {
@@ -141,20 +176,36 @@ func (cs *Stream) Conversations(ctx context.Context, proc processor.Conversation
 			}
 			trace.Logf(ctx, "error", "type: %s, chan_id: %s, thread_ts: %s, error: %s", res.Type, res.ChannelID, res.ThreadTS, err.Error())
 			slog.ErrorContext(ctx, "streaming error", "error", res.Err, "type", res.Type, "channel_id", res.ChannelID, "thread_ts", res.ThreadTS)
-			return &res // res implements Error
+			if cause := context.Cause(ctx); cause != nil && errors.Is(err, ctx.Err()) {
+				fatalErr = cause
+			} else {
+				resultErr := res
+				fatalErr = &resultErr // Result implements error.
+			}
+			cancel()
+			continue
 		}
 		for _, fn := range cs.resultFn {
 			if err := fn(res); err != nil {
-				return fmt.Errorf("result %s, callback error: %w", res, err)
+				slog.ErrorContext(ctx, "result function call error", "res", res.String())
+				fatalErr = fmt.Errorf("result %s, callback error: %w", res, err)
+				cancel()
+				break
 			}
 		}
+	}
+	if fatalErr != nil {
+		return fatalErr
+	}
+	if err := context.Cause(ctx); err != nil {
+		return err
 	}
 	trace.Log(ctx, "info", "complete")
 	return nil
 }
 
 // processLink parses the link and sends it to the appropriate output channel.
-func processLink(channels chan<- request, threads chan<- request, link structures.EntityItem) error {
+func processLink(ctx context.Context, channels chan<- request, threads chan<- request, link structures.EntityItem) error {
 	sl, err := structures.ParseLink(link.Id)
 	if err != nil {
 		return err
@@ -163,9 +214,17 @@ func processLink(channels chan<- request, threads chan<- request, link structure
 		return fmt.Errorf("invalid slack link: %s", link.Id)
 	}
 	if sl.IsThread() {
-		threads <- request{sl: &sl, threadOnly: true, Oldest: link.Oldest, Latest: link.Latest}
+		select {
+		case threads <- request{sl: &sl, threadOnly: true, Oldest: link.Oldest, Latest: link.Latest}:
+		case <-ctx.Done():
+			return context.Cause(ctx)
+		}
 	} else {
-		channels <- request{sl: &sl, Oldest: link.Oldest, Latest: link.Latest}
+		select {
+		case channels <- request{sl: &sl, Oldest: link.Oldest, Latest: link.Latest}:
+		case <-ctx.Done():
+			return context.Cause(ctx)
+		}
 	}
 	return nil
 }
@@ -361,7 +420,11 @@ func (cs *Stream) procChanMsg(ctx context.Context, proc processor.Conversations,
 		return 0, fmt.Errorf("channel %s: failed to process message chunk starting with id=%s (size=%d): %w", channel.ID, mm[0].Timestamp, len(mm), err)
 	}
 	for _, tr := range trs {
-		threadC <- tr
+		select {
+		case threadC <- tr:
+		case <-ctx.Done():
+			return len(trs), context.Cause(ctx)
+		}
 	}
 	return len(trs), nil
 }
