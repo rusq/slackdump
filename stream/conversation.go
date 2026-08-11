@@ -140,6 +140,7 @@ func (cs *Stream) Conversations(ctx context.Context, proc processor.Conversation
 				continue
 			}
 			trace.Logf(ctx, "error", "type: %s, chan_id: %s, thread_ts: %s, error: %s", res.Type, res.ChannelID, res.ThreadTS, err.Error())
+			slog.ErrorContext(ctx, "streaming error", "error", res.Err, "type", res.Type, "channel_id", res.ChannelID, "thread_ts", res.ThreadTS)
 			return &res // res implements Error
 		}
 		for _, fn := range cs.resultFn {
