@@ -103,68 +103,10 @@ func (cs *Stream) Conversations(ctx context.Context, proc processor.Conversation
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	// create channels
-	chansC := make(chan request, msgChanSz)
-	threadsC := make(chan request, threadChanSz)
-
-	resultsC := make(chan Result, resultSz)
-
-	var (
-		wg              sync.WaitGroup
-		threadProducers sync.WaitGroup
-	)
-	threadProducers.Add(2)
-
-	// channel worker
-	wg.Go(func() {
-		defer threadProducers.Done()
-		cs.channelWorker(ctx, proc, resultsC, threadsC, chansC)
-		trace.Log(ctx, "async", "channel worker done")
-	})
-	// thread worker
-	wg.Go(func() {
-		cs.threadWorker(ctx, proc, resultsC, threadsC)
-		trace.Log(ctx, "async", "thread worker done")
-	})
-	// main loop
-	wg.Go(func() {
-		defer threadProducers.Done()
-		defer trace.Log(ctx, "async", "main loop done")
-		defer close(chansC)
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case item, more := <-items:
-				if !more {
-					return
-				}
-				if err := processLink(ctx, chansC, threadsC, item); err != nil {
-					if !sendResult(ctx, resultsC, Result{Type: RTMain, Err: fmt.Errorf("item error: %q: %w", item.String(), err)}) {
-						return
-					}
-					return
-				}
-			}
-		}
-	})
-	wg.Go(func() {
-		threadProducers.Wait()
-		close(threadsC)
-	})
-
-	go func() {
-		// sentinel waits for all the workers to finish, then closes the error
-		// channel.
-		wg.Wait()
-		close(resultsC)
-		trace.Log(ctx, "async", "sentinel done")
-	}()
-
 	// Retain the first fatal error, cancel all producers immediately, and keep
 	// draining results until every producer and worker has stopped.
 	var fatalErr error
-	for res := range resultsC {
+	for res := range cs.startConversationPipeline(ctx, proc, items) {
 		if fatalErr != nil {
 			continue
 		}
@@ -174,7 +116,6 @@ func (cs *Stream) Conversations(ctx context.Context, proc processor.Conversation
 				slog.WarnContext(ctx, "channel not found or user not in channel, skipping", "channel_id", res.ChannelID)
 				continue
 			}
-			trace.Logf(ctx, "error", "type: %s, chan_id: %s, thread_ts: %s, error: %s", res.Type, res.ChannelID, res.ThreadTS, err.Error())
 			slog.ErrorContext(ctx, "streaming error", "error", res.Err, "type", res.Type, "channel_id", res.ChannelID, "thread_ts", res.ThreadTS)
 			if cause := context.Cause(ctx); cause != nil && errors.Is(err, ctx.Err()) {
 				fatalErr = cause
@@ -202,6 +143,68 @@ func (cs *Stream) Conversations(ctx context.Context, proc processor.Conversation
 	}
 	trace.Log(ctx, "info", "complete")
 	return nil
+}
+
+// startConversationPipeline starts the three pipeline stages and returns the
+// results channel. The input loop and channel worker both send thread requests,
+// so their completion owns closing threadsC.
+func (cs *Stream) startConversationPipeline(ctx context.Context, proc processor.Conversations, items <-chan structures.EntityItem) <-chan Result {
+	chansC := make(chan request, msgChanSz)
+	threadsC := make(chan request, threadChanSz)
+	resultsC := make(chan Result, resultSz)
+
+	var (
+		workers       sync.WaitGroup
+		threadSenders sync.WaitGroup
+	)
+	// Both the input loop (direct thread links) and channel worker (discovered
+	// threads) send to threadsC. Close it only after they both stop sending.
+	threadSenders.Add(2)
+
+	workers.Go(func() {
+		defer threadSenders.Done()
+		cs.channelWorker(ctx, proc, resultsC, threadsC, chansC)
+		trace.Log(ctx, "async", "channel worker done")
+	})
+	workers.Go(func() {
+		cs.threadWorker(ctx, proc, resultsC, threadsC)
+		trace.Log(ctx, "async", "thread worker done")
+	})
+	workers.Go(func() {
+		defer threadSenders.Done()
+		cs.feedConversationRequests(ctx, items, chansC, threadsC, resultsC)
+		trace.Log(ctx, "async", "input loop done")
+	})
+	workers.Go(func() {
+		threadSenders.Wait()
+		close(threadsC)
+	})
+
+	go func() {
+		workers.Wait()
+		close(resultsC)
+		trace.Log(ctx, "async", "pipeline done")
+	}()
+
+	return resultsC
+}
+
+func (cs *Stream) feedConversationRequests(ctx context.Context, items <-chan structures.EntityItem, chansC chan<- request, threadsC chan<- request, resultsC chan<- Result) {
+	defer close(chansC)
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case item, more := <-items:
+			if !more {
+				return
+			}
+			if err := processLink(ctx, chansC, threadsC, item); err != nil {
+				sendResult(ctx, resultsC, Result{Type: RTMain, Err: fmt.Errorf("item error: %q: %w", item.String(), err)})
+				return
+			}
+		}
+	}
 }
 
 // processLink parses the link and sends it to the appropriate output channel.
