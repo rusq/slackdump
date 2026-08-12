@@ -18,6 +18,7 @@ package source
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io/fs"
 	"testing"
 	"testing/fstest"
@@ -30,6 +31,17 @@ import (
 	"github.com/rusq/slackdump/v4/internal/testutil"
 	"github.com/rusq/slackdump/v4/types"
 )
+
+type closeableDumpFS struct {
+	fstest.MapFS
+	err    error
+	closed bool
+}
+
+func (f *closeableDumpFS) Close() error {
+	f.closed = true
+	return f.err
+}
 
 func canvasDumpFS(t *testing.T) fstest.MapFS {
 	t.Helper()
@@ -57,6 +69,31 @@ func canvasDumpFS(t *testing.T) fstest.MapFS {
 		"channels.json":         &fstest.MapFile{Data: []byte("[]")},
 		"__canvas/CCANVAS.json": &fstest.MapFile{Data: data},
 	}
+}
+
+func TestDump_Close(t *testing.T) {
+	t.Run("closes backing filesystem", func(t *testing.T) {
+		fsys := &closeableDumpFS{}
+		d := Dump{fs: fsys}
+
+		require.NoError(t, d.Close())
+		assert.True(t, fsys.closed)
+	})
+
+	t.Run("returns backing filesystem error", func(t *testing.T) {
+		closeErr := errors.New("close backing filesystem")
+		fsys := &closeableDumpFS{err: closeErr}
+		d := Dump{fs: fsys}
+
+		assert.ErrorIs(t, d.Close(), closeErr)
+		assert.True(t, fsys.closed)
+	})
+
+	t.Run("non-closable filesystem", func(t *testing.T) {
+		d := Dump{fs: fstest.MapFS{}}
+
+		require.NoError(t, d.Close())
+	})
 }
 
 func TestDump_Channels(t *testing.T) {

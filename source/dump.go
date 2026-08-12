@@ -19,6 +19,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"io/fs"
 	"iter"
 	"log/slog"
@@ -286,6 +287,9 @@ func (d Dump) ChannelInfo(_ context.Context, channelID string) (*slack.Channel, 
 }
 
 func (d Dump) Close() error {
+	if closer, ok := d.fs.(io.Closer); ok {
+		return closer.Close()
+	}
 	return nil
 }
 
