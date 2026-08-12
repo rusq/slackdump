@@ -415,6 +415,34 @@ func TestStream_canvasDiscussions(t *testing.T) {
 	unsupported := New(&canvasSlack{Slack: ms}, network.NoLimits)
 	err = unsupported.canvasDiscussions(t.Context(), mc, cm, threadC, completed, results, channelRequest{}, owner, "FCANVAS")
 	require.ErrorIs(t, err, client.ErrOpNotSupported)
+
+	t.Run("processor failure publishes result", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		mc := mock_processor.NewMockConversations(ctrl)
+		cm := mock_processor.NewMockCanvasMessenger(ctrl)
+		root := slack.Message{Msg: slack.Msg{
+			SubType:         structures.SubTypeDocumentCommentRoot,
+			Timestamp:       "150.000001",
+			ThreadTimestamp: "150.000001",
+		}}
+		canvasClient := &canvasSlack{
+			Slack:     mock_client.NewMockSlack(ctrl),
+			supported: true,
+			roots:     []slack.Message{root},
+		}
+		cm.EXPECT().CanvasMessages(gomock.Any(), "CCANVAS", 0, true, []slack.Message{root}).Return(assert.AnError)
+		cs := New(canvasClient, network.NoLimits)
+		results := make(chan Result, 1)
+
+		err := cs.canvasDiscussions(t.Context(), mc, cm, make(chan canvasThreadRequest), make(chan canvasThreadResult), results, channelRequest{}, owner, "FCANVAS")
+
+		require.ErrorIs(t, err, assert.AnError)
+		require.Len(t, results, 1)
+		result := <-results
+		assert.Equal(t, RTCanvasThread, result.Type)
+		assert.Equal(t, "CCANVAS", result.ChannelID)
+		assert.ErrorIs(t, result.Err, assert.AnError)
+	})
 }
 
 func TestStream_filterCanvasRoots(t *testing.T) {

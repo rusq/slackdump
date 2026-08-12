@@ -236,7 +236,7 @@
             <footer class="thread-info">
                 <a href="{{ canvascommenturl $.Conversation.ID (canvasthreadts $el) }}"
                     {{ if $.Interactive }}hx-get="{{ canvascommenturl $.Conversation.ID (canvasthreadts $el) }}" hx-target="#thread" hx-push-url="true"{{ end }}>
-                    View discussion · {{ $el.ReplyCount }} replies
+                    View discussion · {{ $el.ReplyCount }} {{ if eq $el.ReplyCount 1 }}reply{{ else }}replies{{ end }}
                 </a>
             </footer>
         </div>

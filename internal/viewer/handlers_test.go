@@ -374,7 +374,7 @@ func TestCanvasCommentsHandler(t *testing.T) {
 		for _, want := range []string{
 			`id="canvas-comments-heading"`,
 			"context from the canvas",
-			"1 replies",
+			"1 reply",
 			`hx-target="#thread"`,
 			`aria-label="Close canvas comments panel"`,
 		} {

@@ -306,6 +306,9 @@ func (cs *Stream) canvasDiscussions(ctx context.Context, proc processor.Conversa
 	}
 	requests, err := cs.procCanvasMsg(ctx, proc, cm, owner, hiddenID, fileID, ownerReq.oldest, ownerReq.latest, true, roots)
 	if err != nil {
+		if canvasErrorIsFatal(err) {
+			sendResult(ctx, results, Result{Type: RTCanvasThread, ChannelID: hiddenID, Err: err})
+		}
 		return err
 	}
 	// Send and collect concurrently so neither bounded channel can deadlock on

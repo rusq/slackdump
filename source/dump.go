@@ -237,6 +237,9 @@ func (d Dump) CanvasThreadMessages(ctx context.Context, hiddenChannelID, threadT
 	}
 	for _, m := range c.Messages {
 		if m.Timestamp == threadTS || m.ThreadTimestamp == threadTS {
+			if len(m.ThreadReplies) == 0 {
+				return convertMessages([]types.Message{m}), nil
+			}
 			return convertMessages(m.ThreadReplies), nil
 		}
 	}

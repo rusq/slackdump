@@ -325,17 +325,45 @@ func TestDump_CanvasMessages(t *testing.T) {
 }
 
 func TestDump_CanvasThreadMessages(t *testing.T) {
-	d, err := OpenDump(t.Context(), canvasDumpFS(t), "canvas")
-	require.NoError(t, err)
-
-	it, err := d.CanvasThreadMessages(t.Context(), "CCANVAS", "1700000000.000001")
-	require.NoError(t, err)
-	var got []slack.Message
-	for m, err := range it {
+	t.Run("root and replies", func(t *testing.T) {
+		d, err := OpenDump(t.Context(), canvasDumpFS(t), "canvas")
 		require.NoError(t, err)
-		got = append(got, m)
-	}
-	require.Len(t, got, 2)
-	assert.Equal(t, "root", got[0].Text)
-	assert.Equal(t, "reply", got[1].Text)
+
+		it, err := d.CanvasThreadMessages(t.Context(), "CCANVAS", "1700000000.000001")
+		require.NoError(t, err)
+		var got []slack.Message
+		for m, err := range it {
+			require.NoError(t, err)
+			got = append(got, m)
+		}
+		require.Len(t, got, 2)
+		assert.Equal(t, "root", got[0].Text)
+		assert.Equal(t, "reply", got[1].Text)
+	})
+
+	t.Run("root without replies", func(t *testing.T) {
+		fsys := canvasDumpFS(t)
+		conversation := types.Conversation{
+			ID: "CCANVAS",
+			Messages: []types.Message{{Message: slack.Message{Msg: slack.Msg{
+				Timestamp: "1700000002.000001",
+				Text:      "root without replies",
+			}}}},
+		}
+		data, err := json.Marshal(conversation)
+		require.NoError(t, err)
+		fsys["__canvas/CCANVAS.json"] = &fstest.MapFile{Data: data}
+		d, err := OpenDump(t.Context(), fsys, "canvas")
+		require.NoError(t, err)
+
+		it, err := d.CanvasThreadMessages(t.Context(), "CCANVAS", "1700000002.000001")
+		require.NoError(t, err)
+		var got []slack.Message
+		for m, err := range it {
+			require.NoError(t, err)
+			got = append(got, m)
+		}
+		require.Len(t, got, 1)
+		assert.Equal(t, "root without replies", got[0].Text)
+	})
 }
