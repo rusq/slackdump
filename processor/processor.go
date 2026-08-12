@@ -229,40 +229,44 @@ type JointConversations struct {
 }
 
 func (w *JointConversations) canvasMessenger() (CanvasMessenger, bool) {
-	for _, p := range w.bci {
-		if _, ok := asCanvasMessenger(p); ok {
-			return w, true
-		}
-	}
-	for _, m := range w.bmm {
-		if _, ok := asCanvasMessenger(m); ok {
-			return w, true
-		}
-	}
-	for _, p := range w.bff {
-		if _, ok := asCanvasMessenger(p); ok {
-			return w, true
-		}
-	}
-	if _, ok := asCanvasMessenger(w.c); ok {
+	if w.visitCanvasMessengers(nil) {
 		return w, true
 	}
-	for _, p := range w.aci {
-		if _, ok := asCanvasMessenger(p); ok {
-			return w, true
+	return nil, false
+}
+
+// visitCanvasMessengers visits canvas-capable processors in execution order.
+// It reports whether at least one processor exposes the capability.
+func (w *JointConversations) visitCanvasMessengers(visit func(CanvasMessenger)) bool {
+	found := false
+	apply := func(v any) {
+		if cm, ok := asCanvasMessenger(v); ok {
+			found = true
+			if visit != nil {
+				visit(cm)
+			}
 		}
+	}
+	for _, p := range w.bci {
+		apply(p)
+	}
+	for _, m := range w.bmm {
+		apply(m)
+	}
+	for _, p := range w.bff {
+		apply(p)
+	}
+	apply(w.c)
+	for _, p := range w.aci {
+		apply(p)
 	}
 	for _, m := range w.amm {
-		if _, ok := asCanvasMessenger(m); ok {
-			return w, true
-		}
+		apply(m)
 	}
 	for _, p := range w.aff {
-		if _, ok := asCanvasMessenger(p); ok {
-			return w, true
-		}
+		apply(p)
 	}
-	return nil, false
+	return found
 }
 
 // PrependChannelInformer prepends the ChannelInformer to the Conversations.
@@ -280,17 +284,17 @@ func PrependFiler(c Conversations, ff ...Filer) Conversations {
 	return &JointConversations{c: c, bff: ff}
 }
 
-// PrependChannelInformer prepends the ChannelInformer to the Conversations.
+// AppendChannelInformer appends the ChannelInformer to the Conversations.
 func AppendChannelInformer(c Conversations, ci ...ChannelInformer) Conversations {
 	return &JointConversations{c: c, aci: ci}
 }
 
-// PrependMessenger prepends the Messenger to the Conversations.
+// AppendMessenger appends the Messenger to the Conversations.
 func AppendMessenger(c Conversations, mm ...Messenger) Conversations {
 	return &JointConversations{c: c, amm: mm}
 }
 
-// PrependFiler prepends the Filer to the Conversations.
+// AppendFiler appends the Filer to the Conversations.
 func AppendFiler(c Conversations, ff ...Filer) Conversations {
 	return &JointConversations{c: c, aff: ff}
 }
@@ -401,39 +405,9 @@ func (w *JointConversations) ThreadMessages(ctx context.Context, channelID strin
 // the canvas-capable appended processors.
 func (w *JointConversations) CanvasMessages(ctx context.Context, channelID string, numThreads int, isLast bool, messages []slack.Message) error {
 	var errs error
-	for _, p := range w.bci {
-		if cm, ok := asCanvasMessenger(p); ok {
-			errs = errors.Join(errs, cm.CanvasMessages(ctx, channelID, numThreads, isLast, messages))
-		}
-	}
-	for _, m := range w.bmm {
-		if cm, ok := asCanvasMessenger(m); ok {
-			errs = errors.Join(errs, cm.CanvasMessages(ctx, channelID, numThreads, isLast, messages))
-		}
-	}
-	for _, p := range w.bff {
-		if cm, ok := asCanvasMessenger(p); ok {
-			errs = errors.Join(errs, cm.CanvasMessages(ctx, channelID, numThreads, isLast, messages))
-		}
-	}
-	if cm, ok := asCanvasMessenger(w.c); ok {
+	w.visitCanvasMessengers(func(cm CanvasMessenger) {
 		errs = errors.Join(errs, cm.CanvasMessages(ctx, channelID, numThreads, isLast, messages))
-	}
-	for _, p := range w.aci {
-		if cm, ok := asCanvasMessenger(p); ok {
-			errs = errors.Join(errs, cm.CanvasMessages(ctx, channelID, numThreads, isLast, messages))
-		}
-	}
-	for _, m := range w.amm {
-		if cm, ok := asCanvasMessenger(m); ok {
-			errs = errors.Join(errs, cm.CanvasMessages(ctx, channelID, numThreads, isLast, messages))
-		}
-	}
-	for _, p := range w.aff {
-		if cm, ok := asCanvasMessenger(p); ok {
-			errs = errors.Join(errs, cm.CanvasMessages(ctx, channelID, numThreads, isLast, messages))
-		}
-	}
+	})
 	return errs
 }
 
@@ -442,39 +416,9 @@ func (w *JointConversations) CanvasMessages(ctx context.Context, channelID strin
 // then executes the canvas-capable appended processors.
 func (w *JointConversations) CanvasThreadMessages(ctx context.Context, channelID string, parent slack.Message, isLast bool, replies []slack.Message) error {
 	var errs error
-	for _, p := range w.bci {
-		if cm, ok := asCanvasMessenger(p); ok {
-			errs = errors.Join(errs, cm.CanvasThreadMessages(ctx, channelID, parent, isLast, replies))
-		}
-	}
-	for _, m := range w.bmm {
-		if cm, ok := asCanvasMessenger(m); ok {
-			errs = errors.Join(errs, cm.CanvasThreadMessages(ctx, channelID, parent, isLast, replies))
-		}
-	}
-	for _, p := range w.bff {
-		if cm, ok := asCanvasMessenger(p); ok {
-			errs = errors.Join(errs, cm.CanvasThreadMessages(ctx, channelID, parent, isLast, replies))
-		}
-	}
-	if cm, ok := asCanvasMessenger(w.c); ok {
+	w.visitCanvasMessengers(func(cm CanvasMessenger) {
 		errs = errors.Join(errs, cm.CanvasThreadMessages(ctx, channelID, parent, isLast, replies))
-	}
-	for _, p := range w.aci {
-		if cm, ok := asCanvasMessenger(p); ok {
-			errs = errors.Join(errs, cm.CanvasThreadMessages(ctx, channelID, parent, isLast, replies))
-		}
-	}
-	for _, m := range w.amm {
-		if cm, ok := asCanvasMessenger(m); ok {
-			errs = errors.Join(errs, cm.CanvasThreadMessages(ctx, channelID, parent, isLast, replies))
-		}
-	}
-	for _, p := range w.aff {
-		if cm, ok := asCanvasMessenger(p); ok {
-			errs = errors.Join(errs, cm.CanvasThreadMessages(ctx, channelID, parent, isLast, replies))
-		}
-	}
+	})
 	return errs
 }
 

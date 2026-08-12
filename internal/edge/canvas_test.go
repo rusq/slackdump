@@ -181,8 +181,10 @@ func Test_resolvedCanvasRootTS(t *testing.T) {
 				LatestMessageTS: "1773451290.951589",
 			},
 			probe: []canvasAPIMessage{{
-				TS:       "1773451290.951589",
-				ThreadTS: "1773451284.332529",
+				Message: slack.Message{Msg: slack.Msg{
+					Timestamp:       "1773451290.951589",
+					ThreadTimestamp: "1773451284.332529",
+				}},
 			}},
 			want: "1773451284.332529",
 		},
@@ -193,7 +195,9 @@ func Test_resolvedCanvasRootTS(t *testing.T) {
 				ReplyCount:      1,
 				LatestMessageTS: "1773451290.951589",
 			},
-			probe:   []canvasAPIMessage{{TS: "1773451284.332529"}},
+			probe: []canvasAPIMessage{{Message: slack.Message{Msg: slack.Msg{
+				Timestamp: "1773451284.332529",
+			}}}},
 			wantErr: true,
 		},
 	}
@@ -220,29 +224,30 @@ func Test_canvasRootMessage(t *testing.T) {
 
 	t.Run("normalises root thread timestamp", func(t *testing.T) {
 		got, err := canvasRootMessage(metadata, rootTS, []canvasAPIMessage{{
-			TS:         rootTS,
-			SubType:    "document_comment_root",
-			Text:       "Check list",
-			ReplyCount: 2,
+			Message: slack.Message{Msg: slack.Msg{
+				Timestamp:  rootTS,
+				SubType:    "document_comment_root",
+				Text:       "Check list",
+				ReplyCount: 2,
+			}},
 			DocumentComment: CanvasDocumentComment{
 				ThreadID: threadID,
 				Authors:  []string{"UHSD97ZA5"},
 			},
 		}})
 		require.NoError(t, err)
-		assert.Equal(t, rootTS, got.TS)
-		assert.Equal(t, rootTS, got.ThreadTS)
-		assert.Equal(t, "Check list", got.Text)
-		assert.Equal(t, 2, got.ReplyCount)
+		assert.Equal(t, rootTS, got.Message.Timestamp)
+		assert.Equal(t, rootTS, got.Message.ThreadTimestamp)
+		assert.Equal(t, "Check list", got.Message.Text)
+		assert.Equal(t, 2, got.Message.ReplyCount)
 		assert.Equal(t, threadID, got.DocumentComment.ThreadID)
 	})
 
 	t.Run("keeps diagnostic JSON schema unchanged", func(t *testing.T) {
 		got, err := canvasRootMessage(metadata, rootTS, []canvasAPIMessage{{
-			TS:      rootTS,
-			SubType: structures.SubTypeDocumentCommentRoot,
 			Message: slack.Message{Msg: slack.Msg{
 				Timestamp: rootTS,
+				SubType:   structures.SubTypeDocumentCommentRoot,
 				User:      "U123",
 				Files:     []slack.File{{ID: "F123"}},
 			}},
@@ -258,8 +263,10 @@ func Test_canvasRootMessage(t *testing.T) {
 
 	t.Run("rejects mismatched thread", func(t *testing.T) {
 		_, err := canvasRootMessage(metadata, rootTS, []canvasAPIMessage{{
-			TS:      rootTS,
-			SubType: "document_comment_root",
+			Message: slack.Message{Msg: slack.Msg{
+				Timestamp: rootTS,
+				SubType:   "document_comment_root",
+			}},
 			DocumentComment: CanvasDocumentComment{
 				ThreadID: "temp:C:different",
 			},
@@ -364,9 +371,9 @@ func TestClient_CanvasThreadRoots(t *testing.T) {
 		require.Len(t, got, 2)
 		assert.Equal(t, []string{replyTS, repliedRootTS, zeroRootTS}, replyTimestamps)
 		assert.NotEmpty(t, editorSessionID)
-		assert.Equal(t, repliedRootTS, got[0].TS)
-		assert.Equal(t, repliedRootTS, got[0].ThreadTS)
-		assert.Equal(t, "Check list", got[0].Text)
+		assert.Equal(t, repliedRootTS, got[0].Message.Timestamp)
+		assert.Equal(t, repliedRootTS, got[0].Message.ThreadTimestamp)
+		assert.Equal(t, "Check list", got[0].Message.Text)
 		assert.Equal(t, repliedThread, got[0].DocumentComment.ThreadID)
 		assert.Equal(t, "UHSD97ZA5", got[0].Message.User)
 		assert.Equal(t, structures.SubTypeDocumentCommentRoot, got[0].Message.SubType)
@@ -375,8 +382,8 @@ func TestClient_CanvasThreadRoots(t *testing.T) {
 		require.Len(t, got[0].Message.Files, 1)
 		assert.Equal(t, "FATTACH", got[0].Message.Files[0].ID)
 		require.Len(t, got[0].Message.Blocks.BlockSet, 1)
-		assert.Equal(t, zeroRootTS, got[1].TS)
-		assert.Equal(t, zeroRootTS, got[1].ThreadTS)
+		assert.Equal(t, zeroRootTS, got[1].Message.Timestamp)
+		assert.Equal(t, zeroRootTS, got[1].Message.ThreadTimestamp)
 	})
 
 	t.Run("invalid file ID", func(t *testing.T) {

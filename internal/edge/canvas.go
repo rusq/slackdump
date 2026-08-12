@@ -54,15 +54,27 @@ type CanvasDocumentComment struct {
 
 // CanvasMessage is a root message for a canvas comment thread.
 type CanvasMessage struct {
-	TS              string                `json:"ts"`
-	ThreadTS        string                `json:"thread_ts"`
-	Text            string                `json:"text"`
-	ReplyCount      int                   `json:"reply_count"`
+	Message         slack.Message         `json:"-"`
 	DocumentComment CanvasDocumentComment `json:"document_comment"`
-	// Message retains the complete Slack root for archival callers. It is
-	// intentionally excluded from JSON so tools edge keeps its existing
-	// diagnostic output schema.
-	Message slack.Message `json:"-"`
+}
+
+// MarshalJSON preserves the compact tools-edge diagnostic schema while
+// Message remains the canonical representation used by archival callers.
+func (m CanvasMessage) MarshalJSON() ([]byte, error) {
+	type diagnosticMessage struct {
+		TS              string                `json:"ts"`
+		ThreadTS        string                `json:"thread_ts"`
+		Text            string                `json:"text"`
+		ReplyCount      int                   `json:"reply_count"`
+		DocumentComment CanvasDocumentComment `json:"document_comment"`
+	}
+	return json.Marshal(diagnosticMessage{
+		TS:              m.Message.Timestamp,
+		ThreadTS:        m.Message.ThreadTimestamp,
+		Text:            m.Message.Text,
+		ReplyCount:      m.Message.ReplyCount,
+		DocumentComment: m.DocumentComment,
+	})
 }
 
 type canvasThreadMetadata struct {
@@ -72,28 +84,8 @@ type canvasThreadMetadata struct {
 }
 
 type canvasAPIMessage struct {
-	TS              string                `json:"ts"`
-	ThreadTS        string                `json:"thread_ts"`
-	SubType         string                `json:"subtype"`
-	Text            string                `json:"text"`
-	ReplyCount      int                   `json:"reply_count"`
+	slack.Message
 	DocumentComment CanvasDocumentComment `json:"document_comment"`
-	Message         slack.Message         `json:"-"`
-}
-
-func (m *canvasAPIMessage) UnmarshalJSON(data []byte) error {
-	type wireMessage canvasAPIMessage
-	var wire wireMessage
-	if err := json.Unmarshal(data, &wire); err != nil {
-		return err
-	}
-	var message slack.Message
-	if err := json.Unmarshal(data, &message); err != nil {
-		return err
-	}
-	*m = canvasAPIMessage(wire)
-	m.Message = message
-	return nil
 }
 
 type canvasRepliesResponse struct {
@@ -433,8 +425,8 @@ func resolvedCanvasRootTS(metadata canvasThreadMetadata, probe []canvasAPIMessag
 		return metadata.LatestMessageTS, nil
 	}
 	for _, message := range probe {
-		if message.TS == metadata.LatestMessageTS && message.ThreadTS != "" {
-			return message.ThreadTS, nil
+		if message.Timestamp == metadata.LatestMessageTS && message.ThreadTimestamp != "" {
+			return message.ThreadTimestamp, nil
 		}
 	}
 	return "", fmt.Errorf(
@@ -446,7 +438,7 @@ func resolvedCanvasRootTS(metadata canvasThreadMetadata, probe []canvasAPIMessag
 
 func canvasRootMessage(metadata canvasThreadMetadata, rootTS string, messages []canvasAPIMessage) (CanvasMessage, error) {
 	for _, message := range messages {
-		if message.TS != rootTS || message.SubType != structures.SubTypeDocumentCommentRoot {
+		if message.Timestamp != rootTS || message.SubType != structures.SubTypeDocumentCommentRoot {
 			continue
 		}
 		if message.DocumentComment.ThreadID != "" && message.DocumentComment.ThreadID != metadata.ThreadID {
@@ -460,18 +452,14 @@ func canvasRootMessage(metadata canvasThreadMetadata, rootTS string, messages []
 		if message.DocumentComment.ThreadID == "" {
 			message.DocumentComment.ThreadID = metadata.ThreadID
 		}
-		threadTS := message.ThreadTS
+		threadTS := message.ThreadTimestamp
 		if threadTS == "" {
-			threadTS = message.TS
+			threadTS = message.Timestamp
 		}
-		message.Message.ThreadTimestamp = threadTS
+		message.ThreadTimestamp = threadTS
 		return CanvasMessage{
-			TS:              message.TS,
-			ThreadTS:        threadTS,
-			Text:            message.Text,
-			ReplyCount:      message.ReplyCount,
-			DocumentComment: message.DocumentComment,
 			Message:         message.Message,
+			DocumentComment: message.DocumentComment,
 		}, nil
 	}
 	return CanvasMessage{}, fmt.Errorf("canvas thread %q: root %s not found", metadata.ThreadID, rootTS)
@@ -542,7 +530,7 @@ func (cl *Client) CanvasThreadRoots(ctx context.Context, fileID string) ([]Canva
 			"thread_id", entry.ThreadID,
 			"latest_message_ts", entry.LatestMessageTS,
 			"root_ts", rootTS,
-			"reply_count", root.ReplyCount)
+			"reply_count", root.Message.ReplyCount)
 	}
 	return roots, nil
 }
