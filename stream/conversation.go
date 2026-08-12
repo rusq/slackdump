@@ -175,8 +175,7 @@ func (cs *Stream) startConversationPipeline(ctx context.Context, proc processor.
 	)
 	// Both the input loop (direct thread links) and channel worker (discovered
 	// threads) send to threadsC. Close it only after they both stop sending.
-	threadSenders.Add(resultSz)
-
+	threadSenders.Add(2)
 	workers.Go(func() {
 		defer threadSenders.Done()
 		cs.channelWorker(ctx, proc, resultsC, threadsC, chansC)
@@ -590,9 +589,8 @@ func (cs *Stream) procChannelUsers(ctx context.Context, proc processor.ChannelIn
 	return users, nil
 }
 
-// uniqueStrings returns a new slice with unique strings from the input slice.
-// it may modify the input slice, so it should not be used after calling this
-// function.
+// uniqueStrings sorts the slice and removes duplicates in-place, returning the compacted view.
+// The returned slice may share the input's backing array; the original order is not preserved.
 func uniqueStrings(input []string) []string {
 	slices.Sort(input)
 	return slices.Compact(input)
