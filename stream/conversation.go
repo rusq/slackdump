@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"log/slog"
 	"runtime/trace"
+	"slices"
 	"sync"
 	"time"
 
@@ -30,6 +31,21 @@ import (
 	"github.com/rusq/slackdump/v4/internal/network"
 	"github.com/rusq/slackdump/v4/internal/structures"
 	"github.com/rusq/slackdump/v4/processor"
+)
+
+const (
+	// message channel buffer size.  Messages are much faster than threads, so
+	// we can have a smaller buffer.
+	msgChanSz = 16
+	// thread channel buffer size.  Threads are much slower than channels,
+	// because each message might have a thread, and that means, that we'll
+	// have to send a thread request for each message.  So, we need a larger
+	// buffer for it not to block the channel messages scraping.  Value is
+	// chosen to be large enough.
+	threadChanSz = 4000
+	// result channel buffer size.  We are running 2 goroutines, 1 for channel
+	// messages, and 1 for threads.
+	resultSz = 2
 )
 
 // SyncConversations fetches the conversations from the link which can be a
@@ -48,24 +64,43 @@ func (cs *Stream) ConversationsCB(ctx context.Context, proc processor.Conversati
 
 	lg := slog.With("links", items)
 	cs.resultFn = append(cs.resultFn, cb)
+	return runConversationItems(ctx, items, produceItems, func(ctx context.Context, itemC <-chan structures.EntityItem) error {
+		err := cs.Conversations(ctx, proc, itemC)
+		lg.DebugContext(ctx, "stream: item consumer stopped", "len", len(items))
+		return err
+	})
+}
 
+func runConversationItems(
+	ctx context.Context,
+	items []structures.EntityItem,
+	produce func(context.Context, chan<- structures.EntityItem, []structures.EntityItem),
+	consume func(context.Context, <-chan structures.EntityItem) error,
+) error {
+	ctx, cancel := context.WithCancel(ctx)
 	itemC := make(chan structures.EntityItem, 1)
+	producerDone := make(chan struct{})
 	go func() {
-		defer close(itemC)
-		for _, l := range items {
-			select {
-			case itemC <- l:
-			case <-ctx.Done():
-				return
-			}
-		}
-		lg.DebugContext(ctx, "stream: sent link count", "len", len(items))
+		defer close(producerDone)
+		produce(ctx, itemC, items)
+	}()
+	defer func() {
+		cancel()
+		<-producerDone
 	}()
 
-	if err := cs.Conversations(ctx, proc, itemC); err != nil {
-		return err
+	return consume(ctx, itemC)
+}
+
+func produceItems(ctx context.Context, output chan<- structures.EntityItem, items []structures.EntityItem) {
+	defer close(output)
+	for _, item := range items {
+		select {
+		case output <- item:
+		case <-ctx.Done():
+			return
+		}
 	}
-	return nil
 }
 
 // Conversations fetches the conversations from the links channel.  The link
@@ -81,79 +116,114 @@ func (cs *Stream) ConversationsCB(ctx context.Context, proc processor.Conversati
 func (cs *Stream) Conversations(ctx context.Context, proc processor.Conversations, items <-chan structures.EntityItem) error {
 	ctx, task := trace.NewTask(ctx, "AsyncConversations")
 	defer task.End()
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 
-	// create channels
-	chansC := make(chan request, msgChanSz)
-	threadsC := make(chan request, threadChanSz)
-
-	resultsC := make(chan Result, resultSz)
-
-	var wg sync.WaitGroup
-
-	// channel worker
-	wg.Go(func() {
-		cs.channelWorker(ctx, proc, resultsC, threadsC, chansC)
-		// we close threads here, instead of the main loop, because we want to
-		// close it after all the threads are sent by channels.
-		close(threadsC)
-		trace.Log(ctx, "async", "channel worker done")
-	})
-	// thread worker
-	wg.Go(func() {
-		cs.threadWorker(ctx, proc, resultsC, threadsC)
-		trace.Log(ctx, "async", "thread worker done")
-	})
-	// main loop
-	wg.Go(func() {
-		defer trace.Log(ctx, "async", "main loop done")
-		defer close(chansC)
-		for {
-			select {
-			case <-ctx.Done():
-				resultsC <- Result{Type: RTMain, Err: context.Cause(ctx)}
-				return
-			case item, more := <-items:
-				if !more {
-					return
-				}
-				if err := processLink(chansC, threadsC, item); err != nil {
-					resultsC <- Result{Type: RTMain, Err: fmt.Errorf("item error: %q: %w", item.String(), err)}
-				}
-			}
+	// Retain the first fatal error, cancel all producers immediately, and keep
+	// draining results until every producer and worker has stopped.
+	var fatalErr error
+	for res := range cs.startConversationPipeline(ctx, proc, items) {
+		if fatalErr != nil {
+			continue
 		}
-	})
-
-	go func() {
-		// sentinel waits for all the workers to finish, then closes the error
-		// channel.
-		wg.Wait()
-		close(resultsC)
-		trace.Log(ctx, "async", "sentinel done")
-	}()
-
-	// result processing.
-	for res := range resultsC {
 		if err := res.Err; err != nil {
 			trace.Logf(ctx, "error", "type: %s, chan_id: %s, thread_ts: %s, error: %s", res.Type, res.ChannelID, res.ThreadTS, err.Error())
 			if (errors.Is(err, errChanNotFound) || errors.Is(err, errNotInChannel)) && !cs.failChnlNotFnd {
 				slog.WarnContext(ctx, "channel not found or user not in channel, skipping", "channel_id", res.ChannelID)
 				continue
 			}
-			trace.Logf(ctx, "error", "type: %s, chan_id: %s, thread_ts: %s, error: %s", res.Type, res.ChannelID, res.ThreadTS, err.Error())
-			return &res // res implements Error
+			slog.ErrorContext(ctx, "streaming error", "error", res.Err, "type", res.Type, "channel_id", res.ChannelID, "thread_ts", res.ThreadTS)
+			if cause := context.Cause(ctx); cause != nil && errors.Is(err, ctx.Err()) {
+				fatalErr = cause
+			} else {
+				resultErr := res
+				fatalErr = &resultErr // Result implements error.
+			}
+			cancel()
+			continue
 		}
 		for _, fn := range cs.resultFn {
 			if err := fn(res); err != nil {
-				return fmt.Errorf("result %s, callback error: %w", res, err)
+				slog.ErrorContext(ctx, "result function call error", "res", res.String())
+				fatalErr = fmt.Errorf("result %s, callback error: %w", res, err)
+				cancel()
+				break
 			}
 		}
+	}
+	if fatalErr != nil {
+		return fatalErr
+	}
+	if err := context.Cause(ctx); err != nil {
+		return err
 	}
 	trace.Log(ctx, "info", "complete")
 	return nil
 }
 
+// startConversationPipeline starts the three pipeline stages and returns the
+// results channel. The input loop and channel worker both send thread requests,
+// so their completion owns closing threadsC.
+func (cs *Stream) startConversationPipeline(ctx context.Context, proc processor.Conversations, items <-chan structures.EntityItem) <-chan Result {
+	chansC := make(chan request, msgChanSz)
+	threadsC := make(chan request, threadChanSz)
+	resultsC := make(chan Result, resultSz)
+
+	var (
+		workers       sync.WaitGroup
+		threadSenders sync.WaitGroup
+	)
+	// Both the input loop (direct thread links) and channel worker (discovered
+	// threads) send to threadsC. Close it only after they both stop sending.
+	threadSenders.Add(2)
+	workers.Go(func() {
+		defer threadSenders.Done()
+		cs.channelWorker(ctx, proc, resultsC, threadsC, chansC)
+		trace.Log(ctx, "async", "channel worker done")
+	})
+	workers.Go(func() {
+		cs.threadWorker(ctx, proc, resultsC, threadsC)
+		trace.Log(ctx, "async", "thread worker done")
+	})
+	workers.Go(func() {
+		defer threadSenders.Done()
+		cs.feedConversationRequests(ctx, items, chansC, threadsC, resultsC)
+		trace.Log(ctx, "async", "input loop done")
+	})
+	workers.Go(func() {
+		threadSenders.Wait()
+		close(threadsC)
+	})
+
+	go func() {
+		workers.Wait()
+		close(resultsC)
+		trace.Log(ctx, "async", "pipeline done")
+	}()
+
+	return resultsC
+}
+
+func (cs *Stream) feedConversationRequests(ctx context.Context, items <-chan structures.EntityItem, chansC chan<- request, threadsC chan<- request, resultsC chan<- Result) {
+	defer close(chansC)
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case item, more := <-items:
+			if !more {
+				return
+			}
+			if err := processLink(ctx, chansC, threadsC, item); err != nil {
+				sendResult(ctx, resultsC, Result{Type: RTMain, Err: fmt.Errorf("item error: %q: %w", item.String(), err)})
+				return
+			}
+		}
+	}
+}
+
 // processLink parses the link and sends it to the appropriate output channel.
-func processLink(channels chan<- request, threads chan<- request, link structures.EntityItem) error {
+func processLink(ctx context.Context, channels chan<- request, threads chan<- request, link structures.EntityItem) error {
 	sl, err := structures.ParseLink(link.Id)
 	if err != nil {
 		return err
@@ -162,9 +232,17 @@ func processLink(channels chan<- request, threads chan<- request, link structure
 		return fmt.Errorf("invalid slack link: %s", link.Id)
 	}
 	if sl.IsThread() {
-		threads <- request{sl: &sl, threadOnly: true, Oldest: link.Oldest, Latest: link.Latest}
+		select {
+		case threads <- request{sl: &sl, threadOnly: true, Oldest: link.Oldest, Latest: link.Latest}:
+		case <-ctx.Done():
+			return context.Cause(ctx)
+		}
 	} else {
-		channels <- request{sl: &sl, Oldest: link.Oldest, Latest: link.Latest}
+		select {
+		case channels <- request{sl: &sl, Oldest: link.Oldest, Latest: link.Latest}:
+		case <-ctx.Done():
+			return context.Cause(ctx)
+		}
 	}
 	return nil
 }
@@ -360,7 +438,11 @@ func (cs *Stream) procChanMsg(ctx context.Context, proc processor.Conversations,
 		return 0, fmt.Errorf("channel %s: failed to process message chunk starting with id=%s (size=%d): %w", channel.ID, mm[0].Timestamp, len(mm), err)
 	}
 	for _, tr := range trs {
-		threadC <- tr
+		select {
+		case threadC <- tr:
+		case <-ctx.Done():
+			return len(trs), context.Cause(ctx)
+		}
 	}
 	return len(trs), nil
 }
@@ -493,6 +575,9 @@ func (cs *Stream) procChannelUsers(ctx context.Context, proc processor.ChannelIn
 		cursor = next
 	}
 
+	// ensure there are no duplicate entries.
+	users = uniqueStrings(users)
+
 	// Cache the users for this channel.
 	cs.userCache.set(channelID, users)
 
@@ -502,6 +587,13 @@ func (cs *Stream) procChannelUsers(ctx context.Context, proc processor.ChannelIn
 	}
 
 	return users, nil
+}
+
+// uniqueStrings sorts the slice and removes duplicates in-place, returning the compacted view.
+// The returned slice may share the input's backing array; the original order is not preserved.
+func uniqueStrings(input []string) []string {
+	slices.Sort(input)
+	return slices.Compact(input)
 }
 
 // procChannelInfoWithUsers returns the slack channel with members populated from

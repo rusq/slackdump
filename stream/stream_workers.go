@@ -34,7 +34,6 @@ func (cs *Stream) channelWorker(ctx context.Context, proc processor.Conversation
 	for {
 		select {
 		case <-ctx.Done():
-			results <- Result{Type: RTChannel, Err: ctx.Err()}
 			return
 		case req, more := <-reqs:
 			if !more {
@@ -42,7 +41,9 @@ func (cs *Stream) channelWorker(ctx context.Context, proc processor.Conversation
 			}
 			channel, err := cs.procChannelInfoWithUsers(ctx, proc, req.sl.Channel, req.sl.ThreadTS)
 			if err != nil {
-				results <- Result{Type: RTChannel, ChannelID: req.sl.Channel, Err: err}
+				if !sendResult(ctx, results, Result{Type: RTChannel, ChannelID: req.sl.Channel, Err: err}) {
+					return
+				}
 				continue
 			}
 
@@ -59,10 +60,14 @@ func (cs *Stream) channelWorker(ctx context.Context, proc processor.Conversation
 				if err != nil {
 					return err
 				}
-				results <- Result{Type: RTChannel, ChannelID: req.sl.Channel, ThreadCount: n, IsLast: isLast}
+				if !sendResult(ctx, results, Result{Type: RTChannel, ChannelID: req.sl.Channel, ThreadCount: n, IsLast: isLast}) {
+					return context.Cause(ctx)
+				}
 				return nil
 			}); err != nil {
-				results <- Result{Type: RTChannel, ChannelID: req.sl.Channel, Err: err}
+				if !sendResult(ctx, results, Result{Type: RTChannel, ChannelID: req.sl.Channel, Err: err}) {
+					return
+				}
 				continue
 			}
 		}
@@ -76,14 +81,15 @@ func (cs *Stream) threadWorker(ctx context.Context, proc processor.Conversations
 	for {
 		select {
 		case <-ctx.Done():
-			results <- Result{Type: RTThread, Err: ctx.Err()}
 			return
 		case req, more := <-threadReq:
 			if !more {
 				return // channel closed
 			}
 			if !req.sl.IsThread() {
-				results <- Result{Type: RTThread, Err: fmt.Errorf("invalid thread link: %s", req.sl)}
+				if !sendResult(ctx, results, Result{Type: RTThread, Err: fmt.Errorf("invalid thread link: %s", req.sl)}) {
+					return
+				}
 				continue
 			}
 
@@ -96,7 +102,9 @@ func (cs *Stream) threadWorker(ctx context.Context, proc processor.Conversations
 				// user IDs. Skipping procChannelUsers saves an API call per thread.
 				var err error
 				if channel, err = cs.procChannelInfo(ctx, proc, req.sl.Channel, req.sl.ThreadTS); err != nil {
-					results <- Result{Type: RTThread, ChannelID: req.sl.Channel, ThreadTS: req.sl.ThreadTS, Err: err}
+					if !sendResult(ctx, results, Result{Type: RTThread, ChannelID: req.sl.Channel, ThreadTS: req.sl.ThreadTS, Err: err}) {
+						return
+					}
 					continue
 				}
 			} else {
@@ -109,13 +117,26 @@ func (cs *Stream) threadWorker(ctx context.Context, proc processor.Conversations
 				if err := procThreadMsg(ctx, proc, channel, req.sl.ThreadTS, req.threadOnly, isLast, msgs); err != nil {
 					return err
 				}
-				results <- Result{Type: RTThread, ChannelID: req.sl.Channel, ThreadTS: req.sl.ThreadTS, IsLast: isLast}
+				if !sendResult(ctx, results, Result{Type: RTThread, ChannelID: req.sl.Channel, ThreadTS: req.sl.ThreadTS, IsLast: isLast}) {
+					return context.Cause(ctx)
+				}
 				return nil
 			}); err != nil {
-				results <- Result{Type: RTThread, ChannelID: req.sl.Channel, ThreadTS: req.sl.ThreadTS, Err: err}
+				if !sendResult(ctx, results, Result{Type: RTThread, ChannelID: req.sl.Channel, ThreadTS: req.sl.ThreadTS, Err: err}) {
+					return
+				}
 				continue
 			}
 		}
+	}
+}
+
+func sendResult(ctx context.Context, results chan<- Result, res Result) bool {
+	select {
+	case results <- res:
+		return true
+	case <-ctx.Done():
+		return false
 	}
 }
 
@@ -147,7 +168,9 @@ func (cs *Stream) channelInfoWorker(ctx context.Context, proc processor.ChannelI
 
 			if _, err := infoFetcher(ctx, proc, id, ""); err != nil {
 				// if _, err := cs.procChannelInfo(ctx, proc, id, ""); err != nil {
-				srC <- Result{Type: RTChannelInfo, ChannelID: id, Err: fmt.Errorf("channelInfoWorker: %s: %w", id, err)}
+				if !sendResult(ctx, srC, Result{Type: RTChannelInfo, ChannelID: id, Err: fmt.Errorf("channelInfoWorker: %s: %w", id, err)}) {
+					return
+				}
 			}
 			seen[id] = struct{}{}
 		}

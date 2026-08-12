@@ -17,8 +17,10 @@ package control
 
 import (
 	"context"
+	"errors"
 	"reflect"
 	"sort"
+	"strings"
 	"testing"
 	"time"
 
@@ -708,6 +710,50 @@ func Test_runWorkers(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("conversation failure cancels blocked API generator", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		s := mock_control.NewMockStreamer(ctrl)
+		conversations := mock_processor.NewMockConversations(ctrl)
+		users := mock_processor.NewMockUsers(ctrl)
+		channels := mock_processor.NewMockChannels(ctrl)
+		workspace := mock_processor.NewMockWorkspaceInfo(ctrl)
+		conversationErr := errors.New("conversation failed")
+
+		s.EXPECT().WorkspaceInfo(gomock.Any(), workspace).Return(nil)
+		s.EXPECT().Users(gomock.Any(), users, gomock.Any()).Return(nil)
+		s.EXPECT().ListChannelsEx(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
+			func(ctx context.Context, proc processor.Channels, _ *slack.GetConversationsParameters, _ bool) error {
+				return proc.Channels(ctx, []slack.Channel{
+					{GroupConversation: slack.GroupConversation{Conversation: slack.Conversation{ID: "C1"}}},
+					{GroupConversation: slack.GroupConversation{Conversation: slack.Conversation{ID: "C2"}}},
+				})
+			})
+		s.EXPECT().Conversations(gomock.Any(), conversations, gomock.Any()).DoAndReturn(
+			func(_ context.Context, _ processor.Conversations, links <-chan structures.EntityItem) error {
+				<-links
+				return conversationErr
+			})
+		conversations.EXPECT().Close().Return(nil).Times(1)
+
+		done := make(chan error, 1)
+		go func() {
+			done <- runWorkers(t.Context(), s, structures.NewEntityListFromItems(), superprocessor{
+				Conversations: conversations,
+				Users:         users,
+				Channels:      channels,
+				WorkspaceInfo: workspace,
+			}, Flags{})
+		}()
+
+		select {
+		case err := <-done:
+			assert.ErrorIs(t, err, conversationErr)
+			assert.NotContains(t, strings.ToLower(err.Error()), "api channel generator")
+		case <-time.After(time.Second):
+			t.Fatal("runWorkers remained blocked waiting for the API generator")
+		}
+	})
 }
 
 func Test_runSearch(t *testing.T) {
