@@ -320,7 +320,7 @@ func Test_processLink(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			chans := make(chan channelRequest, 1)
 			threads := make(chan ordinaryThreadRequest, 1)
-			if err := processLink(chans, threads, tt.args.item); (err != nil) != tt.wantErr {
+			if err := processLink(t.Context(), chans, threads, tt.args.item); (err != nil) != tt.wantErr {
 				t.Errorf("processLink() error = %v, wantErr %v", err, tt.wantErr)
 				return // otherwise will block
 			}
@@ -339,6 +339,24 @@ func Test_processLink(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("cancellation unblocks output", func(t *testing.T) {
+		ctx, cancel := context.WithCancelCause(t.Context())
+		channels := make(chan channelRequest)
+		done := make(chan error, 1)
+		go func() {
+			done <- processLink(ctx, channels, make(chan ordinaryThreadRequest), structures.EntityItem{Id: "CTM1"})
+		}()
+
+		cause := errors.New("stop routing")
+		cancel(cause)
+		select {
+		case err := <-done:
+			assert.ErrorIs(t, err, cause)
+		case <-time.After(time.Second):
+			t.Fatal("processLink remained blocked after cancellation")
+		}
+	})
 }
 
 func TestStream_Users(t *testing.T) {

@@ -33,20 +33,6 @@ import (
 	"github.com/rusq/slackdump/v4/processor"
 )
 
-const (
-	// message channel buffer size.  Messages are much faster than threads, so
-	// we can have a smaller buffer.
-	msgChanSz = 16
-	// thread channel buffer size.  Threads are much slower than channels,
-	// because each message might have a thread, and that means, that we'll
-	// have to send a thread request for each message.  So, we need a larger
-	// buffer for it not to block the channel messages scraping.
-	threadChanSz = 4000
-	// result channel buffer size.  We are running 2 goroutines, 1 for channel
-	// messages, and 1 for threads.
-	resultSz = 2
-)
-
 // Stream is used to fetch conversations from Slack.  It is safe for concurrent
 // use.
 type Stream struct {

@@ -159,16 +159,36 @@ func runWorkers(ctx context.Context, s Streamer, list *structures.EntityList, p 
 	{ // conversations goroutine
 		wg.Go(func() {
 			defer lg.DebugContext(ctx, "conversations done")
-
-			defer func() {
-				tryClose(errC, p.Conversations)
-			}()
 			gen := newGenerator(s, p, flags, list)
-			listC, wait := gen.Generate(ctx, errC, list)
-			defer wait() // sync with the generator
-			if err := conversationWorker(ctx, s, p.Conversations, listC); err != nil {
-				errC <- Error{"conversations", StgWorker, err}
-				return
+			genErrC := make(chan error)
+			var genErrs []error
+			genErrDone := make(chan struct{})
+			go func() {
+				defer close(genErrDone)
+				for err := range genErrC {
+					genErrs = append(genErrs, err)
+				}
+			}()
+
+			convCtx, cancel := context.WithCancel(ctx)
+			listC, wait := gen.Generate(convCtx, genErrC, list)
+			convErr := conversationWorker(convCtx, s, p.Conversations, listC)
+			cancel()
+
+			wait()
+			close(genErrC)
+			<-genErrDone
+
+			tryClose(errC, p.Conversations)
+
+			if convErr != nil {
+				errC <- Error{"conversations", StgWorker, convErr}
+			}
+			for _, genErr := range genErrs {
+				if convErr != nil && errors.Is(genErr, context.Canceled) {
+					continue
+				}
+				errC <- genErr
 			}
 		})
 	}

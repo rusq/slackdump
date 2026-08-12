@@ -38,7 +38,6 @@ func (cs *Stream) channelWorker(ctx context.Context, proc processor.Conversation
 	for {
 		select {
 		case <-ctx.Done():
-			results <- Result{Type: RTChannel, Err: ctx.Err()}
 			return
 		case req, more := <-reqs:
 			if !more {
@@ -46,7 +45,9 @@ func (cs *Stream) channelWorker(ctx context.Context, proc processor.Conversation
 			}
 			channel, err := cs.procChannelInfoWithUsers(ctx, proc, req.sl.Channel, req.sl.ThreadTS)
 			if err != nil {
-				results <- Result{Type: RTChannel, ChannelID: req.sl.Channel, Err: err}
+				if !sendResult(ctx, results, Result{Type: RTChannel, ChannelID: req.sl.Channel, Err: err}) {
+					return
+				}
 				continue
 			}
 
@@ -54,7 +55,9 @@ func (cs *Stream) channelWorker(ctx context.Context, proc processor.Conversation
 			if fileID, ok := structures.CanvasFileID(channel); ok {
 				if err := cs.canvasFile(ctx, proc, channel, fileID); err != nil {
 					if canvasErrorIsFatal(err) {
-						results <- Result{Type: RTChannel, ChannelID: req.sl.Channel, Err: err}
+						if !sendResult(ctx, results, Result{Type: RTChannel, ChannelID: req.sl.Channel, Err: err}) {
+							return
+						}
 						continue
 					}
 					logCanvasAPIError(ctx, "canvas file unavailable", channel.ID, fileID, "", "", err)
@@ -81,10 +84,14 @@ func (cs *Stream) channelWorker(ctx context.Context, proc processor.Conversation
 				if err != nil {
 					return err
 				}
-				results <- Result{Type: RTChannel, ChannelID: req.sl.Channel, ThreadCount: n, IsLast: isLast}
+				if !sendResult(ctx, results, Result{Type: RTChannel, ChannelID: req.sl.Channel, ThreadCount: n, IsLast: isLast}) {
+					return context.Cause(ctx)
+				}
 				return nil
 			}); err != nil {
-				results <- Result{Type: RTChannel, ChannelID: req.sl.Channel, Err: err}
+				if !sendResult(ctx, results, Result{Type: RTChannel, ChannelID: req.sl.Channel, Err: err}) {
+					return
+				}
 				continue
 			}
 		}
@@ -98,14 +105,15 @@ func (cs *Stream) threadWorker(ctx context.Context, proc processor.Conversations
 	for {
 		select {
 		case <-ctx.Done():
-			results <- Result{Type: RTThread, Err: ctx.Err()}
 			return
 		case req, more := <-threadReq:
 			if !more {
 				return // channel closed
 			}
 			if req.fetch.channelID == "" || req.fetch.threadTS == "" {
-				results <- Result{Type: RTThread, ChannelID: req.fetch.channelID, ThreadTS: req.fetch.threadTS, Err: errors.New("invalid ordinary thread request")}
+				if !sendResult(ctx, results, Result{Type: RTThread, ChannelID: req.fetch.channelID, ThreadTS: req.fetch.threadTS, Err: errors.New("invalid ordinary thread request")}) {
+					return
+				}
 				continue
 			}
 
@@ -118,7 +126,9 @@ func (cs *Stream) threadWorker(ctx context.Context, proc processor.Conversations
 				// user IDs. Skipping procChannelUsers saves an API call per thread.
 				var err error
 				if channel, err = cs.procChannelInfo(ctx, proc, req.fetch.channelID, req.fetch.threadTS); err != nil {
-					results <- Result{Type: RTThread, ChannelID: req.fetch.channelID, ThreadTS: req.fetch.threadTS, Err: err}
+					if !sendResult(ctx, results, Result{Type: RTThread, ChannelID: req.fetch.channelID, ThreadTS: req.fetch.threadTS, Err: err}) {
+						return
+					}
 					continue
 				}
 			} else {
@@ -137,7 +147,9 @@ func (cs *Stream) threadWorker(ctx context.Context, proc processor.Conversations
 				if err := procThreadMsg(ctx, proc, channel, req.fetch.threadTS, req.threadOnly, isLast, msgs); err != nil {
 					return false, err
 				}
-				results <- Result{Type: RTThread, ChannelID: req.fetch.channelID, ThreadTS: req.fetch.threadTS, IsLast: isLast}
+				if !sendResult(ctx, results, Result{Type: RTThread, ChannelID: req.fetch.channelID, ThreadTS: req.fetch.threadTS, IsLast: isLast}) {
+					return false, context.Cause(ctx)
+				}
 				return true, nil
 			})
 			if err != nil {
@@ -145,11 +157,15 @@ func (cs *Stream) threadWorker(ctx context.Context, proc processor.Conversations
 					slog.WarnContext(ctx, "skipping non-existing thread", "channel_id", req.fetch.channelID, "thread_ts", req.fetch.threadTS)
 					err = procThreadMsg(ctx, proc, channel, req.fetch.threadTS, req.threadOnly, true, parentOnlyThreadMessages(req.fetch, req.parent))
 					if err == nil {
-						results <- Result{Type: RTThread, ChannelID: req.fetch.channelID, ThreadTS: req.fetch.threadTS, IsLast: true}
+						if !sendResult(ctx, results, Result{Type: RTThread, ChannelID: req.fetch.channelID, ThreadTS: req.fetch.threadTS, IsLast: true}) {
+							return
+						}
 						continue
 					}
 				}
-				results <- Result{Type: RTThread, ChannelID: req.fetch.channelID, ThreadTS: req.fetch.threadTS, Err: err}
+				if !sendResult(ctx, results, Result{Type: RTThread, ChannelID: req.fetch.channelID, ThreadTS: req.fetch.threadTS, Err: err}) {
+					return
+				}
 			}
 		}
 	}
@@ -194,7 +210,20 @@ func (cs *Stream) canvasThreadWorker(ctx context.Context, proc processor.Convers
 	for req := range requests {
 		result := canvasThreadResult{channelID: req.fetch.channelID, threadTS: req.fetch.threadTS}
 		result.err = cs.processCanvasThread(ctx, proc, req)
-		completed <- result
+		select {
+		case completed <- result:
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+func sendResult(ctx context.Context, results chan<- Result, res Result) bool {
+	select {
+	case results <- res:
+		return true
+	case <-ctx.Done():
+		return false
 	}
 }
 
@@ -226,7 +255,9 @@ func (cs *Stream) channelInfoWorker(ctx context.Context, proc processor.ChannelI
 
 			if _, err := infoFetcher(ctx, proc, id, ""); err != nil {
 				// if _, err := cs.procChannelInfo(ctx, proc, id, ""); err != nil {
-				srC <- Result{Type: RTChannelInfo, ChannelID: id, Err: fmt.Errorf("channelInfoWorker: %s: %w", id, err)}
+				if !sendResult(ctx, srC, Result{Type: RTChannelInfo, ChannelID: id, Err: fmt.Errorf("channelInfoWorker: %s: %w", id, err)}) {
+					return
+				}
 			}
 			seen[id] = struct{}{}
 		}
@@ -301,7 +332,9 @@ func (cs *Stream) canvasDiscussions(ctx context.Context, proc processor.Conversa
 	firstFailure := -1
 	for i, result := range canvasResults {
 		if result.err == nil {
-			results <- Result{Type: RTCanvasThread, ChannelID: result.channelID, ThreadTS: result.threadTS, IsLast: true}
+			if !sendResult(ctx, results, Result{Type: RTCanvasThread, ChannelID: result.channelID, ThreadTS: result.threadTS, IsLast: true}) {
+				return context.Cause(ctx)
+			}
 			continue
 		}
 		if firstFailure < 0 {
@@ -311,7 +344,9 @@ func (cs *Stream) canvasDiscussions(ctx context.Context, proc processor.Conversa
 	}
 	if firstFailure >= 0 {
 		failed := canvasResults[firstFailure]
-		results <- Result{Type: RTCanvasThread, ChannelID: failed.channelID, ThreadTS: failed.threadTS, IsLast: true, Err: joined}
+		if !sendResult(ctx, results, Result{Type: RTCanvasThread, ChannelID: failed.channelID, ThreadTS: failed.threadTS, IsLast: true, Err: joined}) {
+			return context.Cause(ctx)
+		}
 		return joined
 	}
 	return nil
