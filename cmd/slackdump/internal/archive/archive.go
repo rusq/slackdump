@@ -59,6 +59,7 @@ var CmdArchive = &base.Command{
 
 func init() {
 	CmdArchive.Wizard = archiveWizard
+	CmdArchive.Flag.StringVar(&cfg.DatabaseURL, "database-url", "", "PostgreSQL connection URL for the archive metadata (prefer SLACKDUMP_DATABASE_URL)")
 }
 
 var errNoOutput = errors.New("output directory is required")
@@ -126,14 +127,22 @@ func runDBArchive(ctx context.Context, cmd *base.Command, args []string) error {
 		return err
 	}
 
-	dbfile := filepath.Join(dirname, source.DefaultDBFile)
-	if err := bootstrap.AskOverwrite(dbfile); err != nil {
-		return err
-	}
-
-	conn, err := sqlx.Open(repository.Driver, dbfile)
-	if err != nil {
-		return err
+	var conn *sqlx.DB
+	databaseURL := cfg.ArchiveDatabaseURL()
+	if databaseURL != "" {
+		conn, err = bootstrap.PostgreSQL(ctx, databaseURL)
+		if err != nil {
+			return err
+		}
+	} else {
+		dbfile := filepath.Join(dirname, source.DefaultDBFile)
+		if err := bootstrap.AskOverwrite(dbfile); err != nil {
+			return err
+		}
+		conn, err = sqlx.Open(repository.Driver, dbfile)
+		if err != nil {
+			return err
+		}
 	}
 	defer conn.Close()
 
