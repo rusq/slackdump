@@ -34,7 +34,7 @@ require (
 	github.com/rusq/osenv/v2 v2.0.1
 	github.com/rusq/rbubbles v0.0.2
 	github.com/rusq/slack v0.9.6-0.20260726043947-8f5f9f4472b0
-	github.com/rusq/slackauth v0.7.1
+	github.com/rusq/slackauth v0.7.2
 	github.com/rusq/tagops v0.1.1
 	github.com/schollz/progressbar/v3 v3.19.1
 	github.com/sosodev/duration v1.4.0
@@ -44,7 +44,7 @@ require (
 	go.uber.org/mock v0.6.0
 	golang.org/x/sync v0.22.0
 	golang.org/x/term v0.45.0
-	golang.org/x/text v0.40.0
+	golang.org/x/text v0.41.0
 	golang.org/x/time v0.15.0
 	modernc.org/sqlite v1.54.0
 	src.elv.sh v0.21.0
@@ -78,7 +78,7 @@ require (
 	github.com/google/jsonschema-go v0.4.3 // indirect
 	github.com/gookit/color v1.6.1 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
-	github.com/klauspost/compress v1.19.1 // indirect
+	github.com/klauspost/compress v1.19.2 // indirect
 	github.com/leodido/go-urn v1.5.0 // indirect
 	github.com/lithammer/fuzzysearch v1.1.8 // indirect
 	github.com/lucasb-eyer/go-colorful v1.4.0 // indirect
@@ -109,9 +109,9 @@ require (
 	github.com/ysmood/leakless v0.9.0 // indirect
 	go.mongodb.org/mongo-driver v1.17.9 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	golang.org/x/crypto v0.54.0 // indirect
+	golang.org/x/crypto v0.55.0 // indirect
 	golang.org/x/mod v0.38.0 // indirect
-	golang.org/x/net v0.57.0 // indirect
+	golang.org/x/net v0.58.0 // indirect
 	golang.org/x/sys v0.47.0 // indirect
 	golang.org/x/tools v0.48.0 // indirect
 	golang.org/x/xerrors v0.0.0-20240903120638-7835f813f4da // indirect
