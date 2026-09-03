@@ -168,10 +168,9 @@ func NewMessageRepository() MessageRepository {
 }
 
 // channelTimelineCondition keeps thread replies out of a channel timeline while
-// retaining thread parents.  A resume that explicitly rechecks a thread stores
-// its result in a CThreadMessages chunk with ThreadOnly=false, so that parent
-// must be included as well as parents from thread-only chunks.
-const channelTimelineCondition = " AND ((CH.TYPE_ID=0 AND (CH.THREAD_ONLY=FALSE OR CH.THREAD_ONLY IS NULL)) OR (CH.TYPE_ID=1 AND T.IS_PARENT=TRUE))"
+// retaining parents from both thread-only and non-thread-only chunks. A
+// self-referencing PARENT_ID identifies a parent even after its replies are deleted.
+const channelTimelineCondition = " AND ((CH.TYPE_ID=0 AND (CH.THREAD_ONLY=FALSE OR CH.THREAD_ONLY IS NULL)) OR (CH.TYPE_ID=1 AND T.PARENT_ID=T.ID))"
 
 func (r messageRepository) Count(ctx context.Context, conn sqlx.QueryerContext, channelID string) (int64, error) {
 	return r.countTypeWhere(
