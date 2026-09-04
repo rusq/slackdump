@@ -44,9 +44,30 @@ func (o Order) String() string {
 }
 
 const (
-	Driver = "sqlite"
-	dbTag  = "db"
+	Driver         = "sqlite"
+	PostgresDriver = "postgres"
+	dbTag          = "db"
 )
+
+type driverNamer interface {
+	DriverName() string
+}
+
+// IsPostgres reports whether conn uses a PostgreSQL driver.  sqlx exposes
+// DriverName on both DB and Tx, which keeps repository queries independent of
+// the concrete connection type.
+func IsPostgres(conn any) bool {
+	dn, ok := conn.(driverNamer)
+	if !ok {
+		return false
+	}
+	switch dn.DriverName() {
+	case PostgresDriver, "pgx":
+		return true
+	default:
+		return false
+	}
+}
 
 // PrepareExtContext is a combination of sqlx.PreparerContext and sqlx.ExtContext.
 type PrepareExtContext interface {

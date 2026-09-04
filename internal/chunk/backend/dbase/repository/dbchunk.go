@@ -134,7 +134,14 @@ func NewChunkRepository() ChunkRepository {
 }
 
 func (r chunkRepository) Insert(ctx context.Context, conn sqlx.ExtContext, dbchunk *DBChunk) (int64, error) {
-	stmt := r.stmtInsert()
+	stmt := conn.Rebind(r.stmtInsert())
+	if IsPostgres(conn) {
+		var id int64
+		if err := conn.QueryRowxContext(ctx, stmt+" RETURNING ID", dbchunk.values()...).Scan(&id); err != nil {
+			return 0, err
+		}
+		return id, nil
+	}
 	res, err := conn.ExecContext(ctx, stmt, dbchunk.values()...)
 	if err != nil {
 		return 0, err

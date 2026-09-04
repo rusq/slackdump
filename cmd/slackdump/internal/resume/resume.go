@@ -98,6 +98,7 @@ var resumeFlags = ResumeParams{
 
 func init() {
 	CmdResume.Run = runResume
+	CmdResume.Flag.StringVar(&cfg.DatabaseURL, "database-url", "", "PostgreSQL connection URL for the archive metadata (prefer SLACKDUMP_DATABASE_URL)")
 	CmdResume.Flag.BoolVar(&resumeFlags.Refresh, "refresh", false, "refresh the list of channels")
 	CmdResume.Flag.BoolVar(&resumeFlags.IncludeThreads, "threads", false, "include threads (slow, and flaky business)")
 	CmdResume.Flag.BoolVar(&resumeFlags.RecordOnlyNewUsers, "only-new-users", true, "record only new or updated users")
@@ -128,6 +129,11 @@ func runResume(ctx context.Context, cmd *base.Command, args []string) error {
 		return errors.New("expected at least one argument")
 	}
 	dir := args[0]
+	databaseURL := cfg.ArchiveDatabaseURL()
+	if databaseURL != "" && resumeFlags.Dedupe {
+		base.SetExitStatus(base.SInvalidParameters)
+		return errors.New("-dedupe is not supported with the PostgreSQL archive backend")
+	}
 
 	// parse the entity list, if it's present.
 	list, err := structures.NewEntityList(args[1:])
@@ -136,7 +142,22 @@ func runResume(ctx context.Context, cmd *base.Command, args []string) error {
 		return err
 	}
 
-	src, err := source.Load(ctx, dir)
+	var src source.SourceResumeCloser
+	if databaseURL != "" {
+		conn, openErr := bootstrap.PostgreSQL(ctx, databaseURL)
+		if openErr != nil {
+			base.SetExitStatus(base.SInitializationError)
+			return fmt.Errorf("error opening PostgreSQL database: %w", openErr)
+		}
+		if prepErr := dbase.Prepare(ctx, conn, cfg.Verbose); prepErr != nil {
+			conn.Close()
+			base.SetExitStatus(base.SInitializationError)
+			return fmt.Errorf("error preparing PostgreSQL database: %w", prepErr)
+		}
+		src = source.DatabaseWithSource(dbase.SourceFromConnection(conn, true))
+	} else {
+		src, err = source.Load(ctx, dir)
+	}
 	if err != nil {
 		base.SetExitStatus(base.SInvalidParameters)
 		return err
@@ -188,7 +209,12 @@ func runResume(ctx context.Context, cmd *base.Command, args []string) error {
 	}
 
 	// connecting to the database in read-write mode.
-	wconn, err := bootstrap.Database(dir)
+	var wconn *sqlx.DB
+	if databaseURL != "" {
+		wconn, err = bootstrap.PostgreSQL(ctx, databaseURL)
+	} else {
+		wconn, err = bootstrap.Database(dir)
+	}
 	if err != nil {
 		base.SetExitStatus(base.SInitializationError)
 		return fmt.Errorf("error opening database: %w", err)
