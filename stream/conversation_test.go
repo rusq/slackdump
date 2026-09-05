@@ -229,7 +229,7 @@ func Test_procChanMsg(t *testing.T) {
 	type args struct {
 		ctx context.Context
 		// proc    processor.Conversations // supplied by test
-		threadC chan request
+		threadC chan ordinaryThreadRequest
 		channel *slack.Channel
 		isLast  bool
 		mm      []slack.Message
@@ -247,7 +247,7 @@ func Test_procChanMsg(t *testing.T) {
 		args     args
 		skipFn   func(ctx context.Context, channelID, threadTS string, replyCount int) bool
 		expectFn func(mp *mock_processor.MockConversations)
-		checkFn  func(t *testing.T, threadC <-chan request, mm []slack.Message)
+		checkFn  func(t *testing.T, threadC <-chan ordinaryThreadRequest, mm []slack.Message)
 		want     int
 		wantErr  bool
 	}{
@@ -255,7 +255,7 @@ func Test_procChanMsg(t *testing.T) {
 			name: "empty messages slice",
 			args: args{
 				ctx:     t.Context(),
-				threadC: make(chan request),
+				threadC: make(chan ordinaryThreadRequest),
 				channel: TestChannel,
 				isLast:  true,
 				mm:      []slack.Message{},
@@ -268,7 +268,7 @@ func Test_procChanMsg(t *testing.T) {
 			name: "empty message slice, processor error",
 			args: args{
 				ctx:     t.Context(),
-				threadC: make(chan request),
+				threadC: make(chan ordinaryThreadRequest),
 				channel: TestChannel,
 				isLast:  true,
 				mm:      []slack.Message{},
@@ -282,7 +282,7 @@ func Test_procChanMsg(t *testing.T) {
 			name: "non-empty messages slice",
 			args: args{
 				ctx:     t.Context(),
-				threadC: make(chan request),
+				threadC: make(chan ordinaryThreadRequest),
 				channel: TestChannel,
 				isLast:  true,
 				mm:      fixtures.Load[[]slack.Message](fixtures.TestChannelEveryoneMessagesNativeExport),
@@ -296,7 +296,7 @@ func Test_procChanMsg(t *testing.T) {
 			name: "non-empty messages slice,files processor error",
 			args: args{
 				ctx:     t.Context(),
-				threadC: make(chan request),
+				threadC: make(chan ordinaryThreadRequest),
 				channel: TestChannel,
 				isLast:  true,
 				mm:      fixtures.Load[[]slack.Message](fixtures.TestChannelEveryoneMessagesNativeExport),
@@ -310,7 +310,7 @@ func Test_procChanMsg(t *testing.T) {
 			name: "non-empty messages slice, messages processor error",
 			args: args{
 				ctx:     t.Context(),
-				threadC: make(chan request),
+				threadC: make(chan ordinaryThreadRequest),
 				channel: TestChannel,
 				isLast:  true,
 				mm:      fixtures.Load[[]slack.Message](fixtures.TestChannelEveryoneMessagesNativeExport),
@@ -325,7 +325,7 @@ func Test_procChanMsg(t *testing.T) {
 			name: "skip complete thread",
 			args: args{
 				ctx:     t.Context(),
-				threadC: make(chan request),
+				threadC: make(chan ordinaryThreadRequest),
 				channel: TestChannel,
 				isLast:  true,
 				mm:      threadedMsg,
@@ -340,7 +340,7 @@ func Test_procChanMsg(t *testing.T) {
 			name: "do not skip incomplete thread",
 			args: args{
 				ctx:     t.Context(),
-				threadC: make(chan request, 1),
+				threadC: make(chan ordinaryThreadRequest, 1),
 				channel: TestChannel,
 				isLast:  true,
 				mm:      threadedMsg,
@@ -355,7 +355,7 @@ func Test_procChanMsg(t *testing.T) {
 			name: "thread request carries parent message",
 			args: args{
 				ctx:     t.Context(),
-				threadC: make(chan request, 1),
+				threadC: make(chan ordinaryThreadRequest, 1),
 				channel: TestChannel,
 				isLast:  true,
 				mm: []slack.Message{{Msg: slack.Msg{
@@ -370,13 +370,13 @@ func Test_procChanMsg(t *testing.T) {
 			expectFn: func(mp *mock_processor.MockConversations) {
 				mp.EXPECT().Messages(gomock.Any(), TestChannel.ID, 1, true, gomock.Any()).Times(1)
 			},
-			checkFn: func(t *testing.T, threadC <-chan request, mm []slack.Message) {
+			checkFn: func(t *testing.T, threadC <-chan ordinaryThreadRequest, mm []slack.Message) {
 				t.Helper()
 				parent := mm[0]
 				mm[0].Text = "mutated after enqueue"
 				req := <-threadC
-				assert.Equal(t, TestChannel.ID, req.sl.Channel)
-				assert.Equal(t, parent.ThreadTimestamp, req.sl.ThreadTS)
+				assert.Equal(t, TestChannel.ID, req.fetch.channelID)
+				assert.Equal(t, parent.ThreadTimestamp, req.fetch.threadTS)
 				if assert.NotNil(t, req.parent) {
 					assert.Equal(t, parent, *req.parent)
 				}
@@ -413,7 +413,7 @@ func Test_procChanMsg(t *testing.T) {
 		cause := errors.New("stop thread routing")
 		cancel(cause)
 
-		got, err := (&Stream{}).procChanMsg(ctx, mp, make(chan request), TestChannel, true, threadedMsg)
+		got, err := (&Stream{}).procChanMsg(ctx, mp, make(chan ordinaryThreadRequest), TestChannel, true, threadedMsg)
 		assert.Equal(t, 1, got)
 		assert.ErrorIs(t, err, cause)
 	})

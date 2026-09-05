@@ -79,6 +79,12 @@ func TestRoutes_StaticPaths(t *testing.T) {
 	if got := routes.CanvasContent("C123"); got != "/archives/C123/canvas/content.html" {
 		t.Fatalf("CanvasContent() = %q", got)
 	}
+	if got := routes.CanvasComments("C123"); got != "/archives/C123/canvas/comments/index.html" {
+		t.Fatalf("CanvasComments() = %q", got)
+	}
+	if got := routes.CanvasComment("C123", "1710000000.000001"); got != "/archives/C123/canvas/comments/1710000000.000001/index.html" {
+		t.Fatalf("CanvasComment() = %q", got)
+	}
 	if got := routes.File("F123", "hello world.txt"); got != "/files/F123/hello%20world.txt" {
 		t.Fatalf("File() = %q", got)
 	}

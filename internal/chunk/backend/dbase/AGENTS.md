@@ -61,6 +61,12 @@ threads during archiving. Do not rely on them for general analysis. They are:
 |  9 | `BOOKMARKS`       | *(no table)*     |
 | 10 | `SEARCH_MESSAGES` | `SEARCH_MESSAGE` |
 | 11 | `SEARCH_FILES`    | `SEARCH_FILE`    |
+| 12 | `CANVAS_MESSAGES` | `MESSAGE`        |
+| 13 | `CANVAS_THREAD_MESSAGES` | `MESSAGE` |
+
+Canvas chunks store the hidden canvas channel ID in `CHUNK.CHANNEL_ID`.
+They are intentionally kept separate from ordinary message and thread chunk
+types so hidden canvas channels do not appear in timelines or resume entities.
 
 **Note:** `STARRED_ITEMS` (8) and `BOOKMARKS` (9) are defined in the enum and
 TYPES table but have no corresponding storage table and no assembler — they

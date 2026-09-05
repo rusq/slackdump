@@ -663,6 +663,49 @@ func TestSource_AllThreadMessages(t *testing.T) {
 	}
 }
 
+func TestSource_CanvasMessages(t *testing.T) {
+	conn := testDB(t)
+	root := slack.Message{Msg: slack.Msg{Timestamp: "1234567890.000001", ThreadTimestamp: "1234567890.000001"}}
+	prepTestChunk(&chunk.Chunk{
+		Type:      chunk.CCanvasMessages,
+		ChannelID: "CCANVAS",
+		Messages:  []slack.Message{root},
+	})(t, conn)
+
+	src := &Source{conn: conn}
+	it, err := src.CanvasMessages(t.Context(), "CCANVAS")
+	require.NoError(t, err)
+	var got []slack.Message
+	for msg, err := range it {
+		require.NoError(t, err)
+		got = append(got, msg)
+	}
+	assert.Equal(t, []slack.Message{root}, got)
+}
+
+func TestSource_CanvasThreadMessages(t *testing.T) {
+	conn := testDB(t)
+	root := slack.Message{Msg: slack.Msg{Timestamp: "1234567890.000001", ThreadTimestamp: "1234567890.000001"}}
+	reply := slack.Message{Msg: slack.Msg{Timestamp: "1234567890.000002", ThreadTimestamp: root.ThreadTimestamp, SubType: "thread_broadcast"}}
+	prepTestChunk(&chunk.Chunk{
+		Type:      chunk.CCanvasThreadMessages,
+		ChannelID: "CCANVAS",
+		ThreadTS:  root.ThreadTimestamp,
+		Parent:    &root,
+		Messages:  []slack.Message{root, reply},
+	})(t, conn)
+
+	src := &Source{conn: conn}
+	it, err := src.CanvasThreadMessages(t.Context(), "CCANVAS", root.ThreadTimestamp)
+	require.NoError(t, err)
+	var got []slack.Message
+	for msg, err := range it {
+		require.NoError(t, err)
+		got = append(got, msg)
+	}
+	assert.Equal(t, []slack.Message{root, reply}, got)
+}
+
 func TestSource_Sorted(t *testing.T) {
 	type fields struct {
 		conn     *sqlx.DB

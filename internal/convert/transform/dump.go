@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"iter"
 	"log/slog"
+	"path"
 	"sort"
 	"strings"
 
@@ -81,6 +82,11 @@ type (
 	pipeline     []pipelineFunc
 )
 
+type canvasSource interface {
+	CanvasMessages(ctx context.Context, hiddenChannelID string) (iter.Seq2[slack.Message, error], error)
+	CanvasThreadMessages(ctx context.Context, hiddenChannelID, threadTS string) (iter.Seq2[slack.Message, error], error)
+}
+
 // apply applies the pipeline functions in order.
 func (p pipeline) apply(channelID, threadTS string, mm []slack.Message) error {
 	for i, f := range p {
@@ -132,8 +138,80 @@ func (s *DumpConverter) Convert(ctx context.Context, channelID, threadID string)
 		name := s.tmpl.Execute(conv)
 		return fmt.Errorf("fsadapter: unable to create file %s: %w", name, err)
 	}
-	defer f.Close()
-	return json.NewEncoder(f).Encode(conv)
+	if err := json.NewEncoder(f).Encode(conv); err != nil {
+		_ = f.Close()
+		return err
+	}
+	if err := f.Close(); err != nil {
+		return err
+	}
+	if threadID == "" {
+		return s.convertCanvas(ctx, ci)
+	}
+	return nil
+}
+
+func (s *DumpConverter) convertCanvas(ctx context.Context, owner *slack.Channel) error {
+	src, ok := s.src.(canvasSource)
+	if !ok {
+		return nil
+	}
+	fileID, ok := structures.CanvasFileID(owner)
+	if !ok {
+		return nil
+	}
+	hiddenChannelID, ok := structures.CanvasChannelID(fileID)
+	if !ok {
+		return nil
+	}
+	it, err := src.CanvasMessages(ctx, hiddenChannelID)
+	if err != nil {
+		return err
+	}
+	roots, err := collect(it, tmsgPrealloc)
+	if err != nil {
+		return err
+	}
+	if err := pipeline(s.pipeline).apply(hiddenChannelID, "", roots); err != nil {
+		return fmt.Errorf("canvas: %w", err)
+	}
+	msgs := make([]types.Message, 0, len(roots))
+	for _, root := range roots {
+		m := types.Message{Message: root}
+		if root.ReplyCount > 0 {
+			threadTS := root.ThreadTimestamp
+			if threadTS == "" {
+				threadTS = root.Timestamp
+			}
+			it, err := src.CanvasThreadMessages(ctx, hiddenChannelID, threadTS)
+			if err != nil {
+				return err
+			}
+			thread, err := collect(it, tmsgPrealloc)
+			if err != nil {
+				return err
+			}
+			if err := pipeline(s.pipeline).apply(hiddenChannelID, threadTS, thread); err != nil {
+				return fmt.Errorf("canvas thread: %w", err)
+			}
+			m.ThreadReplies = types.ConvertMsgs(thread)
+		}
+		msgs = append(msgs, m)
+	}
+	f, err := s.fsa.Create(path.Join("__canvas", hiddenChannelID+".json"))
+	if err != nil {
+		return fmt.Errorf("create canvas dump: %w", err)
+	}
+	conv := types.Conversation{
+		ID:       hiddenChannelID,
+		Name:     hiddenChannelID,
+		Messages: msgs,
+	}
+	if err := json.NewEncoder(f).Encode(&conv); err != nil {
+		_ = f.Close()
+		return err
+	}
+	return f.Close()
 }
 
 func collect[T any](it iter.Seq2[T, error], sz int) ([]T, error) {

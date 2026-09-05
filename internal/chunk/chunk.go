@@ -17,6 +17,7 @@ package chunk
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -42,9 +43,11 @@ const (
 	CBookmarks
 	CSearchMessages
 	CSearchFiles
+	CCanvasMessages
+	CCanvasThreadMessages
 )
 
-var ErrUnsupChunkType = fmt.Errorf("unsupported chunk type")
+var ErrUnsupChunkType = errors.New("unsupported chunk type")
 
 // Chunk is a representation of a single chunk of data retrieved from the API.
 // A single API call always produces a single Chunk.
@@ -128,11 +131,13 @@ const (
 )
 
 const (
-	threadPrefix    = "t"
-	filePrefix      = "f"
-	chanInfoPrefix  = "ic"
-	bookmarkPrefix  = "lb"
-	chanUsersPrefix = "lcu"
+	threadPrefix       = "t"
+	filePrefix         = "f"
+	chanInfoPrefix     = "ic"
+	bookmarkPrefix     = "lb"
+	chanUsersPrefix    = "lcu"
+	canvasPrefix       = "cm"
+	canvasThreadPrefix = "ct"
 )
 
 // Chunk ID categories
@@ -150,6 +155,10 @@ func (c *Chunk) ID() GroupID {
 		return GroupID(c.ChannelID)
 	case CThreadMessages:
 		return threadID(c.ChannelID, c.Parent.ThreadTimestamp)
+	case CCanvasMessages:
+		return id(canvasPrefix, c.ChannelID)
+	case CCanvasThreadMessages:
+		return id(canvasThreadPrefix, c.ChannelID, c.ThreadTS)
 	case CFiles:
 		return id(filePrefix, c.ChannelID, c.Parent.Timestamp)
 	case CChannelInfo:
@@ -200,6 +209,14 @@ func threadID(channelID, threadTS string) GroupID {
 	return id(threadPrefix, channelID, threadTS)
 }
 
+func canvasID(channelID string) GroupID {
+	return id(canvasPrefix, channelID)
+}
+
+func canvasDiscussionID(channelID, threadTS string) GroupID {
+	return id(canvasThreadPrefix, channelID, threadTS)
+}
+
 func (id GroupID) IsThread() bool {
 	return strings.HasPrefix(string(id), threadPrefix)
 }
@@ -246,7 +263,7 @@ func (c *Chunk) String() string {
 // and other types of chunks, it returns ErrUnsupChunkType.
 func (c *Chunk) Timestamps() ([]int64, error) {
 	switch c.Type {
-	case CMessages, CThreadMessages:
+	case CMessages, CThreadMessages, CCanvasMessages, CCanvasThreadMessages:
 		return c.messageTimestamps()
 	default:
 		return nil, ErrUnsupChunkType

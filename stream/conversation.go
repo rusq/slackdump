@@ -106,7 +106,9 @@ func produceItems(ctx context.Context, output chan<- structures.EntityItem, item
 // Conversations fetches the conversations from the links channel.  The link
 // sent on that channel can be a channelID, channel URL, thread URL or a link
 // in Slackdump format.  fn is called for each result (channel messages, or
-// thread messages).  The fact that fn was called for channel messages, does
+// thread messages, and completed canvas discussions). Canvas discussions emit
+// one RTCanvasThread result with IsLast set, so OptResultFn progress counters
+// may observe more successful results. The fact that fn was called for channel messages, does
 // not mean that all threads for that channel were already processed.  Each
 // last thread result is marked with StreamResult.IsLast.  The caller must
 // track the number of threads processed for each channel, and when the thread
@@ -114,11 +116,10 @@ func produceItems(ctx context.Context, output chan<- structures.EntityItem, item
 // messages for that channel have been processed.  For example, see
 // [cmd/slackdump/internal/export/expproc].
 func (cs *Stream) Conversations(ctx context.Context, proc processor.Conversations, items <-chan structures.EntityItem) error {
+	ctx, cancel := context.WithCancelCause(ctx)
+	defer cancel(nil)
 	ctx, task := trace.NewTask(ctx, "AsyncConversations")
 	defer task.End()
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
 	// Retain the first fatal error, cancel all producers immediately, and keep
 	// draining results until every producer and worker has stopped.
 	var fatalErr error
@@ -139,14 +140,14 @@ func (cs *Stream) Conversations(ctx context.Context, proc processor.Conversation
 				resultErr := res
 				fatalErr = &resultErr // Result implements error.
 			}
-			cancel()
+			cancel(fatalErr)
 			continue
 		}
 		for _, fn := range cs.resultFn {
 			if err := fn(res); err != nil {
 				slog.ErrorContext(ctx, "result function call error", "res", res.String())
 				fatalErr = fmt.Errorf("result %s, callback error: %w", res, err)
-				cancel()
+				cancel(fatalErr)
 				break
 			}
 		}
@@ -165,8 +166,10 @@ func (cs *Stream) Conversations(ctx context.Context, proc processor.Conversation
 // results channel. The input loop and channel worker both send thread requests,
 // so their completion owns closing threadsC.
 func (cs *Stream) startConversationPipeline(ctx context.Context, proc processor.Conversations, items <-chan structures.EntityItem) <-chan Result {
-	chansC := make(chan request, msgChanSz)
-	threadsC := make(chan request, threadChanSz)
+	chansC := make(chan channelRequest, msgChanSz)
+	threadsC := make(chan ordinaryThreadRequest, threadChanSz)
+	canvasC := make(chan canvasThreadRequest, threadChanSz)
+	canvasResultsC := make(chan canvasThreadResult, threadChanSz)
 	resultsC := make(chan Result, resultSz)
 
 	var (
@@ -178,8 +181,13 @@ func (cs *Stream) startConversationPipeline(ctx context.Context, proc processor.
 	threadSenders.Add(2)
 	workers.Go(func() {
 		defer threadSenders.Done()
-		cs.channelWorker(ctx, proc, resultsC, threadsC, chansC)
+		defer close(canvasC)
+		cs.channelWorker(ctx, proc, resultsC, threadsC, canvasC, canvasResultsC, chansC)
 		trace.Log(ctx, "async", "channel worker done")
+	})
+	workers.Go(func() {
+		cs.canvasThreadWorker(ctx, proc, canvasResultsC, canvasC)
+		trace.Log(ctx, "async", "canvas thread worker done")
 	})
 	workers.Go(func() {
 		cs.threadWorker(ctx, proc, resultsC, threadsC)
@@ -204,7 +212,7 @@ func (cs *Stream) startConversationPipeline(ctx context.Context, proc processor.
 	return resultsC
 }
 
-func (cs *Stream) feedConversationRequests(ctx context.Context, items <-chan structures.EntityItem, chansC chan<- request, threadsC chan<- request, resultsC chan<- Result) {
+func (cs *Stream) feedConversationRequests(ctx context.Context, items <-chan structures.EntityItem, chansC chan<- channelRequest, threadsC chan<- ordinaryThreadRequest, resultsC chan<- Result) {
 	defer close(chansC)
 	for {
 		select {
@@ -223,7 +231,7 @@ func (cs *Stream) feedConversationRequests(ctx context.Context, items <-chan str
 }
 
 // processLink parses the link and sends it to the appropriate output channel.
-func processLink(ctx context.Context, channels chan<- request, threads chan<- request, link structures.EntityItem) error {
+func processLink(ctx context.Context, channels chan<- channelRequest, threads chan<- ordinaryThreadRequest, link structures.EntityItem) error {
 	sl, err := structures.ParseLink(link.Id)
 	if err != nil {
 		return err
@@ -233,13 +241,13 @@ func processLink(ctx context.Context, channels chan<- request, threads chan<- re
 	}
 	if sl.IsThread() {
 		select {
-		case threads <- request{sl: &sl, threadOnly: true, Oldest: link.Oldest, Latest: link.Latest}:
+		case threads <- ordinaryThreadRequest{fetch: threadFetchSpec{channelID: sl.Channel, threadTS: sl.ThreadTS, oldest: link.Oldest, latest: link.Latest}, threadOnly: true}:
 		case <-ctx.Done():
 			return context.Cause(ctx)
 		}
 	} else {
 		select {
-		case channels <- request{sl: &sl, Oldest: link.Oldest, Latest: link.Latest}:
+		case channels <- channelRequest{sl: sl, oldest: link.Oldest, latest: link.Latest}:
 		case <-ctx.Done():
 			return context.Cause(ctx)
 		}
@@ -247,18 +255,67 @@ func processLink(ctx context.Context, channels chan<- request, threads chan<- re
 	return nil
 }
 
-type request struct {
-	sl *structures.SlackLink
+type channelRequest struct {
+	sl     structures.SlackLink
+	oldest time.Time
+	latest time.Time
+}
+
+type threadFetchSpec struct {
+	channelID string
+	threadTS  string
+	oldest    time.Time
+	latest    time.Time
+}
+
+type ordinaryThreadRequest struct {
+	fetch threadFetchSpec
 	// threadOnly indicates that this is the thread directly requested by the
 	// user, and not a thread that was found in the channel.
 	threadOnly bool
 	parent     *slack.Message
-	Oldest     time.Time
-	Latest     time.Time
+}
+
+type canvasThreadRequest struct {
+	fetch  threadFetchSpec
+	root   slack.Message
+	owner  *slack.Channel
+	fileID string
+}
+
+type canvasThreadResult struct {
+	channelID string
+	threadTS  string
+	err       error
+}
+
+type apiError struct {
+	op  string
+	err error
+}
+
+func (e *apiError) Error() string {
+	return fmt.Sprintf("%s: %v", e.op, e.err)
+}
+
+func (e *apiError) Unwrap() error {
+	return e.err
+}
+
+func newAPIError(op string, err error) error {
+	if err == nil {
+		return nil
+	}
+	return &apiError{op: op, err: err}
+}
+
+func isAPIError(err error) bool {
+	var ae *apiError
+	return errors.As(err, &ae)
 }
 
 // channel fetches the channel data as defined in req, calling callback function for each API response.
-func (cs *Stream) channel(ctx context.Context, req request, callback func(mm []slack.Message, isLast bool) error) error {
+func (cs *Stream) channel(ctx context.Context, req channelRequest, callback func(mm []slack.Message, isLast bool) error) error {
 	ctx, task := trace.NewTask(ctx, "channel")
 	defer task.End()
 
@@ -273,8 +330,8 @@ func (cs *Stream) channel(ctx context.Context, req request, callback func(mm []s
 				ChannelID: req.sl.Channel,
 				Cursor:    cursor,
 				Limit:     cs.limits.tier.Request.Conversations,
-				Oldest:    structures.FormatSlackTS(structures.NVLTime(req.Oldest, cs.oldest)),
-				Latest:    structures.FormatSlackTS(structures.NVLTime(req.Latest, cs.latest)),
+				Oldest:    structures.FormatSlackTS(structures.NVLTime(req.oldest, cs.oldest)),
+				Latest:    structures.FormatSlackTS(structures.NVLTime(req.latest, cs.latest)),
 				Inclusive: cs.inclusive,
 			})
 			return apiErr
@@ -283,7 +340,8 @@ func (cs *Stream) channel(ctx context.Context, req request, callback func(mm []s
 		}
 		if !resp.Ok {
 			trace.Logf(ctx, "error", "not ok, api error=%s", resp.Error)
-			return fmt.Errorf("response not ok, slack error: %s", resp.Error)
+			err := fmt.Errorf("response not ok, slack error: %s", resp.Error)
+			return err
 		}
 
 		r := trace.StartRegion(ctx, "channel_callback")
@@ -304,25 +362,22 @@ func (cs *Stream) channel(ctx context.Context, req request, callback func(mm []s
 	return nil
 }
 
-// thread fetches the whole thread identified by SlackLink, calling callback
-// function fn for each slice received. the callback function will be called if
-// there's no messages in the thread, and should handle as it sees fit.
-// It will treat thread_not_found as non critical error, call the callback with
-// a parent-only final message slice, and will not raise an error.
-func (cs *Stream) thread(ctx context.Context, req request, callback func(mm []slack.Message, isLast bool) error) error {
+// paginateThread fetches a thread page by page. API and retry failures are
+// returned as apiError; callback errors pass through unchanged. Returning false
+// from the callback stops pagination successfully.
+func (cs *Stream) paginateThread(ctx context.Context, spec threadFetchSpec, callback func(mm []slack.Message, isLast bool) (bool, error)) error {
 	ctx, task := trace.NewTask(ctx, "thread")
 	defer task.End()
 
-	if !req.sl.IsThread() {
-		return fmt.Errorf("not a thread: %s", req.sl)
+	if spec.channelID == "" || spec.threadTS == "" {
+		return fmt.Errorf("invalid thread specification: channel=%q thread_ts=%q", spec.channelID, spec.threadTS)
 	}
 
-	lg := slog.With("slack_link", req.sl)
+	lg := slog.With("channel_id", spec.channelID, "thread_ts", spec.threadTS)
 
 	lg.DebugContext(ctx, "- getting thread")
 
 	var cursor string
-	firstPage := true
 	for {
 		var (
 			msgs    []slack.Message
@@ -331,12 +386,12 @@ func (cs *Stream) thread(ctx context.Context, req request, callback func(mm []sl
 		if err := network.WithRetry(ctx, cs.limits.threads, cs.limits.tier.Tier3.Retries, func(ctx context.Context) error {
 			var apiErr error
 			msgs, hasmore, cursor, apiErr = cs.client.GetConversationRepliesContext(ctx, &slack.GetConversationRepliesParameters{
-				ChannelID: req.sl.Channel,
-				Timestamp: req.sl.ThreadTS,
+				ChannelID: spec.channelID,
+				Timestamp: spec.threadTS,
 				Cursor:    cursor,
 				Limit:     cs.limits.tier.Request.Replies,
-				Oldest:    structures.FormatSlackTS(structures.NVLTime(req.Oldest, cs.oldest)),
-				Latest:    structures.FormatSlackTS(structures.NVLTime(req.Latest, cs.latest)),
+				Oldest:    structures.FormatSlackTS(structures.NVLTime(spec.oldest, cs.oldest)),
+				Latest:    structures.FormatSlackTS(structures.NVLTime(spec.latest, cs.latest)),
 				Inclusive: cs.inclusive,
 			})
 			if apiErr == nil && len(msgs) == 0 {
@@ -351,29 +406,17 @@ func (cs *Stream) thread(ctx context.Context, req request, callback func(mm []sl
 			}
 			return apiErr
 		}); err != nil {
-			if errors.Is(err, errThreadNotFound) {
-				// isNonCriticalErr mapped the API error to this sentinel;
-				// deliver a parent-only final chunk.
-				lg.Warn("skipping non-existing thread")
-				return callback(parentOnlyThreadMessages(req), true)
-			}
-			return err
+			return newAPIError("conversations.replies", err)
 		}
-
-		if firstPage && req.threadOnly && cs.skipThread != nil {
-			replyCount := msgs[0].ReplyCount
-			if cs.skipThread(ctx, req.sl.Channel, req.sl.ThreadTS, replyCount) {
-				lg.DebugContext(ctx, "skipping complete thread", "channel_id", req.sl.Channel, "thread_ts", req.sl.ThreadTS, "reply_count", replyCount)
-				return nil
-			}
-		}
-		firstPage = false
 
 		r := trace.StartRegion(ctx, "thread_callback")
-		err := callback(msgs, !hasmore)
+		keepGoing, err := callback(msgs, !hasmore)
 		r.End()
 		if err != nil {
 			return err
+		}
+		if !keepGoing {
+			return nil
 		}
 
 		if !hasmore {
@@ -383,9 +426,9 @@ func (cs *Stream) thread(ctx context.Context, req request, callback func(mm []sl
 	return nil
 }
 
-func parentOnlyThreadMessages(req request) []slack.Message {
-	if req.parent != nil {
-		return []slack.Message{*req.parent}
+func parentOnlyThreadMessages(spec threadFetchSpec, parent *slack.Message) []slack.Message {
+	if parent != nil {
+		return []slack.Message{*parent}
 	}
 	// Direct thread links have no channel message parent in hand. Keep the
 	// synthetic parent minimal so downstream processors can close the thread
@@ -393,9 +436,9 @@ func parentOnlyThreadMessages(req request) []slack.Message {
 	return []slack.Message{
 		{
 			Msg: slack.Msg{
-				Channel:         req.sl.Channel,
-				Timestamp:       req.sl.ThreadTS,
-				ThreadTimestamp: req.sl.ThreadTS,
+				Channel:         spec.channelID,
+				Timestamp:       spec.threadTS,
+				ThreadTimestamp: spec.threadTS,
 			},
 		},
 	}
@@ -404,8 +447,8 @@ func parentOnlyThreadMessages(req request) []slack.Message {
 // procChanMsg processes the message slice mm, for each threaded message, it
 // sends the thread request on threadC.  It returns thread count in the mm and
 // error if any.
-func (cs *Stream) procChanMsg(ctx context.Context, proc processor.Conversations, threadC chan<- request, channel *slack.Channel, isLast bool, mm []slack.Message) (int, error) {
-	trs := make([]request, 0, len(mm))
+func (cs *Stream) procChanMsg(ctx context.Context, proc processor.Conversations, threadC chan<- ordinaryThreadRequest, channel *slack.Channel, isLast bool, mm []slack.Message) (int, error) {
+	trs := make([]ordinaryThreadRequest, 0, len(mm))
 	for i := range mm {
 		// collecting threads to get their count.  But we don't start
 		// processing them yet, before we send the messages with the number of
@@ -419,11 +462,8 @@ func (cs *Stream) procChanMsg(ctx context.Context, proc processor.Conversations,
 			}
 			slog.DebugContext(ctx, "- message", "i", i, "thread", mm[i].Timestamp, "thread_ts", mm[i].ThreadTimestamp, "channel_id", channel.ID, "is_last", isLast, "msg_count", len(mm))
 			parent := mm[i]
-			trs = append(trs, request{
-				sl: &structures.SlackLink{
-					Channel:  channel.ID,
-					ThreadTS: mm[i].ThreadTimestamp,
-				},
+			trs = append(trs, ordinaryThreadRequest{
+				fetch:  threadFetchSpec{channelID: channel.ID, threadTS: mm[i].ThreadTimestamp},
 				parent: &parent,
 			})
 		}

@@ -291,6 +291,24 @@ func (s *Source) AllThreadMessages(ctx context.Context, channelID, threadID stri
 	return valueIter(it), nil
 }
 
+// CanvasMessages returns archived canvas discussion roots for a hidden canvas channel.
+func (s *Source) CanvasMessages(ctx context.Context, hiddenChannelID string) (iter.Seq2[slack.Message, error], error) {
+	it, err := repository.NewMessageRepository().AllCanvasMessages(ctx, s.conn, hiddenChannelID)
+	if err != nil {
+		return nil, err
+	}
+	return valueIter(it), nil
+}
+
+// CanvasThreadMessages returns the root and replies for one canvas discussion.
+func (s *Source) CanvasThreadMessages(ctx context.Context, hiddenChannelID, threadTS string) (iter.Seq2[slack.Message, error], error) {
+	it, err := repository.NewMessageRepository().AllForCanvasThread(ctx, s.conn, hiddenChannelID, threadTS)
+	if err != nil {
+		return nil, err
+	}
+	return valueIter(it), nil
+}
+
 func (s *Source) Sorted(ctx context.Context, channelID string, desc bool, cb func(ts time.Time, msg *slack.Message) error) error {
 	mr := repository.NewMessageRepository()
 	it, err := mr.Sorted(ctx, s.conn, channelID, repository.Asc)

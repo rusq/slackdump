@@ -64,7 +64,7 @@ func (d *DBP) UnsafeInsertChunk(ctx context.Context, txx repository.PrepareExtCo
 		ChannelID:   orNil(ch.ChannelID != "", ch.ChannelID),
 		SearchQuery: orNil(ch.SearchQuery != "", ch.SearchQuery),
 		Final:       ch.IsLast,
-		ThreadOnly:  orNil(ch.Type == chunk.CThreadMessages, ch.ThreadOnly),
+		ThreadOnly:  orNil(ch.Type == chunk.CThreadMessages || ch.Type == chunk.CCanvasThreadMessages, ch.ThreadOnly),
 	}
 	cr := repository.NewChunkRepository()
 	id, err := cr.Insert(ctx, txx, &dc)
@@ -102,7 +102,7 @@ func (e *ErrInvalidPayload) Error() string {
 // insertPayload calls relevant function to insert the chunk payload.
 func (d *DBP) insertPayload(ctx context.Context, tx repository.PrepareExtContext, dbchunkID int64, c *chunk.Chunk) (int, error) {
 	switch c.Type {
-	case chunk.CMessages, chunk.CThreadMessages:
+	case chunk.CMessages, chunk.CThreadMessages, chunk.CCanvasMessages, chunk.CCanvasThreadMessages:
 		return d.insertMessages(ctx, tx, dbchunkID, c.ChannelID, c.Messages)
 	case chunk.CFiles:
 		return d.insertFiles(ctx, tx, dbchunkID, c.ChannelID, c.ThreadTS, c.Parent.Timestamp, c.Files)

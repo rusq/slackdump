@@ -25,6 +25,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/rusq/slack"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 
 	"github.com/rusq/slackdump/v4/internal/chunk"
@@ -605,4 +606,53 @@ func TestDBP_IsCompleteThread(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestNewCanvasThreadSkipper(t *testing.T) {
+	conn := testDB(t)
+	ctx := t.Context()
+	const hiddenChannelID = "CCANVAS"
+	const threadTS = "123.456"
+
+	sessionID, err := repository.NewSessionRepository().Insert(ctx, conn, &repository.Session{ID: 1})
+	require.NoError(t, err)
+	chunkRepo := repository.NewChunkRepository()
+	rootChunkID, err := chunkRepo.Insert(ctx, conn, &repository.DBChunk{
+		ID:        1,
+		SessionID: sessionID,
+		UnixTS:    time.Now().UnixMilli(),
+		TypeID:    chunk.CCanvasMessages,
+		ChannelID: new(hiddenChannelID),
+		Final:     true,
+	})
+	require.NoError(t, err)
+	threadChunkID, err := chunkRepo.Insert(ctx, conn, &repository.DBChunk{
+		ID:        2,
+		SessionID: sessionID,
+		UnixTS:    time.Now().UnixMilli(),
+		TypeID:    chunk.CCanvasThreadMessages,
+		ChannelID: new(hiddenChannelID),
+		Final:     true,
+	})
+	require.NoError(t, err)
+
+	root := slack.Message{Msg: slack.Msg{
+		Timestamp:       threadTS,
+		ThreadTimestamp: threadTS,
+		ReplyCount:      1,
+	}}
+	reply := slack.Message{Msg: slack.Msg{
+		Timestamp:       "124.000",
+		ThreadTimestamp: threadTS,
+	}}
+	rootRow, err := repository.NewDBMessage(rootChunkID, 0, hiddenChannelID, &root)
+	require.NoError(t, err)
+	replyRow, err := repository.NewDBMessage(threadChunkID, 0, hiddenChannelID, &reply)
+	require.NoError(t, err)
+	require.NoError(t, repository.NewMessageRepository().Insert(ctx, conn, rootRow, replyRow))
+
+	skip := NewCanvasThreadSkipper(conn)
+	assert.True(t, skip(ctx, hiddenChannelID, threadTS, 1))
+	assert.False(t, skip(ctx, hiddenChannelID, threadTS, 2))
+	assert.False(t, skip(ctx, hiddenChannelID, "invalid", 1))
 }

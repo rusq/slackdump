@@ -19,8 +19,8 @@ type Options struct {
 }
 
 type Result struct {
-	Counts  repository.DedupeCounts
-	Removed repository.DedupeResult
+	Counts  repository.DedupeStats
+	Removed repository.DedupeStats
 }
 
 var newRepo = func(mode repository.MessageDedupeMode) repository.DedupeRepository {
@@ -39,6 +39,7 @@ func Run(ctx context.Context, db *sqlx.DB, opts Options) (Result, error) {
 		"database", opts.Database,
 		"mode", opts.Mode.String(),
 		"duplicate_messages", counts.Messages,
+		"duplicate_canvas_messages", counts.CanvasMessages,
 		"duplicate_users", counts.Users,
 		"duplicate_channels", counts.Channels,
 		"duplicate_channel_users", counts.ChannelUsers,
@@ -48,6 +49,7 @@ func Run(ctx context.Context, db *sqlx.DB, opts Options) (Result, error) {
 
 	if opts.Report != nil {
 		fmt.Fprintf(opts.Report, "Duplicate messages: %d\n", counts.Messages)
+		fmt.Fprintf(opts.Report, "Duplicate canvas messages: %d\n", counts.CanvasMessages)
 		fmt.Fprintf(opts.Report, "Duplicate users: %d\n", counts.Users)
 		fmt.Fprintf(opts.Report, "Duplicate channels: %d\n", counts.Channels)
 		fmt.Fprintf(opts.Report, "Duplicate channel users: %d\n", counts.ChannelUsers)
@@ -58,7 +60,7 @@ func Run(ctx context.Context, db *sqlx.DB, opts Options) (Result, error) {
 	result := Result{Counts: counts}
 	if !opts.Execute {
 		if opts.Report != nil &&
-			(counts.Messages > 0 || counts.Users > 0 || counts.Channels > 0 || counts.ChannelUsers > 0 || counts.Files > 0 || counts.Chunks > 0) {
+			(counts.Messages > 0 || counts.CanvasMessages > 0 || counts.Users > 0 || counts.Channels > 0 || counts.ChannelUsers > 0 || counts.Files > 0 || counts.Chunks > 0) {
 			fmt.Fprintln(opts.Report, "\nRun with -execute to perform dedupe.")
 		}
 		return result, nil
@@ -73,21 +75,23 @@ func Run(ctx context.Context, db *sqlx.DB, opts Options) (Result, error) {
 	slog.InfoContext(ctx, "dedupe execute",
 		"database", opts.Database,
 		"mode", opts.Mode.String(),
-		"removed_messages", removed.MessagesRemoved,
-		"removed_users", removed.UsersRemoved,
-		"removed_channels", removed.ChannelsRemoved,
-		"removed_channel_users", removed.ChannelUsersRemoved,
-		"removed_files", removed.FilesRemoved,
-		"removed_chunks", removed.ChunksRemoved,
+		"removed_messages", removed.Messages,
+		"removed_canvas_messages", removed.CanvasMessages,
+		"removed_users", removed.Users,
+		"removed_channels", removed.Channels,
+		"removed_channel_users", removed.ChannelUsers,
+		"removed_files", removed.Files,
+		"removed_chunks", removed.Chunks,
 	)
 
 	if opts.Report != nil {
-		fmt.Fprintf(opts.Report, "\nRemoved messages: %d\n", removed.MessagesRemoved)
-		fmt.Fprintf(opts.Report, "Removed users: %d\n", removed.UsersRemoved)
-		fmt.Fprintf(opts.Report, "Removed channels: %d\n", removed.ChannelsRemoved)
-		fmt.Fprintf(opts.Report, "Removed channel users: %d\n", removed.ChannelUsersRemoved)
-		fmt.Fprintf(opts.Report, "Removed files: %d\n", removed.FilesRemoved)
-		fmt.Fprintf(opts.Report, "Removed chunks: %d\n", removed.ChunksRemoved)
+		fmt.Fprintf(opts.Report, "\nRemoved messages: %d\n", removed.Messages)
+		fmt.Fprintf(opts.Report, "Removed canvas messages: %d\n", removed.CanvasMessages)
+		fmt.Fprintf(opts.Report, "Removed users: %d\n", removed.Users)
+		fmt.Fprintf(opts.Report, "Removed channels: %d\n", removed.Channels)
+		fmt.Fprintf(opts.Report, "Removed channel users: %d\n", removed.ChannelUsers)
+		fmt.Fprintf(opts.Report, "Removed files: %d\n", removed.Files)
+		fmt.Fprintf(opts.Report, "Removed chunks: %d\n", removed.Chunks)
 	}
 	return result, nil
 }

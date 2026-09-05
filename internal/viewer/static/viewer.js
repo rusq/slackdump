@@ -72,6 +72,11 @@
         if (close) {
             event.preventDefault();
             closeSidePanel();
+            var closeURL = close.getAttribute("data-close-url");
+            if (closeURL) {
+                window.history.pushState({}, "", closeURL);
+                syncActiveChannel();
+            }
             return;
         }
 
