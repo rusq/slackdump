@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/jmoiron/sqlx"
@@ -81,8 +82,16 @@ type dedupeEntity struct {
 	name       string
 	table      string
 	keyColumns []string
-	chunkTypes []chunk.ChunkType
-	mode       dedupeMode
+	// nullableColumns lists the subset of keyColumns that may hold NULL.
+	// Joins on all other key columns use plain equality, which the query
+	// planner can serve from covering indexes; the NULL-tolerant OR form
+	// is reserved for genuinely nullable columns, where it preserves
+	// NULL=NULL duplicate matching. Column nullability mirrors the schema
+	// migrations (e.g. FILE.MESSAGE_ID and FILE.THREAD_ID are nullable,
+	// every other dedupe key column is declared NOT NULL).
+	nullableColumns []string
+	chunkTypes      []chunk.ChunkType
+	mode            dedupeMode
 }
 
 var dedupeEntities = []dedupeEntity{
@@ -115,11 +124,12 @@ var dedupeEntities = []dedupeEntity{
 		mode:       dedupeByKey,
 	},
 	{
-		name:       "files",
-		table:      "FILE",
-		keyColumns: []string{"ID", "CHANNEL_ID", "MESSAGE_ID", "THREAD_ID"},
-		chunkTypes: []chunk.ChunkType{chunk.CFiles},
-		mode:       dedupeByData,
+		name:            "files",
+		table:           "FILE",
+		keyColumns:      []string{"ID", "CHANNEL_ID", "MESSAGE_ID", "THREAD_ID"},
+		nullableColumns: []string{"MESSAGE_ID", "THREAD_ID"},
+		chunkTypes:      []chunk.ChunkType{chunk.CFiles},
+		mode:            dedupeByData,
 	},
 }
 
@@ -326,7 +336,7 @@ func buildPrunableChunksSelect(entity dedupeEntity) string {
 	buf.WriteString("LEFT JOIN duplicates D ON D.CHUNK_ID = T.CHUNK_ID")
 	if len(entity.keyColumns) > 0 {
 		buf.WriteString(" AND ")
-		buf.WriteString(joinOnColumns("D", "T", entity.keyColumns))
+		buf.WriteString(joinOnColumns("D", "T", entity.keyColumns, entity.nullableColumns))
 	}
 	buf.WriteString("\nWHERE C.TYPE_ID IN (")
 	buf.WriteString(strings.Join(placeholders(entity.chunkTypes), ","))
@@ -341,7 +351,7 @@ func buildDeleteDuplicatesStmt(entity dedupeEntity) string {
 	buf.WriteString(" AS T\nWHERE EXISTS (\nSELECT 1 FROM duplicates D WHERE D.CHUNK_ID = T.CHUNK_ID")
 	if len(entity.keyColumns) > 0 {
 		buf.WriteString(" AND ")
-		buf.WriteString(joinOnColumns("D", "T", entity.keyColumns))
+		buf.WriteString(joinOnColumns("D", "T", entity.keyColumns, entity.nullableColumns))
 	}
 	buf.WriteString("\n)")
 	return buf.String()
@@ -373,7 +383,7 @@ func withDuplicateRows(entity dedupeEntity, final string) string {
 	buf.WriteString("FROM ")
 	buf.WriteString(entity.table)
 	buf.WriteString(" T\nJOIN latest L ON ")
-	buf.WriteString(joinOnColumns("T", "L", entity.keyColumns))
+	buf.WriteString(joinOnColumns("T", "L", entity.keyColumns, entity.nullableColumns))
 	if entity.mode == dedupeByData {
 		buf.WriteString(" AND L.DATA = T.DATA")
 	}
@@ -382,10 +392,17 @@ func withDuplicateRows(entity dedupeEntity, final string) string {
 	return buf.String()
 }
 
-func joinOnColumns(left, right string, cols []string) string {
+func joinOnColumns(left, right string, cols, nullable []string) string {
 	parts := make([]string, 0, len(cols))
 	for _, col := range cols {
-		parts = append(parts, "("+left+"."+col+" = "+right+"."+col+" OR ("+left+"."+col+" IS NULL AND "+right+"."+col+" IS NULL))")
+		if slices.Contains(nullable, col) {
+			parts = append(parts, "("+left+"."+col+" = "+right+"."+col+" OR ("+left+"."+col+" IS NULL AND "+right+"."+col+" IS NULL))")
+			continue
+		}
+		// The column is declared NOT NULL (see dedupeEntity.nullableColumns),
+		// so the NULL-tolerant branches are unsatisfiable and plain equality
+		// matches exactly the same rows while remaining index-friendly.
+		parts = append(parts, left+"."+col+" = "+right+"."+col)
 	}
 	return strings.Join(parts, " AND ")
 }
