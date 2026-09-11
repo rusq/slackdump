@@ -3,7 +3,6 @@ package repository
 import (
 	"context"
 	"fmt"
-	"slices"
 	"testing"
 
 	"github.com/jmoiron/sqlx"
@@ -590,63 +589,29 @@ func verifyFileCountForTest(t *testing.T, db *sqlx.DB, expected int) {
 
 func Test_joinOnColumns(t *testing.T) {
 	tests := []struct {
-		name     string
-		cols     []string
-		nullable []string
-		want     string
+		name string
+		cols []string
+		want string
 	}{
 		{
-			name:     "non-nullable columns use plain equality",
-			cols:     []string{"CHANNEL_ID", "USER_ID"},
-			nullable: nil,
-			want:     "T.CHANNEL_ID = L.CHANNEL_ID AND T.USER_ID = L.USER_ID",
+			name: "multiple columns",
+			cols: []string{"CHANNEL_ID", "USER_ID"},
+			want: "T.CHANNEL_ID IS L.CHANNEL_ID AND T.USER_ID IS L.USER_ID",
 		},
 		{
-			name:     "nullable columns keep null-tolerant form",
-			cols:     []string{"ID", "MESSAGE_ID"},
-			nullable: []string{"MESSAGE_ID"},
-			want: "T.ID = L.ID AND " +
-				"(T.MESSAGE_ID = L.MESSAGE_ID OR (T.MESSAGE_ID IS NULL AND L.MESSAGE_ID IS NULL))",
+			name: "one column",
+			cols: []string{"MESSAGE_ID"},
+			want: "T.MESSAGE_ID IS L.MESSAGE_ID",
 		},
 		{
-			name:     "all nullable",
-			cols:     []string{"MESSAGE_ID", "THREAD_ID"},
-			nullable: []string{"MESSAGE_ID", "THREAD_ID"},
-			want: "(T.MESSAGE_ID = L.MESSAGE_ID OR (T.MESSAGE_ID IS NULL AND L.MESSAGE_ID IS NULL)) AND " +
-				"(T.THREAD_ID = L.THREAD_ID OR (T.THREAD_ID IS NULL AND L.THREAD_ID IS NULL))",
-		},
-		{
-			name:     "no columns",
-			cols:     nil,
-			nullable: nil,
-			want:     "",
+			name: "no columns",
+			want: "",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, joinOnColumns("T", "L", tt.cols, tt.nullable))
-		})
-	}
-}
-
-func TestDedupeEntities_nullTolerance(t *testing.T) {
-	// Guards the dedupe hang class: NULL-tolerant OR join predicates defeat
-	// covering-index lookups, so they must only be generated for genuinely
-	// nullable key columns. Every other entity must emit plain equality.
-	for _, entity := range dedupeEntities {
-		t.Run(entity.name, func(t *testing.T) {
-			stmt := withDuplicateRows(entity, "SELECT 1 FROM duplicates")
-			for _, col := range entity.keyColumns {
-				nullTolerant := "T." + col + " IS NULL"
-				if slices.Contains(entity.nullableColumns, col) {
-					assert.Contains(t, stmt, nullTolerant,
-						"nullable key column must keep null-tolerant matching")
-					continue
-				}
-				assert.NotContains(t, stmt, nullTolerant,
-					"NOT NULL key column must use plain equality")
-			}
+			assert.Equal(t, tt.want, joinOnColumns("T", "L", tt.cols))
 		})
 	}
 }
