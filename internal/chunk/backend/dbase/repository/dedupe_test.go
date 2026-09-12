@@ -586,3 +586,32 @@ func verifyFileCountForTest(t *testing.T, db *sqlx.DB, expected int) {
 	require.NoError(t, err)
 	assert.Equal(t, int64(expected), count)
 }
+
+func Test_joinOnColumns(t *testing.T) {
+	tests := []struct {
+		name string
+		cols []string
+		want string
+	}{
+		{
+			name: "multiple columns",
+			cols: []string{"CHANNEL_ID", "USER_ID"},
+			want: "T.CHANNEL_ID IS L.CHANNEL_ID AND T.USER_ID IS L.USER_ID",
+		},
+		{
+			name: "one column",
+			cols: []string{"MESSAGE_ID"},
+			want: "T.MESSAGE_ID IS L.MESSAGE_ID",
+		},
+		{
+			name: "no columns",
+			want: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, joinOnColumns("T", "L", tt.cols))
+		})
+	}
+}

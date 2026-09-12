@@ -385,7 +385,7 @@ func withDuplicateRows(entity dedupeEntity, final string) string {
 func joinOnColumns(left, right string, cols []string) string {
 	parts := make([]string, 0, len(cols))
 	for _, col := range cols {
-		parts = append(parts, "("+left+"."+col+" = "+right+"."+col+" OR ("+left+"."+col+" IS NULL AND "+right+"."+col+" IS NULL))")
+		parts = append(parts, left+"."+col+" IS "+right+"."+col)
 	}
 	return strings.Join(parts, " AND ")
 }
