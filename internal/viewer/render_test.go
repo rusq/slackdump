@@ -162,6 +162,14 @@ func TestRenderChannel_StaticMode(t *testing.T) {
 	if !strings.Contains(body, `aria-controls="tab-panel-conversation"`) || !strings.Contains(body, `role="tabpanel"`) {
 		t.Fatalf("RenderChannel() static mode should preserve tab ARIA, got: %q", body)
 	}
+	if !strings.Contains(body, `<a href="/archives/C1/index.html"`) ||
+		!strings.Contains(body, `id="tab-btn-conversation">Conversation</a>`) {
+		t.Fatalf("RenderChannel() static mode should render the conversation tab as a link, got: %q", body)
+	}
+	if !strings.Contains(body, `<a href="/archives/C1/canvas/index.html"`) ||
+		!strings.Contains(body, `id="tab-btn-canvas">Canvas</a>`) {
+		t.Fatalf("RenderChannel() static mode should render the canvas tab as a link, got: %q", body)
+	}
 }
 
 func TestRenderCanvas_StaticModePreservesSandbox(t *testing.T) {
@@ -185,5 +193,14 @@ func TestRenderCanvas_StaticModePreservesSandbox(t *testing.T) {
 	}
 	if strings.Contains(body, ` hx-`) || strings.Contains(body, `<script`) {
 		t.Fatalf("RenderCanvas() static mode should not contain live attributes or scripts, got: %q", body)
+	}
+	if !strings.Contains(body, `<a href="/archives/C1/index.html"`) ||
+		!strings.Contains(body, `id="tab-btn-conversation">Conversation</a>`) {
+		t.Fatalf("RenderCanvas() static mode should link back to the conversation, got: %q", body)
+	}
+	if !strings.Contains(body, `<a href="/archives/C1/canvas/index.html"`) ||
+		!strings.Contains(body, `class="tab selected"`) ||
+		!strings.Contains(body, `id="tab-btn-canvas">Canvas</a>`) {
+		t.Fatalf("RenderCanvas() static mode should render the active canvas tab as a link, got: %q", body)
 	}
 }

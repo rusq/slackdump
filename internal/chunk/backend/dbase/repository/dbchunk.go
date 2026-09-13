@@ -62,7 +62,7 @@ func (c DBChunk) Chunk() *chunk.Chunk {
 		ThreadOnly:  orZero(c.ThreadOnly),
 	}
 	switch c.TypeID {
-	case chunk.CMessages, chunk.CThreadMessages:
+	case chunk.CMessages, chunk.CThreadMessages, chunk.CCanvasMessages, chunk.CCanvasThreadMessages:
 		cc.Messages = make([]slack.Message, 0, c.NumRecords)
 	case chunk.CFiles:
 		cc.Files = make([]slack.File, 0, c.NumRecords)

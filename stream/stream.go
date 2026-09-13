@@ -36,16 +36,18 @@ import (
 // Stream is used to fetch conversations from Slack.  It is safe for concurrent
 // use.
 type Stream struct {
-	oldest, latest time.Time
-	client         client.Slack
-	limits         rateLimits
-	chanCache      *chanCache
-	userCache      *userCache
-	fastSearch     bool
-	inclusive      bool
-	failChnlNotFnd bool // if true, will fail if channel not found
-	resultFn       []func(sr Result) error
-	skipThread     func(ctx context.Context, channelID, threadTS string, replyCount int) bool
+	oldest, latest          time.Time
+	client                  client.Slack
+	limits                  rateLimits
+	chanCache               *chanCache
+	userCache               *userCache
+	fastSearch              bool
+	inclusive               bool
+	failChnlNotFnd          bool // if true, will fail if channel not found
+	resultFn                []func(sr Result) error
+	skipThread              func(ctx context.Context, channelID, threadTS string, replyCount int) bool
+	skipCanvasThread        func(ctx context.Context, channelID, threadTS string, replyCount int) bool
+	includeOlderCanvasRoots bool
 }
 
 // ResultType helps to identify the type of the result, so that the callback
@@ -61,9 +63,11 @@ const (
 	RTChannelInfo
 	RTChannelUsers
 	RTSearch
+	RTCanvasThread // Result for a completed canvas discussion
 )
 
-// Result is sent to the callback function for each channel or thread.
+// Result is sent to the callback for ordinary channel/thread pages and for
+// whole canvas-discussion completions. RTCanvasThread always has IsLast set.
 type Result struct {
 	Type        ResultType
 	ChannelID   string
@@ -173,6 +177,25 @@ func OptFailOnNonCritError(b bool) Option {
 func OptSkipThreadFunc(fn func(ctx context.Context, channelID, threadTS string, replyCount int) bool) Option {
 	return func(cs *Stream) {
 		cs.skipThread = fn
+	}
+}
+
+// OptSkipCanvasThreadFunc sets a predicate that is called for each canvas
+// discussion root before its replies are queued. If it returns true, the
+// discussion replies are skipped.
+func OptSkipCanvasThreadFunc(fn func(ctx context.Context, channelID, threadTS string, replyCount int) bool) Option {
+	return func(cs *Stream) {
+		cs.skipCanvasThread = fn
+	}
+}
+
+// OptIncludeOlderCanvasRoots includes canvas discussion roots older than the
+// configured lower time bound. Reply fetching still honours the configured
+// oldest and latest bounds. This is intended for resume operations, where an
+// older discussion may have received new replies.
+func OptIncludeOlderCanvasRoots() Option {
+	return func(cs *Stream) {
+		cs.includeOlderCanvasRoots = true
 	}
 }
 

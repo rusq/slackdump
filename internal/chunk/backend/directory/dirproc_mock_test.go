@@ -137,6 +137,34 @@ func (mr *MockdatahandlerMockRecorder) Add(arg0 any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Add", reflect.TypeOf((*Mockdatahandler)(nil).Add), arg0)
 }
 
+// CanvasMessages mocks base method.
+func (m *Mockdatahandler) CanvasMessages(ctx context.Context, channelID string, numThreads int, isLast bool, messages []slack.Message) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CanvasMessages", ctx, channelID, numThreads, isLast, messages)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// CanvasMessages indicates an expected call of CanvasMessages.
+func (mr *MockdatahandlerMockRecorder) CanvasMessages(ctx, channelID, numThreads, isLast, messages any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CanvasMessages", reflect.TypeOf((*Mockdatahandler)(nil).CanvasMessages), ctx, channelID, numThreads, isLast, messages)
+}
+
+// CanvasThreadMessages mocks base method.
+func (m *Mockdatahandler) CanvasThreadMessages(ctx context.Context, channelID string, parent slack.Message, isLast bool, replies []slack.Message) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CanvasThreadMessages", ctx, channelID, parent, isLast, replies)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// CanvasThreadMessages indicates an expected call of CanvasThreadMessages.
+func (mr *MockdatahandlerMockRecorder) CanvasThreadMessages(ctx, channelID, parent, isLast, replies any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CanvasThreadMessages", reflect.TypeOf((*Mockdatahandler)(nil).CanvasThreadMessages), ctx, channelID, parent, isLast, replies)
+}
+
 // ChannelInfo mocks base method.
 func (m *Mockdatahandler) ChannelInfo(ctx context.Context, ci *slack.Channel, threadID string) error {
 	m.ctrl.T.Helper()

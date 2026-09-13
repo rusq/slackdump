@@ -27,9 +27,11 @@ import (
 
 	"github.com/rusq/slack"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/rusq/slackdump/v4/internal/chunk"
 	"github.com/rusq/slackdump/v4/internal/fixtures"
+	"github.com/rusq/slackdump/v4/internal/structures"
 )
 
 const testSeed = 0
@@ -102,6 +104,57 @@ func Test_Do(t *testing.T) {
 			}
 		}
 	}
+}
+
+func Test_obfuscator_Chunk(t *testing.T) {
+	const (
+		ownerChannelID = "COWNER01"
+		canvasFileID   = "FCANVAS1"
+		hiddenChannel  = "CCANVAS1"
+	)
+	o := newObfuscator(testRNG())
+	channel := &slack.Channel{
+		GroupConversation: slack.GroupConversation{
+			Conversation: slack.Conversation{ID: ownerChannelID},
+		},
+		Properties: &slack.Properties{
+			Canvas: slack.Canvas{FileId: canvasFileID},
+		},
+	}
+	channelChunk := &chunk.Chunk{
+		Type:      chunk.CChannelInfo,
+		ChannelID: ownerChannelID,
+		Channel:   channel,
+	}
+	canvasChunk := &chunk.Chunk{
+		Type:      chunk.CCanvasMessages,
+		ChannelID: hiddenChannel,
+	}
+	canvasThreadChunk := &chunk.Chunk{
+		Type:      chunk.CCanvasThreadMessages,
+		ChannelID: hiddenChannel,
+		Parent:    &slack.Message{},
+	}
+	fileChunk := &chunk.Chunk{
+		Type:      chunk.CFiles,
+		ChannelID: ownerChannelID,
+		Parent:    &slack.Message{},
+		Files:     []slack.File{{ID: canvasFileID}},
+	}
+
+	o.Chunk(channelChunk)
+	o.Chunk(canvasChunk)
+	o.Chunk(canvasThreadChunk)
+	o.Chunk(fileChunk)
+
+	obfuscatedFileID, ok := structures.CanvasFileID(channel)
+	require.True(t, ok)
+	assert.Equal(t, fileChunk.Files[0].ID, obfuscatedFileID)
+	derivedChannelID, ok := structures.CanvasChannelID(obfuscatedFileID)
+	require.True(t, ok)
+	assert.Equal(t, derivedChannelID, canvasChunk.ChannelID)
+	assert.Equal(t, derivedChannelID, canvasThreadChunk.ChannelID)
+	assert.Equal(t, channelChunk.ChannelID, fileChunk.ChannelID)
 }
 
 func unmarshalEvents(r io.Reader) []chunk.Chunk {

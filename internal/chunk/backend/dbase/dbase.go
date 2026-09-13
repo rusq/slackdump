@@ -231,6 +231,20 @@ func NewThreadSkipper(conn *sqlx.DB) func(ctx context.Context, channelID, thread
 	}
 }
 
+// NewCanvasThreadSkipper returns a predicate suitable for
+// stream.OptSkipCanvasThreadFunc. It returns true when the database already
+// holds the canvas root and all replies in the hidden canvas channel.
+func NewCanvasThreadSkipper(conn *sqlx.DB) func(ctx context.Context, channelID, threadTS string, replyCount int) bool {
+	mr := repository.NewMessageRepository()
+	return func(ctx context.Context, channelID, threadTS string, replyCount int) bool {
+		n, err := mr.CountCanvasThread(ctx, conn, channelID, threadTS)
+		if err != nil {
+			return false
+		}
+		return n == int64(replyCount)+1
+	}
+}
+
 // Source returns the connection that can be used safely as a source.
 func (d *DBP) Source() *Source {
 	return &Source{

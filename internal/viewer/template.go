@@ -35,16 +35,18 @@ var fsys embed.FS
 func initTemplates(v *Viewer) {
 	tmpl := template.Must(template.New("").Funcs(
 		template.FuncMap{
-			"channelname":      v.channelDisplayName,
-			"channelurl":       v.rts.Channel,
-			"channelmsgurl":    v.rts.ChannelMessage,
-			"threadurl":        v.rts.Thread,
-			"threadmsgurl":     v.rts.ThreadMessage,
-			"userurl":          v.rts.User,
-			"profileurl":       v.profileURL,
-			"canvasurl":        v.rts.Canvas,
-			"canvascontenturl": v.rts.CanvasContent,
-			"staticasset":      v.rts.StaticAsset,
+			"channelname":       v.channelDisplayName,
+			"channelurl":        v.rts.Channel,
+			"channelmsgurl":     v.rts.ChannelMessage,
+			"threadurl":         v.rts.Thread,
+			"threadmsgurl":      v.rts.ThreadMessage,
+			"userurl":           v.rts.User,
+			"profileurl":        v.profileURL,
+			"canvasurl":         v.rts.Canvas,
+			"canvascontenturl":  v.rts.CanvasContent,
+			"canvascommentsurl": v.rts.CanvasComments,
+			"canvascommenturl":  v.rts.CanvasComment,
+			"staticasset":       v.rts.StaticAsset,
 			"chlink": func(ch slack.Channel, interactive bool) channelLinkView {
 				return channelLinkView{Channel: ch, Interactive: interactive}
 			},
@@ -62,6 +64,12 @@ func initTemplates(v *Viewer) {
 			"render":          func(m slack.Message) template.HTML { return v.r.Render(context.Background(), &m) }, // render message
 			"is_thread_start": func(m slack.Message) bool { return st.IsThreadStart(&m) },
 			"canvas_present":  func(ch slack.Channel) bool { return ch.Properties != nil && ch.Properties.Canvas.FileId != "" },
+			"canvasthreadts": func(m slack.Message) string {
+				if m.ThreadTimestamp != "" {
+					return m.ThreadTimestamp
+				}
+				return m.Timestamp
+			},
 			"msgview": func(channelID string, m slack.Message) messageView {
 				return messageView{Msg: m, ChannelID: channelID, Interactive: v.rts.Interactive()}
 			},

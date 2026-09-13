@@ -38,16 +38,18 @@ var (
 
 // assemblers is a map of chunk types to their respective assemblers.
 var assemblers = map[chunk.ChunkType]func(context.Context, sqlx.ExtContext, *repository.DBChunk) (*chunk.Chunk, error){
-	chunk.CMessages:       asmMessages,
-	chunk.CThreadMessages: asmThreadMessages,
-	chunk.CFiles:          asmFiles,
-	chunk.CUsers:          asmUsers,
-	chunk.CChannels:       asmChannels,
-	chunk.CChannelInfo:    asmChannelInfo,
-	chunk.CWorkspaceInfo:  asmWorkspaceInfo,
-	chunk.CChannelUsers:   asmChannelUsers,
-	chunk.CSearchMessages: asmSearchMessages,
-	chunk.CSearchFiles:    asmSearchFiles,
+	chunk.CMessages:             asmMessages,
+	chunk.CThreadMessages:       asmThreadMessages,
+	chunk.CFiles:                asmFiles,
+	chunk.CUsers:                asmUsers,
+	chunk.CChannels:             asmChannels,
+	chunk.CChannelInfo:          asmChannelInfo,
+	chunk.CWorkspaceInfo:        asmWorkspaceInfo,
+	chunk.CChannelUsers:         asmChannelUsers,
+	chunk.CSearchMessages:       asmSearchMessages,
+	chunk.CSearchFiles:          asmSearchFiles,
+	chunk.CCanvasMessages:       asmMessages,
+	chunk.CCanvasThreadMessages: asmThreadMessages,
 }
 
 var (
@@ -75,7 +77,8 @@ func asmMessages(ctx context.Context, conn sqlx.ExtContext, dbchunk *repository.
 		if err != nil {
 			return nil, err
 		}
-		if structures.IsThreadStart(&msg) {
+		if (dbchunk.TypeID == chunk.CCanvasMessages && msg.ReplyCount > 0) ||
+			(dbchunk.TypeID != chunk.CCanvasMessages && structures.IsThreadStart(&msg)) {
 			c.NumThreads++
 		}
 		c.Messages = append(c.Messages, msg)
@@ -99,6 +102,10 @@ func asmThreadMessages(ctx context.Context, conn sqlx.ExtContext, dbchunk *repos
 		}
 		if c.ThreadTS == "" && m.ThreadTS != nil {
 			c.ThreadTS = *m.ThreadTS
+		}
+		if c.Parent == nil && m.ParentID != nil && m.ID == *m.ParentID {
+			parent := msg
+			c.Parent = &parent
 		}
 		if c.Parent == nil && m.ParentID != nil {
 			// not using m[0], because it may not be the first chunk for the thread.

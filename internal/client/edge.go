@@ -45,6 +45,7 @@ func NewEdge(ctx context.Context, prov auth.Provider, opts ...Option) (*Client, 
 	return &Client{
 		Client: scl,
 		edge:   ecl,
+		canvas: ecl,
 		wi:     wi,
 		hcl:    hcl,
 	}, nil

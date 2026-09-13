@@ -499,7 +499,7 @@
         margin-top: .5rem;
     }
 
-    button.tab {
+    .tab {
         background: none;
         border: 1px solid transparent;
         border-bottom: none;
@@ -509,22 +509,23 @@
         font-size: .875rem;
         border-radius: 4px 4px 0 0;
         font-family: inherit;
+        text-decoration: none;
         /* reserve space for the accent bar so layout doesn't shift on select */
         box-shadow: inset 0 -3px 0 transparent;
         transition: color 0.1s, box-shadow 0.1s;
     }
 
-    button.tab:hover:not([disabled]) {
+    .tab:hover:not([disabled]):not([aria-disabled="true"]) {
         color: var(--text-color);
         background-color: var(--hover-color);
     }
 
-    button.tab:focus-visible {
+    .tab:focus-visible {
         outline: 2px solid var(--secondary-color);
         outline-offset: -2px;
     }
 
-    button.tab.selected {
+    .tab.selected {
         border-color: var(--border-color);
         color: var(--text-color);
         font-weight: 700;
@@ -533,8 +534,9 @@
         box-shadow: inset 0 -3px 0 var(--primary-color);
     }
 
-    button.tab.disabled,
-    button.tab[disabled] {
+    .tab.disabled,
+    .tab[disabled],
+    .tab[aria-disabled="true"] {
         opacity: 0.4;
         cursor: not-allowed;
         pointer-events: none;
@@ -607,6 +609,52 @@
         width: 100%;
         flex: 1;
         border: none;
+    }
+
+    .canvas-toolbar {
+        display: flex;
+        justify-content: flex-end;
+        padding: .5rem 1rem;
+        border-bottom: 1px solid var(--border-color);
+        background-color: var(--bg-color);
+    }
+
+    .canvas-comments-control {
+        appearance: none;
+        border: 1px solid var(--border-color);
+        border-radius: .25rem;
+        padding: .4rem .75rem;
+        color: var(--link-color);
+        background-color: var(--bg-color);
+        font: inherit;
+        font-size: .875rem;
+        text-decoration: none;
+        cursor: pointer;
+    }
+
+    .canvas-comments-control:hover:not([disabled]) {
+        background-color: var(--hover-color);
+    }
+
+    .canvas-comments-control:focus-visible {
+        outline: 2px solid var(--secondary-color);
+        outline-offset: 2px;
+    }
+
+    .canvas-comments-control.disabled,
+    .canvas-comments-control[disabled] {
+        color: var(--text-secondary);
+        cursor: not-allowed;
+        opacity: .65;
+    }
+
+    .canvas-comments-state {
+        padding: 1rem 0;
+        color: var(--text-secondary);
+    }
+
+    .canvas-comment-root footer {
+        margin-top: .5rem;
     }
 
     .canvas-unavailable {

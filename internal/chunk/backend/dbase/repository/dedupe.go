@@ -10,22 +10,14 @@ import (
 	"github.com/rusq/slackdump/v4/internal/chunk"
 )
 
-type DedupeCounts struct {
-	Messages     int64
-	Users        int64
-	Channels     int64
-	ChannelUsers int64
-	Files        int64
-	Chunks       int64
-}
-
-type DedupeResult struct {
-	MessagesRemoved     int64
-	UsersRemoved        int64
-	ChannelsRemoved     int64
-	ChannelUsersRemoved int64
-	FilesRemoved        int64
-	ChunksRemoved       int64
+type DedupeStats struct {
+	Messages       int64
+	CanvasMessages int64
+	Users          int64
+	Channels       int64
+	ChannelUsers   int64
+	Files          int64
+	Chunks         int64
 }
 
 type MessageDedupeMode string
@@ -54,8 +46,8 @@ func (m MessageDedupeMode) String() string {
 }
 
 type DedupeRepository interface {
-	Preview(ctx context.Context, db *sqlx.DB) (DedupeCounts, error)
-	Deduplicate(ctx context.Context, db *sqlx.DB) (DedupeResult, error)
+	Preview(ctx context.Context, db *sqlx.DB) (DedupeStats, error)
+	Deduplicate(ctx context.Context, db *sqlx.DB) (DedupeStats, error)
 }
 
 type DedupeOption func(*dedupeRepository)
@@ -77,8 +69,20 @@ const (
 	dedupeByKey
 )
 
+//go:generate go tool stringer -trimprefix ent -type entityType
+type entityType int8
+
+const (
+	entMessages entityType = iota
+	entCanvasMessages
+	entUsers
+	entChannels
+	entChannelUsers
+	entFiles
+)
+
 type dedupeEntity struct {
-	name       string
+	etype      entityType
 	table      string
 	keyColumns []string
 	chunkTypes []chunk.ChunkType
@@ -87,35 +91,42 @@ type dedupeEntity struct {
 
 var dedupeEntities = []dedupeEntity{
 	{
-		name:       "messages",
+		etype:      entMessages,
 		table:      "MESSAGE",
 		keyColumns: []string{"CHANNEL_ID", "ID"},
 		chunkTypes: []chunk.ChunkType{chunk.CMessages, chunk.CThreadMessages},
 		mode:       dedupeByData,
 	},
 	{
-		name:       "users",
+		etype:      entCanvasMessages,
+		table:      "MESSAGE",
+		keyColumns: []string{"CHANNEL_ID", "ID"},
+		chunkTypes: []chunk.ChunkType{chunk.CCanvasMessages, chunk.CCanvasThreadMessages},
+		mode:       dedupeByData,
+	},
+	{
+		etype:      entUsers,
 		table:      "S_USER",
 		keyColumns: []string{"ID"},
 		chunkTypes: []chunk.ChunkType{chunk.CUsers},
 		mode:       dedupeByData,
 	},
 	{
-		name:       "channels",
+		etype:      entChannels,
 		table:      "CHANNEL",
 		keyColumns: []string{"ID"},
 		chunkTypes: []chunk.ChunkType{chunk.CChannels, chunk.CChannelInfo},
 		mode:       dedupeByData,
 	},
 	{
-		name:       "channel users",
+		etype:      entChannelUsers,
 		table:      "CHANNEL_USER",
 		keyColumns: []string{"CHANNEL_ID", "USER_ID"},
 		chunkTypes: []chunk.ChunkType{chunk.CChannelUsers},
 		mode:       dedupeByKey,
 	},
 	{
-		name:       "files",
+		etype:      entFiles,
 		table:      "FILE",
 		keyColumns: []string{"ID", "CHANNEL_ID", "MESSAGE_ID", "THREAD_ID"},
 		chunkTypes: []chunk.ChunkType{chunk.CFiles},
@@ -135,91 +146,78 @@ func (r dedupeRepository) entities() []dedupeEntity {
 	entities := make([]dedupeEntity, len(dedupeEntities))
 	copy(entities, dedupeEntities)
 	for i := range entities {
-		if entities[i].name == "messages" && r.messageMode == MessageDedupeKey {
+		if (entities[i].etype == entMessages || entities[i].etype == entCanvasMessages) && r.messageMode == MessageDedupeKey {
 			entities[i].mode = dedupeByKey
 		}
 	}
 	return entities
 }
 
-func (r dedupeRepository) Preview(ctx context.Context, db *sqlx.DB) (DedupeCounts, error) {
-	var counts DedupeCounts
+func (r dedupeRepository) Preview(ctx context.Context, db *sqlx.DB) (DedupeStats, error) {
+	var counts DedupeStats
 	for _, entity := range r.entities() {
 		n, err := r.countDuplicates(ctx, db, entity)
 		if err != nil {
-			return DedupeCounts{}, fmt.Errorf("count duplicate %s: %w", entity.name, err)
+			return DedupeStats{}, fmt.Errorf("count duplicate %s: %w", entity.etype, err)
 		}
-		assignCount(&counts, entity.name, n)
+		counts.assign(entity.etype, n)
 
 		chunks, err := r.prunableChunkIDs(ctx, db, entity)
 		if err != nil {
-			return DedupeCounts{}, fmt.Errorf("count prunable %s chunks: %w", entity.name, err)
+			return DedupeStats{}, fmt.Errorf("count prunable %s chunks: %w", entity.etype, err)
 		}
 		counts.Chunks += int64(len(chunks))
 	}
 	return counts, nil
 }
 
-func (r dedupeRepository) Deduplicate(ctx context.Context, db *sqlx.DB) (DedupeResult, error) {
+func (r dedupeRepository) Deduplicate(ctx context.Context, db *sqlx.DB) (DedupeStats, error) {
 	tx, err := db.BeginTxx(ctx, nil)
 	if err != nil {
-		return DedupeResult{}, fmt.Errorf("begin transaction: %w", err)
+		return DedupeStats{}, fmt.Errorf("begin transaction: %w", err)
 	}
 	defer tx.Rollback()
 
-	var result DedupeResult
+	var result DedupeStats
 	for _, entity := range r.entities() {
 		chunkIDs, err := r.prunableChunkIDs(ctx, tx, entity)
 		if err != nil {
-			return DedupeResult{}, fmt.Errorf("query prunable %s chunks: %w", entity.name, err)
+			return DedupeStats{}, fmt.Errorf("query prunable %s chunks: %w", entity.etype, err)
 		}
 
 		rowsRemoved, err := deleteDuplicates(ctx, tx, entity)
 		if err != nil {
-			return DedupeResult{}, fmt.Errorf("delete duplicate %s: %w", entity.name, err)
+			return DedupeStats{}, fmt.Errorf("delete duplicate %s: %w", entity.etype, err)
 		}
-		assignRemoved(&result, entity.name, rowsRemoved)
+		result.assign(entity.etype, rowsRemoved)
 
 		chunksRemoved, err := deleteChunksByID(ctx, tx, chunkIDs, entity.chunkTypes)
 		if err != nil {
-			return DedupeResult{}, fmt.Errorf("delete prunable %s chunks: %w", entity.name, err)
+			return DedupeStats{}, fmt.Errorf("delete prunable %s chunks: %w", entity.etype, err)
 		}
-		result.ChunksRemoved += chunksRemoved
+		result.Chunks += chunksRemoved
 	}
 
 	if err := tx.Commit(); err != nil {
-		return DedupeResult{}, fmt.Errorf("commit: %w", err)
+		return DedupeStats{}, fmt.Errorf("commit: %w", err)
 	}
 	return result, nil
 }
 
-func assignCount(counts *DedupeCounts, entityName string, n int64) {
-	switch entityName {
-	case "messages":
-		counts.Messages = n
-	case "users":
-		counts.Users = n
-	case "channels":
-		counts.Channels = n
-	case "channel users":
-		counts.ChannelUsers = n
-	case "files":
-		counts.Files = n
-	}
-}
-
-func assignRemoved(result *DedupeResult, entityName string, n int64) {
-	switch entityName {
-	case "messages":
-		result.MessagesRemoved = n
-	case "users":
-		result.UsersRemoved = n
-	case "channels":
-		result.ChannelsRemoved = n
-	case "channel users":
-		result.ChannelUsersRemoved = n
-	case "files":
-		result.FilesRemoved = n
+func (s *DedupeStats) assign(entType entityType, n int64) {
+	switch entType {
+	case entMessages:
+		s.Messages = n
+	case entCanvasMessages:
+		s.CanvasMessages = n
+	case entUsers:
+		s.Users = n
+	case entChannels:
+		s.Channels = n
+	case entChannelUsers:
+		s.ChannelUsers = n
+	case entFiles:
+		s.Files = n
 	}
 }
 
@@ -254,7 +252,7 @@ func (r dedupeRepository) prunableChunkIDs(ctx context.Context, db sqlx.QueryerC
 	for rows.Next() {
 		var id int64
 		if err := rows.Scan(&id); err != nil {
-			return nil, fmt.Errorf("scan prunable %s chunk: %w", entity.name, err)
+			return nil, fmt.Errorf("scan prunable %s chunk: %w", entity.etype, err)
 		}
 		ids = append(ids, id)
 	}
@@ -269,7 +267,7 @@ func deleteDuplicates(ctx context.Context, tx *sqlx.Tx, entity dedupeEntity) (in
 	}
 	affected, err := result.RowsAffected()
 	if err != nil {
-		return 0, fmt.Errorf("duplicate %s rows affected: %w", entity.name, err)
+		return 0, fmt.Errorf("duplicate %s rows affected: %w", entity.etype, err)
 	}
 	return affected, nil
 }

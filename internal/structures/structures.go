@@ -30,7 +30,8 @@ const (
 )
 
 const (
-	SubTypeThreadBroadcast = "thread_broadcast"
+	SubTypeThreadBroadcast     = "thread_broadcast"
+	SubTypeDocumentCommentRoot = "document_comment_root"
 )
 
 // tokenRe is a loose regular expression to match Slack API tokens.

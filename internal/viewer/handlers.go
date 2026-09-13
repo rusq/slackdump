@@ -112,6 +112,9 @@ func (v *Viewer) RenderCanvas(ctx context.Context, channelID string, w io.Writer
 		return err
 	}
 	page.CanvasActive = true
+	if err := v.setCanvasComments(ctx, &page, ci); err != nil {
+		return err
+	}
 
 	// fetch messages so the full page renders correctly on deep link.
 	itMsg, err := v.allMessagesOrEmpty(ctx, channelID)
@@ -120,6 +123,49 @@ func (v *Viewer) RenderCanvas(ctx context.Context, channelID string, w io.Writer
 	}
 	page.Messages = itMsg
 
+	return v.tmpl.ExecuteTemplate(w, "index.html", page)
+}
+
+// RenderCanvasComments renders the canvas with its comments-list panel open.
+func (v *Viewer) RenderCanvasComments(ctx context.Context, channelID string, w io.Writer) error {
+	ci, err := v.src.ChannelInfo(ctx, channelID)
+	if err != nil {
+		return err
+	}
+	page := v.view()
+	if err := v.setConversation(&page, ci); err != nil {
+		return err
+	}
+	page.CanvasActive = true
+	page.CanvasCommentsOpen = true
+	if err := v.setCanvasComments(ctx, &page, ci); err != nil {
+		return err
+	}
+	return v.tmpl.ExecuteTemplate(w, "index.html", page)
+}
+
+// RenderCanvasComment renders the canvas with one discussion selected.
+func (v *Viewer) RenderCanvasComment(ctx context.Context, channelID, threadTS string, w io.Writer) error {
+	ci, err := v.src.ChannelInfo(ctx, channelID)
+	if err != nil {
+		return err
+	}
+	page := v.view()
+	if err := v.setConversation(&page, ci); err != nil {
+		return err
+	}
+	page.CanvasActive = true
+	page.CanvasCommentsOpen = true
+	page.CanvasCommentID = threadTS
+	if err := v.setCanvasComments(ctx, &page, ci); err != nil {
+		return err
+	}
+	messages, supported, err := v.canvasCommentThread(ctx, ci, threadTS)
+	if err != nil {
+		return err
+	}
+	page.CanvasCommentsSupported = supported
+	page.CanvasCommentMessages = messages
 	return v.tmpl.ExecuteTemplate(w, "index.html", page)
 }
 
@@ -264,6 +310,41 @@ func (v *Viewer) canvasHandler(w http.ResponseWriter, r *http.Request, id string
 	}
 }
 
+func (v *Viewer) canvasCommentsHandler(w http.ResponseWriter, r *http.Request, id string) {
+	if isHXRequest(r) {
+		v.canvasCommentsPartial(w, r, id)
+		return
+	}
+	if err := v.RenderCanvasComments(r.Context(), id, w); err != nil {
+		v.canvasCommentsError(w, r, "canvasCommentsHandler", id, "", err)
+	}
+}
+
+func (v *Viewer) canvasCommentHandler(w http.ResponseWriter, r *http.Request, id string) {
+	ts := r.PathValue("ts")
+	if ts == "" || isInvalid(ts) {
+		http.NotFound(w, r)
+		return
+	}
+	if isHXRequest(r) {
+		v.canvasCommentPartial(w, r, id, ts)
+		return
+	}
+	if err := v.RenderCanvasComment(r.Context(), id, ts, w); err != nil {
+		v.canvasCommentsError(w, r, "canvasCommentHandler", id, ts, err)
+	}
+}
+
+func (v *Viewer) canvasCommentsError(w http.ResponseWriter, r *http.Request, in, channelID, threadTS string, err error) {
+	lg := v.lg.With("in", in, "channel", channelID, "thread", threadTS)
+	if errors.Is(err, source.ErrNotFound) || errors.Is(err, fs.ErrNotExist) {
+		http.NotFound(w, r)
+		return
+	}
+	lg.ErrorContext(r.Context(), "canvas comments", "error", err)
+	http.Error(w, err.Error(), http.StatusInternalServerError)
+}
+
 // canvasContentHandler streams the raw canvas HTML content for the given
 // channel directly, without requiring the caller to know the filename.
 func (v *Viewer) canvasContentHandler(w http.ResponseWriter, r *http.Request, id string) {
@@ -366,9 +447,66 @@ func (v *Viewer) canvasPartial(w http.ResponseWriter, r *http.Request, id string
 		return
 	}
 	page.CanvasActive = true
+	if err := v.setCanvasComments(ctx, &page, ci); err != nil {
+		lg.ErrorContext(ctx, "setCanvasComments", "error", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 	if err := v.tmpl.ExecuteTemplate(w, "hx_canvas", page); err != nil {
 		lg.ErrorContext(ctx, "ExecuteTemplate", "error", err, "template", "hx_canvas")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+func (v *Viewer) canvasCommentsPartial(w http.ResponseWriter, r *http.Request, id string) {
+	ctx := r.Context()
+	ci, err := v.src.ChannelInfo(ctx, id)
+	if err != nil {
+		v.canvasCommentsError(w, r, "canvasCommentsPartial", id, "", err)
+		return
+	}
+	page := v.view()
+	if err := v.setConversation(&page, ci); err != nil {
+		v.canvasCommentsError(w, r, "canvasCommentsPartial", id, "", err)
+		return
+	}
+	page.CanvasActive = true
+	page.CanvasCommentsOpen = true
+	if err := v.setCanvasComments(ctx, &page, ci); err != nil {
+		v.canvasCommentsError(w, r, "canvasCommentsPartial", id, "", err)
+		return
+	}
+	if err := v.tmpl.ExecuteTemplate(w, "hx_canvas_comments", page); err != nil {
+		v.canvasCommentsError(w, r, "canvasCommentsPartial", id, "", err)
+	}
+}
+
+func (v *Viewer) canvasCommentPartial(w http.ResponseWriter, r *http.Request, id, ts string) {
+	ctx := r.Context()
+	ci, err := v.src.ChannelInfo(ctx, id)
+	if err != nil {
+		v.canvasCommentsError(w, r, "canvasCommentPartial", id, ts, err)
+		return
+	}
+	page := v.view()
+	if err := v.setConversation(&page, ci); err != nil {
+		v.canvasCommentsError(w, r, "canvasCommentPartial", id, ts, err)
+		return
+	}
+	page.CanvasActive = true
+	page.CanvasCommentsOpen = true
+	page.CanvasCommentID = ts
+	if err := v.setCanvasComments(ctx, &page, ci); err != nil {
+		v.canvasCommentsError(w, r, "canvasCommentPartial", id, ts, err)
+		return
+	}
+	page.CanvasCommentMessages, page.CanvasCommentsSupported, err = v.canvasCommentThread(ctx, ci, ts)
+	if err != nil {
+		v.canvasCommentsError(w, r, "canvasCommentPartial", id, ts, err)
+		return
+	}
+	if err := v.tmpl.ExecuteTemplate(w, "hx_canvas_comment", page); err != nil {
+		v.canvasCommentsError(w, r, "canvasCommentPartial", id, ts, err)
 	}
 }
 
@@ -549,19 +687,24 @@ type messageView struct {
 
 type mainView struct {
 	channels
-	Name            string
-	Type            string
-	Interactive     bool
-	Messages        iter.Seq2[slack.Message, error]
-	ThreadMessages  iter.Seq2[slack.Message, error]
-	ThreadID        string
-	Conversation    slack.Channel
-	User            *slack.User
-	Alias           string // conversation alias
-	AliasError      string
-	CanAlias        bool // if true, alias can be set for the channel
-	CanvasActive    bool // true when the canvas tab is the active tab
-	CanvasAvailable bool // true when the canvas file exists in storage
+	Name                    string
+	Type                    string
+	Interactive             bool
+	Messages                iter.Seq2[slack.Message, error]
+	ThreadMessages          iter.Seq2[slack.Message, error]
+	ThreadID                string
+	Conversation            slack.Channel
+	User                    *slack.User
+	Alias                   string // conversation alias
+	AliasError              string
+	CanAlias                bool // if true, alias can be set for the channel
+	CanvasActive            bool // true when the canvas tab is the active tab
+	CanvasAvailable         bool // true when the canvas file exists in storage
+	CanvasCommentsSupported bool
+	CanvasComments          []slack.Message
+	CanvasCommentsOpen      bool
+	CanvasCommentID         string
+	CanvasCommentMessages   []slack.Message
 }
 
 type aliaser interface {
@@ -679,6 +822,16 @@ func (v *Viewer) setConversation(page *mainView, ci *slack.Channel) error {
 	} else if ok {
 		page.Alias = alias
 	}
+	return nil
+}
+
+func (v *Viewer) setCanvasComments(ctx context.Context, page *mainView, ci *slack.Channel) error {
+	roots, supported, err := v.canvasCommentRoots(ctx, ci)
+	if err != nil {
+		return err
+	}
+	page.CanvasComments = roots
+	page.CanvasCommentsSupported = supported
 	return nil
 }
 

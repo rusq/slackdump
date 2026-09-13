@@ -64,7 +64,7 @@ func (e *ERC) Encode(ctx context.Context, chunk *chunk.Chunk) error {
 // ensure ensure that the relevant processors are created.
 func (e *ERC) ensure(c *chunk.Chunk) (err error) {
 	switch c.Type {
-	case chunk.CMessages, chunk.CThreadMessages, chunk.CFiles, chunk.CChannelInfo, chunk.CChannelUsers:
+	case chunk.CMessages, chunk.CThreadMessages, chunk.CCanvasMessages, chunk.CCanvasThreadMessages, chunk.CFiles, chunk.CChannelInfo, chunk.CChannelUsers:
 		e.once.cv.Do(func() {
 			e.cv, err = NewConversation(e.cd, &processor.NopFiler{}, &chunk.NopTransformer{})
 		})
@@ -97,6 +97,10 @@ func (e *ERC) writePayload(ctx context.Context, c *chunk.Chunk) error {
 		return e.cv.Messages(ctx, c.ChannelID, int(c.NumThreads), c.IsLast, c.Messages)
 	case chunk.CThreadMessages:
 		return e.cv.ThreadMessages(ctx, c.ChannelID, *c.Parent, c.ThreadOnly, c.IsLast, c.Messages)
+	case chunk.CCanvasMessages:
+		return e.cv.CanvasMessages(ctx, c.ChannelID, int(c.NumThreads), c.IsLast, c.Messages)
+	case chunk.CCanvasThreadMessages:
+		return e.cv.CanvasThreadMessages(ctx, c.ChannelID, *c.Parent, c.IsLast, c.Messages)
 	case chunk.CFiles:
 		if c.Parent == nil {
 			c.Parent = &slack.Message{}

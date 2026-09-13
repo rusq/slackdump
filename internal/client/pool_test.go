@@ -22,6 +22,8 @@ import (
 	"testing"
 
 	"github.com/rusq/slack"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 
 	"github.com/rusq/slackdump/v4/internal/client/mock_client"
@@ -190,4 +192,43 @@ func TestPool_AuthTestContext(t *testing.T) {
 			}
 		})
 	}
+}
+
+type poolCanvasClient struct {
+	Slack
+	supported bool
+	roots     []slack.Message
+	calls     int
+}
+
+func (c *poolCanvasClient) CanvasSupported() bool {
+	return c.supported
+}
+
+func (c *poolCanvasClient) CanvasThreadRoots(context.Context, string) ([]slack.Message, error) {
+	c.calls++
+	return c.roots, nil
+}
+
+func TestPool_CanvasThreadRoots(t *testing.T) {
+	unsupported := &poolCanvasClient{Slack: &mock_client.MockSlack{}}
+	root := slack.Message{Msg: slack.Msg{Timestamp: "1.000001"}}
+	supported := &poolCanvasClient{
+		Slack:     &mock_client.MockSlack{},
+		supported: true,
+		roots:     []slack.Message{root},
+	}
+	pool := NewPool(unsupported, supported)
+
+	assert.True(t, pool.CanvasSupported())
+	got, err := pool.CanvasThreadRoots(t.Context(), "F123")
+	require.NoError(t, err)
+	assert.Equal(t, []slack.Message{root}, got)
+	assert.Zero(t, unsupported.calls)
+	assert.Equal(t, 1, supported.calls)
+
+	pool = NewPool(unsupported)
+	assert.False(t, pool.CanvasSupported())
+	_, err = pool.CanvasThreadRoots(t.Context(), "F123")
+	require.ErrorIs(t, err, ErrOpNotSupported)
 }

@@ -14,15 +14,15 @@ import (
 )
 
 type stubRepo struct {
-	previewFn func(context.Context, *sqlx.DB) (repository.DedupeCounts, error)
-	dedupeFn  func(context.Context, *sqlx.DB) (repository.DedupeResult, error)
+	previewFn func(context.Context, *sqlx.DB) (repository.DedupeStats, error)
+	dedupeFn  func(context.Context, *sqlx.DB) (repository.DedupeStats, error)
 }
 
-func (s stubRepo) Preview(ctx context.Context, db *sqlx.DB) (repository.DedupeCounts, error) {
+func (s stubRepo) Preview(ctx context.Context, db *sqlx.DB) (repository.DedupeStats, error) {
 	return s.previewFn(ctx, db)
 }
 
-func (s stubRepo) Deduplicate(ctx context.Context, db *sqlx.DB) (repository.DedupeResult, error) {
+func (s stubRepo) Deduplicate(ctx context.Context, db *sqlx.DB) (repository.DedupeStats, error) {
 	return s.dedupeFn(ctx, db)
 }
 
@@ -34,12 +34,12 @@ func TestRun(t *testing.T) {
 		var called bool
 		newRepo = func(repository.MessageDedupeMode) repository.DedupeRepository {
 			return stubRepo{
-				previewFn: func(context.Context, *sqlx.DB) (repository.DedupeCounts, error) {
-					return repository.DedupeCounts{Messages: 2, Chunks: 1}, nil
+				previewFn: func(context.Context, *sqlx.DB) (repository.DedupeStats, error) {
+					return repository.DedupeStats{Messages: 2, Chunks: 1}, nil
 				},
-				dedupeFn: func(context.Context, *sqlx.DB) (repository.DedupeResult, error) {
+				dedupeFn: func(context.Context, *sqlx.DB) (repository.DedupeStats, error) {
 					called = true
-					return repository.DedupeResult{}, nil
+					return repository.DedupeStats{}, nil
 				},
 			}
 		}
@@ -55,45 +55,45 @@ func TestRun(t *testing.T) {
 	t.Run("execute with report", func(t *testing.T) {
 		newRepo = func(repository.MessageDedupeMode) repository.DedupeRepository {
 			return stubRepo{
-				previewFn: func(context.Context, *sqlx.DB) (repository.DedupeCounts, error) {
-					return repository.DedupeCounts{Messages: 1}, nil
+				previewFn: func(context.Context, *sqlx.DB) (repository.DedupeStats, error) {
+					return repository.DedupeStats{Messages: 1}, nil
 				},
-				dedupeFn: func(context.Context, *sqlx.DB) (repository.DedupeResult, error) {
-					return repository.DedupeResult{MessagesRemoved: 1}, nil
+				dedupeFn: func(context.Context, *sqlx.DB) (repository.DedupeStats, error) {
+					return repository.DedupeStats{Messages: 1}, nil
 				},
 			}
 		}
 		var buf bytes.Buffer
 		res, err := Run(t.Context(), nil, Options{Execute: true, Report: &buf, Database: "db"})
 		require.NoError(t, err)
-		assert.Equal(t, int64(1), res.Removed.MessagesRemoved)
+		assert.Equal(t, int64(1), res.Removed.Messages)
 		assert.Contains(t, buf.String(), "Removed messages: 1")
 	})
 
 	t.Run("log only mode does not write report", func(t *testing.T) {
 		newRepo = func(repository.MessageDedupeMode) repository.DedupeRepository {
 			return stubRepo{
-				previewFn: func(context.Context, *sqlx.DB) (repository.DedupeCounts, error) {
-					return repository.DedupeCounts{}, nil
+				previewFn: func(context.Context, *sqlx.DB) (repository.DedupeStats, error) {
+					return repository.DedupeStats{}, nil
 				},
-				dedupeFn: func(context.Context, *sqlx.DB) (repository.DedupeResult, error) {
-					return repository.DedupeResult{}, nil
+				dedupeFn: func(context.Context, *sqlx.DB) (repository.DedupeStats, error) {
+					return repository.DedupeStats{}, nil
 				},
 			}
 		}
 		res, err := Run(t.Context(), nil, Options{Database: "db"})
 		require.NoError(t, err)
-		assert.Equal(t, repository.DedupeCounts{}, res.Counts)
+		assert.Equal(t, repository.DedupeStats{}, res.Counts)
 	})
 
 	t.Run("execute returns dedupe error", func(t *testing.T) {
 		newRepo = func(repository.MessageDedupeMode) repository.DedupeRepository {
 			return stubRepo{
-				previewFn: func(context.Context, *sqlx.DB) (repository.DedupeCounts, error) {
-					return repository.DedupeCounts{}, nil
+				previewFn: func(context.Context, *sqlx.DB) (repository.DedupeStats, error) {
+					return repository.DedupeStats{}, nil
 				},
-				dedupeFn: func(context.Context, *sqlx.DB) (repository.DedupeResult, error) {
-					return repository.DedupeResult{}, errors.New("boom")
+				dedupeFn: func(context.Context, *sqlx.DB) (repository.DedupeStats, error) {
+					return repository.DedupeStats{}, errors.New("boom")
 				},
 			}
 		}
@@ -107,11 +107,11 @@ func TestRun(t *testing.T) {
 		newRepo = func(mode repository.MessageDedupeMode) repository.DedupeRepository {
 			got = mode
 			return stubRepo{
-				previewFn: func(context.Context, *sqlx.DB) (repository.DedupeCounts, error) {
-					return repository.DedupeCounts{}, nil
+				previewFn: func(context.Context, *sqlx.DB) (repository.DedupeStats, error) {
+					return repository.DedupeStats{}, nil
 				},
-				dedupeFn: func(context.Context, *sqlx.DB) (repository.DedupeResult, error) {
-					return repository.DedupeResult{}, nil
+				dedupeFn: func(context.Context, *sqlx.DB) (repository.DedupeStats, error) {
+					return repository.DedupeStats{}, nil
 				},
 			}
 		}

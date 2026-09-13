@@ -27,6 +27,7 @@ import (
 	"github.com/rusq/slackdump/v4/source/mock_source"
 
 	"github.com/rusq/slack"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 
 	"github.com/rusq/slackdump/v4/internal/fasttime"
@@ -221,4 +222,57 @@ func Test_encodeThreadMessages(t *testing.T) {
 			}
 		})
 	}
+}
+
+type canvasTestSource struct {
+	roots   []slack.Message
+	threads map[string][]slack.Message
+}
+
+func (s canvasTestSource) CanvasMessages(context.Context, string) (iter.Seq2[slack.Message, error], error) {
+	return canvasMessageSeq(s.roots), nil
+}
+
+func (s canvasTestSource) CanvasThreadMessages(_ context.Context, _ string, threadTS string) (iter.Seq2[slack.Message, error], error) {
+	return canvasMessageSeq(s.threads[threadTS]), nil
+}
+
+func canvasMessageSeq(messages []slack.Message) iter.Seq2[slack.Message, error] {
+	return func(yield func(slack.Message, error) bool) {
+		for _, m := range messages {
+			if !yield(m, nil) {
+				return
+			}
+		}
+	}
+}
+
+func Test_encodeCanvasMessages(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	rec := mock_processor.NewMockConversations(ctrl)
+	cm := mock_processor.NewMockCanvasMessenger(ctrl)
+	root := slack.Message{Msg: slack.Msg{
+		Timestamp:  "123.456",
+		ReplyCount: 1,
+		Text:       "root",
+	}}
+	reply := slack.Message{Msg: slack.Msg{
+		Timestamp:       "124.456",
+		ThreadTimestamp: root.Timestamp,
+		Text:            "reply",
+	}}
+	normalisedRoot := root
+	normalisedRoot.ThreadTimestamp = root.Timestamp
+	src := canvasTestSource{
+		roots: []slack.Message{root},
+		threads: map[string][]slack.Message{
+			root.Timestamp: {normalisedRoot, reply},
+		},
+	}
+	owner := structures.ChannelFromID("COWNER")
+
+	cm.EXPECT().CanvasThreadMessages(gomock.Any(), "CCANVAS", normalisedRoot, true, []slack.Message{normalisedRoot, reply}).Return(nil)
+	cm.EXPECT().CanvasMessages(gomock.Any(), "CCANVAS", 1, true, []slack.Message{normalisedRoot}).Return(nil)
+
+	require.NoError(t, encodeCanvasMessages(t.Context(), rec, cm, src, owner, "CCANVAS"))
 }
