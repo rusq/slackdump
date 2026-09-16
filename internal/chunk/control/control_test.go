@@ -597,3 +597,48 @@ func TestController_Search(t *testing.T) {
 		})
 	}
 }
+
+func TestController_SavedItems(t *testing.T) {
+	tests := []struct {
+		name     string
+		expectFn func(*mock_control.MockStreamer, *mock_control.MockEncodeReferenceFinisher)
+		wantErr  bool
+	}{
+		{
+			name: "no errors",
+			expectFn: func(s *mock_control.MockStreamer, erc *mock_control.MockEncodeReferenceFinisher) {
+				s.EXPECT().SavedItems(gomock.Any(), gomock.Any()).Return(nil)
+			},
+			wantErr: false,
+		},
+		{
+			name: "error fetching saved items",
+			expectFn: func(s *mock_control.MockStreamer, erc *mock_control.MockEncodeReferenceFinisher) {
+				s.EXPECT().SavedItems(gomock.Any(), gomock.Any()).Return(assert.AnError)
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var (
+				ctrl = gomock.NewController(t)
+				s    = mock_control.NewMockStreamer(ctrl)
+				erc  = mock_control.NewMockEncodeReferenceFinisher(ctrl)
+			)
+			if tt.expectFn != nil {
+				tt.expectFn(s, erc)
+			}
+			c := &Controller{
+				erc: erc,
+				s:   s,
+				options: options{
+					lg: slog.Default(),
+				},
+			}
+			if err := c.SavedItems(t.Context()); (err != nil) != tt.wantErr {
+				t.Errorf("Controller.SavedItems() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}

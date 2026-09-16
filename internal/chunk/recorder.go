@@ -23,6 +23,8 @@ import (
 	"time"
 
 	"github.com/rusq/slack"
+
+	"github.com/rusq/slackdump/v4/internal/edge"
 )
 
 // Recorder records all the data it receives into a writer.
@@ -257,6 +259,22 @@ func (rec *Recorder) SearchFiles(ctx context.Context, query string, sf []slack.F
 		Count:       int32(len(sf)),
 		SearchQuery: query,
 		SearchFiles: sf,
+	}
+	if err := rec.enc.Encode(ctx, &chunk); err != nil {
+		return err
+	}
+	return nil
+}
+
+// SavedItems records the current user's "Later" (Saved) items.
+func (rec *Recorder) SavedItems(ctx context.Context, ii []edge.SavedItem) error {
+	rec.mu.Lock()
+	defer rec.mu.Unlock()
+	chunk := Chunk{
+		Type:       CSavedItems,
+		Timestamp:  time.Now().UnixNano(),
+		Count:      int32(len(ii)),
+		SavedItems: ii,
 	}
 	if err := rec.enc.Encode(ctx, &chunk); err != nil {
 		return err

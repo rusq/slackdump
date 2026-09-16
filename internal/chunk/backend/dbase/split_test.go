@@ -29,6 +29,7 @@ import (
 	"github.com/rusq/slackdump/v4/internal/chunk"
 	"github.com/rusq/slackdump/v4/internal/chunk/backend/dbase/repository"
 	"github.com/rusq/slackdump/v4/internal/chunk/backend/dbase/repository/mock_repository"
+	"github.com/rusq/slackdump/v4/internal/edge"
 	"github.com/rusq/slackdump/v4/internal/fixtures"
 	"github.com/rusq/slackdump/v4/internal/testutil"
 )
@@ -1202,6 +1203,84 @@ func TestDBP_insertSearchFiles(t *testing.T) {
 			}
 			if got != tt.want {
 				t.Errorf("DBP.insertSearchFiles() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestDBP_insertSavedItems(t *testing.T) {
+	type fields struct {
+		conn      *sqlx.DB
+		sessionID int64
+		mr        repository.MessageRepository
+	}
+	type args struct {
+		ctx       context.Context
+		tx        repository.PrepareExtContext
+		dbchunkID int64
+		ii        []edge.SavedItem
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		prepFn  utilityFunc
+		want    int
+		wantErr bool
+	}{
+		{
+			name: "inserts saved items",
+			fields: fields{
+				conn:      testDB(t),
+				sessionID: 1,
+			},
+			args: args{
+				ctx:       t.Context(),
+				tx:        testDB(t),
+				dbchunkID: 1,
+				ii: []edge.SavedItem{
+					{ItemID: "C123", ItemType: "message", Timestamp: "123.456", TodoState: "saved"},
+					{ItemID: "C124", ItemType: "message", Timestamp: "123.457", TodoState: "to_do"},
+				},
+			},
+			prepFn:  prepChunk(chunk.CSavedItems),
+			want:    2,
+			wantErr: false,
+		},
+		{
+			name: "empty slice, is not an error",
+			fields: fields{
+				conn:      testDB(t),
+				sessionID: 1,
+			},
+			args: args{
+				ctx:       t.Context(),
+				tx:        testDB(t),
+				dbchunkID: 1,
+				ii:        []edge.SavedItem{},
+			},
+			prepFn:  prepChunk(chunk.CSavedItems),
+			want:    0,
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.prepFn != nil {
+				tt.prepFn(t, tt.args.tx)
+			}
+			d := &DBP{
+				conn:      tt.fields.conn,
+				sessionID: tt.fields.sessionID,
+				mr:        tt.fields.mr,
+			}
+			got, err := d.insertSavedItems(tt.args.ctx, tt.args.tx, tt.args.dbchunkID, tt.args.ii)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("DBP.insertSavedItems() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("DBP.insertSavedItems() = %v, want %v", got, tt.want)
 			}
 		})
 	}

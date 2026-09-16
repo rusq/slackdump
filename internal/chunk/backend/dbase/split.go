@@ -28,6 +28,7 @@ import (
 	"github.com/rusq/slack"
 
 	"github.com/rusq/slackdump/v4/internal/chunk"
+	"github.com/rusq/slackdump/v4/internal/edge"
 )
 
 // InsertChunk inserts a chunk into the database.
@@ -123,6 +124,8 @@ func (d *DBP) insertPayload(ctx context.Context, tx repository.PrepareExtContext
 		return d.insertSearchMessages(ctx, tx, dbchunkID, c.SearchQuery, c.SearchMessages)
 	case chunk.CSearchFiles:
 		return d.insertSearchFiles(ctx, tx, dbchunkID, c.SearchQuery, c.SearchFiles)
+	case chunk.CSavedItems:
+		return d.insertSavedItems(ctx, tx, dbchunkID, c.SavedItems)
 	default:
 		return 0, fmt.Errorf("insertpayload: unknown chunk type %v", c.Type)
 	}
@@ -291,4 +294,19 @@ func (*DBP) insertSearchFiles(ctx context.Context, tx repository.PrepareExtConte
 		}
 	}
 	return fr.InsertAll(ctx, tx, iterfn)
+}
+
+func (*DBP) insertSavedItems(ctx context.Context, tx repository.PrepareExtContext, dbchunkID int64, ii []edge.SavedItem) (int, error) {
+	if len(ii) == 0 {
+		return 0, nil
+	}
+	sr := repository.NewSavedItemRepository()
+	iterfn := func(yield func(*repository.DBSavedItem, error) bool) {
+		for i, si := range ii {
+			if !yield(repository.NewDBSavedItem(dbchunkID, i, &si)) {
+				return
+			}
+		}
+	}
+	return sr.InsertAll(ctx, tx, iterfn)
 }

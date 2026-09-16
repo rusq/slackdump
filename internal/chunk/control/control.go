@@ -166,6 +166,19 @@ func (c *Controller) Search(ctx context.Context, query string, stype SearchType)
 	return nil
 }
 
+// SavedItems fetches the current user's "Later" (Saved) items.
+func (c *Controller) SavedItems(ctx context.Context) error {
+	rec := chunk.NewCustomRecorder(c.erc)
+	defer rec.Close()
+
+	start := time.Now()
+	if err := c.s.SavedItems(ctx, rec); err != nil {
+		return fmt.Errorf("error fetching saved items: %w", err)
+	}
+	c.lg.InfoContext(ctx, "saved items fetched", "took", time.Since(start).String())
+	return nil
+}
+
 func (c *Controller) closeResources() error {
 	var errs error
 	if c.filer != nil {

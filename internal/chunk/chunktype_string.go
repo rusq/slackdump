@@ -20,11 +20,12 @@ func _() {
 	_ = x[CBookmarks-9]
 	_ = x[CSearchMessages-10]
 	_ = x[CSearchFiles-11]
+	_ = x[CSavedItems-12]
 }
 
-const _ChunkType_name = "MessagesThreadMessagesFilesUsersChannelsChannelInfoWorkspaceInfoChannelUsersStarredItemsBookmarksSearchMessagesSearchFiles"
+const _ChunkType_name = "MessagesThreadMessagesFilesUsersChannelsChannelInfoWorkspaceInfoChannelUsersStarredItemsBookmarksSearchMessagesSearchFilesSavedItems"
 
-var _ChunkType_index = [...]uint8{0, 8, 22, 27, 32, 40, 51, 64, 76, 88, 97, 111, 122}
+var _ChunkType_index = [...]uint8{0, 8, 22, 27, 32, 40, 51, 64, 76, 88, 97, 111, 122, 132}
 
 func (i ChunkType) String() string {
 	idx := int(i) - 0

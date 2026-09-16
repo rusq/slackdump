@@ -19,6 +19,7 @@ import (
 	"context"
 	_ "embed"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"os"
@@ -28,6 +29,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/rusq/fsadapter"
 
+	"github.com/rusq/slackdump/v4/auth"
 	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/bootstrap"
 	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/golang/base"
@@ -38,6 +40,7 @@ import (
 	"github.com/rusq/slackdump/v4/internal/chunk/control"
 	"github.com/rusq/slackdump/v4/internal/client"
 	"github.com/rusq/slackdump/v4/internal/convert/transform/fileproc"
+	"github.com/rusq/slackdump/v4/internal/edge"
 	"github.com/rusq/slackdump/v4/internal/structures"
 	"github.com/rusq/slackdump/v4/processor"
 	"github.com/rusq/slackdump/v4/source"
@@ -145,7 +148,16 @@ func runDBArchive(ctx context.Context, cmd *base.Command, args []string) error {
 		ChannelTypes:  cfg.ChannelTypes,
 	}
 
-	ctrl, err := DBController(ctx, cmd.Name(), conn, client, dirname, flags, []stream.Option{})
+	var sopts []stream.Option
+	if cfg.SavedItems {
+		ecl, err := savedItemsEdgeClient(ctx)
+		if err != nil {
+			return fmt.Errorf("saved items: %w", err)
+		}
+		sopts = append(sopts, stream.OptEdgeClient(ecl))
+	}
+
+	ctrl, err := DBController(ctx, cmd.Name(), conn, client, dirname, flags, sopts)
 	if err != nil {
 		return err
 	}
@@ -158,6 +170,12 @@ func runDBArchive(ctx context.Context, cmd *base.Command, args []string) error {
 	if err := ctrl.RunNoTransform(ctx, list); err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return err
+	}
+	if cfg.SavedItems {
+		if err := ctrl.SavedItems(ctx); err != nil {
+			base.SetExitStatus(base.SApplicationError)
+			return fmt.Errorf("saved items: %w", err)
+		}
 	}
 	if err := ctrl.Finish(); err != nil {
 		base.SetExitStatus(base.SApplicationError)
@@ -278,8 +296,23 @@ type Controller interface {
 	RunNoTransform(context.Context, *structures.EntityList) error
 	// Finish finalises the underlying encoder on successful completion.
 	Finish() error
+	// SavedItems fetches the current user's "Later" (Saved) items.
+	SavedItems(context.Context) error
 
 	io.Closer
+}
+
+// savedItemsEdgeClient returns an edge client, independent of the main client's enterprise-only one.
+func savedItemsEdgeClient(ctx context.Context) (*edge.Client, error) {
+	prov, err := auth.FromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	info, err := prov.Test(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return edge.NewWithInfo(info, prov)
 }
 
 // ArchiveController returns the default archive controller initialised based
