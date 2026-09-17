@@ -150,7 +150,7 @@ func runDBArchive(ctx context.Context, cmd *base.Command, args []string) error {
 
 	var sopts []stream.Option
 	if cfg.SavedItems {
-		ecl, err := savedItemsEdgeClient(ctx)
+		ecl, err := SavedItemsEdgeClient(ctx)
 		if err != nil {
 			return fmt.Errorf("saved items: %w", err)
 		}
@@ -302,8 +302,8 @@ type Controller interface {
 	io.Closer
 }
 
-// savedItemsEdgeClient returns an edge client, independent of the main client's enterprise-only one.
-func savedItemsEdgeClient(ctx context.Context) (*edge.Client, error) {
+// SavedItemsEdgeClient returns an edge client, independent of the main client's enterprise-only one.
+func SavedItemsEdgeClient(ctx context.Context) (*edge.Client, error) {
 	prov, err := auth.FromContext(ctx)
 	if err != nil {
 		return nil, err

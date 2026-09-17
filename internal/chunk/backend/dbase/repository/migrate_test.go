@@ -159,9 +159,10 @@ func TestMigrate(t *testing.T) {
 		}
 
 		// Roll back every migration applied after 20260308000000_file_size.sql
-		// (currently: fix_v_empty_threads_view, saved_items) plus the
-		// file_size migration itself, to exercise its Down step.
-		for range 3 {
+		// (currently: fix_v_empty_threads_view, saved_items,
+		// saved_items_latest_view) plus the file_size migration itself, to
+		// exercise its Down step.
+		for range 4 {
 			if err := goose.DownContext(ctx, db, "migrations"); err != nil {
 				t.Fatalf("goose.DownContext() err = %v; want nil", err)
 			}

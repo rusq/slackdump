@@ -42,6 +42,7 @@ threads during archiving. Do not rely on them for general analysis. They are:
 | `V_THREAD_ONLY_THREADS` | For thread-only mode: counts parts per thread |
 | `V_LATEST_MESSAGE` | Latest channel message per channel (TYPE_ID=0 only) |
 | `V_LATEST_THREAD` | Latest thread message per channel+thread_ts (TYPE_ID=1 only) |
+| `V_LATEST_SAVED_ITEM` | Latest row per (ITEM_ID, TS); older rows for items no longer in Later are pruned, not just superseded |
 
 ---
 

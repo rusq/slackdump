@@ -62,15 +62,32 @@ type savedListResponse struct {
 
 const savedListPageSize = 15 // matches the page size the web client requests
 
-// SavedList returns the current user's "Later" items.
+// savedListFilters are the only values the "filter" enum accepts; "all" and
+// "" are rejected by the API. Together they cover every item, matching
+// counts.total_count.
+var savedListFilters = []string{"saved", "completed", "archived"}
+
+// SavedList returns the current user's "Later" items across every state.
 func (cl *Client) SavedList(ctx context.Context) ([]SavedItem, error) {
 	ctx, task := trace.NewTask(ctx, "SavedList")
 	defer task.End()
 
+	var items []SavedItem
+	for _, filter := range savedListFilters {
+		ii, err := cl.savedListFilter(ctx, filter)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, ii...)
+	}
+	return items, nil
+}
+
+func (cl *Client) savedListFilter(ctx context.Context, filter string) ([]SavedItem, error) {
 	form := savedListForm{
 		BaseRequest:       BaseRequest{Token: cl.token},
 		Limit:             savedListPageSize,
-		Filter:            "saved",
+		Filter:            filter,
 		IncludeTombstones: true,
 		WebClientFields:   webclientReason("saved-api/savedList"),
 	}

@@ -16,6 +16,7 @@
 package repository
 
 import (
+	"context"
 	"encoding/json"
 
 	"github.com/rusq/slackdump/v4/internal/edge"
@@ -77,4 +78,19 @@ type SavedItemRepository interface {
 
 func NewSavedItemRepository() SavedItemRepository {
 	return newGenericRepository(DBSavedItem{})
+}
+
+// PruneRemovedSavedItems deletes every SAVED_ITEM row whose (ITEM_ID, TS)
+// key is not present in currentChunkID, i.e. items no longer in Later at
+// all (not just completed or archived, those still appear in the chunk).
+func PruneRemovedSavedItems(ctx context.Context, tx PrepareExtContext, currentChunkID int64) (int64, error) {
+	res, err := tx.ExecContext(ctx, `
+		DELETE FROM SAVED_ITEM
+		WHERE (ITEM_ID, COALESCE(TS, '')) NOT IN (
+			SELECT ITEM_ID, COALESCE(TS, '') FROM SAVED_ITEM WHERE CHUNK_ID = ?
+		)`, currentChunkID)
+	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected()
 }

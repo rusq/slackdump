@@ -24,6 +24,8 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	"github.com/rusq/slack"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 
 	"github.com/rusq/slackdump/v4/internal/chunk"
@@ -1284,6 +1286,28 @@ func TestDBP_insertSavedItems(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestDBP_insertSavedItems_prunesRemoved(t *testing.T) {
+	conn := testDB(t)
+	prepChunk(chunk.CSavedItems, chunk.CSavedItems)(t, conn)
+	d := &DBP{conn: conn, sessionID: 1}
+
+	_, err := d.insertSavedItems(t.Context(), conn, 1, []edge.SavedItem{
+		{ItemID: "A", ItemType: "message", Timestamp: "1.0", TodoState: "saved"},
+		{ItemID: "B", ItemType: "message", Timestamp: "2.0", TodoState: "saved"},
+	})
+	require.NoError(t, err)
+
+	// second run: B is gone from Later, A remains.
+	_, err = d.insertSavedItems(t.Context(), conn, 2, []edge.SavedItem{
+		{ItemID: "A", ItemType: "message", Timestamp: "1.0", TodoState: "saved"},
+	})
+	require.NoError(t, err)
+
+	var itemIDs []string
+	require.NoError(t, conn.SelectContext(t.Context(), &itemIDs, "SELECT ITEM_ID FROM SAVED_ITEM ORDER BY ITEM_ID"))
+	assert.ElementsMatch(t, []string{"A", "A"}, itemIDs)
 }
 
 func Test_newUserIter(t *testing.T) {

@@ -19,6 +19,10 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/rusq/slackdump/v4/internal/chunk"
 	"github.com/rusq/slackdump/v4/internal/edge"
 )
 
@@ -75,4 +79,33 @@ func TestNewDBSavedItem(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestPruneRemovedSavedItems(t *testing.T) {
+	conn := testConn(t)
+	prepChunk(chunk.CSavedItems, chunk.CSavedItems)(t, conn)
+	// old chunk (ID 1): A, B
+	require.NoError(t, insertSaved(t, conn, 1, "A", "1.0"))
+	require.NoError(t, insertSaved(t, conn, 1, "B", "2.0"))
+	// new chunk (ID 2): A, C (B disappeared, D is a fresh save)
+	require.NoError(t, insertSaved(t, conn, 2, "A", "1.0"))
+	require.NoError(t, insertSaved(t, conn, 2, "C", "3.0"))
+
+	removed, err := PruneRemovedSavedItems(t.Context(), conn, 2)
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), removed) // only B's row
+
+	var itemIDs []string
+	require.NoError(t, conn.SelectContext(t.Context(), &itemIDs, "SELECT ITEM_ID FROM SAVED_ITEM ORDER BY ITEM_ID"))
+	assert.ElementsMatch(t, []string{"A", "A", "C"}, itemIDs) // A's history from both chunks survives, B is gone
+}
+
+func insertSaved(t *testing.T, conn PrepareExtContext, chunkID int64, itemID, ts string) error {
+	t.Helper()
+	sr := NewSavedItemRepository()
+	dbi, err := NewDBSavedItem(chunkID, 0, &edge.SavedItem{ItemID: itemID, ItemType: "message", Timestamp: ts, State: "in_progress", TodoState: "saved"})
+	if err != nil {
+		return err
+	}
+	return sr.Insert(t.Context(), conn, dbi)
 }

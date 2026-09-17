@@ -24,42 +24,54 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestClient_SavedList_paginates(t *testing.T) {
-	var cursors []string
+func TestClient_SavedList_queriesAllFilters(t *testing.T) {
+	var filters []string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		require.Equal(t, "/saved.list", r.URL.Path)
 		require.NoError(t, r.ParseForm())
-		require.Equal(t, "saved", r.FormValue("filter"))
 		require.Equal(t, "true", r.FormValue("include_tombstones"))
-		cursors = append(cursors, r.FormValue("cursor"))
-		if r.FormValue("cursor") == "" {
+		filter := r.FormValue("filter")
+
+		switch {
+		case filter == "saved" && r.FormValue("cursor") == "":
+			filters = append(filters, filter)
 			_, _ = w.Write([]byte(`{
 				"ok": true,
 				"saved_items": [{"item_id":"C01","item_type":"message","ts":"1.000001","state":"in_progress","todo_state":"saved"}],
-				"counts": {"total_count": 2},
 				"response_metadata": {"next_cursor":"cursor-2"}
 			}`))
-			return
+		case filter == "saved" && r.FormValue("cursor") == "cursor-2":
+			_, _ = w.Write([]byte(`{
+				"ok": true,
+				"saved_items": [{"item_id":"C02","item_type":"message","ts":"2.000002","state":"in_progress","todo_state":"saved"}],
+				"response_metadata": {"next_cursor":""}
+			}`))
+		case filter == "completed":
+			filters = append(filters, filter)
+			_, _ = w.Write([]byte(`{
+				"ok": true,
+				"saved_items": [{"item_id":"C03","item_type":"message","ts":"3.000003","state":"completed","todo_state":"completed"}],
+				"response_metadata": {"next_cursor":""}
+			}`))
+		case filter == "archived":
+			filters = append(filters, filter)
+			_, _ = w.Write([]byte(`{
+				"ok": true,
+				"saved_items": [],
+				"response_metadata": {"next_cursor":""}
+			}`))
+		default:
+			t.Fatalf("unexpected filter/cursor: filter=%q cursor=%q", filter, r.FormValue("cursor"))
 		}
-		_, _ = w.Write([]byte(`{
-			"ok": true,
-			"saved_items": [{"item_id":"C02","item_type":"message","ts":"2.000002","state":"in_progress","todo_state":"to_do"}],
-			"counts": {"total_count": 2},
-			"response_metadata": {"next_cursor":""}
-		}`))
 	}))
 	defer srv.Close()
 
 	cl := Client{cl: http.DefaultClient, webclientAPI: srv.URL + "/"}
 	got, err := cl.SavedList(t.Context())
 	require.NoError(t, err)
-	require.Len(t, got, 2)
-	assert.Equal(t, []string{"", "cursor-2"}, cursors)
-	assert.Equal(t, "C01", got[0].ItemID)
-	assert.Equal(t, "1.000001", got[0].Timestamp)
-	assert.Equal(t, "saved", got[0].TodoState)
-	assert.Equal(t, "C02", got[1].ItemID)
-	assert.Equal(t, "to_do", got[1].TodoState)
+	require.Len(t, got, 3)
+	assert.ElementsMatch(t, []string{"saved", "completed", "archived"}, filters)
+	assert.ElementsMatch(t, []string{"C01", "C02", "C03"}, []string{got[0].ItemID, got[1].ItemID, got[2].ItemID})
 }
 
 func TestClient_SavedList_apiError(t *testing.T) {
