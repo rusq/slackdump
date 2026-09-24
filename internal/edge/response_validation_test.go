@@ -32,7 +32,7 @@ func TestClient_Methods_ValidateBaseResponse(t *testing.T) {
 	tests := []testCase{
 		{
 			name:     "ClientUserBoot",
-			endpoint: "client.userBoot",
+			endpoint: "client.init",
 			invoke: func(cl *Client) error {
 				_, err := cl.ClientUserBoot(t.Context())
 				return err
