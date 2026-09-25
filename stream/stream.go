@@ -28,6 +28,7 @@ import (
 	"golang.org/x/time/rate"
 
 	"github.com/rusq/slackdump/v4/internal/client"
+	"github.com/rusq/slackdump/v4/internal/edge"
 	"github.com/rusq/slackdump/v4/internal/network"
 	"github.com/rusq/slackdump/v4/internal/structures"
 	"github.com/rusq/slackdump/v4/processor"
@@ -46,6 +47,7 @@ type Stream struct {
 	failChnlNotFnd bool // if true, will fail if channel not found
 	resultFn       []func(sr Result) error
 	skipThread     func(ctx context.Context, channelID, threadTS string, replyCount int) bool
+	edge           *edge.Client // optional, required only for SavedItems
 }
 
 // ResultType helps to identify the type of the result, so that the callback
@@ -173,6 +175,13 @@ func OptFailOnNonCritError(b bool) Option {
 func OptSkipThreadFunc(fn func(ctx context.Context, channelID, threadTS string, replyCount int) bool) Option {
 	return func(cs *Stream) {
 		cs.skipThread = fn
+	}
+}
+
+// OptEdgeClient sets the edge client used by [Stream.SavedItems].
+func OptEdgeClient(ecl *edge.Client) Option {
+	return func(cs *Stream) {
+		cs.edge = ecl
 	}
 }
 

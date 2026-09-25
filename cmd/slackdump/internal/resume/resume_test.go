@@ -835,8 +835,11 @@ func Test_runDedupeAfterFinish(t *testing.T) {
 }
 
 type stubArchiveRunner struct {
-	runErr    error
-	finishErr error
+	runErr       error
+	finishErr    error
+	finishCalled *bool
+	savedErr     error
+	savedCalled  *bool
 }
 
 func (s stubArchiveRunner) RunNoTransform(context.Context, *structures.EntityList) error {
@@ -844,7 +847,17 @@ func (s stubArchiveRunner) RunNoTransform(context.Context, *structures.EntityLis
 }
 
 func (s stubArchiveRunner) Finish() error {
+	if s.finishCalled != nil {
+		*s.finishCalled = true
+	}
 	return s.finishErr
+}
+
+func (s stubArchiveRunner) SavedItems(context.Context) error {
+	if s.savedCalled != nil {
+		*s.savedCalled = true
+	}
+	return s.savedErr
 }
 
 func Test_runArchiveAndCleanup(t *testing.T) {
@@ -857,7 +870,7 @@ func Test_runArchiveAndCleanup(t *testing.T) {
 			called = true
 			return dedupecmd.Result{}, nil
 		}
-		err := runArchiveAndCleanup(t.Context(), stubArchiveRunner{runErr: errors.New("run failed")}, &structures.EntityList{}, nil, "db", true)
+		err := runArchiveAndCleanup(t.Context(), stubArchiveRunner{runErr: errors.New("run failed")}, &structures.EntityList{}, nil, "db", true, false)
 		require.Error(t, err)
 		assert.ErrorIs(t, err, errRunArchiveController)
 		assert.False(t, called)
@@ -869,9 +882,45 @@ func Test_runArchiveAndCleanup(t *testing.T) {
 			called = true
 			return dedupecmd.Result{}, nil
 		}
-		err := runArchiveAndCleanup(t.Context(), stubArchiveRunner{finishErr: errors.New("finish failed")}, &structures.EntityList{}, nil, "db", true)
+		err := runArchiveAndCleanup(t.Context(), stubArchiveRunner{finishErr: errors.New("finish failed")}, &structures.EntityList{}, nil, "db", true, false)
 		require.Error(t, err)
 		assert.ErrorIs(t, err, errFinishArchiveController)
 		assert.False(t, called)
+	})
+
+	t.Run("saved items skipped when disabled", func(t *testing.T) {
+		called := false
+		runDedupe = func(context.Context, *sqlx.DB, dedupecmd.Options) (dedupecmd.Result, error) {
+			return dedupecmd.Result{}, nil
+		}
+		err := runArchiveAndCleanup(t.Context(), stubArchiveRunner{savedCalled: &called}, &structures.EntityList{}, nil, "db", false, false)
+		require.NoError(t, err)
+		assert.False(t, called)
+	})
+
+	t.Run("saved items fetched when enabled", func(t *testing.T) {
+		called := false
+		runDedupe = func(context.Context, *sqlx.DB, dedupecmd.Options) (dedupecmd.Result, error) {
+			return dedupecmd.Result{}, nil
+		}
+		err := runArchiveAndCleanup(t.Context(), stubArchiveRunner{savedCalled: &called}, &structures.EntityList{}, nil, "db", false, true)
+		require.NoError(t, err)
+		assert.True(t, called)
+	})
+
+	t.Run("dedupe and finish are skipped when saved items fails", func(t *testing.T) {
+		dedupeCalled, finishCalled := false, false
+		runDedupe = func(context.Context, *sqlx.DB, dedupecmd.Options) (dedupecmd.Result, error) {
+			dedupeCalled = true
+			return dedupecmd.Result{}, nil
+		}
+		err := runArchiveAndCleanup(t.Context(), stubArchiveRunner{
+			savedErr:     errors.New("saved items failed"),
+			finishCalled: &finishCalled,
+		}, &structures.EntityList{}, nil, "db", true, true)
+		require.Error(t, err)
+		assert.ErrorIs(t, err, errSavedItemsController)
+		assert.False(t, dedupeCalled)
+		assert.False(t, finishCalled)
 	})
 }

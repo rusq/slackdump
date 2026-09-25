@@ -42,6 +42,7 @@ threads during archiving. Do not rely on them for general analysis. They are:
 | `V_THREAD_ONLY_THREADS` | For thread-only mode: counts parts per thread |
 | `V_LATEST_MESSAGE` | Latest channel message per channel (TYPE_ID=0 only) |
 | `V_LATEST_THREAD` | Latest thread message per channel+thread_ts (TYPE_ID=1 only) |
+| `V_LATEST_SAVED_ITEM` | Latest row per (ITEM_ID, TS); older rows for items no longer in Later are pruned, not just superseded |
 
 ---
 
@@ -61,10 +62,14 @@ threads during archiving. Do not rely on them for general analysis. They are:
 |  9 | `BOOKMARKS`       | *(no table)*     |
 | 10 | `SEARCH_MESSAGES` | `SEARCH_MESSAGE` |
 | 11 | `SEARCH_FILES`    | `SEARCH_FILE`    |
+| 12 | `SAVED_ITEMS`     | `SAVED_ITEM`     |
 
 **Note:** `STARRED_ITEMS` (8) and `BOOKMARKS` (9) are defined in the enum and
 TYPES table but have no corresponding storage table and no assembler — they
 would return an error if encountered in `insertPayload`. See `split.go`.
+`SAVED_ITEMS` (12) is the exception: it stores Slack's "Later" view (the
+successor to `STARRED_ITEMS`/stars.list, which Slack has deprecated for this
+purpose, see `internal/edge/saved.go`), and does have a table/assembler.
 
 **Note:** `CHANNELS` (4) and `CHANNEL_INFO` (5) both write to the `CHANNEL`
 table. `CHANNEL_INFO` (5) contains individually fetched full channel details;

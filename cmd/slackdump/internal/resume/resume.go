@@ -115,11 +115,13 @@ var runDedupe = func(ctx context.Context, conn *sqlx.DB, opts dedupecmd.Options)
 var (
 	errRunArchiveController    = errors.New("error running archive controller")
 	errFinishArchiveController = errors.New("error finalizing archive controller")
+	errSavedItemsController    = errors.New("error fetching saved items")
 )
 
 type archiveRunner interface {
 	RunNoTransform(ctx context.Context, latest *structures.EntityList) error
 	Finish() error
+	SavedItems(ctx context.Context) error
 }
 
 func runResume(ctx context.Context, cmd *base.Command, args []string) error {
@@ -208,6 +210,14 @@ func runResume(ctx context.Context, cmd *base.Command, args []string) error {
 	if resumeFlags.SkipCompleteThreads {
 		streamOpts = append(streamOpts, stream.OptSkipThreadFunc(dbase.NewThreadSkipper(wconn)))
 	}
+	if cfg.SavedItems {
+		ecl, err := archive.SavedItemsEdgeClient(ctx)
+		if err != nil {
+			base.SetExitStatus(base.SInitializationError)
+			return fmt.Errorf("saved items: %w", err)
+		}
+		streamOpts = append(streamOpts, stream.OptEdgeClient(ecl))
+	}
 	ctrl, err := archive.DBController(
 		ctx,
 		cmd.Name(),
@@ -227,8 +237,11 @@ func runResume(ctx context.Context, cmd *base.Command, args []string) error {
 	}
 	defer ctrl.Close()
 
-	if err := runArchiveAndCleanup(ctx, ctrl, latestResult.list, wconn, dir, resumeFlags.Dedupe); err != nil {
+	if err := runArchiveAndCleanup(ctx, ctrl, latestResult.list, wconn, dir, resumeFlags.Dedupe, cfg.SavedItems); err != nil {
 		if errors.Is(err, errRunArchiveController) {
+			base.SetExitStatus(base.SApplicationError)
+		}
+		if errors.Is(err, errSavedItemsController) {
 			base.SetExitStatus(base.SApplicationError)
 		}
 		if errors.Is(err, errFinishArchiveController) {
@@ -261,9 +274,14 @@ func decideResume(r latestResult) resumeDecision {
 	return resumeDecisionInvalidArchive
 }
 
-func runArchiveAndCleanup(ctx context.Context, runner archiveRunner, latest *structures.EntityList, conn *sqlx.DB, dir string, dedupeEnabled bool) error {
+func runArchiveAndCleanup(ctx context.Context, runner archiveRunner, latest *structures.EntityList, conn *sqlx.DB, dir string, dedupeEnabled, fetchSaved bool) error {
 	if err := runner.RunNoTransform(ctx, latest); err != nil {
 		return fmt.Errorf("%w: %w", errRunArchiveController, err)
+	}
+	if fetchSaved {
+		if err := runner.SavedItems(ctx); err != nil {
+			return fmt.Errorf("%w: %w", errSavedItemsController, err)
+		}
 	}
 	if err := runner.Finish(); err != nil {
 		return fmt.Errorf("%w: %w", errFinishArchiveController, err)

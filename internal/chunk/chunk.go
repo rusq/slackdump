@@ -22,6 +22,7 @@ import (
 
 	"github.com/rusq/slack"
 
+	"github.com/rusq/slackdump/v4/internal/edge"
 	"github.com/rusq/slackdump/v4/internal/fasttime"
 )
 
@@ -42,6 +43,7 @@ const (
 	CBookmarks
 	CSearchMessages
 	CSearchFiles
+	CSavedItems
 )
 
 var ErrUnsupChunkType = fmt.Errorf("unsupported chunk type")
@@ -111,6 +113,8 @@ type Chunk struct {
 	SearchMessages []slack.SearchMessage `json:"sm,omitempty"` // Populated by SearchMessages
 	// SearchFiles contains the search results.
 	SearchFiles []slack.File `json:"sf,omitempty"` // Populated by SearchFiles
+	// SavedItems contains the current user's "Later" (Saved) items.
+	SavedItems []edge.SavedItem `json:"sv,omitempty"` // Populated by SavedItems
 }
 
 // GroupID is a unique ID for a chunk group.  It is used to group chunks of
@@ -125,6 +129,7 @@ const (
 	wspInfoChunkID  GroupID = "iw"   // info workspace
 	srchMsgChunkID  GroupID = "sm"   // search messages results
 	srchFileChunkID GroupID = "sf"   // search file results
+	savedChunkID    GroupID = "lsv"  // list saved (Later) items
 )
 
 const (
@@ -170,6 +175,8 @@ func (c *Chunk) ID() GroupID {
 		return srchMsgChunkID
 	case CSearchFiles:
 		return srchFileChunkID
+	case CSavedItems:
+		return savedChunkID // static
 	}
 	return GroupID(fmt.Sprintf("<unknown:%s>", c.Type))
 }

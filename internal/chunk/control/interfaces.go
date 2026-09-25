@@ -38,6 +38,7 @@ type Streamer interface {
 	WorkspaceInfo(ctx context.Context, proc processor.WorkspaceInfo) error
 	SearchMessages(ctx context.Context, proc processor.MessageSearcher, query string) error
 	SearchFiles(ctx context.Context, proc processor.FileSearcher, query string) error
+	SavedItems(ctx context.Context, proc processor.SavedItemsCollector) error
 	UsersBulk(ctx context.Context, proc processor.Users, ids ...string) error
 	UsersBulkWithCustom(ctx context.Context, proc processor.Users, includeLabels bool, ids ...string) error
 	UsersBulkWithCustomErr(ctx context.Context, proc processor.Users, includeLabels bool, ids []string, failErr func(error) bool) error

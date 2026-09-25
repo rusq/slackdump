@@ -67,6 +67,7 @@ var (
 	WithFiles   bool
 	WithAvatars bool
 	RecordFiles bool // record file chunks in chunk files.
+	SavedItems  bool // also fetch the current user's "Later" (Saved) items.
 
 	// Oldest is the default timestamp of the oldest message to fetch, that is
 	// used by the dump and export commands.
@@ -206,6 +207,7 @@ const (
 	OmitYesManFlag
 	OmitChannelTypesFlag
 	OmitMemberOnlyFlag
+	OmitSavedItemsFlag
 
 	OmitAll = OmitConfigFlag |
 		OmitWithFilesFlag |
@@ -222,7 +224,8 @@ const (
 		OmitChunkFileMode |
 		OmitYesManFlag |
 		OmitMemberOnlyFlag |
-		OmitChannelTypesFlag
+		OmitChannelTypesFlag |
+		OmitSavedItemsFlag
 )
 
 // SetBaseFlags sets base flags
@@ -247,6 +250,9 @@ func SetBaseFlags(fs *flag.FlagSet, mask FlagMask) {
 		if mask&OmitRecordFilesFlag == 0 {
 			fs.BoolVar(&RecordFiles, "files-rec", false, "include file chunks in chunk files")
 		}
+	}
+	if mask&OmitSavedItemsFlag == 0 {
+		fs.BoolVar(&SavedItems, "saved", false, "also fetch the current user's \"Later\" (Saved) items")
 	}
 	if mask&OmitWithAvatarsFlag == 0 {
 		fs.BoolVar(&WithAvatars, "avatars", false, "enables user avatar download (placed in __avatars directory)")

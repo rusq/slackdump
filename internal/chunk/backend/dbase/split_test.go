@@ -24,11 +24,14 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	"github.com/rusq/slack"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 
 	"github.com/rusq/slackdump/v4/internal/chunk"
 	"github.com/rusq/slackdump/v4/internal/chunk/backend/dbase/repository"
 	"github.com/rusq/slackdump/v4/internal/chunk/backend/dbase/repository/mock_repository"
+	"github.com/rusq/slackdump/v4/internal/edge"
 	"github.com/rusq/slackdump/v4/internal/fixtures"
 	"github.com/rusq/slackdump/v4/internal/testutil"
 )
@@ -1205,6 +1208,106 @@ func TestDBP_insertSearchFiles(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestDBP_insertSavedItems(t *testing.T) {
+	type fields struct {
+		conn      *sqlx.DB
+		sessionID int64
+		mr        repository.MessageRepository
+	}
+	type args struct {
+		ctx       context.Context
+		tx        repository.PrepareExtContext
+		dbchunkID int64
+		ii        []edge.SavedItem
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		prepFn  utilityFunc
+		want    int
+		wantErr bool
+	}{
+		{
+			name: "inserts saved items",
+			fields: fields{
+				conn:      testDB(t),
+				sessionID: 1,
+			},
+			args: args{
+				ctx:       t.Context(),
+				tx:        testDB(t),
+				dbchunkID: 1,
+				ii: []edge.SavedItem{
+					{ItemID: "C123", ItemType: "message", Timestamp: "123.456", TodoState: "saved"},
+					{ItemID: "C124", ItemType: "message", Timestamp: "123.457", TodoState: "to_do"},
+				},
+			},
+			prepFn:  prepChunk(chunk.CSavedItems),
+			want:    2,
+			wantErr: false,
+		},
+		{
+			name: "empty slice, is not an error",
+			fields: fields{
+				conn:      testDB(t),
+				sessionID: 1,
+			},
+			args: args{
+				ctx:       t.Context(),
+				tx:        testDB(t),
+				dbchunkID: 1,
+				ii:        []edge.SavedItem{},
+			},
+			prepFn:  prepChunk(chunk.CSavedItems),
+			want:    0,
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.prepFn != nil {
+				tt.prepFn(t, tt.args.tx)
+			}
+			d := &DBP{
+				conn:      tt.fields.conn,
+				sessionID: tt.fields.sessionID,
+				mr:        tt.fields.mr,
+			}
+			got, err := d.insertSavedItems(tt.args.ctx, tt.args.tx, tt.args.dbchunkID, tt.args.ii)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("DBP.insertSavedItems() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("DBP.insertSavedItems() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestDBP_insertSavedItems_prunesRemoved(t *testing.T) {
+	conn := testDB(t)
+	prepChunk(chunk.CSavedItems, chunk.CSavedItems)(t, conn)
+	d := &DBP{conn: conn, sessionID: 1}
+
+	_, err := d.insertSavedItems(t.Context(), conn, 1, []edge.SavedItem{
+		{ItemID: "A", ItemType: "message", Timestamp: "1.0", TodoState: "saved"},
+		{ItemID: "B", ItemType: "message", Timestamp: "2.0", TodoState: "saved"},
+	})
+	require.NoError(t, err)
+
+	// second run: B is gone from Later, A remains.
+	_, err = d.insertSavedItems(t.Context(), conn, 2, []edge.SavedItem{
+		{ItemID: "A", ItemType: "message", Timestamp: "1.0", TodoState: "saved"},
+	})
+	require.NoError(t, err)
+
+	var itemIDs []string
+	require.NoError(t, conn.SelectContext(t.Context(), &itemIDs, "SELECT ITEM_ID FROM SAVED_ITEM ORDER BY ITEM_ID"))
+	assert.ElementsMatch(t, []string{"A", "A"}, itemIDs)
 }
 
 func Test_newUserIter(t *testing.T) {

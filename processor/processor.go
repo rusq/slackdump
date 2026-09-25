@@ -21,6 +21,8 @@ import (
 	"io"
 
 	"github.com/rusq/slack"
+
+	"github.com/rusq/slackdump/v4/internal/edge"
 )
 
 // Conversations is the interface for conversation fetching with files.
@@ -91,6 +93,12 @@ type FileSearcher interface {
 type Searcher interface {
 	MessageSearcher
 	FileSearcher
+}
+
+// SavedItemsCollector is the interface for collecting "Later" (Saved) items.
+type SavedItemsCollector interface {
+	// SavedItems is called with the current user's saved items.
+	SavedItems(ctx context.Context, items []edge.SavedItem) error
 }
 
 // Avatars is the interface for downloading avatars.

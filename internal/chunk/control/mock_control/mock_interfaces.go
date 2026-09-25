@@ -86,6 +86,20 @@ func (mr *MockStreamerMockRecorder) ListChannelsEx(ctx, proc, p, onlyMyChannels 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListChannelsEx", reflect.TypeOf((*MockStreamer)(nil).ListChannelsEx), ctx, proc, p, onlyMyChannels)
 }
 
+// SavedItems mocks base method.
+func (m *MockStreamer) SavedItems(ctx context.Context, proc processor.SavedItemsCollector) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SavedItems", ctx, proc)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SavedItems indicates an expected call of SavedItems.
+func (mr *MockStreamerMockRecorder) SavedItems(ctx, proc any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SavedItems", reflect.TypeOf((*MockStreamer)(nil).SavedItems), ctx, proc)
+}
+
 // SearchFiles mocks base method.
 func (m *MockStreamer) SearchFiles(ctx context.Context, proc processor.FileSearcher, query string) error {
 	m.ctrl.T.Helper()
