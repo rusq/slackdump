@@ -10,6 +10,19 @@ jobs:
 
   build:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17.6-alpine
+        env:
+          POSTGRES_DB: slackdump_test
+          POSTGRES_PASSWORD: test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d slackdump_test"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 15
     steps:
     - uses: actions/checkout@v6
 
@@ -27,6 +40,8 @@ jobs:
 
     - name: Test
       run: make test
+      env:
+        SLACKDUMP_POSTGRES_TEST_URL: postgres://postgres:test@127.0.0.1:5432/slackdump_test?sslmode=disable
 
   build-windows:
     runs-on: windows-latest

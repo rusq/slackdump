@@ -51,6 +51,12 @@ type Source struct {
 	canClose bool
 }
 
+// SourceFromConnection wraps an already-open database connection as a source.
+// The caller controls whether closing the source also closes the connection.
+func SourceFromConnection(conn *sqlx.DB, canClose bool) *Source {
+	return &Source{conn: conn, canClose: canClose}
+}
+
 // ErrIsDirectory is returned when a directory path is passed instead of
 // a database file.
 var ErrIsDirectory = fmt.Errorf("path is a directory")

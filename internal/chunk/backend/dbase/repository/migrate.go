@@ -21,25 +21,42 @@ import (
 	"embed"
 	"fmt"
 	"log"
+	"sync"
 
 	"github.com/pressly/goose/v3"
 )
 
-//go:embed migrations/*.sql
+//go:embed migrations/*.sql postgres_migrations/*.sql
 var migrationsFS embed.FS
 
-func init() {
-	goose.SetBaseFS(migrationsFS)
-	goose.SetDialect("sqlite3")
-}
+var migrationMu sync.Mutex
 
 func Migrate(ctx context.Context, db *sql.DB, verbose bool) error {
+	return MigrateDriver(ctx, db, Driver, verbose)
+}
+
+// MigrateDriver migrates the database using the schema for driver.  Goose
+// keeps package-global migration configuration, so calls are serialised.
+func MigrateDriver(ctx context.Context, db *sql.DB, driver string, verbose bool) error {
+	migrationMu.Lock()
+	defer migrationMu.Unlock()
+
+	dialect := "sqlite3"
+	dir := "migrations"
+	if driver == PostgresDriver || driver == "pgx" {
+		dialect = "postgres"
+		dir = "postgres_migrations"
+	}
+	goose.SetBaseFS(migrationsFS)
+	if err := goose.SetDialect(dialect); err != nil {
+		return fmt.Errorf("migrate: set dialect: %w", err)
+	}
 	if !verbose {
 		goose.SetLogger(goose.NopLogger())
 	} else {
 		goose.SetLogger(log.Default())
 	}
-	if err := goose.UpContext(ctx, db, "migrations"); err != nil {
+	if err := goose.UpContext(ctx, db, dir); err != nil {
 		return fmt.Errorf("migrate: %w", err)
 	}
 	return nil

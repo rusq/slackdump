@@ -20,11 +20,14 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/jmoiron/sqlx/reflectx"
+	_ "github.com/lib/pq"
 
 	"github.com/rusq/slackdump/v4/internal/chunk"
 	"github.com/rusq/slackdump/v4/internal/chunk/backend/dbase/repository"
@@ -94,11 +97,7 @@ func New(ctx context.Context, conn *sqlx.DB, p SessionInfo, opts ...Option) (*DB
 	var options options
 	options.apply(opts...)
 
-	if err := initDB(ctx, conn); err != nil {
-		return nil, fmt.Errorf("new: %w", err)
-	}
-
-	if err := repository.Migrate(ctx, conn.DB, options.verbose); err != nil {
+	if err := Prepare(ctx, conn, options.verbose); err != nil {
 		return nil, fmt.Errorf("new: %w", err)
 	}
 
@@ -127,10 +126,31 @@ func New(ctx context.Context, conn *sqlx.DB, p SessionInfo, opts ...Option) (*DB
 
 // initDB runs the initialisation commands on the database.
 func initDB(ctx context.Context, conn *sqlx.DB) error {
+	if repository.IsPostgres(conn) {
+		return nil
+	}
 	for _, q := range dbInitCommands {
 		if _, err := conn.ExecContext(ctx, q); err != nil {
 			return fmt.Errorf("initDB: %w", err)
 		}
+	}
+	return nil
+}
+
+// Prepare configures and migrates a database connection for use by the
+// archive backend.  It is also used before opening a PostgreSQL resume source.
+func Prepare(ctx context.Context, conn *sqlx.DB, verbose bool) error {
+	if repository.IsPostgres(conn) {
+		// PostgreSQL folds unquoted identifiers to lowercase while the existing
+		// repository tags use uppercase SQLite column names.  Normalise both
+		// sides without changing the schema or every repository struct tag.
+		conn.Mapper = reflectx.NewMapperTagFunc("db", strings.ToLower, strings.ToLower)
+	}
+	if err := initDB(ctx, conn); err != nil {
+		return err
+	}
+	if err := repository.MigrateDriver(ctx, conn.DB, conn.DriverName(), verbose); err != nil {
+		return err
 	}
 	return nil
 }

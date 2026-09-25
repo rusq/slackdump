@@ -47,6 +47,9 @@ var (
 	Output     string
 	ConfigFile string
 	Workspace  string
+	// DatabaseURL enables the opt-in PostgreSQL archive backend.  It is kept
+	// out of common flag output and registered only by archive and resume.
+	DatabaseURL string
 
 	Limits = network.DefLimits
 
@@ -107,6 +110,15 @@ func enableLogColors(strNocolor string) {
 	sl := slog.New(handler)
 	Log = sl
 	slog.SetDefault(sl)
+}
+
+// ArchiveDatabaseURL returns the opt-in PostgreSQL URL without exposing an
+// environment-provided secret as a flag default in generated help output.
+func ArchiveDatabaseURL() string {
+	if DatabaseURL != "" {
+		return DatabaseURL
+	}
+	return os.Getenv("SLACKDUMP_DATABASE_URL")
 }
 
 func SetDebugLevel() {

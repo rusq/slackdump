@@ -198,11 +198,16 @@ func (r messageRepository) AllForID(ctx context.Context, conn sqlx.QueryerContex
 
 // threadCond returns a condition for selecting messages that are part of a
 // thread with additional filtering of thread_broadcast subtype.
-func (r messageRepository) threadCond() string {
+func (r messageRepository) threadCond(conn sqlx.QueryerContext) string {
 	var buf strings.Builder
 	buf.WriteString("T.CHANNEL_ID = ? AND T.PARENT_ID = ? ")
-	buf.WriteString("AND ( JSON_EXTRACT(T.DATA, '$.subtype') IS NULL ")
-	buf.WriteString("OR (JSON_EXTRACT(T.DATA, '$.subtype') = 'thread_broadcast' AND CH.TYPE_ID = 1 )")
+	if IsPostgres(conn) {
+		buf.WriteString("AND ( (convert_from(T.DATA, 'UTF8')::jsonb ->> 'subtype') IS NULL ")
+		buf.WriteString("OR ((convert_from(T.DATA, 'UTF8')::jsonb ->> 'subtype') = 'thread_broadcast' AND CH.TYPE_ID = 1 )")
+	} else {
+		buf.WriteString("AND ( JSON_EXTRACT(T.DATA, '$.subtype') IS NULL ")
+		buf.WriteString("OR (JSON_EXTRACT(T.DATA, '$.subtype') = 'thread_broadcast' AND CH.TYPE_ID = 1 )")
+	}
 	buf.WriteString("   ) ")
 	return buf.String()
 }
@@ -212,7 +217,7 @@ func (r messageRepository) CountThread(ctx context.Context, conn sqlx.QueryerCon
 	if err != nil {
 		return 0, fmt.Errorf("countThread fasttime: %w", err)
 	}
-	return r.countTypeWhere(ctx, conn, queryParams{Where: r.threadCond(), Binds: []any{channelID, parentID}}, chunk.CMessages, chunk.CThreadMessages)
+	return r.countTypeWhere(ctx, conn, queryParams{Where: r.threadCond(conn), Binds: []any{channelID, parentID}}, chunk.CMessages, chunk.CThreadMessages)
 }
 
 func (r messageRepository) AllForThread(ctx context.Context, conn sqlx.QueryerContext, channelID, threadID string) (iter.Seq2[DBMessage, error], error) {
@@ -220,7 +225,7 @@ func (r messageRepository) AllForThread(ctx context.Context, conn sqlx.QueryerCo
 	if err != nil {
 		return nil, fmt.Errorf("allForThread fasttime: %w", err)
 	}
-	return r.allOfTypeWhere(ctx, conn, queryParams{Where: r.threadCond(), Binds: []any{channelID, parentID}, UserKeyOrder: true}, chunk.CMessages, chunk.CThreadMessages)
+	return r.allOfTypeWhere(ctx, conn, queryParams{Where: r.threadCond(conn), Binds: []any{channelID, parentID}, UserKeyOrder: true}, chunk.CMessages, chunk.CThreadMessages)
 }
 
 func (r messageRepository) Sorted(ctx context.Context, conn sqlx.QueryerContext, channelID string, order Order) (iter.Seq2[DBMessage, error], error) {
