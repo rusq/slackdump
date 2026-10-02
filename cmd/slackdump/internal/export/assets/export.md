@@ -14,6 +14,10 @@ hydrate it with files by running `slackdump tools hydrate <export_file>`.
 The export file is understood by Slack Import feature with the following
 caveat:
 - files will not be imported, unless the `export` token is specified.
+
+> **Security note:** `-export-token` embeds a credential in every exported file
+> URL. Anyone you share that export with can use that access; keep tokenized
+> exports private.
   GitHub user @codeallthethingz has created a script that allows you to
   import attachments from the export file.  You can find it
   [here](https://github.com/rusq/slackdump/issues/371)
@@ -119,5 +123,4 @@ To view the export, run `slackdump view <export_file>`.  Viewer automatically
 detects the file storage format.
 
 Altnernatively, you can use "SlackLogViewer" or "slack-export-viewer" tools.
-
 

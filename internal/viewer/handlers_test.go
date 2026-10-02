@@ -73,6 +73,7 @@ func TestStaticHandler_ServesEmbeddedAssets(t *testing.T) {
 	} {
 		t.Run(tc.path, func(t *testing.T) {
 			req := httptest.NewRequest(http.MethodGet, tc.path, nil)
+			req.Host = "localhost"
 			rr := httptest.NewRecorder()
 
 			v.srv.Handler.ServeHTTP(rr, req)
@@ -405,20 +406,38 @@ func TestFileHandler_ReturnsNotFoundForMissingFile(t *testing.T) {
 	}
 }
 
-func TestRenderCanvasContent_MissingCanvasReturnsNotExist(t *testing.T) {
-	v := newHandlerTestViewer(&aliasSourceStub{
-		chs: []slack.Channel{{
-			GroupConversation: slack.GroupConversation{
-				Name:         "general",
-				Conversation: slack.Conversation{ID: "C1"},
-			},
-			IsChannel: true,
-		}},
-		files: source.NoStorage{},
+func TestViewer_RenderCanvasContent(t *testing.T) {
+	t.Run("sanitized document includes CSP", func(t *testing.T) {
+		v := newHandlerTestViewer(newViewerRouteSource())
+		w := httptest.NewRecorder()
+
+		if err := v.RenderCanvasContent(t.Context(), "C1", w); err != nil {
+			t.Fatalf("RenderCanvasContent() error = %v", err)
+		}
+		body := w.Body.String()
+		if !strings.HasPrefix(body, "<!DOCTYPE html>") {
+			t.Fatalf("RenderCanvasContent() should return a complete document, got %q", body)
+		}
+		if !strings.Contains(body, `http-equiv="Content-Security-Policy"`) {
+			t.Fatalf("RenderCanvasContent() should include a CSP meta tag, got %q", body)
+		}
 	})
 
-	err := v.RenderCanvasContent(t.Context(), "C1", httptest.NewRecorder())
-	if !errors.Is(err, fs.ErrNotExist) {
-		t.Fatalf("RenderCanvasContent() error = %v, want fs.ErrNotExist", err)
-	}
+	t.Run("missing canvas returns not exist", func(t *testing.T) {
+		v := newHandlerTestViewer(&aliasSourceStub{
+			chs: []slack.Channel{{
+				GroupConversation: slack.GroupConversation{
+					Name:         "general",
+					Conversation: slack.Conversation{ID: "C1"},
+				},
+				IsChannel: true,
+			}},
+			files: source.NoStorage{},
+		})
+
+		err := v.RenderCanvasContent(t.Context(), "C1", httptest.NewRecorder())
+		if !errors.Is(err, fs.ErrNotExist) {
+			t.Fatalf("RenderCanvasContent() error = %v, want fs.ErrNotExist", err)
+		}
+	})
 }

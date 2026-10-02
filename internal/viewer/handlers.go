@@ -123,7 +123,7 @@ func (v *Viewer) RenderCanvas(ctx context.Context, channelID string, w io.Writer
 	return v.tmpl.ExecuteTemplate(w, "index.html", page)
 }
 
-// RenderCanvasContent writes the raw canvas HTML for channelID to w.
+// RenderCanvasContent writes sanitized canvas HTML for channelID to w.
 func (v *Viewer) RenderCanvasContent(ctx context.Context, channelID string, w io.Writer) error {
 	ci, err := v.src.ChannelInfo(ctx, channelID)
 	if err != nil {
@@ -144,7 +144,7 @@ func (v *Viewer) RenderCanvasContent(ctx context.Context, channelID string, w io
 	}
 	defer f.Close()
 
-	_, err = io.Copy(w, f)
+	_, err = io.WriteString(w, SanitizeCanvasDocument(f))
 	return err
 }
 
@@ -271,6 +271,7 @@ func (v *Viewer) canvasContentHandler(w http.ResponseWriter, r *http.Request, id
 	lg := v.lg.With("in", "canvasContentHandler", "channel", id)
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Content-Security-Policy", canvasCSP)
 	if err := v.RenderCanvasContent(ctx, id, w); err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
 			lg.DebugContext(ctx, "canvas file not found", "error", err)

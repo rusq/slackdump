@@ -5,6 +5,9 @@
 The `export` command saves your Slack workspace as a ZIP file compatible with
 Slack's own export format.
 
+When using `-export-token`, the token is embedded in exported file URLs.
+Sharing that export shares the credential's access.
+
 For incremental/resumable archiving, prefer `slackdump archive`.  See the
 [Archive vs Export vs Dump](#archive-vs-export-vs-dump) section below.
 

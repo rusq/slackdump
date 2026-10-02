@@ -118,6 +118,9 @@ func (c *HTMLConverter) Convert(ctx context.Context) error {
 		if err := c.copyChannelFiles(ctx, ch, threadRoots); err != nil {
 			return fmt.Errorf("channel %s files: %w", ch.ID, err)
 		}
+		if err := c.copyCanvasAttachment(ch); err != nil && !errors.Is(err, fs.ErrNotExist) {
+			return fmt.Errorf("channel %s canvas attachment: %w", ch.ID, err)
+		}
 	}
 
 	users, err := c.src.Users(ctx)
@@ -142,6 +145,31 @@ func (c *HTMLConverter) Convert(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+type fileByIDStorage interface{ FileByID(string) (string, error) }
+
+// copyCanvasAttachment prevents an HTML canvas file that is also exposed as a
+// static attachment from becoming a second unsanitized execution path.
+func (c *HTMLConverter) copyCanvasAttachment(ch slack.Channel) error {
+	if ch.Properties == nil || ch.Properties.Canvas.FileId == "" {
+		return nil
+	}
+	storage, ok := c.src.Files().(fileByIDStorage)
+	if !ok {
+		return fs.ErrNotExist
+	}
+	srcpath, err := storage.FileByID(ch.Properties.Canvas.FileId)
+	if err != nil {
+		return err
+	}
+	in, err := c.src.Files().FS().Open(srcpath)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+	trgpath := htmlFilePath(&ch, &slack.File{ID: ch.Properties.Canvas.FileId, Name: path.Base(srcpath)})
+	return c.trg.WriteFile(trgpath, []byte(viewer.SanitizeCanvasDocument(in)), 0o644)
 }
 
 func (c *HTMLConverter) copyChannelFiles(ctx context.Context, ch slack.Channel, threadRoots []string) error {
