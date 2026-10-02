@@ -104,16 +104,19 @@ func (s *Slack) rtseLink(ie slack.RichTextSectionElement) (string, string, error
 	if !ok {
 		return "", "", NewErrIncorrectType(&slack.RichTextSectionLinkElement{}, ie)
 	}
-	if e.Text == "" {
-		e.Text = e.URL
-	} else {
-		e.Text = html.EscapeString(e.Text)
+	text := e.Text
+	if text == "" {
+		text = e.URL
 	}
+	linkURL := e.URL
 	if s.routes != nil {
-		e.URL = s.routes.RewriteSlackURL(e.URL)
+		linkURL = s.routes.RewriteSlackURL(linkURL)
 	}
-
-	return fmt.Sprintf("<a href=\"%s\">%s</a>", e.URL, e.Text), "", nil
+	url, ok := safeURL(linkURL, false)
+	if !ok {
+		return escape(text), "", nil
+	}
+	return fmt.Sprintf("<a href=\"%s\">%s</a>", escape(url), escape(text)), "", nil
 }
 
 func (s *Slack) rteList(ie slack.RichTextElement) (string, string, error) {
@@ -210,9 +213,9 @@ func (s *Slack) rtseUser(ie slack.RichTextSectionElement) (string, string, error
 		name = e.UserID
 	}
 
-	text := applyStyle(fmt.Sprintf("<@%s>", name), e.Style)
+	text := applyStyle(fmt.Sprintf("&lt;@%s&gt;", escape(name)), e.Style)
 	if s.routes != nil {
-		text = fmt.Sprintf(`<a href="%s">%s</a>`, s.routes.User(e.UserID), text)
+		text = fmt.Sprintf(`<a href="%s">%s</a>`, escape(s.routes.User(e.UserID)), text)
 	}
 	return text, "", nil
 }
@@ -240,9 +243,9 @@ func (s *Slack) rtseChannel(ie slack.RichTextSectionElement) (string, string, er
 		name = e.ChannelID
 	}
 
-	text := applyStyle(fmt.Sprintf("<#%s>", name), e.Style)
+	text := applyStyle(fmt.Sprintf("&lt;#%s&gt;", escape(name)), e.Style)
 	if s.routes != nil {
-		text = fmt.Sprintf(`<a href="%s">%s</a>`, s.routes.Channel(e.ChannelID), text)
+		text = fmt.Sprintf(`<a href="%s">%s</a>`, escape(s.routes.Channel(e.ChannelID)), text)
 	}
 	return elDiv(rtseTypeClass[slack.RTSEChannel], text), "", nil
 }
@@ -252,7 +255,7 @@ func (s *Slack) rtseBroadcast(ie slack.RichTextSectionElement) (string, string, 
 	if !ok {
 		return "", "", NewErrIncorrectType(&slack.RichTextSectionBroadcastElement{}, ie)
 	}
-	return elStrong(rtseTypeClass[slack.RTSEBroadcast], fmt.Sprintf("@%s ", e.Range)), "", nil
+	return elStrong(rtseTypeClass[slack.RTSEBroadcast], fmt.Sprintf("@%s ", escape(e.Range))), "", nil
 }
 
 func (s *Slack) rtseUserGroup(ie slack.RichTextSectionElement) (string, string, error) {
@@ -268,7 +271,7 @@ func (s *Slack) rtseUserGroup(ie slack.RichTextSectionElement) (string, string, 
 		name = e.UsergroupID
 	}
 
-	return elDiv(rtseTypeClass[slack.RTSEUserGroup], fmt.Sprintf("<@%s>", name)), "", nil
+	return elDiv(rtseTypeClass[slack.RTSEUserGroup], fmt.Sprintf("&lt;@%s&gt;", escape(name))), "", nil
 }
 
 func (s *Slack) rtseColor(ie slack.RichTextSectionElement) (string, string, error) {
@@ -276,5 +279,8 @@ func (s *Slack) rtseColor(ie slack.RichTextSectionElement) (string, string, erro
 	if !ok {
 		return "", "", NewErrIncorrectType(&slack.RichTextSectionColorElement{}, ie)
 	}
-	return fmt.Sprintf("<span style=\"color: %s;\">", e.Value), "</span>", nil
+	if color, ok := safeColor(e.Value); ok {
+		return fmt.Sprintf("<span style=\"color: #%s;\">", color), "</span>", nil
+	}
+	return "", "", nil
 }

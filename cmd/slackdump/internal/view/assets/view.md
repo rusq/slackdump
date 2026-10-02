@@ -9,6 +9,11 @@ specified directory or file.
 Viewer supports displaying downloaded images, videos as well as remote
 content.
 
+By default the viewer accepts only localhost, loopback addresses, and the
+specific host named by `-listen`. To expose it through a LAN address or a
+reverse proxy, explicitly repeat `-allow-host <hostname-or-ip>` for each Host
+header that should be accepted. Do not use an unrestricted wildcard host.
+
 The viewer uses a side panel for threads and user profiles, keeps the active
 channel highlighted while navigating, and reports connection problems if the
 local viewer server becomes unreachable.

@@ -16,6 +16,7 @@
 package renderer
 
 import (
+	"html"
 	"html/template"
 	"log/slog"
 	"strings"
@@ -49,7 +50,7 @@ func (g *Goldmark) Render(s string) (v template.HTML) {
 	var buf strings.Builder
 	if err := g.r.Convert([]byte(s), &buf); err != nil {
 		slog.Debug("error", "error", err)
-		return template.HTML(s)
+		return template.HTML(html.EscapeString(s))
 	}
 	return template.HTML(buf.String())
 }

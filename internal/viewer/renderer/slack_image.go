@@ -30,11 +30,15 @@ func (s *Slack) mbtImage(ib slack.Block) (string, string, error) {
 	if s.routes != nil {
 		imgURL = s.routes.RewriteSlackURL(imgURL)
 	}
+	imgURL, ok = safeURL(imgURL, true)
+	if !ok {
+		return elFigure(blockTypeClass[slack.MBTImage], escape(b.AltText)), "", nil
+	}
 	return elFigure(
 		blockTypeClass[slack.MBTImage],
 		fmt.Sprintf(
 			`<img src="%[1]s" alt="%[2]s"><figcaption class="slack-image-caption">%[2]s</figcaption>`,
-			imgURL, b.AltText,
+			escape(imgURL), escape(b.AltText),
 		),
 	), "", nil
 }

@@ -61,7 +61,7 @@ var options = exportFlags{
 
 func init() {
 	CmdExport.Flag.Var(&options.ExportStorageType, "type", "export file storage type")
-	CmdExport.Flag.StringVar(&options.ExportToken, "export-token", "", "file export token to append to each of the file URLs")
+	CmdExport.Flag.StringVar(&options.ExportToken, "export-token", "", "file export token to append to each URL; sharing the export shares access")
 
 	CmdExport.Run = runExport
 	CmdExport.Wizard = wizExport
@@ -97,6 +97,9 @@ func runExport(ctx context.Context, cmd *base.Command, args []string) error {
 		return err
 	}
 	lg := cfg.Log
+	if strings.TrimSpace(options.ExportToken) != "" {
+		lg.WarnContext(ctx, "export token is embedded in file URLs; sharing this export shares access")
+	}
 	defer func() {
 		lg.DebugContext(ctx, "closing the fsadapter")
 		if err := fsa.Close(); err != nil {

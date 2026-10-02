@@ -4,9 +4,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; connect-src 'self'; img-src 'self' http: https: data:; style-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'none'; frame-src 'self'; frame-ancestors 'self'">
     <title>Slackdump Viewer</title>
     {{ template "hx_css" . }}
-    {{ if .Interactive }}<script src="{{ staticasset "htmx.min.js" }}"></script>
+    {{ if .Interactive }}<meta name="htmx-config" content='{"allowEval":false,"allowScriptTags":false}'><script src="{{ staticasset "htmx.min.js" }}"></script>
     <script src="{{ staticasset "viewer.js" }}" defer></script>{{ end }}
 </head>
 
