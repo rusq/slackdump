@@ -58,14 +58,40 @@ func TestRenderIndex(t *testing.T) {
 }
 
 func TestRenderChannel(t *testing.T) {
-	v := newTestViewer(renderer.ModeLive)
-	var buf bytes.Buffer
-	if err := v.RenderChannel(context.Background(), "C1", &buf); err != nil {
-		t.Fatalf("RenderChannel() error = %v", err)
-	}
-	body := buf.String()
-	if !strings.Contains(body, "<!DOCTYPE html>") {
-		t.Fatalf("RenderChannel() should produce a full HTML page")
+	for _, tc := range []struct {
+		name     string
+		mode     renderer.Mode
+		messages []slack.Message
+	}{
+		{name: "live with messages", mode: renderer.ModeLive, messages: []slack.Message{{Msg: slack.Msg{Timestamp: "1710000000.000001", Text: "hello"}}}},
+		{name: "live empty", mode: renderer.ModeLive},
+		{name: "static", mode: renderer.ModeStatic},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			v := newTestViewer(tc.mode)
+			v.src = newViewerRouteSource()
+			v.src.(*aliasSourceStub).msgs = map[string][]slack.Message{"C1": tc.messages}
+			var buf bytes.Buffer
+			if err := v.RenderChannel(context.Background(), "C1", &buf); err != nil {
+				t.Fatalf("RenderChannel() error = %v", err)
+			}
+			body := buf.String()
+			if !strings.Contains(body, "<!DOCTYPE html>") {
+				t.Fatal("RenderChannel() should produce a full HTML page")
+			}
+			for _, marker := range []string{`id="open-settings"`, `id="viewer-settings"`, `data-jump-latest disabled`, `<div data-conversation-content>`, `src="/static/viewer.js"`} {
+				if got, want := strings.Contains(body, marker), tc.mode == renderer.ModeLive; got != want {
+					t.Errorf("RenderChannel() contains %q = %v, want %v", marker, got, want)
+				}
+			}
+			if tc.mode == renderer.ModeLive {
+				for _, marker := range []string{`aria-labelledby="settings-title"`, `aria-describedby="settings-description"`, `for="conversation-start"`, `value="oldest"`, `value="latest"`, `id="settings-status" role="status" hidden`} {
+					if !strings.Contains(body, marker) {
+						t.Errorf("missing settings markup %q", marker)
+					}
+				}
+			}
+		})
 	}
 }
 

@@ -21,7 +21,14 @@
         <section class="channel-sidebar">
             <header>
                 <div class="sidebar-header-inner">
+                    {{ if .Interactive }}<div class="sidebar-title">{{ end }}
                     <h1>Slackdump</h1>
+                    {{ if .Interactive }}<button type="button" id="open-settings" class="settings-button" aria-label="Viewer settings" aria-haspopup="dialog" aria-controls="viewer-settings" title="Viewer settings">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M8.94 4.61L10.26 2.15 13.74 2.15 15.06 4.61 17.74 3.81 20.19 6.26 19.39 8.94 21.85 10.26 21.85 13.74 19.39 15.06 20.19 17.74 17.74 20.19 15.06 19.39 13.74 21.85 10.26 21.85 8.94 19.39 6.26 20.19 3.81 17.74 4.61 15.06 2.15 13.74 2.15 10.26 4.61 8.94 3.81 6.26 6.26 3.81Z" />
+                            <circle cx="12" cy="12" r="3" />
+                        </svg>
+                    </button></div>{{ end }}
                     <small class="subtitle">{{.Type}}: {{.Name}}</small>
                 </div>
             </header>
@@ -52,6 +59,25 @@
             {{ end }}
         </section>
     </div>
+    {{ if .Interactive }}
+    <dialog id="viewer-settings" aria-labelledby="settings-title" aria-describedby="settings-description">
+        <form id="settings-form">
+            <h2 id="settings-title">Viewer settings</h2>
+            <p id="settings-description">Preferences apply to this browser across archives opened at the same viewer address.</p>
+            <label for="conversation-start">Open conversations at:</label>
+            <select id="conversation-start" name="conversationStart">
+                <option value="oldest">Oldest</option>
+                <option value="latest">Latest</option>
+            </select>
+            <p>Changes apply the next time you open a conversation.</p>
+            <p id="settings-status" role="status" hidden></p>
+            <div class="settings-actions">
+                <button type="button" id="cancel-settings" class="viewer-button">Cancel</button>
+                <button type="submit" class="viewer-button">Save</button>
+            </div>
+        </form>
+    </dialog>
+    {{ end }}
 </body>
 
 </html>
@@ -119,7 +145,18 @@
 {{ define "conversation_header" }}
 <header class="conversation-header">
     <div class="conversation-inner">
+        {{ if and .Interactive (not .CanvasActive) }}
+        <div class="conversation-title">
+        {{ end }}
         {{ template "hx_chan_header" . }}
+        {{ if and .Interactive (not .CanvasActive) }}
+            <button type="button" class="jump-latest-button" aria-label="Jump to latest message" title="Jump to latest message." data-jump-latest disabled>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M12 3v14m-5-5 5 5 5-5M5 21h14" />
+                </svg>
+            </button>
+        </div>
+        {{ end }}
         <p>{{ .Conversation.Topic.Value }}</p>
         {{ if canvas_present .Conversation }}
         {{ template "tab_list" . }}
@@ -169,6 +206,7 @@
 {{ define "message_list" }}
 {{ $id := .Conversation.ID }}
 <div class="message-list" id="tab-panel-conversation" role="tabpanel" aria-labelledby="tab-btn-conversation" tabindex="0">
+{{ if .Interactive }}<div data-conversation-content>{{ end }}
 {{ range $el, $err := .Messages }}
     <article class="message">
         {{ if $err }} <p>Error: {{ $err }}</p> {{ else }}
@@ -196,6 +234,7 @@
     {{ template "static_user_profile" (staticuserview $el) }}
     {{ end }}
 {{end}}
+{{ if .Interactive }}</div>{{ end }}
 </div>
 {{end}}
 
