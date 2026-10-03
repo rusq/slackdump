@@ -77,7 +77,14 @@ type Viewer struct {
 type Option func(*viewerOptions)
 
 type viewerOptions struct {
-	mode renderer.Mode
+	mode         renderer.Mode
+	allowedHosts []string
+}
+
+// WithAllowedHosts permits exact additional Host header values for a live
+// viewer. It is intended for an explicitly configured LAN host or proxy.
+func WithAllowedHosts(hosts ...string) Option {
+	return func(o *viewerOptions) { o.allowedHosts = append(o.allowedHosts, hosts...) }
 }
 
 func WithMode(mode renderer.Mode) Option {
@@ -166,9 +173,13 @@ func New(ctx context.Context, addr string, r source.Sourcer, opts ...Option) (*V
 	mux.HandleFunc("GET /archives/{id}/{ts}", v.newFileHandler(v.postRedirectHandler))
 	mux.HandleFunc("GET /team/{user_id}", v.userHandler)
 	mux.Handle("GET /slackdump/file/{id}/{filename}", cacheMwareFunc(3*hour)(http.HandlerFunc(v.fileHandler)))
+	handler := securityHeaders(mux)
+	if options.mode == renderer.ModeLive {
+		handler = hostGuard(allowedHosts(addr, options.allowedHosts), handler)
+	}
 	v.srv = &http.Server{
 		Addr:    addr,
-		Handler: middleware.Logger(mux),
+		Handler: middleware.Logger(handler),
 	}
 
 	return v, nil

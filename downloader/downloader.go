@@ -23,7 +23,6 @@ import (
 	"io"
 	"log/slog"
 	"os"
-	"path"
 	"runtime/trace"
 	"sync"
 	"sync/atomic"
@@ -244,7 +243,7 @@ func (c *Client) worker(ctx context.Context, reqC <-chan Request) {
 	// and not wait to send on the request channel that no worker is servicing
 	// due to exiting by context cancellation.
 	for req := range reqC {
-		lg := c.lg.With("url_filename", path.Base(req.URL), "destination", req.Fullpath)
+		lg := c.lg.With("url_filename", safeURLLabel(req.URL), "destination", req.Fullpath)
 		lg.DebugContext(ctx, "saving file")
 		n, err := c.download(ctx, req.Fullpath, req.URL)
 		if err != nil {
@@ -289,7 +288,7 @@ func (c *Client) download(ctx context.Context, fullpath string, url string) (int
 				// in the original error occurred, therefore we just log it.
 				c.lg.WarnContext(ctx, "seek", "error", err)
 			}
-			return fmt.Errorf("download to %q failed, [src=%s]: %w", fullpath, url, err)
+			return fmt.Errorf("download to %q failed: %w", fullpath, redactError(err))
 		}
 		return nil
 	}); err != nil {
@@ -359,7 +358,7 @@ func (c *Client) AsyncDownloader(ctx context.Context, queueC <-chan Request) (<-
 		defer close(done)
 		for r := range queueC {
 			if err := c.Download(r.Fullpath, r.URL); err != nil {
-				c.lg.Error("download error", "url", r.URL, "error", err)
+				c.lg.Error("download error", "url_filename", safeURLLabel(r.URL), "error", redactError(err))
 			}
 		}
 		c.Stop()

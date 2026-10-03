@@ -435,6 +435,19 @@ See [issues #468, #476].
 
 ## Built-in Viewer (`slackdump view`)
 
+### Viewer starts at the oldest messages
+
+Oldest is the default landing position. Open **Settings** beside the sidebar
+heading and choose **Latest** to start at the bottom when opening conversations.
+Use **Jump to latest** for a one-time jump without changing the preference.
+Messages remain in chronological order; message links and browser history take
+precedence over the preference.
+
+Settings are saved in this browser's local storage for the viewer address.
+Archives at the same address share settings; changing the browser, hostname,
+port, or protocol gives separate settings. Clearing site data resets them.
+Settings affect the live viewer only and never modify the archive.
+
 ### Viewer returns 404 for downloaded attachments
 
 **Symptoms:** Files show as downloaded in the archive, but clicking them in the

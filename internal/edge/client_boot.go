@@ -30,7 +30,8 @@ import (
 type clientUserBootForm struct {
 	BaseRequest
 	MinChannelUpdated          int64 `json:"min_channel_updated"`
-	IncludeMinVersionBumpCheck int   `json:"include_min_version_bump_check"`
+	IncludeRelevantOnboarding  bool  `json:"include_relevant_onboarding,omitempty"`
+	IncludeMinVersionBumpCheck int   `json:"include_min_version_bump_check,omitempty"`
 	VersionTS                  int64 `json:"version_ts"`
 	BuildVersionTS             int64 `json:"build_version_ts"`
 	WebClientFields
@@ -44,13 +45,15 @@ func (cl *Client) ClientUserBoot(ctx context.Context) (*ClientUserBootResponse, 
 	future := time.Now().Add(24 * time.Hour)
 	form := clientUserBootForm{
 		BaseRequest:                BaseRequest{Token: cl.token},
-		IncludeMinVersionBumpCheck: 1,
+		IncludeMinVersionBumpCheck: 0,
+		IncludeRelevantOnboarding:  true,
 		VersionTS:                  future.Unix(),
 		BuildVersionTS:             future.Unix(),
-		WebClientFields:            webclientReason("initial-data"),
+
+		WebClientFields: webclientReason("initial-data"),
 	}
 	var ub ClientUserBootResponse
-	resp, err := cl.PostForm(ctx, "client.userBoot", values(form, true))
+	resp, err := cl.PostForm(ctx, "client.init", values(form, true))
 	if err != nil {
 		return nil, err
 	}

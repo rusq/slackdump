@@ -9,9 +9,27 @@ specified directory or file.
 Viewer supports displaying downloaded images, videos as well as remote
 content.
 
+By default the viewer accepts only localhost, loopback addresses, and the
+specific host named by `-listen`. To expose it through a LAN address or a
+reverse proxy, explicitly repeat `-allow-host <hostname-or-ip>` for each Host
+header that should be accepted. Do not use an unrestricted wildcard host.
+
 The viewer uses a side panel for threads and user profiles, keeps the active
 channel highlighted while navigating, and reports connection problems if the
 local viewer server becomes unreachable.
+
+Use **Settings** beside the sidebar heading to choose whether conversations open
+at the **Oldest** or **Latest** message. Oldest is the default. Changes apply the
+next time you open a conversation; message order remains chronological. The
+**Jump to latest** button moves to the bottom without changing your preference.
+Message links and browser history navigation take precedence over this setting.
+
+Preferences are stored in this browser's local storage and persist across viewer
+restarts. Archives opened at the same viewer address share the preference;
+different browsers, hostnames, ports, or protocols have separate preferences.
+Clearing browser site data resets the preference, and private browsing or blocked
+storage may prevent persistence. Settings do not modify the archive and are not
+included in converted static HTML.
 
 ## Usage
 

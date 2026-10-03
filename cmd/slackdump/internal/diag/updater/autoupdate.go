@@ -19,6 +19,7 @@ import (
 	"archive/tar"
 	"archive/zip"
 	"bufio"
+	"bytes"
 	"compress/gzip"
 	"context"
 	"crypto/sha256"
@@ -250,9 +251,15 @@ func downloadAsset(ctx context.Context, rel *github.Release, asset *github.Asset
 	if err != nil {
 		return "", fmt.Errorf("failed to create temp file: %w", err)
 	}
+	verified := false
 	defer func() {
 		if err := tmpFile.Close(); err != nil {
 			slog.WarnContext(ctx, "Failed to close temp file", "path", tmpFile.Name(), "err", err)
+		}
+		if !verified {
+			if err := os.Remove(tmpFile.Name()); err != nil && !errors.Is(err, os.ErrNotExist) {
+				slog.WarnContext(ctx, "Failed to remove unverified download", "path", tmpFile.Name(), "err", err)
+			}
 		}
 	}()
 
@@ -285,25 +292,25 @@ func downloadAsset(ctx context.Context, rel *github.Release, asset *github.Asset
 		return "", fmt.Errorf("failed to write download: %w", err)
 	}
 
-	// Verify checksum if available
-	calculatedHash := hex.EncodeToString(hash.Sum(nil))
+	// A release asset is never extracted until it has a valid, unambiguous
+	// checksum. Unsigned checksums do not authenticate a compromised release,
+	// but missing verification must not silently install arbitrary bytes.
+	calculatedHash := hash.Sum(nil)
 	expectedHash, err := getExpectedChecksum(ctx, rel, asset.Name)
 	if err != nil {
-		// Log warning but don't fail if checksums file is not available
-		slog.WarnContext(ctx, "Could not verify checksum", "err", err, "file", asset.Name)
-	} else {
-		slog.InfoContext(ctx, "Verifying checksum", "file", asset.Name, "expected", expectedHash, "calculated", calculatedHash)
-		if calculatedHash != expectedHash {
-			return "", fmt.Errorf("%w: expected %s, got %s", ErrChecksumMismatch, expectedHash, calculatedHash)
-		}
-		slog.InfoContext(ctx, "Checksum verification passed", "file", asset.Name)
+		return "", fmt.Errorf("verify %s: %w", asset.Name, err)
 	}
+	if !bytes.Equal(calculatedHash, expectedHash) {
+		return "", fmt.Errorf("%w: expected %s, got %s", ErrChecksumMismatch, hex.EncodeToString(expectedHash), hex.EncodeToString(calculatedHash))
+	}
+	slog.InfoContext(ctx, "Checksum verification passed", "file", asset.Name)
 
+	verified = true
 	return tmpFile.Name(), nil
 }
 
 // getExpectedChecksum downloads and parses the checksums.txt file to find the expected hash for the given asset.
-func getExpectedChecksum(ctx context.Context, rel *github.Release, assetName string) (string, error) {
+func getExpectedChecksum(ctx context.Context, rel *github.Release, assetName string) ([]byte, error) {
 	// Find the checksums.txt asset
 	var checksumAsset *github.Asset
 	for _, asset := range rel.Assets {
@@ -314,19 +321,19 @@ func getExpectedChecksum(ctx context.Context, rel *github.Release, assetName str
 	}
 
 	if checksumAsset == nil {
-		return "", fmt.Errorf("%w: checksums.txt not found in release", ErrChecksumNotFound)
+		return nil, fmt.Errorf("%w: checksums.txt not found in release", ErrChecksumNotFound)
 	}
 
 	// Download checksums.txt
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, checksumAsset.BrowserDownloadURL, nil)
 	if err != nil {
-		return "", fmt.Errorf("failed to create request for checksums: %w", err)
+		return nil, fmt.Errorf("failed to create request for checksums: %w", err)
 	}
 
 	client := &http.Client{Timeout: 30 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("failed to download checksums: %w", err)
+		return nil, fmt.Errorf("failed to download checksums: %w", err)
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
@@ -335,11 +342,12 @@ func getExpectedChecksum(ctx context.Context, rel *github.Release, assetName str
 	}()
 
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("failed to download checksums: status code %d", resp.StatusCode)
+		return nil, fmt.Errorf("failed to download checksums: status code %d", resp.StatusCode)
 	}
 
 	// Parse checksums.txt to find the hash for our asset
 	scanner := bufio.NewScanner(resp.Body)
+	var expected []byte
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 		if line == "" {
@@ -355,15 +363,24 @@ func getExpectedChecksum(ctx context.Context, rel *github.Release, assetName str
 		// Trim any additional leading whitespace from filename
 		filename = strings.TrimLeft(filename, " ")
 		if filename == assetName {
-			return hash, nil
+			decoded, err := hex.DecodeString(hash)
+			if err != nil || len(decoded) != sha256.Size {
+				return nil, fmt.Errorf("%w: invalid SHA-256 for %s", ErrChecksumNotFound, assetName)
+			}
+			if expected != nil {
+				return nil, fmt.Errorf("%w: ambiguous checksum for %s", ErrChecksumNotFound, assetName)
+			}
+			expected = decoded
 		}
 	}
 
 	if err := scanner.Err(); err != nil {
-		return "", fmt.Errorf("error reading checksums: %w", err)
+		return nil, fmt.Errorf("error reading checksums: %w", err)
 	}
-
-	return "", fmt.Errorf("%w: no checksum found for %s", ErrChecksumNotFound, assetName)
+	if expected == nil {
+		return nil, fmt.Errorf("%w: no checksum found for %s", ErrChecksumNotFound, assetName)
+	}
+	return expected, nil
 }
 
 // replaceBinary extracts the binary from the archive (tar.gz or zip) and replaces the current executable.

@@ -60,7 +60,7 @@ It uses the Slack "Sign in on mobile" QR code flow.
    name** in the upper-left corner.
 2. Choose **Sign in on mobile**.
 3. Slack displays a QR code.  **Right-click the QR code image** and choose
-   **Copy Image**.
+   **Copy Image URL**.
 4. Switch to the Slackdump terminal — it will be showing a text field titled
    "Paste QR code image data into this field".
 5. Paste the copied image data into that field and press **Enter**.

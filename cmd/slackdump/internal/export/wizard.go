@@ -72,7 +72,7 @@ func (fl *exportFlags) configuration() cfgui.Configuration {
 				{
 					Name:        "Export Token",
 					Value:       fl.ExportToken,
-					Description: "File export token to append to each of the file URLs",
+					Description: "File export token embedded in file URLs; sharing the export shares access",
 					Inline:      true,
 					Updater:     updaters.NewString(&fl.ExportToken, "", false, structures.ValidateToken),
 				},

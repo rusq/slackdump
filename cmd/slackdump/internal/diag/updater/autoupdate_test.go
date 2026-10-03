@@ -20,6 +20,7 @@ import (
 	"archive/zip"
 	"compress/gzip"
 	"context"
+	"encoding/hex"
 	"io"
 	"log/slog"
 	"net/http"
@@ -232,7 +233,7 @@ func TestGetExpectedChecksum(t *testing.T) {
 				t.Errorf("getExpectedChecksum() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !tt.wantErr && hash != tt.wantHash {
+			if !tt.wantErr && hex.EncodeToString(hash) != tt.wantHash {
 				t.Errorf("getExpectedChecksum() hash = %v, want %v", hash, tt.wantHash)
 			}
 		})
@@ -272,7 +273,7 @@ func TestDownloadAssetWithChecksum(t *testing.T) {
 			name:            "valid download without checksum file",
 			assetData:       "0",
 			includeChecksum: false,
-			wantErr:         false, // Should succeed with warning
+			wantErr:         true, // Verification is mandatory.
 		},
 	}
 

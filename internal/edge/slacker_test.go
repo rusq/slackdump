@@ -221,7 +221,7 @@ func TestClient_getConversationsContext(t *testing.T) {
 						form, _ := url.ParseQuery(string(body))
 
 						switch endpoint {
-						case "client.userBoot":
+						case "client.init":
 							_, _ = io.WriteString(w, `{"ok":true,"channels":[]}`)
 						case "im.list":
 							_, _ = io.WriteString(w, `{"ok":true,"ims":[]}`)
@@ -262,7 +262,7 @@ func TestClient_getConversationsContext(t *testing.T) {
 						endpoint := strings.TrimPrefix(r.URL.Path, "/")
 						w.Header().Set("Content-Type", "application/json")
 						switch endpoint {
-						case "client.userBoot":
+						case "client.init":
 							_, _ = io.WriteString(w, `{"ok":true,"channels":[{"id":"CBOOT","name":"boot","is_channel":true},{"id":"X1","name":"dup","is_channel":true}]}`)
 						case "im.list":
 							_, _ = io.WriteString(w, `{"ok":true,"ims":[{"id":"D1","is_im":true},{"id":"X1","is_im":true}]}`)
@@ -314,7 +314,7 @@ func TestClient_getConversationsContext(t *testing.T) {
 						form, _ := url.ParseQuery(string(body))
 
 						switch endpoint {
-						case "client.userBoot":
+						case "client.init":
 							_, _ = io.WriteString(w, `{"ok":true,"channels":[{"id":"G_SEEN","name":"seen","is_mpim":true}]}`)
 						case "im.list", "mpim.list":
 							_, _ = io.WriteString(w, `{"ok":true}`)
@@ -362,7 +362,7 @@ func TestClient_getConversationsContext(t *testing.T) {
 						endpoint := strings.TrimPrefix(r.URL.Path, "/")
 						w.Header().Set("Content-Type", "application/json")
 						switch endpoint {
-						case "client.userBoot":
+						case "client.init":
 							_, _ = io.WriteString(w, `{"ok":true,"channels":[{"id":"CBOOT","name":"boot","is_channel":true}]}`)
 						case "im.list", "mpim.list":
 							_, _ = io.WriteString(w, `{"ok":true}`)
@@ -386,7 +386,7 @@ func TestClient_getConversationsContext(t *testing.T) {
 						endpoint := strings.TrimPrefix(r.URL.Path, "/")
 						w.Header().Set("Content-Type", "application/json")
 						switch endpoint {
-						case "client.userBoot":
+						case "client.init":
 							_, _ = io.WriteString(w, `{"ok":true,"channels":[{"id":"CBOOT","name":"boot","is_channel":true}]}`)
 						case "im.list", "mpim.list":
 							_, _ = io.WriteString(w, `{"ok":true}`)
@@ -459,7 +459,7 @@ func TestClient_getConversationsContext(t *testing.T) {
 			form, _ := url.ParseQuery(string(body))
 
 			switch endpoint {
-			case "client.userBoot":
+			case "client.init":
 				_, _ = io.WriteString(w, `{"ok":true,"channels":[{"id":"CBOOT","name":"boot","is_channel":true}]}`)
 			case "search.modules.channels":
 				st.mu.Lock()

@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 
 	br "github.com/pkg/browser"
 
@@ -46,8 +47,19 @@ var CmdView = &base.Command{
 
 var listenAddr string
 
+type stringList []string
+
+func (s *stringList) String() string { return strings.Join(*s, ",") }
+func (s *stringList) Set(value string) error {
+	*s = append(*s, value)
+	return nil
+}
+
+var allowHosts stringList
+
 func init() {
 	CmdView.Flag.StringVar(&listenAddr, "listen", "127.0.0.1:8080", "address to listen on")
+	CmdView.Flag.Var(&allowHosts, "allow-host", "additional exact Host header allowed to access the viewer (repeatable)")
 }
 
 func runView(ctx context.Context, cmd *base.Command, args []string) error {
@@ -72,7 +84,7 @@ func runView(ctx context.Context, cmd *base.Command, args []string) error {
 	defer src.Close()
 
 	stoppb := bootstrap.TimedSpinner(ctx, os.Stdout, "Slackdump Viewer is loading files", -1, 0)
-	v, err := viewer.New(ctx, listenAddr, src)
+	v, err := viewer.New(ctx, listenAddr, src, viewer.WithAllowedHosts([]string(allowHosts)...))
 	if err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return err

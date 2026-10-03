@@ -261,11 +261,11 @@ func valSixDigits(s string) error {
 }
 
 func (*Huh) RequestQR(ctx context.Context, _ io.Writer) (string, error) {
-	const description = `In logged in Slack Client or Web:
-  1. click the username in the upper left corner;
+	const description = `In a logged-in Slack desktop app or web client:
+  1. click your workspace name (not logo) in the upper left corner;
   2. choose 'Sign in on mobile';
   3. right-click the QR code image;
-  4. choose Copy Image URL.`
+  4. choose 'Copy Image URL'.`
 
 	var imageData string
 	q := huh.NewForm(huh.NewGroup(

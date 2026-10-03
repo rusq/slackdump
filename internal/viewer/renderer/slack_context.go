@@ -61,7 +61,11 @@ func (s *Slack) metImage(ie slack.MixedElement) (string, string, error) {
 	if s.routes != nil {
 		uri = s.routes.RewriteSlackURL(uri)
 	}
-	return fmt.Sprintf(`<img src="%s" alt="%s">`, uri, e.AltText), "", nil
+	safeURI, valid := safeURL(uri, true)
+	if !valid {
+		return escape(e.AltText), "", nil
+	}
+	return fmt.Sprintf(`<img src="%s" alt="%s">`, escape(safeURI), escape(e.AltText)), "", nil
 }
 
 func (*Slack) metText(ie slack.MixedElement) (string, string, error) {
@@ -69,5 +73,5 @@ func (*Slack) metText(ie slack.MixedElement) (string, string, error) {
 	if !ok {
 		return "", "", NewErrIncorrectType(&slack.TextBlockObject{}, ie)
 	}
-	return e.Text, "", nil
+	return escape(e.Text), "", nil
 }

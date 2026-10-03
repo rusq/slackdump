@@ -32,7 +32,6 @@ import (
 	"github.com/joho/godotenv"
 
 	_ "modernc.org/sqlite"
-	// _ "github.com/mattn/go-sqlite3"
 
 	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/apiconfig"
 	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/archive"
@@ -93,6 +92,8 @@ func main() {
 
 	flag.Usage = base.Usage
 	flag.Parse()
+
+	fmt.Println(cfg.Version)
 
 	args := flag.Args()
 	if len(args) < 1 {
