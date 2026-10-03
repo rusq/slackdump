@@ -40,7 +40,7 @@ Improved resume and backup workflows by adding resume-time entity deduplication,
 ## Individual Contributors
 
 ### [@ChrisEdwards](https://github.com/ChrisEdwards) - Chris Edwards
-Fixed a critical panic issue when threads have no replies in the specified time range.
+Fixed critical panics when threads have no replies in the specified time range or during text conversion.
 
 ### [@errge](https://github.com/errge) - Gergely Risko
 Updated Dockerfile to use golang 1.21, keeping the Docker build environment current.
@@ -78,9 +78,6 @@ Contributed the Silent logger implementation for quieter operation modes.
 ### [@snova-jamesv](https://github.com/snova-jamesv)
 Clarified the login step in quickstart.md to reduce user confusion during initial setup.
 
-### [@ChrisEdwards](https://github.com/ChrisEdwards) - Chris Edwards
-Fix the panic in text conversion, when the thread has no replies in the time range.
-
 ### [@juzhiyuan](https://github.com/juzhiyuan) - Zhi Yuan Ju (琚致远)
 Fix incorrect instructions for the Sign On on Mobile.
 
@@ -99,9 +96,18 @@ Added `slack-to-discord` to the Discord migration documentation.
 ### [@chawlz7](https://github.com/chawlz7) - Charles Spellman
 Added stale thread and channel filtering flags for faster resume runs on long-lived archives.
 
+### [@ZimbiX](https://github.com/ZimbiX) - Brendan Weibrecht
+Corrected the QR-code login instructions so users can copy the image URL from Slack's current interface.
+
+### [@aerickson](https://github.com/aerickson) - Andrew Erickson
+Fixed channel timelines so refreshed thread parents remain visible after direct thread resume.
+
+### [@thomasmaerz](https://github.com/thomasmaerz)
+Fixed database dedupe joins for non-null keys, restoring fast dedupe previews on archives with many duplicate channel users.
+
 ---
 
-**Total Contributors**: 32
+**Total Contributors**: 33
 
 This list is sorted by number of contributions. Every contribution, no matter how small, helps make Slackdump better for everyone!
 
