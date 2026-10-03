@@ -1,5 +1,67 @@
 # What's New?
 
+## v4.5.0
+
+### New Features
+
+- **More flexible database deduplication**: `slackdump tools dedupe` now
+  supports `-mode message-key`, which collapses messages by channel and
+  timestamp. This is useful after merging exports where Slack regenerated
+  volatile JSON fields. It remains opt-in: it keeps the latest row and can
+  discard older edited or reaction variants with the same timestamp.
+
+- **Codex MCP project scaffolding**: `slackdump mcp -new codex <directory>`
+  creates a project-scoped `.codex/config.toml` and bundled Slackdump skills.
+  The Copilot scaffold and documentation now use VS Code's `.mcp.json` and
+  `mcpServers` configuration format.
+
+- **Viewer landing preference**: the live viewer now offers a Settings control
+  to open conversations at the oldest message (the default) or the latest
+  message, plus a one-time **Jump to latest** action. The preference is stored
+  in browser local storage and never changes the archive or static HTML output.
+
+### Security and Upgrade Notes
+
+The security fixes in this release were informed by a security report compiled
+by Cornelius Roemer. We thank Cornelius for the analysis that served as the
+basis for this work.
+
+- **Viewer host protection**: `slackdump view` now accepts only localhost,
+  loopback hosts, and the host named by `-listen` by default. If you expose the
+  viewer through a LAN address or reverse proxy, repeat
+  `-allow-host <hostname-or-ip>` for each expected Host header.
+
+- **Safer viewer and static HTML output**: viewer responses use security
+  headers, archived Canvas markup is sanitized and sandboxed, and static
+  Canvas attachments are written as sanitized documents.
+
+- **Fail-closed self-update verification**: `slackdump tools update` now
+  requires one valid, unambiguous SHA-256 entry in `checksums.txt` before it
+  extracts a downloaded release asset. Release publishers must include that
+  file and an entry for every installable asset.
+
+- **Export credential warning**: when `-export-token` is used, Slackdump now
+  warns that the token is embedded in file URLs; sharing that export also shares
+  the credential's access. Download error messages also redact URL credentials.
+
+- **Go 1.26 is now required** to build Slackdump from source.
+
+### Bug Fixes
+
+- Fixed a conversation pipeline shutdown deadlock and ensured cancellation
+  stops queued channel and thread work cleanly.
+- Fixed channel timelines so they retain empty thread parents and show the
+  refreshed parent after a direct thread resume.
+- `slackdump tools dedupe` now uses index-friendly predicates for non-null
+  keys, preventing very slow preview runs on archives with many duplicate
+  channel-user rows.
+- Archiving with `-channel-users` now treats Slack's `user_not_found` response
+  as non-fatal and stores de-duplicated channel membership lists.
+- Export, conversion, and merge workflows now skip Slack `tombstone`,
+  `hidden_by_limit`, and `external` file records instead of failing.
+- Updated the Slack Edge bootstrap endpoint to `client.init`, improving
+  compatibility with current Slack responses.
+
 ## v4.4.0
 
 ### New Features
