@@ -298,7 +298,11 @@ func (cs *Stream) canvasDiscussions(ctx context.Context, proc processor.Conversa
 		roots, err = canvasClient.CanvasThreadRoots(ctx, fileID)
 		return err
 	}); err != nil {
-		return newAPIError("canvas.threadRoots", err)
+		err = newAPIError("canvas.threadRoots", err)
+		if canvasErrorIsFatal(err) {
+			sendResult(ctx, results, Result{Type: RTCanvasThread, ChannelID: hiddenID, Err: err})
+		}
+		return err
 	}
 	roots, err := cs.filterCanvasRoots(roots, ownerReq)
 	if err != nil {

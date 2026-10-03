@@ -28,6 +28,7 @@ import (
 	"github.com/rusq/fsadapter"
 
 	"github.com/rusq/slackdump/v4/internal/chunk"
+	"github.com/rusq/slackdump/v4/internal/convert/transform/fileproc"
 	"github.com/rusq/slackdump/v4/internal/fixtures"
 	"github.com/rusq/slackdump/v4/internal/nametmpl"
 )
@@ -118,11 +119,13 @@ func TestDumpConverter_convertCanvas(t *testing.T) {
 		ThreadTimestamp: "1700000000.000001",
 		ReplyCount:      1,
 		Text:            "root",
+		Files:           []slack.File{{ID: "FROOT", Name: "root.txt", URLPrivateDownload: "https://example.com/root.txt"}},
 	}}
 	reply := slack.Message{Msg: slack.Msg{
 		Timestamp:       "1700000001.000001",
 		ThreadTimestamp: root.Timestamp,
 		Text:            "reply",
+		Files:           []slack.File{{ID: "FREPLY", Name: "reply.txt", URLPrivateDownload: "https://example.com/reply.txt"}},
 	}}
 	src := canvasDumpSource{
 		owner:  owner,
@@ -140,7 +143,8 @@ func TestDumpConverter_convertCanvas(t *testing.T) {
 			output := tt.output(t)
 			fsa, err := fsadapter.New(output)
 			require.NoError(t, err)
-			cvt, err := NewDump(fsa, src)
+			fp := fileproc.NewWithPathFn(nil, source.DumpFilepath)
+			cvt, err := NewDump(fsa, src, DumpWithPipeline(fp.PathUpdateFunc))
 			require.NoError(t, err)
 			require.NoError(t, cvt.Convert(t.Context(), owner.ID, ""))
 			require.NoError(t, fsa.Close())
@@ -159,6 +163,14 @@ func TestDumpConverter_convertCanvas(t *testing.T) {
 			}
 			require.Len(t, got, 2)
 			require.Equal(t, "reply", got[1].Text)
+			require.Equal(t, source.DumpFilepath(owner, &root.Files[0]), got[0].Files[0].URLPrivateDownload)
+			require.Equal(t, source.DumpFilepath(owner, &reply.Files[0]), got[1].Files[0].URLPrivateDownload)
+			it, err = canvas.CanvasMessages(t.Context(), "CCANVAS")
+			require.NoError(t, err)
+			for m, err := range it {
+				require.NoError(t, err)
+				require.Equal(t, source.DumpFilepath(owner, &root.Files[0]), m.Files[0].URLPrivateDownload)
+			}
 		})
 	}
 }

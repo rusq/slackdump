@@ -18,6 +18,7 @@ package stream
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -109,6 +110,50 @@ func TestStream_channelWorker(t *testing.T) {
 	result := <-results
 	assert.Equal(t, RTChannel, result.Type)
 	assert.NoError(t, result.Err)
+
+	for _, tt := range []struct {
+		name  string
+		err   error
+		fatal bool
+	}{
+		{"discovery timeout", fmt.Errorf("request: %w", context.DeadlineExceeded), true},
+		{"discovery cancellation", fmt.Errorf("request: %w", context.Canceled), true},
+		{"nonfatal discovery failure", errors.New("canvas unavailable"), false},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			cl := mock_client.NewMockSlack(ctrl)
+			proc := mock_processor.NewMockConversations(ctrl)
+			cm := mock_processor.NewMockCanvasMessenger(ctrl)
+			cl.EXPECT().GetConversationInfoContext(gomock.Any(), gomock.Any()).Return(owner, nil)
+			cl.EXPECT().GetUsersInConversationContext(gomock.Any(), gomock.Any()).Return(nil, "", nil)
+			proc.EXPECT().ChannelInfo(gomock.Any(), owner, "").Return(nil)
+			proc.EXPECT().ChannelUsers(gomock.Any(), owner.ID, "", []string(nil)).Return(nil)
+			cl.EXPECT().GetFileInfoContext(gomock.Any(), "FCANVAS", 0, 1).Return(&slack.File{ID: "FCANVAS"}, nil, nil, nil)
+			proc.EXPECT().Files(gomock.Any(), owner, slack.Message{}, []slack.File{{ID: "FCANVAS"}}).Return(nil)
+			if !tt.fatal {
+				cl.EXPECT().GetConversationHistoryContext(gomock.Any(), gomock.Any()).Return(&slack.GetConversationHistoryResponse{SlackResponse: slack.SlackResponse{Ok: true}}, nil)
+				proc.EXPECT().Messages(gomock.Any(), owner.ID, 0, true, []slack.Message(nil)).Return(nil)
+			}
+			cs := New(&canvasSlack{Slack: cl, supported: true, err: tt.err}, network.NoLimits)
+			reqs := make(chan channelRequest, 1)
+			reqs <- channelRequest{sl: structures.SlackLink{Channel: owner.ID}}
+			close(reqs)
+			results := make(chan Result, 2)
+			cs.channelWorker(t.Context(), &canvasConversations{proc, cm}, results, make(chan ordinaryThreadRequest), make(chan canvasThreadRequest), make(chan canvasThreadResult), reqs)
+			require.NoError(t, t.Context().Err(), "outer context must remain active")
+			require.Len(t, results, 1)
+			result := <-results
+			if tt.fatal {
+				require.Equal(t, RTCanvasThread, result.Type)
+				require.Equal(t, "CCANVAS", result.ChannelID)
+				require.ErrorIs(t, result.Err, tt.err)
+			} else {
+				require.Equal(t, RTChannel, result.Type)
+				require.NoError(t, result.Err)
+			}
+		})
+	}
 }
 
 func TestStream_channelWorker_canvasBypassesOrdinaryThreadBacklog(t *testing.T) {
@@ -415,6 +460,14 @@ func TestStream_canvasDiscussions(t *testing.T) {
 	unsupported := New(&canvasSlack{Slack: ms}, network.NoLimits)
 	err = unsupported.canvasDiscussions(t.Context(), mc, cm, threadC, completed, results, channelRequest{}, owner, "FCANVAS")
 	require.ErrorIs(t, err, client.ErrOpNotSupported)
+
+	t.Run("cancelled discovery does not block on results", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(t.Context())
+		cancel()
+		cs := New(&canvasSlack{Slack: ms, supported: true, err: context.Canceled}, network.NoLimits)
+		err := cs.canvasDiscussions(ctx, mc, cm, make(chan canvasThreadRequest), make(chan canvasThreadResult), make(chan Result), channelRequest{}, owner, "FCANVAS")
+		require.ErrorIs(t, err, context.Canceled)
+	})
 
 	t.Run("processor failure publishes result", func(t *testing.T) {
 		ctrl := gomock.NewController(t)

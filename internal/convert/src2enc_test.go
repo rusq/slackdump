@@ -17,19 +17,28 @@ package convert
 
 import (
 	"context"
+	"fmt"
 	"iter"
+	"log/slog"
+	"path/filepath"
 	"slices"
 	"testing"
 	"testing/fstest"
 	"time"
 
+	"github.com/jmoiron/sqlx"
 	"github.com/rusq/fsadapter"
 	"github.com/rusq/slackdump/v4/source/mock_source"
 
 	"github.com/rusq/slack"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
+	_ "modernc.org/sqlite"
 
+	"github.com/rusq/slackdump/v4/internal/chunk"
+	"github.com/rusq/slackdump/v4/internal/chunk/backend/dbase"
+	"github.com/rusq/slackdump/v4/internal/chunk/backend/dbase/repository"
+	"github.com/rusq/slackdump/v4/internal/chunk/backend/directory"
 	"github.com/rusq/slackdump/v4/internal/fasttime"
 	"github.com/rusq/slackdump/v4/internal/structures"
 	"github.com/rusq/slackdump/v4/mocks/mock_processor"
@@ -248,31 +257,141 @@ func canvasMessageSeq(messages []slack.Message) iter.Seq2[slack.Message, error] 
 }
 
 func Test_encodeCanvasMessages(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	rec := mock_processor.NewMockConversations(ctrl)
-	cm := mock_processor.NewMockCanvasMessenger(ctrl)
-	root := slack.Message{Msg: slack.Msg{
-		Timestamp:  "123.456",
-		ReplyCount: 1,
-		Text:       "root",
-	}}
-	reply := slack.Message{Msg: slack.Msg{
-		Timestamp:       "124.456",
-		ThreadTimestamp: root.Timestamp,
-		Text:            "reply",
-	}}
-	normalisedRoot := root
-	normalisedRoot.ThreadTimestamp = root.Timestamp
-	src := canvasTestSource{
-		roots: []slack.Message{root},
-		threads: map[string][]slack.Message{
-			root.Timestamp: {normalisedRoot, reply},
-		},
-	}
 	owner := structures.ChannelFromID("COWNER")
+	t.Run("root before discussion", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		rec := mock_processor.NewMockConversations(ctrl)
+		cm := mock_processor.NewMockCanvasMessenger(ctrl)
+		root := slack.Message{Msg: slack.Msg{
+			Timestamp:  "123.456",
+			ReplyCount: 1,
+			Text:       "root",
+		}}
+		reply := slack.Message{Msg: slack.Msg{
+			Timestamp:       "124.456",
+			ThreadTimestamp: root.Timestamp,
+			Text:            "reply",
+		}}
+		normalisedRoot := root
+		normalisedRoot.ThreadTimestamp = root.Timestamp
+		src := canvasTestSource{
+			roots: []slack.Message{root},
+			threads: map[string][]slack.Message{
+				root.Timestamp: {normalisedRoot, reply},
+			},
+		}
+		gomock.InOrder(
+			cm.EXPECT().CanvasMessages(gomock.Any(), "CCANVAS", 1, true, []slack.Message{normalisedRoot}).Return(nil),
+			cm.EXPECT().CanvasThreadMessages(gomock.Any(), "CCANVAS", normalisedRoot, true, []slack.Message{normalisedRoot, reply}).Return(nil),
+		)
 
-	cm.EXPECT().CanvasThreadMessages(gomock.Any(), "CCANVAS", normalisedRoot, true, []slack.Message{normalisedRoot, reply}).Return(nil)
-	cm.EXPECT().CanvasMessages(gomock.Any(), "CCANVAS", 1, true, []slack.Message{normalisedRoot}).Return(nil)
+		require.NoError(t, encodeCanvasMessages(t.Context(), rec, cm, src, owner, "CCANVAS"))
+	})
 
-	require.NoError(t, encodeCanvasMessages(t.Context(), rec, cm, src, owner, "CCANVAS"))
+	for _, tt := range []struct {
+		name    string
+		roots   int
+		replies int
+	}{
+		{"multiple discussions", 2, 1},
+		{"multiple root and reply pages", defaultChunkSize + 1, defaultChunkSize + 1},
+		{"empty discussions", 2, 0},
+		{"no roots", 0, 0},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			src := canvasTestSource{threads: make(map[string][]slack.Message)}
+			for i := range tt.roots {
+				root := slack.Message{Msg: slack.Msg{
+					Timestamp:  fmt.Sprintf("%d.000001", 1700000000+i),
+					ReplyCount: 1,
+				}}
+				src.roots = append(src.roots, root)
+				for j := range tt.replies {
+					src.threads[root.Timestamp] = append(src.threads[root.Timestamp], slack.Message{Msg: slack.Msg{
+						Timestamp:       fmt.Sprintf("%d.%06d", 1800000000+i, j+1),
+						ThreadTimestamp: root.Timestamp,
+						Text:            "reply",
+					}})
+				}
+			}
+			cd, err := chunk.CreateDir(t.TempDir())
+			require.NoError(t, err)
+			t.Cleanup(func() { require.NoError(t, cd.Close()) })
+			enc := directory.NewERC(cd, slog.Default())
+			t.Cleanup(func() { require.NoError(t, enc.Close()) })
+			recorder := chunk.NewCustomRecorder(enc)
+			require.NoError(t, encodeCanvasMessages(t.Context(), recorder, recorder, src, owner, "CCANVAS"))
+			got, err := cd.CanvasMessages(t.Context(), "CCANVAS")
+			require.NoError(t, err)
+			require.Len(t, got, tt.roots)
+			for _, root := range src.roots {
+				got, err := cd.CanvasThreadMessages(t.Context(), "CCANVAS", root.Timestamp)
+				require.NoError(t, err)
+				// The directory source returns the parent alongside replies.
+				require.Len(t, got, tt.replies+1)
+			}
+		})
+	}
+}
+
+// canvasCheckEncoder checks reassembled chunks before forwarding them to ERC.
+type canvasCheckEncoder func(context.Context, *chunk.Chunk) error
+
+func (f canvasCheckEncoder) Encode(ctx context.Context, c *chunk.Chunk) error {
+	return f(ctx, c)
+}
+
+func Test_encodeCanvasThreadMessages(t *testing.T) {
+	for _, count := range []int{0, defaultChunkSize, 2 * defaultChunkSize, defaultChunkSize + 1} {
+		t.Run(fmt.Sprintf("database round trip %d messages", count), func(t *testing.T) {
+			parent := slack.Message{Msg: slack.Msg{Timestamp: "1700000000.000001", ThreadTimestamp: "1700000000.000001", ReplyCount: max(1, count), Text: "parent"}}
+			messages := make([]slack.Message, 0, count)
+			for i := range count {
+				messages = append(messages, slack.Message{Msg: slack.Msg{Timestamp: fmt.Sprintf("1800000000.%06d", i+1), ThreadTimestamp: parent.Timestamp, Text: "reply"}})
+			}
+			src := canvasTestSource{threads: map[string][]slack.Message{parent.Timestamp: messages}}
+			dbpath := filepath.Join(t.TempDir(), "slackdump.sqlite")
+			conn, err := sqlx.Open(repository.Driver, dbpath)
+			require.NoError(t, err)
+			t.Cleanup(func() { _ = conn.Close() })
+			db, err := dbase.New(t.Context(), conn, dbase.SessionInfo{})
+			require.NoError(t, err)
+			t.Cleanup(func() { require.NoError(t, db.Close()) })
+			rec := chunk.NewCustomRecorder(db)
+			require.NoError(t, rec.CanvasMessages(t.Context(), "CCANVAS", 1, true, []slack.Message{parent}))
+			found, err := encodeCanvasThreadMessages(t.Context(), rec, rec, src, structures.ChannelFromID("COWNER"), "CCANVAS", &parent)
+			require.NoError(t, err)
+			require.Equal(t, count > 0, found)
+			require.NoError(t, db.Finish())
+			require.NoError(t, conn.Close())
+			loaded, err := dbase.Open(t.Context(), dbpath)
+			require.NoError(t, err)
+			t.Cleanup(func() { require.NoError(t, loaded.Close()) })
+			cd, err := chunk.CreateDir(t.TempDir())
+			require.NoError(t, err)
+			t.Cleanup(func() { require.NoError(t, cd.Close()) })
+			enc := directory.NewERC(cd, slog.Default())
+			t.Cleanup(func() { require.NoError(t, enc.Close()) })
+			finals := 0
+			check := canvasCheckEncoder(func(ctx context.Context, c *chunk.Chunk) error {
+				if c.Type == chunk.CCanvasThreadMessages {
+					require.NotNil(t, c.Parent)
+					require.Equal(t, parent, *c.Parent)
+					require.Equal(t, parent.Timestamp, c.ThreadTS)
+					if c.IsLast {
+						finals++
+					}
+				}
+				return enc.Encode(ctx, c)
+			})
+			require.NoError(t, loaded.ToChunk(t.Context(), check, 1))
+			require.Equal(t, 1, finals)
+			roots, err := cd.CanvasMessages(t.Context(), "CCANVAS")
+			require.NoError(t, err)
+			require.Equal(t, []slack.Message{parent}, roots)
+			got, err := cd.CanvasThreadMessages(t.Context(), "CCANVAS", parent.Timestamp)
+			require.NoError(t, err)
+			require.Equal(t, append([]slack.Message{parent}, messages...), got)
+		})
+	}
 }

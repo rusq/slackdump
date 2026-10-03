@@ -172,7 +172,7 @@ func (s *DumpConverter) convertCanvas(ctx context.Context, owner *slack.Channel)
 	if err != nil {
 		return err
 	}
-	if err := pipeline(s.pipeline).apply(hiddenChannelID, "", roots); err != nil {
+	if err := pipeline(s.pipeline).apply(owner.ID, "", roots); err != nil {
 		return fmt.Errorf("canvas: %w", err)
 	}
 	msgs := make([]types.Message, 0, len(roots))
@@ -191,7 +191,7 @@ func (s *DumpConverter) convertCanvas(ctx context.Context, owner *slack.Channel)
 			if err != nil {
 				return err
 			}
-			if err := pipeline(s.pipeline).apply(hiddenChannelID, threadTS, thread); err != nil {
+			if err := pipeline(s.pipeline).apply(owner.ID, threadTS, thread); err != nil {
 				return fmt.Errorf("canvas thread: %w", err)
 			}
 			m.ThreadReplies = types.ConvertMsgs(thread)

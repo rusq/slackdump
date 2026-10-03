@@ -18,11 +18,13 @@ package stream
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
 	"github.com/rusq/slack"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 
 	"github.com/rusq/slackdump/v4/internal/client/mock_client"
@@ -127,6 +129,40 @@ func TestStream_ConversationsCB(t *testing.T) {
 }
 
 func TestStream_Conversations(t *testing.T) {
+	t.Run("canvas discovery timeout cancels queued channels", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		cl := mock_client.NewMockSlack(ctrl)
+		proc := mock_processor.NewMockConversations(ctrl)
+		cm := mock_processor.NewMockCanvasMessenger(ctrl)
+		owner := &slack.Channel{GroupConversation: slack.GroupConversation{Conversation: slack.Conversation{ID: "COWNER"}}, Properties: &slack.Properties{Canvas: slack.Canvas{FileId: "FCANVAS"}}}
+		cl.EXPECT().GetConversationInfoContext(gomock.Any(), gomock.Any()).Return(owner, nil).AnyTimes()
+		cl.EXPECT().GetUsersInConversationContext(gomock.Any(), gomock.Any()).Return(nil, "", nil).AnyTimes()
+		proc.EXPECT().ChannelInfo(gomock.Any(), owner, "").Return(nil).AnyTimes()
+		proc.EXPECT().ChannelUsers(gomock.Any(), owner.ID, "", []string(nil)).Return(nil).AnyTimes()
+		cl.EXPECT().GetFileInfoContext(gomock.Any(), "FCANVAS", 0, 1).Return(&slack.File{ID: "FCANVAS"}, nil, nil, nil)
+		proc.EXPECT().Files(gomock.Any(), owner, slack.Message{}, []slack.File{{ID: "FCANVAS"}}).Return(nil)
+		discoveryErr := fmt.Errorf("HTTP request timed out: %w", context.DeadlineExceeded)
+		cs := New(&canvasSlack{Slack: cl, supported: true, err: discoveryErr}, network.NoLimits)
+		items := make(chan structures.EntityItem, msgChanSz+2)
+		for range msgChanSz + 2 {
+			items <- structures.EntityItem{Id: owner.ID}
+		}
+		close(items)
+		ctx, cancel := context.WithCancel(t.Context())
+		defer cancel()
+		done := make(chan error, 1)
+		go func() { done <- cs.Conversations(ctx, &canvasConversations{proc, cm}, items) }()
+		select {
+		case err := <-done:
+			require.ErrorIs(t, err, discoveryErr)
+			require.NoError(t, ctx.Err(), "failure must not depend on outer cancellation")
+		case <-time.After(3 * time.Second):
+			cancel()
+			<-done
+			t.Fatal("Conversations did not cancel and join its pipeline")
+		}
+	})
+
 	threadItem := structures.EntityItem{Id: "CTM1:1610000000.000000"}
 	threadChannel := &slack.Channel{GroupConversation: slack.GroupConversation{Conversation: slack.Conversation{ID: "CTM1"}}}
 	threadMessages := []slack.Message{{Msg: slack.Msg{

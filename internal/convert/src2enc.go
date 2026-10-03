@@ -278,6 +278,15 @@ func encodeCanvasMessages(ctx context.Context, rec processor.Conversations, cm p
 		if err := cm.CanvasMessages(ctx, hiddenChannelID, numThreads, isLast, roots); err != nil {
 			return err
 		}
+		// Register the root page's pending threads before any completion can
+		// release the canvas recorder.
+		for i := range roots {
+			if roots[i].ReplyCount > 0 {
+				if _, err := encodeCanvasThreadMessages(ctx, rec, cm, src, owner, hiddenChannelID, &roots[i]); err != nil {
+					return err
+				}
+			}
+		}
 		roots = make([]slack.Message, 0, defaultChunkSize)
 		numThreads = 0
 		return nil
@@ -291,13 +300,7 @@ func encodeCanvasMessages(ctx context.Context, rec processor.Conversations, cm p
 		}
 		roots = append(roots, root)
 		if root.ReplyCount > 0 {
-			found, err := encodeCanvasThreadMessages(ctx, rec, cm, src, owner, hiddenChannelID, &root)
-			if err != nil {
-				return err
-			}
-			if found {
-				numThreads++
-			}
+			numThreads++
 		}
 		if len(roots) == defaultChunkSize {
 			if err := flush(false); err != nil {
@@ -338,11 +341,14 @@ func encodeCanvasThreadMessages(ctx context.Context, rec processor.Conversations
 			}
 		}
 	}
-	if !found {
-		return false, nil
+	// Keep a parent row so database reassembly can recover the thread metadata,
+	// even for empty discussions and exact page boundaries.
+	if len(messages) == 0 {
+		messages = []slack.Message{*parent}
 	}
+	// Even an empty discussion must complete its registered pending thread.
 	if err := cm.CanvasThreadMessages(ctx, hiddenChannelID, *parent, true, messages); err != nil {
 		return false, err
 	}
-	return true, nil
+	return found, nil
 }
