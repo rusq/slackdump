@@ -143,6 +143,23 @@ func TestChunk_ID(t *testing.T) {
 			want:   srchFileChunkID,
 		},
 		{
+			name: "canvas messages",
+			fields: fields{
+				Type:      CCanvasMessages,
+				ChannelID: "CCANVAS",
+			},
+			want: "cmCCANVAS",
+		},
+		{
+			name: "canvas thread messages",
+			fields: fields{
+				Type:      CCanvasThreadMessages,
+				ChannelID: "CCANVAS",
+				ThreadTS:  "123.456",
+			},
+			want: "ctCCANVAS:123.456",
+		},
+		{
 			name: "unknown",
 			fields: fields{
 				Type:      ChunkType(254),

@@ -115,6 +115,20 @@ func (r *Routes) CanvasContent(id string) string {
 	return routePath("archives", id, "canvas", "content")
 }
 
+func (r *Routes) CanvasComments(id string) string {
+	if r != nil && r.mode == ModeStatic {
+		return routePath("archives", id, "canvas", "comments", "index.html")
+	}
+	return routePath("archives", id, "canvas", "comments")
+}
+
+func (r *Routes) CanvasComment(id, threadTS string) string {
+	if r != nil && r.mode == ModeStatic {
+		return routePath("archives", id, "canvas", "comments", threadTS, "index.html")
+	}
+	return routePath("archives", id, "canvas", "comments", threadTS)
+}
+
 func (r *Routes) File(id, filename string) string {
 	if r != nil && r.mode == ModeStatic {
 		return routePath("files", id, source.SanitizeFilename(filename))
@@ -155,6 +169,10 @@ func (r *Routes) RewriteSlackURL(src string) string {
 				return r.Canvas(channelID)
 			case len(parts) == 4 && parts[2] == "canvas" && parts[3] == "content":
 				return r.CanvasContent(channelID)
+			case len(parts) == 4 && parts[2] == "canvas" && parts[3] == "comments":
+				return r.CanvasComments(channelID)
+			case len(parts) == 5 && parts[2] == "canvas" && parts[3] == "comments":
+				return r.CanvasComment(channelID, parts[4])
 			case len(parts) >= 3:
 				ts := parts[2]
 				if strings.HasPrefix(ts, "p") {

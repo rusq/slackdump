@@ -98,6 +98,22 @@ func (rec *Recorder) Messages(ctx context.Context, channelID string, numThreads 
 	return nil
 }
 
+// CanvasMessages records a page of canvas discussion roots.
+func (rec *Recorder) CanvasMessages(ctx context.Context, hiddenChannelID string, numThreads int, isLast bool, m []slack.Message) error {
+	rec.mu.Lock()
+	defer rec.mu.Unlock()
+	ch := Chunk{
+		Type:       CCanvasMessages,
+		Timestamp:  time.Now().UnixNano(),
+		ChannelID:  hiddenChannelID,
+		IsLast:     isLast,
+		Count:      int32(len(m)),
+		NumThreads: int32(numThreads),
+		Messages:   m,
+	}
+	return rec.enc.Encode(ctx, &ch)
+}
+
 // Files is called for each file chunk that is retrieved. The parent message is
 // passed in as well.
 func (rec *Recorder) Files(ctx context.Context, channel *slack.Channel, parent slack.Message, f []slack.File) error {
@@ -139,6 +155,23 @@ func (rec *Recorder) ThreadMessages(ctx context.Context, channelID string, paren
 		return err
 	}
 	return nil
+}
+
+// CanvasThreadMessages records a page of a canvas discussion.
+func (rec *Recorder) CanvasThreadMessages(ctx context.Context, hiddenChannelID string, parent slack.Message, isLast bool, tm []slack.Message) error {
+	rec.mu.Lock()
+	defer rec.mu.Unlock()
+	ch := Chunk{
+		Type:      CCanvasThreadMessages,
+		Timestamp: time.Now().UnixNano(),
+		ChannelID: hiddenChannelID,
+		Parent:    &parent,
+		ThreadTS:  parent.ThreadTimestamp,
+		IsLast:    isLast,
+		Count:     int32(len(tm)),
+		Messages:  tm,
+	}
+	return rec.enc.Encode(ctx, &ch)
 }
 
 // ChannelInfo records a channel information.  threadTS should be set to

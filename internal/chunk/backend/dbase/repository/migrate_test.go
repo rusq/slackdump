@@ -38,6 +38,26 @@ func TestMigrate(t *testing.T) {
 		}
 	})
 
+	t.Run("adds canvas message types", func(t *testing.T) {
+		db, err := sql.Open(Driver, ":memory:")
+		require.NoError(t, err)
+		defer db.Close()
+		require.NoError(t, Migrate(t.Context(), db, true))
+
+		rows, err := db.QueryContext(t.Context(), `SELECT ID, NAME FROM TYPES WHERE ID IN (12, 13) ORDER BY ID`)
+		require.NoError(t, err)
+		defer rows.Close()
+		var got []string
+		for rows.Next() {
+			var id int
+			var name string
+			require.NoError(t, rows.Scan(&id, &name))
+			got = append(got, name)
+		}
+		require.NoError(t, rows.Err())
+		require.Equal(t, []string{"CANVAS_MESSAGES", "CANVAS_THREAD_MESSAGES"}, got)
+	})
+
 	t.Run("backfills file size from json", func(t *testing.T) {
 		ctx := context.Background()
 		db, err := sql.Open(Driver, ":memory:")
@@ -164,6 +184,10 @@ func TestMigrate(t *testing.T) {
 
 		if err := goose.DownContext(ctx, db, "migrations"); err != nil {
 			t.Fatalf("goose.DownContext() err = %v; want nil", err)
+		}
+
+		if err := goose.DownContext(ctx, db, "migrations"); err != nil {
+			t.Fatalf("second goose.DownContext() err = %v; want nil", err)
 		}
 
 		var count int

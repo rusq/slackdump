@@ -118,6 +118,50 @@ func Test_asmMessages(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "canvas roots retain canvas type and count discussions",
+			args: args{
+				ctx:  t.Context(),
+				conn: nil,
+				dbchunk: &repository.DBChunk{
+					ID:         12,
+					UnixTS:     1234567890,
+					TypeID:     chunk.CCanvasMessages,
+					NumRecords: 1,
+					ChannelID:  new("CCANVAS"),
+					Final:      true,
+				},
+			},
+			expectFn: func(m *mock_repository.MockMessageRepository) {
+				root := slack.Message{Msg: slack.Msg{
+					Timestamp:       "1234567890.000000",
+					ThreadTimestamp: "1234567890.000000",
+					ReplyCount:      1,
+				}}
+				m.EXPECT().AllForChunk(gomock.Any(), gomock.Any(), int64(12)).Return(
+					testutil.Slice2Seq2([]repository.DBMessage{{
+						ID:        1234567890000000,
+						ChannelID: "CCANVAS",
+						TS:        root.Timestamp,
+						Data:      testutil.MarshalJSON(t, &root),
+					}}),
+					nil,
+				)
+			},
+			want: &chunk.Chunk{
+				Type:       chunk.CCanvasMessages,
+				ChannelID:  "CCANVAS",
+				Timestamp:  1234567890,
+				Count:      1,
+				NumThreads: 1,
+				IsLast:     true,
+				Messages: []slack.Message{{Msg: slack.Msg{
+					Timestamp:       "1234567890.000000",
+					ThreadTimestamp: "1234567890.000000",
+					ReplyCount:      1,
+				}}},
+			},
+		},
+		{
 			name: "error",
 			args: args{
 				ctx:     t.Context(),

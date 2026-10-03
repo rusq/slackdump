@@ -62,6 +62,7 @@ type tracker interface {
 type datahandler interface {
 	processor.ChannelInformer
 	processor.Messenger
+	processor.CanvasMessenger
 	processor.Filer
 	counter
 	io.Closer
@@ -161,6 +162,25 @@ func (cv *Conversations) Messages(ctx context.Context, channelID string, numThre
 	return nil
 }
 
+// CanvasMessages records canvas discussion roots without treating the hidden
+// canvas channel as an ordinary conversation.
+func (cv *Conversations) CanvasMessages(ctx context.Context, hiddenChannelID string, numThreads int, isLast bool, mm []slack.Message) error {
+	id := chunk.ToFileID(hiddenChannelID, "", false)
+	r, err := cv.t.Recorder(id)
+	if err != nil {
+		return err
+	}
+	r.Add(numThreads)
+	if err := r.CanvasMessages(ctx, hiddenChannelID, numThreads, isLast, mm); err != nil {
+		return err
+	}
+	if isLast {
+		r.Dec()
+		return cv.finaliseCanvas(id)
+	}
+	return nil
+}
+
 // ThreadMessages is called for each of the thread messages that are
 // retrieved. The parent message is passed in as well.
 func (cv *Conversations) ThreadMessages(ctx context.Context, channelID string, parent slack.Message, threadOnly bool, isLast bool, tm []slack.Message) error {
@@ -186,6 +206,30 @@ func (cv *Conversations) ThreadMessages(ctx context.Context, channelID string, p
 		return cv.finalise(ctx, id)
 	}
 	return nil
+}
+
+// CanvasThreadMessages records a canvas discussion in the hidden canvas file.
+func (cv *Conversations) CanvasThreadMessages(ctx context.Context, hiddenChannelID string, parent slack.Message, isLast bool, tm []slack.Message) error {
+	id := chunk.ToFileID(hiddenChannelID, "", false)
+	r, err := cv.t.Recorder(id)
+	if err != nil {
+		return err
+	}
+	if err := r.CanvasThreadMessages(ctx, hiddenChannelID, parent, isLast, tm); err != nil {
+		return err
+	}
+	if isLast {
+		r.Dec()
+		return cv.finaliseCanvas(id)
+	}
+	return nil
+}
+
+func (cv *Conversations) finaliseCanvas(id chunk.FileID) error {
+	if cv.t.RefCount(id) > 0 {
+		return nil
+	}
+	return cv.t.Unregister(id)
 }
 
 // finalise closes the channel file if there are no more threads to process.

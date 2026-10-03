@@ -220,6 +220,16 @@ func (f *File) AllThreadMessages(channelID, threadTS string) ([]slack.Message, e
 	return f.allMessagesForID(threadID(channelID, threadTS))
 }
 
+// CanvasMessages returns canvas discussion roots from this chunk file.
+func (f *File) CanvasMessages(hiddenChannelID string) ([]slack.Message, error) {
+	return f.allMessagesForID(canvasID(hiddenChannelID))
+}
+
+// CanvasThreadMessages returns all recorded pages for a canvas discussion.
+func (f *File) CanvasThreadMessages(hiddenChannelID, threadTS string) ([]slack.Message, error) {
+	return f.allMessagesForID(canvasDiscussionID(hiddenChannelID, threadTS))
+}
+
 // ThreadParent returns the thread parent message for the given thread.  It
 // returns ErrNotFound if the thread is not found.
 func (f *File) ThreadParent(channelID, threadTS string) (*slack.Message, error) {

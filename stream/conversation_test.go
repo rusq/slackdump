@@ -18,11 +18,13 @@ package stream
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
 	"github.com/rusq/slack"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 
 	"github.com/rusq/slackdump/v4/internal/client/mock_client"
@@ -127,6 +129,40 @@ func TestStream_ConversationsCB(t *testing.T) {
 }
 
 func TestStream_Conversations(t *testing.T) {
+	t.Run("canvas discovery timeout cancels queued channels", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		cl := mock_client.NewMockSlack(ctrl)
+		proc := mock_processor.NewMockConversations(ctrl)
+		cm := mock_processor.NewMockCanvasMessenger(ctrl)
+		owner := &slack.Channel{GroupConversation: slack.GroupConversation{Conversation: slack.Conversation{ID: "COWNER"}}, Properties: &slack.Properties{Canvas: slack.Canvas{FileId: "FCANVAS"}}}
+		cl.EXPECT().GetConversationInfoContext(gomock.Any(), gomock.Any()).Return(owner, nil).AnyTimes()
+		cl.EXPECT().GetUsersInConversationContext(gomock.Any(), gomock.Any()).Return(nil, "", nil).AnyTimes()
+		proc.EXPECT().ChannelInfo(gomock.Any(), owner, "").Return(nil).AnyTimes()
+		proc.EXPECT().ChannelUsers(gomock.Any(), owner.ID, "", []string(nil)).Return(nil).AnyTimes()
+		cl.EXPECT().GetFileInfoContext(gomock.Any(), "FCANVAS", 0, 1).Return(&slack.File{ID: "FCANVAS"}, nil, nil, nil)
+		proc.EXPECT().Files(gomock.Any(), owner, slack.Message{}, []slack.File{{ID: "FCANVAS"}}).Return(nil)
+		discoveryErr := fmt.Errorf("HTTP request timed out: %w", context.DeadlineExceeded)
+		cs := New(&canvasSlack{Slack: cl, supported: true, err: discoveryErr}, network.NoLimits)
+		items := make(chan structures.EntityItem, msgChanSz+2)
+		for range msgChanSz + 2 {
+			items <- structures.EntityItem{Id: owner.ID}
+		}
+		close(items)
+		ctx, cancel := context.WithCancel(t.Context())
+		defer cancel()
+		done := make(chan error, 1)
+		go func() { done <- cs.Conversations(ctx, &canvasConversations{proc, cm}, items) }()
+		select {
+		case err := <-done:
+			require.ErrorIs(t, err, discoveryErr)
+			require.NoError(t, ctx.Err(), "failure must not depend on outer cancellation")
+		case <-time.After(3 * time.Second):
+			cancel()
+			<-done
+			t.Fatal("Conversations did not cancel and join its pipeline")
+		}
+	})
+
 	threadItem := structures.EntityItem{Id: "CTM1:1610000000.000000"}
 	threadChannel := &slack.Channel{GroupConversation: slack.GroupConversation{Conversation: slack.Conversation{ID: "CTM1"}}}
 	threadMessages := []slack.Message{{Msg: slack.Msg{
@@ -229,7 +265,7 @@ func Test_procChanMsg(t *testing.T) {
 	type args struct {
 		ctx context.Context
 		// proc    processor.Conversations // supplied by test
-		threadC chan request
+		threadC chan ordinaryThreadRequest
 		channel *slack.Channel
 		isLast  bool
 		mm      []slack.Message
@@ -247,7 +283,7 @@ func Test_procChanMsg(t *testing.T) {
 		args     args
 		skipFn   func(ctx context.Context, channelID, threadTS string, replyCount int) bool
 		expectFn func(mp *mock_processor.MockConversations)
-		checkFn  func(t *testing.T, threadC <-chan request, mm []slack.Message)
+		checkFn  func(t *testing.T, threadC <-chan ordinaryThreadRequest, mm []slack.Message)
 		want     int
 		wantErr  bool
 	}{
@@ -255,7 +291,7 @@ func Test_procChanMsg(t *testing.T) {
 			name: "empty messages slice",
 			args: args{
 				ctx:     t.Context(),
-				threadC: make(chan request),
+				threadC: make(chan ordinaryThreadRequest),
 				channel: TestChannel,
 				isLast:  true,
 				mm:      []slack.Message{},
@@ -268,7 +304,7 @@ func Test_procChanMsg(t *testing.T) {
 			name: "empty message slice, processor error",
 			args: args{
 				ctx:     t.Context(),
-				threadC: make(chan request),
+				threadC: make(chan ordinaryThreadRequest),
 				channel: TestChannel,
 				isLast:  true,
 				mm:      []slack.Message{},
@@ -282,7 +318,7 @@ func Test_procChanMsg(t *testing.T) {
 			name: "non-empty messages slice",
 			args: args{
 				ctx:     t.Context(),
-				threadC: make(chan request),
+				threadC: make(chan ordinaryThreadRequest),
 				channel: TestChannel,
 				isLast:  true,
 				mm:      fixtures.Load[[]slack.Message](fixtures.TestChannelEveryoneMessagesNativeExport),
@@ -296,7 +332,7 @@ func Test_procChanMsg(t *testing.T) {
 			name: "non-empty messages slice,files processor error",
 			args: args{
 				ctx:     t.Context(),
-				threadC: make(chan request),
+				threadC: make(chan ordinaryThreadRequest),
 				channel: TestChannel,
 				isLast:  true,
 				mm:      fixtures.Load[[]slack.Message](fixtures.TestChannelEveryoneMessagesNativeExport),
@@ -310,7 +346,7 @@ func Test_procChanMsg(t *testing.T) {
 			name: "non-empty messages slice, messages processor error",
 			args: args{
 				ctx:     t.Context(),
-				threadC: make(chan request),
+				threadC: make(chan ordinaryThreadRequest),
 				channel: TestChannel,
 				isLast:  true,
 				mm:      fixtures.Load[[]slack.Message](fixtures.TestChannelEveryoneMessagesNativeExport),
@@ -325,7 +361,7 @@ func Test_procChanMsg(t *testing.T) {
 			name: "skip complete thread",
 			args: args{
 				ctx:     t.Context(),
-				threadC: make(chan request),
+				threadC: make(chan ordinaryThreadRequest),
 				channel: TestChannel,
 				isLast:  true,
 				mm:      threadedMsg,
@@ -340,7 +376,7 @@ func Test_procChanMsg(t *testing.T) {
 			name: "do not skip incomplete thread",
 			args: args{
 				ctx:     t.Context(),
-				threadC: make(chan request, 1),
+				threadC: make(chan ordinaryThreadRequest, 1),
 				channel: TestChannel,
 				isLast:  true,
 				mm:      threadedMsg,
@@ -355,7 +391,7 @@ func Test_procChanMsg(t *testing.T) {
 			name: "thread request carries parent message",
 			args: args{
 				ctx:     t.Context(),
-				threadC: make(chan request, 1),
+				threadC: make(chan ordinaryThreadRequest, 1),
 				channel: TestChannel,
 				isLast:  true,
 				mm: []slack.Message{{Msg: slack.Msg{
@@ -370,13 +406,13 @@ func Test_procChanMsg(t *testing.T) {
 			expectFn: func(mp *mock_processor.MockConversations) {
 				mp.EXPECT().Messages(gomock.Any(), TestChannel.ID, 1, true, gomock.Any()).Times(1)
 			},
-			checkFn: func(t *testing.T, threadC <-chan request, mm []slack.Message) {
+			checkFn: func(t *testing.T, threadC <-chan ordinaryThreadRequest, mm []slack.Message) {
 				t.Helper()
 				parent := mm[0]
 				mm[0].Text = "mutated after enqueue"
 				req := <-threadC
-				assert.Equal(t, TestChannel.ID, req.sl.Channel)
-				assert.Equal(t, parent.ThreadTimestamp, req.sl.ThreadTS)
+				assert.Equal(t, TestChannel.ID, req.fetch.channelID)
+				assert.Equal(t, parent.ThreadTimestamp, req.fetch.threadTS)
 				if assert.NotNil(t, req.parent) {
 					assert.Equal(t, parent, *req.parent)
 				}
@@ -413,7 +449,7 @@ func Test_procChanMsg(t *testing.T) {
 		cause := errors.New("stop thread routing")
 		cancel(cause)
 
-		got, err := (&Stream{}).procChanMsg(ctx, mp, make(chan request), TestChannel, true, threadedMsg)
+		got, err := (&Stream{}).procChanMsg(ctx, mp, make(chan ordinaryThreadRequest), TestChannel, true, threadedMsg)
 		assert.Equal(t, 1, got)
 		assert.ErrorIs(t, err, cause)
 	})

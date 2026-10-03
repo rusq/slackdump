@@ -24,6 +24,7 @@ import (
 
 	"github.com/rusq/slack"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/rusq/slackdump/v4/internal/fixtures"
 	"github.com/rusq/slackdump/v4/internal/testutil"
@@ -177,4 +178,62 @@ func TestDirectory_Walk(t *testing.T) {
 			assert.ElementsMatch(t, tt.want, seen)
 		})
 	}
+}
+
+func TestDirectory_CanvasMessages(t *testing.T) {
+	root := slack.Message{Msg: slack.Msg{
+		Timestamp:       "1700000000.000001",
+		ThreadTimestamp: "1700000000.000001",
+		ReplyCount:      1,
+		Text:            "root",
+	}}
+	reply := slack.Message{Msg: slack.Msg{
+		Timestamp:       "1700000001.000001",
+		ThreadTimestamp: root.Timestamp,
+		Text:            "reply",
+	}}
+	rootWithoutReplies := slack.Message{Msg: slack.Msg{
+		Timestamp:       "1700000002.000001",
+		ThreadTimestamp: "1700000002.000001",
+		Text:            "root without replies",
+	}}
+	data := append(
+		testutil.MarshalJSON(t, Chunk{
+			Type:      CCanvasMessages,
+			ChannelID: "CCANVAS",
+			Messages:  []slack.Message{root, rootWithoutReplies},
+		}),
+		testutil.MarshalJSON(t, Chunk{
+			Type:      CCanvasThreadMessages,
+			ChannelID: "CCANVAS",
+			ThreadTS:  root.Timestamp,
+			Parent:    &root,
+			Messages:  []slack.Message{root, reply},
+		})...,
+	)
+	dir := testutil.PrepareTestDirectory(t, fstest.MapFS{
+		"CCANVAS.json.gz": &fstest.MapFile{Data: testutil.GZCompress(t, data)},
+	})
+	d, err := OpenDir(dir)
+	require.NoError(t, err)
+	defer d.Close()
+
+	roots, err := d.CanvasMessages(t.Context(), "CCANVAS")
+	require.NoError(t, err)
+	require.Len(t, roots, 2)
+	assert.Equal(t, "root", roots[0].Text)
+
+	thread, err := d.CanvasThreadMessages(t.Context(), "CCANVAS", root.Timestamp)
+	require.NoError(t, err)
+	require.Len(t, thread, 2)
+	assert.Equal(t, "reply", thread[1].Text)
+
+	thread, err = d.CanvasThreadMessages(t.Context(), "CCANVAS", rootWithoutReplies.Timestamp)
+	require.NoError(t, err)
+	require.Len(t, thread, 1)
+	assert.Equal(t, "root without replies", thread[0].Text)
+
+	messages, err := d.AllMessages(t.Context(), "CCANVAS")
+	require.NoError(t, err)
+	assert.Empty(t, messages)
 }

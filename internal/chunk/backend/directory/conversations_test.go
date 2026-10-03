@@ -22,6 +22,7 @@ import (
 	"testing"
 
 	"github.com/rusq/slack"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 
 	"github.com/rusq/slackdump/v4/internal/chunk"
@@ -404,6 +405,48 @@ func TestConversations_ThreadMessages(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestConversations_CanvasMessages(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	mt := NewMocktracker(ctrl)
+	mh := NewMockdatahandler(ctrl)
+	cv := &Conversations{t: mt, lg: slog.Default()}
+	id := chunk.ToFileID("CCANVAS", "", false)
+	root := slack.Message{Msg: slack.Msg{
+		Timestamp:       "1.0",
+		ThreadTimestamp: "1.0",
+		ReplyCount:      1,
+	}}
+
+	mt.EXPECT().Recorder(id).Return(mh, nil)
+	mh.EXPECT().Add(1).Return(2)
+	mh.EXPECT().CanvasMessages(gomock.Any(), "CCANVAS", 1, true, []slack.Message{root}).Return(nil)
+	mh.EXPECT().Dec().Return(1)
+	mt.EXPECT().RefCount(id).Return(1)
+
+	require.NoError(t, cv.CanvasMessages(t.Context(), "CCANVAS", 1, true, []slack.Message{root}))
+}
+
+func TestConversations_CanvasThreadMessages(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	mt := NewMocktracker(ctrl)
+	mh := NewMockdatahandler(ctrl)
+	cv := &Conversations{t: mt, lg: slog.Default()}
+	id := chunk.ToFileID("CCANVAS", "", false)
+	root := slack.Message{Msg: slack.Msg{
+		Timestamp:       "1.0",
+		ThreadTimestamp: "1.0",
+		ReplyCount:      1,
+	}}
+
+	mt.EXPECT().Recorder(id).Return(mh, nil)
+	mh.EXPECT().CanvasThreadMessages(gomock.Any(), "CCANVAS", root, true, []slack.Message{root}).Return(nil)
+	mh.EXPECT().Dec().Return(0)
+	mt.EXPECT().RefCount(id).Return(0)
+	mt.EXPECT().Unregister(id).Return(nil)
+
+	require.NoError(t, cv.CanvasThreadMessages(t.Context(), "CCANVAS", root, true, []slack.Message{root}))
 }
 
 func TestConversations_ChannelInfo(t *testing.T) {

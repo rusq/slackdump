@@ -204,9 +204,16 @@ func runResume(ctx context.Context, cmd *base.Command, args []string) error {
 	}
 	// inclusive is false, because we don't want to include the latest message
 	// which is already in the database.
-	streamOpts := []stream.Option{stream.OptInclusive(false)}
+	streamOpts := []stream.Option{
+		stream.OptInclusive(false),
+		stream.OptIncludeOlderCanvasRoots(),
+	}
 	if resumeFlags.SkipCompleteThreads {
-		streamOpts = append(streamOpts, stream.OptSkipThreadFunc(dbase.NewThreadSkipper(wconn)))
+		streamOpts = append(
+			streamOpts,
+			stream.OptSkipThreadFunc(dbase.NewThreadSkipper(wconn)),
+			stream.OptSkipCanvasThreadFunc(dbase.NewCanvasThreadSkipper(wconn)),
+		)
 	}
 	ctrl, err := archive.DBController(
 		ctx,
