@@ -16,6 +16,7 @@
 package bootstrap
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
@@ -50,6 +51,20 @@ func Database(path string) (*sqlx.DB, error) {
 	return db, nil
 }
 
+// PostgreSQL opens and verifies a PostgreSQL archive connection.  The URL is
+// intentionally never logged because it may contain credentials.
+func PostgreSQL(ctx context.Context, databaseURL string) (*sqlx.DB, error) {
+	db, err := sqlx.Open(repository.PostgresDriver, databaseURL)
+	if err != nil {
+		return nil, err
+	}
+	if err := db.PingContext(ctx); err != nil {
+		db.Close()
+		return nil, err
+	}
+	return db, nil
+}
+
 // DatabaseWithSession returns the database connection open for writing, and a session
 // info based on the mode and the command line arguments.
 func DatabaseWithSession(dir string, mode string) (*sqlx.DB, dbase.SessionInfo, error) {
@@ -60,7 +75,7 @@ func DatabaseWithSession(dir string, mode string) (*sqlx.DB, dbase.SessionInfo, 
 func SessionInfo(mode string) dbase.SessionInfo {
 	var args string
 	if len(os.Args) > 1 {
-		args = strings.Join(os.Args[1:], "|")
+		args = strings.Join(redactDatabaseURL(os.Args[1:]), "|")
 	}
 
 	si := dbase.SessionInfo{
@@ -72,4 +87,22 @@ func SessionInfo(mode string) dbase.SessionInfo {
 		Args:           args,
 	}
 	return si
+}
+
+func redactDatabaseURL(args []string) []string {
+	redacted := append([]string(nil), args...)
+	for i := range redacted {
+		switch {
+		case redacted[i] == "-database-url" || redacted[i] == "--database-url":
+			if i+1 < len(redacted) {
+				redacted[i+1] = "<redacted>"
+				i++
+			}
+		case strings.HasPrefix(redacted[i], "-database-url="):
+			redacted[i] = "-database-url=<redacted>"
+		case strings.HasPrefix(redacted[i], "--database-url="):
+			redacted[i] = "--database-url=<redacted>"
+		}
+	}
+	return redacted
 }

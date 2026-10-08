@@ -148,7 +148,7 @@ func (r genericRepository[T]) GetType(ctx context.Context, conn sqlx.ExtContext,
 	slog.DebugContext(ctx, "get", "stmt", latest, "binds", binds)
 
 	var t T
-	if err := conn.QueryRowxContext(ctx, latest, binds...).StructScan(&t); err != nil {
+	if err := conn.QueryRowxContext(ctx, rebind(conn, latest), binds...).StructScan(&t); err != nil {
 		return t, fmt.Errorf("get: %w", err)
 	}
 	return t, nil

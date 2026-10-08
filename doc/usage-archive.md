@@ -31,6 +31,29 @@ To choose a different output location:
 slackdump archive -o /backups/myworkspace
 ```
 
+### Experimental PostgreSQL backend
+
+To store archive metadata in PostgreSQL instead of SQLite, set a database URL
+and keep `-o` as the filesystem location for attachments and avatars:
+
+```bash
+SLACKDUMP_DATABASE_URL='postgres://user:password@db/slackdump?sslmode=require' \
+  slackdump archive -o /backups/myworkspace
+```
+
+The equivalent `-database-url` flag exists for interactive use, but the
+environment variable avoids exposing credentials in process listings. SQLite
+remains the default when neither is set.
+
+One PostgreSQL schema must contain only one Slack workspace. To keep multiple
+workspaces in the same database, assign each connection a distinct
+`search_path`. Downloaded files remain in the output directory and are not
+stored as PostgreSQL blobs.
+
+PostgreSQL currently supports `archive` and `resume`. Database viewing,
+searching, conversion, merging, cleanup, and deduplication still operate on
+SQLite archives.
+
 ## Why Use `archive` Instead of `export` or `dump`?
 
 | Criteria | `archive` | `export` | `dump` |
@@ -52,6 +75,13 @@ each day, use `slackdump resume`:
 
 ```bash
 slackdump resume /backups/myworkspace
+```
+
+For PostgreSQL, provide the same URL and filesystem directory on every run:
+
+```bash
+SLACKDUMP_DATABASE_URL='postgres://user:password@db/slackdump?sslmode=require' \
+  slackdump resume /backups/myworkspace
 ```
 
 Resume reads the existing database to determine where each channel left off and
@@ -135,6 +165,7 @@ location. User avatars are not downloaded by default; enable with `-avatars`.
 | Flag | Default | Description |
 |------|---------|-------------|
 | `-o location` | auto-named  | Output directory |
+| `-database-url` | unset | PostgreSQL archive metadata URL (prefer `SLACKDUMP_DATABASE_URL`) |
 | `-files` | `true` | Download file attachments |
 | `-avatars` | `false` | Download user avatars |
 | `-member-only` | `false` | Only channels the current user belongs to |

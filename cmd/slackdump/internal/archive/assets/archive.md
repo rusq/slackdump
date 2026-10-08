@@ -1,11 +1,30 @@
 # Archive Command
 
-The `archive` command saves your Slack workspace as a SQLite database. By
-default, it archives the entire workspace that your user can access. You can
+The `archive` command saves your Slack workspace as a SQLite database by
+default. It archives the entire workspace that your user can access. You can
 customize the archive to include specific channels, groups, or direct messages
 by providing their URLs or IDs on the command line or in the Wizard.
 
 The database is located in `slackdump.sqlite` in the output directory.
+
+### PostgreSQL backend (experimental)
+
+Set `SLACKDUMP_DATABASE_URL` to write archive metadata directly to PostgreSQL:
+
+```bash
+SLACKDUMP_DATABASE_URL='postgres://user:password@db/slackdump?sslmode=require' \
+  slackdump archive -o /backups/myworkspace
+```
+
+The `-database-url` flag accepts the same value, but the environment variable
+is preferred so credentials do not appear in process listings. PostgreSQL is
+opt-in; omitting both settings preserves the existing SQLite behavior.
+
+The output directory is still required and stores downloaded attachments and
+avatars. Use PostgreSQL's `search_path` connection parameter when separate
+schemas are required. Each schema must be dedicated to one Slack workspace.
+The first supported command set is `archive` and `resume`; `view`, `search`,
+`convert`, `tools dedupe`, and other database tools still require SQLite.
 
 Alternatively, you can use `-legacy` flag to archive into chunk file format, if
 you experience problems with the database.  Note, that `-legacy` flag is

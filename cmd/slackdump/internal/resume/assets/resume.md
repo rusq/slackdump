@@ -9,6 +9,20 @@ It may be useful in the following situations:
 Please note that archive must be in database format (default for "archive"
 command).
 
+For an archive created with the experimental PostgreSQL backend, provide the
+same metadata database URL and pass the filesystem archive directory as the
+positional argument:
+
+```bash
+SLACKDUMP_DATABASE_URL='postgres://user:password@db/slackdump?sslmode=require' \
+  slackdump resume /backups/myworkspace
+```
+
+The directory contains downloaded files and avatars; PostgreSQL contains the
+session, chunk, and Slack entity records. The database URL should select the
+same dedicated schema used by `archive` (for example through `search_path`).
+`-dedupe` is not supported by the PostgreSQL backend yet.
+
 ### Resuming Export, Chunk, or Dump formats.
 If you want to resume a Slack Export, Chunk, or dump formats, follow these
 steps:

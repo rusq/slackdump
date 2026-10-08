@@ -97,7 +97,15 @@ func (r sessionRepository) Insert(ctx context.Context, conn sqlx.ExtContext, s *
 	stmt.WriteString(")")
 	slog.Debug("insert", "stmt", stmt.String())
 
-	ret, err := conn.ExecContext(ctx, conn.Rebind(stmt.String()), binds...)
+	query := conn.Rebind(stmt.String())
+	if IsPostgres(conn) {
+		var id int64
+		if err := conn.QueryRowxContext(ctx, query+" RETURNING ID", binds...).Scan(&id); err != nil {
+			return 0, err
+		}
+		return id, nil
+	}
+	ret, err := conn.ExecContext(ctx, query, binds...)
 	if err != nil {
 		return 0, err
 	}
