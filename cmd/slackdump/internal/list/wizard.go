@@ -119,9 +119,9 @@ func (o *channelOptions) configuration() cfgui.Configuration {
 			Params: []cfgui.Parameter{
 				{
 					Name:        "Disable Cache",
-					Value:       cfgui.Checkbox(o.cache.Enabled),
+					Value:       cfgui.Checkbox(o.cache.Disabled),
 					Description: "Disable channel cache",
-					Updater:     updaters.NewBool(&o.cache.Enabled),
+					Updater:     updaters.NewBool(&o.cache.Disabled),
 				},
 				{
 					Name:        "Cache Retention",

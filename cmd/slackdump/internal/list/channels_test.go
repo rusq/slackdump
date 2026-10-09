@@ -57,3 +57,36 @@ func Test_channels_Len(t *testing.T) {
 		})
 	}
 }
+
+func TestCmdListChannels_Flag(t *testing.T) {
+	tests := []struct {
+		name         string
+		args         []string
+		wantDisabled bool
+	}{
+		{
+			name:         "cache enabled by default",
+			args:         []string{},
+			wantDisabled: false,
+		},
+		{
+			name:         "no-chan-cache disables cache",
+			args:         []string{"-no-chan-cache"},
+			wantDisabled: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			saved := chanFlags
+			t.Cleanup(func() { chanFlags = saved })
+			chanFlags.cache.Disabled = false
+
+			if err := CmdListChannels.Flag.Parse(tt.args); err != nil {
+				t.Fatalf("Parse() error = %v", err)
+			}
+			if got := chanFlags.cache.Disabled; got != tt.wantDisabled {
+				t.Errorf("chanFlags.cache.Disabled = %v, want %v", got, tt.wantDisabled)
+			}
+		})
+	}
+}
