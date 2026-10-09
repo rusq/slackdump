@@ -62,7 +62,7 @@ type (
 	}
 
 	cacheOpts struct {
-		Enabled   bool
+		Disabled  bool
 		Retention time.Duration
 		Filename  string
 	}
@@ -71,7 +71,7 @@ type (
 var chanFlags = channelOptions{
 	resolveUsers: false,
 	cache: cacheOpts{
-		Enabled:   false,
+		Disabled:  false,
 		Retention: 20 * time.Minute,
 		Filename:  "channels.json",
 	},
@@ -80,7 +80,7 @@ var chanFlags = channelOptions{
 func init() {
 	CmdListChannels.Wizard = wizChannels
 
-	CmdListChannels.Flag.BoolVar(&chanFlags.cache.Enabled, "no-chan-cache", chanFlags.cache.Enabled, "disable channel cache")
+	CmdListChannels.Flag.BoolVar(&chanFlags.cache.Disabled, "no-chan-cache", chanFlags.cache.Disabled, "disable channel cache")
 	CmdListChannels.Flag.DurationVar(&chanFlags.cache.Retention, "chan-cache-retention", chanFlags.cache.Retention, "channel cache retention time.  After this time, the cache is considered stale and will be refreshed.")
 	CmdListChannels.Flag.BoolVar(&chanFlags.resolveUsers, "resolve", chanFlags.resolveUsers, "resolve user IDs to names")
 }
@@ -142,7 +142,7 @@ func (l *channels) Retrieve(ctx context.Context, sess *slackdump.Session, m *cac
 		}
 	}()
 
-	if l.opts.cache.Enabled {
+	if !l.opts.cache.Disabled {
 		var err error
 		l.channels, err = m.LoadChannels(teamID, l.opts.cache.Retention)
 		if err == nil {
