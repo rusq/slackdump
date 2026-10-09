@@ -14,7 +14,7 @@ permissions:
 jobs:
   shellcheck:
     name: Check shell scripts and spelling errors.
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
 
     steps:
       - name: Checkout
