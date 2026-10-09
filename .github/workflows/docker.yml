@@ -16,7 +16,7 @@ on:
 jobs:
     push_to_dockerhub:
         name: Push image to dockerhub
-        runs-on: ubuntu-latest
+        runs-on: ubuntu-26.04
         steps:
             - name: Docker meta
               id: meta
