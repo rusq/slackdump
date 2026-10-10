@@ -1,6 +1,7 @@
 package edge
 
 import (
+	"bytes"
 	"errors"
 	"net/http"
 	"testing"
@@ -23,13 +24,11 @@ func (t *closeTransport) Close() error {
 	return t.err
 }
 
+// closeTape is an in-memory tape for tests that records Close calls.
 type closeTape struct {
+	bytes.Buffer
 	closed bool
 	err    error
-}
-
-func (t *closeTape) Write(p []byte) (int, error) {
-	return len(p), nil
 }
 
 func (t *closeTape) Close() error {

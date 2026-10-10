@@ -26,7 +26,6 @@ import (
 	"io"
 	"log/slog"
 	"mime/multipart"
-	"net/http"
 	"net/url"
 	"runtime/trace"
 	"strconv"
@@ -153,14 +152,13 @@ func (cl *Client) canvasControllerInit(ctx context.Context) (string, error) {
 		return "", fmt.Errorf("canvas controller-init: closing form: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, cl.recorder(bytes.NewReader(body.Bytes())))
-	if err != nil {
-		return "", err
+	// unlike do, the separator is recorded after the response, which is
+	// recorded during decoding.
+	resp, err := cl.roundTrip(ctx, endpoint, writer.FormDataContentType(), body.Bytes())
+	if sent(err) {
+		cl.record(body.Bytes())
+		defer cl.record(tapeSep)
 	}
-	defer cl.record([]byte("\n\n"))
-	req.Header.Set(hdrContentType, writer.FormDataContentType())
-
-	resp, err := do(ctx, cl.cl, req)
 	if err != nil {
 		return "", err
 	}
