@@ -30,7 +30,7 @@ import (
 	"net/http"
 	"net/url"
 	"runtime/trace"
-	"strings"
+	"strconv"
 	"time"
 
 	"github.com/rusq/chttp/v2"
@@ -39,6 +39,7 @@ import (
 	"github.com/rusq/tagops"
 
 	"github.com/rusq/slackdump/v4/auth"
+	"github.com/rusq/slackdump/v4/internal/network"
 )
 
 type Client struct {
@@ -212,21 +213,13 @@ func (cl *Client) PostJSON(ctx context.Context, path string, req PostRequest) (*
 	if err != nil {
 		return nil, err
 	}
-	tape := cl.recorder(bytes.NewReader(data))
-	defer cl.record([]byte("\n\n"))
-	r, err := http.NewRequestWithContext(ctx, http.MethodPost, cl.edgeAPI+path, tape)
-	if err != nil {
-		return nil, err
-	}
-	r.Header.Set(hdrContentType, "application/json")
-
-	return do(ctx, cl.cl, r)
+	return cl.do(ctx, cl.edgeAPI+path, "application/json", data)
 }
 
 // callEdgeAPI calls the edge API.
 func (cl *Client) callEdgeAPI(ctx context.Context, v any, endpoint string, req PostRequest) error {
 	r, err := cl.PostJSON(ctx, endpoint, req)
-	if err != nil && !errors.Is(err, io.EOF) {
+	if err != nil {
 		return err
 	}
 	return cl.ParseResponse(v, r)
@@ -255,14 +248,7 @@ func (cl *Client) PostFormRaw(ctx context.Context, url string, form url.Values) 
 	if form["token"] == nil {
 		form.Set("token", cl.token)
 	}
-	r := cl.recorder(strings.NewReader(form.Encode()))
-	defer cl.record([]byte("\n\n"))
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, r)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	return do(ctx, cl.cl, req)
+	return cl.do(ctx, url, "application/x-www-form-urlencoded", []byte(form.Encode()))
 }
 
 func (cl *Client) ParseResponse(req any, r *http.Response) error {
@@ -277,59 +263,141 @@ func (cl *Client) ParseResponse(req any, r *http.Response) error {
 	return nil
 }
 
-// do is a helper function to do the request and handle rate limiting.  it
-// tries to handle the rate limiting by waiting for the Retry-After only once,
-// if it receives another rate limit error, it returns slack.RateLimitedError
-// to let the caller handle it.
-func do(ctx context.Context, cl *http.Client, req *http.Request) (*http.Response, error) {
-	lg := slog.Default()
-	req.Header.Set("Accept-Language", "en-NZ,en-AU;q=0.9,en;q=0.8")
-	req.Header.Set("User-Agent", slackauth.DefaultUserAgent)
+const (
+	// defRetryAfter is the delay used when Slack rate limits a request
+	// without sending a valid Retry-After header.
+	defRetryAfter = 5 * time.Second
+	// maxRetryAfter is the longest Retry-After delay that is accepted as
+	// valid, longer values are treated as malformed.
+	maxRetryAfter = 1 * time.Hour
+	// maxDrain is the maximum number of bytes of the rate limited response
+	// body that are discarded to allow the connection reuse.
+	maxDrain = 64 << 10
+)
 
-	rgn := trace.StartRegion(ctx, "edge.do")
-	resp, err := cl.Do(req)
-	rgn.End()
-	if err != nil {
-		return nil, err
-	}
-	if resp.StatusCode == http.StatusTooManyRequests {
-		wait, err := parseRetryAfter(resp)
-		if err != nil {
-			return nil, err
-		}
-		lg.InfoContext(ctx, "got rate limited, waiting", "delay", wait)
+// tapeSep separates the request and response records on the tape.
+var tapeSep = []byte("\n\n")
 
-		time.Sleep(wait)
-		resp, err = cl.Do(req)
-		if err != nil {
-			return nil, err
-		}
-		// if we are still rate limited, then we are in trouble
-		if resp.StatusCode == http.StatusTooManyRequests {
-			lg.DebugContext(ctx, "edge.do: did my best, but still rate limited, giving up, not my problem")
-			wait, err = parseRetryAfter(resp)
-			if err != nil {
-				return nil, err
-			}
-			return nil, &slack.RateLimitedError{RetryAfter: wait}
-		}
-	}
-	if resp.StatusCode < http.StatusOK || http.StatusMultipleChoices <= resp.StatusCode {
-		body, _ := io.ReadAll(resp.Body)
-		resp.Body.Close()
-		return nil, slack.StatusCodeError{Code: resp.StatusCode, Status: string(body)}
+// do sends a POST request with the given body to url, handling rate limiting
+// (see roundTrip), and records the body on the tape, if the request reached
+// the server.
+func (cl *Client) do(ctx context.Context, url string, contentType string, body []byte) (*http.Response, error) {
+	resp, err := cl.roundTrip(ctx, url, contentType, body)
+	if sent(err) {
+		cl.record(body)
+		cl.record(tapeSep)
 	}
 	return resp, err
 }
 
+// sent returns true if err, returned by roundTrip, means that the request
+// has reached the server.
+func sent(err error) bool {
+	var (
+		rle *slack.RateLimitedError
+		sce slack.StatusCodeError
+	)
+	return err == nil || errors.As(err, &rle) || errors.As(err, &sce)
+}
+
+// roundTrip sends a POST request with the given body to url, and handles rate
+// limiting.  It handles the rate limiting by waiting for the Retry-After only
+// once, if it receives another rate limit error, it returns
+// *slack.RateLimitedError to let the caller handle it.  Each attempt builds
+// the request from body, so that it never sends a drained body (see #746).
+func (cl *Client) roundTrip(ctx context.Context, url string, contentType string, body []byte) (*http.Response, error) {
+	const maxAttempts = 2
+	for attempt := 1; ; attempt++ {
+		req, err := newRequest(ctx, url, contentType, bytes.NewReader(body))
+		if err != nil {
+			return nil, err
+		}
+		resp, err := cl.send(ctx, req)
+		if err != nil {
+			return nil, err
+		}
+		if resp.StatusCode == http.StatusTooManyRequests {
+			wait := retryAfter(ctx, resp)
+			drain(resp)
+			if attempt >= maxAttempts {
+				slog.DebugContext(ctx, "edge.do: still rate limited, giving up", "attempt", attempt, "delay", wait)
+				return nil, &slack.RateLimitedError{RetryAfter: wait}
+			}
+			slog.InfoContext(ctx, "got rate limited, waiting", "delay", wait)
+			if err := network.SleepCtx(ctx, wait); err != nil {
+				return nil, err
+			}
+			continue
+		}
+		if resp.StatusCode < http.StatusOK || http.StatusMultipleChoices <= resp.StatusCode {
+			respBody, _ := io.ReadAll(resp.Body)
+			resp.Body.Close()
+			return nil, slack.StatusCodeError{Code: resp.StatusCode, Status: string(respBody)}
+		}
+		return resp, nil
+	}
+}
+
+// newRequest creates a new POST request with the edge client headers set.
+func newRequest(ctx context.Context, url string, contentType string, body io.Reader) (*http.Request, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, body)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set(hdrContentType, contentType)
+	req.Header.Set("Accept-Language", "en-NZ,en-AU;q=0.9,en;q=0.8")
+	req.Header.Set("User-Agent", slackauth.DefaultUserAgent)
+	return req, nil
+}
+
+func (cl *Client) send(ctx context.Context, req *http.Request) (*http.Response, error) {
+	defer trace.StartRegion(ctx, "edge.do").End()
+	return cl.cl.Do(req)
+}
+
+// drain discards up to maxDrain bytes of the response body and closes it, so
+// that the connection can be reused.
+func drain(resp *http.Response) {
+	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, maxDrain))
+	resp.Body.Close()
+}
+
+// retryAfter returns the delay from the Retry-After header of the rate
+// limited response, or defRetryAfter if the header is missing or invalid.
+func retryAfter(ctx context.Context, resp *http.Response) time.Duration {
+	wait, err := parseRetryAfter(resp)
+	if err != nil {
+		slog.WarnContext(ctx, "using default rate limit delay", "error", err, "delay", defRetryAfter)
+		return defRetryAfter
+	}
+	return wait
+}
+
+// parseRetryAfter parses the Retry-After header of the response, which can
+// be either a number of seconds or an HTTP date (RFC 9110, section 10.2.3).
+// Fractional seconds are accepted, delays above maxRetryAfter are rejected.
 func parseRetryAfter(resp *http.Response) (time.Duration, error) {
 	strWait := resp.Header.Get("Retry-After")
 	if strWait == "" {
 		return 0, errors.New("got rate limited, but did not get a Retry-After header")
 	}
-	wait, err := time.ParseDuration(strWait + "s")
-	if err != nil {
-		return 0, err
+	var wait time.Duration
+	if secs, err := strconv.ParseFloat(strWait, 64); err == nil {
+		// the range check before the conversion guards against overflow,
+		// and rejects NaN.
+		if !(0 <= secs && secs <= maxRetryAfter.Seconds()) {
+			return 0, fmt.Errorf("Retry-After out of range: %q", strWait)
+		}
+		wait = time.Duration(secs * float64(time.Second))
+	} else {
+		t, err := http.ParseTime(strWait)
+		if err != nil {
+			return 0, fmt.Errorf("invalid Retry-After %q", strWait)
+		}
+		wait = max(time.Until(t), 0)
+		if wait > maxRetryAfter {
+			return 0, fmt.Errorf("Retry-After out of range: %q", strWait)
+		}
 	}
 	return wait, nil
 }

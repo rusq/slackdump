@@ -142,7 +142,7 @@ func WithRetry(ctx context.Context, lim *rate.Limiter, maxAttempts int, fn func(
 			delay := wait(attempt)
 			slog.WarnContext(ctx, "got EOF, sleeping", "error", cbErr, "delay", delay.String())
 			tracelogf(ctx, "info", "got EOF, sleeping %s (%s)", delay, cbErr)
-			if err := sleepCtx(ctx, delay); err != nil {
+			if err := SleepCtx(ctx, delay); err != nil {
 				return err
 			}
 			slog.Debug("resuming after EOF")
@@ -150,7 +150,7 @@ func WithRetry(ctx context.Context, lim *rate.Limiter, maxAttempts int, fn func(
 		case errors.As(cbErr, &rle):
 			slog.InfoContext(ctx, "got rate limited, sleeping", "retry_after", rle.RetryAfter.String(), "error", cbErr)
 			tracelogf(ctx, "info", "got rate limited, sleeping %s (%s)", rle.RetryAfter, cbErr)
-			if err := sleepCtx(ctx, rle.RetryAfter); err != nil {
+			if err := SleepCtx(ctx, rle.RetryAfter); err != nil {
 				return err
 			}
 			slog.Info("resuming after rate limit")
@@ -161,7 +161,7 @@ func WithRetry(ctx context.Context, lim *rate.Limiter, maxAttempts int, fn func(
 				delay := wait(attempt)
 				slog.WarnContext(ctx, "got server error, sleeping", "status_code", sce.Code, "error", cbErr, "delay", delay.String())
 				tracelogf(ctx, "info", "got server error %d, sleeping %s (%s)", sce.Code, delay, cbErr)
-				if err := sleepCtx(ctx, delay); err != nil {
+				if err := SleepCtx(ctx, delay); err != nil {
 					return err
 				}
 				continue
@@ -172,7 +172,7 @@ func WithRetry(ctx context.Context, lim *rate.Limiter, maxAttempts int, fn func(
 				delay := netWait(attempt)
 				slog.WarnContext(ctx, "got network error, sleeping", "op", ne.Op, "error", cbErr, "delay", delay.String())
 				tracelogf(ctx, "info", "got network error %s on %q, sleeping %s", cbErr, ne.Op, delay)
-				if err := sleepCtx(ctx, delay); err != nil {
+				if err := SleepCtx(ctx, delay); err != nil {
 					return err
 				}
 				continue
@@ -187,7 +187,9 @@ func WithRetry(ctx context.Context, lim *rate.Limiter, maxAttempts int, fn func(
 	return nil
 }
 
-func sleepCtx(ctx context.Context, d time.Duration) error {
+// SleepCtx waits for d, or until ctx is done, in which case it returns the
+// cause of the context cancellation.
+func SleepCtx(ctx context.Context, d time.Duration) error {
 	t := time.NewTimer(d)
 	defer t.Stop()
 	select {

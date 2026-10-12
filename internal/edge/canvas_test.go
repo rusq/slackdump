@@ -419,3 +419,23 @@ func TestClient_CanvasThreadRoots(t *testing.T) {
 		require.ErrorIs(t, err, errCanvasMissingUserID)
 	})
 }
+
+func TestClient_canvasControllerInit(t *testing.T) {
+	t.Run("tape records the separator after the response", func(t *testing.T) {
+		const respBody = `{"user_id":"ZEH9EA5279K"}`
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			_, _ = io.WriteString(w, respBody)
+		}))
+		t.Cleanup(srv.Close)
+		tape := new(closeTape)
+		cl := testClient(tape)
+		cl.webclientAPI = srv.URL + "/api/"
+
+		userID, err := cl.canvasControllerInit(t.Context())
+		require.NoError(t, err)
+		assert.Equal(t, "ZEH9EA5279K", userID)
+		got := tape.String()
+		assert.True(t, strings.HasSuffix(got, respBody+"\n\n"), "tape: %q", got)
+		assert.Equal(t, 1, strings.Count(got, "\n\n"), "tape: %q", got)
+	})
+}
