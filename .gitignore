@@ -77,3 +77,4 @@ debug.test*
 .mcp.json
 *.har
 *.jsonl
+*.trace
