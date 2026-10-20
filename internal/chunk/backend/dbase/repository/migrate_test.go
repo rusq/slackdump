@@ -18,6 +18,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"testing"
 
 	"github.com/jmoiron/sqlx"
@@ -37,6 +38,51 @@ func TestMigrate(t *testing.T) {
 			t.Fatalf("Migrate() err = %v; want nil", err)
 		}
 	})
+
+	for _, upgrade := range []bool{false, true} {
+		t.Run(fmt.Sprintf("message dedupe index upgrade=%t", upgrade), func(t *testing.T) {
+			db, err := sql.Open(Driver, ":memory:")
+			require.NoError(t, err)
+			defer db.Close()
+			ctx := t.Context()
+			if upgrade {
+				require.NoError(t, goose.UpToContext(ctx, db, "migrations", 20260725000000))
+				_, err = db.ExecContext(ctx, `
+					INSERT INTO SESSION (ID, MODE) VALUES (1, 'archive');
+					INSERT INTO CHUNK (ID, UNIX_TS, SESSION_ID, TYPE_ID) VALUES (1, 0, 1, 0);
+					INSERT INTO MESSAGE (ID, CHUNK_ID, CHANNEL_ID, TS, IDX, DATA)
+					VALUES (100, 1, 'C1', '0.000100', 0, X'7B7D');`)
+				require.NoError(t, err)
+			}
+			require.NoError(t, Migrate(ctx, db, false))
+			var columns []string
+			require.NoError(t, sqlx.NewDb(db, Driver).SelectContext(ctx, &columns,
+				`SELECT name FROM pragma_index_info('MESSAGE_DEDUPE_IDX') ORDER BY seqno`))
+			require.Equal(t, []string{"CHANNEL_ID", "ID", "CHUNK_ID"}, columns)
+			if upgrade {
+				var data []byte
+				require.NoError(t, db.QueryRowContext(ctx,
+					`SELECT DATA FROM MESSAGE WHERE ID=100 AND CHUNK_ID=1 AND CHANNEL_ID='C1'`).Scan(&data))
+				require.Equal(t, []byte(`{}`), data)
+			}
+			// Down removes only the new index; existing indexes and rows survive.
+			require.NoError(t, goose.DownContext(ctx, db, "migrations"))
+			var count int
+			require.NoError(t, db.QueryRowContext(ctx,
+				`SELECT COUNT(*) FROM sqlite_master WHERE name='MESSAGE_DEDUPE_IDX'`).Scan(&count))
+			require.Zero(t, count)
+			require.NoError(t, db.QueryRowContext(ctx,
+				`SELECT COUNT(*) FROM sqlite_master WHERE name IN ('MESSAGE_I1', 'MESSAGE_CHUNK_ID_IDX')`).Scan(&count))
+			require.Equal(t, 2, count)
+			require.NoError(t, db.QueryRowContext(ctx, `SELECT COUNT(*) FROM MESSAGE`).Scan(&count))
+			if upgrade {
+				require.Equal(t, 1, count)
+			} else {
+				require.Zero(t, count)
+			}
+			require.NoError(t, Migrate(ctx, db, false))
+		})
+	}
 
 	t.Run("adds canvas message types", func(t *testing.T) {
 		db, err := sql.Open(Driver, ":memory:")
@@ -174,8 +220,8 @@ func TestMigrate(t *testing.T) {
 		}
 		defer db.Close()
 
-		if err := Migrate(ctx, db, true); err != nil {
-			t.Fatalf("Migrate() err = %v; want nil", err)
+		if err := goose.UpToContext(ctx, db, "migrations", 20260725000000); err != nil {
+			t.Fatalf("goose.UpToContext() err = %v; want nil", err)
 		}
 
 		if err := goose.DownContext(ctx, db, "migrations"); err != nil {

@@ -41,6 +41,28 @@ func TestMessageDedupeMode_Set(t *testing.T) {
 }
 
 func TestDedupeRepository_Preview(t *testing.T) {
+	for _, mode := range []MessageDedupeMode{MessageDedupeExact, MessageDedupeKey} {
+		t.Run("skewed/"+string(mode), func(t *testing.T) {
+			db := skewedDedupeFixture(t, 2000)
+			before := expectedDedupeMessages(t, db, MessageDedupeExact)
+			got, err := NewDedupeRepository(WithMessageDedupeMode(mode)).Preview(t.Context(), db)
+			require.NoError(t, err)
+			messages := int64(125)
+			if mode == MessageDedupeKey {
+				messages++
+			}
+			require.Equal(t, DedupeStats{Messages: messages, ChannelUsers: 1500, Chunks: 4}, got)
+			require.Equal(t, before, expectedDedupeMessages(t, db, MessageDedupeExact))
+		})
+	}
+	t.Run("cancelled", func(t *testing.T) {
+		db := testConn(t)
+		ctx, cancel := context.WithCancel(t.Context())
+		cancel()
+		_, err := NewDedupeRepository().Preview(ctx, db)
+		require.ErrorIs(t, err, context.Canceled)
+	})
+
 	t.Run("counts duplicates across supported entities", func(t *testing.T) {
 		db := testConn(t)
 		ctx := context.Background()
@@ -185,6 +207,65 @@ func TestDedupeRepository_Preview(t *testing.T) {
 }
 
 func TestDedupeRepository_Deduplicate(t *testing.T) {
+	for _, mode := range []MessageDedupeMode{MessageDedupeExact, MessageDedupeKey} {
+		t.Run("skewed/"+string(mode), func(t *testing.T) {
+			db := skewedDedupeFixture(t, 2000)
+			expected := expectedDedupeMessages(t, db, mode)
+			repo := NewDedupeRepository(WithMessageDedupeMode(mode))
+			preview, err := repo.Preview(t.Context(), db)
+			require.NoError(t, err)
+			got, err := repo.Deduplicate(t.Context(), db)
+			require.NoError(t, err)
+			require.Equal(t, preview, got)
+			var actual []string
+			require.NoError(t, db.Select(&actual, `SELECT CHANNEL_ID || ':' || ID || ':' || CHUNK_ID || ':' || hex(DATA) FROM MESSAGE ORDER BY CHANNEL_ID, ID, CHUNK_ID`))
+			require.Equal(t, expected, actual)
+			verifyMessageChunkInChannelForTest(t, db, 0, "C-hot", 21)
+			var count int
+			require.NoError(t, db.Get(&count, `SELECT COUNT(*) FROM CHUNK WHERE ID=1`))
+			require.Zero(t, count) // fully duplicated page
+			require.NoError(t, db.Get(&count, `SELECT COUNT(*) FROM CHUNK WHERE ID=2`))
+			require.Equal(t, 1, count) // partially duplicated page
+			verifyChannelUserCountForTest(t, db, 500)
+			require.NoError(t, db.Get(&count, `SELECT COUNT(*) FROM CHANNEL_USER WHERE CHUNK_ID=26`))
+			require.Equal(t, 500, count)
+			rows, err := db.Query(`PRAGMA foreign_key_check`)
+			require.NoError(t, err)
+			require.False(t, rows.Next())
+			require.NoError(t, rows.Err())
+			rows.Close()
+			again, err := repo.Deduplicate(t.Context(), db)
+			require.NoError(t, err)
+			require.Equal(t, DedupeStats{}, again)
+			again, err = repo.Preview(t.Context(), db)
+			require.NoError(t, err)
+			require.Equal(t, DedupeStats{}, again)
+		})
+	}
+	t.Run("rolls back earlier entities on deletion error", func(t *testing.T) {
+		db := skewedDedupeFixture(t, 2000)
+		before := expectedDedupeMessages(t, db, MessageDedupeExact)
+		insertChunkForTest(t, db, 100, 1, chunk.CFiles)
+		insertChunkForTest(t, db, 101, 1, chunk.CFiles)
+		for _, id := range []int64{100, 101} {
+			insertFileWithChunkForTest(t, db, "F1", id, "C-hot", nil, nil, []byte(`{}`))
+		}
+		_, err := db.Exec(`CREATE TRIGGER fail_file_delete BEFORE DELETE ON FILE BEGIN SELECT RAISE(ABORT, 'test failure'); END`)
+		require.NoError(t, err)
+		_, err = NewDedupeRepository().Deduplicate(t.Context(), db)
+		require.ErrorContains(t, err, "test failure")
+		require.Equal(t, before, expectedDedupeMessages(t, db, MessageDedupeExact))
+		verifyChunkCountForTest(t, db, 28)
+		verifyChannelUserCountForTest(t, db, 2000)
+	})
+	t.Run("cancelled", func(t *testing.T) {
+		db := testConn(t)
+		ctx, cancel := context.WithCancel(t.Context())
+		cancel()
+		_, err := NewDedupeRepository().Deduplicate(ctx, db)
+		require.ErrorIs(t, err, context.Canceled)
+	})
+
 	t.Run("deduplicates all supported entities and prunes duplicate-only chunks", func(t *testing.T) {
 		db := testConn(t)
 		ctx := context.Background()

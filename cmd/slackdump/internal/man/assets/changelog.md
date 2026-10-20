@@ -1,5 +1,13 @@
 # What's New?
 
+## Unreleased
+
+### Bug Fixes
+
+- Fix slow database deduplication on large channels (#750), including cleanup
+  after `resume -dedupe`. Existing archives automatically build a message index
+  on first open after upgrading; this can take extra time and disk space.
+
 ## v4.5.0
 
 ### New Features
