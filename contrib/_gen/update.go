@@ -25,7 +25,7 @@ import (
 	"text/template"
 
 	"github.com/rusq/osenv/v2"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v3"
 )
 
 var base = osenv.Value("BASE_DIR", "..")
