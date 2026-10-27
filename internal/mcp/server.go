@@ -26,10 +26,10 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
-	"sync"
 
 	mcplib "github.com/mark3labs/mcp-go/mcp"
 	mcpsrv "github.com/mark3labs/mcp-go/server"
+	"golang.org/x/sync/semaphore"
 
 	"github.com/rusq/slackdump/v4/source"
 )
@@ -37,6 +37,9 @@ import (
 const (
 	serverName    = "slackdump-mcp"
 	serverVersion = "1.0.0"
+
+	// Readers acquire one token; replacement and Close acquire all tokens.
+	sourceAccessCapacity int64 = 1 << 62
 )
 
 // Transport selects how the MCP server communicates with its client.
@@ -56,22 +59,27 @@ const (
 // at runtime.  [source.Load] is the standard implementation.
 type SourceLoader func(ctx context.Context, path string) (source.SourceResumeCloser, error)
 
+var errServerClosed = errors.New("mcp server is closed")
+
 // Server wraps an MCP server and its underlying data source.
 type Server struct {
 	mcp    *mcpsrv.MCPServer
 	logger *slog.Logger
 
-	// mu protects src.  All tool handlers must hold mu.RLock while reading src
-	// and load_source must hold mu.Lock while replacing it.
-	mu     sync.RWMutex
+	// access protects the entire lifetime of source reads, including iteration.
+	// Weighted acquisition gives writers exclusive access without making waits
+	// uncancellable. These fields are protected by access after construction.
+	access *semaphore.Weighted
 	src    source.SourceResumeCloser // nil until a source is loaded
-	loader SourceLoader              // used by load_source to open new sources
+	closed bool
+	loader SourceLoader
 }
 
 // Option is a functional option for [New].
 type Option func(*Server)
 
-// WithSource pre-loads a source so that the server is immediately ready to
+// WithSource transfers ownership of src to the server, which closes it on
+// replacement or Close. It pre-loads a source so that the server is ready to
 // answer tool calls.  If this option is not provided the server starts without
 // a source and the agent must call the load_source tool before any data tool
 // will work.
@@ -112,6 +120,7 @@ func New(opts ...Option) *Server {
 	s := &Server{
 		logger: slog.Default(),
 		loader: source.Load,
+		access: semaphore.NewWeighted(sourceAccessCapacity),
 	}
 	for _, o := range opts {
 		o(s)
@@ -120,7 +129,7 @@ func New(opts ...Option) *Server {
 	mcpServer := mcpsrv.NewMCPServer(
 		serverName,
 		serverVersion,
-		mcpsrv.WithInstructions(instructions(s.src)),
+		mcpsrv.WithInstructions(instructions()),
 	)
 
 	// Register all tools.
@@ -132,54 +141,55 @@ func New(opts ...Option) *Server {
 	return s
 }
 
-// instructions returns the server instructions that describe the data source
-// to the connecting agent.  When src is nil (no source loaded yet) a generic
-// prompt is returned that asks the agent to call load_source first.
-func instructions(src source.Sourcer) string {
-	if src == nil {
-		return `You are connected to a Slackdump MCP server.
+// instructions describes the active-source model without embedding startup
+// state that would become stale after load_source.
+func instructions() string {
+	return `You are connected to a Slackdump MCP server.
 
-No archive has been loaded yet. Use the load_source tool to open a Slackdump
-archive before calling any other data tools.
-
-Once a source is loaded the following tools become available:
-- list_channels  – list all channels in the archive
-- list_users     – list all users/members
-- get_messages   – read messages from a channel (paginated)
-- get_thread     – read thread replies
-- get_workspace_info – get workspace information
-`
-	}
-	return fmt.Sprintf(`You are connected to a Slackdump MCP server.
-
-The archive "%s" (type: %s) contains exported Slack workspace data.
+Data tools read the currently loaded archive. If no archive is loaded, use
+load_source first. Use load_source to switch archives at any time; its response
+identifies the archive loaded by that call.
 
 Available tools allow you to:
-- List all channels in the archive
-- List all users/members
-- Read messages from a channel (paginated)
-- Read thread replies
-- Get workspace information
-- Get command-line flag help for slackdump subcommands
+- List all channels in the archive (list_channels)
+- Look up a channel (get_channel)
+- List all users/members (list_users)
+- Read messages from a channel, paginated (get_messages)
+- Read thread replies (get_thread)
+- Get workspace information (get_workspace_info)
+- Get command-line flag help for slackdump subcommands (command_help)
 
 All data is read-only. Timestamps in messages use Slack's format (Unix epoch as decimal string, e.g. "1609459200.000001").
-`, src.Name(), src.Type())
+`
 }
 
-// source returns the current source under a read-lock.  Returns nil when no
-// source has been loaded.
-func (s *Server) source() source.SourceResumeCloser {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	return s.src
+// withSource holds shared access until fn returns, including iterator cleanup
+// and response serialization. The source and its iterators must not escape fn.
+// fn must not acquire access again: a pending writer blocks recursive reads.
+func (s *Server) withSource(ctx context.Context, fn func(source.Sourcer) (*mcplib.CallToolResult, error)) (*mcplib.CallToolResult, error) {
+	if err := s.access.Acquire(ctx, 1); err != nil {
+		return resultErr(err), nil
+	}
+	defer s.access.Release(1)
+	if s.closed {
+		return resultErr(errServerClosed), nil
+	}
+	if s.src == nil {
+		return resultErr(errNoSource), nil
+	}
+	return fn(s.src)
 }
 
-// loadSource closes the current source (if any) and replaces it with next.
-// It holds the write-lock for the duration of the swap.
-func (s *Server) loadSource(next source.SourceResumeCloser) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
+// loadSource waits for active readers, closes the current source (if any), and
+// replaces it with next. On cancellation or shutdown, next remains caller-owned.
+func (s *Server) loadSource(ctx context.Context, next source.SourceResumeCloser) error {
+	if err := s.access.Acquire(ctx, sourceAccessCapacity); err != nil {
+		return err
+	}
+	defer s.access.Release(sourceAccessCapacity)
+	if s.closed {
+		return errServerClosed
+	}
 	if s.src != nil {
 		if err := s.src.Close(); err != nil {
 			// Log but do not abort — we still want to switch sources.
@@ -187,6 +197,23 @@ func (s *Server) loadSource(next source.SourceResumeCloser) error {
 		}
 	}
 	s.src = next
+	return nil
+}
+
+// Close waits for active source operations and closes the current source.
+// It is idempotent and permanently rejects subsequent data and load operations.
+// Callers should stop serving before calling Close. An in-flight load that has
+// not published its source will be rejected and must close its own source.
+func (s *Server) Close() error {
+	// Shutdown must finish cleanup even if the serving context was canceled.
+	_ = s.access.Acquire(context.Background(), sourceAccessCapacity)
+	defer s.access.Release(sourceAccessCapacity)
+	s.closed = true
+	src := s.src
+	s.src = nil
+	if src != nil {
+		return src.Close()
+	}
 	return nil
 }
 

@@ -165,8 +165,11 @@ it with `-listen HOST:PORT`.
 - **`path`** _(string, required)_ — Filesystem path to the archive file or
   directory.
 
-Closes the currently open archive (if any) and opens the one at `path`.  Only
-one source may be open at a time.
+Opens the archive at `path`, waits for active reads to finish, then closes the
+previous archive (if any) and makes the new one active. If opening fails or the
+wait is canceled, the previous archive remains active. Reads waiting behind a
+replacement can also be canceled. The server closes the active archive when it
+shuts down.
 
 #### `get_channel`
 

@@ -106,7 +106,6 @@ func runMCPServer(ctx context.Context, cmd *base.Command, args []string) error {
 			base.SetExitStatus(base.SUserError)
 			return fmt.Errorf("mcp: open archive: %w", err)
 		}
-		defer src.Close()
 
 		mcpOpts = append(mcpOpts, internalmcp.WithSource(src))
 	} else {
@@ -114,6 +113,11 @@ func runMCPServer(ctx context.Context, cmd *base.Command, args []string) error {
 	}
 
 	srv := internalmcp.New(mcpOpts...)
+	defer func() {
+		if err := srv.Close(); err != nil {
+			lg.WarnContext(ctx, "mcp: error closing source", "err", err)
+		}
+	}()
 
 	// Add the command_help tool at the CLI layer because it needs access to
 	// cmd/slackdump/internal packages which are forbidden from internal/mcp.

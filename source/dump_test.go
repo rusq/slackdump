@@ -255,6 +255,56 @@ func Test_isDumpJSONFile(t *testing.T) {
 	}
 }
 
+func TestDump_AllMessages(t *testing.T) {
+	t.Run("canceled before reading", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(t.Context())
+		cancel()
+		it, err := (Dump{}).AllMessages(ctx, "C1")
+		assert.ErrorIs(t, err, context.Canceled)
+		assert.Nil(t, it)
+	})
+	t.Run("iterator retains request context", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(t.Context())
+		defer cancel()
+		fsys := canvasDumpFS(t)
+		fsys["C1.json"] = fsys["__canvas/CCANVAS.json"]
+		it, err := (Dump{fs: fsys}).AllMessages(ctx, "C1")
+		require.NoError(t, err)
+		cancel()
+		count := 0
+		for _, err := range it {
+			assert.ErrorIs(t, err, context.Canceled)
+			count++
+		}
+		assert.Equal(t, 1, count)
+	})
+}
+
+func TestDump_AllThreadMessages(t *testing.T) {
+	t.Run("canceled before reading", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(t.Context())
+		cancel()
+		it, err := (Dump{}).AllThreadMessages(ctx, "C1", "1.0")
+		assert.ErrorIs(t, err, context.Canceled)
+		assert.Nil(t, it)
+	})
+	t.Run("iterator retains request context", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(t.Context())
+		defer cancel()
+		fsys := canvasDumpFS(t)
+		fsys["C1.json"] = fsys["__canvas/CCANVAS.json"]
+		it, err := (Dump{fs: fsys}).AllThreadMessages(ctx, "C1", "1700000000.000001")
+		require.NoError(t, err)
+		cancel()
+		count := 0
+		for _, err := range it {
+			assert.ErrorIs(t, err, context.Canceled)
+			count++
+		}
+		assert.Equal(t, 1, count)
+	})
+}
+
 func Test_convertMessages(t *testing.T) {
 	type args struct {
 		cm []types.Message
@@ -292,7 +342,7 @@ func Test_convertMessages(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			it := convertMessages(tt.args.cm)
+			it := convertMessages(t.Context(), tt.args.cm)
 			var i int
 			for m, err := range it {
 				assert.Equal(t, tt.want[i].T, m)
@@ -301,6 +351,46 @@ func Test_convertMessages(t *testing.T) {
 			}
 		})
 	}
+	for _, beforeStart := range []bool{true, false} {
+		name := "cancellation during iteration"
+		if beforeStart {
+			name = "cancellation before iteration"
+		}
+		t.Run(name, func(t *testing.T) {
+			ctx, cancel := context.WithCancel(t.Context())
+			defer cancel()
+			it := convertMessages(ctx, []types.Message{
+				{Message: slack.Message{Msg: slack.Msg{Text: "first"}}},
+				{Message: slack.Message{Msg: slack.Msg{Text: "second"}}},
+			})
+			if beforeStart {
+				cancel()
+			}
+			messages, errors := 0, 0
+			for _, err := range it {
+				if err != nil {
+					assert.ErrorIs(t, err, context.Canceled)
+					errors++
+				} else {
+					messages++
+					cancel()
+				}
+			}
+			if beforeStart {
+				assert.Zero(t, messages)
+			} else {
+				assert.Equal(t, 1, messages)
+			}
+			assert.Equal(t, 1, errors)
+		})
+	}
+	t.Run("early termination stops iteration", func(t *testing.T) {
+		it := convertMessages(t.Context(), []types.Message{{}, {}})
+		count := 0
+		it(func(slack.Message, error) bool { count++; return false })
+		assert.Equal(t, 1, count)
+	})
+
 }
 
 func TestDump_CanvasMessages(t *testing.T) {
@@ -322,6 +412,14 @@ func TestDump_CanvasMessages(t *testing.T) {
 	for range it {
 		t.Fatal("legacy dump should return an empty canvas iterator")
 	}
+	t.Run("canceled before reading", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(t.Context())
+		cancel()
+		it, err := d.CanvasMessages(ctx, "CCANVAS")
+		assert.ErrorIs(t, err, context.Canceled)
+		assert.Nil(t, it)
+	})
+
 }
 
 func TestDump_CanvasThreadMessages(t *testing.T) {
@@ -366,4 +464,12 @@ func TestDump_CanvasThreadMessages(t *testing.T) {
 		require.Len(t, got, 1)
 		assert.Equal(t, "root without replies", got[0].Text)
 	})
+	t.Run("canceled before reading", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(t.Context())
+		cancel()
+		it, err := (Dump{}).CanvasThreadMessages(ctx, "CCANVAS", "1700000000.000001")
+		assert.ErrorIs(t, err, context.Canceled)
+		assert.Nil(t, it)
+	})
+
 }
