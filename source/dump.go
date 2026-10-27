@@ -145,7 +145,10 @@ func (d Dump) Users(context.Context) ([]slack.User, error) {
 	return u, nil
 }
 
-func (d Dump) AllMessages(_ context.Context, channelID string) (iter.Seq2[slack.Message, error], error) {
+func (d Dump) AllMessages(ctx context.Context, channelID string) (iter.Seq2[slack.Message, error], error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	var cm []types.Message
 	c, err := unmarshalOne[types.Conversation](d.fs, d.channelFile(channelID))
 	if err != nil {
@@ -160,7 +163,7 @@ func (d Dump) AllMessages(_ context.Context, channelID string) (iter.Seq2[slack.
 	} else {
 		cm = c.Messages
 	}
-	return convertMessages(cm), nil
+	return convertMessages(ctx, cm), nil
 }
 
 func (d Dump) threadHeadMessages(channelID string) ([]types.Message, error) {
@@ -191,9 +194,13 @@ func (d Dump) threadHeadMessages(channelID string) ([]types.Message, error) {
 	return cm, nil
 }
 
-func convertMessages(cm []types.Message) iter.Seq2[slack.Message, error] {
+func convertMessages(ctx context.Context, cm []types.Message) iter.Seq2[slack.Message, error] {
 	iterFn := func(yield func(slack.Message, error) bool) {
 		for _, m := range cm {
+			if err := ctx.Err(); err != nil {
+				yield(slack.Message{}, err)
+				return
+			}
 			if !yield(m.Message, nil) {
 				return
 			}
@@ -202,7 +209,10 @@ func convertMessages(cm []types.Message) iter.Seq2[slack.Message, error] {
 	return iterFn
 }
 
-func (d Dump) AllThreadMessages(_ context.Context, channelID, threadID string) (iter.Seq2[slack.Message, error], error) {
+func (d Dump) AllThreadMessages(ctx context.Context, channelID, threadID string) (iter.Seq2[slack.Message, error], error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	cm, err := d.findThreadInChannel(channelID, threadID)
 	if err != nil {
 		if !os.IsNotExist(err) {
@@ -213,10 +223,13 @@ func (d Dump) AllThreadMessages(_ context.Context, channelID, threadID string) (
 			return nil, err
 		}
 	}
-	return convertMessages(cm), nil
+	return convertMessages(ctx, cm), nil
 }
 
 func (d Dump) CanvasMessages(ctx context.Context, hiddenChannelID string) (iter.Seq2[slack.Message, error], error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	c, err := d.canvas(hiddenChannelID)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
@@ -224,10 +237,13 @@ func (d Dump) CanvasMessages(ctx context.Context, hiddenChannelID string) (iter.
 		}
 		return nil, err
 	}
-	return convertMessages(c.Messages), nil
+	return convertMessages(ctx, c.Messages), nil
 }
 
 func (d Dump) CanvasThreadMessages(ctx context.Context, hiddenChannelID, threadTS string) (iter.Seq2[slack.Message, error], error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	c, err := d.canvas(hiddenChannelID)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
@@ -238,9 +254,9 @@ func (d Dump) CanvasThreadMessages(ctx context.Context, hiddenChannelID, threadT
 	for _, m := range c.Messages {
 		if m.Timestamp == threadTS || m.ThreadTimestamp == threadTS {
 			if len(m.ThreadReplies) == 0 {
-				return convertMessages([]types.Message{m}), nil
+				return convertMessages(ctx, []types.Message{m}), nil
 			}
-			return convertMessages(m.ThreadReplies), nil
+			return convertMessages(ctx, m.ThreadReplies), nil
 		}
 	}
 	return toIter(nil), nil

@@ -116,9 +116,9 @@ func TestServer_handleListChannels(t *testing.T) {
 			tt.setup(mock)
 
 			result, err := srv.handleListChannels(t.Context(), mcplib.CallToolRequest{})
-			requireSourceUnlocked(t, srv)
+			requireSourceAccess(t, srv, true)
 			mock.EXPECT().Close().Return(nil)
-			require.NoError(t, srv.loadSource(nil))
+			require.NoError(t, srv.loadSource(t.Context(), nil))
 			require.NoError(t, err)
 			require.NotNil(t, result)
 			assert.Equal(t, tt.wantIsError, isErrorResult(result))
@@ -197,9 +197,9 @@ func TestServer_handleGetChannel(t *testing.T) {
 			tt.setup(mock)
 
 			result, err := srv.handleGetChannel(t.Context(), toolReq(tt.args))
-			requireSourceUnlocked(t, srv)
+			requireSourceAccess(t, srv, true)
 			mock.EXPECT().Close().Return(nil)
-			require.NoError(t, srv.loadSource(nil))
+			require.NoError(t, srv.loadSource(t.Context(), nil))
 			require.NoError(t, err)
 			require.NotNil(t, result)
 			assert.Equal(t, tt.wantIsError, isErrorResult(result))
@@ -258,9 +258,9 @@ func TestServer_handleListUsers(t *testing.T) {
 			tt.setup(mock)
 
 			result, err := srv.handleListUsers(t.Context(), mcplib.CallToolRequest{})
-			requireSourceUnlocked(t, srv)
+			requireSourceAccess(t, srv, true)
 			mock.EXPECT().Close().Return(nil)
-			require.NoError(t, srv.loadSource(nil))
+			require.NoError(t, srv.loadSource(t.Context(), nil))
 			require.NoError(t, err)
 			require.NotNil(t, result)
 			assert.Equal(t, tt.wantIsError, isErrorResult(result))
@@ -361,9 +361,9 @@ func TestServer_handleGetMessages(t *testing.T) {
 			tt.setup(mock)
 
 			result, err := srv.handleGetMessages(t.Context(), toolReq(tt.args))
-			requireSourceUnlocked(t, srv)
+			requireSourceAccess(t, srv, true)
 			mock.EXPECT().Close().Return(nil)
-			require.NoError(t, srv.loadSource(nil))
+			require.NoError(t, srv.loadSource(t.Context(), nil))
 			require.NoError(t, err)
 			require.NotNil(t, result)
 			assert.Equal(t, tt.wantIsError, isErrorResult(result))
@@ -374,6 +374,8 @@ func TestServer_handleGetMessages(t *testing.T) {
 	}
 	t.Run("no source takes precedence and releases lock", func(t *testing.T) { checkNilSource(t, (*Server).handleGetMessages) })
 	t.Run("iterator lifetime", func(t *testing.T) { checkIteratorRead(t, false) })
+
+	t.Run("cancellation unwinds iterator and releases access", func(t *testing.T) { checkCanceledIteration(t, false) })
 
 }
 
@@ -445,9 +447,9 @@ func TestServer_handleGetThread(t *testing.T) {
 			tt.setup(mock)
 
 			result, err := srv.handleGetThread(t.Context(), toolReq(tt.args))
-			requireSourceUnlocked(t, srv)
+			requireSourceAccess(t, srv, true)
 			mock.EXPECT().Close().Return(nil)
-			require.NoError(t, srv.loadSource(nil))
+			require.NoError(t, srv.loadSource(t.Context(), nil))
 			require.NoError(t, err)
 			require.NotNil(t, result)
 			assert.Equal(t, tt.wantIsError, isErrorResult(result))
@@ -458,6 +460,8 @@ func TestServer_handleGetThread(t *testing.T) {
 	}
 	t.Run("no source takes precedence and releases lock", func(t *testing.T) { checkNilSource(t, (*Server).handleGetThread) })
 	t.Run("iterator lifetime", func(t *testing.T) { checkIteratorRead(t, true) })
+
+	t.Run("cancellation unwinds iterator and releases access", func(t *testing.T) { checkCanceledIteration(t, true) })
 
 }
 
@@ -510,9 +514,9 @@ func TestServer_handleGetWorkspaceInfo(t *testing.T) {
 			tt.setup(mock)
 
 			result, err := srv.handleGetWorkspaceInfo(t.Context(), mcplib.CallToolRequest{})
-			requireSourceUnlocked(t, srv)
+			requireSourceAccess(t, srv, true)
 			mock.EXPECT().Close().Return(nil)
-			require.NoError(t, srv.loadSource(nil))
+			require.NoError(t, srv.loadSource(t.Context(), nil))
 			require.NoError(t, err)
 			require.NotNil(t, result)
 			assert.Equal(t, tt.wantIsError, isErrorResult(result))
@@ -662,7 +666,7 @@ func TestServer_handleLoadSource(t *testing.T) {
 		after, err := srv.handleListChannels(t.Context(), toolReq(nil))
 		require.NoError(t, err)
 		assert.False(t, after.IsError)
-		requireSourceUnlocked(t, srv)
+		requireSourceAccess(t, srv, true)
 		// No Close expectation: neither failure nor either read may close old.
 	})
 	t.Run("captures metadata before publishing and does not read it afterward", func(t *testing.T) {
@@ -681,7 +685,84 @@ func TestServer_handleLoadSource(t *testing.T) {
 		assert.False(t, result.IsError)
 		assert.Equal(t, "Archive \"next\" (type: database) loaded successfully. You can now use the data tools.", firstText(t, result))
 		assert.Same(t, next, srv.src)
-		requireSourceUnlocked(t, srv)
+		requireSourceAccess(t, srv, true)
+	})
+
+	t.Run("canceled queued replacement closes next and unblocks other readers", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		srv, old := newTestServer(t, ctrl)
+		next := mock_source.NewMockSourceResumeCloser(ctrl)
+		next.EXPECT().Name().Return("next")
+		next.EXPECT().Type().Return(source.FDump)
+		next.EXPECT().Close().Return(nil).Times(1)
+		srv.loader = func(context.Context, string) (source.SourceResumeCloser, error) { return next, nil }
+		// Keep an independent read active throughout cancellation and the next read.
+		require.NoError(t, srv.access.Acquire(t.Context(), 1))
+		var once sync.Once
+		release := func() { once.Do(func() { srv.access.Release(1) }) }
+		ctx, cancel := context.WithCancel(t.Context())
+		defer cancel()
+		loadDone := make(chan struct{})
+		var result *mcplib.CallToolResult
+		var err error
+		go func() {
+			defer close(loadDone)
+			result, err = srv.handleLoadSource(ctx, toolReq(map[string]any{"path": "next"}))
+		}()
+		t.Cleanup(func() { cancel(); release(); awaitSignal(t, loadDone) })
+		awaitWriterQueued(t, srv)
+		old.EXPECT().Channels(gomock.Any()).Return([]slack.Channel{}, nil)
+		readDone := make(chan struct{})
+		go func() {
+			defer close(readDone)
+			read, readErr := srv.handleListChannels(t.Context(), toolReq(nil))
+			assert.NoError(t, readErr)
+			assert.False(t, read.IsError)
+		}()
+		t.Cleanup(func() { cancel(); release(); awaitSignal(t, readDone) })
+		cancel()
+		awaitSignal(t, loadDone)
+		// This must complete while the initial read is still held.
+		awaitSignal(t, readDone)
+		require.NoError(t, err)
+		assert.True(t, result.IsError)
+		assert.Contains(t, firstText(t, result), context.Canceled.Error())
+		assert.Same(t, old, srv.src)
+		release()
+		requireSourceAccess(t, srv, true)
+	})
+	t.Run("loader finishing after shutdown closes its unpublished source", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		srv, old := newTestServer(t, ctrl)
+		old.EXPECT().Close().Return(nil).Times(1)
+		next := mock_source.NewMockSourceResumeCloser(ctrl)
+		next.EXPECT().Name().Return("late")
+		next.EXPECT().Type().Return(source.FDatabase)
+		next.EXPECT().Close().Return(nil).Times(1)
+		entered, release := make(chan struct{}), make(chan struct{})
+		var once sync.Once
+		unblock := func() { once.Do(func() { close(release) }) }
+		srv.loader = func(context.Context, string) (source.SourceResumeCloser, error) {
+			close(entered)
+			<-release
+			return next, nil
+		}
+		done := make(chan struct{})
+		var result *mcplib.CallToolResult
+		var err error
+		go func() {
+			defer close(done)
+			result, err = srv.handleLoadSource(t.Context(), toolReq(map[string]any{"path": "late"}))
+		}()
+		t.Cleanup(func() { unblock(); awaitSignal(t, done) })
+		awaitSignal(t, entered)
+		require.NoError(t, srv.Close())
+		unblock()
+		awaitSignal(t, done)
+		require.NoError(t, err)
+		assert.Contains(t, firstText(t, result), errServerClosed.Error())
+		assert.Nil(t, srv.src)
+		require.NoError(t, srv.Close())
 	})
 
 }
@@ -721,15 +802,14 @@ func checkHandlerRead(t *testing.T,
 	}()
 	t.Cleanup(func() { unblock(); awaitSignal(t, readDone) })
 	awaitSignal(t, entered)
-	requireSourceLocked(t, srv)
-	writeDone, writeStarted := make(chan struct{}), make(chan struct{})
+	requireSourceAccess(t, srv, false)
+	writeDone := make(chan struct{})
 	go func() {
 		defer close(writeDone)
-		close(writeStarted)
-		assert.NoError(t, srv.loadSource(next))
+		assert.NoError(t, srv.loadSource(t.Context(), next))
 	}()
 	t.Cleanup(func() { unblock(); awaitSignal(t, writeDone) })
-	awaitSignal(t, writeStarted)
+	awaitWriterQueued(t, srv)
 	unblock()
 	awaitSignal(t, readDone)
 	awaitSignal(t, writeDone)
@@ -737,7 +817,7 @@ func checkHandlerRead(t *testing.T,
 	require.NotNil(t, result)
 	assert.Equal(t, wantError, result.IsError)
 	assert.Same(t, next, srv.src)
-	requireSourceUnlocked(t, srv)
+	requireSourceAccess(t, srv, true)
 }
 
 func checkNilSource(t *testing.T, handler func(*Server, context.Context, mcplib.CallToolRequest) (*mcplib.CallToolResult, error)) {
@@ -748,9 +828,9 @@ func checkNilSource(t *testing.T, handler func(*Server, context.Context, mcplib.
 	require.NotNil(t, result)
 	assert.True(t, result.IsError)
 	assert.Equal(t, errNoSource.Error(), firstText(t, result))
-	requireSourceUnlocked(t, srv)
+	requireSourceAccess(t, srv, true)
 	next := mock_source.NewMockSourceResumeCloser(gomock.NewController(t))
-	require.NoError(t, srv.loadSource(next))
+	require.NoError(t, srv.loadSource(t.Context(), next))
 	assert.Same(t, next, srv.src)
 }
 
@@ -810,4 +890,39 @@ func checkMessageRead(t *testing.T, thread bool, outcome string) {
 			m.EXPECT().AllMessages(gomock.Any(), "C1").DoAndReturn(func(context.Context, string) (iter.Seq2[slack.Message, error], error) { return factory() })
 		}
 	}, handler, args, wantError)
+}
+
+// checkCanceledIteration uses a source that ignores ctx to ensure cancellation
+// still stops filtering/collection and unwinds the iterator before releasing access.
+func checkCanceledIteration(t *testing.T, thread bool) {
+	t.Helper()
+	ctrl := gomock.NewController(t)
+	srv, src := newTestServer(t, ctrl)
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	exited := false
+	seq := func(yield func(slack.Message, error) bool) {
+		defer func() { exited = true }()
+		if !yield(slack.Message{Msg: slack.Msg{Timestamp: "1.0"}}, nil) {
+			return
+		}
+		cancel()
+		assert.False(t, yield(slack.Message{Msg: slack.Msg{Timestamp: "2.0"}}, nil), "cancellation must terminate iteration")
+	}
+	args := map[string]any{"channel_id": "C1", "thread_ts": "1.0"}
+	handler := srv.handleGetMessages
+	if thread {
+		src.EXPECT().AllThreadMessages(gomock.Any(), "C1", "1.0").Return(seq, nil)
+		handler = srv.handleGetThread
+	} else {
+		src.EXPECT().AllMessages(gomock.Any(), "C1").Return(seq, nil)
+	}
+	result, err := handler(ctx, toolReq(args))
+	require.NoError(t, err)
+	assert.True(t, result.IsError)
+	assert.Contains(t, firstText(t, result), context.Canceled.Error())
+	assert.True(t, exited, "iterator cleanup must precede handler return")
+	requireSourceAccess(t, srv, true)
+	src.EXPECT().Close().Return(nil)
+	require.NoError(t, srv.Close())
 }

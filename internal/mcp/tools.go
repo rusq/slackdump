@@ -37,8 +37,9 @@ func (s *Server) toolLoadSource() mcpsrv.ServerTool {
 	tool := mcplib.NewTool("load_source",
 		mcplib.WithDescription(`Open a Slackdump archive as the active data source.
 
-Calling this tool closes the currently open archive (if any) and opens the
-archive at the given path.  Only one source may be open at any time.  After
+This tool opens the archive at the given path, waits for active reads to finish,
+then closes the previous archive (if any) and replaces it. If opening fails or
+waiting is canceled, the previous archive remains active. After
 a successful call all data tools (list_channels, list_users, get_messages,
 get_thread, get_workspace_info) operate on the newly opened archive.
 
@@ -67,8 +68,7 @@ func (s *Server) handleLoadSource(ctx context.Context, req mcplib.CallToolReques
 
 	// Capture metadata while next is private; another load may close it once published.
 	name, sourceType := next.Name(), next.Type()
-	if err := s.loadSource(next); err != nil {
-		// loadSource itself never returns an error currently, but be defensive.
+	if err := s.loadSource(ctx, next); err != nil {
 		_ = next.Close()
 		return resultErr(fmt.Errorf("load_source: %w", err)), nil
 	}
@@ -105,7 +105,7 @@ type channelSummary struct {
 }
 
 func (s *Server) handleListChannels(ctx context.Context, req mcplib.CallToolRequest) (*mcplib.CallToolResult, error) {
-	return s.withSource(func(src source.Sourcer) (*mcplib.CallToolResult, error) {
+	return s.withSource(ctx, func(src source.Sourcer) (*mcplib.CallToolResult, error) {
 		channels, err := src.Channels(ctx)
 		if err != nil {
 			if errors.Is(err, source.ErrNotSupported) {
@@ -116,14 +116,6 @@ func (s *Server) handleListChannels(ctx context.Context, req mcplib.CallToolRequ
 
 		summaries := make([]channelSummary, 0, len(channels))
 		for _, c := range channels {
-			topic := ""
-			if c.Topic.Value != "" {
-				topic = c.Topic.Value
-			}
-			purpose := ""
-			if c.Purpose.Value != "" {
-				purpose = c.Purpose.Value
-			}
 			summaries = append(summaries, channelSummary{
 				ID:          c.ID,
 				Name:        c.Name,
@@ -133,8 +125,8 @@ func (s *Server) handleListChannels(ctx context.Context, req mcplib.CallToolRequ
 				IsMPIM:      c.IsMpIM,
 				IsArchived:  c.IsArchived,
 				MemberCount: c.NumMembers,
-				Topic:       topic,
-				Purpose:     purpose,
+				Topic:       c.Topic.Value,
+				Purpose:     c.Purpose.Value,
 			})
 		}
 
@@ -161,7 +153,7 @@ func (s *Server) toolGetChannel() mcpsrv.ServerTool {
 }
 
 func (s *Server) handleGetChannel(ctx context.Context, req mcplib.CallToolRequest) (*mcplib.CallToolResult, error) {
-	return s.withSource(func(src source.Sourcer) (*mcplib.CallToolResult, error) {
+	return s.withSource(ctx, func(src source.Sourcer) (*mcplib.CallToolResult, error) {
 		channelID, ok := stringArg(req, "channel_id")
 		if !ok || channelID == "" {
 			return resultErr(errors.New("get_channel: channel_id is required")), nil
@@ -209,7 +201,7 @@ type userSummary struct {
 }
 
 func (s *Server) handleListUsers(ctx context.Context, req mcplib.CallToolRequest) (*mcplib.CallToolResult, error) {
-	return s.withSource(func(src source.Sourcer) (*mcplib.CallToolResult, error) {
+	return s.withSource(ctx, func(src source.Sourcer) (*mcplib.CallToolResult, error) {
 		users, err := src.Users(ctx)
 		if err != nil {
 			if errors.Is(err, source.ErrNotSupported) {
@@ -281,7 +273,7 @@ const (
 )
 
 func (s *Server) handleGetMessages(ctx context.Context, req mcplib.CallToolRequest) (*mcplib.CallToolResult, error) {
-	return s.withSource(func(src source.Sourcer) (*mcplib.CallToolResult, error) {
+	return s.withSource(ctx, func(src source.Sourcer) (*mcplib.CallToolResult, error) {
 		channelID, ok := stringArg(req, "channel_id")
 		if !ok || channelID == "" {
 			return resultErr(errors.New("get_messages: channel_id is required")), nil
@@ -305,6 +297,9 @@ func (s *Server) handleGetMessages(ctx context.Context, req mcplib.CallToolReque
 
 		var msgs []messageSummary
 		for msg, err := range iter {
+			if err := ctx.Err(); err != nil {
+				return resultErr(fmt.Errorf("get_messages: iterate: %w", err)), nil
+			}
 			if err != nil {
 				return resultErr(fmt.Errorf("get_messages: iterate: %w", err)), nil
 			}
@@ -356,7 +351,7 @@ func (s *Server) toolGetThread() mcpsrv.ServerTool {
 }
 
 func (s *Server) handleGetThread(ctx context.Context, req mcplib.CallToolRequest) (*mcplib.CallToolResult, error) {
-	return s.withSource(func(src source.Sourcer) (*mcplib.CallToolResult, error) {
+	return s.withSource(ctx, func(src source.Sourcer) (*mcplib.CallToolResult, error) {
 		channelID, ok := stringArg(req, "channel_id")
 		if !ok || channelID == "" {
 			return resultErr(errors.New("get_thread: channel_id is required")), nil
@@ -379,6 +374,9 @@ func (s *Server) handleGetThread(ctx context.Context, req mcplib.CallToolRequest
 
 		var msgs []messageSummary
 		for msg, err := range iter {
+			if err := ctx.Err(); err != nil {
+				return resultErr(fmt.Errorf("get_thread: iterate: %w", err)), nil
+			}
 			if err != nil {
 				return resultErr(fmt.Errorf("get_thread: iterate: %w", err)), nil
 			}
@@ -411,7 +409,7 @@ func (s *Server) toolGetWorkspaceInfo() mcpsrv.ServerTool {
 }
 
 func (s *Server) handleGetWorkspaceInfo(ctx context.Context, req mcplib.CallToolRequest) (*mcplib.CallToolResult, error) {
-	return s.withSource(func(src source.Sourcer) (*mcplib.CallToolResult, error) {
+	return s.withSource(ctx, func(src source.Sourcer) (*mcplib.CallToolResult, error) {
 		info, err := src.WorkspaceInfo(ctx)
 		if err != nil {
 			if errors.Is(err, source.ErrNotFound) || errors.Is(err, source.ErrNotSupported) {
