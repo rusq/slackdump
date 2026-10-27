@@ -23,6 +23,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"testing/synctest"
 
 	mcplib "github.com/mark3labs/mcp-go/mcp"
 	"github.com/rusq/slack"
@@ -689,47 +690,78 @@ func TestServer_handleLoadSource(t *testing.T) {
 	})
 
 	t.Run("canceled queued replacement closes next and unblocks other readers", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		srv, old := newTestServer(t, ctrl)
-		next := mock_source.NewMockSourceResumeCloser(ctrl)
-		next.EXPECT().Name().Return("next")
-		next.EXPECT().Type().Return(source.FDump)
-		next.EXPECT().Close().Return(nil).Times(1)
-		srv.loader = func(context.Context, string) (source.SourceResumeCloser, error) { return next, nil }
-		// Keep an independent read active throughout cancellation and the next read.
-		require.NoError(t, srv.access.Acquire(t.Context(), 1))
-		var once sync.Once
-		release := func() { once.Do(func() { srv.access.Release(1) }) }
-		ctx, cancel := context.WithCancel(t.Context())
-		defer cancel()
-		loadDone := make(chan struct{})
-		var result *mcplib.CallToolResult
-		var err error
-		go func() {
-			defer close(loadDone)
-			result, err = srv.handleLoadSource(ctx, toolReq(map[string]any{"path": "next"}))
-		}()
-		t.Cleanup(func() { cancel(); release(); awaitSignal(t, loadDone) })
-		awaitWriterQueued(t, srv)
-		old.EXPECT().Channels(gomock.Any()).Return([]slack.Channel{}, nil)
-		readDone := make(chan struct{})
-		go func() {
-			defer close(readDone)
-			read, readErr := srv.handleListChannels(t.Context(), toolReq(nil))
-			assert.NoError(t, readErr)
+		synctest.Test(t, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			srv, old := newTestServer(t, ctrl)
+			next := mock_source.NewMockSourceResumeCloser(ctrl)
+			next.EXPECT().Name().Return("next")
+			next.EXPECT().Type().Return(source.FDump)
+			next.EXPECT().Close().Return(nil).Times(1)
+			srv.loader = func(context.Context, string) (source.SourceResumeCloser, error) { return next, nil }
+			// Keep the original read active through both checkpoints. Contexts
+			// created from this t belong to the bubble, so Acquire's selects
+			// can become durably blocked and be observed by synctest.Wait.
+			require.NoError(t, srv.access.Acquire(t.Context(), 1))
+			var once sync.Once
+			release := func() { once.Do(func() { srv.access.Release(1) }) }
+			defer release()
+			ctx, cancel := context.WithCancel(t.Context())
+			defer cancel()
+			loadDone := make(chan struct{})
+			var result *mcplib.CallToolResult
+			var err error
+			go func() {
+				defer close(loadDone)
+				result, err = srv.handleLoadSource(ctx, toolReq(map[string]any{"path": "next"}))
+			}()
+			synctest.Wait()
+			select {
+			case <-loadDone:
+				t.Fatal("replacement finished while the original read was active")
+			default:
+			}
+
+			old.EXPECT().Channels(gomock.Any()).Return([]slack.Channel{}, nil)
+			readDone := make(chan struct{})
+			var read *mcplib.CallToolResult
+			var readErr error
+			go func() {
+				defer close(readDone)
+				read, readErr = srv.handleListChannels(t.Context(), toolReq(nil))
+			}()
+			// Establish that the second reader is actually queued behind the
+			// writer before cancellation, rather than merely started.
+			synctest.Wait()
+			select {
+			case <-readDone:
+				t.Fatal("reader bypassed the queued replacement")
+			default:
+			}
+
+			cancel()
+			synctest.Wait()
+			select {
+			case <-loadDone:
+			default:
+				t.Fatal("canceled replacement did not finish")
+			}
+			select {
+			case <-readDone:
+			default:
+				t.Fatal("queued reader did not finish after replacement cancellation")
+			}
+			require.NoError(t, err)
+			require.NotNil(t, result)
+			assert.True(t, result.IsError)
+			assert.Contains(t, firstText(t, result), context.Canceled.Error())
+			require.NoError(t, readErr)
+			require.NotNil(t, read)
 			assert.False(t, read.IsError)
-		}()
-		t.Cleanup(func() { cancel(); release(); awaitSignal(t, readDone) })
-		cancel()
-		awaitSignal(t, loadDone)
-		// This must complete while the initial read is still held.
-		awaitSignal(t, readDone)
-		require.NoError(t, err)
-		assert.True(t, result.IsError)
-		assert.Contains(t, firstText(t, result), context.Canceled.Error())
-		assert.Same(t, old, srv.src)
-		release()
-		requireSourceAccess(t, srv, true)
+			assert.Same(t, old, srv.src)
+			requireSourceAccess(t, srv, false)
+			release()
+			requireSourceAccess(t, srv, true)
+		})
 	})
 	t.Run("loader finishing after shutdown closes its unpublished source", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
