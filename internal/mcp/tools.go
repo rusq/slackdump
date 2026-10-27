@@ -65,16 +65,18 @@ func (s *Server) handleLoadSource(ctx context.Context, req mcplib.CallToolReques
 		return resultErr(fmt.Errorf("load_source: open %q: %w", path, err)), nil
 	}
 
+	// Capture metadata while next is private; another load may close it once published.
+	name, sourceType := next.Name(), next.Type()
 	if err := s.loadSource(next); err != nil {
 		// loadSource itself never returns an error currently, but be defensive.
 		_ = next.Close()
 		return resultErr(fmt.Errorf("load_source: %w", err)), nil
 	}
 
-	s.logger.InfoContext(ctx, "mcp: load_source: archive opened", "path", path, "type", next.Type())
+	s.logger.InfoContext(ctx, "mcp: load_source: archive opened", "path", path, "type", sourceType)
 	return resultText(fmt.Sprintf(
 		"Archive %q (type: %s) loaded successfully. You can now use the data tools.",
-		next.Name(), next.Type(),
+		name, sourceType,
 	)), nil
 }
 
@@ -103,48 +105,45 @@ type channelSummary struct {
 }
 
 func (s *Server) handleListChannels(ctx context.Context, req mcplib.CallToolRequest) (*mcplib.CallToolResult, error) {
-	src := s.source()
-	if src == nil {
-		return resultErr(errNoSource), nil
-	}
-
-	channels, err := src.Channels(ctx)
-	if err != nil {
-		if errors.Is(err, source.ErrNotSupported) {
-			return resultText("This archive type does not support listing channels."), nil
+	return s.withSource(func(src source.Sourcer) (*mcplib.CallToolResult, error) {
+		channels, err := src.Channels(ctx)
+		if err != nil {
+			if errors.Is(err, source.ErrNotSupported) {
+				return resultText("This archive type does not support listing channels."), nil
+			}
+			return resultErr(fmt.Errorf("list_channels: %w", err)), nil
 		}
-		return resultErr(fmt.Errorf("list_channels: %w", err)), nil
-	}
 
-	summaries := make([]channelSummary, 0, len(channels))
-	for _, c := range channels {
-		topic := ""
-		if c.Topic.Value != "" {
-			topic = c.Topic.Value
+		summaries := make([]channelSummary, 0, len(channels))
+		for _, c := range channels {
+			topic := ""
+			if c.Topic.Value != "" {
+				topic = c.Topic.Value
+			}
+			purpose := ""
+			if c.Purpose.Value != "" {
+				purpose = c.Purpose.Value
+			}
+			summaries = append(summaries, channelSummary{
+				ID:          c.ID,
+				Name:        c.Name,
+				IsChannel:   c.IsChannel,
+				IsGroup:     c.IsGroup,
+				IsIM:        c.IsIM,
+				IsMPIM:      c.IsMpIM,
+				IsArchived:  c.IsArchived,
+				MemberCount: c.NumMembers,
+				Topic:       topic,
+				Purpose:     purpose,
+			})
 		}
-		purpose := ""
-		if c.Purpose.Value != "" {
-			purpose = c.Purpose.Value
-		}
-		summaries = append(summaries, channelSummary{
-			ID:          c.ID,
-			Name:        c.Name,
-			IsChannel:   c.IsChannel,
-			IsGroup:     c.IsGroup,
-			IsIM:        c.IsIM,
-			IsMPIM:      c.IsMpIM,
-			IsArchived:  c.IsArchived,
-			MemberCount: c.NumMembers,
-			Topic:       topic,
-			Purpose:     purpose,
-		})
-	}
 
-	result, err := resultJSON(summaries)
-	if err != nil {
-		return resultErr(fmt.Errorf("list_channels: serialise: %w", err)), nil
-	}
-	return result, nil
+		result, err := resultJSON(summaries)
+		if err != nil {
+			return resultErr(fmt.Errorf("list_channels: serialise: %w", err)), nil
+		}
+		return result, nil
+	})
 }
 
 // ─── get_channel ──────────────────────────────────────────────────────────────
@@ -162,32 +161,29 @@ func (s *Server) toolGetChannel() mcpsrv.ServerTool {
 }
 
 func (s *Server) handleGetChannel(ctx context.Context, req mcplib.CallToolRequest) (*mcplib.CallToolResult, error) {
-	src := s.source()
-	if src == nil {
-		return resultErr(errNoSource), nil
-	}
-
-	channelID, ok := stringArg(req, "channel_id")
-	if !ok || channelID == "" {
-		return resultErr(errors.New("get_channel: channel_id is required")), nil
-	}
-
-	ch, err := src.ChannelInfo(ctx, channelID)
-	if err != nil {
-		if errors.Is(err, source.ErrNotFound) {
-			return resultText(fmt.Sprintf("Channel %q not found in archive.", channelID)), nil
+	return s.withSource(func(src source.Sourcer) (*mcplib.CallToolResult, error) {
+		channelID, ok := stringArg(req, "channel_id")
+		if !ok || channelID == "" {
+			return resultErr(errors.New("get_channel: channel_id is required")), nil
 		}
-		if errors.Is(err, source.ErrNotSupported) {
-			return resultText("This archive type does not support channel info lookup."), nil
-		}
-		return resultErr(fmt.Errorf("get_channel: %w", err)), nil
-	}
 
-	result, err := resultJSON(ch)
-	if err != nil {
-		return resultErr(fmt.Errorf("get_channel: serialise: %w", err)), nil
-	}
-	return result, nil
+		ch, err := src.ChannelInfo(ctx, channelID)
+		if err != nil {
+			if errors.Is(err, source.ErrNotFound) {
+				return resultText(fmt.Sprintf("Channel %q not found in archive.", channelID)), nil
+			}
+			if errors.Is(err, source.ErrNotSupported) {
+				return resultText("This archive type does not support channel info lookup."), nil
+			}
+			return resultErr(fmt.Errorf("get_channel: %w", err)), nil
+		}
+
+		result, err := resultJSON(ch)
+		if err != nil {
+			return resultErr(fmt.Errorf("get_channel: serialise: %w", err)), nil
+		}
+		return result, nil
+	})
 }
 
 // ─── list_users ───────────────────────────────────────────────────────────────
@@ -213,38 +209,35 @@ type userSummary struct {
 }
 
 func (s *Server) handleListUsers(ctx context.Context, req mcplib.CallToolRequest) (*mcplib.CallToolResult, error) {
-	src := s.source()
-	if src == nil {
-		return resultErr(errNoSource), nil
-	}
-
-	users, err := src.Users(ctx)
-	if err != nil {
-		if errors.Is(err, source.ErrNotSupported) {
-			return resultText("This archive type does not support listing users."), nil
+	return s.withSource(func(src source.Sourcer) (*mcplib.CallToolResult, error) {
+		users, err := src.Users(ctx)
+		if err != nil {
+			if errors.Is(err, source.ErrNotSupported) {
+				return resultText("This archive type does not support listing users."), nil
+			}
+			return resultErr(fmt.Errorf("list_users: %w", err)), nil
 		}
-		return resultErr(fmt.Errorf("list_users: %w", err)), nil
-	}
 
-	summaries := make([]userSummary, 0, len(users))
-	for _, u := range users {
-		summaries = append(summaries, userSummary{
-			ID:          u.ID,
-			Name:        u.Name,
-			RealName:    u.RealName,
-			DisplayName: u.Profile.DisplayName,
-			Email:       u.Profile.Email,
-			IsBot:       u.IsBot,
-			IsDeleted:   u.Deleted,
-			TZ:          u.TZ,
-		})
-	}
+		summaries := make([]userSummary, 0, len(users))
+		for _, u := range users {
+			summaries = append(summaries, userSummary{
+				ID:          u.ID,
+				Name:        u.Name,
+				RealName:    u.RealName,
+				DisplayName: u.Profile.DisplayName,
+				Email:       u.Profile.Email,
+				IsBot:       u.IsBot,
+				IsDeleted:   u.Deleted,
+				TZ:          u.TZ,
+			})
+		}
 
-	result, err := resultJSON(summaries)
-	if err != nil {
-		return resultErr(fmt.Errorf("list_users: serialise: %w", err)), nil
-	}
-	return result, nil
+		result, err := resultJSON(summaries)
+		if err != nil {
+			return resultErr(fmt.Errorf("list_users: serialise: %w", err)), nil
+		}
+		return result, nil
+	})
 }
 
 // ─── get_messages ─────────────────────────────────────────────────────────────
@@ -288,63 +281,60 @@ const (
 )
 
 func (s *Server) handleGetMessages(ctx context.Context, req mcplib.CallToolRequest) (*mcplib.CallToolResult, error) {
-	src := s.source()
-	if src == nil {
-		return resultErr(errNoSource), nil
-	}
-
-	channelID, ok := stringArg(req, "channel_id")
-	if !ok || channelID == "" {
-		return resultErr(errors.New("get_messages: channel_id is required")), nil
-	}
-
-	limit := intArg(req, "limit", defLimit)
-	limit = max(min(limit, maxLimit), minLimit) // ensure within bounds
-
-	afterTS, _ := stringArg(req, "after_ts")
-
-	iter, err := src.AllMessages(ctx, channelID)
-	if err != nil {
-		if errors.Is(err, source.ErrNotFound) {
-			return resultText(fmt.Sprintf("No messages found for channel %q.", channelID)), nil
+	return s.withSource(func(src source.Sourcer) (*mcplib.CallToolResult, error) {
+		channelID, ok := stringArg(req, "channel_id")
+		if !ok || channelID == "" {
+			return resultErr(errors.New("get_messages: channel_id is required")), nil
 		}
-		if errors.Is(err, source.ErrNotSupported) {
-			return resultText("This archive type does not support reading messages."), nil
-		}
-		return resultErr(fmt.Errorf("get_messages: %w", err)), nil
-	}
 
-	var msgs []messageSummary
-	for msg, err := range iter {
+		limit := intArg(req, "limit", defLimit)
+		limit = max(min(limit, maxLimit), minLimit) // ensure within bounds
+
+		afterTS, _ := stringArg(req, "after_ts")
+
+		iter, err := src.AllMessages(ctx, channelID)
 		if err != nil {
-			return resultErr(fmt.Errorf("get_messages: iterate: %w", err)), nil
+			if errors.Is(err, source.ErrNotFound) {
+				return resultText(fmt.Sprintf("No messages found for channel %q.", channelID)), nil
+			}
+			if errors.Is(err, source.ErrNotSupported) {
+				return resultText("This archive type does not support reading messages."), nil
+			}
+			return resultErr(fmt.Errorf("get_messages: %w", err)), nil
 		}
-		// Skip thread replies (they have a ThreadTimestamp different from Timestamp).
-		if msg.ThreadTimestamp != "" && msg.ThreadTimestamp != msg.Timestamp {
-			continue
-		}
-		// Apply after_ts filter.
-		if afterTS != "" && msg.Timestamp <= afterTS {
-			continue
-		}
-		msgs = append(msgs, messageSummary{
-			Timestamp:  msg.Timestamp,
-			UserID:     msg.User,
-			Text:       msg.Text,
-			ReplyCount: msg.ReplyCount,
-			ThreadTS:   msg.ThreadTimestamp,
-			Subtype:    msg.SubType,
-		})
-		if len(msgs) >= limit {
-			break
-		}
-	}
 
-	result, err := resultJSON(msgs)
-	if err != nil {
-		return resultErr(fmt.Errorf("get_messages: serialise: %w", err)), nil
-	}
-	return result, nil
+		var msgs []messageSummary
+		for msg, err := range iter {
+			if err != nil {
+				return resultErr(fmt.Errorf("get_messages: iterate: %w", err)), nil
+			}
+			// Skip thread replies (they have a ThreadTimestamp different from Timestamp).
+			if msg.ThreadTimestamp != "" && msg.ThreadTimestamp != msg.Timestamp {
+				continue
+			}
+			// Apply after_ts filter.
+			if afterTS != "" && msg.Timestamp <= afterTS {
+				continue
+			}
+			msgs = append(msgs, messageSummary{
+				Timestamp:  msg.Timestamp,
+				UserID:     msg.User,
+				Text:       msg.Text,
+				ReplyCount: msg.ReplyCount,
+				ThreadTS:   msg.ThreadTimestamp,
+				Subtype:    msg.SubType,
+			})
+			if len(msgs) >= limit {
+				break
+			}
+		}
+
+		result, err := resultJSON(msgs)
+		if err != nil {
+			return resultErr(fmt.Errorf("get_messages: serialise: %w", err)), nil
+		}
+		return result, nil
+	})
 }
 
 // ─── get_thread ───────────────────────────────────────────────────────────────
@@ -366,51 +356,48 @@ func (s *Server) toolGetThread() mcpsrv.ServerTool {
 }
 
 func (s *Server) handleGetThread(ctx context.Context, req mcplib.CallToolRequest) (*mcplib.CallToolResult, error) {
-	src := s.source()
-	if src == nil {
-		return resultErr(errNoSource), nil
-	}
-
-	channelID, ok := stringArg(req, "channel_id")
-	if !ok || channelID == "" {
-		return resultErr(errors.New("get_thread: channel_id is required")), nil
-	}
-	threadTS, ok := stringArg(req, "thread_ts")
-	if !ok || threadTS == "" {
-		return resultErr(errors.New("get_thread: thread_ts is required")), nil
-	}
-
-	iter, err := src.AllThreadMessages(ctx, channelID, threadTS)
-	if err != nil {
-		if errors.Is(err, source.ErrNotFound) {
-			return resultText(fmt.Sprintf("Thread %q in channel %q not found.", threadTS, channelID)), nil
+	return s.withSource(func(src source.Sourcer) (*mcplib.CallToolResult, error) {
+		channelID, ok := stringArg(req, "channel_id")
+		if !ok || channelID == "" {
+			return resultErr(errors.New("get_thread: channel_id is required")), nil
 		}
-		if errors.Is(err, source.ErrNotSupported) {
-			return resultText("This archive type does not support reading threads."), nil
+		threadTS, ok := stringArg(req, "thread_ts")
+		if !ok || threadTS == "" {
+			return resultErr(errors.New("get_thread: thread_ts is required")), nil
 		}
-		return resultErr(fmt.Errorf("get_thread: %w", err)), nil
-	}
 
-	var msgs []messageSummary
-	for msg, err := range iter {
+		iter, err := src.AllThreadMessages(ctx, channelID, threadTS)
 		if err != nil {
-			return resultErr(fmt.Errorf("get_thread: iterate: %w", err)), nil
+			if errors.Is(err, source.ErrNotFound) {
+				return resultText(fmt.Sprintf("Thread %q in channel %q not found.", threadTS, channelID)), nil
+			}
+			if errors.Is(err, source.ErrNotSupported) {
+				return resultText("This archive type does not support reading threads."), nil
+			}
+			return resultErr(fmt.Errorf("get_thread: %w", err)), nil
 		}
-		msgs = append(msgs, messageSummary{
-			Timestamp:  msg.Timestamp,
-			UserID:     msg.User,
-			Text:       msg.Text,
-			ReplyCount: msg.ReplyCount,
-			ThreadTS:   msg.ThreadTimestamp,
-			Subtype:    msg.SubType,
-		})
-	}
 
-	result, err := resultJSON(msgs)
-	if err != nil {
-		return resultErr(fmt.Errorf("get_thread: serialise: %w", err)), nil
-	}
-	return result, nil
+		var msgs []messageSummary
+		for msg, err := range iter {
+			if err != nil {
+				return resultErr(fmt.Errorf("get_thread: iterate: %w", err)), nil
+			}
+			msgs = append(msgs, messageSummary{
+				Timestamp:  msg.Timestamp,
+				UserID:     msg.User,
+				Text:       msg.Text,
+				ReplyCount: msg.ReplyCount,
+				ThreadTS:   msg.ThreadTimestamp,
+				Subtype:    msg.SubType,
+			})
+		}
+
+		result, err := resultJSON(msgs)
+		if err != nil {
+			return resultErr(fmt.Errorf("get_thread: serialise: %w", err)), nil
+		}
+		return result, nil
+	})
 }
 
 // ─── get_workspace_info ───────────────────────────────────────────────────────
@@ -424,22 +411,19 @@ func (s *Server) toolGetWorkspaceInfo() mcpsrv.ServerTool {
 }
 
 func (s *Server) handleGetWorkspaceInfo(ctx context.Context, req mcplib.CallToolRequest) (*mcplib.CallToolResult, error) {
-	src := s.source()
-	if src == nil {
-		return resultErr(errNoSource), nil
-	}
-
-	info, err := src.WorkspaceInfo(ctx)
-	if err != nil {
-		if errors.Is(err, source.ErrNotFound) || errors.Is(err, source.ErrNotSupported) {
-			return resultText("Workspace information is not available in this archive."), nil
+	return s.withSource(func(src source.Sourcer) (*mcplib.CallToolResult, error) {
+		info, err := src.WorkspaceInfo(ctx)
+		if err != nil {
+			if errors.Is(err, source.ErrNotFound) || errors.Is(err, source.ErrNotSupported) {
+				return resultText("Workspace information is not available in this archive."), nil
+			}
+			return resultErr(fmt.Errorf("get_workspace_info: %w", err)), nil
 		}
-		return resultErr(fmt.Errorf("get_workspace_info: %w", err)), nil
-	}
 
-	result, err := resultJSON(info)
-	if err != nil {
-		return resultErr(fmt.Errorf("get_workspace_info: serialise: %w", err)), nil
-	}
-	return result, nil
+		result, err := resultJSON(info)
+		if err != nil {
+			return resultErr(fmt.Errorf("get_workspace_info: serialise: %w", err)), nil
+		}
+		return result, nil
+	})
 }

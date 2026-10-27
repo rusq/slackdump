@@ -61,8 +61,8 @@ type Server struct {
 	mcp    *mcpsrv.MCPServer
 	logger *slog.Logger
 
-	// mu protects src.  All tool handlers must hold mu.RLock while reading src
-	// and load_source must hold mu.Lock while replacing it.
+	// mu protects the entire lifetime of source reads, including iteration.
+	// Data handlers use withSource; loadSource holds mu.Lock to close and swap.
 	mu     sync.RWMutex
 	src    source.SourceResumeCloser // nil until a source is loaded
 	loader SourceLoader              // used by load_source to open new sources
@@ -166,12 +166,17 @@ All data is read-only. Timestamps in messages use Slack's format (Unix epoch as 
 `, src.Name(), src.Type())
 }
 
-// source returns the current source under a read-lock.  Returns nil when no
-// source has been loaded.
-func (s *Server) source() source.SourceResumeCloser {
+// withSource holds shared access until fn returns, including iterator cleanup
+// and response serialization. The source and its iterators must not escape fn.
+// fn must not acquire mu again (including via withSource or loadSource): a
+// pending writer makes recursive read locking deadlock.
+func (s *Server) withSource(fn func(source.Sourcer) (*mcplib.CallToolResult, error)) (*mcplib.CallToolResult, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return s.src
+	if s.src == nil {
+		return resultErr(errNoSource), nil
+	}
+	return fn(s.src)
 }
 
 // loadSource closes the current source (if any) and replaces it with next.

@@ -16,9 +16,15 @@
 package mcp
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"fmt"
+	"log/slog"
+	"sync"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	mcplib "github.com/mark3labs/mcp-go/mcp"
 	mcpsrv "github.com/mark3labs/mcp-go/server"
@@ -122,39 +128,192 @@ func TestInstructions_nilSource(t *testing.T) {
 
 // ─── source helper methods ────────────────────────────────────────────────────
 
-func TestLoadSource_closesOld(t *testing.T) {
-	ctrl := gomock.NewController(t)
-
-	// Old source: must be closed.
-	old := mock_source.NewMockSourceResumeCloser(ctrl)
-	old.EXPECT().Close().Return(nil).Times(1)
-
-	// New source.
-	next := mock_source.NewMockSourceResumeCloser(ctrl)
-
-	srv := New()
-	srv.src = old
-
-	err := srv.loadSource(next)
-	require.NoError(t, err)
-	assert.Equal(t, next, srv.src)
+// requireSourceLocked checks the lifetime invariant at a barrier, before a
+// writer is started. Undo an unexpected acquisition before reporting failure.
+func requireSourceLocked(t *testing.T, srv *Server) {
+	t.Helper()
+	locked := srv.mu.TryLock()
+	if locked {
+		srv.mu.Unlock()
+	}
+	require.False(t, locked, "source read must hold shared access")
 }
 
-func TestLoadSource_closeError_stillSwaps(t *testing.T) {
-	ctrl := gomock.NewController(t)
+func requireSourceUnlocked(t *testing.T, srv *Server) {
+	t.Helper()
+	locked := srv.mu.TryLock()
+	if locked {
+		srv.mu.Unlock()
+	}
+	require.True(t, locked, "source access leaked a lock")
+}
 
-	old := mock_source.NewMockSourceResumeCloser(ctrl)
-	old.EXPECT().Close().Return(errors.New("close failed")).Times(1)
+// awaitSignal uses a timeout only as a deadlock guard, never to order work.
+func awaitSignal(t *testing.T, ch <-chan struct{}) {
+	t.Helper()
+	select {
+	case <-ch:
+	case <-time.After(5 * time.Second):
+		t.Fatal("timed out waiting for test goroutine")
+	}
+}
 
-	next := mock_source.NewMockSourceResumeCloser(ctrl)
+func TestServer_withSource(t *testing.T) {
+	t.Run("no source skips callback and releases lock", func(t *testing.T) {
+		srv := New()
+		result, err := srv.withSource(func(source.Sourcer) (*mcplib.CallToolResult, error) {
+			t.Error("callback invoked without a source")
+			return nil, nil
+		})
+		require.NoError(t, err)
+		assert.Equal(t, errNoSource.Error(), firstText(t, result))
+		requireSourceUnlocked(t, srv)
+	})
+	for _, outcome := range []string{"success", "error", "panic"} {
+		t.Run(outcome+" releases lock", func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			srv, src := newTestServer(t, ctrl)
+			want := resultText("done")
+			callback := func(got source.Sourcer) (*mcplib.CallToolResult, error) {
+				assert.Same(t, src, got)
+				requireSourceLocked(t, srv)
+				switch outcome {
+				case "error":
+					return nil, assert.AnError
+				case "panic":
+					panic("callback panic")
+				}
+				return want, nil
+			}
+			if outcome == "panic" {
+				assert.PanicsWithValue(t, "callback panic", func() { _, _ = srv.withSource(callback) })
+			} else {
+				got, err := srv.withSource(callback)
+				if outcome == "error" {
+					assert.ErrorIs(t, err, assert.AnError)
+					assert.Nil(t, got)
+				} else {
+					require.NoError(t, err)
+					assert.Same(t, want, got)
+				}
+			}
+			requireSourceUnlocked(t, srv)
+		})
+	}
+}
 
-	srv := New()
-	srv.src = old
-
-	// Even when Close() errors, loadSource must swap the source.
-	err := srv.loadSource(next)
-	require.NoError(t, err)
-	assert.Equal(t, next, srv.src)
+func TestServer_loadSource(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		old      bool
+		closeErr error
+	}{
+		{name: "first installation"},
+		{name: "closes old source", old: true},
+		{name: "close error logs and still swaps", old: true, closeErr: errors.New("close failed")},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			var logs bytes.Buffer
+			srv := New(WithLogger(slog.New(slog.NewTextHandler(&logs, nil))))
+			if tc.old {
+				old := mock_source.NewMockSourceResumeCloser(ctrl)
+				old.EXPECT().Close().Return(tc.closeErr)
+				srv.src = old
+			}
+			next := mock_source.NewMockSourceResumeCloser(ctrl)
+			require.NoError(t, srv.loadSource(next))
+			assert.Same(t, next, srv.src)
+			requireSourceUnlocked(t, srv)
+			if tc.closeErr != nil {
+				assert.Contains(t, logs.String(), "error closing previous source")
+				assert.Contains(t, logs.String(), "close failed")
+			}
+		})
+	}
+	for _, readers := range []int{1, 2} {
+		t.Run(fmt.Sprintf("waits for all %d concurrent readers", readers), func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			srv, old := newTestServer(t, ctrl)
+			next := mock_source.NewMockSourceResumeCloser(ctrl)
+			var active atomic.Int32
+			closed := make(chan struct{})
+			old.EXPECT().Close().DoAndReturn(func() error {
+				assert.Zero(t, active.Load(), "closed source with active readers")
+				close(closed)
+				return nil
+			})
+			entered := make(chan struct{}, readers)
+			releases := make([]chan struct{}, readers)
+			done := make([]chan struct{}, readers)
+			for i := range readers {
+				releases[i], done[i] = make(chan struct{}), make(chan struct{})
+			}
+			writerDone := make(chan struct{})
+			var releaseOnce sync.Once
+			releaseAll := func() {
+				releaseOnce.Do(func() {
+					for _, ch := range releases {
+						close(ch)
+					}
+				})
+			}
+			// Join readers even when a lock assertion fails before starting the writer.
+			t.Cleanup(func() {
+				releaseAll()
+				for _, ch := range done {
+					awaitSignal(t, ch)
+				}
+			})
+			for i := range readers {
+				go func() {
+					defer close(done[i])
+					_, _ = srv.withSource(func(src source.Sourcer) (*mcplib.CallToolResult, error) {
+						active.Add(1)
+						entered <- struct{}{}
+						<-releases[i]
+						active.Add(-1)
+						return resultText("read"), nil
+					})
+				}()
+			}
+			for range readers {
+				awaitSignal(t, entered)
+			}
+			requireSourceLocked(t, srv)
+			writerStarted := make(chan struct{})
+			go func() {
+				defer close(writerDone)
+				close(writerStarted)
+				assert.NoError(t, srv.loadSource(next))
+			}()
+			t.Cleanup(func() { releaseAll(); awaitSignal(t, writerDone) })
+			awaitSignal(t, writerStarted)
+			if readers == 2 {
+				// Release one reader without opening the other reader's gate.
+				releases[0] <- struct{}{}
+				awaitSignal(t, done[0])
+				assert.EqualValues(t, 1, active.Load())
+				select {
+				case <-closed:
+					t.Error("closed before remaining reader finished")
+				default:
+				}
+			}
+			releaseAll()
+			awaitSignal(t, writerDone)
+			awaitSignal(t, closed)
+			for _, ch := range done {
+				awaitSignal(t, ch)
+			}
+			assert.Same(t, next, srv.src)
+			next.EXPECT().Name().Return("replacement")
+			result, err := srv.withSource(func(src source.Sourcer) (*mcplib.CallToolResult, error) { return resultText(src.Name()), nil })
+			require.NoError(t, err)
+			assert.Equal(t, "replacement", firstText(t, result))
+			requireSourceUnlocked(t, srv)
+		})
+	}
 }
 
 // ─── result helpers ───────────────────────────────────────────────────────────
