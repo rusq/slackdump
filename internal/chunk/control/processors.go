@@ -191,8 +191,9 @@ LOOP:
 
 // combinedChannels filters the processed channels and outputs previously not seen ones.
 type combinedChannels struct {
-	output    chan<- structures.EntityItem
-	processed map[string]struct{}
+	output     chan<- structures.EntityItem
+	processed  map[string]struct{}
+	memberOnly bool
 }
 
 var _ processor.Channels = (*combinedChannels)(nil)
@@ -200,6 +201,10 @@ var _ processor.Channels = (*combinedChannels)(nil)
 func (c *combinedChannels) Channels(ctx context.Context, ch []slack.Channel) error {
 	for _, ch := range ch {
 		if _, ok := c.processed[ch.ID]; ok {
+			continue
+		}
+		if c.memberOnly && !structures.IsMember(&ch) {
+			// skip public non-member channels
 			continue
 		}
 		c.processed[ch.ID] = struct{}{}

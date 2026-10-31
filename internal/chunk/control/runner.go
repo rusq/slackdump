@@ -96,9 +96,10 @@ func newGenerator(s Streamer, p superprocessor, flags Flags, list *structures.En
 	if flags.Refresh {
 		// refresh the given list with the channels from the API.
 		return &combinedGenerator{
-			s:       s,
-			p:       p.Channels,
-			chTypes: flags.ChannelTypes,
+			s:          s,
+			p:          p.Channels,
+			memberOnly: flags.MemberOnly,
+			chTypes:    flags.ChannelTypes,
 		}
 	} else if list.HasIncludes() {
 		// inclusive export, processes only included channels.
@@ -291,9 +292,10 @@ func (g *apiGenerator) Generate(ctx context.Context, errC chan<- error, list *st
 // the channels from the list (honouring exclusions), then fetches the rest from
 // the API.  It ignores the thread links in the list.
 type combinedGenerator struct {
-	s       Streamer
-	p       processor.Channels
-	chTypes []string
+	s          Streamer
+	p          processor.Channels
+	memberOnly bool
+	chTypes    []string
 }
 
 func (g *combinedGenerator) Generate(ctx context.Context, errC chan<- error, list *structures.EntityList) (<-chan structures.EntityItem, func()) {
@@ -322,8 +324,9 @@ func (g *combinedGenerator) Generate(ctx context.Context, errC chan<- error, lis
 		//       is that it will be harder to maintain the order of the channels.
 
 		proc := &combinedChannels{
-			output:    links,
-			processed: processed,
+			output:     links,
+			processed:  processed,
+			memberOnly: g.memberOnly,
 		}
 
 		// joined processor will take care of duplicates and will send only

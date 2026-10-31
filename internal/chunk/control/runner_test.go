@@ -219,7 +219,8 @@ func Test_combinedGenerator_Generate(t *testing.T) {
 	type fields struct {
 		// s       Streamer
 		// p       processor.Channels
-		chTypes []string
+		memberOnly bool
+		chTypes    []string
 	}
 	type args struct {
 		ctx context.Context
@@ -289,6 +290,36 @@ func Test_combinedGenerator_Generate(t *testing.T) {
 			want: []structures.EntityItem{
 				{Id: "C11111111", Include: true, Oldest: date1, Latest: date2},
 				{Id: "C22222222", Include: true},
+				{Id: "G44444444", Include: true},
+				{Id: "D33333333", Include: true},
+			},
+			wantErr: false,
+		},
+		{
+			name: "skips API channels the user is not a member of, if memberOnly",
+			fields: fields{
+				memberOnly: true,
+				chTypes:    nil,
+			},
+			args: args{
+				ctx: t.Context(),
+				list: structures.NewEntityListFromItems(
+					structures.EntityItem{Id: "C55555555", Include: true, Oldest: date1, Latest: date2},
+				),
+			},
+			expectFn: func(s *mock_control.MockStreamer, p *mock_processor.MockChannels) {
+				s.EXPECT().
+					ListChannels(gomock.Any(), gomock.Any(), &slack.GetConversationsParameters{Types: slackdump.AllChanTypes}).
+					DoAndReturn(
+						func(ctx context.Context, proc processor.Channels, p *slack.GetConversationsParameters) error {
+							proc.Channels(t.Context(), []slack.Channel{testPubChanMember, testPubChanNonMember, testGroupChanNonMember, testPrivChanNonMember})
+							return nil
+						})
+				p.EXPECT().Channels(gomock.Any(), []slack.Channel{testPubChanMember, testPubChanNonMember, testGroupChanNonMember, testPrivChanNonMember}).Return(nil)
+			},
+			want: []structures.EntityItem{
+				{Id: "C55555555", Include: true, Oldest: date1, Latest: date2},
+				{Id: "C11111111", Include: true},
 				{Id: "G44444444", Include: true},
 				{Id: "D33333333", Include: true},
 			},
@@ -402,9 +433,10 @@ func Test_combinedGenerator_Generate(t *testing.T) {
 				tt.expectFn(s, p)
 			}
 			g := &combinedGenerator{
-				s:       s,
-				p:       p,
-				chTypes: tt.fields.chTypes,
+				s:          s,
+				p:          p,
+				memberOnly: tt.fields.memberOnly,
+				chTypes:    tt.fields.chTypes,
 			}
 			errC := make(chan error, 1)
 			listC, done := g.Generate(tt.args.ctx, errC, tt.args.list)
