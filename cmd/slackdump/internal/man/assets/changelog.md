@@ -4,6 +4,13 @@
 
 ### Bug Fixes
 
+- `slackdump resume -refresh -member-only` now skips newly discovered public
+  channels that the current user has not joined (#758). Channels already in
+  the resume list are still processed.
+- Fixed MCP archive switching so `load_source` waits for active reads before
+  closing the previous archive (#753). Failed opens or canceled waits leave
+  the previous archive active, queued reads can be canceled, and the server
+  closes the active archive at shutdown.
 - Fix slow database deduplication on large channels (#750), including cleanup
   after `resume -dedupe`. Existing archives automatically build a message index
   on first open after upgrading; this can take extra time and disk space.

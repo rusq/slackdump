@@ -105,9 +105,12 @@ Fixed channel timelines so refreshed thread parents remain visible after direct 
 ### [@thomasmaerz](https://github.com/thomasmaerz)
 Fixed database dedupe joins for non-null keys, restoring fast dedupe previews on archives with many duplicate channel users.
 
+### [@beeckrumi0000](https://github.com/beeckrumi0000) - ulises.millan
+Fixed `resume -refresh` so `-member-only` also filters newly discovered channels.
+
 ---
 
-**Total Contributors**: 33
+**Total Contributors**: 34
 
 This list is sorted by number of contributions. Every contribution, no matter how small, helps make Slackdump better for everyone!
 

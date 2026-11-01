@@ -267,7 +267,9 @@ load_source(path="/path/to/another/archive.db")
 ```
 
 `load_source` also works when the server was started with an initial archive —
-it closes the current one and opens the new one.
+it opens the new archive and waits for active reads before replacing the
+current one. If opening fails or the wait is canceled, the current archive
+remains active.
 
 ## Integrating with Claude Desktop
 
