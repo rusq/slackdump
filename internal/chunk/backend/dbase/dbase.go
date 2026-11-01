@@ -83,6 +83,9 @@ func WithVerbose(v bool) Option {
 	}
 }
 
+// WithOnlyNewOrChangedUsers instructs to insert the user in consequent session
+// only in case if it is a new user or the user details were updated. Default -
+// to insert the user regardless.
 func WithOnlyNewOrChangedUsers(v bool) Option {
 	return func(o *options) {
 		o.onlyNewOrChangedUsers = v

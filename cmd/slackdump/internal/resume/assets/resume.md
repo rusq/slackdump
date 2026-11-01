@@ -34,6 +34,19 @@ steps:
    slackdump convert -format <your-format> slackdump_20241231_150405
    ```
 
+### Discovering new channels.
+
+Use `-refresh` to discover additional channels while resuming an existing
+archive. Add `-member-only` to skip newly discovered public channels that you
+have not joined:
+
+```plaintext
+slackdump resume -refresh -member-only <archive>
+```
+
+The membership filter applies to newly discovered channels. Channels already
+in the resume list are still processed, even if you are no longer a member.
+
 ### Deduplicating resume overlap.
 
 Resume uses a lookback window to avoid missing edits, replies, and other
