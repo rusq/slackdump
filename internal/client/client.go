@@ -68,6 +68,11 @@ var ErrOpNotSupported = errors.New("client doesn't support this operation")
 // HTTP client whose redirect policy Slackdump controls.
 var ErrSecureFileDownloadUnavailable = errors.New("secure file download is unavailable")
 
+// FileGetter retrieves a private file into writer.
+type FileGetter interface {
+	GetFileContext(context.Context, string, io.Writer) error
+}
+
 var _ Slack = (*Client)(nil)
 
 // Client wraps *slack.Client and, for xoxc sessions, a canvas-capable web
@@ -141,6 +146,17 @@ func newFileClient(token string, hcl *http.Client) *slack.Client {
 	return slack.New(token, slack.OptionHTTPClient(&fileHTTPClient))
 }
 
+type secureFileGetter struct {
+	cl *slack.Client
+}
+
+func (g secureFileGetter) GetFileContext(ctx context.Context, downloadURL string, writer io.Writer) error {
+	if err := network.ValidateSlackFileURL(downloadURL); err != nil {
+		return err
+	}
+	return g.cl.GetFileContext(ctx, downloadURL, writer)
+}
+
 // New creates a Client and runs auth.test. Client-token sessions receive a
 // canvas-capable web client; Enterprise sessions additionally use it for
 // conversation API overrides.
@@ -175,16 +191,14 @@ func New(ctx context.Context, prov auth.Provider, opts ...Option) (*Client, erro
 	return c, nil
 }
 
-// GetFileContext retrieves a private Slack file after validating its URL. The
-// dedicated file client also validates every redirect before issuing it.
-func (c *Client) GetFileContext(ctx context.Context, downloadURL string, writer io.Writer) error {
-	if err := network.ValidateSlackFileURL(downloadURL); err != nil {
-		return err
-	}
+// SecureFileGetter returns a file getter for corrective redownloads. It
+// validates the initial URL and every redirect without changing normal Slack
+// file downloads used by dump, export, and archive operations.
+func (c *Client) SecureFileGetter() (FileGetter, error) {
 	if c.fileClient == nil {
-		return ErrSecureFileDownloadUnavailable
+		return nil, ErrSecureFileDownloadUnavailable
 	}
-	return c.fileClient.GetFileContext(ctx, downloadURL, writer)
+	return secureFileGetter{cl: c.fileClient}, nil
 }
 
 // AuthTestContext returns the cached workspace information that was captured

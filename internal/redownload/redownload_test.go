@@ -522,6 +522,25 @@ func Test_processChannel(t *testing.T) {
 			t.Fatalf("stats = %+v, want zeroed on error", stats)
 		}
 	})
+
+	t.Run("skips blocked and local-only references", func(t *testing.T) {
+		blocked := slack.File{ID: "F2", Name: "blocked.txt", URLPrivateDownload: "https://attacker.example/file.txt", Size: 10}
+		local := slack.File{ID: "F3", Name: "local.txt", URLPrivateDownload: "files/F3/local.txt", Size: 20}
+		r := &Redownloader{src: stubSource{name: t.TempDir(), storage: stubStorage{typ: source.STstandard, pathFn: func(*slack.Channel, *slack.File) string { return "missing" }}, messages: func(context.Context, string) (iter.Seq2[slack.Message, error], error) {
+			return seqFromMessages([]slack.Message{{Msg: slack.Msg{Files: []slack.File{blocked, local}}}}), nil
+		}}, lg: slog.Default()}
+		called := 0
+		stats, err := r.processChannel(t.Context(), &ch, func(*dlItem) error { called++; return nil })
+		if err != nil {
+			t.Fatalf("processChannel() error = %v", err)
+		}
+		if stats != (FileStats{NumBlocked: 1, NumLocal: 1}) {
+			t.Fatalf("stats = %+v, want one blocked and one local", stats)
+		}
+		if called != 0 {
+			t.Fatalf("callback called %d times, want 0", called)
+		}
+	})
 }
 
 func Test_validate(t *testing.T) {
@@ -588,8 +607,9 @@ func TestDownload(t *testing.T) {
 		t.Fatalf("downloaded file missing: %v", err)
 	}
 
-	t.Run("skips untrusted archive URLs", func(t *testing.T) {
+	t.Run("skips blocked and local-only archive URLs", func(t *testing.T) {
 		blocked := slack.File{ID: "F2", Name: "blocked.txt", URLPrivateDownload: "https://attacker.example/file.txt", Size: 10}
+		local := slack.File{ID: "F3", Name: "local.txt", URLPrivateDownload: "files/F3/local.txt", Size: 20}
 		var calls int
 		r := &Redownloader{
 			flags: source.FDump,
@@ -598,7 +618,7 @@ func TestDownload(t *testing.T) {
 				storage:  stubStorage{typ: source.STnone},
 				channels: []slack.Channel{ch},
 				messages: func(context.Context, string) (iter.Seq2[slack.Message, error], error) {
-					return seqFromMessages([]slack.Message{{Msg: slack.Msg{Files: []slack.File{blocked}}}}), nil
+					return seqFromMessages([]slack.Message{{Msg: slack.Msg{Files: []slack.File{blocked, local}}}}), nil
 				},
 			},
 			lg: slog.Default(),
@@ -612,16 +632,16 @@ func TestDownload(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Stats() error = %v", err)
 		}
-		if estimated != (FileStats{NumBlocked: 1}) {
-			t.Fatalf("Stats() = %+v, want one blocked file", estimated)
+		if estimated != (FileStats{NumBlocked: 1, NumLocal: 1}) {
+			t.Fatalf("Stats() = %+v, want one blocked and one local file", estimated)
 		}
 
 		stats, err := r.Download(t.Context(), getter)
 		if err != nil {
 			t.Fatalf("Download() error = %v", err)
 		}
-		if stats != (FileStats{NumBlocked: 1}) {
-			t.Fatalf("Download() = %+v, want one blocked file", stats)
+		if stats != (FileStats{NumBlocked: 1, NumLocal: 1}) {
+			t.Fatalf("Download() = %+v, want one blocked and one local file", stats)
 		}
 		if calls != 0 {
 			t.Fatalf("GetFileContext calls = %d, want 0", calls)

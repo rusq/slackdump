@@ -219,8 +219,14 @@ func (r *Redownloader) processChannel(ctx context.Context, ch *slack.Channel, cb
 	}
 	for _, item := range items {
 		if err := network.ValidateSlackFileURL(item.f.URLPrivateDownload); err != nil {
-			r.lg.WarnContext(ctx, "skipping file with an untrusted download URL", "channel", item.ch.ID, "file_id", item.f.ID)
-			ret.NumBlocked++
+			var rejected *network.FileURLRejectedError
+			if errors.As(err, &rejected) && rejected.Reason == network.FileURLLocalReference {
+				r.lg.WarnContext(ctx, "skipping file with a local-only download reference", "channel", item.ch.ID, "file_id", item.f.ID)
+				ret.NumLocal++
+			} else {
+				r.lg.WarnContext(ctx, "skipping file with a blocked download URL", "channel", item.ch.ID, "file_id", item.f.ID, "reason", err)
+				ret.NumBlocked++
+			}
 			continue
 		}
 		if cb != nil {
