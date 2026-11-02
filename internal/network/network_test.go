@@ -86,28 +86,28 @@ func dAbs(d time.Duration) time.Duration {
 
 func TestValidateSlackFileURL(t *testing.T) {
 	tests := []struct {
-		name   string
-		url    string
-		want   bool
-		reason FileURLRejectReason
+		name string
+		url  string
+		want bool
 	}{
 		{name: "Slack file URL", url: "https://files.slack.com/files-pri/T1-F1/download/file.txt", want: true},
 		{name: "GovSlack file URL", url: "https://files.slack-gov.com/files-pri/T1-F1/download/file.txt", want: true},
 		{name: "other valid Slack file path", url: "https://files.slack.com/archives/T1/p-123/file.txt", want: true},
 		{name: "mixed case host and scheme", url: "HTTPS://FILES.SLACK.COM/file.txt", want: true},
 		{name: "explicit HTTPS port", url: "https://files.slack.com:443/file.txt", want: true},
-		{name: "base Slack domain", url: "https://slack.com/file.txt", reason: FileURLUntrustedHost},
-		{name: "workspace subdomain", url: "https://workspace.slack.com/file.txt", reason: FileURLUntrustedHost},
-		{name: "API subdomain", url: "https://api.slack.com/file.txt", reason: FileURLUntrustedHost},
-		{name: "HTTP", url: "http://files.slack.com/file.txt", reason: FileURLNonHTTPS},
-		{name: "non-default port", url: "https://files.slack.com:8443/file.txt", reason: FileURLUnsupportedPort},
-		{name: "empty port", url: "https://files.slack.com:/file.txt", reason: FileURLUnsupportedPort},
-		{name: "suffix trick", url: "https://files.slack.com.attacker.example/file.txt", reason: FileURLUntrustedHost},
-		{name: "userinfo trick", url: "https://files.slack.com@attacker.example/file.txt", reason: FileURLUserinfo},
-		{name: "IP address", url: "https://127.0.0.1/file.txt", reason: FileURLUntrustedHost},
-		{name: "missing host", url: "https:///file.txt", reason: FileURLUntrustedHost},
-		{name: "local path", url: "files/F1/file.txt", reason: FileURLLocalReference},
-		{name: "malformed URL", url: "://files.slack.com/file.txt", reason: FileURLMalformed},
+		{name: "base Slack domain", url: "https://slack.com/file.txt"},
+		{name: "workspace subdomain", url: "https://workspace.slack.com/file.txt"},
+		{name: "API subdomain", url: "https://api.slack.com/file.txt"},
+		{name: "HTTP", url: "http://files.slack.com/file.txt"},
+		{name: "non-default port", url: "https://files.slack.com:8443/file.txt"},
+		{name: "empty port", url: "https://files.slack.com:/file.txt"},
+		{name: "suffix trick", url: "https://files.slack.com.attacker.example/file.txt"},
+		{name: "userinfo trick", url: "https://files.slack.com@attacker.example/file.txt"},
+		{name: "IP address", url: "https://127.0.0.1/file.txt"},
+		{name: "missing host", url: "https:///file.txt"},
+		{name: "local path", url: "files/F1/file.txt"},
+		{name: "empty", url: ""},
+		{name: "malformed URL", url: "://files.slack.com/file.txt"},
 	}
 
 	for _, tt := range tests {
@@ -119,11 +119,60 @@ func TestValidateSlackFileURL(t *testing.T) {
 			if !tt.want && !errors.Is(err, ErrUntrustedFileURL) {
 				t.Fatalf("ValidateSlackFileURL(%q) error = %v, want ErrUntrustedFileURL", tt.url, err)
 			}
-			if !tt.want {
-				var rejected *FileURLRejectedError
-				if !errors.As(err, &rejected) || rejected.Reason != tt.reason {
-					t.Fatalf("ValidateSlackFileURL(%q) error = %v, want reason %q", tt.url, err, tt.reason)
-				}
+		})
+	}
+}
+
+func TestValidateSlackRedirectURL(t *testing.T) {
+	tests := []struct {
+		name string
+		url  string
+		want bool
+	}{
+		{name: "Slack file host", url: "https://files.slack.com/files-pri/T1-F1/file.txt", want: true},
+		{name: "workspace host", url: "https://team.slack.com/files-pri/T1-F1/file.txt", want: true},
+		{name: "enterprise host", url: "https://org.enterprise.slack.com/files-pri/T1-F1/file.txt", want: true},
+		{name: "GovSlack workspace host", url: "https://team.slack-gov.com/files-pri/T1-F1/file.txt", want: true},
+		{name: "base Slack domain", url: "https://slack.com/files-pri/T1-F1/file.txt", want: true},
+		{name: "explicit HTTPS port", url: "https://team.slack.com:443/file.txt", want: true},
+		{name: "suffix trick", url: "https://team.slack.com.attacker.example/file.txt"},
+		{name: "lookalike domain", url: "https://evilslack.com/file.txt"},
+		{name: "other domain", url: "https://attacker.example/file.txt"},
+		{name: "HTTP", url: "http://team.slack.com/file.txt"},
+		{name: "non-default port", url: "https://team.slack.com:8443/file.txt"},
+		{name: "userinfo trick", url: "https://team.slack.com@attacker.example/file.txt"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateSlackRedirectURL(tt.url)
+			if (err == nil) != tt.want {
+				t.Fatalf("ValidateSlackRedirectURL(%q) error = %v, want valid = %v", tt.url, err, tt.want)
+			}
+			if !tt.want && !errors.Is(err, ErrUntrustedFileURL) {
+				t.Fatalf("ValidateSlackRedirectURL(%q) error = %v, want ErrUntrustedFileURL", tt.url, err)
+			}
+		})
+	}
+}
+
+func TestIsLocalFileReference(t *testing.T) {
+	tests := []struct {
+		name string
+		ref  string
+		want bool
+	}{
+		{name: "empty", ref: "", want: false},
+		{name: "relative dump path", ref: "C1/attachments/F1-file.txt", want: true},
+		{name: "percent in name", ref: "C1/F1-100%.txt", want: true},
+		{name: "Windows path", ref: `C:\x\y.txt`, want: true},
+		{name: "HTTPS URL", ref: "https://files.slack.com/file.txt", want: false},
+		{name: "file URL", ref: "file:///etc/passwd", want: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := IsLocalFileReference(tt.ref); got != tt.want {
+				t.Errorf("IsLocalFileReference(%q) = %v, want %v", tt.ref, got, tt.want)
 			}
 		})
 	}

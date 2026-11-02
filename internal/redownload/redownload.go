@@ -218,15 +218,20 @@ func (r *Redownloader) processChannel(ctx context.Context, ch *slack.Channel, cb
 		return ret, err
 	}
 	for _, item := range items {
-		if err := network.ValidateSlackFileURL(item.f.URLPrivateDownload); err != nil {
-			var rejected *network.FileURLRejectedError
-			if errors.As(err, &rejected) && rejected.Reason == network.FileURLLocalReference {
-				r.lg.WarnContext(ctx, "skipping file with a local-only download reference", "channel", item.ch.ID, "file_id", item.f.ID)
-				ret.NumLocal++
-			} else {
-				r.lg.WarnContext(ctx, "skipping file with a blocked download URL", "channel", item.ch.ID, "file_id", item.f.ID, "reason", err)
-				ret.NumBlocked++
-			}
+		dlURL := item.f.URLPrivateDownload
+		if dlURL == "" {
+			r.lg.WarnContext(ctx, "skipping file with no download URL", "channel", item.ch.ID, "file_id", item.f.ID)
+			ret.NumNoURL++
+			continue
+		}
+		if network.IsLocalFileReference(dlURL) {
+			r.lg.WarnContext(ctx, "skipping file with a local-only download reference", "channel", item.ch.ID, "file_id", item.f.ID)
+			ret.NumLocal++
+			continue
+		}
+		if err := network.ValidateSlackFileURL(dlURL); err != nil {
+			r.lg.WarnContext(ctx, "skipping file with a blocked download URL", "channel", item.ch.ID, "file_id", item.f.ID, "reason", err)
+			ret.NumBlocked++
 			continue
 		}
 		if cb != nil {

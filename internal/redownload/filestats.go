@@ -27,6 +27,7 @@ type FileStats struct {
 	NumBytes   uint64
 	NumBlocked uint
 	NumLocal   uint
+	NumNoURL   uint
 }
 
 func (fs *FileStats) add(other FileStats) {
@@ -34,6 +35,7 @@ func (fs *FileStats) add(other FileStats) {
 	fs.NumBytes += other.NumBytes
 	fs.NumBlocked += other.NumBlocked
 	fs.NumLocal += other.NumLocal
+	fs.NumNoURL += other.NumNoURL
 }
 
 func (fs *FileStats) Attr() slog.Attr {
@@ -41,7 +43,5 @@ func (fs *FileStats) Attr() slog.Attr {
 		"file_stats",
 		slog.Uint64("num_files", uint64(fs.NumFiles)),
 		slog.String("total_bytes", humanize.Bytes(fs.NumBytes)),
-		slog.Uint64("num_blocked", uint64(fs.NumBlocked)),
-		slog.Uint64("num_local", uint64(fs.NumLocal)),
 	)
 }

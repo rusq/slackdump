@@ -17,6 +17,7 @@ package network
 
 import (
 	"errors"
+	"fmt"
 	"net/url"
 	"strings"
 )
@@ -26,66 +27,49 @@ import (
 // callers must not use an archive-controlled URL outside these domains.
 var ErrUntrustedFileURL = errors.New("untrusted Slack file download URL")
 
-// FileURLRejectReason identifies why a URL was not safe for an authenticated
-// file download. It deliberately carries no URL data, since archive URLs can
-// contain sensitive query parameters.
-type FileURLRejectReason string
-
-const (
-	FileURLMalformed       FileURLRejectReason = "malformed URL"
-	FileURLLocalReference  FileURLRejectReason = "local reference"
-	FileURLNonHTTPS        FileURLRejectReason = "non-HTTPS scheme"
-	FileURLUserinfo        FileURLRejectReason = "userinfo"
-	FileURLUntrustedHost   FileURLRejectReason = "untrusted host"
-	FileURLUnsupportedPort FileURLRejectReason = "unsupported port"
-)
-
-// FileURLRejectedError reports a safe reason for rejecting an archive URL.
-type FileURLRejectedError struct {
-	Reason FileURLRejectReason
-}
-
-func (e *FileURLRejectedError) Error() string { return string(e.Reason) }
-
-func (e *FileURLRejectedError) Unwrap() error { return ErrUntrustedFileURL }
-
-func rejectFileURL(reason FileURLRejectReason) error {
-	return &FileURLRejectedError{Reason: reason}
-}
-
-var slackFileHosts = map[string]struct{}{
-	"files.slack.com":         {},
-	"files.slack-gov.com":     {},
-	"files.slack.com:443":     {},
-	"files.slack-gov.com:443": {},
+// IsLocalFileReference reports whether ref is a non-empty reference to a local
+// file, such as a dump attachment path, rather than an absolute URL.  It does
+// not parse ref, so paths with "%" or Windows drive letters are classified
+// correctly.
+func IsLocalFileReference(ref string) bool {
+	return ref != "" && !strings.Contains(ref, "://")
 }
 
 // ValidateSlackFileURL reports whether rawURL is an HTTPS URL served by the
-// Slack or GovSlack file hosts. It permits the default HTTPS port and explicit
-// port 443. Rejection errors never expose the URL or any part of it.
+// Slack or GovSlack file hosts.  It is intended for archive-controlled URLs.
+// Rejection errors never expose the URL or any part of it.
 func ValidateSlackFileURL(rawURL string) error {
+	return validateURL(rawURL, func(host string) bool {
+		return host == "files.slack.com" || host == "files.slack-gov.com"
+	})
+}
+
+// ValidateSlackRedirectURL reports whether rawURL is an HTTPS URL on a Slack or
+// GovSlack host.  It is intended for redirects issued by Slack itself, which
+// may point to workspace or enterprise hosts.
+func ValidateSlackRedirectURL(rawURL string) error {
+	return validateURL(rawURL, func(host string) bool {
+		return host == "slack.com" || host == "slack-gov.com" ||
+			strings.HasSuffix(host, ".slack.com") || strings.HasSuffix(host, ".slack-gov.com")
+	})
+}
+
+func validateURL(rawURL string, hostOK func(string) bool) error {
 	u, err := url.Parse(rawURL)
 	if err != nil {
-		return rejectFileURL(FileURLMalformed)
-	}
-	if u.Scheme == "" && u.Host == "" {
-		return rejectFileURL(FileURLLocalReference)
+		return fmt.Errorf("%w: malformed URL", ErrUntrustedFileURL)
 	}
 	if !strings.EqualFold(u.Scheme, "https") {
-		return rejectFileURL(FileURLNonHTTPS)
+		return fmt.Errorf("%w: non-HTTPS scheme", ErrUntrustedFileURL)
 	}
 	if u.User != nil {
-		return rejectFileURL(FileURLUserinfo)
+		return fmt.Errorf("%w: userinfo", ErrUntrustedFileURL)
 	}
-	if u.Host == "" {
-		return rejectFileURL(FileURLUntrustedHost)
+	if !hostOK(strings.ToLower(u.Hostname())) {
+		return fmt.Errorf("%w: untrusted host", ErrUntrustedFileURL)
 	}
-	host := strings.ToLower(u.Host)
-	if _, ok := slackFileHosts[host]; ok {
-		return nil
+	if port := u.Port(); (port != "" && port != "443") || strings.HasSuffix(u.Host, ":") {
+		return fmt.Errorf("%w: unsupported port", ErrUntrustedFileURL)
 	}
-	if strings.HasPrefix(host, "files.slack.com:") || strings.HasPrefix(host, "files.slack-gov.com:") {
-		return rejectFileURL(FileURLUnsupportedPort)
-	}
-	return rejectFileURL(FileURLUntrustedHost)
+	return nil
 }

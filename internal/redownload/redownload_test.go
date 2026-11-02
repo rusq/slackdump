@@ -523,19 +523,24 @@ func Test_processChannel(t *testing.T) {
 		}
 	})
 
-	t.Run("skips blocked and local-only references", func(t *testing.T) {
-		blocked := slack.File{ID: "F2", Name: "blocked.txt", URLPrivateDownload: "https://attacker.example/file.txt", Size: 10}
-		local := slack.File{ID: "F3", Name: "local.txt", URLPrivateDownload: "files/F3/local.txt", Size: 20}
+	t.Run("skips blocked, local-only and missing references", func(t *testing.T) {
+		files := []slack.File{
+			{ID: "F2", Name: "blocked.txt", URLPrivateDownload: "https://attacker.example/file.txt", Size: 10},
+			{ID: "F3", Name: "local.txt", URLPrivateDownload: "files/F3/local.txt", Size: 20},
+			{ID: "F4", Name: "percent.txt", URLPrivateDownload: "C1/F4-100%.txt", Size: 30},
+			{ID: "F5", Name: "windows.txt", URLPrivateDownload: `C:\x\F5-windows.txt`, Size: 40},
+			{ID: "F6", Name: "nourl.txt", Size: 50},
+		}
 		r := &Redownloader{src: stubSource{name: t.TempDir(), storage: stubStorage{typ: source.STstandard, pathFn: func(*slack.Channel, *slack.File) string { return "missing" }}, messages: func(context.Context, string) (iter.Seq2[slack.Message, error], error) {
-			return seqFromMessages([]slack.Message{{Msg: slack.Msg{Files: []slack.File{blocked, local}}}}), nil
+			return seqFromMessages([]slack.Message{{Msg: slack.Msg{Files: files}}}), nil
 		}}, lg: slog.Default()}
 		called := 0
 		stats, err := r.processChannel(t.Context(), &ch, func(*dlItem) error { called++; return nil })
 		if err != nil {
 			t.Fatalf("processChannel() error = %v", err)
 		}
-		if stats != (FileStats{NumBlocked: 1, NumLocal: 1}) {
-			t.Fatalf("stats = %+v, want one blocked and one local", stats)
+		if stats != (FileStats{NumBlocked: 1, NumLocal: 3, NumNoURL: 1}) {
+			t.Fatalf("stats = %+v, want one blocked, three local and one without URL", stats)
 		}
 		if called != 0 {
 			t.Fatalf("callback called %d times, want 0", called)
@@ -628,14 +633,6 @@ func TestDownload(t *testing.T) {
 			return nil
 		})
 
-		estimated, err := r.Stats(t.Context())
-		if err != nil {
-			t.Fatalf("Stats() error = %v", err)
-		}
-		if estimated != (FileStats{NumBlocked: 1, NumLocal: 1}) {
-			t.Fatalf("Stats() = %+v, want one blocked and one local file", estimated)
-		}
-
 		stats, err := r.Download(t.Context(), getter)
 		if err != nil {
 			t.Fatalf("Download() error = %v", err)
@@ -645,6 +642,40 @@ func TestDownload(t *testing.T) {
 		}
 		if calls != 0 {
 			t.Fatalf("GetFileContext calls = %d, want 0", calls)
+		}
+	})
+}
+
+func TestRedownloader_Stats(t *testing.T) {
+	ch := slack.Channel{GroupConversation: slack.GroupConversation{Conversation: slack.Conversation{ID: "C1"}}}
+
+	t.Run("counts queued and skipped files", func(t *testing.T) {
+		files := []slack.File{
+			{ID: "F1", Name: "ok.txt", URLPrivateDownload: "https://files.slack.com/files-pri/T1-F1/ok.txt", Size: 5},
+			{ID: "F2", Name: "blocked.txt", URLPrivateDownload: "https://attacker.example/file.txt", Size: 10},
+			{ID: "F3", Name: "local.txt", URLPrivateDownload: "files/F3/local.txt", Size: 20},
+			{ID: "F4", Name: "nourl.txt", Size: 30},
+		}
+		r := &Redownloader{
+			flags: source.FDump,
+			src: stubSource{
+				name:     t.TempDir(),
+				storage:  stubStorage{typ: source.STnone},
+				channels: []slack.Channel{ch},
+				messages: func(context.Context, string) (iter.Seq2[slack.Message, error], error) {
+					return seqFromMessages([]slack.Message{{Msg: slack.Msg{Files: files}}}), nil
+				},
+			},
+			lg: slog.Default(),
+		}
+
+		stats, err := r.Stats(t.Context())
+		if err != nil {
+			t.Fatalf("Stats() error = %v", err)
+		}
+		want := FileStats{NumFiles: 1, NumBytes: 5, NumBlocked: 1, NumLocal: 1, NumNoURL: 1}
+		if stats != want {
+			t.Fatalf("Stats() = %+v, want %+v", stats, want)
 		}
 	})
 }
