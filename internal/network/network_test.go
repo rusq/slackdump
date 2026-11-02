@@ -84,6 +84,38 @@ func dAbs(d time.Duration) time.Duration {
 	return d
 }
 
+func TestValidateSlackFileURL(t *testing.T) {
+	tests := []struct {
+		name string
+		url  string
+		want bool
+	}{
+		{name: "Slack file URL", url: "https://files.slack.com/files-pri/T1-F1/download/file.txt", want: true},
+		{name: "GovSlack file URL", url: "https://files.slack-gov.com/files-pri/T1-F1/download/file.txt", want: true},
+		{name: "mixed case host and scheme", url: "HTTPS://FILES.SLACK.COM/file.txt", want: true},
+		{name: "explicit HTTPS port", url: "https://files.slack.com:443/file.txt", want: true},
+		{name: "HTTP", url: "http://files.slack.com/file.txt"},
+		{name: "non-default port", url: "https://files.slack.com:8443/file.txt"},
+		{name: "suffix trick", url: "https://files.slack.com.attacker.example/file.txt"},
+		{name: "userinfo trick", url: "https://files.slack.com@attacker.example/file.txt"},
+		{name: "IP address", url: "https://127.0.0.1/file.txt"},
+		{name: "missing host", url: "https:///file.txt"},
+		{name: "malformed URL", url: "://files.slack.com/file.txt"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateSlackFileURL(tt.url)
+			if (err == nil) != tt.want {
+				t.Fatalf("ValidateSlackFileURL(%q) error = %v, want valid = %v", tt.url, err, tt.want)
+			}
+			if !tt.want && !errors.Is(err, ErrUntrustedFileURL) {
+				t.Fatalf("ValidateSlackFileURL(%q) error = %v, want ErrUntrustedFileURL", tt.url, err)
+			}
+		})
+	}
+}
+
 func TestWithRetry(t *testing.T) {
 	t.Parallel()
 	type args struct {

@@ -44,6 +44,8 @@ multiple times.
 2. Ensure that you have selected the correct workspace using "slackdump workspace select".
 3. It only support directories.  ZIP files can not be updated. Unpack ZIP file
    to a directory before using this tool.
+4. Downloads authenticate with Slack, so archive URLs that are not HTTPS Slack
+   or GovSlack file URLs are skipped.
 `,
 	FlagMask:    cfg.OmitAll &^ (cfg.OmitAuthFlags | cfg.OmitWorkspaceFlag),
 	Run:         runRedownload,
@@ -95,10 +97,13 @@ func runRedownload(ctx context.Context, _ *base.Command, args []string) error {
 		}
 	}
 
-	if stats.NumFiles == 0 {
+	if stats.NumFiles == 0 && stats.NumBlocked == 0 {
 		slog.InfoContext(ctx, "no missing files found")
-	} else {
+	} else if stats.NumFiles > 0 {
 		slog.InfoContext(ctx, "estimated file download stats", stats.Attr())
+	}
+	if stats.NumBlocked > 0 {
+		slog.WarnContext(ctx, "skipped files with untrusted download URLs", "num_blocked", stats.NumBlocked)
 	}
 
 	return nil

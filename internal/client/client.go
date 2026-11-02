@@ -26,6 +26,7 @@ import (
 
 	"github.com/rusq/slackdump/v4/auth"
 	"github.com/rusq/slackdump/v4/internal/edge"
+	"github.com/rusq/slackdump/v4/internal/network"
 )
 
 //go:generate mockgen -destination mock_client/mock_client.go . Slack
@@ -63,6 +64,10 @@ type CanvasRootClient interface {
 // canvas capability.
 var ErrOpNotSupported = errors.New("client doesn't support this operation")
 
+// ErrSecureFileDownloadUnavailable is returned when a wrapped client has no
+// HTTP client whose redirect policy Slackdump controls.
+var ErrSecureFileDownloadUnavailable = errors.New("secure file download is unavailable")
+
 var _ Slack = (*Client)(nil)
 
 // Client wraps *slack.Client and, for xoxc sessions, a canvas-capable web
@@ -74,6 +79,7 @@ type Client struct {
 	canvas        *edge.Client // nil unless initialised with an xoxc token
 	wi            *slack.AuthTestResponse
 	hcl           *http.Client
+	fileClient    *slack.Client
 }
 
 // Wrap wraps a *slack.Client and returns a *Client that implements the Slack
@@ -114,6 +120,27 @@ func newSlackClient(ctx context.Context, prov auth.Provider) (*http.Client, *sla
 	return cl, scl, wi, nil
 }
 
+// newFileClient creates a Slack client for file downloads only. It shares the
+// authenticated transport and cookie jar with hcl but rejects redirects to a
+// URL that is not a trusted Slack file URL.
+func newFileClient(token string, hcl *http.Client) *slack.Client {
+	fileHTTPClient := *hcl
+	priorCheckRedirect := fileHTTPClient.CheckRedirect
+	fileHTTPClient.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+		if err := network.ValidateSlackFileURL(req.URL.String()); err != nil {
+			return err
+		}
+		if priorCheckRedirect != nil {
+			return priorCheckRedirect(req, via)
+		}
+		if len(via) >= 10 {
+			return errors.New("stopped after 10 redirects")
+		}
+		return nil
+	}
+	return slack.New(token, slack.OptionHTTPClient(&fileHTTPClient))
+}
+
 // New creates a Client and runs auth.test. Client-token sessions receive a
 // canvas-capable web client; Enterprise sessions additionally use it for
 // conversation API overrides.
@@ -129,9 +156,10 @@ func New(ctx context.Context, prov auth.Provider, opts ...Option) (*Client, erro
 	}
 
 	c := &Client{
-		Client: scl,
-		wi:     wi,
-		hcl:    hcl,
+		Client:     scl,
+		wi:         wi,
+		hcl:        hcl,
+		fileClient: newFileClient(prov.SlackToken(), hcl),
 	}
 
 	if auth.IsClientToken(prov.SlackToken()) {
@@ -145,6 +173,18 @@ func New(ctx context.Context, prov auth.Provider, opts ...Option) (*Client, erro
 		}
 	}
 	return c, nil
+}
+
+// GetFileContext retrieves a private Slack file after validating its URL. The
+// dedicated file client also validates every redirect before issuing it.
+func (c *Client) GetFileContext(ctx context.Context, downloadURL string, writer io.Writer) error {
+	if err := network.ValidateSlackFileURL(downloadURL); err != nil {
+		return err
+	}
+	if c.fileClient == nil {
+		return ErrSecureFileDownloadUnavailable
+	}
+	return c.fileClient.GetFileContext(ctx, downloadURL, writer)
 }
 
 // AuthTestContext returns the cached workspace information that was captured

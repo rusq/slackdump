@@ -43,10 +43,11 @@ func NewEdge(ctx context.Context, prov auth.Provider, opts ...Option) (*Client, 
 		return nil, errors.Join(err, chttp.Close(hcl))
 	}
 	return &Client{
-		Client: scl,
-		edge:   ecl,
-		canvas: ecl,
-		wi:     wi,
-		hcl:    hcl,
+		Client:     scl,
+		edge:       ecl,
+		canvas:     ecl,
+		wi:         wi,
+		hcl:        hcl,
+		fileClient: newFileClient(prov.SlackToken(), hcl),
 	}, nil
 }

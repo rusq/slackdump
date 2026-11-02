@@ -14,6 +14,7 @@ import (
 
 	"github.com/rusq/slackdump/v4/internal/edge"
 	"github.com/rusq/slackdump/v4/internal/mocks/mock_auth"
+	"github.com/rusq/slackdump/v4/internal/network"
 )
 
 type roundTripFunc func(*http.Request) (*http.Response, error)
@@ -119,6 +120,83 @@ func TestClient_CanvasThreadRoots(t *testing.T) {
 	assert.False(t, cl.CanvasSupported())
 	_, err := cl.CanvasThreadRoots(t.Context(), "F123")
 	require.ErrorIs(t, err, ErrOpNotSupported)
+}
+
+func TestClient_GetFileContext(t *testing.T) {
+	const token = "xoxp-client-test"
+
+	t.Run("blocks unsafe initial URL before the transport", func(t *testing.T) {
+		var requests int
+		hcl := &http.Client{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
+			requests++
+			return nil, errors.New("unexpected request")
+		})}
+		cl := &Client{Client: slack.New(token), fileClient: newFileClient(token, hcl)}
+
+		err := cl.GetFileContext(t.Context(), "https://attacker.example/file.txt", io.Discard)
+
+		require.ErrorIs(t, err, network.ErrUntrustedFileURL)
+		assert.Zero(t, requests)
+	})
+
+	t.Run("blocks unsafe redirect before it receives credentials", func(t *testing.T) {
+		var requests []string
+		hcl := &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			requests = append(requests, req.URL.String())
+			if req.URL.Host == "files.slack.com" {
+				assert.Equal(t, "Bearer "+token, req.Header.Get("Authorization"))
+				return &http.Response{
+					StatusCode: http.StatusFound,
+					Header:     http.Header{"Location": []string{"https://attacker.example/file.txt"}},
+					Body:       io.NopCloser(strings.NewReader("redirect")),
+					Request:    req,
+				}, nil
+			}
+			t.Fatalf("unexpected request to %s", req.URL)
+			return nil, nil
+		})}
+		cl := &Client{Client: slack.New(token), fileClient: newFileClient(token, hcl)}
+
+		err := cl.GetFileContext(t.Context(), "https://files.slack.com/files-pri/T1-F1/download/file.txt", io.Discard)
+
+		require.ErrorIs(t, err, network.ErrUntrustedFileURL)
+		assert.Equal(t, []string{"https://files.slack.com/files-pri/T1-F1/download/file.txt"}, requests)
+	})
+
+	t.Run("allows a Slack redirect", func(t *testing.T) {
+		var requests []string
+		hcl := &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			requests = append(requests, req.URL.String())
+			if req.URL.Path == "/initial" {
+				return &http.Response{
+					StatusCode: http.StatusFound,
+					Header:     http.Header{"Location": []string{"/next"}},
+					Body:       io.NopCloser(strings.NewReader("redirect")),
+					Request:    req,
+				}, nil
+			}
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Header:     make(http.Header),
+				Body:       io.NopCloser(strings.NewReader("file")),
+				Request:    req,
+			}, nil
+		})}
+		cl := &Client{Client: slack.New(token), fileClient: newFileClient(token, hcl)}
+		var body strings.Builder
+
+		err := cl.GetFileContext(t.Context(), "https://files.slack.com/initial", &body)
+
+		require.NoError(t, err)
+		assert.Equal(t, "file", body.String())
+		assert.Equal(t, []string{"https://files.slack.com/initial", "https://files.slack.com/next"}, requests)
+	})
+
+	t.Run("wrapped client fails closed", func(t *testing.T) {
+		err := Wrap(slack.New(token)).GetFileContext(t.Context(), "https://files.slack.com/file.txt", io.Discard)
+
+		require.ErrorIs(t, err, ErrSecureFileDownloadUnavailable)
+	})
 }
 
 func TestNew(t *testing.T) {
