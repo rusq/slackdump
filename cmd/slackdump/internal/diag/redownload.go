@@ -24,6 +24,8 @@ import (
 	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/bootstrap"
 	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/golang/base"
+	"github.com/rusq/slackdump/v4/downloader"
+	"github.com/rusq/slackdump/v4/internal/client"
 	"github.com/rusq/slackdump/v4/internal/redownload"
 )
 
@@ -44,8 +46,9 @@ multiple times.
 2. Ensure that you have selected the correct workspace using "slackdump workspace select".
 3. It only support directories.  ZIP files can not be updated. Unpack ZIP file
    to a directory before using this tool.
-4. Downloads authenticate with Slack, so archive URLs that are not HTTPS Slack
-   or GovSlack file URLs are skipped.
+4. This corrective tool downloads only HTTPS URLs from files.slack.com or
+   files.slack-gov.com, and follows redirects only to Slack hosts. Other URLs,
+   dump-local references, and files without a download URL are skipped.
 `,
 	FlagMask:    cfg.OmitAll &^ (cfg.OmitAuthFlags | cfg.OmitWorkspaceFlag),
 	Run:         runRedownload,
@@ -84,26 +87,47 @@ func runRedownload(ctx context.Context, _ *base.Command, args []string) error {
 		if err != nil {
 			return err
 		}
-		slog.WarnContext(ctx, "estimation only, actual numbers may differ")
+		if stats.NumFiles > 0 {
+			slog.InfoContext(ctx, "estimated file download stats", stats.Attr())
+			slog.WarnContext(ctx, "estimation only, actual numbers may differ")
+		}
 	} else {
 		slog.InfoContext(ctx, "starting redownload")
-		client, err := bootstrap.Slack(ctx)
+		slackClient, err := bootstrap.Slack(ctx)
 		if err != nil {
 			return fmt.Errorf("error creating slackdump session: %w", err)
 		}
-		stats, err = rd.Download(ctx, client)
+		secureClient, ok := slackClient.(interface {
+			SecureFileGetter() (downloader.GetFiler, error)
+		})
+		if !ok {
+			return client.ErrSecureFileDownloadUnavailable
+		}
+		getter, err := secureClient.SecureFileGetter()
+		if err != nil {
+			return fmt.Errorf("secure file download: %w", err)
+		}
+		stats, err = rd.Download(ctx, getter)
 		if err != nil {
 			return err
 		}
+		if stats.NumFiles > 0 {
+			// failed downloads are reported by the downloader
+			slog.InfoContext(ctx, "queued file downloads", stats.Attr())
+		}
 	}
 
-	if stats.NumFiles == 0 && stats.NumBlocked == 0 {
+	if stats == (redownload.FileStats{}) {
 		slog.InfoContext(ctx, "no missing files found")
-	} else if stats.NumFiles > 0 {
-		slog.InfoContext(ctx, "estimated file download stats", stats.Attr())
 	}
 	if stats.NumBlocked > 0 {
-		slog.WarnContext(ctx, "skipped files with untrusted download URLs", "num_blocked", stats.NumBlocked)
+		slog.WarnContext(ctx, "skipped files with blocked download URLs", "num_blocked", stats.NumBlocked)
+	}
+	if stats.NumLocal > 0 {
+		slog.WarnContext(ctx, "skipped files with local-only download references", "num_local", stats.NumLocal)
+	}
+	if stats.NumNoURL > 0 {
+		slog.WarnContext(ctx, "skipped files with no download URL", "num_no_url", stats.NumNoURL)
 	}
 
 	return nil

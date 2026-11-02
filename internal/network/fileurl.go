@@ -17,6 +17,7 @@ package network
 
 import (
 	"errors"
+	"fmt"
 	"net/url"
 	"strings"
 )
@@ -26,24 +27,49 @@ import (
 // callers must not use an archive-controlled URL outside these domains.
 var ErrUntrustedFileURL = errors.New("untrusted Slack file download URL")
 
-var slackFileDomains = []string{"slack.com", "slack-gov.com"}
+// IsLocalFileReference reports whether ref is a non-empty reference to a local
+// file, such as a dump attachment path, rather than an absolute URL.  It does
+// not parse ref, so paths with "%" or Windows drive letters are classified
+// correctly.
+func IsLocalFileReference(ref string) bool {
+	return ref != "" && !strings.Contains(ref, "://")
+}
 
-// ValidateSlackFileURL reports whether rawURL is an HTTPS URL served by Slack
-// or GovSlack. It permits the default HTTPS port and explicit port 443.
+// ValidateSlackFileURL reports whether rawURL is an HTTPS URL served by the
+// Slack or GovSlack file hosts.  It is intended for archive-controlled URLs.
+// Rejection errors never expose the URL or any part of it.
 func ValidateSlackFileURL(rawURL string) error {
-	u, err := url.Parse(rawURL)
-	if err != nil || !strings.EqualFold(u.Scheme, "https") || u.Host == "" || u.User != nil {
-		return ErrUntrustedFileURL
-	}
-	if port := u.Port(); port != "" && port != "443" {
-		return ErrUntrustedFileURL
-	}
+	return validateURL(rawURL, func(host string) bool {
+		return host == "files.slack.com" || host == "files.slack-gov.com"
+	})
+}
 
-	host := strings.ToLower(u.Hostname())
-	for _, domain := range slackFileDomains {
-		if host == domain || strings.HasSuffix(host, "."+domain) {
-			return nil
-		}
+// ValidateSlackRedirectURL reports whether rawURL is an HTTPS URL on a Slack or
+// GovSlack host.  It is intended for redirects issued by Slack itself, which
+// may point to workspace or enterprise hosts.
+func ValidateSlackRedirectURL(rawURL string) error {
+	return validateURL(rawURL, func(host string) bool {
+		return host == "slack.com" || host == "slack-gov.com" ||
+			strings.HasSuffix(host, ".slack.com") || strings.HasSuffix(host, ".slack-gov.com")
+	})
+}
+
+func validateURL(rawURL string, hostOK func(string) bool) error {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return fmt.Errorf("%w: malformed URL", ErrUntrustedFileURL)
 	}
-	return ErrUntrustedFileURL
+	if !strings.EqualFold(u.Scheme, "https") {
+		return fmt.Errorf("%w: non-HTTPS scheme", ErrUntrustedFileURL)
+	}
+	if u.User != nil {
+		return fmt.Errorf("%w: userinfo", ErrUntrustedFileURL)
+	}
+	if !hostOK(strings.ToLower(u.Hostname())) {
+		return fmt.Errorf("%w: untrusted host", ErrUntrustedFileURL)
+	}
+	if port := u.Port(); (port != "" && port != "443") || strings.HasSuffix(u.Host, ":") {
+		return fmt.Errorf("%w: unsupported port", ErrUntrustedFileURL)
+	}
+	return nil
 }

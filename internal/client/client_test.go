@@ -122,7 +122,7 @@ func TestClient_CanvasThreadRoots(t *testing.T) {
 	require.ErrorIs(t, err, ErrOpNotSupported)
 }
 
-func TestClient_GetFileContext(t *testing.T) {
+func TestClient_SecureFileGetter(t *testing.T) {
 	const token = "xoxp-client-test"
 
 	t.Run("blocks unsafe initial URL before the transport", func(t *testing.T) {
@@ -131,9 +131,11 @@ func TestClient_GetFileContext(t *testing.T) {
 			requests++
 			return nil, errors.New("unexpected request")
 		})}
-		cl := &Client{Client: slack.New(token), fileClient: newFileClient(token, hcl)}
+		cl := &Client{Client: slack.New(token), hcl: hcl, token: token}
 
-		err := cl.GetFileContext(t.Context(), "https://attacker.example/file.txt", io.Discard)
+		getter, err := cl.SecureFileGetter()
+		require.NoError(t, err)
+		err = getter.GetFileContext(t.Context(), "https://attacker.example/file.txt", io.Discard)
 
 		require.ErrorIs(t, err, network.ErrUntrustedFileURL)
 		assert.Zero(t, requests)
@@ -155,9 +157,11 @@ func TestClient_GetFileContext(t *testing.T) {
 			t.Fatalf("unexpected request to %s", req.URL)
 			return nil, nil
 		})}
-		cl := &Client{Client: slack.New(token), fileClient: newFileClient(token, hcl)}
+		cl := &Client{Client: slack.New(token), hcl: hcl, token: token}
 
-		err := cl.GetFileContext(t.Context(), "https://files.slack.com/files-pri/T1-F1/download/file.txt", io.Discard)
+		getter, err := cl.SecureFileGetter()
+		require.NoError(t, err)
+		err = getter.GetFileContext(t.Context(), "https://files.slack.com/files-pri/T1-F1/download/file.txt", io.Discard)
 
 		require.ErrorIs(t, err, network.ErrUntrustedFileURL)
 		assert.Equal(t, []string{"https://files.slack.com/files-pri/T1-F1/download/file.txt"}, requests)
@@ -182,19 +186,62 @@ func TestClient_GetFileContext(t *testing.T) {
 				Request:    req,
 			}, nil
 		})}
-		cl := &Client{Client: slack.New(token), fileClient: newFileClient(token, hcl)}
+		cl := &Client{Client: slack.New(token), hcl: hcl, token: token}
 		var body strings.Builder
 
-		err := cl.GetFileContext(t.Context(), "https://files.slack.com/initial", &body)
+		getter, err := cl.SecureFileGetter()
+		require.NoError(t, err)
+		err = getter.GetFileContext(t.Context(), "https://files.slack.com/initial", &body)
 
 		require.NoError(t, err)
 		assert.Equal(t, "file", body.String())
 		assert.Equal(t, []string{"https://files.slack.com/initial", "https://files.slack.com/next"}, requests)
 	})
 
-	t.Run("wrapped client fails closed", func(t *testing.T) {
-		err := Wrap(slack.New(token)).GetFileContext(t.Context(), "https://files.slack.com/file.txt", io.Discard)
+	t.Run("allows redirect to a workspace Slack host", func(t *testing.T) {
+		var requests []string
+		hcl := &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			requests = append(requests, req.URL.String())
+			if req.URL.Host == "files.slack.com" {
+				return &http.Response{
+					StatusCode: http.StatusFound,
+					Header:     http.Header{"Location": []string{"https://team.slack.com/files-pri/T1-F1/file.txt"}},
+					Body:       io.NopCloser(strings.NewReader("redirect")),
+					Request:    req,
+				}, nil
+			}
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Header:     make(http.Header),
+				Body:       io.NopCloser(strings.NewReader("file")),
+				Request:    req,
+			}, nil
+		})}
+		cl := &Client{Client: slack.New(token), hcl: hcl, token: token}
+		var body strings.Builder
 
+		getter, err := cl.SecureFileGetter()
+		require.NoError(t, err)
+		err = getter.GetFileContext(t.Context(), "https://files.slack.com/files-pri/T1-F1/download/file.txt", &body)
+
+		require.NoError(t, err)
+		assert.Equal(t, "file", body.String())
+		assert.Equal(t, []string{
+			"https://files.slack.com/files-pri/T1-F1/download/file.txt",
+			"https://team.slack.com/files-pri/T1-F1/file.txt",
+		}, requests)
+	})
+
+	t.Run("wrapped client retains normal downloads but has no secure getter", func(t *testing.T) {
+		hcl := &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			return &http.Response{StatusCode: http.StatusOK, Header: make(http.Header), Body: io.NopCloser(strings.NewReader("file")), Request: req}, nil
+		})}
+		wrapped := Wrap(slack.New(token, slack.OptionHTTPClient(hcl)))
+		var body strings.Builder
+		err := wrapped.GetFileContext(t.Context(), "https://example.invalid/file.txt", &body)
+		require.NoError(t, err)
+		assert.Equal(t, "file", body.String())
+		_, err = wrapped.SecureFileGetter()
 		require.ErrorIs(t, err, ErrSecureFileDownloadUnavailable)
 	})
 }
