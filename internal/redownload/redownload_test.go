@@ -463,7 +463,7 @@ func Test_scanMsgs_threads(t *testing.T) {
 
 func Test_processChannel(t *testing.T) {
 	ch := slack.Channel{GroupConversation: slack.GroupConversation{Conversation: slack.Conversation{ID: "C1"}}}
-	file := slack.File{ID: "F1", Name: "file.txt", Size: 42}
+	file := slack.File{ID: "F1", Name: "file.txt", URLPrivateDownload: "https://files.slack.com/files-pri/T1-F1/download/file.txt", Size: 42}
 
 	t.Run("counts files and bytes, calls callback", func(t *testing.T) {
 		tmp := t.TempDir()
@@ -549,7 +549,7 @@ func (f fileGetterFunc) GetFileContext(ctx context.Context, downloadURL string, 
 func TestDownload(t *testing.T) {
 	tmp := t.TempDir()
 	ch := slack.Channel{GroupConversation: slack.GroupConversation{Conversation: slack.Conversation{ID: "C1"}}}
-	file := slack.File{ID: "F1", Name: "file.txt", URLPrivateDownload: "https://files.slack.test/file1", Size: 5}
+	file := slack.File{ID: "F1", Name: "file.txt", URLPrivateDownload: "https://files.slack.com/files-pri/T1-F1/download/file.txt", Size: 5}
 
 	fg := fileGetterFunc(func(ctx context.Context, downloadURL string, w io.Writer) error {
 		if downloadURL != file.URLPrivateDownload {
@@ -587,4 +587,44 @@ func TestDownload(t *testing.T) {
 	if _, err := os.Stat(path); err != nil {
 		t.Fatalf("downloaded file missing: %v", err)
 	}
+
+	t.Run("skips untrusted archive URLs", func(t *testing.T) {
+		blocked := slack.File{ID: "F2", Name: "blocked.txt", URLPrivateDownload: "https://attacker.example/file.txt", Size: 10}
+		var calls int
+		r := &Redownloader{
+			flags: source.FDump,
+			src: stubSource{
+				name:     t.TempDir(),
+				storage:  stubStorage{typ: source.STnone},
+				channels: []slack.Channel{ch},
+				messages: func(context.Context, string) (iter.Seq2[slack.Message, error], error) {
+					return seqFromMessages([]slack.Message{{Msg: slack.Msg{Files: []slack.File{blocked}}}}), nil
+				},
+			},
+			lg: slog.Default(),
+		}
+		getter := fileGetterFunc(func(context.Context, string, io.Writer) error {
+			calls++
+			return nil
+		})
+
+		estimated, err := r.Stats(t.Context())
+		if err != nil {
+			t.Fatalf("Stats() error = %v", err)
+		}
+		if estimated != (FileStats{NumBlocked: 1}) {
+			t.Fatalf("Stats() = %+v, want one blocked file", estimated)
+		}
+
+		stats, err := r.Download(t.Context(), getter)
+		if err != nil {
+			t.Fatalf("Download() error = %v", err)
+		}
+		if stats != (FileStats{NumBlocked: 1}) {
+			t.Fatalf("Download() = %+v, want one blocked file", stats)
+		}
+		if calls != 0 {
+			t.Fatalf("GetFileContext calls = %d, want 0", calls)
+		}
+	})
 }

@@ -31,6 +31,7 @@ import (
 	"github.com/rusq/slack"
 
 	"github.com/rusq/slackdump/v4/internal/convert/transform/fileproc"
+	"github.com/rusq/slackdump/v4/internal/network"
 	"github.com/rusq/slackdump/v4/internal/primitive"
 	"github.com/rusq/slackdump/v4/internal/structures"
 	"github.com/rusq/slackdump/v4/processor"
@@ -217,6 +218,11 @@ func (r *Redownloader) processChannel(ctx context.Context, ch *slack.Channel, cb
 		return ret, err
 	}
 	for _, item := range items {
+		if err := network.ValidateSlackFileURL(item.f.URLPrivateDownload); err != nil {
+			r.lg.WarnContext(ctx, "skipping file with an untrusted download URL", "channel", item.ch.ID, "file_id", item.f.ID)
+			ret.NumBlocked++
+			continue
+		}
 		if cb != nil {
 			if err := cb(&item); err != nil {
 				return ret, err

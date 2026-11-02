@@ -24,8 +24,8 @@ import (
 )
 
 func TestFileStats_add(t *testing.T) {
-	fs := FileStats{NumFiles: 1, NumBytes: 10}
-	fs.add(FileStats{NumFiles: 2, NumBytes: 20})
+	fs := FileStats{NumFiles: 1, NumBytes: 10, NumBlocked: 1}
+	fs.add(FileStats{NumFiles: 2, NumBytes: 20, NumBlocked: 2})
 
 	if fs.NumFiles != 3 {
 		t.Fatalf("NumFiles = %d, want %d", fs.NumFiles, 3)
@@ -33,10 +33,13 @@ func TestFileStats_add(t *testing.T) {
 	if fs.NumBytes != 30 {
 		t.Fatalf("NumBytes = %d, want %d", fs.NumBytes, 30)
 	}
+	if fs.NumBlocked != 3 {
+		t.Fatalf("NumBlocked = %d, want %d", fs.NumBlocked, 3)
+	}
 }
 
 func TestFileStats_Attr(t *testing.T) {
-	fs := FileStats{NumFiles: 5, NumBytes: 12345}
+	fs := FileStats{NumFiles: 5, NumBytes: 12345, NumBlocked: 2}
 
 	attr := fs.Attr()
 
@@ -50,6 +53,7 @@ func TestFileStats_Attr(t *testing.T) {
 	wantGroup := []slog.Attr{
 		slog.Uint64("num_files", uint64(fs.NumFiles)),
 		slog.String("total_bytes", humanize.Bytes(fs.NumBytes)),
+		slog.Uint64("num_blocked", uint64(fs.NumBlocked)),
 	}
 	if gotGroup := attr.Value.Group(); !reflect.DeepEqual(gotGroup, wantGroup) {
 		t.Fatalf("attr.Value.Group() = %#v, want %#v", gotGroup, wantGroup)
