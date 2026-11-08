@@ -116,6 +116,27 @@ func TestOpen(t *testing.T) {
 	}
 }
 
+func TestOpenRW(t *testing.T) {
+	ctx := context.Background()
+	t.Run("enables foreign keys on every pooled connection", func(t *testing.T) {
+		path := filepath.Join(t.TempDir(), "slackdump.sqlite")
+		src, err := OpenRW(ctx, path)
+		require.NoError(t, err)
+		t.Cleanup(func() { src.Close() })
+
+		const n = 3
+		src.conn.SetMaxOpenConns(n)
+		for i := range n {
+			c, err := src.conn.Connx(ctx)
+			require.NoError(t, err)
+			t.Cleanup(func() { c.Close() })
+			var fk int
+			require.NoError(t, c.QueryRowxContext(ctx, "PRAGMA foreign_keys").Scan(&fk))
+			assert.Equal(t, 1, fk, "foreign_keys on connection %d", i)
+		}
+	})
+}
+
 func Test_validateDBPath(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("permission-denied stat behavior differs on windows")

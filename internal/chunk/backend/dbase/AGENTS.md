@@ -209,6 +209,8 @@ added in migration `20250809050908` to make completeness checks efficient.
 `SESSION.FINISHED = TRUE` is set only when `DBP.Close()` completes
 successfully. A session interrupted mid-run (crash, network failure) leaves
 `FINISHED = FALSE`. Data from such a session may be incomplete.
+`slackdump tools cleanup` removes such sessions, their chunks and payload
+rows, plus any payload rows orphaned by a missing chunk.
 
 See `repository/session.go: Finalise()` and `dbase.go: Close()`.
 
@@ -270,19 +272,30 @@ deduplication key equivalent to `MESSAGE.TS`; the latest-chunk pattern
 
 ### 16. Database pragmas
 
-The database is initialised with:
+`journal_mode = WAL` is persistent and is set once by `dbase.go: dbInitCommands`.
 
-```sql
-PRAGMA journal_mode = WAL;
-PRAGMA synchronous  = NORMAL;
-PRAGMA foreign_keys = ON;
+`foreign_keys` and `synchronous` are **connection-scoped**. Running them
+through `*sqlx.DB`/`*sql.DB` (`db.Exec("PRAGMA ...")`) applies them to one
+pooled connection only, and any other connection the pool opens has them unset.
+They are therefore passed in the DSN, which the modernc driver applies to every new
+connection:
+
+```text
+file:<path>?[mode=ro|rw&]_pragma=foreign_keys(1)&_pragma=synchronous(NORMAL)
 ```
+
+**Always open slackdump databases with `repository.DSN(path, mode)`.** Do not
+build `file:` DSNs by hand. `dbase.New` cannot enforce foreign keys on a
+connection it did not open.
+
+Do not rely on `ON DELETE CASCADE` alone when deleting chunks: a database may be
+opened by external tools, or by older slackdump versions, with foreign keys off.
+Delete payload rows explicitly first. `repository.PayloadTables` lists the
+tables with a `CHUNK_ID` column (see `repository/cleanup.go` and `dedupe.go`).
 
 External tools querying the database should be aware of WAL mode (the
 `slackdump.sqlite-wal` and `slackdump.sqlite-shm` sidecar files must be
 present for a consistent read while slackdump is running).
-
-See `dbase.go: dbInitCommands`.
 
 ---
 

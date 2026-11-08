@@ -89,7 +89,7 @@ func runRecord(ctx context.Context, _ *base.Command, args []string) error {
 	// 	}
 	// }
 
-	db, err := sqlx.Open(repository.Driver, "record.db")
+	db, err := sqlx.Open(repository.Driver, repository.DSN("record.db", repository.ModeDefault))
 	if err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return err

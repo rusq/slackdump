@@ -61,11 +61,41 @@ func TestCleanupRepository_CleanupUnfinishedSessions(t *testing.T) {
 
 		result, err := repo.CleanupUnfinishedSessions(ctx, db)
 		require.NoError(t, err)
-		assert.Equal(t, CleanupResult{SessionsRemoved: 1, ChunksRemoved: 2}, result)
+		assert.Equal(t, int64(1), result.SessionsRemoved)
+		assert.Equal(t, int64(2), result.ChunksRemoved)
+		assert.Equal(t, int64(2), result.PayloadRemoved["MESSAGE"])
+		assert.Equal(t, int64(2), result.PayloadRemoved.Total())
 
 		verifySessionCountForTest(t, db, 1)
 		verifyChunkCountForTest(t, db, 1)
 		verifyMessageCountForTest(t, db, 1)
+	})
+
+	t.Run("removes payload rows with foreign keys disabled", func(t *testing.T) {
+		// Regression test for #755: cleanup must not rely on ON DELETE CASCADE.
+		db := testConnNoFK(t)
+		ctx := context.Background()
+		repo := NewCleanupRepository()
+
+		seedPayloadForTest(t, db)
+
+		result, err := repo.CleanupUnfinishedSessions(ctx, db)
+		require.NoError(t, err)
+		assert.Equal(t, int64(1), result.SessionsRemoved)
+		assert.Equal(t, int64(2), result.ChunksRemoved)
+		assert.Equal(t, int64(6), result.PayloadRemoved.Total())
+
+		verifySessionCountForTest(t, db, 1)
+		verifyChunkCountForTest(t, db, 5)
+		verifyMessageCountForTest(t, db, 1)
+		verifyTableCountForTest(t, db, "CHANNEL", 1)
+		verifyTableCountForTest(t, db, "FILE", 1)
+		verifyTableCountForTest(t, db, "S_USER", 1)
+		verifyTableCountForTest(t, db, "CHANNEL_USER", 1)
+
+		orphans, err := repo.CountOrphanedPayload(ctx, db)
+		require.NoError(t, err)
+		assert.Zero(t, orphans.Total(), "cleanup must not leave orphaned payload rows")
 	})
 
 	t.Run("removes multiple unfinished sessions", func(t *testing.T) {
@@ -80,7 +110,9 @@ func TestCleanupRepository_CleanupUnfinishedSessions(t *testing.T) {
 
 		result, err := repo.CleanupUnfinishedSessions(ctx, db)
 		require.NoError(t, err)
-		assert.Equal(t, CleanupResult{SessionsRemoved: 2, ChunksRemoved: 2}, result)
+		assert.Equal(t, int64(2), result.SessionsRemoved)
+		assert.Equal(t, int64(2), result.ChunksRemoved)
+		assert.Zero(t, result.PayloadRemoved.Total())
 
 		verifySessionCountForTest(t, db, 0)
 		verifyChunkCountForTest(t, db, 0)
@@ -96,11 +128,72 @@ func TestCleanupRepository_CleanupUnfinishedSessions(t *testing.T) {
 
 		result, err := repo.CleanupUnfinishedSessions(ctx, db)
 		require.NoError(t, err)
-		assert.Equal(t, CleanupResult{}, result)
+		assert.Zero(t, result.SessionsRemoved)
+		assert.Zero(t, result.ChunksRemoved)
+		assert.Zero(t, result.PayloadRemoved.Total())
 
 		verifySessionCountForTest(t, db, 1)
 		verifyChunkCountForTest(t, db, 1)
 	})
+}
+
+func TestCleanupRepository_CountUnfinishedPayload(t *testing.T) {
+	db := testConnNoFK(t)
+	ctx := context.Background()
+	repo := NewCleanupRepository()
+
+	seedPayloadForTest(t, db)
+
+	counts, err := repo.CountUnfinishedPayload(ctx, db)
+	require.NoError(t, err)
+	assert.Equal(t, TableCounts{
+		"MESSAGE":        2,
+		"CHANNEL":        1,
+		"FILE":           1,
+		"WORKSPACE":      0,
+		"S_USER":         1,
+		"CHANNEL_USER":   1,
+		"SEARCH_MESSAGE": 0,
+		"SEARCH_FILE":    0,
+	}, counts)
+}
+
+func TestCleanupRepository_CountOrphanedPayload(t *testing.T) {
+	db := testConnNoFK(t)
+	ctx := context.Background()
+	repo := NewCleanupRepository()
+
+	seedPayloadForTest(t, db)
+	insertOrphansForTest(t, db)
+
+	counts, err := repo.CountOrphanedPayload(ctx, db)
+	require.NoError(t, err)
+	assert.Equal(t, int64(2), counts["MESSAGE"])
+	assert.Equal(t, int64(1), counts["S_USER"])
+	assert.Equal(t, int64(3), counts.Total())
+}
+
+func TestCleanupRepository_DeleteOrphanedPayload(t *testing.T) {
+	db := testConnNoFK(t)
+	ctx := context.Background()
+	repo := NewCleanupRepository()
+
+	seedPayloadForTest(t, db)
+	insertOrphansForTest(t, db)
+
+	removed, err := repo.DeleteOrphanedPayload(ctx, db)
+	require.NoError(t, err)
+	assert.Equal(t, int64(2), removed["MESSAGE"])
+	assert.Equal(t, int64(1), removed["S_USER"])
+	assert.Equal(t, int64(3), removed.Total())
+
+	// non-orphaned rows are retained
+	verifyMessageCountForTest(t, db, 3)
+	verifyTableCountForTest(t, db, "S_USER", 2)
+
+	left, err := repo.CountOrphanedPayload(ctx, db)
+	require.NoError(t, err)
+	assert.Zero(t, left.Total())
 }
 
 func Test_deleteUnfinishedSession_notFound(t *testing.T) {
@@ -170,4 +263,66 @@ func verifyMessageCountForTest(t *testing.T, db *sqlx.DB, expected int) {
 	err := db.QueryRowxContext(context.Background(), "SELECT COUNT(*) FROM MESSAGE").Scan(&count)
 	require.NoError(t, err)
 	assert.Equal(t, int64(expected), count)
+}
+
+// testConnNoFK returns a single-connection in-memory database with foreign
+// keys disabled, so that ON DELETE CASCADE does not fire.  This mirrors
+// databases opened without the foreign_keys pragma.
+func testConnNoFK(t *testing.T) *sqlx.DB {
+	t.Helper()
+	db := testConn(t)
+	db.SetMaxOpenConns(1) // in-memory: every connection is a separate database
+	_, err := db.Exec("PRAGMA foreign_keys = OFF")
+	require.NoError(t, err)
+	var fk int
+	require.NoError(t, db.QueryRowx("PRAGMA foreign_keys").Scan(&fk))
+	require.Equal(t, 0, fk)
+	return db
+}
+
+// seedPayloadForTest creates an unfinished session 1 (chunks 11, 12) and a
+// finished session 2 (chunks 21-25), each with payload rows.
+func seedPayloadForTest(t *testing.T, db *sqlx.DB) {
+	t.Helper()
+	insertSessionForTest(t, db, 1, false, nil)
+	insertSessionForTest(t, db, 2, true, nil)
+
+	// unfinished session
+	insertChunkForTest(t, db, 11, 1, chunk.CMessages)
+	insertChunkForTest(t, db, 12, 1, chunk.CUsers)
+	insertMessageWithChunkForTest(t, db, 100, 11, []byte(`{"text":"remove"}`))
+	insertMessageWithChunkForTest(t, db, 101, 11, []byte(`{"text":"remove too"}`))
+	insertChannelWithChunkForTest(t, db, "C001", 11, "general", []byte(`{}`))
+	insertFileWithChunkForTest(t, db, "F001", 11, "C001", nil, nil, []byte(`{}`))
+	insertUserWithChunkForTest(t, db, "U001", 12, "remove", []byte(`{}`))
+	insertChannelUserWithChunkForTest(t, db, "C001", "U001", 12)
+
+	// finished session
+	insertChunkForTest(t, db, 21, 2, chunk.CMessages)
+	insertChunkForTest(t, db, 22, 2, chunk.CChannelInfo)
+	insertChunkForTest(t, db, 23, 2, chunk.CFiles)
+	insertChunkForTest(t, db, 24, 2, chunk.CUsers)
+	insertChunkForTest(t, db, 25, 2, chunk.CChannelUsers)
+	insertMessageWithChunkForTest(t, db, 200, 21, []byte(`{"text":"keep"}`))
+	insertChannelWithChunkForTest(t, db, "C001", 22, "general", []byte(`{}`))
+	insertFileWithChunkForTest(t, db, "F001", 23, "C001", nil, nil, []byte(`{}`))
+	insertUserWithChunkForTest(t, db, "U001", 24, "keep", []byte(`{}`))
+	insertChannelUserWithChunkForTest(t, db, "C001", "U001", 25)
+}
+
+// insertOrphansForTest inserts payload rows that reference the non-existent
+// chunk 999.
+func insertOrphansForTest(t *testing.T, db *sqlx.DB) {
+	t.Helper()
+	insertMessageWithChunkForTest(t, db, 900, 999, []byte(`{"text":"orphan"}`))
+	insertMessageWithChunkForTest(t, db, 901, 999, []byte(`{"text":"orphan 2"}`))
+	insertUserWithChunkForTest(t, db, "U999", 999, "orphan", []byte(`{}`))
+}
+
+func verifyTableCountForTest(t *testing.T, db *sqlx.DB, table string, expected int) {
+	t.Helper()
+	var count int64
+	err := db.QueryRowxContext(context.Background(), "SELECT COUNT(*) FROM "+table).Scan(&count)
+	require.NoError(t, err)
+	assert.Equal(t, int64(expected), count, table)
 }
