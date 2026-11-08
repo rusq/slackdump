@@ -92,7 +92,7 @@ func Open(ctx context.Context, path string) (*Source, error) {
 	if err := migrate(ctx, path); err != nil {
 		return nil, err
 	}
-	conn, err := sqlx.Open(repository.Driver, "file:"+path+"?mode=ro")
+	conn, err := sqlx.Open(repository.Driver, repository.DSN(path, repository.ModeRO))
 	if err != nil {
 		return nil, err
 	}
@@ -111,16 +111,13 @@ func OpenRW(ctx context.Context, path string) (*RWSource, error) {
 	if err := migrate(ctx, path); err != nil {
 		return nil, err
 	}
-	conn, err := sqlx.Open(repository.Driver, "file:"+path+"?mode=rw")
+	conn, err := sqlx.Open(repository.Driver, repository.DSN(path, repository.ModeRW))
 	if err != nil {
 		return nil, err
 	}
 	if err := conn.PingContext(ctx); err != nil {
-		return nil, err
-	}
-	if _, err := conn.ExecContext(ctx, "PRAGMA foreign_keys = ON"); err != nil {
 		conn.Close()
-		return nil, fmt.Errorf("enable foreign keys: %w", err)
+		return nil, err
 	}
 	return &RWSource{Source: &Source{conn: conn, canClose: true}}, nil
 }

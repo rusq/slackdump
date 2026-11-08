@@ -42,6 +42,7 @@ func testDB(t *testing.T) *sqlx.DB {
 	if err := initDB(ctx, db); err != nil {
 		t.Fatal(err)
 	}
+	enableTestForeignKeys(t, db)
 	if err := repository.Migrate(t.Context(), db.DB, true); err != nil {
 		t.Fatal(err)
 	}
@@ -55,6 +56,7 @@ func testPersistentDB(t *testing.T) *sqlx.DB {
 	if err := initDB(ctx, db); err != nil {
 		t.Fatal(err)
 	}
+	enableTestForeignKeys(t, db)
 	if err := repository.Migrate(t.Context(), db.DB, true); err != nil {
 		t.Fatal(err)
 	}
@@ -68,10 +70,21 @@ func testDBDSN(t *testing.T, dsn string) *sqlx.DB {
 	if err := initDB(ctx, db); err != nil {
 		t.Fatal(err)
 	}
+	enableTestForeignKeys(t, db)
 	if err := repository.Migrate(t.Context(), db.DB, true); err != nil {
 		t.Fatal(err)
 	}
 	return db
+}
+
+// enableTestForeignKeys enables foreign keys on the test connection, mirroring
+// production connections opened with [repository.DSN].  Test databases are
+// opened with plain DSNs and effectively use a single connection.
+func enableTestForeignKeys(t *testing.T, db *sqlx.DB) {
+	t.Helper()
+	if _, err := db.Exec("PRAGMA foreign_keys = ON"); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func Test_initDB(t *testing.T) {

@@ -31,6 +31,12 @@ import (
 
 const defFilename = "slackdump.sqlite"
 
+// DatabasePath returns the path to the database file for the given archive
+// directory or database file path.
+func DatabasePath(path string) string {
+	return resolveDatabasePath(path)
+}
+
 func resolveDatabasePath(path string) string {
 	if fi, err := os.Stat(path); err == nil && !fi.IsDir() {
 		return path
@@ -40,11 +46,12 @@ func resolveDatabasePath(path string) string {
 
 func Database(path string) (*sqlx.DB, error) {
 	dbfile := resolveDatabasePath(path)
-	db, err := sqlx.Open(repository.Driver, dbfile)
+	db, err := sqlx.Open(repository.Driver, repository.DSN(dbfile, repository.ModeDefault))
 	if err != nil {
 		return nil, err
 	}
 	if err := db.Ping(); err != nil {
+		db.Close()
 		return nil, err
 	}
 	return db, nil

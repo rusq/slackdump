@@ -131,7 +131,7 @@ func runDBArchive(ctx context.Context, cmd *base.Command, args []string) error {
 		return err
 	}
 
-	conn, err := sqlx.Open(repository.Driver, dbfile)
+	conn, err := sqlx.Open(repository.Driver, repository.DSN(dbfile, repository.ModeDefault))
 	if err != nil {
 		return err
 	}

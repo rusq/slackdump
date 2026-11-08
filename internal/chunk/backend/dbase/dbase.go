@@ -58,10 +58,12 @@ type SessionInfo struct {
 	Args           string
 }
 
+// dbInitCommands are executed once on the database.  Only database-scoped
+// (persistent) pragmas belong here: connection-scoped pragmas, such as
+// foreign_keys and synchronous, executed through *sqlx.DB apply to a single
+// pooled connection only.  These are set in [repository.DSN] instead.
 var dbInitCommands = []string{
-	"PRAGMA journal_mode=WAL",   // enable WAL mode
-	"PRAGMA synchronous=NORMAL", // enable synchronous mode
-	"PRAGMA foreign_keys=ON",    // enable foreign keys
+	"PRAGMA journal_mode=WAL", // enable WAL mode (persistent)
 }
 
 type options struct {
@@ -92,7 +94,9 @@ func WithOnlyNewOrChangedUsers(v bool) Option {
 	}
 }
 
-// New return the new database processor.
+// New return the new database processor.  The conn should be opened with
+// [repository.DSN], so that foreign keys are enforced on every pooled
+// connection.
 func New(ctx context.Context, conn *sqlx.DB, p SessionInfo, opts ...Option) (*DBP, error) {
 	var options options
 	options.apply(opts...)
