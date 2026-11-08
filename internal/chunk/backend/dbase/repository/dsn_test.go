@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/jmoiron/sqlx"
@@ -31,7 +32,11 @@ func TestDSN(t *testing.T) {
 	}
 
 	t.Run("opens file with special characters and enables foreign keys on all connections", func(t *testing.T) {
-		path := filepath.Join(t.TempDir(), "a b?c#d%e.sqlite")
+		name := "a b?c#d%e.sqlite"
+		if runtime.GOOS == "windows" {
+			name = "a b#c%d.sqlite" // '?' is not allowed in Windows file names
+		}
+		path := filepath.Join(t.TempDir(), name)
 		db, err := sqlx.Open(Driver, DSN(path, ModeDefault))
 		require.NoError(t, err)
 		t.Cleanup(func() { db.Close() })
