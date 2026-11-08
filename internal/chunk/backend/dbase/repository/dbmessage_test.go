@@ -551,6 +551,21 @@ func Test_messageRepository_CountThread(t *testing.T) {
 			want:    4,
 			wantErr: false,
 		},
+		{
+			name: "counts messages with subtypes (#754)",
+			fields: fields{
+				genericRepository: genericRepository[DBMessage]{DBMessage{}},
+			},
+			args: args{
+				ctx:       t.Context(),
+				conn:      testConn(t),
+				channelID: testChannelID,
+				threadID:  testBotThreadID,
+			},
+			prepFn:  mkBotThreadSetupFn(testChannelID),
+			want:    3,
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -757,6 +772,47 @@ func mkThreadSetupFn(channelID string, chunkFinals [3]bool) utilityFn {
 	}
 }
 
+var (
+	testBotThreadID = "200.000"
+
+	tmBotRoot  = slack.Message{Msg: slack.Msg{Timestamp: testBotThreadID, ThreadTimestamp: testBotThreadID, SubType: "bot_message", Text: "bot root", LatestReply: "202.000"}}
+	tmBotReply = slack.Message{Msg: slack.Msg{Timestamp: "201.000", ThreadTimestamp: testBotThreadID, SubType: "bot_message", Text: "bot reply"}}
+	tmHumReply = slack.Message{Msg: slack.Msg{Timestamp: "202.000", ThreadTimestamp: testBotThreadID, Text: "human reply"}}
+
+	dbtmBotRootChannel = must(NewDBMessage(1, 0, testChannelID, &tmBotRoot))
+	dbtmBotRootThread  = must(NewDBMessage(2, 0, testChannelID, &tmBotRoot))
+	dbtmBotReply       = must(NewDBMessage(2, 1, testChannelID, &tmBotReply))
+	dbtmHumReply       = must(NewDBMessage(2, 2, testChannelID, &tmHumReply))
+)
+
+// mkBotThreadSetupFn sets up a thread started by a bot (issue #754):
+//
+//	chunk type_id     subtype  message
+//	    1       0 bot_message  bot root (channel)
+//	    2       1 bot_message  bot root (thread)
+//	    2       1 bot_message  bot reply
+//	    2       1        NULL  human reply
+//
+// All three messages must be returned for the thread.
+func mkBotThreadSetupFn(channelID string) utilityFn {
+	return func(t *testing.T, conn PrepareExtContext) {
+		prepChunkWithFinal(
+			testChunk{typeID: chunk.CMessages, channelID: channelID, final: true},
+			testChunk{typeID: chunk.CThreadMessages, channelID: channelID, final: true},
+		)(t, conn)
+
+		mr := NewMessageRepository()
+		if err := mr.Insert(t.Context(), conn,
+			dbtmBotRootChannel,
+			dbtmBotRootThread,
+			dbtmBotReply,
+			dbtmHumReply,
+		); err != nil {
+			t.Fatalf("insert: %v", err)
+		}
+	}
+}
+
 func Test_messageRepository_AllForThread(t *testing.T) {
 	type fields struct {
 		genericRepository genericRepository[DBMessage]
@@ -792,6 +848,25 @@ func Test_messageRepository_AllForThread(t *testing.T) {
 				{V: *dbtmB},
 				{V: *dbtmC_},
 				{V: *dbtmD},
+			},
+			wantErr: false,
+		},
+		{
+			name: "includes messages with subtypes (#754)",
+			fields: fields{
+				genericRepository: genericRepository[DBMessage]{DBMessage{}},
+			},
+			args: args{
+				ctx:       t.Context(),
+				conn:      testConn(t),
+				channelID: testChannelID,
+				threadID:  testBotThreadID,
+			},
+			prepareFn: mkBotThreadSetupFn(testChannelID),
+			want: []testutil.TestResult[DBMessage]{
+				{V: *dbtmBotRootThread},
+				{V: *dbtmBotReply},
+				{V: *dbtmHumReply},
 			},
 			wantErr: false,
 		},

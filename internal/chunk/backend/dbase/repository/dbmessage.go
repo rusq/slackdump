@@ -204,13 +204,14 @@ func (r messageRepository) AllForID(ctx context.Context, conn sqlx.QueryerContex
 }
 
 // threadCond returns a condition for selecting messages that are part of a
-// thread with additional filtering of thread_broadcast subtype.
+// thread.  Messages of all subtypes (bot_message, file_share, etc.) are
+// included, except for the channel copies of thread_broadcast messages: those
+// are taken only from thread chunks (CH.TYPE_ID = 1).
 func (r messageRepository) threadCond() string {
 	var buf strings.Builder
 	buf.WriteString("T.CHANNEL_ID = ? AND T.PARENT_ID = ? ")
-	buf.WriteString("AND ( JSON_EXTRACT(T.DATA, '$.subtype') IS NULL ")
-	buf.WriteString("OR (JSON_EXTRACT(T.DATA, '$.subtype') = 'thread_broadcast' AND CH.TYPE_ID = 1 )")
-	buf.WriteString("   ) ")
+	buf.WriteString("AND ( COALESCE(JSON_EXTRACT(T.DATA, '$.subtype'), '') <> 'thread_broadcast' ")
+	buf.WriteString("OR CH.TYPE_ID = 1 ) ")
 	return buf.String()
 }
 
