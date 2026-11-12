@@ -20,6 +20,7 @@ require (
 	github.com/go-playground/validator/v10 v10.30.3
 	github.com/go-rod/rod v0.116.2
 	github.com/google/uuid v1.6.0
+	github.com/gorilla/websocket v1.5.3
 	github.com/jmoiron/sqlx v1.4.0
 	github.com/joho/godotenv v1.5.1
 	github.com/mark3labs/mcp-go v0.57.0
@@ -79,7 +80,6 @@ require (
 	github.com/go-stack/stack v1.8.1 // indirect
 	github.com/google/jsonschema-go v0.4.3 // indirect
 	github.com/gorilla/css v1.0.1 // indirect
-	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/klauspost/compress v1.20.1 // indirect
 	github.com/leodido/go-urn v1.5.0 // indirect
 	github.com/lithammer/fuzzysearch v1.1.8 // indirect
