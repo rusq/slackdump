@@ -155,7 +155,9 @@ type Keeper struct {
 	minBackoff time.Duration
 	maxBackoff time.Duration
 
-	id int
+	// session state, only accessed from the session goroutine.
+	id       int
+	checkReq chan struct{}
 }
 
 // Option configures the Keeper.
@@ -310,6 +312,13 @@ func (k *Keeper) session(ctx context.Context) error {
 	defer conn.Close()
 	k.lg.DebugContext(ctx, "websocket connected")
 
+	// presence checks run in a worker, so that a slow users.getPresence
+	// does not block websocket reads and pings.
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	k.checkReq = k.startChecker(ctx)
+	defer func() { k.checkReq = nil }()
+
 	done := make(chan struct{})
 	defer close(done)
 	events := make(chan inEvent, 16)
@@ -377,7 +386,7 @@ func (k *Keeper) session(ctx context.Context) error {
 			}
 			tickleT.Reset(k.nextInterval())
 		case <-checkC:
-			k.check(ctx)
+			k.requestCheck()
 		}
 	}
 }
@@ -423,9 +432,46 @@ func (k *Keeper) tickle(ctx context.Context, conn *websocket.Conn) error {
 	}
 	k.lg.DebugContext(ctx, "tickle sent", "reason", k.cfg.Reason)
 	if k.cfg.Check {
-		k.check(ctx)
+		k.requestCheck()
 	}
 	return nil
+}
+
+// startChecker starts the presence check worker, which runs until ctx is
+// cancelled, and returns the request channel.  It returns nil if presence
+// checks are disabled.
+func (k *Keeper) startChecker(ctx context.Context) chan struct{} {
+	if k.api == nil || (!k.cfg.Check && k.cfg.CheckEvery <= 0) {
+		return nil
+	}
+	req := make(chan struct{}, 1)
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-req:
+				if ctx.Err() != nil {
+					return
+				}
+				k.check(ctx)
+			}
+		}
+	}()
+	return req
+}
+
+// requestCheck asks the worker to check the presence.  It never blocks: if a
+// check is already pending, the request is dropped.
+func (k *Keeper) requestCheck() {
+	if k.checkReq == nil {
+		return
+	}
+	select {
+	case k.checkReq <- struct{}{}:
+	default:
+		k.lg.Debug("presence check already pending, skipping")
+	}
 }
 
 // check calls users.getPresence and logs the result.

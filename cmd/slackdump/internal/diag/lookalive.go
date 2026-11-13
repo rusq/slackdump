@@ -92,6 +92,10 @@ func runLookAlive(ctx context.Context, cmd *base.Command, args []string) error {
 	lg := cfg.Log
 	p := lookAliveParams
 
+	if p.duration < 0 {
+		base.SetExitStatus(base.SInvalidParameters)
+		return fmt.Errorf("duration must not be negative, got %s", p.duration)
+	}
 	if err := p.cfg.Validate(); err != nil {
 		base.SetExitStatus(base.SInvalidParameters)
 		return err

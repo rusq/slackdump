@@ -72,11 +72,17 @@ func readMsg(t *testing.T, c *websocket.Conn) outMsg {
 type fakeGetter struct {
 	calls atomic.Int32
 	user  atomic.Value
+	// block makes the call hang until the context is cancelled.
+	block bool
 }
 
-func (f *fakeGetter) GetUserPresenceContext(_ context.Context, user string) (*slack.UserPresence, error) {
+func (f *fakeGetter) GetUserPresenceContext(ctx context.Context, user string) (*slack.UserPresence, error) {
 	f.calls.Add(1)
 	f.user.Store(user)
+	if f.block {
+		<-ctx.Done()
+		return nil, ctx.Err()
+	}
 	return &slack.UserPresence{Presence: "active", Online: true}, nil
 }
 
@@ -150,16 +156,17 @@ func TestKeeper_session(t *testing.T) {
 		assert.ErrorIs(t, err, context.Canceled)
 	})
 	t.Run("check calls users.getPresence", func(t *testing.T) {
+		fg := &fakeGetter{}
 		urlFn, _ := wsServer(t, func(t *testing.T, r *http.Request, c *websocket.Conn) {
 			require.NoError(t, c.WriteJSON(map[string]any{"type": "hello"}))
 			readMsg(t, c)
 			readMsg(t, c)
+			assert.Eventually(t, func() bool { return fg.calls.Load() == 1 }, 5*time.Second, 5*time.Millisecond)
 			require.NoError(t, c.WriteJSON(map[string]any{"type": "goodbye"}))
 			_, _, _ = c.ReadMessage()
 		})
 		cfg := testConfig()
 		cfg.Check = true
-		fg := &fakeGetter{}
 		k, err := New(testUser, urlFn, nil, cfg, WithLogger(discard), WithPresenceGetter(fg))
 		require.NoError(t, err)
 
@@ -186,6 +193,35 @@ func TestKeeper_session(t *testing.T) {
 		err = k.session(t.Context())
 		assert.ErrorIs(t, err, ErrGoodbye)
 		assert.GreaterOrEqual(t, fg.calls.Load(), int32(2))
+	})
+	t.Run("slow check does not block pings", func(t *testing.T) {
+		urlFn, _ := wsServer(t, func(t *testing.T, r *http.Request, c *websocket.Conn) {
+			require.NoError(t, c.WriteJSON(map[string]any{"type": "hello"}))
+			deadline := time.Now().Add(300 * time.Millisecond)
+			for time.Now().Before(deadline) {
+				var m outMsg
+				require.NoError(t, c.SetReadDeadline(time.Now().Add(time.Second)))
+				if err := c.ReadJSON(&m); err != nil {
+					return
+				}
+				if m.Type == "ping" {
+					require.NoError(t, c.WriteJSON(map[string]any{"type": "pong", "reply_to": m.ID}))
+				}
+			}
+			require.NoError(t, c.WriteJSON(map[string]any{"type": "goodbye"}))
+			_, _, _ = c.ReadMessage()
+		})
+		cfg := testConfig()
+		cfg.Ping = 20 * time.Millisecond
+		cfg.Check = true
+		cfg.CheckEvery = 10 * time.Millisecond
+		fg := &fakeGetter{block: true}
+		k, err := New(testUser, urlFn, nil, cfg, WithLogger(discard), WithPresenceGetter(fg))
+		require.NoError(t, err)
+
+		err = k.session(t.Context())
+		assert.ErrorIs(t, err, ErrGoodbye, "a hanging presence check must not cause a pong timeout")
+		assert.Equal(t, int32(1), fg.calls.Load(), "only one check should be in flight")
 	})
 	t.Run("dial error", func(t *testing.T) {
 		srv := httptest.NewServer(http.NotFoundHandler())
