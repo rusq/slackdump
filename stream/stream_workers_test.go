@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/rusq/slack"
@@ -260,6 +261,22 @@ func TestStream_channelWorker_canvasBypassesOrdinaryThreadBacklog(t *testing.T) 
 	require.Len(t, results, 2)
 	assert.Equal(t, RTCanvasThread, (<-results).Type)
 	assert.NoError(t, (<-results).Err)
+}
+
+func Test_canvasErrorIsFatal(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		err  error
+		want bool
+	}{
+		{"invalid auth value", newAPIError("files.info", slack.SlackErrorResponse{Err: "invalid_auth"}), true},
+		{"invalid auth wrapped value and retry failure", newAPIError("conversations.replies", &network.ErrRetryFailed{Err: fmt.Errorf("wrapped: %w", slack.SlackErrorResponse{Err: "invalid_auth"})}), true},
+		{"not visible", newAPIError("files.info", slack.SlackErrorResponse{Err: "not_visible"}), false},
+		{"access denied", newAPIError("files.info", slack.SlackErrorResponse{Err: "access_denied"}), false},
+		{"missing metadata", newAPIError("files.info", errors.New("canvas file not found")), false},
+	} {
+		t.Run(tc.name, func(t *testing.T) { assert.Equal(t, tc.want, canvasErrorIsFatal(tc.err)) })
+	}
 }
 
 func TestStream_canvasFile(t *testing.T) {
@@ -678,6 +695,25 @@ func TestStream_canvasThreadWorker(t *testing.T) {
 			assert.ErrorIs(t, result.err, tt.wantErr)
 		})
 	}
+	t.Run("persistent invalid auth is fatal", func(t *testing.T) {
+		synctest.Test(t, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			ms := mock_client.NewMockSlack(ctrl)
+			mc := mock_processor.NewMockConversations(ctrl)
+			cm := mock_processor.NewMockCanvasMessenger(ctrl)
+			original := fmt.Errorf("request: %w", slack.SlackErrorResponse{Err: "invalid_auth"})
+			ms.EXPECT().GetConversationRepliesContext(gomock.Any(), gomock.Any()).Return(nil, false, "", original).Times(3)
+			cs := New(ms, network.NoLimits)
+			reqC := make(chan canvasThreadRequest, 1)
+			reqC <- canvasThreadRequest{fetch: threadFetchSpec{channelID: "CHIDDEN", threadTS: "1.0"}, root: messages[0], owner: owner, fileID: "FHIDDEN"}
+			close(reqC)
+			completed := make(chan canvasThreadResult, 1)
+			cs.canvasThreadWorker(context.Background(), &canvasConversations{Conversations: mc, CanvasMessenger: cm}, completed, reqC)
+			result := <-completed
+			assert.ErrorIs(t, result.err, original)
+			assert.ErrorIs(t, result.err, &network.ErrRetryFailed{})
+		})
+	})
 }
 
 func TestStream_processCanvasThread(t *testing.T) {

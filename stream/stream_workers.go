@@ -438,6 +438,9 @@ func procCanvasThreadMsg(ctx context.Context, proc processor.Conversations, cm p
 }
 
 func canvasErrorIsFatal(err error) bool {
+	if value, ok := errors.AsType[slack.SlackErrorResponse](err); ok && value.Err == "invalid_auth" {
+		return true
+	}
 	return errors.Is(err, context.Canceled) ||
 		errors.Is(err, context.DeadlineExceeded) ||
 		!isAPIError(err)

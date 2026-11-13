@@ -335,7 +335,7 @@ func (cs *Stream) channel(ctx context.Context, req channelRequest, callback func
 				Inclusive: cs.inclusive,
 			})
 			return apiErr
-		}); err != nil {
+		}, network.RetryReadOnly); err != nil {
 			return err
 		}
 		if !resp.Ok {
@@ -405,7 +405,7 @@ func (cs *Stream) paginateThread(ctx context.Context, spec threadFetchSpec, call
 				return ke
 			}
 			return apiErr
-		}); err != nil {
+		}, network.RetryReadOnly); err != nil {
 			return newAPIError("conversations.replies", err)
 		}
 
