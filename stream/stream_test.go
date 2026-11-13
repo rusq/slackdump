@@ -18,6 +18,7 @@ package stream
 import (
 	"context"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -163,6 +164,42 @@ func TestStream_paginateThread(t *testing.T) {
 		})
 		assert.NoError(t, err)
 		assert.Equal(t, 2, pages)
+	})
+	t.Run("retry retains later cursor", func(t *testing.T) {
+		for _, tc := range []struct {
+			name string
+			err  error
+		}{
+			{"rate limited", &slack.RateLimitedError{}},
+			{"EOF", io.EOF},
+			{"503", slack.StatusCodeError{Code: 503, Status: "Service Unavailable"}},
+			{"empty page", nil},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				ctrl := gomock.NewController(t)
+				ms := mock_client.NewMockSlack(ctrl)
+				cs := New(ms, network.NoLimits)
+				var cursors []string
+				calls := 0
+				ms.EXPECT().GetConversationRepliesContext(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, p *slack.GetConversationRepliesParameters) ([]slack.Message, bool, string, error) {
+					cursors = append(cursors, p.Cursor)
+					calls++
+					switch calls {
+					case 1:
+						return []slack.Message{{}}, true, "C", nil
+					case 2:
+						return nil, false, "", tc.err
+					default:
+						return []slack.Message{{}}, false, "", nil
+					}
+				}).Times(3)
+				pages := 0
+				err := cs.paginateThread(t.Context(), spec, func(_ []slack.Message, _ bool) (bool, error) { pages++; return true, nil })
+				assert.NoError(t, err)
+				assert.Equal(t, []string{"", "C", "C"}, cursors)
+				assert.Equal(t, 2, pages)
+			})
+		}
 	})
 	t.Run("callback stops early", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
