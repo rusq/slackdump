@@ -15,6 +15,7 @@
   - [Database Cleanup](usage-cleanup.md)
   - [Database Dedupe](usage-dedupe.md)
   - [Merging Archives](usage-merge.md)
+  - [Keeping Presence Active](usage-lookalive.md)
 - [Enterprise Workspace Tips](enterprise.md)
 - [Compiling from Sources](compiling.md)
 - [Troubleshooting](troubleshooting.md)
@@ -70,6 +71,7 @@ There are several modes of operation:
 | `slackdump tools cleanup` | Remove residual data from unfinished database sessions |
 | `slackdump tools dedupe` | Remove duplicate messages, users, channels, channel users, and files created by resume overlap |
 | `slackdump tools merge` | Merge one or more Slackdump sources into an existing database archive |
+| `slackdump tools lookalive` | Keep your Slack presence active (green) while it runs |
 
 Run `slackdump help` to see all available commands, or `slackdump help <command>`
 for detailed help on a specific command.

@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### New Features
+
+- **Keep your presence active**: `slackdump tools lookalive` keeps your Slack
+  presence green while it runs, by sending the same activity signals as the
+  Slack client over its websocket connection.
+
 ### Bug Fixes
 
 - `slackdump resume -refresh -member-only` now skips newly discovered public
