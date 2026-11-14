@@ -96,6 +96,7 @@ func (e *ErrRetryFailed) Is(target error) bool {
 // WithRetry will run the callback function fn. If the function returns
 // slack.RateLimitedError, it will delay, and then call it again up to
 // maxAttempts times. It will return an error if it runs out of attempts.
+// No delay is applied after the final attempt.
 func WithRetry(ctx context.Context, lim *rate.Limiter, maxAttempts int, fn func(ctx context.Context) error) error {
 	var ok bool
 	if maxAttempts == 0 {
@@ -104,6 +105,7 @@ func WithRetry(ctx context.Context, lim *rate.Limiter, maxAttempts int, fn func(
 	lg := slog.With("maxAttempts", maxAttempts)
 
 	var lastErr error
+retry:
 	for attempt := 0; attempt < maxAttempts; attempt++ {
 		// calling wait to ensure that we don't exceed the rate limit
 		var err error
@@ -136,9 +138,15 @@ func WithRetry(ctx context.Context, lim *rate.Limiter, maxAttempts int, fn func(
 			sce slack.StatusCodeError
 			ne  *net.OpError // read tcp error: see #234
 		)
+		// lastAttempt is true when no further callback invocation is permitted;
+		// backing off in that case would only delay the ErrRetryFailed return.
+		lastAttempt := attempt == maxAttempts-1
 		switch {
 		case errors.Is(cbErr, io.EOF) || errors.Is(cbErr, io.ErrUnexpectedEOF):
 			// EOF is a transient error
+			if lastAttempt {
+				break retry
+			}
 			delay := wait(attempt)
 			slog.WarnContext(ctx, "got EOF, sleeping", "error", cbErr, "delay", delay.String())
 			tracelogf(ctx, "info", "got EOF, sleeping %s (%s)", delay, cbErr)
@@ -148,6 +156,9 @@ func WithRetry(ctx context.Context, lim *rate.Limiter, maxAttempts int, fn func(
 			slog.Debug("resuming after EOF")
 			continue
 		case errors.As(cbErr, &rle):
+			if lastAttempt {
+				break retry
+			}
 			slog.InfoContext(ctx, "got rate limited, sleeping", "retry_after", rle.RetryAfter.String(), "error", cbErr)
 			tracelogf(ctx, "info", "got rate limited, sleeping %s (%s)", rle.RetryAfter, cbErr)
 			if err := SleepCtx(ctx, rle.RetryAfter); err != nil {
@@ -158,6 +169,9 @@ func WithRetry(ctx context.Context, lim *rate.Limiter, maxAttempts int, fn func(
 		case errors.As(cbErr, &sce):
 			if isRecoverable(sce.Code) {
 				// possibly transient error
+				if lastAttempt {
+					break retry
+				}
 				delay := wait(attempt)
 				slog.WarnContext(ctx, "got server error, sleeping", "status_code", sce.Code, "error", cbErr, "delay", delay.String())
 				tracelogf(ctx, "info", "got server error %d, sleeping %s (%s)", sce.Code, delay, cbErr)
@@ -169,6 +183,9 @@ func WithRetry(ctx context.Context, lim *rate.Limiter, maxAttempts int, fn func(
 		case errors.As(cbErr, &ne):
 			if ne.Op == "read" || ne.Op == "write" {
 				// possibly transient error
+				if lastAttempt {
+					break retry
+				}
 				delay := netWait(attempt)
 				slog.WarnContext(ctx, "got network error, sleeping", "op", ne.Op, "error", cbErr, "delay", delay.String())
 				tracelogf(ctx, "info", "got network error %s on %q, sleeping %s", cbErr, ne.Op, delay)
