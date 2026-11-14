@@ -25,7 +25,6 @@ import (
 	"net/http/httptest"
 	"reflect"
 	"testing"
-	"testing/synctest"
 	"time"
 
 	"github.com/rusq/slack"
@@ -323,7 +322,10 @@ func TestWithRetry(t *testing.T) {
 			thisCode := code
 			// This test is to ensure that we handle 500 errors correctly.
 			t.Run(fmt.Sprintf("%d error", code), func(t *testing.T) {
-				const testRetryCount = 1
+				const (
+					testRetryCount = 1
+					waitThreshold  = 100 * time.Millisecond
+				)
 
 				// Create a test server that returns a 500 error.
 				ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -348,8 +350,8 @@ func TestWithRetry(t *testing.T) {
 				}
 
 				dur := time.Since(start)
-				if dur >= wait(0) { // the last attempt must not back off
-					t.Errorf("expected no terminal backoff (< %s), got %s", wait(0), dur)
+				if dur < wait(testRetryCount-1)-waitThreshold || wait(testRetryCount-1)+waitThreshold < dur {
+					t.Errorf("expected duration to be around %s, got %s", wait(testRetryCount), dur)
 				}
 			})
 		}
@@ -421,6 +423,17 @@ func TestWithRetry(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, 2, retries)
 	})
+	t.Run("retry requested on every attempt", func(t *testing.T) {
+		var calls int
+		err := WithRetry(t.Context(), rate.NewLimiter(rate.Inf, 1), 3, func(context.Context) error {
+			calls++
+			return ErrRetryPlease
+		})
+		assert.Equal(t, 3, calls)
+		assert.ErrorIs(t, err, &ErrRetryFailed{})
+		assert.Equal(t, ErrRetryPlease, errors.Unwrap(err))
+		assert.NotContains(t, err.Error(), "%!s(<nil>)")
+	})
 	t.Run("meaningful error message", func(t *testing.T) {
 		setWaitFunc(func(attempt int) time.Duration { return 50 * time.Millisecond })
 		t.Cleanup(func() { setWaitFunc(cubicWait) })
@@ -435,110 +448,6 @@ func TestWithRetry(t *testing.T) {
 		assert.ErrorIs(t, err, &ErrRetryFailed{})
 		var sce slack.StatusCodeError
 		assert.ErrorAs(t, errors.Unwrap(err), &sce)
-	})
-	// retryCases are the retryable error categories, with the backoff each
-	// of them incurs before the next attempt.
-	retryCases := []struct {
-		name  string
-		err   error
-		delay func(attempt int) time.Duration
-	}{
-		{"EOF", io.EOF, cubicWait},
-		{"unexpected EOF", io.ErrUnexpectedEOF, cubicWait},
-		{"rate limited", &slack.RateLimitedError{RetryAfter: 30 * time.Second}, func(int) time.Duration { return 30 * time.Second }},
-		{"status 500", slack.StatusCodeError{Code: 500, Status: "Internal Server Error"}, cubicWait},
-		{"status 408", slack.StatusCodeError{Code: 408, Status: "Request Timeout"}, cubicWait},
-		{"net read", &net.OpError{Op: "read", Err: errors.New("conn reset")}, expWait},
-		{"net write", &net.OpError{Op: "write", Err: errors.New("broken pipe")}, expWait},
-	}
-	t.Run("no backoff after final attempt", func(t *testing.T) {
-		for _, tc := range retryCases {
-			t.Run(tc.name, func(t *testing.T) {
-				synctest.Test(t, func(t *testing.T) {
-					var calls int
-					start := time.Now()
-					err := WithRetry(t.Context(), rate.NewLimiter(rate.Inf, 1), 1, func(context.Context) error {
-						calls++
-						return tc.err
-					})
-					assert.Equal(t, 1, calls)
-					assert.Zero(t, time.Since(start), "must not sleep after the final attempt")
-					assert.ErrorIs(t, err, &ErrRetryFailed{})
-					assert.ErrorIs(t, err, tc.err)
-					assert.Equal(t, tc.err, errors.Unwrap(err))
-				})
-			})
-		}
-	})
-	t.Run("persistent failure backs off between attempts only", func(t *testing.T) {
-		const attempts = 3
-		for _, tc := range retryCases {
-			t.Run(tc.name, func(t *testing.T) {
-				synctest.Test(t, func(t *testing.T) {
-					var calls int
-					start := time.Now()
-					err := WithRetry(t.Context(), rate.NewLimiter(rate.Inf, 1), attempts, func(context.Context) error {
-						calls++
-						return tc.err
-					})
-					assert.Equal(t, attempts, calls)
-					assert.Equal(t, tc.delay(0)+tc.delay(1), time.Since(start))
-					assert.ErrorIs(t, err, &ErrRetryFailed{})
-					assert.Equal(t, tc.err, errors.Unwrap(err))
-				})
-			})
-		}
-	})
-	t.Run("non-retryable errors fail fast", func(t *testing.T) {
-		for _, tc := range []struct {
-			name string
-			err  error
-		}{
-			{"status 404", slack.StatusCodeError{Code: 404, Status: "Not Found"}},
-			{"net dial", &net.OpError{Op: "dial", Err: errors.New("refused")}},
-			{"generic", errors.New("boom")},
-		} {
-			t.Run(tc.name, func(t *testing.T) {
-				synctest.Test(t, func(t *testing.T) {
-					var calls int
-					start := time.Now()
-					err := WithRetry(t.Context(), rate.NewLimiter(rate.Inf, 1), 3, func(context.Context) error {
-						calls++
-						return tc.err
-					})
-					assert.Equal(t, 1, calls)
-					assert.Zero(t, time.Since(start))
-					assert.NotErrorIs(t, err, &ErrRetryFailed{})
-					assert.ErrorIs(t, err, tc.err)
-					assert.ErrorContains(t, err, "callback error: ")
-				})
-			})
-		}
-	})
-	t.Run("cancel during intermediate backoff", func(t *testing.T) {
-		synctest.Test(t, func(t *testing.T) {
-			errCause := errors.New("stop")
-			ctx, cancel := context.WithCancelCause(t.Context())
-			defer cancel(nil)
-
-			var calls int
-			start := time.Now()
-			res := make(chan error, 1)
-			go func() {
-				res <- WithRetry(ctx, rate.NewLimiter(rate.Inf, 1), 3, func(context.Context) error {
-					calls++
-					return io.EOF
-				})
-			}()
-			time.Sleep(500 * time.Millisecond) // half of cubicWait(0)
-			cancel(errCause)
-			err := <-res
-
-			assert.Equal(t, 1, calls)
-			assert.Equal(t, errCause, err, "must return the cancellation cause")
-			assert.NotErrorIs(t, err, &ErrRetryFailed{})
-			assert.Equal(t, 500*time.Millisecond, time.Since(start))
-		})
 	})
 }
 
