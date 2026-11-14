@@ -268,8 +268,12 @@ func (cs *Stream) canvasFile(ctx context.Context, proc processor.Conversations, 
 	if fileID == "" {
 		return nil
 	}
-	file, _, _, err := cs.client.GetFileInfoContext(ctx, fileID, 0, 1)
-	if err != nil {
+	var file *slack.File
+	if err := network.WithRetry(ctx, cs.limits.channels, cs.limits.tier.Tier3.Retries, func(ctx context.Context) error {
+		var err error
+		file, _, _, err = cs.client.GetFileInfoContext(ctx, fileID, 0, 1)
+		return err
+	}, network.RetryReadOnly); err != nil {
 		return newAPIError("files.info", err)
 	}
 	if file == nil {
@@ -438,6 +442,9 @@ func procCanvasThreadMsg(ctx context.Context, proc processor.Conversations, cm p
 }
 
 func canvasErrorIsFatal(err error) bool {
+	if value, ok := errors.AsType[slack.SlackErrorResponse](err); ok && value.Err == "invalid_auth" {
+		return true
+	}
 	return errors.Is(err, context.Canceled) ||
 		errors.Is(err, context.DeadlineExceeded) ||
 		!isAPIError(err)

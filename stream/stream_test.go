@@ -144,6 +144,20 @@ func TestReplay(t *testing.T) {
 	}
 }
 
+func TestStream_channel(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	ms := mock_client.NewMockSlack(ctrl)
+	cs := New(ms, network.NoLimits)
+	gomock.InOrder(
+		ms.EXPECT().GetConversationHistoryContext(gomock.Any(), gomock.Any()).Return(nil, slack.SlackErrorResponse{Err: "fatal_error"}),
+		ms.EXPECT().GetConversationHistoryContext(gomock.Any(), gomock.Any()).Return(&slack.GetConversationHistoryResponse{SlackResponse: slack.SlackResponse{Ok: true}}, nil),
+	)
+	pages := 0
+	err := cs.channel(t.Context(), channelRequest{sl: structures.SlackLink{Channel: "C1"}}, func([]slack.Message, bool) error { pages++; return nil })
+	assert.NoError(t, err)
+	assert.Equal(t, 1, pages)
+}
+
 func TestStream_paginateThread(t *testing.T) {
 	spec := threadFetchSpec{channelID: "CTM1", threadTS: "1610000000.000000"}
 	t.Run("multi-page success", func(t *testing.T) {
@@ -164,6 +178,23 @@ func TestStream_paginateThread(t *testing.T) {
 		})
 		assert.NoError(t, err)
 		assert.Equal(t, 2, pages)
+	})
+	t.Run("transient Slack API errors retry", func(t *testing.T) {
+		for _, code := range []string{"fatal_error", "internal_error", "service_unavailable"} {
+			t.Run(code, func(t *testing.T) {
+				ctrl := gomock.NewController(t)
+				ms := mock_client.NewMockSlack(ctrl)
+				cs := New(ms, network.NoLimits)
+				gomock.InOrder(
+					ms.EXPECT().GetConversationRepliesContext(gomock.Any(), gomock.Any()).Return(nil, false, "", slack.SlackErrorResponse{Err: code}),
+					ms.EXPECT().GetConversationRepliesContext(gomock.Any(), gomock.Any()).Return([]slack.Message{{}}, false, "", nil),
+				)
+				pages := 0
+				err := cs.paginateThread(t.Context(), spec, func([]slack.Message, bool) (bool, error) { pages++; return true, nil })
+				assert.NoError(t, err)
+				assert.Equal(t, 1, pages)
+			})
+		}
 	})
 	t.Run("retry retains later cursor", func(t *testing.T) {
 		for _, tc := range []struct {

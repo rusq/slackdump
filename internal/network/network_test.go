@@ -25,6 +25,7 @@ import (
 	"net/http/httptest"
 	"reflect"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/rusq/slack"
@@ -448,6 +449,155 @@ func TestWithRetry(t *testing.T) {
 		assert.ErrorIs(t, err, &ErrRetryFailed{})
 		var sce slack.StatusCodeError
 		assert.ErrorAs(t, errors.Unwrap(err), &sce)
+	})
+	t.Run("read-only Slack errors", func(t *testing.T) {
+		setWaitFunc(func(int) time.Duration { return time.Millisecond })
+		t.Cleanup(func() { setWaitFunc(cubicWait) })
+
+		t.Run("HTTP 200 Slack failures are retried", func(t *testing.T) {
+			for _, code := range []string{"fatal_error", "internal_error", "service_unavailable", "invalid_auth"} {
+				t.Run(code, func(t *testing.T) {
+					calls := 0
+					ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+						calls++
+						assert.Equal(t, "token", r.FormValue("token"))
+						if calls == 1 {
+							fmt.Fprintf(w, `{"ok":false,"error":%q}`, code)
+							return
+						}
+						fmt.Fprint(w, `{"ok":true,"messages":[]}`)
+					}))
+					defer ts.Close()
+					client := slack.New("token", slack.OptionAPIURL(ts.URL+"/"))
+					err := WithRetry(t.Context(), rate.NewLimiter(rate.Inf, 1), 3, func(ctx context.Context) error {
+						_, err := client.GetConversationHistoryContext(ctx, &slack.GetConversationHistoryParameters{})
+						return err
+					}, RetryReadOnly)
+					assert.NoError(t, err)
+					assert.Equal(t, 2, calls)
+				})
+			}
+		})
+		t.Run("wrapped value failure retries after delay", func(t *testing.T) {
+			setWaitFunc(func(int) time.Duration { return 20 * time.Millisecond })
+			defer setWaitFunc(func(int) time.Duration { return time.Millisecond })
+			calls := 0
+			start := time.Now()
+			err := WithRetry(t.Context(), rate.NewLimiter(rate.Inf, 1), 2, func(context.Context) error {
+				calls++
+				if calls == 1 {
+					return fmt.Errorf("wrapped: %w", slack.SlackErrorResponse{Err: "fatal_error"})
+				}
+				return nil
+			}, RetryReadOnly)
+			assert.NoError(t, err)
+			assert.Equal(t, 2, calls)
+			assert.GreaterOrEqual(t, time.Since(start), 20*time.Millisecond)
+		})
+		t.Run("exhaustion preserves wrapped error", func(t *testing.T) {
+			original := fmt.Errorf("request: %w", slack.SlackErrorResponse{Err: "fatal_error"})
+			calls := 0
+			err := WithRetry(t.Context(), rate.NewLimiter(rate.Inf, 1), 3, func(context.Context) error { calls++; return original }, RetryReadOnly)
+			assert.ErrorIs(t, err, original)
+			assert.ErrorIs(t, err, &ErrRetryFailed{})
+			assert.Equal(t, 3, calls)
+		})
+		t.Run("invalid auth retry bounds and delay", func(t *testing.T) {
+			setWaitFunc(func(attempt int) time.Duration { return time.Duration(attempt+1) * time.Millisecond })
+			defer setWaitFunc(func(int) time.Duration { return time.Millisecond })
+			for _, tc := range []struct{ maxAttempts, wantCalls int }{{10, 10}, {0, 3}, {3, 3}, {2, 2}, {1, 1}} {
+				t.Run(fmt.Sprint(tc.maxAttempts), func(t *testing.T) {
+					synctest.Test(t, func(t *testing.T) {
+						original := fmt.Errorf("request: %w", slack.SlackErrorResponse{Err: "invalid_auth"})
+						start := time.Now()
+						var calls []time.Duration
+						err := WithRetry(context.Background(), rate.NewLimiter(rate.Inf, 1), tc.maxAttempts, func(context.Context) error {
+							calls = append(calls, time.Since(start))
+							return original
+						}, RetryReadOnly)
+						assert.ErrorIs(t, err, original)
+						assert.ErrorIs(t, err, &ErrRetryFailed{})
+						assert.Len(t, calls, tc.wantCalls)
+						for i, elapsed := range calls {
+							assert.Equal(t, time.Duration(i*(i+1)/2)*time.Millisecond, elapsed)
+						}
+						assert.Equal(t, time.Duration(tc.wantCalls*(tc.wantCalls+1)/2)*time.Millisecond, time.Since(start))
+					})
+				})
+			}
+		})
+		t.Run("invalid auth respects configured limit with mixed errors", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				calls := 0
+				original := fmt.Errorf("request: %w", slack.SlackErrorResponse{Err: "fatal_error"})
+				err := WithRetry(context.Background(), rate.NewLimiter(rate.Inf, 1), 10, func(context.Context) error {
+					calls++
+					if calls == 1 {
+						return slack.SlackErrorResponse{Err: "invalid_auth"}
+					}
+					return original
+				}, RetryReadOnly)
+				assert.Equal(t, 10, calls)
+				assert.ErrorIs(t, err, original)
+				assert.ErrorIs(t, err, &ErrRetryFailed{})
+			})
+		})
+		t.Run("auth errors fail fast under applicable policies", func(t *testing.T) {
+			for _, code := range []string{"invalid_auth", "token_expired", "token_revoked", "not_authed"} {
+				for _, readOnly := range []bool{false, true} {
+					if code == "invalid_auth" && readOnly {
+						continue
+					}
+					t.Run(fmt.Sprintf("%s/readOnly=%t", code, readOnly), func(t *testing.T) {
+						calls := 0
+						original := fmt.Errorf("request: %w", slack.SlackErrorResponse{Err: code})
+						var policies []RetryPolicy
+						if readOnly {
+							policies = append(policies, RetryReadOnly)
+						}
+						err := WithRetry(t.Context(), rate.NewLimiter(rate.Inf, 1), 3, func(context.Context) error { calls++; return original }, policies...)
+						assert.ErrorIs(t, err, original)
+						assert.Equal(t, 1, calls)
+					})
+				}
+			}
+		})
+		t.Run("general retry does not retry Slack API errors", func(t *testing.T) {
+			calls := 0
+			original := fmt.Errorf("request: %w", slack.SlackErrorResponse{Err: "fatal_error"})
+			err := WithRetry(t.Context(), rate.NewLimiter(rate.Inf, 1), 3, func(context.Context) error { calls++; return original })
+			assert.ErrorIs(t, err, original)
+			assert.Equal(t, 1, calls)
+		})
+		t.Run("cancellation interrupts delay", func(t *testing.T) {
+			ctx, cancel := context.WithCancel(t.Context())
+			calls := 0
+			err := WithRetry(ctx, rate.NewLimiter(rate.Inf, 1), 3, func(context.Context) error {
+				calls++
+				cancel()
+				return slack.SlackErrorResponse{Err: "fatal_error"}
+			}, RetryReadOnly)
+			assert.ErrorIs(t, err, context.Canceled)
+			assert.Equal(t, 1, calls)
+		})
+		t.Run("invalid auth cancellation interrupts delay", func(t *testing.T) {
+			setWaitFunc(func(int) time.Duration { return 5 * time.Second })
+			defer setWaitFunc(func(int) time.Duration { return time.Millisecond })
+			synctest.Test(t, func(t *testing.T) {
+				ctx, cancel := context.WithCancel(context.Background())
+				defer cancel()
+				go func() { time.Sleep(2 * time.Second); cancel() }()
+				start := time.Now()
+				calls := 0
+				err := WithRetry(ctx, rate.NewLimiter(rate.Inf, 1), 3, func(context.Context) error {
+					calls++
+					return slack.SlackErrorResponse{Err: "invalid_auth"}
+				}, RetryReadOnly)
+				assert.ErrorIs(t, err, context.Canceled)
+				assert.Equal(t, 1, calls)
+				assert.Equal(t, 2*time.Second, time.Since(start))
+			})
+		})
 	})
 }
 

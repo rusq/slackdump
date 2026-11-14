@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/rusq/slack"
@@ -170,6 +171,25 @@ func TestStream_Conversations(t *testing.T) {
 		Timestamp:       "1610000000.000000",
 		ThreadTimestamp: "1610000000.000000",
 	}}}
+
+	t.Run("persistent invalid auth fails conversation backup", func(t *testing.T) {
+		synctest.Test(t, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			cl := mock_client.NewMockSlack(ctrl)
+			proc := mock_processor.NewMockConversations(ctrl)
+			cs := New(cl, network.NoLimits)
+			cs.chanCache.set("CTM1", threadChannel)
+			original := fmt.Errorf("request: %w", slack.SlackErrorResponse{Err: "invalid_auth"})
+			cl.EXPECT().GetConversationRepliesContext(gomock.Any(), gomock.Any()).Return(nil, false, "", original).Times(3)
+			proc.EXPECT().ChannelInfo(gomock.Any(), gomock.Any(), "1610000000.000000").Return(nil)
+			items := make(chan structures.EntityItem, 1)
+			items <- threadItem
+			close(items)
+			err := cs.Conversations(context.Background(), proc, items)
+			assert.ErrorIs(t, err, original)
+			assert.ErrorIs(t, err, &network.ErrRetryFailed{})
+		})
+	})
 
 	t.Run("fatal thread result cancels queued work", func(t *testing.T) {
 		ctrl := gomock.NewController(t)

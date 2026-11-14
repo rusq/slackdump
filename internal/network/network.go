@@ -24,6 +24,7 @@ import (
 	"net"
 	"net/http"
 	"runtime/trace"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -93,11 +94,20 @@ func (e *ErrRetryFailed) Is(target error) bool {
 	return ok
 }
 
+// RetryPolicy selects optional retry behavior.
+type RetryPolicy uint8
+
+// RetryReadOnly enables bounded retries of selected Slack API errors. Use only
+// for read-only operations, which are safe to repeat.
+const RetryReadOnly RetryPolicy = 1
+
 // WithRetry will run the callback function fn. If the function returns
 // slack.RateLimitedError, it will delay, and then call it again up to
 // maxAttempts times. It will return an error if it runs out of attempts.
-func WithRetry(ctx context.Context, lim *rate.Limiter, maxAttempts int, fn func(ctx context.Context) error) error {
-	var ok bool
+//
+// With the read-only policy enabled, invalid_auth, fatal_error, internal_error,
+// and service_unavailable use the configured attempt limit and backoff.
+func WithRetry(ctx context.Context, lim *rate.Limiter, maxAttempts int, fn func(ctx context.Context) error, policies ...RetryPolicy) error {
 	if maxAttempts == 0 {
 		maxAttempts = defNumAttempts
 	}
@@ -126,8 +136,7 @@ func WithRetry(ctx context.Context, lim *rate.Limiter, maxAttempts int, fn func(
 		}
 		if cbErr == nil {
 			// success
-			ok = true
-			break
+			return nil
 		}
 		lastErr = cbErr
 
@@ -140,7 +149,20 @@ func WithRetry(ctx context.Context, lim *rate.Limiter, maxAttempts int, fn func(
 			sce slack.StatusCodeError
 			ne  *net.OpError // read tcp error: see #234
 		)
+		var slackCode string
+		if slices.Contains(policies, RetryReadOnly) {
+			if value, ok := errors.AsType[slack.SlackErrorResponse](cbErr); ok {
+				slackCode = value.Err
+			}
+		}
 		switch {
+		case slackCode == "invalid_auth" || slackCode == "fatal_error" || slackCode == "internal_error" || slackCode == "service_unavailable":
+			delay := wait(attempt)
+			slog.WarnContext(ctx, "got retryable Slack API error, sleeping", "error", cbErr, "delay", delay.String())
+			if err := SleepCtx(ctx, delay); err != nil {
+				return err
+			}
+			continue
 		case errors.Is(cbErr, io.EOF) || errors.Is(cbErr, io.ErrUnexpectedEOF):
 			// EOF is a transient error
 			delay := wait(attempt)
@@ -185,10 +207,7 @@ func WithRetry(ctx context.Context, lim *rate.Limiter, maxAttempts int, fn func(
 
 		return fmt.Errorf("callback error: %w", cbErr)
 	}
-	if !ok {
-		return &ErrRetryFailed{Err: lastErr}
-	}
-	return nil
+	return &ErrRetryFailed{Err: lastErr}
 }
 
 // SleepCtx waits for d, or until ctx is done, in which case it returns the
