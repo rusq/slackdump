@@ -380,12 +380,13 @@ func (cs *Stream) paginateThread(ctx context.Context, spec threadFetchSpec, call
 	var cursor string
 	for {
 		var (
-			msgs    []slack.Message
-			hasmore bool
+			msgs       []slack.Message
+			hasmore    bool
+			nextCursor string
 		)
 		if err := network.WithRetry(ctx, cs.limits.threads, cs.limits.tier.Tier3.Retries, func(ctx context.Context) error {
 			var apiErr error
-			msgs, hasmore, cursor, apiErr = cs.client.GetConversationRepliesContext(ctx, &slack.GetConversationRepliesParameters{
+			msgs, hasmore, nextCursor, apiErr = cs.client.GetConversationRepliesContext(ctx, &slack.GetConversationRepliesParameters{
 				ChannelID: spec.channelID,
 				Timestamp: spec.threadTS,
 				Cursor:    cursor,
@@ -422,6 +423,7 @@ func (cs *Stream) paginateThread(ctx context.Context, spec threadFetchSpec, call
 		if !hasmore {
 			break
 		}
+		cursor = nextCursor
 	}
 	return nil
 }

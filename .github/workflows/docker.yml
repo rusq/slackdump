@@ -1,4 +1,4 @@
-name: dickerhub
+name: dockerhub
 
 on:
     release:
@@ -16,6 +16,7 @@ on:
 jobs:
     push_to_dockerhub:
         name: Push image to dockerhub
+        if: github.repository == 'rusq/slackdump' && (github.event_name == 'push' || github.event_name == 'release')
         runs-on: ubuntu-26.04
         steps:
             - name: Docker meta

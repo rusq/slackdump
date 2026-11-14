@@ -370,7 +370,7 @@ func (cl *Client) canvasEditor1(ctx context.Context, oypID, sessionID, userID st
 		return nil, err
 	}
 	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
+	body, err := io.ReadAll(cl.recorder(resp.Body))
 	if err != nil {
 		return nil, fmt.Errorf("canvas editor/1: reading response: %w", err)
 	}

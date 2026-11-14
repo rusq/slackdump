@@ -439,3 +439,39 @@ func TestClient_canvasControllerInit(t *testing.T) {
 		assert.Equal(t, 1, strings.Count(got, "\n\n"), "tape: %q", got)
 	})
 }
+
+func TestClient_canvasEditor1(t *testing.T) {
+	body := buildEditor1Response(canvasThreadMetadataFixture{
+		threadID: "thread-1", replyCount: 2, latestUS: 1773451290951589,
+	})
+	for _, recording := range []bool{false, true} {
+		t.Run(fmt.Sprintf("recording=%t", recording), func(t *testing.T) {
+			var requestBody []byte
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				var err error
+				requestBody, err = io.ReadAll(r.Body)
+				require.NoError(t, err)
+				_, _ = w.Write(body)
+			}))
+			t.Cleanup(srv.Close)
+
+			tape := new(closeTape)
+			var opts []Option
+			if recording {
+				opts = append(opts, WithTape(tape))
+			}
+			cl, err := NewWithClient("workspace", "team", "token", http.DefaultClient, opts...)
+			require.NoError(t, err)
+			cl.webclientAPI = srv.URL + "/api/"
+			got, err := cl.canvasEditor1(t.Context(), "oyp", "session", "user")
+			require.NoError(t, err)
+			assert.Equal(t, []canvasThreadMetadata{{ThreadID: "thread-1", ReplyCount: 2, LatestMessageTS: "1773451290.951589"}}, got)
+			if recording {
+				want := append(append(append([]byte{}, requestBody...), tapeSep...), body...)
+				assert.Equal(t, want, tape.Bytes())
+			} else {
+				assert.Empty(t, tape.Bytes())
+			}
+		})
+	}
+}
