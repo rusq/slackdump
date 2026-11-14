@@ -424,6 +424,17 @@ func TestWithRetry(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, 2, retries)
 	})
+	t.Run("retry requested on every attempt", func(t *testing.T) {
+		var calls int
+		err := WithRetry(t.Context(), rate.NewLimiter(rate.Inf, 1), 3, func(context.Context) error {
+			calls++
+			return ErrRetryPlease
+		})
+		assert.Equal(t, 3, calls)
+		assert.ErrorIs(t, err, &ErrRetryFailed{})
+		assert.Equal(t, ErrRetryPlease, errors.Unwrap(err))
+		assert.NotContains(t, err.Error(), "%!s(<nil>)")
+	})
 	t.Run("meaningful error message", func(t *testing.T) {
 		setWaitFunc(func(attempt int) time.Duration { return 50 * time.Millisecond })
 		t.Cleanup(func() { setWaitFunc(cubicWait) })

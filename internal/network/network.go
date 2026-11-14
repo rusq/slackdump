@@ -126,7 +126,11 @@ func WithRetry(ctx context.Context, lim *rate.Limiter, maxAttempts int, fn func(
 
 		cbErr := fn(ctx)
 		if errors.Is(cbErr, ErrRetryPlease) {
-			// callback requested a retry
+			// callback requested a retry.  Keep an earlier real error, if
+			// any, but never report a nil one if every attempt asked for it.
+			if lastErr == nil {
+				lastErr = cbErr
+			}
 			lg.DebugContext(ctx, "retry requested", "attempt", attempt+1)
 			continue
 		}
