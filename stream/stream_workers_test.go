@@ -396,6 +396,7 @@ func TestStream_canvasFile(t *testing.T) {
 			}
 			cs := tt.fields
 			cs.client = ms
+			cs.limits = limits(network.NoLimits)
 			err := cs.canvasFile(tt.args.ctx, mc, tt.args.channel, tt.args.fileId)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Stream.canvasFile() error = %v, wantErr %v", err, tt.wantErr)
@@ -406,6 +407,33 @@ func TestStream_canvasFile(t *testing.T) {
 			}
 		})
 	}
+	t.Run("transient invalid auth is retried", func(t *testing.T) {
+		synctest.Test(t, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			ms := mock_client.NewMockSlack(ctrl)
+			mc := mock_processor.NewMockConversations(ctrl)
+			gomock.InOrder(
+				ms.EXPECT().GetFileInfoContext(gomock.Any(), "F123456", 0, 1).Return(nil, nil, nil, slack.SlackErrorResponse{Err: "invalid_auth"}),
+				ms.EXPECT().GetFileInfoContext(gomock.Any(), "F123456", 0, 1).Return(&slack.File{ID: "F123456"}, nil, nil, nil),
+			)
+			mc.EXPECT().Files(gomock.Any(), testChannel, slack.Message{}, []slack.File{{ID: "F123456"}}).Return(nil)
+			cs := New(ms, network.NoLimits)
+			assert.NoError(t, cs.canvasFile(context.Background(), mc, testChannel, "F123456"))
+		})
+	})
+	t.Run("persistent invalid auth is fatal", func(t *testing.T) {
+		synctest.Test(t, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			ms := mock_client.NewMockSlack(ctrl)
+			mc := mock_processor.NewMockConversations(ctrl)
+			ms.EXPECT().GetFileInfoContext(gomock.Any(), "F123456", 0, 1).Return(nil, nil, nil, slack.SlackErrorResponse{Err: "invalid_auth"}).Times(3)
+			cs := New(ms, network.NoLimits)
+			err := cs.canvasFile(context.Background(), mc, testChannel, "F123456")
+			assert.ErrorIs(t, err, &network.ErrRetryFailed{})
+			assert.True(t, isAPIError(err))
+			assert.True(t, canvasErrorIsFatal(err))
+		})
+	})
 }
 
 func TestStream_canvasDiscussions(t *testing.T) {
