@@ -16,13 +16,20 @@
 package stream
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
+	"log/slog"
+	"strings"
 	"testing"
 	"testing/synctest"
 	"time"
 
+	"github.com/charmbracelet/x/ansi"
+	"github.com/pterm/pterm"
 	"github.com/rusq/slack"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -32,6 +39,7 @@ import (
 	"github.com/rusq/slackdump/v4/internal/client/mock_client"
 	"github.com/rusq/slackdump/v4/internal/fixtures"
 	"github.com/rusq/slackdump/v4/internal/network"
+	"github.com/rusq/slackdump/v4/internal/progresslog"
 	"github.com/rusq/slackdump/v4/internal/structures"
 	"github.com/rusq/slackdump/v4/mocks/mock_processor"
 	"github.com/rusq/slackdump/v4/processor"
@@ -280,6 +288,27 @@ func Test_canvasErrorIsFatal(t *testing.T) {
 }
 
 func TestStream_canvasFile(t *testing.T) {
+	t.Run("retried rate limit response is observed", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		cl := mock_client.NewMockSlack(ctrl)
+		proc := mock_processor.NewMockConversations(ctrl)
+		events := 0
+		ctx := network.WithRateLimitObserver(t.Context(), func(source string, _ time.Duration, warning, willWait bool) func() {
+			if warning {
+				events++
+			}
+			assert.Equal(t, "Slack API", source)
+			return func() {}
+		})
+		gomock.InOrder(
+			cl.EXPECT().GetFileInfoContext(gomock.Any(), "FCANVAS", 0, 1).Return(nil, nil, nil, &slack.RateLimitedError{}),
+			cl.EXPECT().GetFileInfoContext(gomock.Any(), "FCANVAS", 0, 1).Return(nil, nil, nil, errors.New("unavailable")),
+		)
+		err := New(cl, network.NoLimits).canvasFile(ctx, proc, &slack.Channel{}, "FCANVAS")
+		require.Error(t, err)
+		require.Equal(t, 1, events)
+	})
+
 	testChannel := fixtures.Load[[]*slack.Channel](fixtures.TestChannelsJSON)[0]
 	type args struct {
 		ctx context.Context
@@ -788,4 +817,145 @@ func TestStream_processCanvasThread(t *testing.T) {
 		Conversations:   mc,
 		CanvasMessenger: cm,
 	}, req))
+}
+
+func TestStream_threadWorker(t *testing.T) {
+	t.Run("cancelled synthetic result fails and worker stops", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		cl := mock_client.NewMockSlack(ctrl)
+		proc := mock_processor.NewMockConversations(ctrl)
+		ctx, cancel := context.WithCancel(t.Context())
+		defer cancel()
+		var events []ProgressEvent
+		cs := New(cl, network.NoLimits, OptProgress(func(e ProgressEvent) { events = append(events, e) }))
+		cl.EXPECT().GetConversationRepliesContext(gomock.Any(), gomock.Any()).Return(nil, false, "", slack.SlackErrorResponse{Err: "thread_not_found"}).Times(1)
+		proc.EXPECT().ThreadMessages(gomock.Any(), "CTM1", gomock.Any(), false, true, gomock.Any()).DoAndReturn(func(context.Context, string, slack.Message, bool, bool, []slack.Message) error { cancel(); return nil }).Times(1)
+		reqs := make(chan ordinaryThreadRequest, 2)
+		reqs <- ordinaryThreadRequest{fetch: threadFetchSpec{channelID: "CTM1", threadTS: "1.0"}}
+		reqs <- ordinaryThreadRequest{fetch: threadFetchSpec{channelID: "CTM1", threadTS: "2.0"}}
+		close(reqs)
+		done := make(chan struct{})
+		go func() { cs.threadWorker(ctx, proc, make(chan Result), reqs); close(done) }()
+		select {
+		case <-done:
+		case <-time.After(3 * time.Second):
+			t.Fatal("worker did not exit")
+		}
+		found := false
+		for _, e := range events {
+			if e.Kind == ProgressThreadDone {
+				found = true
+				require.ErrorIs(t, e.Err, context.Canceled)
+			}
+		}
+		require.True(t, found)
+	})
+}
+
+func TestStream_channelLogID(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	cs := New(mock_client.NewMockSlack(ctrl), network.NoLimits)
+	channel := &slack.Channel{}
+	channel.Name = "##creditcards"
+	cs.chanCache.set("C123", channel)
+	value := cs.channelLogID("C123")
+	var text, jsonOutput, console bytes.Buffer
+	slog.New(slog.NewTextHandler(&text, nil)).Warn("skipping non-existing thread", "channel_id", value, "thread_ts", "1.0")
+	slog.New(slog.NewJSONHandler(&jsonOutput, nil)).Warn("skipping non-existing thread", "channel_id", value, "thread_ts", "1.0")
+	slog.New(pterm.NewSlogHandler(pterm.DefaultLogger.WithWriter(&console))).Warn("skipping non-existing thread", "channel_id", value, "thread_ts", "1.0")
+	if !strings.Contains(text.String(), "C123 (#creditcards)") || !strings.Contains(ansi.Strip(console.String()), "C123 (#creditcards)") {
+		t.Fatalf("human logs missing annotation: text=%q console=%q", text.String(), console.String())
+	}
+	var record map[string]any
+	if err := json.Unmarshal(jsonOutput.Bytes(), &record); err != nil {
+		t.Fatal(err)
+	}
+	if record["channel_id"] != "C123" || record["thread_ts"] != "1.0" {
+		t.Fatalf("structured ID changed: %v", record)
+	}
+	if got := cs.channelLogID("CUNKNOWN"); got != "CUNKNOWN" {
+		t.Fatalf("missing channel fallback=%v", got)
+	}
+	channel.Name = "##credit\x1b[31mcards\nforged"
+	if got := fmt.Sprint(cs.channelLogID("C123")); got != "C123 (#creditcards forged)" {
+		t.Fatalf("unsafe channel name: %q", got)
+	}
+}
+
+type missingThreadCapture struct {
+	next    slog.Handler
+	context context.Context
+	record  slog.Record
+}
+
+func (h *missingThreadCapture) Enabled(ctx context.Context, level slog.Level) bool {
+	return h.next.Enabled(ctx, level)
+}
+func (h *missingThreadCapture) Handle(ctx context.Context, record slog.Record) error {
+	if record.Message == "skipping non-existing thread" {
+		h.context = ctx
+		h.record = record.Clone()
+	}
+	return h.next.Handle(ctx, record)
+}
+func (h *missingThreadCapture) WithAttrs(attrs []slog.Attr) slog.Handler {
+	return &missingThreadCapture{next: h.next.WithAttrs(attrs)}
+}
+func (h *missingThreadCapture) WithGroup(name string) slog.Handler {
+	return &missingThreadCapture{next: h.next.WithGroup(name)}
+}
+
+func TestStream_missingThreadLogContext(t *testing.T) {
+	for _, tc := range []struct {
+		name        string
+		enabled     bool
+		channelName string
+		want        string
+	}{
+		{name: "cached name", enabled: true, channelName: "##creditcards", want: "skipping non-existing thread in #creditcards"},
+		{name: "missing name", enabled: true, want: "skipping non-existing thread in C123"},
+		{name: "progress disabled", channelName: "creditcards"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			cl := mock_client.NewMockSlack(ctrl)
+			proc := mock_processor.NewMockConversations(ctrl)
+			opts := []Option{}
+			if tc.enabled {
+				opts = append(opts, OptProgress(func(ProgressEvent) {}))
+			}
+			cs := New(cl, network.NoLimits, opts...)
+			if tc.channelName != "" {
+				channel := &slack.Channel{}
+				channel.Name = tc.channelName
+				cs.chanCache.set("C123", channel)
+			}
+			cl.EXPECT().GetConversationRepliesContext(gomock.Any(), gomock.Any()).Return(nil, false, "", slack.SlackErrorResponse{Err: "thread_not_found"}).Times(1)
+			proc.EXPECT().ThreadMessages(gomock.Any(), "C123", gomock.Any(), false, true, gomock.Any()).Return(nil).Times(1)
+			var logs bytes.Buffer
+			capture := &missingThreadCapture{next: slog.NewJSONHandler(&logs, nil)}
+			old := slog.Default()
+			oldWriter, oldFlags := log.Writer(), log.Flags()
+			slog.SetDefault(slog.New(capture))
+			defer func() { slog.SetDefault(old); log.SetOutput(oldWriter); log.SetFlags(oldFlags) }()
+			requests := make(chan ordinaryThreadRequest, 1)
+			requests <- ordinaryThreadRequest{fetch: threadFetchSpec{channelID: "C123", threadTS: "1.0"}}
+			close(requests)
+			cs.threadWorker(t.Context(), proc, make(chan Result, 2), requests)
+			if capture.context == nil {
+				t.Fatal("warning not emitted")
+			}
+			got, ok := progresslog.Message(capture.context)
+			if ok != (tc.want != "") || got != tc.want {
+				t.Fatalf("terminal message=%q present=%t", got, ok)
+			}
+			var record map[string]any
+			if err := json.Unmarshal(logs.Bytes(), &record); err != nil {
+				t.Fatal(err)
+			}
+			if record["msg"] != "skipping non-existing thread" || record["channel_id"] != "C123" || record["thread_ts"] != "1.0" {
+				t.Fatalf("structured warning changed: %v", record)
+			}
+		})
+	}
 }

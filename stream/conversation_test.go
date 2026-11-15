@@ -19,6 +19,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -130,6 +131,192 @@ func TestStream_ConversationsCB(t *testing.T) {
 }
 
 func TestStream_Conversations(t *testing.T) {
+
+	t.Run("enumerated channel and overlapping direct thread keep API calls", func(t *testing.T) {
+		run := func(enabled bool) {
+			ctrl := gomock.NewController(t)
+			cl := mock_client.NewMockSlack(ctrl)
+			proc := mock_processor.NewMockConversations(ctrl)
+			channels := mock_processor.NewMockChannels(ctrl)
+			owner := slack.Channel{GroupConversation: slack.GroupConversation{Conversation: slack.Conversation{ID: "CTM1"}}}
+			root := slack.Message{Msg: slack.Msg{Channel: "CTM1", Timestamp: "1610000000.000000", ThreadTimestamp: "1610000000.000000", LatestReply: "1610000001.000000", ReplyCount: 1}}
+			opts := []Option{}
+			if enabled {
+				opts = append(opts, OptProgress(func(ProgressEvent) {}))
+			}
+			cs := New(cl, network.NoLimits, opts...)
+			cs.chanCache.set(owner.ID, &owner)
+			cl.EXPECT().GetConversationsContext(gomock.Any(), gomock.Any()).Return([]slack.Channel{owner}, "", nil).Times(1)
+			channels.EXPECT().Channels(gomock.Any(), []slack.Channel{owner}).Return(nil).Times(1)
+			proc.EXPECT().ChannelInfo(gomock.Any(), &owner, gomock.Any()).Return(nil).Times(2)
+			cl.EXPECT().GetUsersInConversationContext(gomock.Any(), gomock.Any()).Return(nil, "", nil).Times(1)
+			proc.EXPECT().ChannelUsers(gomock.Any(), owner.ID, "", []string(nil)).Return(nil).Times(1)
+			cl.EXPECT().GetConversationHistoryContext(gomock.Any(), gomock.Any()).Return(&slack.GetConversationHistoryResponse{SlackResponse: slack.SlackResponse{Ok: true}, Messages: []slack.Message{root}}, nil).Times(1)
+			proc.EXPECT().Messages(gomock.Any(), owner.ID, 1, true, []slack.Message{root}).Return(nil).Times(1)
+			cl.EXPECT().GetConversationRepliesContext(gomock.Any(), gomock.Any()).Return([]slack.Message{root}, false, "", nil).Times(2)
+			proc.EXPECT().ThreadMessages(gomock.Any(), owner.ID, root, gomock.Any(), true, []slack.Message{root}).Return(nil).Times(2)
+			require.NoError(t, cs.ListChannels(t.Context(), channels, &slack.GetConversationsParameters{}))
+			items := make(chan structures.EntityItem, 2)
+			items <- structures.EntityItem{Id: owner.ID}
+			items <- structures.EntityItem{Id: owner.ID + ":" + root.Timestamp}
+			close(items)
+			require.NoError(t, cs.Conversations(t.Context(), proc, items))
+		}
+		run(false)
+		run(true)
+	})
+	t.Run("cancellation leaves queued jobs unresolved", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		cl := mock_client.NewMockSlack(ctrl)
+		proc := mock_processor.NewMockConversations(ctrl)
+		var mu sync.Mutex
+		var events []ProgressEvent
+		queued := make(chan struct{})
+		started := make(chan struct{})
+		count := 0
+		cs := New(cl, network.NoLimits, OptProgress(func(e ProgressEvent) {
+			mu.Lock()
+			defer mu.Unlock()
+			events = append(events, e)
+			if e.Kind == ProgressThreadQueued {
+				count++
+				if count == 2 {
+					close(queued)
+				}
+			}
+		}))
+		channel := &slack.Channel{GroupConversation: slack.GroupConversation{Conversation: slack.Conversation{ID: "CTM1"}}}
+		cs.chanCache.set("CTM1", channel)
+		proc.EXPECT().ChannelInfo(gomock.Any(), channel, gomock.Any()).Return(nil).AnyTimes()
+		cl.EXPECT().GetConversationRepliesContext(gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, _ *slack.GetConversationRepliesParameters) ([]slack.Message, bool, string, error) {
+			close(started)
+			<-ctx.Done()
+			return nil, false, "", ctx.Err()
+		}).Times(1)
+		items := make(chan structures.EntityItem, 2)
+		items <- structures.EntityItem{Id: "CTM1:1610000000.000000"}
+		items <- structures.EntityItem{Id: "CTM1:1610000001.000000"}
+		close(items)
+		ctx, cancel := context.WithCancel(t.Context())
+		done := make(chan error, 1)
+		go func() { done <- cs.Conversations(ctx, proc, items) }()
+		<-started
+		<-queued
+		cancel()
+		require.ErrorIs(t, <-done, context.Canceled)
+		mu.Lock()
+		defer mu.Unlock()
+		for _, e := range events {
+			if e.Kind == ProgressThreadDone {
+				require.Error(t, e.Err, "cancelled job reported success")
+			}
+		}
+	})
+	t.Run("empty reply exhaustion is identical with progress", func(t *testing.T) {
+		run := func(enabled bool) (int, error, []ProgressEvent) {
+			ctrl := gomock.NewController(t)
+			cl := mock_client.NewMockSlack(ctrl)
+			proc := mock_processor.NewMockConversations(ctrl)
+			var mu sync.Mutex
+			var events []ProgressEvent
+			calls := 0
+			opts := []Option{}
+			if enabled {
+				opts = append(opts, OptProgress(func(e ProgressEvent) { mu.Lock(); events = append(events, e); mu.Unlock() }))
+			}
+			cs := New(cl, network.NoLimits, opts...)
+			channel := &slack.Channel{GroupConversation: slack.GroupConversation{Conversation: slack.Conversation{ID: "CTM1"}}}
+			cs.chanCache.set("CTM1", channel)
+			proc.EXPECT().ChannelInfo(gomock.Any(), channel, "1610000000.000000").Return(nil)
+			cl.EXPECT().GetConversationRepliesContext(gomock.Any(), gomock.Any()).DoAndReturn(func(context.Context, *slack.GetConversationRepliesParameters) ([]slack.Message, bool, string, error) {
+				calls++
+				return nil, false, "", nil
+			}).AnyTimes()
+			items := make(chan structures.EntityItem, 1)
+			items <- structures.EntityItem{Id: "CTM1:1610000000.000000"}
+			close(items)
+			err := cs.Conversations(t.Context(), proc, items)
+			return calls, err, events
+		}
+		callsOff, errOff, _ := run(false)
+		callsOn, errOn, events := run(true)
+		require.Error(t, errOff)
+		require.Error(t, errOn)
+		require.Equal(t, callsOff, callsOn)
+		require.Positive(t, callsOn)
+		failed := false
+		for _, e := range events {
+			if e.Kind == ProgressThreadDone && e.Err != nil {
+				failed = true
+			}
+		}
+		require.True(t, failed)
+	})
+	t.Run("noncritical direct thread channel skips are resolved", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		cl := mock_client.NewMockSlack(ctrl)
+		proc := mock_processor.NewMockConversations(ctrl)
+		var mu sync.Mutex
+		var events []ProgressEvent
+		cs := New(cl, network.NoLimits, OptProgress(func(e ProgressEvent) { mu.Lock(); events = append(events, e); mu.Unlock() }))
+		cl.EXPECT().GetConversationInfoContext(gomock.Any(), gomock.Any()).Return(nil, slack.SlackErrorResponse{Err: "channel_not_found"})
+		items := make(chan structures.EntityItem, 1)
+		items <- structures.EntityItem{Id: "CTM1:1610000000.000000"}
+		close(items)
+		require.NoError(t, cs.Conversations(t.Context(), proc, items))
+		found := false
+		for _, e := range events {
+			if e.Kind == ProgressThreadDone {
+				found = true
+				require.NoError(t, e.Err)
+			}
+		}
+		require.True(t, found)
+	})
+	t.Run("progress preserves direct skip calls and job outcomes", func(t *testing.T) {
+		run := func(enabled bool) (int, []ProgressEvent) {
+			ctrl := gomock.NewController(t)
+			cl := mock_client.NewMockSlack(ctrl)
+			proc := mock_processor.NewMockConversations(ctrl)
+			var mu sync.Mutex
+			var events []ProgressEvent
+			calls := 0
+			opts := []Option{OptSkipThreadFunc(func(context.Context, string, string, int) bool { return true })}
+			if enabled {
+				opts = append(opts, OptProgress(func(e ProgressEvent) { mu.Lock(); events = append(events, e); mu.Unlock() }))
+			}
+			cs := New(cl, network.NoLimits, opts...)
+			channel := &slack.Channel{GroupConversation: slack.GroupConversation{Conversation: slack.Conversation{ID: "CTM1"}}}
+			cs.chanCache.set("CTM1", channel)
+			proc.EXPECT().ChannelInfo(gomock.Any(), channel, "1610000000.000000").Return(nil).Times(2)
+			cl.EXPECT().GetConversationRepliesContext(gomock.Any(), gomock.Any()).DoAndReturn(func(context.Context, *slack.GetConversationRepliesParameters) ([]slack.Message, bool, string, error) {
+				calls++
+				return []slack.Message{{Msg: slack.Msg{Timestamp: "1610000000.000000"}}}, false, "", nil
+			}).Times(2)
+			items := make(chan structures.EntityItem, 2)
+			items <- structures.EntityItem{Id: "CTM1:1610000000.000000"}
+			items <- structures.EntityItem{Id: "CTM1:1610000000.000000"}
+			close(items)
+			require.NoError(t, cs.Conversations(t.Context(), proc, items))
+			return calls, events
+		}
+		without, _ := run(false)
+		with, events := run(true)
+		require.Equal(t, without, with)
+		require.Equal(t, 2, with)
+		queued, done := 0, 0
+		for _, e := range events {
+			if e.Kind == ProgressThreadQueued {
+				queued++
+			}
+			if e.Kind == ProgressThreadDone {
+				done++
+				require.NoError(t, e.Err)
+			}
+		}
+		require.Equal(t, 2, queued)
+		require.Equal(t, 2, done)
+	})
 	t.Run("canvas discovery timeout cancels queued channels", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		cl := mock_client.NewMockSlack(ctrl)
@@ -222,7 +409,21 @@ func TestStream_Conversations(t *testing.T) {
 		cl := mock_client.NewMockSlack(ctrl)
 		proc := mock_processor.NewMockConversations(ctrl)
 		callbackErr := errors.New("callback failed")
-		cs := New(cl, network.NoLimits, OptResultFn(func(Result) error { return callbackErr }))
+		var mu sync.Mutex
+		var events []ProgressEvent
+		queued := make(chan struct{})
+		doneCount := 0
+		cs := New(cl, network.NoLimits, OptProgress(func(e ProgressEvent) {
+			mu.Lock()
+			defer mu.Unlock()
+			events = append(events, e)
+			if e.Kind == ProgressThreadDone {
+				doneCount++
+				if doneCount == 2 {
+					close(queued)
+				}
+			}
+		}), OptResultFn(func(Result) error { <-queued; return callbackErr }))
 		cs.chanCache.set("CTM1", threadChannel)
 		cl.EXPECT().GetConversationRepliesContext(gomock.Any(), gomock.Any()).Return(threadMessages, false, "", nil).AnyTimes()
 		proc.EXPECT().ChannelInfo(gomock.Any(), gomock.Any(), "1610000000.000000").Return(nil).AnyTimes()
@@ -239,9 +440,25 @@ func TestStream_Conversations(t *testing.T) {
 		select {
 		case err := <-done:
 			assert.ErrorIs(t, err, callbackErr)
-		case <-time.After(time.Second):
+		case <-time.After(3 * time.Second):
 			t.Fatal("Conversations did not join producers after callback failure")
 		}
+		mu.Lock()
+		defer mu.Unlock()
+		queuedCount, processed, failed := 0, 0, 0
+		for _, e := range events {
+			switch e.Kind {
+			case ProgressResultQueued:
+				queuedCount++
+			case ProgressResultProcessed:
+				processed++
+				if e.Err != nil {
+					failed++
+				}
+			}
+		}
+		require.GreaterOrEqual(t, failed, 2, "callback and drained result must fail")
+		require.Equal(t, queuedCount, processed, "every reserved callback must be released")
 	})
 
 	t.Run("external cancellation returns cause", func(t *testing.T) {

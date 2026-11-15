@@ -45,6 +45,7 @@ type Stream struct {
 	inclusive               bool
 	failChnlNotFnd          bool // if true, will fail if channel not found
 	resultFn                []func(sr Result) error
+	progress                func(ProgressEvent)
 	skipThread              func(ctx context.Context, channelID, threadTS string, replyCount int) bool
 	skipCanvasThread        func(ctx context.Context, channelID, threadTS string, replyCount int) bool
 	includeOlderCanvasRoots bool
@@ -138,6 +139,35 @@ func OptOldest(t time.Time) Option {
 func OptLatest(t time.Time) Option {
 	return func(cs *Stream) {
 		cs.latest = t
+	}
+}
+
+// ProgressEvent describes a conversation job lifecycle event. Callbacks must be
+// concurrency-safe and must not affect scheduling.
+type ProgressEvent struct {
+	Kind                ProgressKind
+	ChannelID, ThreadTS string
+	Err                 error
+}
+
+type ProgressKind uint8
+
+const (
+	ProgressChannelQueued ProgressKind = iota
+	ProgressChannelDone
+	ProgressThreadQueued
+	ProgressThreadDone
+	ProgressDiscoveryDone
+	ProgressInputDone
+	ProgressResultQueued
+	ProgressResultProcessed
+)
+
+// OptProgress installs a run-scoped observer for conversation jobs.
+func OptProgress(fn func(ProgressEvent)) Option { return func(cs *Stream) { cs.progress = fn } }
+func (cs *Stream) progressEvent(kind ProgressKind, channel, thread string, err error) {
+	if cs.progress != nil {
+		cs.progress(ProgressEvent{Kind: kind, ChannelID: channel, ThreadTS: thread, Err: err})
 	}
 }
 
@@ -296,6 +326,7 @@ func (cs *Stream) ListChannels(ctx context.Context, proc processor.Channels, p *
 }
 
 func (cs *Stream) listChannels(ctx context.Context, proc processor.Channels, p *slack.GetConversationsParameters, fn func(context.Context, *slack.GetConversationsParameters) ([]slack.Channel, string, error)) error {
+	ctx = network.WithOperation(ctx, "channel enumeration")
 	var next string
 	for {
 		p.Cursor = next

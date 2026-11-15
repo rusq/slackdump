@@ -117,6 +117,9 @@ func produceItems(ctx context.Context, output chan<- structures.EntityItem, item
 // [cmd/slackdump/internal/export/expproc].
 func (cs *Stream) Conversations(ctx context.Context, proc processor.Conversations, items <-chan structures.EntityItem) error {
 	ctx, cancel := context.WithCancelCause(ctx)
+	if cs.progress != nil {
+		ctx = context.WithValue(ctx, progressContextKey{}, cs.progress)
+	}
 	defer cancel(nil)
 	ctx, task := trace.NewTask(ctx, "AsyncConversations")
 	defer task.End()
@@ -124,33 +127,42 @@ func (cs *Stream) Conversations(ctx context.Context, proc processor.Conversation
 	// draining results until every producer and worker has stopped.
 	var fatalErr error
 	for res := range cs.startConversationPipeline(ctx, proc, items) {
-		if fatalErr != nil {
-			continue
-		}
-		if err := res.Err; err != nil {
-			trace.Logf(ctx, "error", "type: %s, chan_id: %s, thread_ts: %s, error: %s", res.Type, res.ChannelID, res.ThreadTS, err.Error())
-			if (errors.Is(err, errChanNotFound) || errors.Is(err, errNotInChannel)) && !cs.failChnlNotFnd {
-				slog.WarnContext(ctx, "channel not found or user not in channel, skipping", "channel_id", res.ChannelID)
-				continue
+		func() {
+			var outcome error
+			if res.Type == RTChannel || res.Type == RTThread || res.Type == RTCanvasThread {
+				defer func() { cs.progressEvent(ProgressResultProcessed, res.ChannelID, res.ThreadTS, outcome) }()
 			}
-			slog.ErrorContext(ctx, "streaming error", "error", res.Err, "type", res.Type, "channel_id", res.ChannelID, "thread_ts", res.ThreadTS)
-			if cause := context.Cause(ctx); cause != nil && errors.Is(err, ctx.Err()) {
-				fatalErr = cause
-			} else {
-				resultErr := res
-				fatalErr = &resultErr // Result implements error.
+			if fatalErr != nil {
+				outcome = fatalErr
+				return
 			}
-			cancel(fatalErr)
-			continue
-		}
-		for _, fn := range cs.resultFn {
-			if err := fn(res); err != nil {
-				slog.ErrorContext(ctx, "result function call error", "res", res.String())
-				fatalErr = fmt.Errorf("result %s, callback error: %w", res, err)
+			if err := res.Err; err != nil {
+				trace.Logf(ctx, "error", "type: %s, chan_id: %s, thread_ts: %s, error: %s", res.Type, res.ChannelID, res.ThreadTS, err.Error())
+				if (errors.Is(err, errChanNotFound) || errors.Is(err, errNotInChannel)) && !cs.failChnlNotFnd {
+					slog.WarnContext(ctx, "channel not found or user not in channel, skipping", "channel_id", res.ChannelID)
+					return
+				}
+				slog.ErrorContext(ctx, "streaming error", "error", res.Err, "type", res.Type, "channel_id", res.ChannelID, "thread_ts", res.ThreadTS)
+				if cause := context.Cause(ctx); cause != nil && errors.Is(err, ctx.Err()) {
+					fatalErr = cause
+				} else {
+					resultErr := res
+					fatalErr = &resultErr // Result implements error.
+				}
+				outcome = fatalErr
 				cancel(fatalErr)
-				break
+				return
 			}
-		}
+			for _, fn := range cs.resultFn {
+				if err := fn(res); err != nil {
+					outcome = err
+					slog.ErrorContext(ctx, "result function call error", "res", res.String())
+					fatalErr = fmt.Errorf("result %s, callback error: %w", res, err)
+					cancel(fatalErr)
+					break
+				}
+			}
+		}()
 	}
 	if fatalErr != nil {
 		return fatalErr
@@ -200,6 +212,7 @@ func (cs *Stream) startConversationPipeline(ctx context.Context, proc processor.
 	})
 	workers.Go(func() {
 		threadSenders.Wait()
+		cs.progressEvent(ProgressDiscoveryDone, "", "", context.Cause(ctx))
 		close(threadsC)
 	})
 
@@ -214,6 +227,7 @@ func (cs *Stream) startConversationPipeline(ctx context.Context, proc processor.
 
 func (cs *Stream) feedConversationRequests(ctx context.Context, items <-chan structures.EntityItem, chansC chan<- channelRequest, threadsC chan<- ordinaryThreadRequest, resultsC chan<- Result) {
 	defer close(chansC)
+	defer func() { cs.progressEvent(ProgressInputDone, "", "", context.Cause(ctx)) }()
 	for {
 		select {
 		case <-ctx.Done():
@@ -222,7 +236,7 @@ func (cs *Stream) feedConversationRequests(ctx context.Context, items <-chan str
 			if !more {
 				return
 			}
-			if err := processLink(ctx, chansC, threadsC, item); err != nil {
+			if err := cs.processLink(ctx, chansC, threadsC, item); err != nil {
 				sendResult(ctx, resultsC, Result{Type: RTMain, Err: fmt.Errorf("item error: %q: %w", item.String(), err)})
 				return
 			}
@@ -232,6 +246,10 @@ func (cs *Stream) feedConversationRequests(ctx context.Context, items <-chan str
 
 // processLink parses the link and sends it to the appropriate output channel.
 func processLink(ctx context.Context, channels chan<- channelRequest, threads chan<- ordinaryThreadRequest, link structures.EntityItem) error {
+	return (*Stream)(nil).processLink(ctx, channels, threads, link)
+}
+
+func (cs *Stream) processLink(ctx context.Context, channels chan<- channelRequest, threads chan<- ordinaryThreadRequest, link structures.EntityItem) error {
 	sl, err := structures.ParseLink(link.Id)
 	if err != nil {
 		return err
@@ -240,15 +258,27 @@ func processLink(ctx context.Context, channels chan<- channelRequest, threads ch
 		return fmt.Errorf("invalid slack link: %s", link.Id)
 	}
 	if sl.IsThread() {
+		if cs != nil {
+			cs.progressEvent(ProgressThreadQueued, sl.Channel, sl.ThreadTS, nil)
+		}
 		select {
 		case threads <- ordinaryThreadRequest{fetch: threadFetchSpec{channelID: sl.Channel, threadTS: sl.ThreadTS, oldest: link.Oldest, latest: link.Latest}, threadOnly: true}:
 		case <-ctx.Done():
+			if cs != nil {
+				cs.progressEvent(ProgressThreadDone, sl.Channel, sl.ThreadTS, context.Cause(ctx))
+			}
 			return context.Cause(ctx)
 		}
 	} else {
+		if cs != nil {
+			cs.progressEvent(ProgressChannelQueued, sl.Channel, "", nil)
+		}
 		select {
 		case channels <- channelRequest{sl: sl, oldest: link.Oldest, latest: link.Latest}:
 		case <-ctx.Done():
+			if cs != nil {
+				cs.progressEvent(ProgressChannelDone, sl.Channel, "", context.Cause(ctx))
+			}
 			return context.Cause(ctx)
 		}
 	}
@@ -316,6 +346,7 @@ func isAPIError(err error) bool {
 
 // channel fetches the channel data as defined in req, calling callback function for each API response.
 func (cs *Stream) channel(ctx context.Context, req channelRequest, callback func(mm []slack.Message, isLast bool) error) error {
+	ctx = network.WithOperation(ctx, "channel history")
 	ctx, task := trace.NewTask(ctx, "channel")
 	defer task.End()
 
@@ -366,6 +397,7 @@ func (cs *Stream) channel(ctx context.Context, req channelRequest, callback func
 // returned as apiError; callback errors pass through unchanged. Returning false
 // from the callback stops pagination successfully.
 func (cs *Stream) paginateThread(ctx context.Context, spec threadFetchSpec, callback func(mm []slack.Message, isLast bool) (bool, error)) error {
+	ctx = network.WithOperation(ctx, "thread replies")
 	ctx, task := trace.NewTask(ctx, "thread")
 	defer task.End()
 
@@ -460,6 +492,8 @@ func (cs *Stream) procChanMsg(ctx context.Context, proc processor.Conversations,
 		if mm[i].ThreadTimestamp != "" && mm[i].SubType != structures.SubTypeThreadBroadcast && mm[i].LatestReply != structures.LatestReplyNoReplies {
 			if cs.skipThread != nil && cs.skipThread(ctx, channel.ID, mm[i].ThreadTimestamp, mm[i].ReplyCount) {
 				slog.DebugContext(ctx, "skipping complete thread", "channel_id", channel.ID, "thread_ts", mm[i].ThreadTimestamp, "reply_count", mm[i].ReplyCount)
+				cs.progressEvent(ProgressThreadQueued, channel.ID, mm[i].ThreadTimestamp, nil)
+				cs.progressEvent(ProgressThreadDone, channel.ID, mm[i].ThreadTimestamp, nil)
 				continue
 			}
 			slog.DebugContext(ctx, "- message", "i", i, "thread", mm[i].Timestamp, "thread_ts", mm[i].ThreadTimestamp, "channel_id", channel.ID, "is_last", isLast, "msg_count", len(mm))
@@ -480,9 +514,11 @@ func (cs *Stream) procChanMsg(ctx context.Context, proc processor.Conversations,
 		return 0, fmt.Errorf("channel %s: failed to process message chunk starting with id=%s (size=%d): %w", channel.ID, mm[0].Timestamp, len(mm), err)
 	}
 	for _, tr := range trs {
+		cs.progressEvent(ProgressThreadQueued, tr.fetch.channelID, tr.fetch.threadTS, nil)
 		select {
 		case threadC <- tr:
 		case <-ctx.Done():
+			cs.progressEvent(ProgressThreadDone, tr.fetch.channelID, tr.fetch.threadTS, context.Cause(ctx))
 			return len(trs), context.Cause(ctx)
 		}
 	}

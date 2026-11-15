@@ -26,6 +26,7 @@ import (
 	"os/signal"
 	"runtime/trace"
 	"strings"
+	"time"
 	_ "time/tzdata" // load the timezone data
 
 	"github.com/charmbracelet/huh"
@@ -47,12 +48,14 @@ import (
 	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/list"
 	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/man"
 	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/mcp"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/progress"
 	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/resume"
 	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/ui"
 	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/view"
 	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/wizard"
 	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/workspace"
 	"github.com/rusq/slackdump/v4/internal/osext"
+	"github.com/rusq/slackdump/v4/internal/progresslog"
 )
 
 func init() {
@@ -152,7 +155,7 @@ BigCmdLoop:
 					slog.Info("operation cancelled")
 				} else {
 					msg := fmt.Sprintf("%03[1]d (%[1]s): %[2]s.", base.ExitStatus(), err)
-					slog.Error(msg)
+					slog.ErrorContext(progresslog.WithMessage(context.Background(), "operation failed"), msg)
 				}
 			}
 			base.Exit()
@@ -214,6 +217,23 @@ func invoke(cmd *base.Command, args []string) error {
 	} else {
 		lg.With("command", cmd.Name())
 		cfg.Log = lg
+	}
+	if progressFlag := cmd.Flag.Lookup("progress"); progressFlag != nil && progressFlag.Value.String() == "true" {
+		intervalFlag := cmd.Flag.Lookup("progress-interval")
+		if intervalFlag == nil {
+			return errors.New("progress interval flag is unavailable")
+		}
+		interval, err := time.ParseDuration(intervalFlag.Value.String())
+		if err != nil {
+			return fmt.Errorf("invalid progress interval: %w", err)
+		}
+		reporter, progressCtx, err := (progress.Flags{Enabled: true, Interval: interval}).Begin(ctx)
+		if err != nil {
+			base.SetExitStatus(base.SInvalidParameters)
+			return err
+		}
+		ctx = progressCtx
+		base.AtExit(reporter.Stop)
 	}
 
 	if cmd.RequireAuth {
