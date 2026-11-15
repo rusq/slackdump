@@ -413,7 +413,7 @@ func TestFlags_Begin(t *testing.T) {
 	if cfg.Log != beforeCfg || slog.Default() != beforeDefault {
 		t.Fatal("disabled progress changed logging")
 	}
-	oldJSON, oldFile := cfg.UseJSONHandler, cfg.LogFile
+	oldJSON, oldFile, oldStderr := cfg.UseJSONHandler, cfg.LogFile, os.Stderr
 	defer func() { cfg.UseJSONHandler, cfg.LogFile = oldJSON, oldFile }()
 	cfg.UseJSONHandler = true
 	cfg.LogFile = ""
@@ -421,8 +421,18 @@ func TestFlags_Begin(t *testing.T) {
 	if _, _, err := f.Begin(context.Background()); err == nil {
 		t.Fatal("shared JSON stderr accepted")
 	}
-	cfg.LogFile = "/dev/stderr"
-	if _, _, err := f.Begin(context.Background()); err == nil {
+	stderr, err := os.CreateTemp(t.TempDir(), "stderr")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stderr.Close()
+	os.Stderr = stderr
+	defer func() { os.Stderr = oldStderr }()
+	cfg.LogFile = stderr.Name()
+	if r, _, err := f.Begin(context.Background()); err == nil {
+		if r != nil {
+			r.Stop()
+		}
 		t.Fatal("aliased JSON stderr accepted")
 	}
 }
@@ -670,12 +680,27 @@ func TestStart(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	stopped := false
+	defer func() {
+		if !stopped {
+			r.Stop()
+		}
+	}()
 	var snapshots bytes.Buffer
 	r.output = &snapshots
 	r.tty = false
 	done := network.ObserveRateLimit(ctx, "test API", 5*time.Second)
 	done()
+	notice := snapshots.String()
+	if strings.Count(notice, "got rate limited") != 1 || strings.Contains(notice, "test API") || strings.Contains(notice, "5s") {
+		t.Fatalf("unexpected mirrored rate notice: %q", notice)
+	}
+	if strings.Count(ansi.Strip(notice), "got rate limited") != 1 {
+		t.Fatalf("rate notice was not mirrored once: %q", notice)
+	}
+	snapshots.Reset()
 	r.Stop()
+	stopped = true
 	var record map[string]any
 	if err := json.Unmarshal(bytes.TrimSpace(logs.Bytes()), &record); err != nil {
 		t.Fatalf("invalid JSON: %v: %q", err, logs.String())
