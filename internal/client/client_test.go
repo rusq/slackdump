@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/rusq/slack"
 	"github.com/stretchr/testify/assert"
@@ -301,6 +302,36 @@ func TestNew(t *testing.T) {
 			if tt.wantEdge {
 				assert.Same(t, cl.edge, cl.canvas)
 			}
+		})
+	}
+}
+
+func TestNewSlackClientObservesAuthRateLimit(t *testing.T) {
+	for _, retryAfter := range []string{"1", "", "invalid"} {
+		t.Run(retryAfter, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			prov := mock_auth.NewMockProvider(ctrl)
+			calls, notices := 0, 0
+			prov.EXPECT().SlackToken().Return("xoxb-test")
+			prov.EXPECT().HTTPClient().Return(&http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				calls++
+				require.Equal(t, "/api/auth.test", req.URL.Path)
+				header := make(http.Header)
+				if retryAfter != "" {
+					header.Set("Retry-After", retryAfter)
+				}
+				return &http.Response{StatusCode: http.StatusTooManyRequests, Header: header, Body: io.NopCloser(strings.NewReader("limited")), Request: req}, nil
+			})}, nil)
+			ctx := network.WithRateLimitObserver(t.Context(), func(_ string, _ time.Duration, warning, _ bool) func() {
+				if warning {
+					notices++
+				}
+				return func() {}
+			})
+			_, _, _, err := newSlackClient(ctx, prov)
+			require.Error(t, err)
+			require.Equal(t, 1, calls)
+			require.Equal(t, 1, notices)
 		})
 	}
 }

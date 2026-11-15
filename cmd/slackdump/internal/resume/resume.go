@@ -34,6 +34,7 @@ import (
 	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/cfg"
 	dedupecmd "github.com/rusq/slackdump/v4/cmd/slackdump/internal/diag/dedupe"
 	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/golang/base"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/progress"
 	"github.com/rusq/slackdump/v4/internal/chunk/backend/dbase"
 	"github.com/rusq/slackdump/v4/internal/chunk/control"
 	"github.com/rusq/slackdump/v4/internal/structures"
@@ -96,7 +97,10 @@ var resumeFlags = ResumeParams{
 	SkipStaleChannels: new(extDuration),
 }
 
+var progressFlags progress.Flags
+
 func init() {
+	progressFlags.Bind(&CmdResume.Flag)
 	CmdResume.Run = runResume
 	CmdResume.Flag.BoolVar(&resumeFlags.Refresh, "refresh", false, "refresh the list of channels")
 	CmdResume.Flag.BoolVar(&resumeFlags.IncludeThreads, "threads", false, "include threads (slow, and flaky business)")
@@ -123,6 +127,14 @@ type archiveRunner interface {
 }
 
 func runResume(ctx context.Context, cmd *base.Command, args []string) error {
+	reporter, ctx, err := progressFlags.Begin(ctx)
+	if err != nil {
+		base.SetExitStatus(base.SInvalidParameters)
+		return err
+	}
+	if reporter != nil {
+		defer reporter.Stop()
+	}
 	if len(args) < 1 {
 		base.SetExitStatus(base.SInvalidParameters)
 		return errors.New("expected at least one argument")
@@ -232,7 +244,11 @@ func runResume(ctx context.Context, cmd *base.Command, args []string) error {
 		base.SetExitStatus(base.SInitializationError)
 		return fmt.Errorf("error creating archive controller: %w", err)
 	}
-	defer ctrl.Close()
+	defer func() {
+		if closeErr := ctrl.Close(); closeErr != nil {
+			slog.ErrorContext(ctx, "unable to close archive controller", "error", closeErr)
+		}
+	}()
 
 	if err := runArchiveAndCleanup(ctx, ctrl, latestResult.list, wconn, dir, resumeFlags.Dedupe); err != nil {
 		if errors.Is(err, errRunArchiveController) {
