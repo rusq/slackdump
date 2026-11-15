@@ -159,7 +159,10 @@ func Test_invoke(t *testing.T) {
 			ctx, cancel := context.WithTimeout(t.Context(), 15*time.Second)
 			defer cancel()
 			command := exec.CommandContext(ctx, os.Args[0], "-test.run=^Test_invoke$")
-			command.Env = []string{"PATH=/usr/bin:/bin", "HOME=" + dir, "XDG_CONFIG_HOME=" + dir, "XDG_CACHE_HOME=" + dir, "NOCOLOR=true", "SLACKDUMP_STARTUP_TEST=" + mode, "TEST_CACHE=" + filepath.Join(dir, "cache"), "TEST_LOG=" + logfile, "TEST_TRACE=" + tracefile}
+			command.Env = []string{"PATH=/usr/bin:/bin", "HOME=" + dir, "USERPROFILE=" + dir, "APPDATA=" + filepath.Join(dir, "AppData", "Roaming"), "LOCALAPPDATA=" + filepath.Join(dir, "AppData", "Local"), "XDG_CONFIG_HOME=" + dir, "XDG_CACHE_HOME=" + dir, "NOCOLOR=true", "SLACKDUMP_STARTUP_TEST=" + mode, "TEST_CACHE=" + filepath.Join(dir, "cache"), "TEST_LOG=" + logfile, "TEST_TRACE=" + tracefile}
+			if systemRoot := os.Getenv("SystemRoot"); systemRoot != "" {
+				command.Env = append(command.Env, "SystemRoot="+systemRoot)
+			}
 			output, err := command.CombinedOutput()
 			if mode == "run" && err != nil {
 				t.Fatalf("child: %v: %s", err, output)
@@ -238,7 +241,10 @@ func Test_main(t *testing.T) {
 			ctx, cancel := context.WithTimeout(t.Context(), 15*time.Second)
 			defer cancel()
 			command := exec.CommandContext(ctx, os.Args[0], "-test.run=^Test_main$")
-			command.Env = []string{"PATH=/usr/bin:/bin", "HOME=" + dir, "XDG_CONFIG_HOME=" + dir, "XDG_CACHE_HOME=" + dir, "NOCOLOR=true", "SLACKDUMP_MAIN_TEST=" + mode, "TEST_CACHE=" + filepath.Join(dir, "cache"), "TEST_LOG=" + logfile}
+			command.Env = []string{"PATH=/usr/bin:/bin", "HOME=" + dir, "USERPROFILE=" + dir, "APPDATA=" + filepath.Join(dir, "AppData", "Roaming"), "LOCALAPPDATA=" + filepath.Join(dir, "AppData", "Local"), "XDG_CONFIG_HOME=" + dir, "XDG_CACHE_HOME=" + dir, "NOCOLOR=true", "SLACKDUMP_MAIN_TEST=" + mode, "TEST_CACHE=" + filepath.Join(dir, "cache"), "TEST_LOG=" + logfile}
+			if systemRoot := os.Getenv("SystemRoot"); systemRoot != "" {
+				command.Env = append(command.Env, "SystemRoot="+systemRoot)
+			}
 			output, _ := command.CombinedOutput()
 			text := string(output)
 			switch mode {
