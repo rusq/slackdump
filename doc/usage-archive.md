@@ -145,7 +145,7 @@ location. User avatars are not downloaded by default; enable with `-avatars`.
 | `-enterprise` | `false` | Enable Enterprise Grid mode |
 | `-v` | `false` | Verbose output |
 | `-y` | `false` | Answer yes to all prompts (non-interactive) |
-| `-limiter-boost` | (default) | Rate-limiter aggressiveness; try `0` on large workspaces |
+| `-api-config <file>` | Built-in limits | Override Slack API limits. Generate a starting file with `slackdump config new api.toml`. |
 
 Run `slackdump help archive` for the full flag list.
 

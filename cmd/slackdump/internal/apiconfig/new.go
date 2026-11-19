@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"runtime/trace"
+	"strings"
 
 	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/bootstrap"
 	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/cfg"
@@ -36,7 +37,6 @@ var configNewMD string
 var CmdConfigNew = &base.Command{
 	UsageLine:  "slackdump config new",
 	Short:      "creates a new API config with the default values",
-	Long:       configNewMD,
 	FlagMask:   cfg.OmitAll &^ cfg.OmitYesManFlag,
 	PrintFlags: true,
 }
@@ -44,6 +44,13 @@ var CmdConfigNew = &base.Command{
 func init() {
 	CmdConfigNew.Run = runConfigNew
 	CmdConfigNew.Wizard = wizConfigNew
+
+	var defaults strings.Builder
+	if err := writeLimits(&defaults, network.DefLimits); err != nil {
+		panic(fmt.Errorf("render config new help: %w", err))
+	}
+	markdown := strings.ReplaceAll(configNewMD, "\r\n", "\n")
+	CmdConfigNew.Long = strings.Replace(markdown, "{{DEFAULT_LIMITS_TOML}}\n", defaults.String(), 1)
 }
 
 func runConfigNew(ctx context.Context, cmd *base.Command, args []string) error {

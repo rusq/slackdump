@@ -70,7 +70,7 @@ var DefLimits = Limits{
 	Tier3: TierLimit{
 		Boost:   120, // slack being greedy lately.
 		Burst:   5,   // safe value, who would ever want to modify it? I don't know.
-		Retries: 3,   // on Tier 3 this was never a problem, even with limiter-boost=120
+		Retries: 3,   // on Tier 3 this was never a problem, even with tier_3.boost=120
 	},
 	Tier4: TierLimit{
 		Boost:   10,

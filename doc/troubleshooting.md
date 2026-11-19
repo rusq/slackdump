@@ -315,7 +315,7 @@ config file with the defaults, lower the rate and burst values to taste, then
 pass it to the command:
 
 ```bash
-slackdump config new -o api.toml
+slackdump config new api.toml
 # edit api.toml, then:
 slackdump archive -api-config api.toml ...
 ```
