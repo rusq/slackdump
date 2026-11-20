@@ -25,7 +25,7 @@ measured in requests per minute and enforced on a (token,method) pair.
 Let's look at the example configuration file:
 
 ```toml
-{{DEFAULT_LIMITS_TOML}}
+{{ .DEFAULT_LIMITS_TOML -}}
 ```
 
 The base Tier values are hardcoded in the application, but the configuration

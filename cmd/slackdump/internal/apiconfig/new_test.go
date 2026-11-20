@@ -20,6 +20,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func Test_maybeAppendExt(t *testing.T) {
@@ -165,9 +167,7 @@ func Test_runConfigNew(t *testing.T) {
 				if !ok {
 					t.Fatal("missing TOML closing fence in config new help")
 				}
-				if example != string(config) {
-					t.Errorf("help example = %q, want generated config %q", example, config)
-				}
+				assert.Equal(t, example, string(config))
 			}
 		})
 	}
