@@ -162,6 +162,43 @@ func TestMakeEntityList(t *testing.T) {
 			false,
 		},
 		{
+			"dated include before undated exclude",
+			args{[]string{"C123,2026-11-12", "^C123"}},
+			&EntityList{
+				index: map[string]*EntityItem{
+					"C123": {Id: "C123"},
+				},
+				hasExcludes: true,
+			},
+			false,
+		},
+		{
+			"undated exclude before dated include",
+			args{[]string{"^C123", "C123,2026-11-12"}},
+			&EntityList{
+				index: map[string]*EntityItem{
+					"C123": {Id: "C123"},
+				},
+				hasExcludes: true,
+			},
+			false,
+		},
+		{
+			"dated URL exclude overrides channel ID include",
+			args{[]string{"C123,2026-11-12", "^https://fake.slack.com/archives/C123,2026-11-13,2026-11-14"}},
+			&EntityList{
+				index: map[string]*EntityItem{
+					"C123": {
+						Id:     "C123",
+						Oldest: time.Date(2026, time.November, 13, 0, 0, 0, 0, time.UTC),
+						Latest: time.Date(2026, time.November, 14, 0, 0, 0, 0, time.UTC),
+					},
+				},
+				hasExcludes: true,
+			},
+			false,
+		},
+		{
 			"duplicate element",
 			args{[]string{"one", "^two", "three", "one"}},
 			&EntityList{

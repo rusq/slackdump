@@ -257,6 +257,11 @@ func (el *EntityList) fromIndex(index map[string]bool) {
 	for ent, include := range index {
 		parts := getTimeTuple(ent)
 
+		// Exclusions take precedence even when the date bounds differ.
+		if existing := el.index[parts[0]]; include && existing != nil && !existing.Include {
+			continue
+		}
+
 		item := &EntityItem{
 			Id:      parts[0],
 			Include: include,
@@ -269,7 +274,12 @@ func (el *EntityList) fromIndex(index map[string]bool) {
 		}
 
 		el.index[item.Id] = item
-		if include {
+	}
+
+	el.hasIncludes = false
+	el.hasExcludes = false
+	for _, item := range el.index {
+		if item.Include {
 			el.hasIncludes = true
 		} else {
 			el.hasExcludes = true
