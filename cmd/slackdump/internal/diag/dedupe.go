@@ -22,11 +22,14 @@ var cmdDedupe = &base.Command{
 	PrintFlags: true,
 	Long: `
 Dedupe removes identical duplicate messages, users, channels, channel users,
-and files created by resume look-back overlap. The latest copy of each
-identical payload is kept. Use -mode message-key to collapse message rows by
-channel and timestamp even when Slack-regenerated fields differ. By default it
-only reports what would be removed. Pass the archive directory, not the
-slackdump.sqlite file. Use -execute to perform deduplication.
+and files created by resume look-back overlap. Use -mode message-key to
+collapse message rows by channel and timestamp even when Slack-regenerated
+fields differ. In both modes, dedupe keeps the copy with the highest chunk ID
+from a finished session. If none of the copies came from a finished session,
+it keeps the copy with the highest chunk ID overall.
+
+By default dedupe only reports what would be removed. Pass the directory
+containing slackdump.sqlite. Use -execute to perform deduplication.
 
 The same cleanup can be run automatically after a successful resume with:
 

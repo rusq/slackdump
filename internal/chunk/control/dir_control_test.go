@@ -23,11 +23,13 @@ package control
 import (
 	"context"
 	"log/slog"
+	"path/filepath"
 	"reflect"
 	"testing"
 
 	"github.com/rusq/slack"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 
 	"github.com/rusq/slackdump/v4/internal/chunk"
@@ -138,6 +140,49 @@ func TestDirController_Run(t *testing.T) {
 			}
 			if err := c.Run(tt.args.ctx, tt.args.list); (err != nil) != tt.wantErr {
 				t.Errorf("DirController.Run() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+
+	excluded, err := structures.NewEntityList([]string{"C11111111", "^C11111111"})
+	require.NoError(t, err)
+	for _, tt := range []struct {
+		name    string
+		refresh bool
+	}{
+		{name: "all explicit includes excluded"},
+		{name: "refresh all explicit includes excluded", refresh: true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			cd, err := chunk.OpenDir(dir)
+			require.NoError(t, err)
+			defer cd.Close()
+
+			s := mock_control.NewMockStreamer(gomock.NewController(t))
+			s.EXPECT().WorkspaceInfo(gomock.Any(), gomock.Any()).Return(nil)
+			s.EXPECT().Users(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
+				func(ctx context.Context, proc processor.Users, _ ...slack.GetUsersOption) error {
+					return proc.Users(ctx, testUsers)
+				})
+			s.EXPECT().Conversations(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
+				func(_ context.Context, _ processor.Conversations, links <-chan structures.EntityItem) error {
+					for range links {
+					}
+					return nil
+				})
+			if tt.refresh {
+				s.EXPECT().ListChannels(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
+			}
+
+			c := NewDir(cd, s, WithFlags(Flags{Refresh: tt.refresh}))
+			defer c.Close()
+			require.NoError(t, c.Run(t.Context(), excluded))
+			channelsFile := filepath.Join(dir, "channels.json.gz")
+			if tt.refresh {
+				assert.FileExists(t, channelsFile)
+			} else {
+				assert.NoFileExists(t, channelsFile)
 			}
 		})
 	}

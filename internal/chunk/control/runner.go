@@ -101,11 +101,11 @@ func newGenerator(s Streamer, p superprocessor, flags Flags, list *structures.En
 			memberOnly: flags.MemberOnly,
 			chTypes:    flags.ChannelTypes,
 		}
-	} else if list.HasIncludes() {
+	} else if list.HasExplicitIncludes() {
 		// inclusive export, processes only included channels.
 		return &listGen{}
 	} else {
-		// exclusive export (process only excludes, if any)
+		// Discover channels and apply any exclusions.
 		return &apiGenerator{
 			s:          s,
 			p:          p.Channels,

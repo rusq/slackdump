@@ -114,7 +114,8 @@ example:
 ```bash
 slackdump archive @data.txt ^C123456
 ```
-This command includes channels listed in data.txt but excludes C123456.
+This command includes channels listed in `data.txt` but excludes `C123456`.
+If exclusions remove every explicit include, Slackdump selects zero conversations.
 
 Sample file:
 ```text
