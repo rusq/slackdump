@@ -22,10 +22,12 @@ import (
 	"fmt"
 	"path/filepath"
 	"runtime/trace"
+	"strings"
 
 	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/bootstrap"
 	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/golang/base"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/golang/help"
 	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/ui"
 	"github.com/rusq/slackdump/v4/internal/network"
 )
@@ -36,7 +38,6 @@ var configNewMD string
 var CmdConfigNew = &base.Command{
 	UsageLine:  "slackdump config new",
 	Short:      "creates a new API config with the default values",
-	Long:       configNewMD,
 	FlagMask:   cfg.OmitAll &^ cfg.OmitYesManFlag,
 	PrintFlags: true,
 }
@@ -44,6 +45,22 @@ var CmdConfigNew = &base.Command{
 func init() {
 	CmdConfigNew.Run = runConfigNew
 	CmdConfigNew.Wizard = wizConfigNew
+
+	longHelp, err := renderHelpNew()
+	if err != nil {
+		panic(err)
+	}
+	CmdConfigNew.Long = longHelp
+}
+
+// renderHelpNew is a little helper to render the long help for the apiconfig help new
+func renderHelpNew() (string, error) {
+	var defaults strings.Builder
+	if err := writeLimits(&defaults, network.DefLimits); err != nil {
+		return "", fmt.Errorf("render config new help: %w", err)
+	}
+	markdown := strings.ReplaceAll(configNewMD, "\r\n", "\n")
+	return help.RenderTemplate(markdown, map[string]string{"DEFAULT_LIMITS_TOML": defaults.String()})
 }
 
 func runConfigNew(ctx context.Context, cmd *base.Command, args []string) error {
