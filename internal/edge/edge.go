@@ -318,15 +318,28 @@ func (cl *Client) roundTrip(ctx context.Context, url string, contentType string,
 		}
 		if resp.StatusCode == http.StatusTooManyRequests {
 			wait := retryAfter(ctx, resp)
+			done := func() {}
+			if attempt < maxAttempts || network.RetryManaged(ctx) {
+				done = network.ObserveRateLimitBeforeWait(ctx, "Slack edge API", wait)
+			} else {
+				done = network.ObserveRateLimit(ctx, "Slack edge API", wait)
+			}
 			drain(resp)
 			if attempt >= maxAttempts {
 				slog.DebugContext(ctx, "edge.do: still rate limited, giving up", "attempt", attempt, "delay", wait)
-				return nil, &slack.RateLimitedError{RetryAfter: wait}
+				done()
+				limited := &slack.RateLimitedError{RetryAfter: wait}
+				if network.HasRateLimitObserver(ctx) {
+					return nil, &network.ObservedRateLimit{Err: limited}
+				}
+				return nil, limited
 			}
 			slog.InfoContext(ctx, "got rate limited, waiting", "delay", wait)
 			if err := network.SleepCtx(ctx, wait); err != nil {
+				done()
 				return nil, err
 			}
+			done()
 			continue
 		}
 		if resp.StatusCode < http.StatusOK || http.StatusMultipleChoices <= resp.StatusCode {

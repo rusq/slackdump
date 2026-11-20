@@ -31,6 +31,7 @@ import (
 	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/bootstrap"
 	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/golang/base"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/progress"
 	"github.com/rusq/slackdump/v4/internal/chunk"
 	"github.com/rusq/slackdump/v4/internal/chunk/backend/dbase"
 	"github.com/rusq/slackdump/v4/internal/chunk/backend/dbase/repository"
@@ -57,18 +58,28 @@ var CmdArchive = &base.Command{
 	PrintFlags:  true,
 }
 
+var progressFlags progress.Flags
+
 func init() {
+	progressFlags.Bind(&CmdArchive.Flag)
 	CmdArchive.Wizard = archiveWizard
 }
 
 var errNoOutput = errors.New("output directory is required")
 
 func RunArchive(ctx context.Context, cmd *base.Command, args []string) error {
+	reporter, ctx, err := progressFlags.Begin(ctx)
+	if err != nil {
+		base.SetExitStatus(base.SInvalidParameters)
+		return err
+	}
+	if reporter != nil {
+		defer reporter.Stop()
+	}
 	if cfg.UseChunkFiles {
 		return runChunkArchive(ctx, cmd, args)
-	} else {
-		return runDBArchive(ctx, cmd, args)
 	}
+	return runDBArchive(ctx, cmd, args)
 }
 
 func runChunkArchive(ctx context.Context, _ *base.Command, args []string) error {
@@ -99,7 +110,11 @@ func runChunkArchive(ctx context.Context, _ *base.Command, args []string) error 
 	if err != nil {
 		return err
 	}
-	defer ctrl.Close()
+	defer func() {
+		if closeErr := ctrl.Close(); closeErr != nil {
+			cfg.Log.ErrorContext(ctx, "failed to close archive", "error", closeErr)
+		}
+	}()
 	if err := ctrl.RunNoTransform(ctx, list); err != nil {
 		base.SetExitStatus(base.SApplicationError)
 		return err
@@ -229,6 +244,7 @@ func DBController(ctx context.Context, sessionName string, conn *sqlx.DB, client
 		stream.OptFailOnNonCritError(cfg.FailOnNonCritical),
 	}
 	sopts = append(sopts, streamOpts...)
+	sopts = append(sopts, progress.Options(ctx)...)
 	// start attachment downloader
 	dl := fileproc.NewDownloader(
 		ctx,
@@ -294,6 +310,7 @@ func ArchiveController(ctx context.Context, cd *chunk.Directory, client client.S
 		stream.OptFailOnNonCritError(cfg.FailOnNonCritical),
 	}
 	sopts = append(sopts, opts...)
+	sopts = append(sopts, progress.Options(ctx)...)
 
 	// start attachment downloader
 	dl := fileproc.NewDownloader(

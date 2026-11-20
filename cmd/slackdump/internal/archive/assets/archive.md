@@ -99,3 +99,5 @@ or
 ```bash
 slackdump convert -f chunk ./slackdump_20211231_123456/slackdump.sqlite
 ```
+
+Use `--progress` to report channel and thread progress on stderr. `--progress-interval` controls the refresh interval (default `5s`; it must be positive). Only rate-limit notices, warnings, and errors appear on the terminal alongside progress. With `--log`, the file keeps the full log; rate-limit notices, warnings, and errors also appear on the terminal. With `-v --log`, verbose diagnostics go to the file. When using `--log-json`, set `--log` to a separate file.

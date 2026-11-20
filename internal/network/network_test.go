@@ -85,6 +85,32 @@ func dAbs(d time.Duration) time.Duration {
 	return d
 }
 
+func TestObserveRateLimit(t *testing.T) {
+	var observations, finished int
+	ctx := WithRateLimitObserver(t.Context(), func(source string, delay time.Duration, warning, willWait bool) func() {
+		observations++
+		if !warning || !willWait {
+			t.Errorf("retry event not marked as waiting")
+		}
+		if source != "Slack API (thread replies)" {
+			t.Errorf("source %q", source)
+		}
+		return func() { finished++ }
+	})
+	ctx = WithOperation(ctx, "thread replies")
+	calls := 0
+	err := WithRetry(ctx, rate.NewLimiter(rate.Inf, 1), 3, func(context.Context) error {
+		calls++
+		if calls < 3 {
+			return &slack.RateLimitedError{RetryAfter: 0}
+		}
+		return nil
+	})
+	if err != nil || observations != 2 || finished != 2 || calls != 3 {
+		t.Fatalf("err=%v calls=%d events=%d finished=%d", err, calls, observations, finished)
+	}
+}
+
 func TestValidateSlackFileURL(t *testing.T) {
 	tests := []struct {
 		name string
@@ -658,5 +684,61 @@ func Test_isRecoverable(t *testing.T) {
 				t.Errorf("isRecoverable() = %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestObserveHTTPClient(t *testing.T) {
+	for _, header := range []string{"0", "", "invalid"} {
+		for _, retry := range []bool{false, true} {
+			t.Run(fmt.Sprintf("header=%q/retry=%t", header, retry), func(t *testing.T) {
+				run := func(enabled bool) (string, int, int, time.Duration, bool) {
+					calls := 0
+					server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+						calls++
+						if header != "" {
+							w.Header().Set("Retry-After", header)
+						}
+						w.WriteHeader(http.StatusTooManyRequests)
+					}))
+					defer server.Close()
+					warnings := 0
+					delay := time.Duration(0)
+					waited := false
+					ctx := t.Context()
+					if enabled {
+						ctx = WithRateLimitObserver(ctx, func(_ string, d time.Duration, warning, willWait bool) func() {
+							if warning {
+								warnings++
+								delay = d
+								waited = willWait
+							}
+							return func() {}
+						})
+					}
+					cl := slack.New("test", slack.OptionAPIURL(server.URL+"/"), slack.OptionHTTPClient(ObserveHTTPClient(ctx, server.Client())))
+					var err error
+					if retry {
+						err = WithRetry(ctx, rate.NewLimiter(rate.Inf, 1), 1, func(ctx context.Context) error { _, err := cl.AuthTestContext(ctx); return err })
+					} else {
+						_, err = cl.AuthTestContext(ctx)
+					}
+					if err == nil {
+						t.Fatal("expected 429 error")
+					}
+					return fmt.Sprintf("%T:%v", err, err), calls, warnings, delay, waited
+				}
+				offErr, offCalls, _, _, _ := run(false)
+				onErr, onCalls, warnings, delay, waited := run(true)
+				if offErr != onErr || offCalls != onCalls || warnings != 1 {
+					t.Fatalf("off=%s/%d on=%s/%d warnings=%d", offErr, offCalls, onErr, onCalls, warnings)
+				}
+				if waited != (retry && header == "0") {
+					t.Fatalf("waiting=%t for retry=%t header=%q", waited, retry, header)
+				}
+				if header != "0" && delay >= 0 {
+					t.Fatalf("unknown retry delay reported as %s", delay)
+				}
+			})
+		}
 	}
 }

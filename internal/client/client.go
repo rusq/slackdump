@@ -113,6 +113,7 @@ func newSlackClient(ctx context.Context, prov auth.Provider) (*http.Client, *sla
 	if err != nil {
 		return nil, nil, nil, err
 	}
+	cl = network.ObserveHTTPClient(ctx, cl)
 	scl := slack.New(prov.SlackToken(), slack.OptionHTTPClient(cl))
 	wi, err := scl.AuthTestContext(ctx)
 	if err != nil {

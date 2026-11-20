@@ -19,19 +19,28 @@ import (
 	"context"
 	_ "embed"
 	"errors"
+	"io"
+	"os"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/rusq/fsadapter"
 	"github.com/rusq/slack"
 	"github.com/sosodev/duration"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
+	"log/slog"
 
 	"github.com/rusq/slackdump/v4"
 	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/cfg"
 	dedupecmd "github.com/rusq/slackdump/v4/cmd/slackdump/internal/diag/dedupe"
+	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/progress"
+	"github.com/rusq/slackdump/v4/internal/chunk/control"
+	"github.com/rusq/slackdump/v4/internal/chunk/control/mock_control"
+	"github.com/rusq/slackdump/v4/internal/convert/transform/fileproc"
 	"github.com/rusq/slackdump/v4/internal/fixtures"
 	"github.com/rusq/slackdump/v4/internal/structures"
 	"github.com/rusq/slackdump/v4/source"
@@ -847,7 +856,157 @@ func (s stubArchiveRunner) Finish() error {
 	return s.finishErr
 }
 
+type blockingRunner struct{ finishStarted, releaseFinish, closeStarted, releaseClose chan struct{} }
+
+func (b *blockingRunner) RunNoTransform(context.Context, *structures.EntityList) error { return nil }
+func (b *blockingRunner) Finish() error                                                { close(b.finishStarted); <-b.releaseFinish; return nil }
+func (b *blockingRunner) Close() error                                                 { close(b.closeStarted); <-b.releaseClose; return nil }
+
+type blockedFileGetter struct{ started, release chan struct{} }
+
+func (b *blockedFileGetter) GetFileContext(_ context.Context, _ string, w io.Writer) error {
+	close(b.started)
+	<-b.release
+	_, err := w.Write([]byte("file"))
+	return err
+}
+
+type realFinishRunner struct {
+	*control.Controller
+	finishStarted chan struct{}
+}
+
+func (r realFinishRunner) Finish() error { close(r.finishStarted); return r.Controller.Finish() }
+
+func (r realFinishRunner) RunNoTransform(context.Context, *structures.EntityList) error { return nil }
+
 func Test_runArchiveAndCleanup(t *testing.T) {
+	t.Run("real downloader drains before final snapshot", func(t *testing.T) {
+		oldStderr := os.Stderr
+		rd, wr, err := os.Pipe()
+		require.NoError(t, err)
+		os.Stderr = wr
+		defer func() { os.Stderr = oldStderr; rd.Close() }()
+		oldJSON, oldFile := cfg.UseJSONHandler, cfg.LogFile
+		cfg.UseJSONHandler = false
+		cfg.LogFile = ""
+		defer func() { cfg.UseJSONHandler, cfg.LogFile = oldJSON, oldFile }()
+		reporter, ctx, err := (progress.Flags{Enabled: true, Interval: time.Hour}).Begin(t.Context())
+		require.NoError(t, err)
+		getter := &blockedFileGetter{make(chan struct{}), make(chan struct{})}
+		dl := fileproc.NewDownloader(ctx, true, getter, fsadapter.NewDirectory(t.TempDir()), slog.Default())
+		filer := fileproc.NewWithPathFn(dl, func(*slack.Channel, *slack.File) string { return "file.dat" })
+		require.NoError(t, filer.Files(ctx, &slack.Channel{}, slack.Message{}, []slack.File{{Name: "file.dat", URLPrivateDownload: "https://example.invalid/file"}}))
+		select {
+		case <-getter.started:
+		case <-time.After(3 * time.Second):
+			t.Fatal("download did not start")
+		}
+		mock := gomock.NewController(t)
+		encoder := mock_control.NewMockEncodeReferenceFinisher(mock)
+		encoder.EXPECT().Finish().Return(nil).Times(1)
+		controller, err := control.New(ctx, nil, encoder, control.WithFiler(filer))
+		require.NoError(t, err)
+		old := runDedupe
+		defer func() { runDedupe = old }()
+		deduped := false
+		runDedupe = func(context.Context, *sqlx.DB, dedupecmd.Options) (dedupecmd.Result, error) {
+			deduped = true
+			return dedupecmd.Result{}, nil
+		}
+		final := make(chan struct{})
+		finishStarted := make(chan struct{})
+		done := make(chan error, 1)
+		go func() {
+			var result error
+			defer func() { reporter.Stop(); close(final); done <- result }()
+			defer controller.Close()
+			result = runArchiveAndCleanup(ctx, realFinishRunner{controller, finishStarted}, &structures.EntityList{}, nil, "db", true)
+		}()
+		select {
+		case <-finishStarted:
+		case <-time.After(3 * time.Second):
+			t.Fatal("finalization did not start")
+		}
+		select {
+		case <-final:
+			t.Fatal("snapshot before download drain")
+		default:
+		}
+		close(getter.release)
+		select {
+		case <-final:
+		case <-time.After(3 * time.Second):
+			t.Fatal("final snapshot blocked after download")
+		}
+		require.NoError(t, <-done)
+		require.True(t, deduped)
+		require.NoError(t, wr.Close())
+		out, err := io.ReadAll(rd)
+		require.NoError(t, err)
+		require.Contains(t, string(out), "Runtime")
+	})
+
+	t.Run("final snapshot waits for finish dedupe and close", func(t *testing.T) {
+		oldStderr := os.Stderr
+		rd, wr, err := os.Pipe()
+		require.NoError(t, err)
+		os.Stderr = wr
+		defer func() { os.Stderr = oldStderr; rd.Close() }()
+		oldJSON, oldFile := cfg.UseJSONHandler, cfg.LogFile
+		cfg.UseJSONHandler = false
+		cfg.LogFile = ""
+		defer func() { cfg.UseJSONHandler, cfg.LogFile = oldJSON, oldFile }()
+		reporter, ctx, err := (progress.Flags{Enabled: true, Interval: time.Hour}).Begin(t.Context())
+		require.NoError(t, err)
+		runner := &blockingRunner{make(chan struct{}), make(chan struct{}), make(chan struct{}), make(chan struct{})}
+		dedupeStarted, releaseDedupe := make(chan struct{}), make(chan struct{})
+		old := runDedupe
+		defer func() { runDedupe = old }()
+		runDedupe = func(context.Context, *sqlx.DB, dedupecmd.Options) (dedupecmd.Result, error) {
+			close(dedupeStarted)
+			<-releaseDedupe
+			return dedupecmd.Result{}, nil
+		}
+		final := make(chan struct{})
+		done := make(chan error, 1)
+		go func() {
+			var result error
+			defer func() { reporter.Stop(); close(final); done <- result }()
+			defer runner.Close()
+			result = runArchiveAndCleanup(ctx, runner, &structures.EntityList{}, nil, "db", true)
+		}()
+		wait := func(ch <-chan struct{}) {
+			select {
+			case <-ch:
+			case <-time.After(3 * time.Second):
+				t.Fatal("stage did not start")
+			}
+		}
+		notFinal := func() {
+			select {
+			case <-final:
+				t.Fatal("final snapshot before drain")
+			default:
+			}
+		}
+		wait(runner.finishStarted)
+		notFinal()
+		close(runner.releaseFinish)
+		wait(dedupeStarted)
+		notFinal()
+		close(releaseDedupe)
+		wait(runner.closeStarted)
+		notFinal()
+		close(runner.releaseClose)
+		wait(final)
+		require.NoError(t, <-done)
+		require.NoError(t, wr.Close())
+		out, err := io.ReadAll(rd)
+		require.NoError(t, err)
+		require.True(t, strings.Contains(string(out), "Runtime"), string(out))
+	})
+
 	oldRunDedupe := runDedupe
 	t.Cleanup(func() { runDedupe = oldRunDedupe })
 

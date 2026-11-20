@@ -17,19 +17,29 @@ package stream
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
 	"runtime/trace"
+	"strings"
 	"time"
 
 	"github.com/rusq/slack"
 
 	"github.com/rusq/slackdump/v4/internal/client"
 	"github.com/rusq/slackdump/v4/internal/network"
+	"github.com/rusq/slackdump/v4/internal/progresslog"
 	"github.com/rusq/slackdump/v4/internal/structures"
 	"github.com/rusq/slackdump/v4/processor"
 )
+
+func (cs *Stream) progressOutcome(err error) error {
+	if (errors.Is(err, errChanNotFound) || errors.Is(err, errNotInChannel)) && !cs.failChnlNotFnd {
+		return nil
+	}
+	return err
+}
 
 func (cs *Stream) channelWorker(ctx context.Context, proc processor.Conversations, results chan<- Result, threadC chan<- ordinaryThreadRequest, canvasC chan<- canvasThreadRequest, canvasResultsC <-chan canvasThreadResult, reqs <-chan channelRequest) {
 	ctx, task := trace.NewTask(ctx, "channelWorker")
@@ -43,56 +53,69 @@ func (cs *Stream) channelWorker(ctx context.Context, proc processor.Conversation
 			if !more {
 				return // channel closed
 			}
-			channel, err := cs.procChannelInfoWithUsers(ctx, proc, req.sl.Channel, req.sl.ThreadTS)
-			if err != nil {
-				if !sendResult(ctx, results, Result{Type: RTChannel, ChannelID: req.sl.Channel, Err: err}) {
+			stop := false
+			func() {
+				var outcome error
+				defer func() { cs.progressEvent(ProgressChannelDone, req.sl.Channel, "", outcome) }()
+				channel, err := cs.procChannelInfoWithUsers(ctx, proc, req.sl.Channel, req.sl.ThreadTS)
+				if err != nil {
+					outcome = cs.progressOutcome(err)
+					if !sendResult(ctx, results, Result{Type: RTChannel, ChannelID: req.sl.Channel, Err: err}) {
+						return
+					}
 					return
 				}
-				continue
-			}
 
-			// Check for the channel canvas.
-			if fileID, ok := structures.CanvasFileID(channel); ok {
-				if err := cs.canvasFile(ctx, proc, channel, fileID); err != nil {
-					if canvasErrorIsFatal(err) {
-						if !sendResult(ctx, results, Result{Type: RTChannel, ChannelID: req.sl.Channel, Err: err}) {
-							return
-						}
-						continue
-					}
-					logCanvasAPIError(ctx, "canvas file unavailable", channel.ID, fileID, "", "", err)
-				}
-
-				canvasClient, supported := cs.client.(client.CanvasRootClient)
-				if !supported || !canvasClient.CanvasSupported() {
-					slog.DebugContext(ctx, "skipping canvas discussions for non-client-token session", "owner_channel_id", channel.ID, "canvas_file_id", fileID)
-				} else {
-					if cm, ok := processor.AsCanvasMessenger(proc); ok {
-						if err := cs.canvasDiscussions(ctx, proc, cm, canvasC, canvasResultsC, results, req, channel, fileID); err != nil {
-							if canvasErrorIsFatal(err) {
+				// Check for the channel canvas.
+				if fileID, ok := structures.CanvasFileID(channel); ok {
+					if err := cs.canvasFile(ctx, proc, channel, fileID); err != nil {
+						if canvasErrorIsFatal(err) {
+							outcome = err
+							if !sendResult(ctx, results, Result{Type: RTChannel, ChannelID: req.sl.Channel, Err: err}) {
 								return
 							}
-							hiddenID, _ := structures.CanvasChannelID(fileID)
-							logCanvasAPIError(ctx, "canvas discussions unavailable", channel.ID, fileID, hiddenID, "", err)
+							return
+						}
+						logCanvasAPIError(ctx, "canvas file unavailable", channel.ID, fileID, "", "", err)
+					}
+
+					canvasClient, supported := cs.client.(client.CanvasRootClient)
+					if !supported || !canvasClient.CanvasSupported() {
+						slog.DebugContext(ctx, "skipping canvas discussions for non-client-token session", "owner_channel_id", channel.ID, "canvas_file_id", fileID)
+					} else {
+						if cm, ok := processor.AsCanvasMessenger(proc); ok {
+							if err := cs.canvasDiscussions(ctx, proc, cm, canvasC, canvasResultsC, results, req, channel, fileID); err != nil {
+								if canvasErrorIsFatal(err) {
+									stop = true
+									outcome = err
+									return
+								}
+								hiddenID, _ := structures.CanvasChannelID(fileID)
+								logCanvasAPIError(ctx, "canvas discussions unavailable", channel.ID, fileID, hiddenID, "", err)
+							}
 						}
 					}
 				}
-			}
 
-			if err := cs.channel(ctx, req, func(mm []slack.Message, isLast bool) error {
-				n, err := cs.procChanMsg(ctx, proc, threadC, channel, isLast, mm)
-				if err != nil {
-					return err
-				}
-				if !sendResult(ctx, results, Result{Type: RTChannel, ChannelID: req.sl.Channel, ThreadCount: n, IsLast: isLast}) {
-					return context.Cause(ctx)
-				}
-				return nil
-			}); err != nil {
-				if !sendResult(ctx, results, Result{Type: RTChannel, ChannelID: req.sl.Channel, Err: err}) {
+				if err := cs.channel(ctx, req, func(mm []slack.Message, isLast bool) error {
+					n, err := cs.procChanMsg(ctx, proc, threadC, channel, isLast, mm)
+					if err != nil {
+						return err
+					}
+					if !sendResult(ctx, results, Result{Type: RTChannel, ChannelID: req.sl.Channel, ThreadCount: n, IsLast: isLast}) {
+						return context.Cause(ctx)
+					}
+					return nil
+				}); err != nil {
+					outcome = cs.progressOutcome(err)
+					if !sendResult(ctx, results, Result{Type: RTChannel, ChannelID: req.sl.Channel, Err: err}) {
+						return
+					}
 					return
 				}
-				continue
+			}()
+			if stop || ctx.Err() != nil {
+				return
 			}
 		}
 	}
@@ -110,65 +133,118 @@ func (cs *Stream) threadWorker(ctx context.Context, proc processor.Conversations
 			if !more {
 				return // channel closed
 			}
-			if req.fetch.channelID == "" || req.fetch.threadTS == "" {
-				if !sendResult(ctx, results, Result{Type: RTThread, ChannelID: req.fetch.channelID, ThreadTS: req.fetch.threadTS, Err: errors.New("invalid ordinary thread request")}) {
-					return
-				}
-				continue
-			}
-
-			channel := new(slack.Channel)
-			if req.threadOnly {
-				// Thread-only requests come from direct thread links (e.g., resume).
-				// We only need channel info (ID, name, etc.) for file paths and
-				// identification. Channel users are already recorded from the
-				// original channel archive, and thread messages contain their own
-				// user IDs. Skipping procChannelUsers saves an API call per thread.
-				var err error
-				if channel, err = cs.procChannelInfo(ctx, proc, req.fetch.channelID, req.fetch.threadTS); err != nil {
-					if !sendResult(ctx, results, Result{Type: RTThread, ChannelID: req.fetch.channelID, ThreadTS: req.fetch.threadTS, Err: err}) {
+			stop := false
+			func() {
+				var outcome error
+				defer func() { cs.progressEvent(ProgressThreadDone, req.fetch.channelID, req.fetch.threadTS, outcome) }()
+				if req.fetch.channelID == "" || req.fetch.threadTS == "" {
+					outcome = errors.New("invalid ordinary thread request")
+					if !sendResult(ctx, results, Result{Type: RTThread, ChannelID: req.fetch.channelID, ThreadTS: req.fetch.threadTS, Err: errors.New("invalid ordinary thread request")}) {
+						stop = true
 						return
 					}
-					continue
-				}
-			} else {
-				// hackety hack
-				// Threads discovered from channel messages. The channel info was
-				// already fetched by channelWorker, so we just need the ID.
-				channel.ID = req.fetch.channelID
-			}
-			firstPage := true
-			err := cs.paginateThread(ctx, req.fetch, func(msgs []slack.Message, isLast bool) (bool, error) {
-				if firstPage && req.threadOnly && cs.skipThread != nil && cs.skipThread(ctx, req.fetch.channelID, req.fetch.threadTS, msgs[0].ReplyCount) {
-					slog.DebugContext(ctx, "skipping complete thread", "channel_id", req.fetch.channelID, "thread_ts", req.fetch.threadTS, "reply_count", msgs[0].ReplyCount)
-					return false, nil
-				}
-				firstPage = false
-				if err := procThreadMsg(ctx, proc, channel, req.fetch.threadTS, req.threadOnly, isLast, msgs); err != nil {
-					return false, err
-				}
-				if !sendResult(ctx, results, Result{Type: RTThread, ChannelID: req.fetch.channelID, ThreadTS: req.fetch.threadTS, IsLast: isLast}) {
-					return false, context.Cause(ctx)
-				}
-				return true, nil
-			})
-			if err != nil {
-				if errors.Is(err, errThreadNotFound) {
-					slog.WarnContext(ctx, "skipping non-existing thread", "channel_id", req.fetch.channelID, "thread_ts", req.fetch.threadTS)
-					err = procThreadMsg(ctx, proc, channel, req.fetch.threadTS, req.threadOnly, true, parentOnlyThreadMessages(req.fetch, req.parent))
-					if err == nil {
-						if !sendResult(ctx, results, Result{Type: RTThread, ChannelID: req.fetch.channelID, ThreadTS: req.fetch.threadTS, IsLast: true}) {
-							return
-						}
-						continue
-					}
-				}
-				if !sendResult(ctx, results, Result{Type: RTThread, ChannelID: req.fetch.channelID, ThreadTS: req.fetch.threadTS, Err: err}) {
 					return
 				}
+
+				channel := new(slack.Channel)
+				if req.threadOnly {
+					// Thread-only requests come from direct thread links (e.g., resume).
+					// We only need channel info (ID, name, etc.) for file paths and
+					// identification. Channel users are already recorded from the
+					// original channel archive, and thread messages contain their own
+					// user IDs. Skipping procChannelUsers saves an API call per thread.
+					var err error
+					if channel, err = cs.procChannelInfo(ctx, proc, req.fetch.channelID, req.fetch.threadTS); err != nil {
+						outcome = cs.progressOutcome(err)
+						if !sendResult(ctx, results, Result{Type: RTThread, ChannelID: req.fetch.channelID, ThreadTS: req.fetch.threadTS, Err: err}) {
+							stop = true
+							outcome = context.Cause(ctx)
+							return
+						}
+						return
+					}
+				} else {
+					// hackety hack
+					// Threads discovered from channel messages. The channel info was
+					// already fetched by channelWorker, so we just need the ID.
+					channel.ID = req.fetch.channelID
+				}
+				firstPage := true
+				err := cs.paginateThread(ctx, req.fetch, func(msgs []slack.Message, isLast bool) (bool, error) {
+					if firstPage && req.threadOnly && cs.skipThread != nil && cs.skipThread(ctx, req.fetch.channelID, req.fetch.threadTS, msgs[0].ReplyCount) {
+						slog.DebugContext(ctx, "skipping complete thread", "channel_id", req.fetch.channelID, "thread_ts", req.fetch.threadTS, "reply_count", msgs[0].ReplyCount)
+						return false, nil
+					}
+					firstPage = false
+					if err := procThreadMsg(ctx, proc, channel, req.fetch.threadTS, req.threadOnly, isLast, msgs); err != nil {
+						return false, err
+					}
+					if !sendResult(ctx, results, Result{Type: RTThread, ChannelID: req.fetch.channelID, ThreadTS: req.fetch.threadTS, IsLast: isLast}) {
+						stop = true
+						return false, context.Cause(ctx)
+					}
+					return true, nil
+				})
+				if err != nil {
+					if errors.Is(err, errThreadNotFound) {
+						slog.WarnContext(cs.missingThreadLogContext(ctx, req.fetch.channelID), "skipping non-existing thread", "channel_id", cs.channelLogID(req.fetch.channelID), "thread_ts", req.fetch.threadTS)
+						err = procThreadMsg(ctx, proc, channel, req.fetch.threadTS, req.threadOnly, true, parentOnlyThreadMessages(req.fetch, req.parent))
+						if err == nil {
+							if !sendResult(ctx, results, Result{Type: RTThread, ChannelID: req.fetch.channelID, ThreadTS: req.fetch.threadTS, IsLast: true}) {
+								stop = true
+								outcome = context.Cause(ctx)
+								return
+							}
+							return
+						}
+					}
+					outcome = cs.progressOutcome(err)
+					if !sendResult(ctx, results, Result{Type: RTThread, ChannelID: req.fetch.channelID, ThreadTS: req.fetch.threadTS, Err: err}) {
+						stop = true
+						if outcome == nil {
+							outcome = context.Cause(ctx)
+						}
+						return
+					}
+				}
+			}()
+			if stop {
+				return
 			}
 		}
 	}
+}
+
+// channelLogID renders a cached name in text logs while keeping JSON IDs as
+// plain strings. It never performs a network lookup.
+type namedChannelID struct{ id, name string }
+
+func (v namedChannelID) String() string               { return v.id + " (#" + v.name + ")" }
+func (v namedChannelID) MarshalJSON() ([]byte, error) { return json.Marshal(v.id) }
+
+func (cs *Stream) cachedChannelName(channelID string) string {
+	if channel := cs.chanCache.get(channelID); channel != nil {
+		return strings.TrimLeft(strings.TrimSpace(progresslog.Sanitize(channel.Name)), "#")
+	}
+	return ""
+}
+func (cs *Stream) channelLogID(channelID string) any {
+	if name := cs.cachedChannelName(channelID); name != "" {
+		return namedChannelID{id: channelID, name: name}
+	}
+	return channelID
+}
+
+// missingThreadLogContext adds a progress-only description without fetching data.
+func (cs *Stream) missingThreadLogContext(ctx context.Context, channelID string) context.Context {
+	if cs.progress == nil {
+		return ctx
+	}
+	label := channelID
+	if name := cs.cachedChannelName(channelID); name != "" {
+		label = "#" + name
+	}
+	return progresslog.WithMessage(ctx, "skipping non-existing thread in "+label)
 }
 
 func (cs *Stream) processCanvasThread(ctx context.Context, proc processor.Conversations, req canvasThreadRequest) error {
@@ -210,6 +286,9 @@ func (cs *Stream) canvasThreadWorker(ctx context.Context, proc processor.Convers
 	for req := range requests {
 		result := canvasThreadResult{channelID: req.fetch.channelID, threadTS: req.fetch.threadTS}
 		result.err = cs.processCanvasThread(ctx, proc, req)
+		// Reserve the collector callback before marking the worker job done.
+		cs.progressEvent(ProgressResultQueued, req.fetch.channelID, req.fetch.threadTS, nil)
+		cs.progressEvent(ProgressThreadDone, req.fetch.channelID, req.fetch.threadTS, result.err)
 		select {
 		case completed <- result:
 		case <-ctx.Done():
@@ -218,11 +297,21 @@ func (cs *Stream) canvasThreadWorker(ctx context.Context, proc processor.Convers
 	}
 }
 
+type progressContextKey struct{}
+
 func sendResult(ctx context.Context, results chan<- Result, res Result) bool {
+	observer, _ := ctx.Value(progressContextKey{}).(func(ProgressEvent))
+	tracked := res.Type == RTChannel || res.Type == RTThread || res.Type == RTCanvasThread
+	if observer != nil && tracked {
+		observer(ProgressEvent{Kind: ProgressResultQueued, ChannelID: res.ChannelID, ThreadTS: res.ThreadTS})
+	}
 	select {
 	case results <- res:
 		return true
 	case <-ctx.Done():
+		if observer != nil && tracked {
+			observer(ProgressEvent{Kind: ProgressResultProcessed, ChannelID: res.ChannelID, ThreadTS: res.ThreadTS})
+		}
 		return false
 	}
 }
@@ -319,6 +408,9 @@ func (cs *Stream) canvasDiscussions(ctx context.Context, proc processor.Conversa
 		}
 		return err
 	}
+	for _, r := range requests {
+		cs.progressEvent(ProgressThreadQueued, r.fetch.channelID, r.fetch.threadTS, nil)
+	}
 	// Send and collect concurrently so neither bounded channel can deadlock on
 	// a canvas with more discussions than its buffer.
 	sent, received := 0, 0
@@ -346,8 +438,10 @@ func (cs *Stream) canvasDiscussions(ctx context.Context, proc processor.Conversa
 			if !sendResult(ctx, results, Result{Type: RTCanvasThread, ChannelID: result.channelID, ThreadTS: result.threadTS, IsLast: true}) {
 				return context.Cause(ctx)
 			}
+			cs.progressEvent(ProgressResultProcessed, result.channelID, result.threadTS, nil)
 			continue
 		}
+		cs.progressEvent(ProgressResultProcessed, result.channelID, result.threadTS, nil)
 		if firstFailure < 0 {
 			firstFailure = i
 		}
@@ -403,6 +497,8 @@ func (cs *Stream) procCanvasMsg(ctx context.Context, proc processor.Conversation
 		}
 		if cs.skipCanvasThread != nil && cs.skipCanvasThread(ctx, hiddenID, root.ThreadTimestamp, root.ReplyCount) {
 			slog.DebugContext(ctx, "skipping complete canvas discussion", "channel_id", hiddenID, "thread_ts", root.ThreadTimestamp, "reply_count", root.ReplyCount)
+			cs.progressEvent(ProgressThreadQueued, hiddenID, root.ThreadTimestamp, nil)
+			cs.progressEvent(ProgressThreadDone, hiddenID, root.ThreadTimestamp, nil)
 			continue
 		}
 		parent := root
