@@ -87,8 +87,9 @@ func TestMakeEntityList(t *testing.T) {
 						Include: true,
 					},
 				},
-				hasIncludes: true,
-				hasExcludes: false,
+				hasIncludes:         true,
+				hasExcludes:         false,
+				hasExplicitIncludes: true,
 			},
 			false,
 		},
@@ -133,8 +134,9 @@ func TestMakeEntityList(t *testing.T) {
 						Include: false,
 					},
 				},
-				hasIncludes: true,
-				hasExcludes: true,
+				hasIncludes:         true,
+				hasExcludes:         true,
+				hasExplicitIncludes: true,
 			},
 			false,
 		},
@@ -156,8 +158,9 @@ func TestMakeEntityList(t *testing.T) {
 						Include: false,
 					},
 				},
-				hasIncludes: true,
-				hasExcludes: true,
+				hasIncludes:         true,
+				hasExcludes:         true,
+				hasExplicitIncludes: true,
 			},
 			false,
 		},
@@ -168,7 +171,8 @@ func TestMakeEntityList(t *testing.T) {
 				index: map[string]*EntityItem{
 					"C123": {Id: "C123"},
 				},
-				hasExcludes: true,
+				hasExcludes:         true,
+				hasExplicitIncludes: true,
 			},
 			false,
 		},
@@ -179,7 +183,8 @@ func TestMakeEntityList(t *testing.T) {
 				index: map[string]*EntityItem{
 					"C123": {Id: "C123"},
 				},
-				hasExcludes: true,
+				hasExcludes:         true,
+				hasExplicitIncludes: true,
 			},
 			false,
 		},
@@ -194,7 +199,8 @@ func TestMakeEntityList(t *testing.T) {
 						Latest: time.Date(2026, time.November, 14, 0, 0, 0, 0, time.UTC),
 					},
 				},
-				hasExcludes: true,
+				hasExcludes:         true,
+				hasExplicitIncludes: true,
 			},
 			false,
 		},
@@ -216,8 +222,9 @@ func TestMakeEntityList(t *testing.T) {
 						Include: false,
 					},
 				},
-				hasIncludes: true,
-				hasExcludes: true,
+				hasIncludes:         true,
+				hasExcludes:         true,
+				hasExplicitIncludes: true,
 			},
 			false,
 		},
@@ -243,8 +250,9 @@ func TestMakeEntityList(t *testing.T) {
 						Include: false,
 					},
 				},
-				hasIncludes: true,
-				hasExcludes: true,
+				hasIncludes:         true,
+				hasExcludes:         true,
+				hasExplicitIncludes: true,
 			},
 			false,
 		},
@@ -312,8 +320,9 @@ func TestMakeEntityList(t *testing.T) {
 						Latest:  time.Time{},
 					},
 				},
-				hasIncludes: true,
-				hasExcludes: true,
+				hasIncludes:         true,
+				hasExcludes:         true,
+				hasExplicitIncludes: true,
 			},
 			false,
 		},
@@ -421,8 +430,8 @@ func Test_readEntityIndex(t *testing.T) {
 				t.Errorf("readEntityIndex() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("readEntityIndex() = %v, want %v", got, tt.want)
+			if !reflect.DeepEqual(got.index, tt.want) {
+				t.Errorf("readEntityIndex() = %v, want %v", got.index, tt.want)
 			}
 		})
 	}
@@ -540,6 +549,47 @@ func TestEntityList_HasExcludes(t *testing.T) {
 				}
 			} else {
 				t.Errorf("EntityList.HasExcludes() = %v; error: %v", tt.want, err)
+			}
+		})
+	}
+}
+
+func TestEntityList_HasExplicitIncludes(t *testing.T) {
+	dir := t.TempDir()
+	exact := "C123,2024-01-01"
+	nested := fixtures.MkTestFile(t, dir, exact+"\n^"+exact+"\n")
+	outer := fixtures.MkTestFile(t, dir, "@"+nested+"\n")
+	exclusions := fixtures.MkTestFile(t, dir, "# Comment\n\n^C123\n")
+	tests := []struct {
+		name     string
+		args     []string
+		explicit bool
+		includes bool
+		excludes bool
+	}{
+		{name: "unscoped"},
+		{name: "bare prefixes", args: []string{"", "^", "@"}},
+		{name: "exclude only", args: []string{"^C123"}, excludes: true},
+		{name: "file with exclusions only", args: []string{"@" + exclusions}, excludes: true},
+		{name: "include", args: []string{"C123"}, explicit: true, includes: true},
+		{name: "direct exact collision", args: []string{exact, "^" + exact}, explicit: true, excludes: true},
+		{name: "file exact collision", args: []string{"@" + nested}, explicit: true, excludes: true},
+		{name: "nested file exact collision", args: []string{"@" + outer}, explicit: true, excludes: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			el, err := NewEntityList(tt.args)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := el.HasExplicitIncludes(); got != tt.explicit {
+				t.Errorf("HasExplicitIncludes() = %v, want %v", got, tt.explicit)
+			}
+			if got := el.HasIncludes(); got != tt.includes {
+				t.Errorf("HasIncludes() = %v, want %v", got, tt.includes)
+			}
+			if got := el.HasExcludes(); got != tt.excludes {
+				t.Errorf("HasExcludes() = %v, want %v", got, tt.excludes)
 			}
 		})
 	}
@@ -668,8 +718,8 @@ func Test_buildEntityIndex(t *testing.T) {
 				t.Errorf("buildEntityIndex() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("buildEntityIndex() = %v, want %v", got, tt.want)
+			if !reflect.DeepEqual(got.index, tt.want) {
+				t.Errorf("buildEntityIndex() = %v, want %v", got.index, tt.want)
 			}
 		})
 	}
@@ -724,8 +774,9 @@ func TestNewEntityListFromString(t *testing.T) {
 					"C345": {Id: "C345", Include: false},
 					"C456": {Id: "C456", Include: true},
 				},
-				hasIncludes: true,
-				hasExcludes: true,
+				hasIncludes:         true,
+				hasExcludes:         true,
+				hasExplicitIncludes: true,
 			},
 			false,
 		},
@@ -744,8 +795,9 @@ func TestNewEntityListFromString(t *testing.T) {
 					"three": {Id: "three", Include: true},
 					"two":   {Id: "two", Include: true},
 				},
-				hasIncludes: true,
-				hasExcludes: false,
+				hasIncludes:         true,
+				hasExcludes:         false,
+				hasExplicitIncludes: true,
 			},
 			false,
 		},
@@ -772,8 +824,9 @@ func TestNewEntityListFromString(t *testing.T) {
 					"two":   {Id: "two", Include: false},
 					"three": {Id: "three", Include: true},
 				},
-				hasIncludes: true,
-				hasExcludes: true,
+				hasIncludes:         true,
+				hasExcludes:         true,
+				hasExplicitIncludes: true,
 			},
 			false,
 		},
@@ -786,8 +839,9 @@ func TestNewEntityListFromString(t *testing.T) {
 					"two":   {Id: "two", Include: false},
 					"three": {Id: "three", Include: true},
 				},
-				hasIncludes: true,
-				hasExcludes: true,
+				hasIncludes:         true,
+				hasExcludes:         true,
+				hasExplicitIncludes: true,
 			},
 			false,
 		},
@@ -800,8 +854,9 @@ func TestNewEntityListFromString(t *testing.T) {
 					"two":   {Id: "two", Include: false},
 					"three": {Id: "three", Include: true},
 				},
-				hasIncludes: true,
-				hasExcludes: true,
+				hasIncludes:         true,
+				hasExcludes:         true,
+				hasExplicitIncludes: true,
 			},
 			false,
 		},
@@ -815,8 +870,9 @@ func TestNewEntityListFromString(t *testing.T) {
 					"three": {Id: "three", Include: true},
 					"four":  {Id: "four", Include: true},
 				},
-				hasIncludes: true,
-				hasExcludes: true,
+				hasIncludes:         true,
+				hasExcludes:         true,
+				hasExplicitIncludes: true,
 			},
 			false,
 		},
@@ -862,6 +918,24 @@ func TestNewEntityListFromItems(t *testing.T) {
 		want *EntityList
 	}{
 		{
+			name: "last item overrides include",
+			args: args{items: []EntityItem{{Id: "one", Include: true, Oldest: t1}, {Id: "one", Oldest: t2}}},
+			want: &EntityList{
+				index:               map[string]*EntityItem{"one": {Id: "one", Oldest: t2}},
+				hasExcludes:         true,
+				hasExplicitIncludes: true,
+			},
+		},
+		{
+			name: "last item overrides exclude",
+			args: args{items: []EntityItem{{Id: "one", Oldest: t1}, {Id: "one", Include: true, Oldest: t2}}},
+			want: &EntityList{
+				index:               map[string]*EntityItem{"one": {Id: "one", Include: true, Oldest: t2}},
+				hasIncludes:         true,
+				hasExplicitIncludes: true,
+			},
+		},
+		{
 			name: "includes only",
 			args: args{
 				items: []EntityItem{
@@ -876,8 +950,9 @@ func TestNewEntityListFromItems(t *testing.T) {
 					"two":   {Id: "two", Include: true, Oldest: t3},
 					"three": {Id: "three", Include: true, Latest: t2},
 				},
-				hasIncludes: true,
-				hasExcludes: false,
+				hasIncludes:         true,
+				hasExcludes:         false,
+				hasExplicitIncludes: true,
 			},
 		},
 		{
@@ -895,8 +970,9 @@ func TestNewEntityListFromItems(t *testing.T) {
 					"two":   {Id: "two", Include: false, Oldest: t3},
 					"three": {Id: "three", Include: true, Latest: t2},
 				},
-				hasIncludes: true,
-				hasExcludes: true,
+				hasIncludes:         true,
+				hasExcludes:         true,
+				hasExplicitIncludes: true,
 			},
 		},
 		{
@@ -934,13 +1010,27 @@ func TestEntityList_Overlay(t *testing.T) {
 		want  *EntityList
 	}{
 		{
+			name: "other carries explicit includes already overridden",
+			el:   NewEntityListFromItems(),
+			other: NewEntityListFromItems(
+				EntityItem{Id: "A1", Include: true},
+				EntityItem{Id: "A1", Include: false},
+			),
+			want: &EntityList{
+				index:               map[string]*EntityItem{"A1": {Id: "A1", Include: false}},
+				hasExcludes:         true,
+				hasExplicitIncludes: true,
+			},
+		},
+		{
 			name:  "nil other - el unchanged",
 			el:    NewEntityListFromItems(EntityItem{Id: "A1", Include: true}),
 			other: nil,
 			want: &EntityList{
-				index:       map[string]*EntityItem{"A1": {Id: "A1", Include: true}},
-				hasIncludes: true,
-				hasExcludes: false,
+				index:               map[string]*EntityItem{"A1": {Id: "A1", Include: true}},
+				hasIncludes:         true,
+				hasExcludes:         false,
+				hasExplicitIncludes: true,
 			},
 		},
 		{
@@ -952,8 +1042,9 @@ func TestEntityList_Overlay(t *testing.T) {
 					"A1": {Id: "A1", Include: true},
 					"A2": {Id: "A2", Include: false},
 				},
-				hasIncludes: true,
-				hasExcludes: true,
+				hasIncludes:         true,
+				hasExcludes:         true,
+				hasExplicitIncludes: true,
 			},
 		},
 		{
@@ -965,8 +1056,9 @@ func TestEntityList_Overlay(t *testing.T) {
 					"B1": {Id: "B1", Include: true},
 					"B2": {Id: "B2", Include: false},
 				},
-				hasIncludes: true,
-				hasExcludes: true,
+				hasIncludes:         true,
+				hasExcludes:         true,
+				hasExplicitIncludes: true,
 			},
 		},
 		{
@@ -978,8 +1070,9 @@ func TestEntityList_Overlay(t *testing.T) {
 					"A1": {Id: "A1", Include: true},
 					"B1": {Id: "B1", Include: true},
 				},
-				hasIncludes: true,
-				hasExcludes: false,
+				hasIncludes:         true,
+				hasExcludes:         false,
+				hasExplicitIncludes: true,
 			},
 		},
 		{
@@ -990,8 +1083,9 @@ func TestEntityList_Overlay(t *testing.T) {
 				index: map[string]*EntityItem{
 					"A1": {Id: "A1", Include: false},
 				},
-				hasIncludes: false,
-				hasExcludes: true,
+				hasIncludes:         false,
+				hasExcludes:         true,
+				hasExplicitIncludes: true,
 			},
 		},
 		{
@@ -1002,8 +1096,9 @@ func TestEntityList_Overlay(t *testing.T) {
 				index: map[string]*EntityItem{
 					"A1": {Id: "A1", Include: true},
 				},
-				hasIncludes: true,
-				hasExcludes: false,
+				hasIncludes:         true,
+				hasExcludes:         false,
+				hasExplicitIncludes: true,
 			},
 		},
 		{
@@ -1016,8 +1111,9 @@ func TestEntityList_Overlay(t *testing.T) {
 					"A2": {Id: "A2", Include: true},
 					"B1": {Id: "B1", Include: false},
 				},
-				hasIncludes: true,
-				hasExcludes: true,
+				hasIncludes:         true,
+				hasExcludes:         true,
+				hasExplicitIncludes: true,
 			},
 		},
 		{
@@ -1029,8 +1125,9 @@ func TestEntityList_Overlay(t *testing.T) {
 					"A1": {Id: "A1", Include: false},
 					"B1": {Id: "B1", Include: true},
 				},
-				hasIncludes: true,
-				hasExcludes: true,
+				hasIncludes:         true,
+				hasExcludes:         true,
+				hasExplicitIncludes: true,
 			},
 		},
 		{
@@ -1045,8 +1142,9 @@ func TestEntityList_Overlay(t *testing.T) {
 					"A1": {Id: "A1", Include: true},
 					"A2": {Id: "A2", Include: true},
 				},
-				hasIncludes: true,
-				hasExcludes: false,
+				hasIncludes:         true,
+				hasExcludes:         false,
+				hasExplicitIncludes: true,
 			},
 		},
 		{
@@ -1061,8 +1159,9 @@ func TestEntityList_Overlay(t *testing.T) {
 					"A1": {Id: "A1", Include: false},
 					"A2": {Id: "A2", Include: false},
 				},
-				hasIncludes: false,
-				hasExcludes: true,
+				hasIncludes:         false,
+				hasExcludes:         true,
+				hasExplicitIncludes: true,
 			},
 		},
 		{
@@ -1083,8 +1182,9 @@ func TestEntityList_Overlay(t *testing.T) {
 					"A3": {Id: "A3", Include: false},
 					"B1": {Id: "B1", Include: true},
 				},
-				hasIncludes: true,
-				hasExcludes: true,
+				hasIncludes:         true,
+				hasExcludes:         true,
+				hasExplicitIncludes: true,
 			},
 		},
 	}

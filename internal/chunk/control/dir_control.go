@@ -72,7 +72,7 @@ func (c *DirController) Run(ctx context.Context, list *structures.EntityList) er
 	defer task.End()
 
 	var dcp processor.Channels = &processor.NopChannels{}
-	if !list.HasIncludes() { // all channels are included
+	if !list.HasExplicitIncludes() || (c.flags.Refresh && !list.HasIncludes()) {
 		if p, err := dirproc.NewChannels(c.cd); err != nil {
 			return Error{"channel", "init", err}
 		} else {

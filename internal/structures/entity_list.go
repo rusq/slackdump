@@ -73,10 +73,11 @@ func (ei *EntityItem) String() string {
 
 // EntityList is an Inclusion/Exclusion list
 type EntityList struct {
-	index       map[string]*EntityItem
-	mu          sync.RWMutex
-	hasIncludes bool
-	hasExcludes bool
+	index               map[string]*EntityItem
+	mu                  sync.RWMutex
+	hasIncludes         bool
+	hasExcludes         bool
+	hasExplicitIncludes bool
 }
 
 func (el *EntityList) IncludeCount() int {
@@ -125,32 +126,23 @@ func (el *EntityList) Overlay(other *EntityList) {
 	other.mu.RLock()
 	defer other.mu.RUnlock()
 
+	el.hasExplicitIncludes = el.hasExplicitIncludes || other.hasExplicitIncludes
 	if len(other.index) == 0 {
 		return
 	}
 
 	maps.Copy(el.index, other.index)
-
-	el.hasExcludes = false
-	el.hasIncludes = false
-	for _, item := range el.index {
-		if !item.Include {
-			el.hasExcludes = true
-		} else {
-			el.hasIncludes = true
-		}
-	}
+	el.updateEffectiveFlags()
 }
 
 // NewEntityList creates an EntityList from a slice of IDs or URLs (entities).
 func NewEntityList(entities []string) (*EntityList, error) {
-	var el EntityList
-
-	index, err := buildEntryIndex(entities)
+	entries, err := buildEntryIndex(entities)
 	if err != nil {
 		return nil, err
 	}
-	el.fromIndex(index)
+	el := EntityList{hasExplicitIncludes: entries.hasExplicitIncludes}
+	el.fromIndex(entries.index)
 
 	return &el, nil
 }
@@ -174,12 +166,9 @@ func NewEntityListFromItems(items ...EntityItem) *EntityList {
 	}
 	for _, item := range items {
 		el.index[item.Id] = &item
-		if item.Include && !el.hasIncludes {
-			el.hasIncludes = true
-		} else if !item.Include && !el.hasExcludes {
-			el.hasExcludes = true
-		}
+		el.hasExplicitIncludes = el.hasExplicitIncludes || item.Include
 	}
+	el.updateEffectiveFlags()
 	return &el
 }
 
@@ -194,34 +183,34 @@ func SplitEntryList(s string) []string {
 	return strings.Split(s, " ")
 }
 
-// LoadEntityList creates an EntityList from a slice of IDs or URLs (entities).
-func loadEntityIndex(filename string) (map[string]bool, error) {
+// loadEntityIndex loads the entries from a file.
+func loadEntityIndex(filename string) (entryIndex, error) {
 	f, err := os.Open(filename)
 	if err != nil {
-		return nil, err
+		return entryIndex{}, err
 	}
 	defer f.Close()
 	return readEntityIndex(f, maxFileEntries)
 }
 
-// readEntityList is a rather naïve implementation that reads the entire file up
+// readEntityIndex is a rather naïve implementation that reads the entire file up
 // to maxEntries entities (empty lines are skipped), and populates the slice of
-// strings, which is then passed to NewEntityList.  On large lists it will
+// strings, which is then passed to buildEntryIndex. On large lists it will
 // probably use a silly amount of memory.
-func readEntityIndex(r io.Reader, maxEntries int) (map[string]bool, error) {
+func readEntityIndex(r io.Reader, maxEntries int) (entryIndex, error) {
 	br := bufio.NewReader(r)
 	var elements []string
 	total := 0
 	var exit bool
 	for n := 1; ; n++ {
 		if total >= maxEntries {
-			return nil, fmt.Errorf("%w (%d)", ErrMaxFileSize, maxFileEntries)
+			return entryIndex{}, fmt.Errorf("%w (%d)", ErrMaxFileSize, maxFileEntries)
 		}
 		line, err := br.ReadString('\n')
 		if errors.Is(err, io.EOF) {
 			exit = true
 		} else if err != nil {
-			return nil, err
+			return entryIndex{}, err
 		}
 		line = strings.TrimSpace(line)
 		if line == "" || line[0] == '#' {
@@ -276,6 +265,11 @@ func (el *EntityList) fromIndex(index map[string]bool) {
 		el.index[item.Id] = item
 	}
 
+	el.updateEffectiveFlags()
+}
+
+// updateEffectiveFlags assumes el.mu is held or el is being constructed.
+func (el *EntityList) updateEffectiveFlags() {
 	el.hasIncludes = false
 	el.hasExcludes = false
 	for _, item := range el.index {
@@ -332,12 +326,24 @@ func (ei EntityIndex) IsIncluded(ent string) bool {
 
 // HasIncludes returns true if there's any included entities.
 func (el *EntityList) HasIncludes() bool {
+	el.mu.RLock()
+	defer el.mu.RUnlock()
 	return el.hasIncludes
 }
 
 // HasExcludes returns true if there's any excluded entities.
 func (el *EntityList) HasExcludes() bool {
+	el.mu.RLock()
+	defer el.mu.RUnlock()
 	return el.hasExcludes
+}
+
+// HasExplicitIncludes reports whether the input included a positive entry,
+// even if every positive entry was overridden by an exclusion.
+func (el *EntityList) HasExplicitIncludes() bool {
+	el.mu.RLock()
+	defer el.mu.RUnlock()
+	return el.hasExplicitIncludes
 }
 
 // IsEmpty returns true if there's no entries in the list.
@@ -345,8 +351,13 @@ func (el *EntityList) IsEmpty() bool {
 	return len(el.index) == 0
 }
 
-func buildEntryIndex(links []string) (map[string]bool, error) {
-	index := make(map[string]bool, len(links))
+type entryIndex struct {
+	index               map[string]bool
+	hasExplicitIncludes bool
+}
+
+func buildEntryIndex(links []string) (entryIndex, error) {
+	entries := entryIndex{index: make(map[string]bool, len(links))}
 	var excluded []string
 	var files []string
 	// add all included items
@@ -363,7 +374,7 @@ func buildEntryIndex(links []string) (map[string]bool, error) {
 			}
 			sl, err := ParseLink(trimmed)
 			if err != nil {
-				return nil, err
+				return entryIndex{}, err
 			}
 			parts[0] = sl.String()
 			excluded = append(excluded, strings.Join(parts, timeSeparator))
@@ -377,30 +388,32 @@ func buildEntryIndex(links []string) (map[string]bool, error) {
 			// no prefix
 			sl, err := ParseLink(parts[0])
 			if err != nil {
-				return nil, err
+				return entryIndex{}, err
 			}
 			parts[0] = sl.String()
-			index[strings.Join(parts, timeSeparator)] = true
+			entries.index[strings.Join(parts, timeSeparator)] = true
+			entries.hasExplicitIncludes = true
 		}
 	}
 	// process files
 	for _, file := range files {
-		index2, err := loadEntityIndex(file)
+		fileEntries, err := loadEntityIndex(file)
 		if err != nil {
-			return nil, err
+			return entryIndex{}, err
 		}
-		for ent, include := range index2 {
+		entries.hasExplicitIncludes = entries.hasExplicitIncludes || fileEntries.hasExplicitIncludes
+		for ent, include := range fileEntries.index {
 			if include {
-				index[ent] = true
+				entries.index[ent] = true
 			} else {
 				excluded = append(excluded, ent)
 			}
 		}
 	}
 	for _, ent := range excluded {
-		index[ent] = false
+		entries.index[ent] = false
 	}
-	return index, nil
+	return entries, nil
 }
 
 // C returns a channel where all included entries are streamed.
