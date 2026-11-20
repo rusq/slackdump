@@ -241,8 +241,7 @@ func (r dedupeRepository) countDuplicates(ctx context.Context, db sqlx.QueryerCo
 
 func (r dedupeRepository) prunableChunkIDs(ctx context.Context, db sqlx.QueryerContext, entity dedupeEntity) ([]int64, error) {
 	stmt := withDuplicateRows(entity, buildPrunableChunksSelect(entity))
-	args := append(chunkTypeArgs(entity.chunkTypes), chunkTypeArgs(entity.chunkTypes)...)
-	rows, err := queryxContext(ctx, db, stmt, args...)
+	rows, err := queryxContext(ctx, db, stmt, chunkTypeArgs(entity.chunkTypes)...)
 	if err != nil {
 		return nil, err
 	}
@@ -317,7 +316,7 @@ func deleteChunksByID(ctx context.Context, tx *sqlx.Tx, ids []int64, chunkTypes 
 func buildPrunableChunksSelect(entity dedupeEntity) string {
 	var buf strings.Builder
 	buf.WriteString("SELECT C.ID\n")
-	buf.WriteString("FROM CHUNK C\n")
+	buf.WriteString("FROM eligible_chunks C\n")
 	buf.WriteString("LEFT JOIN ")
 	buf.WriteString(entity.table)
 	buf.WriteString(" T ON T.CHUNK_ID = C.ID\n")
@@ -326,9 +325,7 @@ func buildPrunableChunksSelect(entity dedupeEntity) string {
 		buf.WriteString(" AND ")
 		buf.WriteString(joinOnColumns("D", "T", entity.keyColumns))
 	}
-	buf.WriteString("\nWHERE C.TYPE_ID IN (")
-	buf.WriteString(strings.Join(placeholders(entity.chunkTypes), ","))
-	buf.WriteString(")\nGROUP BY C.ID\nHAVING COUNT(T.CHUNK_ID) > 0 AND COUNT(T.CHUNK_ID) = COUNT(D.CHUNK_ID)")
+	buf.WriteString("\nGROUP BY C.ID\nHAVING COUNT(T.CHUNK_ID) > 0 AND COUNT(T.CHUNK_ID) = COUNT(D.CHUNK_ID)")
 	return buf.String()
 }
 
@@ -347,19 +344,20 @@ func buildDeleteDuplicatesStmt(entity dedupeEntity) string {
 
 func withDuplicateRows(entity dedupeEntity, final string) string {
 	var buf strings.Builder
-	buf.WriteString("WITH latest AS (\n")
+	buf.WriteString("WITH eligible_chunks AS NOT MATERIALIZED (\n")
+	buf.WriteString("SELECT ID, SESSION_ID FROM CHUNK WHERE TYPE_ID IN (")
+	buf.WriteString(strings.Join(placeholders(entity.chunkTypes), ","))
+	buf.WriteString(")\n), latest AS (\n")
 	buf.WriteString("SELECT ")
 	buf.WriteString(selectAliasedColumns("T", entity.keyColumns))
 	if entity.mode == dedupeByData {
 		buf.WriteString(", T.DATA AS DATA")
 	}
-	buf.WriteString(", MAX(T.CHUNK_ID) AS KEEP_CHUNK_ID\n")
+	buf.WriteString(", COALESCE(MAX(CASE WHEN S.FINISHED = TRUE THEN T.CHUNK_ID END), MAX(T.CHUNK_ID)) AS KEEP_CHUNK_ID\n")
 	buf.WriteString("FROM ")
 	buf.WriteString(entity.table)
-	buf.WriteString(" T\nJOIN CHUNK C ON C.ID = T.CHUNK_ID\n")
-	buf.WriteString("WHERE C.TYPE_ID IN (")
-	buf.WriteString(strings.Join(placeholders(entity.chunkTypes), ","))
-	buf.WriteString(")\nGROUP BY ")
+	buf.WriteString(" T\nJOIN eligible_chunks C ON C.ID = T.CHUNK_ID\n")
+	buf.WriteString("LEFT JOIN SESSION S ON S.ID = C.SESSION_ID\nGROUP BY ")
 	buf.WriteString(qualifyColumns("T", entity.keyColumns))
 	if entity.mode == dedupeByData {
 		buf.WriteString(", T.DATA")
@@ -370,12 +368,12 @@ func withDuplicateRows(entity dedupeEntity, final string) string {
 	buf.WriteString(", T.CHUNK_ID\n")
 	buf.WriteString("FROM ")
 	buf.WriteString(entity.table)
-	buf.WriteString(" T\nJOIN latest L ON ")
+	buf.WriteString(" T\nJOIN eligible_chunks C ON C.ID = T.CHUNK_ID\nJOIN latest L ON ")
 	buf.WriteString(joinOnColumns("T", "L", entity.keyColumns))
 	if entity.mode == dedupeByData {
 		buf.WriteString(" AND L.DATA = T.DATA")
 	}
-	buf.WriteString("\nWHERE T.CHUNK_ID < L.KEEP_CHUNK_ID\n)\n")
+	buf.WriteString("\nWHERE T.CHUNK_ID <> L.KEEP_CHUNK_ID\n)\n")
 	buf.WriteString(final)
 	return buf.String()
 }

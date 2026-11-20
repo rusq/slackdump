@@ -183,8 +183,14 @@ func TestDedupeRepository_Preview(t *testing.T) {
 
 		counts, err := repo.Preview(ctx, db)
 		require.NoError(t, err)
-		assert.Equal(t, int64(0), counts.Messages)
-		assert.Equal(t, int64(2), counts.CanvasMessages)
+		assert.Equal(t, DedupeStats{CanvasMessages: 1, Chunks: 1}, counts)
+
+		result, err := repo.Deduplicate(ctx, db)
+		require.NoError(t, err)
+		assert.Equal(t, counts, result)
+		var survivors []int64
+		require.NoError(t, db.Select(&survivors, "SELECT CHUNK_ID FROM MESSAGE ORDER BY CHUNK_ID"))
+		assert.Equal(t, []int64{11, 22}, survivors)
 	})
 
 	t.Run("does not count reshared files in different attachment contexts as duplicates", func(t *testing.T) {
@@ -208,6 +214,57 @@ func TestDedupeRepository_Preview(t *testing.T) {
 
 func TestDedupeRepository_Deduplicate(t *testing.T) {
 	for _, mode := range []MessageDedupeMode{MessageDedupeExact, MessageDedupeKey} {
+		t.Run("prefers finished sessions/"+string(mode), func(t *testing.T) {
+			db := testConn(t)
+			ctx := t.Context()
+			repo := NewDedupeRepository(WithMessageDedupeMode(mode))
+
+			insertSessionForTest(t, db, 1, true, nil)
+			insertSessionForTest(t, db, 2, true, nil)
+			insertSessionForTest(t, db, 3, false, nil)
+			insertSessionForTest(t, db, 4, false, nil)
+			for _, row := range []struct {
+				session, chunk, message int64
+				payload                 string
+			}{
+				{1, 11, 100, `{"text":"repeated"}`},
+				{2, 21, 100, `{"text":"repeated"}`},
+				{3, 31, 100, `{"text":"repeated"}`},
+				{3, 32, 200, `{"text":"unfinished only"}`},
+				{4, 42, 200, `{"text":"unfinished only"}`},
+				{1, 12, 300, `{"text":"first"}`},
+				{2, 22, 300, `{"text":"edited"}`},
+				{3, 33, 300, `{"text":"edited again"}`},
+			} {
+				insertChunkForTest(t, db, row.chunk, row.session, chunk.CMessages)
+				insertMessageWithChunkForTest(t, db, row.message, row.chunk, []byte(row.payload))
+			}
+
+			wantStats := DedupeStats{Messages: 3, Chunks: 3}
+			wantSurvivors := []int64{12, 21, 22, 33, 42}
+			wantAfterCleanup := []int64{12, 21, 22}
+			if mode == MessageDedupeKey {
+				wantStats = DedupeStats{Messages: 5, Chunks: 5}
+				wantSurvivors = []int64{21, 22, 42}
+				wantAfterCleanup = []int64{21, 22}
+			}
+			preview, err := repo.Preview(ctx, db)
+			require.NoError(t, err)
+			require.Equal(t, wantStats, preview)
+			result, err := repo.Deduplicate(ctx, db)
+			require.NoError(t, err)
+			require.Equal(t, preview, result)
+			var survivors []int64
+			require.NoError(t, db.Select(&survivors, "SELECT CHUNK_ID FROM MESSAGE ORDER BY CHUNK_ID"))
+			assert.Equal(t, wantSurvivors, survivors)
+
+			cleanup, err := NewCleanupRepository().CleanupUnfinishedSessions(ctx, db)
+			require.NoError(t, err)
+			assert.EqualValues(t, 2, cleanup.SessionsRemoved)
+			assert.EqualValues(t, len(wantSurvivors)-len(wantAfterCleanup), cleanup.PayloadRemoved["MESSAGE"])
+			require.NoError(t, db.Select(&survivors, "SELECT CHUNK_ID FROM MESSAGE ORDER BY CHUNK_ID"))
+			assert.Equal(t, wantAfterCleanup, survivors)
+		})
 		t.Run("skewed/"+string(mode), func(t *testing.T) {
 			db := skewedDedupeFixture(t, 2000)
 			expected := expectedDedupeMessages(t, db, mode)
