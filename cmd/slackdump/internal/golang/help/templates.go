@@ -6,6 +6,12 @@
 
 package help
 
+import (
+	"fmt"
+	"strings"
+	"text/template"
+)
+
 var (
 	helpTemplate = `{{if .Runnable}}usage: {{.UsageLine}}
 
@@ -31,3 +37,16 @@ Use "slackdump help{{with .LongName}} {{.}}{{end}} <topic>" for more information
 {{end}}
 `
 )
+
+// RenderTemplate renders the given text using the variables
+func RenderTemplate(tmpl string, data any) (string, error) {
+	var b strings.Builder
+	t, err := template.New("").Option("missingkey=error").Parse(tmpl)
+	if err != nil {
+		return "", fmt.Errorf("parse: %w", err)
+	}
+	if err := t.Execute(&b, data); err != nil {
+		return "", fmt.Errorf("execute: %w", err)
+	}
+	return b.String(), nil
+}
