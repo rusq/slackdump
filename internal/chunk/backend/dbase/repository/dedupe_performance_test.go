@@ -94,17 +94,13 @@ func Test_withDuplicateRows(t *testing.T) {
 				t.Run(entity.etype.String(), func(t *testing.T) {
 					for _, query := range []struct {
 						name, final string
-						pruning     bool
 					}{
-						{"count", `SELECT COUNT(1) FROM duplicates`, false},
-						{"pruning", buildPrunableChunksSelect(entity), true},
-						{"delete", buildDeleteDuplicatesStmt(entity), false},
+						{"count", `SELECT COUNT(1) FROM duplicates`},
+						{"pruning", buildPrunableChunksSelect(entity)},
+						{"delete", buildDeleteDuplicatesStmt(entity)},
 					} {
 						t.Run(query.name, func(t *testing.T) {
 							args := chunkTypeArgs(entity.chunkTypes)
-							if query.pruning {
-								args = append(args, chunkTypeArgs(entity.chunkTypes)...)
-							}
 							rows, err := db.Query(`EXPLAIN QUERY PLAN `+withDuplicateRows(entity, query.final), args...)
 							require.NoError(t, err)
 							defer rows.Close()

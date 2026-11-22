@@ -26,10 +26,12 @@ import (
 
 	"github.com/rusq/slack"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 
 	"github.com/rusq/slackdump/v4"
 	"github.com/rusq/slackdump/v4/internal/chunk/control/mock_control"
+	"github.com/rusq/slackdump/v4/internal/fixtures"
 	"github.com/rusq/slackdump/v4/internal/structures"
 	"github.com/rusq/slackdump/v4/mocks/mock_processor"
 	"github.com/rusq/slackdump/v4/processor"
@@ -514,6 +516,11 @@ func Test_tryClose(t *testing.T) {
 }
 
 func Test_newGenerator(t *testing.T) {
+	unscoped, err := structures.NewEntityList([]string{"^"})
+	require.NoError(t, err)
+	exclusions, err := structures.NewEntityList([]string{"^C11111111"})
+	require.NoError(t, err)
+
 	type args struct {
 		s     Streamer
 		p     superprocessor
@@ -544,11 +551,16 @@ func Test_newGenerator(t *testing.T) {
 			want: &listGen{},
 		},
 		{
+			name: "unscoped",
+			args: args{
+				list: unscoped,
+			},
+			want: &apiGenerator{},
+		},
+		{
 			name: "exclusive",
 			args: args{
-				s:     nil,
-				flags: Flags{},
-				list:  structures.NewEntityListFromItems(structures.EntityItem{Id: "C11111111", Include: false}),
+				list: exclusions,
 			},
 			want: &apiGenerator{},
 		},
@@ -742,6 +754,53 @@ func Test_runWorkers(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("all explicit includes excluded", func(t *testing.T) {
+		file := fixtures.MkTestFile(t, t.TempDir(), "C11111111,2024-01-01\n")
+		list, err := structures.NewEntityList([]string{"@" + file, "^C11111111"})
+		require.NoError(t, err)
+
+		ctrl := gomock.NewController(t)
+		s := mock_control.NewMockStreamer(ctrl) // no calls expected
+
+		err = runWorkers(t.Context(), s, list, superprocessor{
+			Conversations: mock_processor.NewMockConversations(ctrl),
+			Users:         mock_processor.NewMockUsers(ctrl),
+			Channels:      &processor.NopChannels{},
+			WorkspaceInfo: mock_processor.NewMockWorkspaceInfo(ctrl),
+		}, Flags{})
+		require.ErrorIs(t, err, ErrNothingToDo)
+	})
+
+	t.Run("refresh with all explicit includes excluded", func(t *testing.T) {
+		list, err := structures.NewEntityList([]string{"C11111111", "^C11111111"})
+		require.NoError(t, err)
+
+		ctrl := gomock.NewController(t)
+		s := mock_control.NewMockStreamer(ctrl)
+		conversations := mock_processor.NewMockConversations(ctrl)
+		users := mock_processor.NewMockUsers(ctrl)
+		workspace := mock_processor.NewMockWorkspaceInfo(ctrl)
+
+		s.EXPECT().WorkspaceInfo(gomock.Any(), workspace).Return(nil)
+		s.EXPECT().Users(gomock.Any(), users, gomock.Any()).Return(nil)
+		s.EXPECT().ListChannels(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
+		s.EXPECT().Conversations(gomock.Any(), conversations, gomock.Any()).DoAndReturn(
+			func(_ context.Context, _ processor.Conversations, links <-chan structures.EntityItem) error {
+				for item := range links {
+					t.Errorf("unexpected conversation: %v", item)
+				}
+				return nil
+			})
+		conversations.EXPECT().Close().Return(nil)
+
+		require.NoError(t, runWorkers(t.Context(), s, list, superprocessor{
+			Conversations: conversations,
+			Users:         users,
+			Channels:      &processor.NopChannels{},
+			WorkspaceInfo: workspace,
+		}, Flags{Refresh: true}))
+	})
 
 	t.Run("conversation failure cancels blocked API generator", func(t *testing.T) {
 		ctrl := gomock.NewController(t)

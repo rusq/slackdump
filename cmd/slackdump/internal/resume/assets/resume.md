@@ -47,6 +47,11 @@ slackdump resume -refresh -member-only <archive>
 The membership filter applies to newly discovered channels. Channels already
 in the resume list are still processed, even if you are no longer a member.
 
+Exclusions still apply with `-refresh`.  If they remove every channel from the
+resume list, `-refresh` continues with the discovered channels minus the
+excluded ones; without `-refresh`, Slackdump stops with a "nothing to do"
+error.
+
 ### Deduplicating resume overlap.
 
 Resume uses a lookback window to avoid missing edits, replies, and other

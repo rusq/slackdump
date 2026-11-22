@@ -9,8 +9,10 @@ regenerated volatile message fields between exports.
 
 `slackdump resume` intentionally looks back in time so it can pick up new
 replies on older messages. That overlap can record the same payload in more
-than one session. `dedupe` removes the older identical copies, keeps the
-latest copy, and prunes chunks that become empty as a result.
+than one session. `dedupe` removes duplicates and prunes chunks that become
+empty as a result. In both modes, it keeps the copy with the highest chunk ID
+from a finished session. If none of the copies came from a finished session,
+it keeps the copy with the highest chunk ID overall.
 
 ## Usage
 
@@ -33,14 +35,14 @@ point the command at the database file itself.
 | Flag | Description |
 |------|-------------|
 | `-execute` | Required flag to actually remove duplicate entities |
-| `-mode` | Message dedupe mode: `exact` keeps current byte-for-byte behavior; `message-key` keeps the latest row per channel and timestamp |
+| `-mode` | `exact` matches message payloads byte for byte. `message-key` matches by channel and timestamp regardless of payload. |
 
 `message-key` is useful after merging multiple Slack exports of the same
 workspace when duplicate messages differ only in volatile Slack-generated JSON
 fields, such as `blocks[].block_id`. It is intentionally opt-in because it can
-discard older edited or reaction variants for the same message timestamp. It
+discard edited or reaction variants for the same message timestamp. It
 also treats channel-history and thread-message copies of the same channel
-timestamp as one logical message and keeps the latest database row.
+timestamp as one logical message.
 
 ## Example
 
