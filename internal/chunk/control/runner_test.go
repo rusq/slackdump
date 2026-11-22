@@ -761,6 +761,22 @@ func Test_runWorkers(t *testing.T) {
 		require.NoError(t, err)
 
 		ctrl := gomock.NewController(t)
+		s := mock_control.NewMockStreamer(ctrl) // no calls expected
+
+		err = runWorkers(t.Context(), s, list, superprocessor{
+			Conversations: mock_processor.NewMockConversations(ctrl),
+			Users:         mock_processor.NewMockUsers(ctrl),
+			Channels:      &processor.NopChannels{},
+			WorkspaceInfo: mock_processor.NewMockWorkspaceInfo(ctrl),
+		}, Flags{})
+		require.ErrorIs(t, err, ErrNothingToDo)
+	})
+
+	t.Run("refresh with all explicit includes excluded", func(t *testing.T) {
+		list, err := structures.NewEntityList([]string{"C11111111", "^C11111111"})
+		require.NoError(t, err)
+
+		ctrl := gomock.NewController(t)
 		s := mock_control.NewMockStreamer(ctrl)
 		conversations := mock_processor.NewMockConversations(ctrl)
 		users := mock_processor.NewMockUsers(ctrl)
@@ -768,6 +784,7 @@ func Test_runWorkers(t *testing.T) {
 
 		s.EXPECT().WorkspaceInfo(gomock.Any(), workspace).Return(nil)
 		s.EXPECT().Users(gomock.Any(), users, gomock.Any()).Return(nil)
+		s.EXPECT().ListChannels(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
 		s.EXPECT().Conversations(gomock.Any(), conversations, gomock.Any()).DoAndReturn(
 			func(_ context.Context, _ processor.Conversations, links <-chan structures.EntityItem) error {
 				for item := range links {
@@ -782,7 +799,7 @@ func Test_runWorkers(t *testing.T) {
 			Users:         users,
 			Channels:      &processor.NopChannels{},
 			WorkspaceInfo: workspace,
-		}, Flags{}))
+		}, Flags{Refresh: true}))
 	})
 
 	t.Run("conversation failure cancels blocked API generator", func(t *testing.T) {

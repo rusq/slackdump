@@ -927,11 +927,20 @@ func TestNewEntityListFromItems(t *testing.T) {
 			},
 		},
 		{
-			name: "last item overrides exclude",
+			name: "exclude wins over later include",
 			args: args{items: []EntityItem{{Id: "one", Oldest: t1}, {Id: "one", Include: true, Oldest: t2}}},
 			want: &EntityList{
-				index:               map[string]*EntityItem{"one": {Id: "one", Include: true, Oldest: t2}},
-				hasIncludes:         true,
+				index:               map[string]*EntityItem{"one": {Id: "one", Oldest: t1}},
+				hasExcludes:         true,
+				hasExplicitIncludes: true,
+			},
+		},
+		{
+			name: "later exclude overrides include",
+			args: args{items: []EntityItem{{Id: "one", Include: true, Oldest: t2}, {Id: "one", Oldest: t1}}},
+			want: &EntityList{
+				index:               map[string]*EntityItem{"one": {Id: "one", Oldest: t1}},
+				hasExcludes:         true,
 				hasExplicitIncludes: true,
 			},
 		},

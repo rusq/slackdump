@@ -115,7 +115,10 @@ example:
 slackdump archive @data.txt ^C123456
 ```
 This command includes channels listed in `data.txt` but excludes `C123456`.
-If exclusions remove every explicit include, Slackdump selects zero conversations.
+If exclusions remove every explicit include, Slackdump stops with a "nothing
+to do" error.  The exception is `slackdump resume -refresh`, which still
+discovers channels through the API and processes every discovered channel
+except the excluded ones.
 
 Sample file:
 ```text

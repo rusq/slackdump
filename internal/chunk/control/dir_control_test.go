@@ -160,28 +160,30 @@ func TestDirController_Run(t *testing.T) {
 			defer cd.Close()
 
 			s := mock_control.NewMockStreamer(gomock.NewController(t))
-			s.EXPECT().WorkspaceInfo(gomock.Any(), gomock.Any()).Return(nil)
-			s.EXPECT().Users(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
-				func(ctx context.Context, proc processor.Users, _ ...slack.GetUsersOption) error {
-					return proc.Users(ctx, testUsers)
-				})
-			s.EXPECT().Conversations(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
-				func(_ context.Context, _ processor.Conversations, links <-chan structures.EntityItem) error {
-					for range links {
-					}
-					return nil
-				})
 			if tt.refresh {
+				s.EXPECT().WorkspaceInfo(gomock.Any(), gomock.Any()).Return(nil)
+				s.EXPECT().Users(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
+					func(ctx context.Context, proc processor.Users, _ ...slack.GetUsersOption) error {
+						return proc.Users(ctx, testUsers)
+					})
+				s.EXPECT().Conversations(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
+					func(_ context.Context, _ processor.Conversations, links <-chan structures.EntityItem) error {
+						for range links {
+						}
+						return nil
+					})
 				s.EXPECT().ListChannels(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
 			}
 
 			c := NewDir(cd, s, WithFlags(Flags{Refresh: tt.refresh}))
 			defer c.Close()
-			require.NoError(t, c.Run(t.Context(), excluded))
+			err = c.Run(t.Context(), excluded)
 			channelsFile := filepath.Join(dir, "channels.json.gz")
 			if tt.refresh {
+				require.NoError(t, err)
 				assert.FileExists(t, channelsFile)
 			} else {
+				require.ErrorIs(t, err, ErrNothingToDo)
 				assert.NoFileExists(t, channelsFile)
 			}
 		})

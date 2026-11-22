@@ -83,6 +83,20 @@ func (e Error) Unwrap() error {
 	return e.Err
 }
 
+// ErrNothingToDo is returned when exclusions remove every explicitly included
+// entity, so there is nothing left to process.
+var ErrNothingToDo = errors.New("nothing to do: exclusions removed every included conversation")
+
+// checkList returns [ErrNothingToDo] if every explicit include in the list was
+// cancelled by an exclusion.  With Refresh enabled, channels are still
+// discovered through the API, so the list is accepted.
+func checkList(list *structures.EntityList, flags Flags) error {
+	if list != nil && !flags.Refresh && list.HasExplicitIncludes() && !list.HasIncludes() {
+		return ErrNothingToDo
+	}
+	return nil
+}
+
 // superprocessor is a combination of all processors necessary for scraping messages.
 type superprocessor struct {
 	processor.Conversations
@@ -119,6 +133,9 @@ func newGenerator(s Streamer, p superprocessor, flags Flags, list *structures.En
 // process it.  It runs the workers in parallel and waits for all of them to
 // finish.  If any of the workers return an error, it returns the error.
 func runWorkers(ctx context.Context, s Streamer, list *structures.EntityList, p superprocessor, flags Flags) error {
+	if err := checkList(list, flags); err != nil {
+		return err
+	}
 	ctx, task := trace.NewTask(ctx, "runWorkers")
 	defer task.End()
 

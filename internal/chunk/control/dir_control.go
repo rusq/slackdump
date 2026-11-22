@@ -71,8 +71,12 @@ func (c *DirController) Run(ctx context.Context, list *structures.EntityList) er
 	ctx, task := trace.NewTask(ctx, "Controller.Run")
 	defer task.End()
 
+	if err := checkList(list, c.flags); err != nil {
+		return err
+	}
+
 	var dcp processor.Channels = &processor.NopChannels{}
-	if !list.HasExplicitIncludes() || (c.flags.Refresh && !list.HasIncludes()) {
+	if !list.HasExplicitIncludes() || c.flags.Refresh {
 		if p, err := dirproc.NewChannels(c.cd); err != nil {
 			return Error{"channel", "init", err}
 		} else {

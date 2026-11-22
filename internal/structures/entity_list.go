@@ -160,13 +160,19 @@ func NewEntityListFromString(s string) (*EntityList, error) {
 	return NewEntityList(ee)
 }
 
+// NewEntityListFromItems creates an EntityList from items.  As with
+// [NewEntityList], an exclusion takes precedence over an include with the same
+// ID regardless of order; otherwise, a later item replaces an earlier one.
 func NewEntityListFromItems(items ...EntityItem) *EntityList {
 	el := EntityList{
 		index: make(map[string]*EntityItem, len(items)),
 	}
 	for _, item := range items {
-		el.index[item.Id] = &item
 		el.hasExplicitIncludes = el.hasExplicitIncludes || item.Include
+		if existing := el.index[item.Id]; item.Include && existing != nil && !existing.Include {
+			continue // exclusions take precedence
+		}
+		el.index[item.Id] = &item
 	}
 	el.updateEffectiveFlags()
 	return &el
