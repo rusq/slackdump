@@ -19,6 +19,7 @@ import (
 	"context"
 	"fmt"
 	"iter"
+	"log/slog"
 	"runtime/trace"
 	"strings"
 
@@ -220,7 +221,7 @@ func (r messageRepository) CountThread(ctx context.Context, conn sqlx.QueryerCon
 	if err != nil {
 		return 0, fmt.Errorf("countThread fasttime: %w", err)
 	}
-	return r.countTypeWhere(ctx, conn, queryParams{Where: r.threadCond(), Binds: []any{channelID, parentID}}, chunk.CMessages, chunk.CThreadMessages)
+	return countThread(ctx, conn, r.threadCond(), channelID, parentID, chunk.CMessages, chunk.CThreadMessages)
 }
 
 func (r messageRepository) CountCanvasThread(ctx context.Context, conn sqlx.QueryerContext, channelID, threadID string) (int64, error) {
@@ -228,16 +229,31 @@ func (r messageRepository) CountCanvasThread(ctx context.Context, conn sqlx.Quer
 	if err != nil {
 		return 0, fmt.Errorf("countCanvasThread fasttime: %w", err)
 	}
-	return r.countTypeWhere(
-		ctx,
-		conn,
-		queryParams{
-			Where: "T.CHANNEL_ID = ? AND T.PARENT_ID = ?",
-			Binds: []any{channelID, parentID},
-		},
-		chunk.CCanvasMessages,
-		chunk.CCanvasThreadMessages,
-	)
+	return countThread(ctx, conn, "T.CHANNEL_ID = ? AND T.PARENT_ID = ?", channelID, parentID, chunk.CCanvasMessages, chunk.CCanvasThreadMessages)
+}
+
+func countThread(ctx context.Context, conn sqlx.QueryerContext, condition string, channelID string, parentID int64, rootType, replyType chunk.ChunkType) (int64, error) {
+	ctx, task := trace.NewTask(ctx, "countThread")
+	defer task.End()
+
+	// Materialize the matching IDs before deduplicating so SQLite can use the
+	// (CHANNEL_ID, PARENT_ID) index, even without statistics.
+	stmt := `
+WITH THREAD_IDS AS MATERIALIZED (
+	SELECT T.ID
+	FROM MESSAGE AS T
+	JOIN CHUNK AS CH ON CH.ID = T.CHUNK_ID
+	WHERE CH.TYPE_ID IN (?, ?) AND (` + condition + `)
+)
+SELECT COUNT(DISTINCT ID) FROM THREAD_IDS`
+	binds := []any{rootType, replyType, channelID, parentID}
+	slog.DebugContext(ctx, "count", "stmt", stmt, "binds", binds)
+
+	var n int64
+	if err := conn.QueryRowxContext(ctx, rebind(conn, stmt), binds...).Scan(&n); err != nil {
+		return 0, fmt.Errorf("count: %w", err)
+	}
+	return n, nil
 }
 
 func (r messageRepository) AllCanvasMessages(ctx context.Context, conn sqlx.QueryerContext, channelID string) (iter.Seq2[DBMessage, error], error) {

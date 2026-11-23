@@ -298,6 +298,9 @@ func Test_procChanMsg(t *testing.T) {
 			ReplyCount:      3,
 		}},
 	}
+	parentWithFile := threadedMsg[0]
+	parentWithFile.Files = []slack.File{{ID: "F123", Name: "parent.txt"}}
+
 	tests := []struct {
 		name     string
 		args     args
@@ -378,17 +381,21 @@ func Test_procChanMsg(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "skip complete thread",
+			name: "skip complete thread but process parent files",
 			args: args{
 				ctx:     t.Context(),
-				threadC: make(chan ordinaryThreadRequest),
+				threadC: make(chan ordinaryThreadRequest, 1),
 				channel: TestChannel,
 				isLast:  true,
-				mm:      threadedMsg,
+				mm:      []slack.Message{parentWithFile},
 			},
 			skipFn: func(_ context.Context, _, _ string, _ int) bool { return true },
 			expectFn: func(mp *mock_processor.MockConversations) {
-				mp.EXPECT().Messages(gomock.Any(), TestChannel.ID, 0, true, threadedMsg).Times(1)
+				mp.EXPECT().Files(gomock.Any(), TestChannel, parentWithFile, parentWithFile.Files).Times(1)
+				mp.EXPECT().Messages(gomock.Any(), TestChannel.ID, 0, true, []slack.Message{parentWithFile}).Times(1)
+			},
+			checkFn: func(t *testing.T, threadC <-chan ordinaryThreadRequest, _ []slack.Message) {
+				assert.Empty(t, threadC)
 			},
 			want: 0,
 		},

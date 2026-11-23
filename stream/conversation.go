@@ -460,14 +460,14 @@ func (cs *Stream) procChanMsg(ctx context.Context, proc processor.Conversations,
 		if mm[i].ThreadTimestamp != "" && mm[i].SubType != structures.SubTypeThreadBroadcast && mm[i].LatestReply != structures.LatestReplyNoReplies {
 			if cs.skipThread != nil && cs.skipThread(ctx, channel.ID, mm[i].ThreadTimestamp, mm[i].ReplyCount) {
 				slog.DebugContext(ctx, "skipping complete thread", "channel_id", channel.ID, "thread_ts", mm[i].ThreadTimestamp, "reply_count", mm[i].ReplyCount)
-				continue
+			} else {
+				slog.DebugContext(ctx, "- message", "i", i, "thread", mm[i].Timestamp, "thread_ts", mm[i].ThreadTimestamp, "channel_id", channel.ID, "is_last", isLast, "msg_count", len(mm))
+				parent := mm[i]
+				trs = append(trs, ordinaryThreadRequest{
+					fetch:  threadFetchSpec{channelID: channel.ID, threadTS: mm[i].ThreadTimestamp},
+					parent: &parent,
+				})
 			}
-			slog.DebugContext(ctx, "- message", "i", i, "thread", mm[i].Timestamp, "thread_ts", mm[i].ThreadTimestamp, "channel_id", channel.ID, "is_last", isLast, "msg_count", len(mm))
-			parent := mm[i]
-			trs = append(trs, ordinaryThreadRequest{
-				fetch:  threadFetchSpec{channelID: channel.ID, threadTS: mm[i].ThreadTimestamp},
-				parent: &parent,
-			})
 		}
 		if err := procFiles(ctx, proc, channel, mm[i]); err != nil {
 			return len(trs), err
