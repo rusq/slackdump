@@ -295,6 +295,37 @@ type inEvent struct {
 	} `json:"error,omitempty"`
 }
 
+// handledTypes is the set of incoming event types that the Keeper acts on.
+// It must be kept in sync with the cases in [Keeper.handle].
+var handledTypes = map[string]struct{}{
+	"hello":                  {},
+	"pong":                   {},
+	"presence_change":        {},
+	"manual_presence_change": {},
+	"goodbye":                {},
+	"error":                  {},
+}
+
+// decodeEvent decodes data into an inEvent.  It returns ok=false for event
+// types the Keeper does not handle, without decoding the full event: the
+// connection receives the whole workspace event stream, and some of those
+// events (i.e. user_change, team_join) carry an object in the "user" field.
+func decodeEvent(data []byte) (ev inEvent, ok bool, err error) {
+	var hdr struct {
+		Type string `json:"type"`
+	}
+	if err := json.Unmarshal(data, &hdr); err != nil {
+		return inEvent{}, false, fmt.Errorf("decode event type: %w", err)
+	}
+	if _, handled := handledTypes[hdr.Type]; !handled {
+		return inEvent{}, false, nil
+	}
+	if err := json.Unmarshal(data, &ev); err != nil {
+		return inEvent{}, false, fmt.Errorf("decode %q event: %w", hdr.Type, err)
+	}
+	return ev, true, nil
+}
+
 // session runs a single websocket connection until it fails or ctx is
 // cancelled.
 func (k *Keeper) session(ctx context.Context) error {
@@ -330,9 +361,12 @@ func (k *Keeper) session(ctx context.Context) error {
 				errC <- err
 				return
 			}
-			var ev inEvent
-			if err := json.Unmarshal(data, &ev); err != nil {
-				k.lg.Debug("skipping undecodable message", "error", err)
+			ev, ok, err := decodeEvent(data)
+			if err != nil {
+				k.lg.Warn("skipping undecodable message", "error", err, "size", len(data))
+				continue
+			}
+			if !ok {
 				continue
 			}
 			select {
@@ -391,7 +425,8 @@ func (k *Keeper) session(ctx context.Context) error {
 	}
 }
 
-// handle processes an incoming event.
+// handle processes an incoming event.  The event types handled here must be
+// kept in sync with [handledTypes].
 func (k *Keeper) handle(ctx context.Context, conn *websocket.Conn, ev inEvent, tickleT *time.Timer, lastPong *time.Time) error {
 	switch ev.Type {
 	case "hello":

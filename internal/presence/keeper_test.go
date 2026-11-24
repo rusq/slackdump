@@ -223,6 +223,24 @@ func TestKeeper_session(t *testing.T) {
 		assert.ErrorIs(t, err, ErrGoodbye, "a hanging presence check must not cause a pong timeout")
 		assert.Equal(t, int32(1), fg.calls.Load(), "only one check should be in flight")
 	})
+	t.Run("workspace events with object user are ignored", func(t *testing.T) {
+		urlFn, _ := wsServer(t, func(t *testing.T, r *http.Request, c *websocket.Conn) {
+			require.NoError(t, c.WriteJSON(map[string]any{"type": "hello"}))
+			readMsg(t, c)
+			readMsg(t, c)
+			require.NoError(t, c.WriteJSON(map[string]any{
+				"type": "user_change",
+				"user": map[string]any{"id": "U999", "name": "someone"},
+			}))
+			require.NoError(t, c.WriteJSON(map[string]any{"type": "goodbye"}))
+			_, _, _ = c.ReadMessage()
+		})
+		k, err := New(testUser, urlFn, nil, testConfig(), WithLogger(discard))
+		require.NoError(t, err)
+
+		err = k.session(t.Context())
+		assert.ErrorIs(t, err, ErrGoodbye)
+	})
 	t.Run("dial error", func(t *testing.T) {
 		srv := httptest.NewServer(http.NotFoundHandler())
 		t.Cleanup(srv.Close)
@@ -333,4 +351,81 @@ func TestNew(t *testing.T) {
 		_, err := New(testUser, urlFn, nil, Config{})
 		assert.Error(t, err)
 	})
+}
+
+func Test_decodeEvent(t *testing.T) {
+	tests := []struct {
+		name    string
+		data    string
+		want    inEvent
+		wantOK  bool
+		wantErr string
+	}{
+		{
+			name: "user_change with object user is skipped",
+			data: `{"type":"user_change","user":{"id":"U999","name":"someone"}}`,
+		},
+		{
+			name: "team_join with object user is skipped",
+			data: `{"type":"team_join","user":{"id":"U999"}}`,
+		},
+		{
+			name: "unknown type is skipped",
+			data: `{"type":"message","user":"U999","text":"hi"}`,
+		},
+		{
+			name: "missing type is skipped",
+			data: `{"ok":true,"reply_to":3}`,
+		},
+		{
+			name:   "presence_change with string user",
+			data:   `{"type":"presence_change","user":"U123","presence":"active"}`,
+			want:   inEvent{Type: "presence_change", User: testUser, Presence: "active"},
+			wantOK: true,
+		},
+		{
+			name:   "batch presence_change with users",
+			data:   `{"type":"presence_change","users":["U1","U123"],"presence":"away"}`,
+			want:   inEvent{Type: "presence_change", Users: []string{"U1", testUser}, Presence: "away"},
+			wantOK: true,
+		},
+		{
+			name:   "pong",
+			data:   `{"type":"pong","reply_to":7}`,
+			want:   inEvent{Type: "pong", ReplyTo: 7},
+			wantOK: true,
+		},
+		{
+			name: "error with details",
+			data: `{"type":"error","error":{"code":1,"msg":"bad"}}`,
+			want: inEvent{Type: "error", Error: &struct {
+				Code int    `json:"code"`
+				Msg  string `json:"msg"`
+			}{Code: 1, Msg: "bad"}},
+			wantOK: true,
+		},
+		{
+			name:    "handled type with object user is an error",
+			data:    `{"type":"presence_change","user":{"id":"U123"}}`,
+			wantErr: `"presence_change"`,
+		},
+		{
+			name:    "not json",
+			data:    `not json`,
+			wantErr: "decode event type",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, ok, err := decodeEvent([]byte(tt.data))
+			if tt.wantErr != "" {
+				assert.ErrorContains(t, err, tt.wantErr)
+				assert.False(t, ok)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantOK, ok)
+			assert.Equal(t, tt.want, got)
+		})
+	}
 }
