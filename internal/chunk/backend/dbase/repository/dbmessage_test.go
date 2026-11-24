@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"iter"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/jmoiron/sqlx"
@@ -519,6 +520,10 @@ func Test_messageRepository_AllForID(t *testing.T) {
 }
 
 func Test_messageRepository_CountThread(t *testing.T) {
+	t.Run("uses the thread index without statistics", func(t *testing.T) {
+		assertThreadCountPlan(t, NewMessageRepository().CountThread)
+	})
+
 	type fields struct {
 		genericRepository genericRepository[DBMessage]
 	}
@@ -547,7 +552,14 @@ func Test_messageRepository_CountThread(t *testing.T) {
 				channelID: "C123",
 				threadID:  "123.456",
 			},
-			prepFn:  mkThreadSetupFn("C123", [3]bool{true, false, true}),
+			prepFn: func(t *testing.T, conn PrepareExtContext) {
+				mkThreadSetupFn("C123", [3]bool{true, false, true})(t, conn)
+				channelOnlyBroadcast := tmBChannel
+				channelOnlyBroadcast.Timestamp = "127.000"
+				require.NoError(t, NewMessageRepository().Insert(t.Context(), conn,
+					must(NewDBMessage(1, 2, testChannelID, &channelOnlyBroadcast)),
+				))
+			},
 			want:    4,
 			wantErr: false,
 		},
@@ -588,6 +600,10 @@ func Test_messageRepository_CountThread(t *testing.T) {
 }
 
 func Test_messageRepository_CountCanvasThread(t *testing.T) {
+	t.Run("uses the thread index without statistics", func(t *testing.T) {
+		assertThreadCountPlan(t, NewMessageRepository().CountCanvasThread)
+	})
+
 	t.Run("counts latest canvas root and replies only", func(t *testing.T) {
 		conn := testConn(t)
 		const hiddenChannelID = "CCANVAS"
@@ -611,6 +627,8 @@ func Test_messageRepository_CountCanvasThread(t *testing.T) {
 		}}
 		updatedReply := reply
 		updatedReply.Text = "updated"
+		ordinaryReply := reply
+		ordinaryReply.Timestamp = "125.000"
 
 		mr := NewMessageRepository()
 		require.NoError(t, mr.Insert(t.Context(), conn,
@@ -618,7 +636,7 @@ func Test_messageRepository_CountCanvasThread(t *testing.T) {
 			must(NewDBMessage(2, 0, hiddenChannelID, &root)),
 			must(NewDBMessage(2, 1, hiddenChannelID, &reply)),
 			must(NewDBMessage(3, 0, hiddenChannelID, &updatedReply)),
-			must(NewDBMessage(4, 0, hiddenChannelID, &reply)),
+			must(NewDBMessage(4, 0, hiddenChannelID, &ordinaryReply)),
 		))
 
 		got, err := mr.CountCanvasThread(t.Context(), conn, hiddenChannelID, threadTS)
@@ -631,6 +649,40 @@ func Test_messageRepository_CountCanvasThread(t *testing.T) {
 		assert.Zero(t, got)
 		assert.Error(t, err)
 	})
+}
+
+type threadCountQueryRecorder struct {
+	*sqlx.DB
+	stmt string
+	args []any
+}
+
+func (r *threadCountQueryRecorder) QueryRowxContext(ctx context.Context, stmt string, args ...any) *sqlx.Row {
+	r.stmt, r.args = stmt, args
+	return r.DB.QueryRowxContext(ctx, stmt, args...)
+}
+
+func assertThreadCountPlan(t *testing.T, count func(context.Context, sqlx.QueryerContext, string, string) (int64, error)) {
+	t.Helper()
+	conn := testConnDSN(t, sqliteMemory)
+	recorder := &threadCountQueryRecorder{DB: conn}
+	got, err := count(t.Context(), recorder, testChannelID, testThreadID)
+	require.NoError(t, err)
+	assert.Zero(t, got)
+
+	rows, err := conn.QueryContext(t.Context(), "EXPLAIN QUERY PLAN "+recorder.stmt, recorder.args...)
+	require.NoError(t, err)
+	defer rows.Close()
+
+	var details []string
+	for rows.Next() {
+		var id, parent, unused int
+		var detail string
+		require.NoError(t, rows.Scan(&id, &parent, &unused, &detail))
+		details = append(details, detail)
+	}
+	require.NoError(t, rows.Err())
+	assert.Contains(t, strings.Join(details, "\n"), "USING INDEX MESSAGE_I2 (CHANNEL_ID=? AND PARENT_ID=?)")
 }
 
 func Test_messageRepository_AllCanvasMessages(t *testing.T) {
