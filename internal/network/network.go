@@ -25,8 +25,10 @@ import (
 	"net/http"
 	"runtime/trace"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/rusq/slack"
@@ -101,6 +103,132 @@ type RetryPolicy uint8
 // for read-only operations, which are safe to repeat.
 const RetryReadOnly RetryPolicy = 1
 
+type operationKey struct{}
+
+// WithOperation labels rate-limit observations for the operation in progress.
+func WithOperation(ctx context.Context, operation string) context.Context {
+	return context.WithValue(ctx, operationKey{}, operation)
+}
+
+// RateLimitObserver receives each rate-limit response and returns a callback
+// invoked when that response's retry wait ends. willWait distinguishes retry
+// waits from direct failures. It is scoped to a run context.
+type RateLimitObserver func(source string, delay time.Duration, warning, willWait bool) func()
+type rateLimitObserverKey struct{}
+
+func WithRateLimitObserver(ctx context.Context, observer RateLimitObserver) context.Context {
+	return context.WithValue(ctx, rateLimitObserverKey{}, observer)
+}
+
+func HasRateLimitObserver(ctx context.Context) bool {
+	observer, ok := ctx.Value(rateLimitObserverKey{}).(RateLimitObserver)
+	return ok && observer != nil
+}
+
+func ObserveRateLimit(ctx context.Context, source string, delay time.Duration) func() {
+	return observeRateLimit(ctx, source, delay, true, false)
+}
+
+// ObserveRateLimitBeforeWait reports a response whose caller will retry after waiting.
+func ObserveRateLimitBeforeWait(ctx context.Context, source string, delay time.Duration) func() {
+	return observeRateLimit(ctx, source, delay, true, true)
+}
+
+// ObserveRateLimitWait continues an already-reported response's retry wait.
+func ObserveRateLimitWait(ctx context.Context, source string, delay time.Duration) func() {
+	return observeRateLimit(ctx, source, delay, false, true)
+}
+
+func observeRateLimit(ctx context.Context, source string, delay time.Duration, warning, willWait bool) func() {
+	if observer, ok := ctx.Value(rateLimitObserverKey{}).(RateLimitObserver); ok && observer != nil {
+		if operation, ok := ctx.Value(operationKey{}).(string); ok && operation != "" {
+			source += " (" + operation + ")"
+		}
+		if done := observer(source, delay, warning, willWait); done != nil {
+			return done
+		}
+	}
+	return func() {}
+}
+
+type retryManagedKey struct{}
+
+// RetryManaged reports whether the current operation is inside WithRetry.
+func RetryManaged(ctx context.Context) bool {
+	managed, _ := ctx.Value(retryManagedKey{}).(bool)
+	return managed
+}
+
+type responseTrackingKey struct{}
+type responseTracking struct{ rateLimited atomic.Bool }
+
+// TrackResponses scopes response accounting to one API operation or retry attempt.
+func TrackResponses(ctx context.Context) context.Context {
+	if !HasRateLimitObserver(ctx) {
+		return ctx
+	}
+	return context.WithValue(ctx, responseTrackingKey{}, &responseTracking{})
+}
+func responseObserved(ctx context.Context) bool {
+	tracker, _ := ctx.Value(responseTrackingKey{}).(*responseTracking)
+	return tracker != nil && tracker.rateLimited.Load()
+}
+
+// ObserveHTTPClient wraps a client only for observed runs. It reports each 429
+// before Slack's client converts the response into an error, without changing it.
+func ObserveHTTPClient(ctx context.Context, cl *http.Client) *http.Client {
+	if !HasRateLimitObserver(ctx) {
+		return cl
+	}
+	copy := *cl
+	base := cl.Transport
+	if base == nil {
+		base = http.DefaultTransport
+	}
+	copy.Transport = &observingTransport{base: base}
+	return &copy
+}
+
+type observingTransport struct{ base http.RoundTripper }
+
+func (t *observingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	resp, err := t.base.RoundTrip(req)
+	if resp != nil && resp.StatusCode == http.StatusTooManyRequests && HasRateLimitObserver(req.Context()) {
+		if tracker, ok := req.Context().Value(responseTrackingKey{}).(*responseTracking); ok {
+			tracker.rateLimited.Store(true)
+		}
+		delay := time.Duration(-1)
+		if seconds, parseErr := strconv.ParseInt(resp.Header.Get("Retry-After"), 10, 64); parseErr == nil && seconds >= 0 && seconds <= int64((1<<63-1)/int64(time.Second)) {
+			delay = time.Duration(seconds) * time.Second
+		}
+		done := func() {}
+		if delay >= 0 && RetryManaged(req.Context()) {
+			done = ObserveRateLimitBeforeWait(req.Context(), "Slack API", delay)
+		} else {
+			done = ObserveRateLimit(req.Context(), "Slack API", delay)
+		}
+		done()
+	}
+	return resp, err
+}
+func (t *observingTransport) Close() error {
+	if closer, ok := t.base.(io.Closer); ok {
+		return closer.Close()
+	}
+	return nil
+}
+func (t *observingTransport) CloseIdleConnections() {
+	if closer, ok := t.base.(interface{ CloseIdleConnections() }); ok {
+		closer.CloseIdleConnections()
+	}
+}
+
+// ObservedRateLimit marks an edge response that has already been observed.
+type ObservedRateLimit struct{ Err error }
+
+func (e *ObservedRateLimit) Error() string { return e.Err.Error() }
+func (e *ObservedRateLimit) Unwrap() error { return e.Err }
+
 // WithRetry will run the callback function fn. If the function returns
 // slack.RateLimitedError, it will delay, and then call it again up to
 // maxAttempts times. It will return an error if it runs out of attempts.
@@ -124,7 +252,11 @@ func WithRetry(ctx context.Context, lim *rate.Limiter, maxAttempts int, fn func(
 			return err
 		}
 
-		cbErr := fn(ctx)
+		attemptCtx := TrackResponses(ctx)
+		if HasRateLimitObserver(ctx) {
+			attemptCtx = context.WithValue(attemptCtx, retryManagedKey{}, true)
+		}
+		cbErr := fn(attemptCtx)
 		if errors.Is(cbErr, ErrRetryPlease) {
 			// callback requested a retry.  Keep an earlier real error, if
 			// any, but never report a nil one if every attempt asked for it.
@@ -175,10 +307,21 @@ func WithRetry(ctx context.Context, lim *rate.Limiter, maxAttempts int, fn func(
 			continue
 		case errors.As(cbErr, &rle):
 			slog.InfoContext(ctx, "got rate limited, sleeping", "retry_after", rle.RetryAfter.String(), "error", cbErr)
+			var observed *ObservedRateLimit
+			done := func() {}
+			if errors.As(cbErr, &observed) {
+				done = ObserveRateLimitWait(ctx, "Slack edge API", rle.RetryAfter)
+			} else if responseObserved(attemptCtx) {
+				done = ObserveRateLimitWait(ctx, "Slack API", rle.RetryAfter)
+			} else {
+				done = ObserveRateLimitBeforeWait(ctx, "Slack API", rle.RetryAfter)
+			}
 			tracelogf(ctx, "info", "got rate limited, sleeping %s (%s)", rle.RetryAfter, cbErr)
 			if err := SleepCtx(ctx, rle.RetryAfter); err != nil {
+				done()
 				return err
 			}
+			done()
 			slog.Info("resuming after rate limit")
 			continue
 		case errors.As(cbErr, &sce):

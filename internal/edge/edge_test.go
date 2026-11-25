@@ -18,13 +18,16 @@
 package edge
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -36,6 +39,8 @@ import (
 
 	"github.com/rusq/slackdump/v4/auth"
 	"github.com/rusq/slackdump/v4/internal/fixtures"
+	"github.com/rusq/slackdump/v4/internal/network"
+	"golang.org/x/time/rate"
 )
 
 var _ = godotenv.Load()
@@ -212,6 +217,88 @@ func testClient(tape io.WriteCloser) *Client {
 
 func TestClient_do(t *testing.T) {
 	const body = "token=xoxc-test&channel=C123"
+	t.Run("nested retries observe every response once", func(t *testing.T) {
+		srv := newReplayServer(t, http.StatusTooManyRequests, http.StatusTooManyRequests, http.StatusOK)
+		var events int
+		ctx := network.WithRateLimitObserver(t.Context(), func(source string, _ time.Duration, warning, willWait bool) func() {
+			if warning {
+				events++
+				assert.True(t, willWait)
+			}
+			assert.Equal(t, "Slack edge API", source)
+			return func() {}
+		})
+		err := network.WithRetry(ctx, rate.NewLimiter(rate.Inf, 1), 2, func(ctx context.Context) error {
+			resp, err := testClient(nil).do(ctx, srv.URL, "application/x-www-form-urlencoded", []byte(body))
+			if resp != nil {
+				resp.Body.Close()
+			}
+			return err
+		})
+		require.NoError(t, err)
+		bodies, _ := srv.requests()
+		require.Len(t, bodies, 3)
+		require.Equal(t, 2, events)
+	})
+	t.Run("direct edge final response is not described as waiting", func(t *testing.T) {
+		srv := newReplayServer(t, http.StatusTooManyRequests)
+		var waits []bool
+		ctx := network.WithRateLimitObserver(t.Context(), func(_ string, _ time.Duration, warning, willWait bool) func() {
+			if warning {
+				waits = append(waits, willWait)
+			}
+			return func() {}
+		})
+		_, err := testClient(nil).do(ctx, srv.URL, "application/x-www-form-urlencoded", []byte(body))
+		require.Error(t, err)
+		require.Equal(t, []bool{true, false}, waits)
+	})
+	t.Run("outer retry wait is tracked without another warning", func(t *testing.T) {
+		srv := newReplayServer(t, http.StatusTooManyRequests)
+		srv.retryAfter = []string{"0", "30"}
+		ctx, cancel := context.WithCancel(t.Context())
+		defer cancel()
+		warnings, waits, finished := 0, 0, 0
+		ctx = network.WithRateLimitObserver(ctx, func(_ string, _ time.Duration, warning, willWait bool) func() {
+			if warning {
+				warnings++
+			} else {
+				waits++
+				cancel()
+			}
+			return func() { finished++ }
+		})
+		err := network.WithRetry(ctx, rate.NewLimiter(rate.Inf, 1), 2, func(ctx context.Context) error {
+			_, err := testClient(nil).do(ctx, srv.URL, "application/x-www-form-urlencoded", []byte(body))
+			return err
+		})
+		require.ErrorIs(t, err, context.Canceled)
+		require.Equal(t, 2, warnings)
+		require.Equal(t, 1, waits)
+		require.Equal(t, 3, finished)
+	})
+	t.Run("fallback delay preserves warning and one rate-limit notice", func(t *testing.T) {
+		srv := newReplayServer(t, http.StatusTooManyRequests)
+		srv.retryAfter = []string{"-"}
+		ctx, cancel := context.WithCancel(t.Context())
+		defer cancel()
+		old := slog.Default()
+		var logs bytes.Buffer
+		slog.SetDefault(slog.New(slog.NewTextHandler(&logs, nil)))
+		defer slog.SetDefault(old)
+		ctx = network.WithRateLimitObserver(ctx, func(_ string, _ time.Duration, warning, willWait bool) func() {
+			if warning {
+				slog.Info("rate limited")
+				cancel()
+			}
+			return func() {}
+		})
+		_, err := testClient(nil).do(ctx, srv.URL, "application/x-www-form-urlencoded", []byte(body))
+		require.ErrorIs(t, err, context.Canceled)
+		require.Equal(t, 1, strings.Count(logs.String(), "level=WARN"))
+		require.Contains(t, logs.String(), "using default rate limit delay")
+		require.Equal(t, 1, strings.Count(logs.String(), "msg=\"rate limited\""))
+	})
 	t.Run("rate limited, then ok: retry resends the same body", func(t *testing.T) {
 		srv := newReplayServer(t, http.StatusTooManyRequests, http.StatusOK)
 		resp, err := testClient(nil).do(t.Context(), srv.URL, "application/x-www-form-urlencoded", []byte(body))

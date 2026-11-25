@@ -17,9 +17,12 @@
 package cfg
 
 import (
+	"context"
 	"errors"
 	"flag"
 	"fmt"
+	"io"
+	"log"
 	"log/slog"
 	"os"
 	"regexp"
@@ -92,9 +95,38 @@ var (
 	Version BuildInfo // version propagated by main package.
 )
 
+var builtinConsole bool
+var builtinConsoleFlags int
+var builtinConsolePrefix string
+
 func init() {
+	originalHandler := slog.Default().Handler()
 	enableLogColors(os.Getenv("NOCOLOR"))
+	builtinConsole = slog.Default().Handler() == originalHandler
+	builtinConsoleFlags, builtinConsolePrefix = log.Flags(), log.Prefix()
 }
+
+// ConsoleLogHandler creates an independent handler with the original console
+// style, writing to w instead of the global logger's writer.
+func ConsoleLogHandler(w io.Writer) slog.Handler {
+	if builtinConsole {
+		return &plainConsoleHandler{logger: log.New(w, builtinConsolePrefix, builtinConsoleFlags)}
+	}
+	return pterm.NewSlogHandler(pterm.DefaultLogger.WithWriter(w))
+}
+
+// plainConsoleHandler uses an independent standard logger so the original
+// no-color prefix and timestamp remain intact without recursion via slog.
+type plainConsoleHandler struct{ logger *log.Logger }
+
+func (h *plainConsoleHandler) Enabled(_ context.Context, level slog.Level) bool {
+	return level >= slog.LevelInfo
+}
+func (h *plainConsoleHandler) Handle(_ context.Context, record slog.Record) error {
+	return h.logger.Output(2, record.Level.String()+" "+record.Message)
+}
+func (h *plainConsoleHandler) WithAttrs(_ []slog.Attr) slog.Handler { return h }
+func (h *plainConsoleHandler) WithGroup(_ string) slog.Handler      { return h }
 
 func enableLogColors(strNocolor string) {
 	nocolor, err := strconv.ParseBool(strNocolor)
