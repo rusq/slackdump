@@ -19,7 +19,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/playwright-community/playwright-go"
+	"github.com/mxschmitt/playwright-go"
 
 	"github.com/rusq/slackdump/v4/auth/browser/pwcompat"
 	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/workspace/wspcfg"

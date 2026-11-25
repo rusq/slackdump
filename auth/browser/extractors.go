@@ -23,10 +23,10 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/playwright-community/playwright-go"
+	"github.com/mxschmitt/playwright-go"
 )
 
-//go:generate mockgen -package browser -destination playwright_test.go github.com/playwright-community/playwright-go Request
+//go:generate mockgen -package browser -destination playwright_test.go github.com/mxschmitt/playwright-go Request
 
 // tokenRE is the regexp that matches a valid Slack Client token.
 var tokenRE = regexp.MustCompile(`xoxc-[0-9]+-[0-9]+-[0-9]+-[0-9a-z]{64}`)

@@ -25,7 +25,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/playwright-community/playwright-go"
+	"github.com/mxschmitt/playwright-go"
 
 	"github.com/rusq/slackdump/v4/auth/browser/pwcompat"
 	"github.com/rusq/slackdump/v4/internal/fixtures"
@@ -66,7 +66,7 @@ func Test_pwRepair(t *testing.T) {
 		// set the mock install functions.
 		oldInstall := installFn
 		defer func() { installFn = oldInstall }()
-		installFn = func(...*playwright.RunOptions) error {
+		installFn = func(*playwright.RunOptions) error {
 			installCalled = true
 			return nil
 		}

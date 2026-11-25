@@ -23,10 +23,11 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/playwright-community/playwright-go"
+	"github.com/mxschmitt/playwright-go"
 
 	"github.com/rusq/slack"
 	"github.com/rusq/slackdump/v4/auth"
+	"github.com/rusq/slackdump/v4/auth/browser/pwcompat"
 	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/cfg"
 	"github.com/rusq/slackdump/v4/cmd/slackdump/internal/golang/base"
 )
@@ -124,7 +125,7 @@ func runEzLoginTest(ctx context.Context, cmd *base.Command, args []string) error
 func tryPlaywrightAuth(ctx context.Context, wsp string, populateCreds bool) ezResult {
 	var ret = ezResult{Engine: "playwright"}
 
-	if err := playwright.Install(&playwright.RunOptions{Browsers: []string{"firefox"}}); err != nil {
+	if err := pwcompat.Install(&playwright.RunOptions{Browsers: []string{"firefox"}}); err != nil {
 		ret.Err = new(fmt.Sprintf("playwright installation error: %s", err))
 		return ret
 	}

@@ -28,7 +28,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/playwright-community/playwright-go"
+	"github.com/mxschmitt/playwright-go"
 	"github.com/rusq/slackdump/v4/auth/browser/pwcompat"
 )
 
@@ -49,7 +49,7 @@ type Client struct {
 var Logger = slog.Default()
 
 var (
-	installFn = playwright.Install
+	installFn = pwcompat.Install
 )
 
 // New create new browser based client.
