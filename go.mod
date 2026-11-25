@@ -25,8 +25,8 @@ require (
 	github.com/joho/godotenv v1.5.1
 	github.com/mark3labs/mcp-go v0.57.0
 	github.com/microcosm-cc/bluemonday v1.0.27
+	github.com/mxschmitt/playwright-go v0.6401.0
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c
-	github.com/playwright-community/playwright-go v0.6000.0
 	github.com/pressly/goose/v3 v3.29.0
 	github.com/pterm/pterm v0.12.84
 	github.com/refraction-networking/utls v1.8.2
@@ -76,7 +76,6 @@ require (
 	github.com/denisbrodbeck/machineid v1.0.1 // indirect
 	github.com/erikgeiser/coninput v0.0.0-20211004153227-1c3628e74d0f // indirect
 	github.com/gabriel-vasile/mimetype v1.4.15 // indirect
-	github.com/go-jose/go-jose/v3 v3.0.5 // indirect
 	github.com/go-stack/stack v1.8.1 // indirect
 	github.com/google/jsonschema-go v0.4.3 // indirect
 	github.com/gorilla/css v1.0.1 // indirect

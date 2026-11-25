@@ -19,14 +19,63 @@
 package pwcompat
 
 import (
+	"errors"
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
 
-	"github.com/playwright-community/playwright-go"
+	"github.com/mxschmitt/playwright-go"
 
 	"github.com/rusq/slackdump/v4/internal/structures"
 )
+
+// Install installs Playwright, recovering an incomplete managed driver download.
+func Install(runopts *playwright.RunOptions) error {
+	drv, err := prepareDriver(runopts)
+	if err != nil {
+		return err
+	}
+	if err := drv.Install(); err != nil {
+		return fmt.Errorf("could not install driver: %w", err)
+	}
+	return nil
+}
+
+func prepareDriver(runopts *playwright.RunOptions) (*playwright.PlaywrightDriver, error) {
+	opts := *runopts // Playwright fills in defaults in place.
+	managed := opts.DriverDirectory == "" && os.Getenv("PLAYWRIGHT_DRIVER_PATH") == "" &&
+		os.Getenv("PLAYWRIGHT_CLI_PATH") == "" && os.Getenv("PLAYWRIGHT_NODEJS_PATH") == ""
+	drv, err := playwright.NewDriver(&opts)
+	if err != nil {
+		return nil, fmt.Errorf("could not get driver instance: %w", err)
+	}
+	if !managed {
+		return drv, nil
+	}
+	if _, err := os.Lstat(drv.Command().Path); !errors.Is(err, os.ErrNotExist) {
+		return drv, nil
+	}
+
+	// Playwright extracts cli.js before downloading Node. If that download
+	// fails, Playwright tries to run the missing Node executable on the next
+	// install. Removing the marker makes Playwright download the driver again.
+	packageDir := filepath.Join(opts.DriverDirectory, "package")
+	// A link inside the user cache can point to an externally managed install.
+	for _, dir := range []string{filepath.Dir(opts.DriverDirectory), opts.DriverDirectory, packageDir} {
+		if info, err := os.Lstat(dir); err != nil || !info.IsDir() {
+			return drv, nil
+		}
+	}
+	cliPath := filepath.Join(packageDir, "cli.js")
+	if info, err := os.Lstat(cliPath); err != nil || !info.Mode().IsRegular() {
+		return drv, nil
+	}
+	if err := os.Remove(cliPath); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return nil, fmt.Errorf("could not clear incomplete Playwright driver: %w", err)
+	}
+	return drv, nil
+}
 
 // Workaround for unexported driver dir in playwright.
 
