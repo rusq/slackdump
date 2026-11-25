@@ -29,6 +29,9 @@ import (
 
 const sampleToken = "xoxc-610187951300-604451271234-3473161557912-4c426dd426a45208707725b710302b32dda0ab002b80ccd8c4c8ac9971a11558"
 
+const sessionCookieDescription = "Session cookie. See how to copy it from Slack.\n" +
+	"https://github.com/rusq/slackdump/blob/master/doc/login-manual.md#cookie"
+
 func prgTokenCookie(ctx context.Context, mgr manager) error {
 	var (
 		token     string
@@ -45,7 +48,7 @@ func prgTokenCookie(ctx context.Context, mgr manager) error {
 				Value(&token).
 				Validate(structures.ValidateToken),
 			huh.NewInput().Title("Cookie").
-				Description("Session cookie").
+				Description(sessionCookieDescription).
 				Placeholder("xoxd-...").
 				Value(&cookie),
 			huh.NewConfirm().Title("Confirm creation of workspace?").
@@ -169,7 +172,7 @@ func prgCookieOnly(ctx context.Context, mgr manager) error {
 				Value(&wspname).
 				Validate(validateWspName),
 			huh.NewInput().Title("Cookie").
-				Description("Session cookie").
+				Description(sessionCookieDescription).
 				Placeholder("xoxd-...").
 				Value(&cookie),
 			huh.NewConfirm().Title("Confirm creation of workspace?").
