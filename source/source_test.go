@@ -18,12 +18,15 @@ package source
 import (
 	"context"
 	"io/fs"
+	"os"
 	"path/filepath"
 	"reflect"
 	"testing"
 	"testing/fstest"
 
 	_ "modernc.org/sqlite"
+
+	"github.com/rusq/slackdump/v4/internal/testutil"
 )
 
 var fixturesDir = filepath.Join("..", "internal", "fixtures", "assets")
@@ -77,13 +80,13 @@ func TestLoad(t *testing.T) {
 		},
 		{
 			"database directory",
-			args{t.Context(), filepath.Join(fixturesDir, "source_database")},
+			args{t.Context(), testutil.PrepareTestDirectory(t, os.DirFS(filepath.Join(fixturesDir, "source_database")))},
 			&RWDatabase{},
 			false,
 		},
 		{
 			"database file",
-			args{t.Context(), filepath.Join(fixturesDir, "source_database.db")},
+			args{t.Context(), copyDatabaseFixture(t)},
 			&RWDatabase{},
 			false,
 		},
@@ -97,6 +100,9 @@ func TestLoad(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := Load(tt.args.ctx, tt.args.src)
+			if got != nil {
+				defer got.Close()
+			}
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Load() error = %v, wantErr %v (file: %q)", err, tt.wantErr, tt.args.src)
 				return

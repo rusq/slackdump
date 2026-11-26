@@ -19,6 +19,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -101,8 +102,22 @@ type aliasWriter interface {
 	DeleteAlias(id string) error
 }
 
+func copyDatabaseFixture(t *testing.T) string {
+	t.Helper()
+	const name = "source_database.db"
+	data, err := os.ReadFile(filepath.Join(fixturesDir, name))
+	if err != nil {
+		t.Fatal(err)
+	}
+	dst := filepath.Join(t.TempDir(), name)
+	if err := os.WriteFile(dst, data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return dst
+}
+
 func TestOpenDatabaseRW_writable(t *testing.T) {
-	dbpath := filepath.Join(fixturesDir, "source_database.db")
+	dbpath := copyDatabaseFixture(t)
 	got, err := OpenDatabaseRW(t.Context(), dbpath)
 	if err != nil {
 		t.Fatalf("OpenDatabaseRW() error = %v", err)
@@ -125,7 +140,7 @@ func TestOpenDatabaseRW_fallback(t *testing.T) {
 		return nil, errors.New("simulated rw open failure")
 	}
 
-	dbpath := filepath.Join(fixturesDir, "source_database.db")
+	dbpath := copyDatabaseFixture(t)
 	got, err := OpenDatabaseRW(t.Context(), dbpath)
 	if err != nil {
 		t.Fatalf("OpenDatabaseRW() fallback error = %v", err)

@@ -44,6 +44,33 @@ discard edited or reaction variants for the same message timestamp. It
 also treats channel-history and thread-message copies of the same channel
 timestamp as one logical message.
 
+## Continuing after an interruption
+
+Small archives are deduplicated in one transaction. For larger archives,
+Slackdump targets 400,000 indexed rows per payload table when choosing batch
+boundaries. A batch can exceed that target to keep all copies of a key
+together. Each batch commits its removals and a checkpoint together.
+An INFO log entry after each successful transaction reports the tables
+processed, rows examined and removals for the batch and pass, elapsed batch
+time, committed batch count, and the next checkpoint when one remains.
+Rows examined counts indexed payload rows before deletion. A resumed
+checkpoint created by an older version reports its new examined-row and
+batch counters as `since_upgrade`. A new pass reports `full_pass`.
+
+If execution stops, rerun `slackdump tools dedupe -execute` on the same archive
+in the same mode. This also continues cleanup started by
+`slackdump resume -dedupe`, which uses `exact` mode. A completed run reports the
+removals from all batches of that pass, including batches that committed
+before an interruption.
+
+Archive writes that change chunks or session precedence invalidate the
+checkpoint. Switching modes starts a fresh pass over the current archive.
+Committed removals persist in both cases. If another dedupe process or
+archive writer changes the checkpoint during execution, rerun dedupe after
+the other process has finished. Preview reports duplicates still present in
+the archive and leaves the checkpoint untouched. Edit archive data through
+Slackdump so writes can invalidate checkpoints.
+
 ## Example
 
 ```bash

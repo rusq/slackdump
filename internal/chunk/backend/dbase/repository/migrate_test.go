@@ -66,7 +66,7 @@ func TestMigrate(t *testing.T) {
 				require.Equal(t, []byte(`{}`), data)
 			}
 			// Down removes only the new index; existing indexes and rows survive.
-			require.NoError(t, goose.DownContext(ctx, db, "migrations"))
+			require.NoError(t, goose.DownToContext(ctx, db, "migrations", 20260725000000))
 			var count int
 			require.NoError(t, db.QueryRowContext(ctx,
 				`SELECT COUNT(*) FROM sqlite_master WHERE name='MESSAGE_DEDUPE_IDX'`).Scan(&count))
@@ -83,6 +83,113 @@ func TestMigrate(t *testing.T) {
 			require.NoError(t, Migrate(ctx, db, false))
 		})
 	}
+
+	t.Run("dedupe checkpoint upgrade and rollback", func(t *testing.T) {
+		db, err := sqlx.Open(Driver, ":memory:")
+		require.NoError(t, err)
+		t.Cleanup(func() { db.Close() })
+		ctx := t.Context()
+		const oldVersion = 20261019000000
+		require.NoError(t, goose.UpToContext(ctx, db.DB, "migrations", oldVersion))
+		insertSessionForTest(t, db, 1, false, nil)
+		_, err = db.Exec(`INSERT INTO CHUNK (ID, UNIX_TS, SESSION_ID, TYPE_ID) VALUES (1, 0, 1, 0)`)
+		require.NoError(t, err)
+		insertMessageWithChunkForTest(t, db, 100, 1, []byte(`{}`))
+
+		require.NoError(t, Migrate(ctx, db.DB, false))
+		seedCheckpoint := func() {
+			t.Helper()
+			tx, err := db.Beginx()
+			require.NoError(t, err)
+			defer tx.Rollback()
+			p := dedupeCheckpoint{mode: MessageDedupeExact.String(), owner: "test", key: dedupeKey{id: int64(200)}, countersScope: "full_pass"}
+			require.NoError(t, p.save(ctx, tx))
+			require.NoError(t, tx.Commit())
+		}
+		var count int
+		for _, mutation := range []string{
+			"UPDATE SESSION SET FINISHED = TRUE WHERE ID = 1",
+			"INSERT INTO SESSION (ID, MODE) VALUES (2, 'resume')",
+			"UPDATE CHUNK SET SESSION_ID = 2 WHERE ID = 1",
+			"DELETE FROM SESSION WHERE ID = 1",
+			"INSERT INTO CHUNK (ID, UNIX_TS, SESSION_ID, TYPE_ID) VALUES (2, 0, 2, 0)",
+			"DELETE FROM CHUNK WHERE ID = 2",
+		} {
+			seedCheckpoint()
+			_, err := db.Exec("UPDATE SESSION SET UPDATED_AT = CURRENT_TIMESTAMP")
+			require.NoError(t, err)
+			require.NoError(t, db.Get(&count, "SELECT COUNT(*) FROM DEDUPE_CHECKPOINT"))
+			require.Equal(t, 1, count)
+			_, err = db.Exec(mutation)
+			require.NoError(t, err)
+			require.NoError(t, db.Get(&count, "SELECT COUNT(*) FROM DEDUPE_CHECKPOINT"))
+			require.Zero(t, count, mutation)
+		}
+
+		seedCheckpoint()
+		require.NoError(t, goose.DownToContext(ctx, db.DB, "migrations", oldVersion))
+		require.NoError(t, db.Get(&count, "SELECT COUNT(*) FROM sqlite_schema WHERE name LIKE 'DEDUPE_%'"))
+		require.Zero(t, count)
+		verifyMessageChunkForTest(t, db, 100, 1)
+		require.NoError(t, Migrate(ctx, db.DB, false))
+		require.NoError(t, db.Get(&count, "SELECT COUNT(*) FROM DEDUPE_CHECKPOINT"))
+		require.Zero(t, count)
+	})
+
+	t.Run("dedupe counter upgrade preserves legacy checkpoint", func(t *testing.T) {
+		db, err := sqlx.Open(Driver, ":memory:")
+		require.NoError(t, err)
+		t.Cleanup(func() { db.Close() })
+		ctx := t.Context()
+		const oldVersion = 20261126000000
+		require.NoError(t, goose.UpToContext(ctx, db.DB, "migrations", oldVersion))
+		populateCheckpointDedupeTest(t, db)
+		_, err = db.Exec(`INSERT INTO DEDUPE_CHECKPOINT
+			(ID, MODE, OWNER, ENTITY, KEY1, KEY2, MESSAGES, CANVAS_MESSAGES, USERS, CHANNELS, CHANNEL_USERS, FILES, CHUNKS)
+			VALUES (1, 'exact', 'legacy', 0, 100, '', 5, 0, 0, 0, 0, 0, 2)`)
+		require.NoError(t, err)
+
+		readCheckpoint := func() dedupeCheckpoint {
+			t.Helper()
+			tx, err := db.BeginTxx(ctx, nil)
+			require.NoError(t, err)
+			defer tx.Rollback()
+			got, err := readDedupeCheckpoint(ctx, tx)
+			require.NoError(t, err)
+			return got
+		}
+
+		require.NoError(t, Migrate(ctx, db.DB, false))
+		migrated := readCheckpoint()
+		require.Equal(t, "legacy", migrated.owner)
+		require.Equal(t, int64(100), migrated.key.id)
+		require.Equal(t, DedupeStats{Messages: 5, Chunks: 2}, migrated.stats)
+		require.Equal(t, "since_upgrade", migrated.countersScope)
+		require.Zero(t, migrated.rowsExamined)
+		require.Zero(t, migrated.batchesCommitted)
+
+		repo := dedupeRepository{messageMode: MessageDedupeExact}
+		_, err = repo.deduplicateBatch(ctx, db, "", 2)
+		require.NoError(t, err)
+		continued := readCheckpoint()
+		require.Equal(t, "since_upgrade", continued.countersScope)
+		require.EqualValues(t, 6, continued.rowsExamined)
+		require.EqualValues(t, 1, continued.batchesCommitted)
+
+		require.NoError(t, goose.DownToContext(ctx, db.DB, "migrations", oldVersion))
+		var count int
+		require.NoError(t, db.Get(&count, `SELECT COUNT(*) FROM pragma_table_info('DEDUPE_CHECKPOINT')
+			WHERE name IN ('ROWS_EXAMINED', 'BATCHES_COMMITTED', 'COUNTERS_SCOPE')`))
+		require.Zero(t, count)
+		require.NoError(t, Migrate(ctx, db.DB, false))
+		restored := readCheckpoint()
+		require.Equal(t, continued.owner, restored.owner)
+		require.Equal(t, continued.key, restored.key)
+		require.Equal(t, continued.stats, restored.stats)
+		require.Equal(t, "since_upgrade", restored.countersScope)
+		require.Zero(t, restored.rowsExamined)
+		require.Zero(t, restored.batchesCommitted)
+	})
 
 	t.Run("adds canvas message types", func(t *testing.T) {
 		db, err := sql.Open(Driver, ":memory:")

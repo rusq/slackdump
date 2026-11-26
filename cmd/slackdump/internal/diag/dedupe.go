@@ -31,6 +31,10 @@ it keeps the copy with the highest chunk ID overall.
 By default dedupe only reports what would be removed. Pass the directory
 containing slackdump.sqlite. Use -execute to remove duplicates without a preview.
 
+Large archives are processed in batches. If execution stops, run -execute
+again with the same mode to continue from the last committed batch. An archive
+write or a change of mode makes the next run start a fresh pass.
+
 The same cleanup can be run automatically after a successful resume with:
 
 	slackdump resume -dedupe <archive_directory>
@@ -70,6 +74,34 @@ func ensureDb(ctx context.Context, dir string) (*sqlx.DB, error) {
 
 }
 
+func openDedupeDB(ctx context.Context, path string, execute bool) (*sqlx.DB, error) {
+	if execute {
+		return ensureDb(ctx, path)
+	}
+
+	// source.Load migrates database archives. Preview needs only the archive
+	// type and a read-only connection, even on an older schema.
+	kind, err := source.Type(path)
+	if err != nil {
+		base.SetExitStatus(base.SInvalidParameters)
+		return nil, err
+	}
+	if !kind.Has(source.FDatabase) {
+		base.SetExitStatus(base.SInvalidParameters)
+		return nil, fmt.Errorf("source type %q does not contain a database archive, use 'slackdump convert -f database' to convert it", kind)
+	}
+	dsn := repository.DSN(bootstrap.DatabasePath(path), repository.ModeRO)
+	conn, err := sqlx.ConnectContext(ctx, repository.Driver, dsn)
+	if err != nil {
+		if conn != nil {
+			conn.Close()
+		}
+		base.SetExitStatus(base.SInitializationError)
+		return nil, fmt.Errorf("error opening database: %w", err)
+	}
+	return conn, nil
+}
+
 func runDedupe(ctx context.Context, cmd *base.Command, args []string) error {
 	if err := cmd.Flag.Parse(args); err != nil {
 		return err
@@ -80,7 +112,7 @@ func runDedupe(ctx context.Context, cmd *base.Command, args []string) error {
 	}
 
 	dir := cmd.Flag.Arg(0)
-	conn, err := ensureDb(ctx, dir)
+	conn, err := openDedupeDB(ctx, dir, dedupeFlags.execute)
 	if err != nil {
 		return err
 	}
@@ -92,5 +124,8 @@ func runDedupe(ctx context.Context, cmd *base.Command, args []string) error {
 		Database: dir,
 		Mode:     dedupeFlags.mode,
 	})
+	if err != nil {
+		base.SetExitStatus(base.SApplicationError)
+	}
 	return err
 }
