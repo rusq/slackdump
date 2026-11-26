@@ -20,7 +20,7 @@ it keeps the copy with the highest chunk ID overall.
 # Preview what would be removed
 slackdump tools dedupe /path/to/archive
 
-# Actually perform dedupe
+# Remove duplicates directly without a preview
 slackdump tools dedupe -execute /path/to/archive
 
 # Collapse message rows by channel and timestamp
@@ -34,7 +34,7 @@ point the command at the database file itself.
 
 | Flag | Description |
 |------|-------------|
-| `-execute` | Required flag to actually remove duplicate entities |
+| `-execute` | Remove duplicate entities directly without first printing a preview |
 | `-mode` | `exact` matches message payloads byte for byte. `message-key` matches by channel and timestamp regardless of payload. |
 
 `message-key` is useful after merging multiple Slack exports of the same
@@ -49,6 +49,7 @@ timestamp as one logical message.
 ```bash
 $ slackdump tools dedupe ./slackdump_20241231_150405
 Duplicate messages: 42
+Duplicate canvas messages: 0
 Duplicate users: 548
 Duplicate channels: 3
 Duplicate channel users: 17
@@ -58,14 +59,8 @@ Chunks to prune: 14
 Run with -execute to perform dedupe.
 
 $ slackdump tools dedupe -execute ./slackdump_20241231_150405
-Duplicate messages: 42
-Duplicate users: 548
-Duplicate channels: 3
-Duplicate channel users: 17
-Duplicate files: 1
-Chunks to prune: 14
-
 Removed messages: 42
+Removed canvas messages: 0
 Removed users: 548
 Removed channels: 3
 Removed channel users: 17

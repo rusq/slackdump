@@ -29,6 +29,9 @@ var newRepo = func(mode repository.MessageDedupeMode) repository.DedupeRepositor
 
 func Run(ctx context.Context, db *sqlx.DB, opts Options) (Result, error) {
 	repo := newRepo(opts.Mode)
+	if opts.Execute {
+		return execute(ctx, db, opts, repo)
+	}
 
 	counts, err := repo.Preview(ctx, db)
 	if err != nil {
@@ -57,20 +60,18 @@ func Run(ctx context.Context, db *sqlx.DB, opts Options) (Result, error) {
 		fmt.Fprintf(opts.Report, "Chunks to prune: %d\n", counts.Chunks)
 	}
 
-	result := Result{Counts: counts}
-	if !opts.Execute {
-		if opts.Report != nil &&
-			(counts.Messages > 0 || counts.CanvasMessages > 0 || counts.Users > 0 || counts.Channels > 0 || counts.ChannelUsers > 0 || counts.Files > 0 || counts.Chunks > 0) {
-			fmt.Fprintln(opts.Report, "\nRun with -execute to perform dedupe.")
-		}
-		return result, nil
+	if opts.Report != nil &&
+		(counts.Messages > 0 || counts.CanvasMessages > 0 || counts.Users > 0 || counts.Channels > 0 || counts.ChannelUsers > 0 || counts.Files > 0 || counts.Chunks > 0) {
+		fmt.Fprintln(opts.Report, "\nRun with -execute to perform dedupe.")
 	}
+	return Result{Counts: counts}, nil
+}
 
+func execute(ctx context.Context, db *sqlx.DB, opts Options, repo repository.DedupeRepository) (Result, error) {
 	removed, err := repo.Deduplicate(ctx, db)
 	if err != nil {
 		return Result{}, fmt.Errorf("deduplicate entities: %w", err)
 	}
-	result.Removed = removed
 
 	slog.InfoContext(ctx, "dedupe execute",
 		"database", opts.Database,
@@ -85,7 +86,7 @@ func Run(ctx context.Context, db *sqlx.DB, opts Options) (Result, error) {
 	)
 
 	if opts.Report != nil {
-		fmt.Fprintf(opts.Report, "\nRemoved messages: %d\n", removed.Messages)
+		fmt.Fprintf(opts.Report, "Removed messages: %d\n", removed.Messages)
 		fmt.Fprintf(opts.Report, "Removed canvas messages: %d\n", removed.CanvasMessages)
 		fmt.Fprintf(opts.Report, "Removed users: %d\n", removed.Users)
 		fmt.Fprintf(opts.Report, "Removed channels: %d\n", removed.Channels)
@@ -93,5 +94,5 @@ func Run(ctx context.Context, db *sqlx.DB, opts Options) (Result, error) {
 		fmt.Fprintf(opts.Report, "Removed files: %d\n", removed.Files)
 		fmt.Fprintf(opts.Report, "Removed chunks: %d\n", removed.Chunks)
 	}
-	return result, nil
+	return Result{Removed: removed}, nil
 }

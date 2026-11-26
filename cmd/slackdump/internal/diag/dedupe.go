@@ -29,7 +29,7 @@ from a finished session. If none of the copies came from a finished session,
 it keeps the copy with the highest chunk ID overall.
 
 By default dedupe only reports what would be removed. Pass the directory
-containing slackdump.sqlite. Use -execute to perform deduplication.
+containing slackdump.sqlite. Use -execute to remove duplicates without a preview.
 
 The same cleanup can be run automatically after a successful resume with:
 
@@ -45,7 +45,7 @@ var dedupeFlags struct {
 func init() {
 	cmdDedupe.Run = runDedupe
 	dedupeFlags.mode = repository.MessageDedupeExact
-	cmdDedupe.Flag.BoolVar(&dedupeFlags.execute, "execute", false, "actually remove duplicate entities")
+	cmdDedupe.Flag.BoolVar(&dedupeFlags.execute, "execute", false, "remove duplicate entities without a preview")
 	cmdDedupe.Flag.Var(&dedupeFlags.mode, "mode", "message dedupe mode: exact or message-key")
 }
 
