@@ -134,17 +134,16 @@ type dedupeCheckpoint struct {
 	stats            DedupeStats
 	rowsExamined     int64
 	batchesCommitted int64
-	countersScope    string
 }
 
 func readDedupeCheckpoint(ctx context.Context, tx *sqlx.Tx) (dedupeCheckpoint, error) {
 	const stmt = `SELECT MODE, OWNER, ENTITY, KEY1, KEY2, MESSAGES, CANVAS_MESSAGES, USERS, CHANNELS, CHANNEL_USERS, FILES, CHUNKS,
-		ROWS_EXAMINED, BATCHES_COMMITTED, COUNTERS_SCOPE
+		ROWS_EXAMINED, BATCHES_COMMITTED
 		FROM DEDUPE_CHECKPOINT WHERE ID = 1`
 	var p dedupeCheckpoint
 	err := tx.QueryRowxContext(ctx, stmt).Scan(&p.mode, &p.owner, &p.entity, &p.key.id, &p.key.user,
 		&p.stats.Messages, &p.stats.CanvasMessages, &p.stats.Users, &p.stats.Channels, &p.stats.ChannelUsers, &p.stats.Files, &p.stats.Chunks,
-		&p.rowsExamined, &p.batchesCommitted, &p.countersScope)
+		&p.rowsExamined, &p.batchesCommitted)
 	if errors.Is(err, sql.ErrNoRows) {
 		return dedupeCheckpoint{}, nil
 	}
@@ -154,11 +153,11 @@ func readDedupeCheckpoint(ctx context.Context, tx *sqlx.Tx) (dedupeCheckpoint, e
 func (p dedupeCheckpoint) save(ctx context.Context, tx *sqlx.Tx) error {
 	const stmt = `INSERT OR REPLACE INTO DEDUPE_CHECKPOINT
 		(ID, MODE, OWNER, ENTITY, KEY1, KEY2, MESSAGES, CANVAS_MESSAGES, USERS, CHANNELS, CHANNEL_USERS, FILES, CHUNKS,
-		ROWS_EXAMINED, BATCHES_COMMITTED, COUNTERS_SCOPE)
-		VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+		ROWS_EXAMINED, BATCHES_COMMITTED)
+		VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 	_, err := tx.ExecContext(ctx, tx.Rebind(stmt), p.mode, p.owner, p.entity, p.key.id, p.key.user,
 		p.stats.Messages, p.stats.CanvasMessages, p.stats.Users, p.stats.Channels, p.stats.ChannelUsers, p.stats.Files, p.stats.Chunks,
-		p.rowsExamined, p.batchesCommitted, p.countersScope)
+		p.rowsExamined, p.batchesCommitted)
 	return err
 }
 
@@ -182,7 +181,7 @@ func (r dedupeRepository) deduplicateBatch(ctx context.Context, db *sqlx.DB, own
 	}
 	hadCheckpoint := progress.owner != ""
 	if progress.mode != r.messageMode.String() {
-		progress = dedupeCheckpoint{mode: r.messageMode.String(), countersScope: "full_pass"}
+		progress = dedupeCheckpoint{mode: r.messageMode.String()}
 	}
 	priorStats := progress.stats
 	priorExamined := progress.rowsExamined
@@ -262,7 +261,6 @@ func (r dedupeRepository) deduplicateBatch(ctx context.Context, db *sqlx.DB, own
 		slog.Duration("batch_elapsed", time.Since(started)),
 		slog.Int64("rows_examined_total", progress.rowsExamined),
 		slog.Int64("batches_committed_total", progress.batchesCommitted),
-		slog.String("counters_scope", progress.countersScope),
 		slog.Int64("removed_rows_total", removedRows),
 		slog.Int64("removed_chunks_total", stats.Chunks),
 		slog.Bool("complete", nextKey == nil),

@@ -102,7 +102,7 @@ func TestMigrate(t *testing.T) {
 			tx, err := db.Beginx()
 			require.NoError(t, err)
 			defer tx.Rollback()
-			p := dedupeCheckpoint{mode: MessageDedupeExact.String(), owner: "test", key: dedupeKey{id: int64(200)}, countersScope: "full_pass"}
+			p := dedupeCheckpoint{mode: MessageDedupeExact.String(), owner: "test", key: dedupeKey{id: int64(200)}}
 			require.NoError(t, p.save(ctx, tx))
 			require.NoError(t, tx.Commit())
 		}
@@ -126,6 +126,21 @@ func TestMigrate(t *testing.T) {
 			require.Zero(t, count, mutation)
 		}
 
+		// Older SQLite versions reject STRICT tables for the whole database.
+		var schema string
+		require.NoError(t, db.Get(&schema, "SELECT sql FROM sqlite_schema WHERE name = 'DEDUPE_CHECKPOINT'"))
+		require.NotContains(t, schema, "STRICT")
+		// KEY1 keeps numeric-looking text keys as text.
+		_, err = db.Exec(`INSERT INTO DEDUPE_CHECKPOINT
+			(ID, MODE, OWNER, ENTITY, KEY1, KEY2, MESSAGES, CANVAS_MESSAGES, USERS, CHANNELS, CHANNEL_USERS, FILES, CHUNKS, ROWS_EXAMINED, BATCHES_COMMITTED)
+			VALUES (1, 'exact', 'test', 2, '123', '', 0, 0, 0, 0, 0, 0, 0, 0, 0)`)
+		require.NoError(t, err)
+		var keyType string
+		require.NoError(t, db.Get(&keyType, "SELECT typeof(KEY1) FROM DEDUPE_CHECKPOINT"))
+		require.Equal(t, "text", keyType)
+		_, err = db.Exec("DELETE FROM DEDUPE_CHECKPOINT")
+		require.NoError(t, err)
+
 		seedCheckpoint()
 		require.NoError(t, goose.DownToContext(ctx, db.DB, "migrations", oldVersion))
 		require.NoError(t, db.Get(&count, "SELECT COUNT(*) FROM sqlite_schema WHERE name LIKE 'DEDUPE_%'"))
@@ -134,61 +149,6 @@ func TestMigrate(t *testing.T) {
 		require.NoError(t, Migrate(ctx, db.DB, false))
 		require.NoError(t, db.Get(&count, "SELECT COUNT(*) FROM DEDUPE_CHECKPOINT"))
 		require.Zero(t, count)
-	})
-
-	t.Run("dedupe counter upgrade preserves legacy checkpoint", func(t *testing.T) {
-		db, err := sqlx.Open(Driver, ":memory:")
-		require.NoError(t, err)
-		t.Cleanup(func() { db.Close() })
-		ctx := t.Context()
-		const oldVersion = 20261126000000
-		require.NoError(t, goose.UpToContext(ctx, db.DB, "migrations", oldVersion))
-		populateCheckpointDedupeTest(t, db)
-		_, err = db.Exec(`INSERT INTO DEDUPE_CHECKPOINT
-			(ID, MODE, OWNER, ENTITY, KEY1, KEY2, MESSAGES, CANVAS_MESSAGES, USERS, CHANNELS, CHANNEL_USERS, FILES, CHUNKS)
-			VALUES (1, 'exact', 'legacy', 0, 100, '', 5, 0, 0, 0, 0, 0, 2)`)
-		require.NoError(t, err)
-
-		readCheckpoint := func() dedupeCheckpoint {
-			t.Helper()
-			tx, err := db.BeginTxx(ctx, nil)
-			require.NoError(t, err)
-			defer tx.Rollback()
-			got, err := readDedupeCheckpoint(ctx, tx)
-			require.NoError(t, err)
-			return got
-		}
-
-		require.NoError(t, Migrate(ctx, db.DB, false))
-		migrated := readCheckpoint()
-		require.Equal(t, "legacy", migrated.owner)
-		require.Equal(t, int64(100), migrated.key.id)
-		require.Equal(t, DedupeStats{Messages: 5, Chunks: 2}, migrated.stats)
-		require.Equal(t, "since_upgrade", migrated.countersScope)
-		require.Zero(t, migrated.rowsExamined)
-		require.Zero(t, migrated.batchesCommitted)
-
-		repo := dedupeRepository{messageMode: MessageDedupeExact}
-		_, err = repo.deduplicateBatch(ctx, db, "", 2)
-		require.NoError(t, err)
-		continued := readCheckpoint()
-		require.Equal(t, "since_upgrade", continued.countersScope)
-		require.EqualValues(t, 6, continued.rowsExamined)
-		require.EqualValues(t, 1, continued.batchesCommitted)
-
-		require.NoError(t, goose.DownToContext(ctx, db.DB, "migrations", oldVersion))
-		var count int
-		require.NoError(t, db.Get(&count, `SELECT COUNT(*) FROM pragma_table_info('DEDUPE_CHECKPOINT')
-			WHERE name IN ('ROWS_EXAMINED', 'BATCHES_COMMITTED', 'COUNTERS_SCOPE')`))
-		require.Zero(t, count)
-		require.NoError(t, Migrate(ctx, db.DB, false))
-		restored := readCheckpoint()
-		require.Equal(t, continued.owner, restored.owner)
-		require.Equal(t, continued.key, restored.key)
-		require.Equal(t, continued.stats, restored.stats)
-		require.Equal(t, "since_upgrade", restored.countersScope)
-		require.Zero(t, restored.rowsExamined)
-		require.Zero(t, restored.batchesCommitted)
 	})
 
 	t.Run("adds canvas message types", func(t *testing.T) {

@@ -30,6 +30,15 @@ slackdump tools dedupe -mode message-key -execute /path/to/archive
 Pass the archive directory that contains `slackdump.sqlite`. You do not need to
 point the command at the database file itself.
 
+Preview opens the archive read-only and does not upgrade its schema. If the
+archive was created before v4.5.1 and has not been opened by a newer version
+since, it lacks the index that dedupe uses, and preview prints a note that it
+may be very slow. To add the index without removing duplicates, open the
+archive once with a command that upgrades it, such as `slackdump view`, then
+run the preview again. This applies all pending schema migrations, not only
+the index. `slackdump tools dedupe -execute` also adds the index, but it
+removes duplicates straight away without a preview.
+
 ## Flags
 
 | Flag | Description |
@@ -53,9 +62,7 @@ together. Each batch commits its removals and a checkpoint together.
 An INFO log entry after each successful transaction reports the tables
 processed, rows examined and removals for the batch and pass, elapsed batch
 time, committed batch count, and the next checkpoint when one remains.
-Rows examined counts indexed payload rows before deletion. A resumed
-checkpoint created by an older version reports its new examined-row and
-batch counters as `since_upgrade`. A new pass reports `full_pass`.
+Rows examined counts indexed payload rows before deletion.
 
 If execution stops, rerun `slackdump tools dedupe -execute` on the same archive
 in the same mode. This also continues cleanup started by

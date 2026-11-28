@@ -1,10 +1,12 @@
 -- +goose Up
+-- Not STRICT: SQLite before 3.37 rejects the whole schema for STRICT tables.
+-- KEY1 has no declared type, so values keep their storage class.
 CREATE TABLE DEDUPE_CHECKPOINT (
     ID              INTEGER PRIMARY KEY CHECK (ID = 1),
     MODE            TEXT    NOT NULL CHECK (MODE IN ('exact', 'message-key')),
     OWNER           TEXT    NOT NULL,
     ENTITY          INTEGER NOT NULL CHECK (ENTITY IN (0, 2, 3, 4, 5)),
-    KEY1            ANY     NOT NULL,
+    KEY1                    NOT NULL,
     KEY2            TEXT    NOT NULL,
     MESSAGES        INTEGER NOT NULL,
     CANVAS_MESSAGES INTEGER NOT NULL,
@@ -13,8 +15,10 @@ CREATE TABLE DEDUPE_CHECKPOINT (
     CHANNEL_USERS   INTEGER NOT NULL,
     FILES           INTEGER NOT NULL,
     CHUNKS          INTEGER NOT NULL,
+    ROWS_EXAMINED     INTEGER NOT NULL,
+    BATCHES_COMMITTED INTEGER NOT NULL,
     CHECK ((ENTITY = 0 AND typeof(KEY1) = 'integer') OR (ENTITY <> 0 AND typeof(KEY1) = 'text'))
-) STRICT;
+);
 
 -- Normal writers insert the chunk and its payload in the same transaction.
 -- Track changes to chunk eligibility and session precedence as well.

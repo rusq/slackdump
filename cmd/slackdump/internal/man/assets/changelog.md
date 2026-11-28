@@ -20,6 +20,9 @@
 - Fix slow database deduplication on large channels (#750), including cleanup
   after `resume -dedupe`. Existing archives automatically build a message index
   on first open after upgrading; this can take extra time and disk space.
+  `slackdump tools dedupe` preview opens the archive read-only and does not
+  build the index; on an archive without it, preview prints a note suggesting
+  to open the archive once with a command such as `slackdump view` first.
 
 ## v4.5.0
 

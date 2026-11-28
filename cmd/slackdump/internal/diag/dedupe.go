@@ -3,6 +3,8 @@ package diag
 import (
 	"context"
 	"fmt"
+	"io"
+	"log/slog"
 	"os"
 
 	"github.com/jmoiron/sqlx"
@@ -30,6 +32,12 @@ it keeps the copy with the highest chunk ID overall.
 
 By default dedupe only reports what would be removed. Pass the directory
 containing slackdump.sqlite. Use -execute to remove duplicates without a preview.
+
+Preview opens the archive read-only and does not upgrade its schema. Archives
+created before v4.5.1 lack the dedupe index until a newer version upgrades
+them, so preview can be very slow on large ones and prints a note. Open such
+an archive once with a command that upgrades it, such as 'slackdump view',
+to add the index without removing duplicates.
 
 Large archives are processed in batches. If execution stops, run -execute
 again with the same mode to continue from the last committed batch. An archive
@@ -102,6 +110,48 @@ func openDedupeDB(ctx context.Context, path string, execute bool) (*sqlx.DB, err
 	return conn, nil
 }
 
+// dedupeIndexName is the MESSAGE index added by migration 20261019000000.
+const dedupeIndexName = "MESSAGE_DEDUPE_IDX"
+
+// missingIndexNote is printed before a preview of an archive without the
+// message dedupe index.
+const missingIndexNote = `Note: this archive was created before v4.5.1 and lacks the dedupe index.
+Preview does not upgrade the archive, so it may be very slow on large archives.
+To add the index without removing duplicates, open the archive once with a
+command that upgrades its schema, such as 'slackdump view', then run the
+preview again. 'slackdump tools dedupe -execute' also adds the index, but it
+removes duplicates straight away without a preview.
+
+`
+
+// checkDedupeIndex warns on lg and w when the database lacks the message
+// dedupe index. Preview does not migrate, so archives created before v4.5.1
+// lack the index and the duplicate query can be very slow. A failed check is
+// logged and never blocks the preview.
+func checkDedupeIndex(ctx context.Context, lg *slog.Logger, db *sqlx.DB, path string, w io.Writer) {
+	ok, err := hasDedupeIndex(ctx, db)
+	if err != nil {
+		lg.DebugContext(ctx, "dedupe index check failed", "path", path, "error", err)
+		return
+	}
+	if ok {
+		return
+	}
+	lg.WarnContext(ctx, "dedupe index missing, preview may be very slow", "path", path, "index", dedupeIndexName)
+	if w != nil {
+		fmt.Fprint(w, missingIndexNote)
+	}
+}
+
+// hasDedupeIndex reports whether the database has the message dedupe index.
+func hasDedupeIndex(ctx context.Context, db *sqlx.DB) (bool, error) {
+	var n int
+	if err := db.GetContext(ctx, &n, "SELECT COUNT(*) FROM sqlite_master WHERE type = 'index' AND name = ?", dedupeIndexName); err != nil {
+		return false, err
+	}
+	return n > 0, nil
+}
+
 func runDedupe(ctx context.Context, cmd *base.Command, args []string) error {
 	if err := cmd.Flag.Parse(args); err != nil {
 		return err
@@ -117,6 +167,9 @@ func runDedupe(ctx context.Context, cmd *base.Command, args []string) error {
 		return err
 	}
 	defer conn.Close()
+	if !dedupeFlags.execute {
+		checkDedupeIndex(ctx, cfg.Log, conn, dir, os.Stdout)
+	}
 
 	_, err = dedupecmd.Run(ctx, conn, dedupecmd.Options{
 		Execute:  dedupeFlags.execute,

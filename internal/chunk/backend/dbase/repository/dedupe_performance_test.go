@@ -148,13 +148,38 @@ func Test_buildDeleteDuplicatesStmt(t *testing.T) {
 				require.NotContains(t, steps, "SCAN CHUNK")
 				require.NotContains(t, steps, "SCAN SESSION")
 				require.NotContains(t, steps, "BLOOM FILTER")
-
-				countQuery := "EXPLAIN QUERY PLAN " + buildDedupeRangeCount(entity.table, fixture.bounds)
-				require.NoError(t, db.Select(&plan, countQuery, fixture.bounds.appendArgs(nil)...))
-				require.Len(t, plan, 1)
-				require.Contains(t, plan[0].Detail, "SEARCH T USING COVERING INDEX "+dedupeRangeIndex(entity.table)+" "+fixture.search)
 			})
 		}
+	}
+}
+
+func Test_buildDedupeRangeCount(t *testing.T) {
+	db := skewedDedupeFixture(t, 7000)
+	_, err := db.Exec("ANALYZE")
+	require.NoError(t, err)
+	for _, fixture := range []struct {
+		name   string
+		table  string
+		bounds dedupeRange
+		search string
+	}{
+		{"broad first message range", "MESSAGE", dedupeRange{columns: []string{"ID"}, upper: dedupeKey{id: int64(4000)}}, "(ID<?)"},
+		{"narrow message range", "MESSAGE", dedupeRange{[]string{"ID"}, dedupeKey{id: int64(4000)}, dedupeKey{id: int64(4070)}}, "(ID>? AND ID<?)"},
+		{"last message range", "MESSAGE", dedupeRange{columns: []string{"ID"}, lower: dedupeKey{id: int64(4000)}}, "(ID>?)"},
+		{"compound membership range", "CHANNEL_USER", dedupeRange{[]string{"CHANNEL_ID", "USER_ID"}, dedupeKey{id: "C-hot", user: "U125"}, dedupeKey{id: "C-hot", user: "U150"}}, "((CHANNEL_ID,USER_ID)>(?,?) AND (CHANNEL_ID,USER_ID)<(?,?))"},
+	} {
+		t.Run(fixture.name, func(t *testing.T) {
+			var plan []struct {
+				ID      int
+				Parent  int
+				NotUsed int `db:"notused"`
+				Detail  string
+			}
+			query := "EXPLAIN QUERY PLAN " + buildDedupeRangeCount(fixture.table, fixture.bounds)
+			require.NoError(t, db.Select(&plan, query, fixture.bounds.appendArgs(nil)...))
+			require.Len(t, plan, 1)
+			require.Contains(t, plan[0].Detail, "SEARCH T USING COVERING INDEX "+dedupeRangeIndex(fixture.table)+" "+fixture.search)
+		})
 	}
 }
 

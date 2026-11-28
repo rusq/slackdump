@@ -1,6 +1,8 @@
 package diag
 
 import (
+	"bytes"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -42,6 +44,65 @@ func Test_openDedupeDB(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, execute.Get(&count, "SELECT COUNT(*) FROM sqlite_schema WHERE name = 'DEDUPE_CHECKPOINT'"))
 	require.Equal(t, 1, count)
+}
+
+func Test_checkDedupeIndex(t *testing.T) {
+	for _, tt := range []struct {
+		name     string
+		version  int64 // 0 migrates to the latest schema
+		wantNote bool
+	}{
+		{"initial schema", 20250207082949, true},
+		{"latest schema", 0, false},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := t.Context()
+			db, err := sqlx.ConnectContext(ctx, repository.Driver, repository.DSN(filepath.Join(t.TempDir(), "slackdump.sqlite"), repository.ModeDefault))
+			require.NoError(t, err)
+			t.Cleanup(func() { db.Close() })
+			if tt.version == 0 {
+				require.NoError(t, repository.Migrate(ctx, db.DB, false))
+			} else {
+				require.NoError(t, goose.UpToContext(ctx, db.DB, "migrations", tt.version))
+			}
+			var logs, report bytes.Buffer
+			lg := slog.New(slog.NewTextHandler(&logs, &slog.HandlerOptions{Level: slog.LevelWarn}))
+			checkDedupeIndex(ctx, lg, db, "archive", &report)
+			if tt.wantNote {
+				require.Equal(t, missingIndexNote, report.String())
+				require.Contains(t, logs.String(), "dedupe index missing")
+			} else {
+				require.Empty(t, report.String())
+				require.Empty(t, logs.String())
+			}
+		})
+	}
+}
+
+func Test_hasDedupeIndex(t *testing.T) {
+	for _, tt := range []struct {
+		name    string
+		version int64 // 0 migrates to the latest schema
+		want    bool
+	}{
+		{"initial schema", 20250207082949, false},
+		{"latest schema", 0, true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := t.Context()
+			db, err := sqlx.ConnectContext(ctx, repository.Driver, repository.DSN(filepath.Join(t.TempDir(), "slackdump.sqlite"), repository.ModeDefault))
+			require.NoError(t, err)
+			t.Cleanup(func() { db.Close() })
+			if tt.version == 0 {
+				require.NoError(t, repository.Migrate(ctx, db.DB, false))
+			} else {
+				require.NoError(t, goose.UpToContext(ctx, db.DB, "migrations", tt.version))
+			}
+			got, err := hasDedupeIndex(ctx, db)
+			require.NoError(t, err)
+			require.Equal(t, tt.want, got)
+		})
+	}
 }
 
 func Test_runDedupe(t *testing.T) {

@@ -246,7 +246,6 @@ func TestDedupeRepository_Deduplicate(t *testing.T) {
 		require.Regexp(t, `"batch_elapsed":[1-9][0-9]*`, first)
 		require.Contains(t, first, `"rows_examined_total":34`)
 		require.Contains(t, first, `"batches_committed_total":1`)
-		require.Contains(t, first, `"counters_scope":"full_pass"`)
 		require.Contains(t, first, `"complete":true`)
 		require.NotContains(t, first, `"next_key"`)
 
@@ -281,7 +280,6 @@ func TestDedupeRepository_Deduplicate(t *testing.T) {
 		require.Contains(t, final, event)
 		require.Contains(t, final, `"rows_examined_total":34`)
 		require.Contains(t, final, fmt.Sprintf(`"batches_committed_total":%d`, len(lines)+1))
-		require.Contains(t, final, `"counters_scope":"full_pass"`)
 		require.Contains(t, final, `"removed_rows_total":17`)
 		require.Contains(t, final, `"removed_chunks_total":7`)
 		require.Contains(t, final, `"complete":true`)
