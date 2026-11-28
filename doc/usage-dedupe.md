@@ -20,7 +20,7 @@ it keeps the copy with the highest chunk ID overall.
 # Preview what would be removed
 slackdump tools dedupe /path/to/archive
 
-# Actually perform dedupe
+# Remove duplicates directly without a preview
 slackdump tools dedupe -execute /path/to/archive
 
 # Collapse message rows by channel and timestamp
@@ -30,11 +30,20 @@ slackdump tools dedupe -mode message-key -execute /path/to/archive
 Pass the archive directory that contains `slackdump.sqlite`. You do not need to
 point the command at the database file itself.
 
+Preview opens the archive read-only and does not upgrade its schema. If the
+archive was created before v4.5.1 and has not been opened by a newer version
+since, it lacks the index that dedupe uses, and preview prints a note that it
+may be very slow. To add the index without removing duplicates, open the
+archive once with a command that upgrades it, such as `slackdump view`, then
+run the preview again. This applies all pending schema migrations, not only
+the index. `slackdump tools dedupe -execute` also adds the index, but it
+removes duplicates straight away without a preview.
+
 ## Flags
 
 | Flag | Description |
 |------|-------------|
-| `-execute` | Required flag to actually remove duplicate entities |
+| `-execute` | Remove duplicate entities directly without first printing a preview |
 | `-mode` | `exact` matches message payloads byte for byte. `message-key` matches by channel and timestamp regardless of payload. |
 
 `message-key` is useful after merging multiple Slack exports of the same
@@ -44,11 +53,37 @@ discard edited or reaction variants for the same message timestamp. It
 also treats channel-history and thread-message copies of the same channel
 timestamp as one logical message.
 
+## Continuing after an interruption
+
+Small archives are deduplicated in one transaction. For larger archives,
+Slackdump targets 400,000 indexed rows per payload table when choosing batch
+boundaries. A batch can exceed that target to keep all copies of a key
+together. Each batch commits its removals and a checkpoint together.
+An INFO log entry after each successful transaction reports the tables
+processed, rows examined and removals for the batch and pass, elapsed batch
+time, committed batch count, and the next checkpoint when one remains.
+Rows examined counts indexed payload rows before deletion.
+
+If execution stops, rerun `slackdump tools dedupe -execute` on the same archive
+in the same mode. This also continues cleanup started by
+`slackdump resume -dedupe`, which uses `exact` mode. A completed run reports the
+removals from all batches of that pass, including batches that committed
+before an interruption.
+
+Archive writes that change chunks or session precedence invalidate the
+checkpoint. Switching modes starts a fresh pass over the current archive.
+Committed removals persist in both cases. If another dedupe process or
+archive writer changes the checkpoint during execution, rerun dedupe after
+the other process has finished. Preview reports duplicates still present in
+the archive and leaves the checkpoint untouched. Edit archive data through
+Slackdump so writes can invalidate checkpoints.
+
 ## Example
 
 ```bash
 $ slackdump tools dedupe ./slackdump_20241231_150405
 Duplicate messages: 42
+Duplicate canvas messages: 0
 Duplicate users: 548
 Duplicate channels: 3
 Duplicate channel users: 17
@@ -58,14 +93,8 @@ Chunks to prune: 14
 Run with -execute to perform dedupe.
 
 $ slackdump tools dedupe -execute ./slackdump_20241231_150405
-Duplicate messages: 42
-Duplicate users: 548
-Duplicate channels: 3
-Duplicate channel users: 17
-Duplicate files: 1
-Chunks to prune: 14
-
 Removed messages: 42
+Removed canvas messages: 0
 Removed users: 548
 Removed channels: 3
 Removed channel users: 17

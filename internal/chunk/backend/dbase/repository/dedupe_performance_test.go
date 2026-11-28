@@ -79,6 +79,110 @@ func expectedDedupeMessages(t *testing.T, db *sqlx.DB, mode MessageDedupeMode) [
 	return rows
 }
 
+func Test_buildDedupeKeyProbe(t *testing.T) {
+	db := skewedDedupeFixture(t, 2000)
+	for _, fixture := range []struct {
+		table   string
+		columns []string
+		key     dedupeKey
+		search  string
+	}{
+		{"MESSAGE", []string{"ID"}, dedupeKey{id: int64(50)}, "sqlite_autoindex_MESSAGE_1 (ID>?)"},
+		{"CHANNEL_USER", []string{"CHANNEL_ID", "USER_ID"}, dedupeKey{id: "C-hot", user: "U100"}, "sqlite_autoindex_CHANNEL_USER_1 ((CHANNEL_ID,USER_ID)>(?,?))"},
+	} {
+		t.Run(fixture.table, func(t *testing.T) {
+			for _, op := range []string{">=", ">"} {
+				var plan struct {
+					ID      int
+					Parent  int
+					NotUsed int `db:"notused"`
+					Detail  string
+				}
+				query := "EXPLAIN QUERY PLAN " + buildDedupeKeyProbe(fixture.table, fixture.columns, op)
+				require.NoError(t, db.Get(&plan, query, append(fixture.key.args(fixture.columns), 1)...))
+				require.Contains(t, plan.Detail, "SEARCH T USING COVERING INDEX "+fixture.search)
+			}
+		})
+	}
+}
+
+func Test_buildDeleteDuplicatesStmt(t *testing.T) {
+	db := skewedDedupeFixture(t, 7000)
+	_, err := db.Exec("ANALYZE")
+	require.NoError(t, err)
+	for _, fixture := range []struct {
+		name   string
+		entity entityType
+		bounds dedupeRange
+		search string
+	}{
+		{"broad first message range", entMessages, dedupeRange{columns: []string{"ID"}, upper: dedupeKey{id: int64(4000)}}, "(ID<?)"},
+		{"narrow message range", entMessages, dedupeRange{[]string{"ID"}, dedupeKey{id: int64(4000)}, dedupeKey{id: int64(4070)}}, "(ID>? AND ID<?)"},
+		{"last message range", entMessages, dedupeRange{columns: []string{"ID"}, lower: dedupeKey{id: int64(4000)}}, "(ID>?)"},
+		{"compound membership range", entChannelUsers, dedupeRange{[]string{"CHANNEL_ID", "USER_ID"}, dedupeKey{id: "C-hot", user: "U125"}, dedupeKey{id: "C-hot", user: "U150"}}, "((CHANNEL_ID,USER_ID)>(?,?) AND (CHANNEL_ID,USER_ID)<(?,?))"},
+	} {
+		for _, mode := range []MessageDedupeMode{MessageDedupeExact, MessageDedupeKey} {
+			t.Run(fixture.name+"/"+string(mode), func(t *testing.T) {
+				entity := (dedupeRepository{messageMode: mode}).entities()[fixture.entity]
+				var plan []struct {
+					ID      int
+					Parent  int
+					NotUsed int `db:"notused"`
+					Detail  string
+				}
+				query := "EXPLAIN QUERY PLAN " + buildDeleteDuplicatesStmt(entity, fixture.bounds)
+				args := fixture.bounds.appendArgs(chunkTypeArgs(entity.chunkTypes))
+				require.NoError(t, db.Select(&plan, query, args...))
+				var details []string
+				for _, step := range plan {
+					details = append(details, step.Detail)
+				}
+				steps := strings.Join(details, "\n")
+				t.Log(steps)
+				indexSearch := strings.ReplaceAll(steps, "USING COVERING INDEX", "USING INDEX")
+				require.Contains(t, indexSearch, "SEARCH T USING INDEX sqlite_autoindex_"+entity.table+"_1 "+fixture.search)
+				require.Contains(t, steps, "SEARCH "+entity.table+" USING INTEGER PRIMARY KEY (rowid=?)")
+				require.Contains(t, steps, "SEARCH CHUNK USING INTEGER PRIMARY KEY (rowid=?)")
+				require.Contains(t, steps, "SEARCH SESSION USING INTEGER PRIMARY KEY (rowid=?)")
+				require.NotContains(t, steps, "SCAN T")
+				require.NotContains(t, steps, "SCAN CHUNK")
+				require.NotContains(t, steps, "SCAN SESSION")
+				require.NotContains(t, steps, "BLOOM FILTER")
+			})
+		}
+	}
+}
+
+func Test_buildDedupeRangeCount(t *testing.T) {
+	db := skewedDedupeFixture(t, 7000)
+	_, err := db.Exec("ANALYZE")
+	require.NoError(t, err)
+	for _, fixture := range []struct {
+		name   string
+		table  string
+		bounds dedupeRange
+		search string
+	}{
+		{"broad first message range", "MESSAGE", dedupeRange{columns: []string{"ID"}, upper: dedupeKey{id: int64(4000)}}, "(ID<?)"},
+		{"narrow message range", "MESSAGE", dedupeRange{[]string{"ID"}, dedupeKey{id: int64(4000)}, dedupeKey{id: int64(4070)}}, "(ID>? AND ID<?)"},
+		{"last message range", "MESSAGE", dedupeRange{columns: []string{"ID"}, lower: dedupeKey{id: int64(4000)}}, "(ID>?)"},
+		{"compound membership range", "CHANNEL_USER", dedupeRange{[]string{"CHANNEL_ID", "USER_ID"}, dedupeKey{id: "C-hot", user: "U125"}, dedupeKey{id: "C-hot", user: "U150"}}, "((CHANNEL_ID,USER_ID)>(?,?) AND (CHANNEL_ID,USER_ID)<(?,?))"},
+	} {
+		t.Run(fixture.name, func(t *testing.T) {
+			var plan []struct {
+				ID      int
+				Parent  int
+				NotUsed int `db:"notused"`
+				Detail  string
+			}
+			query := "EXPLAIN QUERY PLAN " + buildDedupeRangeCount(fixture.table, fixture.bounds)
+			require.NoError(t, db.Select(&plan, query, fixture.bounds.appendArgs(nil)...))
+			require.Len(t, plan, 1)
+			require.Contains(t, plan[0].Detail, "SEARCH T USING COVERING INDEX "+dedupeRangeIndex(fixture.table)+" "+fixture.search)
+		})
+	}
+}
+
 func Test_withDuplicateRows(t *testing.T) {
 	for _, mode := range []MessageDedupeMode{MessageDedupeExact, MessageDedupeKey} {
 		t.Run(string(mode), func(t *testing.T) {
@@ -97,7 +201,6 @@ func Test_withDuplicateRows(t *testing.T) {
 					}{
 						{"count", `SELECT COUNT(1) FROM duplicates`},
 						{"pruning", buildPrunableChunksSelect(entity)},
-						{"delete", buildDeleteDuplicatesStmt(entity)},
 					} {
 						t.Run(query.name, func(t *testing.T) {
 							args := chunkTypeArgs(entity.chunkTypes)
@@ -123,10 +226,7 @@ func Test_withDuplicateRows(t *testing.T) {
 								}
 							}
 							require.NoError(t, rows.Err())
-							// DELETE can instead scan T and probe latest by its grouped identity.
-							if query.name != "delete" {
-								require.True(t, identityLookup, "missing identity lookup: %v", details)
-							}
+							require.True(t, identityLookup, "missing identity lookup: %v", details)
 							t.Log(strings.Join(details, "\n"))
 						})
 					}

@@ -63,8 +63,10 @@ channels, channel users, files, and now-empty chunks after a successful resume:
 slackdump resume -dedupe slackdump_20241231_150405
 ```
 
-Deduplication runs only after resume finishes successfully. To preview or run
-the same cleanup manually later, use `slackdump tools dedupe`.
+Deduplication runs only after resume finishes successfully. If it stops partway
+through a large archive, run `slackdump tools dedupe -execute <archive>` to
+continue from the last committed batch. Starting another backup can invalidate
+that checkpoint. To preview the remaining work, use `slackdump tools dedupe`.
 
 ### Skipping complete threads.
 

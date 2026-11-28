@@ -3,6 +3,8 @@ package repository
 import (
 	"context"
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 
 	"github.com/jmoiron/sqlx"
@@ -18,6 +20,10 @@ type DedupeStats struct {
 	ChannelUsers   int64
 	Files          int64
 	Chunks         int64
+}
+
+func (s DedupeStats) totalRows() int64 {
+	return s.Messages + s.CanvasMessages + s.Users + s.Channels + s.ChannelUsers + s.Files
 }
 
 type MessageDedupeMode string
@@ -60,6 +66,7 @@ func WithMessageDedupeMode(mode MessageDedupeMode) DedupeOption {
 
 type dedupeRepository struct {
 	messageMode MessageDedupeMode
+	batchRows   int
 }
 
 type dedupeMode int
@@ -160,7 +167,7 @@ func (r dedupeRepository) Preview(ctx context.Context, db *sqlx.DB) (DedupeStats
 		if err != nil {
 			return DedupeStats{}, fmt.Errorf("count duplicate %s: %w", entity.etype, err)
 		}
-		counts.assign(entity.etype, n)
+		counts.add(entity.etype, n)
 
 		chunks, err := r.prunableChunkIDs(ctx, db, entity)
 		if err != nil {
@@ -172,52 +179,56 @@ func (r dedupeRepository) Preview(ctx context.Context, db *sqlx.DB) (DedupeStats
 }
 
 func (r dedupeRepository) Deduplicate(ctx context.Context, db *sqlx.DB) (DedupeStats, error) {
-	tx, err := db.BeginTxx(ctx, nil)
-	if err != nil {
-		return DedupeStats{}, fmt.Errorf("begin transaction: %w", err)
+	limit := r.batchRows
+	if limit == 0 {
+		limit = dedupeBatchRows
 	}
-	defer tx.Rollback()
-
-	var result DedupeStats
-	for _, entity := range r.entities() {
-		chunkIDs, err := r.prunableChunkIDs(ctx, tx, entity)
-		if err != nil {
-			return DedupeStats{}, fmt.Errorf("query prunable %s chunks: %w", entity.etype, err)
-		}
-
-		rowsRemoved, err := deleteDuplicates(ctx, tx, entity)
-		if err != nil {
-			return DedupeStats{}, fmt.Errorf("delete duplicate %s: %w", entity.etype, err)
-		}
-		result.assign(entity.etype, rowsRemoved)
-
-		chunksRemoved, err := deleteChunksByID(ctx, tx, chunkIDs, entity.chunkTypes)
-		if err != nil {
-			return DedupeStats{}, fmt.Errorf("delete prunable %s chunks: %w", entity.etype, err)
-		}
-		result.Chunks += chunksRemoved
+	if r.messageMode != MessageDedupeKey {
+		r.messageMode = MessageDedupeExact
 	}
 
-	if err := tx.Commit(); err != nil {
-		return DedupeStats{}, fmt.Errorf("commit: %w", err)
+	var owner string
+	for {
+		progress, err := r.deduplicateBatch(ctx, db, owner, limit)
+		if err != nil {
+			return DedupeStats{}, err
+		}
+		if progress.owner == "" {
+			return progress.stats, nil
+		}
+		owner = progress.owner
 	}
-	return result, nil
 }
 
-func (s *DedupeStats) assign(entType entityType, n int64) {
+func (r dedupeRepository) deduplicateRange(ctx context.Context, tx *sqlx.Tx, entity dedupeEntity, bounds dedupeRange, stats *DedupeStats) error {
+	rowsRemoved, touchedChunks, err := deleteDuplicates(ctx, tx, entity, bounds)
+	if err != nil {
+		return fmt.Errorf("delete duplicate %s: %w", entity.etype, err)
+	}
+	stats.add(entity.etype, rowsRemoved)
+
+	chunksRemoved, err := pruneTouchedChunks(ctx, tx, entity, touchedChunks)
+	if err != nil {
+		return fmt.Errorf("delete prunable %s chunks: %w", entity.etype, err)
+	}
+	stats.Chunks += chunksRemoved
+	return nil
+}
+
+func (s *DedupeStats) add(entType entityType, n int64) {
 	switch entType {
 	case entMessages:
-		s.Messages = n
+		s.Messages += n
 	case entCanvasMessages:
-		s.CanvasMessages = n
+		s.CanvasMessages += n
 	case entUsers:
-		s.Users = n
+		s.Users += n
 	case entChannels:
-		s.Channels = n
+		s.Channels += n
 	case entChannelUsers:
-		s.ChannelUsers = n
+		s.ChannelUsers += n
 	case entFiles:
-		s.Files = n
+		s.Files += n
 	}
 }
 
@@ -258,20 +269,32 @@ func (r dedupeRepository) prunableChunkIDs(ctx context.Context, db sqlx.QueryerC
 	return ids, rows.Err()
 }
 
-func deleteDuplicates(ctx context.Context, tx *sqlx.Tx, entity dedupeEntity) (int64, error) {
-	stmt := withDuplicateRows(entity, buildDeleteDuplicatesStmt(entity))
-	result, err := tx.ExecContext(ctx, tx.Rebind(stmt), chunkTypeArgs(entity.chunkTypes)...)
+func deleteDuplicates(ctx context.Context, tx *sqlx.Tx, entity dedupeEntity, bounds dedupeRange) (int64, []int64, error) {
+	stmt := buildDeleteDuplicatesStmt(entity, bounds)
+	args := bounds.appendArgs(chunkTypeArgs(entity.chunkTypes))
+	rows, err := queryxContext(ctx, tx, stmt, args...)
 	if err != nil {
-		return 0, err
+		return 0, nil, err
 	}
-	affected, err := result.RowsAffected()
-	if err != nil {
-		return 0, fmt.Errorf("duplicate %s rows affected: %w", entity.etype, err)
+	defer rows.Close()
+
+	var removed int64
+	touched := make(map[int64]struct{})
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return 0, nil, fmt.Errorf("scan removed %s chunk: %w", entity.etype, err)
+		}
+		touched[id] = struct{}{}
+		removed++
 	}
-	return affected, nil
+	if err := rows.Err(); err != nil {
+		return 0, nil, err
+	}
+	return removed, slices.Sorted(maps.Keys(touched)), nil
 }
 
-func deleteChunksByID(ctx context.Context, tx *sqlx.Tx, ids []int64, chunkTypes []chunk.ChunkType) (int64, error) {
+func pruneTouchedChunks(ctx context.Context, tx *sqlx.Tx, entity dedupeEntity, ids []int64) (int64, error) {
 	if len(ids) == 0 {
 		return 0, nil
 	}
@@ -279,8 +302,8 @@ func deleteChunksByID(ctx context.Context, tx *sqlx.Tx, ids []int64, chunkTypes 
 	// batchSize limits the number of chunk IDs per DELETE statement to stay
 	// within SQLite's SQLITE_MAX_VARIABLE_NUMBER limit.
 	const batchSize = 10000
-	typeArgs := chunkTypeArgs(chunkTypes)
-	typePlaceholders := strings.Join(placeholders(chunkTypes), ",")
+	typeArgs := chunkTypeArgs(entity.chunkTypes)
+	typePlaceholders := strings.Join(placeholders(entity.chunkTypes), ",")
 
 	var totalAffected int64
 	for start := 0; start < len(ids); start += batchSize {
@@ -292,7 +315,9 @@ func deleteChunksByID(ctx context.Context, tx *sqlx.Tx, ids []int64, chunkTypes 
 		buf.WriteString(strings.Join(placeholders(batch), ","))
 		buf.WriteString(") AND TYPE_ID IN (")
 		buf.WriteString(typePlaceholders)
-		buf.WriteString(")")
+		// Probe every remaining key in the touched chunk, including keys
+		// outside this range. Pre-existing empty chunks are never touched.
+		fmt.Fprintf(&buf, ") AND NOT EXISTS (SELECT 1 FROM %[1]s INDEXED BY %[1]s_CHUNK_ID_IDX WHERE CHUNK_ID = CHUNK.ID)", entity.table)
 
 		args := make([]any, 0, len(batch)+len(typeArgs))
 		for _, id := range batch {
@@ -315,8 +340,7 @@ func deleteChunksByID(ctx context.Context, tx *sqlx.Tx, ids []int64, chunkTypes 
 
 func buildPrunableChunksSelect(entity dedupeEntity) string {
 	var buf strings.Builder
-	buf.WriteString("SELECT C.ID\n")
-	buf.WriteString("FROM eligible_chunks C\n")
+	buf.WriteString("SELECT C.ID\nFROM eligible_chunks C\n")
 	buf.WriteString("LEFT JOIN ")
 	buf.WriteString(entity.table)
 	buf.WriteString(" T ON T.CHUNK_ID = C.ID\n")
@@ -329,17 +353,39 @@ func buildPrunableChunksSelect(entity dedupeEntity) string {
 	return buf.String()
 }
 
-func buildDeleteDuplicatesStmt(entity dedupeEntity) string {
-	var buf strings.Builder
-	buf.WriteString("DELETE FROM ")
-	buf.WriteString(entity.table)
-	buf.WriteString(" AS T\nWHERE EXISTS (\nSELECT 1 FROM duplicates D WHERE D.CHUNK_ID = T.CHUNK_ID")
-	if len(entity.keyColumns) > 0 {
-		buf.WriteString(" AND ")
-		buf.WriteString(joinOnColumns("D", "T", entity.keyColumns))
+func (e dedupeEntity) groupColumns(alias string) string {
+	keys := qualifyColumns(alias, e.keyColumns)
+	if e.mode == dedupeByData {
+		keys += ", " + alias + ".DATA"
 	}
-	buf.WriteString("\n)")
-	return buf.String()
+	return keys
+}
+
+func buildDeleteDuplicatesStmt(entity dedupeEntity, bounds dedupeRange) string {
+	source := entity.table + " T"
+	where := "(SELECT TYPE_ID FROM CHUNK WHERE ID = T.CHUNK_ID) IN (" + strings.Join(placeholders(entity.chunkTypes), ",") + ")"
+	if predicate := bounds.predicate("T"); predicate != "" {
+		// Force the primary-key prefix search even when ANALYZE makes scanning
+		// an identity index and then filtering by ID look cheaper to SQLite.
+		source += " INDEXED BY " + dedupeRangeIndex(entity.table)
+		where += " AND " + predicate
+	}
+	// Scalar lookups constrain CHUNK by its rowid on each eligible payload
+	// row. SQLite cannot reorder a join or build a Bloom filter over CHUNK.
+	// COALESCE puts a missing session in the same tier as unfinished ones.
+	return fmt.Sprintf(`WITH ranked AS (
+		SELECT T.rowid AS RID, ROW_NUMBER() OVER (
+			PARTITION BY %s
+			ORDER BY COALESCE((
+				SELECT FINISHED = TRUE FROM SESSION
+				WHERE ID = (SELECT SESSION_ID FROM CHUNK WHERE ID = T.CHUNK_ID)
+			), FALSE) DESC, T.CHUNK_ID DESC
+		) AS POS
+		FROM %s
+		WHERE %s
+	)
+	DELETE FROM %s WHERE rowid IN (SELECT RID FROM ranked WHERE POS > 1)
+	RETURNING CHUNK_ID`, entity.groupColumns("T"), source, where, entity.table)
 }
 
 func withDuplicateRows(entity dedupeEntity, final string) string {
@@ -347,8 +393,8 @@ func withDuplicateRows(entity dedupeEntity, final string) string {
 	buf.WriteString("WITH eligible_chunks AS NOT MATERIALIZED (\n")
 	buf.WriteString("SELECT ID, SESSION_ID FROM CHUNK WHERE TYPE_ID IN (")
 	buf.WriteString(strings.Join(placeholders(entity.chunkTypes), ","))
-	buf.WriteString(")\n), latest AS (\n")
-	buf.WriteString("SELECT ")
+	buf.WriteString(")\n), ")
+	buf.WriteString("latest AS (\nSELECT ")
 	buf.WriteString(selectAliasedColumns("T", entity.keyColumns))
 	if entity.mode == dedupeByData {
 		buf.WriteString(", T.DATA AS DATA")
@@ -358,12 +404,8 @@ func withDuplicateRows(entity dedupeEntity, final string) string {
 	buf.WriteString(entity.table)
 	buf.WriteString(" T\nJOIN eligible_chunks C ON C.ID = T.CHUNK_ID\n")
 	buf.WriteString("LEFT JOIN SESSION S ON S.ID = C.SESSION_ID\nGROUP BY ")
-	buf.WriteString(qualifyColumns("T", entity.keyColumns))
-	if entity.mode == dedupeByData {
-		buf.WriteString(", T.DATA")
-	}
-	buf.WriteString("\n),\nduplicates AS (\n")
-	buf.WriteString("SELECT T.")
+	buf.WriteString(entity.groupColumns("T"))
+	buf.WriteString("\n),\nduplicates AS (\nSELECT T.")
 	buf.WriteString(strings.Join(entity.keyColumns, ", T."))
 	buf.WriteString(", T.CHUNK_ID\n")
 	buf.WriteString("FROM ")

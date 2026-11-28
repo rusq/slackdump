@@ -66,7 +66,7 @@ func TestMigrate(t *testing.T) {
 				require.Equal(t, []byte(`{}`), data)
 			}
 			// Down removes only the new index; existing indexes and rows survive.
-			require.NoError(t, goose.DownContext(ctx, db, "migrations"))
+			require.NoError(t, goose.DownToContext(ctx, db, "migrations", 20260725000000))
 			var count int
 			require.NoError(t, db.QueryRowContext(ctx,
 				`SELECT COUNT(*) FROM sqlite_master WHERE name='MESSAGE_DEDUPE_IDX'`).Scan(&count))
@@ -83,6 +83,73 @@ func TestMigrate(t *testing.T) {
 			require.NoError(t, Migrate(ctx, db, false))
 		})
 	}
+
+	t.Run("dedupe checkpoint upgrade and rollback", func(t *testing.T) {
+		db, err := sqlx.Open(Driver, ":memory:")
+		require.NoError(t, err)
+		t.Cleanup(func() { db.Close() })
+		ctx := t.Context()
+		const oldVersion = 20261019000000
+		require.NoError(t, goose.UpToContext(ctx, db.DB, "migrations", oldVersion))
+		insertSessionForTest(t, db, 1, false, nil)
+		_, err = db.Exec(`INSERT INTO CHUNK (ID, UNIX_TS, SESSION_ID, TYPE_ID) VALUES (1, 0, 1, 0)`)
+		require.NoError(t, err)
+		insertMessageWithChunkForTest(t, db, 100, 1, []byte(`{}`))
+
+		require.NoError(t, Migrate(ctx, db.DB, false))
+		seedCheckpoint := func() {
+			t.Helper()
+			tx, err := db.Beginx()
+			require.NoError(t, err)
+			defer tx.Rollback()
+			p := dedupeCheckpoint{mode: MessageDedupeExact.String(), owner: "test", key: dedupeKey{id: int64(200)}}
+			require.NoError(t, p.save(ctx, tx))
+			require.NoError(t, tx.Commit())
+		}
+		var count int
+		for _, mutation := range []string{
+			"UPDATE SESSION SET FINISHED = TRUE WHERE ID = 1",
+			"INSERT INTO SESSION (ID, MODE) VALUES (2, 'resume')",
+			"UPDATE CHUNK SET SESSION_ID = 2 WHERE ID = 1",
+			"DELETE FROM SESSION WHERE ID = 1",
+			"INSERT INTO CHUNK (ID, UNIX_TS, SESSION_ID, TYPE_ID) VALUES (2, 0, 2, 0)",
+			"DELETE FROM CHUNK WHERE ID = 2",
+		} {
+			seedCheckpoint()
+			_, err := db.Exec("UPDATE SESSION SET UPDATED_AT = CURRENT_TIMESTAMP")
+			require.NoError(t, err)
+			require.NoError(t, db.Get(&count, "SELECT COUNT(*) FROM DEDUPE_CHECKPOINT"))
+			require.Equal(t, 1, count)
+			_, err = db.Exec(mutation)
+			require.NoError(t, err)
+			require.NoError(t, db.Get(&count, "SELECT COUNT(*) FROM DEDUPE_CHECKPOINT"))
+			require.Zero(t, count, mutation)
+		}
+
+		// Older SQLite versions reject STRICT tables for the whole database.
+		var schema string
+		require.NoError(t, db.Get(&schema, "SELECT sql FROM sqlite_schema WHERE name = 'DEDUPE_CHECKPOINT'"))
+		require.NotContains(t, schema, "STRICT")
+		// KEY1 keeps numeric-looking text keys as text.
+		_, err = db.Exec(`INSERT INTO DEDUPE_CHECKPOINT
+			(ID, MODE, OWNER, ENTITY, KEY1, KEY2, MESSAGES, CANVAS_MESSAGES, USERS, CHANNELS, CHANNEL_USERS, FILES, CHUNKS, ROWS_EXAMINED, BATCHES_COMMITTED)
+			VALUES (1, 'exact', 'test', 2, '123', '', 0, 0, 0, 0, 0, 0, 0, 0, 0)`)
+		require.NoError(t, err)
+		var keyType string
+		require.NoError(t, db.Get(&keyType, "SELECT typeof(KEY1) FROM DEDUPE_CHECKPOINT"))
+		require.Equal(t, "text", keyType)
+		_, err = db.Exec("DELETE FROM DEDUPE_CHECKPOINT")
+		require.NoError(t, err)
+
+		seedCheckpoint()
+		require.NoError(t, goose.DownToContext(ctx, db.DB, "migrations", oldVersion))
+		require.NoError(t, db.Get(&count, "SELECT COUNT(*) FROM sqlite_schema WHERE name LIKE 'DEDUPE_%'"))
+		require.Zero(t, count)
+		verifyMessageChunkForTest(t, db, 100, 1)
+		require.NoError(t, Migrate(ctx, db.DB, false))
+		require.NoError(t, db.Get(&count, "SELECT COUNT(*) FROM DEDUPE_CHECKPOINT"))
+		require.Zero(t, count)
+	})
 
 	t.Run("adds canvas message types", func(t *testing.T) {
 		db, err := sql.Open(Driver, ":memory:")

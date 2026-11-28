@@ -56,7 +56,7 @@ func TestRun(t *testing.T) {
 		newRepo = func(repository.MessageDedupeMode) repository.DedupeRepository {
 			return stubRepo{
 				previewFn: func(context.Context, *sqlx.DB) (repository.DedupeStats, error) {
-					return repository.DedupeStats{Messages: 1}, nil
+					return repository.DedupeStats{}, errors.New("execute should skip preview")
 				},
 				dedupeFn: func(context.Context, *sqlx.DB) (repository.DedupeStats, error) {
 					return repository.DedupeStats{Messages: 1}, nil
@@ -68,6 +68,7 @@ func TestRun(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, int64(1), res.Removed.Messages)
 		assert.Contains(t, buf.String(), "Removed messages: 1")
+		assert.NotContains(t, buf.String(), "Duplicate messages:")
 	})
 
 	t.Run("log only mode does not write report", func(t *testing.T) {
