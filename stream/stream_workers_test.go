@@ -21,10 +21,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"log/slog"
-	"net/http"
-	"strings"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -66,118 +63,87 @@ func (c *canvasSlack) CanvasThreadRoots(context.Context, string) ([]slack.Messag
 	return c.roots, c.err
 }
 
-type canvasMissingMetadataTransport struct {
-	missingDocumentID bool
-}
-
-func (transport canvasMissingMetadataTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	var body string
-	switch req.URL.Path {
-	case "/api/quip.lookupThreadIds":
-		body = `{"ok":true,"lookup":{"FCANVAS":"OYP123"}}`
-		if transport.missingDocumentID {
-			body = `{"ok":true,"lookup":{}}`
-		}
-	case "/canvas/collab/controller-init":
-		body = `{"user_id":"U123"}`
-	case "/canvas/-/load-data/editor/1":
-		// An empty response has no thread metadata table.
-	default:
-		return nil, fmt.Errorf("unexpected canvas request: %s", req.URL.Path)
-	}
-	return &http.Response{
-		StatusCode: http.StatusOK,
-		Header:     make(http.Header),
-		Body:       io.NopCloser(strings.NewReader(body)),
-	}, nil
-}
-
-func Test_logCanvasAPIError(t *testing.T) {
-	canvasClient, err := edge.NewWithClient("test", "T123", "xoxc-test", &http.Client{Transport: canvasMissingMetadataTransport{}})
-	require.NoError(t, err)
-	_, missingMetadata := canvasClient.CanvasThreadRoots(t.Context(), "FCANVAS")
-	require.Error(t, missingMetadata)
-	missingMetadata = newAPIError("canvas.threadRoots", missingMetadata)
-	require.True(t, edge.IsCanvasMissingThreadMetadata(missingMetadata), "real discovery and stream wrappers must preserve the sentinel")
-
-	canvasClient, err = edge.NewWithClient("test", "T123", "xoxc-test", &http.Client{Transport: canvasMissingMetadataTransport{missingDocumentID: true}})
-	require.NoError(t, err)
-	_, missingDocumentID := canvasClient.CanvasThreadRoots(t.Context(), "FCANVAS")
-	require.Error(t, missingDocumentID)
-	missingDocumentID = newAPIError("canvas.threadRoots", missingDocumentID)
-	require.True(t, edge.IsCanvasMissingDocumentID(missingDocumentID), "real discovery and stream wrappers must preserve the sentinel")
-
-	previousLogger := slog.Default()
-	t.Cleanup(func() { slog.SetDefault(previousLogger) })
+func Test_canvasErrorReason(t *testing.T) {
+	missingMetadata := newAPIError("canvas.threadRoots", fmt.Errorf("canvas editor/1: %w", edge.ErrCanvasMissingThreadMetadata))
+	missingDocumentID := newAPIError("canvas.threadRoots", fmt.Errorf("%w for file %q", edge.ErrCanvasMissingDocumentID, "FCANVAS"))
 	for _, tt := range []struct {
-		name   string
-		err    error
-		reason string
+		name string
+		err  error
+		want string
 	}{
+		{"nil", nil, ""},
 		{"wrapped missing metadata", missingMetadata, "missing thread metadata"},
 		{"wrapped missing document ID", missingDocumentID, "missing document ID"},
-		{"files.info not visible", newAPIError("files.info", slack.SlackErrorResponse{Err: "not_visible"}), "viewing permission not granted to this Slack user"},
-		{"files.info access denied", newAPIError("files.info", slack.SlackErrorResponse{Err: "access_denied"}), "access denied"},
-		{"wrapped files.info pointer error", fmt.Errorf("canvas file: %w", newAPIError("files.info", fmt.Errorf("Slack: %w", &slack.SlackErrorResponse{Err: "not_visible"}))), "viewing permission not granted to this Slack user"},
-		{"wrapped files.info value error", fmt.Errorf("canvas file: %w", newAPIError("files.info", fmt.Errorf("Slack: %w", slack.SlackErrorResponse{Err: "access_denied"}))), "access denied"},
-		{"unknown API error", newAPIError("canvas.threadRoots", errors.New("unexpected response")), ""},
 		{"same metadata text", errors.New(missingMetadata.Error()), ""},
 		{"same document ID text", errors.New(missingDocumentID.Error()), ""},
+		{"files.info not visible", newAPIError("files.info", slack.SlackErrorResponse{Err: "not_visible"}), "viewing permission not granted to this Slack user"},
+		{"files.info access denied", newAPIError("files.info", slack.SlackErrorResponse{Err: "access_denied"}), "this Slack user cannot access the canvas file"},
+		{"files.info deleted", newAPIError("files.info", slack.SlackErrorResponse{Err: "file_deleted"}), "Slack reports the canvas was deleted"},
+		{"wrapped files.info value error", fmt.Errorf("canvas file: %w", newAPIError("files.info", fmt.Errorf("Slack: %w", slack.SlackErrorResponse{Err: "not_visible"}))), "viewing permission not granted to this Slack user"},
+		{"unknown API error", newAPIError("canvas.threadRoots", errors.New("unexpected response")), ""},
 		{"not visible in other API", newAPIError("canvas.threadRoots", slack.SlackErrorResponse{Err: "not_visible"}), ""},
 		{"access denied in other API", newAPIError("conversations.replies", slack.SlackErrorResponse{Err: "access_denied"}), ""},
+		{"deleted in other API", newAPIError("canvas.threadRoots", slack.SlackErrorResponse{Err: "file_deleted"}), ""},
 		{"bare not visible", slack.SlackErrorResponse{Err: "not_visible"}, ""},
 		{"bare access denied", slack.SlackErrorResponse{Err: "access_denied"}, ""},
 		{"files.info not visible text", newAPIError("files.info", errors.New("not_visible")), ""},
 		{"files.info access denied text", newAPIError("files.info", errors.New("access_denied")), ""},
-		{"files.info deleted", newAPIError("files.info", slack.SlackErrorResponse{Err: "file_deleted"}), "Slack reports the Canvas was deleted"},
-		{"deleted in other API", newAPIError("canvas.threadRoots", slack.SlackErrorResponse{Err: "file_deleted"}), ""},
 		{"files.info deleted text", newAPIError("files.info", errors.New("file_deleted")), ""},
 		{"files.info not found", newAPIError("files.info", slack.SlackErrorResponse{Err: "file_not_found"}), ""},
 		{"files.info unknown code", newAPIError("files.info", slack.SlackErrorResponse{Err: "unexpected_error"}), ""},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			for _, level := range []slog.Level{slog.LevelInfo, slog.LevelDebug} {
-				t.Run(level.String(), func(t *testing.T) {
-					var output bytes.Buffer
-					slog.SetDefault(slog.New(slog.NewJSONHandler(&output, &slog.HandlerOptions{Level: level})))
-					message := "canvas discussions unavailable"
-					if apiErr, ok := errors.AsType[*apiError](tt.err); ok && apiErr.op == "files.info" {
-						message = "canvas file unavailable"
-					}
-					logCanvasAPIError(t.Context(), message, "COWNER", "FCANVAS", "CCANVAS", "123.456", tt.err)
+			assert.Equal(t, tt.want, canvasErrorReason(tt.err))
+		})
+	}
+}
 
-					var records []map[string]any
-					decoder := json.NewDecoder(&output)
-					for decoder.More() {
-						var record map[string]any
-						require.NoError(t, decoder.Decode(&record))
-						records = append(records, record)
-					}
-					wantRecords := 1
-					if tt.reason != "" && level == slog.LevelDebug {
-						wantRecords++
-					}
-					require.Len(t, records, wantRecords)
-					for _, record := range records {
-						assert.Equal(t, "COWNER", record["owner_channel_id"])
-						assert.Equal(t, "FCANVAS", record["canvas_file_id"])
-						assert.Equal(t, "CCANVAS", record["canvas_channel_id"])
-						assert.Equal(t, "123.456", record["thread_ts"])
-					}
-					assert.Equal(t, "WARN", records[0]["level"])
-					if tt.reason != "" {
-						assert.Equal(t, message+": "+tt.reason, records[0]["msg"])
-						assert.NotContains(t, records[0], "err")
-						if level == slog.LevelDebug {
-							assert.Equal(t, "DEBUG", records[1]["level"])
-							assert.Equal(t, message, records[1]["msg"])
-							assert.Equal(t, tt.err.Error(), records[1]["err"])
-						}
-					} else {
-						assert.Equal(t, message, records[0]["msg"])
-						assert.Equal(t, tt.err.Error(), records[0]["err"])
-					}
-				})
+func Test_logCanvasAPIError(t *testing.T) {
+	const message = "canvas file unavailable"
+	known := newAPIError("files.info", slack.SlackErrorResponse{Err: "not_visible"})
+	unknown := newAPIError("files.info", errors.New("unexpected response"))
+	for _, tt := range []struct {
+		name       string
+		level      slog.Level
+		err        error
+		wantReason string
+		wantErr    bool
+	}{
+		{"known reason at info", slog.LevelInfo, known, "viewing permission not granted to this Slack user", false},
+		{"known reason at debug", slog.LevelDebug, known, "viewing permission not granted to this Slack user", true},
+		{"unknown reason at info", slog.LevelInfo, unknown, "", true},
+		{"unknown reason at debug", slog.LevelDebug, unknown, "", true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			var output bytes.Buffer
+			lg := slog.New(slog.NewJSONHandler(&output, &slog.HandlerOptions{Level: tt.level}))
+
+			logCanvasAPIError(t.Context(), lg, message, "COWNER", "FCANVAS", "CCANVAS", "123.456", tt.err)
+
+			var records []map[string]any
+			decoder := json.NewDecoder(&output)
+			for decoder.More() {
+				var record map[string]any
+				require.NoError(t, decoder.Decode(&record))
+				records = append(records, record)
+			}
+			require.Len(t, records, 1)
+			record := records[0]
+			assert.Equal(t, "WARN", record["level"])
+			assert.Equal(t, message, record["msg"])
+			assert.Equal(t, "COWNER", record["owner_channel_id"])
+			assert.Equal(t, "FCANVAS", record["canvas_file_id"])
+			assert.Equal(t, "CCANVAS", record["canvas_channel_id"])
+			assert.Equal(t, "123.456", record["thread_ts"])
+			if tt.wantReason != "" {
+				assert.Equal(t, tt.wantReason, record["reason"])
+			} else {
+				assert.NotContains(t, record, "reason")
+			}
+			if tt.wantErr {
+				assert.Equal(t, tt.err.Error(), record["err"])
+			} else {
+				assert.NotContains(t, record, "err")
 			}
 		})
 	}

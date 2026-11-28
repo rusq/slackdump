@@ -18,7 +18,6 @@ package edge
 import (
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -45,42 +44,6 @@ func TestCanvasChannelFromFileID(t *testing.T) {
 func canvasChannelFromFileID(fileID string) string {
 	c, _ := structures.CanvasChannelID(fileID)
 	return c
-}
-
-func TestIsCanvasMissingThreadMetadata(t *testing.T) {
-	for _, tt := range []struct {
-		name string
-		err  error
-		want bool
-	}{
-		{"nil", nil, false},
-		{"sentinel", errCanvasMissingThreadTable, true},
-		{"wrapped sentinel", fmt.Errorf("canvas editor/1: %w", errCanvasMissingThreadTable), true},
-		{"same text", errors.New(errCanvasMissingThreadTable.Error()), false},
-		{"other canvas error", errCanvasMissingUserID, false},
-	} {
-		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, IsCanvasMissingThreadMetadata(tt.err))
-		})
-	}
-}
-
-func TestIsCanvasMissingDocumentID(t *testing.T) {
-	for _, tt := range []struct {
-		name string
-		err  error
-		want bool
-	}{
-		{"nil", nil, false},
-		{"sentinel", errCanvasMissingOYPID, true},
-		{"wrapped sentinel", fmt.Errorf("canvas discovery: %w", errCanvasMissingOYPID), true},
-		{"same text", errors.New(errCanvasMissingOYPID.Error()), false},
-		{"other canvas error", errCanvasMissingUserID, false},
-	} {
-		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, IsCanvasMissingDocumentID(tt.err))
-		})
-	}
 }
 
 func Test_encodeEditor1Request(t *testing.T) {
@@ -174,7 +137,7 @@ func Test_decodeCanvasThreadMetadata(t *testing.T) {
 
 	t.Run("missing table", func(t *testing.T) {
 		_, err := decodeCanvasThreadMetadata(nil)
-		require.ErrorIs(t, err, errCanvasMissingThreadTable)
+		require.ErrorIs(t, err, ErrCanvasMissingThreadMetadata)
 	})
 
 	t.Run("missing thread ID", func(t *testing.T) {
@@ -438,7 +401,7 @@ func TestClient_CanvasThreadRoots(t *testing.T) {
 
 		cl := Client{cl: http.DefaultClient, webclientAPI: srv.URL + "/api/"}
 		_, err := cl.CanvasThreadRoots(t.Context(), fileID)
-		require.ErrorIs(t, err, errCanvasMissingOYPID)
+		require.ErrorIs(t, err, ErrCanvasMissingDocumentID)
 	})
 
 	t.Run("missing controller user ID", func(t *testing.T) {
@@ -454,6 +417,26 @@ func TestClient_CanvasThreadRoots(t *testing.T) {
 		cl := Client{cl: http.DefaultClient, webclientAPI: srv.URL + "/api/"}
 		_, err := cl.CanvasThreadRoots(t.Context(), fileID)
 		require.ErrorIs(t, err, errCanvasMissingUserID)
+	})
+
+	t.Run("missing thread metadata table", func(t *testing.T) {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			switch r.URL.Path {
+			case "/api/quip.lookupThreadIds":
+				_, _ = io.WriteString(w, `{"ok":true,"lookup":{"`+fileID+`":"`+oypID+`"}}`)
+			case "/canvas/collab/controller-init":
+				_, _ = io.WriteString(w, `{"user_id":"ZEH9EA5279K"}`)
+			case "/canvas/-/load-data/editor/1":
+				// An empty response has no thread metadata table.
+			default:
+				t.Errorf("unexpected request path %q", r.URL.Path)
+			}
+		}))
+		defer srv.Close()
+
+		cl := Client{cl: http.DefaultClient, webclientAPI: srv.URL + "/api/"}
+		_, err := cl.CanvasThreadRoots(t.Context(), fileID)
+		require.ErrorIs(t, err, ErrCanvasMissingThreadMetadata)
 	})
 }
 

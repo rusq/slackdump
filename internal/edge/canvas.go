@@ -40,22 +40,14 @@ import (
 )
 
 var (
-	errCanvasMissingOYPID       = errors.New("canvas quip.lookupThreadIds: missing document ID")
-	errCanvasMissingUserID      = errors.New("canvas controller-init: missing user ID")
-	errCanvasMissingThreadTable = errors.New("canvas editor/1: missing thread metadata table")
+	// ErrCanvasMissingDocumentID is returned by canvas comment discovery when
+	// quip.lookupThreadIds does not map the file to a document ID.
+	ErrCanvasMissingDocumentID = errors.New("canvas quip.lookupThreadIds: missing document ID")
+	errCanvasMissingUserID     = errors.New("canvas controller-init: missing user ID")
+	// ErrCanvasMissingThreadMetadata is returned by canvas comment discovery
+	// when the editor/1 response has no thread metadata table.
+	ErrCanvasMissingThreadMetadata = errors.New("canvas editor/1: missing thread metadata table")
 )
-
-// IsCanvasMissingThreadMetadata reports whether err indicates that canvas
-// comment discovery could not find the thread metadata table.
-func IsCanvasMissingThreadMetadata(err error) bool {
-	return errors.Is(err, errCanvasMissingThreadTable)
-}
-
-// IsCanvasMissingDocumentID reports whether canvas comment discovery could not
-// find the document ID.
-func IsCanvasMissingDocumentID(err error) bool {
-	return errors.Is(err, errCanvasMissingOYPID)
-}
 
 // CanvasDocumentComment holds the document_comment subfields of a canvas message.
 type CanvasDocumentComment struct {
@@ -339,7 +331,7 @@ func slackTSFromMicroseconds(us uint64) string {
 func decodeCanvasThreadMetadata(body []byte) ([]canvasThreadMetadata, error) {
 	table := pbGet(body, 2, 2, 6, 16)
 	if table == nil {
-		return nil, errCanvasMissingThreadTable
+		return nil, ErrCanvasMissingThreadMetadata
 	}
 
 	rawEntries := pbGetAll(table, 1)
@@ -492,7 +484,7 @@ func (cl *Client) CanvasThreadRoots(ctx context.Context, fileID string) ([]Canva
 	}
 	oypID := lookup[fileID]
 	if oypID == "" {
-		return nil, fmt.Errorf("%w for file %q", errCanvasMissingOYPID, fileID)
+		return nil, fmt.Errorf("%w for file %q", ErrCanvasMissingDocumentID, fileID)
 	}
 
 	userID, err := cl.canvasControllerInit(ctx)
