@@ -61,7 +61,7 @@ func (cs *Stream) channelWorker(ctx context.Context, proc processor.Conversation
 						}
 						continue
 					}
-					logCanvasAPIError(ctx, "canvas file unavailable", channel.ID, fileID, "", "", err)
+					logCanvasAPIError(ctx, slog.Default(), "canvas file unavailable", channel.ID, fileID, "", "", err)
 				}
 
 				canvasClient, supported := cs.client.(client.CanvasRootClient)
@@ -74,7 +74,7 @@ func (cs *Stream) channelWorker(ctx context.Context, proc processor.Conversation
 								return
 							}
 							hiddenID, _ := structures.CanvasChannelID(fileID)
-							logCanvasAPIError(ctx, "canvas discussions unavailable", channel.ID, fileID, hiddenID, "", err)
+							logCanvasAPIError(ctx, slog.Default(), "canvas discussions unavailable", channel.ID, fileID, hiddenID, "", err)
 						}
 					}
 				}
@@ -190,7 +190,7 @@ func (cs *Stream) processCanvasThread(ctx context.Context, proc processor.Conver
 		return err
 	}
 
-	logCanvasAPIError(ctx, "canvas discussion unavailable", req.owner.ID, req.fileID, req.fetch.channelID, req.fetch.threadTS, err)
+	logCanvasAPIError(ctx, slog.Default(), "canvas discussion unavailable", req.owner.ID, req.fileID, req.fetch.channelID, req.fetch.threadTS, err)
 	if err := procCanvasThreadMsg(
 		ctx,
 		proc,
@@ -451,45 +451,53 @@ func canvasErrorIsFatal(err error) bool {
 		!isAPIError(err)
 }
 
-func logCanvasAPIError(ctx context.Context, message, ownerChannelID, fileID, hiddenChannelID, threadTS string, err error) {
-	logger := slog.With(
+// canvasErrorReason returns a short human-readable reason for a non-fatal
+// canvas error, or an empty string if the error is not recognised.
+func canvasErrorReason(err error) string {
+	switch {
+	case errors.Is(err, edge.ErrCanvasMissingThreadMetadata):
+		return "missing thread metadata"
+	case errors.Is(err, edge.ErrCanvasMissingDocumentID):
+		return "missing document ID"
+	}
+	apiErr, ok := errors.AsType[*apiError](err)
+	if !ok || apiErr.op != "files.info" {
+		return ""
+	}
+	slackErr, ok := errors.AsType[slack.SlackErrorResponse](apiErr.err)
+	if !ok {
+		return ""
+	}
+	// files.info error codes:
+	// https://docs.slack.dev/reference/methods/files.info/#errors
+	switch slackErr.Err {
+	case "not_visible":
+		// Reported when this user has not been granted viewing permission.
+		return "viewing permission not granted to this Slack user"
+	case "access_denied":
+		return "this Slack user cannot access the canvas file"
+	case "file_deleted":
+		return "Slack reports the canvas was deleted"
+	}
+	return ""
+}
+
+// logCanvasAPIError logs a non-fatal canvas error as a single warning. When
+// the error is recognised, the record carries a "reason" attribute, and the
+// raw error is attached only if debug logging is enabled.
+func logCanvasAPIError(ctx context.Context, lg *slog.Logger, message, ownerChannelID, fileID, hiddenChannelID, threadTS string, err error) {
+	attrs := []any{
 		"owner_channel_id", ownerChannelID,
 		"canvas_file_id", fileID,
 		"canvas_channel_id", hiddenChannelID,
 		"thread_ts", threadTS,
-	)
-	var reason string
-	switch {
-	case edge.IsCanvasMissingThreadMetadata(err):
-		reason = "missing thread metadata"
-	case edge.IsCanvasMissingDocumentID(err):
-		reason = "missing document ID"
-	default:
-		if apiErr, ok := errors.AsType[*apiError](err); ok && apiErr.op == "files.info" {
-			var code string
-			if slackErr, ok := errors.AsType[slack.SlackErrorResponse](apiErr.err); ok {
-				code = slackErr.Err
-			} else if slackErr, ok := errors.AsType[*slack.SlackErrorResponse](apiErr.err); ok && slackErr != nil {
-				code = slackErr.Err
-			}
-			switch code {
-			case "not_visible":
-				// files.info reports not_visible when this user has not been granted viewing permission:
-				// https://docs.slack.dev/reference/methods/files.info/#errors
-				reason = "viewing permission not granted to this Slack user"
-			case "access_denied":
-				reason = "access denied"
-			case "file_deleted":
-				// files.info documents file_deleted as a deleted file:
-				// https://docs.slack.dev/reference/methods/files.info/#errors
-				reason = "Slack reports the Canvas was deleted"
-			}
-		}
 	}
+	reason := canvasErrorReason(err)
 	if reason != "" {
-		logger.WarnContext(ctx, message+": "+reason)
-		logger.DebugContext(ctx, message, "err", err)
-		return
+		attrs = append(attrs, "reason", reason)
 	}
-	logger.WarnContext(ctx, message, "err", err)
+	if reason == "" || lg.Enabled(ctx, slog.LevelDebug) {
+		attrs = append(attrs, "err", err)
+	}
+	lg.WarnContext(ctx, message, attrs...)
 }
