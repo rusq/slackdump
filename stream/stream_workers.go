@@ -26,6 +26,7 @@ import (
 	"github.com/rusq/slack"
 
 	"github.com/rusq/slackdump/v4/internal/client"
+	"github.com/rusq/slackdump/v4/internal/edge"
 	"github.com/rusq/slackdump/v4/internal/network"
 	"github.com/rusq/slackdump/v4/internal/structures"
 	"github.com/rusq/slackdump/v4/processor"
@@ -451,11 +452,44 @@ func canvasErrorIsFatal(err error) bool {
 }
 
 func logCanvasAPIError(ctx context.Context, message, ownerChannelID, fileID, hiddenChannelID, threadTS string, err error) {
-	slog.WarnContext(ctx, message,
+	logger := slog.With(
 		"owner_channel_id", ownerChannelID,
 		"canvas_file_id", fileID,
 		"canvas_channel_id", hiddenChannelID,
 		"thread_ts", threadTS,
-		"err", err,
 	)
+	var reason string
+	switch {
+	case edge.IsCanvasMissingThreadMetadata(err):
+		reason = "missing thread metadata"
+	case edge.IsCanvasMissingDocumentID(err):
+		reason = "missing document ID"
+	default:
+		if apiErr, ok := errors.AsType[*apiError](err); ok && apiErr.op == "files.info" {
+			var code string
+			if slackErr, ok := errors.AsType[slack.SlackErrorResponse](apiErr.err); ok {
+				code = slackErr.Err
+			} else if slackErr, ok := errors.AsType[*slack.SlackErrorResponse](apiErr.err); ok && slackErr != nil {
+				code = slackErr.Err
+			}
+			switch code {
+			case "not_visible":
+				// files.info reports not_visible when this user has not been granted viewing permission:
+				// https://docs.slack.dev/reference/methods/files.info/#errors
+				reason = "viewing permission not granted to this Slack user"
+			case "access_denied":
+				reason = "access denied"
+			case "file_deleted":
+				// files.info documents file_deleted as a deleted file:
+				// https://docs.slack.dev/reference/methods/files.info/#errors
+				reason = "Slack reports the Canvas was deleted"
+			}
+		}
+	}
+	if reason != "" {
+		logger.WarnContext(ctx, message+": "+reason)
+		logger.DebugContext(ctx, message, "err", err)
+		return
+	}
+	logger.WarnContext(ctx, message, "err", err)
 }

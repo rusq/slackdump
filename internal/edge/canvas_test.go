@@ -18,6 +18,7 @@ package edge
 import (
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -44,6 +45,42 @@ func TestCanvasChannelFromFileID(t *testing.T) {
 func canvasChannelFromFileID(fileID string) string {
 	c, _ := structures.CanvasChannelID(fileID)
 	return c
+}
+
+func TestIsCanvasMissingThreadMetadata(t *testing.T) {
+	for _, tt := range []struct {
+		name string
+		err  error
+		want bool
+	}{
+		{"nil", nil, false},
+		{"sentinel", errCanvasMissingThreadTable, true},
+		{"wrapped sentinel", fmt.Errorf("canvas editor/1: %w", errCanvasMissingThreadTable), true},
+		{"same text", errors.New(errCanvasMissingThreadTable.Error()), false},
+		{"other canvas error", errCanvasMissingUserID, false},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, IsCanvasMissingThreadMetadata(tt.err))
+		})
+	}
+}
+
+func TestIsCanvasMissingDocumentID(t *testing.T) {
+	for _, tt := range []struct {
+		name string
+		err  error
+		want bool
+	}{
+		{"nil", nil, false},
+		{"sentinel", errCanvasMissingOYPID, true},
+		{"wrapped sentinel", fmt.Errorf("canvas discovery: %w", errCanvasMissingOYPID), true},
+		{"same text", errors.New(errCanvasMissingOYPID.Error()), false},
+		{"other canvas error", errCanvasMissingUserID, false},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, IsCanvasMissingDocumentID(tt.err))
+		})
+	}
 }
 
 func Test_encodeEditor1Request(t *testing.T) {
